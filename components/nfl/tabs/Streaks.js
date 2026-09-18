@@ -7,6 +7,7 @@
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT, gradeFor } from '../../../lib/nfl/theme'
 import { streakMarkets, streakBoard, barChoices } from '../../../lib/nfl/streaks'
+import PageHeader from '../../PageHeader'
 
 const REASON_WORD = { rising: 'usage rising', bot: 'bot likes him' }
 const REASON_TITLE = (r) => `Below the volume floor (${r.usage.recent.toFixed(1)} a game over his last 8, floor ${r.usage.floor}) but on the board because: ${r.reasons.map((x) => REASON_WORD[x]).join(', ')}.`
@@ -55,17 +56,20 @@ export default function Streaks({ data, logs, onPlayerClick }) {
 
   return (
     <div className="ts">
-      <section className="ts-hero">
-        <div>
-          <small>TUDDY · STREAKS</small>
-          <h1>{side === 'over' ? 'Who is hot' : 'Who is cold'}</h1>
-          <p>Consecutive games on the same side of a number <b>you</b> pick, last 30 games, no model in the way. Hot is the play; cold is the fade — or the bounce, if you believe in those. Low-volume names only make the board with a reason printed next to them: usage rising, or the bot rating him this week.</p>
-        </div>
-        <div className="ts-side">
-          <button className={side === 'over' ? 'on' : ''} onClick={() => setSide('over')}>🔥 Hottest</button>
-          <button className={side === 'under' ? 'on' : ''} onClick={() => setSide('under')}>🧊 Coldest</button>
-        </div>
-      </section>
+      <PageHeader
+        eyebrow="TUDDY · STREAKS"
+        title={side === 'over' ? 'Who is hot' : 'Who is cold'}
+        note={<>Consecutive games on the same side of a number <b>you</b> pick, last 30 games, no model in the way. Hot is the play; cold is the fade — or the bounce, if you believe in those. Low-volume names only make the board with a reason printed next to them: usage rising, or the bot rating him this week.</>}
+        theme={C}
+        numFont={NUM_FONT}
+        accent={C.green}
+        right={(
+          <div className="ts-side">
+            <button className={side === 'over' ? 'on' : ''} onClick={() => setSide('over')}>🔥 Hottest</button>
+            <button className={side === 'under' ? 'on' : ''} onClick={() => setSide('under')}>🧊 Coldest</button>
+          </div>
+        )}
+      />
 
       <div className="ts-controls">
         <div className="ts-row">{markets.map((m) => <button key={m.key} className={m.key === market.key ? 'on' : ''} onClick={() => { setMk(m.key); setBar(null); setPos('ALL') }}>{LABEL[m.key] || m.key}</button>)}</div>
@@ -95,11 +99,7 @@ export default function Streaks({ data, logs, onPlayerClick }) {
 
       <style>{`
       .ts{display:flex;flex-direction:column;gap:12px}
-      .ts-hero{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:22px 24px;border:1px solid rgba(0,245,173,.28);border-radius:16px;background:radial-gradient(circle at 88% 8%,rgba(0,245,173,.14),transparent 36%),radial-gradient(circle at 6% 100%,rgba(53,205,255,.1),transparent 40%),${C.bg2}}
-      .ts-hero small{color:${C.green};font:900 8px/1 ${NUM_FONT};letter-spacing:.12em}
-      .ts-hero h1{margin:7px 0 5px;font-size:clamp(26px,4.5vw,44px);letter-spacing:-.04em}
-      .ts-hero p{max-width:600px;margin:0;color:${C.text3};font-size:10.5px;line-height:1.5}.ts-hero p b{color:${C.text2}}
-      .ts-side{display:flex;gap:6px;flex-shrink:0}
+            .ts-side{display:flex;gap:6px;flex-shrink:0}
       .ts-side button{padding:10px 14px;border:1px solid ${C.border};border-radius:10px;background:${C.bg};color:${C.text2};font:800 10px/1 ${NUM_FONT};cursor:pointer}
       .ts-side button.on{border-color:${C.green};color:${C.green};background:rgba(0,245,173,.08)}
       .ts-controls{display:flex;flex-direction:column;gap:6px}
@@ -117,7 +117,7 @@ export default function Streaks({ data, logs, onPlayerClick }) {
       .ts-rate,.ts-last,.ts-score{display:flex;flex-direction:column;align-items:flex-end;font-family:${NUM_FONT}}
       .ts-rate b,.ts-last b,.ts-score b{font-size:13px;font-weight:900}.ts-rate small,.ts-last small,.ts-score small{margin-top:2px;font-size:7.5px;font-weight:700;color:${C.text3};white-space:nowrap}
       .ts-empty{padding:26px;border:1px dashed ${C.border2};border-radius:12px;text-align:center;color:${C.text3};font-size:10.5px}
-      @media(max-width:640px){.ts-hero{flex-direction:column;align-items:flex-start}.ts-item{grid-template-columns:18px 1fr 90px 40px;}.ts-item svg{display:none}.ts-rate,.ts-last{display:none}}
+      @media(max-width:640px){.ts-item{grid-template-columns:18px 1fr 90px 40px;}.ts-item svg{display:none}.ts-rate,.ts-last{display:none}}
       `}</style>
     </div>
   )

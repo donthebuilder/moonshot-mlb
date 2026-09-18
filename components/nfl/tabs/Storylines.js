@@ -48,6 +48,7 @@ import { useMemo } from 'react'
 import { C, NUM_FONT } from '../../../lib/nfl/theme'
 import { streakMarkets } from '../../../lib/nfl/streaks'
 import { useResultsArchive } from '../../../lib/nfl/resultsArchive'
+import PageHeader from '../../PageHeader'
 import {
   VERB, NOUN, fmtBar, ordinal, weekLabel,
   milestoneStreaks, modelNarrativeStories, rivalryNights, birthdays,
@@ -110,13 +111,14 @@ export default function Storylines({ data, logs, results, onPlayerClick, setTab 
 
   return (
     <div className="sl">
-      <section className="sl-hero">
-        <span className="sl-dot" aria-hidden="true" />
-        <small>TUDDY · STORYLINES</small>
-        <h1>What the numbers are already saying</h1>
-        <p>Not a leaderboard — a sentence. Every line below is a real, live fact off this week's logs and grading — read as a story instead of a row in a table.</p>
-        {counts && <div className="sl-counts">{counts}</div>}
-      </section>
+      <PageHeader
+        eyebrow="TUDDY · STORYLINES"
+        title="What the numbers are already saying"
+        note={<>Not a leaderboard — a sentence. Every line below is a real, live fact off this week&apos;s logs and grading — read as a story instead of a row in a table.{counts && <div className="sl-counts">{counts}</div>}</>}
+        theme={C}
+        numFont={NUM_FONT}
+        accent={C.green}
+      />
 
       {!!modelCards.length && (
         <div className="sl-feed">
@@ -199,14 +201,7 @@ export default function Storylines({ data, logs, results, onPlayerClick, setTab 
 
       <style>{`
       .sl{display:flex;flex-direction:column;gap:14px}
-      .sl-hero{position:relative;padding:22px 24px;border:1px solid rgba(0,245,173,.28);border-radius:16px;background:radial-gradient(circle at 88% 8%,rgba(0,245,173,.14),transparent 36%),radial-gradient(circle at 6% 100%,rgba(53,205,255,.1),transparent 40%),${C.bg2}}
-      .sl-dot{position:absolute;top:24px;left:24px;width:6px;height:6px;border-radius:50%;background:${C.green};animation:slPulse 1.8s ease-in-out infinite}
-      .sl-hero small{display:block;margin-left:16px;color:${C.green};font:900 8px/1 ${NUM_FONT};letter-spacing:.12em}
-      .sl-hero h1{margin:7px 0 5px;font-size:clamp(24px,4.2vw,40px);letter-spacing:-.03em}
-      .sl-hero p{max-width:600px;margin:0;color:${C.text3};font-size:11px;line-height:1.55}
-      .sl-counts{margin-top:8px;font:700 9.5px/1.6 ${NUM_FONT};letter-spacing:.02em;color:${C.text2}}
-      @keyframes slPulse{0%,100%{opacity:1}50%{opacity:.35}}
-      @media(prefers-reduced-motion:reduce){.sl-dot{animation:none}}
+            .sl-counts{margin-top:8px;font:700 9.5px/1.6 ${NUM_FONT};letter-spacing:.02em;color:${C.text2}}
 
       .sl-feed{display:flex;flex-direction:column;gap:0;border:1px solid ${C.border};border-radius:12px;background:${C.bg2};padding:6px 14px;overflow:hidden}
       .sl-section-head{padding:8px 0 4px;font:900 8.5px/1 ${NUM_FONT};letter-spacing:.12em;text-transform:uppercase;color:${C.text3}}
@@ -224,7 +219,6 @@ export default function Storylines({ data, logs, results, onPlayerClick, setTab 
       .sl-note{padding:14px 16px;border:1px dashed ${C.border2};border-radius:12px;color:${C.text3};font-size:10.5px;line-height:1.6}
       .sl-note b{color:${C.text2}}
       .sl-empty{padding:26px;border:1px dashed ${C.border2};border-radius:12px;text-align:center;color:${C.text3};font-size:10.5px}
-      @media(max-width:640px){.sl-hero h1{font-size:24px}}
       `}</style>
     </div>
   )
