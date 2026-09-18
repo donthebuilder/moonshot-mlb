@@ -180,13 +180,27 @@ const TEXT_ONLY_KINDS = new Set([
 // Read twice: claimAndPostStat refuses a retired kind outright (the guarantee),
 // and the blocks that make a NETWORK call to build their picks check isRetired()
 // before spending the round trip (the saving).
+// 2026-09-18, SECOND PASS. Donovan read the two merged posts rendered at full
+// length and called the packaging, not the information: "874 characters is not
+// a tweet... you have five separate content products being forced together.
+// Don't delete the information. Split it." Same for THE HOT SHEET at 762.
+//
+// So the eight slots those two absorbed come back, each rewritten to the copy
+// he specified -- standard baseball language in the headline, a labelled
+// window line, a human closer -- and ANGLES and HOT SHEET retire in their
+// place. This is not a revert: the originals were three-name lists with no
+// frame, and what comes back is four or five names with a label and a closing
+// thought. The merge was the right instinct at the wrong grain.
+//
+// Still retired, and these were the ones he actually marked: the two reworded
+// mid-slate repeats, the second helping of the milestone post, three of the
+// four identical storyline slots, and the two posts where "nothing here is
+// yours."
 const RETIRED_KINDS = new Set([
-  'hotcontact', 'hotcontact_mid',
-  'dangercombos', 'dangercombos_mid',
-  'hrleadersdow', 'backtoback', 'birthday', 'funfacts',
-  'matchuplines', 'streaks', 'storylines', 'bestair',
-  'milestone_am', 'milestone_mid',
-  'revenge_giveaway',
+  'angles', 'hotsheet',
+  'hotcontact_mid', 'dangercombos_mid',
+  'birthday', 'funfacts', 'streaks',
+  'milestone_mid', 'revenge_giveaway',
   'storyline_watch_2', 'storyline_watch_3', 'storyline_watch_4',
 ])
 const isRetired = (kind) => RETIRED_KINDS.has(kind)
@@ -367,8 +381,10 @@ const PREGAME_LEAD_MS = 60 * 60 * 1000
 // Every slot moved up; negative values are morning ET. The three pregame
 // slots no longer sit behind the posted-lineup gate, so these thresholds are
 // now the only thing holding them (plus board.size).
-const HOTTEST_CONTACT_HOUR = -3    // 9am ET
-const HR_LEADERS_DOW_HOUR = -2     // 10am ET
+const HOTTEST_CONTACT_HOUR = 1     // 1pm ET  (2026-09-18: moved off 9am. His
+                                   // calendar puts hot contact in the AFTERNOON,
+                                   // and 9am now belongs to HR MATCHUP HISTORY.)
+const HR_LEADERS_DOW_HOUR = 2      // 2pm ET   (afternoon, per the same calendar)
 const DANGER_COMBOS_HOUR = -1      // 11am ET
 const HOTTEST_CONTACT_MID_HOUR = 4 // 4pm ET
 const DANGER_COMBOS_MID_HOUR = 7   // 7pm ET
@@ -376,18 +392,20 @@ const DANGER_COMBOS_MID_HOUR = 7   // 7pm ET
 // shape as the three above -- gated on the hour, claimed per (day, kind), no
 // live snapshot involved.
 const BIRTHDAY_HOUR = -2      // 10am ET
-const BACK_TO_BACK_HOUR = -1  // 11am ET
+const BACK_TO_BACK_HOUR = 3   // 3pm ET   (2026-09-18: off the crowded 11am hour)
 const FUN_FACTS_HOUR = 1      // 1pm ET
 // 2026-09-08 (Donovan: "build them because I want them"). Same board-only
 // shape, spread through the morning/midday window alongside the four above --
 // see claude/ project docs for why each of these six has a real data source
 // behind it (no invented numbers) and why Revenge Game Watch is NOT here yet.
-const MATCHUP_LINES_HOUR = -4   // 8am ET
+const MATCHUP_LINES_HOUR = -3   // 9am ET   (2026-09-18: HR MATCHUP HISTORY)
 const CALL_OF_NIGHT_HOUR = -3   // 9am ET (own slot, separate from hotcontact)
 const STREAKS_HOUR = -3         // 9am ET
-const STORYLINES_HOUR = 0       // noon ET
+const STORYLINES_HOUR = -4      // 8am ET   (2026-09-18: ARMS GETTING HIT leads the
+                                // morning -- it is the one post that frames every
+                                // hitter post after it)
 const THE_FOUR_HOUR = 0         // noon ET
-const BEST_AIR_HOUR = 2         // 2pm ET
+const BEST_AIR_HOUR = -2        // 10am ET  (2026-09-18: morning, per his calendar)
 // THE HOT STRETCH (2026-09-18, Donovan: "i want player highlights liike this
 // too... for players doing well during the week or throught the month"). Two
 // waves a day off one builder, deliberately parked on two of the few hours
@@ -399,8 +417,8 @@ const HOT_WEEK_HOUR = 5         // 5pm ET
 // THE MERGE, two slots (2026-09-18). ANGLES lands on the 9am hour the retired
 // hotcontact/callofnight/streaks slots shared; THE HOT SHEET on the 11am hour
 // dangercombos/backtoback shared. Both are floors, same as every hour here.
-const ANGLES_HOUR = -3          // 9am ET
-const HOT_SHEET_HOUR = -1       // 11am ET
+const ANGLES_HOUR = -3          // 9am ET   (retired -- see RETIRED_KINDS)
+const HOT_SHEET_HOUR = -1       // 11am ET  (retired -- see RETIRED_KINDS)
 const ACCOUNTABILITY_HOUR = -4  // 8am ET -- grades YESTERDAY's picks
 const BOARD_RESULTS_HOUR = -4   // 8am ET -- grades YESTERDAY's Tonight's Board
 const COMMUNITY_PICK_HOUR = -4  // 8am ET
