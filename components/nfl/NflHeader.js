@@ -33,6 +33,7 @@ const hexToRgba = (hex, a) => {
 // call to fetch, for no reason. Removed. Both sports now ride the same
 // strip, same as MOONSHOT's header always has -- see `liveItems` below.
 import { useLiveScores, useAutoScroll } from '../../lib/headlines'
+import DateMode from '../DateMode'
 import TickerPill from '../TickerPill'
 // Real, icon-tagged NFL story-bites -- see lib/nfl/headlines.js's own
 // header comment. NFL equivalent of buildHeadlines() above.
@@ -184,14 +185,23 @@ function NflSettingsSheet() {
             <PaletteButton jobs={NFL_JOBS()} accent={C.green} />
             <ThemeModeButton />
           </div>
-          <div style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.5 }}>Palette · light/dark. Sticks on this device.</div>
+          {/* ALERTS MOVED IN HERE (2026-09-18). It sat loose in the header
+              row, which MOONSHOT's own header doesn't do with anything --
+              Donovan's call was that both headers carry MOONSHOT's control
+              cluster. It is still one tap, and it is still TUDDY's own
+              feature; it just isn't a fourth always-visible button. */}
+          <div style={{ fontSize: 8.5, fontWeight: 900, letterSpacing: '.14em', color: C.text3, textTransform: 'uppercase' }}>Alerts</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <AlertBell />
+          </div>
+          <div style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.5 }}>Palette · light/dark · alerts. Sticks on this device.</div>
         </div>
       )}
     </div>
   )
 }
 
-export default function NflHeader({ tab, setTab, data, meta, matchup, onPlayerClick }) {
+export default function NflHeader({ tab, setTab, data, meta, matchup, weekMode = 'this', setWeekMode, onPlayerClick }) {
   const [moreOpen, setMoreOpen] = useState(false)
   const go = (next) => { setMoreOpen(false); setTab(next) }
   const games = data?.games?.length ?? 0
@@ -444,28 +454,24 @@ export default function NflHeader({ tab, setTab, data, meta, matchup, onPlayerCl
 
         {/* ── date/build · account · settings — row 1's right side ────── */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span
-            className="nfl-header-built"
-            title="When the NFL pipeline last published. Everything on TUDDY — the slate, the picks, the lines check and the grading — comes out of that one run."
-            style={{
-              fontSize: 10, color: C.text3, fontFamily: NUM_FONT, whiteSpace: 'nowrap',
-              display: 'inline-flex', alignItems: 'center', gap: 5,
-            }}
-          >
-            {/* Same pulsing-dot language the ticker's `live` tiles already
-                use -- the freshness readout IS a live signal, item 22 built
-                it so a reader never has to do the subtraction themselves,
-                so it should look like one instead of sitting as flat text. */}
-            <span aria-hidden="true" style={{
-              width: 5, height: 5, borderRadius: '50%', background: freshCol,
-              animation: 'pulse 2s infinite', flex: 'none',
-            }} />
-            {meta?.built_at_human || data?.built_at_human || '—'}
-            {freshLabel && <b style={{ color: freshCol, fontWeight: 800 }}>{` · ${freshLabel}`}</b>}
-          </span>
+          {/* THIS WEEK / NEXT WEEK (2026-09-18). MOONSHOT's own control, from
+              the same shared components/DateMode.js, worded for football. The
+              freshness stamp that used to live here is now a BUILT pill in the
+              ticker, which is where MOONSHOT has always kept it -- one corner,
+              one job, on both products. */}
+          <DateMode
+            label={data?.label || (weekMode === 'next' ? 'Next week' : 'This week')}
+            value={weekMode}
+            onChange={setWeekMode}
+            options={[
+              { key: 'this', text: 'This week', color: C.green },
+              { key: 'next', text: 'Next week', color: C.cyan },
+            ]}
+            theme={C}
+            numFont={NUM_FONT}
+          />
           {/* THE ACCOUNT IS OPTIONAL NOW (2026-09-06) — see proxy.js. */}
           <SignUpPill accent={C.green} />
-          <AlertBell />
           <NflSettingsSheet />
         </div>
       </div>
@@ -523,6 +529,14 @@ export default function NflHeader({ tab, setTab, data, meta, matchup, onPlayerCl
             <Tile label={live > 0 ? 'Live' : 'Kickoff'} value={live > 0 ? live : kickLabel}
               color={live > 0 ? C.yellow : C.text2}
               title={live > 0 ? 'Games in progress' : (nextKick ? `Next kickoff: ${nextKick.away} @ ${nextKick.home}` : 'Nothing scheduled')} />
+            {/* BUILT, IN THE TICKER (2026-09-18). MOONSHOT has carried this as
+                a ticker pill since its own strip shipped; TUDDY had it as a
+                stamp in the header corner instead, where the This week / Next
+                week switch now lives. Same number, same place on both. */}
+            {freshLabel && (
+              <Tile label="Built" value={freshLabel} color={freshCol} live
+                title={`When the NFL pipeline last published: ${meta?.built_at_human || data?.built_at_human || builtAt}. Everything on TUDDY — the slate, the picks, the lines check and the grading — comes out of that one run.`} />
+            )}
             {/* LIVE, FROM ESPN + MLB, NOT FROM THE SLATE PAYLOAD (2026-09-06;
                 both sports 2026-09-17). One tile per live/final game, a
                 leader tile right after each -- same order MOONSHOT's ticker
@@ -672,20 +686,6 @@ export default function NflHeader({ tab, setTab, data, meta, matchup, onPlayerCl
           header:not(.hdr-slate-on) .nfl-header-tiles > *:not(.nfl-header-preseason) { display: none !important; }
           header:not(.hdr-slate-on) .nfl-header-tiles { flex: 0 1 auto !important; }
           .hdr-slate-on .nfl-header-tiles { flex: 1 1 100% !important; }
-          /* #24 FIX (2026-09-11): the ticker got the Home-only exception
-             above on 2026-08-31; the freshness clock right next to it
-             (.nfl-header-built -- built_at_human + the "Xh ago" readout
-             item 22 added specifically so a reader never has to subtract a
-             timestamp themselves) never did, and sat unconditionally
-             display:none on every tab at this width ever since -- found via
-             a live offsetParent:null check on the Phase 0 scan. Home has no
-             freshness readout of its own (checked: Home.js has nothing that
-             reads built_at), so unlike the ticker there was never a reason
-             for it to disappear anywhere -- it was just caught in the same
-             blanket rule the ticker got carved out of. Same Home-only scope
-             now applies to both; the yellow 24h+ stale banner below is a
-             separate, rarer alert and was never affected by this. */
-          header:not(.hdr-slate-on) .nfl-header-built { display: none !important; }
         }
       `}</style>
     </header>

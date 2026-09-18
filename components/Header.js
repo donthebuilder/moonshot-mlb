@@ -11,6 +11,7 @@ import { slateProjHr } from './ProjectedOutput'
 import { easternToday } from '../lib/data'
 import { buildHeadlines, useLiveScores, useAutoScroll } from '../lib/headlines'
 import TickerPill from './TickerPill'
+import DateMode from './DateMode'
 import SignUpPill from './SignUpPill'
 
 // The header's own translucent bar was hardcoded to rgba(9,9,11,...) — a
@@ -226,37 +227,6 @@ function Scorebug({ players, results, games, mode, slateDate, runMeta, onPlayerC
 
 // ── date + mode, as one control ───────────────────────────────────────────────
 
-function DateMode({ label, mode, setMode }) {
-  const [time, setTime] = useState('')
-  useEffect(() => {
-    const tick = () => setTime(new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }))
-    tick()
-    const id = setInterval(tick, 30000)
-    return () => clearInterval(id)
-  }, [])
-  const seg = (key, text, col) => {
-    const on = mode === key
-    return (
-      <button key={key} onClick={() => setMode(key)} aria-pressed={on} style={{
-        padding:'4px 10px', fontSize:10.5, fontWeight:800, cursor:'pointer', border:'none',
-        background: on ? col : 'transparent', color: on ? C.bg : C.text3, transition:'background .12s, color .12s',
-        borderRadius: 999,
-      }}>{text}</button>
-    )
-  }
-  return (
-    <div className="date-mode-switch" style={{ display:'flex', alignItems:'center', gap:8 }}>
-      <div className="date-badge" style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', lineHeight:1.1 }}>
-        <span style={{ fontSize:11.5, color:C.text2, fontFamily:NUM_FONT, fontWeight:800 }}>{label}</span>
-        <span style={{ fontSize:9.5, color:C.text3, fontFamily:NUM_FONT }}>{time}</span>
-      </div>
-      <div style={{ display:'flex', padding:2, borderRadius:999, border:`1px solid ${C.border}`, background:C.glass, gap:2 }}>
-        {seg('today', 'Today', '#f97316')}
-        {seg('tomorrow', 'Tmrw', '#22d3ee')}
-      </div>
-    </div>
-  )
-}
 
 // ── ⚙ the view settings, in one sheet ─────────────────────────────────────────
 
@@ -403,7 +373,15 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDat
 
           {/* ── date · mode · account · settings ──────────────────────── */}
           <div className="hdr-meta" style={{ display:'flex', alignItems:'center', gap:10, flexShrink:0 }}>
-            <DateMode label={dateLabel || 'Loading…'} mode={mode} setMode={setMode} />
+            <DateMode
+              label={dateLabel || 'Loading…'}
+              value={mode}
+              onChange={setMode}
+              options={[
+                { key: 'today', text: 'Today', color: '#f97316' },
+                { key: 'tomorrow', text: 'Tmrw', color: '#22d3ee' },
+              ]}
+            />
             <SignUpPill onWatchlist={() => go('you')} />
             <SettingsSheet />
           </div>

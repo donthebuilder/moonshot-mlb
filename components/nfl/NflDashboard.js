@@ -78,6 +78,12 @@ export default function NflDashboard({ palettePass = 0 }) {
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(null)      // { player, market }
   const [refreshKey, setRefreshKey] = useState(0)
+  // THIS WEEK / NEXT WEEK (2026-09-18) -- MOONSHOT's own today/tomorrow state,
+  // worded for football. 'next' swaps the four week-scoped payloads for the
+  // bot's look-ahead build (lib/nfl/dataSource.js); the graded record, the
+  // report card and the live feed stay on this week, because a week that
+  // hasn't happened has no results and nothing live in it.
+  const [weekMode, setWeekMode] = useState('this')
 
   const [missingTab, setMissingTab] = useState('')
   const setTab = (next) => {
@@ -164,12 +170,12 @@ export default function NflDashboard({ palettePass = 0 }) {
     let alive = true
     if (refreshKey === 0) setLoading(true)
     Promise.allSettled([
-      fetchNfl(nflSlatePaths(), nflSlateLooksReal).then((j) => { if (alive) setData(j) }),
+      fetchNfl(nflSlatePaths(weekMode), nflSlateLooksReal).then((j) => { if (alive) setData(j) }),
       fetchNfl(nflReportPaths()).then((j) => { if (alive) setReport(j) }),
       fetchNfl(nflMetaPaths()).then((j) => { if (alive) setMeta(j) }),
-      fetchNfl(nflMatchupPaths(), nflMatchupLooksReal).then((j) => { if (alive) setMatchup(j) }),
-      fetchNfl(nflLogPaths()).then((j) => { if (alive) setLogs(j) }),
-      fetchNfl(nflPicksPaths(), nflPicksLooksReal).then((j) => { if (alive) setPicks(j) }),
+      fetchNfl(nflMatchupPaths(weekMode), nflMatchupLooksReal).then((j) => { if (alive) setMatchup(j) }),
+      fetchNfl(nflLogPaths(weekMode)).then((j) => { if (alive) setLogs(j) }),
+      fetchNfl(nflPicksPaths(weekMode), nflPicksLooksReal).then((j) => { if (alive) setPicks(j) }),
       // No validator: an absent results file is the normal state before
       // kickoff, and there is no committed snapshot to lose a race against.
       fetchNfl(nflResultsPaths()).then((j) => { if (alive) setNflResults(j) }),
@@ -179,7 +185,7 @@ export default function NflDashboard({ palettePass = 0 }) {
       fetchNfl(nflOddsStatusPaths()).then((j) => { if (alive) setOddsStatus(j) }),
     ]).then(() => { if (alive) setLoading(false) })
     return () => { alive = false }
-  }, [refreshKey])
+  }, [refreshKey, weekMode])
 
   // The bot payload only changes when the bot runs, so this poll is for the
   // bot's OUTPUT (a re-published card, graded results). The score on the
@@ -215,7 +221,7 @@ export default function NflDashboard({ palettePass = 0 }) {
       <MobileCSS />
       {/* See the note in components/Dashboard.js -- same gap, same fix. */}
       <a className="skip-link" href="#board-main">Skip to the board</a>
-      <NflHeader tab={tab} setTab={setTab} data={data} meta={meta} matchup={matchup} onPlayerClick={openPlayer} />
+      <NflHeader tab={tab} setTab={setTab} data={data} meta={meta} matchup={matchup} weekMode={weekMode} setWeekMode={setWeekMode} onPlayerClick={openPlayer} />
       <main id="board-main" className="dashboard-main"
             style={{ maxWidth: 1300, margin: '0 auto', padding: '14px 14px 40px' }}>
         <h1 className="sr-only">{pageTitle('nfl', missingTab ? 'home' : tab)}</h1>
