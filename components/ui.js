@@ -1,5 +1,6 @@
 'use client'
 import { C, NUM_FONT } from '../lib/theme'
+import PageHeader from './PageHeader'
 
 export function btnStyle(color, active = false) {
   return {
@@ -65,20 +66,16 @@ export function inputStyle() {
   }
 }
 
-export function PanelTitle({ title, sub, right }) {
-  return (
-    // .panel-title: every tab's header. The `right` slot is usually three or
-    // four mode buttons, which on a phone wrap into a second and third row of
-    // pills stacked under the h2. MobileCSS turns that slot into one
-    // sideways-scrolling row instead.
-    <div className="panel-title" style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'end', flexWrap: 'wrap', margin: '4px 0 14px' }}>
-      <div style={{ minWidth: 0 }}>
-        <h2 style={{ fontSize: 24, margin: '0 0 3px', fontWeight: 900, letterSpacing: '-.03em' }}>{title}</h2>
-        {sub && <div style={{ fontSize: 11, color: C.text3, fontFamily: NUM_FONT }}>{sub}</div>}
-      </div>
-      {right}
-    </div>
-  )
+// PanelTitle is now a thin pass-through to the ONE shared page header both
+// products render (components/PageHeader.js, 2026-09-18). Same markup, same
+// .panel-title class, same <h2>, same right-slot-as-last-child that
+// MobileCSS.js targets by selector -- an MLB page passing title/sub/right is
+// byte-identical on screen to what it rendered before. The extra slots
+// (eyebrow, note, stats, accent, theme) pass straight through, which is what
+// lets TUDDY's hand-rolled heroes retire into the same component instead of
+// each page inventing its own.
+export function PanelTitle(props) {
+  return <PageHeader {...props} />
 }
 
 export function Grid({ children, min = 260, gap = 10, style }) {

@@ -789,6 +789,14 @@ export default function MobileCSS() {
         .panel-title h2 { font-size: 21px !important; }
       }
 
+      /* The page header's stat block (PageHeader.js) is context, not content:
+         on a phone it competed with the title for the same row. Both products'
+         hand-rolled heroes already hid their own stat blocks at this width
+         before they moved into the shared component — this keeps that. */
+      @media (max-width: 620px) {
+        .page-header-stats { display: none !important; }
+      }
+
       /* The player modal already goes full-bleed at 860px. What it didn't do
          was leave room to breathe at the bottom — a full-height sheet on iOS
          hides its last rows behind the browser chrome — or keep its six tab
