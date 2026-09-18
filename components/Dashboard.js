@@ -148,6 +148,30 @@ export default function Dashboard({ palettePass = 0 }) {
   // write-back effect below sets hashWroteRef, and applying a value that is
   // already current is a no-op in React anyway.
   useEffect(() => {
+    // ── REMEMBER #p= BEFORE ANYTHING CAN STRIP IT (2026-09-18) ────────────
+    //
+    // Donovan sent `#sport=mlb&tab=board&p=682657` and the card did not open.
+    // Reproduced on the live site: the hash arrives intact and is
+    // `#sport=mlb&tab=board` a beat later, with no modal.
+    //
+    // A COLD open fires no `hashchange`, so `apply` below never runs and
+    // never sets `pendingPlayerRef`. The read effect further down reads
+    // `window.location.hash` instead — but by the time the slate has landed
+    // and that effect can find the man, the write-back effect has already
+    // rebuilt the hash from `tab` + `modalPlayer`, and `modalPlayer` is still
+    // null because the data was not there yet. So `p` is deleted from the URL
+    // before the only code that wanted it gets to look, and the id is gone:
+    // no card, no error, nothing to see. (The 08-22 "does not write on its
+    // FIRST run" guard covers the first commit; this is the SECOND one, fired
+    // by the tab changing home -> board as the deep link is applied.)
+    //
+    // Effects run in declaration order, so this one runs before that
+    // write-back and the id is safely parked. Costs one read on mount.
+    try {
+      const p0 = new URLSearchParams(String(window.location.hash || '').replace(/^#/, '')).get('p')
+      if (p0) pendingPlayerRef.current = String(p0)
+    } catch { /* a malformed hash is not worth a crash on mount */ }
+
     const apply = () => {
       const h = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''))
       const r = resolveTab('mlb', h.get('tab'))
