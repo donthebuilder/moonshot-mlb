@@ -461,22 +461,35 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
   // lib/liveSlate.js for that half). So: the page re-pulls the moment it is
   // looked at again (visibilitychange / focus), it keeps the last good
   // snapshot when a pull fails, and it prints the age of what it is showing
-  // with a tap to refresh. `liveTick` only exists to re-render the age.
+  // with a tap to refresh.
+  //
+  // ── NO BACKGROUND REFRESH ON THIS TAB (2026-09-18) ──────────────────────
+  // Donovan: "when I scroll it refreshes and it's hard to swipe and pick
+  // different games because it refreshes and goes back to the first game."
+  // Two timers used to run here for the life of the tab: a live-slate poll
+  // (30s while anything was live, 2 min otherwise) and a separate 20s tick
+  // whose only job was re-rendering the "X ago" staleness label. Both forced
+  // a re-render of this entire tab — the game rail included — on a cadence
+  // that had nothing to do with what the person was doing, which is what
+  // landed mid-swipe. The 2026-09-13 Rail.js listener fix and the 5s→20s tick
+  // cut treated the symptom; this removes the cause on this tab.
+  //
+  // What is kept, because none of it fires while you are reading the page:
+  // the one pull on mount, a re-pull when the tab is looked at again after
+  // being hidden or unfocused, and the tap-to-refresh on the LiveStamp.
+  // So scores here are as of when you opened (or last tapped), and the
+  // stamp says so honestly rather than the page moving underneath you.
+  // Home's ScoreRail keeps its own poll — deliberately scoped to this tab.
   const [liveMeta, setLiveMeta] = useState({ at: 0, failedAt: 0, stale: false, pulling: false })
-  const [, setLiveTick] = useState(0)
   const pullRef = useRef(null)
   useEffect(() => {
     let alive = true
-    let t = null
     const pull = (force = false) => {
       setLiveMeta((m) => ({ ...m, pulling: true }))
       return fetchLiveSlate({ force }).then((s) => {
         if (!alive) return
         if (s) setLive(s)
         setLiveMeta({ ...liveSlateStatus(), pulling: false })
-        const anyLive = s?.games?.some((x) => x.state === 'Live')
-        clearInterval(t)
-        t = setInterval(() => { if (!document.hidden) pull() }, anyLive ? 30000 : 120000)
       }).catch(() => { if (alive) setLiveMeta({ ...liveSlateStatus(), pulling: false }) })
     }
     pullRef.current = pull
@@ -484,16 +497,8 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
     const onShow = () => { if (!document.hidden) pull(true) }
     document.addEventListener('visibilitychange', onShow)
     window.addEventListener('focus', onShow)
-    // 5s → 20s (2026-09-13). This tick exists only to keep the "X ago" age
-    // label current -- it forces this whole tab to re-render on every fire,
-    // which is the real cost. A staleness label doesn't need 5-second
-    // granularity, and cutting the cadence to 20s removes most of the
-    // re-render pressure this was putting on everything below it (the game
-    // rail's listener churn, fixed separately in Rail.js, was the sharpest
-    // symptom of that pressure).
-    const tick = setInterval(() => { if (!document.hidden) setLiveTick((v) => v + 1) }, 20000)
     return () => {
-      alive = false; clearInterval(t); clearInterval(tick)
+      alive = false
       document.removeEventListener('visibilitychange', onShow)
       window.removeEventListener('focus', onShow)
     }
