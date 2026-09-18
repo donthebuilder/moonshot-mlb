@@ -61,6 +61,8 @@ import {
   milestonePicks, milestoneText,
   opportunityPicks, opportunityText, tdHistoryPicks, tdHistoryText,
   whyOnBoardPick, whyOnBoardText, bigWeekPicks, bigWeekText,
+  nflBoardPicks, nflBoardText, nflBotPollPicks, nflBotPollText, nflBotPollOptions,
+  nflCommunityPickText, nflBoardResultsText,
 } from '../../../../../lib/nfl/tweetFeed'
 import { fetchNflLive } from '../../../../../lib/nfl/liveSlate'
 import { buildTdEvent, eventFromRow, rowFromEvent, tdPostText, touchdownsInSnap } from '../../../../../lib/nfl/tdFeed'
@@ -143,13 +145,39 @@ const FRI_WHYBOARD_HOUR = -2   // 10am ET Friday
 // week is complete.
 const MON_BIGWEEK_HOUR = -2    // 10am ET Monday
 
+// ── SUNDAY: THE BOARD, THE POLL, THE INVITATION, AND MONDAY'S RECEIPTS ──────
+// (2026-09-18, Donovan: "add more nfl tweets like the bot vs people and thinsg
+// like that.")
+//
+// MOONSHOT had four posts TUDDY never had, and none of them rank players --
+// they are about the audience, and about being held to account. Sunday is the
+// only day of the week a football audience is already on X waiting for
+// something, so three of them land there and the receipts land the next
+// morning, alongside BIG WEEK.
+const SUN_BOARD_HOUR = -3       //  9am ET Sunday -- the board drops
+const SUN_BOTPOLL_HOUR = -2     // 10am ET Sunday -- poll closes with the 1pm games
+const SUN_COMMUNITY_HOUR = -1   // 11am ET Sunday -- last call before kickoff
+const MON_RESULTS_HOUR = -3     //  9am ET Monday -- BEFORE big week, so the
+                                // grade lands before the highlight post
+// Long enough to cover the 1pm and 4pm windows without running past the night
+// game, so the result is readable while the answer still matters.
+const NFL_POLL_DURATION_MIN = 300
+
 // Which post, if any, this weekday owns. 0=Sun .. 6=Sat, same etWeekday()
 // the milestone gate already uses.
 const WEEKLY_SLOTS = {
+  0: [
+    { kind: 'nfl_board', hour: SUN_BOARD_HOUR },
+    { kind: 'nfl_botpoll', hour: SUN_BOTPOLL_HOUR },
+    { kind: 'nfl_community', hour: SUN_COMMUNITY_HOUR },
+  ],
+  1: [
+    { kind: 'nfl_results', hour: MON_RESULTS_HOUR },
+    { kind: 'nfl_bigweek', hour: MON_BIGWEEK_HOUR },
+  ],
   3: [{ kind: 'nfl_redzone', hour: WED_REDZONE_HOUR }, { kind: 'nfl_goalline', hour: WED_GOALLINE_HOUR }],
   4: [{ kind: 'nfl_tdhistory', hour: THU_TDHISTORY_HOUR }],
   5: [{ kind: 'nfl_whyboard', hour: FRI_WHYBOARD_HOUR }],
-  1: [{ kind: 'nfl_bigweek', hour: MON_BIGWEEK_HOUR }],
 }
 
 function etHoursSinceNoon() {
@@ -163,6 +191,13 @@ function etHoursSinceNoon() {
 // any DST-boundary ambiguity a plain `new Date(day)` would risk.
 function etWeekday(day) {
   return new Date(`${day}T12:00:00Z`).getUTCDay()
+}
+
+// Noon UTC for the same DST-safety reason etWeekday uses it.
+function shiftDay(day, delta) {
+  const d = new Date(`${day}T12:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + delta)
+  return d.toISOString().slice(0, 10)
 }
 
 // Same one claim function homers/tick's own claimSlot is — copied rather
@@ -384,6 +419,9 @@ async function runWeeklyContentTick(db, day) {
     try {
       let text = ''
       let payload = {}
+      // Only BOT VS THE PEOPLE sets this; postToX renders them as tappable
+      // buttons rather than typed A)/B)/C) in the body.
+      let pollOptions = null
       if (sl.kind === 'nfl_redzone' || sl.kind === 'nfl_goalline') {
         const stat = sl.kind === 'nfl_goalline' ? 'GL' : 'RZ'
         const picks = opportunityPicks(data, stat)
@@ -403,15 +441,53 @@ async function runWeeklyContentTick(db, day) {
         const pick = whyOnBoardPick(data)
         text = whyOnBoardText(pick, data, TAIL)
         payload = pick ? { picks: [{ player_id: pick.player_id, name: pick.name, score: pick.score }] } : {}
+      } else if (sl.kind === 'nfl_board') {
+        const picks = nflBoardPicks(data)
+        text = nflBoardText(picks, data, TAIL)
+        // The FULL pick objects go in the payload, not a slimmed copy: Monday's
+        // nfl_results reads this row back to grade it, and a grade run off a
+        // board that was rebuilt on Monday would be grading a different board.
+        // Frozen at post time, same rule the MLB pregame payload follows.
+        payload = { picks }
+      } else if (sl.kind === 'nfl_botpoll') {
+        const picks = nflBotPollPicks(data)
+        text = nflBotPollText(picks, data, TAIL)
+        pollOptions = nflBotPollOptions(picks)
+        // X refuses a poll with fewer than two options -- post it as plain
+        // text rather than losing the post.
+        if (pollOptions.length < 2) pollOptions = null
+        payload = { options: pollOptions || [], picks: picks.map((p) => ({ player_id: p.player_id, name: p.name })) }
+      } else if (sl.kind === 'nfl_community') {
+        text = nflCommunityPickText(TAIL)
+      } else if (sl.kind === 'nfl_results') {
+        // Grades YESTERDAY's board -- Sunday's, read on Monday morning. Two
+        // reads, both off what the account itself already published: the board
+        // row it posted, and nfl_td_feed, the same table the live touchdown
+        // alerts are written to. Nothing is recomputed, so the grade can never
+        // disagree with the alerts that went out during the games.
+        const yday = shiftDay(day, -1)
+        const { data: prior } = await db.from('homer_feed_posts').select('payload')
+          .match({ day: yday, kind: 'nfl_board' }).maybeSingle()
+        const boardPicks = prior?.payload?.picks || []
+        if (!boardPicks.length) { out[sl.kind] = 'no-board-to-grade'; continue }
+        const { data: tds } = await db.from('nfl_td_feed').select('scorer_name').eq('day', yday)
+        const scorers = new Set((tds || []).map((r) => String(r.scorer_name || '').toLowerCase()).filter(Boolean))
+        text = nflBoardResultsText(boardPicks, scorers, data, TAIL)
+        payload = { picks: boardPicks, scorers: [...scorers], graded_day: yday }
       }
       if (!text) { out[sl.kind] = 'nothing-to-say-yet'; continue }
       if (!(await claimSlot(db, day, sl.kind))) { out[sl.kind] = 'already-posted-or-claim-failed'; continue }
 
       const patch = { payload }
-      const d = await postToDiscord(text, {}, FEED_WEBHOOKS())
+      // Discord has no poll widget, so the options are typed there -- same
+      // treatment the MLB botpoll already gives them.
+      const forDiscord = pollOptions
+        ? `${text}\n\n${pollOptions.map((n, i) => `${String.fromCharCode(65 + i)}) ${n}`).join('\n')}`
+        : text
+      const d = await postToDiscord(forDiscord, {}, FEED_WEBHOOKS())
       if (d.ok) patch.discord_sent = true
       if (hasX()) {
-        const r = await postToX(text)
+        const r = await postToX(text, pollOptions ? { poll: { options: pollOptions, durationMinutes: NFL_POLL_DURATION_MIN } } : {})
         if (r.ok && r.id) patch.x_post_id = r.id
         else console.error(`[nfl-tick] ${sl.kind} refused: ${r.status} ${r.error}`)
       }

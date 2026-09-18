@@ -98,7 +98,7 @@
     },
     {
       "path": "/api/dash/nfl/tick",
-      "schedule": "* 14-16 * * 1"
+      "schedule": "* 13-16 * * 1"
     }
   ]
 }
