@@ -88,6 +88,13 @@ export default function You({
              already calls. Without it, this section's × could only drop the
              follow and a starred man stayed put — see YourPlayers.js. */
           onUnstar={onWatch}
+          /* previewN (2026-09-18): this tab IS the list, so it previews ten
+             rather than Home's three. With three showing out of thirty-odd,
+             removing a man just pulled the next one into his slot and the
+             section looked identical — the removal was working, you just
+             could not see it. Still a preview, not the whole list: long lists
+             preview a few rows everywhere on this site. */
+          previewN={10}
         />
         <Watchlist
           items={watchItems}

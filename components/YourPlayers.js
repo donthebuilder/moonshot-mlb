@@ -140,7 +140,7 @@ const writeOpen = (v) => {
   try { window.localStorage.setItem(OPEN_KEY, v ? '1' : '0') } catch { /* private mode */ }
 }
 
-export default function YourPlayers({ players = [], onPlayerClick = null, watchIds = null, collapsible = true, onUnstar = null }) {
+export default function YourPlayers({ players = [], onPlayerClick = null, watchIds = null, collapsible = true, onUnstar = null, previewN = COLLAPSED_N }) {
   const { rows: followed, unfollow, clear: clearFollowing } = useFollowing('mlb')
   // Two-step, no window.confirm(). A native confirm dialog blocks the page and
   // reads as a browser artefact rather than part of the product; the button
@@ -270,7 +270,19 @@ export default function YourPlayers({ players = [], onPlayerClick = null, watchI
   // collapsible={false} is still honoured for any caller that wants the
   // whole list, but no page passes it any more: You.js dropped it on
   // 2026-09-05 because the full list on a phone "makes the scroll too much".
-  const shown = (open || !collapsible) ? rows : rows.slice(0, COLLAPSED_N)
+  // ── HOW MANY ROWS THE PREVIEW SHOWS (2026-09-18) ────────────────────────
+  // Three is right on Home, where this is one section among many and the
+  // 09-05 note applies ("the full list on a phone makes the scroll too
+  // much"). It is wrong on the YOU tab, where this list IS the page and the
+  // job is managing it: Donovan had 37 followed players and saw three of
+  // them, so pressing × removed a man and the next one slid into his place
+  // — a list that never visibly shrinks reads as a remove button that does
+  // nothing. Measured on the live site before changing anything: the × and
+  // Clear all both work correctly and both survive a reload; what was broken
+  // was being able to SEE either one work. So You.js asks for a taller
+  // preview and Home keeps three.
+  const capN = Math.max(1, previewN)
+  const shown = (open || !collapsible) ? rows : rows.slice(0, capN)
   const restN = rows.length - shown.length
   const hidden = rows.slice(shown.length)
   const hiddenLive = hidden.filter((r) => r.status === 'live').length
@@ -488,11 +500,16 @@ export default function YourPlayers({ players = [], onPlayerClick = null, watchI
               if (onUnstar) rows.forEach((r) => { if (r.starred && r.p) onUnstar(r.p) })
             }}
             style={{
-              background: 'transparent', border: 'none', padding: '8px 6px', minHeight: 36,
-              cursor: 'pointer', fontSize: 10, fontWeight: 800, fontFamily: NUM_FONT,
-              letterSpacing: '.04em', color: armed ? C.red : C.text3,
+              // Carries its own count and reads as a control rather than a
+              // footnote — "where is the clear all button" was the ask, and a
+              // grey word in a corner is not an answer to it.
+              background: armed ? `${C.red}22` : 'rgba(255,255,255,.04)',
+              border: `1px solid ${armed ? C.red : C.border}`,
+              borderRadius: 8, padding: '7px 11px', minHeight: 36,
+              cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: NUM_FONT,
+              letterSpacing: '.03em', color: armed ? C.red : C.text3, whiteSpace: 'nowrap',
             }}
-          >{armed ? `Sure? Clear all ${rows.length}` : 'Clear all'}</button>
+          >{armed ? `Confirm — clear all ${rows.length}` : `Clear all ${rows.length}`}</button>
         </div>
       )}
     </div>
