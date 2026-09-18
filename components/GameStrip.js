@@ -351,9 +351,18 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
       {/* THE STRIP (2026-09-05) — Donovan: hard to scroll through on
           desktop, and the wrapped grid ran the page too tall on both mobile
           and desktop. One row now, on a Rail (components/Rail.js) so a mouse
-          gets wheel-to-scroll + nubs and a phone gets native momentum — same
-          264px card floor as the old grid, it just doesn't wrap anymore. */}
-      <Rail itemMin={264} gap={8}>
+          gets nubs and drag and a phone gets native momentum — same 264px
+          card floor as the old grid, it just doesn't wrap anymore.
+
+          wheelScroll={false} (2026-09-18): this strip sits in the middle of a
+          page you scroll THROUGH, so the Rail's wheel-to-sideways translation
+          was hijacking the page scroll whenever the cursor crossed it — and
+          scrolling back up walked the strip left, back to the first game.
+          See the note on Rail.js's own `wheelScroll` prop for the
+          measurement. The nubs, click-drag and arrow keys all still move it;
+          a trackpad's own horizontal swipe is untouched (it carries deltaX,
+          which that handler always ignored). */}
+      <Rail itemMin={264} gap={8} wheelScroll={false}>
         {cards.map((c) => {
           const on = activeGame === c.pk
           // PERSONALITY BANDS (2026-08-07, same language as the park board):

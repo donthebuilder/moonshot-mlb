@@ -50,6 +50,23 @@ export default function Rail({
   gap = 8,
   label = '',          // optional caption shown beside the nubs
   itemMin = 0,         // if set, lays children out as equal columns of this min width
+  // ── WHEEL TRANSLATION IS OPT-OUT NOW (2026-09-18) ────────────────────────
+  // Donovan, on the Games page's card strip: "when i scroll it refreshes and
+  // its hard to swipe and pick different games because it refreshes and goes
+  // back to the first game." Measured on the live site, not guessed: nothing
+  // was refreshing. Fix #1 above translates a VERTICAL wheel into sideways
+  // rail movement whenever the pointer happens to be over a Rail — so reading
+  // down the page with the cursor over the game strip drags the strip
+  // sideways instead of moving the page, and reading back UP walks it left,
+  // back to the first game, exactly as he described. Verified by firing real
+  // wheel events at the deployed strip: scrollLeft 1200 -> 777 on three
+  // scroll-ups, and the page itself does not move until the rail bottoms out.
+  //
+  // That trade is right for a wide reference board you have deliberately
+  // parked on. It is wrong for a strip that sits in the middle of a page you
+  // are scrolling THROUGH. So the caller decides. Default stays true: every
+  // existing Rail behaves exactly as it did.
+  wheelScroll = true,
   style = {},
   className = '',
 }) {
@@ -105,7 +122,7 @@ export default function Rail({
     }
     // passive:false because preventDefault on a wheel listener is ignored
     // otherwise — Chrome makes wheel listeners passive by default.
-    el.addEventListener('wheel', onWheel, { passive: false })
+    if (wheelScroll) el.addEventListener('wheel', onWheel, { passive: false })
 
     // ── 3. drag ──────────────────────────────────────────────────────────
     const down = (e) => {
@@ -142,7 +159,7 @@ export default function Rail({
     window.addEventListener('resize', measure)
 
     return () => {
-      el.removeEventListener('wheel', onWheel)
+      if (wheelScroll) el.removeEventListener('wheel', onWheel)
       el.removeEventListener('pointerdown', down)
       window.removeEventListener('pointermove', move)
       window.removeEventListener('pointerup', up)
