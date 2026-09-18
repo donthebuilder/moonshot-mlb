@@ -44,6 +44,7 @@ import {
   milestonePicks, milestoneText, playableRows, revengeGiveawayPicks, revengeGiveawayText, storylinesPicks, storylinesText, storylineWatchPicks, storylineWatchText,
   streaksPick, streaksText, theFourPicks, theFourText, vsPitcherCareerLines,
   boardPitchersFresh, probableIndexFor, hotStretchPicks, hotStretchText,
+  anglesText, hotSheetText,
 } from '../../../../../lib/dash/tweetFeed'
 import { discordFailuresSnapshot, hasX, postToDiscord, postToX, uploadImageToX, xProblem } from '../../../../../lib/dash/xPost'
 import { isMaintenanceMode } from '../../../../../lib/edgeConfig'
@@ -169,10 +170,32 @@ const TEXT_ONLY_KINDS = new Set([
   'matchuplines', 'callofnight', 'streaks', 'storylines', 'thefour', 'bestair',
 ])
 
+// THE MERGE (2026-09-18, Donovan: "add more to the tweet this what im saying
+// like the storylin and stuff acna bee really big tweet or two"). Eighteen thin
+// slots stop posting on their own and come back as two long posts -- TONIGHT'S
+// ANGLES and THE HOT SHEET -- built from the exact same picks arrays their old
+// posts used. Nothing is deleted: every builder, card spec and call site below
+// stays where it is, so restoring a slot is deleting a string from this set.
+//
+// Read twice: claimAndPostStat refuses a retired kind outright (the guarantee),
+// and the blocks that make a NETWORK call to build their picks check isRetired()
+// before spending the round trip (the saving).
+const RETIRED_KINDS = new Set([
+  'hotcontact', 'hotcontact_mid',
+  'dangercombos', 'dangercombos_mid',
+  'hrleadersdow', 'backtoback', 'birthday', 'funfacts',
+  'matchuplines', 'streaks', 'storylines', 'bestair',
+  'milestone_am', 'milestone_mid',
+  'revenge_giveaway',
+  'storyline_watch_2', 'storyline_watch_3', 'storyline_watch_4',
+])
+const isRetired = (kind) => RETIRED_KINDS.has(kind)
+
 // `renderCard` (2026-09-18): a post whose card is its OWN design rather than
 // the generic statCard passes a thunk here and leaves cardSpec null. Optional
 // and additive -- every existing call site keeps the statCard path.
 async function claimAndPostStat(db, day, kind, hourGate, text, cardSpec, payload = {}, renderCard = null) {
+  if (isRetired(kind)) return false
   if (!text || etHoursSinceNoon() < hourGate) return false
   if (!(await claimSlot(db, day, kind))) return false
   const card = TEXT_ONLY_KINDS.has(kind) ? null : cardSpec
@@ -273,7 +296,7 @@ async function storylineSeenTexts(db, day) {
   try {
     const { data } = await db.from('homer_feed_posts').select('payload')
       .eq('day', day)
-      .in('kind', ['funfacts', 'matchuplines', 'storyline_watch_1', 'storyline_watch_2', 'storyline_watch_3', 'storyline_watch_4'])
+      .in('kind', ['funfacts', 'matchuplines', 'angles', 'storyline_watch_1', 'storyline_watch_2', 'storyline_watch_3', 'storyline_watch_4'])
     const out = new Set()
     for (const row of data || []) {
       for (const t of row?.payload?.texts || []) {
@@ -373,6 +396,11 @@ const BEST_AIR_HOUR = 2         // 2pm ET
 // hotStretchSeenIds below.
 const HOT_MONTH_HOUR = -5       // 7am ET
 const HOT_WEEK_HOUR = 5         // 5pm ET
+// THE MERGE, two slots (2026-09-18). ANGLES lands on the 9am hour the retired
+// hotcontact/callofnight/streaks slots shared; THE HOT SHEET on the 11am hour
+// dangercombos/backtoback shared. Both are floors, same as every hour here.
+const ANGLES_HOUR = -3          // 9am ET
+const HOT_SHEET_HOUR = -1       // 11am ET
 const ACCOUNTABILITY_HOUR = -4  // 8am ET -- grades YESTERDAY's picks
 const BOARD_RESULTS_HOUR = -4   // 8am ET -- grades YESTERDAY's Tonight's Board
 const COMMUNITY_PICK_HOUR = -4  // 8am ET
@@ -1062,7 +1090,7 @@ export async function GET(request) {
     // files off the network (plus a second 5-file fetch for L5), and this
     // block now runs on every tick all day rather than only inside the old
     // pregame gate.
-    if (etHoursSinceNoon() >= HR_LEADERS_DOW_HOUR) {
+    if (etHoursSinceNoon() >= HR_LEADERS_DOW_HOUR && !isRetired('hrleadersdow')) {
       const { leaders, dow } = await fetchWeekdayHrLeaders(day)
       await claimAndPostStat(db, day, 'hrleadersdow', HR_LEADERS_DOW_HOUR,
         hrLeadersByDowText(leaders, dow, { day, ...TAIL }),
@@ -1080,7 +1108,7 @@ export async function GET(request) {
     // homer/CalledItHR post goes to, so nothing new to wire there. The hour
     // is checked before the network calls for the two that make one
     // (birthday, funFacts), same reasoning as HR LEADERS above.
-    if (etHoursSinceNoon() >= BIRTHDAY_HOUR) {
+    if (etHoursSinceNoon() >= BIRTHDAY_HOUR && !isRetired('birthday')) {
       await safeStat('birthday', async () => {
         const bdays = await birthdaysToday(pregameRows(), day)
         await claimAndPostStat(db, day, 'birthday', BIRTHDAY_HOUR,
@@ -1102,7 +1130,7 @@ export async function GET(request) {
           lines: b2b.map((p) => `${p.name}${p.team ? ` (${p.team})` : ''}`),
         } : null)
     })
-    if (etHoursSinceNoon() >= FUN_FACTS_HOUR) {
+    if (etHoursSinceNoon() >= FUN_FACTS_HOUR && !isRetired('funfacts')) {
       await safeStat('funfacts', async () => {
         const facts = await funFactsPicks(pregameRows(), day)
         await claimAndPostStat(db, day, 'funfacts', FUN_FACTS_HOUR,
@@ -1125,7 +1153,7 @@ export async function GET(request) {
     // network dependency beyond what matchupStories()/funFactsPicks() already
     // needed for the four posts above. Same claimAndPostStat pipe, same
     // Discord webhook, same X path.
-    if (etHoursSinceNoon() >= MATCHUP_LINES_HOUR) {
+    if (etHoursSinceNoon() >= MATCHUP_LINES_HOUR && !isRetired('matchuplines')) {
       await safeStat('matchuplines', async () => {
         const stories = await matchupLinesPicks(pregameRows())
         await claimAndPostStat(db, day, 'matchuplines', MATCHUP_LINES_HOUR,
@@ -1157,7 +1185,7 @@ export async function GET(request) {
           } : null)
       })
     }
-    if (etHoursSinceNoon() >= STREAKS_HOUR) {
+    if (etHoursSinceNoon() >= STREAKS_HOUR && !isRetired('streaks')) {
       await safeStat('streaks', async () => {
         const streak = await streaksPick(pregameRows(), day)
         await claimAndPostStat(db, day, 'streaks', STREAKS_HOUR,
@@ -1274,7 +1302,7 @@ export async function GET(request) {
     //    ET while matchup history above is still waiting on lineups to
     //    lock. The mid wave excludes whoever the AM wave already named
     //    (milestoneSeenIds above), so the two posts never repeat a player.
-    if (etHoursSinceNoon() >= MILESTONE_AM_HOUR) {
+    if (etHoursSinceNoon() >= MILESTONE_AM_HOUR && !isRetired('milestone_am')) {
       await safeStat('milestone_am', async () => {
         // 2026-09-15 (Donovan: "some of these I just wanted tweets and no
         // card... a decent list of names"). No card -- milestoneText()
@@ -1287,7 +1315,7 @@ export async function GET(request) {
           { picks: miles })
       })
     }
-    if (etHoursSinceNoon() >= MILESTONE_MID_HOUR) {
+    if (etHoursSinceNoon() >= MILESTONE_MID_HOUR && !isRetired('milestone_mid')) {
       await safeStat('milestone_mid', async () => {
         const seen = await milestoneSeenIds(db, day)
         const miles = await milestonePicks(boardRows(), { exclude: seen })  // text-only now, see the AM wave above
@@ -1322,7 +1350,7 @@ export async function GET(request) {
           { texts: picks.map((p) => p.text).filter(Boolean) })
       })
     }
-    if (etHoursSinceNoon() >= STORYLINE_WATCH_2_HOUR) {
+    if (etHoursSinceNoon() >= STORYLINE_WATCH_2_HOUR && !isRetired('storyline_watch_2')) {
       await safeStat('storyline_watch_2', async () => {
         const seen = await storylineSeenTexts(db, day)
         // text-only now, see storyline_watch_1 above
@@ -1333,7 +1361,7 @@ export async function GET(request) {
           { texts: picks.map((p) => p.text).filter(Boolean) })
       })
     }
-    if (etHoursSinceNoon() >= STORYLINE_WATCH_3_HOUR) {
+    if (etHoursSinceNoon() >= STORYLINE_WATCH_3_HOUR && !isRetired('storyline_watch_3')) {
       await safeStat('storyline_watch_3', async () => {
         const seen = await storylineSeenTexts(db, day)
         // text-only now, see storyline_watch_1 above
@@ -1344,7 +1372,7 @@ export async function GET(request) {
           { texts: picks.map((p) => p.text).filter(Boolean) })
       })
     }
-    if (etHoursSinceNoon() >= STORYLINE_WATCH_4_HOUR) {
+    if (etHoursSinceNoon() >= STORYLINE_WATCH_4_HOUR && !isRetired('storyline_watch_4')) {
       await safeStat('storyline_watch_4', async () => {
         const seen = await storylineSeenTexts(db, day)
         // text-only now, see storyline_watch_1 above
@@ -1363,7 +1391,7 @@ export async function GET(request) {
     // slot -- same reasoning MILESTONE_AM above already uses for running off
     // the full board this early (7am ET, before most lineups are even
     // posted).
-    if (etHoursSinceNoon() >= REVENGE_GIVEAWAY_HOUR) {
+    if (etHoursSinceNoon() >= REVENGE_GIVEAWAY_HOUR && !isRetired('revenge_giveaway')) {
       await safeStat('revenge_giveaway', async () => {
         // 2026-09-15 (Donovan: "some of these I just wanted tweets and no
         // card"). No card -- revengeGiveawayText() (tweetFeed.js) no longer
@@ -1372,6 +1400,55 @@ export async function GET(request) {
         const rg = await revengeGiveawayPicks(boardRows(), day)
         await claimAndPostStat(db, day, 'revenge_giveaway', REVENGE_GIVEAWAY_HOUR,
           revengeGiveawayText(rg, { day, ...TAIL }),
+          null)
+      })
+    }
+
+    // ── THE MERGE: TONIGHT'S ANGLES + THE HOT SHEET (2026-09-18) ──────────
+    // Donovan, marking up the post inventory: "add more to the tweet this what
+    // im saying like the storylin and stuff acna bee really big tweet or two".
+    //
+    // Eighteen slots that each carried three or four names now arrive as two
+    // posts that carry twenty-odd between them. Nothing new is computed: every
+    // section below is the SAME picks array its retired post used, handed to
+    // fitSections(), which fills to the limit and drops from the capped tail
+    // when it overflows. Section caps (tweetFeed.js) stop one long list --
+    // the arms, usually -- from eating the whole post.
+    //
+    // Both are text-only by nature: a twenty-line post has no card that could
+    // carry it, so neither is in TEXT_ONLY_KINDS and neither passes a spec.
+    //
+    // LENGTH. Built at BIG_LIMIT (900) and posted through postToX, which now
+    // retries once at 280 if X refuses a long post -- so on an account without
+    // Premium these publish as the same shape, shorter. See lib/dash/xPost.js.
+    if (etHoursSinceNoon() >= ANGLES_HOUR) {
+      await safeStat('angles', async () => {
+        const [matchups, streak, milestones, bdays, rg] = await Promise.all([
+          matchupLinesPicks(pregameRows()),
+          streaksPick(pregameRows(), day),
+          milestonePicks(boardRows()),
+          birthdaysToday(pregameRows(), day),
+          revengeGiveawayPicks(boardRows(), day),
+        ])
+        const arms = storylinesPicks(pregameRows())
+        const parks = bestAirPicks(pregameRows())
+        await claimAndPostStat(db, day, 'angles', ANGLES_HOUR,
+          anglesText({ arms, parks, matchups, streak, milestones, birthdays: bdays, revenge: rg }, { day, ...TAIL }),
+          null,
+          // Stored for the same reason funfacts/matchuplines store theirs:
+          // storylineSeenTexts reads it back so Storyline Watch never repeats
+          // a sentence this post already used.
+          { texts: (matchups || []).map((m) => m?.text).filter(Boolean) })
+      })
+    }
+    if (etHoursSinceNoon() >= HOT_SHEET_HOUR) {
+      await safeStat('hotsheet', async () => {
+        const { leaders, dow } = await fetchWeekdayHrLeaders(day)
+        const hot = hottestContactPicks(pregameRows())
+        const danger = dangerComboPicks(pregameRows())
+        const b2b = backToBackPicks(pregameRows(), day)
+        await claimAndPostStat(db, day, 'hotsheet', HOT_SHEET_HOUR,
+          hotSheetText({ hot, danger, b2b, leaders, dow }, { day, ...TAIL }),
           null)
       })
     }
