@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT, gradeFor, TYPE } from '../../../lib/nfl/theme'
 import { btnStyle } from '../../ui'
 import { quoteFor } from '../../../lib/nfl/oddsMatch'
+import PageHeader from '../../PageHeader'
 import OddsLine from '../../OddsLine'
 import OddsStatus from '../../OddsStatus'
 import { ActiveFilters, FilterBar, FilterSearch, FilterSelect, PillRow } from '../../Filters'
@@ -278,6 +279,14 @@ export default function Picks({ picks, results, data, matchup, onPlayerClick, od
 
   return (
     <div>
+      <PageHeader
+        eyebrow="TUDDY · PICKS"
+        title="The calls for this week"
+        note="The model's own card, market by market, read back with the reason attached. A call is graded; a high board rank on its own is not a call."
+        theme={C}
+        numFont={NUM_FONT}
+        accent={C.green}
+      />
       {/* ── the record ─────────────────────────────────────────────────── */}
       <div style={{
         background: C.bg2, border: `1px solid ${C.border}`,

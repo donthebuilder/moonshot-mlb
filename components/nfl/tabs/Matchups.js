@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../../lib/nfl/theme'
 import { btnStyle } from '../../ui'
 import MatchupMap from '../MatchupMap'
+import PageHeader from '../../PageHeader'
 import DvpTable from '../DvpTable'
 import DvpDrift from '../DvpDrift'
 import ChartFrame from '../ChartFrame'
@@ -193,6 +194,14 @@ export default function Matchups({ matchup, data }) {
 
   return (
     <div>
+      <PageHeader
+        eyebrow="TUDDY · MATCHUPS"
+        title="Matchups"
+        note="Defence versus position, coverage shell and game script — pick a team to see what it gives up, by role, and who on this slate is walking into it."
+        theme={C}
+        numFont={NUM_FONT}
+        accent={C.cyan}
+      />
       <div style={{
         display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10,
       }}>

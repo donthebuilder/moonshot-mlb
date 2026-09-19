@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../../lib/nfl/theme'
 import { btnStyle } from '../../ui'
 import ChartFrame from '../ChartFrame'
+import PageHeader from '../../PageHeader'
 
 // Report Card — what the models actually did, before a single 2026 pick.
 //
@@ -98,6 +99,14 @@ export default function Report({ report }) {
 
   return (
     <div>
+      <PageHeader
+        eyebrow="TUDDY · REPORT CARD"
+        title="The model's own grades"
+        note="Seven models, run against completed past seasons on real outcomes. Read the out-of-sample season, not the tuned one."
+        theme={C}
+        numFont={NUM_FONT}
+        accent={C.green}
+      />
       <div style={{
         background: C.bg2, border: `1px solid ${C.border}`, borderLeft: `3px solid ${C.green}`,
         borderRadius: 10, padding: '11px 14px', marginBottom: 12,

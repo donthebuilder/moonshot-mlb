@@ -1,5 +1,6 @@
 'use client'
 import { C, NUM_FONT, MARKETS, TYPE } from '../../../lib/nfl/theme'
+import PageHeader from '../../PageHeader'
 
 // Guide — what every number means, and what it doesn't.
 //
@@ -51,11 +52,19 @@ export default function Guide({ onNavigate, data }) {
   const statSeason = data?.stat_season
   return (
     <div style={{ maxWidth: 760 }}>
+      <PageHeader
+        eyebrow="TUDDY · HOW THIS WORKS"
+        title="Guide"
+        note="What every page is for, in plain words — and what the numbers on them do and don't claim."
+        theme={C}
+        numFont={NUM_FONT}
+        accent={C.green}
+      />
       <Section title="Start here — three taps">
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: 8 }}>
           <PageCard tab="home" title="1 · Read the slate" note="Home shows the live ledger, The Six, lookout spots and the strongest boards." onNavigate={onNavigate} />
-          <PageCard tab="touchdowns" title="2 · See who scores" note="Touchdowns opens with names and a sentence, not a table -- the fastest read on tonight's board." onNavigate={onNavigate} />
-          <PageCard tab="picks" title="3 · Read the calls" note="Picks holds the designated calls. A call is graded; a high Board rank is not automatically a call." onNavigate={onNavigate} />
+          <PageCard tab="touchdowns" title="2 · See who scores" note="Props opens with names and a sentence, not a table -- the fastest read on this week's board." onNavigate={onNavigate} />
+          <PageCard tab="picks" title="3 · Read the calls" note="Picks holds the designated calls. A call is graded; a high Boards rank is not automatically a call." onNavigate={onNavigate} />
         </div>
       </Section>
 
@@ -148,9 +157,10 @@ export default function Guide({ onNavigate, data }) {
 
       <Section title="Where each page takes you">
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: 8 }}>
-          <PageCard tab="touchdowns" title="Touchdowns" note="The front door — this week's anytime-TD board, opened with names and a plain-English reason instead of a table of percentiles." onNavigate={onNavigate} />
+          <PageCard tab="touchdowns" title="Props" note="The front door — this week's anytime-touchdown board, opened with names and a plain-English reason instead of a table of percentiles." onNavigate={onNavigate} />
+          <PageCard tab="boards" title="Boards" note="Every market at once — touchdowns, receiving, rushing, passing, receptions, carries and kicking — each card carrying the one line that explains its own number." onNavigate={onNavigate} />
           <PageCard tab="storylines" title="Storylines" note="Milestones, streaks, and calls the model saw but filed under the wrong market — read as sentences. Revenge games and injury-driven role changes aren't built yet." onNavigate={onNavigate} />
-          <PageCard tab="games" title="Games" note="Drive state, weather, defense fatigue and designated calls grouped by matchup." onNavigate={onNavigate} />
+          <PageCard tab="games" title="Slate" note="Every game, with drive state, weather, defense fatigue and the designated calls grouped by matchup." onNavigate={onNavigate} />
           <PageCard tab="players" title="Player Portal" note="Search one player for measurables, splits, projections, recent games and storylines." onNavigate={onNavigate} />
           <PageCard tab="watchlist" title="Watchlist" note="Only the players you saved, with the current slate row kept intact." onNavigate={onNavigate} />
           <PageCard tab="research" title="Research" note="Deeper model inputs and supporting context. Useful after the verdict, not before it." onNavigate={onNavigate} />
@@ -163,6 +173,8 @@ export default function Guide({ onNavigate, data }) {
           <PageCard tab="accountability" title="The record" note="Public receipts for completed calls, including misses. This is where trust is earned." onNavigate={onNavigate} />
           <PageCard tab="tuddyledger" title="Tuddy Ledger" note="Every touchdown this season sorted into called, on the board, or never tracked, with the season's running totals." onNavigate={onNavigate} />
           <PageCard tab="report" title="Report Card" note="Backtests each model against a simple trailing-average baseline." onNavigate={onNavigate} />
+          <PageCard tab="explosive" title="Explosive" note="Who turns a normal target into a chunk play, and which defence keeps allowing one. Measured off real play-by-play, no model score." onNavigate={onNavigate} />
+          <PageCard tab="numerology" title="Numerology" note="Jersey, birthday, life path, reduced to one digit. Pattern watching, disclosed as exactly that — it feeds no score, board or call." onNavigate={onNavigate} />
         </div>
       </Section>
 

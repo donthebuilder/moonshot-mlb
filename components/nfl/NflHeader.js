@@ -560,10 +560,10 @@ export default function NflHeader({ tab, setTab, data, meta, matchup, weekMode =
             <Tile label={live > 0 ? 'Live' : 'Kickoff'} value={live > 0 ? live : kickLabel}
               color={live > 0 ? C.yellow : C.text2}
               title={live > 0 ? 'Games in progress' : (nextKick ? `Next kickoff: ${nextKick.away} @ ${nextKick.home}` : 'Nothing scheduled')} />
-            {freshLabel && (
+            {freshLabel ? (
               <Tile label="Built" value={freshLabel} color={freshCol} live
                 title={`When the NFL pipeline last published: ${meta?.built_at_human || data?.built_at_human || builtAt}. Everything on TUDDY — the slate, the picks, the lines check and the grading — comes out of that one run.`} />
-            )}
+            ) : null}
 
             {/* MOONSHOT's `weak` slot: the leftover context that is worth
                 carrying but is nobody's headline. */}

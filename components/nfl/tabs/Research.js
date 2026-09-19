@@ -1,8 +1,9 @@
 'use client'
 import { useMemo, useState } from 'react'
-import { C } from '../../../lib/nfl/theme'
+import { C, NUM_FONT } from '../../../lib/nfl/theme'
 import DenseTable from '../../DenseTable'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
+import PageHeader from '../../PageHeader'
 import { oppShort } from '../../../lib/nfl/oppLabel'
 import { btnStyle, selectStyle } from '../../ui'
 
@@ -100,6 +101,14 @@ export default function Research({ data, onPlayerClick }) {
 
   return (
     <div>
+      <PageHeader
+        eyebrow="TUDDY · RESEARCH"
+        title="Every player, every published number"
+        note="The raw board behind the calls — every stat the bot publishes for every scored player, sortable, with no model opinion layered on top. Tap a name to open his card."
+        theme={C}
+        numFont={NUM_FONT}
+        accent={C.green}
+      />
       <div style={{
         display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10,
       }}>
