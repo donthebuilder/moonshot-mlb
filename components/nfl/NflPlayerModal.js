@@ -8,6 +8,7 @@ import PlayerNotes from '../PlayerNotes'
 import { VerdictStamp, PutOnCard } from './CardActions'
 import MatchupMap from './MatchupMap'
 import NflFace from './NflFace'
+import SourceSeason from './SourceSeason'
 import DvpTable, { GROUP } from './DvpTable'
 import DvpDrift from './DvpDrift'
 import ChartFrame from './ChartFrame'
@@ -127,9 +128,10 @@ function CoverageAndExplosive({ player, matchup }) {
   return (
     <>
       <div style={{
+        display: 'flex', alignItems: 'center', gap: 8,
         fontSize: 10, fontWeight: 900, color: C.text3, letterSpacing: '.1em',
         margin: '16px 0 7px',
-      }}>COVERAGE & EXPLOSIVE</div>
+      }}><span>COVERAGE &amp; EXPLOSIVE</span><SourceSeason matchup={matchup} kind="charting" /></div>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         {cov?.man && (
           <Mini label="VS MAN" accent={edge === 'man' ? C.green : C.border2}>
@@ -261,7 +263,7 @@ function DvpSection({ player, matchup }) {
           is the next thing being rebuilt and decorating it first would be
           decorating something about to change. */}
       <ChartFrame accent={C.cyan} pad="0" style={{ overflow: 'hidden' }}>
-        <DvpTable data={matchup} team={player.opp} roles={group}
+        <DvpTable data={matchup} team={player.opp} roles={group} slateSeason={slate?.season}
                   highlight={role} minWidth={340} />
       </ChartFrame>
       <div style={{ marginTop: 14 }}>

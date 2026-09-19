@@ -6,6 +6,7 @@ import MatchupMap from '../MatchupMap'
 import PageHeader from '../../PageHeader'
 import DvpTable from '../DvpTable'
 import DvpDrift from '../DvpDrift'
+import SourceSeason from '../SourceSeason'
 import ChartFrame from '../ChartFrame'
 import { softRole, softLine, passRushThreat, PASS_RUSH_AVOID } from '../../../lib/nfl/dvpSignal'
 import MatchupBadge from '../MatchupBadge'
@@ -55,9 +56,10 @@ function Profile({ data, team }) {
           borderRadius: 10, padding: '11px 14px',
         }}>
           <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
             fontSize: TYPE.label, fontWeight: 900, color: C.text3, letterSpacing: '.1em',
             marginBottom: 7,
-          }}>{team} COVERAGE</div>
+          }}><span>{team} COVERAGE</span><SourceSeason matchup={data} kind="charting" /></div>
           <Row label="Man / Zone">{cov.man_pct}% / {cov.zone_pct}%</Row>
           <Row label="Att · YPA">{cov.att} · {cov.ypa}</Row>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 7 }}>
@@ -308,7 +310,7 @@ export default function Matchups({ matchup, data }) {
         )}
         <div style={{ padding: '10px 14px 0' }}>
           <ChartFrame accent={C.cyan} pad="0" style={{ overflow: 'hidden' }}>
-            <DvpTable data={matchup} team={active} win={win} highlight={role} />
+            <DvpTable data={matchup} team={active} win={win} highlight={role} slateSeason={data?.season} />
           </ChartFrame>
         </div>
         {/* The grid says where the defence is soft; this says where it is

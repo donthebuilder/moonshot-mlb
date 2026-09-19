@@ -1,6 +1,7 @@
 'use client'
 import { C, NUM_FONT, RAMP } from '../../lib/nfl/theme'
 import { softRole } from '../../lib/nfl/dvpSignal'
+import SourceSeason from './SourceSeason'
 
 // Defence vs position, BY DEPTH ROLE.
 //
@@ -97,7 +98,7 @@ function Cell({ cell, stat, dim }) {
   )
 }
 
-export default function DvpTable({ data, team, win = 'season', roles, highlight, minWidth = 620 }) {
+export default function DvpTable({ data, team, win = 'season', roles, highlight, minWidth = 620, slateSeason = null }) {
   const order = roles || data?.dvp_roles || []
   const labels = data?.dvp_labels || {}
   const blob = data?.dvp?.[win]?.[team]
@@ -134,6 +135,12 @@ export default function DvpTable({ data, team, win = 'season', roles, highlight,
 
   return (
     <div style={{ padding: '10px 12px 12px' }}>
+      {/* Which season these ranks are from. Silent once it is this season's
+          own table; a badge while stats_season_for() is still serving last
+          season, which it does until three weeks have been played. */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 6 }}>
+        <SourceSeason matchup={data} kind="stats" slateSeason={slateSeason} />
+      </div>
       <div className="dense-scroll" style={{ overflowX: 'auto' }}>
         <div style={{ minWidth: width }}>
           <div style={{ display: 'flex', gap: 3, marginBottom: 5, paddingLeft: 89 }}>

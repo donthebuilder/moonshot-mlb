@@ -173,7 +173,7 @@ function Storylines({ player, market, rows, matchup }) {
   const rv = matchup?.route_value?.[player.player_id]
   const bullets = [
     bestMarket && { tone: 'for', text: `${bestMarket} is his strongest DASH lane at ${Math.round(bestScore)} (${gradeFor(bestScore).label}).` },
-    rv && { tone: 'note', text: `Wins most on ${rv.best_route.toLowerCase()} routes when targeted -- ${rv.best_yds_per_tgt} yards per target, his best of any route type with enough sample this season.` },
+    rv && { tone: 'note', text: `Wins most on ${rv.best_route.toLowerCase()} routes when targeted -- ${rv.best_yds_per_tgt} yards per target, his best of any route type with enough sample in ${matchup?.chart_season || 'the charting season'}.` },
     player.questionable && { tone: 'against', text: 'Injury status is questionable; the slate row should be rechecked before kickoff.' },
     player.carryover && { tone: 'note', text: 'The current score leans on last season’s per-game baseline until current-season form has depth.' },
     role && defense && {
