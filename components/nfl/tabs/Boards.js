@@ -12,6 +12,9 @@ import { injuryTag, injuryTitle, injuryColor } from '../../../lib/nfl/injury'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 import { reasonFor, baselineFor, topStatChips } from '../ScoreAnatomy'
 
+// Same soft cap Touchdowns.js uses, so the two boards cut at the same depth.
+const SOFT_CAP = 60
+
 const LOG_FIELD = {
   TD: 'g_td',
   REC_YDS: 'g_recyd',
@@ -118,6 +121,21 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
   const [team, setTeam] = useState('all')
   const [position, setPosition] = useState('all')
   const [sortBy, setSortBy] = useState('score')
+  // THE SAME RESEARCH BAR AS TOUCHDOWNS (2026-09-18). Donovan, on both
+  // products side by side: "there should be zero difference." This board had
+  // grown a second control vocabulary -- dropdowns and a Sample segmented
+  // control in a bordered box -- while Touchdowns.js (and MOONSHOT's own
+  // Props) use ONLY pills, a sort row and a soft cap. TUDDY disagreed with
+  // TUDDY, which is worse than either choice. Touchdowns' idiom wins because
+  // it is MOONSHOT's.
+  const [onlyPriced, setOnlyPriced] = useState(false)
+  const [onlyUpcoming, setOnlyUpcoming] = useState(false)
+  const [onlyWatched, setOnlyWatched] = useState(false)
+  const [all, setAll] = useState(false)
+
+  // Recomputed when the slate changes or the toggle flips, not per render --
+  // same rule Touchdowns.js's own `now` follows.
+  const now = useMemo(() => Date.now(), [data, onlyUpcoming])
 
   const spec = useMemo(
     () => (data?.markets || []).find((m) => m.key === market),
@@ -134,14 +152,24 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
   }, [data, market])
 
   const rows = useMemo(() => {
-    const all = (data?.players || []).filter((p) => Number.isFinite(p.scores?.[market]))
+    const pool = (data?.players || []).filter((p) => Number.isFinite(p.scores?.[market]))
     const needle = query.trim().toLowerCase()
-    const kept = all.filter((p) => (
-      (showLow || !p.low_sample)
-      && (team === 'all' || p.team === team)
-      && (position === 'all' || p.position === position)
-      && (!needle || String(p.name || '').toLowerCase().includes(needle))
-    ))
+    const kept = pool.filter((p) => {
+      if (!showLow && p.low_sample) return false
+      if (team !== 'all' && p.team !== team) return false
+      if (position !== 'all' && p.position !== position) return false
+      if (needle && !String(p.name || '').toLowerCase().includes(needle)) return false
+      if (onlyWatched && !watchlist.isPinned(p.player_id)) return false
+      if (onlyPriced) {
+        const q = quoteFor(odds, p, market)
+        if (!q || q.over == null || q.matches === false) return false
+      }
+      if (onlyUpcoming) {
+        const t = kickoffFor(data?.games, p)
+        if (!(t && t > now)) return false
+      }
+      return true
+    })
     const cmp = sortBy === 'price'
       ? (a, b) => {
         const qa = quoteFor(odds, a, market), qb = quoteFor(odds, b, market)
@@ -155,11 +183,15 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
           return ta - tb || (b.scores[market] ?? 0) - (a.scores[market] ?? 0)
         }
         : (a, b) => b.scores[market] - a.scores[market]
-    // 60 was most of a 102-player preseason pool. Week 1 scores 500+, so 60
-    // is a silent truncation of the board this tab exists to be -- and there
-    // was no "showing 60 of N" anywhere to say so.
-    return kept.sort(cmp).slice(0, 200)
-  }, [data, market, showLow, query, team, position, sortBy, odds])
+    // No truncation here any more. The board used to cut silently at 200 with
+    // nothing on screen saying so; it now caps at SOFT_CAP with a "showing X
+    // of Y" line and a Show-the-rest pill, exactly as Touchdowns does.
+    return kept.sort(cmp)
+  }, [data, market, showLow, query, team, position, sortBy, odds,
+      onlyPriced, onlyUpcoming, onlyWatched, watchlist, now])
+
+  const capped = all ? rows : rows.slice(0, SOFT_CAP)
+  const hidden = rows.length - capped.length
 
   const filterOptions = useMemo(() => {
     const eligible = (data?.players || []).filter((p) => Number.isFinite(p.scores?.[market]))
@@ -189,48 +221,46 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
 
   return (
     <div>
-      <div style={{
-        display: 'flex', flexDirection: 'column', gap: 9, marginBottom: 11,
-        padding: '10px 12px', border: `1px solid ${C.border}`, borderRadius: 12,
-        background: C.bg2,
-      }}>
-        <PillRow label="Market" value={market} options={marketOptions} onChange={setMarket} />
+      <PillRow label="Market" value={market} options={marketOptions} onChange={setMarket} />
+
+      <div style={{ marginTop: 8 }}>
         <FilterBar>
           <FilterSearch value={query} onChange={setQuery} placeholder="Search player…" width={165} />
           <FilterSelect label="Team" value={team} options={filterOptions.teams} onChange={setTeam} />
           <FilterSelect label="Position" value={position} options={filterOptions.positions} onChange={setPosition} />
-          <Segmented
-            label="Sample"
-            value={showLow ? 'all' : 'trusted'}
-            onChange={(value) => setShowLow(value === 'all')}
-            options={[
-              { key: 'trusted', label: 'Trusted' },
-              { key: 'all', label: `All${lowCount ? ` +${lowCount}` : ''}` },
-            ]}
-          />
         </FilterBar>
-        <div className="chip-row" style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center' }}>
-          <span style={{ fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.1em', color: C.text3, textTransform: 'uppercase', fontFamily: NUM_FONT, flexShrink: 0 }}>Sort</span>
-          {[['score', 'Score'], ['price', 'Longest price'], ['kickoff', 'Earliest kickoff']].map(([k, label]) => (
-            <FilterPill key={k} active={sortBy === k} onClick={() => setSortBy(k)}
-              title={k === 'score' ? "The model's own score for this market — the board's default."
-                : k === 'price' ? 'Longest price first. An unpriced card sinks rather than sorting as if it were even money.'
-                  : 'Earliest kickoff first.'}>
-              {label}
-            </FilterPill>
-          ))}
-        </div>
-        <ActiveFilters
-          shown={rows.length}
-          total={(data?.players || []).filter((p) => Number.isFinite(p.scores?.[market])).length}
-          filters={[
-            query && { key: 'query', label: `Name: ${query}`, onClear: () => setQuery('') },
-            team !== 'all' && { key: 'team', label: `Team: ${team}`, onClear: () => setTeam('all') },
-            position !== 'all' && { key: 'position', label: `Position: ${position}`, onClear: () => setPosition('all') },
-            showLow && { key: 'sample', label: 'Low-sample included', onClear: () => setShowLow(false) },
-          ]}
-          onClearAll={() => { setQuery(''); setTeam('all'); setPosition('all'); setShowLow(false) }}
-        />
+      </div>
+
+      <div className="chip-row" style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center', marginTop: 8 }}>
+        <span style={{ fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.1em', color: C.text3, textTransform: 'uppercase', fontFamily: NUM_FONT, flexShrink: 0 }}>Only</span>
+        <FilterPill active={onlyPriced} onClick={() => { setOnlyPriced(!onlyPriced); setAll(false) }} title="Cards where the book has posted a number on this market for this player.">
+          💵 Priced
+        </FilterPill>
+        <FilterPill active={onlyUpcoming} onClick={() => { setOnlyUpcoming(!onlyUpcoming); setAll(false) }} title="His game has not kicked off yet.">
+          ⏱ Not kicked off
+        </FilterPill>
+        <FilterPill active={onlyWatched} onClick={() => { setOnlyWatched(!onlyWatched); setAll(false) }} title="Only names on your watchlist.">
+          ★ Watchlist
+        </FilterPill>
+        <FilterPill active={showLow} onClick={() => { setShowLow(!showLow); setAll(false) }} count={lowCount || undefined}
+          title="Include players the model scored off a thin sample. They render dimmed, and they are out by default.">
+          🔬 Low sample
+        </FilterPill>
+        <span style={{ width: 6 }} />
+        <span style={{ fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.1em', color: C.text3, textTransform: 'uppercase', fontFamily: NUM_FONT, flexShrink: 0 }}>Sort</span>
+        {[['score', 'Score'], ['price', 'Longest price'], ['kickoff', 'Earliest kickoff']].map(([k, label]) => (
+          <FilterPill key={k} active={sortBy === k} onClick={() => setSortBy(k)}
+            title={k === 'score' ? "The model's own score for this market — the board's default."
+              : k === 'price' ? 'Longest price first. An unpriced card sinks rather than sorting as if it were even money.'
+                : 'Earliest kickoff first.'}>
+            {label}
+          </FilterPill>
+        ))}
+      </div>
+
+      <div style={{ fontSize: TYPE.body, color: C.text3, margin: '8px 0 4px', lineHeight: 1.55 }}>
+        {hidden > 0 ? `showing ${capped.length} of ${rows.length}` : `${rows.length} player${rows.length === 1 ? '' : 's'}`}
+        {' — ranked by the model’s own score for this market.'}
       </div>
 
       {/* Says WHY there's no price on any row below, rather than every row
@@ -277,7 +307,7 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
       <div style={{
         display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(212px, 1fr))', gap: 8,
       }}>
-        {rows.map((p, i) => {
+        {capped.map((p, i) => {
           const s = p.scores[market]
           const g = gradeFor(s)
           const form = recentForm(logs, p.player_id, market, spec?.bar)
@@ -389,11 +419,23 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
         })}
       </div>
 
+      {hidden > 0 && (
+        <div style={{ marginTop: 14 }}>
+          <FilterPill onClick={() => setAll(true)} count={hidden}>Show the rest</FilterPill>
+        </div>
+      )}
+
       {!rows.length && (
         <div style={{
           border: `1px dashed ${C.border2}`, borderRadius: 12, padding: 28,
           textAlign: 'center', color: C.text3, fontSize: TYPE.body,
-        }}>Nothing scored for this market on this slate.</div>
+        }}>
+          {onlyPriced || onlyUpcoming || onlyWatched
+            ? `Nothing matches. The ${[onlyPriced && 'Priced', onlyUpcoming && 'Not kicked off', onlyWatched && 'Watchlist'].filter(Boolean).join(' + ')} filter left nobody — turn one off above.`
+            : query || team !== 'all' || position !== 'all'
+              ? 'Nothing matches. Clear the search, team or position filter above.'
+              : 'Nothing scored for this market on this slate.'}
+        </div>
       )}
     </div>
   )

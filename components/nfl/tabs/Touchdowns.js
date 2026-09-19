@@ -181,6 +181,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
   const watchlist = useNflWatchlist(data)
   const [query, setQuery] = useState('')
   const [position, setPosition] = useState('all')
+  const [team, setTeam] = useState('all')
   const [tier, setTier] = useState('everyone')
   const [onlyPriced, setOnlyPriced] = useState(false)
   const [onlyUpcoming, setOnlyUpcoming] = useState(false)
@@ -202,6 +203,15 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
       games: new Set(list.map((p) => [p.team, p.opp].sort().join('@'))).size,
     }
   }, [data])
+
+  const teamOptions = useMemo(() => {
+    const counts = {}
+    for (const p of rows) counts[p.team] = (counts[p.team] || 0) + 1
+    return [
+      { key: 'all', label: 'All teams', count: rows.length },
+      ...Object.keys(counts).filter(Boolean).sort().map((k) => ({ key: k, label: k, count: counts[k] })),
+    ]
+  }, [rows])
 
   const positionOptions = useMemo(() => {
     const counts = {}
@@ -231,6 +241,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
     const needle = query.trim().toLowerCase()
     let out = rows
     if (position !== 'all') out = out.filter((p) => p.position === position)
+    if (team !== 'all') out = out.filter((p) => p.team === team)
     if (needle) out = out.filter((p) => String(p.name || '').toLowerCase().includes(needle))
     if (tier === 'highconf') out = out.filter((p) => p.high_confidence_td_flag)
     else if (tier === 'aligned') out = out.filter((p) => alignedSignals(matchup, p).aligned)
@@ -258,7 +269,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
         }
         : (a, b) => (b.scores[MARKET] ?? 0) - (a.scores[MARKET] ?? 0)
     return [...out].sort(cmp)
-  }, [rows, query, position, tier, onlyWatched, onlyUpcoming, onlyPriced, sortBy, matchup, watchlist, odds, data, now])
+  }, [rows, query, position, team, tier, onlyWatched, onlyUpcoming, onlyPriced, sortBy, matchup, watchlist, odds, data, now])
 
   const capped = all ? filtered : filtered.slice(0, SOFT_CAP)
   const hidden = filtered.length - capped.length
@@ -288,6 +299,10 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
       <div style={{ marginTop: 8 }}>
         <FilterBar>
           <FilterSearch value={query} onChange={setQuery} placeholder="Search player…" width={165} />
+          {/* Team joined this bar 2026-09-18 so Boards and Touchdowns carry the
+              identical filter row -- the two boards used to disagree with each
+              other about their own controls, which is worse than either choice. */}
+          <FilterSelect label="Team" value={team} options={teamOptions} onChange={setTeam} />
           <FilterSelect label="Position" value={position} options={positionOptions} onChange={setPosition} />
         </FilterBar>
       </div>
