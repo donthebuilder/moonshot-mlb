@@ -35,7 +35,7 @@ import { easternToday } from '../../../../../lib/data'
 import { fetchLiveSlate, liveSlateStatus } from '../../../../../lib/liveSlate'
 import { fetchBoardFull, fetchRunMeta } from '../../../../../lib/dash/board'
 import { oddsPaths, pairSummaryPaths } from '../../../../../lib/dataSource'
-import { accountabilityText, boardIndexFrom, boardRolePicks, boardRoleResultsText, boardRoleText, botPollText, boxLinesForDate, captureFrom, communityPickText, roleWord, homersFrom, hooksFor, longshotPick, longshotText, monthlyText, numerologyMoment, numerologyText, pairsToWatch, pairsToWatchText, partnerFor, postText, pregameCalled, pregamePicks, pregameText, topStreakFrom, weeklyText } from '../../../../../lib/dash/homerFeed'
+import { accountabilityText, boardIndexFrom, boardNeighbors, boardNeighborsText, boardRolePicks, boardRoleResultsText, boardRoleText, botPollText, boxLinesForDate, captureFrom, communityPickText, roleWord, homersFrom, hooksFor, longshotPick, longshotText, monthlyText, numerologyMoment, numerologyText, pairsToWatch, pairsToWatchText, partnerFor, postText, pregameCalled, pregamePicks, pregameText, topStreakFrom, weeklyText } from '../../../../../lib/dash/homerFeed'
 import { homerCard, hotStretchCard, longshotCard, numerologyCard, pairsCard, pregameCard, recapCard, statCard } from '../../../../../lib/dash/homerCard'
 import {
   backToBackPicks, backToBackText, bestAirPicks, bestAirText, callOfTheNightPick, callOfTheNightText,
@@ -441,6 +441,30 @@ const COMMUNITY_PICK_HOUR = -4  // 8am ET
 // pregame post into one window.
 const PAIRSWATCH_HOUR = 0       // noon ET
 const LONGSHOT_HOUR = 1         // 1pm ET
+// Two above and two below -- five rows with him in the middle. Donovan asked
+// for "three names above and below ... or like 2 names"; two is what reads as
+// a neighbourhood rather than a leaderboard, and boardNeighborsText trims from
+// the outside in if even that overflows.
+const BOARD_NEIGHBOR_SPAN = 2
+// TOP/HR ONLY, and this took two rendered passes to get right.
+//
+//   1st: gated on on_board. Tonight's file is 270 rows -- every hitter the
+//        model SCORED, not every one it surfaced -- so rank 268 produced
+//        "#268 on tonight's board. It landed."
+//   2nd: gated on any role. Freddie Freeman is a real pick, role HRR, and
+//        HRR is the 2+ hits/runs/RBI market -- his HR score is 3.9, rank 258.
+//        The post ranks on hr_score, so it made a genuine call look absurd.
+//
+// lib/verdict.js's own house rule is the answer and it was already written
+// down: A PICK ALWAYS WEARS ITS OWN MARKET'S SCORE. This post is about a home
+// run and it ranks on hr_score, so it may only speak for the markets that
+// settle on a home run. A HRR pick going deep is a bonus, not something the
+// HR board called -- the alert itself already says so, and this reply stays
+// quiet rather than claiming a position he never held.
+const isHomerCall = (row) => /\b(TOP|HR)\b/.test(String(row?.role || '').toUpperCase())
+// Same test against a BOARD row, where the field is game_pick_role rather than
+// the homer_feed row's frozen `role`.
+const isBoardHomerCall = (row) => /\b(TOP|HR)\b/.test(String(row?.game_pick_role || '').toUpperCase())
 const BOTPOLL_DURATION_MIN = 600 // 10 hours -- covers most of a night slate
 // MATCHUP HISTORY (2026-09-15, Donovan: someone requested a fan account's
 // "has a HR vs tonight's starter" list; confirmed he wants BOTH that and the
@@ -1893,7 +1917,67 @@ export async function GET(request) {
           const png = await bytesOf(() => homerCard(ev, { site: SITE_HOST }))
           const mediaId = png ? await uploadImageToX(png) : null
           const r = await postToX(text, { mediaId, quoteId: quoteFor(row) })
-          if (r.ok && r.id) { patch.x_post_id = r.id; totals.x += 1 }
+          if (r.ok && r.id) {
+            patch.x_post_id = r.id
+            totals.x += 1
+            // ── THE BOARD-NEIGHBOURS REPLY (2026-09-18) ──────────────────
+            // Donovan: "reply with maybe the like three names above and below
+            // the player who went or like 2 names."
+            //
+            // A REPLY, deliberately, and only for a man who was ON the board.
+            // Three reasons it is not part of the alert above: the alert's job
+            // is the moment and a five-row table buries it; a reply costs the
+            // main post none of its reach; and "where he sat" is meaningless
+            // for a hitter the model never surfaced, which is the distinction
+            // the whole product is built on.
+            //
+            // COST. Every reply is its own X post against X_MONTHLY_CAP. It is
+            // gated on board membership, not on every homer, which is what
+            // keeps it to the handful of board names a night rather than all
+            // 16-39 -- see the neighbours note in lib/dash/homerFeed.js.
+            //
+            // FAILING IS FREE. Wrapped, and a refusal is logged and dropped:
+            // the alert is already out and posted, and a missing reply must
+            // never release the claim or re-post the homer.
+            try {
+              // FROZEN RANK WINS. homer_feed.board_rank was copied when the
+              // homer was first seen; boardRows() is whatever the board says
+              // NOW, and the bot republishes through the evening. If the two
+              // disagree, the board has been rebuilt since the alert went out
+              // and a reply built off the new one would contradict the rank
+              // the alert itself stated. Say nothing rather than two numbers.
+              // (Same freeze rule as this file's own header point 2.)
+              // ROLE, NOT on_board. Tonight's published board is 270 rows --
+              // every hitter the model scored, not every hitter it surfaced --
+              // so `on_board` is true down to rank 268, and a reply crowing
+              // "#268 on tonight's board. It landed." is the account claiming
+              // credit for coverage. `role` is the frozen marker that he was
+              // actually surfaced (TOP/HR/HIT/HRR/WATCH), and it is the same
+              // field the alert above already gates X posting on. Rendered
+              // against the live board before wiring this: rank 268 produced
+              // exactly that post.
+              // The pool is the CALLS, not the whole file -- see the note on
+              // boardNeighbors in lib/dash/homerFeed.js for the two versions
+              // this replaced. If the board has been rebuilt since the alert
+              // and he is no longer a call on it, the filter drops him and the
+              // reply simply doesn't happen, which is the behaviour we want:
+              // say nothing rather than a second, different number.
+              const nbrs = !isHomerCall(row)
+                ? []
+                : boardNeighbors(boardRows().filter(isBoardHomerCall), row.player_id, BOARD_NEIGHBOR_SPAN)
+              const nText = boardNeighborsText(nbrs, TAIL)
+              if (nText) {
+                const nr = await postToX(nText, { replyTo: r.id })
+                // Not stored: homer_feed has no column for it, and the reply
+                // is not something anything re-reads. A migration for a log
+                // line is not worth a column.
+                if (nr.ok && nr.id) totals.x += 1
+                else console.error(`[homers] neighbours reply refused for ${row.name}: ${nr.status} ${nr.error}`)
+              }
+            } catch (err) {
+              console.error(`[homers] neighbours reply threw for ${row.name}`, err)
+            }
+          }
           else {
             totals.xFailed += 1
             console.error(`[homers] X refused ${row.name}: ${r.status} ${r.error}`)
