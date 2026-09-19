@@ -63,6 +63,7 @@ import {
   whyOnBoardPick, whyOnBoardText, bigWeekPicks, bigWeekText,
   nflBoardPicks, nflBoardText, nflBotPollPicks, nflBotPollText, nflBotPollOptions,
   nflCommunityPickText, nflBoardResultsText,
+  tdCallNeighbors, tdCallNeighborsText,
 } from '../../../../../lib/nfl/tweetFeed'
 import { fetchNflLive } from '../../../../../lib/nfl/liveSlate'
 import { buildTdEvent, eventFromRow, rowFromEvent, tdPostText, touchdownsInSnap } from '../../../../../lib/nfl/tdFeed'
@@ -162,6 +163,9 @@ const MON_RESULTS_HOUR = -3     //  9am ET Monday -- BEFORE big week, so the
 // Long enough to cover the 1pm and 4pm windows without running past the night
 // game, so the result is readable while the answer still matters.
 const NFL_POLL_DURATION_MIN = 300
+// Two either side. The TD ladder is five rungs, so tdCallNeighbors shows the
+// whole sheet at that size and only clamps on a week the ladder runs longer.
+const TD_NEIGHBOR_SPAN = 2
 
 // Which post, if any, this weekday owns. 0=Sun .. 6=Sat, same etWeekday()
 // the milestone gate already uses.
@@ -340,7 +344,57 @@ async function runTouchdownTick(db, day) {
         if (claim?.length) {
           const mediaId = png ? await uploadImageToX(png) : null
           const r = await postToX(text, { mediaId })
-          if (r.ok && r.id) { patch.x_post_id = r.id; totals.x += 1 }
+          if (r.ok && r.id) {
+            patch.x_post_id = r.id
+            totals.x += 1
+            // ── THE CALL-SHEET REPLY (2026-09-18) ────────────────────────
+            // Donovan, after the MOONSHOT version shipped: "same with touch
+            // downs." Same shape, same reasons: the alert's job is the score,
+            // a five-row table bolted on buries it, and a reply costs the
+            // alert none of its reach.
+            //
+            // ONLY FOR A DESIGNATED CALL. `on_bot` is nfl_picks.json's TD
+            // ladder, frozen onto the row when the touchdown was first seen,
+            // and it is the same thing the alert itself reads for its "#N on
+            // the Tuddy board / TD pick · A+" block. A scorer who is merely
+            // RATED -- lib/nfl/tdFeed.js's boardRankFor ranks hundreds of
+            // them -- is not a call, and the alert already says so.
+            //
+            // The ladder is five rungs, so this is usually the WHOLE call
+            // sheet rather than a slice of it.
+            //
+            // FAILING IS FREE: logged and dropped. The alert is already out,
+            // and a missing reply must never release its claim or re-post
+            // the touchdown.
+            try {
+              const nbrs = row.on_bot
+                ? tdCallNeighbors(picksCard, row.gsis_id, TD_NEIGHBOR_SPAN)
+                : []
+              // FROZEN RANK WINS, AND THIS IS NOT HYPOTHETICAL. nfl_td_feed
+              // carries Javonte Williams at on_bot rank 5 from the night he
+              // scored; the ladder live right now has him 3rd. The ladder is
+              // rebuilt through the week and across weeks, so a reply read off
+              // TODAY's rungs would say #3 under an alert that said #5. Two
+              // numbers for the same call is worse than no reply, so when the
+              // frozen rank and the live one disagree, say nothing.
+              const me = nbrs.find((n) => n.him)
+              const frozenRank = Number(row.on_bot?.rank)
+              const drifted = me && Number.isFinite(frozenRank) && frozenRank !== me.rank
+              if (drifted) {
+                console.error(`[nfl-tick] call-sheet skipped for ${row.scorer_name}: ladder moved (row ${frozenRank}, live ${me.rank})`)
+              }
+              const nText = drifted ? '' : tdCallNeighborsText(nbrs, TAIL)
+              if (nText) {
+                const nr = await postToX(nText, { replyTo: r.id })
+                // Not stored: nfl_td_feed has no column for it and nothing
+                // re-reads it. A migration for a log line is not worth it.
+                if (nr.ok && nr.id) totals.x += 1
+                else console.error(`[nfl-tick] call-sheet reply refused for ${row.scorer_name}: ${nr.status} ${nr.error}`)
+              }
+            } catch (err) {
+              console.error(`[nfl-tick] call-sheet reply threw for ${row.scorer_name}`, err)
+            }
+          }
           else {
             totals.xFailed += 1
             console.error(`[nfl-tick] X refused ${row.scorer_name || row.text}: ${r.status} ${r.error}`)
