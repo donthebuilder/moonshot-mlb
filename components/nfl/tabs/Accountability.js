@@ -5,6 +5,7 @@ import DenseTable from '../../DenseTable'
 import { useResultsArchive, seasonTotals, grandTotal, gradeBands, labelOf, weekKey } from '../../../lib/nfl/resultsArchive'
 import { downloadNflPickCard } from '../shareCard'
 import ChartFrame from '../ChartFrame'
+import PageHeader from '../../PageHeader'
 
 // DID THE PICKS DO THEIR OWN JOB? — the NFL sibling of MLB's PickScorecard +
 // ScoreAudit (components/PickScorecard.js, components/ScoreAudit.js).
@@ -148,19 +149,21 @@ function ReceiptHero({ results, when }) {
 
   return (
     <section className="receiptHero">
-      <div className="receiptGlow" />
-      <div className="receiptTop">
-        <div>
-          <div className="receiptEyebrow">TUDDY · THE RECEIPT ROOM</div>
-          <h1>Every call. Every bar. No hiding.</h1>
-          <p>The latest published card, graded market by market against the job it was asked to do.</p>
-        </div>
-        <div className="receiptStamp">
-          <span>LAST GRADED</span>
-          <strong>{when}</strong>
-          {results.exhibition && <em>PRESEASON</em>}
-        </div>
-      </div>
+      {/* The shared page header (2026-09-18), not a bespoke glowing hero: the
+          eyebrow, the headline and the LAST GRADED stamp are all slots it
+          already has. The KPI block below is this page's own and stays. */}
+      <PageHeader
+        eyebrow="TUDDY · THE RECEIPT ROOM"
+        title="Every call. Every bar. No hiding."
+        note="The latest published card, graded market by market against the job it was asked to do."
+        theme={C}
+        numFont={NUM_FONT}
+        accent={C.green}
+        stats={[
+          { value: when, label: 'LAST GRADED', tone: C.text2 },
+          results.exhibition ? { value: 'PRESEASON', label: 'CAVEAT', tone: C.yellow } : null,
+        ]}
+      />
 
       <div className="receiptKpis">
         <div className="receiptRate">
@@ -624,16 +627,8 @@ export default function Accountability({ data, results: latest, onPlayerClick })
           every paragraph on the site the moment they went global -- so they
           are qualified to the hero they were always meant for. */}
       <style jsx global>{`
-        .receiptHero{position:relative;overflow:hidden;margin-bottom:12px;padding:20px;border:1px solid ${C.green}5c;border-radius:17px;background:linear-gradient(135deg,#071b17 0%,${C.bg2} 46%,#07121c 100%)}
-        .receiptGlow{position:absolute;right:-80px;top:-130px;width:330px;height:330px;border-radius:50%;background:${C.green}26;filter:blur(12px);pointer-events:none}
-        .receiptTop{position:relative;display:flex;justify-content:space-between;align-items:flex-start;gap:24px}
-        .receiptEyebrow{font-family:${NUM_FONT};font-size:9px;font-weight:900;letter-spacing:.16em;color:${C.green};margin-bottom:7px}
-        .receiptHero h1{font-size:clamp(24px,4vw,40px);line-height:.98;letter-spacing:-.045em;margin:0;color:${C.text};max-width:620px}
-        .receiptHero p{font-size:11px;line-height:1.55;color:${C.text3};max-width:590px;margin:9px 0 0}
-        .receiptStamp{min-width:142px;text-align:right;border-right:3px solid ${C.green};padding-right:10px}
-        .receiptStamp span,.receiptKpis span{display:block;font-family:${NUM_FONT};font-size:8px;font-weight:900;letter-spacing:.1em;color:${C.text3}}
-        .receiptStamp strong{display:block;font-size:11px;color:${C.text2};margin-top:4px}
-        .receiptStamp em{display:inline-block;margin-top:5px;padding:2px 6px;border-radius:4px;background:${C.yellow}33;color:${C.yellow};font-family:${NUM_FONT};font-size:8px;font-style:normal;font-weight:900}
+        .receiptHero{position:relative;margin-bottom:12px}
+        .receiptKpis span{display:block;font-family:${NUM_FONT};font-size:8px;font-weight:900;letter-spacing:.1em;color:${C.text3}}
         .receiptKpis{position:relative;display:grid;grid-template-columns:1.4fr repeat(3,1fr);gap:8px;margin-top:18px}
         .receiptKpis>div{min-width:0;padding:10px 11px;border:1px solid ${C.border};border-radius:10px;background:#050b0ee0}
         .receiptKpis strong{display:block;margin-top:4px;font-family:${NUM_FONT};font-size:22px;line-height:1;color:${C.text}}
@@ -648,9 +643,6 @@ export default function Accountability({ data, results: latest, onPlayerClick })
         .receiptMarkets i{display:block;height:2px;margin-top:5px;background:${C.border};border-radius:9px;overflow:hidden}
         .receiptMarkets em{display:block;height:100%;border-radius:inherit}
         @media(max-width:760px){
-          .receiptHero{padding:15px}
-          .receiptTop{display:block}
-          .receiptStamp{text-align:left;border-right:0;border-left:3px solid ${C.green};padding:1px 0 1px 9px;margin-top:14px}
           .receiptKpis{grid-template-columns:1fr 1fr}
           .receiptMarkets{display:flex;overflow-x:auto;padding-bottom:3px}
           .receiptMarkets>div{min-width:82px}
