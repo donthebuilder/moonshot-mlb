@@ -35,7 +35,7 @@ import { easternToday } from '../../../../../lib/data'
 import { fetchLiveSlate, liveSlateStatus } from '../../../../../lib/liveSlate'
 import { fetchBoardFull, fetchRunMeta } from '../../../../../lib/dash/board'
 import { oddsPaths, pairSummaryPaths } from '../../../../../lib/dataSource'
-import { accountabilityText, boardIndexFrom, boardNeighbors, boardNeighborsText, boardRolePicks, boardRoleResultsText, boardRoleText, botPollText, boxLinesForDate, captureFrom, communityPickText, roleWord, homersFrom, hooksFor, longshotPick, longshotText, monthlyText, numerologyMoment, numerologyText, pairsToWatch, pairsToWatchText, partnerFor, postText, pregameCalled, pregamePicks, pregameText, topStreakFrom, weeklyText } from '../../../../../lib/dash/homerFeed'
+import { accountabilityText, boardIndexFrom, boardNeighbors, boardNeighborsText, marketForRole, boardRolePicks, boardRoleResultsText, boardRoleText, botPollText, boxLinesForDate, captureFrom, communityPickText, roleWord, homersFrom, hooksFor, longshotPick, longshotText, monthlyText, numerologyMoment, numerologyText, pairsToWatch, pairsToWatchText, partnerFor, postText, pregameCalled, pregamePicks, pregameText, topStreakFrom, weeklyText } from '../../../../../lib/dash/homerFeed'
 import { homerCard, hotStretchCard, longshotCard, numerologyCard, pairsCard, pregameCard, recapCard, statCard } from '../../../../../lib/dash/homerCard'
 import {
   backToBackPicks, backToBackText, bestAirPicks, bestAirText, callOfTheNightPick, callOfTheNightText,
@@ -461,10 +461,29 @@ const BOARD_NEIGHBOR_SPAN = 2
 // settle on a home run. A HRR pick going deep is a bonus, not something the
 // HR board called -- the alert itself already says so, and this reply stays
 // quiet rather than claiming a position he never held.
-const isHomerCall = (row) => /\b(TOP|HR)\b/.test(String(row?.role || '').toUpperCase())
+// SECOND PASS, 2026-09-18, after a live night. The first version gated on
+// TOP/HR only, and on a real 14-homer night exactly ONE homer qualified -- the
+// feature was correct and effectively invisible. Reading the night back:
+//
+//   role    homers      what the first gate did
+//   TOP        1        replied
+//   HIT        2        silent
+//   HRR        2        silent
+//   WATCH      4        silent
+//   (none)     5        silent
+//
+// HIT and HRR are real calls. They were skipped because the post ranks on
+// hr_score and a HIT call is 60th on THAT list -- the Freddie Freeman problem
+// the NFL twin already has written down. The answer is the same one
+// lib/verdict.js gives: rank him in HIS OWN market, and say which market.
+// Five replies a night instead of one, every number honest.
+//
+// WATCH stays out. It is coverage, never a pick (boardRoleText leaves it off
+// TONIGHT'S BOARD for the same reason), so a WATCH homer gets the alert alone.
+const marketOf = (row) => marketForRole(row?.role)
 // Same test against a BOARD row, where the field is game_pick_role rather than
 // the homer_feed row's frozen `role`.
-const isBoardHomerCall = (row) => /\b(TOP|HR)\b/.test(String(row?.game_pick_role || '').toUpperCase())
+const boardRoleMatches = (row, want) => new RegExp(`\\b${want}\\b`).test(String(row?.game_pick_role || '').toUpperCase())
 const BOTPOLL_DURATION_MIN = 600 // 10 hours -- covers most of a night slate
 // MATCHUP HISTORY (2026-09-15, Donovan: someone requested a fan account's
 // "has a HR vs tonight's starter" list; confirmed he wants BOTH that and the
@@ -1962,10 +1981,14 @@ export async function GET(request) {
               // and he is no longer a call on it, the filter drops him and the
               // reply simply doesn't happen, which is the behaviour we want:
               // say nothing rather than a second, different number.
-              const nbrs = !isHomerCall(row)
+              const mkt = marketOf(row)
+              const nbrs = !mkt
                 ? []
-                : boardNeighbors(boardRows().filter(isBoardHomerCall), row.player_id, BOARD_NEIGHBOR_SPAN)
-              const nText = boardNeighborsText(nbrs, TAIL)
+                : boardNeighbors(
+                  boardRows().filter((r) => boardRoleMatches(r, mkt.role)),
+                  row.player_id, BOARD_NEIGHBOR_SPAN, mkt.key,
+                )
+              const nText = mkt ? boardNeighborsText(nbrs, { ...TAIL, market: mkt.label }) : ''
               if (nText) {
                 const nr = await postToX(nText, { replyTo: r.id })
                 // Not stored: homer_feed has no column for it, and the reply
