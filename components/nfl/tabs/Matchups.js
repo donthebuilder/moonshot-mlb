@@ -44,7 +44,18 @@ function Row({ label, children }) {
 function Profile({ data, team }) {
   const cov = data?.coverage_team?.[team]
   const exp = data?.def_explosive?.[team]
-  if (!cov && !exp) return null
+  // PRESSURE AND FORMATION (2026-09-18). nfl_disruption.team_context has been
+  // computed, published in nfl_matchup.json and rendered NOWHERE since it
+  // shipped -- found in the 09-18 audit. Complete data too: all 32 teams, with
+  // its own denominators. It belongs here, beside coverage, because it answers
+  // the same question about the same defence.
+  //
+  // TWO SIDES, NOT ONE. `created` is this defence getting home; `allowed` is
+  // its own offence getting hit, which is a line read and bears on the passing
+  // markets rather than on the defensive ones. Labelled so they cannot be
+  // mistaken for each other.
+  const dis = data?.disruption_team?.[team]
+  if (!cov && !exp && !dis) return null
   return (
     <div style={{
       display: 'grid', gap: 10, marginTop: 12,
@@ -90,6 +101,49 @@ function Profile({ data, team }) {
           <Row label="30+ / 40+">{exp.pass_30} / {exp.pass_40}</Row>
           <Row label="Explosive %">{exp.exp_pct}%</Row>
           <Row label="Deep (20+ air)">{exp.deep_cmp}/{exp.deep_att} · {exp.deep_pct}% · {exp.deep_td} TD</Row>
+        </div>
+      )}
+      {dis && (dis.pressure || dis.formation) && (
+        <div style={{
+          background: C.bg2, border: `1px solid ${C.border}`, borderLeft: `3px solid ${C.orange}`,
+          borderRadius: 10, padding: '11px 14px',
+        }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+            fontSize: TYPE.label, fontWeight: 900, color: C.text3, letterSpacing: '.1em',
+            marginBottom: 7,
+          }}><span>{team} PRESSURE &amp; FORMATION</span><SourceSeason matchup={data} kind="charting" /></div>
+          {dis.pressure?.created_pct != null && (
+            <Row label="Pressure created">
+              <b style={{ color: C.orange }}>{dis.pressure.created_pct}%</b>
+              {dis.pressure.created_plays ? ` · ${dis.pressure.created_plays} pass plays faced` : ''}
+            </Row>
+          )}
+          {dis.pressure?.allowed_pct != null && (
+            <Row label="Pressure allowed">
+              {dis.pressure.allowed_pct}%
+              {dis.pressure.allowed_plays ? ` · ${dis.pressure.allowed_plays} dropbacks` : ''}
+            </Row>
+          )}
+          {dis.formation && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 7 }}>
+              {[['Shotgun', dis.formation.shotgun_pct],
+                ['Under centre', dis.formation.under_center_pct],
+                ['Pistol', dis.formation.pistol_pct]]
+                .filter(([, v]) => v != null)
+                .map(([label, v]) => (
+                  <span key={label} style={{
+                    fontFamily: NUM_FONT, fontSize: TYPE.label, fontWeight: 800, color: C.text2,
+                    border: `1px solid ${C.border}`, borderRadius: 5, padding: '2px 6px',
+                  }}>{label} <b style={{ color: C.orange }}>{v}%</b></span>
+                ))}
+            </div>
+          )}
+          <div style={{ fontSize: TYPE.micro, color: C.text3, marginTop: 7, lineHeight: 1.5 }}>
+            Created is this defence getting home. Allowed is its own offence getting hit — a line
+            read, and the one that bears on the passing markets.
+            {dis.formation?.snaps ? ` Formation mix off ${dis.formation.snaps} charted snaps.` : ''}
+          </div>
         </div>
       )}
     </div>
