@@ -2,6 +2,7 @@
 import { C, NUM_FONT, RAMP } from '../../lib/nfl/theme'
 import { softRole } from '../../lib/nfl/dvpSignal'
 import SourceSeason from './SourceSeason'
+import useDvpSeason from '../../lib/nfl/useDvpSeason'
 
 // Defence vs position, BY DEPTH ROLE.
 //
@@ -98,7 +99,13 @@ function Cell({ cell, stat, dim }) {
   )
 }
 
-export default function DvpTable({ data, team, win = 'season', roles, highlight, minWidth = 620, slateSeason = null }) {
+export default function DvpTable({ data: payload, team, win = 'season', roles, highlight, minWidth = 620, slateSeason = null }) {
+  // WHICH SEASON'S DEFENCE. The bot picks the default (last season until three
+  // weeks are played, then this one); the switch below asks for the other, and
+  // that table is fetched lazily from its own file. See lib/nfl/useDvpSeason.js
+  // for why it is not in the main payload.
+  const dvpSeason = useDvpSeason(payload)
+  const data = dvpSeason.view
   const order = roles || data?.dvp_roles || []
   const labels = data?.dvp_labels || {}
   const blob = data?.dvp?.[win]?.[team]
@@ -109,10 +116,36 @@ export default function DvpTable({ data, team, win = 'season', roles, highlight,
   const stats = (data?.dvp_stats || []).filter(
     (s) => rows.some((r) => blob[r]?.[s] !== undefined && blob[r]?.[s] !== null))
 
+  // The empty state has to keep the switch, or flipping to a season with no
+  // rows for this team is a dead end with no way back (#24). It also names the
+  // season, because "no data" is a different sentence in week 2 of 2026 than it
+  // is for 2025.
   if (!rows.length) {
-    return <div style={{ color: C.text3, fontSize: 12, padding: 16 }}>
-      No defence data for {team} in this window.
-    </div>
+    return (
+      <div style={{ padding: '10px 12px 14px' }}>
+        {dvpSeason.hasToggle && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6, marginBottom: 8 }}>
+            {[dvpSeason.current, dvpSeason.alt].map((yr) => {
+              const on = dvpSeason.showing === yr
+              return (
+                <button key={yr} onClick={() => dvpSeason.pick(yr)} style={{
+                  fontFamily: NUM_FONT, fontSize: 9, fontWeight: 900, letterSpacing: '.06em',
+                  padding: '2px 7px', borderRadius: 5, cursor: 'pointer',
+                  border: `1px solid ${on ? C.cyan : C.border}`,
+                  background: on ? `${C.cyan}1f` : 'transparent',
+                  color: on ? C.cyan : C.text3,
+                }}>{yr}</button>
+              )
+            })}
+          </div>
+        )}
+        <div style={{ color: C.text3, fontSize: 12 }}>
+          {dvpSeason.state === 'loading'
+            ? `Loading ${dvpSeason.showing} defence…`
+            : `No ${dvpSeason.showing || ''} defence data for ${team} in this window.`}
+        </div>
+      </div>
+    )
   }
 
   // The softest cell on the board, so the panel opens on an answer instead of
@@ -138,7 +171,33 @@ export default function DvpTable({ data, team, win = 'season', roles, highlight,
       {/* Which season these ranks are from. Silent once it is this season's
           own table; a badge while stats_season_for() is still serving last
           season, which it does until three weeks have been played. */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 6 }}>
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
+        gap: 6, marginBottom: 6, flexWrap: 'wrap',
+      }}>
+        {dvpSeason.state === 'error' && (
+          <span style={{ fontSize: 9, color: C.yellow }}>
+            {dvpSeason.alt} table didn&apos;t load — still showing {dvpSeason.current}
+          </span>
+        )}
+        {dvpSeason.hasToggle && [dvpSeason.current, dvpSeason.alt].map((yr) => {
+          const on = dvpSeason.showing === yr
+          return (
+            <button
+              key={yr} onClick={() => dvpSeason.pick(yr)}
+              title={yr === dvpSeason.current
+                ? 'The season the bot scores this week against'
+                : 'The other season, fetched on demand'}
+              style={{
+                fontFamily: NUM_FONT, fontSize: 9, fontWeight: 900, letterSpacing: '.06em',
+                padding: '2px 7px', borderRadius: 5, cursor: 'pointer',
+                border: `1px solid ${on ? C.cyan : C.border}`,
+                background: on ? `${C.cyan}1f` : 'transparent',
+                color: on ? C.cyan : C.text3,
+              }}
+            >{yr}{dvpSeason.state === 'loading' && dvpSeason.showing === yr ? '…' : ''}</button>
+          )
+        })}
         <SourceSeason matchup={data} kind="stats" slateSeason={slateSeason} />
       </div>
       <div className="dense-scroll" style={{ overflowX: 'auto' }}>
