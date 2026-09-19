@@ -4,6 +4,7 @@ import { C, NUM_FONT, TYPE } from '../../../lib/nfl/theme'
 import { AXIS_META, alignedWith, slateAlignments, dateDigitRoot, shiftDateKey } from '../../../lib/nfl/alignments'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 import PageHeader from '../../PageHeader'
+import { etToday } from '../../../lib/freshness'
 
 // 🔮 NUMEROLOGY — B10(d), 2026-09-15. TUDDY's clone of MLB's Alignments view
 // (components/Alignments.js + lib/alignments.js). Donovan approved shipping
@@ -48,12 +49,24 @@ export default function Numerology({ data }) {
   const { rows, clubs, totalMemberships, braids, names } = model
 
   const ranked = useMemo(() => [...clubs].sort((a, b) => b.count - a.count), [clubs])
+  // How many men on the slate have PLAYED and not scored -- the honest reason
+  // root 1 leads in September. A player with no season_td at all is absent,
+  // not a zero, and is not counted here (see lib/nfl/alignments.js's axesOf).
+  const zeroTdCount = useMemo(
+    () => rows.filter((a) => a.seasonTd === 0).length, [rows])
   const expected = totalMemberships / 9
 
   // Tomorrow's date, reduced -- see the header note above for why this is
   // the one archive-free third of MLB's watchlist cross-check. Recomputed
   // per render (cheap string arithmetic); the day doesn't change mid-session.
-  const tomorrowRoot = dateDigitRoot(shiftDateKey(new Date().toISOString().slice(0, 10), 1))
+  // EASTERN, NOT UTC (fixed 2026-09-18). This read
+  // `new Date().toISOString().slice(0, 10)`, which is the UTC date -- so from
+  // 5pm Phoenix / 8pm Eastern onward the page had already rolled over and
+  // "tomorrow" was the day after tomorrow. Every other day-boundary on this
+  // site is the Eastern game day (lib/freshness.js's etToday, the same clock
+  // StaleBanner and the box scores use), and a football page has no business
+  // running on a different calendar than the games do.
+  const tomorrowRoot = dateDigitRoot(shiftDateKey(etToday(), 1))
   const watchedRows = useMemo(() => rows
     .filter((a) => watchlist.isPinned(a.pid))
     .map((a) => {
@@ -90,6 +103,26 @@ export default function Numerology({ data }) {
         raw count. MLB&apos;s own sweep of this same method tested 18 axes against 4,238 real player-nights and found
         zero significant ones -- fun to track, never a reason to bet. Nothing here feeds any score, board, or call.
       </div>
+
+      {/* WHY ROOT 1 IS THE BIG ONE, AND WHY THAT IS ARITHMETIC (2026-09-18).
+          The page's whole job is "who is clustering", so the largest club has
+          to explain itself or it reads as a pattern when it is a calendar. In
+          September most of the slate has not scored yet, every one of those men
+          is sitting on 0, and 0 + 1 reduces to 1 for all of them at once. It
+          shrinks on its own as the season puts touchdowns on people. Shown only
+          while it is actually true. */}
+      {zeroTdCount > 0 && (
+        <div style={{
+          border: `1px solid ${C.border}`, borderLeft: `3px solid ${C.text3}`,
+          background: C.bg2, borderRadius: 8, padding: '7px 11px', marginBottom: 12,
+          fontSize: TYPE.micro, color: C.text3, lineHeight: 1.6, maxWidth: 860,
+        }}>
+          <b style={{ color: C.text2 }}>Root 1 is crowded for a boring reason.</b>{' '}
+          {zeroTdCount} of these players have not scored yet this season, so every one of them is
+          sitting on 0 and his next touchdown is #1. That is the calendar, not a cluster -- it
+          thins out as the season puts touchdowns on people.
+        </div>
+      )}
 
       {/* ── YOUR WATCHLIST, ALIGNING (tomorrow only -- see header note) ──── */}
       {watchlist.pins.length > 0 && (

@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { etToday } from '../../../lib/freshness'
 import { C, NUM_FONT, gradeFor, TYPE } from '../../../lib/nfl/theme'
 import { btnStyle } from '../../ui'
 import { quoteFor } from '../../../lib/nfl/oddsMatch'
@@ -218,7 +219,7 @@ export default function Picks({ picks, results, data, matchup, onPlayerClick, od
       const blob = new Blob([exportStore()], { type: 'application/json' })
       const a = document.createElement('a')
       a.href = URL.createObjectURL(blob)
-      a.download = `tuddy-nfl-picks-${new Date().toISOString().slice(0, 10)}.json`
+      a.download = `tuddy-nfl-picks-${etToday()}.json`
       a.click(); URL.revokeObjectURL(a.href); setMsg('Exported.')
     } catch { setMsg("Couldn't export.") }
   }
