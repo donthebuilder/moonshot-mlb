@@ -6,7 +6,7 @@ import MatchupMap from '../MatchupMap'
 import DvpTable from '../DvpTable'
 import DvpDrift from '../DvpDrift'
 import ChartFrame from '../ChartFrame'
-import { softRole, softLine, ordinal, passRushThreat, PASS_RUSH_AVOID } from '../../../lib/nfl/dvpSignal'
+import { softRole, softLine, passRushThreat, PASS_RUSH_AVOID } from '../../../lib/nfl/dvpSignal'
 import MatchupBadge from '../MatchupBadge'
 
 // Matchups — pick a defence, then read it two ways.

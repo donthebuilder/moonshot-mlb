@@ -1,5 +1,5 @@
 'use client'
-import { Children, cloneElement, useEffect, useMemo, useRef, useState } from 'react'
+import { Children, cloneElement, isValidElement, useEffect, useMemo, useRef, useState } from 'react'
 import { NFL_NAV, NFL_MORE_GROUPS } from '../../lib/routes'
 import { C, NUM_FONT, GRADIENT } from '../../lib/nfl/theme'
 import { setSport } from '../../lib/sport'
@@ -81,7 +81,18 @@ const NFL_JOBS = () => [
 function TickerStrip({ children }) {
   const trackRef = useRef(null)
   useAutoScroll(trackRef, { speed: 55 })
-  const items = Children.toArray(children)
+  // ONLY REAL ELEMENTS GET CLONED (2026-09-18).
+  //
+  // The whole TUDDY side was a white screen: React error #130, "element type
+  // is invalid ... got: undefined", thrown before anything rendered. The
+  // cause is here. Children.toArray drops null/undefined/booleans but KEEPS
+  // strings, and one child of this strip is `{freshLabel && <Tile .../>}` --
+  // freshLabel is '' until the slate payload lands, so on the very first
+  // render the array holds an empty STRING. cloneElement('') reads `.type`
+  // off a string, gets undefined, and hands React an element with no type.
+  // Filtering to real elements is the fix that holds for every future tile,
+  // not just this one.
+  const items = Children.toArray(children).filter(isValidElement)
   return (
     <div
       ref={trackRef}
