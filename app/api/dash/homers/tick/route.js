@@ -35,7 +35,7 @@ import { easternToday } from '../../../../../lib/data'
 import { fetchLiveSlate, liveSlateStatus } from '../../../../../lib/liveSlate'
 import { fetchBoardFull, fetchRunMeta } from '../../../../../lib/dash/board'
 import { oddsPaths, pairSummaryPaths } from '../../../../../lib/dataSource'
-import { accountabilityText, boardIndexFrom, boardNeighbors, boardNeighborsText, marketForRole, boardRolePicks, boardRoleResultsText, boardRoleText, botPollText, boxLinesForDate, captureFrom, communityPickText, roleWord, homersFrom, hooksFor, longshotPick, longshotText, monthlyText, numerologyMoment, numerologyText, pairsToWatch, pairsToWatchText, partnerFor, postText, pregameCalled, pregamePicks, pregameText, topStreakFrom, weeklyText } from '../../../../../lib/dash/homerFeed'
+import { accountabilityText, boardIndexFrom, moonshotBoardRanking, moonshotBoardText, boardRolePicks, boardRoleResultsText, boardRoleText, botPollText, boxLinesForDate, captureFrom, communityPickText, roleWord, homersFrom, hooksFor, longshotPick, longshotText, monthlyText, numerologyMoment, numerologyText, pairsToWatch, pairsToWatchText, partnerFor, postText, pregameCalled, pregamePicks, pregameText, topStreakFrom, weeklyText } from '../../../../../lib/dash/homerFeed'
 import { homerCard, hotStretchCard, longshotCard, numerologyCard, pairsCard, pregameCard, recapCard, statCard } from '../../../../../lib/dash/homerCard'
 import {
   backToBackPicks, backToBackText, bestAirPicks, bestAirText, callOfTheNightPick, callOfTheNightText,
@@ -441,11 +441,6 @@ const COMMUNITY_PICK_HOUR = -4  // 8am ET
 // pregame post into one window.
 const PAIRSWATCH_HOUR = 0       // noon ET
 const LONGSHOT_HOUR = 1         // 1pm ET
-// Two above and two below -- five rows with him in the middle. Donovan asked
-// for "three names above and below ... or like 2 names"; two is what reads as
-// a neighbourhood rather than a leaderboard, and boardNeighborsText trims from
-// the outside in if even that overflows.
-const BOARD_NEIGHBOR_SPAN = 2
 // Replies per tick. The pass runs every minute and anything it does not get to
 // is still owed (reply_post_id null), so a homer burst drains over a few ticks
 // rather than risking this route's 60-second ceiling in one go.
@@ -465,29 +460,25 @@ const NEIGHBOR_REPLY_BATCH = 6
 // settle on a home run. A HRR pick going deep is a bonus, not something the
 // HR board called -- the alert itself already says so, and this reply stays
 // quiet rather than claiming a position he never held.
-// SECOND PASS, 2026-09-18, after a live night. The first version gated on
-// TOP/HR only, and on a real 14-homer night exactly ONE homer qualified -- the
-// feature was correct and effectively invisible. Reading the night back:
+// THE MOONSHOT BOARD REPLY -- who gets one.
 //
-//   role    homers      what the first gate did
-//   TOP        1        replied
-//   HIT        2        silent
-//   HRR        2        silent
-//   WATCH      4        silent
-//   (none)     5        silent
+// Third pass. The first two argued about WHICH board, and both were wrong in
+// the same way: they ranked a homer on hr_score, one market's number, so a
+// HIT call came out 60th and a HRR call 258th. Donovan settled it -- "moonshot
+// board is the top rankings" -- and overall_score is that ranking. One board,
+// everybody on it, no market to choose (see lib/dash/homerFeed.js).
 //
-// HIT and HRR are real calls. They were skipped because the post ranks on
-// hr_score and a HIT call is 60th on THAT list -- the Freddie Freeman problem
-// the NFL twin already has written down. The answer is the same one
-// lib/verdict.js gives: rank him in HIS OWN market, and say which market.
-// Five replies a night instead of one, every number honest.
-//
-// WATCH stays out. It is coverage, never a pick (boardRoleText leaves it off
-// TONIGHT'S BOARD for the same reason), so a WATCH homer gets the alert alone.
-const marketOf = (row) => marketForRole(row?.role)
-// Same test against a BOARD row, where the field is game_pick_role rather than
-// the homer_feed row's frozen `role`.
-const boardRoleMatches = (row, want) => new RegExp(`\\b${want}\\b`).test(String(row?.game_pick_role || '').toUpperCase())
+// TWO GUARDS REMAIN, and both earned their place on a live night:
+//   role      he has to have been SURFACED. The published board scores 269
+//             hitters; most were never called, and "#205 on tonight's board.
+//             It landed." is the account taking credit for coverage.
+//   rank      even a surfaced name can sit deep. A reply that has to admit
+//             #187 is not a reply worth an X post.
+const BOARD_REPLY_MAX_RANK = 50
+const isSurfaced = (row) => Boolean(String(row?.role || '').trim())
+// How many of the board the reply prints above him. Ten names every night is
+// ten names in front of search and one object a reader learns to recognise.
+const BOARD_REPLY_TOP = 10
 const BOTPOLL_DURATION_MIN = 600 // 10 hours -- covers most of a night slate
 // MATCHUP HISTORY (2026-09-15, Donovan: someone requested a fan account's
 // "has a HR vs tonight's starter" list; confirmed he wants BOTH that and the
@@ -2022,23 +2013,21 @@ export async function GET(request) {
       // 'posting' is the alert's own in-flight sentinel, not a real id --
       // replying to it would 400. Leave it; the next tick sees a real id.
       if (!row.x_post_id || row.x_post_id === 'posting') continue
-      const mkt = marketOf(row)
-      const nbrs = !mkt
-        ? []
-        : boardNeighbors(
-          boardRows().filter((r) => boardRoleMatches(r, mkt.role)),
-          row.player_id, BOARD_NEIGHBOR_SPAN, mkt.key,
-        )
-      const nText = mkt ? boardNeighborsText(nbrs, { ...TAIL, market: mkt.label }) : ''
+      const ranking = moonshotBoardRanking(boardRows())
+      const seat = ranking.find((r) => r.player_id === String(row.player_id))
+      const eligible = isSurfaced(row) && seat && seat.rank <= BOARD_REPLY_MAX_RANK
+      const nText = eligible
+        ? moonshotBoardText(ranking, row.player_id, { ...TAIL, top: BOARD_REPLY_TOP })
+        : ''
       if (!nText) {
         // A DECISION, not a failure, and it is written down. WATCH and unroled
         // homers land here by design; so does a hitter the board has since
         // rebuilt without. Marking it stops this row being retried every
         // minute for the rest of the night.
-        if (!mkt) totals.replySkipped = (totals.replySkipped || 0) + 1
+        if (!eligible) totals.replySkipped = (totals.replySkipped || 0) + 1
         else {
           totals.replyNoText = (totals.replyNoText || 0) + 1
-          console.error(`[homers] no neighbours for ${row.name} (${mkt.label}) -- off the live ${mkt.role} pool?`)
+          console.error(`[homers] board reply built nothing for ${row.name} (rank ${seat?.rank})`)
         }
         await db.from('homer_feed').update({ reply_post_id: 'skipped' }).match({ day, player_id: row.player_id, hr_n: row.hr_n })
         continue
