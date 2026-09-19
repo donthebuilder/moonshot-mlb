@@ -446,6 +446,10 @@ const LONGSHOT_HOUR = 1         // 1pm ET
 // a neighbourhood rather than a leaderboard, and boardNeighborsText trims from
 // the outside in if even that overflows.
 const BOARD_NEIGHBOR_SPAN = 2
+// Replies per tick. The pass runs every minute and anything it does not get to
+// is still owed (reply_post_id null), so a homer burst drains over a few ticks
+// rather than risking this route's 60-second ceiling in one go.
+const NEIGHBOR_REPLY_BATCH = 6
 // TOP/HR ONLY, and this took two rendered passes to get right.
 //
 //   1st: gated on on_board. Tonight's file is 270 rows -- every hitter the
@@ -1936,71 +1940,7 @@ export async function GET(request) {
           const png = await bytesOf(() => homerCard(ev, { site: SITE_HOST }))
           const mediaId = png ? await uploadImageToX(png) : null
           const r = await postToX(text, { mediaId, quoteId: quoteFor(row) })
-          if (r.ok && r.id) {
-            patch.x_post_id = r.id
-            totals.x += 1
-            // ── THE BOARD-NEIGHBOURS REPLY (2026-09-18) ──────────────────
-            // Donovan: "reply with maybe the like three names above and below
-            // the player who went or like 2 names."
-            //
-            // A REPLY, deliberately, and only for a man who was ON the board.
-            // Three reasons it is not part of the alert above: the alert's job
-            // is the moment and a five-row table buries it; a reply costs the
-            // main post none of its reach; and "where he sat" is meaningless
-            // for a hitter the model never surfaced, which is the distinction
-            // the whole product is built on.
-            //
-            // COST. Every reply is its own X post against X_MONTHLY_CAP. It is
-            // gated on board membership, not on every homer, which is what
-            // keeps it to the handful of board names a night rather than all
-            // 16-39 -- see the neighbours note in lib/dash/homerFeed.js.
-            //
-            // FAILING IS FREE. Wrapped, and a refusal is logged and dropped:
-            // the alert is already out and posted, and a missing reply must
-            // never release the claim or re-post the homer.
-            try {
-              // FROZEN RANK WINS. homer_feed.board_rank was copied when the
-              // homer was first seen; boardRows() is whatever the board says
-              // NOW, and the bot republishes through the evening. If the two
-              // disagree, the board has been rebuilt since the alert went out
-              // and a reply built off the new one would contradict the rank
-              // the alert itself stated. Say nothing rather than two numbers.
-              // (Same freeze rule as this file's own header point 2.)
-              // ROLE, NOT on_board. Tonight's published board is 270 rows --
-              // every hitter the model scored, not every hitter it surfaced --
-              // so `on_board` is true down to rank 268, and a reply crowing
-              // "#268 on tonight's board. It landed." is the account claiming
-              // credit for coverage. `role` is the frozen marker that he was
-              // actually surfaced (TOP/HR/HIT/HRR/WATCH), and it is the same
-              // field the alert above already gates X posting on. Rendered
-              // against the live board before wiring this: rank 268 produced
-              // exactly that post.
-              // The pool is the CALLS, not the whole file -- see the note on
-              // boardNeighbors in lib/dash/homerFeed.js for the two versions
-              // this replaced. If the board has been rebuilt since the alert
-              // and he is no longer a call on it, the filter drops him and the
-              // reply simply doesn't happen, which is the behaviour we want:
-              // say nothing rather than a second, different number.
-              const mkt = marketOf(row)
-              const nbrs = !mkt
-                ? []
-                : boardNeighbors(
-                  boardRows().filter((r) => boardRoleMatches(r, mkt.role)),
-                  row.player_id, BOARD_NEIGHBOR_SPAN, mkt.key,
-                )
-              const nText = mkt ? boardNeighborsText(nbrs, { ...TAIL, market: mkt.label }) : ''
-              if (nText) {
-                const nr = await postToX(nText, { replyTo: r.id })
-                // Not stored: homer_feed has no column for it, and the reply
-                // is not something anything re-reads. A migration for a log
-                // line is not worth a column.
-                if (nr.ok && nr.id) totals.x += 1
-                else console.error(`[homers] neighbours reply refused for ${row.name}: ${nr.status} ${nr.error}`)
-              }
-            } catch (err) {
-              console.error(`[homers] neighbours reply threw for ${row.name}`, err)
-            }
-          }
+          if (r.ok && r.id) { patch.x_post_id = r.id; totals.x += 1 }
           else {
             totals.xFailed += 1
             console.error(`[homers] X refused ${row.name}: ${r.status} ${r.error}`)
@@ -2048,6 +1988,76 @@ export async function GET(request) {
   // carrying a REAL tweet id (the 'posting' and 'skipped' sentinels are not
   // posts) plus the once-a-day posts.
   //
+  // ── THE BOARD-NEIGHBOURS REPLY, ITS OWN PASS (2026-09-19) ────────────────
+  //
+  // Donovan, 2026-09-18: "reply with maybe the like three names above and
+  // below the player who went." Then, the next night: "only one of the WHERE
+  // HE SAT AMONG TONIGHT'S HRR CALLS or whatever did the reply."
+  //
+  // WHY IT MOVED OUT OF THE ALERT LOOP. The first version posted the reply
+  // inline, at the end of each homer's own iteration, with no record kept and
+  // no retry. Three completely different failures then looked identical from
+  // the outside -- which is to say, looked like nothing at all:
+  //   - a deploy that had not finished when the homer landed
+  //   - an X rate limit during a burst (the reply doubles the post rate)
+  //   - this route hitting its own 60-second ceiling mid-iteration, which
+  //     kills the reply first because it is the last thing in the loop
+  // I could not tell those apart from the outside, and that was the actual
+  // defect. Two changes fix all three at once: reply_post_id remembers, and
+  // this runs AFTER every alert is out, so a reply can never eat the seconds
+  // the next homer's ALERT needs. The alert is the product; this is context.
+  //
+  // null means still owed, so a failure just retries next tick. 'skipped'
+  // means decided-and-done: no role, no market, or nothing to say.
+  if (xOn) {
+    const { data: owed } = await db
+      .from('homer_feed')
+      .select('player_id,hr_n,name,role,x_post_id')
+      .eq('day', day)
+      .not('x_post_id', 'is', null)
+      .is('reply_post_id', null)
+      .order('seen_at', { ascending: true })
+      .limit(NEIGHBOR_REPLY_BATCH)
+    for (const row of owed || []) {
+      // 'posting' is the alert's own in-flight sentinel, not a real id --
+      // replying to it would 400. Leave it; the next tick sees a real id.
+      if (!row.x_post_id || row.x_post_id === 'posting') continue
+      const mkt = marketOf(row)
+      const nbrs = !mkt
+        ? []
+        : boardNeighbors(
+          boardRows().filter((r) => boardRoleMatches(r, mkt.role)),
+          row.player_id, BOARD_NEIGHBOR_SPAN, mkt.key,
+        )
+      const nText = mkt ? boardNeighborsText(nbrs, { ...TAIL, market: mkt.label }) : ''
+      if (!nText) {
+        // A DECISION, not a failure, and it is written down. WATCH and unroled
+        // homers land here by design; so does a hitter the board has since
+        // rebuilt without. Marking it stops this row being retried every
+        // minute for the rest of the night.
+        if (!mkt) totals.replySkipped = (totals.replySkipped || 0) + 1
+        else {
+          totals.replyNoText = (totals.replyNoText || 0) + 1
+          console.error(`[homers] no neighbours for ${row.name} (${mkt.label}) -- off the live ${mkt.role} pool?`)
+        }
+        await db.from('homer_feed').update({ reply_post_id: 'skipped' }).match({ day, player_id: row.player_id, hr_n: row.hr_n })
+        continue
+      }
+      const nr = await postToX(nText, { replyTo: row.x_post_id })
+      if (nr.ok && nr.id) {
+        totals.x += 1
+        totals.replies = (totals.replies || 0) + 1
+        await db.from('homer_feed').update({ reply_post_id: nr.id }).match({ day, player_id: row.player_id, hr_n: row.hr_n })
+      } else {
+        // Left null on purpose: the next tick retries it. This is the whole
+        // reason the column exists.
+        totals.replyFailed = (totals.replyFailed || 0) + 1
+        console.error(`[homers] reply refused for ${row.name}: ${nr.status} ${nr.error}`)
+        if (nr.status === 429 || nr.status === 401 || nr.status === 403) break
+      }
+    }
+  }
+
   // It deliberately never blocks a post. A guard that silences the whole feed
   // on a miscount is a worse outcome than the overage it prevents, so this
   // logs and reports and that is all. Counted only on ticks that actually
