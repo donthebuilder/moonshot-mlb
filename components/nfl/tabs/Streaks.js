@@ -8,6 +8,7 @@ import { useMemo, useState } from 'react'
 import { C, NUM_FONT, gradeFor } from '../../../lib/nfl/theme'
 import { streakMarkets, streakBoard, barChoices } from '../../../lib/nfl/streaks'
 import PageHeader from '../../PageHeader'
+import { FilterPill } from '../../Filters'
 
 const REASON_WORD = { rising: 'usage rising', bot: 'bot likes him' }
 const REASON_TITLE = (r) => `Below the volume floor (${r.usage.recent.toFixed(1)} a game over his last 8, floor ${r.usage.floor}) but on the board because: ${r.reasons.map((x) => REASON_WORD[x]).join(', ')}.`
@@ -64,17 +65,44 @@ export default function Streaks({ data, logs, onPlayerClick }) {
         numFont={NUM_FONT}
         accent={C.green}
         right={(
-          <div className="ts-side">
-            <button className={side === 'over' ? 'on' : ''} onClick={() => setSide('over')}>🔥 Hottest</button>
-            <button className={side === 'under' ? 'on' : ''} onClick={() => setSide('under')}>🧊 Coldest</button>
+          <div style={{ display: 'flex', gap: 7 }}>
+            <FilterPill active={side === 'over'} onClick={() => setSide('over')}>🔥 Hottest</FilterPill>
+            <FilterPill active={side === 'under'} onClick={() => setSide('under')}>🧊 Coldest</FilterPill>
           </div>
         )}
       />
 
-      <div className="ts-controls">
-        <div className="ts-row">{markets.map((m) => <button key={m.key} className={m.key === market.key ? 'on' : ''} onClick={() => { setMk(m.key); setBar(null); setPos('ALL') }}>{LABEL[m.key] || m.key}</button>)}</div>
-        <div className="ts-row"><small>LINE</small>{chips.map((c) => <button key={c} className={c === line ? 'on' : ''} onClick={() => setBar(c)}>{c}{c === market.bar ? ' · bot' : ''}</button>)}</div>
-        <div className="ts-row"><small>POS</small>{['ALL', ...((data?.markets || []).find((m) => m.key === market.key)?.positions || ['QB', 'RB', 'WR', 'TE', 'K'])].map((p) => <button key={p} className={p === pos ? 'on' : ''} onClick={() => setPos(p)}>{p}</button>)}</div>
+      {/* THE HOUSE CONTROLS (2026-09-18). These three rows used to be a private
+          .ts-row button system with its own hardcoded hex, a fourth control
+          vocabulary on TUDDY. Same FilterPill every other board uses now; the
+          list below keeps its own .ts-* styling, which is this page's real
+          visual work. */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+        <div className="chip-row" style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center' }}>
+          {markets.map((m) => (
+            <FilterPill key={m.key} active={m.key === market.key}
+              onClick={() => { setMk(m.key); setBar(null); setPos('ALL') }}>
+              {LABEL[m.key] || m.key}
+            </FilterPill>
+          ))}
+        </div>
+        <div className="chip-row" style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center' }}>
+          <span style={{ fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.1em', color: C.text3, textTransform: 'uppercase', fontFamily: NUM_FONT, flexShrink: 0 }}>Line</span>
+          {chips.map((c) => (
+            <FilterPill key={c} active={c === line} onClick={() => setBar(c)}
+              title={c === market.bar ? "The bot's own bar for this market." : `Your own line: ${c}.`}>
+              {c}{c === market.bar ? ' · bot' : ''}
+            </FilterPill>
+          ))}
+        </div>
+        <div className="chip-row" style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center' }}>
+          <span style={{ fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.1em', color: C.text3, textTransform: 'uppercase', fontFamily: NUM_FONT, flexShrink: 0 }}>Pos</span>
+          {['ALL', ...((data?.markets || []).find((m) => m.key === market.key)?.positions || ['QB', 'RB', 'WR', 'TE', 'K'])].map((k) => (
+            <FilterPill key={k} active={k === pos} onClick={() => setPos(k)}>
+              {k === 'ALL' ? 'Everyone' : k}
+            </FilterPill>
+          ))}
+        </div>
       </div>
 
       {!rows.length && <div className="ts-empty">Nobody on this slate is on a run at {line} {LABEL[market.key]?.toLowerCase()}.</div>}
@@ -99,14 +127,6 @@ export default function Streaks({ data, logs, onPlayerClick }) {
 
       <style>{`
       .ts{display:flex;flex-direction:column;gap:12px}
-            .ts-side{display:flex;gap:6px;flex-shrink:0}
-      .ts-side button{padding:10px 14px;border:1px solid ${C.border};border-radius:10px;background:${C.bg};color:${C.text2};font:800 10px/1 ${NUM_FONT};cursor:pointer}
-      .ts-side button.on{border-color:${C.green};color:${C.green};background:rgba(0,245,173,.08)}
-      .ts-controls{display:flex;flex-direction:column;gap:6px}
-      .ts-row{display:flex;align-items:center;gap:5px;overflow-x:auto;padding-bottom:2px}
-      .ts-row small{color:${C.text3};font:900 8px/1 ${NUM_FONT};letter-spacing:.1em;margin-right:4px;flex-shrink:0}
-      .ts-row button{flex:0 0 auto;padding:7px 10px;border:1px solid ${C.border};border-radius:8px;background:${C.bg2};color:${C.text3};font:800 8.5px/1 ${NUM_FONT};cursor:pointer;white-space:nowrap}
-      .ts-row button.on{border-color:${C.cyan};color:${C.cyan};background:rgba(53,205,255,.08)}
       .ts-list{display:flex;flex-direction:column;gap:5px}
       .ts-item{display:grid;grid-template-columns:22px 1fr 96px 110px 76px 44px 40px;align-items:center;gap:10px;padding:8px 12px;border:1px solid ${C.border};border-radius:11px;background:${C.bg2};color:inherit;text-align:left;cursor:pointer}
       .ts-item:hover{border-color:${C.border2}}

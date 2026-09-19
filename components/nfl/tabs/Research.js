@@ -5,7 +5,7 @@ import DenseTable from '../../DenseTable'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 import PageHeader from '../../PageHeader'
 import { oppShort } from '../../../lib/nfl/oppLabel'
-import { btnStyle, selectStyle } from '../../ui'
+import { FilterBar, FilterPill, FilterSearch, FilterSelect } from '../../Filters'
 
 // Research — every number the bot has, in one sortable table.
 //
@@ -36,6 +36,8 @@ export default function Research({ data, onPlayerClick }) {
   const [pos, setPos] = useState('ALL')
   const [team, setTeam] = useState('')
   const [q, setQ] = useState('')
+  // The same ONLY toggle Boards and Touchdowns carry (2026-09-18).
+  const [onlyWatched, setOnlyWatched] = useState(false)
 
   const specs = data?.research_columns || []
 
@@ -51,6 +53,7 @@ export default function Research({ data, onPlayerClick }) {
       .filter((p) => !want || want.includes(p.position))
       .filter((p) => !team || p.team === team)
       .filter((p) => !needle || `${p.name} ${p.team} ${p.opp}`.toLowerCase().includes(needle))
+      .filter((p) => !onlyWatched || watchlist.isPinned(p.player_id))
       .map((p) => ({
         ...p.stats,
         _p: p,
@@ -62,7 +65,28 @@ export default function Research({ data, onPlayerClick }) {
         TDSC: p.scores?.TD ?? null,
         watched: watchlist.isPinned(p.player_id) ? 1 : 0,
       }))
-  }, [data, pos, team, q, watchlist])
+  }, [data, pos, team, q, onlyWatched, watchlist])
+
+  // Counts on the controls, the way Boards and Touchdowns carry them -- a
+  // filter that says how many it will leave is worth more than one that
+  // doesn't.
+  const posOptions = useMemo(() => {
+    const pool = data?.players || []
+    return POS_GROUPS.map(([k, want]) => ({
+      key: k,
+      count: want ? pool.filter((p) => want.includes(p.position)).length : pool.length,
+    }))
+  }, [data])
+
+  const teamOptions = useMemo(() => {
+    const pool = data?.players || []
+    const counts = {}
+    for (const p of pool) if (p.team) counts[p.team] = (counts[p.team] || 0) + 1
+    return [
+      { key: '', label: 'All teams', count: pool.length },
+      ...teams.map((t) => ({ key: t, label: t, count: counts[t] || 0 })),
+    ]
+  }, [data, teams])
 
   const columns = useMemo(() => {
     const base = [
@@ -109,23 +133,34 @@ export default function Research({ data, onPlayerClick }) {
         numFont={NUM_FONT}
         accent={C.green}
       />
-      <div style={{
-        display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10,
-      }}>
-        {POS_GROUPS.map(([k]) => (
-          <button key={k} onClick={() => setPos(k)} style={btnStyle(C.green, pos === k)}>{k}</button>
+      {/* THE HOUSE RESEARCH BAR (2026-09-18). This page used to open with five
+          plain buttons, a bare <input> and a bare <select> -- its own third
+          idiom, against Boards' and Touchdowns' shared one. Same grammar as
+          those two now: pills, then the filter bar, then the ONLY row. */}
+      <div className="chip-row" style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center', paddingBottom: 2 }}>
+        {posOptions.map((o) => (
+          <FilterPill key={o.key} active={pos === o.key} onClick={() => setPos(o.key)} count={o.count}>
+            {o.key === 'ALL' ? 'Everyone' : o.key}
+          </FilterPill>
         ))}
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Search player…"
-          style={{ ...selectStyle(), width: 190, flex: '0 0 auto' }}
-        />
-        <select value={team} onChange={(e) => setTeam(e.target.value)}
-                style={{ ...selectStyle(), width: 120, flex: '0 0 auto' }}>
-          <option value="">All teams</option>
-          {teams.map((t) => <option key={t} value={t}>{t}</option>)}
-        </select>
+      </div>
+
+      <div style={{ marginTop: 8 }}>
+        <FilterBar>
+          <FilterSearch value={q} onChange={setQ} placeholder="Search player…" width={165} />
+          <FilterSelect label="Team" value={team} options={teamOptions} onChange={setTeam} />
+        </FilterBar>
+      </div>
+
+      <div className="chip-row" style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center', marginTop: 8 }}>
+        <span style={{ fontSize: 10.5, fontWeight: 900, letterSpacing: '.1em', color: C.text3, textTransform: 'uppercase', fontFamily: NUM_FONT, flexShrink: 0 }}>Only</span>
+        <FilterPill active={onlyWatched} onClick={() => setOnlyWatched(!onlyWatched)} title="Only names on your watchlist.">
+          ★ Watchlist
+        </FilterPill>
+      </div>
+
+      <div style={{ fontSize: 12, color: C.text3, margin: '8px 0 6px', lineHeight: 1.55 }}>
+        {rows.length} player{rows.length === 1 ? '' : 's'} — every published stat, sorted by whichever column you tap.
       </div>
 
       <DenseTable
