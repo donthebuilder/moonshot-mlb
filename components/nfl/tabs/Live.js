@@ -18,7 +18,7 @@
 // Four sections, in the order a Sunday goes: the scoreboard, the card live,
 // your names, the plays. When nothing is on it says when something will be
 // -- it never shows a wall of dashes.
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { C, NUM_FONT, gradeFor } from '../../../lib/nfl/theme'
 import { lineFor, marketValue } from '../../../lib/nfl/liveSlate'
 import { nextKickoff } from '../../../lib/nfl/liveMerge'
@@ -26,6 +26,8 @@ import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 import { useFollowing } from '../../../lib/dash/follow'
 import SlateRibbon from '../SlateRibbon'
 import PageHeader from '../../PageHeader'
+import DenseTable from '../../DenseTable'
+import { FilterBar, FilterPill, FilterSearch, FilterSelect } from '../../Filters'
 
 const MARKET_SHORT = { TD: 'TD', REC_YDS: 'REC YDS', REC: 'REC', RUSH_YDS: 'RUSH YDS', RUSH_ATT: 'CARRIES', PASS_YDS: 'PASS YDS', KICK_PTS: 'KICK PTS' }
 const short = (m) => MARKET_SHORT[m] || String(m || '').replace('_', ' ')
@@ -110,7 +112,10 @@ export default function Live({ data, picks, live, onPlayerClick, setTab }) {
     return m
   }, [games])
 
-  const { pins } = useNflWatchlist(data)
+  // One watchlist hook for the whole page -- YOUR NAMES reads its pins, the
+  // full board below reads isPinned/toggle off the same instance.
+  const watch = useNflWatchlist(data)
+  const { pins } = watch
   const { rows: followed } = useFollowing('nfl')
   const yours = useMemo(() => {
     const seen = new Map()
@@ -139,6 +144,82 @@ export default function Live({ data, picks, live, onPlayerClick, setTab }) {
     }
     return { hit, miss, live: liveN }
   }, [card, depth, gameByTeam, live, bars])
+
+  // ── THE FULL BOARD (2026-09-19) ────────────────────────────────────────
+  // MOONSHOT's Live page has always ended with a sortable table of every
+  // hitter on the slate, not just the ones on the card -- that is where you
+  // look when the name you care about was never a designated pick. TUDDY's
+  // Live had game tiles and the card's own rungs and nothing else, so a
+  // player off the card was invisible here however live his game was.
+  //
+  // Nothing new is fetched: the score comes from the same slate payload every
+  // other board reads, and the live value comes from lineFor()/marketValue()
+  // on the same snapshot the rungs above already use. Same rungStatus() too,
+  // so a row on this table and a rung on the card can never disagree about
+  // whether something cleared.
+  const boardWatch = watch
+  const marketList = useMemo(
+    () => (data?.markets || []).filter((m) => Number.isFinite(Number(m.bar))),
+    [data],
+  )
+  const [boardMarket, setBoardMarket] = useState('TD')
+  const [boardQuery, setBoardQuery] = useState('')
+  const [boardTeam, setBoardTeam] = useState('all')
+  const [boardWatched, setBoardWatched] = useState(false)
+
+  const boardTeams = useMemo(() => {
+    const counts = {}
+    for (const p of players) if (p.team) counts[p.team] = (counts[p.team] || 0) + 1
+    return [
+      { key: 'all', label: 'All teams', count: players.length },
+      ...Object.keys(counts).sort().map((k) => ({ key: k, label: k, count: counts[k] })),
+    ]
+  }, [players])
+
+  const boardRows = useMemo(() => {
+    const needle = boardQuery.trim().toLowerCase()
+    const bar = bars[boardMarket]
+    return players
+      .filter((p) => Number.isFinite(p.scores?.[boardMarket]))
+      .filter((p) => boardTeam === 'all' || p.team === boardTeam)
+      .filter((p) => !needle || String(p.name || '').toLowerCase().includes(needle))
+      .filter((p) => !boardWatched || boardWatch.isPinned(p.player_id))
+      .map((p) => {
+        const game = gameByTeam.get(p.team)
+        const line = live ? lineFor(live, p) : null
+        const st = rungStatus(game, line, boardMarket, bar)
+        const v = line ? marketValue(line, boardMarket) : null
+        return {
+          _raw: p,
+          watched: boardWatch.isPinned(p.player_id) ? 1 : 0,
+          name: p.name,
+          pos: p.position,
+          team: p.team,
+          opp: p.opp || '—',
+          score: Math.round(p.scores[boardMarket]),
+          live: v === null ? null : v,
+          bar: Number.isFinite(bar) ? bar : null,
+          status: st.word,
+          _state: st.state,
+        }
+      })
+      .sort((a, b) => (b.live ?? -1) - (a.live ?? -1) || b.score - a.score)
+  }, [players, boardMarket, boardTeam, boardQuery, boardWatched, boardWatch, gameByTeam, live, bars])
+
+  const boardColumns = useMemo(() => ([
+    { key: 'watched', label: '☆', action: true, w: 28, mark: '★', markOff: '☆',
+      titleOn: 'Remove from watchlist', titleOff: 'Add to watchlist',
+      onAction: (row) => boardWatch.toggle(row) },
+    { key: 'name', label: 'Player', w: 150, heat: false, sticky: true },
+    { key: 'pos', label: 'POS', w: 40, heat: false },
+    { key: 'team', label: 'TM', w: 40, heat: false },
+    { key: 'opp', label: 'OPP', w: 46, heat: false },
+    { key: 'score', label: 'SCORE', w: 56, dp: 0 },
+    { key: 'live', label: 'LIVE', w: 52, dp: 1, heat: false,
+      fmt: (v) => (v === null || v === undefined ? '—' : Number(v).toFixed(Number.isInteger(Number(v)) ? 0 : 1)) },
+    { key: 'bar', label: 'BAR', w: 46, dp: 1, heat: false, fmt: (v) => (v === null ? '—' : v) },
+    { key: 'status', label: 'STATUS', w: 96, heat: false },
+  ]), [boardWatch])
 
   const plays = useMemo(() => {
     const names = new Set([...card.flatMap((b) => (b.rungs || []).slice(0, depth).map((r) => r.name)), ...yours.map((p) => p.name)])
@@ -208,6 +289,46 @@ export default function Live({ data, picks, live, onPlayerClick, setTab }) {
             )
           })}
         </div>
+      </section>
+
+      <section>
+        <div className="tl-title"><div><small>EVERY PLAYER</small><h2>The full board, live</h2></div></div>
+        <div className="chip-row" style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center', marginBottom: 8 }}>
+          {marketList.map((m) => (
+            <FilterPill key={m.key} active={boardMarket === m.key} onClick={() => setBoardMarket(m.key)}
+              title={`Bar ${m.bar}`}>
+              {m.label}
+            </FilterPill>
+          ))}
+        </div>
+        <FilterBar>
+          <FilterSearch value={boardQuery} onChange={setBoardQuery} placeholder="Search player…" width={165} />
+          <FilterSelect label="Team" value={boardTeam} options={boardTeams} onChange={setBoardTeam} />
+        </FilterBar>
+        <div className="chip-row" style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center', marginTop: 8 }}>
+          <span style={{ fontSize: 10.5, fontWeight: 900, letterSpacing: '.1em', color: C.text3, textTransform: 'uppercase', fontFamily: NUM_FONT, flexShrink: 0 }}>Only</span>
+          <FilterPill active={boardWatched} onClick={() => setBoardWatched(!boardWatched)} title="Only names on your watchlist.">
+            ★ Watchlist
+          </FilterPill>
+        </div>
+        <div style={{ fontSize: 12, color: C.text3, margin: '8px 0 6px', lineHeight: 1.55 }}>
+          {boardRows.length} player{boardRows.length === 1 ? '' : 's'} scored in this market — live number against the bar, whether or not he was ever a call.
+        </div>
+        {boardRows.length > 0 ? (
+          <DenseTable
+            rows={boardRows}
+            columns={boardColumns}
+            initialSort="score"
+            maxHeight={620}
+            maxRows={300}
+            onRowClick={(r) => onPlayerClick?.(r._raw, boardMarket)}
+            dimRow={(r) => r._raw?.low_sample}
+          />
+        ) : (
+          <div className="tl-empty">
+            {boardWatched ? 'None of your starred players are scored in this market.' : 'Nobody is scored in this market on this slate.'}
+          </div>
+        )}
       </section>
 
       <section>
