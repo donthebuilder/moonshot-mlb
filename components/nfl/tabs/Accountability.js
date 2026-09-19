@@ -6,6 +6,7 @@ import { useResultsArchive, seasonTotals, grandTotal, gradeBands, labelOf, weekK
 import { downloadNflPickCard } from '../shareCard'
 import ChartFrame from '../ChartFrame'
 import PageHeader from '../../PageHeader'
+import { WhatThis } from '../../ui'
 
 // DID THE PICKS DO THEIR OWN JOB? — the NFL sibling of MLB's PickScorecard +
 // ScoreAudit (components/PickScorecard.js, components/ScoreAudit.js).
@@ -449,7 +450,11 @@ function ScoreBands({ data, results }) {
 const BAND_SCORE = { 'A+': 80, A: 72, 'A-': 64, 'B+': 56, B: 48, 'C+': 30 }
 const bandColor = (label) => gradeFor(BAND_SCORE[label] ?? 30).color
 
-function SeasonStrip({ archive, keys, loading, picked, onPick, currentKey }) {
+function SeasonStrip({ archive, keys, loading, picked, onPick, currentKey, mode = 'season' }) {
+  // In week mode this section is nothing but the picker, so with one graded
+  // week there is nothing to draw — an empty bordered box is #24's exact
+  // complaint.
+  if (mode === 'week' && keys.length < 2) return null
   const totals = seasonTotals(keys.map((k) => archive[k]))
   const grand = grandTotal(totals)
   const markets = MARKETS.map(([k, label]) => [k, label, totals[k]]).filter(([, , t]) => t && t.n > 0)
@@ -457,11 +462,13 @@ function SeasonStrip({ archive, keys, loading, picked, onPick, currentKey }) {
   const bands = gradeBands(keys.map((k) => archive[k]), gradeFor)
   return (
     <section className="acc-season">
+      {mode === 'season' && (
       <div className="acc-season-head">
         <div><small>SEASON TO DATE</small><h2>{grand.n ? `${grand.hit}/${grand.n} · ${grand.pct}%` : loading ? 'Harvesting weeks…' : 'One week graded so far'}</h2>
           <p>{keys.length} graded week{keys.length === 1 ? '' : 's'} on the branch. The bot&apos;s own card, every rung, every week, bars unchanged. Refreshes on load; older weeks are remembered on this device.</p></div>
       </div>
-      {markets.length > 0 && (
+      )}
+      {mode === 'season' && markets.length > 0 && (
         <div className="acc-season-row">
           {markets.map(([k, label, t]) => (
             <div key={k} style={{ borderTopColor: col[k] }}>
@@ -472,13 +479,13 @@ function SeasonStrip({ archive, keys, loading, picked, onPick, currentKey }) {
           ))}
         </div>
       )}
-      {bands.length > 0 && grand.n >= 10 && (
+      {mode === 'season' && bands.length > 0 && grand.n >= 10 && (
         <div className="acc-season-bands" title="Every graded rung this season, bucketed by the letter the site printed on it. The Report tab's deciles are the backtest's version of this; this is the live one.">
           <small>WHAT A GRADE HAS BEEN WORTH · THIS SEASON</small>
           <div>{bands.map((b) => { const col = bandColor(b.label); return <span key={b.label} style={{ borderColor: col + '66' }}><b style={{ color: col }}>{b.label}</b><strong>{b.pct}%</strong><em>{b.hit}/{b.n}</em></span> })}</div>
         </div>
       )}
-      {keys.length > 1 && (
+      {mode === 'week' && keys.length > 1 && (
         <div className="acc-season-picker" role="tablist" aria-label="Graded week">
           {keys.map((k) => {
             const t = grandTotal(archive[k]?.totals)
@@ -509,10 +516,111 @@ function SeasonStrip({ archive, keys, loading, picked, onPick, currentKey }) {
   )
 }
 
+// ── THE TWO QUESTIONS (2026-09-18) ─────────────────────────────────────────
+// MOONSHOT's Results tab has asked two questions behind one header since it
+// was built (components/tabs/Results.js, MODES): "how did the picks graded"
+// and "is the model any good". This page had only the first, with the season
+// numbers wedged above it as a strip. Same bar, same words, same shape —
+// the sub-views under it differ only where the sport does.
+const MODES = [
+  ['week', '🏈 This week', 'how the card graded'],
+  ['season', '📈 All season', 'is the model any good'],
+]
+
+function ModeBar({ mode, setMode }) {
+  return (
+    <div style={{ display: 'flex', gap: 6, marginBottom: 11, flexWrap: 'wrap' }}>
+      {MODES.map(([k, label, question]) => {
+        const on = mode === k
+        return (
+          <button
+            key={k} onClick={() => setMode(k)}
+            style={{
+              flex: '1 1 170px', minWidth: 0, textAlign: 'left', cursor: 'pointer',
+              padding: '7px 13px', borderRadius: 11,
+              border: `1px solid ${on ? C.green : C.border}`,
+              background: on ? 'rgba(0,245,173,.13)' : 'rgba(255,255,255,.03)',
+            }}
+          >
+            <div style={{ fontSize: TYPE.name, fontWeight: 900, color: on ? C.green : C.text2 }}>{label}</div>
+            <div style={{ fontSize: TYPE.micro, color: C.text3, marginTop: 1 }}>{question}</div>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+function TabBtn({ active, onClick, children }) {
+  return (
+    <button onClick={onClick} style={{
+      padding: '5px 12px', fontSize: TYPE.body, fontWeight: 700, borderRadius: 999,
+      border: `1px solid ${active ? C.green : C.border}`,
+      background: active ? `${C.green}22` : 'rgba(255,255,255,.035)',
+      color: active ? C.green : C.text2, cursor: 'pointer', whiteSpace: 'nowrap',
+    }}>{children}</button>
+  )
+}
+
+// 👤 TRACK RECORD — which players the card has actually been right about,
+// across every graded week in the archive. MOONSHOT's Results has the same
+// view over graded_results_<date>.json; this reads the same rungs the tables
+// below read, just grouped by player instead of by week. Nothing new is
+// fetched and nothing is modelled — a row is a count of published rungs.
+function trackRecordRows(archive, keys) {
+  const by = {}
+  for (const k of keys) {
+    for (const [mk, blk] of Object.entries(archive[k]?.card || {})) {
+      for (const r of blk?.rungs || []) {
+        if (r.hit !== true && r.hit !== false) continue
+        const id = String(r.player_id || r.name || '')
+        if (!id) continue
+        const cur = by[id] || {
+          _key: id, player_id: r.player_id, name: r.name || '—',
+          team: r.team || '', position: r.position || '',
+          n: 0, hit: 0, markets: new Set(), weeks: new Set(),
+        }
+        cur.n += 1
+        cur.hit += r.hit ? 1 : 0
+        cur.markets.add(mk)
+        cur.weeks.add(k)
+        if (r.team) cur.team = r.team
+        if (r.position) cur.position = r.position
+        by[id] = cur
+      }
+    }
+  }
+  return Object.values(by).map((r) => ({
+    ...r,
+    markets: r.markets.size,
+    weeks: r.weeks.size,
+    pct: r.n ? Math.round((1000 * r.hit) / r.n) / 10 : null,
+  }))
+}
+
+// 📅 WEEK BY WEEK — one row per graded week, the archive's own index.
+function weekRows(archive, keys, currentKey) {
+  return keys.map((k) => {
+    const p = archive[k]
+    const t = grandTotal(p?.totals)
+    return {
+      _key: k, key: k,
+      week: labelOf(k) + (k === currentKey ? ' · latest' : ''),
+      n: t.n, hit: t.hit, pct: t.pct,
+      markets: Object.values(p?.totals || {}).filter((x) => (x.n || 0) > 0).length,
+      graded: p?.graded_at_human || '—',
+    }
+  })
+}
+
 export default function Accountability({ data, results: latest, onPlayerClick }) {
   const { archive, keys, loading } = useResultsArchive(latest, data?.season)
   const currentKey = latest?.week ? weekKey(latest.season, latest.mode, latest.week) : null
   const [picked, setPicked] = useState(null)
+  // Two questions, one header — the MOONSHOT shape (components/tabs/Results.js).
+  const [mode, setMode] = useState('week')
+  const [subTab, setSubTab] = useState('overview')
+  const pickMode = (m) => { setMode(m); setSubTab(m === 'week' ? 'overview' : 'card') }
   // The page grades the picked week, or the latest grade when nothing is picked.
   const results = (picked && archive[picked]) || latest
   const byPid = useMemo(
@@ -538,11 +646,43 @@ export default function Accountability({ data, results: latest, onPlayerClick })
     ? `season ${results.season}, week ${results.week ?? '—'}`
     : `${results.season} preseason`
 
+  const trackRows = mode === 'season' && subTab === 'record' ? trackRecordRows(archive, keys) : []
+  const weeksRows = mode === 'season' && subTab === 'weeks' ? weekRows(archive, keys, currentKey) : []
+
   return (
     <div>
-      <SeasonStrip archive={archive} keys={keys} loading={loading} picked={picked || currentKey} onPick={(k) => setPicked(k === currentKey ? null : k)} currentKey={currentKey} />
-      <ReceiptHero results={results} when={when} />
+      <ModeBar mode={mode} setMode={pickMode} />
 
+      {/* ONE ROW OF VIEWS, scoped to the question above it — the same row the
+          MLB Results tab prints, with the sub-views this sport actually has
+          data for. Deliberately NOT ported: Pitchers (no such thing here),
+          Pairs & Pools and P/L (the bot publishes no NFL odds, so a money
+          column would be invented — project rule #16), and Signals (no NFL
+          equivalent of the MLB SignalAudit archive exists yet). */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        {(mode === 'week'
+          ? [['overview', '📊 Overview'], ['bands', '🔬 Score bands']]
+          : [['card', '🧾 Report card'], ['record', '👤 Track record'], ['weeks', '📅 Week by week']]
+        ).map(([k, label]) => (
+          <TabBtn key={k} active={subTab === k} onClick={() => setSubTab(k)}>{label}</TabBtn>
+        ))}
+      </div>
+
+      <WhatThis maxWidth={760}>
+        {{
+          overview: 'how the week graded — did each rung clear the bar it was picked against, and which ones got away.',
+          bands: 'is the score itself separating outcomes — this season\u2019s eligible pool, banded by score quartile.',
+          card: 'is the model any good, all season — every graded week rolled up per market, plus what each letter grade has actually been worth.',
+          record: 'which players the card has been right about across every graded week in the archive.',
+          weeks: 'the archive\u2019s own index — one row per graded week, newest last.',
+        }[subTab]}
+      </WhatThis>
+
+      <SeasonStrip archive={archive} keys={keys} loading={loading} picked={picked || currentKey} onPick={(k) => setPicked(k === currentKey ? null : k)} currentKey={currentKey} mode={mode} />
+
+      {mode === 'week' && <ReceiptHero results={results} when={when} />}
+
+      {mode === 'week' && (
       <div style={{
         background: C.bg2, border: `1px solid ${C.border}`, borderLeft: `3px solid ${C.green}`,
         borderRadius: 10, padding: '10px 14px', marginBottom: 14,
@@ -554,10 +694,11 @@ export default function Accountability({ data, results: latest, onPlayerClick })
         bot&apos;s own record on its own published card — not anyone&apos;s personal calls. For
         your record against the bot, see the Picks tab.
       </div>
+      )}
 
-      <CardGrid results={results} />
+      {mode === 'week' && subTab === 'overview' && <CardGrid results={results} />}
 
-      {rows.length > 0 && (
+      {mode === 'week' && subTab === 'overview' && rows.length > 0 && (
         <div style={{ marginTop: 10 }}>
           <DenseTable
             rows={rows}
@@ -607,7 +748,72 @@ export default function Accountability({ data, results: latest, onPlayerClick })
         </div>
       )}
 
-      <ScoreBands data={data} results={results} />
+      {mode === 'week' && subTab === 'bands' && <ScoreBands data={data} results={results} />}
+
+      {mode === 'season' && subTab === 'card' && keys.length === 0 && !loading && (
+        <div style={{
+          border: `1px dashed ${C.border2}`, borderRadius: 12, padding: 24,
+          textAlign: 'center', color: C.text3, fontSize: TYPE.body,
+        }}>No week has been graded yet this season.</div>
+      )}
+
+      {mode === 'season' && subTab === 'record' && (
+        trackRows.length === 0 ? (
+          <div style={{
+            border: `1px dashed ${C.border2}`, borderRadius: 12, padding: 24,
+            textAlign: 'center', color: C.text3, fontSize: TYPE.body,
+          }}>{loading ? 'Harvesting graded weeks…' : 'No graded rungs in the archive yet.'}</div>
+        ) : (
+          <DenseTable
+            rows={trackRows}
+            columns={[
+              { key: 'name', label: 'Player', heat: false, w: 160, bold: true, sticky: true },
+              { key: 'position', label: 'Pos', heat: false, w: 36, mono: true, dim: true },
+              { key: 'team', label: 'Tm', heat: false, w: 36, mono: true, dim: true },
+              { key: 'n', label: 'Rungs', heat: false, w: 50, mono: true,
+                title: 'Graded rungs this player has been on, across the archive' },
+              { key: 'hit', label: 'Hit', heat: false, w: 44, mono: true },
+              { key: 'pct', label: 'Clear %', w: 62, mono: true,
+                fmt: (v) => (v == null ? '—' : `${v}%`) },
+              { key: 'weeks', label: 'Wks', heat: false, w: 42, mono: true, dim: true },
+              { key: 'markets', label: 'Mkts', heat: false, w: 44, mono: true, dim: true,
+                title: 'How many different markets this player has been picked in' },
+            ]}
+            onRowClick={onPlayerClick ? openRow : undefined}
+            initialSort="n"
+            maxHeight={520}
+            maxRows={300}
+            caption="Every graded rung in the archive, grouped by the player it was on. Void rungs are excluded — a scratched pick says nothing about the player. A two-rung player at 100% is a sample of two; sort by Rungs before you read Clear %."
+          />
+        )
+      )}
+
+      {mode === 'season' && subTab === 'weeks' && (
+        weeksRows.length === 0 ? (
+          <div style={{
+            border: `1px dashed ${C.border2}`, borderRadius: 12, padding: 24,
+            textAlign: 'center', color: C.text3, fontSize: TYPE.body,
+          }}>{loading ? 'Harvesting graded weeks…' : 'No graded week has been published yet.'}</div>
+        ) : (
+          <DenseTable
+            rows={weeksRows}
+            columns={[
+              { key: 'week', label: 'Week', heat: false, w: 110, bold: true, sticky: true },
+              { key: 'n', label: 'Rungs', heat: false, w: 52, mono: true },
+              { key: 'hit', label: 'Hit', heat: false, w: 44, mono: true },
+              { key: 'pct', label: 'Clear %', w: 64, mono: true,
+                fmt: (v) => (v == null ? '—' : `${v}%`) },
+              { key: 'markets', label: 'Markets', heat: false, w: 62, mono: true, dim: true,
+                title: 'Markets with at least one graded rung that week' },
+              { key: 'graded', label: 'Graded', heat: false, w: 150, dim: true },
+            ]}
+            onRowClick={(r) => { setMode('week'); setSubTab('overview'); setPicked(r.key === currentKey ? null : r.key) }}
+            initialSort="week"
+            maxHeight={420}
+            caption="One row per graded week the archive has on the branch. Click a row to open that week under This week."
+          />
+        )
+      )}
 
       {/* ── #14: THIS BLOCK WAS DOING NOTHING ────────────────────────────
           The Results header rendered as raw stacked text -- "LAST GRADED2026
