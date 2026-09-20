@@ -69,6 +69,7 @@ import {
 import { fetchNflLive } from '../../../../../lib/nfl/liveSlate'
 import { buildTdEvent, eventFromRow, rowFromEvent, tdPostText, touchdownsInSnap } from '../../../../../lib/nfl/tdFeed'
 import { tdCard } from '../../../../../lib/nfl/tdCard'
+import { spotlightCard } from '../../../../../lib/nfl/spotlightCard'
 import { hasX, postToDiscord, postToX, uploadImageToX } from '../../../../../lib/dash/xPost'
 import { logXBudget } from '../../../../../lib/dash/xBudget'
 import { isMaintenanceMode } from '../../../../../lib/edgeConfig'
@@ -496,6 +497,10 @@ async function runWeeklyContentTick(db, day) {
       // Only BOT VS THE PEOPLE sets this; postToX renders them as tappable
       // buttons rather than typed A)/B)/C) in the body.
       let pollOptions = null
+      // Only the spotlight carries a card. Every other weekly post is a list,
+      // and a picture of a list is the thing the 2026-09-18 cards-off pass
+      // deliberately removed.
+      let card = null
       if (sl.kind === 'nfl_redzone' || sl.kind === 'nfl_goalline') {
         const stat = sl.kind === 'nfl_goalline' ? 'GL' : 'RZ'
         const picks = opportunityPicks(data, stat)
@@ -529,6 +534,19 @@ async function runWeeklyContentTick(db, day) {
         const pick = spotlightPick(box, data)
         text = spotlightText(pick, data, TAIL)
         payload = pick ? { picks: [{ player_id: pick.player_id, name: pick.name, week: pick.week }] } : {}
+        if (pick) {
+          // The card is handed the SAME strings the tweet uses -- window label
+          // and closing statement -- so the two can never disagree about which
+          // week this is or what it claims. See spotlightCard's own note.
+          const td = (pick.patd || 0) + (pick.rutd || 0) + (pick.rectd || 0)
+          const word = td === 1 ? 'touchdown' : 'touchdowns'
+          const windowLabel = pick.done <= 3 ? 'THURSDAY NIGHT' : `WEEK ${pick.week}`
+          const statement = pick.done <= 3
+            ? `${td} total ${word} to open Week ${pick.week}`
+            : `${td} total ${word} in Week ${pick.week}`
+          const context = [pick.team, pick.opp ? `vs ${pick.opp}` : ''].filter(Boolean).join(' ')
+          card = () => spotlightCard(pick, { site: SITE_HOST, windowLabel, statement, context })
+        }
       } else if (sl.kind === 'nfl_board') {
         const picks = nflBoardPicks(data)
         text = nflBoardText(picks, data, TAIL)
@@ -572,10 +590,19 @@ async function runWeeklyContentTick(db, day) {
       const forDiscord = pollOptions
         ? `${text}\n\n${pollOptions.map((n, i) => `${String.fromCharCode(65 + i)}) ${n}`).join('\n')}`
         : text
-      const d = await postToDiscord(forDiscord, {}, FEED_WEBHOOKS())
+      // Rendered once, given to both services -- the same "ONE RENDER, BOTH
+      // PLACES" rule the MLB tick's claimAndPostStat already follows, and for
+      // the same reason: the card used to be built inside the X branch, so
+      // Discord got bare text while a finished PNG existed a few lines later.
+      const png = card ? await bytesOf(card) : null
+      const d = await postToDiscord(forDiscord, { png }, FEED_WEBHOOKS())
       if (d.ok) patch.discord_sent = true
       if (hasX()) {
-        const r = await postToX(text, pollOptions ? { poll: { options: pollOptions, durationMinutes: NFL_POLL_DURATION_MIN } } : {})
+        const mediaId = png ? await uploadImageToX(png) : null
+        const r = await postToX(text, {
+          ...(mediaId ? { mediaId } : {}),
+          ...(pollOptions ? { poll: { options: pollOptions, durationMinutes: NFL_POLL_DURATION_MIN } } : {}),
+        })
         if (r.ok && r.id) patch.x_post_id = r.id
         else console.error(`[nfl-tick] ${sl.kind} refused: ${r.status} ${r.error}`)
       }
