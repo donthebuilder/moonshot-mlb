@@ -1,5 +1,5 @@
 'use client'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 
 import useScrollLock from '../../lib/useScrollLock'
 import { C, NUM_FONT, MARKETS, gradeFor } from '../../lib/nfl/theme'
@@ -301,9 +301,148 @@ function pickFromPlayer(player, market, spec) {
   }
 }
 
-export default function NflPlayerModal({ player, market, markets, splitMeta, logs, matchup, slate, picks, results, onClose, onFullProfile }) {
+
+// ── THE CARD'S OWN CHROME (2026-09-20) ──────────────────────────────────────
+//
+// The clone audit covered navigation, headers and page frames and stopped at
+// the door of this card. Inside, MOONSHOT's PlayerModal has seven tabs, a peer
+// navigator, a width that follows its content and an inline mode; this file
+// had none of them and rendered nine sections as one scroll. The ANALYSIS was
+// cloned honestly -- PropsGrid, MatchupMap, DvpTable, ScoreAnatomy are real
+// football instruments, not faked baseball ones -- but the chrome around it
+// never was, and none of the chrome is sport-specific.
+//
+// THREE TABS, NOT SEVEN. MLB's seven are mostly baseball instruments (EV Log,
+// Pitch, Spray, Pitcher, Sim) with no football equivalent; inventing five tabs
+// to match the count would be #28. What football actually has is three
+// questions, and every existing section already answers one of them:
+//
+//   OVERVIEW  what did the model say, and what did it do    verdict, your
+//             card, score anatomy, props grid, notes
+//   MATCHUP   who is he playing, and where are they soft    matchup map, DvP,
+//             coverage and explosive
+//   SPLITS    how does he change by situation              the dumbbells
+//
+// Nothing moved between sections and nothing was rewritten -- the same
+// components render in the same order, grouped behind the question they
+// answer, which is the whole of what a tab is.
+const TABS = [
+  { key: 'overview', label: 'Overview' },
+  { key: 'matchup', label: '\u{1F6E1} Matchup' },
+  { key: 'splits', label: '\u{1F4C5} Splits' },
+]
+
+function TabBtn({ active, onClick, children }) {
+  return (
+    <button onClick={onClick} style={{
+      padding: '5px 13px', fontSize: 11, fontWeight: 700, cursor: 'pointer', borderRadius: 999,
+      border: `1px solid ${active ? C.green : C.border}`,
+      background: active ? `${C.green}22` : 'rgba(255,255,255,.035)',
+      color: active ? C.green : C.text2, whiteSpace: 'nowrap',
+    }}>{children}</button>
+  )
+}
+
+// 👥 PEER NAVIGATION — MOONSHOT's Navigator, in the NFL palette.
+//
+// `peers` is the list you were actually reading, in its order, so the arrows
+// follow whatever board you opened the card from rather than the raw payload.
+// Left/right arrow keys drive it, and a name is not a keyboard shortcut, so
+// the handler stands down inside any input.
+//
+// The game grouping MLB has (pitcher <-> the hitter he faces) has no football
+// equivalent worth cloning -- there is no single opposite number -- so this
+// ports the arrows and the search and stops there rather than inventing a
+// grouping the sport does not have.
+function Navigator({ peers, cur, onNavigate }) {
+  const [q, setQ] = useState('')
+  const [open, setOpen] = useState(false)
+  const curId = String(cur?.player_id ?? '')
+  const idx = peers.findIndex((x) => String(x?.player_id ?? '') === curId)
+  const go = (d) => {
+    if (idx < 0) return
+    const next = peers[idx + d]
+    if (next) onNavigate?.(next)
+  }
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
+      const t = e.target
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
+      e.preventDefault()
+      go(e.key === 'ArrowRight' ? 1 : -1)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  })
+
+  const hits = q.trim().length < 2 ? [] : peers.filter((x) => (
+    String(x?.name || '').toLowerCase().includes(q.trim().toLowerCase())
+  )).slice(0, 8)
+
+  const btn = (enabled) => ({
+    background: 'transparent', border: `1px solid ${enabled ? C.border2 : C.border}`,
+    color: enabled ? C.text2 : C.text3, borderRadius: 7, padding: '3px 9px',
+    fontSize: 13, lineHeight: 1, cursor: enabled ? 'pointer' : 'default',
+    opacity: enabled ? 1 : 0.4, minWidth: 30, minHeight: 26,
+  })
+
+  if (!peers.length) return null
+  return (
+    <div style={{ position: 'relative', display: 'flex', gap: 5, alignItems: 'center' }}>
+      <button onClick={() => go(-1)} disabled={idx <= 0}
+        title="Previous player in this list (←)" style={btn(idx > 0)}>‹</button>
+      <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT, minWidth: 44, textAlign: 'center' }}>
+        {idx >= 0 ? `${idx + 1} / ${peers.length}` : '—'}
+      </span>
+      <button onClick={() => go(1)} disabled={idx < 0 || idx >= peers.length - 1}
+        title="Next player in this list (→)" style={btn(idx >= 0 && idx < peers.length - 1)}>›</button>
+      <button onClick={() => setOpen((v) => !v)} title="Jump to any player on the slate"
+        style={{ ...btn(true), fontSize: 11 }}>🔍</button>
+      {open && (
+        <div style={{
+          position: 'absolute', top: '100%', right: 0, marginTop: 6, zIndex: 5,
+          background: C.bg2, border: `1px solid ${C.border2}`, borderRadius: 10,
+          padding: 8, width: 240, boxShadow: '0 10px 30px rgba(0,0,0,.5)',
+        }}>
+          <input
+            autoFocus value={q} onChange={(e) => setQ(e.target.value)}
+            placeholder="Search this list…"
+            style={{
+              width: '100%', boxSizing: 'border-box', background: C.bg,
+              border: `1px solid ${C.border}`, borderRadius: 7, padding: '6px 8px',
+              color: C.text, fontSize: 12, marginBottom: 6,
+            }}
+          />
+          {hits.length === 0 ? (
+            <div style={{ fontSize: 10, color: C.text3, padding: '4px 2px' }}>
+              {q.trim().length < 2 ? 'Type two letters.' : 'Nobody on this list by that name.'}
+            </div>
+          ) : hits.map((x) => (
+            <button key={String(x.player_id)}
+              onClick={() => { onNavigate?.(x); setOpen(false); setQ('') }}
+              style={{
+                display: 'block', width: '100%', textAlign: 'left', background: 'transparent',
+                border: 0, color: C.text2, fontSize: 11, padding: '5px 4px', cursor: 'pointer',
+              }}>{x.name} <span style={{ color: C.text3 }}>{x.position} · {x.team}</span></button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default function NflPlayerModal({ player, market, markets, splitMeta, logs, matchup, slate, picks, results, onClose, onFullProfile, peers = [], onNavigate = null, initialTab = '' }) {
   useScrollLock(Boolean(player))
   const watchlist = useNflWatchlist(slate)
+  const [tab, setTab] = useState('overview')
+  // A new player opens on Overview unless the caller asked for a view --
+  // MOONSHOT's initialTab, same contract, so a deep link can land on the
+  // tab that matters instead of the top of the card every time.
+  useEffect(() => {
+    setTab(TABS.some((t) => t.key === initialTab) ? initialTab : 'overview')
+  }, [player?.player_id, initialTab])
   useEffect(() => {
     const esc = (e) => { if (e.key === 'Escape') onClose?.() }
     window.addEventListener('keydown', esc)
@@ -331,7 +470,12 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
         onClick={(e) => e.stopPropagation()}
         style={{
           background: C.bg2, border: `1px solid ${C.border2}`, borderRadius: 14,
-          padding: 18, maxWidth: 620, width: '100%', maxHeight: '86vh', overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch',
+          // WIDTH FOLLOWS THE CONTENT, the way MOONSHOT's does (580 / 780 /
+          // 1100). This was a hard 620 for everything, including the DvP
+          // strips and the props grid, which are table-shaped and were being
+          // asked to live in a column built for a paragraph.
+          padding: 18, maxWidth: tab === 'overview' ? 620 : 900,
+          width: '100%', maxHeight: '86vh', overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch',
         }}
       >
         <div style={{
@@ -412,14 +556,36 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
           })}
         </div>
 
+        {/* THE TAB ROW AND THE PEER ARROWS, on one line. MOONSHOT puts the
+            navigator beside its tabs for the same reason: they are both "which
+            thing am I looking at" controls and splitting them puts two
+            navigation vocabularies on one card. */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          gap: 10, flexWrap: 'wrap', margin: '10px 0 12px',
+        }}>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {TABS.map((t) => (
+              <TabBtn key={t.key} active={tab === t.key} onClick={() => setTab(t.key)}>{t.label}</TabBtn>
+            ))}
+          </div>
+          {onNavigate && <Navigator peers={peers} cur={player} onNavigate={onNavigate} />}
+        </div>
+
         {/* graded state and your card, before the matchup: the two things a
             bettor opens the card to do (2026-09-05, Batch 2). */}
+        {tab === 'overview' && <>
         <VerdictStamp player={player} results={results} bars={Object.fromEntries((markets || []).map((m) => [m.key, Number(m.bar)]))} />
         <PutOnCard player={player} market={market} picks={picks} slate={slate} />
+        </>}
+
+        {tab === 'matchup' && <>
         <MatchupSection player={player} matchup={matchup} market={market} />
         <DvpSection player={player} matchup={matchup} />
+        <CoverageAndExplosive player={player} matchup={matchup} />
+        </>}
 
-        {Object.keys(comps).length > 0 && (
+        {tab === 'overview' && Object.keys(comps).length > 0 && (
           <div style={{ marginTop: 18 }}>
             <ScoreAnatomy
               components={comps}
@@ -431,7 +597,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
           </div>
         )}
 
-        {Object.keys(player.stats || {}).length > 0 && (
+        {tab === 'overview' && Object.keys(player.stats || {}).length > 0 && (
           <>
             <div style={{
               fontSize: 10, fontWeight: 900, color: C.text3, letterSpacing: '.1em',
@@ -460,7 +626,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
             ported. HitRate still draws the bars; it now rides INSIDE the grid
             and follows whichever row is open, so the modal keeps one chart
             and gains the every-market glance above it. */}
-        {logs?.logs?.[player.player_id]?.log && (
+        {tab === 'overview' && logs?.logs?.[player.player_id]?.log && (
           <PropsGrid
             log={logs.logs[player.player_id].log}
             market={market}
@@ -469,13 +635,13 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
           />
         )}
 
-        <CoverageAndExplosive player={player} matchup={matchup} />
+        {tab === 'splits' && <Splits player={player} market={market} data={splitMeta} />}
 
-        <Splits player={player} market={market} data={splitMeta} />
-        {/* Same per-device note store as MOONSHOT's card; ids can't collide. */}
-        <PlayerNotes playerId={player.player_id} />
+        {/* Same per-device note store as MOONSHOT's card; ids can't collide.
+            Stays on Overview, where MOONSHOT keeps its own. */}
+        {tab === 'overview' && <PlayerNotes playerId={player.player_id} />}
 
-        {player.carryover && (
+        {tab === 'overview' && player.carryover && (
           <div style={{
             marginTop: 14, fontSize: 10.5, color: C.text2, lineHeight: 1.6,
             background: `${C.purple}20`, border: `1px solid ${C.purple}4d`,

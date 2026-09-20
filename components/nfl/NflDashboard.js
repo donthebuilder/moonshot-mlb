@@ -206,6 +206,16 @@ export default function NflDashboard({ palettePass = 0 }) {
   const slate = useMemo(() => withLive(data, liveSnap), [data, liveSnap])
 
   const openPlayer = (player, market = 'TD') => setModal({ player, market })
+  // The card's peer list: everyone playing, ranked by the market the card is
+  // showing, so ‹ › walks from a better name to a worse one rather than
+  // through payload order. Recomputed only when the slate or that market
+  // changes, not on every render of an open card.
+  const modalPeers = useMemo(() => {
+    const mk = modal?.market || 'TD'
+    return (slate?.players || [])
+      .filter((p) => !p.on_bye && Number.isFinite(p?.scores?.[mk]))
+      .sort((a, b) => (b.scores[mk] - a.scores[mk]))
+  }, [slate, modal?.market])
   const openFullProfile = (player) => {
     setModal(null)
     setTab('players')
@@ -284,6 +294,19 @@ export default function NflDashboard({ palettePass = 0 }) {
         results={nflResults}
         onClose={() => setModal(null)}
         onFullProfile={openFullProfile}
+        // ‹ › AND THE SEARCH INSIDE THE CARD (2026-09-20). MOONSHOT walks the
+        // list that was ON SCREEN, in its order, because Dashboard already
+        // holds the filtered slate every tab renders from. TUDDY's tabs each
+        // own their own filtering, so there is no single on-screen list to
+        // hand over -- this passes the whole board instead, minus byes, in
+        // score order for the market the card is open on.
+        //
+        // Said plainly rather than dressed up as the same thing: the arrows
+        // walk the board, not your current filter. Threading each tab's own
+        // list up to here is the change that would close that gap, and it is
+        // a bigger one than this card needed.
+        peers={modalPeers}
+        onNavigate={(p) => setModal((m) => ({ ...(m || {}), player: p }))}
       />
       </ErrorBoundary>
     </>
