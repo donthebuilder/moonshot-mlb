@@ -91,6 +91,13 @@
 .cta span { font-size: 12px; opacity: 0.8; }
 .cta:hover { filter: brightness(1.07); }
 .navCta { color: var(--mlb) !important; border: 1px solid var(--mlb); border-radius: 999px; padding: 6px 12px; }
+
+/* THE SPORT SWITCH (2026-09-20). Two links, no JS. The selected one is a
+   solid pill so it reads as a state rather than a second button to press —
+   at a glance the page has to say WHICH record you are looking at, because
+   the layout is identical for both. */
+.navOn { color: var(--bg) !important; background: var(--ink); border-radius: 999px; padding: 6px 11px; font-weight: 800; letter-spacing: 0.4px; }
+.navOff { border: 1px solid var(--line); border-radius: 999px; padding: 6px 11px; font-weight: 700; letter-spacing: 0.4px; }
 .more { margin-top: 8px; }
 .more summary { cursor: pointer; font-size: 13px; color: var(--mlb); padding: 8px 0; list-style: none; }
 .more summary::-webkit-details-marker { display: none; }
