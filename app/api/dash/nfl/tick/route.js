@@ -137,6 +137,18 @@ const WED_REDZONE_HOUR = -2    // 10am ET Wednesday
 const WED_GOALLINE_HOUR = 1    //  1pm ET Wednesday
 const THU_TDHISTORY_HOUR = -1  // 11am ET Thursday
 const FRI_WHYBOARD_HOUR = -2   // 10am ET Friday
+// SATURDAY WAS EMPTY (2026-09-20). Donovan: "i havent seen any tweets and its
+// saturday not good." He was right twice over -- this week's Wed/Thu/Fri posts
+// had never fired at all (migration 11 landed after their slots passed), and
+// Saturday had no slot in WEEKLY_SLOTS to begin with. The cron window was
+// always there; there was simply nothing for it to do.
+//
+// Saturday is the biggest football-attention day before Sunday, so it gets a
+// SECOND WHY HE'S ON THE BOARD -- a different player from Friday's, which
+// whyOnBoardPick already supports via `exclude`. No new kind and therefore no
+// migration: claimSlot keys on (day, kind), and Saturday is a different day
+// from Friday, so the same 'nfl_whyboard' kind claims cleanly.
+const SAT_WHYBOARD_HOUR = -1   // 11am ET Saturday
 // BIG WEEK (2026-09-18, Donovan: "same deal for a player that had a big week
 // maybe 1 rb and 1 wr and 1 qb who played well this week"). Monday, because
 // that is the first morning the week's games are actually in the box score --
@@ -182,6 +194,7 @@ const WEEKLY_SLOTS = {
   3: [{ kind: 'nfl_redzone', hour: WED_REDZONE_HOUR }, { kind: 'nfl_goalline', hour: WED_GOALLINE_HOUR }],
   4: [{ kind: 'nfl_tdhistory', hour: THU_TDHISTORY_HOUR }],
   5: [{ kind: 'nfl_whyboard', hour: FRI_WHYBOARD_HOUR }],
+  6: [{ kind: 'nfl_whyboard', hour: SAT_WHYBOARD_HOUR }],
 }
 
 function etHoursSinceNoon() {
@@ -492,7 +505,16 @@ async function runWeeklyContentTick(db, day) {
         text = bigWeekText(picks, data, TAIL)
         payload = { picks: picks.map((p) => ({ player_id: p.player_id, name: p.name, pos: p.pos, line: p.line })) }
       } else if (sl.kind === 'nfl_whyboard') {
-        const pick = whyOnBoardPick(data)
+        // Saturday's copy excludes whoever Friday named, so the two days are
+        // two different players rather than the same anatomy twice. Reads
+        // yesterday's own payload; a missing row just means no exclusion.
+        const exclude = new Set()
+        if (etWeekday(day) === 6) {
+          const { data: fri } = await db.from('homer_feed_posts').select('payload')
+            .match({ day: shiftDay(day, -1), kind: 'nfl_whyboard' }).maybeSingle()
+          for (const p of fri?.payload?.picks || []) if (p?.player_id) exclude.add(String(p.player_id))
+        }
+        const pick = whyOnBoardPick(data, { exclude })
         text = whyOnBoardText(pick, data, TAIL)
         payload = pick ? { picks: [{ player_id: pick.player_id, name: pick.name, score: pick.score }] } : {}
       } else if (sl.kind === 'nfl_board') {
