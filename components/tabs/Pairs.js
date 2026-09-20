@@ -1,6 +1,7 @@
 'use client'
 import PairHistory from './PairHistory'
 import { useState, useMemo } from 'react'
+import { etToday } from '../../lib/freshness'
 import { C, NUM_FONT } from '../../lib/theme'
 import { catColor, verdictInk, verdictWash, alpha } from '../../lib/scales'
 import { PanelTitle, Empty, btnStyle, WhatThis } from '../ui'
@@ -1995,7 +1996,10 @@ export function GroupTicketBuilder({
   // raw field as a veto only, and returns `verified` so an empty list can be
   // told apart from an unchecked one. Until it comes back proven, the filter
   // is unavailable rather than unproven.
-  const dateKey = slateDate || slateDateOf(players) || new Date().toLocaleDateString('en-CA')
+  // etToday(), not the viewer's local date: slateDate is the Eastern
+  // baseball day, and comparing it to a browser clock only works in Eastern.
+  // Same fix as components/tabs/Home.js (2026-09-19), which has the full note.
+  const dateKey = slateDate || slateDateOf(players) || etToday()
   const setupHr = useSetupHomers(dateKey)
   const { list: b2bList, verified: b2bVerified } = useBackToBack(players, setupHr, null, dateKey)
   const b2bIds = useMemo(

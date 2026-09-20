@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
+import { etToday } from '../../lib/freshness'
 import { C, NUM_FONT, TYPE } from '../../lib/theme'
 import { n, clean, nameOf, teamOf, oppOf, hrScore, playerId } from '../../lib/player'
 import { PanelTitle, Empty } from '../ui'
@@ -47,7 +48,10 @@ function loadJSON(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'
 function saveJSON(k, v) { try { localStorage.setItem(k, JSON.stringify(v)) } catch {} }
 
 export default function Derby({ players = [], results, slateDate = '', onPlayerClick }) {
-  const date = slateDate || new Date().toLocaleDateString('en-CA')
+  // etToday(), not the viewer's local date: slateDate is the Eastern
+  // baseball day, and comparing it to a browser clock only works in Eastern.
+  // Same fix as components/tabs/Home.js (2026-09-19), which has the full note.
+  const date = slateDate || etToday()
   const [picks, setPicks] = useState([])       // player ids
   const [lockedAt, setLockedAt] = useState(null)
   const [query, setQuery] = useState('')

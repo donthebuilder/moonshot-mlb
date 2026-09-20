@@ -2,6 +2,7 @@
 import Leaders from './Leaders'
 import MoneyAnswer from '../MoneyAnswer'
 import { useEffect, useMemo, useState } from 'react'
+import { etToday } from '../../lib/freshness'
 import { C, NUM_FONT, TYPE } from '../../lib/theme'
 import { hr9Color } from '../../lib/hr9'
 import { catColor, verdictInk } from '../../lib/scales'
@@ -1455,7 +1456,8 @@ export default function Results({ results, liveResults = null, slateDate = '', b
             // this page can't fix, but it CAN stop asserting liveness it
             // can't verify. Past-dated slate: same count, honest wording.
             const slateBehind = Boolean(
-              slateDate && slateDate < new Date().toLocaleDateString('en-CA'),
+              // Eastern day, not the viewer's -- see components/tabs/Home.js.
+              slateDate && slateDate < etToday(),
             )
             takes.push(
               <Take key="live" col={C.cyan}>

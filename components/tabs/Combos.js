@@ -72,6 +72,31 @@ const VIEWS = [
   ['history', 'History'],
 ]
 
+function StaleBuilderNote({ pairBuilder, slateDate }) {
+  const built = String(pairBuilder?.date || '').slice(0, 10)
+  const slate = String(slateDate || '').slice(0, 10)
+  // Silent when they agree, and silent when either is missing -- an absent
+  // date is not evidence of staleness and this note never guesses.
+  if (!built || !slate || built === slate) return null
+  const behind = built < slate
+  return (
+    <div style={{
+      border: `1px solid ${C.yellow}55`, borderLeft: `3px solid ${C.yellow}`,
+      background: 'rgba(234,179,8,.07)', borderRadius: 10,
+      padding: '9px 13px', marginBottom: 12, fontSize: 11.5,
+      color: C.text2, lineHeight: 1.6, maxWidth: 820,
+    }}>
+      <b style={{ color: C.yellow }}>
+        {behind ? 'These pairs are from a different night.' : 'The pair builder is ahead of the slate.'}
+      </b>{' '}
+      The builder last ran for <b style={{ color: C.text }}>{built}</b>, the board on this page is{' '}
+      <b style={{ color: C.text }}>{slate}</b>. The names and scores below are real, but they were
+      chosen against {behind ? 'that night\u2019s' : 'another night\u2019s'} matchups and lineups —
+      read them as history until the builder catches up.
+    </div>
+  )
+}
+
 export default function Combos({
   players = [],            // globally filtered list — what Pools always got
   allPlayers = [],          // unfiltered — what Pairs and History always got
@@ -137,6 +162,24 @@ export default function Combos({
           someone would be looking for it. See components/HomerLedger.js. */}
       {/* The three combo surfaces point at each other (2026-09-01) — see
           components/ComboLinks.js. */}
+      {/* ── IS THE BUILDER EVEN TALKING ABOUT TONIGHT? (2026-09-19) ──────
+          pair_builder_latest.json and the slate are published as two separate
+          files, and publish_data.sh's carry_forward() deliberately keeps a
+          file this run did not regenerate -- which is right (a grading run
+          must not drop the slate) and means a run that rebuilds the slate
+          WITHOUT rebuilding the builder serves last night's pairs beside
+          tonight's board. Nothing on this page compared the two dates, so
+          the pairs, the pools and the 3-mans would all have read as tonight's
+          with no sign otherwise. Stale pairs are the worst kind of wrong
+          here: the names are real, the scores are real, and the matchups they
+          were chosen for are gone.
+
+          #25, not #24: the page still renders what it has -- yesterday's
+          pairs are information, they are just not tonight's -- and says
+          plainly which night it is looking at. One check, at the one mount
+          all three surfaces come through, rather than three copies that
+          drift. */}
+      {view === 'pairs' && <StaleBuilderNote pairBuilder={pairBuilder} slateDate={slateDate} />}
       {view === 'pairs' && <ComboLinks here="pairs" />}
       {view === 'builder' && <ComboLinks here="builder" />}
       {view === 'pairs' && (

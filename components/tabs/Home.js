@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { etToday } from '../../lib/freshness'
 import { C, NUM_FONT, TYPE } from '../../lib/theme'
 import { logUrl, dataUrl } from '../../lib/dataSource'
 import { nameOf, teamOf, oppOf, clean, n, obj, hrScore, hitScore, dateText } from '../../lib/player'
@@ -378,11 +379,24 @@ export default function Home({
   // TENSE (2026-08-29, both reviews): the hero said "Tonight's sheet is
   // ready" while showing yesterday's finished slate. A slate whose calendar
   // date is behind the local clock — and which isn't live — is history, and
-  // the headline should say so. en-CA gives YYYY-MM-DD, same shape as
-  // slateDate, so plain string compare works.
+  // the headline should say so.
+  //
+  // EASTERN, NOT THE BROWSER'S CLOCK (2026-09-19). All four day comparisons on
+  // this page read the VIEWER's local date (toLocaleDateString with no zone).
+  // slateDate is the Eastern baseball day, so comparing the two is only
+  // correct for a viewer sitting in Eastern. Everywhere else the page rolls
+  // over at the wrong moment: a viewer in Europe, whose local date is already
+  // tomorrow while first pitch is still hours away in the US, had tonight's
+  // live slate labelled as past, the back-to-back proof keyed to the wrong
+  // day, and the bullpen panel skipped. Phoenix is the mirror case, three
+  // hours the other way.
+  //
+  // etToday() is lib/freshness.js's Eastern day -- the clock StaleBanner and
+  // the box scores already use -- and still returns YYYY-MM-DD, so every
+  // plain string compare below is unchanged.
   const slateInPast = Boolean(
     slateDate
-    && slateDate < new Date().toLocaleDateString('en-CA')
+    && slateDate < etToday()
     && !isLive,
   )
 
@@ -427,8 +441,8 @@ export default function Home({
   // without proof the line does not render at all.
   // Fall back to today rather than passing '' — an empty slateDate would make
   // the proof fetch bail and silently hide the line on a normal night.
-  const b2bDateKey = slateDate || new Date().toLocaleDateString('en-CA')
-  const isTmrwSlate = b2bDateKey > new Date().toLocaleDateString('en-CA')
+  const b2bDateKey = slateDate || etToday()
+  const isTmrwSlate = b2bDateKey > etToday()
   const setupHr = useSetupHomers(b2bDateKey)
   const { list: b2b, verified: b2bVerified } = useBackToBack(players, setupHr, hrScore, b2bDateKey)
 
@@ -470,7 +484,7 @@ export default function Home({
   // Gassed / worked pens among TONIGHT's teams. Yesterday's workload only
   // means anything for today's slate, so tomorrow mode skips the fetch.
   const [pens, setPens] = useState([])
-  const penApplies = !slateDate || slateDate <= new Date().toLocaleDateString('en-CA')
+  const penApplies = !slateDate || slateDate <= etToday()
   useEffect(() => {
     if (!penApplies || !players.length) { setPens([]); return undefined }
     let alive = true
