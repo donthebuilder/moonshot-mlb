@@ -171,9 +171,32 @@ function Storylines({ player, market, rows, matchup }) {
   // argue for or against THIS market's specific call, it's context for
   // reading the rest of the card.
   const rv = matchup?.route_value?.[player.player_id]
+  // games_since_last_td (2026-09-19). nfl_bot.py has frozen this onto every
+  // row since 2026-09-16 -- leak-free by construction, and frozen on purpose
+  // rather than recomputed here, because a client-side walk of the same log
+  // next month would silently change what a past week's number "was". It was
+  // published and read by NOTHING until now.
+  //
+  // IT IS HISTORY, NOT A SIGNAL, and it is worded that way. A drought does not
+  // make anyone due -- that is the gambler's fallacy, and this site does not
+  // sell it (#8, #16). What it is: the plainest fact about a scorer, useful
+  // for reading the rest of the card, which is exactly what the 'note' tone is
+  // for. The Streaks page already owns the board-level version of this
+  // question; one sentence here is the whole of what belongs on a profile.
+  //
+  // 0 is a real value with a real meaning -- he scored in his most recent
+  // game -- so it gets its own sentence rather than "0 games since".
+  const sinceTd = Number.isFinite(Number(player?.games_since_last_td))
+    ? Number(player.games_since_last_td) : null
   const bullets = [
     bestMarket && { tone: 'for', text: `${bestMarket} is his strongest DASH lane at ${Math.round(bestScore)} (${gradeFor(bestScore).label}).` },
     rv && { tone: 'note', text: `Wins most on ${rv.best_route.toLowerCase()} routes when targeted -- ${rv.best_yds_per_tgt} yards per target, his best of any route type with enough sample in ${matchup?.chart_season || 'the charting season'}.` },
+    sinceTd != null && {
+      tone: 'note',
+      text: sinceTd === 0
+        ? 'Found the end zone in his most recent game.'
+        : `${sinceTd} game${sinceTd === 1 ? '' : 's'} since his last touchdown — history, not a forecast; a drought does not make anyone due.`,
+    },
     player.questionable && { tone: 'against', text: 'Injury status is questionable; the slate row should be rechecked before kickoff.' },
     player.carryover && { tone: 'note', text: 'The current score leans on last season’s per-game baseline until current-season form has depth.' },
     role && defense && {
