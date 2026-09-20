@@ -478,6 +478,9 @@ const NEIGHBOR_REPLY_BATCH = 6
 //             It landed." is the account taking credit for coverage.
 //   rank      even a surfaced name can sit deep. A reply that has to admit
 //             #187 is not a reply worth an X post.
+// OFF BY DEFAULT since 2026-09-20 — see the pass itself for why. Set
+// HOMER_BOARD_REPLY=1 in the environment to bring it back.
+const BOARD_REPLY_ON = String(process.env.HOMER_BOARD_REPLY || '').trim() === '1'
 const BOARD_REPLY_MAX_RANK = 50
 const isSurfaced = (row) => Boolean(String(row?.role || '').trim())
 // How many of the board the reply prints above him. Ten names every night is
@@ -2004,7 +2007,20 @@ export async function GET(request) {
   //
   // null means still owed, so a failure just retries next tick. 'skipped'
   // means decided-and-done: no role, no market, or nothing to say.
-  if (xOn) {
+  // ── TURNED OFF (2026-09-20) ────────────────────────────────────────────
+  //
+  // Donovan, pointing at a live one: "i dont want the home runs to be replied
+  // to with the called shots... stop doing that."
+  //
+  // Off, not deleted. The builder, the column and this pass all still work; a
+  // single env var brings it back if the call changes. What does not come back
+  // on its own is the decision — HOMER_BOARD_REPLY must be set to '1' for any
+  // of this to run, so the default from here on is silence.
+  //
+  // Already-posted replies stay up. Deleting someone's public posts is not
+  // something I do from a cron fix; the ones from tonight are yours to remove
+  // if you want them gone.
+  if (xOn && BOARD_REPLY_ON) {
     const { data: owed } = await db
       .from('homer_feed')
       .select('player_id,hr_n,name,role,x_post_id')
