@@ -227,18 +227,28 @@ const norm = (s) => String(s || '')
   .replace(/\s+/g, ' ')
   .trim()
 
-export function explainFor(...keys) {
+// TWO SPORTS, ONE MECHANISM (2026-09-20). The lookup takes a dictionary now
+// and defaults to the baseball one, so every existing MLB caller is untouched
+// and TUDDY can hand in lib/nfl/glossary.js instead of this file growing a
+// second sport's vocabulary. Rule #21: one component, one behaviour, two data
+// tables -- not two components that drift.
+export function explainFrom(dict, ...keys) {
+  const D = dict || GLOSSARY
   for (const k of keys) {
     if (!k) continue
     const key = norm(k)
-    if (GLOSSARY[key]) return GLOSSARY[key]
+    if (D[key]) return D[key]
     // "Barrel %" ↔ "barrel%" ↔ "barrel"
     const tight = key.replace(/\s/g, '')
-    if (GLOSSARY[tight]) return GLOSSARY[tight]
+    if (D[tight]) return D[tight]
     const bare = key.replace(/[%\s]/g, '')
-    if (GLOSSARY[bare]) return GLOSSARY[bare]
+    if (D[bare]) return D[bare]
   }
   return null
+}
+
+export function explainFor(...keys) {
+  return explainFrom(GLOSSARY, ...keys)
 }
 
 // The ⓘ itself. Deliberately its own tiny component so the tap target can be
@@ -272,9 +282,15 @@ export function InfoDot({ on, onClick, color }) {
  * Renders nothing extra when there is no explanation to give, so it is safe
  * to wrap a label whether or not the glossary knows about it.
  */
-export default function Explain({ label, term, text, color, style }) {
+export default function Explain({ label, term, text, color, style, dict = null, accent = null, suffix = '' }) {
   const [open, setOpen] = useState(false)
-  const line = text || explainFor(term, label)
+  const line = text || explainFrom(dict, term, label)
+  // The panel used to be hardcoded to MOONSHOT orange, which is why this
+  // component could not be used on the football side without looking like it
+  // belonged to the other product. `accent` is a hex and defaults to the same
+  // orange, composed with alpha suffixes the way every other surface here
+  // does it, so nothing about the MLB surfaces changes.
+  const hue = accent || C.orange
   if (!line) return <>{label}</>
   return (
     <span style={{ display: 'inline-block', minWidth: 0, ...style }}>
@@ -285,10 +301,21 @@ export default function Explain({ label, term, text, color, style }) {
           display: 'block', marginTop: 3, maxWidth: 260,
           fontSize: 10, lineHeight: 1.5, fontWeight: 500,
           color: C.text2, fontFamily: 'inherit',
-          background: 'rgba(249,115,22,.07)',
-          border: `1px solid rgba(249,115,22,.28)`,
+          background: `${hue}12`,
+          border: `1px solid ${hue}47`,
           borderRadius: 7, padding: '5px 8px', whiteSpace: 'normal',
-        }}>{line}</span>
+        }}>
+          {line}
+          {/* THE CAVEAT TRAVELS WITH THE TERM (2026-09-20). ExplainBanner has
+              done this since it was written -- a score term carries "this is a
+              ranking, not a percentage" whether or not the next author
+              remembers. The inline ⓘ never did, so the same definition said it
+              in a table header and not on a card. `suffix` closes that, and is
+              empty for every term that is not a score. */}
+          {suffix ? (
+            <span style={{ display: 'block', marginTop: 3, color: C.text3 }}>{suffix}</span>
+          ) : null}
+        </span>
       )}
     </span>
   )

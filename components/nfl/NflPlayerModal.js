@@ -9,6 +9,7 @@ import { VerdictStamp, PutOnCard } from './CardActions'
 import MatchupMap from './MatchupMap'
 import NflFace from './NflFace'
 import SourceSeason from './SourceSeason'
+import NflExplain from './NflExplain'
 import DvpTable, { GROUP } from './DvpTable'
 import DvpDrift from './DvpDrift'
 import ChartFrame from './ChartFrame'
@@ -547,7 +548,9 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
                 background: on ? `${g.color}1f` : 'rgba(255,255,255,.03)',
                 border: `1px solid ${on ? g.color + '66' : C.border}`,
               }}>
-                <div style={{ fontSize: 8.5, color: C.text3, fontWeight: 800 }}>{k}</div>
+                <div style={{ fontSize: 8.5, color: C.text3, fontWeight: 800 }}>
+                  <NflExplain label={k} term={label} />
+                </div>
                 <div style={{
                   fontFamily: NUM_FONT, fontSize: 13, fontWeight: 900, color: g.color,
                 }}>{Math.round(s)}</div>
@@ -612,7 +615,13 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
                   background: 'rgba(255,255,255,.03)', border: `1px solid ${C.border}`,
                   borderRadius: 8, padding: '5px 8px',
                 }}>
-                  <div style={{ fontSize: 8.5, color: C.text3, fontWeight: 800 }}>{k}</div>
+                  {/* TAPPABLE (2026-09-20). These 23 abbreviations -- SEP,
+                      YACOE, TDoE, CPOE, WOPR -- had no explanation anywhere on
+                      the site, and a title= tooltip would have none on a phone
+                      either. See lib/nfl/glossary.js. */}
+                  <div style={{ fontSize: 8.5, color: C.text3, fontWeight: 800 }}>
+                    <NflExplain label={k} />
+                  </div>
                   <div style={{
                     fontFamily: NUM_FONT, fontSize: 12, fontWeight: 800, color: C.text,
                   }}>{typeof v === 'number' ? (Math.abs(v) < 1 ? v.toFixed(3) : v.toFixed(1)) : v}</div>
