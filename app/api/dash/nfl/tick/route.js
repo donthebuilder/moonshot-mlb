@@ -69,6 +69,7 @@ import {
 import { fetchNflLive } from '../../../../../lib/nfl/liveSlate'
 import { buildTdEvent, eventFromRow, rowFromEvent, tdPostText, touchdownsInSnap } from '../../../../../lib/nfl/tdFeed'
 import { tdCard } from '../../../../../lib/nfl/tdCard'
+import { threadsSnapshot } from '../../../../../lib/dash/threadsPost'
 import { spotlightCard } from '../../../../../lib/nfl/spotlightCard'
 import { hasX, postToDiscord, postToX, uploadImageToX } from '../../../../../lib/dash/xPost'
 import { logXBudget } from '../../../../../lib/dash/xBudget'
@@ -679,5 +680,6 @@ export async function GET(request) {
   const milestone = await runMilestoneTick(db, day)
   const weekly = await runWeeklyContentTick(db, day)
 
-  return Response.json({ day, td, milestone, weekly })
+  const threads = threadsSnapshot()
+  return Response.json({ day, td, milestone, weekly, ...(threads.length ? { threads } : {}) })
 }

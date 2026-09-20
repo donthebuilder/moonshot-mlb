@@ -46,6 +46,7 @@ import {
   boardPitchersFresh, probableIndexFor, hotStretchPicks, hotStretchText,
   anglesText, hotSheetText,
 } from '../../../../../lib/dash/tweetFeed'
+import { threadsSnapshot } from '../../../../../lib/dash/threadsPost'
 import { discordFailuresSnapshot, hasX, postToDiscord, postToX, uploadImageToX, xProblem } from '../../../../../lib/dash/xPost'
 import { isMaintenanceMode } from '../../../../../lib/edgeConfig'
 import { backfillOneNight } from '../../../../../lib/dash/homerBackfill'
@@ -2060,5 +2061,9 @@ export async function GET(request) {
 
   totals.statErrors = statErrors
   totals.discordErrors = discordFailuresSnapshot()
+  // What the Threads mirror did this tick, for the same reason discordErrors
+  // exists: a second network failing quietly is a week of nobody noticing.
+  const th = threadsSnapshot()
+  if (th.length) totals.threads = th
   return Response.json(totals)
 }

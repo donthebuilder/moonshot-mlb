@@ -1,0 +1,124 @@
+THREADS — WHAT YOU DO, AND WHAT'S ALREADY DONE
+2026-09-20
+
+The code is in and inert. It posts nothing until two env vars exist AND a
+third is flipped on, so this can sit in production safely while you do the
+Meta side.
+
+=============================================================
+THE GOOD NEWS: YOU DO NOT NEED APP REVIEW
+=============================================================
+
+Meta App Review (weeks, screencasts, business verification) is required to
+publish to OTHER people's accounts. You are publishing to YOUR OWN — the
+CALLED IT profile — which you can do straight away by adding that account as
+a tester on your own Meta app.
+
+That is the whole difference between "three to six weeks" and "this evening."
+
+=============================================================
+WHAT YOU DO — ABOUT 30 MINUTES
+=============================================================
+
+1. developers.facebook.com → My Apps → Create App → use case "Access the
+   Threads API".
+
+2. In the app, add the Threads API product. Request these two scopes:
+
+       threads_basic
+       threads_content_publish
+
+3. App roles → add the CALLED IT Threads account as a TESTER, then accept the
+   invite from that account's Threads settings.
+
+4. Generate a user access token for that account through the Threads OAuth
+   flow, then exchange it for a LONG-LIVED token (60 days) at the
+   /access_token endpoint.
+
+   ⚠️ 60 DAYS. It can be refreshed any time inside that window. Put a
+   reminder in your calendar for day 50 — an expired token means the mirror
+   goes quiet, and quiet is the failure mode you and I have now been bitten
+   by twice.
+
+5. Get the numeric Threads user id (GET /me with the token — the check route
+   below prints it for you).
+
+6. Vercel → project → Settings → Environment Variables:
+
+       THREADS_USER_ID        = the numeric id
+       THREADS_ACCESS_TOKEN   = the long-lived token
+       THREADS_MIRROR         = leave UNSET for now
+
+7. Redeploy, then hit:
+
+       /api/dash/threads/check
+
+   Read-only. It tells you whether the vars are set, and which profile the
+   token actually belongs to. Check the username is CALLED IT and not your
+   personal account BEFORE step 8.
+
+8. One real test post:
+
+       /api/dash/threads/check?go=1&key=<CALLEDIT_SECRET>
+
+   Look at it on Threads.
+
+9. Only then set THREADS_MIRROR=1 and redeploy. From that moment every post
+   the account sends to X also goes to Threads.
+
+=============================================================
+WHAT'S ALREADY BUILT
+=============================================================
+
+lib/dash/threadsPost.js     the client — container + publish, 500-char refit,
+                            never throws, same contract as xPost.js
+lib/dash/xPost.js           ONE new line at the end of postToX(). Every post
+                            in the product already goes through that function,
+                            so the mirror is one seam, not twenty call sites.
+app/api/dash/threads/check  the verification route above
+both tick routes            report `threads: [...]` in the JSON response, next
+                            to discordErrors, so a mirror that starts failing
+                            is visible without Vercel log access
+
+Separate switch on purpose: having a token is not consent to double every
+post. THREADS_MIRROR is.
+
+=============================================================
+FOUR THINGS THREADS WON'T DO, AND WHAT I DID ABOUT EACH
+=============================================================
+
+1. NO NATIVE POLL. THE BOT VS THE PEOPLE is X-only. Mirrored as text it would
+   ask a question nobody can answer, so a post carrying a poll is SKIPPED
+   rather than degraded.
+
+2. NO IMAGE BYTES. X takes the card's PNG directly. Threads only takes a
+   PUBLIC image_url it fetches itself. The cards are rendered in memory and
+   handed straight to X, so mirrored posts are TEXT-ONLY right now.
+
+   This is the one real gap. /api/dash/homers/card can already serve a public
+   URL for three kinds (homer, recap, pregame); the other ~20 post types have
+   no public card URL. Making the cards cross is a separate job — say the word
+   and I'll scope it.
+
+3. REPLIES NEED THEIR PARENT. A reply on Threads must point at the Threads id
+   of the post it answers. When the parent was posted in the same tick, that
+   pairing is in memory and the reply threads correctly. When it wasn't — the
+   homer board-reply pass reads x_post_id back out of the database, often
+   minutes later on a fresh instance — the mirror SKIPS it rather than posting
+   an orphan that reads as a non sequitur.
+
+   The proper fix is a threads_post_id column next to x_post_id in homer_feed
+   and nfl_td_feed, same as the reply_post_id column we added last night. Not
+   built yet: no point storing ids until a token exists.
+
+4. 500 CHARACTERS, not 280. Longer than everything we write, so nothing needs
+   rewriting. The refit only ever touches a Premium long post.
+
+=============================================================
+WHY THIS IS WORTH THE 30 MINUTES
+=============================================================
+
+You have 37 followers on X and you pay per post. Threads costs nothing, the
+limits (250 posts + 1,000 replies a day) are four times your current volume,
+and it's a place a new sports audience can still be found. This does not
+replace X. It doubles the room the same work is heard in, for zero.
