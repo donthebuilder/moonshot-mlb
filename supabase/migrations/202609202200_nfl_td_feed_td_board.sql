@@ -17,3 +17,9 @@
 -- honestly blank rather than getting today's board stamped on last week's
 -- score.
 alter table public.nfl_td_feed add column if not exists td_board jsonb;
+
+-- jersey — his number, for the cards (2026-09-20, "add jersey numbers and
+-- such"). Published per player on the slate the roster join already reads, so
+-- this is a carry, not a new lookup. Nullable: a scorer whose name didn't
+-- resolve gets no number rather than a guessed one.
+alter table public.nfl_td_feed add column if not exists jersey smallint;
