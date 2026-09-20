@@ -64,6 +64,7 @@ import {
   nflBoardPicks, nflBoardText, nflBotPollPicks, nflBotPollText, nflBotPollOptions,
   nflCommunityPickText, nflBoardResultsText,
   tdCallNeighbors, tdCallNeighborsText,
+  spotlightPick, spotlightText,
 } from '../../../../../lib/nfl/tweetFeed'
 import { fetchNflLive } from '../../../../../lib/nfl/liveSlate'
 import { buildTdEvent, eventFromRow, rowFromEvent, tdPostText, touchdownsInSnap } from '../../../../../lib/nfl/tdFeed'
@@ -149,6 +150,11 @@ const FRI_WHYBOARD_HOUR = -2   // 10am ET Friday
 // migration: claimSlot keys on (day, kind), and Saturday is a different day
 // from Friday, so the same 'nfl_whyboard' kind claims cleanly.
 const SAT_WHYBOARD_HOUR = -1   // 11am ET Saturday
+// PLAYER SPOTLIGHT, Tuesday -- the last empty day in the calendar, and the
+// first morning the week is actually FINISHED (Monday Night Football is in the
+// box score by then). See spotlightPick: it reads how many of the week's games
+// are completed, so a Tuesday post can say WEEK N honestly.
+const TUE_SPOTLIGHT_HOUR = -1  // 11am ET Tuesday
 // BIG WEEK (2026-09-18, Donovan: "same deal for a player that had a big week
 // maybe 1 rb and 1 wr and 1 qb who played well this week"). Monday, because
 // that is the first morning the week's games are actually in the box score --
@@ -194,6 +200,7 @@ const WEEKLY_SLOTS = {
   3: [{ kind: 'nfl_redzone', hour: WED_REDZONE_HOUR }, { kind: 'nfl_goalline', hour: WED_GOALLINE_HOUR }],
   4: [{ kind: 'nfl_tdhistory', hour: THU_TDHISTORY_HOUR }],
   5: [{ kind: 'nfl_whyboard', hour: FRI_WHYBOARD_HOUR }],
+  2: [{ kind: 'nfl_spotlight', hour: TUE_SPOTLIGHT_HOUR }],
   6: [{ kind: 'nfl_whyboard', hour: SAT_WHYBOARD_HOUR }],
 }
 
@@ -473,7 +480,7 @@ async function runWeeklyContentTick(db, day) {
   // One fetch for however many slots this day owns, and only once an hour
   // gate has actually opened -- a Wednesday 6am tick pulls nothing.
   const wantsLogs = slots.some((sl) => sl.kind === 'nfl_tdhistory')
-  const wantsBox = slots.some((sl) => sl.kind === 'nfl_bigweek')
+  const wantsBox = slots.some((sl) => sl.kind === 'nfl_bigweek' || sl.kind === 'nfl_spotlight')
   const [data, logs, box] = await Promise.all([
     fetchNfl(nflSlatePaths(), nflSlateLooksReal).catch(() => null),
     wantsLogs ? fetchNfl(nflLogPaths()).catch(() => null) : Promise.resolve(null),
@@ -517,6 +524,11 @@ async function runWeeklyContentTick(db, day) {
         const pick = whyOnBoardPick(data, { exclude })
         text = whyOnBoardText(pick, data, TAIL)
         payload = pick ? { picks: [{ player_id: pick.player_id, name: pick.name, score: pick.score }] } : {}
+      } else if (sl.kind === 'nfl_spotlight') {
+        if (!box) { out[sl.kind] = 'no-box-score-yet'; continue }
+        const pick = spotlightPick(box, data)
+        text = spotlightText(pick, data, TAIL)
+        payload = pick ? { picks: [{ player_id: pick.player_id, name: pick.name, week: pick.week }] } : {}
       } else if (sl.kind === 'nfl_board') {
         const picks = nflBoardPicks(data)
         text = nflBoardText(picks, data, TAIL)
