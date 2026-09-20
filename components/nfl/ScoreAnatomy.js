@@ -32,6 +32,7 @@ import { C, NUM_FONT, RAMP } from '../../lib/nfl/theme'
 // Imported AND re-exported: this file still uses both tables itself (the
 // label lookup in anatomyOf and the clause picker in reasonFor), and a bare
 // `export ... from` does not bring a binding into local scope.
+import NflExplain from './NflExplain'
 import { LABELS, WHY } from '../../lib/nfl/scoreLabels'
 export { LABELS, WHY }
 
@@ -219,7 +220,11 @@ export default function ScoreAnatomy({ components, weights, score, marketLabel, 
             <span style={{
               width: 8, height: 8, borderRadius: 2, background: tone(i), flex: '0 0 auto',
             }} />
-            <span>{p.label}</span>
+            {/* TAPPABLE (2026-09-20). This legend is where someone asks
+                "what is WOPR". lib/nfl/glossary.js keys these by the exact
+                LABELS string printed here, so a label change breaks visibly
+                rather than silently dropping the dot. */}
+            <span><NflExplain label={p.label} /></span>
             <span style={{ fontFamily: NUM_FONT, fontSize: 9, color: C.text3 }}>
               {Math.round(p.pct)}p × {Math.round(p.w * 100)}% = <b style={{ color: C.text2 }}>{p.points.toFixed(1)}</b>
             </span>

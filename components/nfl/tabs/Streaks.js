@@ -9,6 +9,7 @@ import { C, NUM_FONT, gradeFor } from '../../../lib/nfl/theme'
 import { streakMarkets, streakBoard, barChoices } from '../../../lib/nfl/streaks'
 import PageHeader from '../../PageHeader'
 import { FilterPill } from '../../Filters'
+import NflExplain from '../NflExplain'
 
 const REASON_WORD = { rising: 'usage rising', bot: 'bot likes him' }
 const REASON_TITLE = (r) => `Below the volume floor (${r.usage.recent.toFixed(1)} a game over his last 8, floor ${r.usage.floor}) but on the board because: ${r.reasons.map((x) => REASON_WORD[x]).join(', ')}.`
@@ -87,7 +88,7 @@ export default function Streaks({ data, logs, onPlayerClick }) {
           ))}
         </div>
         <div className="chip-row" style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center' }}>
-          <span style={{ fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.1em', color: C.text3, textTransform: 'uppercase', fontFamily: NUM_FONT, flexShrink: 0 }}>Line</span>
+          <span style={{ fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.1em', color: C.text3, textTransform: 'uppercase', fontFamily: NUM_FONT, flexShrink: 0 }}><NflExplain label="Line" /></span>
           {chips.map((c) => (
             <FilterPill key={c} active={c === line} onClick={() => setBar(c)}
               title={c === market.bar ? "The bot's own bar for this market." : `Your own line: ${c}.`}>

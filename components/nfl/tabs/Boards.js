@@ -7,6 +7,7 @@ import OddsLine from '../../OddsLine'
 import OddsStatus from '../../OddsStatus'
 import NflFace from '../NflFace'
 import MatchupBadge from '../MatchupBadge'
+import NflExplain from '../NflExplain'
 import { ActiveFilters, FilterBar, FilterPill, FilterSearch, FilterSelect, PillRow, Segmented } from '../../Filters'
 import { injuryTag, injuryTitle, injuryColor } from '../../../lib/nfl/injury'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
@@ -277,7 +278,16 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
           borderRadius: 10, padding: '9px 13px', marginBottom: 10,
           fontSize: TYPE.body, color: C.text2, lineHeight: 1.6,
         }}>
-          <b style={{ color: C.text }}>{spec.label}</b> · bar{' '}
+          {/* THE TWO WORDS THAT DECIDE HOW THE WHOLE BOARD READS (2026-09-20).
+              What this market ranks for, and what counts as clearing it. They
+              are explained nowhere else on the page and the answer is one tap
+              now. Deliberately HERE and not on every row's grade chip -- a dot
+              per row is noise on a phone; a dot on the header is the same
+              definition, once. */}
+          <b style={{ color: C.text }}>
+            <NflExplain label={spec.label} />
+          </b> ·{' '}
+          <NflExplain label="bar" />{' '}
           <b style={{ color: C.green, fontFamily: NUM_FONT }}>{spec.bar}</b> ·{' '}
           {spec.positions.join(' / ')}
           {spec.dropped?.length > 0 && (
