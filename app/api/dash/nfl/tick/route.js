@@ -603,6 +603,9 @@ async function runWeeklyContentTick(db, day) {
         const r = await postToX(text, {
           ...(mediaId ? { mediaId } : {}),
           ...(pollOptions ? { poll: { options: pollOptions, durationMinutes: NFL_POLL_DURATION_MIN } } : {}),
+          // For the Threads mirror only: which weekly slot this is decides
+          // whether a funnel link goes under it. X ignores it.
+          kind: sl.kind,
         })
         if (r.ok && r.id) patch.x_post_id = r.id
         else console.error(`[nfl-tick] ${sl.kind} refused: ${r.status} ${r.error}`)
@@ -657,7 +660,7 @@ async function runMilestoneTick(db, day) {
   const d = await postToDiscord(text, {}, FEED_WEBHOOKS())
   if (d.ok) patch.discord_sent = true
   if (hasX()) {
-    const r = await postToX(text)
+    const r = await postToX(text, { kind: 'nfl_milestone' })
     if (r.ok && r.id) patch.x_post_id = r.id
     else console.error(`[nfl-tick] nfl_milestone refused: ${r.status} ${r.error}`)
   }

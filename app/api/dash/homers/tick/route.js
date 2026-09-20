@@ -227,7 +227,10 @@ async function claimAndPostStat(db, day, kind, hourGate, text, cardSpec, payload
   if (d.ok) patch.discord_sent = true
   if (hasX()) {
     const mediaId = png ? await uploadImageToX(png) : null
-    const r = await postToX(text, { mediaId })
+    // `kind` rides along for the Threads mirror only -- it decides whether
+    // this post gets a funnel link under it (lib/dash/threadsLink.js). X
+    // ignores it entirely.
+    const r = await postToX(text, { mediaId, kind })
     if (r.ok && r.id) patch.x_post_id = r.id
     else console.error(`[homers] ${kind} refused: ${r.status} ${r.error}`)
   }
@@ -784,7 +787,7 @@ async function postRecap(db, day, { force = false } = {}) {
       if (xOn) {
         const png = await bytesOf(() => recapCard(day, rows || [], hist || [], { site: SITE_HOST }))
         const mediaId = png ? await uploadImageToX(png) : null
-        const r = await postToX(text, { mediaId })
+        const r = await postToX(text, { mediaId, kind: 'recap' })
         if (r.ok) out.recap = r.id
         else { out.recap = 'x-refused'; out.x_error = `${r.status} ${r.error}`; console.error(`[homers] recap refused: ${r.status} ${r.error}`) }
         out.card = png ? 'attached' : 'failed'
@@ -807,7 +810,7 @@ async function postRecap(db, day, { force = false } = {}) {
           const d = await postToDiscord(wtext, {}, FEED_WEBHOOKS())
           if (d.ok) patch.discord_sent = true
           if (xOn) {
-            const r = await postToX(wtext)
+            const r = await postToX(wtext, { kind: 'weekly' })
             if (r.ok && r.id) patch.x_post_id = r.id
             else console.error(`[homers] weekly refused: ${r.status} ${r.error}`)
           }
@@ -856,7 +859,7 @@ async function postRecap(db, day, { force = false } = {}) {
           if (d.ok) patch.discord_sent = true
           if (xOn) {
             const mediaId = mpng ? await uploadImageToX(mpng) : null
-            const r = await postToX(mtext, { mediaId })
+            const r = await postToX(mtext, { mediaId, kind: 'monthly' })
             if (r.ok && r.id) patch.x_post_id = r.id
             else console.error(`[homers] monthly refused: ${r.status} ${r.error}`)
           }
@@ -934,7 +937,7 @@ export async function GET(request) {
         const d = await postToDiscord(text, {}, FEED_WEBHOOKS())
         if (d.ok) patch.discord_sent = true
         if (hasX()) {
-          const r = await postToX(text)
+          const r = await postToX(text, { kind: 'accountability' })
           if (r.ok && r.id) patch.x_post_id = r.id
           else console.error(`[homers] accountability refused: ${r.status} ${r.error}`)
         }
@@ -964,7 +967,7 @@ export async function GET(request) {
         const d = await postToDiscord(text, {}, FEED_WEBHOOKS())
         if (d.ok) patch.discord_sent = true
         if (hasX()) {
-          const r = await postToX(text)
+          const r = await postToX(text, { kind: 'board_results' })
           if (r.ok && r.id) patch.x_post_id = r.id
           else console.error(`[homers] board_results refused: ${r.status} ${r.error}`)
         }
@@ -1639,7 +1642,7 @@ export async function GET(request) {
             if (hasX()) {
               const png = await bytesOf(() => pregameCard(day, picks, { site: SITE_HOST }))
               const mediaId = png ? await uploadImageToX(png) : null
-              const r = await postToX(text, { mediaId })
+              const r = await postToX(text, { mediaId, kind: 'pregame' })
               if (r.ok && r.id) patch.x_post_id = r.id
               else console.error(`[homers] pregame refused: ${r.status} ${r.error}`)
             }
@@ -1666,7 +1669,7 @@ export async function GET(request) {
             const d = await postToDiscord(text, {}, FEED_WEBHOOKS())
             if (d.ok) patch.discord_sent = true
             if (hasX()) {
-              const r = await postToX(text)
+              const r = await postToX(text, { kind: 'board' })
               if (r.ok && r.id) patch.x_post_id = r.id
               else console.error(`[homers] board refused: ${r.status} ${r.error}`)
             }

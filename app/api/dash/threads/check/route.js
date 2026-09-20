@@ -16,6 +16,7 @@
 
 import { timingSafeEqual } from 'node:crypto'
 import { hasThreads, postToThreads, threadsConfig, threadsMirrorOn, threadsProblem } from '../../../../../lib/dash/threadsPost'
+import { linkedKinds, threadsLinkFor, threadsLinkMode } from '../../../../../lib/dash/threadsLink'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -34,6 +35,19 @@ function authed(request, url) {
 
 export async function GET(request) {
   const url = new URL(request.url)
+
+  // WHICH POSTS CARRY A LINK, AND WHAT IT SAYS. Needs no token and posts
+  // nothing -- the point is to read the funnel copy before it is live, since
+  // this is the only part of the mirror a reader actually sees.
+  if (url.searchParams.get('preview') === '1') {
+    return Response.json({
+      mode: threadsLinkMode(),
+      note: 'mode "reply" posts the link as the first reply under the post; "inline" puts it in the body',
+      linked: linkedKinds().map((kind) => ({ kind, line: threadsLinkFor(kind) })),
+      clean: 'every other kind posts with no link — the live homer and touchdown alerts above all',
+    })
+  }
+
   const out = {
     configured: hasThreads(),
     problem: threadsProblem(),
