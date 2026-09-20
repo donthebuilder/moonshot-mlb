@@ -6,7 +6,7 @@ import { injuryTag, injuryTitle, injuryColor } from '../../../lib/nfl/injury'
 import { softRole, softLine, softStrength, SOFT_TITLE, alignedSignals } from '../../../lib/nfl/dvpSignal'
 import { rankColor } from '../DvpTable'
 import MatchupBadge from '../MatchupBadge'
-import DenseTable from '../../DenseTable'
+import NflTable from '../NflTable'
 import PageHeader from '../../PageHeader'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 import { useResultsArchive } from '../../../lib/nfl/resultsArchive'
@@ -552,7 +552,7 @@ export default function Games({ data, picks, matchup, logs, results, onPlayerCli
       )}
 
       {view === 'table' && (
-        <DenseTable
+        <NflTable
           rows={tableRows}
           columns={TABLE_COLUMNS}
           onRowClick={(r) => onPlayerClick?.(r._raw)}

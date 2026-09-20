@@ -1,7 +1,7 @@
 'use client'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../../lib/nfl/theme'
-import DenseTable from '../../DenseTable'
+import NflTable from '../NflTable'
 import PageHeader from '../../PageHeader'
 import { ActiveFilters, FilterBar, FilterSearch, FilterSelect, PillRow } from '../../Filters'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
@@ -215,7 +215,7 @@ export default function Explosive({ matchup, data, onPlayerClick }) {
       </div>
 
       {lens === 'player' ? (
-        <DenseTable
+        <NflTable
           rows={filteredPlayers}
           columns={buildPlayerColumns(watchlist)}
           initialSort="rec_20"
@@ -223,7 +223,7 @@ export default function Explosive({ matchup, data, onPlayerClick }) {
           maxRows={269}
         />
       ) : (
-        <DenseTable
+        <NflTable
           rows={filteredDefenses}
           columns={DEFENSE_COLUMNS}
           initialSort="exp_pct"

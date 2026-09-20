@@ -7,7 +7,7 @@ import {
 import { ORANGE_RAMP, rampColor, inkFor } from './Heatmap'
 import { edgeOn } from '../lib/palette'
 import { seqColor, divTone, SEQ_AUTO, DIV_FIELD, fieldAnchor, fieldLabel } from '../lib/scales'
-import { explainFor, InfoDot, ExplainBanner } from './Explain'
+import { explainFor, explainFrom, InfoDot, ExplainBanner } from './Explain'
 
 // ── ABSENT IS NOT ZERO (2026-08-23) ─────────────────────────────────────────
 // `Number(null)` is 0 and `Number('')` is 0, and both are finite, so every
@@ -93,6 +93,16 @@ export const moreBtn = () => ({
 })
 
 export default function DenseTable({
+  // TWO SPORTS, ONE TABLE (2026-09-20). The ⓘ in these headers has worked
+  // since it was written -- and looked up every term in the BASEBALL
+  // glossary, so on all twelve NFL tables it found nothing and no dot ever
+  // appeared. The machinery was there the whole time; the dictionary was the
+  // missing half. Defaults keep every MLB caller byte-identical; TUDDY hands
+  // in its own through components/nfl/NflTable.js.
+  dict = null,
+  accent = null,
+  scoreTerms = null,
+  caveat = null,
   rows = [],
   columns = [],
   heatMode = 'full',
@@ -326,7 +336,8 @@ export default function DenseTable({
 
   return (
     <div>
-      <ExplainBanner label={explain?.label} text={explain?.text} onClose={() => setExplain(null)} />
+      <ExplainBanner label={explain?.label} text={explain?.text} onClose={() => setExplain(null)}
+        scoreTerms={scoreTerms} caveat={caveat} accent={accent} />
       {/* The stack, said out loud. Shift-click was the only way to build a
           tiebreaker and nothing ever showed what was stacked — on a phone it
           was impossible outright. These chips ARE the stack: tap one to flip
@@ -418,7 +429,9 @@ export default function DenseTable({
                 // A column opts in by having a glossary entry for its key or
                 // its label; anything unknown simply gets no dot, so this is
                 // safe for every table on the site without touching them.
-                const plain = c.explain || explainFor(c.term, c.key, c.label)
+                const plain = c.explain || (dict
+                  ? explainFrom(dict, c.term, c.key, c.label)
+                  : explainFor(c.term, c.key, c.label))
                 return (
                   <th
                     key={c.key}

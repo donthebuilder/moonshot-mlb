@@ -326,27 +326,33 @@ export default function Explain({ label, term, text, color, style, dict = null, 
  * grow a paragraph (and its click already sorts), so the ⓘ in a header opens
  * the explanation in a banner ABOVE the table instead, where there is width.
  */
-export function ExplainBanner({ label, text, onClose }) {
+export function ExplainBanner({ label, text, onClose, scoreTerms = null, caveat = null, accent = null }) {
   if (!text) return null
+  // Same two-sport shape as Explain: which set of terms counts as a score, and
+  // which caveat rides along, are data now rather than baked in. Defaults are
+  // the baseball ones, so every existing caller is unchanged.
+  const TERMS = scoreTerms || SCORE_TERMS
+  const NOTE = caveat || RANK_NOT_PERCENT
+  const hue = accent || C.orange
   // THE CAVEAT TRAVELS WITH THE TERM. Attaching RANK_NOT_PERCENT here rather
   // than writing it into each definition means a score explained anywhere on
   // the site carries it — including from a component nobody has written yet.
   // Relying on the next author to remember is how the old "how likely" wording
   // survived on a dozen surfaces at once.
-  const isScore = SCORE_TERMS.has(String(label || '').toLowerCase().trim())
+  const isScore = TERMS.has(String(label || '').toLowerCase().trim())
   return (
     <div style={{
       display: 'flex', gap: 8, alignItems: 'flex-start',
-      background: 'rgba(249,115,22,.08)', border: '1px solid rgba(249,115,22,.3)',
+      background: `${hue}14`, border: `1px solid ${hue}4d`,
       borderRadius: 9, padding: '7px 10px', marginBottom: 7,
     }}>
-      <span style={{ fontSize: 10, fontWeight: 900, fontFamily: NUM_FONT, color: C.orange, flexShrink: 0, letterSpacing: '.04em' }}>
+      <span style={{ fontSize: 10, fontWeight: 900, fontFamily: NUM_FONT, color: hue, flexShrink: 0, letterSpacing: '.04em' }}>
         {label}
       </span>
       <span style={{ fontSize: 11, lineHeight: 1.5, color: C.text2, minWidth: 0 }}>
         {text}
         {isScore && (
-          <span style={{ display: 'block', marginTop: 3, color: C.text3 }}>{RANK_NOT_PERCENT}</span>
+          <span style={{ display: 'block', marginTop: 3, color: C.text3 }}>{NOTE}</span>
         )}
       </span>
       <span

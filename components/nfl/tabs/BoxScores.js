@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../../lib/nfl/theme'
 import { fetchNfl, nflFantasyStatsPaths, nflFantasyStatsLooksReal } from '../../../lib/nfl/dataSource'
-import DenseTable from '../../DenseTable'
+import NflTable from '../NflTable'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 import { Empty } from '../../ui'
 import PageHeader from '../../PageHeader'
@@ -172,7 +172,7 @@ function GameBox({ game, byTeam, defense, open, onToggle, onPlayerClick, watchli
                     <div style={{ fontSize: TYPE.label, color: C.text3, fontWeight: 800, letterSpacing: '.05em', textTransform: 'uppercase', marginBottom: 4 }}>
                       {cat.label}
                     </div>
-                    <DenseTable
+                    <NflTable
                       rows={rows}
                       columns={[watchColumn, ...cat.columns]}
                       onRowClick={onPlayerClick ? (r) => onPlayerClick(r._raw, cat.key === 'passing' ? 'PASS_YDS' : cat.key === 'rushing' ? 'RUSH_YDS' : cat.key === 'receiving' ? 'REC_YDS' : 'KICK_PTS') : null}

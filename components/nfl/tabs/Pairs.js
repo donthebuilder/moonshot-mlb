@@ -1,7 +1,7 @@
 'use client'
 import { useMemo } from 'react'
 import { C, NUM_FONT, MARKETS, TYPE } from '../../../lib/nfl/theme'
-import DenseTable from '../../DenseTable'
+import NflTable from '../NflTable'
 
 // 🤝 PAIRS — two props from the same slate, sold as one. The NFL sibling of
 // the MLB side's PairBoard/PairMe/PairBuilder/PairTray (components/Pair*.js),
@@ -376,7 +376,7 @@ export default function Pairs({ data, results, onPlayerClick }) {
       </div>
 
       {sameRows.length > 0 ? (
-        <DenseTable
+        <NflTable
           rows={sameRows}
           columns={[
             { key: 'name', label: 'Player', heat: false, w: 150, bold: true, sticky: true },
@@ -416,7 +416,7 @@ export default function Pairs({ data, results, onPlayerClick }) {
       </div>
 
       {crossRows.length > 0 ? (
-        <DenseTable
+        <NflTable
           rows={crossRows}
           columns={[
             { key: 'pairName', label: 'Pair', heat: false, w: 220, bold: true, sticky: true },
@@ -448,7 +448,7 @@ export default function Pairs({ data, results, onPlayerClick }) {
       </div>
 
       {stackRows.length > 0 ? (
-        <DenseTable
+        <NflTable
           rows={stackRows}
           columns={[
             { key: 'pairName', label: 'Stack', heat: false, w: 220, bold: true, sticky: true },

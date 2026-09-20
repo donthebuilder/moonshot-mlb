@@ -1,7 +1,7 @@
 'use client'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT, MARKETS, gradeFor, TYPE } from '../../../lib/nfl/theme'
-import DenseTable from '../../DenseTable'
+import NflTable from '../NflTable'
 import { useResultsArchive, seasonTotals, grandTotal, gradeBands, labelOf, weekKey } from '../../../lib/nfl/resultsArchive'
 import { downloadNflPickCard } from '../shareCard'
 import ChartFrame from '../ChartFrame'
@@ -700,7 +700,7 @@ export default function Accountability({ data, results: latest, onPlayerClick })
 
       {mode === 'week' && subTab === 'overview' && rows.length > 0 && (
         <div style={{ marginTop: 10 }}>
-          <DenseTable
+          <NflTable
             rows={rows}
             columns={[
               { key: 'did', label: '✓', flag: true, mark: '✓', w: 26,
@@ -764,7 +764,7 @@ export default function Accountability({ data, results: latest, onPlayerClick })
             textAlign: 'center', color: C.text3, fontSize: TYPE.body,
           }}>{loading ? 'Harvesting graded weeks…' : 'No graded rungs in the archive yet.'}</div>
         ) : (
-          <DenseTable
+          <NflTable
             rows={trackRows}
             columns={[
               { key: 'name', label: 'Player', heat: false, w: 160, bold: true, sticky: true },
@@ -795,7 +795,7 @@ export default function Accountability({ data, results: latest, onPlayerClick })
             textAlign: 'center', color: C.text3, fontSize: TYPE.body,
           }}>{loading ? 'Harvesting graded weeks…' : 'No graded week has been published yet.'}</div>
         ) : (
-          <DenseTable
+          <NflTable
             rows={weeksRows}
             columns={[
               { key: 'week', label: 'Week', heat: false, w: 110, bold: true, sticky: true },

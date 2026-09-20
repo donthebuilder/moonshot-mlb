@@ -1,7 +1,7 @@
 'use client'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../../lib/nfl/theme'
-import DenseTable from '../../DenseTable'
+import NflTable from '../NflTable'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 import PageHeader from '../../PageHeader'
 import { oppShort } from '../../../lib/nfl/oppLabel'
@@ -163,7 +163,7 @@ export default function Research({ data, onPlayerClick }) {
         {rows.length} player{rows.length === 1 ? '' : 's'} — every published stat, sorted by whichever column you tap.
       </div>
 
-      <DenseTable
+      <NflTable
         rows={rows}
         columns={columns}
         initialSort="TDSC"

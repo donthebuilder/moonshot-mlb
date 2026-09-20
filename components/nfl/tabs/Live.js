@@ -26,7 +26,7 @@ import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 import { useFollowing } from '../../../lib/dash/follow'
 import SlateRibbon from '../SlateRibbon'
 import PageHeader from '../../PageHeader'
-import DenseTable from '../../DenseTable'
+import NflTable from '../NflTable'
 import { FilterBar, FilterPill, FilterSearch, FilterSelect } from '../../Filters'
 
 const MARKET_SHORT = { TD: 'TD', REC_YDS: 'REC YDS', REC: 'REC', RUSH_YDS: 'RUSH YDS', RUSH_ATT: 'CARRIES', PASS_YDS: 'PASS YDS', KICK_PTS: 'KICK PTS' }
@@ -315,7 +315,7 @@ export default function Live({ data, picks, live, onPlayerClick, setTab }) {
           {boardRows.length} player{boardRows.length === 1 ? '' : 's'} scored in this market — live number against the bar, whether or not he was ever a call.
         </div>
         {boardRows.length > 0 ? (
-          <DenseTable
+          <NflTable
             rows={boardRows}
             columns={boardColumns}
             initialSort="score"
