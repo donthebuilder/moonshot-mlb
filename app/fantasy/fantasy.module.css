@@ -6715,3 +6715,28 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   cursor: pointer;
 }
 .playerTap:hover b { text-decoration: underline }
+
+/* THE ROW SAYS IT OPENS (2026-09-21). The first version wrapped only the name
+   and gave no sign it was interactive, so on a desktop row -- where the
+   identity column is wide and the text is a small strip inside it -- clicking
+   "the player" mostly hit nothing. The face is inside the target now, the
+   whole block is the button, and a chevron says so. */
+.tapHint {
+  margin-left: auto;
+  padding-left: 8px;
+  color: var(--fx-dim);
+  font-style: normal;
+  font-size: 13px;
+  line-height: 1;
+  opacity: .55;
+}
+.playerTap:hover .tapHint,
+.playerTap:focus-visible .tapHint {
+  color: var(--fx-accent);
+  opacity: 1;
+}
+.playerTap:focus-visible {
+  outline: 2px solid var(--fx-accent);
+  outline-offset: 2px;
+  border-radius: 8px;
+}

@@ -1,5 +1,5 @@
 'use client'
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import PlayerFace from './PlayerFace'
 import InjuryTag from './InjuryTag'
@@ -23,18 +23,28 @@ import { fantasyPointsFromStats } from '../../lib/fantasy/scoring'
 // you tapped stays visible behind it. The desktop branch is the same markup
 // re-anchored by a media query rather than a second component.
 //
-// ONE SHEET, NOT EIGHTY. The trigger in each row is a button that calls into
-// this context; the sheet itself is mounted once at the page level. Eighty
-// rows each holding their own open/closed state and their own portal is how a
-// list gets slow on the device it most needs to be fast on.
+// ── IT DID NOT OPEN, AND THE CLEVER PART IS WHY (2026-09-21) ───────────────
+// The first version put one sheet at the page level and had each row call into
+// it through React context. Donovan clicked a player on desktop and nothing
+// happened.
+//
+// That context was the only createContext in this entire codebase, crossing a
+// server/client boundary that nothing else here crosses -- a pattern I
+// introduced for this one feature and that had never been exercised in this
+// app. Whatever the precise failure, the lesson is the same: the risky part
+// was the architecture, and it bought nothing.
+//
+// EACH TRIGGER NOW OWNS ITS OWN SHEET. A button with a useState(false) is a
+// few bytes of state; only the one that is open renders any sheet markup at
+// all, so the "eighty portals" cost I was avoiding never existed. No context,
+// no provider, no boundary to get wrong. The page hands each row its player
+// and his weeks and that is the whole contract.
 //
 // WHAT IT DOES NOT DO YET, on purpose: Donovan asked for the full profile
 // "eventually" — season totals and the TUDDY touchdown score with its reason
 // chips — and for this week to be right first. The weekly line is real and
 // complete; the rest crosses into the NFL dashboard's data and is a bigger
 // build. `weeks` is shaped so that view can hang off the same sheet.
-
-const SheetContext = createContext(null)
 
 const STAT_ROWS = [
   ['passing_yards', 'Passing yds'],
@@ -68,16 +78,15 @@ function linesFor(stats = {}) {
     .map(([key, label]) => [label, num(stats[key])])
 }
 
-export function PlayerSheetProvider({ children, scoring = 'ppr', data = {} }) {
-  const [openId, setOpenId] = useState(null)
-  const open = useCallback((id) => setOpenId(id), [])
-  const close = useCallback(() => setOpenId(null), [])
+/** The tap target in a row, and the sheet it opens. A button, never a div. */
+export function PlayerSheetButton({ player, weeks = [], scoring = 'ppr', className, children }) {
+  const [open, setOpen] = useState(false)
 
-  // Escape closes it, and the page behind it stops scrolling while it is up --
-  // a sheet you can scroll the list behind is how you lose the row you tapped.
+  // Escape closes it, and the list behind it stops scrolling while it is up --
+  // a sheet you can scroll behind is how you lose the row you tapped.
   useEffect(() => {
-    if (!openId) return undefined
-    const onKey = (e) => { if (e.key === 'Escape') close() }
+    if (!open) return undefined
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false) }
     window.addEventListener('keydown', onKey)
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
@@ -85,35 +94,23 @@ export function PlayerSheetProvider({ children, scoring = 'ppr', data = {} }) {
       window.removeEventListener('keydown', onKey)
       document.body.style.overflow = prev
     }
-  }, [openId, close])
+  }, [open])
 
-  const value = useMemo(() => ({ open, has: (id) => Boolean(data[id]) }), [open, data])
-  const entry = openId ? data[openId] : null
-
+  if (!player) return children ?? null
   return (
-    <SheetContext.Provider value={value}>
-      {children}
-      {entry ? <Sheet entry={entry} scoring={scoring} onClose={close} /> : null}
-    </SheetContext.Provider>
-  )
-}
-
-export function usePlayerSheet() {
-  return useContext(SheetContext)
-}
-
-/** The tap target in a row. A button, never a link or a div. */
-export function PlayerSheetButton({ playerId, className, children }) {
-  const sheet = usePlayerSheet()
-  if (!sheet) return children
-  return (
-    <button
-      type="button"
-      className={className}
-      onClick={() => sheet.open(playerId)}
-      aria-haspopup="dialog"
-      title="What he has actually done"
-    >{children}</button>
+    <>
+      <button
+        type="button"
+        className={className}
+        onClick={() => setOpen(true)}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        title={`${player.name} — what he has actually done`}
+      >{children}</button>
+      {open ? (
+        <Sheet entry={{ player, weeks }} scoring={scoring} onClose={() => setOpen(false)} />
+      ) : null}
+    </>
   )
 }
 
