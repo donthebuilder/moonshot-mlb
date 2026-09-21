@@ -67,24 +67,6 @@ const SOFT_CAP = 60
 function ScoreBar({ score }) {
   const g = gradeFor(score)
   const pct = Math.max(4, Math.min(100, ((Number(score) || 0) - 30) / 50 * 100))
-  // One removable chip per narrowing dimension, bands included. Touchdowns had
-  // no chip row at all, so a tier or a team filter was invisible once you had
-  // scrolled past the control that set it.
-  const tdFilterChips = [
-    ...bandState.activeFilters,
-    query ? { key: 'q', label: `“${query}”`, onClear: () => setQuery('') } : null,
-    team !== 'all' ? { key: 'team', label: team, onClear: () => setTeam('all') } : null,
-    position !== 'all' ? { key: 'pos', label: position, onClear: () => setPosition('all') } : null,
-    tier !== 'everyone' ? { key: 'tier', label: tierPills.find((t) => t.key === tier)?.label || tier, onClear: () => setTier('everyone') } : null,
-    onlyPriced ? { key: 'priced', label: 'Priced', onClear: () => setOnlyPriced(false) } : null,
-    onlyUpcoming ? { key: 'upcoming', label: 'Not kicked off', onClear: () => setOnlyUpcoming(false) } : null,
-    onlyWatched ? { key: 'watch', label: 'Watchlist', onClear: () => setOnlyWatched(false) } : null,
-  ].filter(Boolean)
-  const clearTdFilters = () => {
-    bandState.reset()
-    setQuery(''); setTeam('all'); setPosition('all'); setTier('everyone')
-    setOnlyPriced(false); setOnlyUpcoming(false); setOnlyWatched(false)
-  }
 
   return (
     <span style={{
@@ -261,6 +243,28 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
   // the pool before the ranking and before the soft cap, so a banded board
   // promotes names off the bottom rather than only hiding rows.
   const { filtered: bandFiltered, state: bandState } = useNflBoardFilter(rows, MARKET)
+
+  // One removable chip per narrowing dimension, bands included. Touchdowns had
+  // no chip row at all, so a tier or a team filter was invisible once you had
+  // scrolled past the control that set it. (Was pasted into ScoreBar's scope
+  // by mistake on 2026-09-21 -- none of these exist there, which is what
+  // broke the whole tab with "tdFilterChips is not defined". Moved to where
+  // it actually belongs, unchanged otherwise.)
+  const tdFilterChips = [
+    ...bandState.activeFilters,
+    query ? { key: 'q', label: `“${query}”`, onClear: () => setQuery('') } : null,
+    team !== 'all' ? { key: 'team', label: team, onClear: () => setTeam('all') } : null,
+    position !== 'all' ? { key: 'pos', label: position, onClear: () => setPosition('all') } : null,
+    tier !== 'everyone' ? { key: 'tier', label: tierPills.find((t) => t.key === tier)?.label || tier, onClear: () => setTier('everyone') } : null,
+    onlyPriced ? { key: 'priced', label: 'Priced', onClear: () => setOnlyPriced(false) } : null,
+    onlyUpcoming ? { key: 'upcoming', label: 'Not kicked off', onClear: () => setOnlyUpcoming(false) } : null,
+    onlyWatched ? { key: 'watch', label: 'Watchlist', onClear: () => setOnlyWatched(false) } : null,
+  ].filter(Boolean)
+  const clearTdFilters = () => {
+    bandState.reset()
+    setQuery(''); setTeam('all'); setPosition('all'); setTier('everyone')
+    setOnlyPriced(false); setOnlyUpcoming(false); setOnlyWatched(false)
+  }
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase()
