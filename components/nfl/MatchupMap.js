@@ -39,6 +39,27 @@ import ChartFrame from './ChartFrame'
 // and THEIR hole overlap — but draws it the same way: their weakness is the
 // turf, his usage is a ring on top of it, and THE SPOT is where a big ring
 // sits on a hot patch.
+//
+// ── REVAMP, 2026-09-21 ────────────────────────────────────────────────────
+// Donovan's exact words on this chart: "my favorite thing ever." The ask
+// wasn't to replace it — it was to push it further, on both axes:
+//
+//   SUBSTANCE. Yards leak was the only signal. TUDDY is a touchdown
+//   product, and the payload has published a TD count and league TD rate
+//   for every zone all along (field.def_pass[z].td / .att, same shape as
+//   league_pass) — just never read. Every zone tip, the verdict sentence
+//   and the expandable table now carry that number too: real, already on
+//   the wire, never invented, and it is the number this whole product is
+//   named after.
+//
+//   STYLE. Every TUDDY chart shares one instrument language (ChartFrame:
+//   measurement grid, edge ticks, a breathing accent bloom) — so a plain
+//   soft blur read as generic-SaaS-glow, not as this site's own thing. The
+//   heat is now a halftone dot field, density scaling with how far above
+//   league a zone runs — a printed scouting mark, not a cloud — and THE
+//   SPOT is a hand-circled double-ring instead of a glow halo, the way a
+//   scout circles a name on a printed sheet. Same data, same layout, same
+//   field-is-the-chart idea. Different ink.
 
 const SIDES = ['left', 'middle', 'right']
 const DEPTHS = ['deep', 'mid', 'short', 'behind']
@@ -143,8 +164,27 @@ export default function MatchupMap({
         : null
       const mine = mode === 'player' ? src[z] : null
       const where = pass ? phrase(z) : LANE_WORD[z]
+
+      // TD LEAK. Same shape as the yards leak above, off the same payload
+      // (dz.td / lz.td, published alongside .att and .yds all along) —
+      // TUDDY is a touchdown product, and until now this chart never once
+      // said the word. Gated the same way: needs the MIN_DEF_ATT sample and
+      // a real league rate to divide by, or it says nothing rather than
+      // guess.
+      const tdN = dz?.td || 0
+      const tdRate = att > 0 ? tdN / att : null
+      const lgTdRate = lz?.att > 0 ? (lz.td || 0) / lz.att : null
+      const tdLeak = (att >= MIN_DEF_ATT && tdRate != null && lgTdRate > 0)
+        ? ((tdRate - lgTdRate) / lgTdRate) * 100
+        : null
+      const tdLine = att >= MIN_DEF_ATT
+        ? (tdN
+          ? `${tdN} TD${tdN === 1 ? '' : 's'} on ${att} ${pass ? 'targets' : 'carries'}${Number.isFinite(tdLeak) && tdLeak > 15 ? ` — ${fmtPct(tdLeak)} vs a normal defence` : ''}`
+          : `No touchdowns there yet on ${att} ${pass ? 'targets' : 'carries'}`)
+        : null
+
       return {
-        z, share, leak, att, dz, lz, mine,
+        z, share, leak, att, dz, lz, mine, tdN, tdLeak,
         heat: heatOf(leak), cool: coolOf(leak),
         tip: [
           where,
@@ -154,7 +194,8 @@ export default function MatchupMap({
           mode === 'player'
             ? `${player?.name}: ${mine?.att || 0} of his ${pass ? 'targets' : 'carries'} (${share.toFixed(1)}%)`
             : `${dz?.yds || 0} yards allowed — ${share.toFixed(1)}% of everything they give up`,
-        ].join('\n'),
+          tdLine,
+        ].filter(Boolean).join('\n'),
       }
     })
 
@@ -255,6 +296,24 @@ export default function MatchupMap({
                 normal defence.</>
               )}
             </div>
+            {/* THE NUMBER THIS PRODUCT IS NAMED AFTER. Yards leak was the
+                whole verdict before 2026-09-21 — real, but a touchdown
+                product saying nothing about touchdowns on its favourite
+                chart was the gap. Stated plainly either way: a real zero
+                is still evidence, not a hole to hide. */}
+            <div style={{
+              marginTop: 8, fontSize: compact ? 11.5 : 12.5, lineHeight: 1.5,
+              display: 'flex', alignItems: 'baseline', gap: 6,
+            }}>
+              <b style={{ fontFamily: NUM_FONT, letterSpacing: '.06em', color: C.orange }}>
+                {spot.tdN > 0 ? `${spot.tdN} TD${spot.tdN === 1 ? '' : 's'}` : 'NO TDs'}
+              </b>
+              <span style={{ color: C.text3 }}>
+                {spot.tdN > 0
+                  ? 'have gone right there this season.'
+                  : "there yet this season \u2014 the yards are, the score hasn't followed."}
+              </span>
+            </div>
           </>
         ) : (
           <div style={{ fontSize: compact ? 14 : 16, color: C.text2, lineHeight: 1.5 }}>
@@ -325,6 +384,10 @@ export default function MatchupMap({
                 fontFamily: NUM_FONT, fontSize: 11, fontWeight: 900, minWidth: 46, textAlign: 'right',
                 color: !Number.isFinite(c.leak) ? C.text3 : c.leak > 0 ? C.red : C.green,
               }}>{Number.isFinite(c.leak) ? fmtPct(c.leak) : 'thin'}</span>
+              <span style={{
+                fontFamily: NUM_FONT, fontSize: 10, fontWeight: 800, minWidth: 32, textAlign: 'right',
+                color: c.tdN ? C.orange : C.text3,
+              }}>{c.tdN ? `${c.tdN} TD` : '\u2014'}</span>
               <span style={{ fontFamily: NUM_FONT, fontSize: 10, color: C.text3, minWidth: 62, textAlign: 'right' }}>
                 {c.share.toFixed(1)}% {mode === 'player' ? 'of his' : 'of theirs'}
               </span>
@@ -390,19 +453,37 @@ function PassField({ model, mode, compact }) {
         }}>THE LINE</span>
       </div>
 
-      {/* THE HEAT. Painted only where they get beaten — a defence that holds
-          up leaves the turf alone, which is the reading. */}
+      {/* THE HEAT, REVAMPED 2026-09-21. Painted only where they get beaten
+          — same reading as before, a defence that holds up leaves the turf
+          alone — but printed as a halftone dot field instead of a blurred
+          cloud: dot pitch and ink density both scale with heat. A faint
+          underglow survives at a quarter strength so this still reads as
+          the same instrument family as every other TUDDY chart, not a
+          different chart style pasted in. The dot field is masked to a
+          soft ellipse so the edge still fades the way the old blur did. */}
       {model.cells.map((c) => {
         if (c.heat < 0.12) return null
         const [side, d] = c.z.split('|')
-        const size = 34 + c.heat * 40
+        const size = 36 + c.heat * 42
+        const pitch = 10 - c.heat * 4.5
+        const dot = 1.1 + c.heat * 1.7
+        const mask = 'radial-gradient(closest-side, #000 55%, transparent 100%)'
         return (
           <div key={c.z} title={c.tip} style={{
             position: 'absolute', top: `${MID(d)}%`, left: `${COL[side]}%`,
             width: `${size}%`, aspectRatio: '1.35 / 1', transform: 'translate(-50%,-50%)',
-            borderRadius: '50%', filter: 'blur(5px)',
-            background: `radial-gradient(closest-side, rgba(248,113,113,${0.14 + c.heat * 0.5}), rgba(251,191,36,${0.10 + c.heat * 0.22}) 55%, transparent 78%)`,
-          }} />
+          }}>
+            <div aria-hidden style={{
+              position: 'absolute', inset: -6, borderRadius: '50%', filter: 'blur(7px)',
+              background: `radial-gradient(closest-side, rgba(248,113,113,${0.09 + c.heat * 0.16}), transparent 75%)`,
+            }} />
+            <div aria-hidden style={{
+              position: 'absolute', inset: 0,
+              WebkitMaskImage: mask, maskImage: mask,
+              backgroundImage: `radial-gradient(rgba(248,113,113,${0.42 + c.heat * 0.4}) ${dot}px, transparent ${dot}px)`,
+              backgroundSize: `${pitch}px ${pitch}px`,
+            }} />
+          </div>
         )
       })}
 
@@ -428,6 +509,9 @@ function PassField({ model, mode, compact }) {
         )
       })}
 
+      {/* THE SPOT, REVAMPED. A scout circling a name on a printed sheet,
+          not a glow halo — two rings, one traced slightly off the other,
+          the way a hand-drawn circle never quite closes on itself twice. */}
       {spot && (() => {
         const [side, d] = spot.z.split('|')
         return (
@@ -435,14 +519,16 @@ function PassField({ model, mode, compact }) {
             position: 'absolute', top: `${MID(d)}%`, left: `${COL[side]}%`,
             transform: 'translate(-50%,-50%)', textAlign: 'center', width: 140,
           }}>
-            <div style={{
-              width: 12, height: 12, margin: '0 auto 7px', borderRadius: '50%',
-              border: `2px solid ${C.red}`, boxShadow: '0 0 0 5px rgba(248,113,113,.20)',
-            }} />
+            <svg width="30" height="30" viewBox="0 0 30 30" style={{ display: 'block', margin: '0 auto 6px' }}>
+              <circle cx="15" cy="15" r="10" fill="none" stroke={C.red} strokeWidth="2" opacity="0.9" />
+              <circle cx="16" cy="14.3" r="10.6" fill="none" stroke={C.red} strokeWidth="1.1" opacity="0.45" />
+              <circle cx="15" cy="15" r="1.6" fill={C.red} />
+            </svg>
             <span style={{
               display: 'inline-block', fontFamily: NUM_FONT, fontSize: 8, fontWeight: 900,
               letterSpacing: '.14em', color: C.bg, background: C.red,
-              padding: '3px 7px', borderRadius: 5, whiteSpace: 'nowrap',
+              padding: '3px 7px', borderRadius: 3, whiteSpace: 'nowrap',
+              transform: 'rotate(-0.6deg)',
             }}>{mode === 'def' ? 'THE WEAK SPOT' : 'THE SPOT'}</span>
           </div>
         )
@@ -500,18 +586,32 @@ function RunLine({ model, compact }) {
           return (
             <div key={z} style={{ flex: 1, minWidth: 0 }}>
               <div title={c.tip} style={{
-                height: compact ? 54 : 66, borderRadius: 8, position: 'relative',
+                height: compact ? 54 : 66, borderRadius: 6, position: 'relative', overflow: 'hidden',
                 background: c.heat > 0.05
-                  ? `linear-gradient(180deg, rgba(248,113,113,${0.20 + c.heat * 0.62}), rgba(251,191,36,${0.10 + c.heat * 0.30}))`
+                  ? `linear-gradient(180deg, rgba(248,113,113,${0.16 + c.heat * 0.42}), rgba(251,191,36,${0.08 + c.heat * 0.20}))`
                   : 'rgba(255,255,255,.022)',
                 border: `1px solid ${hot ? C.red : CHALK_SOFT}`,
-                boxShadow: hot ? `0 0 0 3px rgba(248,113,113,.18)` : 'none',
+                outline: hot ? `1px solid rgba(248,113,113,.35)` : 'none',
+                outlineOffset: hot ? '2px' : '0',
               }}>
+                {c.heat > 0.12 && (
+                  <span aria-hidden style={{
+                    position: 'absolute', inset: 0,
+                    backgroundImage: `radial-gradient(rgba(255,255,255,${0.16 + c.heat * 0.16}) ${0.8 + c.heat}px, transparent ${0.8 + c.heat}px)`,
+                    backgroundSize: `${9 - c.heat * 3}px ${9 - c.heat * 3}px`,
+                  }} />
+                )}
+                {c.tdN > 0 && (
+                  <span style={{
+                    position: 'absolute', top: 4, right: 4, fontFamily: NUM_FONT, fontSize: 7,
+                    fontWeight: 900, color: C.orange,
+                  }}>{c.tdN}TD</span>
+                )}
                 {hot && (
                   <span style={{
-                    position: 'absolute', bottom: 5, left: '50%', transform: 'translateX(-50%)',
+                    position: 'absolute', bottom: 5, left: '50%', transform: 'translateX(-50%) rotate(-0.6deg)',
                     fontFamily: NUM_FONT, fontSize: 7, fontWeight: 900, letterSpacing: '.1em',
-                    color: C.bg, background: C.red, padding: '2px 5px', borderRadius: 4,
+                    color: C.bg, background: C.red, padding: '2px 5px', borderRadius: 3,
                     whiteSpace: 'nowrap',
                   }}>WEAK SPOT</span>
                 )}
