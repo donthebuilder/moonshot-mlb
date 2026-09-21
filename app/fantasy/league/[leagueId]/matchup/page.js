@@ -303,7 +303,7 @@ export default async function MatchupPage({ params, searchParams }) {
             return <div className={styles.scoreSide} data-side={side} data-ahead={ahead?'true':undefined} data-behind={behind?'true':undefined} key={side}>
               <span className={styles.scoreTeam}><TeamMark size={28} team={team}/><b>{team?.name}</b></span>
               <strong className={styles.scoreNumber}>{featuredState==='scheduled'?projection.toFixed(1):Number(score).toFixed(featuredState==='final'?2:1)}</strong>
-              <small className={styles.scoreMeta}>{featuredState==='scheduled'?'projected':featuredState==='final'?(ahead?'WINNER':result?.tie?'TIE':'')||`proj ${projection.toFixed(1)}`:`${left} yet to play · proj ${projection.toFixed(1)}`}</small>
+              <small className={styles.scoreMeta}>{featuredState==='scheduled'?'projected':featuredState==='final'?(ahead?'WINNER':result?.tie?'TIE':'')||`proj ${projection.toFixed(1)}`:`proj ${projection.toFixed(1)}`}</small>
             </div>
           })}
           <div className={styles.scoreVerdict}>
@@ -331,9 +331,9 @@ export default async function MatchupPage({ params, searchParams }) {
             {[[homeDrama,homeLeft,'home'],[awayDrama,awayLeft,'away']].map(([drama,left,side])=>(
               <div className={styles.dramaSide} data-side={side} key={side}>
                 <b>{drama.onTable.toFixed(1)}</b>
-                <small>projected from {left} yet to play</small>
+                <small>proj · {left} yet to play</small>
                 {drama.playing.length
-                  ? <i className={styles.dramaLive}>● {drama.playing.slice(0,2).map((man)=>`${man.name} ${man.points.toFixed(1)}`).join(' · ')}{drama.playing.length>2?` +${drama.playing.length-2}`:''}</i>
+                  ? <i className={styles.dramaLive}>● {drama.playing[0].name} {drama.playing[0].points.toFixed(1)}{drama.playing.length>1?` +${drama.playing.length-1}`:''}</i>
                   : drama.best
                   ? <i>Top: {drama.best.name} {drama.best.points.toFixed(1)}</i>
                   : <i>Nobody has scored yet</i>}

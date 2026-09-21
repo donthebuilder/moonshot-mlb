@@ -6944,3 +6944,44 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   .receiptNotes { margin: 12px 11px 0; }
   .receiptNotes p { font-size: 11px; }
 }
+
+/* Phone pass after looking at a 390px render (2026-09-20). Three things the
+   markup got wrong and one that was always wrong:
+   - the scoreboard's meta and the drama label both wrapped to a ragged second
+     line, and between them they printed "3 yet to play" TWICE in sixty pixels
+     of height. The count now lives in one place, under the number it explains.
+   - a second live name truncated mid-word, so the phone shows one man and a
+     count of the rest.
+   - .emptyRoom inside a panel kept its standalone top margin and opened a
+     dead gap under the heading. */
+.receipts .emptyRoom {
+  margin: 0;
+  padding: 2px 14px 0;
+}
+.receiptStats {
+  flex-wrap: wrap;
+  row-gap: 8px;
+}
+/* At desktop widths the two columns were stranded against opposite edges with
+   a lake of nothing between them. The pair is the comparison; keep it read as
+   one. */
+@media(min-width:761px) {
+  .receiptCols {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 0;
+  }
+  .receiptNotes {
+    max-width: 720px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+@media(max-width:760px) {
+  .receipts .emptyRoom { padding: 2px 11px 0; }
+  .receiptStats { gap: 11px; }
+  /* The left column's stats are left-aligned and the right column's are
+     right-aligned, so at a 10px column gap the two four-stat rows met in the
+     middle and read as one row of eight. */
+  .receiptCols { gap: 20px; }
+}
