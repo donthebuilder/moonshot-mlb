@@ -12,6 +12,7 @@ import { ActiveFilters, FilterBar, FilterPill, FilterSearch, FilterSelect, PillR
 import { injuryTag, injuryTitle, injuryColor } from '../../../lib/nfl/injury'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 import { reasonFor, baselineFor, topStatChips } from '../ScoreAnatomy'
+import NflBoardFilters, { useNflBoardFilter } from '../NflBoardFilters'
 
 // Same soft cap Touchdowns.js uses, so the two boards cut at the same depth.
 const SOFT_CAP = 60
@@ -151,8 +152,20 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
     return baselineFor(eligible, market)
   }, [data, market])
 
+  // ── BANDS NARROW THE POOL BEFORE THE RANKING (2026-09-21) ────────────────
+  // Donovan: "tuddy needs filters like moonshot does." The point of MOONSHOT's
+  // board filters is that they cut the pool BEFORE the top-N, so a filtered
+  // board surfaces names the unfiltered one buries instead of just hiding rows
+  // off the bottom. Same here: bandFiltered feeds `pool`, and the soft cap is
+  // applied after. See components/nfl/NflBoardFilters.js.
+  const marketPool = useMemo(
+    () => (data?.players || []).filter((p) => Number.isFinite(p.scores?.[market])),
+    [data, market],
+  )
+  const { filtered: bandFiltered, state: bandState } = useNflBoardFilter(marketPool, market)
+
   const rows = useMemo(() => {
-    const pool = (data?.players || []).filter((p) => Number.isFinite(p.scores?.[market]))
+    const pool = bandFiltered
     const needle = query.trim().toLowerCase()
     const kept = pool.filter((p) => {
       if (!showLow && p.low_sample) return false
@@ -187,7 +200,7 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
     // nothing on screen saying so; it now caps at SOFT_CAP with a "showing X
     // of Y" line and a Show-the-rest pill, exactly as Touchdowns does.
     return kept.sort(cmp)
-  }, [data, market, showLow, query, team, position, sortBy, odds,
+  }, [bandFiltered, data, market, showLow, query, team, position, sortBy, odds,
       onlyPriced, onlyUpcoming, onlyWatched, watchlist, now])
 
   const capped = all ? rows : rows.slice(0, SOFT_CAP)
@@ -219,6 +232,23 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
     [data, market],
   )
 
+  // One chip row for every narrowing dimension on this board, bands included.
+  const activeFilterChips = [
+    ...bandState.activeFilters,
+    query ? { key: 'q', label: `“${query}”`, onClear: () => setQuery('') } : null,
+    team !== 'all' ? { key: 'team', label: team, onClear: () => setTeam('all') } : null,
+    position !== 'all' ? { key: 'pos', label: position, onClear: () => setPosition('all') } : null,
+    onlyPriced ? { key: 'priced', label: 'Priced', onClear: () => setOnlyPriced(false) } : null,
+    onlyUpcoming ? { key: 'upcoming', label: 'Not kicked off', onClear: () => setOnlyUpcoming(false) } : null,
+    onlyWatched ? { key: 'watch', label: 'Watchlist', onClear: () => setOnlyWatched(false) } : null,
+    showLow ? { key: 'low', label: 'Low sample shown', onClear: () => setShowLow(false) } : null,
+  ].filter(Boolean)
+  const clearAllFilters = () => {
+    bandState.reset()
+    setQuery(''); setTeam('all'); setPosition('all')
+    setOnlyPriced(false); setOnlyUpcoming(false); setOnlyWatched(false); setShowLow(false)
+  }
+
   return (
     <div>
       <PillRow label="Market" value={market} options={marketOptions} onChange={setMarket} />
@@ -228,8 +258,19 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
           <FilterSearch value={query} onChange={setQuery} placeholder="Search player…" width={165} />
           <FilterSelect label="Team" value={team} options={filterOptions.teams} onChange={setTeam} />
           <FilterSelect label="Position" value={position} options={filterOptions.positions} onChange={setPosition} />
+          <NflBoardFilters state={bandState} total={marketPool.length} shown={rows.length} />
         </FilterBar>
       </div>
+
+      {/* ActiveFilters was imported by this file and never rendered -- the one
+          board with the most filters on it was the one with no way to see or
+          undo them without hunting the control back down. Every dimension is
+          here now, bands included, each chip removing only itself. */}
+      {Boolean(activeFilterChips.length) && (
+        <div style={{ marginTop: 8 }}>
+          <ActiveFilters filters={activeFilterChips} shown={rows.length} total={marketPool.length} onClearAll={clearAllFilters} />
+        </div>
+      )}
 
       <div className="chip-row" style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center', marginTop: 8 }}>
         <span style={{ fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.1em', color: C.text3, textTransform: 'uppercase', fontFamily: NUM_FONT, flexShrink: 0 }}>Only</span>
