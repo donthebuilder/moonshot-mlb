@@ -88,6 +88,23 @@ import ChartFrame from './ChartFrame'
 //   landed relative to him. Needs a bot run to actually appear in the
 //   payload — wired defensively so it stays quiet until then.
 
+// ── REVAMP, PASS THREE (2026-09-21) ──────────────────────────
+// Coverage-shell context. bots/nfl/nfl_coverage.py already computes real
+// man/zone rates and shell distribution per defence (charted by NGS,
+// ~100% of snaps for man/zone, ~49% for the specific shell) and a real
+// man-vs-zone split per receiver -- both published in the payload
+// (coverage_team, coverage_player) and both already rendered elsewhere on
+// the Matchups tab (the team profile card, the player modal). Neither one
+// had ever been connected to THIS map, even though "where they leak" and
+// "how they cover" are the same defence answering the same question two
+// ways. This adds a COVERAGE READ line under ROLE READ: what shell this
+// defence actually plays, and -- only when the sample supports it on both
+// sides (>=6 targets vs man AND >=6 vs zone, matching the >=1.0 YPT-gap
+// bar softRole already uses for "worth saying") -- whether the selected
+// receiver's own man/zone split lines up with it. No new data invented;
+// this is two real fields that already exist, read together for the
+// first time.
+
 const SIDES = ['left', 'middle', 'right']
 const DEPTHS = ['deep', 'mid', 'short', 'behind']
 
@@ -147,9 +164,19 @@ const CHALK_SOFT = 'rgba(255,255,255,.09)'
 
 const fmtPct = (n) => `${n > 0 ? '+' : ''}${Math.round(n)}%`
 
+// "1st", "2nd", "3rd", "11th"... — real ordinal formatting for a rank
+// computed off the same 32-team coverage_team dict this card already reads,
+// never a canned "top defense" label.
+const ordinal = (n) => {
+  const suf = ['th', 'st', 'nd', 'rd']
+  const v = n % 100
+  return `${n}${suf[(v - 20) % 10] || suf[v] || suf[0]}`
+}
+
 export default function MatchupMap({
   field, player, team, mode = 'player', defaultView = 'pass', compact = false,
   qb = false, roleSignal = null, highlightRole = null,
+  covTeam = null, covPlayer = null, covLeague = null,
 }) {
   const rushable = mode === 'def'
     ? Boolean(field?.player_rush || field?.def_rush)
@@ -240,6 +267,47 @@ export default function MatchupMap({
     }
     return { cells, by: Object.fromEntries(cells.map((c) => [c.z, c])), spot, metric }
   }, [field, defTeam, player, mode, pass, qb])
+
+  // COVERAGE READ. Real man/zone rate + shell distribution for this defence
+  // (nfl_coverage.team_profile, charted by NGS -- ~100% of snaps for
+  // man/zone, ~49% for the specific shell), plus the selected receiver's own
+  // real man-vs-zone split (nfl_coverage.player_vs_coverage) when the sample
+  // supports it on both sides. Man/zone is a passing-game concept, so this
+  // sits out entirely on the run view.
+  const coverage = useMemo(() => {
+    if (!pass || !covTeam) return null
+    const { man_pct: manPct, zone_pct: zonePct } = covTeam
+    if (manPct == null || zonePct == null) return null
+    const dominant = zonePct >= manPct ? 'zone' : 'man'
+    const dominantPct = dominant === 'zone' ? zonePct : manPct
+
+    let rank = null
+    if (covLeague) {
+      const vals = Object.values(covLeague)
+        .map((t) => (dominant === 'zone' ? t.zone_pct : t.man_pct))
+        .filter((v) => typeof v === 'number')
+      if (vals.length) rank = 1 + vals.filter((v) => v > dominantPct).length
+    }
+
+    const shellEntries = Object.entries(covTeam.shells || {}).sort((a, b) => b[1] - a[1])
+    const topShell = covTeam.shell_n >= 50 && shellEntries.length ? shellEntries[0] : null
+
+    // >=6 targets each side, >=1.0 YPT gap -- the same "worth saying" bar
+    // softRole already uses, so this doesn't call a 2-target sample a trend.
+    let playerEdge = null
+    if (covPlayer?.man?.tgts >= 6 && covPlayer?.zone?.tgts >= 6) {
+      const d = covPlayer.zone.ypt - covPlayer.man.ypt
+      if (Math.abs(d) >= 1.0) {
+        playerEdge = {
+          side: d > 0 ? 'zone' : 'man',
+          better: d > 0 ? covPlayer.zone.ypt : covPlayer.man.ypt,
+          worse: d > 0 ? covPlayer.man.ypt : covPlayer.zone.ypt,
+        }
+      }
+    }
+
+    return { manPct, zonePct, dominant, dominantPct, rank, topShell, playerEdge }
+  }, [pass, covTeam, covPlayer, covLeague])
 
   function phrase(z) {
     const [side, d] = z.split('|')
@@ -381,6 +449,40 @@ export default function MatchupMap({
           ) : (
             <>No role stands out for <b style={{ color: C.text }}>{defTeam}</b> league-wide
             either — nothing they give up by position is far enough above average to call.</>
+          )}
+        </div>
+      )}
+
+      {/* ── AND HOW THEY COVER, NOT JUST WHERE THEY LEAK ───────────────────
+          coverage_team / coverage_player are real, already computed, already
+          shown elsewhere on this tab (the team profile card, the player
+          modal) -- never here. Same defence, same page, one more real angle
+          on it, without asking for a shell rate anyone would have to
+          invent. */}
+      {coverage && (
+        <div style={{
+          marginBottom: 10, padding: '9px 13px', borderRadius: 10,
+          border: `1px solid ${C.border}`, background: 'rgba(255,255,255,.02)',
+          fontSize: compact ? 11 : 12, color: C.text2, lineHeight: 1.6,
+        }}>
+          <span style={{
+            fontFamily: NUM_FONT, fontSize: 9, fontWeight: 900, letterSpacing: '.1em',
+            color: C.text3, marginRight: 7,
+          }}>COVERAGE READ</span>
+          <b style={{ color: C.text }}>{defTeam}</b> plays {coverage.dominant} on{' '}
+          <b style={{ color: C.cyan }}>{coverage.dominantPct}%</b> of snaps
+          {coverage.rank && coverage.rank <= 10 && <> — {ordinal(coverage.rank)}-most in the league</>}
+          {coverage.topShell && <>, mostly {coverage.topShell[0]} ({coverage.topShell[1]}%)</>}.
+          {coverage.playerEdge && mode === 'player' && (
+            <>
+              {' '}{player?.name || 'He'} does his damage vs{' '}
+              <b style={{ color: C.text }}>{coverage.playerEdge.side}</b> —{' '}
+              {coverage.playerEdge.better} yards a target there against {coverage.playerEdge.worse}{' '}
+              vs {coverage.playerEdge.side === 'zone' ? 'man' : 'zone'}
+              {coverage.playerEdge.side === coverage.dominant
+                ? <> — exactly the shell {defTeam} leans on.</>
+                : <> — not the shell {defTeam} leans on, so this is a tougher matchup than the map alone suggests.</>}
+            </>
           )}
         </div>
       )}

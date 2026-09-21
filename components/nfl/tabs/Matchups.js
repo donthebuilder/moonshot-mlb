@@ -328,6 +328,9 @@ export default function Matchups({ matchup, data }) {
             qb={qbMode}
             roleSignal={soft}
             highlightRole={role}
+            covTeam={matchup?.coverage_team?.[active]}
+            covPlayer={picked ? matchup?.coverage_player?.[picked.player_id] : null}
+            covLeague={matchup?.coverage_team}
           />
         </div>
       </Section>
