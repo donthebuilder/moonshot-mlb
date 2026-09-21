@@ -17,6 +17,7 @@ import NetworkSwitch from '../../../../../components/NetworkSwitch'
 import LeagueNav from '../../../../../components/fantasy/LeagueNav'
 import { loadPlayerCatalog } from '../../../../../lib/fantasy/playerCatalog'
 import { PlayerSheetButton } from '../../../../../components/fantasy/PlayerSheet'
+import { buildSheetData } from '../../../../../lib/fantasy/sheetEntry'
 import PlayerForm from '../../../../../components/fantasy/PlayerForm'
 import { formRank, playerForm } from '../../../../../lib/fantasy/form'
 
@@ -129,7 +130,9 @@ export default async function WirePage({params,searchParams}) {
   if (poolIds.length) {
     const { data = [] } = await supabase
       .from('nfl_player_week_stats')
-      .select('player_id,week,stats,status,projected_points,dash_score')
+      // dash_score is NOT read here: the row's DASH comes from the catalog via
+      // dashScore(player). It was a column fetched for nobody.
+      .select('player_id,week,stats,status,projected_points')
       .in('player_id', poolIds)
       .eq('season', FANTASY_SEASON)
       .gte('week', firstWeek)
@@ -159,10 +162,9 @@ export default async function WirePage({params,searchParams}) {
   // fields the sheet reads -- shipping the whole catalog row to the client
   // would put 577 players' worth of columns in the HTML for a panel that opens
   // one at a time.
-  const sheetData = Object.fromEntries(shownPlayers.map((player) => [player.id, {
-    player: { id: player.id, name: player.name, position: player.position, team: player.team, injury_status: player.injury_status, source_player_id: player.source_player_id },
-    weeks: statsByPlayer[player.id] || [],
-  }]))
+  // Built server-side so the raw weekly stat blobs never cross to the
+  // browser -- see lib/fantasy/sheetEntry.js for what that was costing.
+  const sheetData = buildSheetData(shownPlayers, statsByPlayer, league.scoring)
 
   const waiverMap=new Map(safeAvailability.map((row)=>[row.player_id,row]))
   const safeClaims=claims||[]
@@ -189,7 +191,7 @@ export default async function WirePage({params,searchParams}) {
           {selectedSort==='form'&&<p className={styles.sortNote}>Ranked on points actually scored in weeks {firstWeek}–{WEEK} under this league&apos;s scoring — a record, not a forecast. Men with no completed week sort last, because no record is not the same as a good one.{formPoolCapped?` Covers the top ${FORM_POOL} free agents by market score, not all ${availablePlayers.length}.`:''}</p>}
           <div className={styles.positionFilters}>{POSITIONS.map((position)=><Link key={position} className={selectedPosition===position?styles.positionActive:''} aria-current={selectedPosition===position?'true':undefined} href={`/fantasy/league/${leagueId}/wire?position=${position}${query?.q?`&q=${encodeURIComponent(String(query.q))}`:''}&sort=${selectedSort}`}>{position}</Link>)}</div>
           <div className={styles.wireColumns}><span>POS</span><span>PLAYER</span><span>FORM</span><span>PROJ</span><span>DASH</span><span>STATUS</span><span>MOVE</span></div>
-          {shownPlayers.map((player)=>{const waiver=waiverMap.get(player.id);const onWaivers=waiver&&new Date(waiver.waiver_until)>new Date();const action=onWaivers?submitWaiverClaim:addFreeAgent;return <form action={action} className={styles.wirePlayer} key={player.id}><span className={styles.positionTag}>{player.position}</span><PlayerSheetButton player={sheetData[player.id]?.player} weeks={sheetData[player.id]?.weeks} scoring={league.scoring} className={styles.playerTap}><span className={styles.playerIdentity}><PlayerFace player={player} size={32}/><span><b>{player.name}<InjuryTag status={player.injury_status}/></b><PlayerMeta player={player} game={gameForPlayer(schedule,player)} bye={isOnBye(player,byeTeams)} showPosition={false}/></span><i className={styles.tapHint} aria-hidden="true">›</i></span></PlayerSheetButton><PlayerForm form={formByPlayer[player.id]} span={RECENT_WEEKS} week={WEEK}/><span className={styles.wireProj} title={projectionIsPartial(player)?'The feed carries no passing touchdowns or defensive turnovers, so quarterback and defence projections are low.':`Projected ${player.projection.toFixed(1)} points this week under this league's scoring`}>{isOnBye(player,byeTeams)?'—':player.projection.toFixed(1)}{projectionIsPartial(player)&&!isOnBye(player,byeTeams)?<em className={styles.partialMark}>*</em>:null}<i>PROJ</i></span><strong className={player.priced?undefined:styles.dashUnpriced} title={player.priced?"This week's market score: how likely this man is to clear a prop on Sunday. Not points.":'No prop market priced this man this week — defences never have one. Sorted by projection instead.'}>{player.priced?player.dash_score:'—'}<i>DASH</i></strong><span className={onWaivers?styles.waiverStatus:styles.freeStatus}>{onWaivers?remaining(waiver.waiver_until):'FREE'}</span><div className={styles.wireMove}><select name="dropPlayerId" defaultValue=""><option value="">No drop</option>{myRoster.map((rosterPlayer)=><option value={rosterPlayer.id} key={rosterPlayer.id}>Drop {rosterPlayer.name}</option>)}</select><input type="hidden" name="leagueId" value={leagueId}/><input type="hidden" name="playerId" value={player.id}/><SubmitButton disabled={league.status!=='active'} pendingLabel="…">{onWaivers?'Claim':'Add'}</SubmitButton></div></form>})}
+          {shownPlayers.map((player)=>{const waiver=waiverMap.get(player.id);const onWaivers=waiver&&new Date(waiver.waiver_until)>new Date();const action=onWaivers?submitWaiverClaim:addFreeAgent;return <form action={action} className={styles.wirePlayer} key={player.id}><span className={styles.positionTag}>{player.position}</span><PlayerSheetButton sheet={sheetData[player.id]} className={styles.playerTap}><span className={styles.playerIdentity}><PlayerFace player={player} size={32}/><span><b>{player.name}<InjuryTag status={player.injury_status}/></b><PlayerMeta player={player} game={gameForPlayer(schedule,player)} bye={isOnBye(player,byeTeams)} showPosition={false}/></span><i className={styles.tapHint} aria-hidden="true">›</i></span></PlayerSheetButton><PlayerForm form={formByPlayer[player.id]} span={RECENT_WEEKS} week={WEEK}/><span className={styles.wireProj} title={projectionIsPartial(player)?'The feed carries no passing touchdowns or defensive turnovers, so quarterback and defence projections are low.':`Projected ${player.projection.toFixed(1)} points this week under this league's scoring`}>{isOnBye(player,byeTeams)?'—':player.projection.toFixed(1)}{projectionIsPartial(player)&&!isOnBye(player,byeTeams)?<em className={styles.partialMark}>*</em>:null}<i>PROJ</i></span><strong className={player.priced?undefined:styles.dashUnpriced} title={player.priced?"This week's market score: how likely this man is to clear a prop on Sunday. Not points.":'No prop market priced this man this week — defences never have one. Sorted by projection instead.'}>{player.priced?player.dash_score:'—'}<i>DASH</i></strong><span className={onWaivers?styles.waiverStatus:styles.freeStatus}>{onWaivers?remaining(waiver.waiver_until):'FREE'}</span><div className={styles.wireMove}><select name="dropPlayerId" defaultValue=""><option value="">No drop</option>{myRoster.map((rosterPlayer)=><option value={rosterPlayer.id} key={rosterPlayer.id}>Drop {rosterPlayer.name}</option>)}</select><input type="hidden" name="leagueId" value={leagueId}/><input type="hidden" name="playerId" value={player.id}/><SubmitButton disabled={league.status!=='active'} pendingLabel="…">{onWaivers?'Claim':'Add'}</SubmitButton></div></form>})}
           {!availablePlayers.length&&<p className={styles.emptyRoom}>No available players match this filter.</p>}
           {availablePlayers.length>0&&<p className={styles.wireMore}><span>Showing {shownPlayers.length} of {availablePlayers.length}</span>{availablePlayers.length>shownPlayers.length&&<Link href={moreHref}>Show {Math.min(PAGE,availablePlayers.length-shownPlayers.length)} more →</Link>}</p>}
         </section>

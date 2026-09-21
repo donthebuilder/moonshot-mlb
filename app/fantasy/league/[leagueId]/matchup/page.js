@@ -11,6 +11,7 @@ import SubmitButton from '../../../../../components/fantasy/SubmitButton'
 import { resolveFantasyWeek } from '../../../../../lib/fantasy/week'
 import PlayerFace from '../../../../../components/fantasy/PlayerFace'
 import { PlayerSheetButton } from '../../../../../components/fantasy/PlayerSheet'
+import { buildSheetData } from '../../../../../lib/fantasy/sheetEntry'
 import PlayerMeta from '../../../../../components/fantasy/PlayerMeta'
 import InjuryTag from '../../../../../components/fantasy/InjuryTag'
 import { teamScheduleFor } from '../../../../../lib/fantasy/schedule'
@@ -31,7 +32,7 @@ export default async function MatchupPage({ params, searchParams }) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/fantasy')
   const week = await resolveFantasyWeek(supabase, query?.week)
-  const [{ data: league }, { data: membership }, { data: teamRows }, { data: seasonMatchupRows }, {data:nflGameRows}, {data:seasonGameRows}, {data:latestSync}] = await Promise.all([
+  const [{ data: league }, { data: membership }, { data: teamRows }, { data: seasonMatchupRows }, {data:nflGameRows}, {data:seasonGameRows}, {data:latestSync}, {data:lineupRows}] = await Promise.all([
     supabase.from('fantasy_leagues').select('*').eq('id',leagueId).single(),
     supabase.from('fantasy_league_memberships').select('role').eq('league_id',leagueId).eq('user_id',user.id).single(),
     supabase.from('fantasy_teams').select('*').eq('league_id',leagueId).order('created_at'),
@@ -46,6 +47,10 @@ export default async function MatchupPage({ params, searchParams }) {
     // that -- see lib/fantasy/matchupState.js.
     supabase.from('nfl_week_games').select('week,status,season_type').eq('season',SEASON),
     supabase.from('fantasy_scoring_sync_runs').select('completed_at,status').order('started_at',{ascending:false}).limit(1).maybeSingle(),
+    supabase.from('fantasy_lineup_slots')
+      .select('*,player:nfl_players(id,name,position,team,injury_status,source_payload,source_player_id)')
+      .eq('league_id',leagueId).eq('season',SEASON).eq('week',week)
+      .not('slot','in','(BENCH,IR)').order('slot_index'),
   ])
   if (!league || !membership) notFound()
   const teams = teamRows || []
@@ -77,23 +82,16 @@ export default async function MatchupPage({ params, searchParams }) {
   // rows are what price the rest of the league's games: nine teams times nine
   // starters is 81 rows on one query that was already being made, and without
   // them "AROUND THE LEAGUE" is a list of names with no idea who is favoured.
-  let lineups = []
-  if (featured && teams.length) {
-    const { data = [] } = await supabase.from('fantasy_lineup_slots')
-      .select('*,player:nfl_players(id,name,position,team,injury_status,source_payload,source_player_id)')
-      .in('team_id',teams.map((team)=>team.id)).eq('season',SEASON).eq('week',week)
-      .not('slot','in','(BENCH,IR)').order('slot_index')
-    lineups = data || []
-  }
+  // Was a serial round trip keyed on teams.map(id) -- but fantasy_lineup_slots
+  // carries league_id, so it never needed to wait for the teams query at all.
+  // It runs in the batch above now (2026-09-20, "everything loads slow").
+  const lineups = (featured && teams.length) ? (lineupRows || []) : []
   const homeLineup = lineups.filter((row)=>row.team_id===home?.id)
   const awayLineup = lineups.filter((row)=>row.team_id===away?.id)
   // Live stats are only ever rendered for the featured game's two lineups, so
   // only those player ids go to nfl_player_week_stats. Pricing the other games
   // needs projections, which come off the player row already in hand.
   const playerIds=[...homeLineup,...awayLineup].map((row)=>row.player_id).filter(Boolean)
-  let weeklyStats=[]
-  if(playerIds.length){const {data=[]}=await supabase.from('nfl_player_week_stats').select('player_id,game_id,stats,status,updated_at').in('player_id',playerIds).eq('season',SEASON).eq('week',week);weeklyStats=data||[]}
-  const statsByPlayer=new Map(weeklyStats.map((item)=>[item.player_id,item]))
   // ── THE PLAYER SHEET'S FOUR-WEEK STRIP (2026-09-21) ──────────────────────
   // The page already reads this table for THIS week, which is what the points
   // cell needs. The sheet shows a trend, so it needs the weeks before it too.
@@ -105,20 +103,23 @@ export default async function MatchupPage({ params, searchParams }) {
   if (playerIds.length) {
     const { data = [] } = await supabase
       .from('nfl_player_week_stats')
-      .select('player_id,week,stats,status,projected_points')
+      .select('player_id,week,game_id,stats,status,projected_points,updated_at')
       .in('player_id', playerIds)
       .eq('season', SEASON)
       .gte('week', Math.max(1, week - (SHEET_WEEKS - 1)))
       .lte('week', week)
     sheetRows = data || []
   }
+  // ONE READ, NOT TWO (2026-09-20). This window is gte(week-3)..lte(week), so
+  // it already contains THIS week -- which a second query was separately
+  // asking the same table for, on the same ids, a round trip earlier.
+  const statsByPlayer=new Map(sheetRows.filter((row)=>Number(row.week)===Number(week)).map((item)=>[item.player_id,item]))
   const sheetWeeksByPlayer = {}
   for (const row of sheetRows) (sheetWeeksByPlayer[row.player_id] ||= []).push(row)
   for (const rows of Object.values(sheetWeeksByPlayer)) rows.sort((a, b) => b.week - a.week)
-  const sheetData = Object.fromEntries([...homeLineup,...awayLineup].map((row)=>row.player).filter(Boolean).map((p) => [p.id, {
-    player: { id: p.id, name: p.name, position: p.position, team: p.team, injury_status: p.injury_status, source_player_id: p.source_player_id },
-    weeks: sheetWeeksByPlayer[p.id] || [],
-  }]))
+  // Built server-side so the raw weekly stat blobs never cross to the
+  // browser -- see lib/fantasy/sheetEntry.js for what that was costing.
+  const sheetData = buildSheetData([...homeLineup,...awayLineup].map((row)=>row.player), sheetWeeksByPlayer, league.scoring)
 
   // Null when the slate is too thin to be sure -- never "nobody is on bye".
   const byeTeams=byeTeamsFor(nflGames)
@@ -445,7 +446,7 @@ export default async function MatchupPage({ params, searchParams }) {
 const rowIsActive = (row) => Boolean(row?.weekStats?.status && row.weekStats.status !== 'scheduled')
 
 function Lineup({ title, rows, scoring, byeTeams, schedule, sheet }) {
-  return <section className={styles.matchupLineup}><div className={styles.boardHead}><div><p className={styles.panelLabel}>STARTING LINEUP</p><h2>{title}</h2></div><span>{rows.length} set</span></div>{rows.map((row)=>{const active=rowIsActive(row);const bye=isOnBye(row.player,byeTeams);const points=fantasyPointsFromStats(row.weekStats?.stats||{},scoring);return <div className={styles.matchupPlayer} key={row.id}><span>{row.slot}</span><div className={styles.playerIdentity}><PlayerFace player={row.player} size={30}/><PlayerSheetButton player={sheet?.[row.player?.id]?.player} weeks={sheet?.[row.player?.id]?.weeks} scoring={scoring} className={styles.playerTap}><span><b>{row.player?.name}<InjuryTag status={row.player?.injury_status}/></b><PlayerMeta player={row.player} game={schedule?.get(String(row.player?.team||'').toUpperCase())} bye={bye}/></span></PlayerSheetButton></div><span className={styles.playerState} data-state={bye?'bye':active?row.weekStats.status:'projected'}>{bye?'BYE':active?String(row.weekStats.status).toUpperCase():'PROJ'}</span><strong className={active&&!bye?styles.livePlayerScore:''}>{bye?'0.0':(active?points:projectedFantasyPoints(row.player,scoring)).toFixed(1)}</strong></div>})}{!rows.length&&<p className={styles.emptyRoom}>No starters have been set for this week.</p>}</section>
+  return <section className={styles.matchupLineup}><div className={styles.boardHead}><div><p className={styles.panelLabel}>STARTING LINEUP</p><h2>{title}</h2></div><span>{rows.length} set</span></div>{rows.map((row)=>{const active=rowIsActive(row);const bye=isOnBye(row.player,byeTeams);const points=fantasyPointsFromStats(row.weekStats?.stats||{},scoring);return <div className={styles.matchupPlayer} key={row.id}><span>{row.slot}</span><div className={styles.playerIdentity}><PlayerFace player={row.player} size={30}/><PlayerSheetButton sheet={sheet?.[row.player?.id]} className={styles.playerTap}><span><b>{row.player?.name}<InjuryTag status={row.player?.injury_status}/></b><PlayerMeta player={row.player} game={schedule?.get(String(row.player?.team||'').toUpperCase())} bye={bye}/></span></PlayerSheetButton></div><span className={styles.playerState} data-state={bye?'bye':active?row.weekStats.status:'projected'}>{bye?'BYE':active?String(row.weekStats.status).toUpperCase():'PROJ'}</span><strong className={active&&!bye?styles.livePlayerScore:''}>{bye?'0.0':(active?points:projectedFantasyPoints(row.player,scoring)).toFixed(1)}</strong></div>})}{!rows.length&&<p className={styles.emptyRoom}>No starters have been set for this week.</p>}</section>
 }
 
 // ── #81: TWO PRODUCTS IN ONE NETWORK, DISAGREEING ABOUT THE SCHEDULE ────────

@@ -4,7 +4,6 @@ import { createPortal } from 'react-dom'
 
 import PlayerFace from './PlayerFace'
 import InjuryTag from './InjuryTag'
-import { fantasyPointsFromStats } from '../../lib/fantasy/scoring'
 
 // 📋 THE PLAYER SHEET — what he actually did, one tap from the row.
 //
@@ -47,40 +46,14 @@ import { fantasyPointsFromStats } from '../../lib/fantasy/scoring'
 // complete; the rest crosses into the NFL dashboard's data and is a bigger
 // build. `weeks` is shaped so that view can hang off the same sheet.
 
-const STAT_ROWS = [
-  ['passing_yards', 'Passing yds'],
-  ['passing_touchdowns', 'Passing TD'],
-  ['interceptions', 'Interceptions'],
-  ['rushing_yards', 'Rushing yds'],
-  ['rushing_touchdowns', 'Rushing TD'],
-  ['receptions', 'Catches'],
-  ['receiving_yards', 'Receiving yds'],
-  ['receiving_touchdowns', 'Receiving TD'],
-  ['fumbles_lost', 'Fumbles lost'],
-  ['return_touchdowns', 'Return TD'],
-  ['field_goals_0_39', 'FG 0-39'],
-  ['field_goals_40_49', 'FG 40-49'],
-  ['field_goals_50_plus', 'FG 50+'],
-  ['extra_points', 'Extra points'],
-  ['def_sacks', 'Sacks'],
-  ['def_interceptions', 'Interceptions'],
-  ['def_fumble_recoveries', 'Fumbles recovered'],
-  ['def_touchdowns', 'Defensive TD'],
-  ['def_safeties', 'Safeties'],
-  ['points_allowed', 'Points allowed'],
-]
-
-const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0)
-
-/** Only the lines he actually has. A stat sheet of twenty zeroes is furniture. */
-function linesFor(stats = {}) {
-  return STAT_ROWS
-    .filter(([key]) => stats[key] !== undefined && stats[key] !== null && num(stats[key]) !== 0)
-    .map(([key, label]) => [label, num(stats[key])])
-}
-
-/** The tap target in a row, and the sheet it opens. A button, never a div. */
-export function PlayerSheetButton({ player, weeks = [], scoring = 'ppr', className, children }) {
+// ── THE PAYLOAD MOVED TO THE SERVER (2026-09-20) ────────────────────────────
+// STAT_ROWS, linesFor() and the points arithmetic used to live here, which
+// meant every raw weekly `stats` blob had to cross to the browser for this
+// component to format it -- 639 KB of React payload on the Wire, for eighty
+// modals nobody had opened. They are in lib/fantasy/sheetEntry.js now and this
+// component renders what it is handed. See that file for the measurements.
+export function PlayerSheetButton({ sheet, className, children }) {
+  const player = sheet?.player
   const [open, setOpen] = useState(false)
 
   // Escape closes it, and the list behind it stops scrolling while it is up --
@@ -109,7 +82,7 @@ export function PlayerSheetButton({ player, weeks = [], scoring = 'ppr', classNa
         title={`${player.name} — what he has actually done`}
       >{children}</button>
       {open ? (
-        <Sheet entry={{ player, weeks }} scoring={scoring} onClose={() => setOpen(false)} />
+        <Sheet entry={sheet} onClose={() => setOpen(false)} />
       ) : null}
     </>
   )
@@ -144,11 +117,9 @@ export function PlayerSheetButton({ player, weeks = [], scoring = 'ppr', classNa
 // Safe without a mounted guard because Sheet only ever renders behind
 // `open`, which starts false and is set by a click -- so it never runs during
 // SSR. The typeof check is belt and braces for a future caller.
-function Sheet({ entry, scoring, onClose }) {
-  const { player, weeks = [] } = entry
+function Sheet({ entry, onClose }) {
+  const { player, weeks = [], lines = [] } = entry
   const latest = weeks[0] || null
-  const lines = latest ? linesFor(latest.stats) : []
-  const points = (row) => fantasyPointsFromStats(row?.stats || {}, scoring)
   if (typeof document === 'undefined') return null
 
   return createPortal(
@@ -173,9 +144,9 @@ function Sheet({ entry, scoring, onClose }) {
         {latest ? (
           <>
             <div className="fxSheetHero">
-              <span><small>WEEK {latest.week}</small><b>{points(latest).toFixed(1)}</b><i>fantasy pts</i></span>
-              {latest.projected_points != null && (
-                <span><small>PROJECTED</small><b>{Number(latest.projected_points).toFixed(1)}</b><i>before kickoff</i></span>
+              <span><small>WEEK {latest.week}</small><b>{latest.points.toFixed(1)}</b><i>fantasy pts</i></span>
+              {latest.projected != null && (
+                <span><small>PROJECTED</small><b>{latest.projected.toFixed(1)}</b><i>before kickoff</i></span>
               )}
               <span><small>STATUS</small><b>{String(latest.status || '').toUpperCase() || '—'}</b><i>{latest.status === 'final' ? 'game over' : latest.status === 'live' ? 'in progress' : 'not started'}</i></span>
             </div>
@@ -207,7 +178,7 @@ function Sheet({ entry, scoring, onClose }) {
               {weeks.map((row) => (
                 <li key={row.week}>
                   <span>Wk {row.week}</span>
-                  <b>{points(row).toFixed(1)}</b>
+                  <b>{row.points.toFixed(1)}</b>
                   <i>{row.status === 'final' ? '' : row.status}</i>
                 </li>
               ))}

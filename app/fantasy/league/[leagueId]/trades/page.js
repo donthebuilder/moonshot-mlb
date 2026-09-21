@@ -12,6 +12,7 @@ import { cancelTrade, proposeTrade, respondTrade, reviewTrade } from './actions'
 import NetworkSwitch from '../../../../../components/NetworkSwitch'
 import LeagueNav from '../../../../../components/fantasy/LeagueNav'
 import { PlayerSheetButton } from '../../../../../components/fantasy/PlayerSheet'
+import { buildSheetData } from '../../../../../lib/fantasy/sheetEntry'
 import { FANTASY_SEASON, resolveFantasyWeek } from '../../../../../lib/fantasy/week'
 
 export default async function TradesPage({params,searchParams}) {
@@ -62,10 +63,9 @@ export default async function TradesPage({params,searchParams}) {
   const tradeWeeksByPlayer = {}
   for (const row of tradeWeeks) (tradeWeeksByPlayer[row.player_id] ||= []).push(row)
   for (const rows of Object.values(tradeWeeksByPlayer)) rows.sort((a, b) => b.week - a.week)
-  const sheetData = Object.fromEntries([...myRoster, ...targetRoster].map((p) => [p.id, {
-    player: { id: p.id, name: p.name, position: p.position, team: p.team, injury_status: p.injury_status, source_player_id: p.source_player_id },
-    weeks: tradeWeeksByPlayer[p.id] || [],
-  }]))
+  // Built server-side so the raw weekly stat blobs never cross to the
+  // browser -- see lib/fantasy/sheetEntry.js for what that was costing.
+  const sheetData = buildSheetData([...myRoster, ...targetRoster], tradeWeeksByPlayer, league.scoring)
 
   const relevant=trades.filter((trade)=>trade.proposer_team_id===myTeam?.id||trade.recipient_team_id===myTeam?.id||league.commissioner_id===user.id)
   // A member cannot review anything, so "3 awaiting review" in their header was
@@ -86,7 +86,7 @@ export default async function TradesPage({params,searchParams}) {
 }
 
 function PlayerSelect({title,name,players,sheet,scoring}) {
-  return <section><p className={styles.tradeSideHead}>{title}<TradeSideCount name={name}/></p><div className={styles.tradeRoster}>{players.map((player)=><div className={styles.tradeRow} key={player.id}><label><input type="checkbox" name={name} value={player.id}/><span>{player.position}</span><PlayerFace player={player} size={28}/><div><b>{player.name}<InjuryTag status={player.injury_status}/></b><small>{player.team}</small></div></label><PlayerSheetButton player={sheet?.[player.id]?.player} weeks={sheet?.[player.id]?.weeks} scoring={scoring} className={styles.tradeInfo}>ⓘ</PlayerSheetButton></div>)}{!players.length&&<p className={styles.emptyRoom}>No players rostered.</p>}</div></section>
+  return <section><p className={styles.tradeSideHead}>{title}<TradeSideCount name={name}/></p><div className={styles.tradeRoster}>{players.map((player)=><div className={styles.tradeRow} key={player.id}><label><input type="checkbox" name={name} value={player.id}/><span>{player.position}</span><PlayerFace player={player} size={28}/><div><b>{player.name}<InjuryTag status={player.injury_status}/></b><small>{player.team}</small></div></label><PlayerSheetButton sheet={sheet?.[player.id]} className={styles.tradeInfo}>ⓘ</PlayerSheetButton></div>)}{!players.length&&<p className={styles.emptyRoom}>No players rostered.</p>}</div></section>
 }
 
 function TradeCard({trade,teams,myTeam,commissioner,leagueId}) {
