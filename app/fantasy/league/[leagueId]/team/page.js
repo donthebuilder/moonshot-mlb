@@ -3,6 +3,7 @@ import { notFound, redirect } from 'next/navigation'
 
 import { createSupabaseServerClient } from '../../../../../lib/supabase/server'
 import PlayerFace from '../../../../../components/fantasy/PlayerFace'
+import { PlayerSheetProvider, PlayerSheetButton } from '../../../../../components/fantasy/PlayerSheet'
 import PlayerMeta from '../../../../../components/fantasy/PlayerMeta'
 import InjuryTag from '../../../../../components/fantasy/InjuryTag'
 import { gameForPlayer, teamScheduleFor } from '../../../../../lib/fantasy/schedule'
@@ -73,6 +74,32 @@ export default async function TeamPage({ params, searchParams }) {
   let weekStats=[]
   if(rosterIds.length){const {data=[]}=await supabase.from('nfl_player_week_stats').select('player_id,stats,status').in('player_id',rosterIds).eq('season',SEASON).eq('week',WEEK);weekStats=data||[]}
   const statsByPlayer=new Map(weekStats.map((row)=>[row.player_id,row]))
+  // ── THE PLAYER SHEET'S FOUR-WEEK STRIP (2026-09-21) ──────────────────────
+  // The page already reads this table for THIS week, which is what the points
+  // cell needs. The sheet shows a trend, so it needs the weeks before it too.
+  // A second scoped read rather than widening the one above: that query feeds
+  // every row's number on first paint and has no business getting four times
+  // bigger for a panel nobody has opened.
+  const SHEET_WEEKS = 4
+  let sheetRows = []
+  if (rosterIds.length) {
+    const { data = [] } = await supabase
+      .from('nfl_player_week_stats')
+      .select('player_id,week,stats,status,projected_points')
+      .in('player_id', rosterIds)
+      .eq('season', SEASON)
+      .gte('week', Math.max(1, WEEK - (SHEET_WEEKS - 1)))
+      .lte('week', WEEK)
+    sheetRows = data || []
+  }
+  const sheetWeeksByPlayer = {}
+  for (const row of sheetRows) (sheetWeeksByPlayer[row.player_id] ||= []).push(row)
+  for (const rows of Object.values(sheetWeeksByPlayer)) rows.sort((a, b) => b.week - a.week)
+  const sheetData = Object.fromEntries((rosterRows||[]).map((entry)=>entry.player).filter(Boolean).map((p) => [p.id, {
+    player: { id: p.id, name: p.name, position: p.position, team: p.team, injury_status: p.injury_status, source_player_id: p.source_player_id },
+    weeks: sheetWeeksByPlayer[p.id] || [],
+  }]))
+
   const started=(player)=>{const row=statsByPlayer.get(player?.id);return Boolean(row?.status&&row.status!=='scheduled')}
   const scoredFor=(player)=>{const row=statsByPlayer.get(player?.id);return fantasyPointsFromStats(row?.stats||{},league.scoring)}
   // The cell: actual once his game is on or over, projection before.
@@ -174,7 +201,7 @@ export default async function TeamPage({ params, searchParams }) {
   const benchOccupied = lineup.filter((row)=>row.slot==='BENCH'&&row.player_id).length + benchFill.size
   const teamHref = (params) => `/fantasy/league/${leagueId}/team?week=${WEEK}${params?`&${params}`:''}`
 
-  return <main className={styles.roomApp}>
+  return <PlayerSheetProvider scoring={league.scoring} data={sheetData}><main className={styles.roomApp}>
     <header className={styles.roomHeader}><NetworkSwitch variant="inline"/><div><small>WEEK {WEEK}</small><strong>{team.name}</strong></div><span className={styles.weekSwitch}>{WEEK>1&&<Link href={`/fantasy/league/${leagueId}/team?week=${WEEK-1}`}>‹</Link>}<b>{roster.length} rostered</b>{WEEK<FANTASY_LAST_WEEK&&<Link href={`/fantasy/league/${leagueId}/team?week=${WEEK+1}`}>›</Link>}</span></header>
     <LeagueNav leagueId={leagueId} active="team" isCommissioner={league.commissioner_id === user.id} className={styles.roomNav} activeClassName={styles.roomActive} />
     <div className={styles.roomBody}>
@@ -208,7 +235,7 @@ export default async function TeamPage({ params, searchParams }) {
             const isSource=moveActive&&slot===movingSlot&&index===movingIndex;
             const canReceive=moveActive&&!isSource&&!locked&&eligible(movingPlayer,slot,league)&&(!assignedPlayer||fromUnassigned||eligible(assignedPlayer,movingSlot,league));
             const rowKey=`${slot}-${index}`;
-            return <div className={`${styles.slotRow} ${locked?styles.slotLocked:''}`} data-empty={!shownPlayer?'true':undefined} data-locked={locked?'true':undefined} data-moving={isSource?'true':undefined} data-target={canReceive?'true':undefined} data-starter={starter?'true':undefined} key={rowKey}><span className={styles.slotBadge} style={{ color: colorForPosition(shownPlayer?.position || slot), borderColor: `${colorForPosition(shownPlayer?.position || slot)}55` }}>{slot}{index>1?index:''}</span><div className={styles.lineupIdentity}>{shownPlayer&&<PlayerFace player={shownPlayer} size={34}/>}<span><b>{shownPlayer?.name||'Open slot'}{shownPlayer&&<InjuryTag status={shownPlayer.injury_status}/>}</b>{shownPlayer?<PlayerMeta player={shownPlayer} game={gameForPlayer(schedule,shownPlayer)} bye={isOnBye(shownPlayer,byeTeams)}/>:<small>{moveActive?(canReceive?'Open — takes him':'Not eligible'):'Empty'}</small>}</span></div>{(()=>{const cell=pointsCell(shownPlayer);return <span className={styles.slotProjection} data-live={cell.live?'true':undefined}>{cell.value}<i>{cell.label}</i></span>})()}<div className={styles.slotAction}>{locked?<span className={styles.slotLockedTag}>🔒 Locked</span>:isSource?<><form action={saveLineupSlot}><input type="hidden" name="leagueId" value={leagueId}/><input type="hidden" name="season" value={SEASON}/><input type="hidden" name="week" value={WEEK}/><input type="hidden" name="slot" value={slot}/><input type="hidden" name="slotIndex" value={index}/><SubmitButton className={styles.slotCancel} pendingLabel="…" title="Take him out of the lineup entirely">Remove</SubmitButton></form><Link className={styles.slotCancel} href={teamHref()}>Cancel</Link></>:canReceive?<form action={moveLineupPlayer}><input type="hidden" name="leagueId" value={leagueId}/><input type="hidden" name="season" value={SEASON}/><input type="hidden" name="week" value={WEEK}/><input type="hidden" name="fromSlot" value={movingSlot}/><input type="hidden" name="fromIndex" value={movingIndex}/><input type="hidden" name="fromPlayerId" value={movingPlayer.id}/><input type="hidden" name="benchCount" value={benchCount}/><input type="hidden" name="toSlot" value={slot}/><input type="hidden" name="toIndex" value={index}/><SubmitButton className={styles.slotTargetButton} pendingLabel="Moving…">{assignedPlayer?'Swap here':'Move here'}</SubmitButton></form>:moveActive?null:assignedPlayer?<Link className={styles.slotMove} href={teamHref(`move=${rowKey}`)}>Move</Link>:shownPlayer?<Link className={styles.slotMove} href={teamHref(`move=player-${shownPlayer.id}`)}>Move</Link>:null}</div></div>})}
+            return <div className={`${styles.slotRow} ${locked?styles.slotLocked:''}`} data-empty={!shownPlayer?'true':undefined} data-locked={locked?'true':undefined} data-moving={isSource?'true':undefined} data-target={canReceive?'true':undefined} data-starter={starter?'true':undefined} key={rowKey}><span className={styles.slotBadge} style={{ color: colorForPosition(shownPlayer?.position || slot), borderColor: `${colorForPosition(shownPlayer?.position || slot)}55` }}>{slot}{index>1?index:''}</span><div className={styles.lineupIdentity}>{shownPlayer&&<PlayerFace player={shownPlayer} size={34}/>}{shownPlayer?<PlayerSheetButton playerId={shownPlayer.id} className={styles.playerTap}><span><b>{shownPlayer.name}<InjuryTag status={shownPlayer.injury_status}/></b><PlayerMeta player={shownPlayer} game={gameForPlayer(schedule,shownPlayer)} bye={isOnBye(shownPlayer,byeTeams)}/></span></PlayerSheetButton>:<span><b>Open slot</b><small>{moveActive?(canReceive?'Open — takes him':'Not eligible'):'Empty'}</small></span>}</div>{(()=>{const cell=pointsCell(shownPlayer);return <span className={styles.slotProjection} data-live={cell.live?'true':undefined}>{cell.value}<i>{cell.label}</i></span>})()}<div className={styles.slotAction}>{locked?<span className={styles.slotLockedTag}>🔒 Locked</span>:isSource?<><form action={saveLineupSlot}><input type="hidden" name="leagueId" value={leagueId}/><input type="hidden" name="season" value={SEASON}/><input type="hidden" name="week" value={WEEK}/><input type="hidden" name="slot" value={slot}/><input type="hidden" name="slotIndex" value={index}/><SubmitButton className={styles.slotCancel} pendingLabel="…" title="Take him out of the lineup entirely">Remove</SubmitButton></form><Link className={styles.slotCancel} href={teamHref()}>Cancel</Link></>:canReceive?<form action={moveLineupPlayer}><input type="hidden" name="leagueId" value={leagueId}/><input type="hidden" name="season" value={SEASON}/><input type="hidden" name="week" value={WEEK}/><input type="hidden" name="fromSlot" value={movingSlot}/><input type="hidden" name="fromIndex" value={movingIndex}/><input type="hidden" name="fromPlayerId" value={movingPlayer.id}/><input type="hidden" name="benchCount" value={benchCount}/><input type="hidden" name="toSlot" value={slot}/><input type="hidden" name="toIndex" value={index}/><SubmitButton className={styles.slotTargetButton} pendingLabel="Moving…">{assignedPlayer?'Swap here':'Move here'}</SubmitButton></form>:moveActive?null:assignedPlayer?<Link className={styles.slotMove} href={teamHref(`move=${rowKey}`)}>Move</Link>:shownPlayer?<Link className={styles.slotMove} href={teamHref(`move=player-${shownPlayer.id}`)}>Move</Link>:null}</div></div>})}
           </div>})}
           {/* The men with no slot at all. See `unassigned` above for why this
               is the normal state of a board on draft night rather than a
@@ -216,7 +243,7 @@ export default async function TeamPage({ params, searchParams }) {
           {strandedUnassigned.length>0&&<div className={styles.slotGroup}>
             <div className={styles.slotGroupHead}><span>UNASSIGNED</span><small>On your roster, no bench slot left for them</small><b>{strandedUnassigned.length}</b></div>
             {strandedUnassigned.map((player)=>{const carrying=moveActive&&fromUnassigned&&movingPlayer.id===player.id;
-            return <div className={styles.slotRow} data-moving={carrying?'true':undefined} key={player.id}><span className={styles.slotBadge} style={{ color: colorForPosition(player.position), borderColor: `${colorForPosition(player.position)}55` }}>{player.position}</span><div className={styles.lineupIdentity}><PlayerFace player={player} size={34}/><span><b>{player.name}<InjuryTag status={player.injury_status}/></b><PlayerMeta player={player} game={gameForPlayer(schedule,player)} bye={isOnBye(player,byeTeams)}/></span></div>{(()=>{const cell=pointsCell(player);return <span className={styles.slotProjection} data-live={cell.live?'true':undefined}>{cell.value}<i>{cell.label}</i></span>})()}<div className={styles.slotAction}>{carrying?<><Link className={styles.slotCancel} href={teamHref()}>Cancel</Link></>:moveActive?null:<Link className={styles.slotMove} href={teamHref(`move=player-${player.id}`)}>Move</Link>}</div></div>})}
+            return <div className={styles.slotRow} data-moving={carrying?'true':undefined} key={player.id}><span className={styles.slotBadge} style={{ color: colorForPosition(player.position), borderColor: `${colorForPosition(player.position)}55` }}>{player.position}</span><div className={styles.lineupIdentity}><PlayerFace player={player} size={34}/><PlayerSheetButton playerId={player.id} className={styles.playerTap}><span><b>{player.name}<InjuryTag status={player.injury_status}/></b><PlayerMeta player={player} game={gameForPlayer(schedule,player)} bye={isOnBye(player,byeTeams)}/></span></PlayerSheetButton></div>{(()=>{const cell=pointsCell(player);return <span className={styles.slotProjection} data-live={cell.live?'true':undefined}>{cell.value}<i>{cell.label}</i></span>})()}<div className={styles.slotAction}>{carrying?<><Link className={styles.slotCancel} href={teamHref()}>Cancel</Link></>:moveActive?null:<Link className={styles.slotMove} href={teamHref(`move=player-${player.id}`)}>Move</Link>}</div></div>})}
           </div>}
         </section>
         <aside className={styles.teamSide}><section><div className={styles.boardHead}><div><p className={styles.panelLabel}>ROSTER BUILD</p><h2>Position count</h2></div></div>{['QB','RB','WR','TE','K','DEF'].map((position)=><div className={styles.positionCount} key={position}><span>{position}</span><b>{players.filter((player)=>player.position===position).length}</b></div>)}</section><section><div className={styles.boardHead}><div><p className={styles.panelLabel}>DASH COACH</p><h2>Lineup check</h2></div></div><p className={styles.emptyRoom}>{players.length?`${Math.max(0,starterCount-lineup.filter((row)=>!['BENCH','IR'].includes(row.slot)).length)} starting slots still need attention.`:'Draft players first, then DASH Coach will flag lineup gaps and risky starts.'}</p></section>
@@ -254,5 +281,5 @@ export default async function TeamPage({ params, searchParams }) {
         </details></section></aside>
       </div>
     </div>
-  </main>
+  </main></PlayerSheetProvider>
 }

@@ -10,6 +10,7 @@ import LocalTime from '../../../../../components/fantasy/LocalTime'
 import SubmitButton from '../../../../../components/fantasy/SubmitButton'
 import { resolveFantasyWeek } from '../../../../../lib/fantasy/week'
 import PlayerFace from '../../../../../components/fantasy/PlayerFace'
+import { PlayerSheetProvider, PlayerSheetButton } from '../../../../../components/fantasy/PlayerSheet'
 import PlayerMeta from '../../../../../components/fantasy/PlayerMeta'
 import InjuryTag from '../../../../../components/fantasy/InjuryTag'
 import { teamScheduleFor } from '../../../../../lib/fantasy/schedule'
@@ -78,6 +79,32 @@ export default async function MatchupPage({ params, searchParams }) {
   let weeklyStats=[]
   if(playerIds.length){const {data=[]}=await supabase.from('nfl_player_week_stats').select('player_id,game_id,stats,status,updated_at').in('player_id',playerIds).eq('season',SEASON).eq('week',week);weeklyStats=data||[]}
   const statsByPlayer=new Map(weeklyStats.map((item)=>[item.player_id,item]))
+  // ── THE PLAYER SHEET'S FOUR-WEEK STRIP (2026-09-21) ──────────────────────
+  // The page already reads this table for THIS week, which is what the points
+  // cell needs. The sheet shows a trend, so it needs the weeks before it too.
+  // A second scoped read rather than widening the one above: that query feeds
+  // every row's number on first paint and has no business getting four times
+  // bigger for a panel nobody has opened.
+  const SHEET_WEEKS = 4
+  let sheetRows = []
+  if (playerIds.length) {
+    const { data = [] } = await supabase
+      .from('nfl_player_week_stats')
+      .select('player_id,week,stats,status,projected_points')
+      .in('player_id', playerIds)
+      .eq('season', SEASON)
+      .gte('week', Math.max(1, week - (SHEET_WEEKS - 1)))
+      .lte('week', week)
+    sheetRows = data || []
+  }
+  const sheetWeeksByPlayer = {}
+  for (const row of sheetRows) (sheetWeeksByPlayer[row.player_id] ||= []).push(row)
+  for (const rows of Object.values(sheetWeeksByPlayer)) rows.sort((a, b) => b.week - a.week)
+  const sheetData = Object.fromEntries([...homeLineup,...awayLineup].map((row)=>row.player).filter(Boolean).map((p) => [p.id, {
+    player: { id: p.id, name: p.name, position: p.position, team: p.team, injury_status: p.injury_status, source_player_id: p.source_player_id },
+    weeks: sheetWeeksByPlayer[p.id] || [],
+  }]))
+
   // Null when the slate is too thin to be sure -- never "nobody is on bye".
   const byeTeams=byeTeamsFor(nflGames)
   const schedule=teamScheduleFor(nflGames)
@@ -269,7 +296,9 @@ export default async function MatchupPage({ params, searchParams }) {
             </div>
           ))}
         </section>}
+        <PlayerSheetProvider scoring={league.scoring} data={sheetData}>
         <div className={styles.matchupGrid}><Lineup title={home?.name} rows={scoredHomeLineup} scoring={league.scoring} byeTeams={byeTeams} schedule={schedule}/><Lineup title={away?.name} rows={scoredAwayLineup} scoring={league.scoring} byeTeams={byeTeams} schedule={schedule}/></div>
+        </PlayerSheetProvider>
         <section className={styles.weekGames}><div className={styles.boardHead}><div><p className={styles.panelLabel}>AROUND THE LEAGUE</p><h2>Week {week}</h2></div><span>{matchups.length} games</span></div>{matchups.map((game)=><div className={styles.weekGame} key={game.id}><b style={{display:'flex',alignItems:'center',gap:7,minWidth:0}}><TeamMark size={20} team={teams.find((team)=>team.id===game.home_team_id)}/><Link className={styles.teamLink} href={`/fantasy/league/${leagueId}/team/${game.home_team_id}`} style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{teams.find((team)=>team.id===game.home_team_id)?.name}</Link></b><Link href={`/fantasy/league/${leagueId}/matchup?week=${week}&matchup=${game.id}`} className={`${styles.gameCell}${featured?.id===game.id?` ${styles.gameCellActive}`:''}`}>{stateOf(game)==='scheduled'?(()=>{const o=oddsFor(game);return o?<><i className={styles.gameLine}>{o.pickEm?'PK':`${(o.spread>0?teams.find((t)=>t.id===game.home_team_id):teams.find((t)=>t.id===game.away_team_id))?.name} ${-Math.abs(o.spread)}`}</i><em className={styles.gameTotal}>O/U {o.total}</em></>:'vs'})():(()=>{const r=matchupResult(game,stateOf(game));return <><i className={styles.gameScore} data-win={r.leaderId===game.home_team_id?'true':undefined}>{r.home.toFixed(1)}</i><em className={styles.gameTotal}>{stateOf(game)==='final'?'FINAL':'LIVE'}</em><i className={styles.gameScore} data-win={r.leaderId===game.away_team_id?'true':undefined}>{r.away.toFixed(1)}</i></>})()}</Link><b style={{display:'flex',alignItems:'center',gap:7,minWidth:0,justifyContent:'flex-end'}}><Link className={styles.teamLink} href={`/fantasy/league/${leagueId}/team/${game.away_team_id}`} style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{teams.find((team)=>team.id===game.away_team_id)?.name}</Link><TeamMark size={20} team={teams.find((team)=>team.id===game.away_team_id)}/></b></div>)}{Boolean(idleTeams.length)&&<p className={styles.emptyRoom}>Idle this week: {idleTeams.map((team)=>team.name).join(', ')}</p>}</section>
       </>}
     </div>
@@ -281,7 +310,7 @@ export default async function MatchupPage({ params, searchParams }) {
 const rowIsActive = (row) => Boolean(row?.weekStats?.status && row.weekStats.status !== 'scheduled')
 
 function Lineup({ title, rows, scoring, byeTeams, schedule }) {
-  return <section className={styles.matchupLineup}><div className={styles.boardHead}><div><p className={styles.panelLabel}>STARTING LINEUP</p><h2>{title}</h2></div><span>{rows.length} set</span></div>{rows.map((row)=>{const active=rowIsActive(row);const bye=isOnBye(row.player,byeTeams);const points=fantasyPointsFromStats(row.weekStats?.stats||{},scoring);return <div className={styles.matchupPlayer} key={row.id}><span>{row.slot}</span><div className={styles.playerIdentity}><PlayerFace player={row.player} size={30}/><span><b>{row.player?.name}<InjuryTag status={row.player?.injury_status}/></b><PlayerMeta player={row.player} game={schedule?.get(String(row.player?.team||'').toUpperCase())} bye={bye}/></span></div><span className={styles.playerState} data-state={bye?'bye':active?row.weekStats.status:'projected'}>{bye?'BYE':active?String(row.weekStats.status).toUpperCase():'PROJ'}</span><strong className={active&&!bye?styles.livePlayerScore:''}>{bye?'0.0':(active?points:projectedFantasyPoints(row.player,scoring)).toFixed(1)}</strong></div>})}{!rows.length&&<p className={styles.emptyRoom}>No starters have been set for this week.</p>}</section>
+  return <section className={styles.matchupLineup}><div className={styles.boardHead}><div><p className={styles.panelLabel}>STARTING LINEUP</p><h2>{title}</h2></div><span>{rows.length} set</span></div>{rows.map((row)=>{const active=rowIsActive(row);const bye=isOnBye(row.player,byeTeams);const points=fantasyPointsFromStats(row.weekStats?.stats||{},scoring);return <div className={styles.matchupPlayer} key={row.id}><span>{row.slot}</span><div className={styles.playerIdentity}><PlayerFace player={row.player} size={30}/><PlayerSheetButton playerId={row.player?.id} className={styles.playerTap}><span><b>{row.player?.name}<InjuryTag status={row.player?.injury_status}/></b><PlayerMeta player={row.player} game={schedule?.get(String(row.player?.team||'').toUpperCase())} bye={bye}/></span></PlayerSheetButton></div><span className={styles.playerState} data-state={bye?'bye':active?row.weekStats.status:'projected'}>{bye?'BYE':active?String(row.weekStats.status).toUpperCase():'PROJ'}</span><strong className={active&&!bye?styles.livePlayerScore:''}>{bye?'0.0':(active?points:projectedFantasyPoints(row.player,scoring)).toFixed(1)}</strong></div>})}{!rows.length&&<p className={styles.emptyRoom}>No starters have been set for this week.</p>}</section>
 }
 
 // ── #81: TWO PRODUCTS IN ONE NETWORK, DISAGREEING ABOUT THE SCHEDULE ────────
