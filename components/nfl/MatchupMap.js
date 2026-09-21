@@ -97,7 +97,7 @@ import ChartFrame from './ChartFrame'
 // the Matchups tab (the team profile card, the player modal). Neither one
 // had ever been connected to THIS map, even though "where they leak" and
 // "how they cover" are the same defence answering the same question two
-// ways. This adds a COVERAGE READ line under ROLE READ: what shell this
+// ways. This adds a COVER line in the same SIGNALS box as ROLE: what shell this
 // defence actually plays, and -- only when the sample supports it on both
 // sides (>=6 targets vs man AND >=6 vs zone, matching the >=1.0 YPT-gap
 // bar softRole already uses for "worth saying") -- whether the selected
@@ -424,65 +424,69 @@ export default function MatchupMap({
         )}
       </div>
 
-      {/* ── THE SAME STORY FROM THE ROLE SIDE ────────────────────────────
-          softRole() is real, already computed for the DVP table further
-          down this page — this just stops making a reader scroll down and
-          notice the coincidence themselves when it lines up with what the
-          zone map is already saying. */}
-      {roleSignal && (
+      {/* ── ONE SIGNALS BOX, NOT TWO (2026-09-21) ──────────────────────────
+          Role read (softRole, already computed for the DVP table below) and
+          coverage read (coverage_team/coverage_player) started as two full
+          bordered cards stacked above the field -- correct data, but two
+          near-identical grey boxes add real scroll on a phone before the
+          picture the field diagram is supposed to lead with (rule #23: the
+          field IS the chart, everything else is supporting evidence). One
+          box, one label column, two short lines -- same information, a
+          scouting sheet's stat line instead of two separate paragraphs. */}
+      {(roleSignal || coverage) && (
         <div style={{
           marginBottom: 10, padding: '9px 13px', borderRadius: 10,
           border: `1px solid ${C.border}`, background: 'rgba(255,255,255,.02)',
           fontSize: compact ? 11 : 12, color: C.text2, lineHeight: 1.6,
         }}>
-          <span style={{
-            fontFamily: NUM_FONT, fontSize: 9, fontWeight: 900, letterSpacing: '.1em',
-            color: C.text3, marginRight: 7,
-          }}>ROLE READ</span>
-          {roleSignal.standout ? (
-            <>
-              <b style={{ color: C.text }}>{defTeam}</b> {softLine(roleSignal)}
-              {highlightRole && highlightRole === roleSignal.role
-                ? <> — the same role {player?.name || 'he'} plays.</>
-                : '.'}
-            </>
-          ) : (
-            <>No role stands out for <b style={{ color: C.text }}>{defTeam}</b> league-wide
-            either — nothing they give up by position is far enough above average to call.</>
+          {roleSignal && (
+            <div style={{ display: 'flex', gap: 8, alignItems: 'baseline' }}>
+              <span style={{
+                fontFamily: NUM_FONT, fontSize: 9, fontWeight: 900, letterSpacing: '.1em',
+                color: C.text3, flexShrink: 0, width: 42,
+              }}>ROLE</span>
+              <span>
+                {roleSignal.standout ? (
+                  <>
+                    <b style={{ color: C.text }}>{defTeam}</b> {softLine(roleSignal)}
+                    {highlightRole && highlightRole === roleSignal.role
+                      ? <> — the same role {player?.name || 'he'} plays.</>
+                      : '.'}
+                  </>
+                ) : (
+                  <>No role stands out for <b style={{ color: C.text }}>{defTeam}</b> league-wide
+                  either — nothing they give up by position is far enough above average to call.</>
+                )}
+              </span>
+            </div>
           )}
-        </div>
-      )}
-
-      {/* ── AND HOW THEY COVER, NOT JUST WHERE THEY LEAK ───────────────────
-          coverage_team / coverage_player are real, already computed, already
-          shown elsewhere on this tab (the team profile card, the player
-          modal) -- never here. Same defence, same page, one more real angle
-          on it, without asking for a shell rate anyone would have to
-          invent. */}
-      {coverage && (
-        <div style={{
-          marginBottom: 10, padding: '9px 13px', borderRadius: 10,
-          border: `1px solid ${C.border}`, background: 'rgba(255,255,255,.02)',
-          fontSize: compact ? 11 : 12, color: C.text2, lineHeight: 1.6,
-        }}>
-          <span style={{
-            fontFamily: NUM_FONT, fontSize: 9, fontWeight: 900, letterSpacing: '.1em',
-            color: C.text3, marginRight: 7,
-          }}>COVERAGE READ</span>
-          <b style={{ color: C.text }}>{defTeam}</b> plays {coverage.dominant} on{' '}
-          <b style={{ color: C.cyan }}>{coverage.dominantPct}%</b> of snaps
-          {coverage.rank && coverage.rank <= 10 && <> — {ordinal(coverage.rank)}-most in the league</>}
-          {coverage.topShell && <>, mostly {coverage.topShell[0]} ({coverage.topShell[1]}%)</>}.
-          {coverage.playerEdge && mode === 'player' && (
-            <>
-              {' '}{player?.name || 'He'} does his damage vs{' '}
-              <b style={{ color: C.text }}>{coverage.playerEdge.side}</b> —{' '}
-              {coverage.playerEdge.better} yards a target there against {coverage.playerEdge.worse}{' '}
-              vs {coverage.playerEdge.side === 'zone' ? 'man' : 'zone'}
-              {coverage.playerEdge.side === coverage.dominant
-                ? <> — exactly the shell {defTeam} leans on.</>
-                : <> — not the shell {defTeam} leans on, so this is a tougher matchup than the map alone suggests.</>}
-            </>
+          {coverage && (
+            <div style={{
+              display: 'flex', gap: 8, alignItems: 'baseline',
+              marginTop: roleSignal ? 6 : 0,
+            }}>
+              <span style={{
+                fontFamily: NUM_FONT, fontSize: 9, fontWeight: 900, letterSpacing: '.1em',
+                color: C.text3, flexShrink: 0, width: 42,
+              }}>COVER</span>
+              <span>
+                <b style={{ color: C.text }}>{defTeam}</b> plays {coverage.dominant} on{' '}
+                <b style={{ color: C.cyan }}>{coverage.dominantPct}%</b> of snaps
+                {coverage.rank && coverage.rank <= 10 && <> — {ordinal(coverage.rank)}-most in the league</>}
+                {coverage.topShell && <>, mostly {coverage.topShell[0]} ({coverage.topShell[1]}%)</>}.
+                {coverage.playerEdge && mode === 'player' && (
+                  <>
+                    {' '}{player?.name || 'He'} does his damage vs{' '}
+                    <b style={{ color: C.text }}>{coverage.playerEdge.side}</b> —{' '}
+                    {coverage.playerEdge.better} yards a target there against {coverage.playerEdge.worse}{' '}
+                    vs {coverage.playerEdge.side === 'zone' ? 'man' : 'zone'}
+                    {coverage.playerEdge.side === coverage.dominant
+                      ? <> — exactly the shell {defTeam} leans on.</>
+                      : <> — not the shell {defTeam} leans on, so this is a tougher matchup than the map alone suggests.</>}
+                  </>
+                )}
+              </span>
+            </div>
           )}
         </div>
       )}
