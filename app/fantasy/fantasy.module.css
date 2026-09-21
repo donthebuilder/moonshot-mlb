@@ -6740,3 +6740,207 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   outline-offset: 2px;
   border-radius: 8px;
 }
+
+/* ── THE SCORE STACK, THE DRAMA, THE RECEIPTS (2026-09-20) ───────────────────
+   Donovan: "the matcup page is hella wack viusally ... recipts for sure and
+   drama." Two problems, one pass.
+
+   VISUAL: the page was seven separately-bordered, equally-weighted rounded
+   panels down a phone -- scoreboard, margin bar, game strip, line, duels, two
+   lineups -- so nothing was the hero and the eye had no way in. The scoreboard
+   and the bar under it are now one welded object: shared border, one radius,
+   no seam. That is one fewer box and one more clear top of the page. Rule #30
+   is explicit that "make it better" means less clutter and stronger
+   hierarchy, not more panels.
+
+   DRAMA: what is still to come, printed beside the score that needs it.
+   RECEIPTS: what these two have already done to each other. */
+.scoreStack {
+  margin: 0 0 12px;
+}
+.scoreStack .scoreboard {
+  margin: 0;
+  border-radius: 17px 17px 0 0;
+  border-bottom: 0;
+}
+.scoreStack .marginBar {
+  margin: 0;
+  border-radius: 0 0 17px 17px;
+  border-color: var(--fx-line-3);
+  background: var(--fx-panel-2);
+}
+.dramaRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 14px;
+  margin-top: 12px;
+  padding-top: 11px;
+  border-top: 1px solid var(--fx-line-3);
+}
+.dramaSide {
+  min-width: 0;
+}
+.dramaSide[data-side="away"] {
+  text-align: right;
+}
+.dramaSide b {
+  display: block;
+  font: 900 21px/1 monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.02em;
+  color: var(--fx-ink);
+}
+.dramaSide small {
+  display: block;
+  margin-top: 4px;
+  font: 800 8px/1.3 monospace;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: var(--fx-dim);
+}
+.dramaSide i {
+  display: block;
+  margin-top: 6px;
+  overflow: hidden;
+  font: 700 10px/1.35 monospace;
+  font-style: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--fx-muted-3);
+}
+.dramaSide .dramaLive {
+  color: var(--fx-good);
+}
+
+.receipts {
+  margin: 0 0 12px;
+  padding: 0 0 14px;
+  border: 1px solid var(--fx-line-3);
+  border-radius: 13px;
+  background: var(--fx-panel-2);
+}
+.receiptCols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 0 14px;
+}
+.receiptCol {
+  min-width: 0;
+}
+.receiptCol[data-side="away"] {
+  text-align: right;
+}
+.receiptTeam {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.receiptCol[data-side="away"] .receiptTeam {
+  flex-direction: row-reverse;
+}
+.receiptTeam b {
+  overflow: hidden;
+  font-size: 12px;
+  letter-spacing: -.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--fx-ink);
+}
+.receiptCol strong {
+  display: block;
+  margin-top: 7px;
+  font: 900 28px/1 monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.03em;
+  color: var(--fx-ink);
+}
+.formStrip {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+}
+.receiptCol[data-side="away"] .formStrip {
+  justify-content: flex-end;
+}
+.formStrip u {
+  display: grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 4px;
+  background: var(--fx-line-3);
+  font: 900 9px/1 monospace;
+  text-decoration: none;
+  color: var(--fx-dim);
+}
+.formStrip u[data-out="W"] {
+  background: var(--fx-accent);
+  color: #0b0b0b;
+}
+.formStrip u[data-out="L"] {
+  background: transparent;
+  border: 1px solid var(--fx-line-3);
+  color: var(--fx-muted-3);
+}
+.formStrip em {
+  font: 700 9px/17px monospace;
+  font-style: normal;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--fx-dim);
+}
+.receiptStats {
+  display: flex;
+  gap: 14px;
+  margin: 10px 0 0;
+}
+.receiptCol[data-side="away"] .receiptStats {
+  justify-content: flex-end;
+}
+.receiptStats dt {
+  font: 900 8px/1 monospace;
+  letter-spacing: .1em;
+  color: var(--fx-dim);
+}
+.receiptStats dd {
+  margin: 4px 0 0;
+  font: 900 12px/1 monospace;
+  font-variant-numeric: tabular-nums;
+  color: var(--fx-muted-3);
+}
+.receiptNotes {
+  margin: 14px 14px 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--fx-line-3);
+}
+.receiptNotes p {
+  margin: 0 0 7px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--fx-muted-3);
+}
+.receiptNotes p:last-child {
+  margin-bottom: 0;
+}
+.receiptNotes b {
+  margin-right: 7px;
+  font: 900 8px/1 monospace;
+  letter-spacing: .11em;
+  color: var(--fx-accent);
+}
+@media(max-width:760px) {
+  .dramaRow {
+    gap: 8px 10px;
+    margin-top: 10px;
+  }
+  .dramaSide b { font-size: 17px; }
+  .dramaSide i { font-size: 9px; }
+  .receiptCols { gap: 10px; padding: 0 11px; }
+  .receiptCol strong { font-size: 22px; }
+  .receiptStats { gap: 9px; }
+  .receiptStats dd { font-size: 11px; }
+  .receiptNotes { margin: 12px 11px 0; }
+  .receiptNotes p { font-size: 11px; }
+}

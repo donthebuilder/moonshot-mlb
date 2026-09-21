@@ -19,7 +19,8 @@ import TeamMark from '../../../../../components/fantasy/TeamMark'
 import { generateSchedule } from './actions'
 import NetworkSwitch from '../../../../../components/NetworkSwitch'
 import LeagueNav from '../../../../../components/fantasy/LeagueNav'
-import { matchupResult, matchupState, weekStateFromGames } from '../../../../../lib/fantasy/matchupState'
+import { matchupResult, matchupState, weekStateFromGames, weekStates } from '../../../../../lib/fantasy/matchupState'
+import { seasonRecord, streakOf, recentForm, seriesBetween, lastResultFor } from '../../../../../lib/fantasy/receipts'
 
 const SEASON = 2026
 
@@ -30,18 +31,32 @@ export default async function MatchupPage({ params, searchParams }) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/fantasy')
   const week = await resolveFantasyWeek(supabase, query?.week)
-  const [{ data: league }, { data: membership }, { data: teamRows }, { data: matchupRows }, {data:nflGameRows}, {data:latestSync}] = await Promise.all([
+  const [{ data: league }, { data: membership }, { data: teamRows }, { data: seasonMatchupRows }, {data:nflGameRows}, {data:seasonGameRows}, {data:latestSync}] = await Promise.all([
     supabase.from('fantasy_leagues').select('*').eq('id',leagueId).single(),
     supabase.from('fantasy_league_memberships').select('role').eq('league_id',leagueId).eq('user_id',user.id).single(),
     supabase.from('fantasy_teams').select('*').eq('league_id',leagueId).order('created_at'),
-    supabase.from('fantasy_matchups').select('*').eq('league_id',leagueId).eq('season',SEASON).eq('week',week),
+    // THE WHOLE SEASON, not just this week (2026-09-20). The receipts band
+    // needs every finished game to know a record, a streak or a series; a
+    // 14-week league is ~56 rows on one indexed read, which is cheaper than
+    // the second round trip the week-scoped version used to cost.
+    supabase.from('fantasy_matchups').select('*').eq('league_id',leagueId).eq('season',SEASON).order('week'),
     supabase.from('nfl_week_games').select('*').eq('season',SEASON).eq('week',week).order('kickoff'),
+    // Slim, season-wide: four columns per game, only ever used to decide
+    // which weeks are actually over. fantasy_matchups.status cannot answer
+    // that -- see lib/fantasy/matchupState.js.
+    supabase.from('nfl_week_games').select('week,status,season_type').eq('season',SEASON),
     supabase.from('fantasy_scoring_sync_runs').select('completed_at,status').order('started_at',{ascending:false}).limit(1).maybeSingle(),
   ])
   if (!league || !membership) notFound()
   const teams = teamRows || []
-  const matchups = matchupRows || []
+  const seasonMatchups = seasonMatchupRows || []
+  const matchups = seasonMatchups.filter((game)=>Number(game.week)===Number(week))
   const nflGames = nflGameRows || []
+  // Every matchup this league has actually finished, decided the same way the
+  // scoreboard decides this one. This is the only input the receipts read --
+  // no projections, no model, nothing that did not happen. See receipts.js.
+  const seasonWeekStates = weekStates(seasonGameRows || [])
+  const finals = seasonMatchups.filter((game)=>matchupState(game,seasonWeekStates[Number(game.week)])==='final')
   const myTeam = teams.find((team)=>team.owner_id===user.id)
   const myMatchup = matchups.find((game)=>game.home_team_id===myTeam?.id||game.away_team_id===myTeam?.id)
   // Any game in "Around the League" opens here now (2026-09-12, Donovan: "the
@@ -202,6 +217,63 @@ export default async function MatchupPage({ params, searchParams }) {
   const featuredTotal = featuredHomeScore + featuredAwayScore
   const homeShare = featuredTotal > 0 ? Math.min(100, Math.max(0, (featuredHomeScore / featuredTotal) * 100)) : 50
 
+  // ── THE DRAMA (2026-09-20) ────────────────────────────────────────────────
+  // Donovan: "stat wise not really seeing nothing entertaining." A live score
+  // on its own does not say whether a lead is safe, and that is the only
+  // question anybody is asking on a Sunday. Three facts answer it, and all
+  // three are already on this page:
+  //
+  //   onTable   what the starters who HAVE NOT KICKED OFF are projected for
+  //   playing   who is on a field right this second
+  //   best      the highest real score on the side so far
+  //
+  // onTable deliberately counts scheduled starters ONLY. A man in the second
+  // quarter has points left too, but nobody can say how many, and guessing
+  // would be the invented number rule #16 exists to stop. He is counted in
+  // `playing` instead, which is a fact.
+  const dramaFor = (rows) => {
+    let onTable = 0
+    const playing = []
+    let best = null
+    let done = 0
+    for (const row of rows) {
+      if (!row.player || isOnBye(row.player, byeTeams)) continue
+      const status = row.weekStats?.status || 'scheduled'
+      if (status === 'scheduled') { onTable += projectOne(row); continue }
+      const points = fantasyPointsFromStats(row.weekStats?.stats || {}, league.scoring)
+      if (status === 'live') playing.push({ name: row.player.name, points })
+      else done += 1
+      if (!best || points > best.points) best = { name: row.player.name, points, live: status === 'live' }
+    }
+    playing.sort((a, b) => b.points - a.points)
+    return { onTable: Math.round(onTable * 10) / 10, playing, best, done }
+  }
+  const homeDrama = featured ? dramaFor(scoredHomeLineup) : null
+  const awayDrama = featured ? dramaFor(scoredAwayLineup) : null
+  const dramaLive = featuredState !== 'scheduled' && (homeLeft > 0 || awayLeft > 0 || Boolean(homeDrama?.playing.length) || Boolean(awayDrama?.playing.length))
+
+  // ── THE RECEIPTS (2026-09-20) ─────────────────────────────────────────────
+  // What these two have actually done to each other and to everyone else.
+  // Empty in week 1 by definition, and the panel says so rather than printing
+  // a 0-0 that reads like a result.
+  const homeRecord = home ? seasonRecord(finals, home.id) : null
+  const awayRecord = away ? seasonRecord(finals, away.id) : null
+  const homeStreak = home ? streakOf(finals, home.id) : null
+  const awayStreak = away ? streakOf(finals, away.id) : null
+  const homeForm = home ? recentForm(finals, home.id) : []
+  const awayForm = away ? recentForm(finals, away.id) : []
+  // THE GAME YOU ARE LOOKING AT IS NOT A RECEIPT ABOUT ITSELF. Once this week
+  // goes final it joins `finals`, which is right for a record -- a 3-1 ought
+  // to count the game just played -- and absurd for "last meeting" and "last
+  // out", which would then point at the scoreboard six inches above them.
+  // Those three lines read the season with this matchup taken out.
+  const priorFinals = finals.filter((game) => game.id !== featured?.id)
+  const homeLast = home ? lastResultFor(priorFinals, home.id) : null
+  const awayLast = away ? lastResultFor(priorFinals, away.id) : null
+  const series = home && away ? seriesBetween(priorFinals, home.id, away.id) : null
+  const teamName = (id) => teams.find((team) => team.id === id)?.name || 'a bye'
+  const hasReceipts = Boolean(homeRecord?.games || awayRecord?.games)
+
   return <main className={styles.roomApp}>
     <header className={styles.roomHeader}><NetworkSwitch variant="inline"/><div><small>WEEK {week}</small><strong>{league.name}</strong></div><span>{matchups.length} matchups</span></header>
     <LeagueNav leagueId={leagueId} active="matchup" isCommissioner={league.commissioner_id === user.id} className={styles.roomNav} activeClassName={styles.roomActive} />
@@ -219,6 +291,7 @@ export default async function MatchupPage({ params, searchParams }) {
             WINS BY / LEADS BY / a kickoff time, and each side carries how
             many starters still have a game to play -- the one number that
             tells you whether a lead is safe. Nothing decorative. */}
+        <div className={styles.scoreStack}>
         <section className={styles.scoreboard} data-state={featuredState}>
           <div className={styles.scoreStatus}>
             <b>WEEK {week}</b>
@@ -241,6 +314,12 @@ export default async function MatchupPage({ params, searchParams }) {
               : <><em>{result.margin.toFixed(featuredState==='final'?2:1)}</em><span>{(result.leaderId===home?.id?home:away)?.name} {featuredState==='final'?'wins by':'leads by'}</span></>}
           </div>
         </section>
+        {/* The bar and the drama under it are ONE object with the scoreboard
+            now (2026-09-20, Donovan: "the matcup page is hella wack
+            viusally"). Seven separately-bordered panels stacked down a phone
+            read as a list of boxes with no hero; the share of the score and
+            what is left to come belong to the score, not to a panel of their
+            own. Rule #30: stronger hierarchy, fewer boxes. */}
         <section className={styles.marginBar} data-live={featuredState==='live'&&hasLiveGames?'true':undefined}>
           <div className={styles.marginTrack}><i style={{ width: `${homeShare}%` }}/><b style={{ left: `${homeShare}%` }}/></div>
           <div className={styles.marginLegend}>
@@ -248,7 +327,21 @@ export default async function MatchupPage({ params, searchParams }) {
             <em>{featuredState==='scheduled' ? 'share of projected points' : 'share of points scored'}</em>
             <span>{away?.name}</span>
           </div>
+          {dramaLive && <div className={styles.dramaRow}>
+            {[[homeDrama,homeLeft,'home'],[awayDrama,awayLeft,'away']].map(([drama,left,side])=>(
+              <div className={styles.dramaSide} data-side={side} key={side}>
+                <b>{drama.onTable.toFixed(1)}</b>
+                <small>projected from {left} yet to play</small>
+                {drama.playing.length
+                  ? <i className={styles.dramaLive}>● {drama.playing.slice(0,2).map((man)=>`${man.name} ${man.points.toFixed(1)}`).join(' · ')}{drama.playing.length>2?` +${drama.playing.length-2}`:''}</i>
+                  : drama.best
+                  ? <i>Top: {drama.best.name} {drama.best.points.toFixed(1)}</i>
+                  : <i>Nobody has scored yet</i>}
+              </div>
+            ))}
+          </div>}
         </section>
+        </div>
         <NflGameStrip games={nflGames} week={week}/>
         {/* THE LINE (2026-09-07). Donovan: "add like betting odds moneyline for
             fun and like a spread type thing." Nothing is staked on these; the
@@ -297,6 +390,48 @@ export default async function MatchupPage({ params, searchParams }) {
           ))}
         </section>}
         
+        {/* ── THE RECEIPTS (2026-09-20) ───────────────────────────────────
+            Donovan: "recipts for sure and drama." A head-to-head with no
+            memory gives nobody anything to say. Records, streaks, form and
+            the season series between these two -- every figure a sum of
+            games this league has already finished (lib/fantasy/receipts.js).
+            Nothing here is projected, and in Week 1 it says so instead of
+            printing an 0-0 that reads like a result. */}
+        <section className={styles.receipts}>
+          <div className={styles.boardHead}>
+            <div><p className={styles.panelLabel}>THE RECEIPTS</p><h2>{series?.games.length?`They have met ${series.games.length===1?'once':`${series.games.length} times`}`:'What they have actually done'}</h2></div>
+            <span>{finals.length} finished</span>
+          </div>
+          {hasReceipts ? <>
+            <div className={styles.receiptCols}>
+              {[[home,homeRecord,homeStreak,homeForm,series?.aWins,'home'],[away,awayRecord,awayStreak,awayForm,series?.bWins,'away']].map(([team,record,streak,form,headToHead,side])=>(
+                <div className={styles.receiptCol} data-side={side} key={side}>
+                  <span className={styles.receiptTeam}><TeamMark size={22} team={team}/><b>{team?.name}</b></span>
+                  <strong>{record.label}</strong>
+                  <div className={styles.formStrip}>
+                    {form.length
+                      ? [...form].reverse().map((game)=><u data-out={game.outcome} key={game.week} title={`Week ${game.week} · ${game.pf.toFixed(1)}-${game.pa.toFixed(1)} vs ${teamName(game.opponentId)}`}>{game.outcome}</u>)
+                      : <em>no games yet</em>}
+                  </div>
+                  <dl className={styles.receiptStats}>
+                    <div><dt>AVG</dt><dd>{record.average===null?'—':record.average.toFixed(1)}</dd></div>
+                    <div><dt>HIGH</dt><dd>{record.best?record.best.pf.toFixed(1):'—'}</dd></div>
+                    <div><dt>STREAK</dt><dd>{streak?streak.label:'—'}</dd></div>
+                    {Boolean(series?.games.length)&&<div><dt>H2H</dt><dd>{headToHead}</dd></div>}
+                  </dl>
+                </div>
+              ))}
+            </div>
+            <div className={styles.receiptNotes}>
+              <p>{series?.last
+                ? <><b>LAST MEETING</b> Week {series.last.week} — {series.last.winnerId?`${teamName(series.last.winnerId)} by ${series.last.margin.toFixed(1)}`:'a tie'}, {series.last.aScore.toFixed(1)}–{series.last.bScore.toFixed(1)}.</>
+                : <><b>FIRST MEETING</b> These two have not finished a game against each other this season.</>}</p>
+              {[[home,homeLast],[away,awayLast]].map(([team,last])=>last?<p key={team?.id}>
+                <b>{last.outcome==='W'?'LAST OUT':last.outcome==='L'?'COMING OFF':'LAST OUT'}</b> {team?.name} {last.outcome==='W'?'beat':last.outcome==='L'?'lost to':'tied'} {teamName(last.opponentId)} {last.pf.toFixed(1)}–{last.pa.toFixed(1)} in Week {last.week}.
+              </p>:null)}
+            </div>
+          </> : <p className={styles.emptyRoom}>No week has finished yet, so there is nothing to hold over anybody. Records, streaks and the season series appear here once Week {week} is in the books.</p>}
+        </section>
         <div className={styles.matchupGrid}><Lineup title={home?.name} rows={scoredHomeLineup} scoring={league.scoring} byeTeams={byeTeams} schedule={schedule} sheet={sheetData}/><Lineup title={away?.name} rows={scoredAwayLineup} scoring={league.scoring} byeTeams={byeTeams} schedule={schedule} sheet={sheetData}/></div>
         
         <section className={styles.weekGames}><div className={styles.boardHead}><div><p className={styles.panelLabel}>AROUND THE LEAGUE</p><h2>Week {week}</h2></div><span>{matchups.length} games</span></div>{matchups.map((game)=><div className={styles.weekGame} key={game.id}><b style={{display:'flex',alignItems:'center',gap:7,minWidth:0}}><TeamMark size={20} team={teams.find((team)=>team.id===game.home_team_id)}/><Link className={styles.teamLink} href={`/fantasy/league/${leagueId}/team/${game.home_team_id}`} style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{teams.find((team)=>team.id===game.home_team_id)?.name}</Link></b><Link href={`/fantasy/league/${leagueId}/matchup?week=${week}&matchup=${game.id}`} className={`${styles.gameCell}${featured?.id===game.id?` ${styles.gameCellActive}`:''}`}>{stateOf(game)==='scheduled'?(()=>{const o=oddsFor(game);return o?<><i className={styles.gameLine}>{o.pickEm?'PK':`${(o.spread>0?teams.find((t)=>t.id===game.home_team_id):teams.find((t)=>t.id===game.away_team_id))?.name} ${-Math.abs(o.spread)}`}</i><em className={styles.gameTotal}>O/U {o.total}</em></>:'vs'})():(()=>{const r=matchupResult(game,stateOf(game));return <><i className={styles.gameScore} data-win={r.leaderId===game.home_team_id?'true':undefined}>{r.home.toFixed(1)}</i><em className={styles.gameTotal}>{stateOf(game)==='final'?'FINAL':'LIVE'}</em><i className={styles.gameScore} data-win={r.leaderId===game.away_team_id?'true':undefined}>{r.away.toFixed(1)}</i></>})()}</Link><b style={{display:'flex',alignItems:'center',gap:7,minWidth:0,justifyContent:'flex-end'}}><Link className={styles.teamLink} href={`/fantasy/league/${leagueId}/team/${game.away_team_id}`} style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{teams.find((team)=>team.id===game.away_team_id)?.name}</Link><TeamMark size={20} team={teams.find((team)=>team.id===game.away_team_id)}/></b></div>)}{Boolean(idleTeams.length)&&<p className={styles.emptyRoom}>Idle this week: {idleTeams.map((team)=>team.name).join(', ')}</p>}</section>
