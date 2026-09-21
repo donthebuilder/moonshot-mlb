@@ -42,7 +42,28 @@ const SPLIT_STAT = {
   PASS_YDS: ['payd',  'yds/g'],
 }
 
-function Splits({ player, market, data }) {
+// ── TWO SPLITS VIEWS, AND THEY ARE TRANSPOSES, NOT COPIES (2026-09-20) ──────
+//
+// Flagged on 09-20 as "both surfaces define their own Splits component" and
+// logged as the next duplication that would drift. That was WRONG, and the
+// correction matters more than the original note: they cut the same matrix on
+// different axes.
+//
+//   THE CARD      fixes the STAT (whichever the open market implies) and
+//                 varies the SPLIT -- one stat across all six situations.
+//                 "how does his receiving-yards rate move home vs away,
+//                  indoors vs out, leading vs trailing"
+//
+//   THE PROFILE   fixes the SPLIT (a dropdown) and varies the STAT --
+//                 one situation across all eight numbers.
+//                 "in the red zone, what happens to everything"
+//
+// Deduplicating them would delete one of those questions. The piece that IS
+// genuinely shared, SplitDumbbell, already is. What was actually wrong here
+// was the naming: two components called Splits, doing different jobs, in a
+// codebase where a future pass would reasonably assume one was a stale copy.
+// Named for the axis each one fixes now, so that mistake cannot be made.
+function SplitsForMarket({ player, market, data }) {
   const sp = player?.splits
   if (!sp || !Object.keys(sp).length) return null
   const entry = SPLIT_STAT[market]
@@ -651,7 +672,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
           />
         )}
 
-        {tab === 'splits' && <Splits player={player} market={market} data={splitMeta} />}
+        {tab === 'splits' && <SplitsForMarket player={player} market={market} data={splitMeta} />}
 
         {/* Same per-device note store as MOONSHOT's card; ids can't collide.
             Stays on Overview, where MOONSHOT keeps its own. */}
