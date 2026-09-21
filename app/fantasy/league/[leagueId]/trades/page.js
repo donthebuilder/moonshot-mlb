@@ -11,6 +11,8 @@ import styles from '../../../fantasy.module.css'
 import { cancelTrade, proposeTrade, respondTrade, reviewTrade } from './actions'
 import NetworkSwitch from '../../../../../components/NetworkSwitch'
 import LeagueNav from '../../../../../components/fantasy/LeagueNav'
+import { PlayerSheetProvider, PlayerSheetButton } from '../../../../../components/fantasy/PlayerSheet'
+import { FANTASY_SEASON, resolveFantasyWeek } from '../../../../../lib/fantasy/week'
 
 export default async function TradesPage({params,searchParams}) {
   const [{leagueId},query]=await Promise.all([params,searchParams])
@@ -36,6 +38,35 @@ export default async function TradesPage({params,searchParams}) {
   const rosterFor=(teamId)=>rosters.filter((row)=>row.team_id===teamId).map((row)=>row.player).filter(Boolean).sort((a,b)=>(a.position||'').localeCompare(b.position||'')||a.name.localeCompare(b.name))
   const myRoster=rosterFor(myTeam?.id)
   const targetRoster=rosterFor(target?.id)
+  // ── WHAT HAS HE BEEN DOING? (2026-09-21) ────────────────────────────────
+  // A trade is the decision with the least information on the page: two
+  // rosters, a position and a club, and nothing either man has produced. The
+  // sheet the Wire, Team and Matchup already carry fits here unchanged; this
+  // page just never read the weekly table.
+  //
+  // Scoped to the two rosters actually on screen, four weeks, same as the
+  // others -- not every player in the league.
+  const TRADE_WEEK = await resolveFantasyWeek(supabase, query?.week)
+  const sheetIds = [...myRoster, ...targetRoster].map((p) => p.id)
+  let tradeWeeks = []
+  if (sheetIds.length) {
+    const { data = [] } = await supabase
+      .from('nfl_player_week_stats')
+      .select('player_id,week,stats,status,projected_points')
+      .in('player_id', sheetIds)
+      .eq('season', FANTASY_SEASON)
+      .gte('week', Math.max(1, TRADE_WEEK - 3))
+      .lte('week', TRADE_WEEK)
+    tradeWeeks = data || []
+  }
+  const tradeWeeksByPlayer = {}
+  for (const row of tradeWeeks) (tradeWeeksByPlayer[row.player_id] ||= []).push(row)
+  for (const rows of Object.values(tradeWeeksByPlayer)) rows.sort((a, b) => b.week - a.week)
+  const sheetData = Object.fromEntries([...myRoster, ...targetRoster].map((p) => [p.id, {
+    player: { id: p.id, name: p.name, position: p.position, team: p.team, injury_status: p.injury_status, source_player_id: p.source_player_id },
+    weeks: tradeWeeksByPlayer[p.id] || [],
+  }]))
+
   const relevant=trades.filter((trade)=>trade.proposer_team_id===myTeam?.id||trade.recipient_team_id===myTeam?.id||league.commissioner_id===user.id)
   // A member cannot review anything, so "3 awaiting review" in their header was
   // a number about somebody else's job. Commissioners still see it.
@@ -48,14 +79,14 @@ export default async function TradesPage({params,searchParams}) {
       {(query?.error||query?.message)&&<p className={query.error?styles.error:styles.message}>{query.error||query.message}</p>}
       <section className={styles.tradeHero}><div><p className={styles.panelLabel}>TRADE DESK</p><h1>Build a deal. Make both teams better.</h1><p>Owners agree first. The commissioner reviews the final deal before any roster changes occur.</p></div><div className={styles.roomStats}><span><small>ACTIVE</small><b>{relevant.filter((trade)=>['pending','accepted'].includes(trade.status)).length}</b></span><span><small>REVIEW</small><b>{reviewCount}</b></span><span><small>DONE</small><b>{relevant.filter((trade)=>trade.status==='completed').length}</b></span></div></section>
       {!otherTeams.length&&<section className={styles.waitingRoom}><span>⇄</span><div><p className={styles.panelLabel}>TRADE PARTNERS</p><strong>Another owner needs to join first.</strong><small>Trade offers unlock as soon as the league has at least two teams with players.</small></div></section>}
-      {otherTeams.length>0&&<section className={styles.tradeBuilder}><div className={styles.tradeBuilderHead}><div><p className={styles.panelLabel}>NEW OFFER</p><h2>Propose a trade</h2></div><form><label>Trade partner<select name="team" defaultValue={target?.id}>{otherTeams.map((team)=><option value={team.id} key={team.id}>{team.name}</option>)}</select></label><SubmitButton pendingLabel="Loading…">Load roster</SubmitButton></form></div><form action={proposeTrade}><div className={styles.tradeSides}><PlayerSelect title={`${myTeam?.name} sends`} name="offeredPlayerIds" players={myRoster}/><span className={styles.tradeArrow}>⇄</span><PlayerSelect title={`${target?.name} sends`} name="requestedPlayerIds" players={targetRoster}/></div><div className={styles.tradeNote}><input type="hidden" name="leagueId" value={leagueId}/><input type="hidden" name="recipientTeamId" value={target?.id}/><input name="note" maxLength="280" placeholder="Optional note to the other owner"/><SubmitButton disabled={!myRoster.length||!targetRoster.length} pendingLabel="Sending…">Send offer</SubmitButton></div></form></section>}
+      {otherTeams.length>0&&<PlayerSheetProvider scoring={league.scoring} data={sheetData}><section className={styles.tradeBuilder}><div className={styles.tradeBuilderHead}><div><p className={styles.panelLabel}>NEW OFFER</p><h2>Propose a trade</h2></div><form><label>Trade partner<select name="team" defaultValue={target?.id}>{otherTeams.map((team)=><option value={team.id} key={team.id}>{team.name}</option>)}</select></label><SubmitButton pendingLabel="Loading…">Load roster</SubmitButton></form></div><form action={proposeTrade}><div className={styles.tradeSides}><PlayerSelect title={`${myTeam?.name} sends`} name="offeredPlayerIds" players={myRoster}/><span className={styles.tradeArrow}>⇄</span><PlayerSelect title={`${target?.name} sends`} name="requestedPlayerIds" players={targetRoster}/></div><div className={styles.tradeNote}><input type="hidden" name="leagueId" value={leagueId}/><input type="hidden" name="recipientTeamId" value={target?.id}/><input name="note" maxLength="280" placeholder="Optional note to the other owner"/><SubmitButton disabled={!myRoster.length||!targetRoster.length} pendingLabel="Sending…">Send offer</SubmitButton></div></form></section></PlayerSheetProvider>}
       <section className={styles.tradeHistory}><div className={styles.boardHead}><div><p className={styles.panelLabel}>LEAGUE OFFERS</p><h2>Trade activity</h2></div><span>{relevant.length} deals</span></div>{relevant.map((trade)=><TradeCard trade={trade} teams={teams} myTeam={myTeam} commissioner={league.commissioner_id===user.id} leagueId={leagueId} key={trade.id}/>)}{!relevant.length&&<p className={styles.emptyRoom}>No trade offers yet.</p>}</section>
     </div>
   </main>
 }
 
 function PlayerSelect({title,name,players}) {
-  return <section><p className={styles.tradeSideHead}>{title}<TradeSideCount name={name}/></p><div className={styles.tradeRoster}>{players.map((player)=><label key={player.id}><input type="checkbox" name={name} value={player.id}/><span>{player.position}</span><PlayerFace player={player} size={28}/><div><b>{player.name}<InjuryTag status={player.injury_status}/></b><small>{player.team}</small></div></label>)}{!players.length&&<p className={styles.emptyRoom}>No players rostered.</p>}</div></section>
+  return <section><p className={styles.tradeSideHead}>{title}<TradeSideCount name={name}/></p><div className={styles.tradeRoster}>{players.map((player)=><div className={styles.tradeRow} key={player.id}><label><input type="checkbox" name={name} value={player.id}/><span>{player.position}</span><PlayerFace player={player} size={28}/><div><b>{player.name}<InjuryTag status={player.injury_status}/></b><small>{player.team}</small></div></label><PlayerSheetButton playerId={player.id} className={styles.tradeInfo}>ⓘ</PlayerSheetButton></div>)}{!players.length&&<p className={styles.emptyRoom}>No players rostered.</p>}</div></section>
 }
 
 function TradeCard({trade,teams,myTeam,commissioner,leagueId}) {
