@@ -7223,3 +7223,36 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   .sortFilters a { padding: 8px 10px; }
   .sortNote { margin: 9px 9px 0; font-size: 10px; }
 }
+
+/* ── TAP TARGETS ON COACH AND LEAGUE (2026-09-21) ───────────────────────────
+   Measured at 390px, not eyeballed. Six controls came back under 36px, and
+   the worst of them are the League page's PRIMARY navigation:
+
+     Standings / Players / Recap   27px
+     week select, Go               31px
+     Refresh NFL feed & locks      29px
+
+   These are sized by font and padding, which is fine on a desktop where a
+   cursor is a pixel and wrong on a phone where a fingertip is not. Raised to
+   40px without changing type size or the look of the row -- the padding was
+   already doing the visual work, so this only adds the height the finger
+   needs.
+
+   Deliberately at the END of the file: the last thing this stylesheet learned
+   the hard way is that a @media block does not raise specificity, so a rule
+   meant to win on a phone has to come after the one it beats. See the note by
+   .wireProj i. */
+@media(max-width:760px) {
+  .leagueViews>a {
+    display: flex;
+    align-items: center;
+    min-height: 40px;
+  }
+  .leagueViews select,
+  .leagueViews button {
+    height: 40px;
+  }
+  .commishBar button {
+    min-height: 40px;
+  }
+}
