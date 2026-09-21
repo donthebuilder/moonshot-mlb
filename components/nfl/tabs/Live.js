@@ -24,17 +24,13 @@ import { lineFor, marketValue } from '../../../lib/nfl/liveSlate'
 import { nextKickoff } from '../../../lib/nfl/liveMerge'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 import { useFollowing } from '../../../lib/dash/follow'
-import SlateRibbon from '../SlateRibbon'
 import PageHeader from '../../PageHeader'
 import NflTable from '../NflTable'
 import { FilterBar, FilterPill, FilterSearch, FilterSelect } from '../../Filters'
+import GameScoreboard, { fmtKick } from '../GameScoreboard'
 
 const MARKET_SHORT = { TD: 'TD', REC_YDS: 'REC YDS', REC: 'REC', RUSH_YDS: 'RUSH YDS', RUSH_ATT: 'CARRIES', PASS_YDS: 'PASS YDS', KICK_PTS: 'KICK PTS' }
 const short = (m) => MARKET_SHORT[m] || String(m || '').replace('_', ' ')
-
-const fmtKick = (t) => {
-  try { return new Date(t).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit' }) } catch { return 'TBD' }
-}
 
 // Where a rung stands. `state` drives colour and the word; everything else
 // is the number and the bar so the row can be read without the word.
@@ -51,37 +47,6 @@ function rungStatus(game, line, market, bar) {
 }
 
 const STATE_COLOR = () => ({ hit: C.green, miss: C.red, live: C.cyan, void: C.text3, pre: C.text3 })
-
-function Scoreboard({ games }) {
-  const sorted = useMemo(() => {
-    const rank = (g) => (g.state === 'in' ? 0 : g.completed || g.state === 'post' ? 2 : 1)
-    return [...games].sort((a, b) => rank(a) - rank(b) || Date.parse(a.kickoff || 0) - Date.parse(b.kickoff || 0))
-  }, [games])
-  return (
-    <div className="tl-board">
-      {sorted.map((g) => {
-        const live = g.state === 'in'
-        const done = g.completed || g.state === 'post'
-        const pos = g.possession
-        return (
-          <div key={g.game_id} className={`tl-game${live ? ' is-live' : ''}${g.redZone ? ' is-rz' : ''}`}>
-            <div className="tl-game-top">
-              <span className="tl-state">{live ? <><i />{g.detail || 'LIVE'}</> : done ? 'FINAL' : fmtKick(g.kickoff)}</span>
-              {live && pos && <span className="tl-pos">{pos} ball{g.downDistance ? ` · ${g.downDistance}` : ''}{g.redZone ? ' · RED ZONE' : ''}</span>}
-            </div>
-            <div className="tl-score">
-              <span className={pos === g.away ? 'has-ball' : ''}>{g.away}</span>
-              <b>{live || done ? (g.away_score ?? 0) : ''}</b>
-              <em>{live || done ? '–' : '@'}</em>
-              <b>{live || done ? (g.home_score ?? 0) : ''}</b>
-              <span className={pos === g.home ? 'has-ball' : ''}>{g.home}</span>
-            </div>
-          </div>
-        )
-      })}
-    </div>
-  )
-}
 
 function RungRow({ rung, player, game, line, market, bar, onPlayerClick }) {
   const st = rungStatus(game, line, market, bar)
@@ -125,7 +90,9 @@ export default function Live({ data, picks, live, onPlayerClick, setTab }) {
   }, [pins, followed, byId])
 
   const anyLive = games.some((g) => g.state === 'in')
-  const anyDone = games.some((g) => g.completed || g.state === 'post')
+  const doneCount = games.filter((g) => g.completed || g.state === 'post').length
+  const anyDone = doneCount > 0
+  const allDone = games.length > 0 && doneCount === games.length
   const next = nextKickoff(games)
   const card = Object.values(picks?.card || {})
   const depth = Number(picks?.depth) || 5
@@ -230,11 +197,12 @@ export default function Live({ data, picks, live, onPlayerClick, setTab }) {
     <div className="tl">
       <PageHeader
         eyebrow="TUDDY · LIVE"
-        title={anyLive ? 'The card, live' : anyDone && !next ? 'The week is in' : 'Nothing kicked off yet'}
+        title={anyLive ? 'The card, live' : allDone ? 'The week is in' : anyDone ? 'Most of the week is in' : 'Nothing kicked off yet'}
         note={anyLive
           ? 'Every rung on the card against the bar the bot promised, updated from the league feed every 30 seconds while a game is on.'
-          : next ? `Next kickoff ${fmtKick(next.t)} — ${next.game.away} @ ${next.game.home}. The scoreboard wakes up twenty minutes before.`
-            : 'Every game on the slate is final. The graded record is on The record; the scores below are the last the feed sent.'}
+          : allDone ? 'Every game on the slate is final. The graded record is on The record; the scores below are the last the feed sent.'
+            : next ? `${doneCount} game${doneCount === 1 ? '' : 's'} final. Next kickoff ${fmtKick(next.t)} — ${next.game.away} @ ${next.game.home}. The scoreboard wakes up twenty minutes before.`
+              : 'The scoreboard wakes up twenty minutes before kickoff.'}
         theme={C}
         numFont={NUM_FONT}
         accent={C.cyan}
@@ -245,10 +213,15 @@ export default function Live({ data, picks, live, onPlayerClick, setTab }) {
         ]}
       />
 
-      {/* The clock first, then the tiles. The ribbon answers when and how
-          exposed; the tiles answer what the score is. */}
-      {games.length > 0 && <SlateRibbon games={games} picks={picks} onGame={undefined} />}
-      {games.length ? <Scoreboard games={games} /> : <div className="tl-empty">No games on the slate yet.</div>}
+      {/* SlateRibbon (the block-schedule timeline) sat here through
+          2026-09-21 -- pulled per Donovan's page-by-page pass that day: it
+          answered "when," which Scoreboard's kickoff times already say, and
+          on a slate with most of the week final it read as clutter above the
+          thing people actually came for -- the scores. The component itself
+          is untouched (components/nfl/SlateRibbon.js) in case the exposure
+          concept it drew -- how many rungs ride on each game -- earns its
+          own spot later. */}
+      {games.length ? <GameScoreboard games={games} /> : <div className="tl-empty">No games on the slate yet.</div>}
 
       <section>
         <div className="tl-title"><div><small>THE CARD</small><h2>Every rung, against its bar</h2></div>{setTab && <button onClick={() => setTab('picks')}>Picks →</button>}</div>
@@ -345,19 +318,7 @@ export default function Live({ data, picks, live, onPlayerClick, setTab }) {
 
       <style>{`
       .tl{display:flex;flex-direction:column;gap:14px}
-            .tl-board{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}
-      .tl-game{padding:10px 12px;border:1px solid ${C.border};border-radius:12px;background:${C.bg2}}
-      .tl-game.is-live{border-color:rgba(53,205,255,.45);background:linear-gradient(155deg,rgba(53,205,255,.09),${C.bg2} 60%)}
-      .tl-game.is-rz{border-color:${C.yellow};box-shadow:0 0 0 1px rgba(250,204,21,.25)}
-      .tl-game-top{display:flex;justify-content:space-between;gap:6px;margin-bottom:6px;font:800 9px/1 ${NUM_FONT};color:${C.text3}}
-      .tl-state{display:inline-flex;align-items:center;gap:5px}.tl-game.is-live .tl-state{color:${C.cyan}}
-      .tl-state i{width:6px;height:6px;border-radius:99px;background:${C.cyan};box-shadow:0 0 6px ${C.cyan}}
-      .tl-pos{color:${C.yellow};text-align:right}
-      .tl-score{display:grid;grid-template-columns:1fr auto auto auto 1fr;align-items:baseline;gap:8px;font-family:${NUM_FONT}}
-      .tl-score span{font-size:12px;font-weight:800;color:${C.text2}}.tl-score span:last-child{text-align:right}
-      .tl-score span.has-ball{color:${C.yellow}}
-      .tl-score b{font-size:22px;font-weight:900;color:${C.text};min-width:26px;text-align:center}.tl-score em{font-style:normal;color:${C.text3}}
-      .tl-title{display:flex;align-items:flex-end;justify-content:space-between;margin:4px 2px 8px}
+            .tl-title{display:flex;align-items:flex-end;justify-content:space-between;margin:4px 2px 8px}
       .tl-title small{color:${C.green};font:900 8px/1 ${NUM_FONT};letter-spacing:.12em}.tl-title h2{margin:5px 0 0;font-size:17px;letter-spacing:-.02em}
       .tl-title button{border:1px solid ${C.border};border-radius:8px;background:transparent;color:${C.text2};padding:6px 10px;font:800 9px/1 ${NUM_FONT};cursor:pointer}
       .tl-blocks{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:9px}
