@@ -29,6 +29,7 @@ import Runs from './tabs/Runs'
 import RankedBoard from './tabs/RankedBoard'
 import PairHistory from './tabs/PairHistory'
 import SprayBoard from './tabs/SprayBoard'
+import PitcherMap from './tabs/PitcherMap'
 import PowerTab from './tabs/Power'
 import Derby from './tabs/Derby'
 import Backtest from './tabs/Backtest'
@@ -859,6 +860,7 @@ export default function Dashboard({ palettePass = 0 }) {
             {tab === 'derby'       && <Derby players={players} results={resultsForSlate} slateDate={slateDate} onPlayerClick={setModalPlayer} />}
             {tab === 'runs'        && <Runs players={allPlayers} onPlayerClick={setModalPlayer} />}
             {tab === 'spray'       && <SprayBoard players={players} slateMode={mode} onPlayerClick={setModalPlayer} />}
+            {tab === 'pitchermap'  && <PitcherMap players={players} />}
             {tab === 'guide'       && <Guide onNavigate={setTab} />}
             </ErrorBoundary>
           </div>
