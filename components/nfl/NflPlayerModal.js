@@ -10,6 +10,7 @@ import MatchupMap from './MatchupMap'
 import NflFace from './NflFace'
 import SourceSeason from './SourceSeason'
 import NflExplain from './NflExplain'
+import { statLabel } from '../../lib/nfl/statLabels'
 import DvpTable, { GROUP } from './DvpTable'
 import DvpDrift from './DvpDrift'
 import ChartFrame from './ChartFrame'
@@ -620,7 +621,13 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
                       the site, and a title= tooltip would have none on a phone
                       either. See lib/nfl/glossary.js. */}
                   <div style={{ fontSize: 8.5, color: C.text3, fontWeight: 800 }}>
-                    <NflExplain label={k} />
+                    {/* The SAME vocabulary the full profile uses, from
+                        lib/nfl/statLabels.js. These tiles printed the raw
+                        payload key while StatPortal expanded it, so the two
+                        surfaces named the same number differently. `term` is
+                        the raw key so the glossary still resolves whichever
+                        way the label is written. */}
+                    <NflExplain label={statLabel(k)} term={k} />
                   </div>
                   <div style={{
                     fontFamily: NUM_FONT, fontSize: 12, fontWeight: 800, color: C.text,
