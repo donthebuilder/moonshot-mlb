@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 import PlayerFace from './PlayerFace'
 import InjuryTag from './InjuryTag'
@@ -114,13 +115,43 @@ export function PlayerSheetButton({ player, weeks = [], scoring = 'ppr', classNa
   )
 }
 
+// ── THE SHEET IS A PORTAL, AND IT HAS TO BE (2026-09-20) ────────────────────
+//
+// Reported live on the Wire: tapping a player turned the screen black with no
+// panel on it. The panel was rendering the whole time -- 520x198, correct
+// colours, correct content -- at y=2766 in a 974px-tall window.
+//
+// .roomBody carries `animation: franchiseEnter .22s ease-out both`, whose
+// final keyframe is `transform: none`. An animation with fill mode `both`
+// RETAINS its end state, and a retained animated transform computes to
+// matrix(1,0,0,1,0,0) rather than to `none`. An identity matrix is still a
+// transform, and any transform makes the element a containing block for
+// `position: fixed` descendants -- permanently, since the fill never lets go.
+//
+// So `inset: 0` on the scrim resolved against a 5,516px-tall .roomBody instead
+// of the viewport: the scrim covered the whole document (which is why the
+// visible page dimmed, and why this read as "it goes black"), and
+// `align-items: flex-end` pinned the sheet to the bottom of the DOCUMENT,
+// thousands of pixels below the fold. Every Franchise page shares .roomBody,
+// so this was never a Wire bug.
+//
+// The fix is not to delete the entrance animation -- that is a real piece of
+// the product and the next transform anywhere up the tree would break this
+// again. An overlay simply does not belong inside the subtree it covers. It
+// portals to <body>, where nothing can redefine what `fixed` means. Tokens
+// still resolve (they are on :root) and player-sheet.css is global.
+//
+// Safe without a mounted guard because Sheet only ever renders behind
+// `open`, which starts false and is set by a click -- so it never runs during
+// SSR. The typeof check is belt and braces for a future caller.
 function Sheet({ entry, scoring, onClose }) {
   const { player, weeks = [] } = entry
   const latest = weeks[0] || null
   const lines = latest ? linesFor(latest.stats) : []
   const points = (row) => fantasyPointsFromStats(row?.stats || {}, scoring)
+  if (typeof document === 'undefined') return null
 
-  return (
+  return createPortal(
     <div className="fxSheetScrim" onClick={onClose} role="presentation">
       <section
         className="fxSheet"
@@ -185,6 +216,7 @@ function Sheet({ entry, scoring, onClose }) {
           </div>
         )}
       </section>
-    </div>
+    </div>,
+    document.body,
   )
 }
