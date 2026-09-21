@@ -48,6 +48,25 @@ import { useEffect, useState } from 'react'
 // does not need one.
 const ET = 'America/New_York'
 
+// ── RELATIVE MODE (2026-09-20) ──────────────────────────────────────────────
+// The Feed had its own ago() helper doing this in a server component, so the
+// "2m" every reader saw was the gap between the post and the moment Vercel
+// rendered the page -- frozen at render, and computed off the server's clock
+// rather than the reader's. That is the same class of bug the notes above
+// describe, so it gets the same fix rather than a second copy of it: the
+// server's string is the first paint, an effect recomputes it on the client,
+// and both sides compute it the same way so hydration has nothing to argue
+// about. See relTime(). Weeks and beyond fall back to a plain date, because
+// "63d" is not something anybody reads as a date.
+function relTime(date, now) {
+  const seconds = Math.max(1, Math.floor((now - date.getTime()) / 1000))
+  if (seconds < 60) return 'now'
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m`
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`
+  if (seconds < 604800) return `${Math.floor(seconds / 86400)}d`
+  return format(date, 'date', ET)
+}
+
 function format(date, mode, timeZone) {
   const zone = timeZone ? { timeZone } : {}
   if (mode === 'date') return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', ...zone })
@@ -56,19 +75,23 @@ function format(date, mode, timeZone) {
 }
 
 // A date needs no zone suffix -- "Sun, Sep 6" is not a clock reading.
-const stamp = (date, mode) => (mode === 'date' ? format(date, mode, ET) : `${format(date, mode, ET)} ET`)
+const stamp = (date, mode, now) => (
+  mode === 'relative' ? relTime(date, now)
+    : mode === 'date' ? format(date, mode, ET)
+    : `${format(date, mode, ET)} ET`)
 
 export default function LocalTime({ value, mode = 'time' }) {
   const date = value ? new Date(value) : null
   const valid = Boolean(date) && !Number.isNaN(date.getTime())
   // Server and first client render agree (both Eastern, explicitly); the effect
   // then re-renders in the viewer's own zone.
-  const [text, setText] = useState(() => (valid ? stamp(date, mode) : ''))
+  const [text, setText] = useState(() => (valid ? stamp(date, mode, Date.now()) : ''))
 
   useEffect(() => {
     if (!value) return
     const next = new Date(value)
     if (Number.isNaN(next.getTime())) return
+    if (mode === 'relative') { setText(relTime(next, Date.now())); return }
     setText(format(next, mode))
   }, [value, mode])
 

@@ -6985,3 +6985,110 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
      middle and read as one row of eight. */
   .receiptCols { gap: 20px; }
 }
+
+/* ── THE TAPE + THE FOLD (2026-09-20) ───────────────────────────────────────
+   The Feed's sidebar slot that used to restate a count now carries what
+   actually happened in the league, summed off finished games. A moment is a
+   glyph, a headline and one line of evidence -- the card is the story (rule
+   #9), not a row of a database table. */
+.tapeList {
+  display: flex;
+  flex-direction: column;
+}
+.tapeItem {
+  display: grid;
+  grid-template-columns: 26px 1fr;
+  align-items: start;
+  gap: 10px;
+  padding: 11px 14px;
+  border-top: 1px solid var(--fx-line-3);
+}
+.tapeItem:first-child {
+  border-top: 0;
+}
+.tapeItem>span {
+  font-size: 15px;
+  line-height: 1.2;
+}
+.tapeItem b {
+  display: block;
+  font-size: 12.5px;
+  line-height: 1.35;
+  letter-spacing: -.01em;
+  color: var(--fx-ink);
+}
+.tapeItem small {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--fx-dim);
+}
+/* One accent per meaning, never all at once (brand rule #3): orange for the
+   scoring events, cyan for the analytical run, and nothing for the rest. */
+.tapeItem[data-kind="season_high"] b,
+.tapeItem[data-kind="high_score"] b { color: var(--fx-accent); }
+.tapeItem[data-kind="hot"] b,
+.tapeItem[data-kind="cold"] b { color: var(--fx-ink); }
+
+/* A fold, not a scroll. Used wherever a list would otherwise push the thing
+   people came for off the bottom of a phone. */
+.moreFold {
+  border-top: 1px solid var(--fx-line-3);
+}
+.moreFold>summary {
+  padding: 9px 14px;
+  cursor: pointer;
+  font: 800 9px/1 monospace;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--fx-dim);
+  list-style: none;
+}
+.moreFold>summary::-webkit-details-marker { display: none; }
+.moreFold>summary::after {
+  content: " ▾";
+  color: var(--fx-accent);
+}
+.moreFold[open]>summary::after { content: " ▴"; }
+.moreFold>summary:hover { color: var(--fx-ink); }
+.commentList .moreFold {
+  border-top: 0;
+  border-bottom: 1px solid var(--fx-line-3);
+  margin-bottom: 6px;
+}
+.commentList .moreFold>summary { padding: 6px 0; }
+@media(max-width:760px) {
+  .tapeItem { padding: 10px 11px; gap: 9px; grid-template-columns: 22px 1fr; }
+  .tapeItem b { font-size: 12px; }
+  .tapeItem small { font-size: 10.5px; }
+  /* A 9px label with 10px of padding is a ~29px tap target. Folds are the
+     one control on this page that exists only for phones, so they get a real
+     one. */
+  .moreFold>summary {
+    display: flex;
+    align-items: center;
+    min-height: 42px;
+    padding: 0 11px;
+  }
+  .commentList .moreFold>summary { min-height: 38px; padding: 0; }
+}
+
+/* ── THE PHONE ORDER OF THE FEED (2026-09-20) ───────────────────────────────
+   .feedSide is order:-1 on a phone, which was right when the column held one
+   useful panel and wrong the moment it held two: THE TAPE and a roll call of
+   ten owners together put roughly a screen and a half above the first word
+   anybody said. The column is not a unit on a phone -- the tape is content
+   and belongs on top, the roll call is reference and belongs under the
+   conversation. display:contents dissolves the wrapper at this width so both
+   become grid items in their own right and can be ordered independently.
+   (The wrapper's own box carries no border or background, so dissolving it
+   loses nothing; .feedSide>section keeps styling them either way.) */
+@media(max-width:760px) {
+  .feedSide {
+    display: contents;
+  }
+  .feedLayout>.feedSide>.tapePanel { order: -1; }
+  .feedLayout>.feedSide>.rollCall { order: 1; }
+  .feedLayout { row-gap: 12px; }
+}
