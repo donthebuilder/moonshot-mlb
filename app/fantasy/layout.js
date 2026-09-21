@@ -35,6 +35,10 @@ export const metadata = {
 import ThemeSync from '../../components/fantasy/ThemeSync'
 // css-loader pure-selector fix, 2026-09-06 — see theme-tokens.css's own header
 import './theme-tokens.css'
+// The player sheet's styles, plain rather than modular for the same
+// pure-selector reason theme-tokens.css documents. Mounted from Wire today,
+// Team/Matchup/Trades next.
+import './player-sheet.css'
 
 export default function FantasyLayout({ children }) {
   return (

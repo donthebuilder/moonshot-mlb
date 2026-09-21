@@ -16,6 +16,7 @@ import { addFreeAgent, cancelWaiverClaim, dropPlayer, processWaivers, submitWaiv
 import NetworkSwitch from '../../../../../components/NetworkSwitch'
 import LeagueNav from '../../../../../components/fantasy/LeagueNav'
 import { loadPlayerCatalog } from '../../../../../lib/fantasy/playerCatalog'
+import { PlayerSheetProvider, PlayerSheetButton } from '../../../../../components/fantasy/PlayerSheet'
 
 const POSITIONS=['ALL','QB','RB','WR','TE','K','DEF']
 
@@ -89,6 +90,49 @@ export default async function WirePage({params,searchParams}) {
   const limit=Math.min(560,Math.max(PAGE,Math.round(Number(query?.limit)||PAGE)))
   const shownPlayers=availablePlayers.slice(0,limit)
   const moreHref=`/fantasy/league/${leagueId}/wire?position=${selectedPosition}${query?.q?`&q=${encodeURIComponent(String(query.q))}`:''}&limit=${limit+PAGE}`
+  // ── WHAT DID HE ACTUALLY DO? (2026-09-21) ──────────────────────────────
+  // nfl_player_week_stats has carried a real weekly line per player since the
+  // scoring feed shipped -- yards, touchdowns, catches, status -- and the
+  // Matchup and Team pages both read it. The Wire never did. So the one page
+  // you are on when deciding whether to ADD a man showed a projection and a
+  // market score and nothing he has actually produced.
+  //
+  // Scoped to the rows on screen and to a four-week window, not the whole
+  // catalog: 80 players x 4 weeks is a small read, where 577 x 18 is not, and
+  // the cut list already exists (PAGE/limit above). A wider window is a
+  // bigger query for a sheet nobody has opened yet.
+  const RECENT_WEEKS = 4
+  const firstWeek = Math.max(1, WEEK - (RECENT_WEEKS - 1))
+  const shownIds = shownPlayers.map((player) => player.id)
+  let recentStats = []
+  if (shownIds.length) {
+    const { data = [] } = await supabase
+      .from('nfl_player_week_stats')
+      .select('player_id,week,stats,status,projected_points,dash_score')
+      .in('player_id', shownIds)
+      .eq('season', FANTASY_SEASON)
+      .gte('week', firstWeek)
+      .lte('week', WEEK)
+    recentStats = data || []
+  }
+  // player id -> weeks, newest first. Built once here rather than filtered per
+  // row in the client: the sheet opens on one man and should not walk a
+  // 320-row array to find him.
+  const statsByPlayer = {}
+  for (const row of recentStats) {
+    (statsByPlayer[row.player_id] ||= []).push(row)
+  }
+  for (const rows of Object.values(statsByPlayer)) rows.sort((a, b) => b.week - a.week)
+
+  // What the sheet needs, keyed by id: the man and his recent weeks. Only the
+  // fields the sheet reads -- shipping the whole catalog row to the client
+  // would put 577 players' worth of columns in the HTML for a panel that opens
+  // one at a time.
+  const sheetData = Object.fromEntries(shownPlayers.map((player) => [player.id, {
+    player: { id: player.id, name: player.name, position: player.position, team: player.team, injury_status: player.injury_status, source_player_id: player.source_player_id },
+    weeks: statsByPlayer[player.id] || [],
+  }]))
+
   const waiverMap=new Map(safeAvailability.map((row)=>[row.player_id,row]))
   const safeClaims=claims||[]
   const myClaims=safeClaims.filter((claim)=>claim.team_id===myTeam?.id&&claim.status==='pending')
@@ -102,6 +146,7 @@ export default async function WirePage({params,searchParams}) {
       <section className={styles.wireHero}><div><p className={styles.panelLabel}>THE WIRE</p><h1>Find the next difference-maker.</h1><p>Free agents join immediately. Dropped players spend 24 hours on rolling-priority waivers.</p></div><div className={styles.roomStats}><span><small>PRIORITY</small><b>{myTeam?`#${safeTeams.findIndex((team)=>team.id===myTeam.id)+1}`:'—'}</b></span><span><small>CLAIMS</small><b>{myClaims.length}</b></span><span><small>ROSTER</small><b>{myRoster.length}/15</b></span></div></section>
       {league.commissioner_id===user.id&&<section className={styles.commishBar}><div><p className={styles.panelLabel}>COMMISSIONER</p><strong>{nextProcessing?`Next claims ${remaining(nextProcessing.process_after)}`:'No pending waiver run'}</strong><small>Claims clear on their own once their 24 hours are up, checked every 10 minutes. This runs them now.</small></div><form action={processWaivers}><input type="hidden" name="leagueId" value={leagueId}/><SubmitButton disabled={!nextProcessing} pendingLabel="Processing…">Process cleared claims</SubmitButton></form></section>}
       <div className={styles.wireLayout}>
+        <PlayerSheetProvider scoring={league.scoring} data={sheetData}>
         <section className={styles.playerBoard}>{/* #71 / #77: the draft board and this page printed the same unlabelled
               number and it meant two different things -- which is also why the same
               player rendered green on one and orange on the other. The board is
@@ -111,10 +156,11 @@ export default async function WirePage({params,searchParams}) {
           <div className={styles.boardHead}><div><p className={styles.panelLabel}>AVAILABLE PLAYERS</p><h2>Free agents &amp; waivers</h2><small className={styles.boardNote}>Ranked by this week&apos;s market score — how likely each man is to clear a prop on Sunday. That is a different question from the draft board, which ranks season value.</small></div><form className={styles.playerSearch}><input aria-label="Search players" name="q" defaultValue={query?.q||''} placeholder="Search player or team"/><input type="hidden" name="position" value={selectedPosition}/><button>Search</button></form><span>{availablePlayers.length} players</span></div>
           <div className={styles.positionFilters}>{POSITIONS.map((position)=><Link key={position} className={selectedPosition===position?styles.positionActive:''} aria-current={selectedPosition===position?'true':undefined} href={`/fantasy/league/${leagueId}/wire?position=${position}${query?.q?`&q=${encodeURIComponent(String(query.q))}`:''}`}>{position}</Link>)}</div>
           <div className={styles.wireColumns}><span>POS</span><span>PLAYER</span><span>PROJ</span><span>DASH</span><span>STATUS</span><span>MOVE</span></div>
-          {shownPlayers.map((player)=>{const waiver=waiverMap.get(player.id);const onWaivers=waiver&&new Date(waiver.waiver_until)>new Date();const action=onWaivers?submitWaiverClaim:addFreeAgent;return <form action={action} className={styles.wirePlayer} key={player.id}><span className={styles.positionTag}>{player.position}</span><div className={styles.playerIdentity}><PlayerFace player={player} size={32}/><span><b>{player.name}<InjuryTag status={player.injury_status}/></b><PlayerMeta player={player} game={gameForPlayer(schedule,player)} bye={isOnBye(player,byeTeams)} showPosition={false}/></span></div><span className={styles.wireProj} title={projectionIsPartial(player)?'The feed carries no passing touchdowns or defensive turnovers, so quarterback and defence projections are low.':`Projected ${player.projection.toFixed(1)} points this week under this league's scoring`}>{isOnBye(player,byeTeams)?'—':player.projection.toFixed(1)}{projectionIsPartial(player)&&!isOnBye(player,byeTeams)?<em className={styles.partialMark}>*</em>:null}<i>PROJ</i></span><strong className={player.priced?undefined:styles.dashUnpriced} title={player.priced?"This week's market score: how likely this man is to clear a prop on Sunday. Not points.":'No prop market priced this man this week — defences never have one. Sorted by projection instead.'}>{player.priced?player.dash_score:'—'}<i>DASH</i></strong><span className={onWaivers?styles.waiverStatus:styles.freeStatus}>{onWaivers?remaining(waiver.waiver_until):'FREE'}</span><div className={styles.wireMove}><select name="dropPlayerId" defaultValue=""><option value="">No drop</option>{myRoster.map((rosterPlayer)=><option value={rosterPlayer.id} key={rosterPlayer.id}>Drop {rosterPlayer.name}</option>)}</select><input type="hidden" name="leagueId" value={leagueId}/><input type="hidden" name="playerId" value={player.id}/><SubmitButton disabled={league.status!=='active'} pendingLabel="…">{onWaivers?'Claim':'Add'}</SubmitButton></div></form>})}
+          {shownPlayers.map((player)=>{const waiver=waiverMap.get(player.id);const onWaivers=waiver&&new Date(waiver.waiver_until)>new Date();const action=onWaivers?submitWaiverClaim:addFreeAgent;return <form action={action} className={styles.wirePlayer} key={player.id}><span className={styles.positionTag}>{player.position}</span><div className={styles.playerIdentity}><PlayerFace player={player} size={32}/><PlayerSheetButton playerId={player.id} className={styles.playerTap}><span><b>{player.name}<InjuryTag status={player.injury_status}/></b><PlayerMeta player={player} game={gameForPlayer(schedule,player)} bye={isOnBye(player,byeTeams)} showPosition={false}/></span></PlayerSheetButton></div><span className={styles.wireProj} title={projectionIsPartial(player)?'The feed carries no passing touchdowns or defensive turnovers, so quarterback and defence projections are low.':`Projected ${player.projection.toFixed(1)} points this week under this league's scoring`}>{isOnBye(player,byeTeams)?'—':player.projection.toFixed(1)}{projectionIsPartial(player)&&!isOnBye(player,byeTeams)?<em className={styles.partialMark}>*</em>:null}<i>PROJ</i></span><strong className={player.priced?undefined:styles.dashUnpriced} title={player.priced?"This week's market score: how likely this man is to clear a prop on Sunday. Not points.":'No prop market priced this man this week — defences never have one. Sorted by projection instead.'}>{player.priced?player.dash_score:'—'}<i>DASH</i></strong><span className={onWaivers?styles.waiverStatus:styles.freeStatus}>{onWaivers?remaining(waiver.waiver_until):'FREE'}</span><div className={styles.wireMove}><select name="dropPlayerId" defaultValue=""><option value="">No drop</option>{myRoster.map((rosterPlayer)=><option value={rosterPlayer.id} key={rosterPlayer.id}>Drop {rosterPlayer.name}</option>)}</select><input type="hidden" name="leagueId" value={leagueId}/><input type="hidden" name="playerId" value={player.id}/><SubmitButton disabled={league.status!=='active'} pendingLabel="…">{onWaivers?'Claim':'Add'}</SubmitButton></div></form>})}
           {!availablePlayers.length&&<p className={styles.emptyRoom}>No available players match this filter.</p>}
           {availablePlayers.length>0&&<p className={styles.wireMore}><span>Showing {shownPlayers.length} of {availablePlayers.length}</span>{availablePlayers.length>shownPlayers.length&&<Link href={moreHref}>Show {Math.min(PAGE,availablePlayers.length-shownPlayers.length)} more →</Link>}</p>}
         </section>
+        </PlayerSheetProvider>
         <aside className={styles.wireSide}>
         {/* ── DROP, WITHOUT HAVING TO ADD (2026-09-07) ────────────────────────
             Donovan: "removing players should be easier." Until tonight it was

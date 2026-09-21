@@ -6667,3 +6667,25 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   }
   .scoreVerdict em { font-size: 18px; }
 }
+
+/* The row's tap target for the player sheet (2026-09-21). A LOCAL class, so it
+   belongs in this module; the sheet's own rules are genuinely global and live
+   in player-sheet.css for the reason theme-tokens.css's header sets out --
+   css-loader's pure-selector check fails any rule in a .module.css with no
+   local class, and a standalone :global(...) rule is exactly that.
+   It has to look like the plain identity block it replaced -- a button that
+   announces itself in a dense list is noise -- while still being a real button
+   for the keyboard and the screen reader. */
+.playerTap {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.playerTap:hover b { text-decoration: underline }
