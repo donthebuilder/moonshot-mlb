@@ -9,7 +9,6 @@ import DvpDrift from '../DvpDrift'
 import SourceSeason from '../SourceSeason'
 import ChartFrame from '../ChartFrame'
 import { softRole, softLine, passRushThreat, PASS_RUSH_AVOID } from '../../../lib/nfl/dvpSignal'
-import MatchupBadge from '../MatchupBadge'
 
 // Matchups — pick a defence, then read it two ways.
 //
@@ -220,11 +219,12 @@ export default function Matchups({ matchup, data }) {
     .filter((p) => p.opp === active
       && (matchup?.field?.player_pass?.[p.player_id] || matchup?.field?.qb_pass?.[p.player_id]))
     .map((p) => {
-      // Same max-of-scores ranking as before, plus which market produced it
-      // -- MatchupBadge needs one specific market, not just "his best number".
-      const [bestMarket, best] = Object.entries(p.scores || { x: 0 })
-        .reduce((top, e) => (e[1] > top[1] ? e : top), ['', 0])
-      return { ...p, best, bestMarket }
+      // Ranked by best score across his markets -- the picker leads with the
+      // names worth checking. (Used to also track which market produced it,
+      // for a TARGET/AVOID badge here that Donovan didn't want; that badge
+      // is gone, this is back to just the number.)
+      const best = Object.values(p.scores || { x: 0 }).reduce((top, v) => Math.max(top, v), 0)
+      return { ...p, best }
     })
     .sort((a, b) => b.best - a.best)
     // 14 covered ~6 players facing a preseason defense. A real team's
@@ -313,7 +313,6 @@ export default function Matchups({ matchup, data }) {
               <button key={p.player_id} onClick={() => setPid(p.player_id)}
                       style={{ ...btnStyle(C.cyan, pid === p.player_id), display: 'flex', alignItems: 'center', gap: 5 }}>
                 {surname(p.name)} <span style={{ opacity: .6 }}>{p.position}</span>
-                <MatchupBadge matchup={matchup} player={p} market={p.bestMarket} />
               </button>
             ))}
           </div>
