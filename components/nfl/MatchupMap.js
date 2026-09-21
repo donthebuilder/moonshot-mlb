@@ -658,6 +658,11 @@ function PassField({ model, mode, compact }) {
           swallowed the heat they are supposed to sit on — rendering caught
           it, reading did not. 7% floor, 26% ceiling, area-proportional so a
           ring twice as wide really is four times the work. */}
+      {/* DASHED, NOT SOLID (2026-09-21). A smooth-alpha circle was the exact
+          vector-and-glow language the halftone revamp was trying to leave
+          behind, and it was sitting directly on top of the new dot texture.
+          Dashed reads as a mark on the print, not a UI shape underneath
+          one. */}
       {mode === 'player' && model.cells.map((c) => {
         if (c.share < 7) return null
         const [side, d] = c.z.split('|')
@@ -666,7 +671,7 @@ function PassField({ model, mode, compact }) {
           <div key={`r${c.z}`} title={c.tip} style={{
             position: 'absolute', top: `${MID(d)}%`, left: `${COL[side]}%`,
             width: `${size}%`, aspectRatio: '1 / 1', transform: 'translate(-50%,-50%)',
-            borderRadius: '50%', border: '1.5px solid rgba(255,255,255,.50)',
+            borderRadius: '50%', border: '1.5px dashed rgba(255,255,255,.6)',
             background: 'rgba(255,255,255,.045)',
           }} />
         )
@@ -683,8 +688,12 @@ function PassField({ model, mode, compact }) {
             transform: 'translate(-50%,-50%)', textAlign: 'center', width: 140,
           }}>
             <svg width="30" height="30" viewBox="0 0 30 30" style={{ display: 'block', margin: '0 auto 6px' }}>
-              <circle cx="15" cy="15" r="10" fill="none" stroke={C.red} strokeWidth="2" opacity="0.9" />
-              <circle cx="16" cy="14.3" r="10.6" fill="none" stroke={C.red} strokeWidth="1.1" opacity="0.45" />
+              {/* Cream, not red -- a red ring on the red dot field it sits on
+                  disappeared (checked live, the deep-right zone against a
+                  dense heat patch). This is ink circling the print, not
+                  more of the heat it's circling. */}
+              <circle cx="15" cy="15" r="10" fill="none" stroke={C.text} strokeWidth="2" opacity="0.95" />
+              <circle cx="16" cy="14.3" r="10.6" fill="none" stroke={C.text} strokeWidth="1.1" opacity="0.5" />
               <circle cx="15" cy="15" r="1.6" fill={C.red} />
             </svg>
             <span style={{
