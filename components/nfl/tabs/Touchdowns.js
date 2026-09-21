@@ -11,7 +11,8 @@ import MatchupBadge from '../MatchupBadge'
 import NflFace from '../NflFace'
 import { AnatomyStrip, reasonFor, baselineFor, topStatChips } from '../ScoreAnatomy'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
-import { FilterBar, FilterSearch, FilterSelect, FilterPill } from '../../Filters'
+import { ActiveFilters, FilterBar, FilterSearch, FilterSelect, FilterPill } from '../../Filters'
+import NflBoardFilters, { useNflBoardFilter } from '../NflBoardFilters'
 import MobileFold from '../../MobileFold'
 import TdCompare from '../TdCompare'
 
@@ -66,6 +67,25 @@ const SOFT_CAP = 60
 function ScoreBar({ score }) {
   const g = gradeFor(score)
   const pct = Math.max(4, Math.min(100, ((Number(score) || 0) - 30) / 50 * 100))
+  // One removable chip per narrowing dimension, bands included. Touchdowns had
+  // no chip row at all, so a tier or a team filter was invisible once you had
+  // scrolled past the control that set it.
+  const tdFilterChips = [
+    ...bandState.activeFilters,
+    query ? { key: 'q', label: `“${query}”`, onClear: () => setQuery('') } : null,
+    team !== 'all' ? { key: 'team', label: team, onClear: () => setTeam('all') } : null,
+    position !== 'all' ? { key: 'pos', label: position, onClear: () => setPosition('all') } : null,
+    tier !== 'everyone' ? { key: 'tier', label: tierPills.find((t) => t.key === tier)?.label || tier, onClear: () => setTier('everyone') } : null,
+    onlyPriced ? { key: 'priced', label: 'Priced', onClear: () => setOnlyPriced(false) } : null,
+    onlyUpcoming ? { key: 'upcoming', label: 'Not kicked off', onClear: () => setOnlyUpcoming(false) } : null,
+    onlyWatched ? { key: 'watch', label: 'Watchlist', onClear: () => setOnlyWatched(false) } : null,
+  ].filter(Boolean)
+  const clearTdFilters = () => {
+    bandState.reset()
+    setQuery(''); setTeam('all'); setPosition('all'); setTier('everyone')
+    setOnlyPriced(false); setOnlyUpcoming(false); setOnlyWatched(false)
+  }
+
   return (
     <span style={{
       position: 'relative', display: 'block', height: 4, borderRadius: 99,
@@ -237,9 +257,14 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
     { key: 'aligned', label: '🧩 Aligned', count: tierCounts.aligned, title: '2 or more of 3 real signals lining up: matchup, red-zone finisher, rising snap share.' },
   ]
 
+  // Same bands as Boards, on the same market this page is fixed to. They cut
+  // the pool before the ranking and before the soft cap, so a banded board
+  // promotes names off the bottom rather than only hiding rows.
+  const { filtered: bandFiltered, state: bandState } = useNflBoardFilter(rows, MARKET)
+
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase()
-    let out = rows
+    let out = bandFiltered
     if (position !== 'all') out = out.filter((p) => p.position === position)
     if (team !== 'all') out = out.filter((p) => p.team === team)
     if (needle) out = out.filter((p) => String(p.name || '').toLowerCase().includes(needle))
@@ -269,7 +294,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
         }
         : (a, b) => (b.scores[MARKET] ?? 0) - (a.scores[MARKET] ?? 0)
     return [...out].sort(cmp)
-  }, [rows, query, position, team, tier, onlyWatched, onlyUpcoming, onlyPriced, sortBy, matchup, watchlist, odds, data, now])
+  }, [bandFiltered, rows, query, position, team, tier, onlyWatched, onlyUpcoming, onlyPriced, sortBy, matchup, watchlist, odds, data, now])
 
   const capped = all ? filtered : filtered.slice(0, SOFT_CAP)
   const hidden = filtered.length - capped.length
@@ -304,7 +329,13 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
               other about their own controls, which is worse than either choice. */}
           <FilterSelect label="Team" value={team} options={teamOptions} onChange={setTeam} />
           <FilterSelect label="Position" value={position} options={positionOptions} onChange={setPosition} />
+          <NflBoardFilters state={bandState} total={rows.length} shown={filtered.length} />
         </FilterBar>
+        {Boolean(tdFilterChips.length) && (
+          <div style={{ marginTop: 8 }}>
+            <ActiveFilters filters={tdFilterChips} shown={filtered.length} total={rows.length} onClearAll={clearTdFilters} />
+          </div>
+        )}
       </div>
 
       {/* Says WHY there's no price on a card below, rather than every card
