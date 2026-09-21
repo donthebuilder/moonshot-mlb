@@ -210,8 +210,15 @@ export default function Matchups({ matchup, data }) {
 
   // Who's actually going at this defence on this card. Ranked by their best
   // score so the picker leads with the names worth checking.
+  //
+  // QBs joined the picker 2026-09-21. Before that this only matched
+  // field.player_pass, which is the RECEIVER's side of a target -- a QB
+  // never gets targeted, so he could never appear here no matter who you
+  // picked. field.qb_pass (bots/nfl/nfl_field.py) is his own throws, same
+  // shape, so the same filter now catches either side of the ball.
   const facing = useMemo(() => (data?.players || [])
-    .filter((p) => p.opp === active && matchup?.field?.player_pass?.[p.player_id])
+    .filter((p) => p.opp === active
+      && (matchup?.field?.player_pass?.[p.player_id] || matchup?.field?.qb_pass?.[p.player_id]))
     .map((p) => {
       // Same max-of-scores ranking as before, plus which market produced it
       // -- MatchupBadge needs one specific market, not just "his best number".
@@ -226,6 +233,11 @@ export default function Matchups({ matchup, data }) {
 
   const picked = facing.find((p) => p.player_id === pid) || null
   const role = picked ? matchup?.roles?.[picked.player_id] : null
+  // A QB reads from field.qb_pass (his own throws) rather than
+  // field.player_pass (who was thrown to) -- see MatchupMap's own "QB MODE"
+  // note. Gated on the key actually being there so this stays inert on any
+  // payload published before the bot run that adds it.
+  const qbMode = picked?.position === 'QB' && Boolean(matchup?.field?.qb_pass?.[picked.player_id])
 
   // Same "single softest cell" signal Games.js leads its defense-intel tiles
   // with (lib/nfl/dvpSignal.js) — THE MAP already ends on a one-sentence
@@ -313,6 +325,9 @@ export default function Matchups({ matchup, data }) {
             player={picked}
             mode={picked ? 'player' : 'def'}
             defaultView={picked?.position === 'RB' ? 'rush' : 'pass'}
+            qb={qbMode}
+            roleSignal={soft}
+            highlightRole={role}
           />
         </div>
       </Section>

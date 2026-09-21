@@ -1,6 +1,7 @@
 'use client'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/nfl/theme'
+import { softLine } from '../../lib/nfl/dvpSignal'
 import ChartFrame from './ChartFrame'
 
 // MatchupMap — his routes on their holes, drawn on the field it happens on.
@@ -60,6 +61,32 @@ import ChartFrame from './ChartFrame'
 //   SPOT is a hand-circled double-ring instead of a glow halo, the way a
 //   scout circles a name on a printed sheet. Same data, same layout, same
 //   field-is-the-chart idea. Different ink.
+//
+// ── REVAMP, PASS TWO (2026-09-21) ──────────────────────────────────────────
+// Donovan: "receiving yards like where the defense lacks... think about
+// rushing... QB passing." Three real gaps, no invented data for any of them
+// (football's play-by-play has no exact catch/tackle x/y the way Statcast
+// has for a batted ball — checked, not assumed):
+//
+//   ROLE READ. The map (WHERE they leak) and the DVP table (WHICH role
+//   burns them) have always been two separate reads on the same page. This
+//   pulls the real softRole() signal — already computed for the table below
+//   — up into the map itself, and says so when it's the same role the
+//   selected player actually plays, instead of leaving a reader to notice
+//   the coincidence themselves.
+//
+//   RUSHING GETS WEIGHT. The run strip only ever painted a flat colour per
+//   gap. It now draws a real dot for real volume — count per gap scaled off
+//   real carries (field.def_rush[z].att), phyllotaxis-packed so it reads as
+//   a natural scatter, not a grid. Same spray-chart *feeling* the pass
+//   field already had, without inventing a single carry.
+//
+//   QB MODE. Selecting a QB did nothing before today — field.player_pass
+//   has always been the RECEIVER's side, and a QB never gets targeted.
+//   bots/nfl/nfl_field.py now also publishes field.qb_pass, the same grid
+//   grouped by passer instead of receiver: where HE puts it, not where it
+//   landed relative to him. Needs a bot run to actually appear in the
+//   payload — wired defensively so it stays quiet until then.
 
 const SIDES = ['left', 'middle', 'right']
 const DEPTHS = ['deep', 'mid', 'short', 'behind']
@@ -122,6 +149,7 @@ const fmtPct = (n) => `${n > 0 ? '+' : ''}${Math.round(n)}%`
 
 export default function MatchupMap({
   field, player, team, mode = 'player', defaultView = 'pass', compact = false,
+  qb = false, roleSignal = null, highlightRole = null,
 }) {
   const rushable = mode === 'def'
     ? Boolean(field?.player_rush || field?.def_rush)
@@ -142,8 +170,11 @@ export default function MatchupMap({
 
     let src = null
     let sizeOf = null
+    // QB MODE: pass reads from qb_pass (his own throws) instead of
+    // player_pass (who was thrown to). Rush is untouched — a scramble is a
+    // carry either way, already correctly attributed by rusher_player_id.
     if (mode === 'player') {
-      src = (pass ? field.player_pass : field.player_rush)?.[player?.player_id]
+      src = (pass ? (qb ? field.qb_pass : field.player_pass) : field.player_rush)?.[player?.player_id]
       if (!src) return null
       const tot = zones.reduce((a, z) => a + (src[z]?.att || 0), 0)
       if (!tot) return null
@@ -164,6 +195,7 @@ export default function MatchupMap({
         : null
       const mine = mode === 'player' ? src[z] : null
       const where = pass ? phrase(z) : LANE_WORD[z]
+      const unit = qb ? 'throws' : (pass ? 'targets' : 'carries')
 
       // TD LEAK. Same shape as the yards leak above, off the same payload
       // (dz.td / lz.td, published alongside .att and .yds all along) —
@@ -179,8 +211,8 @@ export default function MatchupMap({
         : null
       const tdLine = att >= MIN_DEF_ATT
         ? (tdN
-          ? `${tdN} TD${tdN === 1 ? '' : 's'} on ${att} ${pass ? 'targets' : 'carries'}${Number.isFinite(tdLeak) && tdLeak > 15 ? ` — ${fmtPct(tdLeak)} vs a normal defence` : ''}`
-          : `No touchdowns there yet on ${att} ${pass ? 'targets' : 'carries'}`)
+          ? `${tdN} TD${tdN === 1 ? '' : 's'} on ${att} ${unit}${Number.isFinite(tdLeak) && tdLeak > 15 ? ` — ${fmtPct(tdLeak)} vs a normal defence` : ''}`
+          : `No touchdowns there yet on ${att} ${unit}`)
         : null
 
       return {
@@ -192,7 +224,7 @@ export default function MatchupMap({
             ? `${defTeam} give up ${fmtPct(leak)} vs a normal defence here`
             : `${defTeam}: too few plays here to call it`,
           mode === 'player'
-            ? `${player?.name}: ${mine?.att || 0} of his ${pass ? 'targets' : 'carries'} (${share.toFixed(1)}%)`
+            ? `${player?.name}: ${mine?.att || 0} of his ${unit} (${share.toFixed(1)}%)`
             : `${dz?.yds || 0} yards allowed — ${share.toFixed(1)}% of everything they give up`,
           tdLine,
         ].filter(Boolean).join('\n'),
@@ -207,7 +239,7 @@ export default function MatchupMap({
       if (!spot || v > spot.v) spot = { ...c, v }
     }
     return { cells, by: Object.fromEntries(cells.map((c) => [c.z, c])), spot, metric }
-  }, [field, defTeam, player, mode, pass])
+  }, [field, defTeam, player, mode, pass, qb])
 
   function phrase(z) {
     const [side, d] = z.split('|')
@@ -291,7 +323,7 @@ export default function MatchupMap({
               ) : (
                 <><b style={{ color: C.text }}>{player?.name}</b> takes{' '}
                 <b style={{ color: C.text }}>{spot.share.toFixed(0)}%</b> of his{' '}
-                {pass ? 'targets' : 'carries'} right there — the one place{' '}
+                {qb ? 'throws' : (pass ? 'targets' : 'carries')} right there — the one place{' '}
                 {defTeam} give up <b style={{ color: C.text }}>{fmtPct(spot.leak)} more</b> than a
                 normal defence.</>
               )}
@@ -323,6 +355,35 @@ export default function MatchupMap({
           </div>
         )}
       </div>
+
+      {/* ── THE SAME STORY FROM THE ROLE SIDE ────────────────────────────
+          softRole() is real, already computed for the DVP table further
+          down this page — this just stops making a reader scroll down and
+          notice the coincidence themselves when it lines up with what the
+          zone map is already saying. */}
+      {roleSignal && (
+        <div style={{
+          marginBottom: 10, padding: '9px 13px', borderRadius: 10,
+          border: `1px solid ${C.border}`, background: 'rgba(255,255,255,.02)',
+          fontSize: compact ? 11 : 12, color: C.text2, lineHeight: 1.6,
+        }}>
+          <span style={{
+            fontFamily: NUM_FONT, fontSize: 9, fontWeight: 900, letterSpacing: '.1em',
+            color: C.text3, marginRight: 7,
+          }}>ROLE READ</span>
+          {roleSignal.standout ? (
+            <>
+              <b style={{ color: C.text }}>{defTeam}</b> {softLine(roleSignal)}
+              {highlightRole && highlightRole === roleSignal.role
+                ? <> — the same role {player?.name || 'he'} plays.</>
+                : '.'}
+            </>
+          ) : (
+            <>No role stands out for <b style={{ color: C.text }}>{defTeam}</b> league-wide
+            either — nothing they give up by position is far enough above average to call.</>
+          )}
+        </div>
+      )}
 
       <ChartFrame accent={C.green} live={Boolean(spot)}
         pad={compact ? '12px 12px 10px' : '15px 16px 13px'}
@@ -555,6 +616,14 @@ function PassField({ model, mode, compact }) {
    ──────────────────────────────────────────────────────────────────────── */
 function RunLine({ model, compact }) {
   const { spot } = model
+  // REAL WEIGHT ON THE RUN SIDE (2026-09-21). One dot per slice of real
+  // carries in that gap, phyllotaxis-packed (the golden-angle spiral a
+  // sunflower's seeds use) so it reads as an organic scatter rather than a
+  // grid — the same spray-chart density the pass field already had, built
+  // off field.def_rush[z].att, nothing invented. Scaled against the
+  // busiest gap on THIS defence, so the picture is relative to them, not
+  // to some league max that would leave every gap looking empty.
+  const maxAtt = Math.max(1, ...LANES.map((z) => model.by[z]?.att || 0))
   return (
     <div style={{
       borderRadius: 12, overflow: 'hidden', background: TURF,
@@ -601,6 +670,21 @@ function RunLine({ model, compact }) {
                     backgroundSize: `${9 - c.heat * 3}px ${9 - c.heat * 3}px`,
                   }} />
                 )}
+                {c.att > 0 && Array.from({
+                  length: Math.max(3, Math.round((c.att / maxAtt) * (compact ? 26 : 36))),
+                }).map((_, i, arr) => {
+                  const ang = i * 2.399963 // golden angle, radians
+                  const r = Math.sqrt((i + 0.5) / arr.length)
+                  const x = 50 + Math.cos(ang) * r * 42
+                  const y = 50 + Math.sin(ang) * r * 42
+                  return (
+                    <span key={i} aria-hidden style={{
+                      position: 'absolute', left: `${x}%`, top: `${y}%`, width: 2.4, height: 2.4,
+                      borderRadius: '50%', background: 'rgba(255,255,255,.5)',
+                      transform: 'translate(-50%,-50%)',
+                    }} />
+                  )
+                })}
                 {c.tdN > 0 && (
                   <span style={{
                     position: 'absolute', top: 4, right: 4, fontFamily: NUM_FONT, fontSize: 7,
