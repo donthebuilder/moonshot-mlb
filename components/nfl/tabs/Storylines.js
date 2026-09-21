@@ -126,7 +126,7 @@ export default function Storylines({ data, logs, results, onPlayerClick, setTab 
           {modelCards.map((c) => (
             <Row
               key={`model-${c.pid}-${c.weekKey}`}
-              icon="\u{1F3AF}"
+              icon={"\u{1F3AF}"}
               onClick={() => onPlayerClick?.(c.player, c.hitMarket)}
               title={`Priced ${fmtBar(c.missBar)} ${NOUN[c.missMarket] || c.missMarket}, went ${fmtBar(c.missActual)} — GRADED, ${weekLabel(c.week).toUpperCase()}.`}
             >
@@ -167,7 +167,7 @@ export default function Storylines({ data, logs, results, onPlayerClick, setTab 
         <div className="sl-feed">
           <div className="sl-section-head">BIRTHDAYS</div>
           {bdays.map(({ player, age }) => (
-            <Row key={`bd-${player.player_id}`} icon="\u{1F382}" onClick={() => onPlayerClick?.(player)}>
+            <Row key={`bd-${player.player_id}`} icon={"\u{1F382}"} onClick={() => onPlayerClick?.(player)}>
               <Name>{player.name}</Name> turns <Num>{age}</Num> today
               <span className="sl-row-meta"> · {player.team} {player.position}</span>
             </Row>
