@@ -56,8 +56,16 @@
 .fxSheetHead { display: flex; align-items: center; gap: 11px }
 .fxSheetHead b { display: block; font-size: 14px }
 .fxSheetHead small { display: block; margin-top: 3px; color: var(--fx-dim); font: 9px/1 monospace }
+/* 22px tall was not a tap target (2026-09-20). On a phone this is the only
+   way out of the sheet besides the scrim -- there is no Escape key -- so it
+   gets a real one. Measured, not guessed. */
 .fxSheetHead button {
   margin-left: auto;
+  display: flex;
+  align-items: center;
+  min-height: 40px;
+  min-width: 46px;
+  justify-content: center;
   padding: 5px 10px;
   border: 1px solid var(--fx-line-3);
   border-radius: 8px;

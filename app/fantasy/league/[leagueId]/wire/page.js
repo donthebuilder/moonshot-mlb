@@ -95,7 +95,12 @@ export default async function WirePage({params,searchParams}) {
   // is not a page anyone wants on a phone -- but it now says so where it
   // happens, and grows by a link rather than not at all. Query param, not
   // client state: this page has no client JS and does not need any.
-  const PAGE=80
+  // 40, not 80 (2026-09-20, Donovan: "drop to 40"). The Wire was the heaviest
+  // page on the site -- ~1MB of HTML -- and half of what is left after the
+  // payload fix is simply the React tree for the rows themselves. Forty rows
+  // is still more than anyone scrolls in one go on a phone, and "Show 40 more"
+  // was already the way to see the rest.
+  const PAGE=40
   const limit=Math.min(560,Math.max(PAGE,Math.round(Number(query?.limit)||PAGE)))
   const RECENT_WEEKS = 4
   const firstWeek = Math.max(1, WEEK - (RECENT_WEEKS - 1))

@@ -15,6 +15,8 @@ import { PlayerSheetButton } from '../../../../../components/fantasy/PlayerSheet
 import { buildSheetData } from '../../../../../lib/fantasy/sheetEntry'
 import { FANTASY_SEASON, resolveFantasyWeek } from '../../../../../lib/fantasy/week'
 
+const TRADE_LIMIT=50
+
 export default async function TradesPage({params,searchParams}) {
   const [{leagueId},query]=await Promise.all([params,searchParams])
   const selectedTeamId=String(query?.team||'')
@@ -27,7 +29,13 @@ export default async function TradesPage({params,searchParams}) {
     supabase.from('fantasy_league_memberships').select('role').eq('league_id',leagueId).eq('user_id',user.id).single(),
     supabase.from('fantasy_teams').select('*').eq('league_id',leagueId).order('created_at'),
     supabase.from('fantasy_roster_entries').select('team_id,player:nfl_players(id,name,position,team,injury_status,source_payload,source_player_id)').eq('league_id',leagueId).is('released_at',null),
-    supabase.from('fantasy_trades').select('*,items:fantasy_trade_items(*,player:nfl_players(id,name,position,team))').eq('league_id',leagueId).order('created_at',{ascending:false}),
+    // LIMITED (2026-09-20). This read had no bound: every trade ever proposed
+    // in the league, each with its items and a player join, fetched and
+    // rendered in full. It only grows, and a commissioner sees EVERY owner's
+    // offers -- so the page got slower and longer all season with nothing
+    // saying so. Fifty is far more than anyone scrolls; the count beside the
+    // heading says when the list has been cut.
+    supabase.from('fantasy_trades').select('*,items:fantasy_trade_items(*,player:nfl_players(id,name,position,team))').eq('league_id',leagueId).order('created_at',{ascending:false}).limit(TRADE_LIMIT),
   ])
   if(!league||!membership)notFound()
   const teams=teamRows||[]
@@ -67,7 +75,17 @@ export default async function TradesPage({params,searchParams}) {
   // browser -- see lib/fantasy/sheetEntry.js for what that was costing.
   const sheetData = buildSheetData([...myRoster, ...targetRoster], tradeWeeksByPlayer, league.scoring)
 
+  // Live offers first: a pending deal is the thing you came to act on, and it
+  // must never be the one folded away.
   const relevant=trades.filter((trade)=>trade.proposer_team_id===myTeam?.id||trade.recipient_team_id===myTeam?.id||league.commissioner_id===user.id)
+  // Pending offers always show; settled history previews and folds. Donovan's
+  // standing rule is that a long list must preview a few rows everywhere it
+  // appears -- this page comes FIRST on a phone once it has any history.
+  const TRADE_PREVIEW=6
+  const pendingTrades=relevant.filter((trade)=>trade.status==='pending')
+  const settledTrades=relevant.filter((trade)=>trade.status!=='pending')
+  const shownTrades=[...pendingTrades,...settledTrades].slice(0,Math.max(TRADE_PREVIEW,pendingTrades.length))
+  const foldedTrades=[...pendingTrades,...settledTrades].slice(shownTrades.length)
   // A member cannot review anything, so "3 awaiting review" in their header was
   // a number about somebody else's job. Commissioners still see it.
   const reviewCount=league.commissioner_id===user.id?trades.filter((trade)=>trade.status==='accepted').length:0
@@ -80,7 +98,7 @@ export default async function TradesPage({params,searchParams}) {
       <section className={styles.tradeHero}><div><p className={styles.panelLabel}>TRADE DESK</p><h1>Build a deal. Make both teams better.</h1><p>Owners agree first. The commissioner reviews the final deal before any roster changes occur.</p></div><div className={styles.roomStats}><span><small>ACTIVE</small><b>{relevant.filter((trade)=>['pending','accepted'].includes(trade.status)).length}</b></span><span><small>REVIEW</small><b>{reviewCount}</b></span><span><small>DONE</small><b>{relevant.filter((trade)=>trade.status==='completed').length}</b></span></div></section>
       {!otherTeams.length&&<section className={styles.waitingRoom}><span>⇄</span><div><p className={styles.panelLabel}>TRADE PARTNERS</p><strong>Another owner needs to join first.</strong><small>Trade offers unlock as soon as the league has at least two teams with players.</small></div></section>}
       {otherTeams.length>0&&<section className={styles.tradeBuilder}><div className={styles.tradeBuilderHead}><div><p className={styles.panelLabel}>NEW OFFER</p><h2>Propose a trade</h2></div><form><label>Trade partner<select name="team" defaultValue={target?.id}>{otherTeams.map((team)=><option value={team.id} key={team.id}>{team.name}</option>)}</select></label><SubmitButton pendingLabel="Loading…">Load roster</SubmitButton></form></div><form action={proposeTrade}><div className={styles.tradeSides}><PlayerSelect title={`${myTeam?.name} sends`} name="offeredPlayerIds" players={myRoster} sheet={sheetData} scoring={league.scoring}/><span className={styles.tradeArrow}>⇄</span><PlayerSelect title={`${target?.name} sends`} name="requestedPlayerIds" players={targetRoster} sheet={sheetData} scoring={league.scoring}/></div><div className={styles.tradeNote}><input type="hidden" name="leagueId" value={leagueId}/><input type="hidden" name="recipientTeamId" value={target?.id}/><input name="note" maxLength="280" placeholder="Optional note to the other owner"/><SubmitButton disabled={!myRoster.length||!targetRoster.length} pendingLabel="Sending…">Send offer</SubmitButton></div></form></section>}
-      <section className={styles.tradeHistory}><div className={styles.boardHead}><div><p className={styles.panelLabel}>LEAGUE OFFERS</p><h2>Trade activity</h2></div><span>{relevant.length} deals</span></div>{relevant.map((trade)=><TradeCard trade={trade} teams={teams} myTeam={myTeam} commissioner={league.commissioner_id===user.id} leagueId={leagueId} key={trade.id}/>)}{!relevant.length&&<p className={styles.emptyRoom}>No trade offers yet.</p>}</section>
+      <section className={styles.tradeHistory}><div className={styles.boardHead}><div><p className={styles.panelLabel}>LEAGUE OFFERS</p><h2>Trade activity</h2></div><span>{relevant.length} deals</span></div>{shownTrades.map((trade)=><TradeCard trade={trade} teams={teams} myTeam={myTeam} commissioner={league.commissioner_id===user.id} leagueId={leagueId} key={trade.id}/>)}{foldedTrades.length>0&&<details className={styles.moreFold}><summary>{foldedTrades.length} older {foldedTrades.length===1?'offer':'offers'}</summary>{foldedTrades.map((trade)=><TradeCard trade={trade} teams={teams} myTeam={myTeam} commissioner={league.commissioner_id===user.id} leagueId={leagueId} key={trade.id}/>)}</details>}{!relevant.length&&<p className={styles.emptyRoom}>No trade offers yet.</p>}</section>
     </div>
   </main>
 }
