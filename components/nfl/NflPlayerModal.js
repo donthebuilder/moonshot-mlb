@@ -193,6 +193,106 @@ function CoverageAndExplosive({ player, matchup }) {
   )
 }
 
+// ── THE FILE (2026-09-21) ───────────────────────────────────────────────────
+//
+// Donovan: the NFL card "sucks and has no data". It was not short of sections
+// -- score anatomy, per-game stats, a hit-rate grid, splits, coverage. It was
+// short of the plain facts you open a player card to read, and the reason is
+// specific and checkable: NINE fields ship on 100% of players in every slate
+// payload, every one of them is read somewhere else on the site, and the card
+// read ZERO of them.
+//
+//   games_since_last_td   read only by StatPortal
+//   season_td             Numerology, alignments, both tweet feeds
+//   jersey_number         Numerology, alignments, both tweet feeds
+//   birth_date            Storylines, Numerology, alignments
+//   espn_id               Boards, NflFace
+//   high_confidence_td_flag  TdCompare, Games, Touchdowns, YourPlayers
+//   coverage_mismatch_tag    dvpSignal
+//   coverage_mismatch_detail NOBODY, anywhere
+//
+// TWO OF THEM ARE DELIBERATELY STILL NOT HERE, because adding them would be
+// decoration rather than information:
+//
+//   high_confidence_td_flag is `TD score >= 78` and nothing else
+//   (nfl_bot.py) -- the exact A+ cutoff gradeFor() already applies to the
+//   score printed at the top of this card. A badge for it would restate the
+//   grade in a second shape (#6).
+//   coverage_mismatch_tag/detail is the bot's frozen version of the man-vs-
+//   zone story CoverageAndExplosive already tells from the matchup payload,
+//   on the Matchup tab. Two verdicts on one question is worse than one.
+//   (`coverage_mismatch_detail` having no reader anywhere is logged instead.)
+//
+// SINCE LAST TD NEEDS ITS CAVEAT SAID OUT LOUD. The bot walks his log
+// backwards and counts games until it finds one with a touchdown; if it never
+// finds one, the count is simply the length of the log. So the maximum value
+// does not mean "a long drought after a score" -- it means "no touchdown in
+// any game we hold". The log is already in this component, so the card can
+// tell those two apart instead of printing a number that reads as the first.
+// Whole years, from the published birth_date. Client-only component, so
+// there is no server/client clock split to worry about here.
+function ageOf(birth) {
+  if (!birth) return null
+  const d = new Date(birth)
+  if (Number.isNaN(d.getTime())) return null
+  const now = new Date()
+  let age = now.getFullYear() - d.getFullYear()
+  const m = now.getMonth() - d.getMonth()
+  if (m < 0 || (m === 0 && now.getDate() < d.getDate())) age -= 1
+  return age > 0 && age < 70 ? age : null
+}
+
+function Fact({ label, term, value, sub, accent }) {
+  return (
+    <div style={{
+      flex: '1 1 96px', minWidth: 96, padding: '8px 10px',
+      border: `1px solid ${C.border}`, borderRadius: 9,
+      background: 'rgba(255,255,255,.02)',
+    }}>
+      <div style={{ fontSize: 8.5, color: C.text3, fontWeight: 800, letterSpacing: '.06em' }}>
+        {term ? <NflExplain label={label} term={term} /> : label}
+      </div>
+      <div style={{ fontFamily: NUM_FONT, fontSize: 16, fontWeight: 900, color: accent || C.text, marginTop: 4 }}>{value}</div>
+      {sub && <div style={{ fontSize: 8.5, color: C.text3, marginTop: 3, lineHeight: 1.35 }}>{sub}</div>}
+    </div>
+  )
+}
+
+function TheFile({ player, log }) {
+  const games = Array.isArray(log) ? log.length : null
+  const since = Number.isFinite(player?.games_since_last_td) ? player.games_since_last_td : null
+  const seasonTd = Number.isFinite(player?.season_td) ? player.season_td : null
+  // The max-value case: he has no touchdown anywhere in the logged window.
+  const never = since != null && games != null && since >= games
+  if (since == null && seasonTd == null && !games) return null
+
+  return (
+    <>
+      <div style={{
+        fontSize: 10, fontWeight: 900, color: C.text3, letterSpacing: '.1em',
+        margin: '16px 0 7px',
+      }}>THE FILE</div>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <Fact
+          label="SINCE LAST TD" term="since last td"
+          value={since == null ? '—' : never ? 'NONE' : since}
+          accent={since === 0 ? C.green : undefined}
+          sub={since == null ? 'no game log for him'
+            : never ? `no TD in ${games} logged game${games === 1 ? '' : 's'}`
+            : since === 0 ? 'scored last time out'
+            : `game${since === 1 ? '' : 's'} without one`}
+        />
+        <Fact label="SEASON TD" term="season td"
+          value={seasonTd == null ? '—' : seasonTd}
+          sub={seasonTd == null ? 'not published for him' : 'this season'} />
+        <Fact label="LOGGED GAMES" term="logged games"
+          value={games || '—'}
+          sub={games ? 'every rate here is over these' : 'no play-by-play held'} />
+      </div>
+    </>
+  )
+}
+
 function Head({ children }) {
   return (
     <div style={{
@@ -513,7 +613,12 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
             <div>
             <div style={{ fontSize: 17, fontWeight: 900, color: C.text }}>{player.name}</div>
             <div style={{ fontSize: 11, color: C.text3, fontFamily: NUM_FONT, marginTop: 1 }}>
+              {/* #number and age, both published on >92% of players and shown
+                  nowhere on this card until now. Age is derived from
+                  birth_date, which Storylines and Numerology already read. */}
+              {player.jersey_number ? `#${player.jersey_number} · ` : ''}
               {player.position} · {player.team}{player.opp ? ` vs ${player.opp}` : ''}
+              {ageOf(player.birth_date) ? ` · ${ageOf(player.birth_date)}` : ''}
               {injuryTag(player) && (
                 <span title={injuryTitle(injuryTag(player))}
                       style={{ color: injuryColor(injuryTag(player), C), fontWeight: 900 }}>
@@ -602,6 +707,10 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
         {tab === 'overview' && <>
         <VerdictStamp player={player} results={results} bars={Object.fromEntries((markets || []).map((m) => [m.key, Number(m.bar)]))} />
         <PutOnCard player={player} market={market} picks={picks} slate={slate} />
+        {/* Plain facts before the analysis. The score anatomy below explains
+            why the model likes him; this says who he is and what he has
+            actually done, which is what the card was missing entirely. */}
+        <TheFile player={player} log={logs?.logs?.[player.player_id]?.log} />
         </>}
 
         {tab === 'matchup' && <>
