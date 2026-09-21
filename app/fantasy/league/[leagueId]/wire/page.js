@@ -17,8 +17,14 @@ import NetworkSwitch from '../../../../../components/NetworkSwitch'
 import LeagueNav from '../../../../../components/fantasy/LeagueNav'
 import { loadPlayerCatalog } from '../../../../../lib/fantasy/playerCatalog'
 import { PlayerSheetButton } from '../../../../../components/fantasy/PlayerSheet'
+import PlayerForm from '../../../../../components/fantasy/PlayerForm'
+import { formRank, playerForm } from '../../../../../lib/fantasy/form'
 
 const POSITIONS=['ALL','QB','RB','WR','TE','K','DEF']
+// How the board is ranked. DASH is the market score this page shipped with;
+// FORM ranks on points actually scored in the last four weeks, which is the
+// "hot players and not hot" question the market score cannot answer.
+const SORTS={dash:'DASH SCORE',form:'RECENT FORM',proj:'PROJECTION'}
 
 function remaining(until) {
   const ms=new Date(until).getTime()-Date.now()
@@ -73,6 +79,8 @@ export default async function WirePage({params,searchParams}) {
   const requestedPosition=String(query?.position??query?.pos??'').trim().toUpperCase()
   const selectedPosition=POSITIONS.includes(requestedPosition)?requestedPosition:'ALL'
   const search=String(query?.q||'').trim().toLowerCase().slice(0,40)
+  const requestedSort=String(query?.sort||'').trim().toLowerCase()
+  const selectedSort=Object.keys(SORTS).includes(requestedSort)?requestedSort:'dash'
   const availablePlayers=safePlayers.map((player)=>({...player,dash_score:dashScore(player),priced:hasMarketScore(player),projection:projectedFantasyPoints(player,league.scoring)||0}))
     .filter((player)=>!rosteredIds.has(player.id))
     .filter((player)=>selectedPosition==='ALL'||player.position===selectedPosition)
@@ -88,28 +96,41 @@ export default async function WirePage({params,searchParams}) {
   // client state: this page has no client JS and does not need any.
   const PAGE=80
   const limit=Math.min(560,Math.max(PAGE,Math.round(Number(query?.limit)||PAGE)))
-  const shownPlayers=availablePlayers.slice(0,limit)
-  const moreHref=`/fantasy/league/${leagueId}/wire?position=${selectedPosition}${query?.q?`&q=${encodeURIComponent(String(query.q))}`:''}&limit=${limit+PAGE}`
+  const RECENT_WEEKS = 4
+  const firstWeek = Math.max(1, WEEK - (RECENT_WEEKS - 1))
+  // ── RANKING THE WIRE (2026-09-20) ─────────────────────────────────────────
+  // Donovan: "should also be a cool moving power ranking thing to help pick
+  // hot players and not hot." DASH and PROJ can both be ordered from the
+  // catalog row alone, so those two sort before the stat read and the read
+  // covers exactly the page being shown. FORM cannot: ranking on what men
+  // have scored means knowing what they scored, so it reads a pool first and
+  // ranks it afterwards.
+  //
+  // The pool is capped. 577 free agents x 4 weeks would be a large read and a
+  // query string of 577 uuids, on a page that shows 80 rows. Capping at the
+  // top 160 by market score (or the page size, whichever is larger, so paging
+  // still widens it) keeps the read bounded, and where the cap actually bites
+  // the board note says so rather than implying the ranking is league-wide.
+  // With a position filter on, the pool is usually the whole list.
+  const FORM_POOL = Math.max(limit, 160)
+  const marketOrder = availablePlayers
+  const projOrder = [...availablePlayers].sort((a,b)=>b.projection-a.projection||b.dash_score-a.dash_score||a.name.localeCompare(b.name))
+  const baseOrder = selectedSort==='proj'?projOrder:marketOrder
+  const statsPool = selectedSort==='form' ? marketOrder.slice(0,FORM_POOL) : baseOrder.slice(0,limit)
+  const formPoolCapped = selectedSort==='form' && availablePlayers.length > FORM_POOL
   // ── WHAT DID HE ACTUALLY DO? (2026-09-21) ──────────────────────────────
   // nfl_player_week_stats has carried a real weekly line per player since the
   // scoring feed shipped -- yards, touchdowns, catches, status -- and the
   // Matchup and Team pages both read it. The Wire never did. So the one page
   // you are on when deciding whether to ADD a man showed a projection and a
   // market score and nothing he has actually produced.
-  //
-  // Scoped to the rows on screen and to a four-week window, not the whole
-  // catalog: 80 players x 4 weeks is a small read, where 577 x 18 is not, and
-  // the cut list already exists (PAGE/limit above). A wider window is a
-  // bigger query for a sheet nobody has opened yet.
-  const RECENT_WEEKS = 4
-  const firstWeek = Math.max(1, WEEK - (RECENT_WEEKS - 1))
-  const shownIds = shownPlayers.map((player) => player.id)
+  const poolIds = statsPool.map((player) => player.id)
   let recentStats = []
-  if (shownIds.length) {
+  if (poolIds.length) {
     const { data = [] } = await supabase
       .from('nfl_player_week_stats')
       .select('player_id,week,stats,status,projected_points,dash_score')
-      .in('player_id', shownIds)
+      .in('player_id', poolIds)
       .eq('season', FANTASY_SEASON)
       .gte('week', firstWeek)
       .lte('week', WEEK)
@@ -123,7 +144,17 @@ export default async function WirePage({params,searchParams}) {
     (statsByPlayer[row.player_id] ||= []).push(row)
   }
   for (const rows of Object.values(statsByPlayer)) rows.sort((a, b) => b.week - a.week)
-
+  const formByPlayer = {}
+  for (const player of statsPool) formByPlayer[player.id] = playerForm(statsByPlayer[player.id] || [], league.scoring, WEEK, RECENT_WEEKS)
+  // A man with no played week ranks -1, behind everyone with a record: no
+  // record is not the same as a good one (see formRank).
+  const orderedPlayers = selectedSort==='form'
+    ? [...statsPool].sort((a,b)=>formRank(formByPlayer[b.id])-formRank(formByPlayer[a.id])||b.dash_score-a.dash_score||a.name.localeCompare(b.name))
+    : baseOrder
+  const shownPlayers=orderedPlayers.slice(0,limit)
+  const keep=`position=${selectedPosition}${query?.q?`&q=${encodeURIComponent(String(query.q))}`:''}`
+  const moreHref=`/fantasy/league/${leagueId}/wire?${keep}&sort=${selectedSort}&limit=${limit+PAGE}`
+  const sortHref=(key)=>`/fantasy/league/${leagueId}/wire?${keep}&sort=${key}`
   // What the sheet needs, keyed by id: the man and his recent weeks. Only the
   // fields the sheet reads -- shipping the whole catalog row to the client
   // would put 577 players' worth of columns in the HTML for a panel that opens
@@ -154,9 +185,11 @@ export default async function WirePage({params,searchParams}) {
               in-season pickup is a question about the coming Sunday. Two
               questions, two numbers, and now each says which it is. */}
           <div className={styles.boardHead}><div><p className={styles.panelLabel}>AVAILABLE PLAYERS</p><h2>Free agents &amp; waivers</h2><small className={styles.boardNote}>Ranked by this week&apos;s market score — how likely each man is to clear a prop on Sunday. That is a different question from the draft board, which ranks season value.</small></div><form className={styles.playerSearch}><input aria-label="Search players" name="q" defaultValue={query?.q||''} placeholder="Search player or team"/><input type="hidden" name="position" value={selectedPosition}/><button>Search</button></form><span>{availablePlayers.length} players</span></div>
-          <div className={styles.positionFilters}>{POSITIONS.map((position)=><Link key={position} className={selectedPosition===position?styles.positionActive:''} aria-current={selectedPosition===position?'true':undefined} href={`/fantasy/league/${leagueId}/wire?position=${position}${query?.q?`&q=${encodeURIComponent(String(query.q))}`:''}`}>{position}</Link>)}</div>
-          <div className={styles.wireColumns}><span>POS</span><span>PLAYER</span><span>PROJ</span><span>DASH</span><span>STATUS</span><span>MOVE</span></div>
-          {shownPlayers.map((player)=>{const waiver=waiverMap.get(player.id);const onWaivers=waiver&&new Date(waiver.waiver_until)>new Date();const action=onWaivers?submitWaiverClaim:addFreeAgent;return <form action={action} className={styles.wirePlayer} key={player.id}><span className={styles.positionTag}>{player.position}</span><PlayerSheetButton player={sheetData[player.id]?.player} weeks={sheetData[player.id]?.weeks} scoring={league.scoring} className={styles.playerTap}><span className={styles.playerIdentity}><PlayerFace player={player} size={32}/><span><b>{player.name}<InjuryTag status={player.injury_status}/></b><PlayerMeta player={player} game={gameForPlayer(schedule,player)} bye={isOnBye(player,byeTeams)} showPosition={false}/></span><i className={styles.tapHint} aria-hidden="true">›</i></span></PlayerSheetButton><span className={styles.wireProj} title={projectionIsPartial(player)?'The feed carries no passing touchdowns or defensive turnovers, so quarterback and defence projections are low.':`Projected ${player.projection.toFixed(1)} points this week under this league's scoring`}>{isOnBye(player,byeTeams)?'—':player.projection.toFixed(1)}{projectionIsPartial(player)&&!isOnBye(player,byeTeams)?<em className={styles.partialMark}>*</em>:null}<i>PROJ</i></span><strong className={player.priced?undefined:styles.dashUnpriced} title={player.priced?"This week's market score: how likely this man is to clear a prop on Sunday. Not points.":'No prop market priced this man this week — defences never have one. Sorted by projection instead.'}>{player.priced?player.dash_score:'—'}<i>DASH</i></strong><span className={onWaivers?styles.waiverStatus:styles.freeStatus}>{onWaivers?remaining(waiver.waiver_until):'FREE'}</span><div className={styles.wireMove}><select name="dropPlayerId" defaultValue=""><option value="">No drop</option>{myRoster.map((rosterPlayer)=><option value={rosterPlayer.id} key={rosterPlayer.id}>Drop {rosterPlayer.name}</option>)}</select><input type="hidden" name="leagueId" value={leagueId}/><input type="hidden" name="playerId" value={player.id}/><SubmitButton disabled={league.status!=='active'} pendingLabel="…">{onWaivers?'Claim':'Add'}</SubmitButton></div></form>})}
+          <div className={styles.sortFilters}><span>RANK BY</span>{Object.entries(SORTS).map(([key,label])=><Link key={key} className={selectedSort===key?styles.sortActive:''} aria-current={selectedSort===key?'true':undefined} href={sortHref(key)}>{label}</Link>)}</div>
+          {selectedSort==='form'&&<p className={styles.sortNote}>Ranked on points actually scored in weeks {firstWeek}–{WEEK} under this league&apos;s scoring — a record, not a forecast. Men with no completed week sort last, because no record is not the same as a good one.{formPoolCapped?` Covers the top ${FORM_POOL} free agents by market score, not all ${availablePlayers.length}.`:''}</p>}
+          <div className={styles.positionFilters}>{POSITIONS.map((position)=><Link key={position} className={selectedPosition===position?styles.positionActive:''} aria-current={selectedPosition===position?'true':undefined} href={`/fantasy/league/${leagueId}/wire?position=${position}${query?.q?`&q=${encodeURIComponent(String(query.q))}`:''}&sort=${selectedSort}`}>{position}</Link>)}</div>
+          <div className={styles.wireColumns}><span>POS</span><span>PLAYER</span><span>FORM</span><span>PROJ</span><span>DASH</span><span>STATUS</span><span>MOVE</span></div>
+          {shownPlayers.map((player)=>{const waiver=waiverMap.get(player.id);const onWaivers=waiver&&new Date(waiver.waiver_until)>new Date();const action=onWaivers?submitWaiverClaim:addFreeAgent;return <form action={action} className={styles.wirePlayer} key={player.id}><span className={styles.positionTag}>{player.position}</span><PlayerSheetButton player={sheetData[player.id]?.player} weeks={sheetData[player.id]?.weeks} scoring={league.scoring} className={styles.playerTap}><span className={styles.playerIdentity}><PlayerFace player={player} size={32}/><span><b>{player.name}<InjuryTag status={player.injury_status}/></b><PlayerMeta player={player} game={gameForPlayer(schedule,player)} bye={isOnBye(player,byeTeams)} showPosition={false}/></span><i className={styles.tapHint} aria-hidden="true">›</i></span></PlayerSheetButton><PlayerForm form={formByPlayer[player.id]} span={RECENT_WEEKS} week={WEEK}/><span className={styles.wireProj} title={projectionIsPartial(player)?'The feed carries no passing touchdowns or defensive turnovers, so quarterback and defence projections are low.':`Projected ${player.projection.toFixed(1)} points this week under this league's scoring`}>{isOnBye(player,byeTeams)?'—':player.projection.toFixed(1)}{projectionIsPartial(player)&&!isOnBye(player,byeTeams)?<em className={styles.partialMark}>*</em>:null}<i>PROJ</i></span><strong className={player.priced?undefined:styles.dashUnpriced} title={player.priced?"This week's market score: how likely this man is to clear a prop on Sunday. Not points.":'No prop market priced this man this week — defences never have one. Sorted by projection instead.'}>{player.priced?player.dash_score:'—'}<i>DASH</i></strong><span className={onWaivers?styles.waiverStatus:styles.freeStatus}>{onWaivers?remaining(waiver.waiver_until):'FREE'}</span><div className={styles.wireMove}><select name="dropPlayerId" defaultValue=""><option value="">No drop</option>{myRoster.map((rosterPlayer)=><option value={rosterPlayer.id} key={rosterPlayer.id}>Drop {rosterPlayer.name}</option>)}</select><input type="hidden" name="leagueId" value={leagueId}/><input type="hidden" name="playerId" value={player.id}/><SubmitButton disabled={league.status!=='active'} pendingLabel="…">{onWaivers?'Claim':'Add'}</SubmitButton></div></form>})}
           {!availablePlayers.length&&<p className={styles.emptyRoom}>No available players match this filter.</p>}
           {availablePlayers.length>0&&<p className={styles.wireMore}><span>Showing {shownPlayers.length} of {availablePlayers.length}</span>{availablePlayers.length>shownPlayers.length&&<Link href={moreHref}>Show {Math.min(PAGE,availablePlayers.length-shownPlayers.length)} more →</Link>}</p>}
         </section>

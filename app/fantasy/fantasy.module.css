@@ -2158,7 +2158,10 @@
 .wireColumns,
 .wirePlayer {
   display: grid;
-  grid-template-columns: 46px 1fr 52px 48px 64px minmax(140px,210px);
+  /* FORM sits between the name and PROJ (2026-09-20): the two numbers to its
+     right are both forecasts, and what a man has actually done belongs next to
+     who he is, not filed behind the predictions. */
+  grid-template-columns: 46px 1fr 56px 52px 48px 64px minmax(132px,200px);
   align-items: center;
   padding: 0 13px;
 }
@@ -2302,7 +2305,7 @@
        controls -- "FREE" is the state of nearly every row, so it is the least
        costly thing to move off the first line, and PROJ/DASH are the two the
        eye is actually scanning for. */
-    grid-template-columns: 34px 1fr 46px 44px;
+    grid-template-columns: 34px 1fr 50px 46px 44px;
     padding: 8px 9px;
   }
   .wirePlayer>.freeStatus,
@@ -2313,7 +2316,7 @@
     align-self: center;
   }
   .wireMove {
-    grid-column: 2/5;
+    grid-column: 2/6;
     margin: 7px 0 0;
   }
   /* .wireColumns is display:none here, so every number carries its own label
@@ -5750,7 +5753,13 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
    where that header is not rendered at all. */
 .wireProj {
   text-align: right;
-  color: var(--fx-text);
+  /* --fx-text has never existed (2026-09-20). theme-tokens.css defines
+     --fx-ink, --fx-ink-2, --fx-muted*, --fx-dim; there is no --fx-text, and
+     this was the only reference to it in the file. An unresolvable var() with
+     no fallback makes the declaration invalid at computed-value time, so PROJ
+     has been quietly taking whatever it inherited instead of the colour this
+     rule believed it was setting. */
+  color: var(--fx-ink);
   font: 800 13px/1 monospace;
 }
 .wireProj i,
@@ -5761,6 +5770,25 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   font: 7px/1 monospace;
   font-style: normal;
   letter-spacing: .08em;
+}
+/* ── AND THE LABELS WERE NEVER ACTUALLY SHOWING (2026-09-20) ────────────────
+   The comment above says the labels are "revealed in the mobile block above",
+   and they were not. That block sits at ~line 2325; this rule is at ~5765.
+   Same specificity, later wins, media query or not -- a @media block does not
+   raise specificity, it only gates when the rule applies, and when two rules
+   both apply the source order decides. So `display: none` won at EVERY width
+   and finding #6 -- "on a phone the 81 and the 12.4 were unlabelled columns
+   under a header that had been hidden" -- has been silently back in place
+   since this rule was added.
+
+   Fixed where it can't be outranked by accident: immediately after the rule
+   it has to beat. Caught by measuring the rendered row at 390px rather than
+   reading the file, which is the only way this class of bug shows up. */
+@media(max-width:760px) {
+  .wireProj i,
+  .wirePlayer>strong i {
+    display: block;
+  }
 }
 .wirePlayer>strong {
   line-height: 1;
@@ -7091,4 +7119,107 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   .feedLayout>.feedSide>.tapePanel { order: -1; }
   .feedLayout>.feedSide>.rollCall { order: 1; }
   .feedLayout { row-gap: 12px; }
+}
+
+/* ── THE FORM CELL AND THE RANK CHIPS (2026-09-20) ──────────────────────────
+   Four weeks of what a man actually scored, his number for THIS week, and
+   which way he is heading -- on the page where you decide whether to sign him.
+   Bars scale to his own best week, not a league maximum: the cell is ~56px and
+   its job is the shape of a run. The number under it is the comparison and the
+   sort is the ranking. See lib/fantasy/form.js. */
+.formCell {
+  display: block;
+  min-width: 0;
+  text-align: center;
+}
+.formBars {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 2px;
+  height: 18px;
+}
+.formBars i {
+  width: 6px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--fx-muted-3);
+}
+.formBars i[data-state="pending"] {
+  height: 18px;
+  background: transparent;
+  border: 1px dashed var(--fx-line-3);
+}
+.formBars i[data-state="missing"] {
+  height: 3px;
+  background: var(--fx-line-3);
+}
+.formCell[data-trend="hot"] .formBars i[data-state="played"] { background: var(--fx-accent); }
+.formCell[data-trend="cold"] .formBars i[data-state="played"] { background: var(--fx-dim); }
+.formCell b {
+  display: block;
+  margin-top: 5px;
+  font: 900 12px/1 monospace;
+  font-variant-numeric: tabular-nums;
+  color: var(--fx-ink);
+}
+.formNote {
+  display: block;
+  margin-top: 3px;
+  font: 800 7.5px/1 monospace;
+  font-style: normal;
+  letter-spacing: .06em;
+  color: var(--fx-dim);
+}
+.formCell[data-trend="hot"] .formNote { color: var(--fx-accent); }
+/* Screen readers get the sentence the bars are drawing; nobody else sees it. */
+.formSr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+  white-space: nowrap;
+  border: 0;
+}
+.sortFilters {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 13px 0;
+  flex-wrap: wrap;
+}
+.sortFilters>span {
+  font: 900 8px/1 monospace;
+  letter-spacing: .12em;
+  color: var(--fx-dim);
+}
+.sortFilters a {
+  padding: 6px 10px;
+  border: 1px solid var(--fx-line-3);
+  border-radius: 999px;
+  font: 800 9px/1 monospace;
+  letter-spacing: .07em;
+  color: var(--fx-muted-3);
+  text-decoration: none;
+}
+.sortFilters a:hover { color: var(--fx-ink); }
+.sortActive {
+  border-color: var(--fx-accent) !important;
+  color: var(--fx-accent) !important;
+}
+.sortNote {
+  margin: 9px 13px 0;
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--fx-dim);
+}
+@media(max-width:760px) {
+  .formBars i { width: 5px; }
+  .formCell b { font-size: 11px; }
+  .sortFilters { padding: 9px 9px 0; }
+  .sortFilters a { padding: 8px 10px; }
+  .sortNote { margin: 9px 9px 0; font-size: 10px; }
 }
