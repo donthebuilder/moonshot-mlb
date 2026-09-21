@@ -295,6 +295,16 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
               no lines this slate · weight redistributed
             </div>
           )}
+          {/* v1 (2026-09-21): this market has no weighted, backtested model
+              behind it yet -- see nfl_scoring.py's V1_MODELS. Say so right
+              where the other markets' bar/positions line already sits,
+              rather than let an 8th pill quietly imply the same rigor as
+              the other seven. */}
+          {spec.v1 && (
+            <div style={{ color: C.purple, marginTop: 3, fontSize: TYPE.micro }}>
+              v1 · ranked on each team's own real recent rate, not yet a weighted, backtested model like the other markets
+            </div>
+          )}
           <div style={{ color: C.text3, marginTop: 3, fontSize: TYPE.micro }}>
             Form line = last 8 games · dotted line = market bar · arrow compares recent half with prior half
           </div>
@@ -326,10 +336,10 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
           return (
             <div
               key={p.player_id}
-              onClick={() => onPlayerClick?.(p, market)}
+              onClick={p.position === 'DEF' ? undefined : () => onPlayerClick?.(p, market)}
               style={{
                 position: 'relative', display: 'flex', flexDirection: 'column', gap: 7,
-                textAlign: 'left', cursor: 'pointer',
+                textAlign: 'left', cursor: p.position === 'DEF' ? 'default' : 'pointer',
                 background: C.bg2, border: `1px solid ${C.border}`,
                 borderTop: `3px solid ${g.color}`, borderRadius: 10,
                 padding: '9px 10px 10px', overflow: 'hidden',
