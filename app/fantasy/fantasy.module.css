@@ -2902,9 +2902,19 @@
   min-height: 245px;
   margin-bottom: 12px;
   padding: 30px 28px;
-  border: 1px solid #344052;
+  /* ── ONE GLOW, AND IT IS IN THE PALETTE (2026-09-21) ──────────────────
+     Every Franchise hero carries a single radial wash -- Feed and League
+     green, Recap orange-red -- so the pattern is house style and stays.
+     Coach was the only one with TWO, and the only one lit in blue
+     (rgba(45,165,255)) and purple (rgba(130,74,255)), neither of which is
+     in the brand's colour system at all. Rule #3 names black, cream, DASH
+     orange and a sparing teal; #2 names "excessive gradients" as a thing to
+     avoid. Now one wash, in --fx-info, the teal the system reserves for
+     analytical surfaces -- and Coach is the analytical page, so it also
+     tells Coach apart from Recap's orange without inventing a hue. */
+  border: 1px solid var(--fx-line-2);
   border-radius: 18px;
-  background: radial-gradient(circle at 85% 20%,rgba(45,165,255,.16),transparent 38%),radial-gradient(circle at 25% 100%,rgba(130,74,255,.1),transparent 42%),var(--fx-panel-2);
+  background: radial-gradient(circle at 85% 20%,rgba(40,185,231,.12),transparent 38%),var(--fx-panel-2);
 }
 .coachHero h1 {
   max-width: 760px;
@@ -2925,7 +2935,7 @@
   align-items: end;
   min-width: 150px;
   padding: 17px;
-  border: 1px solid #354354;
+  border: 1px solid var(--fx-line-2);
   border-radius: 14px;
   background: rgba(8,10,13,.72);
 }
@@ -2940,7 +2950,8 @@
   font: 900 51px/1 monospace;
 }
 .coachGrade span {
-  color: var(--fx-good);
+  /* Same as .scoreCards span: green said "good" whatever the grade was. */
+  color: var(--fx-muted-2);
   font: 900 18px/1 monospace;
 }
 .scoreCards {
@@ -2954,7 +2965,7 @@
   grid-template-columns: 1fr auto;
   align-items: end;
   padding: 15px;
-  border: 1px solid #2c3035;
+  border: 1px solid var(--fx-line-2);
   border-radius: 11px;
   background: var(--fx-panel-2);
 }
@@ -2965,11 +2976,21 @@
 }
 .scoreCards strong {
   margin-top: 7px;
-  color: var(--fx-info);
+  /* Cream, and the same cream on all three. These are three readings of the
+     same kind of thing (0-100 readiness), and they rendered teal, purple and
+     orange -- three hues carrying no information, which is what rule #6 says
+     to remove. Cream carries major typography (#3); the 51px hero number
+     above is the one that gets to be loud. */
+  color: var(--fx-ink);
   font: 900 27px/1 monospace;
 }
 .scoreCards span {
-  color: var(--fx-good);
+  /* Was --fx-good, the positive/win green -- on EVERY grade, so a C+ was
+     rendered in exactly the green that means "good" (see .coachGrade span).
+     A colour that misreports is worse than no colour; rule #6 wants every
+     visual element doing a job. The grade is an annotation to the number,
+     so it reads as one. */
+  color: var(--fx-muted-2);
   font: 900 12px/1 monospace;
 }
 .scoreCards p {
@@ -2978,11 +2999,13 @@
   color: var(--fx-dim);
   font: 8px/1.4 monospace;
 }
-.scoreCards article:nth-child(2) strong {
-  color: var(--fx-violet);
-}
+.scoreCards article:nth-child(2) strong,
 .scoreCards article:nth-child(3) strong {
-  color: var(--fx-accent);
+  /* Was --fx-violet and --fx-accent. Purple is not in the colour system at
+     all, and orange means action/attention (#3) -- a waiver score is
+     neither. Violet stays elsewhere in Franchise; this is a Coach fix, not a
+     sweep through five other pages nobody complained about (#29). */
+  color: var(--fx-ink);
 }
 
 /* == DASH COACH ========================================================== */
@@ -3010,7 +3033,7 @@
   place-items: center;
   width: 38px;
   height: 38px;
-  border: 1px solid #2d5560;
+  border: 1px solid var(--fx-line-2);
   border-radius: 9px;
   color: var(--fx-info);
   font-size: 17px;
