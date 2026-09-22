@@ -89,7 +89,8 @@ const SITE = (process.env.NEXT_PUBLIC_SITE_URL || '').replace(/\/$/, '')
 const SITE_HOST = SITE.replace(/^https?:\/\//, '') || 'dashnetwork.vercel.app'
 // Per-kind, same as the MLB tick -- see lib/dash/postLink.js.
 const TAIL = { site: '', handle: '' }
-const tailFor = (kind) => linkTailFor(kind, { site: SITE, handle: HANDLE })
+// The football anchors land on /start's NFL side — see the MLB tick's note.
+const tailFor = (kind) => linkTailFor(kind, { site: SITE ? `${SITE}/start?sport=nfl` : '', handle: HANDLE })
 // Same default and same override var as homers/tick's own X_MONTHLY_CAP --
 // see lib/dash/xBudget.js for why this is read-only and shared, not a
 // second number to keep in sync by hand.

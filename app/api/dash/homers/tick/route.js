@@ -59,6 +59,13 @@ export const maxDuration = 60
 
 const SITE = (process.env.NEXT_PUBLIC_SITE_URL || '').replace(/\/$/, '')
 const CALLED_URL = SITE ? `${SITE}/called` : ''
+// WHERE AN ANCHOR POST SENDS (2026-09-22). /called is the record — every homer
+// tonight, tagged. /start is the door the funnel measurement asked for
+// (claude/the-funnel-2026-09-14.md: 12 real strangers off X in four days, 0
+// reached the app), and it carries both sports plus the graded record rather
+// than only tonight's baseball. So the few posts that spend $0.200 to carry a
+// URL spend it on the page built to convert, not the page built to prove.
+const START_URL = SITE ? `${SITE}/start` : ''
 const SITE_HOST = SITE.replace(/^https?:\/\//, '') || 'dashnetwork.vercel.app'
 const HANDLE = String(process.env.X_HANDLE || '').trim()          // e.g. "@dashnetwork" — optional
 // NO URL IN THE POST TEXT (2026-09-05). X's pay-per-use pricing: a post is
@@ -76,7 +83,7 @@ const HANDLE = String(process.env.X_HANDLE || '').trim()          // e.g. "@dash
 // $0.015. About $330/month for a link under every homer, which is also the
 // pattern that teaches people to ignore it.
 const TAIL = { site: '', handle: '' }
-const tailFor = (kind) => linkTailFor(kind, { site: CALLED_URL, handle: HANDLE })
+const tailFor = (kind) => linkTailFor(kind, { site: START_URL, handle: HANDLE })
 const MODE = /^flagged$/i.test(String(process.env.X_POST_MODE || '')) ? 'flagged' : 'all'
 // X's Basic tier is ~1,100 posts a month. Override with X_MONTHLY_CAP if the
 // plan changes; this number is only ever used to decide when to shout.
