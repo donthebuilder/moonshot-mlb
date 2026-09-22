@@ -47,6 +47,7 @@ import {
   anglesText, hotSheetText,
 } from '../../../../../lib/dash/tweetFeed'
 import { threadsSnapshot } from '../../../../../lib/dash/threadsPost'
+import { tailFor as linkTailFor } from '../../../../../lib/dash/postLink'
 import { discordFailuresSnapshot, hasX, postToDiscord, postToX, uploadImageToX, xProblem } from '../../../../../lib/dash/xPost'
 import { isMaintenanceMode } from '../../../../../lib/edgeConfig'
 import { backfillOneNight } from '../../../../../lib/dash/homerBackfill'
@@ -66,7 +67,16 @@ const HANDLE = String(process.env.X_HANDLE || '').trim()          // e.g. "@dash
 // still carry the page; the tweet text does not. `site` is passed empty to
 // every text builder for that reason. Set X_POST_LINK=1 to put it back if X
 // ever changes the rule.
-const TAIL = process.env.X_POST_LINK === '1' ? { site: CALLED_URL, handle: HANDLE } : { site: '', handle: '' }
+// THE LINK IS PER-KIND NOW (2026-09-22) -- see lib/dash/postLink.js. TAIL is
+// the default for every post that is NOT an anchor, which is almost all of
+// them, and stays empty. Anchor posts call tailFor(kind) instead.
+//
+// Why it changed: X_POST_LINK=1 put the URL on all 44 builders here AND on the
+// per-homer alert -- 55 posts on 09-21, each priced at $0.200 instead of
+// $0.015. About $330/month for a link under every homer, which is also the
+// pattern that teaches people to ignore it.
+const TAIL = { site: '', handle: '' }
+const tailFor = (kind) => linkTailFor(kind, { site: CALLED_URL, handle: HANDLE })
 const MODE = /^flagged$/i.test(String(process.env.X_POST_MODE || '')) ? 'flagged' : 'all'
 // X's Basic tier is ~1,100 posts a month. Override with X_MONTHLY_CAP if the
 // plan changes; this number is only ever used to decide when to shout.
@@ -935,7 +945,7 @@ export async function GET(request) {
       if (yPicks.length) {
         const { data: yHits } = await db.from('homer_feed').select('player_id').eq('day', yday)
         const hitIds = new Set((yHits || []).map((r) => String(r.player_id)))
-        const text = accountabilityText(yPicks, hitIds, { day: yday, ...TAIL })
+        const text = accountabilityText(yPicks, hitIds, { day: yday, ...tailFor('accountability') })
         const patch = { payload: { picks: yPicks, hit: [...hitIds] } }
         const d = await postToDiscord(text, {}, FEED_WEBHOOKS())
         if (d.ok) patch.discord_sent = true
@@ -965,7 +975,7 @@ export async function GET(request) {
       const yBoardPicks = yBoard?.payload?.picks || []
       if (yBoardPicks.length) {
         const lines = await boxLinesForDate(yday)
-        const text = boardRoleResultsText(yBoardPicks, lines, { day: yday, ...TAIL })
+        const text = boardRoleResultsText(yBoardPicks, lines, { day: yday, ...tailFor('board_results') })
         const patch = { payload: { picks: yBoardPicks } }
         const d = await postToDiscord(text, {}, FEED_WEBHOOKS())
         if (d.ok) patch.discord_sent = true
@@ -1635,7 +1645,7 @@ export async function GET(request) {
           if (!claim) {
             if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: 'already', statErrors, discordErrors: discordFailuresSnapshot() })
           } else {
-            const text = pregameText(picks, { day, ...TAIL })
+            const text = pregameText(picks, { day, ...tailFor('pregame') })
             const patch = { payload: { picks, called } }
             // The payload goes in FIRST so the public card route can render the
             // Discord embed from it; the post ids follow.
@@ -1667,7 +1677,7 @@ export async function GET(request) {
         if (boardPicks.length) {
           const boardClaim = await claimSlot(db, day, 'board')
           if (boardClaim) {
-            const text = boardRoleText(boardPicks, { day, ...TAIL })
+            const text = boardRoleText(boardPicks, { day, ...tailFor('board') })
             const patch = { payload: { picks: boardPicks } }
             const d = await postToDiscord(text, {}, FEED_WEBHOOKS())
             if (d.ok) patch.discord_sent = true
@@ -1684,7 +1694,7 @@ export async function GET(request) {
       // COMMUNITY PICK (2026-09-13). Static invite, no data dependency --
       // gated on `ready` purely so it reads naturally next to tonight's real
       // picks above, not because it needs any of that data itself.
-      await claimAndPostStat(db, day, 'community_pick', COMMUNITY_PICK_HOUR, communityPickText(TAIL), null)
+      await claimAndPostStat(db, day, 'community_pick', COMMUNITY_PICK_HOUR, communityPickText(tailFor('community_pick')), null)
 
       // BOT VS THE PEOPLE (2026-09-13). A native X poll -- see postToX's
       // `poll` option. Discord has no equivalent native-poll webhook field

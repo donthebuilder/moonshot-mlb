@@ -70,6 +70,7 @@ import { fetchNflLive } from '../../../../../lib/nfl/liveSlate'
 import { buildTdEvent, eventFromRow, rowFromEvent, tdPostText, touchdownsInSnap } from '../../../../../lib/nfl/tdFeed'
 import { tdCard } from '../../../../../lib/nfl/tdCard'
 import { threadsSnapshot } from '../../../../../lib/dash/threadsPost'
+import { tailFor as linkTailFor } from '../../../../../lib/dash/postLink'
 import { spotlightCard } from '../../../../../lib/nfl/spotlightCard'
 import { hasX, postToDiscord, postToX, uploadImageToX } from '../../../../../lib/dash/xPost'
 import { logXBudget } from '../../../../../lib/dash/xBudget'
@@ -86,7 +87,9 @@ const HANDLE = String(process.env.X_HANDLE || '').trim()
 // path since there's no dedicated NFL page to point at yet.
 const SITE = (process.env.NEXT_PUBLIC_SITE_URL || '').replace(/\/$/, '')
 const SITE_HOST = SITE.replace(/^https?:\/\//, '') || 'dashnetwork.vercel.app'
-const TAIL = process.env.X_POST_LINK === '1' ? { site: SITE, handle: HANDLE } : { site: '', handle: '' }
+// Per-kind, same as the MLB tick -- see lib/dash/postLink.js.
+const TAIL = { site: '', handle: '' }
+const tailFor = (kind) => linkTailFor(kind, { site: SITE, handle: HANDLE })
 // Same default and same override var as homers/tick's own X_MONTHLY_CAP --
 // see lib/dash/xBudget.js for why this is read-only and shared, not a
 // second number to keep in sync by hand.
@@ -550,7 +553,7 @@ async function runWeeklyContentTick(db, day) {
         }
       } else if (sl.kind === 'nfl_board') {
         const picks = nflBoardPicks(data)
-        text = nflBoardText(picks, data, TAIL)
+        text = nflBoardText(picks, data, tailFor('nfl_board'))
         // The FULL pick objects go in the payload, not a slimmed copy: Monday's
         // nfl_results reads this row back to grade it, and a grade run off a
         // board that was rebuilt on Monday would be grading a different board.
@@ -579,7 +582,7 @@ async function runWeeklyContentTick(db, day) {
         if (!boardPicks.length) { out[sl.kind] = 'no-board-to-grade'; continue }
         const { data: tds } = await db.from('nfl_td_feed').select('scorer_name').eq('day', yday)
         const scorers = new Set((tds || []).map((r) => String(r.scorer_name || '').toLowerCase()).filter(Boolean))
-        text = nflBoardResultsText(boardPicks, scorers, data, TAIL)
+        text = nflBoardResultsText(boardPicks, scorers, data, tailFor('nfl_results'))
         payload = { picks: boardPicks, scorers: [...scorers], graded_day: yday }
       }
       if (!text) { out[sl.kind] = 'nothing-to-say-yet'; continue }
