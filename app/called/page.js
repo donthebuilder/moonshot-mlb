@@ -229,6 +229,14 @@ export default async function CalledPage({ searchParams }) {
   const { sport, today, rows, picks, calledIds, history, byDay, configured } = await load(sportKey)
   const BOARD = sport.board
   const SIGNUP = `/login?next=${encodeURIComponent(BOARD)}#create-account`
+  // /start -- THE FUNNEL STOP (2026-09-21). claude/the-funnel-2026-09-14.md
+  // measured 12 strangers off X in 4 days and 0 reaching the app. The two
+  // CTAs a stranger meets first now land on /start, which introduces the
+  // product and carries one sign-up, instead of dropping them straight into
+  // an eleven-tab dashboard. BOARD is unchanged everywhere else on this page:
+  // the per-player links, the footer and SIGNUP's own `next` all still go to
+  // the board, because somebody who taps a named hitter has already chosen.
+  const START = `/start?sport=${sport.key}`
   const tonight = sport.key === 'nfl' ? tdCaptureFrom(rows) : captureFrom(rows)
   const graded = history.filter((h) => h.total > 0)
   const span = graded.reduce((a, h) => ({ called: a.called + h.called, total: a.total + h.total }), { called: 0, total: 0 })
@@ -250,7 +258,7 @@ export default async function CalledPage({ searchParams }) {
               anchors in the strip below already use. */}
           <a className={sport.key === 'mlb' ? styles.navOn : styles.navOff} href="/called?sport=mlb">MLB</a>
           <a className={sport.key === 'nfl' ? styles.navOn : styles.navOff} href="/called?sport=nfl">NFL</a>
-          <a className={styles.navCta} href={BOARD}>Get the calls</a>
+          <a className={styles.navCta} href={START}>Get the calls</a>
         </nav>
       </header>
 
@@ -288,11 +296,11 @@ export default async function CalledPage({ searchParams }) {
             </p>
           </>
         )}
-        <a className={styles.cta} href={BOARD}>
+        <a className={styles.cta} href={START}>
           <strong>{sport.key === 'nfl' ? 'See who the bot likes this week' : 'See who the bot likes tonight'}</strong>
           <span>{sport.key === 'nfl'
-            ? 'The full touchdown board, every call, before kickoff — no account needed'
-            : 'The full board, every call, before first pitch — no account needed'}</span>
+            ? 'The reads for this week, the public record, and the full board — no account needed'
+            : 'The headline picks, the public record, and the full board — no account needed'}</span>
         </a>
         <p className={styles.rule}>
           {sport.legend}. Tags are frozen when the {sport.eventOne} is first seen and never re-graded.

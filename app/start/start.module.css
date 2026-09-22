@@ -1,0 +1,140 @@
+/* /start — the funnel page.
+   Same ground as /called (app/called/called.module.css) and the front door:
+   this renders before a sport's own chrome exists, so it carries its own
+   palette rather than inheriting a board's. One accent, DASH orange.
+
+   MOBILE FIRST, ON PURPOSE. This page exists for somebody arriving from a link
+   on a phone (claude/the-funnel-2026-09-14.md). Nothing here needs a second
+   column to make sense, and every tap target is >= 40px — the floor the
+   FRANCHISE phone audit set on 2026-09-21 after finding six controls at 27px. */
+
+.page {
+  --ink: #f4f1eb;
+  --dim: #8a8580;
+  --line: #2a2724;
+  --panel: #131211;
+  --mlb: #f97316;
+  --bg: #0b0b0a;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 0 18px 80px;
+  background: #0b0b0a;
+  color: var(--ink);
+  font-family: Arial, Helvetica, sans-serif;
+  min-height: 100vh;
+}
+
+.bar {
+  position: sticky; top: 0; z-index: 40;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 0; background: #0b0a0a; border-bottom: 1px solid var(--line);
+}
+.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; }
+.brand img { border-radius: 8px; }
+.brand small { display: block; font-size: 10px; letter-spacing: 0.18em; color: var(--mlb); }
+.brand strong { display: block; font-size: 15px; letter-spacing: 0.06em; }
+
+/* The switch. Two links, no JS. The selected one is solid so it reads as a
+   state rather than a second button to press — the same call /called's own
+   switch made, for the same reason: both layouts are identical, so the page
+   has to say WHICH sport you are looking at at a glance. */
+.nav { display: flex; gap: 8px; font-size: 13px; }
+.nav a {
+  display: inline-flex; align-items: center; min-height: 40px;
+  text-decoration: none; padding: 0 13px; border-radius: 999px;
+  font-weight: 700; letter-spacing: 0.4px;
+}
+.navOn { color: var(--bg); background: var(--ink); font-weight: 800; }
+.navOff { color: var(--dim); border: 1px solid var(--line); }
+.navOff:hover { color: var(--ink); border-color: var(--dim); }
+
+.hero { padding: 34px 0 4px; }
+.kicker { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--dim); }
+.headline { margin: 0; font-size: clamp(26px, 6vw, 40px); line-height: 1.1; font-weight: 800; letter-spacing: -0.015em; }
+.sub { margin: 12px 0 0; font-size: 16px; line-height: 1.45; color: var(--dim); max-width: 540px; }
+
+/* The receipts line. This is the one piece of proof a stranger gets before
+   they scroll, so it is body-size and not a caption. */
+.receipt {
+  margin: 18px 0 0; font-size: 14px; line-height: 1.55; color: var(--dim);
+  border-left: 2px solid var(--mlb); padding-left: 12px; max-width: 560px;
+}
+.receipt strong { color: var(--ink); font-variant-numeric: tabular-nums; }
+.big { color: var(--mlb); font-weight: 800; font-variant-numeric: tabular-nums; }
+.inline { color: var(--mlb); text-decoration: underline dotted; text-underline-offset: 2px; }
+.inline:hover { text-decoration-style: solid; }
+
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-top: 24px; }
+.h2 {
+  margin: 0 0 4px; font-size: 14px; letter-spacing: 0.06em; text-transform: uppercase;
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+}
+.pill {
+  font-size: 12px; letter-spacing: 0; text-transform: none; color: var(--mlb);
+  border: 1px solid var(--mlb); border-radius: 999px; padding: 2px 9px;
+  font-variant-numeric: tabular-nums; font-weight: 700;
+}
+.note { margin: 0 0 14px; font-size: 12.5px; color: var(--dim); }
+.empty { margin: 0; font-size: 13.5px; color: var(--dim); }
+
+/* The NFL story-bites. One row per bite, name and stat carrying the weight;
+   the tag takes its colour from the bite's own `col` so a SIGNAL STACK and a
+   SOFTEST MATCHUP stay distinguishable, exactly as they are in the ticker. */
+.bites { list-style: none; margin: 0; padding: 0; }
+.bite {
+  display: grid;
+  grid-template-columns: 22px 1fr auto;
+  grid-template-areas: "i tag stat" "i name stat" "i why why";
+  gap: 1px 10px; align-items: baseline;
+  padding: 11px 0; border-top: 1px solid var(--line);
+}
+.bite:first-child { border-top: 0; }
+.biteIcon { grid-area: i; font-size: 15px; }
+.biteTag { grid-area: tag; font-size: 10px; font-weight: 800; letter-spacing: 0.09em; }
+.biteName { grid-area: name; font-size: 16px; font-weight: 700; color: var(--ink); }
+.biteWhy { grid-area: why; font-size: 12px; color: var(--dim); line-height: 1.4; margin-top: 3px; }
+.biteStat {
+  grid-area: stat; font-size: 13px; font-weight: 700; color: var(--ink);
+  font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right;
+}
+
+/* ── THE ASK ───────────────────────────────────────────────────────────────
+   One button, once. The scope doc says one sign-up button and it means it: a
+   page with two asks reads as a page that wants something, and the whole
+   problem this page was built to fix is that strangers leave. */
+.cta {
+  display: flex; flex-direction: column; gap: 3px;
+  margin: 26px 0 0; padding: 16px 20px; min-height: 40px;
+  background: var(--mlb); color: #0d0c0a; border-radius: 12px;
+  text-decoration: none; max-width: 420px;
+}
+.cta strong { font-size: 17px; font-weight: 800; letter-spacing: -0.01em; }
+.cta span { font-size: 12.5px; opacity: 0.82; }
+.cta:hover { filter: brightness(1.07); }
+
+/* The other door, stated plainly. The 2026-09-06 free-browse reversal is still
+   the rule — nothing on the boards needs an account — so hiding /app behind
+   the CTA would be a lie the rest of the site doesn't tell. */
+.alt { margin: 14px 0 0; font-size: 13.5px; color: var(--dim); }
+.alt a { color: var(--mlb); text-decoration: underline dotted; text-underline-offset: 2px; }
+
+.foot {
+  display: flex; flex-direction: column; gap: 8px;
+  margin-top: 34px; padding-top: 20px; border-top: 1px solid var(--line);
+  font-size: 12px; line-height: 1.5; color: var(--dim);
+}
+/* Standalone controls, so they get the 40px the 2026-09-21 phone audit asked
+   for. The two links INSIDE running sentences (.inline in the receipts line,
+   .alt a in "the full board is open") are deliberately left at text height:
+   a 40px inline link breaks the line it sits in, and /called's own prose links
+   read the same way. That is a decision, not a miss -- don't "fix" it. */
+.foot a {
+  color: var(--mlb); text-decoration: none;
+  display: inline-flex; align-items: center; min-height: 40px;
+}
+.foot a:hover { text-decoration: underline; }
+
+@media (max-width: 480px) {
+  .bite { grid-template-columns: 22px 1fr; grid-template-areas: "i tag" "i name" "i stat" "i why"; }
+  .biteStat { text-align: left; }
+}
