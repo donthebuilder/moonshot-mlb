@@ -15,6 +15,8 @@
 // is modelled, scored or written for the first time (project rules 16 and 17):
 //   MLB best calls   BotPicksStrip — The Four, 65.0% over 25 graded nights
 //                    (bots/precision_study.py), the component mounted as-is
+//   MLB the league   buildHeadlines() via lib/headlinesCore.js — the same
+//                    bites the header ticker and the front page already roll
 //   NFL best calls   buildNflHeadlines() — the same five story-bites TUDDY's
 //                    header ticker has carried since round 3 (57e0359)
 //   the receipts     captureFrom()/tdCaptureFrom() over the same homer_feed /
@@ -33,9 +35,9 @@
 // exists for somebody arriving on a phone from a link. today_slim.json is ~890
 // KB tonight and several megabytes on a full slate; nfl_matchup.json is ~874
 // KB. All of it is fetched and reduced HERE, and only the trimmed designated
-// rows (lib/theFourFields.js) cross into the one client island. The NFL bites
-// are finished text by the time they leave this function, so that payload never
-// leaves the server at all.
+// rows (lib/theFourFields.js) cross into the one client island. Both sports'
+// bites are finished text by the time they leave this function, so those
+// payloads never leave the server at all.
 //
 // NO JS FOR THE SPORT SWITCH — two plain links, same as /called's own switch
 // and its night anchors.
@@ -45,6 +47,7 @@ import BotPicksStrip from '../../components/BotPicksStrip'
 import { easternToday } from '../../lib/data'
 import { fetchBoardFull } from '../../lib/dash/board'
 import { captureFrom } from '../../lib/dash/homerFeed'
+import { buildHeadlines } from '../../lib/headlinesCore'
 import {
   fetchNfl, nflMatchupLooksReal, nflMatchupPaths, nflSlateLooksReal, nflSlatePaths,
 } from '../../lib/nfl/dataSource'
@@ -66,6 +69,53 @@ export const metadata = {
 // rate quoted there are the same number over the same window.
 const DAYS = 10
 
+// ── THE FOOTBALL RECORD HAS A START DATE, AND IT IS RECENT ──────────────────
+//
+// nfl_td_feed.td_board — the pregame board rank, which is what makes a scorer
+// "on the board" rather than "a call" — was only added to the table on
+// 2026-09-20 (migration 15). lib/nfl/tdFeed.js's buildTdEvent() had computed it
+// since 09-14 and rowFromEvent() dropped it on the floor, so every row before
+// 09-20 is honestly blank and nothing can backfill it: the rank has to be the
+// one frozen at post time.
+//
+// Measured on 2026-09-21 against production, which is why this gate exists:
+//
+//   day          TDs   on_bot   td_board recorded
+//   2026-09-13    14        1        0
+//   2026-09-14     5        0        0
+//   2026-09-17    10        1        0
+//   2026-09-20    55        1       26
+//   2026-09-21     3        0        3
+//
+// Quoting board coverage over a window that includes those first three days
+// says "the model only saw 35% of touchdowns" when what actually happened is
+// that the column was not being written yet. That is a worse failure than an
+// unflattering number, because it reads as a measurement and isn't one.
+//
+// So the football number is quoted only from days where the rank was actually
+// recorded, and only once there are enough of them to be a window rather than
+// a sample of two. Until then the page says the record is filling in — which is
+// true, and which project rule 24 asks for over a misleading figure. This
+// unblocks itself: the gate opens on its own once three Sundays have banked.
+const NFL_MIN_RECORD_DAYS = 3
+
+// ── WHICH LEAGUE BITES EARN A SLOT ──────────────────────────────────────────
+//
+// buildHeadlines() emits up to eleven bites and four of them (top / hit / hrr
+// / tb) are the same four hitters The Four names in the panel directly above.
+// An "around the league" strip that repeats the names above it is noise, so
+// only the bites that say something The Four does not are kept:
+//
+//   p3     SEASON POWER   — season EV profile, not tonight's matchup
+//   hot    HOTTEST BAT    — form, which no category card leads with
+//   hrw    HR WINDOW      — the audit's strongest bot term
+//   weak   WEAK SPOTS     — a slate-wide count, nobody's card
+//
+// 'gone' (a homer already hit), 'game' and 'air' need results / headline /
+// airRanked, which this page deliberately does not fetch — they drop out on
+// their own rather than being filtered, and that is fine.
+const LEAGUE_BITES = ['p3', 'hot', 'hrw', 'weak']
+
 const SPORTS = {
   mlb: {
     key: 'mlb',
@@ -79,7 +129,8 @@ const SPORTS = {
     recordLink: 'See every one, night by night.',
     promise: 'MOONSHOT rates every hitter on the slate before first pitch, then grades itself in public.',
     callsHead: 'The Four — tonight’s headline picks',
-    callsSub: 'One pick per category, three deep. Each graded on its own bar.',
+    callsSub: 'One pick per category, three deep — each graded on its own bar.',
+    unit: 'day',
   },
   nfl: {
     key: 'nfl',
@@ -94,6 +145,7 @@ const SPORTS = {
     promise: 'TUDDY rates every skill player on the week before kickoff, then grades itself in public.',
     callsHead: 'What the model noticed this week',
     callsSub: 'The reads off this week’s touchdown board — the signals, not a bet slip.',
+    unit: 'game day',
   },
 }
 
@@ -111,13 +163,14 @@ function client() {
 }
 
 /**
- * The receipts line — the same ten-night window /called publishes.
+ * The receipts line — the same ten-day window /called publishes.
  *
  * Reuses the sport's OWN counter (captureFrom / tdCaptureFrom), which is the
  * whole reason one sentence can serve both: they return the same shape over the
  * same three states (CALLED / ON THE BOARD / NOT ON THE BOARD, project rule
- * 14). Only the query is local, and a failed or unconfigured query returns null
- * so the page renders without the strip rather than with a zero in it (rule 24).
+ * 14). Only the query is local, and a failed, unconfigured or not-yet-gradeable
+ * window returns null so the page renders the honest sentence instead of a
+ * number it cannot stand behind (rules 24 and 25).
  */
 async function loadRecord(sport, today) {
   const db = client()
@@ -130,9 +183,19 @@ async function loadRecord(sport, today) {
     .lte('day', today)
   if (error || !Array.isArray(data) || !data.length) return null
 
+  // Football: only days whose board rank was actually recorded can be counted.
+  // See NFL_MIN_RECORD_DAYS above for the measurement behind this.
+  let usable = null
+  if (sport.key === 'nfl') {
+    const recorded = new Set(data.filter((r) => r.td_board).map((r) => r.day))
+    if (recorded.size < NFL_MIN_RECORD_DAYS) return null
+    usable = recorded
+  }
+
   const nights = []
   for (let i = 0; i < DAYS; i += 1) {
     const day = shiftDay(today, -i)
+    if (usable && !usable.has(day)) continue
     const rows = data.filter((r) => r.day === day)
     if (!rows.length) continue
     const cap = sport.key === 'nfl' ? tdCaptureFrom(rows) : captureFrom(rows)
@@ -149,7 +212,7 @@ async function loadRecord(sport, today) {
     { on: 0, total: 0 },
   )
   if (!span.total) return null
-  return { ...span, pct: Math.round((100 * span.on) / span.total), nights: nights.length }
+  return { ...span, pct: Math.round((100 * span.on) / span.total), days: nights.length }
 }
 
 async function loadCalls(sportKey) {
@@ -158,7 +221,7 @@ async function loadCalls(sportKey) {
       fetchNfl(nflSlatePaths(), nflSlateLooksReal).catch(() => null),
       fetchNfl(nflMatchupPaths(), nflMatchupLooksReal).catch(() => null),
     ])
-    if (!slate) return { bites: [] }
+    if (!slate) return { bites: [], strip: [] }
     // `p` on each bite is a whole player row and `col` is a theme colour. Only
     // the text and the colour are read below — the row itself must not cross
     // into the markup, or the payload this page exists to avoid comes back.
@@ -168,11 +231,29 @@ async function loadCalls(sportKey) {
       markets: slate.markets || [],
       matchup,
     })
-    return { bites: bites.slice(0, 5) }
+    // Football's bites ARE its best-calls section, so there is no second strip
+    // to build from them. Not a parity gap with baseball — a consequence of
+    // TUDDY having one board and MOONSHOT having a board plus The Four.
+    return { bites, strip: [] }
   }
 
   const rows = await fetchBoardFull('today').catch(() => null)
-  return { players: trimForFour(rows || []) }
+  const league = buildHeadlines({ players: rows || [] })
+    .filter((b) => LEAGUE_BITES.includes(b.k))
+  return { players: trimForFour(rows || []), strip: league }
+}
+
+/** One bite row. Shared by both sports and by the league strip. */
+function Bite({ b }) {
+  return (
+    <li className={styles.bite}>
+      <span className={styles.biteIcon} aria-hidden="true">{b.icon}</span>
+      <span className={styles.biteTag} style={{ color: b.col }}>{b.tag}</span>
+      <span className={styles.biteName}>{b.name}</span>
+      <span className={styles.biteWhy}>{b.why}</span>
+      <span className={styles.biteStat}>{b.stat}</span>
+    </li>
+  )
 }
 
 export default async function StartPage({ searchParams }) {
@@ -189,6 +270,7 @@ export default async function StartPage({ searchParams }) {
 
   const SIGNUP = `/login?next=${encodeURIComponent(sport.board)}#create-account`
   const hasCalls = sportKey === 'nfl' ? Boolean(calls.bites?.length) : Boolean(calls.players?.length)
+  const strip = calls.strip || []
 
   return (
     <main className={styles.page}>
@@ -211,26 +293,39 @@ export default async function StartPage({ searchParams }) {
           <p className={styles.receipt}>
             <span className={styles.big}>{record.on}</span> of{' '}
             <span className={styles.big}>{record.total}</span> {sport.event} over the last{' '}
-            {record.nights} {record.nights === 1 ? 'day' : 'days'} were on the board before they
+            {record.days} {sport.unit}{record.days === 1 ? '' : 's'} were on the board before they
             happened — <strong>{record.pct}%</strong>.{' '}
             <a className={styles.inline} href={`/called?sport=${sport.key}`}>{sport.recordLink}</a>
           </p>
         ) : (
-          // Rule 24: say what the state is, never render an empty panel or a
-          // 0/0 dressed up as a percentage.
+          // Rule 24/25: say what the state is. For football this is the live
+          // case right now, not a fallback — the board rank has only been
+          // recorded since 2026-09-20 (see NFL_MIN_RECORD_DAYS).
           <p className={styles.receipt}>
-            The public record fills in as each {sport.eventOne} lands.{' '}
+            Every {sport.eventOne} is tagged against the board the moment it lands, and the public
+            record is filling in{sport.key === 'nfl' ? ' — the board rank has been on the record since September 20' : ''}.{' '}
             <a className={styles.inline} href={`/called?sport=${sport.key}`}>See the record.</a>
           </p>
         )}
       </section>
 
       <section className={styles.panel}>
-        <h2 className={styles.h2}>
-          {sport.callsHead}
-          {sportKey === 'mlb' && <span className={styles.pill}>65% over 25 nights</span>}
-        </h2>
-        <p className={styles.note}>{sport.callsSub}</p>
+        {/* ── ONE HEADER, NOT TWO (2026-09-21) ────────────────────────────
+            BotPicksStrip carries its OWN header -- the "The Four" title, the
+            "four categories, three deep" line, and the measured "65% over 25
+            nights · +16pp" pill. A panel header above it repeated the title
+            and printed the 65% claim a second time six lines from the first,
+            which is the same mistake as badging a score the card already
+            shows. Caught by looking at the render, not by reading the code.
+            So baseball lets the component speak and only gets a heading when
+            there is no board to show; football's bites have no header of
+            their own, so they keep this one. */}
+        {(sportKey === 'nfl' || !hasCalls) && (
+          <>
+            <h2 className={styles.h2}>{sport.callsHead}</h2>
+            <p className={styles.note}>{sport.callsSub}</p>
+          </>
+        )}
 
         {!hasCalls ? (
           <p className={styles.empty}>
@@ -240,15 +335,7 @@ export default async function StartPage({ searchParams }) {
           </p>
         ) : sportKey === 'nfl' ? (
           <ul className={styles.bites}>
-            {calls.bites.map((b) => (
-              <li key={b.k} className={styles.bite}>
-                <span className={styles.biteIcon} aria-hidden="true">{b.icon}</span>
-                <span className={styles.biteTag} style={{ color: b.col }}>{b.tag}</span>
-                <span className={styles.biteName}>{b.name}</span>
-                <span className={styles.biteWhy}>{b.why}</span>
-                <span className={styles.biteStat}>{b.stat}</span>
-              </li>
-            ))}
+            {calls.bites.map((b) => <Bite key={b.k} b={b} />)}
           </ul>
         ) : (
           // Mounted as-is, per the locked scope. No onPlayerClick: there is no
@@ -257,6 +344,18 @@ export default async function StartPage({ searchParams }) {
           <BotPicksStrip players={calls.players} />
         )}
       </section>
+
+      {strip.length > 0 && (
+        <section className={styles.panel}>
+          <h2 className={styles.h2}>Around the league</h2>
+          <p className={styles.note}>
+            The rest of what the board flagged tonight, beyond the four picks above.
+          </p>
+          <ul className={styles.bites}>
+            {strip.map((b) => <Bite key={b.k} b={b} />)}
+          </ul>
+        </section>
+      )}
 
       <a className={styles.cta} href={SIGNUP}>
         <strong>Get the calls before the game</strong>
