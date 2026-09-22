@@ -17,6 +17,7 @@
 import { timingSafeEqual } from 'node:crypto'
 import { hasThreads, postToThreads, threadsConfig, threadsMirrorOn, threadsProblem } from '../../../../../lib/dash/threadsPost'
 import { linkedKinds, threadsLinkFor, threadsLinkMode } from '../../../../../lib/dash/threadsLink'
+import { threadsKinds } from '../../../../../lib/dash/postLink'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -45,6 +46,8 @@ export async function GET(request) {
       note: 'mode "reply" posts the link as the first reply under the post; "inline" puts it in the body',
       linked: linkedKinds().map((kind) => ({ kind, line: threadsLinkFor(kind) })),
       clean: 'every other kind posts with no link — the live homer and touchdown alerts above all',
+      mirrors: threadsKinds(),
+      mirrorNote: 'only these kinds go to Threads at all. THREADS_KINDS=all sends everything.',
     })
   }
 

@@ -1954,7 +1954,10 @@ export async function GET(request) {
           // image step failing degrades to a text post, never to no post.
           const png = await bytesOf(() => homerCard(ev, { site: SITE_HOST }))
           const mediaId = png ? await uploadImageToX(png) : null
-          const r = await postToX(text, { mediaId, quoteId: quoteFor(row) })
+          // kind: 'homer' is for the Threads mirror only (lib/dash/postLink.js)
+          // -- on a highlights account the live alert IS the feed. X ignores it,
+          // and no link is attached: the alerts are the reach, not the funnel.
+          const r = await postToX(text, { mediaId, quoteId: quoteFor(row), kind: 'homer' })
           if (r.ok && r.id) { patch.x_post_id = r.id; totals.x += 1 }
           else {
             totals.xFailed += 1

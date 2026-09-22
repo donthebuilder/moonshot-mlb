@@ -369,7 +369,8 @@ async function runTouchdownTick(db, day) {
         if (claimError) console.error(`[nfl-tick] td claim failed for ${row.game_id}/${row.td_n}: ${claimError.message}`)
         if (claim?.length) {
           const mediaId = png ? await uploadImageToX(png) : null
-          const r = await postToX(text, { mediaId })
+          // kind: 'td' for the Threads mirror only — see the MLB tick's note.
+          const r = await postToX(text, { mediaId, kind: 'td' })
           if (r.ok && r.id) {
             patch.x_post_id = r.id
             totals.x += 1
