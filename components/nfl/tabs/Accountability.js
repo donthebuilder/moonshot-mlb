@@ -7,6 +7,7 @@ import { downloadNflPickCard } from '../shareCard'
 import ChartFrame from '../ChartFrame'
 import PageHeader from '../../PageHeader'
 import { WhatThis } from '../../ui'
+import NflSignalAudit from '../NflSignalAudit'
 
 // DID THE PICKS DO THEIR OWN JOB? — the NFL sibling of MLB's PickScorecard +
 // ScoreAudit (components/PickScorecard.js, components/ScoreAudit.js).
@@ -657,12 +658,13 @@ export default function Accountability({ data, results: latest, onPlayerClick })
           MLB Results tab prints, with the sub-views this sport actually has
           data for. Deliberately NOT ported: Pitchers (no such thing here),
           Pairs & Pools and P/L (the bot publishes no NFL odds, so a money
-          column would be invented — project rule #16), and Signals (no NFL
-          equivalent of the MLB SignalAudit archive exists yet). */}
+          column would be invented — project rule #16). Signals arrived
+          2026-09-23 once the bot started freezing its flags
+          (nfl_signal_audit.json, graded bot-side — see NflSignalAudit.js). */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         {(mode === 'week'
           ? [['overview', '📊 Overview'], ['bands', '🔬 Score bands']]
-          : [['card', '🧾 Report card'], ['record', '👤 Track record'], ['weeks', '📅 Week by week']]
+          : [['card', '🧾 Report card'], ['record', '👤 Track record'], ['weeks', '📅 Week by week'], ['signals', '🔬 Signals']]
         ).map(([k, label]) => (
           <TabBtn key={k} active={subTab === k} onClick={() => setSubTab(k)}>{label}</TabBtn>
         ))}
@@ -675,6 +677,7 @@ export default function Accountability({ data, results: latest, onPlayerClick })
           card: 'is the model any good, all season — every graded week rolled up per market, plus what each letter grade has actually been worth.',
           record: 'which players the card has been right about across every graded week in the archive.',
           weeks: 'the archive\u2019s own index — one row per graded week, newest last.',
+          signals: 'do the flags TUDDY shows actually mean anything — each one graded against real touchdowns, frozen before kickoff.',
         }[subTab]}
       </WhatThis>
 
@@ -749,6 +752,8 @@ export default function Accountability({ data, results: latest, onPlayerClick })
       )}
 
       {mode === 'week' && subTab === 'bands' && <ScoreBands data={data} results={results} />}
+
+      {mode === 'season' && subTab === 'signals' && <NflSignalAudit />}
 
       {mode === 'season' && subTab === 'card' && keys.length === 0 && !loading && (
         <div style={{
