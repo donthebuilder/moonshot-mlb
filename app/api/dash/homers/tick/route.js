@@ -48,6 +48,8 @@ import {
 } from '../../../../../lib/dash/tweetFeed'
 import { threadsSnapshot } from '../../../../../lib/dash/threadsPost'
 import { tailFor as linkTailFor } from '../../../../../lib/dash/postLink'
+import { MLBHR_USER_ID, matchHomer, mayClaimHomer, mlbhrReplyText, parseMlbhr } from '../../../../../lib/dash/mlbhr'
+import { getFromX } from '../../../../../lib/dash/xPost'
 import { discordFailuresSnapshot, hasX, postToDiscord, postToX, uploadImageToX, xProblem } from '../../../../../lib/dash/xPost'
 import { isMaintenanceMode } from '../../../../../lib/edgeConfig'
 import { backfillOneNight } from '../../../../../lib/dash/homerBackfill'
@@ -498,6 +500,13 @@ const NEIGHBOR_REPLY_BATCH = 6
 // OFF BY DEFAULT since 2026-09-20 — see the pass itself for why. Set
 // HOMER_BOARD_REPLY=1 in the environment to bring it back.
 const BOARD_REPLY_ON = String(process.env.HOMER_BOARD_REPLY || '').trim() === '1'
+// @MLBHR replies. ON by default once deployed -- this is the distribution, not
+// a garnish -- but MLBHR_REPLY=0 turns it off without a deploy.
+const MLBHR_REPLY_ON = String(process.env.MLBHR_REPLY || '1').trim() !== '0'
+const MLBHR_REPLY_ALL = String(process.env.MLBHR_REPLY_ALL || '').trim() === '1'
+// Their timeline carries ~20 posts a read and a busy half-hour can put six of
+// ours in it. Capped per tick so one minute cannot spend the whole burst.
+const MLBHR_REPLY_BATCH = 4
 const BOARD_REPLY_MAX_RANK = 50
 const isSurfaced = (row) => Boolean(String(row?.role || '').trim())
 // How many of the board the reply prints above him. Ten names every night is
@@ -2099,6 +2108,89 @@ export async function GET(request) {
   }
 
   totals.statErrors = statErrors
+  // ── @MLBHR: PUT THE BOARD UNDER SOMEBODY ELSE'S POST ──────────────────────
+  //
+  // 2026-09-22, Donovan, with a screenshot of @TheStarTool doing exactly this:
+  // "do this on twitter." @MLBHR posts every home run in baseball to 424,000
+  // followers; the post he screenshotted had 154,000 views. This account has
+  // fifty followers. A reply under their post is the difference between
+  // publishing into an empty room and publishing into a full one.
+  //
+  // ONLY WHEN THE BOARD HAD HIM. Star Tool replies to every home run; this
+  // replies to the ones the model actually called. Three reasons, and they
+  // agree. A reply saying "we didn't have him" is an advert against the
+  // product. X's automation rules are aimed at high-volume identical replies
+  // to one account, and 6 a night reads differently from 35. And the ones
+  // worth reading are the receipts -- the misses are still graded in public on
+  // /called, so nothing is hidden by being selective.
+  // MLBHR_REPLY_ALL=1 turns that gate off.
+  //
+  // MATCHED ON PLAYER AND TEAM, NEVER ON TIME (see lib/dash/mlbhr.js): their
+  // post and our detection can be minutes apart, and replying "we had him"
+  // under the wrong man's home run is the most expensive mistake available
+  // here -- public, on their post, in front of their whole audience.
+  if (xOn && MLBHR_REPLY_ON) {
+    try {
+      const tl = await getFromX(`/2/users/${MLBHR_USER_ID}/tweets`, {
+        max_results: '20', 'tweet.fields': 'created_at,text',
+      })
+      totals.mlbhrRate = tl.rate || null
+      if (!tl.ok) {
+        totals.mlbhrError = `${tl.status} ${tl.error || ''}`.trim()
+      } else {
+        const { data: mine } = await db.from('homer_feed')
+          .select('player_id,hr_n,name,team,role,board_rank,hr_score,mlbhr_reply_id')
+          .eq('day', day).is('mlbhr_reply_id', null)
+        const rows = mine || []
+        let sent = 0
+        for (const tweet of tl.json?.data || []) {
+          if (sent >= MLBHR_REPLY_BATCH) break
+          const parsed = parseMlbhr(tweet.text)
+          if (!parsed) continue
+          const row = matchHomer(parsed, rows)
+          if (!row) continue
+          // The builder's own rule, asked here so the log says the same thing
+          // the copy does: only TOP and HR settle on a home run.
+          const eligible = MLBHR_REPLY_ALL || mayClaimHomer(row.role)
+          const text = eligible ? mlbhrReplyText(row, tailFor('mlbhr_reply')) : ''
+          const claim = { mlbhr_post_id: tweet.id }
+          if (!text) {
+            // Decided and done: no call, nothing honest to say. Marked so the
+            // next tick does not re-examine the same homer every minute for
+            // the rest of the night.
+            await db.from('homer_feed').update({ ...claim, mlbhr_reply_id: 'skipped' })
+              .match({ day, player_id: row.player_id, hr_n: row.hr_n })
+            row.mlbhr_reply_id = 'skipped'
+            totals.mlbhrSkipped = (totals.mlbhrSkipped || 0) + 1
+            continue
+          }
+          const png = await bytesOf(() => homerCard({ ...row, _roles: row.role || '' }, { site: SITE_HOST }))
+          const mediaId = png ? await uploadImageToX(png) : null
+          const r = await postToX(text, { replyTo: tweet.id, mediaId, kind: 'mlbhr_reply' })
+          if (r.ok && r.id) {
+            await db.from('homer_feed').update({ ...claim, mlbhr_reply_id: r.id })
+              .match({ day, player_id: row.player_id, hr_n: row.hr_n })
+            row.mlbhr_reply_id = r.id
+            totals.mlbhr = (totals.mlbhr || 0) + 1
+            sent += 1
+          } else {
+            // Left unclaimed on purpose: their post is still up and the next
+            // tick can try again. A rate limit stops the pass rather than
+            // burning the rest of the batch against the same wall.
+            totals.mlbhrFailed = (totals.mlbhrFailed || 0) + 1
+            console.error(`[mlbhr] reply refused for ${row.name}: ${r.status} ${r.error}`)
+            if (r.status === 429) break
+          }
+        }
+      }
+    } catch (err) {
+      // One bad night on somebody else's timeline must never take the alerts
+      // down with it -- same rule as safeStat() above.
+      totals.mlbhrError = String(err?.message || err)
+      console.error(`[mlbhr] pass threw: ${totals.mlbhrError}`)
+    }
+  }
+
   totals.discordErrors = discordFailuresSnapshot()
   // What the Threads mirror did this tick, for the same reason discordErrors
   // exists: a second network failing quietly is a week of nobody noticing.
