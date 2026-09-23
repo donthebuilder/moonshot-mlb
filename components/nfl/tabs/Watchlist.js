@@ -9,6 +9,7 @@ import { reasonsFor } from '../../../lib/nfl/streaks'
 import MatchupBadge from '../MatchupBadge'
 import NflTable from '../NflTable'
 import FollowingStrip from '../../FollowingStrip'
+import { discordParts } from '../../../lib/discordText'
 import PageHeader from '../../PageHeader'
 
 // Upgrade prompt, Phase 2: "Watchlist page — needs a real upgrade pass, not
@@ -129,6 +130,11 @@ export default function Watchlist({ data, matchup, logs, onPlayerClick }) {
     .sort((a, b) => b.sortScore - a.sortScore)
 
   const targetCount = rows.filter((row) => row.tag?.tag === 'TARGET').length
+  const [copyPart, setCopyPart] = useState(0)
+  const copyParts = discordParts(
+    `**TUDDY watchlist · ${data?.label || 'this week'}**`,
+    rows.map((r, i) => `${i + 1}. ${r.pin.name}${r.pin.team ? ` (${r.pin.team})` : ''}${r.best ? ` ${r.best} ${Number.isFinite(r.score) ? Math.round(r.score) : ''}`.trimEnd() : ''}`),
+  )
 
   return <div className="nfl-watch"><PageHeader
       eyebrow="YOUR TUDDY BOARD"
@@ -148,9 +154,12 @@ export default function Watchlist({ data, matchup, logs, onPlayerClick }) {
       </div>
       <div className="nfl-watch-exports">
         <button onClick={() => {
-          const text = rows.map((r) => `${r.pin.name}${r.pin.team ? ` (${r.pin.team})` : ''}${r.best ? ` — ${r.best} ${Number.isFinite(r.score) ? Math.round(r.score) : ''}` : ''}`).join('\n')
-          try { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1600) } catch {}
-        }}>{copied ? 'COPIED' : 'COPY LIST'}</button>
+          // Discord-sized, in parts when it will not fit one message (2026-09-23).
+          const text = copyParts[copyPart % copyParts.length]
+          navigator.clipboard.writeText(text).then(() => {
+            setCopied(true); setCopyPart((copyPart % copyParts.length) + 1); setTimeout(() => setCopied(false), 1600)
+          }).catch(() => {})
+        }}>{copied ? (copyParts.length > 1 ? `COPIED ${copyPart % copyParts.length || copyParts.length}/${copyParts.length}` : 'COPIED') : copyParts.length > 1 ? `COPY ${copyPart % copyParts.length + 1}/${copyParts.length}` : 'COPY LIST'}</button>
         <button onClick={() => download(`tuddy-watchlist-${(data?.label || 'slate').replace(/\s+/g, '-').toLowerCase()}.csv`, buildCsv(rows), 'text/csv;charset=utf-8')}>CSV</button>
       </div>
     </div>}

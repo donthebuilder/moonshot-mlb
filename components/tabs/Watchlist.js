@@ -6,6 +6,7 @@ import {
   nn, n, clean, arr, obj, barrelRate, avgEV, pitchMixScore,
 } from '../../lib/player'
 import { tierRole, isAligned } from '../../lib/scoring'
+import { discordParts } from '../../lib/discordText'
 import { dedupeGraded } from '../../lib/graded'
 import { recordNight, ledgerTotals, exportLedger, importLedger, clearLedger } from '../../lib/watchLedger'
 import { C, NUM_FONT } from '../../lib/theme'
@@ -143,8 +144,23 @@ function downloadTxt(items) {
   URL.revokeObjectURL(url)
 }
 
-async function copyTextList(items, onDone) {
-  const text = buildTextList(items)
+// What "Copy List" puts on the clipboard: Discord-sized (2026-09-23). One
+// short line a player, best HR score first, a star for a bot pick -- the
+// CALLED vs ON THE BOARD line the whole product draws. The full line with
+// role, opponent and bot tag still goes in the .txt download.
+function discordLines(items) {
+  const sorted = [...items].sort((a, b) => hrScore(b) - hrScore(a))
+  return sorted.map((p, i) => `${i + 1}. ${nameOf(p)} (${teamOf(p)}) HR ${Math.round(hrScore(p))}${botPickOf(p) ? ' ⭐' : ''}`)
+}
+function buildDiscordParts(items) {
+  const stamp = new Date().toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' })
+  const anyPick = items.some((p) => botPickOf(p))
+  return discordParts(`**MOONSHOT watchlist · ${stamp}**`, discordLines(items), anyPick ? '⭐ = bot pick' : '')
+}
+
+async function copyTextList(items, onDone, part = 0) {
+  const parts = buildDiscordParts(items)
+  const text = parts[Math.min(part, parts.length - 1)]
   try {
     await navigator.clipboard.writeText(text)
     onDone?.(true)
@@ -741,11 +757,17 @@ export default function Watchlist({ items, players = [], pairSummary, results, s
     setConfirming(false)
   }
 
+  // A list too long for one Discord message copies in parts: each tap copies
+  // the next one, and the button says which part is on the clipboard.
+  const [copyPart, setCopyPart] = useState(0)
+  const partCount = useMemo(() => buildDiscordParts(items).length, [items])
+  const part = copyPart % partCount
   function handleCopy() {
     copyTextList(items, (ok) => {
       setCopied(ok ? 'ok' : 'fail')
+      if (ok && partCount > 1) setCopyPart(part + 1)
       setTimeout(() => setCopied(false), 1800)
-    })
+    }, part)
   }
 
   if (!items.length) {
@@ -784,7 +806,7 @@ export default function Watchlist({ items, players = [], pairSummary, results, s
                 cursor: 'pointer', whiteSpace: 'nowrap',
               }}
             >
-              {copied === 'ok' ? '✓ Copied' : copied === 'fail' ? 'Copy failed' : '📋 Copy List'}
+              {copied === 'ok' ? (partCount > 1 ? `✓ Copied ${part === 0 ? partCount : part}/${partCount}` : '✓ Copied') : copied === 'fail' ? 'Copy failed' : partCount > 1 ? `📋 Copy ${part + 1}/${partCount}` : '📋 Copy List'}
             </button>
             <button
               onClick={() => downloadShareCard(items)}
