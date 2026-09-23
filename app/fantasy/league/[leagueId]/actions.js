@@ -114,11 +114,21 @@ export async function syncPlayerCatalog(formData) {
   if (live && raw?.mode === 'week' && catalog.length >= MIN_CATALOG_FOR_RETIRE) {
     const { data: existing } = await supabase
       .from('nfl_players')
-      .select('source, source_player_id, season, name, position, team, injury_status, source_payload, active')
+      .select('id, source, source_player_id, season, name, position, team, injury_status, source_payload, active')
       .eq('season', season)
       .eq('active', true)
     const present = new Set(catalog.map((row) => `${row.source}:${row.sourcePlayerId}`))
-    const gone = (existing || []).filter((row) => !present.has(`${row.source}:${row.source_player_id}`))
+    // NEVER RETIRE A MAN WHO IS ON A ROSTER (2026-09-23). The week slate only
+    // carries players with something to price this week, so an injured
+    // starter drops out of it -- Josh Jacobs and Zach Charbonnet in Week 3.
+    // Retired, he vanished from the Wire's Drop panel and from every
+    // active-only query, while the roster count still held him. Any league,
+    // hence the service client: nfl_players is global.
+    const { data: rostered, error: rosterError } = await service
+      .from('fantasy_roster_entries').select('player_id').is('released_at', null)
+    if (rosterError) redirect(routeFor(leagueId, 'error', `Catalog not refreshed: could not read rosters (${rosterError.message})`))
+    const onARoster = new Set((rostered || []).map((row) => row.player_id))
+    const gone = (existing || []).filter((row) => !present.has(`${row.source}:${row.source_player_id}`) && !onARoster.has(row.id))
     for (const row of gone) {
       catalog.push({
         source: row.source,

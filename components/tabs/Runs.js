@@ -567,14 +567,14 @@ export default function Runs({ players = [], onPlayerClick }) {
                   <b style={{ fontSize: TYPE.name }}>Every active run on the board</b>
                   <span style={{ fontSize: TYPE.micro, color: C.text3 }}>
                     {rows.length} hitters on {label} · longest{' '}
-                    <b style={{ color: '#4ade80', fontFamily: NUM_FONT }}>{longest}</b>
-                    {coldest < 0 ? <> · deepest drought <b style={{ color: '#f87171', fontFamily: NUM_FONT }}>{Math.abs(coldest)}</b></> : null}
+                    <b style={{ color: C.green, fontFamily: NUM_FONT }}>{longest}</b>
+                    {coldest < 0 ? <> · deepest drought <b style={{ color: C.red, fontFamily: NUM_FONT }}>{Math.abs(coldest)}</b></> : null}
                   </span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 54 }}>
                   {cols.map(([v, c2]) => {
                     const hotCol = v > 0
-                    const tone = hotCol ? '#4ade80' : '#f87171'
+                    const tone = hotCol ? C.green : C.red
                     return (
                       <div key={v} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, minWidth: 0 }}
                         title={`${c2} hitter${c2 === 1 ? '' : 's'} ${hotCol ? 'on a run of' : 'in a drought of'} ${Math.abs(v)}${Math.abs(v) === 8 ? ' or more' : ''} game${Math.abs(v) === 1 ? '' : 's'} for ${label}.`}>
@@ -591,8 +591,8 @@ export default function Runs({ players = [], onPlayerClick }) {
                   })}
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 3 }}>
-                  <span style={{ fontSize: TYPE.label, color: '#f87171', fontFamily: NUM_FONT, letterSpacing: '.06em' }}>← DROUGHT</span>
-                  <span style={{ fontSize: TYPE.label, color: '#4ade80', fontFamily: NUM_FONT, letterSpacing: '.06em' }}>RUN →</span>
+                  <span style={{ fontSize: TYPE.label, color: C.red, fontFamily: NUM_FONT, letterSpacing: '.06em' }}>← DROUGHT</span>
+                  <span style={{ fontSize: TYPE.label, color: C.green, fontFamily: NUM_FONT, letterSpacing: '.06em' }}>RUN →</span>
                 </div>
                 <div style={{ fontSize: TYPE.body, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
                   The same {rows.length} rows the board is sorted by, counted rather than listed — so a card&apos;s
@@ -624,7 +624,7 @@ export default function Runs({ players = [], onPlayerClick }) {
                   <div style={{ fontSize: TYPE.name, fontWeight: 800, marginTop: 1 }}>{p.name}</div>
                   <div style={{
                     fontFamily: NUM_FONT, fontSize: TYPE.display, fontWeight: 900, marginTop: 2,
-                    color: hot ? '#4ade80' : '#f87171',
+                    color: hot ? C.green : C.red,
                     display: 'flex', alignItems: 'baseline', gap: 7, flexWrap: 'wrap',
                   }}>
                     <span>{Math.abs(r.run)} game {hot ? 'run' : 'drought'}</span>
@@ -653,7 +653,7 @@ export default function Runs({ players = [], onPlayerClick }) {
                             title={prev
                               ? `Nothing else in these ${r.n} games comes close: his next-longest ${word} is ${prev}. Strict consecutive, both measured the same way.`
                               : `The only ${word} of any length he has in these ${r.n} games.`}>
-                            {prev ? <>past a previous <b style={{ color: hot ? '#4ade80' : '#f87171' }}>{prev}</b></> : 'his first of any length'}
+                            {prev ? <>past a previous <b style={{ color: hot ? C.green : C.red }}>{prev}</b></> : 'his first of any length'}
                           </span>
                         )
                       }
@@ -719,7 +719,7 @@ export default function Runs({ players = [], onPlayerClick }) {
                         title={`${p.name} ${verb} ${label} in each of his last ${Math.abs(r.run)} ${split === 'all' ? '' : `${SPLITS.find(([k]) => k === split)?.[1].toLowerCase()} `}games. Tap for the log.`}
                         style={{
                           fontFamily: NUM_FONT, fontSize: TYPE.body, fontWeight: 900, minWidth: 26, textAlign: 'right',
-                          color: r.run > 0 ? '#4ade80' : r.run < 0 ? '#f87171' : C.text3,
+                          color: r.run > 0 ? C.green : r.run < 0 ? C.red : C.text3,
                         }}>{r.run > 0 ? `${r.run}▲` : `${-r.run}▼`}</span>
                       <span style={{ fontSize: TYPE.name, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, minWidth: 0 }}>
                         {p.name}

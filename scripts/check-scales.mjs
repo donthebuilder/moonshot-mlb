@@ -144,7 +144,11 @@ const EXEMPT = new Set([
 //         having one. TRACKED now filters the walk to what git actually
 //         holds; anything untracked starts counting the moment it is
 //         committed, which is the right moment.
-const HEX_BUDGET = 801
+//    796  2026-09-23: 18 over had kept SHIP.sh red since the Numerology tab
+//         and /ask landed. Numerology's roots 1-7 and Runs.js's hot/cold were
+//         lib/theme.js's C spelled out by hand -- same values, now tokens --
+//         and /ask's background is named once. Paid back, then ratcheted.
+const HEX_BUDGET = 796
 
 const TRACKED = (() => {
   try {

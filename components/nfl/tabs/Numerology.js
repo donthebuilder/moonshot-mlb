@@ -1,6 +1,7 @@
 'use client'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../../lib/nfl/theme'
+import { C as MLB_C } from '../../../lib/theme'
 import { AXIS_META, alignedWith, slateAlignments, dateDigitRoot, shiftDateKey } from '../../../lib/nfl/alignments'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 import PageHeader from '../../PageHeader'
@@ -38,7 +39,10 @@ import { etToday } from '../../../lib/freshness'
 // today checks off a results writer TUDDY doesn't have would be exactly
 // the invented-data rule #16 exists to stop.
 
-const ROOT_COLORS = ['', '#f97316', '#f59e0b', '#22d3ee', '#4ade80', '#a78bfa', '#f87171', '#60a5fa', '#FCD34D', '#c084fc']
+// Roots 1-7 are the site's own C (lib/theme.js), spelled out by hand until
+// 2026-09-23; same values, now following the theme. 8 and 9 have no token.
+const VIOLET = '#c084fc'
+const ROOT_COLORS = ['', MLB_C.orange, MLB_C.yellow, MLB_C.cyan, MLB_C.green, MLB_C.purple, MLB_C.red, MLB_C.blue, '#FCD34D', VIOLET]
 
 export default function Numerology({ data }) {
   const watchlist = useNflWatchlist(data)
@@ -220,7 +224,7 @@ export default function Numerology({ data }) {
       {/* ── FULL BRAIDS — his own numbers agree with each other ──────────── */}
       {braids.length > 0 && (
         <div style={{ border: '1px solid rgba(192,132,252,.3)', background: 'rgba(192,132,252,.06)', borderRadius: 10, padding: '8px 11px', marginBottom: 10 }}>
-          <div style={{ fontSize: TYPE.label, fontWeight: 800, color: '#c084fc', marginBottom: 2 }}>
+          <div style={{ fontSize: TYPE.label, fontWeight: 800, color: VIOLET, marginBottom: 2 }}>
             🧬 FULL BRAIDS · {braids.length} players whose own numbers agree
           </div>
           <div style={{ fontSize: TYPE.micro, color: C.text3, lineHeight: 1.6, marginBottom: 6 }}>
@@ -233,7 +237,7 @@ export default function Numerology({ data }) {
                 title={`Root ${root}: ${keys.map((k) => AXIS_META[k].why(a)).join(' · ')} · ${a.team}`}
                 style={{
                   padding: '3px 10px', borderRadius: 999, fontSize: TYPE.body, fontWeight: 700,
-                  border: `1px solid ${strength >= 3 ? '#c084fc' : C.border}`, color: C.text2,
+                  border: `1px solid ${strength >= 3 ? VIOLET : C.border}`, color: C.text2,
                 }}>
                 {a.name}
                 <span style={{ color: ROOT_COLORS[root], fontFamily: NUM_FONT, fontSize: TYPE.micro, fontWeight: 900 }}> {root}</span>

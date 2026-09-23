@@ -63,8 +63,14 @@ echo
 
 echo "── checks ──"
 FAIL=0
+# The loader resolves extensionless imports (`../lib/x` -> x.js) the way
+# Next does. Without it, any check importing app code fails on module
+# resolution, not on what it checks -- that kept SHIP red for two checks
+# that were passing (2026-09-23).
+LOADER=()
+[ -f scripts/_esm-resolve.mjs ] && LOADER=(--import ./scripts/_esm-resolve.mjs)
 for s in scripts/check-*.mjs; do
-  if node "$s" >/dev/null 2>&1; then echo "  ok   $(basename "$s")"
+  if node ${LOADER[@]+"${LOADER[@]}"} "$s" >/dev/null 2>&1; then echo "  ok   $(basename "$s")"
   else echo "  FAIL $(basename "$s")"; FAIL=1; fi
 done
 if [ "$FAIL" = "1" ]; then echo; echo "A check failed — nothing pushed. Run the failing one to see why."; exit 1; fi

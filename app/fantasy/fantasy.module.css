@@ -6928,7 +6928,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 }
 .formStrip u[data-out="W"] {
   background: var(--fx-accent);
-  color: #0b0b0b;
+  color: #1a0f00; /* warm ink on the orange fill: dark in both modes on purpose (2026-09-23) */
 }
 .formStrip u[data-out="L"] {
   background: transparent;

@@ -18,6 +18,7 @@ const INK = '#efe9dd'
 const ORANGE = '#f4581f'
 const DIM = '#8f8a83'
 const PANEL = '#12100e'
+const BG = '#0a0908'
 const RULE = 'rgba(239,233,221,0.15)'
 
 export default function Ask() {
@@ -73,7 +74,7 @@ export default function Ask() {
   const off = res?.offBoard
 
   return (
-    <main style={{ minHeight: '100dvh', background: '#0a0908', color: INK, padding: '20px 16px 48px', fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif' }}>
+    <main style={{ minHeight: '100dvh', background: BG, color: INK, padding: '20px 16px 48px', fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif' }}>
       <div style={{ maxWidth: 560, margin: '0 auto' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
           <span style={{ fontSize: 15, fontWeight: 800, letterSpacing: 3 }}>CALLED IT</span>
@@ -119,7 +120,7 @@ export default function Ask() {
             <pre style={{ whiteSpace: 'pre-wrap', fontSize: 13, lineHeight: 1.45, color: INK, background: 'rgba(255,255,255,0.03)', border: `1px solid ${RULE}`, borderRadius: 4, padding: 12, margin: 0, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>{h.text}</pre>
             <button
               onClick={() => copy(h.text, h.player_id)}
-              style={{ width: '100%', marginTop: 10, padding: '14px 0', fontSize: 14, fontWeight: 800, letterSpacing: 2, color: '#0a0908', background: copied === h.player_id ? '#7bd88f' : ORANGE, border: 'none', borderRadius: 4, cursor: 'pointer' }}
+              style={{ width: '100%', marginTop: 10, padding: '14px 0', fontSize: 14, fontWeight: 800, letterSpacing: 2, color: BG, background: copied === h.player_id ? '#7bd88f' : ORANGE, border: 'none', borderRadius: 4, cursor: 'pointer' }}
             >
               {copied === h.player_id ? 'COPIED' : 'COPY'}
             </button>
@@ -132,7 +133,7 @@ export default function Ask() {
             <pre style={{ whiteSpace: 'pre-wrap', fontSize: 13, lineHeight: 1.45, color: INK, background: 'rgba(255,255,255,0.03)', border: `1px solid ${RULE}`, borderRadius: 4, padding: 12, margin: 0, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}>{off.text}</pre>
             <button
               onClick={() => copy(off.text, 'off')}
-              style={{ width: '100%', marginTop: 10, padding: '14px 0', fontSize: 14, fontWeight: 800, letterSpacing: 2, color: '#0a0908', background: copied === 'off' ? '#7bd88f' : ORANGE, border: 'none', borderRadius: 4, cursor: 'pointer' }}
+              style={{ width: '100%', marginTop: 10, padding: '14px 0', fontSize: 14, fontWeight: 800, letterSpacing: 2, color: BG, background: copied === 'off' ? '#7bd88f' : ORANGE, border: 'none', borderRadius: 4, cursor: 'pointer' }}
             >
               {copied === 'off' ? 'COPIED' : 'COPY'}
             </button>
