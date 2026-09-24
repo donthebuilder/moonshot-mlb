@@ -7,6 +7,7 @@ import {
 } from '../../lib/player'
 import { tierRole, isAligned } from '../../lib/scoring'
 import { discordParts } from '../../lib/discordText'
+import { byGameThenTeam, discordGameBlocks, gameTimeOf, startLabel } from '../../lib/watchGroups'
 import { dedupeGraded } from '../../lib/graded'
 import { recordNight, ledgerTotals, exportLedger, importLedger, clearLedger } from '../../lib/watchLedger'
 import { C, NUM_FONT } from '../../lib/theme'
@@ -148,9 +149,11 @@ function downloadTxt(items) {
 // short line a player, best HR score first, a star for a bot pick -- the
 // CALLED vs ON THE BOARD line the whole product draws. The full line with
 // role, opponent and bot tag still goes in the .txt download.
+// Grouped the way the night is played (2026-09-23): a bold header per game,
+// earliest first pitch first, then one line per team -- "NYY: Aaron Judge
+// 90 ⭐, Giancarlo Stanton 71". Shorter than a line a player, too.
 function discordLines(items) {
-  const sorted = [...items].sort((a, b) => hrScore(b) - hrScore(a))
-  return sorted.map((p, i) => `${i + 1}. ${nameOf(p)} (${teamOf(p)}) HR ${Math.round(hrScore(p))}${botPickOf(p) ? ' ⭐' : ''}`)
+  return discordGameBlocks(items, botPickOf)
 }
 function buildDiscordParts(items) {
   const stamp = new Date().toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' })
@@ -973,7 +976,7 @@ export default function Watchlist({ items, players = [], pairSummary, results, s
             ) : (
             <DenseTable
               heatMode="sorted"
-rows={filteredOnSlate.map((p) => {
+rows={[...filteredOnSlate].sort(byGameThenTeam).map((p) => {
                 const track = trackOf(nameOf(p))
                 const mine = mineOf(p)
                 return {
@@ -986,6 +989,10 @@ rows={filteredOnSlate.map((p) => {
                   _raw: p,
                   watched: 1,
                   name: nameOf(p),
+                  // Start time: the table opens in game order (2026-09-23), and
+                  // this column is how you get back to it after sorting on HR.
+                  start: Number.isFinite(gameTimeOf(p)) ? gameTimeOf(p) : null,
+                  start_t: startLabel(p).replace(' ET', ''),
                   team: teamOf(p),
                   opp: oppOf(p),
                   spot: p?.lineup_spot ?? null,
@@ -1047,6 +1054,8 @@ rows={filteredOnSlate.map((p) => {
                   onAction: (p) => p && onWatch(p, false),
                 }] : []),
                 { key: 'name',  label: 'Player', heat: false, w: 148, bold: true, sticky: true },
+                { key: 'start', label: 'Start', heat: false, w: 62, mono: true, dim: true,
+                  fmt: (v, row) => row.start_t, title: 'First pitch, Eastern. The list opens in this order, then by team.' },
                 { key: 'team',  label: 'Tm',   heat: false, w: 34, mono: true, dim: true },
                 { key: 'opp',   label: 'Opp',  heat: false, w: 34, mono: true, dim: true },
                 { key: 'spot',  label: '#',    heat: false, w: 26, mono: true, dim: true,
@@ -1107,7 +1116,7 @@ rows={filteredOnSlate.map((p) => {
                   title: 'A composite run-production read: season run rate, lineup spot, season OBP, and recent run form. Not a bot field, not calibrated — a transparent blend, same caveat as K risk.' },
               ]}
               onRowClick={(r) => r && onPlayerClick?.(r)}
-              initialSort="hr"
+              initialSort={null}
               maxHeight={380}
               caption="Your saved hitters, side by side — every column heats against THE FILTERED LIST only, so bright means best of what's currently shown, not best of the slate. Narrow the filter and the colours re-scale to the survivors. ★ un-saves without leaving the table. Two record columns sit next to each other on purpose: Track record is every night the BOT picked him, Your nights is every night HE WAS ON YOUR LIST and this page was open — the second is a small sample by construction and stays a raw count for that reason."
             />
@@ -1208,7 +1217,7 @@ rows={filteredOnSlate.map((p) => {
         </summary>
         <div style={{ marginTop: 10 }}>
           <Grid>
-            {items.map((p) => (
+            {[...items].sort(byGameThenTeam).map((p) => (
               <PlayerCard
                 key={playerId(p)}
                 p={p}

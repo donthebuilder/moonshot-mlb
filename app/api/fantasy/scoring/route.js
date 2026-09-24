@@ -5,7 +5,7 @@ import { createClient } from '@supabase/supabase-js'
 import { loadFranchiseNflFeed } from '../../../../lib/fantasy/nflFeed'
 import { createSupabaseServerClient } from '../../../../lib/supabase/server'
 import {syncCatalogChunked,syncWeekFeedChunked} from '../../../../lib/fantasy/sync'
-import {autoFillLineups,carryForwardLineups} from '../../../../lib/fantasy/autoLineup'
+import {autoFillLineups,benchUnavailableStarters,carryForwardLineups} from '../../../../lib/fantasy/autoLineup'
 import {isMaintenanceMode,isFranchiseSchedulerEnabled} from '../../../../lib/edgeConfig'
 
 export const dynamic='force-dynamic'
@@ -91,7 +91,13 @@ async function synchronize(request) {
       if(fill.slotsFilled||fill.skipped&&!['too_early','no_games','no_kickoffs','no_active_leagues'].includes(fill.skipped)){
         console.log(`[franchise/scoring] auto-lineup week ${week}:`,JSON.stringify(fill))
       }
-      lineupFills.push({week,carried:carry.rowsCarried,carriedTeams:carry.carried.length,carrySkipped:carry.skipped,slotsFilled:fill.slotsFilled,teams:fill.filled.length,skipped:fill.skipped})
+      // After carry and fill: a starter ruled OUT is swapped for the best
+      // healthy bench player before his game (see benchUnavailableStarters).
+      const bench=await benchUnavailableStarters(supabase,{season:feed.season,week})
+      if(bench.swapped||bench.skipped&&!['no_games','no_active_leagues'].includes(bench.skipped)){
+        console.log(`[franchise/scoring] injured starters week ${week}:`,JSON.stringify(bench))
+      }
+      lineupFills.push({week,carried:carry.rowsCarried,carriedTeams:carry.carried.length,carrySkipped:carry.skipped,slotsFilled:fill.slotsFilled,teams:fill.filled.length,skipped:fill.skipped,injuredBenched:bench.swapped,benchSkipped:bench.skipped})
     }
     // WAIVERS CLEAR ON THE CLOCK (2026-09-14). Claims whose 24 hours are up
     // used to wait for the commissioner's button on the Wire. Service-only
