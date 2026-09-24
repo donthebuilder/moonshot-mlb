@@ -176,7 +176,7 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
 
     const renderer = new THREE.WebGLRenderer({ antialias: true })
     renderer.setSize(W, H)
-    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1))
+    renderer.setPixelRatio(Math.min(1.5, window.devicePixelRatio || 1))
     renderer.toneMapping = THREE.ACESFilmicToneMapping
     renderer.toneMappingExposure = 0.88
     mount.appendChild(renderer.domElement)
@@ -789,10 +789,25 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
 
     let raf = 0
     const tick = (now) => { controls.update(); world.step(now || performance.now()); look.render(); raf = requestAnimationFrame(tick) }
-    raf = requestAnimationFrame(tick)
+    // Same rule as SprayFieldStadium (2026-09-24): a post-processed 60fps
+    // loop only while the canvas is on screen and the tab is visible.
+    let onScreen = true
+    let hidden = typeof document !== 'undefined' && document.hidden
+    let running = false
+    const start = () => { if (!running && onScreen && !hidden) { running = true; raf = requestAnimationFrame(tick) } }
+    const stop = () => { if (running) { running = false; cancelAnimationFrame(raf) } }
+    const io = typeof IntersectionObserver !== 'undefined'
+      ? new IntersectionObserver((entries) => { onScreen = entries.some((e) => e.isIntersecting); onScreen ? start() : stop() }, { threshold: 0.05 })
+      : null
+    if (io) io.observe(renderer.domElement)
+    const onVis = () => { hidden = document.hidden; hidden ? stop() : start() }
+    document.addEventListener('visibilitychange', onVis)
+    start()
 
     return () => {
       cancelAnimationFrame(raf)
+      if (io) io.disconnect()
+      document.removeEventListener('visibilitychange', onVis)
       renderer.domElement.removeEventListener('pointermove', onMove)
       renderer.domElement.removeEventListener('pointerleave', onLeave)
       controls.dispose()

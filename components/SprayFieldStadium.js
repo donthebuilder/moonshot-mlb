@@ -226,7 +226,9 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
 
     const renderer = new THREE.WebGLRenderer({ antialias: true })
     renderer.setSize(W, H)
-    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1))
+    // 1.5 cap (was 2): on a Retina desktop that is ~44% fewer pixels through
+    // AO + bloom per frame, and the park is a 780px panel, not a full screen.
+    renderer.setPixelRatio(Math.min(1.5, window.devicePixelRatio || 1))
     // ACES rolls the highlights off instead of clipping them: the top rail and
     // the arc cores read as HOT rather than as flat white. Exposure under 1
     // keeps the midtones where the rest of this file was tuned.
@@ -1150,6 +1152,26 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
       camera.position.x -= dx; camera.position.y -= dy; camera.rotation.z -= dr
       raf = requestAnimationFrame(tick)
     }
+    // ── THE PARK ONLY RENDERS WHILE IT IS ON SCREEN (2026-09-24) ─────────────
+    // This loop is a full post-processed frame (AO, bloom, sky) sixty times a
+    // second for as long as the stadium is mounted -- scrolled out of view
+    // inside the card, or with the tab in the background, it kept going, and
+    // everything else on the page (the EV log, the tables, the scroll itself)
+    // paid for it. Donovan: "when pulling up the EV log or spray chart it's
+    // slow." Pause the loop when the canvas is not visible or the tab is
+    // hidden; resume on the next frame it is. No visual change while you are
+    // looking at it.
+    let onScreen = true
+    let hidden = typeof document !== 'undefined' && document.hidden
+    let running = true
+    const start = () => { if (!running && onScreen && !hidden) { running = true; raf = requestAnimationFrame(tick) } }
+    const stop = () => { if (running) { running = false; cancelAnimationFrame(raf) } }
+    const io = typeof IntersectionObserver !== 'undefined'
+      ? new IntersectionObserver((entries) => { onScreen = entries.some((e) => e.isIntersecting); onScreen ? start() : stop() }, { threshold: 0.05 })
+      : null
+    if (io) io.observe(renderer.domElement)
+    const onVis = () => { hidden = document.hidden; hidden ? stop() : start() }
+    document.addEventListener('visibilitychange', onVis)
     tick()
 
     const onResize = () => {
@@ -1164,6 +1186,8 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
 
     return () => {
       cancelAnimationFrame(raf)
+      if (io) io.disconnect()
+      document.removeEventListener('visibilitychange', onVis)
       window.removeEventListener('resize', onResize)
       renderer.domElement.removeEventListener('pointermove', onMove)
       renderer.domElement.removeEventListener('pointerleave', onLeave)
