@@ -12,6 +12,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
 import { createSupabaseServerClient } from '../../lib/supabase/server'
+import { safeNext } from '../../lib/safeNext'
 
 const clean = (value, max = 60) => String(value || '').trim().slice(0, max)
 
@@ -19,10 +20,8 @@ const clean = (value, max = 60) => String(value || '').trim().slice(0, max)
 // can point off-site turns the sign-in form into an open redirect. The
 // fallback is the front door, which is `/` since the move (it was /dash for
 // about a day).
-function safeNext(value) {
-  const next = String(value || '/')
-  return next.startsWith('/') && !next.startsWith('//') ? next : '/'
-}
+// safeNext lives in lib/safeNext.js since 2026-09-24 (SEC-2: the inline
+// string test let `/\evil.com` through).
 
 // ── A BOUNCE USED TO COST YOU THE WHOLE FORM (2026-08-31) ───────────────────
 //

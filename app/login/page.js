@@ -19,14 +19,13 @@ import { hasSupabaseConfig } from '../../lib/supabase/config'
 import { createSupabaseServerClient } from '../../lib/supabase/server'
 import styles from '../(front)/dash.module.css'
 import '../(front)/scroll-anchor.css' // css-loader pure-selector fix, 2026-09-06
+import { safeNext } from '../../lib/safeNext'
 
 export const metadata = { title: 'Sign in · DASH Network' }
 export const dynamic = 'force-dynamic'
 
-function safeNext(value) {
-  const next = String(value || '/')
-  return next.startsWith('/') && !next.startsWith('//') ? next : '/'
-}
+// safeNext lives in lib/safeNext.js since 2026-09-24 (SEC-2: the inline
+// string test let `/\evil.com` through).
 
 export default async function LoginPage({ searchParams }) {
   const params = (await searchParams) || {}
