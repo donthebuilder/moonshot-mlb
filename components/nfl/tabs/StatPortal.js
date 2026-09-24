@@ -99,7 +99,7 @@ function RecentGames({ rows, market, bar, setMarket }) {
     <section className="portal-card">
       <div className="portal-card-head">
         <div><small>RECENT FORM</small><h2>Game log</h2></div>
-        <div className="portal-market-tabs">{MARKETS.map(([key]) => rows.some((row) => Number.isFinite(Number(row[MARKET_LOG[key][0]]))) && <button key={key} onClick={() => setMarket(key)} className={market === key ? 'active' : ''}>{key}</button>)}</div>
+        <div className="portal-market-tabs">{MARKETS.map(([key]) => MARKET_LOG[key] && rows.some((row) => Number.isFinite(Number(row[MARKET_LOG[key][0]]))) && <button key={key} onClick={() => setMarket(key)} className={market === key ? 'active' : ''}>{key}</button>)}</div>
       </div>
       <GamelogFilterBar rows={rows} fields={GAMELOG_FILTER_FIELDS}>
         {(sliced, filters) => {

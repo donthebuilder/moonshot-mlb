@@ -127,7 +127,7 @@ function normNfl(r) {
     repeat: null,
     // The gsis_id is nullable by design (see tdFeed.js) — an unresolved
     // scorer still gets his row, just without a link into the board.
-    href: r.gsis_id ? `/app#sport=nfl&p=${encodeURIComponent(r.gsis_id)}` : null,
+    href: r.gsis_id ? `/app#sport=nfl&tab=players&player=${encodeURIComponent(r.gsis_id)}` : null,
     called: Boolean(r.on_bot),
     onBoard: Boolean(r.td_board),
     detail: [
@@ -314,7 +314,7 @@ export default async function CalledPage({ searchParams }) {
             {picks.map((p, i) => (
               <li key={p.player_id || i} className={calledIds.has(String(p.player_id)) ? styles.callHit : ''}>
                 <span className={styles.callN}>{i + 1}</span>
-                <a className={styles.name} href={`/app#sport=${sport.key}&p=${encodeURIComponent(p.player_id)}`}>{p.name}</a>
+                <a className={styles.name} href={sport.key === 'nfl' ? `/app#sport=nfl&tab=players&player=${encodeURIComponent(p.player_id)}` : `/app#sport=mlb&p=${encodeURIComponent(p.player_id)}`}>{p.name}</a>
                 <span className={styles.meta}>{p.team || ''}{p.opponent || p.opp ? ` vs ${p.opponent || p.opp}` : ''}{p.odds_over && p.odds_book ? ` · ${p.odds_over > 0 ? '+' : ''}${p.odds_over} ${p.odds_book}` : ''}</span>
                 <span className={styles.call}>{calledIds.has(String(p.player_id)) ? `🤖 ${sport.verb}` : 'live'}</span>
               </li>

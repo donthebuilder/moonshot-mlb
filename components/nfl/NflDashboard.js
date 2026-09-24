@@ -106,6 +106,21 @@ export default function NflDashboard({ palettePass = 0 }) {
   useEffect(() => {
     if (hashDone.current) return
     hashDone.current = true
+    // 2026-09-24 audit (NAV-6): every NFL link on /called and every TD card
+    // carried `p=<gsis>` -- MLB's parameter -- and this shell only read
+    // `player=` on tab=players, so a shared touchdown never opened the man.
+    // Normalise `p=` into the address the player file understands before
+    // the tab is resolved.
+    try {
+      const live = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''))
+      const snap = initialHashParams()
+      const p = live.get('p') || snap.get('p')
+      const isNfl = (live.get('sport') || snap.get('sport')) === 'nfl'
+      if (isNfl && p && !live.get('player')) {
+        live.set('sport', 'nfl'); live.set('tab', 'players'); live.set('player', p); live.delete('p')
+        window.history.replaceState(null, '', `#${live.toString()}`)
+      }
+    } catch { /* ignore */ }
     // Prefer the live hash when switching sports without a reload, then fall
     // back to the module-load snapshot for a direct NFL deep link.
     let t = null
