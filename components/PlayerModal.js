@@ -797,12 +797,14 @@ export default function PlayerModal({ player, slateMode, initialTab = '', onClos
             badge={apiOnly ? 'LIVE API' : heroRole === 'NONE' ? 'NO BADGE' : heroRole === 'WATCH' ? '👀 WATCH' : heroRole}
             badgeQuiet={apiOnly || heroRole === 'NONE' || heroRole === 'WATCH'}
             meta={apiOnly
-              ? `${clean(p?.team, '—')}${p?.position ? ` · ${p.position}` : ''} · ${clean(p?.bats, '?')}HB · not on tonight's slate`
+              ? `${clean(p?.team, '—')}${p?.position ? ` · ${p.position}` : ''} · ${clean(p?.bats, '?')}HB · ${p?.status_word || "not on tonight's slate"}${p?.season_line?.pa ? ` · ${String(p.season_line.avg?.toFixed?.(3) ?? '—').replace(/^0/, '')} / ${p.season_line.hr} HR / ${p.season_line.rbi} RBI in ${p.season_line.pa} PA` : ''}`
               : `${teamOf(p)} vs ${oppOf(p)} · #${clean(p?.lineup_spot, '?')} · ${clean(p?.handedness || p?.bats, '?')}HB${p?.pitcher_name ? ` · vs ${p.pitcher_name} (${clean(p?.pitcher_throws, '?')})${p?.pitcher_projected ? ' ≈' : ''}` : ''}`}
             metaRight={heroPrice}
-            market={apiOnly ? 'live API only' : verdictFor(heroRole).market}
+            market={apiOnly ? (p?.roster ? 'on the roster, not the slate' : 'live API only') : verdictFor(heroRole).market}
             line={apiOnly
-              ? 'Found through the league-wide search, not on the bot slate — every panel here is pulled live, and none of it carries a model score.'
+              ? (p?.roster
+                ? 'On a club\u2019s roster but not in tonight\u2019s lineup, so the bot did not rate him \u2014 the season line above is real, and every panel below is pulled live. No model score, on purpose.'
+                : 'Found through the league-wide search, not on the bot slate \u2014 every panel here is pulled live, and none of it carries a model score.')
               : sentenceFor(p, heroRole)}
             chips={apiOnly ? null : chipsFor(p, heroRole)}
             right={!inline && (

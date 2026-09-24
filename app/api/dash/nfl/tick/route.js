@@ -319,7 +319,12 @@ async function runTouchdownTick(db, day) {
     // no defense tag. The slate (nfl_week.json) carries every player with the
     // same id under `player_id`, so it IS the roster; use it when the roster
     // file is absent. matchRoster() normalises player_id -> gsis_id.
-    const roster = (roster0?.players?.length ? roster0 : slate) || null
+    // 2026-09-24: nfl_roster.json is published now (bots/nfl/nfl_roster.py).
+    // It has NO scores, so it must never stand in for the slate here --
+    // boardRankFor() would rank nobody. Slate is the roster; the file is the
+    // directory for the name join. See buildTdEvent.
+    const roster = slate || null
+    const directory = roster0?.players?.length ? roster0 : null
     const picksCard = picksData?.card || null
     const season = Number(matchup?.season) || new Date(`${day}T12:00:00Z`).getUTCFullYear()
 
@@ -332,7 +337,7 @@ async function runTouchdownTick(db, day) {
       // under D+1: duplicate X + Discord posts. Key on the game's own kickoff
       // day instead; the sweep day is only the fallback.
       const gameDay = kickoffDayOf(game) || day
-      const ev = buildTdEvent(play, { game, roster, logs, picksCard, matchup, season, day: gameDay })
+      const ev = buildTdEvent(play, { game, roster, directory, logs, picksCard, matchup, season, day: gameDay })
       const row = rowFromEvent(gameDay, ev)
       // 2026-09-24 audit: a touchdown stored without a scorer or without a
       // board rank is the public record silently calling him "not on the
