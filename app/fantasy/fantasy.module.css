@@ -7341,3 +7341,79 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 .bracketSide[data-mine='true'] a { text-decoration: underline; text-underline-offset: 3px; }
 .bracketSeed { color: var(--fx-dim); font: 800 10px/1 monospace; }
 .bracketLink { justify-self: end; font-size: 11px; color: var(--fx-dim); }
+
+/* LEAGUE ACTIVITY (2026-09-24): every move, grouped by day. Tokens only. */
+.activityDay {
+  padding: 0 14px 6px;
+}
+.activityDate {
+  margin: 12px 0 6px;
+  color: var(--fx-dim);
+  font: 800 9px/1 monospace;
+  letter-spacing: .08em;
+}
+.activityRow {
+  display: grid;
+  gap: 6px;
+  padding: 10px 0;
+  border-top: 1px solid var(--fx-line-3);
+}
+.activityRow[data-kind='trade'] .activityMeta small:first-child,
+.activityRow[data-kind='commissioner'] .activityMeta small:first-child {
+  color: var(--fx-accent);
+}
+.activityMeta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.activityMeta small {
+  color: var(--fx-dim);
+  font: 800 8px/1 monospace;
+  letter-spacing: .06em;
+}
+.activitySides {
+  display: grid;
+  gap: 6px;
+}
+.activitySides p {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 4px 0 0;
+  color: var(--fx-dim);
+  font-size: 11px;
+}
+.activityTeam {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--fx-ink);
+  text-decoration: none;
+  font-weight: 800;
+  font-size: 12px;
+}
+.activityPlayer b {
+  color: var(--fx-ink);
+  font-size: 12px;
+}
+.activityPlayer small {
+  margin-left: 5px;
+  font: 800 8px/1 monospace;
+}
+.activityAdd {
+  color: var(--fx-good);
+}
+.activityDrop {
+  color: var(--fx-dim);
+}
+.activityPager {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 14px;
+}
+.activityPager a {
+  color: var(--fx-accent);
+  text-decoration: none;
+  font: 800 10px/1 monospace;
+}

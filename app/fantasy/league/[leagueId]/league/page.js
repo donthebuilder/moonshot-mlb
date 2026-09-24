@@ -20,12 +20,13 @@ import { buildSheetData } from '../../../../../lib/fantasy/sheetEntry'
 import { FANTASY_LAST_WEEK, FANTASY_REGULAR_WEEKS, resolveFantasyWeek } from '../../../../../lib/fantasy/week'
 import { gameForPlayer, matchupLabel, teamScheduleFor } from '../../../../../lib/fantasy/schedule'
 import { signedInUser } from '../../../../../lib/supabase/authUser'
+import { ACTIVITY_PAGE, ACTIVITY_TYPES, activityType, byDay, playerIdsOf, shapeActivity, tradeIdsOf } from '../../../../../lib/fantasy/activity'
 
 const SEASON=2026
 
 export default async function LeaguePage({params,searchParams}) {
   const [{leagueId},query]=await Promise.all([params,searchParams])
-  const view=['standings','playoffs','power','players','recap'].includes(query?.view)?query.view:'standings'
+  const view=['standings','playoffs','power','players','activity','recap'].includes(query?.view)?query.view:'standings'
   const week=Math.min(FANTASY_LAST_WEEK,Math.max(1,Number(query?.week)||1))
   const supabase=await createSupabaseServerClient()
   if(!supabase)redirect('/fantasy')
@@ -99,6 +100,31 @@ export default async function LeaguePage({params,searchParams}) {
       }))
       .sort((a,b)=>b.value-a.value||a.player.name.localeCompare(b.player.name))
   }
+  // ── ACTIVITY (2026-09-24): every move, filterable (lib/fantasy/activity.js).
+  // Read only when this view is open.
+  const actType=activityType(query?.type)
+  const actTeam=teams.some((team)=>team.id===query?.team)?query.team:'all'
+  const actPage=Math.max(1,Math.min(200,Number(query?.page)||1))
+  let activity=null
+  if(view==='activity'){
+    let q=supabase.from('fantasy_transactions').select('id,team_id,transaction_type,added_player_id,dropped_player_id,details,created_at').eq('league_id',leagueId)
+    if(actTeam!=='all')q=q.eq('team_id',actTeam)
+    if(ACTIVITY_TYPES[actType].apply)q=ACTIVITY_TYPES[actType].apply(q)
+    const from=(actPage-1)*ACTIVITY_PAGE
+    const {data:txRows,error:txError}=await q.order('created_at',{ascending:false}).range(from,from+ACTIVITY_PAGE)
+    if(txError)console.error('[franchise/activity] read failed',txError.message)
+    const pageRows=(txRows||[]).slice(0,ACTIVITY_PAGE)
+    const tradeIds=tradeIdsOf(pageRows)
+    // A filtered trade page holds one side; fetch both sides' rows so the trade reads whole.
+    const [{data:tradeItems},{data:tradeTx}]=tradeIds.length?await Promise.all([
+      supabase.from('fantasy_trade_items').select('trade_id,from_team_id,to_team_id,player_id').in('trade_id',tradeIds),
+      supabase.from('fantasy_transactions').select('id,team_id,transaction_type,details,created_at').eq('league_id',leagueId).eq('transaction_type','trade').in('details->>trade_id',tradeIds),
+    ]):[{data:[]},{data:[]}]
+    const ids=playerIdsOf(pageRows,tradeItems)
+    const {data:players}=ids.length?await supabase.from('nfl_players').select('id,name,position,team').in('id',ids):{data:[]}
+    const merged=[...pageRows,...(tradeTx||[]).filter((row)=>!pageRows.some((p)=>p.id===row.id))]
+    activity={groups:byDay(shapeActivity({transactions:merged,tradeItems:tradeItems||[],players:players||[]})),more:(txRows||[]).length>ACTIVITY_PAGE,failed:Boolean(txError)}
+  }
   // ── LOOK ANYONE UP (2026-09-24) ───────────────────────────────────────────
   // Donovan: "make sure it's somewhere you can look up players and see who's
   // doing what." The index ranked everyone but could not be searched or
@@ -152,12 +178,13 @@ export default async function LeaguePage({params,searchParams}) {
     <div className={styles.roomBody}>
       {(query?.error||query?.message)&&<p className={query.error?styles.error:styles.message}>{query.error||query.message}</p>}
       <section className={styles.leagueHero}><div><p className={styles.panelLabel}>LEAGUE HQ</p><h1>{league.name}</h1><p>{String(league.scoring||'ppr').replace('_','-').toUpperCase()} · {league.team_count} teams</p><InviteCode className={styles.leagueInvite} code={league.invite_code} />{league.commissioner_id===user.id&&<Link className={styles.leagueSettingsLink} href={`/fantasy/league/${leagueId}/settings`}>⚙ Open Commissioner Control Room</Link>}</div><div className={styles.roomStats}><span><small>MEMBERS</small><b>{teams.length}</b></span><span><small>GAMES</small><b>{matchups.length}</b></span><span><small>FINAL</small><b>{finalGames}</b></span></div></section>
-      <div className={styles.leagueViews}><Link className={view==='standings'?styles.leagueViewActive:''} href={`/fantasy/league/${leagueId}/league?view=standings&week=${week}`}>Standings</Link><Link className={view==='playoffs'?styles.leagueViewActive:''} href={`/fantasy/league/${leagueId}/league?view=playoffs&week=${week}`}>Playoffs</Link><Link className={view==='players'?styles.leagueViewActive:''} href={`/fantasy/league/${leagueId}/league?view=players&week=${week}`}>Players</Link><Link className={view==='power'?styles.leagueViewActive:''} href={`/fantasy/league/${leagueId}/league?view=power&week=${week}`}>Power Rankings</Link><Link className={view==='recap'?styles.leagueViewActive:''} href={`/fantasy/league/${leagueId}/league?view=recap&week=${week}`}>Weekly Recap</Link><form><input type="hidden" name="view" value={view}/><select name="week" defaultValue={week}>{Array.from({length:14},(_,i)=>i+1).map((number)=><option value={number} key={number}>Week {number}</option>)}</select><button>Go</button></form></div>
-      {league.commissioner_id===user.id&&view!=='standings'&&<section className={styles.commishBar}><div><p className={styles.panelLabel}>WEEKLY PUBLISHER</p><strong>{weekFinals?`${weekFinals} final games available`:`Week ${week} still needs final scores`}</strong></div><form action={generateWeeklyContent}><input type="hidden" name="leagueId" value={leagueId}/><input type="hidden" name="week" value={week}/><SubmitButton disabled={!weekFinals} pendingLabel="Generating…">Generate Week {week}</SubmitButton></form></section>}
+      <div className={styles.leagueViews}><Link className={view==='standings'?styles.leagueViewActive:''} href={`/fantasy/league/${leagueId}/league?view=standings&week=${week}`}>Standings</Link><Link className={view==='playoffs'?styles.leagueViewActive:''} href={`/fantasy/league/${leagueId}/league?view=playoffs&week=${week}`}>Playoffs</Link><Link className={view==='players'?styles.leagueViewActive:''} href={`/fantasy/league/${leagueId}/league?view=players&week=${week}`}>Players</Link><Link className={view==='activity'?styles.leagueViewActive:''} href={`/fantasy/league/${leagueId}/league?view=activity&week=${week}`}>Activity</Link><Link className={view==='power'?styles.leagueViewActive:''} href={`/fantasy/league/${leagueId}/league?view=power&week=${week}`}>Power Rankings</Link><Link className={view==='recap'?styles.leagueViewActive:''} href={`/fantasy/league/${leagueId}/league?view=recap&week=${week}`}>Weekly Recap</Link><form><input type="hidden" name="view" value={view}/><select name="week" defaultValue={week}>{Array.from({length:14},(_,i)=>i+1).map((number)=><option value={number} key={number}>Week {number}</option>)}</select><button>Go</button></form></div>
+      {league.commissioner_id===user.id&&['power','recap'].includes(view)&&<section className={styles.commishBar}><div><p className={styles.panelLabel}>WEEKLY PUBLISHER</p><strong>{weekFinals?`${weekFinals} final games available`:`Week ${week} still needs final scores`}</strong></div><form action={generateWeeklyContent}><input type="hidden" name="leagueId" value={leagueId}/><input type="hidden" name="week" value={week}/><SubmitButton disabled={!weekFinals} pendingLabel="Generating…">Generate Week {week}</SubmitButton></form></section>}
       {view==='standings'&&<Standings leagueId={leagueId} finalGames={finalGames} playoffSpots={playoffSpots} table={table} user={user}/>}
       {view==='playoffs'&&<Playoffs bracket={bracket} table={table} playoffSpots={playoffSpots} startWeek={Number(league.playoff_start_week)||FANTASY_REGULAR_WEEKS+1} teams={teams} leagueId={leagueId} user={user} finalGames={finalGames}/>}
       {view==='power'&&<PowerRankings rankings={safeRankings} teamName={teamName} teams={teams}/>}
       {view==='players'&&<PlayerPower sheets={playerSheets} filters={{q:playerQ,pos:playerPos,own:playerOwn,week,posList:POS_FILTERS}} board={shownPlayerBoard} leagueId={leagueId} moreHref={playerBoard.length>shownPlayerBoard.length?morePlayersHref:null} teams={teams} total={playerBoard.length}/>}
+      {view==='activity'&&<Activity activity={activity} leagueId={leagueId} teams={teams} type={actType} team={actTeam} page={actPage} week={week}/>}
       {view==='recap'&&<WeeklyRecap recap={recap} awards={safeAwards} teamName={teamName} week={week}/>}
     </div>
   </main>
@@ -253,3 +280,29 @@ function PlayerPower({board,leagueId,moreHref,teams,total,sheets={},filters}){
     {board.length>0&&<p className={styles.wireMore}><span>Showing {board.length} of {total}</span>{moreHref&&<Link href={moreHref}>Show 60 more →</Link>}</p>}
   </section>
 }
+
+// ESPN's Recent Activity: every move in the league, newest first.
+function Activity({activity,leagueId,teams,type,team,page,week}){
+  const teamOf=(id)=>teams.find((t)=>t.id===id)
+  const base=(patch)=>{const f={type,team,page:1,...patch};return `/fantasy/league/${leagueId}/league?view=activity&week=${week}${f.type!=='all'?`&type=${f.type}`:''}${f.team!=='all'?`&team=${f.team}`:''}${f.page>1?`&page=${f.page}`:''}`}
+  const name=(p)=>p?<span className={styles.activityPlayer}><b>{p.name}</b><small style={{color:colorForPosition(p.position)}}>{[p.position,p.team].filter(Boolean).join(' · ')}</small></span>:null
+  const teamTag=(id)=>{const t=teamOf(id);return t?<Link className={styles.activityTeam} href={`/fantasy/league/${leagueId}/team/${t.id}`}><TeamMark team={t} size={18}/>{t.name}</Link>:<span className={styles.activityTeam}>Former team</span>}
+  const filtered=type!=='all'||team!=='all'
+  return <section className={styles.powerBoard}>
+    <div className={styles.boardHead}><div><p className={styles.panelLabel}>LEAGUE ACTIVITY</p><h2>Every move, newest first</h2></div>
+      <form className={styles.playerSearch} action={`/fantasy/league/${leagueId}/league`}><input type="hidden" name="view" value="activity"/><input type="hidden" name="week" value={week}/><input type="hidden" name="type" value={type}/><select aria-label="Team" name="team" defaultValue={team}><option value="all">All teams</option>{teams.map((t)=><option key={t.id} value={t.id}>{t.name}</option>)}</select><button>Show</button></form></div>
+    <div className={styles.positionFilters}>{Object.entries(ACTIVITY_TYPES).map(([key,{label}])=><Link key={key} className={type===key?styles.positionActive:''} aria-current={type===key?'true':undefined} href={base({type:key})}>{label}</Link>)}</div>
+    {activity?.failed&&<p className={styles.emptyRoom}>ACTIVITY DELAYED — the league log didn’t load. Refresh in a moment.</p>}
+    {!activity?.failed&&!activity?.groups?.length&&<p className={styles.emptyRoom}>{page>1?'No older moves.':filtered?'No moves match that filter. Clear it above.':'No moves yet. Adds, drops, waiver claims and trades land here as they happen.'}</p>}
+    {activity?.groups?.map((group)=><div key={group.label} className={styles.activityDay}><p className={styles.activityDate}>{group.label}</p>
+      {group.rows.map((row)=><article key={row.id} className={styles.activityRow} data-kind={row.kind}>
+        <div className={styles.activityMeta}><small>{row.label}</small><small><LocalTimeText value={row.at}/></small></div>
+        {row.sides?<div className={styles.activitySides}>{row.sides.map((side)=><div key={side.teamId}>{teamTag(side.teamId)}<p>{side.gets.length?<>gets {side.gets.map((p,i)=><span key={p.id}>{i>0?', ':''}{name(p)}</span>)}</>:'details unavailable'}</p></div>)}</div>
+        :<div className={styles.activitySides}><div>{teamTag(row.teamIds[0])}<p>{row.added&&<span className={styles.activityAdd}>+ {name(row.added)}</span>}{row.dropped&&<span className={styles.activityDrop}>− {name(row.dropped)}</span>}</p></div></div>}
+      </article>)}
+    </div>)}
+    {(page>1||activity?.more)&&<div className={styles.activityPager}>{page>1?<Link href={base({page:page-1})}>‹ Newer</Link>:<span/>}{activity?.more&&<Link href={base({page:page+1})}>Older ›</Link>}</div>}
+  </section>
+}
+const TIME={timeZone:'America/New_York',hour:'numeric',minute:'2-digit'}
+function LocalTimeText({value}){return <>{new Date(value).toLocaleTimeString('en-US',TIME)} ET</>}
