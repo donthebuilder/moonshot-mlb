@@ -69,6 +69,26 @@ const WELCOME = {
   url: '/app#sport=mlb&tab=you',
 }
 
+// The browser push services a PushSubscription.endpoint can legitimately
+// point at. Chrome/Edge/Brave/Opera (FCM), Firefox (Mozilla autopush), Safari
+// (Apple), Edge legacy (WNS), Samsung Internet. Suffix match on the host,
+// https only.
+const PUSH_SERVICE_HOSTS = [
+  'fcm.googleapis.com', 'android.googleapis.com',
+  'updates.push.services.mozilla.com', 'push.services.mozilla.com',
+  'web.push.apple.com', 'push.apple.com',
+  'notify.windows.com', 'wns.windows.com',
+  'push.samsungosp.com',
+]
+function isPushService(endpoint) {
+  try {
+    const u = new URL(String(endpoint || ''))
+    if (u.protocol !== 'https:' || !u.hostname) return false
+    const h = u.hostname.toLowerCase()
+    return PUSH_SERVICE_HOSTS.some((d) => h === d || h.endsWith(`.${d}`))
+  } catch { return false }
+}
+
 async function welcome(sub) {
   const bad = vapidProblem()
   if (bad) { console.error('[push] cannot send: ' + bad); return false }
@@ -115,6 +135,12 @@ export async function POST(request) {
   const p256dh = String(sub?.keys?.p256dh || '')
   const auth = String(sub?.keys?.auth || '')
   if (!endpoint || !p256dh || !auth) return Response.json({ error: 'Incomplete subscription' }, { status: 400 })
+  // 2026-09-24 audit (SEC-4): the endpoint was stored and POSTed to as given.
+  // Any signed-in account could hand this route an arbitrary URL and have
+  // the server -- and the every-minute cron -- deliver web-push envelopes to
+  // it. A push endpoint is only ever a browser vendor's push service; nothing
+  // else is a valid subscription, so nothing else is stored.
+  if (!isPushService(endpoint)) return Response.json({ error: 'Not a browser push-service endpoint' }, { status: 400 })
 
   // Was this browser already on file? Asked BEFORE the upsert, because after
   // it the answer is always yes.
