@@ -17,6 +17,7 @@ const routeFor = (leagueId, type, message, view) => {
   if (view?.position && view.position !== 'ALL') params.set('position', view.position)
   if (view?.q) params.set('q', view.q)
   params.set(type, message)
+  params.set('board', '1')   // the bare league URL redirects to My Team after the draft
   return `/fantasy/league/${leagueId}?${params.toString()}`
 }
 const viewFrom = (formData) => ({

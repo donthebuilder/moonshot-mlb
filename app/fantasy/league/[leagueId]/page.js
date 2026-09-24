@@ -55,6 +55,15 @@ export default async function LeagueRoom({ params, searchParams }) {
   const teams = teamRows || []
   const players = playerRows || []
   const myTeam = teams.find((team) => team.owner_id === user.id)
+  // AFTER THE DRAFT, THE LEAGUE OPENS ON YOUR TEAM (2026-09-24). Donovan: "I
+  // don't like when you open the fantasy it goes to the draft board even after
+  // the draft is done." Every way in -- the league list, a shared link, the
+  // back link -- lands here, and for fourteen weeks nobody wants the board.
+  // The Draft Board tab passes ?board=1, so the board is one tap away, never
+  // the default. No team (a commissioner who doesn't play) -> the standings.
+  if (['active', 'complete'].includes(league.status) && !query?.board) {
+    redirect(`/fantasy/league/${leagueId}${myTeam ? '/team' : '/league'}`)
+  }
 
   const [{ data: pickRows }, { data: rosterRows }, { data: queueRows }] = await Promise.all([
     draft ? supabase.from('fantasy_draft_picks').select('*').eq('draft_id', draft.id).order('overall_pick') : Promise.resolve({ data: [] }),
@@ -297,8 +306,8 @@ export default async function LeagueRoom({ params, searchParams }) {
                 note is not a disclaimer for its own sake -- a QB projection
                 here is genuinely low, and a board that knows its own number is
                 incomplete should say so on the page rather than in a comment. */}
-            <div className={styles.boardHead}><div><p className={styles.panelLabel}>AVAILABLE PLAYERS</p><h2>DASH NFL board</h2></div><form className={styles.playerSearch}><input aria-label="Search players" name="q" defaultValue={query?.q || ''} placeholder="Search player or team"/><input type="hidden" name="position" value={selectedPosition}/><button>Search</button></form><span>{available.length} available</span></div>
-            <div className={styles.positionFilters}>{POSITIONS.map((position)=><Link key={position} className={selectedPosition===position?styles.positionActive:''} aria-current={selectedPosition===position?'true':undefined} href={`/fantasy/league/${leagueId}?position=${position}${query?.q?`&q=${encodeURIComponent(String(query.q))}`:''}`}>{position}</Link>)}</div>
+            <div className={styles.boardHead}><div><p className={styles.panelLabel}>AVAILABLE PLAYERS</p><h2>DASH NFL board</h2></div><form className={styles.playerSearch}><input aria-label="Search players" name="q" defaultValue={query?.q || ''} placeholder="Search player or team"/><input type="hidden" name="position" value={selectedPosition}/><input type="hidden" name="board" value="1"/><button>Search</button></form><span>{available.length} available</span></div>
+            <div className={styles.positionFilters}>{POSITIONS.map((position)=><Link key={position} className={selectedPosition===position?styles.positionActive:''} aria-current={selectedPosition===position?'true':undefined} href={`/fantasy/league/${leagueId}?board=1&position=${position}${query?.q?`&q=${encodeURIComponent(String(query.q))}`:''}`}>{position}</Link>)}</div>
             <p className={styles.boardNote}>The number is projected {String(league.scoring||'ppr').replace('_','-').toUpperCase()} points per game, from this season&apos;s per-game averages — not this week&apos;s matchup. The <b>order</b> also accounts for how many of each position you start, so a quarterback who scores more than a running back can still rank below him: you start one QB and can only use so many. The tag beside each name is his rank at his own position. <b>*</b> marks a projection the feed cannot complete.</p>
             <div className={styles.draftColumns}><span>RK</span><span>POS</span><span>PLAYER</span><span>PPG</span><span>STATUS</span></div>
             {/* Deliberately BELOW the sticky stack, not inside the board head.

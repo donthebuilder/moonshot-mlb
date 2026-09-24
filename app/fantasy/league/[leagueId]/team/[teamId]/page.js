@@ -15,6 +15,9 @@ import { loadPlayerCatalog } from '../../../../../../lib/fantasy/playerCatalog'
 import LeagueNav from '../../../../../../components/fantasy/LeagueNav'
 import NetworkSwitch from '../../../../../../components/NetworkSwitch'
 import styles from '../../../../fantasy.module.css'
+import SubmitButton from '../../../../../../components/fantasy/SubmitButton'
+import { commissionerAddDrop, setBestLineup } from '../commish-actions'
+import { lineupCheck } from '../../../../../../lib/fantasy/lineupCheck'
 
 const SEASON = FANTASY_SEASON
 const SLOT_ORDER = ['QB', 'RB', 'RB2', 'WR', 'WR2', 'TE', 'FLEX', 'K', 'DEF']
@@ -62,7 +65,7 @@ export default async function TeamRoster({ params, searchParams }) {
 
   const matchupPromise = loadMatchupData()
   const week = await resolveFantasyWeek(supabase, query?.week)
-  const [{ data: rosterRows }, { data: lineupRows }, { data: nflGameRows }, { data: seasonGames }, catalog] = await Promise.all([
+  const [{ data: rosterRows }, { data: lineupRows }, { data: nflGameRows }, { data: seasonGames }, catalog, leagueRostered] = await Promise.all([
     supabase.from('fantasy_roster_entries')
       .select('player_id,acquired_via,acquired_at,player:nfl_players(id,name,position,team,injury_status,source_payload,source_player_id)')
       .eq('team_id', teamId).is('released_at', null),
@@ -74,6 +77,10 @@ export default async function TeamRoster({ params, searchParams }) {
     supabase.from('fantasy_matchups').select('home_team_id,away_team_id,home_score,away_score,status')
       .eq('league_id', leagueId).eq('season', SEASON).eq('status', 'final'),
     loadPlayerCatalog(supabase),
+    // Only the commissioner's add/drop panel needs who is taken league-wide.
+    league.commissioner_id === user.id
+      ? supabase.from('fantasy_roster_entries').select('player_id').eq('league_id', leagueId).is('released_at', null).then((r) => r.data || [])
+      : Promise.resolve([]),
   ])
 
   const roster = (rosterRows || []).filter((row) => row.player)
@@ -89,6 +96,16 @@ export default async function TeamRoster({ params, searchParams }) {
   const projectWeek = weeklyProjector(league.scoring, schedule, await matchupPromise)
   const project = (player) => (isOnBye(player, byeTeams) ? 0 : (projectWeek(player)?.points ?? 0))
   const weekProjection = starters.reduce((sum, row) => sum + project(playerById.get(row.player_id)), 0)
+  const isCommish = league.commissioner_id === user.id
+  // LINEUP CHECK (2026-09-24): a healthy bench player projected clearly above
+  // the starter he could replace -- 3zzz's Hurts behind Lawrence. Shown to
+  // everyone (it is a fact about the lineup); only the owner or commissioner
+  // can act on it.
+  const checks = lineupCheck({ starters: starters.map((row) => ({ ...row, player: playerById.get(row.player_id) })), roster: roster.map((row) => row.player), project, byeTeams })
+  const takenIds = new Set((leagueRostered || []).map((row) => row.player_id))
+  const freeAgents = isCommish && Array.isArray(catalog)
+    ? catalog.filter((p) => !takenIds.has(p.id)).map((p) => ({ p, v: project(p) })).sort((a, b) => b.v - a.v).slice(0, 60)
+    : []
   const startingIds = new Set(starters.map((row) => row.player_id))
   const bench = roster.filter((row) => !startingIds.has(row.player_id))
 
@@ -129,6 +146,43 @@ export default async function TeamRoster({ params, searchParams }) {
           <span><small>STARTERS</small><b>{starters.length}/9</b></span>
         </div>
       </section>
+
+      {(query?.error || query?.message) && <p className={query.error ? styles.error : styles.message}>{query.error || query.message}</p>}
+
+      {checks.length > 0 && <section className={styles.commishBar}>
+        <div><p className={styles.panelLabel}>LINEUP CHECK</p>
+          {checks.slice(0, 3).map((c) => <small key={c.bench.id}><b>{c.bench.name}</b> ({c.benchValue.toFixed(1)}) is on the bench while <b>{c.starter.name}</b> ({c.starterValue.toFixed(1)}) starts at {c.slot}.</small>)}
+        </div>
+        {isCommish && <form action={setBestLineup}>
+          <input type="hidden" name="leagueId" value={leagueId} /><input type="hidden" name="teamId" value={teamId} />
+          <input type="hidden" name="week" value={week} /><input type="hidden" name="returnTo" value={`/fantasy/league/${leagueId}/team/${teamId}?week=${week}`} />
+          <SubmitButton pendingLabel="Setting…">Set best lineup</SubmitButton>
+        </form>}
+      </section>}
+
+      {isCommish && <section className={styles.commishBar}>
+        <div><p className={styles.panelLabel}>COMMISSIONER · ADD / DROP</p>
+          <strong>Make a move for {team.name}</strong>
+          <small>Same rules as a manager's own move; the dropped player goes on waivers for 24 hours. Posted to the league feed.</small>
+        </div>
+        <form action={commissionerAddDrop} className={styles.commishMove}>
+          <input type="hidden" name="leagueId" value={leagueId} /><input type="hidden" name="teamId" value={teamId} />
+          <select name="addPlayerId" defaultValue="" aria-label="Player to add">
+            <option value="">Add nobody</option>
+            {freeAgents.map(({ p, v }) => <option key={p.id} value={p.id}>Add {p.position} {p.name} ({p.team || 'FA'}) · {v.toFixed(1)}</option>)}
+          </select>
+          <select name="dropPlayerId" defaultValue="" aria-label="Player to drop">
+            <option value="">Drop nobody</option>
+            {roster.map((row) => <option key={row.player_id} value={row.player_id}>Drop {row.player.position} {row.player.name}</option>)}
+          </select>
+          <SubmitButton pendingLabel="Moving…">Make move</SubmitButton>
+        </form>
+        {!checks.length && <form action={setBestLineup}>
+          <input type="hidden" name="leagueId" value={leagueId} /><input type="hidden" name="teamId" value={teamId} />
+          <input type="hidden" name="week" value={week} /><input type="hidden" name="returnTo" value={`/fantasy/league/${leagueId}/team/${teamId}?week=${week}`} />
+          <SubmitButton pendingLabel="Setting…">Set best lineup</SubmitButton>
+        </form>}
+      </section>}
 
       {/* A manager who has not set a lineup is the single most useful thing on
           this page in a given week, so it is stated rather than left to be
@@ -191,7 +245,7 @@ export default async function TeamRoster({ params, searchParams }) {
       </section>
 
       <p className={styles.boardNote} style={{ marginTop: 12 }}>
-        Read only — you are looking at another manager's team. To offer a deal,
+        {isCommish ? 'You are the commissioner: the tools above act on this team.' : 'Read only — you are looking at another manager\'s team.'} To offer a deal,
         go to <Link href={`/fantasy/league/${leagueId}/trades`}>Trades</Link>.
         {catalogCount ? '' : ' Projections are unavailable right now.'}
       </p>

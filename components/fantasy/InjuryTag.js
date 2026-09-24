@@ -29,6 +29,11 @@ const TAGS = {
   pup: ['PUP', RED, 'Physically unable to perform'],
   suspended: ['SUSP', '#c084fc', 'Suspended'],
   probable: ['P', POSITION_COLORS.DEF, 'Probable'],
+  // Not in this week's NFL data at all -- usually injured (lib/fantasy/injury.js offSlate).
+  notonslate: ['OUT?', RED, "Not in this week's NFL data -- usually injured or inactive. The auto-lineup treats him as out."],
+  o: ['O', RED, 'Out'],
+  d: ['D', DEFAULT_COLOR, 'Doubtful'],
+  q: ['Q', POSITION_COLORS.K, 'Questionable'],
 }
 
 export default function InjuryTag({ status }) {

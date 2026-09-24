@@ -7279,3 +7279,29 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
     min-height: 40px;
   }
 }
+
+/* Commissioner add/drop + lineup check (2026-09-24). Wraps under the label on
+   a phone rather than squeezing three controls into one row. No new colours:
+   the selects take the Wire's existing control look. */
+.commishBar { flex-wrap: wrap; }
+.commishMove {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: 8px;
+  width: 100%;
+}
+.commishMove select {
+  min-width: 0;
+  width: 100%;
+  padding: 7px 8px;
+  border: 1px solid var(--fx-line-2);
+  border-radius: 8px;
+  background: var(--fx-well);
+  color: var(--fx-ink);
+  font-size: 12px;
+}
+@media (max-width: 760px) {
+  .commishMove { grid-template-columns: 1fr; }
+}
+.bestLineupForm { margin-left: auto; }
+.bestLineupForm button { white-space: nowrap; }
