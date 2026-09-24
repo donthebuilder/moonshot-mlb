@@ -63,3 +63,7 @@ supabase/.temp/
 # real reference material, not source; keeps `git status` from listing 70+
 # historical deploy scripts as untracked noise (2026-09-14)
 SHIP-SCRIPTS-ARCHIVE/
+
+# secrets backups — the .bak that leaked 2026-09-24
+.calledit.env*
+*.env.bak
