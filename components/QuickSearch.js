@@ -49,6 +49,14 @@ export default function QuickSearch({ players = [], onPick }) {
 
   useEffect(() => { if (open) setTimeout(() => inputRef.current?.focus(), 30) }, [open])
 
+  // Opened from the header search's "search every active player" button
+  // (Controls.js) with whatever was typed there -- the only way in on a phone.
+  useEffect(() => {
+    const onOpen = (e) => { setOpen(true); setQ(String(e?.detail?.q || '')); setSel(0) }
+    window.addEventListener('dash-quicksearch', onOpen)
+    return () => window.removeEventListener('dash-quicksearch', onOpen)
+  }, [])
+
   // The cached roster loads the first time the box opens, not on page load:
   // ~400 KB nobody needs until they type a name.
   useEffect(() => {

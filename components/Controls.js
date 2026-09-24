@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
-import { teamOf } from '../lib/player'
+import { teamOf, nameOf } from '../lib/player'
 import {
   useSpotlight, SPOT_FIELDS, SPOT_GROUPS, SPOT_COLORS,
   spotColor, ruleText, lightCount,
@@ -96,6 +96,22 @@ export default function Controls({ query, setQuery, team, setTeam, players }) {
             border: `1px solid ${C.border2}`, borderRadius: 5, padding: '1px 6px',
             pointerEvents: 'none',
           }}>/</span>
+        )}
+        {/* EVERY ACTIVE PLAYER FROM THE HEADER (2026-09-24). The league-wide
+            search (QuickSearch: roster file + live people-search) only ever
+            opened from Cmd+K or "/" -- no button, so on a phone it did not
+            exist. When this box finds nobody on tonight's slate, offer the
+            wide search right here, carrying what was typed. */}
+        {query.trim().length >= 2 && !players.some((p) => String(nameOf(p) || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(query.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''))) && (
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new CustomEvent('dash-quicksearch', { detail: { q: query.trim() } }))}
+            style={{
+              position: 'absolute', left: 12, top: 'calc(100% + 4px)', zIndex: 5,
+              background: C.bg2, border: `1px solid ${C.border2}`, color: C.orange, borderRadius: 8,
+              padding: '6px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
+            }}
+          >Nobody on tonight\u2019s slate \u2014 search every active player \u2192</button>
         )}
       </div>
 
