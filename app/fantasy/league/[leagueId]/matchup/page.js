@@ -3,7 +3,8 @@ import { notFound, redirect } from 'next/navigation'
 
 import { createSupabaseServerClient } from '../../../../../lib/supabase/server'
 import { byeTeamsFor, isOnBye } from '../../../../../lib/fantasy/bye'
-import { fantasyPointsFromStats, projectedFantasyPoints } from '../../../../../lib/fantasy/scoring'
+import { fantasyPointsFromStats } from '../../../../../lib/fantasy/scoring'
+import { loadMatchupData, weeklyProjector } from '../../../../../lib/fantasy/matchupProjection'
 import { formatOdds, matchupOdds, oddsSentence } from '../../../../../lib/fantasy/odds'
 import LiveMatchupCenter from '../../../../../components/fantasy/LiveMatchupCenter'
 import LocalTime from '../../../../../components/fantasy/LocalTime'
@@ -31,6 +32,7 @@ export default async function MatchupPage({ params, searchParams }) {
   if (!supabase) redirect('/fantasy')
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/fantasy')
+  const matchupPromise = loadMatchupData()
   const week = await resolveFantasyWeek(supabase, query?.week)
   const [{ data: league }, { data: membership }, { data: teamRows }, { data: seasonMatchupRows }, {data:nflGameRows}, {data:seasonGameRows}, {data:latestSync}, {data:lineupRows}] = await Promise.all([
     supabase.from('fantasy_leagues').select('*').eq('id',leagueId).single(),
@@ -124,13 +126,16 @@ export default async function MatchupPage({ params, searchParams }) {
   // Null when the slate is too thin to be sure -- never "nobody is on bye".
   const byeTeams=byeTeamsFor(nflGames)
   const schedule=teamScheduleFor(nflGames)
+  // This week's matchup projection (2026-09-23) -- lib/fantasy/matchupProjection.js.
+  const projectWeek=weeklyProjector(league.scoring,schedule,await matchupPromise)
+  const projectPoints=(player)=>projectWeek(player)?.points ?? 0
   const withLiveScores=(rows)=>rows.map((row)=>({...row,weekStats:statsByPlayer.get(row.player_id)}))
   const scoredHomeLineup=withLiveScores(homeLineup)
   const scoredAwayLineup=withLiveScores(awayLineup)
   // A starter on bye contributed a full projection to this total, so a matchup
   // could be projected 118-112 when eleven of those points belonged to players
   // who were not going to be on a field. See lib/fantasy/bye.js.
-  const projectOne = (row) => isOnBye(row.player, byeTeams) ? 0 : projectedFantasyPoints(row.player, league.scoring)
+  const projectOne = (row) => isOnBye(row.player, byeTeams) ? 0 : projectPoints(row.player)
   const homeProjection = homeLineup.reduce((sum,row)=>sum+projectOne(row),0)
   const awayProjection = awayLineup.reduce((sum,row)=>sum+projectOne(row),0)
   const projectionByTeam = new Map()
@@ -152,7 +157,7 @@ export default async function MatchupPage({ params, searchParams }) {
   const pointsForRow = (row) => {
     if (!row?.player) return 0
     if (isOnBye(row.player, byeTeams)) return 0
-    return rowIsActive(row) ? fantasyPointsFromStats(row.weekStats?.stats || {}, league.scoring) : projectedFantasyPoints(row.player, league.scoring)
+    return rowIsActive(row) ? fantasyPointsFromStats(row.weekStats?.stats || {}, league.scoring) : projectPoints(row.player)
   }
   // Paired BY POSITION WITHIN THE SLOT NAME, not by slot_index. Keying on
   // `${slot}#${slot_index}` looks equivalent and is not: a null or duplicated
@@ -433,7 +438,7 @@ export default async function MatchupPage({ params, searchParams }) {
             </div>
           </> : <p className={styles.emptyRoom}>No week has finished yet, so there is nothing to hold over anybody. Records, streaks and the season series appear here once Week {week} is in the books.</p>}
         </section>
-        <div className={styles.matchupGrid}><Lineup title={home?.name} rows={scoredHomeLineup} scoring={league.scoring} byeTeams={byeTeams} schedule={schedule} sheet={sheetData}/><Lineup title={away?.name} rows={scoredAwayLineup} scoring={league.scoring} byeTeams={byeTeams} schedule={schedule} sheet={sheetData}/></div>
+        <div className={styles.matchupGrid}><Lineup title={home?.name} rows={scoredHomeLineup} scoring={league.scoring} byeTeams={byeTeams} schedule={schedule} sheet={sheetData} project={projectPoints}/><Lineup title={away?.name} rows={scoredAwayLineup} scoring={league.scoring} byeTeams={byeTeams} schedule={schedule} sheet={sheetData} project={projectPoints}/></div>
         
         <section className={styles.weekGames}><div className={styles.boardHead}><div><p className={styles.panelLabel}>AROUND THE LEAGUE</p><h2>Week {week}</h2></div><span>{matchups.length} games</span></div>{matchups.map((game)=><div className={styles.weekGame} key={game.id}><b style={{display:'flex',alignItems:'center',gap:7,minWidth:0}}><TeamMark size={20} team={teams.find((team)=>team.id===game.home_team_id)}/><Link className={styles.teamLink} href={`/fantasy/league/${leagueId}/team/${game.home_team_id}`} style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{teams.find((team)=>team.id===game.home_team_id)?.name}</Link></b><Link href={`/fantasy/league/${leagueId}/matchup?week=${week}&matchup=${game.id}`} className={`${styles.gameCell}${featured?.id===game.id?` ${styles.gameCellActive}`:''}`}>{stateOf(game)==='scheduled'?(()=>{const o=oddsFor(game);return o?<><i className={styles.gameLine}>{o.pickEm?'PK':`${(o.spread>0?teams.find((t)=>t.id===game.home_team_id):teams.find((t)=>t.id===game.away_team_id))?.name} ${-Math.abs(o.spread)}`}</i><em className={styles.gameTotal}>O/U {o.total}</em></>:'vs'})():(()=>{const r=matchupResult(game,stateOf(game));return <><i className={styles.gameScore} data-win={r.leaderId===game.home_team_id?'true':undefined}>{r.home.toFixed(1)}</i><em className={styles.gameTotal}>{stateOf(game)==='final'?'FINAL':'LIVE'}</em><i className={styles.gameScore} data-win={r.leaderId===game.away_team_id?'true':undefined}>{r.away.toFixed(1)}</i></>})()}</Link><b style={{display:'flex',alignItems:'center',gap:7,minWidth:0,justifyContent:'flex-end'}}><Link className={styles.teamLink} href={`/fantasy/league/${leagueId}/team/${game.away_team_id}`} style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{teams.find((team)=>team.id===game.away_team_id)?.name}</Link><TeamMark size={20} team={teams.find((team)=>team.id===game.away_team_id)}/></b></div>)}{Boolean(idleTeams.length)&&<p className={styles.emptyRoom}>Idle this week: {idleTeams.map((team)=>team.name).join(', ')}</p>}</section>
       </>}
@@ -445,8 +450,8 @@ export default async function MatchupPage({ params, searchParams }) {
 // in a live or final game is a real 0.0, not "pending" -- see pointsForRow.
 const rowIsActive = (row) => Boolean(row?.weekStats?.status && row.weekStats.status !== 'scheduled')
 
-function Lineup({ title, rows, scoring, byeTeams, schedule, sheet }) {
-  return <section className={styles.matchupLineup}><div className={styles.boardHead}><div><p className={styles.panelLabel}>STARTING LINEUP</p><h2>{title}</h2></div><span>{rows.length} set</span></div>{rows.map((row)=>{const active=rowIsActive(row);const bye=isOnBye(row.player,byeTeams);const points=fantasyPointsFromStats(row.weekStats?.stats||{},scoring);return <div className={styles.matchupPlayer} key={row.id}><span>{row.slot}</span><div className={styles.playerIdentity}><PlayerFace player={row.player} size={30}/><PlayerSheetButton sheet={sheet?.[row.player?.id]} className={styles.playerTap}><span><b>{row.player?.name}<InjuryTag status={row.player?.injury_status}/></b><PlayerMeta player={row.player} game={schedule?.get(String(row.player?.team||'').toUpperCase())} bye={bye}/></span></PlayerSheetButton></div><span className={styles.playerState} data-state={bye?'bye':active?row.weekStats.status:'projected'}>{bye?'BYE':active?String(row.weekStats.status).toUpperCase():'PROJ'}</span><strong className={active&&!bye?styles.livePlayerScore:''}>{bye?'0.0':(active?points:projectedFantasyPoints(row.player,scoring)).toFixed(1)}</strong></div>})}{!rows.length&&<p className={styles.emptyRoom}>No starters have been set for this week.</p>}</section>
+function Lineup({ title, rows, scoring, byeTeams, schedule, sheet, project }) {
+  return <section className={styles.matchupLineup}><div className={styles.boardHead}><div><p className={styles.panelLabel}>STARTING LINEUP</p><h2>{title}</h2></div><span>{rows.length} set</span></div>{rows.map((row)=>{const active=rowIsActive(row);const bye=isOnBye(row.player,byeTeams);const points=fantasyPointsFromStats(row.weekStats?.stats||{},scoring);return <div className={styles.matchupPlayer} key={row.id}><span>{row.slot}</span><div className={styles.playerIdentity}><PlayerFace player={row.player} size={30}/><PlayerSheetButton sheet={sheet?.[row.player?.id]} className={styles.playerTap}><span><b>{row.player?.name}<InjuryTag status={row.player?.injury_status}/></b><PlayerMeta player={row.player} game={schedule?.get(String(row.player?.team||'').toUpperCase())} bye={bye}/></span></PlayerSheetButton></div><span className={styles.playerState} data-state={bye?'bye':active?row.weekStats.status:'projected'}>{bye?'BYE':active?String(row.weekStats.status).toUpperCase():'PROJ'}</span><strong className={active&&!bye?styles.livePlayerScore:''}>{bye?'0.0':(active?points:project(row.player)).toFixed(1)}</strong></div>})}{!rows.length&&<p className={styles.emptyRoom}>No starters have been set for this week.</p>}</section>
 }
 
 // ── #81: TWO PRODUCTS IN ONE NETWORK, DISAGREEING ABOUT THE SCHEDULE ────────

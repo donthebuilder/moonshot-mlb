@@ -15,7 +15,8 @@ import TeamMark from '../../../../../components/fantasy/TeamMark'
 import { TEAM_COLORS, teamColor, teamMonogram } from '../../../../../components/fantasy/teamIdentity'
 import { EMBLEMS, cleanEmblem } from '../../../../../components/fantasy/emblems'
 import { byeTeamsFor, isOnBye } from '../../../../../lib/fantasy/bye'
-import { fantasyPointsFromStats, projectedFantasyPoints } from '../../../../../lib/fantasy/scoring'
+import { fantasyPointsFromStats } from '../../../../../lib/fantasy/scoring'
+import { loadMatchupData, weeklyProjector } from '../../../../../lib/fantasy/matchupProjection'
 import { FANTASY_LAST_WEEK, FANTASY_SEASON, resolveFantasyWeek } from '../../../../../lib/fantasy/week'
 import { moveLineupPlayer, saveLineupSlot, saveTeamIdentity } from './actions'
 import NetworkSwitch from '../../../../../components/NetworkSwitch'
@@ -50,6 +51,7 @@ export default async function TeamPage({ params, searchParams }) {
   if (!user) redirect('/fantasy')
   // Was a hardcoded WEEK = 1: from week 2 on, lineups were written for week 1
   // while the matchup page scored the real week, so every team scored 0.00.
+  const matchupPromise = loadMatchupData()
   const WEEK = await resolveFantasyWeek(supabase, query?.week)
   // #83: this page never read the membership row, which is why its copy of the
   // league nav showed Settings to everyone -- it had nothing to gate on. One
@@ -100,6 +102,7 @@ export default async function TeamPage({ params, searchParams }) {
   // browser -- see lib/fantasy/sheetEntry.js for what that was costing.
   const sheetData = buildSheetData((rosterRows||[]).map((entry)=>entry.player), sheetWeeksByPlayer, league.scoring)
 
+  const projectOf=(player)=>projectWeek(player)?.points ?? null
   const started=(player)=>{const row=statsByPlayer.get(player?.id);return Boolean(row?.status&&row.status!=='scheduled')}
   const scoredFor=(player)=>{const row=statsByPlayer.get(player?.id);return fantasyPointsFromStats(row?.stats||{},league.scoring)}
   // The cell: actual once his game is on or over, projection before.
@@ -107,7 +110,7 @@ export default async function TeamPage({ params, searchParams }) {
     if(!player)return {value:'—',label:'PROJ'}
     if(isOnBye(player,byeTeams))return {value:'—',label:'BYE'}
     if(started(player)){const row=statsByPlayer.get(player.id);return {value:scoredFor(player).toFixed(1),label:String(row.status).toUpperCase(),live:true}}
-    const projection=projectedFantasyPoints(player,league.scoring)
+    const projection=projectOf(player)
     return {value:projection===null?'—':projection.toFixed(1),label:'PROJ'}
   }
   // Null when the slate is too thin to be sure -- see lib/fantasy/bye.js. Every
@@ -117,6 +120,8 @@ export default async function TeamPage({ params, searchParams }) {
   // opponent and a kickoff on a lineup row, which is the one thing you need to
   // know before deciding whether to start a man.
   const schedule = teamScheduleFor(weekGames)
+  // This week's matchup projection (2026-09-23) -- see lib/fantasy/matchupProjection.js.
+  const projectWeek = weeklyProjector(league.scoring, schedule, await matchupPromise)
   const roster = rosterRows || []
   const lineup = lineupRows || []
   const players = roster.map((entry)=>entry.player).filter(Boolean)
@@ -124,7 +129,7 @@ export default async function TeamPage({ params, searchParams }) {
   // projection into this column and into the PROJECTED total in the hero,
   // which is how a lineup can look complete and score twelve points short.
   const projectionFor = (player) =>
-    !player ? null : isOnBye(player, byeTeams) ? 0 : projectedFantasyPoints(player, league.scoring)
+    !player ? null : isOnBye(player, byeTeams) ? 0 : projectOf(player)
   const slotRows = slotsFor(league)
   const starterCount = slotRows.filter(([slot])=>!['BENCH','IR'].includes(slot)).length
   const benchCount = slotRows.filter(([slot])=>slot==='BENCH').length

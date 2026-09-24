@@ -6,6 +6,8 @@ import { loadFranchiseNflFeed } from '../../../../lib/fantasy/nflFeed'
 import { createSupabaseServerClient } from '../../../../lib/supabase/server'
 import {syncCatalogChunked,syncWeekFeedChunked} from '../../../../lib/fantasy/sync'
 import {autoFillLineups,benchUnavailableStarters,carryForwardLineups} from '../../../../lib/fantasy/autoLineup'
+import {loadMatchupData,matchupProjection} from '../../../../lib/fantasy/matchupProjection'
+import {teamScheduleFor} from '../../../../lib/fantasy/schedule'
 import {isMaintenanceMode,isFranchiseSchedulerEnabled} from '../../../../lib/edgeConfig'
 
 export const dynamic='force-dynamic'
@@ -78,7 +80,12 @@ async function synchronize(request) {
     // take scoring down with it. The result is logged and reported, never
     // awaited on for correctness.
     const lineupFills=[]
+    // Auto choices use the same matchup projection the pages show (2026-09-23).
+    const matchupData=await loadMatchupData()
     for(const week of weeks){
+      const {data:weekGameRows}=await supabase.from('nfl_week_games').select('home_team,away_team,season_type').eq('season',feed.season).eq('week',week)
+      const weekSchedule=teamScheduleFor(weekGameRows||[])
+      const projector=(player,scoring)=>matchupProjection(player,scoring,{matchup:matchupData,opp:weekSchedule.get(String(player?.team||'').toUpperCase())?.opponent||null}).points
       // Carry last week's lineup into this week's empty slots FIRST, so the
       // auto-fill below only ever fills what a manager never set anywhere.
       // See carryForwardLineups() -- Week 2 opened to nine empty slots for
@@ -87,13 +94,13 @@ async function synchronize(request) {
       if(carry.rowsCarried||carry.skipped&&!['first_week','no_previous_week','no_active_leagues'].includes(carry.skipped)){
         console.log(`[franchise/scoring] carry-forward week ${week}:`,JSON.stringify(carry))
       }
-      const fill=await autoFillLineups(supabase,{season:feed.season,week})
+      const fill=await autoFillLineups(supabase,{season:feed.season,week,projector})
       if(fill.slotsFilled||fill.skipped&&!['too_early','no_games','no_kickoffs','no_active_leagues'].includes(fill.skipped)){
         console.log(`[franchise/scoring] auto-lineup week ${week}:`,JSON.stringify(fill))
       }
       // After carry and fill: a starter ruled OUT is swapped for the best
       // healthy bench player before his game (see benchUnavailableStarters).
-      const bench=await benchUnavailableStarters(supabase,{season:feed.season,week})
+      const bench=await benchUnavailableStarters(supabase,{season:feed.season,week,projector})
       if(bench.swapped||bench.skipped&&!['no_games','no_active_leagues'].includes(bench.skipped)){
         console.log(`[franchise/scoring] injured starters week ${week}:`,JSON.stringify(bench))
       }

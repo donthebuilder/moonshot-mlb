@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 
-import { bestPossibleLineup, dashScore, eligibleForSlot, grade, projectedFantasyPoints } from '../../../../../lib/fantasy/scoring'
+import { bestPossibleLineup, dashScore, eligibleForSlot, grade } from '../../../../../lib/fantasy/scoring'
 import { createSupabaseServerClient } from '../../../../../lib/supabase/server'
 import CoachShareCard from '../../../../../components/fantasy/CoachShareCard'
 import styles from '../../../fantasy.module.css'
@@ -12,6 +12,8 @@ import { refreshMatchupScores, syncNflWeekFeed } from './actions'
 import NetworkSwitch from '../../../../../components/NetworkSwitch'
 import LeagueNav from '../../../../../components/fantasy/LeagueNav'
 import { loadPlayerCatalog } from '../../../../../lib/fantasy/playerCatalog'
+import { loadMatchupData, weeklyProjector } from '../../../../../lib/fantasy/matchupProjection'
+import { teamScheduleFor } from '../../../../../lib/fantasy/schedule'
 import { byeTeamsFor, isOnBye } from '../../../../../lib/fantasy/bye'
 import InjuryTag from '../../../../../components/fantasy/InjuryTag'
 
@@ -25,6 +27,7 @@ export default async function CoachPage({params,searchParams}) {
   if(!supabase)redirect('/fantasy')
   const {data:{user}}=await supabase.auth.getUser()
   if(!user)redirect('/fantasy')
+  const matchupPromise=loadMatchupData()
   const WEEK=await resolveFantasyWeek(supabase,query?.week)
   // GAME PLAN's "next week" -- capped at the same last week Team/Coach/Matchup
   // already agree on (lib/fantasy/week.js), so there is never a Week 15 to
@@ -45,16 +48,23 @@ export default async function CoachPage({params,searchParams}) {
   const players=playerRows||[]
   const rosters=rosterRows||[]
   const games=gameRows||[]
+  // MATCHUP PROJECTIONS (2026-09-23). Two of them, on purpose: the
+  // recommendations are about THIS week's opponent, the game plan below about
+  // NEXT week's -- one projection serving both would be wrong for one of them.
+  const matchupData=await matchupPromise
+  const projectNow=weeklyProjector(league.scoring,teamScheduleFor(games.filter((game)=>game.week===WEEK)),matchupData)
+  const projectNext=weeklyProjector(league.scoring,teamScheduleFor(games.filter((game)=>game.week===nextWeek)),matchupData)
+  const nowPoints=(player)=>projectNow(player)?.points??0
   const myTeam=teams.find((team)=>team.owner_id===user.id)
   const myIds=new Set(rosters.filter((row)=>row.team_id===myTeam?.id).map((row)=>row.player_id))
   const rosteredIds=new Set(rosters.map((row)=>row.player_id))
-  const roster=players.filter((player)=>myIds.has(player.id)).map((player)=>({...player,dash:dashScore(player),projection:projectedFantasyPoints(player,league.scoring)}))
+  const roster=players.filter((player)=>myIds.has(player.id)).map((player)=>({...player,dash:dashScore(player),projection:nowPoints(player)}))
   const {data:lineupRows}=myTeam?await supabase.from('fantasy_lineup_slots').select('*').eq('team_id',myTeam.id).eq('season',SEASON).eq('week',WEEK):{data:[]}
   const lineup=lineupRows||[]
   const starters=lineup.filter((row)=>!['BENCH','IR'].includes(row.slot)).map((row)=>({...row,player:roster.find((player)=>player.id===row.player_id)})).filter((row)=>row.player)
   const starterIds=new Set(starters.map((row)=>row.player_id))
   const bench=roster.filter((player)=>!starterIds.has(player.id))
-  const available=players.filter((player)=>!rosteredIds.has(player.id)).map((player)=>({...player,dash:dashScore(player),projection:projectedFantasyPoints(player,league.scoring)})).sort((a,b)=>b.projection-a.projection)
+  const available=players.filter((player)=>!rosteredIds.has(player.id)).map((player)=>({...player,dash:dashScore(player),projection:nowPoints(player)})).sort((a,b)=>b.projection-a.projection)
   const recommendations=[]
   for(const starter of starters){const upgrade=bench.filter((player)=>eligibleForSlot(player,starter.slot)&&player.projection>starter.player.projection+.5).sort((a,b)=>b.projection-a.projection)[0];if(upgrade)recommendations.push({type:'lineup',title:`Start ${upgrade.name}`,detail:`Move ${upgrade.name} into ${starter.slot} over ${starter.player.name}. The projection improves by ${(upgrade.projection-starter.player.projection).toFixed(1)} points.`,impact:upgrade.projection-starter.player.projection})}
   const waiverTarget=available.find((candidate)=>{const same=roster.filter((player)=>player.position===candidate.position).sort((a,b)=>a.projection-b.projection)[0];return same&&candidate.projection>same.projection+1})
@@ -82,7 +92,7 @@ export default async function CoachPage({params,searchParams}) {
   const nextOpponentId=nextMatchup?(nextMatchup.home_team_id===myTeam.id?nextMatchup.away_team_id:nextMatchup.home_team_id):null
   const nextOpponent=nextOpponentId?teams.find((team)=>team.id===nextOpponentId):null
   const opponentIds=nextOpponent?new Set(rosters.filter((row)=>row.team_id===nextOpponent.id).map((row)=>row.player_id)):new Set()
-  const opponentRoster=players.filter((player)=>opponentIds.has(player.id)).map((player)=>({...player,dash:dashScore(player),projection:projectedFantasyPoints(player,league.scoring)}))
+  const opponentRoster=players.filter((player)=>opponentIds.has(player.id)).map((player)=>({...player,dash:dashScore(player),projection:nowPoints(player)}))
   // Bye teams for THAT week specifically -- games already holds the whole
   // season (fetched unfiltered above, for nextGame), so this is a filter, not
   // a new query. null when that week isn't published yet (byeTeamsFor's own
@@ -95,8 +105,9 @@ export default async function CoachPage({params,searchParams}) {
   // average looks -- excluded from the pool the optimizer draws from, not
   // just flagged after the fact, so the plan never "starts" someone who
   // isn't playing.
-  const myPlan=bestPossibleLineup(roster.filter((player)=>!myByeNextWeek.includes(player)),required)
-  const opponentPlan=bestPossibleLineup(opponentRoster.filter((player)=>!opponentByeNextWeek.includes(player)),required)
+  const nextProjection=(player)=>({...player,projection:projectNext(player)?.points??0})
+  const myPlan=bestPossibleLineup(roster.filter((player)=>!myByeNextWeek.includes(player)).map(nextProjection),required)
+  const opponentPlan=bestPossibleLineup(opponentRoster.filter((player)=>!opponentByeNextWeek.includes(player)).map(nextProjection),required)
 
   return <main className={styles.roomApp}>
     <header className={styles.roomHeader}><NetworkSwitch variant="inline"/><div><small>DASH INTELLIGENCE</small><strong>{league.name}</strong></div><span>{latestSync?.status==='complete'?'Scoring automation healthy':games.length?'NFL feed connected':'Feed awaiting sync'}</span></header>

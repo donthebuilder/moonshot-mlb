@@ -9,7 +9,7 @@ import TeamMark from '../../../../../../components/fantasy/TeamMark'
 import { colorForPosition } from '../../../../../../components/fantasy/positionColor'
 import { teamScheduleFor } from '../../../../../../lib/fantasy/schedule'
 import { byeTeamsFor, isOnBye } from '../../../../../../lib/fantasy/bye'
-import { projectedFantasyPoints } from '../../../../../../lib/fantasy/scoring'
+import { loadMatchupData, weeklyProjector } from '../../../../../../lib/fantasy/matchupProjection'
 import { FANTASY_SEASON, resolveFantasyWeek } from '../../../../../../lib/fantasy/week'
 import { loadPlayerCatalog } from '../../../../../../lib/fantasy/playerCatalog'
 import LeagueNav from '../../../../../../components/fantasy/LeagueNav'
@@ -60,6 +60,7 @@ export default async function TeamRoster({ params, searchParams }) {
   if (!team) notFound()
   if (team.owner_id === user.id) redirect(`/fantasy/league/${leagueId}/team`)
 
+  const matchupPromise = loadMatchupData()
   const week = await resolveFantasyWeek(supabase, query?.week)
   const [{ data: rosterRows }, { data: lineupRows }, { data: nflGameRows }, { data: seasonGames }, catalog] = await Promise.all([
     supabase.from('fantasy_roster_entries')
@@ -84,7 +85,9 @@ export default async function TeamRoster({ params, searchParams }) {
     .filter((row) => !['BENCH', 'IR'].includes(row.slot))
     .sort((a, b) => SLOT_ORDER.indexOf(a.slot) - SLOT_ORDER.indexOf(b.slot) || a.slot_index - b.slot_index)
 
-  const project = (player) => (isOnBye(player, byeTeams) ? 0 : projectedFantasyPoints(player, league.scoring))
+  // This week's matchup projection (2026-09-23) -- lib/fantasy/matchupProjection.js.
+  const projectWeek = weeklyProjector(league.scoring, schedule, await matchupPromise)
+  const project = (player) => (isOnBye(player, byeTeams) ? 0 : (projectWeek(player)?.points ?? 0))
   const weekProjection = starters.reduce((sum, row) => sum + project(playerById.get(row.player_id)), 0)
   const startingIds = new Set(starters.map((row) => row.player_id))
   const bench = roster.filter((row) => !startingIds.has(row.player_id))
