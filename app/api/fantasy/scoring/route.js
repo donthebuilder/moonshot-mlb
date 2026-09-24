@@ -120,8 +120,18 @@ async function synchronize(request) {
     }
     let matchups=0
     for(const week of weeks){const {data,error}=await supabase.rpc('refresh_all_fantasy_matchup_scores',{p_season:feed.season,p_week:week});if(error)throw error;matchups+=Number(data||0)}
+    // PLAYOFFS ADVANCE THEMSELVES (2026-09-24): seeds the semifinals once Week
+    // 14 is final, writes the championship once the semifinals are. Idempotent;
+    // a failure is logged and never takes scoring down.
+    let playoffsSeeded=0
+    {
+      const {data,error}=await supabase.rpc('advance_all_fantasy_playoffs',{p_season:feed.season})
+      if(error)console.error('[franchise/scoring] playoffs failed',error.message)
+      else if(Number(data))console.log(`[franchise/scoring] playoff rounds seeded: ${data}`)
+      playoffsSeeded=error?null:Number(data||0)
+    }
     await supabase.from('fantasy_scoring_sync_runs').update({status:'complete',games_synced:Number(sync?.games||0),players_synced:Number(sync?.players||0),matchups_refreshed:matchups,completed_at:new Date().toISOString()}).eq('id',runId)
-    return Response.json({ok:true,season:feed.season,weeks,games:Number(sync?.games||0),players:Number(sync?.players||0),matchups,lineupFills,waiversAwarded,builtAt:feed.builtAt})
+    return Response.json({ok:true,season:feed.season,weeks,games:Number(sync?.games||0),players:Number(sync?.players||0),matchups,lineupFills,waiversAwarded,playoffsSeeded,builtAt:feed.builtAt})
   } catch(error) {
     console.error('[franchise/scoring] sync failed', error)
     if(runId)await supabase.from('fantasy_scoring_sync_runs').update({status:'failed',error_message:String(error?.message||error).slice(0,500),completed_at:new Date().toISOString()}).eq('id',runId)

@@ -9,7 +9,7 @@ import { formatOdds, matchupOdds, oddsSentence } from '../../../../../lib/fantas
 import LiveMatchupCenter from '../../../../../components/fantasy/LiveMatchupCenter'
 import LocalTime from '../../../../../components/fantasy/LocalTime'
 import SubmitButton from '../../../../../components/fantasy/SubmitButton'
-import { resolveFantasyWeek } from '../../../../../lib/fantasy/week'
+import { resolveFantasyWeek, FANTASY_LAST_WEEK, FANTASY_PLAYOFF_ROUNDS, FANTASY_REGULAR_WEEKS } from '../../../../../lib/fantasy/week'
 import PlayerFace from '../../../../../components/fantasy/PlayerFace'
 import { PlayerSheetButton } from '../../../../../components/fantasy/PlayerSheet'
 import { buildSheetData } from '../../../../../lib/fantasy/sheetEntry'
@@ -285,10 +285,14 @@ export default async function MatchupPage({ params, searchParams }) {
     <LeagueNav leagueId={leagueId} active="matchup" isCommissioner={league.commissioner_id === user.id} className={styles.roomNav} activeClassName={styles.roomActive} />
     <div className={styles.roomBody}>
       {(query?.error||query?.message)&&<p className={query.error?styles.error:styles.message}>{query.error||query.message}</p>}
-      {iAmIdle&&!requestedMatchup&&<p className={styles.message}>{myTeam.name} is idle in Week {week} — nine teams, four games, one sits. Showing {home?.name} vs {away?.name}; your record doesn&apos;t move this week.</p>}
+      {iAmIdle&&!requestedMatchup&&(Number(week)>FANTASY_REGULAR_WEEKS
+        ? <p className={styles.message}>{myTeam.name} isn&apos;t in the Week {week} bracket. Showing {home?.name} vs {away?.name} — see the full bracket under <Link href={`/fantasy/league/${leagueId}/league?view=playoffs`}>League › Playoffs</Link>.</p>
+        : <p className={styles.message}>{myTeam.name} is idle in Week {week} — nine teams, four games, one sits. Showing {home?.name} vs {away?.name}; your record doesn&apos;t move this week.</p>)}
+      {featured?.round&&featured.round!=='regular'&&<p className={styles.message}><b>{FANTASY_PLAYOFF_ROUNDS[featured.round]}</b> · #{featured.home_seed} {home?.name} vs #{featured.away_seed} {away?.name}{featured.round==='final'?' — winner takes the title':''}</p>}
       <LiveMatchupCenter leagueId={leagueId} live={hasLiveGames} lastUpdated={latestSync?.completed_at}/>
-      <div className={styles.weekStrip}>{Array.from({length:14},(_,i)=>i+1).map((number)=><Link className={number===week?styles.weekActive:''} href={`/fantasy/league/${leagueId}/matchup?week=${number}`} key={number}>W{number}</Link>)}</div>
-      {!featured && <section className={styles.scheduleEmpty}><span>VS</span><div><p className={styles.panelLabel}>SEASON SCHEDULE</p><h1>Your matchups are ready to be built.</h1><p>Franchise creates a balanced 14-week round-robin schedule from the teams currently in this league.</p></div>{league.commissioner_id===user.id?<form action={generateSchedule}><input type="hidden" name="leagueId" value={leagueId}/><SubmitButton pendingLabel="Building…">Create schedule</SubmitButton></form>:<small>Waiting for the commissioner</small>}</section>}
+      <div className={styles.weekStrip}>{Array.from({length:FANTASY_LAST_WEEK},(_,i)=>i+1).map((number)=><Link className={number===week?styles.weekActive:''} href={`/fantasy/league/${leagueId}/matchup?week=${number}`} key={number} title={number>FANTASY_REGULAR_WEEKS?(number===FANTASY_REGULAR_WEEKS+1?'Playoff semifinals':'Championship week'):undefined}>{number>FANTASY_REGULAR_WEEKS?(number===FANTASY_REGULAR_WEEKS+1?'SEMI':'FINAL'):`W${number}`}</Link>)}</div>
+      {!featured && Number(week)>FANTASY_REGULAR_WEEKS && <section className={styles.scheduleEmpty}><span>🏆</span><div><p className={styles.panelLabel}>{Number(week)===FANTASY_REGULAR_WEEKS+1?'PLAYOFF SEMIFINALS':'CHAMPIONSHIP WEEK'}</p><h1>{Number(week)===FANTASY_REGULAR_WEEKS+1?`Set when Week ${FANTASY_REGULAR_WEEKS} is final.`:'Set when the semifinals are final.'}</h1><p>Top four by the standings: #1 vs #4 and #2 vs #3, then the title game. <Link href={`/fantasy/league/${leagueId}/league?view=playoffs`}>See the race →</Link></p></div></section>}
+      {!featured && Number(week)<=FANTASY_REGULAR_WEEKS && <section className={styles.scheduleEmpty}><span>VS</span><div><p className={styles.panelLabel}>SEASON SCHEDULE</p><h1>Your matchups are ready to be built.</h1><p>Franchise creates a balanced 14-week round-robin schedule from the teams currently in this league.</p></div>{league.commissioner_id===user.id?<form action={generateSchedule}><input type="hidden" name="leagueId" value={leagueId}/><SubmitButton pendingLabel="Building…">Create schedule</SubmitButton></form>:<small>Waiting for the commissioner</small>}</section>}
       {featured && <>
         {/* ── THE SCOREBOARD (2026-09-14) ─────────────────────────────────
             Donovan: "still can't tell who's winning or losing." The old hero

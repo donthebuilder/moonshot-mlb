@@ -7305,3 +7305,39 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 }
 .bestLineupForm { margin-left: auto; }
 .bestLineupForm button { white-space: nowrap; }
+
+/* THE BRACKET (2026-09-24). Semifinals, then the title game, as cards in a
+   grid that stacks on a phone. Tokens only: it has to read in both themes. */
+.bracketGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+.bracketGame {
+  display: grid;
+  gap: 6px;
+  padding: 11px 12px;
+  border: 1px solid var(--fx-line-2);
+  border-radius: 11px;
+}
+.bracketGame > small {
+  color: var(--fx-dim);
+  font: 900 8px/1 monospace;
+  letter-spacing: .1em;
+}
+.bracketSide {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-top: 1px solid var(--fx-line-3);
+}
+.bracketSide a { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bracketSide b { font: 900 14px/1 monospace; }
+.bracketSide[data-won='true'] a,
+.bracketSide[data-won='true'] b { color: var(--fx-accent); }
+.bracketSide[data-mine='true'] a { text-decoration: underline; text-underline-offset: 3px; }
+.bracketSeed { color: var(--fx-dim); font: 800 10px/1 monospace; }
+.bracketLink { justify-self: end; font-size: 11px; color: var(--fx-dim); }

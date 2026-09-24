@@ -17,15 +17,15 @@ import { loadPlayerCatalog } from '../../../../../lib/fantasy/playerCatalog'
 import { draftValue, replacementLevels, seasonValue } from '../../../../../lib/fantasy/scoring'
 import { PlayerSheetButton } from '../../../../../components/fantasy/PlayerSheet'
 import { buildSheetData } from '../../../../../lib/fantasy/sheetEntry'
-import { resolveFantasyWeek } from '../../../../../lib/fantasy/week'
+import { FANTASY_LAST_WEEK, FANTASY_REGULAR_WEEKS, resolveFantasyWeek } from '../../../../../lib/fantasy/week'
 import { gameForPlayer, matchupLabel, teamScheduleFor } from '../../../../../lib/fantasy/schedule'
 
 const SEASON=2026
 
 export default async function LeaguePage({params,searchParams}) {
   const [{leagueId},query]=await Promise.all([params,searchParams])
-  const view=['standings','power','players','recap'].includes(query?.view)?query.view:'standings'
-  const week=Math.min(14,Math.max(1,Number(query?.week)||1))
+  const view=['standings','playoffs','power','players','recap'].includes(query?.view)?query.view:'standings'
+  const week=Math.min(FANTASY_LAST_WEEK,Math.max(1,Number(query?.week)||1))
   const supabase=await createSupabaseServerClient()
   if(!supabase)redirect('/fantasy')
   const {data:{user}}=await supabase.auth.getUser()
@@ -38,7 +38,7 @@ export default async function LeaguePage({params,searchParams}) {
     supabase.from('fantasy_power_rankings').select('*').eq('league_id',leagueId).eq('season',SEASON).eq('week',week).order('rank'),
     supabase.from('fantasy_weekly_awards').select('*').eq('league_id',leagueId).eq('season',SEASON).eq('week',week),
     supabase.from('fantasy_weekly_recaps').select('*').eq('league_id',leagueId).eq('season',SEASON).eq('week',week).maybeSingle(),
-    supabase.from('nfl_week_games').select('week,status,season_type').eq('season',SEASON).eq('season_type',2).lte('week',14),
+    supabase.from('nfl_week_games').select('week,status,season_type').eq('season',SEASON).eq('season_type',2).lte('week',FANTASY_LAST_WEEK),
   ])
   if(!league||!membership)notFound()
   const teams=teamRows||[]
@@ -48,7 +48,10 @@ export default async function LeaguePage({params,searchParams}) {
   const matchups=(matchupRows||[]).map((game)=>({...game,status:matchupState(game,states[game.week])}))
   const safeRankings=rankings||[]
   const safeAwards=awards||[]
-  const table=teams.map((team)=>{const record={...team,wins:0,losses:0,ties:0,pointsFor:0,pointsAgainst:0};matchups.filter((game)=>game.status==='final'&&(game.home_team_id===team.id||game.away_team_id===team.id)).forEach((game)=>{const home=game.home_team_id===team.id;const pf=Number(home?game.home_score:game.away_score);const pa=Number(home?game.away_score:game.home_score);record.pointsFor+=pf;record.pointsAgainst+=pa;if(pf>pa)record.wins+=1;else if(pf<pa)record.losses+=1;else record.ties+=1});return record})
+  // STANDINGS ARE THE REGULAR SEASON (2026-09-24): playoff games (Weeks 15-16)
+  // decide the bracket, not the table -- and seeds are drawn from this table.
+  const regular=matchups.filter((game)=>(game.round||'regular')==='regular'&&Number(game.week)<=FANTASY_REGULAR_WEEKS)
+  const table=teams.map((team)=>{const record={...team,wins:0,losses:0,ties:0,pointsFor:0,pointsAgainst:0};regular.filter((game)=>game.status==='final'&&(game.home_team_id===team.id||game.away_team_id===team.id)).forEach((game)=>{const home=game.home_team_id===team.id;const pf=Number(home?game.home_score:game.away_score);const pa=Number(home?game.away_score:game.home_score);record.pointsFor+=pf;record.pointsAgainst+=pa;if(pf>pa)record.wins+=1;else if(pf<pa)record.losses+=1;else record.ties+=1});return record})
     // RANK BY WIN PERCENTAGE, NOT WINS (2026-09-14). Nine teams and four games
     // a week means five teams play 12 and four play 13 over the 14-week
     // schedule (generate_fantasy_schedule rotates one null slot). Sorting on
@@ -56,9 +59,11 @@ export default async function LeaguePage({params,searchParams}) {
     // odd-team league uses. Ties count half. Points for breaks the tie.
     .map((record)=>({...record,games:record.wins+record.losses+record.ties,pct:(record.wins+record.losses+record.ties)?(record.wins+record.ties*0.5)/(record.wins+record.losses+record.ties):0}))
     .sort((a,b)=>b.pct-a.pct||b.wins-a.wins||b.pointsFor-a.pointsFor)
-  const finalGames=matchups.filter((game)=>game.status==='final').length
+  const finalGames=regular.filter((game)=>game.status==='final').length
   const weekFinals=matchups.filter((game)=>game.week===week&&game.status==='final').length
-  const playoffSpots=Math.max(2,Math.min(6,Math.floor((teams.length||league.team_count||8)/2)))
+  // The league's own setting now (202609241200_franchise_playoffs.sql), 4 by default.
+  const playoffSpots=Number.isFinite(Number(league.playoff_teams))?Number(league.playoff_teams):4
+  const bracket=matchups.filter((game)=>(game.round||'regular')!=='regular')
   const teamName=(id)=>teams.find((team)=>team.id===id)?.name||'Team'
 
   // ── PLAYER POWER RANKINGS (2026-09-07) ────────────────────────────────────
@@ -146,9 +151,10 @@ export default async function LeaguePage({params,searchParams}) {
     <div className={styles.roomBody}>
       {(query?.error||query?.message)&&<p className={query.error?styles.error:styles.message}>{query.error||query.message}</p>}
       <section className={styles.leagueHero}><div><p className={styles.panelLabel}>LEAGUE HQ</p><h1>{league.name}</h1><p>{String(league.scoring||'ppr').replace('_','-').toUpperCase()} · {league.team_count} teams</p><InviteCode className={styles.leagueInvite} code={league.invite_code} />{league.commissioner_id===user.id&&<Link className={styles.leagueSettingsLink} href={`/fantasy/league/${leagueId}/settings`}>⚙ Open Commissioner Control Room</Link>}</div><div className={styles.roomStats}><span><small>MEMBERS</small><b>{teams.length}</b></span><span><small>GAMES</small><b>{matchups.length}</b></span><span><small>FINAL</small><b>{finalGames}</b></span></div></section>
-      <div className={styles.leagueViews}><Link className={view==='standings'?styles.leagueViewActive:''} href={`/fantasy/league/${leagueId}/league?view=standings&week=${week}`}>Standings</Link><Link className={view==='players'?styles.leagueViewActive:''} href={`/fantasy/league/${leagueId}/league?view=players&week=${week}`}>Players</Link><Link className={view==='power'?styles.leagueViewActive:''} href={`/fantasy/league/${leagueId}/league?view=power&week=${week}`}>Power Rankings</Link><Link className={view==='recap'?styles.leagueViewActive:''} href={`/fantasy/league/${leagueId}/league?view=recap&week=${week}`}>Weekly Recap</Link><form><input type="hidden" name="view" value={view}/><select name="week" defaultValue={week}>{Array.from({length:14},(_,i)=>i+1).map((number)=><option value={number} key={number}>Week {number}</option>)}</select><button>Go</button></form></div>
+      <div className={styles.leagueViews}><Link className={view==='standings'?styles.leagueViewActive:''} href={`/fantasy/league/${leagueId}/league?view=standings&week=${week}`}>Standings</Link><Link className={view==='playoffs'?styles.leagueViewActive:''} href={`/fantasy/league/${leagueId}/league?view=playoffs&week=${week}`}>Playoffs</Link><Link className={view==='players'?styles.leagueViewActive:''} href={`/fantasy/league/${leagueId}/league?view=players&week=${week}`}>Players</Link><Link className={view==='power'?styles.leagueViewActive:''} href={`/fantasy/league/${leagueId}/league?view=power&week=${week}`}>Power Rankings</Link><Link className={view==='recap'?styles.leagueViewActive:''} href={`/fantasy/league/${leagueId}/league?view=recap&week=${week}`}>Weekly Recap</Link><form><input type="hidden" name="view" value={view}/><select name="week" defaultValue={week}>{Array.from({length:14},(_,i)=>i+1).map((number)=><option value={number} key={number}>Week {number}</option>)}</select><button>Go</button></form></div>
       {league.commissioner_id===user.id&&view!=='standings'&&<section className={styles.commishBar}><div><p className={styles.panelLabel}>WEEKLY PUBLISHER</p><strong>{weekFinals?`${weekFinals} final games available`:`Week ${week} still needs final scores`}</strong></div><form action={generateWeeklyContent}><input type="hidden" name="leagueId" value={leagueId}/><input type="hidden" name="week" value={week}/><SubmitButton disabled={!weekFinals} pendingLabel="Generating…">Generate Week {week}</SubmitButton></form></section>}
       {view==='standings'&&<Standings leagueId={leagueId} finalGames={finalGames} playoffSpots={playoffSpots} table={table} user={user}/>}
+      {view==='playoffs'&&<Playoffs bracket={bracket} table={table} playoffSpots={playoffSpots} startWeek={Number(league.playoff_start_week)||FANTASY_REGULAR_WEEKS+1} teams={teams} leagueId={leagueId} user={user} finalGames={finalGames}/>}
       {view==='power'&&<PowerRankings rankings={safeRankings} teamName={teamName} teams={teams}/>}
       {view==='players'&&<PlayerPower sheets={playerSheets} filters={{q:playerQ,pos:playerPos,own:playerOwn,week,posList:POS_FILTERS}} board={shownPlayerBoard} leagueId={leagueId} moreHref={playerBoard.length>shownPlayerBoard.length?morePlayersHref:null} teams={teams} total={playerBoard.length}/>}
       {view==='recap'&&<WeeklyRecap recap={recap} awards={safeAwards} teamName={teamName} week={week}/>}
@@ -156,10 +162,52 @@ export default async function LeaguePage({params,searchParams}) {
   </main>
 }
 
-function Standings({finalGames,leagueId,playoffSpots,table,user}){return <section className={styles.standings}><div className={styles.boardHead}><div><p className={styles.panelLabel}>2026 REGULAR SEASON</p><h2>Standings</h2></div><span>{table.length%2?`By win % · ${table.length} teams, one idle a week`:'W-L-T · Points'}</span></div><div className={styles.standingHead}><span>RK</span><span>TEAM</span><span>W</span><span>L</span><span>T</span><span>PF</span><span>PA</span></div>{table.map((team,index)=><div className={styles.standingRow} data-cut={finalGames&&index===playoffSpots-1?'true':undefined} data-mine={team.owner_id===user.id?'true':undefined} key={team.id}><span>{index+1}</span><div style={{display:'flex',alignItems:'center',gap:9}}><TeamMark team={team}/><div><b><Link className={styles.teamLink} href={`/fantasy/league/${leagueId}/team/${team.id}`}>{team.name}</Link></b>{/* NO GAMES YET, printed under all nine teams, is the same fact the 0-0-0
+function Standings({finalGames,leagueId,playoffSpots,table,user}){return <section className={styles.standings}><div className={styles.boardHead}><div><p className={styles.panelLabel}>2026 REGULAR SEASON · WEEKS 1-{FANTASY_REGULAR_WEEKS}</p><h2>Standings</h2></div><span>{table.length%2?`By win % · ${table.length} teams, one idle a week`:'W-L-T · Points'}</span></div><div className={styles.standingHead}><span>RK</span><span>TEAM</span><span>W</span><span>L</span><span>T</span><span>PF</span><span>PA</span></div>{table.map((team,index)=><div className={styles.standingRow} data-cut={finalGames&&index===playoffSpots-1?'true':undefined} data-mine={team.owner_id===user.id?'true':undefined} key={team.id}><span>{index+1}</span><div style={{display:'flex',alignItems:'center',gap:9}}><TeamMark team={team}/><div><b><Link className={styles.teamLink} href={`/fantasy/league/${leagueId}/team/${team.id}`}>{team.name}</Link></b>{/* NO GAMES YET, printed under all nine teams, is the same fact the 0-0-0
         and the 0.0 already carry -- and it cost a line of row height on every
         one of them. The line is rendered only when it distinguishes a team. */}
-      {(team.owner_id===user.id||finalGames)&&<small>{team.owner_id===user.id?'YOUR TEAM':index<playoffSpots?'IN THE FIELD':'IN THE HUNT'}</small>}</div></div><strong>{team.wins}</strong><strong>{team.losses}</strong><strong>{team.ties}</strong><span>{team.pointsFor.toFixed(1)}</span><span>{team.pointsAgainst.toFixed(1)}</span></div>)}</section>}
+      {(team.owner_id===user.id||finalGames)&&<small>{team.owner_id===user.id?(index<playoffSpots&&finalGames?`YOUR TEAM · #${index+1} SEED`:'YOUR TEAM'):index<playoffSpots?`PLAYOFF SPOT · #${index+1} SEED`:'IN THE HUNT'}</small>}</div></div><strong>{team.wins}</strong><strong>{team.losses}</strong><strong>{team.ties}</strong><span>{team.pointsFor.toFixed(1)}</span><span>{team.pointsAgainst.toFixed(1)}</span></div>)}</section>}
+
+// ── THE BRACKET (2026-09-24) ──────────────────────────────────────────────
+// Four teams, Weeks 15-16: semifinals 1v4 and 2v3, then the championship and
+// a 3rd-place game. Before Week 14 is final it shows the field as it stands
+// ("if the season ended today"), so the race has something to look at.
+function Playoffs({bracket,table,playoffSpots,startWeek,teams,leagueId,user,finalGames}){
+  const teamOf=(id)=>teams.find((team)=>team.id===id)
+  const seedOf=(id)=>{const i=table.findIndex((t)=>t.id===id);return i<0?null:i+1}
+  const by=(round)=>bracket.filter((g)=>g.round===round).sort((a,b)=>(a.home_seed||9)-(b.home_seed||9))
+  const semis=by('semifinal'), finals=by('final'), third=by('third_place')
+  const winnerOf=(g)=>g&&g.status==='final'?(Number(g.home_score)>=Number(g.away_score)?g.home_team_id:g.away_team_id):null
+  const champ=winnerOf(finals[0])
+  const Side=({id,seed,score,won,show})=>{const t=teamOf(id);return <div className={styles.bracketSide} data-won={won?'true':undefined} data-mine={t?.owner_id===user.id?'true':undefined}>
+    <span className={styles.bracketSeed}>{seed?`#${seed}`:''}</span>
+    <Link className={styles.teamLink} href={`/fantasy/league/${leagueId}/team/${id}`}>{t?.name||'TBD'}</Link>
+    <b>{show?Number(score).toFixed(1):''}</b></div>}
+  const Game=({g,label})=>{const w=winnerOf(g);const show=g&&g.status!=='scheduled';return <article className={styles.bracketGame}>
+    <small>{label} · WEEK {g?.week}{g?.status==='live'?' · LIVE':g?.status==='final'?' · FINAL':''}</small>
+    {g?<><Side id={g.home_team_id} seed={g.home_seed} score={g.home_score} won={w===g.home_team_id} show={show}/><Side id={g.away_team_id} seed={g.away_seed} score={g.away_score} won={w===g.away_team_id} show={show}/></>:<p className={styles.emptyRoom}>Set when the semifinals are final.</p>}
+    {g&&<Link className={styles.bracketLink} href={`/fantasy/league/${leagueId}/matchup?week=${g.week}&matchup=${g.id}`}>Open matchup ›</Link>}
+  </article>}
+  if(!playoffSpots)return <section className={styles.standings}><p className={styles.emptyRoom}>This league has no playoffs.</p></section>
+  if(!semis.length&&!finals.length){
+    const field=table.slice(0,playoffSpots)
+    return <section className={styles.standings}>
+      <div className={styles.boardHead}><div><p className={styles.panelLabel}>PLAYOFFS · WEEKS {startWeek}-{startWeek+1}</p><h2>{finalGames?'If the season ended today':'The field is set after Week 14'}</h2></div><span>Top {playoffSpots} make it</span></div>
+      <p className={styles.boardNote}>Four teams. Week {startWeek}: #1 vs #4 and #2 vs #3, higher seed at home. Week {startWeek+1}: the championship and a 3rd-place game. Seeds follow the standings (win %, then wins, then points for); a tied playoff game goes to the higher seed.</p>
+      {finalGames>0&&<div className={styles.bracketGrid}>
+        <article className={styles.bracketGame}><small>SEMIFINAL · PROJECTED</small><Side id={field[0]?.id} seed={1}/><Side id={field[3]?.id} seed={4}/></article>
+        <article className={styles.bracketGame}><small>SEMIFINAL · PROJECTED</small><Side id={field[1]?.id} seed={2}/><Side id={field[2]?.id} seed={3}/></article>
+      </div>}
+    </section>
+  }
+  return <section className={styles.standings}>
+    <div className={styles.boardHead}><div><p className={styles.panelLabel}>PLAYOFFS · WEEKS {startWeek}-{startWeek+1}</p><h2>{champ?`${teamOf(champ)?.name} are champions`:'The bracket'}</h2></div><span>{champ?'2026 CHAMPION':'Four teams, two weeks'}</span></div>
+    <div className={styles.bracketGrid}>
+      {semis.map((g)=><Game key={g.id} g={g} label="SEMIFINAL"/>)}
+      <Game g={finals[0]} label="CHAMPIONSHIP"/>
+      {third[0]&&<Game g={third[0]} label="3RD PLACE"/>}
+    </div>
+  </section>
+}
 
 function PowerRankings({rankings,teamName,teams=[]}){const teamOf=(id)=>teams.find((team)=>team.id===id);return <section className={styles.powerBoard}><div className={styles.boardHead}><div><p className={styles.panelLabel}>DASH POWER INDEX</p><h2>Power Rankings</h2></div><span>Results · scoring · momentum</span></div>{rankings.map((item)=><article key={item.team_id}><strong>{item.rank}</strong><div><h3 style={{display:'flex',alignItems:'center',gap:8}}><TeamMark size={22} team={teamOf(item.team_id)}/>{teamName(item.team_id)}</h3><p>{item.explanation}</p></div><span>{item.previous_rank?item.previous_rank-item.rank>0?`▲ ${item.previous_rank-item.rank}`:item.previous_rank-item.rank<0?`▼ ${Math.abs(item.previous_rank-item.rank)}`:'—':'NEW'}</span><b>{Number(item.power_score).toFixed(1)}</b></article>)}{!rankings.length&&<p className={styles.leagueEmpty}>Power rankings publish after the commissioner generates a completed week.</p>}</section>}
 

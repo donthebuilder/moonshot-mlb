@@ -74,7 +74,7 @@ export default async function TeamRoster({ params, searchParams }) {
     supabase.from('nfl_week_games').select('*').eq('season', SEASON).eq('week', week).order('kickoff'),
     // fantasy_teams carries no W-L: a record is a fact about played games, so
     // it is counted from them rather than stored and kept in sync.
-    supabase.from('fantasy_matchups').select('home_team_id,away_team_id,home_score,away_score,status')
+    supabase.from('fantasy_matchups').select('home_team_id,away_team_id,home_score,away_score,status,round')
       .eq('league_id', leagueId).eq('season', SEASON).eq('status', 'final'),
     loadPlayerCatalog(supabase),
     // Only the commissioner's add/drop panel needs who is taken league-wide.
@@ -111,7 +111,8 @@ export default async function TeamRoster({ params, searchParams }) {
 
   const catalogCount = Array.isArray(catalog) ? catalog.length : 0
   let wins = 0, losses = 0, ties = 0
-  for (const game of seasonGames || []) {
+  // Record is the regular season; playoff games live on the bracket (2026-09-24).
+  for (const game of (seasonGames || []).filter((g) => (g.round || 'regular') === 'regular')) {
     const isHome = game.home_team_id === teamId
     if (!isHome && game.away_team_id !== teamId) continue
     const mine = Number(isHome ? game.home_score : game.away_score) || 0
