@@ -277,6 +277,16 @@ async function bytesOf(make) {
 // ("Every TD, all games") when this was scoped. Wrapped in one try/catch so
 // a bad tick here (a malformed ESPN payload, a missing migration) can never
 // take the Thursday/Sunday milestone post down with it.
+// The Eastern calendar day a game kicked off on -- the day the feed keys it
+// under, whatever the clock says when the sweep runs.
+const kickoffDayOf = (game) => {
+  const t = Date.parse(String(game?.kickoff || ''))
+  if (!Number.isFinite(t)) return ''
+  try {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(t))
+  } catch { return '' }
+}
+
 async function runTouchdownTick(db, day) {
   const totals = { seen: 0, fresh: 0, discord: 0, x: 0, xFailed: 0 }
   try {
@@ -315,8 +325,15 @@ async function runTouchdownTick(db, day) {
 
     const rows = liveTds.map((play) => {
       const game = snap.games.find((g) => g.game_id === play.game_id)
-      const ev = buildTdEvent(play, { game, roster, logs, picksCard, matchup, season, day })
-      const row = rowFromEvent(day, ev)
+      // 2026-09-24 audit (TZ-1): the row's `day` -- part of the feed's
+      // identity (onConflict day,game_id,td_n) -- was the sweep's wall-clock
+      // Eastern day. SNF/MNF past midnight ET (OT, a weather delay, the late
+      // MNF doubleheader) re-keyed every touchdown already posted as fresh
+      // under D+1: duplicate X + Discord posts. Key on the game's own kickoff
+      // day instead; the sweep day is only the fallback.
+      const gameDay = kickoffDayOf(game) || day
+      const ev = buildTdEvent(play, { game, roster, logs, picksCard, matchup, season, day: gameDay })
+      const row = rowFromEvent(gameDay, ev)
       // 2026-09-24 audit: a touchdown stored without a scorer or without a
       // board rank is the public record silently calling him "not on the
       // board". Fourteen rush TDs in weeks 1-2 landed that way (trailing
@@ -345,7 +362,9 @@ async function runTouchdownTick(db, day) {
     const { data: pending } = await db
       .from('nfl_td_feed')
       .select('*')
-      .eq('day', day)
+      // rows are keyed on the game's kickoff day (above), so look under every
+      // day this sweep's games belong to, plus the sweep day itself
+      .in('day', [...new Set([day, ...rows.map((r) => r.day)])])
       .or('discord_sent.eq.false,x_post_id.is.null')
       .order('seen_at', { ascending: true })
       .limit(12)
@@ -371,7 +390,7 @@ async function runTouchdownTick(db, day) {
         const { data: claim, error: claimError } = await db
           .from('nfl_td_feed')
           .update({ x_post_id: 'posting' })
-          .match({ day, game_id: row.game_id, td_n: row.td_n })
+          .match({ day: row.day, game_id: row.game_id, td_n: row.td_n })
           .is('x_post_id', null)
           .select('game_id')
         if (claimError) console.error(`[nfl-tick] td claim failed for ${row.game_id}/${row.td_n}: ${claimError.message}`)
@@ -445,7 +464,7 @@ async function runTouchdownTick(db, day) {
         }
       }
       if (Object.keys(patch).length) {
-        await db.from('nfl_td_feed').update(patch).match({ day, game_id: row.game_id, td_n: row.td_n })
+        await db.from('nfl_td_feed').update(patch).match({ day: row.day, game_id: row.game_id, td_n: row.td_n })
       }
       if (stopTick) break
     }
