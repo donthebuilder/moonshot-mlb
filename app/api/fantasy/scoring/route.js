@@ -9,6 +9,7 @@ import {syncCatalogChunked,syncWeekFeedChunked} from '../../../../lib/fantasy/sy
 import {autoFillLineups,benchUnavailableStarters,carryForwardLineups} from '../../../../lib/fantasy/autoLineup'
 import {loadMatchupData,matchupProjection} from '../../../../lib/fantasy/matchupProjection'
 import {teamScheduleFor} from '../../../../lib/fantasy/schedule'
+import {isQuietTick} from '../../../../lib/fantasy/scoringCadence'
 import {isMaintenanceMode,isFranchiseSchedulerEnabled} from '../../../../lib/edgeConfig'
 
 export const dynamic='force-dynamic'
@@ -63,6 +64,8 @@ async function synchronize(request) {
       if(latest&&latest.status!=='failed'&&startedAgo<MEMBER_SYNC_MIN_MS)return Response.json({ok:true,cached:true,status:latest.status,completedAt:latest.completed_at||null})
     }
     const feed=await loadFranchiseNflFeed()
+    // Quiet cron ticks stop here, before any Supabase read (lib/fantasy/scoringCadence.js).
+    if(access.mode==='service'&&isQuietTick(feed.games))return Response.json({ok:true,skipped:'quiet',games:feed.games.length})
     const weeks=[...new Set(feed.games.map((game)=>game.week))].sort((a,b)=>a-b)
     const {data:run,error:runError}=await supabase.from('fantasy_scoring_sync_runs').insert({source:feed.source,season:feed.season,weeks}).select('id').single()
     if(runError)throw runError
