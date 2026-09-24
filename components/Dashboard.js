@@ -268,6 +268,9 @@ export default function Dashboard({ palettePass = 0 }) {
 
   const [refreshKey, setRefreshKey] = useState(0)
   const [refreshing, setRefreshing] = useState(false)
+  // A manual refresh is the one fetch that must beat the CDN's five-minute
+  // copy (lib/data.js fetchJSON). Poll ticks revalidate instead.
+  const hardRefreshRef = useRef(false)
   const [backtest, setBacktest] = useState(null)
   const [evalReport, setEvalReport] = useState(null)
   // ITEM 21 (2026-09-11): the bot's own run_meta, so the site can finally
@@ -293,6 +296,8 @@ export default function Dashboard({ palettePass = 0 }) {
     const sameMode = slateModeRef.current === mode
     slateModeRef.current = mode
     const paths = slatePaths(mode)
+    const opt = { bust: hardRefreshRef.current }
+    hardRefreshRef.current = false
     // fetchJSON already cache-busts with a ?t=Date.now() query param (see
     // lib/data.js), so re-running this effect always hits the network for
     // fresh data rather than a stale browser/CDN cache.
@@ -304,20 +309,20 @@ export default function Dashboard({ palettePass = 0 }) {
       // already on screen is a regression, not an update, and is dropped.
       // 2026-08-22, when the data branch spent the day alternating between
       // tonight's slate and last night's. See keepNewerSlate in lib/data.js.
-      fetchJSON(paths, slateLooksReal).then((j) => {
+      fetchJSON(paths, slateLooksReal, opt).then((j) => {
         if (alive) setData((prev) => (sameMode ? keepNewerSlate(prev, j) : j))
       }),
-      fetchJSON(resultsPaths()).then((j) => { if (alive) setResults(j) }),
+      fetchJSON(resultsPaths(), null, opt).then((j) => { if (alive) setResults(j) }),
       // No validator -- an absent run_meta file (an old bot build, or a slate
       // this file predates) just leaves the header's freshness readout blank,
       // same graceful-absence pattern as odds above.
-      fetchJSON(runMetaPaths(mode)).then((j) => { if (alive) setRunMeta(j) }),
+      fetchJSON(runMetaPaths(mode), null, opt).then((j) => { if (alive) setRunMeta(j) }),
       // No validator: no odds file is the normal state until a key is set.
-      fetchJSON(oddsPaths()).then((j) => { if (alive) setOddsRaw(j) }),
-      fetchJSON(pairBuilderPaths()).then((j) => { if (alive) setPairBuilder(j) }),
-      fetchJSON(pairSummaryPaths()).then((j) => { if (alive) setPairSummary(j) }),
-      fetchJSON(backtestPaths()).then((j) => { if (alive) setBacktest(j) }),
-      fetchJSON(evalReportPaths()).then((j) => { if (alive) setEvalReport(j) }),
+      fetchJSON(oddsPaths(), null, opt).then((j) => { if (alive) setOddsRaw(j) }),
+      fetchJSON(pairBuilderPaths(), null, opt).then((j) => { if (alive) setPairBuilder(j) }),
+      fetchJSON(pairSummaryPaths(), null, opt).then((j) => { if (alive) setPairSummary(j) }),
+      fetchJSON(backtestPaths(), null, opt).then((j) => { if (alive) setBacktest(j) }),
+      fetchJSON(evalReportPaths(), null, opt).then((j) => { if (alive) setEvalReport(j) }),
     ]).then(() => {
       if (alive) { setLoading(false); setRefreshing(false) }
     })
@@ -356,6 +361,7 @@ export default function Dashboard({ palettePass = 0 }) {
   // depends on. Doesn't touch local UI state (active tab, search, slip,
   // watchlist) -- only the underlying slate/results/pair data refreshes.
   const handleRefresh = () => {
+    hardRefreshRef.current = true
     setRefreshing(true)
     setRefreshKey((k) => k + 1)
   }
