@@ -29,7 +29,13 @@ export async function proxy(request) {
     }
   )
 
-  const { data: { user } } = await supabase.auth.getUser()
+  // getClaims(), not getUser() (2026-09-24): verifies the session JWT locally
+  // instead of asking the Auth server on every navigation and prefetch -- Auth
+  // was 44% of Supabase egress. It still refreshes an expired session (it
+  // reads the session first), and falls back to getUser() by itself on a
+  // legacy shared-secret project. See lib/supabase/authUser.js.
+  const { data: claimsData } = await supabase.auth.getClaims()
+  const user = claimsData?.claims?.sub ? { id: claimsData.claims.sub } : null
 
   // THE GATE, PARTIALLY REVERSED (2026-09-06). It went up 2026-09-05 on
   // Donovan's own call ("the whole site needs to be behind a sign up... no

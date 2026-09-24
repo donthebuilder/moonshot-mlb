@@ -16,6 +16,7 @@ import { loadMatchupData, weeklyProjector } from '../../../../../lib/fantasy/mat
 import { teamScheduleFor } from '../../../../../lib/fantasy/schedule'
 import { byeTeamsFor, isOnBye } from '../../../../../lib/fantasy/bye'
 import InjuryTag from '../../../../../components/fantasy/InjuryTag'
+import { signedInUser } from '../../../../../lib/supabase/authUser'
 
 const SEASON=FANTASY_SEASON
 
@@ -25,7 +26,7 @@ export default async function CoachPage({params,searchParams}) {
   const [{leagueId},query]=await Promise.all([params,searchParams])
   const supabase=await createSupabaseServerClient()
   if(!supabase)redirect('/fantasy')
-  const {data:{user}}=await supabase.auth.getUser()
+  const user=await signedInUser(supabase)
   if(!user)redirect('/fantasy')
   const matchupPromise=loadMatchupData()
   const WEEK=await resolveFantasyWeek(supabase,query?.week)

@@ -7,12 +7,13 @@ import TeamMark from '../../../../../components/fantasy/TeamMark'
 import InviteCode from '../../../../../components/fantasy/InviteCode'
 import styles from '../../../fantasy.module.css'
 import { deleteLeague, regenerateInviteCode, resetDraft, updateLeagueSettings } from './actions'
+import { signedInUser } from '../../../../../lib/supabase/authUser'
 
 export default async function SettingsPage({params,searchParams}) {
   const [{leagueId},query]=await Promise.all([params,searchParams])
   const supabase=await createSupabaseServerClient()
   if(!supabase)redirect('/fantasy')
-  const {data:{user}}=await supabase.auth.getUser()
+  const user=await signedInUser(supabase)
   if(!user)redirect('/fantasy')
   const [{data:league},{data:membership},{data:teamRows}]=await Promise.all([
     supabase.from('fantasy_leagues').select('*').eq('id',leagueId).single(),

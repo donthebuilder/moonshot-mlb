@@ -11,21 +11,36 @@ import LocalTime from './LocalTime'
 // kicker and the headline. Import the module and use its exports.
 import styles from '../../app/fantasy/fantasy.module.css'
 
-const REFRESH_SECONDS = 30
+// EGRESS (2026-09-24). This used to POST a full scoring sync AND re-render
+// the whole Matchup page (every starter in the league, four weeks of stats,
+// an Auth check) every 30 s per open tab, all Sunday -- the likely source of
+// the game-day spikes on the Supabase usage chart. Now it asks every 60 s,
+// the server starts a real sync at most every 2 minutes (route.js
+// MEMBER_SYNC_MIN_MS), and the page only re-renders when that answer says the
+// scores are newer than the ones on screen. The button always re-renders.
+const REFRESH_SECONDS = 60
+
+const newer = (a, b) => Boolean(a) && (!b || new Date(a).getTime() > new Date(b).getTime())
 
 export default function LiveMatchupCenter({ leagueId, live, lastUpdated }) {
   const router = useRouter()
   const [seconds, setSeconds] = useState(REFRESH_SECONDS)
   const [refreshing, setRefreshing] = useState(false)
   const busy = useRef(false)
+  const shown = useRef(lastUpdated || null)
+  useEffect(() => { shown.current = lastUpdated || null }, [lastUpdated])
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async ({ force = false } = {}) => {
     if (busy.current) return
     busy.current = true
     setRefreshing(true)
     try {
-      await fetch(`/api/fantasy/scoring?leagueId=${encodeURIComponent(leagueId)}`, { method: 'POST', cache: 'no-store' })
-      router.refresh()
+      const res = await fetch(`/api/fantasy/scoring?leagueId=${encodeURIComponent(leagueId)}`, { method: 'POST', cache: 'no-store' })
+      const body = await res.json().catch(() => ({}))
+      if (force || newer(body?.completedAt, shown.current)) {
+        if (body?.completedAt) shown.current = body.completedAt
+        router.refresh()
+      }
       setSeconds(REFRESH_SECONDS)
     } finally {
       busy.current = false
@@ -61,7 +76,7 @@ export default function LiveMatchupCenter({ leagueId, live, lastUpdated }) {
         <strong>{live ? 'Fantasy scores are updating' : 'Waiting for NFL action'}</strong>
         <em>{lastUpdated ? <>Feed checked <LocalTime value={lastUpdated} /></> : 'Refresh any time — auto-updates start at kickoff'}</em>
       </div>
-      <button onClick={refresh} disabled={refreshing} type="button">
+      <button onClick={() => refresh({ force: true })} disabled={refreshing} type="button">
         {refreshing ? 'Updating…' : live ? `Refresh · ${seconds}s` : 'Refresh now'}
       </button>
     </section>

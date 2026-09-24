@@ -20,6 +20,7 @@
 
 import { createSupabaseServerClient } from '../../../../lib/supabase/server'
 import { hasSupabaseConfig } from '../../../../lib/supabase/config'
+import { signedInUser } from '../../../../lib/supabase/authUser'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -36,8 +37,7 @@ async function session() {
   if (!hasSupabaseConfig()) return { supabase: null, user: null, configured: false }
   const supabase = await createSupabaseServerClient()
   if (!supabase) return { supabase: null, user: null, configured: false }
-  const { data } = await supabase.auth.getUser()
-  return { supabase, user: data?.user || null, configured: true }
+  return { supabase, user: await signedInUser(supabase), configured: true }
 }
 
 export async function GET(request) {

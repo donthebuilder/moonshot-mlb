@@ -22,6 +22,7 @@ import { FANTASY_LAST_WEEK, FANTASY_SEASON, resolveFantasyWeek } from '../../../
 import { moveLineupPlayer, saveLineupSlot, saveTeamIdentity } from './actions'
 import NetworkSwitch from '../../../../../components/NetworkSwitch'
 import LeagueNav from '../../../../../components/fantasy/LeagueNav'
+import { signedInUser } from '../../../../../lib/supabase/authUser'
 
 const SEASON = FANTASY_SEASON
 
@@ -48,7 +49,7 @@ export default async function TeamPage({ params, searchParams }) {
   const [{leagueId},query] = await Promise.all([params,searchParams])
   const supabase = await createSupabaseServerClient()
   if (!supabase) redirect('/fantasy')
-  const { data: { user } } = await supabase.auth.getUser()
+  const user=await signedInUser(supabase)
   if (!user) redirect('/fantasy')
   // Was a hardcoded WEEK = 1: from week 2 on, lineups were written for week 1
   // while the matchup page scored the real week, so every team scored 0.00.

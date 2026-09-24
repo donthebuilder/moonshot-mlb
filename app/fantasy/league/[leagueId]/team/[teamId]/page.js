@@ -18,6 +18,7 @@ import styles from '../../../../fantasy.module.css'
 import SubmitButton from '../../../../../../components/fantasy/SubmitButton'
 import { commissionerAddDrop, setBestLineup } from '../commish-actions'
 import { lineupCheck } from '../../../../../../lib/fantasy/lineupCheck'
+import { signedInUser } from '../../../../../../lib/supabase/authUser'
 
 const SEASON = FANTASY_SEASON
 const SLOT_ORDER = ['QB', 'RB', 'RB2', 'WR', 'WR2', 'TE', 'FLEX', 'K', 'DEF']
@@ -45,7 +46,7 @@ export default async function TeamRoster({ params, searchParams }) {
   const [{ leagueId, teamId }, query] = await Promise.all([params, searchParams])
   const supabase = await createSupabaseServerClient()
   if (!supabase) redirect('/fantasy')
-  const { data: { user } } = await supabase.auth.getUser()
+  const user=await signedInUser(supabase)
   if (!user) redirect('/fantasy')
 
   const { data: league } = await supabase.from('fantasy_leagues').select('*').eq('id', leagueId).single()

@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 
 import { loadFranchiseNflFeed } from '../../../../lib/fantasy/nflFeed'
 import { createSupabaseServerClient } from '../../../../lib/supabase/server'
+import { signedInUser } from '../../../../lib/supabase/authUser'
 import {syncCatalogChunked,syncWeekFeedChunked} from '../../../../lib/fantasy/sync'
 import {autoFillLineups,benchUnavailableStarters,carryForwardLineups} from '../../../../lib/fantasy/autoLineup'
 import {loadMatchupData,matchupProjection} from '../../../../lib/fantasy/matchupProjection'
@@ -12,6 +13,8 @@ import {isMaintenanceMode,isFranchiseSchedulerEnabled} from '../../../../lib/edg
 
 export const dynamic='force-dynamic'
 export const runtime='nodejs'
+
+const MEMBER_SYNC_MIN_MS=2*60*1000
 
 function hasCronAuthorization(request) {
   // Vercel automatically sends CRON_SECRET as a Bearer token. Keep the
@@ -30,7 +33,7 @@ async function authorization(request) {
   const leagueId=new URL(request.url).searchParams.get('leagueId')
   if(!leagueId)return {ok:false}
   const sessionClient=await createSupabaseServerClient()
-  const {data:{user}}=await sessionClient?.auth.getUser()||{data:{user:null}}
+  const user=await signedInUser(sessionClient)
   if(!user)return {ok:false}
   const {data:membership}=await sessionClient.from('fantasy_league_memberships').select('league_id').eq('league_id',leagueId).eq('user_id',user.id).maybeSingle()
   return {ok:Boolean(membership),mode:'member'}
@@ -53,7 +56,11 @@ async function synchronize(request) {
       // one was still in flight.
       const {data:latest}=await supabase.from('fantasy_scoring_sync_runs').select('started_at,completed_at,status').order('started_at',{ascending:false}).limit(1).maybeSingle()
       const startedAgo=latest?.started_at?Date.now()-new Date(latest.started_at).getTime():Infinity
-      if(latest&&latest.status!=='failed'&&startedAgo<25000)return Response.json({ok:true,cached:true,status:latest.status,completedAt:latest.completed_at||null})
+      // EGRESS (2026-09-24): an open Matchup tab asked for a full sync every
+      // 25 s on game days, and each one made every open tab re-render its page.
+      // Members may now start one at most every MEMBER_SYNC_MIN_MS; the cron
+      // still runs every 10 minutes regardless.
+      if(latest&&latest.status!=='failed'&&startedAgo<MEMBER_SYNC_MIN_MS)return Response.json({ok:true,cached:true,status:latest.status,completedAt:latest.completed_at||null})
     }
     const feed=await loadFranchiseNflFeed()
     const weeks=[...new Set(feed.games.map((game)=>game.week))].sort((a,b)=>a-b)
@@ -103,7 +110,7 @@ async function synchronize(request) {
       // After carry and fill: a starter ruled OUT is swapped for the best
       // healthy bench player before his game (see benchUnavailableStarters).
       const bench=await benchUnavailableStarters(supabase,{season:feed.season,week,projector,slateIds})
-      if(bench.swapped||bench.skipped&&!['no_games','no_active_leagues'].includes(bench.skipped)){
+      if(bench.swapped||bench.skipped&&!['no_games','no_active_leagues','all_kicked_off'].includes(bench.skipped)){
         console.log(`[franchise/scoring] injured starters week ${week}:`,JSON.stringify(bench))
       }
       lineupFills.push({week,carried:carry.rowsCarried,carriedTeams:carry.carried.length,carrySkipped:carry.skipped,slotsFilled:fill.slotsFilled,teams:fill.filled.length,skipped:fill.skipped,injuredBenched:bench.swapped,benchSkipped:bench.skipped})
@@ -130,8 +137,9 @@ async function synchronize(request) {
       else if(Number(data))console.log(`[franchise/scoring] playoff rounds seeded: ${data}`)
       playoffsSeeded=error?null:Number(data||0)
     }
-    await supabase.from('fantasy_scoring_sync_runs').update({status:'complete',games_synced:Number(sync?.games||0),players_synced:Number(sync?.players||0),matchups_refreshed:matchups,completed_at:new Date().toISOString()}).eq('id',runId)
-    return Response.json({ok:true,season:feed.season,weeks,games:Number(sync?.games||0),players:Number(sync?.players||0),matchups,lineupFills,waiversAwarded,playoffsSeeded,builtAt:feed.builtAt})
+    const completedAt=new Date().toISOString()
+    await supabase.from('fantasy_scoring_sync_runs').update({status:'complete',games_synced:Number(sync?.games||0),players_synced:Number(sync?.players||0),matchups_refreshed:matchups,completed_at:completedAt}).eq('id',runId)
+    return Response.json({ok:true,completedAt,season:feed.season,weeks,games:Number(sync?.games||0),players:Number(sync?.players||0),matchups,lineupFills,waiversAwarded,playoffsSeeded,builtAt:feed.builtAt})
   } catch(error) {
     console.error('[franchise/scoring] sync failed', error)
     if(runId)await supabase.from('fantasy_scoring_sync_runs').update({status:'failed',error_message:String(error?.message||error).slice(0,500),completed_at:new Date().toISOString()}).eq('id',runId)

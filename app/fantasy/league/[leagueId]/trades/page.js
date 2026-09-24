@@ -14,6 +14,7 @@ import LeagueNav from '../../../../../components/fantasy/LeagueNav'
 import { PlayerSheetButton } from '../../../../../components/fantasy/PlayerSheet'
 import { buildSheetData } from '../../../../../lib/fantasy/sheetEntry'
 import { FANTASY_SEASON, resolveFantasyWeek } from '../../../../../lib/fantasy/week'
+import { signedInUser } from '../../../../../lib/supabase/authUser'
 
 const TRADE_LIMIT=50
 
@@ -22,7 +23,7 @@ export default async function TradesPage({params,searchParams}) {
   const selectedTeamId=String(query?.team||'')
   const supabase=await createSupabaseServerClient()
   if(!supabase)redirect('/fantasy')
-  const {data:{user}}=await supabase.auth.getUser()
+  const user=await signedInUser(supabase)
   if(!user)redirect('/fantasy')
   const [{data:league},{data:membership},{data:teamRows},{data:rosterRows},{data:tradeRows}]=await Promise.all([
     supabase.from('fantasy_leagues').select('*').eq('id',leagueId).single(),

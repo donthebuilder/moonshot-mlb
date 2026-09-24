@@ -75,6 +75,16 @@ console.log('\nno swap once his game has started')
   ok('nothing swapped after KC kicked off', r.swapped === 0 && s.rows()[0].player_id === 'rbOut')
 }
 
+console.log('\nafter the last kickoff it reads nothing (egress)')
+{
+  const roster = [P('rbOut', 'RB', 'KC', 20, 'OUT'), P('rbBench', 'RB', 'DAL', 12)]
+  const s = stub({ roster, games: later, slots: [{ slot: 'RB', slot_index: 1, player_id: 'rbOut' }] })
+  const reads = []; const from = s.db.from; s.db.from = (n) => { reads.push(n); return from(n) }
+  const r = await benchUnavailableStarters(s.db, { season: 2026, week: 3, now: Date.parse('2026-09-28T02:00:00Z') })
+  ok(`skipped as all_kicked_off (${r.skipped})`, r.skipped === 'all_kicked_off')
+  ok(`no roster read (${reads.join(',')})`, !reads.includes('fantasy_roster_entries'))
+}
+
 console.log('\nno replacement, no swap')
 {
   const roster = [P('rbOut', 'RB', 'KC', 20, 'OUT'), P('rbAlsoOut', 'RB', 'DAL', 12, 'IR'), P('wr', 'WR', 'DAL', 12)]

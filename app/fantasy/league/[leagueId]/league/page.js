@@ -19,6 +19,7 @@ import { PlayerSheetButton } from '../../../../../components/fantasy/PlayerSheet
 import { buildSheetData } from '../../../../../lib/fantasy/sheetEntry'
 import { FANTASY_LAST_WEEK, FANTASY_REGULAR_WEEKS, resolveFantasyWeek } from '../../../../../lib/fantasy/week'
 import { gameForPlayer, matchupLabel, teamScheduleFor } from '../../../../../lib/fantasy/schedule'
+import { signedInUser } from '../../../../../lib/supabase/authUser'
 
 const SEASON=2026
 
@@ -28,7 +29,7 @@ export default async function LeaguePage({params,searchParams}) {
   const week=Math.min(FANTASY_LAST_WEEK,Math.max(1,Number(query?.week)||1))
   const supabase=await createSupabaseServerClient()
   if(!supabase)redirect('/fantasy')
-  const {data:{user}}=await supabase.auth.getUser()
+  const user=await signedInUser(supabase)
   if(!user)redirect('/fantasy')
   const [{data:league},{data:membership},{data:teamRows},{data:matchupRows},{data:rankings},{data:awards},{data:recap},{data:nflGameRows}]=await Promise.all([
     supabase.from('fantasy_leagues').select('*').eq('id',leagueId).single(),

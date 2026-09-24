@@ -23,6 +23,7 @@ import NetworkSwitch from '../../../../../components/NetworkSwitch'
 import LeagueNav from '../../../../../components/fantasy/LeagueNav'
 import { matchupResult, matchupState, weekStateFromGames, weekStates } from '../../../../../lib/fantasy/matchupState'
 import { seasonRecord, streakOf, recentForm, seriesBetween, lastResultFor } from '../../../../../lib/fantasy/receipts'
+import { signedInUser } from '../../../../../lib/supabase/authUser'
 
 const SEASON = 2026
 
@@ -30,7 +31,7 @@ export default async function MatchupPage({ params, searchParams }) {
   const [{leagueId},query] = await Promise.all([params,searchParams])
   const supabase = await createSupabaseServerClient()
   if (!supabase) redirect('/fantasy')
-  const { data: { user } } = await supabase.auth.getUser()
+  const user=await signedInUser(supabase)
   if (!user) redirect('/fantasy')
   const matchupPromise = loadMatchupData()
   const week = await resolveFantasyWeek(supabase, query?.week)

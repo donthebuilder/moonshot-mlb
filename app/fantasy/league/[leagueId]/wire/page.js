@@ -21,6 +21,7 @@ import { PlayerSheetButton } from '../../../../../components/fantasy/PlayerSheet
 import { buildSheetData } from '../../../../../lib/fantasy/sheetEntry'
 import PlayerForm from '../../../../../components/fantasy/PlayerForm'
 import { formRank, playerForm } from '../../../../../lib/fantasy/form'
+import { signedInUser } from '../../../../../lib/supabase/authUser'
 
 const POSITIONS=['ALL','QB','RB','WR','TE','K','DEF']
 // How the board is ranked. DASH is the market score this page shipped with;
@@ -40,7 +41,7 @@ export default async function WirePage({params,searchParams}) {
   const [{leagueId},query]=await Promise.all([params,searchParams])
   const supabase=await createSupabaseServerClient()
   if(!supabase)redirect('/fantasy')
-  const {data:{user}}=await supabase.auth.getUser()
+  const user=await signedInUser(supabase)
   if(!user)redirect('/fantasy')
   // The Wire had no idea what week it was, which is why no row could say who a
   // man plays or when he kicks off. One extra select, the same one the Team and

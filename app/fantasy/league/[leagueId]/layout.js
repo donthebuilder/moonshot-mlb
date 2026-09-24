@@ -1,5 +1,6 @@
 import { createSupabaseServerClient } from '../../../../lib/supabase/server'
 import LeagueMobileNav from './LeagueMobileNav'
+import { signedInUser } from '../../../../lib/supabase/authUser'
 
 // The phone bar needs to know whether to list Commissioner in its More sheet.
 // The desktop rail has always gated that link on the same fact; the phone bar
@@ -20,7 +21,7 @@ export default async function LeagueLayout({ children, params }) {
   let isCommissioner = false
   try {
     const supabase = await createSupabaseServerClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const user=await signedInUser(supabase)
     if (user) {
       const { data } = await supabase.from('fantasy_leagues')
         .select('commissioner_id').eq('id', leagueId).maybeSingle()

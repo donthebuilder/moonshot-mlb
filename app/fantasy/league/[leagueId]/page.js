@@ -16,6 +16,7 @@ import NetworkSwitch from '../../../../components/NetworkSwitch'
 import LeagueNav from '../../../../components/fantasy/LeagueNav'
 import { draftValue, projectionIsPartial, replacementLevels, seasonValue } from '../../../../lib/fantasy/scoring'
 import { loadPlayerCatalog } from '../../../../lib/fantasy/playerCatalog'
+import { signedInUser } from '../../../../lib/supabase/authUser'
 
 const POSITIONS = ['ALL','QB','RB','WR','TE','FLEX','K','DEF']
 
@@ -38,7 +39,7 @@ export default async function LeagueRoom({ params, searchParams }) {
   const [{leagueId}, query] = await Promise.all([params, searchParams])
   const supabase = await createSupabaseServerClient()
   if (!supabase) redirect('/fantasy')
-  const { data: { user } } = await supabase.auth.getUser()
+  const user=await signedInUser(supabase)
   if (!user) redirect('/fantasy')
 
   const { data: league } = await supabase.from('fantasy_leagues').select('*').eq('id', leagueId).single()

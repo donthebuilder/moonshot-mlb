@@ -12,6 +12,7 @@ import LocalTime from '../../../../../components/fantasy/LocalTime'
 import { leagueMoments, weekKickoffIndex } from '../../../../../lib/fantasy/moments'
 import { matchupState, weekStates } from '../../../../../lib/fantasy/matchupState'
 import { FANTASY_SEASON } from '../../../../../lib/fantasy/week'
+import { signedInUser } from '../../../../../lib/supabase/authUser'
 
 const REACTIONS=[['fire','🔥'],['trophy','🏆'],['laugh','😂'],['smart','🧠']]
 
@@ -27,7 +28,7 @@ export default async function FeedPage({params,searchParams}) {
   const [{leagueId},query]=await Promise.all([params,searchParams])
   const supabase=await createSupabaseServerClient()
   if(!supabase)redirect('/fantasy')
-  const {data:{user}}=await supabase.auth.getUser()
+  const user=await signedInUser(supabase)
   if(!user)redirect('/fantasy')
   const [{data:league},{data:membership},{data:teamRows},{data:postRows},{data:transactionRows},{data:seasonMatchupRows},{data:seasonGameRows}]=await Promise.all([
     supabase.from('fantasy_leagues').select('*').eq('id',leagueId).single(),

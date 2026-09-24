@@ -15,6 +15,7 @@ import NetworkSwitch from '../../components/NetworkSwitch'
 
 import { hasSupabaseConfig } from '../../lib/supabase/config'
 import { createSupabaseServerClient } from '../../lib/supabase/server'
+import { signedInUser } from '../../lib/supabase/authUser'
 
 const statusLabel = {
   setup: 'SETTING UP',
@@ -253,7 +254,7 @@ export default async function FantasyPage({ searchParams }) {
   if (!hasSupabaseConfig()) return <SetupScreen />
 
   const supabase = await createSupabaseServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user=await signedInUser(supabase)
   if (!user) return <AuthScreen error={params.error} message={params.message} invite={invite} />
 
   const { data: membershipRows, error: membershipError } = await supabase
