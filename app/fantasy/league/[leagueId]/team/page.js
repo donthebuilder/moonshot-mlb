@@ -7,7 +7,7 @@ import { PlayerSheetButton } from '../../../../../components/fantasy/PlayerSheet
 import { buildSheetData } from '../../../../../lib/fantasy/sheetEntry'
 import PlayerMeta from '../../../../../components/fantasy/PlayerMeta'
 import InjuryTag from '../../../../../components/fantasy/InjuryTag'
-import { gameForPlayer, teamScheduleFor } from '../../../../../lib/fantasy/schedule'
+import { gameForPlayer, matchupLabel, teamScheduleFor } from '../../../../../lib/fantasy/schedule'
 import { colorForPosition } from '../../../../../components/fantasy/positionColor'
 import styles from '../../../fantasy.module.css'
 import SubmitButton from '../../../../../components/fantasy/SubmitButton'
@@ -94,7 +94,7 @@ export default async function TeamPage({ params, searchParams }) {
   if (rosterIds.length) {
     const { data = [] } = await supabase
       .from('nfl_player_week_stats')
-      .select('player_id,week,stats,status,projected_points')
+      .select('player_id,week,stats,status,projected_points,game:nfl_week_games(home_team,away_team)')
       .in('player_id', rosterIds)
       .eq('season', SEASON)
       .gte('week', Math.max(1, WEEK - (SHEET_WEEKS - 1)))
@@ -106,7 +106,6 @@ export default async function TeamPage({ params, searchParams }) {
   for (const rows of Object.values(sheetWeeksByPlayer)) rows.sort((a, b) => b.week - a.week)
   // Built server-side so the raw weekly stat blobs never cross to the
   // browser -- see lib/fantasy/sheetEntry.js for what that was costing.
-  const sheetData = buildSheetData((rosterRows||[]).map((entry)=>entry.player), sheetWeeksByPlayer, league.scoring)
 
   const projectOf=(player)=>projectWeek(player)?.points ?? null
   const started=(player)=>{const row=statsByPlayer.get(player?.id);return Boolean(row?.status&&row.status!=='scheduled')}
@@ -128,6 +127,7 @@ export default async function TeamPage({ params, searchParams }) {
   const schedule = teamScheduleFor(weekGames)
   // This week's matchup projection (2026-09-23) -- see lib/fantasy/matchupProjection.js.
   const projectWeek = weeklyProjector(league.scoring, schedule, await matchupPromise)
+  const sheetData = buildSheetData((rosterRows||[]).map((entry)=>entry.player), sheetWeeksByPlayer, league.scoring, (player) => ({ opp: matchupLabel(gameForPlayer(schedule, player)), proj: projectWeek(player)?.points }))
   const roster = rosterRows || []
   const lineup = lineupRows || []
   const players = roster.map((entry)=>entry.player).filter(Boolean)

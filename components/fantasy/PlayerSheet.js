@@ -136,7 +136,7 @@ function Sheet({ entry, onClose }) {
           <PlayerFace player={player} size={42} />
           <div>
             <b>{player.name}<InjuryTag status={player.injury_status} /></b>
-            <small>{player.position} · {player.team || 'FA'}</small>
+            <small>{player.position} · {player.team || 'FA'}{entry.next?.opp ? ` · this week ${entry.next.opp}` : ''}{Number.isFinite(entry.next?.proj) ? ` · proj ${entry.next.proj.toFixed(1)}` : ''}</small>
           </div>
           <button type="button" onClick={onClose} aria-label="Close">esc</button>
         </header>
@@ -171,15 +171,23 @@ function Sheet({ entry, onClose }) {
           <p className="fxSheetEmpty">No weekly line published for him yet this season.</p>
         )}
 
-        {weeks.length > 1 && (
+        {entry.totals && (
+          <div className="fxSheetTotals">
+            <small>LAST {entry.totals.games} GAME{entry.totals.games === 1 ? '' : 'S'}</small>
+            <p>{entry.totals.line || 'No scoring stats recorded.'}</p>
+          </div>
+        )}
+
+        {weeks.length > 0 && (
           <div className="fxSheetWeeks">
-            <small>RECENT WEEKS</small>
+            <small>GAME LOG</small>
             <ul>
               {weeks.map((row) => (
                 <li key={row.week}>
-                  <span>Wk {row.week}</span>
-                  <b>{row.points.toFixed(1)}</b>
+                  <span>Wk {row.week}{row.opp ? <em> {row.opp}</em> : null}</span>
+                  <b>{row.status === 'scheduled' ? '—' : row.points.toFixed(1)}</b>
                   <i>{row.status === 'final' ? '' : row.status}</i>
+                  {row.line ? <p className="fxSheetBox">{row.line}</p> : null}
                 </li>
               ))}
             </ul>

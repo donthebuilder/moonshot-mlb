@@ -9,7 +9,7 @@ import PlayerFace from '../../../../../components/fantasy/PlayerFace'
 import PlayerMeta from '../../../../../components/fantasy/PlayerMeta'
 import InjuryTag from '../../../../../components/fantasy/InjuryTag'
 import { byeTeamsFor, isOnBye } from '../../../../../lib/fantasy/bye'
-import { gameForPlayer, teamScheduleFor } from '../../../../../lib/fantasy/schedule'
+import { gameForPlayer, matchupLabel, teamScheduleFor } from '../../../../../lib/fantasy/schedule'
 import { dashScore, hasMarketScore, projectionIsPartial } from '../../../../../lib/fantasy/scoring'
 import { FANTASY_SEASON, resolveFantasyWeek } from '../../../../../lib/fantasy/week'
 import { addFreeAgent, cancelWaiverClaim, dropPlayer, processWaivers, submitWaiverClaim } from './actions'
@@ -147,7 +147,7 @@ export default async function WirePage({params,searchParams}) {
       .from('nfl_player_week_stats')
       // dash_score is NOT read here: the row's DASH comes from the catalog via
       // dashScore(player). It was a column fetched for nobody.
-      .select('player_id,week,stats,status,projected_points')
+      .select('player_id,week,stats,status,projected_points,game:nfl_week_games(home_team,away_team)')
       .in('player_id', poolIds)
       .eq('season', FANTASY_SEASON)
       .gte('week', firstWeek)
@@ -179,7 +179,7 @@ export default async function WirePage({params,searchParams}) {
   // one at a time.
   // Built server-side so the raw weekly stat blobs never cross to the
   // browser -- see lib/fantasy/sheetEntry.js for what that was costing.
-  const sheetData = buildSheetData(shownPlayers, statsByPlayer, league.scoring)
+  const sheetData = buildSheetData(shownPlayers, statsByPlayer, league.scoring, (player) => ({ opp: matchupLabel(gameForPlayer(schedule, player)), proj: player.projection }))
 
   const waiverMap=new Map(safeAvailability.map((row)=>[row.player_id,row]))
   const safeClaims=claims||[]

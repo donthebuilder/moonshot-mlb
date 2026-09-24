@@ -105,7 +105,7 @@ export default async function MatchupPage({ params, searchParams }) {
   if (playerIds.length) {
     const { data = [] } = await supabase
       .from('nfl_player_week_stats')
-      .select('player_id,week,game_id,stats,status,projected_points,updated_at')
+      .select('player_id,week,game_id,stats,status,projected_points,updated_at,game:nfl_week_games(home_team,away_team)')
       .in('player_id', playerIds)
       .eq('season', SEASON)
       .gte('week', Math.max(1, week - (SHEET_WEEKS - 1)))

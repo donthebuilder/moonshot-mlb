@@ -105,19 +105,27 @@
 }
 .fxSheetWeeks { margin-top: 15px }
 .fxSheetWeeks > small { display: block; color: var(--fx-dim); font: 900 7.5px/1 monospace; letter-spacing: .1em; margin-bottom: 7px }
-.fxSheetWeeks ul { display: flex; gap: 6px; list-style: none; margin: 0; padding: 0; overflow-x: auto }
+.fxSheetWeeks ul { display: grid; gap: 5px; list-style: none; margin: 0; padding: 0 }
+/* A game log, one row a week (2026-09-24): week + opponent, points, status,
+   and the box-score line under it. Rows, not chips -- the line needs width. */
 .fxSheetWeeks li {
-  flex: 0 0 auto;
-  min-width: 62px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: baseline;
+  gap: 2px 10px;
   padding: 7px 9px;
   border: 1px solid var(--fx-line-3);
   border-radius: 10px;
   background: var(--fx-bg);
-  text-align: center;
 }
-.fxSheetWeeks li span { display: block; color: var(--fx-dim); font: 800 8px/1 monospace }
-.fxSheetWeeks li b { display: block; margin-top: 4px; font: 900 13px/1 monospace }
-.fxSheetWeeks li i { display: block; margin-top: 2px; color: var(--fx-dim); font: normal 7px/1 monospace }
+.fxSheetWeeks li span { color: var(--fx-dim); font: 800 9px/1.2 monospace }
+.fxSheetWeeks li span em { font-style: normal; color: var(--fx-ink) }
+.fxSheetWeeks li b { font: 900 13px/1 monospace }
+.fxSheetWeeks li i { color: var(--fx-dim); font: normal 8px/1 monospace; text-transform: uppercase }
+.fxSheetBox { grid-column: 1 / -1; margin: 3px 0 0; color: var(--fx-ink-2); font-size: 10.5px; line-height: 1.4 }
+.fxSheetTotals { margin-top: 14px; padding: 9px 10px; border: 1px solid var(--fx-line-3); border-radius: 10px }
+.fxSheetTotals small { display: block; color: var(--fx-dim); font: 900 7.5px/1 monospace; letter-spacing: .1em }
+.fxSheetTotals p { margin: 5px 0 0; font-size: 11px; line-height: 1.45 }
 .fxSheetWeeks > p { margin: 8px 0 0; color: var(--fx-dim); font-size: 9.5px; line-height: 1.5 }
 
 @media(min-width:761px) {

@@ -15,6 +15,10 @@ import InjuryTag from '../../../../../components/fantasy/InjuryTag'
 import { colorForPosition } from '../../../../../components/fantasy/positionColor'
 import { loadPlayerCatalog } from '../../../../../lib/fantasy/playerCatalog'
 import { draftValue, replacementLevels, seasonValue } from '../../../../../lib/fantasy/scoring'
+import { PlayerSheetButton } from '../../../../../components/fantasy/PlayerSheet'
+import { buildSheetData } from '../../../../../lib/fantasy/sheetEntry'
+import { resolveFantasyWeek } from '../../../../../lib/fantasy/week'
+import { gameForPlayer, matchupLabel, teamScheduleFor } from '../../../../../lib/fantasy/schedule'
 
 const SEASON=2026
 
@@ -89,6 +93,22 @@ export default async function LeaguePage({params,searchParams}) {
       }))
       .sort((a,b)=>b.value-a.value||a.player.name.localeCompare(b.player.name))
   }
+  // ── LOOK ANYONE UP (2026-09-24) ───────────────────────────────────────────
+  // Donovan: "make sure it's somewhere you can look up players and see who's
+  // doing what." The index ranked everyone but could not be searched or
+  // filtered, and a name did nothing when tapped. Now: search by name or club,
+  // a position filter, owned/free, and every name opens the same player sheet
+  // the Wire and Team pages use (game log, opponents, box scores).
+  const POS_FILTERS=['ALL','QB','RB','WR','TE','K','DEF']
+  const playerQ=String(query?.q||'').trim().toLowerCase().slice(0,40)
+  const playerPos=POS_FILTERS.includes(String(query?.pos||'').toUpperCase())?String(query.pos).toUpperCase():'ALL'
+  const playerOwn=['all','free','owned'].includes(query?.own)?query.own:'all'
+  if(view==='players'){
+    playerBoard=playerBoard.filter((row)=>
+      (playerPos==='ALL'||row.player.position===playerPos)
+      &&(playerOwn==='all'||(playerOwn==='free'?!row.ownerId:Boolean(row.ownerId)))
+      &&(!playerQ||row.player.name.toLowerCase().includes(playerQ)||String(row.player.team||'').toLowerCase()===playerQ))
+  }
   // ── THE INDEX STOPPED AT 60 AND NEVER SAID SO (2026-09-07) ────────────────
   // 135 men are rostered in a nine-team league and the board showed the first
   // 60, with no count, no cut line and nothing to click. The one question this
@@ -102,7 +122,23 @@ export default async function LeaguePage({params,searchParams}) {
   const PLAYER_STEP=60
   const playerLimit=Math.min(600,Math.max(PLAYER_PAGE,Math.round(Number(query?.players)||PLAYER_PAGE)))
   const shownPlayerBoard=playerBoard.slice(0,playerLimit)
-  const morePlayersHref=`/fantasy/league/${leagueId}/league?view=players&week=${week}&players=${playerLimit+PLAYER_STEP}`
+  const playerKeep=`view=players&week=${week}${playerQ?`&q=${encodeURIComponent(playerQ)}`:''}${playerPos!=='ALL'?`&pos=${playerPos}`:''}${playerOwn!=='all'?`&own=${playerOwn}`:''}`
+  const morePlayersHref=`/fantasy/league/${leagueId}/league?${playerKeep}&players=${playerLimit+PLAYER_STEP}`
+  // Sheets for the rows on screen only: four weeks, each with its opponent.
+  let playerSheets={}
+  if(view==='players'&&shownPlayerBoard.length){
+    const nflWeek=await resolveFantasyWeek(supabase)
+    const ids=shownPlayerBoard.map((row)=>row.player.id)
+    const [{data:weekRows},{data:thisWeekGames}]=await Promise.all([
+      supabase.from('nfl_player_week_stats').select('player_id,week,stats,status,projected_points,game:nfl_week_games(home_team,away_team)')
+        .in('player_id',ids).eq('season',SEASON).gte('week',Math.max(1,nflWeek-3)).lte('week',nflWeek),
+      supabase.from('nfl_week_games').select('home_team,away_team,season_type,kickoff,status').eq('season',SEASON).eq('week',nflWeek),
+    ])
+    const byPlayer={}
+    for(const row of weekRows||[])(byPlayer[row.player_id]||=[]).push(row)
+    const schedule=teamScheduleFor(thisWeekGames||[])
+    playerSheets=buildSheetData(shownPlayerBoard.map((row)=>row.player),byPlayer,league.scoring,(player)=>({opp:matchupLabel(gameForPlayer(schedule,player))}))
+  }
 
   return <main className={styles.roomApp}>
     <header className={styles.roomHeader}><NetworkSwitch variant="inline"/><div><small>{String(league.status||'').replace('_',' ').toUpperCase()}</small><strong>{league.name}</strong></div><span>{teams.length}/{league.team_count} teams</span></header>
@@ -114,7 +150,7 @@ export default async function LeaguePage({params,searchParams}) {
       {league.commissioner_id===user.id&&view!=='standings'&&<section className={styles.commishBar}><div><p className={styles.panelLabel}>WEEKLY PUBLISHER</p><strong>{weekFinals?`${weekFinals} final games available`:`Week ${week} still needs final scores`}</strong></div><form action={generateWeeklyContent}><input type="hidden" name="leagueId" value={leagueId}/><input type="hidden" name="week" value={week}/><SubmitButton disabled={!weekFinals} pendingLabel="Generating…">Generate Week {week}</SubmitButton></form></section>}
       {view==='standings'&&<Standings leagueId={leagueId} finalGames={finalGames} playoffSpots={playoffSpots} table={table} user={user}/>}
       {view==='power'&&<PowerRankings rankings={safeRankings} teamName={teamName} teams={teams}/>}
-      {view==='players'&&<PlayerPower board={shownPlayerBoard} leagueId={leagueId} moreHref={playerBoard.length>shownPlayerBoard.length?morePlayersHref:null} teams={teams} total={playerBoard.length}/>}
+      {view==='players'&&<PlayerPower sheets={playerSheets} filters={{q:playerQ,pos:playerPos,own:playerOwn,week,posList:POS_FILTERS}} board={shownPlayerBoard} leagueId={leagueId} moreHref={playerBoard.length>shownPlayerBoard.length?morePlayersHref:null} teams={teams} total={playerBoard.length}/>}
       {view==='recap'&&<WeeklyRecap recap={recap} awards={safeAwards} teamName={teamName} week={week}/>}
     </div>
   </main>
@@ -134,20 +170,28 @@ function WeeklyRecap({recap,awards,teamName,week}){return <><section className={
 // `value` is points per game above the replacement player at that position,
 // from this league's own roster settings; `ppg` is the projection people
 // recognise. The two disagree constantly, which is the point of showing both.
-function PlayerPower({board,leagueId,moreHref,teams,total}){
+function PlayerPower({board,leagueId,moreHref,teams,total,sheets={},filters}){
   const owner=(id)=>teams.find((team)=>team.id===id)
+  const base=`/fantasy/league/${leagueId}/league?view=players&week=${filters.week}`
+  const href=(patch)=>{const f={q:filters.q,pos:filters.pos,own:filters.own,...patch};return `${base}${f.q?`&q=${encodeURIComponent(f.q)}`:''}${f.pos!=='ALL'?`&pos=${f.pos}`:''}${f.own!=='all'?`&own=${f.own}`:''}`}
+  const filtered=filters.q||filters.pos!=='ALL'||filters.own!=='all'
   return <section className={styles.powerBoard}>
-    <div className={styles.boardHead}><div><p className={styles.panelLabel}>DASH PLAYER INDEX</p><h2>Player power rankings</h2></div><span>Value over replacement</span></div>
-    {!board.length&&<p className={styles.emptyRoom}>The player catalogue has not synced yet.</p>}
+    <div className={styles.boardHead}><div><p className={styles.panelLabel}>DASH PLAYER INDEX</p><h2>Look up any player</h2></div>
+      <form className={styles.playerSearch} action={`/fantasy/league/${leagueId}/league`}><input type="hidden" name="view" value="players"/><input type="hidden" name="week" value={filters.week}/><input type="hidden" name="pos" value={filters.pos}/><input type="hidden" name="own" value={filters.own}/><input aria-label="Search players" name="q" defaultValue={filters.q} placeholder="Player or team (KC)"/><button>Search</button></form></div>
+    <div className={styles.positionFilters}>{filters.posList.map((pos)=><Link key={pos} className={filters.pos===pos?styles.positionActive:''} aria-current={filters.pos===pos?'true':undefined} href={href({pos})}>{pos}</Link>)}
+      {['all','free','owned'].map((own)=><Link key={own} className={filters.own===own?styles.positionActive:''} aria-current={filters.own===own?'true':undefined} href={href({own})}>{own==='all'?'EVERYONE':own==='free'?'FREE AGENTS':'ROSTERED'}</Link>)}</div>
+    <p className={styles.boardNote}>Tap a name for his game log — who he played each week and what he did. Ranked by value over replacement; PPG is his per-game average this season.</p>
+    {!board.length&&<p className={styles.emptyRoom}>{filtered?'Nobody matches that search. Clear a filter above.':'The player catalogue has not synced yet.'}</p>}
     {board.map((row,index)=>{
       const team=owner(row.ownerId)
       return <div className={styles.playerRankRow} key={row.player.id}>
         <span className={styles.playerRankNumber}>{index+1}</span>
-        <div className={styles.playerIdentity}>
+        <PlayerSheetButton sheet={sheets[row.player.id]} className={styles.playerTap}><span className={styles.playerIdentity}>
           <PlayerFace player={row.player} size={30}/>
           <span><b>{row.player.name}<InjuryTag status={row.player.injury_status}/></b>
-            <small style={{color:colorForPosition(row.player.position)}}>{row.player.position} · {row.player.team||'FA'}</small></span>
-        </div>
+            <small style={{color:colorForPosition(row.player.position)}}>{row.player.position} · {row.player.team||'FA'}{sheets[row.player.id]?.next?.opp?` · ${sheets[row.player.id].next.opp}`:''}</small></span>
+          <i className={styles.tapHint} aria-hidden="true">›</i>
+        </span></PlayerSheetButton>
         <span className={styles.playerRankOwner}>
           {team
             ? <Link className={styles.teamLink} href={`/fantasy/league/${leagueId}/team/${team.id}`}>{team.name}</Link>

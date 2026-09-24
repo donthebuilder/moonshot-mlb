@@ -61,7 +61,7 @@ export default async function TradesPage({params,searchParams}) {
   if (sheetIds.length) {
     const { data = [] } = await supabase
       .from('nfl_player_week_stats')
-      .select('player_id,week,stats,status,projected_points')
+      .select('player_id,week,stats,status,projected_points,game:nfl_week_games(home_team,away_team)')
       .in('player_id', sheetIds)
       .eq('season', FANTASY_SEASON)
       .gte('week', Math.max(1, TRADE_WEEK - 3))
