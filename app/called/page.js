@@ -25,6 +25,7 @@ import { createClient } from '@supabase/supabase-js'
 import { easternToday } from '../../lib/data'
 import { captureFrom, matchupWord, oddsWord, roleWord } from '../../lib/dash/homerFeed'
 import { tdCallWord, tdCaptureFrom, tdPlayWord } from '../../lib/nfl/tdFeed'
+import { callStatus } from '../../lib/callStatus'
 import styles from './called.module.css'
 
 // 2026-09-20 — FOOTBALL MOVED IN, IT DIDN'T GET ITS OWN HOUSE. Donovan:
@@ -109,8 +110,8 @@ function normMlb(r) {
     name: r.name,
     repeat: r.hr_n > 1 ? r.hr_n : null,
     href: `/app#sport=mlb&p=${encodeURIComponent(r.player_id)}&view=spray`,
-    called: Boolean(r.role),
-    onBoard: Boolean(r.on_board),
+    called: callStatus(r) === 'called',
+    onBoard: callStatus(r) !== 'off',
     detail: [r.team || '', r.inning ? `${r.inning}` : '', matchupWord(r), oddsWord(r) || ''].filter(Boolean).join(' · '),
     cardHref: `/api/dash/homers/card?day=${r.day}&pid=${r.player_id}&n=${r.hr_n}`,
     call: r.role
@@ -195,7 +196,7 @@ async function load(sportKey) {
   // The morning's call, so the page shows the names BEFORE any homer lands.
   const { data: pre } = await db.from('homer_feed_posts').select('payload,x_post_id').match({ day: today, kind: 'pregame' }).maybeSingle()
   const picks = Array.isArray(pre?.payload?.picks) ? pre.payload.picks.slice(0, 5) : []
-  const calledIds = new Set(rows.filter((r) => r.role).map((r) => String(r.player_id)))
+  const calledIds = new Set(rows.filter((r) => callStatus(r) === 'called').map((r) => String(r.player_id)))
   // Same window, grouped by night — the bars and the per-night drilldown
   // below both read this so the two can never disagree.
   const byDay = new Map()
