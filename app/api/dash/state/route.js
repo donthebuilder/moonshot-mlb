@@ -45,15 +45,39 @@ export async function GET(request) {
   if (!configured) return Response.json(OFFLINE)
   if (!user) return Response.json(SIGNED_OUT)
 
-  const key = new URL(request.url).searchParams.get('key')
-  let query = supabase.from('dash_user_state').select('key,value,updated_at').eq('user_id', user.id)
-  if (key) query = query.eq('key', key)
-  const { data, error } = await query
+  const params = new URL(request.url).searchParams
+  const key = params.get('key')
+  // ONLY WHAT CHANGED (2026-09-24). Supabase flagged the project over its
+  // egress quota, and this route is polled by every signed-in tab: it sent
+  // every saved key's full value (watchlists, picks, ledgers -- up to 128 KB
+  // each) on every poll whether or not anything had moved. With ?since=<ISO>
+  // it first reads just the stamps, then fetches values only for keys newer
+  // than that, and says `partial: true` so the client never mistakes a key it
+  // was not sent for a key the account does not have.
+  const sinceMs = Date.parse(params.get('since') || '')
+  let data, error
+  let partial = false
+  if (Number.isFinite(sinceMs) && !key) {
+    partial = true
+    const stamps = await supabase.from('dash_user_state').select('key,updated_at').eq('user_id', user.id)
+    if (stamps.error) return Response.json({ error: stamps.error.message }, { status: 500 })
+    const changed = (stamps.data || []).filter((row) => Date.parse(row.updated_at) > sinceMs).map((row) => row.key)
+    if (changed.length) {
+      ;({ data, error } = await supabase.from('dash_user_state').select('key,value,updated_at').eq('user_id', user.id).in('key', changed))
+    } else {
+      data = []
+    }
+  } else {
+    let query = supabase.from('dash_user_state').select('key,value,updated_at').eq('user_id', user.id)
+    if (key) query = query.eq('key', key)
+    ;({ data, error } = await query)
+  }
 
   if (error) return Response.json({ error: error.message }, { status: 500 })
 
   const state = {}
   for (const row of data || []) state[row.key] = { value: row.value, updatedAt: row.updated_at }
+  if (partial && params.get('who') !== '1') return Response.json({ signedIn: true, configured: true, state, partial: true })
 
   // WHO YOU ARE (2026-09-06). The header's account pill used to be a static
   // "Sign up" whether or not you had -- Donovan: "once signed up make it
@@ -66,7 +90,7 @@ export async function GET(request) {
     if (profile?.display_name) name = profile.display_name
   } catch { /* the pill falls back to the email prefix */ }
   const who = { name, email: user.email || '' }
-  return Response.json({ signedIn: true, configured: true, state, who })
+  return Response.json({ signedIn: true, configured: true, state, who, partial })
 }
 
 export async function PUT(request) {

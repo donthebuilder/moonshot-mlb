@@ -95,7 +95,10 @@ export const config = {
     '/dash/:path*',
     '/fantasy/:path*',
     '/auth/:path*',
-    '/api/dash/:path*',
+    // '/api/dash/:path*' removed 2026-09-24: every route there reads the
+    // session itself, so running the proxy first doubled every Auth lookup --
+    // and Auth was 44% of the project's egress. Route handlers can refresh the
+    // session cookie on their own (lib/supabase/server.js setAll).
     // The auth pages themselves (2026-08-29): /account reads the session and
     // was never in the matcher; /login redirects the signed-in away; and
     // /reset-password only renders its form when the recovery session the
