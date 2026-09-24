@@ -316,7 +316,15 @@ async function runTouchdownTick(db, day) {
     const rows = liveTds.map((play) => {
       const game = snap.games.find((g) => g.game_id === play.game_id)
       const ev = buildTdEvent(play, { game, roster, logs, picksCard, matchup, season, day })
-      return rowFromEvent(day, ev)
+      const row = rowFromEvent(day, ev)
+      // 2026-09-24 audit: a touchdown stored without a scorer or without a
+      // board rank is the public record silently calling him "not on the
+      // board". Fourteen rush TDs in weeks 1-2 landed that way (trailing
+      // space in ESPN's text) with nothing in the logs. Say so, per row.
+      if (!row.scorer_name) console.warn('[nfl/tick] TD stored with no scorer:', JSON.stringify({ game_id: row.game_id, td_n: row.td_n, text: row.text }))
+      else if (!row.gsis_id) console.warn('[nfl/tick] TD scorer did not join the slate:', JSON.stringify({ scorer: row.scorer_name, team: row.team, text: row.text }))
+      else if (!row.td_board && roster?.players?.some((p) => typeof p?.scores?.TD === 'number')) console.warn('[nfl/tick] TD scorer joined but has no board rank:', JSON.stringify({ scorer: row.scorer_name, gsis_id: row.gsis_id }))
+      return row
     })
 
     // ── 1. claim the new ones ────────────────────────────────────────────

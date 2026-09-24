@@ -239,8 +239,16 @@ export default async function CalledPage({ searchParams }) {
   const START = `/start?sport=${sport.key}`
   const tonight = sport.key === 'nfl' ? tdCaptureFrom(rows) : captureFrom(rows)
   const graded = history.filter((h) => h.total > 0)
-  const span = graded.reduce((a, h) => ({ called: a.called + h.called, total: a.total + h.total }), { called: 0, total: 0 })
+  const span = graded.reduce((a, h) => ({ called: a.called + h.called, onBoard: a.onBoard + (h.onBoard || 0), total: a.total + h.total }), { called: 0, onBoard: 0, total: 0 })
   const spanPct = span.total ? Math.round((100 * span.called) / span.total) : null
+  const spanBoardPct = span.total ? Math.round((100 * span.onBoard) / span.total) : null
+  // 2026-09-24 audit: the bars and the per-day lines below used `called` for
+  // football too, so the record read "3 / 88 · 3%" against a five-rung
+  // ladder -- the same category error the hero comment above already names.
+  // Football's bars are board coverage; baseball's stay the call rate. Both
+  // numbers are printed either way.
+  const leadOf = (h) => (sport.key === 'nfl' ? { n: h.onBoard || 0, pct: h.boardPct || 0 } : { n: h.called, pct: h.pct })
+  const leadWord = sport.key === 'nfl' ? 'on the board' : 'called'
   const called = rows.filter((r) => r._n.called)
   const rest = rows.filter((r) => !r._n.called)
   // Newest first, today excluded (it already has its own full section below).
@@ -324,21 +332,21 @@ export default async function CalledPage({ searchParams }) {
       ) : null}
 
       <section className={styles.panel}>
-        <h2 className={styles.h2}>{sport.key === 'nfl' ? `Last ${history.length} game days` : `Last ${DAYS} nights`} {spanPct != null ? <span className={styles.pill}>{span.called} / {span.total} · {spanPct}%</span> : null}</h2>
+        <h2 className={styles.h2}>{sport.key === 'nfl' ? `Last ${history.length} game days` : `Last ${DAYS} nights`} {spanPct != null ? <span className={styles.pill}>{sport.key === 'nfl' ? `${span.onBoard} / ${span.total} on the board · ${spanBoardPct}% · ${span.called} called` : `${span.called} / ${span.total} called · ${spanPct}% · ${span.onBoard} on the board`}</span> : null}</h2>
         <div className={styles.bars} role="group" aria-label={`Capture rate over the last ${history.length} ${sport.key === 'nfl' ? 'game days' : 'nights'} — tap one to see who ${sport.verb}`}>
           {history.map((h) => {
             const href = h.total ? (h.day === today ? '#tonight' : `#night-${h.day}`) : null
             const inner = (
               <>
                 <div className={styles.barTrack}>
-                  <div className={styles.barFill} style={{ height: `${h.pct || 0}%` }} />
+                  <div className={styles.barFill} style={{ height: `${leadOf(h).pct || 0}%` }} />
                 </div>
-                <div className={styles.barPct}>{h.total ? `${h.pct}%` : '—'}</div>
+                <div className={styles.barPct}>{h.total ? `${leadOf(h).pct}%` : '—'}</div>
                 <div className={styles.barDay}>{h.day.slice(5).replace('-', '/')}</div>
               </>
             )
             return href ? (
-              <a key={h.day} className={styles.barCol} href={href} aria-label={`${h.day}: ${h.called} of ${h.total} called, ${h.pct}% — see who ${sport.verb}`}>
+              <a key={h.day} className={styles.barCol} href={href} aria-label={`${h.day}: ${leadOf(h).n} of ${h.total} ${leadWord}, ${leadOf(h).pct}% — see who ${sport.verb}`}>
                 {inner}
               </a>
             ) : (
@@ -429,7 +437,7 @@ function NightDetails({ h, rows }) {
     <details id={`night-${h.day}`} className={styles.night}>
       <summary>
         <span className={styles.nightDay}>{shortDay(h.day)}</span>
-        <span className={styles.nightStat}>{h.called} of {h.total} called · {h.pct}%</span>
+        <span className={styles.nightStat}>{h.called} of {h.total} called · {h.onBoard ?? h.called} on the board</span>
       </summary>
       {called.length ? (
         <ul className={styles.list}>
