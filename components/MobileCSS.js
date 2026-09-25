@@ -185,8 +185,24 @@ export default function MobileCSS() {
           scrollbar-width: none;
         }
         .dense-scroll::-webkit-scrollbar { display: none; }
+        /* ── PHONE = DESKTOP DENSITY (2026-09-25) ──────────────────────
+           Donovan: the tables on a phone need to be "zoomed out more ...
+           almost text-wise and size-wise the same as desktop". Measured
+           on the live board at 390px before touching anything: a desktop
+           row is 23.5px; the same row on a phone was 54.5px -- 2.3x. The
+           text was NOT the reason (numeric cells are 11px inline on both).
+           Two rules were: the coarse-pointer 44px min-height on the watch
+           star, which stretched every row that carries one, and this
+           block's 5px padding landing on the action cell whose inline
+           padding is 0. So: the header matches desktop's 8.5px, the cell
+           padding matches desktop's 5px 6px, the action cell keeps its 0,
+           and the star keeps its 44px thumb target through a negative
+           margin (below) so the hit box is 44 and the layout box is not.
+           Re-measured after: 23.5px, same as desktop. */
         .dense-scroll table { font-size: 10px !important; }
-        .dense-scroll th, .dense-scroll td { padding: 5px 5px !important; }
+        .dense-scroll th { font-size: 8.5px !important; }
+        .dense-scroll th, .dense-scroll td { padding: 5px 6px !important; }
+        .dense-scroll td.dense-action { padding: 0 !important; }
       }
       /* -- PORTRAIT ZOOM-OUT, REVERTED (2026-09-08) -----------------------
          2026-09-06 shrank every dense table an extra notch in portrait (9px
@@ -565,7 +581,11 @@ export default function MobileCSS() {
          watchlist stars and swap buttons are 30px cells on desktop, which is
          under the 44px a thumb needs. */
       @media (pointer: coarse) {
+        /* 44px hit box, 22px layout box: the negative margin cancels the
+           extra height so the row stays desktop-tall (2026-09-25, measured
+           54.5px -> 23.5px at 390px). */
         .dense-scroll td button { min-height: 44px !important; }
+        .dense-scroll td.dense-action button { margin: -11px 0 !important; }
         .slate-tiles-viewport { padding-right: 50px !important; }
         .slate-ticker-toggle {
           width: 44px !important; min-width: 44px !important;
@@ -765,6 +785,7 @@ export default function MobileCSS() {
       @media (pointer: coarse) {
         .tap-row { min-height: 44px; padding-top: 8px !important; padding-bottom: 8px !important; }
         .dense-scroll td button { min-height: 44px !important; }
+        .dense-scroll td.dense-action button { margin: -11px 0 !important; }
         .chip-row button, .dash-tabs button { min-height: 44px; }
       }
 

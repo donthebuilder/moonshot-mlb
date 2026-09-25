@@ -547,7 +547,7 @@ export default function DenseTable({
                   if (c.action) {
                     const lit = !!v && v !== 0
                     return (
-                      <td key={c.key} style={{
+                      <td key={c.key} className="dense-action" style={{
                         textAlign: 'center', padding: 0,
                         borderRight: `1px solid ${C.bg}`, borderBottom: `1px solid ${C.bg}`,
                         background: C.bg2,
