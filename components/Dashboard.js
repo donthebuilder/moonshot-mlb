@@ -180,11 +180,18 @@ export default function Dashboard({ palettePass = 0 }) {
 
     const apply = () => {
       const h = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''))
+      // A hash naming ANOTHER product is a sport switch, not a tab change
+      // (2026-09-25). This used to read `sp === 'mlb' || sp === 'nfl'` -- a
+      // hand-kept pair, so `#sport=nhl` arriving on a live MLB page did
+      // nothing at all, and `#sport=nfl` first flashed NO SUCH TAB for a
+      // football-only key before switching. lib/sport.js's setSport already
+      // validates against VALID and no-ops on the current sport; the NFL
+      // shell has returned early on a foreign sport since 09-24.
+      const sp = h.get('sport')
+      if (sp && sp !== 'mlb') { setSport(sp); return }
       const r = resolveTab('mlb', h.get('tab'))
       if (r.status === 'missing') { setMissingTab(r.asked) }
       else { setMissingTab(''); if (r.status !== 'default') setTabRaw(r.tab) }
-      const sp = h.get('sport')
-      if (sp === 'mlb' || sp === 'nfl') setSport(sp)
       // ── #p= ON A LIVE HASH CHANGE (2026-09-03) ──────────────────────────
       //
       // The mount-time reader below handles a COLD open. This handles the
