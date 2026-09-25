@@ -4,8 +4,11 @@
 //
 // The star is a statement about tonight and gets pruned with the slate.
 // Following is a statement about a player and never gets pruned — so it needs
-// somewhere to live that isn't tonight's board, and somewhere to be removed
-// from, since un-starring deliberately doesn't unfollow.
+// somewhere to live that isn't tonight's board. (Since 2026-09-18 un-starring
+// DOES unfollow — Dashboard's toggleWatch, "un-star is a removal, full stop"
+// — so the × here is for a followed man who is not on tonight's board and so
+// has no star to take away. Only TUDDY's Watchlist mounts this now; MOONSHOT
+// dropped its Your Players strip the same day.)
 //
 // Says out loud where the list is stored, because that answer changed: signed
 // in it is on the account and follows you between devices; signed out it is
