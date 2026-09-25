@@ -234,6 +234,16 @@ const TYPICAL = {
 const buildColumns = (onWatch, dhOn = false) => [
   { key: 'watched', label: '☆', action: true, w: 30, mark: '★', markOff: '☆',
     titleOn: 'Remove from watchlist', titleOff: 'Add to watchlist', onAction: onWatch },
+  // THE BOARD, IN ORDER (2026-09-25). Donovan: "there is no dedicated place
+  // to look at the boards at every single one in order." This table already
+  // listed every hitter on the slate; it had no rank column and sorted on
+  // hr_score. # is the board rank -- the same number the HR board's # column
+  // and the homer alert's "#N on the board" print (lib/boardOrder.js) --
+  // computed over the WHOLE slate before any filter, so a filtered view
+  // still shows true positions. The table opens sorted on it, #1 first.
+  { key: 'rank',    label: '#',      heat: false, w: 40, mono: true, bold: true,
+    fmt: (v) => (v == null ? '—' : `#${v}`),
+    title: 'His position on tonight\u2019s board, #1 first, over the whole slate \u2014 the HR score, season home runs and season exit velocity averaged. The same number the HR board and the homer alerts use. Filtering hides rows; it never renumbers them.' },
   { key: 'name',    label: 'Player', heat: false, w: 168, bold: true, sticky: true },
   { key: 'team',    label: 'Tm',     heat: false, w: 34, mono: true, dim: true },
   ...(dhOn ? [DH_COLUMN] : []),
@@ -489,7 +499,14 @@ function Tracker({ title, count, children, note, answers }) {
   )
 }
 
-export default function Scoreboard({ players, mode = 'today', slateDate = '', results, backtest, onWatch, watchIds, onPlayerClick, onNavigate, odds = null }) {
+// boardOnly (2026-09-25): the same component, rendering ONLY the full board
+// -- the title, the filters and the every-hitter table -- for the dedicated
+// "The Board" view (#tab=fullboard). Donovan: "there is no dedicated place to
+// look at the boards at every single one in order." The table lived at the
+// bottom of Live under eight other sections; now it also has a page where it
+// is the only thing on it. One component, one table, one column list -- not
+// a second copy that would drift.
+export default function Scoreboard({ players, mode = 'today', slateDate = '', results, backtest, onWatch, watchIds, onPlayerClick, onNavigate, odds = null, boardOnly = false }) {
   const [alignedOnly, setAlignedOnly] = useState(false)
 
   const alignedCount = useMemo(() => players.filter(isAligned).length, [players])
@@ -512,11 +529,16 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
   const laneOf = useMemo(() => laneRanker(players), [players])
   const dhNote = useMemo(() => doubleheaderNote(players), [players])
 
+  // The board rank over the FULL slate (not the filtered pool) -- one source,
+  // lib/scoring.js hrRank -> lib/boardOrder.js. Guarded by check-rank-lock.
+  const boardRankOf = useMemo(() => hrRank(players), [players])
+
   const rows = useMemo(() => {
     const pool = alignedOnly ? filtered.filter(isAligned) : filtered
     return pool.map((p, i) => {
       const hrOverlay = hrOverlayRead(p)
       return ({
+      rank: boardRankOf.get(mlbId(p)) ?? null,
       // game_pk in the key: on a doubleheader one player_id is legitimately two
       // rows, and a duplicate React key drops one of them silently — which
       // would "fix" the complaint by deleting a game.
@@ -614,7 +636,7 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
       pL3Hr9: n(p?.pitcher_l3_hr9, null),
       watched: watchIds?.has(playerId(p)) ? 1 : 0,
     })})
-  }, [players, filtered, alignedOnly, watchIds, dh])
+  }, [players, filtered, alignedOnly, watchIds, dh, boardRankOf])
 
   // Who has already homered tonight, matched back to where the board had him.
   // The board rank is the point: a scoreboard that only lists the homers tells
@@ -1055,8 +1077,10 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
   return (
     <div>
       <PanelTitle
-        title="Live"
-        sub={`${rows.length} batters on the board${alignedOnly ? ' (aligned only — the filter is on)' : ''}${liveNow ? ' · live — the wire and tonight’s homers lead' : ''}`}
+        title={boardOnly ? 'The Board' : 'Live'}
+        sub={boardOnly
+          ? `${rows.length} hitters, #1 to #${rows.length} — every one the model rated tonight, in order`
+          : `${rows.length} batters on the board${alignedOnly ? ' (aligned only — the filter is on)' : ''}${liveNow ? ' · live — the wire and tonight’s homers lead' : ''}`}
         right={
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
             {alignedCount > 0 && (
@@ -1087,21 +1111,23 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
           on 2026-09-03 (see the note further down), and this sentence never
           got updated to match. Fixed 2026-09-13 while trimming this page's
           helper text: Pulse is what actually leads both orders now. */}
-      <WhatThis label="slate context" maxWidth={760}>
-        {airRead.carrying.length > 0 && <>The air is carrying in {airRead.carrying.length} of {airRead.games} games. </>}
-        {airRead.dead.length > 0 && <>It is playing dead in {airRead.dead.length} of {airRead.games}. </>}
-        {laneRec.total > 0 && <>Homers so far — picks {laneRec.hit.picks} of {laneRec.total}, board {laneRec.hit.board} of {laneRec.total}, rated {laneRec.hit.rated} of {laneRec.total}. </>}
-        {liveNow ? 'Live action leads below.' : 'Pulse leads; the sortable full board follows.'}
-      </WhatThis>
+      {!boardOnly && (
+        <WhatThis label="slate context" maxWidth={760}>
+          {airRead.carrying.length > 0 && <>The air is carrying in {airRead.carrying.length} of {airRead.games} games. </>}
+          {airRead.dead.length > 0 && <>It is playing dead in {airRead.dead.length} of {airRead.games}. </>}
+          {laneRec.total > 0 && <>Homers so far — picks {laneRec.hit.picks} of {laneRec.total}, board {laneRec.hit.board} of {laneRec.total}, rated {laneRec.hit.rated} of {laneRec.total}. </>}
+          {liveNow ? 'Live action leads below.' : 'Pulse leads; the sortable full board follows.'}
+        </WhatThis>
+      )}
 
-      {order}
+      {!boardOnly && order}
 
       {/* Trimmed 2026-09-13 (Donovan: "the litte helper text ... does not
           [h]elp"). Also fixed a dangling fragment — this paragraph used to
           open on "who to look at first tonight," a leftover clause with
           nothing before it. */}
       <WhatThis>
-        Every hitter on the slate, sorted by home-run score — <b style={{ color: C.text2 }}>you
+        Every hitter on the slate, #1 to the bottom, in board order — <b style={{ color: C.text2 }}>you
         can use the order without reading a single column</b>. Sort any other header for a
         different question — Hit for contact plays, Park for launch pads, K risk for
         strikeouts. Tap the ⓘ next to a column name for what it means.
@@ -1130,9 +1156,13 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
         rows={rows}
         columns={buildColumns(onWatch, dh.size > 0)}
         onRowClick={onPlayerClick}
-        initialSort="hr"
+        initialSort={{ key: 'rank', dir: 'asc' }}
         heatMode="sorted"
         maxHeight={640}
+        // Every single one, in order (2026-09-25): no cap on this table. It
+        // is the one place the whole board can be read #1 to #N; a "show 200
+        // more" door on it defeated the point. ~270 rows renders fine.
+        maxRows={Math.max(rows.length, 1)}
         caption={"Every stat here sorts — click a header, shift-click to add a tiebreaker. Columns run in groups: the model scores, then the season line, then the split against the hand tonight's starter throws, then statcast, then the arm itself. Colour follows what you sort by, plus HR, which stays lit as the through-line. Where a column is drawn against a league mark, ▲ means above it and ▼ below, and a number sitting on league reads blank because that is not a finding — hover any header for the mark it uses. P ERA, P WHIP, P HH%, P FB%, P Brl%, P EV and P PullAir% run warm-is-good-for-the-bat; P K/9 and P SwStr% run the other way, because missing bats is what stops a homer. Blank cells are unpublished, not zero."}
       />
     </div>

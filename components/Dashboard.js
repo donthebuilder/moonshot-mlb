@@ -832,6 +832,8 @@ export default function Dashboard({ palettePass = 0 }) {
             {tab === 'scoreboard'  && <Home players={allPlayers} filteredPlayers={players} results={resultsForSlate} backtest={backtest} mode={mode} slateDate={slateDate} dateLabel={dateLabel} odds={odds} onWatch={toggleWatch} watchIds={watchIds} onNavigate={setTab} onPlayerClick={setModalPlayer} initial="board" />}
             {tab === 'boxes'       && <Home players={allPlayers} filteredPlayers={players} results={resultsForSlate} backtest={backtest} mode={mode} slateDate={slateDate} dateLabel={dateLabel} odds={odds} onWatch={toggleWatch} watchIds={watchIds} onNavigate={setTab} onPlayerClick={setModalPlayer} initial="boxes" />}
             {tab === 'atplate'     && <Home players={allPlayers} filteredPlayers={players} results={resultsForSlate} backtest={backtest} mode={mode} slateDate={slateDate} dateLabel={dateLabel} odds={odds} onWatch={toggleWatch} watchIds={watchIds} onNavigate={setTab} onPlayerClick={setModalPlayer} initial="live" />}
+            {/* 2026-09-25: the full board, #1 to #N, on its own page. */}
+            {tab === 'fullboard'   && <Home players={allPlayers} filteredPlayers={players} results={resultsForSlate} backtest={backtest} mode={mode} slateDate={slateDate} dateLabel={dateLabel} odds={odds} onWatch={toggleWatch} watchIds={watchIds} onNavigate={setTab} onPlayerClick={setModalPlayer} initial="fullboard" />}
             {/* #tab=power and #tab=patterns were NEVER WIRED (found 2026-08-17
                 by an audit that opened each route and looked for the feature's
                 own text, rather than only asking whether the page threw).

@@ -221,6 +221,9 @@ const HOME_VIEWS = [
   { key: 'live', label: 'At the plate' },
   { key: 'board', label: 'Scores' },
   { key: 'boxes', label: 'Box scores' },
+  // 2026-09-25: the full board on a page of its own (#tab=fullboard). Same
+  // Scoreboard component in boardOnly mode -- see its header.
+  { key: 'fullboard', label: 'The Board' },
 ]
 const HOME_VIEW_KEYS = new Set(HOME_VIEWS.map((v) => v.key))
 const BARE_BUTTON = {
@@ -779,6 +782,15 @@ export default function Home({
       )}
       {view === 'boxes' && (
         <Boxes players={players} watchIds={watchIds} onPlayerClick={onPlayerClick} />
+      )}
+      {view === 'fullboard' && (
+        <Scoreboard
+          boardOnly
+          players={filteredPlayers ?? players} mode={mode} slateDate={slateDate}
+          results={results} backtest={backtest} odds={odds}
+          onWatch={onWatch} watchIds={watchIds}
+          onPlayerClick={onPlayerClick} onNavigate={onNavigate}
+        />
       )}
 
       {view === 'tonight' && <>

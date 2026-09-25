@@ -128,7 +128,13 @@ export default function DenseTable({
   // The ordinal is drawn in the header so the precedence is visible; a stack
   // you can't see is worse than no stack at all, because you can't tell why
   // the rows moved.
-  const [sort, setSort] = useState(initialSort ? [{ key: initialSort, dir: 'desc' }] : [])
+  // initialSort is a key (descending, the historical default) or
+  // { key, dir } for a column that reads top-down the other way -- a rank
+  // column's #1 belongs at the top, and 'desc' would have put #270 there.
+  const initialStack = () => (initialSort
+    ? [typeof initialSort === 'string' ? { key: initialSort, dir: 'desc' } : { key: initialSort.key, dir: initialSort.dir || 'desc' }]
+    : [])
+  const [sort, setSort] = useState(initialStack)
   // ✨ site-wide spotlight v2 — a row whose _raw slate record matches one of
   // the user's named highlights washes in THAT light's color; when several
   // match, priority (1 = top) decides. Rows without _raw simply can't match.
@@ -812,7 +818,7 @@ export default function DenseTable({
               }).join('')}
             </b>.
             {' '}<span
-              onClick={() => setSort(initialSort ? [{ key: initialSort, dir: 'desc' }] : [])}
+              onClick={() => setSort(initialStack())}
               style={{ cursor: 'pointer', textDecoration: 'underline' }}
             >Reset</span>
           </>
