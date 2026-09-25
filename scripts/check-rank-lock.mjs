@@ -23,7 +23,13 @@ const fails = []
 const scoring = read('lib/scoring.js')
 if (!/export function hrRank\(/.test(scoring)) fails.push('lib/scoring.js: hrRank export is gone')
 const body = scoring.slice(scoring.indexOf('export function hrRank('))
-if (!/hrScore\(b\) - hrScore\(a\)/.test(body.slice(0, 600))) fails.push('lib/scoring.js: hrRank no longer sorts on raw hrScore')
+// 2026-09-25: the one ordering moved into lib/boardOrder.js (the bot's
+// board_rank, hr_score as the fallback). hrRank must read it, and the HR
+// board's own list must too -- a rank column counting one order over a list
+// sorted in another is the bug this file exists to stop.
+if (!/boardOrder\(players\)/.test(body.slice(0, 600))) fails.push('lib/scoring.js: hrRank no longer reads lib/boardOrder.js')
+const bo = read('lib/boardOrder.js')
+if (!/board_rank/.test(bo) || !/hrScore\(b\) - hrScore\(a\)/.test(bo)) fails.push('lib/boardOrder.js: lost board_rank or its hr_score fallback')
 
 const sb = read('components/tabs/Scoreboard.js')
 if (!/hrRank\(players\)/.test(sb)) fails.push('Scoreboard.js: Gone Yard no longer uses the shared hrRank')
@@ -31,6 +37,7 @@ if (!/hrRank\(players\)/.test(sb)) fails.push('Scoreboard.js: Gone Yard no longe
 const rb = read('components/tabs/RankedBoard.js')
 if (!/hrRank\(players\)/.test(rb)) fails.push('RankedBoard.js: the HR board no longer uses the shared hrRank')
 if (/rank: i \+ 1,\n/.test(rb)) fails.push('RankedBoard.js: a bare i+1 rank came back')
+if (!/boardOrder\(filtered\)/.test(rb)) fails.push('RankedBoard.js: the HR board list no longer sorts in the board order')
 
 if (fails.length) {
   console.error('✖ HR rank lock violated:')

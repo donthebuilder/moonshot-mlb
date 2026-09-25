@@ -3,6 +3,7 @@ import { useMemo, useState, useEffect } from 'react'
 import { C, NUM_FONT, TYPE } from '../../lib/theme'
 import { playerId, nameOf, teamOf, clean, nn, hrScore, hitScore, prodScore, tbScore, barrelRate, pitchMixScore, mlbId } from '../../lib/player'
 import { scoreFor, isAligned, hrRank } from '../../lib/scoring'
+import { boardOrder } from '../../lib/boardOrder'
 import { useSetupHomers } from '../../lib/b2b'
 import { Grid, Empty } from '../ui'
 import PlayerCard from '../PlayerCard'
@@ -50,7 +51,7 @@ const PROFILE_INPUTS = [
 
 const TITLES = {
   top: ['Top Board', 'The bot’s overall #1s — ranked by its own top_board_score_v2, the number the Top-30 sheet sorts by, untouched by site adjustments'],
-  hr:  ['HR Board',          'Tonight’s home run picks, ranked by the bot’s own HR score — with season ISO beside it, because the archive says power matters more than the score does'],
+  hr:  ['HR Board',          'Tonight’s hitters in board order — the HR score, season homers and season exit velocity averaged, because on the pregame record that order finds more homers than the score alone'],
   hrr: ['HRR Board',         'Top runs + RBI picks'],
   hit: ['Hits Board',        'Top base-hit picks'],
   tb:  ['Total Bases Board', 'Top contact / total-base picks'],
@@ -136,8 +137,14 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
   // Filter first, THEN rank and cut to the limit. Ranking first and filtering
   // after would only ever hide rows out of the same top 60 — the point of the
   // filter is to pull hitters up from below it.
+  //
+  // 2026-09-25: the HR board lists in the board order (lib/boardOrder.js --
+  // the bot's board_rank), so the list reads top to bottom in the same order
+  // the # column counts. The other boards still sort on their own score.
   const ranked = useMemo(
-    () => [...filtered].sort((a, b) => scoreFor(b, type) - scoreFor(a, type)).slice(0, limit),
+    () => (type === 'hr'
+      ? boardOrder(filtered).slice(0, limit)
+      : [...filtered].sort((a, b) => scoreFor(b, type) - scoreFor(a, type)).slice(0, limit)),
     [filtered, type, limit],
   )
 
