@@ -771,12 +771,17 @@ export default function Dashboard({ palettePass = 0 }) {
             asked={missingTab}
             sport="mlb"
             onNavigate={setTab}
-            doors={[['home', '🏠 HOME'], ['board', '📊 CHARTS'], ['bot', '🎯 PICKS'], ['results', '🧾 RESULTS'], ['guide', '📖 GUIDE']]}
+            doors={[['home', '🏠 HOME'], ['board', '📊 BOARDS'], ['bot', '🎯 PICKS'], ['results', '🧾 THE RECORD'], ['guide', '📖 HOW THIS WORKS']]}
           />
         ) : loading && !SLATE_FREE.has(tab) ? (
           <Empty text="Loading slate data…" />
         ) : showEmpty && !SLATE_FREE.has(tab) ? (
-          <Empty text="No players found. The slate may not be built yet — check back after the next scheduled run." />
+          // UX-4 (2026-09-24 audit): `data === null` means every slate path
+          // failed to answer -- the network, not the bot. That is a different
+          // sentence from an empty payload, and rule 25 says name it.
+          <Empty text={data === null
+            ? 'LIVE DATA DELAYED \u2014 we could not reach the board feed. Check your connection, or try the refresh button; the site retries on its own.'
+            : 'No players found. The slate may not be built yet \u2014 check back after the next scheduled run.'} />
         ) : (
           <div key={tab} className="tab-fade">
             {/* Same boundary the NFL side got (2026-09-07, components/
