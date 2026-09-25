@@ -23,7 +23,15 @@ export default function Game({ id, onBack }) {
     return <EmptyState title="NO GAME PICKED" note="Open a game from Scores or the Schedule."><BackBtn onBack={onBack} /></EmptyState>
   }
   if (loading && !g) return <Loading what="the game" />
-  if (!g) return <EmptyState title="LIVE DATA DELAYED" note={error?.status === 400 ? 'That is not a game id the league knows.' : 'We’re waiting on the league’s game feed.'} tone={C.amber}><BackBtn onBack={onBack} /></EmptyState>
+  if (!g) {
+    // A 400/404 from the route is an answer, not a delay: there is no such game.
+    const notAGame = error?.status === 400 || error?.status === 404
+    return (
+      <EmptyState title={notAGame ? 'NO SUCH GAME' : 'LIVE DATA DELAYED'} note={notAGame ? 'That is not a game id the league knows. Open one from Scores or the Schedule.' : 'We’re waiting on the league’s game feed.'} tone={notAGame ? C.text3 : C.amber}>
+        <BackBtn onBack={onBack} />
+      </EmptyState>
+    )
+  }
 
   const live = g.state === 'live'; const done = g.state === 'final'; const scored = live || done
   const status = g.statusLine || `${fmtDay(g.date)} · ${fmtPuckDrop(g.startUtc)} ${zoneAbbrev()}`
