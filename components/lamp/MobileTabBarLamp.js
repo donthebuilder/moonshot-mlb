@@ -7,7 +7,9 @@ import { NHL_NAV, NHL_MORE_GROUPS } from '../../lib/nhl/routes'
 // The wordmark is home, as on the other two bars.
 // Four stops plus More, the same count MOONSHOT's bar carries (2026-09-25:
 // Players joined once the directory existed).
-const MAIN_KEYS = ['scores', 'schedule', 'standings', 'players']
+// Board · Scores · Schedule · Standings, the board first (batch 3); Players
+// moved to the sheet, the same slot it holds on MOONSHOT's bar.
+const MAIN_KEYS = ['board', 'scores', 'schedule', 'standings']
 const MAIN = MAIN_KEYS.map((k) => [k, NHL_NAV[k].icon, NHL_NAV[k].label])
 
 const MORE = [

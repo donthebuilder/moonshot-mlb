@@ -16,6 +16,8 @@ const ROWS = [
   ['goalies', 'Every goalie, and a goalie’s file is its own page — starts, record, GAA, save percentage, shutouts — not a skater’s with different labels.'],
   ['teams', 'The 32 clubs by division. Tap one for its record and place, next up, last five, the roster with season lines, team leaders, the whole schedule.'],
   ['leaders', 'Who leads the league in each category, ten deep, regular season, straight from the league. Measured, not modelled.'],
+  ['board', 'The goal board: three skaters called per game, locked before puck drop, graded after. Tap a called man for the three percentiles behind his score.'],
+  ['results', 'Every graded night: of the skaters who scored, how many the board called and how many it had on the board. The base rate to beat is about 15%.'],
 ]
 
 export default function Guide({ onNavigate }) {
@@ -48,7 +50,12 @@ export default function Guide({ onNavigate }) {
       </Section>
 
       <Section title="WHAT LAMP DOES NOT DO YET">
-        <p style={p}>No LAMP Board and no LAMP Score; no matchups, no shot maps, no alerts. Those arrive in order, and a score will only appear once its inputs and its grading rule are written down and published — the same public-record rule MOONSHOT and TUDDY live by. Nothing here is a projection or a pick.</p>
+        <p style={p}>No goalie model — the league feed carries no starting goalie, so the board does not know who is in net and says so. No matchups, no shot maps, no alerts yet. Those arrive in order, each only when its numbers trace to the feed. Nothing here is priced.</p>
+      </Section>
+
+      <Section title="THE THREE WORDS">
+        <p style={p}><b style={{ color: C.ice }}>CALLED</b> — one of the three the board picked in his game. <b style={{ color: C.text }}>ON THE BOARD</b> — scored and ranked, but fourth or worse. <b style={{ color: C.text3 }}>NOT ON THE BOARD</b> — on the roster, not scored, and the reason is printed (usually fewer than ten NHL games on file). Same words, same meaning, on MOONSHOT and TUDDY.</p>
+        <p style={p}>The score is the average of three percentile ranks among the night’s scored skaters: shots per game, goals per game, ice time per game, each over his last 82 NHL games (this season first, last season for the rest). A board is <b style={{ color: C.amber }}>PREVIEW</b> until 100 minutes before puck drop, <b style={{ color: C.teal }}>LOCKED</b> from the last write before the puck drops, <b style={{ color: C.cream }}>GRADED</b> after the final. A locked row is never rewritten.</p>
       </Section>
 
       <Section title="READING A SCORE ROW">

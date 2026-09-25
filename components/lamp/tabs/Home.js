@@ -1,7 +1,7 @@
 'use client'
 import PageHeader from '../../PageHeader'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
-import { useLampStandings } from '../../../lib/nhl/useLamp'
+import { useLampStandings, useLampBoard } from '../../../lib/nhl/useLamp'
 import { usePreview, ShowMoreButton } from '../../ListPreview'
 import ScoreTable, { sortGames } from '../ScoreTable'
 import { TeamMark, EmptyState, DelayedBanner, Loading, SourceLine, Kicker, GameTypeChip, fmtDay } from '../ui'
@@ -18,6 +18,8 @@ export default function Home({ today, onOpenGame, setTab }) {
   // the front page and the header lamp share one poll rather than two.
   const scores = today
   const standings = useLampStandings()
+  const board = useLampBoard(null)
+  const boardGames = board.data?.games || []
   const day = scores.data
   const games = sortGames(day?.games || [])
   const prev = usePreview(games, 6)
@@ -30,7 +32,7 @@ export default function Home({ today, onOpenGame, setTab }) {
       <PageHeader
         eyebrow="LAMP · NHL INTELLIGENCE"
         title={day?.date ? fmtDay(day.date) : 'Tonight'}
-        note="Today’s games, the standings, every player and club, and the game behind any score — read straight off the league’s feed. The LAMP Board comes once its inputs and grading are published."
+        note="Tonight’s games, tonight’s board, the standings — read straight off the league’s feed, the board locked before puck drop and graded in public."
         theme={C} numFont={NUM_FONT} accent={C.ice}
         stats={day ? [
           { value: day.live, label: 'LIVE', tone: day.live ? C.lamp : C.text3 },
@@ -57,6 +59,33 @@ export default function Home({ today, onOpenGame, setTab }) {
             <ScoreTable games={prev.shown} onOpen={onOpenGame} compact />
             <ShowMoreButton open={prev.open} restN={prev.restN} toggle={prev.toggle} itemWord="games" />
           </>
+        )}
+      </section>
+
+      <section aria-label="Tonight's board">
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
+          <Kicker>THE BOARD · THREE CALLED PER GAME</Kicker>
+          <button type="button" onClick={() => setTab?.('board')} style={link}>Full board ›</button>
+        </div>
+        {board.loading && !board.data ? <Loading what="the board" /> : null}
+        {board.data && boardGames.length === 0 && <EmptyState title="NO BOARD TONIGHT" note="No games, so nothing to call." />}
+        {boardGames.length > 0 && (
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+            <thead><tr style={{ color: C.text3, font: `800 8px/1 ${NUM_FONT}`, letterSpacing: '.12em', textAlign: 'left' }}><th style={th}>GAME</th><th style={th}>CALLED</th><th style={{ ...th, textAlign: 'right' }}>STATE</th></tr></thead>
+            <tbody>
+              {boardGames.map((g) => {
+                const called = g.rows.filter((r) => r.status === 'called')
+                const stamp = g.graded ? 'GRADED' : g.locked ? 'LOCKED' : 'PREVIEW'
+                return (
+                  <tr key={g.game.id} onClick={() => setTab?.('board')} style={{ borderTop: `1px solid ${C.border}`, cursor: 'pointer' }}>
+                    <td style={{ ...td, whiteSpace: 'nowrap', fontFamily: NUM_FONT, fontWeight: 800, fontSize: 11 }}>{g.game.away.abbrev}@{g.game.home.abbrev}</td>
+                    <td style={{ ...td, fontSize: 11.5, lineHeight: 1.4 }}>{called.map((r, i) => <span key={r.playerId}>{i ? ' · ' : ''}<span style={{ color: r.hit ? C.lamp : C.text }}>{r.name}</span> <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 10 }}>{r.score}</span></span>)}</td>
+                    <td style={{ ...td, textAlign: 'right', color: g.graded ? C.cream : g.locked ? C.teal : C.amber, font: `900 8px/1 ${NUM_FONT}`, letterSpacing: '.12em' }}>{stamp}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
         )}
       </section>
 
@@ -91,7 +120,7 @@ export default function Home({ today, onOpenGame, setTab }) {
       <section aria-label="What this is">
         <Kicker tone={C.cream}>THIS DESK</Kicker>
         <p style={{ margin: 0, color: C.text2, fontSize: 12.5, lineHeight: 1.6, maxWidth: 640 }}>
-          LAMP is the NHL side of DASH Network. Right now it is the game itself: scores, the schedule, the standings, every goal with who scored it and how, every player and goalie’s file, every club, and the league leaders. The LAMP Board follows — only once its inputs are traceable to the feed and it can be graded in public.{' '}
+          LAMP is the NHL side of DASH Network: the game itself — scores, schedule, standings, every goal, every player and club, the leaders — and one signal, the goal board: three skaters called per game, locked before puck drop, graded after, the record public. Nothing is priced.{' '}
           <button type="button" onClick={() => setTab?.('guide')} style={{ ...link, display: 'inline', padding: 0 }}>How this works ›</button>
         </p>
       </section>

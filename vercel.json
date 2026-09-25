@@ -99,6 +99,14 @@
     {
       "path": "/api/dash/nfl/tick",
       "schedule": "* 13-16 * * 1"
+    },
+    {
+      "path": "/api/lamp/tick",
+      "schedule": "*/10 15-23 * * *"
+    },
+    {
+      "path": "/api/lamp/tick",
+      "schedule": "*/10 0-7 * * *"
     }
   ]
 }

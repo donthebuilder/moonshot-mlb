@@ -6,6 +6,8 @@ export const NHL_TEXTS = {
   schedule: { what: 'The league week, day by day, puck-drop times in your zone. Games already played show their score. Page a week at a time.' },
   standings: { what: 'Division, wild card, conference and league, in the league’s own order. Before opening night this is last season’s final table, and it says so.' },
   game: { what: 'One game top to bottom: goals and shots by period, every goal with its assists and strength, penalties, the team comparison, three stars.' },
+  board: { what: 'Tonight\u2019s goal board: three skaters called per game, locked before puck drop, graded after. The score is three percentile ranks averaged \u2014 shots, goals, ice time per game \u2014 nothing hidden, nothing priced.' },
+  results: { what: 'Every graded night. Of the skaters who scored, how many the board called and how many it had on the board before the puck dropped. The base rate is about 15%.' },
   players: { what: 'Every player on a current roster, camp invites included. Type a name or a club; tap a row for his file.' },
   goalies: { what: 'Every goalie on a current roster. A goalie\u2019s file is its own page \u2014 starts, record, save percentage \u2014 not a skater\u2019s with different labels.' },
   player: { what: 'One man\u2019s file: the season line, career, last five games, the game log, season by season. Every number is the league\u2019s.' },

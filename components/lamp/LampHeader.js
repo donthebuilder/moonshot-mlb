@@ -19,7 +19,9 @@ import { LampDot } from './ui'
 //     three products); the LAMP wordmark is this product's home button.
 //   · the sport pills name the OTHER two products, never this one.
 //   · under 760px the rail hides; components/MobileTabBar owns switching.
-const PRIMARY = ['scores', 'schedule', 'standings', 'players', 'leaders']
+// The board leads the rail, the way MOONSHOT's Props and TUDDY's Touchdowns
+// lead theirs (2026-09-25, batch 3).
+const PRIMARY = ['board', 'scores', 'schedule', 'standings', 'players', 'leaders']
 
 export default function LampHeader({ tab, setTab, live = 0 }) {
   const [moreOpen, setMoreOpen] = useState(false)

@@ -24,6 +24,8 @@ import Team from './tabs/Team'
 import Players from './tabs/Players'
 import Player from './tabs/Player'
 import Leaders from './tabs/Leaders'
+import Board from './tabs/Board'
+import Results from './tabs/Results'
 
 // 🏒 THE LAMP SHELL. Thin on purpose, the same shape as NflDashboard and
 // the MLB Dashboard: state and routing only; every opinion lives in a tab.
@@ -71,7 +73,7 @@ export default function LampDashboard({ palettePass = 0 }) {
       hash.set('sport', 'nhl')
       hash.set('tab', next)
       if (next !== 'game') hash.delete('game')
-      if (next !== 'scores' && next !== 'schedule') hash.delete('date')
+      if (next !== 'scores' && next !== 'schedule' && next !== 'board') hash.delete('date')
       if (next !== 'team') hash.delete('team')
       if (next !== 'player') { hash.delete('player'); hash.delete('p') }
       window.history.replaceState(null, '', `#${hash.toString()}`)
@@ -158,7 +160,7 @@ export default function LampDashboard({ palettePass = 0 }) {
             sport="nhl"
             palette={C}
             onNavigate={setTab}
-            doors={[['home', '\u{1F3E0} TONIGHT'], ['scores', '\u{1F4E1} SCORES'], ['schedule', '\u{1F4C5} SCHEDULE'], ['standings', '\u{1F4CA} STANDINGS'], ['players', '\u{1F464} PLAYERS'], ['teams', '\u{1F3DF} TEAMS'], ['leaders', '\u{1F3C6} LEADERS'], ['guide', '\u{1F4D6} GUIDE']]}
+            doors={[['home', '\u{1F3E0} TONIGHT'], ['board', '\u{1F3AF} BOARD'], ['scores', '\u{1F4E1} SCORES'], ['schedule', '\u{1F4C5} SCHEDULE'], ['standings', '\u{1F4CA} STANDINGS'], ['players', '\u{1F464} PLAYERS'], ['teams', '\u{1F3DF} TEAMS'], ['leaders', '\u{1F3C6} LEADERS'], ['guide', '\u{1F4D6} GUIDE']]}
           />
         ) : (
           <ErrorBoundary resetKey={`${tab}:${gameId || ''}:${teamKey || ''}:${playerId || ''}`} label={`the ${tab} tab`}>
@@ -174,6 +176,8 @@ export default function LampDashboard({ palettePass = 0 }) {
             {tab === 'goalies' && <Players goaliesOnly onOpenPlayer={openPlayer} onOpenTeam={openTeam} />}
             {tab === 'player' && <Player id={playerId} onOpenTeam={openTeam} onOpenGame={openGame} onBack={() => setTab('players')} />}
             {tab === 'leaders' && <Leaders onOpenPlayer={openPlayer} onOpenTeam={openTeam} />}
+            {tab === 'board' && <Board onOpenPlayer={openPlayer} onOpenGame={openGame} onOpenTeam={openTeam} />}
+            {tab === 'results' && <Results onOpenPlayer={openPlayer} />}
           </ErrorBoundary>
         )}
       </main>
