@@ -4,6 +4,7 @@ import { etToday } from '../../lib/freshness'
 import { C, NUM_FONT, TYPE } from '../../lib/theme'
 import { logUrl, dataUrl } from '../../lib/dataSource'
 import { nameOf, teamOf, oppOf, clean, n, obj, hrScore, hitScore, dateText } from '../../lib/player'
+import { boardOrder } from '../../lib/boardOrder'
 import { laneRecord } from '../../lib/lanes'
 import { groupGames } from '../../lib/data'
 import { fetchPenFatigue, penTier } from '../../lib/bullpen'
@@ -609,8 +610,7 @@ export default function Home({
 
   const lines = useMemo(() => {
     const out = []
-    const top = [...players].filter((p) => Number.isFinite(hrScore(p)))
-      .sort((a, b) => hrScore(b) - hrScore(a))[0] || null
+    const top = boardOrder(players)[0] || null   // 2026-09-25: The Board's #1
     const arm = clean(top?.pitcher_name, '')
     const armHr9 = n(top?.pitcher_hr9, 0)
     const air = airRanked[0]
@@ -698,7 +698,7 @@ export default function Home({
     [games],
   )
   const topHr = useMemo(
-    () => [...players].filter((p) => Number.isFinite(hrScore(p))).sort((a, b) => hrScore(b) - hrScore(a))[0] || null,
+    () => boardOrder(players)[0] || null,   // 2026-09-25: The Board's #1
     [players],
   )
   const airLine = (g) => airParts(g?.row).map((x) => x.text).join(', ')

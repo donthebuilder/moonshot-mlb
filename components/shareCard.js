@@ -13,6 +13,7 @@
 // Still canvas, still zero dependencies, still downloads instantly.
 
 import { nameOf, teamOf, oppOf, hrScore, n } from '../lib/player'
+import { boardOrder, boardCompare } from '../lib/boardOrder'
 import { hr9Color } from '../lib/hr9'
 
 const pickOf = (p) => String(p?.game_pick_role || '').split('/')[0].trim().toUpperCase()
@@ -85,7 +86,7 @@ function scoreBar(g, x, midY, w, score, strong = false) {
 }
 
 export function downloadShareCard(items = [], { title = 'MY WATCHLIST' } = {}) {
-  const sorted = [...items].sort((a, b) => hrScore(b) - hrScore(a))
+  const sorted = boardOrder(items)   // 2026-09-25: board order
   const hero = sorted[0]
   const rows = sorted.slice(1, 12)
 
@@ -675,7 +676,7 @@ export function downloadGameCard(gm = {}, { onlyPicks = true } = {}) {
   const players = Array.isArray(gm.players) ? gm.players : []
   const picks = players
     .filter((p) => !onlyPicks || String(p?.game_pick_role || '').trim())
-    .sort((a, b) => hrScore(b) - hrScore(a))
+    .sort(boardCompare)   // 2026-09-25: board order
     .slice(0, 12)
 
   const away = gm.away || '—', home = gm.home || '—'

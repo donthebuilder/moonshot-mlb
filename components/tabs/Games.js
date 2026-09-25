@@ -6,6 +6,7 @@ import PriceBubble from '../PriceBubble'
 import { hrPerGame } from '../../lib/odds'
 import { groupGames } from '../../lib/data'
 import { dateText, playerId, mlbId, hrScore } from '../../lib/player'
+import { boardOrder } from '../../lib/boardOrder'
 import { hr9Color, hr9Fill, hr9Pct, hr9Title } from '../../lib/hr9'
 import { PanelTitle, Empty, btnStyle, WhatThis } from '../ui'
 import PlayerCard from '../PlayerCard'
@@ -1369,7 +1370,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                 const isDesignated = picks.length > 0
                 const sorted = isDesignated
                   ? picks
-                  : [...g.players].sort((a, b) => hrScore(b) - hrScore(a)).slice(0, 4).map((p) => ({ cat: null, cats: null, p }))
+                  : boardOrder(g.players).slice(0, 4).map((p) => ({ cat: null, cats: null, p }))   // 2026-09-25: board order
                 const past = isPast(g.game_time)
                 const isActive = g.game_pk === activeGame
                 const sides = sidesOf(g)

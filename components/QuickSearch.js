@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { nameOf, teamOf, oppOf, hrScore, playerId } from '../lib/player'
+import { boardCompare } from '../lib/boardOrder'
 import { fetchRosters } from '../lib/dataSource'
 
 // What the roster file says about a man, in the words the search row shows.
@@ -74,7 +75,7 @@ export default function QuickSearch({ players = [], onPick }) {
     if (k.length < 2) return []
     return players
       .filter((p) => norm(nameOf(p)).includes(k) || norm(teamOf(p)) === k)
-      .sort((a, b) => hrScore(b) - hrScore(a))
+      .sort(boardCompare)   // 2026-09-25: board order
       .slice(0, 8)
   }, [q, players])
 

@@ -105,9 +105,12 @@ const ANSWER_FALLBACK = 'every ranked board in one place, each with its record s
 //
 // Colours are the ones each lens already had -- see the btnStyle calls this
 // replaced. They are lens identity here, not data colour.
+// ONE BOARD (2026-09-25). Donovan: "they should be one thing, it's very
+// confusing." The Top lens (top_board_score_v2) is gone; the HR lens IS The
+// Board -- the same order as #tab=fullboard, the alerts and the tweet
+// (lib/boardOrder.js). A saved or shared view=top lands here.
 const MARKET_LENSES = [
-  { key: 'top',     label: 'Top',     color: C.yellow },
-  { key: 'hr',      label: 'HR',      color: C.orange },
+  { key: 'hr',      label: 'The Board', color: C.orange },
   { key: 'hit',     label: 'Hits',    color: C.purple },
   { key: 'hrr',     label: 'HRR',     color: C.cyan },
   { key: 'contact', label: 'Contact', color: C.blue },
@@ -142,8 +145,8 @@ const PROOF = () => ({
   },
   hr: {
     color: C.orange,
-    head: 'Ranked on the bot’s own HR score — and here’s why',
-    body: 'This board ranks on the bot’s raw hr_score, untouched. It used to multiply that by the measured HR rate of the hitter’s ISO band — real research, across 3,973 graded picks ISO bands ran 8.2% to 22.2% while raw-score quartiles managed +4.7 points — but that multiplier was removed on 2026-08-09 for two checkable reasons: hr_score ALREADY carries ISO through season_power, so the band counted it twice, and it corrupted the projection bands, which were measured against the raw score. The ISO column still sits beside the score so you can see it, and The Read applies the band as an explicit second opinion rather than folding it back in.',
+    head: 'The Board — one order, everywhere on the site',
+    body: 'Every hitter tonight, ranked once: the HR score, his season home run count and his season exit velocity, each turned into a rank within tonight\u2019s slate and averaged. Measured on 21 pregame nights it put 22% of its top ten over the fence against 17% for the HR score alone, and won 13 of the 21 nights at the top 25. This is the same order as the full board (#tab=fullboard), the homer alerts\u2019 "#N on the board" and the MOONSHOT BOARD post. The old Top lens (top_board_score_v2) is folded into it \u2014 two boards with one name was the confusion.',
   },
   hit: {
     color: C.purple,
@@ -468,13 +471,14 @@ function B2BStrip({ list, verified, loading, cashed, onPlayerClick }) {
 export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, onWatch, watchIds, onPlayerClick, slateDate = null, results = null, initialView = 'boards', powerInitial = 'longest', onNavigate = null }) {
   const [bview, setBview] = useState(() => (GROUPS.some(([k]) => k === initialView) ? initialView : 'boards'))
   const [view, setView] = useState('hr')
+  const viewKey = view === 'top' ? 'hr' : view
   const [proofOpen, setProofOpen] = useState(false)
   // Scoped to whichever lens is open (view), so the Score slider in
   // BoardFilters reads hr_score on the HR board, hit_score on Hits, etc.,
   // rather than guessing. Lifted here (not left inside RankedBoard) so the
   // filter panel — bar, band, score range, games, chips — survives a lens
   // switch instead of silently resetting every time view changes.
-  const filterState = useBoardFilter(players, SCORE_TYPE_FOR_VIEW[view] || null)
+  const filterState = useBoardFilter(players, SCORE_TYPE_FOR_VIEW[viewKey] || null)
   const { filtered, state } = filterState
   const setupHomers = useSetupHomers(slateDate)
   // useBackToBack, not backToBack: the watch accumulates for the slate so a
@@ -491,7 +495,7 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
   }, [results, slateDate])
 
   const boards = bview === 'boards'
-  const pr = PROOF()[view]
+  const pr = PROOF()[viewKey]
 
   return (
     <div>
@@ -618,7 +622,7 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
                 click, and duplicated into a title= tooltip a phone cannot show
                 at all. The receipts clause below still folds: a measured
                 record is worth a tap, an orientation sentence is not. */}
-            <LensAnswer maxWidth={840}>{ANSWERS[view] || ANSWER_FALLBACK}</LensAnswer>
+            <LensAnswer maxWidth={840}>{ANSWERS[viewKey] || ANSWER_FALLBACK}</LensAnswer>
             {pr && (
               <>
                 <button
@@ -655,7 +659,7 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
             ? <AlignedSignalsSection players={filtered} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} />
             : view === 'matchupedge'
             ? <MatchupEdgeSection players={filtered} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} />
-            : <RankedBoard players={players} type={view} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} slateDate={slateDate} filterState={filterState} setupHomers={setupHomers} />
+            : <RankedBoard players={players} type={viewKey} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} slateDate={slateDate} filterState={filterState} setupHomers={setupHomers} />
           }
         </>
       )}

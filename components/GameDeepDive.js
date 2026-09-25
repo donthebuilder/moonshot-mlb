@@ -4,6 +4,7 @@ import { C, NUM_FONT } from '../lib/theme'
 import { alpha, verdictInk } from '../lib/scales'
 import { hr9Tone, hr9Title } from '../lib/hr9'
 import { n, nn, clean, nameOf, hrScore } from '../lib/player'
+import { boardOrder } from '../lib/boardOrder'
 import { airParts, airVerdict } from '../lib/conditions'
 import { quoteFor, fmtOdds, CATEGORY_LINE } from '../lib/odds'
 import { Dial } from './VerdictHero'
@@ -348,7 +349,7 @@ function SidePanel({ team, rows, odds, onPlayerClick }) {
   })
   const picks = designated.slice(0, 3)
   const fallback = picks.length === 0
-    ? [...rows].sort((a, b) => hrScore(b) - hrScore(a)).slice(0, 2)
+    ? boardOrder(rows).slice(0, 2)   // 2026-09-25: board order
     : []
 
   // `hot` went with the prose — the HR/9 tile states its own threshold now.

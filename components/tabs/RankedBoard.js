@@ -52,7 +52,7 @@ const PROFILE_INPUTS = [
 
 const TITLES = {
   top: ['Top Board', 'The bot’s overall #1s — ranked by its own top_board_score_v2, the number the Top-30 sheet sorts by, untouched by site adjustments'],
-  hr:  ['HR Board',          'Tonight’s hitters in board order — the HR score, season homers and season exit velocity averaged, because on the pregame record that order finds more homers than the score alone'],
+  hr:  ['The Board',         'Every hitter tonight, #1 down — the HR score, season homers and season exit velocity averaged, because on the pregame record that order finds more homers than the score alone. The same order as the full board, the alerts and the tweet.'],
   hrr: ['HRR Board',         'Top runs + RBI picks'],
   hit: ['Hits Board',        'Top base-hit picks'],
   tb:  ['Total Bases Board', 'Top contact / total-base picks'],
