@@ -338,7 +338,7 @@ export default async function CalledPage({ searchParams }) {
                 <span className={styles.callN}>{i + 1}</span>
                 <a className={styles.name} href={sport.key === 'nfl' ? `/app#sport=nfl&tab=players&player=${encodeURIComponent(p.player_id)}` : `/app#sport=mlb&p=${encodeURIComponent(p.player_id)}`}>{p.name}</a>
                 <span className={styles.meta}>{p.team || ''}{p.opponent || p.opp ? ` vs ${p.opponent || p.opp}` : ''}{p.odds_over && p.odds_book ? ` · ${p.odds_over > 0 ? '+' : ''}${p.odds_over} ${p.odds_book}` : ''}</span>
-                <span className={styles.call}>{calledIds.has(String(p.player_id)) ? `🤖 ${sport.verb}` : 'live'}</span>
+                <span className={styles.call}>{calledIds.has(String(p.player_id)) ? `🤖 ${sport.verb}` : 'pending'}</span>
               </li>
             ))}
           </ol>

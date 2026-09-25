@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 
 import useScrollLock from '../lib/useScrollLock'
+import { useDialog } from '../lib/useDialog'
 import { C, NUM_FONT } from '../lib/theme'
 import { fetchBatterDetail } from '../lib/dataSource'
 import {
@@ -226,7 +227,9 @@ const TABS = [
 // `inline` renders the same content as a plain panel instead of a popup.
 // The Player tab needs exactly this view but sitting still on the page --
 // a modal is a bad place to read for five minutes.
-function Shell({ inline, onClose, width, children }) {
+function Shell({ inline, onClose, width, children, label }) {
+  // A11Y-3 (2026-09-24): role, focus, Escape, Tab kept inside. lib/useDialog.js.
+  const { ref, dialogProps } = useDialog({ open: !inline, onClose, label })
   if (inline) {
     return (
       <div style={{
@@ -255,9 +258,12 @@ function Shell({ inline, onClose, width, children }) {
       }}
     >
       <div
+        ref={ref}
+        {...dialogProps}
         onClick={e => e.stopPropagation()}
         className="modal-box"
         style={{
+          ...dialogProps.style,
           background: C.bg2, border: `1px solid ${C.border2}`, borderRadius: 18,
           width, maxWidth: '100%', maxHeight: '90vh', overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch',
           transition: 'width .15s',
@@ -722,7 +728,7 @@ export default function PlayerModal({ player, slateMode, initialTab = '', onClos
 
   return (
     <>
-    <Shell inline={inline} onClose={onClose} width={modalWidth}>
+    <Shell inline={inline} onClose={onClose} width={modalWidth} label={`${nameOf(p)} card`}>
 
           {/* THE TOOLBAR, ON ITS OWN LINE (2026-08-23). These five controls
               plus the badge left about 90px for the hitter's NAME on a 430px

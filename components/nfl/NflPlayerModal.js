@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 
 import useScrollLock from '../../lib/useScrollLock'
+import { useDialog } from '../../lib/useDialog'
 import { C, NUM_FONT, MARKETS, gradeFor } from '../../lib/nfl/theme'
 import PropsGrid from './PropsGrid'
 import PlayerNotes from '../PlayerNotes'
@@ -558,6 +559,7 @@ function Navigator({ peers, cur, onNavigate }) {
 
 export default function NflPlayerModal({ player, market, markets, splitMeta, logs, matchup, slate, picks, results, onClose, onFullProfile, peers = [], onNavigate = null, initialTab = '' }) {
   useScrollLock(Boolean(player))
+  const dialog = useDialog({ open: Boolean(player), onClose, label: `${player?.name || 'Player'} card` })
   const watchlist = useNflWatchlist(slate)
   const [tab, setTab] = useState('overview')
   // A new player opens on Overview unless the caller asked for a view --
@@ -566,11 +568,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
   useEffect(() => {
     setTab(TABS.some((t) => t.key === initialTab) ? initialTab : 'overview')
   }, [player?.player_id, initialTab])
-  useEffect(() => {
-    const esc = (e) => { if (e.key === 'Escape') onClose?.() }
-    window.addEventListener('keydown', esc)
-    return () => window.removeEventListener('keydown', esc)
-  }, [onClose])
+  // Escape lives in lib/useDialog.js now (2026-09-24), with focus and Tab.
 
   if (!player) return null
   const spec = (markets || []).find((m) => m.key === market)
@@ -590,8 +588,11 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
       }}
     >
       <div
+        ref={dialog.ref}
+        {...dialog.dialogProps}
         onClick={(e) => e.stopPropagation()}
         style={{
+          ...dialog.dialogProps.style,
           background: C.bg2, border: `1px solid ${C.border2}`, borderRadius: 14,
           // WIDTH FOLLOWS THE CONTENT, the way MOONSHOT's does (580 / 780 /
           // 1100). This was a hard 620 for everything, including the DvP

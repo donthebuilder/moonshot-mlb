@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 
 import useScrollLock from '../lib/useScrollLock'
+import { useDialog } from '../lib/useDialog'
 import { C, NUM_FONT } from '../lib/theme'
 import { hr9Tone, hr9Title } from '../lib/hr9'
 import { n, clean, nameOf } from '../lib/player'
@@ -270,6 +271,7 @@ function SplitsControl({ src, pitcherId }) {
 
 export default function PitcherModal({ pitcher, slateMode, onClose, onPlayerClick }) {
   useScrollLock(Boolean(pitcher))
+  const dialog = useDialog({ open: Boolean(pitcher), onClose, label: `${pitcher?.pitcher_name || 'Pitcher'} card` })
   const [tab, setTab] = useState('matchup')
 
   const lineup = useMemo(() => (pitcher?.lineup || []).filter(Boolean), [pitcher])
@@ -405,9 +407,12 @@ export default function PitcherModal({ pitcher, slateMode, onClose, onPlayerClic
       }}
     >
       <div
+        ref={dialog.ref}
+        {...dialog.dialogProps}
         onClick={(e) => e.stopPropagation()}
         className="modal-box"
         style={{
+          ...dialog.dialogProps.style,
           background: C.bg2, border: `1px solid ${C.border2}`, borderRadius: 18,
           width: 1100, maxWidth: '100%', maxHeight: '90vh', overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch',
         }}
