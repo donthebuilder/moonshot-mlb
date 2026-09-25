@@ -207,7 +207,7 @@ export default function QuickSearch({ players = [], onPick }) {
                 >
                   <span style={{ fontSize: 13, fontWeight: 700 }}>{p.name}</span>
                   <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
-                    {p.team}{p.position ? ` \u00b7 ${p.position}` : ''} \u00b7 {p.status_word}
+                    {p.team}{p.position ? ` \u00b7 ${p.position}` : ''}{' \u00b7 '}{p.status_word}
                   </span>
                   <span style={{ marginLeft: 'auto', fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT, whiteSpace: 'nowrap' }}>
                     {p.position === 'P' ? 'pitcher' : seasonWord(p.season_line)}
