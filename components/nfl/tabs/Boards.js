@@ -386,17 +386,11 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
                 opacity: p.low_sample ? 0.5 : 1,
               }}
             >
-              <button
-                onClick={(e) => { e.stopPropagation(); watchlist.toggle(p) }}
-                title={watchlist.isPinned(p.player_id) ? 'Remove from watchlist' : 'Add to watchlist'}
-                style={{
-                  position: 'absolute', top: 6, right: 6, zIndex: 1,
-                  background: watchlist.isPinned(p.player_id) ? 'rgba(0,245,173,.14)' : 'transparent',
-                  border: `1px solid ${watchlist.isPinned(p.player_id) ? C.green : C.border}`,
-                  color: watchlist.isPinned(p.player_id) ? C.green : C.text3,
-                  borderRadius: 7, padding: '3px 7px', fontSize: 13, lineHeight: 1, cursor: 'pointer',
-                }}
-              >{watchlist.isPinned(p.player_id) ? '★' : '☆'}</button>
+              {/* 2026-09-25: the star used to be absolutely positioned top-right,
+                  exactly where the score and grade stack sits, so the number
+                  printed over the star (Donovan's screenshot, Javonte Williams).
+                  It now sits in the header row, left of the score, as a flex
+                  child -- nothing overlaps because nothing is absolute. */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{
                   fontFamily: NUM_FONT, fontSize: TYPE.label, color: C.text3, minWidth: 13,
@@ -417,6 +411,17 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
                     <MatchupBadge matchup={matchup} player={p} market={market} />
                   </div>
                 </div>
+              <button
+                onClick={(e) => { e.stopPropagation(); watchlist.toggle(p) }}
+                title={watchlist.isPinned(p.player_id) ? 'Remove from watchlist' : 'Add to watchlist'}
+                style={{
+                  flex: '0 0 auto', alignSelf: 'flex-start',
+                  background: watchlist.isPinned(p.player_id) ? 'rgba(0,245,173,.14)' : 'transparent',
+                  border: `1px solid ${watchlist.isPinned(p.player_id) ? C.green : C.border}`,
+                  color: watchlist.isPinned(p.player_id) ? C.green : C.text3,
+                  borderRadius: 7, padding: '3px 7px', fontSize: 13, lineHeight: 1, cursor: 'pointer',
+                }}
+              >{watchlist.isPinned(p.player_id) ? '★' : '☆'}</button>
                 <div style={{ textAlign: 'right', flex: '0 0 auto' }}>
                   {/* The grade, same ladder as the MLB board. The number alone
                       doesn't tell you whether 61 is good on this slate. */}
