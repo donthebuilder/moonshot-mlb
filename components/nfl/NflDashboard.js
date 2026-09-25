@@ -324,7 +324,7 @@ export default function NflDashboard({ palettePass = 0 }) {
             {tab === 'scores' && <Scores data={slate} />}
             {tab === 'pairs' && <Pairs data={data} results={nflResults} onPlayerClick={openPlayer} />}
             {tab === 'guide' && <Guide onNavigate={setTab} data={data} />}
-            {tab === 'live' && <Live data={slate} picks={picks} live={liveSnap} onPlayerClick={openPlayer} setTab={setTab} />}
+            {tab === 'live' && <Live data={slate} picks={picks} live={liveSnap} matchup={matchup} logs={logs} results={nflResults} onPlayerClick={openPlayer} setTab={setTab} />}
             {tab === 'streaks' && <Streaks data={data} logs={logs} onPlayerClick={openPlayer} />}
             {tab === 'leaders' && <Leaders data={data} onPlayerClick={openPlayer} />}
             {tab === 'storylines' && <Storylines data={data} logs={logs} results={nflResults} onPlayerClick={openPlayer} setTab={setTab} />}

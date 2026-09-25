@@ -81,7 +81,10 @@ const Name = ({ children }) => <b style={{ color: C.text }}>{children}</b>
 const Td = ({ n }) => (n == null ? null : <span className="sl-row-meta"> · TD {n}</span>)
 const rateTxt = (r) => (r ? `${Math.round(r.rate * 100)}% (${r.hit}/${r.n})` : null)
 
-export default function Storylines({ data, logs, results, onPlayerClick, setTab }) {
+// compact (2026-09-25): the feed embedded on Live before kickoff -- each
+// section capped at `cap` rows, no page header, no closing note. The full
+// page is one tap away on the Storylines tab.
+export default function Storylines({ data, logs, results, onPlayerClick, setTab, compact = false, cap = 3 }) {
   const markets = useMemo(() => streakMarkets(logs), [logs])
   const { archive, keys } = useResultsArchive(results, data?.season)
 
@@ -90,27 +93,28 @@ export default function Storylines({ data, logs, results, onPlayerClick, setTab 
     [data],
   )
 
-  const cards = useMemo(() => milestoneStreaks(logs, data).slice(0, 6), [logs, data])
+  const lim = (arr, n) => (compact ? arr.slice(0, cap) : arr.slice(0, n))
+  const cards = useMemo(() => lim(milestoneStreaks(logs, data), 6), [logs, data, compact, cap])
 
   const modelCards = useMemo(
-    () => modelNarrativeStories(archive, keys, playersById).slice(0, 4),
-    [archive, keys, playersById],
+    () => lim(modelNarrativeStories(archive, keys, playersById), 4),
+    [archive, keys, playersById, compact, cap],
   )
 
   // Neither of these needs `logs` -- schedule and birth_date are both
   // published in nfl_week.json before any log or grade exists, so they must
   // not be gated behind the same "no logs yet" empty state as the other two.
   const rivalries = useMemo(() => rivalryNights(data), [data])
-  const bdays = useMemo(() => birthdays(data), [data])
+  const bdays = useMemo(() => lim(birthdays(data), 99), [data, compact, cap])
 
   // The second wave (2026-09-25). See lib/nfl/storylines.js for each rule.
-  const b2b = useMemo(() => scoredLastTimeOut(data), [data])
+  const b2b = useMemo(() => lim(scoredLastTimeOut(data), 8), [data, compact, cap])
   const b2bRate = useMemo(() => backToBackRate(logs, data?.season), [logs, data])
-  const due = useMemo(() => dueByTheNumbers(data), [data])
-  const revenge = useMemo(() => revengeGames(data, logs), [data, logs])
+  const due = useMemo(() => lim(dueByTheNumbers(data), 6), [data, compact, cap])
+  const revenge = useMemo(() => lim(revengeGames(data, logs), 8), [data, logs, compact, cap])
   const revRate = useMemo(() => revengeRate(logs), [logs])
-  const countdowns = useMemo(() => milestoneCountdowns(data, logs), [data, logs])
-  const rzm = useMemo(() => redZoneMonsters(data), [data])
+  const countdowns = useMemo(() => lim(milestoneCountdowns(data, logs), 8), [data, logs, compact, cap])
+  const rzm = useMemo(() => lim(redZoneMonsters(data), 5), [data, compact, cap])
 
   const nothingAtAll = !markets.length && !modelCards.length && !rivalries.length && !bdays.length
     && !b2b.length && !due.length && !revenge.length && !countdowns.length && !rzm.length
@@ -132,14 +136,14 @@ export default function Storylines({ data, logs, results, onPlayerClick, setTab 
 
   return (
     <div className="sl">
-      <PageHeader
+      {!compact && <PageHeader
         eyebrow="TUDDY · STORYLINES"
         title="What the numbers are already saying"
         note={<>Not a leaderboard — a sentence. Every line below is a real, live fact off this week&apos;s logs and grading — read as a story instead of a row in a table.{counts && <div className="sl-counts">{counts}</div>}</>}
         theme={C}
         numFont={NUM_FONT}
         accent={C.green}
-      />
+      />}
 
       {!!modelCards.length && (
         <div className="sl-feed">
@@ -274,11 +278,14 @@ export default function Storylines({ data, logs, results, onPlayerClick, setTab 
         </div>
       )}
 
-      {setTab && (
+      {setTab && !compact && (
         <button type="button" className="sl-more" onClick={() => setTab('streaks')}>See every streak on the board, any line you pick →</button>
       )}
+      {setTab && compact && (
+        <button type="button" className="sl-more" onClick={() => setTab('storylines')}>Every storyline this week →</button>
+      )}
 
-      <div className="sl-note">
+      {!compact && <div className="sl-note">
         <b>One more angle, not live yet.</b> Game narrative (injury-driven role
         changes, schedule swings) needs more than the Questionable/Out tag the site already
         shows — connecting one player's absence to another's role takes snap- or target-share
@@ -287,7 +294,7 @@ export default function Storylines({ data, logs, results, onPlayerClick, setTab 
         off the game log&apos;s own jersey column; a graded tracker for these lines (did the story
         pay?) needs the bot to freeze them before kickoff, the way MOONSHOT&apos;s does — the two
         rates on the section heads are the honest stand-in until then.
-      </div>
+      </div>}
 
       <style>{`
       .sl{display:flex;flex-direction:column;gap:14px}

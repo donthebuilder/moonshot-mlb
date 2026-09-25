@@ -28,6 +28,9 @@ import PageHeader from '../../PageHeader'
 import NflTable from '../NflTable'
 import { FilterBar, FilterPill, FilterSearch, FilterSelect } from '../../Filters'
 import GameScoreboard, { fmtKick } from '../GameScoreboard'
+import NflHeadlineStrip from '../NflHeadlineStrip'
+import Storylines from './Storylines'
+import Fold from '../../Fold'
 
 const MARKET_SHORT = { TD: 'TD', REC_YDS: 'REC YDS', REC: 'REC', RUSH_YDS: 'RUSH YDS', RUSH_ATT: 'CARRIES', PASS_YDS: 'PASS YDS', KICK_PTS: 'KICK PTS' }
 const short = (m) => MARKET_SHORT[m] || String(m || '').replace('_', ' ')
@@ -66,7 +69,16 @@ function RungRow({ rung, player, game, line, market, bar, onPlayerClick }) {
   )
 }
 
-export default function Live({ data, picks, live, onPlayerClick, setTab }) {
+// ── BEFORE KICKOFF, THIS IS THE MORNING EDITION (2026-09-25) ────────────────
+// Donovan, on the pre-kickoff Live page ("0 cleared / 0 live / 0 missed" over
+// seventeen "Sun 10:00 AM" cards): on a Thursday it had nothing to say and
+// said it at length. MOONSHOT's Live before first pitch is the Morning
+// Edition -- headline cards, the crawl, The Four, the storyline feed. So,
+// while nothing is live: headline strip, then the finals that are in plus
+// the next kickoff as one line, then the card, then the storyline feed
+// (compact), then your names; the full schedule grid is a fold. The moment a
+// game is live the page is what it was -- the scoreboard leads.
+export default function Live({ data, picks, live, matchup = null, logs = null, results = null, onPlayerClick, setTab }) {
   const games = data?.games || []
   const players = data?.players || []
   const byId = useMemo(() => new Map(players.map((p) => [String(p.player_id), p])), [players])
@@ -221,7 +233,23 @@ export default function Live({ data, picks, live, onPlayerClick, setTab }) {
           is untouched (components/nfl/SlateRibbon.js) in case the exposure
           concept it drew -- how many rungs ride on each game -- earns its
           own spot later. */}
-      {games.length ? <GameScoreboard games={games} /> : <div className="tl-empty">No games on the slate yet.</div>}
+      {!anyLive && (
+        <NflHeadlineStrip players={players} games={games} markets={data?.markets} matchup={matchup}
+          onPlayerClick={onPlayerClick} setTab={setTab} />
+      )}
+
+      {anyLive
+        ? (games.length ? <GameScoreboard games={games} /> : <div className="tl-empty">No games on the slate yet.</div>)
+        : (
+          <div className="tl-crawl">
+            <span className="tl-crawl-tag">{anyDone ? 'FINAL' : 'NEXT'}</span>
+            {games.filter((g) => g.completed || g.state === 'post').map((g) => (
+              <span key={g.game_id} className="tl-crawl-item"><b>{g.away} {g.away_score ?? 0}</b> – <b>{g.home_score ?? 0} {g.home}</b></span>
+            ))}
+            {next && <span className="tl-crawl-item tl-crawl-next">{anyDone ? 'next ' : ''}{next.game.away} @ {next.game.home} · {fmtKick(next.t)}</span>}
+            {!next && !anyDone && <span className="tl-crawl-item">no kickoff on the schedule yet</span>}
+          </div>
+        )}
 
       <section>
         <div className="tl-title"><div><small>THE CARD</small><h2>Every rung, against its bar</h2></div>{setTab && <button onClick={() => setTab('picks')}>Picks →</button>}</div>
@@ -239,6 +267,19 @@ export default function Live({ data, picks, live, onPlayerClick, setTab }) {
           ))}
         </div>
       </section>
+
+      {!anyLive && (
+        <section>
+          <div className="tl-title"><div><small>STORYLINES</small><h2>What the numbers are already saying</h2></div>{setTab && <button onClick={() => setTab('storylines')}>All →</button>}</div>
+          <Storylines compact data={data} logs={logs} results={results} onPlayerClick={onPlayerClick} setTab={setTab} />
+        </section>
+      )}
+
+      {!anyLive && games.length > 0 && (
+        <Fold id="tuddy-live-schedule" title="🗓 The full schedule" meta={`${games.length} games this week`}>
+          <GameScoreboard games={games} />
+        </Fold>
+      )}
 
       <section>
         <div className="tl-title"><div><small>YOUR NAMES</small><h2>Pinned and followed</h2></div>{setTab && <button onClick={() => setTab('watchlist')}>Watchlist →</button>}</div>
@@ -319,6 +360,9 @@ export default function Live({ data, picks, live, onPlayerClick, setTab }) {
       <style>{`
       .tl{display:flex;flex-direction:column;gap:14px}
             .tl-title{display:flex;align-items:flex-end;justify-content:space-between;margin:4px 2px 8px}
+      .tl-crawl{display:flex;align-items:center;gap:10px;overflow-x:auto;scrollbar-width:none;padding:7px 10px;border:1px solid ${C.border};border-radius:10px;background:${C.bg2};font:700 10.5px/1 ${NUM_FONT};color:${C.text2};white-space:nowrap}
+      .tl-crawl-tag{padding:3px 7px;border-radius:5px;background:${C.cyan};color:#061013;font:900 8.5px/1 ${NUM_FONT};letter-spacing:.1em;flex-shrink:0}
+      .tl-crawl-item{flex-shrink:0}.tl-crawl-item b{color:${C.text}}.tl-crawl-next{color:${C.text3}}
       .tl-title small{color:${C.green};font:900 8px/1 ${NUM_FONT};letter-spacing:.12em}.tl-title h2{margin:5px 0 0;font-size:17px;letter-spacing:-.02em}
       .tl-title button{border:1px solid ${C.border};border-radius:8px;background:transparent;color:${C.text2};padding:6px 10px;font:800 9px/1 ${NUM_FONT};cursor:pointer}
       .tl-blocks{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:9px}
