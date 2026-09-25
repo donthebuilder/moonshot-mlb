@@ -391,6 +391,43 @@ function CaptureBanner({ report, uniqueReport, byGame }) {
         full scored sheet — not homers by picks. Pick accuracy is the graded card above.
       </div>
 
+      {/* THE POOL NUMBER (2026-09-24, B6). The sheet figure above counts a
+          man a midday rebuild added AFTER the prediction of record was
+          written -- that is how it read 91-100% while 11% of slate homers
+          came from outside the pregame pool. This one only counts games
+          that locked, and only men the locked run rated in that game. It is
+          the number THE PLOT asks. Absent from the payload until the bot
+          grades a night after 1183de33 -- then it appears; nothing is
+          invented in the meantime. */}
+      {report.pool_capture_pct != null ? (() => {
+        const poolPct = sf(report.pool_capture_pct)
+        const poolCol = barColor(poolPct)
+        const late = Array.isArray(report.late_add_homer_entries) ? report.late_add_homer_entries : []
+        return (
+          <div style={{ paddingTop: 8, marginBottom: uniqueReport?.unique_players_tracked ? 8 : 0, borderTop: `1px solid ${C.border}` }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <div style={{ flex: 1, minWidth: 140 }}>
+                <div style={{ fontSize: TYPE.label, color: C.text3, marginBottom: 5, fontFamily: NUM_FONT, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Pregame pool HR coverage</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <MiniBar value={poolPct} color={poolCol} />
+                  <span style={{ fontFamily: NUM_FONT, fontWeight: 800, fontSize: TYPE.title, color: poolCol, minWidth: 52 }}>{poolPct.toFixed(1)}%</span>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                <Chip color={C.green}>{si(report.pool_caught_hrs)} of {si(report.pool_total_hrs)}</Chip>
+                <Chip color={C.text2}>{si(report.pool_games_locked)} locked games</Chip>
+                {si(report.late_add_hrs) > 0 && <Chip color={C.yellow}>{si(report.late_add_hrs)} by late adds</Chip>}
+              </div>
+            </div>
+            <div style={{ fontSize: TYPE.body, color: C.text3, lineHeight: 1.5, marginTop: 6 }}>
+              Against the board as it stood when each game locked — a man a rebuild added
+              after that is a late add, not a catch.
+              {late.length > 0 && ` Late adds who homered: ${late.map((h) => h.name).filter(Boolean).join(', ')}.`}
+            </div>
+          </div>
+        )
+      })() : null}
+
       {uniq.unique_players_tracked ? (
         <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', paddingTop: 8, borderTop: `1px solid ${C.border}` }}>
           <div>
