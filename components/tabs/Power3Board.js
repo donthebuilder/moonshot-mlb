@@ -7,6 +7,7 @@ import {
 } from '../../lib/player'
 import { PanelTitle, Empty, inputStyle } from '../ui'
 import DenseTable from '../DenseTable'
+import { boardRow, boardRowContext, withBoardColumns } from '../../lib/boardColumns'
 import { SCORE } from '../../lib/scales'
 
 // Power-3 — who has hit the ball hardest and farthest all season.
@@ -172,7 +173,10 @@ export default function Power3Board({ players = [], onWatch, watchIds, onPlayerC
   const [limit, setLimit] = useState(30)
   const [query, setQuery] = useState('')
 
+  // Slate-wide facts for the board columns (2026-09-25, lib/boardColumns.js).
+  const boardCtx = useMemo(() => boardRowContext(players, { watchIds }), [players, watchIds])
   const all = useMemo(() => players.map((p, i) => ({
+    ...boardRow(p, i, boardCtx),
     _key: `${p?.player_id ?? nameOf(p)}-${i}`,
     _raw: p,
     name: nameOf(p),
@@ -194,7 +198,7 @@ export default function Power3Board({ players = [], onWatch, watchIds, onPlayerC
     hr9: n(p?.pitcher_hr9, 0),
     parkHR: n(p?.park_hr_factor, n(p?.park_dist_factor, 1)),
     watched: watchIds?.has(playerId(p)) ? 1 : 0,
-  })), [players, watchIds])
+  })), [players, watchIds, boardCtx])
 
   const published = useMemo(() => all.some((r) => r.p3 > 0), [all])
 
@@ -281,7 +285,7 @@ export default function Power3Board({ players = [], onWatch, watchIds, onPlayerC
           ) : (
             <DenseTable
               rows={rows}
-              columns={buildColumns(onWatch)}
+              columns={withBoardColumns(buildColumns(onWatch), { onWatch, dhOn: false })}
               onRowClick={onPlayerClick}
               initialSort="p3"
               heatMode="sorted"

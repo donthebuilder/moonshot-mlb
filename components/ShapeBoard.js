@@ -5,6 +5,7 @@ import { clean, nameOf, teamOf, oppOf, hrScore, playerId } from '../lib/player'
 import { PanelTitle, Empty, inputStyle } from './ui'
 import { inkFor } from './Heatmap'
 import DenseTable from './DenseTable'
+import { boardRow, boardRowContext, withBoardColumns } from '../lib/boardColumns'
 import {
   HR_BANDS, HR_CUTS, SHAPE_MIN_N, SHAPE_FORM_EDGE,
   slateShapeMix, shapeRead, typeLabel, formVerdict,
@@ -201,6 +202,8 @@ export default function ShapeBoard({ players = [], onWatch, watchIds, onPlayerCl
   // a homer is evidence about the league whoever hit it.
   const base = useMemo(() => slateShapeMix(pool), [pool])
 
+  // Slate-wide facts for the board columns (2026-09-25, lib/boardColumns.js).
+  const boardCtx = useMemo(() => boardRowContext(players, { watchIds }), [players, watchIds])
   const all = useMemo(() => pool.map((p, i) => {
     const read = shapeRead(p, base)
     const t = typeLabel(read)
@@ -208,6 +211,7 @@ export default function ShapeBoard({ players = [], onWatch, watchIds, onPlayerCl
     const counts = {}
     BAND_KEYS.forEach((k) => { counts[k] = read.counts[k] })
     return {
+      ...boardRow(p, i, boardCtx),
       _key: `${p?.player_id ?? nameOf(p)}-${i}`,
       _raw: p,
       _read: read,
@@ -249,7 +253,7 @@ export default function ShapeBoard({ players = [], onWatch, watchIds, onPlayerCl
       hr: hrScore(p),
       unrel: read.unreliable ? 1 : 0,
     }
-  }), [pool, base, watchIds])
+  }), [pool, base, watchIds, boardCtx])
 
   // Chip counts come off the same `all` the table is built from, so a chip can
   // never promise a population the board does not then show.
@@ -298,7 +302,7 @@ export default function ShapeBoard({ players = [], onWatch, watchIds, onPlayerCl
     ...(tally.none ? [['none', `No tracked HR ${tally.none}`, C.text3, 'No homer of his has been classified into a band — an absence of a shape, not a shape.']] : []),
   ]
 
-  const columns = [
+  const columns = withBoardColumns([
     { key: 'watched', label: '☆', action: true, w: 30, mark: '★', markOff: '☆',
       titleOn: 'Remove from watchlist', titleOff: 'Add to watchlist', onAction: onWatch },
     { key: 'name', label: 'Batter', heat: false, w: 150, bold: true, sticky: true },
@@ -365,7 +369,7 @@ export default function ShapeBoard({ players = [], onWatch, watchIds, onPlayerCl
     { key: 'unrel', label: '⚑', flag: true, mark: '⚑', w: 32,
       title: 'The bot set hr_unreliable_shape_flag on this hitter — counts shown, no type claimed',
       explain: 'A bot-side judgement this repo cannot re-derive. On the verified slate all 9 flagged hitters are low-launch ground-ball bats with a handful of homers. It is an independent veto, not a duplicate of the sample floor: 5 of the 9 clear the 4-homer bar and 3 of those would otherwise carry a live form reading.' },
-  ]
+  ], { onWatch, dhOn: false })
 
   return (
     <div>

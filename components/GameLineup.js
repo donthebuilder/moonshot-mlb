@@ -9,6 +9,8 @@ import { tierRole, isAligned } from '../lib/scoring'
 import { designationOf, hitterRoleTitle, hitterLaneLabel, hitterLaneTitle, laneRanker } from '../lib/verdict'
 import { hrOverlayRead } from '../lib/hrOverlay'
 import DenseTable from './DenseTable'
+import { boardRow, withBoardColumns } from '../lib/boardColumns'
+import { gameNumbers } from '../lib/doubleheader'
 import { SCORE } from '../lib/scales'
 
 // The full lineup, dense and colored — not the top-8 card grid.
@@ -484,12 +486,17 @@ export default function GameLineup({ players, onPlayerClick }) {
   // ranking them against 267 hitters would make eight of nine read the same.
   // See laneRanker's note on why the ranker is a closure over the rows in view.
   const laneOf = useMemo(() => laneRanker(pool), [pool])
+  const gameDh = useMemo(() => gameNumbers(pool), [pool])
   const rows = useMemo(() => [...pool]
     .sort((a, b) => teamOf(a).localeCompare(teamOf(b)) || (nn(a?.lineup_spot) || 99) - (nn(b?.lineup_spot) || 99))
     .map((p, i) => {
       const spotReason = parseSpotReason(p?.pitcher_spot_damage_reason)
       const hrOverlay = hrOverlayRead(p)
       return {
+        // Every board column under this table's own (2026-09-25,
+        // lib/boardColumns.js). rankOf null: this pool is one game, so the
+        // rank shown is the bot's published board_rank or nothing.
+        ...boardRow(p, i, { dh: gameDh, laneOf, slateSize: pool.length, watchIds: null, rankOf: null }),
         _key: `${p?.player_id ?? nameOf(p)}-${i}`,
         _raw: p,
         spot: p?.lineup_spot ?? '—',
@@ -541,7 +548,7 @@ export default function GameLineup({ players, onPlayerClick }) {
     }), [pool])
 
   const cols = useMemo(
-    () => (team === 'Both' ? COLUMNS : COLUMNS.filter((c) => c.key !== 'team')),
+    () => withBoardColumns(team === 'Both' ? COLUMNS : COLUMNS.filter((c) => c.key !== 'team'), { onWatch: null, dhOn: false }),
     [team],
   )
 

@@ -13,6 +13,7 @@ import { recordNight, ledgerTotals, exportLedger, importLedger, clearLedger } fr
 import { C, NUM_FONT } from '../../lib/theme'
 import { PanelTitle, Grid, Empty } from '../ui'
 import DenseTable from '../DenseTable'
+import { boardRow, boardRowContext, withBoardColumns } from '../../lib/boardColumns'
 import BoardFilters, { useBoardFilter } from '../BoardFilters'
 import PlayerCard from '../PlayerCard'
 import { downloadShareCard } from '../shareCard'
@@ -727,6 +728,8 @@ export default function Watchlist({ items, players = [], pairSummary, results, s
     [items, slateIds],
   )
   const { filtered: filteredOnSlate, state: filterState } = useBoardFilter(onSlate)
+  // Slate-wide facts for the board columns (rank, lanes), over the FULL slate.
+  const boardCtx = useMemo(() => boardRowContext(players, { watchIds: null }), [players])
   const trackOf = useTrackRecords()
 
   // YOUR OWN NIGHTS, PER HITTER (2026-08-15). The tracker below already wrote
@@ -976,10 +979,13 @@ export default function Watchlist({ items, players = [], pairSummary, results, s
             ) : (
             <DenseTable
               heatMode="sorted"
-rows={[...filteredOnSlate].sort(byGameThenTeam).map((p) => {
+rows={[...filteredOnSlate].sort(byGameThenTeam).map((p, i) => {
                 const track = trackOf(nameOf(p))
                 const mine = mineOf(p)
                 return {
+                  // Every board column under this table's own (2026-09-25,
+                  // lib/boardColumns.js); own keys win.
+                  ...boardRow(p, i, boardCtx),
                   _key: String(playerId(p)),
                   // YOUR nights with him, from the device ledger. Sorts on
                   // starts — the denominator — because sorting on a homer
@@ -1044,7 +1050,7 @@ rows={[...filteredOnSlate].sort(byGameThenTeam).map((p) => {
                   runScore: runScore(p),
                 }
               })}
-              columns={[
+              columns={withBoardColumns([
                 ...(onWatch ? [{
                   key: 'watched', label: '★', action: true, w: 30, mark: '★', markOff: '☆',
                   titleOn: 'Remove from watchlist', titleOff: 'Add to watchlist',
@@ -1120,7 +1126,7 @@ rows={[...filteredOnSlate].sort(byGameThenTeam).map((p) => {
                   title: 'A composite RBI-production read: season RBI rate, lineup spot, tonight\'s matchup average, and recent RBI form. Not a bot field, not calibrated — a transparent blend, same caveat as K risk.' },
                 { key: 'runScore', label: 'Run', w: 44, dp: 1,
                   title: 'A composite run-production read: season run rate, lineup spot, season OBP, and recent run form. Not a bot field, not calibrated — a transparent blend, same caveat as K risk.' },
-              ]}
+              ], { onWatch: null, dhOn: false })}
               onRowClick={(r) => r && onPlayerClick?.(r)}
               initialSort={null}
               maxHeight={380}

@@ -8,6 +8,7 @@ import { hitterArchetype, marketFamily, primaryRole } from '../lib/verdict'
 import { catColor } from '../lib/scales'
 import { quoteFor, fmtOdds, impliedPct, hrPerGame, fairOdds } from '../lib/odds'
 import DenseTable from './DenseTable'
+import { boardRow, boardRowContext, withBoardColumns } from '../lib/boardColumns'
 import { categoryColumns, categoryValues } from '../lib/categoryColumns'
 import { Empty } from './ui'
 import { DIV_FIELD } from '../lib/scales'
@@ -120,9 +121,11 @@ export default function Shortlist({ players = [], odds = null, onPlayerClick, on
   // should shrink.
   const { filtered, state } = useBoardFilter(players, 'hr')
 
+  // Slate-wide facts for the board columns (2026-09-25, lib/boardColumns.js).
+  const boardCtx = useMemo(() => boardRowContext(players, { watchIds }), [players, watchIds])
   const ranked = useMemo(() => {
     return (filtered || [])
-      .map((p) => {
+      .map((p, i) => {
         const score = hrScore(p)
         if (!Number.isFinite(score) || score <= 0) return null
         const rate = hrPerGame(p)
@@ -205,6 +208,9 @@ export default function Shortlist({ players = [], odds = null, onPlayerClick, on
         const hr = n(p?.season_hr, null)
         const pa = n(p?.season_pa, null)
         return {
+          // Every board column under this table's own (2026-09-25,
+          // lib/boardColumns.js); own keys win.
+          ...boardRow(p, i, boardCtx),
           _key: `${p.player_id}`,
           _raw: p,
           watched: !!watchIds?.has(playerId(p)),
@@ -261,7 +267,7 @@ export default function Shortlist({ players = [], odds = null, onPlayerClick, on
       .sort((a, b) => (view === 'profile'
         ? b.score - a.score
         : (b.room ?? -1e9) - (a.room ?? -1e9) || b.score - a.score))
-  }, [filtered, odds, view, watchIds])
+  }, [filtered, odds, view, watchIds, boardCtx])
 
   // The full ranked field is what the count is OF; `rows` is what is drawn.
   const rows = useMemo(() => ranked.slice(0, limit), [ranked, limit])
@@ -416,7 +422,7 @@ export default function Shortlist({ players = [], odds = null, onPlayerClick, on
         initialSort={null}
         heatMode="sorted"
         maxHeight={560}
-        columns={[
+        columns={withBoardColumns([
           // 2026-08-30, Donovan: the shortlist ("i like the short list tho")
           // was missing the one action every other player row on the site
           // has — no way to save a name here without leaving to find him on
@@ -585,7 +591,7 @@ export default function Shortlist({ players = [], odds = null, onPlayerClick, on
             // is how the verdict gets its colour without a cellStyle hook.
             fmt: (v, r) => <b style={{ color: READ()[r.read].tone, fontWeight: 800, fontSize: 10 }}>{r.readTxt}</b>,
             title: 'The verdict, gated: it only speaks when a real rate met a real price on the same line.' },
-        ]}
+        ], { onWatch, dhOn: false })}
         caption="The profile view is the bot's ranking; Best odds fits re-sorts by ROOM, which is their whole second table in one click. His rate is a real per-game probability (hr_per_pa × his lineup spot's trips), so the comparison against the price is honest — the HR score never touches the odds math. Rows with no price stay ranked by profile; on most slates that's most rows, and saying so beats pretending."
       />
       </>

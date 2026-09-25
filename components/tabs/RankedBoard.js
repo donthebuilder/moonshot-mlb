@@ -12,6 +12,7 @@ import BoardFilters, { useBoardFilter } from '../BoardFilters'
 import { xpaFor, XPA_TITLE } from '../../lib/xpa'
 import AltLooks from '../AltLooks'
 import DenseTable from '../DenseTable'
+import { boardRow, boardRowContext, withBoardColumns } from '../../lib/boardColumns'
 import { heatModeFromUrl } from '../../lib/heatMode'
 import { uniqueByPerson, gameNumbers, gameNumOf, doubleheaderNote } from '../../lib/doubleheader'
 import { SCORE } from '../../lib/scales'
@@ -166,6 +167,8 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
   // filtered view showing #3, #7, #19 is telling the truth: those are their
   // real board positions. Enforced by scripts/check-rank-lock.mjs.
   const slateRank = useMemo(() => (type === 'hr' ? hrRank(players) : null), [players, type])
+  // Slate-wide facts for the board columns, over the FULL players prop.
+  const boardCtx = useMemo(() => boardRowContext(players, { watchIds }), [players, watchIds])
 
   // ── THE DOUBLEHEADER, ON THIS LIST TOO (2026-08-17) ────────────────────────
   // The G column shipped to the Scoreboard and HitterHeat and MISSED this
@@ -252,6 +255,11 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
             heatMode={heatModeFromUrl()}
           rows={ranked.map((p, i) => {
             const rec = recordOf(nameOf(p))
+            // THE FULL BOARD RIDES UNDER THIS TABLE'S OWN FIELDS (2026-09-25,
+            // Donovan: every column, on every table). lib/boardColumns.js;
+            // the board's keys go first so this table's own meaning of a
+            // shared key (iso ×100, hr9 with its ⚠) wins.
+            const base = boardRow(p, i, boardCtx)
             const cats = { HR: hrScore(p), Hit: hitScore(p), HRR: prodScore(p), TB: tbScore(p) }
             const selfLabel = { top: 'HR', hr: 'HR', hit: 'Hit', hrr: 'HRR', tb: 'TB', contact: 'TB' }[type] || 'HR'
             const others = Object.entries(cats).filter(([k]) => k !== selfLabel)
@@ -264,6 +272,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
             // spent on the wrong bet.
             const wantRole = { top: 'TOP', hr: 'HR', hit: 'HIT', hrr: 'HRR', tb: 'CONTACT', contact: 'CONTACT' }[type]
             return {
+              ...base,
               _key: `${playerId(p)}-${p?.game_pk ?? ''}-${i}`,
               _raw: p,
               // Lights the watch column below. DenseTable's action column
@@ -313,7 +322,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
               ...categoryValues(p, type, { omit: CAT_OMIT[type] || CAT_OMIT.default }),
             }
           })}
-          columns={[
+          columns={withBoardColumns([
             // ── THE WATCH COLUMN (2026-09-18) ──────────────────────────────
             // Donovan: "watch list button in general is not working." It was
             // not broken — on THIS board, the one he actually reads, it did
@@ -411,7 +420,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
                 )
               } },
             ...categoryColumns(type, { omit: CAT_OMIT[type] || CAT_OMIT.default }),
-          ]}
+          ], { onWatch, dhOn: dh.size > 0 })}
           onRowClick={onPlayerClick}
           initialSort={type === 'hr' ? 'raw' : null}
           maxHeight={520}

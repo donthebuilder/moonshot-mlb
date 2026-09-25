@@ -46,6 +46,20 @@ export default function Research({ data, onPlayerClick }) {
     [data],
   )
 
+  // THE TD BOARD RANK (2026-09-25). Donovan: "no dedicated place to look at
+  // the boards at every single one in order" -- for both sports. This is
+  // TUDDY's: every scored player, #1 to #N on the Anytime TD board, over the
+  // WHOLE pool before any filter, so a filtered view shows true positions
+  // and never renumbers. Ties break on player_id so the order is stable.
+  const tdRankOf = useMemo(() => {
+    const m = new Map()
+    ;(data?.players || [])
+      .filter((p) => Number.isFinite(Number(p?.scores?.TD)))
+      .sort((a, b) => (Number(b.scores.TD) - Number(a.scores.TD)) || String(a.player_id).localeCompare(String(b.player_id)))
+      .forEach((p, i) => { if (!m.has(p.player_id)) m.set(p.player_id, i + 1) })
+    return m
+  }, [data])
+
   const rows = useMemo(() => {
     const want = POS_GROUPS.find(([k]) => k === pos)?.[1]
     const needle = q.trim().toLowerCase()
@@ -54,18 +68,36 @@ export default function Research({ data, onPlayerClick }) {
       .filter((p) => !team || p.team === team)
       .filter((p) => !needle || `${p.name} ${p.team} ${p.opp}`.toLowerCase().includes(needle))
       .filter((p) => !onlyWatched || watchlist.isPinned(p.player_id))
-      .map((p) => ({
-        ...p.stats,
-        _p: p,
-        _raw: p,
-        name: p.name,
-        pos: p.position,
-        team: p.team,
-        opp: oppShort(p),
-        TDSC: p.scores?.TD ?? null,
-        watched: watchlist.isPinned(p.player_id) ? 1 : 0,
-      }))
-  }, [data, pos, team, q, onlyWatched, watchlist])
+      .map((p) => {
+        const sc = p.scores || {}
+        const td = p.components?.TD || {}
+        const num = (v) => (Number.isFinite(Number(v)) && v !== null && v !== '' ? Number(v) : null)
+        return {
+          ...p.stats,
+          _p: p,
+          _raw: p,
+          rank: tdRankOf.get(p.player_id) ?? null,
+          name: p.name,
+          pos: p.position,
+          team: p.team,
+          opp: oppShort(p),
+          // ── the model's own numbers: every market score, then the six TD
+          //    components (0-100 within-slate percentiles), then the flags ──
+          TDSC: num(sc.TD),
+          RECYDSC: num(sc.REC_YDS), RECSC: num(sc.REC), RUYDSC: num(sc.RUSH_YDS),
+          RUATSC: num(sc.RUSH_ATT), PAYDSC: num(sc.PASS_YDS), KICKSC: num(sc.KICK_PTS),
+          cRz: num(td.f_rz_opp), cTot: num(td.implied_total), cTouch: num(td.f_touches),
+          cXtd: num(td.f_xtd), cGl: num(td.f_gl_opp), cSnap: num(td.f_snap_pct),
+          seasonTd: num(p.season_td), sinceTd: num(p.games_since_last_td),
+          hiConf: p.high_confidence_td_flag ? 1 : 0,
+          quest: p.questionable ? 1 : 0,
+          lowS: p.low_sample ? 1 : 0,
+          carry: p.carryover ? 1 : 0,
+          matchup: p.coverage_mismatch_tag || '',
+          watched: watchlist.isPinned(p.player_id) ? 1 : 0,
+        }
+      })
+  }, [data, pos, team, q, onlyWatched, watchlist, tdRankOf])
 
   // Counts on the controls, the way Boards and Touchdowns carry them -- a
   // filter that says how many it will leave is worth more than one that
@@ -93,11 +125,37 @@ export default function Research({ data, onPlayerClick }) {
       { key: 'watched', label: '☆', action: true, w: 28, mark: '★', markOff: '☆',
         titleOn: 'Remove from watchlist', titleOff: 'Add to watchlist',
         onAction: (row) => watchlist.toggle(row) },
+      { key: 'rank', label: '#', w: 40, heat: false, mono: true, bold: true,
+        fmt: (v) => (v == null ? '—' : `#${v}`),
+        title: 'His position on this week\u2019s Anytime TD board, #1 first, over every scored player. Filtering hides rows; it never renumbers them. Blank means the TD market does not score his position.' },
       { key: 'name', label: 'Player', w: 150, heat: false, sticky: true },
       { key: 'pos', label: 'POS', w: 42, heat: false },
       { key: 'team', label: 'TM', w: 42, heat: false },
       { key: 'opp', label: 'OPP', w: 46, heat: false },
-      { key: 'TDSC', label: 'TD SCORE', w: 66, dp: 0 },
+      // ── THE FULL COLUMN SET (2026-09-25). Donovan: every column, on every
+      //    table, both sports. The model's numbers first -- the seven market
+      //    scores, the six TD components, the flags -- then every published
+      //    stat below. Same shape as MOONSHOT's lib/boardColumns.js. ──
+      { key: 'TDSC', label: 'Anytime TD', w: 62, dp: 0, primary: true },
+      { key: 'RECYDSC', label: 'Receiving yards', w: 62, dp: 0 },
+      { key: 'RECSC', label: 'Receptions', w: 62, dp: 0 },
+      { key: 'RUYDSC', label: 'Rushing yards', w: 62, dp: 0 },
+      { key: 'RUATSC', label: 'Rushing attempts', w: 62, dp: 0 },
+      { key: 'PAYDSC', label: 'Passing yards', w: 62, dp: 0 },
+      { key: 'KICKSC', label: 'Kicking points', w: 62, dp: 0 },
+      { key: 'cRz', label: 'RZ opp', w: 52, dp: 0 },
+      { key: 'cGl', label: 'GL opp', w: 52, dp: 0 },
+      { key: 'cTouch', label: 'Touches', w: 54, dp: 0 },
+      { key: 'cXtd', label: 'xTD opp', w: 54, dp: 0 },
+      { key: 'cSnap', label: 'Snap share', w: 58, dp: 0 },
+      { key: 'cTot', label: 'Implied team total', w: 60, dp: 0 },
+      { key: 'seasonTd', label: 'Season TD', w: 54, dp: 0 },
+      { key: 'sinceTd', label: 'Since last TD', w: 58, dp: 0, invert: true },
+      { key: 'hiConf', label: 'A+', flag: true, mark: '\u2605', w: 30, title: 'High-confidence TD flag: a TD score of 78 or better, the A+ band.' },
+      { key: 'quest', label: 'Q', flag: true, mark: 'Q', w: 28, title: 'Listed as questionable on the injury report.' },
+      { key: 'lowS', label: 'Thin', flag: true, mark: '\u25CB', w: 34, title: 'Low sample: the model scored him off too few games. Dimmed rows are these.' },
+      { key: 'carry', label: 'Carryover', flag: true, mark: '\u21A9', w: 44 },
+      { key: 'matchup', label: 'Matchup', heat: false, w: 64, dim: true, title: 'The coverage read: TARGET when the defense he faces leaks to his role, AVOID when it does not.' },
     ]
     // Only render a stat column if at least one row actually has it — an all-
     // dash column is noise, and with seven positions sharing one table most
@@ -126,9 +184,9 @@ export default function Research({ data, onPlayerClick }) {
   return (
     <div>
       <PageHeader
-        eyebrow="TUDDY · RESEARCH"
-        title="Every player, every published number"
-        note="The raw board behind the calls — every stat the bot publishes for every scored player, sortable, with no model opinion layered on top. Tap a name to open his card."
+        eyebrow="TUDDY · THE BOARD"
+        title="Every player, #1 to the bottom, every number"
+        note="The whole board in order — every scored player ranked on the Anytime TD board, with every market score, the six numbers behind the TD score, and every stat the bot publishes. Sort any column; the # column brings back the board's own order. Tap a name to open his card."
         theme={C}
         numFont={NUM_FONT}
         accent={C.green}
@@ -160,15 +218,16 @@ export default function Research({ data, onPlayerClick }) {
       </div>
 
       <div style={{ fontSize: 12, color: C.text3, margin: '8px 0 6px', lineHeight: 1.55 }}>
-        {rows.length} player{rows.length === 1 ? '' : 's'} — every published stat, sorted by whichever column you tap.
+        {rows.length} player{rows.length === 1 ? '' : 's'} — in board order, every published number, sorted by whichever column you tap.
       </div>
 
       <NflTable
         rows={rows}
         columns={columns}
-        initialSort="TDSC"
+        initialSort={{ key: 'rank', dir: 'asc' }}
         maxHeight={620}
-        maxRows={300}
+        // Every single one, in order (2026-09-25): no cap on this table.
+        maxRows={Math.max(rows.length, 1)}
         onRowClick={(r) => onPlayerClick?.(r._p)}
         dimRow={(r) => r._p?.low_sample}
         caption={

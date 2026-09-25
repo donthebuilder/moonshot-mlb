@@ -8,6 +8,7 @@ import {
 import { PanelTitle, Empty, inputStyle } from '../ui'
 import Rail from '../Rail'
 import DenseTable from '../DenseTable'
+import { boardRow, boardRowContext, withBoardColumns } from '../../lib/boardColumns'
 import { seqChip, divChip, SEQ_AUTO, SCORE } from '../../lib/scales'
 
 // Longest — who hits the FARTHEST ball tonight.
@@ -150,10 +151,13 @@ export default function LongestBoard({ players = [], results = null, onWatch, wa
   const [minBBE, setMinBBE] = useState(0)
   const [query, setQuery] = useState('')
 
+  // Slate-wide facts for the board columns (2026-09-25, lib/boardColumns.js).
+  const boardCtx = useMemo(() => boardRowContext(players, { watchIds }), [players, watchIds])
   const all = useMemo(() => players.map((p, i) => {
     const raw = n(p?.longest_hr_score, 0)
     const k = carry(p)
     return {
+      ...boardRow(p, i, boardCtx),
       _key: `${p?.player_id ?? nameOf(p)}-${i}`,
       _raw: p,
       name: nameOf(p),
@@ -198,7 +202,7 @@ export default function LongestBoard({ players = [], results = null, onWatch, wa
       parkBrl: n(p?.park_barrel_factor, null),
       watched: watchIds?.has(playerId(p)) ? 1 : 0,
     }
-  }), [players, watchIds])
+  }), [players, watchIds, boardCtx])
 
   const rows = useMemo(() => {
     const q = query.toLowerCase().trim()
@@ -215,9 +219,9 @@ export default function LongestBoard({ players = [], results = null, onWatch, wa
   const maxBBE = Math.max(...all.map((r) => r.bbe), 0)
   // Docket #19: columns light up only when the bot starts publishing distances.
   const hasDist = all.some((r) => r.maxDist > 0)
-  const columns = hasDist
+  const columns = withBoardColumns(hasDist
     ? (() => { const base = buildColumns(onWatch); base.splice(6, 0, ...DIST_COLUMNS); return base })()
-    : buildColumns(onWatch)
+    : buildColumns(onWatch), { onWatch, dhOn: false })
 
   return (
     <div>
