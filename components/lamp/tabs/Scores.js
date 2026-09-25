@@ -39,8 +39,6 @@ export default function Scores({ onOpenGame }) {
           { value: games.length, label: 'GAMES', tone: C.text2 },
         ] : null}
       />
-        )}
-      />
       {/* Paging lives under the header, not in it: on a phone the header's
           right side hides (MobileCSS .page-header-stats), and a control that
           disappears on the device most people read scores on is no control. */}
