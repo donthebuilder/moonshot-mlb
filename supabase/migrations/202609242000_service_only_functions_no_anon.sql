@@ -36,15 +36,36 @@ $$;
 revoke all on function public.lock_fantasy_player_lineup(uuid,smallint,smallint,timestamptz) from public, anon, authenticated;
 grant execute on function public.lock_fantasy_player_lineup(uuid,smallint,smallint,timestamptz) to service_role;
 
-revoke execute on function public.process_all_fantasy_waivers() from anon, authenticated;
-revoke execute on function public.process_fantasy_waivers_unchecked(uuid) from anon, authenticated;
-revoke execute on function public.refresh_all_fantasy_matchup_scores(smallint,smallint) from anon, authenticated;
-revoke execute on function public.advance_all_fantasy_playoffs(smallint) from anon, authenticated;
-revoke execute on function public.advance_fantasy_playoffs_unchecked(uuid,smallint) from anon, authenticated;
-revoke execute on function public.dash_push_log_prune() from anon, authenticated;
-revoke execute on function public.dash_push_seen_prune() from anon, authenticated;
-revoke execute on function public.sync_nfl_player_catalog(jsonb) from anon;
-revoke execute on function public.sync_nfl_week_feed(jsonb,jsonb) from anon;
+-- Idempotent, and tolerant of a database that has not run a later migration
+-- yet (09-24: advance_all_fantasy_playoffs did not exist on prod because the
+-- playoffs migration had not been run). Skips what is not there, says so.
+do $$
+declare
+  f text;
+  done text := '';
+  missing text := '';
+begin
+  foreach f in array array[
+    'public.process_all_fantasy_waivers()',
+    'public.process_fantasy_waivers_unchecked(uuid)',
+    'public.refresh_all_fantasy_matchup_scores(smallint,smallint)',
+    'public.advance_all_fantasy_playoffs(smallint)',
+    'public.advance_fantasy_playoffs_unchecked(uuid,smallint)',
+    'public.dash_push_log_prune()',
+    'public.dash_push_seen_prune()',
+    'public.sync_nfl_player_catalog(jsonb)',
+    'public.sync_nfl_week_feed(jsonb,jsonb)'
+  ] loop
+    if to_regprocedure(f) is not null then
+      execute format('revoke execute on function %s from anon, authenticated', f);
+      execute format('grant execute on function %s to service_role', f);
+      done := done || f || '  ';
+    else
+      missing := missing || f || '  ';
+    end if;
+  end loop;
+  raise notice 'revoked from anon/authenticated: %', done;
+  raise notice 'not on this database (skipped): %', missing;
+end $$;
 
--- Verify (anon key, no user): every one of these must now answer 42501.
---   curl -X POST "$URL/rest/v1/rpc/process_all_fantasy_waivers" -H "apikey: $ANON" -H "Authorization: Bearer $ANON" -d '{}'
+-- Verify (anon key, no user): each existing function must now answer 42501.
