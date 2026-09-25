@@ -21,7 +21,7 @@ import styles from '../(front)/dash.module.css'
 import '../(front)/scroll-anchor.css' // css-loader pure-selector fix, 2026-09-06
 import { safeNext } from '../../lib/safeNext'
 
-export const metadata = { title: 'Sign in · DASH Network' }
+export const metadata = { title: 'Sign in · DASH Network', robots: { index: false, follow: false } }
 export const dynamic = 'force-dynamic'
 
 // safeNext lives in lib/safeNext.js since 2026-09-24 (SEC-2: the inline

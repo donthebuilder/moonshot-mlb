@@ -72,6 +72,11 @@ export default function Dashboard({ palettePass = 0 }) {
   // Home is the front door now (2026-08-08) — deep links below still land
   // wherever their hash says.
   const [tab, setTabRaw] = useState('home')
+  // 2026-09-24 (SEO/NAV-12): the tab title in the browser tab and history.
+  // Every page of both products read as the site name before this.
+  useEffect(() => {
+    try { document.title = `${pageTitle('mlb', tab)} \u00b7 DASH Network` } catch { /* ignore */ }
+  }, [tab])
   const setTab = (next) => {
     if (next !== 'pairs') setFocusPlayerId(null)
     setModalView({ pid: '', view: '' })

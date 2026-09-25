@@ -2,6 +2,9 @@
 // inherits metadataBase from there, so the relative image path below
 // resolves against NEXT_PUBLIC_SITE_URL once that's set on Vercel.
 export const metadata = {
+  // 2026-09-24 (SEO): gated behind sign-in; nothing to index.
+  robots: { index: false, follow: false },
+  alternates: { canonical: '/fantasy' },
   title: 'Franchise · DASH Network',
   description: 'Build a team. Run your league. Own the season.',
   openGraph: {

@@ -13,6 +13,15 @@
 // intact. The board opens on exactly the tab and player the link asked for.
 import SportRoot from '../../components/SportRoot'
 
+// 2026-09-24 (SEO-1/2): the board's own canonical. Every #sport=…&tab=… is
+// this one document to a crawler; the tab title is set client-side by each
+// dashboard (document.title) for people, not bots.
+export const metadata = {
+  title: 'The board — MOONSHOT & TUDDY · DASH Network',
+  description: 'Tonight\u2019s MLB home-run board and this week\u2019s NFL touchdown board, every call graded in public.',
+  alternates: { canonical: '/app' },
+}
+
 export default function Page() {
   return <SportRoot />
 }

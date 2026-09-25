@@ -56,6 +56,9 @@ const NFL_TABS = new Set(NFL_TAB_KEYS)
 // eslint-disable-next-line no-unused-vars
 export default function NflDashboard({ palettePass = 0 }) {
   const [tab, setTabRaw] = useState('home')
+  useEffect(() => {
+    try { document.title = `${pageTitle('nfl', tab)} \u00b7 DASH Network` } catch { /* ignore */ }
+  }, [tab])
   const [data, setData] = useState(null)
   const [report, setReport] = useState(null)
   const [meta, setMeta] = useState(null)

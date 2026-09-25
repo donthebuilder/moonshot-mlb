@@ -51,9 +51,22 @@ import styles from './called.module.css'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-export const metadata = {
-  title: 'Called It — MOONSHOT · DASH Network',
-  description: 'Every MLB home run tonight, tagged with whether MOONSHOT had the hitter on its board before first pitch. Ten-night capture rate, graded in public.',
+// 2026-09-24 (SEO): the title said MOONSHOT on the football page too, and
+// the root canonical pointed both sports at '/'. One entry per sport now.
+export async function generateMetadata({ searchParams }) {
+  const params = (await searchParams) || {}
+  const nfl = String(params.sport || '') === 'nfl'
+  return nfl
+    ? {
+      title: 'Called It — TUDDY · DASH Network',
+      description: 'Every NFL touchdown, tagged with whether TUDDY had the scorer on its board before kickoff. Board coverage by game day, graded in public.',
+      alternates: { canonical: '/called?sport=nfl' },
+    }
+    : {
+      title: 'Called It — MOONSHOT · DASH Network',
+      description: 'Every MLB home run tonight, tagged with whether MOONSHOT had the hitter on its board before first pitch. Ten-night capture rate, graded in public.',
+      alternates: { canonical: '/called' },
+    }
 }
 
 const DAYS = 10

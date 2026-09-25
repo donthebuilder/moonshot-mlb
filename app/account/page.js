@@ -33,7 +33,7 @@ import { dashSignOut } from '../(front)/actions'
 import styles from '../(front)/dash.module.css'
 import '../(front)/scroll-anchor.css' // css-loader pure-selector fix, 2026-09-06
 
-export const metadata = { title: 'Your account · DASH Network' }
+export const metadata = { title: 'Your account · DASH Network', robots: { index: false, follow: false } }
 export const dynamic = 'force-dynamic'
 
 export default async function AccountPage({ searchParams }) {

@@ -15,10 +15,12 @@ export const metadata = {
   metadataBase: new URL(SITE_URL),
   title: 'DASH Network · Moonshot, Tuddy & Franchise',
   description: 'DASH Network — Moonshot MLB, Tuddy NFL, and Franchise fantasy football.',
-  // #96: there was no canonical URL on the front door at all. The board is a
-  // hash-routed single page, so every deep link (#tab=…&p=…) is the same
-  // document to a crawler; without this they compete with each other.
-  alternates: { canonical: '/' },
+  // #96 set `alternates.canonical: '/'` HERE, on the root layout -- which
+  // Next inherits into every route, so /app, /called, /start and /fantasy all
+  // told crawlers they were duplicates of the front door (2026-09-24 audit,
+  // SEO-1). Each page declares its own canonical now; the front door's is in
+  // app/(front)/page.js. The hash-routed board still collapses to one URL,
+  // which is what /app's own canonical says.
   // #97: the card was `summary` pointing at a 1024x1024 app icon, so a shared
   // link rendered as a small logo tile -- for a product that is entirely
   // visual boards, and whose whole distribution is people sharing links.

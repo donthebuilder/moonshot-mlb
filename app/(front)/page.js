@@ -45,6 +45,7 @@ import styles from './dash.module.css'
 import './scroll-anchor.css' // css-loader pure-selector fix, 2026-09-06
 
 export const metadata = {
+  alternates: { canonical: '/' },
   title: 'DASH Network — one network, three ways to play',
   description: 'MOONSHOT (MLB), TUDDY (NFL) and FRANCHISE (fantasy football). Every call graded in public.',
 }
