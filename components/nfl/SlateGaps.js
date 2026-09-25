@@ -30,7 +30,10 @@ import ChartFrame from './ChartFrame'
 const SHOWN = 9
 const H = 58
 
-export default function SlateGaps({ players, market, rungIds, onPick }) {
+// compact (2026-09-25): the verdict sentence only, no bars. Picks moved to
+// cards (PickCard.js) and a bar chart whose whole message is "the order is
+// thinner than it looks" was leading every market -- it is a footnote now.
+export default function SlateGaps({ players, market, rungIds, onPick, compact = false }) {
   const model = useMemo(() => {
     const all = (players || [])
       .map((p) => ({ id: String(p.player_id), name: p.name, score: Number(p.scores?.[market]) }))
@@ -69,6 +72,20 @@ export default function SlateGaps({ players, market, rungIds, onPick }) {
   // discussed another.
   const { gaps, max } = model
   const marked = model.widestCarded
+
+  if (compact) {
+    return (
+      <div style={{ fontFamily: NUM_FONT, fontSize: 9.5, color: C.text3, lineHeight: 1.5, padding: '2px 0 4px' }}>
+        {model.n} eligible ·{' '}
+        {model.thin
+          ? <>too few to have a shape — the card is most of the pool</>
+          : model.cliff
+            ? <>one clear at the top — <b style={{ color: C.green }}>{model.leader}</b> at {Math.round(model.top)},
+              a {(model.top - model.second).toFixed(1)} drop to the next name</>
+            : <>no standout — the widest gap inside the card is {marked.drop.toFixed(1)}, so read the order lightly</>}
+      </div>
+    )
+  }
 
   return (
     <div style={{ padding: '2px 0 4px' }}>

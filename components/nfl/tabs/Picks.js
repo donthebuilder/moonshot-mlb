@@ -14,10 +14,9 @@ import {
   gradeSlate, recordSlate, ledgerTotals, exportStore, importStore, clearAll,
   wilson95, separated, readLedger, slateVerdict,
 } from '../../../lib/nfl/myPicks'
-import { injuryTag, injuryTitle, injuryColor } from '../../../lib/nfl/injury'
-import MatchupBadge from '../MatchupBadge'
-import { AnatomyStrip } from '../ScoreAnatomy'
 import SlateGaps from '../SlateGaps'
+import PickCard from '../PickCard'
+import { baselineFor } from '../ScoreAnatomy'
 import ChartFrame from '../ChartFrame'
 
 // 🎫 PICKS — the bot's card, and yours on top of it.
@@ -120,7 +119,7 @@ function SlateStrip({ bump }) {
   )
 }
 
-export default function Picks({ picks, results, data, matchup, onPlayerClick, odds, oddsStatus }) {
+export default function Picks({ picks, results, data, matchup, onPlayerClick, odds, oddsStatus, logs = null }) {
   const [mine, setMine] = useState({})
   const [now, setNow] = useState(() => Date.now())
   const [msg, setMsg] = useState('')
@@ -183,6 +182,17 @@ export default function Picks({ picks, results, data, matchup, onPlayerClick, od
     () => Object.fromEntries((data?.markets || []).map((m) => [m.key, m.weights || {}])),
     [data],
   )
+  // The slate baseline per market, for the card's "why" (reasonFor compares
+  // a man's components against the eligible pool's middle, same as Boards).
+  const baseFor = useMemo(() => {
+    const out = {}
+    for (const m of (data?.markets || [])) {
+      const pool = (data?.players || []).filter((p) => Number.isFinite(p.scores?.[m.key]))
+      out[m.key] = baselineFor(pool, m.key)
+    }
+    return out
+  }, [data])
+  const logOf = (pid) => logs?.logs?.[String(pid)]?.log || null
 
   const open = (pid, market) => {
     const row = byPid[String(pid)]
@@ -521,8 +531,9 @@ export default function Picks({ picks, results, data, matchup, onPlayerClick, od
                     at rung 12. This can: every eligible player on the slate as
                     a dot, the card's five lit. A blob means don't bet much
                     today, which is a thing the board could never tell you. */}
-                <div style={{ marginTop: 9 }}>
+                <div style={{ marginTop: 6 }}>
                   <SlateGaps
+                    compact
                     players={eligible[market] || []}
                     market={market}
                     rungIds={(blk.rungs || []).map((r) => r.player_id)}
@@ -540,71 +551,45 @@ export default function Picks({ picks, results, data, matchup, onPlayerClick, od
                 const g = gradeFor(rung.score)
                 return (
                   <div key={rung.rank} style={{
-                    borderTop: `1px solid ${C.bg}`, padding: '8px 13px',
+                    padding: '6px 10px',
                     background: my ? `${CONV_COLOR()[my.conviction]}0d` : 'transparent',
-                    opacity: rung.low_sample && !my ? 0.62 : 1,
                   }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                      <span style={{
-                        fontFamily: NUM_FONT, fontSize: TYPE.label, fontWeight: 900,
-                        color: C.text3, minWidth: 14,
-                      }}>{rung.rank}</span>
-                      <span style={{
-                        fontFamily: NUM_FONT, fontSize: TYPE.title, fontWeight: 900,
-                        color: g.color, minWidth: 30,
-                      }}>{Math.round(rung.score)}</span>
-                      <AnatomyStrip
-                        components={byPid[String(rung.player_id)]?.components?.[market]}
-                        weights={weightsFor[market]}
-                        width={54}
-                      />
-                      <button
-                        onClick={() => open(rung.player_id, market)}
-                        style={{
-                          background: 'transparent', border: 'none', padding: 0, cursor: 'pointer',
-                          textAlign: 'left', fontSize: TYPE.name, flex: 1, minWidth: 120,
-                          color: my ? C.text3 : C.text,
-                          textDecoration: my ? 'line-through' : 'none',
-                        }}
-                      >
-                        {rung.name}{' '}
-                        <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, color: C.text3 }}>
-                          {rung.position} {rung.team}{rung.opp ? ` vs ${rung.opp}` : ''}
-                        </span>
-                      </button>
-                      <MatchupBadge matchup={matchup} player={rung} market={market} />
-                      {/* The book's line on the bot's own rung — renders
-                          nothing when this player has none (a normal,
-                          per-player state; the banner above says whether the
-                          fetch found anything at all). */}
-                      {odds && (
-                        <OddsLine
-                          quote={quoteFor(odds, { player_id: rung.player_id, name: rung.name }, market)}
-                          compact
-                        />
+                    {/* THE CARD (2026-09-25, components/nfl/PickCard.js): the
+                        MOONSHOT Props card shape -- face, badges, the sentence
+                        with the number behind it, chips, L4/L8/season tiles
+                        and the last-8 game log. The contest controls ride on
+                        the card's right edge; the conviction row stays below. */}
+                    <PickCard
+                      rung={rung}
+                      player={byPid[String(rung.player_id)] || rung}
+                      market={market}
+                      marketLabel={blk.label}
+                      weights={weightsFor[market]}
+                      base={baseFor[market]}
+                      bar={Number(blk.bar)}
+                      matchup={matchup}
+                      log={logOf(rung.player_id)}
+                      onOpen={() => open(rung.player_id, market)}
+                      right={(
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flex: '0 0 auto' }}>
+                          {odds && (
+                            <OddsLine
+                              quote={quoteFor(odds, { player_id: rung.player_id, name: rung.name }, market)}
+                              compact
+                            />
+                          )}
+                          {row && outcome(row.botOut, row.botVal)}
+                          {!locked && (
+                            <button onClick={() => setOpenSlot(picking ? null : sk)} style={{
+                              ...btnStyle(C.cyan, open), fontSize: TYPE.label, padding: '5px 8px',
+                            }}>{my ? 'change' : 'take it'}</button>
+                          )}
+                          {locked && !my && (
+                            <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, color: C.text3 }}>🔒</span>
+                          )}
+                        </div>
                       )}
-                      {injuryTag(rung) && (
-                        <span title={injuryTitle(injuryTag(rung))}
-                              style={{ fontSize: TYPE.label, fontWeight: 900,
-                                       color: injuryColor(injuryTag(rung), C) }}>
-                          {injuryTag(rung)}
-                        </span>
-                      )}
-                      {rung.low_sample && (
-                        <span title="Below the sample the model wants — it backfilled this rung."
-                              style={{ fontSize: TYPE.micro, fontWeight: 900, color: C.text3 }}>~</span>
-                      )}
-                      {row && outcome(row.botOut, row.botVal)}
-                      {!locked && (
-                        <button onClick={() => setOpenSlot(picking ? null : sk)} style={{
-                          ...btnStyle(C.cyan, open), fontSize: TYPE.label, padding: '5px 8px',
-                        }}>{my ? 'change' : 'take it'}</button>
-                      )}
-                      {locked && !my && (
-                        <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, color: C.text3 }}>🔒</span>
-                      )}
-                    </div>
-
+                    />
                     {my && (
                       <div style={{
                         display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap',
