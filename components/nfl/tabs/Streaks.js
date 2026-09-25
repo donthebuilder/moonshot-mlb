@@ -5,7 +5,7 @@
 // consecutive games on the same side of that number. Hot at the top, or flip
 // to Coldest for the fade board.
 import { useMemo, useState } from 'react'
-import { C, NUM_FONT, gradeFor } from '../../../lib/nfl/theme'
+import { C, NUM_FONT, TYPE, gradeFor } from '../../../lib/nfl/theme'
 import { streakMarkets, streakBoard, barChoices } from '../../../lib/nfl/streaks'
 import PageHeader from '../../PageHeader'
 import { FilterPill } from '../../Filters'
