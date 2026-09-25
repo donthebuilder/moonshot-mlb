@@ -107,6 +107,9 @@ export default function MobileCSS() {
         .yp-row { position: relative !important; padding-right: 46px !important; min-height: 44px !important; }
       }
 
+      /* a shift-click hint on a touch screen is noise (2026-09-24) */
+      @media (pointer: coarse) { .dense-shift-hint { display: none } }
+
       @media (max-width: 520px) {
         /* ── COLUMNS THAT EARN THEIR PLACE ON A DESK, NOT IN A HAND ────────
            The three season panels added on 2026-09-03 (October odds, the

@@ -11,6 +11,7 @@ import PowerTab from './Power'
 import BlankBoard from '../BlankBoard'
 import PlayerCard from '../PlayerCard'
 import { usePreview, ShowMoreButton } from '../ListPreview'
+import MobileFold from '../MobileFold'
 // HitterHeat (the heat-painted 'top 15 profile' tables) left this page 2026-09-06 -- Donovan:
 // "I don't like those ones." The cards below carry the same names.
 import { hrScore, mlbId, nameOf, playerId, teamOf } from '../../lib/player'
@@ -561,13 +562,19 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
         </div>
       )}
 
-      <B2BStrip
-        list={b2b.list}
-        verified={b2b.verified}
-        loading={setupHomers === undefined}
-        cashed={b2bCashed}
-        onPlayerClick={onPlayerClick}
-      />
+      {/* PHONE (2026-09-24 audit): on a 390px screen the Boards page put ~920px
+          of chrome before the first ranked row, and this strip was 200px of
+          it -- three card rows and two paragraphs above the board the tab is
+          named for. Folded to one line on a phone; desktop unchanged. */}
+      <MobileFold title="\u{1F501} B2B Watch" summary={b2b.list?.length ? `${b2b.list.length} encore chase${b2b.list.length === 1 ? '' : 's'} \u00b7 back-to-back homers ${B2B_VALIDATED.backToBack.pct}% vs ${B2B_VALIDATED.baseline.pct}% base` : 'no back-to-back setups tonight'} count={b2b.list?.length || null} accent={C.orange} rememberKey="fold_b2b_v1">
+        <B2BStrip
+          list={b2b.list}
+          verified={b2b.verified}
+          loading={setupHomers === undefined}
+          cashed={b2bCashed}
+          onPlayerClick={onPlayerClick}
+        />
+      </MobileFold>
 
       {bview === 'gap' ? (
         <GapBoard players={players} odds={odds} onPlayerClick={onPlayerClick} />

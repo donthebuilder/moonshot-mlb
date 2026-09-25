@@ -373,7 +373,8 @@ export default function DenseTable({
               textDecoration: 'underline', textDecorationStyle: 'dotted',
             }}>clear</span>
           )}
-          <span style={{ fontFamily: NUM_FONT, fontSize: 8, color: C.text3 }}>
+          {/* a shift-click hint on a touch screen is noise (2026-09-24) */}
+          <span className="dense-shift-hint" style={{ fontFamily: NUM_FONT, fontSize: 8, color: C.text3 }}>
             · shift-click a header to add a tiebreaker
           </span>
         </div>
