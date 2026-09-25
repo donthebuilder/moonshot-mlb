@@ -10,6 +10,12 @@
 //
 // Phone-first: five rows by default, the rest behind one tap. Anything that
 // adds scroll on a phone is a problem (Donovan, standing rule).
+//
+// 2026-09-24: also mounted inside TUDDY (components/nfl/TuddyRecentAlerts.js),
+// so `sport` narrows the read to one product and `styles` is optional -- the
+// front door passes its CSS module, an in-app host passes nothing and wraps
+// the list in its own chrome. `emptyWord` is the product's own word for a
+// followed event ("homer" on the front door, "touchdown" in TUDDY).
 
 import { useEffect, useState } from 'react'
 
@@ -33,7 +39,7 @@ const when = (iso) => {
   return `${Math.round(hrs / 24)}d`
 }
 
-export default function RecentAlerts({ styles, enabled }) {
+export default function RecentAlerts({ styles = null, enabled, sport = null, emptyWord = 'homer' }) {
   const [rows, setRows] = useState(null)
   const [reason, setReason] = useState(null)
   const [all, setAll] = useState(false)
@@ -41,12 +47,13 @@ export default function RecentAlerts({ styles, enabled }) {
   useEffect(() => {
     if (!enabled) return
     let live = true
-    fetch('/api/dash/push/log', { cache: 'no-store' })
+    const url = sport ? `/api/dash/push/log?sport=${encodeURIComponent(sport)}` : '/api/dash/push/log'
+    fetch(url, { cache: 'no-store' })
       .then((r) => r.json())
       .then((j) => { if (live) { setRows(Array.isArray(j?.rows) ? j.rows : []); setReason(j?.reason || null) } })
       .catch(() => { if (live) { setRows([]); setReason('fetch-failed') } })
     return () => { live = false }
-  }, [enabled])
+  }, [enabled, sport])
 
   if (!enabled) return null
 
@@ -63,13 +70,13 @@ export default function RecentAlerts({ styles, enabled }) {
   const shown = all ? list : list.slice(0, PREVIEW)
 
   return (
-    <div className={styles.closedSite} style={{ display: 'block' }}>
+    <div className={styles?.closedSite} style={{ display: 'block' }}>
       <b>Recent alerts</b>
       <small style={{ display: 'block', marginTop: 2 }}>
         {rows === null
           ? 'Loading…'
           : !list.length
-            ? (reason === 'no-table' ? 'Not recording yet.' : 'Nothing sent to this account yet — the first followed homer will show up here.')
+            ? (reason === 'no-table' ? 'Not recording yet.' : `Nothing sent to this account yet — the first followed ${emptyWord} will show up here.`)
             : `Last ${list.length}${dropped ? ` · ${dropped} dropped for losing the 10- or 30-minute window` : ''}`}
       </small>
       {shown.length ? (
@@ -93,7 +100,7 @@ export default function RecentAlerts({ styles, enabled }) {
         </ul>
       ) : null}
       {list.length > PREVIEW ? (
-        <button type="button" className={styles.armBtn} style={{ marginTop: 8 }} onClick={() => setAll(!all)} aria-expanded={all}>
+        <button type="button" className={styles?.armBtn} style={styles ? { marginTop: 8 } : { marginTop: 8, padding: '6px 10px', border: '1px solid currentColor', borderRadius: 8, background: 'transparent', color: 'inherit', font: 'inherit', fontSize: 11, cursor: 'pointer' }} onClick={() => setAll(!all)} aria-expanded={all}>
           {all ? 'Show fewer' : `Show all ${list.length}`}
         </button>
       ) : null}

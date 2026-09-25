@@ -28,7 +28,12 @@ const service = () => {
   return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } })
 }
 
-export async function GET() {
+const SPORTS = new Set(['mlb', 'nfl'])
+
+export async function GET(request) {
+  // ?sport=nfl narrows to one product's rows (TUDDY's in-app panel, 09-24);
+  // anything else, or nothing, is the whole account -- the front door's view.
+  const sport = new URL(request.url).searchParams.get('sport')
   if (!hasSupabaseConfig()) return Response.json({ rows: [], reason: 'not-configured' })
   const supabase = await createSupabaseServerClient()
   const { data: auth } = supabase ? await supabase.auth.getUser() : { data: null }
@@ -38,10 +43,12 @@ export async function GET() {
   const db = service()
   if (!db) return Response.json({ rows: [], reason: 'service-key-missing' })
 
-  const { data, error } = await db
+  let q = db
     .from('dash_push_log')
     .select('event_key,category,sport,priority,lane,title,body,outcome,at,endpoint_hash')
     .eq('user_id', user.id)
+  if (SPORTS.has(sport)) q = q.eq('sport', sport)
+  const { data, error } = await q
     .order('at', { ascending: false })
     .limit(LIMIT)
   if (error) {
