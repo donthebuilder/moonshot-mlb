@@ -131,3 +131,17 @@
 .nightStat { color: var(--dim); font-variant-numeric: tabular-nums; font-size: 12px; white-space: nowrap; }
 .night .list { padding-bottom: 10px; }
 #tonight:target, .night:target { scroll-margin-top: 70px; }
+
+/* Last in the file on purpose: it has to win over .navOn / .navOff / .navCta
+   above, which are declared after the first phone block. */
+@media (max-width: 480px) {
+  /* THREE SPORTS IN THE SWITCH (Batch 1, 2026-09-25). Measured at 390px:
+     with MLB · NFL · NHL the bar ran 1px past the screen, "Get the calls"
+     broke onto two lines and the brand wrapped, 103px tall (83 with two
+     sports). Tighter pills, a one-line CTA and no app icon on a phone
+     bring it to 64px on one line; the wordmark still links home. */
+  .nav { gap: 6px; font-size: 12px; }
+  .navOn, .navOff { padding: 6px 8px; }
+  .navCta { padding: 6px 8px; white-space: nowrap; }
+  .brand img { display: none; }
+}

@@ -15,6 +15,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { createSupabaseServerClient } from '../../../../../lib/supabase/server'
 import { hasSupabaseConfig } from '../../../../../lib/supabase/config'
+import { isSport } from '../../../../../lib/routes'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -28,11 +29,11 @@ const service = () => {
   return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } })
 }
 
-const SPORTS = new Set(['mlb', 'nfl'])
-
 export async function GET(request) {
   // ?sport=nfl narrows to one product's rows (TUDDY's in-app panel, 09-24);
   // anything else, or nothing, is the whole account -- the front door's view.
+  // Which values count as a sport is the registry's call (lib/routes.js); a
+  // local {mlb, nfl} set here answered ?sport=nhl with every alert (Batch 1).
   const sport = new URL(request.url).searchParams.get('sport')
   if (!hasSupabaseConfig()) return Response.json({ rows: [], reason: 'not-configured' })
   const supabase = await createSupabaseServerClient()
@@ -47,7 +48,7 @@ export async function GET(request) {
     .from('dash_push_log')
     .select('event_key,category,sport,priority,lane,title,body,outcome,at,endpoint_hash')
     .eq('user_id', user.id)
-  if (SPORTS.has(sport)) q = q.eq('sport', sport)
+  if (isSport(sport)) q = q.eq('sport', sport)
   const { data, error } = await q
     .order('at', { ascending: false })
     .limit(LIMIT)

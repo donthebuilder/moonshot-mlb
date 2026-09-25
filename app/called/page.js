@@ -26,6 +26,7 @@ import { easternToday } from '../../lib/data'
 import { captureFrom, matchupWord, oddsWord, roleWord } from '../../lib/dash/homerFeed'
 import { tdCallWord, tdCaptureFrom, tdPlayWord } from '../../lib/nfl/tdFeed'
 import { callStatus } from '../../lib/callStatus'
+import { BRAND, SPORT_KEYS, sportKey } from '../../lib/routes'
 import styles from './called.module.css'
 
 // 2026-09-20 — FOOTBALL MOVED IN, IT DIDN'T GET ITS OWN HOUSE. Donovan:
@@ -55,20 +56,8 @@ export const revalidate = 0
 // the root canonical pointed both sports at '/'. One entry per sport now.
 export async function generateMetadata({ searchParams }) {
   const params = (await searchParams) || {}
-  const nfl = String(params.sport || '') === 'nfl'
-  return nfl
-    ? {
-      title: 'Called It — TUDDY · DASH Network',
-      description: 'Every NFL touchdown, tagged with whether TUDDY had the scorer on its board before kickoff. Board coverage by game day, graded in public.',
-      alternates: { canonical: '/called?sport=nfl' },
-    }
-    : {
-      title: 'Called It — MOONSHOT · DASH Network',
-      description: 'Every MLB home run tonight, tagged with whether MOONSHOT had the hitter on its board before first pitch. Ten-night capture rate, graded in public.',
-      alternates: { canonical: '/called' },
-    }
+  return SPORTS[sportKey(String(params.sport || '').toLowerCase())].meta
 }
-
 const DAYS = 10
 
 function client() {
@@ -103,6 +92,11 @@ const SPORTS = {
     legend: '🤖 on the bot before the ball left  ·  ⚪ on the board, no call  ·  💥 not on the board',
     empty: 'No home runs yet tonight',
     foot: "CALLED IT is MOONSHOT's home run record — every home run, graded in public. Data from MLB's public feeds.",
+    meta: {
+      title: 'Called It — MOONSHOT · DASH Network',
+      description: 'Every MLB home run tonight, tagged with whether MOONSHOT had the hitter on its board before first pitch. Ten-night capture rate, graded in public.',
+      alternates: { canonical: '/called' },
+    },
   },
   nfl: {
     key: 'nfl', label: 'NFL', product: 'TUDDY', event: 'touchdowns', eventOne: 'touchdown',
@@ -110,6 +104,26 @@ const SPORTS = {
     legend: '🤖 on the bot before the snap  ·  ⚪ on the board, no call  ·  💥 not on the board',
     empty: 'No touchdowns yet today',
     foot: "CALLED IT is TUDDY's touchdown record — every touchdown, graded in public. Data from public NFL feeds.",
+    meta: {
+      title: 'Called It — TUDDY · DASH Network',
+      description: 'Every NFL touchdown, tagged with whether TUDDY had the scorer on its board before kickoff. Board coverage by game day, graded in public.',
+      alternates: { canonical: '/called?sport=nfl' },
+    },
+  },
+  // LAMP (Batch 1, 2026-09-25). Until Batch 2 reads lamp_goal_log into this
+  // page's shape, ?sport=nhl gets an honest placeholder (NhlNotYet below)
+  // instead of MOONSHOT's baseball under an NHL URL. No numbers, no query,
+  // and noindex so the placeholder never becomes the search result.
+  nhl: {
+    key: 'nhl', label: 'NHL', product: 'LAMP', stub: true,
+    board: '/app#sport=nhl&tab=home', record: '/app#sport=nhl&tab=results',
+    foot: "CALLED IT is DASH's public record. LAMP's goal record is coming to this page.",
+    meta: {
+      title: 'Called It — LAMP · DASH Network',
+      description: "LAMP's NHL goal record is coming to CALLED IT. Until then, every graded night is in the LAMP app.",
+      alternates: { canonical: '/called?sport=nhl' },
+      robots: { index: false, follow: true },
+    },
   },
 }
 
@@ -156,8 +170,8 @@ function normNfl(r) {
   }
 }
 
-async function load(sportKey) {
-  const sport = SPORTS[sportKey] || SPORTS.mlb
+async function load(key) {
+  const sport = SPORTS[key] || SPORTS.mlb
   const db = client()
   const today = easternToday()
   const blank = { sport, today, rows: [], picks: [], calledIds: new Set(), history: [], byDay: new Map(), configured: false }
@@ -238,9 +252,9 @@ const glyph = (n) => (n.called ? '🤖' : n.onBoard ? '⚪' : '💥')
 
 export default async function CalledPage({ searchParams }) {
   const params = (await searchParams) || {}
-  const asked = String(params.sport || '').toLowerCase()
-  const sportKey = SPORTS[asked] ? asked : 'mlb'
-  const { sport, today, rows, picks, calledIds, history, byDay, configured } = await load(sportKey)
+  const key = sportKey(String(params.sport || '').toLowerCase())
+  if (SPORTS[key].stub) return <NhlNotYet sport={SPORTS[key]} />
+  const { sport, today, rows, picks, calledIds, history, byDay, configured } = await load(key)
   const BOARD = sport.board
   const SIGNUP = `/login?next=${encodeURIComponent(BOARD)}#create-account`
   // /start -- THE FUNNEL STOP (2026-09-21). claude/the-funnel-2026-09-14.md
@@ -270,19 +284,7 @@ export default async function CalledPage({ searchParams }) {
 
   return (
     <main className={styles.page}>
-      <header className={styles.bar}>
-        <a className={styles.brand} href="/" aria-label="DASH Network home">
-          <img src="/icon-192.png" alt="" width="30" height="30" />
-          <div><small>DASH NETWORK · {sport.product}</small><strong>CALLED IT</strong></div>
-        </a>
-        <nav className={styles.nav}>
-          {/* The switch. Two links, no JS — the same approach the night
-              anchors in the strip below already use. */}
-          <a className={sport.key === 'mlb' ? styles.navOn : styles.navOff} href="/called?sport=mlb">MLB</a>
-          <a className={sport.key === 'nfl' ? styles.navOn : styles.navOff} href="/called?sport=nfl">NFL</a>
-          <a className={styles.navCta} href={START}>Get the calls</a>
-        </nav>
-      </header>
+      <Bar sport={sport} start={START} />
 
       <section className={styles.hero}>
         <p className={styles.kicker}>{prettyDay(today)}</p>
@@ -419,6 +421,48 @@ export default async function CalledPage({ searchParams }) {
         </a>
       </section>
 
+      <footer className={styles.foot}>
+        <span>{sport.foot}</span>
+      </footer>
+    </main>
+  )
+}
+
+// The header, shared by every sport's page. The switch is one link per sport
+// in the registry (lib/routes.js), no JS -- the same approach the night
+// anchors in the strip use. A sport added there shows up here on its own.
+function Bar({ sport, start }) {
+  return (
+    <header className={styles.bar}>
+      <a className={styles.brand} href="/" aria-label="DASH Network home">
+        <img src="/icon-192.png" alt="" width="30" height="30" />
+        <div><small>DASH NETWORK · {sport.product}</small><strong>CALLED IT</strong></div>
+      </a>
+      <nav className={styles.nav}>
+        {SPORT_KEYS.map((k) => (
+          <a key={k} className={k === sport.key ? styles.navOn : styles.navOff} href={`/called?sport=${k}`}>{BRAND[k].league}</a>
+        ))}
+        <a className={styles.navCta} href={start}>Get the calls</a>
+      </nav>
+    </header>
+  )
+}
+
+// LAMP's placeholder. Says what is true today -- the graded nights exist, in
+// the app -- and links there. Batch 2 replaces this with the real record.
+function NhlNotYet({ sport }) {
+  return (
+    <main className={styles.page}>
+      <Bar sport={sport} start={`/start?sport=${sport.key}`} />
+      <section className={styles.hero}>
+        <p className={styles.kicker}>{sport.product} · {sport.label}</p>
+        <h1 className={styles.headline}>LAMP&rsquo;s goal record isn&rsquo;t on this page yet.</h1>
+        <p className={styles.sub}>Every graded night — who scored, and whether the board had him — is in the LAMP app for now.</p>
+        <a className={styles.cta} href={sport.record}>
+          <strong>Open LAMP&rsquo;s record</strong>
+          <span>The NHL goal board, locked before puck drop, graded after the final</span>
+        </a>
+      </section>
       <footer className={styles.foot}>
         <span>{sport.foot}</span>
       </footer>
