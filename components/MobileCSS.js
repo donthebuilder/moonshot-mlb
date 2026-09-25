@@ -107,6 +107,22 @@ export default function MobileCSS() {
         .yp-row { position: relative !important; padding-right: 46px !important; min-height: 44px !important; }
       }
 
+      /* PHONE PILL ROWS SCROLL, NOT WRAP (2026-09-24 audit). On Boards the
+         group row and the Market/Angle row each wrapped onto two lines at
+         390px -- 180px of pills before the first ranked row. One line each,
+         swipe sideways, the active pill stays visible where it was. */
+      @media (max-width: 560px) {
+        .board-pill-row, .lens-rows, .lens-row, .lens-pills {
+          flex-wrap: nowrap !important;
+        }
+        .board-pill-row, .lens-rows {
+          overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+          padding-bottom: 2px; margin-left: -4px; padding-left: 4px;
+        }
+        .board-pill-row::-webkit-scrollbar, .lens-rows::-webkit-scrollbar { display: none }
+        .board-pill-row > *, .lens-row > *, .lens-pills > * { flex: 0 0 auto !important; white-space: nowrap }
+      }
+
       /* a shift-click hint on a touch screen is noise (2026-09-24) */
       @media (pointer: coarse) { .dense-shift-hint { display: none } }
 

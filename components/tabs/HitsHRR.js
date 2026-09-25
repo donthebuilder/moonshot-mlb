@@ -546,7 +546,7 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
         // when a phone is too narrow to fit both. The Group tier above this
         // (Boards/Power/Patterns/Steals/Gap) is tool navigation, not a filter,
         // so it keeps its own row same as the tab rail above it.
-        <div style={{ display: 'flex', flexWrap: 'wrap', columnGap: 20, rowGap: 4, marginBottom: 4 }}>
+        <div className="lens-rows" style={{ display: 'flex', flexWrap: 'wrap', columnGap: 20, rowGap: 4, marginBottom: 4 }}>
           <LensRow
             label="Market"
             options={MARKET_LENSES.map((o) => ({ ...o, title: LENS_TITLE(o) }))}

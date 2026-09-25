@@ -24,7 +24,7 @@ import { C, NUM_FONT } from '../lib/theme'
 export default function LensRow({ label, options = [], value, onChange, title }) {
   if (!options.length) return null
   return (
-    <div style={{
+    <div className="lens-row" style={{
       display: 'flex', alignItems: 'baseline', gap: 8,
       flexWrap: 'wrap', marginBottom: 6,
     }}>
@@ -36,7 +36,7 @@ export default function LensRow({ label, options = [], value, onChange, title })
         fontSize: 8, fontWeight: 900, letterSpacing: '.14em',
         textTransform: 'uppercase', color: C.text3, fontFamily: NUM_FONT,
       }}>{label}</span>
-      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', flex: '1 1 auto' }}>
+      <div className="lens-pills" style={{ display: 'flex', gap: 5, flexWrap: 'wrap', flex: '1 1 auto' }}>
         {options.map((o) => {
           const on = o.key === value
           const accent = o.color || C.orange
