@@ -566,7 +566,7 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
           of chrome before the first ranked row, and this strip was 200px of
           it -- three card rows and two paragraphs above the board the tab is
           named for. Folded to one line on a phone; desktop unchanged. */}
-      <MobileFold title="\u{1F501} B2B Watch" summary={b2b.list?.length ? `${b2b.list.length} encore chase${b2b.list.length === 1 ? '' : 's'} \u00b7 back-to-back homers ${B2B_VALIDATED.backToBack.pct}% vs ${B2B_VALIDATED.baseline.pct}% base` : 'no back-to-back setups tonight'} count={b2b.list?.length || null} accent={C.orange} rememberKey="fold_b2b_v1">
+      <MobileFold title="🔁 B2B Watch" summary={b2b.list?.length ? `${b2b.list.length} encore chase${b2b.list.length === 1 ? '' : 's'} \u00b7 back-to-back homers ${B2B_VALIDATED.backToBack.pct}% vs ${B2B_VALIDATED.baseline.pct}% base` : 'no back-to-back setups tonight'} count={b2b.list?.length || null} accent={C.orange} rememberKey="fold_b2b_v1">
         <B2BStrip
           list={b2b.list}
           verified={b2b.verified}
