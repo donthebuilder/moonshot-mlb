@@ -52,6 +52,8 @@ import PageHeader from '../../PageHeader'
 import {
   VERB, NOUN, fmtBar, ordinal, weekLabel,
   milestoneStreaks, modelNarrativeStories, rivalryNights, birthdays,
+  scoredLastTimeOut, backToBackRate, dueByTheNumbers, revengeGames, revengeRate,
+  milestoneCountdowns, redZoneMonsters,
 } from '../../../lib/nfl/storylines'
 
 // One row shape for all four categories -- icon, a sentence (bold name, bold
@@ -74,6 +76,10 @@ function Row({ icon, onClick, title, children }) {
 }
 const Num = ({ children }) => <b style={{ fontFamily: NUM_FONT, color: C.orange }}>{children}</b>
 const Name = ({ children }) => <b style={{ color: C.text }}>{children}</b>
+// Every line ends in the man's TD score (2026-09-25) -- MOONSHOT's "· bot 66"
+// -- so a storyline ties back to the board it came from.
+const Td = ({ n }) => (n == null ? null : <span className="sl-row-meta"> · TD {n}</span>)
+const rateTxt = (r) => (r ? `${Math.round(r.rate * 100)}% (${r.hit}/${r.n})` : null)
 
 export default function Storylines({ data, logs, results, onPlayerClick, setTab }) {
   const markets = useMemo(() => streakMarkets(logs), [logs])
@@ -97,13 +103,28 @@ export default function Storylines({ data, logs, results, onPlayerClick, setTab 
   const rivalries = useMemo(() => rivalryNights(data), [data])
   const bdays = useMemo(() => birthdays(data), [data])
 
+  // The second wave (2026-09-25). See lib/nfl/storylines.js for each rule.
+  const b2b = useMemo(() => scoredLastTimeOut(data), [data])
+  const b2bRate = useMemo(() => backToBackRate(logs, data?.season), [logs, data])
+  const due = useMemo(() => dueByTheNumbers(data), [data])
+  const revenge = useMemo(() => revengeGames(data, logs), [data, logs])
+  const revRate = useMemo(() => revengeRate(logs), [logs])
+  const countdowns = useMemo(() => milestoneCountdowns(data, logs), [data, logs])
+  const rzm = useMemo(() => redZoneMonsters(data), [data])
+
   const nothingAtAll = !markets.length && !modelCards.length && !rivalries.length && !bdays.length
+    && !b2b.length && !due.length && !revenge.length && !countdowns.length && !rzm.length
   if (nothingAtAll) {
     return <div className="sl-empty">No game logs published yet — the bot ships nfl_logs.json on its first run of the season, and storylines read the same file Streaks does.</div>
   }
 
   const counts = [
+    b2b.length && `\u{1F501} ${b2b.length} scored last time out`,
     cards.length && `\u{1F525} ${cards.length} milestone streak${cards.length > 1 ? 's' : ''}`,
+    countdowns.length && `\u{1F3C1} ${countdowns.length} countdown${countdowns.length > 1 ? 's' : ''}`,
+    revenge.length && `\u{1F47B} ${revenge.length} revenge game${revenge.length > 1 ? 's' : ''}`,
+    due.length && `\u{1F4CA} ${due.length} due by the numbers`,
+    rzm.length && `\u{1F6A8} ${rzm.length} red-zone monster${rzm.length > 1 ? 's' : ''}`,
     modelCards.length && `\u{1F3AF} ${modelCards.length} model call${modelCards.length > 1 ? 's' : ''}`,
     bdays.length && `\u{1F382} ${bdays.length} birthday${bdays.length > 1 ? 's' : ''}`,
     rivalries.length && `⚡ ${rivalries.length} rivalry game${rivalries.length > 1 ? 's' : ''}`,
@@ -134,7 +155,74 @@ export default function Storylines({ data, logs, results, onPlayerClick, setTab 
               (<Num>{fmtBar(c.missActual)}</Num> of <Num>{fmtBar(c.missBar)}</Num>) — he delivered anyway, just{' '}
               {VERB[c.hitMarket] ? VERB[c.hitMarket](fmtBar(c.hitBar)) : `over ${fmtBar(c.hitBar)} ${NOUN[c.hitMarket] || c.hitMarket}`}
               {' '}(<Num>{fmtBar(c.hitVal)}</Num>), a market the card never opened for him.
-              <span className="sl-row-meta"> · {c.player.team} {c.player.position}</span>
+              <span className="sl-row-meta"> · {c.player.team} {c.player.position}</span><Td n={Number.isFinite(Number(c.player?.scores?.TD)) ? Math.round(c.player.scores.TD) : null} />
+            </Row>
+          ))}
+        </div>
+      )}
+
+      {!!b2b.length && (
+        <div className="sl-feed">
+          <div className="sl-section-head">SCORED LAST TIME OUT{b2bRate ? <span className="sl-head-rate"> · this season a man who scored last week scores again {rateTxt(b2bRate)}</span> : null}</div>
+          {b2b.map((r) => (
+            <Row key={`b2b-${r.player.player_id}`} icon={"\u{1F501}"} onClick={() => onPlayerClick?.(r.player, 'TD')}
+                 title="He scored a touchdown in his most recent game and the model has him on this week's TD board. The rate on the header is this season's back-to-back rate off the game log -- history, not a forecast.">
+              <Name>{r.player.name}</Name> scored last time out — back on the board this week · <Num>{r.seasonTd}</Num> TD this season
+              <span className="sl-row-meta"> · {r.player.team} {r.player.position} vs {r.player.opp || '—'}</span><Td n={r.td} />
+            </Row>
+          ))}
+        </div>
+      )}
+
+      {!!countdowns.length && (
+        <div className="sl-feed">
+          <div className="sl-section-head">MILESTONE COUNTDOWN</div>
+          {countdowns.map((r) => (
+            <Row key={`cd-${r.player.player_id}-${r.stat}`} icon={"\u{1F3C1}"} onClick={() => onPlayerClick?.(r.player, 'TD')}
+                 title={`${r.have} ${r.stat} through ${r.games} game${r.games === 1 ? '' : 's'} this season, from the published game log.`}>
+              <Name>{r.player.name}</Name> is <Num>{fmtBar(r.gap)}</Num> away from <Num>{r.next}</Num> {r.stat} this season — could land this week
+              <span className="sl-row-meta"> · {r.player.team} {r.player.position} vs {r.player.opp || '—'}</span><Td n={r.td} />
+            </Row>
+          ))}
+        </div>
+      )}
+
+      {!!revenge.length && (
+        <div className="sl-feed">
+          <div className="sl-section-head">REVENGE GAMES{revRate ? <span className="sl-head-rate"> · against a former team, across the log: {rateTxt(revRate)} scored</span> : null}</div>
+          {revenge.map((r) => (
+            <Row key={`rv-${r.player.player_id}`} icon={"\u{1F47B}"} onClick={() => onPlayerClick?.(r.player, 'TD')}
+                 title={`The game log shows ${r.oldGames} game${r.oldGames === 1 ? '' : 's'} in a ${r.oldTeam} jersey (${r.seasons.join(', ')}), ${r.tdsThere} touchdown${r.tdsThere === 1 ? '' : 's'} there.`}>
+              <Name>{r.player.name}</Name> faces <Name>{r.oldTeam}</Name>, the jersey he wore for <Num>{r.oldGames}</Num> logged game{r.oldGames === 1 ? '' : 's'}
+              {r.tdsThere > 0 ? <> — <Num>{r.tdsThere}</Num> TD for them</> : null}
+              <span className="sl-row-meta"> · {r.player.team} {r.player.position}</span><Td n={r.td} />
+            </Row>
+          ))}
+        </div>
+      )}
+
+      {!!due.length && (
+        <div className="sl-feed">
+          <div className="sl-section-head">DUE BY THE NUMBERS <span className="sl-head-rate">· chances, not a promise — a gap says the opportunity was there, not that it pays this week</span></div>
+          {due.map((r) => (
+            <Row key={`due-${r.player.player_id}`} icon={"\u{1F4CA}"} onClick={() => onPlayerClick?.(r.player, 'TD')}
+                 title="Expected TDs a game come from where his chances happen on the field (xTD); actual is what he scored. A positive gap is opportunity he has not cashed. It is not a forecast and it does not feed the board.">
+              <Name>{r.player.name}</Name> gets <Num>{r.xtd.toFixed(2)}</Num> expected TD a game and has scored <Num>{r.actual.toFixed(2)}</Num> — <Num>{r.gap.toFixed(2)}</Num> a game owed by the numbers, on <Num>{r.rz.toFixed(1)}</Num> red-zone touches
+              <span className="sl-row-meta"> · {r.player.team} {r.player.position} vs {r.player.opp || '—'}</span><Td n={r.td} />
+            </Row>
+          ))}
+        </div>
+      )}
+
+      {!!rzm.length && (
+        <div className="sl-feed">
+          <div className="sl-section-head">RED-ZONE MONSTERS</div>
+          {rzm.map((r, i) => (
+            <Row key={`rz-${r.player.player_id}`} icon={"\u{1F6A8}"} onClick={() => onPlayerClick?.(r.player, 'TD')}
+                 title="Red-zone touches a game (carries + targets inside the 20) and goal-line touches (inside the 10 / 5), trailing per-game averages from the published stats.">
+              <Name>{r.player.name}</Name> gets <Num>{r.rz.toFixed(1)}</Num> red-zone touches a game{i === 0 ? ', most on the slate' : ''}{Number.isFinite(r.gl) ? <> (<Num>{r.gl.toFixed(1)}</Num> at the goal line)</> : null}
+              {Number.isFinite(r.tdPerGame) ? <> — and turns them into <Num>{r.tdPerGame.toFixed(2)}</Num> TD a game</> : null}
+              <span className="sl-row-meta"> · {r.player.team} {r.player.position} vs {r.player.opp || '—'}</span><Td n={r.td} />
             </Row>
           ))}
         </div>
@@ -156,7 +244,7 @@ export default function Storylines({ data, logs, results, onPlayerClick, setTab 
                 title={`${r.hits}/${r.games} at this mark (${Math.round(r.rate * 100)}%), last game ${r.lastV} — ${rankPhrase}, in ${label}. LIVE, from this week's logs.`}
               >
                 <Name>{r.player.name}</Name> has {VERB[r.marketKey] ? VERB[r.marketKey](fmtBar(r.marketBar)) : `cleared ${fmtBar(r.marketBar)} ${label}`} in <Num>{r.streak}</Num> straight games
-                <span className="sl-row-meta"> · {r.player.team} {r.player.position} vs {r.player.opp || '—'}</span>
+                <span className="sl-row-meta"> · {r.player.team} {r.player.position} vs {r.player.opp || '—'}</span><Td n={Number.isFinite(Number(r.player?.scores?.TD)) ? Math.round(r.player.scores.TD) : null} />
               </Row>
             )
           })}
@@ -195,8 +283,10 @@ export default function Storylines({ data, logs, results, onPlayerClick, setTab 
         changes, schedule swings) needs more than the Questionable/Out tag the site already
         shows — connecting one player's absence to another's role takes snap- or target-share
         modeling that doesn't exist here yet, so rather than guess, this page leaves it out.
-        Revenge games and player-vs-defense duels are out for the same reason — no prior-team
-        or matchup-history data exists in this pipeline yet.
+        Player-vs-defense duels are out for the same reason. Revenge games came in on 2026-09-25
+        off the game log&apos;s own jersey column; a graded tracker for these lines (did the story
+        pay?) needs the bot to freeze them before kickoff, the way MOONSHOT&apos;s does — the two
+        rates on the section heads are the honest stand-in until then.
       </div>
 
       <style>{`
@@ -204,7 +294,8 @@ export default function Storylines({ data, logs, results, onPlayerClick, setTab 
             .sl-counts{margin-top:8px;font:700 9.5px/1.6 ${NUM_FONT};letter-spacing:.02em;color:${C.text2}}
 
       .sl-feed{display:flex;flex-direction:column;gap:0;border:1px solid ${C.border};border-radius:12px;background:${C.bg2};padding:6px 14px;overflow:hidden}
-      .sl-section-head{padding:8px 0 4px;font:900 8.5px/1 ${NUM_FONT};letter-spacing:.12em;text-transform:uppercase;color:${C.text3}}
+      .sl-section-head{padding:8px 0 4px;font:900 8.5px/1.4 ${NUM_FONT};letter-spacing:.12em;text-transform:uppercase;color:${C.text3}}
+      .sl-head-rate{letter-spacing:0;text-transform:none;font-weight:600;color:${C.text3}}
       .sl-row{display:flex;gap:8px;align-items:baseline;width:100%;font:inherit;font-size:11.5px;line-height:1.6;text-align:left;padding:5px 0;border:none;border-top:1px solid ${C.border};background:transparent;color:${C.text2}}
       .sl-row:first-of-type{border-top:none}
       .sl-row.tap{cursor:pointer}
