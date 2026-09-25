@@ -264,7 +264,7 @@ function CrossReference({ players, onPlayerClick, onWatch, watchedIds }) {
               const unsaved = found.filter((r) => !watchedIds?.has(playerId(r.hit)))
               return unsaved.length > 0 ? (
                 <button
-                  onClick={() => unsaved.forEach((r) => onWatch(r.hit, true))}
+                  onClick={() => unsaved.forEach((r) => onWatch(r.hit))}
                   style={{
                     fontSize: 10.5, fontWeight: 800, padding: '7px 12px', borderRadius: 7,
                     border: `1px solid ${C.orange}`, background: 'rgba(249,115,22,.12)',
@@ -320,7 +320,7 @@ rows={parsed.map((r, i) => {
                 // calling onWatch — every star in this table has been a no-op since the
                 // day it shipped (2026-08-04). Matches the working convention every other
                 // board's watch column uses (onAction: onWatch, e.g. DueBoard.js).
-                onAction: (p) => p && onWatch(p, !watchedIds?.has(playerId(p))),
+                onAction: (p) => p && onWatch(p),
               }] : []),
               { key: 'input', label: 'Pasted', heat: false, w: 118, dim: true },
               { key: 'name',  label: 'Matched', heat: false, w: 148, bold: true, sticky: true },
@@ -1051,7 +1051,13 @@ rows={[...filteredOnSlate].sort(byGameThenTeam).map((p) => {
                   // Same unwrap mismatch as CrossReference's star column above — row
                   // here IS the raw player row DenseTable already unwrapped, not a
                   // wrapper carrying its own ._raw, so this never fired.
-                  onAction: (p) => p && onWatch(p, false),
+                  // ONE ARGUMENT (2026-09-24). onWatch is Dashboard's toggleWatch,
+                  // which ignores a second argument -- the old `false` / `true` /
+                  // `!watched` here read as a set-to but were toggles all along.
+                  // Every row in this table is watched by construction, so the
+                  // toggle is a removal; the paste-in button above only sends
+                  // rows that are NOT yet watched, so there it is an add.
+                  onAction: (p) => p && onWatch(p),
                 }] : []),
                 { key: 'name',  label: 'Player', heat: false, w: 148, bold: true, sticky: true },
                 { key: 'start', label: 'Start', heat: false, w: 62, mono: true, dim: true,
