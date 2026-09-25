@@ -50,7 +50,7 @@ export default function Guide({ onNavigate }) {
       </Section>
 
       <Section title="WHAT LAMP DOES NOT DO YET">
-        <p style={p}>No goalie model — the league feed carries no starting goalie, so the board does not know who is in net and says so. No matchups, no shot maps, no alerts yet. Those arrive in order, each only when its numbers trace to the feed. Nothing here is priced.</p>
+        <p style={p}>No goalie in the score — the league feed names no starter before a game, so the board makes no claim about the net until the game is over, then records who actually started and his line beside the graded board. That archive is what a later version fits on. No matchups, no shot maps, no alerts yet. Those arrive in order, each only when its numbers trace to the feed. Nothing here is priced.</p>
       </Section>
 
       <Section title="THE THREE WORDS">

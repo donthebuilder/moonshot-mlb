@@ -14,6 +14,7 @@
   --line: #2a2724;
   --panel: #131211;
   --mlb: #f97316;
+  --nhl: #8ecbff; /* LAMP ice — lib/nhl/theme.js C.ice; the LOCKED tag on the hockey bites */
   --bg: #0b0b0a;
   max-width: 760px;
   margin: 0 auto;

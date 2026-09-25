@@ -78,3 +78,17 @@ drop policy if exists "lamp_goal_log_read" on public.lamp_goal_log;
 create policy "lamp_goal_log_read" on public.lamp_goal_log for select using (true);
 drop policy if exists "lamp_goal_games_read" on public.lamp_goal_games;
 create policy "lamp_goal_games_read" on public.lamp_goal_games for select using (true);
+
+-- 2026-09-25, same day, before the first run: THE NET. v1 has no pregame
+-- goalie (the league feed carries no starter, measured), so `starters` stays
+-- null until a source exists and `starters_source` names it when one does.
+-- What IS known is written at grade time from the feed itself: who actually
+-- started (first goalieInNetId per side in play-by-play) and every goalie's
+-- boxscore line. A v2 opponent-goalie leg fits on that archive; a pregame
+-- source is scored against starters_actual before the score trusts it.
+-- Idempotent on purpose: safe whether or not the block above already ran.
+alter table public.lamp_goal_games
+  add column if not exists starters        jsonb,   -- pregame: {away:{playerId,name,confirmed},home:{...}} — null in v1
+  add column if not exists starters_source text,    -- which source named them — null in v1
+  add column if not exists starters_actual jsonb,   -- postgame, from play-by-play
+  add column if not exists goalies         jsonb;   -- postgame, both sides' boxscore lines

@@ -73,6 +73,8 @@ function GameBoard({ g, onOpenPlayer, onOpenGame, onOpenTeam }) {
         {g.locked ? `Locked ${new Date(g.lockedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} · ${g.snapshots} snapshot${g.snapshots === 1 ? '' : 's'}` : `Locks from ${new Date(g.locksAtUtc).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}, last write before puck drop`}
         {' · '}{g.lineupKnown ? 'lineup posted — dressed skaters only' : 'lineup not posted — full roster'}
         {ctx.oppGaPg != null ? ` · opp allows ${ctx.oppGaPg.toFixed(2)} GA/GP` : ''}{ctx.b2b ? ' · 2nd of back-to-back' : ''}
+        {/* The net. Pregame the feed names no starter, so nothing is printed (rule 16); once graded, who started and his line. */}
+        {g.net ? ` · in net: ${g.net}` : ''}
       </div>
       {scored.length === 0 ? <EmptyState title="NOBODY SCORED YET" note="No skater on either roster has ten NHL games on file." /> : (
         <div style={{ overflowX: 'auto' }}>

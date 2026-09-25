@@ -23,11 +23,31 @@ import { reduceScoreDay } from '../../../../lib/nhl/reduce'
 import { buildNight, toLogRow } from '../../../../lib/nhl/goalBoard'
 import { gradeRows, MODEL_VERSION } from '../../../../lib/nhl/goalModel'
 import { cronAuthorized, adminClient } from '../../../../lib/nhl/db'
+import { LOCK_WINDOW_MS } from '../../../../lib/nhl/boardRead'
+import { startersFromPlayByPlay, goaliesFromBoxscore } from '../../../../lib/nhl/goalies'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
-const LOCK_WINDOW_MS = 100 * 60 * 1000
+// The net columns (starters, starters_source, starters_actual, goalies) were
+// added to lamp_goal_games the same day as the tables, in the same migration
+// file. If that file was run before the columns were appended, the write
+// fails on the missing column: retry without the net rather than lose the
+// lock or the grade, and say so in the log. Run the migration again — it is
+// idempotent.
+const NET_COLS = ['starters', 'starters_source', 'starters_actual', 'goalies']
+const missingNetColumn = (error) => Boolean(error && /column|schema cache/i.test(error.message || '') && NET_COLS.some((c) => (error.message || '').includes(c)))
+async function writeGame(db, game_id, row, op) {
+  const run = (r) => (op === 'update'
+    ? db.from('lamp_goal_games').update(r).eq('game_id', game_id).eq('model_version', MODEL_VERSION)
+    : db.from('lamp_goal_games').upsert(r, { onConflict: 'game_id,model_version' }))
+  let res = await run(row)
+  if (res.error && missingNetColumn(res.error)) {
+    console.error(`[lamp tick] games ${game_id}: net columns missing (${res.error.message}) — run the 2026-09-25 lamp_goal_log migration again; writing without the net`)
+    res = await run(Object.fromEntries(Object.entries(row).filter(([k]) => !NET_COLS.includes(k))))
+  }
+  return res
+}
 const dayBefore = (ymd) => { const [y, m, d] = ymd.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d - 1, 12)).toISOString().slice(0, 10) }
 
 export async function GET(request) {
@@ -60,11 +80,13 @@ export async function GET(request) {
       const del = await db.from('lamp_goal_log').delete().eq('game_id', g.id).eq('model_version', MODEL_VERSION).lt('locked_at', lockedAt)
       if (del.error) console.error(`[lamp tick] prune ${g.id}: ${del.error.message}`)
       const prevGame = await db.from('lamp_goal_games').select('snapshots').eq('game_id', g.id).eq('model_version', MODEL_VERSION).maybeSingle()
-      const gm = await db.from('lamp_goal_games').upsert({
+      const gm = await writeGame(db, g.id, {
         game_id: g.id, model_version: MODEL_VERSION, game_date: night.day.date, season: g.season, game_type: g.gameType, start_utc: g.startUtc,
         away: g.away.abbrev, home: g.home.abbrev, snapshots: (prevGame.data?.snapshots || 0) + 1,
         lineup_known: Boolean(night.lineups[g.id]), locked_at: lockedAt, state: g.rawState,
-      }, { onConflict: 'game_id,model_version' })
+        // The net, pregame: null until a starter source exists (lib/nhl/goalies.js).
+        starters: night.starters?.byGame?.[g.id] || null, starters_source: night.starters?.source || null,
+      }, 'upsert')
       if (gm.error) console.error(`[lamp tick] games ${g.id}: ${gm.error.message}`)
       out.locked.push({ game: g.id, matchup: `${g.away.abbrev}@${g.home.abbrev}`, rows: rows.length, called: rows.filter((r) => r.status === 'called').map((r) => r.name), lineupKnown: Boolean(night.lineups[g.id]), minutesToDrop: Math.round((start - Date.now()) / 60000) })
     }
@@ -86,15 +108,20 @@ export async function GET(request) {
       if (g.state !== 'final') { await db.from('lamp_goal_games').update({ state: g.rawState }).eq('game_id', p.game_id).eq('model_version', MODEL_VERSION); continue }
       const box = await nhlGet(`/gamecenter/${p.game_id}/boxscore`, TTL.game)
       if (!box?.playerByGameStats) { out.skipped.push({ game: p.game_id, why: 'final but no playerByGameStats yet' }); continue }
+      // The net, postgame — archived for the v2 goalie leg; a failed play-by-play read costs only the starters, never the grade.
+      const pbp = await nhlGet(`/gamecenter/${p.game_id}/play-by-play`, TTL.game).catch((e) => { console.error(`[lamp tick] pbp ${p.game_id}: ${e?.message}`); return null })
+      const startersActual = pbp ? startersFromPlayByPlay(pbp) : null
+      const goalies = goaliesFromBoxscore(box)
       const have = await db.from('lamp_goal_log').select('*').eq('game_id', p.game_id).eq('model_version', MODEL_VERSION)
       if (have.error) throw new Error(have.error.message)
       const gradedAt = new Date().toISOString()
       const graded = gradeRows((have.data || []).map((r) => ({ ...r, playerId: r.player_id, status: r.status, rank: r.rank_in_game })), box.playerByGameStats)
       const up = await db.from('lamp_goal_log').upsert(graded.map(({ playerId, rank, ...r }) => ({ ...r, dressed: r.dressed, goals: r.goals, hit: r.hit, graded_at: gradedAt })), { onConflict: 'game_id,player_id,model_version' })
       if (up.error) throw new Error(up.error.message)
-      await db.from('lamp_goal_games').update({ state: g.rawState, graded_at: gradedAt }).eq('game_id', p.game_id).eq('model_version', MODEL_VERSION)
+      const gu = await writeGame(db, p.game_id, { state: g.rawState, graded_at: gradedAt, starters_actual: startersActual, goalies }, 'update')
+      if (gu.error) throw new Error(gu.error.message)
       const scorers = graded.filter((r) => r.hit)
-      out.graded.push({ game: p.game_id, matchup: `${g.away.abbrev}@${g.home.abbrev}`, rows: graded.length, dressed: graded.filter((r) => r.dressed).length, scorers: scorers.map((r) => `${r.name} (${r.status}${r.rank ? ` #${r.rank}` : ''})`) })
+      out.graded.push({ game: p.game_id, matchup: `${g.away.abbrev}@${g.home.abbrev}`, rows: graded.length, dressed: graded.filter((r) => r.dressed).length, net: [startersActual?.away?.name, startersActual?.home?.name], scorers: scorers.map((r) => `${r.name} (${r.status}${r.rank ? ` #${r.rank}` : ''})`) })
     } catch (e) {
       console.error(`[lamp tick] grade ${p.game_id}: ${e?.message}`); out.skipped.push({ game: p.game_id, why: `grade: ${e?.message}` })
     }

@@ -46,8 +46,8 @@ import './scroll-anchor.css' // css-loader pure-selector fix, 2026-09-06
 
 export const metadata = {
   alternates: { canonical: '/' },
-  title: 'DASH Network — one network, three ways to play',
-  description: 'MOONSHOT (MLB), TUDDY (NFL) and FRANCHISE (fantasy football). Every call graded in public.',
+  title: 'DASH Network — one network, four ways to play',
+  description: 'MOONSHOT (MLB), TUDDY (NFL), LAMP (NHL) and FRANCHISE (fantasy football). Every call graded in public.',
 }
 
 // The session makes this dynamic anyway; the payload fetches inside
@@ -69,6 +69,11 @@ function timeUntil(iso) {
   if (hours < 48) return `in ${hours}h`
   return `in ${Math.round(hours / 24)}d`
 }
+
+// Hockey's clock reads in ET on purpose: this renders on the server (UTC on
+// Vercel) and the front door has no viewer time zone; ET is the league's
+// calendar and the one the Board page's day is cut on.
+const etClock = (iso) => (iso ? `${new Date(iso).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' })} ET` : null)
 
 async function account() {
   if (!hasSupabaseConfig()) return { configured: false, user: null, leagues: [], teams: [] }
@@ -99,7 +104,7 @@ export default async function DashHome({ searchParams }) {
   // Set by dashSignUp on a successful sign-up that produced a session.
   const welcomeName = typeof params.welcome === 'string' && params.welcome ? params.welcome.slice(0, 40) : ''
   const [pulse, me] = await Promise.all([getNetworkPulse(), account()])
-  const { mlb, nfl, record } = pulse
+  const { mlb, nfl, nhl, record } = pulse
   const displayName = me.user?.user_metadata?.display_name || me.user?.email?.split('@')[0] || null
 
   return (
@@ -148,11 +153,12 @@ export default async function DashHome({ searchParams }) {
       )}
 
       <section className={styles.hero}>
-        <p className={styles.eyebrow}><span>●</span> ONE NETWORK. THREE WAYS TO PLAY.</p>
+        <p className={styles.eyebrow}><span>●</span> ONE NETWORK. FOUR WAYS TO PLAY.</p>
         <h1>{displayName ? <>Welcome back, {displayName}.</> : <>Every call, <em>graded in public.</em></>}</h1>
         <p className={styles.heroCopy}>
-          MOONSHOT reads tonight&apos;s baseball. TUDDY reads the football week. FRANCHISE runs
-          your league. Same scoring language, same receipts, one account.
+          MOONSHOT reads tonight&apos;s baseball. TUDDY reads the football week. LAMP reads
+          tonight&apos;s hockey. FRANCHISE runs your league. Same scoring language, same receipts,
+          one account.
         </p>
         <div className={styles.heroActions}>
           <Link href="/app#sport=mlb&tab=home">Open tonight&apos;s board <b>→</b></Link>
@@ -172,10 +178,16 @@ export default async function DashHome({ searchParams }) {
           <Tile label="HRs ON THE SLATE" value={mlb?.homers} sub={pct(mlb?.capturePct) ? `${pct(mlb.capturePct)} covered by the full sheet` : null} accent="mlb" />
           <Tile label="NFL GAMES" value={nfl?.games} sub={timeUntil(nfl?.kickoff) || nfl?.label} accent="nfl" />
           <Tile label="PLAYERS SCORED" value={nfl?.players} sub={nfl?.label} accent="nfl" />
+          {/* Hockey: the count and the lock. Before the first lock the tile says
+              when the board locks; after it, how many games hold a locked
+              call. A preview never counts (lib/nhl/pulse.js). */}
+          <Tile label="NHL GAMES" value={nhl?.games} sub={nhl?.live ? `${nhl.live} live` : nhl?.final ? `${nhl.final} final` : nhl?.games ? `first puck ${etClock(nhl.firstStart)}` : nhl?.label || 'no games tonight'} accent="nhl" />
+          <Tile label="LAMP LOCKED" value={nhl?.games ? `${nhl.lockedGames}/${nhl.games}` : null} sub={nhl?.games ? (nhl.lockedGames ? 'games with a locked call' : `locks from ${etClock(nhl.locksFromUtc)}`) : nhl?.label || null} accent="nhl" />
         </div>
         <p className={styles.stamp}>
           Live from the published payloads, cached two minutes.{mlb?.label ? ` MLB: ${mlb.label}.` : ''}
           {nfl?.label ? ` NFL: ${nfl.label}.` : ''}
+          {nhl?.label ? ` NHL: ${nhl.label}.` : ''}
         </p>
       </section>
 
@@ -284,6 +296,31 @@ export default async function DashHome({ searchParams }) {
           </footer>
         </article>
 
+        <article className={`${styles.product} ${styles.nhl}`}>
+          <header><i>L</i><div><strong>LAMP</strong><small>NHL</small></div></header>
+          <h3>Three called per game, locked before puck drop.</h3>
+          <p>{nhl?.label ? `${nhl.label} — ` : ''}the goal board: shots, goals and ice time per game over his last 82, ranked against tonight&apos;s skaters, graded off the boxscore.</p>
+          {nhl?.calls?.length ? (
+            // The #1 called in each LOCKED game. Once graded, the lamp on a scorer.
+            <ul className={styles.six}>
+              {nhl.calls.map((call) => (
+                <li key={call.gameId}><small>{call.away} @ {call.home}</small><b>{call.name}</b><span>{call.team} · {Math.round(call.score)}{call.graded ? (call.hit ? ' · 🚨 SCORED' : call.dressed === false ? ' · VOID' : ' · no goal') : ''}</span></li>
+              ))}
+            </ul>
+          ) : (
+            <dl>
+              <div><dt>Games</dt><dd>{nhl?.games ?? '—'}</dd></div>
+              <div><dt>Locked</dt><dd>{nhl?.games ? `${nhl.lockedGames} / ${nhl.games}` : '—'}</dd></div>
+              <div><dt>First lock</dt><dd>{nhl?.games && !nhl.lockedGames ? etClock(nhl.locksFromUtc) : '—'}</dd></div>
+            </dl>
+          )}
+          <footer>
+            <Link href="/app#sport=nhl&tab=home">Open LAMP →</Link>
+            <Link href="/app#sport=nhl&tab=board">Board</Link>
+            <Link href="/app#sport=nhl&tab=results">The record</Link>
+          </footer>
+        </article>
+
         <article className={`${styles.product} ${styles.fantasy}`}>
           <header><i>F</i><div><strong>FRANCHISE</strong><small>FANTASY</small></div></header>
           <h3>Your league, with DASH reading it.</h3>
@@ -356,8 +393,8 @@ export default async function DashHome({ searchParams }) {
               <p className={styles.kicker}>ONE ACCOUNT, WHOLE NETWORK</p>
               <h2>Keep your list when you switch devices.</h2>
               <span>
-                Free, and it changes nothing about reading the site — MOONSHOT and TUDDY are open
-                to everyone, signed in or not. What it saves: your watchlist, who you follow, and
+                Free, and it changes nothing about reading the site — MOONSHOT, TUDDY and LAMP are
+                open to everyone, signed in or not. What it saves: your watchlist, who you follow, and
                 your picks. It is the same login Franchise already uses.
               </span>
             </div>
@@ -377,7 +414,7 @@ export default async function DashHome({ searchParams }) {
               />
               <p className={styles.authEscape}>
                 Don&apos;t want an account? <Link href="/app#sport=mlb&tab=home">Open tonight&apos;s board anyway →</Link>{' '}
-                Everything on MOONSHOT and TUDDY is readable without one.
+                Everything on MOONSHOT, TUDDY and LAMP is readable without one.
               </p>
             </div>
           </>
@@ -394,6 +431,7 @@ export default async function DashHome({ searchParams }) {
         <span>DASH NETWORK</span>
         <Link href="/app#sport=mlb&tab=home">MOONSHOT · MLB</Link>
         <Link href="/app#sport=nfl&tab=home">TUDDY · NFL</Link>
+        <Link href="/app#sport=nhl&tab=home">LAMP · NHL</Link>
         <Link href="/fantasy">FRANCHISE · FANTASY</Link>
       </footer>
     </main>

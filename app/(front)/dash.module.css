@@ -16,6 +16,7 @@
   --mlb: #f97316;
   --nfl: #22c55e;
   --fantasy: #ff633e;
+  --nhl: #8ecbff; /* LAMP ice — lib/nhl/theme.js C.ice */
   max-width: 1180px;
   margin: 0 auto;
   padding: 0 18px 90px;
@@ -101,6 +102,7 @@ a.brand { text-decoration: none; color: inherit; }
 .tile span { display: block; min-height: 12px; color: var(--dim); font-size: 10px; }
 .tile.mlb strong { color: var(--mlb); }
 .tile.nfl strong { color: var(--nfl); }
+.tile.nhl strong { color: var(--nhl); }
 .stamp { margin: 12px 0 0; color: #6d6864; font-size: 10px; }
 
 /* ── products ── */
@@ -119,6 +121,7 @@ a.brand { text-decoration: none; color: inherit; }
 .product > p { margin: 0; color: var(--dim); font-size: 11.5px; line-height: 1.6; }
 .mlb { --accent: var(--mlb); }
 .nfl { --accent: var(--nfl); }
+.nhl { --accent: var(--nhl); }
 .fantasy { --accent: var(--fantasy); }
 
 .product dl { display: grid; gap: 1px; margin: 16px 0 0; padding: 0; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }

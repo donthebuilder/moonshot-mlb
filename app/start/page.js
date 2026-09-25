@@ -70,6 +70,8 @@ import {
 import { buildNflHeadlines } from '../../lib/nfl/headlines'
 import { tdCaptureFrom } from '../../lib/nfl/tdFeed'
 import { trimForFour } from '../../lib/theFourFields'
+import { readBoard } from '../../lib/nhl/boardRead'
+import { coverage, MODEL_VERSION as LAMP_MODEL } from '../../lib/nhl/goalModel'
 import styles from './start.module.css'
 
 export const dynamic = 'force-dynamic'
@@ -78,7 +80,7 @@ export const revalidate = 0
 export const metadata = {
   title: 'Start here — DASH Network',
   description:
-    'The calls before the game, and the public record of how they went. MOONSHOT for MLB home runs, TUDDY for NFL touchdowns.',
+    'The calls before the game, and the public record of how they went. MOONSHOT for MLB home runs, TUDDY for NFL touchdowns, LAMP for NHL goals.',
 }
 
 // Ten nights is what /called's own strip spans, so the rate quoted here and the
@@ -151,6 +153,7 @@ const SPORTS = {
     product: 'MOONSHOT',
     table: 'homer_feed',
     board: '/app#sport=mlb&tab=home',
+    recordHref: '/called?sport=mlb',
     event: 'home runs',
     eventOne: 'home run',
     lead: 'Who goes deep tonight',
@@ -166,6 +169,7 @@ const SPORTS = {
     product: 'TUDDY',
     table: 'nfl_td_feed',
     board: '/app#sport=nfl&tab=home',
+    recordHref: '/called?sport=nfl',
     event: 'touchdowns',
     eventOne: 'touchdown',
     lead: 'Who finds the end zone',
@@ -174,6 +178,26 @@ const SPORTS = {
     callsHead: 'What the model noticed this week',
     callsSub: 'The reads off this week’s touchdown board — the signals, not a bet slip.',
     unit: 'game day',
+  },
+  // 2026-09-25. Hockey's record is its own table (lamp_goal_log, graded rows,
+  // regular season and playoffs only) and its public record page is the
+  // in-app tab until /called learns a third sport — so recordHref points
+  // there, not at /called?sport=nhl, which would silently show baseball.
+  nhl: {
+    key: 'nhl',
+    label: 'NHL',
+    product: 'LAMP',
+    table: 'lamp_goal_log',
+    board: '/app#sport=nhl&tab=home',
+    recordHref: '/app#sport=nhl&tab=results',
+    event: 'goals',
+    eventOne: 'goal',
+    lead: 'Who lights the lamp tonight',
+    recordLink: 'See every one, night by night.',
+    promise: 'LAMP calls three skaters per game to score, locks them before puck drop, then grades itself in public.',
+    callsHead: 'Tonight’s board — three called per game',
+    callsSub: 'Shots, goals and ice time per game over his last 82, ranked against tonight’s skaters. PREVIEW until a game’s lock; the lock is the call.',
+    unit: 'night',
   },
 }
 
@@ -205,6 +229,7 @@ async function computeRecord(sportKey, today) {
   const db = client()
   if (!db) return null
   const since = shiftDay(today, -(DAYS - 1))
+  if (sport.key === 'nhl') return computeLampRecord(db, since, today)
   const { data, error } = await db
     .from(sport.table)
     .select('*')
@@ -244,7 +269,56 @@ async function computeRecord(sportKey, today) {
   return { ...span, pct: Math.round((100 * span.on) / span.total), days: nights.length }
 }
 
+/**
+ * Hockey's receipts: graded rows of the current model, regular season and
+ * playoffs only (preseason is graded but not quoted — camp lineups), reduced
+ * by the same coverage() the in-app record tab uses. Same shape as the other
+ * two: scorers who were CALLED or ON THE BOARD at lock, over the scorers.
+ */
+async function computeLampRecord(db, since, today) {
+  const { data, error } = await db
+    .from('lamp_goal_log')
+    .select('game_id, game_date, game_type, player_id, name, team, opp, pos, score, rank_in_game, status, dressed, goals, hit')
+    .eq('model_version', LAMP_MODEL)
+    .neq('game_type', 1)
+    .gte('game_date', since)
+    .lte('game_date', today)
+    .not('graded_at', 'is', null)
+  if (error || !Array.isArray(data) || !data.length) return null
+  const cov = coverage(data.map((r) => ({ ...r, playerId: r.player_id, rank: r.rank_in_game })))
+  if (!cov?.scorers) return null
+  const on = cov.scorersCalled + cov.scorersOnBoard
+  return { on, total: cov.scorers, pct: Math.round((100 * on) / cov.scorers), days: new Set(data.map((r) => r.game_date)).size }
+}
+
+/** Tonight's hockey board, one line per game — read by the same function the Board page's route uses. */
+async function computeLampCalls() {
+  const board = await readBoard(easternToday())
+  return {
+    games: board.games.map((g) => ({
+      id: g.game.id, away: g.game.away.abbrev, home: g.game.home.abbrev, startUtc: g.game.startUtc, state: g.game.state,
+      locked: g.locked, graded: g.graded,
+      called: g.rows.filter((r) => r.status === 'called').map((r) => ({ name: r.name, score: r.score, hit: r.hit, dressed: r.dressed })),
+    })),
+  }
+}
+
+const etClock = (iso) => `${new Date(iso).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' })} ET`
+
+/** A game on the hockey board as one bite: stamp · matchup · the three · the clock. */
+const lampBite = (g) => ({
+  k: String(g.id), icon: '🏒',
+  tag: g.graded ? 'GRADED' : g.locked ? 'LOCKED' : 'PREVIEW',
+  col: g.graded ? 'var(--ink)' : g.locked ? 'var(--nhl)' : 'var(--dim)',
+  name: `${g.away} @ ${g.home}`,
+  why: g.called.length
+    ? g.called.map((c) => `${c.name} ${c.score}${g.graded ? (c.hit ? ' 🚨' : c.dressed === false ? ' (void)' : '') : ''}`).join(' · ')
+    : 'nobody scored yet — fewer than ten NHL games on file across both rosters',
+  stat: g.state === 'final' ? 'FINAL' : g.state === 'live' ? 'LIVE' : etClock(g.startUtc),
+})
+
 async function computeCalls(sportKey) {
+  if (sportKey === 'nhl') return computeLampCalls()
   if (sportKey === 'nfl') {
     const [slate, matchup] = await Promise.all([
       fetchNfl(nflSlatePaths(), nflSlateLooksReal).catch(() => null),
@@ -306,7 +380,7 @@ export default async function StartPage({ searchParams }) {
   ])
 
   const SIGNUP = `/login?next=${encodeURIComponent(sport.board)}#create-account`
-  const hasCalls = sportKey === 'nfl' ? Boolean(calls.bites?.length) : Boolean(calls.players?.length)
+  const hasCalls = sportKey === 'nfl' ? Boolean(calls.bites?.length) : sportKey === 'nhl' ? Boolean(calls.games?.length) : Boolean(calls.players?.length)
   const strip = calls.strip || []
 
   return (
@@ -319,6 +393,7 @@ export default async function StartPage({ searchParams }) {
         <nav className={styles.nav}>
           <a className={sportKey === 'mlb' ? styles.navOn : styles.navOff} href="/start?sport=mlb">⚾ MLB</a>
           <a className={sportKey === 'nfl' ? styles.navOn : styles.navOff} href="/start?sport=nfl">🏈 NFL</a>
+          <a className={sportKey === 'nhl' ? styles.navOn : styles.navOff} href="/start?sport=nhl">🏒 NHL</a>
         </nav>
       </header>
 
@@ -332,7 +407,7 @@ export default async function StartPage({ searchParams }) {
             <span className={styles.big}>{record.total}</span> {sport.event} over the last{' '}
             {record.days} {sport.unit}{record.days === 1 ? '' : 's'} were on the board before they
             happened — <strong>{record.pct}%</strong>.{' '}
-            <a className={styles.inline} href={`/called?sport=${sport.key}`}>{sport.recordLink}</a>
+            <a className={styles.inline} href={sport.recordHref}>{sport.recordLink}</a>
           </p>
         ) : (
           // Rule 24/25: say what the state is. For football this is the live
@@ -340,8 +415,8 @@ export default async function StartPage({ searchParams }) {
           // recorded since 2026-09-20 (see NFL_MIN_RECORD_DAYS).
           <p className={styles.receipt}>
             Every {sport.eventOne} is tagged against the board the moment it lands, and the public
-            record is filling in{sport.key === 'nfl' ? ' — the board rank has been on the record since September 20' : ''}.{' '}
-            <a className={styles.inline} href={`/called?sport=${sport.key}`}>See the record.</a>
+            record is filling in{sport.key === 'nfl' ? ' — the board rank has been on the record since September 20' : sport.key === 'nhl' ? ' — the first regular-season night is September 29' : ''}.{' '}
+            <a className={styles.inline} href={sport.recordHref}>See the record.</a>
           </p>
         )}
       </section>
@@ -357,7 +432,7 @@ export default async function StartPage({ searchParams }) {
             So baseball lets the component speak and only gets a heading when
             there is no board to show; football's bites have no header of
             their own, so they keep this one. */}
-        {(sportKey === 'nfl' || !hasCalls) && (
+        {(sportKey === 'nfl' || sportKey === 'nhl' || !hasCalls) && (
           <>
             <h2 className={styles.h2}>{sport.callsHead}</h2>
             <p className={styles.note}>{sport.callsSub}</p>
@@ -368,8 +443,14 @@ export default async function StartPage({ searchParams }) {
           <p className={styles.empty}>
             {sportKey === 'nfl'
               ? 'Waiting on this week’s board — it publishes well before kickoff.'
-              : 'Waiting on tonight’s board — it publishes before first pitch.'}
+              : sportKey === 'nhl'
+                ? 'No NHL games tonight — the board comes back with the next slate.'
+                : 'Waiting on tonight’s board — it publishes before first pitch.'}
           </p>
+        ) : sportKey === 'nhl' ? (
+          <ul className={styles.bites}>
+            {calls.games.map((g) => <Bite key={g.id} b={lampBite(g)} />)}
+          </ul>
         ) : sportKey === 'nfl' ? (
           <ul className={styles.bites}>
             {calls.bites.map((b) => <Bite key={b.k} b={b} />)}
@@ -410,7 +491,7 @@ export default async function StartPage({ searchParams }) {
           this page is back-dated.
         </span>
         <span>
-          <a href={`/called?sport=${sport.key}`}>The public record</a>
+          <a href={sport.recordHref}>The public record</a>
           {' · '}
           <a href={sport.board}>The {sport.label} board</a>
         </span>
