@@ -160,3 +160,48 @@ export function writeHashParam(key, value) {
     window.history.replaceState(null, '', `#${h.toString()}`)
   } catch { /* the page still works without the address */ }
 }
+
+// ── batch 2 formatters ──────────────────────────────────────────────────────
+/** Age today from a YYYY-MM-DD birth date, or null. */
+export function ageFrom(ymd) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd || ''))
+  if (!m) return null
+  const now = new Date(); let age = now.getFullYear() - +m[1]
+  if (now.getMonth() + 1 < +m[2] || (now.getMonth() + 1 === +m[2] && now.getDate() < +m[3])) age -= 1
+  return age
+}
+/** 72 → 6'0". */
+export const fmtHeight = (inches) => (inches == null ? null : `${Math.floor(inches / 12)}'${inches % 12}"`)
+/** 0.921317 → ".921"; null stays a dash. */
+export const fmtPct3 = (v) => (v == null ? '—' : Number(v).toFixed(3).replace(/^0/, ''))
+/** 0.156863 → "15.7". */
+export const fmtPct1 = (v) => (v == null ? '—' : (Number(v) * 100).toFixed(1))
+/** 3.070124 → "3.07". */
+export const fmt2 = (v) => (v == null ? '—' : Number(v).toFixed(2))
+/** seconds → "m:ss". */
+export const fmtSec = (sec) => (sec == null ? '—' : `${Math.floor(sec / 60)}:${String(Math.round(sec % 60)).padStart(2, '0')}`)
+export const plusMinus = (v) => (v == null ? '—' : v > 0 ? `+${v}` : String(v))
+export const dash = (v) => (v == null ? '—' : v)
+
+/** Mug + name; the one way a player is printed on LAMP. */
+export function PlayerMark({ headshot, name, number = null, size = 22, onClick = null }) {
+  const inner = (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
+      {headshot && <img src={headshot} alt="" width={size} height={size} loading="lazy" style={{ width: size, height: size, borderRadius: '50%', background: C.bg3, objectFit: 'cover', flex: 'none' }} />}
+      <span style={{ color: C.text, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</span>
+      {number != null && <span style={{ color: C.text3, font: `800 9px/1 ${NUM_FONT}` }}>#{number}</span>}
+    </span>
+  )
+  if (!onClick) return inner
+  return <button type="button" onClick={onClick} style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', color: 'inherit', font: 'inherit', textAlign: 'left', maxWidth: '100%' }}>{inner}</button>
+}
+
+/** "This is last season's line" — the amber sentence, one place. */
+export function StaleSeasonNote({ label, opens, what = 'numbers' }) {
+  return (
+    <div role="status" style={{ padding: '8px 12px', borderRadius: 10, border: `1px solid ${C.amber}`, background: 'rgba(251,191,36,.08)', color: C.text2, fontSize: 11.5, lineHeight: 1.5 }}>
+      <b style={{ color: C.amber, fontFamily: NUM_FONT, letterSpacing: '.06em' }}>{label} {what.toUpperCase()}</b>
+      {' · '}The league has not started the new season’s tables yet{opens ? ` — they open ${fmtDay(opens)}` : ''}. Until then these are last season’s.
+    </div>
+  )
+}

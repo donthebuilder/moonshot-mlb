@@ -4,8 +4,10 @@ import { NHL_NAV, NHL_MORE_GROUPS } from '../../lib/nhl/routes'
 
 // LAMP's phone bar: the shared MobileTabBar with hockey's words, read from
 // the one table in lib/nhl/routes.js — same shape as MobileTabBarNfl.js.
-// Three stops plus More; the wordmark is home, as on the other two bars.
-const MAIN_KEYS = ['scores', 'schedule', 'standings']
+// The wordmark is home, as on the other two bars.
+// Four stops plus More, the same count MOONSHOT's bar carries (2026-09-25:
+// Players joined once the directory existed).
+const MAIN_KEYS = ['scores', 'schedule', 'standings', 'players']
 const MAIN = MAIN_KEYS.map((k) => [k, NHL_NAV[k].icon, NHL_NAV[k].label])
 
 const MORE = [

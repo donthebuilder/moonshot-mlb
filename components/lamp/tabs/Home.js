@@ -30,7 +30,7 @@ export default function Home({ today, onOpenGame, setTab }) {
       <PageHeader
         eyebrow="LAMP · NHL INTELLIGENCE"
         title={day?.date ? fmtDay(day.date) : 'Tonight'}
-        note="Today’s games, the standings, and the game behind any score — read straight off the league’s feed. The LAMP Board comes once its inputs and grading are published."
+        note="Today’s games, the standings, every player and club, and the game behind any score — read straight off the league’s feed. The LAMP Board comes once its inputs and grading are published."
         theme={C} numFont={NUM_FONT} accent={C.ice}
         stats={day ? [
           { value: day.live, label: 'LIVE', tone: day.live ? C.lamp : C.text3 },
@@ -91,7 +91,7 @@ export default function Home({ today, onOpenGame, setTab }) {
       <section aria-label="What this is">
         <Kicker tone={C.cream}>THIS DESK</Kicker>
         <p style={{ margin: 0, color: C.text2, fontSize: 12.5, lineHeight: 1.6, maxWidth: 640 }}>
-          LAMP is the NHL side of DASH Network. Right now it is the game itself: scores, the schedule, the standings, and every goal with who scored it and how. Players, goalies, teams, leaders, and then the LAMP Board follow — each one only when its numbers can be traced to the feed and, for a board, graded in public.{' '}
+          LAMP is the NHL side of DASH Network. Right now it is the game itself: scores, the schedule, the standings, every goal with who scored it and how, every player and goalie’s file, every club, and the league leaders. The LAMP Board follows — only once its inputs are traceable to the feed and it can be graded in public.{' '}
           <button type="button" onClick={() => setTab?.('guide')} style={{ ...link, display: 'inline', padding: 0 }}>How this works ›</button>
         </p>
       </section>

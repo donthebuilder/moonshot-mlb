@@ -12,6 +12,10 @@ const ROWS = [
   ['schedule', 'The league week, day by day, with puck-drop times in your zone. Games already played show their score.'],
   ['standings', 'Division, wild card, conference and league tables, in the league’s own order. Tap a column’s ⓘ for what it means.'],
   ['game', 'One game top to bottom: by-period goals and shots, every goal with its assists and strength, penalties, the team comparison, three stars.'],
+  ['players', 'Every player on a current roster. Type a name or a club, tap for the file: the season line, career, last five, the game log, season by season.'],
+  ['goalies', 'Every goalie, and a goalie’s file is its own page — starts, record, GAA, save percentage, shutouts — not a skater’s with different labels.'],
+  ['teams', 'The 32 clubs by division. Tap one for its record and place, next up, last five, the roster with season lines, team leaders, the whole schedule.'],
+  ['leaders', 'Who leads the league in each category, ten deep, regular season, straight from the league. Measured, not modelled.'],
 ]
 
 export default function Guide({ onNavigate }) {
@@ -44,7 +48,7 @@ export default function Guide({ onNavigate }) {
       </Section>
 
       <Section title="WHAT LAMP DOES NOT DO YET">
-        <p style={p}>No player pages, goalie pages or team pages yet; no leaders; no LAMP Board and no LAMP Score. Those arrive in order, and a score will only appear once its inputs and its grading rule are written down and published — the same public-record rule MOONSHOT and TUDDY live by. Nothing here is a projection or a pick.</p>
+        <p style={p}>No LAMP Board and no LAMP Score; no matchups, no shot maps, no alerts. Those arrive in order, and a score will only appear once its inputs and its grading rule are written down and published — the same public-record rule MOONSHOT and TUDDY live by. Nothing here is a projection or a pick.</p>
       </Section>
 
       <Section title="READING A SCORE ROW">
