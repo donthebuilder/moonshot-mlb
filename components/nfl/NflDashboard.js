@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { resolveTab, pageTitle, NFL_TABS as NFL_TAB_KEYS } from '../../lib/routes'
 import ErrorBoundary from '../ErrorBoundary'
 import TabNotFound from '../TabNotFound'
-import { C } from '../../lib/nfl/theme'
+import { C, NUM_FONT } from '../../lib/nfl/theme'
 import { fetchNfl, nflSlatePaths, nflReportPaths, nflMetaPaths, nflMatchupPaths, nflLogPaths, nflPicksPaths, nflResultsPaths, nflOddsPaths, nflOddsStatusPaths, nflSlateLooksReal, nflMatchupLooksReal, nflPicksLooksReal, nflOddsLooksReal } from '../../lib/nfl/dataSource'
 import { initialHashParams, setSport } from '../../lib/sport'
 import { useNflLive } from '../../lib/nfl/useNflLive'
@@ -54,6 +54,41 @@ const NFL_TABS = new Set(NFL_TAB_KEYS)
 
 // See the note on the same prop in components/Dashboard.js.
 // eslint-disable-next-line no-unused-vars
+// ── IS THIS WEEK'S BOARD? (2026-09-24 audit, UX-8 / rule 25) ───────────────
+// TUDDY had no equivalent of MOONSHOT's StaleBanner. When the football
+// pipeline fails, lib/nfl/dataSource.js quietly serves the committed
+// snapshot (public/data/nfl/week.json, an August preseason build) or the last
+// good branch copy, and the page renders it under this week's header with no
+// warning. The BUILT pill in the header says the age if you hover it; a
+// board that is a week old on a Sunday needs to say so out loud.
+function NflStaleBanner({ meta, data, loading }) {
+  if (loading) return null
+  const raw = meta?.built_at || data?.built_at || ''
+  const t = Date.parse(raw)
+  if (!Number.isFinite(t)) return null
+  const ageH = (Date.now() - t) / 36e5
+  const preseason = String(data?.mode || '') && String(data?.mode) !== 'week'
+  if (ageH < 48 && !preseason) return null
+  const days = Math.floor(ageH / 24)
+  const loud = ageH >= 24 * 7 || preseason
+  const when = new Date(t).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  return (
+    <div role="status" style={{
+      margin: '0 0 12px', padding: '10px 14px', borderRadius: 10,
+      border: `1px solid ${loud ? C.orange : C.border2}`, background: loud ? 'rgba(249,115,22,.08)' : C.bg2,
+      color: C.text2, fontSize: 12, lineHeight: 1.5,
+    }}>
+      <b style={{ color: loud ? C.orange : C.text, fontFamily: NUM_FONT, letterSpacing: '.04em' }}>
+        {preseason ? 'PRESEASON BOARD' : 'BOARD DATA DELAYED'}
+      </b>
+      {' \u00b7 '}
+      {preseason
+        ? `This is a preseason build from ${when}, not this week\u2019s slate. The football pipeline has not published a regular-season board yet.`
+        : `The last football build landed ${days >= 1 ? `${days} day${days === 1 ? '' : 's'}` : `${Math.round(ageH)}h`} ago (${when}). Everything on TUDDY is from that run until the next one lands.`}
+    </div>
+  )
+}
+
 export default function NflDashboard({ palettePass = 0 }) {
   const [tab, setTabRaw] = useState('home')
   useEffect(() => {
@@ -254,6 +289,7 @@ export default function NflDashboard({ palettePass = 0 }) {
       <main id="board-main" className="dashboard-main"
             style={{ maxWidth: 1300, margin: '0 auto', padding: '14px 14px 40px' }}>
         <h1 className="sr-only">{pageTitle('nfl', missingTab ? 'home' : tab)}</h1>
+        <NflStaleBanner meta={meta} data={data} loading={loading} />
         {!missingTab && !loading && <TabExplainer tab={tab} texts={NFL_TEXTS} storageKey="tab_explained_nfl" accent={C.green} />}
         {missingTab ? (
           <TabNotFound
