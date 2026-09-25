@@ -67,3 +67,8 @@ SHIP-SCRIPTS-ARCHIVE/
 # secrets backups — the .bak that leaked 2026-09-24
 .calledit.env*
 *.env.bak
+
+# Claude Code local notes and personal settings (2026-09-25)
+.claude-notes/
+.claude/settings.local.json
+CLAUDE.local.md

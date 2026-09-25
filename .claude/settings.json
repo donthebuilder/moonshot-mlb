@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git fetch:*)",
+      "Bash(npm run build)",
+      "Bash(node scripts/check-routes.mjs)",
+      "Bash(node scripts/check-scales.mjs)"
+    ],
+    "deny": [
+      "Bash(git stash:*)",
+      "Bash(git add -A:*)",
+      "Bash(git add .:*)",
+      "Bash(git add --all:*)",
+      "Bash(git commit --amend:*)",
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(rm -rf:*)",
+      "Read(./.env*)",
+      "Read(./.calledit.env*)"
+    ]
+  }
+}
