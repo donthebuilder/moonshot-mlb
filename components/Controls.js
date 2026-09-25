@@ -111,7 +111,7 @@ export default function Controls({ query, setQuery, team, setTeam, players }) {
               background: C.bg2, border: `1px solid ${C.border2}`, color: C.orange, borderRadius: 8,
               padding: '6px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
             }}
-          >Nobody on tonight\u2019s slate \u2014 search every active player \u2192</button>
+          >{'Nobody on tonight\u2019s slate \u2014 search every active player \u2192'}</button>
         )}
       </div>
 

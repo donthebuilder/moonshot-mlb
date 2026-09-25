@@ -338,7 +338,7 @@ function ByGameCoverage({ report }) {
   const unc = Array.isArray(report.uncovered_games) ? report.uncovered_games : []
   return (
     <div style={{ paddingTop: 8, marginTop: 8, borderTop: `1px solid ${C.border}` }}>
-      <div style={{ fontSize: TYPE.label, color: C.text3, marginBottom: 6, fontFamily: NUM_FONT, textTransform: 'uppercase', letterSpacing: '0.06em' }}>By game \u2014 locked roles \u00b7 {g} game{g === 1 ? '' : 's'} with a homer</div>
+      <div style={{ fontSize: TYPE.label, color: C.text3, marginBottom: 6, fontFamily: NUM_FONT, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{`By game \u2014 locked roles \u00b7 ${g} game${g === 1 ? '' : 's'} with a homer`}</div>
       <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
         {rows.map(([label, n, pct, target]) => (
           <div key={label}>
