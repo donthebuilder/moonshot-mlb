@@ -32,16 +32,32 @@
 // actually measured.
 //
 // SERVER-RENDERED, AND WHY THAT MATTERS HERE MORE THAN ANYWHERE. This page
-// exists for somebody arriving on a phone from a link. today_slim.json is ~890
-// KB tonight and several megabytes on a full slate; nfl_matchup.json is ~874
-// KB. All of it is fetched and reduced HERE, and only the trimmed designated
-// rows (lib/theFourFields.js) cross into the one client island. Both sports'
-// bites are finished text by the time they leave this function, so those
-// payloads never leave the server at all.
+// exists for somebody arriving on a phone from a link. today_slim.json was
+// measured at 4.0 MB on 2026-09-24 (it was ~890 KB the night this page was
+// written); nfl_week.json is ~720 KB and nfl_matchup.json ~906 KB. All of it
+// is fetched and reduced HERE, and only the trimmed designated rows
+// (lib/theFourFields.js) cross into the one client island. Both sports' bites
+// are finished text by the time they leave this function, so those payloads
+// never leave the server at all.
+//
+// AND REDUCED ONCE PER TWO MINUTES, NOT ONCE PER VISITOR (PERF-2, 2026-09-24).
+// Until then every view of /start pulled the whole 5.6 MB into the Vercel
+// function before the first byte -- the `cache: 'no-store'` reads in
+// lib/dash/board.js and lib/nfl/dataSource.js are right for the pushers that
+// own them and wrong for a public landing page. A `next: { revalidate }` on
+// those fetches would not help: the Data Cache refuses entries over 2 MB and
+// the slate is twice that. So the REDUCED result is what gets cached --
+// unstable_cache around the two loaders below, a few KB per sport, keyed on
+// sport (+ the ET day for the record), START_TTL seconds. A cold function
+// still pays the full pull once; every visitor after it reads the small
+// entry. The bites carry a `p` (the whole player row) out of the headline
+// builders -- stripped before caching, both because the cache is shared
+// and because nothing in the markup reads it.
 //
 // NO JS FOR THE SPORT SWITCH — two plain links, same as /called's own switch
 // and its night anchors.
 import { createClient } from '@supabase/supabase-js'
+import { unstable_cache } from 'next/cache'
 
 import BotPicksStrip from '../../components/BotPicksStrip'
 import { easternToday } from '../../lib/data'
@@ -116,6 +132,18 @@ const NFL_MIN_RECORD_DAYS = 3
 // their own rather than being filtered, and that is fine.
 const LEAGUE_BITES = ['p3', 'hot', 'hrw', 'weak']
 
+// How long a reduced board / record entry is served before it is rebuilt.
+// Same figure the front door uses (lib/dash/pulse.js PULSE_TTL): the bot
+// republishes on a cadence of minutes, and a stranger's first screen does not
+// need to be fresher than the ticker. An EMPTY board is cached for the same
+// two minutes -- "waiting on tonight's board" is an honest state, and serving
+// yesterday's Four while today's is being built (the stale-on-error path)
+// would not be.
+const START_TTL = 120
+
+/** A bite with only what the markup reads. `p` (the full row) never crosses. */
+const biteText = (b) => ({ k: b.k, icon: b.icon, tag: b.tag, name: b.name, why: b.why, stat: b.stat, col: b.col })
+
 const SPORTS = {
   mlb: {
     key: 'mlb',
@@ -172,7 +200,8 @@ function client() {
  * window returns null so the page renders the honest sentence instead of a
  * number it cannot stand behind (rules 24 and 25).
  */
-async function loadRecord(sport, today) {
+async function computeRecord(sportKey, today) {
+  const sport = SPORTS[sportKey]
   const db = client()
   if (!db) return null
   const since = shiftDay(today, -(DAYS - 1))
@@ -215,7 +244,7 @@ async function loadRecord(sport, today) {
   return { ...span, pct: Math.round((100 * span.on) / span.total), days: nights.length }
 }
 
-async function loadCalls(sportKey) {
+async function computeCalls(sportKey) {
   if (sportKey === 'nfl') {
     const [slate, matchup] = await Promise.all([
       fetchNfl(nflSlatePaths(), nflSlateLooksReal).catch(() => null),
@@ -234,14 +263,22 @@ async function loadCalls(sportKey) {
     // Football's bites ARE its best-calls section, so there is no second strip
     // to build from them. Not a parity gap with baseball — a consequence of
     // TUDDY having one board and MOONSHOT having a board plus The Four.
-    return { bites, strip: [] }
+    return { bites: bites.map(biteText), strip: [] }
   }
 
   const rows = await fetchBoardFull('today').catch(() => null)
   const league = buildHeadlines({ players: rows || [] })
     .filter((b) => LEAGUE_BITES.includes(b.k))
+    .map(biteText)
   return { players: trimForFour(rows || []), strip: league }
 }
+
+// The cached faces of the two loaders. unstable_cache keys on the arguments,
+// so each sport (and each ET day, for the record) is its own entry. A loader
+// that throws is not cached -- the page's own .catch() renders the honest
+// empty state and the next visitor asks again.
+const loadCalls = unstable_cache(computeCalls, ['start-calls'], { revalidate: START_TTL })
+const loadRecord = unstable_cache(computeRecord, ['start-record'], { revalidate: START_TTL })
 
 /** One bite row. Shared by both sports and by the league strip. */
 function Bite({ b }) {
@@ -265,7 +302,7 @@ export default async function StartPage({ searchParams }) {
 
   const [calls, record] = await Promise.all([
     loadCalls(sportKey).catch(() => ({})),
-    loadRecord(sport, today).catch(() => null),
+    loadRecord(sportKey, today).catch(() => null),
   ])
 
   const SIGNUP = `/login?next=${encodeURIComponent(sport.board)}#create-account`
