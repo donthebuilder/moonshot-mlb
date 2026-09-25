@@ -320,7 +320,44 @@ function ExpandedStats({ slots, players = [] }) {
 
 // ── Capture banner ──────────────────────────────────────────────────────────
 
-function CaptureBanner({ report, uniqueReport }) {
+// BY GAME (2026-09-24 audit, MODEL-2). The bot has published
+// `pick_coverage_report` in every graded file since 09-13 -- per game with a
+// homer, did the bot's TOP HR pick / any designated pick / any pick incl.
+// WATCH go deep, off the LOCKED roles -- and nothing on the site read it.
+// It is the per-game half of the one number the whole project is about,
+// and it is the honest one: the full-sheet % above counts membership on the
+// rebuilt slate, this counts the roles that were locked at first pitch.
+function ByGameCoverage({ report }) {
+  if (!report || !si(report.games_with_hr)) return null
+  const g = si(report.games_with_hr)
+  const rows = [
+    ['Top HR pick homered', si(report.covered_top_hr), sf(report.pct_top_hr), sf(report?.targets?.pct_top_hr)],
+    ['Any designated pick', si(report.covered_any_pick), sf(report.pct_any_pick), null],
+    ['Any pick incl. WATCH', si(report.covered_with_watch), sf(report.pct_with_watch), sf(report?.targets?.pct_with_watch)],
+  ]
+  const unc = Array.isArray(report.uncovered_games) ? report.uncovered_games : []
+  return (
+    <div style={{ paddingTop: 8, marginTop: 8, borderTop: `1px solid ${C.border}` }}>
+      <div style={{ fontSize: TYPE.label, color: C.text3, marginBottom: 6, fontFamily: NUM_FONT, textTransform: 'uppercase', letterSpacing: '0.06em' }}>By game \u2014 locked roles \u00b7 {g} game{g === 1 ? '' : 's'} with a homer</div>
+      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+        {rows.map(([label, n, pct, target]) => (
+          <div key={label}>
+            <div style={{ fontSize: TYPE.micro, color: C.text3, marginBottom: 2 }}>{label}</div>
+            <span style={{ fontFamily: NUM_FONT, fontWeight: 800, fontSize: TYPE.title, color: barColor(pct) }}>{n}/{g}</span>
+            <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.body, color: C.text3, marginLeft: 6 }}>{pct.toFixed(0)}%{target ? ` \u00b7 target ${target.toFixed(0)}%` : ''}</span>
+          </div>
+        ))}
+      </div>
+      {unc.length ? (
+        <div style={{ fontSize: TYPE.body, color: C.text3, lineHeight: 1.5, marginTop: 6 }}>
+          Nobody the bot named went deep in {unc.length}: {unc.map((u) => (u.homered || []).join(', ')).filter(Boolean).join(' \u00b7 ')}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function CaptureBanner({ report, uniqueReport, byGame }) {
   if (!report) return null
   const pctVal = sf(report.hr_capture_pct)
   const total = si(report.total_hrs_on_slate)
@@ -370,6 +407,7 @@ function CaptureBanner({ report, uniqueReport }) {
           </div>
         </div>
       ) : null}
+      <ByGameCoverage report={byGame} />
     </Card>
   )
 }
@@ -1501,7 +1539,7 @@ export default function Results({ results, liveResults = null, slateDate = '', b
               sentences are being measured against. Both closed by default —
               the answer is the block above, these are the receipts. */}
           <Fold label="📡 Capture detail — the full net, caught vs missed">
-            <CaptureBanner report={captureReport} uniqueReport={uniqueReport} />
+            <CaptureBanner report={captureReport} uniqueReport={uniqueReport} byGame={view?.pick_coverage_report || null} />
           </Fold>
           <Fold label={`📐 What ${ARCHIVE.nights} graded nights say each lane is worth`}>
             {/* Restated from the 2026-08-16 backtest over this project's own
