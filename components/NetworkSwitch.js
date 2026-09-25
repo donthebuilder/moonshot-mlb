@@ -2,6 +2,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { setSport, useSport } from '../lib/sport'
+import { C as LAMP_C } from '../lib/nhl/theme'
 
 // 🧭 THE NETWORK SWITCH (2026-08-29).
 //
@@ -23,6 +24,8 @@ import { setSport, useSport } from '../lib/sport'
 const PRODUCTS = [
   { key: 'mlb', name: 'MOONSHOT', meta: 'MLB', href: '/app#sport=mlb&tab=home', color: '#f97316' },
   { key: 'nfl', name: 'TUDDY', meta: 'NFL', href: '/app#sport=nfl&tab=home', color: '#22c55e' },
+  // 2026-09-25: LAMP, the NHL product. Ice, so it reads apart from orange and jade.
+  { key: 'nhl', name: 'LAMP', meta: 'NHL', href: '/app#sport=nhl&tab=home', color: LAMP_C.ice },
   { key: 'fantasy', name: 'FRANCHISE', meta: 'FANTASY', href: '/fantasy', color: '#ff633e' },
 ]
 

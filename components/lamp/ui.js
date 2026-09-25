@@ -1,0 +1,162 @@
+'use client'
+import { C, NUM_FONT } from '../../lib/nhl/theme'
+import { nhlLogo } from '../../lib/nhl/teams'
+
+// The handful of small pieces every LAMP page shares. Kept in one file so a
+// state, a chip or a mark is spelled once. Nothing here is a card.
+
+/** "7:00 PM" in the viewer's own zone. The feed's startTimeUTC is the input. */
+export function fmtPuckDrop(utc) {
+  try {
+    return new Date(utc).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+  } catch { return 'TBD' }
+}
+
+/** "Thu · Sep 24" from a YYYY-MM-DD game day. Rendered as the ET calendar day it is. */
+export function fmtDay(ymd) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd || ''))
+  if (!m) return String(ymd || '')
+  const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], 12))
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' })
+}
+
+/** The viewer's zone, short ("MST"), for the one place a page says "times in your zone". */
+export function zoneAbbrev() {
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', { timeZoneName: 'short' }).formatToParts(new Date())
+    return (parts.find((p) => p.type === 'timeZoneName') || {}).value || ''
+  } catch { return '' }
+}
+
+/** Shift a YYYY-MM-DD by n days, as a calendar day (no zone drift). */
+export function shiftDay(ymd, n) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd || ''))
+  if (!m) return ymd
+  const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3] + n, 12))
+  return d.toISOString().slice(0, 10)
+}
+
+/** Logo + abbreviation. The league's own SVG; the abbreviation is the text. */
+export function TeamMark({ abbrev, name = null, size = 18, bold = false }) {
+  const ab = String(abbrev || '').toUpperCase()
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+      {ab && <img src={nhlLogo(ab)} alt="" width={size} height={size} loading="lazy"
+        style={{ width: size, height: size, flex: 'none', objectFit: 'contain' }} />}
+      <span style={{ font: `${bold ? 900 : 800} 11.5px/1 ${NUM_FONT}`, color: C.text, letterSpacing: '.03em' }}>{ab}</span>
+      {name && <span className="sm-hide" style={{ color: C.text3, fontSize: 11 }}>{name}</span>}
+    </span>
+  )
+}
+
+/** PRESEASON / REGULAR SEASON / PLAYOFFS, from the feed's gameType. */
+export function GameTypeChip({ label }) {
+  if (!label) return null
+  const pre = label === 'PRESEASON'
+  return (
+    <span style={{
+      display: 'inline-block', padding: '3px 7px', borderRadius: 6,
+      border: `1px solid ${pre ? C.amber : C.border2}`, color: pre ? C.amber : C.text3,
+      font: `800 8px/1 ${NUM_FONT}`, letterSpacing: '.12em',
+    }}>{label}</span>
+  )
+}
+
+/** The lit lamp: a red dot that pulses. Live games only — never decoration. */
+export function LampDot({ size = 7 }) {
+  return (
+    <>
+      <i aria-hidden="true" style={{
+        display: 'inline-block', width: size, height: size, borderRadius: '50%',
+        background: C.lamp, boxShadow: `0 0 8px ${C.lamp}`, animation: 'lampPulse 1.6s ease-in-out infinite',
+        verticalAlign: 'middle', marginRight: 6,
+      }} />
+      <style>{`@keyframes lampPulse{0%,100%{opacity:1}50%{opacity:.35}}`}</style>
+    </>
+  )
+}
+
+/**
+ * An empty panel that says WHY it is empty (project rule 24). `title` is the
+ * short capitals line; `note` the sentence under it.
+ */
+export function EmptyState({ title, note = null, tone = C.text3, children = null }) {
+  return (
+    <div role="status" style={{
+      border: `1px dashed ${C.border2}`, borderRadius: 12, padding: '22px 18px',
+      textAlign: 'center', background: C.bg2,
+    }}>
+      <div style={{ color: tone, font: `900 10px/1 ${NUM_FONT}`, letterSpacing: '.16em' }}>{title}</div>
+      {note && <div style={{ marginTop: 8, color: C.text3, fontSize: 12, lineHeight: 1.5, maxWidth: 520, margin: '8px auto 0' }}>{note}</div>}
+      {children}
+    </div>
+  )
+}
+
+/** LIVE DATA DELAYED — the feed failed; the page keeps whatever it last had. */
+export function DelayedBanner({ error, what = 'the league feed' }) {
+  if (!error) return null
+  return (
+    <div role="alert" style={{
+      margin: '0 0 12px', padding: '10px 14px', borderRadius: 10,
+      border: `1px solid ${C.amber}`, background: 'rgba(251,191,36,.08)', color: C.text2, fontSize: 12, lineHeight: 1.5,
+    }}>
+      <b style={{ color: C.amber, fontFamily: NUM_FONT, letterSpacing: '.06em' }}>LIVE DATA DELAYED</b>
+      {' · '}We’re waiting on {what}. Anything below is the last copy we had.
+    </div>
+  )
+}
+
+/** A quiet loading line. */
+export function Loading({ what = 'the feed' }) {
+  return (
+    <div style={{ border: `1px dashed ${C.border2}`, borderRadius: 12, padding: 24, textAlign: 'center', color: C.text3, fontSize: 12 }}>
+      Reading {what}…
+    </div>
+  )
+}
+
+/** The mono kicker every section title on LAMP uses. */
+export function Kicker({ children, tone = C.ice }) {
+  return <div style={{ color: tone, font: `900 8px/1 ${NUM_FONT}`, letterSpacing: '.14em', marginBottom: 6 }}>{children}</div>
+}
+
+/** One row of pills (view switches, date pagers). */
+export function Pills({ value, onChange, options, ariaLabel }) {
+  return (
+    <div role="group" aria-label={ariaLabel} style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+      {options.map((o) => {
+        const on = o.key === value
+        return (
+          <button key={o.key} type="button" onClick={() => onChange(o.key)} aria-pressed={on} disabled={o.disabled}
+            title={o.title} style={{
+              height: 26, padding: '0 10px', borderRadius: 999, cursor: o.disabled ? 'default' : 'pointer',
+              border: `1px solid ${on ? C.ice : C.border2}`, background: on ? `${C.ice}1a` : 'transparent',
+              color: on ? C.ice : C.text2, font: `800 9.5px/1 ${NUM_FONT}`, letterSpacing: '.06em',
+              opacity: o.disabled ? .45 : 1,
+            }}>{o.text}</button>
+        )
+      })}
+    </div>
+  )
+}
+
+/** The one-line data-origin note every page carries at its foot. */
+export function SourceLine({ children }) {
+  return <div style={{ marginTop: 12, color: C.text3, fontSize: 10, lineHeight: 1.5, fontFamily: NUM_FONT }}>{children}</div>
+}
+
+// ── hash helpers ────────────────────────────────────────────────────────────
+// LAMP's pages carry their one parameter (a date, a game id) in the same
+// hash the rest of /app routes on, so a link to a night or a game is a real
+// address. replaceState, never pushState: the back button leaves the site.
+export function readHashParam(key) {
+  try { return new URLSearchParams(String(window.location.hash || '').replace(/^#/, '')).get(key) } catch { return null }
+}
+export function writeHashParam(key, value) {
+  try {
+    const h = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''))
+    if (value == null || value === '') h.delete(key); else h.set(key, String(value))
+    window.history.replaceState(null, '', `#${h.toString()}`)
+  } catch { /* the page still works without the address */ }
+}

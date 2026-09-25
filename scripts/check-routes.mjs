@@ -14,9 +14,15 @@ const miss = (sport, keys, where) => {
 }
 miss('mlb', Object.keys(R.MLB_NAV), 'MLB_NAV')
 miss('nfl', Object.keys(R.NFL_NAV), 'NFL_NAV')
+miss('nhl', Object.keys(R.NHL_NAV), 'NHL_NAV')
 miss('mlb', R.MLB_MORE_GROUPS.flatMap((g) => g[1]), 'MLB_MORE_GROUPS')
 miss('nfl', R.NFL_MORE_GROUPS.flatMap((g) => g[1]), 'NFL_MORE_GROUPS')
+miss('nhl', R.NHL_MORE_GROUPS.flatMap((g) => g[1]), 'NHL_MORE_GROUPS')
 for (const [k, v] of Object.entries(R.MLB_ALIASES)) if (!R.MLB_TABS.includes(v)) { console.log(`FAIL MLB_ALIASES ${k} -> '${v}' not in MLB_TABS`); bad += 1 }
 for (const [k, v] of Object.entries(R.NFL_ALIASES)) if (!R.NFL_TABS.includes(v)) { console.log(`FAIL NFL_ALIASES ${k} -> '${v}' not in NFL_TABS`); bad += 1 }
+for (const [k, v] of Object.entries(R.NHL_ALIASES)) if (!R.NHL_TABS.includes(v)) { console.log(`FAIL NHL_ALIASES ${k} -> '${v}' not in NHL_TABS`); bad += 1 }
+// A sport the registry does not know must still answer MOONSHOT, never throw.
+if (R.resolveTab('xfl', 'home').tab !== 'home') { console.log('FAIL unknown sport did not fall back to MOONSHOT'); bad += 1 }
+if (R.pageTitle('nhl', 'scores') !== 'LAMP · NHL — Scores') { console.log(`FAIL pageTitle nhl: ${R.pageTitle('nhl', 'scores')}`); bad += 1 }
 console.log(bad ? `${bad} problem(s)` : 'OK routes registry: nav, More groups and aliases all resolve')
 process.exit(bad ? 1 : 0)

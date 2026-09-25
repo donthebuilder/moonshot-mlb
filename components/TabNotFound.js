@@ -1,5 +1,6 @@
 'use client'
 import { C as MLB_C, NUM_FONT } from '../lib/theme'
+import { BRAND, sportKey } from '../lib/routes'
 
 // THE IN-APP 404 (2026-09-02, findings 2/3/15/16).
 //
@@ -15,14 +16,17 @@ export default function TabNotFound({ asked, sport = 'mlb', onNavigate, doors = 
   // TUDDY has its own palette (lib/nfl/theme); it passes it in so this panel
   // never renders MOONSHOT's orange inside the NFL shell.
   const C = palette || MLB_C
-  const other = sport === 'nfl' ? 'mlb' : 'nfl'
+  // 2026-09-25: three products, so "the other side" is two doors, not one.
+  const here = sportKey(sport)
+  const others = Object.keys(BRAND).filter((k) => k !== here)
+  const glyph = { mlb: '\u26BE', nfl: '\u{1F3C8}', nhl: '\u{1F3D2}' }
   return (
     <div style={{
       border: `1px solid ${C.border}`, borderRadius: 16, background: C.bg2,
       padding: '28px 22px', textAlign: 'center', margin: '10px 0 18px',
     }}>
       <p style={{ margin: 0, color: C.orange, font: `900 9px/1 ${NUM_FONT}`, letterSpacing: '.18em' }}>
-        {sport === 'nfl' ? 'TUDDY' : 'MOONSHOT'} · NO SUCH TAB
+        {BRAND[here].name} · NO SUCH TAB
       </p>
       <h2 style={{ margin: '12px 0 8px', fontSize: 22, letterSpacing: '-.02em', color: C.text }}>
         That page isn&apos;t on the board.
@@ -37,9 +41,11 @@ export default function TabNotFound({ asked, sport = 'mlb', onNavigate, doors = 
         {doors.map(([key, label]) => (
           <button key={key} type="button" onClick={() => onNavigate?.(key)} style={doorStyle(C)}>{label}</button>
         ))}
-        <a href={`#sport=${other}&tab=home`} style={{ ...doorStyle(C), textDecoration: 'none' }}>
-          {other === 'nfl' ? '🏈 TUDDY · NFL' : '⚾ MOONSHOT · MLB'}
-        </a>
+        {others.map((k) => (
+          <a key={k} href={`#sport=${k}&tab=home`} style={{ ...doorStyle(C), textDecoration: 'none' }}>
+            {glyph[k]} {BRAND[k].name} · {BRAND[k].league}
+          </a>
+        ))}
       </div>
     </div>
   )

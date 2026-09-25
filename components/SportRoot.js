@@ -5,6 +5,7 @@ import { themeFromUrl } from '../lib/themes'
 import { applyTheme } from '../lib/theme'
 import Dashboard from './Dashboard'
 import NflDashboard from './nfl/NflDashboard'
+import LampDashboard from './lamp/LampDashboard'
 
 // One switch, two dashboards.
 //
@@ -54,5 +55,8 @@ export default function SportRoot() {
   // `pass` is passed down rather than used as a key: it changes identity on
   // the repaint pass, which is what makes the re-render observable, while the
   // component instance and its DOM survive.
-  return sport === 'nfl' ? <NflDashboard palettePass={pass} /> : <Dashboard palettePass={pass} />
+  // Three shells, one switch (2026-09-25: LAMP). MOONSHOT stays the default.
+  if (sport === 'nfl') return <NflDashboard palettePass={pass} />
+  if (sport === 'nhl') return <LampDashboard palettePass={pass} />
+  return <Dashboard palettePass={pass} />
 }

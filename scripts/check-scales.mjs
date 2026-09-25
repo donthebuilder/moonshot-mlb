@@ -79,6 +79,7 @@ const EXEMPT = new Set([
   'lib/rampSolver.js',     // the solver, which computes hexes for a living
   'lib/hrShape.js',        // HR_BANDS: one definition, four consumers, already right
   'lib/nfl/theme.js',      // the NFL fork — its own problem, tracked separately
+  'lib/nhl/theme.js',      // 2026-09-25: the NHL (LAMP) token set, same ground as the NFL fork
   'components/shareCard.js', // a PNG poster: 32 team colours, dark by construction
   'lib/dash/homerCard.js',   // the same poster, rendered server-side for @CalledItHR: same 32 colours, same dark field
   // 2026-09-13: the NFL twin of homerCard.js, on exactly the same ground — a
