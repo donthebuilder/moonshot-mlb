@@ -161,12 +161,26 @@ export default function NflDashboard({ palettePass = 0 }) {
     } catch { /* ignore */ }
     // Prefer the live hash when switching sports without a reload, then fall
     // back to the module-load snapshot for a direct NFL deep link.
+    //
+    // THE LIVE HASH ANSWERS WHEN IT NAMES TUDDY (2026-09-25, the navigation
+    // pass). `if (!NFL_TABS.has(t)) t = snapshot` meant a sport switch INTO
+    // TUDDY from a page TUDDY does not have (LAMP's Schedule, Standings,
+    // Teams, a Game) -- where lib/sport.js has already deleted the tab and
+    // written #sport=nfl -- fell through to the tab the page LOADED with and
+    // printed NO SUCH TAB schedule under an address that says This week.
+    // Measured live. The snapshot is only for a cold open the MLB shell may
+    // have rewritten before this shell mounted: when the live hash does not
+    // name TUDDY, or names it with a word TUDDY cannot resolve at all while
+    // the snapshot carries one it can. Same change in LampDashboard.
     let t = null
+    let liveIsUs = false
     try {
       const live = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''))
-      if (live.get('sport') === 'nfl') t = live.get('tab')
+      if (live.get('sport') === 'nfl') { liveIsUs = true; t = live.get('tab') }
     } catch { /* ignore */ }
-    if (!NFL_TABS.has(t)) t = initialHashParams().get('tab')
+    const snapTab = initialHashParams().get('tab')
+    if (!liveIsUs) t = snapTab
+    else if (t && resolveTab('nfl', t).status === 'missing' && snapTab && resolveTab('nfl', snapTab).status !== 'missing') t = snapTab
     const r = resolveTab('nfl', t)
     // An unknown tab is NOT quietly rewritten to Home any more. Somebody who
     // shared "here are the receipts" as #sport=nfl&tab=results was sending

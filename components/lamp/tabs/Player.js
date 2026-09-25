@@ -36,18 +36,18 @@ const G_LOG_COLS = [
 ]
 const vs = (r) => `${r.home ? 'vs' : '@'} ${r.opp}`
 
-export default function Player({ id, onOpenTeam, onOpenGame, onBack }) {
+export default function Player({ id, onOpenTeam, onOpenGame, onBack, backLabel = 'Players' }) {
   const { data: p, error, loading } = useLampPlayer(id)
-  if (!/^\d{7}$/.test(String(id || ''))) return <EmptyState title="NO PLAYER PICKED" note="Open a player from a roster, the directory, a leaders table, or a goal."><BackBtn onBack={onBack} /></EmptyState>
+  if (!/^\d{7}$/.test(String(id || ''))) return <EmptyState title="NO PLAYER PICKED" note="Open a player from a roster, the directory, a leaders table, or a goal."><BackBtn onBack={onBack} label={backLabel} /></EmptyState>
   if (loading && !p) return <Loading what="the player file" />
   if (!p) {
     const nobody = error?.status === 400 || error?.status === 404
-    return <EmptyState title={nobody ? 'NO SUCH PLAYER' : 'LIVE DATA DELAYED'} note={nobody ? 'That is not a player id the league knows.' : 'We’re waiting on the league’s player feed.'} tone={nobody ? C.text3 : C.amber}><BackBtn onBack={onBack} /></EmptyState>
+    return <EmptyState title={nobody ? 'NO SUCH PLAYER' : 'LIVE DATA DELAYED'} note={nobody ? 'That is not a player id the league knows.' : 'We’re waiting on the league’s player feed.'} tone={nobody ? C.text3 : C.amber}><BackBtn onBack={onBack} label={backLabel} /></EmptyState>
   }
-  return <PlayerBody p={p} error={error} onOpenTeam={onOpenTeam} onOpenGame={onOpenGame} onBack={onBack} />
+  return <PlayerBody p={p} error={error} onOpenTeam={onOpenTeam} onOpenGame={onOpenGame} onBack={onBack} backLabel={backLabel} />
 }
 
-function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack }) {
+function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel }) {
   const goalie = p.goalie
   const f = p.featured
   const stale = Boolean(p.current && f.season && f.season < p.current)
@@ -75,7 +75,7 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack }) {
   const cols = goalie ? G_SEASON_COLS : SK_SEASON_COLS
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <BackBtn onBack={onBack} />
+      <BackBtn onBack={onBack} label={backLabel} />
       <DelayedBanner error={error} what="the league’s player feed" />
       <header style={{ display: 'flex', gap: 14, alignItems: 'center', borderBottom: `1px solid ${C.border2}`, paddingBottom: 12 }}>
         {p.headshot && <img src={p.headshot} alt="" width={72} height={72} style={{ width: 72, height: 72, borderRadius: '50%', background: C.bg3, objectFit: 'cover', flex: 'none' }} />}
@@ -163,8 +163,8 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack }) {
   )
 }
 
-function BackBtn({ onBack }) {
-  return <div><button type="button" onClick={onBack} style={{ height: 28, padding: '0 11px', borderRadius: 8, cursor: 'pointer', border: `1px solid ${C.border2}`, background: C.bg2, color: C.text2, font: `800 10px/1 ${NUM_FONT}`, letterSpacing: '.04em' }}>‹ Back</button></div>
+function BackBtn({ onBack, label }) {
+  return <div><button type="button" onClick={onBack} style={{ height: 28, padding: '0 11px', borderRadius: 8, cursor: 'pointer', border: `1px solid ${C.border2}`, background: C.bg2, color: C.text2, font: `800 10px/1 ${NUM_FONT}`, letterSpacing: '.04em' }}>‹ {label}</button></div>
 }
 const tbl = { width: '100%', borderCollapse: 'collapse', fontSize: 12 }
 const thr = { color: C.text3, font: `800 8px/1 ${NUM_FONT}`, letterSpacing: '.12em', textAlign: 'left' }

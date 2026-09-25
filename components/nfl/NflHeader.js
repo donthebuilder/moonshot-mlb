@@ -3,6 +3,8 @@ import { Children, cloneElement, isValidElement, useEffect, useMemo, useRef, use
 import { NFL_NAV, NFL_MORE_GROUPS } from '../../lib/routes'
 import { C, NUM_FONT, GRADIENT } from '../../lib/nfl/theme'
 import { setSport } from '../../lib/sport'
+// LAMP's ice for the third pill -- a token import, not a literal (hex budget).
+import { C as LAMP_C } from '../../lib/nhl/theme'
 import PaletteButton from '../PaletteButton'
 import ThemeModeButton from '../ThemeModeButton'
 import AlertBell from './AlertBell'
@@ -387,7 +389,7 @@ export default function NflHeader({ tab, setTab, data, meta, matchup, weekMode =
               The top-left logo is the one navigation convention a first-time
               visitor already knows. Only the square mark links; the TUDDY
               wordmark names the product you are already in. */}
-          <a href="/" title="DASH Network home — MOONSHOT · TUDDY · FRANCHISE"
+          <a href="/" title="DASH Network home — MOONSHOT · TUDDY · LAMP · FRANCHISE"
             aria-label="DASH Network home"
             style={{ display: 'flex', textDecoration: 'none', borderRadius: 10 }}>
           <div className="nfl-hdr-mark" style={{
@@ -458,6 +460,20 @@ export default function NflHeader({ tab, setTab, data, meta, matchup, weekMode =
                     background: `${C.orange}10`,
                     color: C.orange,
                   }}>MOONSHOT</button>
+                {/* LAMP (ice), 2026-09-25 -- same reason as MOONSHOT's header:
+                    above 760px this row was the only sport switch and it named
+                    one product, so the third was unreachable from TUDDY. */}
+                <button onClick={() => setSport('nhl')} aria-pressed={false}
+                  title="Switch to LAMP · NHL" aria-label="Switch to LAMP · NHL"
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    height: 20, minHeight: 20, padding: '0 9px', lineHeight: 1,
+                    fontSize: 9.5, fontWeight: 900, letterSpacing: '0.08em', borderRadius: 999,
+                    cursor: 'pointer',
+                    border: `1px solid ${LAMP_C.ice}70`,
+                    background: `${LAMP_C.ice}10`,
+                    color: LAMP_C.ice,
+                  }}>LAMP</button>
               </span>
             </div>
           </div>

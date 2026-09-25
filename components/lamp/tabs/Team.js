@@ -35,18 +35,18 @@ const GOALIE_COLS = [
   { key: 'so', label: 'SO', w: 34 }, { key: 'sa', label: 'SA', w: 42, heat: false },
 ]
 
-export default function Team({ abbrev, onOpenPlayer, onOpenGame, onBack }) {
+export default function Team({ abbrev, onOpenPlayer, onOpenGame, onBack, backLabel = 'Teams' }) {
   const { data: t, error, loading } = useLampTeam(abbrev)
-  if (!/^[A-Za-z]{3}$/.test(String(abbrev || ''))) return <EmptyState title="NO CLUB PICKED" note="Open a club from Teams, a score row, or a player’s file."><BackBtn onBack={onBack} /></EmptyState>
+  if (!/^[A-Za-z]{3}$/.test(String(abbrev || ''))) return <EmptyState title="NO CLUB PICKED" note="Open a club from Teams, the Board, a roster, or a player’s file."><BackBtn onBack={onBack} label={backLabel} /></EmptyState>
   if (loading && !t) return <Loading what="the club" />
   if (!t) {
     const notAClub = error?.status === 400 || error?.status === 404
-    return <EmptyState title={notAClub ? 'NO SUCH CLUB' : 'LIVE DATA DELAYED'} note={notAClub ? 'That is not one of the 32 NHL clubs.' : 'We’re waiting on the league’s club feeds.'} tone={notAClub ? C.text3 : C.amber}><BackBtn onBack={onBack} /></EmptyState>
+    return <EmptyState title={notAClub ? 'NO SUCH CLUB' : 'LIVE DATA DELAYED'} note={notAClub ? 'That is not one of the 32 NHL clubs.' : 'We’re waiting on the league’s club feeds.'} tone={notAClub ? C.text3 : C.amber}><BackBtn onBack={onBack} label={backLabel} /></EmptyState>
   }
-  return <TeamBody t={t} error={error} onOpenPlayer={onOpenPlayer} onOpenGame={onOpenGame} onBack={onBack} />
+  return <TeamBody t={t} error={error} onOpenPlayer={onOpenPlayer} onOpenGame={onOpenGame} onBack={onBack} backLabel={backLabel} />
 }
 
-function TeamBody({ t, error, onOpenPlayer, onOpenGame, onBack }) {
+function TeamBody({ t, error, onOpenPlayer, onOpenGame, onBack, backLabel }) {
   const s = t.standing
   const games = t.schedule?.games || []
   const played = games.filter((g) => g.state === 'final')
@@ -67,7 +67,7 @@ function TeamBody({ t, error, onOpenPlayer, onOpenGame, onBack }) {
   const opens = t.season?.opens
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <BackBtn onBack={onBack} />
+      <BackBtn onBack={onBack} label={backLabel} />
       <DelayedBanner error={error} what="the league’s club feeds" />
       <PageHeader
         eyebrow={`LAMP · TEAM · ${t.team.conference === 'E' ? 'EASTERN' : 'WESTERN'} · ${t.team.division.toUpperCase()}`}
@@ -154,8 +154,8 @@ function GameRow({ g, onOpen }) {
   )
 }
 const ordinal = (n) => { if (n == null) return '—'; const r = n % 100; if (r >= 11 && r <= 13) return `${n}th`; return `${n}${['th', 'st', 'nd', 'rd'][n % 10] || 'th'}` }
-function BackBtn({ onBack }) {
-  return <div><button type="button" onClick={onBack} style={{ height: 28, padding: '0 11px', borderRadius: 8, cursor: 'pointer', border: `1px solid ${C.border2}`, background: C.bg2, color: C.text2, font: `800 10px/1 ${NUM_FONT}`, letterSpacing: '.04em' }}>‹ Teams</button></div>
+function BackBtn({ onBack, label }) {
+  return <div><button type="button" onClick={onBack} style={{ height: 28, padding: '0 11px', borderRadius: 8, cursor: 'pointer', border: `1px solid ${C.border2}`, background: C.bg2, color: C.text2, font: `800 10px/1 ${NUM_FONT}`, letterSpacing: '.04em' }}>‹ {label}</button></div>
 }
 const tbl = { width: '100%', borderCollapse: 'collapse', fontSize: 12 }
 const td = { padding: '7px 8px', verticalAlign: 'middle' }

@@ -17,10 +17,10 @@ import { EmptyState, DelayedBanner, Loading, SourceLine, Kicker, GameTypeChip, L
 // gamecenter/{id}/boxscore — batch 2, with the goalie pages that give those
 // numbers a home), a shot map (play-by-play has the coordinates; it comes
 // with the ice-map component, not before). Nothing here is a placeholder.
-export default function Game({ id, onBack }) {
+export default function Game({ id, onBack, backLabel = 'Scores' }) {
   const { data: g, error, loading } = useLampGame(id)
   if (!/^\d{10}$/.test(String(id || ''))) {
-    return <EmptyState title="NO GAME PICKED" note="Open a game from Scores or the Schedule."><BackBtn onBack={onBack} /></EmptyState>
+    return <EmptyState title="NO GAME PICKED" note="Open a game from Scores or the Schedule."><BackBtn onBack={onBack} label={backLabel} /></EmptyState>
   }
   if (loading && !g) return <Loading what="the game" />
   if (!g) {
@@ -28,7 +28,7 @@ export default function Game({ id, onBack }) {
     const notAGame = error?.status === 400 || error?.status === 404
     return (
       <EmptyState title={notAGame ? 'NO SUCH GAME' : 'LIVE DATA DELAYED'} note={notAGame ? 'That is not a game id the league knows. Open one from Scores or the Schedule.' : 'We’re waiting on the league’s game feed.'} tone={notAGame ? C.text3 : C.amber}>
-        <BackBtn onBack={onBack} />
+        <BackBtn onBack={onBack} label={backLabel} />
       </EmptyState>
     )
   }
@@ -42,7 +42,7 @@ export default function Game({ id, onBack }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <BackBtn onBack={onBack} />
+      <BackBtn onBack={onBack} label={backLabel} />
       <DelayedBanner error={error} what="the league’s game feed" />
 
       {/* ── header ── */}
@@ -250,10 +250,12 @@ function Side({ team, lead, align }) {
   )
 }
 
-function BackBtn({ onBack }) {
+// Labelled with where it goes (the trail in LampDashboard), never a bare
+// "Back" that lands somewhere else.
+function BackBtn({ onBack, label }) {
   return (
     <div>
-      <button type="button" onClick={onBack} style={{ height: 28, padding: '0 11px', borderRadius: 8, cursor: 'pointer', border: `1px solid ${C.border2}`, background: C.bg2, color: C.text2, font: `800 10px/1 ${NUM_FONT}`, letterSpacing: '.04em' }}>‹ Scores</button>
+      <button type="button" onClick={onBack} style={{ height: 28, padding: '0 11px', borderRadius: 8, cursor: 'pointer', border: `1px solid ${C.border2}`, background: C.bg2, color: C.text2, font: `800 10px/1 ${NUM_FONT}`, letterSpacing: '.04em' }}>‹ {label}</button>
     </div>
   )
 }

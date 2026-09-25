@@ -4,7 +4,7 @@ import PageHeader from '../../PageHeader'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import { useLampBoard } from '../../../lib/nhl/useLamp'
 import { usePreview, ShowMoreButton } from '../../ListPreview'
-import { TeamMark, EmptyState, DelayedBanner, Loading, SourceLine, Kicker, GameTypeChip, LampDot, StaleSeasonNote, PlayerMark, fmtDay, fmtPuckDrop, fmtSec, zoneAbbrev, readHashParam, writeHashParam, shiftDay } from '../ui'
+import { TeamMark, EmptyState, DelayedBanner, Loading, SourceLine, Kicker, GameTypeChip, LampDot, StaleSeasonNote, PlayerMark, fmtDay, fmtPuckDrop, fmtSec, zoneAbbrev, readHashDay, writeHashParam, shiftDay } from '../ui'
 
 // 🏒 THE LAMP GOAL BOARD (lamp-goal-v1) — the product's first signal page.
 // Per game: every scored skater ranked, the top three CALLED, the rest ON
@@ -19,7 +19,7 @@ import { TeamMark, EmptyState, DelayedBanner, Loading, SourceLine, Kicker, GameT
 const STATUS = { called: 'CALLED', board: 'ON THE BOARD', off: 'NOT ON THE BOARD' }
 
 export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam }) {
-  const [date, setDate] = useState(() => { const d = readHashParam('date'); return /^\d{4}-\d{2}-\d{2}$/.test(d || '') ? d : null })
+  const [date, setDate] = useState(() => readHashDay())
   useEffect(() => { writeHashParam('date', date) }, [date])
   const { data, error, loading } = useLampBoard(date)
   const games = data?.games || []

@@ -153,6 +153,18 @@ export function SourceLine({ children }) {
 export function readHashParam(key) {
   try { return new URLSearchParams(String(window.location.hash || '').replace(/^#/, '')).get(key) } catch { return null }
 }
+/** `date=` off the hash, only when it is a REAL calendar day; else null (today).
+ *  `2026-13-45` matched the old \d{4}-\d{2}-\d{2} test, the route answered
+ *  400 BAD REQUEST, and the page printed "Sun, Feb 14" (JS rolled the date)
+ *  under a LIVE DATA DELAYED banner that blamed the league feed. Measured
+ *  live, 2026-09-25. A bad address is not a delay. */
+export function readHashDay() {
+  const d = readHashParam('date')
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d || '')
+  if (!m) return null
+  const t = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]))
+  return t.getUTCFullYear() === +m[1] && t.getUTCMonth() === +m[2] - 1 && t.getUTCDate() === +m[3] ? d : null
+}
 export function writeHashParam(key, value) {
   try {
     const h = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''))

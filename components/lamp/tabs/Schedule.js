@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import PageHeader from '../../PageHeader'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import { useLampSchedule } from '../../../lib/nhl/useLamp'
-import { TeamMark, EmptyState, DelayedBanner, Loading, SourceLine, GameTypeChip, LampDot, fmtDay, fmtPuckDrop, zoneAbbrev, readHashParam, writeHashParam } from '../ui'
+import { TeamMark, EmptyState, DelayedBanner, Loading, SourceLine, GameTypeChip, LampDot, fmtDay, fmtPuckDrop, zoneAbbrev, readHashDay, writeHashParam } from '../ui'
 
 // 🏒 SCHEDULE — the league week, day by day. Football's unit is a week and
 // baseball's is a night; hockey's is both, so this page is the week and
@@ -15,10 +15,7 @@ import { TeamMark, EmptyState, DelayedBanner, Loading, SourceLine, GameTypeChip,
 // part of the week show their score; games to come show puck drop in the
 // viewer's zone. Tap a row for the game.
 export default function Schedule({ onOpenGame }) {
-  const [date, setDate] = useState(() => {
-    const d = readHashParam('date')
-    return /^\d{4}-\d{2}-\d{2}$/.test(d || '') ? d : null
-  })
+  const [date, setDate] = useState(() => readHashDay())
   useEffect(() => { writeHashParam('date', date) }, [date])
   const { data, error, loading } = useLampSchedule(date)
   const week = data

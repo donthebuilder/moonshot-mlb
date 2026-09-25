@@ -53,7 +53,9 @@ function rowsFor(rows, view, rankKey) {
   })).sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99))
 }
 
-export default function Standings() {
+// `onOpenTeam` (2026-09-25, navigation pass): 32 clubs in a table and none
+// opened its page. A row is the club; tap it for the club.
+export default function Standings({ onOpenTeam }) {
   const [view, setView] = useState('division')
   const { data, error, loading } = useLampStandings()
   const rows = data?.rows || []
@@ -108,7 +110,7 @@ export default function Standings() {
       {groups.map((g) => (
         <section key={g.title} aria-label={g.title}>
           <Kicker>{g.title.toUpperCase()}</Kicker>
-          <LampTable rows={g.rows} columns={COLUMNS} maxHeight={9999} heatMode="standouts" maxRows={40} />
+          <LampTable rows={g.rows} columns={COLUMNS} maxHeight={9999} heatMode="standouts" maxRows={40} onRowClick={onOpenTeam ? (r) => onOpenTeam(r._abbrev) : undefined} />
           {g.cutAfter && g.rows.length > g.cutAfter && (
             <div style={{ color: C.text3, font: `800 8px/1.4 ${NUM_FONT}`, letterSpacing: '.08em', marginTop: 4 }}>THE LINE IS AFTER #{g.cutAfter} — two wild cards per conference make the playoffs.</div>
           )}

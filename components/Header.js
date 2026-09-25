@@ -3,6 +3,8 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { logUrl } from '../lib/dataSource'
 import { setSport } from '../lib/sport'
+// LAMP's ice for the third pill below -- a token import, not a literal (hex budget).
+import { C as LAMP_C } from '../lib/nhl/theme'
 import { computeSlateStats } from './SlateTiles'
 import PaletteButton from './PaletteButton'
 import ThemeModeButton from './ThemeModeButton'
@@ -344,7 +346,7 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDat
           <div className="hdr-brand" style={{ display:'flex', alignItems:'center', gap:10, minWidth:0 }}>
             {/* THE MARK IS THE WAY HOME (2026-08-31): the square mark goes to the
                 DASH front door; the wordmark is MOONSHOT's own home button. */}
-            <a href="/" title="DASH Network home — MOONSHOT · TUDDY · FRANCHISE" aria-label="DASH Network home"
+            <a href="/" title="DASH Network home — MOONSHOT · TUDDY · LAMP · FRANCHISE" aria-label="DASH Network home"
               style={{ display:'flex', textDecoration:'none', borderRadius:10, flexShrink:0 }}>
               <div className="hdr-mark" style={{ position:'relative', width:46, height:46, borderRadius:12, boxShadow:'0 0 20px rgba(249,115,22,0.35)' }}>
                 <img src="/icon-192.png" alt="" width={46} height={46} style={{ display:'block', width:'100%', height:'100%', borderRadius:12 }} />
@@ -375,6 +377,21 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDat
                       background:`${C.green}10`,
                       color: C.green,
                     }}>TUDDY</button>
+                  {/* LAMP (ice), 2026-09-25: the navigation pass measured that on a
+                      desktop the third product was reachable from here only by
+                      leaving for the front door -- this pill and TUDDY's were the
+                      only sport switch above 760px, and each named one product. */}
+                  <button onClick={() => setSport('nhl')} aria-pressed={false}
+                    title="Switch to LAMP · NHL" aria-label="Switch to LAMP · NHL"
+                    style={{
+                      display:'inline-flex', alignItems:'center', justifyContent:'center',
+                      height:20, minHeight:20, padding:'0 9px', lineHeight:1,
+                      fontSize:9.5, fontWeight:900, letterSpacing:'0.08em', borderRadius:999,
+                      cursor:'pointer',
+                      border:`1px solid ${LAMP_C.ice}55`,
+                      background:`${LAMP_C.ice}10`,
+                      color: LAMP_C.ice,
+                    }}>LAMP</button>
                 </span>
               </div>
             </div>
