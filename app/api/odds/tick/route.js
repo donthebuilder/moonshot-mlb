@@ -101,6 +101,12 @@ export async function GET(request) {
     }
     if (!dry) {
       const map = events.filter((ev) => startsAt(ev)).map((ev) => ({ event_id: ev.eventID, sport, game_date: gameDate(ev), starts_at: startsAt(ev), away: ev.teams?.away?.names?.short || null, home: ev.teams?.home?.names?.short || null, listed_at: takenAt }))
+      // THE DAY'S "LISTED" MARKER (measured 09-26): a list that returns NO
+      // games still costs one object, and without a row for the day the next
+      // tick asked again -- every ten minutes, ~3,000 objects a month on NFL's
+      // empty days alone. One marker row per league per day; its starts_at is
+      // the day's own midnight, already past, so it is never a due game.
+      map.push({ event_id: `listed:${sport}:${date}`, sport, game_date: date, starts_at: new Date(etMidnight(date)).toISOString(), away: null, home: null, listed_at: takenAt })
       const m = map.length ? await db.from('odds_events').upsert(map, { onConflict: 'event_id', ignoreDuplicates: true }) : { error: null }
       if (m.error) { out.skipped.push({ league, why: `event map write: ${m.error.message}` }); continue }
       try { await insertRows(db, rows) } catch (e) { out.skipped.push({ league, why: `list rows: ${e?.message}` }); continue }
