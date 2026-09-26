@@ -36,7 +36,8 @@ import AlertsPanel from '../../components/AlertsPanel'
 import DashAuthCard from '../../components/DashAuthCard'
 import LegacyHashRedirect from '../../components/LegacyHashRedirect'
 import SubmitButton from '../../components/fantasy/SubmitButton'
-import { getNetworkPulse } from '../../lib/dash/pulse'
+import { getNetworkPulse, liveProduct } from '../../lib/dash/pulse'
+import { appHref, BRAND } from '../../lib/routes'
 import { wilson } from '../../lib/interval'
 import { hasSupabaseConfig } from '../../lib/supabase/config'
 import { createSupabaseServerClient } from '../../lib/supabase/server'
@@ -107,6 +108,11 @@ export default async function DashHome({ searchParams }) {
   const [pulse, me] = await Promise.all([getNetworkPulse(), account()])
   const { mlb, nfl, nhl, record } = pulse
   const displayName = me.user?.user_metadata?.display_name || me.user?.email?.split('@')[0] || null
+  // The one primary button: the board that's on today (funnel step 1).
+  const live = liveProduct(pulse)
+  // The sign-up fold opens by itself when someone is mid-flow: a failed
+  // attempt, a confirm-your-email return, or the welcome after sign-up.
+  const authOpen = Boolean(welcomeName || params.error || params.message || params.confirm || params.em)
 
   return (
     <main className={styles.page} id="top">
@@ -176,7 +182,11 @@ export default async function DashHome({ searchParams }) {
               (stranger test F1). The board is one tap further, from either,
               and from every product card below; the header keeps the
               account button. */}
-          <Link href="/start">Start here <b>→</b></Link>
+          {/* FUNNEL STEP 1 (2026-09-26): ONE primary, and it moves forward --
+              into the product that's live today. /start and the record stay
+              as the quieter doors beside it. */}
+          <Link href={appHref(live)}>Open tonight&apos;s board <b>→</b><small className={styles.heroWhich}>{BRAND[live].name} · {BRAND[live].league}</small></Link>
+          <Link href="/start">What is this?</Link>
           <Link href="/called">CALLED IT &middot; the public record</Link>
         </div>
       </section>
@@ -401,7 +411,12 @@ export default async function DashHome({ searchParams }) {
             </div>
           </div>
         ) : me.configured ? (
-          <>
+          // Folded behind one button (funnel step 1): the form was ~900px of
+          // a 4,000px phone page. #sign-in / #create-account open it (the
+          // header links, /login, the actions' redirects), and it opens by
+          // itself when someone is mid-sign-up.
+          <details className={styles.authFold} id="auth" open={authOpen || undefined}>
+            <summary className={styles.barCta}>Create free account</summary>
             <div className={styles.authIntro}>
               <p className={styles.kicker}>ONE ACCOUNT, WHOLE NETWORK</p>
               <h2>Keep your list when you switch devices.</h2>
@@ -430,10 +445,11 @@ export default async function DashHome({ searchParams }) {
                 Everything on MOONSHOT, TUDDY and LAMP is readable without one.
               </p>
             </div>
-          </>
+          </details>
         ) : (
           <p className={styles.muted}>Accounts aren&apos;t configured on this deploy — everything you save stays in this browser.</p>
         )}
+        <OpenOnHash id="auth" also={['sign-in', 'create-account']} />
       </section>
 
       {/* Thirty-six switches are for somebody who has already decided; a

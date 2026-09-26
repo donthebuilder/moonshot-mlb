@@ -74,6 +74,7 @@ import { nhlCaptureFrom, readNhlRecords } from '../../lib/record/nhl'
 import { readMlbEvents } from '../../lib/record/mlb'
 import { readNflEvents } from '../../lib/record/nfl'
 import { eventCapture } from '../../lib/record/shape'
+import { appHref } from '../../lib/routes'
 import styles from './start.module.css'
 
 export const dynamic = 'force-dynamic'
@@ -161,7 +162,8 @@ const SPORTS = {
     key: 'mlb',
     label: 'MLB',
     product: 'MOONSHOT',
-    board: '/app#sport=mlb&tab=home',
+    board: appHref('mlb'),
+    open: 'Open tonight\u2019s board',
     recordHref: '/called?sport=mlb',
     event: 'home runs',
     eventOne: 'home run',
@@ -186,7 +188,8 @@ const SPORTS = {
     key: 'nfl',
     label: 'NFL',
     product: 'TUDDY',
-    board: '/app#sport=nfl&tab=home',
+    board: appHref('nfl'),
+    open: 'Open this week\u2019s board',
     recordHref: '/called?sport=nfl',
     event: 'touchdowns',
     eventOne: 'touchdown',
@@ -214,7 +217,8 @@ const SPORTS = {
     key: 'nhl',
     label: 'NHL',
     product: 'LAMP',
-    board: '/app#sport=nhl&tab=home',
+    board: appHref('nhl'),
+    open: 'Open tonight\u2019s board',
     recordHref: '/called?sport=nhl',
     event: 'goal scorers',
     eventOne: 'goal scorer',
@@ -455,6 +459,16 @@ export default async function StartPage({ searchParams }) {
             <a className={styles.inline} href={sport.recordHref}>See the record.</a>
           </p>
         )}
+        {/* FUNNEL STEP 1 (2026-09-26): the FIRST button under the headline
+            goes into the product. The record is the inline link above, and a
+            free account sits beside the button rather than above it. */}
+        <div className={styles.doors}>
+          <a className={styles.cta} href={sport.board}>
+            <strong>{sport.open} →</strong>
+            <span>Every pick and the full board. Open to everyone.</span>
+          </a>
+          <a className={styles.second} href={SIGNUP}>Free account</a>
+        </div>
       </section>
 
       <section className={styles.panel}>
@@ -511,14 +525,9 @@ export default async function StartPage({ searchParams }) {
         </section>
       )}
 
-      <a className={styles.cta} href={SIGNUP}>
-        <strong>Get the calls before the game</strong>
-        <span>Free. Saves your watchlist and turns on alerts.</span>
-      </a>
-
       <p className={styles.alt}>
-        Or just look around first — <a href={sport.board}>the full {sport.label} board</a> is open,
-        no account needed.
+        <a href={sport.board}>{sport.open} →</a> Want the calls before the game?{' '}
+        <a href={SIGNUP}>A free account</a> saves your watchlist and turns on alerts.
       </p>
 
       <footer className={styles.foot}>

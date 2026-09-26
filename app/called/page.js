@@ -25,7 +25,7 @@ import { createClient } from '@supabase/supabase-js'
 import { easternToday } from '../../lib/data'
 import { matchupWord, oddsWord, roleWord } from '../../lib/dash/homerFeed'
 import { tdCallWord, tdPlayWord } from '../../lib/nfl/tdFeed'
-import { BRAND, SPORT_KEYS, sportKey } from '../../lib/routes'
+import { BRAND, SPORT_KEYS, sportKey, appHref } from '../../lib/routes'
 import { nhlCaptureFrom, readNhlRecords } from '../../lib/record/nhl'
 import { readMlbEvents } from '../../lib/record/mlb'
 import { readNflEvents } from '../../lib/record/nfl'
@@ -100,14 +100,14 @@ function shortDay(iso) {
 const SPORTS = {
   mlb: {
     key: 'mlb', label: 'MLB', product: 'MOONSHOT', event: 'home runs', eventOne: 'home run',
-    verb: 'went deep', table: 'homer_feed', board: '/app#sport=mlb&tab=home',
+    verb: 'went deep', table: 'homer_feed', board: appHref('mlb'),
     legend: '🤖 on the bot before the ball left  ·  ⚪ on the board, no call  ·  💥 not on the board',
     frozen: 'Tags are frozen when the home run is first seen and never re-graded.',
     empty: 'No home runs yet tonight',
     fills: 'This page fills in within a minute of each one.',
     foot: "CALLED IT is MOONSHOT's home run record — every home run, graded in public. Data from MLB's public feeds.",
     lead: 'called', onWhat: 'the bot', capture: eventCapture, window: DAYS, unit: ['night', 'nights'],
-    cta: ['See who the bot likes tonight', 'The headline picks, the public record, and the full board — no account needed'],
+    cta: ['See who the bot likes tonight', 'The headline picks and the full board, in the app — no account needed'],
     callsHead: 'Tonight\u2019s calls', callsPill: 'posted before first pitch',
     eventsHead: 'Tonight\u2019s home runs',
     close: ['Tomorrow\u2019s calls are already on the board.', 'The bot publishes its picks every morning. The 🤖 you see here is what it said before first pitch.', 'Save your watchlist, picks and alerts when your guys go deep'],
@@ -121,14 +121,14 @@ const SPORTS = {
   },
   nfl: {
     key: 'nfl', label: 'NFL', product: 'TUDDY', event: 'touchdowns', eventOne: 'touchdown',
-    verb: 'found the end zone', table: 'nfl_td_feed', board: '/app#sport=nfl&tab=home',
+    verb: 'found the end zone', table: 'nfl_td_feed', board: appHref('nfl'),
     legend: '🤖 on the bot before the snap  ·  ⚪ on the board, no call  ·  💥 not on the board',
     frozen: 'Tags are frozen when the touchdown is first seen and never re-graded.',
     empty: 'No touchdowns yet today',
     fills: 'This page fills in within a minute of each one.',
     foot: "CALLED IT is TUDDY's touchdown record — every touchdown, graded in public. Data from public NFL feeds.",
     lead: 'board', onWhat: 'the board', capture: eventCapture, window: 28, unit: ['game day', 'game days'],
-    cta: ['See who the bot likes this week', 'The reads for this week, the public record, and the full board — no account needed'],
+    cta: ['See who the bot likes this week', 'This week\u2019s reads and the full board, in the app — no account needed'],
     callsHead: 'This week\u2019s calls', callsPill: 'posted before kickoff',
     eventsHead: 'Today\u2019s touchdowns',
     close: ['This week\u2019s calls are already on the board.', 'The bot publishes its touchdown board before kickoff. The 🤖 you see here is what it said before the snap.', 'Save your watchlist, picks and alerts when your guys score'],
@@ -146,14 +146,14 @@ const SPORTS = {
   // skater with ten NHL games is scored.
   nhl: {
     key: 'nhl', label: 'NHL', product: 'LAMP', event: 'goal scorers', eventOne: 'goal',
-    verb: 'lit the lamp', table: 'lamp_goal_log', board: '/app#sport=nhl&tab=board',
+    verb: 'lit the lamp', table: 'lamp_goal_log', board: appHref('nhl'),
     legend: '🤖 called before puck drop  ·  ⚪ on the board, no call  ·  💥 not on the board',
     frozen: 'Tags are the board as locked before puck drop, graded after the final, never re-graded.',
     empty: 'No games graded yet tonight',
     fills: 'Each game fills in once its final is graded.',
     foot: "CALLED IT is LAMP's goal record — every goal scorer, graded in public. Data from the NHL's public feeds.",
     lead: 'called', onWhat: 'CALLED', capture: nhlCaptureFrom, window: 14, unit: ['game night', 'game nights'],
-    cta: ['See tonight\u2019s goal board', 'Three called per game, the public record, and the full board — no account needed'],
+    cta: ['See tonight\u2019s goal board', 'Three called per game and the full board, in the app — no account needed'],
     callsHead: 'Tonight\u2019s calls', callsPill: 'locked before puck drop',
     eventsHead: 'Tonight\u2019s goal scorers',
     close: ['Tomorrow\u2019s calls lock before puck drop.', 'LAMP locks three skaters per game before the puck drops. The 🤖 you see here is what it said before the game.', 'Save your watchlist, picks and alerts when your guys score'],
@@ -344,13 +344,11 @@ export default async function CalledPage({ searchParams }) {
   const { sport, today, rows, picks, calledIds, history, byDay, configured } = await load(key)
   const BOARD = sport.board
   const SIGNUP = `/login?next=${encodeURIComponent(BOARD)}#create-account`
-  // /start -- THE FUNNEL STOP (2026-09-21). claude/the-funnel-2026-09-14.md
-  // measured 12 strangers off X in 4 days and 0 reaching the app. The two
-  // CTAs a stranger meets first now land on /start, which introduces the
-  // product and carries one sign-up, instead of dropping them straight into
-  // an eleven-tab dashboard. BOARD is unchanged everywhere else on this page:
-  // the per-player links, the footer and SIGNUP's own `next` all still go to
-  // the board, because somebody who taps a named hitter has already chosen.
+  // /start -- no longer the main door (funnel step 1, 2026-09-26). On 09-21
+  // the two CTAs went to /start; /start's own buttons came back here, and a
+  // visitor could circle X -> /start -> /called -> /start without reaching
+  // the app. Both CTAs open the board now; /start is the small "What is
+  // this?" link under the main button.
   const START = `/start?sport=${sport.key}`
   const tonight = sport.capture(rows)
   // Preseason nights are on the strip, labelled, but not in the span: camp
@@ -377,7 +375,7 @@ export default async function CalledPage({ searchParams }) {
 
   return (
     <main className={styles.page}>
-      <Bar sport={sport} start={START} />
+      <Bar sport={sport} board={BOARD} />
 
       <section className={styles.hero}>
         <p className={styles.kicker}>{prettyDay(today)}{tonightPre ? ' · Preseason' : ''}</p>
@@ -413,10 +411,14 @@ export default async function CalledPage({ searchParams }) {
             </p>
           </>
         )}
-        <a className={styles.cta} href={START}>
-          <strong>{sport.cta[0]}</strong>
+        {/* FUNNEL STEP 1 (2026-09-26): the primary goes FORWARD, into the
+            board. It used to open /start, whose own buttons came back here --
+            a loop with no way into the app. /start is a small text link now. */}
+        <a className={styles.cta} href={BOARD}>
+          <strong>{sport.cta[0]} →</strong>
           <span>{sport.cta[1]}</span>
         </a>
+        <p className={styles.whatIs}><a href={START}>What is this? →</a></p>
         <p className={styles.rule}>
           {sport.legend}. {sport.frozen}
         </p>
@@ -522,7 +524,7 @@ export default async function CalledPage({ searchParams }) {
 // The header, shared by every sport's page. The switch is one link per sport
 // in the registry (lib/routes.js), no JS -- the same approach the night
 // anchors in the strip use. A sport added there shows up here on its own.
-function Bar({ sport, start }) {
+function Bar({ sport, board }) {
   return (
     <header className={styles.bar}>
       <a className={styles.brand} href="/" aria-label="DASH Network home">
@@ -533,7 +535,7 @@ function Bar({ sport, start }) {
         {SPORT_KEYS.map((k) => (
           <a key={k} className={k === sport.key ? styles.navOn : styles.navOff} href={`/called?sport=${k}`}>{BRAND[k].league}</a>
         ))}
-        <a className={styles.navCta} href={start}>Get the calls</a>
+        <a className={styles.navCta} href={board}>Open the board</a>
       </nav>
     </header>
   )

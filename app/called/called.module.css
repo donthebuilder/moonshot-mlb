@@ -93,6 +93,8 @@
 .cta strong { font-size: 16px; font-weight: 800; letter-spacing: -0.01em; }
 .cta span { font-size: 12px; opacity: 0.8; }
 .cta:hover { filter: brightness(1.07); }
+.whatIs { margin: 10px 0 0; font-size: 13px; }
+.whatIs a { color: var(--dim); text-decoration: underline dotted; text-underline-offset: 2px; }
 .navCta { color: var(--mlb) !important; border: 1px solid var(--mlb); border-radius: 999px; padding: 6px 12px; }
 
 /* THE SPORT SWITCH (2026-09-20). Two links, no JS. The selected one is a

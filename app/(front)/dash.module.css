@@ -100,6 +100,12 @@ a.brand { text-decoration: none; color: inherit; }
 }
 .heroActions a:first-child { border-color: var(--mlb); background: color-mix(in srgb, var(--mlb) 14%, #191817); }
 .heroActions b { margin-left: 5px; color: var(--mlb); }
+/* Which product the primary opens today (funnel step 1). */
+.heroWhich { display: block; margin-top: 4px; color: var(--dim); font: 800 8px/1 monospace; letter-spacing: .12em; }
+/* The sign-up form, behind one button (funnel step 1). */
+.authFold > summary { display: inline-block; cursor: pointer; list-style: none; margin: 4px 0 14px; }
+.authFold > summary::-webkit-details-marker { display: none; }
+.authFold[open] > summary { display: none; }
 
 /* ── tonight ── */
 .slate { padding: 30px 0; }
