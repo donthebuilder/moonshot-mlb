@@ -71,7 +71,7 @@ import { buildNflHeadlines } from '../../lib/nfl/headlines'
 import { tdCaptureFrom } from '../../lib/nfl/tdFeed'
 import { trimForFour } from '../../lib/theFourFields'
 import { readBoard } from '../../lib/nhl/boardRead'
-import { coverage, MODEL_VERSION as LAMP_MODEL } from '../../lib/nhl/goalModel'
+import { nhlCaptureFrom, readNhlRecords } from '../../lib/record/nhl'
 import styles from './start.module.css'
 
 export const dynamic = 'force-dynamic'
@@ -276,19 +276,11 @@ async function computeRecord(sportKey, today) {
  * two: scorers who were CALLED or ON THE BOARD at lock, over the scorers.
  */
 async function computeLampRecord(db, since, today) {
-  const { data, error } = await db
-    .from('lamp_goal_log')
-    .select('game_id, game_date, game_type, player_id, name, team, opp, pos, score, rank_in_game, status, dressed, goals, hit')
-    .eq('model_version', LAMP_MODEL)
-    .neq('game_type', 1)
-    .gte('game_date', since)
-    .lte('game_date', today)
-    .not('graded_at', 'is', null)
-  if (error || !Array.isArray(data) || !data.length) return null
-  const cov = coverage(data.map((r) => ({ ...r, playerId: r.player_id, rank: r.rank_in_game })))
-  if (!cov?.scorers) return null
-  const on = cov.scorersCalled + cov.scorersOnBoard
-  return { on, total: cov.scorers, pct: Math.round((100 * on) / cov.scorers), days: new Set(data.map((r) => r.game_date)).size }
+  const { rows, error } = await readNhlRecords(db, { since, until: today, includePre: false, graded: true })
+  if (error || !rows.length) return null
+  const cap = nhlCaptureFrom(rows)
+  if (!cap.total) return null
+  return { on: cap.onBoard, total: cap.total, pct: cap.boardPct, days: new Set(rows.map((r) => r.game_date)).size }
 }
 
 /** Tonight's hockey board, one line per game — read by the same function the Board page's route uses. */
