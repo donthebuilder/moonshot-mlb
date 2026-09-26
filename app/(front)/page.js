@@ -330,6 +330,7 @@ export default async function DashHome({ searchParams }) {
             <Link href="/app#sport=nhl&tab=home">Open LAMP →</Link>
             <Link href="/app#sport=nhl&tab=board">Board</Link>
             <Link href="/app#sport=nhl&tab=results">The record</Link>
+            <Link href="/nhl/standings">Standings</Link>
           </footer>
         </article>
 

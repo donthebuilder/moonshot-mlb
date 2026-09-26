@@ -1,6 +1,10 @@
 'use client'
 import { C, NUM_FONT } from '../../lib/nhl/theme'
 import { nhlLogo } from '../../lib/nhl/teams'
+// Formats live in lib/nhl/format.js (no 'use client') so the crawlable
+// server pages print numbers the same way; re-exported here for the tabs.
+import { fmtDay } from '../../lib/nhl/format'
+export { fmtDay, fmtPct3, fmt2, fmtSec, plusMinus } from '../../lib/nhl/format'
 
 // The handful of small pieces every LAMP page shares. Kept in one file so a
 // state, a chip or a mark is spelled once. Nothing here is a card.
@@ -12,13 +16,6 @@ export function fmtPuckDrop(utc) {
   } catch { return 'TBD' }
 }
 
-/** "Thu · Sep 24" from a YYYY-MM-DD game day. Rendered as the ET calendar day it is. */
-export function fmtDay(ymd) {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd || ''))
-  if (!m) return String(ymd || '')
-  const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], 12))
-  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' })
-}
 
 /** The viewer's zone, short ("MST"), for the one place a page says "times in your zone". */
 export function zoneAbbrev() {
@@ -184,15 +181,8 @@ export function ageFrom(ymd) {
 }
 /** 72 → 6'0". */
 export const fmtHeight = (inches) => (inches == null ? null : `${Math.floor(inches / 12)}'${inches % 12}"`)
-/** 0.921317 → ".921"; null stays a dash. */
-export const fmtPct3 = (v) => (v == null ? '—' : Number(v).toFixed(3).replace(/^0/, ''))
 /** 0.156863 → "15.7". */
 export const fmtPct1 = (v) => (v == null ? '—' : (Number(v) * 100).toFixed(1))
-/** 3.070124 → "3.07". */
-export const fmt2 = (v) => (v == null ? '—' : Number(v).toFixed(2))
-/** seconds → "m:ss". */
-export const fmtSec = (sec) => (sec == null ? '—' : `${Math.floor(sec / 60)}:${String(Math.round(sec % 60)).padStart(2, '0')}`)
-export const plusMinus = (v) => (v == null ? '—' : v > 0 ? `+${v}` : String(v))
 export const dash = (v) => (v == null ? '—' : v)
 
 /** Mug + name; the one way a player is printed on LAMP. */

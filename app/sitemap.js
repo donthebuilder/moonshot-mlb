@@ -17,5 +17,10 @@ export default function sitemap() {
     { url: url('/called'), lastModified: now, changeFrequency: 'hourly', priority: 0.8 },
     { url: url('/called?sport=nfl'), lastModified: now, changeFrequency: 'daily', priority: 0.7 },
     { url: url('/called?sport=nhl'), lastModified: now, changeFrequency: 'daily', priority: 0.7 },
+    // LAMP's crawlable league pages (2026-09-26): the tabs are hash routes
+    // no crawler can see; these carry the same tables at real addresses.
+    { url: url('/nhl/standings'), lastModified: now, changeFrequency: 'daily', priority: 0.6 },
+    { url: url('/nhl/leaders'), lastModified: now, changeFrequency: 'daily', priority: 0.6 },
+    { url: url('/nhl/goalies'), lastModified: now, changeFrequency: 'daily', priority: 0.6 },
   ]
 }
