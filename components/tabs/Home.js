@@ -232,7 +232,21 @@ function Headlines({ players = [], headline, results, isLive, airRanked = [], od
   // strip itself is shared with TUDDY and LAMP (components/HeadlineStrip.js,
   // 2026-09-26); this is where MOONSHOT's cards and taps are decided.
   // 22 -> 30 px/s (2026-09-14, Donovan: 'make the headline move at a little faster pace')
-  const cards = useMemo(() => buildHeadlines({ players, headline, results, isLive, airRanked }), [players, headline, results, isLive, airRanked])
+  // 📜 HISTORY WATCH card (milestones plan step 2): the night's rarest claim
+  // one homer away, first in the strip. From /api/history/watch -- a query
+  // result with its proof, never typed; absent when nothing passes.
+  const [hist, setHist] = useState(null)
+  useEffect(() => {
+    let alive = true
+    fetch('/api/history/watch?sport=mlb').then((r) => (r.ok ? r.json() : null)).then((j) => { if (alive) setHist(j?.items?.[0] || null) }).catch(() => {})
+    return () => { alive = false }
+  }, [])
+  const cards = useMemo(() => {
+    const base = buildHeadlines({ players, headline, results, isLive, airRanked })
+    if (!hist) return base
+    const p = players.find((x) => String(x?.player_id) === String(hist.player_id)) || null
+    return [{ k: `hist-${hist.player_id}`, tag: 'HISTORY WATCH', icon: '📜', name: hist.name, why: `One more: ${hist.claim}.`, stat: `${hist.hr} HR`, col: C.yellow, p }, ...base]
+  }, [players, headline, results, isLive, airRanked, hist])
   const open = (c) => (c.p ? onPlayerClick?.(c.p) : c.nav ? onNavigate?.(c.nav) : null)
   return <HeadlineStrip cards={cards} onOpen={open} theme={C} numFont={NUM_FONT} accent={C.orange} speed={30} />
 }

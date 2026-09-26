@@ -33,6 +33,7 @@ import { timingSafeEqual } from 'node:crypto'
 
 import { easternToday, slateDateFromRows } from '../../../../../lib/data'
 import { callStatus } from '../../../../../lib/callStatus'
+import { mlbWatch, historyWatchText, reachedLine } from '../../../../../lib/history/watch'
 import { fetchLiveSlate, liveSlateStatus } from '../../../../../lib/liveSlate'
 import { fetchBoardFull, fetchRunMeta } from '../../../../../lib/dash/board'
 import { oddsPaths, pairSummaryPaths } from '../../../../../lib/dataSource'
@@ -183,7 +184,7 @@ async function claimSlot(db, day, kind) {
 // specs stay in the code, correct and ready, so putting one back is deleting a
 // string from this list rather than rebuilding a card from scratch.
 const TEXT_ONLY_KINDS = new Set([
-  'hotcontact', 'hotcontact_mid',
+  'hotcontact', 'hotcontact_mid', 'history_watch',
   'dangercombos', 'dangercombos_mid',
   'hrleadersdow', 'backtoback', 'birthday', 'funfacts',
   'matchuplines', 'callofnight', 'streaks', 'storylines', 'thefour', 'bestair',
@@ -1412,17 +1413,19 @@ export async function GET(request) {
     //    ET while matchup history above is still waiting on lineups to
     //    lock. The mid wave excludes whoever the AM wave already named
     //    (milestoneSeenIds above), so the two posts never repeat a player.
-    if (etHoursSinceNoon() >= MILESTONE_AM_HOUR && !isRetired('milestone_am')) {
-      await safeStat('milestone_am', async () => {
-        // 2026-09-15 (Donovan: "some of these I just wanted tweets and no
-        // card... a decent list of names"). No card -- milestoneText()
-        // (tweetFeed.js) no longer pre-trims to 6 either, so shrinkToFit
-        // alone decides how many real names fit in 270 chars.
-        const miles = await milestonePicks(boardRows())
-        await claimAndPostStat(db, day, 'milestone_am', MILESTONE_AM_HOUR,
-          milestoneText(miles, { day, wave: 'am', ...TAIL }),
+    // 📜 HISTORY WATCH REPLACES THE AM MILESTONE POST (milestones plan step
+    //    2, 2026-09-26). Same slot, same volume: tonight's hitters one homer
+    //    short of a history rung, each claim a query result with its proof
+    //    stored in the payload (lib/history/watch.js). No link, three names at
+    //    most, and NOTHING is posted when no claim passes -- the round-number
+    //    list is not a fallback for it.
+    if (etHoursSinceNoon() >= MILESTONE_AM_HOUR && !isRetired('history_watch')) {
+      await safeStat('history_watch', async () => {
+        const items = await mlbWatch(boardRows(), Number(day.slice(0, 4)))
+        await claimAndPostStat(db, day, 'history_watch', MILESTONE_AM_HOUR,
+          historyWatchText(items),
           null,
-          { picks: miles })
+          { items: items.slice(0, 3) })
       })
     }
     if (etHoursSinceNoon() >= MILESTONE_MID_HOUR && !isRetired('milestone_mid')) {
@@ -1947,7 +1950,11 @@ export async function GET(request) {
   for (const row of pending || []) {
     const live = byKey.get(`${row.player_id}:${row.hr_n}`)
     const ev = { ...row, _roles: live?._roles || row.role || '' }
-    const text = postText(ev, TAIL)
+    // REACHED (milestones plan step 2): a homer that lands on a history rung
+    // gains one line, the claim re-asked at this moment -- never the
+    // morning's text. Only for an unposted alert; a failed check drops it.
+    const reached = (!row.x_post_id || !row.discord_sent) ? await reachedLine(ev, Number(day.slice(0, 4))) : null
+    const text = reached ? `${postText(ev, TAIL)}\n\n${reached}` : postText(ev, TAIL)
     const patch = {}
     let stopTick = false
 

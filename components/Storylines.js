@@ -9,6 +9,7 @@ import { dedupeGraded } from '../lib/graded'
 import { useSetupHomers, useBackToBack } from '../lib/b2b'
 import { pickSplit, HITTING_FIELDS } from '../lib/seasonSplit'
 import { downloadStorylinesCard } from './shareCard'
+import HistoryWatch from './HistoryWatch'
 
 // 📖 STORYLINES — the human layer (2026-08-06, on request).
 //
@@ -653,6 +654,11 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
             }}>📸</button>
         )}
       </div>
+
+      {/* 📜 HISTORY WATCH leads (milestones plan step 2): a milestone with its
+          history is the story of the night, so it shows open or shut. The
+          slate-wide panel only -- a single game's panel has no room for it. */}
+      {!compact && <HistoryWatch sport="mlb" onPlayerClick={onPlayerClick} />}
 
       {/* The strongest matchup line stays visible even when the panel is
           shut. The panel is collapsed by default because it "kinda fills the
