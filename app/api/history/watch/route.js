@@ -7,7 +7,7 @@
 // empty list with the reason. Cached an hour at the CDN.
 import { easternToday, slateDateFromRows } from '../../../../lib/data'
 import { fetchBoardFull } from '../../../../lib/dash/board'
-import { mlbWatch, CREDIT } from '../../../../lib/history/watch'
+import { mlbWatch, nhlWatch, CREDIT, NHL_CREDIT } from '../../../../lib/history/watch'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -15,6 +15,15 @@ export const maxDuration = 60
 export async function GET(request) {
   const sport = new URL(request.url).searchParams.get('sport') || 'mlb'
   const headers = { 'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=7200' }
+  if (sport === 'nhl') {
+    try {
+      const day = easternToday()
+      return Response.json({ sport, day, items: await nhlWatch(day), credit: NHL_CREDIT, builtAt: new Date().toISOString() }, { headers })
+    } catch (e) {
+      console.error(`[history watch nhl] ${e?.message}`)
+      return Response.json({ sport, items: [], error: 'LIVE DATA DELAYED' }, { status: 502, headers: { 'Cache-Control': 'no-store' } })
+    }
+  }
   if (sport !== 'mlb') return Response.json({ sport, items: [], reason: 'not built yet for this sport', credit: null }, { headers })
   try {
     const day = easternToday()

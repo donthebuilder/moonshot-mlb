@@ -1,5 +1,7 @@
 'use client'
+import { useEffect, useState } from 'react'
 import HeadlineStrip from '../../HeadlineStrip'
+import HistoryWatch from '../../HistoryWatch'
 import HeroStat from '../../HeroStat'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import { useLampStandings, useLampBoard, useLampLeaders, useLampRecord } from '../../../lib/nhl/useLamp'
@@ -52,7 +54,16 @@ export default function Home({ today, date = null, onOpenGame, onOpenPlayer, set
   // regular-season record doesn't carry that date.
   const last = pre.data?.nights?.[0] || null
   const lastIsPre = Boolean(last && !(reg.data?.nights || []).some((n) => n.date === last.date))
-  const cards = buildLampHeadlines({ board: board.data, leaders: leagueLeaders.data, record: pre.data, C })
+  // 📜 HISTORY WATCH (milestones plan step 3): the rarest goal claim one
+  // goal away leads the strip; empty until the regular season has games.
+  const [hist, setHist] = useState(null)
+  useEffect(() => {
+    let alive = true
+    fetch('/api/history/watch?sport=nhl').then((r) => (r.ok ? r.json() : null)).then((j) => { if (alive) setHist(j?.items?.[0] || null) }).catch(() => {})
+    return () => { alive = false }
+  }, [])
+  const baseCards = buildLampHeadlines({ board: board.data, leaders: leagueLeaders.data, record: pre.data, C })
+  const cards = hist ? [{ k: `hist-${hist.player_id}`, tag: 'HISTORY WATCH', icon: '📜', name: hist.name, why: `One more: ${hist.claim}.`, stat: `${hist.hr} G`, col: C.amber, playerId: Number(hist.player_id) }, ...baseCards] : baseCards
   const openCard = (c) => (c.playerId ? onOpenPlayer?.(c.playerId) : c.gameId ? onOpenGame?.(c.gameId) : null)
   const dayWord = date ? `on ${fmtDay(date)}` : 'tonight'
 
@@ -98,6 +109,7 @@ export default function Home({ today, date = null, onOpenGame, onOpenPlayer, set
       </nav>
 
       <HeadlineStrip cards={cards} onOpen={openCard} theme={C} numFont={NUM_FONT} accent={C.ice} />
+      <HistoryWatch sport="nhl" unit="G" theme={C} numFont={NUM_FONT} onPlayerClick={(p) => onOpenPlayer?.(Number(p.player_id))} />
 
       <section aria-label="Tonight's games">
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
