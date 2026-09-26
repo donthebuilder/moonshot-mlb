@@ -25,6 +25,7 @@ import Teams from './tabs/Teams'
 import Team from './tabs/Team'
 import Players from './tabs/Players'
 import Player from './tabs/Player'
+import SpecialTeams from './tabs/SpecialTeams'
 import Leaders from './tabs/Leaders'
 import Board from './tabs/Board'
 import FullBoard from './tabs/FullBoard'
@@ -259,6 +260,7 @@ export default function LampDashboard({ palettePass = 0 }) {
             {tab === 'goalies' && <Players goaliesOnly onOpenPlayer={openPlayer} onOpenTeam={openTeam} />}
             {tab === 'player' && <Player id={playerId} onOpenTeam={openTeam} onOpenGame={openGame} backLabel={backLabel('players')} onBack={() => goBack('players')} />}
             {tab === 'leaders' && <Leaders onOpenPlayer={openPlayer} onOpenTeam={openTeam} />}
+            {tab === 'specialteams' && <SpecialTeams onOpenTeam={openTeam} />}
             {tab === 'board' && <Board onOpenPlayer={openPlayer} onOpenGame={openGame} onOpenTeam={openTeam} date={date} setDate={setDate} />}
             {tab === 'fullboard' && <FullBoard onOpenPlayer={openPlayer} onOpenTeam={openTeam} date={date} setDate={setDate} />}
             {tab === 'results' && <Results onOpenPlayer={openPlayer} />}

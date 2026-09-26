@@ -59,6 +59,16 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
 // computed here; every cell is a field the board already had.
 const PREVIEW_ROWS = 8
 
+// A side's spot for a skater's club (mine) or tonight's opponent (!mine).
+const spotOf = (g, team, mine) => {
+  if (!g.spots) return null
+  const home = g.game.home.abbrev === team
+  return mine ? (home ? g.spots.home : g.spots.away) : (home ? g.spots.away : g.spots.home)
+}
+const pct1 = (v) => (v == null ? null : (v * 100).toFixed(1))
+const ppVsPk = (us, them) => (pct1(us?.ppPct) && pct1(them?.pkPct) ? `${pct1(us.ppPct)} v ${pct1(them.pkPct)}` : null)
+const restWord = (s) => (s?.b2b ? 'B2B' : s?.rest != null ? `${s.rest}d` : null)
+
 // The filled CALLED chip -- pregame in STATUS, graded beside the goals -- and
 // the rank itself filled on a called row, the two marks MOONSHOT's pick rows
 // carry. (Beside the name it was clipped by the name cell at 390px.)
@@ -99,6 +109,13 @@ function columnsFor(g, onOpenTeam) {
     { key: 'gpg', label: 'G/GP', primary: true, dp: 2, w: 44 },
     { key: 'toi', label: 'TOI', primary: true, w: 48, fmt: (v) => (Number.isFinite(v) ? fmtSec(v) : '—') },
     { key: 'pctl', label: 'LEGS', heat: false, w: 118, fmt: (v, r) => (r.status === 'called' ? <PctBars r={r._row} /> : null) },
+    // Context columns (lamp research step 2): shown beside the score, never
+    // in it. PP G is his season's power-play goals; PP v PK is his club's
+    // power play against tonight's opponent's penalty kill; REST is full days
+    // off before tonight (B2B = played yesterday).
+    { key: 'ppg', label: 'PP G', primary: true, w: 44 },
+    { key: 'ppvpk', label: 'PP v PK', heat: false, mono: true, w: 84, fmt: (v) => v || '—' },
+    { key: 'rest', label: 'REST', heat: false, mono: true, w: 48, fmt: (v) => v || '—' },
     { key: 'result', label: graded ? 'GOALS' : 'STATUS', heat: false, w: 96, fmt: (v, r) => {
       const row = r._row
       if (graded) {
@@ -125,6 +142,7 @@ function GameBoard({ g, onOpenPlayer, onOpenGame, onOpenTeam }) {
     id: r.playerId, rank: r.rank, name: r.name, pos: r.pos, team: r.team, score: r.score,
     spg: r.legs ? r.legs.shotsPg : null, gpg: r.legs ? r.legs.goalsPg : null, toi: r.legs ? r.legs.toi : null,
     pctl: r.status === 'called' ? 1 : 0, result: r.status, status: r.status, _row: r,
+    ppg: r.ppg, ppvpk: ppVsPk(spotOf(g, r.team, true), spotOf(g, r.team, false)), rest: restWord(spotOf(g, r.team, true)),
   }))
   return (
     <section aria-label={`${game.away.abbrev} at ${game.home.abbrev}`} style={{ border: `1px solid ${C.border2}`, borderRadius: 12, background: C.bg2, padding: '8px 10px 10px' }}>
@@ -147,6 +165,9 @@ function GameBoard({ g, onOpenPlayer, onOpenGame, onOpenTeam }) {
         {ctx.oppGaPg != null ? ` · opp allows ${ctx.oppGaPg.toFixed(2)} GA/GP` : ''}{ctx.b2b ? ' · 2nd of back-to-back' : ''}
         {/* The net. Pregame the feed names no starter, so nothing is printed (rule 16); once graded, who started and his line. */}
         {g.net ? ` · in net: ${g.net}` : ''}
+        {/* Both clubs' rest; desktop only -- on a phone it wrapped a line and
+            pushed the table down, and the REST column already carries it. */}
+        {g.spots ? <span className="sm-hide">{` · rest ${game.away.abbrev} ${restWord(g.spots.away) || '—'}, ${game.home.abbrev} ${restWord(g.spots.home) || '—'}`}</span> : null}
       </div>
       {scored.length === 0 ? <EmptyState title="NOBODY SCORED YET" note="No skater on either roster has ten NHL games on file." /> : (
         <LampTable rows={rows} columns={columnsFor(g, onOpenTeam)} heatMode="primary" ramp={rampAt}
