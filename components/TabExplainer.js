@@ -22,7 +22,10 @@ const TEXTS = {
     what: 'Your side of the site. My Picks is the game \u2014 you against the bot, same slots, same bars, graded overnight, with a running record of where your judgement actually beats it. Watchlist is your saved hitters with their record while you\u2019ve watched them. Both live on this device only \u2014 export from either panel to back them up.',
   },
   home: {
-    what: 'The front porch. A greeting, tonight in four numbers (games on the slate, the bot’s own projected HR range, first pitch, and its graded base-hit record), then a rotating line of real facts about tonight, the best air and weakest arms, and top-10 HR/hit boards. Nothing here is a new number — it’s the same data as every other tab, gathered up front. Pick a door below, or just start scrolling.',
+    // 2026-09-26 (stranger test F12): the first thing a first-timer reads
+    // says what MOONSHOT does, then what this page holds -- it used to
+    // describe the page's layout ("the front porch") and never the product.
+    what: 'MOONSHOT predicts which hitters are most likely to homer tonight. It rates every hitter on the slate before first pitch, the bot makes its calls (HR, HIT, HRR and CONTACT picks) before the game, and every call is graded in public the next morning. This page is tonight in one screen: the games, the bot’s projected homer range, its base-hit record, then the top boards. Tap any name for why he’s up there.',
   },
   scoreboard: {
     // ── REWRITTEN 2026-08-18 alongside the Rundown/Slate rename ─────────────

@@ -1,7 +1,8 @@
 // First-visit paragraph per TUDDY tab, for components/TabExplainer.js.
 // Football words; the MLB map lives in TabExplainer itself.
 export const NFL_TEXTS = {
-  home: { what: 'The front page of the week. The slate, the record so far, the six calls, power rankings, a start/sit compare and the two top-10 boards — nothing here is a new number, it is the rest of the site gathered up front.' },
+  // 2026-09-26 (stranger test F12): the product first, then the page.
+  home: { what: 'TUDDY predicts who scores a touchdown this week. It rates every NFL skill player before kickoff, the bot makes its touchdown calls before the game, and every call is graded in public after it. This page is the week in one screen: the slate, the record so far, the headline calls, power rankings and the top boards. Tap a name for his card.' },
   boards: { what: 'Every scored player, one market at a time, ranked by the bot. Seven markets, one picker. Tap a name for his card; the book’s line shows beside the score when the odds feed has one.' },
   games: { what: 'One card per matchup: the live score off the league feed, possession and down when a game is on, each side’s best plays underneath. Orientation, not research — everything deeper is one tab over.' },
   picks: { what: 'The bot’s card for the week, and yours against it. Swap your own man onto any rung; his game’s kickoff freezes that rung. Graded against the same bars, with a running record of where you beat the bot.' },

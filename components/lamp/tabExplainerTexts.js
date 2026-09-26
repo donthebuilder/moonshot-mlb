@@ -1,7 +1,8 @@
 // First-visit paragraph per LAMP tab, for components/TabExplainer.js.
 // Hockey words; the MLB map lives in TabExplainer itself, NFL's beside it.
 export const NHL_TEXTS = {
-  home: { what: 'The front page of the night: today’s games, the division leaders, and what this desk is. Nothing here is a new number — it is the rest of LAMP gathered up front.' },
+  // 2026-09-26 (stranger test F12): the product first, then the page.
+  home: { what: 'LAMP predicts which NHL skaters score tonight: three called per game, locked before puck drop, graded after the final, in public. This page is tonight in one screen: the games, each game’s three calls, and the division leaders. Tap a game for its whole board.' },
   scores: { what: 'Every game on one day — score, period and clock, shots, and who scored. Tap the goals count to see the scorers; tap the row for the whole game.' },
   schedule: { what: 'The league week, day by day, puck-drop times in your zone. Games already played show their score. Page a week at a time.' },
   standings: { what: 'Division, wild card, conference and league, in the league’s own order. Before opening night this is last season’s final table, and it says so.' },

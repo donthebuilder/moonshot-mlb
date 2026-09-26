@@ -116,7 +116,7 @@ const STEPS = [
     n: 1,
     // 2026-09-26 (Batch 5): Home no longer shows exactly four -- the count
     // was a stale claim. Name what is there instead of counting it.
-    title: 'Open the Home tab and read the tiles at the top',
+    title: `Tap the MOONSHOT wordmark for ${tabName('mlb', 'home')} and read the tiles at the top`,
     body: 'Games tonight, when the last game starts, the bot’s projected homer range, the best park for homers, and its base-hit record across every graded night. Thirty seconds tells you whether tonight is a big slate and whether the model has been right lately.',
   },
   {
@@ -411,12 +411,14 @@ export default function Guide({ onNavigate }) {
         <Stat stat="Meatball%" def="how often he leaves one over the plate. Higher is better for you." good="20%+ is mistake-prone" />
       </Section>
 
-      {/* ── TAB MAP ── one line each ── */}
+      {/* ── TAB MAP ── one line each ── (nav-level pages take their names from
+          lib/routes.js, 2026-09-26 -- "Games", "Results" and "Bot" had drifted
+          from the Slate / The record / Picks the nav actually says). */}
       <Section title="What each tab is for" emoji="🧭">
-        <Term tab="home" go={onNavigate} icon="🏠" term="Home" def="tonight in four numbers, the headline game, and the way in." />
+        <Term tab="home" go={onNavigate} icon="🏠" term={tabName('mlb', 'home')} def="tonight in four numbers, the headline game, and the way in." />
         <Term tab="scoreboard" go={onNavigate} icon="📊" term={tabName('mlb', 'scoreboard')} def="every hitter, every column, sortable. The wide view — start here." />
         <Term tab="atplate" go={onNavigate} icon="🎤" term="At the Plate" def="the hitter batting right now — the count, every pitch of the at-bat, and where his contact is going. Only alive during games." />
-        <Term tab="games" go={onNavigate} icon="⚾" term="Games" def="one matchup at a time: the arm, the park, the lineup." />
+        <Term tab="games" go={onNavigate} icon="⚾" term={tabName('mlb', 'games')} def="one matchup at a time: the arm, the park, the lineup." />
         <Term tab="board" go={onNavigate} icon="🏆" term="HR Board" def="ranked purely by home-run score." />
         <Term tab="longest" go={onNavigate} icon="🚀" term="Longest" def="who hits the farthest ball, not who is likeliest to homer. It disagrees with the HR board on purpose." />
         <Term tab="due" go={onNavigate} icon="⚡" term="Power-3" def="who hits it hardest and farthest all season — HR per ball in play, average EV and max EV, ranked on tonight's slate and averaged. Replaced the Due board: measured over 155 nights, drought predicts nothing and the top ten by Power-3 homer 21% of the time." />
@@ -424,12 +426,12 @@ export default function Guide({ onNavigate }) {
         <Term tab="pairs" go={onNavigate} icon="🔗" term="Pairs" def="two-man home-run combinations — who's live tonight and what the bot recommends." />
         <Term tab="pools" go={onNavigate} icon="🏊" term="Pools" def="the bot's three- and four-man group tickets, plus the Pair Builder for making your own pair." />
         <Term tab="pairhist" go={onNavigate} icon="🧬" term="Pair History" def="which two hitters have gone deep on the same day all season." />
-        <Term tab="spray" go={onNavigate} icon="🗺️" term="Spray" def="where a hitter's batted balls actually land." />
+        <Term tab="spray" go={onNavigate} icon="🗺️" term={tabName('mlb', 'spray')} def="where a hitter's batted balls actually land." />
         <Term tab="pitchers" go={onNavigate} icon="🎯" term="Pitchers" def="tonight's arms ranked by how much they leak." />
         <Term tab="leaders" go={onNavigate} icon="🏅" term="Leaders" def="season-long league leaders." />
-        <Term tab="results" go={onNavigate} icon="✅" term="Results" def="the receipts — last night graded, and the season record behind it." />
+        <Term tab="results" go={onNavigate} icon="✅" term={tabName('mlb', 'results')} def="the receipts — last night graded, and the season record behind it." />
         <Term tab="watch" go={onNavigate} icon="⭐" term="Watchlist" def="names you starred, followed across every tab." />
-        <Term tab="bot" go={onNavigate} icon="🤖" term="Bot" def="the raw model output and its own text logs, unfiltered." />
+        <Term tab="bot" go={onNavigate} icon="🤖" term={tabName('mlb', 'bot')} def="the raw model output and its own text logs, unfiltered." />
       </Section>
 
       <Note>
