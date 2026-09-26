@@ -6,6 +6,7 @@ import { applyTheme, C } from '../lib/theme'
 import Dashboard from './Dashboard'
 import NflDashboard from './nfl/NflDashboard'
 import LampDashboard from './lamp/LampDashboard'
+import AccountNudge from './AccountNudge'
 
 // One switch, two dashboards.
 //
@@ -76,7 +77,9 @@ export default function SportRoot() {
   // component instance and its DOM survive.
   // Three shells, one switch (2026-09-25: LAMP). MOONSHOT stays the default.
   if (!ready) return <Shell />
-  if (sport === 'nfl') return <NflDashboard palettePass={pass} />
-  if (sport === 'nhl') return <LampDashboard palettePass={pass} />
-  return <Dashboard palettePass={pass} />
+  // The account ask (funnel step 3), once for all three products.
+  const nudge = <AccountNudge sport={sport} />
+  if (sport === 'nfl') return <><NflDashboard palettePass={pass} />{nudge}</>
+  if (sport === 'nhl') return <><LampDashboard palettePass={pass} />{nudge}</>
+  return <><Dashboard palettePass={pass} />{nudge}</>
 }
