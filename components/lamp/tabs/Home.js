@@ -1,10 +1,12 @@
 'use client'
-import PageHeader from '../../PageHeader'
+import HeadlineStrip from '../../HeadlineStrip'
+import HeroStat from '../../HeroStat'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
-import { useLampStandings, useLampBoard } from '../../../lib/nhl/useLamp'
+import { useLampStandings, useLampBoard, useLampLeaders, useLampRecord } from '../../../lib/nhl/useLamp'
+import { buildLampHeadlines } from '../../../lib/nhl/headlines'
 import { usePreview, ShowMoreButton } from '../../ListPreview'
 import ScoreTable, { sortGames } from '../ScoreTable'
-import { TeamMark, EmptyState, DelayedBanner, Loading, SourceLine, Kicker, GameTypeChip, fmtDay } from '../ui'
+import { TeamMark, EmptyState, DelayedBanner, Loading, SourceLine, Kicker, GameTypeChip, fmtDay, fmtPuckDrop, zoneAbbrev } from '../ui'
 import { NHL_NAV } from '../../../lib/nhl/routes'
 
 // 🏒 TONIGHT — LAMP's front page. Three things and no more (spec §6: the
@@ -14,7 +16,7 @@ import { NHL_NAV } from '../../../lib/nhl/routes'
 // leaving a panel that says "no data".
 //
 // Long lists preview a few rows (site-wide rule, components/ListPreview.js).
-export default function Home({ today, date = null, onOpenGame, setTab }) {
+export default function Home({ today, date = null, onOpenGame, onOpenPlayer, setTab }) {
   // `today` is the shell's own read of today's scores (LampDashboard), so
   // the front page and the header lamp share one poll rather than two.
   const scores = today
@@ -30,19 +32,61 @@ export default function Home({ today, date = null, onOpenGame, setTab }) {
   const leaders = ['Atlantic', 'Metropolitan', 'Central', 'Pacific']
     .map((d) => rows.find((r) => r.divName === d && r.divRank === 1)).filter(Boolean)
 
+  // ── THE HERO, MOONSHOT'S SHAPE (2026-09-26, shell-parity step 2) ─────────
+  // Every number below is a field: games and first puck drop off the day's
+  // scores, LOCKED off the board, GRADED and the crawl off the record.
+  // Regular season leads; before the first regular-season night the record
+  // falls back to preseason and says so.
+  const leagueLeaders = useLampLeaders()
+  const reg = useLampRecord(60)
+  const regT = reg.data?.total
+  const pre = useLampRecord(60, { pre: true })
+  const lockedN = boardGames.filter((g) => g.locked).length
+  const allLocked = boardGames.length > 0 && lockedN === boardGames.length
+  const firstDrop = games.map((g) => g.startUtc).filter(Boolean).sort()[0] || null
+  const preT = pre.data?.total
+  const graded = regT?.calledN
+    ? { value: `${regT.calledHits}/${regT.calledN}`, sub: 'called scored' }
+    : preT?.calledN ? { value: `${preT.calledHits}/${preT.calledN}`, sub: 'called scored · preseason' } : null
+  // The latest graded night, preseason included; it IS preseason when the
+  // regular-season record doesn't carry that date.
+  const last = pre.data?.nights?.[0] || null
+  const lastIsPre = Boolean(last && !(reg.data?.nights || []).some((n) => n.date === last.date))
+  const cards = buildLampHeadlines({ board: board.data, leaders: leagueLeaders.data, record: pre.data, C })
+  const openCard = (c) => (c.playerId ? onOpenPlayer?.(c.playerId) : c.gameId ? onOpenGame?.(c.gameId) : null)
+  const dayWord = date ? `on ${fmtDay(date)}` : 'tonight'
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-      <PageHeader
-        eyebrow="LAMP · NHL INTELLIGENCE"
-        title={day?.date ? fmtDay(day.date) : 'Tonight'}
-        note="Tonight’s games, tonight’s board, the standings — read straight off the league’s feed, the board locked before puck drop and graded in public."
-        theme={C} numFont={NUM_FONT} accent={C.ice}
-        stats={day ? [
-          { value: day.live, label: 'LIVE', tone: day.live ? C.lamp : C.text3 },
-          { value: day.final, label: 'FINAL', tone: C.text2 },
-          { value: games.length, label: 'GAMES', tone: C.text2 },
-        ] : null}
-      />
+      <section aria-label="The night" style={{ border: `1px solid ${C.border}`, borderRadius: 14, background: C.bg2, padding: '16px 16px 14px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
+          <span style={{ color: C.text3, font: `800 10px/1 ${NUM_FONT}`, letterSpacing: '.08em', textTransform: 'uppercase' }}>{day?.date ? fmtDay(day.date) : 'Tonight'}</span>
+          {(day?.gameTypes || []).map((t) => <GameTypeChip key={t} label={t === 1 ? 'PRESEASON' : t === 2 ? 'REGULAR SEASON' : 'PLAYOFFS'} />)}
+          {day?.live ? <span style={{ color: C.lamp, font: `900 9px/1 ${NUM_FONT}`, letterSpacing: '.1em' }}>● {day.live} LIVE</span> : null}
+        </div>
+        <h2 style={{ margin: '0 0 8px', fontSize: 26, fontWeight: 900, letterSpacing: '-.03em', lineHeight: 1.12 }}>
+          {!day ? 'Tonight on LAMP.' : games.length === 0
+            ? <>No NHL games {dayWord}.{day.next ? <span style={{ color: C.text3 }}> Next: {fmtDay(day.next)}.</span> : null}</>
+            : <>{games.length} {games.length === 1 ? 'game' : 'games'} {dayWord}. <span style={{ color: C.ice }}>{allLocked ? 'Grading as they land.' : 'Three called in each.'}</span></>}
+        </h2>
+        {games.length > 0 && (
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            <HeroStat theme={C} numFont={NUM_FONT} label="GAMES" value={games.length} title="Games on the day (/api/lamp/scores)." />
+            {firstDrop && <HeroStat theme={C} numFont={NUM_FONT} label="FIRST PUCK DROP" value={fmtPuckDrop(firstDrop)} sub={zoneAbbrev()} title="Earliest startUtc on the day (/api/lamp/scores)." />}
+            {boardGames.length > 0 && <HeroStat theme={C} numFont={NUM_FONT} label="LOCKED" value={`${lockedN}/${boardGames.length}`} col={allLocked ? C.teal : C.text} title="Games whose board has locked before puck drop (/api/lamp/board games[].locked)." />}
+            {graded && <HeroStat theme={C} numFont={NUM_FONT} label="GRADED" value={graded.value} sub={graded.sub} col={C.lamp} title="Called skaters who dressed and scored, over those who dressed (/api/lamp/record total calledHits/calledN)." />}
+          </div>
+        )}
+        {/* THE CRAWL: the latest graded night in one sentence, its real
+            numbers. calledN counts called skaters who DRESSED -- a called man
+            who was scratched is void, not a miss -- so the line says so. */}
+        {last ? (
+          <p style={{ margin: '10px 0 0', color: C.text2, fontSize: 12, lineHeight: 1.5 }}>
+            <b style={{ color: C.text }}>{fmtDay(last.date)}{lastIsPre ? ' (preseason)' : ''}:</b>{' '}
+            {last.calledHits} of {last.calledN} called skaters who dressed scored · {last.scorersCalled} of {last.scorers} goal scorers were called, {last.scorersOnBoard} more on the board.
+          </p>
+        ) : null}
+      </section>
 
       {/* THE PEOPLE, ONE TAP IN (2026-09-26, stranger test: "where are the
           players?" was the one question still slow -- they sat behind More).
@@ -52,6 +96,8 @@ export default function Home({ today, date = null, onOpenGame, setTab }) {
           <button key={k} type="button" onClick={() => setTab?.(k)} style={link}>{NHL_NAV[k].icon} {NHL_NAV[k].label} ›</button>
         ))}
       </nav>
+
+      <HeadlineStrip cards={cards} onOpen={openCard} theme={C} numFont={NUM_FONT} accent={C.ice} />
 
       <section aria-label="Tonight's games">
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>

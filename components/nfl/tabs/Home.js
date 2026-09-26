@@ -475,7 +475,7 @@ export default function Home({ data, picks, results, matchup, logs, onPlayerClic
         @keyframes tuddyPulseDot{0%,100%{opacity:1}50%{opacity:.35}}
         @keyframes tuddyPulseRing{0%{transform:scale(.55);opacity:.55}100%{transform:scale(1.25);opacity:0}}
         @media(prefers-reduced-motion:reduce){.tuddy-six-dot{animation:none}.tuddy-six-pulse{display:none}}
-        @media(max-width:520px){.tuddy-six-pulse{display:none}.tuddy-headline-card{width:200px}}
+        @media(max-width:520px){.tuddy-six-pulse{display:none}}
       `}</style>
     </div>
   )

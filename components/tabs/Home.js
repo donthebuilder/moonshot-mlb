@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { etToday } from '../../lib/freshness'
 import { C, NUM_FONT, TYPE } from '../../lib/theme'
 import { logUrl, dataUrl } from '../../lib/dataSource'
@@ -21,7 +21,7 @@ import { airParts } from '../../lib/conditions'
 import { useSetupHomers, useBackToBack } from '../../lib/b2b'
 import { rankArms } from '../../lib/armLeak'
 import { slateProjHr } from '../ProjectedOutput'
-import { buildHeadlines, useLiveScores, nextPitch, fmtCountdown, useAutoScroll } from '../../lib/headlines'
+import { buildHeadlines, useLiveScores, nextPitch, fmtCountdown } from '../../lib/headlines'
 import { getPicks, CONVICTION } from '../../lib/myPicks'
 import { setSport } from '../../lib/sport'
 import { fetchCombinedGamesForMlbHome, combinedRenderState, CombinedTeamMark } from '../../lib/combinedRail'
@@ -34,6 +34,8 @@ import MoneyAnswer from '../MoneyAnswer'
 import PennantRace from '../PennantRace'
 import ComebackBoard from '../ComebackBoard'
 import { mlbSlateState } from '../../lib/mlbSlateState'
+import HeadlineStrip from '../HeadlineStrip'
+import HeroStat from '../HeroStat'
 
 // An Eastern calendar day n days from today (YYYY-MM-DD), on etToday's clock.
 const etShift = (n) => { const d = new Date(`${etToday()}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10) }
@@ -151,30 +153,8 @@ function Fig({ children, col = C.text, title }) {
 // from its own text, so five of them make one even row — see MobileCSS.js.
 // Everything inside can shrink and ellipsis: a chip that is narrower than its
 // value must clip the value, never push the row back out of shape.
-function Stat({ label, value, sub, col = C.text, title }) {
-  return (
-    <span title={title} style={{
-      display: 'flex', alignItems: 'baseline', gap: 5, minWidth: 0,
-      border: `1px solid ${C.border}`, background: 'rgba(255,255,255,.025)',
-      borderRadius: 8, padding: '4px 9px', cursor: title ? 'inherit' : 'inherit',
-    }}>
-      <span style={{
-        fontSize: TYPE.label, color: C.text3, letterSpacing: '.06em', fontFamily: NUM_FONT,
-        flexShrink: 0,
-      }}>{label}</span>
-      <b style={{
-        fontSize: TYPE.body, color: col, fontFamily: NUM_FONT, minWidth: 0,
-        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-      }}>{value}</b>
-      {sub && (
-        <span style={{
-          fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT, minWidth: 0,
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        }}>{sub}</span>
-      )}
-    </span>
-  )
-}
+// The pill is shared (components/HeroStat.js, 2026-09-26); same look.
+function Stat(props) { return <HeroStat {...props} /> }
 
 // ── TAB CONSOLIDATION (2026-08-16, owner-approved plan) ─────────────────────
 //
@@ -248,52 +228,13 @@ const BARE_BUTTON = {
 // Every headline is a field already on this page; nothing is computed beyond
 // a sort. Order is the order a viewer opens the show for.
 function Headlines({ players = [], headline, results, isLive, airRanked = [], odds, onPlayerClick, onNavigate }) {
-  // Built in lib/headlines.js -- the header's ticker rolls the same set.
-  const cards = useMemo(() => buildHeadlines({ players, headline, results, isLive, airRanked }), [players, headline, results, isLive, airRanked])
-  const stripRef = useRef(null)
+  // Built in lib/headlines.js -- the header's ticker rolls the same set. The
+  // strip itself is shared with TUDDY and LAMP (components/HeadlineStrip.js,
+  // 2026-09-26); this is where MOONSHOT's cards and taps are decided.
   // 22 -> 30 px/s (2026-09-14, Donovan: 'make the headline move at a little faster pace')
-  useAutoScroll(stripRef, { speed: 30 })
-  if (!cards.length) return null
+  const cards = useMemo(() => buildHeadlines({ players, headline, results, isLive, airRanked }), [players, headline, results, isLive, airRanked])
   const open = (c) => (c.p ? onPlayerClick?.(c.p) : c.nav ? onNavigate?.(c.nav) : null)
-  const Card = ({ c, i, echo }) => (
-    <button type="button" tabIndex={echo ? -1 : 0} aria-hidden={echo || undefined} onClick={() => open(c)}
-      className="home-headline"
-      style={{
-        display: 'grid', gridTemplateRows: 'auto 1fr auto', gap: 3, width: 232, minHeight: 104, flexShrink: 0,
-        padding: '10px 12px 9px', borderRadius: 10, border: `1px solid ${c.col}33`,
-        background: `linear-gradient(160deg, ${c.col}14, ${C.glass} 70%)`, color: C.text, textAlign: 'left', cursor: 'pointer', font: 'inherit',
-      }}>
-      <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, fontWeight: 900, color: c.col }}>{String(i + 1).padStart(2, '0')}</span>
-        <span style={{ fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.14em', fontFamily: NUM_FONT, color: c.col }}>{c.tag}</span>
-        <span style={{ marginLeft: 'auto', fontSize: 13, lineHeight: 1 }}>{c.icon}</span>
-      </span>
-      <span style={{ fontSize: TYPE.name, fontWeight: 800, letterSpacing: '-.01em', lineHeight: 1.15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</span>
-      <span style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8 }}>
-        <span style={{ fontSize: TYPE.body, color: C.text2, lineHeight: 1.35, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{c.why}</span>
-        <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.label, fontWeight: 900, color: c.col, whiteSpace: 'nowrap', border: `1px solid ${c.col}44`, background: `${c.col}14`, borderRadius: 4, padding: '2px 6px', flexShrink: 0 }}>{c.stat}</span>
-      </span>
-    </button>
-  )
-  return (
-    <div className="home-headlines" style={{ margin: '2px 0 0' }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
-        <span style={{ fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.16em', fontFamily: NUM_FONT, color: C.text3 }}>HEADLINES</span>
-        <span style={{ flex: 1, height: 1, background: `linear-gradient(90deg, ${C.orange}66, transparent)` }} />
-        <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>{cards.length} · tap any · swipe or let it roll</span>
-      </div>
-      {/* #97: WebkitOverflowScrolling:'touch' dropped here too -- see the
-          matching note in components/Header.js. Same useAutoScroll hook,
-          same iOS quirk (a touch-momentum layer ignores a JS scrollLeft
-          write until a real touch unlocks it), same fix. */}
-      <div className="home-headlines-viewport" ref={stripRef} style={{ overflowX: 'auto', overflowY: 'hidden', scrollbarWidth: 'none', WebkitMaskImage: 'linear-gradient(90deg, transparent, #000 24px, #000 calc(100% - 24px), transparent)', maskImage: 'linear-gradient(90deg, transparent, #000 24px, #000 calc(100% - 24px), transparent)' }}>
-        <div className="home-headlines-track" style={{ display: 'flex', gap: 12, width: 'max-content', paddingBottom: 2 }}>
-          {cards.map((c, i) => <Card key={c.k} c={c} i={i} />)}
-          {cards.map((c, i) => <Card key={`${c.k}-echo`} c={c} i={i} echo />)}
-        </div>
-      </div>
-    </div>
-  )
+  return <HeadlineStrip cards={cards} onOpen={open} theme={C} numFont={NUM_FONT} accent={C.orange} speed={30} />
 }
 
 export default function Home({
