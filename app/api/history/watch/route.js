@@ -8,6 +8,7 @@
 import { easternToday, slateDateFromRows } from '../../../../lib/data'
 import { fetchBoardFull } from '../../../../lib/dash/board'
 import { mlbWatch, nhlWatch, CREDIT, NHL_CREDIT } from '../../../../lib/history/watch'
+import { nflWatch, CREDIT as NFL_CREDIT } from '../../../../lib/history/nfl'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -21,6 +22,15 @@ export async function GET(request) {
       return Response.json({ sport, day, items: await nhlWatch(day), credit: NHL_CREDIT, builtAt: new Date().toISOString() }, { headers })
     } catch (e) {
       console.error(`[history watch nhl] ${e?.message}`)
+      return Response.json({ sport, items: [], error: 'LIVE DATA DELAYED' }, { status: 502, headers: { 'Cache-Control': 'no-store' } })
+    }
+  }
+  if (sport === 'nfl') {
+    try {
+      const season = Number(easternToday().slice(0, 4))
+      return Response.json({ sport, season, items: await nflWatch(season), credit: NFL_CREDIT, builtAt: new Date().toISOString() }, { headers })
+    } catch (e) {
+      console.error(`[history watch nfl] ${e?.message}`)
       return Response.json({ sport, items: [], error: 'LIVE DATA DELAYED' }, { status: 502, headers: { 'Cache-Control': 'no-store' } })
     }
   }

@@ -1,7 +1,8 @@
 'use client'
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/nfl/theme'
 import HeadlineStrip from '../HeadlineStrip'
+import HistoryWatch from '../HistoryWatch'
 import { buildNflHeadlines } from '../../lib/nfl/headlines'
 
 // ── THE HEADLINE STRIP (moved out of tabs/Home.js 2026-09-25) ───────────────
@@ -30,10 +31,26 @@ import { buildNflHeadlines } from '../../lib/nfl/headlines'
 // MOONSHOT's (glass fill, 232px on a phone too) where the old private CSS
 // used bg2 and a 200px phone width.
 export default function NflHeadlineStrip({ players, games, markets, matchup, onPlayerClick, setTab }) {
-  const cards = useMemo(
-    () => buildNflHeadlines({ players, games, markets, matchup }),
-    [players, games, markets, matchup],
-  )
+  // 📜 HISTORY WATCH (milestones plan step 4): the rarest claim within reach
+  // this week leads the strip, and the group sits under it.
+  const [hist, setHist] = useState(null)
+  useEffect(() => {
+    let alive = true
+    fetch('/api/history/watch?sport=nfl').then((r) => (r.ok ? r.json() : null)).then((j) => { if (alive) setHist(j?.items?.[0] || null) }).catch(() => {})
+    return () => { alive = false }
+  }, [])
+  const cards = useMemo(() => {
+    const base = buildNflHeadlines({ players, games, markets, matchup })
+    if (!hist) return base
+    const p = (players || []).find((x) => String(x?.player_id) === String(hist.player_id)) || null
+    return [{ k: `hist-${hist.player_id}-${hist.unit}`, tag: 'HISTORY WATCH', icon: '📜', name: hist.name, why: `Next: ${hist.claim}.`, stat: `${hist.hr} ${hist.unit}`, col: C.yellow, p }, ...base]
+  }, [players, games, markets, matchup, hist])
   const open = (c) => (c.p ? onPlayerClick?.(c.p, 'TD') : c.nav ? setTab?.(c.nav) : null)
-  return <HeadlineStrip cards={cards} onOpen={open} theme={C} numFont={NUM_FONT} accent={C.green} speed={30} />
+  const byId = (id) => (players || []).find((x) => String(x?.player_id) === String(id))
+  return (
+    <>
+      <HeadlineStrip cards={cards} onOpen={open} theme={C} numFont={NUM_FONT} accent={C.green} speed={30} />
+      <HistoryWatch sport="nfl" unit="TD" reach="within reach this week" step="next" theme={C} numFont={NUM_FONT} onPlayerClick={(p) => { const row = byId(p.player_id); if (row) onPlayerClick?.(row, 'TD') }} />
+    </>
+  )
 }

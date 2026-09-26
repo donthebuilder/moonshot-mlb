@@ -9,7 +9,9 @@ import { C as MLB_C, NUM_FONT as MLB_NUM } from '../lib/theme'
 // source. Nothing here is written by hand: /api/history/watch returns each
 // claim with the query result behind it. Shared by all three products;
 // theme and number font come in as props.
-export default function HistoryWatch({ sport = 'mlb', theme = null, numFont = null, onPlayerClick = null, unit = 'HR', max = 3 }) {
+// `reach` / `step` are the words for the window ("one more tonight" / "one
+// more"); TUDDY's week passes its own.
+export default function HistoryWatch({ sport = 'mlb', theme = null, numFont = null, onPlayerClick = null, unit = 'HR', max = 3, reach = 'one more tonight', step = 'one more' }) {
   const C = theme || MLB_C
   const NUM_FONT = numFont || MLB_NUM
   const [data, setData] = useState(null)
@@ -27,7 +29,7 @@ export default function HistoryWatch({ sport = 'mlb', theme = null, numFont = nu
     <div style={{ margin: '6px 0 8px', padding: '8px 10px', borderRadius: 9, border: `1px solid ${C.border}`, background: C.bg3 || C.bg2 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 4 }}>
         <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: '.12em', fontFamily: NUM_FONT, color: C.text }}>📜 HISTORY WATCH</span>
-        <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>one more tonight · tap for the proof</span>
+        <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>{reach} · tap for the proof</span>
       </div>
       {shown.map((i) => {
         const k = `${i.player_id}:${i.rung}`
@@ -36,13 +38,13 @@ export default function HistoryWatch({ sport = 'mlb', theme = null, numFont = nu
           <div key={k} style={{ borderTop: `1px solid ${C.border}` }}>
             <button type="button" onClick={() => setOpenKey(open ? null : k)} aria-expanded={open}
               style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 0', background: 'transparent', border: 'none', color: C.text, cursor: 'pointer', font: 'inherit', fontSize: 12, lineHeight: 1.4 }}>
-              <b>{i.name}</b> <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 10.5 }}>{i.team} · {i.hr} {unit}</span>
-              <span style={{ color: C.text2 }}> · one more = {i.claim}</span>
+              <b>{i.name}</b> <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 10.5 }}>{i.team} · {i.hr} {i.unit || unit}</span>
+              <span style={{ color: C.text2 }}> · {step} = {i.claim}</span>
             </button>
             {open && (
               <div style={{ padding: '0 0 8px 8px', fontSize: 10.5, color: C.text2, lineHeight: 1.5 }}>
                 {i.proof.lastSeason
-                  ? <>Every {i.proof.who} with {i.rung}+ {unit} before this season, newest first:</>
+                  ? <>Every {i.proof.who} with {i.rung}+ {i.unit || unit} before this season, newest first:</>
                   : <>Nobody in the data has done it for this club (data from {i.proof.coverageFrom}).</>}
                 {i.proof.allSince?.length ? (
                   <ul style={{ margin: '4px 0 4px 16px', padding: 0, fontFamily: NUM_FONT, fontSize: 10.5 }}>
