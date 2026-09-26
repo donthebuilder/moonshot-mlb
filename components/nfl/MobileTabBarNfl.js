@@ -26,7 +26,9 @@ import { NFL_NAV, NFL_MORE_GROUPS } from '../../lib/routes'
 // · Slate, with Picks one tap into the sheet exactly as MOONSHOT keeps its
 // own. Live is here every day now, so the game-day swap this file used to do
 // is gone -- the bar never changes shape mid-day on either product.
-const MAIN_KEYS = ['touchdowns', 'boards', 'live', 'games']
+// 2026-09-26: LAMP's shape (see NflHeader.js) -- the first four of its rail,
+// same as LAMP's phone bar; everything else is one tap into the sheet.
+const MAIN_KEYS = ['touchdowns', 'scores', 'games', 'standings']
 const mainFor = (keys) => keys.map((k) => [k, NFL_NAV[k].icon, NFL_NAV[k].label])
 const MAIN = mainFor(MAIN_KEYS)
 
@@ -40,7 +42,6 @@ const MAIN = mainFor(MAIN_KEYS)
 const MORE = [
   ['@This week', ''],
   ['home', NFL_NAV.home.label, NFL_NAV.home.blurb],
-  ['picks', NFL_NAV.picks.label, NFL_NAV.picks.blurb],
   ...NFL_MORE_GROUPS.flatMap(([group, keys]) => [
     [`@${group}`, ''],
     ...keys.map((k) => [k, NFL_NAV[k].label, NFL_NAV[k].blurb]),

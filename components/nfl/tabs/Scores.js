@@ -10,6 +10,7 @@
 import PageHeader from '../../PageHeader'
 import GameScoreboard from '../GameScoreboard'
 import { C, NUM_FONT } from '../../../lib/nfl/theme'
+import { NFL_NAV } from '../../../lib/routes'
 
 export default function Scores({ data }) {
   const games = data?.games || []
@@ -21,7 +22,7 @@ export default function Scores({ data }) {
       <PageHeader
         eyebrow="TUDDY · SCORES"
         title="Just the score"
-        note="Every game on this week's slate, kickoff or score, nothing ranked or graded. The deeper read on any of it is on Slate; live rung tracking is on Live."
+        note={`Every game on this week's slate, kickoff or score, nothing ranked or graded. The deeper read on any of it is on ${NFL_NAV.games.label}; live rung tracking is on Live.`}
         theme={C}
         numFont={NUM_FONT}
         accent={C.cyan}

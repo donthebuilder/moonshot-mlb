@@ -130,11 +130,14 @@ function TickerStrip({ children }) {
 // Desktop and the phone bar no longer carry identical stops, on purpose, same
 // as MOONSHOT's own two bars don't (MOONSHOT's phone bar drops `bot`/Picks to
 // stay at four; this one already dropped Picks the same way, 2026-09-16).
-// The same five stops MOONSHOT carries, in its order, under its words
-// (2026-09-18 -- see lib/routes.js's NFL_NAV note). touchdowns reads "Props",
-// games reads "Slate", live is here every day now. Research and Storylines
-// moved to the drawer.
-const PRIMARY_KEY_LIST = ['touchdowns', 'boards', 'live', 'games', 'picks']
+// LAMP'S SHAPE (2026-09-26, shell-parity step 3). Donovan, 09-25: LAMP's bar
+// stays as it is and TUDDY takes its shape -- Board · Scores · Schedule ·
+// Standings · Players · Leaders -- replacing the 09-18 "same five words as
+// MOONSHOT" rule (MOONSHOT keeps its own). Board is the TD board
+// (touchdowns); Scores is the plain scores page and Live moved into More;
+// Standings is new (components/nfl/tabs/Standings.js). Labels live in
+// lib/routes.js NFL_NAV.
+const PRIMARY_KEY_LIST = ['touchdowns', 'scores', 'games', 'standings', 'players', 'leaders']
 const PRIMARY_TABS = PRIMARY_KEY_LIST.map((k) => [k, `${NFL_NAV[k].icon} ${NFL_NAV[k].label}`])
 const PRIMARY_KEYS = new Set(PRIMARY_KEY_LIST)
 // Same exception as MOONSHOT's: This week is reached from the wordmark, so it

@@ -1,6 +1,7 @@
 'use client'
 import { C, NUM_FONT, MARKETS, TYPE } from '../../../lib/nfl/theme'
 import PageHeader from '../../PageHeader'
+import { NFL_NAV } from '../../../lib/routes'
 
 // Guide — what every number means, and what it doesn't.
 //
@@ -63,7 +64,7 @@ export default function Guide({ onNavigate, data }) {
       <Section title="Start here — three taps">
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: 8 }}>
           <PageCard tab="home" title="1 · Read the slate" note="Home shows the live ledger, The Six, lookout spots and the strongest boards." onNavigate={onNavigate} />
-          <PageCard tab="touchdowns" title="2 · See who scores" note="Props opens with names and a sentence, not a table -- the fastest read on this week's board." onNavigate={onNavigate} />
+          <PageCard tab="touchdowns" title="2 · See who scores" note={`${NFL_NAV.touchdowns.label} opens with names and a sentence, not a table -- the fastest read on this week's board.`} onNavigate={onNavigate} />
           <PageCard tab="picks" title="3 · Read the calls" note="Picks holds the designated calls. A call is graded; a high Boards rank is not automatically a call." onNavigate={onNavigate} />
         </div>
       </Section>
@@ -157,15 +158,16 @@ export default function Guide({ onNavigate, data }) {
 
       <Section title="Where each page takes you">
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: 8 }}>
-          <PageCard tab="touchdowns" title="Props" note="The front door — this week's anytime-touchdown board, opened with names and a plain-English reason instead of a table of percentiles." onNavigate={onNavigate} />
+          <PageCard tab="touchdowns" title={NFL_NAV.touchdowns.label} note="The front door — this week's anytime-touchdown board, opened with names and a plain-English reason instead of a table of percentiles." onNavigate={onNavigate} />
           <PageCard tab="boards" title="Boards" note="Every market at once — touchdowns, receiving, rushing, passing, receptions, carries and kicking — each card carrying the one line that explains its own number." onNavigate={onNavigate} />
           <PageCard tab="storylines" title="Storylines" note="Milestones, streaks, and calls the model saw but filed under the wrong market — read as sentences. Revenge games and injury-driven role changes aren't built yet." onNavigate={onNavigate} />
-          <PageCard tab="games" title="Slate" note="Every game, with drive state, weather, defense fatigue and the designated calls grouped by matchup." onNavigate={onNavigate} />
-          <PageCard tab="players" title="Player Portal" note="Search one player for measurables, splits, projections, recent games and storylines." onNavigate={onNavigate} />
+          <PageCard tab="games" title={NFL_NAV.games.label} note="Every game, with drive state, weather, defense fatigue and the designated calls grouped by matchup." onNavigate={onNavigate} />
+          <PageCard tab="players" title={NFL_NAV.players.label} note="Search one player for measurables, splits, projections, recent games and storylines." onNavigate={onNavigate} />
           <PageCard tab="watchlist" title="Watchlist" note="Only the players you saved, with the current slate row kept intact." onNavigate={onNavigate} />
           <PageCard tab="research" title="Research" note="Deeper model inputs and supporting context. Useful after the verdict, not before it." onNavigate={onNavigate} />
           <PageCard tab="matchups" title="Matchups" note="Defense-versus-position and matchup context without turning team context into a player pick." onNavigate={onNavigate} />
           <PageCard tab="pairs" title="Pairs" note="Related same-game combinations. Relationship labels are context, not a guarantee or independent grade." onNavigate={onNavigate} />
+          <PageCard tab="standings" title={NFL_NAV.standings.label} note="Every division: record, points for and against, home and road, division and conference records, streak. Measured, not modeled." onNavigate={onNavigate} />
           <PageCard tab="leaders" title="Leaders" note="Who is first in each stat category, already sorted side by side — measured, not modeled." onNavigate={onNavigate} />
           <PageCard tab="live" title="Live" note="Every rung on the card against its bar, on the league feed, while the game is on. Cleared, live, or missed — plus the scoring plays as they land." onNavigate={onNavigate} />
           <PageCard tab="boxscores" title="Box Scores" note="This week's games broken into passing, rushing, receiving and kicking lines, plus each team's defense." onNavigate={onNavigate} />

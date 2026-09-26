@@ -33,6 +33,7 @@ import Accountability from './tabs/Accountability'
 import TuddyLedger from './tabs/TuddyLedger'
 import BoxScores from './tabs/BoxScores'
 import Scores from './tabs/Scores'
+import Standings from './tabs/Standings'
 import Pairs from './tabs/Pairs'
 import Guide from './tabs/Guide'
 import Live from './tabs/Live'
@@ -92,6 +93,9 @@ function NflStaleBanner({ meta, data, loading }) {
 
 export default function NflDashboard({ palettePass = 0 }) {
   const [tab, setTabRaw] = useState('home')
+  // A club tapped on Standings, handed to the players directory once.
+  const [portalTeam, setPortalTeam] = useState(null)
+  useEffect(() => { if (tab !== 'players') setPortalTeam(null) }, [tab])
   usePageTitle(`${pageTitle('nfl', tab)} \u00b7 DASH Network`)
   const [data, setData] = useState(null)
   const [report, setReport] = useState(null)
@@ -322,7 +326,7 @@ export default function NflDashboard({ palettePass = 0 }) {
         ) : (
           <ErrorBoundary resetKey={tab} label={`the ${tab} tab`}>
             {tab === 'home' && <Home data={slate} picks={picks} results={nflResults} matchup={matchup} logs={logs} onPlayerClick={openPlayer} setTab={setTab} />}
-            {tab === 'players' && <StatPortal data={data} logs={logs} matchup={matchup} />}
+            {tab === 'players' && <StatPortal data={data} logs={logs} matchup={matchup} initialTeam={portalTeam} />}
             {tab === 'watchlist' && <Watchlist data={slate} matchup={matchup} logs={logs} onPlayerClick={openPlayer} />}
             {tab === 'games' && <Games data={slate} picks={picks} matchup={matchup} logs={logs} results={nflResults} onPlayerClick={openPlayer} />}
             {tab === 'touchdowns' && <Touchdowns data={slate} matchup={matchup} odds={odds} onPlayerClick={openPlayer} oddsStatus={oddsStatus} />}
@@ -337,6 +341,7 @@ export default function NflDashboard({ palettePass = 0 }) {
             {tab === 'tuddyledger' && <TuddyLedger data={data} results={nflResults} onPlayerClick={openPlayer} />}
             {tab === 'boxscores' && <BoxScores data={data} onPlayerClick={openPlayer} />}
             {tab === 'scores' && <Scores data={slate} />}
+            {tab === 'standings' && <Standings onOpenTeam={(abbr) => { setPortalTeam(abbr); setTab('players') }} />}
             {tab === 'pairs' && <Pairs data={data} results={nflResults} onPlayerClick={openPlayer} />}
             {tab === 'guide' && <Guide onNavigate={setTab} data={data} />}
             {tab === 'live' && <Live data={slate} picks={picks} live={liveSnap} matchup={matchup} logs={logs} results={nflResults} onPlayerClick={openPlayer} setTab={setTab} />}
