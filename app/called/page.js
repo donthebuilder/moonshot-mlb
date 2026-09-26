@@ -25,7 +25,7 @@ import { createClient } from '@supabase/supabase-js'
 import { easternToday } from '../../lib/data'
 import { matchupWord, oddsWord, roleWord } from '../../lib/dash/homerFeed'
 import { tdCallWord, tdPlayWord } from '../../lib/nfl/tdFeed'
-import { BRAND, SPORT_KEYS, sportKey, appHref } from '../../lib/routes'
+import { BRAND, SPORT_KEYS, sportKey, appHref, playerHref } from '../../lib/routes'
 import { nhlCaptureFrom, readNhlRecords } from '../../lib/record/nhl'
 import { readMlbEvents } from '../../lib/record/mlb'
 import { readNflEvents } from '../../lib/record/nfl'
@@ -111,7 +111,7 @@ const SPORTS = {
     callsHead: 'Tonight\u2019s calls', callsPill: 'posted before first pitch',
     eventsHead: 'Tonight\u2019s home runs',
     close: ['Tomorrow\u2019s calls are already on the board.', 'The bot publishes its picks every morning. The 🤖 you see here is what it said before first pitch.', 'Save your watchlist, picks and alerts when your guys go deep'],
-    playerHref: (id) => `/app#sport=mlb&p=${encodeURIComponent(id)}`,
+    playerHref: (id) => playerHref('mlb', id),
     meta: {
       // §36: search words first, product second (Batch 6).
       title: 'MLB home run picks, graded in public · CALLED IT · MOONSHOT',
@@ -132,7 +132,7 @@ const SPORTS = {
     callsHead: 'This week\u2019s calls', callsPill: 'posted before kickoff',
     eventsHead: 'Today\u2019s touchdowns',
     close: ['This week\u2019s calls are already on the board.', 'The bot publishes its touchdown board before kickoff. The 🤖 you see here is what it said before the snap.', 'Save your watchlist, picks and alerts when your guys score'],
-    playerHref: (id) => `/app#sport=nfl&tab=players&player=${encodeURIComponent(id)}`,
+    playerHref: (id) => playerHref('nfl', id),
     meta: {
       title: 'NFL touchdown picks, graded in public · CALLED IT · TUDDY',
       description: 'Every NFL touchdown, tagged with whether TUDDY had the scorer on its board before kickoff. Board coverage by game day, graded in public.',
@@ -157,7 +157,7 @@ const SPORTS = {
     callsHead: 'Tonight\u2019s calls', callsPill: 'locked before puck drop',
     eventsHead: 'Tonight\u2019s goal scorers',
     close: ['Tomorrow\u2019s calls lock before puck drop.', 'LAMP locks three skaters per game before the puck drops. The 🤖 you see here is what it said before the game.', 'Save your watchlist, picks and alerts when your guys score'],
-    playerHref: (id) => `/app#sport=nhl&tab=player&player=${encodeURIComponent(id)}`,
+    playerHref: (id) => playerHref('nhl', id),
     meta: {
       title: 'NHL goal picks, graded in public · CALLED IT · LAMP',
       description: 'Every NHL goal scorer, tagged with whether LAMP called him before puck drop. Three calls per game, locked and graded in public.',

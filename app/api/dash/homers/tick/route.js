@@ -47,7 +47,7 @@ import {
   anglesText, hotSheetText,
 } from '../../../../../lib/dash/tweetFeed'
 import { threadsSnapshot } from '../../../../../lib/dash/threadsPost'
-import { tailFor as linkTailFor } from '../../../../../lib/dash/postLink'
+import { tailFor as linkTailFor, postPath } from '../../../../../lib/dash/postLink'
 import { MLBHR_USER_ID, matchHomer, mayClaimHomer, mlbhrReplyText, parseMlbhr } from '../../../../../lib/dash/mlbhr'
 import { getFromX } from '../../../../../lib/dash/xPost'
 import { discordFailuresSnapshot, hasX, postToDiscord, postToX, uploadImageToX, xProblem } from '../../../../../lib/dash/xPost'
@@ -61,13 +61,9 @@ export const maxDuration = 60
 
 const SITE = (process.env.NEXT_PUBLIC_SITE_URL || '').replace(/\/$/, '')
 const CALLED_URL = SITE ? `${SITE}/called` : ''
-// WHERE AN ANCHOR POST SENDS (2026-09-22). /called is the record — every homer
-// tonight, tagged. /start is the door the funnel measurement asked for
-// (claude/the-funnel-2026-09-14.md: 12 real strangers off X in four days, 0
-// reached the app), and it carries both sports plus the graded record rather
-// than only tonight's baseball. So the few posts that spend $0.200 to carry a
-// URL spend it on the page built to convert, not the page built to prove.
-const START_URL = SITE ? `${SITE}/start` : ''
+// WHERE AN ANCHOR POST SENDS: every one went to /start from 09-22, and
+// /start's buttons went to /called and back. Since funnel step 2 (09-26)
+// each kind links to what it is about -- lib/dash/postLink.js postPath().
 const SITE_HOST = SITE.replace(/^https?:\/\//, '') || 'dashnetwork.vercel.app'
 const HANDLE = String(process.env.X_HANDLE || '').trim()          // e.g. "@dashnetwork" — optional
 // NO URL IN THE POST TEXT (2026-09-05). X's pay-per-use pricing: a post is
@@ -85,7 +81,9 @@ const HANDLE = String(process.env.X_HANDLE || '').trim()          // e.g. "@dash
 // $0.015. About $330/month for a link under every homer, which is also the
 // pattern that teaches people to ignore it.
 const TAIL = { site: '', handle: '' }
-const tailFor = (kind) => linkTailFor(kind, { site: START_URL, handle: HANDLE })
+// WHERE (funnel step 2, 2026-09-26): postPath() -- the board, the record or
+// the player the post is about. The anchor list and X_POST_LINK are unchanged.
+const tailFor = (kind, ctx) => linkTailFor(kind, { site: SITE ? `${SITE}${postPath(kind, ctx)}` : '', handle: HANDLE })
 const MODE = /^flagged$/i.test(String(process.env.X_POST_MODE || '')) ? 'flagged' : 'all'
 // X's Basic tier is ~1,100 posts a month. Override with X_MONTHLY_CAP if the
 // plan changes; this number is only ever used to decide when to shout.
@@ -1966,7 +1964,7 @@ export async function GET(request) {
           // kind: 'homer' is for the Threads mirror only (lib/dash/postLink.js)
           // -- on a highlights account the live alert IS the feed. X ignores it,
           // and no link is attached: the alerts are the reach, not the funnel.
-          const r = await postToX(text, { mediaId, quoteId: quoteFor(row), kind: 'homer' })
+          const r = await postToX(text, { mediaId, quoteId: quoteFor(row), kind: 'homer', link: { playerId: row.player_id } })
           if (r.ok && r.id) { patch.x_post_id = r.id; totals.x += 1 }
           else {
             totals.xFailed += 1
@@ -2152,7 +2150,7 @@ export async function GET(request) {
           // The builder's own rule, asked here so the log says the same thing
           // the copy does: only TOP and HR settle on a home run.
           const eligible = MLBHR_REPLY_ALL || mayClaimHomer(row.role)
-          const text = eligible ? mlbhrReplyText(row, tailFor('mlbhr_reply')) : ''
+          const text = eligible ? mlbhrReplyText(row, tailFor('mlbhr_reply', { playerId: row.player_id })) : ''
           const claim = { mlbhr_post_id: tweet.id }
           if (!text) {
             // Decided and done: no call, nothing honest to say. Marked so the

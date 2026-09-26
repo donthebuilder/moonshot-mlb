@@ -70,7 +70,7 @@ import { fetchNflLive } from '../../../../../lib/nfl/liveSlate'
 import { buildTdEvent, eventFromRow, rowFromEvent, tdPostText, touchdownsInSnap } from '../../../../../lib/nfl/tdFeed'
 import { tdCard } from '../../../../../lib/nfl/tdCard'
 import { threadsSnapshot } from '../../../../../lib/dash/threadsPost'
-import { tailFor as linkTailFor } from '../../../../../lib/dash/postLink'
+import { tailFor as linkTailFor, postPath } from '../../../../../lib/dash/postLink'
 import { spotlightCard } from '../../../../../lib/nfl/spotlightCard'
 import { hasX, postToDiscord, postToX, uploadImageToX } from '../../../../../lib/dash/xPost'
 import { logXBudget } from '../../../../../lib/dash/xBudget'
@@ -89,8 +89,8 @@ const SITE = (process.env.NEXT_PUBLIC_SITE_URL || '').replace(/\/$/, '')
 const SITE_HOST = SITE.replace(/^https?:\/\//, '') || 'dashnetwork.vercel.app'
 // Per-kind, same as the MLB tick -- see lib/dash/postLink.js.
 const TAIL = { site: '', handle: '' }
-// The football anchors land on /start's NFL side — see the MLB tick's note.
-const tailFor = (kind) => linkTailFor(kind, { site: SITE ? `${SITE}/start?sport=nfl` : '', handle: HANDLE })
+// Where each post links: postPath() (funnel step 2) -- see the MLB tick's note.
+const tailFor = (kind, ctx) => linkTailFor(kind, { site: SITE ? `${SITE}${postPath(kind, ctx)}` : '', handle: HANDLE })
 // Same default and same override var as homers/tick's own X_MONTHLY_CAP --
 // see lib/dash/xBudget.js for why this is read-only and shared, not a
 // second number to keep in sync by hand.
@@ -402,7 +402,7 @@ async function runTouchdownTick(db, day) {
         if (claim?.length) {
           const mediaId = png ? await uploadImageToX(png) : null
           // kind: 'td' for the Threads mirror only — see the MLB tick's note.
-          const r = await postToX(text, { mediaId, kind: 'td' })
+          const r = await postToX(text, { mediaId, kind: 'td', link: { playerId: row.gsis_id } })
           if (r.ok && r.id) {
             patch.x_post_id = r.id
             totals.x += 1
