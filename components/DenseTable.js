@@ -116,6 +116,14 @@ export default function DenseTable({
   // sample gates: a rate built on four batted balls should not sit at the
   // same visual weight as one built on two hundred.
   dimRow = null,
+  // LAMP BOARD (2026-09-26, lamp research step 1). Both additive; absent,
+  // every existing table draws exactly as before.
+  //   ramp(t) -> colour, t in 0..1: a product's own sequential ramp in place
+  //     of the default for heat cells (LAMP's ice ramp, lib/nhl/theme).
+  //   rowEdge(row) -> colour | null: a 3px stripe on the row's first text
+  //     cell -- the called-row marker, drawn where the spotlight's bar goes.
+  ramp = null,
+  rowEdge = null,
 }) {
   // MULTI-SORT. `sort` is an ordered list of keys, not one key.
   //
@@ -620,6 +628,7 @@ export default function DenseTable({
                         // The 3px bar belongs on the row's first cell, which is
                         // the element that actually paints there.
                         ...(light && isFirstText ? cellEdge(light.color) : {}),
+                        ...(!light && isFirstText && rowEdge?.(r) ? { boxShadow: `inset 3px 0 0 ${rowEdge(r)}` } : {}),
                       }}>
                         {light && isFirstText && (
                           <span
@@ -690,10 +699,13 @@ export default function DenseTable({
                   }
 
                   const absent = typeof c.blankWhen === 'function' && c.blankWhen(num, r)
+                  const [dlo, dhi] = c.domain && c.domain !== SEQ_AUTO ? c.domain : [lo, hi]
                   const bg = (!absent && lit(c, num))
-                    ? (c.scale === 'seq' && c.domain && c.domain !== SEQ_AUTO
-                        ? seqColor(num, c.domain)
-                        : c.invert ? rampColor(hi - (num - lo), lo, hi) : rampColor(num, lo, hi))
+                    ? (ramp
+                        ? ramp(dhi > dlo ? (c.invert ? (dhi - num) : (num - dlo)) / (dhi - dlo) : 0.5)
+                        : c.scale === 'seq' && c.domain && c.domain !== SEQ_AUTO
+                          ? seqColor(num, c.domain)
+                          : c.invert ? rampColor(hi - (num - lo), lo, hi) : rampColor(num, lo, hi))
                     : null
                   // ROUNDED TOOLTIP. This used to print the raw float, so
                   // hovering a Fit cell read "Fit: 38.36650000000001" — a

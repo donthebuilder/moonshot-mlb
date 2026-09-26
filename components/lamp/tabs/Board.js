@@ -1,10 +1,10 @@
 'use client'
 import { useState } from 'react'
 import PageHeader from '../../PageHeader'
-import { C, NUM_FONT } from '../../../lib/nhl/theme'
+import { C, NUM_FONT, rampAt } from '../../../lib/nhl/theme'
+import LampTable from '../LampTable'
 import { useLampBoard } from '../../../lib/nhl/useLamp'
-import { usePreview, ShowMoreButton } from '../../ListPreview'
-import { TeamMark, EmptyState, DelayedBanner, Loading, SourceLine, Kicker, GameTypeChip, LampDot, StaleSeasonNote, PlayerMark, fmtDay, fmtPuckDrop, fmtSec, zoneAbbrev, shiftDay } from '../ui'
+import { TeamMark, EmptyState, DelayedBanner, Loading, SourceLine, Kicker, GameTypeChip, LampDot, StaleSeasonNote, fmtDay, fmtPuckDrop, fmtSec, zoneAbbrev, shiftDay } from '../ui'
 
 // 🏒 THE LAMP GOAL BOARD (lamp-goal-v1) — the product's first signal page.
 // Per game: every scored skater ranked, the top three CALLED, the rest ON
@@ -50,27 +50,98 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
   )
 }
 
+// THE BOARD, MADE TO POP (lamp research step 1, 2026-09-26). Same structure
+// Donovan likes -- grouped by game, three called on top -- drawn the way
+// MOONSHOT's Picks reads: the table is LampTable (DenseTable), SCORE and the
+// three legs heat-shaded on LAMP's ice ramp, a called row carries a stripe
+// and a filled CALLED chip, and "shots 95th · goals 96th · ice time 69th"
+// is three small bars (the same three percentiles, r.pct). Nothing new is
+// computed here; every cell is a field the board already had.
+const PREVIEW_ROWS = 8
+
+// The filled CALLED chip -- pregame in STATUS, graded beside the goals -- and
+// the rank itself filled on a called row, the two marks MOONSHOT's pick rows
+// carry. (Beside the name it was clipped by the name cell at 390px.)
+function CalledChip() {
+  return <span style={{ marginRight: 7, background: C.ice, color: C.bg, font: `900 7.5px/1 ${NUM_FONT}`, letterSpacing: '.12em', borderRadius: 4, padding: '2px 5px', verticalAlign: '1px' }}>{STATUS.called}</span>
+}
+
+function PctBars({ r }) {
+  if (!r.pct) return null
+  const legs = [['S', r.pct.shotsPg, 'shots'], ['G', r.pct.goalsPg, 'goals'], ['T', r.pct.toi, 'ice time']]
+  return (
+    <span title={r.why} style={{ display: 'inline-flex', gap: 5, alignItems: 'center' }}>
+      {legs.map(([k, v, word]) => (
+        <span key={k} aria-label={`${word} ${Math.round(v)}th percentile`} style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+          <span style={{ color: C.text3, font: `800 7.5px/1 ${NUM_FONT}` }}>{k}</span>
+          <span style={{ width: 22, height: 6, borderRadius: 3, background: C.border, overflow: 'hidden', display: 'inline-block' }}>
+            <span style={{ display: 'block', height: '100%', width: `${Math.max(4, Math.min(100, v))}%`, background: rampAt(v / 100) }} />
+          </span>
+        </span>
+      ))}
+    </span>
+  )
+}
+
+function columnsFor(g, onOpenTeam) {
+  const graded = g.graded
+  return [
+    { key: 'rank', label: '#', heat: false, mono: true, w: 28,
+      fmt: (v, r) => (r.status === 'called'
+        ? <span title="CALLED" style={{ display: 'inline-block', minWidth: 16, textAlign: 'center', background: C.ice, color: C.bg, font: `900 10px/16px ${NUM_FONT}`, borderRadius: 4 }}>{v}</span>
+        : v) },
+    { key: 'name', label: 'PLAYER', heat: false, sticky: true, bold: true, w: 170,
+      fmt: (v, r) => <>{v}<span style={{ color: C.text3, font: `800 9px/1 ${NUM_FONT}`, marginLeft: 6 }}>{r.pos}</span></> },
+    { key: 'team', label: 'TM', heat: false, mono: true, w: 40,
+      fmt: (v) => <button type="button" onClick={(e) => { e.stopPropagation(); onOpenTeam?.(v) }} style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', color: C.text2, font: `800 10.5px/1 ${NUM_FONT}` }}>{v}</button> },
+    { key: 'score', label: 'SCORE', primary: true, scale: 'seq', domain: [0, 100], w: 50 },
+    { key: 'spg', label: 'S/GP', primary: true, dp: 2, w: 44 },
+    { key: 'gpg', label: 'G/GP', primary: true, dp: 2, w: 44 },
+    { key: 'toi', label: 'TOI', primary: true, w: 48, fmt: (v) => (Number.isFinite(v) ? fmtSec(v) : '—') },
+    { key: 'pctl', label: 'LEGS', heat: false, w: 118, fmt: (v, r) => (r.status === 'called' ? <PctBars r={r._row} /> : null) },
+    { key: 'result', label: graded ? 'GOALS' : 'STATUS', heat: false, w: 96, fmt: (v, r) => {
+      const row = r._row
+      if (graded) {
+        if (row.dressed === false) return <span style={{ color: C.text3, font: `800 9px/1 ${NUM_FONT}` }}>VOID</span>
+        return <>{row.status === 'called' ? <CalledChip /> : null}<span style={{ color: row.hit ? C.lamp : C.text3, font: `900 12px/1 ${NUM_FONT}` }}>{row.hit && <LampDot />}{row.goals ?? 0}</span></>
+      }
+      return row.status === 'called' ? <CalledChip /> : <span style={{ color: C.text3, font: `800 8px/1 ${NUM_FONT}`, letterSpacing: '.1em' }}>{STATUS[row.status]}</span>
+    } },
+  ]
+}
+
 function GameBoard({ g, onOpenPlayer, onOpenGame, onOpenTeam }) {
   const game = g.game
   const scored = g.rows.filter((r) => r.status !== 'off')
   const off = g.rows.filter((r) => r.status === 'off')
-  const prev = usePreview(scored, 8)
   const [showOff, setShowOff] = useState(false)
   const live = game.state === 'live'; const done = game.state === 'final'
   const ctx = g.rows[0]?.context || {}
   const stamp = g.graded ? 'GRADED' : g.locked ? 'LOCKED' : 'PREVIEW · NOT A CALL'
   const stampTone = g.graded ? C.cream : g.locked ? C.teal : C.amber
+  // Rank order as the board gives it -- no initial sort, so no "sorted by"
+  // line above the table (a phone row the old table didn't spend).
+  const rows = [...scored].sort((a, b) => (a.rank ?? 999) - (b.rank ?? 999)).map((r) => ({
+    id: r.playerId, rank: r.rank, name: r.name, pos: r.pos, team: r.team, score: r.score,
+    spg: r.legs ? r.legs.shotsPg : null, gpg: r.legs ? r.legs.goalsPg : null, toi: r.legs ? r.legs.toi : null,
+    pctl: r.status === 'called' ? 1 : 0, result: r.status, status: r.status, _row: r,
+  }))
   return (
-    <section aria-label={`${game.away.abbrev} at ${game.home.abbrev}`} style={{ borderTop: `1px solid ${C.border2}`, paddingTop: 12 }}>
+    <section aria-label={`${game.away.abbrev} at ${game.home.abbrev}`} style={{ border: `1px solid ${C.border2}`, borderRadius: 12, background: C.bg2, padding: '8px 10px 10px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 6 }}>
         <button type="button" onClick={() => onOpenGame?.(game.id)} style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', color: C.text, font: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-          <TeamMark abbrev={game.away.abbrev} size={18} bold /><span style={{ color: C.text3, font: `800 9px/1 ${NUM_FONT}` }}>@</span><TeamMark abbrev={game.home.abbrev} size={18} bold />
+          <TeamMark abbrev={game.away.abbrev} size={22} bold /><span style={{ color: C.text3, font: `800 10px/1 ${NUM_FONT}` }}>@</span><TeamMark abbrev={game.home.abbrev} size={22} bold />
         </button>
-        <span style={{ color: live ? C.lamp : done ? C.text2 : C.text3, font: `800 10px/1 ${NUM_FONT}` }}>{live && <LampDot />}{game.statusLine || `${fmtPuckDrop(game.startUtc)} ${zoneAbbrev()}`}{done || live ? ` · ${game.away.score}–${game.home.score}` : ''}</span>
+        {done || live
+          ? <span style={{ color: live ? C.lamp : C.text, font: `900 17px/1 ${NUM_FONT}` }}>{live && <LampDot />}{game.away.score}–{game.home.score}</span>
+          : null}
+        <span style={{ color: live ? C.lamp : done ? C.text2 : C.text2, font: `800 10.5px/1 ${NUM_FONT}` }}>{game.statusLine || `${fmtPuckDrop(game.startUtc)} ${zoneAbbrev()}`}</span>
         <GameTypeChip label={game.gameTypeLabel} />
-        <span style={{ color: stampTone, font: `900 8px/1 ${NUM_FONT}`, letterSpacing: '.14em', border: `1px solid ${stampTone}`, borderRadius: 6, padding: '3px 7px' }}>{stamp}</span>
       </div>
       <div style={{ color: C.text3, fontSize: 10.5, lineHeight: 1.5, marginBottom: 8, fontFamily: NUM_FONT }}>
+        {/* The stamp leads this line rather than wrapping the header onto a
+            second one at 390px. */}
+        <span style={{ color: C.bg, background: stampTone, font: `900 8px/1 ${NUM_FONT}`, letterSpacing: '.14em', borderRadius: 5, padding: '3px 6px', marginRight: 7, verticalAlign: '1px' }}>{stamp}</span>
         {g.locked ? `Locked ${new Date(g.lockedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} · ${g.snapshots} snapshot${g.snapshots === 1 ? '' : 's'}` : `Locks from ${new Date(g.locksAtUtc).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}, last write before puck drop`}
         {' · '}{g.lineupKnown ? 'lineup posted — dressed skaters only' : 'lineup not posted — full roster'}
         {ctx.oppGaPg != null ? ` · opp allows ${ctx.oppGaPg.toFixed(2)} GA/GP` : ''}{ctx.b2b ? ' · 2nd of back-to-back' : ''}
@@ -78,41 +149,11 @@ function GameBoard({ g, onOpenPlayer, onOpenGame, onOpenTeam }) {
         {g.net ? ` · in net: ${g.net}` : ''}
       </div>
       {scored.length === 0 ? <EmptyState title="NOBODY SCORED YET" note="No skater on either roster has ten NHL games on file." /> : (
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-            <thead><tr style={{ color: C.text3, font: `800 8px/1 ${NUM_FONT}`, letterSpacing: '.12em', textAlign: 'left' }}>
-              <th style={th}>#</th><th style={th}>PLAYER</th><th style={th}>TM</th><th style={{ ...th, textAlign: 'right' }}>SCORE</th><th className="sm-hide" style={{ ...th, textAlign: 'right' }}>S/GP</th><th className="sm-hide" style={{ ...th, textAlign: 'right' }}>G/GP</th><th className="sm-hide" style={{ ...th, textAlign: 'right' }}>TOI</th><th style={{ ...th, textAlign: 'right' }}>{g.graded ? 'GOALS' : 'STATUS'}</th>
-            </tr></thead>
-            <tbody>
-              {prev.shown.map((r) => {
-                const called = r.status === 'called'
-                const hit = r.hit === true
-                return (
-                  <FragmentRow key={r.playerId}>
-                    <tr style={{ borderTop: `1px solid ${C.border}`, background: hit ? `linear-gradient(90deg, ${C.lamp}14, transparent 50%)` : called ? `${C.ice}0a` : 'transparent', opacity: g.graded && r.dressed === false ? .45 : 1 }}>
-                      <td style={{ ...td, fontFamily: NUM_FONT, color: called ? C.ice : C.text3, fontWeight: called ? 900 : 700, fontSize: 11 }}>{r.rank}</td>
-                      <td style={td}><PlayerMark name={r.name} onClick={() => onOpenPlayer?.(r.playerId)} /><span style={{ color: C.text3, font: `800 9px/1 ${NUM_FONT}`, marginLeft: 6 }}>{r.pos}</span></td>
-                      <td style={td}><button type="button" onClick={() => onOpenTeam?.(r.team)} style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', color: C.text2, font: `800 10.5px/1 ${NUM_FONT}` }}>{r.team}</button></td>
-                      <td style={{ ...td, textAlign: 'right', fontFamily: NUM_FONT, fontWeight: 900, fontSize: 14, color: called ? C.text : C.text2 }}>{r.score}</td>
-                      <td className="sm-hide" style={num}>{r.legs ? r.legs.shotsPg.toFixed(2) : '—'}</td>
-                      <td className="sm-hide" style={num}>{r.legs ? r.legs.goalsPg.toFixed(2) : '—'}</td>
-                      <td className="sm-hide" style={num}>{r.legs ? fmtSec(r.legs.toi) : '—'}</td>
-                      <td style={{ ...td, textAlign: 'right', whiteSpace: 'nowrap' }}>
-                        {g.graded
-                          ? (r.dressed === false ? <span style={{ color: C.text3, font: `800 9px/1 ${NUM_FONT}` }}>VOID</span> : <span style={{ color: hit ? C.lamp : C.text3, font: `900 12px/1 ${NUM_FONT}` }}>{hit && <LampDot />}{r.goals ?? 0}</span>)
-                          : <span style={{ color: called ? C.ice : C.text3, font: `800 8px/1 ${NUM_FONT}`, letterSpacing: '.1em' }}>{STATUS[r.status]}</span>}
-                      </td>
-                    </tr>
-                    {called && (
-                      <tr><td colSpan={8} style={{ padding: '0 8px 7px 34px', color: C.text3, fontSize: 10.5, fontFamily: NUM_FONT }}>{r.why}</td></tr>
-                    )}
-                  </FragmentRow>
-                )
-              })}
-            </tbody>
-          </table>
-          <ShowMoreButton open={prev.open} restN={prev.restN} toggle={prev.toggle} itemWord="on the board" />
-        </div>
+        <LampTable rows={rows} columns={columnsFor(g, onOpenTeam)} heatMode="primary" ramp={rampAt}
+          rowEdge={(r) => (r.status === 'called' ? C.ice : null)}
+          dimRow={(r) => g.graded && r._row.dressed === false}
+          maxRows={PREVIEW_ROWS} maxHeight={9999}
+          onRowClick={(r) => onOpenPlayer?.(r.id)} />
       )}
       {off.length > 0 && (
         <div style={{ marginTop: 8 }}>
@@ -130,10 +171,6 @@ function GameBoard({ g, onOpenPlayer, onOpenGame, onOpenTeam }) {
   )
 }
 
-function FragmentRow({ children }) { return <>{children}</> }
 export function NavBtn({ children, onClick, disabled, strong = false }) {
   return <button type="button" onClick={onClick} disabled={disabled} style={{ height: 28, padding: '0 11px', borderRadius: 8, cursor: disabled ? 'default' : 'pointer', border: `1px solid ${strong ? C.ice : C.border2}`, background: strong ? `${C.ice}14` : C.bg2, color: strong ? C.ice : C.text2, font: `800 10px/1 ${NUM_FONT}`, letterSpacing: '.04em', opacity: disabled ? .5 : 1 }}>{children}</button>
 }
-const th = { padding: '0 8px 8px', fontWeight: 800 }
-const td = { padding: '7px 8px', verticalAlign: 'middle' }
-const num = { ...td, textAlign: 'right', fontFamily: NUM_FONT, color: C.text3, fontSize: 10.5 }
