@@ -31,7 +31,8 @@
 import { createClient } from '@supabase/supabase-js'
 import { timingSafeEqual } from 'node:crypto'
 
-import { easternToday } from '../../../../../lib/data'
+import { easternToday, slateDateFromRows } from '../../../../../lib/data'
+import { callStatus } from '../../../../../lib/callStatus'
 import { fetchLiveSlate, liveSlateStatus } from '../../../../../lib/liveSlate'
 import { fetchBoardFull, fetchRunMeta } from '../../../../../lib/dash/board'
 import { oddsPaths, pairSummaryPaths } from '../../../../../lib/dataSource'
@@ -43,7 +44,7 @@ import {
   hottestContactPicks, hottestContactText, hrLeadersByDowText, hrVsStarterPicks, hrVsStarterText, liveIndexFrom, matchupLinesPicks, matchupLinesText,
   milestonePicks, milestoneText, playableRows, revengeGiveawayPicks, revengeGiveawayText, storylinesPicks, storylinesText, storylineWatchPicks, storylineWatchText,
   streaksPick, streaksText, theFourPicks, theFourText, vsPitcherCareerLines,
-  boardPitchersFresh, probableIndexFor, hotStretchPicks, hotStretchText,
+  boardPitchersFresh, scheduleFor, boardGamesToday, hotStretchPicks, hotStretchText,
   anglesText, hotSheetText,
 } from '../../../../../lib/dash/tweetFeed'
 import { threadsSnapshot } from '../../../../../lib/dash/threadsPost'
@@ -376,7 +377,13 @@ async function boardIndex(day) {
   const index = boardIndexFrom(rows)
   // An empty board is not cached: a bot that has not published yet should be
   // asked again next minute, not remembered as "nobody is on it" for ten.
-  if (index.size) _cache.board = { at: Date.now(), day, index, rows }
+  // NOR IS ANOTHER DAY'S BOARD (2026-09-26, the stale Called Shots): the
+  // rows' own game times say which day they are. Caching yesterday's rows
+  // under today's key kept them for ten minutes after the bot published --
+  // while run_meta, fetched separately, already said today. Asked again next
+  // tick instead, until the rows themselves are today's.
+  if (index.size && slateDateFromRows(rows) === day) _cache.board = { at: Date.now(), day, index, rows }
+  else if (index.size) _cache.board = { at: 0, day: '', index: null, rows }
   return index
 }
 const boardRows = () => _cache.board.rows || []
@@ -505,6 +512,9 @@ const MLBHR_REPLY_ALL = String(process.env.MLBHR_REPLY_ALL || '').trim() === '1'
 // Their timeline carries ~20 posts a read and a busy half-hour can put six of
 // ours in it. Capped per tick so one minute cannot spend the whole burst.
 const MLBHR_REPLY_BATCH = 4
+// A NIGHTLY CAP (2026-09-26 tweets fix, step 2): at most this many @MLBHR
+// replies a day, best-ranked CALLED homers first. Donovan to confirm N.
+const MLBHR_REPLY_CAP = Math.max(0, Number(process.env.MLBHR_REPLY_CAP ?? 3) || 0)
 const BOARD_REPLY_MAX_RANK = 50
 const isSurfaced = (row) => Boolean(String(row?.role || '').trim())
 // How many of the board the reply prints above him. Ten names every night is
@@ -579,9 +589,12 @@ function etHoursSinceNoon() {
   return rel - 16                  // 16:00 UTC = noon ET (EDT)
 }
 
-/** The earliest game_time on tonight's board, in ms, or null if none parse. */
-function firstPitchOf(rows) {
+/** The earliest game_time on tonight's board, in ms, or null if none parse.
+ *  With `games` (today's MLB schedule), only rows whose game is on it count:
+ *  yesterday's game times made 09-26's pregame "overdue" four hours early. */
+function firstPitchOf(rows, games = null) {
   const times = (Array.isArray(rows) ? rows : [])
+    .filter((r) => !games || games.has(Number(r?.game_pk)))
     .map((r) => Date.parse(r?.game_time || ''))
     .filter((t) => Number.isFinite(t))
   return times.length ? Math.min(...times) : null
@@ -1037,7 +1050,9 @@ export async function GET(request) {
   // 2026-09-06 (Donovan: "at least a hour before first pitch"). Computed off
   // whatever the board holds right now -- boardIndex() only just resolved
   // above, so this always sees the freshest cached rows.
-  const firstPitch = firstPitchOf(boardRows())
+  // Today's MLB schedule, read once for the timing and the gate below.
+  const sched = await scheduleFor(day)
+  const firstPitch = firstPitchOf(boardRows(), sched?.games || null)
   const overdue = firstPitch != null && Date.now() >= firstPitch - PREGAME_LEAD_MS
   // 2026-09-15 (Donovan: "the top ten needs to be updated before first
   // pitch"). Reverses part of the 2026-09-10 change for ONE post only --
@@ -1045,7 +1060,9 @@ export async function GET(request) {
   // firstPitch can be null (no parseable game_time on the board at all);
   // waiting forever in that case would be worse than the thing being
   // reverted, so it falls open rather than blocking the call permanently.
-  const pregameLockReady = firstPitch == null ? true : overdue
+  // Falls open only when the schedule was unreachable: with today's schedule
+  // in hand and no board row on it, nothing is ready (2026-09-26).
+  const pregameLockReady = firstPitch == null ? !sched?.games : overdue
   // WHO IS STILL PLAYABLE (2026-09-07, Donovan: "it should not be tweeting
   // things about the slate that's already gone off or players that are not
   // playing anymore"). One index over tonight's snapshot; every board-derived
@@ -1078,16 +1095,22 @@ export async function GET(request) {
   // unreachable StatsAPI or a slate with too few verifiable games returns
   // fresh. A hold costs one tick and retries; a false hold that never clears
   // would be worse than the bug.
+  //   3. (2026-09-26) games: are the board's game_pks on today's MLB
+  //      schedule at all. 09-26's Called Shots was yesterday's board under
+  //      today's run_meta: (1) passed, and (2) checked nothing and passed.
+  //      The rows' own date (slateDateFromRows) must be today too -- run_meta
+  //      is a separate file and can be a publish ahead of the rows.
   const runMeta = await fetchRunMeta('today')
-  const boardIsToday = runMeta?.slate_date === day
-  const probables = await probableIndexFor(day)
-  const pitcherFreshness = boardPitchersFresh(boardRows(), probables)
+  const rowsDate = slateDateFromRows(boardRows())
+  const boardIsToday = runMeta?.slate_date === day && (!rowsDate || rowsDate === day)
+  const gamesCheck = boardGamesToday(boardRows(), sched?.games || null)
+  const pitcherFreshness = boardPitchersFresh(boardRows(), sched?.probables || null, sched?.games || null)
   // The one gate every board-derived post now shares.
-  const boardUsable = Boolean(board.size) && boardIsToday && pitcherFreshness.fresh
+  const boardUsable = Boolean(board.size) && boardIsToday && gamesCheck.ok && pitcherFreshness.fresh
   const boardHold = board.size
-    ? (!boardIsToday ? 'stale-slate-date' : (!pitcherFreshness.fresh ? 'stale-pitchers' : null))
+    ? (!boardIsToday ? 'stale-slate-date' : !gamesCheck.ok ? 'stale-games' : (!pitcherFreshness.fresh ? 'stale-pitchers' : null))
     : 'no-board'
-  if (boardHold) console.error(`[homers] board held: ${boardHold}`, { slate_date: runMeta?.slate_date, day, ...pitcherFreshness })
+  if (boardHold) console.error(`[homers] board held: ${boardHold}`, { slate_date: runMeta?.slate_date, rowsDate, day, games: gamesCheck, ...pitcherFreshness })
 
   // ── 0. THE PREGAME CALL — before anything starts ──────────────────────────
   //
@@ -1916,7 +1939,11 @@ export async function GET(request) {
       ? (pre.payload.called).map((id) => String(id))
       : ((pre?.payload?.picks) || []).map((p) => String(p.player_id))
   )
-  const quoteFor = (row) => (pre?.x_post_id && preIds.has(String(row.player_id)) ? pre.x_post_id : null)
+  // Only a CALLED homer (lib/callStatus.js) quotes the morning's post, and
+  // only when that post actually went out (2026-09-26): an ON THE BOARD or
+  // NOT ON THE BOARD homer posts standalone, and a held Called Shots means
+  // nobody quotes anything.
+  const quoteFor = (row) => (pre?.x_post_id && preIds.has(String(row.player_id)) && callStatus(row) === 'called' ? pre.x_post_id : null)
   for (const row of pending || []) {
     const live = byKey.get(`${row.player_id}:${row.hr_n}`)
     const ev = { ...row, _roles: live?._roles || row.role || '' }
@@ -2136,47 +2163,64 @@ export async function GET(request) {
       if (!tl.ok) {
         totals.mlbhrError = `${tl.status} ${tl.error || ''}`.trim()
       } else {
-        const { data: mine } = await db.from('homer_feed')
-          .select('player_id,hr_n,name,team,role,board_rank,hr_score,mlbhr_reply_id')
-          .eq('day', day).is('mlbhr_reply_id', null)
+        // THE FULL ROW (2026-09-26): the reply card was built from eight
+        // columns, so it printed "Invalid Date" and "KC @ ???".
+        const { data: mine } = await db.from('homer_feed').select('*').eq('day', day).is('mlbhr_reply_id', null)
         const rows = mine || []
-        let sent = 0
+        const { data: doneToday } = await db.from('homer_feed').select('mlbhr_reply_id').eq('day', day).not('mlbhr_reply_id', 'is', null)
+        let sentToday = (doneToday || []).filter((r) => r.mlbhr_reply_id !== 'skipped' && !String(r.mlbhr_reply_id).startsWith('refused')).length
+        // Match first, then send best-ranked first, so the cap keeps the
+        // strongest receipts rather than whichever homer came first.
+        const queue = []
         for (const tweet of tl.json?.data || []) {
-          if (sent >= MLBHR_REPLY_BATCH) break
           const parsed = parseMlbhr(tweet.text)
           if (!parsed) continue
           const row = matchHomer(parsed, rows)
-          if (!row) continue
+          if (!row || queue.some((q) => q.row === row)) continue
+          queue.push({ tweet, row })
+        }
+        queue.sort((a, b) => (a.row.board_rank ?? 9999) - (b.row.board_rank ?? 9999))
+        let sent = 0
+        for (const { tweet, row } of queue) {
           // The builder's own rule, asked here so the log says the same thing
           // the copy does: only TOP and HR settle on a home run.
           const eligible = MLBHR_REPLY_ALL || mayClaimHomer(row.role)
-          const text = eligible ? mlbhrReplyText(row, tailFor('mlbhr_reply', { playerId: row.player_id })) : ''
-          const claim = { mlbhr_post_id: tweet.id }
-          if (!text) {
-            // Decided and done: no call, nothing honest to say. Marked so the
-            // next tick does not re-examine the same homer every minute for
-            // the rest of the night.
-            await db.from('homer_feed').update({ ...claim, mlbhr_reply_id: 'skipped' })
-              .match({ day, player_id: row.player_id, hr_n: row.hr_n })
+          const text = eligible ? mlbhrReplyText(row, TAIL) : ''
+          const where = { day, player_id: row.player_id, hr_n: row.hr_n }
+          if (!text || sentToday >= MLBHR_REPLY_CAP || sent >= MLBHR_REPLY_BATCH) {
+            // Decided and done: no call (or tonight's cap is spent), nothing
+            // to send. Marked so the next tick does not re-examine it.
+            if (text && sentToday < MLBHR_REPLY_CAP) continue       // only the per-tick batch is full: next tick
+            await db.from('homer_feed').update({ mlbhr_post_id: tweet.id, mlbhr_reply_id: 'skipped' }).match(where).is('mlbhr_reply_id', null)
             row.mlbhr_reply_id = 'skipped'
             totals.mlbhrSkipped = (totals.mlbhrSkipped || 0) + 1
             continue
           }
-          const png = await bytesOf(() => homerCard({ ...row, _roles: row.role || '' }, { site: SITE_HOST }))
+          // CLAIM BEFORE POSTING (2026-09-26) -- the same rule the homer
+          // alerts follow. A reply that X accepts but this row never records
+          // would be sent again next tick: a duplicate under their post.
+          const { data: claimed } = await db.from('homer_feed').update({ mlbhr_post_id: tweet.id, mlbhr_reply_id: 'pending' })
+            .match(where).is('mlbhr_reply_id', null).select('player_id')
+          if (!claimed?.length) continue
+          // A card only when the row can fill it: no "Invalid Date", no "???".
+          const cardOk = Boolean(row.day && row.opponent)
+          const png = cardOk ? await bytesOf(() => homerCard({ ...row, _roles: row.role || '' }, { site: SITE_HOST })) : null
           const mediaId = png ? await uploadImageToX(png) : null
           const r = await postToX(text, { replyTo: tweet.id, mediaId, kind: 'mlbhr_reply' })
           if (r.ok && r.id) {
-            await db.from('homer_feed').update({ ...claim, mlbhr_reply_id: r.id })
-              .match({ day, player_id: row.player_id, hr_n: row.hr_n })
+            const w = await db.from('homer_feed').update({ mlbhr_reply_id: r.id }).match(where)
+            if (w.error) console.error(`[mlbhr] POSTED ${r.id} for ${row.name} but the row did not record it (${w.error.message}); the 'pending' claim still blocks a resend`)
             row.mlbhr_reply_id = r.id
             totals.mlbhr = (totals.mlbhr || 0) + 1
-            sent += 1
+            sent += 1; sentToday += 1
           } else {
-            // Left unclaimed on purpose: their post is still up and the next
-            // tick can try again. A rate limit stops the pass rather than
-            // burning the rest of the batch against the same wall.
             totals.mlbhrFailed = (totals.mlbhrFailed || 0) + 1
             console.error(`[mlbhr] reply refused for ${row.name}: ${r.status} ${r.error}`)
+            // A rate limit or a server-side failure releases the claim so a
+            // later tick can try; a refusal (403 and the like) is recorded and
+            // never retried -- no loop against a wall.
+            const transient = r.status === 429 || !r.status || r.status >= 500
+            await db.from('homer_feed').update({ mlbhr_reply_id: transient ? null : `refused:${r.status}` }).match(where)
             if (r.status === 429) break
           }
         }
