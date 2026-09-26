@@ -43,6 +43,7 @@ import { createSupabaseServerClient } from '../../lib/supabase/server'
 import { dashSignOut } from './actions'
 import styles from './dash.module.css'
 import './scroll-anchor.css' // css-loader pure-selector fix, 2026-09-06
+import OpenOnHash from '../../components/OpenOnHash'
 
 export const metadata = {
   alternates: { canonical: '/' },
@@ -160,12 +161,23 @@ export default async function DashHome({ searchParams }) {
           tonight&apos;s hockey. FRANCHISE runs your league. Same scoring language, same receipts,
           one account.
         </p>
+        {/* THE WORDS, BEFORE THE NUMBERS (2026-09-26, stranger test F1/F7).
+            A first-timer met "board", "call" and "the bot" in every tile below
+            and nothing here said what they were. Worded from /start's own
+            lines, so the two pages say it the same way. */}
+        <dl className={styles.words}>
+          <div><dt>The board</dt><dd>every player the model rated before the game, ranked.</dd></div>
+          <div><dt>A call</dt><dd>a player the model &mdash; the bot &mdash; designated before the game: MOONSHOT&apos;s HR, HIT, HRR and CONTACT picks, TUDDY&apos;s touchdown picks, LAMP&apos;s top three in each game.</dd></div>
+          <div><dt>Graded</dt><dd>after the game, every call is checked against the bar it was made for, in public, wins and misses alike.</dd></div>
+        </dl>
         <div className={styles.heroActions}>
-          <Link href="/app#sport=mlb&tab=home">Open tonight&apos;s board <b>→</b></Link>
-          {/* The hero is what a first-timer actually reads; the auth section is
-              at the bottom of a long page. This said "Sign in to save your
-              list" — again addressed to somebody who already has an account. */}
-          {!me.user && me.configured ? <a href="#create-account">Create a free account</a> : null}
+          {/* /start is the page that explains a product and carries the
+              sign-up; CALLED IT is the public record. Neither had a door here
+              (stranger test F1). The board is one tap further, from either,
+              and from every product card below; the header keeps the
+              account button. */}
+          <Link href="/start">Start here <b>→</b></Link>
+          <Link href="/called">CALLED IT &middot; the public record</Link>
         </div>
       </section>
 
@@ -423,12 +435,22 @@ export default async function DashHome({ searchParams }) {
         )}
       </section>
 
-      <section className={styles.alertsSection} id="alerts">
-        <AlertsPanel styles={styles} />
+      {/* Thirty-six switches are for somebody who has already decided; a
+          stranger scrolled past two screens of them (stranger test F2). One
+          tap opens it, and so does the header's #alerts link (OpenOnHash --
+          a browser won't open a <details> just because a link targets it). */}
+      <section className={styles.alertsSection}>
+        <details className={styles.alertsFold} id="alerts">
+          <summary>Alerts &mdash; tell me when my players do something</summary>
+          <AlertsPanel styles={styles} />
+        </details>
+        <OpenOnHash id="alerts" />
       </section>
 
       <footer className={styles.foot}>
         <span>DASH NETWORK</span>
+        <Link href="/start">Start here</Link>
+        <Link href="/called">CALLED IT</Link>
         <Link href="/app#sport=mlb&tab=home">MOONSHOT · MLB</Link>
         <Link href="/app#sport=nfl&tab=home">TUDDY · NFL</Link>
         <Link href="/app#sport=nhl&tab=home">LAMP · NHL</Link>

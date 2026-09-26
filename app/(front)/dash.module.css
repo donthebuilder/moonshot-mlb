@@ -84,6 +84,16 @@ a.brand { text-decoration: none; color: inherit; }
 .hero h1 em { color: var(--mlb); font-style: normal; }
 .heroCopy { max-width: 620px; margin: 0; color: var(--dim); font-size: 13px; line-height: 1.6; }
 .heroActions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+/* The three words (2026-09-26). A plain list, not cards: term, then what it means. */
+.words { max-width: 620px; margin: 16px 0 0; display: grid; gap: 7px; }
+.words div { display: grid; grid-template-columns: 78px 1fr; gap: 10px; font-size: 12.5px; line-height: 1.5; }
+.words dt { color: var(--mlb); font: 900 9px/1.9 monospace; letter-spacing: .12em; text-transform: uppercase; }
+.words dd { margin: 0; color: var(--dim); }
+/* Alerts behind one tap (2026-09-26). */
+.alertsFold > summary { cursor: pointer; list-style: none; padding: 14px 0; font-weight: 800; font-size: 14px; }
+.alertsFold > summary::-webkit-details-marker { display: none; }
+.alertsFold > summary::before { content: '+ '; color: var(--mlb); }
+.alertsFold[open] > summary::before { content: '− '; }
 .heroActions a {
   padding: 12px 18px; border: 1px solid var(--line); border-radius: 11px;
   background: #191817; color: var(--ink); font-size: 12px; font-weight: 700; text-decoration: none;
