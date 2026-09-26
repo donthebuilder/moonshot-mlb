@@ -149,7 +149,10 @@ const EXEMPT = new Set([
 //         and /ask landed. Numerology's roots 1-7 and Runs.js's hot/cold were
 //         lib/theme.js's C spelled out by hand -- same values, now tokens --
 //         and /ask's background is named once. Paid back, then ratcheted.
-const HEX_BUDGET = 796
+//    795  2026-09-26: TUDDY's Morning Edition (75d41bc..e598c59) had put it
+//         at 797 -- two near-black hand-spelled darks in CSS strings (the
+//         Live crawl tag's ink, the Home hero's base). Now C.bg / C.bg2.
+const HEX_BUDGET = 795
 
 const TRACKED = (() => {
   try {

@@ -361,7 +361,7 @@ export default function Live({ data, picks, live, matchup = null, logs = null, r
       .tl{display:flex;flex-direction:column;gap:14px}
             .tl-title{display:flex;align-items:flex-end;justify-content:space-between;margin:4px 2px 8px}
       .tl-crawl{display:flex;align-items:center;gap:10px;overflow-x:auto;scrollbar-width:none;padding:7px 10px;border:1px solid ${C.border};border-radius:10px;background:${C.bg2};font:700 10.5px/1 ${NUM_FONT};color:${C.text2};white-space:nowrap}
-      .tl-crawl-tag{padding:3px 7px;border-radius:5px;background:${C.cyan};color:#061013;font:900 8.5px/1 ${NUM_FONT};letter-spacing:.1em;flex-shrink:0}
+      .tl-crawl-tag{padding:3px 7px;border-radius:5px;background:${C.cyan};color:${C.bg};font:900 8.5px/1 ${NUM_FONT};letter-spacing:.1em;flex-shrink:0}
       .tl-crawl-item{flex-shrink:0}.tl-crawl-item b{color:${C.text}}.tl-crawl-next{color:${C.text3}}
       .tl-title small{color:${C.green};font:900 8px/1 ${NUM_FONT};letter-spacing:.12em}.tl-title h2{margin:5px 0 0;font-size:17px;letter-spacing:-.02em}
       .tl-title button{border:1px solid ${C.border};border-radius:8px;background:transparent;color:${C.text2};padding:6px 10px;font:800 9px/1 ${NUM_FONT};cursor:pointer}
