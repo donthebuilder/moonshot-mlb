@@ -4,6 +4,7 @@ import MoneyAnswer from '../MoneyAnswer'
 import { useEffect, useMemo, useState } from 'react'
 import { etToday } from '../../lib/freshness'
 import { mlbSlateState } from '../../lib/mlbSlateState'
+import { tabName } from '../../lib/routes'
 import { C, NUM_FONT, TYPE } from '../../lib/theme'
 import { hr9Color } from '../../lib/hr9'
 import { catColor, verdictInk } from '../../lib/scales'
@@ -937,6 +938,11 @@ function HRTierRecord({ report }) {
 
 // ── Main ─────────────────────────────────────────────────────────────────────
 
+// The page's name is the registry's (MLB_NAV.results = "The record") -- the
+// nav, the drawer and the front door all call it that, and the heading said
+// "Results" (stranger test F14: one page, two names).
+const RECORD_NAME = tabName('mlb', 'results')
+
 export default function Results({ results, liveResults = null, slateDate = '', backtest, evalReport = null, players = [], onPlayerClick }) {
   // THREE QUESTIONS, NOT SEVEN PILLS. `mode` is the question; each mode keeps
   // its own last-opened view, so switching to All season and back does not
@@ -1254,7 +1260,7 @@ export default function Results({ results, liveResults = null, slateDate = '', b
     return (
       <div>
         <PanelTitle
-          title="Results"
+          title={RECORD_NAME}
           sub="what each 0-100 score is actually worth, measured against every outcome"
         />
         <ModeBar mode={mode} setMode={setMode} />
@@ -1266,7 +1272,7 @@ export default function Results({ results, liveResults = null, slateDate = '', b
   if (mode === 'leaders') {
     return (
       <div>
-        <PanelTitle title="Results" sub="the season’s actual lines — context for every graded night" />
+        <PanelTitle title={RECORD_NAME} sub="the season’s actual lines — context for every graded night" />
         <ModeBar mode={mode} setMode={setMode} />
         <Leaders players={players} onPlayerClick={onPlayerClick} />
       </div>
@@ -1280,7 +1286,7 @@ export default function Results({ results, liveResults = null, slateDate = '', b
   if (mode === 'night' && !slots.length && !homers.length) {
     return (
       <div>
-        <PanelTitle title="Results" sub="Nightly grading" />
+        <PanelTitle title={RECORD_NAME} sub="Nightly grading" />
         <ModeBar mode={mode} setMode={setMode} />
         {archiveBar}
         <Empty text={
@@ -1300,7 +1306,7 @@ export default function Results({ results, liveResults = null, slateDate = '', b
   return (
     <div>
       <PanelTitle
-        title="Results"
+        title={RECORD_NAME}
         sub={mode === 'night'
           ? `${date} · ${slots.length} slots · ${allRows.length} unique`
           : `every graded night in the archive · ${gradedDays.length} of them`}

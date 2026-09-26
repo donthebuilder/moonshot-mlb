@@ -380,7 +380,7 @@ export default async function DashHome({ searchParams }) {
               in on. Here is where most people go first.
             </p>
             <div className={styles.welcomeSteps}>
-              <Link href="/app#sport=mlb&tab=home">Open tonight&apos;s board<span>MOONSHOT&apos;s read on tonight&apos;s baseball, graded by morning.</span></Link>
+              <Link href="/app#sport=mlb&tab=home">Open MOONSHOT<span>MOONSHOT&apos;s read on tonight&apos;s baseball, graded by morning.</span></Link>
               <Link href="/app#sport=mlb&tab=bot">Star a few hitters<span>The ☆ on any player saves him to your watchlist — that is the thing an account is for.</span></Link>
               <Link href="/account">Turn on alerts<span>Get told when one of your names goes deep, on this device or off it.</span></Link>
             </div>
@@ -425,7 +425,7 @@ export default async function DashHome({ searchParams }) {
                 confirmEmail={typeof params.confirm === 'string' ? params.confirm : ''}
               />
               <p className={styles.authEscape}>
-                Don&apos;t want an account? <Link href="/app#sport=mlb&tab=home">Open tonight&apos;s board anyway →</Link>{' '}
+                Don&apos;t want an account? <Link href="/app#sport=mlb&tab=home">Open MOONSHOT anyway →</Link>{' '}
                 Everything on MOONSHOT, TUDDY and LAMP is readable without one.
               </p>
             </div>

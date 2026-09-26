@@ -88,7 +88,7 @@ export default function DashAuthCard({
           MOONSHOT and TUDDY are open whether you are signed in or not.
         </p>
         <div style={{ marginTop: 14 }}>
-          <Link className={styles.barCta} href="/app#sport=mlb&tab=home">Open tonight&apos;s board →</Link>
+          <Link className={styles.barCta} href="/app#sport=mlb&tab=home">Open MOONSHOT →</Link>
         </div>
       </div>
     )
