@@ -4,7 +4,8 @@ import { resolveTab, pageTitle, NHL_TABS as NHL_TAB_KEYS, NHL_NAV } from '../../
 import { usePageTitle } from '../../lib/usePageTitle'
 import { initialHashParams, setSport } from '../../lib/sport'
 import { C } from '../../lib/nhl/theme'
-import { useLampScores } from '../../lib/nhl/useLamp'
+import { useLampScores, useLampScoresOn } from '../../lib/nhl/useLamp'
+import { etToday } from '../../lib/freshness'
 import ErrorBoundary from '../ErrorBoundary'
 import TabNotFound from '../TabNotFound'
 import MobileCSS from '../MobileCSS'
@@ -12,7 +13,7 @@ import TabExplainer from '../TabExplainer'
 import LampHeader from './LampHeader'
 import MobileTabBarLamp from './MobileTabBarLamp'
 import { NHL_TEXTS } from './tabExplainerTexts'
-import { readHashParam, writeHashParam } from './ui'
+import { readHashParam, readHashDay, writeHashParam } from './ui'
 
 import Home from './tabs/Home'
 import Scores from './tabs/Scores'
@@ -50,7 +51,7 @@ import Results from './tabs/Results'
 const NHL_TABS = new Set(NHL_TAB_KEYS)
 // Pages that show one day and keep it in the address (`date=`). One list,
 // read by setTab (which clears it elsewhere) and goBack (which restores it).
-const DATED_TABS = new Set(['scores', 'schedule', 'board', 'fullboard'])
+const DATED_TABS = new Set(['home', 'scores', 'schedule', 'board', 'fullboard'])
 
 export default function LampDashboard({ palettePass = 0 }) {
   const [tab, setTabRaw] = useState('home')
@@ -58,6 +59,15 @@ export default function LampDashboard({ palettePass = 0 }) {
   const [teamKey, setTeamKey] = useState(null)
   const [playerId, setPlayerId] = useState(null)
   const [missingTab, setMissingTab] = useState('')
+  // ONE DAY FOR THE WHOLE SHELL (2026-09-26, shell-parity step 1). The
+  // header's Today / Tmrw, the day buttons on Board, The Board, Scores and
+  // Schedule, and the address all read and move this one value -- each tab
+  // used to keep its own, so the header could never say which day you were
+  // on. null = today. It rides the address (`date=`) on the dated tabs, so a
+  // refresh or a shared link keeps it.
+  const [date, setDateRaw] = useState(() => readHashDay())
+  const setDate = (d) => setDateRaw(d && d !== etToday() ? d : null)
+  useEffect(() => { if (DATED_TABS.has(tab)) writeHashParam('date', date) }, [tab, date])
   // On a cold open Next writes the route's static <title> after the first
   // effect (measured 2026-09-25); lib/usePageTitle.js holds ours against it
   // -- it replaced the 600ms second write that used to live here.
@@ -116,7 +126,7 @@ export default function LampDashboard({ palettePass = 0 }) {
     if (to.tab === 'game' && to.gameId) writeHashParam('game', to.gameId)
     if (to.tab === 'team' && to.teamKey) writeHashParam('team', to.teamKey)
     if (to.tab === 'player' && to.playerId) writeHashParam('player', to.playerId)
-    if (to.date && DATED_TABS.has(to.tab)) writeHashParam('date', to.date)
+    if (to.date && DATED_TABS.has(to.tab)) { writeHashParam('date', to.date); setDateRaw(to.date) }
   }
 
   const openGame = (id) => {
@@ -201,6 +211,8 @@ export default function LampDashboard({ palettePass = 0 }) {
         // otherwise (measured live, 2026-09-25); MOONSHOT's and TUDDY's
         // shells follow the same rule since 2026-09-26.
         trail.current = []
+        // A typed or linked address is the truth about the day, too.
+        setDateRaw(readHashDay())
         setTabRaw(r.tab)
       } catch { /* ignore malformed hashes */ }
     }
@@ -212,12 +224,16 @@ export default function LampDashboard({ palettePass = 0 }) {
   // serves the second call.
   const today = useLampScores(null)
   const live = today.data?.live || 0
+  // The picked day's scores, fetched only when a day other than today is
+  // picked; Home and the ticker read whichever is showing.
+  const picked = useLampScoresOn(date)
+  const shown = date ? picked : today
 
   return (
     <>
       <MobileCSS />
       <a className="skip-link" href="#board-main">Skip to the board</a>
-      <LampHeader tab={tab} setTab={setTab} live={live} />
+      <LampHeader tab={tab} setTab={setTab} live={live} date={date} setDate={setDate} scores={shown} liveScores={today} onOpenPlayer={openPlayer} onOpenGame={openGame} />
       <main id="board-main" className="dashboard-main" style={{ maxWidth: 1300, margin: '0 auto', padding: '14px 14px 40px', background: C.bg, color: C.text }}>
         <h1 className="sr-only">{pageTitle('nhl', missingTab ? 'home' : tab)}</h1>
         {!missingTab && <TabExplainer tab={tab} texts={NHL_TEXTS} storageKey="tab_explained_nhl" accent={C.ice} />}
@@ -231,9 +247,9 @@ export default function LampDashboard({ palettePass = 0 }) {
           />
         ) : (
           <ErrorBoundary resetKey={`${tab}:${gameId || ''}:${teamKey || ''}:${playerId || ''}`} label={`the ${tab} tab`}>
-            {tab === 'home' && <Home today={today} onOpenGame={openGame} setTab={setTab} />}
-            {tab === 'scores' && <Scores onOpenGame={openGame} />}
-            {tab === 'schedule' && <Schedule onOpenGame={openGame} />}
+            {tab === 'home' && <Home today={shown} date={date} onOpenGame={openGame} setTab={setTab} />}
+            {tab === 'scores' && <Scores onOpenGame={openGame} date={date} setDate={setDate} />}
+            {tab === 'schedule' && <Schedule onOpenGame={openGame} date={date} setDate={setDate} />}
             {tab === 'standings' && <Standings onOpenTeam={openTeam} />}
             {tab === 'game' && <Game id={gameId} backLabel={backLabel('scores')} onBack={() => goBack('scores')} />}
             {tab === 'guide' && <Guide onNavigate={setTab} />}
@@ -243,8 +259,8 @@ export default function LampDashboard({ palettePass = 0 }) {
             {tab === 'goalies' && <Players goaliesOnly onOpenPlayer={openPlayer} onOpenTeam={openTeam} />}
             {tab === 'player' && <Player id={playerId} onOpenTeam={openTeam} onOpenGame={openGame} backLabel={backLabel('players')} onBack={() => goBack('players')} />}
             {tab === 'leaders' && <Leaders onOpenPlayer={openPlayer} onOpenTeam={openTeam} />}
-            {tab === 'board' && <Board onOpenPlayer={openPlayer} onOpenGame={openGame} onOpenTeam={openTeam} />}
-            {tab === 'fullboard' && <FullBoard onOpenPlayer={openPlayer} onOpenTeam={openTeam} />}
+            {tab === 'board' && <Board onOpenPlayer={openPlayer} onOpenGame={openGame} onOpenTeam={openTeam} date={date} setDate={setDate} />}
+            {tab === 'fullboard' && <FullBoard onOpenPlayer={openPlayer} onOpenTeam={openTeam} date={date} setDate={setDate} />}
             {tab === 'results' && <Results onOpenPlayer={openPlayer} />}
           </ErrorBoundary>
         )}

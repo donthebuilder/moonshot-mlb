@@ -6,6 +6,7 @@ import { setSport } from '../../lib/sport'
 // LAMP's ice for the third pill -- a token import, not a literal (hex budget).
 import { C as LAMP_C } from '../../lib/nhl/theme'
 import PaletteButton from '../PaletteButton'
+import SettingsSheet, { SheetLabel, SheetRow } from '../SettingsSheet'
 import ThemeModeButton from '../ThemeModeButton'
 import AlertBell from './AlertBell'
 import SignUpPill from '../SignUpPill'
@@ -161,56 +162,29 @@ function Tile({ label, value, color, title, live = false, onClick }) {
 }
 
 
-// Same convention as components/Header.js's SettingsSheet -- one (gear)
-// icon instead of the palette + light/dark buttons sitting loose in the
-// header at all times. Own copy, own accent (green, not MOONSHOT's
-// orange), because this file already keeps its own C rather than sharing
-// MOONSHOT's -- same reasoning as this file's local hexToRgba.
+// One (gear) icon instead of the palette + light/dark buttons sitting loose
+// in the header. The gear shell is shared with MOONSHOT and LAMP
+// (components/SettingsSheet.js, 2026-09-26 -- this used to be its own
+// copy); TUDDY passes its own theme, its green, and its own switches.
 function NflSettingsSheet() {
-  const [open, setOpen] = useState(false)
-  const ref = useRef(null)
-  useEffect(() => {
-    if (!open) return
-    const away = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
-    const key = (e) => { if (e.key === 'Escape') setOpen(false) }
-    document.addEventListener('mousedown', away)
-    document.addEventListener('keydown', key)
-    return () => { document.removeEventListener('mousedown', away); document.removeEventListener('keydown', key) }
-  }, [open])
   return (
-    <div ref={ref} style={{ position: 'relative' }}>
-      <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} aria-haspopup="dialog"
-        title="View settings — palette, light/dark"
-        style={{
-          width: 30, height: 30, borderRadius: 999, display: 'grid', placeItems: 'center', cursor: 'pointer',
-          border: `1px solid ${open ? `${C.green}66` : C.border}`, background: open ? `${C.green}1f` : C.glass,
-          color: open ? C.green : C.text2, fontSize: 14, transition: 'transform .12s, background .12s',
-          transform: open ? 'rotate(30deg)' : 'none',
-        }}>⚙</button>
-      {open && (
-        <div role="dialog" aria-label="View settings" style={{
-          position: 'absolute', right: 0, top: 'calc(100% + 8px)', zIndex: 60, minWidth: 200,
-          background: hexToRgba(C.bg2, .98), border: `1px solid ${C.border}`, borderRadius: 12,
-          boxShadow: '0 12px 32px rgba(0,0,0,.45)', padding: '10px 10px 8px', display: 'grid', gap: 8,
-        }}>
-          <div style={{ fontSize: 8.5, fontWeight: 900, letterSpacing: '.14em', color: C.text3, textTransform: 'uppercase' }}>View</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <PaletteButton jobs={NFL_JOBS()} accent={C.green} />
-            <ThemeModeButton />
-          </div>
-          {/* ALERTS MOVED IN HERE (2026-09-18). It sat loose in the header
-              row, which MOONSHOT's own header doesn't do with anything --
-              Donovan's call was that both headers carry MOONSHOT's control
-              cluster. It is still one tap, and it is still TUDDY's own
-              feature; it just isn't a fourth always-visible button. */}
-          <div style={{ fontSize: 8.5, fontWeight: 900, letterSpacing: '.14em', color: C.text3, textTransform: 'uppercase' }}>Alerts</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <AlertBell />
-          </div>
-          <div style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.5 }}>Palette · light/dark · alerts. Sticks on this device.</div>
-        </div>
-      )}
-    </div>
+    <SettingsSheet theme={C} accent={C.green} openAlpha={31 / 255} title="View settings — palette, light/dark"
+      hint="Palette · light/dark · alerts. Sticks on this device.">
+      <SheetLabel theme={C}>View</SheetLabel>
+      <SheetRow>
+        <PaletteButton jobs={NFL_JOBS()} accent={C.green} />
+        <ThemeModeButton />
+      </SheetRow>
+      {/* ALERTS MOVED IN HERE (2026-09-18). It sat loose in the header
+          row, which MOONSHOT's own header doesn't do with anything --
+          Donovan's call was that both headers carry MOONSHOT's control
+          cluster. It is still one tap, and it is still TUDDY's own
+          feature; it just isn't a fourth always-visible button. */}
+      <SheetLabel theme={C}>Alerts</SheetLabel>
+      <SheetRow>
+        <AlertBell />
+      </SheetRow>
+    </SettingsSheet>
   )
 }
 
@@ -283,7 +257,10 @@ export default function NflHeader({ tab, setTab, data, meta, matchup, weekMode =
   // nothing, same honesty rule MOONSHOT's `open()` uses.
   const openTile = (it) => {
     if (it.p) onPlayerClick?.(it.p)
-    else if (it.sport === 'mlb') setSport('mlb')
+    // A pill that names its destination (LAMP's scores, 2026-09-26) goes
+    // there; any other product's pill switches to it.
+    else if (it.hash) window.location.hash = it.hash
+    else if (it.sport && it.sport !== 'nfl') setSport(it.sport)
     else if (it.sport === 'nfl') go('live')
     else if (it.nav) go(it.nav)
   }
@@ -558,9 +535,9 @@ export default function NflHeader({ tab, setTab, data, meta, matchup, weekMode =
             {liveItems.filter((i) => i.live).map((i) => (
               <Tile key={i.k} label={`${i.icon ? `${i.icon} ` : ''}${i.sub || 'live'}`} value={i.text}
                 color={i.col} live onClick={() => openTile(i)}
-                title={i.sport === 'mlb'
+                title={i.title || (i.sport === 'mlb'
                   ? (i.kind === 'leader' ? `Leading this game's stat line on MOONSHOT — tap to switch` : 'Live on MOONSHOT — tap to switch to MOONSHOT')
-                  : (i.kind === 'leader' ? `Leading this game's stat line` : 'Live now — open TUDDY’s Live tab')} />
+                  : (i.kind === 'leader' ? `Leading this game's stat line` : 'Live now — open TUDDY’s Live tab'))} />
             ))}
 
             {/* THE STORY-BITES (2026-09-16), in MOONSHOT's own slot: after the
@@ -599,16 +576,16 @@ export default function NflHeader({ tab, setTab, data, meta, matchup, weekMode =
             {liveItems.filter((i) => !i.live && !i.pregame).map((i) => (
               <Tile key={i.k} label={`${i.icon ? `${i.icon} ` : ''}${i.sub || 'final'}`} value={i.text}
                 color={i.col} onClick={() => openTile(i)}
-                title={i.sport === 'mlb'
+                title={i.title || (i.sport === 'mlb'
                   ? (i.kind === 'leader' ? `Leading this game's stat line on MOONSHOT — tap to switch` : 'Final — tap to switch to MOONSHOT')
-                  : (i.kind === 'leader' ? `Leading this game's stat line` : 'Final — open TUDDY’s Live tab')} />
+                  : (i.kind === 'leader' ? `Leading this game's stat line` : 'Final — open TUDDY’s Live tab'))} />
             ))}
             {liveItems.filter((i) => i.pregame).map((i) => (
               <Tile key={i.k} label={`${i.icon ? `${i.icon} ` : ''}${i.sub || 'kickoff'}`} value={i.text}
                 color={i.col} onClick={() => openTile(i)}
-                title={i.sport === 'mlb'
+                title={i.title || (i.sport === 'mlb'
                   ? 'Not underway yet — tap to switch to MOONSHOT'
-                  : 'Not underway yet — open TUDDY’s Live tab'} />
+                  : 'Not underway yet — open TUDDY’s Live tab')} />
             ))}
           </TickerStrip>
           {isPre && (

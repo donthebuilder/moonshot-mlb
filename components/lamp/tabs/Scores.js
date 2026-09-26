@@ -1,10 +1,9 @@
 'use client'
-import { useEffect, useState } from 'react'
 import PageHeader from '../../PageHeader'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import { useLampScores } from '../../../lib/nhl/useLamp'
 import ScoreTable from '../ScoreTable'
-import { EmptyState, DelayedBanner, Loading, SourceLine, GameTypeChip, fmtDay, shiftDay, zoneAbbrev, readHashDay, writeHashParam } from '../ui'
+import { EmptyState, DelayedBanner, Loading, SourceLine, GameTypeChip, fmtDay, shiftDay, zoneAbbrev } from '../ui'
 
 // 🏒 SCORES — every game on one NHL day. The plain page: score, period,
 // clock, shots, who scored. Nothing ranked, nothing modelled. Tap a row for
@@ -13,9 +12,10 @@ import { EmptyState, DelayedBanner, Loading, SourceLine, GameTypeChip, fmtDay, s
 //
 // Data: /api/lamp/scores?date= → lib/nhl/reduce.js reduceScoreDay. Polls
 // every 30 s only while a game is live (lib/nhl/useLamp.js scoresPollMs).
-export default function Scores({ onOpenGame }) {
-  const [date, setDate] = useState(() => readHashDay())
-  useEffect(() => { writeHashParam('date', date) }, [date])
+// The day is the LAMP shell's (LampDashboard, 2026-09-26): one date for the
+// header's Today/Tmrw, every dated tab and the address -- this tab's day
+// buttons move it for all of them.
+export default function Scores({ onOpenGame, date = null, setDate = () => {} }) {
   const { data, error, loading } = useLampScores(date)
   const day = data
   const games = day?.games || []

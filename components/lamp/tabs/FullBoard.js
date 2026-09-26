@@ -1,11 +1,10 @@
 'use client'
-import { useEffect, useState } from 'react'
 import PageHeader from '../../PageHeader'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import { useLampBoard } from '../../../lib/nhl/useLamp'
 import { rankNight } from '../../../lib/nhl/goalModel'
 import { usePreview, ShowMoreButton } from '../../ListPreview'
-import { EmptyState, DelayedBanner, Loading, SourceLine, LampDot, StaleSeasonNote, PlayerMark, fmtDay, fmtSec, readHashDay, writeHashParam, shiftDay } from '../ui'
+import { EmptyState, DelayedBanner, Loading, SourceLine, LampDot, StaleSeasonNote, PlayerMark, fmtDay, fmtSec, shiftDay } from '../ui'
 import { STATUS, NavBtn } from './Board'
 
 // 📋 THE BOARD, NIGHT-WIDE (2026-09-25). Donovan: "is there no boards like
@@ -24,9 +23,10 @@ import { STATUS, NavBtn } from './Board'
 const STAMP = { graded: 'GRADED', locked: 'LOCKED', preview: 'PREVIEW' }
 const STAMP_TONE = { graded: C.cream, locked: C.teal, preview: C.amber }
 
-export default function FullBoard({ onOpenPlayer, onOpenTeam }) {
-  const [date, setDate] = useState(() => readHashDay())
-  useEffect(() => { writeHashParam('date', date) }, [date])
+// The day is the LAMP shell's (LampDashboard, 2026-09-26): one date for the
+// header's Today/Tmrw, every dated tab and the address -- this tab's day
+// buttons move it for all of them.
+export default function FullBoard({ onOpenPlayer, onOpenTeam, date = null, setDate = () => {} }) {
   const { data, error, loading } = useLampBoard(date)
   const games = data?.games || []
   const rows = rankNight(games)

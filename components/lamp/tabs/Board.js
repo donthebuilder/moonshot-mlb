@@ -1,10 +1,10 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import PageHeader from '../../PageHeader'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import { useLampBoard } from '../../../lib/nhl/useLamp'
 import { usePreview, ShowMoreButton } from '../../ListPreview'
-import { TeamMark, EmptyState, DelayedBanner, Loading, SourceLine, Kicker, GameTypeChip, LampDot, StaleSeasonNote, PlayerMark, fmtDay, fmtPuckDrop, fmtSec, zoneAbbrev, readHashDay, writeHashParam, shiftDay } from '../ui'
+import { TeamMark, EmptyState, DelayedBanner, Loading, SourceLine, Kicker, GameTypeChip, LampDot, StaleSeasonNote, PlayerMark, fmtDay, fmtPuckDrop, fmtSec, zoneAbbrev, shiftDay } from '../ui'
 
 // 🏒 THE LAMP GOAL BOARD (lamp-goal-v1) — the product's first signal page.
 // Per game: every scored skater ranked, the top three CALLED, the rest ON
@@ -18,9 +18,10 @@ import { TeamMark, EmptyState, DelayedBanner, Loading, SourceLine, Kicker, GameT
 // lights the lamp. Every number is a field or a percentile of a field.
 export const STATUS = { called: 'CALLED', board: 'ON THE BOARD', off: 'NOT ON THE BOARD' }
 
-export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam }) {
-  const [date, setDate] = useState(() => readHashDay())
-  useEffect(() => { writeHashParam('date', date) }, [date])
+// The day is the LAMP shell's (LampDashboard, 2026-09-26): one date for the
+// header's Today/Tmrw, every dated tab and the address -- this tab's day
+// buttons move it for all of them.
+export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = null, setDate = () => {} }) {
   const { data, error, loading } = useLampBoard(date)
   const games = data?.games || []
   const lockedN = games.filter((g) => g.locked).length

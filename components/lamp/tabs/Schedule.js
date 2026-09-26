@@ -1,9 +1,8 @@
 'use client'
-import { useEffect, useState } from 'react'
 import PageHeader from '../../PageHeader'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import { useLampSchedule } from '../../../lib/nhl/useLamp'
-import { TeamMark, EmptyState, DelayedBanner, Loading, SourceLine, GameTypeChip, LampDot, fmtDay, fmtPuckDrop, zoneAbbrev, readHashDay, writeHashParam } from '../ui'
+import { TeamMark, EmptyState, DelayedBanner, Loading, SourceLine, GameTypeChip, LampDot, fmtDay, fmtPuckDrop, zoneAbbrev } from '../ui'
 
 // 🏒 SCHEDULE — the league week, day by day. Football's unit is a week and
 // baseball's is a night; hockey's is both, so this page is the week and
@@ -14,9 +13,10 @@ import { TeamMark, EmptyState, DelayedBanner, Loading, SourceLine, GameTypeChip,
 // Data: /api/lamp/schedule?date= → reduceScheduleWeek. Finals in the past
 // part of the week show their score; games to come show puck drop in the
 // viewer's zone. Tap a row for the game.
-export default function Schedule({ onOpenGame }) {
-  const [date, setDate] = useState(() => readHashDay())
-  useEffect(() => { writeHashParam('date', date) }, [date])
+// The day is the LAMP shell's (LampDashboard, 2026-09-26): one date for the
+// header's Today/Tmrw, every dated tab and the address -- this tab's day
+// buttons move it for all of them.
+export default function Schedule({ onOpenGame, date = null, setDate = () => {} }) {
   const { data, error, loading } = useLampSchedule(date)
   const week = data
   const days = (week?.days || []).filter((d) => d.games.length)

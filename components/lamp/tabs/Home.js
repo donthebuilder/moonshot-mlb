@@ -14,12 +14,14 @@ import { NHL_NAV } from '../../../lib/nhl/routes'
 // leaving a panel that says "no data".
 //
 // Long lists preview a few rows (site-wide rule, components/ListPreview.js).
-export default function Home({ today, onOpenGame, setTab }) {
+export default function Home({ today, date = null, onOpenGame, setTab }) {
   // `today` is the shell's own read of today's scores (LampDashboard), so
   // the front page and the header lamp share one poll rather than two.
   const scores = today
   const standings = useLampStandings()
-  const board = useLampBoard(null)
+  // `today` is the shell's scores for the day the header shows (Today /
+  // Tmrw / a paged day, 2026-09-26); the board follows the same day.
+  const board = useLampBoard(date)
   const boardGames = board.data?.games || []
   const day = scores.data
   const games = sortGames(day?.games || [])
@@ -54,7 +56,7 @@ export default function Home({ today, onOpenGame, setTab }) {
       <section aria-label="Tonight's games">
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Kicker>TONIGHT’S GAMES</Kicker>
+            <Kicker>{date ? 'GAMES' : 'TONIGHT’S GAMES'}</Kicker>
             {(day?.gameTypes || []).map((t) => <span key={t} style={{ marginBottom: 6 }}><GameTypeChip label={t === 1 ? 'PRESEASON' : t === 2 ? 'REGULAR SEASON' : 'PLAYOFFS'} /></span>)}
           </div>
           <button type="button" onClick={() => setTab?.('scores')} style={link}>All scores ›</button>

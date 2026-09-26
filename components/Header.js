@@ -14,6 +14,7 @@ import { easternToday } from '../lib/data'
 import { buildHeadlines, useLiveScores, useAutoScroll } from '../lib/headlines'
 import TickerPill from './TickerPill'
 import DateMode from './DateMode'
+import SettingsSheet, { SheetLabel, SheetRow } from './SettingsSheet'
 import SignUpPill from './SignUpPill'
 
 // The header's own translucent bar was hardcoded to rgba(9,9,11,...) — a
@@ -162,7 +163,7 @@ function Scorebug({ players, results, games, mode, slateDate, runMeta, onPlayerC
   if (proj != null) items.push({ k: 'proj', label: 'HR proj', value: proj, color: '#f97316', nav: 'board', title: `${modelHr != null ? `The site's model projects ${modelHr.toFixed(1)} home runs across this slate. ` : ''}${projection ? `The bot's sheet says ${projection.low}–${projection.high}, power grade ${projection.grade || 'n/a'}.` : ''}` })
   items.push({ k: 'cap', label: captured ? 'HRs on board' : 'HR capture', value: captured ? `${stats.onSheet}/${stats.actual}` : 'tracking', color: capCol, live: true, nav: 'results', title: captured ? `${stats.onSheet} of the slate's ${stats.actual} home runs were on the board before first pitch (${pct.toFixed(0)}%) -- the same number the front door calls on the board.` : 'Live HR capture — starts scoring when the first homer lands.' })
   // live scores ride between the facts and the headlines: live first, finals after
-  for (const i of live.items.filter((x) => x.live)) items.push({ k: i.k, label: i.sub || 'live', value: i.text, icon: i.icon, color: i.col, live: true, sport: i.sport, nav: 'scoreboard', title: i.kind === 'leader' ? `Leading tonight's line for this game` : (i.sport === 'nfl' ? 'Live on TUDDY — tap to switch' : 'Live — tap for the Live page') })
+  for (const i of live.items.filter((x) => x.live)) items.push({ k: i.k, hash: i.hash, label: i.sub || 'live', value: i.text, icon: i.icon, color: i.col, live: true, sport: i.sport, nav: 'scoreboard', title: i.kind === 'leader' ? `Leading tonight's line for this game` : (i.sport === 'nfl' ? 'Live on TUDDY — tap to switch' : 'Live — tap for the Live page') })
   for (const h of heads) items.push({ k: `h-${h.k}`, label: h.tag, value: h.name, icon: h.icon, color: h.col, p: h.p, nav: h.nav, title: h.why })
   items.push({ k: 'lineups', label: staleSlate ? 'prev lineups' : 'lineups', value: `${stats.confirmedTeams}/${stats.lineupTeams}`, color: staleSlate ? C.text3 : '#4ade80', nav: 'games', title: 'Teams with a confirmed lineup' })
   // FRESHNESS PILL (2026-09-11, item 21). "MLB has no lineup freshness
@@ -184,7 +185,7 @@ function Scorebug({ players, results, games, mode, slateDate, runMeta, onPlayerC
     }
   }
   items.push({ k: 'weak', label: 'weak', value: `★${stats.weak}`, color: '#FCD34D', nav: 'board', title: 'Weak-spot matchups on the slate' })
-  for (const i of live.items.filter((x) => !x.live && !x.pregame)) items.push({ k: i.k, label: i.sub || 'final', value: i.text, icon: i.icon, color: C.text3, sport: i.sport, nav: 'scoreboard', title: i.kind === 'leader' ? `${i.sub}'s final line` : (i.sub === 'last night' ? "Last night — sticks around till tonight's games start" : 'Final') })
+  for (const i of live.items.filter((x) => !x.live && !x.pregame)) items.push({ k: i.k, hash: i.hash, label: i.sub || 'final', value: i.text, icon: i.icon, color: C.text3, sport: i.sport, nav: 'scoreboard', title: i.kind === 'leader' ? `${i.sub}'s final line` : (i.sub === 'last night' ? "Last night — sticks around till tonight's games start" : 'Final') })
   // THE PREGAME PILLS WERE BUILT AND NEVER RENDERED (2026-09-18). useLiveScores
   // has produced a `pregame` item per not-yet-started game since 2026-09-16
   // (lib/headlines.js's own 'pre' branch, added so a between-slates ticker
@@ -193,12 +194,13 @@ function Scorebug({ players, results, games, mode, slateDate, runMeta, onPlayerC
   // TUDDY's ticker into this exact order: TUDDY renders them, MOONSHOT didn't,
   // so the two strips could not agree. Both show them now, last, after the
   // finals.
-  for (const i of live.items.filter((x) => x.pregame)) items.push({ k: i.k, label: i.sub || 'kickoff', value: i.text, icon: i.icon, color: C.text3, sport: i.sport, nav: 'scoreboard', title: i.sport === 'nfl' ? 'Not underway yet — tap to switch to TUDDY' : 'Not underway yet' })
+  for (const i of live.items.filter((x) => x.pregame)) items.push({ k: i.k, hash: i.hash, label: i.sub || 'kickoff', value: i.text, icon: i.icon, color: C.text3, sport: i.sport, nav: 'scoreboard', title: i.title || (i.sport === 'nfl' ? 'Not underway yet — tap to switch to TUDDY' : 'Not underway yet') })
 
   // A pill from another product's feed switches to that product (2026-09-26:
   // this was `sport === 'nfl' ? 'nfl' : 'scoreboard'`, so a hockey item would
   // have opened MOONSHOT's scoreboard). MOONSHOT's own go to its scoreboard.
-  const open = (it) => { if (it.p) onPlayerClick?.(it.p); else if (it.sport && it.sport !== 'mlb') setSport(it.sport); else if (it.nav) go?.(it.nav) }
+  // A pill that names its destination (`hash`, e.g. LAMP's scores) goes there.
+  const open = (it) => { if (it.p) onPlayerClick?.(it.p); else if (it.hash) window.location.hash = it.hash; else if (it.sport && it.sport !== 'mlb') setSport(it.sport); else if (it.nav) go?.(it.nav) }
   // ONE SHAPE FOR EVERY PILL: same height, same padding, label over value in
   // a fixed two-line stack, a dot on the left slot whether live or not (so
   // the pills line up), value truncated at 150px. That shape now lives in
@@ -244,43 +246,19 @@ function Scorebug({ players, results, games, mode, slateDate, runMeta, onPlayerC
 
 // ── ⚙ the view settings, in one sheet ─────────────────────────────────────────
 
-function SettingsSheet() {
-  const [open, setOpen] = useState(false)
-  const ref = useRef(null)
-  useEffect(() => {
-    if (!open) return
-    const away = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
-    const key = (e) => { if (e.key === 'Escape') setOpen(false) }
-    document.addEventListener('mousedown', away)
-    document.addEventListener('keydown', key)
-    return () => { document.removeEventListener('mousedown', away); document.removeEventListener('keydown', key) }
-  }, [open])
+// The gear shell is shared (components/SettingsSheet.js, 2026-09-26); these
+// are MOONSHOT's switches and words, unchanged.
+function MlbSettings() {
   return (
-    <div ref={ref} style={{ position:'relative' }}>
-      <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} aria-haspopup="dialog"
-        title="View settings — palette, light/dark, quiet mode"
-        style={{
-          width:30, height:30, borderRadius:999, display:'grid', placeItems:'center', cursor:'pointer',
-          border:`1px solid ${open ? '#f9731666' : C.border}`, background: open ? 'rgba(249,115,22,.12)' : C.glass,
-          color: open ? C.orange : C.text2, fontSize:14, transition:'transform .12s, background .12s',
-          transform: open ? 'rotate(30deg)' : 'none',
-        }}>⚙</button>
-      {open && (
-        <div role="dialog" aria-label="View settings" style={{
-          position:'absolute', right:0, top:'calc(100% + 8px)', zIndex:60, minWidth:200,
-          background:hexToRgba(C.bg2, .98), border:`1px solid ${C.border}`, borderRadius:12,
-          boxShadow:'0 12px 32px rgba(0,0,0,.45)', padding:'10px 10px 8px', display:'grid', gap:8,
-        }}>
-          <div style={{ fontSize:8.5, fontWeight:900, letterSpacing:'.14em', color:C.text3, textTransform:'uppercase' }}>View</div>
-          <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
-            <PaletteButton />
-            <ThemeModeButton />
-            <QuietButton />
-          </div>
-          <div style={{ fontSize:9.5, color:C.text3, lineHeight:1.5 }}>Palette · light/dark · quiet mode. These stick on this device.</div>
-        </div>
-      )}
-    </div>
+    <SettingsSheet theme={C} accent={C.orange} title="View settings — palette, light/dark, quiet mode"
+      hint="Palette · light/dark · quiet mode. These stick on this device.">
+      <SheetLabel theme={C}>View</SheetLabel>
+      <SheetRow>
+        <PaletteButton />
+        <ThemeModeButton />
+        <QuietButton />
+      </SheetRow>
+    </SettingsSheet>
   )
 }
 
@@ -412,7 +390,7 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDat
               ]}
             />
             <SignUpPill onWatchlist={() => go('you')} />
-            <SettingsSheet />
+            <MlbSettings />
           </div>
         </div>
 

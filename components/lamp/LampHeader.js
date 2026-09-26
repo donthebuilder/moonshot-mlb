@@ -4,11 +4,18 @@ import { NHL_NAV, NHL_MORE_GROUPS } from '../../lib/nhl/routes'
 import { C, NUM_FONT, GRADIENT } from '../../lib/nhl/theme'
 import { setSport } from '../../lib/sport'
 import SignUpPill from '../SignUpPill'
-import { LampDot } from './ui'
+import DateMode from '../DateMode'
+import SettingsSheet, { SheetLabel, SheetRow } from '../SettingsSheet'
+import QuietButton from '../QuietButton'
+import LampTicker from './LampTicker'
+import { etToday } from '../../lib/freshness'
+import { fmtDay, shiftDay } from './ui'
 
 // 🏒 LAMP'S HEADER — the same three rows MOONSHOT's and TUDDY's headers
-// settled on (brand row · [ticker] · rail), minus the ticker, which arrives
-// with the live wire in Phase 4 rather than as an empty strip now.
+// settled on: brand row (date · account · gear) · the moving ticker · rail.
+// The date control, the gear and the ticker arrived 2026-09-26
+// (.claude-notes/BATCH-LAMP-SHELL-PLAN.md step 1), each built from the shared
+// piece the other two use -- DateMode, SettingsSheet, TickerPill.
 //
 // Kept deliberately small. claude/header-parity-spec-2026-09-18.md wants the
 // three headers folded into one <SiteHeader/>; a third hand-rolled 700-line
@@ -23,7 +30,9 @@ import { LampDot } from './ui'
 // lead theirs (2026-09-25, batch 3).
 const PRIMARY = ['board', 'scores', 'schedule', 'standings', 'players', 'leaders']
 
-export default function LampHeader({ tab, setTab, live = 0 }) {
+export default function LampHeader({ tab, setTab, live = 0, date = null, setDate = () => {}, scores = null, liveScores = null, onOpenPlayer, onOpenGame }) {
+  const today = etToday()
+  const tomorrow = shiftDay(today, 1)
   const [moreOpen, setMoreOpen] = useState(false)
   const go = (next) => { setMoreOpen(false); setTab(next) }
   const inMore = (key) => !PRIMARY.includes(key) && key !== 'home'
@@ -69,13 +78,34 @@ export default function LampHeader({ tab, setTab, live = 0 }) {
             </span>
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {live > 0 && <span style={{ color: C.lamp, font: `900 9px/1 ${NUM_FONT}`, letterSpacing: '.1em' }}><LampDot />{live} LIVE</span>}
+        {/* date · account · settings -- MOONSHOT's cluster, in LAMP's colours.
+            Today / Tmrw move the shell's one day (LampDashboard); a day paged
+            to in a tab shows here as its date with neither lit. The gear
+            carries Quiet only: the palette and light/dark switches repaint
+            MOONSHOT's and TUDDY's themes and do nothing to LAMP's, so they
+            are not offered here. */}
+        <div className="hdr-meta" style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+          <DateMode
+            label={fmtDay(date || today)}
+            value={!date ? 'today' : date === tomorrow ? 'tomorrow' : ''}
+            onChange={(k) => setDate(k === 'tomorrow' ? tomorrow : null)}
+            options={[{ key: 'today', text: 'Today', color: C.ice }, { key: 'tomorrow', text: 'Tmrw', color: C.teal }]}
+            theme={C} numFont={NUM_FONT}
+          />
           <SignUpPill accent={C.ice} />
+          <SettingsSheet theme={C} accent={C.ice} title="View settings — quiet mode" hint="Quiet mode. Sticks on this device.">
+            <SheetLabel theme={C}>View</SheetLabel>
+            <SheetRow><QuietButton /></SheetRow>
+          </SettingsSheet>
         </div>
       </div>
 
-      {/* ── row 2: the rail ── */}
+      {/* ── row 2: the moving header, above the rail (as MOONSHOT's) ── */}
+      <div style={{ maxWidth: 1300, margin: '0 auto', padding: '0 16px 4px' }}>
+        <LampTicker date={date} scores={scores} liveScores={liveScores} onOpenPlayer={onOpenPlayer} onOpenGame={onOpenGame} />
+      </div>
+
+      {/* ── row 3: the rail ── */}
       <nav className="rail lamp-header-rail" aria-label="LAMP sections" style={{ maxWidth: 1300, margin: '0 auto', padding: '0 16px 6px', display: 'flex', alignItems: 'stretch', width: '100%' }}>
         {PRIMARY.map((key) => tabBtn(key, `${NHL_NAV[key].icon} ${NHL_NAV[key].label}`, tab === key, () => go(key)))}
         {tabBtn('more', '••• More', inMore(tab), () => setMoreOpen((o) => !o), { 'aria-expanded': moreOpen })}
