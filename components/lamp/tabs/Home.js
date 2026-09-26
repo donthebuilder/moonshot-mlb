@@ -5,6 +5,7 @@ import { useLampStandings, useLampBoard } from '../../../lib/nhl/useLamp'
 import { usePreview, ShowMoreButton } from '../../ListPreview'
 import ScoreTable, { sortGames } from '../ScoreTable'
 import { TeamMark, EmptyState, DelayedBanner, Loading, SourceLine, Kicker, GameTypeChip, fmtDay } from '../ui'
+import { NHL_NAV } from '../../../lib/nhl/routes'
 
 // 🏒 TONIGHT — LAMP's front page. Three things and no more (spec §6: the
 // home page is not a data wall): tonight's games, where the league stands,
@@ -40,6 +41,15 @@ export default function Home({ today, onOpenGame, setTab }) {
           { value: games.length, label: 'GAMES', tone: C.text2 },
         ] : null}
       />
+
+      {/* THE PEOPLE, ONE TAP IN (2026-09-26, stranger test: "where are the
+          players?" was the one question still slow -- they sat behind More).
+          One line, the pages' own names from the registry. */}
+      <nav aria-label="Players, goalies and teams" style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: -6 }}>
+        {['players', 'goalies', 'teams'].map((k) => (
+          <button key={k} type="button" onClick={() => setTab?.(k)} style={link}>{NHL_NAV[k].icon} {NHL_NAV[k].label} ›</button>
+        ))}
+      </nav>
 
       <section aria-label="Tonight's games">
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>

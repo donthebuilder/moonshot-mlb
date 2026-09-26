@@ -26,6 +26,7 @@ import { toRailGame, toMlbRailGames, mergeGamesSorted, combinedRenderState, Comb
 // that now also ride TUDDY's own header ticker (2026-09-16).
 import NflHeadlineStrip from '../NflHeadlineStrip'
 import PageHeader from '../../PageHeader'
+import { NFL_NAV } from '../../../lib/routes'
 
 const SIX = [
   ['TD', 'ATD', 'Touchdown'],
@@ -342,6 +343,13 @@ export default function Home({ data, picks, results, matchup, logs, onPlayerClic
         <div><small>DASH NETWORK · TUDDY</small><h1>{greeting} Football is on the board.</h1><p>{data?.label || `${data?.mode || 'NFL'} slate`} · every call ranked, every result kept public.</p></div>
         <div className="tuddy-hero-mark"><span>6</span><small>POINTS<br/>ONE TUDDY</small></div>
       </section>
+
+      {/* THE PEOPLE, ONE TAP IN (2026-09-26, stranger test: players sat
+          behind More). One line; the page's name comes from the registry. */}
+      <button type="button" onClick={() => setTab?.('players')}
+        style={{ alignSelf: 'flex-start', background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', color: C.cyan, font: `800 11px/1 ${NUM_FONT}`, letterSpacing: '.04em' }}>
+        {NFL_NAV.players.icon} Find a player — {NFL_NAV.players.label} ›
+      </button>
 
       <NflHeadlineStrip players={players} games={games} markets={data?.markets} matchup={matchup}
         onPlayerClick={onPlayerClick} setTab={setTab} />
