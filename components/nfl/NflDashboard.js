@@ -208,7 +208,9 @@ export default function NflDashboard({ palettePass = 0 }) {
         // while the address bar claimed otherwise. Every case answers now.
         if (r.status === 'missing') { setMissingTab(r.asked); return }
         setMissingTab('')
-        if (r.status !== 'default') setTabRaw(r.tab)
+        // No tab = Home (2026-09-26, same rule as LAMP and MOONSHOT), unless
+        // the hash only names a player, which opens him where you are.
+        if (r.status !== 'default' || !(hash.get('player') || hash.get('p'))) setTabRaw(r.tab)
       } catch { /* ignore malformed hashes */ }
     }
     window.addEventListener('hashchange', readHash)

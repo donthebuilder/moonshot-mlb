@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useSport } from '../lib/sport'
 import { themeFromUrl } from '../lib/themes'
-import { applyTheme } from '../lib/theme'
+import { applyTheme, C } from '../lib/theme'
 import Dashboard from './Dashboard'
 import NflDashboard from './nfl/NflDashboard'
 import LampDashboard from './lamp/LampDashboard'
@@ -43,9 +43,28 @@ import LampDashboard from './lamp/LampDashboard'
 // cannot hit the failure mode lib/theme.js's note describes. And the common
 // case (ember) still does nothing at all: applyTheme returns false, pass
 // stays 0, nothing re-renders.
+// ── NO PRODUCT UNTIL THE ADDRESS HAS BEEN READ (2026-09-26) ──────────────
+// A hash never reaches the server, so the server -- and hydration, which must
+// match it -- rendered MOONSHOT for every /app link; useSport() then read
+// #sport=nhl in an effect and swapped. Measured with a phone's CPU (6x) and
+// network: a cold LAMP or TUDDY link showed MOONSHOT for 1.0-1.2 s, the
+// "3-7 s" reported on a real phone. Now the server and the first client
+// commit render a neutral shell; by the next commit useSport() has read the
+// hash, so the product that mounts is the one the link named -- MOONSHOT's
+// dashboard never mounts on a LAMP link. Costs MOONSHOT itself one commit.
+function Shell() {
+  return (
+    <div aria-busy="true" style={{ minHeight: '100vh', background: C.bg }}>
+      <span style={{ position: 'absolute', left: -9999 }}>Loading…</span>
+    </div>
+  )
+}
+
 export default function SportRoot() {
   const sport = useSport()
   const [pass, setPass] = useState(0)
+  const [ready, setReady] = useState(false)
+  useEffect(() => { setReady(true) }, [])
   useEffect(() => {
     try {
       const key = themeFromUrl('ember')
@@ -56,6 +75,7 @@ export default function SportRoot() {
   // the repaint pass, which is what makes the re-render observable, while the
   // component instance and its DOM survive.
   // Three shells, one switch (2026-09-25: LAMP). MOONSHOT stays the default.
+  if (!ready) return <Shell />
   if (sport === 'nfl') return <NflDashboard palettePass={pass} />
   if (sport === 'nhl') return <LampDashboard palettePass={pass} />
   return <Dashboard palettePass={pass} />

@@ -191,7 +191,11 @@ export default function Dashboard({ palettePass = 0 }) {
       if (sp && sp !== 'mlb') { setSport(sp); return }
       const r = resolveTab('mlb', h.get('tab'))
       if (r.status === 'missing') { setMissingTab(r.asked) }
-      else { setMissingTab(''); if (r.status !== 'default') setTabRaw(r.tab) }
+      // A hash with no tab IS an address -- Home (2026-09-26; LAMP's shell has
+      // done this since 09-25 and flagged this one). The exception is a hash
+      // that only names a player (#sport=mlb&p=…, the notification shape):
+      // that opens his card over whatever page is open, as before.
+      else { setMissingTab(''); if (r.status !== 'default' || !h.get('p')) setTabRaw(r.tab) }
       // ── #p= ON A LIVE HASH CHANGE (2026-09-03) ──────────────────────────
       //
       // The mount-time reader below handles a COLD open. This handles the

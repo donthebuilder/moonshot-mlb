@@ -199,7 +199,7 @@ export default function LampDashboard({ palettePass = 0 }) {
         // A hash that names LAMP and no tab IS an address — Tonight. This
         // used to leave the previous panel on screen under a URL that said
         // otherwise (measured live, 2026-09-25); MOONSHOT's and TUDDY's
-        // shells still do (flagged, not changed here).
+        // shells follow the same rule since 2026-09-26.
         trail.current = []
         setTabRaw(r.tab)
       } catch { /* ignore malformed hashes */ }
