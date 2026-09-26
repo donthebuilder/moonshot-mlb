@@ -1,4 +1,5 @@
 'use client'
+import ShotPanel from '../ShotPanel'
 import PageHeader from '../../PageHeader'
 import LampTable from '../LampTable'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
@@ -120,6 +121,15 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel }) {
               ))}
             </tbody>
           </table>
+        </section>
+      )}
+
+      {/* WHERE HE SHOOTS FROM (lamp research step 3): the shot archive's
+          aggregate for him, season and last 10. Skaters only. */}
+      {!goalie && (
+        <section aria-label="Where he shoots from">
+          <Kicker>WHERE HE SHOOTS FROM</Kicker>
+          <ShotPanel sel={{ player: p.id }} who="He" height={260} />
         </section>
       )}
 

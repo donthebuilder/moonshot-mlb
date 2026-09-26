@@ -25,6 +25,7 @@ import { gradeRows, MODEL_VERSION } from '../../../../lib/nhl/goalModel'
 import { cronAuthorized, adminClient } from '../../../../lib/nhl/db'
 import { LOCK_WINDOW_MS } from '../../../../lib/nhl/boardRead'
 import { startersFromPlayByPlay, goaliesFromBoxscore } from '../../../../lib/nhl/goalies'
+import { shotsFromPlayByPlay, writeShots } from '../../../../lib/nhl/shots'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -120,8 +121,14 @@ export async function GET(request) {
       if (up.error) throw new Error(up.error.message)
       const gu = await writeGame(db, p.game_id, { state: g.rawState, graded_at: gradedAt, starters_actual: startersActual, goalies }, 'update')
       if (gu.error) throw new Error(gu.error.message)
+      // THE SHOT ARCHIVE (lamp research step 3): the play-by-play already read
+      // for the net, written to lamp_shots. Its own failure, logged; never the grade's.
+      let shotRows = null
+      if (pbp) {
+        try { shotRows = (await writeShots(db, shotsFromPlayByPlay(pbp))).rows } catch (e) { console.error(`[lamp tick] shots ${p.game_id}: ${e?.message}`) }
+      }
       const scorers = graded.filter((r) => r.hit)
-      out.graded.push({ game: p.game_id, matchup: `${g.away.abbrev}@${g.home.abbrev}`, rows: graded.length, dressed: graded.filter((r) => r.dressed).length, net: [startersActual?.away?.name, startersActual?.home?.name], scorers: scorers.map((r) => `${r.name} (${r.status}${r.rank ? ` #${r.rank}` : ''})`) })
+      out.graded.push({ game: p.game_id, matchup: `${g.away.abbrev}@${g.home.abbrev}`, rows: graded.length, dressed: graded.filter((r) => r.dressed).length, net: [startersActual?.away?.name, startersActual?.home?.name], shots: shotRows, scorers: scorers.map((r) => `${r.name} (${r.status}${r.rank ? ` #${r.rank}` : ''})`) })
     } catch (e) {
       console.error(`[lamp tick] grade ${p.game_id}: ${e?.message}`); out.skipped.push({ game: p.game_id, why: `grade: ${e?.message}` })
     }
