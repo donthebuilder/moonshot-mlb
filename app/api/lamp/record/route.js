@@ -6,8 +6,8 @@
 // straight off graded lamp_goal_log rows; nothing here is recomputed from
 // a later feed. An empty record says so. The rows come through the shared
 // record reader (lib/record/nhl.js), the same one /start and /called use.
-import { MODEL_VERSION, coverage } from '../../../../lib/nhl/goalModel'
-import { readNhlRecords, isMissingTable } from '../../../../lib/record/nhl'
+import { MODEL_VERSION, addCounts, coverage, coverageFromCounts } from '../../../../lib/nhl/goalModel'
+import { readNhlNights, readNhlRecords, isMissingTable } from '../../../../lib/record/nhl'
 import { adminClient } from '../../../../lib/nhl/db'
 import { ok, delayed } from '../../../../lib/nhl/respond'
 
@@ -24,6 +24,26 @@ export async function GET(request) {
     const db = adminClient()
     if (!db) return ok({ modelVersion: MODEL_VERSION, nights: [], total: null, dbReady: false }, 60)
     const since = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10)
+    const done = (nights, total) => ok({ modelVersion: MODEL_VERSION, since, days, includePre, nights, total, dbReady: true, fetchedAt: new Date().toISOString() }, 300)
+
+    // COUNTED IN POSTGRES (2026-09-26). The per-night numbers come from the
+    // lamp_goal_nights view -- one row a night -- and only the rows the two
+    // lists print (CALLED rows and scorers, ~80 a night) are read. Reading
+    // every graded row to count it here was 40k-80k rows a call in season.
+    const counted = await readNhlNights(db, { since, includePre })
+    if (!counted.error) {
+      const { rows, error } = await readNhlRecords(db, { since, includePre, graded: true, calledOrHit: true })
+      if (error) throw new Error(error.message)
+      const byNight = groupByNight(rows)
+      const nights = counted.nights.map(({ date, counts }) => ({ date, games: counts.games, ...coverageFromCounts(counts), ...lists(byNight.get(date) || []) }))
+      const total = counted.nights.length ? coverageFromCounts(counted.nights.reduce((a, n) => addCounts(a, n.counts), null)) : null
+      return done(nights, total)
+    }
+    // The view not created yet (its migration not run): the old full read,
+    // same answer, heavier. Any other error is a real one.
+    if (!isMissingTable(counted.error)) throw new Error(counted.error.message)
+    console.warn(`[lamp record] counting in JS -- ${counted.error.message}`)
+
     const { rows, error } = await readNhlRecords(db, { since, includePre, graded: true })
     if (error) {
       // Before the migration has been run the table is simply not there;
@@ -34,16 +54,27 @@ export async function GET(request) {
       }
       throw new Error(error.message)
     }
-    const byNight = new Map()
-    for (const r of rows) { if (!byNight.has(r.game_date)) byNight.set(r.game_date, []); byNight.get(r.game_date).push(r) }
-    const nights = [...byNight.entries()].map(([date, rs]) => ({
-      date, games: new Set(rs.map((r) => r.game_id)).size, ...coverage(rs),
-      called: rs.filter((r) => r.status === 'called' && r.dressed).sort((a, b) => a.game_id - b.game_id || a.rank - b.rank).map((r) => ({ playerId: r.player_id, name: r.name, team: r.team, opp: r.opp, rank: r.rank, score: r.score, goals: r.goals, hit: r.hit })),
-      // `scorersOff` is coverage()'s COUNT; the list is `offScorers` (a clash the render harness caught).
-      offScorers: rs.filter((r) => r.hit && r.status !== 'called').map((r) => ({ name: r.name, team: r.team, rank: r.rank, status: r.status, goals: r.goals })),
+    const nights = [...groupByNight(rows).entries()].map(([date, rs]) => ({
+      date, games: new Set(rs.map((r) => r.game_id)).size, ...coverage(rs), ...lists(rs),
     }))
-    return ok({ modelVersion: MODEL_VERSION, since, days, includePre, nights, total: rows.length ? coverage(rows) : null, dbReady: true, fetchedAt: new Date().toISOString() }, 300)
+    return done(nights, rows.length ? coverage(rows) : null)
   } catch (e) {
     return delayed('record', e)
+  }
+}
+
+function groupByNight(rows) {
+  const byNight = new Map()
+  for (const r of rows) { if (!byNight.has(r.game_date)) byNight.set(r.game_date, []); byNight.get(r.game_date).push(r) }
+  return byNight
+}
+
+// A night's two lists. Needs only CALLED rows and scorers, which is all the
+// counted path reads.
+function lists(rs) {
+  return {
+    called: rs.filter((r) => r.status === 'called' && r.dressed).sort((a, b) => a.game_id - b.game_id || a.rank - b.rank).map((r) => ({ playerId: r.player_id, name: r.name, team: r.team, opp: r.opp, rank: r.rank, score: r.score, goals: r.goals, hit: r.hit })),
+    // `scorersOff` is coverage()'s COUNT; the list is `offScorers` (a clash the render harness caught).
+    offScorers: rs.filter((r) => r.hit && r.status !== 'called').map((r) => ({ name: r.name, team: r.team, rank: r.rank, status: r.status, goals: r.goals })),
   }
 }

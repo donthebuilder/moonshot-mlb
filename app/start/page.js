@@ -276,7 +276,9 @@ async function computeRecord(sportKey, today) {
  * two: scorers who were CALLED or ON THE BOARD at lock, over the scorers.
  */
 async function computeLampRecord(db, since, today) {
-  const { rows, error } = await readNhlRecords(db, { since, until: today, includePre: false, graded: true })
+  // Scorers only: nhlCaptureFrom counts scorers, so the other ~90% of a
+  // night's rows would be read for nothing.
+  const { rows, error } = await readNhlRecords(db, { since, until: today, includePre: false, graded: true, hitOnly: true })
   if (error || !rows.length) return null
   const cap = nhlCaptureFrom(rows)
   if (!cap.total) return null
