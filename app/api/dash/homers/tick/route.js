@@ -514,8 +514,8 @@ const MLBHR_REPLY_ALL = String(process.env.MLBHR_REPLY_ALL || '').trim() === '1'
 // ours in it. Capped per tick so one minute cannot spend the whole burst.
 const MLBHR_REPLY_BATCH = 4
 // A NIGHTLY CAP (2026-09-26 tweets fix, step 2): at most this many @MLBHR
-// replies a day, best-ranked CALLED homers first. Donovan to confirm N.
-const MLBHR_REPLY_CAP = Math.max(0, Number(process.env.MLBHR_REPLY_CAP ?? 3) || 0)
+// replies a day, best-ranked CALLED homers first. 5 (Donovan, 09-26).
+const MLBHR_REPLY_CAP = Math.max(0, Number(process.env.MLBHR_REPLY_CAP ?? 5) || 0)
 const BOARD_REPLY_MAX_RANK = 50
 const isSurfaced = (row) => Boolean(String(row?.role || '').trim())
 // How many of the board the reply prints above him. Ten names every night is
