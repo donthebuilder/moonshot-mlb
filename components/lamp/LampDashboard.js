@@ -28,6 +28,7 @@ import Player from './tabs/Player'
 import SpecialTeams from './tabs/SpecialTeams'
 import ShotMap from './tabs/ShotMap'
 import LampLedger from './tabs/LampLedger'
+import Numerology from './tabs/Numerology'
 import Leaders from './tabs/Leaders'
 import Board from './tabs/Board'
 import FullBoard from './tabs/FullBoard'
@@ -54,7 +55,7 @@ import Results from './tabs/Results'
 const NHL_TABS = new Set(NHL_TAB_KEYS)
 // Pages that show one day and keep it in the address (`date=`). One list,
 // read by setTab (which clears it elsewhere) and goBack (which restores it).
-const DATED_TABS = new Set(['home', 'scores', 'schedule', 'board', 'fullboard'])
+const DATED_TABS = new Set(['home', 'scores', 'schedule', 'board', 'fullboard', 'numerology'])
 
 export default function LampDashboard({ palettePass = 0 }) {
   const [tab, setTabRaw] = useState('home')
@@ -265,6 +266,7 @@ export default function LampDashboard({ palettePass = 0 }) {
             {tab === 'specialteams' && <SpecialTeams onOpenTeam={openTeam} />}
             {tab === 'shotmap' && <ShotMap onOpenPlayer={openPlayer} />}
             {tab === 'lampledger' && <LampLedger onOpenPlayer={openPlayer} />}
+            {tab === 'numerology' && <Numerology date={date} onOpenPlayer={openPlayer} />}
             {tab === 'board' && <Board onOpenPlayer={openPlayer} onOpenGame={openGame} onOpenTeam={openTeam} date={date} setDate={setDate} />}
             {tab === 'fullboard' && <FullBoard onOpenPlayer={openPlayer} onOpenTeam={openTeam} date={date} setDate={setDate} />}
             {tab === 'results' && <Results onOpenPlayer={openPlayer} />}
