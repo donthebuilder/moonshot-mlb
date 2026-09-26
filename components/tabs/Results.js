@@ -3,6 +3,7 @@ import Leaders from './Leaders'
 import MoneyAnswer from '../MoneyAnswer'
 import { useEffect, useMemo, useState } from 'react'
 import { etToday } from '../../lib/freshness'
+import { mlbSlateState } from '../../lib/mlbSlateState'
 import { C, NUM_FONT, TYPE } from '../../lib/theme'
 import { hr9Color } from '../../lib/hr9'
 import { catColor, verdictInk } from '../../lib/scales'
@@ -1001,6 +1002,17 @@ export default function Results({ results, liveResults = null, slateDate = '', b
   const liveFileDate = clean(liveResults?.date, '')
   const liveFileStale = !!slateDate && !!liveFileDate && liveFileDate !== slateDate
   const liveMissing = day === 'live' && !results
+  // "● LIVE · Tonight · updates as games finish" showed at 3 AM for a slate
+  // the league had long called final (stranger test F5): the live FILE is
+  // not the live GAME. The league's feed (lib/mlbSlateState.js) says whether
+  // that slate is still being played.
+  const [liveOver, setLiveOver] = useState(false)
+  useEffect(() => {
+    if (day !== 'live' || !liveFileDate) { setLiveOver(false); return undefined }
+    let alive = true
+    mlbSlateState(liveFileDate).then((st) => { if (alive && st) setLiveOver(st.over) })
+    return () => { alive = false }
+  }, [day, liveFileDate])
 
   const liveIsPregame = (() => {
     if (day !== 'live') return false
@@ -1085,10 +1097,10 @@ export default function Results({ results, liveResults = null, slateDate = '', b
           display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap',
           background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 11, padding: '9px 11px',
         }}>
-          <span style={{ fontSize: TYPE.label, color: C.green, fontWeight: 900, letterSpacing: '.09em', fontFamily: NUM_FONT }}>● LIVE</span>
-          <span style={{ fontSize: TYPE.name, fontWeight: 900, color: C.text }}>Tonight</span>
+          <span style={{ fontSize: TYPE.label, color: liveOver ? C.text3 : C.green, fontWeight: 900, letterSpacing: '.09em', fontFamily: NUM_FONT }}>{liveOver ? '● FINAL' : '● LIVE'}</span>
+          <span style={{ fontSize: TYPE.name, fontWeight: 900, color: C.text }}>{liveOver && liveFileDate < etToday() ? 'Last night' : 'Tonight'}</span>
           <span style={{ fontSize: TYPE.micro, color: C.text3 }}>
-            {liveMissing ? 'waiting for grading' : 'updates as games finish'}
+            {liveMissing ? 'waiting for grading' : liveOver ? 'games over · final grades post in the morning' : 'updates as games finish'}
           </span>
           {(liveMissing || liveFileStale) && (
             <div style={{

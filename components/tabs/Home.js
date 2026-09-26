@@ -33,6 +33,10 @@ import AtThePlate from './AtThePlate'
 import MoneyAnswer from '../MoneyAnswer'
 import PennantRace from '../PennantRace'
 import ComebackBoard from '../ComebackBoard'
+import { mlbSlateState } from '../../lib/mlbSlateState'
+
+// An Eastern calendar day n days from today (YYYY-MM-DD), on etToday's clock.
+const etShift = (n) => { const d = new Date(`${etToday()}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10) }
 
 // HOME — the front porch.
 //
@@ -379,7 +383,27 @@ export default function Home({
 
   const games = useMemo(() => groupGames(players), [players])
   const modelHr = useMemo(() => slateProjHr(players), [players])
-  const isLive = results?.live_mode === true
+  // LIVE MEANS THE LEAGUE SAYS SO (2026-09-26, stranger test F5). The
+  // payload's live_mode freezes at the bot's last build; when that ran
+  // mid-slate the hero said "TODAY · LIVE — grading as they land" at 2:30 AM
+  // for games the score rail already called LAST NIGHT. The league's feed
+  // (lib/mlbSlateState.js) decides; while the payload still says live it is
+  // re-asked every two minutes, and the flag stands if the feed can't answer.
+  const [feedOver, setFeedOver] = useState(false)
+  const payloadLive = results?.live_mode === true
+  useEffect(() => {
+    if (!payloadLive || !slateDate) { setFeedOver(false); return undefined }
+    let alive = true
+    const ask = () => mlbSlateState(slateDate).then((st) => { if (alive && st) setFeedOver(st.over) })
+    ask()
+    const id = setInterval(ask, 120000)
+    return () => { alive = false; clearInterval(id) }
+  }, [payloadLive, slateDate])
+  const isLive = payloadLive && !feedOver
+  // The league says the slate is over but the payload's last build ran
+  // mid-slate: the games are final, the grades are not yet (the grader's
+  // first run is the morning one -- see Dashboard.js's STALE-RESULTS GATE).
+  const gradesPending = payloadLive && feedOver
   // TENSE (2026-08-29, both reviews): the hero said "Tonight's sheet is
   // ready" while showing yesterday's finished slate. A slate whose calendar
   // date is behind the local clock — and which isn't live — is history, and
@@ -864,7 +888,8 @@ export default function Home({
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
           <span style={{ fontSize: 16 }}>{icon}</span>
           <span style={{ fontSize: TYPE.label, color: C.text3, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', fontFamily: NUM_FONT }}>
-            {dateLabel || (mode === 'today' ? 'Today' : 'Tomorrow')}{slateDate ? ` · ${slateDate}` : ''}
+            {/* A finished slate isn't "Today" after midnight ET (stranger F5). */}
+            {slateInPast ? (slateDate === etShift(-1) ? 'Last night' : 'Final') : (dateLabel || (mode === 'today' ? 'Today' : 'Tomorrow'))}{slateDate ? ` · ${slateDate}` : ''}
           </span>
           {isLive && (
             <span style={{
@@ -898,7 +923,7 @@ export default function Home({
           ) : slateInPast ? (
             <>That slate is done.{' '}
               <span style={{ background: 'linear-gradient(90deg, #f97316, #FCD34D)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                Every pick is graded.
+                {gradesPending ? 'Final grades post in the morning.' : 'Every pick is graded.'}
               </span>
             </>
           ) : (
@@ -918,7 +943,7 @@ export default function Home({
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 10px', flexWrap: 'wrap' }}>
           <span style={{ fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.16em', fontFamily: NUM_FONT, color: C.orange, border: `1px solid ${C.orange}55`, background: `${C.orange}12`, borderRadius: 3, padding: '2px 7px' }}>{icon} {hello}</span>
           <span style={{ fontSize: TYPE.body, color: C.text3, fontFamily: NUM_FONT }}>
-            {empty ? 'board posts when tonight\u2019s card is final' : isLive ? 'grading live · every pick in public' : slateInPast ? 'final · every pick graded' : 'the sheet is set · every pick graded in public'}
+            {empty ? 'board posts when tonight\u2019s card is final' : isLive ? 'grading live · every pick in public' : slateInPast ? (gradesPending ? 'final · grades post in the morning' : 'final · every pick graded') : 'the sheet is set · every pick graded in public'}
           </span>
         </div>
         {/* TONIGHT IN ONE SENTENCE (2026-08-15, "make the home page better").
