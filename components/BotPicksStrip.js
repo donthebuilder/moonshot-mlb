@@ -260,15 +260,16 @@ export default function BotPicksStrip({ players = [], onPlayerClick }) {
             + 'less home run than a board carrying an HR pick in every game, and HR is the '
             + 'hardest bar here (21.8% against 74.3% for 1+ hit). That part is the market mix, '
             + 'not the ranking, and it has been priced out.\n\n'
-            + 'bots/precision_study.py, re-run monthly.'}
+            + 'bots/precision_study.py, last run 2026-08-23 (re-run monthly).'}
           style={{
             marginLeft: 'auto', flexShrink: 0, cursor: 'default',
             fontSize: 9.5, fontFamily: NUM_FONT, fontWeight: 700, color: C.text3,
             border: `1px solid ${C.border}`, borderRadius: 999, padding: '2px 9px',
           }}
         >
+          {/* §35: a measured number carries the date it was last true. */}
           <b style={{ color: verdictInk(true).color }}>65%</b> over 25 nights ·{' '}
-          <span style={{ color: C.text2 }}>+16pp</span> vs the full board
+          <span style={{ color: C.text2 }}>+16pp</span> vs the full board · Aug 23
         </span>
       </div>
 

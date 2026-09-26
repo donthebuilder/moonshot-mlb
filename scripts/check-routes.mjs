@@ -43,7 +43,7 @@ if (!R.isSport('nhl') || R.isSport('xfl') || R.isSport(null) || R.isSport('toStr
 // reported so the number below can be lowered in the same commit.
 // FRANCHISE is another workflow's; the registry files are the registry.
 const TERNARY_BASELINE = {
-  'app/start/page.js': 11,      // copy per sport; Batch 6 (search titles)
+  'app/start/page.js': 9,       // copy per sport; Batch 6 (search titles)
   'components/Header.js': 5,    // ticker nav: latent, the ticker has no NHL items
   'components/nfl/NflHeader.js': 3,
   'components/ScoreRail.js': 1, // MOONSHOT keeps its pre-merge storage key

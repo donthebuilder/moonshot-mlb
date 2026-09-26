@@ -174,10 +174,10 @@ export default async function DashHome({ searchParams }) {
         <div className={styles.tiles}>
           <Tile label="MLB GAMES" value={mlb?.games} sub={mlb?.live ? `${mlb.live} live` : mlb?.final ? `${mlb.final} final` : 'pre-game'} accent="mlb" />
           <Tile label="CALLED SLOTS" value={mlb?.calls} sub="HR · HIT · HRR · CONTACT" accent="mlb" />
-          <Tile label="CLEARED SO FAR" value={mlb?.cleared} sub={mlb?.started ? `of ${mlb.started} that batted` : 'nobody has batted yet'} accent="mlb" />
-          <Tile label="HRs ON THE SLATE" value={mlb?.homers} sub={pct(mlb?.capturePct) ? `${pct(mlb.capturePct)} covered by the full sheet` : null} accent="mlb" />
+          <Tile label="CLEARED SO FAR" value={mlb?.cleared} sub={mlb?.started ? `calls that cleared their bar, of ${mlb.started} that batted` : 'nobody has batted yet'} accent="mlb" />
+          <Tile label="HRs ON THE SLATE" value={mlb?.homers} sub={pct(mlb?.capturePct) ? `${pct(mlb.capturePct)} were on the board before first pitch` : null} accent="mlb" />
           <Tile label="NFL GAMES" value={nfl?.games} sub={timeUntil(nfl?.kickoff) || nfl?.label} accent="nfl" />
-          <Tile label="PLAYERS SCORED" value={nfl?.players} sub={nfl?.label} accent="nfl" />
+          <Tile label="PLAYERS RATED" value={nfl?.players} sub={nfl?.label} accent="nfl" />
           {/* Hockey: the count and the lock. Before the first lock the tile says
               when the board locks; after it, how many games hold a locked
               call. A preview never counts (lib/nhl/pulse.js). */}
@@ -267,7 +267,7 @@ export default async function DashHome({ searchParams }) {
           <dl>
             <div><dt>Games</dt><dd>{mlb?.games ?? '—'}</dd></div>
             <div><dt>Cleared / started</dt><dd>{mlb?.cleared ?? '—'} / {mlb?.started ?? '—'}</dd></div>
-            <div><dt>HR capture</dt><dd>{pct(mlb?.capturePct) ?? '—'}</dd></div>
+            <div><dt>HRs on the board</dt><dd>{pct(mlb?.capturePct) ?? '—'}</dd></div>
           </dl>
           <footer>
             <Link href="/app#sport=mlb&tab=home">Open MOONSHOT →</Link>
@@ -287,7 +287,7 @@ export default async function DashHome({ searchParams }) {
               ))}
             </ul>
           ) : (
-            <dl><div><dt>Games</dt><dd>{nfl?.games ?? '—'}</dd></div><div><dt>Players scored</dt><dd>{nfl?.players ?? '—'}</dd></div></dl>
+            <dl><div><dt>Games</dt><dd>{nfl?.games ?? '—'}</dd></div><div><dt>Players rated</dt><dd>{nfl?.players ?? '—'}</dd></div></dl>
           )}
           <footer>
             <Link href="/app#sport=nfl&tab=home">Open TUDDY →</Link>

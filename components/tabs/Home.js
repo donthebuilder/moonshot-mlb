@@ -979,7 +979,7 @@ export default function Home({
                 title={`${airLine(airRanked[0]) || ''}${airTitle(airRanked[0]) ? `\n${airTitle(airRanked[0])}` : ''}\nPark HR factor plus the published weather effect, as a percentage swing on the rate — not a chance of anything.${airRanked[0].edge > 0 ? '' : ' Nothing on tonight\'s slate is playing above neutral; that is the finding, not a missing section.'}`} />
             )}
             {record && (
-              <Stat label="GRADED" value={`${record.acc.toFixed(1)}%`} sub={`${record.days} days`} col={C.green}
+              <Stat label="BASE HITS" value={`${record.acc.toFixed(1)}%`} sub={`graded · ${record.days} days`} col={C.green}
                 title="Base-hit accuracy across every graded pick in the archive — a measured rate, not a projection." />
             )}
           </div>

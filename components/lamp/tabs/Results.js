@@ -29,7 +29,15 @@ export default function Results({ onOpenPlayer }) {
       <DelayedBanner error={error} what="the record" />
       {loading && !data ? <Loading what="the record" /> : null}
       {data && !data.dbReady && <EmptyState title="NO RECORD YET" note={data.note === 'record table not created yet' ? 'The record table has not been created on the database yet. The first night locks and grades once it exists.' : 'The record is not connected on this deployment.'} />}
-      {data?.dbReady && data.nights.length === 0 && <EmptyState title="NO GRADED NIGHTS YET" note="The first board locks before the first puck drop after this ships and is graded after the final. Come back tomorrow." />}
+      {/* 2026-09-26 (Batch 5): the old note ("the first board locks … after
+          this ships") went stale the night preseason boards started locking
+          and grading. This number is regular season + playoffs only; the
+          preseason nights are public on /called. */}
+      {data?.dbReady && data.nights.length === 0 && (
+        <EmptyState title="NO REGULAR-SEASON NIGHT GRADED YET" note="Preseason boards lock and grade too, but camp lineups are kept out of this number. The first regular-season night fills this in once its final is graded.">
+          <div style={{ marginTop: 12 }}><a href="/called?sport=nhl" style={{ color: C.ice, fontSize: 11, fontWeight: 800 }}>See the preseason nights on CALLED IT →</a></div>
+        </EmptyState>
+      )}
       {T && (
         <section aria-label="Hit rate by rank">
           <Kicker>HIT RATE BY RANK · {data.days} DAYS</Kicker>

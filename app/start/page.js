@@ -153,7 +153,6 @@ const SPORTS = {
     key: 'mlb',
     label: 'MLB',
     product: 'MOONSHOT',
-    table: 'homer_feed',
     board: '/app#sport=mlb&tab=home',
     recordHref: '/called?sport=mlb',
     event: 'home runs',
@@ -161,6 +160,13 @@ const SPORTS = {
     lead: 'Who goes deep tonight',
     recordLink: 'See every one, night by night.',
     promise: 'MOONSHOT rates every hitter on the slate before first pitch, then grades itself in public.',
+    // THE RECEIPT (2026-09-26, Batch 5). Leads with the same number /called
+    // leads with: calls for MOONSHOT and LAMP, board coverage for TUDDY. The
+    // other number sits beside it, named. `quote` says which leads.
+    quote: 'called',
+    calledPhrase: 'came from a hitter CALLED before first pitch',
+    boardPhrase: 'were on the board',
+    pending: 'Every home run is tagged against the board the moment it lands, and the public record is filling in.',
     callsHead: 'The Four — tonight’s headline picks',
     callsSub: 'One pick per category, three deep — each graded on its own bar.',
     unit: 'day',
@@ -169,7 +175,6 @@ const SPORTS = {
     key: 'nfl',
     label: 'NFL',
     product: 'TUDDY',
-    table: 'nfl_td_feed',
     board: '/app#sport=nfl&tab=home',
     recordHref: '/called?sport=nfl',
     event: 'touchdowns',
@@ -177,26 +182,37 @@ const SPORTS = {
     lead: 'Who finds the end zone',
     recordLink: 'See every one, week by week.',
     promise: 'TUDDY rates every skill player on the week before kickoff, then grades itself in public.',
+    // Board coverage leads: five designated TD calls a week against ~75
+    // touchdowns makes a call rate a category error (see /called).
+    quote: 'board',
+    calledPhrase: 'were called',
+    boardPhrase: 'were on the board before they happened',
+    pending: 'Every touchdown is tagged against the board the moment it lands, and the public record is filling in — the board rank has been on the record since September 20.',
     callsHead: 'What the model noticed this week',
     callsSub: 'The reads off this week’s touchdown board — the signals, not a bet slip.',
     unit: 'game day',
   },
   // 2026-09-25. Hockey's record is its own table (lamp_goal_log, graded rows,
-  // regular season and playoffs only) and its public record page is the
-  // in-app tab until /called learns a third sport — so recordHref points
-  // there, not at /called?sport=nhl, which would silently show baseball.
+  // regular season and playoffs only). 2026-09-26: /called carries LAMP now
+  // (Batch 2), so the record link goes there like the other two. LAMP counts
+  // SCORERS -- a skater with two goals is one -- so the word is scorers.
   nhl: {
     key: 'nhl',
     label: 'NHL',
     product: 'LAMP',
-    table: 'lamp_goal_log',
     board: '/app#sport=nhl&tab=home',
-    recordHref: '/app#sport=nhl&tab=results',
-    event: 'goals',
-    eventOne: 'goal',
+    recordHref: '/called?sport=nhl',
+    event: 'goal scorers',
+    eventOne: 'goal scorer',
     lead: 'Who lights the lamp tonight',
     recordLink: 'See every one, night by night.',
     promise: 'LAMP calls three skaters per game to score, locks them before puck drop, then grades itself in public.',
+    quote: 'called',
+    calledPhrase: 'were CALLED before puck drop',
+    boardPhrase: 'were on the board',
+    // No live goal events yet (LAMP phase 4): a scorer is graded after the
+    // final, against the board as it locked.
+    pending: 'Every goal scorer is graded after the final against the board as it locked before puck drop. Preseason nights are graded but not quoted here — the first regular-season night is September 29.',
     callsHead: 'Tonight’s board — three called per game',
     callsSub: 'Shots, goals and ice time per game over his last 82, ranked against tonight’s skaters. PREVIEW until a game’s lock; the lock is the call.',
     unit: 'night',
@@ -265,18 +281,18 @@ async function computeRecord(sportKey, today) {
   // with different numbers. Both are counted the same way; only which one is
   // quoted changes.
   const span = nights.reduce(
-    (a, c) => ({ on: a.on + c.called + c.rated, total: a.total + c.total }),
-    { on: 0, total: 0 },
+    (a, c) => ({ called: a.called + c.called, onBoard: a.onBoard + c.called + c.rated, total: a.total + c.total }),
+    { called: 0, onBoard: 0, total: 0 },
   )
   if (!span.total) return null
-  return { ...span, pct: Math.round((100 * span.on) / span.total), days: nights.length }
+  return { ...span, days: nights.length }
 }
 
 /**
  * Hockey's receipts: graded rows of the current model, regular season and
  * playoffs only (preseason is graded but not quoted — camp lineups), reduced
  * by the same coverage() the in-app record tab uses. Same shape as the other
- * two: scorers who were CALLED or ON THE BOARD at lock, over the scorers.
+ * two: scorers who were CALLED, and CALLED or ON THE BOARD, at lock.
  */
 async function computeLampRecord(db, since, today) {
   // Scorers only: nhlCaptureFrom counts scorers, so the other ~90% of a
@@ -285,7 +301,7 @@ async function computeLampRecord(db, since, today) {
   if (error || !rows.length) return null
   const cap = nhlCaptureFrom(rows)
   if (!cap.total) return null
-  return { on: cap.onBoard, total: cap.total, pct: cap.boardPct, days: new Set(rows.map((r) => r.game_date)).size }
+  return { called: cap.called, onBoard: cap.onBoard, total: cap.total, days: new Set(rows.map((r) => r.game_date)).size }
 }
 
 /** Tonight's hockey board, one line per game — read by the same function the Board page's route uses. */
@@ -349,7 +365,9 @@ async function computeCalls(sportKey) {
 // that throws is not cached -- the page's own .catch() renders the honest
 // empty state and the next visitor asks again.
 const loadCalls = unstable_cache(computeCalls, ['start-calls'], { revalidate: START_TTL })
-const loadRecord = unstable_cache(computeRecord, ['start-record'], { revalidate: START_TTL })
+// v2 (2026-09-26): the record's shape changed (called / onBoard / total) --
+// a new key so a cached v1 entry can never render NaN after a deploy.
+const loadRecord = unstable_cache(computeRecord, ['start-record-v2'], { revalidate: START_TTL })
 
 /** One bite row. Shared by both sports and by the league strip. */
 function Bite({ b }) {
@@ -375,6 +393,8 @@ export default async function StartPage({ searchParams }) {
     loadCalls(sportKey).catch(() => ({})),
     loadRecord(sportKey, today).catch(() => null),
   ])
+  // Which number leads the receipt: the one /called leads with (sport.quote).
+  const byCalls = sport.quote === 'called'
 
   const SIGNUP = `/login?next=${encodeURIComponent(sport.board)}#create-account`
   const hasCalls = sportKey === 'nfl' ? Boolean(calls.bites?.length) : sportKey === 'nhl' ? Boolean(calls.games?.length) : Boolean(calls.players?.length)
@@ -399,11 +419,14 @@ export default async function StartPage({ searchParams }) {
         <h1 className={styles.headline}>{sport.lead}, called before the game.</h1>
         <p className={styles.sub}>{sport.promise}</p>
         {record ? (
+          // §35: the number states the question it answers. The lead is the
+          // one /called leads with; the other is beside it, by name.
           <p className={styles.receipt}>
-            <span className={styles.big}>{record.on}</span> of{' '}
+            <span className={styles.big}>{byCalls ? record.called : record.onBoard}</span> of{' '}
             <span className={styles.big}>{record.total}</span> {sport.event} over the last{' '}
-            {record.days} {sport.unit}{record.days === 1 ? '' : 's'} were on the board before they
-            happened — <strong>{record.pct}%</strong>.{' '}
+            {record.days} {sport.unit}{record.days === 1 ? '' : 's'} {byCalls ? sport.calledPhrase : sport.boardPhrase}
+            {' '}— <strong>{Math.round((100 * (byCalls ? record.called : record.onBoard)) / record.total)}%</strong>.{' '}
+            {byCalls ? record.onBoard : record.called} {byCalls ? sport.boardPhrase : sport.calledPhrase}.{' '}
             <a className={styles.inline} href={sport.recordHref}>{sport.recordLink}</a>
           </p>
         ) : (
@@ -411,8 +434,7 @@ export default async function StartPage({ searchParams }) {
           // case right now, not a fallback — the board rank has only been
           // recorded since 2026-09-20 (see NFL_MIN_RECORD_DAYS).
           <p className={styles.receipt}>
-            Every {sport.eventOne} is tagged against the board the moment it lands, and the public
-            record is filling in{sport.key === 'nfl' ? ' — the board rank has been on the record since September 20' : sport.key === 'nhl' ? ' — the first regular-season night is September 29' : ''}.{' '}
+            {sport.pending}{' '}
             <a className={styles.inline} href={sport.recordHref}>See the record.</a>
           </p>
         )}

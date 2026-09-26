@@ -27,11 +27,11 @@ import { easternToday } from '../../lib/data'
 // "TD" instead of "HR".
 //
 // "CALLED" (decided 2026-09-15, Donovan, following up on the open
-// question this page originally flagged): wearing a TOP, HR, HIT or HRR
-// badge — each is its own real call lane with its own hit-rate scoreboard
-// elsewhere on the site (Path to Victory A1's PICKS lane, A9's Hits/HRR
-// lanes). WATCH is explicitly "not a call" per A1; CONTACT and TOP15 are
-// ranking bands, not designated picks. A hitter under any of those three,
+// question this page originally flagged): wearing a TOP, HR, HIT, HRR or
+// (since 2026-09-26) CONTACT badge — each is its own real call lane with its
+// own hit-rate scoreboard elsewhere on the site (Path to Victory A1's PICKS
+// lane, A9's Hits/HRR lanes). WATCH is explicitly "not a call" per A1; TOP15
+// is a ranking band, not a designated pick. A hitter under either of those,
 // or on the sheet with no badge at all, shows as ON BOARD, not CALLED. See
 // lib/ledgerArchive.js's fetchGradedNight for the one place this is decided.
 

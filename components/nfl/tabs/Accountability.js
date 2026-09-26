@@ -175,7 +175,10 @@ function ReceiptHero({ results, when }) {
           <small>{hits} of {graded} graded rungs cleared</small>
         </div>
         <div><span>GRADED</span><strong>{graded}</strong><small>latest published run</small></div>
-        <div><span>VOIDS</span><strong>{voids}</strong><small>not counted as misses</small></div>
+        {/* 2026-09-26 (Batch 5): these are rows with no stat line yet -- a man
+            who didn't play, or a game not graded yet. A whole unplayed week
+            read "VOIDS 35", i.e. "cancelled". Named for what they are. */}
+        <div><span>NO RESULT</span><strong>{voids}</strong><small>not played or not graded yet — not counted as misses</small></div>
         <div><span>STRONGEST MARKET</span><strong className="leader" style={{ color: leader?.color }}>{leader?.label || '—'}</strong><small>{leader ? `${leader.hit}/${leader.n} · ${leader.pct.toFixed(1)}%` : 'waiting on results'}</small></div>
       </div>
 
@@ -213,7 +216,7 @@ function CardGrid({ results }) {
         <span style={{ fontSize: TYPE.title, fontWeight: 800 }}>Did the card do its job?</span>
         <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>
           {sumHit} of {sumN} card rungs cleared their own bar this run
-          {sumVoid > 0 && ` · ${sumVoid} void`}
+          {sumVoid > 0 && ` · ${sumVoid} with no result yet`}
         </span>
       </div>
 
@@ -249,7 +252,7 @@ function CardGrid({ results }) {
               </div>
               {voidN > 0 && (
                 <div style={{ fontSize: TYPE.micro, fontFamily: NUM_FONT, color: C.text3, marginTop: 1 }}>
-                  {voidN} void
+                  {voidN} no result
                 </div>
               )}
             </div>
@@ -491,7 +494,7 @@ function SeasonStrip({ archive, keys, loading, picked, onPick, currentKey, mode 
           {keys.map((k) => {
             const t = grandTotal(archive[k]?.totals)
             return <button key={k} role="tab" aria-selected={picked === k} className={picked === k ? 'on' : ''} onClick={() => onPick(k)}>
-              <b>{labelOf(k)}{k === currentKey ? ' · latest' : ''}</b><span>{t.n ? `${t.hit}/${t.n}` : 'void'}</span>
+              <b>{labelOf(k)}{k === currentKey ? ' · latest' : ''}</b><span>{t.n ? `${t.hit}/${t.n}` : 'not graded'}</span>
             </button>
           })}
         </div>
@@ -731,7 +734,7 @@ export default function Accountability({ data, results: latest, onPlayerClick })
                 fmt: (v) => (v == null ? '—' : Number(v).toFixed(0)) },
               { key: 'result', label: 'Result', heat: false, w: 64,
                 fmt: (v, r) => {
-                  if (r.void) return <span style={{ color: C.text3 }}>void</span>
+                  if (r.void) return <span style={{ color: C.text3 }}>no result</span>
                   return (
                     <span style={{ color: r.hit ? C.green : C.red, fontWeight: 800 }}>
                       {r.hit ? 'HIT' : 'MISS'}

@@ -4,6 +4,7 @@ import { C, NUM_FONT, TYPE } from '../../lib/theme'
 import { ORANGE_RAMP, inkFor } from '../Heatmap'
 import PaletteToggle from '../PaletteToggle'
 import { RAMPS, usePalette } from '../../lib/palette'
+import { tabName } from '../../lib/routes'
 
 // GUIDE — rewritten short, 2026-08-09.
 //
@@ -113,13 +114,17 @@ function Stat({ stat, def, good }) {
 const STEPS = [
   {
     n: 1,
-    title: 'Open the Home tab and read the four tiles',
-    body: 'Games tonight, the bot’s projected homer range, first pitch, and its base-hit record across every graded night. Thirty seconds tells you whether tonight is a big slate and whether the model has been right lately.',
+    // 2026-09-26 (Batch 5): Home no longer shows exactly four -- the count
+    // was a stale claim. Name what is there instead of counting it.
+    title: 'Open the Home tab and read the tiles at the top',
+    body: 'Games tonight, when the last game starts, the bot’s projected homer range, the best park for homers, and its base-hit record across every graded night. Thirty seconds tells you whether tonight is a big slate and whether the model has been right lately.',
   },
   {
     n: 2,
-    tab: 'scoreboard',
-    title: 'Go to Scoreboard and look at the top of the list',
+    // The every-hitter ranked list is The Board now (#tab=fullboard); the
+    // tab's name comes from the registry so this step can't go stale again.
+    tab: 'fullboard',
+    title: `Go to ${tabName('mlb', 'fullboard')} and look at the top of the list`,
     body: 'Every hitter on the slate, ranked. The brightest names at the top are the ones the model likes most tonight. You do not have to understand a single column to use the order.',
   },
   {
@@ -409,7 +414,7 @@ export default function Guide({ onNavigate }) {
       {/* ── TAB MAP ── one line each ── */}
       <Section title="What each tab is for" emoji="🧭">
         <Term tab="home" go={onNavigate} icon="🏠" term="Home" def="tonight in four numbers, the headline game, and the way in." />
-        <Term tab="scoreboard" go={onNavigate} icon="📊" term="Scoreboard" def="every hitter, every column, sortable. The wide view — start here." />
+        <Term tab="scoreboard" go={onNavigate} icon="📊" term={tabName('mlb', 'scoreboard')} def="every hitter, every column, sortable. The wide view — start here." />
         <Term tab="atplate" go={onNavigate} icon="🎤" term="At the Plate" def="the hitter batting right now — the count, every pitch of the at-bat, and where his contact is going. Only alive during games." />
         <Term tab="games" go={onNavigate} icon="⚾" term="Games" def="one matchup at a time: the arm, the park, the lineup." />
         <Term tab="board" go={onNavigate} icon="🏆" term="HR Board" def="ranked purely by home-run score." />
