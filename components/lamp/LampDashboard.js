@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import { resolveTab, pageTitle, NHL_TABS as NHL_TAB_KEYS, NHL_NAV } from '../../lib/routes'
+import { usePageTitle } from '../../lib/usePageTitle'
 import { initialHashParams, setSport } from '../../lib/sport'
 import { C } from '../../lib/nhl/theme'
 import { useLampScores } from '../../lib/nhl/useLamp'
@@ -57,16 +58,10 @@ export default function LampDashboard({ palettePass = 0 }) {
   const [teamKey, setTeamKey] = useState(null)
   const [playerId, setPlayerId] = useState(null)
   const [missingTab, setMissingTab] = useState('')
-  useEffect(() => {
-    // Set it now AND once more shortly after: on a cold open Next writes the
-    // route's static <title> after this effect's first run, so Home (the one
-    // tab whose state never changes after mount) kept "The board — MOONSHOT
-    // & TUDDY" in the tab bar. Measured at 390px, 2026-09-25.
-    const set = () => { try { document.title = `${pageTitle('nhl', tab)} · DASH Network` } catch { /* ignore */ } }
-    set()
-    const id = setTimeout(set, 600)
-    return () => clearTimeout(id)
-  }, [tab])
+  // On a cold open Next writes the route's static <title> after the first
+  // effect (measured 2026-09-25); lib/usePageTitle.js holds ours against it
+  // -- it replaced the 600ms second write that used to live here.
+  usePageTitle(`${pageTitle('nhl', tab)} · DASH Network`)
 
   const setTab = (next) => {
     if (!NHL_TABS.has(next)) return

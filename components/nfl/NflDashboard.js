@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { resolveTab, pageTitle, NFL_TABS as NFL_TAB_KEYS } from '../../lib/routes'
+import { usePageTitle } from '../../lib/usePageTitle'
 import ErrorBoundary from '../ErrorBoundary'
 import TabNotFound from '../TabNotFound'
 import { C, NUM_FONT } from '../../lib/nfl/theme'
@@ -91,9 +92,7 @@ function NflStaleBanner({ meta, data, loading }) {
 
 export default function NflDashboard({ palettePass = 0 }) {
   const [tab, setTabRaw] = useState('home')
-  useEffect(() => {
-    try { document.title = `${pageTitle('nfl', tab)} \u00b7 DASH Network` } catch { /* ignore */ }
-  }, [tab])
+  usePageTitle(`${pageTitle('nfl', tab)} \u00b7 DASH Network`)
   const [data, setData] = useState(null)
   const [report, setReport] = useState(null)
   const [meta, setMeta] = useState(null)

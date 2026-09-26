@@ -113,7 +113,8 @@ const SPORTS = {
     close: ['Tomorrow\u2019s calls are already on the board.', 'The bot publishes its picks every morning. The 🤖 you see here is what it said before first pitch.', 'Save your watchlist, picks and alerts when your guys go deep'],
     playerHref: (id) => `/app#sport=mlb&p=${encodeURIComponent(id)}`,
     meta: {
-      title: 'Called It — MOONSHOT · DASH Network',
+      // §36: search words first, product second (Batch 6).
+      title: 'MLB home run picks, graded in public · CALLED IT · MOONSHOT',
       description: 'Every MLB home run tonight, tagged with whether MOONSHOT had the hitter on its board before first pitch. Ten-night capture rate, graded in public.',
       alternates: { canonical: '/called' },
     },
@@ -133,7 +134,7 @@ const SPORTS = {
     close: ['This week\u2019s calls are already on the board.', 'The bot publishes its touchdown board before kickoff. The 🤖 you see here is what it said before the snap.', 'Save your watchlist, picks and alerts when your guys score'],
     playerHref: (id) => `/app#sport=nfl&tab=players&player=${encodeURIComponent(id)}`,
     meta: {
-      title: 'Called It — TUDDY · DASH Network',
+      title: 'NFL touchdown picks, graded in public · CALLED IT · TUDDY',
       description: 'Every NFL touchdown, tagged with whether TUDDY had the scorer on its board before kickoff. Board coverage by game day, graded in public.',
       alternates: { canonical: '/called?sport=nfl' },
     },
@@ -158,7 +159,7 @@ const SPORTS = {
     close: ['Tomorrow\u2019s calls lock before puck drop.', 'LAMP locks three skaters per game before the puck drops. The 🤖 you see here is what it said before the game.', 'Save your watchlist, picks and alerts when your guys score'],
     playerHref: (id) => `/app#sport=nhl&tab=player&player=${encodeURIComponent(id)}`,
     meta: {
-      title: 'Called It — LAMP · DASH Network',
+      title: 'NHL goal picks, graded in public · CALLED IT · LAMP',
       description: 'Every NHL goal scorer, tagged with whether LAMP called him before puck drop. Three calls per game, locked and graded in public.',
       alternates: { canonical: '/called?sport=nhl' },
     },

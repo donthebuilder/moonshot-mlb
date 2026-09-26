@@ -29,7 +29,14 @@ for (const [k, v] of Object.entries(R.NFL_ALIASES)) if (!R.NFL_TABS.includes(v))
 for (const [k, v] of Object.entries(R.NHL_ALIASES)) if (!R.NHL_TABS.includes(v)) { console.log(`FAIL NHL_ALIASES ${k} -> '${v}' not in NHL_TABS`); bad += 1 }
 // A sport the registry does not know must still answer MOONSHOT, never throw.
 if (R.resolveTab('xfl', 'home').tab !== 'home') { console.log('FAIL unknown sport did not fall back to MOONSHOT'); bad += 1 }
-if (R.pageTitle('nhl', 'scores') !== 'LAMP · NHL — Scores') { console.log(`FAIL pageTitle nhl: ${R.pageTitle('nhl', 'scores')}`); bad += 1 }
+if (R.pageTitle('nhl', 'scores') !== 'NHL scores · LAMP') { console.log(`FAIL pageTitle nhl: ${R.pageTitle('nhl', 'scores')}`); bad += 1 }
+// §36: every page's title leads with search words and fits a results line.
+for (const [sport, nav] of [['mlb', R.MLB_NAV], ['nfl', R.NFL_NAV], ['nhl', R.NHL_NAV]]) {
+  for (const tab of Object.keys(nav)) {
+    const t = R.pageTitle(sport, tab)
+    if (!t || t.length > 60) { console.log(`FAIL pageTitle ${sport}/${tab}: "${t}" (${t.length} chars, max 60)`); bad += 1 }
+  }
+}
 // The one sport list is the registry's own keys, and every one is branded.
 if (R.SPORT_KEYS.join() !== Object.keys(R.BRAND).join()) { console.log(`FAIL SPORT_KEYS ${R.SPORT_KEYS} vs BRAND ${Object.keys(R.BRAND)}`); bad += 1 }
 if (!R.isSport('nhl') || R.isSport('xfl') || R.isSport(null) || R.isSport('toString')) { console.log('FAIL isSport answers wrong'); bad += 1 }

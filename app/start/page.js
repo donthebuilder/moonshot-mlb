@@ -79,10 +79,18 @@ import styles from './start.module.css'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-export const metadata = {
-  title: 'Start here — DASH Network',
-  description:
-    'The calls before the game, and the public record of how they went. MOONSHOT for MLB home runs, TUDDY for NFL touchdowns, LAMP for NHL goals.',
+// §36 (Batch 6, 2026-09-26): one page per sport, so one title per sport --
+// search words first, product second -- read off the same SPORTS table the
+// page renders from. Was a single "Start here — DASH Network" for all three.
+export async function generateMetadata({ searchParams }) {
+  const params = (await searchParams) || {}
+  const asked = String(params.sport || '').toLowerCase()
+  const sport = SPORTS[asked] || SPORTS.mlb
+  return {
+    title: sport.metaTitle,
+    description: sport.metaDescription,
+    alternates: { canonical: sport.canonical },
+  }
 }
 
 // Ten nights is what /called's own strip spans, so the rate quoted here and the
@@ -160,6 +168,9 @@ const SPORTS = {
     lead: 'Who goes deep tonight',
     recordLink: 'See every one, night by night.',
     promise: 'MOONSHOT rates every hitter on the slate before first pitch, then grades itself in public.',
+    metaTitle: 'Home run predictions tonight · MOONSHOT',
+    canonical: '/start',
+    metaDescription: 'Who goes deep tonight, called before first pitch: MOONSHOT rates every MLB hitter on the slate, then grades every call in public.',
     // THE RECEIPT (2026-09-26, Batch 5). Leads with the same number /called
     // leads with: calls for MOONSHOT and LAMP, board coverage for TUDDY. The
     // other number sits beside it, named. `quote` says which leads.
@@ -182,6 +193,9 @@ const SPORTS = {
     lead: 'Who finds the end zone',
     recordLink: 'See every one, week by week.',
     promise: 'TUDDY rates every skill player on the week before kickoff, then grades itself in public.',
+    metaTitle: 'Anytime touchdown predictions this week · TUDDY',
+    canonical: '/start?sport=nfl',
+    metaDescription: 'Who finds the end zone this week, called before kickoff: TUDDY rates every NFL skill player, then grades every call in public.',
     // Board coverage leads: five designated TD calls a week against ~75
     // touchdowns makes a call rate a category error (see /called).
     quote: 'board',
@@ -207,6 +221,9 @@ const SPORTS = {
     lead: 'Who lights the lamp tonight',
     recordLink: 'See every one, night by night.',
     promise: 'LAMP calls three skaters per game to score, locks them before puck drop, then grades itself in public.',
+    metaTitle: 'NHL goal scorer predictions tonight · LAMP',
+    canonical: '/start?sport=nhl',
+    metaDescription: 'Who lights the lamp tonight: LAMP calls three NHL skaters per game to score, locks them before puck drop, and grades them in public.',
     quote: 'called',
     calledPhrase: 'were CALLED before puck drop',
     boardPhrase: 'were on the board',

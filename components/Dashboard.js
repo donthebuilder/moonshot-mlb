@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { C } from '../lib/theme'
 import { resolveTab, pageTitle } from '../lib/routes'
+import { usePageTitle } from '../lib/usePageTitle'
 import TabNotFound from './TabNotFound'
 import { fetchJSON, normalizeData, groupGames, slateLooksReal, slateDateFromRows, keepNewerSlate } from '../lib/data'
 import { slatePaths, resultsPaths, runMetaPaths, pairBuilderPaths, pairSummaryPaths, backtestPaths, evalReportPaths, oddsPaths, gradedResultsUrl, setSlateMode } from '../lib/dataSource'
@@ -74,9 +75,8 @@ export default function Dashboard({ palettePass = 0 }) {
   const [tab, setTabRaw] = useState('home')
   // 2026-09-24 (SEO/NAV-12): the tab title in the browser tab and history.
   // Every page of both products read as the site name before this.
-  useEffect(() => {
-    try { document.title = `${pageTitle('mlb', tab)} \u00b7 DASH Network` } catch { /* ignore */ }
-  }, [tab])
+  // lib/usePageTitle.js holds it against Next's own static <title> write.
+  usePageTitle(`${pageTitle('mlb', tab)} \u00b7 DASH Network`)
   const setTab = (next) => {
     if (next !== 'pairs') setFocusPlayerId(null)
     setModalView({ pid: '', view: '' })

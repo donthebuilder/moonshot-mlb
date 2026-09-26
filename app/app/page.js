@@ -16,9 +16,11 @@ import SportRoot from '../../components/SportRoot'
 // 2026-09-24 (SEO-1/2): the board's own canonical. Every #sport=…&tab=… is
 // this one document to a crawler; the tab title is set client-side by each
 // dashboard (document.title) for people, not bots.
+// 2026-09-26 (Batch 6): three sports since LAMP; the static title is what a
+// crawler sees and what every tab showed before usePageTitle held its own.
 export const metadata = {
-  title: 'The board — MOONSHOT & TUDDY · DASH Network',
-  description: 'Tonight\u2019s MLB home-run board and this week\u2019s NFL touchdown board, every call graded in public.',
+  title: 'MLB, NFL and NHL picks, graded in public · DASH Network',
+  description: 'Tonight\u2019s MLB home run board, this week\u2019s NFL touchdown board and tonight\u2019s NHL goal board — every call graded in public.',
   alternates: { canonical: '/app' },
 }
 
