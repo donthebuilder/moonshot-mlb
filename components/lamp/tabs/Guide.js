@@ -16,6 +16,7 @@ const ROWS = [
   ['goalies', 'Every goalie, and a goalie’s file is its own page — starts, record, GAA, save percentage, shutouts — not a skater’s with different labels.'],
   ['teams', 'The 32 clubs by division. Tap one for its record and place, next up, last five, the roster with season lines, team leaders, the whole schedule.'],
   ['leaders', 'Who leads the league in each category, ten deep, regular season, straight from the league. Measured, not modelled.'],
+  ['fullboard', 'Every skater the model scored tonight, all games together, ranked #1 to the bottom by score, with the numbers behind it. CALLED still means top three in his own game.'],
   ['board', 'The goal board: three skaters called per game, locked before puck drop, graded after. Tap a called man for the three percentiles behind his score.'],
   ['results', 'Every graded night: of the skaters who scored, how many the board called and how many it had on the board. The base rate to beat is about 15%.'],
 ]

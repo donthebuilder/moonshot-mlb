@@ -16,7 +16,7 @@ import { TeamMark, EmptyState, DelayedBanner, Loading, SourceLine, Kicker, GameT
 // LOCKED board is what the record holds (the last write before puck drop,
 // app/api/lamp/tick). After the final the GOALS column fills and a hit
 // lights the lamp. Every number is a field or a percentile of a field.
-const STATUS = { called: 'CALLED', board: 'ON THE BOARD', off: 'NOT ON THE BOARD' }
+export const STATUS = { called: 'CALLED', board: 'ON THE BOARD', off: 'NOT ON THE BOARD' }
 
 export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam }) {
   const [date, setDate] = useState(() => readHashDay())
@@ -130,7 +130,7 @@ function GameBoard({ g, onOpenPlayer, onOpenGame, onOpenTeam }) {
 }
 
 function FragmentRow({ children }) { return <>{children}</> }
-function NavBtn({ children, onClick, disabled, strong = false }) {
+export function NavBtn({ children, onClick, disabled, strong = false }) {
   return <button type="button" onClick={onClick} disabled={disabled} style={{ height: 28, padding: '0 11px', borderRadius: 8, cursor: disabled ? 'default' : 'pointer', border: `1px solid ${strong ? C.ice : C.border2}`, background: strong ? `${C.ice}14` : C.bg2, color: strong ? C.ice : C.text2, font: `800 10px/1 ${NUM_FONT}`, letterSpacing: '.04em', opacity: disabled ? .5 : 1 }}>{children}</button>
 }
 const th = { padding: '0 8px 8px', fontWeight: 800 }

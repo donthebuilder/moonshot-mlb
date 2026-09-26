@@ -25,6 +25,7 @@ import Players from './tabs/Players'
 import Player from './tabs/Player'
 import Leaders from './tabs/Leaders'
 import Board from './tabs/Board'
+import FullBoard from './tabs/FullBoard'
 import Results from './tabs/Results'
 
 // 🏒 THE LAMP SHELL. Thin on purpose, the same shape as NflDashboard and
@@ -46,6 +47,9 @@ import Results from './tabs/Results'
 // build — the shell only reads today's scores itself, for the live count in
 // the header, and that one request is shared with Home through the CDN.
 const NHL_TABS = new Set(NHL_TAB_KEYS)
+// Pages that show one day and keep it in the address (`date=`). One list,
+// read by setTab (which clears it elsewhere) and goBack (which restores it).
+const DATED_TABS = new Set(['scores', 'schedule', 'board', 'fullboard'])
 
 export default function LampDashboard({ palettePass = 0 }) {
   const [tab, setTabRaw] = useState('home')
@@ -77,7 +81,7 @@ export default function LampDashboard({ palettePass = 0 }) {
       hash.set('sport', 'nhl')
       hash.set('tab', next)
       if (next !== 'game') hash.delete('game')
-      if (next !== 'scores' && next !== 'schedule' && next !== 'board') hash.delete('date')
+      if (!DATED_TABS.has(next)) hash.delete('date')
       if (next !== 'team') hash.delete('team')
       if (next !== 'player') { hash.delete('player'); hash.delete('p') }
       window.history.replaceState(null, '', `#${hash.toString()}`)
@@ -117,7 +121,7 @@ export default function LampDashboard({ palettePass = 0 }) {
     if (to.tab === 'game' && to.gameId) writeHashParam('game', to.gameId)
     if (to.tab === 'team' && to.teamKey) writeHashParam('team', to.teamKey)
     if (to.tab === 'player' && to.playerId) writeHashParam('player', to.playerId)
-    if (to.date && (to.tab === 'scores' || to.tab === 'schedule' || to.tab === 'board')) writeHashParam('date', to.date)
+    if (to.date && DATED_TABS.has(to.tab)) writeHashParam('date', to.date)
   }
 
   const openGame = (id) => {
@@ -245,6 +249,7 @@ export default function LampDashboard({ palettePass = 0 }) {
             {tab === 'player' && <Player id={playerId} onOpenTeam={openTeam} onOpenGame={openGame} backLabel={backLabel('players')} onBack={() => goBack('players')} />}
             {tab === 'leaders' && <Leaders onOpenPlayer={openPlayer} onOpenTeam={openTeam} />}
             {tab === 'board' && <Board onOpenPlayer={openPlayer} onOpenGame={openGame} onOpenTeam={openTeam} />}
+            {tab === 'fullboard' && <FullBoard onOpenPlayer={openPlayer} onOpenTeam={openTeam} />}
             {tab === 'results' && <Results onOpenPlayer={openPlayer} />}
           </ErrorBoundary>
         )}
