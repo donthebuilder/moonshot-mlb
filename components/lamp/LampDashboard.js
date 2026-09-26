@@ -27,6 +27,7 @@ import Players from './tabs/Players'
 import Player from './tabs/Player'
 import SpecialTeams from './tabs/SpecialTeams'
 import ShotMap from './tabs/ShotMap'
+import LampLedger from './tabs/LampLedger'
 import Leaders from './tabs/Leaders'
 import Board from './tabs/Board'
 import FullBoard from './tabs/FullBoard'
@@ -263,6 +264,7 @@ export default function LampDashboard({ palettePass = 0 }) {
             {tab === 'leaders' && <Leaders onOpenPlayer={openPlayer} onOpenTeam={openTeam} />}
             {tab === 'specialteams' && <SpecialTeams onOpenTeam={openTeam} />}
             {tab === 'shotmap' && <ShotMap onOpenPlayer={openPlayer} />}
+            {tab === 'lampledger' && <LampLedger onOpenPlayer={openPlayer} />}
             {tab === 'board' && <Board onOpenPlayer={openPlayer} onOpenGame={openGame} onOpenTeam={openTeam} date={date} setDate={setDate} />}
             {tab === 'fullboard' && <FullBoard onOpenPlayer={openPlayer} onOpenTeam={openTeam} date={date} setDate={setDate} />}
             {tab === 'results' && <Results onOpenPlayer={openPlayer} />}
