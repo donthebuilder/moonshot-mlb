@@ -19,8 +19,9 @@
 //                    bites the header ticker and the front page already roll
 //   NFL best calls   buildNflHeadlines() — the same five story-bites TUDDY's
 //                    header ticker has carried since round 3 (57e0359)
-//   the receipts     captureFrom()/tdCaptureFrom() over the same homer_feed /
-//                    nfl_td_feed rows /called reads, frozen at first sight
+//   the receipts     eventCapture() over the shared event record (lib/record/)
+//                    -- the same homer_feed / nfl_td_feed rows /called reads,
+//                    frozen at first sight
 //   the ask          the same /login?next=...#create-account target SignUpPill
 //                    has always pointed at
 //
@@ -62,16 +63,17 @@ import { unstable_cache } from 'next/cache'
 import BotPicksStrip from '../../components/BotPicksStrip'
 import { easternToday } from '../../lib/data'
 import { fetchBoardFull } from '../../lib/dash/board'
-import { captureFrom } from '../../lib/dash/homerFeed'
 import { buildHeadlines } from '../../lib/headlinesCore'
 import {
   fetchNfl, nflMatchupLooksReal, nflMatchupPaths, nflSlateLooksReal, nflSlatePaths,
 } from '../../lib/nfl/dataSource'
 import { buildNflHeadlines } from '../../lib/nfl/headlines'
-import { tdCaptureFrom } from '../../lib/nfl/tdFeed'
 import { trimForFour } from '../../lib/theFourFields'
 import { readBoard } from '../../lib/nhl/boardRead'
 import { nhlCaptureFrom, readNhlRecords } from '../../lib/record/nhl'
+import { readMlbEvents } from '../../lib/record/mlb'
+import { readNflEvents } from '../../lib/record/nfl'
+import { eventCapture } from '../../lib/record/shape'
 import styles from './start.module.css'
 
 export const dynamic = 'force-dynamic'
@@ -217,31 +219,32 @@ function client() {
 /**
  * The receipts line — the same ten-day window /called publishes.
  *
- * Reuses the sport's OWN counter (captureFrom / tdCaptureFrom), which is the
- * whole reason one sentence can serve both: they return the same shape over the
- * same three states (CALLED / ON THE BOARD / NOT ON THE BOARD, project rule
- * 14). Only the query is local, and a failed, unconfigured or not-yet-gradeable
+ * Counts the shared event record (eventCapture over lib/record/ events), which
+ * is the whole reason one sentence can serve every sport: the same shape over
+ * the same three states (CALLED / ON THE BOARD / NOT ON THE BOARD, project
+ * rule 14), each set by the sport's own rule in lib/callStatus.js. Only the query is local, and a failed, unconfigured or not-yet-gradeable
  * window returns null so the page renders the honest sentence instead of a
  * number it cannot stand behind (rules 24 and 25).
  */
+// Each sport's live events, read through the shared event record (§33,
+// lib/record/). LAMP's goals join here with its phase 4; until then its
+// number comes from the model record (computeLampRecord below).
+const EVENT_READERS = { mlb: readMlbEvents, nfl: readNflEvents }
+
 async function computeRecord(sportKey, today) {
   const sport = SPORTS[sportKey]
   const db = client()
   if (!db) return null
   const since = shiftDay(today, -(DAYS - 1))
   if (sport.key === 'nhl') return computeLampRecord(db, since, today)
-  const { data, error } = await db
-    .from(sport.table)
-    .select('*')
-    .gte('day', since)
-    .lte('day', today)
-  if (error || !Array.isArray(data) || !data.length) return null
+  const { events, error } = await EVENT_READERS[sport.key](db, { since, until: today })
+  if (error || !events.length) return null
 
   // Football: only days whose board rank was actually recorded can be counted.
   // See NFL_MIN_RECORD_DAYS above for the measurement behind this.
   let usable = null
   if (sport.key === 'nfl') {
-    const recorded = new Set(data.filter((r) => r.td_board).map((r) => r.day))
+    const recorded = new Set(events.filter((e) => e.payload.td_board).map((e) => e.game_date))
     if (recorded.size < NFL_MIN_RECORD_DAYS) return null
     usable = recorded
   }
@@ -250,9 +253,9 @@ async function computeRecord(sportKey, today) {
   for (let i = 0; i < DAYS; i += 1) {
     const day = shiftDay(today, -i)
     if (usable && !usable.has(day)) continue
-    const rows = data.filter((r) => r.day === day)
-    if (!rows.length) continue
-    const cap = sport.key === 'nfl' ? tdCaptureFrom(rows) : captureFrom(rows)
+    const dayEvents = events.filter((e) => e.game_date === day)
+    if (!dayEvents.length) continue
+    const cap = eventCapture(dayEvents)
     if (cap.total > 0) nights.push(cap)
   }
   if (!nights.length) return null
