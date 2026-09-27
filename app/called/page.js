@@ -137,6 +137,13 @@ const SPORTS = {
     // THE CARD (TUDDY depth step 1): the weekly 5 x 7 card's graded record,
     // beside the touchdown record. A sport without a card simply has none.
     cardRecord: readNflCardRecord,
+    // QB TOUCHDOWNS ARE OUTSIDE THE POOL (TUDDY depth step 6, the stopgap until
+    // QBs join the TD model in the bot). The TD model scores RB / WR / TE, so a
+    // QB touchdown was always NOT ON THE BOARD -- counted as a miss the model
+    // never had the chance to make. Counted separately now, and said plainly.
+    outsidePool: (e) => String(e?.payload?.position || '').toUpperCase() === 'QB',
+    outsideNote: 'TD calls cover RB / WR / TE. QB touchdowns are outside the pool',
+    outsideHead: 'QB touchdowns · outside the pool',
     meta: {
       title: 'NFL touchdown picks, graded in public · CALLED IT · TUDDY',
       description: 'Every NFL touchdown, tagged with whether TUDDY had the scorer on its board before kickoff. Board coverage by game day, graded in public.',
@@ -286,16 +293,20 @@ async function load(key) {
 async function loadNfl(sport, db, today) {
   const since = shiftDay(today, -(sport.window - 1))
   const { events } = await readNflEvents(db, { since, until: today })
+  const outside = sport.outsidePool || (() => false)
   const all = events.map((e) => ({ ...e, day: e.game_date, _n: normNfl(e) }))
-  const rows = all.filter((r) => r.day === today)
+  const rows = all.filter((r) => r.day === today && !outside(r))
+  const outRows = all.filter((r) => r.day === today && outside(r))
   const byDay = new Map()
   const history = []
-  // Newest ten game days, oldest-first for the strip.
+  // Newest ten game days, oldest-first for the strip. Outside-the-pool
+  // touchdowns (QBs) are counted beside each day, never inside its capture.
   const days = [...new Set(all.map((r) => r.day))].sort().slice(-DAYS)
   for (const day of days) {
     const dayRows = all.filter((r) => r.day === day)
-    byDay.set(day, dayRows)
-    history.push({ day, ...eventCapture(dayRows) })
+    const inPool = dayRows.filter((r) => !outside(r))
+    byDay.set(day, inPool)
+    history.push({ day, ...eventCapture(inPool), outside: dayRows.length - inPool.length })
   }
   // The board post the bot published before kickoff, most recent first —
   // the football twin of the morning pregame picks.
@@ -304,7 +315,7 @@ async function loadNfl(sport, db, today) {
     .order('day', { ascending: false }).limit(1)
   const picks = Array.isArray(pre?.[0]?.payload?.picks) ? pre[0].payload.picks.slice(0, 5) : []
   const calledIds = new Set(rows.filter((r) => r.player_id).map((r) => String(r.player_id)))
-  return { sport, today, rows, picks, calledIds, history, byDay, configured: true }
+  return { sport, today, rows, outRows, picks, calledIds, history, byDay, configured: true }
 }
 
 async function loadMlb(sport, db, today) {
@@ -345,7 +356,7 @@ const glyph = (n) => (n.called ? '🤖' : n.onBoard ? '⚪' : '💥')
 export default async function CalledPage({ searchParams }) {
   const params = (await searchParams) || {}
   const key = sportKey(String(params.sport || '').toLowerCase())
-  const { sport, today, rows, picks, calledIds, history, byDay, configured } = await load(key)
+  const { sport, today, rows, outRows = [], picks, calledIds, history, byDay, configured } = await load(key)
   const card = sport.cardRecord ? await sport.cardRecord().catch((e) => { console.error(`[called] card record: ${e?.message}`); return null }) : null
   const BOARD = sport.board
   const SIGNUP = `/login?next=${encodeURIComponent(BOARD)}#create-account`
@@ -363,6 +374,7 @@ export default async function CalledPage({ searchParams }) {
   const span = graded.reduce((a, h) => ({ called: a.called + h.called, onBoard: a.onBoard + (h.onBoard || 0), total: a.total + h.total }), { called: 0, onBoard: 0, total: 0 })
   const spanPct = span.total ? Math.round((100 * span.called) / span.total) : null
   const spanBoardPct = span.total ? Math.round((100 * span.onBoard) / span.total) : null
+  const spanOutside = history.reduce((a, h) => a + (h.outside || 0), 0)
   // 2026-09-24 audit: the bars and the per-day lines below used `called` for
   // football too, so the record read "3 / 88 · 3%" against a five-rung
   // ladder -- the same category error the hero comment above already names.
@@ -474,6 +486,9 @@ export default async function CalledPage({ searchParams }) {
             )
           })}
         </div>
+        {sport.outsideNote && spanOutside ? (
+          <p className={styles.tableNote}>{sport.outsideNote}: {spanOutside} in these {unit}, counted here and not as misses.</p>
+        ) : null}
         {pastNights.some((h) => h.total > 0) ? (
           <div className={styles.nights}>
             {pastNights.map((h) => (h.total > 0 ? <NightDetails key={h.day} h={h} rows={byDay.get(h.day) || []} /> : null))}
@@ -544,6 +559,16 @@ export default async function CalledPage({ searchParams }) {
               ) : null}
             </>
           ) : null}
+        </section>
+      ) : null}
+
+      {outRows.length ? (
+        <section className={styles.panel}>
+          <h2 className={styles.h2}>{sport.outsideHead} · {outRows.length}</h2>
+          <ul className={styles.list}>
+            {outRows.map((r) => <Row key={r._n.key} n={r._n} dim />)}
+          </ul>
+          <p className={styles.tableNote}>{sport.outsideNote} — these are not counted in the day&apos;s coverage above.</p>
         </section>
       ) : null}
 
