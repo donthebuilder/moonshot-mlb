@@ -874,10 +874,17 @@ async function postRecap(db, day, { force = false } = {}) {
       const ROLE_ORDER = ['HR', 'TOP', 'TOP15', 'HRR', 'CONTACT', 'HIT', 'WATCH']
       const roleLines = ROLE_ORDER.filter((r) => c.byRole[r]).map((r) => `${ROLE_EMOJI[r] || '🤖'} ${r}: ${c.byRole[r]}`)
       const { data: hist } = await db.from('homer_feed').select('day,role,name,odds_over,odds_book').gte('day', shiftDay(day, -12)).lte('day', day)
-      const straight = topStreakFrom(hist || [], day, false)
+      // One season per number (2026-09-27): the card's night bars and the TOP
+      // streak read only nights on this night's side of the postseason's
+      // first day. `hist` itself stays whole for the weekly below, which
+      // splits on its own.
+      const rpost = await postseasonOn(day).catch(() => ({ postseason: null }))
+      const nightPost = Boolean(rpost.start && day >= rpost.start)
+      const histSide = (hist || []).filter((r) => !rpost.start || (r.day >= rpost.start) === nightPost)
+      const straight = topStreakFrom(histSide, day, false)
       const tailLine = [TAIL.site, TAIL.handle].filter(Boolean).join(' · ')
       const blocks = [
-        ['📋 NIGHTLY MOONSHOT'],
+        [nightPost ? '📋 NIGHTLY MOONSHOT · POSTSEASON' : '📋 NIGHTLY MOONSHOT'],
         [`${c.called} / ${c.total} HR called`, `${c.pct}% of tonight's homers`],
       ]
       if (roleLines.length) blocks.push(roleLines)
@@ -887,7 +894,7 @@ async function postRecap(db, day, { force = false } = {}) {
       const text = blocks.map((b) => b.join('\n')).join('\n\n')
       await postToDiscord(text, { imageUrl: recapUrl(day) }, FEED_WEBHOOKS())
       if (xOn) {
-        const png = await bytesOf(() => recapCard(day, rows || [], hist || [], { site: SITE_HOST }))
+        const png = await bytesOf(() => recapCard(day, rows || [], histSide, { site: SITE_HOST }))
         const mediaId = png ? await uploadImageToX(png) : null
         const r = await postToX(text, { mediaId, kind: 'recap' })
         if (r.ok) out.recap = r.id
@@ -900,8 +907,13 @@ async function postRecap(db, day, { force = false } = {}) {
         const wk = await claimSlot(db, day, 'weekly')
         if (wk) {
           const from = shiftDay(day, -6)
-          const week = (hist || []).filter((r) => r.day >= from && r.day <= day)
-          const wtext = weeklyText(week, { from, to: day, ...TAIL })
+          // One season per post (2026-09-27): a week that crosses the
+          // postseason's first day keeps its latest side, and a postseason
+          // week says so in the title.
+          const post = await postseasonOn(day).catch(() => ({ postseason: null }))
+          const inPost = Boolean(post.start && day >= post.start)
+          const week = (hist || []).filter((r) => r.day >= from && r.day <= day && (!post.start || (r.day >= post.start) === inPost))
+          const wtext = weeklyText(week, { from, to: day, postseason: inPost, ...TAIL })
           const wc = captureFrom(week)
           const patch = { payload: { from, to: day, called: wc.called, total: wc.total } }
           // WEEKLY STAYS TEXT-ONLY (2026-09-07). A card was built for it and
@@ -928,8 +940,16 @@ async function postRecap(db, day, { force = false } = {}) {
         if (mo) {
           const prevLastDay = shiftDay(day, -1)
           const monthFrom = `${prevLastDay.slice(0, 7)}-01`
-          const { data: monthRows } = await db.from('homer_feed').select('day,role').gte('day', monthFrom).lte('day', prevLastDay)
-          const monthLabel = new Date(`${monthFrom}T12:00:00Z`).toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' })
+          const { data: allMonthRows } = await db.from('homer_feed').select('day,role').gte('day', monthFrom).lte('day', prevLastDay)
+          // One season per post (2026-09-27): a month that crosses the
+          // postseason's first day posts its regular-season part (09-01..
+          // 09-27 for September 2026); a month that is all postseason says so.
+          // Postseason nights are counted on their own record (/called).
+          const post = await postseasonOn(prevLastDay).catch(() => ({ postseason: null }))
+          const split = Boolean(post.start && monthFrom < post.start && post.start <= prevLastDay)
+          const allPost = Boolean(post.start && monthFrom >= post.start)
+          const monthRows = split ? (allMonthRows || []).filter((r) => r.day < post.start) : (allMonthRows || [])
+          const monthLabel = new Date(`${monthFrom}T12:00:00Z`).toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' }) + (split ? ' · regular season' : allPost ? ' · postseason' : '')
           const mtext = monthlyText(monthRows || [], { month: monthLabel, ...TAIL })
           const mc = captureFrom(monthRows || [])
           const patch = { payload: { from: monthFrom, to: prevLastDay, called: mc.called, total: mc.total } }
@@ -1538,7 +1558,10 @@ export async function GET(request) {
         if (r === 'posted') console.log('[homers] longshots posted')
       })
     }
-    if (etHoursSinceNoon() >= MILESTONE_MID_HOUR && !isRetired('milestone_mid')) {
+    // Not in October (2026-09-27): a postseason game moves neither the
+    // regular-season nor the career line, so every countdown would name a
+    // number that cannot change tonight. History Watch carries October.
+    if (etHoursSinceNoon() >= MILESTONE_MID_HOUR && !isRetired('milestone_mid') && (await postseasonOn(day)).postseason !== true) {
       await safeStat('milestone_mid', async () => {
         const seen = await milestoneSeenIds(db, day)
         const miles = await milestonePicks(pregameRows(), { exclude: seen })  // text-only now, see the AM wave above

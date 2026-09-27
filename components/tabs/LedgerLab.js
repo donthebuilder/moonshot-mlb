@@ -12,6 +12,7 @@ import {
   parseArchiveQuery, findInArchive, seasonRecord,
 } from '../../lib/ledgerArchive'
 import SeasonRecord from '../SeasonRecord'
+import { postseasonOn } from '../../lib/dash/seasonGuard'
 
 // ══ 🧾 THE HOMER LEDGER — ITS OWN PAGE ══════════════════════════════════════
 //
@@ -156,7 +157,17 @@ export default function LedgerLab({
   // lib/ledgerArchive.js). The first time this view opens on a thin device it
   // pulls the deep window itself, silently, because a season record with
   // seven nights in it is not a season record.
-  const season = useMemo(() => seasonRecord(entries), [entries])
+  // ONE SEASON PER RECORD (2026-09-27): only nights on today's side of the
+  // postseason's first day -- October nights are their own record, never
+  // mixed into the regular season's (and the other way round).
+  const [post, setPost] = useState({ postseason: null })
+  useEffect(() => { let alive = true; postseasonOn(easternToday()).then((p) => { if (alive) setPost(p) }).catch(() => {}); return () => { alive = false } }, [])
+  const season = useMemo(() => {
+    if (!post.start) return seasonRecord(entries)
+    const inPost = easternToday() >= post.start
+    return seasonRecord(entries.filter((e) => (String(e?.date || '') >= post.start) === inPost))
+  }, [entries, post])
+  const seasonLabel = post.start && easternToday() >= post.start ? 'POSTSEASON' : null
 
   // ── LOOKING UP THE NUMBERS ────────────────────────────────────────────────
   // Jersey and birthday come from the league, not from the graded file, and
@@ -272,7 +283,7 @@ export default function LedgerLab({
         <SeasonRecord
           season={season}
           busy={busy}
-          msg={msg}
+          msg={seasonLabel ? `${seasonLabel} record (regular-season nights kept out)${msg ? ` · ${msg}` : ""}` : msg}
           onPull={(days) => backfill(days)}
           onPlayerClick={onPlayerClick}
         />
