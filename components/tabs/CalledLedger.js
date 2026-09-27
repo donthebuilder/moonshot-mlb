@@ -118,6 +118,7 @@ export default function CalledLedger({ slateDate = '', onPlayerClick = null }) {
     <Ledger
       eventLabel="HR"
       eventLabelLong="Home Run"
+      multiSport="mlb"
       baseRate={baseRate}
       date={date}
       onPrevDate={() => setDate((d) => shiftDate(d, -1))}

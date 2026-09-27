@@ -3,6 +3,8 @@ import { useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { btnStyle, WhatThis } from '../ui'
 import DenseTable from '../DenseTable'
+import { StatusChip, Tile, panel, prettyDate } from './parts'
+import MultiClub from './MultiClub'
 
 // ═══ THE CALLED LEDGER — ONE SHARED COMPONENT, ANY SPORT ═══════════════════
 //
@@ -25,46 +27,7 @@ import DenseTable from '../DenseTable'
 // cards). This renders through DenseTable, the site's own dense-table
 // component — never a card grid, never a second table implementation.
 
-const STATUS_META = {
-  called: { label: 'CALLED', color: C.green },
-  board: { label: 'ON BOARD', color: C.cyan },
-  off: { label: 'NOT ON BOARD', color: C.text3 },
-}
 
-function StatusChip({ status, title }) {
-  const m = STATUS_META[status] || STATUS_META.off
-  return (
-    <span title={title} style={{
-      fontSize: 8.5, fontWeight: 900, letterSpacing: '.04em', padding: '1.5px 7px',
-      borderRadius: 999, whiteSpace: 'nowrap',
-      border: `1px solid ${m.color}66`,
-      background: status === 'off' ? 'transparent' : `${m.color}18`,
-      color: m.color,
-    }}>{m.label}</span>
-  )
-}
-
-function Tile({ label, value, color, sub }) {
-  return (
-    <div style={{ background: `${color}0d`, border: `1px solid ${color}33`, borderRadius: 9, padding: '8px 10px', minWidth: 0 }}>
-      <div style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em', fontWeight: 800 }}>{label}</div>
-      <div style={{ fontSize: 19, fontFamily: NUM_FONT, fontWeight: 900, color, marginTop: 1, whiteSpace: 'nowrap' }}>{value}</div>
-      {sub && <div style={{ fontSize: 9, color: C.text3, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</div>}
-    </div>
-  )
-}
-
-const panel = (accent) => ({
-  background: C.bg2, border: `1px solid ${C.border}`,
-  borderLeft: `3px solid ${accent}`, borderRadius: 14,
-  padding: '13px 16px', marginBottom: 12,
-})
-
-const prettyDate = (d) => {
-  const t = new Date(`${d}T12:00:00Z`)
-  return Number.isNaN(t.getTime()) ? d
-    : t.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' })
-}
 
 export default function Ledger({
   eventLabel = 'EVENT',
@@ -95,6 +58,9 @@ export default function Ledger({
   onPlayerClick,
   view: viewProp,
   onViewChange,
+  // THE 2+ CLUB (2026-09-27): the sport key turns on a third view,
+  // components/ledger/MultiClub.js. Omit it and the Ledger is unchanged.
+  multiSport = null,
 }) {
   const [viewState, setViewState] = useState('night')
   const view = viewProp || viewState
@@ -140,10 +106,12 @@ export default function Ledger({
   return (
     <div>
       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 10 }}>
-        {[['night', `One ${periodWord}`], ['season', `Season · ${eventLabel}`]].map(([k, label]) => (
+        {[['night', `One ${periodWord}`], ['season', `Season · ${eventLabel}`], ...(multiSport ? [['multi', '2+ Club']] : [])].map(([k, label]) => (
           <button key={k} onClick={() => setView(k)} style={btnStyle(accent, view === k)}>{label}</button>
         ))}
       </div>
+
+      {view === 'multi' && multiSport && <MultiClub sport={multiSport} accent={accent} onPlayerClick={onPlayerClick} />}
 
       {view === 'night' && (
         <div style={panel(accent)}>

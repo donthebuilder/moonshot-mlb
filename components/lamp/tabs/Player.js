@@ -1,5 +1,6 @@
 'use client'
 import ShotPanel from '../ShotPanel'
+import MultiLine from '../../ledger/MultiLine'
 import PageHeader from '../../PageHeader'
 import LampTable from '../LampTable'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
@@ -93,6 +94,7 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel }) {
             )}
           </div>
           <div style={{ marginTop: 6, color: C.text3, fontSize: 11, lineHeight: 1.5 }}>{bio}</div>
+          {!goalie && <MultiLine sport="nhl" playerId={p.id} words={{ G: 'multi-goal' }} color={C.ice} textColor={C.text2} />}
         </div>
       </header>
 

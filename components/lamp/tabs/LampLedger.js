@@ -37,6 +37,7 @@ export default function LampLedger({ onOpenPlayer }) {
     <Ledger
       eventLabel="G"
       eventLabelLong="Goal scorer"
+      multiSport="nhl"
       accent={C.ice}
       baseRate={null}
       periodWord="night"

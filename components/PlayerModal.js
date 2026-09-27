@@ -25,6 +25,7 @@ import OddsTimeline from './OddsTimeline'
 import VerdictHero from './VerdictHero'
 import PickVerdictStamp from './PickVerdictStamp'
 import FollowButton from './FollowButton'
+import MultiLine from './ledger/MultiLine'
 import { Chip } from './ui'
 import Explain from './Explain'
 import StatStrip, { HitRateBoxes, SlashLine } from './StatStrip'
@@ -858,6 +859,7 @@ export default function PlayerModal({ player, slateMode, initialTab = '', onClos
               <FollowButton sport="mlb" id={clean(p?.player_id, '')} name={nameOf(p)} team={teamOf(p)} />
             </div>
           )}
+          <MultiLine sport="mlb" playerId={clean(p?.player_id, '')} words={{ HR: 'multi-HR' }} color={C.orange} textColor={C.text2} />
           {/* Watchlist + slip. You could open a hitter from any board, decide
               he's worth playing, and then have to close the modal and find his
               card again to add him. Both actions live here now. */}
