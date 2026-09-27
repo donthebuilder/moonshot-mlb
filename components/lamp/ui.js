@@ -9,6 +9,24 @@ export { fmtDay, fmtPct3, fmt2, fmtSec, plusMinus } from '../../lib/nhl/format'
 // The handful of small pieces every LAMP page shares. Kept in one file so a
 // state, a chip or a mark is spelled once. Nothing here is a card.
 
+// CALLED / ON THE BOARD / NOT ON THE BOARD: the words, letter for letter,
+// wherever LAMP prints a lock's label (the board, the goal lists).
+export const STATUS = { called: 'CALLED', board: 'ON THE BOARD', off: 'NOT ON THE BOARD' }
+
+export function CalledChip({ style = null }) {
+  return <span style={{ marginRight: 7, background: C.ice, color: C.bg, font: `900 7.5px/1 ${NUM_FONT}`, letterSpacing: '.12em', borderRadius: 4, padding: '2px 5px', verticalAlign: '1px', whiteSpace: 'nowrap', ...style }}>{STATUS.called}</span>
+}
+
+/** A goal's label from lamp_goal_feed (the scores route puts it on the goal):
+ *  the CALLED chip, or ON THE BOARD in small caps. NOT ON THE BOARD and an
+ *  unlocked game print nothing -- a goal list is not the place to say who
+ *  the board missed. */
+export function GoalLabel({ label }) {
+  if (label === 'called') return <CalledChip style={{ marginRight: 0, marginLeft: 6 }} />
+  if (label === 'board') return <span style={{ marginLeft: 6, color: C.text3, font: `800 8px/1 ${NUM_FONT}`, letterSpacing: '.1em', whiteSpace: 'nowrap' }}>{STATUS.board}</span>
+  return null
+}
+
 /** "7:00 PM" in the viewer's own zone. The feed's startTimeUTC is the input. */
 export function fmtPuckDrop(utc) {
   try {

@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { C, NUM_FONT } from '../../lib/nhl/theme'
-import { TeamMark, LampDot, fmtPuckDrop } from './ui'
+import { TeamMark, LampDot, GoalLabel, fmtPuckDrop } from './ui'
 
 // 🏒 THE SCORE TABLE — one row per game, a table not a card grid (Donovan's
 // standing rule). Every value is a field off score/{date} reduced by
@@ -33,6 +33,7 @@ function GoalLines({ goals }) {
           <span style={{ color: g.strength === 'pp' ? C.teal : C.text3, font: `800 8px/1.6 ${NUM_FONT}`, letterSpacing: '.06em' }}>{strengthTag(g)}</span>
           <span style={{ color: C.text, fontSize: 11.5, lineHeight: 1.3, minWidth: 0 }}>
             {g.scorer?.name}{g.scorer?.goalsToDate != null ? <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 9 }}> ({g.scorer.goalsToDate})</span> : null}
+            <GoalLabel label={g.label} />
             {g.assists?.length ? <span style={{ color: C.text3, fontSize: 10.5 }}> · {g.assists.map((a) => a.name).join(', ')}</span> : null}
           </span>
         </div>

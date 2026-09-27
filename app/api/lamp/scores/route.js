@@ -8,6 +8,8 @@ import { easternToday } from '../../../../lib/data'
 import { scoreFor, validDate, TTL } from '../../../../lib/nhl/api'
 import { reduceScoreDay } from '../../../../lib/nhl/reduce'
 import { ok, bad, delayed } from '../../../../lib/nhl/respond'
+import { adminClient } from '../../../../lib/nhl/db'
+import { goalLabels, labelGoals, FEED_START } from '../../../../lib/nhl/goalFeed'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,7 +19,13 @@ export async function GET(request) {
   if (!validDate(date)) return bad('date must be a real YYYY-MM-DD day')
   try {
     const raw = await scoreFor(date)
-    return ok({ ...reduceScoreDay(raw), fetchedAt: new Date().toISOString() }, TTL.score)
+    const day = reduceScoreDay(raw)
+    // CALLED / ON THE BOARD on each goal, from lamp_goal_feed (the lock's
+    // label, frozen when the goal was first seen). Only asked for a day the
+    // feed can have rows for, and only when a goal is on the board.
+    const scored = day.games.filter((g) => g.goals?.length).map((g) => g.id)
+    if (date >= FEED_START && scored.length) day.games = labelGoals(day.games, await goalLabels(adminClient(), scored))
+    return ok({ ...day, fetchedAt: new Date().toISOString() }, TTL.score)
   } catch (e) {
     return delayed(`scores ${date}`, e)
   }

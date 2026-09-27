@@ -3,7 +3,7 @@ import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import { useLampGame } from '../../../lib/nhl/useLamp'
 import { nhlLogo } from '../../../lib/nhl/teams'
 import { strengthTag } from '../ScoreTable'
-import { EmptyState, DelayedBanner, Loading, SourceLine, Kicker, GameTypeChip, LampDot, fmtDay, fmtPuckDrop, zoneAbbrev } from '../ui'
+import { EmptyState, DelayedBanner, Loading, SourceLine, Kicker, GameTypeChip, LampDot, GoalLabel, fmtDay, fmtPuckDrop, zoneAbbrev } from '../ui'
 
 // 🏒 GAME — one game, top to bottom: the header (score, period, clock),
 // the linescore and shots by period, every goal with its assists and
@@ -113,10 +113,11 @@ export default function Game({ id, onBack, backLabel = 'Scores' }) {
                       <td style={{ ...td, fontFamily: NUM_FONT, fontWeight: 900, fontSize: 11 }}>{x.team}</td>
                       <td style={{ ...td, fontFamily: NUM_FONT, fontSize: 9.5, fontWeight: 800, color: x.strength === 'pp' ? C.teal : x.strength === 'sh' ? C.amber : C.text3 }}>{strengthTag(x)}</td>
                       <td style={td}>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', flexWrap: 'wrap', columnGap: 7, rowGap: 3 }}>
                           {x.scorer.headshot && <img src={x.scorer.headshot} alt="" width={22} height={22} loading="lazy" style={{ width: 22, height: 22, borderRadius: '50%', background: C.bg3, objectFit: 'cover' }} />}
                           <span style={{ color: C.text, fontWeight: 700 }}>{x.scorer.first ? `${x.scorer.first} ${x.scorer.last}` : x.scorer.name}</span>
                           {x.scorer.goalsToDate != null && <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 9.5 }}>({x.scorer.goalsToDate})</span>}
+                          <GoalLabel label={x.label} />
                         </span>
                       </td>
                       <td className="sm-hide" style={{ ...td, color: C.text2, fontSize: 11 }}>{x.assists.length ? x.assists.map((a) => `${a.name}${a.assistsToDate != null ? ` (${a.assistsToDate})` : ''}`).join(', ') : <span style={{ color: C.text3 }}>unassisted</span>}</td>
