@@ -127,6 +127,17 @@ export default async function DashHome({ searchParams }) {
   // A day with no MLB games: the slate on hand is an earlier day's, and the
   // next game day is later (lib/mlbNext.js).
   const mlbOff = Boolean(mlb?.date && mlb?.today && mlb.date < mlb.today && nextLine(mlb?.next, mlb.today))
+  // Football on tonight = a kickoff today (ET) or one under way (4 h). Else
+  // one line: "next game Thu 8:15 PM ET".
+  const nflOff = (() => {
+    const ks = (nfl?.kickoffs || []).map((k) => Date.parse(k)).filter(Number.isFinite).sort((a, b) => a - b)
+    const now = Date.now()
+    const todayEt = new Date(now).toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+    const on = ks.some((t) => new Date(t).toLocaleDateString('en-CA', { timeZone: 'America/New_York' }) === todayEt || (t <= now && now - t < 4 * 3600e3))
+    if (on || !ks.length) return null
+    const next = ks.find((t) => t > now)
+    return next ? `next game ${new Date(next).toLocaleString('en-US', { timeZone: 'America/New_York', weekday: 'short', hour: 'numeric', minute: '2-digit' })} ET` : 'no game left this week'
+  })()
   // The sign-up fold opens by itself when someone is mid-flow: a failed
   // attempt, a confirm-your-email return, or the welcome after sign-up.
   const authOpen = Boolean(welcomeName || params.error || params.message || params.confirm || params.em)
@@ -210,22 +221,47 @@ export default async function DashHome({ searchParams }) {
 
       <section className={styles.slate} id="tonight">
         <div className={styles.slateHead}><p className={styles.kicker}>ON RIGHT NOW</p><h2>The whole network, one glance.</h2></div>
-        <div className={styles.tiles}>
-          {/* NO GAMES TODAY (2026-09-27, e.g. Mon 09-28 before the Wild Card):
-              the games tile says so and when baseball is back; the other three
-              keep the last slate's numbers under that slate's own day, never
-              under "tonight". */}
-          <Tile label="MLB GAMES" value={mlbOff ? null : mlb?.games} sub={mlbOff ? `No MLB games tonight · ${nextLine(mlb.next, mlb.today)}` : mlb?.live ? `${mlb.live} live` : mlb?.final ? `${mlb.final} final` : 'pre-game'} accent="mlb" />
-          <Tile label={mlbOff ? `CALLS · ${dayWord(mlb.date)}` : 'CALLS TONIGHT'} value={mlb?.calls} sub="HR · HIT · HRR · CONTACT" accent="mlb" />
-          <Tile label={mlbOff ? `CLEARED · ${dayWord(mlb.date)}` : 'CLEARED SO FAR'} value={mlb?.cleared} sub={mlb?.started ? `calls that cleared their bar, of ${mlb.started} that batted` : 'nobody has batted yet'} accent="mlb" />
-          <Tile label={mlbOff ? `HRs · ${dayWord(mlb.date)}` : 'HRs ON THE SLATE'} value={mlb?.locked?.total || mlb?.homers} sub={lockedLine(mlb?.locked)} accent="mlb" />
-          <Tile label="NFL GAMES" value={nfl?.games} sub={timeUntil(nfl?.kickoff) || nfl?.label} accent="nfl" />
-          <Tile label="PLAYERS RATED" value={nfl?.players} sub={nfl?.label} accent="nfl" />
-          {/* Hockey: the count and the lock. Before the first lock the tile says
-              when the board locks; after it, how many games hold a locked
-              call. A preview never counts (lib/nhl/pulse.js). */}
-          <Tile label="NHL GAMES" value={nhl?.games} sub={nhl?.live ? `${nhl.live} live` : nhl?.final ? `${nhl.final} final` : nhl?.games ? `first puck ${etClock(nhl.firstStart)}` : nhl?.label || 'no games tonight'} accent="nhl" />
-          <Tile label="LAMP LOCKED" value={nhl?.games ? `${nhl.lockedGames}/${nhl.games}` : null} sub={nhl?.games ? (nhl.lockedGames ? 'games with a locked call' : `locks from ${etClock(nhl.locksFromUtc)}`) : lampWhy(nhl) || nhl?.label || null} accent="nhl" />
+        {/* GROUPED BY PRODUCT (front door C, 2026-09-27): was eight tiles in a
+            6 + 2 grid, three colours mixed in one row, LAMP's two empty. Now one
+            column per product in its own colour, the whole column a link into
+            it; a product with nothing on tonight is one line saying why and
+            when, instead of zeros. Phone: one product per row, tiles two across. */}
+        <div className={styles.productCols}>
+          {mlbOff ? (
+            <Link href={appHref('mlb')} className={`${styles.productOff} ${styles.mlb}`}><b>MOONSHOT</b> · No MLB games tonight · {nextLine(mlb.next, mlb.today)}</Link>
+          ) : (
+            <Link href={appHref('mlb')} className={`${styles.productCol} ${styles.mlb}`} aria-label="MOONSHOT, tonight's baseball">
+              <span className={styles.productColHead}>MOONSHOT · MLB</span>
+              <span className={styles.productColTiles}>
+                <Tile label="GAMES" value={mlb?.games} sub={mlb?.live ? `${mlb.live} live` : mlb?.final ? `${mlb.final} final` : 'pre-game'} accent="mlb" />
+                <Tile label="CALLS TONIGHT" value={mlb?.calls} sub={mlb?.started ? `${mlb.cleared ?? 0} cleared, of ${mlb.started} that batted` : 'HR · HIT · HRR · CONTACT'} accent="mlb" />
+                <Tile label="HRs ON THE SLATE" value={mlb?.locked?.total || mlb?.homers} sub={lockedLine(mlb?.locked)} accent="mlb" />
+              </span>
+            </Link>
+          )}
+          {nflOff ? (
+            <Link href={appHref('nfl')} className={`${styles.productOff} ${styles.nfl}`}><b>TUDDY</b> · {nflOff}</Link>
+          ) : (
+            <Link href={appHref('nfl')} className={`${styles.productCol} ${styles.nfl}`} aria-label="TUDDY, the football week">
+              <span className={styles.productColHead}>TUDDY · NFL</span>
+              <span className={styles.productColTiles}>
+                <Tile label="GAMES THIS WEEK" value={nfl?.games} sub={timeUntil(nfl?.kickoff) || nfl?.label} accent="nfl" />
+                <Tile label="PLAYERS RATED" value={nfl?.players} sub={nfl?.label} accent="nfl" />
+              </span>
+            </Link>
+          )}
+          {/* Hockey: the count and the lock. A preview never counts (lib/nhl/pulse.js). */}
+          {!nhl?.games ? (
+            <Link href={appHref('nhl')} className={`${styles.productOff} ${styles.nhl}`}><b>LAMP</b> · {lampWhy(nhl) || nhl?.label || 'No NHL games tonight'}</Link>
+          ) : (
+            <Link href={appHref('nhl')} className={`${styles.productCol} ${styles.nhl}`} aria-label="LAMP, tonight's hockey">
+              <span className={styles.productColHead}>LAMP · NHL</span>
+              <span className={styles.productColTiles}>
+                <Tile label="GAMES" value={nhl.games} sub={nhl.live ? `${nhl.live} live` : nhl.final ? `${nhl.final} final` : `first puck ${etClock(nhl.firstStart)}`} accent="nhl" />
+                <Tile label="LOCKED" value={`${nhl.lockedGames}/${nhl.games}`} sub={nhl.lockedGames ? 'games with a locked call' : `locks from ${etClock(nhl.locksFromUtc)}`} accent="nhl" />
+              </span>
+            </Link>
+          )}
         </div>
         <p className={styles.stamp}>
           Live from the published payloads, cached two minutes.{mlb?.label ? ` MLB: ${mlb.label}.` : ''}
