@@ -5,7 +5,7 @@
 // the HTTP face of it, cached a minute at the edge.
 import { easternToday } from '../../../../lib/data'
 import { validDate } from '../../../../lib/nhl/api'
-import { readBoard } from '../../../../lib/nhl/boardRead'
+import { readBoard, BOARD_MARKETS } from '../../../../lib/nhl/boardRead'
 import { ok, bad, delayed } from '../../../../lib/nhl/respond'
 
 export const dynamic = 'force-dynamic'
@@ -15,8 +15,11 @@ export async function GET(request) {
   const { searchParams } = new URL(request.url)
   const date = searchParams.get('date') || easternToday()
   if (!validDate(date)) return bad('date must be a real YYYY-MM-DD day')
+  // ?market=SOG (LAMP v2); GOAL when absent, so every old link reads as before.
+  const market = String(searchParams.get('market') || 'GOAL').toUpperCase()
+  if (!BOARD_MARKETS[market]) return bad(`market must be one of ${Object.keys(BOARD_MARKETS).join(', ')}`)
   try {
-    const board = await readBoard(date)
+    const board = await readBoard(date, { market })
     return ok({ ...board, fetchedAt: new Date().toISOString() }, 60)
   } catch (e) {
     return delayed(`board ${date}`, e)
