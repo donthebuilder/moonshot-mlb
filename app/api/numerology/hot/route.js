@@ -28,7 +28,9 @@ export async function GET(request) {
   if (!db) return Response.json({ sport, today: null, trending: [], configured: false })
   const today = easternToday()
   const since = new Date(Date.parse(`${today}T12:00:00Z`) - (WINDOW_DAYS[sport] || 7) * 864e5).toISOString().slice(0, 10)
-  const { data, error } = await db.from('numerology_numbers').select('day, kind, value, events, expected, players').eq('sport', sport).gte('day', since).lte('day', today)
+  // '*' so the `rebuilt` flag (HOT-NUMBERS-FIX item 3) is read when the
+  // column exists and nothing breaks before its migration has run.
+  const { data, error } = await db.from('numerology_numbers').select('*').eq('sport', sport).gte('day', since).lte('day', today)
     .order('day', { ascending: false }).limit(5000)
   if (error) return Response.json({ sport, error: error.message }, { status: 502 })
   const rows = data || []
@@ -74,5 +76,6 @@ export async function GET(request) {
     today: latest ? { day: latest, hot: hottest(rows.filter((r) => r.day === latest).map((r) => ({ ...r, expected: Number(r.expected) }))).map(label) } : null,
     trending: hottest([...sum.values()].map((o) => ({ ...o, expected: Math.round(o.expected * 100) / 100 }))).map(label),
     nights: new Set(rows.map((r) => r.day)).size, windowDays: WINDOW_DAYS[sport] || 7, configured: true,
+    rebuiltNights: new Set(rows.filter((r) => r.rebuilt === true).map((r) => r.day)).size,
   }, { headers: { 'Cache-Control': 's-maxage=300, stale-while-revalidate=1800' } })
 }

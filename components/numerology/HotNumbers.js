@@ -65,7 +65,7 @@ export default function HotNumbers({ sport, date, theme: C, numFont, accent, com
         <>
           <div style={{ fontSize: 11, color: C.text3, marginTop: live ? 8 : 4 }}>{live ? 'LAST GRADED' : 'TODAY'}{data.today?.day ? ` · ${fmtDay(data.today.day)}` : ''}</div>
           {(data.today?.hot || []).length ? <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>{data.today.hot.map(line)}</ul> : <div style={{ fontSize: 12, color: C.text3 }}>Nothing ran above chance.</div>}
-          <div style={{ fontSize: 11, color: C.text3, marginTop: 8 }}>TRENDING · last {data.windowDays} days · {data.nights} night{data.nights === 1 ? '' : 's'}</div>
+          <div style={{ fontSize: 11, color: C.text3, marginTop: 8 }}>TRENDING · last {data.windowDays} days · {data.nights} night{data.nights === 1 ? '' : 's'}{data.rebuiltNights ? ` (${data.rebuiltNights} rebuilt after the fact, not frozen pregame)` : ''}</div>
           {trend.length ? <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>{trend.map(line)}</ul> : <div style={{ fontSize: 12, color: C.text3 }}>Nothing ran above chance.</div>}
         </>
       )}
