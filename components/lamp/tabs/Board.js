@@ -4,7 +4,7 @@ import PageHeader from '../../PageHeader'
 import { C, NUM_FONT, rampAt } from '../../../lib/nhl/theme'
 import LampTable from '../LampTable'
 import { useLampBoard } from '../../../lib/nhl/useLamp'
-import { TeamMark, EmptyState, DelayedBanner, Loading, SourceLine, Kicker, GameTypeChip, LampDot, StaleSeasonNote, fmtDay, fmtPuckDrop, fmtSec, zoneAbbrev, shiftDay } from '../ui'
+import { TeamMark, EmptyState, DelayedBanner, Loading, SourceLine, Kicker, GameTypeChip, LampDot, StaleSeasonNote, fmtDay, fmtPuckDrop, fmtSec, zoneAbbrev, shiftDay, STATUS, CalledChip } from '../ui'
 
 // 🏒 THE LAMP GOAL BOARD (lamp-goal-v1) — the product's first signal page.
 // Per game: every scored skater ranked, the top three CALLED, the rest ON
@@ -16,7 +16,8 @@ import { TeamMark, EmptyState, DelayedBanner, Loading, SourceLine, Kicker, GameT
 // LOCKED board is what the record holds (the last write before puck drop,
 // app/api/lamp/tick). After the final the GOALS column fills and a hit
 // lights the lamp. Every number is a field or a percentile of a field.
-export const STATUS = { called: 'CALLED', board: 'ON THE BOARD', off: 'NOT ON THE BOARD' }
+// The three words live in ../ui (STATUS), shared with the goal lists.
+export { STATUS }
 
 // The day is the LAMP shell's (LampDashboard, 2026-09-26): one date for the
 // header's Today/Tmrw, every dated tab and the address -- this tab's day
@@ -69,13 +70,9 @@ const pct1 = (v) => (v == null ? null : (v * 100).toFixed(1))
 const ppVsPk = (us, them) => (pct1(us?.ppPct) && pct1(them?.pkPct) ? `${pct1(us.ppPct)} v ${pct1(them.pkPct)}` : null)
 const restWord = (s) => (s?.b2b ? 'B2B' : s?.rest != null ? `${s.rest}d` : null)
 
-// The filled CALLED chip -- pregame in STATUS, graded beside the goals -- and
+// The filled CALLED chip (CalledChip, ../ui) -- pregame in STATUS, graded beside the goals -- and
 // the rank itself filled on a called row, the two marks MOONSHOT's pick rows
 // carry. (Beside the name it was clipped by the name cell at 390px.)
-function CalledChip() {
-  return <span style={{ marginRight: 7, background: C.ice, color: C.bg, font: `900 7.5px/1 ${NUM_FONT}`, letterSpacing: '.12em', borderRadius: 4, padding: '2px 5px', verticalAlign: '1px' }}>{STATUS.called}</span>
-}
-
 function PctBars({ r }) {
   if (!r.pct) return null
   const legs = [['S', r.pct.shotsPg, 'shots'], ['G', r.pct.goalsPg, 'goals'], ['T', r.pct.toi, 'ice time']]

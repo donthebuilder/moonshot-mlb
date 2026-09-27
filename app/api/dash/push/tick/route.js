@@ -34,10 +34,12 @@ import { createHash, timingSafeEqual } from 'node:crypto'
 import { easternToday } from '../../../../../lib/data'
 import { fetchLiveSlate } from '../../../../../lib/liveSlate'
 import { fetchNflLive } from '../../../../../lib/nfl/liveSlate'
+import { scoreFor } from '../../../../../lib/nhl/api'
+import { reduceScoreDay } from '../../../../../lib/nhl/reduce'
 import { hasVapid, vapidDetails, vapidProblem } from '../../../../../lib/dash/vapid'
 import { claimBoardWindow, fetchBoard } from '../../../../../lib/dash/board'
 import { byeStarterEventsFrom, franchiseEventsFrom, lineupGapEventsFrom, starterScoreEventsFrom } from '../../../../../lib/dash/franchise'
-import { audienceFrom, boardInfoFrom, laneOf, lineupUpdatesFrom, mlbEventsFrom, nflEventsFrom, pregameEventsFrom, priorityOf, wants } from '../../../../../lib/dash/pushRules'
+import { audienceFrom, boardInfoFrom, laneOf, lineupUpdatesFrom, mlbEventsFrom, nflEventsFrom, nhlEventsFrom, pregameEventsFrom, priorityOf, wants } from '../../../../../lib/dash/pushRules'
 import { fanOutToDiscord } from '../../../../../lib/dash/discordAlerts'
 import { isMaintenanceMode, isRedZoneAlertsEnabled } from '../../../../../lib/edgeConfig'
 
@@ -189,6 +191,32 @@ async function pregameEvents(db, audience) {
 async function nflEvents(audience) {
   const snap = await fetchNflLive({ force: true }).catch(() => null)
   return nflEventsFrom(snap, today(), audience)
+}
+
+// LAMP GOALS (2026-09-28). app/api/lamp/goals/tick writes lamp_goal_feed;
+// this reads the confirmed, standing rows nobody has swept yet (today's and
+// yesterday's game dates -- a Pacific game runs past ET midnight), plus the
+// rest of those games' standing rows so "2nd tonight" counts right. No
+// query at all unless somebody follows a skater or has nhlcalled on.
+// Returns the rows read so the sweep can mark them push_sent once claimed.
+const dayBeforeEt = (ymd) => { const [y, m, d] = ymd.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d - 1, 12)).toISOString().slice(0, 10) }
+async function nhlEvents(db, audience, stateByUser) {
+  const anyCalled = Object.values(stateByUser || {}).some((s) => s?.dash_alerts_v1?.events?.nhlcalled === true)
+  if (!audience?.nhl?.size && !anyCalled) return { events: [], unswept: [] }
+  const days = [today(), dayBeforeEt(today())]
+  const { data: unswept, error } = await db.from('lamp_goal_feed').select('*')
+    .in('day', days).eq('push_sent', false).not('confirmed_at', 'is', null).is('overturned_at', null).limit(60)
+  if (error) { console.error(`[push] lamp_goal_feed: ${error.message}`); return { events: [], unswept: [] } }
+  if (!unswept?.length) return { events: [], unswept: [] }
+  const { data: context } = await db.from('lamp_goal_feed').select('game_id, player_id, goal_n, period, time_in_period, overturned_at')
+    .in('game_id', [...new Set(unswept.map((r) => r.game_id))]).is('overturned_at', null)
+  return { events: nhlEventsFrom(unswept, audience, context?.length ? context : unswept), unswept }
+}
+async function markSwept(db, rows) {
+  for (const r of rows || []) {
+    const { error } = await db.from('lamp_goal_feed').update({ push_sent: true }).match({ game_id: r.game_id, player_id: r.player_id, goal_n: r.goal_n })
+    if (error) { console.error(`[push] lamp_goal_feed push_sent: ${error.message}`); return }
+  }
 }
 
 // ── HOW MANY MESSAGES, AND WHEN ────────────────────────────────────────────
@@ -357,6 +385,12 @@ async function worthSweepingAgain(audience) {
     const snap = await fetchNflLive().catch(() => null)
     if (snap?.games?.some((g) => g?.state === 'in')) return true
   }
+  // LAMP: the goal tick writes a live game's goals every minute; a follower
+  // is worth the second and third sweep while any NHL game is on.
+  if (audience?.nhl?.size) {
+    const day = await scoreFor(today()).then(reduceScoreDay).catch(() => null)
+    if (day?.live > 0) return true
+  }
   return false
 }
 
@@ -471,9 +505,11 @@ async function logOutcomes(db, sub, rows) {
 async function sweep(db, subs, stateByUser, audience, { full }) {
   const nothing = { sent: 0, held: 0, events: 0, fresh: 0, dead: [], discord: 0 }
   const redZoneEnabled = await isRedZoneAlertsEnabled()
+  const nhl = await nhlEvents(db, audience, stateByUser)
   const produced = [
     ...(await mlbEvents(db, audience)),
     ...(await nflEvents(audience)),
+    ...nhl.events,
     // Every sweep, not gated behind `full` -- see starterScoreEventsFrom's own
     // comment for why a Franchise touchdown needs the same speed as TUDDY's.
     // It reads the in-process snapshot nflEvents() just warmed above, so this
@@ -503,7 +539,7 @@ async function sweep(db, subs, stateByUser, audience, { full }) {
   const events = scratchedIds.size
     ? produced.filter((e) => !(e.category === 'dropout' && scratchedIds.has(String(e.playerId))))
     : produced
-  if (!events.length) return nothing
+  if (!events.length) { await markSwept(db, nhl.unswept); return nothing }
 
   // Insert-and-see-what-stuck: only rows this run actually created are new.
   // Doing it as one insert with ignoreDuplicates makes the check atomic — two
@@ -521,6 +557,9 @@ async function sweep(db, subs, stateByUser, audience, { full }) {
     console.error(`[push] event claim failed (${events.length} events): ${claimError.message}`)
     return { ...nothing, events: events.length, error: claimError.message }
   }
+  // The goals' events are claimed (dash_push_seen now remembers them), so the
+  // rows are done: the next sweep skips them without a second read.
+  await markSwept(db, nhl.unswept)
 
   const fresh = new Set((claimed || []).map((r) => r.event_key))
   const toSend = events.filter((e) => fresh.has(e.key))

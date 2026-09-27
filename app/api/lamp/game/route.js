@@ -9,6 +9,8 @@
 import { landingFor, rightRailFor, GAME_ID_RE, TTL } from '../../../../lib/nhl/api'
 import { reduceGameDetail } from '../../../../lib/nhl/reduce'
 import { ok, bad, delayed } from '../../../../lib/nhl/respond'
+import { adminClient } from '../../../../lib/nhl/db'
+import { goalLabels, labelGoals, FEED_START } from '../../../../lib/nhl/goalFeed'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,7 +23,10 @@ export async function GET(request) {
       landingFor(id),
       rightRailFor(id).catch((e) => { console.error(`[lamp] right-rail ${id}: ${e?.message}`); return null }),
     ])
-    return ok({ ...reduceGameDetail(landing, rail), railMissing: !rail, fetchedAt: new Date().toISOString() }, TTL.game)
+    let game = reduceGameDetail(landing, rail)
+    // The same CALLED / ON THE BOARD labels as the scores list (lamp_goal_feed).
+    if (game.date >= FEED_START && game.goals?.length) [game] = labelGoals([game], await goalLabels(adminClient(), [game.id]))
+    return ok({ ...game, railMissing: !rail, fetchedAt: new Date().toISOString() }, TTL.game)
   } catch (e) {
     return delayed(`game ${id}`, e)
   }

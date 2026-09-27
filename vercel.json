@@ -105,6 +105,18 @@
       "schedule": "*/10 15-23 * * *"
     },
     {
+      "path": "/api/lamp/goals/tick",
+      "schedule": "* 16-23 * * *"
+    },
+    {
+      "path": "/api/lamp/goals/tick",
+      "schedule": "* 0-6 * * *"
+    },
+    {
+      "path": "/api/dash/push/tick",
+      "schedule": "* 16 * * 6"
+    },
+    {
       "path": "/api/lamp/tick",
       "schedule": "*/10 0-7 * * *"
     },
