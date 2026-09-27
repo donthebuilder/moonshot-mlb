@@ -199,11 +199,19 @@ export default async function DashHome({ searchParams }) {
             A first-timer met "board", "call" and "the bot" in every tile below
             and nothing here said what they were. Worded from /start's own
             lines, so the two pages say it the same way. */}
-        <dl className={styles.words}>
-          <div><dt>The board</dt><dd>every player the model rated before the game, ranked.</dd></div>
-          <div><dt>A call</dt><dd>a player the model &mdash; the bot &mdash; designated before the game: MOONSHOT&apos;s HR, HIT, HRR and CONTACT picks, TUDDY&apos;s touchdown picks, LAMP&apos;s top three in each game.</dd></div>
-          <div><dt>Graded</dt><dd>after the game, every call is checked against the bar it was made for, in public, wins and misses alike.</dd></div>
-        </dl>
+        {/* SIGNED IN (front door F, 2026-09-27): the three definitions are for a
+            first visit, so a returning account gets them folded; a stranger
+            still sees them open. */}
+        {(() => {
+          const words = (
+            <dl className={styles.words}>
+              <div><dt>The board</dt><dd>every player the model rated before the game, ranked.</dd></div>
+              <div><dt>A call</dt><dd>a player the model &mdash; the bot &mdash; designated before the game: MOONSHOT&apos;s HR, HIT, HRR and CONTACT picks, TUDDY&apos;s touchdown picks, LAMP&apos;s top three in each game.</dd></div>
+              <div><dt>Graded</dt><dd>after the game, every call is checked against the bar it was made for, in public, wins and misses alike.</dd></div>
+            </dl>
+          )
+          return me.user ? <details className={styles.wordsFold}><summary>What the words mean</summary>{words}</details> : words
+        })()}
         <div className={styles.heroActions}>
           {/* /start is the page that explains a product and carries the
               sign-up; CALLED IT is the public record. Neither had a door here
@@ -214,6 +222,10 @@ export default async function DashHome({ searchParams }) {
               into the product that's live today. /start and the record stay
               as the quieter doors beside it. */}
           <Link href={appHref(live)}>Open tonight&apos;s board <b>→</b><small className={styles.heroWhich}>{BRAND[live].name} · {BRAND[live].league}</small></Link>
+          {/* Signed in (F): the other two products, as two small links. */}
+          {me.user ? (
+            <span className={styles.otherProducts}>or {['mlb', 'nfl', 'nhl'].filter((k) => k !== live).map((k, i) => <span key={k}>{i ? ' · ' : ''}<Link href={appHref(k)}>{BRAND[k].name}</Link></span>)}</span>
+          ) : null}
           <Link href="/start">What is this?</Link>
           <Link href="/called">CALLED IT &middot; the public record</Link>
         </div>

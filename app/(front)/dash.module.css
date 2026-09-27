@@ -100,6 +100,19 @@ a.brand { text-decoration: none; color: inherit; }
 }
 .heroActions a:first-child { border-color: var(--mlb); background: color-mix(in srgb, var(--mlb) 14%, #191817); }
 .heroActions b { margin-left: 5px; color: var(--mlb); }
+/* Signed in (front door F): the other two products as plain text links, and
+   the three definitions folded. Overrides the button look of .heroActions a. */
+.otherProducts { display: inline-flex; align-items: center; gap: 4px; color: var(--dim); font-size: 12px; }
+.heroActions .otherProducts a, .heroActions .otherProducts a:first-child {
+  display: inline-flex; align-items: center; min-height: 44px; padding: 0 6px;
+  border: 0; background: none; color: var(--ink); text-decoration: underline; text-underline-offset: 3px;
+}
+.wordsFold { margin-top: 12px; }
+.wordsFold > summary { cursor: pointer; list-style: none; display: inline-flex; align-items: center; min-height: 44px; color: var(--dim); font-size: 12px; font-weight: 700; }
+.wordsFold > summary::-webkit-details-marker { display: none; }
+.wordsFold > summary::before { content: '+ '; color: var(--mlb); white-space: pre; }
+.wordsFold[open] > summary::before { content: '− '; }
+.wordsFold > summary:focus-visible { outline: 2px solid var(--mlb); outline-offset: 2px; }
 /* Which product the primary opens today (funnel step 1). */
 .heroWhich { display: block; margin-top: 4px; color: var(--dim); font: 800 8px/1 monospace; letter-spacing: .12em; }
 /* The sign-up form, behind one button (funnel step 1). */
