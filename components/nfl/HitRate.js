@@ -25,7 +25,8 @@ const PRESETS = {
   RUSH_YDS: [39.5, 49.5, 79.5], RUSH_ATT: [9.5, 11.5, 14.5],
   PASS_YDS: [199.5, 224.5, 274.5], KICK_PTS: [5.5, 8.5],
 }
-const STAT_KEY = {
+// Exported for the player file's rates table (NflPlayerModal RatesTable).
+export const STAT_KEY = {
   TD: 'g_td', REC_YDS: 'g_recyd', REC: 'g_rec', RUSH_YDS: 'g_ruyd',
   RUSH_ATT: 'g_car', PASS_YDS: 'g_payd', KICK_PTS: 'g_kick',
 }
