@@ -25,6 +25,7 @@ import BoardHub from './tabs/BoardHub'
 import Research from './tabs/Research'
 import Matchups from './tabs/Matchups'
 import Explosive from './tabs/Explosive'
+import RedZone from './tabs/RedZone'
 import Numerology from './tabs/Numerology'
 import Report from './tabs/Report'
 import Accountability from './tabs/Accountability'
@@ -340,6 +341,7 @@ export default function NflDashboard({ palettePass = 0 }) {
             {tab === 'research' && <Research data={data} onPlayerClick={openPlayer} />}
             {tab === 'matchups' && <Matchups matchup={matchup} data={data} />}
             {tab === 'explosive' && <Explosive matchup={matchup} data={data} onPlayerClick={openPlayer} />}
+            {tab === 'redzone' && <RedZone data={data} onPlayerClick={openPlayer} />}
             {tab === 'numerology' && <Numerology data={data} />}
             {tab === 'report' && <Report report={report} />}
             {tab === 'accountability' && <Accountability data={data} results={nflResults} onPlayerClick={openPlayer} />}
