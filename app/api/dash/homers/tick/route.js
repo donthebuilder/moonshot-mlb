@@ -31,7 +31,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { timingSafeEqual } from 'node:crypto'
 
-import { easternToday, slateDateFromRows } from '../../../../../lib/data'
+import { easternToday, etHoursSinceNoon, slateDateFromRows } from '../../../../../lib/data'
 import { callStatus } from '../../../../../lib/callStatus'
 import { mlbWatch, historyWatchText, reachedLine } from '../../../../../lib/history/watch'
 import { fetchLiveSlate, liveSlateStatus } from '../../../../../lib/liveSlate'
@@ -435,9 +435,8 @@ const PREGAME_LEAD_MS = 60 * 60 * 1000
 // STAT-FEED POST TIMES (2026-09-07, Donovan: "3-5 posts minimum a day...
 // mostly pregame, then a couple mid-slate"). Expressed as hours after noon
 // ET so a late-evening threshold (9pm) compares correctly even once the UTC
-// clock has rolled to the next calendar date -- see etHoursSinceNoon below.
-// Hardcoded for EDT (the offset in effect for the whole regular season) --
-// same assumption the old pregame-hour fallback made, accepted there too.
+// clock has rolled to the next calendar date -- see etHoursSinceNoon (lib/data.js).
+// Read off the real America/New_York clock (lib/data.js), EDT or EST.
 // 2026-09-07, second pass (Donovan: "earlier in the day for all of these").
 // Every slot moved up; negative values are morning ET. The three pregame
 // slots no longer sit behind the posted-lineup gate, so these thresholds are
@@ -612,16 +611,9 @@ const STORYLINE_WATCH_3_HOUR = 2   // 2pm ET
 const STORYLINE_WATCH_4_HOUR = 4   // 4pm ET
 const REVENGE_GIVEAWAY_HOUR = -5   // 7am ET
 
-function etHoursSinceNoon() {
-  const h = new Date().getUTCHours()
-  // Fold the early-UTC hours (late ET the previous day) forward. The cut used
-  // to be h < 12, which made 8am ET the earliest threshold that worked at all
-  // -- 7am ET (11:00 UTC) folded to +19 and would have read as late evening.
-  // Cut at 4 instead: the representable window is now midnight ET (-12)
-  // through 11pm ET (+11), which covers every hour anything posts.
-  const rel = h < 4 ? h + 24 : h
-  return rel - 16                  // 16:00 UTC = noon ET (EDT)
-}
+// etHoursSinceNoon lives in lib/data.js (2026-09-27): the real New York hour
+// minus 12, -12 (midnight ET) through +11 (11pm ET). It used to be the UTC
+// hour minus 16 here, which was an hour early all winter (EST).
 
 /** The earliest game_time on tonight's board, in ms, or null if none parse.
  *  With `games` (today's MLB schedule), only rows whose game is on it count:
