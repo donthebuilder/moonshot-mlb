@@ -3,13 +3,14 @@ import NflFace from '../NflFace'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../../lib/nfl/theme'
 import { btnStyle } from '../../ui'
+import DefensesTable from '../DefensesTable'
 import MatchupMap from '../MatchupMap'
 import PageHeader from '../../PageHeader'
 import DvpTable from '../DvpTable'
 import DvpDrift from '../DvpDrift'
 import SourceSeason from '../SourceSeason'
 import ChartFrame from '../ChartFrame'
-import { softRole, softLine, passRushThreat, PASS_RUSH_AVOID, gameVerdict } from '../../../lib/nfl/dvpSignal'
+import { softRole, softLine, passRushThreat, PASS_RUSH_AVOID, STARTER_ROLES } from '../../../lib/nfl/dvpSignal'
 
 // Matchups — pick a defence, then read it two ways.
 //
@@ -177,17 +178,6 @@ function Section({ title, sub, children, style }) {
   )
 }
 
-// Squarer and tighter than the shared pill. The MLB side keeps btnStyle as-is.
-function teamStyle(active) {
-  return {
-    fontFamily: NUM_FONT, fontSize: TYPE.label, fontWeight: 800, letterSpacing: '.06em',
-    padding: '6px 10px', borderRadius: 7, cursor: 'pointer', whiteSpace: 'nowrap',
-    border: `1px solid ${active ? C.green : C.border}`,
-    background: active ? `${C.green}33` : 'rgba(255,255,255,.03)',
-    color: active ? C.green : C.text2,
-  }
-}
-
 export default function Matchups({ matchup, data }) {
   // The slate is six teams. Listing all 32 alphabetically put ATL next to ARI
   // and buried the ones playing tonight in a wall of three-letter codes — so
@@ -203,9 +193,13 @@ export default function Matchups({ matchup, data }) {
   const [team, setTeam] = useState(null)
   const [win, setWin] = useState('season')
   const [pid, setPid] = useState(null)
-  const [showAll, setShowAll] = useState(false)
-  const [allGames, setAllGames] = useState(false)
-  const active = team || slate[0]?.[0] || rest[0]
+  // The detail opens on the table's #1 (the softest defense this week) until a
+  // row is tapped -- same measure, starters only.
+  const softest = useMemo(() => slate.flat()
+    .map((t) => [t, softRole(matchup, t, win, STARTER_ROLES)?.z])
+    .filter(([, z]) => Number.isFinite(z))
+    .sort((a, b) => b[1] - a[1])[0]?.[0] || null, [slate, matchup, win])
+  const active = team || softest || slate[0]?.[0] || rest[0]
 
   const pick = (t) => { setTeam(t); setPid(null) }
 
@@ -272,52 +266,14 @@ export default function Matchups({ matchup, data }) {
         numFont={NUM_FONT}
         accent={C.cyan}
       />
-      {/* THE VERDICT FIRST (BATCH-FACES step 10): one line per game -- the
-          softest starter-role cell on either defence and the toughest
-          (lib/nfl/dvpSignal.js gameVerdict, the same z-vs-league measure the
-          DvP callout below uses). The team buttons stay the picker. Six
-          games show; the rest behind one tap. */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 10 }}>
-        {(allGames ? slate : slate.slice(0, 6)).map(([away, home]) => {
-          const v = gameVerdict(matchup, away, home, win)
-          return (
-            <div key={`${away}@${home}`} style={{
-              display: 'grid', gridTemplateColumns: 'auto 1fr', alignItems: 'center', gap: 10, padding: '4px 8px 4px 4px',
-              border: `1px solid ${C.border}`, borderRadius: 10, background: C.bg2,
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <button onClick={() => pick(away)} style={teamStyle(away === active)}>{away}</button>
-                <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, color: C.text3 }}>@</span>
-                <button onClick={() => pick(home)} style={teamStyle(home === active)}>{home}</button>
-              </div>
-              <div style={{ fontSize: 12, lineHeight: 1.4, color: C.text2, minWidth: 0 }}>
-                {v.softText ? <div><b style={{ color: C.cyan }}>{v.softText}</b></div> : null}
-                {v.toughText ? <div style={{ color: C.text3 }}>{v.toughText}</div> : null}
-                {!v.softText && !v.toughText ? <span style={{ color: C.text3 }}>no standout either way</span> : null}
-              </div>
-            </div>
-          )
-        })}
-      </div>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
-        {slate.length > 6 && (
-          <button onClick={() => setAllGames((v) => !v)} aria-expanded={allGames} style={{ ...teamStyle(false), color: C.cyan }}>
-            {allGames ? 'SHOW 6' : `+${slate.length - 6} MORE GAMES`}
-          </button>
-        )}
-        {rest.length > 0 && (
-          <button onClick={() => setShowAll((v) => !v)} style={{
-            ...teamStyle(showAll), color: showAll ? C.green : C.text3,
-          }}>{showAll ? 'HIDE' : `ALL ${rest.length + onSlate.size}`}</button>
-        )}
-      </div>
-      {showAll && (
-        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 10 }}>
-          {rest.map((t) => (
-            <button key={t} onClick={() => pick(t)} style={teamStyle(t === active)}>{t}</button>
-          ))}
-        </div>
-      )}
+      {/* THE DEFENSES TO ATTACK LEAD (2026-09-27, matchups plan REVISED):
+          MOONSHOT's Pitchers-page shape -- a ranked table, softest first; a
+          tap opens that defense's detail below (the map, the DvP grid, drift,
+          panels). Replaces the per-game verdict rows and the team buttons. */}
+      <DefensesTable matchup={matchup} data={data} win={win} active={active} onPick={(t) => { pick(t); if (typeof document !== 'undefined') requestAnimationFrame(() => document.getElementById('tuddy-def-detail')?.scrollIntoView({ behavior: 'smooth', block: 'start' })) }} />
+      <h2 id="tuddy-def-detail" style={{ margin: '4px 0 8px', fontSize: TYPE.title, fontWeight: 900, scrollMarginTop: 80 }}>
+        {active} defense <span style={{ fontFamily: NUM_FONT, fontSize: 11, color: C.text3, fontWeight: 600 }}>· tap another row above to switch</span>
+      </h2>
 
       <Section
         title={`${active} — THE MAP`}
