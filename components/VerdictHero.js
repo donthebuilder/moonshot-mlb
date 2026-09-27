@@ -1,4 +1,5 @@
 'use client'
+import { useEffect, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { alpha, score as fmtScore } from '../lib/scales'
 
@@ -27,7 +28,9 @@ import { alpha, score as fmtScore } from '../lib/scales'
  * is always the real one; `max` only sets what a full ring means, and the
  * caller is expected to say so in a title.
  */
-export function Dial({ value, col, size = 64, max = 100, title, dp = 0, pct: pctOverride }) {
+export function Dial({ value, col, size = 64, max = 100, title, dp = 0, pct: pctOverride, photo = null }) {
+  const [broken, setBroken] = useState(false)
+  useEffect(() => { setBroken(false) }, [photo])
   const v = value == null ? null : Number(value)
   // `pct` overrides the ring when the number has no absolute scale of its own.
   // A Game Score is defined RELATIVE to tonight's slate — "GS vs the median" —
@@ -36,8 +39,15 @@ export function Dial({ value, col, size = 64, max = 100, title, dp = 0, pct: pct
   const pct = pctOverride != null ? Math.max(0, Math.min(100, Number(pctOverride)))
     : v == null ? null : Math.max(0, Math.min(100, (v / max) * 100))
   const inner = Math.round(size * 0.81)
+  // FACE IN THE DIAL (2026-09-27, Donovan: "put them inside the number"): with
+  // a `photo`, his face fills the inner circle and the score rides a pill on
+  // the ring's bottom edge -- the ring's colour, still the loudest thing after
+  // the face. No photo, or it fails to load -> the dial exactly as before.
+  const withFace = Boolean(photo) && !broken
+  const numText = v == null ? '—' : fmtScore(v, dp)
   return (
     <div title={title} style={{
+      position: 'relative',
       width: size, height: size, borderRadius: '50%', flexShrink: 0,
       display: 'grid', placeItems: 'center',
       background: pct == null
@@ -49,12 +59,23 @@ export function Dial({ value, col, size = 64, max = 100, title, dp = 0, pct: pct
       <div style={{
         width: inner, height: inner, borderRadius: '50%', background: C.bg,
         display: 'grid', placeItems: 'center', border: `1px solid ${alpha(col, 0.18)}`,
+        overflow: 'hidden', position: 'relative',
       }}>
-        <span style={{
-          fontSize: Math.round(size * 0.3), fontWeight: 900, fontFamily: NUM_FONT,
-          color: col, lineHeight: 1,
-        }}>{v == null ? '—' : fmtScore(v, dp)}</span>
+        {withFace
+          ? <img src={photo} alt="" width={inner} height={inner} loading="lazy" decoding="async" onError={() => setBroken(true)}
+              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }} />
+          : <span style={{
+              fontSize: Math.round(size * 0.3), fontWeight: 900, fontFamily: NUM_FONT,
+              color: col, lineHeight: 1,
+            }}>{numText}</span>}
       </div>
+      {withFace && (
+        <span style={{
+          position: 'absolute', left: '50%', bottom: -7, transform: 'translateX(-50%)',
+          padding: '2px 7px', borderRadius: 999, background: C.bg, border: `1px solid ${alpha(col, 0.7)}`,
+          color: col, font: `900 ${Math.max(11, Math.round(size * 0.19))}px/1 ${NUM_FONT}`, whiteSpace: 'nowrap',
+        }}>{numText}</span>
+      )}
     </div>
   )
 }
@@ -88,9 +109,35 @@ export function VerdictBadge({ label, col, quiet }) {
 // role code large, the market it settles on under it — and the score becomes a
 // small numeral on the right, where the badge used to sit. `lead="dial"` is the
 // default and is what the player and pitcher modals still use, untouched.
-function VerdictPlate({ badge, col, quiet, market, size = 64 }) {
+function VerdictPlate({ badge, col, quiet, market, size = 64, photo = null }) {
+  const [broken, setBroken] = useState(false)
+  useEffect(() => { setBroken(false) }, [photo])
   const label = String(badge || '').replace(/^[^\w]*\s*/, '')  // strip a leading emoji
   const big = label.length > 5 ? Math.round(size * 0.21) : Math.round(size * 0.27)
+  // FACE IN THE PLATE (2026-09-27): his face fills the plate, a dark gradient
+  // at the bottom, the role code and market over it in today's colours. Border
+  // and glow unchanged. No photo, or it fails -> the plate exactly as before.
+  if (photo && !broken) {
+    return (
+      <div style={{
+        position: 'relative', overflow: 'hidden',
+        width: size, height: size, borderRadius: 16, flexShrink: 0, background: C.bg,
+        border: `1px solid ${quiet ? C.border2 : alpha(col, 0.55)}`,
+        boxShadow: quiet ? 'none' : `0 0 14px ${alpha(col, 0.22)}`,
+      }}>
+        <img src={photo} alt="" width={size} height={size} loading="lazy" decoding="async" onError={() => setBroken(true)}
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }} />
+        <div style={{
+          position: 'absolute', left: 0, right: 0, bottom: 0, paddingTop: 16, paddingBottom: 4,
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
+          background: `linear-gradient(180deg, ${alpha(C.bg, 0)}, ${alpha(C.bg, 0.92)} 55%)`,
+        }}>
+          <span style={{ fontSize: Math.round(big * 0.72), fontWeight: 900, letterSpacing: '.06em', color: quiet ? C.text3 : col, lineHeight: 1, fontFamily: NUM_FONT }}>{label || '—'}</span>
+          {market && <span style={{ fontSize: 7.5, fontWeight: 800, color: quiet ? C.text3 : alpha(col, 0.9), letterSpacing: '.04em', textTransform: 'uppercase', whiteSpace: 'nowrap', maxWidth: size - 8, overflow: 'hidden', textOverflow: 'ellipsis' }}>{market}</span>}
+        </div>
+      </div>
+    )
+  }
   return (
     <div style={{
       width: size, height: size, borderRadius: 16, flexShrink: 0,
@@ -121,7 +168,7 @@ export function ScoreChip({ value, col, title }) {
 export default function VerdictHero({
   col, score, max, dialTitle, dp,
   title, badge, badgeQuiet, meta, metaRight, market, line, line2, facts, right,
-  chips, footer, style, lead = 'dial', face = null,
+  chips, footer, style, lead = 'dial', photo = null,
 }) {
   const badgeLeads = lead === 'badge'
   // A fact the chips above already assert is not worth a second bubble --
@@ -148,12 +195,11 @@ export default function VerdictHero({
       }} />
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 13, minWidth: 0 }}>
-        {/* The player's face, when the caller has one (BATCH-FACES step 8):
-            MOONSHOT's card is the first user; every other hero passes none. */}
-        {face}
+        {/* The player's face lives INSIDE the instrument (2026-09-27): the
+            dial's inner circle or the plate. `photo` is a URL; none -> today's look. */}
         {badgeLeads
-          ? <VerdictPlate badge={badge} col={col} quiet={badgeQuiet} market={market} />
-          : <Dial value={score} col={col} max={max} title={dialTitle} dp={dp} />}
+          ? <VerdictPlate badge={badge} col={col} quiet={badgeQuiet} market={market} photo={photo} />
+          : <Dial value={score} col={col} max={max} title={dialTitle} dp={dp} photo={photo} />}
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
             <span style={{

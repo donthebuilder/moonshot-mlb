@@ -1,5 +1,5 @@
 'use client'
-import PlayerFace from './PlayerFace'
+import { mlbFaceStrict } from './PlayerFace'
 import { useEffect, useState } from 'react'
 
 import useScrollLock from '../lib/useScrollLock'
@@ -801,16 +801,10 @@ export default function PlayerModal({ player, slateMode, initialTab = '', onClos
           {!apiOnly && <PickVerdictStamp player={p} />}
           <VerdictHero
             style={{ marginBottom: 12 }}
-            // The face (BATCH-FACES step 8), from 561px up: on a phone the head
-            // row has no room -- measured, it cut "#15 Hunter Goodman" to
-            // 131 of 178px at 390. The name wins; faces stay on the phone's
-            // The Four, strip and portal.
-            face={clean(p?.player_id, '') ? (
-              <span className="pm-hero-face" style={{ display: 'inline-flex', flex: 'none' }}>
-                <PlayerFace sport="mlb" id={clean(p?.player_id, '')} name={nameOf(p)} size={46} theme={C} />
-                <style>{'@media (max-width: 560px) { .pm-hero-face { display: none !important; } }'}</style>
-              </span>
-            ) : null}
+            // The face INSIDE the dial (2026-09-27): it used to sit beside it
+            // from 561px up and cut "#15 Hunter Goodman" at 390; in the ring it
+            // costs zero width, so phones get it too. No photo -> the number.
+            photo={mlbFaceStrict(clean(p?.player_id, ''), 128)}
             col={heroCol}
             score={heroScore}
             title={<>

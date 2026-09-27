@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../lib/theme'
-import { nameOf, teamOf, oppOf, txt, playerId } from '../../lib/player'
+import { nameOf, teamOf, oppOf, txt, playerId, mlbId } from '../../lib/player'
 import { quoteFor, fmtOdds } from '../../lib/odds'
 import {
   ROLE_ORDER, GROUP_ORDER, rolesOf, primaryRole, roleColor,
@@ -9,6 +9,7 @@ import {
 } from '../../lib/verdict'
 import PickCompare from '../PickCompare'
 import VerdictHero, { PeriodTiles } from '../VerdictHero'
+import { mlbFaceStrict } from '../PlayerFace'
 import PropsSheet from '../PropsSheet'
 import MobileFold, { useIsPhone } from '../MobileFold'
 import { FilterPill } from '../Filters'
@@ -143,6 +144,9 @@ function Card({ r, role: forced, odds, onPlayerClick, onWatch, watched }) {
       style={{ cursor: onPlayerClick ? 'pointer' : 'default', minWidth: 0 }}>
       <VerdictHero
         lead="badge"
+        // His face in the plate (2026-09-27); lazy, so only cards near the
+        // screen fetch one. No photo -> today's plate.
+        photo={mlbFaceStrict(mlbId(r), 128)}
         col={col}
         score={v.score(r)}
         dialTitle={`${role === 'NONE' ? 'Overall' : role} score — the bot's number for this market`}
