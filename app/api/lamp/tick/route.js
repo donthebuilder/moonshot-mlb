@@ -33,6 +33,7 @@ import { readNumerology } from '../../../../lib/nhl/numerology'
 import { writeNight as writeNumerology, gradeNight as gradeNumerology, refreshLaneNights, writeNumbersNight } from '../../../../lib/numerology/record'
 import { fromNhl } from '../../../../lib/numerology/adapters'
 import { storiesTick } from '../../../../lib/stories/record'
+import { postNhlListOnce } from '../../../../lib/lists/post'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -224,6 +225,12 @@ export async function GET(request) {
   // in the 15 minutes before puck drop (this tick runs every 10), grade them
   // once final. lib/stories/record.js; never throws.
   out.stories = await storiesTick(db, 'nhl')
+  // 📋 LIST POSTS (BATCH-LIST-POSTS step 3): one a day from noon ET once the
+  // regular season has games -- Mondays IRON MAN, else goal streaks / a point
+  // in every game (lib/lists/post.js). Today's date only.
+  if (date === easternToday() && etHour >= 12) {
+    out.lists = await postNhlListOnce(db, date).catch((e) => `error: ${e?.message}`)
+  }
   out.ms = Date.now() - t0
   console.log(`[lamp tick] ${date} locked ${out.locked.length} graded ${out.graded.length} skipped ${out.skipped.length} in ${out.ms}ms`)
   return Response.json(out, { headers: { 'Cache-Control': 'no-store' } })
