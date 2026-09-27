@@ -65,5 +65,29 @@ check(!wrong.length, `isFib agrees with the sequence for every n 0..987${wrong.l
 check(fibNeighbours(21, 34) && fibNeighbours(55, 34) && !fibNeighbours(21, 55) && !fibNeighbours(22, 34), 'fib pairs: 21 & 34, 34 & 55 yes; 21 & 55, 22 & 34 no')
 check(!isFib(64) && !isFib(38) && isFib(144), 'date numbers 64 / 38 are not Fibonacci; 144 is')
 
+// ── 5. the lanes (step 5) ──────────────────────────────────────────────────
+const { matchLanes, eligibleLanes, ageOn } = await import('../lib/numerology/lanes.js')
+const { fromNfl } = await import('../lib/numerology/adapters.js')
+const has = (p, date, key) => matchLanes(p, { date }).filter((m) => m.lane === key)
+check(has({ name: 'Aaron Judge' }, '2026-09-12', 'gem_date').some((m) => /last name = 47 in English Ordinal; tonight's short date number is 47/.test(m.text)), '9/12/26 short = 9+12+26 = 47 = JUDGE (English Ordinal) -> gem_date')
+check(has({ name: 'Aaron Judge', jersey: 49 }, '2026-09-29', 'gem_jersey').some((m) => /first name = 49/.test(m.text)) && !has({ name: 'Aaron Judge', jersey: 99 }, '2026-09-29', 'gem_jersey').length, 'AARON = 49 = jersey #49 -> gem_jersey; #99 -> none')
+check(has({ name: 'Aaron Judge' }, '2026-04-06', 'letters_date').length === 1, '"Aaron Judge" has 10 letters = 4/6 month+day 10 -> letters_date')
+check(has({ jersey: 21 }, '2026-09-29', 'fib_jersey').length === 1 && !has({ jersey: 22 }, '2026-09-29', 'fib_jersey').length, 'jersey 21 Fibonacci, 22 not')
+check(has({ next: 34 }, '2026-09-29', 'fib_next').length === 1, 'next #34 is Fibonacci')
+check(has({ birthDate: '1992-09-27' }, '2026-09-29', 'birthday_week').length === 1 && !has({ birthDate: '1992-10-05' }, '2026-09-29', 'birthday_week').length && ageOn('1992-09-27', '2026-09-29') === 34, 'birthday 2 days ago -> birthday week (age 34); 6 days away -> none')
+check(has({ jersey: 12 }, '2026-09-29', 'jersey_universal').length === 1 && !has({ jersey: 13 }, '2026-09-29', 'jersey_universal').length, '#12 -> 3 = Universal Day 3 (9/29/26); #13 -> 4 no')
+check(!matchLanes({ name: 'Aaron Judge' }, { date: '2026-09-29' }).some((m) => m.lane.startsWith('fib_jersey') || m.lane === 'jersey_universal'), 'a missing jersey sits those lanes out (never a 0)')
+check(fromNfl({ position: 'DEF', player_id: 'DEF-CHI', name: 'Bears D/ST' }) === null && fromNfl({ position: 'WR', name: 'DJ Moore', jersey_number: 2, season_td: 1 }).next === 2, 'a DEF row is not a name (null); a real player adapts (next = season TD + 1)')
+check(eligibleLanes({ name: 'X' }).includes('gem_date') && !eligibleLanes({ name: 'X' }).includes('gem_jersey'), 'eligible lanes follow the fields he has (the denominator)')
+// live, read-only: this week's TUDDY players through the lanes
+const week = await fetch('https://raw.githubusercontent.com/donthebuilder/MLB-HR-DASHBOARD-STREAMLIT/data/public/data/current/nfl_week.json').then((r) => r.json()).catch(() => null)
+if (week) {
+  const date = '2026-09-28'
+  const players = (week.players || []).map(fromNfl).filter(Boolean)
+  const counts = {}
+  for (const p of players) for (const m of matchLanes(p, { date })) counts[m.lane] = (counts[m.lane] || 0) + 1
+  console.log(`   live, nfl_week (${players.length} players, ${date}):`, JSON.stringify(counts))
+}
+
 console.log(failed ? `\n${failed} FAILED` : '\nall green')
 process.exit(failed ? 1 : 0)
