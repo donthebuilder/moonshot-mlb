@@ -105,7 +105,9 @@ function FormBadge({ form, color }) {
 // TD stays in this page's own market pills too — Touchdowns.js's own
 // dedicated page still exists for the deeper tier/compare-tool experience,
 // this is not a replacement for it, just the rest of the board catching up.
-export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsStatus }) {
+// `market` + `hideMarketPicker` (2026-09-26, the Board hub): the hub's own
+// market picker drives this page; standalone it keeps its own.
+export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsStatus, market: marketProp = null, hideMarketPicker = false }) {
   // ── SAVE FROM THE CARD ITSELF (parity pass, 2026-09-16) ─────────────────
   // MOONSHOT's PropsGrid found this exact gap 2026-08-24 (Donovan: "click a
   // player to add to watch list, nothing happens") -- its card board had no
@@ -116,7 +118,8 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
   // the same hook StatPortal.js/Live.js/NflPlayerModal.js already call
   // directly off `data`, self-contained -- no new prop plumbing needed.
   const watchlist = useNflWatchlist(data)
-  const [market, setMarket] = useState('TD')
+  const [marketOwn, setMarket] = useState('TD')
+  const market = marketProp || marketOwn
   const [showLow, setShowLow] = useState(false)
   const [query, setQuery] = useState('')
   const [team, setTeam] = useState('all')
@@ -251,7 +254,7 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
 
   return (
     <div>
-      <PillRow label="Market" value={market} options={marketOptions} onChange={setMarket} />
+      {!hideMarketPicker && <PillRow label="Market" value={market} options={marketOptions} onChange={setMarket} />}
 
       <div style={{ marginTop: 8 }}>
         <FilterBar>

@@ -21,13 +21,11 @@ import Home from './tabs/Home'
 import StatPortal from './tabs/StatPortal'
 import Watchlist from './tabs/Watchlist'
 import Games from './tabs/Games'
-import Boards from './tabs/Boards'
-import Touchdowns from './tabs/Touchdowns'
+import BoardHub from './tabs/BoardHub'
 import Research from './tabs/Research'
 import Matchups from './tabs/Matchups'
 import Explosive from './tabs/Explosive'
 import Numerology from './tabs/Numerology'
-import Picks from './tabs/Picks'
 import Report from './tabs/Report'
 import Accountability from './tabs/Accountability'
 import TuddyLedger from './tabs/TuddyLedger'
@@ -329,13 +327,16 @@ export default function NflDashboard({ palettePass = 0 }) {
             {tab === 'players' && <StatPortal data={data} logs={logs} matchup={matchup} initialTeam={portalTeam} />}
             {tab === 'watchlist' && <Watchlist data={slate} matchup={matchup} logs={logs} onPlayerClick={openPlayer} />}
             {tab === 'games' && <Games data={slate} picks={picks} matchup={matchup} logs={logs} results={nflResults} onPlayerClick={openPlayer} />}
-            {tab === 'touchdowns' && <Touchdowns data={slate} matchup={matchup} odds={odds} onPlayerClick={openPlayer} oddsStatus={oddsStatus} />}
-            {tab === 'boards' && <Boards data={data} logs={logs} matchup={matchup} onPlayerClick={openPlayer} odds={odds} oddsStatus={oddsStatus} />}
+            {/* One Board page (2026-09-26, option (b)): touchdowns / boards /
+                picks are the same hub; boards opens BOARD, picks opens CALLED. */}
+            {(tab === 'touchdowns' || tab === 'boards' || tab === 'picks') && (
+              <BoardHub key={tab} slate={slate} data={data} logs={logs} matchup={matchup} odds={odds} oddsStatus={oddsStatus}
+                picks={picks} results={nflResults} onPlayerClick={openPlayer} initialView={tab === 'picks' ? 'called' : 'board'} />
+            )}
             {tab === 'research' && <Research data={data} onPlayerClick={openPlayer} />}
             {tab === 'matchups' && <Matchups matchup={matchup} data={data} />}
             {tab === 'explosive' && <Explosive matchup={matchup} data={data} onPlayerClick={openPlayer} />}
             {tab === 'numerology' && <Numerology data={data} />}
-            {tab === 'picks'    && <Picks picks={picks} results={nflResults} data={data} matchup={matchup} onPlayerClick={openPlayer} odds={odds} oddsStatus={oddsStatus} logs={logs} />}
             {tab === 'report' && <Report report={report} />}
             {tab === 'accountability' && <Accountability data={data} results={nflResults} onPlayerClick={openPlayer} />}
             {tab === 'tuddyledger' && <TuddyLedger data={data} results={nflResults} onPlayerClick={openPlayer} />}

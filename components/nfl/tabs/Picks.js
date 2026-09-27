@@ -119,13 +119,16 @@ function SlateStrip({ bump }) {
   )
 }
 
-export default function Picks({ picks, results, data, matchup, onPlayerClick, odds, oddsStatus, logs = null }) {
+// `market` + `hideMarketPicker` (2026-09-26, the Board hub): the hub's
+// picker chooses which market's calls show; standalone it keeps its own.
+export default function Picks({ picks, results, data, matchup, onPlayerClick, odds, oddsStatus, logs = null, market: marketProp = null, hideMarketPicker = false }) {
   const [mine, setMine] = useState({})
   const [now, setNow] = useState(() => Date.now())
   const [msg, setMsg] = useState('')
   const [bump, setBump] = useState(0)
   const [openSlot, setOpenSlot] = useState(null)
-  const [filterMarket, setFilterMarket] = useState('all')
+  const [filterMarketOwn, setFilterMarket] = useState('all')
+  const filterMarket = marketProp || filterMarketOwn
   const [filterTeam, setFilterTeam] = useState('all')
   const [filterPosition, setFilterPosition] = useState('all')
   const [filterQuery, setFilterQuery] = useState('')
@@ -463,7 +466,7 @@ export default function Picks({ picks, results, data, matchup, onPlayerClick, od
         padding: '10px 12px', border: `1px solid ${C.border}`, borderRadius: 12,
         background: C.bg2,
       }}>
-        <PillRow label="Market" value={filterMarket} options={marketOptions} onChange={setFilterMarket} />
+        {!hideMarketPicker && <PillRow label="Market" value={filterMarket} options={marketOptions} onChange={setFilterMarket} />}
         <FilterBar>
           <FilterSearch value={filterQuery} onChange={setFilterQuery} placeholder="Search pick…" width={160} />
           <FilterSelect label="Team" value={filterTeam} options={teamOptions} onChange={setFilterTeam} />
@@ -473,7 +476,7 @@ export default function Picks({ picks, results, data, matchup, onPlayerClick, od
         <ActiveFilters
           filters={[
             filterQuery && { key: 'query', label: `Name: ${filterQuery}`, onClear: () => setFilterQuery('') },
-            filterMarket !== 'all' && { key: 'market', label: card[filterMarket]?.label || filterMarket, onClear: () => setFilterMarket('all') },
+            !marketProp && filterMarket !== 'all' && { key: 'market', label: card[filterMarket]?.label || filterMarket, onClear: () => setFilterMarket('all') },
             filterTeam !== 'all' && { key: 'team', label: `Team: ${filterTeam}`, onClear: () => setFilterTeam('all') },
             filterPosition !== 'all' && { key: 'position', label: `Position: ${filterPosition}`, onClear: () => setFilterPosition('all') },
           ]}
