@@ -2057,7 +2057,7 @@ export async function GET(request) {
         personInfoOf(ev.player_id),
       ])
       const partner = partnerFor(pairs, ev.player_id, ev.name)
-      const hooks = hooksFor(ev, { pairs, board, todayIds, yesterdayIds, history: hist || [], jersey, birthDate, pairedEarlier: tonightRows || [], topStraight })
+      const hooks = hooksFor(ev, { day, pairs, board, todayIds, yesterdayIds, history: hist || [], jersey, birthDate, pairedEarlier: tonightRows || [], topStraight })
       const stats = { ...(ev.stats || {}), jersey, birthDate }
       ev.hooks = hooks
       ev.stats = stats
@@ -2084,7 +2084,7 @@ export async function GET(request) {
   if (!dayCountErr && !_numerology.done && dayCount !== _numerology.count) {
     _numerology.count = dayCount
     const { data: dayRows } = await db.from('homer_feed').select('player_id,name,team,opponent,role,hr_n,stats').eq('day', day)
-    const moment = numerologyMoment(dayRows || [])
+    const moment = numerologyMoment(dayRows || [], { day })
     if (moment) {
       const claim = await claimSlot(db, day, 'numerology')
       // Claimed: this day is settled here. Not claimed (taken, kind off, or

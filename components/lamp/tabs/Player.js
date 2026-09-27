@@ -4,6 +4,8 @@ import MultiLine from '../../ledger/MultiLine'
 import PageHeader from '../../PageHeader'
 import LampTable from '../LampTable'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
+import HisNumbers from '../../HisNumbers'
+import { etToday } from '../../../lib/freshness'
 import { useLampPlayer } from '../../../lib/nhl/useLamp'
 import { nhlTeam } from '../../../lib/nhl/teams'
 import { usePreview, ShowMoreButton } from '../../ListPreview'
@@ -170,6 +172,10 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel }) {
           </tbody></table>
         </section>
       )}
+      {/* 🔢 His numbers (numerology step 7). Skaters: goals are LAMP's number.
+          Next goal only from THIS season's line (a stale featured season would
+          count last year's); career next from the league's career totals. */}
+      {!goalie && <HisNumbers name={p.name} jersey={p.number} birthDate={p.birthDate} next={!stale && Number.isFinite(f.regular?.g) ? f.regular.g + 1 : null} career={Number.isFinite(p.career?.regular?.g) ? p.career.regular.g + 1 : null} nextWord="goal" date={etToday()} theme={C} accent={C.ice} numFont={NUM_FONT} />}
       <SourceLine>Source: NHL player/{p.id}/landing and player/{p.id}/game-log/{'{season}'}/2 via /api/lamp/player, cached ten minutes. The featured season is the feed’s own.</SourceLine>
     </div>
   )

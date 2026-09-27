@@ -7,6 +7,8 @@ import { C, NUM_FONT, MARKETS, gradeFor } from '../../lib/nfl/theme'
 import PropsGrid from './PropsGrid'
 import { STAT_KEY } from './HitRate'
 import PlayerNotes from '../PlayerNotes'
+import HisNumbers from '../HisNumbers'
+import { etToday } from '../../lib/freshness'
 import { VerdictStamp, PutOnCard } from './CardActions'
 import MatchupMap from './MatchupMap'
 import NflFace from './NflFace'
@@ -894,6 +896,8 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
         {/* Same per-device note store as MOONSHOT's card; ids can't collide.
             Stays on Overview, where MOONSHOT keeps its own. */}
         {tab === 'overview' && <PlayerNotes playerId={player.player_id} />}
+        {/* 🔢 His numbers (numerology step 7). A team defense is not a name. */}
+        {tab === 'overview' && player.position !== 'DEF' && <HisNumbers name={player.name} jersey={player.jersey_number} birthDate={player.birth_date} next={Number.isFinite(player?.season_td) ? player.season_td + 1 : null} nextWord="TD" date={etToday()} theme={C} accent={C.green} numFont={NUM_FONT} />}
 
         {tab === 'overview' && player.carryover && (
           <div style={{
