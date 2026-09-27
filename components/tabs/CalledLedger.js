@@ -83,7 +83,7 @@ export default function CalledLedger({ slateDate = '', onPlayerClick = null }) {
   const loadSeason = useCallback(async (days) => {
     setSeasonLoading(true); setSeasonMessage('')
     try {
-      const { season: s, coveredNights, publishedNights, requestedNights } = await loadCalledSeason(today, days, {
+      const { season: s, coveredNights, publishedNights, requestedNights, postseason, otherNights } = await loadCalledSeason(today, days, {
         onProgress: ({ i, of, date: d }) => setSeasonMessage(`reading ${d} — ${i}/${of}`),
       })
       setSeason(s)
@@ -91,9 +91,12 @@ export default function CalledLedger({ slateDate = '', onPlayerClick = null }) {
         setSeasonMessage('Nothing with full coverage published in that window yet.')
       } else {
         const olderFormat = publishedNights - coveredNights
+        // Which season this is, said out loud (2026-09-27): the postseason and
+        // the regular season are separate records, never one percentage.
         setSeasonMessage(
-          `${coveredNights} of ${requestedNights} nights loaded`
+          `${postseason ? 'POSTSEASON · ' : ''}${coveredNights} of ${requestedNights} nights loaded`
           + (olderFormat > 0 ? ` (${olderFormat} used an older report format and were skipped)` : '')
+          + (otherNights ? ` · ${otherNights} ${postseason ? 'regular-season' : 'postseason'} ${otherNights === 1 ? 'night' : 'nights'} kept out, counted on their own` : '')
           + '.',
         )
       }

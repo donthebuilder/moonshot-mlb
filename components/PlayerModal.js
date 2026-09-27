@@ -39,6 +39,8 @@ import MatchupPitcher from './MatchupPitcher'
 import PlayerSplits from './PlayerSplits'
 import SituationalSplits from './SituationalSplits'
 import PlayerNotes from './PlayerNotes'
+import HisNumbers from './HisNumbers'
+import { etToday } from '../lib/freshness'
 import { BatterSim } from './GameSimulator'
 import ThresholdGrid from './ThresholdGrid'
 import ColdCase from './ColdCase'
@@ -592,11 +594,13 @@ export default function PlayerModal({ player, slateMode, initialTab = '', onClos
   // deliberately separate from that cache rather than reaching into it: this
   // fetches at most once per modal-open, not a hot enough path to share one.
   const [jersey, setJersey] = useState(null)
+  // birthDate rides the same one call (numerology step 7: His Numbers).
+  const [birthDate, setBirthDate] = useState(null)
   useEffect(() => {
-    setJersey(null)
+    setJersey(null); setBirthDate(null)
     if (!pid) return undefined
     let alive = true
-    fetch(`https://statsapi.mlb.com/api/v1/people?personIds=${pid}&fields=people,id,primaryNumber`)
+    fetch(`https://statsapi.mlb.com/api/v1/people?personIds=${pid}&fields=people,id,primaryNumber,birthDate`)
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => {
         if (!alive) return
@@ -607,6 +611,7 @@ export default function PlayerModal({ player, slateMode, initialTab = '', onClos
         // feature needed for the identical reason, so a player with no
         // number on file renders nothing instead of a fake "#0".
         setJersey(person?.primaryNumber != null && person.primaryNumber !== '' && Number.isFinite(num) ? num : null)
+        setBirthDate(/^\d{4}-\d{2}-\d{2}$/.test(String(person?.birthDate || '')) ? person.birthDate : null)
       })
       .catch(() => { if (alive) setJersey(null) })
     return () => { alive = false }
@@ -659,6 +664,8 @@ export default function PlayerModal({ player, slateMode, initialTab = '', onClos
   // the bot designated as an HRR pick is graded on hits + runs + RBI, so those
   // are the numbers his card owes you — not season homers.
   const primaryType = (String(player?.game_pick_role || '').split('/')[0].trim() || 'hr').toLowerCase()
+  // His season homers so far (bot row, else the live pull): His Numbers' "next HR".
+  const hrSoFar = Number.isFinite(Number(p?.season_hr ?? liveSeason?.hr)) && (p?.season_hr ?? liveSeason?.hr) !== null && (p?.season_hr ?? liveSeason?.hr) !== '' ? Number(p?.season_hr ?? liveSeason?.hr) : null
 
   // API-ONLY PLAYERS (2026-08-06): anyone found through the league-wide
   // search who isn't on the bot's slate. Every live-pull panel works for them
@@ -1172,6 +1179,8 @@ export default function PlayerModal({ player, slateMode, initialTab = '', onClos
               {/* Your own words, this device only — the read you had on him
                   three days ago that no stat column remembers. */}
               <PlayerNotes playerId={pid} />
+              {/* 🔢 His numbers (numerology step 7): flavour, last, folded on a phone. */}
+              <HisNumbers name={nameOf(p)} jersey={jersey} birthDate={birthDate} next={hrSoFar != null ? hrSoFar + 1 : null} nextWord="HR" date={etToday()} theme={C} accent={C.orange} numFont={NUM_FONT} />
             </>
           )}
 

@@ -38,6 +38,7 @@ import ComebackBoard from '../ComebackBoard'
 import { mlbSlateState } from '../../lib/mlbSlateState'
 import HeadlineStrip from '../HeadlineStrip'
 import HeroStat from '../HeroStat'
+import { mlbNextGames, nextLine } from '../../lib/mlbNext'
 
 // An Eastern calendar day n days from today (YYYY-MM-DD), on etToday's clock.
 const etShift = (n) => { const d = new Date(`${etToday()}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10) }
@@ -385,6 +386,15 @@ export default function Home({
     && slateDate < etToday()
     && !isLive,
   )
+  // When baseball is back (2026-09-27, e.g. Mon 09-28 -> "Wild Card starts
+  // Tue 9/29"): one schedule read, only while the slate on screen is past.
+  const [nextMlb, setNextMlb] = useState(null)
+  useEffect(() => {
+    if (!slateInPast) { setNextMlb(null); return undefined }
+    let alive = true
+    mlbNextGames(etToday()).then((n) => { if (alive) setNextMlb(n) })
+    return () => { alive = false }
+  }, [slateInPast])
 
   // First pitch: the earliest game that hasn't started yet, else the earliest.
   // Ticks once a second for the countdown chip; cheap, one integer of state.
@@ -883,6 +893,7 @@ export default function Home({
               <span style={{ background: 'linear-gradient(90deg, #f97316, #FCD34D)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
                 {gradesPending ? 'Final grades post in the morning.' : 'Every pick is graded.'}
               </span>
+              {nextLine(nextMlb, etToday()) ? <span style={{ display: 'block', fontSize: 14, fontWeight: 800, color: C.text2, letterSpacing: 0, marginTop: 4 }}>No games tonight · {nextLine(nextMlb, etToday())}.</span> : null}
             </>
           ) : (
             <>

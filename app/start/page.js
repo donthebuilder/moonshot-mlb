@@ -59,6 +59,7 @@
 // and its night anchors.
 import { createClient } from '@supabase/supabase-js'
 import { unstable_cache } from 'next/cache'
+import { postseasonOn } from '../../lib/dash/seasonGuard'
 
 import BotPicksStrip from '../../components/BotPicksStrip'
 import { easternToday } from '../../lib/data'
@@ -268,6 +269,10 @@ function client() {
 // number comes from the model record (computeLampRecord below).
 const EVENT_READERS = { mlb: readMlbEvents, nfl: readNflEvents }
 
+// The sports whose record splits at the postseason's first day (MLB's
+// October); the others quote one season as before.
+const SEASON_SPLIT = { mlb: (d) => postseasonOn(d).catch(() => ({ postseason: null })) }
+
 async function computeRecord(sportKey, today) {
   const sport = SPORTS[sportKey]
   const db = client()
@@ -286,10 +291,17 @@ async function computeRecord(sportKey, today) {
     usable = recorded
   }
 
+  // THE POSTSEASON IS ITS OWN RECORD (2026-09-27, list-posts step 6): in
+  // October the quote is postseason nights only (labelled), before it the
+  // regular season only -- never one percentage made of both. MLB only.
+  const split = SEASON_SPLIT[sport.key]
+  const post = split ? await split(today) : { postseason: false }
+  const inPost = post.postseason === true
   const nights = []
   for (let i = 0; i < DAYS; i += 1) {
     const day = shiftDay(today, -i)
     if (usable && !usable.has(day)) continue
+    if (post.start && (day >= post.start) !== inPost) continue
     const dayEvents = events.filter((e) => e.game_date === day)
     if (!dayEvents.length) continue
     const cap = eventCapture(dayEvents)
@@ -306,7 +318,7 @@ async function computeRecord(sportKey, today) {
     { called: 0, onBoard: 0, total: 0 },
   )
   if (!span.total) return null
-  return { ...span, days: nights.length }
+  return { ...span, days: nights.length, postseason: inPost }
 }
 
 /**
@@ -388,7 +400,7 @@ async function computeCalls(sportKey) {
 const loadCalls = unstable_cache(computeCalls, ['start-calls'], { revalidate: START_TTL })
 // v2 (2026-09-26): the record's shape changed (called / onBoard / total) --
 // a new key so a cached v1 entry can never render NaN after a deploy.
-const loadRecord = unstable_cache(computeRecord, ['start-record-v2'], { revalidate: START_TTL })
+const loadRecord = unstable_cache(computeRecord, ['start-record-v3'], { revalidate: START_TTL })
 
 /** One bite row. Shared by both sports and by the league strip. */
 function Bite({ b }) {
@@ -445,7 +457,7 @@ export default async function StartPage({ searchParams }) {
           <p className={styles.receipt}>
             <span className={styles.big}>{byCalls ? record.called : record.onBoard}</span> of{' '}
             <span className={styles.big}>{record.total}</span> {sport.event} over the last{' '}
-            {record.days} {sport.unit}{record.days === 1 ? '' : 's'} {byCalls ? sport.calledPhrase : sport.boardPhrase}
+            {record.days} {record.postseason ? 'postseason ' : ''}{sport.unit}{record.days === 1 ? '' : 's'} {byCalls ? sport.calledPhrase : sport.boardPhrase}
             {' '}— <strong>{Math.round((100 * (byCalls ? record.called : record.onBoard)) / record.total)}%</strong>.{' '}
             {byCalls ? record.onBoard : record.called} {byCalls ? sport.boardPhrase : sport.calledPhrase}.{' '}
             <a className={styles.inline} href={sport.recordHref}>{sport.recordLink}</a>

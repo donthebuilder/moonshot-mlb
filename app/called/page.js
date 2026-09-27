@@ -23,6 +23,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { unstable_cache } from 'next/cache'
+import { postseasonOn } from '../../lib/dash/seasonGuard'
 import { easternToday } from '../../lib/data'
 import { matchupWord, oddsWord, roleWord } from '../../lib/dash/homerFeed'
 import { tdCallWord, tdPlayWord } from '../../lib/nfl/tdFeed'
@@ -297,7 +298,7 @@ const CALLED_TTL = 60
 const loadPlain = unstable_cache(async (key) => {
   const { sport, calledIds, byDay, ...rest } = await loadFresh(key)
   return { ...rest, key: sport.key, calledIds: [...calledIds], byDay: [...byDay] }
-}, ['called-load-v1'], { revalidate: CALLED_TTL })
+}, ['called-load-v2'], { revalidate: CALLED_TTL })
 const cardPlain = unstable_cache(async (key) => (SPORTS[key]?.cardRecord ? SPORTS[key].cardRecord() : null), ['called-card-v1'], { revalidate: CALLED_TTL })
 
 async function load(key) {
@@ -351,11 +352,16 @@ async function loadMlb(sport, db, today) {
   // below both read this so the two can never disagree.
   const byDay = new Map()
   const history = []
+  // THE POSTSEASON IS ITS OWN LINE (2026-09-27, list-posts step 6): a night on
+  // or after the season's first postseason day is tagged `post` -- on the
+  // strip, labelled, counted on its own POSTSEASON line and never in the
+  // season span (the NHL preseason rule, the other way round).
+  const post = await postseasonOn(today).catch(() => ({ postseason: null }))
   for (let i = 0; i < DAYS; i += 1) {
     const day = shiftDay(today, -i)
     const dayRows = all.filter((r) => r.day === day)
     byDay.set(day, dayRows)
-    history.push({ day, ...eventCapture(dayRows) })
+    history.push({ day, post: Boolean(post.start && day >= post.start), ...eventCapture(dayRows) })
   }
   return { sport, today, rows, picks, calledIds, history: history.reverse(), byDay, configured: true }
 }
@@ -389,8 +395,11 @@ export default async function CalledPage({ searchParams }) {
   const tonight = sport.capture(rows)
   // Preseason nights are on the strip, labelled, but not in the span: camp
   // lineups are not the season (LAMP's own record route keeps them out too).
-  const graded = history.filter((h) => h.total > 0 && !h.pre)
+  // Postseason nights (MLB, `post`) likewise: their own line, not the span.
+  const graded = history.filter((h) => h.total > 0 && !h.pre && !h.post)
   const preOnly = !graded.length && history.some((h) => h.total > 0 && h.pre)
+  const postNights = history.filter((h) => h.total > 0 && h.post)
+  const postSpan = postNights.reduce((a, h) => ({ called: a.called + h.called, onBoard: a.onBoard + (h.onBoard || 0), total: a.total + h.total }), { called: 0, onBoard: 0, total: 0 })
   const span = graded.reduce((a, h) => ({ called: a.called + h.called, onBoard: a.onBoard + (h.onBoard || 0), total: a.total + h.total }), { called: 0, onBoard: 0, total: 0 })
   const spanPct = span.total ? Math.round((100 * span.called) / span.total) : null
   const spanBoardPct = span.total ? Math.round((100 * span.onBoard) / span.total) : null
@@ -415,7 +424,7 @@ export default async function CalledPage({ searchParams }) {
       <Bar sport={sport} board={BOARD} />
 
       <section className={styles.hero}>
-        <p className={styles.kicker}>{prettyDay(today)}{tonightPre ? ' · Preseason' : ''}</p>
+        <p className={styles.kicker}>{prettyDay(today)}{tonightPre ? ' · Preseason' : ''}{history.find((h) => h.day === today)?.post ? ' · Postseason' : ''}</p>
         {tonight.total ? (
           <>
             {/* ── WHY FOOTBALL LEADS WITH A DIFFERENT NUMBER ──────────────
@@ -482,6 +491,11 @@ export default async function CalledPage({ searchParams }) {
 
       <section className={styles.panel}>
         <h2 className={styles.h2}>{`Last ${history.length} ${unit}`} {spanPct != null ? <span className={styles.pill}>{byBoard ? `${span.onBoard} / ${span.total} on the board · ${spanBoardPct}% · ${span.called} called` : `${span.called} / ${span.total} called · ${spanPct}% · ${span.onBoard} on the board`}</span> : preOnly ? <span className={styles.pill}>preseason — not counted</span> : null}</h2>
+        {postNights.length ? (
+          <p className={styles.sub}>
+            <b>POSTSEASON</b> · {postSpan.called} / {postSpan.total} called{postSpan.total ? ` · ${Math.round((100 * postSpan.called) / postSpan.total)}%` : ''} · {postSpan.onBoard} on the board · {postNights.length} {postNights.length === 1 ? 'night' : 'nights'}, counted on their own{spanPct != null ? ' (the line above is the regular season)' : ''}
+          </p>
+        ) : null}
         <div className={styles.bars} role="group" aria-label={`Capture rate over the last ${history.length} ${unit} — tap one to see who ${sport.verb}`}>
           {history.map((h) => {
             const href = h.total ? (h.day === today ? '#tonight' : `#night-${h.day}`) : null
@@ -492,7 +506,7 @@ export default async function CalledPage({ searchParams }) {
                 </div>
                 <div className={styles.barPct}>{h.total ? `${leadOf(h).pct}%` : '—'}</div>
                 <div className={styles.barDay}>{h.day.slice(5).replace('-', '/')}</div>
-                {h.pre ? <div className={styles.barPre}>PRE</div> : null}
+                {h.pre ? <div className={styles.barPre}>PRE</div> : h.post ? <div className={styles.barPre}>POST</div> : null}
               </>
             )
             return href ? (
@@ -668,7 +682,7 @@ function NightDetails({ h, rows }) {
     <details id={`night-${h.day}`} className={styles.night}>
       <summary>
         <span className={styles.nightDay}>{shortDay(h.day)}</span>
-        <span className={styles.nightStat}>{h.called} of {h.total} called · {h.onBoard ?? h.called} on the board{h.pre ? ' · preseason' : ''}</span>
+        <span className={styles.nightStat}>{h.called} of {h.total} called · {h.onBoard ?? h.called} on the board{h.pre ? ' · preseason' : h.post ? ' · postseason' : ''}</span>
       </summary>
       {called.length ? (
         <ul className={styles.list}>

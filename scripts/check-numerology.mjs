@@ -93,7 +93,7 @@ if (week) {
 const { buildRows, laneNights, ELIGIBLE } = await import('../lib/numerology/record.js')
 const TEST = [
   { player_id: 'T1', name: 'Aaron Judge', jersey: 49, birthDate: '1992-04-26', next: 34, team: 'NYY', opp: 'BOS' },
-  { player_id: 'T2', name: 'Test Player', jersey: 22, birthDate: null, next: 5, team: 'BOS', opp: 'NYY' },
+  { player_id: 'T2', name: 'Bob Test', jersey: 22, birthDate: null, next: 5, team: 'BOS', opp: 'NYY' },
   { player_id: 'T3', name: '', jersey: null, birthDate: null, next: null },                         // nothing to check -> no rows
 ]
 const built = buildRows('mlb', '2026-09-12', TEST)
@@ -135,6 +135,49 @@ check(hn.events === 3 && j3.events === 3 && j3.players === 3 && j3.expected === 
 check(hottest(hn.rows, 3)[0].kind === 'jersey' && hottest(hn.rows, 3).every((r) => r.events >= 2 && r.events > r.expected), 'hottest: events above chance, 2+ events only')
 check(!hn.rows.some((r) => r.kind === 'life_path'), 'no birth dates -> the life path / personal day kinds sit out')
 check(numbersNight(roster, new Set(['a', 'a']), '2026-09-29').events === 1, 'a player counts once per night (who, not how many)')
+
+// ── 9. the posts (step 7): the 🔢 gematria line and the Moment's GEMATRIA tier ──
+// Worked by hand: AARON JUDGE in Full Reduction = (1+1+9+6+5) + (1+3+4+7+5) = 42.
+// 9/23/2026 full = 9+23+2+0+2+6 = 42. Ordinal 96, Reverse Ordinal 174 (no hit).
+const { fullNameEquals, dateWritten, dateGematriaLine } = await import('../lib/numerology/gematria.js')
+check(fullNameEquals('Aaron Judge', 42)?.cipher === 'fullReduction' && fullNameEquals('Aaron Judge', 96)?.cipher === 'ordinal' && fullNameEquals('Aaron Judge', 43) === null, 'Aaron Judge: 42 Full Reduction, 96 Ordinal, 43 nothing')
+check(dateWritten('2026-09-29')?.full === '9/29/2026' && dateWritten('2026-09-29')?.short === '9/29/26' && dateWritten('9/29') === null, 'date written as 9/29/2026 and 9/29/26')
+check(dateGematriaLine('Aaron Judge', '2026-09-23') === '🔢 His name = 42 in Full Reduction. Tonight is 9/23/2026 = 42', 'the date line, exact text')
+check(dateGematriaLine('Aaron Judge', '2026-09-24') === null && dateGematriaLine('', '2026-09-23') === null && dateGematriaLine('Aaron Judge', '') === null, 'no match / no name / no date -> no line')
+const { gematriaHook, hooksFor, numerologyMoment, numerologyText } = await import('../lib/dash/homerFeed.js')
+check(gematriaHook('Aaron Judge', { day: '2026-09-24', nth: 96 }) === '🔢 HR #96, and his name = 96 in English Ordinal', 'HR number = his name')
+check(gematriaHook('Aaron Judge', { day: '2026-09-24', jersey: 42 })?.includes('same as his jersey, #42'), 'jersey = his name')
+check(gematriaHook('Aaron Judge', { day: '2026-09-23', nth: 96 })?.includes('Tonight is'), 'the date match comes first')
+// hooksFor: one 🔢 line max. TEST ROW (not a real homer): jersey 97, HR #43 share root 7 AND his name = the date.
+const testEv = { player_id: 'test-1', name: 'Aaron Judge', hr_n: 1, stats: { season_hr: 42, postseason: false } }
+const hk = hooksFor(testEv, { day: '2026-09-23', jersey: 97, history: [] })
+check(hk.filter((h) => h.startsWith('🔢')).length === 1 && hk.some((h) => h.includes('Tonight is 9/23/2026 = 42')), 'hooksFor: the gematria line wins, still one 🔢 line')
+const hk2 = hooksFor(testEv, { day: '2026-09-24', jersey: 97, history: [] })
+check(hk2.filter((h) => h.startsWith('🔢')).length === 1 && hk2.some((h) => h.includes('same digit root')), 'no gematria hit -> the digit-root line as before')
+// The Moment. TEST ROWS (not real homers).
+const mRow = (id, name, jersey, season_hr, extra = {}) => ({ player_id: id, name, team: 'TST', hr_n: 1, stats: { jersey, season_hr, birthDate: '1990-01-05', postseason: false, ...extra } })
+const { gematriaBar } = await import('../lib/dash/homerFeed.js')
+check(gematriaBar(30) === 6 && gematriaBar(5) === 2 && gematriaBar(2) === 2, `the bar: 6 of 30 hitters, 2 of 5, 2 of 2 (got ${gematriaBar(30)}, ${gematriaBar(5)}, ${gematriaBar(2)})`)
+// Aaron Judge = 42 (Full Reduction) = 9/23/2026. "Bob Test" (20 / 83 / 106 / 43) matches nothing that night.
+const gm = numerologyMoment([mRow('t1', 'Aaron Judge', 10, 20), mRow('t2', 'Bob Test', 11, 30)], { day: '2026-09-23' })
+check(gm === null || gm.tier !== 'gematria', 'Moment: one matching hitter of 2 is below the bar (2)')
+// Two of three TEST hitters match (the same name under two test ids).
+const gm2 = numerologyMoment([mRow('t1', 'Aaron Judge', 10, 20), mRow('t3', 'Aaron Judge', 12, 21), mRow('t2', 'Bob Test', 11, 30)], { day: '2026-09-23' })
+check(gm2?.tier === 'gematria' && gm2.players.length === 2 && gm2.players[0].gem.value === 42, 'Moment: 2 of 3 hitters on the date number -> GEMATRIA')
+check(numerologyText(gm2).includes('Tonight is 9/23/2026 = 42.') && numerologyText(gm2).includes('Full Reduction: Judge 42 · Judge 42'), 'Moment text: the date, then one line per cipher with last names')
+check(numerologyMoment([mRow('t1', 'Aaron Judge', 10, 20), mRow('t3', 'Aaron Judge', 12, 21), mRow('t2', 'Bob Test', 11, 30)])?.tier !== 'gematria', 'Moment: no day -> no GEMATRIA tier')
+const tri = numerologyMoment([mRow('t1', 'Aaron Judge', 5, 13), mRow('t3', 'Aaron Judge', 12, 21), mRow('t2', 'Bob Test', 11, 30)], { day: '2026-09-23' })
+check(tri?.tier === 'trifecta', 'TRIFECTA still outranks GEMATRIA (jersey 5, HR #14, born the 5th)')
+const oct = numerologyMoment([mRow('t1', 'Aaron Judge', 10, 20, { postseason: true }), mRow('t3', 'Aaron Judge', 12, 21, { postseason: true })], { day: '2026-09-23' })
+check(oct?.tier === 'gematria', 'October (no season number): GEMATRIA still runs')
+// TD / goal posts. TEST ROWS.
+const { tdPostText } = await import('../lib/nfl/tdFeed.js')
+const td = tdPostText({ day: '2026-09-23', scorerName: 'Aaron Judge', team: 'TST', opponent: 'OPP' })
+check(td.includes('🔢 His name = 42 in Full Reduction. Today is 9/23/2026 = 42') && td.length <= 280, 'TD post: the date line, under the limit')
+check(!tdPostText({ day: '2026-09-23', scorerName: 'Aaron Judge', position: 'DEF', team: 'TST' }).includes('🔢'), 'TD post: a team defense row never gets a name line')
+const { postText: goalPost } = await import('../lib/nhl/goalFeed.js')
+check(goalPost({ day: '2026-09-23', name: 'Aaron Judge', strength: 'ev', period: 1 }).includes('🔢 His name = 42'), 'goal post: the date line')
+check(!goalPost({ day: '2026-09-24', name: 'Aaron Judge', strength: 'ev', period: 1 }).includes('🔢'), 'goal post: no match, no line')
 
 console.log(failed ? `\n${failed} FAILED` : '\nall green')
 process.exit(failed ? 1 : 0)

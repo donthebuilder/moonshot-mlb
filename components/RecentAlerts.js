@@ -39,7 +39,7 @@ const when = (iso) => {
   return `${Math.round(hrs / 24)}d`
 }
 
-export default function RecentAlerts({ styles = null, enabled, sport = null, emptyWord = 'homer' }) {
+export default function RecentAlerts({ styles = null, enabled, sport = null, emptyWord = 'homer', emptyText = null }) {
   const [rows, setRows] = useState(null)
   const [reason, setReason] = useState(null)
   const [all, setAll] = useState(false)
@@ -76,7 +76,7 @@ export default function RecentAlerts({ styles = null, enabled, sport = null, emp
         {rows === null
           ? 'Loading…'
           : !list.length
-            ? (reason === 'no-table' ? 'Not recording yet.' : `Nothing sent to this account yet — the first followed ${emptyWord} will show up here.`)
+            ? (reason === 'no-table' ? 'Not recording yet.' : emptyText || `Nothing sent to this account yet — the first followed ${emptyWord} will show up here.`)
             : `Last ${list.length}${dropped ? ` · ${dropped} dropped for losing the 10- or 30-minute window` : ''}`}
       </small>
       {shown.length ? (

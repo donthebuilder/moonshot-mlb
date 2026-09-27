@@ -38,6 +38,7 @@ import LegacyHashRedirect from '../../components/LegacyHashRedirect'
 import SubmitButton from '../../components/fantasy/SubmitButton'
 import { getNetworkPulse, liveProduct } from '../../lib/dash/pulse'
 import { appHref, BRAND } from '../../lib/routes'
+import { nextLine } from '../../lib/mlbNext'
 import { wilson } from '../../lib/interval'
 import { hasSupabaseConfig } from '../../lib/supabase/config'
 import { createSupabaseServerClient } from '../../lib/supabase/server'
@@ -123,6 +124,20 @@ export default async function DashHome({ searchParams }) {
   const displayName = me.user?.user_metadata?.display_name || me.user?.email?.split('@')[0] || null
   // The one primary button: the board that's on today (funnel step 1).
   const live = liveProduct(pulse)
+  // A day with no MLB games: the slate on hand is an earlier day's, and the
+  // next game day is later (lib/mlbNext.js).
+  const mlbOff = Boolean(mlb?.date && mlb?.today && mlb.date < mlb.today && nextLine(mlb?.next, mlb.today))
+  // Football on tonight = a kickoff today (ET) or one under way (4 h). Else
+  // one line: "next game Thu 8:15 PM ET".
+  const nflOff = (() => {
+    const ks = (nfl?.kickoffs || []).map((k) => Date.parse(k)).filter(Number.isFinite).sort((a, b) => a - b)
+    const now = Date.now()
+    const todayEt = new Date(now).toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+    const on = ks.some((t) => new Date(t).toLocaleDateString('en-CA', { timeZone: 'America/New_York' }) === todayEt || (t <= now && now - t < 4 * 3600e3))
+    if (on || !ks.length) return null
+    const next = ks.find((t) => t > now)
+    return next ? `next game ${new Date(next).toLocaleString('en-US', { timeZone: 'America/New_York', weekday: 'short', hour: 'numeric', minute: '2-digit' })} ET` : 'no game left this week'
+  })()
   // The sign-up fold opens by itself when someone is mid-flow: a failed
   // attempt, a confirm-your-email return, or the welcome after sign-up.
   const authOpen = Boolean(welcomeName || params.error || params.message || params.confirm || params.em)
@@ -184,11 +199,19 @@ export default async function DashHome({ searchParams }) {
             A first-timer met "board", "call" and "the bot" in every tile below
             and nothing here said what they were. Worded from /start's own
             lines, so the two pages say it the same way. */}
-        <dl className={styles.words}>
-          <div><dt>The board</dt><dd>every player the model rated before the game, ranked.</dd></div>
-          <div><dt>A call</dt><dd>a player the model &mdash; the bot &mdash; designated before the game: MOONSHOT&apos;s HR, HIT, HRR and CONTACT picks, TUDDY&apos;s touchdown picks, LAMP&apos;s top three in each game.</dd></div>
-          <div><dt>Graded</dt><dd>after the game, every call is checked against the bar it was made for, in public, wins and misses alike.</dd></div>
-        </dl>
+        {/* SIGNED IN (front door F, 2026-09-27): the three definitions are for a
+            first visit, so a returning account gets them folded; a stranger
+            still sees them open. */}
+        {(() => {
+          const words = (
+            <dl className={styles.words}>
+              <div><dt>The board</dt><dd>every player the model rated before the game, ranked.</dd></div>
+              <div><dt>A call</dt><dd>a player the model &mdash; the bot &mdash; designated before the game: MOONSHOT&apos;s HR, HIT, HRR and CONTACT picks, TUDDY&apos;s touchdown picks, LAMP&apos;s top three in each game.</dd></div>
+              <div><dt>Graded</dt><dd>after the game, every call is checked against the bar it was made for, in public, wins and misses alike.</dd></div>
+            </dl>
+          )
+          return me.user ? <details className={styles.wordsFold}><summary>What the words mean</summary>{words}</details> : words
+        })()}
         <div className={styles.heroActions}>
           {/* /start is the page that explains a product and carries the
               sign-up; CALLED IT is the public record. Neither had a door here
@@ -199,6 +222,10 @@ export default async function DashHome({ searchParams }) {
               into the product that's live today. /start and the record stay
               as the quieter doors beside it. */}
           <Link href={appHref(live)}>Open tonight&apos;s board <b>→</b><small className={styles.heroWhich}>{BRAND[live].name} · {BRAND[live].league}</small></Link>
+          {/* Signed in (F): the other two products, as two small links. */}
+          {me.user ? (
+            <span className={styles.otherProducts}>or {['mlb', 'nfl', 'nhl'].filter((k) => k !== live).map((k, i) => <span key={k}>{i ? ' · ' : ''}<Link href={appHref(k)}>{BRAND[k].name}</Link></span>)}</span>
+          ) : null}
           <Link href="/start">What is this?</Link>
           <Link href="/called">CALLED IT &middot; the public record</Link>
         </div>
@@ -206,18 +233,47 @@ export default async function DashHome({ searchParams }) {
 
       <section className={styles.slate} id="tonight">
         <div className={styles.slateHead}><p className={styles.kicker}>ON RIGHT NOW</p><h2>The whole network, one glance.</h2></div>
-        <div className={styles.tiles}>
-          <Tile label="MLB GAMES" value={mlb?.games} sub={mlb?.live ? `${mlb.live} live` : mlb?.final ? `${mlb.final} final` : 'pre-game'} accent="mlb" />
-          <Tile label="CALLS TONIGHT" value={mlb?.calls} sub="HR · HIT · HRR · CONTACT" accent="mlb" />
-          <Tile label="CLEARED SO FAR" value={mlb?.cleared} sub={mlb?.started ? `calls that cleared their bar, of ${mlb.started} that batted` : 'nobody has batted yet'} accent="mlb" />
-          <Tile label="HRs ON THE SLATE" value={mlb?.locked?.total || mlb?.homers} sub={lockedLine(mlb?.locked)} accent="mlb" />
-          <Tile label="NFL GAMES" value={nfl?.games} sub={timeUntil(nfl?.kickoff) || nfl?.label} accent="nfl" />
-          <Tile label="PLAYERS RATED" value={nfl?.players} sub={nfl?.label} accent="nfl" />
-          {/* Hockey: the count and the lock. Before the first lock the tile says
-              when the board locks; after it, how many games hold a locked
-              call. A preview never counts (lib/nhl/pulse.js). */}
-          <Tile label="NHL GAMES" value={nhl?.games} sub={nhl?.live ? `${nhl.live} live` : nhl?.final ? `${nhl.final} final` : nhl?.games ? `first puck ${etClock(nhl.firstStart)}` : nhl?.label || 'no games tonight'} accent="nhl" />
-          <Tile label="LAMP LOCKED" value={nhl?.games ? `${nhl.lockedGames}/${nhl.games}` : null} sub={nhl?.games ? (nhl.lockedGames ? 'games with a locked call' : `locks from ${etClock(nhl.locksFromUtc)}`) : lampWhy(nhl) || nhl?.label || null} accent="nhl" />
+        {/* GROUPED BY PRODUCT (front door C, 2026-09-27): was eight tiles in a
+            6 + 2 grid, three colours mixed in one row, LAMP's two empty. Now one
+            column per product in its own colour, the whole column a link into
+            it; a product with nothing on tonight is one line saying why and
+            when, instead of zeros. Phone: one product per row, tiles two across. */}
+        <div className={styles.productCols}>
+          {mlbOff ? (
+            <Link href={appHref('mlb')} className={`${styles.productOff} ${styles.mlb}`}><b>MOONSHOT</b> · No MLB games tonight · {nextLine(mlb.next, mlb.today)}</Link>
+          ) : (
+            <Link href={appHref('mlb')} className={`${styles.productCol} ${styles.mlb}`} aria-label="MOONSHOT, tonight's baseball">
+              <span className={styles.productColHead}>MOONSHOT · MLB</span>
+              <span className={styles.productColTiles}>
+                <Tile label="GAMES" value={mlb?.games} sub={mlb?.live ? `${mlb.live} live` : mlb?.final ? `${mlb.final} final` : 'pre-game'} accent="mlb" />
+                <Tile label="CALLS TONIGHT" value={mlb?.calls} sub={mlb?.started ? `${mlb.cleared ?? 0} cleared, of ${mlb.started} that batted` : 'HR · HIT · HRR · CONTACT'} accent="mlb" />
+                <Tile label="HRs ON THE SLATE" value={mlb?.locked?.total || mlb?.homers} sub={lockedLine(mlb?.locked)} accent="mlb" />
+              </span>
+            </Link>
+          )}
+          {nflOff ? (
+            <Link href={appHref('nfl')} className={`${styles.productOff} ${styles.nfl}`}><b>TUDDY</b> · {nflOff}</Link>
+          ) : (
+            <Link href={appHref('nfl')} className={`${styles.productCol} ${styles.nfl}`} aria-label="TUDDY, the football week">
+              <span className={styles.productColHead}>TUDDY · NFL</span>
+              <span className={styles.productColTiles}>
+                <Tile label="GAMES THIS WEEK" value={nfl?.games} sub={timeUntil(nfl?.kickoff) || nfl?.label} accent="nfl" />
+                <Tile label="PLAYERS RATED" value={nfl?.players} sub={nfl?.label} accent="nfl" />
+              </span>
+            </Link>
+          )}
+          {/* Hockey: the count and the lock. A preview never counts (lib/nhl/pulse.js). */}
+          {!nhl?.games ? (
+            <Link href={appHref('nhl')} className={`${styles.productOff} ${styles.nhl}`}><b>LAMP</b> · {lampWhy(nhl) || nhl?.label || 'No NHL games tonight'}</Link>
+          ) : (
+            <Link href={appHref('nhl')} className={`${styles.productCol} ${styles.nhl}`} aria-label="LAMP, tonight's hockey">
+              <span className={styles.productColHead}>LAMP · NHL</span>
+              <span className={styles.productColTiles}>
+                <Tile label="GAMES" value={nhl.games} sub={nhl.live ? `${nhl.live} live` : nhl.final ? `${nhl.final} final` : `first puck ${etClock(nhl.firstStart)}`} accent="nhl" />
+                <Tile label="LOCKED" value={`${nhl.lockedGames}/${nhl.games}`} sub={nhl.lockedGames ? 'games with a locked call' : `locks from ${etClock(nhl.locksFromUtc)}`} accent="nhl" />
+              </span>
+            </Link>
+          )}
         </div>
         <p className={styles.stamp}>
           Live from the published payloads, cached two minutes.{mlb?.label ? ` MLB: ${mlb.label}.` : ''}
@@ -244,14 +300,19 @@ export default async function DashHome({ searchParams }) {
           is the thing this whole site exists not to do — lib/interval.js's
           Wilson bounds are the same ones the Results page uses, on the same
           counts. */}
-      {record?.rows?.length ? (
+      {/* ALL THREE (front door D, 2026-09-27): MOONSHOT's call precision, then
+          TUDDY's board coverage and LAMP's called scorers from the readers
+          /called uses, each naming its own question and linking to its record
+          page; "How this is counted" folds the small print. */}
+      {record?.rows?.length || pulse.nflRecord || nhl ? (
         <section className={styles.record} id="record">
           <div className={styles.slateHead}>
             <p className={styles.kicker}>THE RECORD</p>
             <h2>Graded in public means this.</h2>
           </div>
+          {record?.rows?.length ? <p className={styles.recordQ}><b className={styles.mlbInk}>MOONSHOT</b> · did each call clear the bar it was made for? · <Link href="/called?sport=mlb">the record&nbsp;→</Link></p> : null}
           <div className={styles.recordRows}>
-            {record.rows.map((r) => {
+            {(record?.rows || []).map((r) => {
               // wilson() returns [lo, hi] ALREADY IN PERCENT, not a
               // {lo, hi} in 0..1. The first cut of this block assumed the
               // object form and printed "95% band NaN–NaN%" on all four rows —
@@ -284,13 +345,30 @@ export default async function DashHome({ searchParams }) {
               )
             })}
           </div>
-          <p className={styles.stamp}>
-            {record.nights} graded nights, pooled — the real totals divided, not an average of nightly
-            percentages, which would weight a six-pick night the same as a thirty-pick one. Each row is
-            scored on the bar that call was made for, so the four are four different questions and are
-            never ranked against each other. Every night behind these numbers is on the{' '}
-            <Link href="/app#sport=mlb&tab=results">Results page</Link>, one row at a time.
+          <p className={styles.recordQ}><b className={styles.nflInk}>TUDDY</b> · of the touchdown scorers, how many were on the board? · <Link href="/called?sport=nfl">the record&nbsp;→</Link></p>
+          <p className={styles.recordLine}>
+            {pulse.nflRecord
+              ? <><b>{pulse.nflRecord.onBoard} of {pulse.nflRecord.total}</b> on the board ({Math.round((100 * pulse.nflRecord.onBoard) / pulse.nflRecord.total)}%) · {pulse.nflRecord.called} of them CALLED · {pulse.nflRecord.days} game days with the board rank recorded</>
+              : 'The football record fills in once three game days have their pregame board rank recorded.'}
           </p>
+          <p className={styles.recordQ}><b className={styles.nhlInk}>LAMP</b> · of the goal scorers, how many were CALLED? · <Link href="/called?sport=nhl">the record&nbsp;→</Link></p>
+          <p className={styles.recordLine}>
+            {pulse.nhlRecord
+              ? <><b>{pulse.nhlRecord.called} of {pulse.nhlRecord.total}</b> CALLED ({Math.round((100 * pulse.nhlRecord.called) / pulse.nhlRecord.total)}%) · {pulse.nhlRecord.onBoard} on the board · {pulse.nhlRecord.days} regular-season nights</>
+              : 'No graded regular-season night yet.'}
+          </p>
+          <details className={styles.recordFold}>
+            <summary>How this is counted</summary>
+            <p className={styles.stamp}>
+              {record?.nights ? `${record.nights} graded nights, pooled` : 'Graded nights, pooled'} — the real totals divided, not an average of nightly
+              percentages, which would weight a six-pick night the same as a thirty-pick one. Each MOONSHOT row is
+              scored on the bar that call was made for, so the four are four different questions and are
+              never ranked against each other. TUDDY leads with board coverage because its ladder names five
+              players a week against two dozen touchdowns; LAMP counts goal scorers against the three it calls in
+              each game, regular season only. Every night behind these numbers is on the{' '}
+              <Link href="/app#sport=mlb&tab=results">Results page</Link> and each product&apos;s record page, one row at a time.
+            </p>
+          </details>
         </section>
       ) : null}
 
@@ -299,11 +377,18 @@ export default async function DashHome({ searchParams }) {
           <header><i>M</i><div><strong>MOONSHOT</strong><small>MLB</small></div></header>
           <h3>Tonight&apos;s board, graded by morning.</h3>
           <p>Four call categories — HR, HIT, HRR, CONTACT — plus the full ranked board, the pairs, and every receipt the next morning.</p>
-          <dl>
-            <div><dt>Games</dt><dd>{mlb?.games ?? '—'}</dd></div>
-            <div><dt>Cleared / started</dt><dd>{mlb?.cleared ?? '—'} / {mlb?.started ?? '—'}</dd></div>
-            <div><dt>HRs on the board at lock</dt><dd>{mlb?.locked?.total ? `${mlb.locked.onBoard} / ${mlb.locked.total}` : '—'}</dd></div>
-          </dl>
+          {/* THE SAME SHAPE AS TUDDY'S (front door E, 2026-09-27): tonight's HR
+              calls as a list, top five by score, a homer marked -- was three
+              numbers the tiles above already show. */}
+          {mlb?.topCalls?.length && !mlbOff ? (
+            <ul className={styles.six}>
+              {mlb.topCalls.map((c) => (
+                <li key={c.id}><small>HR CALL</small><b>{c.name}</b><span>{c.team ? `${c.team} · ` : ''}{Math.round(c.score)}{c.homered ? ' · 🏠 HOMERED' : ''}</span></li>
+              ))}
+            </ul>
+          ) : (
+            <p className={styles.muted}>{mlbOff ? `No MLB games tonight · ${nextLine(mlb.next, mlb.today)}.` : 'Tonight’s calls post with the board.'}</p>
+          )}
           <footer>
             <Link href="/app#sport=mlb&tab=home">Open MOONSHOT →</Link>
             <Link href="/app#sport=mlb&tab=results">Results</Link>
