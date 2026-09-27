@@ -61,6 +61,7 @@ import { mlbLatestOdds } from '../../../../../lib/odds/latest'
 import { postMultiClubOnce } from '../../../../../lib/dash/multiClubPost'
 import { mlbSeasonActive, postseasonOn } from '../../../../../lib/dash/seasonGuard'
 import { storiesTick } from '../../../../../lib/stories/record'
+import { postMlbListOnce } from '../../../../../lib/lists/post'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -1113,6 +1114,15 @@ export async function GET(request) {
   // is full (lib/dash/homerBackfill). Runs before the no-games exits on
   // purpose: an off day is exactly when there is time for it.
   const backfill = await backfillOneNight(db, day)
+  // 📋 LIST POSTS (2026-09-27, BATCH-LIST-POSTS step 2): the season wrap, one
+  // list a day from the morning after the regular season's last game --
+  // played every game, the 40-homer club, 30-30, CALLED IT season
+  // (lib/lists/post.js). Before the no-games exit on purpose: Mon 09-28 has
+  // no games and is the first morning of the wrap.
+  if (etHoursSinceNoon() >= -3) {
+    const lists = await postMlbListOnce(db, day).catch((e) => `error: ${e?.message}`)
+    if (lists === 'posted' || String(lists).startsWith('error') || lists === 'claim-failed') console.log(`[homers] list post: ${lists}`)
+  }
   const [board, odds, pairs] = await Promise.all([boardIndex(day), oddsFile(day, db), pairsFile()])
   // 2026-09-08 (Donovan: "USE WHATEVER IS ON THE SITE -- nothing should come
   // back as nothing when the site has already pulled the data, the API is
