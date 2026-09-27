@@ -11,7 +11,8 @@ import MatchupMap from './MatchupMap'
 import NflFace from './NflFace'
 import SourceSeason from './SourceSeason'
 import NflExplain from './NflExplain'
-import { statLabel } from '../../lib/nfl/statLabels'
+import { statLabel, statFmt } from '../../lib/nfl/statLabels'
+import { quoteFor, fmtOdds } from '../../lib/nfl/oddsMatch'
 import DvpTable, { GROUP } from './DvpTable'
 import DvpDrift from './DvpDrift'
 import ChartFrame from './ChartFrame'
@@ -557,7 +558,7 @@ function Navigator({ peers, cur, onNavigate }) {
   )
 }
 
-export default function NflPlayerModal({ player, market, markets, splitMeta, logs, matchup, slate, picks, results, onClose, onFullProfile, peers = [], onNavigate = null, initialTab = '' }) {
+export default function NflPlayerModal({ player, market, markets, splitMeta, logs, matchup, slate, picks, results, onClose, onFullProfile, peers = [], onNavigate = null, initialTab = '', odds = null }) {
   useScrollLock(Boolean(player))
   const dialog = useDialog({ open: Boolean(player), onClose, label: `${player?.name || 'Player'} card` })
   const watchlist = useNflWatchlist(slate)
@@ -578,6 +579,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
 
   return (
     <div
+      className="nfl-card-overlay"
       onClick={onClose}
       style={{
         // #30, same as the MLB modals: the floating nav is z-index 390 and
@@ -590,6 +592,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
       <div
         ref={dialog.ref}
         {...dialog.dialogProps}
+        className="nfl-card"
         onClick={(e) => e.stopPropagation()}
         style={{
           ...dialog.dialogProps.style,
@@ -602,24 +605,23 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
           width: '100%', maxHeight: '86vh', overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch',
         }}
       >
-        <div style={{
-          display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10,
-        }}>
+        {/* THE HEAD (phone pass, 2026-09-27): name + a close that is always on
+            screen. The actions used to share this row without wrapping, which
+            pushed the 📸 and the close button off the right edge of a phone --
+            there was no visible way out of the card. They have their own row now. */}
+        <div className="nfl-card-head" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {/* 2026-09-07. Donovan, 8/27: "site needs visuals; we don't have
-              player pictures." We did have them — FRANCHISE has rendered faces
-              for weeks — TUDDY just never got one. See NflFace for why this is
-              not the same component. */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <NflFace player={player} size={44} />
-            <div>
-            <div style={{ fontSize: 17, fontWeight: 900, color: C.text }}>{player.name}</div>
-            <div style={{ fontSize: 11, color: C.text3, fontFamily: NUM_FONT, marginTop: 1 }}>
-              {/* #number and age, both published on >92% of players and shown
-                  nowhere on this card until now. Age is derived from
-                  birth_date, which Storylines and Numerology already read. */}
+              player pictures." We did have them -- FRANCHISE has rendered faces
+              for weeks -- TUDDY just never got one. See NflFace. */}
+          <NflFace player={player} size={44} />
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ fontSize: 17, fontWeight: 900, color: C.text, lineHeight: 1.15 }}>{player.name}</div>
+            <div style={{ fontSize: 11, color: C.text3, fontFamily: NUM_FONT, marginTop: 2 }}>
+              {/* #number and age, both published on >92% of players. Age is
+                  derived from birth_date, which Storylines and Numerology read. */}
               {player.jersey_number ? `#${player.jersey_number} · ` : ''}
               {player.position} · {player.team}{player.opp ? ` vs ${player.opp}` : ''}
-              {ageOf(player.birth_date) ? ` · ${ageOf(player.birth_date)}` : ''}
+              {ageOf(player.birth_date) ? ` · age ${ageOf(player.birth_date)}` : ''}
               {injuryTag(player) && (
                 <span title={injuryTitle(injuryTag(player))}
                       style={{ color: injuryColor(injuryTag(player), C), fontWeight: 900 }}>
@@ -628,39 +630,38 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
               )}
               {player.low_sample && <span style={{ color: C.text3 }}> · low sample</span>}
             </div>
-            </div>
           </div>
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-            <FollowButton sport="nfl" id={player?.player_id} name={player?.name} team={player?.team} position={player?.position} compact />
-            <button onClick={() => watchlist.toggle(player)}
-              aria-label={watchlist.isPinned(player.player_id) ? `Remove ${player.name} from watchlist` : `Save ${player.name} to watchlist`}
-              style={{
-                background: watchlist.isPinned(player.player_id) ? `${C.yellow}26` : 'transparent',
-                border: `1px solid ${watchlist.isPinned(player.player_id) ? C.yellow + '66' : C.border}`,
-                color: watchlist.isPinned(player.player_id) ? C.yellow : C.text3,
-                borderRadius: 8, padding: '5px 9px', cursor: 'pointer', fontSize: 9, fontWeight: 900,
-              }}>{watchlist.isPinned(player.player_id) ? '★ SAVED' : '☆ SAVE'}</button>
-            {onFullProfile && <button onClick={() => onFullProfile(player)}
-              style={{
-                background: `${C.green}20`, border: `1px solid ${C.green}70`, color: C.green,
-                borderRadius: 8, padding: '5px 9px', cursor: 'pointer', fontSize: 9,
-                fontWeight: 900,
-              }}>FULL PROFILE →</button>}
-            {/* 🎴 his card as a PNG — the NFL twin of the MLB player-modal
-                share button (components/PlayerModal.js). Client-side only:
-                draws a canvas, triggers a browser download, nothing else. */}
-            <button onClick={() => downloadNflPickCard(pickFromPlayer(player, market, spec))}
-              title="Download his pick card as a PNG for posting — the bot's call on this market, ready to share manually"
-              aria-label="Download pick card as image"
-              style={{
-                background: 'transparent', border: `1px solid ${C.border}`, color: C.text3,
-                borderRadius: 8, padding: '4px 10px', cursor: 'pointer', fontSize: 12,
-              }}>📸</button>
-            <button onClick={onClose} style={{
+          <button type="button" onClick={onClose} aria-label="Close" style={{
+            flexShrink: 0, width: 40, height: 40, display: 'grid', placeItems: 'center',
+            background: 'transparent', border: `1px solid ${C.border}`, color: C.text2,
+            borderRadius: 10, cursor: 'pointer', fontSize: 16, lineHeight: 1,
+          }}>✕</button>
+        </div>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginTop: 10 }}>
+          <FollowButton sport="nfl" id={player?.player_id} name={player?.name} team={player?.team} position={player?.position} compact />
+          <button onClick={() => watchlist.toggle(player)}
+            aria-label={watchlist.isPinned(player.player_id) ? `Remove ${player.name} from watchlist` : `Save ${player.name} to watchlist`}
+            style={{
+              background: watchlist.isPinned(player.player_id) ? `${C.yellow}26` : 'transparent',
+              border: `1px solid ${watchlist.isPinned(player.player_id) ? C.yellow + '66' : C.border}`,
+              color: watchlist.isPinned(player.player_id) ? C.yellow : C.text3,
+              borderRadius: 8, padding: '5px 10px', cursor: 'pointer', fontSize: 10, fontWeight: 900,
+            }}>{watchlist.isPinned(player.player_id) ? '★ SAVED' : '☆ SAVE'}</button>
+          {onFullProfile && <button onClick={() => onFullProfile(player)}
+            style={{
+              background: `${C.green}20`, border: `1px solid ${C.green}70`, color: C.green,
+              borderRadius: 8, padding: '5px 10px', cursor: 'pointer', fontSize: 10,
+              fontWeight: 900,
+            }}>FULL PROFILE →</button>}
+          {/* 🎴 his card as a PNG -- the NFL twin of the MLB share button
+              (components/PlayerModal.js). Client-side only. */}
+          <button onClick={() => downloadNflPickCard(pickFromPlayer(player, market, spec))}
+            title="Download his pick card as a PNG for posting -- the bot's call on this market, ready to share manually"
+            aria-label="Download pick card as image"
+            style={{
               background: 'transparent', border: `1px solid ${C.border}`, color: C.text3,
               borderRadius: 8, padding: '4px 10px', cursor: 'pointer', fontSize: 12,
-            }}>esc</button>
-          </div>
+            }}>📸</button>
         </div>
 
         {/* every market's score, so you can see the whole player at once */}
@@ -676,8 +677,9 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
                 background: on ? `${g.color}1f` : 'rgba(255,255,255,.03)',
                 border: `1px solid ${on ? g.color + '66' : C.border}`,
               }}>
-                <div style={{ fontSize: 8.5, color: C.text3, fontWeight: 800 }}>
-                  <NflExplain label={k} term={label} />
+                <div style={{ fontSize: 9.5, color: C.text3, fontWeight: 800 }}>
+                  {/* the market's name, not its payload key (REC_YDS read as code) */}
+                  <NflExplain label={label} term={k} />
                 </div>
                 <div style={{
                   fontFamily: NUM_FONT, fontSize: 13, fontWeight: 900, color: g.color,
@@ -686,6 +688,26 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
             )
           })}
         </div>
+
+        {/* THE PRICE (2026-09-27): TUDDY has prices again (/api/odds/latest,
+            our own feed). The line for the market on screen, the best book,
+            and the break-even the price implies. "Different line" says so
+            when the books' line isn't the model's bar -- then it is a
+            different bet. */}
+        {(() => {
+          const q = quoteFor(odds, player, market)
+          if (!q) return null
+          return (
+            <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', margin: '8px 0 2px', fontSize: 11.5, color: C.text2, fontFamily: NUM_FONT }}>
+              <b style={{ color: C.text3, fontSize: 9.5, letterSpacing: '.08em' }}>PRICE</b>
+              <span>o{q.line} <b style={{ color: C.text }}>{fmtOdds(q.over)}</b></span>
+              {q.best_over != null && q.best_over !== q.over && <span>best <b style={{ color: C.green }}>{fmtOdds(q.best_over)}</b>{q.best_book ? ` ${q.best_book}` : ''}</span>}
+              {q.implied != null && <span>needs {q.implied}%</span>}
+              {q.books ? <span style={{ color: C.text3 }}>{q.books} book{q.books === 1 ? '' : 's'}</span> : null}
+              {!q.matches && <span style={{ color: C.yellow }}>different line from the model&apos;s bar</span>}
+            </div>
+          )
+        })()}
 
         {/* THE TAB ROW AND THE PEER ARROWS, on one line. MOONSHOT puts the
             navigator beside its tabs for the same reason: they are both "which
@@ -738,7 +760,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
               fontSize: 10, fontWeight: 900, color: C.text3, letterSpacing: '.1em',
               margin: '16px 0 7px',
             }}>PER-GAME</div>
-            <div style={{
+            <div className="nfl-card-stats" style={{
               display: 'grid', gap: 5,
               gridTemplateColumns: 'repeat(auto-fill, minmax(78px, 1fr))',
             }}>
@@ -762,7 +784,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
                   </div>
                   <div style={{
                     fontFamily: NUM_FONT, fontSize: 12, fontWeight: 800, color: C.text,
-                  }}>{typeof v === 'number' ? (Math.abs(v) < 1 ? v.toFixed(3) : v.toFixed(1)) : v}</div>
+                  }}>{typeof v === 'number' ? statFmt(k, v) : v}</div>
                 </div>
               ))}
             </div>
@@ -797,6 +819,20 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
             <b style={{ color: C.purple }}>Carryover</b> — last season&apos;s per-game baseline.
           </div>
         )}
+        {/* ON A PHONE THE CARD IS THE SCREEN (2026-09-27): a floating box inside
+            16px of dimmed margin squeezed every panel; MOONSHOT's card fills
+            the phone. The head stays pinned so the close is always reachable. */}
+        <style>{`
+          @media (max-width: 560px) {
+            .nfl-card-overlay { padding: 0 !important; align-items: stretch !important; }
+            .nfl-card { max-width: none !important; max-height: none !important; height: 100dvh; border-radius: 0 !important;
+              border: none !important; padding: 0 14px calc(18px + env(safe-area-inset-bottom)) !important; }
+            .nfl-card-head { position: sticky; top: 0; z-index: 3; background: ${C.bg2};
+              padding: calc(10px + env(safe-area-inset-top)) 0 10px; margin: 0 -14px; padding-left: 14px; padding-right: 14px;
+              border-bottom: 1px solid ${C.border}; }
+            .nfl-card-stats { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+          }
+        `}</style>
       </div>
     </div>
   )

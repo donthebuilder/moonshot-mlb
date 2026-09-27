@@ -331,7 +331,7 @@ export default function NflDashboard({ palettePass = 0 }) {
         ) : (
           <ErrorBoundary resetKey={tab} label={`the ${tab} tab`}>
             {tab === 'home' && <Home data={slate} picks={picks} results={nflResults} matchup={matchup} logs={logs} onPlayerClick={openPlayer} setTab={setTab} />}
-            {tab === 'players' && <StatPortal data={data} logs={logs} matchup={matchup} initialTeam={portalTeam} />}
+            {tab === 'players' && <StatPortal data={data} logs={logs} matchup={matchup} initialTeam={portalTeam} odds={odds} />}
             {tab === 'watchlist' && <Watchlist data={slate} matchup={matchup} logs={logs} onPlayerClick={openPlayer} />}
             {tab === 'games' && <Games data={slate} picks={picks} matchup={matchup} logs={logs} results={nflResults} onPlayerClick={openPlayer} />}
             {/* One Board page (2026-09-26, option (b)): touchdowns / boards /
@@ -369,6 +369,7 @@ export default function NflDashboard({ palettePass = 0 }) {
       {/* A crash in the card should close the card, not the site. */}
       <ErrorBoundary resetKey={modal?.player?.player_id ?? modal?.player?.id} label="the player card">
       <NflPlayerModal
+        odds={odds}
         player={modal?.player}
         market={modal?.market}
         markets={data?.markets}

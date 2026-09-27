@@ -15,6 +15,7 @@
 import { useEffect, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/nfl/theme'
 import { slateKey, slotKey, isLocked, getPicks, savePick, clearPick } from '../../lib/nfl/myPicks'
+import { surname } from '../../lib/nfl/statLabels'
 
 const short = (m) => String(m || '').replace('_', ' ')
 
@@ -90,7 +91,7 @@ export function PutOnCard({ player, market, picks, slate }) {
                 border: `1px solid ${isMe ? C.cyan : isBot ? C.green + '88' : over ? C.yellow + '66' : C.border}`,
                 background: isMe ? 'rgba(53,205,255,.1)' : isBot ? 'rgba(0,245,173,.08)' : 'transparent', opacity: locked ? .6 : 1 }}>
               <div style={{ font: `900 12px/1 ${NUM_FONT}`, color: isMe ? C.cyan : isBot ? C.green : C.text2 }}>{rung.rank}</div>
-              <div style={{ marginTop: 4, fontSize: 8, color: isMe || isBot ? C.text : C.text3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{isMe ? 'YOU' : isBot ? 'BOT' : holder.split(' ').slice(-1)[0]}</div>
+              <div style={{ marginTop: 4, fontSize: 8, color: isMe || isBot ? C.text : C.text3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{isMe ? 'YOU' : isBot ? 'BOT' : surname(holder)}</div>
             </button>
           )
         })}
