@@ -1,6 +1,7 @@
 'use client'
 import NflFace from './nfl/NflFace'
 import { nflHeadshot } from '../lib/nfl/nflAssets'
+import { teamColor, isKnownTeam } from '../lib/mlbTeams'
 
 // ONE FACE, ALL THREE PRODUCTS (2026-09-27, BATCH-FACES step 8).
 //
@@ -44,13 +45,36 @@ const CARD_OF = {
   nfl: ({ espnId, team, name, size }) => <NflFace player={{ espn_id: espnId, team, name }} size={size} />,
 }
 
+// The tile's club colour, per product (hex from the club table).
+const TINT_OF = {
+  mlb: (team) => (isKnownTeam(team) ? teamColor(team) : null),
+}
+
 export function faceUrl({ sport, id, espnId, photo, size = 40 }) {
   return photo || URL_OF[sport]?.({ id, espnId, size }) || null
 }
 
 export default function PlayerFace({ sport, id = null, espnId = null, photo = null, team = null, name = '', size = 40, variant = 'card', theme = null, className = '', style = null }) {
-  if (variant === 'card' && CARD_OF[sport]) return CARD_OF[sport]({ espnId, team, name, size })
+  if ((variant === 'card' || variant === 'tile') && CARD_OF[sport]) return CARD_OF[sport]({ espnId, team, name, size })
   const src = faceUrl({ sport, id, espnId, photo, size })
+  // variant 'tile' (2026-09-27, The Four like The Six): TUDDY's face look -- a
+  // rounded square in the club's colour, the photo over it, the club code
+  // underneath when there is no photo.
+  if (variant === 'tile') {
+    const tint = TINT_OF[sport]?.(team) || theme?.bg3 || 'rgba(255,255,255,.06)'
+    return (
+      <span aria-hidden="true" title={name || undefined} style={{
+        position: 'relative', display: 'inline-grid', placeItems: 'center', flex: '0 0 auto',
+        width: size, height: size, borderRadius: Math.max(7, Math.round(size * 0.26)), overflow: 'hidden',
+        background: `linear-gradient(160deg, ${tint}, ${tint}66)`, border: `1px solid ${tint}88`,
+        color: 'rgba(255,255,255,.85)', font: `900 ${Math.max(7, Math.round(size * 0.26))}px/1 monospace`,
+      }}>
+        {String(team || initials(name)).slice(0, 3).toUpperCase()}
+        {src && <img src={src} alt={name || ''} width={size} height={size} loading="lazy" decoding="async"
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }} />}
+      </span>
+    )
+  }
   if (variant === 'table') {
     if (!src) return null
     return (

@@ -1,11 +1,11 @@
 'use client'
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import {
-  clean, nameOf, teamOf, hrScore, hitScore, prodScore, tbScore,
+  clean, nameOf, teamOf, hrScore, hitScore, prodScore, tbScore, PLATE_BAR,
 } from '../lib/player'
-import { verdictInk } from '../lib/scales'
 import HeadlinePicks from './headline/HeadlinePicks'
+import { rankBuckets } from '../lib/mlbFour'
 import PlayerFace from './PlayerFace'
 
 // THE FOUR — the bot's own headline section, rebuilt on the site.
@@ -176,49 +176,26 @@ export const CATEGORIES = [
  * Keyed on player_id with a name fallback: a row with no id is not silently
  * merged with every other row that also has no id.
  */
+// The body moved to lib/mlbFour.js rankBuckets (2026-09-27) so the server can
+// grade the same Four night by night (the record on each card). Same rule,
+// same order, one copy: CATEGORIES ride through with their colours and blurbs.
 export function pickBuckets(players = []) {
-  return CATEGORIES.map((cat) => {
-    // A player can now carry more than one role (2026-08-12: TOP allowed to
-    // also hold HR, joined "TOP/HR") — match on any tag, not just the first,
-    // so a TOP/HR double-up still shows up in the HR bucket here.
-    const pool = players.filter(
-      (p) => String(p?.game_pick_role || '').split('/').map((s) => s.trim()).includes(cat.role),
-    )
-    const sorted = [...pool].sort((a, b) => cat.score(b) - cat.score(a))
-
-    const keyOf = (p) => (p?.player_id != null && p.player_id !== ''
-      ? `id:${p.player_id}`
-      : `nm:${String(p?.name || '').toLowerCase()}|${String(p?.team || '')}`)
-
-    // How many slate rows each man has, so a collapsed entry can say so.
-    const games = new Map()
-    for (const p of sorted) {
-      const k = keyOf(p)
-      if (!k || k === 'nm:|') continue
-      games.set(k, (games.get(k) || 0) + 1)
-    }
-
-    const seen = new Set()
-    const picks = []
-    for (const p of sorted) {
-      if (picks.length >= 3) break
-      const k = keyOf(p)
-      if (seen.has(k)) continue
-      seen.add(k)
-      // _slateGames > 1 means his team plays more than once tonight; the card
-      // renders it as a quiet "×2 today" rather than as a second row.
-      picks.push(Object.assign(Object.create(Object.getPrototypeOf(p) || Object.prototype), p, {
-        _slateGames: games.get(k) || 1,
-      }))
-    }
-    // poolSize stays the ROW count — it is quoted as "of N designated" and the
-    // bot really did designate that many rows.
-    return { ...cat, picks, poolSize: pool.length, peopleSize: seen.size ? games.size : 0 }
-  })
+  return rankBuckets(players, CATEGORIES)
 }
 
-export default function BotPicksStrip({ players = [], onPlayerClick }) {
+export default function BotPicksStrip({ players = [], onPlayerClick, onFullCard = null }) {
   const four = useMemo(() => pickBuckets(players), [players])
+  // EACH CARD'S OWN RECORD (2026-09-27, The Four like The Six): the category's
+  // #1 graded on its own bar over the last 14 graded nights, computed and
+  // cached on the server (/api/dash/four-record; the nightly files are 2.4 MB
+  // each). Replaces the one "65% over 25 nights · Aug 23" pill, which was a
+  // study snapshot a month old. Unreadable -> no record line, never a guess.
+  const [rec, setRec] = useState(null)
+  useEffect(() => {
+    let alive = true
+    fetch('/api/dash/four-record').then((r) => (r.ok ? r.json() : null)).then((j) => { if (alive && j?.record) setRec(j.record) }).catch(() => {})
+    return () => { alive = false }
+  }, [])
 
   if (!four.some((f) => f.picks.length)) return null
 
@@ -228,13 +205,17 @@ export default function BotPicksStrip({ players = [], onPlayerClick }) {
   // MOONSHOT's: the ranking (pickBuckets), the words (statLine / microStat)
   // and the measured record below.
   const lanes = four.map((f) => ({
-    key: f.role, label: f.label, icon: f.icon, blurb: f.blurb, color: f.color,
+    // THE BAR beside the market, like TUDDY's "bar 1+" (2026-09-27, The Four
+    // like The Six): the words the Props plate prints (PLATE_BAR, one copy).
+    key: f.role, label: f.label, icon: f.icon, blurb: `bar ${PLATE_BAR[f.role]}`, color: f.color,
+    record: rec?.[f.role]?.n ? `${rec[f.role].hit} of ${rec[f.role].n} nights` : null,
     picks: f.picks.map((p, i) => ({
       key: p?.player_id ?? i,
       raw: p,
       name: nameOf(p),
       // The #1's face (BATCH-FACES step 8), mlbstatic by MLBAM id.
-      face: i === 0 && p?.player_id != null ? <PlayerFace sport="mlb" id={String(p.player_id)} name={nameOf(p)} size={28} theme={C} /> : null,
+      // In the club-coloured rounded square TUDDY's faces use (variant tile).
+      face: i === 0 && p?.player_id != null ? <PlayerFace sport="mlb" variant="tile" id={String(p.player_id)} team={teamOf(p)} name={nameOf(p)} size={28} theme={C} /> : null,
       score: f.score(p).toFixed(1),
       flag: p?.weak_spot_flag === true ? { icon: '⭐', title: i === 0 ? 'Weak lineup spot for this pitcher' : undefined } : null,
       micro: i === 0 ? null : microStat(p, f.role),
@@ -270,55 +251,15 @@ export default function BotPicksStrip({ players = [], onPlayerClick }) {
       title="🎯 The Four"
       subtitle={<>four categories, three deep — the bot&apos;s headline picks</>}
       lanes={lanes}
+      // No orphan (was 3 + CONTACT alone at 900): 4 across from 1100px, 2 x 2
+      // below, one column on a phone. NOT collapsed to the #1s on a phone like
+      // The Six: measured, the 44px "#2 and #3" button is taller than the two
+      // compact rows it hides, so four collapsed cards were taller, not shorter.
+      cols={{ wide: 4, mid: 2 }}
       onPick={onPlayerClick ? (pick) => onPlayerClick(pick.raw) : null}
       whatThis={{ label: 'how these are ranked', body: 'Each category uses its own score and evidence. ⭐ marks a weak lineup spot; tap a name for the hitter detail.' }}
-      record={(
-        <>
-        {/* ── THE RECORD, BECAUSE SOMEBODY FINALLY MEASURED IT (2026-08-23) ──
-            Donovan: "lets focus on precsion instead of coverage ... i was
-            thinking what about the 4 best bets then from dividing up the picks
-            top hit hrr bases whatever, what would the socring look like if we
-            did that over the time — if bad or not good just forget that idea."
-
-            bots/precision_study.py answered it off 25 graded nights, and the
-            answer is that the board he described ALREADY EXISTS and is this
-            one. Every pick graded on its own bar (designed_hit): The Four
-            65.0% across 100 picks, against 41.2% for all 2,048 designations.
-            Its 95% lower bound (55) clears the full board's upper bound (43).
-
-            The +16 is the MIX-ADJUSTED number, not the raw +23.8. A four-pick
-            board holds proportionally less home run than a board with an HR
-            pick in every game, and HR is the hardest bar on the site (21.8%
-            against 74.3% for 1+ hit) — so some of the gap is the market mix
-            rather than the ranking. The study prices that out and this prints
-            the number that survives it. Anything else would be flattering the
-            board with its own shape.
-
-            Deliberately NOT rounded up into a claim: it is a rate over 25
-            nights, it is stated with its sample, and it links nowhere it
-            cannot be checked. Re-run the study monthly and this line moves. */}
-        <span
-          title={'Measured over 25 graded nights, 100 picks, each one graded on its own bar '
-            + '(a home run for the HR pick, a base hit for the HIT pick, 2+ H+R+RBI for HRR, '
-            + '2+ total bases for CONTACT). The whole board — all 2,048 designations across the '
-            + 'same nights — graded 41.2%.\n\n'
-            + '+16pp is the MIX-ADJUSTED lift, not the raw +24: four picks hold proportionally '
-            + 'less home run than a board carrying an HR pick in every game, and HR is the '
-            + 'hardest bar here (21.8% against 74.3% for 1+ hit). That part is the market mix, '
-            + 'not the ranking, and it has been priced out.\n\n'
-            + 'bots/precision_study.py, last run 2026-08-23 (re-run monthly).'}
-          style={{
-            marginLeft: 'auto', flexShrink: 0, cursor: 'default',
-            fontSize: 9.5, fontFamily: NUM_FONT, fontWeight: 700, color: C.text3,
-            border: `1px solid ${C.border}`, borderRadius: 999, padding: '2px 9px',
-          }}
-        >
-          {/* §35: a measured number carries the date it was last true. */}
-          <b style={{ color: verdictInk(true).color }}>65%</b> over 25 nights ·{' '}
-          <span style={{ color: C.text2 }}>+16pp</span> vs the full board · Aug 23
-        </span>
-        </>
-      )}
+      // "Full card →" top right, like The Six's; the Props page is the card.
+      record={onFullCard ? <button type="button" onClick={onFullCard} style={{ minHeight: 44, margin: '-13px 0 -13px auto', padding: '0 4px', border: 'none', background: 'transparent', color: C.orange, font: `800 11px/1 ${NUM_FONT}`, cursor: 'pointer' }}>Full card →</button> : null}
     />
   )
 }

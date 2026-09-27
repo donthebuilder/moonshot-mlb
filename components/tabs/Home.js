@@ -1008,7 +1008,7 @@ export default function Home({
             show, not a panel below it. Same strip, same data, one container up. */}
         {!empty && (
           <div style={{ marginTop: 14 }}>
-            <BotPicksStrip players={players} onPlayerClick={onPlayerClick} />
+            <BotPicksStrip players={players} onPlayerClick={onPlayerClick} onFullCard={onNavigate ? () => onNavigate('props') : null} />
           </div>
         )}
       </div>

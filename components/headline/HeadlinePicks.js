@@ -18,7 +18,10 @@ import { WhatThis } from '../ui'
 //   compact rows (index, name, team, micro stat, score).
 // collapsePhone: on a phone each lane shows only its #1 until tapped
 //   (TUDDY's six boxes would otherwise be a long scroll; MOONSHOT's four fit).
-export default function HeadlinePicks({ theme, numFont, title, subtitle, record = null, lanes = [], onPick, whatThis = null, collapsePhone = false, gridClass = 'bot-picks-grid' }) {
+// cols: { wide, mid } -- an even grid instead of auto-fit (which left
+//   MOONSHOT's CONTACT alone on a second row): `wide` lanes across from
+//   1100px, `mid` from 561px, one column on a phone. Omitted -> auto-fit.
+export default function HeadlinePicks({ theme, numFont, title, subtitle, record = null, lanes = [], onPick, whatThis = null, collapsePhone = false, gridClass = 'bot-picks-grid', cols = null }) {
   const C = theme
   const NUM_FONT = numFont
   const [open, setOpen] = useState(() => new Set())
@@ -33,9 +36,9 @@ export default function HeadlinePicks({ theme, numFont, title, subtitle, record 
         {record}
       </div>
 
-      <div className={gridClass} style={{
+      <div className={cols ? `${gridClass} hp-even-${cols.wide}-${cols.mid}` : gridClass} style={{
         display: 'grid', gap: 8,
-        gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
+        gridTemplateColumns: cols ? '1fr' : 'repeat(auto-fit, minmax(230px, 1fr))',
       }}>
         {lanes.map((f) => {
           const lead = f.picks?.[0]
@@ -106,7 +109,7 @@ export default function HeadlinePicks({ theme, numFont, title, subtitle, record 
                   {/* On a phone, collapsed lanes offer the rest behind one tap. */}
                   {collapsePhone && rest.length > 0 && (
                     <button type="button" className="hp-more" onClick={() => toggle(f.key)} aria-expanded={isOpen}
-                      style={{ display: 'none', marginTop: 6, alignSelf: 'flex-start', minHeight: 32, padding: '4px 10px', borderRadius: 8, border: `1px solid ${f.color}4d`, background: 'transparent', color: f.color, fontSize: 10.5, fontWeight: 800, fontFamily: NUM_FONT, cursor: 'pointer' }}>
+                      style={{ display: 'none', marginTop: 6, alignSelf: 'flex-start', minHeight: 44, padding: '4px 12px', borderRadius: 8, border: `1px solid ${f.color}4d`, background: 'transparent', color: f.color, fontSize: 10.5, fontWeight: 800, fontFamily: NUM_FONT, cursor: 'pointer' }}>
                       {isOpen ? 'Hide #2 and #3' : `#2 and #3 ▾`}
                     </button>
                   )}
@@ -170,6 +173,12 @@ export default function HeadlinePicks({ theme, numFont, title, subtitle, record 
         <WhatThis label={whatThis.label} maxWidth={720}>
           {whatThis.body}
         </WhatThis>
+      )}
+      {cols && (
+        <style>{`
+          @media (min-width: 561px) { .hp-even-${cols.wide}-${cols.mid} { grid-template-columns: repeat(${cols.mid}, minmax(0, 1fr)) !important; } }
+          @media (min-width: 1100px) { .hp-even-${cols.wide}-${cols.mid} { grid-template-columns: repeat(${cols.wide}, minmax(0, 1fr)) !important; } }
+        `}</style>
       )}
       {collapsePhone && (
         <style>{`

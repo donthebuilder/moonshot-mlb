@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../lib/theme'
-import { nameOf, teamOf, oppOf, txt, playerId, mlbId } from '../../lib/player'
+import { nameOf, teamOf, oppOf, txt, playerId, mlbId, PLATE_BAR } from '../../lib/player'
 import { quoteFor, fmtOdds } from '../../lib/odds'
 import {
   ROLE_ORDER, GROUP_ORDER, rolesOf, primaryRole, roleColor,
@@ -87,7 +87,7 @@ const PRICE_ROLE = { TOP: 'TOP', HR: 'HR', HIT: 'HIT', HRR: 'HRR', CONTACT: 'CON
 // The bar under the badge on the plate — the shortest true statement of what
 // the badge has to clear. verdict.js's `market` is the English name; this is
 // the width a 64px plate can carry.
-const PLATE_BAR = { TOP: 'best bat', HR: '1+ HR', HIT: '1+ hit', HRR: '2+ H+R+RBI', CONTACT: '2+ TB', WATCH: 'coverage', NONE: 'no badge' }
+// PLATE_BAR now lives in lib/player.js (shared with The Four).
 
 function priceFor(odds, r, role) {
   const cat = PRICE_ROLE[role]
