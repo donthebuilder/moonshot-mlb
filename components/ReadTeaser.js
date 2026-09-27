@@ -129,7 +129,11 @@ export default function ReadTeaser({ players = [], odds: oddsProp = null, onNavi
   useEffect(() => {
     if (oddsProp) return undefined
     let alive = true
-    fetch(`${oddsPaths()[0]}${oddsPaths()[0].includes('?') ? '&' : '?'}t=${Date.now()}`, { cache: 'no-store' })
+    // Our own /api/odds/latest carries s-maxage=120: no cache-buster, so a
+    // Home mount reads the CDN copy instead of forcing a rebuild (cost cut,
+    // 2026-09-27). The ?t= stays only for a raw data-file path.
+    const u = oddsPaths()[0]
+    fetch(u.startsWith('/api/') ? u : `${u}${u.includes('?') ? '&' : '?'}t=${Date.now()}`, u.startsWith('/api/') ? undefined : { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => { if (alive && oddsLooksReal(j)) setFetched(j) })
       .catch(() => {})
