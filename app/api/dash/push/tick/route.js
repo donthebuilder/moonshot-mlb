@@ -39,7 +39,7 @@ import { reduceScoreDay } from '../../../../../lib/nhl/reduce'
 import { hasVapid, vapidDetails, vapidProblem } from '../../../../../lib/dash/vapid'
 import { claimBoardWindow, fetchBoard } from '../../../../../lib/dash/board'
 import { byeStarterEventsFrom, franchiseEventsFrom, lineupGapEventsFrom, starterScoreEventsFrom } from '../../../../../lib/dash/franchise'
-import { audienceFrom, boardInfoFrom, laneOf, lineupUpdatesFrom, mlbEventsFrom, nflEventsFrom, nhlEventsFrom, pregameEventsFrom, priorityOf, wants } from '../../../../../lib/dash/pushRules'
+import { audienceFrom, boardInfoFrom, laneOf, lineupUpdatesFrom, mlbEventsFrom, nflEventsFrom, nflFollowMisses, nhlEventsFrom, pregameEventsFrom, priorityOf, wants } from '../../../../../lib/dash/pushRules'
 import { fanOutToDiscord } from '../../../../../lib/dash/discordAlerts'
 import { isMaintenanceMode, isRedZoneAlertsEnabled } from '../../../../../lib/edgeConfig'
 
@@ -188,8 +188,18 @@ async function pregameEvents(db, audience) {
   return rows ? pregameEventsFrom(rows, snap, today(), audience) : []
 }
 
+// A followed player with no box-score line in the 4th quarter of his team's
+// game (NOTIF-6): inactive, or a name the follow key still can't join. Said
+// once per player per day per instance, so a Sunday is a handful of lines.
+const missLogged = new Set()
 async function nflEvents(audience) {
   const snap = await fetchNflLive({ force: true }).catch(() => null)
+  for (const m of nflFollowMisses(snap, audience)) {
+    const k = `${today()}|${m.key}`
+    if (missLogged.has(k)) continue
+    missLogged.add(k)
+    console.warn(`[push] NFL follow "${m.key}" (${m.team}) has no line in game ${m.game_id}, 4th quarter -- inactive, or a name that does not join; a TD would not alert`)
+  }
   return nflEventsFrom(snap, today(), audience)
 }
 
