@@ -1503,7 +1503,7 @@ export async function GET(request) {
         // changes as lineups confirm).
         const { data: taken } = await db.from('homer_feed_posts').select('day').match({ day, kind: 'history_watch' }).maybeSingle()
         if (taken || Date.now() - (_watchTried.get(day) || 0) < WATCH_RETRY_MS) return
-        const items = await mlbWatch(pregameRows(), Number(day.slice(0, 4)))
+        const items = await mlbWatch(pregameRows(), Number(day.slice(0, 4)), { day })
         if (!historyWatchText(items)) _watchTried.set(day, Date.now())
         await claimAndPostStat(db, day, 'history_watch', MILESTONE_AM_HOUR,
           historyWatchText(items),

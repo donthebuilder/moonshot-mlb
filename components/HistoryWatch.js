@@ -38,12 +38,14 @@ export default function HistoryWatch({ sport = 'mlb', theme = null, numFont = nu
           <div key={k} style={{ borderTop: `1px solid ${C.border}` }}>
             <button type="button" onClick={() => setOpenKey(open ? null : k)} aria-expanded={open}
               style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 0', background: 'transparent', border: 'none', color: C.text, cursor: 'pointer', font: 'inherit', fontSize: 12, lineHeight: 1.4 }}>
-              <b>{i.name}</b> <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 10.5 }}>{i.team} · {i.hr} {i.unit || unit}</span>
-              <span style={{ color: C.text2 }}> · {step} = {i.claim}</span>
+              {/* A postseason club drought is about the club, not a hitter (lib/history/mlbPost.js). */}
+              {i.kind === 'DROUGHT'
+                ? <><b>{i.team}</b> <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 10.5 }}>no postseason HR yet</span><span style={{ color: C.text2 }}> · a homer tonight = {i.claim}</span></>
+                : <><b>{i.name}</b> <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 10.5 }}>{i.team} · {i.hr} {i.unit || unit}</span><span style={{ color: C.text2 }}> · {step} = {i.claim}</span></>}
             </button>
             {open && (
               <div style={{ padding: '0 0 8px 8px', fontSize: 10.5, color: C.text2, lineHeight: 1.5 }}>
-                {i.proof.lastSeason
+                {i.proof.title ? <>{i.proof.title}</> : i.proof.lastSeason
                   ? <>Every {i.proof.who} with {i.rung}+ {i.unit || unit} before this season, newest first:</>
                   : <>Nobody in the data has done it for this club (data from {i.proof.coverageFrom}).</>}
                 {i.proof.allSince?.length ? (
@@ -52,7 +54,7 @@ export default function HistoryWatch({ sport = 'mlb', theme = null, numFont = nu
                     {i.proof.hits > 8 ? <li style={{ listStyle: 'none', color: C.text3 }}>…and {i.proof.hits - 8} more</li> : null}
                   </ul>
                 ) : null}
-                {onPlayerClick && <button type="button" onClick={() => onPlayerClick({ player_id: i.player_id, name: i.name, team: i.team })} style={{ background: 'none', border: 'none', color: C.text2, padding: 0, cursor: 'pointer', textDecoration: 'underline dotted', fontSize: 10.5 }}>open {i.name.split(' ').pop()}’s card</button>}
+                {onPlayerClick && i.kind !== 'DROUGHT' && <button type="button" onClick={() => onPlayerClick({ player_id: i.player_id, name: i.name, team: i.team })} style={{ background: 'none', border: 'none', color: C.text2, padding: 0, cursor: 'pointer', textDecoration: 'underline dotted', fontSize: 10.5 }}>open {i.name.split(' ').pop()}’s card</button>}
                 <div style={{ color: C.text3, fontSize: 9.5, marginTop: 4 }}>{data.credit}</div>
               </div>
             )}
