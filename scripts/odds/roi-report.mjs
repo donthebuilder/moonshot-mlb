@@ -38,3 +38,23 @@ for (const r of roiTable(all)) {
     ? `${head}  hits ${r.hits}  implied ${r.impliedPct.toFixed(1)}%  actual ${r.actualPct.toFixed(1)}%  ROI best ${f(r.roiBest)}  median ${f(r.roiMedian)}`
     : `${head}  not enough yet`)
 }
+
+// THE CARD AGAINST THE BOOK'S LINE (TUDDY depth step 1). Not our bar: did the
+// card's non-TD rung go OVER the book's line at lock, and what the over paid.
+// Its own section, never mixed into the rows above.
+const { pricedLinePicks } = await import('../../lib/odds/gradedPicks.js')
+const lp = await pricedLinePicks(db, { season: NFL_SEASON, weeks: nflWeeks })
+if (lp.error) console.log(`\nNFL card vs the book: ${lp.error.message}`)
+else {
+  console.log(`\nNFL card vs the BOOK'S line at lock: ${lp.counts.rungs} rungs, ${lp.counts.graded} graded, ${lp.counts.priced} priced, ${lp.counts.ambiguous} ambiguous`)
+  const markets = [...new Set(lp.picks.filter((p) => p.price).map((p) => p.market))]
+  for (const mk of markets) {
+    const mine = lp.picks.filter((p) => p.market === mk && p.price)
+    const pushes = mine.filter((p) => p.result === 'push').length
+    const rows = roiTable(mine.map((p) => ({ ...p, status: 'called' })))
+    const n = rows.reduce((a, r) => a + r.n, 0)
+    const hits = rows.reduce((a, r) => a + r.hits, 0)
+    console.log(`  ${mk.padEnd(9)} priced n=${String(n).padStart(4)}${pushes ? ` (+${pushes} push)` : ''}  ${n >= MIN_N ? `over the line ${hits}/${n}  ` + rows.map((r) => `${r.bandLabel}: ROI best ${f(r.roiBest)} median ${f(r.roiMedian)}`).join(' · ') : 'not enough yet'}`)
+  }
+  if (!markets.length) console.log('  no graded rung has a lock line yet (NFL lines are saved at lock from 09-27, week 3)')
+}
