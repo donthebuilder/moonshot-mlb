@@ -7,6 +7,7 @@ import Dashboard from './Dashboard'
 import NflDashboard from './nfl/NflDashboard'
 import LampDashboard from './lamp/LampDashboard'
 import AccountNudge from './AccountNudge'
+import ExplainToast from './ExplainToast'
 
 // One switch, two dashboards.
 //
@@ -77,8 +78,9 @@ export default function SportRoot() {
   // component instance and its DOM survive.
   // Three shells, one switch (2026-09-25: LAMP). MOONSHOT stays the default.
   if (!ready) return <Shell />
-  // The account ask (funnel step 3), once for all three products.
-  const nudge = <AccountNudge sport={sport} />
+  // The account ask (funnel step 3) and the explain panel (tap-to-explain
+  // ticker pills), once for all three products.
+  const nudge = <><AccountNudge sport={sport} /><ExplainToast sport={sport} /></>
   if (sport === 'nfl') return <><NflDashboard palettePass={pass} />{nudge}</>
   if (sport === 'nhl') return <><LampDashboard palettePass={pass} />{nudge}</>
   return <><Dashboard palettePass={pass} />{nudge}</>

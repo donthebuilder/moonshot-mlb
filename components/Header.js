@@ -1,4 +1,5 @@
 'use client'
+import { explain } from '../lib/explain'
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { logUrl } from '../lib/dataSource'
@@ -160,12 +161,12 @@ function Scorebug({ players, results, games, mode, slateDate, runMeta, onPlayerC
 
   const items = []
   items.push({ k: 'games', label: 'games', value: stats.gameCount, nav: 'games', title: 'Games on this slate' })
-  if (proj != null) items.push({ k: 'proj', label: 'HR proj', value: proj, color: '#f97316', nav: 'board', title: `${modelHr != null ? `The site's model projects ${modelHr.toFixed(1)} home runs across this slate. ` : ''}${projection ? `The bot's sheet says ${projection.low}–${projection.high}, power grade ${projection.grade || 'n/a'}.` : ''}` })
-  items.push({ k: 'cap', label: captured ? 'HRs on board' : 'HR capture', value: captured ? `${stats.onSheet}/${stats.actual}` : 'tracking', color: capCol, live: true, nav: 'results', title: captured ? `${stats.onSheet} of the slate's ${stats.actual} home runs were on the board before first pitch (${pct.toFixed(0)}%) -- the same number the front door calls on the board.` : 'Live HR capture — starts scoring when the first homer lands.' })
+  if (proj != null) items.push({ explain: true, k: 'proj', label: 'HR proj', value: proj, color: '#f97316', nav: 'board', title: `${modelHr != null ? `The site's model projects ${modelHr.toFixed(1)} home runs across this slate. ` : ''}${projection ? `The bot's sheet says ${projection.low}–${projection.high}, power grade ${projection.grade || 'n/a'}.` : ''}` })
+  items.push({ explain: true, k: 'cap', label: captured ? 'HRs on board' : 'HR capture', value: captured ? `${stats.onSheet}/${stats.actual}` : 'tracking', color: capCol, live: true, nav: 'results', title: captured ? `${stats.onSheet} of the slate's ${stats.actual} home runs were on the board before first pitch (${pct.toFixed(0)}%) -- the same number the front door calls on the board.` : 'Live HR capture — starts scoring when the first homer lands.' })
   // live scores ride between the facts and the headlines: live first, finals after
   for (const i of live.items.filter((x) => x.live)) items.push({ k: i.k, hash: i.hash, label: i.sub || 'live', value: i.text, icon: i.icon, color: i.col, live: true, sport: i.sport, nav: 'scoreboard', title: i.kind === 'leader' ? `Leading tonight's line for this game` : (i.sport === 'nfl' ? 'Live on TUDDY — tap to switch' : 'Live — tap for the Live page') })
   for (const h of heads) items.push({ k: `h-${h.k}`, label: h.tag, value: h.name, icon: h.icon, color: h.col, p: h.p, nav: h.nav, title: h.why })
-  items.push({ k: 'lineups', label: staleSlate ? 'prev lineups' : 'lineups', value: `${stats.confirmedTeams}/${stats.lineupTeams}`, color: staleSlate ? C.text3 : '#4ade80', nav: 'games', title: 'Teams with a confirmed lineup' })
+  items.push({ explain: true, k: 'lineups', label: staleSlate ? 'prev lineups' : 'lineups', value: `${stats.confirmedTeams}/${stats.lineupTeams}`, color: staleSlate ? C.text3 : '#4ade80', nav: 'games', title: 'Teams with a confirmed lineup' })
   // FRESHNESS PILL (2026-09-11, item 21). "MLB has no lineup freshness
   // indicator anywhere" -- unlike TUDDY's built_at_human clock. The bot has
   // published current/{mode}_run_meta.json with a generated_at timestamp
@@ -181,10 +182,10 @@ function Scorebug({ players, results, games, mode, slateDate, runMeta, onPlayerC
       const ageMin = Math.max(0, Math.round((Date.now() - builtMs) / 60000))
       const ageText = ageMin < 1 ? 'just now' : ageMin < 60 ? `${ageMin}m ago` : `${Math.floor(ageMin / 60)}h ${ageMin % 60}m ago`
       const builtStale = ageMin > 180
-      items.push({ k: 'built', label: 'built', value: ageText, color: builtStale ? '#f87171' : C.text3, title: `Board last built ${new Date(builtMs).toLocaleString([], { hour: 'numeric', minute: '2-digit', month: 'short', day: 'numeric' })}${builtStale ? ' -- over 3h old' : ''}` })
+      items.push({ explain: true, k: 'built', label: 'built', value: ageText, color: builtStale ? '#f87171' : C.text3, title: `Board last built ${new Date(builtMs).toLocaleString([], { hour: 'numeric', minute: '2-digit', month: 'short', day: 'numeric' })}${builtStale ? ' -- over 3h old' : ''}` })
     }
   }
-  items.push({ k: 'weak', label: 'weak', value: `★${stats.weak}`, color: '#FCD34D', nav: 'board', title: 'Weak-spot matchups on the slate' })
+  items.push({ explain: true, k: 'weak', label: 'weak', value: `★${stats.weak}`, color: '#FCD34D', nav: 'board', title: 'Weak-spot matchups on the slate' })
   for (const i of live.items.filter((x) => !x.live && !x.pregame)) items.push({ k: i.k, hash: i.hash, label: i.sub || 'final', value: i.text, icon: i.icon, color: C.text3, sport: i.sport, nav: 'scoreboard', title: i.kind === 'leader' ? `${i.sub}'s final line` : (i.sub === 'last night' ? "Last night — sticks around till tonight's games start" : 'Final') })
   // THE PREGAME PILLS WERE BUILT AND NEVER RENDERED (2026-09-18). useLiveScores
   // has produced a `pregame` item per not-yet-started game since 2026-09-16
@@ -200,7 +201,11 @@ function Scorebug({ players, results, games, mode, slateDate, runMeta, onPlayerC
   // this was `sport === 'nfl' ? 'nfl' : 'scoreboard'`, so a hockey item would
   // have opened MOONSHOT's scoreboard). MOONSHOT's own go to its scoreboard.
   // A pill that names its destination (`hash`, e.g. LAMP's scores) goes there.
-  const open = (it) => { if (it.p) onPlayerClick?.(it.p); else if (it.hash) window.location.hash = it.hash; else if (it.sport && it.sport !== 'mlb') setSport(it.sport); else if (it.nav) go?.(it.nav) }
+  // TAP TO EXPLAIN (2026-09-27): the shorthand pills (HR proj, HR capture,
+  // lineups, built, weak ★) also put their explanation in the shell's explain
+  // panel (lib/explain.js) -- it stays up across the page they open, so the
+  // tap says what it was. Scores and headlines only navigate, as before.
+  const open = (it) => { if (it.explain) explain(it.label, it.title); if (it.p) onPlayerClick?.(it.p); else if (it.hash) window.location.hash = it.hash; else if (it.sport && it.sport !== 'mlb') setSport(it.sport); else if (it.nav) go?.(it.nav) }
   // ONE SHAPE FOR EVERY PILL: same height, same padding, label over value in
   // a fixed two-line stack, a dot on the left slot whether live or not (so
   // the pills line up), value truncated at 150px. That shape now lives in

@@ -1,5 +1,6 @@
 'use client'
 import { C as MLB_C, NUM_FONT as MLB_NUM } from '../lib/theme'
+import { explain } from '../lib/explain'
 
 // ── THE TICKER PILL, ONE SHAPE FOR BOTH HEADERS (2026-09-18) ───────────────
 // Donovan: "why dont the score rail on headers dont match."
@@ -69,8 +70,20 @@ export default function TickerPill({
       </span>
     </>
   )
+  // A static pill WITH an explanation (Games, Proj TD, LOCKED...) is a tap
+  // now: its title goes to the fixed explain panel (lib/explain.js) -- a
+  // phone can't hover, and a popover can't ride a moving strip. With no
+  // title it stays an inert box.
+  if (typeof onClick !== 'function' && title) {
+    return (
+      <button type="button" tabIndex={echo ? -1 : 0} aria-hidden={echo || undefined} title={title}
+        onClick={() => explain(label, title)} style={{ ...box, cursor: 'help' }}>
+        {inner}
+      </button>
+    )
+  }
   if (typeof onClick !== 'function') {
-    return <div title={title || undefined} style={box}>{inner}</div>
+    return <div style={box}>{inner}</div>
   }
   return (
     <button
