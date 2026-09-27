@@ -366,7 +366,7 @@ export default function Home({ data, picks, results, matchup, logs, onPlayerClic
         {NFL_NAV.players.icon} Find a player — {NFL_NAV.players.label} ›
       </button>
 
-      <NflHeadlineStrip players={players} games={games} markets={data?.markets} matchup={matchup}
+      <NflHeadlineStrip players={players} games={games} markets={data?.markets} matchup={matchup} logs={logs}
         onPlayerClick={onPlayerClick} setTab={setTab} />
 
       {/* ONE RAIL, BOTH SPORTS (round 10, 2026-09-17) -- see lib/combinedRail.js's
