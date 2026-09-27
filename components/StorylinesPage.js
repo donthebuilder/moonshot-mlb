@@ -24,6 +24,10 @@ const TYPE_LABEL = {
   model: 'Model', due: 'Due', redzone: 'Red zone', hot: 'Hot stick', special: 'Special teams', rest: 'Back-to-back night',
 }
 const SHOW = 3
+// The bar a frozen story was graded on, in words (lib/stories/grade.js).
+const BAR_WORD = { hr: 'homered', hit: '1+ hit', td: 'scored a TD', goal: 'scored', productive: 'productive' }
+const barWord = (bar) => BAR_WORD[bar] || (String(bar).startsWith('milestone:') ? 'reached it' : String(bar).startsWith('streak:') ? 'streak extended' : String(bar || ''))
+const MIN_PCT = 30   // no percentage until a type has this many graded stories
 const ORDER = { pre: 0, unknown: 0, live: 1, final: 2 }
 
 const timeOf = (iso) => {
@@ -120,6 +124,11 @@ export default function StorylinesPage({ sport, eyebrow, theme: C, numFont, acce
                   onClick={onOpenPlayer && s.board ? () => onOpenPlayer(s.player_id, s) : null}
                   tag={<Badge b={s.board} />} style={{ fontSize: 12 }}>
                   <Parts parts={s.parts} />
+                  {s.outcome ? (
+                    <span style={{ display: 'block', fontSize: 11, fontFamily: numFont, fontWeight: 800, color: s.outcome.base === 'hit' ? accent : C.text3 }}>
+                      {s.outcome.base === 'hit' ? '✓ came true' : s.outcome.base === 'miss' ? '✗ did not' : '– no line (did not play)'} · {barWord(s.outcome.bar)}{s.outcome.strong === 'hit' ? ' · strong ✓' : ''}
+                    </span>
+                  ) : s.frozen && g.state === 'final' ? <span style={{ display: 'block', fontSize: 11, color: C.text3 }}>grading…</span> : null}
                 </StoryRow>
               ))}
             </div>
@@ -132,7 +141,30 @@ export default function StorylinesPage({ sport, eyebrow, theme: C, numFont, acce
           </section>
         )
       })}
-      <div style={{ fontSize: 11, color: C.text3 }}>Graded after the games: each story is frozen at first pitch / kickoff / puck drop and checked against what happened — the record starts the day it ships.</div>
+      <section aria-label="How stories did" style={{ border: `1px solid ${C.border}`, borderRadius: 12, background: C.bg2, padding: '10px 12px' }}>
+        <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.1em', color: accent, fontFamily: numFont }}>HOW STORIES DID</div>
+        <div style={{ fontSize: 12, color: C.text3, margin: '4px 0 6px' }}>Every story is frozen at the start of its game and checked after it against the player&apos;s own line. A story with no outcome of its own is graded on a productive night; &ldquo;everyone&rdquo; is the same bar for every player who played those nights. The record started {data?.summary?.length ? data.summary.reduce((a, r) => (r.since < a ? r.since : a), data.summary[0].since) : 'the day this shipped'}{data?.summary?.length ? '' : ' — no game has been graded yet'}.</div>
+        {data?.summary?.length ? (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <thead><tr style={{ color: C.text3, fontFamily: numFont, fontSize: 10, textAlign: 'left' }}><th style={{ padding: '4px 6px 4px 0' }}>STORY</th><th style={{ padding: 4 }}>GRADED</th><th style={{ padding: 4 }}>CAME TRUE</th><th style={{ padding: 4 }}>EVERYONE</th></tr></thead>
+              <tbody>
+                {data.summary.map((r) => {
+                  const pct = (h, n) => (n >= MIN_PCT ? `${Math.round((100 * h) / n)}%` : `${h} of ${n}`)
+                  return (
+                    <tr key={r.type} style={{ borderTop: `1px solid ${C.border}` }}>
+                      <td style={{ padding: '5px 6px 5px 0', color: C.text }}>{TYPE_LABEL[r.type] || r.type}{r.bar ? <span style={{ color: C.text3 }}> · {barWord(r.bar)}</span> : null}</td>
+                      <td style={{ padding: 4, fontFamily: numFont }}>{r.n}</td>
+                      <td style={{ padding: 4, fontFamily: numFont, color: C.text }}>{pct(r.hit, r.n)}</td>
+                      <td style={{ padding: 4, fontFamily: numFont, color: C.text3 }}>{r.base ? pct(r.base.hits, r.base.players) : '—'}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
+      </section>
     </div>
   )
 }

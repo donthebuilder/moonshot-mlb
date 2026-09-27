@@ -3,10 +3,13 @@
 // BATCH-STORYLINES-PAGE step 2: every story the product's engine
 // (lib/stories/{mlb,nfl,nhl}.js) finds for tonight, tied to its game and
 // carrying the player's CALLED / ON THE BOARD / NOT ON THE BOARD chip
-// (lib/stories/index.js). Games in start order. The engines read the league
+// (lib/stories/index.js). Games in start order. A game under way or final
+// shows the stories frozen at its start, with their grade (step 3), and
+// `summary` is HOW STORIES DID. The engines read the league
 // APIs and the published files, so the answer is cached: 5 minutes at the
 // CDN (one build serves every visitor) and in this instance.
-import { loadStories, STORY_SPORTS } from '../../../lib/stories'
+import { loadStoriesPage, STORY_SPORTS } from '../../../lib/stories'
+import { adminClient } from '../../../lib/nhl/db'
 import { validDate } from '../../../lib/nhl/api'
 
 export const dynamic = 'force-dynamic'
@@ -24,7 +27,8 @@ export async function GET(request) {
   const headers = { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=900' }
   if (hit && Date.now() - hit.at < TTL_MS) return Response.json(hit.body, { headers })
   try {
-    const body = { ...(await loadStories(sport, { date })), builtAt: new Date().toISOString() }
+    // Started games show what was frozen at their start, graded once final (lib/stories/record.js).
+    const body = { ...(await loadStoriesPage(sport, { date, db: adminClient() })), builtAt: new Date().toISOString() }
     _memo.set(key, { at: Date.now(), body })
     return Response.json(body, { headers })
   } catch (e) {

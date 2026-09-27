@@ -60,6 +60,7 @@ import { postLongshotsOnce } from '../../../../../lib/dash/longshotsPost'
 import { mlbLatestOdds } from '../../../../../lib/odds/latest'
 import { postMultiClubOnce } from '../../../../../lib/dash/multiClubPost'
 import { mlbSeasonActive } from '../../../../../lib/dash/seasonGuard'
+import { storiesTick } from '../../../../../lib/stories/record'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -1119,6 +1120,13 @@ export async function GET(request) {
   // hrleadersdow) never touch the snapshot at all, so a live-API outage no
   // longer blocks them.
   const started = gamesLive.some((g) => g?.state === 'Live' || g?.state === 'Final')
+  // 📰 STORYLINES (2026-09-27, BATCH-STORYLINES-PAGE step 3): freeze each
+  // game's stories in the 15 minutes before its first pitch, grade them once
+  // it is final (lib/stories/record.js). Before the pregame early returns on
+  // purpose -- the freeze IS pregame. Never throws; a schedule read and one
+  // small select on a quiet minute.
+  const storylines = await storiesTick(db, 'mlb')
+  if (storylines?.frozen || storylines?.graded || storylines?.base) console.log(`[homers] storylines ${JSON.stringify(storylines)}`)
   // 2026-09-06 (Donovan: "at least a hour before first pitch"). Computed off
   // whatever the board holds right now -- boardIndex() only just resolved
   // above, so this always sees the freshest cached rows.

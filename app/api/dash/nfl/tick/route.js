@@ -81,6 +81,7 @@ import { postMultiClubOnce } from '../../../../../lib/dash/multiClubPost'
 import { writeNight as writeNumerology, gradeNight as gradeNumerology, refreshLaneNights, writeNumbersNight, ELIGIBLE } from '../../../../../lib/numerology/record'
 import { fromNfl } from '../../../../../lib/numerology/adapters'
 import { easternDate } from '../../../../../lib/data'
+import { storiesTick } from '../../../../../lib/stories/record'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -785,7 +786,10 @@ export async function GET(request) {
     : 'not-now'
 
   const numerology = await runNflNumerology(db, day)
+  // 📰 STORYLINES (BATCH-STORYLINES-PAGE step 3): freeze each game's stories in
+  // the 15 minutes before kickoff, grade them once final. Never throws.
+  const storylines = await storiesTick(db, 'nfl')
 
   const threads = threadsSnapshot()
-  return Response.json({ day, td, milestone, weekly, longshots, multiClub, numerology, ...(threads.length ? { threads } : {}) })
+  return Response.json({ day, td, milestone, weekly, longshots, multiClub, numerology, storylines, ...(threads.length ? { threads } : {}) })
 }

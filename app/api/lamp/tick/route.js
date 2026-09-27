@@ -32,6 +32,7 @@ import { toPropRow, gradeSogRows, MODEL_VERSION as SOG_VERSION, MARKET as SOG } 
 import { readNumerology } from '../../../../lib/nhl/numerology'
 import { writeNight as writeNumerology, gradeNight as gradeNumerology, refreshLaneNights, writeNumbersNight } from '../../../../lib/numerology/record'
 import { fromNhl } from '../../../../lib/numerology/adapters'
+import { storiesTick } from '../../../../lib/stories/record'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -219,6 +220,10 @@ export async function GET(request) {
   if (date === easternToday() && etHour >= 17) {
     out.longshots = await postLongshotsOnce(db, { sport: 'nhl', day: date, kind: 'nhl_longshots' }).catch((e) => `error: ${e?.message}`)
   }
+  // 📰 STORYLINES (BATCH-STORYLINES-PAGE step 3): freeze each game's stories
+  // in the 15 minutes before puck drop (this tick runs every 10), grade them
+  // once final. lib/stories/record.js; never throws.
+  out.stories = await storiesTick(db, 'nhl')
   out.ms = Date.now() - t0
   console.log(`[lamp tick] ${date} locked ${out.locked.length} graded ${out.graded.length} skipped ${out.skipped.length} in ${out.ms}ms`)
   return Response.json(out, { headers: { 'Cache-Control': 'no-store' } })
