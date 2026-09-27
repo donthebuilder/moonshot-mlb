@@ -3,9 +3,7 @@ import { useState, useEffect } from 'react'
 import { useSport } from '../lib/sport'
 import { themeFromUrl } from '../lib/themes'
 import { applyTheme, C } from '../lib/theme'
-import Dashboard from './Dashboard'
-import NflDashboard from './nfl/NflDashboard'
-import LampDashboard from './lamp/LampDashboard'
+import dynamic from 'next/dynamic'
 import AccountNudge from './AccountNudge'
 import ExplainToast from './ExplainToast'
 
@@ -61,6 +59,19 @@ function Shell() {
     </div>
   )
 }
+
+// ── ONE PRODUCT'S CODE PER LINK (2026-09-27) ─────────────────────────────
+// The shell above stopped MOONSHOT flashing on a LAMP link, but every cold
+// link still sat on it ~6.3 s on a phone profile (6x CPU, 1.6 Mbps): the three
+// dashboards were static imports, so /app shipped all three products -- 989 KB
+// of compressed JS -- before anything could render, whichever one the link
+// named. Each is its own chunk now, fetched when it is the one to show; the
+// same Shell covers the fetch. Switching sport in the app loads the other
+// chunk on the first switch (the Shell for that moment), then it is cached.
+// ssr:false costs nothing: the server already rendered only the Shell.
+const Dashboard = dynamic(() => import('./Dashboard'), { ssr: false, loading: () => <Shell /> })
+const NflDashboard = dynamic(() => import('./nfl/NflDashboard'), { ssr: false, loading: () => <Shell /> })
+const LampDashboard = dynamic(() => import('./lamp/LampDashboard'), { ssr: false, loading: () => <Shell /> })
 
 export default function SportRoot() {
   const sport = useSport()
