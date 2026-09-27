@@ -52,7 +52,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { timingSafeEqual } from 'node:crypto'
 
-import { easternToday } from '../../../../../lib/data'
+import { easternToday, etHoursSinceNoon } from '../../../../../lib/data'
 import {
   fetchNfl, nflFantasyStatsPaths, nflLogPaths, nflMatchupLooksReal, nflMatchupPaths,
   nflPicksLooksReal, nflPicksPaths, nflRosterPaths, nflSlateLooksReal, nflSlatePaths,
@@ -215,11 +215,8 @@ const WEEKLY_SLOTS = {
   2: [{ kind: 'nfl_spotlight', hour: TUE_SPOTLIGHT_HOUR }],
 }
 
-function etHoursSinceNoon() {
-  const h = new Date().getUTCHours()
-  const rel = h < 4 ? h + 24 : h
-  return rel - 16
-}
+// etHoursSinceNoon: lib/data.js (the real New York hour minus 12; this file's
+// UTC-16 copy ran an hour early from November to March).
 
 // Same day-of-week test homers/tick already runs on its own recap day
 // (route.js, the Sunday recap check) — noon UTC on the date string avoids
