@@ -78,6 +78,10 @@ import { logXBudget } from '../../../../../lib/dash/xBudget'
 import { isMaintenanceMode } from '../../../../../lib/edgeConfig'
 import { postLongshotsOnce } from '../../../../../lib/dash/longshotsPost'
 import { postMultiClubOnce } from '../../../../../lib/dash/multiClubPost'
+import { writeNight as writeNumerology, gradeNight as gradeNumerology, refreshLaneNights, writeNumbersNight, ELIGIBLE } from '../../../../../lib/numerology/record'
+import { fromNfl } from '../../../../../lib/numerology/adapters'
+import { easternDate } from '../../../../../lib/data'
+import { storiesTick } from '../../../../../lib/stories/record'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -711,6 +715,51 @@ async function runMilestoneTick(db, day) {
   return { posted: true, text }
 }
 
+// ── NUMEROLOGY, RECORDED (2026-09-27, BATCH-NUMEROLOGY step 6) ────────────
+// WRITE: this week's players (nfl_week.json) whose game is on `day` (the
+// kickoff's Eastern date) and has not kicked off, once each (first write
+// wins; one small select per tick). GRADE: yesterday's players from
+// nfl_td_feed (hit = scored a touchdown that day; played is not in the feed,
+// so it stays null and the base rate is over everyone eligible), from 3am ET
+// so Monday / Sunday night games are final. Never in a score or a board.
+async function runNflNumerology(db, day) {
+  const out = {}
+  try {
+    const week = await fetchNfl(nflSlatePaths(), nflSlateLooksReal).catch(() => null)
+    const kick = new Map()
+    for (const g of week?.games || []) {
+      const t = Date.parse(g?.kickoff || '')
+      if (!Number.isFinite(t)) continue
+      for (const team of [g.away, g.home]) if (team) kick.set(String(team).toUpperCase(), t)
+    }
+    const players = (week?.players || []).filter((p) => {
+      const t = kick.get(String(p.team || '').toUpperCase())
+      return t && easternDate(t) === day && Date.now() < t
+    }).map((p) => { const a = fromNfl(p); return a ? { player_id: p.player_id, ...a } : null }).filter(Boolean)
+    out.write = players.length ? await writeNumerology(db, 'nfl', day, players) : 'no game left today'
+  } catch (e) { out.write = `error: ${e?.message}` }
+  try {
+    if (etHoursSinceNoon() >= -9) {
+      const yday = new Date(Date.parse(`${day}T12:00:00Z`) - 864e5).toISOString().slice(0, 10)
+      const { data: open } = await db.from('numerology_log').select('player_id').eq('sport', 'nfl').eq('day', yday).eq('lane', ELIGIBLE).is('graded_at', null).limit(1000)
+      if (open?.length) {
+        const { data: tds } = await db.from('nfl_td_feed').select('gsis_id').eq('day', yday)
+        const scored = new Set((tds || []).map((r) => String(r.gsis_id)).filter(Boolean))
+        const results = new Map(open.map((r) => [String(r.player_id), { played: null, hit: scored.has(String(r.player_id)) }]))
+        out.graded = await gradeNumerology(db, 'nfl', yday, results)
+        await refreshLaneNights(db, 'nfl', yday)
+        // HOT NUMBERS (step 6b): that day's recorded players against the
+        // touchdown feed, once. The week file still holds their numbers.
+        const week = await fetchNfl(nflSlatePaths(), nflSlateLooksReal).catch(() => null)
+        const ids = new Set(open.map((r) => String(r.player_id)))
+        const players = (week?.players || []).filter((p) => ids.has(String(p.player_id))).map((p) => { const a = fromNfl(p); return a ? { player_id: p.player_id, ...a } : null }).filter(Boolean)
+        if (players.length) out.hotNumbers = await writeNumbersNight(db, 'nfl', yday, players, scored)
+      }
+    }
+  } catch (e) { out.grade = `error: ${e?.message}` }
+  return out
+}
+
 export async function GET(request) {
   if (!authorized(request)) return Response.json({ error: 'Unauthorized' }, { status: 401 })
   if (await isMaintenanceMode()) return Response.json({ skipped: 'maintenance_mode' })
@@ -736,6 +785,11 @@ export async function GET(request) {
     ? await postMultiClubOnce(db, { sport: 'nfl', day, kind: 'nfl_multi_club' }).catch((e) => `error: ${e?.message}`)
     : 'not-now'
 
+  const numerology = await runNflNumerology(db, day)
+  // 📰 STORYLINES (BATCH-STORYLINES-PAGE step 3): freeze each game's stories in
+  // the 15 minutes before kickoff, grade them once final. Never throws.
+  const storylines = await storiesTick(db, 'nfl')
+
   const threads = threadsSnapshot()
-  return Response.json({ day, td, milestone, weekly, longshots, multiClub, ...(threads.length ? { threads } : {}) })
+  return Response.json({ day, td, milestone, weekly, longshots, multiClub, numerology, storylines, ...(threads.length ? { threads } : {}) })
 }

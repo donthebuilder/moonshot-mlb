@@ -5,6 +5,7 @@ import useScrollLock from '../../lib/useScrollLock'
 import { useDialog } from '../../lib/useDialog'
 import { C, NUM_FONT, MARKETS, gradeFor } from '../../lib/nfl/theme'
 import PropsGrid from './PropsGrid'
+import { STAT_KEY } from './HitRate'
 import PlayerNotes from '../PlayerNotes'
 import { VerdictStamp, PutOnCard } from './CardActions'
 import MatchupMap from './MatchupMap'
@@ -291,6 +292,78 @@ function TheFile({ player, log }) {
           value={games || '—'}
           sub={games ? 'every rate here is over these' : 'no play-by-play held'} />
       </div>
+    </>
+  )
+}
+
+// ── RATES AT THE CARD'S BAR (2026-09-27, TUDDY depth step 2) ────────────
+// Every market he has a score in, best score first: how often he reached
+// the card's own bar over his last 4 games, last 8, and this season, with
+// the games counted ("3/4 · 5/8 · 7/11"). Same log and same rule HitRate
+// grades on (stat >= bar, i.e. over bar - 0.5); a market he has no stat line
+// for shows dashes rather than a zero.
+export function ratesFor(player, markets, log) {
+  const all = Array.isArray(log) ? log : []
+  const season = all.reduce((m, g) => Math.max(m, Number(g?.s) || 0), 0)
+  const cur = all.filter((g) => Number(g?.s) === season)
+  return MARKETS
+    .filter(([k]) => Number.isFinite(player?.scores?.[k]))
+    .map(([k, label]) => {
+      const bar = Number((markets || []).find((m) => m.key === k)?.bar)
+      const key = STAT_KEY[k]
+      const at = (arr) => {
+        const games = arr.filter((g) => Number.isFinite(Number(g?.[key])))
+        return [games.filter((g) => Number(g[key]) >= bar).length, games.length]
+      }
+      return { key: k, label, bar: Number.isFinite(bar) ? bar : null, score: player.scores[k], l4: at(all.slice(-4)), l8: at(all.slice(-8)), season: at(cur), seasonYear: season || null }
+    })
+    .sort((a, b) => b.score - a.score)
+}
+
+function RateCell({ pair }) {
+  const [h, n] = pair || [0, 0]
+  if (!n) return <td style={{ padding: '6px 4px', textAlign: 'right', color: C.text3 }}>—</td>
+  const pct = (100 * h) / n
+  const col = pct >= 60 ? C.green : pct >= 45 ? C.yellow : C.red
+  return <td style={{ padding: '6px 4px', textAlign: 'right', fontFamily: NUM_FONT, fontSize: 12, fontWeight: 800, color: col, whiteSpace: 'nowrap' }}>{h}/{n}</td>
+}
+
+function RatesTable({ player, markets, log }) {
+  const rows = ratesFor(player, markets, log)
+  if (!rows.length || !Array.isArray(log) || !log.length) return null
+  const th = { padding: '0 4px 6px', fontSize: 9.5, fontWeight: 900, color: C.text3, letterSpacing: '.08em', textAlign: 'right' }
+  return (
+    <>
+      <Head>RATES AT THE CARD&apos;S BAR</Head>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+        <thead>
+          <tr>
+            <th scope="col" style={{ ...th, textAlign: 'left' }}>MARKET · BAR</th>
+            <th scope="col" style={th}>SCORE</th>
+            <th scope="col" style={th}>L4</th>
+            <th scope="col" style={th}>L8</th>
+            <th scope="col" style={th}>{rows[0].seasonYear || 'SEASON'}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => {
+            const g = gradeFor(r.score)
+            return (
+              <tr key={r.key} style={{ borderTop: `1px solid ${C.border}` }}>
+                <th scope="row" style={{ padding: '6px 4px', textAlign: 'left', fontWeight: i === 0 ? 900 : 700, color: i === 0 ? C.text : C.text2 }}>
+                  <NflExplain label={r.label} term={r.key} />
+                  <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 10.5, fontWeight: 700 }}>{r.bar != null ? ` · ${r.bar}+` : ''}</span>
+                </th>
+                <td style={{ padding: '6px 4px', textAlign: 'right', fontFamily: NUM_FONT, fontWeight: 900, color: g.color }}>{Math.round(r.score)}</td>
+                <RateCell pair={r.l4} />
+                <RateCell pair={r.l8} />
+                <RateCell pair={r.season} />
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+      <div style={{ fontSize: 10.5, color: C.text3, marginTop: 5 }}>Games that reached the bar, of games played. Best score first; the chart below opens on it.</div>
     </>
   )
 }
@@ -734,6 +807,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
             why the model likes him; this says who he is and what he has
             actually done, which is what the card was missing entirely. */}
         <TheFile player={player} log={logs?.logs?.[player.player_id]?.log} />
+        <RatesTable player={player} markets={markets} log={logs?.logs?.[player.player_id]?.log} />
         </>}
 
         {tab === 'matchup' && <>
@@ -796,12 +870,23 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
             and follows whichever row is open, so the modal keeps one chart
             and gains the every-market glance above it. */}
         {tab === 'overview' && logs?.logs?.[player.player_id]?.log && (
-          <PropsGrid
-            log={logs.logs[player.player_id].log}
-            market={market}
-            defaultBar={spec?.bar ?? 1}
-            scores={player.scores}
-          />
+          // HIS BEST MARKET LEADS (TUDDY depth step 2): the chart opens on the
+          // market he scores highest in -- not passing yards on a running back
+          // because the card was opened from the passing board.
+          (() => {
+            const best = ratesFor(player, markets, logs.logs[player.player_id].log)[0]
+            const lead = best?.key || market
+            const leadBar = (markets || []).find((m) => m.key === lead)?.bar ?? spec?.bar ?? 1
+            return (
+              <PropsGrid
+                key={`${player.player_id}-${lead}`}
+                log={logs.logs[player.player_id].log}
+                market={lead}
+                defaultBar={leadBar}
+                scores={player.scores}
+              />
+            )
+          })()
         )}
 
         {tab === 'splits' && <SplitsForMarket player={player} market={market} data={splitMeta} />}

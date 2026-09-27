@@ -10,6 +10,7 @@ import { useSetupHomers, useBackToBack } from '../lib/b2b'
 import { pickSplit, HITTING_FIELDS } from '../lib/seasonSplit'
 import { downloadStorylinesCard } from './shareCard'
 import HistoryWatch from './HistoryWatch'
+import StoryRow from './StoryRow'
 
 // 📖 STORYLINES — the human layer (2026-08-06, on request).
 //
@@ -76,6 +77,7 @@ const RIVALS = [
 ]
 
 let _cacheByDate = {}
+const _octoberByDate = {}
 // matchup lines, cached per mount-scope so switching tabs doesn't re-pull the
 // gameLogs. Key is the exact set of hitters this mount is showing, so the
 // slate panel and each game's deep-dive keep their own.
@@ -92,6 +94,18 @@ const _ffactCache = new Map()
 export default function Storylines({ players = [], fetchPlayers = null, gamePk = null, compact = false, slateDate = '', results, onPlayerClick }) {
   const dateKey = slateDate || new Date().toLocaleDateString('en-CA')
   const [data, setData] = useState(_cacheByDate[dateKey] || null)
+  // Is the slate a postseason day? (any F/D/L/W game on MLB's schedule). One
+  // small read per slate date; unknown (null) keeps the countdowns as before.
+  const [october, setOctober] = useState(_octoberByDate[dateKey] ?? null)
+  useEffect(() => {
+    if (_octoberByDate[dateKey] != null) { setOctober(_octoberByDate[dateKey]); return undefined }
+    let alive = true
+    fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${dateKey}&gameType=F,D,L,W&fields=totalGames`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (!j) return; _octoberByDate[dateKey] = Number(j.totalGames || 0) > 0; if (alive) setOctober(_octoberByDate[dateKey]) })
+      .catch(() => {})
+    return () => { alive = false }
+  }, [dateKey])
   // Collapsed by default (2026-08-07, Donovan: "storyline kinda fills the
   // page too much"). The header keeps a live count summary so a closed panel
   // still tells you whether tonight has stories worth opening. Persists.
@@ -378,8 +392,11 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
   // code that still costs something is worse than dead code.
 
   // ── milestones ──
+  // Not in October (HISTORY WATCH 2 step 4): a postseason game counts toward
+  // neither the season nor the career line, so every countdown would name a
+  // number that cannot move tonight. History Watch carries October instead.
   const miles = []
-  ;(data?.people || []).forEach((person) => {
+  ;(october ? [] : data?.people || []).forEach((person) => {
     const p = byId.get(person.id)
     if (!p) return
     const season = statOf(person, 'season')
@@ -577,28 +594,14 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
   // clickable div at 11px with 3px of padding — about 21px tall, sitting flush
   // against the next one. On a phone that's a coin toss between two players.
   // .tap-row is the existing hook that floors it at 44px on a touch device.
-  const Row = ({ icon, children, p, title, style = {} }) => {
-    const interactive = Boolean(p && onPlayerClick)
-    const Tag = interactive ? 'button' : 'div'
-    return (
-      <Tag
-        type={interactive ? 'button' : undefined}
-        onClick={interactive ? () => onPlayerClick(p) : undefined}
-        className={interactive ? 'tap-row' : undefined}
-        title={title}
-        style={{
-          display: 'flex', gap: 8, alignItems: 'baseline', width: '100%',
-          font: 'inherit', fontSize: 11, lineHeight: 1.55, textAlign: 'left',
-          padding: '3px 0', border: 'none', background: 'transparent',
-          cursor: interactive ? 'pointer' : 'default', color: C.text2,
-          ...style,
-        }}
-      >
-        <span style={{ flexShrink: 0 }}>{icon}</span>
-        <span style={{ minWidth: 0 }}>{children}</span>
-      </Tag>
-    )
-  }
+  // The shared row (components/StoryRow.js, HISTORY WATCH 2 step 1): the same
+  // look this file always had, now also History Watch's on all three products.
+  const Row = ({ icon, children, p, title, tag = null, style = {} }) => (
+    <StoryRow icon={icon} theme={C} title={title} tag={tag} style={style}
+      onClick={p && onPlayerClick ? () => onPlayerClick(p) : null}>
+      {children}
+    </StoryRow>
+  )
 
   const StoryHeader = compact ? 'div' : 'button'
 
@@ -788,29 +791,13 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
 
       {miles.slice(0, 10).map((m, i) => (
         <Row key={`m${i}`} icon="🏁" p={m.p}>
-          <b style={{ color: C.text, display: 'inline-block', minWidth: 138, verticalAlign: 'top' }}>{nameOf(m.p)}</b>
+          <b style={{ color: C.text }}>{nameOf(m.p)}</b>
           {' '}is <b style={{ fontFamily: NUM_FONT, color: C.orange }}>{m.need}</b> away
           from <b style={{ fontFamily: NUM_FONT }}>{m.t.toLocaleString()}</b> {m.word}
           {m.need === 1 ? ` — could land ${dayWord}` : ''}
-          {/* THE WINDOW, WRITTEN DOWN (2026-08-22) — AND THEN SAID IN WORDS
-              (2026-08-29). These rungs are ordered by need ÷ window, not by
-              need, and the two disagree constantly: 3 homers from 40 (a
-              5-homer window) sits BELOW 8 hits from 500 (a 20-hit window).
-              The row printed the 3 and the 8 and none of the windows, so the
-              order looked broken. It was not — it was just never drawn.
-
-              Drawing it as "1/2 of the window" fixed the ordering complaint
-              and created a new one. Donovan: "the window thing on the
-              storyline, what does that mean." Fair — "window" is this file's
-              private word for the per-stat cutoff in RUNGS above (homers make
-              the list at 2 away, RBI at 4, total bases at 8), and nothing on
-              screen said so. The row already prints how far away he is, so
-              the only thing left to say is where the list ends. It now says
-              that, in words, and the ranking rule stays in the tooltip. */}
-          <span
-            title={`He needs ${m.need}, and a ${m.word.replace(/^career /, '')} chase only makes this list at ${m.within} or fewer away — so he is ${(100 * (1 - m.prox)).toFixed(0)}% of the way through the stretch that counts as close. That fraction is what orders these rows, not the raw gap: a big number inside a wide cutoff can be nearer than a small one inside a tight cutoff, which is why 3 homers can rank above 8 hits.`}
-            style={{ fontFamily: NUM_FONT, fontSize: 8.5, color: C.text3, marginLeft: 6, cursor: 'default' }}
-          >this list stops at {m.within}</span>
+          {/* "this list stops at N" is gone (HISTORY WATCH 2 step 1, 2026-09-27:
+              jargon, and a third layout). The rows are still ordered by need
+              ÷ the per-stat cutoff in RUNGS above (see 08-22/08-29 in git). */}
           {/homer/i.test(m.word) && hrToday(m.p) && (
             <Cashed>{m.need <= (lineOf(m.p)?.hr || 0) ? 'HIT THE NUMBER' : `homered — ${m.need - (lineOf(m.p)?.hr || 0)} to go`}</Cashed>
           )}

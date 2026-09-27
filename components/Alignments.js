@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { nameOf, mlbId, playerId } from '../lib/player'
 import { easternToday } from '../lib/data'
+import TonightsNumbers from './numerology/TonightsNumbers'
 import {
   usePeople, slateAlignments, AXIS_META, alignedWith,
   readAlignArchive, shiftDateKey, dateDigitRoot,
@@ -95,6 +96,8 @@ export default function Alignments({ players = [], watchIds = null, slateDate = 
 
   return (
     <div>
+      {/* TONIGHT'S NUMBERS (numerology v2): the slate's own date. */}
+      <div style={{ marginBottom: 10 }}><TonightsNumbers date={todayKey} theme={C} numFont={NUM_FONT} accent={C.orange} /></div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 3 }}>
         <span style={{ fontSize: 13, fontWeight: 900 }}>🔮 Tonight&apos;s alignments</span>
         <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>

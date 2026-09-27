@@ -121,7 +121,7 @@ export function ScoreChip({ value, col, title }) {
 export default function VerdictHero({
   col, score, max, dialTitle, dp,
   title, badge, badgeQuiet, meta, metaRight, market, line, line2, facts, right,
-  chips, footer, style, lead = 'dial',
+  chips, footer, style, lead = 'dial', face = null,
 }) {
   const badgeLeads = lead === 'badge'
   // A fact the chips above already assert is not worth a second bubble --
@@ -148,6 +148,9 @@ export default function VerdictHero({
       }} />
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 13, minWidth: 0 }}>
+        {/* The player's face, when the caller has one (BATCH-FACES step 8):
+            MOONSHOT's card is the first user; every other hero passes none. */}
+        {face}
         {badgeLeads
           ? <VerdictPlate badge={badge} col={col} quiet={badgeQuiet} market={market} />
           : <Dial value={score} col={col} max={max} title={dialTitle} dp={dp} />}

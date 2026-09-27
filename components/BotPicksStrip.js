@@ -5,7 +5,8 @@ import {
   clean, nameOf, teamOf, hrScore, hitScore, prodScore, tbScore,
 } from '../lib/player'
 import { verdictInk } from '../lib/scales'
-import { WhatThis } from './ui'
+import HeadlinePicks from './headline/HeadlinePicks'
+import PlayerFace from './PlayerFace'
 
 // THE FOUR — the bot's own headline section, rebuilt on the site.
 //
@@ -221,13 +222,58 @@ export default function BotPicksStrip({ players = [], onPlayerClick }) {
 
   if (!four.some((f) => f.picks.length)) return null
 
+  // THE LAYOUT IS SHARED NOW (2026-09-27, BATCH-HEADLINE-PICKS step 1):
+  // components/headline/HeadlinePicks.js is this strip's old markup, moved
+  // unchanged; TUDDY's The Six renders through it too. What stays here is
+  // MOONSHOT's: the ranking (pickBuckets), the words (statLine / microStat)
+  // and the measured record below.
+  const lanes = four.map((f) => ({
+    key: f.role, label: f.label, icon: f.icon, blurb: f.blurb, color: f.color,
+    picks: f.picks.map((p, i) => ({
+      key: p?.player_id ?? i,
+      raw: p,
+      name: nameOf(p),
+      // The #1's face (BATCH-FACES step 8), mlbstatic by MLBAM id.
+      face: i === 0 && p?.player_id != null ? <PlayerFace sport="mlb" id={String(p.player_id)} name={nameOf(p)} size={28} theme={C} /> : null,
+      score: f.score(p).toFixed(1),
+      flag: p?.weak_spot_flag === true ? { icon: '⭐', title: i === 0 ? 'Weak lineup spot for this pitcher' : undefined } : null,
+      micro: i === 0 ? null : microStat(p, f.role),
+      lines: i === 0 ? [statLine(p, f.role), (
+        <>
+          {teamOf(p)} · vs {clean(p?.pitcher_name, 'TBD')}
+          {p?.pitcher_throws ? ` (${p.pitcher_throws}HP)` : ''}
+          {p?._slateGames > 1 && (
+            <span
+              title={`His team plays ${p._slateGames} times today. This card shows his best game by this category's score; the full board lists both, split by the G column.`}
+              style={{ color: f.color, opacity: .85 }}
+            >{` · plays ${p._slateGames}×`}</span>
+          )}
+        </>
+      )] : [],
+      team: i === 0 ? null : (
+        <>
+          {teamOf(p)}
+          {p?._slateGames > 1 && (
+            <span
+              title={`His team plays ${p._slateGames} times today — this is his best game by this category's score. Both games are on the full board, split by the G column.`}
+              style={{ color: f.color, opacity: .85 }}
+            >{` ${p._slateGames}×`}</span>
+          )}
+        </>
+      ),
+    })),
+  }))
+
   return (
-    <div style={{ marginBottom: 16 }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 7, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 13, fontWeight: 900, letterSpacing: '-.01em' }}>🎯 The Four</span>
-        <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
-          four categories, three deep — the bot&apos;s headline picks
-        </span>
+    <HeadlinePicks
+      theme={C} numFont={NUM_FONT}
+      title="🎯 The Four"
+      subtitle={<>four categories, three deep — the bot&apos;s headline picks</>}
+      lanes={lanes}
+      onPick={onPlayerClick ? (pick) => onPlayerClick(pick.raw) : null}
+      whatThis={{ label: 'how these are ranked', body: 'Each category uses its own score and evidence. ⭐ marks a weak lineup spot; tap a name for the hitter detail.' }}
+      record={(
+        <>
         {/* ── THE RECORD, BECAUSE SOMEBODY FINALLY MEASURED IT (2026-08-23) ──
             Donovan: "lets focus on precsion instead of coverage ... i was
             thinking what about the 4 best bets then from dividing up the picks
@@ -271,144 +317,8 @@ export default function BotPicksStrip({ players = [], onPlayerClick }) {
           <b style={{ color: verdictInk(true).color }}>65%</b> over 25 nights ·{' '}
           <span style={{ color: C.text2 }}>+16pp</span> vs the full board · Aug 23
         </span>
-      </div>
-
-      <div className="bot-picks-grid" style={{
-        display: 'grid', gap: 8,
-        gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
-      }}>
-        {four.map((f) => {
-          const lead = f.picks[0]
-          const rest = f.picks.slice(1)
-          return (
-            <div
-              key={f.role}
-              style={{
-                background: `linear-gradient(155deg, ${f.color}1f, ${f.color}07)`,
-                border: `1px solid ${f.color}4d`,
-                boxShadow: `0 0 18px ${f.color}12`,
-                borderRadius: 12, padding: '10px 13px', minWidth: 0,
-                display: 'flex', flexDirection: 'column',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                {f.icon && <span style={{ fontSize: 12 }}>{f.icon}</span>}
-                <span style={{
-                  fontSize: 10, fontWeight: 900, color: f.color,
-                  letterSpacing: '.09em', fontFamily: NUM_FONT,
-                }}>{f.label}</span>
-                <span style={{ fontSize: 9, color: C.text3 }}>{f.blurb}</span>
-              </div>
-
-              {!lead ? (
-                <div style={{ fontSize: 10.5, color: C.text3 }}>None designated tonight.</div>
-              ) : (
-                <>
-                  {/* #1 — featured, full detail. */}
-                  <div
-                    onClick={() => onPlayerClick?.(lead)}
-                    style={{ cursor: onPlayerClick ? 'pointer' : 'default' }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                      <span style={{
-                        fontSize: 14.5, fontWeight: 800, minWidth: 0,
-                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                      }}>{nameOf(lead)}</span>
-                      {lead?.weak_spot_flag === true && (
-                        <span title="Weak lineup spot for this pitcher" style={{ fontSize: 11 }}>⭐</span>
-                      )}
-                      <span style={{
-                        marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: 16,
-                        fontWeight: 900, color: f.color,
-                      }}>{f.score(lead).toFixed(1)}</span>
-                    </div>
-                    {statLine(lead, f.role) && (
-                      <div style={{
-                        fontSize: 10, color: C.text2, fontFamily: NUM_FONT, marginTop: 2,
-                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                      }}>
-                        {statLine(lead, f.role)}
-                      </div>
-                    )}
-                    <div style={{
-                      fontSize: 10, color: C.text3, fontFamily: NUM_FONT, marginTop: 1,
-                      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                    }}>
-                      {teamOf(lead)} · vs {clean(lead?.pitcher_name, 'TBD')}
-                      {lead?.pitcher_throws ? ` (${lead.pitcher_throws}HP)` : ''}
-                      {lead?._slateGames > 1 && (
-                        <span
-                          title={`His team plays ${lead._slateGames} times today. This card shows his best game by this category's score; the full board lists both, split by the G column.`}
-                          style={{ color: f.color, opacity: .85 }}
-                        >{` · plays ${lead._slateGames}×`}</span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* #2 and #3 — compact rows, same click-through, scores on
-                      the same category scale so the three are comparable. */}
-                  {rest.length > 0 && (
-                    <div style={{
-                      marginTop: 7, paddingTop: 6,
-                      borderTop: `1px solid ${f.color}26`,
-                      display: 'flex', flexDirection: 'column', gap: 3,
-                    }}>
-                      {rest.map((p, idx) => (
-                        <div
-                          key={p?.player_id ?? idx}
-                          onClick={() => onPlayerClick?.(p)}
-                          style={{
-                            display: 'flex', alignItems: 'baseline', gap: 6,
-                            cursor: onPlayerClick ? 'pointer' : 'default', minWidth: 0,
-                          }}
-                        >
-                          <span style={{
-                            fontSize: 8.5, fontFamily: NUM_FONT, fontWeight: 800,
-                            color: `${f.color}99`, flexShrink: 0,
-                          }}>{idx + 2}</span>
-                          <span style={{
-                            fontSize: 11, fontWeight: 700, color: C.text2, minWidth: 0,
-                            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                          }}>{nameOf(p)}</span>
-                          {p?.weak_spot_flag === true && <span style={{ fontSize: 9 }}>⭐</span>}
-                          <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0 }}>
-                            {teamOf(p)}
-                            {p?._slateGames > 1 && (
-                              <span
-                                title={`His team plays ${p._slateGames} times today — this is his best game by this category's score. Both games are on the full board, split by the G column.`}
-                                style={{ color: f.color, opacity: .85 }}
-                              >{` ${p._slateGames}×`}</span>
-                            )}
-                          </span>
-                          {microStat(p, f.role) && (
-                            <span style={{
-                              marginLeft: 'auto', fontSize: 9, color: C.text3,
-                              fontFamily: NUM_FONT, flexShrink: 0,
-                            }}>{microStat(p, f.role)}</span>
-                          )}
-                          {/* The micro-stat above owns the `auto` margin, so the
-                              score gets a fixed gap. Two `auto` margins in one
-                              flex row split the free space between them and the
-                              score would drift to the middle of the row. */}
-                          <span style={{
-                            marginLeft: microStat(p, f.role) ? 6 : 'auto',
-                            fontFamily: NUM_FONT, fontSize: 11,
-                            fontWeight: 800, color: f.color, flexShrink: 0,
-                          }}>{f.score(p).toFixed(1)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          )
-        })}
-      </div>
-
-      <WhatThis label="how these are ranked" maxWidth={720}>
-        Each category uses its own score and evidence. ⭐ marks a weak lineup spot; tap a name for the hitter detail.
-      </WhatThis>
-    </div>
+        </>
+      )}
+    />
   )
 }

@@ -1,10 +1,11 @@
 'use client'
+import { nhlMug } from '../../../lib/nhl/format'
 import { useState } from 'react'
 import PageHeader from '../../PageHeader'
 import { C, NUM_FONT, rampAt } from '../../../lib/nhl/theme'
 import LampTable from '../LampTable'
 import { useLampBoard } from '../../../lib/nhl/useLamp'
-import { TeamMark, EmptyState, DelayedBanner, Loading, SourceLine, Kicker, GameTypeChip, LampDot, StaleSeasonNote, fmtDay, fmtPuckDrop, fmtSec, zoneAbbrev, shiftDay, STATUS, CalledChip } from '../ui'
+import { TeamMark, EmptyState, DelayedBanner, Loading, SourceLine, Kicker, GameTypeChip, LampDot, StaleSeasonNote, fmtDay, fmtPuckDrop, fmtSec, zoneAbbrev, shiftDay, STATUS, CalledChip, readHashParam, writeHashParam } from '../ui'
 
 // 🏒 THE LAMP GOAL BOARD (lamp-goal-v1) — the product's first signal page.
 // Per game: every scored skater ranked, the top three CALLED, the rest ON
@@ -23,17 +24,25 @@ export { STATUS }
 // header's Today/Tmrw, every dated tab and the address -- this tab's day
 // buttons move it for all of them.
 export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = null, setDate = () => {} }) {
-  const { data, error, loading } = useLampBoard(date)
+  // The market lives in the address (#...&m=sog) so a shared link opens the
+  // same board; GOAL is the default and writes nothing.
+  const [market, setMarketRaw] = useState(() => { const m = String(readHashParam('m') || '').toUpperCase(); return MARKETS.some((x) => x.key === m) ? m : 'GOAL' })
+  const setMarket = (m) => { setMarketRaw(m); writeHashParam('m', m === 'GOAL' ? null : m.toLowerCase()) }
+  const M = marketOf(market)
+  const { data, error, loading } = useLampBoard(date, market)
   const games = data?.games || []
   const lockedN = games.filter((g) => g.locked).length
   const calledN = games.reduce((n, g) => n + g.rows.filter((r) => r.status === 'called').length, 0)
   const shown = data?.date || date
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <PageHeader eyebrow="LAMP · GOAL BOARD" title={shown ? fmtDay(shown) : 'Tonight'}
-        note="Three called per game, locked before puck drop, graded after. Score = mean of three percentile ranks tonight: shots, goals, ice time per game over his last 82 NHL games."
+      <PageHeader eyebrow={M.eyebrow} title={shown ? fmtDay(shown) : 'Tonight'}
+        note={M.note}
         theme={C} numFont={NUM_FONT} accent={C.ice}
         stats={data ? [{ value: games.length, label: 'GAMES', tone: C.text2 }, { value: `${lockedN}/${games.length}`, label: 'LOCKED', tone: lockedN === games.length && games.length ? C.teal : C.text2 }, { value: calledN, label: 'CALLED', tone: C.ice }] : null} />
+      <div role="group" aria-label="Market" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {MARKETS.map((m) => <NavBtn key={m.key} onClick={() => setMarket(m.key)} strong={m.key === market} aria-pressed={m.key === market}>{m.label}</NavBtn>)}
+      </div>
       <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
         <NavBtn onClick={() => setDate(shiftDay(shown, -1))} disabled={loading}>‹ Previous day</NavBtn>
         <NavBtn onClick={() => setDate(null)} disabled={loading || !date} strong>Tonight</NavBtn>
@@ -45,8 +54,10 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
       {loading && !data ? <Loading what="tonight’s board" /> : null}
       {data && !data.dbReady && <div style={{ color: C.amber, fontSize: 11 }}>The record is not connected on this deployment — boards will preview but nothing locks. (Supabase env missing.)</div>}
       {data && games.length === 0 && <EmptyState title="NO GAMES TODAY" note="Nothing to call. The schedule has the week." />}
-      {games.map((g) => <GameBoard key={g.game.id} g={g} onOpenPlayer={onOpenPlayer} onOpenGame={onOpenGame} onOpenTeam={onOpenTeam} />)}
-      <SourceLine>Legs: NHL club-stats/{'{team}'}/{'{season}'}/2 (this season and last); population: roster/{'{team}'}/current, narrowed to the posted lineup when the league has one; grade: gamecenter/{'{id}'}/boxscore. Locked rows live in lamp_goal_log and are never rewritten.</SourceLine>
+      {games.map((g) => (g.noMarketLock
+        ? <EmptyState key={g.game.id} title={`${g.game.away.abbrev} @ ${g.game.home.abbrev} · NO ${M.label} LOCK`} note={`This game locked before the ${M.label} board existed, so there is no call for it. Nothing is previewed after a lock.`} />
+        : <GameBoard key={g.game.id} g={g} market={market} onOpenPlayer={onOpenPlayer} onOpenGame={onOpenGame} onOpenTeam={onOpenTeam} />))}
+      <SourceLine>Legs: NHL club-stats/{'{team}'}/{'{season}'}/2 (this season and last); population: roster/{'{team}'}/current, narrowed to the posted lineup when the league has one; grade: gamecenter/{'{id}'}/boxscore. Locked rows live in {M.log} and are never rewritten.</SourceLine>
     </div>
   )
 }
@@ -73,9 +84,11 @@ const restWord = (s) => (s?.b2b ? 'B2B' : s?.rest != null ? `${s.rest}d` : null)
 // The filled CALLED chip (CalledChip, ../ui) -- pregame in STATUS, graded beside the goals -- and
 // the rank itself filled on a called row, the two marks MOONSHOT's pick rows
 // carry. (Beside the name it was clipped by the name cell at 390px.)
-function PctBars({ r }) {
+function PctBars({ r, market = 'GOAL' }) {
   if (!r.pct) return null
-  const legs = [['S', r.pct.shotsPg, 'shots'], ['G', r.pct.goalsPg, 'goals'], ['T', r.pct.toi, 'ice time']]
+  const legs = market === 'SOG'
+    ? [['S', r.pct.shotsPg, 'shots'], ['T', r.pct.toi, 'ice time'], ['O', r.pct.oppSaPg, 'opponent shots allowed']].filter(([, v]) => v != null)
+    : [['S', r.pct.shotsPg, 'shots'], ['G', r.pct.goalsPg, 'goals'], ['T', r.pct.toi, 'ice time']]
   return (
     <span title={r.why} style={{ display: 'inline-flex', gap: 5, alignItems: 'center' }}>
       {legs.map(([k, v, word]) => (
@@ -90,8 +103,17 @@ function PctBars({ r }) {
   )
 }
 
-function columnsFor(g, onOpenTeam) {
+// LAMP v2 (2026-09-27): the board reads one market at a time. GOAL is the
+// original; SOG is lamp-sog-v1 (3+ shots on goal). Same table, same words.
+const MARKETS = [
+  { key: 'GOAL', label: 'GOAL', eyebrow: 'LAMP · GOAL BOARD', note: 'Three called per game, locked before puck drop, graded after. Score = mean of three percentile ranks tonight: shots, goals, ice time per game over his last 82 NHL games.', result: 'GOALS', log: 'lamp_goal_log' },
+  { key: 'SOG', label: 'SHOTS 3+', eyebrow: 'LAMP · SHOTS BOARD', note: 'Three called per game for 3+ shots on goal, locked before puck drop, graded after. Score = mean of three percentile ranks tonight: shots per game over his last 82, ice time, and how many shots his opponent allows per 60.', result: 'SOG', log: 'lamp_prop_log' },
+]
+const marketOf = (k) => MARKETS.find((m) => m.key === k) || MARKETS[0]
+
+function columnsFor(g, onOpenTeam, market = 'GOAL') {
   const graded = g.graded
+  const sog = market === 'SOG'
   return [
     { key: 'rank', label: '#', heat: false, mono: true, w: 28,
       fmt: (v, r) => (r.status === 'called'
@@ -103,9 +125,10 @@ function columnsFor(g, onOpenTeam) {
       fmt: (v) => <button type="button" onClick={(e) => { e.stopPropagation(); onOpenTeam?.(v) }} style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', color: C.text2, font: `800 10.5px/1 ${NUM_FONT}` }}>{v}</button> },
     { key: 'score', label: 'SCORE', primary: true, scale: 'seq', domain: [0, 100], w: 50 },
     { key: 'spg', label: 'S/GP', primary: true, dp: 2, w: 44 },
-    { key: 'gpg', label: 'G/GP', primary: true, dp: 2, w: 44 },
+    ...(sog ? [] : [{ key: 'gpg', label: 'G/GP', primary: true, dp: 2, w: 44 }]),
     { key: 'toi', label: 'TOI', primary: true, w: 48, fmt: (v) => (Number.isFinite(v) ? fmtSec(v) : '—') },
-    { key: 'pctl', label: 'LEGS', heat: false, w: 118, fmt: (v, r) => (r.status === 'called' ? <PctBars r={r._row} /> : null) },
+    ...(sog ? [{ key: 'osa', label: 'OPP SA/60', primary: true, dp: 1, w: 62 }] : []),
+    { key: 'pctl', label: 'LEGS', heat: false, w: 118, fmt: (v, r) => (r.status === 'called' ? <PctBars r={r._row} market={market} /> : null) },
     // Context columns (lamp research step 2): shown beside the score, never
     // in it. PP G is his season's power-play goals; PP v PK is his club's
     // power play against tonight's opponent's penalty kill; REST is full days
@@ -113,18 +136,19 @@ function columnsFor(g, onOpenTeam) {
     { key: 'ppg', label: 'PP G', primary: true, w: 44 },
     { key: 'ppvpk', label: 'PP v PK', heat: false, mono: true, w: 84, fmt: (v) => v || '—' },
     { key: 'rest', label: 'REST', heat: false, mono: true, w: 48, fmt: (v) => v || '—' },
-    { key: 'result', label: graded ? 'GOALS' : 'STATUS', heat: false, w: 96, fmt: (v, r) => {
+    { key: 'result', label: graded ? marketOf(market).result : 'STATUS', heat: false, w: 96, fmt: (v, r) => {
       const row = r._row
       if (graded) {
         if (row.dressed === false) return <span style={{ color: C.text3, font: `800 9px/1 ${NUM_FONT}` }}>VOID</span>
-        return <>{row.status === 'called' ? <CalledChip /> : null}<span style={{ color: row.hit ? C.lamp : C.text3, font: `900 12px/1 ${NUM_FONT}` }}>{row.hit && <LampDot />}{row.goals ?? 0}</span></>
+        const n = sog ? row.value : row.goals
+        return <>{row.status === 'called' ? <CalledChip /> : null}<span style={{ color: row.hit ? C.lamp : C.text3, font: `900 12px/1 ${NUM_FONT}` }}>{row.hit && <LampDot />}{n ?? 0}</span></>
       }
       return row.status === 'called' ? <CalledChip /> : <span style={{ color: C.text3, font: `800 8px/1 ${NUM_FONT}`, letterSpacing: '.1em' }}>{STATUS[row.status]}</span>
     } },
   ]
 }
 
-function GameBoard({ g, onOpenPlayer, onOpenGame, onOpenTeam }) {
+function GameBoard({ g, onOpenPlayer, onOpenGame, onOpenTeam, market = 'GOAL' }) {
   const game = g.game
   const scored = g.rows.filter((r) => r.status !== 'off')
   const off = g.rows.filter((r) => r.status === 'off')
@@ -138,6 +162,7 @@ function GameBoard({ g, onOpenPlayer, onOpenGame, onOpenTeam }) {
   const rows = [...scored].sort((a, b) => (a.rank ?? 999) - (b.rank ?? 999)).map((r) => ({
     id: r.playerId, rank: r.rank, name: r.name, pos: r.pos, team: r.team, score: r.score,
     spg: r.legs ? r.legs.shotsPg : null, gpg: r.legs ? r.legs.goalsPg : null, toi: r.legs ? r.legs.toi : null,
+    osa: r.legs ? r.legs.oppSaPg ?? null : null,
     pctl: r.status === 'called' ? 1 : 0, result: r.status, status: r.status, _row: r,
     ppg: r.ppg, ppvpk: ppVsPk(spotOf(g, r.team, true), spotOf(g, r.team, false)), rest: restWord(spotOf(g, r.team, true)),
   }))
@@ -167,8 +192,9 @@ function GameBoard({ g, onOpenPlayer, onOpenGame, onOpenTeam }) {
         {g.spots ? <span className="sm-hide">{` · rest ${game.away.abbrev} ${restWord(g.spots.away) || '—'}, ${game.home.abbrev} ${restWord(g.spots.home) || '—'}`}</span> : null}
       </div>
       {scored.length === 0 ? <EmptyState title="NOBODY SCORED YET" note="No skater on either roster has ten NHL games on file." /> : (
-        <LampTable rows={rows} columns={columnsFor(g, onOpenTeam)} heatMode="primary" ramp={rampAt}
+        <LampTable rows={rows} columns={columnsFor(g, onOpenTeam, market)} heatMode="primary" ramp={rampAt}
           rowEdge={(r) => (r.status === 'called' ? C.ice : null)}
+          faceOf={(r) => ({ sport: 'nhl', photo: nhlMug(game.season, r._row?.team, r._row?.playerId), name: r._row?.name })}
           dimRow={(r) => g.graded && r._row.dressed === false}
           maxRows={PREVIEW_ROWS} maxHeight={9999}
           onRowClick={(r) => onOpenPlayer?.(r.id)} />
@@ -189,6 +215,6 @@ function GameBoard({ g, onOpenPlayer, onOpenGame, onOpenTeam }) {
   )
 }
 
-export function NavBtn({ children, onClick, disabled, strong = false }) {
-  return <button type="button" onClick={onClick} disabled={disabled} style={{ height: 28, padding: '0 11px', borderRadius: 8, cursor: disabled ? 'default' : 'pointer', border: `1px solid ${strong ? C.ice : C.border2}`, background: strong ? `${C.ice}14` : C.bg2, color: strong ? C.ice : C.text2, font: `800 10px/1 ${NUM_FONT}`, letterSpacing: '.04em', opacity: disabled ? .5 : 1 }}>{children}</button>
+export function NavBtn({ children, onClick, disabled, strong = false, ...rest }) {
+  return <button type="button" {...rest} onClick={onClick} disabled={disabled} style={{ height: 28, padding: '0 11px', borderRadius: 8, cursor: disabled ? 'default' : 'pointer', border: `1px solid ${strong ? C.ice : C.border2}`, background: strong ? `${C.ice}14` : C.bg2, color: strong ? C.ice : C.text2, font: `800 10px/1 ${NUM_FONT}`, letterSpacing: '.04em', opacity: disabled ? .5 : 1 }}>{children}</button>
 }

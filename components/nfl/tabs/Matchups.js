@@ -1,4 +1,5 @@
 'use client'
+import NflFace from '../NflFace'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../../lib/nfl/theme'
 import { btnStyle } from '../../ui'
@@ -8,7 +9,7 @@ import DvpTable from '../DvpTable'
 import DvpDrift from '../DvpDrift'
 import SourceSeason from '../SourceSeason'
 import ChartFrame from '../ChartFrame'
-import { softRole, softLine, passRushThreat, PASS_RUSH_AVOID } from '../../../lib/nfl/dvpSignal'
+import { softRole, softLine, passRushThreat, PASS_RUSH_AVOID, gameVerdict } from '../../../lib/nfl/dvpSignal'
 
 // Matchups — pick a defence, then read it two ways.
 //
@@ -203,6 +204,7 @@ export default function Matchups({ matchup, data }) {
   const [win, setWin] = useState('season')
   const [pid, setPid] = useState(null)
   const [showAll, setShowAll] = useState(false)
+  const [allGames, setAllGames] = useState(false)
   const active = team || slate[0]?.[0] || rest[0]
 
   const pick = (t) => { setTeam(t); setPid(null) }
@@ -270,19 +272,39 @@ export default function Matchups({ matchup, data }) {
         numFont={NUM_FONT}
         accent={C.cyan}
       />
-      <div style={{
-        display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10,
-      }}>
-        {slate.map(([away, home]) => (
-          <div key={`${away}@${home}`} style={{
-            display: 'flex', alignItems: 'center', gap: 4, padding: 3,
-            border: `1px solid ${C.border}`, borderRadius: 10, background: C.bg2,
-          }}>
-            <button onClick={() => pick(away)} style={teamStyle(away === active)}>{away}</button>
-            <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, color: C.text3 }}>@</span>
-            <button onClick={() => pick(home)} style={teamStyle(home === active)}>{home}</button>
-          </div>
-        ))}
+      {/* THE VERDICT FIRST (BATCH-FACES step 10): one line per game -- the
+          softest starter-role cell on either defence and the toughest
+          (lib/nfl/dvpSignal.js gameVerdict, the same z-vs-league measure the
+          DvP callout below uses). The team buttons stay the picker. Six
+          games show; the rest behind one tap. */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 10 }}>
+        {(allGames ? slate : slate.slice(0, 6)).map(([away, home]) => {
+          const v = gameVerdict(matchup, away, home, win)
+          return (
+            <div key={`${away}@${home}`} style={{
+              display: 'grid', gridTemplateColumns: 'auto 1fr', alignItems: 'center', gap: 10, padding: '4px 8px 4px 4px',
+              border: `1px solid ${C.border}`, borderRadius: 10, background: C.bg2,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <button onClick={() => pick(away)} style={teamStyle(away === active)}>{away}</button>
+                <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, color: C.text3 }}>@</span>
+                <button onClick={() => pick(home)} style={teamStyle(home === active)}>{home}</button>
+              </div>
+              <div style={{ fontSize: 12, lineHeight: 1.4, color: C.text2, minWidth: 0 }}>
+                {v.softText ? <div><b style={{ color: C.cyan }}>{v.softText}</b></div> : null}
+                {v.toughText ? <div style={{ color: C.text3 }}>{v.toughText}</div> : null}
+                {!v.softText && !v.toughText ? <span style={{ color: C.text3 }}>no standout either way</span> : null}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
+        {slate.length > 6 && (
+          <button onClick={() => setAllGames((v) => !v)} aria-expanded={allGames} style={{ ...teamStyle(false), color: C.cyan }}>
+            {allGames ? 'SHOW 6' : `+${slate.length - 6} MORE GAMES`}
+          </button>
+        )}
         {rest.length > 0 && (
           <button onClick={() => setShowAll((v) => !v)} style={{
             ...teamStyle(showAll), color: showAll ? C.green : C.text3,
@@ -312,7 +334,7 @@ export default function Matchups({ matchup, data }) {
             {facing.map((p) => (
               <button key={p.player_id} onClick={() => setPid(p.player_id)}
                       style={{ ...btnStyle(C.cyan, pid === p.player_id), display: 'flex', alignItems: 'center', gap: 5 }}>
-                {surname(p.name)} <span style={{ opacity: .6 }}>{p.position}</span>
+                <NflFace player={p} size={18} />{surname(p.name)} <span style={{ opacity: .6 }}>{p.position}</span>
               </button>
             ))}
           </div>
@@ -331,6 +353,34 @@ export default function Matchups({ matchup, data }) {
             covPlayer={picked ? matchup?.coverage_player?.[picked.player_id] : null}
             covLeague={matchup?.coverage_team}
           />
+          {/* THE LEGEND, IN WORDS (BATCH-FACES step 10). */}
+          <div style={{ marginTop: 8, fontSize: 12, lineHeight: 1.5, color: C.text3 }}>
+            Red dots: where {active} gives up yards — a bigger patch is more of the yards it allows, denser red is leakier than the league there.
+            {picked ? ` Dashed rings: ${picked.name}'s own work, sized by his share.` : ' Pick a player above to lay his own work on top as dashed rings.'}
+          </div>
+          {/* COVERAGE EVIDENCE, finally read (coverage_mismatch_detail, BATCH-FACES
+              step 10 / STATUS open item 2): the bot's own lean-vs-him numbers
+              for the players facing this defence who carry them. */}
+          {(() => {
+            const withCov = facing.filter((p) => p.coverage_mismatch_detail?.opp_lean)
+            const list = picked ? withCov.filter((p) => p.player_id === picked.player_id) : withCov.slice(0, 4)
+            if (!list.length) return null
+            const other = (lean) => (lean === 'zone' ? 'man' : lean === 'man' ? 'zone' : 'the rest')
+            return (
+              <ul style={{ listStyle: 'none', margin: '8px 0 0', padding: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {list.map((p) => {
+                  const d = p.coverage_mismatch_detail
+                  const tag = p.coverage_mismatch_tag
+                  return (
+                    <li key={p.player_id} style={{ fontSize: 12, lineHeight: 1.45, color: C.text2 }}>
+                      <b style={{ color: C.text }}>{p.name}</b>{tag ? <b style={{ color: tag === 'TARGET' ? C.green : C.red }}> {tag}</b> : null}
+                      {' · '}{active} leans {d.opp_lean}; he averages {d.leaned_ypt} yards a target against {d.opp_lean}, {d.other_ypt} against {other(d.opp_lean)}.
+                    </li>
+                  )
+                })}
+              </ul>
+            )
+          })()}
         </div>
       </Section>
 

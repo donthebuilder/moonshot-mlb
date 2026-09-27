@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import HeadlineStrip from '../../HeadlineStrip'
-import HistoryWatch from '../../HistoryWatch'
+import StorylinesStrip from '../../StorylinesStrip'
 import LongshotsPreview from '../../LongshotsPreview'
 import HeroStat from '../../HeroStat'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
@@ -11,6 +11,7 @@ import { usePreview, ShowMoreButton } from '../../ListPreview'
 import ScoreTable, { sortGames } from '../ScoreTable'
 import { TeamMark, EmptyState, DelayedBanner, Loading, SourceLine, Kicker, GameTypeChip, fmtDay, fmtPuckDrop, zoneAbbrev } from '../ui'
 import { NHL_NAV } from '../../../lib/nhl/routes'
+import HotNumbers from '../../numerology/HotNumbers'
 
 // 🏒 TONIGHT — LAMP's front page. Three things and no more (spec §6: the
 // home page is not a data wall): tonight's games, where the league stands,
@@ -110,7 +111,9 @@ export default function Home({ today, date = null, onOpenGame, onOpenPlayer, set
       </nav>
 
       <HeadlineStrip cards={cards} onOpen={openCard} theme={C} numFont={NUM_FONT} accent={C.ice} />
-      <HistoryWatch sport="nhl" unit="G" theme={C} numFont={NUM_FONT} onPlayerClick={(p) => onOpenPlayer?.(Number(p.player_id))} />
+      {/* 2026-09-27 (BATCH-STORYLINES-PAGE step 4): the story engine's rarest
+          five (History Watch's claims lead as the rarest), then the Storylines tab. */}
+      <StorylinesStrip sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} max={5} onSeeAll={() => setTab?.('storylines')} onOpenPlayer={(id) => onOpenPlayer?.(Number(id))} />
       <LongshotsPreview sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} onSeeAll={() => setTab?.('longshots')} onOpenPlayer={(id) => onOpenPlayer?.(id)} />
 
       <section aria-label="Tonight's games">
@@ -160,6 +163,9 @@ export default function Home({ today, date = null, onOpenGame, onOpenPlayer, set
           </table>
         )}
       </section>
+
+      {/* TONIGHT'S NUMBERS (numerology v2 step 6b): one line under the board, taps to Numerology. */}
+      <HotNumbers compact sport="nhl" date={day?.date || date} theme={C} numFont={NUM_FONT} accent={C.ice} onOpen={() => setTab?.('numerology')} />
 
       <section aria-label="Division leaders">
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>

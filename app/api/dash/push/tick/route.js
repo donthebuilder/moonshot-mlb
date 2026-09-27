@@ -42,6 +42,7 @@ import { byeStarterEventsFrom, franchiseEventsFrom, lineupGapEventsFrom, starter
 import { audienceFrom, boardInfoFrom, laneOf, lineupUpdatesFrom, mlbEventsFrom, nflEventsFrom, nflFollowMisses, nhlEventsFrom, pregameEventsFrom, priorityOf, wants } from '../../../../../lib/dash/pushRules'
 import { fanOutToDiscord } from '../../../../../lib/dash/discordAlerts'
 import { isMaintenanceMode, isRedZoneAlertsEnabled } from '../../../../../lib/edgeConfig'
+import { readUserState } from '../../../../../lib/dash/stateCache'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -262,6 +263,32 @@ const LANE_WINDOW_MS = { actionable: 10 * 60 * 1000, scoreboard: 30 * 60 * 1000 
 const BODY_CAP = 5
 
 const shortId = (s) => createHash('sha1').update(String(s)).digest('hex').slice(0, 16)
+const hostOf = (s) => { try { return new URL(s).host } catch { return '?' } }
+
+// ── A SUBSCRIPTION THAT NEVER WORKS IS DEAD (2026-09-27, TUDDY depth step 5)
+// Only 404/410 used to remove one. Endpoint 2f277a3cf7dfb459 (Apple) failed
+// 1,265 sends from 09-19 to 09-27 with not one success -- every sweep paid
+// for it and its log rows buried the real ones. Apple answers 403 for a bad
+// or expired VAPID token and 400 for a bad device token; both are permanent
+// for that subscription, but one can be a blip, so: removed on the
+// DEAD_AFTER-th failed SEND in a row. Counted from dash_push_log (no new
+// column): 'failed' rows grouped by their insert time (one send = one insert,
+// however many events it carried), 'dropped' rows skipped (a lane drop is not
+// a send), any 'sent'/'bundled' row ends the streak. The browser subscribes
+// again by itself the next time it opens the site.
+const PERMANENT_IF_REPEATED = new Set([400, 401, 403])
+const DEAD_AFTER = 3
+async function failedSendsInARow(db, endpoint) {
+  const { data, error } = await db.from('dash_push_log').select('outcome,at')
+    .eq('endpoint_hash', shortId(endpoint)).neq('outcome', 'dropped').order('at', { ascending: false }).limit(60)
+  if (error) { console.error(`[push] failure streak read: ${error.message}`); return 0 }
+  const sends = new Set()
+  for (const r of data || []) {
+    if (r.outcome !== 'failed') break
+    sends.add(r.at)
+  }
+  return sends.size
+}
 
 async function claimQuietSlot(db, endpoint, lane = 'actionable') {
   const win = LANE_WINDOW_MS[lane] || LANE_WINDOW_MS.actionable
@@ -386,6 +413,22 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
  * pulled this, and asking the league again to answer "was anything live fifty
  * milliseconds ago" would be the sort of request this file exists to avoid.
  */
+// FRANCHISE STARTER TOUCHDOWNS, ONLY WHILE FOOTBALL IS ON (cost cut,
+// 2026-09-27). starterScoreEventsFrom reads three FRANCHISE tables every sweep
+// (up to three a minute, all week) before it looks at ESPN's snapshot. Read
+// them only while a game is live -- or once when the count of finished games
+// moves, so an overtime walk-off touchdown (the game goes final with the
+// score) is still swept. A cold instance reads once. The seen table dedupes.
+let _nflFinalSeen = -1
+async function franchiseScoresOn() {
+  const snap = await fetchNflLive().catch(() => null)
+  const games = snap?.games || []
+  if (games.some((g) => g?.state === 'in')) return true
+  const finals = games.filter((g) => g?.state === 'post').length
+  if (finals !== _nflFinalSeen) { _nflFinalSeen = finals; return true }
+  return false
+}
+
 async function worthSweepingAgain(audience) {
   if (audience?.mlb?.size) {
     const snap = await fetchLiveSlate().catch(() => null)
@@ -430,11 +473,15 @@ export async function GET(request) {
   // follow lists first turns that into "produce nothing for players no
   // subscriber has ever named", which is most of the league.
   const userIds = [...new Set(subs.map((s) => s.user_id))]
-  const { data: stateRows } = await db
-    .from('dash_user_state')
-    .select('user_id,key,value')
-    .in('user_id', userIds)
-    .in('key', ['dash_alerts_v1', 'dash_follow_v1'])
+  // By stamp (lib/dash/stateCache.js): full values only when a row changed
+  // since this warm instance last read it -- was ~29 MB/day of egress.
+  let stateRows
+  try {
+    stateRows = await readUserState(db, userIds, ['dash_alerts_v1', 'dash_follow_v1'])
+  } catch (e) {
+    console.error(`[push] ${e.message}`)
+    return Response.json({ sent: 0, reason: 'state-unreadable' })
+  }
 
   const stateByUser = {}
   for (const row of stateRows || []) {
@@ -524,7 +571,8 @@ async function sweep(db, subs, stateByUser, audience, { full }) {
     // comment for why a Franchise touchdown needs the same speed as TUDDY's.
     // It reads the in-process snapshot nflEvents() just warmed above, so this
     // costs a small roster query and no second trip to ESPN.
-    ...(await starterScoreEventsFrom(db)),
+    // COST CUT (2026-09-27): only while football is on (see franchiseScoresOn).
+    ...((await franchiseScoresOn()) ? await starterScoreEventsFrom(db) : []),
     ...(full ? await pregameEvents(db, audience) : []),
     // FRANCHISE needs no audience: these are addressed to the owner of a team,
     // not to whoever follows a player. It also runs on every tick rather than
@@ -619,7 +667,14 @@ async function sweep(db, subs, stateByUser, audience, { full }) {
         sent += 1
         for (const e of batch) outcomes.push({ event: e, outcome: batch.length === 1 ? 'sent' : 'bundled' })
       } catch (err) {
-        if (err?.statusCode === 404 || err?.statusCode === 410) dead.push(sub.endpoint)
+        const status = err?.statusCode ?? null
+        const reason = String(err?.body || err?.message || '').replace(/\s+/g, ' ').slice(0, 120)
+        console.error(`[push] send failed ${shortId(sub.endpoint)} (${hostOf(sub.endpoint)}): ${status ?? 'no status'} ${reason}`)
+        if (status === 404 || status === 410) dead.push(sub.endpoint)
+        else if (PERMANENT_IF_REPEATED.has(status) && (await failedSendsInARow(db, sub.endpoint)) >= DEAD_AFTER - 1) {
+          console.error(`[push] ${shortId(sub.endpoint)}: ${DEAD_AFTER} failed sends in a row (${status}) -- removing the subscription; the browser re-subscribes the next time it opens the site`)
+          dead.push(sub.endpoint)
+        }
         for (const e of batch) outcomes.push({ event: e, outcome: 'failed' })
         break
       }

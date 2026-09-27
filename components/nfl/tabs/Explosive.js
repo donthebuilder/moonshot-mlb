@@ -5,6 +5,7 @@ import NflTable from '../NflTable'
 import PageHeader from '../../PageHeader'
 import { ActiveFilters, FilterBar, FilterSearch, FilterSelect, PillRow } from '../../Filters'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
+import NflFace from '../NflFace'
 
 // 🚀 EXPLOSIVE — TUDDY'S SIDE OF PATH TO VICTORY B10(l), THE POWER BOARD.
 //
@@ -85,6 +86,41 @@ const DEFENSE_COLUMNS = [
   { key: 'deep_pct', label: 'DEEP CMP%', w: 70, dp: 1, invert: true, title: 'Completion % allowed on 20+ air-yard attempts' },
   { key: 'deep_td', label: 'DEEP TD', w: 58, dp: 0, invert: true },
 ]
+
+// ── BIG PLAY WATCH (2026-09-27, TUDDY depth step 7) ──────────────────────
+// Separation: the average yards between a receiver and the nearest defender
+// when the ball arrives, from nflverse's NGS receiving table -- published on
+// the player row as stats.SEP (87 qualified receivers). Open men are where
+// chunk plays start; this ranks this week's receivers (not on bye) by it and
+// prints the number. Nothing is estimated; a man NGS doesn't qualify has no
+// SEP and simply isn't listed.
+function BigPlayWatch({ data, onPlayerClick }) {
+  const rows = useMemo(() => (data?.players || [])
+    .filter((p) => !p.on_bye && ['WR', 'TE', 'RB'].includes(p.position) && Number.isFinite(Number(p.stats?.SEP)) && p.stats.SEP !== null)
+    .sort((a, b) => Number(b.stats.SEP) - Number(a.stats.SEP))
+    .slice(0, 5), [data])
+  if (!rows.length) return null
+  return (
+    <section aria-label="Big play watch" style={{ margin: '0 0 12px', padding: '11px 12px', border: `1px solid ${C.border}`, borderRadius: 12, background: C.bg2 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
+        <span style={{ fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.1em', color: C.green, fontFamily: NUM_FONT }}>BIG PLAY WATCH</span>
+        <span style={{ fontSize: 12, color: C.text3 }}>most separation at the catch point, yards (NGS)</span>
+      </div>
+      {rows.map((p, i) => (
+        <button key={p.player_id} type="button" onClick={() => onPlayerClick?.(p, 'REC_YDS')}
+          style={{ display: 'grid', gridTemplateColumns: '18px auto 1fr auto', alignItems: 'center', gap: 8, width: '100%', minHeight: 44, padding: '4px 2px', border: 0, borderTop: i ? `1px solid ${C.border}` : 0, background: 'transparent', color: C.text, textAlign: 'left', cursor: 'pointer' }}>
+          <span style={{ fontFamily: NUM_FONT, fontSize: 11, color: C.text3 }}>{i + 1}</span>
+          <NflFace player={p} size={28} />
+          <span style={{ minWidth: 0 }}>
+            <span style={{ display: 'block', fontSize: 13, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</span>
+            <span style={{ display: 'block', fontSize: 11, color: C.text3, fontFamily: NUM_FONT }}>{p.position} · {p.team}{p.opp ? ` vs ${p.opp}` : ''}</span>
+          </span>
+          <span style={{ fontFamily: NUM_FONT, fontSize: 15, fontWeight: 900, color: C.green }}>{Number(p.stats.SEP).toFixed(1)}</span>
+        </button>
+      ))}
+    </section>
+  )
+}
 
 export default function Explosive({ matchup, data, onPlayerClick }) {
   const watchlist = useNflWatchlist(data)
@@ -178,6 +214,7 @@ export default function Explosive({ matchup, data, onPlayerClick }) {
         numFont={NUM_FONT}
         accent={lens === 'player' ? C.green : C.cyan}
       />
+      {lens === 'player' && <BigPlayWatch data={data} onPlayerClick={onPlayerClick} />}
 
       <div style={{
         display: 'flex', flexDirection: 'column', gap: 9, marginBottom: 11,

@@ -67,6 +67,7 @@ const OddsBoard = dynamic(() => import('./tabs/OddsBoard'), { loading: TabLoadin
 const Pitchers = dynamic(() => import('./tabs/Pitchers'), { loading: TabLoading })
 const PropsGrid = dynamic(() => import('./tabs/PropsGrid'), { loading: TabLoading })
 const Longshots = dynamic(() => import('./Longshots'), { loading: TabLoading })
+const StorylinesPage = dynamic(() => import('./StorylinesPage'), { loading: TabLoading })
 const PlayerModal = dynamic(() => import('./PlayerModal'), { loading: () => null })
 
 const WATCH_KEY = 'mlb_watchlist_v1'
@@ -869,6 +870,7 @@ export default function Dashboard({ palettePass = 0 }) {
             {tab === 'boxes'       && <Home players={allPlayers} filteredPlayers={players} results={resultsForSlate} backtest={backtest} mode={mode} slateDate={slateDate} dateLabel={dateLabel} odds={odds} onWatch={toggleWatch} watchIds={watchIds} onNavigate={setTab} onPlayerClick={setModalPlayer} initial="boxes" />}
             {tab === 'atplate'     && <Home players={allPlayers} filteredPlayers={players} results={resultsForSlate} backtest={backtest} mode={mode} slateDate={slateDate} dateLabel={dateLabel} odds={odds} onWatch={toggleWatch} watchIds={watchIds} onNavigate={setTab} onPlayerClick={setModalPlayer} initial="live" />}
             {/* 2026-09-25: the full board, #1 to #N, on its own page. */}
+            {tab === 'storylines'  && <StorylinesPage sport="mlb" eyebrow="MOONSHOT · STORYLINES" theme={C} numFont={NUM_FONT} accent={C.orange} searchBox={false} keepIds={players.length < allPlayers.length ? new Set(players.map((p) => String(p?.player_id ?? p?.id))) : null} onOpenPlayer={(id) => { const p = allPlayers.find((x) => String(x?.player_id ?? x?.id) === String(id)); if (p) setModalPlayer(p) }} />}
             {tab === 'longshots'   && <Longshots sport="mlb" eyebrow="MOONSHOT · LONGSHOTS" theme={C} numFont={NUM_FONT} accent={C.orange} onOpenPlayer={(id) => { const p = allPlayers.find((x) => String(x?.player_id ?? x?.id) === String(id)); if (p) setModalPlayer(p) }} />}
             {tab === 'fullboard'   && <Home players={allPlayers} filteredPlayers={players} results={resultsForSlate} backtest={backtest} mode={mode} slateDate={slateDate} dateLabel={dateLabel} odds={odds} onWatch={toggleWatch} watchIds={watchIds} onNavigate={setTab} onPlayerClick={setModalPlayer} initial="fullboard" />}
             {/* #tab=power and #tab=patterns were NEVER WIRED (found 2026-08-17

@@ -1,5 +1,6 @@
 'use client'
 
+import NflFace from '../NflFace'
 import { useCallback, useMemo, useRef, useState, useEffect } from 'react'
 import { C, NUM_FONT, gradeFor } from '../../../lib/nfl/theme'
 import NflYourPlayers from '../NflYourPlayers'
@@ -8,7 +9,7 @@ import { ledgerTotals } from '../../../lib/nfl/myPicks'
 import NflTeamMark from '../../fantasy/NflTeamMark'
 import TeamPower from '../TeamPower'
 import StartSit from '../StartSit'
-import Storylines from './Storylines'
+import StorylinesStrip from '../../StorylinesStrip'
 import Fold from '../../Fold'
 import ScoreRail from '../../ScoreRail'
 import { fetchNflLive, lineFor, tdsIn } from '../../../lib/nfl/liveSlate'
@@ -25,8 +26,11 @@ import { toRailGame, toMlbRailGames, mergeGamesSorted, combinedRenderState, Comb
 // The NFL twin of MOONSHOT Home's buildHeadlines() -- same real signals
 // that now also ride TUDDY's own header ticker (2026-09-16).
 import NflHeadlineStrip from '../NflHeadlineStrip'
+import HeadlinePicks from '../../headline/HeadlinePicks'
 import PageHeader from '../../PageHeader'
 import { NFL_NAV } from '../../../lib/routes'
+import HotNumbers from '../../numerology/HotNumbers'
+import { easternToday, easternDate } from '../../../lib/data'
 
 const SIX = [
   ['TD', 'ATD', 'Touchdown'],
@@ -71,70 +75,75 @@ function SectionTitle({ eyebrow, title, action, onAction }) {
   )
 }
 
-function TheSix({ picks, playersById, onPlayerClick, onPicks }) {
-  const calls = SIX.map(([key, short, label]) => {
+// ── THE SIX, THREE DEEP (2026-09-27, BATCH-TUDDY-DEPTH step 3 /
+// BATCH-HEADLINE-PICKS step 2). Same layout as MOONSHOT's The Four
+// (components/headline/HeadlinePicks.js): one box per market, the card's #1
+// big and its #2 / #3 small, all from the week's card (nfl_picks.json
+// card.<MKT>.rungs -- every rung is a CALL, so nothing here is called that
+// isn't). Rush attempts and DEF_TD stay on the Board. On a phone each box
+// shows its #1 until tapped.
+//
+// FIELDS, per market, from the player's published stats (nfl_week.json
+// players[].stats, labels in lib/nfl/statLabels.js):
+//   TD        RZ (red-zone opp / game), TD (TD / game)
+//   REC_YDS   TGT (targets / game), RECYD (rec yds / game)
+//   RUSH_YDS  CAR (carries / game), RUYD (rush yds / game)
+//   REC       REC (receptions / game) of TGT, catch rate = REC / TGT
+//   PASS_YDS  ATT (attempts / game), PAYD (pass yds / game)
+//   KICK_PTS  FGM (FG made / game), PAT (PAT / game)
+//   + opponent, position, coverage_mismatch_tag when the bot set one.
+// RECORD per market: the graded weekly files (the same seasonTotals() the
+// Record tab uses) -- "4 of 6 over 3 wks", and a % only from 20 graded calls.
+const one = (v) => (Number.isFinite(Number(v)) ? (Math.round(Number(v) * 10) / 10).toString() : null)
+const PROOF = {
+  TD: (s) => [one(s.RZ) && `${one(s.RZ)} RZ opp/g`, one(s.TD) && `${one(s.TD)} TD/g`],
+  REC_YDS: (s) => [one(s.TGT) && `${one(s.TGT)} tgt/g`, one(s.RECYD) && `${one(s.RECYD)} rec yds/g`],
+  RUSH_YDS: (s) => [one(s.CAR) && `${one(s.CAR)} car/g`, one(s.RUYD) && `${one(s.RUYD)} rush yds/g`],
+  REC: (s) => [one(s.REC) && one(s.TGT) ? `${one(s.REC)} of ${one(s.TGT)} tgt/g` : one(s.REC) && `${one(s.REC)} rec/g`, Number(s.TGT) > 0 && Number.isFinite(Number(s.REC)) ? `${Math.round((100 * Number(s.REC)) / Number(s.TGT))}% catch` : null],
+  PASS_YDS: (s) => [one(s.ATT) && `${one(s.ATT)} att/g`, one(s.PAYD) && `${one(s.PAYD)} pass yds/g`],
+  KICK_PTS: (s) => [one(s.FGM) && `${one(s.FGM)} FG/g`, one(s.PAT) && `${one(s.PAT)} PAT/g`],
+}
+const MICRO = { TD: (s) => one(s.TD) && `${one(s.TD)} TD/g`, REC_YDS: (s) => one(s.RECYD) && `${one(s.RECYD)} yds/g`, RUSH_YDS: (s) => one(s.RUYD) && `${one(s.RUYD)} yds/g`, REC: (s) => one(s.REC) && `${one(s.REC)} rec/g`, PASS_YDS: (s) => one(s.PAYD) && `${one(s.PAYD)} yds/g`, KICK_PTS: (s) => one(s.FGM) && `${one(s.FGM)} FG/g` }
+const recordWord = (t) => {
+  if (!t?.n) return null
+  return `${t.hit} of ${t.n} over ${t.weeks} wk${t.weeks === 1 ? '' : 's'}${t.n >= 20 && t.pct != null ? ` · ${Math.round(t.pct)}%` : ''}`
+}
+
+function TheSix({ picks, playersById, onPlayerClick, onPicks, totals }) {
+  const colors = MARKET_COLOR()
+  const lanes = SIX.map(([key, short]) => {
     const block = picks?.card?.[key]
-    const call = block?.rungs?.[0]
-    return { key, short, label, block, call, player: call ? playersById[String(call.player_id)] : null }
+    return {
+      key, label: short, color: colors[key],
+      blurb: block?.bar != null ? `bar ${block.bar}+` : '',
+      record: recordWord(totals?.[key]),
+      empty: 'Awaiting the card.',
+      picks: (block?.rungs || []).slice(0, 3).map((call, i) => {
+        const player = playersById[String(call.player_id)] || null
+        const st = player?.stats || {}
+        const tag = player?.coverage_mismatch_tag ? ` · ${player.coverage_mismatch_tag}` : ''
+        return {
+          key: String(call.player_id), raw: { player, key }, name: call.name,
+          face: i === 0 && player ? <NflFace player={player} size={28} /> : null,
+          score: Number.isFinite(call.score) ? Math.round(call.score) : '—',
+          lines: i === 0 ? [PROOF[key](st).filter(Boolean).join(' · '), `${call.team} vs ${call.opp} · ${call.position}${tag}`] : [],
+          team: i === 0 ? null : call.team,
+          micro: i === 0 ? null : MICRO[key](st) || null,
+        }
+      }),
+    }
   })
-
-  // THE HEADLINER (Phase 2 parity pass, 2026-09-11). MLB pulls its #1 ranked
-  // player out of the board into its own hero treatment everywhere it shows a
-  // ranked list -- Home.js's "TONIGHT'S HEADLINER" panel and shareCard.js's
-  // ghost-numeral share card both do it. The Six had no equivalent: six equal
-  // grid tiles, nothing telling you which of the six is actually the best
-  // call tonight. Same language, ported to TUDDY's own palette (green/cyan,
-  // not MLB's orange -- see lib/nfl/theme.js) and TUDDY's own ranking unit
-  // (best call across six MARKETS, not best player on a board): the single
-  // highest-scored call gets pulled out into a hero row with the ghost
-  // numeral watermark, the other five stay exactly as the grid below.
-  const ranked = calls.filter((c) => c.call).sort((a, b) => (b.call.score || 0) - (a.call.score || 0))
-  const headliner = ranked[0]
-  const rest = calls.filter((c) => c !== headliner)
-
   return (
-    <section className="tuddy-six">
-      <div className="tuddy-six-head">
-        <div><small>THE HEADLINE CARD</small><h2>The Six</h2><p>Six points. Six markets. One called shot in each. Scores are league rankings, 0–100 — not probabilities.</p></div>
-        <button onClick={onPicks}>Full card →</button>
-      </div>
-      {headliner && (() => {
-        const { key, short, block, call, player } = headliner
-        const color = MARKET_COLOR()[key]
-        const grade = gradeFor(call.score)
-        return (
-          <button className="tuddy-six-headliner" onClick={() => player && onPlayerClick?.(player, key)} disabled={!player}
-                  style={{ '--market': color }}>
-            <span className="tuddy-six-ghost" aria-hidden="true">1</span>
-            <span className="tuddy-six-pulse" aria-hidden="true" />
-            <div className="tuddy-six-headliner-body">
-              <small><span className="tuddy-six-dot" aria-hidden="true" />THE HEADLINER · {short} · BAR {block?.bar ?? '—'}</small>
-              <strong>{call.name}</strong>
-              <em>{call.team} vs {call.opp} · {call.position}</em>
-            </div>
-            <div className="tuddy-six-headliner-score">
-              <b style={{ color: grade.color }}>{Math.round(call.score)}</b>
-              <span style={{ color: grade.color }}>{grade.label}</span>
-            </div>
-          </button>
-        )
-      })()}
-      <div className="tuddy-six-grid">
-        {rest.map(({ key, short, label, block, call, player }) => {
-          const color = MARKET_COLOR()[key]
-          const grade = gradeFor(call?.score)
-          const num = SIX.findIndex((s) => s[0] === key) + 1
-          return (
-            <button key={key} onClick={() => player && onPlayerClick?.(player, key)} disabled={!player}
-                    style={{ '--market': color }}>
-              <span className="tuddy-six-number">0{num}</span>
-              <div><small>{short} · BAR {block?.bar ?? '—'}</small><strong>{call?.name || 'Awaiting call'}</strong><em>{call ? `${call.team} vs ${call.opp} · ${call.position}` : label}</em></div>
-              <div className="tuddy-six-score"><b style={{ color: grade.color }}>{call ? Math.round(call.score) : '—'}</b><span style={{ color: grade.color }}>{call ? grade.label : ''}</span></div>
-            </button>
-          )
-        })}
-      </div>
-    </section>
+    <HeadlinePicks
+      theme={C} numFont={NUM_FONT}
+      title="🏈 The Six"
+      subtitle="six markets, three deep — the card's calls. Scores are league rankings, 0–100, not probabilities."
+      lanes={lanes}
+      collapsePhone
+      gridClass="tuddy-six-picks"
+      onPick={(pick) => pick.raw.player && onPlayerClick?.(pick.raw.player, pick.raw.key)}
+      record={<button type="button" className="tuddy-panel-action" onClick={onPicks} style={{ marginLeft: 'auto' }}>Full card →</button>}
+    />
   )
 }
 
@@ -168,34 +177,8 @@ function defenseLeaks(matchup, games) {
   }).filter(Boolean).sort((a, b) => a.td_rank - b.td_rank).slice(0, 5)
 }
 
-function milestoneRows(logs, players) {
-  const candidates = []
-  players.forEach((player) => {
-    const rows = logs?.logs?.[String(player.player_id)]?.log || []
-    if (!rows.length) return
-    const season = Math.max(...rows.map((row) => number(row.s)))
-    const current = rows.filter((row) => number(row.s) === season)
-    const totals = current.reduce((out, row) => ({
-      td: out.td + number(row.g_td), rec: out.rec + number(row.g_rec),
-      recyd: out.recyd + number(row.g_recyd), rushyd: out.rushyd + number(row.g_ruyd),
-    }), { td: 0, rec: 0, recyd: 0, rushyd: 0 })
-    const options = [
-      { value: totals.td, step: 5, max: 2, label: 'touchdowns' },
-      { value: totals.rec, step: 50, max: 8, label: 'receptions' },
-      { value: totals.recyd, step: 500, max: 75, label: 'receiving yards' },
-      { value: totals.rushyd, step: 500, max: 75, label: 'rushing yards' },
-    ].map((item) => ({ ...item, next: Math.ceil((item.value + .001) / item.step) * item.step }))
-      .map((item) => ({ ...item, away: item.next - item.value }))
-      .filter((item) => item.next > 0 && item.away > 0 && item.away <= item.max)
-      .sort((a, b) => a.away / a.max - b.away / b.max)[0]
-    if (options) candidates.push({ player, season, ...options })
-  })
-  return candidates.sort((a, b) => a.away / a.max - b.away / b.max).slice(0, 4)
-}
-
-function LookOut({ matchup, games, logs, players }) {
+function LookOut({ matchup, games }) {
   const leaks = useMemo(() => defenseLeaks(matchup, games), [matchup, games])
-  const milestones = useMemo(() => milestoneRows(logs, players), [logs, players])
   return (
     <section className="tuddy-panel tuddy-lookout">
       <SectionTitle eyebrow="BEFORE IT HAPPENS" title="The Look-Out" />
@@ -204,11 +187,9 @@ function LookOut({ matchup, games, logs, players }) {
         {leaks.map((row) => <div key={`${row.team}-${row.role}`}><b>{row.team}</b><span>{row.role}</span><em>#{row.td_rank} TD matchup · {number(row.td).toFixed(0)} allowed</em></div>)}
         {!leaks.length && <p>The slate has no top-eight TD matchup flagged in the published defense table.</p>}
       </div>
-      <h3>Who needs what</h3>
-      <div className="tuddy-milestones">
-        {milestones.map((row) => <div key={`${row.player.player_id}-${row.label}`}><b>{row.player.name}</b><span>{Math.round(row.away)} {row.label} from {row.next}</span><em>published {row.season} logs</em></div>)}
-        {!milestones.length && <p>Milestones appear when a slate player is close enough to a round number in the published logs.</p>}
-      </div>
+      {/* "Who needs what" is gone (HISTORY WATCH 2 step 5, 2026-09-27): every
+          5 TDs / 50 catches / 500 yards with no claim behind it. The History
+          Watch in the headline strip above is the countdown with a reason. */}
     </section>
   )
 }
@@ -268,6 +249,8 @@ export default function Home({ data, picks, results, matchup, logs, onPlayerClic
   const [mine, setMine] = useState(null)
   useEffect(() => { try { setMine(ledgerTotals()) } catch { setMine(null) } }, [results?.graded_at])
   const games = data?.games || []
+  // The next game day this week, on the game's own (Eastern) date -- what the numbers line reads.
+  const nextGameDay = useMemo(() => { const t0 = easternToday(); const ds = games.map((g) => easternDate(Date.parse(g?.kickoff || ''))).filter(Boolean).sort(); return ds.find((d) => d >= t0) || ds.at(-1) || null }, [games])
   const players = data?.players || []
   const playersById = useMemo(() => Object.fromEntries(players.map((player) => [String(player.player_id), player])), [players])
 
@@ -361,7 +344,7 @@ export default function Home({ data, picks, results, matchup, logs, onPlayerClic
         {NFL_NAV.players.icon} Find a player — {NFL_NAV.players.label} ›
       </button>
 
-      <NflHeadlineStrip players={players} games={games} markets={data?.markets} matchup={matchup}
+      <NflHeadlineStrip players={players} games={games} markets={data?.markets} matchup={matchup} logs={logs}
         onPlayerClick={onPlayerClick} setTab={setTab} />
 
       {/* ONE RAIL, BOTH SPORTS (round 10, 2026-09-17) -- see lib/combinedRail.js's
@@ -389,7 +372,9 @@ export default function Home({ data, picks, results, matchup, logs, onPlayerClic
         <button onClick={() => setTab('accountability')}><small>THE RECORD</small><strong style={{ color: record.pct == null ? C.text3 : record.pct >= 55 ? C.green : record.pct < 45 ? C.red : C.text }}>{record.pct == null ? '—' : `${record.pct}%`}</strong><span>{record.n ? `${record.hit}/${record.n} · ${keys.length} wk${keys.length === 1 ? '' : 's'}` : 'nothing graded yet'}</span></button>
         <button onClick={() => topTd && onPlayerClick?.(topTd, 'TD')}><small>TOP TD SCORE</small><strong>{topTd ? Math.round(topTd.scores.TD) : '—'}</strong><span>{topTd?.name || 'awaiting slate'}</span></button>
       </section>
-      <TheSix picks={picks} playersById={playersById} onPlayerClick={onPlayerClick} onPicks={() => setTab('picks')} />
+      <TheSix picks={picks} playersById={playersById} onPlayerClick={onPlayerClick} onPicks={() => setTab('picks')} totals={seasonTotals(keys.map((k) => archive[k]))} />
+      {/* TONIGHT'S NUMBERS (numerology v2 step 6b): one line under the calls, taps to Numerology. */}
+      <HotNumbers compact sport="nfl" date={nextGameDay} theme={C} numFont={NUM_FONT} accent={C.green} onOpen={() => setTab('numerology')} eventWord="TDs" />
 
       {/* ── STORYLINES, ON THE FRONT PAGE (parity pass, 2026-09-16) ───────
           MOONSHOT's Home embeds Storylines directly, right after The Four —
@@ -397,7 +382,11 @@ export default function Home({ data, picks, results, matchup, logs, onPlayerClic
           full Storylines page (components/nfl/tabs/Storylines.js) built
           09-12, never mounted here. Same props Home already has in scope
           (data/logs/results/onPlayerClick/setTab) — nothing new fetched. */}
-      <Storylines data={data} logs={logs} results={results} onPlayerClick={onPlayerClick} setTab={setTab} />
+      {/* 2026-09-27 (BATCH-STORYLINES-PAGE step 4): the story engine's rarest six
+          on games still to come, then the by-game Storylines tab. Was the whole
+          Storylines view embedded here (2,759px at 390). */}
+      <StorylinesStrip sport="nfl" theme={C} numFont={NUM_FONT} accent={C.green} max={6} onSeeAll={() => setTab('storylines')}
+        onOpenPlayer={(id) => { const p = (data?.players || []).find((x) => String(x.player_id) === String(id)); if (p) onPlayerClick?.(p, 'TD') }} />
 
       {/* ⭐ YOUR PLAYERS (2026-09-16, parity pass) -- replaces the old
           FollowingStrip mount, and moves to MOONSHOT's own shelf for it:
@@ -464,8 +453,8 @@ export default function Home({ data, picks, results, matchup, logs, onPlayerClic
         <Fold id="tuddy-startsit" title="⚖️ Start/Sit compare" meta="pick two names, see the case for each">
           <StartSit players={players} onPlayerClick={onPlayerClick} />
         </Fold>
-        <Fold id="tuddy-lookout" title="🩹 The Look-Out" meta="who's scored · defenses leaking touchdowns · who needs what">
-          <div className="tuddy-home-split"><TouchdownLedger results={results} playersById={playersById}/><LookOut matchup={matchup} games={games} logs={logs} players={players}/></div>
+        <Fold id="tuddy-lookout" title="🩹 The Look-Out" meta="who's scored · defenses leaking touchdowns">
+          <div className="tuddy-home-split"><TouchdownLedger results={results} playersById={playersById}/><LookOut matchup={matchup} games={games}/></div>
         </Fold>
         <Fold id="tuddy-angles" title="📖 Tonight's angles" meta="every line from this slate's own data">
           <Angles players={players} matchup={matchup}/>
@@ -480,6 +469,7 @@ export default function Home({ data, picks, results, matchup, logs, onPlayerClic
         @media(max-width:800px){.tuddy-hero{min-height:190px;padding:22px}.tuddy-six-ghost{font-size:72px}.tuddy-hero-mark{display:none}.tuddy-snapshot{grid-template-columns:1fr 1fr}.tuddy-six-grid{grid-template-columns:1fr 1fr}.tuddy-home-split,.tuddy-board-split{grid-template-columns:1fr}.tuddy-angles>div:last-child{grid-template-columns:1fr 1fr}}
         @media(max-width:520px){.tuddy-hero h1{font-size:36px}.tuddy-six-headliner{grid-template-columns:1fr;width:calc(100% - 24px);margin:12px 12px 0;padding:14px}.tuddy-six-headliner-score{text-align:left}.tuddy-six-ghost{display:none}.tuddy-six-grid{grid-template-columns:1fr}.tuddy-six-head{align-items:flex-start;gap:12px}.tuddy-six-head button{max-width:90px}.tuddy-angles>div:last-child{grid-template-columns:1fr}.tuddy-receipts{align-items:flex-start;gap:16px}.tuddy-receipts button{max-width:90px}.tuddy-leaks>div,.tuddy-milestones>div{grid-template-columns:42px 1fr}.tuddy-leaks em,.tuddy-milestones em{grid-column:2}}
 
+        .tuddy-six-picks{grid-template-columns:repeat(3,minmax(0,1fr))!important}@media(max-width:800px){.tuddy-six-picks{grid-template-columns:repeat(2,minmax(0,1fr))!important}}@media(max-width:560px){.tuddy-six-picks{grid-template-columns:1fr!important}}
         .tuddy-six-dot{display:inline-block;width:6px;height:6px;margin-right:6px;border-radius:50%;background:var(--market);vertical-align:middle;animation:tuddyPulseDot 2s infinite}
         .tuddy-six-pulse{position:absolute;right:38px;top:50%;width:64px;height:64px;margin-top:-32px;border-radius:50%;border:1.5px solid var(--market);opacity:0;pointer-events:none;z-index:0;animation:tuddyPulseRing 2.6s ease-out infinite}
         @keyframes tuddyPulseDot{0%,100%{opacity:1}50%{opacity:.35}}

@@ -39,7 +39,7 @@ export async function GET(request) {
     const day = easternToday()
     const rows = await fetchBoardFull('today').catch(() => null)
     if (!rows?.length || slateDateFromRows(rows) !== day) return Response.json({ sport, day, items: [], reason: 'no board for today yet', credit: CREDIT }, { headers })
-    const items = await mlbWatch(rows, Number(day.slice(0, 4)))
+    const items = await mlbWatch(rows, Number(day.slice(0, 4)), { day })
     return Response.json({ sport, day, items, credit: CREDIT, builtAt: new Date().toISOString() }, { headers })
   } catch (e) {
     console.error(`[history watch] ${e?.message}`)

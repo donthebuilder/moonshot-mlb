@@ -16,7 +16,9 @@ import { C as MLB_C, NUM_FONT as MLB_NUM, TYPE } from '../lib/theme'
 //
 // Self-scrolling (useAutoScroll, pauses under the pointer), two copies back
 // to back for a seamless loop, the echo hidden from screen readers.
-export default function HeadlineStrip({ cards = [], onOpen = null, theme = null, numFont = null, accent = null, speed = 30 }) {
+// faceOf(card) -> node | null (BATCH-FACES step 8): a small face beside the
+// name on a card about one player. Absent, the card draws exactly as before.
+export default function HeadlineStrip({ cards = [], onOpen = null, theme = null, numFont = null, accent = null, speed = 30, faceOf = null }) {
   const C = theme || MLB_C
   const NUM_FONT = numFont || MLB_NUM
   const stripRef = useRef(null)
@@ -35,7 +37,11 @@ export default function HeadlineStrip({ cards = [], onOpen = null, theme = null,
         <span style={{ fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.14em', fontFamily: NUM_FONT, color: c.col }}>{c.tag}</span>
         <span style={{ marginLeft: 'auto', fontSize: 13, lineHeight: 1 }}>{c.icon}</span>
       </span>
-      <span style={{ fontSize: TYPE.name, fontWeight: 800, letterSpacing: '-.01em', lineHeight: 1.15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</span>
+      {(() => {
+        const face = faceOf?.(c)
+        const nameEl = <span style={{ fontSize: TYPE.name, fontWeight: 800, letterSpacing: '-.01em', lineHeight: 1.15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{c.name}</span>
+        return face ? <span style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>{face}{nameEl}</span> : nameEl
+      })()}
       <span style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8 }}>
         <span style={{ fontSize: TYPE.body, color: C.text2, lineHeight: 1.35, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{c.why}</span>
         <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.label, fontWeight: 900, color: c.col, whiteSpace: 'nowrap', border: `1px solid ${c.col}44`, background: `${c.col}14`, borderRadius: 4, padding: '2px 6px', flexShrink: 0 }}>{c.stat}</span>

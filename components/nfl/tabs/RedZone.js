@@ -2,6 +2,7 @@
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../../lib/nfl/theme'
 import NflTable from '../NflTable'
+import RedZoneField from '../RedZoneField'
 import PageHeader from '../../PageHeader'
 import { ActiveFilters, FilterBar, FilterSearch, FilterSelect } from '../../Filters'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
@@ -47,7 +48,7 @@ const buildColumns = (watchlist) => [
 
 const num = (v) => (Number.isFinite(Number(v)) && v !== null && v !== '' ? Number(v) : null)
 
-export default function RedZone({ data, onPlayerClick }) {
+export default function RedZone({ data, matchup = null, onPlayerClick }) {
   const watchlist = useNflWatchlist(data)
   const [query, setQuery] = useState('')
   const [team, setTeam] = useState('all')
@@ -113,6 +114,9 @@ export default function RedZone({ data, onPlayerClick }) {
         accent={C.green}
       />
 
+      {/* THE LAST 20 YARDS, drawn (BATCH-FACES step 9) -- the table below is unchanged. */}
+      <RedZoneField data={data} matchup={matchup} onPlayerClick={onPlayerClick} />
+
       <div style={{
         display: 'flex', flexDirection: 'column', gap: 9, marginBottom: 11,
         padding: '10px 12px', border: `1px solid ${C.border}`, borderRadius: 12, background: C.bg2,
@@ -138,6 +142,7 @@ export default function RedZone({ data, onPlayerClick }) {
         rows={filtered}
         columns={buildColumns(watchlist)}
         initialSort="rz"
+        faceOf={(r) => (r._raw?.espn_id ? { sport: 'nfl', espnId: String(r._raw.espn_id), name: r._raw.name } : null)}
         onRowClick={onPlayerClick ? (r) => onPlayerClick(r._raw, 'TD') : null}
         maxRows={rows.length}
         dimRow={(r) => r._raw?.carryover || r._raw?.low_sample}

@@ -53,8 +53,9 @@ import {
   VERB, NOUN, fmtBar, ordinal, weekLabel,
   milestoneStreaks, modelNarrativeStories, rivalryNights, birthdays,
   scoredLastTimeOut, backToBackRate, dueByTheNumbers, revengeGames, revengeRate,
-  milestoneCountdowns, redZoneMonsters,
+  redZoneMonsters,
 } from '../../../lib/nfl/storylines'
+import HistoryWatch from '../../HistoryWatch'
 
 // One row shape for all four categories -- icon, a sentence (bold name, bold
 // orange numbers), optional click-through. Matches components/Storylines.js's
@@ -113,11 +114,13 @@ export default function Storylines({ data, logs, results, onPlayerClick, setTab,
   const due = useMemo(() => lim(dueByTheNumbers(data), 6), [data, compact, cap])
   const revenge = useMemo(() => lim(revengeGames(data, logs), 8), [data, logs, compact, cap])
   const revRate = useMemo(() => revengeRate(logs), [logs])
-  const countdowns = useMemo(() => lim(milestoneCountdowns(data, logs), 8), [data, logs, compact, cap])
+  // No 🏁 COUNTDOWN any more (HISTORY WATCH 2 step 5, 2026-09-27): "12 away
+  // from 500 receiving yards" carried no claim. History Watch (below the
+  // header, full view only) is the countdown that says why it matters.
   const rzm = useMemo(() => lim(redZoneMonsters(data), 5), [data, compact, cap])
 
   const nothingAtAll = !markets.length && !modelCards.length && !rivalries.length && !bdays.length
-    && !b2b.length && !due.length && !revenge.length && !countdowns.length && !rzm.length
+    && !b2b.length && !due.length && !revenge.length && !rzm.length
   if (nothingAtAll) {
     return <div className="sl-empty">No game logs published yet — the bot ships nfl_logs.json on its first run of the season, and storylines read the same file Streaks does.</div>
   }
@@ -125,7 +128,6 @@ export default function Storylines({ data, logs, results, onPlayerClick, setTab,
   const counts = [
     b2b.length && `\u{1F501} ${b2b.length} scored last time out`,
     cards.length && `\u{1F525} ${cards.length} milestone streak${cards.length > 1 ? 's' : ''}`,
-    countdowns.length && `\u{1F3C1} ${countdowns.length} countdown${countdowns.length > 1 ? 's' : ''}`,
     revenge.length && `\u{1F47B} ${revenge.length} revenge game${revenge.length > 1 ? 's' : ''}`,
     due.length && `\u{1F4CA} ${due.length} due by the numbers`,
     rzm.length && `\u{1F6A8} ${rzm.length} red-zone monster${rzm.length > 1 ? 's' : ''}`,
@@ -178,17 +180,11 @@ export default function Storylines({ data, logs, results, onPlayerClick, setTab,
         </div>
       )}
 
-      {!!countdowns.length && (
-        <div className="sl-feed">
-          <div className="sl-section-head">MILESTONE COUNTDOWN</div>
-          {countdowns.map((r) => (
-            <Row key={`cd-${r.player.player_id}-${r.stat}`} icon={"\u{1F3C1}"} onClick={() => onPlayerClick?.(r.player, 'TD')}
-                 title={`${r.have} ${r.stat} through ${r.games} game${r.games === 1 ? '' : 's'} this season, from the published game log.`}>
-              <Name>{r.player.name}</Name> is <Num>{fmtBar(r.gap)}</Num> away from <Num>{r.next}</Num> {r.stat} this season — could land this week
-              <span className="sl-row-meta"> · {r.player.team} {r.player.position} vs {r.player.opp || '—'}</span><Td n={r.td} />
-            </Row>
-          ))}
-        </div>
+      {/* 📜 HISTORY WATCH in the countdown's place (step 5): only rungs with a
+          history claim behind them, tap for the proof. Full view only. */}
+      {!compact && (
+        <HistoryWatch sport="nfl" unit="TD" reach="within reach this week" theme={C} numFont={NUM_FONT}
+          onPlayerClick={(p) => { const row = playersById[String(p.player_id)]; if (row) onPlayerClick?.(row, 'TD') }} />
       )}
 
       {!!revenge.length && (

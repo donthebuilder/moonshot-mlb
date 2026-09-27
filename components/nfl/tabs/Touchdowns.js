@@ -1,6 +1,7 @@
 'use client'
 import { useMemo, useState } from 'react'
-import { C, NUM_FONT, gradeFor, TYPE } from '../../../lib/nfl/theme'
+import { C, NUM_FONT, gradeFor, TYPE, rampAt } from '../../../lib/nfl/theme'
+import { boardReason } from '../../../lib/nfl/boardReason'
 import { injuryTag, injuryTitle, injuryColor } from '../../../lib/nfl/injury'
 import { quoteFor } from '../../../lib/nfl/oddsMatch'
 import { alignedSignals } from '../../../lib/nfl/dvpSignal'
@@ -9,7 +10,7 @@ import OddsLine from '../../OddsLine'
 import OddsStatus from '../../OddsStatus'
 import MatchupBadge from '../MatchupBadge'
 import NflFace from '../NflFace'
-import { AnatomyStrip, reasonFor, baselineFor, topStatChips } from '../ScoreAnatomy'
+import { AnatomyStrip, baselineFor, topStatChips } from '../ScoreAnatomy'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 import { ActiveFilters, FilterBar, FilterSearch, FilterSelect, FilterPill } from '../../Filters'
 import NflBoardFilters, { useNflBoardFilter } from '../NflBoardFilters'
@@ -82,10 +83,12 @@ function ScoreBar({ score }) {
 }
 
 // ── THE CARD ─────────────────────────────────────────────────────────────
-function Card({ p, rank, matchup, odds, onPlayerClick, weights, base, watchlist }) {
+function Card({ p, rank, matchup, odds, onPlayerClick, weights, base, pool, watchlist }) {
   const score = p.scores?.[MARKET]
   const g = gradeFor(score)
-  const why = reasonFor(p, weights, base, MARKET)
+  // His top component with the number behind it (lib/nfl/boardReason.js,
+  // TUDDY depth step 4) -- the fixed clause read the same on 10 of 10 cards.
+  const why = boardReason(p, weights, base, MARKET, pool)
   const chips = topStatChips(p.components?.[MARKET], weights)
   const tag = injuryTag(p)
   const pinned = watchlist.isPinned(p.player_id)
@@ -151,7 +154,7 @@ function Card({ p, rank, matchup, odds, onPlayerClick, weights, base, watchlist 
         </div>
       </div>
 
-      {why && <div style={{ fontSize: TYPE.micro, color: C.text2, lineHeight: 1.4 }}>He {why}.</div>}
+      {why && <div style={{ fontSize: TYPE.micro, color: C.text2, lineHeight: 1.4 }}>{why.text}</div>}
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <div style={{ flex: 1, minWidth: 0 }}><ScoreBar score={score} /></div>
@@ -160,13 +163,18 @@ function Card({ p, rank, matchup, odds, onPlayerClick, weights, base, watchlist 
 
       {chips && chips.length > 0 && (
         <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-          {chips.map((c) => (
-            <span key={c.key} style={{
-              fontSize: 8.5, fontWeight: 800, letterSpacing: '.02em', padding: '2px 7px',
-              borderRadius: 999, whiteSpace: 'nowrap', fontFamily: NUM_FONT,
-              color: C.text2, border: `1px solid ${g.color}33`, background: `${g.color}0f`,
-            }}>{c.t}</span>
-          ))}
+          {chips.map((c) => {
+            // A percentile is an ordered scale: the amber -> jade RAMP, not hit/miss green.
+            const pct = Number(p.components?.[MARKET]?.[c.key])
+            const ramp = rampAt(Number.isFinite(pct) ? pct / 100 : 0)
+            return (
+              <span key={c.key} style={{
+                fontSize: 8.5, fontWeight: 800, letterSpacing: '.02em', padding: '2px 7px',
+                borderRadius: 999, whiteSpace: 'nowrap', fontFamily: NUM_FONT,
+                color: C.text2, border: `1px solid ${ramp}66`, background: `${ramp}14`,
+              }}>{c.t}</span>
+            )
+          })}
         </div>
       )}
 
@@ -391,7 +399,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
           <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))' }}>
             {capped.map((p, i) => (
               <Card key={p.player_id} p={p} rank={i + 1} matchup={matchup} odds={odds}
-                    onPlayerClick={onPlayerClick} weights={weights} base={base} watchlist={watchlist} />
+                    onPlayerClick={onPlayerClick} weights={weights} base={base} pool={rows} watchlist={watchlist} />
             ))}
           </div>
           {hidden > 0 && (

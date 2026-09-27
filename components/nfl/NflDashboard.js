@@ -27,6 +27,7 @@ import Matchups from './tabs/Matchups'
 import Explosive from './tabs/Explosive'
 import RedZone from './tabs/RedZone'
 import Longshots from '../Longshots'
+import StorylinesPage from '../StorylinesPage'
 import NflTable from './NflTable'
 import Numerology from './tabs/Numerology'
 import Report from './tabs/Report'
@@ -343,7 +344,7 @@ export default function NflDashboard({ palettePass = 0 }) {
             {tab === 'research' && <Research data={data} onPlayerClick={openPlayer} />}
             {tab === 'matchups' && <Matchups matchup={matchup} data={data} />}
             {tab === 'explosive' && <Explosive matchup={matchup} data={data} onPlayerClick={openPlayer} />}
-            {tab === 'redzone' && <RedZone data={data} onPlayerClick={openPlayer} />}
+            {tab === 'redzone' && <RedZone data={data} matchup={matchup} onPlayerClick={openPlayer} />}
             {tab === 'longshots' && <Longshots sport="nfl" eyebrow="TUDDY · LONGSHOTS" theme={C} numFont={NUM_FONT} accent={C.green} Table={NflTable} onOpenPlayer={(id) => { const p = (data?.players || []).find((x) => String(x.player_id) === String(id)); if (p) openPlayer(p, 'TD') }} />}
             {tab === 'numerology' && <Numerology data={data} />}
             {tab === 'report' && <Report report={report} />}
@@ -357,7 +358,9 @@ export default function NflDashboard({ palettePass = 0 }) {
             {tab === 'live' && <Live data={slate} picks={picks} live={liveSnap} matchup={matchup} logs={logs} results={nflResults} onPlayerClick={openPlayer} setTab={setTab} />}
             {tab === 'streaks' && <Streaks data={data} logs={logs} onPlayerClick={openPlayer} />}
             {tab === 'leaders' && <Leaders data={data} onPlayerClick={openPlayer} />}
-            {tab === 'storylines' && <Storylines data={data} logs={logs} results={nflResults} onPlayerClick={openPlayer} setTab={setTab} />}
+            {/* By game since 2026-09-27 (BATCH-STORYLINES-PAGE step 2): the story engine's rows, tied to the board.
+                The old section view stays as Home's compact strip (tabs/Storylines.js compact). */}
+            {tab === 'storylines' && <StorylinesPage sport="nfl" eyebrow="TUDDY · STORYLINES" theme={C} numFont={NUM_FONT} accent={C.green} onOpenPlayer={(id) => { const p = (data?.players || []).find((x) => String(x.player_id) === String(id)); if (p) openPlayer(p, 'TD') }} />}
           </ErrorBoundary>
         )}
       </main>

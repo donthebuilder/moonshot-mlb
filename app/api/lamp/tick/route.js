@@ -28,6 +28,11 @@ import { startersFromPlayByPlay, goaliesFromBoxscore } from '../../../../lib/nhl
 import { shotsFromPlayByPlay, writeShots } from '../../../../lib/nhl/shots'
 import { postLongshotsOnce } from '../../../../lib/dash/longshotsPost'
 import { postMultiClubOnce } from '../../../../lib/dash/multiClubPost'
+import { toPropRow, gradeSogRows, MODEL_VERSION as SOG_VERSION, MARKET as SOG } from '../../../../lib/nhl/sogModel'
+import { readNumerology } from '../../../../lib/nhl/numerology'
+import { writeNight as writeNumerology, gradeNight as gradeNumerology, refreshLaneNights, writeNumbersNight } from '../../../../lib/numerology/record'
+import { fromNhl } from '../../../../lib/numerology/adapters'
+import { storiesTick } from '../../../../lib/stories/record'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -82,6 +87,18 @@ export async function GET(request) {
       if (error) { console.error(`[lamp tick] upsert ${g.id}: ${error.message}`); out.skipped.push({ game: g.id, why: `upsert: ${error.message}` }); continue }
       const del = await db.from('lamp_goal_log').delete().eq('game_id', g.id).eq('model_version', MODEL_VERSION).lt('locked_at', lockedAt)
       if (del.error) console.error(`[lamp tick] prune ${g.id}: ${del.error.message}`)
+      // LAMP SHOTS (lamp-sog-v1): same game, same snapshot, same lockedAt, the
+      // same "never at or after puck drop" (checked above). Its own failure,
+      // logged; never the goal lock's.
+      const sogRows = night.sogByGame?.get(g.id) || []
+      if (sogRows.length) {
+        const up = await db.from('lamp_prop_log').upsert(sogRows.map((r) => toPropRow(r, g, night.day, lockedAt)), { onConflict: 'game_id,player_id,market,model_version' })
+        if (up.error) console.error(`[lamp tick] sog upsert ${g.id}: ${up.error.message}`)
+        else {
+          const sdel = await db.from('lamp_prop_log').delete().eq('game_id', g.id).eq('market', SOG).eq('model_version', SOG_VERSION).lt('locked_at', lockedAt)
+          if (sdel.error) console.error(`[lamp tick] sog prune ${g.id}: ${sdel.error.message}`)
+        }
+      }
       const prevGame = await db.from('lamp_goal_games').select('snapshots').eq('game_id', g.id).eq('model_version', MODEL_VERSION).maybeSingle()
       const gm = await writeGame(db, g.id, {
         game_id: g.id, model_version: MODEL_VERSION, game_date: night.day.date, season: g.season, game_type: g.gameType, start_utc: g.startUtc,
@@ -91,8 +108,25 @@ export async function GET(request) {
         starters: night.starters?.byGame?.[g.id] || null, starters_source: night.starters?.source || null,
       }, 'upsert')
       if (gm.error) console.error(`[lamp tick] games ${g.id}: ${gm.error.message}`)
-      out.locked.push({ game: g.id, matchup: `${g.away.abbrev}@${g.home.abbrev}`, rows: rows.length, called: rows.filter((r) => r.status === 'called').map((r) => r.name), lineupKnown: Boolean(night.lineups[g.id]), minutesToDrop: Math.round((start - Date.now()) / 60000) })
+      out.locked.push({ game: g.id, matchup: `${g.away.abbrev}@${g.home.abbrev}`, rows: rows.length, called: rows.filter((r) => r.status === 'called').map((r) => r.name),
+        sogCalled: sogRows.filter((r) => r.status === 'called').map((r) => r.name), lineupKnown: Boolean(night.lineups[g.id]), minutesToDrop: Math.round((start - Date.now()) / 60000) })
     }
+  }
+
+  // ── NUMEROLOGY, RECORDED (BATCH-NUMEROLOGY step 6) ─────────────────────
+  // Dressed skaters (the posted lineup) of games still before puck drop,
+  // inside the lock window, written once (first write wins). Its own
+  // failure, logged; never the lock's.
+  if (night && night.games.some((g) => g.state === 'pre' && Date.now() < Date.parse(g.startUtc) && Date.parse(g.startUtc) - Date.now() <= LOCK_WINDOW_MS)) {
+    try {
+      const num = await readNumerology(night.day.date)
+      const open = new Map(night.games.filter((g) => g.state === 'pre' && Date.now() < Date.parse(g.startUtc)).map((g) => [`${g.away.abbrev}@${g.home.abbrev}`, g]))
+      const players = (num.all || []).filter((r) => open.has(r.game)).map((r) => {
+        const [away, home] = r.game.split('@')
+        return { player_id: r.id, ...fromNhl({ ...r, opp: r.team === away ? home : away }) }
+      })
+      out.numerology = players.length ? await writeNumerology(db, 'nhl', night.day.date, players) : { players: 0, rows: 0 }
+    } catch (e) { console.error(`[lamp tick] numerology write: ${e?.message}`) }
   }
 
   // ── GRADE ─────────────────────────────────────────────────────────────
@@ -129,12 +163,52 @@ export async function GET(request) {
       if (pbp) {
         try { shotRows = (await writeShots(db, shotsFromPlayByPlay(pbp))).rows } catch (e) { console.error(`[lamp tick] shots ${p.game_id}: ${e?.message}`) }
       }
+      // LAMP SHOTS grade, off the same boxscore: value = sog, hit = 3+, not
+      // dressed = void. Scoring columns untouched; its own failure, logged.
+      let sogGraded = null
+      try {
+        const sh = await db.from('lamp_prop_log').select('*').eq('game_id', p.game_id).eq('market', SOG).eq('model_version', SOG_VERSION).is('graded_at', null)
+        if (sh.error) throw new Error(sh.error.message)
+        if (sh.data?.length) {
+          const gs = gradeSogRows(sh.data, box.playerByGameStats)
+          const su = await db.from('lamp_prop_log').upsert(gs.map((r) => ({ ...r, graded_at: gradedAt })), { onConflict: 'game_id,player_id,market,model_version' })
+          if (su.error) throw new Error(su.error.message)
+          sogGraded = { rows: gs.length, hits: gs.filter((r) => r.hit).length, calledHits: gs.filter((r) => r.hit && r.status === 'called').length }
+        }
+      } catch (e) { console.error(`[lamp tick] sog grade ${p.game_id}: ${e?.message}`) }
+      // Numerology grade for this game's skaters: played = dressed, hit = scored.
+      try {
+        const results = new Map(graded.map((r) => [String(r.playerId), { played: r.dressed, hit: Boolean(r.dressed && r.goals >= 1) }]))
+        if (await gradeNumerology(db, 'nhl', p.game_date, results)) await refreshLaneNights(db, 'nhl', p.game_date)
+      } catch (e) { console.error(`[lamp tick] numerology grade ${p.game_id}: ${e?.message}`) }
       const scorers = graded.filter((r) => r.hit)
-      out.graded.push({ game: p.game_id, matchup: `${g.away.abbrev}@${g.home.abbrev}`, rows: graded.length, dressed: graded.filter((r) => r.dressed).length, net: [startersActual?.away?.name, startersActual?.home?.name], shots: shotRows, scorers: scorers.map((r) => `${r.name} (${r.status}${r.rank ? ` #${r.rank}` : ''})`) })
+      out.graded.push({ game: p.game_id, matchup: `${g.away.abbrev}@${g.home.abbrev}`, rows: graded.length, dressed: graded.filter((r) => r.dressed).length, net: [startersActual?.away?.name, startersActual?.home?.name], shots: shotRows, scorers: scorers.map((r) => `${r.name} (${r.status}${r.rank ? ` #${r.rank}` : ''})`), sog: sogGraded })
     } catch (e) {
       console.error(`[lamp tick] grade ${p.game_id}: ${e?.message}`); out.skipped.push({ game: p.game_id, why: `grade: ${e?.message}` })
     }
   }
+  // 🔢 HOT NUMBERS (numerology step 6b): once a night's games are all graded,
+  // the dressed skaters' numbers against who scored, written once.
+  // Today and yesterday every tick (a failed write retries); two small counts
+  // and nothing else unless the night has games, all graded, none written.
+  for (const d of [date, dayBefore(date)]) {
+    try {
+      const [games, left, done] = await Promise.all([
+        db.from('lamp_goal_games').select('game_id', { count: 'exact', head: true }).eq('model_version', MODEL_VERSION).eq('game_date', d),
+        db.from('lamp_goal_games').select('game_id', { count: 'exact', head: true }).eq('model_version', MODEL_VERSION).eq('game_date', d).is('graded_at', null),
+        db.from('numerology_numbers').select('value', { count: 'exact', head: true }).eq('sport', 'nhl').eq('day', d),
+      ])
+      if (games.error || left.error || !games.count || left.count || done.count) continue
+      const num = await readNumerology(d)
+      const logRows = await db.from('lamp_goal_log').select('player_id, dressed, hit').eq('game_date', d).eq('model_version', MODEL_VERSION)
+      if (logRows.error) throw new Error(logRows.error.message)
+      const dressed = new Set((logRows.data || []).filter((r) => r.dressed).map((r) => String(r.player_id)))
+      const hits = new Set((logRows.data || []).filter((r) => r.hit).map((r) => String(r.player_id)))
+      const players = (num.all || []).filter((r) => dressed.has(String(r.id))).map((r) => ({ player_id: r.id, ...fromNhl(r) }))
+      out.hotNumbers = { ...(out.hotNumbers || {}), [d]: players.length ? await writeNumbersNight(db, 'nhl', d, players, hits) : 'no players' }
+    } catch (e) { console.error(`[lamp tick] hot numbers ${d}: ${e?.message}`) }
+  }
+
   // 🎯 LONGSHOTS (2026-09-27): today only, from 5pm ET, once, when at least
   // three long-priced skaters are still to play (lib/dash/longshotsPost.js).
   const etHour = Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', hourCycle: 'h23' }).format(new Date()))
@@ -146,6 +220,10 @@ export async function GET(request) {
   if (date === easternToday() && etHour >= 17) {
     out.longshots = await postLongshotsOnce(db, { sport: 'nhl', day: date, kind: 'nhl_longshots' }).catch((e) => `error: ${e?.message}`)
   }
+  // 📰 STORYLINES (BATCH-STORYLINES-PAGE step 3): freeze each game's stories
+  // in the 15 minutes before puck drop (this tick runs every 10), grade them
+  // once final. lib/stories/record.js; never throws.
+  out.stories = await storiesTick(db, 'nhl')
   out.ms = Date.now() - t0
   console.log(`[lamp tick] ${date} locked ${out.locked.length} graded ${out.graded.length} skipped ${out.skipped.length} in ${out.ms}ms`)
   return Response.json(out, { headers: { 'Cache-Control': 'no-store' } })

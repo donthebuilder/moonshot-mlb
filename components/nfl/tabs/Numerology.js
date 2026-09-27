@@ -6,6 +6,10 @@ import { AXIS_META, alignedWith, slateAlignments, dateDigitRoot, shiftDateKey } 
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 import PageHeader from '../../PageHeader'
 import { etToday } from '../../../lib/freshness'
+import TonightsNumbers from '../../numerology/TonightsNumbers'
+import { easternDate } from '../../../lib/data'
+import LaneTable from '../../numerology/LaneTable'
+import HotNumbers from '../../numerology/HotNumbers'
 
 // 🔮 NUMEROLOGY — B10(d), 2026-09-15. TUDDY's clone of MLB's Alignments view
 // (components/Alignments.js + lib/alignments.js). Donovan approved shipping
@@ -50,6 +54,12 @@ export default function Numerology({ data }) {
   const players = data?.players || []
 
   const model = useMemo(() => slateAlignments(players), [players])
+  // The next game day this week, on the game's own (Eastern) date.
+  const nextGameDay = useMemo(() => {
+    const today = easternDate(Date.now())
+    const days = (data?.games || []).map((g) => easternDate(Date.parse(g?.kickoff || ''))).filter(Boolean).sort()
+    return days.find((d) => d >= today) || days.at(-1) || null
+  }, [data])
   const { rows, clubs, totalMemberships, braids, names } = model
 
   const ranked = useMemo(() => [...clubs].sort((a, b) => b.count - a.count), [clubs])
@@ -97,6 +107,10 @@ export default function Numerology({ data }) {
         theme={C}
         numFont={NUM_FONT}
       />
+      {/* TONIGHT'S NUMBERS (numerology v2): the next game day's own date,
+          from this week's kickoffs (never the wall clock). */}
+      {nextGameDay ? <TonightsNumbers date={nextGameDay} theme={C} numFont={NUM_FONT} accent={C.green} label={`next game day · ${nextGameDay.slice(5).replace('-', '/')}`} /> : null}
+      <HotNumbers sport="nfl" theme={C} numFont={NUM_FONT} accent={C.green} eventWord="TDs" />
       <div style={{ fontSize: TYPE.body, color: C.text2, lineHeight: 1.65, maxWidth: 860, marginBottom: 12 }}>
         Every number a player carries -- the <b style={{ color: C.text }}>touchdowns he&apos;s sitting on</b>, his{' '}
         <b style={{ color: C.text }}>next touchdown</b>, his <b style={{ color: C.text }}>jersey</b>, his{' '}
@@ -276,6 +290,8 @@ export default function Numerology({ data }) {
         out rather than faked. Season TD only counts completed weeks, so a player&apos;s count here always describes
         games already played.
       </div>
+      {/* WHICH LANES RUN HOT (numerology v2 step 6), at the bottom. */}
+      <LaneTable sport="nfl" theme={C} numFont={NUM_FONT} accent={C.green} />
     </div>
   )
 }

@@ -59,6 +59,8 @@ import { logXBudget } from '../../../../../lib/dash/xBudget'
 import { postLongshotsOnce } from '../../../../../lib/dash/longshotsPost'
 import { mlbLatestOdds } from '../../../../../lib/odds/latest'
 import { postMultiClubOnce } from '../../../../../lib/dash/multiClubPost'
+import { mlbSeasonActive } from '../../../../../lib/dash/seasonGuard'
+import { storiesTick } from '../../../../../lib/stories/record'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -781,6 +783,13 @@ const strip = (row) => {
   return out
 }
 
+// The numerology moment's per-instance memory (see 2.5 in GET): the day's
+// homer count it last evaluated, and whether it already claimed the day.
+let _numerology = { day: null, count: -1, done: false }
+// History Watch: when this instance last found nothing to post, per day.
+const WATCH_RETRY_MS = 10 * 60 * 1000
+const _watchTried = new Map()
+
 const shiftDay = (iso, n) => {
   const d = new Date(`${iso}T12:00:00Z`)
   d.setUTCDate(d.getUTCDate() + n)
@@ -982,6 +991,17 @@ export async function GET(request) {
     return Response.json({ day: want, rows: count, ...(await postRecap(db, want, { force: u.searchParams.get('force') === '1' })) })
   }
 
+  // OFFSEASON GUARD (2026-09-27). This cron fires every minute all year; after
+  // the World Series there is nothing for it to do. No MLB game from 3 days
+  // back to 3 days ahead -> return before the live-slate fetch, the backfill
+  // and the board reads. The look-back keeps the last nights' grading, recap
+  // and weekly/monthly posts alive. Fails open (lib/dash/seasonGuard.js).
+  // ?noguard=1 bypasses it for a hand run.
+  if (u.searchParams.get('noguard') !== '1') {
+    const season = await mlbSeasonActive(easternToday())
+    if (!season.active) return Response.json({ skipped: 'offseason', season })
+  }
+
   // WHICH DAY IS IT (2026-09-07). This used to be a bare easternToday(), and
   // that is a wall clock -- it rolls at midnight ET whether or not a ball is
   // still in the air in Los Angeles. Four homers between 08-25 and 09-07 were
@@ -1100,6 +1120,13 @@ export async function GET(request) {
   // hrleadersdow) never touch the snapshot at all, so a live-API outage no
   // longer blocks them.
   const started = gamesLive.some((g) => g?.state === 'Live' || g?.state === 'Final')
+  // 📰 STORYLINES (2026-09-27, BATCH-STORYLINES-PAGE step 3): freeze each
+  // game's stories in the 15 minutes before its first pitch, grade them once
+  // it is final (lib/stories/record.js). Before the pregame early returns on
+  // purpose -- the freeze IS pregame. Never throws; a schedule read and one
+  // small select on a quiet minute.
+  const storylines = await storiesTick(db, 'mlb')
+  if (storylines?.frozen || storylines?.graded || storylines?.base) console.log(`[homers] storylines ${JSON.stringify(storylines)}`)
   // 2026-09-06 (Donovan: "at least a hour before first pitch"). Computed off
   // whatever the board holds right now -- boardIndex() only just resolved
   // above, so this always sees the freshest cached rows.
@@ -1477,7 +1504,15 @@ export async function GET(request) {
     //    list is not a fallback for it.
     if (etHoursSinceNoon() >= MILESTONE_AM_HOUR && !isRetired('history_watch')) {
       await safeStat('history_watch', async () => {
-        const items = await mlbWatch(pregameRows(), Number(day.slice(0, 4)))
+        // COST CUT (2026-09-27): mlbWatch queries hist_mlb (up to 500 rows a
+        // candidate) and ran every minute for the rest of the day, before the
+        // claim said the slot was long taken. Asked first now; and a watch
+        // that found nothing waits WATCH_RETRY_MS on this instance (it only
+        // changes as lineups confirm).
+        const { data: taken } = await db.from('homer_feed_posts').select('day').match({ day, kind: 'history_watch' }).maybeSingle()
+        if (taken || Date.now() - (_watchTried.get(day) || 0) < WATCH_RETRY_MS) return
+        const items = await mlbWatch(pregameRows(), Number(day.slice(0, 4)), { day })
+        if (!historyWatchText(items)) _watchTried.set(day, Date.now())
         await claimAndPostStat(db, day, 'history_watch', MILESTONE_AM_HOUR,
           historyWatchText(items),
           null,
@@ -1985,11 +2020,23 @@ export async function GET(request) {
   // every one of today's rows -- not just this tick's fresh ones -- and
   // re-checks as the night's homer count grows. Same one-claim-per-day
   // pattern as every other kind on homer_feed_posts.
-  {
+  //
+  // COST CUT (2026-09-27): the moment only changes when a homer row lands,
+  // and posts at most once a day. So a head-only count comes first, and the
+  // rows (jsonb stats) are read only when the count moved since this warm
+  // instance last looked -- and never again once the day's slot is taken.
+  const { count: dayCount, error: dayCountErr } = await db.from('homer_feed').select('player_id', { count: 'exact', head: true }).eq('day', day)
+  if (dayCountErr) console.error(`[homers] numerology count: ${dayCountErr.message}`)
+  if (_numerology.day !== day) _numerology = { day, count: -1, done: false }
+  if (!dayCountErr && !_numerology.done && dayCount !== _numerology.count) {
+    _numerology.count = dayCount
     const { data: dayRows } = await db.from('homer_feed').select('player_id,name,team,opponent,role,hr_n,stats').eq('day', day)
     const moment = numerologyMoment(dayRows || [])
     if (moment) {
       const claim = await claimSlot(db, day, 'numerology')
+      // Claimed: this day is settled here. Not claimed (taken, kind off, or
+      // a failed write): asked again when the next homer lands.
+      if (claim) _numerology.done = true
       if (claim) {
         const text = numerologyText(moment, { day, ...TAIL })
         const patch = { payload: { moment } }
@@ -2282,24 +2329,36 @@ export async function GET(request) {
       } else {
         // THE FULL ROW (2026-09-26): the reply card was built from eight
         // columns, so it printed "Invalid Date" and "KC @ ???".
-        const { data: mine } = await db.from('homer_feed').select('*').eq('day', day).is('mlbhr_reply_id', null)
-        // When the morning's calls went out (Called Shots), for the card's proof line.
-        const { data: preRow } = await db.from('homer_feed_posts').select('*').match({ day, kind: 'pregame' }).maybeSingle()
-        const preAt = preRow?.x_post_id ? (preRow.seen_at || null) : null   // seen_at = the claim, seconds before the post
+        // COST CUT (2026-09-27): this ran select('*') on every one of today's
+        // unreplied homers every minute (jsonb stats/hooks, ~1 KB a row) to
+        // match 20 tweets that mostly don't parse. Now: parse first (no
+        // parsed tweet, no read at all), match on the columns matchHomer and
+        // the ranking use, then fetch the FULL row only for the queued few.
+        const tweets = (tl.json?.data || []).map((tweet) => ({ tweet, parsed: parseMlbhr(tweet.text) })).filter((t) => t.parsed)
+        const { data: mine } = tweets.length
+          ? await db.from('homer_feed').select('player_id,hr_n,name,team,role,board_rank,mlbhr_reply_id').eq('day', day).is('mlbhr_reply_id', null)
+          : { data: [] }
         const rows = mine || []
-        const { data: doneToday } = await db.from('homer_feed').select('mlbhr_reply_id').eq('day', day).not('mlbhr_reply_id', 'is', null)
-        let sentToday = (doneToday || []).filter((r) => r.mlbhr_reply_id !== 'skipped' && !String(r.mlbhr_reply_id).startsWith('refused')).length
         // Match first, then send best-ranked first, so the cap keeps the
         // strongest receipts rather than whichever homer came first.
         const queue = []
-        for (const tweet of tl.json?.data || []) {
-          const parsed = parseMlbhr(tweet.text)
-          if (!parsed) continue
+        for (const { tweet, parsed } of tweets) {
           const row = matchHomer(parsed, rows)
           if (!row || queue.some((q) => q.row === row)) continue
           queue.push({ tweet, row })
         }
         queue.sort((a, b) => (a.row.board_rank ?? 9999) - (b.row.board_rank ?? 9999))
+        // THE FULL ROW (2026-09-26) for the reply card, only for the queue.
+        if (queue.length) {
+          const { data: full, error: fullErr } = await db.from('homer_feed').select('*').eq('day', day).in('player_id', [...new Set(queue.map((q) => q.row.player_id))])
+          if (fullErr) console.error(`[mlbhr] full rows: ${fullErr.message}`)
+          for (const q of queue) q.row = (full || []).find((r) => r.player_id === q.row.player_id && r.hr_n === q.row.hr_n) || q.row
+        }
+        // When the morning's calls went out (Called Shots), for the card's proof line.
+        const { data: preRow } = queue.length ? await db.from('homer_feed_posts').select('x_post_id,seen_at').match({ day, kind: 'pregame' }).maybeSingle() : { data: null }
+        const preAt = preRow?.x_post_id ? (preRow.seen_at || null) : null   // seen_at = the claim, seconds before the post
+        const { data: doneToday } = queue.length ? await db.from('homer_feed').select('mlbhr_reply_id').eq('day', day).not('mlbhr_reply_id', 'is', null) : { data: [] }
+        let sentToday = (doneToday || []).filter((r) => r.mlbhr_reply_id !== 'skipped' && !String(r.mlbhr_reply_id).startsWith('refused')).length
         let sent = 0
         for (const { tweet, row } of queue) {
           // The builder's own rule, asked here so the log says the same thing
@@ -2319,9 +2378,12 @@ export async function GET(request) {
           // CLAIM BEFORE POSTING (2026-09-26) -- the same rule the homer
           // alerts follow. A reply that X accepts but this row never records
           // would be sent again next tick: a duplicate under their post.
-          const { data: claimed } = await db.from('homer_feed').update({ mlbhr_post_id: tweet.id, mlbhr_reply_id: 'pending' })
+          const { data: claimed, error: claimErr } = await db.from('homer_feed').update({ mlbhr_post_id: tweet.id, mlbhr_reply_id: 'pending' })
             .match(where).is('mlbhr_reply_id', null).select('player_id')
-          if (!claimed?.length) continue
+          // A failed claim is "did not claim" (nothing posts), but said out
+          // loud -- otherwise it reads exactly like a quiet night.
+          if (claimErr) console.error(`[mlbhr] claim for ${row.name} not written (${claimErr.message}); not replying`)
+          if (claimErr || !claimed?.length) continue
           // A card only when the row can fill it: no "Invalid Date", no "???".
           // The reply's own card (mlbhrCard, the approved design), with the
           // board's size for the "top X%" line and the time the calls went out.
