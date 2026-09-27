@@ -2331,9 +2331,12 @@ export async function GET(request) {
           // CLAIM BEFORE POSTING (2026-09-26) -- the same rule the homer
           // alerts follow. A reply that X accepts but this row never records
           // would be sent again next tick: a duplicate under their post.
-          const { data: claimed } = await db.from('homer_feed').update({ mlbhr_post_id: tweet.id, mlbhr_reply_id: 'pending' })
+          const { data: claimed, error: claimErr } = await db.from('homer_feed').update({ mlbhr_post_id: tweet.id, mlbhr_reply_id: 'pending' })
             .match(where).is('mlbhr_reply_id', null).select('player_id')
-          if (!claimed?.length) continue
+          // A failed claim is "did not claim" (nothing posts), but said out
+          // loud -- otherwise it reads exactly like a quiet night.
+          if (claimErr) console.error(`[mlbhr] claim for ${row.name} not written (${claimErr.message}); not replying`)
+          if (claimErr || !claimed?.length) continue
           // A card only when the row can fill it: no "Invalid Date", no "???".
           // The reply's own card (mlbhrCard, the approved design), with the
           // board's size for the "top X%" line and the time the calls went out.
