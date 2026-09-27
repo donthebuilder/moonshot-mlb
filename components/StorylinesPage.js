@@ -21,6 +21,7 @@ const TYPE_LABEL = {
   history: 'History', matchup: 'Matchup', funfact: 'Fun fact', milestone: 'Milestone', b2b: 'Back-to-back', duel: 'Duel',
   revenge: 'Revenge', rivalry: 'Rivalry', birthday: 'Birthday', giveaway: 'Giveaway', multi: '2+ Club', streak: 'Streak',
   model: 'Model', due: 'Due', redzone: 'Red zone', hot: 'Hot stick', special: 'Special teams', rest: 'Back-to-back night',
+  list_td: 'TD every game', list_100: '100-yard run', goal_streak: 'Goal streak', point_streak: 'Point streak', iron_man: 'Iron man',
 }
 const SHOW = 3
 // The bar a frozen story was graded on, in words (lib/stories/grade.js).
@@ -110,7 +111,8 @@ export default function StorylinesPage({ sport, eyebrow, theme: C, numFont, acce
               <span style={{ marginLeft: 'auto', color: C.text3, fontSize: 11 }}>{rows.length} {rows.length === 1 ? 'story' : 'stories'}</span>
             </div>
             {called.length ? <div style={{ marginTop: 3, fontSize: 11, color: C.text2 }}><span style={{ color: accent, fontWeight: 800, fontFamily: numFont, fontSize: 10 }}>CALLED</span> {called.join(' · ')}</div> : null}
-            {!rows.length ? <div style={{ marginTop: 6, fontSize: 12, color: C.text3 }}>No storylines for this one.</div> : null}
+            {/* A started game shows only what was frozen before it (the record began 09-27). */}
+            {!rows.length ? <div style={{ marginTop: 6, fontSize: 12, color: C.text3 }}>{g.state !== 'pre' && !g.frozenCount ? 'Nothing was frozen before this one started, so nothing is shown -- a story written after the first pitch / kickoff / puck drop would be hindsight.' : 'No storylines for this one.'}</div> : null}
             <div style={{ marginTop: 4 }}>
               {(all ? rows : rows.slice(0, SHOW)).map((s) => (
                 <StoryRow key={`${s.type}|${s.player_id}|${s.text}`} icon={s.icon} theme={C} title={`Source: ${s.source}`}
