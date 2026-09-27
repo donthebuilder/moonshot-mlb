@@ -25,6 +25,7 @@ import { toRailGame, toMlbRailGames, mergeGamesSorted, combinedRenderState, Comb
 // The NFL twin of MOONSHOT Home's buildHeadlines() -- same real signals
 // that now also ride TUDDY's own header ticker (2026-09-16).
 import NflHeadlineStrip from '../NflHeadlineStrip'
+import HeadlinePicks from '../../headline/HeadlinePicks'
 import PageHeader from '../../PageHeader'
 import { NFL_NAV } from '../../../lib/routes'
 
@@ -71,70 +72,74 @@ function SectionTitle({ eyebrow, title, action, onAction }) {
   )
 }
 
-function TheSix({ picks, playersById, onPlayerClick, onPicks }) {
-  const calls = SIX.map(([key, short, label]) => {
+// ── THE SIX, THREE DEEP (2026-09-27, BATCH-TUDDY-DEPTH step 3 /
+// BATCH-HEADLINE-PICKS step 2). Same layout as MOONSHOT's The Four
+// (components/headline/HeadlinePicks.js): one box per market, the card's #1
+// big and its #2 / #3 small, all from the week's card (nfl_picks.json
+// card.<MKT>.rungs -- every rung is a CALL, so nothing here is called that
+// isn't). Rush attempts and DEF_TD stay on the Board. On a phone each box
+// shows its #1 until tapped.
+//
+// FIELDS, per market, from the player's published stats (nfl_week.json
+// players[].stats, labels in lib/nfl/statLabels.js):
+//   TD        RZ (red-zone opp / game), TD (TD / game)
+//   REC_YDS   TGT (targets / game), RECYD (rec yds / game)
+//   RUSH_YDS  CAR (carries / game), RUYD (rush yds / game)
+//   REC       REC (receptions / game) of TGT, catch rate = REC / TGT
+//   PASS_YDS  ATT (attempts / game), PAYD (pass yds / game)
+//   KICK_PTS  FGM (FG made / game), PAT (PAT / game)
+//   + opponent, position, coverage_mismatch_tag when the bot set one.
+// RECORD per market: the graded weekly files (the same seasonTotals() the
+// Record tab uses) -- "4 of 6 over 3 wks", and a % only from 20 graded calls.
+const one = (v) => (Number.isFinite(Number(v)) ? (Math.round(Number(v) * 10) / 10).toString() : null)
+const PROOF = {
+  TD: (s) => [one(s.RZ) && `${one(s.RZ)} RZ opp/g`, one(s.TD) && `${one(s.TD)} TD/g`],
+  REC_YDS: (s) => [one(s.TGT) && `${one(s.TGT)} tgt/g`, one(s.RECYD) && `${one(s.RECYD)} rec yds/g`],
+  RUSH_YDS: (s) => [one(s.CAR) && `${one(s.CAR)} car/g`, one(s.RUYD) && `${one(s.RUYD)} rush yds/g`],
+  REC: (s) => [one(s.REC) && one(s.TGT) ? `${one(s.REC)} of ${one(s.TGT)} tgt/g` : one(s.REC) && `${one(s.REC)} rec/g`, Number(s.TGT) > 0 && Number.isFinite(Number(s.REC)) ? `${Math.round((100 * Number(s.REC)) / Number(s.TGT))}% catch` : null],
+  PASS_YDS: (s) => [one(s.ATT) && `${one(s.ATT)} att/g`, one(s.PAYD) && `${one(s.PAYD)} pass yds/g`],
+  KICK_PTS: (s) => [one(s.FGM) && `${one(s.FGM)} FG/g`, one(s.PAT) && `${one(s.PAT)} PAT/g`],
+}
+const MICRO = { TD: (s) => one(s.TD) && `${one(s.TD)} TD/g`, REC_YDS: (s) => one(s.RECYD) && `${one(s.RECYD)} yds/g`, RUSH_YDS: (s) => one(s.RUYD) && `${one(s.RUYD)} yds/g`, REC: (s) => one(s.REC) && `${one(s.REC)} rec/g`, PASS_YDS: (s) => one(s.PAYD) && `${one(s.PAYD)} yds/g`, KICK_PTS: (s) => one(s.FGM) && `${one(s.FGM)} FG/g` }
+const recordWord = (t) => {
+  if (!t?.n) return null
+  return `${t.hit} of ${t.n} over ${t.weeks} wk${t.weeks === 1 ? '' : 's'}${t.n >= 20 && t.pct != null ? ` · ${Math.round(t.pct)}%` : ''}`
+}
+
+function TheSix({ picks, playersById, onPlayerClick, onPicks, totals }) {
+  const colors = MARKET_COLOR()
+  const lanes = SIX.map(([key, short]) => {
     const block = picks?.card?.[key]
-    const call = block?.rungs?.[0]
-    return { key, short, label, block, call, player: call ? playersById[String(call.player_id)] : null }
+    return {
+      key, label: short, color: colors[key],
+      blurb: block?.bar != null ? `bar ${block.bar}+` : '',
+      record: recordWord(totals?.[key]),
+      empty: 'Awaiting the card.',
+      picks: (block?.rungs || []).slice(0, 3).map((call, i) => {
+        const player = playersById[String(call.player_id)] || null
+        const st = player?.stats || {}
+        const tag = player?.coverage_mismatch_tag ? ` · ${player.coverage_mismatch_tag}` : ''
+        return {
+          key: String(call.player_id), raw: { player, key }, name: call.name,
+          score: Number.isFinite(call.score) ? Math.round(call.score) : '—',
+          lines: i === 0 ? [PROOF[key](st).filter(Boolean).join(' · '), `${call.team} vs ${call.opp} · ${call.position}${tag}`] : [],
+          team: i === 0 ? null : call.team,
+          micro: i === 0 ? null : MICRO[key](st) || null,
+        }
+      }),
+    }
   })
-
-  // THE HEADLINER (Phase 2 parity pass, 2026-09-11). MLB pulls its #1 ranked
-  // player out of the board into its own hero treatment everywhere it shows a
-  // ranked list -- Home.js's "TONIGHT'S HEADLINER" panel and shareCard.js's
-  // ghost-numeral share card both do it. The Six had no equivalent: six equal
-  // grid tiles, nothing telling you which of the six is actually the best
-  // call tonight. Same language, ported to TUDDY's own palette (green/cyan,
-  // not MLB's orange -- see lib/nfl/theme.js) and TUDDY's own ranking unit
-  // (best call across six MARKETS, not best player on a board): the single
-  // highest-scored call gets pulled out into a hero row with the ghost
-  // numeral watermark, the other five stay exactly as the grid below.
-  const ranked = calls.filter((c) => c.call).sort((a, b) => (b.call.score || 0) - (a.call.score || 0))
-  const headliner = ranked[0]
-  const rest = calls.filter((c) => c !== headliner)
-
   return (
-    <section className="tuddy-six">
-      <div className="tuddy-six-head">
-        <div><small>THE HEADLINE CARD</small><h2>The Six</h2><p>Six points. Six markets. One called shot in each. Scores are league rankings, 0–100 — not probabilities.</p></div>
-        <button onClick={onPicks}>Full card →</button>
-      </div>
-      {headliner && (() => {
-        const { key, short, block, call, player } = headliner
-        const color = MARKET_COLOR()[key]
-        const grade = gradeFor(call.score)
-        return (
-          <button className="tuddy-six-headliner" onClick={() => player && onPlayerClick?.(player, key)} disabled={!player}
-                  style={{ '--market': color }}>
-            <span className="tuddy-six-ghost" aria-hidden="true">1</span>
-            <span className="tuddy-six-pulse" aria-hidden="true" />
-            <div className="tuddy-six-headliner-body">
-              <small><span className="tuddy-six-dot" aria-hidden="true" />THE HEADLINER · {short} · BAR {block?.bar ?? '—'}</small>
-              <strong>{call.name}</strong>
-              <em>{call.team} vs {call.opp} · {call.position}</em>
-            </div>
-            <div className="tuddy-six-headliner-score">
-              <b style={{ color: grade.color }}>{Math.round(call.score)}</b>
-              <span style={{ color: grade.color }}>{grade.label}</span>
-            </div>
-          </button>
-        )
-      })()}
-      <div className="tuddy-six-grid">
-        {rest.map(({ key, short, label, block, call, player }) => {
-          const color = MARKET_COLOR()[key]
-          const grade = gradeFor(call?.score)
-          const num = SIX.findIndex((s) => s[0] === key) + 1
-          return (
-            <button key={key} onClick={() => player && onPlayerClick?.(player, key)} disabled={!player}
-                    style={{ '--market': color }}>
-              <span className="tuddy-six-number">0{num}</span>
-              <div><small>{short} · BAR {block?.bar ?? '—'}</small><strong>{call?.name || 'Awaiting call'}</strong><em>{call ? `${call.team} vs ${call.opp} · ${call.position}` : label}</em></div>
-              <div className="tuddy-six-score"><b style={{ color: grade.color }}>{call ? Math.round(call.score) : '—'}</b><span style={{ color: grade.color }}>{call ? grade.label : ''}</span></div>
-            </button>
-          )
-        })}
-      </div>
-    </section>
+    <HeadlinePicks
+      theme={C} numFont={NUM_FONT}
+      title="🏈 The Six"
+      subtitle="six markets, three deep — the card's calls. Scores are league rankings, 0–100, not probabilities."
+      lanes={lanes}
+      collapsePhone
+      gridClass="tuddy-six-picks"
+      onPick={(pick) => pick.raw.player && onPlayerClick?.(pick.raw.player, pick.raw.key)}
+      record={<button type="button" className="tuddy-panel-action" onClick={onPicks} style={{ marginLeft: 'auto' }}>Full card →</button>}
+    />
   )
 }
 
@@ -389,7 +394,7 @@ export default function Home({ data, picks, results, matchup, logs, onPlayerClic
         <button onClick={() => setTab('accountability')}><small>THE RECORD</small><strong style={{ color: record.pct == null ? C.text3 : record.pct >= 55 ? C.green : record.pct < 45 ? C.red : C.text }}>{record.pct == null ? '—' : `${record.pct}%`}</strong><span>{record.n ? `${record.hit}/${record.n} · ${keys.length} wk${keys.length === 1 ? '' : 's'}` : 'nothing graded yet'}</span></button>
         <button onClick={() => topTd && onPlayerClick?.(topTd, 'TD')}><small>TOP TD SCORE</small><strong>{topTd ? Math.round(topTd.scores.TD) : '—'}</strong><span>{topTd?.name || 'awaiting slate'}</span></button>
       </section>
-      <TheSix picks={picks} playersById={playersById} onPlayerClick={onPlayerClick} onPicks={() => setTab('picks')} />
+      <TheSix picks={picks} playersById={playersById} onPlayerClick={onPlayerClick} onPicks={() => setTab('picks')} totals={seasonTotals(keys.map((k) => archive[k]))} />
 
       {/* ── STORYLINES, ON THE FRONT PAGE (parity pass, 2026-09-16) ───────
           MOONSHOT's Home embeds Storylines directly, right after The Four —
@@ -480,6 +485,7 @@ export default function Home({ data, picks, results, matchup, logs, onPlayerClic
         @media(max-width:800px){.tuddy-hero{min-height:190px;padding:22px}.tuddy-six-ghost{font-size:72px}.tuddy-hero-mark{display:none}.tuddy-snapshot{grid-template-columns:1fr 1fr}.tuddy-six-grid{grid-template-columns:1fr 1fr}.tuddy-home-split,.tuddy-board-split{grid-template-columns:1fr}.tuddy-angles>div:last-child{grid-template-columns:1fr 1fr}}
         @media(max-width:520px){.tuddy-hero h1{font-size:36px}.tuddy-six-headliner{grid-template-columns:1fr;width:calc(100% - 24px);margin:12px 12px 0;padding:14px}.tuddy-six-headliner-score{text-align:left}.tuddy-six-ghost{display:none}.tuddy-six-grid{grid-template-columns:1fr}.tuddy-six-head{align-items:flex-start;gap:12px}.tuddy-six-head button{max-width:90px}.tuddy-angles>div:last-child{grid-template-columns:1fr}.tuddy-receipts{align-items:flex-start;gap:16px}.tuddy-receipts button{max-width:90px}.tuddy-leaks>div,.tuddy-milestones>div{grid-template-columns:42px 1fr}.tuddy-leaks em,.tuddy-milestones em{grid-column:2}}
 
+        .tuddy-six-picks{grid-template-columns:repeat(3,minmax(0,1fr))!important}@media(max-width:800px){.tuddy-six-picks{grid-template-columns:repeat(2,minmax(0,1fr))!important}}@media(max-width:560px){.tuddy-six-picks{grid-template-columns:1fr!important}}
         .tuddy-six-dot{display:inline-block;width:6px;height:6px;margin-right:6px;border-radius:50%;background:var(--market);vertical-align:middle;animation:tuddyPulseDot 2s infinite}
         .tuddy-six-pulse{position:absolute;right:38px;top:50%;width:64px;height:64px;margin-top:-32px;border-radius:50%;border:1.5px solid var(--market);opacity:0;pointer-events:none;z-index:0;animation:tuddyPulseRing 2.6s ease-out infinite}
         @keyframes tuddyPulseDot{0%,100%{opacity:1}50%{opacity:.35}}
