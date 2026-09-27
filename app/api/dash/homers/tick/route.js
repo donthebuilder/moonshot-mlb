@@ -61,6 +61,7 @@ import { mlbLatestOdds } from '../../../../../lib/odds/latest'
 import { postMultiClubOnce } from '../../../../../lib/dash/multiClubPost'
 import { mlbSeasonActive, postseasonOn, priorPostseasonHr } from '../../../../../lib/dash/seasonGuard'
 import { storiesTick } from '../../../../../lib/stories/record'
+import { mlbNumerologyWrite, mlbNumerologyGrade } from '../../../../../lib/numerology/mlbWriter'
 import { postMlbListOnce } from '../../../../../lib/lists/post'
 
 export const dynamic = 'force-dynamic'
@@ -1123,6 +1124,13 @@ export async function GET(request) {
     const lists = await postMlbListOnce(db, day).catch((e) => `error: ${e?.message}`)
     if (lists === 'posted' || String(lists).startsWith('error') || lists === 'claim-failed') console.log(`[homers] list post: ${lists}`)
   }
+  // 🔢 NUMEROLOGY GRADE (HOT-NUMBERS-FIX item 1): yesterday's recorded
+  // players against its homers, from 3am ET, once. Before the no-games exit:
+  // an off day still grades the night before. Never throws.
+  if (etHoursSinceNoon() >= -9) {
+    const g = await mlbNumerologyGrade(db, day).catch((e) => `error: ${e?.message}`)
+    if (g) console.log(`[homers] numerology grade: ${typeof g === 'string' ? g : JSON.stringify(g)}`)
+  }
   const [board, odds, pairs] = await Promise.all([boardIndex(day), oddsFile(day, db), pairsFile()])
   // 2026-09-08 (Donovan: "USE WHATEVER IS ON THE SITE -- nothing should come
   // back as nothing when the site has already pulled the data, the API is
@@ -1162,6 +1170,13 @@ export async function GET(request) {
   // above, so this always sees the freshest cached rows.
   // Today's MLB schedule, read once for the timing and the gate below.
   const sched = await scheduleFor(day)
+  // 🔢 NUMEROLOGY WRITE (HOT-NUMBERS-FIX item 1): tonight's board players
+  // whose game hasn't started, once each; only today's rows (the board cache
+  // holds another day's only uncached). Never throws.
+  if (_cache.board.day === day) {
+    const w = await mlbNumerologyWrite(db, day, boardRows()).catch((e) => `error: ${e?.message}`)
+    if (w && w !== 'nothing new') console.log(`[homers] numerology write: ${typeof w === 'string' ? w : JSON.stringify(w)}`)
+  }
   const firstPitch = firstPitchOf(boardRows(), sched?.games || null)
   const overdue = firstPitch != null && Date.now() >= firstPitch - PREGAME_LEAD_MS
   // 2026-09-15 (Donovan: "the top ten needs to be updated before first
