@@ -17,7 +17,7 @@ import { EmptyState, DelayedBanner, Loading, SourceLine, Kicker, GameTypeChip, L
 // gamecenter/{id}/boxscore — batch 2, with the goalie pages that give those
 // numbers a home), a shot map (play-by-play has the coordinates; it comes
 // with the ice-map component, not before). Nothing here is a placeholder.
-export default function Game({ id, onBack, backLabel = 'Scores' }) {
+export default function Game({ id, onBack, onOpenPlayer = null, backLabel = 'Scores' }) {
   const { data: g, error, loading } = useLampGame(id)
   if (!/^\d{10}$/.test(String(id || ''))) {
     return <EmptyState title="NO GAME PICKED" note="Open a game from Scores or the Schedule."><BackBtn onBack={onBack} label={backLabel} /></EmptyState>
@@ -114,8 +114,14 @@ export default function Game({ id, onBack, backLabel = 'Scores' }) {
                       <td style={{ ...td, fontFamily: NUM_FONT, fontSize: 9.5, fontWeight: 800, color: x.strength === 'pp' ? C.teal : x.strength === 'sh' ? C.amber : C.text3 }}>{strengthTag(x)}</td>
                       <td style={td}>
                         <span style={{ display: 'inline-flex', alignItems: 'center', flexWrap: 'wrap', columnGap: 7, rowGap: 3 }}>
-                          {x.scorer.headshot && <img src={x.scorer.headshot} alt="" width={22} height={22} loading="lazy" style={{ width: 22, height: 22, borderRadius: '50%', background: C.bg3, objectFit: 'cover' }} />}
-                          <span style={{ color: C.text, fontWeight: 700 }}>{x.scorer.first ? `${x.scorer.first} ${x.scorer.last}` : x.scorer.name}</span>
+                          {/* Tappable (2026-09-27): face + name open the player. The 11px
+                              padding/-11px margin makes a 44px target without
+                              growing the row. */}
+                          <button type="button" disabled={!x.scorer.id || !onOpenPlayer} onClick={() => onOpenPlayer?.(x.scorer.id)} aria-label={`Open ${x.scorer.first ? `${x.scorer.first} ${x.scorer.last}` : x.scorer.name}`}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: 'transparent', border: 'none', padding: '11px 0', margin: '-11px 0', cursor: x.scorer.id && onOpenPlayer ? 'pointer' : 'default', color: 'inherit', font: 'inherit', textAlign: 'left' }}>
+                            {x.scorer.headshot && <img src={x.scorer.headshot} alt="" width={22} height={22} loading="lazy" style={{ width: 22, height: 22, borderRadius: '50%', background: C.bg3, objectFit: 'cover' }} />}
+                            <span style={{ color: C.text, fontWeight: 700 }}>{x.scorer.first ? `${x.scorer.first} ${x.scorer.last}` : x.scorer.name}</span>
+                          </button>
                           {x.scorer.goalsToDate != null && <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 9.5 }}>({x.scorer.goalsToDate})</span>}
                           <GoalLabel label={x.label} />
                         </span>
