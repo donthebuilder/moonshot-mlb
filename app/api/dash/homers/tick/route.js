@@ -782,6 +782,10 @@ const strip = (row) => {
   return out
 }
 
+// The numerology moment's per-instance memory (see 2.5 in GET): the day's
+// homer count it last evaluated, and whether it already claimed the day.
+let _numerology = { day: null, count: -1, done: false }
+
 const shiftDay = (iso, n) => {
   const d = new Date(`${iso}T12:00:00Z`)
   d.setUTCDate(d.getUTCDate() + n)
@@ -1997,11 +2001,23 @@ export async function GET(request) {
   // every one of today's rows -- not just this tick's fresh ones -- and
   // re-checks as the night's homer count grows. Same one-claim-per-day
   // pattern as every other kind on homer_feed_posts.
-  {
+  //
+  // COST CUT (2026-09-27): the moment only changes when a homer row lands,
+  // and posts at most once a day. So a head-only count comes first, and the
+  // rows (jsonb stats) are read only when the count moved since this warm
+  // instance last looked -- and never again once the day's slot is taken.
+  const { count: dayCount, error: dayCountErr } = await db.from('homer_feed').select('player_id', { count: 'exact', head: true }).eq('day', day)
+  if (dayCountErr) console.error(`[homers] numerology count: ${dayCountErr.message}`)
+  if (_numerology.day !== day) _numerology = { day, count: -1, done: false }
+  if (!dayCountErr && !_numerology.done && dayCount !== _numerology.count) {
+    _numerology.count = dayCount
     const { data: dayRows } = await db.from('homer_feed').select('player_id,name,team,opponent,role,hr_n,stats').eq('day', day)
     const moment = numerologyMoment(dayRows || [])
     if (moment) {
       const claim = await claimSlot(db, day, 'numerology')
+      // Claimed: this day is settled here. Not claimed (taken, kind off, or
+      // a failed write): asked again when the next homer lands.
+      if (claim) _numerology.done = true
       if (claim) {
         const text = numerologyText(moment, { day, ...TAIL })
         const patch = { payload: { moment } }
@@ -2294,24 +2310,36 @@ export async function GET(request) {
       } else {
         // THE FULL ROW (2026-09-26): the reply card was built from eight
         // columns, so it printed "Invalid Date" and "KC @ ???".
-        const { data: mine } = await db.from('homer_feed').select('*').eq('day', day).is('mlbhr_reply_id', null)
-        // When the morning's calls went out (Called Shots), for the card's proof line.
-        const { data: preRow } = await db.from('homer_feed_posts').select('*').match({ day, kind: 'pregame' }).maybeSingle()
-        const preAt = preRow?.x_post_id ? (preRow.seen_at || null) : null   // seen_at = the claim, seconds before the post
+        // COST CUT (2026-09-27): this ran select('*') on every one of today's
+        // unreplied homers every minute (jsonb stats/hooks, ~1 KB a row) to
+        // match 20 tweets that mostly don't parse. Now: parse first (no
+        // parsed tweet, no read at all), match on the columns matchHomer and
+        // the ranking use, then fetch the FULL row only for the queued few.
+        const tweets = (tl.json?.data || []).map((tweet) => ({ tweet, parsed: parseMlbhr(tweet.text) })).filter((t) => t.parsed)
+        const { data: mine } = tweets.length
+          ? await db.from('homer_feed').select('player_id,hr_n,name,team,role,board_rank,mlbhr_reply_id').eq('day', day).is('mlbhr_reply_id', null)
+          : { data: [] }
         const rows = mine || []
-        const { data: doneToday } = await db.from('homer_feed').select('mlbhr_reply_id').eq('day', day).not('mlbhr_reply_id', 'is', null)
-        let sentToday = (doneToday || []).filter((r) => r.mlbhr_reply_id !== 'skipped' && !String(r.mlbhr_reply_id).startsWith('refused')).length
         // Match first, then send best-ranked first, so the cap keeps the
         // strongest receipts rather than whichever homer came first.
         const queue = []
-        for (const tweet of tl.json?.data || []) {
-          const parsed = parseMlbhr(tweet.text)
-          if (!parsed) continue
+        for (const { tweet, parsed } of tweets) {
           const row = matchHomer(parsed, rows)
           if (!row || queue.some((q) => q.row === row)) continue
           queue.push({ tweet, row })
         }
         queue.sort((a, b) => (a.row.board_rank ?? 9999) - (b.row.board_rank ?? 9999))
+        // THE FULL ROW (2026-09-26) for the reply card, only for the queue.
+        if (queue.length) {
+          const { data: full, error: fullErr } = await db.from('homer_feed').select('*').eq('day', day).in('player_id', [...new Set(queue.map((q) => q.row.player_id))])
+          if (fullErr) console.error(`[mlbhr] full rows: ${fullErr.message}`)
+          for (const q of queue) q.row = (full || []).find((r) => r.player_id === q.row.player_id && r.hr_n === q.row.hr_n) || q.row
+        }
+        // When the morning's calls went out (Called Shots), for the card's proof line.
+        const { data: preRow } = queue.length ? await db.from('homer_feed_posts').select('x_post_id,seen_at').match({ day, kind: 'pregame' }).maybeSingle() : { data: null }
+        const preAt = preRow?.x_post_id ? (preRow.seen_at || null) : null   // seen_at = the claim, seconds before the post
+        const { data: doneToday } = queue.length ? await db.from('homer_feed').select('mlbhr_reply_id').eq('day', day).not('mlbhr_reply_id', 'is', null) : { data: [] }
+        let sentToday = (doneToday || []).filter((r) => r.mlbhr_reply_id !== 'skipped' && !String(r.mlbhr_reply_id).startsWith('refused')).length
         let sent = 0
         for (const { tweet, row } of queue) {
           // The builder's own rule, asked here so the log says the same thing
