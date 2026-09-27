@@ -288,14 +288,19 @@ export default async function DashHome({ searchParams }) {
           is the thing this whole site exists not to do — lib/interval.js's
           Wilson bounds are the same ones the Results page uses, on the same
           counts. */}
-      {record?.rows?.length ? (
+      {/* ALL THREE (front door D, 2026-09-27): MOONSHOT's call precision, then
+          TUDDY's board coverage and LAMP's called scorers from the readers
+          /called uses, each naming its own question and linking to its record
+          page; "How this is counted" folds the small print. */}
+      {record?.rows?.length || pulse.nflRecord || nhl ? (
         <section className={styles.record} id="record">
           <div className={styles.slateHead}>
             <p className={styles.kicker}>THE RECORD</p>
             <h2>Graded in public means this.</h2>
           </div>
+          {record?.rows?.length ? <p className={styles.recordQ}><b className={styles.mlbInk}>MOONSHOT</b> · did each call clear the bar it was made for? · <Link href="/called?sport=mlb">the record&nbsp;→</Link></p> : null}
           <div className={styles.recordRows}>
-            {record.rows.map((r) => {
+            {(record?.rows || []).map((r) => {
               // wilson() returns [lo, hi] ALREADY IN PERCENT, not a
               // {lo, hi} in 0..1. The first cut of this block assumed the
               // object form and printed "95% band NaN–NaN%" on all four rows —
@@ -328,13 +333,30 @@ export default async function DashHome({ searchParams }) {
               )
             })}
           </div>
-          <p className={styles.stamp}>
-            {record.nights} graded nights, pooled — the real totals divided, not an average of nightly
-            percentages, which would weight a six-pick night the same as a thirty-pick one. Each row is
-            scored on the bar that call was made for, so the four are four different questions and are
-            never ranked against each other. Every night behind these numbers is on the{' '}
-            <Link href="/app#sport=mlb&tab=results">Results page</Link>, one row at a time.
+          <p className={styles.recordQ}><b className={styles.nflInk}>TUDDY</b> · of the touchdown scorers, how many were on the board? · <Link href="/called?sport=nfl">the record&nbsp;→</Link></p>
+          <p className={styles.recordLine}>
+            {pulse.nflRecord
+              ? <><b>{pulse.nflRecord.onBoard} of {pulse.nflRecord.total}</b> on the board ({Math.round((100 * pulse.nflRecord.onBoard) / pulse.nflRecord.total)}%) · {pulse.nflRecord.called} of them CALLED · {pulse.nflRecord.days} game days with the board rank recorded</>
+              : 'The football record fills in once three game days have their pregame board rank recorded.'}
           </p>
+          <p className={styles.recordQ}><b className={styles.nhlInk}>LAMP</b> · of the goal scorers, how many were CALLED? · <Link href="/called?sport=nhl">the record&nbsp;→</Link></p>
+          <p className={styles.recordLine}>
+            {pulse.nhlRecord
+              ? <><b>{pulse.nhlRecord.called} of {pulse.nhlRecord.total}</b> CALLED ({Math.round((100 * pulse.nhlRecord.called) / pulse.nhlRecord.total)}%) · {pulse.nhlRecord.onBoard} on the board · {pulse.nhlRecord.days} regular-season nights</>
+              : 'No graded regular-season night yet.'}
+          </p>
+          <details className={styles.recordFold}>
+            <summary>How this is counted</summary>
+            <p className={styles.stamp}>
+              {record?.nights ? `${record.nights} graded nights, pooled` : 'Graded nights, pooled'} — the real totals divided, not an average of nightly
+              percentages, which would weight a six-pick night the same as a thirty-pick one. Each MOONSHOT row is
+              scored on the bar that call was made for, so the four are four different questions and are
+              never ranked against each other. TUDDY leads with board coverage because its ladder names five
+              players a week against two dozen touchdowns; LAMP counts goal scorers against the three it calls in
+              each game, regular season only. Every night behind these numbers is on the{' '}
+              <Link href="/app#sport=mlb&tab=results">Results page</Link> and each product&apos;s record page, one row at a time.
+            </p>
+          </details>
         </section>
       ) : null}
 
