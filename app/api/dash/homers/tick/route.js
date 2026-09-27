@@ -646,6 +646,20 @@ async function published(slot, paths, ok) {
   }
   return c.data
 }
+const ordinal = (k) => `${k}${[11, 12, 13].includes(k % 100) ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[k % 10] || 'th')}`
+/** "His 3rd multi-HR game this season." for the homer that makes his game a
+ *  2-HR game (his 2nd in THIS game, counted per game_pk -- hr_n counts the
+ *  day), else null. */
+async function multiLineFor(db, row, day) {
+  if (!row.game_pk || Number(row.hr_n) < 2) return null
+  const { count } = await db.from('homer_feed').select('player_id', { count: 'exact', head: true })
+    .eq('day', day).eq('player_id', row.player_id).eq('game_pk', row.game_pk).lte('hr_n', row.hr_n)
+  if (count !== 2) return null
+  const { count: k } = await db.from('multi_games').select('game_id', { count: 'exact', head: true })
+    .eq('sport', 'mlb').eq('season', Number(day.slice(0, 4))).eq('kind', 'HR').eq('player_id', String(row.player_id))
+  return k ? `His ${ordinal(k)} multi-HR game this season.` : null
+}
+
 // OUR PRICES FIRST (2026-09-27): read straight from the tables (the site's
 // /api/odds/latest is relative-only); the bot's file is the fallback.
 async function oddsFile(day, db) {
@@ -2043,7 +2057,13 @@ export async function GET(request) {
     // gains one line, the claim re-asked at this moment -- never the
     // morning's text. Only for an unposted alert; a failed check drops it.
     const reached = (!row.x_post_id || !row.discord_sent) ? await reachedLine(ev, Number(day.slice(0, 4))) : null
-    const text = reached ? `${postText(ev, TAIL)}\n\n${reached}` : postText(ev, TAIL)
+    // THE 2+ CLUB LINE (BATCH-MULTI-PLAN step 4): the homer that MAKES it a
+    // 2-HR game adds "His 3rd multi-HR game this season." -- counted from
+    // multi_games (written for this game earlier in this same tick), never
+    // guessed. Only for an unposted alert; a failed read drops the line.
+    const multi = (!row.x_post_id || !row.discord_sent) ? await multiLineFor(db, row, day).catch(() => null) : null
+    const extra = [reached, multi].filter(Boolean).join('\n')
+    const text = extra ? `${postText(ev, TAIL)}\n\n${extra}` : postText(ev, TAIL)
     const patch = {}
     let stopTick = false
 
