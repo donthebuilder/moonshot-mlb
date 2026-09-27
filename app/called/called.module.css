@@ -149,3 +149,19 @@
   .navCta { padding: 6px 8px; white-space: nowrap; }
   .brand img { display: none; }
 }
+
+/* THE CARD (TUDDY depth step 1): a table that scrolls in its own box on a
+   phone, first column sticky -- the DenseTable rule. */
+.tableWrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -4px; }
+.table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.table th, .table td { padding: 8px 6px; text-align: left; border-top: 1px solid var(--line); white-space: nowrap; }
+.table thead th { border-top: 0; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); font-weight: 700; }
+.table tbody th { position: sticky; left: 0; background: var(--panel); font-weight: 700; }
+.table small { color: var(--dim); font-size: 12px; }
+.num { color: var(--mlb); font-weight: 700; }
+.sub2 { display: block; margin-top: 2px; font-weight: 400; }
+.tableNote { margin: 10px 0 0; font-size: 12px; line-height: 1.5; color: var(--dim); }
+.tableNote a { color: var(--mlb); }
+.table thead th, .table tbody th { white-space: normal; }
+.table tbody th { min-width: 92px; }
+@media (max-width: 440px) { .table th, .table td { padding: 8px 4px; } }

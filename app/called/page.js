@@ -30,6 +30,7 @@ import { nhlCaptureFrom, readNhlRecords } from '../../lib/record/nhl'
 import { readMlbEvents } from '../../lib/record/mlb'
 import { readNflEvents } from '../../lib/record/nfl'
 import { eventCapture } from '../../lib/record/shape'
+import { readNflCardRecord, edgeParts } from '../../lib/nfl/cardRecord'
 import styles from './called.module.css'
 
 // 2026-09-20 — FOOTBALL MOVED IN, IT DIDN'T GET ITS OWN HOUSE. Donovan:
@@ -133,6 +134,9 @@ const SPORTS = {
     eventsHead: 'Today\u2019s touchdowns',
     close: ['This week\u2019s calls are already on the board.', 'The bot publishes its touchdown board before kickoff. The 🤖 you see here is what it said before the snap.', 'Save your watchlist, picks and alerts when your guys score'],
     playerHref: (id) => playerHref('nfl', id),
+    // THE CARD (TUDDY depth step 1): the weekly 5 x 7 card's graded record,
+    // beside the touchdown record. A sport without a card simply has none.
+    cardRecord: readNflCardRecord,
     meta: {
       title: 'NFL touchdown picks, graded in public · CALLED IT · TUDDY',
       description: 'Every NFL touchdown, tagged with whether TUDDY had the scorer on its board before kickoff. Board coverage by game day, graded in public.',
@@ -342,6 +346,7 @@ export default async function CalledPage({ searchParams }) {
   const params = (await searchParams) || {}
   const key = sportKey(String(params.sport || '').toLowerCase())
   const { sport, today, rows, picks, calledIds, history, byDay, configured } = await load(key)
+  const card = sport.cardRecord ? await sport.cardRecord().catch((e) => { console.error(`[called] card record: ${e?.message}`); return null }) : null
   const BOARD = sport.board
   const SIGNUP = `/login?next=${encodeURIComponent(BOARD)}#create-account`
   // /start -- no longer the main door (funnel step 1, 2026-09-26). On 09-21
@@ -475,6 +480,43 @@ export default async function CalledPage({ searchParams }) {
           </div>
         ) : null}
       </section>
+
+      {card?.markets?.length ? (
+        // THE CARD, GRADED (TUDDY depth step 1). The same files and the same
+        // sums as the in-app Record tab; a void is never a miss.
+        <section id="card" className={styles.panel}>
+          <h2 className={styles.h2}>
+            The card · {card.season} season
+            <span className={styles.pill}>{card.weeks.length === 1 ? `week ${card.weeks[0]}` : `weeks ${card.weeks[0]}–${card.weeks.at(-1)}`} · 5 calls per market</span>
+          </h2>
+          <div className={styles.tableWrap}>
+            <table className={styles.table}>
+              <thead>
+                <tr><th scope="col">Market · bar</th><th scope="col">Cleared</th><th scope="col">Hit</th><th scope="col">Vs recent form</th></tr>
+              </thead>
+              <tbody>
+                {card.markets.map((m) => (
+                  <tr key={m.key}>
+                    <th scope="row">{m.label}{m.bar != null ? <small className={styles.sub2}>{m.bar}+</small> : null}</th>
+                    <td>{m.n ? `${m.hit} / ${m.n}` : '—'}{m.void ? <small className={styles.sub2}>{m.void} void</small> : null}</td>
+                    <td className={styles.num}>{m.pct != null ? `${m.pct}%` : '—'}</td>
+                    {(() => {
+                      const e = edgeParts(m.edge)
+                      return <td>{e ? <><b>{e.head}</b><small className={styles.sub2}>{e.detail}</small></> : '—'}</td>
+                    })()}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className={styles.tableNote}>
+            Cleared = the call reached the bar in its game. Void = no game line or an ineligible position, never a miss.
+            {card.backtest ? ` Back-test: the card against a pick made on recent form alone, same depth, ${card.backtest.picks} picks per market (${card.backtest.seasons.join(', ')}). Trust words are the bot's: holds, leans, thin, sinks, fails.` : ''}
+            {card.live ? ` Week ${card.live.week} is in progress: ${card.live.graded ? `${card.live.graded} of its calls are graded so far, and ` : 'none of its calls are graded yet; '}they count as they land.` : ''}
+            {' '}Regular season only. <a href={`${appHref('nfl', 'accountability')}`}>Every rung, week by week →</a>
+          </p>
+        </section>
+      ) : null}
 
       {rows.length ? (
         <section id="tonight" className={styles.panel}>
