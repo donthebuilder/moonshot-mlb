@@ -419,6 +419,18 @@ export default function Dashboard({ palettePass = 0 }) {
       setModalPlayer(found)
       pendingPlayerRef.current = ''
       hashAppliedRef.current = true
+    } else if (/^\d{5,7}$/.test(String(pid2))) {
+      // NOT ON TONIGHT'S SLATE (2026-09-26): a shared or posted link to a
+      // hitter who isn't playing tonight used to open nothing and say
+      // nothing. He opens as an archive card -- the same api_only card Quick
+      // Search opens for anyone off the slate -- named and teamed from MLB.
+      hashAppliedRef.current = true
+      pendingPlayerRef.current = ''
+      fetch(`https://statsapi.mlb.com/api/v1/people/${pid2}?hydrate=currentTeam`).then((r) => (r.ok ? r.json() : null)).then((j) => {
+        const person = j?.people?.[0]
+        if (!person) return
+        setModalPlayer({ api_only: true, player_id: String(person.id), name: person.fullName, team: person.currentTeam?.abbreviation || '', bats: person.batSide?.code || '?' })
+      }).catch(() => {})
     }
   }, [allPlayers])
   // ── EVERY DEEP LINK WAS LOST ON A NON-DEFAULT THEME (fixed 2026-08-22) ────
