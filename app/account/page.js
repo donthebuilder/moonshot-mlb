@@ -129,7 +129,7 @@ export default async function AccountPage({ searchParams }) {
         <p className={styles.kicker}>WHAT THIS ACCOUNT HOLDS</p>
         <h2>Everything you save, and nothing you don&apos;t.</h2>
         <p className={styles.muted}>
-          Your watchlist, who you follow, your picks on both sports, your watchlist record and your
+          Your watchlist, who you follow, your picks on MOONSHOT, TUDDY and LAMP, your watchlist record and your
           alert choices. That is the whole list — it is what makes them turn up on your phone as
           well as here. Which alerts you get is set{' '}
           <Link href="/#alerts">on the front door</Link>, next to the things they are about.

@@ -56,7 +56,6 @@ export const metadata = {
 // getNetworkPulse carry their own revalidate.
 export const dynamic = 'force-dynamic'
 
-const pct = (value) => (Number.isFinite(value) ? `${Math.round(value)}%` : null)
 
 function timeUntil(iso) {
   if (!iso) return null
@@ -75,6 +74,20 @@ function timeUntil(iso) {
 // Hockey's clock reads in ET on purpose: this renders on the server (UTC on
 // Vercel) and the front door has no viewer time zone; ET is the league's
 // calendar and the one the Board page's day is cut on.
+// "Tue 9/29" for a league calendar day (the date string is already ET).
+const dayWord = (ymd) => (ymd ? new Date(`${ymd}T12:00:00Z`).toLocaleDateString('en-US', { timeZone: 'UTC', weekday: 'short', month: 'numeric', day: 'numeric' }).replace(',', '') : null)
+// Why LAMP's panel has no number (Part A3): the season opener while it's
+// ahead, else the next day with games. Null when there are games tonight
+// and the season is on (the lock count says the rest).
+function lampWhy(nhl) {
+  if (!nhl) return null
+  const opens = nhl.regularSeasonStart && nhl.date < nhl.regularSeasonStart ? `Season opens ${dayWord(nhl.regularSeasonStart)}` : null
+  if (nhl.games) return opens
+  return [opens || 'No NHL games tonight', !opens && nhl.next ? `next games ${dayWord(nhl.next)}` : null, 'calls lock before each puck drop'].filter(Boolean).join(' · ')
+}
+// "12 of 34 were on the board at lock" (Part A1): homer_feed's labels, the
+// same reader /called uses. No share when the locked read is missing.
+const lockedLine = (l) => (l && l.total ? `${l.onBoard} of ${l.total} were on the board at lock` : null)
 const etClock = (iso) => (iso ? `${new Date(iso).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' })} ET` : null)
 
 async function account() {
@@ -195,16 +208,16 @@ export default async function DashHome({ searchParams }) {
         <div className={styles.slateHead}><p className={styles.kicker}>ON RIGHT NOW</p><h2>The whole network, one glance.</h2></div>
         <div className={styles.tiles}>
           <Tile label="MLB GAMES" value={mlb?.games} sub={mlb?.live ? `${mlb.live} live` : mlb?.final ? `${mlb.final} final` : 'pre-game'} accent="mlb" />
-          <Tile label="CALLED SLOTS" value={mlb?.calls} sub="HR · HIT · HRR · CONTACT" accent="mlb" />
+          <Tile label="CALLS TONIGHT" value={mlb?.calls} sub="HR · HIT · HRR · CONTACT" accent="mlb" />
           <Tile label="CLEARED SO FAR" value={mlb?.cleared} sub={mlb?.started ? `calls that cleared their bar, of ${mlb.started} that batted` : 'nobody has batted yet'} accent="mlb" />
-          <Tile label="HRs ON THE SLATE" value={mlb?.homers} sub={pct(mlb?.capturePct) ? `${pct(mlb.capturePct)} were on the board before first pitch` : null} accent="mlb" />
+          <Tile label="HRs ON THE SLATE" value={mlb?.locked?.total || mlb?.homers} sub={lockedLine(mlb?.locked)} accent="mlb" />
           <Tile label="NFL GAMES" value={nfl?.games} sub={timeUntil(nfl?.kickoff) || nfl?.label} accent="nfl" />
           <Tile label="PLAYERS RATED" value={nfl?.players} sub={nfl?.label} accent="nfl" />
           {/* Hockey: the count and the lock. Before the first lock the tile says
               when the board locks; after it, how many games hold a locked
               call. A preview never counts (lib/nhl/pulse.js). */}
           <Tile label="NHL GAMES" value={nhl?.games} sub={nhl?.live ? `${nhl.live} live` : nhl?.final ? `${nhl.final} final` : nhl?.games ? `first puck ${etClock(nhl.firstStart)}` : nhl?.label || 'no games tonight'} accent="nhl" />
-          <Tile label="LAMP LOCKED" value={nhl?.games ? `${nhl.lockedGames}/${nhl.games}` : null} sub={nhl?.games ? (nhl.lockedGames ? 'games with a locked call' : `locks from ${etClock(nhl.locksFromUtc)}`) : nhl?.label || null} accent="nhl" />
+          <Tile label="LAMP LOCKED" value={nhl?.games ? `${nhl.lockedGames}/${nhl.games}` : null} sub={nhl?.games ? (nhl.lockedGames ? 'games with a locked call' : `locks from ${etClock(nhl.locksFromUtc)}`) : lampWhy(nhl) || nhl?.label || null} accent="nhl" />
         </div>
         <p className={styles.stamp}>
           Live from the published payloads, cached two minutes.{mlb?.label ? ` MLB: ${mlb.label}.` : ''}
@@ -289,7 +302,7 @@ export default async function DashHome({ searchParams }) {
           <dl>
             <div><dt>Games</dt><dd>{mlb?.games ?? '—'}</dd></div>
             <div><dt>Cleared / started</dt><dd>{mlb?.cleared ?? '—'} / {mlb?.started ?? '—'}</dd></div>
-            <div><dt>HRs on the board</dt><dd>{pct(mlb?.capturePct) ?? '—'}</dd></div>
+            <div><dt>HRs on the board at lock</dt><dd>{mlb?.locked?.total ? `${mlb.locked.onBoard} / ${mlb.locked.total}` : '—'}</dd></div>
           </dl>
           <footer>
             <Link href="/app#sport=mlb&tab=home">Open MOONSHOT →</Link>
@@ -329,12 +342,15 @@ export default async function DashHome({ searchParams }) {
                 <li key={call.gameId}><small>{call.away} @ {call.home}</small><b>{call.name}</b><span>{call.team} · {Math.round(call.score)}{call.graded ? (call.hit ? ' · 🚨 SCORED' : call.dressed === false ? ' · VOID' : ' · no goal') : ''}</span></li>
               ))}
             </ul>
-          ) : (
+          ) : nhl?.games ? (
             <dl>
-              <div><dt>Games</dt><dd>{nhl?.games ?? '—'}</dd></div>
-              <div><dt>Locked</dt><dd>{nhl?.games ? `${nhl.lockedGames} / ${nhl.games}` : '—'}</dd></div>
-              <div><dt>First lock</dt><dd>{nhl?.games && !nhl.lockedGames ? etClock(nhl.locksFromUtc) : '—'}</dd></div>
+              <div><dt>Games</dt><dd>{nhl.games}</dd></div>
+              <div><dt>Locked</dt><dd>{`${nhl.lockedGames} / ${nhl.games}`}</dd></div>
+              <div><dt>First lock</dt><dd>{nhl.lockedGames ? 'done' : etClock(nhl.locksFromUtc)}</dd></div>
             </dl>
+          ) : (
+            // No games tonight: say why, from the schedule (Part A3), not three dashes.
+            <p>{lampWhy(nhl) || 'No NHL games tonight.'}</p>
           )}
           <footer>
             <Link href="/app#sport=nhl&tab=home">Open LAMP →</Link>
@@ -402,7 +418,7 @@ export default async function DashHome({ searchParams }) {
             <p className={styles.kicker}>YOUR ACCOUNT</p>
             <h2>{displayName}, your lists follow you.</h2>
             <p className={styles.muted}>
-              Watchlist, Following, and My Picks on both sports save to this account and turn up on
+              Watchlist, Following, and My Picks on MOONSHOT, TUDDY and LAMP save to this account and turn up on
               any device you sign in on. Sign out and they stay on this browser only.
             </p>
             <div className={styles.signOutRow}>

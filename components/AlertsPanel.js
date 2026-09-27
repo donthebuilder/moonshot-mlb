@@ -248,7 +248,14 @@ export default function AlertsPanel({ styles }) {
         {account.signedIn
           ? 'These choices are saved to your account. Whether this particular browser is allowed to show notifications is a per-device permission, so each phone or laptop still has to be armed once.'
           : 'Saved on this device. Sign in above and the choices follow you; the permission itself is always per-device.'}
-        {' '}And nothing arrives about a player you have not followed — that gate is separate from every switch on this page.
+        {' '}{(() => {
+          // Front door A6 (2026-09-27): true only while no "everyone" switch
+          // (Any slate homer, Any CALLED goal) is on.
+          const wide = CATEGORIES.filter((c) => c.scope === 'everyone' && prefs.events?.[c.key]).map((c) => c.label)
+          return wide.length
+            ? `Nothing arrives about a player you have not followed, except ${wide.join(' and ')} — switched on above, and about everyone.`
+            : 'And nothing arrives about a player you have not followed — that gate is separate from every switch on this page.'
+        })()}
       </p>
     </div>
   )
