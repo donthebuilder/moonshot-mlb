@@ -6,19 +6,22 @@
 // as the fallback in oddsPaths().
 import { adminClient } from '../../../../lib/nhl/db'
 import { validDate } from '../../../../lib/nhl/api'
-import { mlbLatestOdds } from '../../../../lib/odds/latest'
+import { mlbLatestOdds, nflLatestOdds } from '../../../../lib/odds/latest'
 
 export const dynamic = 'force-dynamic'
+// MLB reads the slate day; NFL the week around it.
+const BUILD = { mlb: mlbLatestOdds, nfl: nflLatestOdds }
 
 export async function GET(request) {
   const q = new URL(request.url).searchParams
-  if (q.get('sport') !== 'mlb') return Response.json({ error: 'sport must be mlb' }, { status: 400 })
+  const build = BUILD[q.get('sport')]
+  if (!build) return Response.json({ error: 'sport must be mlb or nfl' }, { status: 400 })
   const phoenixDay = new Date(Date.now() - 7 * 3600e3).toISOString().slice(0, 10)   // Phoenix is UTC-7 all year
   const date = validDate(q.get('date')) ? q.get('date') : phoenixDay
   const db = adminClient()
   if (!db) return Response.json({ error: 'no database' }, { status: 503 })
   try {
-    const body = await mlbLatestOdds(db, date)
+    const body = await build(db, date)
     return Response.json(body, { headers: { 'Cache-Control': 'public, s-maxage=120, stale-while-revalidate=300' } })
   } catch (e) {
     console.error(`[odds latest] ${date}: ${e?.message}`)
