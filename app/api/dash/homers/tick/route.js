@@ -59,7 +59,7 @@ import { logXBudget } from '../../../../../lib/dash/xBudget'
 import { postLongshotsOnce } from '../../../../../lib/dash/longshotsPost'
 import { mlbLatestOdds } from '../../../../../lib/odds/latest'
 import { postMultiClubOnce } from '../../../../../lib/dash/multiClubPost'
-import { mlbSeasonActive } from '../../../../../lib/dash/seasonGuard'
+import { mlbSeasonActive, postseasonOn } from '../../../../../lib/dash/seasonGuard'
 import { storiesTick } from '../../../../../lib/stories/record'
 
 export const dynamic = 'force-dynamic'
@@ -1997,8 +1997,22 @@ export async function GET(request) {
     ])
     const yesterdayIds = new Set((yRows || []).map((r) => String(r.player_id)))
     const topStraight = topStreakFrom(recent || [], day, true)
+    // OCTOBER COUNTS IN OCTOBER (2026-09-27, list-posts step 6). On a
+    // postseason day the row carries postseason: true and post_nth (his
+    // homers since the postseason's first day, from our own feed, + tonight's
+    // hr_n) BEFORE the hooks are written, so hooksFor / the card / the
+    // numerology moment say "his 2nd homer this postseason" and never add an
+    // October homer to the regular-season total. Unreadable schedule ->
+    // postseason: null -> they say nothing about counts.
+    const post = await postseasonOn(day)
     for (const ev of homers) {
       if (!freshKeys.has(`${ev.player_id}:${ev.hr_n}`)) continue
+      if (post.postseason === true) {
+        const { count, error: pErr } = await db.from('homer_feed').select('player_id', { count: 'exact', head: true }).eq('player_id', ev.player_id).gte('day', post.start).lt('day', day)
+        ev.stats = { ...(ev.stats || {}), postseason: true, post_nth: pErr ? null : (count || 0) + Number(ev.hr_n || 1) }
+      } else if (post.postseason === null) {
+        ev.stats = { ...(ev.stats || {}), postseason: null }
+      }
       const [{ data: hist }, { jersey, birthDate }] = await Promise.all([
         db.from('homer_feed').select('role').eq('player_id', ev.player_id).lt('day', day).order('day', { ascending: false }).limit(5),
         personInfoOf(ev.player_id),
