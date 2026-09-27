@@ -26,6 +26,8 @@ import Research from './tabs/Research'
 import Matchups from './tabs/Matchups'
 import Explosive from './tabs/Explosive'
 import RedZone from './tabs/RedZone'
+import Longshots from '../Longshots'
+import NflTable from './NflTable'
 import Numerology from './tabs/Numerology'
 import Report from './tabs/Report'
 import Accountability from './tabs/Accountability'
@@ -342,6 +344,7 @@ export default function NflDashboard({ palettePass = 0 }) {
             {tab === 'matchups' && <Matchups matchup={matchup} data={data} />}
             {tab === 'explosive' && <Explosive matchup={matchup} data={data} onPlayerClick={openPlayer} />}
             {tab === 'redzone' && <RedZone data={data} onPlayerClick={openPlayer} />}
+            {tab === 'longshots' && <Longshots sport="nfl" eyebrow="TUDDY · LONGSHOTS" theme={C} numFont={NUM_FONT} accent={C.green} Table={NflTable} onOpenPlayer={(id) => { const p = (data?.players || []).find((x) => String(x.player_id) === String(id)); if (p) openPlayer(p, 'TD') }} />}
             {tab === 'numerology' && <Numerology data={data} />}
             {tab === 'report' && <Report report={report} />}
             {tab === 'accountability' && <Accountability data={data} results={nflResults} onPlayerClick={openPlayer} />}

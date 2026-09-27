@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { resolveTab, pageTitle, NHL_TABS as NHL_TAB_KEYS, NHL_NAV } from '../../lib/routes'
 import { usePageTitle } from '../../lib/usePageTitle'
 import { initialHashParams, setSport } from '../../lib/sport'
-import { C } from '../../lib/nhl/theme'
+import { C, NUM_FONT } from '../../lib/nhl/theme'
 import { useLampScores, useLampScoresOn } from '../../lib/nhl/useLamp'
 import { etToday } from '../../lib/freshness'
 import ErrorBoundary from '../ErrorBoundary'
@@ -27,6 +27,8 @@ import Players from './tabs/Players'
 import Player from './tabs/Player'
 import SpecialTeams from './tabs/SpecialTeams'
 import HotSticks from './tabs/HotSticks'
+import Longshots from '../Longshots'
+import LampTable from './LampTable'
 import ShotMap from './tabs/ShotMap'
 import LampLedger from './tabs/LampLedger'
 import Numerology from './tabs/Numerology'
@@ -288,6 +290,7 @@ export default function LampDashboard({ palettePass = 0 }) {
             {tab === 'leaders' && <Leaders onOpenPlayer={openPlayer} onOpenTeam={openTeam} />}
             {tab === 'specialteams' && <SpecialTeams onOpenTeam={openTeam} />}
             {tab === 'hotsticks' && <HotSticks onOpenPlayer={openPlayer} />}
+            {tab === 'longshots' && <Longshots sport="nhl" eyebrow="LAMP · LONGSHOTS" theme={C} numFont={NUM_FONT} accent={C.ice} Table={LampTable} onOpenPlayer={openPlayer} />}
             {tab === 'shotmap' && <ShotMap onOpenPlayer={openPlayer} />}
             {tab === 'lampledger' && <LampLedger onOpenPlayer={openPlayer} />}
             {tab === 'numerology' && <Numerology date={date} onOpenPlayer={openPlayer} />}

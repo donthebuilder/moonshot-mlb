@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { C } from '../lib/theme'
+import { C, NUM_FONT } from '../lib/theme'
 import { resolveTab, pageTitle } from '../lib/routes'
 import { usePageTitle } from '../lib/usePageTitle'
 import TabNotFound from './TabNotFound'
@@ -55,6 +55,7 @@ import { follow, unfollow, useFollowing } from '../lib/dash/follow'
 import { liveOdds } from '../lib/oddsFreshness'
 import { markDirty } from '../lib/dash/sync'
 import ErrorBoundary from './ErrorBoundary'
+import Longshots from './Longshots'
 
 const WATCH_KEY = 'mlb_watchlist_v1'
 const WATCH_EVENT = 'mlb-watchlist-change'
@@ -856,6 +857,7 @@ export default function Dashboard({ palettePass = 0 }) {
             {tab === 'boxes'       && <Home players={allPlayers} filteredPlayers={players} results={resultsForSlate} backtest={backtest} mode={mode} slateDate={slateDate} dateLabel={dateLabel} odds={odds} onWatch={toggleWatch} watchIds={watchIds} onNavigate={setTab} onPlayerClick={setModalPlayer} initial="boxes" />}
             {tab === 'atplate'     && <Home players={allPlayers} filteredPlayers={players} results={resultsForSlate} backtest={backtest} mode={mode} slateDate={slateDate} dateLabel={dateLabel} odds={odds} onWatch={toggleWatch} watchIds={watchIds} onNavigate={setTab} onPlayerClick={setModalPlayer} initial="live" />}
             {/* 2026-09-25: the full board, #1 to #N, on its own page. */}
+            {tab === 'longshots'   && <Longshots sport="mlb" eyebrow="MOONSHOT · LONGSHOTS" theme={C} numFont={NUM_FONT} accent={C.orange} onOpenPlayer={(id) => { const p = allPlayers.find((x) => String(x?.player_id ?? x?.id) === String(id)); if (p) setModalPlayer(p) }} />}
             {tab === 'fullboard'   && <Home players={allPlayers} filteredPlayers={players} results={resultsForSlate} backtest={backtest} mode={mode} slateDate={slateDate} dateLabel={dateLabel} odds={odds} onWatch={toggleWatch} watchIds={watchIds} onNavigate={setTab} onPlayerClick={setModalPlayer} initial="fullboard" />}
             {/* #tab=power and #tab=patterns were NEVER WIRED (found 2026-08-17
                 by an audit that opened each route and looked for the feature's
