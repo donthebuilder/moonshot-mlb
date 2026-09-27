@@ -94,7 +94,11 @@ export default function NflDashboard({ palettePass = 0 }) {
   // A club tapped on Standings, handed to the players directory once.
   const [portalTeam, setPortalTeam] = useState(null)
   useEffect(() => { if (tab !== 'players') setPortalTeam(null) }, [tab])
-  usePageTitle(`${pageTitle('nfl', tab)} \u00b7 DASH Network`)
+  // The Board hub names its own market/view (BoardHub onTitle); every other
+  // page is the registry's title. One hook, so the two never fight.
+  const [hubTitle, setHubTitle] = useState(null)
+  const onHub = tab === 'touchdowns' || tab === 'boards' || tab === 'picks'
+  usePageTitle(`${(onHub && hubTitle) || pageTitle('nfl', tab)} \u00b7 DASH Network`)
   const [data, setData] = useState(null)
   const [report, setReport] = useState(null)
   const [meta, setMeta] = useState(null)
@@ -330,7 +334,7 @@ export default function NflDashboard({ palettePass = 0 }) {
             {/* One Board page (2026-09-26, option (b)): touchdowns / boards /
                 picks are the same hub; boards opens BOARD, picks opens CALLED. */}
             {(tab === 'touchdowns' || tab === 'boards' || tab === 'picks') && (
-              <BoardHub key={tab} slate={slate} data={data} logs={logs} matchup={matchup} odds={odds} oddsStatus={oddsStatus}
+              <BoardHub key={tab} onTitle={setHubTitle} slate={slate} data={data} logs={logs} matchup={matchup} odds={odds} oddsStatus={oddsStatus}
                 picks={picks} results={nflResults} onPlayerClick={openPlayer} initialView={tab === 'picks' ? 'called' : 'board'} />
             )}
             {tab === 'research' && <Research data={data} onPlayerClick={openPlayer} />}

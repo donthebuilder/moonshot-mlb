@@ -27,7 +27,7 @@ const VIEWS = [
 ]
 const readHash = () => { try { return new URLSearchParams(window.location.hash.slice(1)) } catch { return new URLSearchParams() } }
 
-export default function BoardHub({ slate, data, logs, matchup, odds, oddsStatus, picks, results, onPlayerClick, initialView = 'board' }) {
+export default function BoardHub({ slate, data, logs, matchup, odds, oddsStatus, picks, results, onPlayerClick, initialView = 'board', onTitle = null }) {
   const [market, setMarket] = useState('TD')
   const [view, setView] = useState(initialView)
   useEffect(() => {
@@ -50,6 +50,15 @@ export default function BoardHub({ slate, data, logs, matchup, odds, oddsStatus,
 
   // Each pill counts what its Board view lists: the TD board shows every
   // scored player; Boards leaves low samples out until you ask for them.
+  // The tab's title says which market and view (the Anytime TD board keeps
+  // the registry's own). Reported up; NflDashboard owns the one title hook.
+  useEffect(() => {
+    const label = (MARKETS.find(([k]) => k === market) || [])[1] || market
+    // Ordinary words lowercase, abbreviations kept: "anytime TD", "defense/ST TD".
+    const words = label.split(/(\s+|\/)/).map((w) => (/^[A-Z]{2,}$/.test(w) ? w : w.toLowerCase())).join('')
+    onTitle?.(view === 'board' && market === 'TD' ? null : `NFL ${words} ${view === 'called' ? 'calls, graded' : 'board'} \u00b7 TUDDY`)
+  }, [market, view]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => onTitle?.(null), []) // eslint-disable-line react-hooks/exhaustive-deps
   const counts = Object.fromEntries(MARKETS.map(([k]) => [k, (k === 'TD' ? (slate?.players || []) : (data?.players || [])).filter((p) => Number.isFinite(p.scores?.[k]) && (k === 'TD' || !p.low_sample)).length]))
   const marketOptions = MARKETS.map(([key, label]) => ({ key, label, count: counts[key] }))
   return (
