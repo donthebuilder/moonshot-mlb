@@ -77,6 +77,7 @@ const RIVALS = [
 ]
 
 let _cacheByDate = {}
+const _octoberByDate = {}
 // matchup lines, cached per mount-scope so switching tabs doesn't re-pull the
 // gameLogs. Key is the exact set of hitters this mount is showing, so the
 // slate panel and each game's deep-dive keep their own.
@@ -93,6 +94,18 @@ const _ffactCache = new Map()
 export default function Storylines({ players = [], fetchPlayers = null, gamePk = null, compact = false, slateDate = '', results, onPlayerClick }) {
   const dateKey = slateDate || new Date().toLocaleDateString('en-CA')
   const [data, setData] = useState(_cacheByDate[dateKey] || null)
+  // Is the slate a postseason day? (any F/D/L/W game on MLB's schedule). One
+  // small read per slate date; unknown (null) keeps the countdowns as before.
+  const [october, setOctober] = useState(_octoberByDate[dateKey] ?? null)
+  useEffect(() => {
+    if (_octoberByDate[dateKey] != null) { setOctober(_octoberByDate[dateKey]); return undefined }
+    let alive = true
+    fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${dateKey}&gameType=F,D,L,W&fields=totalGames`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (!j) return; _octoberByDate[dateKey] = Number(j.totalGames || 0) > 0; if (alive) setOctober(_octoberByDate[dateKey]) })
+      .catch(() => {})
+    return () => { alive = false }
+  }, [dateKey])
   // Collapsed by default (2026-08-07, Donovan: "storyline kinda fills the
   // page too much"). The header keeps a live count summary so a closed panel
   // still tells you whether tonight has stories worth opening. Persists.
@@ -379,8 +392,11 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
   // code that still costs something is worse than dead code.
 
   // ── milestones ──
+  // Not in October (HISTORY WATCH 2 step 4): a postseason game counts toward
+  // neither the season nor the career line, so every countdown would name a
+  // number that cannot move tonight. History Watch carries October instead.
   const miles = []
-  ;(data?.people || []).forEach((person) => {
+  ;(october ? [] : data?.people || []).forEach((person) => {
     const p = byId.get(person.id)
     if (!p) return
     const season = statOf(person, 'season')
