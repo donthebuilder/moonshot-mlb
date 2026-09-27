@@ -105,11 +105,15 @@ export async function GET(request) {
     const match = await joinFor(league)
     const takenAt = new Date().toISOString()
     const rows = []
+    const lineRows = []
     let players = 0; let matched = 0
     for (const ev of events) {
       if (!(Date.now() < Date.parse(startsAt(ev))) || ev.status?.started) continue // already under way: no pregame row
       const r = snapRows(ev, 'list', takenAt, match)
       rows.push(...r.rows); players += r.players; matched += r.matched
+      // The morning read of every market we score (lib/odds/lines.js), so the
+      // site has hits / total bases / yards prices before each game's lock.
+      lineRows.push(...linesRows(ev, 'list', takenAt, match).rows)
     }
     if (!dry) {
       const map = events.filter((ev) => startsAt(ev)).map((ev) => ({ event_id: ev.eventID, sport, game_date: gameDate(ev), starts_at: startsAt(ev), away: ev.teams?.away?.names?.short || null, home: ev.teams?.home?.names?.short || null, listed_at: takenAt }))
@@ -122,8 +126,12 @@ export async function GET(request) {
       const m = map.length ? await db.from('odds_events').upsert(map, { onConflict: 'event_id', ignoreDuplicates: true }) : { error: null }
       if (m.error) { out.skipped.push({ league, why: `event map write: ${m.error.message}` }); continue }
       try { await insertRows(db, rows) } catch (e) { out.skipped.push({ league, why: `list rows: ${e?.message}` }); continue }
+      if (lineRows.length) {
+        const w = await db.from('odds_lines').upsert(lineRows, { onConflict: 'event_id,odd_id,snap', ignoreDuplicates: true })
+        if (w.error) console.error(`[odds tick] list lines ${league}: ${w.error.message}`)
+      }
     }
-    out.listed.push({ league, games: events.length, rows: rows.length, players, matched })
+    out.listed.push({ league, games: events.length, rows: rows.length, lines: lineRows.length, players, matched })
     console.log(`[odds tick] list ${league} ${date}: ${events.length} games, ${rows.length} rows, join ${matched}/${players}`)
   }
 
