@@ -89,5 +89,30 @@ if (week) {
   console.log(`   live, nfl_week (${players.length} players, ${date}):`, JSON.stringify(counts))
 }
 
+// ── 6. the record (step 6): rows, the denominator, the lane summary ────────
+const { buildRows, laneNights, ELIGIBLE } = await import('../lib/numerology/record.js')
+const TEST = [
+  { player_id: 'T1', name: 'Aaron Judge', jersey: 49, birthDate: '1992-04-26', next: 34, team: 'NYY', opp: 'BOS' },
+  { player_id: 'T2', name: 'Test Player', jersey: 22, birthDate: null, next: 5, team: 'BOS', opp: 'NYY' },
+  { player_id: 'T3', name: '', jersey: null, birthDate: null, next: null },                         // nothing to check -> no rows
+]
+const built = buildRows('mlb', '2026-09-12', TEST)
+const t1 = built.filter((r) => r.player_id === 'T1')
+check(built.filter((r) => r.lane === ELIGIBLE).length === 2 && !built.some((r) => r.player_id === 'T3'), 'one _eligible row per checkable player; a player with no fields writes nothing')
+check(t1.some((r) => r.lane === 'gem_jersey') && t1.some((r) => r.lane === 'fib_next') && t1.some((r) => r.lane === 'gem_date' && r.matched_to === 'date short 47'), 'T1 (TEST): gem_jersey, fib_next, gem_date short 47 recorded')
+check(new Set(built.map((r) => `${r.player_id}|${r.lane}|${r.matched_to}`)).size === built.length, 'no duplicate keys (a lane matching the same target twice is one row)')
+// simulate grading: T1 hits, T2 does not
+const graded = built.map((r) => ({ ...r, graded_at: '2026-09-13T06:00:00Z', played: true, hit: r.player_id === 'T1' }))
+const sum = laneNights('mlb', '2026-09-12', graded)
+const fibNext = sum.find((x) => x.lane === 'fib_next'); const gemJersey = sum.find((x) => x.lane === 'gem_jersey')
+check(fibNext.eligible === 2 && fibNext.matched === 2 && fibNext.eligible_hits === 1 && fibNext.matched_hits === 1, `fib_next: eligible 2 (both have next), matched 2 (34, 5), hits 1 / 1`)
+check(gemJersey.eligible === 2 && gemJersey.matched === 1 && gemJersey.matched_hits === 1 && gemJersey.eligible_hits === 1, 'gem_jersey: eligible 2, matched 1 (T1), matched hits 1')
+check(laneNights('mlb', '2026-09-12', built).every((x) => x.eligible_hits === null && x.graded_at === null), 'ungraded night -> no hit counts, no graded_at (a base rate is never guessed)')
+if (week) {
+  const players = (week.players || []).map((p) => { const a = fromNfl(p); return a ? { player_id: p.player_id, ...a } : null }).filter(Boolean)
+  const rows = buildRows('nfl', '2026-09-28', players)
+  console.log(`   live dry run (nothing written): ${players.length} NFL players -> ${rows.length} rows (${rows.filter((r) => r.lane === ELIGIBLE).length} _eligible)`)
+}
+
 console.log(failed ? `\n${failed} FAILED` : '\nall green')
 process.exit(failed ? 1 : 0)

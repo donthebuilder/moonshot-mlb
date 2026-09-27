@@ -29,6 +29,9 @@ import { shotsFromPlayByPlay, writeShots } from '../../../../lib/nhl/shots'
 import { postLongshotsOnce } from '../../../../lib/dash/longshotsPost'
 import { postMultiClubOnce } from '../../../../lib/dash/multiClubPost'
 import { toPropRow, gradeSogRows, MODEL_VERSION as SOG_VERSION, MARKET as SOG } from '../../../../lib/nhl/sogModel'
+import { readNumerology } from '../../../../lib/nhl/numerology'
+import { writeNight as writeNumerology, gradeNight as gradeNumerology, refreshLaneNights } from '../../../../lib/numerology/record'
+import { fromNhl } from '../../../../lib/numerology/adapters'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -109,6 +112,22 @@ export async function GET(request) {
     }
   }
 
+  // ── NUMEROLOGY, RECORDED (BATCH-NUMEROLOGY step 6) ─────────────────────
+  // Dressed skaters (the posted lineup) of games still before puck drop,
+  // inside the lock window, written once (first write wins). Its own
+  // failure, logged; never the lock's.
+  if (night && night.games.some((g) => g.state === 'pre' && Date.now() < Date.parse(g.startUtc) && Date.parse(g.startUtc) - Date.now() <= LOCK_WINDOW_MS)) {
+    try {
+      const num = await readNumerology(night.day.date)
+      const open = new Map(night.games.filter((g) => g.state === 'pre' && Date.now() < Date.parse(g.startUtc)).map((g) => [`${g.away.abbrev}@${g.home.abbrev}`, g]))
+      const players = (num.all || []).filter((r) => open.has(r.game)).map((r) => {
+        const [away, home] = r.game.split('@')
+        return { player_id: r.id, ...fromNhl({ ...r, opp: r.team === away ? home : away }) }
+      })
+      out.numerology = players.length ? await writeNumerology(db, 'nhl', night.day.date, players) : { players: 0, rows: 0 }
+    } catch (e) { console.error(`[lamp tick] numerology write: ${e?.message}`) }
+  }
+
   // ── GRADE ─────────────────────────────────────────────────────────────
   const pending = await db.from('lamp_goal_games').select('game_id, game_date').eq('model_version', MODEL_VERSION).is('graded_at', null).in('game_date', [date, dayBefore(date)])
   if (pending.error) { console.error(`[lamp tick] pending: ${pending.error.message}`); out.skipped.push({ why: `pending: ${pending.error.message}` }) }
@@ -156,6 +175,11 @@ export async function GET(request) {
           sogGraded = { rows: gs.length, hits: gs.filter((r) => r.hit).length, calledHits: gs.filter((r) => r.hit && r.status === 'called').length }
         }
       } catch (e) { console.error(`[lamp tick] sog grade ${p.game_id}: ${e?.message}`) }
+      // Numerology grade for this game's skaters: played = dressed, hit = scored.
+      try {
+        const results = new Map(graded.map((r) => [String(r.playerId), { played: r.dressed, hit: Boolean(r.dressed && r.goals >= 1) }]))
+        if (await gradeNumerology(db, 'nhl', p.game_date, results)) await refreshLaneNights(db, 'nhl', p.game_date)
+      } catch (e) { console.error(`[lamp tick] numerology grade ${p.game_id}: ${e?.message}`) }
       const scorers = graded.filter((r) => r.hit)
       out.graded.push({ game: p.game_id, matchup: `${g.away.abbrev}@${g.home.abbrev}`, rows: graded.length, dressed: graded.filter((r) => r.dressed).length, net: [startersActual?.away?.name, startersActual?.home?.name], shots: shotRows, scorers: scorers.map((r) => `${r.name} (${r.status}${r.rank ? ` #${r.rank}` : ''})`), sog: sogGraded })
     } catch (e) {
