@@ -1,7 +1,6 @@
 'use client'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/nfl/theme'
-import { rankColor } from './DvpTable'
 import ChartFrame from './ChartFrame'
 
 // DVP DRIFT — where a defence's soft spot is MOVING.
@@ -150,6 +149,9 @@ export default function DvpDrift({ data, team, roles, highlight }) {
 
   const lead = moves[0]
   const hardening = moves[moves.length - 1]
+  // Part A (2026-09-27): the season is said in the title, in words, while the
+  // bot still serves last season's table (alt_season = the newer one).
+  const lastSeason = Number(data?.alt_season) > Number(data?.season)
 
   return (
     <div>
@@ -159,7 +161,7 @@ export default function DvpDrift({ data, team, roles, highlight }) {
       }}>
         <span style={{
           fontSize: 10, fontWeight: 900, color: C.text3, letterSpacing: '.1em',
-        }}>DRIFT — WHERE {team}&apos;S SOFT SPOT IS MOVING</span>
+        }}>DRIFT — WHERE {team}&apos;S SOFT SPOT IS MOVING{lastSeason ? <b style={{ color: C.amber }}> · LAST SEASON ({data.season})</b> : null}</span>
         <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
           {available.map((s) => (
             <button key={s} onClick={() => setStat(s)} style={{
@@ -173,9 +175,39 @@ export default function DvpDrift({ data, team, roles, highlight }) {
         </div>
       </div>
 
+      <div style={{ fontSize: 10.5, color: C.text2, marginBottom: 7, lineHeight: 1.6 }}>
+        {lead && lead.delta <= -4 && lead.corroborated ? (
+          <><b style={{ color: C.green }}>{team}</b> has been getting softer against
+            {' '}<b style={{ color: C.green }}>{lead.role}</b> in {labels[stat] || stat}
+            {weekly
+              ? <>: #{lead.from} back in week {weekly.weeks[0]}, <b style={{ color: C.green }}>#{lead.to}</b> now.
+                  The recent half of the season sits softer than the early half, so it is a
+                  drift and not one loud Sunday.</>
+              : <> all the way down: #{lead.from} on the season, <b style={{ color: C.green }}>#{lead.to}</b>
+                  {' '}over the last three. Every window agrees, so it is a trend and not a hot week.</>}
+          </>
+        ) : lead && lead.delta <= -4 ? (
+          <><b style={{ color: C.text }}>{team}</b> sits #{lead.to} against
+            {' '}<b style={{ color: C.text }}>{lead.role}</b> in {labels[stat] || stat}
+            {weekly
+              ? <>, against #{lead.from} in week {weekly.weeks[0]} — but the weeks in between
+                  bounce around it, so that is a couple of games talking, not a soft spot.</>
+              : <> over the last three games, against #{lead.from} on the season — but the L10
+                  and L5 windows do not back it up, so that is three games talking, not a soft
+                  spot.</>}
+          </>
+        ) : hardening && hardening.delta >= 4 ? (
+          <>Nothing has softened. The move is the other way: <b style={{ color: C.text }}>{hardening.role}</b>
+            {' '}has gone from #{hardening.from} to <b style={{ color: C.text }}>#{hardening.to}</b>
+            {' '}in {labels[stat] || stat}.</>
+        ) : (
+          <>{team} has not moved much in {labels[stat] || stat} — the season ranks are still
+            the read.</>
+        )}
+      </div>
       <ChartFrame accent={C.green} live={Boolean(highlight)} pad="2px 4px">
         <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet"
-             style={{ width: '100%', height: 'auto', display: 'block' }}>
+             style={{ width: '100%', maxWidth: 360, height: 'auto', display: 'block' }}>
           {/* rank gridlines. 1 is at the top because 1 is the softest and soft
               is what you are hunting — the chart should read "up is good". */}
           {[1, 8, 16, 24, 32].map((r) => (
@@ -190,13 +222,13 @@ export default function DvpDrift({ data, team, roles, highlight }) {
           {series.map((s) => {
             const on = focus.has(s.role)
             const last = s.pts[s.pts.length - 1]
-            const col = on ? rankColor(last.rank) || C.text2 : 'rgba(255,255,255,.10)'
+            const col = on ? (s.role === (highlight || lead?.role) ? C.orange : C.text2) : 'rgba(255,255,255,.10)'
             const d = s.pts.map((p, k) => `${k ? 'L' : 'M'}${x(p.i)},${y(p.rank)}`).join(' ')
             return (
               <g key={s.role}>
                 <path className={on ? 'dvp-line' : 'dvp-dim'} d={d} fill="none" stroke={col}
                       strokeWidth={on ? 2 : 1} strokeLinejoin="round" strokeLinecap="round"
-                      style={on ? { filter: `drop-shadow(0 0 3px ${col}90)` } : undefined} />
+                      />
                 {on && s.pts.map((p) => (
                   <circle key={p.i} cx={x(p.i)} cy={y(p.rank)} r="2.8" fill={C.bg}
                           stroke={col} strokeWidth="1.8" />
@@ -236,45 +268,15 @@ export default function DvpDrift({ data, team, roles, highlight }) {
             /* On a phone the eight unhighlighted roles are eight faint lines
                in a box a third the width — texture, not context. The two or
                three that carry the read stay. */
-            @media (max-width: 500px) { .dvp-dim { display: none } }
+            .dvp-dim { display: none }
           `}</style>
         </svg>
       </ChartFrame>
 
-      <div style={{ fontSize: 10.5, color: C.text2, marginTop: 7, lineHeight: 1.6 }}>
-        {lead && lead.delta <= -4 && lead.corroborated ? (
-          <><b style={{ color: C.green }}>{team}</b> has been getting softer against
-            {' '}<b style={{ color: C.green }}>{lead.role}</b> in {labels[stat] || stat}
-            {weekly
-              ? <>: #{lead.from} back in week {weekly.weeks[0]}, <b style={{ color: C.green }}>#{lead.to}</b> now.
-                  The recent half of the season sits softer than the early half, so it is a
-                  drift and not one loud Sunday.</>
-              : <> all the way down: #{lead.from} on the season, <b style={{ color: C.green }}>#{lead.to}</b>
-                  {' '}over the last three. Every window agrees, so it is a trend and not a hot week.</>}
-          </>
-        ) : lead && lead.delta <= -4 ? (
-          <><b style={{ color: C.text }}>{team}</b> sits #{lead.to} against
-            {' '}<b style={{ color: C.text }}>{lead.role}</b> in {labels[stat] || stat}
-            {weekly
-              ? <>, against #{lead.from} in week {weekly.weeks[0]} — but the weeks in between
-                  bounce around it, so that is a couple of games talking, not a soft spot.</>
-              : <> over the last three games, against #{lead.from} on the season — but the L10
-                  and L5 windows do not back it up, so that is three games talking, not a soft
-                  spot.</>}
-          </>
-        ) : hardening && hardening.delta >= 4 ? (
-          <>Nothing has softened. The move is the other way: <b style={{ color: C.text }}>{hardening.role}</b>
-            {' '}has gone from #{hardening.from} to <b style={{ color: C.text }}>#{hardening.to}</b>
-            {' '}in {labels[stat] || stat}.</>
-        ) : (
-          <>{team} has not moved much in {labels[stat] || stat} — the season ranks are still
-            the read.</>
-        )}
-      </div>
       <div style={{ fontSize: 9.5, color: C.text3, marginTop: 4, lineHeight: 1.55 }}>
         Rank 1 at the top = allows the most = softest. {weekly
           ? `Each point is a rolling ${weekly.window}-game window ending that week, so the line can fall AND rise.`
-          : 'Four windows, not four weeks: each point is that whole span, so the last one is the last three games and not one Sunday.'} Dim lines are the other roles.
+          : 'Four windows, not four weeks: each point is that whole span, so the last one is the last three games and not one Sunday.'} Only the roles that moved (or his) are drawn.
       </div>
     </div>
   )

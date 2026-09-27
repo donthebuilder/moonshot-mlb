@@ -311,7 +311,7 @@ export default function Matchups({ matchup, data }) {
           />
           {/* THE LEGEND, IN WORDS (BATCH-FACES step 10). */}
           <div style={{ marginTop: 8, fontSize: 12, lineHeight: 1.5, color: C.text3 }}>
-            Red dots: where {active} gives up yards — a bigger patch is more of the yards it allows, denser red is leakier than the league there.
+            Orange dots: where {active} gives up yards — a bigger patch is more of the yards it allows, denser orange is leakier than the league there, and the number on each zone is yards against a normal defence.
             {picked ? ` Dashed rings: ${picked.name}'s own work, sized by his share.` : ' Pick a player above to lay his own work on top as dashed rings.'}
           </div>
           {/* COVERAGE EVIDENCE, finally read (coverage_mismatch_detail, BATCH-FACES

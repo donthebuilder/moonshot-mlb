@@ -162,6 +162,10 @@ const TURF = `linear-gradient(180deg, ${C.turf1}, ${C.turf2})`
 const CHALK = 'rgba(255,255,255,.17)'
 const CHALK_SOFT = 'rgba(255,255,255,.09)'
 
+// THE ONE SCALE (2026-09-27, matchups Part A): soft = DASH orange, drawn as
+// the theme's orange at an alpha -- was a hard-coded red that read like an
+// error. Holding up = cyan (TUDDY's analysis ink).
+const HEAT = (a) => `color-mix(in srgb, ${C.orange} ${Math.round(Math.max(0, Math.min(1, a)) * 100)}%, transparent)`
 const fmtPct = (n) => `${n > 0 ? '+' : ''}${Math.round(n)}%`
 
 // "1st", "2nd", "3rd", "11th"... — real ordinal formatting for a rank
@@ -344,6 +348,11 @@ export default function MatchupMap({
     <div className="tuddy-map">
       <style>{`
         .tuddy-map .tm-zones{display:grid;grid-template-columns:repeat(3,1fr);gap:3px}
+        @media(min-width:900px){
+          .tuddy-map .tm-split{display:grid;grid-template-columns:minmax(0,620px) minmax(0,1fr);gap:14px;align-items:start}
+          .tuddy-map .tm-split .tm-numbers-btn{display:none}
+          .tuddy-map .tm-split .tm-numbers{display:block!important;margin-top:0!important}
+        }
         @media(max-width:620px){
           .tuddy-map .tm-head{flex-direction:column;align-items:flex-start;gap:14px}
           .tuddy-map .tm-mini{align-self:center}
@@ -491,6 +500,7 @@ export default function MatchupMap({
         </div>
       )}
 
+      <div className={compact ? undefined : 'tm-split'}>
       <ChartFrame accent={C.green} live={Boolean(spot)}
         pad={compact ? '12px 12px 10px' : '15px 16px 13px'}
         style={{ maxWidth: compact ? 'none' : 620, borderRadius: 15 }}>
@@ -516,7 +526,7 @@ export default function MatchupMap({
         <div style={{
           display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 11,
         }}>
-          <Key swatch="radial-gradient(circle, rgba(248,113,113,.75), rgba(251,191,36,.35))">
+          <Key swatch={`radial-gradient(circle, ${HEAT(.8)}, ${HEAT(.3)})`}>
             they get beaten here
           </Key>
           {mode === 'player' && <Key ring>how much of his work goes here</Key>}
@@ -528,28 +538,30 @@ export default function MatchupMap({
       {/* Nothing is deleted, it is folded. The picture answers the question;
           this answers "prove it", which is a different reader on a different
           day and should not be charged to the first one. */}
-      <button type="button" onClick={() => setOpen((o) => !o)} style={{
-        marginTop: 9, width: '100%', textAlign: 'left', cursor: 'pointer',
+      <div>
+      <button type="button" className="tm-numbers-btn" onClick={() => setOpen((o) => !o)} style={{
+        marginTop: 9, width: '100%', minHeight: 44, textAlign: 'left', cursor: 'pointer',
         border: `1px solid ${C.border}`, borderRadius: 10, padding: '8px 11px',
         background: 'rgba(255,255,255,.015)', color: C.text3,
         fontFamily: NUM_FONT, fontSize: 9, fontWeight: 800, letterSpacing: '.1em',
       }}>
         {open ? '▾' : '▸'} EVERY PART OF THE FIELD, WITH THE NUMBERS
       </button>
-      {open && (
-        <div style={{
+      {(
+        <div className="tm-numbers" style={{
+          display: open ? 'block' : 'none',
           marginTop: 6, border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden',
         }}>
           {model.cells.map((c, i) => (
             <div key={c.z} style={{
               display: 'flex', alignItems: 'center', gap: 10, padding: '7px 11px',
               borderTop: i ? `1px solid ${C.border}` : 0,
-              background: c.heat > 0.05 ? `rgba(248,113,113,${0.05 + c.heat * 0.13})` : 'transparent',
+              background: c.heat > 0.05 ? `${HEAT(0.05 + c.heat * 0.13)}` : 'transparent',
             }}>
               <span style={{ flex: 1, minWidth: 0, fontSize: 11.5, color: C.text2 }}>{cap(c.tip.split('\n')[0])}</span>
               <span style={{
                 fontFamily: NUM_FONT, fontSize: 11, fontWeight: 900, minWidth: 46, textAlign: 'right',
-                color: !Number.isFinite(c.leak) ? C.text3 : c.leak > 0 ? C.red : C.green,
+                color: !Number.isFinite(c.leak) ? C.text3 : c.leak > 0 ? C.orange : C.cyan,
               }}>{Number.isFinite(c.leak) ? fmtPct(c.leak) : 'thin'}</span>
               <span style={{
                 fontFamily: NUM_FONT, fontSize: 10, fontWeight: 800, minWidth: 32, textAlign: 'right',
@@ -562,6 +574,8 @@ export default function MatchupMap({
           ))}
         </div>
       )}
+      </div>
+      </div>
     </div>
   )
 }
@@ -642,15 +656,31 @@ function PassField({ model, mode, compact }) {
           }}>
             <div aria-hidden style={{
               position: 'absolute', inset: -6, borderRadius: '50%', filter: 'blur(7px)',
-              background: `radial-gradient(closest-side, rgba(248,113,113,${0.09 + c.heat * 0.16}), transparent 75%)`,
+              background: `radial-gradient(closest-side, ${HEAT(0.09 + c.heat * 0.16)}, transparent 75%)`,
             }} />
             <div aria-hidden style={{
               position: 'absolute', inset: 0,
               WebkitMaskImage: mask, maskImage: mask,
-              backgroundImage: `radial-gradient(rgba(248,113,113,${0.42 + c.heat * 0.4}) ${dot}px, transparent ${dot}px)`,
+              backgroundImage: `radial-gradient(${HEAT(0.42 + c.heat * 0.4)} ${dot}px, transparent ${dot}px)`,
               backgroundSize: `${pitch}px ${pitch}px`,
             }} />
           </div>
+        )
+      })}
+
+      {/* NUMBERS ON THE CHART (Part A): each zone's yards vs a normal
+          defence, printed where it happens; a zone with too few plays says
+          nothing rather than a number it can't back. */}
+      {model.cells.map((c) => {
+        if (!Number.isFinite(c.leak) || c.z === spot?.z) return null  // the spot's number rides its marker
+        const [side, d] = c.z.split('|')
+        return (
+          <span key={`n-${c.z}`} aria-hidden style={{
+            position: 'absolute', top: `${MID(d)}%`, left: `${COL[side]}%`, transform: 'translate(-50%, -50%)',
+            fontFamily: NUM_FONT, fontSize: compact ? 10 : 11, fontWeight: 900, lineHeight: 1,
+            padding: '2px 5px', borderRadius: 5, background: 'rgba(0,0,0,.55)', whiteSpace: 'nowrap',
+            color: c.leak > 0 ? C.text : C.text3, pointerEvents: 'none',
+          }}>{fmtPct(c.leak)}</span>
         )
       })}
 
@@ -698,14 +728,14 @@ function PassField({ model, mode, compact }) {
                   more of the heat it's circling. */}
               <circle cx="15" cy="15" r="10" fill="none" stroke={C.text} strokeWidth="2" opacity="0.95" />
               <circle cx="16" cy="14.3" r="10.6" fill="none" stroke={C.text} strokeWidth="1.1" opacity="0.5" />
-              <circle cx="15" cy="15" r="1.6" fill={C.red} />
+              <circle cx="15" cy="15" r="1.6" fill={C.orange} />
             </svg>
             <span style={{
               display: 'inline-block', fontFamily: NUM_FONT, fontSize: 8, fontWeight: 900,
-              letterSpacing: '.14em', color: C.bg, background: C.red,
+              letterSpacing: '.14em', color: C.bg, background: C.orange,
               padding: '3px 7px', borderRadius: 3, whiteSpace: 'nowrap',
               transform: 'rotate(-0.6deg)',
-            }}>{mode === 'def' ? 'THE WEAK SPOT' : 'THE SPOT'}</span>
+            }}>{mode === 'def' ? 'THE WEAK SPOT' : 'THE SPOT'}{Number.isFinite(spot.leak) ? <><br />{fmtPct(spot.leak)} vs normal</> : null}</span>
           </div>
         )
       })()}
@@ -772,10 +802,10 @@ function RunLine({ model, compact }) {
               <div title={c.tip} style={{
                 height: compact ? 54 : 66, borderRadius: 6, position: 'relative', overflow: 'hidden',
                 background: c.heat > 0.05
-                  ? `linear-gradient(180deg, rgba(248,113,113,${0.16 + c.heat * 0.42}), rgba(251,191,36,${0.08 + c.heat * 0.20}))`
+                  ? `linear-gradient(180deg, ${HEAT(0.16 + c.heat * 0.42)}, ${HEAT(0.08 + c.heat * 0.20)})`
                   : 'rgba(255,255,255,.022)',
-                border: `1px solid ${hot ? C.red : CHALK_SOFT}`,
-                outline: hot ? `1px solid rgba(248,113,113,.35)` : 'none',
+                border: `1px solid ${hot ? C.orange : CHALK_SOFT}`,
+                outline: hot ? `1px solid ${HEAT(.4)}` : 'none',
                 outlineOffset: hot ? '2px' : '0',
               }}>
                 {c.heat > 0.12 && (
@@ -810,7 +840,7 @@ function RunLine({ model, compact }) {
                   <span style={{
                     position: 'absolute', bottom: 5, left: '50%', transform: 'translateX(-50%) rotate(-0.6deg)',
                     fontFamily: NUM_FONT, fontSize: 7, fontWeight: 900, letterSpacing: '.1em',
-                    color: C.bg, background: C.red, padding: '2px 5px', borderRadius: 3,
+                    color: C.bg, background: C.orange, padding: '2px 5px', borderRadius: 3,
                     whiteSpace: 'nowrap',
                   }}>WEAK SPOT</span>
                 )}
@@ -819,6 +849,7 @@ function RunLine({ model, compact }) {
                 textAlign: 'center', marginTop: 6, fontFamily: NUM_FONT, fontSize: 7.5,
                 fontWeight: 800, letterSpacing: '.08em', color: C.text3, whiteSpace: 'nowrap',
               }}>{LANE_AX[z]}</div>
+              {Number.isFinite(c.leak) && <div style={{ textAlign: 'center', marginTop: 2, fontFamily: NUM_FONT, fontSize: 10, fontWeight: 900, color: c.leak > 0 ? C.orange : C.text3 }}>{fmtPct(c.leak)}</div>}
             </div>
           )
         })}
