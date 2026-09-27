@@ -26,6 +26,7 @@ import { cronAuthorized, adminClient } from '../../../../lib/nhl/db'
 import { LOCK_WINDOW_MS } from '../../../../lib/nhl/boardRead'
 import { startersFromPlayByPlay, goaliesFromBoxscore } from '../../../../lib/nhl/goalies'
 import { shotsFromPlayByPlay, writeShots } from '../../../../lib/nhl/shots'
+import { postLongshotsOnce } from '../../../../lib/dash/longshotsPost'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -132,6 +133,12 @@ export async function GET(request) {
     } catch (e) {
       console.error(`[lamp tick] grade ${p.game_id}: ${e?.message}`); out.skipped.push({ game: p.game_id, why: `grade: ${e?.message}` })
     }
+  }
+  // 🎯 LONGSHOTS (2026-09-27): today only, from 5pm ET, once, when at least
+  // three long-priced skaters are still to play (lib/dash/longshotsPost.js).
+  const etHour = Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', hourCycle: 'h23' }).format(new Date()))
+  if (date === easternToday() && etHour >= 17) {
+    out.longshots = await postLongshotsOnce(db, { sport: 'nhl', day: date, kind: 'nhl_longshots' }).catch((e) => `error: ${e?.message}`)
   }
   out.ms = Date.now() - t0
   console.log(`[lamp tick] ${date} locked ${out.locked.length} graded ${out.graded.length} skipped ${out.skipped.length} in ${out.ms}ms`)

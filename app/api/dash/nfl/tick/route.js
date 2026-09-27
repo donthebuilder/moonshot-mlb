@@ -76,6 +76,7 @@ import { spotlightCard } from '../../../../../lib/nfl/spotlightCard'
 import { hasX, postToDiscord, postToX, uploadImageToX } from '../../../../../lib/dash/xPost'
 import { logXBudget } from '../../../../../lib/dash/xBudget'
 import { isMaintenanceMode } from '../../../../../lib/edgeConfig'
+import { postLongshotsOnce } from '../../../../../lib/dash/longshotsPost'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -183,6 +184,7 @@ const MON_BIGWEEK_HOUR = -2    // 10am ET Monday
 const SUN_BOARD_HOUR = -3       //  9am ET Sunday -- the board drops
 const SUN_BOTPOLL_HOUR = -2     // 10am ET Sunday -- poll closes with the 1pm games
 const SUN_COMMUNITY_HOUR = -1   // 11am ET Sunday -- last call before kickoff
+const SUN_LONGSHOTS_HOUR = -0.25 // 11:45am ET Sunday -- the long prices, after the board
 const MON_RESULTS_HOUR = -3     //  9am ET Monday -- BEFORE big week, so the
                                 // grade lands before the highlight post
 // Long enough to cover the 1pm and 4pm windows without running past the night
@@ -724,7 +726,13 @@ export async function GET(request) {
   const td = await runTouchdownTick(db, day)
   const milestone = await runMilestoneTick(db, day)
   const weekly = await runWeeklyContentTick(db, day)
+  // 🎯 LONGSHOTS (2026-09-27): Sunday from 11:45am ET, once, when at least
+  // three long-priced, non-questionable players are still to kick off
+  // (lib/dash/longshotsPost.js). Posts after the board, before the 1pm wave.
+  const longshots = etWeekday(day) === 0 && etHoursSinceNoon() >= SUN_LONGSHOTS_HOUR
+    ? await postLongshotsOnce(db, { sport: 'nfl', day, kind: 'nfl_longshots' }).catch((e) => `error: ${e?.message}`)
+    : 'not-now'
 
   const threads = threadsSnapshot()
-  return Response.json({ day, td, milestone, weekly, ...(threads.length ? { threads } : {}) })
+  return Response.json({ day, td, milestone, weekly, longshots, ...(threads.length ? { threads } : {}) })
 }

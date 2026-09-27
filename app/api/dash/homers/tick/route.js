@@ -56,6 +56,7 @@ import { discordFailuresSnapshot, hasX, postToDiscord, postToX, uploadImageToX, 
 import { isMaintenanceMode } from '../../../../../lib/edgeConfig'
 import { backfillOneNight } from '../../../../../lib/dash/homerBackfill'
 import { logXBudget } from '../../../../../lib/dash/xBudget'
+import { postLongshotsOnce } from '../../../../../lib/dash/longshotsPost'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -499,6 +500,7 @@ const COMMUNITY_PICK_HOUR = -4  // 8am ET
 // pregame post into one window.
 const PAIRSWATCH_HOUR = 0       // noon ET
 const LONGSHOT_HOUR = 1         // 1pm ET
+const LONGSHOTS_HOUR = 1        // 1pm ET, the new all-longshots post
 // Replies per tick. The pass runs every minute and anything it does not get to
 // is still owed (reply_post_id null), so a homer burst drains over a few ticks
 // rather than risking this route's 60-second ceiling in one go.
@@ -1462,6 +1464,17 @@ export async function GET(request) {
           historyWatchText(items),
           null,
           { items: items.slice(0, 3) })
+      })
+    }
+    // 🎯 LONGSHOTS (2026-09-27): from 1pm ET, once, when at least three
+    //    long-priced hitters with CONFIRMED lineups are still to play
+    //    (lib/dash/longshotsPost.js -- the page's own data). Replaces the old
+    //    one-name 'longshot' post, which read the bot's odds files (dead
+    //    since 09-14).
+    if (etHoursSinceNoon() >= LONGSHOTS_HOUR) {
+      await safeStat('longshots', async () => {
+        const r = await postLongshotsOnce(db, { sport: 'mlb', day, kind: 'longshots' })
+        if (r === 'posted') console.log('[homers] longshots posted')
       })
     }
     if (etHoursSinceNoon() >= MILESTONE_MID_HOUR && !isRetired('milestone_mid')) {
