@@ -785,6 +785,9 @@ const strip = (row) => {
 // The numerology moment's per-instance memory (see 2.5 in GET): the day's
 // homer count it last evaluated, and whether it already claimed the day.
 let _numerology = { day: null, count: -1, done: false }
+// History Watch: when this instance last found nothing to post, per day.
+const WATCH_RETRY_MS = 10 * 60 * 1000
+const _watchTried = new Map()
 
 const shiftDay = (iso, n) => {
   const d = new Date(`${iso}T12:00:00Z`)
@@ -1493,7 +1496,15 @@ export async function GET(request) {
     //    list is not a fallback for it.
     if (etHoursSinceNoon() >= MILESTONE_AM_HOUR && !isRetired('history_watch')) {
       await safeStat('history_watch', async () => {
+        // COST CUT (2026-09-27): mlbWatch queries hist_mlb (up to 500 rows a
+        // candidate) and ran every minute for the rest of the day, before the
+        // claim said the slot was long taken. Asked first now; and a watch
+        // that found nothing waits WATCH_RETRY_MS on this instance (it only
+        // changes as lineups confirm).
+        const { data: taken } = await db.from('homer_feed_posts').select('day').match({ day, kind: 'history_watch' }).maybeSingle()
+        if (taken || Date.now() - (_watchTried.get(day) || 0) < WATCH_RETRY_MS) return
         const items = await mlbWatch(pregameRows(), Number(day.slice(0, 4)))
+        if (!historyWatchText(items)) _watchTried.set(day, Date.now())
         await claimAndPostStat(db, day, 'history_watch', MILESTONE_AM_HOUR,
           historyWatchText(items),
           null,
