@@ -123,5 +123,18 @@ check(fn.shown && fn.nights === 30 && Math.abs(fn.matchedRate - 0.1) < 1e-9 && M
 check(!gd.shown && gd.needs === 1 && gd.z > 2, 'a lane at 29 nights is hidden (needs 1 more) even with z > 2 -- no early claims')
 check(!lt.some((l) => l.lane === 'gem_jersey'), 'ungraded nights never count')
 
+// ── 8. hot numbers (step 6b) ───────────────────────────────────────────────
+const { numbersNight, hottest } = await import('../lib/numerology/hotNumbers.js')
+const roster = [
+  { player_id: 'a', name: 'Aaron Judge', jersey: 3 }, { player_id: 'b', name: 'Bob Test', jersey: 3 }, { player_id: 'c', name: 'Cal Test', jersey: 3 },
+  { player_id: 'd', name: 'Dan Test', jersey: 7 }, { player_id: 'e', name: 'Eli Test', jersey: 7 }, { player_id: 'f', name: 'Fay Test', jersey: 9 },
+]
+const hn = numbersNight(roster, new Set(['a', 'b', 'c']), '2026-09-29')
+const j3 = hn.rows.find((r) => r.kind === 'jersey' && r.value === '3')
+check(hn.events === 3 && j3.events === 3 && j3.players === 3 && j3.expected === 1.5, 'jersey 3: 3 of 3 events vs 1.5 expected (half the pool wears it)')
+check(hottest(hn.rows, 3)[0].kind === 'jersey' && hottest(hn.rows, 3).every((r) => r.events >= 2 && r.events > r.expected), 'hottest: events above chance, 2+ events only')
+check(!hn.rows.some((r) => r.kind === 'life_path'), 'no birth dates -> the life path / personal day kinds sit out')
+check(numbersNight(roster, new Set(['a', 'a']), '2026-09-29').events === 1, 'a player counts once per night (who, not how many)')
+
 console.log(failed ? `\n${failed} FAILED` : '\nall green')
 process.exit(failed ? 1 : 0)

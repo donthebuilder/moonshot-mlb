@@ -11,6 +11,7 @@ import { usePreview, ShowMoreButton } from '../../ListPreview'
 import ScoreTable, { sortGames } from '../ScoreTable'
 import { TeamMark, EmptyState, DelayedBanner, Loading, SourceLine, Kicker, GameTypeChip, fmtDay, fmtPuckDrop, zoneAbbrev } from '../ui'
 import { NHL_NAV } from '../../../lib/nhl/routes'
+import HotNumbers from '../../numerology/HotNumbers'
 
 // 🏒 TONIGHT — LAMP's front page. Three things and no more (spec §6: the
 // home page is not a data wall): tonight's games, where the league stands,
@@ -160,6 +161,9 @@ export default function Home({ today, date = null, onOpenGame, onOpenPlayer, set
           </table>
         )}
       </section>
+
+      {/* TONIGHT'S NUMBERS (numerology v2 step 6b): one line under the board, taps to Numerology. */}
+      <HotNumbers compact sport="nhl" date={day?.date || date} theme={C} numFont={NUM_FONT} accent={C.ice} onOpen={() => setTab?.('numerology')} />
 
       <section aria-label="Division leaders">
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>

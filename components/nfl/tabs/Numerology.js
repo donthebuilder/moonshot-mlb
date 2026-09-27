@@ -9,6 +9,7 @@ import { etToday } from '../../../lib/freshness'
 import TonightsNumbers from '../../numerology/TonightsNumbers'
 import { easternDate } from '../../../lib/data'
 import LaneTable from '../../numerology/LaneTable'
+import HotNumbers from '../../numerology/HotNumbers'
 
 // 🔮 NUMEROLOGY — B10(d), 2026-09-15. TUDDY's clone of MLB's Alignments view
 // (components/Alignments.js + lib/alignments.js). Donovan approved shipping
@@ -109,6 +110,7 @@ export default function Numerology({ data }) {
       {/* TONIGHT'S NUMBERS (numerology v2): the next game day's own date,
           from this week's kickoffs (never the wall clock). */}
       {nextGameDay ? <TonightsNumbers date={nextGameDay} theme={C} numFont={NUM_FONT} accent={C.green} label={`next game day · ${nextGameDay.slice(5).replace('-', '/')}`} /> : null}
+      <HotNumbers sport="nfl" theme={C} numFont={NUM_FONT} accent={C.green} eventWord="TDs" />
       <div style={{ fontSize: TYPE.body, color: C.text2, lineHeight: 1.65, maxWidth: 860, marginBottom: 12 }}>
         Every number a player carries -- the <b style={{ color: C.text }}>touchdowns he&apos;s sitting on</b>, his{' '}
         <b style={{ color: C.text }}>next touchdown</b>, his <b style={{ color: C.text }}>jersey</b>, his{' '}

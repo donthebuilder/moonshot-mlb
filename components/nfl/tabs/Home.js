@@ -29,6 +29,8 @@ import NflHeadlineStrip from '../NflHeadlineStrip'
 import HeadlinePicks from '../../headline/HeadlinePicks'
 import PageHeader from '../../PageHeader'
 import { NFL_NAV } from '../../../lib/routes'
+import HotNumbers from '../../numerology/HotNumbers'
+import { easternToday, easternDate } from '../../../lib/data'
 
 const SIX = [
   ['TD', 'ATD', 'Touchdown'],
@@ -275,6 +277,8 @@ export default function Home({ data, picks, results, matchup, logs, onPlayerClic
   const [mine, setMine] = useState(null)
   useEffect(() => { try { setMine(ledgerTotals()) } catch { setMine(null) } }, [results?.graded_at])
   const games = data?.games || []
+  // The next game day this week, on the game's own (Eastern) date -- what the numbers line reads.
+  const nextGameDay = useMemo(() => { const t0 = easternToday(); const ds = games.map((g) => easternDate(Date.parse(g?.kickoff || ''))).filter(Boolean).sort(); return ds.find((d) => d >= t0) || ds.at(-1) || null }, [games])
   const players = data?.players || []
   const playersById = useMemo(() => Object.fromEntries(players.map((player) => [String(player.player_id), player])), [players])
 
@@ -397,6 +401,8 @@ export default function Home({ data, picks, results, matchup, logs, onPlayerClic
         <button onClick={() => topTd && onPlayerClick?.(topTd, 'TD')}><small>TOP TD SCORE</small><strong>{topTd ? Math.round(topTd.scores.TD) : '—'}</strong><span>{topTd?.name || 'awaiting slate'}</span></button>
       </section>
       <TheSix picks={picks} playersById={playersById} onPlayerClick={onPlayerClick} onPicks={() => setTab('picks')} totals={seasonTotals(keys.map((k) => archive[k]))} />
+      {/* TONIGHT'S NUMBERS (numerology v2 step 6b): one line under the calls, taps to Numerology. */}
+      <HotNumbers compact sport="nfl" date={nextGameDay} theme={C} numFont={NUM_FONT} accent={C.green} onOpen={() => setTab('numerology')} eventWord="TDs" />
 
       {/* ── STORYLINES, ON THE FRONT PAGE (parity pass, 2026-09-16) ───────
           MOONSHOT's Home embeds Storylines directly, right after The Four —

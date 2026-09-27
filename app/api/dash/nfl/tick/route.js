@@ -78,7 +78,7 @@ import { logXBudget } from '../../../../../lib/dash/xBudget'
 import { isMaintenanceMode } from '../../../../../lib/edgeConfig'
 import { postLongshotsOnce } from '../../../../../lib/dash/longshotsPost'
 import { postMultiClubOnce } from '../../../../../lib/dash/multiClubPost'
-import { writeNight as writeNumerology, gradeNight as gradeNumerology, refreshLaneNights, ELIGIBLE } from '../../../../../lib/numerology/record'
+import { writeNight as writeNumerology, gradeNight as gradeNumerology, refreshLaneNights, writeNumbersNight, ELIGIBLE } from '../../../../../lib/numerology/record'
 import { fromNfl } from '../../../../../lib/numerology/adapters'
 import { easternDate } from '../../../../../lib/data'
 
@@ -747,6 +747,12 @@ async function runNflNumerology(db, day) {
         const results = new Map(open.map((r) => [String(r.player_id), { played: null, hit: scored.has(String(r.player_id)) }]))
         out.graded = await gradeNumerology(db, 'nfl', yday, results)
         await refreshLaneNights(db, 'nfl', yday)
+        // HOT NUMBERS (step 6b): that day's recorded players against the
+        // touchdown feed, once. The week file still holds their numbers.
+        const week = await fetchNfl(nflSlatePaths(), nflSlateLooksReal).catch(() => null)
+        const ids = new Set(open.map((r) => String(r.player_id)))
+        const players = (week?.players || []).filter((p) => ids.has(String(p.player_id))).map((p) => { const a = fromNfl(p); return a ? { player_id: p.player_id, ...a } : null }).filter(Boolean)
+        if (players.length) out.hotNumbers = await writeNumbersNight(db, 'nfl', yday, players, scored)
       }
     }
   } catch (e) { out.grade = `error: ${e?.message}` }

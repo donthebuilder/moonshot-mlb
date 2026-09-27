@@ -30,7 +30,7 @@ import { postLongshotsOnce } from '../../../../lib/dash/longshotsPost'
 import { postMultiClubOnce } from '../../../../lib/dash/multiClubPost'
 import { toPropRow, gradeSogRows, MODEL_VERSION as SOG_VERSION, MARKET as SOG } from '../../../../lib/nhl/sogModel'
 import { readNumerology } from '../../../../lib/nhl/numerology'
-import { writeNight as writeNumerology, gradeNight as gradeNumerology, refreshLaneNights } from '../../../../lib/numerology/record'
+import { writeNight as writeNumerology, gradeNight as gradeNumerology, refreshLaneNights, writeNumbersNight } from '../../../../lib/numerology/record'
 import { fromNhl } from '../../../../lib/numerology/adapters'
 
 export const dynamic = 'force-dynamic'
@@ -186,6 +186,28 @@ export async function GET(request) {
       console.error(`[lamp tick] grade ${p.game_id}: ${e?.message}`); out.skipped.push({ game: p.game_id, why: `grade: ${e?.message}` })
     }
   }
+  // 🔢 HOT NUMBERS (numerology step 6b): once a night's games are all graded,
+  // the dressed skaters' numbers against who scored, written once.
+  // Today and yesterday every tick (a failed write retries); two small counts
+  // and nothing else unless the night has games, all graded, none written.
+  for (const d of [date, dayBefore(date)]) {
+    try {
+      const [games, left, done] = await Promise.all([
+        db.from('lamp_goal_games').select('game_id', { count: 'exact', head: true }).eq('model_version', MODEL_VERSION).eq('game_date', d),
+        db.from('lamp_goal_games').select('game_id', { count: 'exact', head: true }).eq('model_version', MODEL_VERSION).eq('game_date', d).is('graded_at', null),
+        db.from('numerology_numbers').select('value', { count: 'exact', head: true }).eq('sport', 'nhl').eq('day', d),
+      ])
+      if (games.error || left.error || !games.count || left.count || done.count) continue
+      const num = await readNumerology(d)
+      const logRows = await db.from('lamp_goal_log').select('player_id, dressed, hit').eq('game_date', d).eq('model_version', MODEL_VERSION)
+      if (logRows.error) throw new Error(logRows.error.message)
+      const dressed = new Set((logRows.data || []).filter((r) => r.dressed).map((r) => String(r.player_id)))
+      const hits = new Set((logRows.data || []).filter((r) => r.hit).map((r) => String(r.player_id)))
+      const players = (num.all || []).filter((r) => dressed.has(String(r.id))).map((r) => ({ player_id: r.id, ...fromNhl(r) }))
+      out.hotNumbers = { ...(out.hotNumbers || {}), [d]: players.length ? await writeNumbersNight(db, 'nhl', d, players, hits) : 'no players' }
+    } catch (e) { console.error(`[lamp tick] hot numbers ${d}: ${e?.message}`) }
+  }
+
   // 🎯 LONGSHOTS (2026-09-27): today only, from 5pm ET, once, when at least
   // three long-priced skaters are still to play (lib/dash/longshotsPost.js).
   const etHour = Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', hourCycle: 'h23' }).format(new Date()))
