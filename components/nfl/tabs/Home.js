@@ -234,6 +234,15 @@ function Angles({ players, matchup }) {
   )
 }
 
+// "Full board" opens the Board hub on THAT market (2026-09-26): the hub
+// reads m= / view= off the hash, and setTab keeps them.
+function boardOpener(setTab) {
+  return (market) => {
+    try { const h = new URLSearchParams(window.location.hash.slice(1)); h.set('m', market); h.set('view', 'board'); window.history.replaceState(null, '', `#${h.toString()}`) } catch { /* ignore */ }
+    setTab?.('touchdowns')
+  }
+}
+
 function MiniBoard({ market, title, players, onPlayerClick, onBoards }) {
   const rows = [...players].filter((player) => Number.isFinite(player.scores?.[market]) && !player.low_sample)
     .sort((a, b) => b.scores[market] - a.scores[market]).slice(0, 10)
@@ -249,6 +258,7 @@ function MiniBoard({ market, title, players, onPlayerClick, onBoards }) {
 }
 
 export default function Home({ data, picks, results, matchup, logs, onPlayerClick, setTab }) {
+  const openBoard = boardOpener(setTab)
   // THE RECORD, ON THE FRONT PAGE (2026-09-05). MOONSHOT's Home leads with
   // "graded x% over N nights"; TUDDY's had a player-pool count in that slot,
   // which nobody bets on. Season to date from the harvested weekly files,
@@ -461,7 +471,7 @@ export default function Home({ data, picks, results, matchup, logs, onPlayerClic
           <Angles players={players} matchup={matchup}/>
         </Fold>
         <Fold id="tuddy-top10" title="📊 Tonight's top 10s" meta="anytime TD · receiving">
-          <div className="tuddy-board-split"><MiniBoard market="TD" title="Top 10 · Anytime TD" players={players} onPlayerClick={onPlayerClick} onBoards={() => setTab('boards')}/><MiniBoard market="REC_YDS" title="Top 10 · Receiving" players={players} onPlayerClick={onPlayerClick} onBoards={() => setTab('boards')}/></div>
+          <div className="tuddy-board-split"><MiniBoard market="TD" title="Top 10 · Anytime TD" players={players} onPlayerClick={onPlayerClick} onBoards={() => openBoard('TD')}/><MiniBoard market="REC_YDS" title="Top 10 · Receiving" players={players} onPlayerClick={onPlayerClick} onBoards={() => openBoard('REC_YDS')}/></div>
         </Fold>
       </Fold>
 
