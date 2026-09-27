@@ -245,7 +245,7 @@ export default function Storylines({ data, logs, results, onPlayerClick, setTab,
                 key={`${r.player.player_id}-${r.marketKey}`}
                 icon={idx === 0 && !modelCards.length ? '\u{1F525}' : '\u{1F501}'}
                 onClick={() => onPlayerClick?.(r.player, r.marketKey)}
-                title={`${r.hits}/${r.games} at this mark (${Math.round(r.rate * 100)}%), last game ${r.lastV} — ${rankPhrase}, in ${label}. LIVE, from this week's logs.`}
+                title={`${r.hits}/${r.games} at this mark (${Math.round(r.rate * 100)}%), last game ${r.lastV} — ${rankPhrase}, in ${label}. At his own rate, a ${r.streak}-game run is a ${r.chance < 0.001 ? '<0.1' : (r.chance * 100).toFixed(1)}% shot. LIVE, from this week's logs.`}
               >
                 <Name>{r.player.name}</Name> has {VERB[r.marketKey] ? VERB[r.marketKey](fmtBar(r.marketBar)) : `cleared ${fmtBar(r.marketBar)} ${label}`} in <Num>{r.streak}</Num> straight games
                 <span className="sl-row-meta"> · {r.player.team} {r.player.position} vs {r.player.opp || '—'}</span><Td n={Number.isFinite(Number(r.player?.scores?.TD)) ? Math.round(r.player.scores.TD) : null} />
