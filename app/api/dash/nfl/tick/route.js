@@ -77,6 +77,7 @@ import { hasX, postToDiscord, postToX, uploadImageToX } from '../../../../../lib
 import { logXBudget } from '../../../../../lib/dash/xBudget'
 import { isMaintenanceMode } from '../../../../../lib/edgeConfig'
 import { postLongshotsOnce } from '../../../../../lib/dash/longshotsPost'
+import { postMultiClubOnce } from '../../../../../lib/dash/multiClubPost'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -732,7 +733,12 @@ export async function GET(request) {
   const longshots = etWeekday(day) === 0 && etHoursSinceNoon() >= SUN_LONGSHOTS_HOUR
     ? await postLongshotsOnce(db, { sport: 'nfl', day, kind: 'nfl_longshots' }).catch((e) => `error: ${e?.message}`)
     : 'not-now'
+  // 🔁 THE 2+ CLUB, WEEKLY (2026-09-27): Tuesday from 11:30am ET, after
+  // Monday night is final (lib/dash/multiClubPost.js).
+  const multiClub = etWeekday(day) === 2 && etHoursSinceNoon() >= -0.5
+    ? await postMultiClubOnce(db, { sport: 'nfl', day, kind: 'nfl_multi_club' }).catch((e) => `error: ${e?.message}`)
+    : 'not-now'
 
   const threads = threadsSnapshot()
-  return Response.json({ day, td, milestone, weekly, longshots, ...(threads.length ? { threads } : {}) })
+  return Response.json({ day, td, milestone, weekly, longshots, multiClub, ...(threads.length ? { threads } : {}) })
 }

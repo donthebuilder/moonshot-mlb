@@ -27,6 +27,7 @@ import { LOCK_WINDOW_MS } from '../../../../lib/nhl/boardRead'
 import { startersFromPlayByPlay, goaliesFromBoxscore } from '../../../../lib/nhl/goalies'
 import { shotsFromPlayByPlay, writeShots } from '../../../../lib/nhl/shots'
 import { postLongshotsOnce } from '../../../../lib/dash/longshotsPost'
+import { postMultiClubOnce } from '../../../../lib/dash/multiClubPost'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -137,6 +138,11 @@ export async function GET(request) {
   // 🎯 LONGSHOTS (2026-09-27): today only, from 5pm ET, once, when at least
   // three long-priced skaters are still to play (lib/dash/longshotsPost.js).
   const etHour = Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', hourCycle: 'h23' }).format(new Date()))
+  // 🔁 THE 2+ CLUB, WEEKLY: Mondays from noon ET (waits for the new season).
+  const etDay = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short' }).format(new Date())
+  if (date === easternToday() && etDay === 'Mon' && etHour >= 12) {
+    out.multiClub = await postMultiClubOnce(db, { sport: 'nhl', day: date, kind: 'nhl_multi_club' }).catch((e) => `error: ${e?.message}`)
+  }
   if (date === easternToday() && etHour >= 17) {
     out.longshots = await postLongshotsOnce(db, { sport: 'nhl', day: date, kind: 'nhl_longshots' }).catch((e) => `error: ${e?.message}`)
   }

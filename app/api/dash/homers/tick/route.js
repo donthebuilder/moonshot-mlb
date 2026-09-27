@@ -58,6 +58,7 @@ import { backfillOneNight } from '../../../../../lib/dash/homerBackfill'
 import { logXBudget } from '../../../../../lib/dash/xBudget'
 import { postLongshotsOnce } from '../../../../../lib/dash/longshotsPost'
 import { mlbLatestOdds } from '../../../../../lib/odds/latest'
+import { postMultiClubOnce } from '../../../../../lib/dash/multiClubPost'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -1496,6 +1497,14 @@ export async function GET(request) {
     //    (lib/dash/longshotsPost.js -- the page's own data). Replaces the old
     //    one-name 'longshot' post, which read the bot's odds files (dead
     //    since 09-14).
+    // 🔁 THE 2+ CLUB, WEEKLY (2026-09-27): Mondays from 10am ET, the season's
+    //    multi-HR leaders with their CALLED count (lib/dash/multiClubPost.js).
+    if (new Date(`${day}T12:00:00Z`).getUTCDay() === 1 && etHoursSinceNoon() >= -2) {
+      await safeStat('multi_club', async () => {
+        const r = await postMultiClubOnce(db, { sport: 'mlb', day, kind: 'multi_club' })
+        if (r === 'posted') console.log('[homers] 2+ club posted')
+      })
+    }
     if (etHoursSinceNoon() >= LONGSHOTS_HOUR) {
       await safeStat('longshots', async () => {
         const r = await postLongshotsOnce(db, { sport: 'mlb', day, kind: 'longshots' })
