@@ -1,4 +1,5 @@
 'use client'
+import { nhlMug } from '../../../lib/nhl/format'
 import { useState } from 'react'
 import PageHeader from '../../PageHeader'
 import { C, NUM_FONT, rampAt } from '../../../lib/nhl/theme'
@@ -169,6 +170,7 @@ function GameBoard({ g, onOpenPlayer, onOpenGame, onOpenTeam }) {
       {scored.length === 0 ? <EmptyState title="NOBODY SCORED YET" note="No skater on either roster has ten NHL games on file." /> : (
         <LampTable rows={rows} columns={columnsFor(g, onOpenTeam)} heatMode="primary" ramp={rampAt}
           rowEdge={(r) => (r.status === 'called' ? C.ice : null)}
+          faceOf={(r) => ({ sport: 'nhl', photo: nhlMug(game.season, r._row?.team, r._row?.playerId), name: r._row?.name })}
           dimRow={(r) => g.graded && r._row.dressed === false}
           maxRows={PREVIEW_ROWS} maxHeight={9999}
           onRowClick={(r) => onOpenPlayer?.(r.id)} />

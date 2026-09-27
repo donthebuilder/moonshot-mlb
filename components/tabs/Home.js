@@ -1,4 +1,5 @@
 'use client'
+import PlayerFace from '../PlayerFace'
 import { useEffect, useMemo, useState } from 'react'
 import { etToday } from '../../lib/freshness'
 import { C, NUM_FONT, TYPE } from '../../lib/theme'
@@ -249,7 +250,8 @@ function Headlines({ players = [], headline, results, isLive, airRanked = [], od
     return [{ k: `hist-${hist.player_id}`, tag: 'HISTORY WATCH', icon: '📜', name: hist.name, why: `One more: ${hist.claim}.`, stat: `${hist.hr} HR`, col: C.yellow, p }, ...base]
   }, [players, headline, results, isLive, airRanked, hist])
   const open = (c) => (c.p ? onPlayerClick?.(c.p) : c.nav ? onNavigate?.(c.nav) : null)
-  return <HeadlineStrip cards={cards} onOpen={open} theme={C} numFont={NUM_FONT} accent={C.orange} speed={30} />
+  const faceOf = (c) => (c.p?.player_id ? <PlayerFace sport="mlb" id={String(c.p.player_id)} name={c.name} size={22} theme={C} /> : null)
+  return <HeadlineStrip cards={cards} onOpen={open} theme={C} numFont={NUM_FONT} accent={C.orange} speed={30} faceOf={faceOf} />
 }
 
 export default function Home({

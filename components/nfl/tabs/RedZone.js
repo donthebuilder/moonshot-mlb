@@ -138,6 +138,7 @@ export default function RedZone({ data, onPlayerClick }) {
         rows={filtered}
         columns={buildColumns(watchlist)}
         initialSort="rz"
+        faceOf={(r) => (r._raw?.espn_id ? { sport: 'nfl', espnId: String(r._raw.espn_id), name: r._raw.name } : null)}
         onRowClick={onPlayerClick ? (r) => onPlayerClick(r._raw, 'TD') : null}
         maxRows={rows.length}
         dimRow={(r) => r._raw?.carryover || r._raw?.low_sample}

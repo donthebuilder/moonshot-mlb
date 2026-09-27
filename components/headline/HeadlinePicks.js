@@ -71,7 +71,8 @@ export default function HeadlinePicks({ theme, numFont, title, subtitle, record 
                     onClick={() => onPick?.(lead, f)}
                     style={{ cursor: onPick ? 'pointer' : 'default' }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                    <div style={{ display: 'flex', alignItems: lead.face ? 'center' : 'baseline', gap: 6 }}>
+                      {lead.face}
                       <span style={{
                         fontSize: 14.5, fontWeight: 800, minWidth: 0,
                         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',

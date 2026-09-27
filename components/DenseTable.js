@@ -1,4 +1,5 @@
 'use client'
+import PlayerFace from './PlayerFace'
 import { useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import {
@@ -124,6 +125,12 @@ export default function DenseTable({
   //     cell -- the called-row marker, drawn where the spotlight's bar goes.
   ramp = null,
   rowEdge = null,
+  // FACES IN TABLES (2026-09-27, BATCH-FACES step 8): faceOf(row) ->
+  // { sport, id?, espnId?, photo? } puts an 18px face before the first text
+  // cell's value, DESKTOP ONLY (hidden at 760px and under by the .dense-face
+  // rule below). Negative vertical margins keep it out of the line box, so
+  // the row height does not change. Absent: nothing renders.
+  faceOf = null,
 }) {
   // MULTI-SORT. `sort` is an ordered list of keys, not one key.
   //
@@ -426,6 +433,7 @@ export default function DenseTable({
           .kb-rail::-webkit-scrollbar-thumb { background: rgba(249,115,22,.35); border-radius: 4px; }
           .kb-rail::-webkit-scrollbar-track { background: rgba(255,255,255,.03); }
           .kb-rail:focus-visible { box-shadow: 0 0 0 1.5px rgba(249,115,22,.5); }
+          @media (max-width: 760px) { .dense-face { display: none !important; } }
         `}</style>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           {/* #95: ~15 columns x 60 rows with unscoped headers is close to
@@ -636,6 +644,10 @@ export default function DenseTable({
                             style={cellMark(light.color)}
                           >{SPOT_MARK}</span>
                         )}
+                        {faceOf && isFirstText && (() => {
+                          const f = faceOf(r)
+                          return f ? <PlayerFace {...f} variant="table" size={18} className="dense-face" style={{ margin: '-6px 5px -6px 0' }} /> : null
+                        })()}
                         {c.fmt ? c.fmt(v, r) : (v ?? '—')}
                         {/* THE FOLDED VALUES, on the phone only. Same row,
                             same data, one line down — see the note at the top

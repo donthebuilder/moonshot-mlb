@@ -1,5 +1,6 @@
 'use client'
 
+import NflFace from '../NflFace'
 import { useCallback, useMemo, useRef, useState, useEffect } from 'react'
 import { C, NUM_FONT, gradeFor } from '../../../lib/nfl/theme'
 import NflYourPlayers from '../NflYourPlayers'
@@ -121,6 +122,7 @@ function TheSix({ picks, playersById, onPlayerClick, onPicks, totals }) {
         const tag = player?.coverage_mismatch_tag ? ` · ${player.coverage_mismatch_tag}` : ''
         return {
           key: String(call.player_id), raw: { player, key }, name: call.name,
+          face: i === 0 && player ? <NflFace player={player} size={28} /> : null,
           score: Number.isFinite(call.score) ? Math.round(call.score) : '—',
           lines: i === 0 ? [PROOF[key](st).filter(Boolean).join(' · '), `${call.team} vs ${call.opp} · ${call.position}${tag}`] : [],
           team: i === 0 ? null : call.team,

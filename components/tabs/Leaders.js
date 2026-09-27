@@ -732,6 +732,7 @@ key={lens}
           rows={rows}
           columns={COLUMNS}
           onRowClick={onPlayerClick}
+          faceOf={(r) => (r._raw?.player_id ? { sport: 'mlb', id: String(r._raw.player_id), name: r.name } : null)}
           initialSort={lens}
           maxHeight={620}
           caption={`Season stats, unmodelled. Minimum PA is set to ${minPA} because rate stats on a small sample are noise — a .400 average on 30 plate appearances belongs to nobody. K% and PA/HR are inverted so bright still means good for the hitter; every other column reads high-is-good. TB is the one derived number: the payload has no season hits or at-bats, so it's SLG × (PA × (1 − BB%)), which ignores hit-by-pitch and sacrifices and runs slightly light. Rank by it, don't quote it.`}

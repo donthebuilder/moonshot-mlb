@@ -6,6 +6,7 @@ import {
 } from '../lib/player'
 import { verdictInk } from '../lib/scales'
 import HeadlinePicks from './headline/HeadlinePicks'
+import PlayerFace from './PlayerFace'
 
 // THE FOUR — the bot's own headline section, rebuilt on the site.
 //
@@ -232,6 +233,8 @@ export default function BotPicksStrip({ players = [], onPlayerClick }) {
       key: p?.player_id ?? i,
       raw: p,
       name: nameOf(p),
+      // The #1's face (BATCH-FACES step 8), mlbstatic by MLBAM id.
+      face: i === 0 && p?.player_id != null ? <PlayerFace sport="mlb" id={String(p.player_id)} name={nameOf(p)} size={28} theme={C} /> : null,
       score: f.score(p).toFixed(1),
       flag: p?.weak_spot_flag === true ? { icon: '⭐', title: i === 0 ? 'Weak lineup spot for this pitcher' : undefined } : null,
       micro: i === 0 ? null : microStat(p, f.role),
