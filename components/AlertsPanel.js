@@ -93,18 +93,41 @@ export default function AlertsPanel({ styles }) {
     setBusy(false)
   }
 
+  // STEP 2, ONE BUTTON (front door B2, 2026-09-27). "Turn alerts on" (top
+  // right) and "Also when the site is closed · Turn on" read like the same
+  // switch twice. Now one button walks the device through what it needs --
+  // permission, then (signed in, push available) the closed-site subscription
+  // -- and the step always says where this device stands.
+  const pushable = mounted && pushSupported() && pushReady
   const arm = async () => {
     if (!canNotify()) return
     const iosHint = installHint()
     if (iosHint) { setHint(iosHint); return }
-    const granted = await requestPermission()
+    const granted = perm === 'granted' ? 'granted' : await requestPermission()
     setPerm(granted)
-    if (granted === 'granted') setMaster(true)
+    if (granted !== 'granted') return
+    setMaster(true)
+    if (pushable && account.signedIn && !closedSite) await toggleClosedSite()
   }
+  const turnOff = async () => {
+    if (closedSite) await toggleClosedSite()
+    setMaster(false)
+  }
+  // Where this device stands, in words.
+  const device = !mounted ? { state: 'checking', word: 'Checking this browser…' }
+    : !canNotify() ? { state: 'unsupported', word: 'Not supported in this browser' }
+    : perm === 'denied' ? { state: 'blocked', word: 'Blocked in this browser' }
+    : perm !== 'granted' || !prefs.on ? { state: 'off', word: 'Off on this device' }
+    : pushable && account.signedIn && !closedSite ? { state: 'partial', word: 'On while the site is open' }
+    : { state: 'on', word: pushable && closedSite ? 'On ✓ · even with the site closed' : 'On ✓ · while the site is open' }
 
-  const armed = prefs.on && perm === 'granted'
   const active = presetOf(prefs.events)
   const onCount = CATEGORIES.filter((c) => c.push && prefs.events[c.key]).length
+  // What a preset includes, by product ("MOONSHOT 6 · TUDDY 3 · LAMP 1").
+  const includes = (p) => GROUPS.map((g) => {
+    const n = CATEGORIES.filter((c) => c.group === g.key && p.on.includes(c.key)).length
+    return n ? `${g.label.split(' · ')[0]} ${n}` : null
+  }).filter(Boolean).join(' · ')
 
   const row = (cat) => {
     const on = Boolean(prefs.events[cat.key])
@@ -115,7 +138,6 @@ export default function AlertsPanel({ styles }) {
           onClick={() => setCategory(cat.key, !on)}
           aria-pressed={on}
           className={on ? styles.alertOn : styles.alertOff}
-          disabled={!prefs.on}
         >
           <b>{cat.label}</b>
           <small>{cat.detail}</small>
@@ -136,35 +158,19 @@ export default function AlertsPanel({ styles }) {
 
   return (
     <div className={styles.alerts}>
-      <div className={styles.alertsHead}>
-        <div>
-          <p className={styles.kicker}>ALERTS</p>
-          <h2>{armed ? 'Armed.' : 'Tell me when.'}</h2>
-        </div>
-        {perm === 'granted' ? (
-          <button type="button" className={styles.armBtn} onClick={() => setMaster(!prefs.on)} aria-pressed={prefs.on}>
-            {prefs.on ? 'Turn alerts off' : 'Turn alerts on'}
-          </button>
-        ) : (
-          <button type="button" className={styles.armBtn} onClick={arm} disabled={mounted && !canNotify()}>
-            {!mounted || canNotify() ? 'Allow notifications' : 'Not supported in this browser'}
-          </button>
-        )}
-      </div>
-
+      {/* ONE HEADING (front door B1, 2026-09-27): the fold's own summary line
+          is the section title. The "ALERTS" eyebrow + "Tell me when." heading
+          that sat under it (half hidden by the summary's focus box) are gone;
+          the device's state lives in step 2, where it can be acted on. */}
       {hint ? <p className={styles.muted}>{hint}</p> : null}
 
-      {/* ── PRESETS ──────────────────────────────────────────────────────
-          Every one of them says what it costs a night before you pick it.
-          Nobody has ever wanted "more notifications"; they want to know how
-          many, and that is the only number on these buttons. */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, margin: '12px 0 4px' }}>
-        {/* #50: these were .armBtn, which is filled with the accent and
-            outlined in it, so all three rendered as selected simultaneously --
-            including when the state beside them read "your own mix · 27 on",
-            meaning NONE of them was active. Three lit buttons for a state
-            where none should be lit. Own classes now: quiet by default, filled
-            only for the one that is actually on. */}
+      {/* ── STEP 1 · WHAT TO SEND ──────────────────────────────────────── */}
+      <p className={styles.alertStep}>1 · What to send</p>
+      {/* PRESETS (B3): unselected = outlined and clearly tappable, selected =
+          the filled orange; each says what it includes, by product. Choosing
+          one works before the device is set up -- the choice is saved either
+          way. */}
+      <div className={styles.presetRow}>
         {PRESETS.map((p) => {
           const isOn = active === p.key
           return (
@@ -174,8 +180,10 @@ export default function AlertsPanel({ styles }) {
               className={isOn ? `${styles.presetBtn} ${styles.presetBtnOn}` : styles.presetBtn}
               onClick={() => setPreset(p.key)}
               aria-pressed={isOn}
-              disabled={!prefs.on}
-            >{p.label}</button>
+            >
+              <b>{p.label}{isOn ? ' ✓' : ''}</b>
+              <small>{includes(p)}</small>
+            </button>
           )
         })}
         {active === 'custom' ? (
@@ -193,7 +201,7 @@ export default function AlertsPanel({ styles }) {
         className={styles.armBtn}
         onClick={() => setShowAll(!showAll)}
         aria-expanded={showAll}
-        style={{ margin: '4px 0 10px' }}
+        style={{ margin: '4px 0 10px', minHeight: 44 }}
       >{showAll ? 'Hide the full list' : `Show all ${CATEGORIES.length} switches`}</button>
 
       {showAll ? GROUPS.map((g) => {
@@ -219,30 +227,40 @@ export default function AlertsPanel({ styles }) {
         )
       }) : null}
 
-      {mounted && pushSupported() && pushReady ? (
-        <div className={styles.closedSite}>
-          <div>
-            <b>Also when the site is closed</b>
-            <small>
-              Everything switched on above, pushed to this device with no tab open. Checked
-              every minute during games — not instantly, because nothing here holds a live line
-              to the league. Turning it on sends one straight back so you know it worked.
-            </small>
-          </div>
-          <button
-            type="button"
-            onClick={toggleClosedSite}
-            disabled={busy || !prefs.on || perm !== 'granted' || !account.signedIn}
-            aria-pressed={closedSite}
-            className={closedSite ? styles.alertOn : ''}
-          >{busy ? 'Working…' : closedSite ? 'ON · this device' : 'Turn on'}</button>
+      {/* ── STEP 2 · THIS DEVICE ─────────────────────────────────────────
+          One button, its state always shown (B2): Off -> Allow alerts on this
+          device -> On ✓ (and, signed in with push available, on with the
+          site closed too -- that subscription sends one straight back). */}
+      <p className={styles.alertStep}>2 · This device</p>
+      <div className={styles.closedSite}>
+        <div>
+          <b className={device.state === 'on' ? styles.deviceOn : device.state === 'blocked' ? styles.deviceBad : undefined}>{device.word}</b>
+          <small>
+            {device.state === 'blocked'
+              ? 'This browser blocked alerts for this site. Allow notifications in the site settings (the icon left of the address), then come back and tap again.'
+              : device.state === 'unsupported'
+                ? (hint || 'This browser can’t show alerts. On an iPhone, add the site to the Home Screen first.')
+                : device.state === 'partial'
+                  ? 'Alerts show while a tab is open. One more tap and they reach this device with the site closed -- checked every minute during games.'
+                  : pushable && !account.signedIn
+                    ? 'Alerts show while a tab is open. Sign in above and they can reach this device with the site closed too.'
+                    : 'Everything picked in step 1, on this device. Checked every minute during games -- not instantly, nothing here holds a live line to the league.'}
+          </small>
         </div>
-      ) : null}
+        {device.state === 'off' || device.state === 'partial' ? (
+          <button type="button" onClick={arm} disabled={busy} className={styles.deviceBtn}>
+            {busy ? 'Working…' : device.state === 'partial' ? 'Also with the site closed' : 'Allow alerts on this device'}
+          </button>
+        ) : device.state === 'on' ? (
+          <button type="button" onClick={turnOff} disabled={busy} className={styles.deviceOff}>{busy ? 'Working…' : 'Turn off on this device'}</button>
+        ) : null}
+      </div>
       {pushNote ? <p className={styles.muted}>{pushNote}</p> : null}
 
-      {/* What this account's phones were actually sent, and what was dropped
-          for losing a lane -- only meaningful once push is on somewhere. */}
-      <RecentAlerts styles={styles} enabled={mounted && account.signedIn && closedSite} />
+      {/* RECENT ALERTS (B4): the last few this account was sent, every sport,
+          with the state word; "Show all" opens the rest. Signed in only (the
+          log belongs to an account). */}
+      <RecentAlerts styles={styles} enabled={mounted && account.signedIn} emptyText="No alerts yet. They'll show here as they're sent." />
 
       <p className={styles.muted}>
         {account.signedIn

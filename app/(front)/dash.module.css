@@ -304,16 +304,35 @@ a.brand { text-decoration: none; color: inherit; }
 /* #50: the presets were rendered with .armBtn, which is filled with the accent
    and outlined in it -- so all three read as selected at once, including when
    the state beside them said "your own mix", i.e. none of them was. */
+/* Front door B3 (2026-09-27): an unselected preset read as disabled (dark
+   grey on dark grey). Now outlined in the ink colour and clearly tappable;
+   the selected one is the filled orange. Each says what it includes. */
+.presetRow { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; margin: 6px 0 4px; }
 .presetBtn {
-  padding: 11px 16px; border: 1px solid var(--line); border-radius: 10px;
-  background: #191817; color: var(--dim);
-  font: 800 11px/1 inherit; cursor: pointer;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 5px;
+  min-height: 44px; padding: 11px 14px; border: 1px solid color-mix(in srgb, var(--ink) 38%, var(--line)); border-radius: 10px;
+  background: transparent; color: var(--ink); text-align: left;
+  font: inherit; cursor: pointer;
 }
+.presetBtn b { font-size: 12px; font-weight: 800; }
+.presetBtn small { color: var(--dim); font-size: 10.5px; line-height: 1.4; }
 .presetBtnOn {
-  border-color: var(--mlb); color: var(--ink);
-  background: color-mix(in srgb, var(--mlb) 16%, #191817);
+  border-color: var(--mlb);
+  background: color-mix(in srgb, var(--mlb) 22%, #191817);
 }
+.presetBtnOn small { color: var(--ink); opacity: .8; }
 .presetBtn[disabled] { opacity: .45; cursor: not-allowed; }
+/* Front door B2: the two steps and the device's state. */
+.alertStep { margin: 16px 0 6px; color: var(--dim); font: 900 9px/1 monospace; letter-spacing: .14em; text-transform: uppercase; }
+.alertStep:first-of-type { margin-top: 4px; }
+.deviceOn { color: var(--mlb); }
+.deviceBad { color: #e5484d; }
+.deviceBtn { min-height: 44px; border-color: var(--mlb) !important; background: color-mix(in srgb, var(--mlb) 16%, #191817) !important; }
+.deviceOff { min-height: 44px; }
+/* Front door B1: the fold's summary is the section heading; its focus ring
+   shows for keyboard focus only, not after a mouse tap. */
+.alertsFold > summary:focus { outline: none; }
+.alertsFold > summary:focus-visible { outline: 2px solid var(--mlb); outline-offset: 3px; border-radius: 6px; }
 .alertGroup { margin: 16px 0 8px; color: var(--dim); font: 900 8px/1 monospace; letter-spacing: .16em; }
 .alertGroup:first-of-type { margin-top: 0; }
 .closedSite { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin: 4px 0 14px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
