@@ -354,7 +354,7 @@ function Navigator({ peers, cur, onNavigate }) {
     background: 'transparent', border: `1px solid ${enabled ? C.border2 : C.border}`,
     color: enabled ? C.text2 : C.text3, borderRadius: 7, padding: '3px 9px',
     fontSize: 13, lineHeight: 1, cursor: enabled ? 'pointer' : 'default',
-    opacity: enabled ? 1 : 0.4, minWidth: 30, minHeight: 26,
+    opacity: enabled ? 1 : 0.4, minWidth: 34, minHeight: 32,   // past the 32px tap floor (mobile pass C)
   })
 
   return (
@@ -766,7 +766,7 @@ export default function PlayerModal({ player, slateMode, initialTab = '', onClos
                   style={{
                     background: 'transparent', border: `1px solid ${C.border2}`, color: C.text2,
                     borderRadius: 7, padding: '3px 9px', fontSize: 12, lineHeight: 1,
-                    cursor: 'pointer', minHeight: 26,
+                    cursor: 'pointer', minHeight: 32, minWidth: 34,
                   }}>⚖</button>
               )}
               {onNavigate && peers.length > 1 && (

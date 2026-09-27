@@ -144,7 +144,7 @@ export default function PlayerBoard({ players, onAdd, onWatch, watchIds, odds = 
   // a sliver on phones — MobileCSS stacks these and shortens the list so
   // picking a player doesn't mean scrolling past 200 rows.
   return (
-    <div className="playerboard" style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 280px) 1fr', gap: 14, alignItems: 'start' }}>
+    <div className="playerboard" style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 280px) minmax(0, 1fr)', gap: 14, alignItems: 'start' }}>
       {showList && (
       <div className="playerboard-side" style={{ position: 'sticky', top: 12 }}>
         <input
@@ -170,9 +170,9 @@ export default function PlayerBoard({ players, onAdd, onWatch, watchIds, odds = 
             onClick={() => { const pool = matches.length ? matches : ranked; const pick = pool[Math.floor(Math.random() * pool.length)]; if (pick) setSelectedId(playerId(pick)) }}
             title="Open a random hitter from the current list — for the nights you want the site to start the conversation"
             style={{
-              padding: '2px 8px', fontSize: TYPE.label, fontWeight: 700, borderRadius: 999, cursor: 'pointer',
+              padding: '2px 8px', fontSize: TYPE.label, fontWeight: 700, borderRadius: 999, cursor: 'pointer', minWidth: 34,   // past the 32px tap floor
               border: `1px dashed ${C.border2}`, background: 'transparent', color: C.text3, whiteSpace: 'nowrap',
-            }}>🎲</button>
+            }} aria-label="Open a random hitter">🎲</button>
         </div>
         <div className="playerboard-list" style={{
           border: `1px solid ${C.border}`, borderRadius: 12, overflow: 'hidden',

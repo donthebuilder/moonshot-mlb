@@ -209,11 +209,16 @@ export default function GapBoard({ players = [], odds = null, onPlayerClick }) {
         {!anyPrice && ' Prices are absent from tonight’s odds file for both markets.'}
       </div>
 
+      {/* THE WIDE TABLE SCROLLS IN ITS OWN BOX (mobile pass C, 2026-09-27):
+          the rows are ~720px of fixed columns; on a phone they ran past the
+          screen edge with no way to reach them. Batter column pinned. */}
+      <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+      <div style={{ minWidth: 'max-content' }}>
       <div style={{
         display: 'flex', gap: 6, padding: '0 8px 5px',
         borderBottom: `1px solid ${C.border}`,
       }}>
-        <Cell w={150} mono={false} color={C.text3}>BATTER</Cell>
+        <span style={{ width: 150, flexShrink: 0, position: 'sticky', left: 0, zIndex: 1, background: C.bg, fontSize: 11, fontWeight: 600, color: C.text3 }}>BATTER</span>
         {HEAD.map(([h, w, title], i) => (
           <Cell key={`${h}${i}`} w={w} right color={C.text3} title={title}>{h}</Cell>
         ))}
@@ -234,7 +239,7 @@ export default function GapBoard({ players = [], odds = null, onPlayerClick }) {
               borderBottom: `1px solid ${C.border}`,
               cursor: onPlayerClick ? 'pointer' : 'default',
             }}>
-            <span style={{ width: 150, flexShrink: 0, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <span style={{ width: 150, flexShrink: 0, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', position: 'sticky', left: 0, zIndex: 1, background: C.bg }}>
               <span style={{ fontSize: 11.5, fontWeight: 700, color: C.text }}>{nameOf(p)}</span>
               <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}> {teamOf(p)}/{oppOf(p)}</span>
             </span>
@@ -286,6 +291,8 @@ export default function GapBoard({ players = [], odds = null, onPlayerClick }) {
           </div>
         )
       })}
+      </div>
+      </div>
 
       <div style={{ marginTop: 9, fontSize: 9.5, color: C.text3, lineHeight: 1.55 }}>
         GAPS is outfield geometry, not a park factor — the slate publishes none

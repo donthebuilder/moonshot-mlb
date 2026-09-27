@@ -79,6 +79,14 @@ export default function MobileCSS() {
         .scoreboard-player-cell { max-width: 138px !important; overflow: hidden !important; text-overflow: ellipsis !important; }
       }
 
+      /* A PHONE TURNED SIDEWAYS (mobile pass C, 2026-09-27) is 844px wide, so
+         the max-width rules below miss it and desktop-sized controls came
+         through (28x20 buttons). Same floor as the phone rule, for a touch
+         screen that is short. */
+      @media (pointer: coarse) and (max-height: 500px) {
+        button { min-height: 32px; }
+      }
+
       @media (max-width: 700px) {
         .dash-grid { grid-template-columns: 1fr !important; gap: 9px !important; }
         .leaders-controls { grid-template-columns: 1fr !important; }
@@ -1011,10 +1019,13 @@ export default function MobileCSS() {
          hittable. It sits inside a table header whose own click sorts the
          column, which means an over-large target is a bug and an under-large
          one is unusable — 26px of padded box around a 10px glyph is the
-         compromise, measured against the 9px gap between header cells. */
+         compromise, measured against the 9px gap between header cells.
+         2026-09-27 (mobile pass C): on touch, 33x33 -- past the 32px floor
+         scripts/check-mobile.mjs holds tap targets to. Negative margins keep
+         the label exactly where it was; the extra reach is the header gap. */
       .explain-dot { padding: 3px 5px; margin: -3px -1px -3px 2px; display: inline-block; }
       @media (pointer: coarse) {
-        .explain-dot { padding: 6px 8px; margin: -6px -4px -6px 0; font-size: 11px !important; }
+        .explain-dot { padding: 11px 11px; margin: -11px -9px -11px -2px; font-size: 11px !important; }
       }
 
       /* ══ COSMETICS PASS (2026-08-06) — small touches, compounding ══ */

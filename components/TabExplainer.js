@@ -154,9 +154,11 @@ export default function TabExplainer({ tab, texts = TEXTS, storageKey = 'tab_exp
     }}>
       <span style={{ fontSize: 13, flexShrink: 0 }}>❓</span>
       <div style={{ fontSize: 11, color: C.text2, lineHeight: 1.6, minWidth: 0 }}>{info.what}</div>
-      <button onClick={() => setOpen(false)} style={{
+      {/* 33px to a thumb, same spot to the eye (mobile pass C): padding out,
+          margins back in. */}
+      <button type="button" aria-label="Dismiss" onClick={() => setOpen(false)} style={{
         background: 'none', border: 'none', color: C.text3, cursor: 'pointer',
-        fontSize: 13, lineHeight: 1, flexShrink: 0, padding: 0,
+        fontSize: 13, lineHeight: 1, flexShrink: 0, padding: '10px 9px', margin: '-10px -9px', minHeight: 0,
       }}>✕</button>
     </div>
   )

@@ -57,3 +57,6 @@ export const more = { marginTop: 4, color: C.ice, font: `800 11px/1 ${NUM_FONT}`
 export const playerHref = (id) => `/app#sport=nhl&tab=player&player=${encodeURIComponent(id)}`
 export const teamHref = (abbrev) => `/app#sport=nhl&tab=team&team=${encodeURIComponent(abbrev)}`
 export const linkStyle = { color: C.text, textDecoration: 'none' }
+// A short inline link (a team code) gets a 30px+ tap area in the same spot:
+// padding out, margins back in (mobile pass C, 2026-09-27).
+export const tapLink = { display: 'inline-block', padding: '10px 6px', margin: '-10px -6px' }

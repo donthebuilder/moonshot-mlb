@@ -806,7 +806,8 @@ export default function DenseTable({
             <>
               {head}{' '}
               <button onClick={() => setCapOpen((v) => !v)} style={{
-                background: 'none', border: 'none', padding: '3px 1px', cursor: 'pointer',
+                // 33px tall to a thumb, same line to the eye (mobile pass C).
+                background: 'none', border: 'none', padding: '12px 6px', margin: '-12px -6px', minHeight: 0, cursor: 'pointer',
                 color: C.text2, fontSize: 9.5, textDecoration: 'underline dotted rgba(255,255,255,.25)',
                 textUnderlineOffset: 3, fontFamily: 'inherit',
               }}>{capOpen ? 'less ▴' : 'why ▸'}</button>

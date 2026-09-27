@@ -157,7 +157,7 @@ a.brand { text-decoration: none; color: inherit; }
 .leagues span { display: block; margin-top: 4px; color: var(--dim); font-size: 10px; }
 
 .product footer { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; padding-top: 18px; }
-.product footer a { color: var(--dim); font-size: 11px; text-decoration: none; border-bottom: 1px solid transparent; }
+.product footer a { color: var(--dim); font-size: 11px; text-decoration: none; border-bottom: 1px solid transparent; display: inline-block; padding: 10px 4px; margin: -10px -4px; } /* tap area, same spot (mobile pass C) */
 .product footer a:first-child { color: var(--accent); font-weight: 800; }
 .product footer a:hover { border-bottom-color: currentColor; }
 

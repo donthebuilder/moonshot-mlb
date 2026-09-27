@@ -64,7 +64,7 @@
 .name:hover { color: var(--mlb); }
 .name small { color: var(--dim); font-weight: 400; }
 .meta { grid-area: meta; font-size: 12px; color: var(--dim); }
-.cardLink { color: var(--dim); text-decoration: underline dotted; }
+.cardLink { color: var(--dim); text-decoration: underline dotted; display: inline-block; padding: 10px 6px; margin: -10px -6px; } /* 30px+ to a thumb, same spot (mobile pass C) */
 .cardLink:hover { color: var(--mlb); }
 .call { grid-area: call; font-size: 12px; color: var(--mlb); text-align: right; white-space: nowrap; }
 .rowDim .call { color: var(--dim); }

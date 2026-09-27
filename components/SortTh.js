@@ -17,7 +17,7 @@ export default function SortTh({ label, active, dir, onSort, align = 'right', cl
     >
       {onSort ? (
         <button type="button" onClick={onSort} title={title || `Sort by ${label || 'this column'}`}
-          style={{ all: 'unset', cursor: 'pointer', font: 'inherit', color: 'inherit', letterSpacing: 'inherit',
+          style={{ all: 'unset', cursor: 'pointer', font: 'inherit', color: 'inherit', letterSpacing: 'inherit', padding: '12px 4px', margin: '-12px -4px', /* a 30px+ hit area in the same spot (mobile pass C) */
             textTransform: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 3, minHeight: 18 }}>
           {label}{arrow && <span aria-hidden="true" style={{ fontSize: 7 }}>{arrow}</span>}
         </button>

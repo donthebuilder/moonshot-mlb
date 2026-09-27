@@ -2,7 +2,7 @@
 // rendered for search (Batch 6 follow-up, 2026-09-26). Leaders lead: a list
 // of names alone would be a thin page. Same reads as LAMP's Leaders and
 // Goalies tabs (lib/nhl/readers.js).
-import StaticPage, { kicker, table, th, td, more, playerHref, teamHref, linkStyle } from '../../../components/lamp/StaticPage'
+import StaticPage, { kicker, table, th, td, more, playerHref, teamHref, linkStyle, tapLink } from '../../../components/lamp/StaticPage'
 import LeaderList from '../../../components/lamp/LeaderList'
 import { readLeaders, readRosters } from '../../../lib/nhl/readers'
 import { fmtDay, fmt2, fmtPct3 } from '../../../lib/nhl/format'
@@ -47,7 +47,7 @@ export default async function Page() {
               <tbody>
                 {goalies.map((g) => (
                   <tr key={g.id}>
-                    <td style={{ ...td, fontFamily: NUM_FONT, fontSize: 11 }}><a href={teamHref(g.team)} style={{ color: C.text3, textDecoration: 'none' }}>{g.team}</a></td>
+                    <td style={{ ...td, fontFamily: NUM_FONT, fontSize: 11 }}><a href={teamHref(g.team)} style={{ color: C.text3, textDecoration: 'none', ...tapLink }}>{g.team}</a></td>
                     <td style={{ ...td, fontFamily: NUM_FONT, color: C.text3, fontSize: 11 }}>{g.number ?? ''}</td>
                     <td style={td}><a href={playerHref(g.id)} style={linkStyle}>{g.name}</a></td>
                   </tr>

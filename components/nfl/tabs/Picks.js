@@ -488,7 +488,7 @@ export default function Picks({ picks, results, data, matchup, onPlayerClick, od
         tag how sure you are — <b style={{ color: C.text2 }}>rungs lock at kickoff.</b>
       </div>
 
-      <div style={{ display: 'grid', gap: 11, gridTemplateColumns: 'repeat(auto-fit, minmax(430px, 1fr))' }}>
+      <div style={{ display: 'grid', gap: 11, gridTemplateColumns: 'repeat(auto-fit, minmax(min(430px, 100%), 1fr))' }}>
         {filteredCard.map(([market, blk]) => {
           const e = blk.edge
           const t = TRUST()[e?.trust] || TRUST().thin
