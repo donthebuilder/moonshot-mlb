@@ -1903,6 +1903,35 @@ export async function GET(request) {
     totals.fresh = freshKeys.size
   }
 
+  // ── THE 2+ CLUB, LIVE (2026-09-27, BATCH-MULTI-PLAN step 2) ───────────────
+  // His second homer IN ONE GAME lands in multi_games tonight, not tomorrow.
+  // Counted per game_pk, never off hr_n (hr_n counts the DAY, so a homer in
+  // each half of a doubleheader is not a 2-HR game). Label = the first
+  // homer's frozen role/on_board (lib/callStatus.js). The morning refresh
+  // (/api/multi/tick) rewrites the row off the box score with the price.
+  if (freshKeys.size) {
+    const perGame = new Map()
+    for (const h of homers) {
+      const k = `${h.player_id}|${h.game_pk}`
+      if (!perGame.has(k)) perGame.set(k, [])
+      perGame.get(k).push(h)
+    }
+    const multi = []
+    for (const list of perGame.values()) {
+      if (list.length < 2 || !list[0].game_pk || !list.some((h) => freshKeys.has(`${h.player_id}:${h.hr_n}`))) continue
+      const first = [...list].sort((x, y) => x.hr_n - y.hr_n)[0]
+      multi.push({
+        sport: 'mlb', season: Number(day.slice(0, 4)), day, game_id: String(first.game_pk), player_id: String(first.player_id),
+        name: first.name, team: first.team || null, opp: first.opponent || null, n: list.length, kind: 'HR', detail: null,
+        status: callStatus(first), board_rank: first.board_rank ?? null, score: first.hr_score ?? null, odds: null,
+      })
+    }
+    if (multi.length) {
+      const { error: mErr } = await db.from('multi_games').upsert(multi, { onConflict: 'sport,game_id,player_id,kind' })
+      if (mErr) console.error(`[homers] multi_games: ${mErr.message}`)
+    }
+  }
+
   // ── 2. the hooks, for the rows this run created ──────────────────────────
   //
   // Computed once, here, and written to the row. The partner check needs
