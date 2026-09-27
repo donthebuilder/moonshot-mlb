@@ -15,47 +15,59 @@ import { setSport } from '../lib/sport'
 import TabExplainer from './TabExplainer'
 import Controls from './Controls'
 import Slip from './Slip'
-import PlayerModal from './PlayerModal'
 import MobileCSS from './MobileCSS'
 import StaleBanner from './StaleBanner'
 import MobileTabBar from './MobileTabBar'
 
 import Home from './tabs/Home'
-import MyPicks from './tabs/MyPicks'
-import TruePrice from './tabs/TruePrice'
-import Guide from './tabs/Guide'
-import Games from './tabs/Games'
-import Boxes from './tabs/Boxes'
-import Runs from './tabs/Runs'
-import RankedBoard from './tabs/RankedBoard'
-import PairHistory from './tabs/PairHistory'
-import SprayBoard from './tabs/SprayBoard'
-import PitcherMap from './tabs/PitcherMap'
-import PowerTab from './tabs/Power'
-import Derby from './tabs/Derby'
-import Backtest from './tabs/Backtest'
-import PlayerBoard from './tabs/PlayerBoard'
-import HitsHRR from './tabs/HitsHRR'
-import Scoreboard from './tabs/Scoreboard'
-import Combos from './tabs/Combos'
-import You from './tabs/You'
-import Pools from './tabs/Pools'
-import Leaders from './tabs/Leaders'
-import Results from './tabs/Results'
-import CalledLedger from './tabs/CalledLedger'
-import Watchlist from './tabs/Watchlist'
-import Pairs from './tabs/Pairs'
-import Bot from './tabs/Bot'
-import OddsBoard from './tabs/OddsBoard'
-import Pitchers from './tabs/Pitchers'
-import PropsGrid from './tabs/PropsGrid'
 import QuickSearch from './QuickSearch'
 import { SlateScaleProvider } from '../lib/statline'
 import { follow, unfollow, useFollowing } from '../lib/dash/follow'
 import { liveOdds } from '../lib/oddsFreshness'
 import { markDirty } from '../lib/dash/sync'
 import ErrorBoundary from './ErrorBoundary'
-import Longshots from './Longshots'
+import dynamic from 'next/dynamic'
+
+// ── ONE TAB'S CODE AT A TIME (2026-09-27) ────────────────────────────────
+// Every tab used to be a static import, so a cold MOONSHOT link downloaded
+// all ~30 of them -- one 552 KB (gzip) chunk -- before Home could paint.
+// Home stays in the main chunk (the landing page, and it backs scoreboard /
+// boxes / atplate / fullboard too); every other tab is fetched the first time
+// it is opened, then cached. PlayerModal is always mounted but empty until a
+// player is picked, so it loads just after first paint instead of blocking it.
+function TabLoading() {
+  return <div aria-busy="true" style={{ minHeight: '60vh' }}><span style={{ position: 'absolute', left: -9999 }}>Loading…</span></div>
+}
+const MyPicks = dynamic(() => import('./tabs/MyPicks'), { loading: TabLoading })
+const TruePrice = dynamic(() => import('./tabs/TruePrice'), { loading: TabLoading })
+const Guide = dynamic(() => import('./tabs/Guide'), { loading: TabLoading })
+const Games = dynamic(() => import('./tabs/Games'), { loading: TabLoading })
+const Boxes = dynamic(() => import('./tabs/Boxes'), { loading: TabLoading })
+const Runs = dynamic(() => import('./tabs/Runs'), { loading: TabLoading })
+const RankedBoard = dynamic(() => import('./tabs/RankedBoard'), { loading: TabLoading })
+const PairHistory = dynamic(() => import('./tabs/PairHistory'), { loading: TabLoading })
+const SprayBoard = dynamic(() => import('./tabs/SprayBoard'), { loading: TabLoading })
+const PitcherMap = dynamic(() => import('./tabs/PitcherMap'), { loading: TabLoading })
+const PowerTab = dynamic(() => import('./tabs/Power'), { loading: TabLoading })
+const Derby = dynamic(() => import('./tabs/Derby'), { loading: TabLoading })
+const Backtest = dynamic(() => import('./tabs/Backtest'), { loading: TabLoading })
+const PlayerBoard = dynamic(() => import('./tabs/PlayerBoard'), { loading: TabLoading })
+const HitsHRR = dynamic(() => import('./tabs/HitsHRR'), { loading: TabLoading })
+const Scoreboard = dynamic(() => import('./tabs/Scoreboard'), { loading: TabLoading })
+const Combos = dynamic(() => import('./tabs/Combos'), { loading: TabLoading })
+const You = dynamic(() => import('./tabs/You'), { loading: TabLoading })
+const Pools = dynamic(() => import('./tabs/Pools'), { loading: TabLoading })
+const Leaders = dynamic(() => import('./tabs/Leaders'), { loading: TabLoading })
+const Results = dynamic(() => import('./tabs/Results'), { loading: TabLoading })
+const CalledLedger = dynamic(() => import('./tabs/CalledLedger'), { loading: TabLoading })
+const Watchlist = dynamic(() => import('./tabs/Watchlist'), { loading: TabLoading })
+const Pairs = dynamic(() => import('./tabs/Pairs'), { loading: TabLoading })
+const Bot = dynamic(() => import('./tabs/Bot'), { loading: TabLoading })
+const OddsBoard = dynamic(() => import('./tabs/OddsBoard'), { loading: TabLoading })
+const Pitchers = dynamic(() => import('./tabs/Pitchers'), { loading: TabLoading })
+const PropsGrid = dynamic(() => import('./tabs/PropsGrid'), { loading: TabLoading })
+const Longshots = dynamic(() => import('./Longshots'), { loading: TabLoading })
+const PlayerModal = dynamic(() => import('./PlayerModal'), { loading: () => null })
 
 const WATCH_KEY = 'mlb_watchlist_v1'
 const WATCH_EVENT = 'mlb-watchlist-change'
