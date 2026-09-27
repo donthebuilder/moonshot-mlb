@@ -4,6 +4,7 @@ import LampTable from '../LampTable'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import { useLampNumerology } from '../../../lib/nhl/useLamp'
 import { DelayedBanner, Loading, EmptyState, SourceLine, fmtDay } from '../ui'
+import TonightsNumbers from '../../numerology/TonightsNumbers'
 
 // 🔮 NUMEROLOGY (lamp research step 5, 2026-09-26) — the slot MOONSHOT's
 // Alignments and TUDDY's Numerology fill, hockey edition. FOR FUN: numbers
@@ -29,6 +30,7 @@ export default function Numerology({ date = null, onOpenPlayer }) {
         note="For fun: numbers that line up, not a prediction. Every digit of the date, added until one is left, against each dressed skater's jersey, birth day and life path. Not graded, and never part of the score."
         theme={C} numFont={NUM_FONT} accent={C.ice}
         stats={data ? [{ value: data.skaters, label: 'DRESSED', tone: C.text2 }, { value: data.aligned.length, label: 'LINED UP', tone: C.ice }, { value: `${data.alignedHits} v ${data.expectedHits}`, label: 'HITS V CHANCE', tone: C.text2 }] : null} />
+      {data?.date ? <TonightsNumbers date={data.date} theme={C} numFont={NUM_FONT} accent={C.ice} /> : null}
       <DelayedBanner error={error} what="tonight’s lineups" />
       {loading && !data ? <Loading what="tonight’s lineups" /> : null}
       {data && data.games === 0 ? <EmptyState title="NO GAMES TODAY" note="Nothing to line up." /> : null}
