@@ -9,6 +9,9 @@ import { universal } from '../../lib/numerology/core'
 //            "TONIGHT'S NUMBERS · UNIVERSAL DAY 3 · HOT 3 · 8 · 11 · TRENDING 5",
 //            tapping opens the Numerology page. Not in the header (the plan).
 // Reads /api/numerology/hot. Nothing until a night is recorded, and it says so.
+// What one recorded unit is called, per sport (football plays by game day).
+const NIGHT_WORD = { nfl: 'game day' }
+
 export default function HotNumbers({ sport, date, theme: C, numFont, accent, compact = false, onOpen = null, eventWord = 'events' }) {
   const [data, setData] = useState(null)
   useEffect(() => {
@@ -45,7 +48,7 @@ export default function HotNumbers({ sport, date, theme: C, numFont, accent, com
     <section aria-label="Hot numbers" style={{ padding: '11px 12px', border: `1px solid ${C.border}`, borderRadius: 12, background: C.bg2 }}>
       <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.1em', color: accent, fontFamily: numFont, marginBottom: 4 }}>HOT NUMBERS</div>
       {!data.nights ? (
-        <div style={{ fontSize: 12, color: C.text3 }}>No night recorded yet. The first graded {sport === 'nfl' ? 'game day' : 'night'} fills this in: which jersey, root, life path, name value or first letter the {eventWord} landed on, against chance.</div>
+        <div style={{ fontSize: 12, color: C.text3 }}>No night recorded yet. The first graded {NIGHT_WORD[sport] || 'night'} fills this in: which jersey, root, life path, name value or first letter the {eventWord} landed on, against chance.</div>
       ) : (
         <>
           <div style={{ fontSize: 11, color: C.text3, marginTop: 4 }}>TODAY{data.today?.day ? ` · ${data.today.day.slice(5).replace('-', '/')}` : ''}</div>
