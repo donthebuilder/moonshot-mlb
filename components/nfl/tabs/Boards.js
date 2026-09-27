@@ -1,6 +1,7 @@
 'use client'
 import { useMemo, useState } from 'react'
-import { C, NUM_FONT, MARKETS, gradeFor, TYPE } from '../../../lib/nfl/theme'
+import { C, NUM_FONT, MARKETS, gradeFor, TYPE, rampAt } from '../../../lib/nfl/theme'
+import { boardReason } from '../../../lib/nfl/boardReason'
 import { quoteFor } from '../../../lib/nfl/oddsMatch'
 import { kickoffFor } from '../../../lib/nfl/kickoff'
 import OddsLine from '../../OddsLine'
@@ -11,7 +12,7 @@ import NflExplain from '../NflExplain'
 import { ActiveFilters, FilterBar, FilterPill, FilterSearch, FilterSelect, PillRow, Segmented } from '../../Filters'
 import { injuryTag, injuryTitle, injuryColor } from '../../../lib/nfl/injury'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
-import { reasonFor, baselineFor, topStatChips } from '../ScoreAnatomy'
+import { baselineFor, topStatChips } from '../ScoreAnatomy'
 import NflBoardFilters, { useNflBoardFilter } from '../NflBoardFilters'
 
 // Same soft cap Touchdowns.js uses, so the two boards cut at the same depth.
@@ -150,10 +151,8 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
   // team/position filters below leave on screen -- the same rule
   // Touchdowns.js's own baseline always followed. Computed off it, not off
   // `rows`, so searching one name can't collapse the league median to n=1.
-  const base = useMemo(() => {
-    const eligible = (data?.players || []).filter((p) => Number.isFinite(p.scores?.[market]))
-    return baselineFor(eligible, market)
-  }, [data, market])
+  const eligible = useMemo(() => (data?.players || []).filter((p) => Number.isFinite(p.scores?.[market])), [data, market])
+  const base = useMemo(() => baselineFor(eligible, market), [eligible, market])
 
   // ── BANDS NARROW THE POOL BEFORE THE RANKING (2026-09-21) ────────────────
   // Donovan: "tuddy needs filters like moonshot does." The point of MOONSHOT's
@@ -374,7 +373,10 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
           const s = p.scores[market]
           const g = gradeFor(s)
           const form = recentForm(logs, p.player_id, market, spec?.bar)
-          const why = reasonFor(p, spec?.weights, base, market)
+          // The line names his top component WITH the number behind it
+          // (lib/nfl/boardReason.js, TUDDY depth step 4) -- 8 of 10 cards
+          // used to print the same clause.
+          const why = boardReason(p, spec?.weights, base, market, eligible)
           const chips = topStatChips(p.components?.[market], spec?.weights, 2)
           return (
             <div
@@ -445,16 +447,22 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
                   already publishes. Renders nothing on a market/player pair
                   with no component clearing reasonFor()'s own bar, same as
                   Touchdowns -- an absent line is honest, not a bug. */}
-              {why && <div style={{ fontSize: TYPE.micro, color: C.text2, lineHeight: 1.35 }}>He {why}.</div>}
+              {why && <div style={{ fontSize: TYPE.micro, color: C.text2, lineHeight: 1.35 }}>{why.text}</div>}
               {chips && chips.length > 0 && (
                 <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                  {chips.map((c) => (
-                    <span key={c.key} style={{
-                      fontSize: 8.5, fontWeight: 800, letterSpacing: '.02em', padding: '2px 7px',
-                      borderRadius: 999, whiteSpace: 'nowrap', fontFamily: NUM_FONT,
-                      color: C.text2, border: `1px solid ${g.color}33`, background: `${g.color}0f`,
-                    }}>{c.t}</span>
-                  ))}
+                  {chips.map((c) => {
+                    // A percentile is an ordered scale: the amber -> jade RAMP
+                    // (lib/nfl/theme.js), never the hit/miss green.
+                    const pct = Number(p.components?.[market]?.[c.key])
+                    const ramp = rampAt(Number.isFinite(pct) ? pct / 100 : 0)
+                    return (
+                      <span key={c.key} style={{
+                        fontSize: 8.5, fontWeight: 800, letterSpacing: '.02em', padding: '2px 7px',
+                        borderRadius: 999, whiteSpace: 'nowrap', fontFamily: NUM_FONT,
+                        color: C.text2, border: `1px solid ${ramp}66`, background: `${ramp}14`,
+                      }}>{c.t}</span>
+                    )
+                  })}
                 </div>
               )}
 
