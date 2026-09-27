@@ -8,6 +8,7 @@ import PageHeader from '../../PageHeader'
 import { etToday } from '../../../lib/freshness'
 import TonightsNumbers from '../../numerology/TonightsNumbers'
 import { easternDate } from '../../../lib/data'
+import LaneTable from '../../numerology/LaneTable'
 
 // 🔮 NUMEROLOGY — B10(d), 2026-09-15. TUDDY's clone of MLB's Alignments view
 // (components/Alignments.js + lib/alignments.js). Donovan approved shipping
@@ -287,6 +288,8 @@ export default function Numerology({ data }) {
         out rather than faked. Season TD only counts completed weeks, so a player&apos;s count here always describes
         games already played.
       </div>
+      {/* WHICH LANES RUN HOT (numerology v2 step 6), at the bottom. */}
+      <LaneTable sport="nfl" theme={C} numFont={NUM_FONT} accent={C.green} />
     </div>
   )
 }

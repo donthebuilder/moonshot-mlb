@@ -114,5 +114,14 @@ if (week) {
   console.log(`   live dry run (nothing written): ${players.length} NFL players -> ${rows.length} rows (${rows.filter((r) => r.lane === ELIGIBLE).length} _eligible)`)
 }
 
+// ── 7. which lanes run hot (the reader) ────────────────────────────────────
+const { laneTable } = await import('../lib/numerology/laneTable.js')
+const nights = (n, lane, e, m, eh, mh) => Array.from({ length: n }, (_, i) => ({ lane, day: `2026-10-${String(i + 1).padStart(2, '0')}`, eligible: e, matched: m, eligible_hits: eh, matched_hits: mh, graded_at: 'x' }))
+const lt = laneTable([...nights(30, 'fib_next', 100, 20, 10, 2), ...nights(29, 'gem_date', 100, 30, 10, 6), { lane: 'gem_jersey', day: '2026-10-01', eligible: 5, matched: 1, eligible_hits: null, matched_hits: null, graded_at: null }])
+const fn = lt.find((l) => l.lane === 'fib_next'); const gd = lt.find((l) => l.lane === 'gem_date')
+check(fn.shown && fn.nights === 30 && Math.abs(fn.matchedRate - 0.1) < 1e-9 && Math.abs(fn.baseRate - 0.1) < 1e-9 && Math.abs(fn.z) < 1e-9, 'a lane at 30 graded nights shows; matched 10% vs everyone 10% -> z 0')
+check(!gd.shown && gd.needs === 1 && gd.z > 2, 'a lane at 29 nights is hidden (needs 1 more) even with z > 2 -- no early claims')
+check(!lt.some((l) => l.lane === 'gem_jersey'), 'ungraded nights never count')
+
 console.log(failed ? `\n${failed} FAILED` : '\nall green')
 process.exit(failed ? 1 : 0)

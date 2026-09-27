@@ -5,6 +5,7 @@ import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import { useLampNumerology } from '../../../lib/nhl/useLamp'
 import { DelayedBanner, Loading, EmptyState, SourceLine, fmtDay } from '../ui'
 import TonightsNumbers from '../../numerology/TonightsNumbers'
+import LaneTable from '../../numerology/LaneTable'
 
 // 🔮 NUMEROLOGY (lamp research step 5, 2026-09-26) — the slot MOONSHOT's
 // Alignments and TUDDY's Numerology fill, hockey edition. FOR FUN: numbers
@@ -48,6 +49,8 @@ export default function Numerology({ date = null, onOpenPlayer }) {
         Chance alone lines up one axis in nine, so {data ? <b style={{ color: C.text2 }}>{data.expectedHits}</b> : 'about a ninth'} of tonight&apos;s axes would match whatever the date was{data ? `; ${data.alignedHits} did` : ''}.
       </p>
       <SourceLine>Jersey: gamecenter/{'{id}'}/play-by-play rosterSpots (the posted lineup). Birth date: roster/{'{team}'}/current. Date: the game day.</SourceLine>
+      {/* WHICH LANES RUN HOT (numerology v2 step 6), at the bottom. */}
+      <LaneTable sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} />
     </div>
   )
 }
