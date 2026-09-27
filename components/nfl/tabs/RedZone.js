@@ -2,6 +2,7 @@
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../../lib/nfl/theme'
 import NflTable from '../NflTable'
+import RedZoneField from '../RedZoneField'
 import PageHeader from '../../PageHeader'
 import { ActiveFilters, FilterBar, FilterSearch, FilterSelect } from '../../Filters'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
@@ -47,7 +48,7 @@ const buildColumns = (watchlist) => [
 
 const num = (v) => (Number.isFinite(Number(v)) && v !== null && v !== '' ? Number(v) : null)
 
-export default function RedZone({ data, onPlayerClick }) {
+export default function RedZone({ data, matchup = null, onPlayerClick }) {
   const watchlist = useNflWatchlist(data)
   const [query, setQuery] = useState('')
   const [team, setTeam] = useState('all')
@@ -112,6 +113,9 @@ export default function RedZone({ data, onPlayerClick }) {
         numFont={NUM_FONT}
         accent={C.green}
       />
+
+      {/* THE LAST 20 YARDS, drawn (BATCH-FACES step 9) -- the table below is unchanged. */}
+      <RedZoneField data={data} matchup={matchup} onPlayerClick={onPlayerClick} />
 
       <div style={{
         display: 'flex', flexDirection: 'column', gap: 9, marginBottom: 11,
