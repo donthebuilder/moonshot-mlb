@@ -2,10 +2,11 @@
 import { useEffect, useState } from 'react'
 import HeadlineStrip from '../../HeadlineStrip'
 import StorylinesStrip from '../../StorylinesStrip'
+import LampHeadline from '../LampHeadline'
 import LongshotsPreview from '../../LongshotsPreview'
 import HeroStat from '../../HeroStat'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
-import { useLampStandings, useLampBoard, useLampLeaders, useLampRecord } from '../../../lib/nhl/useLamp'
+import { useLampStandings, useLampBoard, useLampLeaders, useLampRecord, useLampHotSticks } from '../../../lib/nhl/useLamp'
 import { buildLampHeadlines } from '../../../lib/nhl/headlines'
 import { usePreview, ShowMoreButton } from '../../ListPreview'
 import ScoreTable, { sortGames } from '../ScoreTable'
@@ -28,6 +29,7 @@ export default function Home({ today, date = null, onOpenGame, onOpenPlayer, set
   // `today` is the shell's scores for the day the header shows (Today /
   // Tmrw / a paged day, 2026-09-26); the board follows the same day.
   const board = useLampBoard(date)
+  const sogBoard = useLampBoard(date, 'SOG')
   const boardGames = board.data?.games || []
   const day = scores.data
   const games = sortGames(day?.games || [])
@@ -64,7 +66,8 @@ export default function Home({ today, date = null, onOpenGame, onOpenPlayer, set
     fetch('/api/history/watch?sport=nhl').then((r) => (r.ok ? r.json() : null)).then((j) => { if (alive) setHist(j?.items?.[0] || null) }).catch(() => {})
     return () => { alive = false }
   }, [])
-  const baseCards = buildLampHeadlines({ board: board.data, leaders: leagueLeaders.data, record: pre.data, C })
+  const hotSticks = useLampHotSticks()
+  const baseCards = buildLampHeadlines({ board: board.data, leaders: leagueLeaders.data, record: pre.data, hot: hotSticks.data, C })
   const cards = hist ? [{ k: `hist-${hist.player_id}`, tag: 'HISTORY WATCH', icon: '📜', name: hist.name, why: `One more: ${hist.claim}.`, stat: `${hist.hr} G`, col: C.amber, playerId: Number(hist.player_id) }, ...baseCards] : baseCards
   const openCard = (c) => (c.playerId ? onOpenPlayer?.(c.playerId) : c.gameId ? onOpenGame?.(c.gameId) : null)
   const dayWord = date ? `on ${fmtDay(date)}` : 'tonight'
@@ -110,6 +113,10 @@ export default function Home({ today, date = null, onOpenGame, onOpenPlayer, set
         ))}
       </nav>
 
+      {/* TONIGHT'S CALLS (BATCH-HEADLINE-PICKS step 3): GOAL and SHOTS, each
+          model's top three called skaters -- MOONSHOT's The Four layout -- then
+          Around the League below, the same order MOONSHOT uses. */}
+      <LampHeadline theme={C} numFont={NUM_FONT} goalBoard={board.data} sogBoard={sogBoard.data} record={regT} onOpenPlayer={onOpenPlayer} />
       <HeadlineStrip cards={cards} onOpen={openCard} theme={C} numFont={NUM_FONT} accent={C.ice} />
       {/* 2026-09-27 (BATCH-STORYLINES-PAGE step 4): the story engine's rarest
           five (History Watch's claims lead as the rarest), then the Storylines tab. */}
