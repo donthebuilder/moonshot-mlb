@@ -413,6 +413,22 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
  * pulled this, and asking the league again to answer "was anything live fifty
  * milliseconds ago" would be the sort of request this file exists to avoid.
  */
+// FRANCHISE STARTER TOUCHDOWNS, ONLY WHILE FOOTBALL IS ON (cost cut,
+// 2026-09-27). starterScoreEventsFrom reads three FRANCHISE tables every sweep
+// (up to three a minute, all week) before it looks at ESPN's snapshot. Read
+// them only while a game is live -- or once when the count of finished games
+// moves, so an overtime walk-off touchdown (the game goes final with the
+// score) is still swept. A cold instance reads once. The seen table dedupes.
+let _nflFinalSeen = -1
+async function franchiseScoresOn() {
+  const snap = await fetchNflLive().catch(() => null)
+  const games = snap?.games || []
+  if (games.some((g) => g?.state === 'in')) return true
+  const finals = games.filter((g) => g?.state === 'post').length
+  if (finals !== _nflFinalSeen) { _nflFinalSeen = finals; return true }
+  return false
+}
+
 async function worthSweepingAgain(audience) {
   if (audience?.mlb?.size) {
     const snap = await fetchLiveSlate().catch(() => null)
@@ -555,7 +571,8 @@ async function sweep(db, subs, stateByUser, audience, { full }) {
     // comment for why a Franchise touchdown needs the same speed as TUDDY's.
     // It reads the in-process snapshot nflEvents() just warmed above, so this
     // costs a small roster query and no second trip to ESPN.
-    ...(await starterScoreEventsFrom(db)),
+    // COST CUT (2026-09-27): only while football is on (see franchiseScoresOn).
+    ...((await franchiseScoresOn()) ? await starterScoreEventsFrom(db) : []),
     ...(full ? await pregameEvents(db, audience) : []),
     // FRANCHISE needs no audience: these are addressed to the owner of a team,
     // not to whoever follows a player. It also runs on every tick rather than
