@@ -93,7 +93,10 @@ export default function LampDashboard({ palettePass = 0 }) {
       if (!DATED_TABS.has(next)) hash.delete('date')
       if (next !== 'team') hash.delete('team')
       if (next !== 'player') { hash.delete('player'); hash.delete('p') }
-      window.history.replaceState(null, '', `#${hash.toString()}`)
+      // A detail page keeps its entry's marker (openDetail); the chrome's
+      // own navigation starts clean.
+      const keep = next === 'game' || next === 'team' || next === 'player' ? window.history.state : null
+      window.history.replaceState(keep, '', `#${hash.toString()}`)
     } catch { /* the tab still works without the address */ }
   }
 
@@ -108,8 +111,12 @@ export default function LampDashboard({ palettePass = 0 }) {
   // that view — ids and day included, written back into the address — and
   // the button is labelled with the place it returns to. A deep link has no
   // trail, so each page keeps its old default (Scores / Teams / Players).
-  // In-app only: the hash is still replaceState, the browser's Back still
-  // leaves the site.
+  // BROWSER BACK TOO (2026-09-26, found in the LAMP research pass: Board ->
+  // a player -> Back left the site). Opening a detail page now PUSHES a
+  // history entry (openDetail), marked { lampDetail: true }, so the
+  // browser's Back returns to the view it came from -- the hashchange
+  // listener below rebuilds it from the address. The in-page Back steps
+  // that same history when it can, so the two can never disagree.
   const trail = useRef([])
   const here = () => ({ tab, gameId, teamKey, playerId, date: readHashParam('date') })
   const remember = () => {
@@ -121,6 +128,7 @@ export default function LampDashboard({ palettePass = 0 }) {
   const backTarget = () => trail.current[trail.current.length - 1] || null
   const backLabel = (fallback) => NHL_NAV[backTarget()?.tab || fallback]?.label || NHL_NAV[fallback].label
   const goBack = (fallback) => {
+    if (window.history.state?.lampDetail) { trail.current.pop(); window.history.back(); return }
     const to = trail.current.pop()
     if (!to) { setTab(fallback); return }
     if (to.tab === 'game' && to.gameId) setGameId(to.gameId)
@@ -133,24 +141,38 @@ export default function LampDashboard({ palettePass = 0 }) {
     if (to.date && DATED_TABS.has(to.tab)) { writeHashParam('date', to.date); setDateRaw(to.date) }
   }
 
+  // A new browser history entry for a detail page, pushed ONCE with its
+  // final address and marked, so goBack knows it may step the browser's own
+  // history. (Pushing a copy and rewriting it afterwards lost the rewrite:
+  // Next re-applies the URL it last saw pushed -- measured 09-26.)
+  const openDetail = (next, key, value) => {
+    try {
+      const h = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''))
+      h.set('sport', 'nhl'); h.set('tab', next)
+      for (const k of ['game', 'team', 'player', 'p']) h.delete(k)
+      if (!DATED_TABS.has(next)) h.delete('date')
+      h.set(key, value)
+      window.history.pushState({ lampDetail: true }, '', `#${h.toString()}`)
+    } catch { /* the page still works without the address */ }
+    setMissingTab('')
+    setTabRaw(next)
+  }
   const openGame = (id) => {
     if (!/^\d{10}$/.test(String(id || ''))) return
     remember()
-    setGameId(String(id))
-    setTab('game')
-    writeHashParam('game', String(id))
+    setGameId(String(id)); openDetail('game', 'game', String(id))
   }
 
   const openTeam = (abbrev) => {
     const ab = String(abbrev || '').toUpperCase()
     if (!/^[A-Z]{3}$/.test(ab)) return
     remember()
-    setTeamKey(ab); setTab('team'); writeHashParam('team', ab)
+    setTeamKey(ab); openDetail('team', 'team', ab)
   }
   const openPlayer = (id) => {
     if (!/^\d{7}$/.test(String(id || ''))) return
     remember()
-    setPlayerId(String(id)); setTab('player'); writeHashParam('player', String(id))
+    setPlayerId(String(id)); openDetail('player', 'player', String(id))
   }
 
   // Deep links: #sport=nhl&tab=standings, or &tab=game&game=2026020053.

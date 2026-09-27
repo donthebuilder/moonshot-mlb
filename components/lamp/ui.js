@@ -166,7 +166,9 @@ export function writeHashParam(key, value) {
   try {
     const h = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''))
     if (value == null || value === '') h.delete(key); else h.set(key, String(value))
-    window.history.replaceState(null, '', `#${h.toString()}`)
+    // Keeps the entry's state: a detail page's entry is marked (LampDashboard
+    // openDetail) so the in-page Back can step the browser's own history.
+    window.history.replaceState(window.history.state, '', `#${h.toString()}`)
   } catch { /* the page still works without the address */ }
 }
 
