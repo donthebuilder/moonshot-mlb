@@ -22,6 +22,7 @@
 // data already fetched — no new query.
 
 import { createClient } from '@supabase/supabase-js'
+import { unstable_cache } from 'next/cache'
 import { easternToday } from '../../lib/data'
 import { matchupWord, oddsWord, roleWord } from '../../lib/dash/homerFeed'
 import { tdCallWord, tdPlayWord } from '../../lib/nfl/tdFeed'
@@ -276,13 +277,32 @@ async function loadNhl(sport, db, today) {
 // One loader per sport, picked off the table -- no sport branch in load().
 const LOADERS = { mlb: loadMlb, nfl: loadNfl, nhl: loadNhl }
 
-async function load(key) {
+async function loadFresh(key) {
   const sport = SPORTS[key] || SPORTS.mlb
   const db = client()
   const today = easternToday()
   const blank = { sport, today, rows: [], picks: [], calledIds: new Set(), history: [], byDay: new Map(), configured: false }
   if (!db) return blank
   return LOADERS[sport.key](sport, db, today)
+}
+
+// READ ONCE PER MINUTE, NOT ONCE PER VISITOR (cost cut, 2026-09-27). This is
+// the page every X post links to, and each view re-read 10 nights of
+// homer_feed / 28 days of nfl_td_feed / 14 nights of lamp_goal_log (100-300
+// KB of Supabase egress a view). Same move /start made (PERF-2): the reduced
+// result is cached, CALLED_TTL seconds, keyed on sport + the ET day.
+// unstable_cache stores JSON, so the Set / Map / sport table are carried as
+// plain data and put back here.
+const CALLED_TTL = 60
+const loadPlain = unstable_cache(async (key) => {
+  const { sport, calledIds, byDay, ...rest } = await loadFresh(key)
+  return { ...rest, key: sport.key, calledIds: [...calledIds], byDay: [...byDay] }
+}, ['called-load-v1'], { revalidate: CALLED_TTL })
+const cardPlain = unstable_cache(async (key) => (SPORTS[key]?.cardRecord ? SPORTS[key].cardRecord() : null), ['called-card-v1'], { revalidate: CALLED_TTL })
+
+async function load(key) {
+  const p = await loadPlain(key, easternToday())
+  return { ...p, sport: SPORTS[p.key] || SPORTS.mlb, calledIds: new Set(p.calledIds), byDay: new Map(p.byDay) }
 }
 
 // FOOTBALL IS NOT NIGHTLY. Baseball plays every day, so ten days and ten
@@ -357,7 +377,7 @@ export default async function CalledPage({ searchParams }) {
   const params = (await searchParams) || {}
   const key = sportKey(String(params.sport || '').toLowerCase())
   const { sport, today, rows, outRows = [], picks, calledIds, history, byDay, configured } = await load(key)
-  const card = sport.cardRecord ? await sport.cardRecord().catch((e) => { console.error(`[called] card record: ${e?.message}`); return null }) : null
+  const card = sport.cardRecord ? await cardPlain(sport.key).catch((e) => { console.error(`[called] card record: ${e?.message}`); return null }) : null
   const BOARD = sport.board
   const SIGNUP = `/login?next=${encodeURIComponent(BOARD)}#create-account`
   // /start -- no longer the main door (funnel step 1, 2026-09-26). On 09-21
