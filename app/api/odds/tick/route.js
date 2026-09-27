@@ -26,6 +26,7 @@ import { cronAuthorized, adminClient } from '../../../../lib/nhl/db'
 import { hasKey, monthUsage, eventsBetween, eventsById } from '../../../../lib/odds/sgo'
 import { playerJoin } from '../../../../lib/odds/playerJoin'
 import { LEAGUES, MARKETS, snapRows, startsAt, gameDate } from '../../../../lib/odds/snap'
+import { linesRows } from '../../../../lib/odds/lines'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -163,7 +164,18 @@ export async function GET(request) {
           const col = snap === 'lock' ? 'lock_at' : 'close_at'
           await db.from('odds_events').update({ [col]: takenAt, starts_at: startsAt(ev) }).eq('event_id', ev.eventID)
         }
-        out.snaps.push({ event: ev.eventID, league: ev.leagueID, snap, rows: r.rows.length, players: r.players, matched: r.matched, minutesToStart: Math.round((Date.parse(startsAt(ev)) - Date.parse(takenAt)) / MIN) })
+        // EVERY MARKET WE SCORE, AT LOCK (lib/odds/lines.js): same object, no
+        // extra cost. Its own failure, logged; never the snapshot's.
+        let lines = null
+        if (snap === 'lock') {
+          const L = linesRows(ev, snap, takenAt, match)
+          lines = L.rows.length
+          if (!dry && L.rows.length) {
+            const w = await db.from('odds_lines').upsert(L.rows, { onConflict: 'event_id,odd_id,snap', ignoreDuplicates: true })
+            if (w.error) { console.error(`[odds tick] lines ${ev.eventID}: ${w.error.message}`); lines = `error: ${w.error.message}` }
+          }
+        }
+        out.snaps.push({ event: ev.eventID, league: ev.leagueID, snap, rows: r.rows.length, lines, players: r.players, matched: r.matched, minutesToStart: Math.round((Date.parse(startsAt(ev)) - Date.parse(takenAt)) / MIN) })
       }
     }
   } else if (due.size) out.skipped.push({ why: `due ${due.size} games but ${used} objects used (cap ${HARD_CAP})` })
