@@ -38,6 +38,7 @@ import LegacyHashRedirect from '../../components/LegacyHashRedirect'
 import SubmitButton from '../../components/fantasy/SubmitButton'
 import { getNetworkPulse, liveProduct } from '../../lib/dash/pulse'
 import { appHref, BRAND } from '../../lib/routes'
+import { nextLine } from '../../lib/mlbNext'
 import { wilson } from '../../lib/interval'
 import { hasSupabaseConfig } from '../../lib/supabase/config'
 import { createSupabaseServerClient } from '../../lib/supabase/server'
@@ -123,6 +124,9 @@ export default async function DashHome({ searchParams }) {
   const displayName = me.user?.user_metadata?.display_name || me.user?.email?.split('@')[0] || null
   // The one primary button: the board that's on today (funnel step 1).
   const live = liveProduct(pulse)
+  // A day with no MLB games: the slate on hand is an earlier day's, and the
+  // next game day is later (lib/mlbNext.js).
+  const mlbOff = Boolean(mlb?.date && mlb?.today && mlb.date < mlb.today && nextLine(mlb?.next, mlb.today))
   // The sign-up fold opens by itself when someone is mid-flow: a failed
   // attempt, a confirm-your-email return, or the welcome after sign-up.
   const authOpen = Boolean(welcomeName || params.error || params.message || params.confirm || params.em)
@@ -207,10 +211,14 @@ export default async function DashHome({ searchParams }) {
       <section className={styles.slate} id="tonight">
         <div className={styles.slateHead}><p className={styles.kicker}>ON RIGHT NOW</p><h2>The whole network, one glance.</h2></div>
         <div className={styles.tiles}>
-          <Tile label="MLB GAMES" value={mlb?.games} sub={mlb?.live ? `${mlb.live} live` : mlb?.final ? `${mlb.final} final` : 'pre-game'} accent="mlb" />
-          <Tile label="CALLS TONIGHT" value={mlb?.calls} sub="HR · HIT · HRR · CONTACT" accent="mlb" />
-          <Tile label="CLEARED SO FAR" value={mlb?.cleared} sub={mlb?.started ? `calls that cleared their bar, of ${mlb.started} that batted` : 'nobody has batted yet'} accent="mlb" />
-          <Tile label="HRs ON THE SLATE" value={mlb?.locked?.total || mlb?.homers} sub={lockedLine(mlb?.locked)} accent="mlb" />
+          {/* NO GAMES TODAY (2026-09-27, e.g. Mon 09-28 before the Wild Card):
+              the games tile says so and when baseball is back; the other three
+              keep the last slate's numbers under that slate's own day, never
+              under "tonight". */}
+          <Tile label="MLB GAMES" value={mlbOff ? null : mlb?.games} sub={mlbOff ? `No MLB games tonight · ${nextLine(mlb.next, mlb.today)}` : mlb?.live ? `${mlb.live} live` : mlb?.final ? `${mlb.final} final` : 'pre-game'} accent="mlb" />
+          <Tile label={mlbOff ? `CALLS · ${dayWord(mlb.date)}` : 'CALLS TONIGHT'} value={mlb?.calls} sub="HR · HIT · HRR · CONTACT" accent="mlb" />
+          <Tile label={mlbOff ? `CLEARED · ${dayWord(mlb.date)}` : 'CLEARED SO FAR'} value={mlb?.cleared} sub={mlb?.started ? `calls that cleared their bar, of ${mlb.started} that batted` : 'nobody has batted yet'} accent="mlb" />
+          <Tile label={mlbOff ? `HRs · ${dayWord(mlb.date)}` : 'HRs ON THE SLATE'} value={mlb?.locked?.total || mlb?.homers} sub={lockedLine(mlb?.locked)} accent="mlb" />
           <Tile label="NFL GAMES" value={nfl?.games} sub={timeUntil(nfl?.kickoff) || nfl?.label} accent="nfl" />
           <Tile label="PLAYERS RATED" value={nfl?.players} sub={nfl?.label} accent="nfl" />
           {/* Hockey: the count and the lock. Before the first lock the tile says

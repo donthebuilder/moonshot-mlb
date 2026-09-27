@@ -26,6 +26,17 @@ const m = numerologyMoment([{ player_id: '1', name: 'TEST A', hr_n: 1, stats: { 
 check(!m || m.nth == null || m.nth !== 39, 'numerology moment: an October homer is not the season\'s 39th')
 
 check(firstDate({ dates: [{ date: '2026-10-03' }, { date: '2026-09-29' }] }) === '2026-09-29' && firstDate({ dates: [] }) === null, 'firstDate: earliest scheduled postseason date')
+
+// The off day (Mon 09-28): the front door's lead product and the words.
+const { liveProduct } = await import('../lib/dash/liveProduct.js')
+const { nextLine, nextFrom } = await import('../lib/mlbNext.js')
+const mlbSun = { games: 15, date: '2026-09-27' }
+const mnf = { kickoffs: ['2026-09-29T00:15:00Z'] }   // Monday Night Football, 8:15 PM ET 09-28
+check(liveProduct({ mlb: { ...mlbSun, next: { date: '2026-09-29' } }, nfl: mnf }, '2026-09-28') === 'nfl', 'Mon 09-28: no MLB games, MNF on -> the door leads with TUDDY')
+check(liveProduct({ mlb: { ...mlbSun, next: { date: '2026-09-28' } }, nfl: mnf }, '2026-09-28') === 'mlb', 'overnight gap on a game day (next = today) -> MOONSHOT still leads')
+check(liveProduct({ mlb: { ...mlbSun }, nfl: mnf }, '2026-09-28') === 'mlb', 'next day unknown (schedule unreadable) -> the old rule, unchanged')
+check(nextLine({ date: '2026-09-29', round: 'Wild Card' }, '2026-09-28') === 'Wild Card starts Tue 9/29' && nextLine({ date: '2026-09-28' }, '2026-09-28') === null, 'the off-day line: "Wild Card starts Tue 9/29"; nothing on a game day')
+check(nextFrom({ dates: [{ date: '2026-09-29', games: [{ gameType: 'F' }, { gameType: 'F' }] }] }, '2026-09-28')?.round === 'Wild Card', 'round named from the games\' own gameType')
 if (!process.argv.includes('--offline')) {
   const [sun, tue, oct5] = await Promise.all([postseasonOn('2026-09-27'), postseasonOn('2026-09-29'), postseasonOn('2026-10-05')])
   check(sun.postseason === false && tue.postseason === true && oct5.postseason === true && tue.start === '2026-09-29', `live: 09-27 regular (${sun.postseason}), 09-29 postseason (${tue.postseason}, starts ${tue.start}), 10-05 postseason (${oct5.postseason})`)
