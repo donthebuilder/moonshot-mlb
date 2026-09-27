@@ -42,6 +42,7 @@ import { byeStarterEventsFrom, franchiseEventsFrom, lineupGapEventsFrom, starter
 import { audienceFrom, boardInfoFrom, laneOf, lineupUpdatesFrom, mlbEventsFrom, nflEventsFrom, nflFollowMisses, nhlEventsFrom, pregameEventsFrom, priorityOf, wants } from '../../../../../lib/dash/pushRules'
 import { fanOutToDiscord } from '../../../../../lib/dash/discordAlerts'
 import { isMaintenanceMode, isRedZoneAlertsEnabled } from '../../../../../lib/edgeConfig'
+import { readUserState } from '../../../../../lib/dash/stateCache'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -456,11 +457,15 @@ export async function GET(request) {
   // follow lists first turns that into "produce nothing for players no
   // subscriber has ever named", which is most of the league.
   const userIds = [...new Set(subs.map((s) => s.user_id))]
-  const { data: stateRows } = await db
-    .from('dash_user_state')
-    .select('user_id,key,value')
-    .in('user_id', userIds)
-    .in('key', ['dash_alerts_v1', 'dash_follow_v1'])
+  // By stamp (lib/dash/stateCache.js): full values only when a row changed
+  // since this warm instance last read it -- was ~29 MB/day of egress.
+  let stateRows
+  try {
+    stateRows = await readUserState(db, userIds, ['dash_alerts_v1', 'dash_follow_v1'])
+  } catch (e) {
+    console.error(`[push] ${e.message}`)
+    return Response.json({ sent: 0, reason: 'state-unreadable' })
+  }
 
   const stateByUser = {}
   for (const row of stateRows || []) {
