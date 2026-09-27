@@ -38,7 +38,7 @@ import { fetchLiveSlate, liveSlateStatus } from '../../../../../lib/liveSlate'
 import { fetchBoardFull, fetchRunMeta } from '../../../../../lib/dash/board'
 import { oddsPaths, pairSummaryPaths } from '../../../../../lib/dataSource'
 import { accountabilityText, boardIndexFrom, moonshotBoardRanking, moonshotBoardText, boardRolePicks, boardRoleResultsText, boardRoleText, botPollText, boxLinesForDate, captureFrom, communityPickText, roleWord, homersFrom, hooksFor, longshotPick, longshotText, monthlyText, numerologyMoment, numerologyText, pairsToWatch, pairsToWatchText, partnerFor, postText, pregameCalled, pregamePicks, pregameText, topStreakFrom, weeklyText } from '../../../../../lib/dash/homerFeed'
-import { homerCard, hotStretchCard, longshotCard, numerologyCard, pairsCard, pregameCard, recapCard, statCard } from '../../../../../lib/dash/homerCard'
+import { homerCard, mlbhrCard, hotStretchCard, longshotCard, numerologyCard, pairsCard, pregameCard, recapCard, statCard } from '../../../../../lib/dash/homerCard'
 import {
   backToBackPicks, backToBackText, bestAirPicks, bestAirText, callOfTheNightPick, callOfTheNightText,
   careerVsStarterPicks, careerVsStarterText, dangerComboPicks, dangerComboText, fetchWeekdayHrLeaders, funFactsPicks, funFactsText,
@@ -2209,6 +2209,9 @@ export async function GET(request) {
         // THE FULL ROW (2026-09-26): the reply card was built from eight
         // columns, so it printed "Invalid Date" and "KC @ ???".
         const { data: mine } = await db.from('homer_feed').select('*').eq('day', day).is('mlbhr_reply_id', null)
+        // When the morning's calls went out (Called Shots), for the card's proof line.
+        const { data: preRow } = await db.from('homer_feed_posts').select('*').match({ day, kind: 'pregame' }).maybeSingle()
+        const preAt = preRow?.x_post_id ? (preRow.seen_at || null) : null   // seen_at = the claim, seconds before the post
         const rows = mine || []
         const { data: doneToday } = await db.from('homer_feed').select('mlbhr_reply_id').eq('day', day).not('mlbhr_reply_id', 'is', null)
         let sentToday = (doneToday || []).filter((r) => r.mlbhr_reply_id !== 'skipped' && !String(r.mlbhr_reply_id).startsWith('refused')).length
@@ -2228,7 +2231,7 @@ export async function GET(request) {
           // The builder's own rule, asked here so the log says the same thing
           // the copy does: only TOP and HR settle on a home run.
           const eligible = MLBHR_REPLY_ALL || mayClaimHomer(row.role)
-          const text = eligible ? mlbhrReplyText(row, TAIL) : ''
+          const text = eligible ? mlbhrReplyText(row, parseMlbhr(tweet.text)) : ''
           const where = { day, player_id: row.player_id, hr_n: row.hr_n }
           if (!text || sentToday >= MLBHR_REPLY_CAP || sent >= MLBHR_REPLY_BATCH) {
             // Decided and done: no call (or tonight's cap is spent), nothing
@@ -2246,8 +2249,11 @@ export async function GET(request) {
             .match(where).is('mlbhr_reply_id', null).select('player_id')
           if (!claimed?.length) continue
           // A card only when the row can fill it: no "Invalid Date", no "???".
-          const cardOk = Boolean(row.day && row.opponent)
-          const png = cardOk ? await bytesOf(() => homerCard({ ...row, _roles: row.role || '' }, { site: SITE_HOST })) : null
+          // The reply's own card (mlbhrCard, the approved design), with the
+          // board's size for the "top X%" line and the time the calls went out.
+          const parsed = parseMlbhr(tweet.text)
+          const cardOk = Boolean(row.day && row.opponent && parsed?.distance)
+          const png = cardOk ? await bytesOf(() => mlbhrCard(row, parsed, { site: SITE_HOST, boardSize: boardRows().length || null, postedAt: preAt })) : null
           const mediaId = png ? await uploadImageToX(png) : null
           const r = await postToX(text, { replyTo: tweet.id, mediaId, kind: 'mlbhr_reply' })
           if (r.ok && r.id) {
