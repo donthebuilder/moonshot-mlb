@@ -16,6 +16,7 @@ import { listLedgerNights, readLedgerNight } from '../lib/ledgerArchive'
 import { gradedResultsUrl } from '../lib/dataSource'
 import { findNameEchoes, nameParts, pairEcho, cadenceShape } from '../lib/namePatterns'
 import NamePatterns from './NamePatterns'
+import { digitRoot, dayRootOf, lifePathOf } from '../lib/numerology/core'
 
 // 🧾 THE HOMER LEDGER (2026-08-09, Donovan: "somewhere showing what number
 // home run people are hitting — like if you notice more people getting their
@@ -93,7 +94,7 @@ const ord = (v) => {
 // use it too. One definition of "numerology" for the whole panel: a jersey,
 // a birthday, and a homer count all reduce the same way, so a match across
 // different kinds of number means what it looks like it means.
-const digitRoot = (v) => (v > 0 ? 1 + ((v - 1) % 9) : 0)
+// digitRoot / dayRootOf / lifePathOf: one copy, lib/numerology/core.js (2026-09-27).
 
 // Birthday reductions. "day number" is Donovan's own example — Jan 2 → 2 —
 // which digitRoot already gives you for single-digit days; this just extends
@@ -102,16 +103,6 @@ const digitRoot = (v) => (v > 0 ? 1 + ((v - 1) % 9) : 0)
 // date, reduced the same way. Both read straight off the league's
 // birthDate string (YYYY-MM-DD) — no local birthday database to maintain or
 // get stale.
-const dayRootOf = (birthDate) => {
-  const d = Number(String(birthDate || '').slice(8, 10))
-  return d > 0 ? digitRoot(d) : null
-}
-const lifePathOf = (birthDate) => {
-  const digits = String(birthDate || '').replace(/[^0-9]/g, '')
-  if (digits.length < 8) return null
-  const sum = digits.split('').reduce((a, c) => a + Number(c), 0)
-  return sum > 0 ? digitRoot(sum) : null
-}
 
 // "show players who landed that hit and possible align[ment]" — the why
 // text under each tag names the other hitter(s), not just a count.
