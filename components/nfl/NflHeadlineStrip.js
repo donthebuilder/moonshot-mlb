@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/nfl/theme'
 import HeadlineStrip from '../HeadlineStrip'
 import HistoryWatch from '../HistoryWatch'
+import LongshotsPreview from '../LongshotsPreview'
 import { buildNflHeadlines } from '../../lib/nfl/headlines'
 
 // ── THE HEADLINE STRIP (moved out of tabs/Home.js 2026-09-25) ───────────────
@@ -51,6 +52,8 @@ export default function NflHeadlineStrip({ players, games, markets, matchup, onP
     <>
       <HeadlineStrip cards={cards} onOpen={open} theme={C} numFont={NUM_FONT} accent={C.green} speed={30} />
       <HistoryWatch sport="nfl" unit="TD" reach="within reach this week" step="next" theme={C} numFont={NUM_FONT} onPlayerClick={(p) => { const row = byId(p.player_id); if (row) onPlayerClick?.(row, 'TD') }} />
+      <LongshotsPreview sport="nfl" theme={C} numFont={NUM_FONT} accent={C.green} onSeeAll={() => setTab?.('longshots')}
+        onOpenPlayer={(id) => { const row = byId(id); if (row) onPlayerClick?.(row, 'TD') }} />
     </>
   )
 }

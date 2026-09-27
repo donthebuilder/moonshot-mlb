@@ -14,6 +14,13 @@ import { PillRow } from './Filters'
 // branches in here (lib/routes.js is the one place sports are listed).
 const STATUS_WORD = { called: 'CALLED', board: 'ON THE BOARD', off: '' }
 const plus = (v) => (v == null ? '—' : v > 0 ? `+${v}` : String(v))
+function fmtStat(v, c) {
+  if (v === null || v === undefined || v === '') return '\u2014'
+  if (c.kind === 'text') return String(v)
+  if (c.kind === 'mmss') { const t = Math.round(Number(v)); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}` }
+  if (c.kind === 'pct') return `${(Number(v) * 100).toFixed(c.dp ?? 1)}`
+  return Number(v).toFixed(c.dp ?? 0)
+}
 const clock = (iso) => (iso ? new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '')
 
 export default function Longshots({ sport, eyebrow, theme: C, numFont, accent, Table = DenseTable, onOpenPlayer }) {
@@ -28,6 +35,7 @@ export default function Longshots({ sport, eyebrow, theme: C, numFont, accent, T
 
   const rows = useMemo(() => (data?.rows || []).map((r) => ({
     ...r, statusWord: STATUS_WORD[r.status] || '', matchup: r.opp ? `vs ${r.opp}` : '',
+    ...Object.fromEntries(Object.entries(r.stats || {}).map(([k, v]) => [`s_${k}`, v])),
     flag: r.note || '', asOf: `${r.snap || ''} ${clock(r.takenAt)}`.trim(),
   })), [data])
   const called = rows.filter((r) => r.status === 'called').length
@@ -44,6 +52,11 @@ export default function Longshots({ sport, eyebrow, theme: C, numFont, accent, T
     { key: 'statusWord', label: 'Call', w: 104, heat: false },
     { key: 'bestBook', label: 'BOOK', w: 78, heat: false },
     { key: 'books', label: 'BOOKS', w: 50, heat: false, title: 'How many books listed him' },
+    // The bot's own numbers, per product (lib/odds/longshots.js STAT_COLUMNS).
+    ...(data?.statColumns || []).map((c) => ({
+      key: `s_${c.key}`, label: c.label, title: c.title, w: c.w || 58, heat: false,
+      fmt: (v) => fmtStat(v, c),
+    })),
     { key: 'flag', label: 'NOTE', w: 150, heat: false },
     { key: 'asOf', label: 'AS OF', w: 80, heat: false },
   ]

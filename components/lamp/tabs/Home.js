@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import HeadlineStrip from '../../HeadlineStrip'
 import HistoryWatch from '../../HistoryWatch'
+import LongshotsPreview from '../../LongshotsPreview'
 import HeroStat from '../../HeroStat'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import { useLampStandings, useLampBoard, useLampLeaders, useLampRecord } from '../../../lib/nhl/useLamp'
@@ -110,6 +111,7 @@ export default function Home({ today, date = null, onOpenGame, onOpenPlayer, set
 
       <HeadlineStrip cards={cards} onOpen={openCard} theme={C} numFont={NUM_FONT} accent={C.ice} />
       <HistoryWatch sport="nhl" unit="G" theme={C} numFont={NUM_FONT} onPlayerClick={(p) => onOpenPlayer?.(Number(p.player_id))} />
+      <LongshotsPreview sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} onSeeAll={() => setTab?.('longshots')} onOpenPlayer={(id) => onOpenPlayer?.(id)} />
 
       <section aria-label="Tonight's games">
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>

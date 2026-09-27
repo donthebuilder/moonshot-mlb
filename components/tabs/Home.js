@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { etToday } from '../../lib/freshness'
 import { C, NUM_FONT, TYPE } from '../../lib/theme'
+import LongshotsPreview from '../LongshotsPreview'
 import { logUrl, dataUrl } from '../../lib/dataSource'
 import { nameOf, teamOf, oppOf, clean, n, obj, hrScore, hitScore, dateText } from '../../lib/player'
 import { boardOrder } from '../../lib/boardOrder'
@@ -1025,6 +1026,8 @@ export default function Home({
           results (2026-08-13): this page already holds it — see the note in
           Storylines.js for why it used to fetch its own copy. */}
       <Storylines players={players} slateDate={slateDate} results={results} onPlayerClick={onPlayerClick} />
+      <LongshotsPreview sport="mlb" theme={C} numFont={NUM_FONT} accent={C.orange} onSeeAll={() => onNavigate?.('longshots')}
+        onOpenPlayer={(id) => { const p = (players || []).find((x) => String(x?.player_id ?? x?.id) === String(id)); if (p) onPlayerClick?.(p) }} />
 
       {/* ⭐ YOUR PLAYERS (2026-09-03) — replaces FollowingStrip here.
           Same list, same stores, same place on the page. What changed is that
