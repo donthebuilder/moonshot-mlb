@@ -21,6 +21,7 @@
 // spends objects -- the feed is what costs, not the write).
 import { easternDate, easternToday } from '../../../../lib/data'
 import { validDate } from '../../../../lib/nhl/api'
+import { whichSeason } from '../../../../lib/nhl/whichSeason'
 import { cronAuthorized, adminClient } from '../../../../lib/nhl/db'
 import { hasKey, monthUsage, eventsBetween, eventsById } from '../../../../lib/odds/sgo'
 import { playerJoin } from '../../../../lib/odds/playerJoin'
@@ -33,6 +34,11 @@ const SOFT_CAP = 2200
 const HARD_CAP = 2450
 const MIN = 60 * 1000
 const WINDOWS = { lock: [50, 70], close: [5, 15] } // minutes before start
+// NHL (odds step 2): ONE snapshot, taken where LAMP's own lock lands -- the
+// last write before puck drop (lamp_goal_log.locked_at, every 10 min up to
+// the drop) -- so the price sits beside the call it prices. No close.
+const SPORT_WINDOWS = { nhl: { lock: [5, 15] } }
+const windowsFor = (sport) => SPORT_WINDOWS[sport] || WINDOWS
 
 // The UTC instant an ET day begins (EDT or EST, whichever that day is on).
 function etMidnight(ymd) {
@@ -78,8 +84,13 @@ export async function GET(request) {
   }
 
   // ── LIST: once per league per ET day ─────────────────────────────────────
+  // NHL waits for the regular season (odds step 2 says "on/after 09-29"):
+  // LAMP's own season read says when -- preseason goal props are not the
+  // record and would spend objects. It switches itself on, and next year too.
+  const nhlLive = await whichSeason().then((sn) => !sn.stale).catch(() => false)
   for (const league of LEAGUES) {
     const sport = MARKETS[league].sport
+    if (league === 'NHL' && !nhlLive) continue
     if (!dry) {
       const have = await db.from('odds_events').select('event_id').eq('sport', sport).eq('game_date', date).limit(1)
       if (have.error) { out.skipped.push({ league, why: `event map: ${have.error.message}` }); continue }
@@ -121,13 +132,15 @@ export async function GET(request) {
   const forced = q.get('event')
   if (forced && WINDOWS[q.get('snap')]) due.set(forced, new Set([q.get('snap')]))
   else {
-    const soon = await db.from('odds_events').select('event_id, starts_at, lock_at, close_at').gt('starts_at', new Date(now + WINDOWS.close[0] * MIN).toISOString()).lte('starts_at', new Date(now + WINDOWS.lock[1] * MIN).toISOString())
+    const soon = await db.from('odds_events').select('event_id, sport, starts_at, lock_at, close_at').gt('starts_at', new Date(now + WINDOWS.close[0] * MIN).toISOString()).lte('starts_at', new Date(now + WINDOWS.lock[1] * MIN).toISOString())
     if (soon.error) out.skipped.push({ why: `due: ${soon.error.message}` })
     for (const g of soon.data || []) {
+      if (String(g.event_id).startsWith('listed:')) continue
       const mins = (Date.parse(g.starts_at) - now) / MIN
+      const W = windowsFor(g.sport)
       const want = new Set()
-      if (!g.lock_at && mins >= WINDOWS.lock[0] && mins <= WINDOWS.lock[1]) want.add('lock')
-      if (!g.close_at && mins >= WINDOWS.close[0] && mins <= WINDOWS.close[1]) {
+      if (!g.lock_at && mins >= W.lock[0] && mins <= W.lock[1]) want.add('lock')
+      if (W.close && !g.close_at && mins >= W.close[0] && mins <= W.close[1]) {
         if (used < SOFT_CAP) want.add('close')
         else out.skipped.push({ event: g.event_id, why: `close skipped: ${used} objects used (soft cap ${SOFT_CAP})` })
       }
