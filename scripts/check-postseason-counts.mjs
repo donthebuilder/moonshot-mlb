@@ -19,6 +19,9 @@ check(oct.includes('⚾ His 2nd homer this postseason'), `postseason: "His 2nd h
 check(!oct.some((h) => /of the season|HR #\d+/.test(h)), 'postseason: no "of the season" / "HR #N" line built from 38 + 1')
 const ev40 = { ...ev({ postseason: true, post_nth: 1 }), stats: { season_hr: 39, postseason: true, post_nth: 1 } }
 check(!hooksFor(ev40, ctx).some((h) => /HR #40/.test(h)), 'postseason: a 39-HR hitter\'s October homer is not "HR #40 of the season"')
+const first = hooksFor(ev({ postseason: true, post_nth: 1, post_first: true }), { ...ctx, history: [{ role: 'TOP' }, { role: 'TOP' }, { role: 'TOP' }] })
+check(first[0] === '🎉 His first career postseason homer' && !first.some((h) => /1st homer this postseason/.test(h)), `first career postseason homer: said first, for everyone, once (${first.join(' | ')})`)
+check(!hooksFor(ev({ postseason: true, post_nth: 1, post_first: null }), ctx).some((h) => /first career/.test(h)), 'first-homer status unreadable (null) -> not said')
 const unk = hooksFor(ev({ postseason: null }), ctx)
 check(!unk.some((h) => /of the season|this postseason|HR #\d+/.test(h)), `season unknown: no count line at all (${unk.join(' | ') || 'none'})`)
 

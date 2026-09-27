@@ -59,7 +59,7 @@ import { logXBudget } from '../../../../../lib/dash/xBudget'
 import { postLongshotsOnce } from '../../../../../lib/dash/longshotsPost'
 import { mlbLatestOdds } from '../../../../../lib/odds/latest'
 import { postMultiClubOnce } from '../../../../../lib/dash/multiClubPost'
-import { mlbSeasonActive, postseasonOn } from '../../../../../lib/dash/seasonGuard'
+import { mlbSeasonActive, postseasonOn, priorPostseasonHr } from '../../../../../lib/dash/seasonGuard'
 import { storiesTick } from '../../../../../lib/stories/record'
 import { postMlbListOnce } from '../../../../../lib/lists/post'
 
@@ -2042,7 +2042,13 @@ export async function GET(request) {
       if (!freshKeys.has(`${ev.player_id}:${ev.hr_n}`)) continue
       if (post.postseason === true) {
         const { count, error: pErr } = await db.from('homer_feed').select('player_id', { count: 'exact', head: true }).eq('player_id', ev.player_id).gte('day', post.start).lt('day', day)
-        ev.stats = { ...(ev.stats || {}), postseason: true, post_nth: pErr ? null : (count || 0) + Number(ev.hr_n || 1) }
+        const postNth = pErr ? null : (count || 0) + Number(ev.hr_n || 1)
+        // FIRST CAREER POSTSEASON HOMER (list-posts step 6): his postseason
+        // homers in EARLIER seasons (StatsAPI yearByYear, gameType P -- final
+        // numbers tonight's homer can't touch) = 0, and this is his first of
+        // this October. Unreadable -> null, and the line is not said.
+        const prior = postNth === 1 ? await priorPostseasonHr(ev.player_id, Number(day.slice(0, 4))) : null
+        ev.stats = { ...(ev.stats || {}), postseason: true, post_nth: postNth, post_first: postNth === 1 && prior === 0 ? true : (prior == null && postNth === 1 ? null : false) }
       } else if (post.postseason === null) {
         ev.stats = { ...(ev.stats || {}), postseason: null }
       }

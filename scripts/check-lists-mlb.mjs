@@ -48,5 +48,21 @@ const end = regularSeasonEnd({ dates: [{ date: '2026-09-26', games: [{ status: {
 check(end.last === '2026-09-27' && end.settled, 'TEST: season end = the last played date; a canceled game counts as settled')
 check(regularSeasonEnd({ dates: [{ date: '2026-09-27', games: [{ status: { abstractGameState: 'Live', detailedState: 'In Progress' } }] }] }).settled === false, 'TEST: a game still in progress -> the season is not over, nothing posts')
 check(nextInRotation(['a', 'b', 'c'], new Set(['a'])).join() === 'b,c', 'rotation: the lists not yet posted, in order')
+
+// The postseason rounds and what is due when (TEST schedule).
+const { roundsFrom, postListsDue } = await import('../lib/lists/post.js')
+const F = (date, state = 'Final') => ({ date, games: [{ gameType: 'F', status: { abstractGameState: state, detailedState: state } }] })
+const rounds = roundsFrom({ dates: [F('2026-09-29'), F('2026-09-30'), F('2026-10-01'), { date: '2026-10-03', games: [{ gameType: 'D', status: { abstractGameState: 'Preview', detailedState: 'Scheduled' } }] }] })
+check(rounds.length === 2 && rounds[0].name === 'Wild Card Series' && rounds[0].to === '2026-10-01' && rounds[0].settled && !rounds[1].settled, 'TEST: rounds -- Wild Card 09-29..10-01 settled, Division Series not yet')
+check(postListsDue(rounds, '2026-10-02').map((p) => p.key).join() === 'post_hr_leaders:F,first_post_hr:F', 'TEST: 10-02 (the morning after the WC) -> WC leaders, then its first career homers')
+check(postListsDue(rounds, '2026-10-01').length === 0 && postListsDue(rounds, '2026-10-04').length === 0, 'TEST: nothing due during the round, or after its two mornings')
+if (!process.argv.includes('--offline')) {
+  const { postHrLeadersList, recheckPostList } = await import('../lib/lists/mlb.js')
+  const last = await postHrLeadersList(2025, 'World Series')
+  const v = await recheckPostList(last)
+  const t = listText(v)
+  check(Boolean(t) && t.length <= 280, `real 2025 postseason, dry run: ${v?.rows.length} leaders verified, ${t?.length} chars`)
+  console.log(`--- 2025 postseason HR leaders (dry run) ---\n${t}\n`)
+}
 console.log(failed ? `\n${failed} FAILED` : '\nall green')
 process.exit(failed ? 1 : 0)
