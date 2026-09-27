@@ -21,7 +21,16 @@ import { nflHeadshot } from '../lib/nfl/nflAssets'
 //   nothing at all; never a monogram, never a badge, never a border.
 // Pass `photo` to use a URL you already have (NHL), `id` otherwise.
 
-const mlbUrl = (id, px) => `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_${px},q_auto:best/v1/people/${encodeURIComponent(id)}/headshot/67/current`
+// FACE CROP (2026-09-27): MLB's headshot is a 2:3 portrait, and cropping it
+// square in CSS (cover + 'top center') showed cap and forehead and cut the
+// chin. mlbstatic crops it for us instead: square, centred on the face
+// (h + c_thumb + g_face); the generic-silhouette default still applies.
+const mlbUrl = (id, px) => `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_${px},h_${px},c_thumb,g_face,q_auto:best/v1/people/${encodeURIComponent(id)}/headshot/67/current`
+// STRICT (face in the dial, 2026-09-27): the same square face crop WITHOUT the
+// generic-silhouette default, so a player with no photo 404s and the caller
+// falls back to its own no-face look (the number in the ring) instead of
+// drawing a silhouette.
+export const mlbFaceStrict = (id, px) => (id ? `https://img.mlbstatic.com/mlb-photos/image/upload/w_${px},h_${px},c_thumb,g_face,q_auto:best/v1/people/${encodeURIComponent(id)}/headshot/67/current` : null)
 const initials = (name) => String(name || '').split(/\s+/).filter(Boolean).map((w) => w[0]).slice(0, 2).join('').toUpperCase()
 
 // Per product, looked up -- never a sport ternary (CLAUDE.md).
@@ -48,7 +57,7 @@ export default function PlayerFace({ sport, id = null, espnId = null, photo = nu
       // A table face that 404s disappears -- no monogram, no broken-image box.
       <img src={src} alt="" width={size} height={size} loading="lazy" decoding="async" className={className || undefined}
         onError={(e) => { e.currentTarget.style.display = 'none' }}
-        style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', objectPosition: 'top center', flex: 'none', verticalAlign: 'middle', ...style }} />
+        style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', objectPosition: 'center', flex: 'none', verticalAlign: 'middle', ...style }} />
     )
   }
   const bg = theme?.bg3 || 'rgba(255,255,255,.06)'
@@ -62,7 +71,7 @@ export default function PlayerFace({ sport, id = null, espnId = null, photo = nu
       {initials(name)}
       {src && (
         <img src={src} alt={name || ''} width={size} height={size} loading="lazy" decoding="async"
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top center' }} />
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }} />
       )}
     </span>
   )
