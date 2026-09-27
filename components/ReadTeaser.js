@@ -129,7 +129,7 @@ export default function ReadTeaser({ players = [], odds: oddsProp = null, onNavi
   useEffect(() => {
     if (oddsProp) return undefined
     let alive = true
-    fetch(`${oddsPaths()[0]}?t=${Date.now()}`, { cache: 'no-store' })
+    fetch(`${oddsPaths()[0]}${oddsPaths()[0].includes('?') ? '&' : '?'}t=${Date.now()}`, { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => { if (alive && oddsLooksReal(j)) setFetched(j) })
       .catch(() => {})

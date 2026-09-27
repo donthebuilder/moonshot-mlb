@@ -57,6 +57,7 @@ import { isMaintenanceMode } from '../../../../../lib/edgeConfig'
 import { backfillOneNight } from '../../../../../lib/dash/homerBackfill'
 import { logXBudget } from '../../../../../lib/dash/xBudget'
 import { postLongshotsOnce } from '../../../../../lib/dash/longshotsPost'
+import { mlbLatestOdds } from '../../../../../lib/odds/latest'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -645,7 +646,17 @@ async function published(slot, paths, ok) {
   }
   return c.data
 }
-const oddsFile = () => published('odds', oddsPaths(), (j) => Boolean(j?.by_player_id))
+// OUR PRICES FIRST (2026-09-27): read straight from the tables (the site's
+// /api/odds/latest is relative-only); the bot's file is the fallback.
+async function oddsFile(day, db) {
+  const c = _cache.odds
+  if (c.data && Date.now() - c.at < TTL_MS && c.data.date === day) return c.data
+  try {
+    const ours = db && day ? await mlbLatestOdds(db, day) : null
+    if (ours && !ours.empty) { _cache.odds = { at: Date.now(), data: ours }; return ours }
+  } catch (e) { console.error(`[homers] odds (ours): ${e?.message}`) }
+  return published('odds', oddsPaths().filter((u) => /^https?:/.test(u)), (j) => Boolean(j?.by_player_id))
+}
 const pairsFile = () => published('pairs', pairSummaryPaths(), (j) => Array.isArray(j?.top_pairs))
 
 /** His jersey number off the league, or null. One small call per new homer. */
@@ -1055,7 +1066,7 @@ export async function GET(request) {
   // is full (lib/dash/homerBackfill). Runs before the no-games exits on
   // purpose: an off day is exactly when there is time for it.
   const backfill = await backfillOneNight(db, day)
-  const [board, odds, pairs] = await Promise.all([boardIndex(day), oddsFile(), pairsFile()])
+  const [board, odds, pairs] = await Promise.all([boardIndex(day), oddsFile(day, db), pairsFile()])
   // 2026-09-08 (Donovan: "USE WHATEVER IS ON THE SITE -- nothing should come
   // back as nothing when the site has already pulled the data, the API is
   // the cushion"). fetchLiveSlate hits a separate, flakier pipeline than the

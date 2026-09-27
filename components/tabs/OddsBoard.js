@@ -176,7 +176,11 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
   const [q, setQ] = useState('')
   const [hideFrozen, setHideFrozen] = useState(false)
 
-  const status = useOddsStatus()
+  // The bot's odds_status.json describes the bot's providers (dead since
+  // 09-14). When the prices on screen are our own feed's, it is not their
+  // status, so it is not shown (2026-09-27).
+  const botStatus = useOddsStatus()
+  const status = odds?.source === 'sportsgameodds' && !odds?.empty ? null : botStatus
   const live = MK[market] || MARKETS[0]
 
   // ── FRESHNESS GATE (2026-08-29) ─────────────────────────────────────────
