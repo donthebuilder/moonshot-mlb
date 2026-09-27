@@ -147,7 +147,36 @@ const FEED_WEBHOOKS = () => {
 // So there is one function now, and it checks the error. A claim that cannot
 // be written says so in the log and returns false; a kind the database refuses
 // can never again look identical to a slow news night.
+// ── WHICH POSTS RUN (tweets fix step 3, 2026-09-26, Donovan: "yes" to the
+// plan's list). 23 kinds went out on 09-26 and the feed read like yesterday.
+//   DAILY     the calls (Called Shots, the board), ONE morning "last night"
+//             post (accountability, 8am ET, grades yesterday's calls),
+//             numerology, the call of the night, history watch (only when a
+//             claim passes), and the weekly/monthly summaries. Homer alerts
+//             never come through here and are never gated.
+//   ROTATION  one a day at most, by date: matchup HR, best air, hot contact,
+//             storylines, pairs, hot week, hot month.
+//   OFF       everything else (danger combos, matchup lines, career matchups,
+//             HR leaders by day, back-to-back, bot poll, community pick,
+//             storyline watch, longshot, The Four, board results, the night
+//             recap...).
+// POST_KINDS_ON (Vercel env, comma list, or 'all') replaces all of it
+// without a deploy.
+const DAILY_KINDS = new Set(['pregame', 'board', 'accountability', 'numerology', 'callofnight', 'history_watch', 'weekly', 'monthly'])
+const ROTATION_KINDS = ['matchup_hr', 'bestair', 'hotcontact', 'storylines', 'pairswatch', 'hot_week', 'hot_month']
+function postKindOn(kind, day) {
+  const env = String(process.env.POST_KINDS_ON || '').trim()
+  if (env.toLowerCase() === 'all') return true
+  if (env) return env.split(',').map((k) => k.trim()).includes(kind)
+  if (DAILY_KINDS.has(kind)) return true
+  const i = ROTATION_KINDS.indexOf(kind)
+  if (i < 0) return false
+  const dayNo = Math.floor(Date.parse(`${day}T12:00:00Z`) / 864e5)
+  return dayNo % ROTATION_KINDS.length === i
+}
+
 async function claimSlot(db, day, kind) {
+  if (!postKindOn(kind, day)) return false
   const { data, error } = await db
     .from('homer_feed_posts')
     .upsert([{ day, kind, payload: {} }], { onConflict: 'day,kind', ignoreDuplicates: true })
@@ -788,6 +817,9 @@ const slateDayOf = (snap) => {
 async function postRecap(db, day, { force = false } = {}) {
   const xOn = hasX()
   const out = { recap: xOn ? 'posted' : 'x-not-configured', ...(xOn ? {} : { x_problem: xProblem() }) }
+  // The night recap is off in the post list (tweets fix step 3) unless
+  // POST_KINDS_ON names it; a forced manual recap still runs.
+  if (!force && !postKindOn('recap', day)) return { recap: 'off-in-post-list' }
   const key = `homerfeed:recap:${day}`
   // Same read-the-error rule as claimSlot above, on the other claim table.
   // This one is the worst place to be silent: an errored upsert returns no

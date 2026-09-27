@@ -194,7 +194,10 @@ const TD_NEIGHBOR_SPAN = 2
 // Which post, if any, this weekday owns. 0=Sun .. 6=Sat, same etWeekday()
 // the milestone gate already uses.
 const WEEKLY_SLOTS = {
+  // WHY HE'S ON THE BOARD moved to Sunday morning only (tweets fix step 3,
+  // 2026-09-26): one before kickoff instead of Friday + Saturday.
   0: [
+    { kind: 'nfl_whyboard', hour: SAT_WHYBOARD_HOUR },
     { kind: 'nfl_board', hour: SUN_BOARD_HOUR },
     { kind: 'nfl_botpoll', hour: SUN_BOTPOLL_HOUR },
     { kind: 'nfl_community', hour: SUN_COMMUNITY_HOUR },
@@ -205,9 +208,7 @@ const WEEKLY_SLOTS = {
   ],
   3: [{ kind: 'nfl_redzone', hour: WED_REDZONE_HOUR }, { kind: 'nfl_goalline', hour: WED_GOALLINE_HOUR }],
   4: [{ kind: 'nfl_tdhistory', hour: THU_TDHISTORY_HOUR }],
-  5: [{ kind: 'nfl_whyboard', hour: FRI_WHYBOARD_HOUR }],
   2: [{ kind: 'nfl_spotlight', hour: TUE_SPOTLIGHT_HOUR }],
-  6: [{ kind: 'nfl_whyboard', hour: SAT_WHYBOARD_HOUR }],
 }
 
 function etHoursSinceNoon() {
