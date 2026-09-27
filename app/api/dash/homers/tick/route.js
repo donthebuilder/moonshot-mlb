@@ -45,7 +45,7 @@ import {
   hottestContactPicks, hottestContactText, hrLeadersByDowText, hrVsStarterPicks, hrVsStarterText, liveIndexFrom, matchupLinesPicks, matchupLinesText,
   milestonePicks, milestoneText, playableRows, revengeGiveawayPicks, revengeGiveawayText, storylinesPicks, storylinesText, storylineWatchPicks, storylineWatchText,
   streaksPick, streaksText, theFourPicks, theFourText, vsPitcherCareerLines,
-  boardPitchersFresh, scheduleFor, boardGamesToday, hotStretchPicks, hotStretchText,
+  boardPitchersFresh, scheduleFor, boardGamesToday, onSlateTonight, hotStretchPicks, hotStretchText,
   anglesText, hotSheetText,
 } from '../../../../../lib/dash/tweetFeed'
 import { threadsSnapshot } from '../../../../../lib/dash/threadsPost'
@@ -1070,8 +1070,14 @@ export async function GET(request) {
   // post below reads the board THROUGH it instead of raw. Fails open on an
   // unknown game -- see lib/dash/tweetFeed.js playableRows.
   const live = liveIndexFrom(snap)
-  const pregameRows = () => playableRows(boardRows(), live, 'pregame')
-  const midRows = () => playableRows(boardRows(), live, 'mid')
+  // THE CALLS keep playableRows (Called Shots, the board, The Four -- made
+  // before lineups by design). EVERY OTHER post that names players reads
+  // confirmed lineups only (onSlateTonight, tweets fix step 2c, Donovan
+  // 09-26 "strict, posts wait"): a morning post with nobody confirmed yet
+  // posts nothing and its slot keeps asking each tick.
+  const callRows = () => playableRows(boardRows(), live, 'pregame')
+  const pregameRows = () => onSlateTonight(boardRows(), live, 'pregame')
+  const midRows = () => onSlateTonight(boardRows(), live, 'mid')
 
   // IS THE BOARD TONIGHT'S BOARD (2026-09-18, Donovan: "THE TWEETS are
   // sending out yesterday's information again") ─────────────────────────────
@@ -1322,7 +1328,7 @@ export async function GET(request) {
     }
     if (etHoursSinceNoon() >= THE_FOUR_HOUR) {
       await safeStat('thefour', async () => {
-        const four = theFourPicks(pregameRows())
+        const four = theFourPicks(callRows())   // The Four are the bot's calls: the calls' rule
         await claimAndPostStat(db, day, 'thefour', THE_FOUR_HOUR,
           theFourText(four, { day, ...TAIL }),
           four.length === 4 ? {
@@ -1384,7 +1390,7 @@ export async function GET(request) {
     // pass a render thunk instead of a statCard spec.
     if (etHoursSinceNoon() >= HOT_MONTH_HOUR) {
       await safeStat('hot_month', async () => {
-        const { pick, window: win } = await hotStretchPicks(boardRows(), day, { window: 'month' })
+        const { pick, window: win } = await hotStretchPicks(pregameRows(), day, { window: 'month' })
         await claimAndPostStat(db, day, 'hot_month', HOT_MONTH_HOUR,
           hotStretchText(pick, { day, ...TAIL, window: 'month' }),
           null,
@@ -1395,7 +1401,7 @@ export async function GET(request) {
     if (etHoursSinceNoon() >= HOT_WEEK_HOUR) {
       await safeStat('hot_week', async () => {
         const exclude = await hotStretchSeenIds(db, day)
-        const { pick, window: win } = await hotStretchPicks(boardRows(), day, { window: 'week', exclude })
+        const { pick, window: win } = await hotStretchPicks(pregameRows(), day, { window: 'week', exclude })
         await claimAndPostStat(db, day, 'hot_week', HOT_WEEK_HOUR,
           hotStretchText(pick, { day, ...TAIL, window: 'week' }),
           null,
@@ -1407,11 +1413,9 @@ export async function GET(request) {
     // ── MILESTONE WATCH, TWO WAVES (2026-09-15, Donovan: "milestone emoji
     //    title then players with stats," two posts a day, two different
     //    sets of players) -- ported from components/Storylines.js, see
-    //    milestonePicks() in tweetFeed.js for the real computation. Runs
-    //    off boardRows(), not pregameRows(): a milestone doesn't depend on
-    //    tonight's lineup being confirmed, so the AM wave can fire at 6am
-    //    ET while matchup history above is still waiting on lineups to
-    //    lock. The mid wave excludes whoever the AM wave already named
+    //    milestonePicks() in tweetFeed.js for the real computation. (Since
+    //    09-26 every post naming players reads confirmed lineups only --
+    //    pregameRows() = onSlateTonight -- so these wait for lineups.) The mid wave excludes whoever the AM wave already named
     //    (milestoneSeenIds above), so the two posts never repeat a player.
     // 📜 HISTORY WATCH REPLACES THE AM MILESTONE POST (milestones plan step
     //    2, 2026-09-26). Same slot, same volume: tonight's hitters one homer
@@ -1421,7 +1425,7 @@ export async function GET(request) {
     //    list is not a fallback for it.
     if (etHoursSinceNoon() >= MILESTONE_AM_HOUR && !isRetired('history_watch')) {
       await safeStat('history_watch', async () => {
-        const items = await mlbWatch(boardRows(), Number(day.slice(0, 4)))
+        const items = await mlbWatch(pregameRows(), Number(day.slice(0, 4)))
         await claimAndPostStat(db, day, 'history_watch', MILESTONE_AM_HOUR,
           historyWatchText(items),
           null,
@@ -1431,7 +1435,7 @@ export async function GET(request) {
     if (etHoursSinceNoon() >= MILESTONE_MID_HOUR && !isRetired('milestone_mid')) {
       await safeStat('milestone_mid', async () => {
         const seen = await milestoneSeenIds(db, day)
-        const miles = await milestonePicks(boardRows(), { exclude: seen })  // text-only now, see the AM wave above
+        const miles = await milestonePicks(pregameRows(), { exclude: seen })  // text-only now, see the AM wave above
         await claimAndPostStat(db, day, 'milestone_mid', MILESTONE_MID_HOUR,
           milestoneText(miles, { day, wave: 'mid', ...TAIL }),
           null,
@@ -1498,10 +1502,10 @@ export async function GET(request) {
     }
     // ── REVENGE GAMES + GIVEAWAYS, ONE COMBINED POST (2026-09-15, Donovan:
     //    "thing else post in a combined tweet") ─────────────────────────────
-    // Off boardRows(), not pregameRows(): a revenge game is a fact about
-    // tonight's matchup, not something that stops being true once first
-    // pitch happens, and a giveaway is tied to the whole game, not a lineup
-    // slot -- same reasoning MILESTONE_AM above already uses for running off
+    // (Since 09-26: confirmed lineups only, like every post naming players
+    // -- tweets fix step 2c.) Originally off the raw board because a revenge
+    // game is a fact about tonight's matchup and a giveaway is tied to the
+    // whole game, not a lineup slot -- same reasoning MILESTONE_AM above already uses for running off
     // the full board this early (7am ET, before most lineups are even
     // posted).
     if (etHoursSinceNoon() >= REVENGE_GIVEAWAY_HOUR && !isRetired('revenge_giveaway')) {
@@ -1510,7 +1514,7 @@ export async function GET(request) {
         // card"). No card -- revengeGiveawayText() (tweetFeed.js) no longer
         // pre-trims to 4 revenge + 3 giveaways either, so shrinkToFit alone
         // decides how many real lines fit in 270 chars.
-        const rg = await revengeGiveawayPicks(boardRows(), day)
+        const rg = await revengeGiveawayPicks(pregameRows(), day)
         await claimAndPostStat(db, day, 'revenge_giveaway', REVENGE_GIVEAWAY_HOUR,
           revengeGiveawayText(rg, { day, ...TAIL }),
           null)
@@ -1674,10 +1678,10 @@ export async function GET(request) {
       if (!pregameLockReady) {
         if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: 'waiting-for-lock-window', statErrors, discordErrors: discordFailuresSnapshot() })
       } else {
-        picks = pregamePicks(pregameRows(), odds, day)
+        picks = pregamePicks(callRows(), odds, day)
         // Every roled name on tonight's board, for the receipt quote only --
         // see pregameCalled() in homerFeed.js. Not used by any post text.
-        const called = pregameCalled(pregameRows())
+        const called = pregameCalled(callRows())
         if (!picks.length) {
           if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: 'no-picks', statErrors, discordErrors: discordFailuresSnapshot() })
         } else {
@@ -1713,7 +1717,7 @@ export async function GET(request) {
       // lineup that can still change is least accurate called off a board
       // published hours before lineups lock.
       if (pregameLockReady) {
-        const boardPicks = boardRolePicks(pregameRows())
+        const boardPicks = boardRolePicks(callRows())
         if (boardPicks.length) {
           const boardClaim = await claimSlot(db, day, 'board')
           if (boardClaim) {
