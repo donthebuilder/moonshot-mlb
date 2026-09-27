@@ -48,12 +48,52 @@ reads, via its `data` branch.
 - No new hex literals in .js files. Import the product's theme token
   instead. `node scripts/check-scales.mjs` counts them.
 
+## Mobile is a testable product feature
+Every screen is a phone screen first. A page is not done because it
+renders. It's done when it passes the phone checks below at 390×844
+(plus 360×780 and 430×932 for anything with a table, a chart or a
+fixed bar). Each of these is a production bug even when the data is right:
+- **Bleed:** anything wider than the screen. Sideways page scroll, text
+  or a table cut off at the edge, a chip row pushing the layout.
+- **Clipping:** a name, number or label cut off, overlapped, or
+  squeezed into "…" when there was room to show it.
+- **Collisions:** the fixed bottom bar or header covering content, a
+  button or the last row of a list. A sheet or modal taller than the
+  screen with no way to scroll it. A toast covering a control.
+- **Tap targets:** anything tappable under 44×44 px, or two targets
+  so close that a thumb hits the wrong one.
+- **Readability:** body text under 12px, numbers under 11px, or contrast
+  below WCAG AA on the dark theme.
+- **Scroll cost:** a change that pushes the first useful row lower
+  needs a reason. Long lists preview a few rows ("+N more"). Measure the
+  first-row y before and after, and write it in the commit.
+- **Wide tables:** they scroll inside their own box (sticky first
+  column), never the whole page. The DenseTable phone density is the
+  standard.
+- **Hover-only meaning:** anything that only explains itself on hover
+  must also work on tap (lib/explain.js pattern).
+- **Keyboard:** the on-screen keyboard must not cover the input
+  you're typing in (search, login, sign-up).
+- **Navigation on a phone:** every tap lands on the right page with the
+  right sport, tab, filter and player. Back returns where you were.
+  A shared link opens the same thing on a phone as on desktop.
+  (Same rule as the navigation rule, measured on the phone.)
+- **Safe areas:** nothing under the iPhone notch or home bar
+  (env(safe-area-inset-*)).
+- **Landscape:** a phone turned sideways doesn't break the layout
+  (the bottom bar still fits, and sheets still scroll).
+Before any push that touches UI: run `node scripts/check-mobile.mjs`
+on the pages you changed. It must be green.
+
 ## Git and shipping
 - Never `git add -A` or `git add .` (ARCHIVE/ is huge and there are secrets
   nearby). Stage explicit paths only.
 - Never `git stash`. Never `--amend` a commit that might be pushed.
 - Before any push: `npm run build` is clean, `node scripts/check-routes.mjs`
-  passes, and Donovan has said yes to pushing.
+  passes, and Donovan has said yes to pushing. A push that touches UI also
+  runs `node scripts/check-mobile.mjs --pages "<the pages you changed>"`
+  (against `npx next start` or `--base https://dashnetwork.vercel.app`);
+  no ERROR lines.
 - No temporary or debug routes left in `app/api/`. They deploy publicly.
 - SQL: write the migration file and hand it to Donovan. He runs it in the
   Supabase SQL editor. The SQL runs BEFORE the code that needs it ships.

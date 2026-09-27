@@ -72,3 +72,6 @@ SHIP-SCRIPTS-ARCHIVE/
 .claude-notes/
 .claude/settings.local.json
 CLAUDE.local.md
+
+# scripts/check-mobile.mjs output (screenshots + report)
+mobile-report/
