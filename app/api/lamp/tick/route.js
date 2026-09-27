@@ -28,6 +28,7 @@ import { startersFromPlayByPlay, goaliesFromBoxscore } from '../../../../lib/nhl
 import { shotsFromPlayByPlay, writeShots } from '../../../../lib/nhl/shots'
 import { postLongshotsOnce } from '../../../../lib/dash/longshotsPost'
 import { postMultiClubOnce } from '../../../../lib/dash/multiClubPost'
+import { toPropRow, gradeSogRows, MODEL_VERSION as SOG_VERSION, MARKET as SOG } from '../../../../lib/nhl/sogModel'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -82,6 +83,18 @@ export async function GET(request) {
       if (error) { console.error(`[lamp tick] upsert ${g.id}: ${error.message}`); out.skipped.push({ game: g.id, why: `upsert: ${error.message}` }); continue }
       const del = await db.from('lamp_goal_log').delete().eq('game_id', g.id).eq('model_version', MODEL_VERSION).lt('locked_at', lockedAt)
       if (del.error) console.error(`[lamp tick] prune ${g.id}: ${del.error.message}`)
+      // LAMP SHOTS (lamp-sog-v1): same game, same snapshot, same lockedAt, the
+      // same "never at or after puck drop" (checked above). Its own failure,
+      // logged; never the goal lock's.
+      const sogRows = night.sogByGame?.get(g.id) || []
+      if (sogRows.length) {
+        const up = await db.from('lamp_prop_log').upsert(sogRows.map((r) => toPropRow(r, g, night.day, lockedAt)), { onConflict: 'game_id,player_id,market,model_version' })
+        if (up.error) console.error(`[lamp tick] sog upsert ${g.id}: ${up.error.message}`)
+        else {
+          const sdel = await db.from('lamp_prop_log').delete().eq('game_id', g.id).eq('market', SOG).eq('model_version', SOG_VERSION).lt('locked_at', lockedAt)
+          if (sdel.error) console.error(`[lamp tick] sog prune ${g.id}: ${sdel.error.message}`)
+        }
+      }
       const prevGame = await db.from('lamp_goal_games').select('snapshots').eq('game_id', g.id).eq('model_version', MODEL_VERSION).maybeSingle()
       const gm = await writeGame(db, g.id, {
         game_id: g.id, model_version: MODEL_VERSION, game_date: night.day.date, season: g.season, game_type: g.gameType, start_utc: g.startUtc,
@@ -91,7 +104,8 @@ export async function GET(request) {
         starters: night.starters?.byGame?.[g.id] || null, starters_source: night.starters?.source || null,
       }, 'upsert')
       if (gm.error) console.error(`[lamp tick] games ${g.id}: ${gm.error.message}`)
-      out.locked.push({ game: g.id, matchup: `${g.away.abbrev}@${g.home.abbrev}`, rows: rows.length, called: rows.filter((r) => r.status === 'called').map((r) => r.name), lineupKnown: Boolean(night.lineups[g.id]), minutesToDrop: Math.round((start - Date.now()) / 60000) })
+      out.locked.push({ game: g.id, matchup: `${g.away.abbrev}@${g.home.abbrev}`, rows: rows.length, called: rows.filter((r) => r.status === 'called').map((r) => r.name),
+        sogCalled: sogRows.filter((r) => r.status === 'called').map((r) => r.name), lineupKnown: Boolean(night.lineups[g.id]), minutesToDrop: Math.round((start - Date.now()) / 60000) })
     }
   }
 
@@ -129,8 +143,21 @@ export async function GET(request) {
       if (pbp) {
         try { shotRows = (await writeShots(db, shotsFromPlayByPlay(pbp))).rows } catch (e) { console.error(`[lamp tick] shots ${p.game_id}: ${e?.message}`) }
       }
+      // LAMP SHOTS grade, off the same boxscore: value = sog, hit = 3+, not
+      // dressed = void. Scoring columns untouched; its own failure, logged.
+      let sogGraded = null
+      try {
+        const sh = await db.from('lamp_prop_log').select('*').eq('game_id', p.game_id).eq('market', SOG).eq('model_version', SOG_VERSION).is('graded_at', null)
+        if (sh.error) throw new Error(sh.error.message)
+        if (sh.data?.length) {
+          const gs = gradeSogRows(sh.data, box.playerByGameStats)
+          const su = await db.from('lamp_prop_log').upsert(gs.map((r) => ({ ...r, graded_at: gradedAt })), { onConflict: 'game_id,player_id,market,model_version' })
+          if (su.error) throw new Error(su.error.message)
+          sogGraded = { rows: gs.length, hits: gs.filter((r) => r.hit).length, calledHits: gs.filter((r) => r.hit && r.status === 'called').length }
+        }
+      } catch (e) { console.error(`[lamp tick] sog grade ${p.game_id}: ${e?.message}`) }
       const scorers = graded.filter((r) => r.hit)
-      out.graded.push({ game: p.game_id, matchup: `${g.away.abbrev}@${g.home.abbrev}`, rows: graded.length, dressed: graded.filter((r) => r.dressed).length, net: [startersActual?.away?.name, startersActual?.home?.name], shots: shotRows, scorers: scorers.map((r) => `${r.name} (${r.status}${r.rank ? ` #${r.rank}` : ''})`) })
+      out.graded.push({ game: p.game_id, matchup: `${g.away.abbrev}@${g.home.abbrev}`, rows: graded.length, dressed: graded.filter((r) => r.dressed).length, net: [startersActual?.away?.name, startersActual?.home?.name], shots: shotRows, scorers: scorers.map((r) => `${r.name} (${r.status}${r.rank ? ` #${r.rank}` : ''})`), sog: sogGraded })
     } catch (e) {
       console.error(`[lamp tick] grade ${p.game_id}: ${e?.message}`); out.skipped.push({ game: p.game_id, why: `grade: ${e?.message}` })
     }
