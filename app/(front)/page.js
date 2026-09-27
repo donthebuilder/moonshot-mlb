@@ -365,11 +365,18 @@ export default async function DashHome({ searchParams }) {
           <header><i>M</i><div><strong>MOONSHOT</strong><small>MLB</small></div></header>
           <h3>Tonight&apos;s board, graded by morning.</h3>
           <p>Four call categories — HR, HIT, HRR, CONTACT — plus the full ranked board, the pairs, and every receipt the next morning.</p>
-          <dl>
-            <div><dt>Games</dt><dd>{mlb?.games ?? '—'}</dd></div>
-            <div><dt>Cleared / started</dt><dd>{mlb?.cleared ?? '—'} / {mlb?.started ?? '—'}</dd></div>
-            <div><dt>HRs on the board at lock</dt><dd>{mlb?.locked?.total ? `${mlb.locked.onBoard} / ${mlb.locked.total}` : '—'}</dd></div>
-          </dl>
+          {/* THE SAME SHAPE AS TUDDY'S (front door E, 2026-09-27): tonight's HR
+              calls as a list, top five by score, a homer marked -- was three
+              numbers the tiles above already show. */}
+          {mlb?.topCalls?.length && !mlbOff ? (
+            <ul className={styles.six}>
+              {mlb.topCalls.map((c) => (
+                <li key={c.id}><small>HR CALL</small><b>{c.name}</b><span>{c.team ? `${c.team} · ` : ''}{Math.round(c.score)}{c.homered ? ' · 🏠 HOMERED' : ''}</span></li>
+              ))}
+            </ul>
+          ) : (
+            <p className={styles.muted}>{mlbOff ? `No MLB games tonight · ${nextLine(mlb.next, mlb.today)}.` : 'Tonight’s calls post with the board.'}</p>
+          )}
           <footer>
             <Link href="/app#sport=mlb&tab=home">Open MOONSHOT →</Link>
             <Link href="/app#sport=mlb&tab=results">Results</Link>

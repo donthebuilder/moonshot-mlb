@@ -160,6 +160,14 @@ a.brand { text-decoration: none; color: inherit; }
 .nfl { --accent: var(--nfl); }
 .nhl { --accent: var(--nhl); }
 .fantasy { --accent: var(--fantasy); }
+/* Front door E (2026-09-27): FRANCHISE is a full-width slim strip under the
+   three sport cards, not an orphan card on its own row. */
+.products .product.fantasy { grid-column: 1 / -1; display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; align-items: center; gap: 10px 18px; padding: 12px 16px; }
+.product.fantasy h3 { margin: 0; font-size: 14px; }
+.product.fantasy .leagues { margin: 0; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+.product.fantasy .muted { margin: 0; }
+.product.fantasy footer { margin: 0; }
+@media (max-width: 760px) { .products .product.fantasy { grid-template-columns: 1fr; } }
 
 .product dl { display: grid; gap: 1px; margin: 16px 0 0; padding: 0; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
 .product dl div { display: flex; justify-content: space-between; padding: 9px 11px; background: #171615; }
