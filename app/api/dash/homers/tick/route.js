@@ -59,6 +59,7 @@ import { logXBudget } from '../../../../../lib/dash/xBudget'
 import { postLongshotsOnce } from '../../../../../lib/dash/longshotsPost'
 import { mlbLatestOdds } from '../../../../../lib/odds/latest'
 import { postMultiClubOnce } from '../../../../../lib/dash/multiClubPost'
+import { mlbSeasonActive } from '../../../../../lib/dash/seasonGuard'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -980,6 +981,17 @@ export async function GET(request) {
     const { count } = await db.from('homer_feed').select('player_id', { count: 'exact', head: true }).eq('day', want)
     if (!count) return Response.json({ day: want, recap: 'no-rows', hint: 'nothing recorded for that night yet — the backfill fills one past night per tick' })
     return Response.json({ day: want, rows: count, ...(await postRecap(db, want, { force: u.searchParams.get('force') === '1' })) })
+  }
+
+  // OFFSEASON GUARD (2026-09-27). This cron fires every minute all year; after
+  // the World Series there is nothing for it to do. No MLB game from 3 days
+  // back to 3 days ahead -> return before the live-slate fetch, the backfill
+  // and the board reads. The look-back keeps the last nights' grading, recap
+  // and weekly/monthly posts alive. Fails open (lib/dash/seasonGuard.js).
+  // ?noguard=1 bypasses it for a hand run.
+  if (u.searchParams.get('noguard') !== '1') {
+    const season = await mlbSeasonActive(easternToday())
+    if (!season.active) return Response.json({ skipped: 'offseason', season })
   }
 
   // WHICH DAY IS IT (2026-09-07). This used to be a bare easternToday(), and
