@@ -82,6 +82,7 @@ import { writeNight as writeNumerology, gradeNight as gradeNumerology, refreshLa
 import { fromNfl } from '../../../../../lib/numerology/adapters'
 import { easternDate } from '../../../../../lib/data'
 import { storiesTick } from '../../../../../lib/stories/record'
+import { postNflListOnce } from '../../../../../lib/lists/post'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -785,11 +786,18 @@ export async function GET(request) {
     ? await postMultiClubOnce(db, { sport: 'nfl', day, kind: 'nfl_multi_club' }).catch((e) => `error: ${e?.message}`)
     : 'not-now'
 
+  // 📋 LIST POSTS (BATCH-LIST-POSTS step 4): weekly, Tue/Wed from 10am ET
+  // after Monday night -- a TD in every game, 100+ yards 3+ straight
+  // (lib/lists/post.js), one a day, each once a week.
+  const lists = etHoursSinceNoon() >= -2 && [2, 3].includes(etWeekday(day))
+    ? await postNflListOnce(db, day).catch((e) => `error: ${e?.message}`)
+    : 'not-now'
+
   const numerology = await runNflNumerology(db, day)
   // 📰 STORYLINES (BATCH-STORYLINES-PAGE step 3): freeze each game's stories in
   // the 15 minutes before kickoff, grade them once final. Never throws.
   const storylines = await storiesTick(db, 'nfl')
 
   const threads = threadsSnapshot()
-  return Response.json({ day, td, milestone, weekly, longshots, multiClub, numerology, storylines, ...(threads.length ? { threads } : {}) })
+  return Response.json({ day, td, milestone, weekly, longshots, multiClub, lists, numerology, storylines, ...(threads.length ? { threads } : {}) })
 }
