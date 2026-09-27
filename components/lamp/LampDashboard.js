@@ -26,6 +26,7 @@ import Team from './tabs/Team'
 import Players from './tabs/Players'
 import Player from './tabs/Player'
 import SpecialTeams from './tabs/SpecialTeams'
+import HotSticks from './tabs/HotSticks'
 import ShotMap from './tabs/ShotMap'
 import LampLedger from './tabs/LampLedger'
 import Numerology from './tabs/Numerology'
@@ -286,6 +287,7 @@ export default function LampDashboard({ palettePass = 0 }) {
             {tab === 'player' && <Player id={playerId} onOpenTeam={openTeam} onOpenGame={openGame} backLabel={backLabel('players')} onBack={() => goBack('players')} />}
             {tab === 'leaders' && <Leaders onOpenPlayer={openPlayer} onOpenTeam={openTeam} />}
             {tab === 'specialteams' && <SpecialTeams onOpenTeam={openTeam} />}
+            {tab === 'hotsticks' && <HotSticks onOpenPlayer={openPlayer} />}
             {tab === 'shotmap' && <ShotMap onOpenPlayer={openPlayer} />}
             {tab === 'lampledger' && <LampLedger onOpenPlayer={openPlayer} />}
             {tab === 'numerology' && <Numerology date={date} onOpenPlayer={openPlayer} />}
