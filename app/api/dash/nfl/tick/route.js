@@ -67,6 +67,7 @@ import {
   spotlightPick, spotlightText,
 } from '../../../../../lib/nfl/tweetFeed'
 import { fetchNflLive } from '../../../../../lib/nfl/liveSlate'
+import { nflReachedLine } from '../../../../../lib/history/nfl'
 import { buildTdEvent, eventFromRow, rowFromEvent, tdPostText, touchdownsInSnap } from '../../../../../lib/nfl/tdFeed'
 import { tdCard } from '../../../../../lib/nfl/tdCard'
 import { threadsSnapshot } from '../../../../../lib/dash/threadsPost'
@@ -378,7 +379,10 @@ async function runTouchdownTick(db, day) {
     const xOn = hasX()
     for (const row of pending || []) {
       const ev = eventFromRow(row)
-      const text = tdPostText(ev, TAIL)
+      // REACHED (milestones plan section 5): a touchdown landing on a
+      // history rung gains one line, re-asked now; a failed check drops it.
+      const reached = await nflReachedLine(row, Number(String(row.day).slice(0, 4)))
+      const text = reached ? `${tdPostText(ev, TAIL)}\n\n${reached}` : tdPostText(ev, TAIL)
       const patch = {}
       let stopTick = false
       const needsCard = !row.discord_sent || !row.x_post_id
