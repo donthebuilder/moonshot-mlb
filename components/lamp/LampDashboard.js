@@ -28,6 +28,7 @@ import Player from './tabs/Player'
 import SpecialTeams from './tabs/SpecialTeams'
 import HotSticks from './tabs/HotSticks'
 import Longshots from '../Longshots'
+import StorylinesPage from '../StorylinesPage'
 import LampTable from './LampTable'
 import ShotMap from './tabs/ShotMap'
 import LampLedger from './tabs/LampLedger'
@@ -290,6 +291,7 @@ export default function LampDashboard({ palettePass = 0 }) {
             {tab === 'leaders' && <Leaders onOpenPlayer={openPlayer} onOpenTeam={openTeam} />}
             {tab === 'specialteams' && <SpecialTeams onOpenTeam={openTeam} />}
             {tab === 'hotsticks' && <HotSticks onOpenPlayer={openPlayer} />}
+            {tab === 'storylines' && <StorylinesPage sport="nhl" eyebrow="LAMP · STORYLINES" theme={C} numFont={NUM_FONT} accent={C.ice} onOpenPlayer={openPlayer} date={date} />}
             {tab === 'longshots' && <Longshots sport="nhl" eyebrow="LAMP · LONGSHOTS" theme={C} numFont={NUM_FONT} accent={C.ice} Table={LampTable} onOpenPlayer={openPlayer} />}
             {tab === 'shotmap' && <ShotMap onOpenPlayer={openPlayer} />}
             {tab === 'lampledger' && <LampLedger onOpenPlayer={openPlayer} />}
