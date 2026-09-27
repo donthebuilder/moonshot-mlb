@@ -3,7 +3,7 @@ import { Fragment, useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { verdictInk } from '../../lib/scales'
 import { fetchJSON } from '../../lib/data'
-import OddsStatus, { useOddsStatus } from '../OddsStatus'
+import OddsStatus, { useOddsStatus, siteHasPrices } from '../OddsStatus'
 import SortTh from '../SortTh'
 import { oddsHistoryPaths } from '../../lib/dataSource'
 import { fmtOdds, impliedPct } from '../../lib/odds'
@@ -167,7 +167,9 @@ export default function TruePrice({ onPlayerClick, players = [], odds = null }) 
   const [plusOnly, setPlusOnly] = useState(false)
   const [team, setTeam] = useState('all')
   const [open, setOpen] = useState(null)
-  const oddsStatus = useOddsStatus()
+  // The bot's status only when the site's own feed has no prices (siteHasPrices).
+  const botOddsStatus = useOddsStatus()
+  const oddsStatus = siteHasPrices(odds) ? null : botOddsStatus
 
   useEffect(() => {
     let alive = true
