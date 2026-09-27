@@ -50,7 +50,9 @@ const COLUMNS = [
 export default function HotSticks({ onOpenPlayer }) {
   const { data, error, loading } = useLampHotSticks()
   const [scope, setScope] = useState('all')
-  const tonight = data?.tonight || {}
+  // Last season's rows carry last season's team, so "tonight" would pair a
+  // traded man with his old club's game: no tonight join until they're current.
+  const tonight = useMemo(() => (data?.stale ? {} : data?.tonight || {}), [data])
   const rows = useMemo(() => (data?.rows || []).map((r) => ({
     ...r,
     tonight: tonight[r.team] ? `${tonight[r.team].home ? 'vs' : '@'} ${tonight[r.team].opp}` : '',
@@ -63,7 +65,7 @@ export default function HotSticks({ onOpenPlayer }) {
       <PageHeader eyebrow="LAMP · HOT STICKS" title="Who is shooting more than usual"
         note="Every skater's last 5 and last 10 games beside his season rate. Shots come before goals: a man putting pucks on net without scoring shows up here first. Sort any column."
         theme={C} numFont={NUM_FONT} accent={C.ice}
-        stats={data ? [{ value: rows.length, label: 'SKATERS', tone: C.text2 }, { value: playing, label: 'PLAYING TONIGHT', tone: C.ice }] : null} />
+        stats={data ? [{ value: rows.length, label: 'SKATERS', tone: C.text2 }, ...(data.stale ? [] : [{ value: playing, label: 'PLAYING TONIGHT', tone: C.ice }])] : null} />
       {data?.stale && <StaleSeasonNote label={data.seasonLabel} what="hot sticks" />}
       <DelayedBanner error={error} what="hot sticks" />
       {loading && !data ? <Loading what="hot sticks" /> : null}
@@ -72,7 +74,7 @@ export default function HotSticks({ onOpenPlayer }) {
         <>
           <PillRow label="Show" value={scope} onChange={setScope} options={[
             { key: 'all', label: 'All', count: rows.length },
-            { key: 'tonight', label: 'Playing tonight', count: playing },
+            ...(data?.stale ? [] : [{ key: 'tonight', label: 'Playing tonight', count: playing }]),
             { key: 'f', label: 'Forwards', count: rows.filter((r) => r.pos !== 'D').length },
             { key: 'd', label: 'Defense', count: rows.filter((r) => r.pos === 'D').length },
           ]} />
