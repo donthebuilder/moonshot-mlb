@@ -34,6 +34,21 @@ export default function StoryRow({ icon, children, onClick = null, title, tag = 
   )
 }
 
+/** A story engine row's parts ({ t: 'name'|'num'|'text', v }): names bold, numbers mono orange. */
+export function StoryParts({ parts, theme: C, numFont }) {
+  return (parts || []).map((x, j) => (x.t === 'name'
+    ? <b key={j} style={{ color: C.text }}>{x.v}</b>
+    : x.t === 'num' ? <b key={j} style={{ fontFamily: numFont, color: C.orange }}>{x.v}</b> : <span key={j}>{x.v}</span>))
+}
+
+const STATUS = { called: 'CALLED', board: 'ON THE BOARD', off: 'NOT ON THE BOARD' }
+/** The player's board chip beside a story (lib/stories/index.js `board`). */
+export function BoardBadge({ b, theme: C, numFont, accent }) {
+  if (!b) return null
+  const tone = b.status === 'called' ? accent : b.status === 'board' ? C.text2 : C.text3
+  return <span style={{ color: tone, fontFamily: numFont, fontSize: 10, fontWeight: 800 }}>{STATUS[b.status]}{b.status !== 'off' && Number.isFinite(Number(b.score)) ? ` ${Math.round(b.score)}` : ''}</span>
+}
+
 /** A sentence with every number (counts, years) in the mono font, orange. */
 export function Numbered({ text, theme: C, numFont }) {
   return String(text || '').split(/(\d[\d,]*)/).map((x, j) => (/^\d/.test(x)

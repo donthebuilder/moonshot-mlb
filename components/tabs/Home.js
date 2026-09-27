@@ -11,7 +11,7 @@ import { laneRecord } from '../../lib/lanes'
 import { groupGames } from '../../lib/data'
 import { fetchPenFatigue, penTier } from '../../lib/bullpen'
 import { teamAbbrs } from '../../lib/gamelogs'
-import Storylines from '../Storylines'
+import StorylinesStrip from '../StorylinesStrip'
 import ScoreRail from '../ScoreRail'
 import { hr9Color, isLeaky } from '../../lib/hr9'
 import YourPlayers from '../YourPlayers'
@@ -1027,7 +1027,12 @@ export default function Home({
           it expands on.
           results (2026-08-13): this page already holds it — see the note in
           Storylines.js for why it used to fetch its own copy. */}
-      <Storylines players={players} slateDate={slateDate} results={results} onPlayerClick={onPlayerClick} />
+      {/* 2026-09-27 (BATCH-STORYLINES-PAGE step 4): the story engine's rarest THREE
+          (not 5-8: no taller than what it replaced), same rows as the Storylines tab, then into it. Was the collapsed
+          panel + History Watch (283px at 390); History Watch's claims lead here
+          as the rarest stories. */}
+      <StorylinesStrip sport="mlb" theme={C} numFont={NUM_FONT} accent={C.orange} max={3} onSeeAll={() => onNavigate?.('storylines')}
+        onOpenPlayer={(id) => { const p = (players || []).find((x) => String(x?.player_id ?? x?.id) === String(id)); if (p) onPlayerClick?.(p) }} />
       <LongshotsPreview sport="mlb" theme={C} numFont={NUM_FONT} accent={C.orange} onSeeAll={() => onNavigate?.('longshots')}
         onOpenPlayer={(id) => { const p = (players || []).find((x) => String(x?.player_id ?? x?.id) === String(id)); if (p) onPlayerClick?.(p) }} />
 

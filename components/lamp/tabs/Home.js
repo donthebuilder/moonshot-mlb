@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import HeadlineStrip from '../../HeadlineStrip'
-import HistoryWatch from '../../HistoryWatch'
+import StorylinesStrip from '../../StorylinesStrip'
 import LongshotsPreview from '../../LongshotsPreview'
 import HeroStat from '../../HeroStat'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
@@ -111,7 +111,9 @@ export default function Home({ today, date = null, onOpenGame, onOpenPlayer, set
       </nav>
 
       <HeadlineStrip cards={cards} onOpen={openCard} theme={C} numFont={NUM_FONT} accent={C.ice} />
-      <HistoryWatch sport="nhl" unit="G" theme={C} numFont={NUM_FONT} onPlayerClick={(p) => onOpenPlayer?.(Number(p.player_id))} />
+      {/* 2026-09-27 (BATCH-STORYLINES-PAGE step 4): the story engine's rarest
+          five (History Watch's claims lead as the rarest), then the Storylines tab. */}
+      <StorylinesStrip sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} max={5} onSeeAll={() => setTab?.('storylines')} onOpenPlayer={(id) => onOpenPlayer?.(Number(id))} />
       <LongshotsPreview sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} onSeeAll={() => setTab?.('longshots')} onOpenPlayer={(id) => onOpenPlayer?.(id)} />
 
       <section aria-label="Tonight's games">

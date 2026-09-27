@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
 import PageHeader from './PageHeader'
-import StoryRow from './StoryRow'
+import StoryRow, { StoryParts, BoardBadge } from './StoryRow'
 
 // 📰 STORYLINES, BY GAME (BATCH-STORYLINES-PAGE step 2, 2026-09-27). One page,
 // all three products (theme / number font / accent come in as props). Reads
@@ -17,7 +17,6 @@ import StoryRow from './StoryRow'
 // Nothing is computed here: the rows are the engine's, in its words.
 
 const RARE = 0.6
-const STATUS = { called: 'CALLED', board: 'ON THE BOARD', off: 'NOT ON THE BOARD' }
 const TYPE_LABEL = {
   history: 'History', matchup: 'Matchup', funfact: 'Fun fact', milestone: 'Milestone', b2b: 'Back-to-back', duel: 'Duel',
   revenge: 'Revenge', rivalry: 'Rivalry', birthday: 'Birthday', giveaway: 'Giveaway', multi: '2+ Club', streak: 'Streak',
@@ -75,14 +74,8 @@ export default function StorylinesPage({ sport, eyebrow, theme: C, numFont, acce
     background: on ? `color-mix(in srgb, ${accent} 14%, transparent)` : 'transparent', color: on ? C.text : C.text2,
     font: 'inherit', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
   })
-  const Badge = ({ b }) => {
-    if (!b) return null
-    const tone = b.status === 'called' ? accent : b.status === 'board' ? C.text2 : C.text3
-    return <span style={{ color: tone, fontFamily: numFont, fontSize: 10, fontWeight: 800 }}>{STATUS[b.status]}{b.status !== 'off' && Number.isFinite(Number(b.score)) ? ` ${Math.round(b.score)}` : ''}</span>
-  }
-  const Parts = ({ parts }) => parts.map((x, j) => (x.t === 'name'
-    ? <b key={j} style={{ color: C.text }}>{x.v}</b>
-    : x.t === 'num' ? <b key={j} style={{ fontFamily: numFont, color: C.orange }}>{x.v}</b> : <span key={j}>{x.v}</span>))
+  const Badge = ({ b }) => <BoardBadge b={b} theme={C} numFont={numFont} accent={accent} />
+  const Parts = ({ parts }) => <StoryParts parts={parts} theme={C} numFont={numFont} />
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
