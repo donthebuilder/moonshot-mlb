@@ -7,7 +7,7 @@ import { verdictInk } from '../../lib/scales'
 import { hrGameBand, edgeBand } from '../../lib/hrRateBand'
 import { CalibrationScatter } from '../OddsChart'
 import DenseTable from '../DenseTable'
-import OddsStatus, { useOddsStatus } from '../OddsStatus'
+import OddsStatus, { useOddsStatus, siteHasPrices } from '../OddsStatus'
 import { oddsAgeHours, oddsExpired } from '../../lib/oddsFreshness'
 import TruePrice from './TruePrice'
 import OddsDiscrepancies from './OddsDiscrepancies'
@@ -180,7 +180,7 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
   // 09-14). When the prices on screen are our own feed's, it is not their
   // status, so it is not shown (2026-09-27).
   const botStatus = useOddsStatus()
-  const status = odds?.source === 'sportsgameodds' && !odds?.empty ? null : botStatus
+  const status = siteHasPrices(odds) ? null : botStatus
   const live = MK[market] || MARKETS[0]
 
   // ── FRESHNESS GATE (2026-08-29) ─────────────────────────────────────────

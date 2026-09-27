@@ -24,6 +24,14 @@ const TONE = {
   empty: { c: '#FCD34D', icon: '📡' },
 }
 
+// THE SITE'S OWN PRICES WIN (2026-09-27). odds_status.json describes the
+// bot's providers, which lost player props on 09-14; the site now prices from
+// its own feed (/api/odds/latest, source 'sportsgameodds'). When that feed
+// has prices, the bot's "empty" is about a source nobody reads -- showing it
+// told visitors "no lines yet" above a board of 700 prices. One rule for
+// every tab (OddsBoard, TruePrice; TUDDY's dashboard checks the same field).
+export const siteHasPrices = (odds) => odds?.source === 'sportsgameodds' && !odds?.empty
+
 export function useOddsStatus() {
   const [st, setSt] = useState(undefined)
   useEffect(() => {
