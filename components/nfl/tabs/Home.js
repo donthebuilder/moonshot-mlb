@@ -177,34 +177,8 @@ function defenseLeaks(matchup, games) {
   }).filter(Boolean).sort((a, b) => a.td_rank - b.td_rank).slice(0, 5)
 }
 
-function milestoneRows(logs, players) {
-  const candidates = []
-  players.forEach((player) => {
-    const rows = logs?.logs?.[String(player.player_id)]?.log || []
-    if (!rows.length) return
-    const season = Math.max(...rows.map((row) => number(row.s)))
-    const current = rows.filter((row) => number(row.s) === season)
-    const totals = current.reduce((out, row) => ({
-      td: out.td + number(row.g_td), rec: out.rec + number(row.g_rec),
-      recyd: out.recyd + number(row.g_recyd), rushyd: out.rushyd + number(row.g_ruyd),
-    }), { td: 0, rec: 0, recyd: 0, rushyd: 0 })
-    const options = [
-      { value: totals.td, step: 5, max: 2, label: 'touchdowns' },
-      { value: totals.rec, step: 50, max: 8, label: 'receptions' },
-      { value: totals.recyd, step: 500, max: 75, label: 'receiving yards' },
-      { value: totals.rushyd, step: 500, max: 75, label: 'rushing yards' },
-    ].map((item) => ({ ...item, next: Math.ceil((item.value + .001) / item.step) * item.step }))
-      .map((item) => ({ ...item, away: item.next - item.value }))
-      .filter((item) => item.next > 0 && item.away > 0 && item.away <= item.max)
-      .sort((a, b) => a.away / a.max - b.away / b.max)[0]
-    if (options) candidates.push({ player, season, ...options })
-  })
-  return candidates.sort((a, b) => a.away / a.max - b.away / b.max).slice(0, 4)
-}
-
-function LookOut({ matchup, games, logs, players }) {
+function LookOut({ matchup, games }) {
   const leaks = useMemo(() => defenseLeaks(matchup, games), [matchup, games])
-  const milestones = useMemo(() => milestoneRows(logs, players), [logs, players])
   return (
     <section className="tuddy-panel tuddy-lookout">
       <SectionTitle eyebrow="BEFORE IT HAPPENS" title="The Look-Out" />
@@ -213,11 +187,9 @@ function LookOut({ matchup, games, logs, players }) {
         {leaks.map((row) => <div key={`${row.team}-${row.role}`}><b>{row.team}</b><span>{row.role}</span><em>#{row.td_rank} TD matchup · {number(row.td).toFixed(0)} allowed</em></div>)}
         {!leaks.length && <p>The slate has no top-eight TD matchup flagged in the published defense table.</p>}
       </div>
-      <h3>Who needs what</h3>
-      <div className="tuddy-milestones">
-        {milestones.map((row) => <div key={`${row.player.player_id}-${row.label}`}><b>{row.player.name}</b><span>{Math.round(row.away)} {row.label} from {row.next}</span><em>published {row.season} logs</em></div>)}
-        {!milestones.length && <p>Milestones appear when a slate player is close enough to a round number in the published logs.</p>}
-      </div>
+      {/* "Who needs what" is gone (HISTORY WATCH 2 step 5, 2026-09-27): every
+          5 TDs / 50 catches / 500 yards with no claim behind it. The History
+          Watch in the headline strip above is the countdown with a reason. */}
     </section>
   )
 }
@@ -477,8 +449,8 @@ export default function Home({ data, picks, results, matchup, logs, onPlayerClic
         <Fold id="tuddy-startsit" title="⚖️ Start/Sit compare" meta="pick two names, see the case for each">
           <StartSit players={players} onPlayerClick={onPlayerClick} />
         </Fold>
-        <Fold id="tuddy-lookout" title="🩹 The Look-Out" meta="who's scored · defenses leaking touchdowns · who needs what">
-          <div className="tuddy-home-split"><TouchdownLedger results={results} playersById={playersById}/><LookOut matchup={matchup} games={games} logs={logs} players={players}/></div>
+        <Fold id="tuddy-lookout" title="🩹 The Look-Out" meta="who's scored · defenses leaking touchdowns">
+          <div className="tuddy-home-split"><TouchdownLedger results={results} playersById={playersById}/><LookOut matchup={matchup} games={games}/></div>
         </Fold>
         <Fold id="tuddy-angles" title="📖 Tonight's angles" meta="every line from this slate's own data">
           <Angles players={players} matchup={matchup}/>
