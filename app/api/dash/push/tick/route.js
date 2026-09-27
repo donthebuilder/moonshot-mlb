@@ -262,6 +262,32 @@ const LANE_WINDOW_MS = { actionable: 10 * 60 * 1000, scoreboard: 30 * 60 * 1000 
 const BODY_CAP = 5
 
 const shortId = (s) => createHash('sha1').update(String(s)).digest('hex').slice(0, 16)
+const hostOf = (s) => { try { return new URL(s).host } catch { return '?' } }
+
+// ── A SUBSCRIPTION THAT NEVER WORKS IS DEAD (2026-09-27, TUDDY depth step 5)
+// Only 404/410 used to remove one. Endpoint 2f277a3cf7dfb459 (Apple) failed
+// 1,265 sends from 09-19 to 09-27 with not one success -- every sweep paid
+// for it and its log rows buried the real ones. Apple answers 403 for a bad
+// or expired VAPID token and 400 for a bad device token; both are permanent
+// for that subscription, but one can be a blip, so: removed on the
+// DEAD_AFTER-th failed SEND in a row. Counted from dash_push_log (no new
+// column): 'failed' rows grouped by their insert time (one send = one insert,
+// however many events it carried), 'dropped' rows skipped (a lane drop is not
+// a send), any 'sent'/'bundled' row ends the streak. The browser subscribes
+// again by itself the next time it opens the site.
+const PERMANENT_IF_REPEATED = new Set([400, 401, 403])
+const DEAD_AFTER = 3
+async function failedSendsInARow(db, endpoint) {
+  const { data, error } = await db.from('dash_push_log').select('outcome,at')
+    .eq('endpoint_hash', shortId(endpoint)).neq('outcome', 'dropped').order('at', { ascending: false }).limit(60)
+  if (error) { console.error(`[push] failure streak read: ${error.message}`); return 0 }
+  const sends = new Set()
+  for (const r of data || []) {
+    if (r.outcome !== 'failed') break
+    sends.add(r.at)
+  }
+  return sends.size
+}
 
 async function claimQuietSlot(db, endpoint, lane = 'actionable') {
   const win = LANE_WINDOW_MS[lane] || LANE_WINDOW_MS.actionable
@@ -619,7 +645,14 @@ async function sweep(db, subs, stateByUser, audience, { full }) {
         sent += 1
         for (const e of batch) outcomes.push({ event: e, outcome: batch.length === 1 ? 'sent' : 'bundled' })
       } catch (err) {
-        if (err?.statusCode === 404 || err?.statusCode === 410) dead.push(sub.endpoint)
+        const status = err?.statusCode ?? null
+        const reason = String(err?.body || err?.message || '').replace(/\s+/g, ' ').slice(0, 120)
+        console.error(`[push] send failed ${shortId(sub.endpoint)} (${hostOf(sub.endpoint)}): ${status ?? 'no status'} ${reason}`)
+        if (status === 404 || status === 410) dead.push(sub.endpoint)
+        else if (PERMANENT_IF_REPEATED.has(status) && (await failedSendsInARow(db, sub.endpoint)) >= DEAD_AFTER - 1) {
+          console.error(`[push] ${shortId(sub.endpoint)}: ${DEAD_AFTER} failed sends in a row (${status}) -- removing the subscription; the browser re-subscribes the next time it opens the site`)
+          dead.push(sub.endpoint)
+        }
         for (const e of batch) outcomes.push({ event: e, outcome: 'failed' })
         break
       }
