@@ -119,6 +119,7 @@ export default function Dashboard({ palettePass = 0 }) {
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
   const [team, setTeam] = useState('')
+  const [game, setGame] = useState('')
   const [slip, setSlip] = useState([])
   const [watch, setWatch] = useState([])
   const [modalPlayer, setModalPlayer] = useState(null)
@@ -493,13 +494,17 @@ export default function Dashboard({ palettePass = 0 }) {
 
 
   const players = useMemo(() => {
+    // A game from another slate (Today -> Tmrw) matches nobody: drop it
+    // rather than show an empty board with no visible reason.
+    const g = game && allPlayers.some((p) => clean(p?.game_pk, '') === game) ? game : ''
     return allPlayers.filter((p) => {
       const q = query.toLowerCase().trim()
       const qok = !q || [nameOf(p), teamOf(p), oppOf(p), clean(p?.pitcher_name, '')].join(' ').toLowerCase().includes(q)
       const tok = !team || teamOf(p) === team
-      return qok && tok
+      const gok = !g || clean(p?.game_pk, '') === g
+      return qok && tok && gok
     })
-  }, [allPlayers, query, team])
+  }, [allPlayers, query, team, game])
 
   // Header needs the same grouping the Games tab uses, so the two can't
   // disagree about the game count or which game is best.
@@ -806,7 +811,7 @@ export default function Dashboard({ palettePass = 0 }) {
             looking at" pill on every tab was a row of chrome above the content
             on a phone. The first-visit explainer still runs, on the front door. */}
         {tab === 'home' && <TabExplainer tab={tab} />}
-        <Controls query={query} setQuery={setQuery} team={team} setTeam={setTeam} players={allPlayers} />
+        <Controls query={query} setQuery={setQuery} team={team} setTeam={setTeam} game={game} setGame={setGame} players={allPlayers} />
 
         {/* SLATE-FREE TABS (2026-08-15). Every tab used to sit behind the
             slate: no slate, no page. True Price doesn't read the slate at

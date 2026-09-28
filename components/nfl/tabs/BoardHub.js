@@ -1,7 +1,10 @@
 'use client'
-import { useEffect, useState } from 'react'
-import { C, NUM_FONT, MARKETS } from '../../../lib/nfl/theme'
-import { PillRow, Segmented } from '../../Filters'
+import { useEffect, useMemo, useState } from 'react'
+import { C, NUM_FONT, TYPE, MARKETS } from '../../../lib/nfl/theme'
+import { PillRow } from '../../Filters'
+import { alpha } from '../../../lib/scales'
+import BoardTopBar from '../../BoardTopBar'
+import { nflGameOptions } from '../NflBoardExtras'
 import Touchdowns from './Touchdowns'
 import Boards from './Boards'
 import Picks from './Picks'
@@ -30,6 +33,11 @@ const readHash = () => { try { return new URLSearchParams(window.location.hash.s
 export default function BoardHub({ slate, data, logs, matchup, odds, oddsStatus, picks, results, onPlayerClick, initialView = 'board', onTitle = null }) {
   const [market, setMarket] = useState('TD')
   const [view, setView] = useState(initialView)
+  // THE TOP BAR (2026-09-27): search, team and GAME, owned here so every
+  // market's board reads the same three (MOONSHOT's Controls, one level up).
+  const [query, setQuery] = useState('')
+  const [team, setTeam] = useState('')
+  const [game, setGame] = useState('')
   useEffect(() => {
     const h = readHash()
     if (MARKETS.some(([k]) => k === h.get('m'))) setMarket(h.get('m'))
@@ -61,20 +69,36 @@ export default function BoardHub({ slate, data, logs, matchup, odds, oddsStatus,
   useEffect(() => () => onTitle?.(null), []) // eslint-disable-line react-hooks/exhaustive-deps
   const counts = Object.fromEntries(MARKETS.map(([k]) => [k, (k === 'TD' ? (slate?.players || []) : (data?.players || [])).filter((p) => Number.isFinite(p.scores?.[k]) && (k === 'TD' || !p.low_sample)).length]))
   const marketOptions = MARKETS.map(([key, label]) => ({ key, label, count: counts[key] }))
+  const teams = useMemo(() => [...new Set((slate?.players || data?.players || []).map((p) => p.team).filter(Boolean))].sort(), [slate, data])
+  const games = useMemo(() => nflGameOptions(slate?.games || data?.games), [slate, data])
+  const top = { query, team, game }
   return (
     <div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 10, padding: '10px 12px', border: `1px solid ${C.border}`, borderRadius: 12, background: C.bg2 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          <Segmented label="Show" value={view} options={VIEWS} onChange={setView} />
-          {view === 'board' && <span style={{ color: C.text3, font: `700 10px/1.4 ${NUM_FONT}` }}>Ranked by the model’s own score for this market. The calls are under Called.</span>}
-        </div>
-        <PillRow label="Market" value={market} options={marketOptions} onChange={setMarket} />
+      {view === 'board' && (
+        <BoardTopBar query={query} setQuery={setQuery} placeholder="Search player or team…"
+          team={team} setTeam={setTeam} teams={teams} teamLabel="🏈 All teams"
+          game={game} setGame={setGame} games={games} gameLabel="All games" />
+      )}
+      {/* The parent tier, MOONSHOT's Boards / Power pills: a shade bigger than
+          the market pills under the rule, so "which page" and "which market"
+          read apart by shape. Was a bordered box with a sentence in it. */}
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', paddingTop: 4, paddingBottom: 7, marginBottom: 10, borderBottom: `1px solid ${C.border}` }}>
+        {VIEWS.slice().reverse().map((v) => (
+          <button key={v.key} type="button" onClick={() => setView(v.key)} title={v.title} style={{
+            padding: '7px 16px', minHeight: 36, borderRadius: 999, cursor: 'pointer', fontSize: TYPE.body, fontWeight: 900, fontFamily: NUM_FONT,
+            whiteSpace: 'nowrap', letterSpacing: '.02em',
+            border: `1px solid ${view === v.key ? C.green : C.border}`,
+            background: view === v.key ? alpha(C.green, 0.14) : 'transparent',
+            color: view === v.key ? C.green : C.text3,
+          }}>{v.key === 'board' ? 'Board' : 'Called'}</button>
+        ))}
       </div>
+      <PillRow label="Market" value={market} options={marketOptions} onChange={setMarket} />
       {view === 'called'
         ? <Picks picks={picks} results={results} data={data} matchup={matchup} onPlayerClick={onPlayerClick} odds={odds} oddsStatus={oddsStatus} logs={logs} market={market} hideMarketPicker />
         : market === 'TD'
-          ? <Touchdowns data={slate} matchup={matchup} odds={odds} onPlayerClick={onPlayerClick} oddsStatus={oddsStatus} logs={logs} />
-          : <Boards data={data} logs={logs} matchup={matchup} onPlayerClick={onPlayerClick} odds={odds} oddsStatus={oddsStatus} market={market} hideMarketPicker />}
+          ? <Touchdowns data={slate} matchup={matchup} odds={odds} onPlayerClick={onPlayerClick} oddsStatus={oddsStatus} logs={logs} top={top} />
+          : <Boards data={data} logs={logs} matchup={matchup} onPlayerClick={onPlayerClick} odds={odds} oddsStatus={oddsStatus} market={market} hideMarketPicker top={top} />}
     </div>
   )
 }

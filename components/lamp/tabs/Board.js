@@ -4,7 +4,9 @@ import { useMemo, useState } from 'react'
 import PageHeader from '../../PageHeader'
 import { C, NUM_FONT, rampAt } from '../../../lib/nhl/theme'
 import LampTable from '../LampTable'
-import { AngleRow, FilterBar, FilterSearch, FilterSelect, FilterPill, Segmented, ActiveFilters } from '../../Filters'
+import { AngleRow, FilterPill, Segmented, ActiveFilters } from '../../Filters'
+import BoardTopBar from '../../BoardTopBar'
+import { alpha } from '../../../lib/scales'
 import { useLampBoard } from '../../../lib/nhl/useLamp'
 import { TeamMark, EmptyState, DelayedBanner, Loading, SourceLine, Kicker, GameTypeChip, LampDot, StaleSeasonNote, fmtDay, fmtPuckDrop, fmtSec, zoneAbbrev, shiftDay, STATUS, CalledChip, readHashParam, writeHashParam } from '../ui'
 
@@ -41,9 +43,9 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
   // row cut both views. Every test reads a field the row already carries.
   const [view, setView] = useState('game')
   const [q, setQ] = useState('')
-  const [team, setTeam] = useState('all')
+  const [team, setTeam] = useState('')
   const [pos, setPos] = useState('all')
-  const [gameF, setGameF] = useState('all')
+  const [gameF, setGameF] = useState('')
   const [calledOnly, setCalledOnly] = useState(false)
   const [angle, setAngle] = useState(null)
   const flat = useMemo(() => games.filter((g) => !g.noMarketLock).flatMap((g) => g.rows.filter((r) => r.status !== 'off').map((r) => ({ r, g }))), [games])
@@ -52,39 +54,45 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
   const needle = q.trim().toLowerCase()
   const kept = flat.filter((x) => {
     const { r, g } = x
-    if (team !== 'all' && r.team !== team) return false
+    if (team && r.team !== team) return false
     if (pos !== 'all' && (pos === 'D' ? r.pos !== 'D' : r.pos === 'D')) return false
-    if (gameF !== 'all' && String(g.game.id) !== gameF) return false
+    if (gameF && String(g.game.id) !== gameF) return false
     if (calledOnly && r.status !== 'called') return false
     if (needle && !String(r.name || '').toLowerCase().includes(needle)) return false
     if (angleTest && !angleTest(x)) return false
     return true
   })
   const keepIds = new Set(kept.map(({ r, g }) => `${g.game.id}|${r.playerId}`))
-  const filtering = team !== 'all' || pos !== 'all' || gameF !== 'all' || calledOnly || Boolean(needle) || Boolean(angle)
+  const filtering = Boolean(team) || pos !== 'all' || Boolean(gameF) || calledOnly || Boolean(needle) || Boolean(angle)
   const teams = [...new Set(flat.map(({ r }) => r.team))].sort()
   const chips = [
     angle ? { key: 'angle', label: angles.find((a) => a.key === angle)?.label || angle, onClear: () => setAngle(null) } : null,
-    needle ? { key: 'q', label: `\u201c${q}\u201d`, onClear: () => setQ('') } : null,
-    team !== 'all' ? { key: 'team', label: team, onClear: () => setTeam('all') } : null,
     pos !== 'all' ? { key: 'pos', label: pos === 'D' ? 'Defence' : 'Forwards', onClear: () => setPos('all') } : null,
-    gameF !== 'all' ? { key: 'game', label: (games.find((g) => String(g.game.id) === gameF) || {}).game ? `${games.find((g) => String(g.game.id) === gameF).game.away.abbrev} @ ${games.find((g) => String(g.game.id) === gameF).game.home.abbrev}` : 'game', onClear: () => setGameF('all') } : null,
     calledOnly ? { key: 'called', label: 'Called only', onClear: () => setCalledOnly(false) } : null,
   ].filter(Boolean)
-  const clearAll = () => { setAngle(null); setQ(''); setTeam('all'); setPos('all'); setGameF('all'); setCalledOnly(false) }
+  const clearAll = () => { setAngle(null); setPos('all'); setCalledOnly(false) }
+  const gameOptions = games.filter((g) => !g.noMarketLock).map((g) => ({ key: String(g.game.id), label: `${g.game.away.abbrev} @ ${g.game.home.abbrev}` }))
+  // MOONSHOT'S ORDER (2026-09-27, Donovan: "doesn't feel anything like the mlb
+  // pages"): the search / team / game bar first, the market as the parent
+  // pills under it, the day, the angle row, then the night's header and the
+  // boards. Was: header, market buttons, day buttons, banner, then a row of
+  // small grey selects.
+  const pill = (on) => ({
+    padding: '7px 16px', minHeight: 36, borderRadius: 999, cursor: 'pointer', fontSize: 12, fontWeight: 900, fontFamily: NUM_FONT,
+    whiteSpace: 'nowrap', letterSpacing: '.02em', border: `1px solid ${on ? C.ice : C.border}`,
+    background: on ? alpha(C.ice, 0.14) : 'transparent', color: on ? C.ice : C.text3,
+  })
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <PageHeader eyebrow={M.eyebrow} title={shown ? fmtDay(shown) : 'Tonight'}
-        note={M.note}
-        theme={C} numFont={NUM_FONT} accent={C.ice}
-        stats={data ? [{ value: games.length, label: 'GAMES', tone: C.text2 }, { value: `${lockedN}/${games.length}`, label: 'LOCKED', tone: lockedN === games.length && games.length ? C.teal : C.text2 }, { value: calledN, label: 'CALLED', tone: C.ice }] : null} />
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <BoardTopBar query={q} setQuery={setQ} placeholder="Search skater or team…"
+        team={team} setTeam={setTeam} teams={teams} teamLabel="🏒 All teams"
+        game={gameF} setGame={setGameF} games={gameOptions} gameLabel="All games" />
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', paddingBottom: 8, borderBottom: `1px solid ${C.border}` }}>
         <div role="group" aria-label="Market" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          {MARKETS.map((m) => <NavBtn key={m.key} onClick={() => setMarket(m.key)} strong={m.key === market} aria-pressed={m.key === market}>{m.label}</NavBtn>)}
+          {MARKETS.map((m) => <button key={m.key} type="button" onClick={() => setMarket(m.key)} aria-pressed={m.key === market} style={pill(m.key === market)}>{m.label}</button>)}
         </div>
-        {/* The view rides the market row -- no extra row on a phone. */}
-        {data && <Segmented value={view} onChange={setView}
-          options={[{ key: 'game', label: 'By game', title: 'Each game, three called on top' }, { key: 'all', label: 'All games', title: 'Every scored skater tonight, one ranked table' }]} />}
+        {data && <span style={{ marginLeft: 'auto' }}><Segmented value={view} onChange={setView}
+          options={[{ key: 'game', label: 'By game', title: 'Each game, three called on top' }, { key: 'all', label: 'All games', title: 'Every scored skater tonight, one ranked table' }]} /></span>}
       </div>
       <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
         <NavBtn onClick={() => setDate(shiftDay(shown, -1))} disabled={loading}>‹ Previous day</NavBtn>
@@ -92,23 +100,25 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
         <NavBtn onClick={() => setDate(shiftDay(shown, 1))} disabled={loading}>Next day ›</NavBtn>
         <span style={{ color: C.text3, font: `800 8px/1 ${NUM_FONT}`, letterSpacing: '.1em' }}>{data?.modelVersion?.toUpperCase()}</span>
       </div>
+      {data && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <AngleRow defs={angles} pool={flat} value={angle} onChange={setAngle} accent={C.ice} className="lamp-angle-row" />
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <Segmented label="Pos" value={pos} onChange={setPos} options={[{ key: 'all', label: 'All' }, { key: 'F', label: 'Forwards' }, { key: 'D', label: 'Defence' }]} />
+            <FilterPill active={calledOnly} onClick={() => setCalledOnly((v) => !v)} title="Only the three called per game.">Called only</FilterPill>
+            <span style={{ fontFamily: NUM_FONT, fontSize: 11, color: C.text2, border: `1px solid ${C.border}`, borderRadius: 999, padding: '5px 11px' }}><b style={{ color: C.text }}>{kept.length}</b> of {flat.length} on the board</span>
+          </div>
+          {chips.length > 0 && <ActiveFilters filters={chips} shown={kept.length} total={flat.length} onClearAll={clearAll} />}
+        </div>
+      )}
       {data?.season?.stale && <StaleSeasonNote label={data.season.label} opens={data.season.opens} what="legs" />}
       <DelayedBanner error={error} what="the board" />
       {loading && !data ? <Loading what="tonight’s board" /> : null}
       {data && !data.dbReady && <div style={{ color: C.amber, fontSize: 11 }}>The record is not connected on this deployment — boards will preview but nothing locks. (Supabase env missing.)</div>}
-      {data && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <FilterBar>
-            <FilterSearch value={q} onChange={setQ} placeholder="Search skater…" width={150} />
-            <FilterSelect label="Team" value={team} onChange={setTeam} options={[{ key: 'all', label: 'All teams', count: flat.length }, ...teams.map((t) => ({ key: t, label: t, count: flat.filter(({ r }) => r.team === t).length }))]} />
-            <FilterSelect label="Pos" value={pos} onChange={setPos} options={[{ key: 'all', label: 'All', count: flat.length }, { key: 'F', label: 'Forwards', count: flat.filter(({ r }) => r.pos !== 'D').length }, { key: 'D', label: 'Defence', count: flat.filter(({ r }) => r.pos === 'D').length }]} />
-            <FilterSelect label="Game" value={gameF} onChange={setGameF} options={[{ key: 'all', label: 'All games', count: flat.length }, ...games.filter((g) => !g.noMarketLock).map((g) => ({ key: String(g.game.id), label: `${g.game.away.abbrev} @ ${g.game.home.abbrev}`, count: g.rows.filter((r) => r.status !== 'off').length }))]} />
-            <FilterPill active={calledOnly} onClick={() => setCalledOnly((v) => !v)} title="Only the three called per game.">Called only</FilterPill>
-          </FilterBar>
-          <AngleRow defs={angles} pool={flat} value={angle} onChange={setAngle} accent={C.ice} className="lamp-angle-row" />
-          {chips.length > 0 && <ActiveFilters filters={chips} shown={kept.length} total={flat.length} onClearAll={clearAll} />}
-        </div>
-      )}
+      <PageHeader eyebrow={M.eyebrow} title={shown ? fmtDay(shown) : 'Tonight'}
+        note={M.note}
+        theme={C} numFont={NUM_FONT} accent={C.ice}
+        stats={data ? [{ value: games.length, label: 'GAMES', tone: C.text2 }, { value: `${lockedN}/${games.length}`, label: 'LOCKED', tone: lockedN === games.length && games.length ? C.teal : C.text2 }, { value: calledN, label: 'CALLED', tone: C.ice }] : null} />
       {data && games.length === 0 && <EmptyState title="NO GAMES ON THIS DATE" note="No NHL games, so nothing to call. The filters above work on any night with games; the schedule has the week." />}
       {view === 'all' && flat.length > 0 && (
         kept.length ? <AllGamesTable kept={kept} market={market} onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} />

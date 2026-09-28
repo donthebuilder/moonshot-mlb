@@ -8,6 +8,7 @@ import { usePageTitle } from '../../lib/usePageTitle'
 import ErrorBoundary from '../ErrorBoundary'
 import TabNotFound from '../TabNotFound'
 import { C, NUM_FONT } from '../../lib/nfl/theme'
+import { AccentProvider } from '../Filters'
 import { fetchNfl, nflSlatePaths, nflReportPaths, nflMetaPaths, nflMatchupPaths, nflLogPaths, nflPicksPaths, nflResultsPaths, nflOddsPaths, nflOddsStatusPaths, nflSlateLooksReal, nflMatchupLooksReal, nflPicksLooksReal, nflOddsLooksReal } from '../../lib/nfl/dataSource'
 import { initialHashParams, setSport } from '../../lib/sport'
 import { useNflLive } from '../../lib/nfl/useNflLive'
@@ -318,7 +319,7 @@ export default function NflDashboard({ palettePass = 0 }) {
   }
 
   return (
-    <>
+    <AccentProvider value={C.green}>
       <MobileCSS />
       {/* See the note in components/Dashboard.js -- same gap, same fix. */}
       <a className="skip-link" href="#board-main">Skip to the board</a>
@@ -414,6 +415,6 @@ export default function NflDashboard({ palettePass = 0 }) {
         onNavigate={(p) => setModal((m) => ({ ...(m || {}), player: p }))}
       />
       </ErrorBoundary>
-    </>
+    </AccentProvider>
   )
 }

@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
+import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { STATE, alpha } from '../lib/scales'
 
@@ -33,9 +33,24 @@ import { STATE, alpha } from '../lib/scales'
 //     everyone" reads better than a chip row for one active filter:
 //     <ActiveFilters variant="sentence">.
 
+// ── THE PRODUCT'S ACCENT (2026-09-27) ──────────────────────────────────────
+// STATE.on() reads lib/theme's C.orange -- MOONSHOT's ember -- and applyTheme
+// repaints only TUDDY's greys, so every shared pill, segment and search box
+// drew MOONSHOT orange on TUDDY green and LAMP ice (Donovan: "doesn't feel
+// anything like the mlb pages"). A product wraps its pages once in
+// <AccentProvider value={C.green}>; unwrapped (MOONSHOT) stays STATE.on().
+const AccentCtx = createContext(null)
+export const AccentProvider = AccentCtx.Provider
+export function useAccent() { return useContext(AccentCtx) || STATE.on().color }
+function useOn() {
+  const a = useContext(AccentCtx)
+  return a ? { borderColor: a, color: a, fontWeight: 800 } : STATE.on()
+}
+
 // ── the one pill recipe ─────────────────────────────────────────────────────
 export function FilterPill({ active, onClick, children, count, title, disabled }) {
-  const s = active ? STATE.on() : STATE.off()
+  const on = useOn()
+  const s = active ? on : STATE.off()
   return (
     <button
       onClick={disabled ? undefined : onClick}
@@ -62,6 +77,7 @@ export function FilterPill({ active, onClick, children, count, title, disabled }
 
 // ── a labelled row of pills — the SplitControl shape, shared ────────────────
 export function PillRow({ label, hint, value, options, onChange, flag }) {
+  const on = useOn()
   return (
     // `filter-pills` is a hook for MobileCSS, not a style. On a 400px phone
     // seven market chips wrapped to THREE lines, and Boards spent ~330px of a
@@ -81,7 +97,7 @@ export function PillRow({ label, hint, value, options, onChange, flag }) {
           disabled={o.disabled}
         >{o.label}</FilterPill>
       ))}
-      {flag && <span style={{ fontSize: 9.5, color: C.orange, fontWeight: 800, fontFamily: NUM_FONT }}>{flag}</span>}
+      {flag && <span style={{ fontSize: 9.5, color: on.color, fontWeight: 800, fontFamily: NUM_FONT }}>{flag}</span>}
       {hint && <span style={{ fontSize: 9, color: C.text3 }}>{hint}</span>}
     </div>
   )
@@ -89,13 +105,14 @@ export function PillRow({ label, hint, value, options, onChange, flag }) {
 
 // ── joined segments, for binary/tri-state toggles ───────────────────────────
 export function Segmented({ value, options, onChange, label }) {
+  const on = useOn()
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
       {label && <FilterLabel>{label}</FilterLabel>}
       <span style={{ display: 'inline-flex', border: `1px solid ${C.border}`, borderRadius: 8, overflow: 'hidden' }}>
         {options.map((o, i) => {
           const active = value === o.key
-          const s = active ? STATE.on() : STATE.off()
+          const s = active ? on : STATE.off()
           return (
             <button key={o.key} onClick={() => onChange(o.key)} title={o.title} style={{
               padding: '6px 11px', fontSize: 10, cursor: 'pointer', border: 'none',
@@ -133,6 +150,7 @@ export function FilterSelect({ label, value, options, onChange, title }) {
 
 // ── search box, same chrome ─────────────────────────────────────────────────
 export function FilterSearch({ value, onChange, placeholder = 'Search…', width = 150 }) {
+  const on = useOn()
   return (
     <input
       value={value}
@@ -140,7 +158,7 @@ export function FilterSearch({ value, onChange, placeholder = 'Search…', width
       placeholder={placeholder}
       style={{
         padding: '4px 10px', fontSize: 10.5, borderRadius: 999, width,
-        border: `1px solid ${value ? STATE.on().borderColor : C.border}`,
+        border: `1px solid ${value ? on.borderColor : C.border}`,
         background: 'transparent', color: C.text, fontWeight: 600, outline: 'none',
       }}
     />
@@ -149,13 +167,14 @@ export function FilterSearch({ value, onChange, placeholder = 'Search…', width
 
 // ── min/max pair for a numeric column ───────────────────────────────────────
 export function RangeFilter({ label, min, max, onMin, onMax, step = 1 }) {
+  const on = useOn()
   const box = (v, on, ph) => (
     <input
       type="number" value={v ?? ''} step={step} placeholder={ph}
       onChange={(e) => on(e.target.value === '' ? null : Number(e.target.value))}
       style={{
         width: 54, padding: '3px 6px', fontSize: 10, borderRadius: 7, fontFamily: NUM_FONT,
-        border: `1px solid ${v != null ? STATE.on().borderColor : C.border}`,
+        border: `1px solid ${v != null ? on.borderColor : C.border}`,
         background: 'transparent', color: C.text, outline: 'none',
       }}
     />
@@ -176,6 +195,7 @@ export function RangeFilter({ label, min, max, onMin, onMax, step = 1 }) {
 //   sentence        — Runs' undoable sentence, best for exactly one:
 //                     "Showing LHB only — 101 of 269 · show everyone"
 export function ActiveFilters({ filters, shown, total, variant = 'chips', onClearAll }) {
+  const on = useOn()
   const live = (filters || []).filter(Boolean)
   if (!live.length) return null
   if (variant === 'sentence' && live.length === 1) {
@@ -188,7 +208,7 @@ export function ActiveFilters({ filters, shown, total, variant = 'chips', onClea
         <button onClick={f.onClear} style={{
           // 2026-09-13: was padding:0 — a text-only link with zero hit area.
           background: 'transparent', border: 'none', padding: '5px 0', cursor: 'pointer',
-          color: C.orange, fontSize: 10, fontWeight: 700, textDecoration: 'underline',
+          color: on.color, fontSize: 10, fontWeight: 700, textDecoration: 'underline',
         }}>show everyone</button>
       </span>
     )
@@ -198,8 +218,8 @@ export function ActiveFilters({ filters, shown, total, variant = 'chips', onClea
       {live.map((f) => (
         <button key={f.key} onClick={f.onClear} title="remove this filter" style={{
           padding: '5px 10px', fontSize: 9.5, borderRadius: 999, cursor: 'pointer',
-          border: `1px solid ${STATE.on().borderColor}`,
-          background: alpha(STATE.on().color, 0.14), color: STATE.on().color, fontWeight: 700,
+          border: `1px solid ${on.borderColor}`,
+          background: alpha(on.color, 0.14), color: on.color, fontWeight: 700,
           display: 'inline-flex', alignItems: 'center', gap: 4,
         }}>{f.label} ✕</button>
       ))}
@@ -265,7 +285,9 @@ export function useOutsideClose(onClose, active = true) {
 // own defs ({ key, label, title, test(row) }), the pool the counts come from,
 // and its accent. One sideways-scrolling row (no wrap), 44px taps around a
 // 30px pill, the count beside each label, tap again to clear.
-export function AngleRow({ defs, pool, value, onChange, accent = C.orange, className = 'angle-row' }) {
+export function AngleRow({ defs, pool, value, onChange, accent: accentProp, className = 'angle-row' }) {
+  const ctxAccent = useAccent()
+  const accent = accentProp || ctxAccent
   return (
     <div className={className} style={{ display: 'flex', gap: 6, alignItems: 'center', overflowX: 'auto', flexWrap: 'nowrap', paddingBottom: 2, marginTop: 8 }}>
       <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: '.1em', color: C.text3, fontFamily: NUM_FONT, flexShrink: 0 }}>ANGLE</span>

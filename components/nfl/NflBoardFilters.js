@@ -249,9 +249,9 @@ export default function NflBoardFilters({ state, total, shown, extra = null, ext
           style={{
             display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer',
             minHeight: 40, padding: '6px 12px', borderRadius: 8,
-            border: `1px solid ${open || active ? C.orange : C.border}`,
+            border: `1px solid ${open || active ? C.green : C.border}`,
             background: open ? C.bg3 : 'transparent',
-            color: active ? C.orange : C.text2,
+            color: active ? C.green : C.text2,
             fontSize: 11.5, fontWeight: 800, fontFamily: NUM_FONT,
           }}
         >
@@ -260,7 +260,7 @@ export default function NflBoardFilters({ state, total, shown, extra = null, ext
             <span style={{
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
               minWidth: 16, height: 16, borderRadius: 999, padding: '0 4px',
-              background: C.orange, color: '#1a0f00', fontSize: 10, fontWeight: 900,
+              background: C.green, color: C.bg, fontSize: 10, fontWeight: 900,
             }}>{activeCount}</span>
           )}
         </button>
@@ -343,6 +343,13 @@ export default function NflBoardFilters({ state, total, shown, extra = null, ext
           </div>
         )}
       </div>
+      {/* MOONSHOT's pool pill (BoardFilters.js): the size of the pool the
+          ranking is drawn from, beside the button that narrows it. */}
+      {shown != null && total != null && (
+        <span style={{ fontFamily: NUM_FONT, fontSize: 11, color: C.text2, border: `1px solid ${C.border}`, borderRadius: 999, padding: '5px 11px' }}>
+          <b style={{ color: C.text }}>{shown}</b> of {total} in the pool
+        </span>
+      )}
     </div>
   )
 }

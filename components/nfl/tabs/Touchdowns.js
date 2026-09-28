@@ -12,10 +12,10 @@ import MatchupBadge from '../MatchupBadge'
 import NflFace from '../NflFace'
 import { AnatomyStrip, baselineFor, topStatChips } from '../ScoreAnatomy'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
-import { ActiveFilters, FilterBar, FilterSearch, FilterSelect, FilterPill } from '../../Filters'
+import { ActiveFilters, FilterBar, FilterPill } from '../../Filters'
 import NflBoardFilters, { useNflBoardFilter } from '../NflBoardFilters'
 import MobileFold, { useIsPhone } from '../../MobileFold'
-import { NflBoardList, ViewSwitch, AngleRow, angleDefs, useNflDrawerFilters, TdWatch } from '../NflBoardExtras'
+import { NflBoardList, BoardHead, DrawerPills, AngleRow, angleDefs, useNflDrawerFilters, TdWatch } from '../NflBoardExtras'
 import TdCompare from '../TdCompare'
 
 // TOUCHDOWNS — the front door.
@@ -188,12 +188,12 @@ function Card({ p, rank, matchup, odds, onPlayerClick, weights, base, pool, watc
   )
 }
 
-export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsStatus, logs = null }) {
+export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsStatus, logs = null, top = null }) {
   const watchlist = useNflWatchlist(data)
-  const [query, setQuery] = useState('')
+  // Search, team and game come from the hub's top bar (2026-09-27).
+  const query = top?.query || ''
+  const team = top?.team || 'all'
   const [position, setPosition] = useState('all')
-  const [team, setTeam] = useState('all')
-  const [tier, setTier] = useState('everyone')
   const [onlyPriced, setOnlyPriced] = useState(false)
   const [onlyUpcoming, setOnlyUpcoming] = useState(false)
   const [onlyWatched, setOnlyWatched] = useState(false)
@@ -219,15 +219,6 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
     }
   }, [data])
 
-  const teamOptions = useMemo(() => {
-    const counts = {}
-    for (const p of rows) counts[p.team] = (counts[p.team] || 0) + 1
-    return [
-      { key: 'all', label: 'All teams', count: rows.length },
-      ...Object.keys(counts).filter(Boolean).sort().map((k) => ({ key: k, label: k, count: counts[k] })),
-    ]
-  }, [rows])
-
   const positionOptions = useMemo(() => {
     const counts = {}
     for (const p of rows) counts[p.position] = (counts[p.position] || 0) + 1
@@ -237,27 +228,20 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
     ]
   }, [rows])
 
-  const tierCounts = useMemo(() => {
-    let highconf = 0, aligned = 0
-    for (const p of rows) {
-      if (p.high_confidence_td_flag) highconf += 1
-      if (alignedSignals(matchup, p).aligned) aligned += 1
-    }
-    return { everyone: rows.length, highconf, aligned }
-  }, [rows, matchup])
-
-  const tierPills = [
-    { key: 'everyone', label: 'Everyone', count: tierCounts.everyone },
-    { key: 'highconf', label: '⭐ High confidence', count: tierCounts.highconf, title: "The bot's own high-confidence TD flag." },
-    { key: 'aligned', label: '🧩 Aligned', count: tierCounts.aligned, title: '2 or more of 3 real signals lining up: matchup, red-zone finisher, rising snap share.' },
-  ]
 
   // Same bands as Boards, on the same market this page is fixed to. They cut
   // the pool before the ranking and before the soft cap, so a banded board
   // promotes names off the bottom rather than only hiding rows.
   const { filtered: bandFiltered, state: bandState } = useNflBoardFilter(rows, MARKET)
-  const angles = useMemo(() => angleDefs({ matchup, logs, market: MARKET, matchupTag }), [matchup, logs])
-  const drawer = useNflDrawerFilters(rows, data?.games, MARKET)   // TUDDY 3 + 4
+  // The confidence tiers (Everyone / High confidence / Aligned) were a row of
+  // their own; they are one-tap angles like the rest, so they lead the Angle
+  // row now -- one row of chips where there were two (2026-09-27).
+  const angles = useMemo(() => [
+    { key: 'highconf', label: '⭐ High confidence', title: "The bot's own high-confidence TD flag.", test: (p) => Boolean(p.high_confidence_td_flag) },
+    { key: 'aligned', label: '🧩 Aligned', title: '2 or more of 3 real signals lining up: matchup, red-zone finisher, rising snap share.', test: (p) => alignedSignals(matchup, p).aligned },
+    ...angleDefs({ matchup, logs, market: MARKET, matchupTag }),
+  ], [matchup, logs])
+  const drawer = useNflDrawerFilters(rows, data?.games, MARKET, { game: top?.game || '' })   // TUDDY 3 + 4
 
   // One removable chip per narrowing dimension, bands included. Touchdowns had
   // no chip row at all, so a tier or a team filter was invisible once you had
@@ -267,18 +251,16 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
   // it actually belongs, unchanged otherwise.)
   const tdFilterChips = [
     ...bandState.activeFilters,
-    query ? { key: 'q', label: `“${query}”`, onClear: () => setQuery('') } : null,
-    team !== 'all' ? { key: 'team', label: team, onClear: () => setTeam('all') } : null,
+    ...drawer.chips,
     position !== 'all' ? { key: 'pos', label: position, onClear: () => setPosition('all') } : null,
     angle ? { key: 'angle', label: angles.find((x) => x.key === angle)?.label || angle, onClear: () => setAngle(null) } : null,
-    tier !== 'everyone' ? { key: 'tier', label: tierPills.find((t) => t.key === tier)?.label || tier, onClear: () => setTier('everyone') } : null,
     onlyPriced ? { key: 'priced', label: 'Priced', onClear: () => setOnlyPriced(false) } : null,
     onlyUpcoming ? { key: 'upcoming', label: 'Not kicked off', onClear: () => setOnlyUpcoming(false) } : null,
     onlyWatched ? { key: 'watch', label: 'Watchlist', onClear: () => setOnlyWatched(false) } : null,
   ].filter(Boolean)
   const clearTdFilters = () => {
     bandState.reset()
-    setQuery(''); setTeam('all'); setPosition('all'); setTier('everyone'); setAngle(null); drawer.reset()
+    setPosition('all'); setAngle(null); drawer.reset(); setSortBy('score')
     setOnlyPriced(false); setOnlyUpcoming(false); setOnlyWatched(false)
   }
 
@@ -289,8 +271,6 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
     if (team !== 'all') out = out.filter((p) => p.team === team)
     if (needle) out = out.filter((p) => String(p.name || '').toLowerCase().includes(needle))
     if (angle) { const d = angles.find((x) => x.key === angle); if (d) out = out.filter(d.test) }
-    if (tier === 'highconf') out = out.filter((p) => p.high_confidence_td_flag)
-    else if (tier === 'aligned') out = out.filter((p) => alignedSignals(matchup, p).aligned)
     if (onlyWatched) out = out.filter((p) => watchlist.isPinned(p.player_id))
     if (onlyUpcoming) out = out.filter((p) => {
       const t = kickoffFor(data?.games, p)
@@ -315,7 +295,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
         }
         : (a, b) => (b.scores[MARKET] ?? 0) - (a.scores[MARKET] ?? 0)
     return [...out].sort(cmp)
-  }, [bandFiltered, drawer, rows, query, position, team, tier, angle, angles, onlyWatched, onlyUpcoming, onlyPriced, sortBy, matchup, watchlist, odds, data, now])
+  }, [bandFiltered, drawer, rows, query, position, team, angle, angles, onlyWatched, onlyUpcoming, onlyPriced, sortBy, matchup, watchlist, odds, data, now])
 
   const capped = all ? filtered : filtered.slice(0, SOFT_CAP)
   const hidden = filtered.length - capped.length
@@ -326,33 +306,44 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
     </div>
   }
 
+  // Position, the Only toggles and the sort live in the Filters drawer now
+  // (MOONSHOT keeps its board chrome to one Filters button and a pool pill).
+  const drawerExtraCount = drawer.activeCount + (position !== 'all') + onlyPriced + onlyUpcoming + onlyWatched + (sortBy !== 'score')
+  const drawerExtra = (
+    <>
+      <DrawerPills label="Position">
+        {positionOptions.map((o) => <FilterPill key={o.key} active={position === o.key} count={o.count} onClick={() => { setPosition(o.key); setAll(false) }}>{o.key === 'all' ? 'All' : o.label}</FilterPill>)}
+      </DrawerPills>
+      <DrawerPills label="Only">
+        <FilterPill active={onlyPriced} onClick={() => { setOnlyPriced(!onlyPriced); setAll(false) }} title="The book has posted a number on this player's anytime-TD line.">💵 Priced</FilterPill>
+        <FilterPill active={onlyUpcoming} onClick={() => { setOnlyUpcoming(!onlyUpcoming); setAll(false) }} title="His game has not kicked off yet.">⏱ Not kicked off</FilterPill>
+        <FilterPill active={onlyWatched} onClick={() => { setOnlyWatched(!onlyWatched); setAll(false) }} title="Only names on your watchlist.">★ Watchlist</FilterPill>
+      </DrawerPills>
+      <DrawerPills label="Sort">
+        {[['score', 'Score'], ['price', 'Longest price'], ['kickoff', 'Earliest kickoff']].map(([k, label]) => (
+          <FilterPill key={k} active={sortBy === k} onClick={() => setSortBy(k)}
+            title={k === 'score' ? "The model's own touchdown score — the page's default." : k === 'price' ? 'Longest anytime-TD price first. An unpriced card sinks rather than sorting as if it were even money.' : 'Earliest kickoff first.'}>{label}</FilterPill>
+        ))}
+      </DrawerPills>
+      {drawer.section}
+    </>
+  )
+  const extraReset = () => { drawer.reset(); setPosition('all'); setOnlyPriced(false); setOnlyUpcoming(false); setOnlyWatched(false); setSortBy('score') }
+
   return (
     <div>
-      {/* ⚖️ COMPARE TWO (2026-09-16) — folded on a phone, open on desktop,
-          same rule Props' own compare tool uses. */}
-      <MobileFold title="⚖️ Compare two players" summary="side by side, stat for stat" accent={C.green}>
-        <TdCompare rows={rows} matchup={matchup} odds={odds} onPlayerClick={onPlayerClick} />
-      </MobileFold>
-
-      <div className="chip-row" style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center', paddingBottom: 2 }}>
-        {tierPills.map((o) => (
-          <FilterPill key={o.key} active={tier === o.key} onClick={() => { setTier(o.key); setAll(false) }} count={o.count} title={o.title}>
-            {o.label}
-          </FilterPill>
-        ))}
-      </div>
-
       <AngleRow defs={angles} pool={bandFiltered} value={angle} onChange={(k) => { setAngle(k); setAll(false) }} />
+
+      {/* TD WATCH (board filters plan, TUDDY 5): MOONSHOT's B2B Watch slot. */}
+      <div style={{ marginTop: 8 }}>
+        <MobileFold title="🔁 TD Watch" summary="scored last week · back from a bye" accent={C.green} rememberKey="fold_tdwatch_v1">
+          <TdWatch players={rows} games={data?.games} onPlayerClick={onPlayerClick} />
+        </MobileFold>
+      </div>
 
       <div style={{ marginTop: 8 }}>
         <FilterBar>
-          <FilterSearch value={query} onChange={setQuery} placeholder="Search player…" width={165} />
-          {/* Team joined this bar 2026-09-18 so Boards and Touchdowns carry the
-              identical filter row -- the two boards used to disagree with each
-              other about their own controls, which is worse than either choice. */}
-          <FilterSelect label="Team" value={team} options={teamOptions} onChange={setTeam} />
-          <FilterSelect label="Position" value={position} options={positionOptions} onChange={setPosition} />
-          <NflBoardFilters state={bandState} total={rows.length} shown={filtered.length} extra={drawer.section} extraCount={drawer.activeCount} extraReset={drawer.reset} />
+          <NflBoardFilters state={bandState} total={rows.length} shown={filtered.length} extra={drawerExtra} extraCount={drawerExtraCount} extraReset={extraReset} />
         </FilterBar>
         {Boolean(tdFilterChips.length) && (
           <div style={{ marginTop: 8 }}>
@@ -361,57 +352,22 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
         )}
       </div>
 
-      {/* Says WHY there's no price on a card below, rather than every card
-          just silently carrying nothing -- same discipline Boards.js/
-          Picks.js already hold odds_status.json to. Silent once a fetch has
-          actually succeeded. */}
       {oddsStatus && (
         <div style={{ marginTop: 8 }}><OddsStatus status={oddsStatus} /></div>
       )}
 
-      <div className="chip-row" style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center', marginTop: 8 }}>
-        <span style={{ fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.1em', color: C.text3, textTransform: 'uppercase', fontFamily: NUM_FONT, flexShrink: 0 }}>Only</span>
-        <FilterPill active={onlyPriced} onClick={() => setOnlyPriced(!onlyPriced)} title="Cards where the book has posted a number on this player's anytime-TD line.">
-          💵 Priced
-        </FilterPill>
-        <FilterPill active={onlyUpcoming} onClick={() => setOnlyUpcoming(!onlyUpcoming)} title="His game has not kicked off yet.">
-          ⏱ Not kicked off
-        </FilterPill>
-        <FilterPill active={onlyWatched} onClick={() => setOnlyWatched(!onlyWatched)} title="Only names on your watchlist.">
-          ★ Watchlist
-        </FilterPill>
-        <span style={{ width: 6 }} />
-        <span style={{ fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.1em', color: C.text3, textTransform: 'uppercase', fontFamily: NUM_FONT, flexShrink: 0 }}>Sort</span>
-        {[['score', 'Score'], ['price', 'Longest price'], ['kickoff', 'Earliest kickoff']].map(([k, label]) => (
-          <FilterPill key={k} active={sortBy === k} onClick={() => setSortBy(k)}
-            title={k === 'score' ? "The model's own touchdown score — the page's default."
-              : k === 'price' ? 'Longest anytime-TD price first. An unpriced card sinks rather than sorting as if it were even money.'
-                : 'Earliest kickoff first.'}>
-            {label}
-          </FilterPill>
-        ))}
-      </div>
-
-      <div style={{ fontSize: TYPE.body, color: C.text3, margin: '8px 0 4px', lineHeight: 1.55 }}>
-        {hidden > 0 ? `showing ${capped.length} of ${filtered.length}` : `${filtered.length} player${filtered.length === 1 ? '' : 's'}`}
-        {' across '}{games} game{games === 1 ? '' : 's'}
-        {' — ranked by the model’s own touchdown score.'}
-      </div>
+      <BoardHead title="Anytime TD" count={capped.length} view={view} setView={setView}
+        sub={`Every scored player across ${games} game${games === 1 ? '' : 's'}, ranked by the model’s own touchdown score. Tap a name for his card.`} />
 
       {filtered.length === 0 ? (
         <div style={{ fontSize: TYPE.body, color: C.text3, marginTop: 10 }}>
           Nothing matches.{' '}
           {onlyPriced || onlyUpcoming || onlyWatched
-            ? `The ${[onlyPriced && 'Priced', onlyUpcoming && 'Not kicked off', onlyWatched && 'Watchlist'].filter(Boolean).join(' + ')} filter left nobody — turn one off above.`
-            : 'Clear the search or position filter above.'}
+            ? `The ${[onlyPriced && 'Priced', onlyUpcoming && 'Not kicked off', onlyWatched && 'Watchlist'].filter(Boolean).join(' + ')} filter left nobody — turn one off under Filters.`
+            : 'Clear the search, team, game or a filter above.'}
         </div>
       ) : (
         <>
-          {/* TD WATCH (board filters plan, TUDDY 5): folded to one line on a phone. */}
-          <MobileFold title="🔁 TD Watch" summary="scored last week · back from a bye" accent={C.green} rememberKey="fold_tdwatch_v1">
-            <TdWatch players={rows} games={data?.games} onPlayerClick={onPlayerClick} />
-          </MobileFold>
-          <div style={{ margin: '0 0 8px' }}><ViewSwitch value={view} onChange={setView} /></div>
           {view === 'list'
             ? <NflBoardList players={capped} market={MARKET} weights={weights} odds={odds} phone={phone} onPlayerClick={onPlayerClick} />
             : <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))' }}>
@@ -428,10 +384,17 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
         </>
       )}
 
+      {/* ⚖️ COMPARE TWO (2026-09-16): below the board now -- a tool you reach
+          for after reading the list, not chrome in front of it. */}
+      <div style={{ marginTop: 14 }}>
+        <MobileFold title="⚖️ Compare two players" summary="side by side, stat for stat" accent={C.green}>
+          <TdCompare rows={rows} matchup={matchup} odds={odds} onPlayerClick={onPlayerClick} />
+        </MobileFold>
+      </div>
+
       <p style={{ margin: '13px 0 0', maxWidth: 620, fontSize: 11, lineHeight: 1.55, color: C.text3 }}>
-        Ranked by the model&apos;s own touchdown score. The short bar is the score; the striped bar
-        beside it and the tags under the reason are what built it — the same weighted percentiles,
-        surfaced as jargon instead of only a shape.
+        Ranked by the model&apos;s own touchdown score. The score is a league ranking on a 0–100 scale, not a
+        probability. Tap a row for his card: the parts that built the score, the matchup and the price.
       </p>
     </div>
   )

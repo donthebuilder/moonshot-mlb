@@ -1,5 +1,6 @@
 'use client'
 import { C } from '../lib/theme'
+import { useAccent } from './Filters'
 
 // ── ONE SLIDER WITH TWO THUMBS (2026-09-02, finding #56) ────────────────────
 //
@@ -34,7 +35,8 @@ export default function RangeDual({
   low, high, onLow, onHigh,
   accent = null, label = '',
 }) {
-  const col = accent || C.orange
+  const ctxAccent = useAccent()
+  const col = accent || ctxAccent
   const span = Math.max(1, Number(max) - Number(min))
   const pct = (v) => Math.max(0, Math.min(100, ((Number(v) - Number(min)) / span) * 100))
   const a = pct(low)

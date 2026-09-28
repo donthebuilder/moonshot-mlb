@@ -2,6 +2,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { teamOf, nameOf } from '../lib/player'
+import { gamesOf } from './BoardFilters'
+import { TopSelect } from './BoardTopBar'
 import {
   useSpotlight, SPOT_FIELDS, SPOT_GROUPS, SPOT_COLORS,
   spotColor, ruleText, lightCount,
@@ -14,8 +16,12 @@ import {
 // look: appearance none, custom ▾, and it lights orange while a team is
 // actually filtering so an active filter can't hide.
 
-export default function Controls({ query, setQuery, team, setTeam, players }) {
+export default function Controls({ query, setQuery, team, setTeam, game = '', setGame = null, players }) {
   const inputRef = useRef(null)
+  // THE GAME BESIDE THE TEAM (2026-09-27, Donovan: "there need to be a filter
+  // by game not just by team"). The Filters drawer had one; the bar every tab
+  // shares did not. One option per game_pk, the drawer's own labels.
+  const games = useMemo(() => gamesOf(players).map((g) => ({ key: g.pk, label: g.label })), [players])
 
   const teams = useMemo(() => {
     const s = new Set()
@@ -46,7 +52,7 @@ export default function Controls({ query, setQuery, team, setTeam, players }) {
       className="dash-controls"
       style={{
         display: 'grid',
-        gridTemplateColumns: '1fr 170px auto',
+        gridTemplateColumns: setGame ? '1fr 170px 170px auto' : '1fr 170px auto',
         gap: 8,
         margin: '14px 0 14px',
       }}
@@ -158,6 +164,8 @@ export default function Controls({ query, setQuery, team, setTeam, players }) {
           fontSize: 10, color: filtering ? C.orange : C.text3, pointerEvents: 'none',
         }}>▾</span>
       </div>
+
+      {setGame ? <TopSelect value={game} onChange={setGame} options={games} allLabel="All games" ariaLabel="Filter every board to one game" accent={C.orange} /> : null}
 
       {/* ✨ third cell — was wrongly nested inside the select's wrapper, where
           it rendered squashed under the dropdown. Own column now. */}

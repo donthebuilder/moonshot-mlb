@@ -5,6 +5,7 @@ import { resolveTab, pageTitle, NHL_TABS as NHL_TAB_KEYS, NHL_NAV } from '../../
 import { usePageTitle } from '../../lib/usePageTitle'
 import { initialHashParams, setSport } from '../../lib/sport'
 import { C, NUM_FONT } from '../../lib/nhl/theme'
+import { AccentProvider } from '../Filters'
 import { useLampScores, useLampScoresOn } from '../../lib/nhl/useLamp'
 import { etToday } from '../../lib/freshness'
 import ErrorBoundary from '../ErrorBoundary'
@@ -269,7 +270,7 @@ export default function LampDashboard({ palettePass = 0 }) {
   }, [shown])
 
   return (
-    <>
+    <AccentProvider value={C.ice}>
       <MobileCSS />
       <a className="skip-link" href="#board-main">Skip to the board</a>
       <LampHeader tab={tab} setTab={setTab} live={live} date={date} setDate={setDate} scores={shown} liveScores={today} onOpenPlayer={openPlayer} onOpenGame={openGame} />
@@ -316,6 +317,6 @@ export default function LampDashboard({ palettePass = 0 }) {
       </main>
       </TodayContext.Provider>
       <MobileTabBarLamp tab={tab} setTab={setTab} />
-    </>
+    </AccentProvider>
   )
 }

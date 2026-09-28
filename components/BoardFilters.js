@@ -117,7 +117,7 @@ function inWindow(hour, w) {
 // pool, not the already-filtered one — narrowing games shouldn't narrow which
 // games are choosable). Label is honest about what the data actually
 // confirms: two team codes joined, no assumed home/away order.
-function gamesOf(players) {
+export function gamesOf(players) {
   const by = new Map()
   for (const p of players) {
     const pk = clean(p?.game_pk, '')

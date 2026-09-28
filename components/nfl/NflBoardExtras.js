@@ -6,6 +6,7 @@ import { quoteFor } from '../../lib/nfl/oddsMatch'
 import NflTable from './NflTable'
 import NflFace from './NflFace'
 import { Segmented, FilterPill, AngleRow as SharedAngleRow } from '../Filters'
+import { alpha } from '../../lib/scales'
 import RangeDual from '../RangeDual'
 
 // TUDDY BOARD EXTRAS (2026-09-27, board filters plan): the pieces MOONSHOT's
@@ -15,9 +16,54 @@ import RangeDual from '../RangeDual'
 /** List | Cards switch, MOONSHOT's words. */
 export function ViewSwitch({ value, onChange }) {
   return (
-    <Segmented label="View" value={value} onChange={onChange}
-      options={[{ key: 'list', label: 'List', title: 'One sortable table: click a header, shift-click for a tiebreaker' }, { key: 'cards', label: 'Cards', title: 'The card board' }]} />
+    <Segmented value={value} onChange={onChange}
+      options={[{ key: 'list', label: '☰ List', title: 'One sortable table: click a header, shift-click for a tiebreaker' }, { key: 'cards', label: '▦ Cards', title: 'The card board' }]} />
   )
+}
+
+/**
+ * THE BOARD'S TITLE ROW (2026-09-27), RankedBoard's own: the market in big
+ * type, "N ranked" in a pill, one line under it, List | Cards on the right,
+ * and the accent underline. Replaces "showing 60 of 310 across 16 games" as a
+ * grey sentence and a separate "VIEW" row.
+ */
+export function BoardHead({ title, count, sub, view, setView }) {
+  return (
+    <>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', paddingBottom: 8, marginTop: 12 }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+            <span style={{ fontSize: 17, fontWeight: 900, letterSpacing: '-.02em', color: C.text }}>{title}</span>
+            <span style={{ fontSize: 11, fontWeight: 800, fontFamily: NUM_FONT, color: C.green, border: `1px solid ${alpha(C.green, 0.4)}`, background: alpha(C.green, 0.08), borderRadius: 999, padding: '1px 9px' }}>{count} ranked</span>
+          </div>
+          {sub && <div style={{ fontSize: 11, color: C.text3, fontFamily: NUM_FONT, marginTop: 3, lineHeight: 1.45 }}>{sub}</div>}
+        </div>
+        <ViewSwitch value={view} onChange={setView} />
+      </div>
+      <div style={{ height: 2, marginBottom: 10, borderRadius: 1, background: `linear-gradient(90deg, ${C.green}, ${alpha(C.cyan, 0.5)} 45%, transparent)` }} />
+    </>
+  )
+}
+
+/** A labelled pill group inside the Filters drawer (position, only, sort). */
+export function DrawerPills({ label, children }) {
+  return (
+    <>
+      <div style={{ fontSize: 10, color: C.text2, textTransform: 'uppercase', letterSpacing: '.07em', fontWeight: 800 }}>{label}</div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, margin: '7px 0 12px' }}>{children}</div>
+    </>
+  )
+}
+
+/** The week's games for the top bar's game picker, by kickoff: AWY @ HOM. */
+export function nflGameOptions(games) {
+  const seen = new Map()
+  for (const g of games || []) {
+    if (!g?.away || !g?.home) continue
+    const key = `${g.away}@${g.home}`
+    if (!seen.has(key)) seen.set(key, { key, label: `${g.away} @ ${g.home}`, t: Date.parse(g.kickoff || '') || 0 })
+  }
+  return [...seen.values()].sort((a, b) => a.t - b.t).map(({ key, label }) => ({ key, label }))
 }
 
 /**
@@ -44,7 +90,8 @@ export function NflBoardList({ players, market, weights, odds, phone, onPlayerCl
     { key: 'name', label: 'Player', w: phone ? 158 : 170, heat: false, sticky: true, fmt: (v, r) => (
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
         <NflFace player={r._p} size={22} />
-        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v}</span>
+        {/* Wraps to a second line rather than "Amon-Ra St. B…" on a phone. */}
+        <span style={{ whiteSpace: 'normal', lineHeight: 1.15, minWidth: 0 }}>{v}</span>
       </span>) },
     ...(phone ? [] : [{ key: 'pos', label: 'Pos', w: 40, heat: false }, { key: 'matchup', label: 'Game', w: 80, heat: false }]),
     { key: 'score', label: 'Score', w: 52, primary: true, scale: 'seq', domain: [0, 100] },
@@ -54,11 +101,14 @@ export function NflBoardList({ players, market, weights, odds, phone, onPlayerCl
   ]
   if (!rows.length) return null
   return (
+    <div className="nfl-board-list">
+    <style>{`@media (max-width: 860px){.nfl-board-list .dense-sticky{max-width:150px!important;min-width:132px!important}}`}</style>
     <NflTable rows={rows} columns={columns} heatMode="primary" maxRows={rows.length} maxHeight={9999}
       dimRow={(r) => r._p?.low_sample} onRowClick={(r) => (r._p?.position === 'DEF' ? null : onPlayerClick?.(r._p, market))}
       caption={phone
         ? 'Score and the two heaviest parts of it, as percentiles in this week’s pool. Tap a row for the full card.'
         : 'Score, grade, and the three heaviest parts of the score as percentiles in this week’s pool. Click a header to sort; shift-click adds a tiebreaker.'} />
+    </div>
   )
 }
 
@@ -121,8 +171,12 @@ export function windowOf(ms) {
 }
 const WINDOWS = [['thu', 'Thursday'], ['early', 'Sun early'], ['late', 'Sun late'], ['snf', 'Sunday night'], ['mnf', 'Monday night'], ['other', 'Other']]
 
-export function useNflDrawerFilters(pool, games, market) {
-  const [game, setGame] = useState('all')
+// `ext.game` (2026-09-27): the game picker moved to the top bar beside the
+// team (BoardHub owns it, '' = all); the drawer then keeps window + score.
+export function useNflDrawerFilters(pool, games, market, ext = null) {
+  const [gameOwn, setGameOwn] = useState('all')
+  const game = ext ? (ext.game || 'all') : gameOwn
+  const setGame = ext ? (v) => ext.setGame?.(v === 'all' ? '' : v) : setGameOwn
   const [win, setWin] = useState('all')
   const [range, setRange] = useState([0, 100])
   const byTeam = useMemo(() => {
@@ -155,19 +209,19 @@ export function useNflDrawerFilters(pool, games, market) {
   }
   const scored = range[0] > 0 || range[1] < 100
   const chips = [
-    game !== 'all' ? { key: 'game', label: gameOptions.find((o) => o.key === game)?.label || game, onClear: () => setGame('all') } : null,
+    game !== 'all' && !ext ? { key: 'game', label: gameOptions.find((o) => o.key === game)?.label || game, onClear: () => setGame('all') } : null,
     win !== 'all' ? { key: 'win', label: WINDOWS.find(([k]) => k === win)?.[1] || win, onClear: () => setWin('all') } : null,
     scored ? { key: 'score', label: `Score ${range[0]}–${range[1]}`, onClear: () => setRange([0, 100]) } : null,
   ].filter(Boolean)
-  const reset = () => { setGame('all'); setWin('all'); setRange([0, 100]) }
+  const reset = () => { if (!ext) setGame('all'); setWin('all'); setRange([0, 100]) }
   const label = { fontSize: 10, color: C.text2, textTransform: 'uppercase', letterSpacing: '.07em', fontWeight: 800 }
   const section = (
     <>
-      <div style={label}>Game</div>
+      {!ext && <><div style={label}>Game</div>
       <select value={game} onChange={(e) => setGame(e.target.value)} aria-label="Game"
         style={{ width: '100%', minHeight: 40, margin: '6px 0 12px', borderRadius: 8, border: `1px solid ${C.border}`, background: C.bg, color: C.text, padding: '0 8px', fontSize: 12 }}>
         {gameOptions.map((o) => <option key={o.key} value={o.key}>{o.label} ({o.count})</option>)}
-      </select>
+      </select></>}
       <div style={label}>Time window</div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, margin: '7px 0 12px' }}>
         {WINDOWS.filter(([k]) => windowCounts[k] > 0).map(([k, l]) => (

@@ -67,7 +67,7 @@ export default function MobileCSS() {
         .dashboard-main { padding-left: 10px !important; padding-right: 10px !important; padding-bottom: 18px !important; }
         /* three cells since the ✨ spotlight got its own column (2026-08-15) —
            this was still forcing two, which wrapped the button to a new row */
-        .dash-controls { grid-template-columns: 1fr 108px auto !important; gap: 7px !important; }
+        .dash-controls { grid-template-columns: 1fr 108px 120px auto !important; gap: 7px !important; }
         .modal-box { width: calc(100vw - 16px) !important; max-width: calc(100vw - 16px) !important; border-radius: 16px !important; }
         .modal-content { padding: 16px 14px 18px !important; }
         .stat-grid-two { grid-template-columns: 1fr !important; gap: 0 !important; }
@@ -162,7 +162,7 @@ export default function MobileCSS() {
            content. Search keeps a full-width line because a search box that
            cannot show what you typed is useless; the other two share the
            second line, which is what they were always narrow enough to do. */
-        .dash-controls { grid-template-columns: 1fr auto !important; }
+        .dash-controls { grid-template-columns: 1fr 1fr auto !important; }
         .dash-controls > :first-child { grid-column: 1 / -1 !important; }
         .modal-backdrop { padding: 8px !important; align-items: flex-start !important; }
         .modal-box { max-height: 94vh !important; }

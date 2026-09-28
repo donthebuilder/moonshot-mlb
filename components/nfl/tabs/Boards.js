@@ -9,13 +9,13 @@ import OddsStatus from '../../OddsStatus'
 import NflFace from '../NflFace'
 import MatchupBadge from '../MatchupBadge'
 import NflExplain from '../NflExplain'
-import { ActiveFilters, FilterBar, FilterPill, FilterSearch, FilterSelect, PillRow, Segmented } from '../../Filters'
+import { ActiveFilters, FilterBar, FilterPill, PillRow } from '../../Filters'
 import { injuryTag, injuryTitle, injuryColor } from '../../../lib/nfl/injury'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 import { baselineFor, topStatChips } from '../ScoreAnatomy'
 import NflBoardFilters, { useNflBoardFilter } from '../NflBoardFilters'
-import { useIsPhone } from '../../MobileFold'
-import { NflBoardList, ViewSwitch, AngleRow, angleDefs, useNflDrawerFilters } from '../NflBoardExtras'
+import MobileFold, { useIsPhone } from '../../MobileFold'
+import { NflBoardList, BoardHead, DrawerPills, AngleRow, angleDefs, useNflDrawerFilters } from '../NflBoardExtras'
 import { matchupTag } from '../../../lib/nfl/dvpSignal'
 
 // Same soft cap Touchdowns.js uses, so the two boards cut at the same depth.
@@ -111,7 +111,7 @@ function FormBadge({ form, color }) {
 // this is not a replacement for it, just the rest of the board catching up.
 // `market` + `hideMarketPicker` (2026-09-26, the Board hub): the hub's own
 // market picker drives this page; standalone it keeps its own.
-export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsStatus, market: marketProp = null, hideMarketPicker = false }) {
+export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsStatus, market: marketProp = null, hideMarketPicker = false, top = null }) {
   // ── SAVE FROM THE CARD ITSELF (parity pass, 2026-09-16) ─────────────────
   // MOONSHOT's PropsGrid found this exact gap 2026-08-24 (Donovan: "click a
   // player to add to watch list, nothing happens") -- its card board had no
@@ -125,8 +125,9 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
   const [marketOwn, setMarket] = useState('TD')
   const market = marketProp || marketOwn
   const [showLow, setShowLow] = useState(false)
-  const [query, setQuery] = useState('')
-  const [team, setTeam] = useState('all')
+  // Search, team and game come from the hub's top bar (2026-09-27).
+  const query = top?.query || ''
+  const team = top?.team || 'all'
   const [position, setPosition] = useState('all')
   const [sortBy, setSortBy] = useState('score')
   // THE SAME RESEARCH BAR AS TOUCHDOWNS (2026-09-18). Donovan, on both
@@ -175,7 +176,7 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
   )
   const { filtered: bandFiltered, state: bandState } = useNflBoardFilter(marketPool, market)
   const angles = useMemo(() => angleDefs({ matchup, logs, market, matchupTag }), [matchup, logs, market])
-  const drawer = useNflDrawerFilters(marketPool, data?.games, market)   // TUDDY 3 + 4
+  const drawer = useNflDrawerFilters(marketPool, data?.games, market, { game: top?.game || '' })   // TUDDY 3 + 4
 
   const rows = useMemo(() => {
     const angleTest = angle ? angles.find((x) => x.key === angle)?.test : null
@@ -251,8 +252,6 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
     ...bandState.activeFilters,
     ...drawer.chips,
     angle ? { key: 'angle', label: angles.find((x) => x.key === angle)?.label || angle, onClear: () => setAngle(null) } : null,
-    query ? { key: 'q', label: `“${query}”`, onClear: () => setQuery('') } : null,
-    team !== 'all' ? { key: 'team', label: team, onClear: () => setTeam('all') } : null,
     position !== 'all' ? { key: 'pos', label: position, onClear: () => setPosition('all') } : null,
     onlyPriced ? { key: 'priced', label: 'Priced', onClear: () => setOnlyPriced(false) } : null,
     onlyUpcoming ? { key: 'upcoming', label: 'Not kicked off', onClear: () => setOnlyUpcoming(false) } : null,
@@ -261,9 +260,35 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
   ].filter(Boolean)
   const clearAllFilters = () => {
     bandState.reset()
-    setQuery(''); setTeam('all'); setPosition('all'); setAngle(null); drawer.reset()
+    setPosition('all'); setAngle(null); drawer.reset(); setSortBy('score')
     setOnlyPriced(false); setOnlyUpcoming(false); setOnlyWatched(false); setShowLow(false)
   }
+
+  // Position, the Only toggles and the sort live in the Filters drawer now
+  // (MOONSHOT keeps its board chrome to one Filters button and a pool pill).
+  const drawerExtraCount = drawer.activeCount + (position !== 'all') + onlyPriced + onlyUpcoming + onlyWatched + showLow + (sortBy !== 'score')
+  const drawerExtra = (
+    <>
+      <DrawerPills label="Position">
+        {filterOptions.positions.map((o) => <FilterPill key={o.key} active={position === o.key} count={o.count} onClick={() => { setPosition(o.key); setAll(false) }}>{o.key === 'all' ? 'All' : o.label}</FilterPill>)}
+      </DrawerPills>
+      <DrawerPills label="Only">
+        <FilterPill active={onlyPriced} onClick={() => { setOnlyPriced(!onlyPriced); setAll(false) }} title="The book has posted a number on this market for this player.">💵 Priced</FilterPill>
+        <FilterPill active={onlyUpcoming} onClick={() => { setOnlyUpcoming(!onlyUpcoming); setAll(false) }} title="His game has not kicked off yet.">⏱ Not kicked off</FilterPill>
+        <FilterPill active={onlyWatched} onClick={() => { setOnlyWatched(!onlyWatched); setAll(false) }} title="Only names on your watchlist.">★ Watchlist</FilterPill>
+        <FilterPill active={showLow} onClick={() => { setShowLow(!showLow); setAll(false) }} count={lowCount || undefined}
+          title="Include players the model scored off a thin sample. They render dimmed, and they are out by default.">🔬 Low sample</FilterPill>
+      </DrawerPills>
+      <DrawerPills label="Sort">
+        {[['score', 'Score'], ['price', 'Longest price'], ['kickoff', 'Earliest kickoff']].map(([k, label]) => (
+          <FilterPill key={k} active={sortBy === k} onClick={() => setSortBy(k)}
+            title={k === 'score' ? "The model's own score for this market — the board's default." : k === 'price' ? 'Longest price first. An unpriced card sinks rather than sorting as if it were even money.' : 'Earliest kickoff first.'}>{label}</FilterPill>
+        ))}
+      </DrawerPills>
+      {drawer.section}
+    </>
+  )
+  const extraReset = () => { drawer.reset(); setPosition('all'); setOnlyPriced(false); setOnlyUpcoming(false); setOnlyWatched(false); setShowLow(false); setSortBy('score') }
 
   return (
     <div>
@@ -273,110 +298,25 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
 
       <div style={{ marginTop: 8 }}>
         <FilterBar>
-          <FilterSearch value={query} onChange={setQuery} placeholder="Search player…" width={165} />
-          <FilterSelect label="Team" value={team} options={filterOptions.teams} onChange={setTeam} />
-          <FilterSelect label="Position" value={position} options={filterOptions.positions} onChange={setPosition} />
-          <NflBoardFilters state={bandState} total={marketPool.length} shown={rows.length} extra={drawer.section} extraCount={drawer.activeCount} extraReset={drawer.reset} />
+          <NflBoardFilters state={bandState} total={marketPool.length} shown={rows.length} extra={drawerExtra} extraCount={drawerExtraCount} extraReset={extraReset} />
         </FilterBar>
       </div>
 
-      {/* ActiveFilters was imported by this file and never rendered -- the one
-          board with the most filters on it was the one with no way to see or
-          undo them without hunting the control back down. Every dimension is
-          here now, bands included, each chip removing only itself. */}
       {Boolean(activeFilterChips.length) && (
         <div style={{ marginTop: 8 }}>
           <ActiveFilters filters={activeFilterChips} shown={rows.length} total={marketPool.length} onClearAll={clearAllFilters} />
         </div>
       )}
 
-      <div className="chip-row" style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center', marginTop: 8 }}>
-        <span style={{ fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.1em', color: C.text3, textTransform: 'uppercase', fontFamily: NUM_FONT, flexShrink: 0 }}>Only</span>
-        <FilterPill active={onlyPriced} onClick={() => { setOnlyPriced(!onlyPriced); setAll(false) }} title="Cards where the book has posted a number on this market for this player.">
-          💵 Priced
-        </FilterPill>
-        <FilterPill active={onlyUpcoming} onClick={() => { setOnlyUpcoming(!onlyUpcoming); setAll(false) }} title="His game has not kicked off yet.">
-          ⏱ Not kicked off
-        </FilterPill>
-        <FilterPill active={onlyWatched} onClick={() => { setOnlyWatched(!onlyWatched); setAll(false) }} title="Only names on your watchlist.">
-          ★ Watchlist
-        </FilterPill>
-        <FilterPill active={showLow} onClick={() => { setShowLow(!showLow); setAll(false) }} count={lowCount || undefined}
-          title="Include players the model scored off a thin sample. They render dimmed, and they are out by default.">
-          🔬 Low sample
-        </FilterPill>
-        <span style={{ width: 6 }} />
-        <span style={{ fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.1em', color: C.text3, textTransform: 'uppercase', fontFamily: NUM_FONT, flexShrink: 0 }}>Sort</span>
-        {[['score', 'Score'], ['price', 'Longest price'], ['kickoff', 'Earliest kickoff']].map(([k, label]) => (
-          <FilterPill key={k} active={sortBy === k} onClick={() => setSortBy(k)}
-            title={k === 'score' ? "The model's own score for this market — the board's default."
-              : k === 'price' ? 'Longest price first. An unpriced card sinks rather than sorting as if it were even money.'
-                : 'Earliest kickoff first.'}>
-            {label}
-          </FilterPill>
-        ))}
-      </div>
-
-      <div style={{ fontSize: TYPE.body, color: C.text3, margin: '8px 0 4px', lineHeight: 1.55 }}>
-        {hidden > 0 ? `showing ${capped.length} of ${rows.length}` : `${rows.length} player${rows.length === 1 ? '' : 's'}`}
-        {' — ranked by the model’s own score for this market.'}
-      </div>
-
-      {/* Says WHY there's no price on any row below, rather than every row
-          just silently carrying nothing — same discipline odds_status.json
-          enforces on the MLB side. Silent (renders null) once a fetch has
-          actually succeeded; see components/OddsStatus.js's own TONE table. */}
       {oddsStatus && (
-        <div style={{ marginBottom: 10 }}><OddsStatus status={oddsStatus} /></div>
+        <div style={{ marginTop: 8 }}><OddsStatus status={oddsStatus} /></div>
       )}
 
-      {spec && (
-        <div style={{
-          background: C.bg2, border: `1px solid ${C.border}`, borderLeft: `3px solid ${C.green}`,
-          borderRadius: 10, padding: '9px 13px', marginBottom: 10,
-          fontSize: TYPE.body, color: C.text2, lineHeight: 1.6,
-        }}>
-          {/* THE TWO WORDS THAT DECIDE HOW THE WHOLE BOARD READS (2026-09-20).
-              What this market ranks for, and what counts as clearing it. They
-              are explained nowhere else on the page and the answer is one tap
-              now. Deliberately HERE and not on every row's grade chip -- a dot
-              per row is noise on a phone; a dot on the header is the same
-              definition, once. */}
-          <b style={{ color: C.text }}>
-            <NflExplain label={spec.label} />
-          </b> ·{' '}
-          <NflExplain label="bar" />{' '}
-          <b style={{ color: C.green, fontFamily: NUM_FONT }}>{spec.bar}</b> ·{' '}
-          {spec.positions.join(' / ')}
-          {spec.dropped?.length > 0 && (
-            <div style={{ color: C.yellow, marginTop: 3, fontSize: TYPE.micro }}>
-              no lines this slate · weight redistributed
-            </div>
-          )}
-          {/* v1 (2026-09-21): this market has no weighted, backtested model
-              behind it yet -- see nfl_scoring.py's V1_MODELS. Say so right
-              where the other markets' bar/positions line already sits,
-              rather than let an 8th pill quietly imply the same rigor as
-              the other seven. */}
-          {spec.v1 && (
-            <div style={{ color: C.purple, marginTop: 3, fontSize: TYPE.micro }}>
-              v1 · ranked on each team's own real recent rate, not yet a weighted, backtested model like the other markets
-            </div>
-          )}
-          <div style={{ color: C.text3, marginTop: 3, fontSize: TYPE.micro }}>
-            Form line = last 8 games · dotted line = market bar · arrow compares recent half with prior half
-          </div>
-          {/* The single most common misread of the board (08-29 review): an 81
-              looks like an 81% chance. Say what it is where it first appears. */}
-          <div style={{ color: C.text3, marginTop: 3, fontSize: TYPE.micro }}>
-            The score is a <b style={{ color: C.text2 }}>league ranking on a 0–100 scale</b>, not a probability — 81 means far up the league on this market&apos;s inputs, not an 81% chance.
-          </div>
-        </div>
+      <BoardHead title={spec?.label || (MARKETS.find(([k]) => k === market) || [])[1] || market} count={capped.length} view={view} setView={setView}
+        sub={`Ranked by the model’s own score for this market${spec?.bar ? ` · bar ${spec.bar}` : ''}${spec?.v1 ? ' · v1, not yet a backtested model' : ''}. Tap a name for his card.`} />
+      {hidden > 0 || rows.length ? null : (
+        <div style={{ fontSize: TYPE.body, color: C.text3, margin: '4px 0 10px' }}>Nothing matches. Clear the search, team, game or a filter above.</div>
       )}
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 8px' }}>
-        <ViewSwitch value={view} onChange={setView} />
-      </div>
       {view === 'list' && <NflBoardList players={capped} market={market} weights={spec?.weights} odds={odds} phone={phone} onPlayerClick={onPlayerClick} />}
 
       {/* CARD BOARD (2026-09-15, Donovan: "the props card board is okay we
@@ -532,6 +472,56 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
             : query || team !== 'all' || position !== 'all'
               ? 'Nothing matches. Clear the search, team or position filter above.'
               : 'Nothing scored for this market on this slate.'}
+        </div>
+      )}
+      {/* HOW THIS MARKET READS: was a bordered block above the board; the
+          board leads now (MOONSHOT's order) and this sits under it, one tap
+          on a phone. */}
+      {spec && (
+        <div style={{ marginTop: 14 }}>
+          <MobileFold title="ℹ️ How this market reads" summary={`bar ${spec.bar} · ${spec.positions.join(' / ')}`} accent={C.green}>
+        <div style={{
+          background: C.bg2, border: `1px solid ${C.border}`, borderLeft: `3px solid ${C.green}`,
+          borderRadius: 10, padding: '9px 13px', marginBottom: 10,
+          fontSize: TYPE.body, color: C.text2, lineHeight: 1.6,
+        }}>
+          {/* THE TWO WORDS THAT DECIDE HOW THE WHOLE BOARD READS (2026-09-20).
+              What this market ranks for, and what counts as clearing it. They
+              are explained nowhere else on the page and the answer is one tap
+              now. Deliberately HERE and not on every row's grade chip -- a dot
+              per row is noise on a phone; a dot on the header is the same
+              definition, once. */}
+          <b style={{ color: C.text }}>
+            <NflExplain label={spec.label} />
+          </b> ·{' '}
+          <NflExplain label="bar" />{' '}
+          <b style={{ color: C.green, fontFamily: NUM_FONT }}>{spec.bar}</b> ·{' '}
+          {spec.positions.join(' / ')}
+          {spec.dropped?.length > 0 && (
+            <div style={{ color: C.yellow, marginTop: 3, fontSize: TYPE.micro }}>
+              no lines this slate · weight redistributed
+            </div>
+          )}
+          {/* v1 (2026-09-21): this market has no weighted, backtested model
+              behind it yet -- see nfl_scoring.py's V1_MODELS. Say so right
+              where the other markets' bar/positions line already sits,
+              rather than let an 8th pill quietly imply the same rigor as
+              the other seven. */}
+          {spec.v1 && (
+            <div style={{ color: C.purple, marginTop: 3, fontSize: TYPE.micro }}>
+              v1 · ranked on each team's own real recent rate, not yet a weighted, backtested model like the other markets
+            </div>
+          )}
+          <div style={{ color: C.text3, marginTop: 3, fontSize: TYPE.micro }}>
+            Form line = last 8 games · dotted line = market bar · arrow compares recent half with prior half
+          </div>
+          {/* The single most common misread of the board (08-29 review): an 81
+              looks like an 81% chance. Say what it is where it first appears. */}
+          <div style={{ color: C.text3, marginTop: 3, fontSize: TYPE.micro }}>
+            The score is a <b style={{ color: C.text2 }}>league ranking on a 0–100 scale</b>, not a probability — 81 means far up the league on this market&apos;s inputs, not an 81% chance.
+          </div>
+        </div>
+          </MobileFold>
         </div>
       )}
     </div>
