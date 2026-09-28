@@ -23,7 +23,7 @@ export default function ShotPanel({ sel, who = 'He', height = 300 }) {
       {loading && !data ? <Loading what="the shot map" /> : null}
       {data && !data.season ? (
         <p style={{ margin: 0, color: C.text3, fontSize: 12, lineHeight: 1.5 }}>
-          No regular-season shots on file for {sel?.team ? 'this club' : 'him'} yet. The archive holds 2025-26 and fills in after every graded game.
+          No regular-season shots on file for {sel?.team || sel?.against ? 'this club' : 'him'} yet. The archive holds 2025-26 and fills in after every graded game.
         </p>
       ) : null}
       {data?.season && m ? (
@@ -50,7 +50,9 @@ export default function ShotPanel({ sel, who = 'He', height = 300 }) {
                 </div>
               ))}
               <dd style={{ gridColumn: '1 / -1', margin: '4px 0 0', color: C.text3, fontSize: 10, lineHeight: 1.45, maxWidth: 220, fontFamily: 'inherit' }}>
-                {who === 'He' ? 'His' : 'Their'} shots on net from the slot — between the faceoff dots and the goal line — as a share of all {who === 'He' ? 'his' : 'their'} shots on net.
+                {sel?.against
+                  ? <>Opponents&apos; shots on net from the slot — between the faceoff dots and the goal line — as a share of every shot on net against them.</>
+                  : <>{who === 'He' ? 'His' : 'Their'} shots on net from the slot — between the faceoff dots and the goal line — as a share of all {who === 'He' ? 'his' : 'their'} shots on net.</>}
               </dd>
             </dl>
           </div>
