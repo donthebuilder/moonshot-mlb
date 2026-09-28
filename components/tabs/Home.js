@@ -1,4 +1,5 @@
 'use client'
+import DayHero from '../DayHero'
 import PlayerFace from '../PlayerFace'
 import { useEffect, useMemo, useState } from 'react'
 import { etToday } from '../../lib/freshness'
@@ -841,80 +842,25 @@ export default function Home({
           the home page, the welcome thing needs to.") */}
 
       {/* ── HERO ─────────────────────────────────────────────────────── */}
-      <div style={{
-        position: 'relative', overflow: 'hidden',
-        background: `linear-gradient(150deg, ${C.bg2}, rgba(249,115,22,.07) 60%, rgba(252,211,77,.05))`,
-        border: `1px solid ${C.border}`, borderRadius: 18,
-        // 26/24/22 -> 18/18/16 (2026-09-03). The hero is the first thing on
-        // the page and it was spending about eighty vertical pixels on air
-        // alone, on a phone where the fold arrives at roughly six hundred.
-        // Nothing inside it changed; it just stopped reserving a margin the
-        // size of a section for itself.
-        padding: '18px 18px 16px', marginBottom: 12,
-      }}>
-        {/* the ember glow lived here until 2026-09-14 — removed on the audit: the type carries the hero. */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-          <span style={{ fontSize: 16 }}>{icon}</span>
-          <span style={{ fontSize: TYPE.label, color: C.text3, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', fontFamily: NUM_FONT }}>
-            {/* A finished slate isn't "Today" after midnight ET (stranger F5). */}
-            {slateInPast ? (slateDate === etShift(-1) ? 'Last night' : 'Final') : (dateLabel || (mode === 'today' ? 'Today' : 'Tomorrow'))}{slateDate ? ` · ${slateDate}` : ''}
-          </span>
-          {isLive && (
-            <span style={{
-              display: 'inline-flex', alignItems: 'center', gap: 5, marginLeft: 4,
-              fontSize: TYPE.label, fontWeight: 900, color: C.green, letterSpacing: '.1em', fontFamily: NUM_FONT,
-              border: `1px solid ${C.green}55`, background: `${C.green}14`, borderRadius: 999, padding: '2px 9px',
-            }}>
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.green, animation: 'homePulse 1.6s infinite' }} />
-              LIVE
-            </span>
-          )}
-        </div>
-        {/* ── THE FACT FIRST, THE VOICE SECOND (2026-08-29) ────────────────
-            Donovan: "use a new set-up lingo for the opening lines. burning
-            the midnight oil — make it intuitive and user friendly", then, on
-            which register: both plain AND keep the personality.
-
-            So the h1 is now the state of the night in words anyone gets on
-            the first read — how many games, how many live, whether it has
-            been graded yet — and the line under it keeps the greeting and
-            the metaphor. Nothing was thrown away; "Burning the midnight oil"
-            still shows up at 1am, it just no longer has to carry the job of
-            telling a stranger what this page is.
-
-            The headline is computed, so it is never furniture: it says
-            something different at 9am to an unbuilt slate than it does at
-            midnight with six games running. */}
-        <h1 style={{ fontSize: TYPE.display, fontWeight: 900, letterSpacing: '-.03em', margin: '0 0 4px', lineHeight: 1.15 }}>
-          {empty ? (
-            <>Tonight&apos;s board isn&apos;t built yet.</>
-          ) : slateInPast ? (
-            <>That slate is done.{' '}
-              <span style={{ background: 'linear-gradient(90deg, #f97316, #FCD34D)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                {gradesPending ? 'Final grades post in the morning.' : 'Every pick is graded.'}
-              </span>
-              {nextLine(nextMlb, etToday()) ? <span style={{ display: 'block', fontSize: 14, fontWeight: 800, color: C.text2, letterSpacing: 0, marginTop: 4 }}>No games tonight · {nextLine(nextMlb, etToday())}.</span> : null}
-            </>
-          ) : (
-            <>
-              <span style={{ fontFamily: NUM_FONT }}>{games.length}</span>
-              {games.length === 1 ? ' game' : ' games'} tonight
-              {isLive && liveGames > 0 && (
-                <>, <span style={{ fontFamily: NUM_FONT }}>{liveGames}</span> live</>
-              )}
-              .{' '}
-              <span style={{ background: 'linear-gradient(90deg, #f97316, #FCD34D)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                {isLive ? 'Grading as they land.' : 'The sheet is ready.'}
-              </span>
-            </>
-          )}
-        </h1>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 10px', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.16em', fontFamily: NUM_FONT, color: C.orange, border: `1px solid ${C.orange}55`, background: `${C.orange}12`, borderRadius: 3, padding: '2px 7px' }}>{icon} {hello}</span>
-          <span style={{ fontSize: TYPE.body, color: C.text3, fontFamily: NUM_FONT }}>
-            {empty ? 'board posts when tonight\u2019s card is final' : isLive ? 'grading live · every pick in public' : slateInPast ? (gradesPending ? 'final · grades post in the morning' : 'final · every pick graded') : 'the sheet is set · every pick graded in public'}
-          </span>
-        </div>
+      <DayHero
+        icon={icon}
+        /* A finished slate isn't "Today" after midnight ET (stranger F5). */
+        eyebrow={`${slateInPast ? (slateDate === etShift(-1) ? 'Last night' : 'Final') : (dateLabel || (mode === 'today' ? 'Today' : 'Tomorrow'))}${slateDate ? ` · ${slateDate}` : ''}`}
+        live={isLive}
+        /* THE FACT FIRST, THE VOICE SECOND (2026-08-29): the headline is the
+           state of the night -- how many games, how many live, whether it has
+           been graded -- computed, never furniture. The hero itself is
+           components/DayHero.js now (2026-09-28), shared with TUDDY and LAMP. */
+        lead={empty
+          ? <>Tonight&apos;s board isn&apos;t built yet.</>
+          : slateInPast
+            ? <>That slate is done.</>
+            : <><span style={{ fontFamily: NUM_FONT }}>{games.length}</span>{games.length === 1 ? ' game' : ' games'} tonight{isLive && liveGames > 0 && (<>, <span style={{ fontFamily: NUM_FONT }}>{liveGames}</span> live</>)}.</>}
+        accentText={empty ? null : slateInPast ? (gradesPending ? 'Final grades post in the morning.' : 'Every pick is graded.') : (isLive ? 'Grading as they land.' : 'The sheet is ready.')}
+        dayText={slateInPast && nextLine(nextMlb, etToday()) ? `No games tonight · ${nextLine(nextMlb, etToday())}.` : null}
+        chip={`${icon} ${hello}`}
+        sub={empty ? 'board posts when tonight’s card is final' : isLive ? 'grading live · every pick in public' : slateInPast ? (gradesPending ? 'final · grades post in the morning' : 'final · every pick graded') : 'the sheet is set · every pick graded in public'}
+      >
         {/* TONIGHT IN ONE SENTENCE (2026-08-15, "make the home page better").
             The old body was the same mission statement every single day —
             furniture. This is the slate itself, assembled from the numbers
@@ -1011,7 +957,7 @@ export default function Home({
             <BotPicksStrip players={players} onPlayerClick={onPlayerClick} onFullCard={onNavigate ? () => onNavigate('props') : null} />
           </div>
         )}
-      </div>
+      </DayHero>
 
       {/* ONE RAIL, BOTH SPORTS (round 10, 2026-09-17) -- Donovan chose merging
           both sports into this one rail over keeping two visually-identical-
