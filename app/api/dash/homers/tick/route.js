@@ -28,6 +28,10 @@
 // instance: the FULL board (the slimmed sender copy drops the stats the card
 // prints), the odds file, and the pair-history summary.
 
+import { gameCalls, gameCallText } from '../../../../../lib/dash/gameCall'
+import { xDailyAllows } from '../../../../../lib/dash/xBudget'
+import { isRested } from '../../../../../lib/dash/xRest'
+import { xEventsCalledOnly } from '../../../../../lib/dash/xEvents'
 import { createClient } from '@supabase/supabase-js'
 import { timingSafeEqual } from 'node:crypto'
 
@@ -172,6 +176,9 @@ const FEED_WEBHOOKS = () => {
 const DAILY_KINDS = new Set(['pregame', 'board', 'accountability', 'numerology', 'callofnight', 'history_watch', 'weekly', 'monthly'])
 const ROTATION_KINDS = ['matchup_hr', 'bestair', 'hotcontact', 'storylines', 'pairswatch', 'hot_week', 'hot_month']
 function postKindOn(kind, day) {
+  // THE CALL, one per postseason game (call_<game_pk>, lib/dash/gameCall):
+  // claimable whenever per-game posting is on for the day.
+  if (String(kind).startsWith('call_')) return perGameOn(day)
   const env = String(process.env.POST_KINDS_ON || '').trim()
   if (env.toLowerCase() === 'all') return true
   if (env) return env.split(',').map((k) => k.trim()).includes(kind)
@@ -182,8 +189,16 @@ function postKindOn(kind, day) {
   return dayNo % ROTATION_KINDS.length === i
 }
 
+// Per-game posting (postseason plan step 3) from this day on; X_PER_GAME=off
+// turns it off. 2026-09-29 is the first Wild Card day.
+const PER_GAME_FROM = String(process.env.X_PER_GAME_FROM || '2026-09-29').trim()
+function perGameOn(day) { return !/^off$/i.test(String(process.env.X_PER_GAME || '')) && String(day) >= PER_GAME_FROM }
+// A game's call posts once both lineups are confirmed and inside this window
+// before its first pitch -- never after it starts.
+const PER_GAME_LEAD_MS = 4 * 60 * 60 * 1000
+
 async function claimSlot(db, day, kind) {
-  if (!postKindOn(kind, day)) return false
+  if (!postKindOn(kind, day) || isRested(kind)) return false
   const { data, error } = await db
     .from('homer_feed_posts')
     .upsert([{ day, kind, payload: {} }], { onConflict: 'day,kind', ignoreDuplicates: true })
@@ -259,7 +274,9 @@ const RETIRED_KINDS = new Set([
   'milestone_mid', 'revenge_giveaway',
   'storyline_watch_2', 'storyline_watch_3', 'storyline_watch_4',
 ])
-const isRetired = (kind) => RETIRED_KINDS.has(kind)
+const isRetired = (kind) => RETIRED_KINDS.has(kind) || isRested(kind)   // + the postseason rest (lib/dash/xRest)
+// P1 under the daily cap (the rest of claimAndPostStat's kinds are P2).
+const P1_STAT_KINDS = new Set(['weekly', 'monthly', 'board', 'callofnight', 'accountability'])
 
 // `renderCard` (2026-09-18): a post whose card is its OWN design rather than
 // the generic statCard passes a thunk here and leaves cardSpec null. Optional
@@ -280,7 +297,9 @@ async function claimAndPostStat(db, day, kind, hourGate, text, cardSpec, payload
     : card ? await bytesOf(() => statCard(day, card, { site: SITE_HOST })) : null
   const d = await postToDiscord(text, { png }, FEED_WEBHOOKS())
   if (d.ok) patch.discord_sent = true
-  if (hasX()) {
+  // The daily cap (lib/dash/xBudget, postseason plan step 5): stat posts are
+  // P2 and give way first; the recap / weekly / monthly are P1.
+  if (hasX() && await xDailyAllows(db, day, P1_STAT_KINDS.has(kind) ? 1 : 2)) {
     const mediaId = png ? await uploadImageToX(png) : null
     // `kind` rides along for the Threads mirror only -- it decides whether
     // this post gets a funnel link under it (lib/dash/threadsLink.js). X
@@ -872,7 +891,7 @@ async function postRecap(db, day, { force = false } = {}) {
   }
   if (!claim?.length && !force) return { recap: 'already' }
   {
-    const { data: rows } = await db.from('homer_feed').select('name,team,role,on_board,board_rank').eq('day', day)
+    const { data: rows } = await db.from('homer_feed').select('name,team,role,on_board,board_rank,player_id').eq('day', day)
     const c = captureFrom(rows)
     if (c.total) {
       // Rewritten 2026-09-13 (Donovan's stacked-format pass): scoreboard feel,
@@ -880,7 +899,10 @@ async function postRecap(db, day, { force = false } = {}) {
       // streak last.
       const ROLE_EMOJI = { HR: '🤖', TOP: '🌙', TOP15: '🌙', HRR: '📊', CONTACT: '📊', HIT: '📊', WATCH: '👀' }
       const ROLE_ORDER = ['HR', 'TOP', 'TOP15', 'HRR', 'CONTACT', 'HIT', 'WATCH']
-      const roleLines = ROLE_ORDER.filter((r) => c.byRole[r]).map((r) => `${ROLE_EMOJI[r] || '🤖'} ${r}: ${c.byRole[r]}`)
+      // Plain words on first contact (postseason plan step 10): no bare
+      // "HRR" / "CONTACT" in a post -- say what the call was for.
+      const ROLE_PLAIN = { HR: 'home-run calls', TOP: 'top picks', TOP15: 'top-15 picks', HRR: 'hits + runs + RBI calls', CONTACT: 'total-bases calls', HIT: 'hit calls', WATCH: 'on the watch list' }
+      const roleLines = ROLE_ORDER.filter((r) => c.byRole[r]).map((r) => `${ROLE_EMOJI[r] || '🤖'} ${c.byRole[r]} from ${ROLE_PLAIN[r] || r}`)
       const { data: hist } = await db.from('homer_feed').select('day,role,name,odds_over,odds_book').gte('day', shiftDay(day, -12)).lte('day', day)
       // One season per number (2026-09-27): the card's night bars and the TOP
       // streak read only nights on this night's side of the postseason's
@@ -897,6 +919,23 @@ async function postRecap(db, day, { force = false } = {}) {
       ]
       if (roleLines.length) blocks.push(roleLines)
       if (c.rated) blocks.push([`${c.rated} more were on the board.`])
+      // MISSED IT, SAME WEIGHT AS THE HITS (postseason plan step 8): the
+      // per-game calls on a 1+ home run bar, named plainly either way. Other
+      // bars (hits, H+R+RBI) need the box score this recap doesn't read, so
+      // they aren't claimed here.
+      const { data: gcalls } = await db.from('homer_feed_posts').select('payload').eq('day', day).like('kind', 'call_%')
+      const hrCalls = (gcalls || []).map((g) => g.payload).filter((p) => p?.player_id && /home run/.test(String(p.bar || '')))
+      if (hrCalls.length) {
+        const homered = new Set((rows || []).map((r) => String(r.player_id)))
+        const nameOfCall = (p) => (rows || []).find((r) => String(r.player_id) === String(p.player_id))?.name || p.name || `#${p.player_id}`
+        const hit = hrCalls.filter((p) => homered.has(String(p.player_id)))
+        const missed = hrCalls.filter((p) => !homered.has(String(p.player_id)))
+        blocks.push([
+          `THE CALLS: ${hit.length} of ${hrCalls.length} homered`,
+          ...(hit.length ? [`HIT: ${hit.map(nameOfCall).join(', ')}`] : []),
+          ...(missed.length ? [`MISSED IT: ${missed.map((p) => p.name || `#${p.player_id}`).join(', ')} -- no home run`] : []),
+        ])
+      }
       if (straight >= 2) blocks.push([`🔥 TOP pick streak: ${straight} nights`])
       if (tailLine) blocks.push([tailLine])
       const text = blocks.map((b) => b.join('\n')).join('\n\n')
@@ -1816,6 +1855,33 @@ export async function GET(request) {
         }
       }
 
+      // THE CALL, ONE PER GAME (2026-09-28, postseason plan steps 3/6/7):
+      // the top CALLED hitter in each game, posted once both lineups are
+      // confirmed and before first pitch, with the one number that makes the
+      // case and the one reason it could fail (lib/dash/gameCall). P1 under
+      // the daily cap. A CALLED homer by that hitter quotes this post.
+      if (perGameOn(day)) {
+        const nowMs = Date.now()
+        for (const call of gameCalls(callRows())) {
+          const t = Date.parse(call.time || '')
+          if (!call.confirmed || !Number.isFinite(t) || nowMs >= t || nowMs < t - PER_GAME_LEAD_MS) continue
+          const kind = `call_${call.game_pk}`
+          if (!(await claimSlot(db, day, kind))) continue
+          const tl = tailFor('pregame', { playerId: call.row.player_id })
+          const text = gameCallText(call, { tail: [tl.site, tl.handle].filter(Boolean).join(' ') })
+          const patch = { payload: { player_id: String(call.row.player_id), name: String(call.row.name || ""), game_pk: call.game_pk, role: call.role, bar: call.bar, posted_at: new Date().toISOString() } }
+          await db.from('homer_feed_posts').update({ payload: patch.payload }).match({ day, kind })
+          const d = await postToDiscord(text, {}, FEED_WEBHOOKS())
+          if (d.ok) patch.discord_sent = true
+          if (hasX() && await xDailyAllows(db, day, 1)) {
+            const r = await postToX(text, { kind: 'pregame', link: { playerId: call.row.player_id } })
+            if (r.ok && r.id) patch.x_post_id = r.id
+            else console.error(`[homers] ${kind} refused: ${r.status} ${r.error}`)
+          }
+          await db.from('homer_feed_posts').update(patch).match({ day, kind })
+        }
+      }
+
       // THE CALLED SHOTS, HELD FOR THE LOCK WINDOW (2026-09-15). The
       // 2026-09-10 change above made `ready` fire the moment the board
       // publishes -- right for pairswatch/longshot/community_pick (none of
@@ -1856,7 +1922,7 @@ export async function GET(request) {
             await db.from('homer_feed_posts').update({ payload: { picks, called } }).match({ day, kind: 'pregame' })
             const d = await postToDiscord(text, { imageUrl: pregameUrl(day) }, FEED_WEBHOOKS())
             if (d.ok) patch.discord_sent = true
-            if (hasX()) {
+            if (hasX() && await xDailyAllows(db, day, 1)) {
               const png = await bytesOf(() => pregameCard(day, picks, { site: SITE_HOST }))
               const mediaId = png ? await uploadImageToX(png) : null
               const r = await postToX(text, { mediaId, kind: 'pregame' })
@@ -2171,7 +2237,14 @@ export async function GET(request) {
   // only when that post actually went out (2026-09-26): an ON THE BOARD or
   // NOT ON THE BOARD homer posts standalone, and a held Called Shots means
   // nobody quotes anything.
-  const quoteFor = (row) => (pre?.x_post_id && preIds.has(String(row.player_id)) && callStatus(row) === 'called' ? pre.x_post_id : null)
+  // QUOTE THE GAME'S OWN CALL FIRST (postseason plan step 2): a CALLED homer by
+  // the hitter a per-game post named quotes THAT post ("✅ Called at 5:10 PM ET");
+  // otherwise the morning's call, as before.
+  const { data: gamePosts } = await db.from('homer_feed_posts').select('kind,x_post_id,payload').eq('day', day).like('kind', 'call_%')
+  const gameCall = new Map((gamePosts || []).filter((g) => g.x_post_id && g.payload?.player_id).map((g) => [`${g.payload.game_pk}:${g.payload.player_id}`, g]))
+  const gameCallFor = (row) => (callStatus(row) === 'called' ? gameCall.get(`${row.game_pk}:${row.player_id}`) || null : null)
+  const quoteFor = (row) => gameCallFor(row)?.x_post_id || (pre?.x_post_id && preIds.has(String(row.player_id)) && callStatus(row) === 'called' ? pre.x_post_id : null)
+  const calledAtLine = (row) => { const g = gameCallFor(row); const t = Date.parse(g?.payload?.posted_at || ''); return Number.isFinite(t) ? `✅ Called at ${new Date(t).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' })} ET` : '' }
   for (const row of pending || []) {
     const live = byKey.get(`${row.player_id}:${row.hr_n}`)
     const ev = { ...row, _roles: live?._roles || row.role || '' }
@@ -2184,7 +2257,7 @@ export async function GET(request) {
     // multi_games (written for this game earlier in this same tick), never
     // guessed. Only for an unposted alert; a failed read drops the line.
     const multi = (!row.x_post_id || !row.discord_sent) ? await multiLineFor(db, row, day).catch(() => null) : null
-    const extra = [reached, multi].filter(Boolean).join('\n')
+    const extra = [calledAtLine(row), reached, multi].filter(Boolean).join('\n')
     const text = extra ? `${postText(ev, TAIL)}\n\n${extra}` : postText(ev, TAIL)
     const patch = {}
     let stopTick = false
@@ -2193,7 +2266,9 @@ export async function GET(request) {
       const r = await postToDiscord(text, { imageUrl: cardUrl(row) })
       if (r.ok) { patch.discord_sent = true; totals.discord += 1 }
     }
-    const wantsX = xOn && (MODE === 'all' || Boolean(row.role))
+    // CALLED only by default (lib/dash/xEvents, postseason plan step 1); the
+    // old MODE rule applies when X_EVENTS=all.
+    const wantsX = xOn && (xEventsCalledOnly() ? callStatus(row) === 'called' : (MODE === 'all' || Boolean(row.role)))
     if (!row.x_post_id) {
       if (wantsX) {
         // CLAIM BEFORE POSTING (2026-09-06). This used to SELECT the pending
@@ -2250,7 +2325,7 @@ export async function GET(request) {
           }
         }
       } else if (xOn) {
-        // Not going to X by policy (flagged mode, no role) — mark it so it
+        // Not going to X by policy (not CALLED, or flagged mode with no role) — mark it so it
         // stops showing up as pending. With X unconfigured the null stays, so
         // the night's rows post the moment the keys land.
         patch.x_post_id = 'skipped'

@@ -49,6 +49,10 @@
 // kind_check incident already taught this codebase to expect and log
 // loudly rather than silently eat.
 
+import { xDailyAllows } from '../../../../../lib/dash/xBudget'
+import { isRested } from '../../../../../lib/dash/xRest'
+import { tdCallStatus } from '../../../../../lib/callStatus'
+import { xEventsCalledOnly } from '../../../../../lib/dash/xEvents'
 import { createClient } from '@supabase/supabase-js'
 import { timingSafeEqual } from 'node:crypto'
 
@@ -397,7 +401,13 @@ async function runTouchdownTick(db, day) {
         const d = await postToDiscord(text, { png }, FEED_WEBHOOKS())
         if (d.ok) { patch.discord_sent = true; totals.discord += 1 }
       }
-      if (!row.x_post_id && xOn) {
+      // CALLED touchdowns only get their own X post (lib/dash/xEvents,
+      // postseason plan step 1) -- the rest still went to Discord above, and
+      // to push and the site. Marked 'skipped' so it stops reading as pending.
+      const tdCalled = tdCallStatus({ on_bot: ev.onBot, td_board: ev.tdBoard }) === 'called'
+      if (!row.x_post_id && xOn && xEventsCalledOnly() && !tdCalled) {
+        patch.x_post_id = 'skipped'
+      } else if (!row.x_post_id && xOn) {
         // Same conditional-UPDATE claim homers/tick's own per-homer loop
         // uses (see that file's "CLAIM BEFORE POSTING" note) -- only the
         // tick that flips x_post_id from null to the 'posting' sentinel
@@ -523,7 +533,8 @@ const service = () => {
 // for these yet and a generic one would be the MLB statCard problem again --
 // a headline and some grey lines. The lists stand up as text.
 async function runWeeklyContentTick(db, day) {
-  const slots = (WEEKLY_SLOTS[etWeekday(day)] || []).filter((sl) => etHoursSinceNoon() >= sl.hour)
+  // Rested kinds (the vote posts, lib/dash/xRest) are skipped, not claimed.
+  const slots = (WEEKLY_SLOTS[etWeekday(day)] || []).filter((sl) => etHoursSinceNoon() >= sl.hour && !isRested(sl.kind))
   if (!slots.length) return { skipped: 'no-slot-this-hour' }
 
   // One fetch for however many slots this day owns, and only once an hour
@@ -645,7 +656,9 @@ async function runWeeklyContentTick(db, day) {
       const png = card ? await bytesOf(card) : null
       const d = await postToDiscord(forDiscord, { png }, FEED_WEBHOOKS())
       if (d.ok) patch.discord_sent = true
-      if (hasX()) {
+      // Daily cap (postseason plan step 5): the board and the results are P1,
+      // the rest of the weekly slots P2.
+      if (hasX() && await xDailyAllows(db, day, ['nfl_board', 'nfl_results'].includes(sl.kind) ? 1 : 2)) {
         const mediaId = png ? await uploadImageToX(png) : null
         const r = await postToX(text, {
           ...(mediaId ? { mediaId } : {}),
@@ -706,7 +719,7 @@ async function runMilestoneTick(db, day) {
   const patch = { payload: { picks: picks.map((p) => ({ name: p.player?.name, market: p.marketKey, streak: p.streak })) } }
   const d = await postToDiscord(text, {}, FEED_WEBHOOKS())
   if (d.ok) patch.discord_sent = true
-  if (hasX()) {
+  if (hasX() && await xDailyAllows(db, day, 2)) {
     const r = await postToX(text, { kind: 'nfl_milestone' })
     if (r.ok && r.id) patch.x_post_id = r.id
     else console.error(`[nfl-tick] nfl_milestone refused: ${r.status} ${r.error}`)
