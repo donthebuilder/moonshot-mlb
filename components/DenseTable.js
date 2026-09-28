@@ -785,7 +785,12 @@ export default function DenseTable({
             borderRadius: 999, padding: '5px 12px', marginLeft: 8,
           }}>⬇ CSV</button>
         {truncated > 0 && (
-          <span style={{ color: C.orange }}>
+          // Its own line, 12px above the caption (audit 00A S1): the "why ▸"
+          // button below reaches 12px up for a thumb-sized hit area, and on
+          // phones it sat on top of this "show N more" pill -- a tap aimed at
+          // one hit the other (MLB Leaders / Odds / Matchups, NFL Live /
+          // Matchups, 320-430px).
+          <span style={{ color: C.orange, display: 'block', marginBottom: 12 }}>
             Showing the top {view.length} of {sorted.length} — sort a column to bring others up, or{' '}
             <button
               type="button"

@@ -34,7 +34,10 @@ export default function DateMode({
   // overnight doesn't claim it is still yesterday.
   const [time, setTime] = useState('')
   useEffect(() => {
-    const tick = () => setTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
+    // In ET, and says so (audit 00A S3): the label beside it is the slate's
+    // ET date, and a local clock under it read "Mon, Sep 28 · 09:53 PM" at
+    // 9:53 PM Sunday in California -- two time zones on one badge.
+    const tick = () => setTime(`${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'America/New_York' })} ET`)
     tick()
     const id = setInterval(tick, 30000)
     return () => clearInterval(id)
