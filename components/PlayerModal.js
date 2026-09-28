@@ -8,9 +8,8 @@ import { fetchBatterDetail } from '../lib/dataSource'
 import {
   nameOf, teamOf, oppOf, n, clean, pct, sc,
   hrScore, hitScore, prodScore, tbScore, pitchMixScore,
-  recent375, recent400, recent350, ihrVal,
-  avgEV, maxEV, hardHitRate, barrelRate, launchAngle,
-  babipVal, pitcherBabipVal, avgVsRHP, avgVsLHP, whiffProfile,
+  ihrVal,
+  babipVal, pitcherBabipVal, avgVsRHP, avgVsLHP,
 } from '../lib/player'
 import { compactRole, roleColor, gradeFor, signalPills, bestBet } from '../lib/scoring'
 // Aliased: lib/scoring exports a roleColor of its own for the chip row, and
@@ -52,6 +51,7 @@ import BvP from './BvP'
 import { venueRecord } from '../lib/venueHr'
 import { pullWallFor } from '../lib/walls'
 import PlayerCompare from './PlayerCompare'
+import ContactSection from './ContactSection'
 
 // 🧱 "How far is HIS wall tonight" (audit #7, 2026-08-08). fieldInfo hydrate
 // verified live; percentile computed from the same payload. Switch hitters
@@ -821,6 +821,10 @@ export default function PlayerModal({ player, slateMode, initialTab = '', onClos
                 <span style={{ fontSize: 11.5, fontWeight: 900 }}>🔢 The numbers</span>
                 <span style={{ fontSize: 9, color: C.text3 }}>the evidence behind the read — hover any label for what it means</span>
               </div>
+              {/* 🧱 CONTACT (2026-09-27, blast columns plan): Blast Report's
+                  windows and filters over his batted balls, counts beside
+                  rates. Replaces the Batted Ball and Recent Distance blocks. */}
+              <ContactSection p={p} />
               {/* auto-fit so the two columns become one on a phone instead of
                   squeezing every value row into ellipsis territory */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: '0 24px' }}>
@@ -834,56 +838,8 @@ export default function PlayerModal({ player, slateMode, initialTab = '', onClos
                   <VenueHrRow pid={pid} venueName={clean(p?.venue_name, '')} gamePk={p?.game_pk} />
                   <OppDefenseRow opp={clean(p?.opponent || p?.opp, '')} />
                   <PullWallRow bats={clean(p?.bats || p?.handedness, '')} venueName={clean(p?.venue_name, '')} />
-                </div>
-                <div>
-                  <div style={{ fontSize: 10, color: C.text3, fontWeight: 800, textTransform: 'uppercase', letterSpacing: .5, padding: '10px 0 4px' }}>Batted Ball</div>
-                  <Row label="Avg EV"       value={avgEV(p) ? avgEV(p).toFixed(1) + ' mph' : '—'} />
-                  <Row label="Max EV"       value={maxEV(p) ? maxEV(p).toFixed(1) + ' mph' : '—'} />
-                  <Row label="Barrel %"     value={pct(barrelRate(p))} />
-                  <Row label="Hard Hit %"   value={pct(hardHitRate(p))} />
-                  <Row label="Launch Angle" value={launchAngle(p) ? launchAngle(p).toFixed(1) + '°' : '—'} />
-                  {/* 🌀 WHIFF (2026-08-09, from the Discord: "missing the whiff
-                      on the stats for players in the modal"). The bot publishes
-                      no overall batter whiff rate — only per-pitch-type rates,
-                      in the detail file. whiffProfile() reconstructs the total
-                      from those published counts by exact arithmetic; see the
-                      note in lib/player.js for the identity and its one
-                      caveat. When there is no per-pitch profile to rebuild it
-                      from, the row says so instead of showing a fabricated
-                      number or quietly disappearing. */}
-                  {(() => {
-                    const w = whiffProfile(p)
-                    if (!w) {
-                      return (
-                        <Row
-                          label="Whiff %"
-                          value="not published"
-                          mono={false}
-                          explain="How often he swings and misses. The bot hasn't published this hitter's pitch-by-pitch swing data yet, and we won't guess at it."
-                        />
-                      )
-                    }
-                    const tip = `Rebuilt from his published per-pitch-type rates across ${w.types} pitch types: `
-                      + `about ${w.swings} swings out of ${w.pitches} pitches seen. `
-                      + `Whiff% is misses per SWING; SwStr% is misses per PITCH. `
-                      + `League-average whiff is roughly 24% — under 20% is a contact hitter, over 30% is swing-and-miss. `
-                      + `A pitch type he has never missed can't have its swings recovered and is left out of the totals, `
-                      + `which nudges this a hair high for such a hitter.`
-                    return (
-                      <>
-                        <Row label="Whiff %" title={tip}
-                          value={`${(w.whiff * 100).toFixed(1)}%`} />
-                        <Row label="SwStr %" title={tip}
-                          value={`${(w.swstr * 100).toFixed(1)}%`} />
-                      </>
-                    )
-                  })()}
-                </div>
-                <div>
-                  <div style={{ fontSize: 10, color: C.text3, fontWeight: 800, textTransform: 'uppercase', letterSpacing: .5, padding: '10px 0 4px' }}>Recent Distance</div>
-                  <Row label="350+ count" value={recent350(p)} />
-                  <Row label="375+ count" value={recent375(p)} />
-                  <Row label="400+ count" value={recent400(p)} />
+                  {/* moved here from "Recent Distance" (2026-09-27) when the
+                      Contact section took over the batted-ball numbers */}
                   <Row label="Ideal HR %" value={ihrVal(p) ? (ihrVal(p) * 100).toFixed(1) + '%' : '—'} />
                 </div>
                 <div>
