@@ -279,7 +279,7 @@ export default function LampDashboard({ palettePass = 0 }) {
           />
         ) : (
           <ErrorBoundary resetKey={`${tab}:${gameId || ''}:${teamKey || ''}:${playerId || ''}`} label={`the ${tab} tab`}>
-            {tab === 'home' && <Home today={shown} date={date} onOpenGame={openGame} onOpenPlayer={openPlayer} setTab={setTab} />}
+            {tab === 'home' && <Home today={shown} date={date} onOpenGame={openGame} onOpenPlayer={openPlayer} onOpenTeam={openTeam} setTab={setTab} />}
             {tab === 'scores' && <Scores onOpenGame={openGame} date={date} setDate={setDate} />}
             {tab === 'schedule' && <Schedule onOpenGame={openGame} date={date} setDate={setDate} />}
             {tab === 'standings' && <Standings onOpenTeam={openTeam} />}

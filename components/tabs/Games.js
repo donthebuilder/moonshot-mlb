@@ -746,7 +746,8 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
     return (
       <div>
         <ViewPills views={[['table', '📊 Table'], ['games', '🏟 Games']]} view={gview} setView={setGview} />
-        <ProjectedOutput games={games} players={allPlayers.length ? allPlayers : players} watchIds={watchIds} />
+        <ProjectedOutput games={games} players={allPlayers.length ? allPlayers : players} watchIds={watchIds}
+          onOpenGame={(pk) => { setGview('games'); setMode('lineups'); setLineupFocus(pk) }} />
       </div>
     )
   }

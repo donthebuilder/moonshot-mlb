@@ -7,6 +7,8 @@ import PageHeader from '../PageHeader'
 import TeamVsStarter from '../TeamVsStarter'
 import { mlbFaceStrict } from '../PlayerFace'
 import { zonesUrl } from '../../lib/dataSource'
+import Tap from '../Tap'
+import { leaveTarget } from '../../lib/openTarget'
 
 // ⚾ MOONSHOT MATCHUPS (2026-09-27, matchups plan Part C, in the shape Donovan
 // signed off on TUDDY's): a ranked table of tonight's starters leads, a tap
@@ -86,7 +88,8 @@ function ZoneOverlap({ lineupIds, pitcherName }) {
   )
 }
 
-export default function Matchups({ players = [], onPlayerClick }) {
+export default function Matchups({ players = [], onPlayerClick, onNavigate = null }) {
+  const openPitcher = onNavigate ? (pid) => { leaveTarget('pitcher', pid); onNavigate('pitchers') } : null
   const [pick, setPick] = useState(null)
   const rows = useMemo(() => groupPitchers(players).map((g) => {
     const raws = g.lineup.map((b) => b.raw)
@@ -140,7 +143,7 @@ export default function Matchups({ players = [], onPlayerClick }) {
       <PageHeader eyebrow="MOONSHOT · MATCHUPS" title="The arms to attack tonight" theme={C} numFont={NUM_FONT} accent={C.orange}
         note="Tonight's starters, ranked by how well the lineup in front of them fits their pitch mix. Tap a starter for the matchup." />
       <p style={{ margin: '0 0 8px', fontSize: 12.5, lineHeight: 1.5, color: C.text2 }}>
-        Softest: <b style={{ color: C.text }}>{lead.pitcher}</b> ({lead.team}), facing a {lead.vs} lineup that fits his mix at {lead.fit}{lead.best ? <> — <b style={{ color: C.text }}>{lead.bestTxt}</b> leads it{lead.best.pitch_mix_note ? ` (${lead.best.pitch_mix_note})` : ''}</> : null}.
+        Softest: <Tap onClick={openPitcher && lead.g.pitcher_id ? () => openPitcher(lead.g.pitcher_id) : null}><b style={{ color: C.text }}>{lead.pitcher}</b></Tap> ({lead.team}), facing a {lead.vs} lineup that fits his mix at {lead.fit}{lead.best ? <> — <Tap onClick={onPlayerClick ? () => onPlayerClick(lead.best) : null}><b style={{ color: C.text }}>{lead.bestTxt}</b></Tap> leads it{lead.best.pitch_mix_note ? ` (${lead.best.pitch_mix_note})` : ''}</> : null}.
       </p>
       <DenseTable rows={rows} columns={columns} heatMode="primary" maxRows={PREVIEW} maxHeight={9999}
         rowEdge={(r) => (r._id === active?._id ? C.orange : null)}

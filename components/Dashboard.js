@@ -845,7 +845,7 @@ export default function Dashboard({ palettePass = 0 }) {
             {tab === 'board'       && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} onNavigate={setTab} />}
             {tab === 'games'       && <Games players={players} allPlayers={allPlayers} slateDate={slateDate} slateMode={mode} pairHistorySummary={pairSummary} results={resultsForSlate} odds={odds} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
             {tab === 'pitchers'    && <Pitchers players={players} onPlayerClick={setModalPlayer} />}
-            {tab === 'matchups'    && <Matchups players={players} onPlayerClick={setModalPlayer} />}
+            {tab === 'matchups'    && <Matchups players={players} onPlayerClick={setModalPlayer} onNavigate={setTab} />}
             {/* PROPS GRID — the mobile pilot page (2026-08-23). Its own tab
                 per Donovan's sequencing call: the grid stays an entry point,
                 the drill-down is the existing player modal on top of it. */}

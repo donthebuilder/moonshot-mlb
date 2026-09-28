@@ -344,7 +344,7 @@ export default function NflDashboard({ palettePass = 0 }) {
                 picks={picks} results={nflResults} onPlayerClick={openPlayer} initialView={tab === 'picks' ? 'called' : 'board'} />
             )}
             {tab === 'research' && <Research data={data} onPlayerClick={openPlayer} />}
-            {tab === 'matchups' && <Matchups matchup={matchup} data={data} />}
+            {tab === 'matchups' && <Matchups matchup={matchup} data={data} onPlayerClick={openPlayer} onOpenTeam={(abbr) => { setPortalTeam(abbr); setTab('players') }} />}
             {tab === 'explosive' && <Explosive matchup={matchup} data={data} onPlayerClick={openPlayer} />}
             {tab === 'redzone' && <RedZone data={data} matchup={matchup} onPlayerClick={openPlayer} />}
             {tab === 'longshots' && <Longshots sport="nfl" eyebrow="TUDDY · LONGSHOTS" theme={C} numFont={NUM_FONT} accent={C.green} Table={NflTable} onOpenPlayer={(id) => { const p = (data?.players || []).find((x) => String(x.player_id) === String(id)); if (p) openPlayer(p, 'TD') }} />}

@@ -6,6 +6,7 @@ import {
 } from '../lib/player'
 import HeadlinePicks from './headline/HeadlinePicks'
 import { rankBuckets } from '../lib/mlbFour'
+import { playerHref } from '../lib/routes'
 import PlayerFace from './PlayerFace'
 
 // THE FOUR — the bot's own headline section, rebuilt on the site.
@@ -256,7 +257,8 @@ export default function BotPicksStrip({ players = [], onPlayerClick, onFullCard 
       // The Six: measured, the 44px "#2 and #3" button is taller than the two
       // compact rows it hides, so four collapsed cards were taller, not shorter.
       cols={{ wide: 4, mid: 2 }}
-      onPick={onPlayerClick ? (pick) => onPlayerClick(pick.raw) : null}
+      // No opener (the /start page): a name links to his card in the app.
+      onPick={onPlayerClick ? (pick) => onPlayerClick(pick.raw) : (pick) => { const id = pick.raw?.player_id ?? pick.raw?.id; if (id != null) window.location.assign(playerHref('mlb', id)) }}
       whatThis={{ label: 'how these are ranked', body: 'Each category uses its own score and evidence. ⭐ marks a weak lineup spot; tap a name for the hitter detail.' }}
       // "Full card →" top right, like The Six's; the Props page is the card.
       record={onFullCard ? <button type="button" onClick={onFullCard} style={{ minHeight: 44, margin: '-13px 0 -13px auto', padding: '0 4px', border: 'none', background: 'transparent', color: C.orange, font: `800 11px/1 ${NUM_FONT}`, cursor: 'pointer' }}>Full card →</button> : null}

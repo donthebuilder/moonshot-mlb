@@ -1,4 +1,5 @@
 'use client'
+import Tap from '../Tap'
 import { C, NUM_FONT } from '../../lib/nhl/theme'
 import { nhlLogo } from '../../lib/nhl/teams'
 // Formats live in lib/nhl/format.js (no 'use client') so the crawlable
@@ -52,8 +53,11 @@ export function shiftDay(ymd, n) {
 }
 
 /** Logo + abbreviation. The league's own SVG; the abbreviation is the text. */
-export function TeamMark({ abbrev, name = null, size = 18, bold = false }) {
+// onClick (2026-09-27, CLICK-EVERYTHING-PLAN): a team opens the team -- the mark
+// becomes a Tap (text unchanged, 44px on touch). None -> the plain mark.
+export function TeamMark({ abbrev, name = null, size = 18, bold = false, onClick = null }) {
   const ab = String(abbrev || '').toUpperCase()
+  if (onClick) return <Tap onClick={onClick}><TeamMark abbrev={abbrev} name={name} size={size} bold={bold} /></Tap>
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
       {ab && <img src={nhlLogo(ab)} alt="" width={size} height={size} loading="lazy"

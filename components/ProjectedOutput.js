@@ -1,4 +1,5 @@
 'use client'
+import Tap from './Tap'
 import { useMemo, useState, useEffect } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { teamOf, oppOf, hrScore, hitScore, n, clean, playerId } from '../lib/player'
@@ -301,7 +302,8 @@ const LENSES = [
     tip: 'Only hitters on your watchlist.' },
 ]
 
-export default function ProjectedOutput({ games = [], players: allPlayers = [], watchIds = null }) {
+// onOpenGame (2026-09-27, CLICK-EVERYTHING-PLAN): a game's label opens that game.
+export default function ProjectedOutput({ games = [], players: allPlayers = [], watchIds = null, onOpenGame = null }) {
   const [lenses, setLenses] = useState(() => new Set())
   // 🔀 SORTABLE TABLE (2026-08-30, Donovan: "make it sortable and add
   // filters" -- the filters (LENSES below) already existed; this is the
@@ -449,7 +451,7 @@ export default function ProjectedOutput({ games = [], players: allPlayers = [], 
         return sum + base * park * weather * trendMult * penMult
       }, 0)
 
-      return { label, values, _count: pool.length }
+      return { label, values, _count: pool.length, _pk: by === 'game' ? pool[0]?.game_pk ?? null : null }
     })
       .sort((a, b) => {
         const av = sortCol === 'label' ? a.label : a.values[sortCol]
@@ -550,7 +552,7 @@ export default function ProjectedOutput({ games = [], players: allPlayers = [], 
               #{i + 1} by proj HR
             </div>
             <div style={{ fontSize: 12, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {r.label.replace(/^\d+\.\s+/, '')}
+              <Tap onClick={onOpenGame && r._pk != null ? () => onOpenGame(r._pk) : null}>{r.label.replace(/^\d+\.\s+/, '')}</Tap>
             </div>
             <div style={{ fontSize: 14, fontWeight: 900, color: i === 0 ? C.orange : C.text2, fontFamily: NUM_FONT }}>
               {r.values['Proj HR'].toFixed(1)} HR
@@ -606,7 +608,7 @@ export default function ProjectedOutput({ games = [], players: allPlayers = [], 
                     <span style={{
                       width: 150, flexShrink: 0, fontSize: 10, color: C.text2, fontWeight: 700,
                       whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                    }} title={r.label}>{r.label}</span>
+                    }} title={r.label}><Tap onClick={onOpenGame && r._pk != null ? () => onOpenGame(r._pk) : null}>{r.label}</Tap></span>
                     <span style={{ flex: 1, position: 'relative', height: 13, background: 'rgba(255,255,255,.04)', borderRadius: 4, overflow: 'visible', minWidth: 0 }}>
                       <span style={{
                         position: 'absolute', left: 0, top: 0, bottom: 0, width: `${pct}%`, borderRadius: 4,
@@ -713,7 +715,7 @@ export default function ProjectedOutput({ games = [], players: allPlayers = [], 
               <tbody>
                 {rows.map((r) => (
                   <tr key={r.label}>
-                    <td style={{ padding: '6px 8px', borderBottom: `1px solid ${C.border}`, fontWeight: 700, whiteSpace: 'nowrap' }}>{r.label}</td>
+                    <td style={{ padding: '6px 8px', borderBottom: `1px solid ${C.border}`, fontWeight: 700, whiteSpace: 'nowrap' }}><Tap onClick={onOpenGame && r._pk != null ? () => onOpenGame(r._pk) : null}>{r.label}</Tap></td>
                     {cols.map((c) => {
                       const v = r.values[c]
                       const g = gradeOf(c, v)

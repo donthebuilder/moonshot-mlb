@@ -2,6 +2,7 @@
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/nfl/theme'
 import ChartFrame from './ChartFrame'
+import Tap from '../Tap'
 
 // DVP DRIFT — where a defence's soft spot is MOVING.
 //
@@ -48,7 +49,7 @@ const H = 190
 const PAD = { t: 12, r: 74, b: 20, l: 30 }
 const LABEL_GAP = 11   // minimum vertical space between two end labels
 
-export default function DvpDrift({ data, team, roles, highlight }) {
+export default function DvpDrift({ data, team, roles, highlight, onOpenTeam = null }) {
   const order = (roles || data?.dvp_roles || [])
   const labels = data?.dvp_labels || {}
 
@@ -177,7 +178,7 @@ export default function DvpDrift({ data, team, roles, highlight }) {
 
       <div style={{ fontSize: 10.5, color: C.text2, marginBottom: 7, lineHeight: 1.6 }}>
         {lead && lead.delta <= -4 && lead.corroborated ? (
-          <><b style={{ color: C.green }}>{team}</b> has been getting softer against
+          <><Tap onClick={onOpenTeam && (() => onOpenTeam(team))}><b style={{ color: C.green }}>{team}</b></Tap> has been getting softer against
             {' '}<b style={{ color: C.green }}>{lead.role}</b> in {labels[stat] || stat}
             {weekly
               ? <>: #{lead.from} back in week {weekly.weeks[0]}, <b style={{ color: C.green }}>#{lead.to}</b> now.
@@ -187,7 +188,7 @@ export default function DvpDrift({ data, team, roles, highlight }) {
                   {' '}over the last three. Every window agrees, so it is a trend and not a hot week.</>}
           </>
         ) : lead && lead.delta <= -4 ? (
-          <><b style={{ color: C.text }}>{team}</b> sits #{lead.to} against
+          <><Tap onClick={onOpenTeam && (() => onOpenTeam(team))}><b style={{ color: C.text }}>{team}</b></Tap> sits #{lead.to} against
             {' '}<b style={{ color: C.text }}>{lead.role}</b> in {labels[stat] || stat}
             {weekly
               ? <>, against #{lead.from} in week {weekly.weeks[0]} — but the weeks in between

@@ -4,6 +4,7 @@ import { C, NUM_FONT, TYPE } from '../../lib/nfl/theme'
 import { softRole, stingyRole, STARTER_ROLES } from '../../lib/nfl/dvpSignal'
 import NflTable from './NflTable'
 import NflFace from './NflFace'
+import Tap from '../Tap'
 
 // THE DEFENSES TO ATTACK THIS WEEK (2026-09-27, matchups plan, REVISED:
 // Donovan -- "I don't see how this equates with the MLB pages"). MOONSHOT's
@@ -20,7 +21,7 @@ const PREVIEW = 8
 const one = (n) => (Number.isFinite(n) ? Math.round(n * 10) / 10 : null)
 const spot = (d) => (d ? `${d.role} · ${d.label}${d.multiple === 0 ? ' · none' : d.multiple ? ` ${one(d.multiple)}x` : ''}` : null)
 
-export default function DefensesTable({ matchup, data, win = 'season', active, onPick }) {
+export default function DefensesTable({ matchup, data, win = 'season', active, onPick, onPlayerClick = null }) {
   const [all, setAll] = useState(false)
 
   const rows = useMemo(() => {
@@ -82,7 +83,7 @@ export default function DefensesTable({ matchup, data, win = 'season', active, o
       {/* The one-line takeaway first (chart rule, Part A). */}
       <p style={{ margin: '0 0 8px', fontSize: 12.5, lineHeight: 1.5, color: C.text2 }}>
         {lead._standout
-          ? <>Softest: <b style={{ color: C.text }}>{lead.def}</b> vs {lead._plain}{lead.fits ? <>, and <b style={{ color: C.text }}>{lead.fits}</b> ({lead.opp}) fills that role</> : null}. Tap a row for the defense&apos;s map.</>
+          ? <>Softest: <Tap onClick={() => onPick?.(lead.def)}><b style={{ color: C.text }}>{lead.def}</b></Tap> vs {lead._plain}{lead.fits ? <>, and <Tap onClick={onPlayerClick && lead._fits ? () => onPlayerClick(lead._fits) : null}><b style={{ color: C.text }}>{lead.fits}</b></Tap> ({lead.opp}) fills that role</> : null}. Tap a row for the defense&apos;s map.</>
           : <>No defense on this week&apos;s card stands out; the ranking is by how far each one&apos;s softest spot sits above the league. Tap a defense for its map.</>}
       </p>
       <NflTable
