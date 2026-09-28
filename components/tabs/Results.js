@@ -1,7 +1,8 @@
 'use client'
 import Leaders from './Leaders'
 import MoneyAnswer from '../MoneyAnswer'
-import { useEffect, useMemo, useState } from 'react'
+import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import Tap from '../Tap'
 import { etToday } from '../../lib/freshness'
 import { mlbSlateState } from '../../lib/mlbSlateState'
 import { tabName } from '../../lib/routes'
@@ -21,6 +22,13 @@ import ReportCard from '../ReportCard'
 import PlayerPickRecord from '../PlayerPickRecord'
 import PLSimulator from '../PLSimulator'
 import ScoreBands from '../ScoreBands'
+
+// EVERY NAME OPENS HIS CARD (2026-09-27, CLICK-EVERYTHING-PLAN): the page's
+// onPlayerClick, available to every panel below without threading a prop
+// through each one. A panel row becomes { player_id, name, team } -- the
+// player card loads the rest by id.
+const PickCtx = createContext(null)
+const usePick = () => { const onPick = useContext(PickCtx); return onPick ? (row) => onPick({ player_id: row?.player_id ?? row?.id, name: row?.name, team: row?.team }) : null }
 
 // SIMPLIFICATION PASS, 2026-08-09 (owner: "everything from Bettable results
 // down is too much, even for me" / "I don't know what I'm looking at").
@@ -454,6 +462,7 @@ function CaptureBanner({ report, uniqueReport, byGame }) {
 // ── HR scorers bubbles ───────────────────────────────────────────────────────
 
 function HRHits({ homers }) {
+  const pick = usePick()
   if (!homers?.length) return null
   return (
     <Card style={{ padding: 0, marginBottom: 10, overflow: 'hidden' }}>
@@ -472,8 +481,10 @@ function HRHits({ homers }) {
               background: `${col}18`, border: `1px solid ${col}44`,
             }}>
               <span style={{ fontSize: 13 }}>{mainTag}</span>
-              <span style={{ fontSize: TYPE.name, fontWeight: 700, color: C.text }}>{h.name}</span>
-              <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>{h.team}</span>
+              <Tap onClick={pick && (() => pick(h))}>
+                <span style={{ fontSize: TYPE.name, fontWeight: 700, color: C.text }}>{h.name}</span>
+                <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}> {h.team}</span>
+              </Tap>
               {multiHR && <span style={{ fontSize: TYPE.micro, color: C.yellow, fontWeight: 800, fontFamily: NUM_FONT }}>{si(base.actual_hr)}HR</span>}
               {tags.slice(1).map((t, ti) => <span key={ti} style={{ fontSize: 11 }}>{t}</span>)}
             </div>
@@ -679,6 +690,7 @@ function PitcherWeaknessDigest({ slots, players = [] }) {
 // ── Missed HR analysis ────────────────────────────────────────────────────────
 
 function MissedHRs({ report }) {
+  const pick = usePick()
   const missed = report?.missed_homer_entries || []
   if (!missed.length) return null
   return (
@@ -690,8 +702,10 @@ function MissedHRs({ report }) {
             display: 'flex', alignItems: 'center', gap: 8, padding: '6px 14px',
             borderTop: i ? `1px solid ${C.border}` : 'none',
           }}>
-            <span style={{ fontSize: TYPE.name, fontWeight: 700, color: C.text, flex: 1 }}>{h.name}</span>
-            <span style={{ fontSize: TYPE.micro, color: C.text3 }}>{h.team}</span>
+            <span style={{ flex: 1 }}><Tap onClick={pick && (() => pick(h))}>
+              <span style={{ fontSize: TYPE.name, fontWeight: 700, color: C.text }}>{h.name}</span>
+            </Tap></span>
+            <Tap onClick={pick && (() => pick(h))}><span style={{ fontSize: TYPE.micro, color: C.text3 }}>{h.team}</span></Tap>
             {si(h.hr) > 1 && <span style={{ fontSize: TYPE.micro, color: C.yellow, fontFamily: NUM_FONT, fontWeight: 800 }}>{si(h.hr)} HR</span>}
           </div>
         ))}
@@ -703,6 +717,7 @@ function MissedHRs({ report }) {
 // ── Pairs performance ─────────────────────────────────────────────────────────
 
 function PairsResults({ pairPoolResults }) {
+  const pick = usePick()
   const pairs = pairPoolResults?.all_pairs || []
   const pools = pairPoolResults?.graded_pools || []
   if (!pairs.length && !pools.length) return null
@@ -745,9 +760,9 @@ function PairsResults({ pairPoolResults }) {
                 border: `1px solid ${col}44`,
               }}>
                 <span style={{ fontSize: 11, color: col, fontWeight: 800, minWidth: 14 }}>{cleared ? '✅' : (aHR || bHR) ? '½' : '·'}</span>
-                <span style={{ fontSize: TYPE.name, color: aHR ? C.green : C.text2, fontWeight: aHR ? 700 : 400 }}>{pair.a?.name}</span>
+                <Tap onClick={pick && pair.a && (() => pick(pair.a))}><span style={{ fontSize: TYPE.name, color: aHR ? C.green : C.text2, fontWeight: aHR ? 700 : 400 }}>{pair.a?.name}</span></Tap>
                 <span style={{ fontSize: TYPE.micro, color: C.text3 }}>+</span>
-                <span style={{ fontSize: TYPE.name, color: bHR ? C.green : C.text2, fontWeight: bHR ? 700 : 400 }}>{pair.b?.name}</span>
+                <Tap onClick={pick && pair.b && (() => pick(pair.b))}><span style={{ fontSize: TYPE.name, color: bHR ? C.green : C.text2, fontWeight: bHR ? 700 : 400 }}>{pair.b?.name}</span></Tap>
                 <span style={{ fontSize: TYPE.micro, color: C.text3, marginLeft: 'auto', fontFamily: NUM_FONT }}>{si(pair.hr_count)}/{si(pair.total_count)} HR</span>
               </div>
             )
@@ -803,8 +818,10 @@ function PairsResults({ pairPoolResults }) {
                               color: hit ? C.green : C.text2,
                               fontWeight: hit ? 700 : 400,
                             }}>
-                              {hit ? '💥 ' : ''}{m?.name}
-                              <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}> {m?.team}</span>
+                              <Tap onClick={pick && m && (() => pick(m))}>
+                                {hit ? '💥 ' : ''}{m?.name}
+                                <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}> {m?.team}</span>
+                              </Tap>
                               {j < members.length - 1 && <span style={{ color: C.text3 }}> ·</span>}
                             </span>
                           )
@@ -825,6 +842,7 @@ function PairsResults({ pairPoolResults }) {
 // ── Multi-hit / multi-HR cluster ──────────────────────────────────────────────
 
 function MultiHitCluster({ slots }) {
+  const pick = usePick()
   const multis = useMemo(() => {
     if (!slots?.length) return []
     const seen = new Set()
@@ -867,8 +885,10 @@ function MultiHitCluster({ slots }) {
               border: `1px solid ${pick ? C.orange : `${col}44`}`,
               boxShadow: pick ? `0 0 8px ${C.orange}22` : 'none',
             }}>
-              <span style={{ fontSize: TYPE.name, fontWeight: 700, color: C.text }}>{r.name}</span>
-              <span style={{ fontSize: TYPE.micro, color: C.text3 }}>{r.team}</span>
+              <Tap onClick={pick && (() => pick(r))}>
+                <span style={{ fontSize: TYPE.name, fontWeight: 700, color: C.text }}>{r.name}</span>
+                <span style={{ fontSize: TYPE.micro, color: C.text3 }}> {r.team}</span>
+              </Tap>
               <span style={{ fontSize: TYPE.micro, fontWeight: 800, color: col, fontFamily: NUM_FONT }}>
                 {si(r.actual_hits)}H{si(r.actual_hr) > 0 ? ` · ${si(r.actual_hr)}HR` : ''}{si(r.actual_tb) > 0 ? ` · ${si(r.actual_tb)}TB` : ''}
               </span>
@@ -1304,7 +1324,7 @@ export default function Results({ results, liveResults = null, slateDate = '', b
   }
 
   return (
-    <div>
+    <PickCtx.Provider value={onPlayerClick || null}><div>
       <PanelTitle
         title={RECORD_NAME}
         sub={mode === 'night'
@@ -1745,8 +1765,10 @@ export default function Results({ results, liveResults = null, slateDate = '', b
               <div style={{ fontSize: TYPE.body, color: C.text2, lineHeight: 1.6, marginBottom: 8 }}>
                 {missedList.slice(0, 3).map((h, i) => (
                   <span key={i}>
-                    <b style={{ color: C.text }}>{clean(h?.name, '—')}</b>
-                    <span style={{ color: C.text3, fontFamily: NUM_FONT }}> {clean(h?.team, '')}</span>
+                    <Tap onClick={onPlayerClick && h?.name ? () => onPlayerClick({ player_id: h?.player_id ?? h?.id, name: h?.name, team: h?.team }) : null}>
+                      <b style={{ color: C.text }}>{clean(h?.name, '—')}</b>
+                      <span style={{ color: C.text3, fontFamily: NUM_FONT }}> {clean(h?.team, '')}</span>
+                    </Tap>
                     {i < Math.min(3, missedList.length) - 1 ? ', ' : ''}
                   </span>
                 ))}
@@ -1818,7 +1840,7 @@ export default function Results({ results, liveResults = null, slateDate = '', b
           )}
         </>
       )}
-    </div>
+    </div></PickCtx.Provider>
   )
 }
 

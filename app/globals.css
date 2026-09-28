@@ -161,3 +161,8 @@ button {
     font-size: 10px !important;
   }
 }
+
+/* Tap (components/Tap.js, 2026-09-27): names, teams and games as links --
+   the text unchanged, underlined on hover, a 44px tap area on touch. */
+.tap-link:hover { text-decoration: underline; text-underline-offset: 2px; }
+@media (pointer: coarse) { .tap-link { position: relative; } .tap-link::after { content: ''; position: absolute; left: -4px; right: -4px; top: 50%; height: 44px; transform: translateY(-50%); } }
