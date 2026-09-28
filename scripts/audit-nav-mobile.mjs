@@ -554,7 +554,9 @@ if (run('journeys')) {
       if (!ok) await go(p, `/app#sport=${sport}`)
       const sig = await p.evaluate(signature)
       if (sportOfUrl(sig.url) !== sport) F({ sev: 'P0', area: 'sport', page: sig.url, vp: '375', what: `J3: switching to ${word} leaves the URL on another sport`, expected: sport, actual: sportOfUrl(sig.url) })
-      const leak = await p.evaluate(() => /MOONSHOT · |HR score|All teams \(|⚾/.test(document.querySelector('main')?.innerText?.slice(0, 3000) || ''))
+      // MOONSHOT-only words (TUDDY's own team picker also says "All teams (N)",
+      // and LAMP's ticker may carry a ⚾ score -- neither is a leak).
+      const leak = await p.evaluate(() => /MOONSHOT · |HR score|Search player, team, or pitcher/.test(document.querySelector('main')?.innerText?.slice(0, 3000) || ''))
       if (sport !== 'mlb' && leak) F({ sev: 'P2', area: 'sport', page: sig.url, vp: '375', what: `J3: MLB content/filter visible after switching to ${word}` })
     }
     await step('to TUDDY', (p) => sw(p, 'TUDDY', 'nfl'))
