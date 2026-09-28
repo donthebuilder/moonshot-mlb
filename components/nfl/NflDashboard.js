@@ -136,7 +136,18 @@ export default function NflDashboard({ palettePass = 0 }) {
   // bot's look-ahead build (lib/nfl/dataSource.js); the graded record, the
   // report card and the live feed stay on this week, because a week that
   // hasn't happened has no results and nothing live in it.
-  const [weekMode, setWeekMode] = useState('this')
+  const [weekMode, setWeekModeRaw] = useState('this')
+  // THIS / NEXT WEEK IS IN THE ADDRESS (2026-09-27, audit 00A root fix 1
+  // stage 2): week=next, pushed so Back returns to This week; This week
+  // writes nothing. Read on mount and on every hash change below.
+  const setWeekMode = (next) => {
+    setWeekModeRaw(next)
+    const hash = hashParams()
+    hash.set('sport', 'nfl')
+    if (next === 'next') hash.set('week', 'next'); else hash.delete('week')
+    hash.delete('card'); hash.delete('cm')
+    writeHash(hash, { push: true })
+  }
 
   const [missingTab, setMissingTab] = useState('')
   // `push` (2026-09-27, audit 00A root fix 1): a tab you tap adds a history
@@ -207,6 +218,7 @@ export default function NflDashboard({ palettePass = 0 }) {
     // people to the wrong page with no error at all -- that is finding 15.
     if (r.status === 'missing') setMissingTab(r.asked)
     else setTab(r.tab, { push: false })
+    if (hashParams().get('week') === 'next') setWeekModeRaw('next')
   }, [])
 
   // Keep manually edited hashes and browser-driven hash changes in sync with
@@ -223,6 +235,7 @@ export default function NflDashboard({ palettePass = 0 }) {
         // MLB url. lib/sport.js has no hashchange listener of its own.
         if (sp && sp !== 'nfl') { setSport(sp); return }
         if (sp !== 'nfl') return
+        setWeekModeRaw(hash.get('week') === 'next' ? 'next' : 'this')
         const r = resolveTab('nfl', hash.get('tab'))
         // Finding 16: this used to bail on anything not in the key set, so a
         // hash change to an unrecognised tab left the PREVIOUS panel rendered

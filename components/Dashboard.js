@@ -163,6 +163,9 @@ export default function Dashboard({ palettePass = 0 }) {
     const r = resolveTab('mlb', h.get('tab'))
     if (r.status === 'missing') setMissingTab(r.asked)
     else if (r.status !== 'default') setTabRaw(r.tab)
+    // TODAY / TMRW IS IN THE ADDRESS (2026-09-27, audit 00A root fix 1 stage
+    // 2): day=tmrw; Today writes nothing, so every existing link is Today.
+    if (h.get('day') === 'tmrw') setMode('tomorrow')
   }, [])
 
   // ── THE URL HAS TO MEAN SOMETHING AFTER THE FIRST PAINT (2026-08-29) ──────
@@ -220,6 +223,7 @@ export default function Dashboard({ palettePass = 0 }) {
       // shell has returned early on a foreign sport since 09-24.
       const sp = h.get('sport')
       if (sp && sp !== 'mlb') { setSport(sp); return }
+      setMode(h.get('day') === 'tmrw' ? 'tomorrow' : 'today')
       const r = resolveTab('mlb', h.get('tab'))
       if (r.status === 'missing') { setMissingTab(r.asked) }
       // A hash with no tab IS an address -- Home (2026-09-26; LAMP's shell has
@@ -511,6 +515,7 @@ export default function Dashboard({ palettePass = 0 }) {
     for (const k of FILTER_KEYS) { const v = readHashKey(k); if (v) h.set(k, v) }
     const pid2 = modalPlayer ? String(modalPlayer?.player_id ?? modalPlayer?.id ?? '') : missingPlayer
     if (pid2) h.set('p', pid2)
+    if (mode === 'tomorrow') h.set('day', 'tmrw')
     // PUSH WHAT YOU OPENED (2026-09-27, audit 00A root fix 1; lib/urlState).
     // A new tab or a newly opened card adds a history entry, so Back returns
     // where you were instead of leaving the site; anything else replaces.
@@ -520,8 +525,9 @@ export default function Dashboard({ palettePass = 0 }) {
     const cardId = modalPlayer ? String(modalPlayer?.player_id ?? modalPlayer?.id ?? '') : ''
     const newTab = (h.get('tab') || '') !== (before.get('tab') || '')
     const newCard = Boolean(cardId) && cardId !== (before.get('p') || '')
-    writeHash(h, { push: newTab || newCard, state: newCard ? { dashCard: 1 } : null })
-  }, [tab, modalPlayer, missingTab, missingPlayer])
+    const newDay = (h.get('day') || '') !== (before.get('day') || '')
+    writeHash(h, { push: newTab || newCard || newDay, state: newCard ? { dashCard: 1 } : null })
+  }, [tab, modalPlayer, missingTab, missingPlayer, mode])
 
 
   const players = useMemo(() => {
