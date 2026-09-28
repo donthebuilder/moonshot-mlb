@@ -55,6 +55,7 @@ const PlayerBoard = dynamic(() => import('./tabs/PlayerBoard'), { loading: TabLo
 const HitsHRR = dynamic(() => import('./tabs/HitsHRR'), { loading: TabLoading })
 const Scoreboard = dynamic(() => import('./tabs/Scoreboard'), { loading: TabLoading })
 const Combos = dynamic(() => import('./tabs/Combos'), { loading: TabLoading })
+const MlbLedger = dynamic(() => import('./tabs/MlbLedger'), { loading: TabLoading })
 const You = dynamic(() => import('./tabs/You'), { loading: TabLoading })
 const Pools = dynamic(() => import('./tabs/Pools'), { loading: TabLoading })
 const Leaders = dynamic(() => import('./tabs/Leaders'), { loading: TabLoading })
@@ -849,7 +850,7 @@ export default function Dashboard({ palettePass = 0 }) {
                 the drill-down is the existing player modal on top of it. */}
             {tab === 'props'       && <PropsGrid players={players} odds={odds} onPlayerClick={setModalPlayer} onWatch={toggleWatch} watchIds={watchIds} />}
             {tab === 'bot'         && <Bot players={allPlayers} onPlayerClick={setModalPlayer} onGoPairs={goToPairsFor} odds={odds} onWatch={toggleWatch} watchIds={watchIds} />}
-            {tab === 'combos'      && <Combos odds={odds} slateDate={slateDate} players={players} allPlayers={allPlayers} pairBuilder={pairBuilder} pairSummary={pairSummary} results={resultsForSlate} watchIds={watchIds} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} />}
+            {tab === 'combos'      && <Combos onNavigate={setTab} odds={odds} slateDate={slateDate} players={players} allPlayers={allPlayers} pairBuilder={pairBuilder} pairSummary={pairSummary} results={resultsForSlate} watchIds={watchIds} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} />}
             {tab === 'odds'        && <OddsBoard players={players} odds={oddsRaw} onPlayerClick={setModalPlayer} />}
             {tab === 'you'         && <You players={allPlayers} watchItems={watchLive} pairSummary={pairSummary} results={resultsForSlate} odds={odds} slateDate={slateDate} mode={mode} onWatch={toggleWatch} onAdd={addSlip} onPlayerClick={setModalPlayer} />}
             {tab === 'results'     && <Results results={resultsForSlate} liveResults={results} slateDate={slateDate} backtest={backtest} evalReport={evalReport} players={players} onPlayerClick={setModalPlayer} />}
@@ -906,7 +907,8 @@ export default function Dashboard({ palettePass = 0 }) {
             {/* 🧾 #tab=ledger — the Homer Ledger's own page inside Combos
                 (2026-08-24). Same host, own view; the Home panel's
                 "research →" link points here. */}
-            {tab === 'ledger'      && <Combos odds={odds} slateDate={slateDate} players={players} allPlayers={allPlayers} pairBuilder={pairBuilder} pairSummary={pairSummary} results={resultsForSlate} watchIds={watchIds} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} initial="ledger" />}
+            {/* The Ledger, its own page (ledger plan step 3): the Homer Ledger + first scorers. */}
+            {tab === 'ledger'      && <MlbLedger players={allPlayers} slateDate={slateDate} results={resultsForSlate} onPlayerClick={setModalPlayer} onNavigate={setTab} />}
             {tab === 'pairs'       && <Combos odds={odds} slateDate={slateDate} players={players} allPlayers={allPlayers} pairBuilder={pairBuilder} pairSummary={pairSummary} results={resultsForSlate} watchIds={watchIds} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} initial="pairs" />}
             {tab === 'pools'       && <Combos odds={odds} slateDate={slateDate} players={players} allPlayers={allPlayers} pairBuilder={pairBuilder} pairSummary={pairSummary} results={resultsForSlate} watchIds={watchIds} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} initial="pools" />}
             {tab === 'builder'     && <Combos odds={odds} slateDate={slateDate} players={players} allPlayers={allPlayers} pairBuilder={pairBuilder} pairSummary={pairSummary} results={resultsForSlate} watchIds={watchIds} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} initial="builder" />}

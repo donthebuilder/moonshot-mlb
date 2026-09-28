@@ -22,6 +22,7 @@ import StatPortal from './tabs/StatPortal'
 import Watchlist from './tabs/Watchlist'
 import Games from './tabs/Games'
 import BoardHub from './tabs/BoardHub'
+import Ledger from './tabs/Ledger'
 import Research from './tabs/Research'
 import Matchups from './tabs/Matchups'
 import Explosive from './tabs/Explosive'
@@ -350,6 +351,7 @@ export default function NflDashboard({ palettePass = 0 }) {
             {tab === 'report' && <Report report={report} />}
             {tab === 'accountability' && <Accountability data={data} results={nflResults} onPlayerClick={openPlayer} />}
             {tab === 'tuddyledger' && <TuddyLedger data={data} results={nflResults} onPlayerClick={openPlayer} />}
+            {tab === 'ledger' && <Ledger data={slate} picks={picks} results={nflResults} matchup={matchup} onPlayerClick={openPlayer} />}
             {tab === 'boxscores' && <BoxScores data={data} onPlayerClick={openPlayer} />}
             {tab === 'scores' && <Scores data={slate} />}
             {tab === 'standings' && <Standings onOpenTeam={(abbr) => { setPortalTeam(abbr); setTab('players') }} />}

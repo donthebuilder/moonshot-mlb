@@ -296,7 +296,7 @@ function LookOut({ players }) {
 // the repeats, the name echoes, the matching game, the watch) is exactly what
 // the research view needs, and a forked copy would be a second version of
 // arithmetic that has already been wrong twice this month.
-export default function HomerLedger({ players = [], slateDate = '', results, onPlayerClick, onNavigate = null, variant = 'home' }) {
+export default function HomerLedger({ players = [], slateDate = '', results, onPlayerClick, onNavigate = null, variant = 'home', standalone = false }) {
   const research = variant === 'research'
   // '' = tonight. Any other value is an archived night, read from the branch's
   // own graded file rather than from anything this browser happens to hold.
@@ -333,7 +333,9 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
   }
   // Research mode is never folded: it IS the page you navigated to, and a
   // remembered collapse from the Home mount would greet you with a shut panel.
-  const openNow = research || open
+  // `standalone` (2026-09-27): the Ledger tab mounts it as the page itself --
+  // same rule as research mode, never folded; nothing else changes.
+  const openNow = research || standalone || open
   const Chevron = () => (
     <span
       onClick={(e) => { e.stopPropagation(); toggle() }}
