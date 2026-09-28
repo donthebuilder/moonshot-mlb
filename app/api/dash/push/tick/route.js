@@ -530,11 +530,17 @@ export async function GET(request) {
   }
 
   if (dead.length) await db.from('dash_push_subscriptions').delete().in('endpoint', dead)
-  await db.rpc('dash_push_seen_prune')
-  // Fourteen days of per-device history for the alerts page; a missing
-  // function (migration not run) is logged, never thrown.
-  const { error: pruneErr } = await db.rpc('dash_push_log_prune')
-  if (pruneErr) console.error(`[push] dash_push_log_prune: ${pruneErr.message}`)
+  // PRUNE HOURLY, NOT EVERY MINUTE (2026-09-27, cost cut): both prunes drop
+  // rows older than days, so running them 1,440 times a day bought nothing
+  // over 24. Once an hour per warm instance.
+  if (Date.now() - _lastPrune > 3600e3) {
+    _lastPrune = Date.now()
+    await db.rpc('dash_push_seen_prune')
+    // Fourteen days of per-device history for the alerts page; a missing
+    // function (migration not run) is logged, never thrown.
+    const { error: pruneErr } = await db.rpc('dash_push_log_prune')
+    if (pruneErr) console.error(`[push] dash_push_log_prune: ${pruneErr.message}`)
+  }
   return Response.json({ ...totals, dropped: dead.length })
 }
 
