@@ -8,6 +8,8 @@ import NflFace from './NflFace'
 import { Segmented, FilterPill, AngleRow as SharedAngleRow } from '../Filters'
 import { alpha } from '../../lib/scales'
 import RangeDual from '../RangeDual'
+import WatchBox from '../WatchBox'
+import { lineFor, tdsIn } from '../../lib/nfl/liveSlate'
 
 // TUDDY BOARD EXTRAS (2026-09-27, board filters plan): the pieces MOONSHOT's
 // board has that TUDDY's two boards (Touchdowns.js for TD, Boards.js for the
@@ -122,17 +124,26 @@ export function NflBoardList({ players, market, weights, odds, phone, onPlayerCl
 //   Red-zone role    TD component f_rz_opp >= 75th percentile
 //   Goal-line back   an RB with TD component f_gl_opp >= 75th
 //   High total       TD component implied_total >= 70th
-//   Scored last week games_since_last_td === 0
-//   TD in 2 straight his last two logged games both had a TD (logs)
-//   Due              red-zone role (f_rz_opp >= 75) and no TD in his last 2+
+//   Scored last week a TD in his last game BEFORE this week (logs)
+//   TD in 2 straight a TD in each of his last two games before this week
+//   Due              red-zone role (f_rz_opp >= 75) and no TD in his last two
+//                    games before this week
+// BEFORE THIS WEEK (2026-09-28). The week file and the logs are rebuilt after
+// Sunday's games, so on a Monday games_since_last_td and the logs' last row
+// ARE this week: "scored last week" listed the men who just scored, and TD
+// WATCH's "✓ SCORED AGAIN" graded a man on the game that put him there.
+// tdRun reads only log rows before the board's own season/week; with no log
+// for him it says null and the chip matches nobody -- never the post-week field.
 const tdc = (p, k) => { const v = p?.components?.TD?.[k]; return Number.isFinite(v) ? Number(v) : null }
-function lastTwoTd(logs, id) {
+export function tdRun(logs, id, before = null) {
   const g = logs?.logs?.[String(id)]?.log
   if (!Array.isArray(g)) return null
-  const td = g.filter((x) => Number.isFinite(x?.g_td)).slice(-2)
-  return td.length === 2 ? td.every((x) => x.g_td > 0) : null
+  const prior = g.filter((x) => Number.isFinite(x?.g_td) && (!before?.season || !before?.week || x.s < before.season || (x.s === before.season && x.w < before.week)))
+  const tds = prior.slice(-2).reverse().map((x) => x.g_td)   // newest first
+  if (!tds.length) return null
+  return { last: tds[0] > 0, two: tds.length === 2 ? tds[0] > 0 && tds[1] > 0 : null, dry2: tds.length === 2 ? tds[0] === 0 && tds[1] === 0 : null }
 }
-export function angleDefs({ matchup, logs, market, matchupTag }) {
+export function angleDefs({ matchup, logs, market, matchupTag, week = null }) {
   const stat = ['TD', 'REC_YDS', 'REC', 'RUSH_YDS', 'RUSH_ATT', 'PASS_YDS'].includes(market) ? market : 'TD'
   return [
     { key: 'soft', label: 'Softest matchup', title: 'His opponent ranks in the league’s softest 8 against his role on this market (DvP).',
@@ -140,9 +151,9 @@ export function angleDefs({ matchup, logs, market, matchupTag }) {
     { key: 'rz', label: 'Red-zone role', title: 'Red-zone touches in the top quarter of the week’s pool.', test: (p) => (tdc(p, 'f_rz_opp') ?? -1) >= 75 },
     { key: 'gl', label: 'Goal-line back', title: 'A running back with goal-line opportunity in the top quarter.', test: (p) => p.position === 'RB' && (tdc(p, 'f_gl_opp') ?? -1) >= 75 },
     { key: 'total', label: 'High total', title: 'His team’s implied total in the top 30% of the week.', test: (p) => (tdc(p, 'implied_total') ?? -1) >= 70 },
-    { key: 'last', label: 'Scored last week', title: 'A touchdown in his last game.', test: (p) => p.games_since_last_td === 0 },
-    { key: 'two', label: 'TD in 2 straight', title: 'A touchdown in each of his last two logged games.', test: (p) => lastTwoTd(logs, p.player_id) === true },
-    { key: 'due', label: 'Due', title: 'A top-quarter red-zone role and no touchdown in his last two or more games.', test: (p) => (tdc(p, 'f_rz_opp') ?? -1) >= 75 && Number(p.games_since_last_td) >= 2 },
+    { key: 'last', label: 'Scored last week', title: 'A touchdown in his last game before this week.', test: (p) => tdRun(logs, p.player_id, week)?.last === true },
+    { key: 'two', label: 'TD in 2 straight', title: 'A touchdown in each of his last two games before this week.', test: (p) => tdRun(logs, p.player_id, week)?.two === true },
+    { key: 'due', label: 'Due', title: 'A top-quarter red-zone role and no touchdown in his last two games before this week.', test: (p) => (tdc(p, 'f_rz_opp') ?? -1) >= 75 && tdRun(logs, p.player_id, week)?.dry2 === true },
   ]
 }
 
@@ -241,49 +252,57 @@ export function useNflDrawerFilters(pool, games, market, ext = null) {
   return { test, chips, reset, section, activeCount: chips.length }
 }
 
-// ── TD WATCH (plan TUDDY 5): MOONSHOT's B2B WATCH shape ─────────────────────
-// Two rows, names you can tap, the top 8 by the board's own TD score:
-//   ✅ scored last week   games_since_last_td === 0
-//   🛌 back from a bye    his team's rest days before this game >= 13
-//                         (the week file's home_rest_days / away_rest_days)
-// Facts only -- no hit-rate claim is made for either row.
-export function tdWatchLists(players, games) {
+// ── TD WATCH: MOONSHOT's B2B WATCH box, the same component (2026-09-28) ────
+// components/WatchBox.js draws it. Three rows, each a fact, disjoint so no
+// name sits in two (the B2B rule):
+//   TD IN 2+ STRAIGHT  a TD in each of his last two games before this week
+//                      (tdRun, the Angle row's helper)
+//   SCORED LAST WEEK   a TD in his last game before this week, not above
+//   BACK FROM A BYE    his team's rest days before this game >= 13
+//                      (the week file's home_rest_days / away_rest_days)
+// A card turns green "✓ SCORED AGAIN" on a touchdown THIS week: the live
+// line while games are on (lib/nfl/liveSlate tdsIn), the graded week file
+// (nfl_results lines[id].TD) once they're over -- only when its season and
+// week are the board's. No hit-rate claim: the graded weeks can't measure one.
+export function tdWatchLists(players, games, logs = null, week = null) {
   const rest = new Map()
   for (const g of games || []) {
     if (g.home) rest.set(g.home, Number(g.home_rest_days))
     if (g.away) rest.set(g.away, Number(g.away_rest_days))
   }
   const byScore = (a, b) => (b.scores?.TD ?? 0) - (a.scores?.TD ?? 0)
-  const scored = players.filter((p) => p.games_since_last_td === 0).sort(byScore)
+  const two = players.filter((p) => tdRun(logs, p.player_id, week)?.two === true).sort(byScore)
+  const twoIds = new Set(two.map((p) => p.player_id))
+  const scored = players.filter((p) => tdRun(logs, p.player_id, week)?.last === true && !twoIds.has(p.player_id)).sort(byScore)
   const bye = players.filter((p) => (rest.get(p.team) ?? 0) >= 13).sort(byScore)
-  return { scored, bye }
+  return { two, scored, bye }
 }
-export function TdWatch({ players, games, onPlayerClick }) {
-  const { scored, bye } = useMemo(() => tdWatchLists(players, games), [players, games])
-  if (!scored.length && !bye.length) return null
-  const row = (title, list) => (list.length ? (
-    <div style={{ marginTop: 6 }}>
-      <div style={{ fontSize: 11, color: C.text2, marginBottom: 4 }}>{title} <span style={{ color: C.text3 }}>{list.length}</span></div>
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-        {list.slice(0, 8).map((p) => (
-          <button key={p.player_id} type="button" onClick={() => onPlayerClick?.(p, 'TD')}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 44, padding: '0 10px 0 4px', borderRadius: 999, border: `1px solid ${C.border}`, background: C.bg2, color: C.text, cursor: 'pointer', font: `700 11.5px/1 ${NUM_FONT}` }}>
-            <NflFace player={p} size={26} />{p.name}<span style={{ color: C.text3 }}>{Math.round(p.scores?.TD ?? 0)}</span>
-          </button>
-        ))}
-        {list.length > 8 ? <span style={{ alignSelf: 'center', color: C.text3, fontSize: 11 }}>+{list.length - 8} more</span> : null}
-      </div>
-    </div>
-  ) : null)
+const WATCH_CAP = 10
+export function TdWatch({ players, games, logs = null, results = null, liveSnap = null, week = null, onPlayerClick }) {
+  const { two, scored, bye } = useMemo(() => tdWatchLists(players, games, logs, week), [players, games, logs, week?.season, week?.week])
+  const graded = results && week && results.season === week.season && results.week === week.week ? results.lines || null : null
+  const scoredNow = (p) => Number(graded?.[p.player_id]?.TD) > 0 || tdsIn(lineFor(liveSnap, p)) > 0
+  if (!two.length && !scored.length && !bye.length) return null
+  const items = (list) => list.slice(0, WATCH_CAP).map((p) => ({
+    key: p.player_id, tile: p.team || 'NFL', name: p.name,
+    line: `TD score ${Math.round(p.scores?.TD ?? 0)}`,
+    hit: scoredNow(p), hitText: '✓ SCORED AGAIN',
+    onClick: () => onPlayerClick?.(p, 'TD'),
+  }))
+  const label = (words, list) => `${words}${list.length > WATCH_CAP ? ` · top ${WATCH_CAP} of ${list.length}` : ''}`
+  const total = two.length + scored.length
   return (
-    <section aria-label="TD watch" style={{ margin: '8px 0 10px', padding: '9px 11px', border: `1px solid ${C.green}4d`, borderRadius: 11, background: C.bg2 }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-        <b style={{ color: C.green, fontFamily: NUM_FONT }}>🔁 TD WATCH</b>
-        <span style={{ color: C.text3, fontSize: 11 }}>facts from the week file · no hit-rate claim</span>
-      </div>
-      {row('✅ Scored last week', scored)}
-      {row('🛌 Back from a bye', bye)}
-    </section>
+    <WatchBox
+      icon="🔁" title="TD WATCH" accent={C.green} theme={C} numFont={NUM_FONT} ariaLabel="TD watch"
+      status={total ? `${total} scored last time out` : 'nobody on a scoring run this week'}
+      note="facts from the week file · no hit-rate claim"
+      rows={[
+        { key: 'two', label: label('🔥 TD in 2+ straight', two), items: items(two) },
+        { key: 'last', label: label('✅ scored last week', scored), items: items(scored) },
+        { key: 'bye', label: label('🛌 back from a bye', bye), accent: C.blue, items: items(bye) },
+      ]}
+      footer="Every row is a fact from the week file and the game logs, not a pick. No hit rate is claimed for any of them: TUDDY's graded weeks are too few to measure one. A card turns green when he scores again this week."
+    />
   )
 }
 

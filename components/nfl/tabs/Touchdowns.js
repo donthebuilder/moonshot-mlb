@@ -188,7 +188,7 @@ function Card({ p, rank, matchup, odds, onPlayerClick, weights, base, pool, watc
   )
 }
 
-export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsStatus, logs = null, top = null }) {
+export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsStatus, logs = null, top = null, results = null, liveSnap = null }) {
   const watchlist = useNflWatchlist(data)
   // Search, team and game come from the hub's top bar (2026-09-27).
   const query = top?.query || ''
@@ -239,8 +239,8 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
   const angles = useMemo(() => [
     { key: 'highconf', label: '⭐ High confidence', title: "The bot's own high-confidence TD flag.", test: (p) => Boolean(p.high_confidence_td_flag) },
     { key: 'aligned', label: '🧩 Aligned', title: '2 or more of 3 real signals lining up: matchup, red-zone finisher, rising snap share.', test: (p) => alignedSignals(matchup, p).aligned },
-    ...angleDefs({ matchup, logs, market: MARKET, matchupTag }),
-  ], [matchup, logs])
+    ...angleDefs({ matchup, logs, market: MARKET, matchupTag, week: data ? { season: data.season, week: data.week } : null }),
+  ], [matchup, logs, data?.season, data?.week])
   const drawer = useNflDrawerFilters(rows, data?.games, MARKET, { game: top?.game || '' })   // TUDDY 3 + 4
 
   // One removable chip per narrowing dimension, bands included. Touchdowns had
@@ -337,7 +337,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
       {/* TD WATCH (board filters plan, TUDDY 5): MOONSHOT's B2B Watch slot. */}
       <div style={{ marginTop: 8 }}>
         <MobileFold title="🔁 TD Watch" summary="scored last week · back from a bye" accent={C.green} rememberKey="fold_tdwatch_v1">
-          <TdWatch players={rows} games={data?.games} onPlayerClick={onPlayerClick} />
+          <TdWatch players={rows} games={data?.games} logs={logs} results={results} liveSnap={liveSnap} week={data ? { season: data.season, week: data.week } : null} onPlayerClick={onPlayerClick} />
         </MobileFold>
       </div>
 

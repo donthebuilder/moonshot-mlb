@@ -31,7 +31,7 @@ const VIEWS = [
 ]
 const readHash = () => { try { return new URLSearchParams(window.location.hash.slice(1)) } catch { return new URLSearchParams() } }
 
-export default function BoardHub({ slate, data, logs, matchup, odds, oddsStatus, picks, results, onPlayerClick, initialView = 'board', onTitle = null }) {
+export default function BoardHub({ slate, data, logs, matchup, odds, oddsStatus, picks, results, liveSnap = null, onPlayerClick, initialView = 'board', onTitle = null }) {
   const [market, setMarket] = useState('TD')
   const [view, setView] = useState(initialView)
   // THE TOP BAR (2026-09-27): search, team and GAME, owned here so every
@@ -98,7 +98,7 @@ export default function BoardHub({ slate, data, logs, matchup, odds, oddsStatus,
       {view === 'called'
         ? <Picks picks={picks} results={results} data={data} matchup={matchup} onPlayerClick={onPlayerClick} odds={odds} oddsStatus={oddsStatus} logs={logs} market={market} hideMarketPicker top={top} />
         : market === 'TD'
-          ? <Touchdowns data={slate} matchup={matchup} odds={odds} onPlayerClick={onPlayerClick} oddsStatus={oddsStatus} logs={logs} top={top} />
+          ? <Touchdowns data={slate} matchup={matchup} odds={odds} onPlayerClick={onPlayerClick} oddsStatus={oddsStatus} logs={logs} top={top} results={results} liveSnap={liveSnap} />
           : <Boards data={data} logs={logs} matchup={matchup} onPlayerClick={onPlayerClick} odds={odds} oddsStatus={oddsStatus} market={market} hideMarketPicker top={top} />}
     </div>
   )

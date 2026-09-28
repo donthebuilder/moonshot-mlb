@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import PageHeader from '../../PageHeader'
 import LampTable from '../LampTable'
 import ShotPanel from '../ShotPanel'
-import { C, NUM_FONT, rampAt } from '../../../lib/nhl/theme'
+import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import { DelayedBanner, Loading, SourceLine, EmptyState, Kicker, PlayerMark } from '../ui'
 
 // 🏒 LAMP MATCHUPS (2026-09-27, matchups plan Part B, in the shape Donovan
@@ -172,7 +172,7 @@ export default function Matchups({ date = null, onOpenPlayer }) {
             {lastSeason ? <b style={{ color: C.amber, fontFamily: NUM_FONT, letterSpacing: '.04em' }}>LAST SEASON&apos;S NUMBERS · </b> : null}
             Softest: <b style={{ color: C.text }}>{lead.def}</b>, {lead.gaPg ?? '—'} goals allowed a game{league.gaPg != null ? ` (league ${league.gaPg})` : ''}, penalty kill {pct(lead.pk)} {ord(lead.pkRank)}{lead.called[0] ? <>; <b style={{ color: C.text }}>{lead.called[0].name}</b> leads {lead.opp}&apos;s called skaters</> : null}.
           </div>
-          <LampTable rows={tableRows} columns={columns} heatMode="primary" ramp={rampAt} maxRows={PREVIEW} maxHeight={9999}
+          <LampTable rows={tableRows} columns={columns} heatMode="primary" maxRows={PREVIEW} maxHeight={9999}
             rowEdge={(r) => (r.def === active?.def ? C.ice : null)}
             onRowClick={(r) => { setPick(r.def); if (typeof document !== 'undefined') requestAnimationFrame(() => document.getElementById('lamp-def-detail')?.scrollIntoView({ behavior: 'smooth', block: 'start' })) }} />
           <Detail row={active} league={league} onOpenPlayer={onOpenPlayer} />

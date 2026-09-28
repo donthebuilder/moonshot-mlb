@@ -353,7 +353,7 @@ export default function NflDashboard({ palettePass = 0 }) {
                 picks are the same hub; boards opens BOARD, picks opens CALLED. */}
             {(tab === 'touchdowns' || tab === 'boards' || tab === 'picks') && (
               <BoardHub key={tab} onTitle={setHubTitle} slate={slate} data={data} logs={logs} matchup={matchup} odds={odds} oddsStatus={oddsRaw?.source === 'sportsgameodds' && !oddsRaw?.empty ? null : oddsStatus}
-                picks={picks} results={nflResults} onPlayerClick={openPlayer} initialView={tab === 'picks' ? 'called' : 'board'} />
+                picks={picks} results={nflResults} liveSnap={liveSnap} onPlayerClick={openPlayer} initialView={tab === 'picks' ? 'called' : 'board'} />
             )}
             {tab === 'research' && <Research data={data} onPlayerClick={openPlayer} />}
             {tab === 'matchups' && <Matchups matchup={matchup} data={data} onPlayerClick={openPlayer} onOpenTeam={(abbr) => { setPortalTeam(abbr); setTab('players') }} />}

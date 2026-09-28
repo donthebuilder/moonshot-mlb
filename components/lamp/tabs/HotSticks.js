@@ -2,7 +2,7 @@
 import { useMemo, useState } from 'react'
 import PageHeader from '../../PageHeader'
 import LampTable from '../LampTable'
-import { C, NUM_FONT, rampAt } from '../../../lib/nhl/theme'
+import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import { useLampHotSticks } from '../../../lib/nhl/useLamp'
 import { DelayedBanner, Loading, SourceLine, StaleSeasonNote, EmptyState, fmtSec } from '../ui'
 import { PillRow } from '../../Filters'
@@ -78,7 +78,7 @@ export default function HotSticks({ onOpenPlayer }) {
             { key: 'f', label: 'Forwards', count: rows.filter((r) => r.pos !== 'D').length },
             { key: 'd', label: 'Defense', count: rows.filter((r) => r.pos === 'D').length },
           ]} />
-          <LampTable rows={shown} columns={COLUMNS} heatMode="primary" ramp={rampAt} initialSort="sogPg5" maxRows={shown.length}
+          <LampTable rows={shown} columns={COLUMNS} heatMode="primary" initialSort="sogPg5" maxRows={shown.length}
             rowEdge={(r) => (r._playing ? C.ice : null)} onRowClick={(r) => onOpenPlayer?.(r.id)} />
         </>
       )}

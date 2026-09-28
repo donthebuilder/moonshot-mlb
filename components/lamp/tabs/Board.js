@@ -3,10 +3,12 @@ import { useHashFilter } from '../../../lib/filterHash'
 import { nhlMug } from '../../../lib/nhl/format'
 import { useMemo, useState } from 'react'
 import PageHeader from '../../PageHeader'
-import { C, NUM_FONT, rampAt } from '../../../lib/nhl/theme'
+import { C, NUM_FONT } from '../../../lib/nhl/theme'
+import { chipColor } from '../../Heatmap'
 import LampTable from '../LampTable'
 import { AngleRow, FilterPill, Segmented, ActiveFilters } from '../../Filters'
 import BoardTopBar from '../../BoardTopBar'
+import GoalWatch from '../GoalWatch'
 import { alpha } from '../../../lib/scales'
 import { useLampBoard } from '../../../lib/nhl/useLamp'
 import { TeamMark, EmptyState, DelayedBanner, Loading, SourceLine, Kicker, GameTypeChip, LampDot, StaleSeasonNote, fmtDay, fmtPuckDrop, fmtSec, zoneAbbrev, shiftDay, STATUS, CalledChip, readHashParam, writeHashParam } from '../ui'
@@ -103,7 +105,7 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
       </div>
       {data && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <AngleRow defs={angles} pool={flat} value={angle} onChange={setAngle} accent={C.ice} className="lamp-angle-row" />
+          <AngleRow defs={angles} pool={flat} value={angle} onChange={setAngle} accent={C.ice} className="lamp-angle-row" hideEmpty />
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             <Segmented label="Pos" value={pos} onChange={setPos} options={[{ key: 'all', label: 'All' }, { key: 'F', label: 'Forwards' }, { key: 'D', label: 'Defence' }]} />
             <FilterPill active={calledOnly} onClick={() => setCalledOnly((v) => !v)} title="Only the three called per game.">Called only</FilterPill>
@@ -112,6 +114,7 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
           {chips.length > 0 && <ActiveFilters filters={chips} shown={kept.length} total={flat.length} onClearAll={clearAll} />}
         </div>
       )}
+      {data && market === 'GOAL' && <GoalWatch flat={flat} onOpenPlayer={onOpenPlayer} />}
       {data?.season?.stale && <StaleSeasonNote label={data.season.label} opens={data.season.opens} what="legs" />}
       <DelayedBanner error={error} what="the board" />
       {loading && !data ? <Loading what="tonight’s board" /> : null}
@@ -139,7 +142,9 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
 // THE BOARD, MADE TO POP (lamp research step 1, 2026-09-26). Same structure
 // Donovan likes -- grouped by game, three called on top -- drawn the way
 // MOONSHOT's Picks reads: the table is LampTable (DenseTable), SCORE and the
-// three legs heat-shaded on LAMP's ice ramp, a called row carries a stripe
+// three legs heat-shaded on MOONSHOT's own heat scale (2026-09-28: was LAMP's
+// ice ramp, which ended in goal-light red -- red read as bad; a high score now
+// looks the same on all three boards), a called row carries a stripe
 // and a filled CALLED chip, and "shots 95th · goals 96th · ice time 69th"
 // is three small bars (the same three percentiles, r.pct). Nothing new is
 // computed here; every cell is a field the board already had.
@@ -169,7 +174,7 @@ function PctBars({ r, market = 'GOAL' }) {
         <span key={k} aria-label={`${word} ${Math.round(v)}th percentile`} style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
           <span style={{ color: C.text3, font: `800 7.5px/1 ${NUM_FONT}` }}>{k}</span>
           <span style={{ width: 22, height: 6, borderRadius: 3, background: C.border, overflow: 'hidden', display: 'inline-block' }}>
-            <span style={{ display: 'block', height: '100%', width: `${Math.max(4, Math.min(100, v))}%`, background: rampAt(v / 100) }} />
+            <span style={{ display: 'block', height: '100%', width: `${Math.max(4, Math.min(100, v))}%`, background: chipColor(v, 0, 100) }} />
           </span>
         </span>
       ))}
@@ -266,7 +271,7 @@ function GameBoard({ g, onOpenPlayer, onOpenGame, onOpenTeam, market = 'GOAL', k
         {g.spots ? <span className="sm-hide">{` · rest ${game.away.abbrev} ${restWord(g.spots.away) || '—'}, ${game.home.abbrev} ${restWord(g.spots.home) || '—'}`}</span> : null}
       </div>
       {scored.length === 0 ? <EmptyState title="NOBODY SCORED YET" note="No skater on either roster has ten NHL games on file." /> : (
-        <LampTable rows={rows} columns={columnsFor(g, onOpenTeam, market)} heatMode="primary" ramp={rampAt}
+        <LampTable rows={rows} columns={columnsFor(g, onOpenTeam, market)} heatMode="primary"
           rowEdge={(r) => (r.status === 'called' ? C.ice : null)}
           faceOf={(r) => ({ sport: 'nhl', photo: nhlMug(game.season, r._row?.team, r._row?.playerId), name: r._row?.name })}
           dimRow={(r) => g.graded && r._row.dressed === false}
@@ -333,7 +338,7 @@ function AllGamesTable({ kept, market, onOpenPlayer, onOpenTeam }) {
     { key: 'status', label: 'STATUS', heat: false, w: 90, fmt: (v) => (v === 'called' ? <CalledChip /> : <span style={{ color: C.text3, font: `800 8px/1 ${NUM_FONT}`, letterSpacing: '.1em' }}>{STATUS[v]}</span>) },
   ]
   return (
-    <LampTable rows={rows} columns={columns} heatMode="primary" ramp={rampAt}
+    <LampTable rows={rows} columns={columns} heatMode="primary"
       rowEdge={(r) => (r.status === 'called' ? C.ice : null)}
       faceOf={(r) => ({ sport: 'nhl', photo: nhlMug(r._g.game.season, r._row?.team, r._row?.playerId), name: r._row?.name })}
       maxRows={25} maxHeight={9999} onRowClick={(r) => onOpenPlayer?.(r.id)} />

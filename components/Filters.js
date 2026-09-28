@@ -285,15 +285,20 @@ export function useOutsideClose(onClose, active = true) {
 // own defs ({ key, label, title, test(row) }), the pool the counts come from,
 // and its accent. One sideways-scrolling row (no wrap), 44px taps around a
 // 30px pill, the count beside each label, tap again to clear.
-export function AngleRow({ defs, pool, value, onChange, accent: accentProp, className = 'angle-row' }) {
+// hideEmpty (2026-09-28, LAMP): a chip that matches nobody isn't drawn -- "Soft
+// opponent 0" before the league's tables exist read as a live finding. A chip
+// that is ON always shows, so it can be switched off.
+export function AngleRow({ defs, pool, value, onChange, accent: accentProp, className = 'angle-row', hideEmpty = false }) {
   const ctxAccent = useAccent()
   const accent = accentProp || ctxAccent
+  if (hideEmpty && !defs.some((d) => value === d.key || pool.some(d.test))) return null
   return (
     <div className={className} style={{ display: 'flex', gap: 6, alignItems: 'center', overflowX: 'auto', flexWrap: 'nowrap', paddingBottom: 2, marginTop: 8 }}>
       <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: '.1em', color: C.text3, fontFamily: NUM_FONT, flexShrink: 0 }}>ANGLE</span>
       {defs.map((d) => {
         const n = pool.filter(d.test).length
         const on = value === d.key
+        if (hideEmpty && n === 0 && !on) return null
         return (
           <button key={d.key} type="button" title={d.title} onClick={() => onChange(on ? null : d.key)} aria-pressed={on}
             style={{ flexShrink: 0, minHeight: 44, padding: 0, border: 'none', background: 'transparent', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}>

@@ -175,7 +175,7 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
     [data, market],
   )
   const { filtered: bandFiltered, state: bandState } = useNflBoardFilter(marketPool, market)
-  const angles = useMemo(() => angleDefs({ matchup, logs, market, matchupTag }), [matchup, logs, market])
+  const angles = useMemo(() => angleDefs({ matchup, logs, market, matchupTag, week: data ? { season: data.season, week: data.week } : null }), [matchup, logs, market, data?.season, data?.week])
   const drawer = useNflDrawerFilters(marketPool, data?.games, market, { game: top?.game || '' })   // TUDDY 3 + 4
 
   const rows = useMemo(() => {

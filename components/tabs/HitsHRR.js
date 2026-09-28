@@ -1,4 +1,5 @@
 'use client'
+import WatchBox from '../WatchBox'
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../lib/theme'
 import BoardFilters, { useBoardFilter } from '../BoardFilters'
@@ -390,69 +391,41 @@ const GROUPS = [['boards', 'Boards'], ['power', 'Power'], ['patterns', 'Patterns
 // many calendar days he sat in between. Split the one list into two rows
 // instead of quietly folding a day-off return into "back-to-back", which
 // they no longer are.
-function b2bRow(label, rate, players, cashed, onPlayerClick, accent) {
-  if (!players.length) return null
-  return (
-    <div style={{ marginTop: 6 }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 4 }}>
-        <span style={{ fontSize: TYPE.label, color: accent, fontFamily: NUM_FONT, textTransform: 'uppercase', letterSpacing: '.06em' }}>{label}</span>
-        {rate != null && (
-          <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>
-            validated {rate.pct}% ({rate.hits}/{rate.n} archive)
-          </span>
-        )}
-      </div>
-      <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 1 }}>
-        {players.map((player) => {
-          const id = mlbId(player)
-          const hitAgain = cashed.has(id)
-          return (
-            <button key={id || nameOf(player)} onClick={() => onPlayerClick?.(player)} style={{
-              flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 8,
-              minWidth: 165, padding: '7px 9px', borderRadius: 9, cursor: 'pointer',
-              border: `1px solid ${hitAgain ? C.green : C.border2}`,
-              background: hitAgain ? `${C.green}12` : C.bg2, color: C.text, textAlign: 'left',
-            }}>
-              <span style={{
-                display: 'grid', placeItems: 'center', width: 28, height: 28, borderRadius: 8,
-                background: `${hitAgain ? C.green : C.orange}18`, color: hitAgain ? C.green : C.orange,
-                fontFamily: NUM_FONT, fontSize: TYPE.micro, fontWeight: 900,
-              }}>{teamOf(player) || 'MLB'}</span>
-              <span><b style={{ display: 'block', fontSize: TYPE.name }}>{nameOf(player)}</b><small style={{ display: 'block', marginTop: 3, color: hitAgain ? C.green : C.text3, fontFamily: NUM_FONT, fontSize: TYPE.micro }}>{hitAgain ? '✓ HOMERED AGAIN' : `HR score ${Math.round(hrScore(player) || 0)}`}</small></span>
-            </button>
-          )
-        })}
-      </div>
-    </div>
-  )
+// The box itself is components/WatchBox.js now (2026-09-28): the same markup,
+// shared with TUDDY's TD WATCH and LAMP's GOAL WATCH. What stays here is
+// MOONSHOT's: the rows, the archive rates and the words.
+function b2bItems(players, cashed, onPlayerClick) {
+  return players.map((player) => {
+    const id = mlbId(player)
+    return {
+      key: id || nameOf(player), tile: teamOf(player) || 'MLB', name: nameOf(player),
+      line: `HR score ${Math.round(hrScore(player) || 0)}`,
+      hit: cashed.has(id), hitText: '✓ HOMERED AGAIN',
+      onClick: () => onPlayerClick?.(player),
+    }
+  })
 }
+const b2bRate = (rate) => (rate != null ? `validated ${rate.pct}% (${rate.hits}/${rate.n} archive)` : null)
 
 function B2BStrip({ list, verified, loading, cashed, onPlayerClick }) {
   const strict = list.filter((p) => (p._b2bGapDays ?? 1) <= 1)
   const dayOff = list.filter((p) => (p._b2bGapDays ?? 1) > 1)
   return (
-    <section style={{
-      margin: '-2px 0 11px', padding: '9px 11px', border: `1px solid ${C.orange}4d`,
-      borderRadius: 11, background: `linear-gradient(105deg,${C.orange}16,${C.bg2} 48%,${C.bg})`,
-    }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-        <b style={{ color: C.orange, fontFamily: NUM_FONT, fontSize: TYPE.name }}>🔁 B2B WATCH</b>
-        <span style={{ color: C.text3, fontSize: TYPE.micro }}>
-          {loading ? 'checking the setup game…' : !verified ? 'setup proof unavailable' : list.length ? `${list.length} verified encore chase${list.length === 1 ? '' : 's'}` : 'no verified encore chases on this slate'}
-        </span>
-        <span style={{ marginLeft: 'auto', color: C.text3, fontSize: TYPE.micro }}>last-game homer proven · no hit-rate claim</span>
-      </div>
-      {strict.length > 0 && b2bRow('🔁 back-to-back — played the very next game', B2B_VALIDATED.backToBack, strict, cashed, onPlayerClick, C.orange)}
-      {dayOff.length > 0 && b2bRow('🌙 returning from a day off', B2B_VALIDATED.oneDayOff, dayOff, cashed, onPlayerClick, C.blue || C.orange)}
-      {list.length > 0 && (
-        <div style={{ marginTop: 7, fontSize: TYPE.label, color: C.text3, lineHeight: 1.5 }}>
-          Validated against 70 nights of the graded archive: back-to-back clears at {B2B_VALIDATED.backToBack.pct}%,
-          a day-off return at {B2B_VALIDATED.oneDayOff.pct}% — statistically the same rate, both under the
-          {' '}{B2B_VALIDATED.baseline.pct}% baseline for any graded slot. A day off neither helps nor hurts an
-          encore chase; treat both rows as the same claim, not two different edges.
-        </div>
-      )}
-    </section>
+    <WatchBox
+      icon="🔁" title="B2B WATCH" accent={C.orange}
+      status={loading ? 'checking the setup game…' : !verified ? 'setup proof unavailable' : list.length ? `${list.length} verified encore chase${list.length === 1 ? '' : 's'}` : 'no verified encore chases on this slate'}
+      note="last-game homer proven · no hit-rate claim"
+      rows={[
+        { key: 'b2b', label: '🔁 back-to-back — played the very next game', rate: b2bRate(B2B_VALIDATED.backToBack), items: b2bItems(strict, cashed, onPlayerClick) },
+        { key: 'off', label: '🌙 returning from a day off', rate: b2bRate(B2B_VALIDATED.oneDayOff), accent: C.blue || C.orange, items: b2bItems(dayOff, cashed, onPlayerClick) },
+      ]}
+      footer={<>
+        Validated against 70 nights of the graded archive: back-to-back clears at {B2B_VALIDATED.backToBack.pct}%,
+        a day-off return at {B2B_VALIDATED.oneDayOff.pct}% — statistically the same rate, both under the
+        {' '}{B2B_VALIDATED.baseline.pct}% baseline for any graded slot. A day off neither helps nor hurts an
+        encore chase; treat both rows as the same claim, not two different edges.
+      </>}
+    />
   )
 }
 
