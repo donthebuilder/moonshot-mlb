@@ -6,7 +6,7 @@
 
 import Link from 'next/link'
 
-import { createSupabaseServerClient } from '../lib/supabase/server'
+import NotFoundAccountDoor from '../components/NotFoundAccountDoor'
 
 export const metadata = { title: 'Not found · DASH Network' }
 
@@ -31,22 +31,13 @@ const door = (accent) => ({
 // most useful door for a signed-in user -- back to their own dashboard -- was
 // the one not offered.
 //
-// WHY THE try/catch IS NOT DEFENSIVE PADDING. This page's whole job is to
-// render when something has already gone wrong, and it renders in contexts
-// where the request may have no usable cookie store at all. A 404 that throws
-// is an unhandled error page, which is strictly worse than a 404 with one
-// wrong link. So any failure falls back to exactly the previous behaviour.
-async function signedIn() {
-  try {
-    const supabase = await createSupabaseServerClient()
-    if (!supabase) return false
-    const { data: { user } } = await supabase.auth.getUser()
-    return Boolean(user)
-  } catch { return false }
-}
+// 2026-09-27 (audit 00A fix 4): decided in the browser now
+// (components/NotFoundAccountDoor.js). Next renders the root not-found into
+// every route, so the server-side cookies() + auth.getUser() check that used
+// to live here made EVERY page private/no-store and waited on Supabase Auth
+// on each visit -- /app's first byte took 3.5-18 s. This page is static again.
 
-export default async function NotFound() {
-  const isIn = await signedIn()
+export default function NotFound() {
   return (
     <main style={wrap}>
       <img src="/icon-192.png" alt="" width="52" height="52" style={{ borderRadius: 14 }} />
@@ -65,9 +56,7 @@ export default async function NotFound() {
         <Link href="/app#sport=mlb&tab=home" style={door('#f97316')}>MOONSHOT · MLB</Link>
         <Link href="/app#sport=nfl&tab=home" style={door('#22c55e')}>TUDDY · NFL</Link>
         <Link href="/fantasy" style={door('#ff633e')}>FRANCHISE · FANTASY</Link>
-        {isIn
-          ? <Link href="/dash" style={door('#8a8580')}>YOUR DASHBOARD</Link>
-          : <Link href="/login" style={door('#8a8580')}>SIGN IN</Link>}
+        <NotFoundAccountDoor style={door('#8a8580')} />
       </nav>
     </main>
   )
