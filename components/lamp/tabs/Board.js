@@ -1,9 +1,10 @@
 'use client'
 import { nhlMug } from '../../../lib/nhl/format'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import PageHeader from '../../PageHeader'
 import { C, NUM_FONT, rampAt } from '../../../lib/nhl/theme'
 import LampTable from '../LampTable'
+import { AngleRow, FilterBar, FilterSearch, FilterSelect, FilterPill, Segmented, ActiveFilters } from '../../Filters'
 import { useLampBoard } from '../../../lib/nhl/useLamp'
 import { TeamMark, EmptyState, DelayedBanner, Loading, SourceLine, Kicker, GameTypeChip, LampDot, StaleSeasonNote, fmtDay, fmtPuckDrop, fmtSec, zoneAbbrev, shiftDay, STATUS, CalledChip, readHashParam, writeHashParam } from '../ui'
 
@@ -34,14 +35,56 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
   const lockedN = games.filter((g) => g.locked).length
   const calledN = games.reduce((n, g) => n + g.rows.filter((r) => r.status === 'called').length, 0)
   const shown = data?.date || date
+  // ── FILTERS, MOONSHOT'S SET (2026-09-27, board filters plan, LAMP 1-5) ──
+  // BY GAME (the layout Donovan likes, unchanged) or ALL GAMES (one table,
+  // every scored skater tonight ranked by score). One filter row + one Angle
+  // row cut both views. Every test reads a field the row already carries.
+  const [view, setView] = useState('game')
+  const [q, setQ] = useState('')
+  const [team, setTeam] = useState('all')
+  const [pos, setPos] = useState('all')
+  const [gameF, setGameF] = useState('all')
+  const [calledOnly, setCalledOnly] = useState(false)
+  const [angle, setAngle] = useState(null)
+  const flat = useMemo(() => games.filter((g) => !g.noMarketLock).flatMap((g) => g.rows.filter((r) => r.status !== 'off').map((r) => ({ r, g }))), [games])
+  const angles = useMemo(() => lampAngles(flat, market), [flat, market])
+  const angleTest = angle ? angles.find((a) => a.key === angle)?.test : null
+  const needle = q.trim().toLowerCase()
+  const kept = flat.filter((x) => {
+    const { r, g } = x
+    if (team !== 'all' && r.team !== team) return false
+    if (pos !== 'all' && (pos === 'D' ? r.pos !== 'D' : r.pos === 'D')) return false
+    if (gameF !== 'all' && String(g.game.id) !== gameF) return false
+    if (calledOnly && r.status !== 'called') return false
+    if (needle && !String(r.name || '').toLowerCase().includes(needle)) return false
+    if (angleTest && !angleTest(x)) return false
+    return true
+  })
+  const keepIds = new Set(kept.map(({ r, g }) => `${g.game.id}|${r.playerId}`))
+  const filtering = team !== 'all' || pos !== 'all' || gameF !== 'all' || calledOnly || Boolean(needle) || Boolean(angle)
+  const teams = [...new Set(flat.map(({ r }) => r.team))].sort()
+  const chips = [
+    angle ? { key: 'angle', label: angles.find((a) => a.key === angle)?.label || angle, onClear: () => setAngle(null) } : null,
+    needle ? { key: 'q', label: `\u201c${q}\u201d`, onClear: () => setQ('') } : null,
+    team !== 'all' ? { key: 'team', label: team, onClear: () => setTeam('all') } : null,
+    pos !== 'all' ? { key: 'pos', label: pos === 'D' ? 'Defence' : 'Forwards', onClear: () => setPos('all') } : null,
+    gameF !== 'all' ? { key: 'game', label: (games.find((g) => String(g.game.id) === gameF) || {}).game ? `${games.find((g) => String(g.game.id) === gameF).game.away.abbrev} @ ${games.find((g) => String(g.game.id) === gameF).game.home.abbrev}` : 'game', onClear: () => setGameF('all') } : null,
+    calledOnly ? { key: 'called', label: 'Called only', onClear: () => setCalledOnly(false) } : null,
+  ].filter(Boolean)
+  const clearAll = () => { setAngle(null); setQ(''); setTeam('all'); setPos('all'); setGameF('all'); setCalledOnly(false) }
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <PageHeader eyebrow={M.eyebrow} title={shown ? fmtDay(shown) : 'Tonight'}
         note={M.note}
         theme={C} numFont={NUM_FONT} accent={C.ice}
         stats={data ? [{ value: games.length, label: 'GAMES', tone: C.text2 }, { value: `${lockedN}/${games.length}`, label: 'LOCKED', tone: lockedN === games.length && games.length ? C.teal : C.text2 }, { value: calledN, label: 'CALLED', tone: C.ice }] : null} />
-      <div role="group" aria-label="Market" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-        {MARKETS.map((m) => <NavBtn key={m.key} onClick={() => setMarket(m.key)} strong={m.key === market} aria-pressed={m.key === market}>{m.label}</NavBtn>)}
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div role="group" aria-label="Market" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {MARKETS.map((m) => <NavBtn key={m.key} onClick={() => setMarket(m.key)} strong={m.key === market} aria-pressed={m.key === market}>{m.label}</NavBtn>)}
+        </div>
+        {/* The view rides the market row -- no extra row on a phone. */}
+        {data && <Segmented value={view} onChange={setView}
+          options={[{ key: 'game', label: 'By game', title: 'Each game, three called on top' }, { key: 'all', label: 'All games', title: 'Every scored skater tonight, one ranked table' }]} />}
       </div>
       <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
         <NavBtn onClick={() => setDate(shiftDay(shown, -1))} disabled={loading}>‹ Previous day</NavBtn>
@@ -53,10 +96,30 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
       <DelayedBanner error={error} what="the board" />
       {loading && !data ? <Loading what="tonight’s board" /> : null}
       {data && !data.dbReady && <div style={{ color: C.amber, fontSize: 11 }}>The record is not connected on this deployment — boards will preview but nothing locks. (Supabase env missing.)</div>}
-      {data && games.length === 0 && <EmptyState title="NO GAMES TODAY" note="Nothing to call. The schedule has the week." />}
-      {games.map((g) => (g.noMarketLock
-        ? <EmptyState key={g.game.id} title={`${g.game.away.abbrev} @ ${g.game.home.abbrev} · NO ${M.label} LOCK`} note={`This game locked before the ${M.label} board existed, so there is no call for it. Nothing is previewed after a lock.`} />
-        : <GameBoard key={g.game.id} g={g} market={market} onOpenPlayer={onOpenPlayer} onOpenGame={onOpenGame} onOpenTeam={onOpenTeam} />))}
+      {data && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <FilterBar>
+            <FilterSearch value={q} onChange={setQ} placeholder="Search skater…" width={150} />
+            <FilterSelect label="Team" value={team} onChange={setTeam} options={[{ key: 'all', label: 'All teams', count: flat.length }, ...teams.map((t) => ({ key: t, label: t, count: flat.filter(({ r }) => r.team === t).length }))]} />
+            <FilterSelect label="Pos" value={pos} onChange={setPos} options={[{ key: 'all', label: 'All', count: flat.length }, { key: 'F', label: 'Forwards', count: flat.filter(({ r }) => r.pos !== 'D').length }, { key: 'D', label: 'Defence', count: flat.filter(({ r }) => r.pos === 'D').length }]} />
+            <FilterSelect label="Game" value={gameF} onChange={setGameF} options={[{ key: 'all', label: 'All games', count: flat.length }, ...games.filter((g) => !g.noMarketLock).map((g) => ({ key: String(g.game.id), label: `${g.game.away.abbrev} @ ${g.game.home.abbrev}`, count: g.rows.filter((r) => r.status !== 'off').length }))]} />
+            <FilterPill active={calledOnly} onClick={() => setCalledOnly((v) => !v)} title="Only the three called per game.">Called only</FilterPill>
+          </FilterBar>
+          <AngleRow defs={angles} pool={flat} value={angle} onChange={setAngle} accent={C.ice} className="lamp-angle-row" />
+          {chips.length > 0 && <ActiveFilters filters={chips} shown={kept.length} total={flat.length} onClearAll={clearAll} />}
+        </div>
+      )}
+      {data && games.length === 0 && <EmptyState title="NO GAMES ON THIS DATE" note="No NHL games, so nothing to call. The filters above work on any night with games; the schedule has the week." />}
+      {view === 'all' && flat.length > 0 && (
+        kept.length ? <AllGamesTable kept={kept} market={market} onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} />
+          : <EmptyState title="NOTHING MATCHES" note="Clear a filter above." />
+      )}
+      {view === 'game' && games.map((g) => (g.noMarketLock
+        ? (filtering ? null : <EmptyState key={g.game.id} title={`${g.game.away.abbrev} @ ${g.game.home.abbrev} · NO ${M.label} LOCK`} note={`This game locked before the ${M.label} board existed, so there is no call for it. Nothing is previewed after a lock.`} />)
+        : (!filtering || g.rows.some((r) => keepIds.has(`${g.game.id}|${r.playerId}`)))
+          ? <GameBoard key={g.game.id} g={g} market={market} keep={filtering ? keepIds : null} onOpenPlayer={onOpenPlayer} onOpenGame={onOpenGame} onOpenTeam={onOpenTeam} />
+          : null))}
+      {view === 'game' && filtering && flat.length > 0 && !kept.length && <EmptyState title="NOTHING MATCHES" note="Clear a filter above." />}
       <SourceLine>Legs: NHL club-stats/{'{team}'}/{'{season}'}/2 (this season and last); population: roster/{'{team}'}/current, narrowed to the posted lineup when the league has one; grade: gamecenter/{'{id}'}/boxscore. Locked rows live in {M.log} and are never rewritten.</SourceLine>
     </div>
   )
@@ -148,9 +211,9 @@ function columnsFor(g, onOpenTeam, market = 'GOAL') {
   ]
 }
 
-function GameBoard({ g, onOpenPlayer, onOpenGame, onOpenTeam, market = 'GOAL' }) {
+function GameBoard({ g, onOpenPlayer, onOpenGame, onOpenTeam, market = 'GOAL', keep = null }) {
   const game = g.game
-  const scored = g.rows.filter((r) => r.status !== 'off')
+  const scored = g.rows.filter((r) => r.status !== 'off' && (!keep || keep.has(`${game.id}|${r.playerId}`)))
   const off = g.rows.filter((r) => r.status === 'off')
   const [showOff, setShowOff] = useState(false)
   const live = game.state === 'live'; const done = game.state === 'final'
@@ -212,6 +275,57 @@ function GameBoard({ g, onOpenPlayer, onOpenGame, onOpenTeam, market = 'GOAL' })
         </div>
       )}
     </section>
+  )
+}
+
+// ── LAMP ANGLES (board filters plan, LAMP 3) ─────────────────────────────
+// From fields every board row carries; each rule stated, nothing inferred.
+//   Power play     his season's power-play goals > 0 (r.ppg)
+//   Soft opponent  GOAL: his opponent's goals allowed per game in tonight's
+//                  top third (r.context.oppGaPg); SHOTS: opponent shots
+//                  allowed per 60 in the top third (r.legs.oppSaPg)
+//   Rested edge    tonight's opponent is on a back-to-back (spots)
+//   Big minutes    ice time per game in tonight's top quarter (r.legs.toi)
+// NOT BUILT: "Hot" (a goal in his last 3) -- the board rows carry no recent-
+// games field, and it is never guessed.
+function cut(vals, q) { const v = vals.filter(Number.isFinite).sort((a, b) => a - b); return v.length ? v[Math.floor((v.length - 1) * q)] : Infinity }
+function lampAngles(flat, market) {
+  const soft = market === 'SOG' ? (r) => r.legs?.oppSaPg : (r) => r.context?.oppGaPg
+  const softCut = cut(flat.map(({ r }) => soft(r)), 2 / 3)
+  const toiCut = cut(flat.map(({ r }) => r.legs?.toi), 0.75)
+  return [
+    { key: 'pp', label: 'Power play', title: 'Power-play goals this season (the reports\u2019 season).', test: ({ r }) => Number(r.ppg) > 0 },
+    { key: 'soft', label: 'Soft opponent', title: market === 'SOG' ? 'His opponent allows shots per 60 in tonight\u2019s top third.' : 'His opponent allows goals per game in tonight\u2019s top third.', test: ({ r }) => Number.isFinite(soft(r)) && soft(r) >= softCut },
+    { key: 'rested', label: 'Rested edge', title: 'Tonight\u2019s opponent is on the second night of a back-to-back.', test: ({ r, g }) => Boolean(spotOf(g, r.team, false)?.b2b) },
+    { key: 'mins', label: 'Big minutes', title: 'Ice time per game in tonight\u2019s top quarter.', test: ({ r }) => Number.isFinite(r.legs?.toi) && r.legs.toi >= toiCut },
+  ]
+}
+
+// ALL GAMES (board filters plan, LAMP 1): every scored skater tonight, one
+// table, ranked by score; the game is a column. Sort any header.
+function AllGamesTable({ kept, market, onOpenPlayer, onOpenTeam }) {
+  const sog = market === 'SOG'
+  const rows = [...kept].sort((a, b) => (b.r.score ?? 0) - (a.r.score ?? 0)).map(({ r, g }, i) => ({
+    id: r.playerId, rank: i + 1, name: r.name, pos: r.pos, team: r.team, game: `${g.game.away.abbrev}@${g.game.home.abbrev}`,
+    score: r.score, spg: r.legs ? r.legs.shotsPg : null, gpg: r.legs ? r.legs.goalsPg : null, toi: r.legs ? r.legs.toi : null,
+    osa: r.legs ? r.legs.oppSaPg ?? null : null, status: r.status, _row: r, _g: g,
+  }))
+  const columns = [
+    { key: 'rank', label: '#', heat: false, mono: true, w: 30 },
+    { key: 'name', label: 'PLAYER', heat: false, sticky: true, bold: true, w: 160, fmt: (v, r) => <>{v}<span style={{ color: C.text3, font: `800 9px/1 ${NUM_FONT}`, marginLeft: 6 }}>{r.pos}</span></> },
+    { key: 'team', label: 'TM', heat: false, mono: true, w: 40, fmt: (v) => <button type="button" onClick={(e) => { e.stopPropagation(); onOpenTeam?.(v) }} style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', color: C.text2, font: `800 10.5px/1 ${NUM_FONT}` }}>{v}</button> },
+    { key: 'game', label: 'GAME', heat: false, mono: true, w: 70 },
+    { key: 'score', label: 'SCORE', primary: true, scale: 'seq', domain: [0, 100], w: 50 },
+    { key: 'spg', label: 'S/GP', primary: true, dp: 2, w: 44 },
+    ...(sog ? [{ key: 'osa', label: 'OPP SA/60', primary: true, dp: 1, w: 62 }] : [{ key: 'gpg', label: 'G/GP', primary: true, dp: 2, w: 44 }]),
+    { key: 'toi', label: 'TOI', primary: true, w: 48, fmt: (v) => (Number.isFinite(v) ? fmtSec(v) : '—') },
+    { key: 'status', label: 'STATUS', heat: false, w: 90, fmt: (v) => (v === 'called' ? <CalledChip /> : <span style={{ color: C.text3, font: `800 8px/1 ${NUM_FONT}`, letterSpacing: '.1em' }}>{STATUS[v]}</span>) },
+  ]
+  return (
+    <LampTable rows={rows} columns={columns} heatMode="primary" ramp={rampAt}
+      rowEdge={(r) => (r.status === 'called' ? C.ice : null)}
+      faceOf={(r) => ({ sport: 'nhl', photo: nhlMug(r._g.game.season, r._row?.team, r._row?.playerId), name: r._row?.name })}
+      maxRows={25} maxHeight={9999} onRowClick={(r) => onOpenPlayer?.(r.id)} />
   )
 }
 

@@ -5,7 +5,7 @@ import { LABELS } from '../../lib/nfl/scoreLabels'
 import { quoteFor } from '../../lib/nfl/oddsMatch'
 import NflTable from './NflTable'
 import NflFace from './NflFace'
-import { Segmented, FilterPill } from '../Filters'
+import { Segmented, FilterPill, AngleRow as SharedAngleRow } from '../Filters'
 import RangeDual from '../RangeDual'
 
 // TUDDY BOARD EXTRAS (2026-09-27, board filters plan): the pieces MOONSHOT's
@@ -96,28 +96,9 @@ export function angleDefs({ matchup, logs, market, matchupTag }) {
   ]
 }
 
-/** One row of chips, one tap each, counts from the pool; scrolls sideways on a phone. */
-export function AngleRow({ defs, pool, value, onChange }) {
-  return (
-    <div className="nfl-angle-row" style={{ display: 'flex', gap: 6, alignItems: 'center', overflowX: 'auto', flexWrap: 'nowrap', paddingBottom: 2, marginTop: 8 }}>
-      <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: '.1em', color: C.text3, fontFamily: NUM_FONT, flexShrink: 0 }}>ANGLE</span>
-      {defs.map((d) => {
-        const n = pool.filter(d.test).length
-        const on = value === d.key
-        return (
-          <button key={d.key} type="button" title={d.title} onClick={() => onChange(on ? null : d.key)} aria-pressed={on}
-            style={{ flexShrink: 0, minHeight: 44, padding: 0, border: 'none', background: 'transparent', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}>
-            {/* 44px tap target, a 30px pill inside it */}
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 30, padding: '0 11px', borderRadius: 999, whiteSpace: 'nowrap',
-              border: `1px solid ${on ? C.green : C.border}`, background: on ? `${C.green}22` : 'transparent', color: on ? C.green : C.text2,
-              font: `700 11px/1 ${NUM_FONT}` }}>
-              {d.label} <span style={{ color: on ? C.green : C.text3 }}>{n}</span>
-            </span>
-          </button>
-        )
-      })}
-    </div>
-  )
+/** The shared Angle row (components/Filters.js), in TUDDY's green. */
+export function AngleRow(props) {
+  return <SharedAngleRow {...props} accent={C.green} className="nfl-angle-row" />
 }
 
 // ── GAME, TIME WINDOW, SCORE RANGE (plan TUDDY 3 + 4) ────────────────────────
