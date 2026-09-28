@@ -4,11 +4,11 @@ import { nhlMug } from '../../../lib/nhl/format'
 import { useMemo, useState } from 'react'
 import PageHeader from '../../PageHeader'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
-import { chipColor } from '../../Heatmap'
 import LampTable from '../LampTable'
 import { AngleRow, FilterPill, Segmented, ActiveFilters } from '../../Filters'
 import BoardTopBar from '../../BoardTopBar'
 import GoalWatch from '../GoalWatch'
+import { LampCards, PctBars } from '../LampCard'
 import { alpha } from '../../../lib/scales'
 import { useLampBoard } from '../../../lib/nhl/useLamp'
 import { TeamMark, EmptyState, DelayedBanner, Loading, SourceLine, Kicker, GameTypeChip, LampDot, StaleSeasonNote, fmtDay, fmtPuckDrop, fmtSec, zoneAbbrev, shiftDay, STATUS, CalledChip, readHashParam, writeHashParam } from '../ui'
@@ -50,6 +50,8 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
   const [pos, setPos] = useState('all')
   const [gameF, setGameF] = useHashFilter('fgame')
   const [calledOnly, setCalledOnly] = useState(false)
+  // LIST | CARDS (2026-09-28, plan C2): MOONSHOT's and TUDDY's toggle. List leads.
+  const [layout, setLayout] = useState('list')
   const [angle, setAngle] = useState(null)
   const flat = useMemo(() => games.filter((g) => !g.noMarketLock).flatMap((g) => g.rows.filter((r) => r.status !== 'off').map((r) => ({ r, g }))), [games])
   const angles = useMemo(() => lampAngles(flat, market), [flat, market])
@@ -110,6 +112,8 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
             <Segmented label="Pos" value={pos} onChange={setPos} options={[{ key: 'all', label: 'All' }, { key: 'F', label: 'Forwards' }, { key: 'D', label: 'Defence' }]} />
             <FilterPill active={calledOnly} onClick={() => setCalledOnly((v) => !v)} title="Only the three called per game.">Called only</FilterPill>
             <span style={{ fontFamily: NUM_FONT, fontSize: 11, color: C.text2, border: `1px solid ${C.border}`, borderRadius: 999, padding: '5px 11px' }}><b style={{ color: C.text }}>{kept.length}</b> of {flat.length} on the board</span>
+            <span style={{ marginLeft: 'auto' }}><Segmented value={layout} onChange={setLayout}
+              options={[{ key: 'list', label: '☰ List', title: 'One sortable table per game' }, { key: 'cards', label: '▦ Cards', title: 'The card board' }]} /></span>
           </div>
           {chips.length > 0 && <ActiveFilters filters={chips} shown={kept.length} total={flat.length} onClearAll={clearAll} />}
         </div>
@@ -125,13 +129,15 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
         stats={data ? [{ value: games.length, label: 'GAMES', tone: C.text2 }, { value: `${lockedN}/${games.length}`, label: 'LOCKED', tone: lockedN === games.length && games.length ? C.teal : C.text2 }, { value: calledN, label: 'CALLED', tone: C.ice }] : null} />
       {data && games.length === 0 && <EmptyState title="NO GAMES ON THIS DATE" note="No NHL games, so nothing to call. The filters above work on any night with games; the schedule has the week." />}
       {view === 'all' && flat.length > 0 && (
-        kept.length ? <AllGamesTable kept={kept} market={market} onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} />
+        kept.length ? (layout === 'cards'
+          ? <LampCards market={market} onOpen={onOpenPlayer} items={[...kept].sort((a, b) => (b.r.score ?? 0) - (a.r.score ?? 0)).map(({ r, g }, i) => ({ key: `${g.game.id}|${r.playerId}`, r, g, rank: i + 1, facts: factsOf(g, r) }))} />
+          : <AllGamesTable kept={kept} market={market} onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} />)
           : <EmptyState title="NOTHING MATCHES" note="Clear a filter above." />
       )}
       {view === 'game' && games.map((g) => (g.noMarketLock
         ? (filtering ? null : <EmptyState key={g.game.id} title={`${g.game.away.abbrev} @ ${g.game.home.abbrev} · NO ${M.label} LOCK`} note={`This game locked before the ${M.label} board existed, so there is no call for it. Nothing is previewed after a lock.`} />)
         : (!filtering || g.rows.some((r) => keepIds.has(`${g.game.id}|${r.playerId}`)))
-          ? <GameBoard key={g.game.id} g={g} market={market} keep={filtering ? keepIds : null} onOpenPlayer={onOpenPlayer} onOpenGame={onOpenGame} onOpenTeam={onOpenTeam} />
+          ? <GameBoard key={g.game.id} g={g} market={market} layout={layout} keep={filtering ? keepIds : null} onOpenPlayer={onOpenPlayer} onOpenGame={onOpenGame} onOpenTeam={onOpenTeam} />
           : null))}
       {view === 'game' && filtering && flat.length > 0 && !kept.length && <EmptyState title="NOTHING MATCHES" note="Clear a filter above." />}
       <SourceLine>Legs: NHL club-stats/{'{team}'}/{'{season}'}/2 (this season and last); population: roster/{'{team}'}/current, narrowed to the posted lineup when the league has one; grade: gamecenter/{'{id}'}/boxscore. Locked rows live in {M.log} and are never rewritten.</SourceLine>
@@ -159,28 +165,9 @@ const spotOf = (g, team, mine) => {
 const pct1 = (v) => (v == null ? null : (v * 100).toFixed(1))
 const ppVsPk = (us, them) => (pct1(us?.ppPct) && pct1(them?.pkPct) ? `${pct1(us.ppPct)} v ${pct1(them.pkPct)}` : null)
 const restWord = (s) => (s?.b2b ? 'B2B' : s?.rest != null ? `${s.rest}d` : null)
+const factsOf = (g, r) => ({ ppvpk: ppVsPk(spotOf(g, r.team, true), spotOf(g, r.team, false)), rest: restWord(spotOf(g, r.team, true)) })
 
-// The filled CALLED chip (CalledChip, ../ui) -- pregame in STATUS, graded beside the goals -- and
-// the rank itself filled on a called row, the two marks MOONSHOT's pick rows
-// carry. (Beside the name it was clipped by the name cell at 390px.)
-function PctBars({ r, market = 'GOAL' }) {
-  if (!r.pct) return null
-  const legs = market === 'SOG'
-    ? [['S', r.pct.shotsPg, 'shots'], ['T', r.pct.toi, 'ice time'], ['O', r.pct.oppSaPg, 'opponent shots allowed']].filter(([, v]) => v != null)
-    : [['S', r.pct.shotsPg, 'shots'], ['G', r.pct.goalsPg, 'goals'], ['T', r.pct.toi, 'ice time']]
-  return (
-    <span title={r.why} style={{ display: 'inline-flex', gap: 5, alignItems: 'center' }}>
-      {legs.map(([k, v, word]) => (
-        <span key={k} aria-label={`${word} ${Math.round(v)}th percentile`} style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
-          <span style={{ color: C.text3, font: `800 7.5px/1 ${NUM_FONT}` }}>{k}</span>
-          <span style={{ width: 22, height: 6, borderRadius: 3, background: C.border, overflow: 'hidden', display: 'inline-block' }}>
-            <span style={{ display: 'block', height: '100%', width: `${Math.max(4, Math.min(100, v))}%`, background: chipColor(v, 0, 100) }} />
-          </span>
-        </span>
-      ))}
-    </span>
-  )
-}
+// The LEGS bars are PctBars (../LampCard), shared with the Cards view.
 
 // LAMP v2 (2026-09-27): the board reads one market at a time. GOAL is the
 // original; SOG is lamp-sog-v1 (3+ shots on goal). Same table, same words.
@@ -227,7 +214,7 @@ function columnsFor(g, onOpenTeam, market = 'GOAL') {
   ]
 }
 
-function GameBoard({ g, onOpenPlayer, onOpenGame, onOpenTeam, market = 'GOAL', keep = null }) {
+function GameBoard({ g, onOpenPlayer, onOpenGame, onOpenTeam, market = 'GOAL', keep = null, layout = 'list' }) {
   const game = g.game
   const scored = g.rows.filter((r) => r.status !== 'off' && (!keep || keep.has(`${game.id}|${r.playerId}`)))
   const off = g.rows.filter((r) => r.status === 'off')
@@ -270,7 +257,9 @@ function GameBoard({ g, onOpenPlayer, onOpenGame, onOpenTeam, market = 'GOAL', k
             pushed the table down, and the REST column already carries it. */}
         {g.spots ? <span className="sm-hide">{` · rest ${game.away.abbrev} ${restWord(g.spots.away) || '—'}, ${game.home.abbrev} ${restWord(g.spots.home) || '—'}`}</span> : null}
       </div>
-      {scored.length === 0 ? <EmptyState title="NOBODY SCORED YET" note="No skater on either roster has ten NHL games on file." /> : (
+      {scored.length === 0 ? <EmptyState title="NOBODY SCORED YET" note="No skater on either roster has ten NHL games on file." /> : layout === 'cards' ? (
+        <LampCards market={market} onOpen={onOpenPlayer} items={rows.map((x) => ({ key: x.id, r: x._row, g, rank: x.rank, facts: { ppvpk: x.ppvpk, rest: x.rest } }))} />
+      ) : (
         <LampTable rows={rows} columns={columnsFor(g, onOpenTeam, market)} heatMode="primary"
           rowEdge={(r) => (r.status === 'called' ? C.ice : null)}
           faceOf={(r) => ({ sport: 'nhl', photo: nhlMug(game.season, r._row?.team, r._row?.playerId), name: r._row?.name })}

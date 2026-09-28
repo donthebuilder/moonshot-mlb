@@ -6,10 +6,11 @@ import LampTable from '../LampTable'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import HisNumbers from '../../HisNumbers'
 import { etToday } from '../../../lib/freshness'
-import { useLampPlayer } from '../../../lib/nhl/useLamp'
+import { useLampPlayer, useLampBoardOnce } from '../../../lib/nhl/useLamp'
+import VerdictHero from '../../VerdictHero'
 import { nhlTeam } from '../../../lib/nhl/teams'
 import { usePreview, ShowMoreButton } from '../../ListPreview'
-import { EmptyState, DelayedBanner, Loading, SourceLine, Kicker, StaleSeasonNote, fmtDay, ageFrom, fmtHeight, fmtPct1, fmtPct3, fmt2, fmtSec, plusMinus, dash } from '../ui'
+import { STATUS, EmptyState, DelayedBanner, Loading, SourceLine, Kicker, StaleSeasonNote, fmtDay, fmtPuckDrop, zoneAbbrev, ageFrom, fmtHeight, fmtPct1, fmtPct3, fmt2, fmtSec, plusMinus, dash } from '../ui'
 
 // 🏒 PLAYER — one man's file, at a stable address (#sport=nhl&tab=player&
 // player=<id>). A skater and a goalie share the route and NOT the page:
@@ -51,8 +52,33 @@ export default function Player({ id, onOpenTeam, onOpenGame, onBack, backLabel =
   return <PlayerBody p={p} error={error} onOpenTeam={onOpenTeam} onOpenGame={onOpenGame} onBack={onBack} backLabel={backLabel} />
 }
 
+// HIS ROW ON TONIGHT'S BOARD (2026-09-28, plan C3): the header is MOONSHOT's
+// player-card hero (components/VerdictHero.js) -- his face in the dial, the
+// board's own score round it, the board's word for him as the badge
+// (CALLED / ON THE BOARD / NOT ON THE BOARD, lib's STATUS), and the board's
+// why or reason as the line. Not playing tonight -> an empty dial that says
+// so; a goalie has no goal board and says that. Nothing is re-derived here.
+function boardSpot(board, p) {
+  if (!board?.games || p.goalie) return null
+  const id = String(p.id)
+  for (const g of board.games) {
+    const r = (g.rows || []).find((x) => String(x.playerId) === id)
+    if (r) return { r, g }
+  }
+  const g = board.games.find((x) => x.game.home.abbrev === p.team || x.game.away.abbrev === p.team)
+  return g ? { r: null, g } : null
+}
+
 function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel }) {
   const goalie = p.goalie
+  const { data: board } = useLampBoardOnce()
+  const spot = boardSpot(board, p)
+  const row = spot?.r || null
+  const opp = spot ? (spot.g.game.home.abbrev === p.team ? `vs ${spot.g.game.away.abbrev}` : `@ ${spot.g.game.home.abbrev}`) : null
+  const called = row?.status === 'called'
+  // The badge is short, like MOONSHOT's role codes (CALLED); the longer words
+  // ride the market line so they never squeeze his name at 390px.
+  const word = goalie ? 'GOALIE' : !board ? null : !spot ? 'NO GAME TONIGHT' : row ? STATUS[row.status] : STATUS.off
   const f = p.featured
   const stale = Boolean(p.current && f.season && f.season < p.current)
   const nhlSeasons = p.seasons.filter((s) => s.league === 'NHL' && s.gameType === 2).slice().reverse()
@@ -81,21 +107,29 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <BackBtn onBack={onBack} label={backLabel} />
       <DelayedBanner error={error} what="the league’s player feed" />
-      <header style={{ display: 'flex', gap: 14, alignItems: 'center', borderBottom: `1px solid ${C.border2}`, paddingBottom: 12 }}>
-        {p.headshot && <img src={p.headshot} alt="" width={72} height={72} style={{ width: 72, height: 72, borderRadius: '50%', background: C.bg3, objectFit: 'cover', flex: 'none' }} />}
-        <div style={{ minWidth: 0 }}>
-          <div style={{ color: C.ice, font: `900 8px/1 ${NUM_FONT}`, letterSpacing: '.14em', marginBottom: 6 }}>LAMP · {goalie ? 'GOALIE' : 'PLAYER'}{!p.active ? ' · NOT ACTIVE' : ''}</div>
-          <h2 style={{ margin: 0, fontSize: 24, fontWeight: 900, letterSpacing: '-.03em', lineHeight: 1.1, color: C.cream }}>{p.name}{p.number != null && <span style={{ color: C.text3, font: `800 12px/1 ${NUM_FONT}`, marginLeft: 8 }}>#{p.number}</span>}</h2>
-          <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+      <header>
+        <h2 className="sr-only">{p.name}</h2>
+        <VerdictHero
+          col={C.ice} score={row?.score ?? null} photo={p.headshot || null}
+          dialTitle={row ? 'Tonight’s goal-board score: the mean of three percentile ranks tonight -- shots, goals and ice time per game over his last 82 NHL games.' : 'Not on tonight’s goal board, so no score.'}
+          title={<>{p.number != null && <span style={{ color: C.text3, fontWeight: 700, fontFamily: NUM_FONT }}>#{p.number} </span>}{p.name}</>}
+          badge={called ? STATUS.called : null}
+          meta={<>
+            {/* The club, tappable, on the hero's own line (was a row of its own under it). */}
             {p.team && (
-              <button type="button" onClick={() => onOpenTeam?.(p.team)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', color: C.text, font: 'inherit' }}>
-                {p.teamLogo && <img src={p.teamLogo} alt="" width={18} height={18} style={{ width: 18, height: 18 }} />}
-                <b style={{ font: `900 11px/1 ${NUM_FONT}`, letterSpacing: '.04em' }}>{p.team}</b>
-                <span style={{ color: C.text3, fontSize: 11 }}>{team ? team.name : p.teamName}</span>
+              <button type="button" onClick={() => onOpenTeam?.(p.team)} title={team ? team.name : p.teamName} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, verticalAlign: 'middle', background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', color: C.text, font: 'inherit' }}>
+                {p.teamLogo && <img src={p.teamLogo} alt="" width={14} height={14} style={{ width: 14, height: 14 }} />}
+                <b style={{ font: `900 10px/1 ${NUM_FONT}`, letterSpacing: '.04em' }}>{p.team}</b>
               </button>
             )}
-          </div>
-          <div style={{ marginTop: 6, color: C.text3, fontSize: 11, lineHeight: 1.5 }}>{bio}</div>
+            {[p.team ? '' : null, p.pos, spot ? `${opp} · ${spot.g.game.state === 'pre' ? `${fmtPuckDrop(spot.g.game.startUtc)} ${zoneAbbrev()}` : spot.g.game.statusLine || spot.g.game.state}` : null, !p.active ? 'not active' : null].filter((x) => x != null && x !== false).join(' · ')}
+          </>}
+          market={[goalie ? 'LAMP · GOALIE' : 'LAMP', !goalie && word, spot && !goalie ? (spot.g.locked ? 'LOCKED' : 'PREVIEW') : null].filter(Boolean).join(' · ')}
+          line={row ? (row.why || (row.reason ? `Not on the board: ${row.reason}` : null)) : spot && !goalie && (spot.g.rows || []).length ? 'Not on tonight’s board: he isn’t in the posted lineup or on the club’s current roster.' : null}
+          style={{ marginBottom: 10 }}
+        />
+        <div style={{ minWidth: 0, borderBottom: `1px solid ${C.border2}`, paddingBottom: 12 }}>
+          <div style={{ color: C.text3, fontSize: 11, lineHeight: 1.5 }}>{bio}</div>
           {!goalie && <MultiLine sport="nhl" playerId={p.id} words={{ G: 'multi-goal' }} color={C.ice} textColor={C.text2} />}
         </div>
       </header>
