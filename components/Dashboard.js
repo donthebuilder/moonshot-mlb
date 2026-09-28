@@ -1,4 +1,5 @@
 'use client'
+import { TodayContext } from './TodayContext'
 import { leaveTarget } from '../lib/openTarget'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
@@ -686,6 +687,13 @@ export default function Dashboard({ palettePass = 0 }) {
   // back to the newest game_time means the banner can still tell you which
   // night you're actually looking at.
   const slateDate = clean(obj(data).date || obj(data).slate_date, '') || slateDateFromRows(data)
+  // THE TODAY LINE's day (2026-09-28): the slate's games, the slate's own date.
+  // The grouped slate carries start times, not states: a start in the past is
+  // 'started' (under way or final), never guessed as one of the two.
+  const mlbToday = useMemo(() => ({
+    sport: 'mlb', date: slateDate || null,
+    games: headerGames.map((g) => { const t = Date.parse(g.game_time || ''); return { away: g.away, home: g.home, start: t, state: Number.isFinite(t) && t > Date.now() ? 'pre' : 'started' } }),
+  }), [headerGames, slateDate])
   const slateIsReal = !data || slateLooksReal(data)
   // FALLBACK TO THE DATED FILE WHEN results_live.json GOES STALE.
   //
@@ -782,6 +790,7 @@ export default function Dashboard({ palettePass = 0 }) {
           through the tab row; the document never did. */}
       <a className="skip-link" href="#board-main">Skip to the board</a>
       <Header tab={tab} setTab={setTab} dateLabel={dateLabel} slateDate={slateDate} mode={mode} setMode={setMode} results={resultsForSlate} players={allPlayers} games={headerGames} runMeta={runMeta} onRefresh={handleRefresh} refreshing={refreshing} onPlayerClick={setModalPlayer} />
+      <TodayContext.Provider value={mlbToday}>
       <main id="board-main" className="dashboard-main" style={{ maxWidth: 1300, margin: '0 auto', padding: '0 14px 28px' }}>
         <h1 className="sr-only">{pageTitle('mlb', missingTab ? 'home' : tab)}</h1>
         {/* The Live Wire's heartbeat on every tab BUT the Scoreboard (which
@@ -939,6 +948,7 @@ export default function Dashboard({ palettePass = 0 }) {
           responsibility — play responsibly.
         </div>
       </main>
+      </TodayContext.Provider>
       {/* ⌘K / "/" from anywhere → jump to any player's modal. */}
       <QuickSearch players={allPlayers} onPick={setModalPlayer} />
       <MobileTabBar tab={tab} setTab={setTab} />

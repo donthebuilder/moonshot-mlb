@@ -1,4 +1,6 @@
 'use client'
+import { easternToday, easternDate } from '../../lib/data'
+import { TodayContext } from '../TodayContext'
 import { leaveTarget } from '../../lib/openTarget'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { resolveTab, pageTitle, NFL_TABS as NFL_TAB_KEYS } from '../../lib/routes'
@@ -286,6 +288,14 @@ export default function NflDashboard({ palettePass = 0 }) {
   const liveSnap = useNflLive(data)
   const slate = useMemo(() => withLive(data, liveSnap), [data, liveSnap])
 
+  // THE TODAY LINE's day (2026-09-28): today's games by their own ET date,
+  // the next game day from the same week file.
+  const nflToday = useMemo(() => {
+    const todayET = easternToday()
+    const all = (slate?.games || []).map((g) => ({ away: g.away, home: g.home, start: Date.parse(g.kickoff || ''), state: g.state === 'in' ? 'live' : (g.completed || g.state === 'post') ? 'final' : 'pre' })).filter((g) => Number.isFinite(g.start))
+    const later = [...new Set(all.map((g) => easternDate(g.start)).filter((d) => d > todayET))].sort()
+    return { sport: 'nfl', date: todayET, games: all.filter((g) => easternDate(g.start) === todayET), next: later[0] ? { date: later[0], games: all.filter((g) => easternDate(g.start) === later[0]) } : null }
+  }, [slate])
   const openPlayer = (player, market = 'TD') => setModal({ player, market })
   // The card's peer list: everyone playing, ranked by the market the card is
   // showing, so ‹ › walks from a better name to a worse one rather than
@@ -313,6 +323,7 @@ export default function NflDashboard({ palettePass = 0 }) {
       {/* See the note in components/Dashboard.js -- same gap, same fix. */}
       <a className="skip-link" href="#board-main">Skip to the board</a>
       <NflHeader tab={tab} setTab={setTab} data={data} meta={meta} matchup={matchup} weekMode={weekMode} setWeekMode={setWeekMode} onPlayerClick={openPlayer} />
+      <TodayContext.Provider value={nflToday}>
       <main id="board-main" className="dashboard-main"
             style={{ maxWidth: 1300, margin: '0 auto', padding: '14px 14px 40px' }}>
         <h1 className="sr-only">{pageTitle('nfl', missingTab ? 'home' : tab)}</h1>
@@ -367,6 +378,7 @@ export default function NflDashboard({ palettePass = 0 }) {
           </ErrorBoundary>
         )}
       </main>
+      </TodayContext.Provider>
       <MobileTabBarNfl tab={tab} setTab={setTab} />
       {/* The live wire. Renders nothing until something actually happens to
           one of your names, and polls nothing unless a game is in progress or

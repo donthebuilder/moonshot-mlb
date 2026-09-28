@@ -1,5 +1,6 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
+import { TodayContext } from '../TodayContext'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { resolveTab, pageTitle, NHL_TABS as NHL_TAB_KEYS, NHL_NAV } from '../../lib/routes'
 import { usePageTitle } from '../../lib/usePageTitle'
 import { initialHashParams, setSport } from '../../lib/sport'
@@ -260,12 +261,19 @@ export default function LampDashboard({ palettePass = 0 }) {
   // picked; Home and the ticker read whichever is showing.
   const picked = useLampScoresOn(date)
   const shown = date ? picked : today
+  // THE TODAY LINE's day (2026-09-28): the day LAMP is showing, from its scores.
+  const nhlToday = useMemo(() => {
+    const d = shown?.data
+    if (!d) return null
+    return { sport: 'nhl', date: d.date || null, games: (d.games || []).map((g) => ({ away: g.away?.abbrev, home: g.home?.abbrev, start: Date.parse(g.startUtc || ''), state: g.state === 'live' ? 'live' : g.state === 'final' ? 'final' : 'pre' })), next: d.next ? { date: d.next } : null }
+  }, [shown])
 
   return (
     <>
       <MobileCSS />
       <a className="skip-link" href="#board-main">Skip to the board</a>
       <LampHeader tab={tab} setTab={setTab} live={live} date={date} setDate={setDate} scores={shown} liveScores={today} onOpenPlayer={openPlayer} onOpenGame={openGame} />
+      <TodayContext.Provider value={nhlToday}>
       <main id="board-main" className="dashboard-main" style={{ maxWidth: 1300, margin: '0 auto', padding: '14px 14px 40px', background: C.bg, color: C.text }}>
         <h1 className="sr-only">{pageTitle('nhl', missingTab ? 'home' : tab)}</h1>
         {!missingTab && <TabExplainer tab={tab} texts={NHL_TEXTS} storageKey="tab_explained_nhl" accent={C.ice} />}
@@ -306,6 +314,7 @@ export default function LampDashboard({ palettePass = 0 }) {
           </ErrorBoundary>
         )}
       </main>
+      </TodayContext.Provider>
       <MobileTabBarLamp tab={tab} setTab={setTab} />
     </>
   )

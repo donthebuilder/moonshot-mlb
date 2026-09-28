@@ -1,4 +1,6 @@
 'use client'
+import { dayLine } from '../../../lib/dayLine'
+import DayHero from '../../DayHero'
 import { useEffect, useState } from 'react'
 import HeadlineStrip from '../../HeadlineStrip'
 import StorylinesStrip from '../../StorylinesStrip'
@@ -71,20 +73,26 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
   const cards = hist ? [{ k: `hist-${hist.player_id}`, tag: 'HISTORY WATCH', icon: '📜', name: hist.name, why: `One more: ${hist.claim}.`, stat: `${hist.hr} G`, col: C.amber, playerId: Number(hist.player_id) }, ...baseCards] : baseCards
   const openCard = (c) => (c.playerId ? onOpenPlayer?.(c.playerId) : c.gameId ? onOpenGame?.(c.gameId) : null)
   const dayWord = date ? `on ${fmtDay(date)}` : 'tonight'
+  const heroGames = games.map((g) => ({ away: g.away?.abbrev, home: g.home?.abbrev, start: Date.parse(g.startUtc || ''), state: g.state === 'live' ? 'live' : g.state === 'final' ? 'final' : 'pre' }))
+  const typeWord = (day?.gameTypes || []).map((t) => (t === 1 ? 'PRESEASON' : t === 2 ? 'REGULAR SEASON' : 'PLAYOFFS')).join(' / ')
+  const hero = dayLine(heroGames, { sport: 'nhl', date: day?.date || date || undefined, label: typeWord, next: day?.next ? { date: day.next } : null })
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-      <section aria-label="The night" style={{ border: `1px solid ${C.border}`, borderRadius: 14, background: C.bg2, padding: '16px 16px 14px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
-          <span style={{ color: C.text3, font: `800 10px/1 ${NUM_FONT}`, letterSpacing: '.08em', textTransform: 'uppercase' }}>{day?.date ? fmtDay(day.date) : 'Tonight'}</span>
-          {(day?.gameTypes || []).map((t) => <GameTypeChip key={t} label={t === 1 ? 'PRESEASON' : t === 2 ? 'REGULAR SEASON' : 'PLAYOFFS'} />)}
-          {day?.live ? <span style={{ color: C.lamp, font: `900 9px/1 ${NUM_FONT}`, letterSpacing: '.1em' }}>● {day.live} LIVE</span> : null}
-        </div>
-        <h2 style={{ margin: '0 0 8px', fontSize: 26, fontWeight: 900, letterSpacing: '-.03em', lineHeight: 1.12 }}>
-          {!day ? 'Tonight on LAMP.' : games.length === 0
-            ? <>No NHL games {dayWord}.{day.next ? <span style={{ color: C.text3 }}> Next: {fmtDay(day.next)}.</span> : null}</>
-            : <>{games.length} {games.length === 1 ? 'game' : 'games'} {dayWord}. <span style={{ color: C.ice }}>{allLocked ? 'Grading as they land.' : 'Three called in each.'}</span></>}
-        </h2>
+      {/* THE DAY, MOONSHOT'S HERO (2026-09-28, DAY-AWARE-OPENERS-PLAN): the same
+          components/DayHero.js MOONSHOT and TUDDY open with, fed by lib/dayLine.js
+          from this day's scores -- the day, what's on, its state, the next night
+          when there is none. The chips and the crawl are LAMP's own, below it. */}
+      <DayHero
+        icon="🏒" eyebrow={hero.eyebrow} live={Boolean(day?.live)}
+        lead={!day ? 'Tonight on LAMP.' : hero.lead}
+        accentText={!day ? '' : games.length ? (allLocked ? 'Grading as they land.' : 'Three called in each.') : hero.accent}
+        // The chip row only carries a fact on a game night; an off night has
+        // nothing to add there, and the opener may not grow on a phone.
+        chip={games.length ? '🏒 GAME NIGHT' : null}
+        sub={games.length ? (boardGames.length ? `${lockedN} of ${boardGames.length} boards locked before puck drop` : 'boards lock before puck drop') : null}
+        accent={C.ice} grad={[C.ice, C.teal]} headingLevel="h2" theme={C}
+      >
         {games.length > 0 && (
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             <HeroStat theme={C} numFont={NUM_FONT} label="GAMES" value={games.length} title="Games on the day (/api/lamp/scores)." />
@@ -102,7 +110,7 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
             {last.calledHits} of {last.calledN} called skaters who dressed scored · {last.scorersCalled} of {last.scorers} goal scorers were called, {last.scorersOnBoard} more on the board.
           </p>
         ) : null}
-      </section>
+      </DayHero>
 
       {/* THE PEOPLE, ONE TAP IN (2026-09-26, stranger test: "where are the
           players?" was the one question still slow -- they sat behind More).

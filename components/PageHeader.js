@@ -1,5 +1,8 @@
 'use client'
+import { useContext } from 'react'
 import { C as MLB_C, NUM_FONT as MLB_NUM } from '../lib/theme'
+import { TodayContext } from './TodayContext'
+import { todayLine } from '../lib/dayLine'
 
 // ── THE PAGE HEADER, ONE COMPONENT FOR BOTH PRODUCTS (2026-09-18) ──────────
 // Donovan, on why MOONSHOT and TUDDY still read as two sites: "imagine
@@ -73,8 +76,17 @@ export default function PageHeader({
   theme = null,
   numFont = null,
   style = null,
+  showToday = true,
 }) {
   const T = theme || MLB_C
+  // THE TODAY LINE (2026-09-28, DAY-AWARE-OPENERS-PLAN): the product's day,
+  // from its shell (TodayContext) -- "MON, SEP 28 · 1 game (KC at BAL 8:15 PM
+  // EDT)" / "· no games · next Tuesday". The page's own date, not the clock.
+  const day = useContext(TodayContext)
+  const todayFull = showToday && day ? todayLine(day.games || [], { sport: day.sport, date: day.date, next: day.next }) : ''
+  // A page titled with the date ("Mon, Sep 28") doesn't say it twice.
+  const titleDay = typeof title === 'string' ? `${title.toUpperCase()} · ` : null
+  const todayText = titleDay && todayFull.startsWith(titleDay) ? todayFull.slice(titleDay.length) : todayFull
   const NF = numFont || MLB_NUM
   const ac = accent || T.orange || T.green || T.text2
   const hasStats = Array.isArray(stats) && stats.filter(Boolean).length > 0
@@ -105,6 +117,7 @@ export default function PageHeader({
         <h2 style={{ fontSize: 24, margin: '0 0 3px', fontWeight: 900, letterSpacing: '-.03em', lineHeight: 1.15 }}>
           {title}
         </h2>
+        {todayText && <div style={{ fontSize: 11, color: T.text3, fontFamily: NF, letterSpacing: '.02em', marginBottom: sub || note ? 2 : 0 }}>{todayText}</div>}
         {sub && <div style={{ fontSize: 11, color: T.text3, fontFamily: NF }}>{sub}</div>}
         {note && (
           <div style={{ marginTop: sub ? 3 : 0, maxWidth: 640, fontSize: 11, lineHeight: 1.45, color: T.text3 }}>

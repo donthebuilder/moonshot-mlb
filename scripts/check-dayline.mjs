@@ -36,6 +36,9 @@ ok('no games and nothing scheduled: no invented next', () => {
   const d = dayLine([], { sport: 'mlb', date: '2026-11-10', tz: TZ })
   assert.equal(d.lead, 'No baseball today.'); assert.equal(d.accent, '')
 })
+ok('no games, next known only by date: names the day, no count', () => {
+  assert.equal(dayLine([], { sport: 'nhl', date: '2026-09-28', next: { date: '2026-09-29' }, tz: TZ }).accent, 'Next: Tuesday.')
+})
 ok('all final', () => {
   const d = dayLine([g('A', 'B', '13:05', 'final'), g('C', 'D', '19:05', 'final')], { sport: 'mlb', date: '2026-10-04', tz: TZ })
   assert.equal(d.lead, '2 games: 2 final.'); assert.equal(d.accent, 'Every one final.')
@@ -52,5 +55,6 @@ ok('postponed is counted, not called live', () => {
 ok('the today line for inner pages', () => {
   assert.equal(todayLine([g('KCT', 'BLT', '20:15', 'pre', '2026-09-28')], { sport: 'nfl', date: '2026-09-28', tz: TZ }), 'MON, SEP 28 · 1 game (KCT at BLT 8:15 PM EDT)')
   assert.equal(todayLine([], { sport: 'mlb', date: '2026-09-28', next: { date: '2026-09-29', games: [g('A', 'B', '13:08', 'pre', '2026-09-29')] }, tz: TZ }), 'MON, SEP 28 · no games · next Tuesday')
+  assert.equal(todayLine([], { sport: 'nhl', date: '2026-09-28', next: { date: '2026-09-29' }, tz: TZ }), 'MON, SEP 28 · no games · next Tuesday')
 })
 console.log(`\n${n} checks passed`)

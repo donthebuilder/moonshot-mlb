@@ -1,5 +1,9 @@
 'use client'
 
+import { fmtCountdown } from '../../../lib/headlines'
+import { dayLine } from '../../../lib/dayLine'
+import HeroStat from '../../HeroStat'
+import DayHero from '../../DayHero'
 import NflFace from '../NflFace'
 import { useCallback, useMemo, useRef, useState, useEffect } from 'react'
 import { C, NUM_FONT, gradeFor } from '../../../lib/nfl/theme'
@@ -305,7 +309,23 @@ export default function Home({ data, picks, results, matchup, logs, onPlayerClic
   const live = games.filter((game) => game.state === 'in').length
   const final = games.filter((game) => game.completed || game.state === 'post').length
   const topTd = [...players].filter((player) => Number.isFinite(player.scores?.TD)).sort((a, b) => b.scores.TD - a.scores.TD)[0]
-  const greeting = new Date().getHours() < 12 ? 'Good morning.' : new Date().getHours() < 18 ? 'Good afternoon.' : 'Good evening.'
+  // THE DAY, NOT A GREETING (2026-09-28, DAY-AWARE-OPENERS-PLAN). Donovan: "these
+  // on each page should know the day and what games are on." Today's games by
+  // their own ET date, the week's label from the week file, the next game day
+  // from the same schedule -- lib/dayLine.js says it; DayHero (MOONSHOT's hero)
+  // draws it. "Good morning. Football is on the board. / 6 POINTS ONE TUDDY"
+  // had no job and is gone.
+  const todayET = easternToday()
+  const normGame = (g) => ({ away: g.away, home: g.home, start: Date.parse(g.kickoff || ''), state: g.state === 'in' ? 'live' : (g.completed || g.state === 'post') ? 'final' : g.state === 'postponed' ? 'postponed' : 'pre' })
+  const weekGames = (games || []).map(normGame).filter((g) => Number.isFinite(g.start))
+  const todays = weekGames.filter((g) => easternDate(g.start) === todayET)
+  const laterDays = [...new Set(weekGames.map((g) => easternDate(g.start)).filter((d) => d > todayET))].sort()
+  const nextDay = laterDays[0] ? { date: laterDays[0], games: weekGames.filter((g) => easternDate(g.start) === laterDays[0]) } : null
+  const hadYesterday = weekGames.some((g) => easternDate(g.start) < todayET && easternDate(g.start + 36 * 3600e3) >= todayET)
+  const dl = dayLine(todays, { sport: 'nfl', date: todayET, label: data?.label || '', next: nextDay })
+  const todayLive = todays.filter((g) => g.state === 'live').length
+  const todayFinal = todays.filter((g) => g.state === 'final').length
+  const edition = todays.length ? 'GAME DAY' : hadYesterday ? 'MORNING AFTER' : 'MIDWEEK'
 
   // ── THREE DOORS, TUDDY'S OWN (parity pass, 2026-09-16) ────────────────────
   // MOONSHOT's own Scoreboard/Games/Results triad, same idea, TUDDY's own
@@ -323,10 +343,23 @@ export default function Home({ data, picks, results, matchup, logs, onPlayerClic
 
   return (
     <div className="tuddy-home">
-      <section className="tuddy-hero">
-        <div><small>DASH NETWORK · TUDDY</small><h1>{greeting} Football is on the board.</h1><p>{data?.label || `${data?.mode || 'NFL'} slate`} · every call ranked, every result kept public.</p></div>
-        <div className="tuddy-hero-mark"><span>6</span><small>POINTS<br/>ONE TUDDY</small></div>
-      </section>
+      <DayHero
+        icon="🏈" eyebrow={dl.eyebrow} live={todayLive > 0}
+        lead={dl.lead} accentText={dl.accent}
+        chip={`🏈 ${edition}`}
+        sub={todayLive ? 'grading live · every call in public' : todays.length && todayFinal === todays.length ? 'final · every call graded' : todays.length ? 'the board is set · every call graded in public' : `${data?.label || 'this week'} · every call ranked, every result public`}
+        accent={C.green} grad={[C.green, C.cyan]} theme={C}
+      >
+        <div className="hero-stats" style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          <HeroStat label="GAMES TODAY" value={todays.length} sub={todayLive ? `${todayLive} live` : todays.length && todayFinal === todays.length ? 'final' : !todays.length && nextDay ? `next ${nextDay.date.slice(5).replace('-', '/')}` : null} col={C.cyan} theme={C} numFont={NUM_FONT}
+            title="Games kicking off today (ET), and how many are live or final." />
+          {dl.count?.ms > 0 && (
+            <HeroStat label={dl.count.label} value={fmtCountdown(dl.count.ms)} col={C.yellow} theme={C} numFont={NUM_FONT}
+              title="Time until the next kickoff on the schedule." />
+          )}
+          {/* No TOP TD chip: the headline strip right below leads with the bot's #1. */}
+        </div>
+      </DayHero>
 
       {/* THE PEOPLE, ONE TAP IN (2026-09-26, stranger test: players sat
           behind More). One line; the page's name comes from the registry. */}
