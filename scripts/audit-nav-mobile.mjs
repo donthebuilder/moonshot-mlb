@@ -178,7 +178,10 @@ function inPage({ names, teams }) {
   }
   for (const el of document.querySelectorAll('a[href], button, [role=button], select, input:not([type=hidden])')) {
     if (!vis(el)) continue
-    const r = el.getBoundingClientRect()
+    // A checkbox / radio inside its <label> is tapped through the label:
+    // measure the label (audit S7 -- the 18px box inside a 44px label is fine).
+    const hit = el.matches('input[type=checkbox], input[type=radio]') && el.closest('label') ? el.closest('label') : el
+    const r = hit.getBoundingClientRect()
     if (r.left >= W - 1 && !scroller(el) && getComputedStyle(el).position !== 'fixed' && out.offscreen.length < 8) out.offscreen.push(label(el))
     if (r.width < 44 || r.height < 44) { out.small.push(label(el)); if (r.width < 32 && r.height < 32) out.smallBad.push(`${label(el)} ${Math.round(r.width)}x${Math.round(r.height)}`) }
   }
