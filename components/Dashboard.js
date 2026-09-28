@@ -516,6 +516,11 @@ export default function Dashboard({ palettePass = 0 }) {
     const pid2 = modalPlayer ? String(modalPlayer?.player_id ?? modalPlayer?.id ?? '') : missingPlayer
     if (pid2) h.set('p', pid2)
     if (mode === 'tomorrow') h.set('day', 'tmrw')
+    // The Games / Pitchers tabs own game= / pitcher= (they write them); this
+    // writer rebuilds the hash from scratch, so it carries them on their tab.
+    const live = hashParams()
+    if (tab === 'games' && live.get('game')) h.set('game', live.get('game'))
+    if (tab === 'pitchers' && live.get('pitcher')) h.set('pitcher', live.get('pitcher'))
     // PUSH WHAT YOU OPENED (2026-09-27, audit 00A root fix 1; lib/urlState).
     // A new tab or a newly opened card adds a history entry, so Back returns
     // where you were instead of leaving the site; anything else replaces.
