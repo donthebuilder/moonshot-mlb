@@ -4,7 +4,7 @@ import { useHashFilter, readHashKey, FILTER_KEYS } from '../lib/filterHash'
 import { leaveTarget } from '../lib/openTarget'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
-import { resolveTab, pageTitle } from '../lib/routes'
+import { resolveTab, pageTitle, isSport } from '../lib/routes'
 import { usePageTitle } from '../lib/usePageTitle'
 import TabNotFound from './TabNotFound'
 import { fetchJSON, normalizeData, groupGames, slateLooksReal, slateDateFromRows, keepNewerSlate, easternDate } from '../lib/data'
@@ -149,6 +149,14 @@ export default function Dashboard({ palettePass = 0 }) {
   // such page, so the shell can say so instead of rendering an empty div. See
   // lib/routes.js -- MOONSHOT used to answer #tab=picks with a blank screen.
   const [missingTab, setMissingTab] = useState('')
+  // A player link that matches nobody (audit 00A fix 5): #p=999999999 opened
+  // nothing and said nothing. Now the same not-found panel says so.
+  const [missingPlayer, setMissingPlayer] = useState('')
+  useEffect(() => { if (modalPlayer) setMissingPlayer('') }, [modalPlayer])
+  // #sport=xyz lands here (lib/sport.js answers an unknown sport with MLB,
+  // audit 00A fix 5) -- and says why, instead of looking like a normal visit.
+  const [missingSport, setMissingSport] = useState('')
+  useEffect(() => { try { const s = new URLSearchParams(String(window.location.hash || '').replace(/^#/, '')).get('sport'); if (s && !isSport(s)) setMissingSport(String(s).slice(0, 20)) } catch { /* ignore */ } }, [])
   useEffect(() => {
     const h = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''))
     const r = resolveTab('mlb', h.get('tab'))
@@ -450,9 +458,13 @@ export default function Dashboard({ palettePass = 0 }) {
       pendingPlayerRef.current = ''
       fetch(`https://statsapi.mlb.com/api/v1/people/${pid2}?hydrate=currentTeam`).then((r) => (r.ok ? r.json() : null)).then((j) => {
         const person = j?.people?.[0]
-        if (!person) return
+        if (!person) { setMissingPlayer(String(pid2)); return }
         setModalPlayer({ api_only: true, player_id: String(person.id), name: person.fullName, team: person.currentTeam?.abbreviation || '', bats: person.batSide?.code || '?' })
       }).catch(() => {})
+    } else {
+      hashAppliedRef.current = true
+      pendingPlayerRef.current = ''
+      setMissingPlayer(String(pid2))
     }
   }, [allPlayers])
   // ── EVERY DEEP LINK WAS LOST ON A NON-DEFAULT THEME (fixed 2026-08-22) ────
@@ -488,15 +500,19 @@ export default function Dashboard({ palettePass = 0 }) {
       const sp = prev.get('sport')
       if (sp) h.set('sport', sp)
     } catch { /* ignore */ }
-    if (tab !== 'home') h.set('tab', tab)
+    // What was ASKED stays in the address when it isn't here (audit 00A fix
+    // 5): #tab=nope used to be rewritten to Home, and a refresh lost the
+    // not-found panel along with the typo it was about.
+    if (missingTab) h.set('tab', missingTab)
+    else if (tab !== 'home') h.set('tab', tab)
     // The board filters belong to the whole product, not one tab: carried
     // across every tab change this writer makes (lib/filterHash).
     for (const k of FILTER_KEYS) { const v = readHashKey(k); if (v) h.set(k, v) }
-    const pid2 = modalPlayer ? String(modalPlayer?.player_id ?? modalPlayer?.id ?? '') : ''
+    const pid2 = modalPlayer ? String(modalPlayer?.player_id ?? modalPlayer?.id ?? '') : missingPlayer
     if (pid2) h.set('p', pid2)
     const next = h.toString()
     try { history.replaceState(null, '', next ? `#${next}` : window.location.pathname + window.location.search) } catch {}
-  }, [tab, modalPlayer])
+  }, [tab, modalPlayer, missingTab, missingPlayer])
 
 
   const players = useMemo(() => {
@@ -845,6 +861,24 @@ export default function Dashboard({ palettePass = 0 }) {
             off-season morning, or during a slate outage was the one showing
             "Loading slate data…". Anything else that genuinely doesn't
             depend on tonight's card belongs in this set too. */}
+        {missingSport && !missingTab && !missingPlayer && (
+          <TabNotFound
+            sport="mlb"
+            kicker="NO SUCH SPORT"
+            message={<>DASH has no <b style={{ color: C.text2, fontFamily: NUM_FONT }}>{missingSport}</b> -- it runs MOONSHOT (MLB), TUDDY (NFL) and LAMP (NHL). This is MOONSHOT.</>}
+            onNavigate={setTab}
+            doors={[['home', '🏠 HOME'], ['board', '📊 BOARDS']]}
+          />
+        )}
+        {missingPlayer && !missingTab && (
+          <TabNotFound
+            sport="mlb"
+            kicker="NO SUCH PLAYER"
+            message={<>No MLB player has the id <b style={{ color: C.text2, fontFamily: NUM_FONT }}>{missingPlayer}</b>. The link may be old or cut short -- tonight&apos;s board and the search above have everyone.</>}
+            onNavigate={(t) => { setMissingPlayer(''); setTab(t) }}
+            doors={[['home', '🏠 HOME'], ['board', '📊 BOARDS'], ['bot', '🎯 PICKS']]}
+          />
+        )}
         {missingTab ? (
           <TabNotFound
             asked={missingTab}
