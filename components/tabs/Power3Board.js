@@ -262,8 +262,9 @@ export default function Power3Board({ players = [], onWatch, watchIds, onPlayerC
                 onChange={(e) => setMinBBE(Number(e.target.value))}
                 style={{ width: '100%', accentColor: C.orange }} />
             </label>
-            <label style={{ fontSize: 10, color: C.text3, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <input type="checkbox" checked={flagOnly} onChange={(e) => setFlagOnly(e.target.checked)} style={{ accentColor: C.orange }} />
+            {/* 44px to a thumb (audit 00A S7: the box alone was 13x13) */}
+            <label style={{ fontSize: 10, color: C.text3, display: 'flex', alignItems: 'center', gap: 6, minHeight: 44, cursor: 'pointer' }}>
+              <input type="checkbox" checked={flagOnly} onChange={(e) => setFlagOnly(e.target.checked)} style={{ accentColor: C.orange, width: 18, height: 18 }} />
               ⚡ only
             </label>
             <label style={{ fontSize: 10, color: C.text3 }}>

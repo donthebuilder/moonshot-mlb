@@ -568,6 +568,12 @@ export default function MobileCSS() {
         .sport-switch { display: none !important; }
       }
 
+      /* Under 340px the date badge goes (audit 00A S2): Today / Tmrw still say
+         which day, and LAMP's ⚙ was pushed 24px off a 320px screen. */
+      @media (max-width: 340px) {
+        .date-badge { display: none !important; }
+      }
+
       @media (max-width: 390px) {
         .hdr-meta { justify-content: space-between; gap: 4px !important; }
         .date-badge > div > span:first-child { display: none; }

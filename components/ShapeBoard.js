@@ -429,15 +429,15 @@ export default function ShapeBoard({ players = [], onWatch, watchIds, onPlayerCl
       </div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
         <label title={`Drop everyone under ${SHAPE_MIN_N} classified homers — the hitters the board refuses to give a type.`}
-          style={{ fontSize: 10, color: C.text3, display: 'inline-flex', gap: 5, alignItems: 'center', cursor: 'pointer' }}>
+          style={{ fontSize: 10, color: C.text3, display: 'inline-flex', gap: 5, alignItems: 'center', cursor: 'pointer', minHeight: 44 }}>
           <input type="checkbox" checked={overFloor} onChange={(e) => setOverFloor(e.target.checked)}
-            style={{ accentColor: C.purple }} />
+            style={{ accentColor: C.purple, width: 18, height: 18 }} />
           only {SHAPE_MIN_N}+ classified homers
         </label>
         <label title="Drop everyone whose in-form delta the bot did not rate readable."
-          style={{ fontSize: 10, color: C.text3, display: 'inline-flex', gap: 5, alignItems: 'center', cursor: 'pointer' }}>
+          style={{ fontSize: 10, color: C.text3, display: 'inline-flex', gap: 5, alignItems: 'center', cursor: 'pointer', minHeight: 44 }}>
           <input type="checkbox" checked={formOnly} onChange={(e) => setFormOnly(e.target.checked)}
-            style={{ accentColor: C.purple }} />
+            style={{ accentColor: C.purple, width: 18, height: 18 }} />
           only a readable in-form delta
         </label>
         <input value={query} onChange={(e) => setQuery(e.target.value)}
