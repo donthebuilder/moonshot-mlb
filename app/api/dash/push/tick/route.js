@@ -532,7 +532,8 @@ export async function GET(request) {
   if (dead.length) await db.from('dash_push_subscriptions').delete().in('endpoint', dead)
   // PRUNE HOURLY, NOT EVERY MINUTE (2026-09-27, cost cut): both prunes drop
   // rows older than days, so running them 1,440 times a day bought nothing
-  // over 24. Once an hour per warm instance.
+  // over 24. Once an hour per warm instance (_lastPrune is module state,
+  // declared below the handler).
   if (Date.now() - _lastPrune > 3600e3) {
     _lastPrune = Date.now()
     await db.rpc('dash_push_seen_prune')
@@ -543,6 +544,7 @@ export async function GET(request) {
   }
   return Response.json({ ...totals, dropped: dead.length })
 }
+let _lastPrune = 0
 
 // ── WHAT ACTUALLY REACHED EACH PHONE (2026-09-14) ──────────────────────────
 //
