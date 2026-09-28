@@ -70,11 +70,12 @@ import { FilterPill, useOutsideClose } from '../Filters'
 // gesture as undoing a hand-dragged band. The percentile is in the label
 // because a filter that will not say what it did is not evidence.
 const QUICK = {
+  // Goal-line role, Red-zone role and High total were PROMOTED to the Angle
+  // row (2026-09-27, board filters plan: NflBoardExtras angleDefs, same fields,
+  // same cut-offs) -- left here too they were the same filter twice. The bands
+  // below still cover them for a custom range.
   TD: [
-    { key: 'gl', label: 'Goal-line role', stat: 'f_gl_opp', min: 75 },
-    { key: 'rz', label: 'Red-zone role', stat: 'f_rz_opp', min: 75 },
     { key: 'everydown', label: 'Every-down', stat: 'f_snap_pct', min: 75 },
-    { key: 'shootout', label: 'High total', stat: 'implied_total', min: 70 },
   ],
   REC_YDS: [
     { key: 'wopr', label: 'Opportunity', stat: 'f_wopr', min: 75 },
