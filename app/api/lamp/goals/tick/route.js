@@ -27,11 +27,11 @@ import { cronAuthorized, adminClient } from '../../../../../lib/nhl/db'
 import { gameActive, tickGoals } from '../../../../../lib/nhl/goalFeed'
 import { hasX, postToX, uploadImageToX, xProblem } from '../../../../../lib/dash/xPost'
 import { goalCard } from '../../../../../lib/nhl/goalCard'
-
-// The host printed in the card's footer.
-const SITE_HOST = (process.env.NEXT_PUBLIC_SITE_URL || 'dashnetwork.vercel.app').replace(/^https?:\/\//, '').replace(/\/$/, '')
 import { kindOn } from '../../../../../lib/dash/longshotsPost'
 import { isMaintenanceMode } from '../../../../../lib/edgeConfig'
+
+// The host printed in the goal card's footer.
+const SITE_HOST = (process.env.NEXT_PUBLIC_SITE_URL || 'dashnetwork.vercel.app').replace(/^https?:\/\//, '').replace(/\/$/, '')
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
