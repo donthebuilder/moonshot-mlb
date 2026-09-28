@@ -15,7 +15,7 @@ import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 import { ActiveFilters, FilterBar, FilterSearch, FilterSelect, FilterPill } from '../../Filters'
 import NflBoardFilters, { useNflBoardFilter } from '../NflBoardFilters'
 import MobileFold, { useIsPhone } from '../../MobileFold'
-import { NflBoardList, ViewSwitch, AngleRow, angleDefs } from '../NflBoardExtras'
+import { NflBoardList, ViewSwitch, AngleRow, angleDefs, useNflDrawerFilters } from '../NflBoardExtras'
 import TdCompare from '../TdCompare'
 
 // TOUCHDOWNS — the front door.
@@ -257,6 +257,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
   // promotes names off the bottom rather than only hiding rows.
   const { filtered: bandFiltered, state: bandState } = useNflBoardFilter(rows, MARKET)
   const angles = useMemo(() => angleDefs({ matchup, logs, market: MARKET, matchupTag }), [matchup, logs])
+  const drawer = useNflDrawerFilters(rows, data?.games, MARKET)   // TUDDY 3 + 4
 
   // One removable chip per narrowing dimension, bands included. Touchdowns had
   // no chip row at all, so a tier or a team filter was invisible once you had
@@ -277,13 +278,13 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
   ].filter(Boolean)
   const clearTdFilters = () => {
     bandState.reset()
-    setQuery(''); setTeam('all'); setPosition('all'); setTier('everyone'); setAngle(null)
+    setQuery(''); setTeam('all'); setPosition('all'); setTier('everyone'); setAngle(null); drawer.reset()
     setOnlyPriced(false); setOnlyUpcoming(false); setOnlyWatched(false)
   }
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase()
-    let out = bandFiltered
+    let out = bandFiltered.filter(drawer.test)
     if (position !== 'all') out = out.filter((p) => p.position === position)
     if (team !== 'all') out = out.filter((p) => p.team === team)
     if (needle) out = out.filter((p) => String(p.name || '').toLowerCase().includes(needle))
@@ -314,7 +315,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
         }
         : (a, b) => (b.scores[MARKET] ?? 0) - (a.scores[MARKET] ?? 0)
     return [...out].sort(cmp)
-  }, [bandFiltered, rows, query, position, team, tier, angle, angles, onlyWatched, onlyUpcoming, onlyPriced, sortBy, matchup, watchlist, odds, data, now])
+  }, [bandFiltered, drawer, rows, query, position, team, tier, angle, angles, onlyWatched, onlyUpcoming, onlyPriced, sortBy, matchup, watchlist, odds, data, now])
 
   const capped = all ? filtered : filtered.slice(0, SOFT_CAP)
   const hidden = filtered.length - capped.length
@@ -351,7 +352,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
               other about their own controls, which is worse than either choice. */}
           <FilterSelect label="Team" value={team} options={teamOptions} onChange={setTeam} />
           <FilterSelect label="Position" value={position} options={positionOptions} onChange={setPosition} />
-          <NflBoardFilters state={bandState} total={rows.length} shown={filtered.length} />
+          <NflBoardFilters state={bandState} total={rows.length} shown={filtered.length} extra={drawer.section} extraCount={drawer.activeCount} extraReset={drawer.reset} />
         </FilterBar>
         {Boolean(tdFilterChips.length) && (
           <div style={{ marginTop: 8 }}>

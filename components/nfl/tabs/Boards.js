@@ -15,7 +15,7 @@ import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 import { baselineFor, topStatChips } from '../ScoreAnatomy'
 import NflBoardFilters, { useNflBoardFilter } from '../NflBoardFilters'
 import { useIsPhone } from '../../MobileFold'
-import { NflBoardList, ViewSwitch, AngleRow, angleDefs } from '../NflBoardExtras'
+import { NflBoardList, ViewSwitch, AngleRow, angleDefs, useNflDrawerFilters } from '../NflBoardExtras'
 import { matchupTag } from '../../../lib/nfl/dvpSignal'
 
 // Same soft cap Touchdowns.js uses, so the two boards cut at the same depth.
@@ -175,10 +175,11 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
   )
   const { filtered: bandFiltered, state: bandState } = useNflBoardFilter(marketPool, market)
   const angles = useMemo(() => angleDefs({ matchup, logs, market, matchupTag }), [matchup, logs, market])
+  const drawer = useNflDrawerFilters(marketPool, data?.games, market)   // TUDDY 3 + 4
 
   const rows = useMemo(() => {
     const angleTest = angle ? angles.find((x) => x.key === angle)?.test : null
-    const pool = angleTest ? bandFiltered.filter(angleTest) : bandFiltered
+    const pool = (angleTest ? bandFiltered.filter(angleTest) : bandFiltered).filter(drawer.test)
     const needle = query.trim().toLowerCase()
     const kept = pool.filter((p) => {
       if (!showLow && p.low_sample) return false
@@ -213,7 +214,7 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
     // nothing on screen saying so; it now caps at SOFT_CAP with a "showing X
     // of Y" line and a Show-the-rest pill, exactly as Touchdowns does.
     return kept.sort(cmp)
-  }, [bandFiltered, angle, angles, data, market, showLow, query, team, position, sortBy, odds,
+  }, [bandFiltered, drawer, angle, angles, data, market, showLow, query, team, position, sortBy, odds,
       onlyPriced, onlyUpcoming, onlyWatched, watchlist, now])
 
   const capped = all ? rows : rows.slice(0, SOFT_CAP)
@@ -248,6 +249,7 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
   // One chip row for every narrowing dimension on this board, bands included.
   const activeFilterChips = [
     ...bandState.activeFilters,
+    ...drawer.chips,
     angle ? { key: 'angle', label: angles.find((x) => x.key === angle)?.label || angle, onClear: () => setAngle(null) } : null,
     query ? { key: 'q', label: `“${query}”`, onClear: () => setQuery('') } : null,
     team !== 'all' ? { key: 'team', label: team, onClear: () => setTeam('all') } : null,
@@ -259,7 +261,7 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
   ].filter(Boolean)
   const clearAllFilters = () => {
     bandState.reset()
-    setQuery(''); setTeam('all'); setPosition('all'); setAngle(null)
+    setQuery(''); setTeam('all'); setPosition('all'); setAngle(null); drawer.reset()
     setOnlyPriced(false); setOnlyUpcoming(false); setOnlyWatched(false); setShowLow(false)
   }
 
@@ -274,7 +276,7 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
           <FilterSearch value={query} onChange={setQuery} placeholder="Search player…" width={165} />
           <FilterSelect label="Team" value={team} options={filterOptions.teams} onChange={setTeam} />
           <FilterSelect label="Position" value={position} options={filterOptions.positions} onChange={setPosition} />
-          <NflBoardFilters state={bandState} total={marketPool.length} shown={rows.length} />
+          <NflBoardFilters state={bandState} total={marketPool.length} shown={rows.length} extra={drawer.section} extraCount={drawer.activeCount} extraReset={drawer.reset} />
         </FilterBar>
       </div>
 

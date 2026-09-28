@@ -1,10 +1,12 @@
 'use client'
+import { useMemo, useState } from 'react'
 import { C, NUM_FONT, gradeFor } from '../../lib/nfl/theme'
 import { LABELS } from '../../lib/nfl/scoreLabels'
 import { quoteFor } from '../../lib/nfl/oddsMatch'
 import NflTable from './NflTable'
 import NflFace from './NflFace'
-import { Segmented } from '../Filters'
+import { Segmented, FilterPill } from '../Filters'
+import RangeDual from '../RangeDual'
 
 // TUDDY BOARD EXTRAS (2026-09-27, board filters plan): the pieces MOONSHOT's
 // board has that TUDDY's two boards (Touchdowns.js for TD, Boards.js for the
@@ -116,6 +118,92 @@ export function AngleRow({ defs, pool, value, onChange }) {
       })}
     </div>
   )
+}
+
+// ── GAME, TIME WINDOW, SCORE RANGE (plan TUDDY 3 + 4) ────────────────────────
+// MOONSHOT's drawer has a game picker, a time window and a score range. The
+// window is read off each game's own kickoff in US Eastern: Thursday, Sunday
+// early (before 3pm), Sunday late (3pm-7pm), Sunday night (7pm on), Monday
+// night; anything else (Friday/Saturday) is "Other". Nothing guessed: a player
+// whose game has no kickoff on file matches no window.
+const ET = (ms) => {
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short', hour: 'numeric', hour12: false }).formatToParts(new Date(ms))
+  return { wd: parts.find((x) => x.type === 'weekday')?.value, hr: Number(parts.find((x) => x.type === 'hour')?.value) % 24 }
+}
+export function windowOf(ms) {
+  if (!Number.isFinite(ms)) return null
+  const { wd, hr } = ET(ms)
+  if (wd === 'Thu') return 'thu'
+  if (wd === 'Mon') return 'mnf'
+  if (wd === 'Sun') return hr < 15 ? 'early' : hr < 19 ? 'late' : 'snf'
+  return 'other'
+}
+const WINDOWS = [['thu', 'Thursday'], ['early', 'Sun early'], ['late', 'Sun late'], ['snf', 'Sunday night'], ['mnf', 'Monday night'], ['other', 'Other']]
+
+export function useNflDrawerFilters(pool, games, market) {
+  const [game, setGame] = useState('all')
+  const [win, setWin] = useState('all')
+  const [range, setRange] = useState([0, 100])
+  const byTeam = useMemo(() => {
+    const m = new Map()
+    for (const g of games || []) {
+      const t = Date.parse(g?.kickoff || '')
+      const key = `${g.away}@${g.home}`
+      for (const team of [g.away, g.home]) if (team) m.set(team, { key, t: Number.isFinite(t) ? t : null, win: windowOf(t) })
+    }
+    return m
+  }, [games])
+  const gameOptions = useMemo(() => {
+    const seen = new Map()
+    for (const g of games || []) {
+      const key = `${g.away}@${g.home}`
+      if (seen.has(key)) continue
+      const n = pool.filter((p) => byTeam.get(p.team)?.key === key).length
+      if (n) seen.set(key, { key, label: `${g.away} @ ${g.home}`, count: n, t: Date.parse(g.kickoff || '') || 0 })
+    }
+    return [{ key: 'all', label: 'All games', count: pool.length }, ...[...seen.values()].sort((a, b) => a.t - b.t)]
+  }, [games, pool, byTeam])
+  const windowCounts = useMemo(() => Object.fromEntries(WINDOWS.map(([k]) => [k, pool.filter((p) => byTeam.get(p.team)?.win === k).length])), [pool, byTeam])
+  const test = (p) => {
+    const g = byTeam.get(p.team)
+    if (game !== 'all' && g?.key !== game) return false
+    if (win !== 'all' && g?.win !== win) return false
+    const s = Number(p.scores?.[market])
+    if ((range[0] > 0 || range[1] < 100) && !(Number.isFinite(s) && s >= range[0] && s <= range[1])) return false
+    return true
+  }
+  const scored = range[0] > 0 || range[1] < 100
+  const chips = [
+    game !== 'all' ? { key: 'game', label: gameOptions.find((o) => o.key === game)?.label || game, onClear: () => setGame('all') } : null,
+    win !== 'all' ? { key: 'win', label: WINDOWS.find(([k]) => k === win)?.[1] || win, onClear: () => setWin('all') } : null,
+    scored ? { key: 'score', label: `Score ${range[0]}–${range[1]}`, onClear: () => setRange([0, 100]) } : null,
+  ].filter(Boolean)
+  const reset = () => { setGame('all'); setWin('all'); setRange([0, 100]) }
+  const label = { fontSize: 10, color: C.text2, textTransform: 'uppercase', letterSpacing: '.07em', fontWeight: 800 }
+  const section = (
+    <>
+      <div style={label}>Game</div>
+      <select value={game} onChange={(e) => setGame(e.target.value)} aria-label="Game"
+        style={{ width: '100%', minHeight: 40, margin: '6px 0 12px', borderRadius: 8, border: `1px solid ${C.border}`, background: C.bg, color: C.text, padding: '0 8px', fontSize: 12 }}>
+        {gameOptions.map((o) => <option key={o.key} value={o.key}>{o.label} ({o.count})</option>)}
+      </select>
+      <div style={label}>Time window</div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, margin: '7px 0 12px' }}>
+        {WINDOWS.filter(([k]) => windowCounts[k] > 0).map(([k, l]) => (
+          <FilterPill key={k} active={win === k} onClick={() => setWin(win === k ? 'all' : k)} count={windowCounts[k]}>{l}</FilterPill>
+        ))}
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+        <span style={label}>Score</span>
+        <span style={{ fontFamily: NUM_FONT, fontSize: 10, color: C.text2 }}>{range[0]}–{range[1]}</span>
+      </div>
+      <div style={{ margin: '6px 0 14px' }}>
+        <RangeDual min={0} max={100} step={1} low={range[0]} high={range[1]}
+          onLow={(v) => setRange([Math.min(v, range[1]), range[1]])} onHigh={(v) => setRange([range[0], Math.max(v, range[0])])} />
+      </div>
+    </>
+  )
+  return { test, chips, reset, section, activeCount: chips.length }
 }
 
 export const numFontStyle = { fontFamily: NUM_FONT, color: C.text3 }
