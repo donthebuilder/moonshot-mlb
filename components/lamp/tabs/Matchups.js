@@ -121,9 +121,14 @@ function Detail({ row, league, onOpenPlayer }) {
       </div>
 
       <div>
+        <Kicker>WHERE {row.def} ALLOWS SHOTS FROM</Kicker>
+        <ShotPanel sel={{ against: row.def }} who={row.def} height={260} />
+        <div style={{ marginTop: 4, fontSize: 11, color: C.text3 }}>Every attempt the other club took in {row.def}&apos;s games, drawn on one attacking half.</div>
+      </div>
+
+      <div>
         <Kicker>WHERE {row.opp} SHOOTS FROM</Kicker>
         <ShotPanel sel={{ team: row.opp }} who={row.opp} height={260} />
-        <div style={{ marginTop: 4, fontSize: 11, color: C.text3 }}>Where {row.def} allows shots from is not drawn yet: the shot archive is kept by shooter, not by the defence on the ice.</div>
       </div>
     </section>
   )
@@ -156,7 +161,7 @@ export default function Matchups({ date = null, onOpenPlayer }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <PageHeader eyebrow="LAMP · MATCHUPS" title="The defences to attack tonight"
-        note="Every club playing tonight, ranked by goals allowed per game. Tap a row for its power play against penalty kill, the net, rest, who fits and where the other club shoots from."
+        note="Every club playing tonight, ranked by goals allowed per game. Tap a row for its power play against penalty kill, the net, rest, who fits, where it allows shots and where the other club shoots from."
         theme={C} numFont={NUM_FONT} accent={C.ice} />
       <DelayedBanner error={error} what="tonight's matchups" />
       {loading && !data ? <Loading what="tonight's matchups" /> : null}

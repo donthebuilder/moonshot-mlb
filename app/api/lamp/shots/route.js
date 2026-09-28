@@ -1,4 +1,4 @@
-// LAMP · SHOTS — GET /api/lamp/shots?player=<7-digit id> | ?team=<ABC>
+// LAMP · SHOTS — GET /api/lamp/shots?player=<7-digit id> | ?team=<ABC> | ?against=<ABC> (shots the club allowed)
 //
 // Where a player (or a club) shoots from: a zone grid, the slot share, the
 // totals and the most recent ~200 attempts, season and last 10 games, from
@@ -13,13 +13,13 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(request) {
   const q = new URL(request.url).searchParams
-  const player = q.get('player'); const team = String(q.get('team') || '').toUpperCase()
+  const player = q.get('player'); const team = String(q.get('team') || '').toUpperCase(); const against = String(q.get('against') || '').toUpperCase()
   if (player && !PLAYER_ID_RE.test(player)) return bad('player must be a 7-digit NHL id')
-  if (!player && !TEAM_RE.test(team)) return bad('give ?player=<id> or ?team=<ABC>')
+  if (!player && !TEAM_RE.test(team) && !TEAM_RE.test(against)) return bad('give ?player=<id>, ?team=<ABC> or ?against=<ABC>')
   try {
-    const data = player ? await readShotMap('player', Number(player)) : await readShotMap('team', team)
+    const data = player ? await readShotMap('player', Number(player)) : TEAM_RE.test(against) && !team ? await readShotMap('against', against) : await readShotMap('team', team)
     return ok({ ...data, fetchedAt: new Date().toISOString() }, 86400)
   } catch (e) {
-    return delayed(`shots ${player || team}`, e)
+    return delayed(`shots ${player || team || `against ${against}`}`, e)
   }
 }
