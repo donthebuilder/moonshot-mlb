@@ -9,6 +9,7 @@ import { mlbFaceStrict } from '../PlayerFace'
 import { zonesUrl } from '../../lib/dataSource'
 import Tap from '../Tap'
 import { leaveTarget } from '../../lib/openTarget'
+import { MatchupTitle, BarList, FactLines, HeatTiles } from '../matchup/MatchupParts'
 
 // ⚾ MOONSHOT MATCHUPS (2026-09-27, matchups plan Part C, in the shape Donovan
 // signed off on TUDDY's): a ranked table of tonight's starters leads, a tap
@@ -69,22 +70,17 @@ function ZoneOverlap({ lineupIds, pitcherName }) {
   const hot = cells.filter((c) => c.his != null && c.xslg != null).sort((a, b) => b.his * b.xslg - a.his * a.xslg)[0]
   const fmt3 = (v) => (v == null ? '—' : v.toFixed(3).replace(/^0/, ''))
   return (
-    <div style={{ marginBottom: 12 }}>
-      <div style={{ fontSize: 10, fontWeight: 900, letterSpacing: '.1em', color: C.text3, fontFamily: NUM_FONT, marginBottom: 5 }}>ZONE OVERLAP</div>
-      {hot && <p style={{ margin: '0 0 8px', fontSize: 12.5, lineHeight: 1.5, color: C.text2 }}>{pitcherName} throws <b style={{ color: C.text }}>{Math.round(hot.his * 100)}%</b> of his pitches {ZONE_WORD[hot.zone]}, where this lineup slugs <b style={{ color: C.orange }}>{fmt3(hot.xslg)}</b> xSLG — the overlap to watch.</p>}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 3, maxWidth: 300 }}>
-        {cells.map((c) => (
-          <div key={c.zone} title={`${ZONE_WORD[c.zone]}: ${c.his != null ? `${Math.round(c.his * 100)}% of his pitches` : 'no pitches on file'} · lineup ${fmt3(c.xslg)} xSLG on ${c.pa} PA`}
-            style={{ aspectRatio: '1.2 / 1', borderRadius: 6, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2,
-              background: `color-mix(in srgb, ${C.orange} ${Math.round(8 + heat(c.xslg) * 55)}%, ${C.bg2})`,
-              outline: hot?.zone === c.zone ? `2px solid ${C.orange}` : 'none', outlineOffset: 1 }}>
-            <b style={{ fontFamily: NUM_FONT, fontSize: 13, color: C.text }}>{c.his != null ? `${Math.round(c.his * 100)}%` : '—'}</b>
-            <span style={{ fontFamily: NUM_FONT, fontSize: 10, color: C.text2 }}>{fmt3(c.xslg)}</span>
-          </div>
-        ))}
-      </div>
-      <div style={{ marginTop: 5, fontSize: 11, color: C.text3, lineHeight: 1.5 }}>Big number: share of all his pitches in that zone ({state.pitches} on file; {Math.round(cells.reduce((a, c) => a + (c.his || 0), 0) * 100)}% land in these nine, the rest outside the strike zone). Small: the lineup&apos;s xSLG there ({state.hitters} hitters, PA-weighted). More orange = the lineup slugs more. Catcher&apos;s view.</div>
-    </div>
+    <HeatTiles
+      label="ZONE OVERLAP"
+      lead={hot ? <>{pitcherName} throws <b style={{ color: C.text }}>{Math.round(hot.his * 100)}%</b> of his pitches {ZONE_WORD[hot.zone]}, where this lineup slugs <b style={{ color: C.orange }}>{fmt3(hot.xslg)}</b> xSLG — the overlap to watch.</> : null}
+      cells={cells.map((c) => ({
+        key: c.zone, heat: heat(c.xslg),
+        big: c.his != null ? `${Math.round(c.his * 100)}%` : '—', small: fmt3(c.xslg),
+        title: `${ZONE_WORD[c.zone]}: ${c.his != null ? `${Math.round(c.his * 100)}% of his pitches` : 'no pitches on file'} · lineup ${fmt3(c.xslg)} xSLG on ${c.pa} PA`,
+      }))}
+      hotKey={hot?.zone ?? null}
+      legend={<>Big number: share of all his pitches in that zone ({state.pitches} on file; {Math.round(cells.reduce((a, c) => a + (c.his || 0), 0) * 100)}% land in these nine, the rest outside the strike zone). Small: the lineup&apos;s xSLG there ({state.hitters} hitters, PA-weighted). More orange = the lineup slugs more. Catcher&apos;s view.</>}
+    />
   )
 }
 
@@ -154,27 +150,12 @@ export default function Matchups({ players = [], onPlayerClick, onNavigate = nul
 
       {active && (
         <section id="ms-matchup-detail" aria-label={`${active.pitcher} matchup`} style={{ scrollMarginTop: 80 }}>
-          <h2 style={{ margin: '0 0 8px', fontSize: TYPE.title, fontWeight: 900 }}>
-            {active.pitcher} <span style={{ fontFamily: NUM_FONT, fontSize: 11, color: C.text3, fontWeight: 600 }}>· {active.team} vs {active.vs} · tap another row above to switch</span>
-          </h2>
-          {active.mix.length > 0 && (
-            <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 10, fontWeight: 900, letterSpacing: '.1em', color: C.text3, fontFamily: NUM_FONT, marginBottom: 5 }}>HIS PITCH MIX</div>
-              <div style={{ display: 'grid', gap: 4, maxWidth: 420 }}>
-                {active.mix.slice(0, 6).map((p) => (
-                  <div key={p.code} style={{ display: 'grid', gridTemplateColumns: '40px 1fr 44px', alignItems: 'center', gap: 8, fontSize: 12 }}>
-                    <b style={{ fontFamily: NUM_FONT }}>{p.code}</b>
-                    <span style={{ height: 10, borderRadius: 5, background: C.bg3, position: 'relative' }}><span style={{ position: 'absolute', inset: 0, width: `${Math.min(100, p.use)}%`, borderRadius: 5, background: C.orange }} /></span>
-                    <span style={{ fontFamily: NUM_FONT, textAlign: 'right', color: C.text2 }}>{Math.round(p.use)}%</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          <div style={{ fontSize: 12.5, lineHeight: 1.6, color: C.text2, marginBottom: 12 }}>
-            <div><b style={{ color: C.text }}>Handedness:</b> a {active.throws}HP against {Object.entries(active.bats).filter(([h]) => h !== '?').map(([h, c]) => `${c} ${h === 'S' ? 'switch' : h === 'L' ? 'left' : 'right'}`).join(', ') || 'an unknown lineup'}-handed hitter{active.hitters === 1 ? '' : 's'}.</div>
-            <div><b style={{ color: C.text }}>Park:</b> {active.venue || 'tonight’s park'}, home-run factor {active.park != null ? `${active.park.toFixed(2)}x` : 'not published'}{active.park != null ? (active.park > 1.03 ? ' (plays up)' : active.park < 0.97 ? ' (plays down)' : ' (neutral)') : ''}.</div>
-          </div>
+          <MatchupTitle name={active.pitcher} meta={`${active.team} vs ${active.vs} · tap another row above to switch`} />
+          <BarList label="HIS PITCH MIX" items={active.mix.slice(0, 6).map((p) => ({ key: p.code, label: p.code, pct: p.use, text: `${Math.round(p.use)}%` }))} />
+          <FactLines lines={[
+            ['Handedness', `a ${active.throws}HP against ${Object.entries(active.bats).filter(([h]) => h !== '?').map(([h, c]) => `${c} ${h === 'S' ? 'switch' : h === 'L' ? 'left' : 'right'}`).join(', ') || 'an unknown lineup'}-handed hitter${active.hitters === 1 ? '' : 's'}.`],
+            ['Park', `${active.venue || 'tonight’s park'}, home-run factor ${active.park != null ? `${active.park.toFixed(2)}x` : 'not published'}${active.park != null ? (active.park > 1.03 ? ' (plays up)' : active.park < 0.97 ? ' (plays down)' : ' (neutral)') : ''}.`],
+          ]} />
           <ZoneOverlap lineupIds={active.raws.map((r) => r?.player_id ?? r?.id).filter((x) => x != null).slice(0, 9)} pitcherName={active.pitcher} />
           <TeamVsStarter players={active.raws} team={active.vs} pitcherName={active.pitcher} pitcherThrows={active.throws} onPlayerClick={onPlayerClick} />
         </section>

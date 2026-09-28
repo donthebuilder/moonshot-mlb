@@ -71,6 +71,11 @@ export default function TeamVsStarter({ players = [], team = '', pitcherName = '
         </span>
       </div>
       <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, padding: '7px 12px' }}>
+        {/* THE COLUMNS SCROLL INSIDE THE BOX (2026-09-28): nine fixed columns
+            are ~360px before a name, so at 360 the table ran past the screen
+            (check-mobile BLEED). CLAUDE.md: wide tables scroll in their own box. */}
+        <div className="dense-scroll" style={{ overflowX: 'auto' }}>
+        <div style={{ minWidth: compact ? 0 : 440 }}>
         <div style={{ display: 'flex', gap: 7, alignItems: 'center', paddingBottom: 3, borderBottom: `1px solid ${C.border}` }}>
           <H w={16} right={false}>#</H>
           <H grow right={false}>BATTER</H>
@@ -122,6 +127,8 @@ export default function TeamVsStarter({ players = [], team = '', pitcherName = '
             </div>
           )
         })}
+        </div>
+        </div>
         <div style={{ fontSize: 8.5, color: C.text3, marginTop: 5, lineHeight: 1.5 }}>
           Career head-to-head — tiny samples by nature: a dash means a first meeting (never a
           league-average default dressed up as history), dimmed rows are under 8 PA. The {vsLabel} column

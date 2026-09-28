@@ -5,177 +5,126 @@ import { C, NUM_FONT, TYPE } from '../../../lib/nfl/theme'
 import { btnStyle } from '../../ui'
 import DefensesTable from '../DefensesTable'
 import Tap from '../../Tap'
-import MatchupMap from '../MatchupMap'
+import { fieldModel, phrase, fmtPct, DEPTHS, SIDES, DEPTH_AX, LANES, LANE_WORD } from '../MatchupMap'
 import PageHeader from '../../PageHeader'
-import DvpTable from '../DvpTable'
-import DvpDrift from '../DvpDrift'
+import NflTable from '../NflTable'
 import SourceSeason from '../SourceSeason'
-import ChartFrame from '../ChartFrame'
+import useDvpSeason from '../../../lib/nfl/useDvpSeason'
+import { MatchupTitle, SubLabel, BarList, FactLines, HeatTiles } from '../../matchup/MatchupParts'
 import { softRole, softLine, passRushThreat, PASS_RUSH_AVOID, STARTER_ROLES } from '../../../lib/nfl/dvpSignal'
 
-// Matchups — pick a defence, then read it two ways.
-//
-//   THE MAP    where the yards they give up actually come from, as a shape.
-//   THE TABLE  what they allow to each depth role, ranked against the league.
-//
-// The map answers "where do I attack them", the table answers "does that
-// help MY guy". Neither replaces the other, which is why both are here rather
-// than one winning. Drop a player onto the map and it stops being a scouting
-// report and becomes a bet: his usage lands on their holes, or it doesn't.
+// Matchups -- the defenses to attack this week, then one defense read the
+// way MOONSHOT reads a starter (2026-09-28, Donovan: "the match up page on nfl
+// is nice with the data but just doesn't look nice ... I don't like the grid
+// background, it's distracting, the last two charts are confusing ... needs to
+// be more intuitive"). Built FROM MOONSHOT's Matchups detail
+// (components/matchup/MatchupParts, CLAUDE.md: MOONSHOT's components are the
+// base): the name line, one lead sentence, labelled bars, plain fact lines,
+// a tile grid, then tables. Same data as before, nothing new computed:
+//   WHERE THEY GET BEATEN  MatchupMap's twelve zones (fieldModel) as tiles
+//   BY POSITION            the DvP table as a DenseTable (value + rank)
+//   WHO FITS IT            the players facing them (was the map's chip picker)
+// Dropped: the framed "measurement grid" panels, the dotted field map on this
+// page (MatchupMap still draws it elsewhere), the drift line chart, and the
+// three stat boxes -- their facts are the fact lines and the coverage bars.
 
 const WINDOWS = [['season', 'Season'], ['l10', 'L10'], ['l5', 'L5'], ['l3', 'L3']]
+const SHELL_WORD = { C0: 'Cover 0', C1: 'Cover 1', C2: 'Cover 2', C3: 'Cover 3', C4: 'Cover 4', C6: 'Cover 6', C9: 'Cover 9', C2M: '2-Man' }
+// Short enough for seven tiles across a phone.
+const LANE_TILE = { 'left|end': 'L END', 'left|tackle': 'L TKL', 'left|guard': 'L GRD', 'middle|middle': 'MID', 'right|guard': 'R GRD', 'right|tackle': 'R TKL', 'right|end': 'R END' }
+const cap = (x) => (x ? x[0].toUpperCase() + x.slice(1) : x)
+const ordinal = (n) => { const suf = ['th', 'st', 'nd', 'rd']; const v = n % 100; return `${n}${suf[(v - 20) % 10] || suf[v] || suf[0]}` }
+const P = { theme: C, numFont: NUM_FONT }
 
-// "Marvin Mims Jr." → "Mims". Taking the last token gave a picker with a
-// button labelled "Jr.".
-const SUFFIX = /^(jr|sr|ii|iii|iv|v)\.?$/i
-function surname(name) {
-  const parts = String(name || '').split(/\s+/).filter(Boolean)
-  while (parts.length > 1 && SUFFIX.test(parts[parts.length - 1])) parts.pop()
-  return parts[parts.length - 1] || name
-}
-
-function Row({ label, children }) {
+// WHERE THEY GET BEATEN: the map's own numbers, as MOONSHOT's zone tiles.
+function Zones({ field, team }) {
+  const [pass, setPass] = useState(true)
+  const model = useMemo(() => fieldModel({ field, defTeam: team, mode: 'def', pass }), [field, team, pass])
+  const rushable = Boolean(field?.def_rush?.[team])
+  const toggle = rushable ? (
+    <div style={{ display: 'flex', gap: 5, marginBottom: 8 }}>
+      <button onClick={() => setPass(true)} style={btnStyle(C.cyan, pass)}>Passing</button>
+      <button onClick={() => setPass(false)} style={btnStyle(C.cyan, !pass)}>Running</button>
+    </div>
+  ) : null
+  if (!model) return <div style={{ marginBottom: 12 }}><SubLabel {...P}>WHERE THEY GET BEATEN</SubLabel>{toggle}<div style={{ fontSize: 12, color: C.text3 }}>No {pass ? 'passing' : 'running'} map for {team} yet.</div></div>
+  const order = pass ? DEPTHS.flatMap((d) => SIDES.map((sd) => `${sd}|${d}`)) : LANES
+  const unit = pass ? 'target' : 'carry'
+  const spot = model.spot
+  const where = (z) => (pass ? phrase(z) : LANE_WORD[z])
   return (
-    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 3 }}>
-      <span style={{ fontSize: TYPE.label, color: C.text3, minWidth: 96 }}>{label}</span>
-      <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.body, color: C.text }}>{children}</span>
+    <div>
+      <SubLabel {...P}>WHERE THEY GET BEATEN</SubLabel>
+      {toggle}
+      <HeatTiles {...P}
+        lead={spot
+          ? <><b style={{ color: C.text }}>{cap(where(spot.z))}</b>: {team} give up <b style={{ color: C.orange }}>{fmtPct(spot.leak)}</b> yards a {unit} against a normal defence there, and {Math.round(spot.share)}% of all the yards they allow come from it{spot.tdN ? <> — <b style={{ color: C.text }}>{spot.tdN} TD{spot.tdN === 1 ? '' : 's'}</b></> : null}.</>
+          : <>No zone stands out: nowhere do {team} give up clearly more than a normal defence.</>}
+        cells={order.map((z) => {
+          const c = model.by[z]
+          return {
+            key: z, heat: Number.isFinite(c?.leak) ? c.heat : null,
+            big: Number.isFinite(c?.leak) ? fmtPct(c.leak) : '—',
+            small: c?.att ? `${c.tdN} TD` : null,
+            title: c?.tip || where(z),
+          }
+        })}
+        cols={pass ? 3 : 7} hotKey={spot?.z ?? null}
+        rowLabels={pass ? DEPTHS.map((d) => `${DEPTH_AX[d][0]} ${DEPTH_AX[d][1]}`) : null}
+        colLabels={pass ? ['LEFT', 'MIDDLE', 'RIGHT'] : LANES.map((z) => LANE_TILE[z])}
+        rowLabelWidth={84} maxWidth={pass ? 380 : 560} aspect={pass ? '1.6 / 1' : '1 / 1.1'}
+        legend={<>Big number: yards per {unit} {team} allow there, against a normal defence (+ = leakier). Small: touchdowns they have allowed there. More orange = leakier; — = too few plays to call.</>}
+      />
     </div>
   )
 }
 
-function Profile({ data, team }) {
-  const cov = data?.coverage_team?.[team]
-  const exp = data?.def_explosive?.[team]
-  // PRESSURE AND FORMATION (2026-09-18). nfl_disruption.team_context has been
-  // computed, published in nfl_matchup.json and rendered NOWHERE since it
-  // shipped -- found in the 09-18 audit. Complete data too: all 32 teams, with
-  // its own denominators. It belongs here, beside coverage, because it answers
-  // the same question about the same defence.
-  //
-  // TWO SIDES, NOT ONE. `created` is this defence getting home; `allowed` is
-  // its own offence getting hit, which is a line read and bears on the passing
-  // markets rather than on the defensive ones. Labelled so they cannot be
-  // mistaken for each other.
-  const dis = data?.disruption_team?.[team]
-  if (!cov && !exp && !dis) return null
+// BY POSITION: what they allow each depth role, value and league rank, in
+// the site's table (was a wall of tiles).
+function ByPosition({ matchup, team, win, setWin, slateSeason }) {
+  const dvpSeason = useDvpSeason(matchup)
+  const data = dvpSeason.view
+  const blob = data?.dvp?.[win]?.[team]
+  const roles = (data?.dvp_roles || []).filter((r) => blob?.[r])
+  const labels = data?.dvp_labels || {}
+  const stats = (data?.dvp_stats || []).filter((st) => roles.some((r) => blob[r]?.[st] != null))
+  const rows = roles.map((r) => {
+    const o = { _id: r, role: r }
+    for (const st of stats) { const rk = blob[r]?.[`${st}_rank`]; o[st] = Number.isFinite(rk) ? 33 - rk : null; o[`${st}__v`] = blob[r]?.[st]; o[`${st}__r`] = rk }
+    return o
+  })
+  const columns = [
+    { key: 'role', label: 'Role', w: 70, heat: false, sticky: true, fmt: (v) => <b>{v}</b> },
+    ...stats.map((st) => ({
+      key: st, label: labels[st] || st, w: 62, scale: 'seq', domain: [1, 32],
+      fmt: (v, r) => (v == null ? '—' : <span><b>{Number.isInteger(r[`${st}__v`]) ? r[`${st}__v`] : Number(r[`${st}__v`]).toFixed(1)}</b> <span style={{ fontSize: 10, opacity: 0.7 }}>#{r[`${st}__r`]}</span></span>),
+    })),
+  ]
+  const best = softRole(data, team, win, roles)
   return (
-    <div style={{
-      display: 'grid', gap: 10, marginTop: 12,
-      gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-    }}>
-      {cov && (
-        <div style={{
-          background: C.bg2, border: `1px solid ${C.border}`, borderLeft: `3px solid ${C.cyan}`,
-          borderRadius: 10, padding: '11px 14px',
-        }}>
-          <div style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
-            fontSize: TYPE.label, fontWeight: 900, color: C.text3, letterSpacing: '.1em',
-            marginBottom: 7,
-          }}><span>{team} COVERAGE</span><SourceSeason matchup={data} kind="charting" /></div>
-          <Row label="Man / Zone">{cov.man_pct}% / {cov.zone_pct}%</Row>
-          <Row label="Att · YPA">{cov.att} · {cov.ypa}</Row>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 7 }}>
-            {Object.entries(cov.shells || {}).sort((a, b) => b[1] - a[1]).map(([k, v]) => (
-              <span key={k} style={{
-                fontFamily: NUM_FONT, fontSize: TYPE.label, fontWeight: 800, color: C.text2,
-                border: `1px solid ${C.border}`, borderRadius: 5, padding: '2px 6px',
-              }}>{k} <b style={{ color: C.cyan }}>{v}%</b></span>
-            ))}
-          </div>
-          <div style={{ fontSize: TYPE.micro, color: C.text3, marginTop: 7, lineHeight: 1.5 }}>
-            Shell rates are off the {cov.shell_n} snaps NGS charted a coverage for —
-            roughly half. Man/zone is charted on effectively all of them.
-          </div>
-        </div>
-      )}
-      {exp && (
-        <div style={{
-          background: C.bg2, border: `1px solid ${C.border}`, borderLeft: `3px solid ${C.purple}`,
-          borderRadius: 10, padding: '11px 14px',
-        }}>
-          <div style={{
-            fontSize: TYPE.label, fontWeight: 900, color: C.text3, letterSpacing: '.1em',
-            marginBottom: 7,
-          }}>{team} EXPLOSIVE ALLOWED</div>
-          <Row label="Pass yards">{exp.yds}</Row>
-          <Row label="10+ / 20+">{exp.pass_10} / {exp.pass_20}</Row>
-          <Row label="30+ / 40+">{exp.pass_30} / {exp.pass_40}</Row>
-          <Row label="Explosive %">{exp.exp_pct}%</Row>
-          <Row label="Deep (20+ air)">{exp.deep_cmp}/{exp.deep_att} · {exp.deep_pct}% · {exp.deep_td} TD</Row>
-        </div>
-      )}
-      {dis && (dis.pressure || dis.formation) && (
-        <div style={{
-          background: C.bg2, border: `1px solid ${C.border}`, borderLeft: `3px solid ${C.orange}`,
-          borderRadius: 10, padding: '11px 14px',
-        }}>
-          <div style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
-            fontSize: TYPE.label, fontWeight: 900, color: C.text3, letterSpacing: '.1em',
-            marginBottom: 7,
-          }}><span>{team} PRESSURE &amp; FORMATION</span><SourceSeason matchup={data} kind="charting" /></div>
-          {dis.pressure?.created_pct != null && (
-            <Row label="Pressure created">
-              <b style={{ color: C.orange }}>{dis.pressure.created_pct}%</b>
-              {dis.pressure.created_plays ? ` · ${dis.pressure.created_plays} pass plays faced` : ''}
-            </Row>
-          )}
-          {dis.pressure?.allowed_pct != null && (
-            <Row label="Pressure allowed">
-              {dis.pressure.allowed_pct}%
-              {dis.pressure.allowed_plays ? ` · ${dis.pressure.allowed_plays} dropbacks` : ''}
-            </Row>
-          )}
-          {dis.formation && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 7 }}>
-              {[['Shotgun', dis.formation.shotgun_pct],
-                ['Under centre', dis.formation.under_center_pct],
-                ['Pistol', dis.formation.pistol_pct]]
-                .filter(([, v]) => v != null)
-                .map(([label, v]) => (
-                  <span key={label} style={{
-                    fontFamily: NUM_FONT, fontSize: TYPE.label, fontWeight: 800, color: C.text2,
-                    border: `1px solid ${C.border}`, borderRadius: 5, padding: '2px 6px',
-                  }}>{label} <b style={{ color: C.orange }}>{v}%</b></span>
-                ))}
-            </div>
-          )}
-          <div style={{ fontSize: TYPE.micro, color: C.text3, marginTop: 7, lineHeight: 1.5 }}>
-            Created is this defence getting home. Allowed is its own offence getting hit — a line
-            read, and the one that bears on the passing markets.
-            {dis.formation?.snaps ? ` Formation mix off ${dis.formation.snaps} charted snaps.` : ''}
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// 2026-09-13: the panel chrome is the shared one now
-// (components/nfl/ChartFrame.js). It started as a frame for the five new
-// charts, and Donovan's call was to take it to the site — so the measurement
-// grid, the edge ticks and the recessed rails are what a TUDDY panel looks
-// like, not what a chart looks like. The bloom stays off on plain panels: it
-// means "this one is saying something", and a section header is not saying
-// anything.
-function Section({ title, sub, children, style }) {
-  return (
-    <ChartFrame pad="0" style={{
-      borderRadius: 12, overflow: 'hidden', marginTop: 12, ...style,
-    }}>
-      <div style={{
-        padding: '10px 14px', borderBottom: `1px solid ${C.border}`,
-        display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap',
-      }}>
-        <span style={{
-          fontFamily: NUM_FONT, fontSize: TYPE.label, fontWeight: 900, color: C.text,
-          letterSpacing: '.12em',
-        }}>{title}</span>
-        {sub && <span style={{ fontSize: TYPE.micro, color: C.text3 }}>{sub}</span>}
+    <div style={{ marginBottom: 12 }}>
+      <SubLabel {...P} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <span>BY POSITION · WHAT {team} ALLOW EACH ROLE</span>
+        <SourceSeason matchup={data} kind="stats" slateSeason={slateSeason} />
+      </SubLabel>
+      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 8 }}>
+        {WINDOWS.filter(([k]) => data?.dvp?.[k]).map(([k, label]) => (
+          <button key={k} onClick={() => setWin(k)} style={btnStyle(C.cyan, k === win)}>{label}</button>
+        ))}
+        {dvpSeason.hasToggle && [dvpSeason.current, dvpSeason.alt].map((yr) => (
+          <button key={yr} onClick={() => dvpSeason.pick(yr)} style={btnStyle(C.cyan, dvpSeason.showing === yr)}>{yr}{dvpSeason.state === 'loading' && dvpSeason.showing === yr ? '…' : ''}</button>
+        ))}
       </div>
-      {children}
-    </ChartFrame>
+      {rows.length ? (
+        <NflTable rows={rows} columns={columns} heatMode="full" maxHeight={9999} />
+      ) : (
+        <div style={{ fontSize: 12, color: C.text3 }}>{dvpSeason.state === 'loading' ? `Loading ${dvpSeason.showing} defence…` : `No ${dvpSeason.showing || ''} defence data for ${team} in this window.`}</div>
+      )}
+      <div style={{ marginTop: 5, fontSize: 11, color: C.text3, lineHeight: 1.5 }}>
+        Each cell: what {team} allow that role, and its rank of 32 (#1 allows the most). More orange = softer.
+        {best?.standout ? <> Softest: <b style={{ color: C.orange }}>{best.role}</b> in <b style={{ color: C.orange }}>{best.label}</b>.</> : null}
+      </div>
+    </div>
   )
 }
 
@@ -193,7 +142,6 @@ export default function Matchups({ matchup, data, onPlayerClick = null, onOpenTe
 
   const [team, setTeam] = useState(null)
   const [win, setWin] = useState('season')
-  const [pid, setPid] = useState(null)
   // The detail opens on the table's #1 (the softest defense this week) until a
   // row is tapped -- same measure, starters only.
   const softest = useMemo(() => slate.flat()
@@ -201,51 +149,18 @@ export default function Matchups({ matchup, data, onPlayerClick = null, onOpenTe
     .filter(([, z]) => Number.isFinite(z))
     .sort((a, b) => b[1] - a[1])[0]?.[0] || null, [slate, matchup, win])
   const active = team || softest || slate[0]?.[0] || rest[0]
+  const opp = useMemo(() => { const g = slate.find((pr) => pr.includes(active)); return g ? g.find((t) => t !== active) : null }, [slate, active])
 
-  const pick = (t) => { setTeam(t); setPid(null) }
-
-  // Who's actually going at this defence on this card. Ranked by their best
-  // score so the picker leads with the names worth checking.
-  //
-  // QBs joined the picker 2026-09-21. Before that this only matched
-  // field.player_pass, which is the RECEIVER's side of a target -- a QB
-  // never gets targeted, so he could never appear here no matter who you
-  // picked. field.qb_pass (bots/nfl/nfl_field.py) is his own throws, same
-  // shape, so the same filter now catches either side of the ball.
+  // Who's actually going at this defence on this card, best score first
+  // (QBs included via field.qb_pass, 2026-09-21).
   const facing = useMemo(() => (data?.players || [])
     .filter((p) => p.opp === active
       && (matchup?.field?.player_pass?.[p.player_id] || matchup?.field?.qb_pass?.[p.player_id]))
-    .map((p) => {
-      // Ranked by best score across his markets -- the picker leads with the
-      // names worth checking. (Used to also track which market produced it,
-      // for a TARGET/AVOID badge here that Donovan didn't want; that badge
-      // is gone, this is back to just the number.)
-      const best = Object.values(p.scores || { x: 0 }).reduce((top, v) => Math.max(top, v), 0)
-      return { ...p, best }
-    })
+    .map((p) => ({ ...p, _id: String(p.player_id), best: Object.values(p.scores || { x: 0 }).reduce((top, v) => Math.max(top, v), 0), role: matchup?.roles?.[p.player_id] || null }))
     .sort((a, b) => b.best - a.best)
-    // 14 covered ~6 players facing a preseason defense. A real team's
-    // pass-catchers and backs alone are more than that.
     .slice(0, 30), [data, active, matchup])
 
-  const picked = facing.find((p) => p.player_id === pid) || null
-  const role = picked ? matchup?.roles?.[picked.player_id] : null
-  // A QB reads from field.qb_pass (his own throws) rather than
-  // field.player_pass (who was thrown to) -- see MatchupMap's own "QB MODE"
-  // note. Gated on the key actually being there so this stays inert on any
-  // payload published before the bot run that adds it.
-  const qbMode = picked?.position === 'QB' && Boolean(matchup?.field?.qb_pass?.[picked.player_id])
-
-  // Same "single softest cell" signal Games.js leads its defense-intel tiles
-  // with (lib/nfl/dvpSignal.js) — THE MAP already ends on a one-sentence
-  // takeaway, the table below it didn't, so a reader had to scan 11 rows x
-  // 6 columns themselves to find the one number that mattered.
   const soft = useMemo(() => softRole(matchup, active, win), [matchup, active, win])
-
-  // Same pass_rush data the PASS_YDS badge reads (lib/nfl/dvpSignal.js,
-  // 2026-09-13) -- surfaced here too as its own callout, since a DEFENCE VS
-  // POSITION table has nothing to say about one individual pass rusher
-  // being the real story regardless of the team's overall DVP profile.
   const rushThreat = useMemo(() => passRushThreat(matchup, active), [matchup, active])
 
   if (!matchup?.dvp) {
@@ -257,160 +172,81 @@ export default function Matchups({ matchup, data, onPlayerClick = null, onOpenTe
     )
   }
 
+  // HOW THEY COVER: the shell mix is MOONSHOT's pitch mix for a defence.
+  const cov = matchup?.coverage_team?.[active]
+  const shells = cov && cov.shell_n >= 50
+    ? Object.entries(cov.shells || {}).sort((a, b) => b[1] - a[1]).slice(0, 6)
+        .map(([k, v]) => ({ key: k, label: SHELL_WORD[k] || k, pct: v, text: `${v}%` }))
+    : []
+  const dominant = cov && cov.zone_pct != null && cov.man_pct != null ? (cov.zone_pct >= cov.man_pct ? 'zone' : 'man') : null
+  const domPct = dominant ? cov[`${dominant}_pct`] : null
+  const covRank = dominant ? 1 + Object.values(matchup.coverage_team || {}).map((t) => t?.[`${dominant}_pct`]).filter((v) => typeof v === 'number' && v > domPct).length : null
+  const exp = matchup?.def_explosive?.[active]
+  const dis = matchup?.disruption_team?.[active]
+  const teamLink = (t) => <Tap onClick={onOpenTeam && (() => onOpenTeam(t))}>{t}</Tap>
+
+  const whoColumns = [
+    { key: 'name', label: 'Player', w: 150, heat: false, sticky: true, fmt: (v, r) => (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><NflFace player={r} size={22} />{/* wraps rather than clipping, the board's rule (NflBoardExtras) */}<b style={{ whiteSpace: 'normal', lineHeight: 1.15, minWidth: 0 }}>{v}</b></span>) },
+    { key: 'position', label: 'Pos', w: 40, heat: false },
+    { key: 'team', label: 'Team', w: 48, heat: false },
+    { key: 'role', label: 'Role', w: 56, heat: false, fmt: (v) => v || '—' },
+    { key: 'best', label: 'Best score', w: 64, primary: true, scale: 'seq', domain: 'auto', dp: 0 },
+    { key: 'cov', label: 'Vs their coverage', w: 230, heat: false, fmt: (_, r) => {
+      const d = r.coverage_mismatch_detail
+      if (!d?.opp_lean) return <span style={{ color: C.text3 }}>—</span>
+      const other = d.opp_lean === 'zone' ? 'man' : d.opp_lean === 'man' ? 'zone' : 'the rest'
+      const tag = r.coverage_mismatch_tag
+      return <span>{tag ? <b style={{ color: tag === 'TARGET' ? C.green : C.red }}>{tag} </b> : null}{d.leaned_ypt} yds a target vs {d.opp_lean}, {d.other_ypt} vs {other}</span>
+    } },
+  ]
+
   return (
     <div>
       <PageHeader
         eyebrow="TUDDY · MATCHUPS"
         title="Matchups"
-        note="Defence versus position, coverage shell and game script — pick a team to see what it gives up, by role, and who on this slate is walking into it."
+        note="The defenses to attack this week. Tap one for where it gets beaten, what it allows each position, and who on the slate is walking into it."
         theme={C}
         numFont={NUM_FONT}
         accent={C.cyan}
       />
-      {/* THE DEFENSES TO ATTACK LEAD (2026-09-27, matchups plan REVISED):
-          MOONSHOT's Pitchers-page shape -- a ranked table, softest first; a
-          tap opens that defense's detail below (the map, the DvP grid, drift,
-          panels). Replaces the per-game verdict rows and the team buttons. */}
-      <DefensesTable matchup={matchup} data={data} win={win} active={active} onPlayerClick={onPlayerClick} onPick={(t) => { pick(t); if (typeof document !== 'undefined') requestAnimationFrame(() => document.getElementById('tuddy-def-detail')?.scrollIntoView({ behavior: 'smooth', block: 'start' })) }} />
-      <h2 id="tuddy-def-detail" style={{ margin: '4px 0 8px', fontSize: TYPE.title, fontWeight: 900, scrollMarginTop: 80 }}>
-        <Tap onClick={onOpenTeam && (() => onOpenTeam(active))}>{active}</Tap> defense <span style={{ fontFamily: NUM_FONT, fontSize: 11, color: C.text3, fontWeight: 600 }}>· tap another row above to switch</span>
-      </h2>
+      <DefensesTable matchup={matchup} data={data} win={win} active={active} onPlayerClick={onPlayerClick} onPick={(t) => { setTeam(t); if (typeof document !== 'undefined') requestAnimationFrame(() => document.getElementById('tuddy-def-detail')?.scrollIntoView({ behavior: 'smooth', block: 'start' })) }} />
 
-      <Section
-        title={`${active} — THE MAP`}
-        sub={picked
-          ? `${picked.name}'s work on their holes`
-          : 'where their yards allowed come from — pick a player to overlay his usage'}
-        style={{ marginTop: 0 }}
-      >
+      <section id="tuddy-def-detail" aria-label={`${active} defense`} style={{ scrollMarginTop: 80 }}>
+        <MatchupTitle {...P} type={TYPE} name={<>{teamLink(active)} defense</>} meta={<>{opp ? <>vs {teamLink(opp)} · </> : null}tap another row above to switch</>} />
+        <p style={{ margin: '0 0 12px', fontSize: 12.5, lineHeight: 1.5, color: C.text2 }}>
+          {soft?.standout
+            ? <><b style={{ color: C.text }}>{teamLink(active)}</b> {softLine(soft)}. That&apos;s the opening.</>
+            : <><b style={{ color: C.text }}>{teamLink(active)}</b> has no standout weakness: nothing they give up is far enough above the league&apos;s average for that role to call an opening.</>}
+        </p>
+
+        {shells.length > 0 && (
+          <div style={{ marginBottom: 2 }}>
+            <SubLabel {...P} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <span>HOW THEY COVER · share of {cov.shell_n} charted snaps</span><SourceSeason matchup={matchup} kind="charting" />
+            </SubLabel>
+            <BarList {...P} items={shells} accent={C.cyan} labelWidth={64} />
+          </div>
+        )}
+        <FactLines theme={C} lines={[
+          ['Coverage', dominant ? <>{dominant} on {domPct}% of snaps{covRank ? ` (${ordinal(covRank)}-most in the league)` : ''}.</> : null],
+          ['Big plays', exp ? <>{exp.pass_20} passes of 20+ yards allowed, {exp.deep_td} touchdowns on throws of 20+ air yards ({exp.deep_cmp} of {exp.deep_att} completed).</> : null],
+          ['Pass rush', dis?.pressure?.created_pct != null ? <>pressure on {dis.pressure.created_pct}% of {dis.pressure.created_plays || 'their'} pass plays faced.</> : null],
+          ['Up front', rushThreat && rushThreat.percentile >= PASS_RUSH_AVOID ? <><b style={{ color: C.red }}>{rushThreat.name}</b> ({rushThreat.position}) is {ordinal(Math.round(rushThreat.percentile))}-percentile at turning pressure into sacks.</> : null],
+        ]} />
+
+        <Zones field={matchup.field} team={active} />
+        <ByPosition matchup={matchup} team={active} win={win} setWin={setWin} slateSeason={data?.season} />
+
         {facing.length > 0 && (
-          <div style={{
-            display: 'flex', gap: 5, flexWrap: 'wrap', padding: '10px 14px 0',
-          }}>
-            <button onClick={() => setPid(null)} style={btnStyle(C.cyan, !pid)}>Defence only</button>
-            {facing.map((p) => (
-              <button key={p.player_id} onClick={() => setPid(p.player_id)}
-                      style={{ ...btnStyle(C.cyan, pid === p.player_id), display: 'flex', alignItems: 'center', gap: 5 }}>
-                <NflFace player={p} size={18} />{surname(p.name)} <span style={{ opacity: .6 }}>{p.position}</span>
-              </button>
-            ))}
+          <div style={{ marginBottom: 12 }}>
+            <SubLabel {...P}>WHO FITS IT · THE PLAYERS FACING {active} THIS WEEK</SubLabel>
+            <NflTable rows={facing} columns={whoColumns} heatMode="primary" maxRows={8} maxHeight={9999}
+              onRowClick={onPlayerClick ? (r) => onPlayerClick(r) : undefined} />
           </div>
         )}
-        <div style={{ padding: 14 }}>
-          <MatchupMap
-            field={matchup.field}
-            team={active}
-            player={picked}
-            mode={picked ? 'player' : 'def'}
-            defaultView={picked?.position === 'RB' ? 'rush' : 'pass'}
-            qb={qbMode}
-            roleSignal={soft}
-            highlightRole={role}
-            covTeam={matchup?.coverage_team?.[active]}
-            covPlayer={picked ? matchup?.coverage_player?.[picked.player_id] : null}
-            covLeague={matchup?.coverage_team}
-            onOpenTeam={onOpenTeam}
-          />
-          {/* THE LEGEND, IN WORDS (BATCH-FACES step 10). */}
-          <div style={{ marginTop: 8, fontSize: 12, lineHeight: 1.5, color: C.text3 }}>
-            Orange dots: where {active} gives up yards — a bigger patch is more of the yards it allows, denser orange is leakier than the league there, and the number on each zone is yards against a normal defence.
-            {picked ? ` Dashed rings: ${picked.name}'s own work, sized by his share.` : ' Pick a player above to lay his own work on top as dashed rings.'}
-          </div>
-          {/* COVERAGE EVIDENCE, finally read (coverage_mismatch_detail, BATCH-FACES
-              step 10 / STATUS open item 2): the bot's own lean-vs-him numbers
-              for the players facing this defence who carry them. */}
-          {(() => {
-            const withCov = facing.filter((p) => p.coverage_mismatch_detail?.opp_lean)
-            const list = picked ? withCov.filter((p) => p.player_id === picked.player_id) : withCov.slice(0, 4)
-            if (!list.length) return null
-            const other = (lean) => (lean === 'zone' ? 'man' : lean === 'man' ? 'zone' : 'the rest')
-            return (
-              <ul style={{ listStyle: 'none', margin: '8px 0 0', padding: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {list.map((p) => {
-                  const d = p.coverage_mismatch_detail
-                  const tag = p.coverage_mismatch_tag
-                  return (
-                    <li key={p.player_id} style={{ fontSize: 12, lineHeight: 1.45, color: C.text2 }}>
-                      <b style={{ color: C.text }}>{p.name}</b>{tag ? <b style={{ color: tag === 'TARGET' ? C.green : C.red }}> {tag}</b> : null}
-                      {' · '}{active} leans {d.opp_lean}; he averages {d.leaned_ypt} yards a target against {d.opp_lean}, {d.other_ypt} against {other(d.opp_lean)}.
-                    </li>
-                  )
-                })}
-              </ul>
-            )
-          })()}
-        </div>
-      </Section>
-
-      <Section
-        title={`${active} — DEFENCE VS POSITION`}
-        sub={`by depth role · rank 1 = allows the most = softest · ${matchup.season}`}
-      >
-        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', padding: '10px 14px 0' }}>
-          {WINDOWS.filter(([k]) => matchup.dvp[k]).map(([k, label]) => (
-            <button key={k} onClick={() => setWin(k)} style={btnStyle(C.cyan, k === win)}>{label}</button>
-          ))}
-        </div>
-        {soft && (
-          <div style={{
-            margin: '10px 14px 0', padding: '9px 12px', borderLeft: `2px solid ${C.cyan}`,
-            background: 'rgba(53,205,255,.06)', borderRadius: '0 8px 8px 0',
-            fontSize: TYPE.body, lineHeight: 1.6, color: C.text2,
-          }}>
-            <span className="tuddy-live-dot-sm" aria-hidden="true" />
-            {/* Was "Nth softest of 32" — which, measured, read 1st or 2nd for
-                29 of 32 defences. Now the actual number against the league's
-                own average for that same cell. See lib/nfl/dvpSignal.js. */}
-            {soft.standout ? (
-              <>
-                <Tap onClick={onOpenTeam && (() => onOpenTeam(active))}><b style={{ color: C.text }}>{active}</b></Tap>{' '}
-                <b style={{ color: C.cyan }}>{softLine(soft)}</b>. That&apos;s the opening.
-              </>
-            ) : (
-              <>
-                <Tap onClick={onOpenTeam && (() => onOpenTeam(active))}><b style={{ color: C.text }}>{active}</b></Tap> has no standout weakness — nothing they
-                give up is far enough above the league&apos;s own average for that role to call an
-                opening.
-              </>
-            )}
-          </div>
-        )}
-        {rushThreat && rushThreat.percentile >= PASS_RUSH_AVOID && (
-          <div style={{
-            margin: '8px 14px 0', padding: '9px 12px', borderLeft: `2px solid ${C.red}`,
-            background: 'rgba(255,60,60,.06)', borderRadius: '0 8px 8px 0',
-            fontSize: TYPE.body, lineHeight: 1.6, color: C.text2,
-          }}>
-            <Tap onClick={onOpenTeam && (() => onOpenTeam(active))}><b style={{ color: C.text }}>{active}</b></Tap>&apos;s real individual threat up front:{' '}
-            <b style={{ color: C.red }}>{rushThreat.name}</b> ({rushThreat.position}) grades{' '}
-            <b style={{ color: C.red }}>{Math.round(rushThreat.percentile)}th percentile</b> on
-            sack-per-pressure rate — a real finisher, not just a name on the roster.
-          </div>
-        )}
-        <div style={{ padding: '10px 14px 0' }}>
-          <ChartFrame accent={C.cyan} pad="0" style={{ overflow: 'hidden' }}>
-            <DvpTable data={matchup} team={active} win={win} highlight={role} slateSeason={data?.season} />
-          </ChartFrame>
-        </div>
-        {/* The grid says where the defence is soft; this says where it is
-            GETTING soft. Season averages cannot tell those apart, and the
-            second one is the reason to bet a Week 12 tight end. */}
-        <div style={{ padding: '14px 14px 4px' }}>
-          <DvpDrift data={matchup} team={active} highlight={role} onOpenTeam={onOpenTeam} />
-        </div>
-        {picked && !role && (
-          <div style={{ fontSize: TYPE.micro, color: C.text3, padding: '8px 14px 12px' }}>
-            Depth roles publish with the next bot run — until then no row is pinned to {picked.name}.
-          </div>
-        )}
-      </Section>
-
-      <Profile data={matchup} team={active} />
-      <style>{`
-        @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-        .tuddy-live-dot-sm{display:inline-block;width:5px;height:5px;margin-right:6px;border-radius:50%;background:${C.cyan};box-shadow:0 0 6px ${C.cyan};vertical-align:middle;animation:pulse 2s infinite}
-        @media(prefers-reduced-motion:reduce){.tuddy-live-dot-sm{animation:none}}
-      `}</style>
+      </section>
     </div>
   )
 }
