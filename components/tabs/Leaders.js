@@ -243,12 +243,17 @@ export default function Leaders({ players = [], onPlayerClick }) {
   const [hist, setHist] = useState(null)
   const [histState, setHistState] = useState('idle')
   const alive = useRef(true)
+  // Only the LAST window asked for may land (2026-09-27, audit 00A): a slow
+  // 7-night load finishing after the 30-night one would put the old window
+  // back. Same stale-response root as LAMP's useLampFetch.
+  const ticket = useRef(0)
   useEffect(() => () => { alive.current = false }, [])
   const loadHistory = (nights) => {
     setHistN(nights)
     setHistState('loading')
+    const mine = ++ticket.current
     gradedHistory(nights).then((d) => {
-      if (!alive.current) return
+      if (!alive.current || mine !== ticket.current) return
       if (d) { setHist(d); setHistState('done'); return }
       // NEVER TRADE DATA FOR AN ERROR MESSAGE. If the extend fails, the seven
       // nights already on screen are still true — keep them and put the window
