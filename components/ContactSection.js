@@ -31,7 +31,7 @@ function Chip({ on, onClick, children, title }) {
 
 function Tile({ label, count, rate, value, dim, title }) {
   return (
-    <div title={title} style={{ border: `1px solid ${C.border}`, borderRadius: 8, padding: '6px 8px', background: C.bg2, minWidth: 0, opacity: dim ? 0.55 : 1 }}>
+    <div title={title} style={{ border: `1px solid ${C.border}`, borderRadius: 8, padding: '5px 7px', background: C.bg2, minWidth: 0, opacity: dim ? 0.55 : 1 }}>
       <div style={{ fontSize: 9, color: C.text3, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</div>
       <div style={{ fontFamily: NUM_FONT, fontSize: 13, fontWeight: 800, color: C.text, marginTop: 2, whiteSpace: 'nowrap' }}>
         {value != null ? value : <>{count}<span style={{ color: C.text3, fontWeight: 600 }}> · </span>{pct(rate)}</>}
@@ -81,10 +81,12 @@ export default function ContactSection({ p }) {
         {filtered && <span style={{ color: C.orange }}> · filtered</span>}
         {dim && <span style={{ color: C.text3 }} title="Fewer than 10 batted balls: every rate here swings on one swing."> · small sample</span>}
       </div>
-      <div className="contact-chips" style={{ display: 'flex', gap: 4, overflowX: 'auto', flexWrap: 'nowrap' }}>
+      {/* One sideways row: the window, a divider, then the filters -- the
+          section may be no taller than the two blocks it replaced (343px at
+          390 on 09-27). */}
+      <div className="contact-chips" style={{ display: 'flex', gap: 4, overflowX: 'auto', flexWrap: 'nowrap', alignItems: 'center' }}>
         {WINDOWS.map((x) => <Chip key={x.key} on={win === x.key} onClick={() => setWin(x.key)}>{x.label}</Chip>)}
-      </div>
-      <div className="contact-chips" style={{ display: 'flex', gap: 4, overflowX: 'auto', flexWrap: 'nowrap', marginTop: -6 }}>
+        <span aria-hidden="true" style={{ flexShrink: 0, width: 1, height: 20, background: C.border, margin: '0 4px' }} />
         <Chip on={arm === 'R'} onClick={() => setArm(arm === 'R' ? 'all' : 'R')}>vs RHP</Chip>
         <Chip on={arm === 'L'} onClick={() => setArm(arm === 'L' ? 'all' : 'L')}>vs LHP</Chip>
         <Chip on={air} onClick={() => setAir(!air)} title="Fly balls, line drives and pop-ups">Air balls</Chip>
@@ -102,7 +104,7 @@ export default function ContactSection({ p }) {
         <Tile label="Pull-air" count={s.pullAir} rate={s.rate('pullAir')} dim={dim} title="In the air to his pull side" />
         <Tile label="Avg / max EV" value={s.avgEv == null ? '—' : `${s.avgEv.toFixed(1)} / ${s.maxEv.toFixed(1)}`} dim={dim} title="Exit velocity, mph" />
         <Tile label="Launch angle" value={s.avgLa == null ? '—' : `${s.avgLa.toFixed(1)}°`} dim={dim} />
-        <Tile label="Bat speed · L25 PA" value={Number.isFinite(bat) ? `${bat.toFixed(1)} mph` : '—'} title="The bot's average bat speed over his last 25 plate appearances -- its own window, not the one picked above." />
+        <Tile label="Bat spd · L25 PA" value={Number.isFinite(bat) ? `${bat.toFixed(1)} mph` : '—'} title="The bot's average bat speed over his last 25 plate appearances -- its own window, not the one picked above." />
       </div>
       {d && (
         <div style={{ fontFamily: NUM_FONT, fontSize: 11, color: C.text2, marginTop: 7, lineHeight: 1.5 }}
@@ -111,7 +113,7 @@ export default function ContactSection({ p }) {
           Zone {pct(d.zone)} · Chase {pct(d.chase)} · Whiff {pct(d.whiff)} · SwStr {pct(d.swstr)}
         </div>
       )}
-      <style>{`.contact-chips::-webkit-scrollbar{display:none}@media (max-width:560px){.contact-tiles{grid-template-columns:1fr 1fr!important}}`}</style>
+      <style>{`.contact-chips::-webkit-scrollbar{display:none}@media (max-width:560px){.contact-tiles{grid-template-columns:1fr 1fr 1fr!important}}@media (max-width:340px){.contact-tiles{grid-template-columns:1fr 1fr!important}}`}</style>
     </div>
   )
 }
