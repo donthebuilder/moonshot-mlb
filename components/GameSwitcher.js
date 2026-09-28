@@ -57,7 +57,7 @@ const timeText = (t) => {
   return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).replace(/\s?[AP]M$/i, '')
 }
 
-export default function GameSwitcher({ games = [], activeGame, onSelect, live = null }) {
+export default function GameSwitcher({ games = [], activeGame, onSelect, live = null, accent = C.orange }) {
   const isPhone = useIsPhone(760)
   const activeRef = useRef(null)
   const barRef = useRef(null)
@@ -133,7 +133,7 @@ export default function GameSwitcher({ games = [], activeGame, onSelect, live = 
         position: 'sticky', top: 'var(--hdr-h, 96px)', zIndex: 40,
         margin: '0 -8px 10px', padding: '7px 8px',
         background: C.bg, borderBottom: `1px solid ${C.border2}`,
-        boxShadow: `0 10px 24px -16px ${alpha(C.orange, 0.55)}`,
+        boxShadow: `0 10px 24px -16px ${alpha(accent, 0.55)}`,
         display: 'flex', alignItems: 'center', gap: 7,
       }}
     >
@@ -162,8 +162,8 @@ export default function GameSwitcher({ games = [], activeGame, onSelect, live = 
               style={{
                 flexShrink: 0, cursor: 'pointer', borderRadius: 999, padding: '4px 10px',
                 display: 'flex', alignItems: 'baseline', gap: 5,
-                border: `1px solid ${on ? C.orange : C.border}`,
-                background: on ? alpha(C.orange, 0.14) : 'transparent',
+                border: `1px solid ${on ? accent : C.border}`,
+                background: on ? alpha(accent, 0.14) : 'transparent',
               }}
             >
               {/* ONE LINE, NOT TWO (2026-08-23). Stacked matchup-over-time
@@ -173,7 +173,7 @@ export default function GameSwitcher({ games = [], activeGame, onSelect, live = 
                   nobody can see. Same two facts, one line, 40px of bar. */}
               <span style={{
                 fontSize: 11, fontWeight: 900, fontFamily: NUM_FONT, whiteSpace: 'nowrap',
-                letterSpacing: '-.02em', color: on ? C.orange : C.text2,
+                letterSpacing: '-.02em', color: on ? accent : C.text2,
               }}>{g.away || '—'}<span style={{ opacity: 0.5, fontWeight: 400 }}>@</span>{g.home || '—'}</span>
               <span style={{
                 fontSize: 8.5, fontFamily: NUM_FONT, fontWeight: 700, whiteSpace: 'nowrap',

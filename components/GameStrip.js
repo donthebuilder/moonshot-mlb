@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { alpha, verdictInk } from '../lib/scales'
 import { airGlance } from '../lib/conditions'
-import { Dial } from './VerdictHero'
+import SlateCard from './slate/SlateCard'
 import { useSpot } from '../lib/spotlight'
 import { nn, hrScore, prodScore, median as med } from '../lib/player'
 import MobileFold from './MobileFold'
@@ -411,178 +411,56 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
           // which is the same idea pointed at the fact that matters here.
           // Nothing was removed: every mark, glyph, count, score, chip and
           // tooltip the old card carried is still on this one.
-          const ink = verdictInk(c.heat >= 0.55 ? true : c.heat <= 0.25 ? false : null)
-          const col = on ? accent : ink.color
-          const wash = alpha(col, 0.05 + 0.11 * c.heat)
-          return (
-            <button
-              key={c.pk}
-              onClick={() => onSelect(c.pk)}
-              title={[c.matchup, c.armsFull && `⚾ ${c.armsFull}`, c.topBat && `🔝 ${c.topBat}`]
-                .filter(Boolean).join('\n')}
+          // THE CARD ITSELF IS SHARED NOW (2026-09-28): components/slate/
+          // SlateCard.js draws it, style for style, for TUDDY and LAMP too.
+          const [awayAbbr, homeAbbr] = c.matchup.split(' @ ')
+          const card = {
+            id: c.pk, title: c.matchup, past: c.past, heat: c.heat,
+            tooltip: [c.matchup, c.armsFull && `⚾ ${c.armsFull}`, c.topBat && `🔝 ${c.topBat}`].filter(Boolean).join('\n'),
+            dial: { value: c.gs, pct: 100 * c.heat, title: `Game Score ${c.gs.toFixed(0)} ${c.edge} — #${c.gsRank} on tonight's slate${c.weak > 0 ? `, ${c.weak} weak lineup spot${c.weak === 1 ? '' : 's'}` : ''}. The ring fills against tonight's own GS range, because a Game Score is defined relative to the slate rather than out of 100.` },
+            band,
+            lead: (
+              <span title={c.confMarks ? c.confMarks.tip : (c.confirmed ? 'lineups confirmed' : 'projected lineups')}>
+                {c.confMarks ? c.confMarks.marks : (c.confirmed ? '✓' : '◻')}
+              </span>
+            ),
+            status: c.liveG?.state === 'Live'
+              ? { kind: 'live', text: `${String(c.liveG.half || '').slice(0, 3)}${c.liveG.inning ?? ''}${c.liveG.outs != null ? ` · ${c.liveG.outs}o` : ''}` }
+              : c.liveG?.state === 'Final' ? { kind: 'final', text: 'FINAL' } : { kind: 'time', text: c.time },
+            // 🌤 the air, compressed to one readable clause (airVerdict's tone).
+            extra: c.wx ? (
+              <span title={c.wx.title} style={{
+                whiteSpace: 'nowrap', cursor: 'default', fontWeight: 700,
+                color: c.wx.tone === 'carrying' ? verdictInk(true).color
+                  : c.wx.tone === 'dead' ? verdictInk(false).color : C.text3,
+              }}>{c.wx.text}</span>
+            ) : null,
+            score: c.liveG ? { away: awayAbbr, home: homeAbbr, awayScore: c.liveG.awayScore, homeScore: c.liveG.homeScore, live: c.liveG.state === 'Live' } : null,
+            chips: [['TOP', c.topPick, C.yellow, "The bot's TOP pick in this game"],
+              ['HR', c.hrPick, C.orange, "The bot's HR pick in this game"],
+              ['ALT', c.altPick, C.purple, c.altWhy || "The bot's secondary HR look in this game"],
+            ].filter(([, pk2]) => pk2).map(([tag, pk2, cc, tip]) => ({
+              key: tag, tag, color: cc, name: pk2.name, score: pk2.score,
+              title: [pairing ? `${tag} — ${tip} — tap to add him as a pair leg` : `${tag} — ${tip}`, spotTitle(pk2.p)].filter(Boolean).join('\n'),
+              onClick: pairing ? (e) => { e.stopPropagation(); onPairPick(pk2.p) } : undefined,
+              leg: isLeg(pk2.p), style: chipSpot(pk2.p),
+            })),
+          }
+          const target = onTarget ? (
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={(e) => { e.stopPropagation(); onTarget(c.pk) }}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); e.preventDefault(); onTarget(c.pk) } }}
+              title={targets.includes(c.pk) ? 'Targeted — tap to drop it' : 'Target this game (the ⭐ Targets filter above)'}
               style={{
-                position: 'relative', overflow: 'hidden', textAlign: 'left',
-                cursor: 'pointer', padding: '12px 13px 11px', minWidth: 0,
-                borderRadius: 18,
-                border: `1px solid ${alpha(col, on ? 0.6 : 0.24)}`,
-                background: `linear-gradient(158deg, ${wash}, ${C.bg2} 56%)`,
-                opacity: c.past && !on ? 0.5 : 1,
-                display: 'flex', flexDirection: 'column', gap: 9,
+                cursor: 'pointer', fontSize: 12, lineHeight: 1, flexShrink: 0,
+                color: targets.includes(c.pk) ? C.yellow : C.text3,
+                opacity: targets.includes(c.pk) ? 1 : 0.5,
               }}
-            >
-              {/* the light bar — the prop card's one piece of chrome */}
-              <div style={{
-                position: 'absolute', top: 0, left: 0, right: 0, height: 2,
-                background: `linear-gradient(90deg, ${col}, ${alpha(col, 0)} 72%)`,
-              }} />
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: 11, minWidth: 0 }}>
-                <Dial
-                  value={c.gs}
-                  pct={100 * c.heat}
-                  col={col}
-                  size={52}
-                  title={`Game Score ${c.gs.toFixed(0)} ${c.edge} — #${c.gsRank} on tonight's slate${c.weak > 0 ? `, ${c.weak} weak lineup spot${c.weak === 1 ? '' : 's'}` : ''}. The ring fills against tonight's own GS range, because a Game Score is defined relative to the slate rather than out of 100.`}
-                />
-                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
-                    <span style={{
-                      fontFamily: NUM_FONT, fontSize: 15.5, fontWeight: 900, letterSpacing: '-.02em',
-                      color: C.text, minWidth: 0, flex: '1 1 auto',
-                      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                      textDecoration: c.past ? 'line-through' : 'none',
-                    }}>{c.matchup}</span>
-                    {band.icon && <span style={{ fontSize: 11, flexShrink: 0 }}>{band.icon}</span>}
-                    {onTarget && (
-                      <span
-                        role="button"
-                        tabIndex={0}
-                        onClick={(e) => { e.stopPropagation(); onTarget(c.pk) }}
-                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); e.preventDefault(); onTarget(c.pk) } }}
-                        title={targets.includes(c.pk) ? 'Targeted — tap to drop it' : 'Target this game (the ⭐ Targets filter above)'}
-                        style={{
-                          cursor: 'pointer', fontSize: 12, lineHeight: 1, flexShrink: 0,
-                          color: targets.includes(c.pk) ? C.yellow : C.text3,
-                          opacity: targets.includes(c.pk) ? 1 : 0.5,
-                        }}
-                      >{targets.includes(c.pk) ? '★' : '☆'}</span>
-                    )}
-                  </div>
-
-                  {/* the meta line — every mark the old top row carried */}
-                  <div style={{
-                    display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap',
-                    fontSize: 9.5, fontFamily: NUM_FONT, fontWeight: 600, color: C.text3,
-                  }}>
-                    <span title={c.confMarks ? c.confMarks.tip : (c.confirmed ? 'lineups confirmed' : 'projected lineups')}>
-                      {c.confMarks ? c.confMarks.marks : (c.confirmed ? '✓' : '◻')}
-                    </span>
-                    {c.liveG?.state === 'Live' ? (
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: C.green, fontWeight: 800 }}>
-                        <span style={{
-                          width: 5, height: 5, borderRadius: '50%', background: C.green,
-                          animation: 'gsLivePulse 1.8s ease-in-out infinite', flexShrink: 0,
-                        }} />
-                        {String(c.liveG.half || '').slice(0, 3)}{c.liveG.inning ?? ''}
-                        {c.liveG.outs != null ? ` · ${c.liveG.outs}o` : ''}
-                      </span>
-                    ) : c.liveG?.state === 'Final' ? (
-                      <span style={{ fontWeight: 800 }}>FINAL</span>
-                    ) : (
-                      <span>{c.time}</span>
-                    )}
-                    {/* SLEEKER = FEWER MARKS, NOT SMALLER ONES (2026-08-23).
-                        #rank and the ▲▽ edge both said "where this game sits
-                        on tonight's board" — which is what the dial now draws,
-                        in the same glance, without a number to decode. ★weak
-                        was a third count competing with them. All three stay
-                        available: the dial's tooltip carries the rank, and the
-                        sort row above already orders by whatever you asked for.
-                        MAIN EVENT survives because it is one card a slate. */}
-                    {/* 🌤 the air, compressed to one readable clause. Warm
-                        when the ball is carrying, cool when it is dead, grey
-                        when tonight's conditions do not claim either — the
-                        same airVerdict() the deep-dive speaks in words. The
-                        full sentence, humidity and rain included, is the
-                        title. */}
-                    {c.wx && (
-                      <span title={c.wx.title} style={{
-                        whiteSpace: 'nowrap', cursor: 'default', fontWeight: 700,
-                        color: c.wx.tone === 'carrying' ? verdictInk(true).color
-                          : c.wx.tone === 'dead' ? verdictInk(false).color : C.text3,
-                      }}>{c.wx.text}</span>
-                    )}
-                    {band.word && (
-                      <span style={{ fontSize: 8.5, fontWeight: 900, color: accent, letterSpacing: '.1em', whiteSpace: 'nowrap' }}>
-                        {band.word}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* the live score, once there is one */}
-              {c.liveG && (c.liveG.awayScore != null || c.liveG.homeScore != null) && (() => {
-                const [awayAbbr, homeAbbr] = c.matchup.split(' @ ')
-                const aS = c.liveG.awayScore ?? 0, hS = c.liveG.homeScore ?? 0
-                return (
-                  <div style={{
-                    fontFamily: NUM_FONT, fontSize: 13, fontWeight: 900,
-                    color: c.liveG.state === 'Live' ? C.green : C.text2,
-                    display: 'flex', gap: 6, alignItems: 'baseline',
-                  }}>
-                    <span style={{ color: aS > hS ? undefined : C.text3 }}>{awayAbbr}</span>
-                    <span>{aS}–{hS}</span>
-                    <span style={{ color: hS > aS ? undefined : C.text3 }}>{homeAbbr}</span>
-                  </div>
-                )
-              })()}
-
-              {/* THE ARMS AND THE TOP BAT CAME OFF (2026-08-23). Donovan:
-                  "game cards can be sleaker less info and more prescion."
-                  Both lines repeated what the row below already says better —
-                  the TOP chip names the top bat AND scores him, and both
-                  starters get a dial, a sentence and five tiles the moment the
-                  card is opened. Two truncated grey lines that restate the
-                  next row are the definition of less precise, not more.
-                  The arms survive as the card's tooltip, so nothing is gone. */}
-
-              {/* THE EITHER/OR ROW, in the prop card's tile language. Same three
-                  chips, same order, same grammar, same pair-leg behaviour and
-                  the same standing-highlight wash — rounder, roomier, and on
-                  the card's own surface instead of a flat bg3 slab. */}
-              {(c.topPick || c.hrPick || c.altPick) && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
-                  {[['TOP', c.topPick, C.yellow, "The bot's TOP pick in this game"],
-                    ['HR', c.hrPick, C.orange, "The bot's HR pick in this game"],
-                    ['ALT', c.altPick, C.purple, c.altWhy || "The bot's secondary HR look in this game"],
-                  ].map(([tag, pk2, cc, tip]) => pk2 && (
-                    <span key={tag}
-                      title={[
-                        pairing ? `${tag} — ${tip} — tap to add him as a pair leg` : `${tag} — ${tip}`,
-                        spotTitle(pk2.p),
-                      ].filter(Boolean).join('\n')}
-                      onClick={pairing ? (e) => { e.stopPropagation(); onPairPick(pk2.p) } : undefined}
-                      style={{
-                        display: 'flex', gap: 7, alignItems: 'baseline', minWidth: 0,
-                        fontSize: 9.5, fontFamily: NUM_FONT, fontWeight: 600, color: C.text2,
-                        cursor: pairing ? 'pointer' : 'inherit',
-                        border: `1px solid ${isLeg(pk2.p) ? cc : C.border}`,
-                        background: isLeg(pk2.p) ? alpha(cc, 0.19) : C.glass,
-                        boxShadow: isLeg(pk2.p) ? `0 0 10px ${alpha(cc, 0.33)}` : 'none',
-                        borderRadius: 10, padding: '4px 8px',
-                        ...(isLeg(pk2.p) ? {} : chipSpot(pk2.p)),
-                      }}>
-                      {isLeg(pk2.p) && <span style={{ fontSize: 8 }}>🔗</span>}
-                      <b style={{ color: cc, fontSize: 8, letterSpacing: '.06em', flexShrink: 0 }}>{tag}</b>
-                      <span style={{ overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', minWidth: 0, flex: '1 1 auto' }}>{pk2.name}</span>
-                      <b style={{ color: isLeg(pk2.p) ? cc : C.text, flexShrink: 0 }}>{pk2.score}</b>
-                    </span>
-                  ))}
-                </div>
-              )}
-            </button>
-          )
+            >{targets.includes(c.pk) ? '★' : '☆'}</span>
+          ) : null
+          return <SlateCard key={c.pk} card={card} on={on} accent={accent} onSelect={onSelect} target={target} />
         })}
       </Rail>
 

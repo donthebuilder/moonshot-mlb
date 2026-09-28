@@ -148,6 +148,7 @@ export default function NflDashboard({ palettePass = 0 }) {
       hash.set('sport', 'nfl')
       hash.set('tab', next)
       if (next !== 'players') hash.delete('player')
+      if (next !== 'games') hash.delete('game')   // the Slate's open game (NflSlate)
       window.history.replaceState(null, '', `#${hash.toString()}`)
     } catch { /* ignore URL failures; the tab still works */ }
   }
@@ -348,7 +349,7 @@ export default function NflDashboard({ palettePass = 0 }) {
             {tab === 'home' && <Home data={slate} picks={picks} results={nflResults} matchup={matchup} logs={logs} onPlayerClick={openPlayer} setTab={setTab} />}
             {tab === 'players' && <StatPortal data={data} logs={logs} matchup={matchup} initialTeam={portalTeam} odds={odds} />}
             {tab === 'watchlist' && <Watchlist data={slate} matchup={matchup} logs={logs} onPlayerClick={openPlayer} />}
-            {tab === 'games' && <Games data={slate} picks={picks} matchup={matchup} logs={logs} results={nflResults} onPlayerClick={openPlayer} />}
+            {tab === 'games' && <Games data={slate} picks={picks} matchup={matchup} logs={logs} results={nflResults} odds={odds} onPlayerClick={openPlayer} onOpenTeam={(abbr) => { setPortalTeam(abbr); setTab('players') }} />}
             {/* One Board page (2026-09-26, option (b)): touchdowns / boards /
                 picks are the same hub; boards opens BOARD, picks opens CALLED. */}
             {(tab === 'touchdowns' || tab === 'boards' || tab === 'picks') && (

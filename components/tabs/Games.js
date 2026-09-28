@@ -15,7 +15,6 @@ import GameStrip from '../GameStrip'
 import GameLineup from '../GameLineup'
 import Heatmap from '../Heatmap'
 import { pillMeta, pillStyle } from '../../lib/pills'
-import { FilterPill } from '../Filters'
 import { alpha, catColor, verdictInk, verdictWash } from '../../lib/scales'
 // roleColor (2026-09-15): the registry's own "WATCH is coverage, never a
 // pick" rule (lib/verdict.js) — reused here instead of a fourth local copy
@@ -31,6 +30,7 @@ import LineupSlotMatchup from '../LineupSlotMatchup'
 import PairTray from '../PairTray'
 import MobileFold, { useIsPhone } from '../MobileFold'
 import GameSwitcher from '../GameSwitcher'
+import { ViewPills, GameFilterRail, BASE_GAME_FILTERS, StripFold, GamePanelPills, PrevNextGame } from '../slate/SlateParts'
 import { statLineFor, useSlateScale, toneFor, toneTitle, TONE_COLOR } from '../../lib/statline'
 import { downloadGameCard } from '../shareCard'
 import ProjectedOutput from '../ProjectedOutput'
@@ -852,11 +852,12 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
           transition: 'top .18s ease',
         }}>
           <GameFilterRail
+            opts={MLB_GAME_FILTERS}
             value={gfilter}
             onChange={(k) => { setGfilter(k); setActive(null) }}
             counts={gCounts}
           />
-          <StripFold isPhone={isPhone} games={games} activeGame={activeGame}>
+          <StripFold isPhone={isPhone} count={games.length} summary={(() => { const open = games.find((g) => g.game_pk === activeGame); return open ? `reading ${open.away || '—'} @ ${open.home || '—'}` : 'tap to pick one' })()}>
             <GameStrip nested games={games} activeGame={activeGame} onSelect={scrollTo} mode={mode} onPairPick={togglePairLeg} pairIds={pairIds} live={liveByPk} targets={targets} onTarget={toggleTarget} />
           </StripFold>
         </div>
@@ -1352,11 +1353,12 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
       {mode !== 'lineups' && (
         <>
           <GameFilterRail
+            opts={MLB_GAME_FILTERS}
             value={gfilter}
             onChange={(k) => { setGfilter(k); setActive(null) }}
             counts={gCounts}
           />
-          <StripFold isPhone={isPhone} games={games} activeGame={activeGame}>
+          <StripFold isPhone={isPhone} count={games.length} summary={(() => { const open = games.find((g) => g.game_pk === activeGame); return open ? `reading ${open.away || '—'} @ ${open.home || '—'}` : 'tap to pick one' })()}>
             <GameStrip nested games={games} activeGame={activeGame} onSelect={scrollTo} mode={mode} onPairPick={togglePairLeg} pairIds={pairIds} sortBy={sortBy} live={liveByPk} targets={targets} onTarget={toggleTarget} />
           </StripFold>
           {/* ── THE ANSWER TO "hella scrolling" (2026-08-23) ─────────────────
@@ -1609,9 +1611,10 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                           setPanel={setPanel}
                           isPhone={isPhone}
                           gamePk={g.game_pk}
-                          weakSpots={(g.players || []).filter((p) => p?.weak_spot_flag).length}
-                          pickCount={sorted.length}
-                          arm={sides.map((s) => s.arm).filter(Boolean).join(' / ')}
+                          panels={GAME_PANELS}
+                          subs={PANEL_SUB}
+                          badges={{ lineups: (() => { const w = (g.players || []).filter((p) => p?.weak_spot_flag).length; return w ? `★${w}` : '' })(), picks: sorted.length ? String(sorted.length) : '' }}
+                          note={panel === 'lineups' && sides.map((s) => s.arm).filter(Boolean).length ? <span style={{ color: C.text3 }}> Tonight: {sides.map((s) => s.arm).filter(Boolean).join(' / ')}.</span> : null}
                         />
 
                         {/* ── EVERYTHING OPENS AT ONCE (2026-08-17) ────────
@@ -1863,23 +1866,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
               answers it from the top of the screen; this answers it from
               where you actually are when you finish a game's read — the
               bottom of it. Same scrollTo, same order as the grid. */}
-          {activeGame != null && games.length > 1 && (() => {
-            const idx = games.findIndex((g) => g.game_pk === activeGame)
-            const prev = idx > 0 ? games[idx - 1] : null
-            const next = idx >= 0 && idx < games.length - 1 ? games[idx + 1] : null
-            const lbl = (g) => `${g.away || '?'} @ ${g.home || '?'}`
-            return (
-              <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between', alignItems: 'center', margin: '-8px 0 20px' }}>
-                <button disabled={!prev} onClick={() => prev && scrollTo(prev.game_pk)} style={{ ...btnStyle(C.orange, false), opacity: prev ? 1 : 0.35 }}>
-                  ‹ {prev ? lbl(prev) : 'first game'}
-                </button>
-                <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>{idx + 1} / {games.length}</span>
-                <button disabled={!next} onClick={() => next && scrollTo(next.game_pk)} style={{ ...btnStyle(C.orange, false), opacity: next ? 1 : 0.35 }}>
-                  {next ? lbl(next) : 'last game'} ›
-                </button>
-              </div>
-            )
-          })()}
+          <PrevNextGame games={games} activeId={activeGame} onGo={scrollTo} />
         </>
       )}
 
@@ -1902,76 +1889,18 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
   )
 }
 
-// ── THE SLATE'S OWN FILTER (2026-08-23) ─────────────────────────────────────
-// Counts on every pill, per the universal filter's rule: knowing the size of a
-// slice before you click it is the difference between a filter and a guess. A
-// slice that would be empty is disabled rather than hidden, so the rail does
-// not change shape as games start and finish under you.
-function GameFilterRail({ value, onChange, counts }) {
-  const opts = [
-    { key: 'all', label: 'All', count: counts.all },
-    { key: 'live', label: '🔴 Live', count: counts.live },
-    { key: 'upcoming', label: 'Upcoming', count: counts.upcoming },
-    { key: 'final', label: 'Final', count: counts.final },
-    { key: 'targets', label: '⭐ Targets', count: counts.targets,
-      title: 'the games you starred — tap the ⭐ on any chip' },
-    { key: 'trendingPitcher', label: '📉 Trending bad', count: counts.trendingPitcher,
-      title: 'either starter is trending worse — his trend is published as "worsening," or his last-3-starts HR/9 has climbed at least 0.4 above his season figure' },
-  ]
-  return (
-    <div className="chip-row" style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center', marginBottom: 9 }}>
-      <span style={{ fontSize: TYPE.label, fontWeight: 800, letterSpacing: '.1em', color: C.text3, textTransform: 'uppercase' }}>Games</span>
-      {opts.map((o) => (
-        <FilterPill key={o.key} active={value === o.key} count={o.count} title={o.title}
-          disabled={o.count === 0 && value !== o.key}
-          onClick={() => onChange(o.key)}>{o.label}</FilterPill>
-      ))}
-    </div>
-  )
-}
-
-// ── THE SELECTOR STRIP, FOLDED ON A PHONE (2026-08-23) ──────────────────────
-// A game is always open (the effect above picks the first one), so on a phone
-// the strip was fifteen cards of wall between the top of the tab and the game
-// you are actually reading — and now that the bottom switcher exists, it is
-// not even the way you change games there. It folds to one line, the site's
-// existing MobileFold, and everything inside it is one tap away exactly as
-// before. Desktop renders it bare: MobileFold returns its children untouched
-// above the breakpoint, so nothing about the wide layout changes.
-// ── THE GRID FOLDS AT EVERY WIDTH NOW (2026-08-23) ──────────────────────────
-// Donovan: "games chip need to be able to be hidden just like on mobile."
-// It was phone-only on the original argument that a dozen cards are a wall on
-// a phone and three tidy rows on a desktop — true for a BOARD, and wrong for
-// this, because the grid is a selector. You use it once, then read one game
-// for several screens, and a row of cards you are done with is just occupying
-// the top of the page. `rememberKey` makes closing it stick: this is a
-// standing preference, not a momentary one, and reopening it on every visit
-// would be the site overruling him nightly.
-function StripFold({ isPhone, games, activeGame, children }) {
-  const open = games.find((g) => g.game_pk === activeGame)
-  return (
-    <MobileFold
-      title="🏟 All games"
-      count={games.length}
-      summary={open ? `reading ${open.away || '—'} @ ${open.home || '—'}` : 'tap to pick one'}
-      maxWidth={760}
-      always
-      defaultOpen={!isPhone}
-      rememberKey="moonshot_games_fold_v1"
-    >{children}</MobileFold>
-  )
-}
-
+// ── THE SLATE'S PIECES ARE SHARED NOW (2026-09-28) ─────────────────────────
+// GameFilterRail, StripFold, GamePanelPills, ViewPills and the prev/next row
+// moved to components/slate/SlateParts.js, unchanged, so TUDDY's and LAMP's
+// Slates are built from them. MOONSHOT's own words stay here.
+const MLB_GAME_FILTERS = [
+  ...BASE_GAME_FILTERS,
+  { key: 'targets', label: '⭐ Targets',
+    title: 'the games you starred — tap the ⭐ on any chip' },
+  { key: 'trendingPitcher', label: '📉 Trending bad',
+    title: 'either starter is trending worse — his trend is published as "worsening," or his last-3-starts HR/9 has climbed at least 0.4 above his season figure' },
+]
 // ── THE OPEN GAME'S SEGMENTED CONTROL (2026-08-15) ──────────────────────────
-//
-// Four sections of one game, four buttons, no scrolling between them. The
-// counts on the pills are the point of putting them here rather than in a
-// dropdown: "Lineups ★2" says there is something in there worth the tap
-// BEFORE you tap it, which a bare label cannot do.
-//
-// The line underneath is the same "what this answers" sentence the mode
-// buttons at the top of the tab already carry — a control that changes the
-// whole panel should say what it just did in words.
 const GAME_PANELS = [
   ['read',    'The read'],
   ['lineups', 'Lineups'],
@@ -1987,105 +1916,6 @@ const PANEL_SUB = {
   h2h: 'what these hitters have done against tonight’s starter across their careers, both sides.',
   picks: 'the bot’s designated slots for this game as full cards — score bars, pills, add to slip.',
 }
-// JUMP LINKS NOW, NOT A SWITCHER (2026-08-17). All four sections render
-// stacked — "just have everything open up when you click on the game" — so a
-// pill's job is to scroll you there, not to swap content. gamePk scopes the
-// anchor ids so two open cards can't collide.
-function GamePanelPills({ panel, setPanel, weakSpots = 0, pickCount = 0, arm = '', gamePk = '', isPhone = false }) {
-  // STICKY ON A PHONE (2026-08-23). The four sections of an open game all
-  // render at once — Donovan's own call on 2026-08-17, "just have everything
-  // open up when you click on the game instead, it's a lot of clicking thru"
-  // — which is right, and which also makes one game several screens tall. The
-  // pills are the way to move between those screens, and they were pinned to
-  // the top of the game, i.e. off-screen the moment you used them once.
-  //
-  // NO MORE JS MEASUREMENT (2026-09-06). Donovan: opening a game on phone and
-  // trying to scroll through it "keeps refreshing or something." This offset
-  // used to be measured by hand -- a `scroll` listener called
-  // `document.querySelector('header')?.offsetHeight` on every single scroll
-  // tick, forcing the browser to stop and recompute layout each time, right
-  // while the user was mid-scroll on a card that is now several screens tall
-  // (GameDeepDive x2 + GameLineup + GameSimPanel, all mounted at once). That
-  // was written back when the header was itself `position: sticky` and
-  // shrank as you scrolled past the hero, so the offset genuinely changed
-  // and needed live measuring. Header.js dropped that condensing behavior
-  // (see its own "the `condensed` scroll logic went with the tiles" note)
-  // and now just publishes a stable `--hdr-h` CSS variable via a
-  // ResizeObserver -- the same variable the Lineups-mode jump strip already
-  // reads a few hundred lines up. Reading that variable directly in the
-  // style, like GameSwitcher.js's own `--gsw-h`, needs no JS at all: the
-  // browser keeps `position: sticky` in sync with a changed custom property
-  // on its own, with no scroll listener and no forced reflow.
-  const badge = { lineups: weakSpots ? `★${weakSpots}` : '', picks: pickCount ? String(pickCount) : '' }
-  const jump = (k) => {
-    setPanel(k)
-    try {
-      document.getElementById(`gp-${k}-${gamePk}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    } catch { /* ignore */ }
-  }
-  return (
-    <div style={isPhone ? {
-      // --gsw-h is the game switcher's live height (0 when it is not on
-      // screen), published by components/GameSwitcher.js. Both bars pin under
-      // the header; without this term they pin to the SAME offset and the
-      // pills sit on top of the rail, which is exactly what happened.
-      marginBottom: 10, position: 'sticky', top: 'calc(var(--hdr-h, 0px) + var(--gsw-h, 0px))', zIndex: 30,
-      background: C.bg, margin: '0 -14px 10px', padding: '8px 14px 6px',
-      borderBottom: `1px solid ${C.border}`,
-    } : { marginBottom: 10 }}>
-      <div className="chip-row" style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-        {GAME_PANELS.map(([k, label]) => {
-          const on = panel === k
-          return (
-            <button
-              key={k}
-              onClick={(e) => { e.stopPropagation(); jump(k) }}
-              title={PANEL_SUB[k]}
-              style={{
-                padding: '4px 12px', borderRadius: 999, cursor: 'pointer', fontSize: TYPE.body,
-                fontWeight: 800, fontFamily: NUM_FONT, whiteSpace: 'nowrap',
-                border: `1px solid ${on ? C.orange : C.border}`,
-                background: on ? 'rgba(249,115,22,.14)' : 'transparent',
-                color: on ? C.orange : C.text3,
-              }}
-            >
-              {label}
-              {badge[k] && (
-                <span style={{ marginLeft: 5, color: on ? C.orange : C.yellow, fontWeight: 900 }}>{badge[k]}</span>
-              )}
-            </button>
-          )
-        })}
-      </div>
-      <div style={{ fontSize: TYPE.micro, color: C.text3, lineHeight: 1.6, marginTop: 5, maxWidth: 720, display: isPhone ? 'none' : 'block' }}>
-        {PANEL_SUB[panel]}
-        {panel === 'lineups' && arm && (
-          <span style={{ color: C.text3 }}> Tonight: {arm}.</span>
-        )}
-      </div>
-    </div>
-  )
-}
-
-// A view pill row — the fold pattern (2026-08-15). The folded page keeps its
-// own tab key alive for deep links; this is just its seat at the host's table.
-function ViewPills({ views, view, setView }) {
-  return (
-    <div style={{ display: 'flex', gap: 5, marginBottom: 10, flexWrap: 'wrap' }}>
-      {views.map(([k, label]) => (
-        <button key={k} onClick={() => setView(k)} style={{
-          padding: '4px 13px', borderRadius: 999, cursor: 'pointer', fontSize: TYPE.body,
-          fontWeight: 800, fontFamily: NUM_FONT, whiteSpace: 'nowrap',
-          border: `1px solid ${view === k ? C.orange : C.border}`,
-          background: view === k ? 'rgba(249,115,22,.14)' : 'transparent',
-          color: view === k ? C.orange : C.text3,
-        }}>{label}</button>
-      ))}
-    </div>
-  )
-}
-
-
 // ── THE LIVE STAMP (2026-09-01) ───────────────────────────────────────────────
 // "updated 12s ago" is the whole component. It is the difference between a
 // score that is not moving and a score that stopped updating.

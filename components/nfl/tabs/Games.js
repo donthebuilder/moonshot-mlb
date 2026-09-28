@@ -1,14 +1,15 @@
 'use client'
 import { takeTarget } from '../../../lib/openTarget'
 import { useEffect, useMemo, useState } from 'react'
-import { C, NUM_FONT, gradeFor, TYPE } from '../../../lib/nfl/theme'
+import { C, NUM_FONT, TYPE } from '../../../lib/nfl/theme'
 import { ActiveFilters, FilterBar, FilterSearch, Segmented } from '../../Filters'
-import { injuryTag, injuryTitle, injuryColor } from '../../../lib/nfl/injury'
-import { softRole, softLine, softStrength, SOFT_TITLE, alignedSignals } from '../../../lib/nfl/dvpSignal'
-import { rankColor } from '../DvpTable'
+import { alignedSignals } from '../../../lib/nfl/dvpSignal'
 import MatchupBadge from '../MatchupBadge'
 import NflTable from '../NflTable'
 import PageHeader from '../../PageHeader'
+import NflSlate from '../NflSlate'
+import { ViewPills } from '../../slate/SlateParts'
+import { readHashKey } from '../../../lib/filterHash'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 import { useResultsArchive } from '../../../lib/nfl/resultsArchive'
 import { milestoneStreaks, modelNarrativeStories, milestoneHeadline, modelHeadline } from '../../../lib/nfl/storylines'
@@ -48,261 +49,10 @@ function kickoffLabel(game) {
 // ON, not to research. Everything deeper is one tab over, and a card that
 // tries to be a board is neither.
 
-function StateBadge({ g }) {
-  if (g.state === 'in') {
-    return (
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-        <span className="tuddy-live-dot" style={{
-          width: 7, height: 7, borderRadius: 999, background: C.cyan,
-          boxShadow: `0 0 6px ${C.cyan}`, flexShrink: 0,
-        }} />
-        <span style={{
-          fontSize: TYPE.label, fontWeight: 900, color: C.cyan, letterSpacing: '.06em', fontFamily: NUM_FONT,
-        }}>{g.detail || 'LIVE'}</span>
-      </span>
-    )
-  }
-  if (g.completed) {
-    return (
-      <span style={{
-        fontSize: TYPE.label, fontWeight: 900, color: C.text3, letterSpacing: '.08em', textTransform: 'uppercase',
-      }}>Final</span>
-    )
-  }
-  // ── A KICKOFF THAT HAS ALREADY HAPPENED IS NOT AN UPCOMING GAME ─────────
-  // (2026-08-29, Donovan: "whats up with the games tab on the nfl page.")
-  // The published payload was built 2026-08-21 and never rebuilt: preseason
-  // ended, so the bot's wave filter finds nothing ahead of today and the
-  // branch keeps carrying that build. Sixteen games sat on the tab, fourteen
-  // of them still flagged neither live nor complete, printing a future-tense
-  // kickoff time for games that had finished a week earlier. Two were marked
-  // FINAL; the rest read as tonight's football.
-  //
-  // The payload cannot be trusted to mark them, so the clock decides: a
-  // kickoff in the past on a game the feed never closed out is a game the
-  // feed stopped following, and it says so instead of naming an hour that
-  // has been and gone. This is the same rule the MLB side already applies to
-  // stale odds quotes -- when the data stops moving, say so, don't dress it
-  // up as current.
-  const kicked = (() => {
-    if (!g.kickoff) return false
-    const at = Date.parse(g.kickoff)
-    return Number.isFinite(at) && at < Date.now()
-  })()
-  if (kicked) {
-    return (
-      <span
-        title="This game's kickoff has passed and the feed never marked it live or final, so the bot has no result for it. The card below is the last thing the bot published about this game, not a live read."
-        style={{ fontSize: TYPE.label, fontWeight: 900, color: '#fbbf24', letterSpacing: '.06em', textTransform: 'uppercase', cursor: 'default' }}
-      >Kickoff passed · not tracked</span>
-    )
-  }
-  let t = g.detail
-  if (!t && g.kickoff) {
-    try {
-      t = new Date(g.kickoff).toLocaleString('en-US', {
-        weekday: 'short', hour: 'numeric', minute: '2-digit',
-      })
-    } catch { t = 'TBD' }
-  }
-  return <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>{t || 'TBD'}</span>
-}
-
-// Real scoreboard weight — 21px numerals, not the 12px line the score used
-// to share with the kickoff label. Shown for both live and final states;
-// pregame cards get the plain matchup headline instead (there's no score to
-// carry yet).
-function ScoreLine({ g }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, fontFamily: NUM_FONT, marginBottom: 4 }}>
-      <span style={{ fontSize: TYPE.body, fontWeight: 800, color: C.text2, minWidth: 28 }}>{g.away}</span>
-      <span style={{ fontSize: TYPE.display, fontWeight: 900, color: C.text }}>{g.away_score ?? 0}</span>
-      <span style={{ fontSize: TYPE.body, color: C.text3 }}>–</span>
-      <span style={{ fontSize: TYPE.display, fontWeight: 900, color: C.text }}>{g.home_score ?? 0}</span>
-      <span style={{ fontSize: TYPE.body, fontWeight: 800, color: C.text2, minWidth: 28 }}>{g.home}</span>
-    </div>
-  )
-}
-
-function SidePicks({ players, team, onPlayerClick, matchup }) {
-  const rows = players
-    .filter((p) => p.team === team && !p.low_sample)
-    .sort((a, b) => (b.scores?.TD ?? 0) - (a.scores?.TD ?? 0))
-    .slice(0, 3)
-
-  if (!rows.length) {
-    return <div style={{ fontSize: TYPE.body, color: C.text3, padding: '6px 0' }}>No scored players</div>
-  }
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 6 }}>
-      {rows.map((p) => {
-        const g = gradeFor(p.scores?.TD)
-        return (
-          <button
-            key={p.player_id}
-            onClick={() => onPlayerClick?.(p)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 8, width: '100%',
-              background: 'rgba(255,255,255,.03)', border: `1px solid ${C.border}`,
-              borderRadius: 8, padding: '7px 8px', cursor: 'pointer', textAlign: 'left',
-            }}
-          >
-            <span style={{
-              fontFamily: NUM_FONT, fontSize: TYPE.body, fontWeight: 900, color: g.color,
-              minWidth: 30,
-            }}>{Math.round(p.scores?.TD ?? 0)}</span>
-            {/* ONE AXIS FOR THE WHOLE PAGE. The lists used to be sixteen
-                separate top-threes, each a column of bare numbers, so nothing
-                said whether this card's best name was the slate's best name or
-                its worst. The bar is scored on a fixed 30-80 scale — the range
-                the board actually occupies — so a short bar here and a long
-                one two cards down mean what they look like. */}
-            <span style={{
-              position: 'relative', flex: '0 1 34px', minWidth: 16, height: 3, borderRadius: 99,
-              background: 'rgba(255,255,255,.08)',
-            }}>
-              <span style={{
-                position: 'absolute', left: 0, top: 0, bottom: 0, borderRadius: 99,
-                width: `${Math.max(4, Math.min(100, (((p.scores?.TD ?? 0) - 30) / 50) * 100))}%`,
-                background: g.color, boxShadow: `0 0 6px -1px ${g.color}`,
-              }} />
-            </span>
-            {/* minWidth:0 is load-bearing: a flex child defaults to
-                min-width:auto, so without it this span refuses to shrink below
-                the full name and the ROW overflows its card instead of the name
-                ellipsing. That was invisible until the bar above took 34px —
-                names clipped at the card edge with no ellipsis, both columns. */}
-            <span style={{
-              fontSize: TYPE.body, color: C.text, fontWeight: 600, flex: 1, minWidth: 0,
-              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-            }}>{p.name}</span>
-            <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0 }}>{p.position}</span>
-            <MatchupBadge matchup={matchup} player={p} market="TD" />
-            {injuryTag(p) && (
-              <span title={injuryTitle(injuryTag(p))}
-                    style={{ fontSize: TYPE.label, color: injuryColor(injuryTag(p), C), fontWeight: 900 }}>
-                {injuryTag(p)}
-              </span>
-            )}
-          </button>
-        )
-      })}
-    </div>
-  )
-}
-
-function DesignatedCalls({ game, picks, playersById, onPlayerClick, matchup }) {
-  const calls = Object.entries(picks?.card || {}).filter(([market]) => HEADLINE_MARKETS.has(market))
-    .map(([market, block]) => ({ market, block, call: block?.rungs?.[0] }))
-    .filter(({ call }) => call && (call.team === game.away || call.team === game.home))
-  if (!calls.length) return <div style={{ color: C.text3, fontSize: TYPE.body }}>No headline call lands in this game.</div>
-  return <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>{calls.map(({ market, block, call }) => {
-    const player = playersById[String(call.player_id)]
-    const grade = gradeFor(call.score)
-    return <button key={market} onClick={() => player && onPlayerClick?.(player, market)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', border: `1px solid ${grade.color}45`, borderRadius: 8, background: `${grade.color}0d`, color: C.text, cursor: player ? 'pointer' : 'default', textAlign: 'left' }}><span style={{ color: grade.color, fontFamily: NUM_FONT, fontSize: TYPE.label, fontWeight: 900 }}>{market}</span><b style={{ fontSize: TYPE.body }}>{call.name}</b><em style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: TYPE.micro, fontStyle: 'normal' }}>bar {block.bar}</em>{player && <MatchupBadge matchup={matchup} player={player} market={market} />}</button>
-  })}</div>
-}
-
-// MatchupBadge (THE TAG) moved to components/nfl/MatchupBadge.js
-// (2026-09-13) so Matchups.js's player picker can show the same tag
-// instead of growing a second copy of it -- item 40's own "queued next".
-
-// softRole/softLine/ordinal/SOFT_TITLE moved to lib/nfl/dvpSignal.js
-// (2026-09-11) so the Matchups page can give the same one-sentence answer
-// instead of leaving a reader to scan the full DVP table for it. See that
-// file for the "why these three stats" reasoning.
-
-// REST (2026-08-28, B7). A blunt but real fatigue proxy -- days since each
-// team's last game, computed purely from schedule dates
-// (bots/nfl/nfl_espn.py's attach_rest_days()), no new API. Distinct from
-// the DVP softness tiles below: this is about the TEAM being tired, not
-// about which role a defense leaks. Week 1 and any team missing a prior
-// game in the pool honestly shows '—', never a guessed number.
-function restLabel(days, shortWeek) {
-  if (days == null) return '—'
-  return `${days}d${shortWeek ? ' ⚠' : ''}`
-}
-
-// #18: the two DEFENSE tiles printed "softest TD role · rank 1 leaks most"
-// under all 30 of them -- a legend caption sitting in the slot where a
-// per-team value goes, so a third of every card on the page was the same
-// sentence. The rank is already in the tile above it; what the sub-line owes
-// the reader is what that rank MEANS for this defence, which is different for
-// every team. The legend moves into the tooltip, where a legend belongs.
-
-
-// ── 2026-09-13: FOUR SENTENCES BECAME FOUR MEASUREMENTS ─────────────────────
-// The intel row was four tiles of prose — "days since each team's last game",
-// "2nd softest of 32 in touchdowns against the te2 role" — text pretending to
-// be data, in a grid that looked like a dashboard. None of it could be
-// compared at a glance, which is the only thing a four-up row is for.
-//
-// Each tile now carries a MARK: rest as a bar against the 3-to-14-day range
-// every team lives in, defensive softness as a bar against the 32-team scale
-// it is already ranked on, environment as a state rather than a scale because
-// indoors is not a quantity. The words that survive say what the mark means;
-// the legend moved to the tooltip in September and stays there.
-function Meter({ value, lo, hi, invert, tone }) {
-  if (!Number.isFinite(value)) {
-    return <i style={{
-      display: 'block', height: 4, borderRadius: 99, marginTop: 6,
-      background: 'repeating-linear-gradient(-45deg, rgba(255,255,255,.06) 0 1px, transparent 1px 5px)',
-    }} />
-  }
-  const t = Math.max(0, Math.min(1, (value - lo) / ((hi - lo) || 1)))
-  const pct = (invert ? 1 - t : t) * 100
-  return (
-    <i style={{
-      display: 'block', position: 'relative', height: 4, borderRadius: 99,
-      marginTop: 6, background: 'rgba(255,255,255,.07)',
-    }}>
-      <i style={{
-        position: 'absolute', left: 0, top: 0, bottom: 0, width: `${pct}%`,
-        borderRadius: 99, background: tone, boxShadow: `0 0 7px -1px ${tone}`,
-      }} />
-    </i>
-  )
-}
-
-function GameIntel({ game, matchup }) {
-  const awayDefense = softRole(matchup, game.away)
-  const homeDefense = softRole(matchup, game.home)
-  const hasWeather = Number.isFinite(game.weather_temp_f)
-  // Colour still keys off the cell's league rank (so it agrees with the DVP
-  // table), but LENGTH is now how far above league average the cell actually
-  // sits — see dvpSignal.js. By rank alone 29 of 32 defences were 1st or 2nd
-  // softest at something and every bar pinned full.
-  const softTone = (d) => (d?.standout ? rankColor(d.rank) || C.text3 : C.text3)
-  // REST IS DROPPED, NOT DRAWN EMPTY (2026-09-13). A Week 1 opener has no
-  // previous game, so both rest values are genuinely null and restLabel()
-  // correctly prints "—". That was a quarter of the row reading "TB – · CIN –"
-  // above an empty meter on all sixteen cards. A tile with nothing in it is
-  // worse than one fewer tile, so the row closes up to three.
-  const hasRest = Number.isFinite(game.away_rest_days) || Number.isFinite(game.home_rest_days)
-  const tiles = [
-    <div key="env"><small>ENVIRONMENT</small><b style={{ color: game.indoors ? C.cyan : C.text2 }}>{game.indoors ? 'INDOORS' : hasWeather ? `${Math.round(game.weather_temp_f)}°F` : 'OUTDOORS'}</b>
-      <Meter value={game.indoors ? 1 : hasWeather ? game.weather_temp_f : null} lo={20} hi={85} tone={game.indoors ? C.cyan : C.amber} />
-      <span>{game.indoors ? 'weather removed from the game' : hasWeather ? (game.weather_condition || 'forecast published') : 'forecast not yet published for this game'}</span></div>,
-    hasRest && (
-      <div key="rest"><small>REST</small><b>{game.away} {restLabel(game.away_rest_days, game.away_short_week)} · {game.home} {restLabel(game.home_rest_days, game.home_short_week)}</b>
-        <Meter value={Math.min(game.away_rest_days ?? NaN, game.home_rest_days ?? NaN)} lo={3} hi={14}
-               tone={(game.away_short_week || game.home_short_week) ? C.amber : C.green} />
-        <span>{(game.away_short_week || game.home_short_week) ? 'short week flagged ⚠ — 5 days or fewer since last game' : 'days since each team’s last game'}</span></div>
-    ),
-    <div key="awayd" title={SOFT_TITLE}><small>{game.away} GIVES UP</small><b>{awayDefense?.standout ? awayDefense.plain.toUpperCase() : '—'}</b>
-      <Meter value={softStrength(awayDefense)} lo={0} hi={1} tone={softTone(awayDefense)} />
-      <span>{softLine(awayDefense)}</span></div>,
-    <div key="homed" title={SOFT_TITLE}><small>{game.home} GIVES UP</small><b>{homeDefense?.standout ? homeDefense.plain.toUpperCase() : '—'}</b>
-      <Meter value={softStrength(homeDefense)} lo={0} hi={1} tone={softTone(homeDefense)} />
-      <span>{softLine(homeDefense)}</span></div>,
-  ].filter(Boolean)
-  // A CSS VARIABLE, not an inline grid-template-columns: an inline template
-  // would beat the <=620px media query below and put three tiles across a
-  // phone. The variable is read by the rule, so the mobile override still
-  // wins where it should.
-  return <div className="nfl-game-intel" style={{ '--intel-cols': tiles.length }}>{tiles}</div>
-}
+// The cards view became the Slate (2026-09-28): components/nfl/NflSlate.js,
+// MOONSHOT's Slate built from components/slate/*. StateBadge, ScoreLine,
+// SidePicks, DesignatedCalls, GameIntel and Meter went with the old cards;
+// their data is in the Slate's read, players, matchup and picks sections.
 
 // C5 (dash-network-master-plan-2026-08-28.md): "the ratchet continues: NFL
 // Boards, stat portal, Wire, Odds pages" -- Games.js was the one sibling tab
@@ -319,14 +69,17 @@ const STATE_OPTIONS = [
   { key: 'final', label: 'Final' },
 ]
 
-export default function Games({ data, picks, matchup, logs, results, onPlayerClick }) {
+export default function Games({ data, picks, matchup, logs, results, odds = null, onPlayerClick, onOpenTeam = null }) {
   const games = data?.games || []
   const players = data?.players || []
   // A game tapped on another tab (Storylines, the Ledger) opens selected here.
-  const [selectedGame, setSelectedGame] = useState(() => (typeof window === 'undefined' ? 'all' : takeTarget('game') || 'all'))
+  // A game handed over from another tab (Storylines, the Ledger), or named in
+  // the address, opens the Slate's Games view on it (2026-09-28).
+  const [handed] = useState(() => (typeof window === 'undefined' ? null : takeTarget('game') || readHashKey('game') || null))
+  const [selectedGame, setSelectedGame] = useState('all')
   const [stateFilter, setStateFilter] = useState('all')
   const [query, setQuery] = useState('')
-  const [view, setView] = useState('table')
+  const [view, setView] = useState(() => (handed ? 'games' : 'table'))
   const watchlist = useNflWatchlist(data)
   const playersById = useMemo(() => Object.fromEntries(players.map((player) => [String(player.player_id), player])), [players])
 
@@ -380,27 +133,6 @@ export default function Games({ data, picks, matchup, logs, results, onPlayerCli
   }, [games, milestones, modelStories])
   const storyForGame = (game) => storyByGame[game.game_id ?? `${game.away}@${game.home}`] || null
 
-  // ── MOBILE PROGRESSIVE DISCLOSURE (2026-08-29) ─────────────────────────
-  // Fifteen fully-expanded cards made the phone page enormous (both reviews
-  // said so). On <=760px each card opens collapsed — teams, state, score,
-  // the designated calls, and each side's single best play — with the
-  // environment/defense intel and full top-3 lists one tap away. Desktop is
-  // untouched: every card renders full, nothing behind a tap, same vibe.
-  const [isMobile, setIsMobile] = useState(false)
-  const [openCards, setOpenCards] = useState(() => new Set())
-  useEffect(() => {
-    const mq = window.matchMedia('(max-width: 760px)')
-    const sync = () => setIsMobile(mq.matches)
-    sync()
-    mq.addEventListener('change', sync)
-    return () => mq.removeEventListener('change', sync)
-  }, [])
-  const toggleCard = (id) => setOpenCards((prev) => {
-    const next = new Set(prev)
-    if (next.has(id)) next.delete(id); else next.add(id)
-    return next
-  })
-
   if (!games.length) {
     return (
       <div style={{
@@ -436,9 +168,8 @@ export default function Games({ data, picks, matchup, logs, results, onPlayerCli
   // along -- the first place either flag is visible on this page.
   const gameByTeam = {}
   for (const g of games) { gameByTeam[g.away] = g; gameByTeam[g.home] = g }
-  const shownTeams = new Set(sorted.flatMap((g) => [g.away, g.home]))
-  const tableRows = players
-    .filter((p) => shownTeams.has(p.team) && !p.low_sample)
+  const rowsFor = (teams) => players
+    .filter((p) => teams.has(p.team) && !p.low_sample)
     .map((p) => {
       const g = gameByTeam[p.team]
       const aligned = alignedSignals(matchup, p)
@@ -457,6 +188,7 @@ export default function Games({ data, picks, matchup, logs, results, onPlayerCli
       }
     })
     .sort((a, b) => (b.td ?? -1) - (a.td ?? -1))
+  const tableRows = rowsFor(new Set(sorted.flatMap((g) => [g.away, g.home])))
   const TABLE_COLUMNS = [
     // Native DenseTable action column (see LongestBoard.js's buildColumns) --
     // lit off the row's own watched:1/0 field, not a custom button, so this
@@ -510,9 +242,9 @@ export default function Games({ data, picks, matchup, logs, results, onPlayerCli
           jade stat block and the sport's own words are props, not a second
           stylesheet. */}
       <PageHeader
-        eyebrow="TUDDY GAME CENTER"
-        title="The slate, with the reasons attached."
-        note="Scoreboard, The Six calls, each side's top TD board, matchup pressure, and honest feed limits in one card."
+        eyebrow="TUDDY · SLATE"
+        title="Slate"
+        note="Every game this week. Table ranks every scored player; Games opens one game at a time — its read, both rosters, where each defense gets beaten, and the calls."
         theme={C}
         numFont={NUM_FONT}
         accent={C.cyan}
@@ -523,6 +255,10 @@ export default function Games({ data, picks, matchup, logs, results, onPlayerCli
         ]}
       />
 
+      {/* TABLE | GAMES, MOONSHOT's Slate pills (components/slate/SlateParts). */}
+      <ViewPills views={[['table', '📊 Table'], ['games', '🏟 Games']]} view={view} setView={setView} accent={C.green} />
+
+      {view === 'table' && (<>
       <div style={{
         display: 'flex', flexDirection: 'column', gap: 9, marginBottom: 11,
         padding: '10px 12px', border: `1px solid ${C.border}`, borderRadius: 12,
@@ -531,7 +267,6 @@ export default function Games({ data, picks, matchup, logs, results, onPlayerCli
         <FilterBar>
           <FilterSearch value={query} onChange={setQuery} placeholder="Search team…" width={165} />
           <Segmented label="State" value={stateFilter} onChange={setStateFilter} options={STATE_OPTIONS} />
-          <Segmented label="View" value={view} onChange={setView} options={[{ key: 'table', label: '📊 Table' }, { key: 'cards', label: '🏟 Cards' }]} />
         </FilterBar>
         <ActiveFilters
           shown={sorted.length}
@@ -553,7 +288,6 @@ export default function Games({ data, picks, matchup, logs, results, onPlayerCli
         }}>No games clear this filter.</div>
       )}
 
-      {view === 'table' && (
         <NflTable
           rows={tableRows}
           columns={TABLE_COLUMNS}
@@ -561,145 +295,16 @@ export default function Games({ data, picks, matchup, logs, results, onPlayerCli
           caption={`${tableRows.length} players · sorted by TD score`}
           maxRows={300}
         />
+      </>)}
+
+      {view === 'games' && (
+        <NflSlate data={data} picks={picks} matchup={matchup} odds={odds} games={games} initialGame={handed}
+          tableColumns={TABLE_COLUMNS} tableRowsFor={rowsFor} storyForGame={storyForGame}
+          onPlayerClick={onPlayerClick} onOpenTeam={onOpenTeam} />
       )}
 
-      {view === 'cards' && (
-      <div style={{
-        display: 'grid', gap: 10,
-        gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-      }}>
-        {sorted.map((g) => {
-          const live = g.state === 'in'
-          const hasScore = live || g.completed
-          const open = !isMobile || openCards.has(g.game_id)
-          return (
-            <div key={g.game_id} className={live ? 'tuddy-live-pulse' : undefined} style={{
-              background: live ? `linear-gradient(155deg, rgba(53,205,255,.08), ${C.bg2} 55%)` : C.bg2,
-              border: `1px solid ${live ? 'rgba(53,205,255,.4)' : C.border}`,
-              borderRadius: 12, padding: '11px 13px',
-            }}>
-              <div style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                gap: 8, marginBottom: hasScore ? 6 : 2,
-              }}>
-                {hasScore ? (
-                  <StateBadge g={g} />
-                ) : (
-                  <>
-                    <span style={{ fontSize: TYPE.name, fontWeight: 900, color: C.text }}>
-                      {g.away} <span style={{ color: C.text3, fontWeight: 600 }}>@</span> {g.home}
-                    </span>
-                    <span style={{ fontSize: TYPE.micro, fontFamily: NUM_FONT }}><StateBadge g={g} /></span>
-                  </>
-                )}
-              </div>
-
-              {hasScore && <ScoreLine g={g} />}
-
-              {/* B7 (2026-08-28): shows real down/distance the moment ESPN's feed
-                  carries it (bots/nfl/nfl_espn.py's best-effort situation parse,
-                  unverified against a real live game as of this build) -- falls
-                  back to the same honest caveat as before when it doesn't. */}
-              {/* 2026-09-05: read off the live overlay (lib/nfl/liveMerge.js), so
-                  possession and down/distance are the league feed's, not the
-                  bot's last run. Absent only when ESPN's situation block is. */}
-              {live && (g.down_distance || g.possession
-                ? <div style={{ margin: '1px 0 7px', color: g.red_zone ? C.yellow : C.cyan, fontSize: TYPE.micro, fontWeight: 800, fontFamily: NUM_FONT }}>{g.possession ? `${g.possession} ball` : ''}{g.possession && g.down_distance ? ' · ' : ''}{g.down_distance || ''}{g.red_zone ? ' · RED ZONE' : ''}</div>
-                : <div style={{ margin: '1px 0 7px', color: C.text3, fontSize: TYPE.micro, fontFamily: NUM_FONT }}>Waiting on the drive feed · {g.detail || 'live'}</div>
-              )}
-
-              {(() => {
-                const story = storyForGame(g)
-                if (!story) return null
-                return (
-                  <button
-                    type="button"
-                    className={`nfl-game-why${story.kind === 'model' ? ' model' : ''}`}
-                    onClick={() => onPlayerClick?.(story.player, story.market)}
-                  >
-                    <span className="tag">{story.kind === 'model' ? 'MODEL NARRATIVE' : 'MILESTONE'}</span>
-                    <span className="text">{story.text}</span>
-                  </button>
-                )
-              })()}
-
-              {open ? (
-                <>
-                  {g.venue && (
-                    <div style={{ fontSize: TYPE.micro, color: C.text3, marginBottom: 2 }}>
-                      {g.venue}{g.indoors ? ' · indoors' : ''}
-                    </div>
-                  )}
-
-                  <GameIntel game={g} matchup={matchup} />
-
-                  <div style={{ marginTop: 10, paddingTop: 9, borderTop: `1px solid ${C.border}` }}>
-                    <div style={{ marginBottom: 6, color: C.green, fontSize: TYPE.label, fontWeight: 900, fontFamily: NUM_FONT, letterSpacing: '.09em' }}>THE SIX · DESIGNATED CALLS IN THIS GAME</div>
-                    <DesignatedCalls game={g} picks={picks} playersById={playersById} onPlayerClick={onPlayerClick} matchup={matchup} />
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 4 }}>
-                    {[g.away, g.home].map((t) => (
-                      <div key={t}>
-                        <div style={{
-                          fontSize: TYPE.label, fontWeight: 900, color: C.text3,
-                          letterSpacing: '.08em', textTransform: 'uppercase',
-                        }}>{t}</div>
-                        <SidePicks players={players} team={t} onPlayerClick={onPlayerClick} matchup={matchup} />
-                      </div>
-                    ))}
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div style={{ marginTop: 7, paddingTop: 7, borderTop: `1px solid ${C.border}` }}>
-                    <DesignatedCalls game={g} picks={picks} playersById={playersById} onPlayerClick={onPlayerClick} matchup={matchup} />
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 7 }}>
-                    {[g.away, g.home].map((t) => {
-                      const best = players
-                        .filter((p) => p.team === t && !p.low_sample)
-                        .sort((a, b) => (b.scores?.TD ?? 0) - (a.scores?.TD ?? 0))[0]
-                      if (!best) return null
-                      const bg = gradeFor(best.scores?.TD)
-                      return (
-                        <button key={t} onClick={() => onPlayerClick?.(best)} style={{
-                          display: 'flex', alignItems: 'center', gap: 8, width: '100%',
-                          background: 'rgba(255,255,255,.03)', border: `1px solid ${C.border}`,
-                          borderRadius: 8, padding: '7px 8px', cursor: 'pointer', textAlign: 'left',
-                        }}>
-                          <span style={{ fontSize: TYPE.micro, fontWeight: 900, color: C.text3, fontFamily: NUM_FONT, minWidth: 28 }}>{t}</span>
-                          <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.body, fontWeight: 900, color: bg.color, minWidth: 26 }}>{Math.round(best.scores?.TD ?? 0)}</span>
-                          <span style={{ fontSize: TYPE.body, color: C.text, fontWeight: 600, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{best.name}</span>
-                          <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>{best.position}</span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                </>
-              )}
-
-              {isMobile && (
-                <button onClick={() => toggleCard(g.game_id)} aria-expanded={open} style={{
-                  width: '100%', marginTop: 9, padding: '7px 0',
-                  border: `1px solid ${C.border}`, borderRadius: 8,
-                  background: 'transparent', color: C.text3, cursor: 'pointer',
-                  font: `800 9px/1 ${NUM_FONT}`, letterSpacing: '.08em',
-                }}>{open ? 'COLLAPSE \u25B4' : 'WEATHER \u00B7 DEFENSE \u00B7 TOP 3 EACH SIDE \u25BE'}</button>
-              )}
-            </div>
-          )
-        })}
-      </div>
-      )}
       <style>{`
-        .nfl-game-picker{display:flex;gap:5px;overflow-x:auto;margin-bottom:10px}.nfl-game-picker button{flex:0 0 auto;padding:8px 10px;border:1px solid ${C.border};border-radius:8px;background:${C.bg2};color:${C.text3};font:800 8px/1 ${NUM_FONT};cursor:pointer}.nfl-game-picker button.active{border-color:${C.green};color:${C.green};background:rgba(0,245,173,.08)}.nfl-game-intel{display:grid;grid-template-columns:repeat(var(--intel-cols,4),minmax(0,1fr));gap:5px;margin-top:8px}.nfl-game-intel>div{min-height:72px;padding:8px;border:1px solid ${C.border};border-radius:8px;background:rgba(255,255,255,.025)}.nfl-game-intel small,.nfl-game-intel b,.nfl-game-intel span{display:block}.nfl-game-intel small{color:${C.text3};font:800 7px/1 ${NUM_FONT}}.nfl-game-intel b{margin-top:6px;font:900 9px/1 ${NUM_FONT}}.nfl-game-intel span{margin-top:4px;color:${C.text3};font-size:7.5px;line-height:1.25}.nfl-game-why{display:flex;align-items:baseline;gap:7px;width:100%;text-align:left;margin:2px 0 8px;padding:7px 9px;border:1px solid rgba(0,245,173,.3);border-radius:8px;background:rgba(0,245,173,.06);color:inherit;cursor:pointer}.nfl-game-why:hover{border-color:rgba(0,245,173,.5)}.nfl-game-why .tag{flex:0 0 auto;font:900 7.5px/1 ${NUM_FONT};letter-spacing:.06em;color:${C.green};text-transform:uppercase}.nfl-game-why .text{font-size:10px;line-height:1.35;color:${C.text2}}.nfl-game-why.model{border-color:rgba(251,146,60,.32);background:rgba(251,146,60,.07)}.nfl-game-why.model:hover{border-color:rgba(251,146,60,.5)}.nfl-game-why.model .tag{color:${C.orange}}@media(max-width:620px){.nfl-game-intel{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-.tuddy-live-dot{animation:pulse 2s infinite}
-.tuddy-live-dot-sm{display:inline-block;width:5px;height:5px;margin-right:4px;border-radius:50%;background:${C.cyan};box-shadow:0 0 6px ${C.cyan};vertical-align:middle;animation:pulse 2s infinite}
-@keyframes tuddyLiveGlow{0%,100%{box-shadow:0 0 0 1px rgba(53,205,255,.4),0 0 18px rgba(53,205,255,.10)}50%{box-shadow:0 0 0 1px rgba(53,205,255,.75),0 0 28px rgba(53,205,255,.24)}}
-.tuddy-live-pulse{animation:tuddyLiveGlow 2.4s ease-in-out infinite}
-@media(prefers-reduced-motion:reduce){.tuddy-live-dot,.tuddy-live-dot-sm,.tuddy-live-pulse{animation:none}}
+        .nfl-game-picker{display:flex;gap:5px;overflow-x:auto;margin-bottom:10px}.nfl-game-picker button{flex:0 0 auto;min-height:36px;padding:8px 10px;border:1px solid ${C.border};border-radius:8px;background:${C.bg2};color:${C.text3};font:800 10px/1 ${NUM_FONT};cursor:pointer}.nfl-game-picker button.active{border-color:${C.green};color:${C.green};background:rgba(0,245,173,.08)}
       `}</style>
     </div>
   )

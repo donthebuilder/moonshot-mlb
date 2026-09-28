@@ -37,7 +37,7 @@ const ordinal = (n) => { const suf = ['th', 'st', 'nd', 'rd']; const v = n % 100
 const P = { theme: C, numFont: NUM_FONT }
 
 // WHERE THEY GET BEATEN: the map's own numbers, as MOONSHOT's zone tiles.
-function Zones({ field, team }) {
+export function Zones({ field, team }) {
   const [pass, setPass] = useState(true)
   const model = useMemo(() => fieldModel({ field, defTeam: team, mode: 'def', pass }), [field, team, pass])
   const rushable = Boolean(field?.def_rush?.[team])
@@ -128,6 +128,23 @@ function ByPosition({ matchup, team, win, setWin, slateSeason }) {
   )
 }
 
+// ONE DEFENSE IN PLAIN LINES (2026-09-28): Coverage / Big plays / Pass rush /
+// Up front. The Matchups detail and the Slate's read both print these.
+export function defenseFacts(matchup, team, rushThreat = passRushThreat(matchup, team)) {
+  const cov = matchup?.coverage_team?.[team]
+  const dominant = cov && cov.zone_pct != null && cov.man_pct != null ? (cov.zone_pct >= cov.man_pct ? 'zone' : 'man') : null
+  const domPct = dominant ? cov[`${dominant}_pct`] : null
+  const covRank = dominant ? 1 + Object.values(matchup.coverage_team || {}).map((t) => t?.[`${dominant}_pct`]).filter((v) => typeof v === 'number' && v > domPct).length : null
+  const exp = matchup?.def_explosive?.[team]
+  const dis = matchup?.disruption_team?.[team]
+  return [
+    ['Coverage', dominant ? <>{dominant} on {domPct}% of snaps{covRank ? ` (${ordinal(covRank)}-most in the league)` : ''}.</> : null],
+    ['Big plays', exp ? <>{exp.pass_20} passes of 20+ yards allowed, {exp.deep_td} touchdowns on throws of 20+ air yards ({exp.deep_cmp} of {exp.deep_att} completed).</> : null],
+    ['Pass rush', dis?.pressure?.created_pct != null ? <>pressure on {dis.pressure.created_pct}% of {dis.pressure.created_plays || 'their'} pass plays faced.</> : null],
+    ['Up front', rushThreat && rushThreat.percentile >= PASS_RUSH_AVOID ? <><b style={{ color: C.red }}>{rushThreat.name}</b> ({rushThreat.position}) is {ordinal(Math.round(rushThreat.percentile))}-percentile at turning pressure into sacks.</> : null],
+  ]
+}
+
 export default function Matchups({ matchup, data, onPlayerClick = null, onOpenTeam = null }) {
   // The slate is six teams. Listing all 32 alphabetically put ATL next to ARI
   // and buried the ones playing tonight in a wall of three-letter codes — so
@@ -178,11 +195,7 @@ export default function Matchups({ matchup, data, onPlayerClick = null, onOpenTe
     ? Object.entries(cov.shells || {}).sort((a, b) => b[1] - a[1]).slice(0, 6)
         .map(([k, v]) => ({ key: k, label: SHELL_WORD[k] || k, pct: v, text: `${v}%` }))
     : []
-  const dominant = cov && cov.zone_pct != null && cov.man_pct != null ? (cov.zone_pct >= cov.man_pct ? 'zone' : 'man') : null
-  const domPct = dominant ? cov[`${dominant}_pct`] : null
-  const covRank = dominant ? 1 + Object.values(matchup.coverage_team || {}).map((t) => t?.[`${dominant}_pct`]).filter((v) => typeof v === 'number' && v > domPct).length : null
-  const exp = matchup?.def_explosive?.[active]
-  const dis = matchup?.disruption_team?.[active]
+  const facts = defenseFacts(matchup, active, rushThreat)
   const teamLink = (t) => <Tap onClick={onOpenTeam && (() => onOpenTeam(t))}>{t}</Tap>
 
   const whoColumns = [
@@ -229,12 +242,7 @@ export default function Matchups({ matchup, data, onPlayerClick = null, onOpenTe
             <BarList {...P} items={shells} accent={C.cyan} labelWidth={64} />
           </div>
         )}
-        <FactLines theme={C} lines={[
-          ['Coverage', dominant ? <>{dominant} on {domPct}% of snaps{covRank ? ` (${ordinal(covRank)}-most in the league)` : ''}.</> : null],
-          ['Big plays', exp ? <>{exp.pass_20} passes of 20+ yards allowed, {exp.deep_td} touchdowns on throws of 20+ air yards ({exp.deep_cmp} of {exp.deep_att} completed).</> : null],
-          ['Pass rush', dis?.pressure?.created_pct != null ? <>pressure on {dis.pressure.created_pct}% of {dis.pressure.created_plays || 'their'} pass plays faced.</> : null],
-          ['Up front', rushThreat && rushThreat.percentile >= PASS_RUSH_AVOID ? <><b style={{ color: C.red }}>{rushThreat.name}</b> ({rushThreat.position}) is {ordinal(Math.round(rushThreat.percentile))}-percentile at turning pressure into sacks.</> : null],
-        ]} />
+        <FactLines theme={C} lines={facts} />
 
         <Zones field={matchup.field} team={active} />
         <ByPosition matchup={matchup} team={active} win={win} setWin={setWin} slateSeason={data?.season} />

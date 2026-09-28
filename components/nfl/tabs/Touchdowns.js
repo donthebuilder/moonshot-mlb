@@ -84,7 +84,24 @@ function ScoreBar({ score }) {
 }
 
 // ── THE CARD ─────────────────────────────────────────────────────────────
-function Card({ p, rank, matchup, odds, onPlayerClick, weights, base, pool, watchlist }) {
+// THE TD POOL, once (2026-09-28): the eligible scored players, the market's
+// weights and the pool baseline the card's "why" line reads. The Slate uses it.
+export function tdPool(data) {
+  const m = (data?.markets || []).find((x) => x.key === MARKET)
+  const elig = new Set(m?.positions || ['RB', 'WR', 'TE'])
+  const list = (data?.players || [])
+    .filter((p) => !p.on_bye && elig.has(p.position) && Number.isFinite(Number(p.scores?.[MARKET])))
+    .sort((a, b) => (b.scores[MARKET] ?? 0) - (a.scores[MARKET] ?? 0))
+  return {
+    rows: list,
+    weights: m?.weights || null,
+    base: baselineFor(list, MARKET),
+    games: new Set(list.map((p) => [p.team, p.opp].sort().join('@'))).size,
+  }
+}
+
+// Exported (2026-09-28) for the Slate's Picks section -- the same card, not a copy.
+export function Card({ p, rank, matchup, odds, onPlayerClick, weights, base, pool, watchlist }) {
   const score = p.scores?.[MARKET]
   const g = gradeFor(score)
   // His top component with the number behind it (lib/nfl/boardReason.js,
@@ -205,19 +222,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
   const phone = useIsPhone()
   const now = useMemo(() => Date.now(), [data, onlyUpcoming])
 
-  const { rows, weights, base, games } = useMemo(() => {
-    const m = (data?.markets || []).find((x) => x.key === MARKET)
-    const elig = new Set(m?.positions || ['RB', 'WR', 'TE'])
-    const list = (data?.players || [])
-      .filter((p) => !p.on_bye && elig.has(p.position) && Number.isFinite(Number(p.scores?.[MARKET])))
-      .sort((a, b) => (b.scores[MARKET] ?? 0) - (a.scores[MARKET] ?? 0))
-    return {
-      rows: list,
-      weights: m?.weights || null,
-      base: baselineFor(list, MARKET),
-      games: new Set(list.map((p) => [p.team, p.opp].sort().join('@'))).size,
-    }
-  }, [data])
+  const { rows, weights, base, games } = useMemo(() => tdPool(data), [data])
 
   const positionOptions = useMemo(() => {
     const counts = {}
