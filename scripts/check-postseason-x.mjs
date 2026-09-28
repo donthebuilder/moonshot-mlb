@@ -49,6 +49,10 @@ ok('the post names the bar and says it is graded against it', () => {
   const quiet = gameCallText(gameCalls([game({ player_id: 7, name: 'Test Quiet', game_pick_role: 'HR', season_hr: 12 })])[0])
   assert.ok(!/The problem/.test(quiet))
 })
+ok('the claim kind passes widen_18 (call_<game_pk>)', () => {
+  for (const c of gameCalls(rows)) assert.match(`call_${c.game_pk}`, /^call_[0-9]+$/)
+})
+
 ok('vote posts rested by default', () => {
   for (const k of ['botpoll', 'community_pick', 'nfl_botpoll', 'nfl_community']) assert.equal(isRested(k), true, k)
   assert.equal(isRested('pregame'), false)
