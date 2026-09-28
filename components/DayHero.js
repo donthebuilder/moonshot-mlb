@@ -14,7 +14,7 @@ export default function DayHero({
   lead, accentText, dayText,
   chip, sub,
   children,
-  accent = C.orange, grad = ['#f97316', '#FCD34D'],
+  accent = C.orange, grad = [C.orange, C.amber],
   headingLevel = 'h1',
   theme = null,      // the product's own greys (LAMP's surfaces are darker); MOONSHOT's by default
 }) {
