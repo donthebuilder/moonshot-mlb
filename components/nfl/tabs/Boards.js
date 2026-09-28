@@ -15,7 +15,8 @@ import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 import { baselineFor, topStatChips } from '../ScoreAnatomy'
 import NflBoardFilters, { useNflBoardFilter } from '../NflBoardFilters'
 import { useIsPhone } from '../../MobileFold'
-import { NflBoardList, ViewSwitch } from '../NflBoardExtras'
+import { NflBoardList, ViewSwitch, AngleRow, angleDefs } from '../NflBoardExtras'
+import { matchupTag } from '../../../lib/nfl/dvpSignal'
 
 // Same soft cap Touchdowns.js uses, so the two boards cut at the same depth.
 const SOFT_CAP = 60
@@ -143,6 +144,7 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
   // TUDDY was cards only -- 60 players four to a row is a long scroll, worst on
   // a phone. List is the default; the card board is one tap away, unchanged.
   const [view, setView] = useState('list')
+  const [angle, setAngle] = useState(null)   // board filters plan, TUDDY 2
   const phone = useIsPhone()
 
   // Recomputed when the slate changes or the toggle flips, not per render --
@@ -172,9 +174,11 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
     [data, market],
   )
   const { filtered: bandFiltered, state: bandState } = useNflBoardFilter(marketPool, market)
+  const angles = useMemo(() => angleDefs({ matchup, logs, market, matchupTag }), [matchup, logs, market])
 
   const rows = useMemo(() => {
-    const pool = bandFiltered
+    const angleTest = angle ? angles.find((x) => x.key === angle)?.test : null
+    const pool = angleTest ? bandFiltered.filter(angleTest) : bandFiltered
     const needle = query.trim().toLowerCase()
     const kept = pool.filter((p) => {
       if (!showLow && p.low_sample) return false
@@ -209,7 +213,7 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
     // nothing on screen saying so; it now caps at SOFT_CAP with a "showing X
     // of Y" line and a Show-the-rest pill, exactly as Touchdowns does.
     return kept.sort(cmp)
-  }, [bandFiltered, data, market, showLow, query, team, position, sortBy, odds,
+  }, [bandFiltered, angle, angles, data, market, showLow, query, team, position, sortBy, odds,
       onlyPriced, onlyUpcoming, onlyWatched, watchlist, now])
 
   const capped = all ? rows : rows.slice(0, SOFT_CAP)
@@ -244,6 +248,7 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
   // One chip row for every narrowing dimension on this board, bands included.
   const activeFilterChips = [
     ...bandState.activeFilters,
+    angle ? { key: 'angle', label: angles.find((x) => x.key === angle)?.label || angle, onClear: () => setAngle(null) } : null,
     query ? { key: 'q', label: `“${query}”`, onClear: () => setQuery('') } : null,
     team !== 'all' ? { key: 'team', label: team, onClear: () => setTeam('all') } : null,
     position !== 'all' ? { key: 'pos', label: position, onClear: () => setPosition('all') } : null,
@@ -254,13 +259,15 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
   ].filter(Boolean)
   const clearAllFilters = () => {
     bandState.reset()
-    setQuery(''); setTeam('all'); setPosition('all')
+    setQuery(''); setTeam('all'); setPosition('all'); setAngle(null)
     setOnlyPriced(false); setOnlyUpcoming(false); setOnlyWatched(false); setShowLow(false)
   }
 
   return (
     <div>
       {!hideMarketPicker && <PillRow label="Market" value={market} options={marketOptions} onChange={setMarket} />}
+
+      <AngleRow defs={angles} pool={bandFiltered} value={angle} onChange={(k) => { setAngle(k); setAll(false) }} />
 
       <div style={{ marginTop: 8 }}>
         <FilterBar>

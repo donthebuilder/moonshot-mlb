@@ -4,7 +4,7 @@ import { C, NUM_FONT, gradeFor, TYPE, rampAt } from '../../../lib/nfl/theme'
 import { boardReason } from '../../../lib/nfl/boardReason'
 import { injuryTag, injuryTitle, injuryColor } from '../../../lib/nfl/injury'
 import { quoteFor } from '../../../lib/nfl/oddsMatch'
-import { alignedSignals } from '../../../lib/nfl/dvpSignal'
+import { alignedSignals, matchupTag } from '../../../lib/nfl/dvpSignal'
 import { kickoffFor } from '../../../lib/nfl/kickoff'
 import OddsLine from '../../OddsLine'
 import OddsStatus from '../../OddsStatus'
@@ -15,7 +15,7 @@ import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 import { ActiveFilters, FilterBar, FilterSearch, FilterSelect, FilterPill } from '../../Filters'
 import NflBoardFilters, { useNflBoardFilter } from '../NflBoardFilters'
 import MobileFold, { useIsPhone } from '../../MobileFold'
-import { NflBoardList, ViewSwitch } from '../NflBoardExtras'
+import { NflBoardList, ViewSwitch, AngleRow, angleDefs } from '../NflBoardExtras'
 import TdCompare from '../TdCompare'
 
 // TOUCHDOWNS — the front door.
@@ -188,7 +188,7 @@ function Card({ p, rank, matchup, odds, onPlayerClick, weights, base, pool, watc
   )
 }
 
-export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsStatus }) {
+export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsStatus, logs = null }) {
   const watchlist = useNflWatchlist(data)
   const [query, setQuery] = useState('')
   const [position, setPosition] = useState('all')
@@ -201,6 +201,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
   const [all, setAll] = useState(false)
   // LIST | CARDS (board filters plan, TUDDY 1): list by default, like MOONSHOT.
   const [view, setView] = useState('list')
+  const [angle, setAngle] = useState(null)   // board filters plan, TUDDY 2
   const phone = useIsPhone()
   const now = useMemo(() => Date.now(), [data, onlyUpcoming])
 
@@ -255,6 +256,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
   // the pool before the ranking and before the soft cap, so a banded board
   // promotes names off the bottom rather than only hiding rows.
   const { filtered: bandFiltered, state: bandState } = useNflBoardFilter(rows, MARKET)
+  const angles = useMemo(() => angleDefs({ matchup, logs, market: MARKET, matchupTag }), [matchup, logs])
 
   // One removable chip per narrowing dimension, bands included. Touchdowns had
   // no chip row at all, so a tier or a team filter was invisible once you had
@@ -267,6 +269,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
     query ? { key: 'q', label: `“${query}”`, onClear: () => setQuery('') } : null,
     team !== 'all' ? { key: 'team', label: team, onClear: () => setTeam('all') } : null,
     position !== 'all' ? { key: 'pos', label: position, onClear: () => setPosition('all') } : null,
+    angle ? { key: 'angle', label: angles.find((x) => x.key === angle)?.label || angle, onClear: () => setAngle(null) } : null,
     tier !== 'everyone' ? { key: 'tier', label: tierPills.find((t) => t.key === tier)?.label || tier, onClear: () => setTier('everyone') } : null,
     onlyPriced ? { key: 'priced', label: 'Priced', onClear: () => setOnlyPriced(false) } : null,
     onlyUpcoming ? { key: 'upcoming', label: 'Not kicked off', onClear: () => setOnlyUpcoming(false) } : null,
@@ -274,7 +277,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
   ].filter(Boolean)
   const clearTdFilters = () => {
     bandState.reset()
-    setQuery(''); setTeam('all'); setPosition('all'); setTier('everyone')
+    setQuery(''); setTeam('all'); setPosition('all'); setTier('everyone'); setAngle(null)
     setOnlyPriced(false); setOnlyUpcoming(false); setOnlyWatched(false)
   }
 
@@ -284,6 +287,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
     if (position !== 'all') out = out.filter((p) => p.position === position)
     if (team !== 'all') out = out.filter((p) => p.team === team)
     if (needle) out = out.filter((p) => String(p.name || '').toLowerCase().includes(needle))
+    if (angle) { const d = angles.find((x) => x.key === angle); if (d) out = out.filter(d.test) }
     if (tier === 'highconf') out = out.filter((p) => p.high_confidence_td_flag)
     else if (tier === 'aligned') out = out.filter((p) => alignedSignals(matchup, p).aligned)
     if (onlyWatched) out = out.filter((p) => watchlist.isPinned(p.player_id))
@@ -310,7 +314,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
         }
         : (a, b) => (b.scores[MARKET] ?? 0) - (a.scores[MARKET] ?? 0)
     return [...out].sort(cmp)
-  }, [bandFiltered, rows, query, position, team, tier, onlyWatched, onlyUpcoming, onlyPriced, sortBy, matchup, watchlist, odds, data, now])
+  }, [bandFiltered, rows, query, position, team, tier, angle, angles, onlyWatched, onlyUpcoming, onlyPriced, sortBy, matchup, watchlist, odds, data, now])
 
   const capped = all ? filtered : filtered.slice(0, SOFT_CAP)
   const hidden = filtered.length - capped.length
@@ -336,6 +340,8 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
           </FilterPill>
         ))}
       </div>
+
+      <AngleRow defs={angles} pool={bandFiltered} value={angle} onChange={(k) => { setAngle(k); setAll(false) }} />
 
       <div style={{ marginTop: 8 }}>
         <FilterBar>

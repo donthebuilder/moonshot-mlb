@@ -60,4 +60,62 @@ export function NflBoardList({ players, market, weights, odds, phone, onPlayerCl
   )
 }
 
+// ── THE ANGLE ROW (plan TUDDY 2) ─────────────────────────────────────────────
+// MOONSHOT's one-tap Angle chips, from fields every board row already carries.
+// Each is a stated rule, never a guess; a chip whose field isn't on the row
+// simply matches nobody (and says 0).
+//   Softest matchup  the opponent ranks top 8 (softest) vs his role on this
+//                    market's DvP stat (matchupTag; TD's stat where a market
+//                    has none)
+//   Red-zone role    TD component f_rz_opp >= 75th percentile
+//   Goal-line back   an RB with TD component f_gl_opp >= 75th
+//   High total       TD component implied_total >= 70th
+//   Scored last week games_since_last_td === 0
+//   TD in 2 straight his last two logged games both had a TD (logs)
+//   Due              red-zone role (f_rz_opp >= 75) and no TD in his last 2+
+const tdc = (p, k) => { const v = p?.components?.TD?.[k]; return Number.isFinite(v) ? Number(v) : null }
+function lastTwoTd(logs, id) {
+  const g = logs?.logs?.[String(id)]?.log
+  if (!Array.isArray(g)) return null
+  const td = g.filter((x) => Number.isFinite(x?.g_td)).slice(-2)
+  return td.length === 2 ? td.every((x) => x.g_td > 0) : null
+}
+export function angleDefs({ matchup, logs, market, matchupTag }) {
+  const stat = ['TD', 'REC_YDS', 'REC', 'RUSH_YDS', 'RUSH_ATT', 'PASS_YDS'].includes(market) ? market : 'TD'
+  return [
+    { key: 'soft', label: 'Softest matchup', title: 'His opponent ranks in the league’s softest 8 against his role on this market (DvP).',
+      test: (p) => { const t = matchupTag?.(matchup, p, stat); return Boolean(t && Number.isFinite(t.rank) && t.rank <= 8) } },
+    { key: 'rz', label: 'Red-zone role', title: 'Red-zone touches in the top quarter of the week’s pool.', test: (p) => (tdc(p, 'f_rz_opp') ?? -1) >= 75 },
+    { key: 'gl', label: 'Goal-line back', title: 'A running back with goal-line opportunity in the top quarter.', test: (p) => p.position === 'RB' && (tdc(p, 'f_gl_opp') ?? -1) >= 75 },
+    { key: 'total', label: 'High total', title: 'His team’s implied total in the top 30% of the week.', test: (p) => (tdc(p, 'implied_total') ?? -1) >= 70 },
+    { key: 'last', label: 'Scored last week', title: 'A touchdown in his last game.', test: (p) => p.games_since_last_td === 0 },
+    { key: 'two', label: 'TD in 2 straight', title: 'A touchdown in each of his last two logged games.', test: (p) => lastTwoTd(logs, p.player_id) === true },
+    { key: 'due', label: 'Due', title: 'A top-quarter red-zone role and no touchdown in his last two or more games.', test: (p) => (tdc(p, 'f_rz_opp') ?? -1) >= 75 && Number(p.games_since_last_td) >= 2 },
+  ]
+}
+
+/** One row of chips, one tap each, counts from the pool; scrolls sideways on a phone. */
+export function AngleRow({ defs, pool, value, onChange }) {
+  return (
+    <div className="nfl-angle-row" style={{ display: 'flex', gap: 6, alignItems: 'center', overflowX: 'auto', flexWrap: 'nowrap', paddingBottom: 2, marginTop: 8 }}>
+      <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: '.1em', color: C.text3, fontFamily: NUM_FONT, flexShrink: 0 }}>ANGLE</span>
+      {defs.map((d) => {
+        const n = pool.filter(d.test).length
+        const on = value === d.key
+        return (
+          <button key={d.key} type="button" title={d.title} onClick={() => onChange(on ? null : d.key)} aria-pressed={on}
+            style={{ flexShrink: 0, minHeight: 44, padding: 0, border: 'none', background: 'transparent', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}>
+            {/* 44px tap target, a 30px pill inside it */}
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 30, padding: '0 11px', borderRadius: 999, whiteSpace: 'nowrap',
+              border: `1px solid ${on ? C.green : C.border}`, background: on ? `${C.green}22` : 'transparent', color: on ? C.green : C.text2,
+              font: `700 11px/1 ${NUM_FONT}` }}>
+              {d.label} <span style={{ color: on ? C.green : C.text3 }}>{n}</span>
+            </span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 export const numFontStyle = { fontFamily: NUM_FONT, color: C.text3 }
