@@ -517,7 +517,9 @@ if (run('journeys')) {
     })
     for (let i = 1; i <= 3; i++) await step(`back ${i}`, async (p) => {
       await p.goBack({ timeout: 8000 }).catch(() => {}); await settle(p, 1000)
-      if (!p.url().startsWith(BASE)) { F({ sev: 'P1', area: 'back', page: '/app#sport=mlb', vp: '375', what: `J1: Back #${i} leaves the site -- the in-app steps before it did not add history entries`, repro: 'arrive on MLB home, Live, a game, a player, his team, then Back', actual: p.url() }); return false }
+      // Live and the player card each add an entry, so Backs 1 and 2 must stay
+      // on the site; a third Back may leave (home was the first site page).
+      if (!p.url().startsWith(BASE) && i <= 2) { F({ sev: 'P1', area: 'back', page: '/app#sport=mlb', vp: '375', what: `J1: Back #${i} leaves the site -- the in-app steps before it did not add history entries`, repro: 'arrive on MLB home, Live, a game, a player, his team, then Back', actual: p.url() }); return false }
     })
   })
 
@@ -544,7 +546,11 @@ if (run('journeys')) {
     await step('MLB board', (p) => go(p, '/app#sport=mlb&tab=board'))
     await step('filter team', async (p) => { const s = p.locator('.dash-controls select').first(); if (await s.count()) { await s.selectOption({ index: 1 }); await settle(p, 500) } })
     const sw = async (p, word, sport) => {
-      const ok = await tapText(p, new RegExp(`^${word}$`))
+      // The product switch itself (aria-label "Switch to TUDDY · NFL"), not the
+      // desktop header chip a phone hides; falling back to a fresh load would
+      // throw away the history this journey is testing.
+      const ok = await p.evaluate((w) => { const b = document.querySelector(`button[aria-label^="Switch to ${w}"]`); if (!b) return false; b.click(); return true }, word)
+      await settle(p, 1200)
       if (!ok) await go(p, `/app#sport=${sport}`)
       const sig = await p.evaluate(signature)
       if (sportOfUrl(sig.url) !== sport) F({ sev: 'P0', area: 'sport', page: sig.url, vp: '375', what: `J3: switching to ${word} leaves the URL on another sport`, expected: sport, actual: sportOfUrl(sig.url) })
