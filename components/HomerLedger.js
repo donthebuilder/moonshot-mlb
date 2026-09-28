@@ -1,4 +1,6 @@
 'use client'
+import Tap from './Tap'
+import { leaveTarget } from '../lib/openTarget'
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { alpha } from '../lib/scales'
@@ -135,7 +137,7 @@ const SEASON_HR_TTL = 10 * 60 * 1000
 // Everything here is a LOOKUP, not a statistical claim — the pair-rhythm
 // null test (claude/moonshot-pair-rhythm-null-test.md) is why this panel
 // makes no per-night rate claims.
-function LookOut({ players }) {
+function LookOut({ players, onPlayerClick = null, onOpenPitcher = null }) {
   const model = useMemo(() => {
     // one row per distinct starter, carrying the pitcher_* stat fields
     const byArm = new Map()
@@ -229,8 +231,10 @@ function LookOut({ players }) {
                 className={a.blowup ? 'chip chip-hot' : 'chip'}
                 title={`${a.leaks} independent alarms${a.tiring ? ' · wear signal live' : ''}${a.evidence ? ` — ${a.evidence}` : ''}`}
               >
-                <b>{a.name}</b>
-                {a.team && <small>{a.team}{a.opp ? `·${a.opp}` : ''}</small>}
+                <Tap onClick={onOpenPitcher && (() => onOpenPitcher(a.pid))}>
+                  <b>{a.name}</b>
+                  {a.team && <small>{a.team}{a.opp ? `·${a.opp}` : ''}</small>}
+                </Tap>
                 <em>{a.leaks}🔔</em>
               </span>
             ))}
@@ -249,8 +253,10 @@ function LookOut({ players }) {
           <div className="lookout-chips">
             {model.milestones.map((m) => (
               <span key={m.pid} className="chip">
-                <b>{m.name}</b>
-                {m.team && <small>{m.team}</small>}
+                <Tap onClick={onPlayerClick && (() => onPlayerClick({ player_id: m.pid, name: m.name, team: m.team }))}>
+                  <b>{m.name}</b>
+                  {m.team && <small>{m.team}</small>}
+                </Tap>
                 <em>{m.hr}→{m.next}</em>
               </span>
             ))}
@@ -1387,7 +1393,7 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
               Read it as where the interesting numbers already sit.
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <LookOut players={players} />
+              <LookOut players={players} onPlayerClick={onPlayerClick} onOpenPitcher={onNavigate ? (pid) => { leaveTarget('pitcher', pid); onNavigate('pitchers') } : null} />
               {/* Chips, for the reason the look-out above got them
                   (2026-08-29): four names each followed by the same
                   "29→30 ★" shape reads as a sentence you have to parse. The
@@ -1722,7 +1728,7 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
           against 300 synthetic nights rather than assuming one.
 
           Renders nothing when nothing clears. That is the normal state. */}
-      {!pastNight && <LookOut players={players} />}
+      {!pastNight && <LookOut players={players} onPlayerClick={onPlayerClick} onOpenPitcher={onNavigate ? (pid) => { leaveTarget('pitcher', pid); onNavigate('pitchers') } : null} />}
 
       {/* The name-echo test needs the POPULATION it drew from, and on an
           archived night the population on file is tonight's slate — a

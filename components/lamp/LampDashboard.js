@@ -293,9 +293,9 @@ export default function LampDashboard({ palettePass = 0 }) {
             {tab === 'leaders' && <Leaders onOpenPlayer={openPlayer} onOpenTeam={openTeam} />}
             {tab === 'specialteams' && <SpecialTeams onOpenTeam={openTeam} />}
             {tab === 'matchups' && <Matchups date={date} onOpenPlayer={openPlayer} />}
-            {tab === 'ledger' && <Ledger date={date} onOpenPlayer={openPlayer} />}
+            {tab === 'ledger' && <Ledger date={date} onOpenPlayer={openPlayer} onOpenTeam={openTeam} onOpenGame={openGame} />}
             {tab === 'hotsticks' && <HotSticks onOpenPlayer={openPlayer} />}
-            {tab === 'storylines' && <StorylinesPage sport="nhl" eyebrow="LAMP · STORYLINES" theme={C} numFont={NUM_FONT} accent={C.ice} onOpenPlayer={openPlayer} date={date} />}
+            {tab === 'storylines' && <StorylinesPage sport="nhl" eyebrow="LAMP · STORYLINES" theme={C} numFont={NUM_FONT} accent={C.ice} onOpenPlayer={openPlayer} onOpenGame={openGame} date={date} />}
             {tab === 'longshots' && <Longshots sport="nhl" eyebrow="LAMP · LONGSHOTS" theme={C} numFont={NUM_FONT} accent={C.ice} Table={LampTable} onOpenPlayer={openPlayer} />}
             {tab === 'shotmap' && <ShotMap onOpenPlayer={openPlayer} />}
             {tab === 'lampledger' && <LampLedger onOpenPlayer={openPlayer} />}

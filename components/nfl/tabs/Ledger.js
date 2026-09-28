@@ -5,6 +5,7 @@ import PageHeader from '../../PageHeader'
 import LedgerSection from '../../ledger/LedgerSection'
 import FirstScorers from '../../ledger/FirstScorers'
 import NflFace from '../NflFace'
+import Tap from '../../Tap'
 import { defenseLeaks } from '../../../lib/nfl/defenseLeaks'
 import { findNameEchoes } from '../../../lib/namePatterns'
 import { fromNfl } from '../../../lib/numerology/adapters'
@@ -28,7 +29,7 @@ import { easternDate } from '../../../lib/data'
 // Watch is the countdown with a reason.
 const sep = (items) => items.filter(Boolean).join(' · ')
 
-export default function Ledger({ data, picks, results, matchup, onPlayerClick }) {
+export default function Ledger({ data, picks, results, matchup, onPlayerClick, onOpenTeam = null, onOpenGame = null }) {
   const players = data?.players || []
   const byId = useMemo(() => new Map(players.map((p) => [String(p.player_id), p])), [players])
   const tdOf = (id) => Number(results?.lines?.[String(id)]?.TD) || 0
@@ -66,10 +67,10 @@ export default function Ledger({ data, picks, results, matchup, onPlayerClick })
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <PageHeader eyebrow="TUDDY · LEDGER" title="The week in names and numbers" theme={C} numFont={NUM_FONT} accent={C.green}
         note="The card's calls against who scored, round numbers, what lines up, the look-out, name echoes -- and the first touchdown of every game." />
-      <FirstScorers sport="nfl" {...P} onOpenPlayer={(id) => { const p = byId.get(String(id)); if (p) onPlayerClick?.(p) }} />
+      <FirstScorers sport="nfl" {...P} onOpenGame={onOpenGame} onOpenPlayer={(id) => { const p = byId.get(String(id)); if (p) onPlayerClick?.(p) }} />
       <LedgerSection {...P} title={`✅ THE WATCHLIST · ${landed} OF ${calls.length} SCORED`} blurb="the card's touchdown calls, written before kickoff"
         rows={calls} empty="The card hasn't published this week's touchdown calls yet."
-        render={(c) => row(<>{who(c)}<span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 10 }}>{c.team}</span><span style={{ marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: 11, fontWeight: 900, color: c.td ? C.green : C.text3 }}>{c.td ? `✓ ${c.td} TD` : '—'}</span></>)} />
+        render={(c) => row(<>{who(c)}<Tap onClick={onOpenTeam && (() => onOpenTeam(c.team))}><span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 10 }}>{c.team}</span></Tap><span style={{ marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: 11, fontWeight: 900, color: c.td ? C.green : C.text3 }}>{c.td ? `✓ ${c.td} TD` : '—'}</span></>)} />
       <LedgerSection {...P} title="🔟 ROUND NUMBER THIS WEEK" blurb="a scorer whose season total crossed a multiple of 5"
         rows={rounds} empty={scorers.length ? 'No scorer crossed a multiple of five this week.' : 'No touchdowns graded yet this week.'}
         render={(s) => row(<>{who(s)}<span style={{ marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: 11, color: C.green, fontWeight: 900 }}>TD #{s.mark} of the season</span></>)} />
@@ -78,7 +79,7 @@ export default function Ledger({ data, picks, results, matchup, onPlayerClick })
         render={(s) => row(<>{who(s)}<span style={{ color: C.text3, fontSize: 11 }}>{sep(s.chips)}</span></>)} />
       <LedgerSection {...P} title="🩹 THE LOOK-OUT" blurb="defenses leaking touchdowns: top-8 TD matchup by role"
         rows={leaks} empty="The slate has no top-eight TD matchup flagged in the published defense table."
-        render={(l) => row(<><b style={{ color: C.text }}>{l.team}</b><span style={{ color: C.text2 }}>{l.role}</span><span style={{ marginLeft: 'auto', color: C.text3, fontFamily: NUM_FONT, fontSize: 10 }}>#{l.td_rank} TD matchup · {Number(l.td || 0).toFixed(0)} allowed</span></>)} />
+        render={(l) => row(<><Tap onClick={onOpenTeam && (() => onOpenTeam(l.team))}><b style={{ color: C.text }}>{l.team}</b></Tap><span style={{ color: C.text2 }}>{l.role}</span><span style={{ marginLeft: 'auto', color: C.text3, fontFamily: NUM_FONT, fontSize: 10 }}>#{l.td_rank} TD matchup · {Number(l.td || 0).toFixed(0)} allowed</span></>)} />
       <LedgerSection {...P} title="🗣 NAME ECHOES" blurb="the week's scorers' names against everyone who played, with the base rate"
         rows={echoes} empty={scorers.length > 1 ? 'No echo among this week’s scorers.' : 'Needs two scorers to compare.'}
         render={(e) => <div style={{ padding: '6px 0', fontSize: 12, lineHeight: 1.5 }}><b style={{ color: C.green }}>{e.label}</b> <span style={{ color: C.text2 }}>{e.phrase}</span> <span style={{ color: C.text3 }}>{e.note}</span></div>} />

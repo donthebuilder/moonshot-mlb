@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import LedgerSection from './LedgerSection'
+import Tap from '../Tap'
 
 // 🥇 FIRST SCORERS (ledger plan step 2): who scored first in each recent game,
 // when, and whether the board had him -- plus the season line. Tracking only:
@@ -13,7 +14,7 @@ const WORD = {
 }
 const STATUS_WORD = { called: 'CALLED', board: 'ON THE BOARD', off: 'NOT ON THE BOARD' }
 
-export default function FirstScorers({ sport, C, numFont, accent, day = null, emptyWhy, onOpenPlayer }) {
+export default function FirstScorers({ sport, C, numFont, accent, day = null, emptyWhy, onOpenPlayer, onOpenGame = null }) {
   const [data, setData] = useState(null)
   const [err, setErr] = useState(false)
   useEffect(() => {
@@ -32,7 +33,7 @@ export default function FirstScorers({ sport, C, numFont, accent, day = null, em
       empty={err ? 'First scorers are delayed.' : !data ? 'Loading…' : emptyWhy || `No ${w.event} on file in the last few days.`}
       render={(g) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 40, fontSize: 12, flexWrap: 'wrap' }}>
-          <span style={{ color: C.text3, fontFamily: numFont, fontSize: 10, minWidth: 74 }}>{g.game}</span>
+          <span style={{ color: C.text3, fontFamily: numFont, fontSize: 10, minWidth: 74 }}><Tap onClick={onOpenGame && (() => onOpenGame(g.gameId, g))}>{g.game}</Tap></span>
           <button type="button" onClick={() => g.playerId && onOpenPlayer?.(g.playerId, g)} style={{ background: 'transparent', border: 'none', padding: 0, cursor: g.playerId ? 'pointer' : 'default', color: C.text, fontWeight: 800, font: 'inherit' }}>{g.name}</button>
           <span style={{ color: C.text3, fontFamily: numFont, fontSize: 10 }}>{g.when}</span>
           <span style={{ marginLeft: 'auto', color: tone(g.status), fontFamily: numFont, fontSize: 9, fontWeight: 900, letterSpacing: '.08em' }}>{STATUS_WORD[g.status] || ''}</span>

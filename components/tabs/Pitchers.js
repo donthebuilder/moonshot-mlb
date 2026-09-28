@@ -24,6 +24,7 @@ import DenseTable from '../DenseTable'
 import PitcherSpots from '../PitcherSpots'
 import PitcherProfile from '../PitcherProfile'
 import PitcherModal from '../PitcherModal'
+import { takeTarget } from '../../lib/openTarget'
 
 // Rates arrive as 0–1 fractions; show them as percentages so a 0.38 fly-ball
 // rate reads as 38.0 next to the ERA and WHIP columns instead of as 0.
@@ -859,6 +860,14 @@ export default function Pitchers({ players, onPlayerClick }) {
   const [armSel, setArmSel] = useState('all')     // 'all' | 'L' | 'R'
 
   const pitchers = useMemo(() => groupPitchers(players), [players])
+  // A pitcher tapped on another tab (the Ledger's look-out) opens here.
+  useEffect(() => {
+    if (!pitchers.length) return
+    const want = takeTarget('pitcher')
+    if (!want) return
+    const p = pitchers.find((x) => String(x.pitcher_id) === String(want))
+    if (p) setModalPitcher(p)
+  }, [pitchers])
   const sorted = useMemo(() => sortPitchers(pitchers, sortKey), [pitchers, sortKey])
   const gameKey = (p) => [String(p.team || ''), String(p.opponent_team || '')].sort().join('|')
   const gameOptions = useMemo(() => {

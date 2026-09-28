@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import PageHeader from '../../PageHeader'
 import LedgerSection from '../../ledger/LedgerSection'
+import Tap from '../../Tap'
 import FirstScorers from '../../ledger/FirstScorers'
 import { useLampBoard } from '../../../lib/nhl/useLamp'
 import { findNameEchoes } from '../../../lib/namePatterns'
@@ -18,7 +19,7 @@ import { nhlMug } from '../../../lib/nhl/format'
 //   NAME ECHOES  lib/namePatterns.js over tonight's scorers
 // Round numbers and "lines up" need season goal totals and jersey / birth
 // date on the board rows, which LAMP doesn't carry yet: those sections say so.
-export default function Ledger({ date = null, onOpenPlayer }) {
+export default function Ledger({ date = null, onOpenPlayer, onOpenTeam = null, onOpenGame = null }) {
   const { data } = useLampBoard(date, 'GOAL')
   const games = data?.games || []
   const [mu, setMu] = useState(null)
@@ -49,18 +50,18 @@ export default function Ledger({ date = null, onOpenPlayer }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <PageHeader eyebrow="LAMP · LEDGER" title="The night in names and numbers" theme={C} numFont={NUM_FONT} accent={C.ice}
         note="The board's calls against who scored, the look-out, name echoes -- and the first goal of every game." />
-      <FirstScorers sport="nhl" {...P} day={date} emptyWhy={noGames ? quiet : 'No regular-season goal on file in the last few days.'} onOpenPlayer={(id) => onOpenPlayer?.(id)} />
+      <FirstScorers sport="nhl" {...P} day={date} onOpenGame={onOpenGame && ((id) => onOpenGame(Number(id)))} emptyWhy={noGames ? quiet : 'No regular-season goal on file in the last few days.'} onOpenPlayer={(id) => onOpenPlayer?.(id)} />
       <LedgerSection {...P} title={graded ? `✅ THE WATCHLIST · ${landed} OF ${called.length} SCORED` : `✅ THE WATCHLIST · ${called.length} CALLED`}
         blurb={graded ? 'the three called per game, graded after the final' : 'the three called per game; graded after the final'}
         rows={called} empty={noGames ? quiet : 'No calls on the board yet.'}
-        render={(r) => row(<>{who(r)}<span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 10 }}>{r.team} · #{r.rank} in {r._g.game.away.abbrev}@{r._g.game.home.abbrev}</span><span style={{ marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: 11, fontWeight: 900, color: r.hit ? C.lamp : C.text3 }}>{r._g.graded ? (r.hit ? `✓ ${r.goals} G` : '—') : 'pending'}</span></>)} />
+        render={(r) => row(<>{who(r)}<span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 10 }}><Tap onClick={onOpenTeam && (() => onOpenTeam(r.team))}>{r.team}</Tap> · #{r.rank} in <Tap onClick={onOpenGame && (() => onOpenGame(r._g.game.id))}>{r._g.game.away.abbrev}@{r._g.game.home.abbrev}</Tap></span><span style={{ marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: 11, fontWeight: 900, color: r.hit ? C.lamp : C.text3 }}>{r._g.graded ? (r.hit ? `✓ ${r.goals} G` : '—') : 'pending'}</span></>)} />
       <LedgerSection {...P} title="🔟 ROUND NUMBER TONIGHT" blurb="a scorer reaching 10 / 20 / 30 goals"
         rows={[]} empty="Needs each scorer's season goal total on the board rows, which LAMP doesn't carry yet -- nothing is counted by guess." />
       <LedgerSection {...P} title="🔢 LINES UP WITH TONIGHT" blurb="jersey, birthday and name numbers against the date"
         rows={[]} empty="Needs jersey and birth date on the board rows, which LAMP doesn't carry yet. The Numerology tab has tonight's numbers." />
       <LedgerSection {...P} title="🩹 THE LOOK-OUT" blurb="tonight's softest defences by goals allowed · the net: starter not announced"
         rows={soft} empty={noGames ? quiet : 'Loading tonight’s defences…'}
-        render={(r) => row(<><b style={{ color: C.text }}>{r.def}</b><span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 10 }}>{r.home ? 'vs' : '@'} {r.opp}</span><span style={{ marginLeft: 'auto', color: C.text2, fontFamily: NUM_FONT, fontSize: 10 }}>{r.gaPg ?? '—'} GA/GP · PK {r.pk != null ? `${(r.pk * 100).toFixed(1)}%` : '—'}</span></>)} />
+        render={(r) => row(<><Tap onClick={onOpenTeam && (() => onOpenTeam(r.def))}><b style={{ color: C.text }}>{r.def}</b></Tap><span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 10 }}>{r.home ? 'vs' : '@'} <Tap onClick={onOpenTeam && (() => onOpenTeam(r.opp))}>{r.opp}</Tap></span><span style={{ marginLeft: 'auto', color: C.text2, fontFamily: NUM_FONT, fontSize: 10 }}>{r.gaPg ?? '—'} GA/GP · PK {r.pk != null ? `${(r.pk * 100).toFixed(1)}%` : '—'}</span></>)} />
       <LedgerSection {...P} title="🗣 NAME ECHOES" blurb="tonight's scorers' names against everyone rated, with the base rate"
         rows={echoes} empty={noGames ? quiet : scorers.length > 1 ? 'No echo among tonight’s scorers.' : 'Fills in once goals are graded.'}
         render={(e) => <div style={{ padding: '6px 0', fontSize: 12, lineHeight: 1.5 }}><b style={{ color: C.ice }}>{e.label}</b> <span style={{ color: C.text2 }}>{e.phrase}</span> <span style={{ color: C.text3 }}>{e.note}</span></div>} />
