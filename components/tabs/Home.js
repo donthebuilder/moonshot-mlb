@@ -1,5 +1,6 @@
 'use client'
 import DayHero from '../DayHero'
+import { computeSlateStats } from '../SlateTiles'
 import PlayerFace from '../PlayerFace'
 import { useEffect, useMemo, useState } from 'react'
 import { etToday } from '../../lib/freshness'
@@ -575,6 +576,9 @@ export default function Home({
   const weakStars = useMemo(() => players.filter((p) => p?.weak_spot_flag === true).length, [players])
   const picks = useMemo(() => players.filter((p) => String(p?.game_pick_role || '').trim()).length, [players])
   const homersSoFar = (results?.hr_capture_report?.all_homer_entries || results?.merged_homers || []).length
+  // The done slate's home-run count: the header's number (computeSlateStats,
+  // total_hrs_on_slate), so the chip and the ticker can't disagree.
+  const slateHrs = useMemo(() => computeSlateStats(players, results, games)?.actual ?? 0, [players, results, games])
   // THREE LANES (A1, 2026-09-14) — the record is said in lanes, never as one
   // blended number. lib/lanes.js.
   const laneRec = useMemo(() => laneRecord(players, results?.hr_capture_report?.all_homer_entries || results?.merged_homers || []), [players, results])
@@ -845,7 +849,9 @@ export default function Home({
       <DayHero
         icon={icon}
         /* A finished slate isn't "Today" after midnight ET (stranger F5). */
-        eyebrow={`${slateInPast ? (slateDate === etShift(-1) ? 'Last night' : 'Final') : (dateLabel || (mode === 'today' ? 'Today' : 'Tomorrow'))}${slateDate ? ` · ${slateDate}` : ''}`}
+        /* The postseason round names the day (DAY-AWARE-OPENERS-PLAN): the
+           schedule's own gameType for THIS slate's date, never guessed. */
+        eyebrow={`${slateInPast ? (slateDate === etShift(-1) ? 'Last night' : 'Final') : (dateLabel || (mode === 'today' ? 'Today' : 'Tomorrow'))}${!slateInPast && nextMlb?.round && nextMlb.date === slateDate ? ` · ${nextMlb.round}` : ''}${slateDate ? ` · ${slateDate}` : ''}`}
         live={isLive}
         /* THE FACT FIRST, THE VOICE SECOND (2026-08-29): the headline is the
            state of the night -- how many games, how many live, whether it has
@@ -886,7 +892,7 @@ export default function Home({
         {!empty && (
           <div className="hero-stats" style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
             <Stat label="GAMES" value={games.length}
-              sub={`${confirmedGames} confirmed`}
+              sub={slateInPast ? 'final' : `${confirmedGames} confirmed`}
               col={C.blue}
               title="Games on tonight's slate, and how many have lineups the league has posted. Confirmed picks homer at a meaningfully higher clip than unconfirmed ones." />
             {/* NEXT PITCH, COUNTING DOWN (2026-09-06). "First pitch was 1:10 PM"
@@ -904,7 +910,15 @@ export default function Home({
             ) : (
               <Stat label="FIRST PITCH" value="not published" col={C.text3} title="No game times on the slate yet." />
             )}
-            {modelHr != null ? (
+            {/* A DONE SLATE SAYS WHAT HAPPENED (DAY-AWARE-OPENERS-PLAN): the
+                night's real homer count, the projection beside it. No count on
+                the graded file -> the projection chip below, as before. */}
+            {slateInPast && slateHrs > 0 ? (
+              <Stat label="HOMERS" value={slateHrs}
+                sub={modelHr != null ? `proj ${modelHr.toFixed(1)}${proj ? ` · bot ${proj.low}–${proj.high}` : ''}` : proj ? `bot ${proj.low}–${proj.high}` : null}
+                col={C.orange}
+                title="Home runs hit on this slate, from the graded results. The second line is what the model and the bot's sheet projected before first pitch." />
+            ) : modelHr != null ? (
               <Stat label="PROJ HR" value={modelHr.toFixed(1)}
                 sub={proj ? `bot ${proj.low}–${proj.high}${proj.grade ? ` · ${proj.grade}` : ''}` : null}
                 col={C.orange}
