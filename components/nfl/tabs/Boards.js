@@ -14,6 +14,8 @@ import { injuryTag, injuryTitle, injuryColor } from '../../../lib/nfl/injury'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 import { baselineFor, topStatChips } from '../ScoreAnatomy'
 import NflBoardFilters, { useNflBoardFilter } from '../NflBoardFilters'
+import { useIsPhone } from '../../MobileFold'
+import { NflBoardList, ViewSwitch } from '../NflBoardExtras'
 
 // Same soft cap Touchdowns.js uses, so the two boards cut at the same depth.
 const SOFT_CAP = 60
@@ -137,6 +139,11 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
   const [onlyUpcoming, setOnlyUpcoming] = useState(false)
   const [onlyWatched, setOnlyWatched] = useState(false)
   const [all, setAll] = useState(false)
+  // LIST | CARDS (board filters plan, TUDDY 1): MOONSHOT's board has both;
+  // TUDDY was cards only -- 60 players four to a row is a long scroll, worst on
+  // a phone. List is the default; the card board is one tap away, unchanged.
+  const [view, setView] = useState('list')
+  const phone = useIsPhone()
 
   // Recomputed when the slate changes or the toggle flips, not per render --
   // same rule Touchdowns.js's own `now` follows.
@@ -358,6 +365,11 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
         </div>
       )}
 
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 8px' }}>
+        <ViewSwitch value={view} onChange={setView} />
+      </div>
+      {view === 'list' && <NflBoardList players={capped} market={market} weights={spec?.weights} odds={odds} phone={phone} onPlayerClick={onPlayerClick} />}
+
       {/* CARD BOARD (2026-09-15, Donovan: "the props card board is okay we
           just need the pictures on there ... a table flip wouldn't be bad,
           I do like the props card"). Same rows, same scores, same sparkline,
@@ -366,7 +378,7 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
           other TUDDY page already uses (real ESPN headshot keyed off the
           player's own espn_id, team-colored monogram when there isn't one --
           never invented). */}
-      <div style={{
+      {view === 'cards' && <div style={{
         display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(212px, 1fr))', gap: 8,
       }}>
         {capped.map((p, i) => {
@@ -493,7 +505,7 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
             </div>
           )
         })}
-      </div>
+      </div>}
 
       {hidden > 0 && (
         <div style={{ marginTop: 14 }}>

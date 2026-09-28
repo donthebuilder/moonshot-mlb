@@ -14,7 +14,8 @@ import { AnatomyStrip, baselineFor, topStatChips } from '../ScoreAnatomy'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 import { ActiveFilters, FilterBar, FilterSearch, FilterSelect, FilterPill } from '../../Filters'
 import NflBoardFilters, { useNflBoardFilter } from '../NflBoardFilters'
-import MobileFold from '../../MobileFold'
+import MobileFold, { useIsPhone } from '../../MobileFold'
+import { NflBoardList, ViewSwitch } from '../NflBoardExtras'
 import TdCompare from '../TdCompare'
 
 // TOUCHDOWNS — the front door.
@@ -198,6 +199,9 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
   const [onlyWatched, setOnlyWatched] = useState(false)
   const [sortBy, setSortBy] = useState('score')
   const [all, setAll] = useState(false)
+  // LIST | CARDS (board filters plan, TUDDY 1): list by default, like MOONSHOT.
+  const [view, setView] = useState('list')
+  const phone = useIsPhone()
   const now = useMemo(() => Date.now(), [data, onlyUpcoming])
 
   const { rows, weights, base, games } = useMemo(() => {
@@ -396,12 +400,15 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
         </div>
       ) : (
         <>
-          <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))' }}>
-            {capped.map((p, i) => (
-              <Card key={p.player_id} p={p} rank={i + 1} matchup={matchup} odds={odds}
-                    onPlayerClick={onPlayerClick} weights={weights} base={base} pool={rows} watchlist={watchlist} />
-            ))}
-          </div>
+          <div style={{ margin: '0 0 8px' }}><ViewSwitch value={view} onChange={setView} /></div>
+          {view === 'list'
+            ? <NflBoardList players={capped} market={MARKET} weights={weights} odds={odds} phone={phone} onPlayerClick={onPlayerClick} />
+            : <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))' }}>
+                {capped.map((p, i) => (
+                  <Card key={p.player_id} p={p} rank={i + 1} matchup={matchup} odds={odds}
+                        onPlayerClick={onPlayerClick} weights={weights} base={base} pool={rows} watchlist={watchlist} />
+                ))}
+              </div>}
           {hidden > 0 && (
             <div style={{ marginTop: 14 }}>
               <FilterPill onClick={() => setAll(true)} count={hidden}>Show the rest</FilterPill>
