@@ -53,7 +53,9 @@ export default function SourceSeason({ matchup, kind = 'charting', slateSeason =
         ...style,
       }}
     >
-      {year} {kind === 'charting' ? 'CHARTING' : 'DEFENSE'}
+      {/* Part A (2026-09-27): last season says so in words, in the panel's
+          own title row -- "2025 CHARTING" read as a label, not a warning. */}
+      {stale ? `LAST SEASON · ${year}` : `${year} ${kind === 'charting' ? 'CHARTING' : 'DEFENSE'}`}
     </span>
   )
 }

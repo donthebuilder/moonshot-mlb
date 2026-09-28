@@ -1,5 +1,5 @@
 'use client'
-import { C, NUM_FONT, RAMP } from '../../lib/nfl/theme'
+import { C, NUM_FONT } from '../../lib/nfl/theme'
 import { softRole } from '../../lib/nfl/dvpSignal'
 import SourceSeason from './SourceSeason'
 import useDvpSeason from '../../lib/nfl/useDvpSeason'
@@ -74,27 +74,29 @@ function Cell({ cell, stat, dim }) {
     // data rather than an inapplicable one. A faint hatch says "this does not
     // apply to this role", which is a different statement from "we don't know".
     return <div title="not a stat this role records" style={{
-      flex: 1, minWidth: 30, maxWidth: CELL_MAX, height: 22, borderRadius: 4,
+      flex: 1, minWidth: 30, maxWidth: CELL_MAX, height: 30, borderRadius: 4,
+      display: 'grid', placeItems: 'center', color: C.text3, fontFamily: NUM_FONT, fontSize: 9,
       background: `repeating-linear-gradient(-45deg, rgba(255,255,255,.045) 0 1px, transparent 1px 5px)`,
-    }} />
+    }}>—</div>
   }
   const soft = (32 - r) / 31              // 1 = softest in the league
-  const col = RAMP[Math.min(RAMP.length - 1, Math.floor(soft * RAMP.length))]
+  // THE VALUE LEADS, THE RANK UNDER IT (2026-09-27, matchups Part A): the
+  // cell says what this defence allows that role (37.3 rec yds a game), and
+  // its rank 1-32 small beneath -- a rank alone hid the number that matters.
+  // One scale: more DASH orange = softer (a better matchup), neutral = tough.
+  const shown = Number.isInteger(v) ? v : Number(v).toFixed(1)
   return (
     <div
-      title={`${stat}: ${Number.isInteger(v) ? v : Number(v).toFixed(1)} — ${r} of 32, rank 1 allows the most`}
+      title={`${stat}: ${shown} — ${r} of 32, rank 1 allows the most`}
       style={{
-        flex: 1, minWidth: 30, maxWidth: CELL_MAX, height: 22, borderRadius: 4, position: 'relative',
-        background: 'rgba(255,255,255,.04)', overflow: 'hidden',
-        opacity: dim ? 0.45 : 1,
+        flex: 1, minWidth: 30, maxWidth: CELL_MAX, height: 30, borderRadius: 4, position: 'relative',
+        background: `color-mix(in srgb, ${C.orange} ${Math.round((0.05 + soft * soft * 0.55) * 100)}%, rgba(255,255,255,.03))`,
+        overflow: 'hidden', opacity: dim ? 0.45 : 1,
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1,
       }}
     >
-      <div style={{ position: 'absolute', inset: 0, background: col, opacity: 0.14 + soft * 0.78 }} />
-      <span style={{
-        position: 'absolute', inset: 0, display: 'grid', placeItems: 'center',
-        fontFamily: NUM_FONT, fontSize: 9.5, fontWeight: 800,
-        color: soft > 0.55 ? '#04120d' : C.text2,
-      }}>{r}</span>
+      <span style={{ fontFamily: NUM_FONT, fontSize: 10.5, fontWeight: 900, lineHeight: 1, color: soft > 0.6 ? C.text : C.text2 }}>{shown}</span>
+      <span style={{ fontFamily: NUM_FONT, fontSize: 7.5, fontWeight: 700, lineHeight: 1, color: C.text3 }}>{r}</span>
     </div>
   )
 }
@@ -202,11 +204,13 @@ export default function DvpTable({ data: payload, team, win = 'season', roles, h
       </div>
       <div className="dense-scroll" style={{ overflowX: 'auto' }}>
         <div style={{ minWidth: width }}>
-          <div style={{ display: 'flex', gap: 3, marginBottom: 5, paddingLeft: 89 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, marginBottom: 5, paddingLeft: 89 }}>
             {stats.map((s) => (
               <span key={s} style={{
                 flex: 1, minWidth: 30, maxWidth: CELL_MAX, textAlign: 'center', fontFamily: NUM_FONT,
-                fontSize: 8, fontWeight: 800, color: C.text3, letterSpacing: '.04em',
+                fontSize: 7.5, fontWeight: 800, color: C.text3, letterSpacing: '.02em',
+                // Headers wrap (RECYD/ G) instead of running into each other at 390.
+                lineHeight: 1.15, whiteSpace: 'normal', overflowWrap: 'anywhere',
               }}>{labels[s] || s}</span>
             ))}
           </div>
@@ -238,14 +242,14 @@ export default function DvpTable({ data: payload, team, win = 'season', roles, h
 
       {best?.standout && (
         <div style={{ fontSize: 10.5, color: C.text2, marginTop: 9, lineHeight: 1.55 }}>
-          Softest cell on this board: <b style={{ color: C.green }}>{best.role}</b> in
-          {' '}<b style={{ color: C.green }}>{best.label}</b>, {best.rank} of 32.
+          Softest cell on this board: <b style={{ color: C.orange }}>{best.role}</b> in
+          {' '}<b style={{ color: C.orange }}>{best.label}</b>, {best.rank} of 32.
         </div>
       )}
       <div style={{ fontSize: 9.5, color: C.text3, marginTop: 4, lineHeight: 1.5 }}>
-        One number per cell: where this defence ranks against that role, 1 to 32.
-        Rank 1 allows the most, so brighter is a better matchup. The raw figure is
-        on hover.
+        Each cell: what this defence allows that role (the big number) and its
+        rank against the league under it, 1 to 32. Rank 1 allows the most, so more
+        orange is a better matchup. — = not a stat that role records.
       </div>
     </div>
   )
