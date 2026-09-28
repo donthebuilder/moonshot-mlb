@@ -22,16 +22,21 @@ import { teamColor, isKnownTeam } from '../lib/mlbTeams'
 //   nothing at all; never a monogram, never a badge, never a border.
 // Pass `photo` to use a URL you already have (NHL), `id` otherwise.
 
-// FACE CROP (2026-09-27): MLB's headshot is a 2:3 portrait, and cropping it
+// SILO, LIKE LAMP (2026-09-27, MLB-FACES-LIKE-NHL): Donovan likes LAMP's faces --
+// the NHL feed's mug is a transparent cut-out, head and shoulders with the
+// jersey, on the page's dark circle. mlbstatic has the same kind of image, the
+// 'silo' headshot: square, transparent, cap + face + jersey. Already square, so
+// no crop parameters; the dark circle / club tile shows through behind it.
+// (Before that, same day:) FACE CROP: MLB's studio headshot is a 2:3 portrait, and cropping it
 // square in CSS (cover + 'top center') showed cap and forehead and cut the
 // chin. mlbstatic crops it for us instead: square, centred on the face
 // (h + c_thumb + g_face); the generic-silhouette default still applies.
-const mlbUrl = (id, px) => `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_${px},h_${px},c_thumb,g_face,q_auto:best/v1/people/${encodeURIComponent(id)}/headshot/67/current`
+const mlbUrl = (id, px) => `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:silo:current.png/w_${px},q_auto:best/v1/people/${encodeURIComponent(id)}/headshot/silo/current`
 // STRICT (face in the dial, 2026-09-27): the same square face crop WITHOUT the
 // generic-silhouette default, so a player with no photo 404s and the caller
 // falls back to its own no-face look (the number in the ring) instead of
 // drawing a silhouette.
-export const mlbFaceStrict = (id, px) => (id ? `https://img.mlbstatic.com/mlb-photos/image/upload/w_${px},h_${px},c_thumb,g_face,q_auto:best/v1/people/${encodeURIComponent(id)}/headshot/67/current` : null)
+export const mlbFaceStrict = (id, px) => (id ? `https://img.mlbstatic.com/mlb-photos/image/upload/w_${px},q_auto:best/v1/people/${encodeURIComponent(id)}/headshot/silo/current` : null)
 const initials = (name) => String(name || '').split(/\s+/).filter(Boolean).map((w) => w[0]).slice(0, 2).join('').toUpperCase()
 
 // Per product, looked up -- never a sport ternary (CLAUDE.md).

@@ -27,6 +27,7 @@ import { toRailGame, toMlbRailGames, mergeGamesSorted, combinedRenderState, Comb
 // that now also ride TUDDY's own header ticker (2026-09-16).
 import NflHeadlineStrip from '../NflHeadlineStrip'
 import HeadlinePicks from '../../headline/HeadlinePicks'
+import { defenseLeaks } from '../../../lib/nfl/defenseLeaks'
 import PageHeader from '../../PageHeader'
 import { NFL_NAV } from '../../../lib/routes'
 import HotNumbers from '../../numerology/HotNumbers'
@@ -166,17 +167,7 @@ function TouchdownLedger({ results, playersById }) {
   )
 }
 
-function defenseLeaks(matchup, games) {
-  const slateTeams = new Set(games.flatMap((game) => [game.away, game.home]))
-  const season = matchup?.dvp?.season || {}
-  return Object.entries(season).filter(([team]) => slateTeams.has(team)).map(([team, roles]) => {
-    const vulnerable = Object.entries(roles || {})
-      .filter(([, row]) => number(row?.td_rank, 99) <= 8 && number(row?.td) > 0)
-      .sort((a, b) => number(a[1].td_rank, 99) - number(b[1].td_rank, 99))[0]
-    return vulnerable ? { team, role: vulnerable[0], ...vulnerable[1] } : null
-  }).filter(Boolean).sort((a, b) => a.td_rank - b.td_rank).slice(0, 5)
-}
-
+// defenseLeaks moved to lib/nfl/defenseLeaks.js (shared with the Ledger tab, 2026-09-27).
 function LookOut({ matchup, games }) {
   const leaks = useMemo(() => defenseLeaks(matchup, games), [matchup, games])
   return (

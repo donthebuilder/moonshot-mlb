@@ -1,4 +1,5 @@
 'use client'
+import { leaveTarget } from '../../lib/openTarget'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { resolveTab, pageTitle, NFL_TABS as NFL_TAB_KEYS } from '../../lib/routes'
 import { usePageTitle } from '../../lib/usePageTitle'
@@ -22,6 +23,7 @@ import StatPortal from './tabs/StatPortal'
 import Watchlist from './tabs/Watchlist'
 import Games from './tabs/Games'
 import BoardHub from './tabs/BoardHub'
+import Ledger from './tabs/Ledger'
 import Research from './tabs/Research'
 import Matchups from './tabs/Matchups'
 import Explosive from './tabs/Explosive'
@@ -342,7 +344,7 @@ export default function NflDashboard({ palettePass = 0 }) {
                 picks={picks} results={nflResults} onPlayerClick={openPlayer} initialView={tab === 'picks' ? 'called' : 'board'} />
             )}
             {tab === 'research' && <Research data={data} onPlayerClick={openPlayer} />}
-            {tab === 'matchups' && <Matchups matchup={matchup} data={data} />}
+            {tab === 'matchups' && <Matchups matchup={matchup} data={data} onPlayerClick={openPlayer} onOpenTeam={(abbr) => { setPortalTeam(abbr); setTab('players') }} />}
             {tab === 'explosive' && <Explosive matchup={matchup} data={data} onPlayerClick={openPlayer} />}
             {tab === 'redzone' && <RedZone data={data} matchup={matchup} onPlayerClick={openPlayer} />}
             {tab === 'longshots' && <Longshots sport="nfl" eyebrow="TUDDY · LONGSHOTS" theme={C} numFont={NUM_FONT} accent={C.green} Table={NflTable} onOpenPlayer={(id) => { const p = (data?.players || []).find((x) => String(x.player_id) === String(id)); if (p) openPlayer(p, 'TD') }} />}
@@ -350,6 +352,7 @@ export default function NflDashboard({ palettePass = 0 }) {
             {tab === 'report' && <Report report={report} />}
             {tab === 'accountability' && <Accountability data={data} results={nflResults} onPlayerClick={openPlayer} />}
             {tab === 'tuddyledger' && <TuddyLedger data={data} results={nflResults} onPlayerClick={openPlayer} />}
+            {tab === 'ledger' && <Ledger data={slate} picks={picks} results={nflResults} matchup={matchup} onPlayerClick={openPlayer} onOpenTeam={(abbr) => { setPortalTeam(abbr); setTab('players') }} onOpenGame={(id) => { leaveTarget('game', id); setTab('games') }} />}
             {tab === 'boxscores' && <BoxScores data={data} onPlayerClick={openPlayer} />}
             {tab === 'scores' && <Scores data={slate} />}
             {tab === 'standings' && <Standings onOpenTeam={(abbr) => { setPortalTeam(abbr); setTab('players') }} />}
@@ -360,7 +363,7 @@ export default function NflDashboard({ palettePass = 0 }) {
             {tab === 'leaders' && <Leaders data={data} onPlayerClick={openPlayer} />}
             {/* By game since 2026-09-27 (BATCH-STORYLINES-PAGE step 2): the story engine's rows, tied to the board.
                 The old section view stays as Home's compact strip (tabs/Storylines.js compact). */}
-            {tab === 'storylines' && <StorylinesPage sport="nfl" eyebrow="TUDDY · STORYLINES" theme={C} numFont={NUM_FONT} accent={C.green} onOpenPlayer={(id) => { const p = (data?.players || []).find((x) => String(x.player_id) === String(id)); if (p) openPlayer(p, 'TD') }} />}
+            {tab === 'storylines' && <StorylinesPage sport="nfl" eyebrow="TUDDY · STORYLINES" theme={C} numFont={NUM_FONT} accent={C.green} onOpenGame={(id) => { leaveTarget('game', id); setTab('games') }} onOpenPlayer={(id) => { const p = (data?.players || []).find((x) => String(x.player_id) === String(id)); if (p) openPlayer(p, 'TD') }} />}
           </ErrorBoundary>
         )}
       </main>

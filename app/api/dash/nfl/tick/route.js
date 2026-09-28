@@ -723,10 +723,21 @@ async function runMilestoneTick(db, day) {
 // nfl_td_feed (hit = scored a touchdown that day; played is not in the feed,
 // so it stays null and the base rate is over everyone eligible), from 3am ET
 // so Monday / Sunday night games are final. Never in a score or a board.
+// COST CUT (2026-09-27): the week file (~720 KB) was downloaded and parsed on
+// every minute's tick for numerology alone. It changes a few times a day, so
+// a warm instance keeps it ten minutes. A failed read is not cached.
+let _week = { at: 0, data: null }
+async function weekFile() {
+  if (_week.data && Date.now() - _week.at < 10 * 60e3) return _week.data
+  const data = await fetchNfl(nflSlatePaths(), nflSlateLooksReal).catch(() => null)
+  if (data) _week = { at: Date.now(), data }
+  return data
+}
+
 async function runNflNumerology(db, day) {
   const out = {}
   try {
-    const week = await fetchNfl(nflSlatePaths(), nflSlateLooksReal).catch(() => null)
+    const week = await weekFile()
     const kick = new Map()
     for (const g of week?.games || []) {
       const t = Date.parse(g?.kickoff || '')
@@ -751,7 +762,7 @@ async function runNflNumerology(db, day) {
         await refreshLaneNights(db, 'nfl', yday)
         // HOT NUMBERS (step 6b): that day's recorded players against the
         // touchdown feed, once. The week file still holds their numbers.
-        const week = await fetchNfl(nflSlatePaths(), nflSlateLooksReal).catch(() => null)
+        const week = await weekFile()
         const ids = new Set(open.map((r) => String(r.player_id)))
         const players = (week?.players || []).filter((p) => ids.has(String(p.player_id))).map((p) => { const a = fromNfl(p); return a ? { player_id: p.player_id, ...a } : null }).filter(Boolean)
         if (players.length) out.hotNumbers = await writeNumbersNight(db, 'nfl', yday, players, scored)

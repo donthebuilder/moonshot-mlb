@@ -21,7 +21,7 @@ import HotNumbers from '../../numerology/HotNumbers'
 // leaving a panel that says "no data".
 //
 // Long lists preview a few rows (site-wide rule, components/ListPreview.js).
-export default function Home({ today, date = null, onOpenGame, onOpenPlayer, setTab }) {
+export default function Home({ onOpenTeam = null, today, date = null, onOpenGame, onOpenPlayer, setTab }) {
   // `today` is the shell's own read of today's scores (LampDashboard), so
   // the front page and the header lamp share one poll rather than two.
   const scores = today
@@ -192,7 +192,7 @@ export default function Home({ today, date = null, onOpenGame, onOpenPlayer, set
               {leaders.map((r) => (
                 <tr key={r.abbrev} style={{ borderTop: `1px solid ${C.border}` }}>
                   <td style={{ ...td, color: C.text3, fontSize: 11 }}>{r.divName}</td>
-                  <td style={td}><TeamMark abbrev={r.abbrev} name={r.nickname} /></td>
+                  <td style={td}><TeamMark abbrev={r.abbrev} name={r.nickname} onClick={onOpenTeam ? () => onOpenTeam(r.abbrev) : null} /></td>
                   <td style={{ ...td, textAlign: 'right', fontFamily: NUM_FONT, color: C.text2 }}>{r.w}-{r.l}-{r.otl}</td>
                   <td style={{ ...td, textAlign: 'right', fontFamily: NUM_FONT, fontWeight: 900 }}>{r.pts}</td>
                 </tr>

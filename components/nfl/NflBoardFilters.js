@@ -70,11 +70,12 @@ import { FilterPill, useOutsideClose } from '../Filters'
 // gesture as undoing a hand-dragged band. The percentile is in the label
 // because a filter that will not say what it did is not evidence.
 const QUICK = {
+  // Goal-line role, Red-zone role and High total were PROMOTED to the Angle
+  // row (2026-09-27, board filters plan: NflBoardExtras angleDefs, same fields,
+  // same cut-offs) -- left here too they were the same filter twice. The bands
+  // below still cover them for a custom range.
   TD: [
-    { key: 'gl', label: 'Goal-line role', stat: 'f_gl_opp', min: 75 },
-    { key: 'rz', label: 'Red-zone role', stat: 'f_rz_opp', min: 75 },
     { key: 'everydown', label: 'Every-down', stat: 'f_snap_pct', min: 75 },
-    { key: 'shootout', label: 'High total', stat: 'implied_total', min: 70 },
   ],
   REC_YDS: [
     { key: 'wopr', label: 'Opportunity', stat: 'f_wopr', min: 75 },
@@ -218,8 +219,13 @@ export function useNflBoardFilter(players, market) {
 
 const lbl = () => ({ fontSize: 10, color: C.text2, textTransform: 'uppercase', letterSpacing: '.07em', fontWeight: 800 })
 
-export default function NflBoardFilters({ state, total, shown }) {
-  const { bands, bandOptions, toggleBand, setBandRange, quick, quickOn, applyQuick, reset, active, activeCount } = state
+export default function NflBoardFilters({ state, total, shown, extra = null, extraCount = 0, extraReset = null }) {
+  const { bands, bandOptions, toggleBand, setBandRange, quick, quickOn, applyQuick, reset: resetBands, active: bandsActive, activeCount: bandCount } = state
+  // `extra` (board filters plan, TUDDY 3 + 4): the game picker, time window and
+  // score range, drawn at the top of this same drawer (NflBoardExtras).
+  const activeCount = bandCount + extraCount
+  const active = bandsActive || extraCount > 0
+  const reset = () => { resetBands(); extraReset?.() }
   const [open, setOpen] = useState(false)
   // NOTE THE ARGUMENT ORDER. BoardFilters.js calls useOutsideClose(open,
   // setOpen) -- but that is its OWN local copy, declared at the bottom of that
@@ -259,13 +265,20 @@ export default function NflBoardFilters({ state, total, shown }) {
           )}
         </button>
 
+        {/* ON A PHONE THE PANEL IS A SHEET (2026-09-27): it sat inside the
+            filter bar, which scrolls sideways (overflow auto), so on a 390px
+            screen it opened off the right edge and was clipped -- measured on
+            production: left 294 of 390, hidden. Fixed above the tab bar, a
+            sideways scroller can't clip it. Desktop keeps the dropdown. */}
+        <style>{`@media (max-width: 560px){.nfl-filter-panel{position:fixed!important;left:12px!important;right:12px!important;top:auto!important;bottom:calc(84px + env(safe-area-inset-bottom))!important;width:auto!important;max-width:none!important;max-height:62vh!important}}`}</style>
         {open && (
-          <div style={{
+          <div className="nfl-filter-panel" style={{
             position: 'absolute', zIndex: 60, top: 'calc(100% + 6px)', left: 0,
             width: 300, maxWidth: 'calc(100vw - 28px)', maxHeight: '65vh', overflowY: 'auto',
             padding: 12, borderRadius: 12, border: `1px solid ${C.border}`,
             background: C.bg2, boxShadow: '0 18px 40px rgba(0,0,0,.5)',
           }}>
+            {extra}
             {Boolean(quick.length) && <>
               <div style={lbl()}>Quick</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, margin: '7px 0 13px' }}>

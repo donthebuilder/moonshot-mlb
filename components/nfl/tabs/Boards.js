@@ -14,6 +14,9 @@ import { injuryTag, injuryTitle, injuryColor } from '../../../lib/nfl/injury'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 import { baselineFor, topStatChips } from '../ScoreAnatomy'
 import NflBoardFilters, { useNflBoardFilter } from '../NflBoardFilters'
+import { useIsPhone } from '../../MobileFold'
+import { NflBoardList, ViewSwitch, AngleRow, angleDefs, useNflDrawerFilters } from '../NflBoardExtras'
+import { matchupTag } from '../../../lib/nfl/dvpSignal'
 
 // Same soft cap Touchdowns.js uses, so the two boards cut at the same depth.
 const SOFT_CAP = 60
@@ -137,6 +140,12 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
   const [onlyUpcoming, setOnlyUpcoming] = useState(false)
   const [onlyWatched, setOnlyWatched] = useState(false)
   const [all, setAll] = useState(false)
+  // LIST | CARDS (board filters plan, TUDDY 1): MOONSHOT's board has both;
+  // TUDDY was cards only -- 60 players four to a row is a long scroll, worst on
+  // a phone. List is the default; the card board is one tap away, unchanged.
+  const [view, setView] = useState('list')
+  const [angle, setAngle] = useState(null)   // board filters plan, TUDDY 2
+  const phone = useIsPhone()
 
   // Recomputed when the slate changes or the toggle flips, not per render --
   // same rule Touchdowns.js's own `now` follows.
@@ -165,9 +174,12 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
     [data, market],
   )
   const { filtered: bandFiltered, state: bandState } = useNflBoardFilter(marketPool, market)
+  const angles = useMemo(() => angleDefs({ matchup, logs, market, matchupTag }), [matchup, logs, market])
+  const drawer = useNflDrawerFilters(marketPool, data?.games, market)   // TUDDY 3 + 4
 
   const rows = useMemo(() => {
-    const pool = bandFiltered
+    const angleTest = angle ? angles.find((x) => x.key === angle)?.test : null
+    const pool = (angleTest ? bandFiltered.filter(angleTest) : bandFiltered).filter(drawer.test)
     const needle = query.trim().toLowerCase()
     const kept = pool.filter((p) => {
       if (!showLow && p.low_sample) return false
@@ -202,7 +214,7 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
     // nothing on screen saying so; it now caps at SOFT_CAP with a "showing X
     // of Y" line and a Show-the-rest pill, exactly as Touchdowns does.
     return kept.sort(cmp)
-  }, [bandFiltered, data, market, showLow, query, team, position, sortBy, odds,
+  }, [bandFiltered, drawer, angle, angles, data, market, showLow, query, team, position, sortBy, odds,
       onlyPriced, onlyUpcoming, onlyWatched, watchlist, now])
 
   const capped = all ? rows : rows.slice(0, SOFT_CAP)
@@ -237,6 +249,8 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
   // One chip row for every narrowing dimension on this board, bands included.
   const activeFilterChips = [
     ...bandState.activeFilters,
+    ...drawer.chips,
+    angle ? { key: 'angle', label: angles.find((x) => x.key === angle)?.label || angle, onClear: () => setAngle(null) } : null,
     query ? { key: 'q', label: `“${query}”`, onClear: () => setQuery('') } : null,
     team !== 'all' ? { key: 'team', label: team, onClear: () => setTeam('all') } : null,
     position !== 'all' ? { key: 'pos', label: position, onClear: () => setPosition('all') } : null,
@@ -247,7 +261,7 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
   ].filter(Boolean)
   const clearAllFilters = () => {
     bandState.reset()
-    setQuery(''); setTeam('all'); setPosition('all')
+    setQuery(''); setTeam('all'); setPosition('all'); setAngle(null); drawer.reset()
     setOnlyPriced(false); setOnlyUpcoming(false); setOnlyWatched(false); setShowLow(false)
   }
 
@@ -255,12 +269,14 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
     <div>
       {!hideMarketPicker && <PillRow label="Market" value={market} options={marketOptions} onChange={setMarket} />}
 
+      <AngleRow defs={angles} pool={bandFiltered} value={angle} onChange={(k) => { setAngle(k); setAll(false) }} />
+
       <div style={{ marginTop: 8 }}>
         <FilterBar>
           <FilterSearch value={query} onChange={setQuery} placeholder="Search player…" width={165} />
           <FilterSelect label="Team" value={team} options={filterOptions.teams} onChange={setTeam} />
           <FilterSelect label="Position" value={position} options={filterOptions.positions} onChange={setPosition} />
-          <NflBoardFilters state={bandState} total={marketPool.length} shown={rows.length} />
+          <NflBoardFilters state={bandState} total={marketPool.length} shown={rows.length} extra={drawer.section} extraCount={drawer.activeCount} extraReset={drawer.reset} />
         </FilterBar>
       </div>
 
@@ -358,6 +374,11 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
         </div>
       )}
 
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 8px' }}>
+        <ViewSwitch value={view} onChange={setView} />
+      </div>
+      {view === 'list' && <NflBoardList players={capped} market={market} weights={spec?.weights} odds={odds} phone={phone} onPlayerClick={onPlayerClick} />}
+
       {/* CARD BOARD (2026-09-15, Donovan: "the props card board is okay we
           just need the pictures on there ... a table flip wouldn't be bad,
           I do like the props card"). Same rows, same scores, same sparkline,
@@ -366,7 +387,7 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
           other TUDDY page already uses (real ESPN headshot keyed off the
           player's own espn_id, team-colored monogram when there isn't one --
           never invented). */}
-      <div style={{
+      {view === 'cards' && <div style={{
         display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(212px, 1fr))', gap: 8,
       }}>
         {capped.map((p, i) => {
@@ -493,7 +514,7 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
             </div>
           )
         })}
-      </div>
+      </div>}
 
       {hidden > 0 && (
         <div style={{ marginTop: 14 }}>

@@ -75,7 +75,7 @@ import { nhlCaptureFrom, readNhlRecords } from '../../lib/record/nhl'
 import { readMlbEvents } from '../../lib/record/mlb'
 import { readNflEvents } from '../../lib/record/nfl'
 import { eventCapture } from '../../lib/record/shape'
-import { appHref } from '../../lib/routes'
+import { appHref, playerHref } from '../../lib/routes'
 import styles from './start.module.css'
 
 export const dynamic = 'force-dynamic'
@@ -156,7 +156,9 @@ const LEAGUE_BITES = ['p3', 'hot', 'hrw', 'weak']
 const START_TTL = 120
 
 /** A bite with only what the markup reads. `p` (the full row) never crosses. */
-const biteText = (b) => ({ k: b.k, icon: b.icon, tag: b.tag, name: b.name, why: b.why, stat: b.stat, col: b.col })
+// `pid` (2026-09-27, CLICK-EVERYTHING-PLAN): the player's id rides along so his name links
+// to his card in the app -- the id only, never the row.
+const biteText = (b) => ({ k: b.k, icon: b.icon, tag: b.tag, name: b.name, why: b.why, stat: b.stat, col: b.col, pid: b.p?.player_id ?? b.p?.id ?? null })
 
 const SPORTS = {
   mlb: {
@@ -397,18 +399,20 @@ async function computeCalls(sportKey) {
 // so each sport (and each ET day, for the record) is its own entry. A loader
 // that throws is not cached -- the page's own .catch() renders the honest
 // empty state and the next visitor asks again.
-const loadCalls = unstable_cache(computeCalls, ['start-calls'], { revalidate: START_TTL })
+const loadCalls = unstable_cache(computeCalls, ['start-calls-v2'], { revalidate: START_TTL })   // v2: bites carry pid
 // v2 (2026-09-26): the record's shape changed (called / onBoard / total) --
 // a new key so a cached v1 entry can never render NaN after a deploy.
 const loadRecord = unstable_cache(computeRecord, ['start-record-v3'], { revalidate: START_TTL })
 
 /** One bite row. Shared by both sports and by the league strip. */
-function Bite({ b }) {
+function Bite({ b, sport = 'mlb' }) {
   return (
     <li className={styles.bite}>
       <span className={styles.biteIcon} aria-hidden="true">{b.icon}</span>
       <span className={styles.biteTag} style={{ color: b.col }}>{b.tag}</span>
-      <span className={styles.biteName}>{b.name}</span>
+      {b.pid
+        ? <a className={`${styles.biteName} tap-link`} href={playerHref(sport, b.pid)} style={{ color: 'inherit', textDecoration: 'none' }}>{b.name}</a>
+        : <span className={styles.biteName}>{b.name}</span>}
       <span className={styles.biteWhy}>{b.why}</span>
       <span className={styles.biteStat}>{b.stat}</span>
     </li>
@@ -515,7 +519,7 @@ export default async function StartPage({ searchParams }) {
           </ul>
         ) : sportKey === 'nfl' ? (
           <ul className={styles.bites}>
-            {calls.bites.map((b) => <Bite key={b.k} b={b} />)}
+            {calls.bites.map((b) => <Bite key={b.k} b={b} sport={sportKey} />)}
           </ul>
         ) : (
           // Mounted as-is, per the locked scope. No onPlayerClick: there is no
@@ -532,7 +536,7 @@ export default async function StartPage({ searchParams }) {
             The rest of what the board flagged tonight, beyond the four picks above.
           </p>
           <ul className={styles.bites}>
-            {strip.map((b) => <Bite key={b.k} b={b} />)}
+            {strip.map((b) => <Bite key={b.k} b={b} sport={sportKey} />)}
           </ul>
         </section>
       )}

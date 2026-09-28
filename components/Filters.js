@@ -258,3 +258,31 @@ export function useOutsideClose(onClose, active = true) {
   }, [onClose, active])
   return ref
 }
+
+
+// ── THE ANGLE ROW, ALL THREE PRODUCTS (2026-09-27, board filters plan) ─────
+// MOONSHOT's one-tap Angle chips as one component: each product passes its
+// own defs ({ key, label, title, test(row) }), the pool the counts come from,
+// and its accent. One sideways-scrolling row (no wrap), 44px taps around a
+// 30px pill, the count beside each label, tap again to clear.
+export function AngleRow({ defs, pool, value, onChange, accent = C.orange, className = 'angle-row' }) {
+  return (
+    <div className={className} style={{ display: 'flex', gap: 6, alignItems: 'center', overflowX: 'auto', flexWrap: 'nowrap', paddingBottom: 2, marginTop: 8 }}>
+      <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: '.1em', color: C.text3, fontFamily: NUM_FONT, flexShrink: 0 }}>ANGLE</span>
+      {defs.map((d) => {
+        const n = pool.filter(d.test).length
+        const on = value === d.key
+        return (
+          <button key={d.key} type="button" title={d.title} onClick={() => onChange(on ? null : d.key)} aria-pressed={on}
+            style={{ flexShrink: 0, minHeight: 44, padding: 0, border: 'none', background: 'transparent', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 30, padding: '0 11px', borderRadius: 999, whiteSpace: 'nowrap',
+              border: `1px solid ${on ? accent : C.border}`, background: on ? alpha(accent, 0.14) : 'transparent', color: on ? accent : C.text2,
+              font: `700 11px/1 ${NUM_FONT}` }}>
+              {d.label} <span style={{ color: on ? accent : C.text3 }}>{n}</span>
+            </span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}

@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/nfl/theme'
 import { softLine } from '../../lib/nfl/dvpSignal'
 import ChartFrame from './ChartFrame'
+import Tap from '../Tap'
 
 // MatchupMap — his routes on their holes, drawn on the field it happens on.
 //
@@ -180,7 +181,7 @@ const ordinal = (n) => {
 export default function MatchupMap({
   field, player, team, mode = 'player', defaultView = 'pass', compact = false,
   qb = false, roleSignal = null, highlightRole = null,
-  covTeam = null, covPlayer = null, covLeague = null,
+  covTeam = null, covPlayer = null, covLeague = null, onOpenTeam = null,
 }) {
   const rushable = mode === 'def'
     ? Boolean(field?.player_rush || field?.def_rush)
@@ -457,13 +458,13 @@ export default function MatchupMap({
               <span>
                 {roleSignal.standout ? (
                   <>
-                    <b style={{ color: C.text }}>{defTeam}</b> {softLine(roleSignal)}
+                    <Tap onClick={onOpenTeam && (() => onOpenTeam(defTeam))}><b style={{ color: C.text }}>{defTeam}</b></Tap> {softLine(roleSignal)}
                     {highlightRole && highlightRole === roleSignal.role
                       ? <> — the same role {player?.name || 'he'} plays.</>
                       : '.'}
                   </>
                 ) : (
-                  <>No role stands out for <b style={{ color: C.text }}>{defTeam}</b> league-wide
+                  <>No role stands out for <Tap onClick={onOpenTeam && (() => onOpenTeam(defTeam))}><b style={{ color: C.text }}>{defTeam}</b></Tap> league-wide
                   either — nothing they give up by position is far enough above average to call.</>
                 )}
               </span>
@@ -479,7 +480,7 @@ export default function MatchupMap({
                 color: C.text3, flexShrink: 0, width: 42,
               }}>COVER</span>
               <span>
-                <b style={{ color: C.text }}>{defTeam}</b> plays {coverage.dominant} on{' '}
+                <Tap onClick={onOpenTeam && (() => onOpenTeam(defTeam))}><b style={{ color: C.text }}>{defTeam}</b></Tap> plays {coverage.dominant} on{' '}
                 <b style={{ color: C.cyan }}>{coverage.dominantPct}%</b> of snaps
                 {coverage.rank && coverage.rank <= 10 && <> — {ordinal(coverage.rank)}-most in the league</>}
                 {coverage.topShell && <>, mostly {coverage.topShell[0]} ({coverage.topShell[1]}%)</>}.

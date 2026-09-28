@@ -1,4 +1,5 @@
 'use client'
+import { takeTarget } from '../../../lib/openTarget'
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT, gradeFor, TYPE } from '../../../lib/nfl/theme'
 import { ActiveFilters, FilterBar, FilterSearch, Segmented } from '../../Filters'
@@ -321,7 +322,8 @@ const STATE_OPTIONS = [
 export default function Games({ data, picks, matchup, logs, results, onPlayerClick }) {
   const games = data?.games || []
   const players = data?.players || []
-  const [selectedGame, setSelectedGame] = useState('all')
+  // A game tapped on another tab (Storylines, the Ledger) opens selected here.
+  const [selectedGame, setSelectedGame] = useState(() => (typeof window === 'undefined' ? 'all' : takeTarget('game') || 'all'))
   const [stateFilter, setStateFilter] = useState('all')
   const [query, setQuery] = useState('')
   const [view, setView] = useState('table')

@@ -1,4 +1,5 @@
 'use client'
+import { takeTarget } from '../../lib/openTarget'
 import { useMemo, useState, useRef, useEffect } from 'react'
 import { C, NUM_FONT, TYPE } from '../../lib/theme'
 import { roleBadge } from '../../lib/roleBadge'
@@ -429,7 +430,10 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
   // Rundown -- reused here as the landing view instead of a second table
   // implementation. Cards are one tap away, unchanged (Boxes retired from
   // this tab 2026-09-13 — it's a Live-tab pill now, see the note above).
-  const [gview, setGview] = useState('table')
+  // A game tapped on another tab (Storylines, the Ledger) opens on the games
+  // view, focused on it -- taken once, before either state is seeded.
+  const [openTarget] = useState(() => (typeof window === 'undefined' ? null : takeTarget('game')))
+  const [gview, setGview] = useState(openTarget ? 'games' : 'table')
   // ── THE LEAGUE'S LINEUP, NOT THE BOT'S (2026-08-10) ──────────────────────
   //
   // Donovan: "make sure the live wire and games can update the lineups — does
@@ -521,7 +525,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
   }
   // useState's initializer runs once, which is exactly the contract initialMode
   // wants: it wins over 'default' on FIRST render only, then the buttons own it.
-  const [mode, setMode]         = useState(initialMode || 'default')
+  const [mode, setMode]         = useState(initialMode || (openTarget ? 'lineups' : 'default'))   // a handed-over game opens alone, lineups open
   // 2026-08-12, Donovan: "maybe be able to order h/9 or whip and score."
   // Default stays chronological on purpose — GameStrip's own header comment
   // is explicit about why ("you read a slate chronologically -- re-ranking
@@ -599,7 +603,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
   // bottom". Now it FOCUSES: the chosen game renders alone, full width, with
   // the slot-by-slot depth open; everything else steps aside until the back
   // button (or re-clicking the bubble) restores the wall.
-  const [lineupFocus, setLineupFocus] = useState(null)
+  const [lineupFocus, setLineupFocus] = useState(openTarget)
   const gameRefs                = useRef({})
 
   const allGames = useMemo(() => groupGames(players), [players])
@@ -742,7 +746,8 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
     return (
       <div>
         <ViewPills views={[['table', '📊 Table'], ['games', '🏟 Games']]} view={gview} setView={setGview} />
-        <ProjectedOutput games={games} players={allPlayers.length ? allPlayers : players} watchIds={watchIds} />
+        <ProjectedOutput games={games} players={allPlayers.length ? allPlayers : players} watchIds={watchIds}
+          onOpenGame={(pk) => { setGview('games'); setMode('lineups'); setLineupFocus(pk) }} />
       </div>
     )
   }
@@ -1013,7 +1018,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
               padding: '6px 12px', fontSize: TYPE.body, fontWeight: 700, color: C.text3,
             }}>← All lineups</button>
           )}
-          {(lineupFocus ? games.filter((g) => g.game_pk === lineupFocus) : games).map((g) => {
+          {(lineupFocus ? games.filter((g) => String(g.game_pk) === String(lineupFocus)) : games).map((g) => {
             const byTeam = {}
             ;(g.players || []).forEach((p) => {
               const t = p?.team || '?'
@@ -1093,7 +1098,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                     // card, so keep it in view. Setting activeGame too keeps
                     // the sticky strip's highlighted bubble in sync with
                     // whichever card is actually focused below it.
-                    const next = lineupFocus === g.game_pk ? null : g.game_pk
+                    const next = String(lineupFocus) === String(g.game_pk) ? null : g.game_pk
                     setLineupFocus(next)
                     setActive(next)
                   }}

@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../../lib/nfl/theme'
 import { btnStyle } from '../../ui'
 import DefensesTable from '../DefensesTable'
+import Tap from '../../Tap'
 import MatchupMap from '../MatchupMap'
 import PageHeader from '../../PageHeader'
 import DvpTable from '../DvpTable'
@@ -178,7 +179,7 @@ function Section({ title, sub, children, style }) {
   )
 }
 
-export default function Matchups({ matchup, data }) {
+export default function Matchups({ matchup, data, onPlayerClick = null, onOpenTeam = null }) {
   // The slate is six teams. Listing all 32 alphabetically put ATL next to ARI
   // and buried the ones playing tonight in a wall of three-letter codes — so
   // the games lead, laid out as games, and the league hides behind a toggle.
@@ -270,9 +271,9 @@ export default function Matchups({ matchup, data }) {
           MOONSHOT's Pitchers-page shape -- a ranked table, softest first; a
           tap opens that defense's detail below (the map, the DvP grid, drift,
           panels). Replaces the per-game verdict rows and the team buttons. */}
-      <DefensesTable matchup={matchup} data={data} win={win} active={active} onPick={(t) => { pick(t); if (typeof document !== 'undefined') requestAnimationFrame(() => document.getElementById('tuddy-def-detail')?.scrollIntoView({ behavior: 'smooth', block: 'start' })) }} />
+      <DefensesTable matchup={matchup} data={data} win={win} active={active} onPlayerClick={onPlayerClick} onPick={(t) => { pick(t); if (typeof document !== 'undefined') requestAnimationFrame(() => document.getElementById('tuddy-def-detail')?.scrollIntoView({ behavior: 'smooth', block: 'start' })) }} />
       <h2 id="tuddy-def-detail" style={{ margin: '4px 0 8px', fontSize: TYPE.title, fontWeight: 900, scrollMarginTop: 80 }}>
-        {active} defense <span style={{ fontFamily: NUM_FONT, fontSize: 11, color: C.text3, fontWeight: 600 }}>· tap another row above to switch</span>
+        <Tap onClick={onOpenTeam && (() => onOpenTeam(active))}>{active}</Tap> defense <span style={{ fontFamily: NUM_FONT, fontSize: 11, color: C.text3, fontWeight: 600 }}>· tap another row above to switch</span>
       </h2>
 
       <Section
@@ -308,6 +309,7 @@ export default function Matchups({ matchup, data }) {
             covTeam={matchup?.coverage_team?.[active]}
             covPlayer={picked ? matchup?.coverage_player?.[picked.player_id] : null}
             covLeague={matchup?.coverage_team}
+            onOpenTeam={onOpenTeam}
           />
           {/* THE LEGEND, IN WORDS (BATCH-FACES step 10). */}
           <div style={{ marginTop: 8, fontSize: 12, lineHeight: 1.5, color: C.text3 }}>
@@ -361,12 +363,12 @@ export default function Matchups({ matchup, data }) {
                 own average for that same cell. See lib/nfl/dvpSignal.js. */}
             {soft.standout ? (
               <>
-                <b style={{ color: C.text }}>{active}</b>{' '}
+                <Tap onClick={onOpenTeam && (() => onOpenTeam(active))}><b style={{ color: C.text }}>{active}</b></Tap>{' '}
                 <b style={{ color: C.cyan }}>{softLine(soft)}</b>. That&apos;s the opening.
               </>
             ) : (
               <>
-                <b style={{ color: C.text }}>{active}</b> has no standout weakness — nothing they
+                <Tap onClick={onOpenTeam && (() => onOpenTeam(active))}><b style={{ color: C.text }}>{active}</b></Tap> has no standout weakness — nothing they
                 give up is far enough above the league&apos;s own average for that role to call an
                 opening.
               </>
@@ -379,7 +381,7 @@ export default function Matchups({ matchup, data }) {
             background: 'rgba(255,60,60,.06)', borderRadius: '0 8px 8px 0',
             fontSize: TYPE.body, lineHeight: 1.6, color: C.text2,
           }}>
-            <b style={{ color: C.text }}>{active}</b>&apos;s real individual threat up front:{' '}
+            <Tap onClick={onOpenTeam && (() => onOpenTeam(active))}><b style={{ color: C.text }}>{active}</b></Tap>&apos;s real individual threat up front:{' '}
             <b style={{ color: C.red }}>{rushThreat.name}</b> ({rushThreat.position}) grades{' '}
             <b style={{ color: C.red }}>{Math.round(rushThreat.percentile)}th percentile</b> on
             sack-per-pressure rate — a real finisher, not just a name on the roster.
@@ -394,7 +396,7 @@ export default function Matchups({ matchup, data }) {
             GETTING soft. Season averages cannot tell those apart, and the
             second one is the reason to bet a Week 12 tight end. */}
         <div style={{ padding: '14px 14px 4px' }}>
-          <DvpDrift data={matchup} team={active} highlight={role} />
+          <DvpDrift data={matchup} team={active} highlight={role} onOpenTeam={onOpenTeam} />
         </div>
         {picked && !role && (
           <div style={{ fontSize: TYPE.micro, color: C.text3, padding: '8px 14px 12px' }}>

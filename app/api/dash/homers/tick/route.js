@@ -405,11 +405,17 @@ const service = () => {
 
 // ── the published files, cached per instance ───────────────────────────────
 const TTL_MS = 10 * 60 * 1000
+const MISS_MS = 2 * 60 * 1000   // a not-yet-today board is re-asked this often (cost cut)
 const _cache = { board: { at: 0, day: '', index: null }, odds: { at: 0, data: null }, pairs: { at: 0, data: null } }
 
 async function boardIndex(day) {
   const c = _cache.board
   if (c.index && c.day === day && Date.now() - c.at < TTL_MS) return c.index
+  // COST CUT (2026-09-27): until today's board is up, the 4 MB file was
+  // re-downloaded and parsed every minute. A board that isn't today's yet (or
+  // is empty) is now re-asked every two minutes -- the pregame posts can wait
+  // one more minute; the function-seconds and transfer halve.
+  if (c.missAt && c.missDay === day && Date.now() - c.missAt < MISS_MS) return c.missIndex
   const rows = await fetchBoardFull('today').catch(() => null)
   const index = boardIndexFrom(rows)
   // An empty board is not cached: a bot that has not published yet should be
@@ -420,7 +426,7 @@ async function boardIndex(day) {
   // while run_meta, fetched separately, already said today. Asked again next
   // tick instead, until the rows themselves are today's.
   if (index.size && slateDateFromRows(rows) === day) _cache.board = { at: Date.now(), day, index, rows }
-  else if (index.size) _cache.board = { at: 0, day: '', index: null, rows }
+  else _cache.board = { at: 0, day: '', index: null, rows: index.size ? rows : (c.rows || []), missAt: Date.now(), missDay: day, missIndex: index }
   return index
 }
 const boardRows = () => _cache.board.rows || []

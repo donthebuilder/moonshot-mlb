@@ -1,4 +1,5 @@
 'use client'
+import { leaveTarget } from '../lib/openTarget'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { resolveTab, pageTitle } from '../lib/routes'
@@ -55,6 +56,7 @@ const PlayerBoard = dynamic(() => import('./tabs/PlayerBoard'), { loading: TabLo
 const HitsHRR = dynamic(() => import('./tabs/HitsHRR'), { loading: TabLoading })
 const Scoreboard = dynamic(() => import('./tabs/Scoreboard'), { loading: TabLoading })
 const Combos = dynamic(() => import('./tabs/Combos'), { loading: TabLoading })
+const MlbLedger = dynamic(() => import('./tabs/MlbLedger'), { loading: TabLoading })
 const You = dynamic(() => import('./tabs/You'), { loading: TabLoading })
 const Pools = dynamic(() => import('./tabs/Pools'), { loading: TabLoading })
 const Leaders = dynamic(() => import('./tabs/Leaders'), { loading: TabLoading })
@@ -843,13 +845,13 @@ export default function Dashboard({ palettePass = 0 }) {
             {tab === 'board'       && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} onNavigate={setTab} />}
             {tab === 'games'       && <Games players={players} allPlayers={allPlayers} slateDate={slateDate} slateMode={mode} pairHistorySummary={pairSummary} results={resultsForSlate} odds={odds} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
             {tab === 'pitchers'    && <Pitchers players={players} onPlayerClick={setModalPlayer} />}
-            {tab === 'matchups'    && <Matchups players={players} onPlayerClick={setModalPlayer} />}
+            {tab === 'matchups'    && <Matchups players={players} onPlayerClick={setModalPlayer} onNavigate={setTab} />}
             {/* PROPS GRID — the mobile pilot page (2026-08-23). Its own tab
                 per Donovan's sequencing call: the grid stays an entry point,
                 the drill-down is the existing player modal on top of it. */}
             {tab === 'props'       && <PropsGrid players={players} odds={odds} onPlayerClick={setModalPlayer} onWatch={toggleWatch} watchIds={watchIds} />}
             {tab === 'bot'         && <Bot players={allPlayers} onPlayerClick={setModalPlayer} onGoPairs={goToPairsFor} odds={odds} onWatch={toggleWatch} watchIds={watchIds} />}
-            {tab === 'combos'      && <Combos odds={odds} slateDate={slateDate} players={players} allPlayers={allPlayers} pairBuilder={pairBuilder} pairSummary={pairSummary} results={resultsForSlate} watchIds={watchIds} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} />}
+            {tab === 'combos'      && <Combos onNavigate={setTab} odds={odds} slateDate={slateDate} players={players} allPlayers={allPlayers} pairBuilder={pairBuilder} pairSummary={pairSummary} results={resultsForSlate} watchIds={watchIds} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} />}
             {tab === 'odds'        && <OddsBoard players={players} odds={oddsRaw} onPlayerClick={setModalPlayer} />}
             {tab === 'you'         && <You players={allPlayers} watchItems={watchLive} pairSummary={pairSummary} results={resultsForSlate} odds={odds} slateDate={slateDate} mode={mode} onWatch={toggleWatch} onAdd={addSlip} onPlayerClick={setModalPlayer} />}
             {tab === 'results'     && <Results results={resultsForSlate} liveResults={results} slateDate={slateDate} backtest={backtest} evalReport={evalReport} players={players} onPlayerClick={setModalPlayer} />}
@@ -872,7 +874,7 @@ export default function Dashboard({ palettePass = 0 }) {
             {tab === 'boxes'       && <Home players={allPlayers} filteredPlayers={players} results={resultsForSlate} backtest={backtest} mode={mode} slateDate={slateDate} dateLabel={dateLabel} odds={odds} onWatch={toggleWatch} watchIds={watchIds} onNavigate={setTab} onPlayerClick={setModalPlayer} initial="boxes" />}
             {tab === 'atplate'     && <Home players={allPlayers} filteredPlayers={players} results={resultsForSlate} backtest={backtest} mode={mode} slateDate={slateDate} dateLabel={dateLabel} odds={odds} onWatch={toggleWatch} watchIds={watchIds} onNavigate={setTab} onPlayerClick={setModalPlayer} initial="live" />}
             {/* 2026-09-25: the full board, #1 to #N, on its own page. */}
-            {tab === 'storylines'  && <StorylinesPage sport="mlb" eyebrow="MOONSHOT · STORYLINES" theme={C} numFont={NUM_FONT} accent={C.orange} searchBox={false} keepIds={players.length < allPlayers.length ? new Set(players.map((p) => String(p?.player_id ?? p?.id))) : null} onOpenPlayer={(id) => { const p = allPlayers.find((x) => String(x?.player_id ?? x?.id) === String(id)); if (p) setModalPlayer(p) }} />}
+            {tab === 'storylines'  && <StorylinesPage sport="mlb" eyebrow="MOONSHOT · STORYLINES" theme={C} numFont={NUM_FONT} accent={C.orange} onOpenGame={(pk) => { leaveTarget('game', pk); setTab('games') }} searchBox={false} keepIds={players.length < allPlayers.length ? new Set(players.map((p) => String(p?.player_id ?? p?.id))) : null} onOpenPlayer={(id) => { const p = allPlayers.find((x) => String(x?.player_id ?? x?.id) === String(id)); if (p) setModalPlayer(p) }} />}
             {tab === 'longshots'   && <Longshots sport="mlb" eyebrow="MOONSHOT · LONGSHOTS" theme={C} numFont={NUM_FONT} accent={C.orange} onOpenPlayer={(id) => { const p = allPlayers.find((x) => String(x?.player_id ?? x?.id) === String(id)); if (p) setModalPlayer(p) }} />}
             {tab === 'fullboard'   && <Home players={allPlayers} filteredPlayers={players} results={resultsForSlate} backtest={backtest} mode={mode} slateDate={slateDate} dateLabel={dateLabel} odds={odds} onWatch={toggleWatch} watchIds={watchIds} onNavigate={setTab} onPlayerClick={setModalPlayer} initial="fullboard" />}
             {/* #tab=power and #tab=patterns were NEVER WIRED (found 2026-08-17
@@ -906,7 +908,8 @@ export default function Dashboard({ palettePass = 0 }) {
             {/* 🧾 #tab=ledger — the Homer Ledger's own page inside Combos
                 (2026-08-24). Same host, own view; the Home panel's
                 "research →" link points here. */}
-            {tab === 'ledger'      && <Combos odds={odds} slateDate={slateDate} players={players} allPlayers={allPlayers} pairBuilder={pairBuilder} pairSummary={pairSummary} results={resultsForSlate} watchIds={watchIds} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} initial="ledger" />}
+            {/* The Ledger, its own page (ledger plan step 3): the Homer Ledger + first scorers. */}
+            {tab === 'ledger'      && <MlbLedger players={allPlayers} slateDate={slateDate} results={resultsForSlate} onPlayerClick={setModalPlayer} onNavigate={setTab} />}
             {tab === 'pairs'       && <Combos odds={odds} slateDate={slateDate} players={players} allPlayers={allPlayers} pairBuilder={pairBuilder} pairSummary={pairSummary} results={resultsForSlate} watchIds={watchIds} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} initial="pairs" />}
             {tab === 'pools'       && <Combos odds={odds} slateDate={slateDate} players={players} allPlayers={allPlayers} pairBuilder={pairBuilder} pairSummary={pairSummary} results={resultsForSlate} watchIds={watchIds} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} initial="pools" />}
             {tab === 'builder'     && <Combos odds={odds} slateDate={slateDate} players={players} allPlayers={allPlayers} pairBuilder={pairBuilder} pairSummary={pairSummary} results={resultsForSlate} watchIds={watchIds} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} initial="builder" />}

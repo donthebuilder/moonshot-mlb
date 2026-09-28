@@ -7,7 +7,6 @@ import Pools from './Pools'
 import PairHistory from './PairHistory'
 import Builder from '../Builder'
 import ComboLinks from '../ComboLinks'
-import HomerLedger from '../HomerLedger'
 import LedgerLab from './LedgerLab'
 import Alignments from '../Alignments'
 
@@ -121,6 +120,7 @@ export default function Combos({
   // needed it before now, so it wasn't wired.
   watchIds = null,
   initial = 'pairs',
+  onNavigate = null,
 }) {
   // 'pools' is no longer a view of its own — the alias maps onto the combined
   // one rather than 404ing into the default silently.
@@ -184,9 +184,15 @@ export default function Combos({
       {view === 'builder' && <ComboLinks here="builder" />}
       {view === 'pairs' && (
         <>
-          <HomerLedger players={allPlayers} slateDate={slateDate} results={results} onPlayerClick={onPlayerClick} />
-          {/* #12: and the panel says where the rest of it lives, so the two
-              read as one feature with a shallow end and a deep end. */}
+          {/* The Homer Ledger moved to its own tab (2026-09-27, ledger plan
+              step 3: "hidden under Parlays, nobody looks for it there").
+              Parlays keeps pairs, pools and the builder; one line points at it. */}
+          {onNavigate && (
+            <button type="button" onClick={() => onNavigate('ledger')}
+              style={{ display: 'block', margin: '0 0 6px', minHeight: 44, padding: '0', border: 0, background: 'transparent', cursor: 'pointer', font: `800 11px/1.5 ${NUM_FONT}`, color: C.orange }}>
+              🧾 The Homer Ledger has its own tab now → Ledger
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setView('ledger')}

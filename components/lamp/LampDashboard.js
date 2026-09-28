@@ -26,6 +26,7 @@ import Team from './tabs/Team'
 import Players from './tabs/Players'
 import Player from './tabs/Player'
 import SpecialTeams from './tabs/SpecialTeams'
+import Ledger from './tabs/Ledger'
 import Matchups from './tabs/Matchups'
 import HotSticks from './tabs/HotSticks'
 import Longshots from '../Longshots'
@@ -60,7 +61,7 @@ import Results from './tabs/Results'
 const NHL_TABS = new Set(NHL_TAB_KEYS)
 // Pages that show one day and keep it in the address (`date=`). One list,
 // read by setTab (which clears it elsewhere) and goBack (which restores it).
-const DATED_TABS = new Set(['home', 'scores', 'schedule', 'board', 'fullboard', 'numerology', 'matchups'])
+const DATED_TABS = new Set(['home', 'scores', 'schedule', 'board', 'fullboard', 'numerology', 'matchups', 'ledger'])
 
 export default function LampDashboard({ palettePass = 0 }) {
   const [tab, setTabRaw] = useState('home')
@@ -278,7 +279,7 @@ export default function LampDashboard({ palettePass = 0 }) {
           />
         ) : (
           <ErrorBoundary resetKey={`${tab}:${gameId || ''}:${teamKey || ''}:${playerId || ''}`} label={`the ${tab} tab`}>
-            {tab === 'home' && <Home today={shown} date={date} onOpenGame={openGame} onOpenPlayer={openPlayer} setTab={setTab} />}
+            {tab === 'home' && <Home today={shown} date={date} onOpenGame={openGame} onOpenPlayer={openPlayer} onOpenTeam={openTeam} setTab={setTab} />}
             {tab === 'scores' && <Scores onOpenGame={openGame} date={date} setDate={setDate} />}
             {tab === 'schedule' && <Schedule onOpenGame={openGame} date={date} setDate={setDate} />}
             {tab === 'standings' && <Standings onOpenTeam={openTeam} />}
@@ -292,8 +293,9 @@ export default function LampDashboard({ palettePass = 0 }) {
             {tab === 'leaders' && <Leaders onOpenPlayer={openPlayer} onOpenTeam={openTeam} />}
             {tab === 'specialteams' && <SpecialTeams onOpenTeam={openTeam} />}
             {tab === 'matchups' && <Matchups date={date} onOpenPlayer={openPlayer} />}
+            {tab === 'ledger' && <Ledger date={date} onOpenPlayer={openPlayer} onOpenTeam={openTeam} onOpenGame={openGame} />}
             {tab === 'hotsticks' && <HotSticks onOpenPlayer={openPlayer} />}
-            {tab === 'storylines' && <StorylinesPage sport="nhl" eyebrow="LAMP · STORYLINES" theme={C} numFont={NUM_FONT} accent={C.ice} onOpenPlayer={openPlayer} date={date} />}
+            {tab === 'storylines' && <StorylinesPage sport="nhl" eyebrow="LAMP · STORYLINES" theme={C} numFont={NUM_FONT} accent={C.ice} onOpenPlayer={openPlayer} onOpenGame={openGame} date={date} />}
             {tab === 'longshots' && <Longshots sport="nhl" eyebrow="LAMP · LONGSHOTS" theme={C} numFont={NUM_FONT} accent={C.ice} Table={LampTable} onOpenPlayer={openPlayer} />}
             {tab === 'shotmap' && <ShotMap onOpenPlayer={openPlayer} />}
             {tab === 'lampledger' && <LampLedger onOpenPlayer={openPlayer} />}

@@ -93,7 +93,8 @@ on the pages you changed. It must be green.
   passes, and Donovan has said yes to pushing. A push that touches UI also
   runs `node scripts/check-mobile.mjs --pages "<the pages you changed>"`
   (against `npx next start` or `--base https://dashnetwork.vercel.app`);
-  no ERROR lines.
+  no ERROR lines. And `node scripts/check-clickable.mjs --pages "<the pages
+  you changed>"`: every player name, team and game is a link (0 not tappable).
 - No temporary or debug routes left in `app/api/`. They deploy publicly.
 - SQL: write the migration file and hand it to Donovan. He runs it in the
   Supabase SQL editor. The SQL runs BEFORE the code that needs it ships.
