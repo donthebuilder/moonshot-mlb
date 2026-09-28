@@ -430,16 +430,23 @@ export default function MobileCSS() {
            three rows, ~60px back above the fold, and each chip still gets a
            full line for its value because label and value stack inside it. */
         .hero-stats { display: grid !important; grid-template-columns: 1fr 1fr; gap: 5px !important; }
-        .hero-stats > * {
+        /* 2026-09-28: a chip with an explanation is <span><button pill/></span>
+           (HeroStat's tap-to-explain), so the pill is one level down -- these
+           rules missed it and the values went back to "PROJ HR 35…". Both
+           shapes now. */
+        .hero-stats > *:not(:has(> button)),
+        .hero-stats > * > button {
           flex-direction: column !important;
           align-items: flex-start !important;
           gap: 2px !important;
           width: 100% !important;
           min-width: 0 !important;
         }
-        .hero-stats > *:nth-child(5):last-child { grid-column: 1 / -1; }
+        .hero-stats > *:nth-child(odd):last-child { grid-column: 1 / -1; }
         .hero-stats > * > b,
-        .hero-stats > * > span:last-child {
+        .hero-stats > *:not(:has(> button)) > span:last-child,
+        .hero-stats > * > button > b,
+        .hero-stats > * > button > span:last-child {
           white-space: normal !important;
           overflow: visible !important;
           text-overflow: clip !important;

@@ -5,7 +5,7 @@ import {
   clean, nameOf, teamOf, hrScore, hitScore, prodScore, tbScore, PLATE_BAR,
 } from '../lib/player'
 import HeadlinePicks from './headline/HeadlinePicks'
-import { rankBuckets } from '../lib/mlbFour'
+import { rankBuckets, fourGrade } from '../lib/mlbFour'
 import { playerHref } from '../lib/routes'
 import PlayerFace from './PlayerFace'
 
@@ -184,8 +184,31 @@ export function pickBuckets(players = []) {
   return rankBuckets(players, CATEGORIES)
 }
 
-export default function BotPicksStrip({ players = [], onPlayerClick, onFullCard = null }) {
+export default function BotPicksStrip({ players = [], onPlayerClick, onFullCard = null, graded = null }) {
   const four = useMemo(() => pickBuckets(players), [players])
+  // ✓ / ✗ ONCE A PICK IS SETTLED (2026-09-28, DAY-AWARE-OPENERS): Home hands in
+  // the slate's own graded rows (resultsForSlate, date-gated in Dashboard).
+  // Each shown pick is graded on its category's bar by lib/mlbFour.js
+  // fourGrade -- the record's rule -- from his row for that category, else any
+  // row of his in the same game (the box score is his, not the category's).
+  // Not final / didn't play / voided -> no mark, never a guess.
+  const gradeOf = useMemo(() => {
+    const rows = Array.isArray(graded) ? graded : []
+    if (!rows.length) return () => null
+    const by = new Map()
+    for (const r of rows) {
+      if (r?.player_id == null) continue
+      const k = String(r.player_id)
+      if (!by.has(k)) by.set(k, [])
+      by.get(k).push(r)
+    }
+    return (p, role) => {
+      const mine = (by.get(String(p?.player_id ?? '')) || []).filter((r) => p?.game_pk == null || r.game_pk == null || String(r.game_pk) === String(p.game_pk))
+      const row = mine.find((r) => String(r.pick_type || '').toUpperCase() === role) || mine[0]
+      const g = fourGrade(role, row)
+      return g == null ? null : { hit: g, title: `${g ? 'Cleared' : 'Missed'} the bar (${PLATE_BAR[role]})` }
+    }
+  }, [graded])
   // EACH CARD'S OWN RECORD (2026-09-27, The Four like The Six): the category's
   // #1 graded on its own bar over the last 14 graded nights, computed and
   // cached on the server (/api/dash/four-record; the nightly files are 2.4 MB
@@ -218,6 +241,7 @@ export default function BotPicksStrip({ players = [], onPlayerClick, onFullCard 
       // In the club-coloured rounded square TUDDY's faces use (variant tile).
       face: i === 0 && p?.player_id != null ? <PlayerFace sport="mlb" variant="tile" id={String(p.player_id)} team={teamOf(p)} name={nameOf(p)} size={28} theme={C} /> : null,
       score: f.score(p).toFixed(1),
+      result: gradeOf(p, f.role),
       flag: p?.weak_spot_flag === true ? { icon: '⭐', title: i === 0 ? 'Weak lineup spot for this pitcher' : undefined } : null,
       micro: i === 0 ? null : microStat(p, f.role),
       lines: i === 0 ? [statLine(p, f.role), (

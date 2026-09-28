@@ -12,7 +12,8 @@ import { WhatThis } from '../ui'
 // which names the field it read.
 //
 // lanes: [{ key, label, icon?, blurb, color, record?, empty?,
-//           picks: [{ key, name, score, flag?: {icon, title}, lines: [node, node],
+//           picks: [{ key, name, score, flag?: {icon, title}, result?: {hit, title},
+//                     lines: [node, node],
 //                     team?: node, micro?: string, raw }] }]
 //   picks[0] is the featured #1 (name, score, two lines); picks[1..] the
 //   compact rows (index, name, team, micro stat, score).
@@ -83,6 +84,7 @@ export default function HeadlinePicks({ theme, numFont, title, subtitle, record 
                       {lead.flag && (
                         <span title={lead.flag.title} style={{ fontSize: 11 }}>{lead.flag.icon}</span>
                       )}
+                      {lead.result && <Mark r={lead.result} C={C} size={13} />}
                       <span style={{
                         marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: 16,
                         fontWeight: 900, color: f.color,
@@ -140,6 +142,7 @@ export default function HeadlinePicks({ theme, numFont, title, subtitle, record 
                             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                           }}>{p.name}</span>
                           {p.flag && <span style={{ fontSize: 9 }}>{p.flag.icon}</span>}
+                          {p.result && <Mark r={p.result} C={C} size={11} />}
                           <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0 }}>
                             {p.team}
                           </span>
@@ -189,5 +192,16 @@ export default function HeadlinePicks({ theme, numFont, title, subtitle, record 
         `}</style>
       )}
     </div>
+  )
+}
+
+// A settled pick: ✓ cleared its bar, ✗ missed it. The symbol says it; the
+// words ride along for screen readers and the hover (the lane's bar is printed
+// in its header, so nothing depends on the hover).
+function Mark({ r, C, size }) {
+  return (
+    <span role="img" aria-label={r.title} title={r.title} style={{ flexShrink: 0, fontSize: size, fontWeight: 900, lineHeight: 1, color: r.hit ? C.green : C.red }}>
+      {r.hit ? '✓' : '✗'}
+    </span>
   )
 }

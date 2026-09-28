@@ -858,7 +858,8 @@ export default function Home({
             : <><span style={{ fontFamily: NUM_FONT }}>{games.length}</span>{games.length === 1 ? ' game' : ' games'} tonight{isLive && liveGames > 0 && (<>, <span style={{ fontFamily: NUM_FONT }}>{liveGames}</span> live</>)}.</>}
         accentText={empty ? null : slateInPast ? (gradesPending ? 'Final grades post in the morning.' : 'Every pick is graded.') : (isLive ? 'Grading as they land.' : 'The sheet is ready.')}
         dayText={slateInPast && nextLine(nextMlb, etToday()) ? `No games tonight · ${nextLine(nextMlb, etToday())}.` : null}
-        chip={`${icon} ${hello}`}
+        /* A done slate is the morning after, whatever the clock says (2026-09-28). */
+        chip={slateInPast ? `🧾 MORNING AFTER` : `${icon} ${hello}`}
         sub={empty ? 'board posts when tonight’s card is final' : isLive ? 'grading live · every pick in public' : slateInPast ? (gradesPending ? 'final · grades post in the morning' : 'final · every pick graded') : 'the sheet is set · every pick graded in public'}
       >
         {/* TONIGHT IN ONE SENTENCE (2026-08-15, "make the home page better").
@@ -892,7 +893,9 @@ export default function Home({
                 is a fact about the afternoon; what a viewer wants at 7pm is
                 which game is next and how long until it. Ticks every second;
                 once everything has started it says so and names the last one. */}
-            {np ? (
+            {/* THE DONE SLATE KEEPS ITS FACTS, NOT ITS PREGAME ONES (2026-09-28):
+                "ALL UNDER WAY" and BEST AIR are about a night that's over. */}
+            {slateInPast ? null : np ? (
               np.kind === 'next'
                 ? <Stat label="NEXT PITCH" value={fmtCountdown(np.ms)} sub={`${np.label} · ${np.at.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}${np.remaining > 1 ? ` · ${np.remaining} still to start` : ''}`} col={C.yellow}
                     title="Time until the next game on the slate starts, your local clock. Counts down live." />
@@ -913,7 +916,7 @@ export default function Home({
               <Stat label="PROJ HR" value="not published yet" col={C.text3}
                 title="Neither the site's model nor the bot's sheet has a homer projection for this slate yet." />
             )}
-            {airRanked[0] && (
+            {!slateInPast && airRanked[0] && (
               <Stat label="BEST AIR" value={`${airRanked[0].venue} ${airRanked[0].edge > 0 ? '+' : ''}${airRanked[0].edge.toFixed(0)}%`}
                 col={airRanked[0].edge > 0 ? C.orange : C.text3}
                 title={`${airLine(airRanked[0]) || ''}${airTitle(airRanked[0]) ? `\n${airTitle(airRanked[0])}` : ''}\nPark HR factor plus the published weather effect, as a percentage swing on the rate — not a chance of anything.${airRanked[0].edge > 0 ? '' : ' Nothing on tonight\'s slate is playing above neutral; that is the finding, not a missing section.'}`} />
@@ -954,7 +957,7 @@ export default function Home({
             show, not a panel below it. Same strip, same data, one container up. */}
         {!empty && (
           <div style={{ marginTop: 14 }}>
-            <BotPicksStrip players={players} onPlayerClick={onPlayerClick} onFullCard={onNavigate ? () => onNavigate('props') : null} />
+            <BotPicksStrip players={players} graded={results?.graded_slots || null} onPlayerClick={onPlayerClick} onFullCard={onNavigate ? () => onNavigate('props') : null} />
           </div>
         )}
       </DayHero>
