@@ -1,4 +1,5 @@
 'use client'
+import { useHashFilter } from '../../../lib/filterHash'
 import { nhlMug } from '../../../lib/nhl/format'
 import { useMemo, useState } from 'react'
 import PageHeader from '../../PageHeader'
@@ -43,9 +44,9 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
   // row cut both views. Every test reads a field the row already carries.
   const [view, setView] = useState('game')
   const [q, setQ] = useState('')
-  const [team, setTeam] = useState('')
+  const [team, setTeam] = useHashFilter('fteam')
   const [pos, setPos] = useState('all')
-  const [gameF, setGameF] = useState('')
+  const [gameF, setGameF] = useHashFilter('fgame')
   const [calledOnly, setCalledOnly] = useState(false)
   const [angle, setAngle] = useState(null)
   const flat = useMemo(() => games.filter((g) => !g.noMarketLock).flatMap((g) => g.rows.filter((r) => r.status !== 'off').map((r) => ({ r, g }))), [games])

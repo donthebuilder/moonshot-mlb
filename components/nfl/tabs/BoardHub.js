@@ -1,4 +1,5 @@
 'use client'
+import { useHashFilter } from '../../../lib/filterHash'
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE, MARKETS } from '../../../lib/nfl/theme'
 import { PillRow } from '../../Filters'
@@ -36,8 +37,8 @@ export default function BoardHub({ slate, data, logs, matchup, odds, oddsStatus,
   // THE TOP BAR (2026-09-27): search, team and GAME, owned here so every
   // market's board reads the same three (MOONSHOT's Controls, one level up).
   const [query, setQuery] = useState('')
-  const [team, setTeam] = useState('')
-  const [game, setGame] = useState('')
+  const [team, setTeam] = useHashFilter('fteam')
+  const [game, setGame] = useHashFilter('fgame')
   useEffect(() => {
     const h = readHash()
     if (MARKETS.some(([k]) => k === h.get('m'))) setMarket(h.get('m'))

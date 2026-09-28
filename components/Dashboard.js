@@ -1,5 +1,6 @@
 'use client'
 import { TodayContext } from './TodayContext'
+import { useHashFilter, readHashKey, FILTER_KEYS } from '../lib/filterHash'
 import { leaveTarget } from '../lib/openTarget'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
@@ -118,8 +119,9 @@ export default function Dashboard({ palettePass = 0 }) {
   const [pairBuilder, setPairBuilder] = useState(null)
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
-  const [team, setTeam] = useState('')
-  const [game, setGame] = useState('')
+  // The top bar's team and game ride the address (fteam= / fgame=, lib/filterHash).
+  const [team, setTeam] = useHashFilter('fteam')
+  const [game, setGame] = useHashFilter('fgame')
   const [slip, setSlip] = useState([])
   const [watch, setWatch] = useState([])
   const [modalPlayer, setModalPlayer] = useState(null)
@@ -486,6 +488,9 @@ export default function Dashboard({ palettePass = 0 }) {
       if (sp) h.set('sport', sp)
     } catch { /* ignore */ }
     if (tab !== 'home') h.set('tab', tab)
+    // The board filters belong to the whole product, not one tab: carried
+    // across every tab change this writer makes (lib/filterHash).
+    for (const k of FILTER_KEYS) { const v = readHashKey(k); if (v) h.set(k, v) }
     const pid2 = modalPlayer ? String(modalPlayer?.player_id ?? modalPlayer?.id ?? '') : ''
     if (pid2) h.set('p', pid2)
     const next = h.toString()
