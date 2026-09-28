@@ -121,7 +121,7 @@ function SlateStrip({ bump }) {
 
 // `market` + `hideMarketPicker` (2026-09-26, the Board hub): the hub's
 // picker chooses which market's calls show; standalone it keeps its own.
-export default function Picks({ picks, results, data, matchup, onPlayerClick, odds, oddsStatus, logs = null, market: marketProp = null, hideMarketPicker = false }) {
+export default function Picks({ picks, results, data, matchup, onPlayerClick, odds, oddsStatus, logs = null, market: marketProp = null, hideMarketPicker = false, top = null }) {
   const [mine, setMine] = useState({})
   const [now, setNow] = useState(() => Date.now())
   const [msg, setMsg] = useState('')
@@ -129,9 +129,14 @@ export default function Picks({ picks, results, data, matchup, onPlayerClick, od
   const [openSlot, setOpenSlot] = useState(null)
   const [filterMarketOwn, setFilterMarket] = useState('all')
   const filterMarket = marketProp || filterMarketOwn
-  const [filterTeam, setFilterTeam] = useState('all')
+  // Inside the Board hub the top bar owns search / team / game (2026-09-27);
+  // standalone the page keeps its own search and team picker.
+  const [teamOwn, setFilterTeam] = useState('all')
   const [filterPosition, setFilterPosition] = useState('all')
-  const [filterQuery, setFilterQuery] = useState('')
+  const [queryOwn, setFilterQuery] = useState('')
+  const filterTeam = top ? (top.team || 'all') : teamOwn
+  const filterQuery = top ? (top.query || '') : queryOwn
+  const gameTeams = top?.game ? new Set(String(top.game).split('@')) : null
   const fileRef = useRef(null)
 
   const key = useMemo(
@@ -285,6 +290,7 @@ export default function Picks({ picks, results, data, matchup, onPlayerClick, od
     rungs: (blk.rungs || []).filter((rung) => (
       (filterMarket === 'all' || market === filterMarket)
       && (filterTeam === 'all' || rung.team === filterTeam)
+      && (!gameTeams || gameTeams.has(rung.team))
       && (filterPosition === 'all' || rung.position === filterPosition)
       && (!needle || String(rung.name || '').toLowerCase().includes(needle))
     )),
@@ -463,21 +469,20 @@ export default function Picks({ picks, results, data, matchup, onPlayerClick, od
       )}
       <div style={{
         display: 'flex', flexDirection: 'column', gap: 9, marginBottom: 11,
-        padding: '10px 12px', border: `1px solid ${C.border}`, borderRadius: 12,
-        background: C.bg2,
+        ...(top ? { marginTop: 8 } : { padding: '10px 12px', border: `1px solid ${C.border}`, borderRadius: 12, background: C.bg2 }),
       }}>
         {!hideMarketPicker && <PillRow label="Market" value={filterMarket} options={marketOptions} onChange={setFilterMarket} />}
         <FilterBar>
-          <FilterSearch value={filterQuery} onChange={setFilterQuery} placeholder="Search pick…" width={160} />
-          <FilterSelect label="Team" value={filterTeam} options={teamOptions} onChange={setFilterTeam} />
+          {!top && <FilterSearch value={filterQuery} onChange={setFilterQuery} placeholder="Search pick…" width={160} />}
+          {!top && <FilterSelect label="Team" value={filterTeam} options={teamOptions} onChange={setFilterTeam} />}
           <FilterSelect label="Position" value={filterPosition} options={positionOptions} onChange={setFilterPosition} />
           <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: TYPE.micro }}>{shownRungs}/{allRungs.length} rungs</span>
         </FilterBar>
         <ActiveFilters
           filters={[
-            filterQuery && { key: 'query', label: `Name: ${filterQuery}`, onClear: () => setFilterQuery('') },
+            !top && filterQuery && { key: 'query', label: `Name: ${filterQuery}`, onClear: () => setFilterQuery('') },
             !marketProp && filterMarket !== 'all' && { key: 'market', label: card[filterMarket]?.label || filterMarket, onClear: () => setFilterMarket('all') },
-            filterTeam !== 'all' && { key: 'team', label: `Team: ${filterTeam}`, onClear: () => setFilterTeam('all') },
+            !top && filterTeam !== 'all' && { key: 'team', label: `Team: ${filterTeam}`, onClear: () => setFilterTeam('all') },
             filterPosition !== 'all' && { key: 'position', label: `Position: ${filterPosition}`, onClear: () => setFilterPosition('all') },
           ]}
           onClearAll={() => { setFilterQuery(''); setFilterMarket('all'); setFilterTeam('all'); setFilterPosition('all') }}

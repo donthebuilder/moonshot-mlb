@@ -74,7 +74,7 @@ export default function BoardHub({ slate, data, logs, matchup, odds, oddsStatus,
   const top = { query, team, game }
   return (
     <div>
-      {view === 'board' && (
+      {(
         <BoardTopBar query={query} setQuery={setQuery} placeholder="Search player or team…"
           team={team} setTeam={setTeam} teams={teams} teamLabel="🏈 All teams"
           game={game} setGame={setGame} games={games} gameLabel="All games" />
@@ -95,7 +95,7 @@ export default function BoardHub({ slate, data, logs, matchup, odds, oddsStatus,
       </div>
       <PillRow label="Market" value={market} options={marketOptions} onChange={setMarket} />
       {view === 'called'
-        ? <Picks picks={picks} results={results} data={data} matchup={matchup} onPlayerClick={onPlayerClick} odds={odds} oddsStatus={oddsStatus} logs={logs} market={market} hideMarketPicker />
+        ? <Picks picks={picks} results={results} data={data} matchup={matchup} onPlayerClick={onPlayerClick} odds={odds} oddsStatus={oddsStatus} logs={logs} market={market} hideMarketPicker top={top} />
         : market === 'TD'
           ? <Touchdowns data={slate} matchup={matchup} odds={odds} onPlayerClick={onPlayerClick} oddsStatus={oddsStatus} logs={logs} top={top} />
           : <Boards data={data} logs={logs} matchup={matchup} onPlayerClick={onPlayerClick} odds={odds} oddsStatus={oddsStatus} market={market} hideMarketPicker top={top} />}
