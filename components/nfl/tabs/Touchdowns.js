@@ -15,7 +15,7 @@ import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 import { ActiveFilters, FilterBar, FilterSearch, FilterSelect, FilterPill } from '../../Filters'
 import NflBoardFilters, { useNflBoardFilter } from '../NflBoardFilters'
 import MobileFold, { useIsPhone } from '../../MobileFold'
-import { NflBoardList, ViewSwitch, AngleRow, angleDefs, useNflDrawerFilters } from '../NflBoardExtras'
+import { NflBoardList, ViewSwitch, AngleRow, angleDefs, useNflDrawerFilters, TdWatch } from '../NflBoardExtras'
 import TdCompare from '../TdCompare'
 
 // TOUCHDOWNS — the front door.
@@ -407,6 +407,10 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
         </div>
       ) : (
         <>
+          {/* TD WATCH (board filters plan, TUDDY 5): folded to one line on a phone. */}
+          <MobileFold title="🔁 TD Watch" summary="scored last week · back from a bye" accent={C.green} rememberKey="fold_tdwatch_v1">
+            <TdWatch players={rows} games={data?.games} onPlayerClick={onPlayerClick} />
+          </MobileFold>
           <div style={{ margin: '0 0 8px' }}><ViewSwitch value={view} onChange={setView} /></div>
           {view === 'list'
             ? <NflBoardList players={capped} market={MARKET} weights={weights} odds={odds} phone={phone} onPlayerClick={onPlayerClick} />

@@ -206,4 +206,50 @@ export function useNflDrawerFilters(pool, games, market) {
   return { test, chips, reset, section, activeCount: chips.length }
 }
 
+// ── TD WATCH (plan TUDDY 5): MOONSHOT's B2B WATCH shape ─────────────────────
+// Two rows, names you can tap, the top 8 by the board's own TD score:
+//   ✅ scored last week   games_since_last_td === 0
+//   🛌 back from a bye    his team's rest days before this game >= 13
+//                         (the week file's home_rest_days / away_rest_days)
+// Facts only -- no hit-rate claim is made for either row.
+export function tdWatchLists(players, games) {
+  const rest = new Map()
+  for (const g of games || []) {
+    if (g.home) rest.set(g.home, Number(g.home_rest_days))
+    if (g.away) rest.set(g.away, Number(g.away_rest_days))
+  }
+  const byScore = (a, b) => (b.scores?.TD ?? 0) - (a.scores?.TD ?? 0)
+  const scored = players.filter((p) => p.games_since_last_td === 0).sort(byScore)
+  const bye = players.filter((p) => (rest.get(p.team) ?? 0) >= 13).sort(byScore)
+  return { scored, bye }
+}
+export function TdWatch({ players, games, onPlayerClick }) {
+  const { scored, bye } = useMemo(() => tdWatchLists(players, games), [players, games])
+  if (!scored.length && !bye.length) return null
+  const row = (title, list) => (list.length ? (
+    <div style={{ marginTop: 6 }}>
+      <div style={{ fontSize: 11, color: C.text2, marginBottom: 4 }}>{title} <span style={{ color: C.text3 }}>{list.length}</span></div>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {list.slice(0, 8).map((p) => (
+          <button key={p.player_id} type="button" onClick={() => onPlayerClick?.(p, 'TD')}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 44, padding: '0 10px 0 4px', borderRadius: 999, border: `1px solid ${C.border}`, background: C.bg2, color: C.text, cursor: 'pointer', font: `700 11.5px/1 ${NUM_FONT}` }}>
+            <NflFace player={p} size={26} />{p.name}<span style={{ color: C.text3 }}>{Math.round(p.scores?.TD ?? 0)}</span>
+          </button>
+        ))}
+        {list.length > 8 ? <span style={{ alignSelf: 'center', color: C.text3, fontSize: 11 }}>+{list.length - 8} more</span> : null}
+      </div>
+    </div>
+  ) : null)
+  return (
+    <section aria-label="TD watch" style={{ margin: '8px 0 10px', padding: '9px 11px', border: `1px solid ${C.green}4d`, borderRadius: 11, background: C.bg2 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+        <b style={{ color: C.green, fontFamily: NUM_FONT }}>🔁 TD WATCH</b>
+        <span style={{ color: C.text3, fontSize: 11 }}>facts from the week file · no hit-rate claim</span>
+      </div>
+      {row('✅ Scored last week', scored)}
+      {row('🛌 Back from a bye', bye)}
+    </section>
+  )
+}
+
 export const numFontStyle = { fontFamily: NUM_FONT, color: C.text3 }
