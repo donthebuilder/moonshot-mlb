@@ -16,6 +16,8 @@ import { nhlMug } from '../../../lib/nhl/format'
 //   WATCHLIST    the board's CALLED skaters: N of M scored (after the final)
 //   LOOK-OUT     tonight's softest defences by goals allowed; the net says
 //                "starter not announced" -- the feed names none pregame
+//   WHO NEEDS WHAT tonight's skaters one goal short of 10 / 20 / 30, on the
+//                season goal count Hot Sticks already reads (a lookup, labelled)
 //   NAME ECHOES  lib/namePatterns.js over tonight's scorers
 // Round numbers and "lines up" need season goal totals and jersey / birth
 // date on the board rows, which LAMP doesn't carry yet: those sections say so.
@@ -28,6 +30,12 @@ export default function Ledger({ date = null, onOpenPlayer, onOpenTeam = null, o
     fetch(`/api/lamp/matchups${date ? `?date=${date}` : ''}`).then((r) => (r.ok ? r.json() : null)).then((j) => { if (alive) setMu(j) }).catch(() => {})
     return () => { alive = false }
   }, [date])
+  const [hs, setHs] = useState(null)
+  useEffect(() => {
+    let alive = true
+    fetch('/api/lamp/hotsticks').then((r) => (r.ok ? r.json() : null)).then((j) => { if (alive) setHs(j || { failed: true }) }).catch(() => { if (alive) setHs({ failed: true }) })
+    return () => { alive = false }
+  }, [])
   const rowsOf = (g) => (g.rows || []).map((r) => ({ ...r, _g: g }))
   const all = useMemo(() => games.flatMap(rowsOf), [games])
   const graded = games.some((g) => g.graded)
@@ -37,6 +45,21 @@ export default function Ledger({ date = null, onOpenPlayer, onOpenTeam = null, o
   const echoes = useMemo(() => findNameEchoes(scorers.map((r) => r.name), all.map((r) => r.name), { max: 3 }).map((e, i) => ({ ...e, key: `${e.kind}-${i}` })), [scorers, all])
   const soft = (mu?.rows || []).slice(0, 5).map((r) => ({ ...r, key: r.def }))
   const noGames = data && !games.length
+  // WHO NEEDS WHAT: tonight's board skaters one goal short of a multiple of
+  // ten, on this season's goal count from Hot Sticks (NHL stats API season
+  // report). Hot Sticks falls back to last season in the summer ("stale") --
+  // last season's total is not this season's, so then the section says why.
+  const needs = useMemo(() => {
+    if (!hs?.rows || hs.stale) return []
+    const g = new Map(hs.rows.map((r) => [String(r.id), Number(r.seasonG)]))
+    const seen = new Set()
+    return all.filter((r) => { const k = String(r.playerId); if (seen.has(k)) return false; seen.add(k); const n = g.get(k); return Number.isFinite(n) && n > 0 && (n + 1) % 10 === 0 })
+      .map((r) => ({ ...r, key: String(r.playerId), now: g.get(String(r.playerId)), next: g.get(String(r.playerId)) + 1 }))
+      .sort((a, b) => b.now - a.now)
+  }, [hs, all])
+  const needsEmpty = noGames ? 'No NHL games on this date.' : !hs ? 'Loading season goal counts…' : hs.failed ? 'Season goal counts didn’t load.'
+    : hs.stale ? `The ${hs.current ? `${String(hs.current).slice(0, 4)}-${String(hs.current).slice(6)}` : 'new'} regular season has no goals on file yet -- last season's totals don't carry over.`
+      : 'Nobody on tonight’s board is one goal from a multiple of ten.'
   const face = (r) => nhlMug(r._g?.game?.season, r.team, r.playerId)
   const row = (children) => <div style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 40, fontSize: 12, flexWrap: 'wrap' }}>{children}</div>
   const who = (r) => (
@@ -57,6 +80,9 @@ export default function Ledger({ date = null, onOpenPlayer, onOpenTeam = null, o
         render={(r) => row(<>{who(r)}<span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 10 }}><Tap onClick={onOpenTeam && (() => onOpenTeam(r.team))}>{r.team}</Tap> · #{r.rank} in <Tap onClick={onOpenGame && (() => onOpenGame(r._g.game.id))}>{r._g.game.away.abbrev}@{r._g.game.home.abbrev}</Tap></span><span style={{ marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: 11, fontWeight: 900, color: r.hit ? C.lamp : C.text3 }}>{r._g.graded ? (r.hit ? `✓ ${r.goals} G` : '—') : 'pending'}</span></>)} />
       <LedgerSection {...P} title="🔟 ROUND NUMBER TONIGHT" blurb="a scorer reaching 10 / 20 / 30 goals"
         rows={[]} empty="Needs each scorer's season goal total on the board rows, which LAMP doesn't carry yet -- nothing is counted by guess." />
+      <LedgerSection {...P} title="🎯 WHO NEEDS WHAT" blurb="one goal short of a multiple of 10 · a counting fact, not a reason to expect a goal"
+        rows={needs} empty={needsEmpty}
+        render={(r) => row(<>{who(r)}<Tap onClick={onOpenTeam && (() => onOpenTeam(r.team))}><span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 10 }}>{r.team}</span></Tap><span style={{ marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: 11, color: C.ice, fontWeight: 900 }}>{r.now}→{r.next}</span></>)} />
       <LedgerSection {...P} title="🔢 LINES UP WITH TONIGHT" blurb="jersey, birthday and name numbers against the date"
         rows={[]} empty="Needs jersey and birth date on the board rows, which LAMP doesn't carry yet. The Numerology tab has tonight's numbers." />
       <LedgerSection {...P} title="🩹 THE LOOK-OUT" blurb="tonight's softest defences by goals allowed · the net: starter not announced"

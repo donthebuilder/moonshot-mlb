@@ -23,10 +23,13 @@ import { easternDate } from '../../../lib/data'
 //                (week file season_td entering the week + his TDs this week)
 //   LINES UP     each scorer's numerology lanes that matched his game's date
 //   LOOK-OUT     defenses leaking TDs (lib/nfl/defenseLeaks.js, as on Home)
+//   WHO NEEDS WHAT a player one TD short of a multiple of 5 (week file
+//                season_td + his TDs this week). Same shape as MOONSHOT's
+//                Look-Out: a LOOKUP, labelled as one -- a round number is a
+//                counting fact, not a reason to expect a score. (Taken off
+//                TUDDY Home 09-27 for reading as a claim there; Donovan asked
+//                for it back here, on the page of counting facts.)
 //   NAME ECHOES  lib/namePatterns.js over this week's scorers
-// NOT HERE: "who needs what" (one TD from a round number). It was taken off
-// TUDDY Home on 09-27 for making claims with nothing behind them; the History
-// Watch is the countdown with a reason.
 const sep = (items) => items.filter(Boolean).join(' · ')
 
 export default function Ledger({ data, picks, results, matchup, onPlayerClick, onOpenTeam = null, onOpenGame = null }) {
@@ -44,6 +47,11 @@ export default function Ledger({ data, picks, results, matchup, onPlayerClick, o
     const before = Number(s.p.season_td); const after = before + s.td
     return Math.floor(after / 5) > Math.floor(before / 5) ? { ...s, key: s.id, mark: Math.floor(after / 5) * 5, after } : null
   }).filter(Boolean)
+
+  const needs = players.filter((p) => p.position !== 'DEF' && p.season_td != null && Number.isFinite(Number(p.season_td)))
+    .map((p) => { const now = Number(p.season_td) + tdOf(p.player_id); return { key: String(p.player_id), id: String(p.player_id), name: p.name, team: p.team, p, now, next: now + 1 } })
+    .filter((r) => r.now > 0 && r.next % 5 === 0)
+    .sort((a, b) => b.now - a.now || String(a.name).localeCompare(String(b.name)))
 
   const lines = scorers.filter((s) => s.p).map((s) => {
     const t = kickoffFor(data?.games, s.p)
@@ -74,6 +82,9 @@ export default function Ledger({ data, picks, results, matchup, onPlayerClick, o
       <LedgerSection {...P} title="🔟 ROUND NUMBER THIS WEEK" blurb="a scorer whose season total crossed a multiple of 5"
         rows={rounds} empty={scorers.length ? 'No scorer crossed a multiple of five this week.' : 'No touchdowns graded yet this week.'}
         render={(s) => row(<>{who(s)}<span style={{ marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: 11, color: C.green, fontWeight: 900 }}>TD #{s.mark} of the season</span></>)} />
+      <LedgerSection {...P} title="🎯 WHO NEEDS WHAT" blurb="one touchdown short of a multiple of 5 · a counting fact, not a reason to expect a score"
+        rows={needs} empty={players.length ? 'Nobody on this week’s slate is one touchdown from a multiple of five.' : 'The week file hasn’t loaded.'}
+        render={(r) => row(<>{who(r)}<Tap onClick={onOpenTeam && (() => onOpenTeam(r.team))}><span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 10 }}>{r.team}</span></Tap><span style={{ marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: 11, color: C.green, fontWeight: 900 }}>{r.now}→{r.next}</span></>)} />
       <LedgerSection {...P} title="🔢 LINES UP WITH HIS GAME DAY" blurb="numerology lanes that matched the date he scored · pattern watching"
         rows={lines} empty={scorers.length ? 'None of this week’s scorers matched a lane on his game day.' : 'No touchdowns graded yet this week.'}
         render={(s) => row(<>{who(s)}<span style={{ color: C.text3, fontSize: 11 }}>{sep(s.chips)}</span></>)} />
