@@ -336,9 +336,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
 
       {/* TD WATCH (board filters plan, TUDDY 5): MOONSHOT's B2B Watch slot. */}
       <div style={{ marginTop: 8 }}>
-        <MobileFold title="🔁 TD Watch" summary="scored last week · back from a bye" accent={C.green} rememberKey="fold_tdwatch_v1">
-          <TdWatch players={rows} games={data?.games} logs={logs} results={results} liveSnap={liveSnap} week={data ? { season: data.season, week: data.week } : null} onPlayerClick={onPlayerClick} />
-        </MobileFold>
+        <TdWatch players={rows} games={data?.games} logs={logs} results={results} liveSnap={liveSnap} week={data ? { season: data.season, week: data.week } : null} onPlayerClick={onPlayerClick} />
       </div>
 
       <div style={{ marginTop: 8 }}>

@@ -2,6 +2,7 @@
 import { useMemo } from 'react'
 import { C, NUM_FONT } from '../../lib/nhl/theme'
 import WatchBox from '../WatchBox'
+import MobileFold from '../MobileFold'
 import { useLampHotSticks } from '../../lib/nhl/useLamp'
 
 // ── GOAL WATCH (2026-09-28, MLB-PARITY-BOARDS plan "ADDED 09-28") ──────────
@@ -46,7 +47,10 @@ export default function GoalWatch({ flat = [], onOpenPlayer }) {
   const label = (words, list) => `${words}${list.length > CAP ? ` · top ${CAP} of ${list.length}` : ''}`
   const waiting = hot?.stale
   const total = two.length + last.length
+  // Folded on a phone like MOONSHOT's B2B Watch; open on a desktop.
   return (
+    <MobileFold title="🔁 Goal Watch" count={total || b2b.length || null} accent={C.ice} rememberKey="fold_goalwatch_v1"
+      summary={[two.length && `${two.length} goal in 2+ straight`, last.length && `${last.length} scored last game`, b2b.length && `${b2b.length} on a back-to-back`].filter(Boolean).join(' · ') || (waiting ? 'fills once this season has games' : 'nobody on a run tonight')}>
     <WatchBox
       icon="🔁" title="GOAL WATCH" accent={C.ice} theme={C} numFont={NUM_FONT} ariaLabel="Goal watch"
       status={loading && !hot ? 'checking last games…' : waiting ? 'goal rows fill once this season has games' : total ? `${total} scored last time out` : 'nobody on the board scored last time out'}
@@ -60,5 +64,6 @@ export default function GoalWatch({ flat = [], onOpenPlayer }) {
         ? `The goal rows read each skater's last games. Until the new season gives him three, they stay empty rather than call ${hot?.seasonLabel ? `${hot.seasonLabel}'s` : 'last season’s'} final games his "last game". The back-to-back row is tonight's schedule.`
         : 'Every row is a fact from the league’s game rows and tonight’s schedule, not a pick. No hit rate is claimed: LAMP has no graded archive to measure one yet. A card turns green when he scores again tonight.'}
     />
+    </MobileFold>
   )
 }

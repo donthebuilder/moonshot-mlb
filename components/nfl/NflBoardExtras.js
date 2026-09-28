@@ -9,6 +9,7 @@ import { Segmented, FilterPill, AngleRow as SharedAngleRow } from '../Filters'
 import { alpha } from '../../lib/scales'
 import RangeDual from '../RangeDual'
 import WatchBox from '../WatchBox'
+import MobileFold from '../MobileFold'
 import { lineFor, tdsIn } from '../../lib/nfl/liveSlate'
 
 // TUDDY BOARD EXTRAS (2026-09-27, board filters plan): the pieces MOONSHOT's
@@ -291,7 +292,11 @@ export function TdWatch({ players, games, logs = null, results = null, liveSnap 
   }))
   const label = (words, list) => `${words}${list.length > WATCH_CAP ? ` · top ${WATCH_CAP} of ${list.length}` : ''}`
   const total = two.length + scored.length
+  // Folded on a phone like MOONSHOT's B2B Watch (MobileFold), the count and
+  // the rows in the summary; open on a desktop.
   return (
+    <MobileFold title="🔁 TD Watch" count={total || null} accent={C.green} rememberKey="fold_tdwatch_v1"
+      summary={[two.length && `${two.length} TD in 2+ straight`, scored.length && `${scored.length} scored last week`, bye.length && `${bye.length} back from a bye`].filter(Boolean).join(' · ')}>
     <WatchBox
       icon="🔁" title="TD WATCH" accent={C.green} theme={C} numFont={NUM_FONT} ariaLabel="TD watch"
       status={total ? `${total} scored last time out` : 'nobody on a scoring run this week'}
@@ -303,6 +308,7 @@ export function TdWatch({ players, games, logs = null, results = null, liveSnap 
       ]}
       footer="Every row is a fact from the week file and the game logs, not a pick. No hit rate is claimed for any of them: TUDDY's graded weeks are too few to measure one. A card turns green when he scores again this week."
     />
+    </MobileFold>
   )
 }
 
