@@ -47,6 +47,15 @@ reads, via its `data` branch.
   FRANCHISE.
 - No new hex literals in .js files. Import the product's theme token
   instead. `node scripts/check-scales.mjs` counts them.
+- MOONSHOT's components are the base for everything (Donovan, 2026-09-28).
+  A new page, a new sport, or a new sport's twin of an existing page is built
+  FROM the MOONSHOT component that already does that job (hero, chip rows,
+  Filters, board table + heat, B2B-style watch box, player tile/card, ledger
+  sections, face), passing the sport's data, words and accent colour. Do not
+  rebuild a look-alike by eye. If the MOONSHOT component can't take the new
+  sport as-is, generalise it (props / lookups) and keep MOONSHOT pixel-identical.
+  New sport-only pieces only when MOONSHOT has nothing for that job, and name
+  why in the commit. See .claude-notes/PARITY-ALL-PAGES-PLAN.md.
 
 ## Mobile is a testable product feature
 Every screen is a phone screen first. A page is not done because it
