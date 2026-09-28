@@ -82,7 +82,7 @@ const CAT_OMIT = {
   hr: ['hrw', 'pHR9', 'hrsc', 'iso'],
 }
 
-export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watchIds, onPlayerClick, limit = 60, slateDate = null, filterState = null, setupHomers }) {
+export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watchIds, onPlayerClick, onOpenPitcher = null, limit = 60, slateDate = null, filterState = null, setupHomers }) {
   // 🔁 PROVEN, NOT INFERRED. This column read `games_since_last_hr === 0`
   // directly, which lib/b2b.js exists to stop: the field means "he homered in
   // his most recent game", and on a slate rebuilt after the 12:05 window that
@@ -346,7 +346,9 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
             ...(dh.size ? [{ key: 'g', label: 'G', heat: false, w: 28, mono: true, dim: true,
               fmt: (v) => (v ? `G${v}` : '—'),
               title: 'Which game of a doubleheader. G1 is the earlier first pitch. A hitter whose team plays twice appears once per game and both rows are real — his board rank is the same in both.' }] : []),
-            { key: 'facing', label: 'Facing', heat: false, w: 116, dim: true },
+            // The pitcher opens the PITCHER, not the hitter whose row he's in
+            // (audit 00A P0: "Kyle Freeland" opened Murakami).
+            { key: 'facing', label: 'Facing', heat: false, w: 116, dim: true, link: (p) => (onOpenPitcher && p?.pitcher_id ? () => onOpenPitcher(p.pitcher_id) : null) },
             { key: 'isPick', label: '🤖', flag: true, mark: '●', w: 30,
               title: `The bot's designated ${{ top: 'TOP', hr: 'HR', hit: 'HIT', hrr: 'HRR', tb: 'CONTACT', contact: 'CONTACT' }[type] || ''} pick tonight — THIS category's pick specifically, not any pick. A hitter picked in a different category shows in the Pick column instead.` },
             { key: 'otherPick', label: 'Pick', heat: false, w: 46, mono: true, dim: true,

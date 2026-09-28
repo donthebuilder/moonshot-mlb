@@ -1013,7 +1013,7 @@ export default function Dashboard({ palettePass = 0 }) {
             {tab === 'leaders'     && <Leaders players={players} onPlayerClick={setModalPlayer} />}
             {tab === 'player'      && <PlayerBoard players={players} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} odds={odds} />}
             {tab === 'derby'       && <Derby players={players} results={resultsForSlate} slateDate={slateDate} onPlayerClick={setModalPlayer} />}
-            {tab === 'runs'        && <Runs players={allPlayers} onPlayerClick={setModalPlayer} />}
+            {tab === 'runs'        && <Runs players={allPlayers} onPlayerClick={setModalPlayer} onOpenPitcher={(pid) => { leaveTarget('pitcher', pid); setTab('pitchers') }} />}
             {tab === 'spray'       && <SprayBoard players={players} slateMode={mode} onPlayerClick={setModalPlayer} />}
             {tab === 'pitchermap'  && <PitcherMap players={players} />}
             {tab === 'guide'       && <Guide onNavigate={setTab} />}
