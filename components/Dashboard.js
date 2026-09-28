@@ -1,6 +1,7 @@
 'use client'
 import { TodayContext } from './TodayContext'
 import { useHashFilter, readHashKey, FILTER_KEYS } from '../lib/filterHash'
+import { hashParams, writeHash, closeOpened } from '../lib/urlState'
 import { leaveTarget } from '../lib/openTarget'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
@@ -510,8 +511,16 @@ export default function Dashboard({ palettePass = 0 }) {
     for (const k of FILTER_KEYS) { const v = readHashKey(k); if (v) h.set(k, v) }
     const pid2 = modalPlayer ? String(modalPlayer?.player_id ?? modalPlayer?.id ?? '') : missingPlayer
     if (pid2) h.set('p', pid2)
-    const next = h.toString()
-    try { history.replaceState(null, '', next ? `#${next}` : window.location.pathname + window.location.search) } catch {}
+    // PUSH WHAT YOU OPENED (2026-09-27, audit 00A root fix 1; lib/urlState).
+    // A new tab or a newly opened card adds a history entry, so Back returns
+    // where you were instead of leaving the site; anything else replaces.
+    // (Back itself changes the hash first, apply() follows it, and this
+    // effect then finds the address already right -- writeHash no-ops.)
+    const before = hashParams()
+    const cardId = modalPlayer ? String(modalPlayer?.player_id ?? modalPlayer?.id ?? '') : ''
+    const newTab = (h.get('tab') || '') !== (before.get('tab') || '')
+    const newCard = Boolean(cardId) && cardId !== (before.get('p') || '')
+    writeHash(h, { push: newTab || newCard, state: newCard ? { dashCard: 1 } : null })
   }, [tab, modalPlayer, missingTab, missingPlayer])
 
 
@@ -1029,7 +1038,7 @@ export default function Dashboard({ palettePass = 0 }) {
         player={modalPlayer}
         initialTab={modalPlayer && String(modalPlayer?.player_id ?? modalPlayer?.id ?? '') === modalView.pid ? modalView.view : ''}
         slateMode={mode}
-        onClose={() => setModalPlayer(null)}
+        onClose={() => closeOpened('dashCard', () => setModalPlayer(null))}
         onAdd={addSlip}
         onWatch={toggleWatch}
         watched={modalPlayer ? watchIds.has(playerId(modalPlayer)) : false}

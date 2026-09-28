@@ -188,9 +188,13 @@ export function writeHashParam(key, value) {
   try {
     const h = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''))
     if (value == null || value === '') h.delete(key); else h.set(key, String(value))
-    // Keeps the entry's state: a detail page's entry is marked (LampDashboard
-    // openDetail) so the in-page Back can step the browser's own history.
-    window.history.replaceState(window.history.state, '', `#${h.toString()}`)
+    // Keeps the entry's OWN marker (a detail page's entry is marked by
+    // LampDashboard openDetail so the in-page Back can step the browser's
+    // history) -- but not the whole history.state: its __NA flag made Next's
+    // patched replaceState skip syncing its router, which is why Next could
+    // later write a stale URL back (2026-09-27, audit 00A; lib/urlState.js).
+    const mark = window.history.state?.lampDetail ? { lampDetail: true } : null
+    window.history.replaceState(mark, '', `#${h.toString()}`)
   } catch { /* the page still works without the address */ }
 }
 

@@ -1,5 +1,6 @@
 'use client'
 import { TodayContext } from '../TodayContext'
+import { writeHash } from '../../lib/urlState'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { resolveTab, pageTitle, NHL_TABS as NHL_TAB_KEYS, NHL_NAV } from '../../lib/routes'
 import { usePageTitle } from '../../lib/usePageTitle'
@@ -95,7 +96,9 @@ export default function LampDashboard({ palettePass = 0 }) {
   // -- it replaced the 600ms second write that used to live here.
   usePageTitle(`${pageTitle('nhl', tab)} · DASH Network`)
 
-  const setTab = (next) => {
+  // `push` (2026-09-27, audit 00A root fix 1): a tab you tap adds a history
+  // entry, so Back returns to the last one; the mount-time resolve replaces.
+  const setTab = (next, { push = true } = {}) => {
     if (!NHL_TABS.has(next)) return
     // Leaving through the chrome (rail, bar, sheet, wordmark, a Guide door)
     // is a fresh start, not a step on the trail; only the openers above
@@ -114,8 +117,12 @@ export default function LampDashboard({ palettePass = 0 }) {
       if (next !== 'player') { hash.delete('player'); hash.delete('p') }
       // A detail page keeps its entry's marker (openDetail); the chrome's
       // own navigation starts clean.
-      const keep = next === 'game' || next === 'team' || next === 'player' ? window.history.state : null
-      window.history.replaceState(keep, '', `#${hash.toString()}`)
+      // Only LAMP's own marker rides along -- never window.history.state, whose
+      // __NA flag makes Next skip syncing the new URL (lib/urlState.js).
+      const detail = next === 'game' || next === 'team' || next === 'player'
+      const keep = detail && window.history.state?.lampDetail ? { lampDetail: true } : null
+      const was = new URLSearchParams(String(window.location.hash || '').replace(/^#/, '')).get('tab')
+      writeHash(hash, { push: push && !detail && Boolean(was) && was !== next, state: keep })
     } catch { /* the tab still works without the address */ }
   }
 
@@ -238,7 +245,7 @@ export default function LampDashboard({ palettePass = 0 }) {
     // the page can say NO SUCH PLAYER instead of "no player picked" (audit 00A
     // fix 5: player=1 used to look like a link with no player at all).
     if (r.tab === 'player' && pl) setPlayerId(String(pl).slice(0, 20))
-    setTab(r.tab)
+    setTab(r.tab, { push: false })
   }, [])
 
   // Manually edited hashes and browser-driven hash changes stay in sync
