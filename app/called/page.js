@@ -334,9 +334,24 @@ async function loadNfl(sport, db, today) {
   const { data: pre } = await db.from('homer_feed_posts')
     .select('day,payload').eq('kind', 'nfl_board').gte('day', since)
     .order('day', { ascending: false }).limit(1)
-  const picks = Array.isArray(pre?.[0]?.payload?.picks) ? pre[0].payload.picks.slice(0, 5) : []
-  const calledIds = new Set(rows.filter((r) => r.player_id).map((r) => String(r.player_id)))
-  return { sport, today, rows, outRows, picks, calledIds, history, byDay, configured: true }
+  let picks = Array.isArray(pre?.[0]?.payload?.picks) ? pre[0].payload.picks.slice(0, 5) : []
+  // THE BOARD IS GRADED ON ITS OWN DAYS, NOT TODAY'S (2026-09-29, claims
+  // audit): the board is Sunday's, so on any other day matching it against
+  // today's touchdowns left every name "pending" long after the games were
+  // over. A pick is a hit on any touchdown from the board's day on; it reads
+  // "no TD" only once the bot's own nfl_results post has graded that day
+  // (same name match the post itself uses) and he is not among its scorers.
+  const picksDay = pre?.[0]?.day || null
+  const hitIds = new Set(all.filter((r) => r.player_id && (picksDay ? r.day >= picksDay : r.day === today)).map((r) => String(r.player_id)))
+  if (picksDay && picks.length) {
+    const { data: res } = await db.from('homer_feed_posts')
+      .select('payload').eq('kind', 'nfl_results').gte('day', picksDay)
+      .order('day', { ascending: false }).limit(1)
+    const g = res?.[0]?.payload
+    const scorers = g?.graded_day === picksDay && Array.isArray(g.scorers) ? new Set(g.scorers) : null
+    if (scorers) picks = picks.map((p) => (hitIds.has(String(p.player_id)) || scorers.has(String(p.name || '').toLowerCase()) ? p : { ...p, outcome: 'no TD' }))
+  }
+  return { sport, today, rows, outRows, picks, picksDay, calledIds: hitIds, history, byDay, configured: true }
 }
 
 async function loadMlb(sport, db, today) {
@@ -382,7 +397,7 @@ const glyph = (n) => (n.called ? '🤖' : n.onBoard ? '⚪' : '💥')
 export default async function CalledPage({ searchParams }) {
   const params = (await searchParams) || {}
   const key = sportKey(String(params.sport || '').toLowerCase())
-  const { sport, today, rows, outRows = [], picks, calledIds, history, byDay, configured } = await load(key)
+  const { sport, today, rows, outRows = [], picks, picksDay = null, calledIds, history, byDay, configured } = await load(key)
   const card = sport.cardRecord ? await cardPlain(sport.key).catch((e) => { console.error(`[called] card record: ${e?.message}`); return null }) : null
   const BOARD = sport.board
   const SIGNUP = `/login?next=${encodeURIComponent(BOARD)}#create-account`
@@ -472,7 +487,7 @@ export default async function CalledPage({ searchParams }) {
 
       {picks.length ? (
         <section className={styles.panel}>
-          <h2 className={styles.h2}>{sport.callsHead} <span className={styles.pill}>{sport.callsPill}</span></h2>
+          <h2 className={styles.h2}>{sport.callsHead} <span className={styles.pill}>{sport.callsPill}{picksDay && picksDay !== today ? ` · ${shortDay(picksDay)}` : ''}</span></h2>
           <ol className={styles.calls}>
             {picks.slice(0, PREVIEW).map((p, i) => <Pick key={p.player_id || i} p={p} i={i} sport={sport} calledIds={calledIds} />)}
           </ol>
