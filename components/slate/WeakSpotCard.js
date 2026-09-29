@@ -10,7 +10,7 @@ import { C, NUM_FONT } from '../../lib/theme'
 // TUDDY (a defense's soft roles) and LAMP (a club's soft penalty kill /
 // defense) pass their own cards.
 //
-// card = { key, title, meta, stat: { text, hot, vs }, lead, damage,
+// card = { key, title, onTitle?, meta, stat: { text, hot, vs }, lead, damage,
 //          rows: [{ key, spot, name, side, flag, tag, value, extra, why, edge, onClick }] }
 export function WeakSpotGrid({ cards = [], accent = C.orange, tagColor = C.cyan }) {
   if (!cards.length) return null
@@ -28,7 +28,13 @@ export default function WeakSpotCard({ c, accent = C.orange, tagColor = C.cyan }
       background: 'rgba(255,255,255,.02)', minWidth: 0,
     }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 12, fontWeight: 800, color: C.text }}>{c.title}</span>
+        {/* The arm's name opens his page when the caller can (2026-09-29,
+            check-clickable: Live's starter names were plain text). */}
+        {c.onTitle
+          ? <span role="link" tabIndex={0} onClick={c.onTitle} onKeyDown={(ev) => { if (ev.key === 'Enter') c.onTitle() }}
+              title={`Open ${c.title}`}
+              style={{ fontSize: 12, fontWeight: 800, color: C.text, cursor: 'pointer' }}>{c.title}</span>
+          : <span style={{ fontSize: 12, fontWeight: 800, color: C.text }}>{c.title}</span>}
         <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>{c.meta}</span>
         <span style={{
           marginLeft: 'auto', fontSize: 10, fontWeight: 800, fontFamily: NUM_FONT,

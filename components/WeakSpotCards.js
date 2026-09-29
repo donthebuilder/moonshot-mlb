@@ -35,7 +35,7 @@ import { n, clean } from '../lib/player'
 
 const LG_HR9 = 1.15
 
-export default function WeakSpotCards({ entries = [], onPlayerClick }) {
+export default function WeakSpotCards({ entries = [], onPlayerClick, onOpenPitcher }) {
   const cards = entries
     .map((e) => {
       const hit = (e.lineup || []).filter((b) => b.weak_spot_flag)
@@ -61,6 +61,7 @@ export default function WeakSpotCards({ entries = [], onPlayerClick }) {
       return {
         key: e.pitcher_id ?? e.pitcher_name,
         title: e.pitcher_name,
+        onTitle: onOpenPitcher && e.pitcher_id ? () => onOpenPitcher(e.pitcher_id) : null,
         meta: `${e.pitcher_throws}HP · ${e.team} vs ${e.opponent_team}`,
         // Coloured against the league mark, not against zero: an arm at 1.10
         // is average, and a ramp anchored at zero would paint it green.

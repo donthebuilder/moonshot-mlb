@@ -525,7 +525,7 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
             left the reader to line them up, and it threw away
             pitcher_spot_damage_reason — the bot's own sentence explaining the
             flag. See WeakSpotCards.js. */}
-        <WeakSpotCards entries={weakEntries} onPlayerClick={onPlayerClick} />
+        <WeakSpotCards entries={weakEntries} onPlayerClick={onPlayerClick} onOpenPitcher={onNavigate ? (pid) => { leaveTarget('pitcher', pid); onNavigate('pitchers') } : null} />
       </Tracker>
     </Fold>
   )
