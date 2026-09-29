@@ -38,6 +38,7 @@ const ROWS = [
   ['goalies', 'Every goalie, and a goalie’s file is its own page — starts, record, GAA, save percentage, shutouts — not a skater’s with different labels.'],
   ['teams', 'The 32 clubs by division. Tap one for its record and place, next up, last five, the roster with season lines, team leaders, the whole schedule.'],
   ['leaders', 'Who leads the league in each category, ten deep, regular season, straight from the league. Measured, not modelled.'],
+  ['watchlist', null],
   ['numerology', null],
 ]
 
