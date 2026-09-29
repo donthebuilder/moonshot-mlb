@@ -98,6 +98,23 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
     try { localStorage.setItem(SEEN_KEY, '1') } catch { /* a full store is not a reason to nag */ }
   }
   useEffect(() => setOpen(false), [tab])
+  // Escape closes the drawer; a swipe to the right (60px, mostly sideways)
+  // closes it the way it came in.
+  useEffect(() => {
+    if (!open) return undefined
+    const key = (e) => { if (e.key === 'Escape') setOpen(false) }
+    window.addEventListener('keydown', key)
+    return () => window.removeEventListener('keydown', key)
+  }, [open])
+  const touch = useRef(null)
+  const swipeStart = (e) => { const t = e.touches[0]; touch.current = { x: t.clientX, y: t.clientY } }
+  const swipeEnd = (e) => {
+    const from = touch.current; touch.current = null
+    const t = e.changedTouches[0]
+    if (!from || !t) return
+    const dx = t.clientX - from.x, dy = Math.abs(t.clientY - from.y)
+    if (dx > 60 && dx > dy * 1.5) setOpen(false)
+  }
 
   // ── OUT OF THE WAY WHILE YOU READ (2026-09-28, Donovan) ──────────────────
   // Hide on scroll down, back on scroll up, every sport, phone and desktop.
@@ -156,10 +173,13 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
         ref={sheetRef}
         className={`mobileMore ${open ? 'open' : ''}`}
         aria-hidden={!open}
+        aria-label={`${brand} · every page`}
+        onTouchStart={swipeStart}
+        onTouchEnd={swipeEnd}
       >
         <div className="mobileMoreHead"><div><small>{brand} · THE MAP</small><strong>Everything on this site</strong></div><button tabIndex={open ? undefined : -1} onClick={() => setOpen(false)} aria-label="Close More menu">×</button></div>
         <p className="mobileMoreLede">Every page, what each one is for, and the way across to the other two sites.</p>
-        <div className="mobileMoreGrid">
+        <div className="mobileMoreList">
           {/* THE NETWORK SWITCH LIVES HERE NOW (2026-08-29). Donovan: "remove
               the little floating ico, its redundant now — just make it so we
               can navigate the different sites from the nav thing at the
@@ -173,8 +193,8 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
             key.startsWith('@') ? (
               <div key={key} className="mobileMoreGroup">{key.slice(1)}</div>
             ) : (
-              <button key={key} tabIndex={open ? undefined : -1} onClick={() => go(key)} className={tab === key ? 'active' : ''}>
-                <span>{label}</span><small>{detail}</small>
+              <button key={key} tabIndex={open ? undefined : -1} onClick={() => go(key)} className={`mobileMoreRow${tab === key ? ' active' : ''}`} aria-current={tab === key ? 'page' : undefined}>
+                <span>{label}</span><small>{detail}</small><em aria-hidden="true">›</em>
               </button>
             )
           ))}
@@ -202,6 +222,35 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
         .mobileTabBar,.mobileMore,.mobileTabScrim{display:none}
         .mobileTabBar{transition:transform .22s ease}
         @media(prefers-reduced-motion:reduce){.mobileTabBar{transition:none}}
+        /* ── MORE IS A SIDE DRAWER (Batch 2, 2026-09-28, Donovan picked it) ──
+           It was a card floating above the bar, 68% of the screen at most,
+           two columns of tiles. Now it comes in from the right edge at full
+           height, one plain list (name, one line, ›), and scrolls on its own
+           without dragging the page. Same on a phone and a desktop. The bar
+           stays on top of it (z 390 > 385), so the list pads its end clear of
+           the bar. Tap the dimmed page, the ×, Escape, or swipe it right to
+           close. Closed, it is off-screen AND hidden, so it can't widen the
+           page or be reached. */
+        .mobileTabScrim{position:fixed;z-index:380;inset:0;display:block;border:0;background:#0009;backdrop-filter:blur(2px)}
+        .mobileMore{position:fixed;z-index:385;top:0;right:0;bottom:0;display:flex;flex-direction:column;width:min(380px,86vw);padding:calc(14px + env(safe-area-inset-top)) 14px 0;border-left:1px solid ${C.border2};background:${C.bg2};box-shadow:-25px 0 80px #000d;transform:translateX(100%);visibility:hidden;transition:transform .22s ease,visibility 0s linear .22s;overscroll-behavior:contain}
+        .mobileMore.open{transform:none;visibility:visible;transition:transform .22s ease}
+        @media(prefers-reduced-motion:reduce){.mobileMore,.mobileMore.open{transition:none}}
+        .mobileMoreHead{display:flex;align-items:center;justify-content:space-between;padding:2px 3px 11px}
+        .mobileMoreHead small{display:block;color:#f97316;font-family:${NUM_FONT};font-size:8px;font-weight:900;letter-spacing:.14em}
+        .mobileMoreHead strong{display:block;margin-top:3px;font-size:18px;color:${C.text}}
+        .mobileMoreHead button{width:44px;height:44px;border:1px solid ${C.border};border-radius:11px;background:${C.bg};color:${C.text2};cursor:pointer;font-size:22px}
+        .mobileMoreLede{margin:0 3px 10px;color:${C.text3};font-size:12px;line-height:1.5}
+        .mobileMoreDot{position:absolute;top:6px;right:calc(50% - 17px);width:7px;height:7px;border-radius:50%;background:#f97316;box-shadow:0 0 0 2px ${C.bg2}}
+        .mobileMoreList{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;margin:0 -14px;padding:0 14px calc(96px + env(safe-area-inset-bottom))}
+        .mobileMoreGroup{margin:16px 3px 4px;font-family:${NUM_FONT};font-size:9px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:${C.text3}}
+        .mobileMoreRow{display:grid;grid-template-columns:1fr auto;align-items:center;column-gap:10px;width:100%;min-height:48px;padding:8px 10px;border:0;border-bottom:1px solid ${C.border};border-radius:0;background:transparent;color:${C.text2};text-align:left;cursor:pointer}
+        .mobileMoreRow span{font-size:13px;font-weight:800;color:${C.text}}
+        .mobileMoreRow small{grid-column:1;margin-top:2px;color:${C.text3};font-size:11px;line-height:1.3}
+        .mobileMoreRow em{grid-column:2;grid-row:1/span 2;color:${C.text3};font-style:normal;font-size:18px}
+        .mobileMoreRow:hover{background:${C.bg}}
+        .mobileMoreRow.active{border-radius:10px;border-bottom-color:transparent;background:#f9731614}
+        .mobileMoreRow.active span,.mobileMoreRow.active em{color:${C.orange}}
+        @media(min-width:761px){.mobileMoreList{padding-bottom:76px}}
         /* ── THE BAR, ON DESKTOP TOO (2026-08-29) ──────────────────────────
            Donovan picked it from three mocked options: "the nav going
            horizontal across the bottom screen like on the phone — just make
@@ -220,28 +269,6 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
           .mobileTabBar button:hover{color:${C.text2}}
           .mobileTabBar button.active{background:linear-gradient(145deg,#f9731628,#fcd34d0b);color:#fbbf24}
           .mobileTabBar button.active i{color:#fb923c;text-shadow:0 0 14px #f9731688}
-          .mobileTabScrim{position:fixed;z-index:380;inset:0;display:block;border:0;background:#0009;backdrop-filter:blur(2px)}
-          .mobileMore{position:fixed;z-index:385;left:50%;transform:translate(-50%,18px);bottom:66px;width:min(520px,92vw);display:block;max-height:min(68vh,520px);overflow:auto;padding:13px;border:1px solid ${C.border2};border-radius:17px;background:${C.bg2};box-shadow:0 25px 80px #000d;opacity:0;pointer-events:none;transition:transform .18s ease,opacity .18s ease}
-          .mobileMore.open{transform:translate(-50%,0);opacity:1;pointer-events:auto}
-          .mobileMoreHead{display:flex;align-items:center;justify-content:space-between;padding:2px 3px 11px}
-          .mobileMoreHead small{display:block;color:#f97316;font-family:${NUM_FONT};font-size:8px;font-weight:900;letter-spacing:.14em}
-          .mobileMoreHead strong{display:block;margin-top:3px;font-size:18px;color:${C.text}}
-          .mobileMoreLede{margin:0 3px 10px;color:${C.text3};font-size:10.5px;line-height:1.5}
-          .mobileMoreDot{position:absolute;top:6px;right:calc(50% - 17px);width:7px;height:7px;border-radius:50%;background:#f97316;box-shadow:0 0 0 2px ${C.bg2}}
-          .mobileMoreHead button{width:32px;height:32px;border:1px solid ${C.border};border-radius:9px;background:${C.bg};color:${C.text2};cursor:pointer;font-size:20px}
-          .mobileMoreGrid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
-          /* A group heading spans the pair of columns and gets its air
-             above rather than below, so it reads as a lid on the block
-             beneath it rather than a floating label. */
-          .mobileMoreGroup{grid-column:1/-1;margin:9px 2px 1px;font-family:${NUM_FONT};font-size:8px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:${C.text3}}
-          .mobileMoreGroup:first-child{margin-top:0}
-          .mobileMoreGrid button{text-align:left;min-height:59px;padding:9px 10px;border:1px solid ${C.border};border-radius:10px;background:${C.bg};color:${C.text2};cursor:pointer}
-          .mobileMoreGrid button.active{border-color:#f9731670;background:#f9731614}
-          .mobileMoreHome{grid-column:1/-1;display:block;min-height:0;padding:10px;border:1px solid #f9731640;border-radius:10px;background:#f9731610;color:${C.text2};text-decoration:none}
-          .mobileMoreHome span{display:block;color:${C.orange};font-size:11px;font-weight:900}
-          .mobileMoreHome small{display:block;margin-top:4px;color:${C.text3};font-size:8px;line-height:1.25}
-          .mobileMoreGrid span{display:block;font-size:11px;font-weight:900}
-          .mobileMoreGrid small{display:block;margin-top:4px;color:${C.text3};font-size:8px;line-height:1.25}
         }
         @media(max-width:760px){
           :global(.dashboard-main){padding-bottom:102px!important}
@@ -252,28 +279,6 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
           .mobileTabBar button.active{background:linear-gradient(145deg,#f9731628,#fcd34d0b);color:#fbbf24}
           .mobileTabBar button.active i{color:#fb923c;text-shadow:0 0 14px #f9731688}
           .mobileTabBar button.active:after{content:'';position:absolute;left:28%;right:28%;bottom:2px;height:2px;border-radius:9px;background:#f97316}
-          .mobileTabScrim{position:fixed;z-index:380;inset:0;display:block;border:0;background:#0009;backdrop-filter:blur(2px)}
-          .mobileMore{position:fixed;z-index:385;left:10px;right:10px;bottom:78px;display:block;max-height:min(68vh,520px);overflow:auto;padding:13px;border:1px solid ${C.border2};border-radius:17px;background:${C.bg2};box-shadow:0 25px 80px #000d;transform:translateY(18px);opacity:0;pointer-events:none;transition:transform .18s ease,opacity .18s ease}
-          .mobileMore.open{transform:none;opacity:1;pointer-events:auto}
-          .mobileMoreHead{display:flex;align-items:center;justify-content:space-between;padding:2px 3px 11px}
-          .mobileMoreHead small{display:block;color:#f97316;font-family:${NUM_FONT};font-size:8px;font-weight:900;letter-spacing:.14em}
-          .mobileMoreHead strong{display:block;margin-top:3px;font-size:18px;color:${C.text}}
-          .mobileMoreLede{margin:0 3px 10px;color:${C.text3};font-size:10.5px;line-height:1.5}
-          .mobileMoreDot{position:absolute;top:6px;right:calc(50% - 17px);width:7px;height:7px;border-radius:50%;background:#f97316;box-shadow:0 0 0 2px ${C.bg2}}
-          .mobileMoreHead button{width:32px;height:32px;border:1px solid ${C.border};border-radius:9px;background:${C.bg};color:${C.text2};font-size:20px}
-          .mobileMoreGrid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
-          /* A group heading spans the pair of columns and gets its air
-             above rather than below, so it reads as a lid on the block
-             beneath it rather than a floating label. */
-          .mobileMoreGroup{grid-column:1/-1;margin:9px 2px 1px;font-family:${NUM_FONT};font-size:8px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:${C.text3}}
-          .mobileMoreGroup:first-child{margin-top:0}
-          .mobileMoreGrid button{text-align:left;min-height:59px;padding:9px 10px;border:1px solid ${C.border};border-radius:10px;background:${C.bg};color:${C.text2}}
-          .mobileMoreGrid button.active{border-color:#f9731670;background:#f9731614}
-          .mobileMoreHome{grid-column:1/-1;display:block;min-height:0;padding:10px;border:1px solid #f9731640;border-radius:10px;background:#f9731610;color:${C.text2};text-decoration:none}
-          .mobileMoreHome span{display:block;color:${C.orange};font-size:11px;font-weight:900}
-          .mobileMoreHome small{display:block;margin-top:4px;color:${C.text3};font-size:8px;line-height:1.25}
-          .mobileMoreGrid span{display:block;font-size:11px;font-weight:900}
-          .mobileMoreGrid small{display:block;margin-top:4px;color:${C.text3};font-size:8px;line-height:1.25}
         }
       `}</style>
     </>
