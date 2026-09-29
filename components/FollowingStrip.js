@@ -18,7 +18,9 @@ import { C } from '../lib/theme'
 import { useFollowing } from '../lib/dash/follow'
 import { useDashAccount } from '../lib/dash/sync'
 
-export default function FollowingStrip({ sport = 'mlb', onPlayerClick = null, liveIds = null }) {
+// accent: the sport's colour for the "on the current board" dot (MOONSHOT orange by
+// default). emptyText: how you add someone on this sport (LAMP follows, it doesn't star).
+export default function FollowingStrip({ sport = 'mlb', onPlayerClick = null, liveIds = null, accent = null, emptyText = null }) {
   const { rows, unfollow } = useFollowing(sport)
   const account = useDashAccount()
 
@@ -27,8 +29,8 @@ export default function FollowingStrip({ sport = 'mlb', onPlayerClick = null, li
       <div style={wrap()}>
         <div style={head()}><b style={title()}>★ Following</b><span style={note()}>nobody yet</span></div>
         <p style={body()}>
-          Star a player anywhere on the board and he lands here. Stars clear with the
-          slate; this list doesn&apos;t.
+          {emptyText || <>Star a player anywhere on the board and he lands here. Stars clear with the
+          slate; this list doesn&apos;t.</>}
         </p>
       </div>
     )
@@ -56,7 +58,7 @@ export default function FollowingStrip({ sport = 'mlb', onPlayerClick = null, li
               >
                 {row.name}
                 {row.team ? <em style={chipTeam()}>{row.team}</em> : null}
-                {live ? <i style={dot()} title="On the current board" /> : null}
+                {live ? <i style={dot(accent)} title="On the current board" /> : null}
               </button>
               <button type="button" onClick={() => unfollow(row.id)} style={chipX()} title="Stop following">×</button>
             </span>
@@ -105,4 +107,4 @@ const chipTeam = () => ({ color: C.text3, font: '800 8px/1 monospace', fontStyle
 const chipX = () => ({ padding: '0 8px', border: 0, borderLeft: `1px solid ${C.border2}`, background: 'transparent', color: C.text3, fontSize: 13, cursor: 'pointer' })
 // Called, not frozen: C is mutated after mount (applyTheme, lib/theme.js), so a
 // module-level literal keeps the palette it was imported with. See #23.
-const dot = () => ({ width: 5, height: 5, borderRadius: 999, background: C.orange, display: 'inline-block' })
+const dot = (accent) => ({ width: 5, height: 5, borderRadius: 999, background: accent || C.orange, display: 'inline-block' })

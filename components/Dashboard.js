@@ -7,7 +7,8 @@ import { C, NUM_FONT } from '../lib/theme'
 import { resolveTab, pageTitle } from '../lib/routes'
 import { usePageTitle } from '../lib/usePageTitle'
 import TabNotFound from './TabNotFound'
-import { fetchJSON, normalizeData, groupGames, slateLooksReal, slateDateFromRows, keepNewerSlate } from '../lib/data'
+import { fetchJSON, normalizeData, groupGames, slateLooksReal, slateDateFromRows, keepNewerSlate, easternDate } from '../lib/data'
+import { stampSave, unstampSave, seedFromOldLedger } from '../lib/watchNights'
 import { slatePaths, resultsPaths, runMetaPaths, pairBuilderPaths, pairSummaryPaths, backtestPaths, evalReportPaths, oddsPaths, gradedResultsUrl, setSlateMode } from '../lib/dataSource'
 import { nameOf, teamOf, oppOf, clean, playerId, obj } from '../lib/player'
 import { fetchLiveSlate } from '../lib/liveSlate'
@@ -635,6 +636,20 @@ export default function Dashboard({ palettePass = 0 }) {
 
   const clearFocus = () => setFocusPlayerId(null)
 
+  // ⭐ SAVED THAT NIGHT (2026-09-29, lib/watchNights.js). Everything on the
+  // list is remembered under its game's own date, however it got there -- a
+  // tap, the follow relight, another tab, the account sync -- so the prune
+  // above (which drops last night's entries by design) can't erase the fact
+  // that he was your guy. Idempotent; the grader reads it later.
+  useEffect(() => { seedFromOldLedger() }, [])
+  useEffect(() => {
+    watch.forEach((p) => {
+      const t = new Date(p?.game_time || 0).getTime()
+      if (!Number.isFinite(t) || !t) return
+      stampSave({ sport: 'mlb', id: clean(p?.player_id, ''), date: easternDate(t), pk: clean(p?.game_pk, '') || null, name: nameOf(p), team: teamOf(p) })
+    })
+  }, [watch])
+
   // ⭐ STAR = TONIGHT, FOLLOW = THE MAN (2026-08-28).
   //
   // The star stays exactly what it was: game-scoped, pruned against the board
@@ -671,6 +686,11 @@ export default function Dashboard({ palettePass = 0 }) {
     // tomorrow." So it bought nothing and cost the one behaviour everybody
     // expects. Un-star is now a removal, full stop, on both lists.
     if (on) unfollow('mlb', clean(p?.player_id, ''))
+    // Off before first pitch = he was never your guy that night (watchNights).
+    if (on) {
+      const t = new Date(p?.game_time || 0).getTime()
+      if (Number.isFinite(t) && t) unstampSave({ sport: 'mlb', id: clean(p?.player_id, ''), date: easternDate(t), startMs: t })
+    }
     // Un-starring a still-followed player is a decision, not a lapse. Record
     // it in relitRef (declared above, populated only when the relight effect
     // itself adds someone) so that effect's very next run treats him as
