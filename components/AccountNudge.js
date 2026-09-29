@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useDashAccount } from '../lib/dash/sync'
 import { NUDGE_EVENT } from '../lib/dash/nudge'
+import { dockClearCss } from '../lib/dockClear'
 import { C as MLB_C } from '../lib/theme'
 import { C as NFL_C } from '../lib/nfl/theme'
 import { C as NHL_C } from '../lib/nhl/theme'
@@ -112,7 +113,7 @@ export default function AccountNudge({ sport = 'mlb' }) {
   )
 }
 
-// Above the phone's bottom nav: measured 09-26 at 390px, all three products'
-// bars end 71px above the screen's bottom edge (62px tall), so the ask sits
-// at 82px. Near the bottom edge on desktop, where there is no bar.
-const NUDGE_CSS = `.account-nudge{bottom:16px}@media(max-width:760px){.account-nudge{bottom:calc(82px + env(safe-area-inset-bottom))}}`
+// Above the dock at every width, from the one shared offset (lib/dockClear.js).
+// Was 16px on a desktop, "where there is no bar" -- there has been a slim
+// dock there since 2026-08-29, and the ask sat on top of it.
+const NUDGE_CSS = dockClearCss('account-nudge')

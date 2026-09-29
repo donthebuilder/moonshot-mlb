@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import { EXPLAIN_EVENT } from '../lib/explain'
+import { dockClearCss } from '../lib/dockClear'
 import { C as MLB_C } from '../lib/theme'
 import { C as NFL_C } from '../lib/nfl/theme'
 import { C as NHL_C } from '../lib/nhl/theme'
@@ -37,7 +38,7 @@ export default function ExplainToast({ sport = 'mlb' }) {
       }}>
       <b style={{ display: 'block', color: T.text, fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase', marginBottom: 3 }}>{msg.label}</b>
       {msg.text}
-      <style>{'.explain-toast{bottom:16px}@media(max-width:760px){.explain-toast{bottom:calc(82px + env(safe-area-inset-bottom))}}'}</style>
+      <style>{dockClearCss('explain-toast')}</style>
     </button>
   )
 }
