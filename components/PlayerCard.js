@@ -11,6 +11,7 @@ import { hrOverlayRead } from '../lib/hrOverlay'
 import { Chip, Card, RoleTag } from './ui'
 import StatStrip, { SlashLine } from './StatStrip'
 import { InfoDot } from './Explain'
+import { CardName, ScoreBadge, ExplainStrip } from './card/CardParts'
 
 // 'watch' band changed 👀→🌤️ to match bots/today_bot.py hrw_emoji(); 👀 was
 // double-booked with the old Power Watch role emoji (now 🔭).
@@ -212,13 +213,7 @@ export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, on
             {/* NAME FITS (2026-08-08): "Freddie Freem…" is not a name. Long
                 names step the font down instead of losing letters, and the
                 full name always rides in the tooltip as a backstop. */}
-            <span title={nameOf(p)} style={{
-              fontWeight: 900,
-              fontSize: String(nameOf(p) || '').length > 18 ? 11.5 : String(nameOf(p) || '').length > 14 ? 12.5 : 14,
-              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0,
-            }}>
-              {nameOf(p)}
-            </span>
+            <CardName name={nameOf(p)} />
           </div>
           <div style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
             {teamOf(p) || '—'} vs {oppOf(p) || '—'} · {clean(p?.lineup_spot, '—')}{p?.lineup_confirmed === false ? <span style={{ color: C.text3 }}> (proj.)</span> : null} · {clean(p?.handedness || p?.bats, '—')}
@@ -229,48 +224,17 @@ export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, on
             handle on. It is still here, still the bot's verdict, but it now
             sits as a badge beside the stats that earned it. Nothing was
             removed; the reading order changed. */}
-        <div
-          onClick={(e) => { e.stopPropagation(); setOpenScore((v) => !v) }}
-          style={{
-            textAlign: 'center', flexShrink: 0, cursor: 'pointer',
-            border: `1px solid ${color}44`, background: `${color}10`,
-            borderRadius: 8, padding: '3px 8px 4px',
-          }}>
-          <div style={{ fontSize: 7.5, letterSpacing: '.08em', color: C.text3, fontFamily: NUM_FONT, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
-            BOT<InfoDot on={openScore} onClick={() => setOpenScore((v) => !v)} />
-          </div>
-          <div style={{ fontSize: 15, fontWeight: 900, color, lineHeight: 1.1, fontFamily: NUM_FONT }}>{score.toFixed(0)}</div>
-          <div style={{ fontSize: 8, color: C.text3 }}>{grade}</div>
-        </div>
+        <ScoreBadge label="BOT" score={score.toFixed(0)} sub={grade} color={color}
+          open={openScore} onToggle={() => setOpenScore((v) => !v)} />
       </div>
 
       {/* tap-opened explanations for the header row above — one shared strip
           so three dots don't mean three different popovers to hunt for. */}
-      {(openEmoji || openWeak || openScore) && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 7, marginTop: -3 }}>
-          {openEmoji && (
-            <div style={{
-              fontSize: 10, lineHeight: 1.5, color: C.text2,
-              background: 'rgba(249,115,22,.07)', border: '1px solid rgba(249,115,22,.28)',
-              borderRadius: 7, padding: '5px 8px',
-            }}>{emojiTitle}</div>
-          )}
-          {openWeak && (
-            <div style={{
-              fontSize: 10, lineHeight: 1.5, color: C.text2,
-              background: 'rgba(249,115,22,.07)', border: '1px solid rgba(249,115,22,.28)',
-              borderRadius: 7, padding: '5px 8px',
-            }}>⭐ {weakSpotReason}</div>
-          )}
-          {openScore && (
-            <div style={{
-              fontSize: 10, lineHeight: 1.5, color: C.text2,
-              background: 'rgba(249,115,22,.07)', border: '1px solid rgba(249,115,22,.28)',
-              borderRadius: 7, padding: '5px 8px',
-            }}>The bot&apos;s {type.toUpperCase()} score, 0–100 — its verdict, not a stat. The row below is where it comes from.</div>
-          )}
-        </div>
-      )}
+      <ExplainStrip notes={[
+        openEmoji && emojiTitle,
+        openWeak && <>⭐ {weakSpotReason}</>,
+        openScore && <>The bot&apos;s {type.toUpperCase()} score, 0–100 — its verdict, not a stat. The row below is where it comes from.</>,
+      ]} />
 
       {/* ONE chip row (2026-08-06). Designated pick cards were wearing every
           chip family at once — role + bet + risk + aligned + pick + recency +
