@@ -161,12 +161,13 @@ export default function SignalAudit({ backtest }) {
 // is unchanged (its literal verdict colours stay when no sport theme is set).
 export function useVerdicts() {
   const { C, themed } = useSportTheme()
+  const young = { word: 'SAMPLE TOO YOUNG', col: themed ? C.text3 : '#71717a' }
   return {
     earning: { word: 'EARNING ITS PLACE', col: themed ? C.green : '#4ade80' },
     flat:    { word: 'FLAT — ON WATCH', col: themed ? C.yellow : '#FCD34D' },
     failing: { word: 'FAILING ITS CLAIM', col: themed ? C.red : '#f87171' },
-    young:   { word: 'SAMPLE TOO YOUNG', col: themed ? C.text3 : '#71717a' },
-    banking: { word: 'BANKING', col: themed ? C.text3 : '#71717a' },
+    young,
+    banking: { ...young, word: 'BANKING' },
   }
 }
 
