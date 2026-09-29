@@ -1,5 +1,6 @@
 'use client'
-import Tap from './Tap'
+import ProjectedView, { sortClick } from './slate/ProjectedView'
+import { alpha } from '../lib/scales'
 import { useMemo, useState, useEffect } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { teamOf, oppOf, hrScore, hitScore, n, clean, playerId } from '../lib/player'
@@ -467,290 +468,42 @@ export default function ProjectedOutput({ games = [], players: allPlayers = [], 
       .map((r, i) => ({ ...r, label: `${i + 1}.  ${r.label}` }))
   }, [games, players, by, pens, formNorm, prodNorm, parkNorm, armNorm, sortCol, sortDir])
 
-  if (!rows.length) return null
-
-  const total = rows.reduce((a, r) => a + r.values['Proj HR'], 0)
-  // The podium: tonight's three loudest slates by projected homers, worn as
-  // tiles above the grid so the answer to "where's the power tonight" doesn't
-  // require reading a heatmap at all.
-  const podium = rows.slice(0, 3)
-
+  // THE VIEW IS SHARED NOW (2026-09-28): components/slate/ProjectedView.js
+  // draws all of this, style for style, for TUDDY and LAMP too. MOONSHOT's
+  // model, words and colours stay here.
+  const cols = [...COLUMNS, ...(pens ? ['Adj HR'] : [])]
   return (
-    <div style={{
-      marginBottom: 20, background: `linear-gradient(155deg, ${C.bg2}, rgba(249,115,22,.03))`,
-      border: `1px solid ${C.border}`, borderRadius: 13, padding: '12px 14px',
-    }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, marginBottom: 8, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 12.5, fontWeight: 900 }}>📈 Projected output</span>
-        <span style={{ fontSize: 9.5, color: C.text3 }}>expected COUNT, not a score — a claim that can be wrong</span>
-      {/* click-to-filter — every number below recomputes over what's left */}
-      <div className="chip-row" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginBottom: 8 }}>
-        {LENSES.map((l) => {
-          const on = lenses.has(l.key)
-          return (
-            <button key={l.key} title={l.tip}
-              onClick={() => setLenses((prev) => {
-                const nx = new Set(prev)
-                if (nx.has(l.key)) nx.delete(l.key); else nx.add(l.key)
-                return nx
-              })}
-              style={{
-                padding: '4px 11px', fontSize: 10.5, fontWeight: 700, cursor: 'pointer',
-                borderRadius: 999, whiteSpace: 'nowrap',
-                border: `1px solid ${on ? C.orange : C.border}`,
-                background: on ? 'rgba(249,115,22,.14)' : 'transparent',
-                color: on ? C.orange : C.text3,
-              }}>{l.label}</button>
-          )
-        })}
-        {lenses.size > 0 && (
-          <>
-            <button onClick={() => setLenses(new Set())} style={{
-              background: 'none', border: 'none', color: C.text3, cursor: 'pointer',
-              fontSize: 9.5, textDecoration: 'underline', textDecorationStyle: 'dotted',
-            }}>clear</button>
-            <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
-              projecting {players.length} of {allPlayers.length} hitters
-            </span>
-          </>
-        )}
-      </div>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
-          {['game', 'team'].map((k) => (
-            <button
-              key={k}
-              onClick={() => setBy(k)}
-              style={{
-                padding: '3px 10px', fontSize: 10.5, fontWeight: 700, borderRadius: 6, cursor: 'pointer',
-                border: `1px solid ${by === k ? C.orange : C.border}`,
-                background: by === k ? 'rgba(249,115,22,.12)' : 'transparent',
-                color: by === k ? C.orange : C.text3,
-              }}
-            >By {k}</button>
-          ))}
-        </div>
-      </div>
-
-      <div style={{ fontSize: 9, color: C.text3, lineHeight: 1.5, margin: '0 0 8px' }}>
+    <ProjectedView
+      lenses={LENSES} active={lenses} setActive={setLenses} shownCount={players.length} totalCount={allPlayers.length} noun="hitters"
+      by={by} setBy={setBy}
+      note={<>
         <b style={{ color: C.text2 }}>model v2</b> — each hitter&apos;s HR probability blends his
         score-band rate 50/50 with his measured season-ISO band rate (8.2% under .130 → 22.2% at
         .230+, from the graded archive), weighted by expected PA from his lineup slot (÷4.2 avg,
         ×0.9 if the lineup is unconfirmed), with a +10% form bump per last-5 HR capped at +30%
         (measured: 0 recent HR → 9.0%, 3+ → 23.0%).
-      </div>
-
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'stretch', marginBottom: 10 }}>
-        {podium.map((r, i) => (
-          <div key={r.label} title={`${r._count} tracked hitters · ${r.values['Proj hits'].toFixed(1)} hits · ${r.values['Proj TB'].toFixed(1)} total bases · ${r.values['Proj HRR'].toFixed(1)} H+R+RBI`}
-            style={{
-              flex: '1 1 150px', minWidth: 0,
-              background: i === 0 ? 'rgba(249,115,22,.10)' : 'rgba(255,255,255,.025)',
-              border: `1px solid ${i === 0 ? `${C.orange}55` : C.border}`,
-              borderRadius: 10, padding: '6px 11px',
-            }}>
-            <div style={{ fontSize: 8.5, color: C.text3, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase' }}>
-              #{i + 1} by proj HR
-            </div>
-            <div style={{ fontSize: 12, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              <Tap onClick={onOpenGame && r._pk != null ? () => onOpenGame(r._pk) : null}>{r.label.replace(/^\d+\.\s+/, '')}</Tap>
-            </div>
-            <div style={{ fontSize: 14, fontWeight: 900, color: i === 0 ? C.orange : C.text2, fontFamily: NUM_FONT }}>
-              {r.values['Proj HR'].toFixed(1)} HR
-              {Number.isFinite(r.values['Adj HR']) && (
-                <span style={{ fontSize: 9.5, color: C.text3, fontWeight: 700 }}> · adj {r.values['Adj HR'].toFixed(1)}</span>
-              )}
-            </div>
-          </div>
-        ))}
-        <div style={{
-          flex: '0 1 auto', alignSelf: 'center', fontSize: 9.5, color: C.text3, padding: '0 6px',
-        }}>
-          slate projects <b style={{ color: C.text2 }}>{total.toFixed(1)} HR</b><br />
-          across {rows.length} {by === 'game' ? 'games' : 'teams'}
-        </div>
-      </div>
-
-      {/* ── THE BAR CHART (2026-08-18) ────────────────────────────────────
-          Donovan: "if you can make the projected output chart any better do
-          it." Everything below this point has been a heat TABLE since it was
-          ported from Streamlit — a real chart (Heatmap.js literally says so
-          in its own header comment), but one you read cell by cell, not one
-          you can scan top to bottom in a glance. This adds an actual bar per
-          game, sorted the same as the table beneath it, so "where's the
-          power tonight" answers itself without reading a single number —
-          length alone tells you. Nothing is removed: the table, the podium
-          and every column still carry the full precision:  this is a second,
-          faster way IN to the same numbers, not a replacement for them.
-          The yellow tick is Adj HR — park, weather, pitcher trend and the
-          opposing pen layered on — drawn as a tick rather than a second bar
-          so it reads as a mark ON the projection, the same paired-dot
-          grammar the blank-board chart uses elsewhere on the site, not a
-          second series competing for the same axis. */}
-      {(() => {
-        const maxHr = rows.reduce((m, r) => {
-          const v = r.values['Proj HR']
-          const a = r.values['Adj HR']
-          return Math.max(m, Number.isFinite(v) ? v : 0, Number.isFinite(a) ? a : 0)
-        }, 0.0001)
-        return (
-          <div style={{ marginBottom: 14 }}>
-            <div style={{ fontSize: 9, color: C.text3, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 6 }}>
-              Proj HR by {by === 'game' ? 'game' : 'team'} — tonight&apos;s power, top to bottom
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-              {rows.map((r) => {
-                const val = r.values['Proj HR']
-                const adj = r.values['Adj HR']
-                const pct = Math.max(0, Math.min(100, (val / maxHr) * 100))
-                const adjPct = Number.isFinite(adj) ? Math.max(0, Math.min(100, (adj / maxHr) * 100)) : null
-                return (
-                  <div key={r.label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{
-                      width: 150, flexShrink: 0, fontSize: 10, color: C.text2, fontWeight: 700,
-                      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                    }} title={r.label}><Tap onClick={onOpenGame && r._pk != null ? () => onOpenGame(r._pk) : null}>{r.label}</Tap></span>
-                    <span style={{ flex: 1, position: 'relative', height: 13, background: 'rgba(255,255,255,.04)', borderRadius: 4, overflow: 'visible', minWidth: 0 }}>
-                      <span style={{
-                        position: 'absolute', left: 0, top: 0, bottom: 0, width: `${pct}%`, borderRadius: 4,
-                        background: 'linear-gradient(90deg, rgba(249,115,22,.4), rgba(249,115,22,.9))',
-                      }} />
-                      {adjPct != null && (
-                        <span title={`Adj HR ${adj.toFixed(1)} — park, weather, pitcher trend and the pen layered on`} style={{
-                          position: 'absolute', left: `${adjPct}%`, top: -2, bottom: -2, width: 2,
-                          background: '#FCD34D', borderRadius: 1,
-                        }} />
-                      )}
-                    </span>
-                    <span style={{ width: 84, flexShrink: 0, fontFamily: NUM_FONT, fontSize: 10.5, fontWeight: 800, color: C.text, textAlign: 'right' }}>
-                      {val.toFixed(1)}
-                      {adjPct != null && <span style={{ color: '#FCD34D', fontWeight: 700 }}> · {adj.toFixed(1)}</span>}
-                    </span>
-                  </div>
-                )
-              })}
-            </div>
-            <div style={{ fontSize: 9, color: C.text3, marginTop: 5 }}>
-              Bar length is Proj HR{pens ? <>; the <span style={{ color: '#FCD34D' }}>tick</span> marks Adj HR once the opposing pens load</> : ''} — same numbers as the table below, ordered top to bottom instead of read cell by cell.
-            </div>
-          </div>
-        )
-      })()}
-
-      {/* 🎯 SORTABLE TABLE, GRADED PILLS INSTEAD OF A FULL HEATMAP WASH
-          (2026-08-30, Donovan: "b and c [chart mockups]... i also do like
-          when it helps with colors showing games to target or high in
-          something. i like how the hr score coloring is wit[h] arrows up or
-          down" + "make it sortable and add filters"). Heatmap.js shaded
-          EVERY cell against its own column range, which is what made this
-          read as noisy rather than scannable. Only Proj HR and Adj HR get a
-          colored pill now — the same grammar HRW's "88 ▲" badge already uses
-          elsewhere on this site — and only when a game sits clearly above or
-          below the SLATE'S OWN mean for that column, so color only fires
-          when it is actually telling you something. Every header is a sort
-          control; the filters above (LENSES) already existed and keep
-          working exactly as before — this table just recomputes under them
-          like everything else on the page. */}
-      {(() => {
-        const cols = [...COLUMNS, ...(pens ? ['Adj HR'] : [])]
-        const pillCols = new Set(['Proj HR', 'Adj HR'])
-        const means = {}
-        cols.forEach((c) => {
-          const xs = rows.map((r) => r.values[c]).filter((v) => Number.isFinite(v))
-          means[c] = xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0
-        })
-        const gradeOf = (col, v) => {
-          if (!pillCols.has(col) || !Number.isFinite(v)) return null
-          const mean = means[col] || 1
-          const d = (v - mean) / (mean || 1)
-          if (d > 0.15) return { cls: 'hot', arrow: '▲' }
-          if (d > 0.05) return { cls: 'warm', arrow: '▲' }
-          if (d < -0.15) return { cls: 'cold', arrow: '▼' }
-          if (d < -0.05) return { cls: 'cool', arrow: '▼' }
-          return null
-        }
-        const pillColor = { hot: C.orange, warm: '#e2985f', cool: '#7fb4f2', cold: '#6c8bb0' }
-        const pillBg = { hot: `${C.orange}26`, warm: `${C.orange}14`, cool: '#60a5fa1f', cold: '#60a5fa14' }
-        const headerClick = (col) => {
-          if (sortCol === col) setSortDir((d) => (d === 'desc' ? 'asc' : 'desc'))
-          else { setSortCol(col); setSortDir('desc') }
-        }
-        return (
-          <div
-            style={{ overflowX: 'auto' }}
-            // A SIDEWAYS-SCROLLING TABLE IS A KEYBOARD DEAD END WITHOUT THIS.
-            // The wrapper scrolls on a phone and holds nothing focusable, so a
-            // keyboard or switch user has no way to reach the columns off the
-            // right edge. tabIndex makes the region itself scrollable by arrow
-            // key; the role and label tell a screen reader what it just landed
-            // in rather than announcing a nameless group.
-            tabIndex={0}
-            role="region"
-            aria-label="Projected output table — scrolls sideways"
-          >
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
-              <thead>
-                <tr>
-                  <th
-                    onClick={() => headerClick('label')}
-                    style={{
-                      textAlign: 'left', padding: '5px 8px', borderBottom: `1px solid ${C.border}`,
-                      color: sortCol === 'label' ? C.orange : C.text3, fontWeight: 700, fontSize: 9,
-                      textTransform: 'uppercase', letterSpacing: '.05em', cursor: 'pointer', whiteSpace: 'nowrap',
-                    }}
-                  >{by === 'game' ? 'Game' : 'Team'}{sortCol === 'label' ? (sortDir === 'desc' ? ' ▾' : ' ▴') : ''}</th>
-                  {cols.map((c) => (
-                    <th
-                      key={c}
-                      onClick={() => headerClick(c)}
-                      title="Click to sort"
-                      style={{
-                        textAlign: 'right', padding: '5px 8px', borderBottom: `1px solid ${C.border}`,
-                        color: sortCol === c ? C.orange : C.text3, fontWeight: 700, fontSize: 9,
-                        textTransform: 'uppercase', letterSpacing: '.05em', cursor: 'pointer', whiteSpace: 'nowrap',
-                      }}
-                    >{c}{sortCol === c ? (sortDir === 'desc' ? ' ▾' : ' ▴') : ''}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr key={r.label}>
-                    <td style={{ padding: '6px 8px', borderBottom: `1px solid ${C.border}`, fontWeight: 700, whiteSpace: 'nowrap' }}><Tap onClick={onOpenGame && r._pk != null ? () => onOpenGame(r._pk) : null}>{r.label}</Tap></td>
-                    {cols.map((c) => {
-                      const v = r.values[c]
-                      const g = gradeOf(c, v)
-                      const text = Number.isFinite(Number(v)) ? Number(v).toFixed(1) : '—'
-                      return (
-                        <td key={c} style={{ padding: '6px 8px', borderBottom: `1px solid ${C.border}`, textAlign: 'right', fontFamily: NUM_FONT }}>
-                          {g ? (
-                            <span style={{
-                              display: 'inline-flex', alignItems: 'center', gap: 3, padding: '2px 7px', borderRadius: 6,
-                              fontWeight: 800, background: pillBg[g.cls], color: pillColor[g.cls],
-                            }}>{text} {g.arrow}</span>
-                          ) : (
-                            <span style={{ fontWeight: 600, color: C.text2 }}>{text}</span>
-                          )}
-                        </td>
-                      )
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <div style={{ fontSize: 9, color: C.text3, lineHeight: 1.5, marginTop: 8 }}>
-              THE THREE COUNT COLUMNS ARE REAL EXPECTED COUNTS (2026-08-16) — Hits, TB and HRR are built from
-              each hitter&apos;s own season line (average, ISO, walk rate), adjusted by his score band&apos;s
-              measured rate and scaled by expected PA from his lineup slot. TB ≥ hits ≥ HR is enforced on every
-              row. Proj HR keeps its own calibrated model (score band blended 50/50 with season-ISO band, scaled
-              by PA and last-5 form). Adj HR layers park, the published weather effect, pitcher trend and the
-              opposing pen&apos;s live HR/9 on top — Proj HR is calibrated, Adj HR is calibrated × modeled, and
-              a colored pill on either column means that game sits clearly above (▲) or below (▼) tonight&apos;s
-              own average, not a hard threshold. A higher score does not always mean a higher projection: the
-              85+ band produced 16.1% where the 70 band produced 18.7%, straight from the graded archive.
-            </div>
-          </div>
-        )
-      })()}
-    </div>
+      </>}
+      rows={rows} primary="Proj HR" adj="Adj HR" unit="HR" columns={cols}
+      sortCol={sortCol} sortDir={sortDir} onSort={sortClick(sortCol, setSortCol, setSortDir)}
+      podiumTip={(r) => `${r._count} tracked hitters · ${r.values['Proj hits'].toFixed(1)} hits · ${r.values['Proj TB'].toFixed(1)} total bases · ${r.values['Proj HRR'].toFixed(1)} H+R+RBI`}
+      barsTitle={<>Proj HR by {by === 'game' ? 'game' : 'team'} — tonight&apos;s power, top to bottom</>}
+      barsFoot={<>Bar length is Proj HR{pens ? <>; the <span style={{ color: C.amber }}>tick</span> marks Adj HR once the opposing pens load</> : ''} — same numbers as the table below, ordered top to bottom instead of read cell by cell.</>}
+      footnote={<>
+        THE THREE COUNT COLUMNS ARE REAL EXPECTED COUNTS (2026-08-16) — Hits, TB and HRR are built from
+        each hitter&apos;s own season line (average, ISO, walk rate), adjusted by his score band&apos;s
+        measured rate and scaled by expected PA from his lineup slot. TB ≥ hits ≥ HR is enforced on every
+        row. Proj HR keeps its own calibrated model (score band blended 50/50 with season-ISO band, scaled
+        by PA and last-5 form). Adj HR layers park, the published weather effect, pitcher trend and the
+        opposing pen&apos;s live HR/9 on top — Proj HR is calibrated, Adj HR is calibrated × modeled, and
+        a colored pill on either column means that game sits clearly above (▲) or below (▼) tonight&apos;s
+        own average, not a hard threshold. A higher score does not always mean a higher projection: the
+        85+ band produced 16.1% where the 70 band produced 18.7%, straight from the graded archive.
+      </>}
+      onOpenGame={onOpenGame} accent={C.orange} tick={C.amber}
+      palette={{
+        color: { hot: C.orange, warm: C.pillWarm, cool: C.pillCool, cold: C.pillCold },
+        bg: { hot: `${C.orange}26`, warm: `${C.orange}14`, cool: alpha(C.blue, 31 / 255), cold: alpha(C.blue, 20 / 255) },
+      }}
+    />
   )
 }

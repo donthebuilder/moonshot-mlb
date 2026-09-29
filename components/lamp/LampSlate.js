@@ -9,9 +9,11 @@ import Rail from '../Rail'
 import Tap from '../Tap'
 import GameSwitcher from '../GameSwitcher'
 import SlateCard from '../slate/SlateCard'
-import { GameFilterRail, StripFold, GamePanelPills, PanelAnchor, GameFrame, GameHeaderLine, PrevNextGame } from '../slate/SlateParts'
+import { ViewPills, GameFilterRail, StripFold, GamePanelPills, PanelAnchor, GameFrame, GameHeaderLine, PrevNextGame } from '../slate/SlateParts'
 import { SubLabel, FactLines } from '../matchup/MatchupParts'
-import { GameBoard, NavBtn, spotOf, pct1, ppVsPk, restWord } from './tabs/Board'
+import { GameBoard, NavBtn, AllGamesTable, spotOf, pct1, ppVsPk, restWord } from './tabs/Board'
+import LampProjected from './LampProjected'
+import BoardTopBar from '../BoardTopBar'
 import { LampCards } from './LampCard'
 import { EmptyState, DelayedBanner, Loading, StaleSeasonNote, fmtPuckDrop, zoneAbbrev, shiftDay, fmtDay } from './ui'
 
@@ -45,7 +47,17 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
   const [panel, setPanel] = useState('read')
   const [hashGame, setHashGame] = useHashFilter('game')
   const shown = data?.date || date
-  const all = useMemo(() => [...(data?.games || [])].sort((a, b) => Date.parse(a.game.startUtc || 0) - Date.parse(b.game.startUtc || 0)), [data])
+  // TABLE | GAMES and the boards' top bar (2026-09-28): cards first, like
+  // MOONSHOT's Slate; search / team / game over both views (fteam / fgame).
+  const [view, setView] = useState('games')
+  const [query, setQuery] = useState('')
+  const [fteam, setFteam] = useHashFilter('fteam')
+  const [fgame, setFgame] = useHashFilter('fgame')
+  const needle = query.trim().toLowerCase()
+  const allGames = useMemo(() => [...(data?.games || [])].sort((a, b) => Date.parse(a.game.startUtc || 0) - Date.parse(b.game.startUtc || 0)), [data])
+  const all = allGames.filter((g) => (!fgame || String(g.game.id) === fgame) && (!fteam || g.game.away.abbrev === fteam || g.game.home.abbrev === fteam))
+  const items = useMemo(() => all.filter((g) => !g.noMarketLock).flatMap((g) => g.rows.filter((r) => r.status !== 'off').map((r) => ({ r, g })))
+    .filter(({ r }) => (!fteam || r.team === fteam) && (!needle || `${r.name} ${r.team}`.toLowerCase().includes(needle))), [all, fteam, needle])
   const counts = useMemo(() => {
     const c = { all: all.length, live: 0, upcoming: 0, final: 0 }
     for (const g of all) c[stateOf(g)] += 1
@@ -105,11 +117,28 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
         {shown ? <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 11 }}>{fmtDay(shown)}</span> : null}
       </div>
       {data?.season?.stale && <StaleSeasonNote label={data.season.label} opens={data.season.opens} what="legs" />}
+      {allGames.length > 0 && (
+        <>
+          <BoardTopBar query={query} setQuery={setQuery} placeholder="Search skater or team…"
+            team={fteam} setTeam={setFteam} teams={[...new Set(allGames.flatMap((g) => [g.game.away.abbrev, g.game.home.abbrev]))].sort()} teamLabel="🏒 All teams"
+            game={fgame} setGame={setFgame} games={allGames.map((g) => ({ key: String(g.game.id), label: `${g.game.away.abbrev} @ ${g.game.home.abbrev}` }))} gameLabel="All games" />
+          <div style={{ height: 10 }} />
+          <ViewPills views={[['table', '📊 Table'], ['games', '🏟 Games']]} view={view} setView={setView} accent={C.ice} />
+        </>
+      )}
+      {view === 'table' && all.length > 0 && (
+        <>
+          <LampProjected items={items} games={all} stale={Boolean(data?.season?.stale)} onOpenTeam={onOpenTeam}
+            onOpenGame={(id) => { setHashGame(String(id)); setView('games') }} />
+          <AllGamesTable kept={items} market="GOAL" onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} />
+        </>
+      )}
       <DelayedBanner error={error} what="the slate" />
       {loading && !data ? <Loading what="the slate" /> : null}
-      {data && !all.length && <EmptyState title="NO GAMES" note={`No NHL games on ${fmtDay(shown)}. Try the next day.`} />}
+      {data && !allGames.length && <EmptyState title="NO GAMES" note={`No NHL games on ${fmtDay(shown)}. Try the next day.`} />}
+      {allGames.length > 0 && !all.length && <EmptyState title="NO GAMES CLEAR THIS FILTER" note="Clear the team or game above." />}
 
-      {all.length > 0 && (
+      {view === 'games' && all.length > 0 && (
         <>
           <GameFilterRail value={gfilter} onChange={setGfilter} counts={counts} />
           <StripFold isPhone={isPhone} count={games.length} rememberKey="lamp_games_fold_v1" accent={C.ice}
@@ -126,7 +155,7 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
         </>
       )}
 
-      {g && (() => {
+      {view === 'games' && g && (() => {
         const st = stateOf(g)
         const away = g.game.away.abbrev; const home = g.game.home.abbrev
         const called = g.rows.filter((r) => r.status === 'called').sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99))
@@ -198,7 +227,7 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
           </div>
         )
       })()}
-      <PrevNextGame games={games.map((x) => ({ id: String(x.game.id), away: x.game.away.abbrev, home: x.game.home.abbrev }))} activeId={activeId} idOf={(x) => x.id} onGo={select} accent={C.ice} />
+      {view === 'games' && <PrevNextGame games={games.map((x) => ({ id: String(x.game.id), away: x.game.away.abbrev, home: x.game.home.abbrev }))} activeId={activeId} idOf={(x) => x.id} onGo={select} accent={C.ice} />}
     </div>
   )
 }

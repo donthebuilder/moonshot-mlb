@@ -300,7 +300,7 @@ export function GameBoard({ g, onOpenPlayer, onOpenGame, onOpenTeam, market = 'G
 // NOT BUILT: "Hot" (a goal in his last 3) -- the board rows carry no recent-
 // games field, and it is never guessed.
 function cut(vals, q) { const v = vals.filter(Number.isFinite).sort((a, b) => a - b); return v.length ? v[Math.floor((v.length - 1) * q)] : Infinity }
-function lampAngles(flat, market) {
+export function lampAngles(flat, market) {
   const soft = market === 'SOG' ? (r) => r.legs?.oppSaPg : (r) => r.context?.oppGaPg
   const softCut = cut(flat.map(({ r }) => soft(r)), 2 / 3)
   const toiCut = cut(flat.map(({ r }) => r.legs?.toi), 0.75)
@@ -314,7 +314,7 @@ function lampAngles(flat, market) {
 
 // ALL GAMES (board filters plan, LAMP 1): every scored skater tonight, one
 // table, ranked by score; the game is a column. Sort any header.
-function AllGamesTable({ kept, market, onOpenPlayer, onOpenTeam }) {
+export function AllGamesTable({ kept, market, onOpenPlayer, onOpenTeam }) {
   const sog = market === 'SOG'
   const rows = [...kept].sort((a, b) => (b.r.score ?? 0) - (a.r.score ?? 0)).map(({ r, g }, i) => ({
     id: r.playerId, rank: i + 1, name: r.name, pos: r.pos, team: r.team, game: `${g.game.away.abbrev}@${g.game.home.abbrev}`,

@@ -2,14 +2,16 @@
 import { takeTarget } from '../../../lib/openTarget'
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../../lib/nfl/theme'
-import { ActiveFilters, FilterBar, FilterSearch, Segmented } from '../../Filters'
 import { alignedSignals } from '../../../lib/nfl/dvpSignal'
 import MatchupBadge from '../MatchupBadge'
 import NflTable from '../NflTable'
 import PageHeader from '../../PageHeader'
 import NflSlate from '../NflSlate'
 import { ViewPills } from '../../slate/SlateParts'
-import { readHashKey } from '../../../lib/filterHash'
+import BoardTopBar from '../../BoardTopBar'
+import NflProjected from '../NflProjected'
+import { nflGameOptions } from '../NflBoardExtras'
+import { readHashKey, useHashFilter } from '../../../lib/filterHash'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 import { useResultsArchive } from '../../../lib/nfl/resultsArchive'
 import { milestoneStreaks, modelNarrativeStories, milestoneHeadline, modelHeadline } from '../../../lib/nfl/storylines'
@@ -54,20 +56,8 @@ function kickoffLabel(game) {
 // SidePicks, DesignatedCalls, GameIntel and Meter went with the old cards;
 // their data is in the Slate's read, players, matchup and picks sections.
 
-// C5 (dash-network-master-plan-2026-08-28.md): "the ratchet continues: NFL
-// Boards, stat portal, Wire, Odds pages" -- Games.js was the one sibling tab
-// under components/nfl/tabs/ with zero Filters.js imports. State/search are
-// the two useful axes here that the existing game-picker strip below doesn't
-// already cover: the picker jumps to ONE game, it doesn't narrow the grid to
-// "just what's live right now" on a 16-game Sunday, and it has no search for
-// a slate too wide to scan. Team/Position aren't added -- there's no
-// per-player row here to filter, the grid unit is a game.
-const STATE_OPTIONS = [
-  { key: 'all', label: 'All' },
-  { key: 'live', label: 'Live' },
-  { key: 'upcoming', label: 'Upcoming' },
-  { key: 'final', label: 'Final' },
-]
+// FILTERS (2026-09-28): the boards' top bar -- search, team, game -- above
+// both views, replacing the old search / state box and game-picker strip.
 
 export default function Games({ data, picks, matchup, logs, results, odds = null, onPlayerClick, onOpenTeam = null }) {
   const games = data?.games || []
@@ -76,9 +66,13 @@ export default function Games({ data, picks, matchup, logs, results, odds = null
   // A game handed over from another tab (Storylines, the Ledger), or named in
   // the address, opens the Slate's Games view on it (2026-09-28).
   const [handed] = useState(() => (typeof window === 'undefined' ? null : takeTarget('game') || readHashKey('game') || null))
-  const [selectedGame, setSelectedGame] = useState('all')
-  const [stateFilter, setStateFilter] = useState('all')
+  // THE TOP BAR, THE BOARDS' OWN (2026-09-28, Donovan: "toggle games and teams"):
+  // search, team and game above both views, team/game in the address (fteam /
+  // fgame), exactly as the boards and MOONSHOT's Slate do.
   const [query, setQuery] = useState('')
+  const [fteam, setFteam] = useHashFilter('fteam')
+  const [fgame, setFgame] = useHashFilter('fgame')
+  const [openGame, setOpenGame] = useState(null)
   // Cards first, like MOONSHOT's Slate (Donovan 2026-09-28); Table one tap away.
   const [view, setView] = useState('games')
   const watchlist = useNflWatchlist(data)
@@ -145,7 +139,6 @@ export default function Games({ data, picks, matchup, logs, results, odds = null
     )
   }
 
-  const stateOf = (game) => (game.state === 'in' ? 'live' : game.completed ? 'final' : 'upcoming')
 
   // Live first — real scoreboard behavior: what's happening right now
   // belongs at the top of the grid, not wherever the payload's own order
@@ -153,9 +146,9 @@ export default function Games({ data, picks, matchup, logs, results, odds = null
   // games keep their original relative order.
   const needle = query.trim().toLowerCase()
   const sorted = [...games].sort((a, b) => (a.state === 'in' ? 0 : 1) - (b.state === 'in' ? 0 : 1))
-    .filter((game) => selectedGame === 'all' || game.game_id === selectedGame)
-    .filter((game) => stateFilter === 'all' || stateOf(game) === stateFilter)
-    .filter((game) => !needle || `${game.away} ${game.home}`.toLowerCase().includes(needle))
+    .filter((game) => !fgame || `${game.away}@${game.home}` === fgame)
+    .filter((game) => !fteam || game.away === fteam || game.home === fteam)
+  const inView = (p) => (!fteam || p.team === fteam) && (!needle || `${p.name} ${p.team}`.toLowerCase().includes(needle))
   const liveCount = games.filter((game) => game.state === 'in').length
   const finalCount = games.filter((game) => game.completed).length
 
@@ -170,7 +163,7 @@ export default function Games({ data, picks, matchup, logs, results, odds = null
   const gameByTeam = {}
   for (const g of games) { gameByTeam[g.away] = g; gameByTeam[g.home] = g }
   const rowsFor = (teams) => players
-    .filter((p) => teams.has(p.team) && !p.low_sample)
+    .filter((p) => teams.has(p.team) && !p.low_sample && inView(p))
     .map((p) => {
       const g = gameByTeam[p.team]
       const aligned = alignedSignals(matchup, p)
@@ -218,7 +211,8 @@ export default function Games({ data, picks, matchup, logs, results, odds = null
     const at = game.kickoff ? Date.parse(game.kickoff) : NaN
     return Number.isFinite(at) && at > newest ? at : newest
   }, 0)
-  const waveIsOver = lastKickoff > 0 && lastKickoff < Date.now()
+  // Not over while a game is still being played (2026-09-28: it said so during MNF).
+  const waveIsOver = lastKickoff > 0 && lastKickoff < Date.now() && !games.some((g) => g.state === 'in')
   const waveEnded = waveIsOver
     ? new Date(lastKickoff).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
     : null
@@ -256,38 +250,24 @@ export default function Games({ data, picks, matchup, logs, results, odds = null
         ]}
       />
 
+      <BoardTopBar query={query} setQuery={setQuery} placeholder="Search player or team…"
+        team={fteam} setTeam={setFteam} teams={[...new Set(games.flatMap((g) => [g.away, g.home]).filter(Boolean))].sort()} teamLabel="🏈 All teams"
+        game={fgame} setGame={setFgame} games={nflGameOptions(games)} gameLabel="All games" />
+      <div style={{ height: 10 }} />
+
       {/* TABLE | GAMES, MOONSHOT's Slate pills (components/slate/SlateParts). */}
       <ViewPills views={[['table', '📊 Table'], ['games', '🏟 Games']]} view={view} setView={setView} accent={C.green} />
 
       {view === 'table' && (<>
-      <div style={{
-        display: 'flex', flexDirection: 'column', gap: 9, marginBottom: 11,
-        padding: '10px 12px', border: `1px solid ${C.border}`, borderRadius: 12,
-        background: C.bg2,
-      }}>
-        <FilterBar>
-          <FilterSearch value={query} onChange={setQuery} placeholder="Search team…" width={165} />
-          <Segmented label="State" value={stateFilter} onChange={setStateFilter} options={STATE_OPTIONS} />
-        </FilterBar>
-        <ActiveFilters
-          shown={sorted.length}
-          total={games.length}
-          filters={[
-            query && { key: 'query', label: `Team: ${query}`, onClear: () => setQuery('') },
-            stateFilter !== 'all' && { key: 'state', label: `State: ${STATE_OPTIONS.find((o) => o.key === stateFilter)?.label}`, onClear: () => setStateFilter('all') },
-          ]}
-          onClearAll={() => { setQuery(''); setStateFilter('all') }}
-        />
-      </div>
-
-      <div className="nfl-game-picker"><button className={selectedGame === 'all' ? 'active' : ''} onClick={() => setSelectedGame('all')}>ALL GAMES</button>{games.map((game) => <button key={game.game_id} className={selectedGame === game.game_id ? 'active' : ''} onClick={() => setSelectedGame(game.game_id)}>{game.away} @ {game.home}</button>)}</div>
-
       {!sorted.length && (
         <div style={{
           border: `1px dashed ${C.border2}`, borderRadius: 12, padding: 22,
-          textAlign: 'center', color: C.text3, fontSize: TYPE.body,
+          textAlign: 'center', color: C.text3, fontSize: TYPE.body, marginBottom: 12,
         }}>No games clear this filter.</div>
       )}
+      {/* PROJECTED OUTPUT, MOONSHOT's Slate Table view's own panel (00Q step 1). */}
+      <NflProjected data={data} matchup={matchup} logs={logs} players={players.filter(inView)} games={sorted} watchlist={watchlist}
+        onOpenGame={(id) => { setOpenGame(String(id)); setView('games') }} onOpenTeam={onOpenTeam} />
 
         <NflTable
           rows={tableRows}
@@ -299,14 +279,12 @@ export default function Games({ data, picks, matchup, logs, results, odds = null
       </>)}
 
       {view === 'games' && (
-        <NflSlate data={data} picks={picks} matchup={matchup} odds={odds} games={games} initialGame={handed}
+        <NflSlate data={data} picks={picks} matchup={matchup} odds={odds} games={sorted} initialGame={openGame || handed}
           tableColumns={TABLE_COLUMNS} tableRowsFor={rowsFor} storyForGame={storyForGame}
           onPlayerClick={onPlayerClick} onOpenTeam={onOpenTeam} />
       )}
 
-      <style>{`
-        .nfl-game-picker{display:flex;gap:5px;overflow-x:auto;margin-bottom:10px}.nfl-game-picker button{flex:0 0 auto;min-height:36px;padding:8px 10px;border:1px solid ${C.border};border-radius:8px;background:${C.bg2};color:${C.text3};font:800 10px/1 ${NUM_FONT};cursor:pointer}.nfl-game-picker button.active{border-color:${C.green};color:${C.green};background:rgba(0,245,173,.08)}
-      `}</style>
+
     </div>
   )
 }
