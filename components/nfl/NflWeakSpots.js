@@ -1,6 +1,6 @@
 'use client'
 import { useMemo } from 'react'
-import { weakSpotRoles, softLine, plainRole } from '../../lib/nfl/dvpSignal'
+import { weakSpotRoles, softLine, plainRole, fitsSoft } from '../../lib/nfl/dvpSignal'
 import { WeakSpotGrid } from '../slate/WeakSpotCard'
 import { SubLabel } from '../matchup/MatchupParts'
 import { C, NUM_FONT } from '../../lib/nfl/theme'
@@ -29,7 +29,7 @@ export default function NflWeakSpots({ matchup, players = [], games = [], onPlay
         const soft = weakSpotRoles(matchup, def)
         const rows = []
         for (const d of soft) {
-          for (const p of byTeamRole.get(`${off}|${d.role}`) || []) {
+          for (const p of (byTeamRole.get(`${off}|${d.role}`) || []).filter((x) => fitsSoft(x, d))) {
             rows.push({
               key: `${d.role}-${p.player_id}`, spot: d.role, name: p.name, side: p.position,
               flag: p.high_confidence_td_flag ? 'HIGH CONF' : null, edge: d === soft[0],

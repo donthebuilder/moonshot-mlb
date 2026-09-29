@@ -1,7 +1,7 @@
 'use client'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../lib/nfl/theme'
-import { softRole, stingyRole, STARTER_ROLES } from '../../lib/nfl/dvpSignal'
+import { softRole, stingyRole, fitsSoft, STARTER_ROLES, SOFT_THIN_GAMES } from '../../lib/nfl/dvpSignal'
 import NflTable from './NflTable'
 import NflFace from './NflFace'
 import Tap from '../Tap'
@@ -19,7 +19,7 @@ import Tap from '../Tap'
 // face; nobody in that role -> nothing, never a guess.
 const PREVIEW = 8
 const one = (n) => (Number.isFinite(n) ? Math.round(n * 10) / 10 : null)
-const spot = (d) => (d ? `${d.role} · ${d.label}${d.multiple === 0 ? ' · none' : d.multiple ? ` ${one(d.multiple)}x` : ''}` : null)
+const spot = (d) => (d ? `${d.role} · ${d.label}${d.multiple === 0 ? ' · none' : d.multiple ? ` ${one(d.multiple)}x` : ''}${Number.isFinite(d.games) ? ` · ${d.games} g${d.games < SOFT_THIN_GAMES ? ' · thin' : ''}` : ''}` : null)
 
 export default function DefensesTable({ matchup, data, win = 'season', active, onPick, onPlayerClick = null }) {
   const [all, setAll] = useState(false)
@@ -30,19 +30,20 @@ export default function DefensesTable({ matchup, data, win = 'season', active, o
       if (g?.away && g?.home) { oppOf.set(g.away, g.home); oppOf.set(g.home, g.away) }
     }
     const teams = all ? Object.keys(matchup?.dvp?.[win] || {}) : [...oppOf.keys()]
-    const byRole = new Map()   // `${team}|${role}` -> best-scored player
+    const byRole = new Map()   // `${team}|${role}` -> every player in it, best-scored first
     for (const p of data?.players || []) {
       const role = matchup?.roles?.[p.player_id]
       if (!role || !p.team) continue
       const k = `${p.team}|${role}`
       const best = Math.max(0, ...Object.values(p.scores || {}).map(Number).filter(Number.isFinite))
-      if (!byRole.has(k) || best > byRole.get(k)._best) byRole.set(k, { ...p, _best: best })
+      byRole.set(k, [...(byRole.get(k) || []), { ...p, _best: best }].sort((a, b) => b._best - a._best))
     }
     return teams.map((def) => {
       const soft = softRole(matchup, def, win, STARTER_ROLES)
       const tough = stingyRole(matchup, def, win, STARTER_ROLES)
       const opp = oppOf.get(def) || null
-      const fits = soft && opp ? byRole.get(`${opp}|${soft.role}`) || null : null
+      // In the role AND the kind that exploits the leak (fitsSoft); nobody -> '—'.
+      const fits = soft?.standout && opp ? (byRole.get(`${opp}|${soft.role}`) || []).find((p) => fitsSoft(p, soft)) || null : null
       return {
         _id: def, def, opp: opp || '—',
         edge: soft ? one(soft.z) : null,
