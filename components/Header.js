@@ -1,11 +1,10 @@
 'use client'
 import { explain } from '../lib/explain'
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { C, NUM_FONT } from '../lib/theme'
+import { C, NUM_FONT, GRADIENT, DAY_COLORS } from '../lib/theme'
 import { logUrl } from '../lib/dataSource'
 import { setSport } from '../lib/sport'
 // LAMP's ice for the third pill below -- a token import, not a literal (hex budget).
-import { C as LAMP_C } from '../lib/nhl/theme'
 import { computeSlateStats } from './SlateTiles'
 import PaletteButton from './PaletteButton'
 import ThemeModeButton from './ThemeModeButton'
@@ -17,6 +16,7 @@ import TickerPill from './TickerPill'
 import DateMode from './DateMode'
 import SettingsSheet, { SheetLabel, SheetRow } from './SettingsSheet'
 import SignUpPill from './SignUpPill'
+import HeaderShell from './header/HeaderShell'
 
 // The header's own translucent bar was hardcoded to rgba(9,9,11,...) — a
 // literal copy of ember's C.bg — so even the four EXISTING dark palettes
@@ -27,11 +27,6 @@ import SignUpPill from './SignUpPill'
 // background from whichever C.bg is actually active, for every theme, not
 // just this one. (2026-08-18)
 
-const hexToRgba = (hex, a) => {
-  const h = String(hex).replace('#', '')
-  const n = parseInt(h.length === 3 ? h.split('').map((c) => c + c).join('') : h, 16)
-  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`
-}
 
 // Keep the existing Moonshot look, but make the top rail answer only the
 // questions people arrive with most often. The deeper tools stay one tap
@@ -267,165 +262,33 @@ function MlbSettings() {
 // ── main ──────────────────────────────────────────────────────────────────────
 
 export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDate = '', results, players = [], games = [], runMeta = null, onPlayerClick = null }) {
-  // ── THE HEADER PUBLISHES ITS OWN HEIGHT (2026-08-16) ───────────────────
-  // Anything else that wants to stick (the Games lineup jump strip) sits
-  // below this bar via `top: var(--hdr-h)`. Measured, not a constant.
-  const hdrRef = useRef(null)
   const go = (next) => setTab(next)
-
-  useEffect(() => {
-    const el = hdrRef.current
-    if (!el) return
-    // --hdr-h is what the Games jump strip sticks under. A header that
-    // scrolls away occupies no fixed space, so the strip pins to the top.
-    const write = () => { document.documentElement.style.setProperty('--hdr-h', '0px') }
-    write()
-    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(write) : null
-    if (ro) ro.observe(el)
-    return () => { if (ro) ro.disconnect() }
-  }, [])
-
-
+  // THE FRAME IS SHARED NOW (2026-09-29): components/header/HeaderShell.js
+  // draws the bar, the mark, the wordmark, the other products' pills and the
+  // phone rules for all three products. MOONSHOT's own pieces stay here.
   return (
-    <header ref={hdrRef} className="hdr-one-bar" style={{
-      // NOT STICKY (2026-09-06). Donovan: "no sticky header. once you scroll
-      // don't add that, ever." The bar scrolls away with the page; the phone
-      // bottom bar owns navigation while you are down the page.
-      position:'relative', zIndex:50,
-      background: hexToRgba(C.bg, 0.92),
-      backdropFilter:'blur(14px)',
-      borderBottom:`1px solid ${C.border}`,
-    }}>
-      {/* THREE ROWS (2026-09-06, third pass). The history: one flex row
-          (brand+scorebug, rail, meta side by side) wrapped funny on desktop;
-          "one row after all" put the rail in the blank space next to Today,
-          capping the scorebug into a 520px box. Then Donovan asked for both
-          things that box was fighting over: "the moving header needs to be
-          above [the tabs], with the stat i want" and "the tabs section need
-          to be equal and precise." Those don't fit in one row together, so
-          it's three now, stacked: brand+meta, then the scorebug at full
-          width, then the rail with every tab splitting it evenly. */}
-      <div className="hdr-bar" style={{
-        maxWidth:1300, margin:'0 auto', padding:'8px 16px 6px',
-        display:'flex', flexDirection:'column', gap:8,
-      }}>
-        {/* ── row 1: brand · date · mode · account · settings ───────────── */}
-        <div className="hdr-row1" style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:14, flexWrap:'nowrap' }}>
-          <div className="hdr-brand" style={{ display:'flex', alignItems:'center', gap:10, minWidth:0 }}>
-            {/* THE MARK IS THE WAY HOME (2026-08-31): the square mark goes to the
-                DASH front door; the wordmark is MOONSHOT's own home button. */}
-            <a href="/" title="DASH Network home — MOONSHOT · TUDDY · LAMP · FRANCHISE" aria-label="DASH Network home"
-              style={{ display:'flex', textDecoration:'none', borderRadius:10, flexShrink:0 }}>
-              <div className="hdr-mark" style={{ position:'relative', width:46, height:46, borderRadius:12, boxShadow:'0 0 20px rgba(249,115,22,0.35)' }}>
-                <img src="/icon-192.png" alt="" width={46} height={46} style={{ display:'block', width:'100%', height:'100%', borderRadius:12 }} />
-                <div style={{ position:'absolute', top:-2, right:-2, width:8, height:8, borderRadius:'50%', background:C.green, border:`2px solid ${C.bg}`, animation:'pulse 2s infinite' }} />
-              </div>
-            </a>
-            <div style={{ minWidth:0 }}>
-              <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-                <button type="button" onClick={() => go('home')} title="MOONSHOT home — tonight in one page" aria-label="MOONSHOT home"
-                  style={{
-                    padding:0, border:'none', background:'transparent', cursor:'pointer',
-                    fontSize:19, fontWeight:900, letterSpacing:'-0.02em', lineHeight:1.1,
-                    backgroundImage:'linear-gradient(90deg, #f97316, #ef4444)',
-                    WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent',
-                  }}>MOONSHOT</button>
-                <span className="sport-switch" style={{ display:'flex', alignItems:'center', gap:3 }}>
-                  {/* MOONSHOT (orange, you are here) and TUDDY (green, the other
-                      product) -- named as products, not leagues, and each in its
-                      own colour so the switch reads as two shows, not a filter. */}
-                  <button onClick={() => setSport('nfl')} aria-pressed={false}
-                    title="Switch to TUDDY · NFL" aria-label="Switch to TUDDY · NFL"
-                    style={{
-                      display:'inline-flex', alignItems:'center', justifyContent:'center',
-                      height:20, minHeight:20, padding:'0 9px', lineHeight:1,
-                      fontSize:9.5, fontWeight:900, letterSpacing:'0.08em', borderRadius:999,
-                      cursor:'pointer',
-                      border:`1px solid ${C.green}55`,
-                      background:`${C.green}10`,
-                      color: C.green,
-                    }}>TUDDY</button>
-                  {/* LAMP (ice), 2026-09-25: the navigation pass measured that on a
-                      desktop the third product was reachable from here only by
-                      leaving for the front door -- this pill and TUDDY's were the
-                      only sport switch above 760px, and each named one product. */}
-                  <button onClick={() => setSport('nhl')} aria-pressed={false}
-                    title="Switch to LAMP · NHL" aria-label="Switch to LAMP · NHL"
-                    style={{
-                      display:'inline-flex', alignItems:'center', justifyContent:'center',
-                      height:20, minHeight:20, padding:'0 9px', lineHeight:1,
-                      fontSize:9.5, fontWeight:900, letterSpacing:'0.08em', borderRadius:999,
-                      cursor:'pointer',
-                      border:`1px solid ${LAMP_C.ice}55`,
-                      background:`${LAMP_C.ice}10`,
-                      color: LAMP_C.ice,
-                    }}>LAMP</button>
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* ── date · mode · account · settings ──────────────────────── */}
-          <div className="hdr-meta" style={{ display:'flex', alignItems:'center', gap:10, flexShrink:0 }}>
-            <DateMode
-              label={dateLabel || 'Loading…'}
-              value={mode}
-              onChange={setMode}
-              options={[
-                { key: 'today', text: 'Today', color: '#f97316' },
-                { key: 'tomorrow', text: 'Tmrw', color: '#22d3ee' },
-              ]}
-            />
-            <SignUpPill onWatchlist={() => go('you')} />
-            <MlbSettings />
-          </div>
-        </div>
-
-        {/* ── row 2: THE MOVING HEADER, ABOVE THE TABS (2026-09-06) ─────────
-            Donovan: "the moving header needs to be above [the tabs], with
-            the stat i want." It used to live squeezed inside the 520px
-            brand column, scrolling in its own little box under the
-            wordmark. Now it's a full-width row of its own, above the rail,
-            so the leader pills (top hitter/performer per game) actually
-            have room to be read instead of hiding three pills deep in a
-            narrow strip. */}
-        <Scorebug players={players} results={results} games={games} mode={mode} slateDate={slateDate} runMeta={runMeta} onPlayerClick={onPlayerClick} go={go} />
-
-        {/* TOP RAIL REMOVED (2026-09-28, Donovan: "remove the top line nav site wide... keep the bottom nav"). The dock (MobileTabBar) is the one navigation on every screen; its More is the side drawer. */}
-      </div>
-
-
-
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.4; }
-        }
-        .hdr-scorebug::-webkit-scrollbar { display: none; }
-        .hdr-ticker-track button:hover { filter: brightness(1.25); }
-        header div::-webkit-scrollbar { display: none; }
-        .hdr-scorebug::-webkit-scrollbar { display: none; }
-        @media (max-width: 700px) {
-          .simple-more-grid { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
-        }
-        /* Under the bottom bar's breakpoint (760px, components/MobileTabBar.js):
-           the scorebug stays as the one line of slate context; the account
-           pill and ⚙ stay; the date badge drops to keep the row on one line. */
-        @media (max-width: 760px) {
-          .hdr-bar { gap: 6px !important; padding-bottom: 6px !important; }
-          .hdr-row1 { flex-wrap: wrap !important; gap: 6px !important; }
-          .hdr-mark { width: 40px !important; height: 40px !important; }
-          .hdr-mark img { width: 40px !important; height: 40px !important; }
-          .hdr-brand { flex-basis: 100% !important; }
-          /* Centred, both rows (Donovan: "the MOONSHOT button should be
-             centre on the page; header and the button under it seem off"). */
-          .hdr-brand { flex: 1 1 100%; justify-content: center; text-align: center; }
-          .hdr-brand > div > div:first-child { justify-content: center; }
-          .hdr-scorebug { width: 100%; }
-          .hdr-meta { padding-bottom: 8px; margin-left: auto !important; margin-right: auto !important; width: auto; justify-content: center; gap: 12px; }
-          .hdr-meta .date-badge { display: none !important; }
-        }
-      `}</style>
-    </header>
+    <HeaderShell sport="mlb" theme={C}
+      wordmark={GRADIENT}
+      onHome={() => go('home')} homeTitle="MOONSHOT home — tonight in one page"
+      glow="rgba(249,115,22,0.35)" dot={{ color: C.green, pulse: true }}
+      meta={<>
+        <DateMode
+          label={dateLabel || 'Loading…'}
+          value={mode}
+          onChange={setMode}
+          options={[
+            { key: 'today', text: 'Today', color: DAY_COLORS.today },
+            { key: 'tomorrow', text: 'Tmrw', color: DAY_COLORS.tomorrow },
+          ]}
+        />
+        <SignUpPill onWatchlist={() => go('you')} />
+        <MlbSettings />
+      </>}>
+      {/* ── row 2: THE MOVING HEADER, ABOVE THE TABS (2026-09-06) ─────────
+          Donovan: "the moving header needs to be above [the tabs], with
+          the stat i want." A full-width row of its own, so the leader pills
+          (top hitter/performer per game) have room to be read. */}
+      <Scorebug players={players} results={results} games={games} mode={mode} slateDate={slateDate} runMeta={runMeta} onPlayerClick={onPlayerClick} go={go} />
+    </HeaderShell>
   )
 }

@@ -3,21 +3,16 @@ import { Children, cloneElement, isValidElement, useEffect, useMemo, useRef, use
 import { C, NUM_FONT, GRADIENT } from '../../lib/nfl/theme'
 import { setSport } from '../../lib/sport'
 // LAMP's ice for the third pill -- a token import, not a literal (hex budget).
-import { C as LAMP_C } from '../../lib/nhl/theme'
 import PaletteButton from '../PaletteButton'
 import SettingsSheet, { SheetLabel, SheetRow } from '../SettingsSheet'
 import ThemeModeButton from '../ThemeModeButton'
 import AlertBell from './AlertBell'
 import SignUpPill from '../SignUpPill'
+import HeaderShell from '../header/HeaderShell'
 
 // Same helper as components/Header.js -- kept as its own tiny copy here
 // rather than shared, matching how this file already keeps its own C
 // (lib/nfl/theme.js) instead of importing MOONSHOT's.
-const hexToRgba = (hex, a) => {
-  const h = String(hex).replace('#', '')
-  const n = parseInt(h.length === 3 ? h.split('').map((c) => c + c).join('') : h, 16)
-  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`
-}
 // THE TICKER GETS LIVE SCORES + MORE HEADLINES (2026-09-06). Donovan: "the
 // roatating thing needs more stats and headlines things." MOONSHOT's header
 // has carried live scores + leader stat lines since the ticker rework
@@ -322,153 +317,40 @@ export default function NflHeader({ tab, setTab, data, meta, matchup, weekMode =
   const freshCol = ageHours >= 24 ? C.orange : ageHours >= 8 ? C.yellow : C.text3
 
 
+  // THE FRAME IS MOONSHOT'S (2026-09-29): components/header/HeaderShell.js --
+  // the bar, the mark, the wordmark, the other products' pills and the phone
+  // rules. TUDDY's own pieces (its week switch, its gear, its ticker and the
+  // stale-data banner) stay here.
   return (
-    // NOT STICKY (2026-09-06) — same rule MOONSHOT's header got the same
-    // day: Donovan, "no sticky header. once you scroll don't add that,
-    // ever." It scrolls away with the page now; the bottom bar owns
-    // navigation once you're down the page, same as MOONSHOT.
-    <header className={tab === 'home' ? undefined : 'hdr-slate-on'} style={{
-      position: 'relative', zIndex: 50,
-      background: hexToRgba(C.bg, 0.92), backdropFilter: 'blur(14px)',
-      borderBottom: `1px solid ${C.border}`,
-    }}>
-      {/* ── THREE ROWS, SAME SHAPE AS MOONSHOT'S (2026-09-06) ─────────────
-          brand + meta, then the moving ticker at full width, then the tab
-          rail splitting the row evenly — instead of one row cramming brand,
-          ticker and controls together and a horizontally-scrolling tab
-          strip sized to whatever each label happened to need. */}
-      <div className="nfl-hdr-row1" style={{
-        maxWidth: 1300, margin: '0 auto', padding: '10px 16px 6px',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {/* The mark is the way home, same as MOONSHOT's (2026-08-31). ⌂ DASH
-              HOME lives in the More drawer on both products, and "More" is
-              where you look for more of THIS sport, not for the way out of it.
-              The top-left logo is the one navigation convention a first-time
-              visitor already knows. Only the square mark links; the TUDDY
-              wordmark names the product you are already in. */}
-          <a href="/" title="DASH Network home — MOONSHOT · TUDDY · LAMP · FRANCHISE"
-            aria-label="DASH Network home"
-            style={{ display: 'flex', textDecoration: 'none', borderRadius: 10 }}>
-          <div className="nfl-hdr-mark" style={{
-            position: 'relative', width: 46, height: 46, borderRadius: 12,
-            boxShadow: `0 0 18px ${C.green}75`, cursor: 'pointer',
-          }}>
-            {/* The DASH Network monogram, identical on MOONSHOT -- same 46px size
-                as Header.js's mark (2026-09-16 fix, was 34px and read as a lighter-
-                weight brand mark next to MOONSHOT's). One mark, one destination; the
-                green TUDDY wordmark beside it says where you are. */}
-            <img src="/icon-192.png" alt="" width={46} height={46}
-              style={{ display: 'block', width: '100%', height: '100%', borderRadius: 12 }} />
-            {live > 0 && (
-              <div style={{
-                position: 'absolute', top: -2, right: -2, width: 8, height: 8,
-                borderRadius: '50%', background: C.cyan, border: '2px solid #09090b',
-                animation: 'pulse 2s infinite',
-              }} />
-            )}
-          </div>
-          </a>
-
-          <div>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-              {/* THE WORDMARK IS TUDDY'S HOME BUTTON (2026-09-03), exactly as
-                  MOONSHOT's is. This week gave up its slot in the rail; this is
-                  where it went, and it is also the way back for anyone several
-                  sub-views deep, which the rail never had. The square mark
-                  beside it still goes to the network. Two marks, two homes. */}
-              <button
-                type="button"
-                onClick={() => go('home')}
-                title="TUDDY home — this week in one page"
-                aria-label="TUDDY home"
-                style={{
-                  padding: 0, border: 'none', background: 'transparent', cursor: 'pointer',
-                  fontSize: 18, fontWeight: 900, letterSpacing: '-0.02em', lineHeight: 1.1,
-                  backgroundImage: GRADIENT, WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                }}
-              >TUDDY</button>
-              {/* Tuddy is the NFL product inside DASH Network. */}
-              {/* ── TUDDY'S PILLS GET MOONSHOT'S FIX (2026-08-29) ──────────
-                  Donovan's screenshot showed the NFL bubble riding above the
-                  MLB one on a phone. Same two stacked bugs MOONSHOT fixed on
-                  2026-08-23 and this file never got: MLB was a <button> and
-                  NFL a plain <span>, so the blanket thumb-target rule hit one
-                  and not the other, and the row had no align-items, so the
-                  span stretched to match. Now both are buttons with the same
-                  explicit capsule geometry, and the row centres instead of
-                  stretching. (On a phone the whole strip is hidden anyway —
-                  the bottom bar's More sheet owns product switching now — but
-                  the desktop pair has to be right, and a shape bug that only
-                  hides is still a shape bug.) */}
-              {/* ONE BUTTON, NOT TWO (2026-09-06). MOONSHOT's header
-                  dropped its own self-referential "MLB" pill the same day,
-                  since a product's header already says which product you're
-                  in — the pill only needs to name the OTHER one. */}
-              <span className="sport-switch" style={{ display: 'flex', alignItems: 'center', gap: 3, marginLeft: 5, alignSelf: 'center' }}>
-                <button onClick={() => setSport('mlb')} aria-pressed={false}
-                  title="Switch to MOONSHOT · MLB" aria-label="Switch to MOONSHOT · MLB"
-                  style={{
-                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                    height: 20, minHeight: 20, padding: '0 9px', lineHeight: 1,
-                    fontSize: 9.5, fontWeight: 900, letterSpacing: '0.08em', borderRadius: 999,
-                    cursor: 'pointer',
-                    border: `1px solid ${C.orange}70`,
-                    background: `${C.orange}10`,
-                    color: C.orange,
-                  }}>MOONSHOT</button>
-                {/* LAMP (ice), 2026-09-25 -- same reason as MOONSHOT's header:
-                    above 760px this row was the only sport switch and it named
-                    one product, so the third was unreachable from TUDDY. */}
-                <button onClick={() => setSport('nhl')} aria-pressed={false}
-                  title="Switch to LAMP · NHL" aria-label="Switch to LAMP · NHL"
-                  style={{
-                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                    height: 20, minHeight: 20, padding: '0 9px', lineHeight: 1,
-                    fontSize: 9.5, fontWeight: 900, letterSpacing: '0.08em', borderRadius: 999,
-                    cursor: 'pointer',
-                    border: `1px solid ${LAMP_C.ice}70`,
-                    background: `${LAMP_C.ice}10`,
-                    color: LAMP_C.ice,
-                  }}>LAMP</button>
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* ── date/build · account · settings — row 1's right side ────── */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {/* THIS WEEK / NEXT WEEK (2026-09-18). MOONSHOT's own control, from
-              the same shared components/DateMode.js, worded for football. The
-              freshness stamp that used to live here is now a BUILT pill in the
-              ticker, which is where MOONSHOT has always kept it -- one corner,
-              one job, on both products. */}
-          <DateMode
-            label={data?.label || (weekMode === 'next' ? 'Next week' : 'This week')}
-            value={weekMode}
-            onChange={setWeekMode}
-            options={[
-              { key: 'this', text: 'This week', color: C.green },
-              { key: 'next', text: 'Next week', color: C.cyan },
-            ]}
-            theme={C}
-            numFont={NUM_FONT}
-          />
-          {/* THE ACCOUNT IS OPTIONAL NOW (2026-09-06) — see proxy.js. */}
-          <SignUpPill accent={C.green} />
-          <NflSettingsSheet />
-        </div>
-      </div>
-
+    <HeaderShell sport="nfl" theme={C} wordmark={GRADIENT}
+      onHome={() => go('home')} homeTitle="TUDDY home — this week in one page"
+      glow={`${C.green}75`} dot={live > 0 ? { color: C.cyan, pulse: true } : null}
+      headerClass={tab === 'home' ? undefined : 'hdr-slate-on'}
+      meta={<>
+        {/* THIS WEEK / NEXT WEEK (2026-09-18): MOONSHOT's own control, from the
+            shared components/DateMode.js, worded for football. */}
+        <DateMode
+          label={data?.label || (weekMode === 'next' ? 'Next week' : 'This week')}
+          value={weekMode}
+          onChange={setWeekMode}
+          options={[
+            { key: 'this', text: 'This week', color: C.green },
+            { key: 'next', text: 'Next week', color: C.cyan },
+          ]}
+          theme={C}
+          numFont={NUM_FONT}
+        />
+        {/* THE ACCOUNT IS OPTIONAL NOW (2026-09-06) — see proxy.js. */}
+        <SignUpPill accent={C.green} />
+        <NflSettingsSheet />
+      </>}>
       {/* ── row 2: THE MOVING TICKER, ABOVE THE TABS (2026-09-06) ────────
           Same move MOONSHOT's header made the same day: the strip gets a
           full-width row of its own instead of splitting space with the
           brand and the account controls, which is what used to squeeze it
           down to three tiles wide on anything but a very wide desktop. */}
       <div className="nfl-header-tiles" style={{
-        maxWidth: 1300, margin: '0 auto', padding: '0 16px 8px',
+        maxWidth: 1300, margin: '0 auto', padding: '0 0 2px',
         display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', minWidth: 0,
       }}>
           {/* ── TUDDY GETS THE MOVING STRIP (2026-08-29, mechanism replaced 2026-09-16) ──
@@ -602,8 +484,6 @@ export default function NflHeader({ tab, setTab, data, meta, matchup, weekMode =
 
 
       <style>{`
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-        header div::-webkit-scrollbar { display: none; }
         @media (max-width: 700px) {
           .nfl-simple-more { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
         }
@@ -620,8 +500,6 @@ export default function NflHeader({ tab, setTab, data, meta, matchup, weekMode =
           padding-right: 6px; flex: none; min-width: max-content;
         }
         @media (max-width: 760px) {
-          /* Same mobile size as Header.js's .hdr-mark (40px). */
-          .nfl-hdr-mark { width: 40px !important; height: 40px !important; }
           /* THE TICKER COMES BACK, EXCEPT ON HOME (2026-08-31). It went
              with the rest of the diet on the grounds that "Home's hero
              repeats the slate context" -- true of Home and of no other tab,
@@ -635,6 +513,6 @@ export default function NflHeader({ tab, setTab, data, meta, matchup, weekMode =
           .hdr-slate-on .nfl-header-tiles { flex: 1 1 100% !important; }
         }
       `}</style>
-    </header>
+    </HeaderShell>
   )
 }
