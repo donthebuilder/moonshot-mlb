@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
+import { alpha } from '../lib/scales'
 import FreshnessStamp from './FreshnessStamp'
 import {
   SCORE_BANDS, BAND_OUTCOMES, BAND_ORDER, bandWindow, baseRate,
@@ -50,7 +51,24 @@ import { wilson } from '../lib/interval'
 
 const CELL_W = 108
 
-function tint(lift, claims) {
+function tint(lift, claims) { return bandTint(lift, claims) }
+
+// The same tint for another sport's theme (2026-09-29, parity: TUDDY's score
+// bands are this table now). MOONSHOT (no theme) gets exactly the strings it
+// always did; a sport theme gets its own cyan and red at the same alphas.
+export function bandTint(lift, claims, T = null) {
+  const K = T || C
+  if (!claims || lift == null) return { bg: 'transparent', fg: K.text3 }
+  const t0 = Math.max(-1, Math.min(1, lift / 10))
+  if (Math.abs(t0) < 0.08) return { bg: 'transparent', fg: K.text2 }
+  if (T) {
+    const a0 = Math.abs(t0)
+    return { bg: alpha(t0 > 0 ? K.cyan : K.red, 0.07 + 0.3 * a0), fg: t0 > 0 ? K.cyan : K.red }
+  }
+  return mlbTint(lift, claims)
+}
+
+function mlbTint(lift, claims) {
   if (!claims || lift == null) return { bg: 'transparent', fg: C.text3 }
   // Saturate at 10 points, which is roughly the largest honest lift in the
   // table — beyond that the ramp would compress everything real into one hue.

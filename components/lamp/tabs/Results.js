@@ -4,6 +4,9 @@ import PageHeader from '../../PageHeader'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import { useLampRecord } from '../../../lib/nhl/useLamp'
 import { EmptyState, DelayedBanner, Loading, SourceLine, Kicker, LampDot, fmtDay } from '../ui'
+import { bandClaim } from '../../bands/BandTable'
+import { bandTint } from '../../ScoreBands'
+import { wilson } from '../../../lib/interval'
 
 // 🏒 THE RECORD — THE PLOT, hockey edition: of the skaters who actually
 // scored, how many were CALLED and how many ON THE BOARD at lock. Read off
@@ -38,22 +41,49 @@ export default function Results({ onOpenPlayer }) {
           <div style={{ marginTop: 12 }}><a href="/called?sport=nhl" style={{ color: C.ice, fontSize: 11, fontWeight: 800 }}>See the preseason nights on CALLED IT →</a></div>
         </EmptyState>
       )}
-      {T && (
-        <section aria-label="Hit rate by rank">
-          <Kicker>HIT RATE BY RANK · {data.days} DAYS</Kicker>
-          <table style={tbl}>
-            <thead><tr style={thr}><th style={th}>RANK IN GAME</th><th style={{ ...th, textAlign: 'right' }}>SKATERS</th><th style={{ ...th, textAlign: 'right' }}>SCORED</th><th style={{ ...th, textAlign: 'right' }}>RATE</th></tr></thead>
-            <tbody>
-              {[['1–3 (called)', T.bands.top3], ['4–8', T.bands.r4to8], ['9–15', T.bands.r9to15], ['16+', T.bands.r16plus], ['all dressed', { n: T.dressed, hits: T.scorers }]].map(([label, b]) => (
-                <tr key={label} style={{ borderTop: `1px solid ${C.border}` }}>
-                  <td style={td}>{label}</td><td style={num}>{b.n}</td><td style={num}>{b.hits}</td>
-                  <td style={{ ...num, fontWeight: 900, color: label.startsWith('1') ? C.lamp : C.text }}>{pct(b.hits, b.n)}</td>
+      {T && (() => {
+        // MOONSHOT's score-bands cell treatment (components/ScoreBands.js via
+        // components/bands/BandTable.js, 2026-09-29, parity plan D), on LAMP's
+        // own vertical rank table: each band's rate tinted against every
+        // dressed skater's rate, grey when the bands don't fall in order or top
+        // vs bottom is inside the noise, or when the band's own interval covers
+        // the base. Vertical, not MOONSHOT's wide grid: one board with four
+        // bands fits a phone as rows; as columns three of them hid off-screen.
+        const bands = [['1–3 (called)', T.bands.top3], ['4–8', T.bands.r4to8], ['9–15', T.bands.r9to15], ['16+', T.bands.r16plus]]
+          .map(([label, b]) => ({ label, ok: b.hits, n: b.n }))
+        const base = T.dressed ? (100 * T.scorers) / T.dressed : 0
+        const { claims, z } = bandClaim(bands, -1)
+        return (
+          <section aria-label="Hit rate by rank">
+            <Kicker>HIT RATE BY RANK · {data.days} DAYS</Kicker>
+            <table style={tbl}>
+              <thead><tr style={thr}><th style={th}>RANK IN GAME</th><th style={{ ...th, textAlign: 'right' }}>SKATERS</th><th style={{ ...th, textAlign: 'right' }}>SCORED</th><th style={{ ...th, textAlign: 'right' }}>RATE</th></tr></thead>
+              <tbody>
+                {bands.map((b) => {
+                  const p = b.n ? (100 * b.ok) / b.n : null
+                  const ci = wilson(b.ok, b.n)
+                  const resolved = !!ci && !(ci[0] <= base && base <= ci[1])
+                  const { bg, fg } = bandTint(p == null ? null : p - base, claims && resolved, C)
+                  return (
+                    <tr key={b.label} style={{ borderTop: `1px solid ${C.border}` }}>
+                      <td style={td}>{b.label}</td><td style={num}>{b.n}</td><td style={num}>{b.ok}</td>
+                      <td title={ci ? `95% interval ${ci[0].toFixed(1)}–${ci[1].toFixed(1)}% · base ${base.toFixed(1)}%` : undefined}
+                        style={{ ...num, fontWeight: 900, color: fg, background: bg, opacity: claims && !resolved ? 0.7 : 1 }}>{pct(b.ok, b.n)}</td>
+                    </tr>
+                  )
+                })}
+                <tr style={{ borderTop: `1px solid ${C.border}` }}>
+                  <td style={td}>all dressed</td><td style={num}>{T.dressed}</td><td style={num}>{T.scorers}</td>
+                  <td style={{ ...num, fontWeight: 900, color: C.text }}>{pct(T.scorers, T.dressed)}</td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
-      )}
+              </tbody>
+            </table>
+            <div style={{ fontSize: 10.5, color: C.text3, marginTop: 6, fontFamily: NUM_FONT }}>
+              <b style={{ color: claims ? C.teal : C.text3 }}>{claims ? 'SEPARATES' : 'NO CLAIM'}</b> · z {z.toFixed(2)} top band vs 16+ · a grey rate has a number and no claim
+            </div>
+          </section>
+        )
+      })()}
       {data?.nights?.length > 0 && (
         <section aria-label="Night by night">
           <Kicker>NIGHT BY NIGHT</Kicker>

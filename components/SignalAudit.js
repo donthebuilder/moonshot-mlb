@@ -3,6 +3,7 @@ import { useMemo } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { usePickRecords } from './PlayerPickRecord'
 import { dedupeGraded } from '../lib/graded'
+import { useSportTheme } from './SportTheme'
 
 // 🔬 SIGNAL AUDIT — the honesty machine, turned on ourselves (2026-08-08,
 // wishlist #1). The site wears a lot of decorations: ⭐ 🎯 🧩 🔁 ⚠️ 👻 🔒
@@ -87,13 +88,6 @@ export default function SignalAudit({ backtest }) {
   if (state === 'loading') return <div style={{ fontSize: 11, color: C.text3, padding: '12px 0' }}>Auditing the archive…</div>
   if (!rows.length) return <div style={{ fontSize: 11, color: C.text3, padding: '12px 0' }}>No graded days on the branch yet — the audit starts when grading does.</div>
 
-  const V = {
-    earning: { word: 'EARNING ITS PLACE', col: '#4ade80' },
-    flat:    { word: 'FLAT — ON WATCH', col: '#FCD34D' },
-    failing: { word: 'FAILING ITS CLAIM', col: '#f87171' },
-    young:   { word: 'SAMPLE TOO YOUNG', col: '#71717a' },
-  }
-
   return (
     <div>
       <div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.65, marginBottom: 12, maxWidth: 760 }}>
@@ -120,15 +114,8 @@ export default function SignalAudit({ backtest }) {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {rows.sort((a, b) => (b.lift ?? -99) - (a.lift ?? -99)).map((r) => {
-          const v = V[r.verdict] || V.young
           return (
-            <div key={r.key} style={{
-              display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
-              background: C.bg2, border: `1px solid ${C.border}`, borderLeft: `3px solid ${v.col}`,
-              borderRadius: 9, padding: '8px 13px',
-            }}>
-              <span style={{ fontSize: 14, flexShrink: 0 }}>{r.icon}</span>
-              <span style={{ fontSize: 12, fontWeight: 800, minWidth: 150 }}>{r.label}</span>
+            <SignalRow key={r.key} r={r}>
               {/* #44: the Trap row read "14.8% vs 16.0% base · +1.2pts" with the
                   +1.2 in GREEN, and the note explaining the inversion arrived
                   after it. The logic is right -- the flag claims LESS, so
@@ -152,12 +139,7 @@ export default function SignalAudit({ backtest }) {
                 )}
               </span>
               <span style={{ fontSize: 9, fontFamily: NUM_FONT, color: C.text3 }}>n={r.n} of {r.poolN}</span>
-              <span style={{
-                marginLeft: 'auto', fontSize: 8.5, fontWeight: 900, letterSpacing: '.08em',
-                fontFamily: NUM_FONT, color: v.col, border: `1px solid ${v.col}55`,
-                borderRadius: 999, padding: '2px 9px', flexShrink: 0,
-              }}>{v.word}</span>
-            </div>
+            </SignalRow>
           )
         })}
       </div>
@@ -168,6 +150,49 @@ export default function SignalAudit({ backtest }) {
         power decorations; a flag that helps hits but not homers will read flat here and that&apos;s a
         correct reading of its claim.
       </div>
+    </div>
+  )
+}
+
+// ── ONE SIGNAL ROW, SHARED (2026-09-29, parity) ──────────────────────────────
+// The row every audit draws: icon, label, the caller's numbers, the verdict
+// pill, and an optional note under it. TUDDY's audit (components/nfl/
+// NflSignalAudit.js) renders through it in its own theme; MOONSHOT's markup
+// is unchanged (its literal verdict colours stay when no sport theme is set).
+export function useVerdicts() {
+  // MOONSHOT's pills were literals equal to its C.green / C.amber / C.red and
+  // the new C.pillYoung; they read the tokens now. A sport theme uses its own
+  // green / yellow / red and text3.
+  const { C, themed } = useSportTheme()
+  const young = { word: 'SAMPLE TOO YOUNG', col: themed ? C.text3 : C.pillYoung }
+  return {
+    earning: { word: 'EARNING ITS PLACE', col: C.green },
+    flat:    { word: 'FLAT — ON WATCH', col: themed ? C.yellow : C.amber },
+    failing: { word: 'FAILING ITS CLAIM', col: C.red },
+    young,
+    banking: { ...young, word: 'BANKING' },
+  }
+}
+
+export function SignalRow({ r, children, note = null }) {
+  const { C, NUM_FONT } = useSportTheme()
+  const V = useVerdicts()
+  const v = V[r.verdict] || V.young
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+      background: C.bg2, border: `1px solid ${C.border}`, borderLeft: `3px solid ${v.col}`,
+      borderRadius: 9, padding: '8px 13px',
+    }}>
+      <span style={{ fontSize: 14, flexShrink: 0 }}>{r.icon}</span>
+      <span style={{ fontSize: 12, fontWeight: 800, minWidth: 150 }}>{r.label}</span>
+      {children}
+      <span style={{
+        marginLeft: 'auto', fontSize: 8.5, fontWeight: 900, letterSpacing: '.08em',
+        fontFamily: NUM_FONT, color: v.col, border: `1px solid ${v.col}55`,
+        borderRadius: 999, padding: '2px 9px', flexShrink: 0,
+      }}>{v.word}</span>
+      {note && <div style={{ flexBasis: '100%', fontSize: 10, color: C.text3, lineHeight: 1.5 }}>{note}</div>}
     </div>
   )
 }

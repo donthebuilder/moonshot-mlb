@@ -2,6 +2,8 @@
 import { useEffect, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../lib/nfl/theme'
 import { NFL_DATA_BASE } from '../../lib/nfl/dataSource'
+import { SignalRow } from '../SignalAudit'
+import { SportTheme } from '../SportTheme'
 
 // 🔬 SIGNALS — TUDDY's SignalAudit (2026-09-23). The NFL sibling of
 // components/SignalAudit.js: every flag the football side wears, graded against
@@ -18,13 +20,8 @@ import { NFL_DATA_BASE } from '../../lib/nfl/dataSource'
 // NOTHING INVENTED. A flag with no graded weeks yet renders as BANKING with the
 // date its history started — never a zero rate, never a placeholder number.
 
-const V = {
-  earning: { word: 'EARNING ITS PLACE', col: C.green },
-  flat: { word: 'FLAT — ON WATCH', col: C.yellow },
-  failing: { word: 'FAILING ITS CLAIM', col: C.red },
-  young: { word: 'SAMPLE TOO YOUNG', col: C.text3 },
-  banking: { word: 'BANKING', col: C.text3 },
-}
+// The row and its verdict pill are MOONSHOT's (SignalRow in components/
+// SignalAudit.js, 2026-09-29), drawn in TUDDY's theme.
 
 const day = (iso) => {
   if (!iso) return null
@@ -79,6 +76,7 @@ export default function NflSignalAudit() {
     (TIER[a.verdict] ?? 1) - (TIER[b.verdict] ?? 1) || (b.lift ?? -99) - (a.lift ?? -99))
 
   return (
+    <SportTheme theme={C} accent={C.green}>
     <div>
       <div style={{ fontSize: TYPE.body, color: C.text2, lineHeight: 1.65, marginBottom: 12, maxWidth: 760 }}>
         Every flag TUDDY shows, graded like a pick: touchdown rate when the flag was on vs the baseline
@@ -90,18 +88,11 @@ export default function NflSignalAudit() {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {rows.map((r) => {
-          const v = V[r.verdict] || V.young
           const graded = r.n > 0
           return (
-            <div key={r.key} style={{
-              display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
-              background: C.bg2, border: `1px solid ${C.border}`, borderLeft: `3px solid ${v.col}`,
-              borderRadius: 9, padding: '9px 13px',
-            }}>
-              <span style={{ fontSize: 14, flexShrink: 0 }}>{r.icon}</span>
-              <span style={{ fontSize: TYPE.name, fontWeight: 800, minWidth: 150 }}>{r.label}</span>
+            <SignalRow key={r.key} r={r} note={r.note}>
               {graded ? (
-                <span style={{ fontSize: TYPE.label, fontFamily: NUM_FONT, color: C.text2 }}>
+                <span style={{ fontSize: 10, fontFamily: NUM_FONT, color: C.text2 }}>
                   {r.rate.toFixed(1)}% vs {r.base.toFixed(1)}% base
                   {r.invert ? (
                     <>
@@ -114,18 +105,12 @@ export default function NflSignalAudit() {
                   <span style={{ color: C.text3 }}> · {r.td} of {r.n} scored</span>
                 </span>
               ) : (
-                <span style={{ fontSize: TYPE.label, color: C.text3 }}>
+                <span style={{ fontSize: 10, color: C.text3 }}>
                   No graded week yet — history banking since {day(r.banking_since) || 'the first run that recorded it'}.
                   Fills in once that week is final.
                 </span>
               )}
-              <span style={{
-                marginLeft: 'auto', fontSize: TYPE.micro, fontWeight: 900, letterSpacing: '.08em',
-                fontFamily: NUM_FONT, color: v.col, border: `1px solid ${v.col}55`,
-                borderRadius: 999, padding: '2px 9px', flexShrink: 0,
-              }}>{v.word}</span>
-              <div style={{ flexBasis: '100%', fontSize: TYPE.micro, color: C.text3, lineHeight: 1.5 }}>{r.note}</div>
-            </div>
+            </SignalRow>
           )
         })}
       </div>
@@ -137,5 +122,6 @@ export default function NflSignalAudit() {
         {doc.generated_at && <> Audit updated {day(doc.generated_at)}.</>}
       </div>
     </div>
+    </SportTheme>
   )
 }

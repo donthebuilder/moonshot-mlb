@@ -776,7 +776,10 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
           (() => {
             const best = ratesFor(player, markets, logs.logs[player.player_id].log)[0]
             const lead = best?.key || market
-            const leadBar = (markets || []).find((m) => m.key === lead)?.bar ?? spec?.bar ?? 1
+            // The market's published bar -- the week's, else the log file's own
+            // (nfl_logs.json `bars`). Never a made-up 1: with no bar, no chart.
+            const leadBar = Number((markets || []).find((m) => m.key === lead)?.bar ?? logs?.bars?.[lead]?.[1])
+            if (!Number.isFinite(leadBar)) return null
             return (
               <PropsGrid
                 key={`${player.player_id}-${lead}`}

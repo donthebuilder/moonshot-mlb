@@ -4,10 +4,10 @@ import { C, NUM_FONT, MARKETS, gradeFor, TYPE } from '../../../lib/nfl/theme'
 import NflTable from '../NflTable'
 import { useResultsArchive, seasonTotals, grandTotal, gradeBands, labelOf, weekKey } from '../../../lib/nfl/resultsArchive'
 import { downloadNflPickCard } from '../shareCard'
-import ChartFrame from '../ChartFrame'
 import PageHeader from '../../PageHeader'
 import { WhatThis } from '../../ui'
 import NflSignalAudit from '../NflSignalAudit'
+import BandTable, { bandClaim } from '../../bands/BandTable'
 
 // DID THE PICKS DO THEIR OWN JOB? — the NFL sibling of MLB's PickScorecard +
 // ScoreAudit (components/PickScorecard.js, components/ScoreAudit.js).
@@ -122,19 +122,6 @@ const BAND_MIN = 20
 
 const pctTxt = (v) => (v == null ? '—' : `${v.toFixed(1)}%`)
 
-function Badge({ tone, children }) {
-  const map = {
-    green: C.green, red: C.red, yellow: C.yellow, dim: C.text3,
-  }
-  const col = map[tone] || C.text3
-  return (
-    <span style={{
-      fontSize: TYPE.label, fontWeight: 900, padding: '1.5px 6px', borderRadius: 4,
-      fontFamily: NUM_FONT, letterSpacing: '.04em',
-      background: `${col}22`, color: col,
-    }}>{children}</span>
-  )
-}
 
 function ReceiptHero({ results, when }) {
   const totals = results.totals || {}
@@ -352,7 +339,12 @@ function bandMarket(key, bar, players, lines) {
     bands.push({ label: labels[b], n: seg.length, ok, pct: (100 * ok) / seg.length })
   }
   const lo = bands[0].pct, hi = bands[bands.length - 1].pct
-  return { state: 'measured', bands, n: rows.length, spread: hi - lo, works: hi - lo > 0 }
+  // MOONSHOT's claim rule (components/ScoreBands.js), applied to quartiles: the
+  // column claims only when its bands run in order AND the top quarter differs
+  // from the bottom by a real margin (two-proportion z >= 1.96).
+  const base = (100 * rows.filter((x) => x.hit).length) / rows.length
+  const { claims, z } = bandClaim(bands, 1)
+  return { state: 'measured', bands, n: rows.length, spread: hi - lo, works: hi - lo > 0, base, z, claims }
 }
 
 function ScoreBands({ data, results }) {
@@ -370,6 +362,19 @@ function ScoreBands({ data, results }) {
     }))
   }, [data, results])
 
+  // MOONSHOT'S SCORE-BANDS TABLE (2026-09-29, parity; components/ScoreBands.js):
+  // one row per market, the four score quartiles as columns, each cell the
+  // clear rate with its k/n, tinted by its gap from that market's own base
+  // rate -- and GREY when the row makes no claim (bands out of order, or top
+  // vs bottom inside the noise) or the cell's own interval covers the base.
+  // Was a stack of cards, one per market.
+  const QUARTILES = ['Bottom 25%', '25–50%', '50–75%', 'Top 25%']
+  const status = (r) => r.state === 'missing' ? 'NO JOINED LINES'
+    : r.state === 'thin' ? `TOO THIN · n=${r.n}, need ${BAND_MIN}`
+    : r.state === 'degenerate' ? 'NOT READABLE · every line cleared'
+    : `${r.claims ? (r.works ? 'SEPARATES' : 'INVERTED') : 'NO CLAIM'} · ${r.spread >= 0 ? '+' : ''}${r.spread.toFixed(1)}pts · z ${r.z.toFixed(2)}`
+  const notes = rows.filter((r) => r.state === 'missing' || r.state === 'degenerate')
+
   return (
     <div style={{ marginTop: 18 }}>
       <div style={{ fontSize: TYPE.title, fontWeight: 800, marginBottom: 2 }}>
@@ -381,61 +386,31 @@ function ScoreBands({ data, results }) {
         clear the bar noticeably more than the bottom quarter, the ranking isn&apos;t doing
         anything a coin flip wouldn&apos;t. This is 2026&apos;s actual results only, one run&apos;s
         pool at a time — for the same question asked properly, against completed prior seasons
-        under a real backtest, see Report Card.
+        under a real backtest, see Report Card. <b style={{ color: C.text2 }}>A grey cell has a number
+        and no claim.</b>
       </div>
 
-      {rows.map((r) => (
-        <ChartFrame key={r.key} pad="9px 12px"
-          style={{ borderRadius: 11, marginBottom: 7 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: TYPE.name, fontWeight: 800, color: r.color }}>{r.label}</span>
-            <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>bar {r.bar}</span>
-            {r.state === 'missing' && <Badge tone="dim">NO JOINED LINES</Badge>}
-            {r.state === 'thin' && <Badge tone="dim">TOO THIN · n={r.n}, need {BAND_MIN}</Badge>}
-            {r.state === 'degenerate' && <Badge tone="yellow">NOT READABLE · every line cleared</Badge>}
-            {r.state === 'measured' && (
-              <Badge tone={r.works ? 'green' : 'red'}>
-                {r.works ? 'SEPARATES' : 'NO SIGNAL'} · {r.spread >= 0 ? '+' : ''}{r.spread.toFixed(1)}pts top vs bottom · n={r.n}
-              </Badge>
-            )}
-          </div>
+      <BandTable theme={C} numFont={NUM_FONT} firstHead="market" columns={QUARTILES}
+        rows={rows.map((r) => ({
+          key: r.key, label: r.label, color: r.color,
+          sub: `bar ${r.bar ?? '—'}${r.state === 'measured' ? ` · base ${r.base.toFixed(1)}%` : ''}`,
+          base: r.base ?? 0, bands: r.state === 'measured' ? r.bands : [], claims: !!r.claims,
+          verdict: status(r), verdictTone: r.state === 'measured' && r.claims ? (r.works ? C.green : C.red) : C.text3,
+        }))} />
 
-          {r.state === 'missing' && (
-            <div style={{ fontSize: TYPE.micro, color: C.text3, marginTop: 3, lineHeight: 1.55 }}>
-              No player this run has both a {MARKET_LABEL[r.key]} score and a graded line —
-              either nothing has finished yet, or this market has no eligible players on the
-              slate.
-            </div>
-          )}
-          {r.state === 'degenerate' && (
-            <div style={{ fontSize: TYPE.micro, color: C.text3, marginTop: 3, lineHeight: 1.55 }}>
-              Every one of the {r.n} joined lines cleared bar {r.bar}. {r.key === 'TD'
-                ? <>Expected for TD specifically: a value of exactly 0 never reaches this payload
-                    (see the note at the top of this file), so a miss can&apos;t be observed here
-                    at all — this row can never be audited this way, not just this week.</>
-                : <>On a small pool that can happen by chance rather than by design — read it as
-                    a fluke until it repeats.</>}
-            </div>
-          )}
-          {r.state === 'measured' && (
-            <div style={{ display: 'flex', gap: 6, marginTop: 7, flexWrap: 'wrap' }}>
-              {r.bands.map((b) => (
-                <div key={b.label} style={{
-                  flex: '1 1 90px', background: C.bg, border: `1px solid ${C.border}`,
-                  borderRadius: 8, padding: '5px 8px',
-                }}>
-                  <div style={{ fontSize: TYPE.micro, color: C.text3 }}>{b.label}</div>
-                  <div style={{ fontFamily: NUM_FONT, fontSize: TYPE.title, fontWeight: 900, color: r.color }}>
-                    {b.pct.toFixed(1)}%
-                  </div>
-                  <div style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>
-                    {b.ok}/{b.n} cleared
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </ChartFrame>
+      {notes.map((r) => (
+        <div key={r.key} style={{ fontSize: TYPE.micro, color: C.text3, marginTop: 6, lineHeight: 1.55 }}>
+          <b style={{ color: C.text2 }}>{r.label}:</b>{' '}
+          {r.state === 'missing'
+            ? <>no player this run has both a {MARKET_LABEL[r.key]} score and a graded line —
+                either nothing has finished yet, or this market has no eligible players on the slate.</>
+            : r.key === 'TD'
+              ? <>every one of the {r.n} joined lines cleared bar {r.bar}. Expected for TD specifically: a value of
+                  exactly 0 never reaches this payload (see the note at the top of this file), so a miss
+                  can&apos;t be observed here at all — this row can never be audited this way, not just this week.</>
+              : <>every one of the {r.n} joined lines cleared bar {r.bar}. On a small pool that can happen by chance
+                  rather than by design — read it as a fluke until it repeats.</>}
+        </div>
       ))}
     </div>
   )

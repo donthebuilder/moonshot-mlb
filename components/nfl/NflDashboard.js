@@ -297,17 +297,21 @@ export default function NflDashboard({ palettePass = 0 }) {
     const later = [...new Set(all.map((g) => easternDate(g.start)).filter((d) => d > todayET))].sort()
     return { sport: 'nfl', date: todayET, games: all.filter((g) => easternDate(g.start) === todayET), next: later[0] ? { date: later[0], games: all.filter((g) => easternDate(g.start) === later[0]) } : null }
   }, [slate])
-  const openPlayer = (player, market = 'TD') => setModal({ player, market })
+  // `peers` (optional, 2026-09-29): the list the tab had ON SCREEN, in its order
+  // and filter -- the card's ‹ › walk that, as MOONSHOT's do. Tabs that don't
+  // pass one fall back to the whole board below.
+  const openPlayer = (player, market = 'TD', peers = null) => setModal({ player, market, peers: Array.isArray(peers) && peers.length ? peers : null })
   // The card's peer list: everyone playing, ranked by the market the card is
   // showing, so ‹ › walks from a better name to a worse one rather than
   // through payload order. Recomputed only when the slate or that market
   // changes, not on every render of an open card.
   const modalPeers = useMemo(() => {
+    if (modal?.peers) return modal.peers
     const mk = modal?.market || 'TD'
     return (slate?.players || [])
       .filter((p) => !p.on_bye && Number.isFinite(p?.scores?.[mk]))
       .sort((a, b) => (b.scores[mk] - a.scores[mk]))
-  }, [slate, modal?.market])
+  }, [slate, modal?.market, modal?.peers])
   const openFullProfile = (player) => {
     setModal(null)
     setTab('players')
@@ -406,10 +410,9 @@ export default function NflDashboard({ palettePass = 0 }) {
         // hand over -- this passes the whole board instead, minus byes, in
         // score order for the market the card is open on.
         //
-        // Said plainly rather than dressed up as the same thing: the arrows
-        // walk the board, not your current filter. Threading each tab's own
-        // list up to here is the change that would close that gap, and it is
-        // a bigger one than this card needed.
+        // 2026-09-29: a tab can now hand its on-screen list over (openPlayer's
+        // third argument); the touchdown board does, so there the arrows walk
+        // your filter. Tabs that don't still walk the whole board.
         peers={modalPeers}
         onNavigate={(p) => setModal((m) => ({ ...(m || {}), player: p }))}
       />
