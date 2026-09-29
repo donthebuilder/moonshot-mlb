@@ -4,6 +4,12 @@ import { n, clean, nameOf } from '../lib/player'
 
 // 🆚 TEAM vs THE STARTER — the whole lineup's history against tonight's arm.
 //
+// THIS SEASON, NOT CAREER (2026-09-29, Donovan: "showing season data as
+// career"). The bot's build_batter_vs_pitcher_profile pulls Statcast from
+// max(SEASON_START, end - 730 days), so bvp_* is this season's meetings only.
+// The table said "career" everywhere; the words now match the window. (BvP.js
+// reads the live API's vsPlayerTotal -- that one really is career.)
+//
 // 2026-08-14, Donovan, from a competitor screenshot batch: "only thing i
 // really like is the team vs pitcher splits and like vs certain splits —
 // that needs to be accessible somewhere." This is that table: every hitter
@@ -64,10 +70,10 @@ export default function TeamVsStarter({ players = [], team = '', pitcherName = '
     <div style={{ marginBottom: 12 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 5 }}>
         <span style={{ fontSize: 11, fontWeight: 800 }}>
-          🆚 {team ? `${team} ` : ''}career vs {clean(pitcherName, 'the starter')}{hand ? ` (${hand})` : ''}
+          🆚 {team ? `${team} ` : ''}this season vs {clean(pitcherName, 'the starter')}{hand ? ` (${hand})` : ''}
         </span>
         <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>
-          head-to-head history + his split vs this side
+          head-to-head this season + his split vs this side
         </span>
       </div>
       <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, padding: '7px 12px' }}>
@@ -99,8 +105,8 @@ export default function TeamVsStarter({ players = [], team = '', pitcherName = '
           const vsAvg = n(p?.[vsKeyAvg], 0)
           const vsIso = n(p?.[vsKeyIso], 0)
           const tip = met
-            ? `${nameOf(p)} vs ${clean(pitcherName, 'him')}: ${n(p?.bvp_hits, 0)}-for-${ab}${hr ? `, ${hr} HR` : ''} in ${pa} career PA${thin ? ' — tiny sample, folklore territory' : ''}. ${vsLabel} column is his season line vs ${hand === 'L' ? 'lefties' : 'righties'} overall (AVG${vsIso ? ` · ISO ${num3(vsIso)}` : ''}).`
-            : `${nameOf(p)} has never faced ${clean(pitcherName, 'this arm')} — first meeting. ${vsLabel} column is his season line vs ${hand === 'L' ? 'lefties' : 'righties'} overall.`
+            ? `${nameOf(p)} vs ${clean(pitcherName, 'him')}: ${n(p?.bvp_hits, 0)}-for-${ab}${hr ? `, ${hr} HR` : ''} in ${pa} PA this season${thin ? ' — tiny sample, folklore territory' : ''}. ${vsLabel} column is his season line vs ${hand === 'L' ? 'lefties' : 'righties'} overall (AVG${vsIso ? ` · ISO ${num3(vsIso)}` : ''}).`
+            : `${nameOf(p)} hasn't faced ${clean(pitcherName, 'this arm')} this season. ${vsLabel} column is his season line vs ${hand === 'L' ? 'lefties' : 'righties'} overall.`
           return (
             <div key={p?.player_id ?? p?.id ?? i} onClick={() => onPlayerClick?.(p)} className="tap-row" title={tip} style={{
               display: 'flex', gap: 7, alignItems: 'center', padding: '3.5px 0',
@@ -130,7 +136,7 @@ export default function TeamVsStarter({ players = [], team = '', pitcherName = '
         </div>
         </div>
         <div style={{ fontSize: 8.5, color: C.text3, marginTop: 5, lineHeight: 1.5 }}>
-          Career head-to-head — tiny samples by nature: a dash means a first meeting (never a
+          Head-to-head this season — tiny samples by nature: a dash means no meeting this season (never a
           league-average default dressed up as history), dimmed rows are under 8 PA. The {vsLabel} column
           is his season-long split against {hand === 'L' ? 'left' : 'right'}-handed pitching, not
           specific to this arm. History, not a projection — tap a row for his full card.
