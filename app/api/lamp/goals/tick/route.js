@@ -25,9 +25,13 @@ import { reduceScoreDay } from '../../../../../lib/nhl/reduce'
 import { MODEL_VERSION } from '../../../../../lib/nhl/goalModel'
 import { cronAuthorized, adminClient } from '../../../../../lib/nhl/db'
 import { gameActive, tickGoals } from '../../../../../lib/nhl/goalFeed'
-import { hasX, postToX, xProblem } from '../../../../../lib/dash/xPost'
+import { hasX, postToX, uploadImageToX, xProblem } from '../../../../../lib/dash/xPost'
+import { goalCard } from '../../../../../lib/nhl/goalCard'
 import { kindOn } from '../../../../../lib/dash/longshotsPost'
 import { isMaintenanceMode } from '../../../../../lib/edgeConfig'
+
+// The host printed in the goal card's footer.
+const SITE_HOST = (process.env.NEXT_PUBLIC_SITE_URL || 'dashnetwork.vercel.app').replace(/^https?:\/\//, '').replace(/\/$/, '')
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -81,7 +85,21 @@ export async function GET(request) {
   // site not in maintenance. The feed itself runs regardless.
   let poster = null
   if (kindOn('nhlgoal') && !(await isMaintenanceMode())) {
-    if (hasX()) poster = { post: (text) => postToX(text, { kind: 'nhlgoal' }) }
+    // The CALLED goal carries its card (MLB-PARITY plan C1), like a homer or a
+    // touchdown. A card that fails to render or upload never costs the post.
+    if (hasX()) poster = {
+      post: async (text, row) => {
+        let mediaId = null
+        if (row) {
+          try {
+            const img = await goalCard(row, { site: SITE_HOST })
+            const buf = Buffer.from(await img.arrayBuffer())
+            if (buf.length) mediaId = await uploadImageToX(buf)
+          } catch (e) { console.error(`[lamp goals] card failed for ${row.name}: ${e?.message || e}`) }
+        }
+        return postToX(text, { kind: 'nhlgoal', ...(mediaId ? { mediaId } : {}) })
+      },
+    }
     else console.error(`[lamp goals] nhlgoal is on but X is not configured: ${xProblem()}`)
   }
   try {
