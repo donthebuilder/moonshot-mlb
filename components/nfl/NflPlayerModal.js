@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 
 import useScrollLock from '../../lib/useScrollLock'
-import { useDialog } from '../../lib/useDialog'
+import CardShell from '../CardShell'
 import { C, NUM_FONT, MARKETS, gradeFor } from '../../lib/nfl/theme'
 import PropsGrid from './PropsGrid'
 import { STAT_KEY } from './HitRate'
@@ -636,7 +636,6 @@ function Navigator({ peers, cur, onNavigate }) {
 
 export default function NflPlayerModal({ player, market, markets, splitMeta, logs, matchup, slate, picks, results, onClose, onFullProfile, peers = [], onNavigate = null, initialTab = '', odds = null }) {
   useScrollLock(Boolean(player))
-  const dialog = useDialog({ open: Boolean(player), onClose, label: `${player?.name || 'Player'} card` })
   const watchlist = useNflWatchlist(slate)
   const [tab, setTab] = useState('overview')
   // A new player opens on Overview unless the caller asked for a view --
@@ -654,33 +653,10 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
 
 
   return (
-    <div
-      className="nfl-card-overlay"
-      onClick={onClose}
-      style={{
-        // #30, same as the MLB modals: the floating nav is z-index 390 and
-        // drew on top of an open card. Above the bar, below the signature rail.
-        position: 'fixed', inset: 0, zIndex: 395, background: 'rgba(0,0,0,.72)',
-        backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center',
-        justifyContent: 'center', padding: 16,
-      }}
-    >
-      <div
-        ref={dialog.ref}
-        {...dialog.dialogProps}
-        className="nfl-card"
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          ...dialog.dialogProps.style,
-          background: C.bg2, border: `1px solid ${C.border2}`, borderRadius: 14,
-          // WIDTH FOLLOWS THE CONTENT, the way MOONSHOT's does (580 / 780 /
-          // 1100). This was a hard 620 for everything, including the DvP
-          // strips and the props grid, which are table-shaped and were being
-          // asked to live in a column built for a paragraph.
-          padding: 18, maxWidth: tab === 'overview' ? 620 : 900,
-          width: '100%', maxHeight: '86vh', overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch',
-        }}
-      >
+    // MOONSHOT's shell (components/CardShell.js, 2026-09-29): same backdrop,
+    // focus trap and the .modal-* phone sheet as the MLB card. Width still
+    // follows the content (620 overview / 900 table tabs).
+    <CardShell theme={C} width={tab === 'overview' ? 620 : 900} onClose={onClose} label={`${player?.name || 'Player'} card`}>
         {/* THE HEAD (phone pass, 2026-09-27): name + a close that is always on
             screen. The actions used to share this row without wrapping, which
             pushed the 📸 and the close button off the right edge of a phone --
@@ -911,21 +887,16 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
             <b style={{ color: C.purple }}>Carryover</b> — last season&apos;s per-game baseline.
           </div>
         )}
-        {/* ON A PHONE THE CARD IS THE SCREEN (2026-09-27): a floating box inside
-            16px of dimmed margin squeezed every panel; MOONSHOT's card fills
-            the phone. The head stays pinned so the close is always reachable. */}
+        {/* The head stays pinned so the close is always reachable (2026-09-27),
+            now inside MOONSHOT's scroll box, which is full-screen on a phone. */}
         <style>{`
           @media (max-width: 560px) {
-            .nfl-card-overlay { padding: 0 !important; align-items: stretch !important; }
-            .nfl-card { max-width: none !important; max-height: none !important; height: 100dvh; border-radius: 0 !important;
-              border: none !important; padding: 0 14px calc(18px + env(safe-area-inset-bottom)) !important; }
-            .nfl-card-head { position: sticky; top: 0; z-index: 3; background: ${C.bg2};
-              padding: calc(10px + env(safe-area-inset-top)) 0 10px; margin: 0 -14px; padding-left: 14px; padding-right: 14px;
+            .nfl-card-head { position: sticky; top: -14px; z-index: 3; background: ${C.bg2};
+              margin: -14px -12px 0; padding: calc(10px + env(safe-area-inset-top)) 12px 10px;
               border-bottom: 1px solid ${C.border}; }
             .nfl-card-stats { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
           }
         `}</style>
-      </div>
-    </div>
+    </CardShell>
   )
 }
