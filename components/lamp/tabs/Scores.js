@@ -2,8 +2,11 @@
 import PageHeader from '../../PageHeader'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import { useLampScores } from '../../../lib/nhl/useLamp'
-import ScoreTable from '../ScoreTable'
-import { EmptyState, DelayedBanner, Loading, SourceLine, GameTypeChip, fmtDay, shiftDay, zoneAbbrev } from '../ui'
+import { useState } from 'react'
+import { sortGames, GoalLines } from '../ScoreTable'
+import GameRow from '../../GameRow'
+import TeamMark from '../../TeamMark'
+import { EmptyState, DelayedBanner, Loading, SourceLine, GameTypeChip, LampDot, fmtDay, shiftDay, zoneAbbrev, fmtPuckDrop } from '../ui'
 
 // 🏒 SCORES — every game on one NHL day. The plain page: score, period,
 // clock, shots, who scored. Nothing ranked, nothing modelled. Tap a row for
@@ -23,6 +26,8 @@ export default function Scores({ onOpenGame, date = null, setDate = () => {} }) 
   const types = day?.gameTypes || []
 
   const go = (d) => setDate(d)
+  const [open, setOpen] = useState(() => new Set())
+  const toggle = (id) => setOpen((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n })
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <PageHeader
@@ -52,7 +57,10 @@ export default function Scores({ onOpenGame, date = null, setDate = () => {} }) 
       {!loading && !error && day && games.length === 0 && (
         <EmptyState title="NO GAMES TODAY" note={`The league has nothing scheduled for ${fmtDay(shown)}. ${day.next ? `The next game day is ${fmtDay(day.next)}.` : ''}`} />
       )}
-      {games.length > 0 && <ScoreTable games={games} onOpen={onOpenGame} />}
+      {/* MOONSHOT'S GAME ROW (2026-09-29, parity): one row a game, tap for its
+          goals and shots, the game page one tap further -- the row MOONSHOT's
+          Boxes and TUDDY's Scores use (components/GameRow.js). */}
+      {games.length > 0 && <div>{sortGames(games).map((g) => <LampGameRow key={g.id} g={g} open={open.has(g.id)} onToggle={toggle} onOpenGame={onOpenGame} />)}</div>}
       {!day && error && <EmptyState title="LIVE DATA DELAYED" note="We’re waiting on the league’s score feed. Try again in a moment." tone={C.amber} />}
 
       <SourceLine>
@@ -70,5 +78,31 @@ function NavBtn({ children, onClick, disabled, strong = false }) {
       border: `1px solid ${strong ? C.ice : C.border2}`, background: strong ? `${C.ice}14` : C.bg2,
       color: strong ? C.ice : C.text2, font: `800 10px/1 ${NUM_FONT}`, letterSpacing: '.04em', opacity: disabled ? .5 : 1,
     }}>{children}</button>
+  )
+}
+
+function LampGameRow({ g, open, onToggle, onOpenGame }) {
+  const live = g.state === 'live'
+  const done = g.state === 'final'
+  const scored = live || done
+  const winner = done && g.away.score !== g.home.score ? (g.away.score > g.home.score ? 'away' : 'home') : null
+  const status = g.statusLine || fmtPuckDrop(g.startUtc)
+  return (
+    <GameRow id={g.id} open={open} onToggle={onToggle} theme={C} numFont={NUM_FONT} accent={C.ice}
+      openBg={`color-mix(in srgb, ${C.ice} 3%, transparent)`} winner={winner}
+      status={{ text: <>{live && <LampDot />}{status}</>, tone: live ? C.lamp : done ? C.text2 : C.text3 }}
+      sub={scored && g.away.sog != null ? <div style={{ fontFamily: NUM_FONT, fontSize: 8.5, color: C.text3, marginTop: 2 }}>SOG {g.away.sog}–{g.home.sog ?? '–'}</div> : null}
+      sides={[['away', g.away], ['home', g.home]].map(([key, t]) => ({
+        key, label: t.name || t.abbrev, score: scored ? (t.score ?? 0) : null,
+        mark: <TeamMark sport="nhl" abbr={t.abbrev} dim={Boolean(winner) && winner !== key} />,
+      }))}>
+      <div style={{ paddingTop: 6 }}>
+        {g.goals?.length ? <GoalLines goals={g.goals} /> : <div style={{ fontSize: 11, color: C.text3, padding: '8px 0' }}>{scored ? 'No goals yet.' : 'Hasn’t dropped the puck yet.'}</div>}
+        <button type="button" onClick={() => onOpenGame?.(g.id)} style={{
+          marginTop: 4, padding: '7px 12px', borderRadius: 999, cursor: 'pointer', border: `1px solid ${C.border2}`,
+          background: 'transparent', color: C.ice, font: `800 10px/1 ${NUM_FONT}`,
+        }}>Open game →</button>
+      </div>
+    </GameRow>
   )
 }

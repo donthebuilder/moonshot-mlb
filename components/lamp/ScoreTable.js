@@ -22,7 +22,7 @@ export const sortGames = (games) => [...games].sort((a, b) =>
 const STR = { ev: 'EV', pp: 'PP', sh: 'SH' }
 export const strengthTag = (g) => (g.modifier === 'empty-net' ? 'EN' : g.modifier === 'penalty-shot' ? 'PS' : STR[g.strength] || 'EV')
 
-function GoalLines({ goals }) {
+export function GoalLines({ goals }) {
   if (!goals?.length) return null
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'auto auto auto 1fr', columnGap: 10, rowGap: 3, padding: '6px 0 8px 6px' }}>
