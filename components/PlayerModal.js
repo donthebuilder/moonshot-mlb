@@ -3,7 +3,6 @@ import { mlbFaceStrict } from './PlayerFace'
 import { useEffect, useState } from 'react'
 
 import useScrollLock from '../lib/useScrollLock'
-import { useDialog } from '../lib/useDialog'
 import { C, NUM_FONT } from '../lib/theme'
 import { fetchBatterDetail } from '../lib/dataSource'
 import {
@@ -24,6 +23,7 @@ import {
 import { quoteFor, fmtOdds } from '../lib/odds'
 import OddsTimeline from './OddsTimeline'
 import VerdictHero from './VerdictHero'
+import CardShell from './CardShell'
 import PickVerdictStamp from './PickVerdictStamp'
 import FollowButton from './FollowButton'
 import MultiLine from './ledger/MultiLine'
@@ -227,57 +227,6 @@ const TABS = [
   { key: 'pitcher',  label: '🥎 Pitcher' },
   { key: 'sim',      label: '🎮 Sim' },
 ]
-
-// `inline` renders the same content as a plain panel instead of a popup.
-// The Player tab needs exactly this view but sitting still on the page --
-// a modal is a bad place to read for five minutes.
-function Shell({ inline, onClose, width, children, label }) {
-  // A11Y-3 (2026-09-24): role, focus, Escape, Tab kept inside. lib/useDialog.js.
-  const { ref, dialogProps } = useDialog({ open: !inline, onClose, label })
-  if (inline) {
-    return (
-      <div style={{
-        background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 18,
-        padding: '18px 20px 22px',
-      }}>{children}</div>
-    )
-  }
-  return (
-    <div
-      onClick={onClose}
-      className="modal-backdrop"
-      style={{
-        // #30: the floating bottom nav sits at z-index 390 and this backdrop
-        // sat at 100, so the bar drew ON TOP of an open card -- covering the
-        // first row of the Pitch table and the bottom of the Spray chart. The
-        // suggested fix was bottom padding on the scroll container, but that
-        // treats the symptom: a modal that a global nav can be clicked
-        // through is not modal. Above the bar (390) and below the ember
-        // signature rail (400), which is 3px of chrome at the very top and
-        // has nothing to overlap.
-        position: 'fixed', inset: 0, zIndex: 395,
-        background: 'rgba(0,0,0,.75)', backdropFilter: 'blur(6px)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: 16,
-      }}
-    >
-      <div
-        ref={ref}
-        {...dialogProps}
-        onClick={e => e.stopPropagation()}
-        className="modal-box"
-        style={{
-          ...dialogProps.style,
-          background: C.bg2, border: `1px solid ${C.border2}`, borderRadius: 18,
-          width, maxWidth: '100%', maxHeight: '90vh', overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch',
-          transition: 'width .15s',
-        }}
-      >
-        <div className="modal-content" style={{ padding: '18px 20px 22px' }}>{children}</div>
-      </div>
-    </div>
-  )
-}
 
 // BET MARKETS for the slip. Same four the boards offer, so an entry added from
 // here is indistinguishable from one added from a card.
@@ -737,7 +686,7 @@ export default function PlayerModal({ player, slateMode, initialTab = '', onClos
 
   return (
     <>
-    <Shell inline={inline} onClose={onClose} width={modalWidth} label={`${nameOf(p)} card`}>
+    <CardShell inline={inline} onClose={onClose} width={modalWidth} label={`${nameOf(p)} card`}>
 
           {/* THE TOOLBAR, ON ITS OWN LINE (2026-08-23). These five controls
               plus the badge left about 90px for the hitter's NAME on a 430px
@@ -1244,7 +1193,7 @@ export default function PlayerModal({ player, slateMode, initialTab = '', onClos
             </>
           )}
 
-    </Shell>
+    </CardShell>
     {compareOpen && (
       <PlayerCompare
         anchor={p}
