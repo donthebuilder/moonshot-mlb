@@ -10,7 +10,11 @@ import OddsLine from '../../OddsLine'
 import OddsStatus from '../../OddsStatus'
 import MatchupBadge from '../MatchupBadge'
 import NflFace from '../NflFace'
-import { AnatomyStrip, baselineFor, topStatChips } from '../ScoreAnatomy'
+import { baselineFor, topStatChips } from '../ScoreAnatomy'
+import { Card as UiCard } from '../../ui'
+import StatStrip from '../../StatStrip'
+import { SportTheme } from '../../SportTheme'
+import { CardName, ScoreBadge, ExplainStrip } from '../../card/CardParts'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 import { ActiveFilters, FilterBar, FilterPill } from '../../Filters'
 import NflBoardFilters, { useNflBoardFilter } from '../NflBoardFilters'
@@ -66,23 +70,6 @@ import TdCompare from '../TdCompare'
 const MARKET = 'TD'
 const SOFT_CAP = 60
 
-function ScoreBar({ score }) {
-  const g = gradeFor(score)
-  const pct = Math.max(4, Math.min(100, ((Number(score) || 0) - 30) / 50 * 100))
-
-  return (
-    <span style={{
-      position: 'relative', display: 'block', height: 4, borderRadius: 99,
-      background: 'rgba(255,255,255,.08)',
-    }}>
-      <span style={{
-        position: 'absolute', inset: '0 auto 0 0', width: `${pct}%`, borderRadius: 99,
-        background: g.color, boxShadow: `0 0 7px -1px ${g.color}`,
-      }} />
-    </span>
-  )
-}
-
 // ── THE CARD ─────────────────────────────────────────────────────────────
 // THE TD POOL, once (2026-09-28): the eligible scored players, the market's
 // weights and the pool baseline the card's "why" line reads. The Slate uses it.
@@ -101,13 +88,28 @@ export function tdPool(data) {
 }
 
 // Exported (2026-09-28) for the Slate's Picks section -- the same card, not a copy.
+// MOONSHOT'S CARD FRAME (2026-09-29, parity plan E; components/PlayerCard.js
+// via components/card/CardParts.js), in TUDDY's theme: the name line with its
+// glyphs (matchup badge, ⭐ high confidence, 🧩 aligned, injury tag), the
+// demoted BOT score badge with its grade that explains itself on a tap,
+// MOONSHOT's StatStrip for the components doing the most work (each on the
+// percentile ramp, as the chips were), the board's why line (TUDDY's own), and
+// a footer with the price and MOONSHOT's star. The face stays (TUDDY's
+// addition). The score bar and anatomy sliver went: the badge carries the
+// score, the strip carries what built it.
 export function Card({ p, rank, matchup, odds, onPlayerClick, weights, base, pool, watchlist }) {
+  const [openScore, setOpenScore] = useState(false)
   const score = p.scores?.[MARKET]
   const g = gradeFor(score)
   // His top component with the number behind it (lib/nfl/boardReason.js,
   // TUDDY depth step 4) -- the fixed clause read the same on 10 of 10 cards.
   const why = boardReason(p, weights, base, MARKET, pool)
-  const chips = topStatChips(p.components?.[MARKET], weights)
+  const comps = p.components?.[MARKET] || {}
+  const stats = (topStatChips(comps, weights, 3) || []).map((c) => {
+    const pct = Number(comps[c.key])
+    const label = c.t.replace(/ \d+p$/, '')
+    return { id: c.key, label, text: Number.isFinite(pct) ? `${Math.round(pct)}` : '—', color: rampAt(Number.isFinite(pct) ? pct / 100 : 0), title: `${label}: ${Number.isFinite(pct) ? Math.round(pct) : '—'}th percentile in the league -- one of the components doing the most work in this score` }
+  })
   const tag = injuryTag(p)
   const pinned = watchlist.isPinned(p.player_id)
   const aligned = alignedSignals(matchup, p)
@@ -115,93 +117,46 @@ export function Card({ p, rank, matchup, odds, onPlayerClick, weights, base, poo
   const quote = quoteFor(odds, p, MARKET)
 
   return (
-    <div
-      onClick={() => onPlayerClick?.(p, MARKET)}
-      style={{
-        position: 'relative', display: 'flex', flexDirection: 'column', gap: 8,
-        cursor: 'pointer', minWidth: 0, overflow: 'hidden',
-        border: `1px solid ${C.border}`, borderRadius: 14, padding: '11px 12px 10px',
-        background: `linear-gradient(158deg, ${g.color}1c, ${C.bg2} 58%)`,
-      }}
-    >
-      <span style={{
-        position: 'absolute', top: 0, left: 0, right: 0, height: 2,
-        background: `linear-gradient(90deg, ${g.color}, ${g.color}00 72%)`,
-      }} />
-
-      <button
-        onClick={(e) => { e.stopPropagation(); watchlist.toggle(p) }}
-        title={pinned ? 'Remove from watchlist' : 'Add to watchlist'}
-        style={{
-          position: 'absolute', top: 8, right: 8, zIndex: 1,
-          background: pinned ? `${C.green}22` : 'transparent',
-          border: `1px solid ${pinned ? C.green : C.border}`,
-          color: pinned ? C.green : C.text3,
-          borderRadius: 7, padding: '3px 7px', fontSize: 13, lineHeight: 1, cursor: 'pointer',
-        }}
-      >{pinned ? '★' : '☆'}</button>
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0, paddingRight: 26 }}>
-        <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.label, color: rank <= 3 ? C.green : C.text3, minWidth: 14 }}>{rank}</span>
-        <NflFace player={p} size={36} />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{
-            fontSize: TYPE.name, fontWeight: 700, color: C.text, minWidth: 0,
-            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          }}>{p.name}</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>
-              {p.position} · {p.team} vs {p.opp}
-            </span>
-            <MatchupBadge matchup={matchup} player={p} market={MARKET} />
-            {highConf && <span title="The bot's own high-confidence TD flag" style={{ fontSize: TYPE.label }}>⭐</span>}
-            {aligned.aligned && <span title={`${aligned.hits} of 3 real signals lining up (matchup / red-zone finisher / rising snaps)`} style={{ fontSize: TYPE.label }}>🧩</span>}
-            {tag && (
-              <span title={injuryTitle(tag)} style={{ color: injuryColor(tag, C), fontWeight: 900, fontSize: TYPE.label }}>{tag}</span>
-            )}
+    <SportTheme theme={C} accent={C.green} numFont={NUM_FONT}>
+    <UiCard color={`${g.color}55`} onClick={() => onPlayerClick?.(p, MARKET)}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 7 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: 1 }}>
+          <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.label, color: rank <= 3 ? C.green : C.text3, minWidth: 14 }}>{rank}</span>
+          <NflFace player={p} size={32} />
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3, color: C.text }}>
+              {highConf && <span title="The bot's own high-confidence TD flag" style={{ fontSize: 14, lineHeight: 1, flexShrink: 0 }}>⭐</span>}
+              {aligned.aligned && <span title={`${aligned.hits} of 3 real signals lining up (matchup / red-zone finisher / rising snaps)`} style={{ fontSize: 14, lineHeight: 1, flexShrink: 0 }}>🧩</span>}
+              <CardName name={p.name} />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap', fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
+              <span>{p.position} · {p.team} vs {p.opp}</span>
+              <MatchupBadge matchup={matchup} player={p} market={MARKET} />
+              {tag && <span title={injuryTitle(tag)} style={{ color: injuryColor(tag, C), fontWeight: 900 }}>{tag}</span>}
+            </div>
           </div>
         </div>
-        <div style={{ textAlign: 'right', flexShrink: 0 }}>
-          <div style={{ fontFamily: NUM_FONT, fontSize: TYPE.title, fontWeight: 900, color: g.color, lineHeight: 1 }}>
-            {Math.round(score ?? 0)}
-          </div>
-          <div style={{
-            fontFamily: NUM_FONT, fontSize: TYPE.label, fontWeight: 900, color: g.color,
-            border: `1px solid ${g.color}55`, borderRadius: 5, padding: '1px 4px', marginTop: 3, textAlign: 'center',
-          }}>{g.label}</div>
-        </div>
+        <ScoreBadge label="BOT" score={Number.isFinite(score) ? Math.round(score) : '—'} sub={g.label} color={g.color}
+          open={openScore} onToggle={() => setOpenScore((v) => !v)} />
       </div>
-
-      {why && <div style={{ fontSize: TYPE.micro, color: C.text2, lineHeight: 1.4 }}>{why.text}</div>}
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <div style={{ flex: 1, minWidth: 0 }}><ScoreBar score={score} /></div>
-        <AnatomyStrip components={p.components?.[MARKET]} weights={weights} width={56} />
+      <ExplainStrip notes={[openScore && 'The bot’s anytime-TD score, 0–100 — a rank against the whole league, not a percentage. The row below is the components doing the most work in it.']} />
+      {why && <div style={{ fontSize: TYPE.micro, color: C.text2, lineHeight: 1.4, marginBottom: 7 }}>{why.text}</div>}
+      {stats.length > 0 && <StatStrip stats={stats} wrap style={{ marginBottom: 8 }} />}
+      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>{(odds || quote) && <OddsLine quote={quote} compact />}</div>
+        <button
+          onClick={(e) => { e.stopPropagation(); watchlist.toggle(p) }}
+          title={pinned ? 'Remove from watchlist' : 'Add to watchlist'}
+          style={{
+            background: pinned ? `${C.yellow}22` : 'transparent',
+            border: `1px solid ${pinned ? C.yellow + '66' : C.border2}`,
+            color: pinned ? C.yellow : C.text3,
+            borderRadius: 8, padding: '6px 9px', fontSize: 12, cursor: 'pointer',
+          }}
+        >{pinned ? '★' : '☆'}</button>
       </div>
-
-      {chips && chips.length > 0 && (
-        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-          {chips.map((c) => {
-            // A percentile is an ordered scale: the amber -> jade RAMP, not hit/miss green.
-            const pct = Number(p.components?.[MARKET]?.[c.key])
-            const ramp = rampAt(Number.isFinite(pct) ? pct / 100 : 0)
-            return (
-              <span key={c.key} style={{
-                fontSize: 8.5, fontWeight: 800, letterSpacing: '.02em', padding: '2px 7px',
-                borderRadius: 999, whiteSpace: 'nowrap', fontFamily: NUM_FONT,
-                color: C.text2, border: `1px solid ${ramp}66`, background: `${ramp}14`,
-              }}>{c.t}</span>
-            )
-          })}
-        </div>
-      )}
-
-      {(odds || quote) && (
-        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <OddsLine quote={quote} compact />
-        </div>
-      )}
-    </div>
+    </UiCard>
+    </SportTheme>
   )
 }
 

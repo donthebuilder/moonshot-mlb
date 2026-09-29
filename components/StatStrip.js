@@ -20,7 +20,9 @@ import { statLineFor, hrRateBoxes, useSlateScale, toneFor, toneTitle, TONE_COLOR
 // { id, label, text, color, title } -- and the strip draws them in MOONSHOT's
 // look with the colour given (TUDDY: each market's grade). Without it, the
 // MOONSHOT path below is unchanged.
-export default function StatStrip({ p, type = 'hr', count = 4, size = 'md', style, stats: given }) {
+// wrap: labels may take two lines instead of an ellipsis (other sports' longer
+// component names -- "Implied team total"); MOONSHOT never sets it.
+export default function StatStrip({ p, type = 'hr', count = 4, size = 'md', style, stats: given, wrap = false }) {
   const { C, NUM_FONT } = useSportTheme()
   const scale = useSlateScale()
   const stats = given || statLineFor(p, type, count)
@@ -55,8 +57,8 @@ export default function StatStrip({ p, type = 'hr', count = 4, size = 'md', styl
           >
             <div style={{
               fontSize: sm ? 7.5 : 8, letterSpacing: '.05em', textTransform: 'uppercase',
-              color: C.text3, fontFamily: NUM_FONT, whiteSpace: 'nowrap',
-              overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1.3,
+              color: C.text3, fontFamily: NUM_FONT,
+              ...(wrap ? { lineHeight: 1.2 } : { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1.3 }),
             }}>{s.label}</div>
             <div style={{
               fontSize: sm ? 11 : 12.5, fontWeight: 800, color: col,
