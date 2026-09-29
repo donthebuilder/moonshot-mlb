@@ -5,6 +5,7 @@ import { n, clean, nameOf, teamOf, oppOf } from '../../lib/player'
 import { PanelTitle, Empty } from '../ui'
 import DenseTable from '../DenseTable'
 import MlbTeamMark from '../MlbTeamMark'
+import SharedLeaderTile from '../LeaderTile'
 import {
   leagueLeaders, LEADER_CATS,
   gradedHistory, HIST_FIRST, HIST_MAX, HIST_MIN_PICKS, HIST_MIN_NIGHTS,
@@ -96,61 +97,33 @@ const COLUMNS = [
   { key: 'isoR', label: 'ISO vs R', w: 58, dp: 3 },
 ]
 
-// USABLE, NOT A TROPHY CASE (2026-08-08, "needs something usable"): a tile
-// that only names the #1 guy answers a trivia question. Each tile now says
-// WHO HE FACES TONIGHT — the leader with his matchup attached is a lead you
-// can act on — and carries the two runners-up, because the interesting names
-// are usually #2 and #3, not the Judge everybody already knows about.
-function LeaderTile({ label, rows, fmt, color, onPlayerClick }) {
-  if (!rows?.length) return null
-  const [top, ...rest] = rows
-  const facing = clean(top._raw?.pitcher_name, '')
+// USABLE, NOT A TROPHY CASE (2026-08-08): the tile is components/LeaderTile.js
+// now (shared with TUDDY, 2026-09-29); this is MOONSHOT's meta and matchup
+// line for it -- team chip and PA, and the pitcher he faces tonight.
+function LeaderTile(props) {
   return (
-    <div
-      onClick={onPlayerClick ? () => onPlayerClick(top._raw) : undefined}
-      title={onPlayerClick ? `Open ${top.name}` : undefined}
-      style={{
-        background: `linear-gradient(155deg, ${color}1e, ${color}06)`,
-        border: `1px solid ${color}44`, borderRadius: 11, padding: '8px 12px', minWidth: 0,
-        cursor: onPlayerClick ? 'pointer' : 'default',
-      }}>
-      <div style={{
-        fontSize: TYPE.label, color: C.text3, textTransform: 'uppercase',
-        letterSpacing: '.09em', fontWeight: 800,
-      }}>{label}</div>
-      <div style={{
-        fontSize: TYPE.name, fontWeight: 800, marginTop: 1,
-        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-      }}>{top.name}</div>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-        <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.title, fontWeight: 900, color }}>{fmt(top)}</span>
-        <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>
-          <MlbTeamMark abbr={top.team} style={{ height: 16, verticalAlign: 'middle' }} /> · {top.pa} PA
-        </span>
-      </div>
-      {facing && (
-        <div style={{ fontSize: TYPE.micro, color: C.text2, fontFamily: NUM_FONT, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
-          title={`Tonight: ${top.team} vs ${top.opp} — he faces ${facing}${n(top._raw?.pitcher_hr9, 0) ? `, ${n(top._raw.pitcher_hr9, 0).toFixed(2)} HR/9` : ''}`}>
-          tonight vs {facing.split(' ').slice(-1)[0]}
-          {n(top._raw?.pitcher_hr9, 0) > 0 && (
-            <span style={{ color: hr9Color(n(top._raw.pitcher_hr9, 0), C.text3) }}>
-              {' '}· {n(top._raw.pitcher_hr9, 0).toFixed(2)} HR/9
-            </span>
-          )}
-        </div>
-      )}
-      {rest.length > 0 && (
-        <div style={{ fontSize: TYPE.micro, color: C.text3, marginTop: 3, lineHeight: 1.5 }}>
-          {rest.map((r) => (
-            <span key={r._key}
-              onClick={(e) => { e.stopPropagation(); onPlayerClick?.(r._raw) }}
-              style={{ cursor: onPlayerClick ? 'pointer' : 'default', marginRight: 8, whiteSpace: 'nowrap' }}>
-              {r.name.split(' ').slice(-1)[0]} <b style={{ color: C.text2, fontFamily: NUM_FONT }}>{fmt(r)}</b>
-            </span>
-          ))}
-        </div>
-      )}
-    </div>
+    <SharedLeaderTile
+      {...props}
+      meta={(top) => <><MlbTeamMark abbr={top.team} style={{ height: 16, verticalAlign: 'middle' }} /> · {top.pa} PA</>}
+      facing={(top) => {
+        const facing = clean(top._raw?.pitcher_name, '')
+        if (!facing) return null
+        const hr9 = n(top._raw?.pitcher_hr9, 0)
+        return {
+          title: `Tonight: ${top.team} vs ${top.opp} — he faces ${facing}${hr9 ? `, ${hr9.toFixed(2)} HR/9` : ''}`,
+          text: (
+            <>
+              tonight vs {facing.split(' ').slice(-1)[0]}
+              {hr9 > 0 && (
+                <span style={{ color: hr9Color(hr9, C.text3) }}>
+                  {' '}· {hr9.toFixed(2)} HR/9
+                </span>
+              )}
+            </>
+          ),
+        }
+      }}
+    />
   )
 }
 

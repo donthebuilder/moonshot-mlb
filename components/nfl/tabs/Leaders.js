@@ -2,8 +2,10 @@
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../../lib/nfl/theme'
 import { injuryTag, injuryTitle, injuryColor } from '../../../lib/nfl/injury'
-import ChartFrame from '../ChartFrame'
 import PageHeader from '../../PageHeader'
+import LeaderTile from '../../LeaderTile'
+import NflTeamMark from '../NflTeamMark'
+import { PillRow } from '../../Filters'
 
 // 🏆 LEADERS — who is actually first, per category.
 //
@@ -39,15 +41,26 @@ import PageHeader from '../../PageHeader'
 // the same mistake the player modal's props grid was making with its all-zero
 // rows. A card has to have at least MIN_QUALIFIED players to exist.
 
-const MIN_QUALIFIED = 5      // fewer than this and the "leaderboard" is a list
-const TOP_N = 8              // how many a card shows when opened
-const PREVIEW_N = 3          // ...and before that, on every screen size
+// MOONSHOT'S TILE (2026-09-29, queue batch 9). Each category is MOONSHOT's
+// Leaders tile now (components/LeaderTile.js): the leader, his value, team and
+// position, who he plays this week, and #2 and #3. It replaced a card that
+// drew a bar behind every row -- a plain bar chart, and three to eight rows a
+// card, which on a phone was ~3,400px of page. The tile's label is the stat's
+// own plain-words description from the payload, so the meaning is on the
+// screen rather than in a hover.
 
-// Donovan, standing instruction: "long lists should preview a few rows,
-// everywhere they appear" — a phone must not have to scroll past 23 × 8 rows to
-// reach the bottom of this page. So every card previews PREVIEW_N and opens.
+const MIN_QUALIFIED = 5      // fewer than this and the "leaderboard" is a list
 
 const POSITIONS = ['ALL', 'QB', 'RB', 'WR', 'TE', 'K']
+
+// One colour per family of stat, so a glance down the grid reads as groups.
+const FAMILY = {
+  'TGT%': 'cyan', WOPR: 'cyan', TGT: 'cyan', REC: 'cyan', RECYD: 'cyan', AIRYD: 'cyan', '20+': 'cyan', SEP: 'cyan', YACOE: 'cyan',
+  CAR: 'orange', RUYD: 'orange', RYOE: 'orange',
+  RZ: 'green', GL: 'green', xTD: 'green', TD: 'green', TDoE: 'green',
+  PAYD: 'purple', PATD: 'purple', ATT: 'purple', CPOE: 'purple',
+  FGM: 'yellow', PAT: 'yellow',
+}
 
 // A `pct` column is stored as a RATE, not a percentage — target share arrives
 // as 0.37, not 37. Research.js:89 multiplies by 100 on the way out; this has to
@@ -57,91 +70,22 @@ const fmt = (v, dp, pct) => {
   return pct ? `${(v * 100).toFixed(dp ?? 1)}%` : v.toFixed(dp ?? 2)
 }
 
-function Card({ col, rows, open, onToggle, onPlayerClick }) {
-  const shown = open ? rows.slice(0, TOP_N) : rows.slice(0, PREVIEW_N)
-  const max = Math.max(...rows.slice(0, TOP_N).map((r) => Math.abs(r.v)), 0) || 1
+function meta(top) {
+  const tag = injuryTag(top._raw)
   return (
-    <ChartFrame pad="11px 12px 9px" style={{
-      borderRadius: 12, display: 'flex', flexDirection: 'column',
-    }}>
-      <header style={{ marginBottom: 8 }}>
-        <div style={{
-          fontFamily: NUM_FONT, fontSize: TYPE.name, fontWeight: 900, color: C.text,
-          letterSpacing: '.04em',
-        }}>{col.label}</div>
-        <div style={{ fontSize: TYPE.micro, color: C.text3, lineHeight: 1.45, marginTop: 2 }}>
-          {col.desc}
-        </div>
-      </header>
-
-      <ol style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
-        {shown.map((r, i) => {
-          const tag = injuryTag(r.p)
-          return (
-            <li key={r.p.player_id}>
-              <button
-                onClick={() => onPlayerClick?.(r.p)}
-                title={`${r.p.name} — open his card`}
-                style={{
-                  position: 'relative', width: '100%', display: 'flex', alignItems: 'center',
-                  gap: 7, padding: '4px 6px', borderRadius: 7, cursor: 'pointer',
-                  border: `1px solid ${i === 0 ? C.green + '3a' : 'transparent'}`,
-                  background: 'transparent', textAlign: 'left', overflow: 'hidden',
-                }}>
-                {/* the bar IS the ranking — chart-based, as asked for */}
-                <span aria-hidden style={{
-                  position: 'absolute', left: 0, top: 0, bottom: 0,
-                  width: `${Math.max(3, (Math.abs(r.v) / max) * 100)}%`,
-                  borderRadius: '0 5px 5px 0',
-                  background: i === 0
-                    ? `linear-gradient(90deg, ${C.green}75, ${C.green}38)`
-                    : `linear-gradient(90deg, ${C.green}30, ${C.green}18)`,
-                }} />
-                <span style={{
-                  position: 'relative', fontFamily: NUM_FONT, fontSize: TYPE.label, fontWeight: 900,
-                  color: i === 0 ? C.green : C.text3, minWidth: 12,
-                }}>{i + 1}</span>
-                <span style={{
-                  position: 'relative', flex: 1, minWidth: 0, fontSize: TYPE.name,
-                  fontWeight: i === 0 ? 800 : 650, color: C.text,
-                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                }}>{r.p.name}</span>
-                {tag && (
-                  <span title={injuryTitle(tag)} style={{
-                    position: 'relative', fontSize: TYPE.label, fontWeight: 900,
-                    color: injuryColor(tag, C),
-                  }}>{tag}</span>
-                )}
-                <span style={{
-                  position: 'relative', fontFamily: NUM_FONT, fontSize: TYPE.micro,
-                  color: C.text3, whiteSpace: 'nowrap',
-                }}>{r.p.position} · {r.p.team}</span>
-                <span style={{
-                  position: 'relative', fontFamily: NUM_FONT, fontSize: TYPE.title, fontWeight: 900,
-                  color: i === 0 ? C.green : C.text, minWidth: 46, textAlign: 'right',
-                }}>{fmt(r.v, col.dp, col.pct)}</span>
-              </button>
-            </li>
-          )
-        })}
-      </ol>
-
-      {rows.length > PREVIEW_N && (
-        <button onClick={onToggle} style={{
-          marginTop: 6, alignSelf: 'flex-start', background: 'transparent',
-          border: `1px solid ${C.border}`, borderRadius: 7, color: C.text3,
-          fontSize: TYPE.label, fontWeight: 800, padding: '3px 9px', cursor: 'pointer',
-        }}>
-          {open ? 'show less' : `show top ${Math.min(TOP_N, rows.length)}`}
-        </button>
-      )}
-    </ChartFrame>
+    <>
+      <NflTeamMark abbr={top._raw.team} style={{ verticalAlign: 'middle' }} /> · {top._raw.position}
+      {tag && <b title={injuryTitle(tag)} style={{ color: injuryColor(tag, C), marginLeft: 5 }}>{tag}</b>}
+    </>
   )
 }
 
+const facing = (top) => (top._raw?.opp
+  ? { text: `this week vs ${top._raw.opp}`, title: `This week: ${top._raw.team} vs ${top._raw.opp}` }
+  : null)
+
 export default function Leaders({ data, onPlayerClick }) {
   const [pos, setPos] = useState('ALL')
-  const [openKey, setOpenKey] = useState(null)
 
   const cols = data?.research_columns || []
   const players = data?.players || []
@@ -155,12 +99,12 @@ export default function Leaders({ data, onPlayerClick }) {
     const out = []
     for (const col of cols) {
       const rows = pool
-        .map((p) => ({ p, v: Number(p?.stats?.[col.key]) }))
+        .map((p) => ({ _key: p.player_id, name: p.name, _raw: p, v: Number(p?.stats?.[col.key]) }))
         .filter((r) => Number.isFinite(r.v) && r.v !== 0)
         .sort((a, b) => b.v - a.v)
       // A card has to be a leaderboard, not a shortlist. See the header note
       // about SEP / YACOE / RYOE, which no player carries at all.
-      if (rows.length >= MIN_QUALIFIED) out.push({ col, rows })
+      if (rows.length >= MIN_QUALIFIED) out.push({ col, rows: rows.slice(0, 3) })
     }
     return out
   }, [players, cols, pos])
@@ -172,26 +116,17 @@ export default function Leaders({ data, onPlayerClick }) {
       <PageHeader
         eyebrow="TUDDY · LEADERS"
         title="Who is first, and by how much"
-        note="Measured per-game rates from the slate — no model score anywhere on this page. Every board on the site already ranks by the model; this one ranks by what actually happened. Tap a name to open his card."
+        note="Measured per-game rates from the slate — no model score anywhere on this page. Tap a name to open his card."
         theme={C}
         numFont={NUM_FONT}
       />
 
-      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center' }}>
-        {POSITIONS.map((k) => (
-          <button key={k} onClick={() => setPos(k)} style={{
-            fontFamily: NUM_FONT, fontSize: TYPE.label, fontWeight: 900, cursor: 'pointer',
-            padding: '4px 11px', borderRadius: 8,
-            border: `1px solid ${pos === k ? C.green : C.border}`,
-            background: pos === k ? `${C.green}2a` : 'transparent',
-            color: pos === k ? C.green : C.text3,
-          }}>{k}</button>
-        ))}
-        <span style={{ fontSize: TYPE.micro, color: C.text3, marginLeft: 4 }}>
-          {cards.length} categor{cards.length === 1 ? 'y' : 'ies'}
-          {dropped > 0 && ` · ${dropped} hidden for want of data`}
-        </span>
-      </div>
+      <PillRow
+        value={pos}
+        onChange={setPos}
+        options={POSITIONS.map((k) => ({ key: k, label: k }))}
+        hint={`${cards.length} categor${cards.length === 1 ? 'y' : 'ies'}${dropped > 0 ? ` · ${dropped} hidden for want of data` : ''}`}
+      />
 
       {cards.length === 0 ? (
         <div style={{
@@ -201,24 +136,23 @@ export default function Leaders({ data, onPlayerClick }) {
           Nothing to rank at {pos} on this slate yet.
         </div>
       ) : (
-        <div style={{
-          display: 'grid', gap: 10,
-          gridTemplateColumns: 'repeat(auto-fill, minmax(268px, 1fr))',
+        <div className="bot-picks-grid" style={{
+          display: 'grid', gap: 8,
+          gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
         }}>
           {cards.map(({ col, rows }) => (
-            <Card key={col.key} col={col} rows={rows}
-                  open={openKey === col.key}
-                  onToggle={() => setOpenKey(openKey === col.key ? null : col.key)}
-                  onPlayerClick={onPlayerClick} />
+            <LeaderTile key={col.key} label={col.desc || col.label} rows={rows}
+              fmt={(r) => fmt(r.v, col.dp, col.pct)} color={C[FAMILY[col.key] || 'green']}
+              meta={meta} facing={facing} onPlayerClick={onPlayerClick}
+              theme={C} numFont={NUM_FONT} />
           ))}
         </div>
       )}
 
       <p style={{ fontSize: TYPE.micro, color: C.text3, lineHeight: 1.6, margin: '2px 2px 0' }}>
         Per-game rates over the trailing window the slate publishes, players on bye excluded.
-        A category needs {MIN_QUALIFIED} qualified players to appear at all — on the current
-        payload the NGS columns (separation, YAC over expected, rush yards over expected) are
-        carried by nobody, so they are not shown rather than shown empty.
+        A category needs {MIN_QUALIFIED} qualified players to appear at all; one the payload
+        doesn&apos;t carry is left out rather than shown empty.
       </p>
     </div>
   )
