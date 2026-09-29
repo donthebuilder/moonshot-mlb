@@ -10,6 +10,8 @@ import HisNumbers from '../../HisNumbers'
 import { etToday } from '../../../lib/freshness'
 import { useLampPlayer, useLampBoardOnce } from '../../../lib/nhl/useLamp'
 import VerdictHero from '../../VerdictHero'
+import { SportTheme } from '../../SportTheme'
+import StatStrip, { HitRateBoxes } from '../../StatStrip'
 import { nhlTeam } from '../../../lib/nhl/teams'
 import { usePreview, ShowMoreButton } from '../../ListPreview'
 import { STATUS, EmptyState, DelayedBanner, Loading, SourceLine, Kicker, StaleSeasonNote, fmtDay, fmtPuckDrop, zoneAbbrev, ageFrom, fmtHeight, fmtPct1, fmtPct3, fmt2, fmtSec, plusMinus, dash } from '../ui'
@@ -105,7 +107,33 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel }) {
     p.career.playoffs?.gp ? seasonLine(p.career.playoffs, 'Career playoffs') : null,
   ].filter(Boolean).map((r, i) => ({ ...r, _id: i }))
   const cols = goalie ? G_SEASON_COLS : SK_SEASON_COLS
+  // MOONSHOT's player-card pieces (2026-09-29, player cards step 6). LAMP's
+  // theme goes to the shared parts (Follow, notes, the strip) through
+  // SportTheme. Not CardShell's inline panel: its 20px padding cut "Connor
+  // McDavid" to "Connor Mc…" at 390. The season's line leads its section as
+  // MOONSHOT's StatStrip, a skater's recent goals as its HitRateBoxes (the
+  // league's game log, newest first; the season box from the featured line),
+  // under the kicker that names the season. Neutral colours: none of these
+  // numbers is ranked against anyone. A stat the feed doesn't carry is dropped.
+  const fr = f.regular
+  const lineStats = !fr ? [] : (goalie ? [
+    ['gp', 'GP', dash(fr.gp), 'Games played'], ['w', 'W', dash(fr.w), 'Wins'], ['svPct', 'SV%', fmtPct3(fr.svPct), 'Save percentage'],
+    ['gaa', 'GAA', fmt2(fr.gaa), 'Goals against average'], ['so', 'SO', dash(fr.so), 'Shutouts'],
+  ] : [
+    ['g', 'G', dash(fr.g), 'Goals'], ['a', 'A', dash(fr.a), 'Assists'], ['pts', 'PTS', dash(fr.pts), 'Points'],
+    ['shots', 'S', dash(fr.shots), 'Shots on goal'], ['shPct', 'S%', fmtPct1(fr.shPct), 'Shooting percentage'], ['toi', 'TOI', fmtSec(fr.toi), 'Average time on ice'],
+  ]).filter(([, , text]) => text && text !== '—').map(([id, label, text, name]) => ({ id, label, text, title: `${name}, ${f.seasonLabel} regular season${stale ? ' (last season)' : ''}.` }))
+  const logNewest = p.log?.rows || []
+  const goalsIn = (n) => {
+    const g = logNewest.slice(0, n)
+    return g.length === n ? { num: g.reduce((t, r) => t + (Number(r.g) || 0), 0), den: n } : null
+  }
+  const goalBoxes = goalie ? [] : [
+    ['l5', 'L5', goalsIn(5)], ['l10', 'L10', goalsIn(10)],
+    ['szn', f.seasonLabel || 'Season', Number.isFinite(fr?.g) && fr?.gp > 0 ? { num: fr.g, den: fr.gp } : null],
+  ].filter(([, , v]) => v).map(([id, label, v]) => ({ id, label, ...v, unit: 'GP' }))
   return (
+    <SportTheme theme={C} accent={C.ice}>
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <BackBtn onBack={onBack} label={backLabel} />
       <DelayedBanner error={error} what="the league’s player feed" />
@@ -141,6 +169,11 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel }) {
       <section aria-label="Season line">
         <Kicker>{goalie ? 'RECORD' : 'THE LINE'} · {f.seasonLabel}{stale ? ' (LAST SEASON)' : ''}</Kicker>
         {stale && <div style={{ marginBottom: 10 }}><StaleSeasonNote label={f.seasonLabel} opens={p.opens} what="line" /></div>}
+        {lineStats.length > 0 && <StatStrip stats={lineStats} />}
+        {goalBoxes.length > 0 && <HitRateBoxes boxes={goalBoxes} style={{ marginTop: 6 }}
+          text={(b) => `${b.num} ${b.num === 1 ? 'goal' : 'goals'}`}
+          tip={(b) => `${b.num} goal${b.num === 1 ? '' : 's'} in his last ${b.den} games${b.id === 'szn' ? ` (${f.seasonLabel} regular season)` : ''}.`} />}
+        {(lineStats.length > 0 || goalBoxes.length > 0) && <div style={{ height: 10 }} />}
         {f.regular
           ? <LampTable rows={thisSeasonRows} columns={cols.filter((c) => c.key !== 'team')} maxHeight={9999} heatMode="none" />
           : <EmptyState title="NO NHL LINE YET" note="The league has no regular-season line for him. A camp invite or a prospect, most likely." />}
@@ -217,6 +250,7 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel }) {
       {!goalie && <HisNumbers name={p.name} jersey={p.number} birthDate={p.birthDate} next={!stale && Number.isFinite(f.regular?.g) ? f.regular.g + 1 : null} career={Number.isFinite(p.career?.regular?.g) ? p.career.regular.g + 1 : null} nextWord="goal" date={etToday()} theme={C} accent={C.ice} numFont={NUM_FONT} />}
       <SourceLine>Source: NHL player/{p.id}/landing and player/{p.id}/game-log/{'{season}'}/2 via /api/lamp/player, cached ten minutes. The featured season is the feed’s own.</SourceLine>
     </div>
+    </SportTheme>
   )
 }
 

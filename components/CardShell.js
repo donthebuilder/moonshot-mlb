@@ -1,6 +1,7 @@
 'use client'
 import { C as MLB_C } from '../lib/theme'
 import { useDialog } from '../lib/useDialog'
+import { SportTheme } from './SportTheme'
 
 // THE PLAYER CARD'S SHELL, SHARED (2026-09-29, player cards step 2). Moved
 // verbatim out of components/PlayerModal.js so TUDDY's card (and LAMP's
@@ -11,8 +12,11 @@ import { useDialog } from '../lib/useDialog'
 // `inline` renders the same content as a plain panel instead of a popup.
 // The Player tab needs exactly this view but sitting still on the page --
 // a modal is a bad place to read for five minutes.
-export default function CardShell({ inline, onClose, width, children, label, theme = MLB_C }) {
+export default function CardShell({ inline, onClose, width, children: kids, label, theme = MLB_C, accent }) {
   const C = theme
+  // TUDDY / LAMP: MOONSHOT's parts inside the card read the sport's theme
+  // (components/SportTheme.js). MOONSHOT passes no theme, so nothing changes.
+  const children = theme === MLB_C ? kids : <SportTheme theme={theme} accent={accent}>{kids}</SportTheme>
   // A11Y-3 (2026-09-24): role, focus, Escape, Tab kept inside. lib/useDialog.js.
   const { ref, dialogProps } = useDialog({ open: !inline, onClose, label })
   if (inline) {

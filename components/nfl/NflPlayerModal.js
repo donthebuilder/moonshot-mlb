@@ -3,7 +3,12 @@ import { useEffect, useState } from 'react'
 
 import useScrollLock from '../../lib/useScrollLock'
 import CardShell from '../CardShell'
-import { C, NUM_FONT, MARKETS, gradeFor } from '../../lib/nfl/theme'
+// MOONSHOT's tab row + peer arrows (with its tonight's-game grouping), in the
+// sport theme CardShell provides. TUDDY keys players by gsis string.
+import { TabBtn, Navigator } from '../card/CardNav'
+const nflIdOf = (x) => String(x?.player_id ?? '')
+import { C, NUM_FONT, MARKETS, MARKET_SHORT, gradeFor } from '../../lib/nfl/theme'
+import StatStrip, { HitRateBoxes } from '../StatStrip'
 import PropsGrid from './PropsGrid'
 import { STAT_KEY } from './HitRate'
 import PlayerNotes from '../PlayerNotes'
@@ -535,106 +540,7 @@ const TABS = [
   { key: 'splits', label: '\u{1F4C5} Splits' },
 ]
 
-function TabBtn({ active, onClick, children }) {
-  return (
-    <button onClick={onClick} style={{
-      padding: '5px 13px', fontSize: 11, fontWeight: 700, cursor: 'pointer', borderRadius: 999,
-      border: `1px solid ${active ? C.green : C.border}`,
-      background: active ? `${C.green}22` : 'rgba(255,255,255,.035)',
-      color: active ? C.green : C.text2, whiteSpace: 'nowrap',
-    }}>{children}</button>
-  )
-}
 
-// 👥 PEER NAVIGATION — MOONSHOT's Navigator, in the NFL palette.
-//
-// `peers` is the list you were actually reading, in its order, so the arrows
-// follow whatever board you opened the card from rather than the raw payload.
-// Left/right arrow keys drive it, and a name is not a keyboard shortcut, so
-// the handler stands down inside any input.
-//
-// The game grouping MLB has (pitcher <-> the hitter he faces) has no football
-// equivalent worth cloning -- there is no single opposite number -- so this
-// ports the arrows and the search and stops there rather than inventing a
-// grouping the sport does not have.
-function Navigator({ peers, cur, onNavigate }) {
-  const [q, setQ] = useState('')
-  const [open, setOpen] = useState(false)
-  const curId = String(cur?.player_id ?? '')
-  const idx = peers.findIndex((x) => String(x?.player_id ?? '') === curId)
-  const go = (d) => {
-    if (idx < 0) return
-    const next = peers[idx + d]
-    if (next) onNavigate?.(next)
-  }
-
-  useEffect(() => {
-    const onKey = (e) => {
-      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
-      const t = e.target
-      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
-      e.preventDefault()
-      go(e.key === 'ArrowRight' ? 1 : -1)
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  })
-
-  const hits = q.trim().length < 2 ? [] : peers.filter((x) => (
-    String(x?.name || '').toLowerCase().includes(q.trim().toLowerCase())
-  )).slice(0, 8)
-
-  const btn = (enabled) => ({
-    background: 'transparent', border: `1px solid ${enabled ? C.border2 : C.border}`,
-    color: enabled ? C.text2 : C.text3, borderRadius: 7, padding: '3px 9px',
-    fontSize: 13, lineHeight: 1, cursor: enabled ? 'pointer' : 'default',
-    opacity: enabled ? 1 : 0.4, minWidth: 30, minHeight: 26,
-  })
-
-  if (!peers.length) return null
-  return (
-    <div style={{ position: 'relative', display: 'flex', gap: 5, alignItems: 'center' }}>
-      <button onClick={() => go(-1)} disabled={idx <= 0}
-        title="Previous player in this list (←)" style={btn(idx > 0)}>‹</button>
-      <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT, minWidth: 44, textAlign: 'center' }}>
-        {idx >= 0 ? `${idx + 1} / ${peers.length}` : '—'}
-      </span>
-      <button onClick={() => go(1)} disabled={idx < 0 || idx >= peers.length - 1}
-        title="Next player in this list (→)" style={btn(idx >= 0 && idx < peers.length - 1)}>›</button>
-      <button onClick={() => setOpen((v) => !v)} title="Jump to any player on the slate"
-        style={{ ...btn(true), fontSize: 11 }}>🔍</button>
-      {open && (
-        <div style={{
-          position: 'absolute', top: '100%', right: 0, marginTop: 6, zIndex: 5,
-          background: C.bg2, border: `1px solid ${C.border2}`, borderRadius: 10,
-          padding: 8, width: 240, boxShadow: '0 10px 30px rgba(0,0,0,.5)',
-        }}>
-          <input
-            autoFocus value={q} onChange={(e) => setQ(e.target.value)}
-            placeholder="Search this list…"
-            style={{
-              width: '100%', boxSizing: 'border-box', background: C.bg,
-              border: `1px solid ${C.border}`, borderRadius: 7, padding: '6px 8px',
-              color: C.text, fontSize: 12, marginBottom: 6,
-            }}
-          />
-          {hits.length === 0 ? (
-            <div style={{ fontSize: 10, color: C.text3, padding: '4px 2px' }}>
-              {q.trim().length < 2 ? 'Type two letters.' : 'Nobody on this list by that name.'}
-            </div>
-          ) : hits.map((x) => (
-            <button key={String(x.player_id)}
-              onClick={() => { onNavigate?.(x); setOpen(false); setQ('') }}
-              style={{
-                display: 'block', width: '100%', textAlign: 'left', background: 'transparent',
-                border: 0, color: C.text2, fontSize: 11, padding: '5px 4px', cursor: 'pointer',
-              }}>{x.name} <span style={{ color: C.text3 }}>{x.position} · {x.team}</span></button>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
 
 export default function NflPlayerModal({ player, market, markets, splitMeta, logs, matchup, slate, picks, results, onClose, onFullProfile, peers = [], onNavigate = null, initialTab = '', odds = null }) {
   useScrollLock(Boolean(player))
@@ -658,7 +564,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
     // MOONSHOT's shell (components/CardShell.js, 2026-09-29): same backdrop,
     // focus trap and the .modal-* phone sheet as the MLB card. Width still
     // follows the content (620 overview / 900 table tabs).
-    <CardShell theme={C} width={tab === 'overview' ? 620 : 900} onClose={onClose} label={`${player?.name || 'Player'} card`}>
+    <CardShell theme={C} accent={C.green} width={tab === 'overview' ? 620 : 900} onClose={onClose} label={`${player?.name || 'Player'} card`}>
         {/* THE HEAD (phone pass, 2026-09-27): name + a close that is always on
             screen. The actions used to share this row without wrapping, which
             pushed the 📸 and the close button off the right edge of a phone --
@@ -725,30 +631,30 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
         {/* MOONSHOT's multi-HR line, TUDDY's words (it was on the player file, not the card). */}
         <MultiLine sport="nfl" playerId={player?.player_id} words={{ TD: 'multi-TD', PASS_TD: '2+ passing-TD' }} color={C.green} textColor={C.text2} />
 
-        {/* every market's score, so you can see the whole player at once */}
-        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', margin: '13px 0 4px' }}>
-          {MARKETS.map(([k, label]) => {
-            const s = player.scores?.[k]
-            if (!Number.isFinite(s)) return null
-            const g = gradeFor(s)
-            const on = k === market
-            return (
-              <div key={k} title={label} style={{
-                padding: '4px 9px', borderRadius: 8,
-                background: on ? `${g.color}1f` : 'rgba(255,255,255,.03)',
-                border: `1px solid ${on ? g.color + '66' : C.border}`,
-              }}>
-                <div style={{ fontSize: 9.5, color: C.text3, fontWeight: 800 }}>
-                  {/* the market's name, not its payload key (REC_YDS read as code) */}
-                  <NflExplain label={label} term={k} />
-                </div>
-                <div style={{
-                  fontFamily: NUM_FONT, fontSize: 13, fontWeight: 900, color: g.color,
-                }}>{Math.round(s)}</div>
-              </div>
-            )
-          })}
-        </div>
+        {/* every market's score, so you can see the whole player at once --
+            MOONSHOT's StatStrip (2026-09-29), each tile in its grade's colour.
+            The market on screen leads. */}
+        <StatStrip style={{ margin: '13px 0 4px' }} stats={[...MARKETS]
+          .sort(([a], [b]) => (b === market) - (a === market))
+          .filter(([k]) => Number.isFinite(player.scores?.[k]))
+          .map(([k, label]) => {
+            const s = player.scores[k]
+            return { id: k, label: MARKET_SHORT[k] || label, text: String(Math.round(s)), color: gradeFor(s).color, title: `${label}: ${Math.round(s)} (score, a ranking -- not a percentage)` }
+          })} />
+        {/* MOONSHOT's HitRateBoxes under the strip, as on its card: how often he
+            reached the card's bar in the market on screen -- the same numbers
+            as the rates table below (ratesFor), last 4 / last 8 / this season. */}
+        {(() => {
+          const r = ratesFor(player, markets, logs?.logs?.[player.player_id]?.log).find((x) => x.key === market)
+          if (!r || r.bar == null) return null
+          const boxes = [['l4', 'L4', r.l4], ['l8', 'L8', r.l8], ['szn', String(r.seasonYear || 'Season'), r.season]]
+            .filter(([, , pr]) => pr[1] > 0)
+            .map(([id, label, [num, den]]) => ({ id, label, num, den, unit: 'G' }))
+          return <HitRateBoxes boxes={boxes} style={{ margin: '6px 0 2px' }}
+            text={(b) => `${b.num}/${b.den}`}
+            sub={() => (r.key === 'TD' ? 'G with a TD' : `G at ${r.bar}+`)}
+            tip={(b) => `${r.label}: reached ${r.bar}+ in ${b.num} of his last ${b.den} games${b.id === 'szn' ? ' this season' : ''}.`} />
+        })()}
 
         {/* THE PRICE (2026-09-27): TUDDY has prices again (/api/odds/latest,
             our own feed). The line for the market on screen, the best book,
@@ -783,7 +689,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
               <TabBtn key={t.key} active={tab === t.key} onClick={() => setTab(t.key)}>{t.label}</TabBtn>
             ))}
           </div>
-          {onNavigate && <Navigator peers={peers} cur={player} onNavigate={onNavigate} />}
+          {onNavigate && <Navigator peers={peers} cur={player} onNavigate={onNavigate} idOf={nflIdOf} noun="player" />}
         </div>
 
         {/* graded state and your card, before the matchup: the two things a

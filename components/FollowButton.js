@@ -17,12 +17,15 @@
 // game — which is the whole distinction — so this renders on the API-only
 // cards where the watch button correctly refuses to.
 
-import { C, NUM_FONT } from '../lib/theme'
+import { useSportTheme } from './SportTheme'
+import { alpha } from '../lib/scales'
 import { useFollowing } from '../lib/dash/follow'
 import { useDashAccount } from '../lib/dash/sync'
 
 export default function FollowButton({ sport = 'mlb', id, name, team, position, compact = false }) {
   const { following, toggle } = useFollowing(sport)
+  // TUDDY / LAMP cards: the sport's cool accent (C.cyan on every theme).
+  const { C, NUM_FONT, themed } = useSportTheme()
   const account = useDashAccount()
   if (!id) return null
 
@@ -44,7 +47,7 @@ export default function FollowButton({ sport = 'mlb', id, name, team, position, 
         borderRadius: 7,
         cursor: 'pointer',
         border: `1px solid ${on ? C.cyan : C.border}`,
-        background: on ? 'rgba(34,211,238,.14)' : 'transparent',
+        background: on ? (themed ? alpha(C.cyan, 0.14) : 'rgba(34,211,238,.14)') : 'transparent',
         color: on ? C.cyan : C.text3,
         whiteSpace: 'nowrap',
       }}
