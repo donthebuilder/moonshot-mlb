@@ -170,7 +170,7 @@ export default function Guide({ onNavigate, data }) {
           <PageCard tab="standings" title={NFL_NAV.standings.label} note="Every division: record, points for and against, home and road, division and conference records, streak. Measured, not modeled." onNavigate={onNavigate} />
           <PageCard tab="leaders" title="Leaders" note="Who is first in each stat category, already sorted side by side — measured, not modeled." onNavigate={onNavigate} />
           <PageCard tab="live" title="Live" note="Every rung on the card against its bar, on the league feed, while the game is on. Cleared, live, or missed — plus the scoring plays as they land." onNavigate={onNavigate} />
-          <PageCard tab="boxscores" title="Box Scores" note="This week's games broken into passing, rushing, receiving and kicking lines, plus each team's defense." onNavigate={onNavigate} />
+          <PageCard tab="scores" title={NFL_NAV.scores.label} note="Every game, one row each: kickoff or score. Tap a game for its box -- passing, rushing, receiving and kicking lines, plus each team's defense." onNavigate={onNavigate} />
           <PageCard tab="streaks" title="Streaks" note="Who is hot or cold at a line you pick, last 30 games, no model in the way. Hot is the play; cold is the fade." onNavigate={onNavigate} />
           <PageCard tab="accountability" title="The record" note="Public receipts for completed calls, including misses. This is where trust is earned." onNavigate={onNavigate} />
           <PageCard tab="ledger" title={NFL_NAV.ledger.label} note="The week in names and numbers: the card's touchdown calls and how many scored, round numbers, who needs what, name echoes -- counting facts, not picks." onNavigate={onNavigate} />

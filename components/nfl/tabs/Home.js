@@ -391,7 +391,7 @@ export default function Home({ data, picks, results, matchup, logs, onPlayerClic
         renderState={combinedRenderState}
         label="This week"
         moreLabel="full box scores →"
-        moreTarget="boxscores"
+        moreTarget="scores"
         onNavigate={setTab}
         onSwitchSport={setSport}
       />

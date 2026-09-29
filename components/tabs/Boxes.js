@@ -8,6 +8,7 @@ import { scheduleFor, fullBox, forget, slateDay } from '../../lib/boxscore'
 import { fetchLiveSlate, pickCleared } from '../../lib/liveSlate'
 import { primaryRole } from '../../lib/verdict'
 import { BattingBox, PitchingBox, LineScore } from '../BoxTable'
+import GameRow from '../GameRow'
 
 // 📋 BOXES — every game, live or finished, with the whole box under it.
 //
@@ -122,97 +123,68 @@ function GameCard({ g, open, onToggle, watchIds, onPlayerClick, stake }) {
     ? (g.away.score > g.home.score ? 'away' : g.home.score > g.away.score ? 'home' : null)
     : null
 
-  return (
-    <div style={{
-      border: `1px solid ${open ? `${C.orange}55` : C.border}`, borderRadius: 12,
-      background: open ? 'rgba(249,115,22,.03)' : C.bg2, marginBottom: 8, overflow: 'hidden',
-    }}>
-      <div onClick={() => onToggle(g.pk)} className="tap-row" style={{
-        display: 'flex', alignItems: 'center', gap: 12, padding: '9px 13px', cursor: 'pointer',
-      }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          {[['away', g.away], ['home', g.home]].map(([side, t]) => (
-            <div key={side} style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-              <span style={{
-                fontSize: 12.5, fontWeight: winner === side ? 900 : 600,
-                color: winner && winner !== side ? C.text3 : C.text,
-                minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-              }}>{t.name || t.abbr}</span>
-              {t.record && (
-                <span style={{ fontFamily: NUM_FONT, fontSize: 8.5, color: C.text3 }}>
-                  {t.record.wins}-{t.record.losses}
-                </span>
-              )}
-              <span style={{
-                marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: 15,
-                fontWeight: 900, minWidth: 26, textAlign: 'right',
-                color: t.score == null ? C.text3 : winner === side ? C.orange : C.text,
-              }}>{t.score ?? '–'}</span>
-            </div>
-          ))}
-        </div>
-        <div style={{ textAlign: 'right', flexShrink: 0, minWidth: 78 }}>
-          <div style={{ fontFamily: NUM_FONT, fontSize: 10, fontWeight: 800, color: st.tone }}>{st.text}</div>
-          {g.final && (g.decisions.win || g.decisions.save) && (
-            <div style={{ fontFamily: NUM_FONT, fontSize: 8.5, color: C.text3, marginTop: 2 }}>
-              {g.decisions.win ? `W ${g.decisions.win.split(' ').slice(-1)[0]}` : ''}
-              {g.decisions.save ? ` · S ${g.decisions.save.split(' ').slice(-1)[0]}` : ''}
-            </div>
-          )}
-          {!started && (g.away.probable || g.home.probable) && (
-            <div style={{ fontFamily: NUM_FONT, fontSize: 8.5, color: C.text3, marginTop: 2 }}>
-              {g.away.probable.split(' ').slice(-1)[0]} / {g.home.probable.split(' ').slice(-1)[0]}
-            </div>
-          )}
-        </div>
-        <span style={{ color: C.text3, fontSize: 11, flexShrink: 0 }}>{open ? '▾' : '▸'}</span>
-      </div>
-
-      {/* Outside the click row so it can wrap on a phone without pushing the
-          score column around. */}
-      <div style={{ padding: '0 13px 8px' }}><StakeStrip stake={stake} /></div>
-
-      {open && (
-        <div style={{ padding: '0 13px 12px', borderTop: `1px solid ${C.border}` }}>
-          {!started ? (
-            <div style={{ fontSize: 11, color: C.text3, padding: '10px 0', lineHeight: 1.6 }}>
-              Hasn&apos;t started. {g.venue ? `${g.venue}. ` : ''}
-              {g.away.probable && g.home.probable
-                ? `${g.away.probable} vs ${g.home.probable}.`
-                : 'Probables not posted yet.'}
-            </div>
-          ) : box === undefined ? (
-            <div style={{ fontSize: 10.5, color: C.text3, fontFamily: NUM_FONT, padding: '10px 0' }}>Loading the box…</div>
-          ) : !box ? (
-            <div style={{ fontSize: 10.5, color: C.orange, padding: '10px 0' }}>
-              The league didn&apos;t return a box for this game.
-            </div>
-          ) : (
-            <div style={{ paddingTop: 10 }}>
-              <LineScore game={g} />
-              <div className="box-cols" style={{
-                display: 'grid', gap: 18,
-                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 380px), 1fr))',
-              }}>
-                {[['away', g.away], ['home', g.home]].map(([side, t]) => (
-                  <div key={side} style={{ minWidth: 0 }}>
-                    <BattingBox side={box[side]} title={t.name || t.abbr}
-                      highlight={watchIds} onPlayerClick={onPlayerClick} />
-                    <PitchingBox side={box[side]} />
-                  </div>
-                ))}
-              </div>
-              <div style={{ fontSize: 9, color: C.text3, marginTop: 9, lineHeight: 1.5 }}>
-                Straight off the league&apos;s boxscore — indented names are substitutes.
-                {g.live ? ' Refreshing every 30s.' : ''}
-                {watchIds?.size ? ' Orange rows are your watchlist.' : ''}
-                {' '}Tap a batter for his card.
-              </div>
-            </div>
-          )}
+  const sub = (
+    <>
+      {g.final && (g.decisions.win || g.decisions.save) && (
+        <div style={{ fontFamily: NUM_FONT, fontSize: 8.5, color: C.text3, marginTop: 2 }}>
+          {g.decisions.win ? `W ${g.decisions.win.split(' ').slice(-1)[0]}` : ''}
+          {g.decisions.save ? ` · S ${g.decisions.save.split(' ').slice(-1)[0]}` : ''}
         </div>
       )}
-    </div>
+      {!started && (g.away.probable || g.home.probable) && (
+        <div style={{ fontFamily: NUM_FONT, fontSize: 8.5, color: C.text3, marginTop: 2 }}>
+          {g.away.probable.split(' ').slice(-1)[0]} / {g.home.probable.split(' ').slice(-1)[0]}
+        </div>
+      )}
+    </>
+  )
+
+  return (
+    <GameRow
+      id={g.pk} open={open} onToggle={onToggle} winner={winner} status={st} sub={sub}
+      sides={[['away', g.away], ['home', g.home]].map(([side, t]) => ({
+        key: side, label: t.name || t.abbr, score: t.score,
+        record: t.record ? `${t.record.wins}-${t.record.losses}` : null,
+      }))}
+      strip={<StakeStrip stake={stake} />}
+    >
+      {!started ? (
+        <div style={{ fontSize: 11, color: C.text3, padding: '10px 0', lineHeight: 1.6 }}>
+          Hasn&apos;t started. {g.venue ? `${g.venue}. ` : ''}
+          {g.away.probable && g.home.probable
+            ? `${g.away.probable} vs ${g.home.probable}.`
+            : 'Probables not posted yet.'}
+        </div>
+      ) : box === undefined ? (
+        <div style={{ fontSize: 10.5, color: C.text3, fontFamily: NUM_FONT, padding: '10px 0' }}>Loading the box…</div>
+      ) : !box ? (
+        <div style={{ fontSize: 10.5, color: C.orange, padding: '10px 0' }}>
+          The league didn&apos;t return a box for this game.
+        </div>
+      ) : (
+        <div style={{ paddingTop: 10 }}>
+          <LineScore game={g} />
+          <div className="box-cols" style={{
+            display: 'grid', gap: 18,
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 380px), 1fr))',
+          }}>
+            {[['away', g.away], ['home', g.home]].map(([side, t]) => (
+              <div key={side} style={{ minWidth: 0 }}>
+                <BattingBox side={box[side]} title={t.name || t.abbr}
+                  highlight={watchIds} onPlayerClick={onPlayerClick} />
+                <PitchingBox side={box[side]} />
+              </div>
+            ))}
+          </div>
+          <div style={{ fontSize: 9, color: C.text3, marginTop: 9, lineHeight: 1.5 }}>
+            Straight off the league&apos;s boxscore — indented names are substitutes.
+            {g.live ? ' Refreshing every 30s.' : ''}
+            {watchIds?.size ? ' Orange rows are your watchlist.' : ''}
+            {' '}Tap a batter for his card.
+          </div>
+        </div>
+      )}
+    </GameRow>
   )
 }
 

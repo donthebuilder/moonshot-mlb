@@ -38,7 +38,6 @@ import Numerology from './tabs/Numerology'
 import Report from './tabs/Report'
 import Accountability from './tabs/Accountability'
 import TuddyLedger from './tabs/TuddyLedger'
-import BoxScores from './tabs/BoxScores'
 import Scores from './tabs/Scores'
 import Standings from './tabs/Standings'
 import Pairs from './tabs/Pairs'
@@ -366,8 +365,7 @@ export default function NflDashboard({ palettePass = 0 }) {
             {tab === 'accountability' && <Accountability data={data} results={nflResults} onPlayerClick={openPlayer} />}
             {tab === 'tuddyledger' && <TuddyLedger data={data} results={nflResults} onPlayerClick={openPlayer} />}
             {tab === 'ledger' && <Ledger data={slate} picks={picks} results={nflResults} matchup={matchup} onPlayerClick={openPlayer} onOpenTeam={(abbr) => { setPortalTeam(abbr); setTab('players') }} onOpenGame={(id) => { leaveTarget('game', id); setTab('games') }} />}
-            {tab === 'boxscores' && <BoxScores data={data} onPlayerClick={openPlayer} />}
-            {tab === 'scores' && <Scores data={slate} />}
+            {tab === 'scores' && <Scores data={slate} onPlayerClick={openPlayer} />}
             {tab === 'standings' && <Standings onOpenTeam={(abbr) => { setPortalTeam(abbr); setTab('players') }} />}
             {tab === 'pairs' && <Pairs data={data} results={nflResults} onPlayerClick={openPlayer} />}
             {tab === 'guide' && <Guide onNavigate={setTab} data={data} />}

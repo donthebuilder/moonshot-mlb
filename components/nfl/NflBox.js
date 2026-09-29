@@ -1,13 +1,10 @@
 'use client'
-import { useEffect, useMemo, useState } from 'react'
-import { C, NUM_FONT, TYPE } from '../../../lib/nfl/theme'
-import { fetchNfl, nflFantasyStatsPaths, nflFantasyStatsLooksReal } from '../../../lib/nfl/dataSource'
-import NflTable from '../NflTable'
-import { useNflWatchlist } from '../../../lib/nfl/watchlist'
-import { Empty } from '../../ui'
-import PageHeader from '../../PageHeader'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { C, NUM_FONT, TYPE } from '../../lib/nfl/theme'
+import { fetchNfl, nflFantasyStatsPaths, nflFantasyStatsLooksReal } from '../../lib/nfl/dataSource'
+import NflTable from './NflTable'
 
-// 📋 BOX SCORES — TUDDY'S SIDE OF PATH TO VICTORY B10m.
+// 📋 BOX SCORES (now the open half of the Games page) — TUDDY'S SIDE OF PATH TO VICTORY B10m.
 //
 // MOONSHOT could grade a pick against a box score and show you who was at
 // the plate, and could not show you a box score (components/tabs/Boxes.js,
@@ -87,13 +84,6 @@ const CATS = [
   },
 ]
 
-function statusOf(g) {
-  if (g.completed || g.state === 'post') return { text: 'FINAL', tone: C.text3 }
-  if (g.state === 'in') return { text: 'LIVE', tone: C.green }
-  const t = g.kickoff ? new Date(g.kickoff).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit' }) : 'Scheduled'
-  return { text: t, tone: C.text3 }
-}
-
 function DefRow({ abbr, d }) {
   if (!d) return null
   return (
@@ -127,95 +117,77 @@ function TeamDefenseStrip({ away, home, defense }) {
   )
 }
 
-function GameBox({ game, byTeam, defense, open, onToggle, onPlayerClick, watchlist }) {
-  const st = statusOf(game)
+/** The open half of a Games-page row: the category tables and both defenses.
+ *  Moved here from the old Box Scores page when Scores and Box Scores merged
+ *  (2026-09-29, queue batch 8). The row itself is components/GameRow.js. */
+export function NflBox({ game, byTeam, defense, onPlayerClick, watchlist }) {
   const away = byTeam.get(game.away) || []
   const home = byTeam.get(game.home) || []
-  const pool = useMemo(() => [...away, ...home], [away, home])
-  const anyStats = pool.length > 0
+  const pool = [...away, ...home]
   const watchColumn = { key: 'watched', label: '☆', action: true, w: 28, mark: '★', markOff: '☆',
     titleOn: 'Remove from watchlist', titleOff: 'Add to watchlist',
     onAction: (row) => watchlist.toggle(row) }
-
-  return (
-    <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, marginBottom: 8, overflow: 'hidden' }}>
-      <div
-        onClick={onToggle}
-        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 13px', cursor: 'pointer' }}
-      >
-        <div style={{ fontFamily: NUM_FONT, fontWeight: 900, fontSize: TYPE.name }}>
-          {game.away} <span style={{ color: C.text3, fontWeight: 700 }}>{game.away_score ?? ''}</span>
-          {' @ '}
-          {game.home} <span style={{ color: C.text3, fontWeight: 700 }}>{game.home_score ?? ''}</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.label, fontWeight: 800, color: st.tone }}>{st.text}</span>
-          <span style={{ color: C.text3, fontSize: TYPE.micro }}>{open ? '▾' : '▸'}</span>
-        </div>
+  if (!pool.length) {
+    return (
+      <div style={{ fontSize: TYPE.body, color: C.text3, padding: '10px 0', lineHeight: 1.6 }}>
+        {game.state === 'pre'
+          ? "Hasn't kicked off yet."
+          : "No box in this feed yet for this game — check back once the bot's next 15-minute publish lands."}
       </div>
-      {open && (
-        <div style={{ padding: '0 13px 12px', borderTop: `1px solid ${C.border}` }}>
-          {!anyStats ? (
-            <div style={{ fontSize: TYPE.body, color: C.text3, padding: '10px 0', lineHeight: 1.6 }}>
-              {game.state === 'pre'
-                ? "Hasn't kicked off yet."
-                : "No box in this feed yet for this game — check back once the bot's next 15-minute publish lands."}
+    )
+  }
+  return (
+    <div style={{ paddingTop: 8 }}>
+      {CATS.map((cat) => {
+        const rows = pool.filter((p) => cat.has(p)).sort((a, b) => (b[cat.sort] || 0) - (a[cat.sort] || 0))
+          .map((p) => ({ ...p, watched: watchlist.isPinned(p.id) ? 1 : 0 }))
+        if (!rows.length) return null
+        return (
+          <div key={cat.key} style={{ marginBottom: 10 }}>
+            <div style={{ fontSize: TYPE.label, color: C.text3, fontWeight: 800, letterSpacing: '.05em', textTransform: 'uppercase', marginBottom: 4 }}>
+              {cat.label}
             </div>
-          ) : (
-            <div style={{ paddingTop: 8 }}>
-              {CATS.map((cat) => {
-                const rows = pool.filter((p) => cat.has(p)).sort((a, b) => (b[cat.sort] || 0) - (a[cat.sort] || 0))
-                  .map((p) => ({ ...p, watched: watchlist.isPinned(p.id) ? 1 : 0 }))
-                if (!rows.length) return null
-                return (
-                  <div key={cat.key} style={{ marginBottom: 10 }}>
-                    <div style={{ fontSize: TYPE.label, color: C.text3, fontWeight: 800, letterSpacing: '.05em', textTransform: 'uppercase', marginBottom: 4 }}>
-                      {cat.label}
-                    </div>
-                    <NflTable
-                      rows={rows}
-                      columns={[watchColumn, ...cat.columns]}
-                      onRowClick={onPlayerClick ? (r) => onPlayerClick(r._raw, cat.key === 'passing' ? 'PASS_YDS' : cat.key === 'rushing' ? 'RUSH_YDS' : cat.key === 'receiving' ? 'REC_YDS' : 'KICK_PTS') : null}
-                      maxHeight={9999}
-                      dense
-                    />
-                  </div>
-                )
-              })}
-              <TeamDefenseStrip away={game.away} home={game.home} defense={defense} />
-            </div>
-          )}
-        </div>
-      )}
+            <NflTable
+              rows={rows}
+              columns={[watchColumn, ...cat.columns]}
+              onRowClick={onPlayerClick ? (r) => onPlayerClick(r._raw, cat.key === 'passing' ? 'PASS_YDS' : cat.key === 'rushing' ? 'RUSH_YDS' : cat.key === 'receiving' ? 'REC_YDS' : 'KICK_PTS') : null}
+              maxHeight={9999}
+              dense
+            />
+          </div>
+        )
+      })}
+      <TeamDefenseStrip away={game.away} home={game.home} defense={defense} />
     </div>
   )
 }
 
-export default function BoxScores({ data, onPlayerClick }) {
-  const watchlist = useNflWatchlist(data)
-  const [stats, setStats] = useState(undefined) // undefined = loading, null = unreachable
-  const [open, setOpen] = useState(() => new Set())
-
+/** The bot's live-scoring feed (one week: the latest played or playing), fetched
+ *  only once `want` turns true -- a visit that never opens a box never pays
+ *  for it. stats: undefined = not asked / loading, null = unreachable. */
+export function useNflBoxFeed(data, want) {
+  const [stats, setStats] = useState(undefined)
+  // A ref, not state: flipping state here re-ran the effect, and its cleanup
+  // dropped the fetch it had just started.
+  const asked = useRef(false)
+  const alive = useRef(true)
+  useEffect(() => () => { alive.current = false }, [])
   useEffect(() => {
-    let alive = true
+    if (!want || asked.current) return
+    asked.current = true
     fetchNfl(nflFantasyStatsPaths(), nflFantasyStatsLooksReal)
-      .then((j) => { if (alive) setStats(j || null) })
-      .catch(() => { if (alive) setStats(null) })
-    return () => { alive = false }
-  }, [])
+      .then((j) => { if (alive.current) setStats(j || null) })
+      .catch(() => { if (alive.current) setStats(null) })
+  }, [want])
 
   // gsis id -> the full slate player record, so a row click hands
   // onPlayerClick the same shape every other tab already does.
-  const roster = useMemo(() => {
-    const map = new Map()
+  const byTeam = useMemo(() => {
+    const roster = new Map()
     for (const p of data?.players || []) {
       const pid = p?.player_id != null ? String(p.player_id) : null
-      if (pid) map.set(pid, p)
+      if (pid) roster.set(pid, p)
     }
-    return map
-  }, [data])
-
-  const byTeam = useMemo(() => {
     const map = new Map()
     if (!stats?.players) return map
     for (const [pid, line] of Object.entries(stats.players)) {
@@ -227,44 +199,7 @@ export default function BoxScores({ data, onPlayerClick }) {
       map.set(team, arr)
     }
     return map
-  }, [stats, roster])
+  }, [stats, data])
 
-  const games = useMemo(
-    () => (stats?.games || []).slice().sort((a, b) => new Date(a.kickoff || 0) - new Date(b.kickoff || 0)),
-    [stats],
-  )
-
-  const toggle = (id) => setOpen((s) => {
-    const next = new Set(s)
-    if (next.has(id)) next.delete(id); else next.add(id)
-    return next
-  })
-
-  return (
-    <div>
-      <PageHeader
-        eyebrow="TUDDY · BOX SCORES"
-        title="Box Scores"
-        sub={`Week ${stats?.week ?? '—'}`}
-        note={<>Every game, passing / rushing / receiving / kicking, off the bot&apos;s own live scoring feed. It refreshes every 15 minutes in game windows and only ever covers the current week — a past week&apos;s box isn&apos;t available here, the same limit the Tuddy Ledger discloses for its own NOT ON BOARD count. Attempts, completions, carries and targets aren&apos;t published in this feed yet — only the stats the bot already scores fantasy points on.</>}
-        theme={C}
-        numFont={NUM_FONT}
-      />
-      {stats === undefined && <Empty text="Loading this week's games…" />}
-      {stats === null && <Empty text="LIVE DATA DELAYED — couldn't reach this week's box scores." />}
-      {stats && !games.length && <Empty text="No games published for this week yet." />}
-      {stats && games.map((g) => (
-        <GameBox
-          key={g.game_id}
-          game={g}
-          byTeam={byTeam}
-          defense={stats.defense}
-          open={open.has(g.game_id)}
-          onToggle={() => toggle(g.game_id)}
-          onPlayerClick={onPlayerClick}
-          watchlist={watchlist}
-        />
-      ))}
-    </div>
-  )
+  return { stats, byTeam }
 }
