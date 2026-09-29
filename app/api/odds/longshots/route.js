@@ -18,7 +18,7 @@ export async function GET(request) {
   if (!db) return Response.json({ error: 'no database' }, { status: 503 })
   try {
     const body = await readLongshots(db, { sport, date })
-    return Response.json(body, { headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' } })
+    return Response.json(body, { headers: { 'Cache-Control': 'public, s-maxage=900, stale-while-revalidate=1800' } })
   } catch (e) {
     console.error(`[longshots] ${sport}: ${e?.message}`)
     return Response.json({ error: 'odds delayed', sport }, { status: 502 })

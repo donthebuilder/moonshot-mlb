@@ -341,7 +341,7 @@ async function computeLampRecord(db, since, today) {
 
 /** Tonight's hockey board, one line per game — read by the same function the Board page's route uses. */
 async function computeLampCalls() {
-  const board = await readBoard(easternToday())
+  const board = await readBoard(easternToday(), { net: false })
   return {
     games: board.games.map((g) => ({
       id: g.game.id, away: g.game.away.abbrev, home: g.game.home.abbrev, startUtc: g.game.startUtc, state: g.game.state,

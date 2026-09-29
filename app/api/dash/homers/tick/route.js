@@ -668,9 +668,15 @@ async function multiLineFor(db, row, day) {
 async function oddsFile(day, db) {
   const c = _cache.odds
   if (c.data && Date.now() - c.at < TTL_MS && c.data.date === day) return c.data
+  // An EMPTY answer is remembered for the same TTL too (egress audit
+  // 2026-09-28): with no MLB prices (off days, the offseason) this used to
+  // re-ask the tables' freshness -- 4 queries -- every minute, all day.
+  const e0 = _cache.oddsEmpty
+  const knownEmpty = e0 && e0.day === day && Date.now() - e0.at < TTL_MS
   try {
-    const ours = db && day ? await mlbLatestOdds(db, day) : null
+    const ours = !knownEmpty && db && day ? await mlbLatestOdds(db, day) : null
     if (ours && !ours.empty) { _cache.odds = { at: Date.now(), data: ours }; return ours }
+    if (ours?.empty) _cache.oddsEmpty = { at: Date.now(), day }
   } catch (e) { console.error(`[homers] odds (ours): ${e?.message}`) }
   return published('odds', oddsPaths().filter((u) => /^https?:/.test(u)), (j) => Boolean(j?.by_player_id))
 }
