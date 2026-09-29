@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { alpha, score as fmtScore } from '../lib/scales'
+import { useIsPhone } from './MobileFold'
 
 // ══ THE DIAL AND THE HERO ═══════════════════════════════════════════════════
 //
@@ -165,12 +166,35 @@ export function ScoreChip({ value, col, title }) {
   )
 }
 
+// THE FACE HEAD (2026-09-29, queue batch 1: "face = circle crop, 40px desktop /
+// 32px phone, LAMP's look, no text over it; pick type as a kicker line above
+// the name; 16px team mark in the matchup line"). `lead="face"`: his face in
+// LAMP's circle (bg3 behind the transparent cut-out, no border, nothing drawn
+// on it), the pick type + its bar as one coloured kicker over the name, the
+// score chip on the right as in `lead="badge"`. `meta` may be a node (the team
+// marks). The face is 24px smaller than the 64px plate it replaces, so the head
+// never grows. No photo -> the circle stays, empty, so rows still line up.
+function FaceCircle({ photo, size }) {
+  const [broken, setBroken] = useState(false)
+  useEffect(() => { setBroken(false) }, [photo])
+  return (
+    <span style={{ width: size, height: size, borderRadius: '50%', background: C.bg3, flexShrink: 0, overflow: 'hidden', display: 'inline-block' }}>
+      {photo && !broken && (
+        <img src={photo} alt="" width={size} height={size} loading="lazy" decoding="async" onError={() => setBroken(true)}
+          style={{ width: size, height: size, objectFit: 'cover', display: 'block' }} />
+      )}
+    </span>
+  )
+}
+
 export default function VerdictHero({
   col, score, max, dialTitle, dp,
   title, badge, badgeQuiet, meta, metaRight, market, line, line2, facts, right,
   chips, footer, style, lead = 'dial', photo = null,
 }) {
-  const badgeLeads = lead === 'badge'
+  const faceLeads = lead === 'face'
+  const phone = useIsPhone()
+  const badgeLeads = lead === 'badge' || faceLeads
   // A fact the chips above already assert is not worth a second bubble --
   // "HRW 88 ⚡" as a flag and "HRW 88" as a measurement are the same sentence
   // twice, one line apart. Compared on letters and digits only, so an emoji
@@ -197,10 +221,18 @@ export default function VerdictHero({
       <div style={{ display: 'flex', alignItems: 'center', gap: 13, minWidth: 0 }}>
         {/* The player's face lives INSIDE the instrument (2026-09-27): the
             dial's inner circle or the plate. `photo` is a URL; none -> today's look. */}
-        {badgeLeads
-          ? <VerdictPlate badge={badge} col={col} quiet={badgeQuiet} market={market} photo={photo} />
-          : <Dial value={score} col={col} max={max} title={dialTitle} dp={dp} photo={photo} />}
-        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
+        {faceLeads
+          ? <FaceCircle photo={photo} size={phone ? 32 : 40} />
+          : badgeLeads
+            ? <VerdictPlate badge={badge} col={col} quiet={badgeQuiet} market={market} photo={photo} />
+            : <Dial value={score} col={col} max={max} title={dialTitle} dp={dp} photo={photo} />}
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: faceLeads ? 1 : 3 }}>
+          {faceLeads && (badge || market) && (
+            <div style={{
+              fontSize: 10, fontWeight: 900, letterSpacing: '.1em', textTransform: 'uppercase',
+              color: badgeQuiet ? C.text3 : col, fontFamily: NUM_FONT, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+            }}>{[String(badge || '').replace(/^[^\w]*\s*/, ''), market].filter(Boolean).join(' · ')}</div>
+          )}
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
             <span style={{
               fontSize: 16.5, fontWeight: 900, letterSpacing: '-.01em', minWidth: 0,

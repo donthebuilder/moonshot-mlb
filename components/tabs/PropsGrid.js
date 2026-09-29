@@ -10,6 +10,7 @@ import {
 import PickCompare from '../PickCompare'
 import VerdictHero, { PeriodTiles } from '../VerdictHero'
 import { mlbFaceStrict } from '../PlayerFace'
+import MlbTeamMark from '../MlbTeamMark'
 import PropsSheet from '../PropsSheet'
 import MobileFold, { useIsPhone } from '../MobileFold'
 import { FilterPill } from '../Filters'
@@ -143,10 +144,11 @@ function Card({ r, role: forced, odds, onPlayerClick, onWatch, watched }) {
     <div onClick={onPlayerClick ? () => onPlayerClick(r) : undefined}
       style={{ cursor: onPlayerClick ? 'pointer' : 'default', minWidth: 0 }}>
       <VerdictHero
-        lead="badge"
-        // His face in the plate (2026-09-27); lazy, so only cards near the
-        // screen fetch one. No photo -> today's plate.
-        photo={mlbFaceStrict(mlbId(r), 128)}
+        // THE FACE HEAD (2026-09-29, queue batch 1): his face in LAMP's circle,
+        // the pick type as the kicker over his name, 16px team marks in the
+        // matchup line. Lazy faces, straight from mlbstatic (no optimizer).
+        lead="face"
+        photo={mlbFaceStrict(mlbId(r), 96)}
         col={col}
         score={v.score(r)}
         dialTitle={`${role === 'NONE' ? 'Overall' : role} score — the bot's number for this market`}
@@ -154,7 +156,12 @@ function Card({ r, role: forced, odds, onPlayerClick, onWatch, watched }) {
         title={nameOf(r)}
         badge={role === 'WATCH' ? 'WATCH' : role === 'NONE' ? 'NONE' : role}
         badgeQuiet={quiet}
-        meta={`${teamOf(r)} vs ${oppOf(r)}${arm ? ` · ${arm}${hand ? ` (${hand})` : ''}` : ''}`}
+        meta={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, minWidth: 0, maxWidth: '100%' }}>
+          <MlbTeamMark abbr={teamOf(r)} style={{ height: 16 }} />
+          <span>vs</span>
+          <MlbTeamMark abbr={oppOf(r)} style={{ height: 16 }} />
+          {arm ? <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>· {arm}{hand ? ` (${hand})` : ''}</span> : null}
+        </span>}
         metaRight={price}
         line={sentenceFor(r, role)}
         facts={matchupTags(r)}
