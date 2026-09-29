@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../../lib/nfl/theme'
 import NflTable from '../NflTable'
 import RedZoneField from '../RedZoneField'
+import RedZoneDots, { hasPlays } from '../RedZoneDots'
 import PageHeader from '../../PageHeader'
 import { ActiveFilters, FilterBar, FilterSearch, FilterSelect } from '../../Filters'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
@@ -115,7 +116,11 @@ export default function RedZone({ data, matchup = null, onPlayerClick }) {
       />
 
       {/* THE LAST 20 YARDS, drawn (BATCH-FACES step 9) -- the table below is unchanged. */}
-      <RedZoneField data={data} matchup={matchup} onPlayerClick={onPlayerClick} />
+      {/* One dot per touch once the bot publishes red_zone plays (2026-09-29);
+          the per-game bars until then. */}
+      {hasPlays(matchup)
+        ? <RedZoneDots data={data} matchup={matchup} team={team} onPlayerClick={onPlayerClick} />
+        : <RedZoneField data={data} matchup={matchup} onPlayerClick={onPlayerClick} />}
 
       <div style={{
         display: 'flex', flexDirection: 'column', gap: 9, marginBottom: 11,
