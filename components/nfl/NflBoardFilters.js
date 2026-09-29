@@ -3,7 +3,8 @@ import { useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../lib/nfl/theme'
 import { LABELS } from '../../lib/nfl/scoreLabels'
 import RangeDual from '../RangeDual'
-import { FilterPill, useOutsideClose } from '../Filters'
+import { FilterPill } from '../Filters'
+import FiltersDrawer, { DrawerSection } from '../FiltersDrawer'
 
 // ── TUDDY'S BOARD FILTERS ───────────────────────────────────────────────────
 //
@@ -226,130 +227,74 @@ export default function NflBoardFilters({ state, total, shown, extra = null, ext
   const activeCount = bandCount + extraCount
   const active = bandsActive || extraCount > 0
   const reset = () => { resetBands(); extraReset?.() }
-  const [open, setOpen] = useState(false)
-  // NOTE THE ARGUMENT ORDER. BoardFilters.js calls useOutsideClose(open,
-  // setOpen) -- but that is its OWN local copy, declared at the bottom of that
-  // file, which happens to take (open, setOpen). The shared one exported from
-  // components/Filters.js takes (onClose, active), so copying MOONSHOT's call
-  // shape here would have registered `open` as the close handler and never
-  // closed the panel. Two functions, one name, opposite arguments.
-  const wrap = useOutsideClose(() => setOpen(false), open)
+  // MOONSHOT's always-visible removable chips, one per band that is narrowing.
+  const activeFilters = bands.map((b) => ({
+    key: `band-${b.key}`, label: `${LABELS[b.key] || b.key} ${b.min}–${b.max}`,
+    onRemove: () => toggleBand(b.key),
+  }))
 
+  // MOONSHOT'S DRAWER (2026-09-28, Donovan: "use MLB as the base... USE THE
+  // COMPONENTS"). This drew its own look-alike dropdown; it now renders
+  // through components/FiltersDrawer.js -- MOONSHOT's trigger, panel, footer,
+  // pool pill and removable chips -- in TUDDY's green. Only the sections
+  // below are TUDDY's own.
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-      {/* The trigger stays one button at every width. The panel is what would
-          otherwise be a permanently-expanded bar eating a phone screen before
-          a single ranked row is visible — the exact thing MOONSHOT's own
-          filter header says it fixed. */}
-      <div ref={wrap} style={{ position: 'relative' }}>
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          aria-expanded={open}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer',
-            minHeight: 40, padding: '6px 12px', borderRadius: 8,
-            border: `1px solid ${open || active ? C.green : C.border}`,
-            background: open ? C.bg3 : 'transparent',
-            color: active ? C.green : C.text2,
-            fontSize: 11.5, fontWeight: 800, fontFamily: NUM_FONT,
-          }}
-        >
-          ▤ Filters
-          {activeCount > 0 && (
-            <span style={{
-              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-              minWidth: 16, height: 16, borderRadius: 999, padding: '0 4px',
-              background: C.green, color: C.bg, fontSize: 10, fontWeight: 900,
-            }}>{activeCount}</span>
-          )}
-        </button>
-
-        {/* ON A PHONE THE PANEL IS A SHEET (2026-09-27): it sat inside the
-            filter bar, which scrolls sideways (overflow auto), so on a 390px
-            screen it opened off the right edge and was clipped -- measured on
-            production: left 294 of 390, hidden. Fixed above the tab bar, a
-            sideways scroller can't clip it. Desktop keeps the dropdown. */}
-        <style>{`@media (max-width: 560px){.nfl-filter-panel{position:fixed!important;left:12px!important;right:12px!important;top:auto!important;bottom:calc(84px + env(safe-area-inset-bottom))!important;width:auto!important;max-width:none!important;max-height:62vh!important}}`}</style>
-        {open && (
-          <div className="nfl-filter-panel" style={{
-            position: 'absolute', zIndex: 60, top: 'calc(100% + 6px)', left: 0,
-            width: 300, maxWidth: 'calc(100vw - 28px)', maxHeight: '65vh', overflowY: 'auto',
-            padding: 12, borderRadius: 12, border: `1px solid ${C.border}`,
-            background: C.bg2, boxShadow: '0 18px 40px rgba(0,0,0,.5)',
-          }}>
-            {extra}
-            {Boolean(quick.length) && <>
-              <div style={lbl()}>Quick</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, margin: '7px 0 13px' }}>
-                {quick.map((q) => (
-                  <FilterPill key={q.key} active={quickOn(q)} onClick={() => applyQuick(q)}
-                    title={`${LABELS[q.stat] || q.stat} in the top ${100 - q.min}% of this week's board`}>
-                    {q.label}
-                  </FilterPill>
-                ))}
-              </div>
-            </>}
-
-            <div style={lbl()}>Bands · what this score is made of</div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, margin: '7px 0 4px' }}>
-              {bandOptions.map((b) => (
-                <FilterPill key={b.key} active={bands.some((x) => x.key === b.key)} onClick={() => toggleBand(b.key)}>
-                  {b.label}
-                </FilterPill>
-              ))}
-            </div>
-            {!bandOptions.length && (
-              <p style={{ margin: '6px 0 0', color: C.text3, fontSize: TYPE.micro, lineHeight: 1.5 }}>
-                This board has not published its score components yet, so there is nothing to band on.
-              </p>
-            )}
-
-            {bands.map((b) => {
-              const opt = bandOptions.find((x) => x.key === b.key)
-              return (
-              <div key={b.key} style={{ marginTop: 12 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
-                  <span style={{ fontSize: 10.5, color: C.text, fontWeight: 700 }}>{LABELS[b.key] || b.key}</span>
-                  <span style={{ fontFamily: NUM_FONT, fontSize: 10, color: C.text2 }}>{b.min}–{b.max}</span>
-                </div>
-                <RangeDual
-                  min={opt ? opt.min : 0} max={opt ? opt.max : 100} step={opt ? opt.step : 1}
-                  low={b.min} high={b.max}
-                  onLow={(v) => setBandRange(b.key, Math.min(v, b.max), b.max)}
-                  onHigh={(v) => setBandRange(b.key, b.min, Math.max(v, b.min))}
-                />
-              </div>
-              )
-            })}
-
-            <p style={{ margin: '13px 0 0', color: C.text3, fontSize: TYPE.micro, lineHeight: 1.5 }}>
-              Each band runs over the values actually on this board — for the percentile
-              components, 75–100 is the top quarter on that input. A player must clear
-              every band at once.
-            </p>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginTop: 12 }}>
-              <span style={{ fontFamily: NUM_FONT, fontSize: 10, color: C.text2 }}>
-                {shown != null && total != null ? `${shown} of ${total}` : ''}
-              </span>
-              <button type="button" onClick={reset} disabled={!active}
-                style={{
-                  minHeight: 40, padding: '6px 14px', borderRadius: 8, cursor: active ? 'pointer' : 'default',
-                  border: `1px solid ${C.border}`, background: 'transparent',
-                  color: active ? C.text : C.text3, fontSize: 10.5, fontWeight: 800,
-                }}>Reset</button>
-            </div>
+    <FiltersDrawer
+      active={active} activeCount={activeCount} activeFilters={activeFilters} reset={reset}
+      shown={shown ?? 0} total={total ?? 0} accent={C.green} accentInk={C.bg}
+      poolTitle="Players on this week's board that clear the filters. The board's own badge counts the rows it ranks."
+      emptyNote="Nothing clears every band at once. Loosen one."
+    >
+      {extra}
+      {Boolean(quick.length) && (
+        <DrawerSection label="Quick">
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 7 }}>
+            {quick.map((q) => (
+              <FilterPill key={q.key} active={quickOn(q)} onClick={() => applyQuick(q)}
+                title={`${LABELS[q.stat] || q.stat} in the top ${100 - q.min}% of this week's board`}>
+                {q.label}
+              </FilterPill>
+            ))}
           </div>
-        )}
-      </div>
-      {/* MOONSHOT's pool pill (BoardFilters.js): the size of the pool the
-          ranking is drawn from, beside the button that narrows it. */}
-      {shown != null && total != null && (
-        <span style={{ fontFamily: NUM_FONT, fontSize: 11, color: C.text2, border: `1px solid ${C.border}`, borderRadius: 999, padding: '5px 11px' }}>
-          <b style={{ color: C.text }}>{shown}</b> of {total} in the pool
-        </span>
+        </DrawerSection>
       )}
-    </div>
+
+      <DrawerSection label="Bands · what this score is made of">
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 7 }}>
+          {bandOptions.map((b) => (
+            <FilterPill key={b.key} active={bands.some((x) => x.key === b.key)} onClick={() => toggleBand(b.key)}>
+              {b.label}
+            </FilterPill>
+          ))}
+        </div>
+        {!bandOptions.length && (
+          <p style={{ margin: '6px 0 0', color: C.text3, fontSize: TYPE.micro, lineHeight: 1.5 }}>
+            This board has not published its score components yet, so there is nothing to band on.
+          </p>
+        )}
+        {bands.map((b) => {
+          const opt = bandOptions.find((x) => x.key === b.key)
+          return (
+            <div key={b.key} style={{ marginTop: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
+                <span style={{ fontSize: 10.5, color: C.text, fontWeight: 700 }}>{LABELS[b.key] || b.key}</span>
+                <span style={{ fontFamily: NUM_FONT, fontSize: 10, color: C.text2 }}>{b.min}–{b.max}</span>
+              </div>
+              <RangeDual
+                min={opt ? opt.min : 0} max={opt ? opt.max : 100} step={opt ? opt.step : 1}
+                low={b.min} high={b.max}
+                onLow={(v) => setBandRange(b.key, Math.min(v, b.max), b.max)}
+                onHigh={(v) => setBandRange(b.key, b.min, Math.max(v, b.min))}
+              />
+            </div>
+          )
+        })}
+        <p style={{ margin: '13px 0 0', color: C.text3, fontSize: TYPE.micro, lineHeight: 1.5 }}>
+          Each band runs over the values actually on this board — for the percentile
+          components, 75–100 is the top quarter on that input. A player must clear
+          every band at once.
+        </p>
+      </DrawerSection>
+    </FiltersDrawer>
   )
 }

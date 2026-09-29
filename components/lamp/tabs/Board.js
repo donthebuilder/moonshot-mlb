@@ -5,8 +5,11 @@ import { useEffect, useMemo, useState } from 'react'
 import PageHeader from '../../PageHeader'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import LampTable from '../LampTable'
-import { AngleRow, FilterPill, Segmented, ActiveFilters } from '../../Filters'
+import { AngleRow, FilterPill, Segmented } from '../../Filters'
 import BoardTopBar from '../../BoardTopBar'
+import FiltersDrawer, { DrawerSection, drawerChip } from '../../FiltersDrawer'
+import { TIME_WINDOWS, inWindow } from '../../BoardFilters'
+import RangeDual from '../../RangeDual'
 import GoalWatch from '../GoalWatch'
 import { LampCards, PctBars } from '../LampCard'
 import { alpha } from '../../../lib/scales'
@@ -29,6 +32,12 @@ export { STATUS }
 // The day is the LAMP shell's (LampDashboard, 2026-09-26): one date for the
 // header's Today/Tmrw, every dated tab and the address -- this tab's day
 // buttons move it for all of them.
+// The score's own parts per market (r.pct keys, percentiles 0-100).
+const BAND_DEFS = {
+  GOAL: [{ key: 'shotsPg', label: 'Shots / GP' }, { key: 'goalsPg', label: 'Goals / GP' }, { key: 'toi', label: 'Ice time' }],
+  SOG: [{ key: 'shotsPg', label: 'Shots / GP' }, { key: 'toi', label: 'Ice time' }, { key: 'oppSaPg', label: 'Opp shots allowed' }],
+}
+
 export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = null, setDate = () => {}, market: marketTab = null, onMarket = null }) {
   // The market lives in the address (#...&m=sog) so a shared link opens the
   // same board; GOAL is the default and writes nothing.
@@ -58,6 +67,24 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
   // LIST | CARDS (2026-09-28, plan C2): MOONSHOT's and TUDDY's toggle. List leads.
   const [layout, setLayout] = useState('list')
   const [angle, setAngle] = useState(null)
+  // ── MOONSHOT'S DRAWER (2026-09-28, Donovan: "on the boards we can toggle
+  // teams, games, multi filters, all type filters -- use MLB as the base,
+  // USE THE COMPONENTS"). LAMP had the top bar, angles, Pos and Called only
+  // but no ▤ Filters drawer. It now has MOONSHOT's (components/FiltersDrawer)
+  // with MOONSHOT's sections, filled from fields every row already carries:
+  //   score range   r.score, 0-100
+  //   bands         the score's own parts, r.pct (percentiles, 0-100):
+  //                 GOAL shots/GP, goals/GP, ice time; SHOTS shots/GP, ice
+  //                 time, opponent shots allowed -- several at once, an AND
+  //   games         several at once (MOONSHOT's Game chips)
+  //   puck drop     MOONSHOT's own time windows (BoardFilters TIME_WINDOWS)
+  //   PP goals      a minimum on r.ppg
+  const [scoreMin, setScoreMin] = useState(0)
+  const [scoreMax, setScoreMax] = useState(100)
+  const [bands, setBands] = useState([])   // [{ key, min, max }]
+  const [gameSel, setGameSel] = useState([])
+  const [timeWindow, setTimeWindow] = useState('all')
+  const [minPpg, setMinPpg] = useState(0)
   const flat = useMemo(() => games.filter((g) => !g.noMarketLock).flatMap((g) => g.rows.filter((r) => r.status !== 'off').map((r) => ({ r, g }))), [games])
   const angles = useMemo(() => lampAngles(flat, market), [flat, market])
   const angleTest = angle ? angles.find((a) => a.key === angle)?.test : null
@@ -70,18 +97,34 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
     if (calledOnly && r.status !== 'called') return false
     if (needle && !String(r.name || '').toLowerCase().includes(needle)) return false
     if (angleTest && !angleTest(x)) return false
+    if ((r.score ?? 0) < scoreMin || (r.score ?? 0) > scoreMax) return false
+    for (const b of bands) { const v = r.pct?.[b.key]; if (v == null || v < b.min || v > b.max) return false }
+    if (gameSel.length && !gameSel.includes(String(g.game.id))) return false
+    if (!inWindow(g.game.startUtc ? new Date(g.game.startUtc).getHours() : null, timeWindow)) return false
+    if (minPpg && (r.ppg ?? 0) < minPpg) return false
     return true
   })
   const keepIds = new Set(kept.map(({ r, g }) => `${g.game.id}|${r.playerId}`))
-  const filtering = Boolean(team) || pos !== 'all' || Boolean(gameF) || calledOnly || Boolean(needle) || Boolean(angle)
+  const drawerOn = scoreMin > 0 || scoreMax < 100 || bands.length > 0 || gameSel.length > 0 || timeWindow !== 'all' || minPpg > 0
+  const filtering = Boolean(team) || pos !== 'all' || Boolean(gameF) || calledOnly || Boolean(needle) || Boolean(angle) || drawerOn
   const teams = [...new Set(flat.map(({ r }) => r.team))].sort()
   const chips = [
     angle ? { key: 'angle', label: angles.find((a) => a.key === angle)?.label || angle, onClear: () => setAngle(null) } : null,
     pos !== 'all' ? { key: 'pos', label: pos === 'D' ? 'Defence' : 'Forwards', onClear: () => setPos('all') } : null,
     calledOnly ? { key: 'called', label: 'Called only', onClear: () => setCalledOnly(false) } : null,
   ].filter(Boolean)
-  const clearAll = () => { setAngle(null); setPos('all'); setCalledOnly(false) }
   const gameOptions = games.filter((g) => !g.noMarketLock).map((g) => ({ key: String(g.game.id), label: `${g.game.away.abbrev} @ ${g.game.home.abbrev}` }))
+  const bandDefs = BAND_DEFS[market] || BAND_DEFS.GOAL
+  const toggleBand = (k) => setBands((bs) => (bs.some((b) => b.key === k) ? bs.filter((b) => b.key !== k) : [...bs, { key: k, min: 50, max: 100 }]))
+  const setBand = (k, min, max) => setBands((bs) => bs.map((b) => (b.key === k ? { ...b, min, max } : b)))
+  const drawerChips = [
+    scoreMin > 0 || scoreMax < 100 ? { key: 'score', label: `Score ${scoreMin}–${scoreMax}`, onClear: () => { setScoreMin(0); setScoreMax(100) } } : null,
+    ...bands.map((b) => ({ key: `band-${b.key}`, label: `${bandDefs.find((d) => d.key === b.key)?.label || b.key} ${b.min}–${b.max}`, onClear: () => toggleBand(b.key) })),
+    ...gameSel.map((id) => ({ key: `game-${id}`, label: gameOptions.find((o) => o.key === id)?.label || id, onClear: () => setGameSel((s) => s.filter((x) => x !== id)) })),
+    timeWindow !== 'all' ? { key: 'time', label: TIME_WINDOWS.find((w) => w.key === timeWindow)?.label || timeWindow, onClear: () => setTimeWindow('all') } : null,
+    minPpg > 0 ? { key: 'ppg', label: `PP goals ${minPpg}+`, onClear: () => setMinPpg(0) } : null,
+  ].filter(Boolean)
+  const clearAll = () => { setAngle(null); setPos('all'); setCalledOnly(false); setScoreMin(0); setScoreMax(100); setBands([]); setGameSel([]); setTimeWindow('all'); setMinPpg(0) }
   // MOONSHOT'S ORDER (2026-09-27, Donovan: "doesn't feel anything like the mlb
   // pages"): the search / team / game bar first, the market as the parent
   // pills under it, the day, the angle row, then the night's header and the
@@ -116,11 +159,47 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             <Segmented label="Pos" value={pos} onChange={setPos} options={[{ key: 'all', label: 'All' }, { key: 'F', label: 'Forwards' }, { key: 'D', label: 'Defence' }]} />
             <FilterPill active={calledOnly} onClick={() => setCalledOnly((v) => !v)} title="Only the three called per game.">Called only</FilterPill>
-            <span style={{ fontFamily: NUM_FONT, fontSize: 11, color: C.text2, border: `1px solid ${C.border}`, borderRadius: 999, padding: '5px 11px' }}><b style={{ color: C.text }}>{kept.length}</b> of {flat.length} on the board</span>
             <span style={{ marginLeft: 'auto' }}><Segmented value={layout} onChange={setLayout}
               options={[{ key: 'list', label: '☰ List', title: 'One sortable table per game' }, { key: 'cards', label: '▦ Cards', title: 'The card board' }]} /></span>
           </div>
-          {chips.length > 0 && <ActiveFilters filters={chips} shown={kept.length} total={flat.length} onClearAll={clearAll} />}
+          <FiltersDrawer
+            active={chips.length + drawerChips.length > 0} activeCount={drawerChips.length}
+            activeFilters={[...chips, ...drawerChips].map((c) => ({ key: c.key, label: c.label, onRemove: c.onClear }))}
+            reset={clearAll} shown={kept.length} total={flat.length} accent={C.ice} accentInk={C.bg}
+            poolTitle="Skaters on tonight's board that clear the filters. Stacks with the team and game above."
+            emptyNote="Nothing clears every filter at once. Loosen one."
+          >
+            <DrawerSection label={`Score · ${M.label || market}`}>
+              <div style={{ fontSize: 12, fontFamily: NUM_FONT, color: C.text, marginTop: 2 }}>{scoreMin}–{scoreMax}</div>
+              <RangeDual min={0} max={100} step={1} low={scoreMin} high={scoreMax} onLow={setScoreMin} onHigh={setScoreMax} label="Score" />
+            </DrawerSection>
+            <DrawerSection label="Bands · what this score is made of" hint="Percentiles among tonight's skaters, 0-100. Several at once must all clear.">
+              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 5 }}>
+                {bandDefs.map((d) => <button key={d.key} type="button" onClick={() => toggleBand(d.key)} style={drawerChip(bands.some((b) => b.key === d.key))}>{d.label}</button>)}
+              </div>
+              {bands.map((b) => (
+                <div key={b.key} style={{ marginTop: 9 }}>
+                  <div style={{ fontSize: 12, color: C.ice, fontWeight: 800, fontFamily: NUM_FONT }}>{bandDefs.find((d) => d.key === b.key)?.label} {b.min}–{b.max}</div>
+                  <RangeDual min={0} max={100} step={1} low={b.min} high={b.max} onLow={(v) => setBand(b.key, Math.min(v, b.max), b.max)} onHigh={(v) => setBand(b.key, b.min, Math.max(v, b.min))} label={b.key} />
+                </div>
+              ))}
+            </DrawerSection>
+            {gameOptions.length > 1 && (
+              <DrawerSection label="Game" hint="Several at once. Stacks with the game picker above -- that one runs first.">
+                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 3 }}>
+                  {gameOptions.map((o) => <button key={o.key} type="button" onClick={() => setGameSel((s) => (s.includes(o.key) ? s.filter((x) => x !== o.key) : [...s, o.key]))} style={drawerChip(gameSel.includes(o.key))}>{o.label}</button>)}
+                </div>
+              </DrawerSection>
+            )}
+            <DrawerSection label="Puck drop">
+              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 3 }}>
+                {TIME_WINDOWS.map((w) => <button key={w.key} type="button" onClick={() => setTimeWindow(w.key)} style={drawerChip(timeWindow === w.key)}>{w.label}</button>)}
+              </div>
+            </DrawerSection>
+            <DrawerSection label={`Min power-play goals ${minPpg || '—'}`}>
+              <input type="range" min={0} max={20} step={1} value={minPpg} onChange={(e) => setMinPpg(Number(e.target.value))} style={{ width: '100%', accentColor: C.ice }} aria-label="Minimum power-play goals" />
+            </DrawerSection>
+          </FiltersDrawer>
         </div>
       )}
       {data && market === 'GOAL' && <GoalWatch flat={flat} onOpenPlayer={onOpenPlayer} />}

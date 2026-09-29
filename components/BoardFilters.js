@@ -5,6 +5,7 @@ import { n, nameOf, teamOf, oppOf, clean, hrScore, hitScore, prodScore, tbScore 
 import { isAligned } from '../lib/scoring'
 import { STATE, alpha } from '../lib/scales'
 import RangeDual from './RangeDual'
+import FiltersDrawer from './FiltersDrawer'
 
 // Shared filter bar for the ranked boards.
 //
@@ -93,7 +94,7 @@ const SCORE_FOR_TYPE = {
   tb:      { label: 'Contact Score', get: (p) => tbScore(p) },
 }
 
-const TIME_WINDOWS = [
+export const TIME_WINDOWS = [
   { key: 'all',   label: 'Any time' },
   { key: 'early', label: 'Early (before 5pm)' },
   { key: 'prime', label: 'Prime (5–8pm)' },
@@ -105,7 +106,7 @@ function gameHour(p) {
   const d = new Date(t)
   return Number.isNaN(d.getTime()) ? null : d.getHours()
 }
-function inWindow(hour, w) {
+export function inWindow(hour, w) {
   if (w === 'all' || hour === null) return true
   if (w === 'early') return hour < 17
   if (w === 'prime') return hour >= 17 && hour < 20
@@ -318,21 +319,6 @@ const chip = (on) => {
 // wide (fixed-position panel, pinned to the viewport edges rather than the
 // button, so it never hangs off-screen on a phone) — reused rather than
 // invented, so this doesn't become a second "how do panels work here" idiom.
-function useOutsideClose(open, setOpen) {
-  const ref = useRef(null)
-  useEffect(() => {
-    if (!open) return undefined
-    const onDown = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
-    const onKey = (e) => { if (e.key === 'Escape') setOpen(false) }
-    document.addEventListener('mousedown', onDown)
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('mousedown', onDown)
-      document.removeEventListener('keydown', onKey)
-    }
-  }, [open, setOpen])
-  return ref
-}
 
 export default function BoardFilters({ state, total, shown }) {
   const {
@@ -342,259 +328,180 @@ export default function BoardFilters({ state, total, shown }) {
     games, gameSel, setGameSel, pitchers, pitcherSel, setPitcherSel, timeWindow, setTimeWindow,
     activeFilters, activeCount,
   } = state
-  const [open, setOpen] = useState(false)
-  const wrap = useOutsideClose(open, setOpen)
 
   const toggleCat = (k) => setCats((c) => (c.includes(k) ? c.filter((x) => x !== k) : [...c, k]))
   const toggleGame = (pk) => setGameSel((g) => (g.includes(pk) ? g.filter((x) => x !== pk) : [...g, pk]))
   const togglePitcher = (name) => setPitcherSel((ps) => (ps.includes(name) ? ps.filter((x) => x !== name) : [...ps, name]))
 
+  // THE SHELL IS SHARED NOW (2026-09-28): trigger, panel, footer, pool pill
+  // and removable chips live in components/FiltersDrawer.js, which TUDDY and
+  // LAMP draw through too. What's below is only MOONSHOT's own sections.
   return (
-    <div className="board-filters" style={{ marginBottom: 14 }}>
-      {/* ── THE TRIGGER, ALWAYS COMPACT ─────────────────────────────────────
-          One button + a count, same size on a phone as on a desktop monitor —
-          "avoid a giant filter bar" applies to both, not just mobile. The
-          panel below is what used to be permanently on screen. */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <div ref={wrap} style={{ position: 'relative' }}>
-          <button
-            type="button"
-            onClick={() => setOpen((v) => !v)}
-            aria-expanded={open}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer',
-              padding: '6px 12px', borderRadius: 8,
-              border: `1px solid ${open || active ? C.orange : C.border}`,
-              background: open ? C.bg3 : active ? alpha(STATE.on().color, 0.08) : 'transparent',
-              color: active ? C.orange : C.text2, fontSize: 11.5, fontWeight: 800, fontFamily: NUM_FONT,
-            }}
-          >
-            ▤ Filters
-            {activeCount > 0 && (
-              <span style={{
-                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                minWidth: 16, height: 16, borderRadius: 999, padding: '0 4px',
-                background: C.orange, color: '#1a0f00', fontSize: 10, fontWeight: 900,
-              }}>{activeCount}</span>
-            )}
-          </button>
-
-          {open && (
-            <div style={{
-              // Fixed to the viewport, pinned to both edges below ~560px —
-              // exactly PaletteButton's dual-mode panel, same reasoning: a
-              // popover anchored to a button that can sit anywhere on a
-              // 390px screen has nowhere safe to overflow.
-              position: 'fixed', zIndex: 90,
-              top: 'calc(env(safe-area-inset-top, 0px) + 108px)',
-              left: 8, right: 8, width: 'auto', maxWidth: 520, margin: '0 auto',
-              maxHeight: '72vh', overflowY: 'auto',
-              background: 'rgba(17,17,19,0.98)', backdropFilter: 'blur(14px)',
-              border: `1px solid ${C.border2}`, borderRadius: 12, padding: 14,
-              boxShadow: '0 20px 60px rgba(0,0,0,.5)',
-            }}>
-              {scoreDef && (
-                <div style={{ marginBottom: 12 }}>
-                  <div style={{ ...lbl(), color: C.orange }}>Score · {scoreDef.label}</div>
-                  <div style={{ fontSize: 12, fontFamily: NUM_FONT, color: C.text, marginTop: 2 }}>{scoreMin}–{scoreMax}</div>
-                  {/* #56: was two separate sliders in a flex row -- see the
-                      note in components/RangeDual.js for what that looked
-                      like at full range. */}
-                  <RangeDual
-                    min={0} max={100} step={1}
-                    low={scoreMin} high={scoreMax}
-                    onLow={setScoreMin} onHigh={setScoreMax}
-                    label={`Score ${scoreDef.label}`}
-                  />
-                </div>
-              )}
-
-              <div style={{ marginBottom: 12 }}>
-                {/* MULTI-BAND (2026-09-13): a chip toggles a stat's band on/off
-                    rather than switching which one is "current" — several can
-                    be active together, each with its own thumbs below,
-                    narrowing on an AND (a player has to clear all of them). */}
-                <div style={{ display: 'flex', gap: 3, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <span style={lbl()}>Band</span>
-                  {BAND_STATS.map((s) => (
-                    <button key={s.key} onClick={() => toggleBand(s.key)}
-                      style={{ ...chip(bands.some((b) => b.key === s.key)), padding: '2px 6px', fontSize: 9 }}>{s.label}</button>
-                  ))}
-                </div>
-                {bands.length > 1 && (
-                  <div style={{ fontSize: 9, color: C.text3, marginTop: 3 }}>
-                    All active bands must clear — this is an AND, not a choice of lens.
-                  </div>
-                )}
-                {bands.map((b) => {
-                  const s = BAND_STATS.find((x) => x.key === b.key)
-                  if (!s) return null
-                  const showBV = (v) => (s.fmt ? s.fmt(v) : v)
-                  return (
-                    <div key={b.key} style={{ marginTop: 9 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{ fontSize: 12, color: C.orange, fontWeight: 800, fontFamily: NUM_FONT }}>
-                          {s.label} {showBV(b.min)}–{showBV(b.max)}
-                          {b.key !== 'hrw' && <span style={{ color: C.text3, fontWeight: 400 }}> · {b.key === 'iso' ? 'season' : 'recent window'}</span>}
-                        </span>
-                        <button onClick={() => removeBand(b.key)} title="Remove this band"
-                          style={{ marginLeft: 'auto', ...chip(false), padding: '1px 7px', fontSize: 9 }}>✕</button>
-                      </div>
-                      <RangeDual
-                        min={s.min} max={s.max} step={1}
-                        low={b.min} high={b.max}
-                        onLow={(v) => setBandRange(b.key, v, b.max)}
-                        onHigh={(v) => setBandRange(b.key, b.min, v)}
-                        label={s.label}
-                      />
-                    </div>
-                  )
-                })}
-              </div>
-
-              <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 12 }}>
-                <div>
-                  <div style={lbl()}>Bats</div>
-                  <div style={{ display: 'flex', gap: 4, marginTop: 3 }}>
-                    {HAND.map((h) => (
-                      <button key={h.key} onClick={() => setHand(h.key)} style={chip(hand === h.key)}>{h.label}</button>
-                    ))}
-                  </div>
-                </div>
-                <div style={{ minWidth: 130 }}>
-                  <div style={lbl()}>Min recent EV {minEV || '—'}</div>
-                  <input type="range" min={0} max={100} step={1} value={minEV}
-                    onChange={(e) => setMinEV(Number(e.target.value))}
-                    style={{ width: '100%', accentColor: C.orange }} />
-                </div>
-                <div style={{ minWidth: 120 }}>
-                  <div style={lbl()}>Min season PA {minPA || '—'}</div>
-                  <input type="range" min={0} max={600} step={10} value={minPA}
-                    onChange={(e) => setMinPA(Number(e.target.value))}
-                    style={{ width: '100%', accentColor: C.orange }} />
-                </div>
-              </div>
-
-              {/* GAME + GAME TIME — real fields (game_pk, game_time), nothing
-                  inferred. Team is deliberately not repeated here — the
-                  header's own team dropdown already does that job site-wide.
-                  #57: which left two controls that both narrow by team with
-                  nothing on screen saying whether they intersect or override.
-                  They intersect, and in a fixed order: the header's dropdown
-                  filters the list this drawer is handed, so these chips only
-                  ever narrow further. That is now stated where the question
-                  gets asked rather than left to be inferred. */}
-              {games.length > 1 && (
-                <div style={{ marginBottom: 12 }}>
-                  <div style={lbl()}>Game</div>
-                  <div style={{ fontSize: 9, color: C.text3, marginTop: 2, lineHeight: 1.45 }}>
-                    Stacks with the header&apos;s team filter — that one runs first, these narrow what it leaves.
-                  </div>
-                  <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 3 }}>
-                    {games.map((g) => (
-                      <button key={g.pk} onClick={() => toggleGame(g.pk)} style={chip(gameSel.includes(g.pk), C.cyan)}>
-                        {g.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {/* STARTING PITCHER (2026-09-13, revised same day) — Donovan:
-                  "we should be able to click multiple pitchers to start just
-                  like the games." Same chip row, same toggle-array pattern
-                  as Game right above it — no second interaction idiom. */}
-              {pitchers.length > 1 && (
-                <div style={{ marginBottom: 12 }}>
-                  <div style={lbl()}>Starting pitcher</div>
-                  <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 3 }}>
-                    {pitchers.map((p) => (
-                      <button key={p.name} onClick={() => togglePitcher(p.name)} style={chip(pitcherSel.includes(p.name), C.cyan)}>
-                        {p.name}{p.team ? ` (${p.team})` : ''}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-              <div style={{ marginBottom: 12 }}>
-                <div style={lbl()}>Game time</div>
-                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 3 }}>
-                  {TIME_WINDOWS.map((w) => (
-                    <button key={w.key} onClick={() => setTimeWindow(w.key)} style={chip(timeWindow === w.key, C.cyan)}>{w.label}</button>
-                  ))}
-                </div>
-              </div>
-
-              <div style={{ marginBottom: 12 }}>
-                <div style={lbl()}>Categories</div>
-                <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center', marginTop: 3 }}>
-                  {CATEGORIES.map((c) => (
-                    <button key={c.key} onClick={() => toggleCat(c.key)} style={chip(cats.includes(c.key))}>{c.label}</button>
-                  ))}
-                  {cats.length > 1 && (
-                    <button onClick={() => setCatMode((m) => (m === 'any' ? 'all' : 'any'))}
-                      title="Any = a hitter clearing at least one box. All = clearing every box."
-                      style={chip(true, catMode === 'all' ? '#FCD34D' : C.orange)}>
-                      match {catMode === 'all' ? 'ALL' : 'ANY'}
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <div style={lbl()}>Search</div>
-                <input value={query} onChange={(e) => setQuery(e.target.value)}
-                  placeholder="name, team, pitcher…"
-                  style={{
-                    width: '100%', background: C.bg3, border: `1px solid ${C.border}`, borderRadius: 7,
-                    padding: '6px 10px', fontSize: 12, color: C.text, outline: 'none', fontFamily: NUM_FONT,
-                    marginTop: 3, boxSizing: 'border-box',
-                  }} />
-              </div>
-
-              {shown === 0 && (
-                <div style={{ fontSize: 10, color: C.orange, marginTop: 9 }}>
-                  Nothing clears this filter. With <b>match ALL</b> that happens fast — the categories are
-                  rarer than they look, and requiring three at once usually leaves nobody.
-                </div>
-              )}
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, paddingTop: 10, borderTop: `1px solid ${C.border}` }}>
-                <span style={{ fontSize: 11, fontWeight: 800, color: shown < total ? C.orange : C.text3, fontFamily: NUM_FONT }}>{shown} of {total}</span>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  {active && <button onClick={reset} style={{ ...chip(false), border: `1px dashed ${C.border2}` }}>Reset all</button>}
-                  <button onClick={() => setOpen(false)} style={chip(true, C.orange)}>Done</button>
-                </div>
-              </div>
-            </div>
-          )}
+    <FiltersDrawer
+      active={active} activeCount={activeCount} activeFilters={activeFilters} reset={reset}
+      shown={shown} total={total}
+      poolTitle="Hitters on tonight's slate that clear the filters. The board's own badge counts the rows it ranks, which is a shorter list."
+      emptyNote={<>Nothing clears this filter. With <b>match ALL</b> that happens fast — the categories are
+        rarer than they look, and requiring three at once usually leaves nobody.</>}
+    >
+      {scoreDef && (
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ ...lbl(), color: C.orange }}>Score · {scoreDef.label}</div>
+          <div style={{ fontSize: 12, fontFamily: NUM_FONT, color: C.text, marginTop: 2 }}>{scoreMin}–{scoreMax}</div>
+          {/* #56: was two separate sliders in a flex row -- see the
+              note in components/RangeDual.js for what that looked
+              like at full range. */}
+          <RangeDual
+            min={0} max={100} step={1}
+            low={scoreMin} high={scoreMax}
+            onLow={setScoreMin} onHigh={setScoreMax}
+            label={`Score ${scoreDef.label}`}
+          />
         </div>
+      )}
 
-        {/* #58: this chip sat directly beside the board's own "60 ranked"
-            badge -- two counts, adjacent, meaning different things (the pool
-            the filters can see vs the rows the board ranks) with nothing
-            distinguishing them. It says which one it is now. */}
-        <span
-          title="Hitters on tonight's slate that clear the filters. The board's own badge counts the rows it ranks, which is a shorter list."
-          style={{ fontSize: 11, fontWeight: 800, color: shown < total ? C.orange : C.text3, fontFamily: NUM_FONT, border: `1px solid ${C.border}`, borderRadius: 999, padding: '3px 11px' }}>
-          {shown} of {total} <span style={{ color: C.text3, fontWeight: 700 }}>in the pool</span>
-        </span>
-
-        {/* ── ALWAYS-VISIBLE, REMOVABLE CHIPS ─────────────────────────────
-            The point of a compact trigger is that the filters themselves
-            can't disappear WITH the bar — a filter you forgot you set is a
-            worse trap than a filter you have to scroll past. */}
-        {activeFilters.length > 0 && (
-          <div className="chip-row" style={{ display: 'flex', gap: 5, alignItems: 'center', flex: 1, minWidth: 0 }}>
-            {activeFilters.map((f) => (
-              <button key={f.key} onClick={f.onRemove} title="Remove this filter"
-                style={{ ...chip(true), display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                {f.label} <span style={{ opacity: .7 }}>✕</span>
-              </button>
-            ))}
-            <button onClick={reset} style={{ ...chip(false), border: 'none', textDecoration: 'underline', color: C.text3 }}>Reset</button>
+      <div style={{ marginBottom: 12 }}>
+        {/* MULTI-BAND (2026-09-13): a chip toggles a stat's band on/off
+            rather than switching which one is "current" — several can
+            be active together, each with its own thumbs below,
+            narrowing on an AND (a player has to clear all of them). */}
+        <div style={{ display: 'flex', gap: 3, alignItems: 'center', flexWrap: 'wrap' }}>
+          <span style={lbl()}>Band</span>
+          {BAND_STATS.map((s) => (
+            <button key={s.key} onClick={() => toggleBand(s.key)}
+              style={{ ...chip(bands.some((b) => b.key === s.key)), padding: '2px 6px', fontSize: 9 }}>{s.label}</button>
+          ))}
+        </div>
+        {bands.length > 1 && (
+          <div style={{ fontSize: 9, color: C.text3, marginTop: 3 }}>
+            All active bands must clear — this is an AND, not a choice of lens.
           </div>
         )}
+        {bands.map((b) => {
+          const s = BAND_STATS.find((x) => x.key === b.key)
+          if (!s) return null
+          const showBV = (v) => (s.fmt ? s.fmt(v) : v)
+          return (
+            <div key={b.key} style={{ marginTop: 9 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontSize: 12, color: C.orange, fontWeight: 800, fontFamily: NUM_FONT }}>
+                  {s.label} {showBV(b.min)}–{showBV(b.max)}
+                  {b.key !== 'hrw' && <span style={{ color: C.text3, fontWeight: 400 }}> · {b.key === 'iso' ? 'season' : 'recent window'}</span>}
+                </span>
+                <button onClick={() => removeBand(b.key)} title="Remove this band"
+                  style={{ marginLeft: 'auto', ...chip(false), padding: '1px 7px', fontSize: 9 }}>✕</button>
+              </div>
+              <RangeDual
+                min={s.min} max={s.max} step={1}
+                low={b.min} high={b.max}
+                onLow={(v) => setBandRange(b.key, v, b.max)}
+                onHigh={(v) => setBandRange(b.key, b.min, v)}
+                label={s.label}
+              />
+            </div>
+          )
+        })}
       </div>
-    </div>
+
+      <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 12 }}>
+        <div>
+          <div style={lbl()}>Bats</div>
+          <div style={{ display: 'flex', gap: 4, marginTop: 3 }}>
+            {HAND.map((h) => (
+              <button key={h.key} onClick={() => setHand(h.key)} style={chip(hand === h.key)}>{h.label}</button>
+            ))}
+          </div>
+        </div>
+        <div style={{ minWidth: 130 }}>
+          <div style={lbl()}>Min recent EV {minEV || '—'}</div>
+          <input type="range" min={0} max={100} step={1} value={minEV}
+            onChange={(e) => setMinEV(Number(e.target.value))}
+            style={{ width: '100%', accentColor: C.orange }} />
+        </div>
+        <div style={{ minWidth: 120 }}>
+          <div style={lbl()}>Min season PA {minPA || '—'}</div>
+          <input type="range" min={0} max={600} step={10} value={minPA}
+            onChange={(e) => setMinPA(Number(e.target.value))}
+            style={{ width: '100%', accentColor: C.orange }} />
+        </div>
+      </div>
+
+      {/* GAME + GAME TIME — real fields (game_pk, game_time), nothing
+          inferred. Team is deliberately not repeated here — the
+          header's own team dropdown already does that job site-wide.
+          #57: which left two controls that both narrow by team with
+          nothing on screen saying whether they intersect or override.
+          They intersect, and in a fixed order: the header's dropdown
+          filters the list this drawer is handed, so these chips only
+          ever narrow further. That is now stated where the question
+          gets asked rather than left to be inferred. */}
+      {games.length > 1 && (
+        <div style={{ marginBottom: 12 }}>
+          <div style={lbl()}>Game</div>
+          <div style={{ fontSize: 9, color: C.text3, marginTop: 2, lineHeight: 1.45 }}>
+            Stacks with the header&apos;s team filter — that one runs first, these narrow what it leaves.
+          </div>
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 3 }}>
+            {games.map((g) => (
+              <button key={g.pk} onClick={() => toggleGame(g.pk)} style={chip(gameSel.includes(g.pk), C.cyan)}>
+                {g.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {/* STARTING PITCHER (2026-09-13, revised same day) — Donovan:
+          "we should be able to click multiple pitchers to start just
+          like the games." Same chip row, same toggle-array pattern
+          as Game right above it — no second interaction idiom. */}
+      {pitchers.length > 1 && (
+        <div style={{ marginBottom: 12 }}>
+          <div style={lbl()}>Starting pitcher</div>
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 3 }}>
+            {pitchers.map((p) => (
+              <button key={p.name} onClick={() => togglePitcher(p.name)} style={chip(pitcherSel.includes(p.name), C.cyan)}>
+                {p.name}{p.team ? ` (${p.team})` : ''}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      <div style={{ marginBottom: 12 }}>
+        <div style={lbl()}>Game time</div>
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 3 }}>
+          {TIME_WINDOWS.map((w) => (
+            <button key={w.key} onClick={() => setTimeWindow(w.key)} style={chip(timeWindow === w.key, C.cyan)}>{w.label}</button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ marginBottom: 12 }}>
+        <div style={lbl()}>Categories</div>
+        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center', marginTop: 3 }}>
+          {CATEGORIES.map((c) => (
+            <button key={c.key} onClick={() => toggleCat(c.key)} style={chip(cats.includes(c.key))}>{c.label}</button>
+          ))}
+          {cats.length > 1 && (
+            <button onClick={() => setCatMode((m) => (m === 'any' ? 'all' : 'any'))}
+              title="Any = a hitter clearing at least one box. All = clearing every box."
+              style={chip(true, catMode === 'all' ? '#FCD34D' : C.orange)}>
+              match {catMode === 'all' ? 'ALL' : 'ANY'}
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div>
+        <div style={lbl()}>Search</div>
+        <input value={query} onChange={(e) => setQuery(e.target.value)}
+          placeholder="name, team, pitcher…"
+          style={{
+            width: '100%', background: C.bg3, border: `1px solid ${C.border}`, borderRadius: 7,
+            padding: '6px 10px', fontSize: 12, color: C.text, outline: 'none', fontFamily: NUM_FONT,
+            marginTop: 3, boxSizing: 'border-box',
+          }} />
+      </div>
+
+    </FiltersDrawer>
   )
 }
