@@ -27,7 +27,8 @@ export function SubLabel({ children, theme = MLB_C, numFont = MLB_NUM, style }) 
   return <div style={{ fontSize: 10, fontWeight: 900, letterSpacing: '.1em', color: theme.text3, fontFamily: numFont, marginBottom: 5, ...style }}>{children}</div>
 }
 
-/** items: [{ key, label, pct (0-100, the bar), text (the right-hand figure) }] */
+/** items: [{ key, label, pct (0-100, the bar), text (the right-hand figure),
+ *  tick (optional 0-100: a reference mark, e.g. LAMP's league average) }] */
 export function BarList({ label, items = [], accent, theme = MLB_C, numFont = MLB_NUM, labelWidth = 40 }) {
   if (!items.length) return null
   const fill = accent || theme.orange
@@ -38,7 +39,7 @@ export function BarList({ label, items = [], accent, theme = MLB_C, numFont = ML
         {items.map((p) => (
           <div key={p.key} style={{ display: 'grid', gridTemplateColumns: `${labelWidth}px 1fr 44px`, alignItems: 'center', gap: 8, fontSize: 12 }}>
             <b style={{ fontFamily: numFont }}>{p.label}</b>
-            <span style={{ height: 10, borderRadius: 5, background: theme.bg3, position: 'relative' }}><span style={{ position: 'absolute', inset: 0, width: `${Math.max(0, Math.min(100, p.pct))}%`, borderRadius: 5, background: fill }} /></span>
+            <span style={{ height: 10, borderRadius: 5, background: theme.bg3, position: 'relative' }}><span style={{ position: 'absolute', inset: 0, width: `${Math.max(0, Math.min(100, p.pct))}%`, borderRadius: 5, background: fill }} />{p.tick != null && <span title={p.tickTitle || 'league average'} style={{ position: 'absolute', top: -3, bottom: -3, width: 2, left: `${Math.max(0, Math.min(100, p.tick))}%`, background: theme.text }} />}</span>
             <span style={{ fontFamily: numFont, textAlign: 'right', color: theme.text2 }}>{p.text}</span>
           </div>
         ))}

@@ -4,7 +4,8 @@ import PageHeader from '../../PageHeader'
 import LampTable from '../LampTable'
 import ShotPanel from '../ShotPanel'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
-import { DelayedBanner, Loading, SourceLine, EmptyState, Kicker, PlayerMark } from '../ui'
+import { DelayedBanner, Loading, SourceLine, EmptyState, PlayerMark } from '../ui'
+import { MatchupTitle, SubLabel, BarList, FactLines } from '../../matchup/MatchupParts'
 
 // 🏒 LAMP MATCHUPS (2026-09-27, matchups plan Part B, in the shape Donovan
 // signed off on TUDDY's): a ranked table of tonight's defences leads --
@@ -44,22 +45,10 @@ function useGoalies(team) {
   return g
 }
 
-// One bar against the league's average for the same number.
-function Bar({ label, value, avg, good }) {
-  const w = (v) => `${Math.max(2, Math.min(100, (v / 0.35) * 100))}%`   // PP% lives in 0-35%
-  const pkW = (v) => `${Math.max(2, Math.min(100, ((v - 0.65) / 0.3) * 100))}%` // PK% lives in 65-95%
-  const scale = good === 'pk' ? pkW : w
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr 56px', alignItems: 'center', gap: 8, fontSize: 12 }}>
-      <span style={{ color: C.text2 }}>{label}</span>
-      <span style={{ position: 'relative', height: 12, borderRadius: 6, background: C.bg3 }}>
-        {value != null && <span style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: scale(value), borderRadius: 6, background: C.ice }} />}
-        {avg != null && <span title="league average" style={{ position: 'absolute', top: -3, bottom: -3, width: 2, left: scale(avg), background: C.text }} />}
-      </span>
-      <b style={{ fontFamily: NUM_FONT, color: C.text, textAlign: 'right' }}>{pct(value)}</b>
-    </div>
-  )
-}
+// PP% lives in 0-35%, PK% in 65-95%: each bar is drawn on its own honest range.
+const ppScale = (v) => (v == null ? 0 : (v / 0.35) * 100)
+const pkScale = (v) => (v == null ? 0 : ((v - 0.65) / 0.3) * 100)
+const Kicker = ({ children }) => <SubLabel theme={C} numFont={NUM_FONT}>{children}</SubLabel>
 
 function Detail({ row, league, onOpenPlayer }) {
   const goalies = useGoalies(row?.def)
@@ -69,18 +58,21 @@ function Detail({ row, league, onOpenPlayer }) {
     : null
   return (
     <section id="lamp-def-detail" aria-label={`${row.def} defence`} style={{ display: 'flex', flexDirection: 'column', gap: 12, scrollMarginTop: 80 }}>
-      <h2 style={{ margin: 0, fontSize: 18, fontWeight: 900, color: C.cream }}>{row.def} defence <span style={{ fontFamily: NUM_FONT, fontSize: 11, color: C.text3, fontWeight: 600 }}>· {row.home ? 'vs' : '@'} {row.opp} · tap another row above to switch</span></h2>
+      {/* MOONSHOT'S MATCHUP PARTS (2026-09-29, parity): title, section labels,
+          bars and fact lines are components/matchup/MatchupParts.js -- the
+          pieces MOONSHOT's and TUDDY's matchup details are built from. */}
+      <MatchupTitle name={`${row.def} defence`} meta={`${row.home ? 'vs' : '@'} ${row.opp} · tap another row above to switch`} theme={C} numFont={NUM_FONT} />
 
       <div>
         <Kicker>POWER PLAY vs PENALTY KILL</Kicker>
         <p style={{ margin: '0 0 8px', fontSize: 12.5, color: C.text2, lineHeight: 1.5 }}>
           <b style={{ color: C.text }}>{row.opp}</b>&apos;s power play ({pct(row.oppPp)}, {ord(row.oppPpRank)}) against <b style={{ color: C.text }}>{row.def}</b>&apos;s penalty kill ({pct(row.pk)}, {ord(row.pkRank)}){edge ? `: ${edge}.` : '.'}
         </p>
-        <div style={{ display: 'grid', gap: 6, maxWidth: 520 }}>
-          <Bar label={`${row.opp} power play`} value={row.oppPp} avg={league.pp} />
-          <Bar label={`${row.def} penalty kill`} value={row.pk} avg={league.pk} good="pk" />
-        </div>
-        <div style={{ marginTop: 4, fontSize: 11, color: C.text3 }}>The white tick is the league average.</div>
+        <BarList theme={C} numFont={NUM_FONT} accent={C.ice} labelWidth={120} items={[
+          { key: 'pp', label: `${row.opp} power play`, pct: ppScale(row.oppPp), text: pct(row.oppPp), tick: league.pp != null ? ppScale(league.pp) : null },
+          { key: 'pk', label: `${row.def} penalty kill`, pct: pkScale(row.pk), text: pct(row.pk), tick: league.pk != null ? pkScale(league.pk) : null },
+        ]} />
+        <div style={{ marginTop: -8, fontSize: 11, color: C.text3 }}>The white tick is the league average.</div>
       </div>
 
       <div>
@@ -103,13 +95,10 @@ function Detail({ row, league, onOpenPlayer }) {
         ) : <div style={{ fontSize: 12, color: C.text3 }}>No goalie lines for {row.def} yet.</div>}
       </div>
 
-      <div>
-        <Kicker>REST</Kicker>
-        <div style={{ fontSize: 12.5, color: C.text2 }}>
-          {row.def}: {row.b2b ? <b style={{ color: C.amber }}>back-to-back</b> : row.rest != null ? `${row.rest} day${row.rest === 1 ? '' : 's'} off` : 'rest unknown'}
-          {' · '}{row.opp}: {row.oppB2b ? <b style={{ color: C.amber }}>back-to-back</b> : row.oppRest != null ? `${row.oppRest} day${row.oppRest === 1 ? '' : 's'} off` : 'rest unknown'}
-        </div>
-      </div>
+      <FactLines theme={C} lines={[
+        ['Rest', <>{row.def}: {row.b2b ? <b style={{ color: C.amber }}>back-to-back</b> : row.rest != null ? `${row.rest} day${row.rest === 1 ? '' : 's'} off` : 'rest unknown'}
+          {' · '}{row.opp}: {row.oppB2b ? <b style={{ color: C.amber }}>back-to-back</b> : row.oppRest != null ? `${row.oppRest} day${row.oppRest === 1 ? '' : 's'} off` : 'rest unknown'}</>],
+      ]} />
 
       <div>
         <Kicker>WHO FITS · {row.opp}&apos;S CALLED SKATERS</Kicker>
