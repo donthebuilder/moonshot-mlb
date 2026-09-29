@@ -10,7 +10,7 @@ import GameSwitcher from '../GameSwitcher'
 import SlateCard from '../slate/SlateCard'
 import { GameFilterRail, StripFold, GamePanelPills, PanelAnchor, GameFrame, GameHeaderLine, PrevNextGame } from '../slate/SlateParts'
 import { SubLabel, FactLines } from '../matchup/MatchupParts'
-import { Zones, defenseFacts, offenseFacts } from './tabs/Matchups'
+import { Zones, defenseFacts, offenseFacts, PassGame } from './tabs/Matchups'
 import { Card as TdCard, tdPool } from './tabs/Touchdowns'
 import NflTable from './NflTable'
 import { useNflWatchlist } from '../../lib/nfl/watchlist'
@@ -205,6 +205,7 @@ export default function NflSlate({ data, picks, matchup, odds = null, initialGam
                             {soft?.standout ? <><b style={{ color: C.text }}>{teamLink(def)}</b> {softLine(soft)}.</> : <><b style={{ color: C.text }}>{teamLink(def)}</b> has no standout weakness this week.</>}
                           </p>
                           <FactLines theme={C} lines={[...offenseFacts(matchup, off, data?.season), ...defenseFacts(matchup, def, undefined, data?.season)]} />
+                          <PassGame matchup={matchup} data={data} off={off} def={def} onPlayerClick={onPlayerClick} />
                           {side.length > 0 && <SubLabel theme={C} numFont={NUM_FONT}>TOP TD LOOKS</SubLabel>}
                           <div style={{ display: 'grid', gap: 4 }}>
                             {side.map((p) => (

@@ -190,6 +190,65 @@ export function offenseFacts(matchup, team, slateSeason = null) {
   ]
 }
 
+// THEIR TOP TARGETS · THE CORNERS (2026-09-28, Donovan: "the top receivers
+// with the top corners when we're looking at a matchup"). matchup.pass_game
+// (bots/nfl/nfl_pass_game.py): an offense's top 3 by targets, a defence's
+// rank-1 LCB / RCB / NB from the depth chart. Side by side and NEVER paired:
+// no free source says who covered whom. The one line that connects them is a
+// TEAM number from DvP -- what this defence allows WR1s -- and says so.
+const SLOT_WORD = { LCB: 'LCB', RCB: 'RCB', NB: 'Slot' }
+export function PassGame({ matchup, data, off, def, onPlayerClick = null }) {
+  const pg = matchup?.pass_game
+  const tg = pg?.targets?.[off] || []
+  const cb = pg?.corners?.[def] || []
+  if (!tg.length && !cb.length) return null
+  const slate = Number(data?.season) || null
+  const rows = data?.players || []
+  const rowOf = (id) => rows.find((p) => String(p.player_id) === String(id))
+  const wr1 = matchup?.dvp?.season?.[def]?.WR1
+  const Row = ({ face, name, meta }) => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 44, borderBottom: `1px solid ${C.border}` }}>
+      {face}
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 800, color: C.text, lineHeight: 1.2 }}>{name}</div>
+        <div style={{ fontSize: 11.5, color: C.text3, fontFamily: NUM_FONT, lineHeight: 1.35 }}>{meta}</div>
+      </div>
+    </div>
+  )
+  const yr = (y) => (slate && y && y < slate ? ` · ${y}` : '')
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))' }}>
+        <div>
+          <SubLabel {...P}>{off} OFFENSE · TOP TARGETS{yr(pg.season)}</SubLabel>
+          {tg.map((t) => {
+            const r = rowOf(t.player_id)
+            const name = r?.name || t.name
+            return <Row key={t.player_id}
+              face={<NflFace player={r || { name, team: off }} size={30} />}
+              name={r && onPlayerClick ? <Tap onClick={() => onPlayerClick(r)}>{name}</Tap> : name}
+              meta={<>{t.position || '—'} · {t.share}% of targets · {t.adot != null ? `${t.adot} air yds a target` : '—'} · {t.yds} yds, {t.td} TD in {t.games} {t.games === 1 ? 'game' : 'games'}</>} />
+          })}
+        </div>
+        <div>
+          <SubLabel {...P}>{def} DEFENSE · CORNERS ON THE DEPTH CHART{yr(pg.corner_season)}</SubLabel>
+          {cb.map((c) => (
+            <Row key={c.slot}
+              face={<NflFace player={{ espn_id: c.espn_id, name: c.name, team: def }} size={30} />}
+              name={<>{c.name} <span style={{ color: C.text3, fontWeight: 700, fontSize: 11 }}>{SLOT_WORD[c.slot] || c.slot}</span></>}
+              meta={c.games ? <>{c.pd} passes defended · {c.int} INT in {c.games} {c.games === 1 ? 'game' : 'games'}</> : <>no games yet this season</>} />
+          ))}
+        </div>
+      </div>
+      {wr1?.recyd_g != null && Number.isFinite(wr1.recyd_g_rank) ? (
+        <p style={{ margin: '8px 0 0', fontSize: 12, lineHeight: 1.5, color: C.text2 }}>
+          As a team, {def} allow {wr1.recyd_g} receiving yards a game to WR1s, the {ordinal(wr1.recyd_g_rank)}-most in the league. Not who covers whom: no free source says that.
+        </p>
+      ) : null}
+    </div>
+  )
+}
+
 export function defenseFacts(matchup, team, rushThreat = passRushThreat(matchup, team), slateSeason = null) {
   // A line from an older season than the slate says so (charting is last
   // season's all year; pass_rush can be at the flip). Same year = no note.
@@ -314,6 +373,7 @@ export default function Matchups({ matchup, data, onPlayerClick = null, onOpenTe
           </div>
         )}
         <FactLines theme={C} lines={facts} />
+        {opp ? <PassGame matchup={matchup} data={data} off={opp} def={active} onPlayerClick={onPlayerClick} /> : null}
 
         <Zones field={matchup.field} team={active} />
         <ByPosition matchup={matchup} team={active} win={win} setWin={setWin} slateSeason={data?.season} />
