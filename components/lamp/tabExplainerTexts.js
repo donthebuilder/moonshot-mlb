@@ -15,6 +15,6 @@ export const NHL_TEXTS = {
   player: { what: 'One man\u2019s file: the season line, career, last five games, the game log, season by season. Every number is the league\u2019s.' },
   teams: { what: 'The 32 clubs by division with their records. Tap a club for its roster, schedule and season lines.' },
   team: { what: 'One club: record and place, next up and last five, the roster with each man\u2019s season line, team leaders, the whole schedule.' },
-  leaders: { what: 'Who leads the league, ten deep per category, regular season, straight from the league. Measured, not modelled.' },
+  leaders: { what: 'Who leads the league, top three per category, regular season, straight from the league. Measured, not modelled.' },
   guide: { what: 'What LAMP is, where its numbers come from, and what it does not do yet.' },
 }
