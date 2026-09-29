@@ -5,7 +5,7 @@ import { STATE, alpha } from '../../lib/scales'
 import { fetchJSON, groupGames } from '../../lib/data'
 import { clean, teamOf } from '../../lib/player'
 import { Empty } from '../ui'
-import Sparkline, { GameStrip } from '../Sparkline'
+import { RunLeaderCard, RunBoardRow, runChip as chip, runPct as pct } from '../runs/RunParts'
 // H and HRR are the game-log column indices donutStats reads. They were NOT in
 // this import when DonutLine first shipped — the build compiled clean, and the
 // ReferenceError at render killed the ENTIRE Patterns page. Caught by the
@@ -66,60 +66,9 @@ import { runsPaths, runsLookReal, readRun, marketOf, barLabel, MARKETS, H, HRR }
 
 // UNIVERSAL FILTER RECIPE (2026-08-23): tint through the theme accent via
 // STATE/alpha, not a baked ember rgba — see components/Filters.js.
-const chip = (on) => {
-  const st = on ? STATE.on() : STATE.off()
-  return {
-    padding: '3px 10px', borderRadius: 999, cursor: 'pointer', fontSize: TYPE.label,
-    fontWeight: st.fontWeight, fontFamily: NUM_FONT, whiteSpace: 'nowrap',
-    border: `1px solid ${st.borderColor}`,
-    background: on ? alpha(st.color, 0.14) : 'transparent',
-    color: st.color,
-  }
-}
 
 const SPLITS = [['all', 'All games'], ['D', 'Day'], ['N', 'Night'], ['H', 'Home'], ['A', 'Road']]
 const ORDERS = [['run', 'Run length'], ['team', 'Team'], ['game', 'Game']]
-const pct = (w) => (w ? `${w.pct.toFixed(0)}%` : '—')
-
-/**
- * How ordinary is this run?
- *
- * If he clears the bar at rate p, an active run of k is roughly a p^k event on
- * any given stretch — so a 5-game run for a 60% hitter happens about one
- * stretch in 13, which is to say most weeks. Saying so is the difference
- * between a board that finds signal and one that manufactures it.
- */
-function runOdds(run, base) {
-  if (!base || run <= 1) return null
-  const p = base.pct / 100
-  if (!(p > 0 && p < 1)) return null
-  const one = Math.pow(p, run)
-  if (one <= 0) return null
-  return Math.round(1 / one)
-}
-
-/**
- * The same arithmetic as a sentence, for anywhere the number alone is mute.
- *
- * This used to render only on the six featured cards, which meant the one
- * genuinely honest thing this page computes was unavailable for the other two
- * hundred hitters — you could open a row, see "7▲", and get no help at all
- * deciding whether seven is remarkable for THAT hitter. It now backs every
- * expanded row too. Phrasing stays descriptive of his own past rate; nothing
- * here says a run continues.
- */
-function RunOddsLine({ run, base, size = TYPE.body }) {
-  const k = Math.abs(run)
-  const odds = runOdds(k, base)
-  if (!odds) return null
-  return (
-    <div style={{ fontSize: size, color: C.text3, marginTop: 3, lineHeight: 1.45 }}>
-      At his own {pct(base)} rate, {k} in a row comes up about once every{' '}
-      <b style={{ color: C.text2 }}>{odds}</b> stretches
-      {odds <= 20 ? ' — which is to say regularly.' : ' — an unusual stretch at that rate, and still only a stretch.'}
-    </div>
-  )
-}
 
 /** A dropdown that looks like the header's team filter, at board scale. */
 function Picker({ label, value, onChange, options, title }) {
@@ -609,82 +558,14 @@ export default function Runs({ players = [], onPlayerClick }) {
             display: 'grid', gap: 7, marginBottom: 12,
             gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))',
           }}>
-            {rows.slice(0, 6).map(({ p, r }) => {
-              const hot = r.run > 0
-              return (
-                <div key={p.player_id} onClick={() => onPlayerClick?.(slateRow(players, p))} className="tap-row"
-                  style={{
-                    border: `1px solid ${hot ? 'rgba(74,222,128,.3)' : 'rgba(248,113,113,.28)'}`,
-                    borderRadius: 12, padding: '9px 12px', cursor: 'pointer',
-                    background: hot ? 'rgba(74,222,128,.05)' : 'rgba(248,113,113,.04)',
-                  }}>
-                  <div style={{ fontFamily: NUM_FONT, fontSize: TYPE.label, color: C.text3, letterSpacing: '.08em', textTransform: 'uppercase' }}>
-                    {p.team}{p.opp ? ` vs ${p.opp}` : ''} · {label}
-                  </div>
-                  <div style={{ fontSize: TYPE.name, fontWeight: 800, marginTop: 1 }}>{p.name}</div>
-                  <div style={{
-                    fontFamily: NUM_FONT, fontSize: TYPE.display, fontWeight: 900, marginTop: 2,
-                    color: hot ? C.green : C.red,
-                    display: 'flex', alignItems: 'baseline', gap: 7, flexWrap: 'wrap',
-                  }}>
-                    <span>{Math.abs(r.run)} game {hot ? 'run' : 'drought'}</span>
-                    {/* ── HOW BIG IS THIS FOR HIM (2026-08-31) ─────────────
-                        "13 game run" is a number, not a statement. Thirteen is
-                        enormous for a hitter whose best in the window is six
-                        and unremarkable for one who has done fourteen twice,
-                        and the board could not tell those apart — so every long
-                        run read the same. His own best over the same games is
-                        the cheapest honest context there is: it comes off rows
-                        already in hand, needs no request, and turns a length
-                        into a rank. */}
-                    {(() => {
-                      // "His longest" alone is a weak fact on a board sorted
-                      // by run length — a 13 in a 30-game window is almost
-                      // always his longest, so the badge fired on all six
-                      // leaders and said nothing. Caught in render. What
-                      // varies is the longest run he has that ISN'T this one.
-                      const best = hot ? r.bestHit : r.bestMiss
-                      const prev = hot ? r.prevBestHit : r.prevBestMiss
-                      const word = hot ? 'run' : 'drought'
-                      if (!best) return null
-                      if (r.atBest) {
-                        return (
-                          <span style={{ fontSize: TYPE.micro, fontWeight: 700, color: C.text3, fontFamily: NUM_FONT }}
-                            title={prev
-                              ? `Nothing else in these ${r.n} games comes close: his next-longest ${word} is ${prev}. Strict consecutive, both measured the same way.`
-                              : `The only ${word} of any length he has in these ${r.n} games.`}>
-                            {prev ? <>past a previous <b style={{ color: hot ? C.green : C.red }}>{prev}</b></> : 'his first of any length'}
-                          </span>
-                        )
-                      }
-                      return (
-                        <span style={{ fontSize: TYPE.micro, fontWeight: 700, color: C.text3, fontFamily: NUM_FONT }}
-                          title={`He has been on a longer ${word} inside these ${r.n} games — ${best}. Strict consecutive, the same rule this one is measured against, so the two numbers compare.`}>
-                          he has had <b style={{ color: C.text2 }}>{best}</b>
-                        </span>
-                      )
-                    })()}
-                  </div>
-                  <div style={{ margin: '5px 0 4px' }}
-                    title={`His last ${Math.min(r.strip.length, 30)} games for ${label} — oldest on the left, tonight would come next on the right. Bright green is the active run.`}>
-                    <Sparkline strip={r.strip} run={r.run} />
-                  </div>
-                  <div style={{ display: 'flex', gap: 10, fontFamily: NUM_FONT, fontSize: TYPE.micro, color: C.text3 }}>
-                    <span title={r.l5 ? `${r.l5.ok} of ${r.l5.n} games` : ''}>L5 <b style={{ color: C.text2 }}>{pct(r.l5)}</b></span>
-                    <span title={r.l10 ? `${r.l10.ok} of ${r.l10.n} games` : ''}>L10 <b style={{ color: C.text2 }}>{pct(r.l10)}</b></span>
-                    <span title={r.l15 ? `${r.l15.ok} of ${r.l15.n} games` : ''}>L15 <b style={{ color: C.text2 }}>{pct(r.l15)}</b></span>
-                    <span title={r.l30 ? `${r.l30.ok} of ${r.l30.n} games` : ''}>L30 <b style={{ color: C.text2 }}>{pct(r.l30)}</b></span>
-                  </div>
-                  {/* The one honest line on this page, at 9.5 rather than 9 —
-                      it is the reason to trust or discount the big green
-                      number directly above it, so it should not read as fine
-                      print. */}
-                  <RunOddsLine run={r.run} base={r.l30 || r.l15} size={TYPE.body} />
-                  <MatchupLine row={slateRow(players, p)} />
-                  <DonutLine g={p.g} />
-                </div>
-              )
-            })}
+            {rows.slice(0, 6).map(({ p, r }) => (
+              <RunLeaderCard key={p.player_id} r={r} name={p.name} label={label}
+                kicker={<>{p.team}{p.opp ? ` vs ${p.opp}` : ''} · {label}</>}
+                onClick={() => onPlayerClick?.(slateRow(players, p))}>
+                <MatchupLine row={slateRow(players, p)} />
+                <DonutLine g={p.g} />
+              </RunLeaderCard>
+            ))}
           </div>
 
           {/* ── the full board ── */}
@@ -694,7 +575,6 @@ export default function Runs({ players = [], onPlayerClick }) {
               const isOpen = open === p.player_id
               const g = groupOf(x)
               const newGroup = g && g !== groupOf(ordered[i - 1])
-              const verb = r.run > 0 ? 'cleared' : 'missed'
               return (
                 <Fragment key={p.player_id}>
                   {newGroup && (
@@ -708,49 +588,10 @@ export default function Runs({ players = [], onPlayerClick }) {
                       <span style={{ fontSize: TYPE.micro, fontFamily: NUM_FONT, color: C.text3 }}>{groupCounts.get(g)} hitters</span>
                     </div>
                   )}
-                  <div style={{
-                    border: `1px solid ${isOpen ? `${C.orange}55` : C.border}`, borderRadius: 9,
-                    background: isOpen ? 'rgba(249,115,22,.05)' : C.bg2,
-                    padding: '6px 9px', gridColumn: isOpen ? '1 / -1' : 'auto',
-                  }}>
-                    <div onClick={() => setOpen(isOpen ? null : p.player_id)} className="tap-row"
-                      style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', minWidth: 0 }}>
-                      <span
-                        title={`${p.name} ${verb} ${label} in each of his last ${Math.abs(r.run)} ${split === 'all' ? '' : `${SPLITS.find(([k]) => k === split)?.[1].toLowerCase()} `}games. Tap for the log.`}
-                        style={{
-                          fontFamily: NUM_FONT, fontSize: TYPE.body, fontWeight: 900, minWidth: 26, textAlign: 'right',
-                          color: r.run > 0 ? C.green : r.run < 0 ? C.red : C.text3,
-                        }}>{r.run > 0 ? `${r.run}▲` : `${-r.run}▼`}</span>
-                      <span style={{ fontSize: TYPE.name, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, minWidth: 0 }}>
-                        {p.name}
-                        <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, color: C.text3, marginLeft: 5 }}>{p.team}</span>
-                      </span>
-                      <Sparkline strip={r.strip} run={r.run} size={6} max={15} />
-                      <span title={r.l15 ? `${r.l15.ok} of his last ${r.l15.n} games cleared ${label}` : ''}
-                        style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, color: C.text3, minWidth: 30, textAlign: 'right' }}>
-                        {pct(r.l15)}
-                      </span>
-                    </div>
-                    {isOpen && (
-                      <div style={{ paddingTop: 8 }}>
-                        <div style={{ display: 'flex', gap: 12, marginBottom: 7, flexWrap: 'wrap', fontFamily: NUM_FONT, fontSize: TYPE.micro, color: C.text3 }}>
-                          {[['L5', r.l5], ['L10', r.l10], ['L15', r.l15], ['L30', r.l30]].map(([l, w]) => (
-                            <span key={l} title={w ? `${w.ok} of ${w.n}` : ''}>
-                              {l} <b style={{ color: C.text, fontSize: TYPE.body }}>{pct(w)}</b>
-                            </span>
-                          ))}
-                          <button onClick={(e) => { e.stopPropagation(); onPlayerClick?.(slateRow(players, p)) }}
-                            style={{ ...chip(false), marginLeft: 'auto' }}>open his card →</button>
-                        </div>
-                        <GameStrip strip={r.strip} max={15} />
-                        <div style={{ fontSize: TYPE.micro, color: C.text3, marginTop: 5 }}>
-                          {label} · newest on the right · green cleared it
-                          {split !== 'all' ? ` · ${SPLITS.find(([k]) => k === split)?.[1].toLowerCase()} only` : ''}
-                        </div>
-                        <RunOddsLine run={r.run} base={r.l30 || r.l15} size={9.5} />
-                      </div>
-                    )}
-                  </div>
+                  <RunBoardRow r={r} name={p.name} team={p.team} label={label} open={isOpen}
+                    onToggle={() => setOpen(isOpen ? null : p.player_id)}
+                    onOpenCard={() => onPlayerClick?.(slateRow(players, p))}
+                    onlyWord={split === 'all' ? '' : SPLITS.find(([k]) => k === split)?.[1].toLowerCase()} />
                 </Fragment>
               )
             })}

@@ -19,6 +19,7 @@ import { C, NUM_FONT } from '../lib/theme'
 //     he actually did and whether it was a day game — so the strip is a way
 //     into the log rather than a decoration on top of it.
 
+// `home: null` = not known (the NFL log has no home/away): neither vs nor @.
 export default function Sparkline({ strip = [], run = 0, size = 7, gap = 2, max = 30 }) {
   if (!strip.length) return null
   const shown = strip.slice(-max)
@@ -34,7 +35,7 @@ export default function Sparkline({ strip = [], run = 0, size = 7, gap = 2, max 
         return (
           <span
             key={`${s.date}-${i}`}
-            title={`${s.date} ${s.home ? 'vs' : '@'} ${s.opp} · ${s.v}${s.dn ? ` · ${s.dn === 'D' ? 'day' : 'night'} game` : ''} — ${s.on ? 'cleared' : 'missed'}`}
+            title={`${s.date} ${s.home == null ? '' : s.home ? 'vs ' : '@ '}${s.opp} · ${s.v}${s.dn ? ` · ${s.dn === 'D' ? 'day' : 'night'} game` : ''} — ${s.on ? 'cleared' : 'missed'}`}
             style={{
               width: size, height: size, borderRadius: 1.5, flexShrink: 0,
               background: s.on ? (inRun ? '#4ade80' : 'rgba(74,222,128,.42)') : 'rgba(255,255,255,.10)',
@@ -60,7 +61,7 @@ export function GameStrip({ strip = [], max = 15 }) {
   return (
     <div className="dense-scroll rail" style={{ display: 'flex', gap: 4, overflowX: 'auto', paddingBottom: 3 }}>
       {shown.map((s, i) => (
-        <div key={`${s.date}-${i}`} title={`${s.date} ${s.home ? 'vs' : '@'} ${s.opp}${s.dn ? ` · ${s.dn === 'D' ? 'day' : 'night'}` : ''}`}
+        <div key={`${s.date}-${i}`} title={`${s.date} ${s.home == null ? '' : s.home ? 'vs ' : '@ '}${s.opp}${s.dn ? ` · ${s.dn === 'D' ? 'day' : 'night'}` : ''}`}
           style={{
             flex: '0 0 auto', minWidth: 42, textAlign: 'center', borderRadius: 7,
             padding: '5px 6px',
@@ -72,7 +73,7 @@ export function GameStrip({ strip = [], max = 15 }) {
             color: s.on ? '#4ade80' : C.text3,
           }}>{s.v}</div>
           <div style={{ fontFamily: NUM_FONT, fontSize: 7.5, color: C.text3, whiteSpace: 'nowrap' }}>
-            {s.date} {s.home ? '' : '@'}{s.opp}
+            {s.date} {s.home == null || s.home ? '' : '@'}{s.opp}
           </div>
         </div>
       ))}

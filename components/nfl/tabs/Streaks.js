@@ -6,30 +6,39 @@
 // to Coldest for the fade board.
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE, gradeFor } from '../../../lib/nfl/theme'
-import { streakMarkets, streakBoard, barChoices } from '../../../lib/nfl/streaks'
+import { streakMarkets, streakBoard, barChoices, seriesFor } from '../../../lib/nfl/streaks'
 import PageHeader from '../../PageHeader'
 import { FilterPill } from '../../Filters'
 import NflExplain from '../NflExplain'
+import { RunLeaderCard, RunBoardRow, runChip } from '../../runs/RunParts'
+import { readRun } from '../../../lib/runs'
+import { useIsPhone } from '../../MobileFold'
 
 const REASON_WORD = { rising: 'usage rising', bot: 'bot likes him' }
 const REASON_TITLE = (r) => `Below the volume floor (${r.usage.recent.toFixed(1)} a game over his last 8, floor ${r.usage.floor}) but on the board because: ${r.reasons.map((x) => REASON_WORD[x]).join(', ')}.`
 const LABEL = { TD: 'Anytime TD', REC_YDS: 'Receiving yards', REC: 'Receptions', RUSH_YDS: 'Rushing yards', RUSH_ATT: 'Carries', PASS_YDS: 'Passing yards', KICK_PTS: 'Kicking points' }
 
-function Spark({ series, bar, side }) {
-  const w = 96, h = 22
-  const max = Math.max(bar * 1.5, ...series.map((r) => r.v), 1)
-  const step = series.length > 1 ? w / (series.length - 1) : 0
-  const y = (v) => h - 2 - (Math.min(v, max) / max) * (h - 4)
-  return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden="true">
-      <line x1="0" x2={w} y1={y(bar)} y2={y(bar)} stroke={C.text3} strokeDasharray="2 3" strokeWidth="1" />
-      {series.map((r, i) => {
-        const over = r.v >= bar
-        const on = side === 'over' ? over : !over
-        return <circle key={i} cx={series.length > 1 ? i * step : w / 2} cy={y(r.v)} r={2.4} fill={on ? (side === 'over' ? C.green : C.red) : 'rgba(255,255,255,.22)'} />
-      })}
-    </svg>
-  )
+// MOONSHOT'S RUN PIECES (2026-09-29, queue batch 11). The list below was its
+// own .ts-* grid with a private sparkline; it is MOONSHOT's Runs card and row
+// now (components/runs/RunParts.js), fed by the same readRun() arithmetic --
+// the NFL log is laid out in MOONSHOT's run columns so hot/cold, his own best
+// and L5-L30 are computed by one function for both sports.
+//
+// Phone budget: two featured cards on a phone (six on desktop, MOONSHOT's
+// number) and a twelve-row preview of the board, so the page is no taller
+// than the list it replaced.
+const PREVIEW = 12
+
+// One NFL log series -> readRun()'s rows (newest first): [date, opp, _, v].
+// Home/away is not in the NFL log, so the strip says neither (home: null).
+function runOf(series, bar) {
+  const latest = series.length ? series[series.length - 1].s : null
+  const rows = [...series].reverse().map((g) => [
+    `${g.s !== latest ? `'${String(g.s).slice(2)} ` : ''}W${g.w}`, g.opp, null, g.v,
+  ])
+  const r = readRun(rows, 3, bar)
+  if (!r) return null
+  return { ...r, strip: r.strip.map((x) => ({ ...x, home: null })) }
 }
 
 export default function Streaks({ data, logs, onPlayerClick }) {
@@ -39,6 +48,9 @@ export default function Streaks({ data, logs, onPlayerClick }) {
   const [bar, setBar] = useState(null)
   const [side, setSide] = useState('over')
   const [pos, setPos] = useState('ALL')
+  const [openRow, setOpenRow] = useState(null)
+  const [all, setAll] = useState(false)
+  const phone = useIsPhone()
   const line = bar ?? market?.bar ?? 0
   const chips = useMemo(() => (market ? barChoices(market.key, market.bar) : []), [market])
 
@@ -52,6 +64,8 @@ export default function Streaks({ data, logs, onPlayerClick }) {
     // "who is hot right now" is a question about people who are playing.
     const players = (data?.players || []).filter((p) => !p.on_bye && (!eligible.size || eligible.has(p.position)) && (pos === 'ALL' || p.position === pos))
     return streakBoard(logs, players, market.field, line, side, 30, market.key).filter((r) => r.streak > 0).slice(0, 60)
+      .map((r) => ({ ...r, run: runOf(seriesFor(logs, r.player.player_id, market.field, 30), line) }))
+      .filter((r) => r.run)
   }, [logs, data, market, line, side, pos])
 
   if (!markets.length) return <div className="ts-empty">No game logs published yet — the bot ships nfl_logs.json on its first run of the season.</div>
@@ -82,7 +96,7 @@ export default function Streaks({ data, logs, onPlayerClick }) {
         <div className="chip-row" style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center' }}>
           {markets.map((m) => (
             <FilterPill key={m.key} active={m.key === market.key}
-              onClick={() => { setMk(m.key); setBar(null); setPos('ALL') }}>
+              onClick={() => { setMk(m.key); setBar(null); setPos('ALL'); setAll(false) }}>
               {LABEL[m.key] || m.key}
             </FilterPill>
           ))}
@@ -107,38 +121,54 @@ export default function Streaks({ data, logs, onPlayerClick }) {
       </div>
 
       {!rows.length && <div className="ts-empty">Nobody on this slate is on a run at {line} {LABEL[market.key]?.toLowerCase()}.</div>}
-      <div className="ts-list">
-        {rows.map((r, i) => {
-          const g = gradeFor(r.player.scores?.[market.key])
-          const col = side === 'over' ? C.green : C.red
-          const mag = Math.min(1, r.streak / 10)
-          return (
-            <button type="button" key={r.player.player_id} className="ts-item" onClick={() => onPlayerClick?.(r.player, market.key)}>
-              <span className="ts-rank">{i + 1}</span>
-              <span className="ts-who"><b>{r.player.name}{r.questionable && <i className="ts-q" title="Listed questionable on the slate">Q</i>}</b><small>{r.player.team} · {r.player.position} · vs {r.player.opp || '—'}{r.usage && !r.usage.volume ? <> · <em className="ts-why" title={REASON_TITLE(r)}>{r.reasons.map((x) => REASON_WORD[x]).join(' · ')}</em></> : null}</small></span>
-              <Spark series={r.last8} bar={line} side={side} />
-              <span className="ts-streak" style={{ color: col }}><b>{r.streak}</b><small>{side === 'over' ? 'straight over' : 'straight under'}</small><i style={{ width: `${mag * 100}%`, background: col }} /></span>
-              <span className="ts-rate"><b>{Math.round(r.rate * 100)}%</b><small>{r.hits}/{r.games} over {line}</small></span>
-              <span className="ts-last"><b>{r.lastV}</b><small>last</small></span>
-              <span className="ts-score" style={{ color: g.color }}><b>{Number.isFinite(r.player.scores?.[market.key]) ? Math.round(r.player.scores[market.key]) : '—'}</b><small>bot</small></span>
-            </button>
-          )
-        })}
-      </div>
+      {rows.length > 0 && (() => {
+        const label = `${line}+ ${(LABEL[market.key] || market.key).toLowerCase()}`
+        const why = (r) => (r.usage && !r.usage.volume ? r.reasons.map((x) => REASON_WORD[x]).join(' · ') : '')
+        const featured = rows.slice(0, phone ? 2 : 6)
+        const board = rows.slice(featured.length)
+        const shown = all ? board : board.slice(0, PREVIEW)
+        return (
+          <>
+            <div style={{ display: 'grid', gap: 7, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))' }}>
+              {featured.map((x) => {
+                const score = x.player.scores?.[market.key]
+                const g = gradeFor(score)
+                return (
+                  <RunLeaderCard key={x.player.player_id} r={x.run} name={x.player.name} label={label}
+                    kicker={<>{x.player.team}{x.player.opp ? ` vs ${x.player.opp}` : ''} · {x.player.position} · {label}</>}
+                    onClick={() => onPlayerClick?.(x.player, market.key)}>
+                    <div style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, color: C.text3, marginTop: 3 }}>
+                      {Number.isFinite(score) ? <>bot <b style={{ color: g.color }}>{Math.round(score)}</b> this week</> : 'not scored this week'}
+                      {x.questionable && <b title="Listed questionable on the slate" style={{ color: C.yellow, marginLeft: 6 }}>Q</b>}
+                      {why(x) && <span title={REASON_TITLE(x)} style={{ color: C.cyan, marginLeft: 6 }}>{why(x)}</span>}
+                    </div>
+                  </RunLeaderCard>
+                )
+              })}
+            </div>
+            {board.length > 0 && (
+              <div style={{ display: 'grid', gap: 4, gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 330px), 1fr))' }}>
+                {shown.map((x) => (
+                  <RunBoardRow key={x.player.player_id} r={x.run} name={x.player.name} label={label}
+                    team={<>{x.player.team} · {x.player.position}{x.questionable ? ' · Q' : ''}{why(x) ? <span title={REASON_TITLE(x)} style={{ color: C.cyan }}> · {why(x)}</span> : null}</>}
+                    open={openRow === x.player.player_id}
+                    onToggle={() => setOpenRow(openRow === x.player.player_id ? null : x.player.player_id)}
+                    onOpenCard={() => onPlayerClick?.(x.player, market.key)} />
+                ))}
+              </div>
+            )}
+            {board.length > PREVIEW && (
+              <button type="button" onClick={() => setAll(!all)} style={{ ...runChip(false), alignSelf: 'flex-start', padding: '8px 14px' }}>
+                {all ? 'show fewer' : `show all ${board.length}`}
+              </button>
+            )}
+          </>
+        )
+      })()}
 
       <style>{`
       .ts{display:flex;flex-direction:column;gap:12px}
-      .ts-list{display:flex;flex-direction:column;gap:5px}
-      .ts-item{display:grid;grid-template-columns:22px 1fr 96px 110px 76px 44px 40px;align-items:center;gap:10px;padding:8px 12px;border:1px solid ${C.border};border-radius:11px;background:${C.bg2};color:inherit;text-align:left;cursor:pointer}
-      .ts-item:hover{border-color:${C.border2}}
-      .ts-rank{color:${C.text3};font:900 10px/1 ${NUM_FONT}}
-      .ts-who b{display:block;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ts-who small{display:block;margin-top:2px;color:${C.text3};font:700 8px/1 ${NUM_FONT}}.ts-q{display:inline-block;margin-left:5px;padding:1px 4px;border-radius:4px;background:rgba(250,204,21,.15);color:${C.yellow};font:900 8px/1 ${NUM_FONT};font-style:normal;vertical-align:middle}.ts-why{color:${C.cyan};font-style:normal}
-      .ts-streak{position:relative;display:flex;align-items:baseline;gap:5px;padding-bottom:6px}.ts-streak b{font:900 20px/1 ${NUM_FONT}}.ts-streak small{font:800 7.5px/1 ${NUM_FONT};color:${C.text3};text-transform:uppercase;letter-spacing:.04em}
-      .ts-streak i{position:absolute;left:0;bottom:0;height:3px;border-radius:99px}
-      .ts-rate,.ts-last,.ts-score{display:flex;flex-direction:column;align-items:flex-end;font-family:${NUM_FONT}}
-      .ts-rate b,.ts-last b,.ts-score b{font-size:13px;font-weight:900}.ts-rate small,.ts-last small,.ts-score small{margin-top:2px;font-size:7.5px;font-weight:700;color:${C.text3};white-space:nowrap}
       .ts-empty{padding:26px;border:1px dashed ${C.border2};border-radius:12px;text-align:center;color:${C.text3};font-size:10.5px}
-      @media(max-width:640px){.ts-item{grid-template-columns:18px 1fr 90px 40px;}.ts-item svg{display:none}.ts-rate,.ts-last{display:none}}
       `}</style>
     </div>
   )
