@@ -1,5 +1,6 @@
 'use client'
 import { C, NUM_FONT, TYPE } from '../../lib/nfl/theme'
+import { blockSeason } from '../../lib/nfl/dvpSignal'
 
 // WHICH YEAR IS THIS NUMBER FROM? (2026-09-18)
 //
@@ -28,8 +29,10 @@ import { C, NUM_FONT, TYPE } from '../../lib/nfl/theme'
 // So the badge says the year, and its tooltip says which clock it is on and
 // when it changes. A reader in week 1 still sees the numbers -- they are real
 // and they are the best available -- they just also see whose season they are.
-export default function SourceSeason({ matchup, kind = 'charting', slateSeason = null, style }) {
-  const year = Number(kind === 'charting' ? matchup?.chart_season : matchup?.season) || null
+export default function SourceSeason({ matchup, kind = 'charting', slateSeason = null, block = null, style }) {
+  // `block`: a stats-clock table the bot may have served from last season at
+  // the flip (matchup.block_seasons, see lib/nfl/dvpSignal.js blockSeason).
+  const year = Number(kind === 'charting' ? matchup?.chart_season : (block ? blockSeason(matchup, block) : matchup?.season)) || null
   if (!year) return null
   const slate = Number(slateSeason) || null
   // Same year as the slate = nothing worth saying on the stats clock; the

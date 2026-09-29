@@ -11,7 +11,7 @@ import NflTable from '../NflTable'
 import SourceSeason from '../SourceSeason'
 import useDvpSeason from '../../../lib/nfl/useDvpSeason'
 import { MatchupTitle, SubLabel, BarList, FactLines, HeatTiles } from '../../matchup/MatchupParts'
-import { softRole, softLine, passRushThreat, PASS_RUSH_AVOID, STARTER_ROLES } from '../../../lib/nfl/dvpSignal'
+import { softRole, softLine, passRushThreat, blockSeason, PASS_RUSH_AVOID, STARTER_ROLES } from '../../../lib/nfl/dvpSignal'
 
 // Matchups -- the defenses to attack this week, then one defense read the
 // way MOONSHOT reads a starter (2026-09-28, Donovan: "the match up page on nfl
@@ -130,7 +130,11 @@ function ByPosition({ matchup, team, win, setWin, slateSeason }) {
 
 // ONE DEFENSE IN PLAIN LINES (2026-09-28): Coverage / Big plays / Pass rush /
 // Up front. The Matchups detail and the Slate's read both print these.
-export function defenseFacts(matchup, team, rushThreat = passRushThreat(matchup, team)) {
+export function defenseFacts(matchup, team, rushThreat = passRushThreat(matchup, team), slateSeason = null) {
+  // A line from an older season than the slate says so (charting is last
+  // season's all year; pass_rush can be at the flip). Same year = no note.
+  const slate = Number(slateSeason) || null
+  const older = (yr) => (slate && yr && yr < slate ? <span style={{ color: C.text3 }}> ({yr} season)</span> : null)
   const cov = matchup?.coverage_team?.[team]
   const dominant = cov && cov.zone_pct != null && cov.man_pct != null ? (cov.zone_pct >= cov.man_pct ? 'zone' : 'man') : null
   const domPct = dominant ? cov[`${dominant}_pct`] : null
@@ -140,8 +144,8 @@ export function defenseFacts(matchup, team, rushThreat = passRushThreat(matchup,
   return [
     ['Coverage', dominant ? <>{dominant} on {domPct}% of snaps{covRank ? ` (${ordinal(covRank)}-most in the league)` : ''}.</> : null],
     ['Big plays', exp ? <>{exp.pass_20} passes of 20+ yards allowed, {exp.deep_td} touchdowns on throws of 20+ air yards ({exp.deep_cmp} of {exp.deep_att} completed).</> : null],
-    ['Pass rush', dis?.pressure?.created_pct != null ? <>pressure on {dis.pressure.created_pct}% of {dis.pressure.created_plays || 'their'} pass plays faced.</> : null],
-    ['Up front', rushThreat && rushThreat.percentile >= PASS_RUSH_AVOID ? <><b style={{ color: C.red }}>{rushThreat.name}</b> ({rushThreat.position}) is {ordinal(Math.round(rushThreat.percentile))}-percentile at turning pressure into sacks.</> : null],
+    ['Pass rush', dis?.pressure?.created_pct != null ? <>pressure on {dis.pressure.created_pct}% of {dis.pressure.created_plays || 'their'} pass plays faced{older(Number(matchup?.chart_season))}.</> : null],
+    ['Up front', rushThreat && rushThreat.percentile >= PASS_RUSH_AVOID ? <><b style={{ color: C.red }}>{rushThreat.name}</b> ({rushThreat.position}) is {ordinal(Math.round(rushThreat.percentile))}-percentile at turning pressure into sacks{older(blockSeason(matchup, 'pass_rush'))}.</> : null],
   ]
 }
 
@@ -195,7 +199,7 @@ export default function Matchups({ matchup, data, onPlayerClick = null, onOpenTe
     ? Object.entries(cov.shells || {}).sort((a, b) => b[1] - a[1]).slice(0, 6)
         .map(([k, v]) => ({ key: k, label: SHELL_WORD[k] || k, pct: v, text: `${v}%` }))
     : []
-  const facts = defenseFacts(matchup, active, rushThreat)
+  const facts = defenseFacts(matchup, active, rushThreat, data?.season)
   const teamLink = (t) => <Tap onClick={onOpenTeam && (() => onOpenTeam(t))}>{t}</Tap>
 
   const whoColumns = [
@@ -237,7 +241,7 @@ export default function Matchups({ matchup, data, onPlayerClick = null, onOpenTe
         {shells.length > 0 && (
           <div style={{ marginBottom: 2 }}>
             <SubLabel {...P} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <span>HOW THEY COVER · share of {cov.shell_n} charted snaps</span><SourceSeason matchup={matchup} kind="charting" />
+              <span>HOW THEY COVER · share of {cov.shell_n} charted snaps</span><SourceSeason matchup={matchup} kind="charting" slateSeason={data?.season} />
             </SubLabel>
             <BarList {...P} items={shells} accent={C.cyan} labelWidth={64} />
           </div>

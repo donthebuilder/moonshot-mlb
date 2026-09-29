@@ -204,7 +204,7 @@ export default function NflSlate({ data, picks, matchup, odds = null, initialGam
                           <p style={{ margin: '0 0 8px', fontSize: 12.5, lineHeight: 1.5, color: C.text2 }}>
                             {soft?.standout ? <><b style={{ color: C.text }}>{teamLink(def)}</b> {softLine(soft)}.</> : <><b style={{ color: C.text }}>{teamLink(def)}</b> has no standout weakness this week.</>}
                           </p>
-                          <FactLines theme={C} lines={defenseFacts(matchup, def)} />
+                          <FactLines theme={C} lines={defenseFacts(matchup, def, undefined, data?.season)} />
                           {side.length > 0 && <SubLabel theme={C} numFont={NUM_FONT}>TOP TD LOOKS</SubLabel>}
                           <div style={{ display: 'grid', gap: 4 }}>
                             {side.map((p) => (

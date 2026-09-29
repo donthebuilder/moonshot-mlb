@@ -159,7 +159,7 @@ function CoverageAndExplosive({ player, matchup }) {
         display: 'flex', alignItems: 'center', gap: 8,
         fontSize: 10, fontWeight: 900, color: C.text3, letterSpacing: '.1em',
         margin: '16px 0 7px',
-      }}><span>COVERAGE &amp; EXPLOSIVE</span><SourceSeason matchup={matchup} kind="charting" /></div>
+      }}><span>COVERAGE &amp; EXPLOSIVE</span><SourceSeason matchup={matchup} kind="charting" slateSeason={slate?.season} /></div>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         {cov?.man && (
           <Mini label="VS MAN" accent={edge === 'man' ? C.green : C.border2}>

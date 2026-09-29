@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/nfl/theme'
 import ChartFrame from './ChartFrame'
 import Tap from '../Tap'
+import { blockSeason } from '../../lib/nfl/dvpSignal'
 
 // DVP DRIFT — where a defence's soft spot is MOVING.
 //
@@ -152,7 +153,8 @@ export default function DvpDrift({ data, team, roles, highlight, onOpenTeam = nu
   const hardening = moves[moves.length - 1]
   // Part A (2026-09-27): the season is said in the title, in words, while the
   // bot still serves last season's table (alt_season = the newer one).
-  const lastSeason = Number(data?.alt_season) > Number(data?.season)
+  const trendYear = blockSeason(data, 'dvp_trend')
+  const lastSeason = Number(data?.alt_season) > Number(data?.season) || trendYear < Number(data?.season)
 
   return (
     <div>
@@ -162,7 +164,7 @@ export default function DvpDrift({ data, team, roles, highlight, onOpenTeam = nu
       }}>
         <span style={{
           fontSize: 10, fontWeight: 900, color: C.text3, letterSpacing: '.1em',
-        }}>DRIFT — WHERE {team}&apos;S SOFT SPOT IS MOVING{lastSeason ? <b style={{ color: C.amber }}> · LAST SEASON ({data.season})</b> : null}</span>
+        }}>DRIFT — WHERE {team}&apos;S SOFT SPOT IS MOVING{lastSeason ? <b style={{ color: C.amber }}> · LAST SEASON ({trendYear})</b> : null}</span>
         <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
           {available.map((s) => (
             <button key={s} onClick={() => setStat(s)} style={{
