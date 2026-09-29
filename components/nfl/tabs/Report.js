@@ -121,6 +121,9 @@ export default function Report({ report }) {
         market&apos;s own stat — the dumbest model there is.
         {' '}<b style={{ color: C.text }}>BASE</b> is every eligible player.
         The only column worth reading is the last one.
+        {' '}These are <b style={{ color: C.text }}>backtests over past seasons</b> (each market&apos;s top picks a week);
+        the home page&apos;s record is this season&apos;s live card, all markets, each rung graded against its own
+        bar &mdash; two different measurements.
       </div>
 
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>

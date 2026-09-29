@@ -241,6 +241,11 @@ export default function Home({ data, picks, results, matchup, logs, onPlayerClic
   // and your own week against the bot from the device-local ledger.
   const { archive, keys } = useResultsArchive(results, data?.season)
   const record = grandTotal(seasonTotals(keys.map((k) => archive[k])))
+  // THE RECORD, SAID PLAINLY (2026-09-29, queue batch 7): the big number is
+  // every market's rungs blended, each graded against its OWN bar -- so the
+  // tile says that, puts Anytime TD's own rate beside it, and opens the
+  // per-market breakdown (The record). Not the report card's backtest figure.
+  const tdRec = seasonTotals(keys.map((k) => archive[k]))?.TD || null
   const [mine, setMine] = useState(null)
   useEffect(() => { try { setMine(ledgerTotals()) } catch { setMine(null) } }, [results?.graded_at])
   const games = data?.games || []
@@ -393,7 +398,7 @@ export default function Home({ data, picks, results, matchup, logs, onPlayerClic
       <section className="tuddy-snapshot">
         <div><small>SLATE</small><strong>{games.length}</strong><span>games</span></div>
         <div><small>STATE</small><strong>{live || final}</strong><span>{live ? 'live now' : final ? 'final' : 'awaiting kickoff'}</span></div>
-        <button onClick={() => setTab('accountability')}><small>THE RECORD</small><strong style={{ color: record.pct == null ? C.text3 : record.pct >= 55 ? C.green : record.pct < 45 ? C.red : C.text }}>{record.pct == null ? '—' : `${record.pct}%`}</strong><span>{record.n ? `${record.hit}/${record.n} · ${keys.length} wk${keys.length === 1 ? '' : 's'}` : 'nothing graded yet'}</span></button>
+        <button onClick={() => setTab('accountability')} title={record.n ? `${record.hit} of ${record.n} card rungs this season cleared their own bar -- every market blended, ${keys.length} graded week${keys.length === 1 ? '' : 's'}. Anytime TD on its own: ${tdRec?.hit ?? 0} of ${tdRec?.n ?? 0}. Tap for every market's record. (The report card's figures are backtests over past seasons -- a different measurement.)` : undefined}><small>RECORD · ALL</small><strong style={{ color: record.pct == null ? C.text3 : record.pct >= 55 ? C.green : record.pct < 45 ? C.red : C.text }}>{record.pct == null ? '—' : `${record.pct}%`}</strong><span>{record.n ? <>{record.hit}/{record.n}{tdRec?.n ? <> · <b style={{ color: C.text }}>TD {Math.round(tdRec.pct)}%</b></> : null}</> : 'nothing graded yet'}</span></button>
         <button onClick={() => topTd && onPlayerClick?.(topTd, 'TD')}><small>TOP TD SCORE</small><strong>{topTd ? Math.round(topTd.scores.TD) : '—'}</strong><span>{topTd?.name || 'awaiting slate'}</span></button>
       </section>
       <TheSix picks={picks} playersById={playersById} onPlayerClick={onPlayerClick} onPicks={() => setTab('picks')} totals={seasonTotals(keys.map((k) => archive[k]))} />
