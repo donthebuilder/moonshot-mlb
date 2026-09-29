@@ -34,7 +34,7 @@ const hexToRgba = (hex, a) => {
 // this was throwing away MLB scores it had already paid for the network
 // call to fetch, for no reason. Removed. Both sports now ride the same
 // strip, same as MOONSHOT's header always has -- see `liveItems` below.
-import { useLiveScores, useAutoScroll } from '../../lib/headlines'
+import { useLiveScores, useAutoScroll, scoreOrder } from '../../lib/headlines'
 import DateMode from '../DateMode'
 import TickerPill from '../TickerPill'
 // Real, icon-tagged NFL story-bites -- see lib/nfl/headlines.js's own
@@ -224,6 +224,7 @@ export default function NflHeader({ tab, setTab, data, meta, matchup, weekMode =
   // two sources can (correctly) disagree about which games are "live" right
   // now.
   const liveItems = useLiveScores().items
+  const scores = scoreOrder(liveItems, 'nfl')
 
   // REAL HEADLINE STORY-BITES (2026-09-16). Same idea as MOONSHOT's
   // ticker: live scores plus a handful of real, icon-tagged "what does
@@ -513,7 +514,7 @@ export default function NflHeader({ tab, setTab, data, meta, matchup, weekMode =
                 (2026-09-06; both sports 2026-09-17). One tile per game, a
                 leader tile right after each. Every tile is tappable -- see
                 `openTile` above. */}
-            {liveItems.filter((i) => i.live).map((i) => (
+            {scores.live.map((i) => (
               <Tile key={i.k} label={`${i.icon ? `${i.icon} ` : ''}${i.sub || 'live'}`} value={i.text}
                 color={i.col} live onClick={() => openTile(i)}
                 title={i.title || (i.sport === 'mlb'
@@ -554,19 +555,16 @@ export default function NflHeader({ tab, setTab, data, meta, matchup, weekMode =
 
             {/* Finals, then the games not under way yet -- MOONSHOT's last two
                 slots, in its order. */}
-            {liveItems.filter((i) => !i.live && !i.pregame).map((i) => (
-              <Tile key={i.k} label={`${i.icon ? `${i.icon} ` : ''}${i.sub || 'final'}`} value={i.text}
+            {/* TUDDY's own finals and upcoming games first, then MOONSHOT's
+                and LAMP's (lib/headlines.js scoreOrder). */}
+            {scores.rest.map((i) => (
+              <Tile key={i.k} label={`${i.icon ? `${i.icon} ` : ''}${i.sub || (i.pregame ? 'kickoff' : 'final')}`} value={i.text}
                 color={i.col} onClick={() => openTile(i)}
-                title={i.title || (i.sport === 'mlb'
-                  ? (i.kind === 'leader' ? `Leading this game's stat line on MOONSHOT — tap to switch` : 'Final — tap to switch to MOONSHOT')
-                  : (i.kind === 'leader' ? `Leading this game's stat line` : 'Final — open TUDDY’s Live tab'))} />
-            ))}
-            {liveItems.filter((i) => i.pregame).map((i) => (
-              <Tile key={i.k} label={`${i.icon ? `${i.icon} ` : ''}${i.sub || 'kickoff'}`} value={i.text}
-                color={i.col} onClick={() => openTile(i)}
-                title={i.title || (i.sport === 'mlb'
-                  ? 'Not underway yet — tap to switch to MOONSHOT'
-                  : 'Not underway yet — open TUDDY’s Live tab')} />
+                title={i.title || (i.pregame
+                  ? (i.sport === 'mlb' ? 'Not underway yet — tap to switch to MOONSHOT' : 'Not underway yet — open TUDDY’s Live tab')
+                  : (i.sport === 'mlb'
+                    ? (i.kind === 'leader' ? `Leading this game's stat line on MOONSHOT — tap to switch` : 'Final — tap to switch to MOONSHOT')
+                    : (i.kind === 'leader' ? `Leading this game's stat line` : 'Final — open TUDDY’s Live tab')))} />
             ))}
           </TickerStrip>
           {isPre && (

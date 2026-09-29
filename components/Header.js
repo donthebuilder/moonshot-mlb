@@ -12,7 +12,7 @@ import ThemeModeButton from './ThemeModeButton'
 import QuietButton from './QuietButton'
 import { slateProjHr } from './ProjectedOutput'
 import { easternToday } from '../lib/data'
-import { buildHeadlines, useLiveScores, useAutoScroll } from '../lib/headlines'
+import { buildHeadlines, useLiveScores, useAutoScroll, scoreOrder } from '../lib/headlines'
 import TickerPill from './TickerPill'
 import DateMode from './DateMode'
 import SettingsSheet, { SheetLabel, SheetRow } from './SettingsSheet'
@@ -157,7 +157,8 @@ function Scorebug({ players, results, games, mode, slateDate, runMeta, onPlayerC
   if (proj != null) items.push({ explain: true, k: 'proj', label: 'HR proj', value: proj, color: '#f97316', nav: 'board', title: `${modelHr != null ? `The site's model projects ${modelHr.toFixed(1)} home runs across this slate. ` : ''}${projection ? `The bot's sheet says ${projection.low}–${projection.high}, power grade ${projection.grade || 'n/a'}.` : ''}` })
   items.push({ explain: true, k: 'cap', label: captured ? 'HRs on board' : 'HR capture', value: captured ? `${stats.onSheet}/${stats.actual}` : 'tracking', color: capCol, live: true, nav: 'results', title: captured ? `${stats.onSheet} of the slate's ${stats.actual} home runs were on the board before first pitch (${pct.toFixed(0)}%), off the live slate.` : 'Live HR capture — starts scoring when the first homer lands.' })
   // live scores ride between the facts and the headlines: live first, finals after
-  for (const i of live.items.filter((x) => x.live)) items.push({ k: i.k, hash: i.hash, label: i.sub || 'live', value: i.text, icon: i.icon, color: i.col, live: true, sport: i.sport, nav: 'scoreboard', title: i.kind === 'leader' ? `Leading tonight's line for this game` : (i.sport === 'nfl' ? 'Live on TUDDY — tap to switch' : 'Live — tap for the Live page') })
+  const scores = scoreOrder(live.items, 'mlb')
+  for (const i of scores.live) items.push({ k: i.k, hash: i.hash, label: i.sub || 'live', value: i.text, icon: i.icon, color: i.col, live: true, sport: i.sport, nav: 'scoreboard', title: i.kind === 'leader' ? `Leading tonight's line for this game` : (i.sport === 'nfl' ? 'Live on TUDDY — tap to switch' : 'Live — tap for the Live page') })
   for (const h of heads) items.push({ k: `h-${h.k}`, label: h.tag, value: h.name, icon: h.icon, color: h.col, p: h.p, nav: h.nav, title: h.why })
   items.push({ explain: true, k: 'lineups', label: staleSlate ? 'prev lineups' : 'lineups', value: `${stats.confirmedTeams}/${stats.lineupTeams}`, color: staleSlate ? C.text3 : '#4ade80', nav: 'games', title: 'Teams with a confirmed lineup' })
   // FRESHNESS PILL (2026-09-11, item 21). "MLB has no lineup freshness
@@ -179,7 +180,11 @@ function Scorebug({ players, results, games, mode, slateDate, runMeta, onPlayerC
     }
   }
   items.push({ explain: true, k: 'weak', label: 'weak', value: `★${stats.weak}`, color: '#FCD34D', nav: 'board', title: 'Weak-spot matchups on the slate' })
-  for (const i of live.items.filter((x) => !x.live && !x.pregame)) items.push({ k: i.k, hash: i.hash, label: i.sub || 'final', value: i.text, icon: i.icon, color: C.text3, sport: i.sport, nav: 'scoreboard', title: i.kind === 'leader' ? `${i.sub}'s final line` : (i.sub === 'last night' ? "Last night — sticks around till tonight's games start" : 'Final') })
+  // Own finals and upcoming first, then the other sports' (scoreOrder).
+  for (const i of scores.rest) {
+    if (i.pregame) items.push({ k: i.k, hash: i.hash, label: i.sub || 'kickoff', value: i.text, icon: i.icon, color: C.text3, sport: i.sport, nav: 'scoreboard', title: i.title || (i.sport === 'nfl' ? 'Not underway yet — tap to switch to TUDDY' : 'Not underway yet') })
+    else items.push({ k: i.k, hash: i.hash, label: i.sub || 'final', value: i.text, icon: i.icon, color: C.text3, sport: i.sport, nav: 'scoreboard', title: i.kind === 'leader' ? `${i.sub}'s final line` : (i.sub === 'last night' ? "Last night — sticks around till tonight's games start" : 'Final') })
+  }
   // THE PREGAME PILLS WERE BUILT AND NEVER RENDERED (2026-09-18). useLiveScores
   // has produced a `pregame` item per not-yet-started game since 2026-09-16
   // (lib/headlines.js's own 'pre' branch, added so a between-slates ticker
@@ -188,7 +193,6 @@ function Scorebug({ players, results, games, mode, slateDate, runMeta, onPlayerC
   // TUDDY's ticker into this exact order: TUDDY renders them, MOONSHOT didn't,
   // so the two strips could not agree. Both show them now, last, after the
   // finals.
-  for (const i of live.items.filter((x) => x.pregame)) items.push({ k: i.k, hash: i.hash, label: i.sub || 'kickoff', value: i.text, icon: i.icon, color: C.text3, sport: i.sport, nav: 'scoreboard', title: i.title || (i.sport === 'nfl' ? 'Not underway yet — tap to switch to TUDDY' : 'Not underway yet') })
 
   // A pill from another product's feed switches to that product (2026-09-26:
   // this was `sport === 'nfl' ? 'nfl' : 'scoreboard'`, so a hockey item would
