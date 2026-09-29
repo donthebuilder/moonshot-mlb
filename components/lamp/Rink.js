@@ -15,8 +15,13 @@ const X0 = 25; const W = 75; const H = 85
 const sx = (x) => x - X0
 const sy = (y) => 42.5 - y
 
-export default function Rink({ map, slot, gridSpec, height = 300 }) {
+// TAP A SHOT (2026-09-29, the spray-chart pass): `shots` (the filtered recent
+// list, defaulting to map.recent) are drawn; `onPick(shot)` / `onPickCell`
+// open the detail card beside the rink. Each dot gets a wider invisible hit
+// circle -- SprayField's lesson: a 1-foot dot is not a thumb target.
+export default function Rink({ map, slot, gridSpec, height = 300, shots = null, onPick = null, onPickCell = null, picked = null }) {
   const [view, setView] = useState('dots')
+  const drawn = shots || map?.recent || []
   if (!map) return null
   const max = Math.max(1, ...map.grid.flat().map((c) => c.att))
   const cw = (gridSpec.x1 - gridSpec.x0) / gridSpec.cols; const ch = (gridSpec.y1 - gridSpec.y0) / gridSpec.rows
@@ -40,6 +45,10 @@ export default function Rink({ map, slot, gridSpec, height = 300 }) {
             <title>{`${cell.att} attempts · ${cell.sog} on net · ${cell.g} goals`}</title>
           </rect>
         ) : null))}
+        {view === 'heat' && onPickCell && map.grid.map((row, r) => row.map((cell, c) => cell.att ? (
+          <rect key={`hit-${r}-${c}`} x={sx(gridSpec.x0 + c * cw)} y={r * ch} width={cw} height={ch} fill="transparent" style={{ cursor: 'pointer' }}
+            onClick={() => onPickCell({ ...cell, r, c })} />
+        ) : null))}
         <line x1="0.4" y1="0" x2="0.4" y2={H} stroke={C.ice} strokeOpacity="0.55" strokeWidth="1" />
         <line x1={sx(89)} y1="3" x2={sx(89)} y2={H - 3} stroke={C.lamp} strokeOpacity="0.5" strokeWidth="0.35" />
         {[22, -22].map((y) => (
@@ -50,17 +59,23 @@ export default function Rink({ map, slot, gridSpec, height = 300 }) {
         ))}
         <path d={`M${sx(89)},${sy(6)} A6,6 0 0 0 ${sx(89)},${sy(-6)} Z`} fill={`${C.ice}26`} stroke={C.ice} strokeOpacity="0.6" strokeWidth="0.3" />
         <rect x={sx(89)} y={sy(3)} width="3.3" height="6" fill="none" stroke={C.text2} strokeWidth="0.4" />
-        {view === 'dots' && map.recent.map(([x, y, res], i) => {
-          const goal = res === 'goal'; const on = res === 'sog'
-          return <circle key={i} cx={sx(x)} cy={sy(y)} r={goal ? 1.3 : 0.9}
-            fill={goal ? C.lamp : on ? C.ice : 'none'} fillOpacity={goal ? 1 : 0.75}
-            stroke={goal ? C.lamp : on ? 'none' : C.text3} strokeWidth="0.3" />
+        {view === 'dots' && drawn.map((shot, i) => {
+          const [x, y, res] = shot
+          const goal = res === 'goal'; const on = res === 'sog'; const sel = picked === shot
+          return (
+            <g key={i}>
+              <circle cx={sx(x)} cy={sy(y)} r={sel ? 2 : goal ? 1.3 : 0.9}
+                fill={goal ? C.lamp : on ? C.ice : 'none'} fillOpacity={goal ? 1 : 0.75}
+                stroke={sel ? C.text : goal ? C.lamp : on ? 'none' : C.text3} strokeWidth={sel ? 0.5 : 0.3} />
+              {onPick && <circle cx={sx(x)} cy={sy(y)} r="2.6" fill="transparent" style={{ cursor: 'pointer' }} onClick={() => onPick(shot)} />}
+            </g>
+          )
         })}
       </svg>
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', color: C.text3, font: `700 9px/1.4 ${NUM_FONT}` }}>
         {view === 'dots'
-          ? <><span><b style={{ color: C.lamp }}>●</b> goal</span><span><b style={{ color: C.ice }}>●</b> on net</span><span>○ miss / blocked</span><span>last {map.recent.length} attempts</span></>
-          : <span>shaded by attempts per zone · hover a zone for its counts</span>}
+          ? <><span><b style={{ color: C.lamp }}>●</b> goal</span><span><b style={{ color: C.ice }}>●</b> on net</span><span>○ miss / blocked</span><span>{drawn.length === (map.recent || []).length ? `last ${drawn.length} attempts` : `${drawn.length} of the last ${(map.recent || []).length} attempts`}{onPick ? ' · tap a dot' : ''}</span></>
+          : <span>shaded by attempts per zone · {onPickCell ? 'tap' : 'hover'} a zone for its counts</span>}
         <span>shaded box = the slot</span>
       </div>
     </div>
