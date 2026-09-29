@@ -2,19 +2,17 @@
 import { useMemo } from 'react'
 import { C, NUM_FONT } from '../../../lib/nfl/theme'
 import PageHeader from '../../PageHeader'
-import LedgerSection from '../../ledger/LedgerSection'
+import { LedgerFrame, LedgerHead, RoundLine, WatchStrip, AlignBox, LookOutBox, NextUpBox, ScorerChips, SpotBars, ord } from '../../ledger/LedgerBlocks'
+import NamePatterns from '../../NamePatterns'
 import FirstScorers from '../../ledger/FirstScorers'
-import NflFace from '../NflFace'
-import Tap from '../../Tap'
 import { defenseLeaks } from '../../../lib/nfl/defenseLeaks'
-import { findNameEchoes } from '../../../lib/namePatterns'
 import { fromNfl } from '../../../lib/numerology/adapters'
 import { matchLanes } from '../../../lib/numerology/lanes'
 import { kickoffFor } from '../../../lib/nfl/kickoff'
 import { easternDate } from '../../../lib/data'
 
 // 🧾 TUDDY'S LEDGER (2026-09-27, ledger plan): MOONSHOT's Homer Ledger for the
-// week's touchdowns, drawn in the shared LedgerSection shell. Every section
+// week's touchdowns, drawn with MOONSHOT's own ledger blocks (components/ledger/LedgerBlocks.js, 2026-09-28). Every section
 // reads data the dashboard already holds -- the week file (players: season_td,
 // jersey, birth date), the card's calls (picks), the TD lines (results) and
 // the defense tables (matchup) -- plus First scorers from the event table.
@@ -30,7 +28,6 @@ import { easternDate } from '../../../lib/data'
 //                TUDDY Home 09-27 for reading as a claim there; Donovan asked
 //                for it back here, on the page of counting facts.)
 //   NAME ECHOES  lib/namePatterns.js over this week's scorers
-const sep = (items) => items.filter(Boolean).join(' · ')
 
 export default function Ledger({ data, picks, results, matchup, onPlayerClick, onOpenTeam = null, onOpenGame = null }) {
   const players = data?.players || []
@@ -58,42 +55,87 @@ export default function Ledger({ data, picks, results, matchup, onPlayerClick, o
     const date = Number.isFinite(t) ? easternDate(t) : null
     const a = fromNfl(s.p)
     const m = a && date ? matchLanes(a, { date }) : []
-    return m.length ? { ...s, key: s.id, chips: [...new Set(m.map((x) => x.label))], date } : null
+    // Only the lanes ABOUT the day (2026-09-28): "is Fibonacci" lanes aren't a
+    // match with the date, and on their own they lit up 60 of 62 scorers.
+    const dayLanes = [...new Set(m.map((x) => x.label))].filter((l) => !/fibonacci/i.test(l))
+    return dayLanes.length ? { ...s, key: s.id, chips: dayLanes, date } : null
   }).filter(Boolean)
 
-  const leaks = defenseLeaks(matchup, data?.games || []).map((l) => ({ ...l, key: `${l.team}|${l.role}` }))
-  const echoes = useMemo(() => findNameEchoes(scorers.map((s) => s.name), players.map((p) => p.name), { max: 3 }).map((e, i) => ({ ...e, key: `${e.kind}-${i}` })), [scorers, players])
-
-  const row = (children) => <div style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 40, fontSize: 12, flexWrap: 'wrap' }}>{children}</div>
-  const who = (s) => (
-    <button type="button" onClick={() => s.p && onPlayerClick?.(s.p)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'transparent', border: 'none', padding: 0, cursor: s.p ? 'pointer' : 'default', color: C.text, fontWeight: 800, font: 'inherit' }}>
-      {s.p ? <NflFace player={s.p} size={24} /> : null}{s.name}
-    </button>
-  )
   const P = { C, numFont: NUM_FONT, accent: C.green }
+  const leaks = defenseLeaks(matchup, data?.games || []).map((l) => ({ ...l, key: `${l.team}|${l.role}` }))
+
+  // 🔮 FITS THE WEEK'S PATTERN, HASN'T SCORED YET -- MOONSHOT's forward half:
+  // players who haven't scored, whose game isn't over, standing on a
+  // numerology lane that matches their game day. Ranked by how many lanes,
+  // then TD score. A watch, not a prediction.
+  const scored = new Set(scorers.map((s) => String(s.id)))
+  const gameOf = (p) => (data?.games || []).find((g) => g.away === p.team || g.home === p.team) || null
+  const nextUp = useMemo(() => players.filter((p) => p.position !== 'DEF' && !scored.has(String(p.player_id)))
+    .map((p) => {
+      const g = gameOf(p)
+      if (!g || g.completed) return null
+      const t = kickoffFor(data?.games, p)
+      const date = Number.isFinite(t) ? easternDate(t) : null
+      const a = fromNfl(p)
+      const m = a && date ? matchLanes(a, { date }) : []
+      const dayLanes = [...new Set(m.map((x) => x.label))].filter((l) => !/fibonacci/i.test(l))
+      return dayLanes.length ? { key: String(p.player_id), p, name: p.name, when: g.state === 'in' ? 'now' : 'later', chips: dayLanes, td: Number(p.scores?.TD) || 0 } : null
+    }).filter(Boolean)
+    .sort((a, b) => (a.when === b.when ? 0 : a.when === 'now' ? -1 : 1) || b.chips.length - a.chips.length || b.td - a.td)
+    .slice(0, 8), [players, scorers, data])   // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Touchdowns by position -- MOONSHOT's "homers by lineup spot".
+  const POS = ['QB', 'RB', 'WR', 'TE']
+  const byPos = POS.map((pos) => scorers.filter((s) => s.p?.position === pos).reduce((n, s) => n + s.td, 0))
+  const totalTd = scorers.reduce((n, s) => n + s.td, 0)
+  const topPos = POS[byPos.indexOf(Math.max(...byPos))]
+  const lineSet = new Map(lines.map((l) => [l.id, l]))
+  const roundSet = new Map(rounds.map((r) => [r.id, r]))
+  const open = (p) => (p ? () => onPlayerClick?.(p) : null)
+  const team = (t) => (onOpenTeam ? () => onOpenTeam(t) : null)
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <PageHeader eyebrow="TUDDY · WEEK IN NUMBERS" title="The week in names and numbers" theme={C} numFont={NUM_FONT} accent={C.green}
         note="The card's calls against who scored, round numbers, what lines up, the look-out, name echoes -- and the first touchdown of every game." />
+      {/* MOONSHOT's Homer ledger, block for block (components/ledger/LedgerBlocks.js). */}
+      <LedgerFrame accent={C.green} header={<LedgerHead title="🧾 Touchdown ledger" count={totalTd} countWord="this week" note="builds as the week plays" accent={C.green} />}>
+        {!scorers.length && <div style={{ fontSize: 10.5, color: C.text3, marginBottom: 8 }}>No touchdowns graded yet this week — the ledger fills as games go final.</div>}
+        <RoundLine label="Round number this week:" accent={C.green}
+          items={rounds.map((r) => ({ key: r.id, name: r.name, num: `${ord(r.mark)} TD`, onClick: open(r.p) }))} />
+        <WatchStrip label="This week's watchlist:" hits={landed} watched={calls.length}
+          sentence={landed === 0 ? 'scored so far — the card’s touchdown calls, written before kickoff.' : 'scored, off the card’s touchdown calls written before kickoff.'}>
+          {calls.filter((c) => c.td > 0).map((c) => (
+            <span key={c.key}>{' · '}<b onClick={open(c.p) || undefined} style={{ color: C.text, cursor: c.p ? 'pointer' : 'default' }}>{c.name}</b><span style={{ color: C.text3, fontFamily: NUM_FONT }}> {c.td} TD</span></span>
+          ))}
+        </WatchStrip>
+        <AlignBox accent={C.green} preview={8} title="🧲 Lining up with his game day" sub={`${lines.length} scorer${lines.length === 1 ? '' : 's'} on a numerology lane that matched the date he scored`}
+          chips={lines.map((l) => ({ key: l.id, name: l.name, tags: l.chips.map((c) => ({ k: c, label: c })), onClick: open(l.p) }))}
+          foot="Overlap, not evidence. A week of touchdowns spread over jersey numbers, birthdays and name numbers will line up with the date by arithmetic alone — the trend made visible, never a reason to chase one." />
+        <LookOutBox accent={C.green} title="👀 The look-out — this week, before it happens" tag="lookups, not predictions"
+          rows={[
+            { key: 'def', label: 'Defenses to watch', hint: 'top-8 TD matchup by role', hintTitle: 'A defense ranks in the league’s eight softest against a role at touchdowns (the published defense table). A lookup, not a prediction.',
+              chips: leaks.map((l) => ({ key: l.key, name: l.team, small: l.role, em: `#${l.td_rank}`, hot: Number(l.td_rank) <= 3, title: `#${l.td_rank} TD matchup · ${Number(l.td || 0).toFixed(0)} allowed`, onClick: team(l.team) })) },
+            { key: 'needs', label: 'Who needs what', hint: 'one touchdown from a round number', hintTitle: 'A player one touchdown short of the next multiple of five. A counting fact, not a reason to expect a score.',
+              chips: needs.slice(0, 12).map((r) => ({ key: r.key, name: r.name, small: r.team, em: `${r.now}→${r.next}`, onClick: open(r.p) })) },
+          ]} />
+        <NamePatterns homers={scorers.map((s) => ({ name: s.name }))} population={players.map((p) => ({ name: p.name }))} sport="nfl" />
+        <NextUpBox title="🔮 Fits the week's pattern, hasn't scored yet"
+          rows={nextUp.map((x) => ({ key: x.key, when: x.when, name: x.name, chips: x.chips, title: `${x.chips.join(' · ')}. TD score ${x.td.toFixed(0)}.`, onClick: open(x.p) }))}
+          about="Players who haven't scored this week, whose game isn't over, standing on a numerology lane that matches their game day — jersey, birthday or name number against the date. ⚡ means his game is live, ⏳ still to come. Ranked by how many lanes, then TD score. A watch, not a prediction — nothing here is graded, scored, or fed to a pick." />
+        <ScorerChips accent={C.green} preview={12} cards={scorers.map((s) => {
+          const r = roundSet.get(s.id); const after = Number.isFinite(Number(s.p?.season_td)) ? Number(s.p.season_td) + s.td : null
+          return {
+            key: s.id, icon: '🏈', name: s.name, times: s.td, milestone: Boolean(r), numHot: Boolean(r),
+            num: after != null ? `${ord(after)} TD` : '—', spot: s.p?.position || null, onClick: open(s.p),
+            title: `${s.name}${s.p?.team ? ` (${s.p.team})` : ''}${after != null ? ` — his ${ord(after)} touchdown of the season` : ''}${s.td > 1 ? ` (${s.td} this week)` : ''}.`,
+            badges: lineSet.has(s.id) ? [{ k: 'al', label: lineSet.get(s.id).chips.length > 1 ? `${lineSet.get(s.id).chips.length} ALIGNS` : 'ALIGNS', color: C.green, title: lineSet.get(s.id).chips.join(' · ') }] : [],
+          }
+        })} />
+        <SpotBars accent={C.green} title="Touchdowns by position" bars={POS.map((pos, i) => ({ key: pos, label: pos, value: byPos[i], title: `${byPos[i]} touchdown${byPos[i] === 1 ? '' : 's'} this week by ${pos}s` }))}
+          foot={totalTd ? <>{byPos.reduce((a, b) => a + b, 0)} of {totalTd} touchdowns by a QB, RB, WR or TE. {Math.max(...byPos) >= 3 && <>The <b style={{ color: C.text2 }}>{topPos}s</b> lead the week with {Math.max(...byPos)}.</>} One week is a picture, not a finding — texture, never a signal to chase.</> : null} />
+      </LedgerFrame>
       <FirstScorers sport="nfl" {...P} onOpenGame={onOpenGame} onOpenPlayer={(id) => { const p = byId.get(String(id)); if (p) onPlayerClick?.(p) }} />
-      <LedgerSection {...P} title={`✅ THE WATCHLIST · ${landed} OF ${calls.length} SCORED`} blurb="the card's touchdown calls, written before kickoff"
-        rows={calls} empty="The card hasn't published this week's touchdown calls yet."
-        render={(c) => row(<>{who(c)}<Tap onClick={onOpenTeam && (() => onOpenTeam(c.team))}><span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 10 }}>{c.team}</span></Tap><span style={{ marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: 11, fontWeight: 900, color: c.td ? C.green : C.text3 }}>{c.td ? `✓ ${c.td} TD` : '—'}</span></>)} />
-      <LedgerSection {...P} title="🔟 ROUND NUMBER THIS WEEK" blurb="a scorer whose season total crossed a multiple of 5"
-        rows={rounds} empty={scorers.length ? 'No scorer crossed a multiple of five this week.' : 'No touchdowns graded yet this week.'}
-        render={(s) => row(<>{who(s)}<span style={{ marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: 11, color: C.green, fontWeight: 900 }}>TD #{s.mark} of the season</span></>)} />
-      <LedgerSection {...P} title="🎯 WHO NEEDS WHAT" blurb="one touchdown short of a multiple of 5 · a counting fact, not a reason to expect a score"
-        rows={needs} empty={players.length ? 'Nobody on this week’s slate is one touchdown from a multiple of five.' : 'The week file hasn’t loaded.'}
-        render={(r) => row(<>{who(r)}<Tap onClick={onOpenTeam && (() => onOpenTeam(r.team))}><span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 10 }}>{r.team}</span></Tap><span style={{ marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: 11, color: C.green, fontWeight: 900 }}>{r.now}→{r.next}</span></>)} />
-      <LedgerSection {...P} title="🔢 LINES UP WITH HIS GAME DAY" blurb="numerology lanes that matched the date he scored · pattern watching"
-        rows={lines} empty={scorers.length ? 'None of this week’s scorers matched a lane on his game day.' : 'No touchdowns graded yet this week.'}
-        render={(s) => row(<>{who(s)}<span style={{ color: C.text3, fontSize: 11 }}>{sep(s.chips)}</span></>)} />
-      <LedgerSection {...P} title="🩹 THE LOOK-OUT" blurb="defenses leaking touchdowns: top-8 TD matchup by role"
-        rows={leaks} empty="The slate has no top-eight TD matchup flagged in the published defense table."
-        render={(l) => row(<><Tap onClick={onOpenTeam && (() => onOpenTeam(l.team))}><b style={{ color: C.text }}>{l.team}</b></Tap><span style={{ color: C.text2 }}>{l.role}</span><span style={{ marginLeft: 'auto', color: C.text3, fontFamily: NUM_FONT, fontSize: 10 }}>#{l.td_rank} TD matchup · {Number(l.td || 0).toFixed(0)} allowed</span></>)} />
-      <LedgerSection {...P} title="🗣 NAME ECHOES" blurb="the week's scorers' names against everyone who played, with the base rate"
-        rows={echoes} empty={scorers.length > 1 ? 'No echo among this week’s scorers.' : 'Needs two scorers to compare.'}
-        render={(e) => <div style={{ padding: '6px 0', fontSize: 12, lineHeight: 1.5 }}><b style={{ color: C.green }}>{e.label}</b> <span style={{ color: C.text2 }}>{e.phrase}</span> <span style={{ color: C.text3 }}>{e.note}</span></div>} />
     </div>
   )
 }
