@@ -38,12 +38,14 @@ export default function StatStrip({ p, type = 'hr', count = 4, size = 'md', styl
       }}
     >
       {stats.map((s) => {
-        const tone = s.color ? 'set' : toneFor(scale, s)
+        // Caller's stats: its colour, or neutral when it gives none (a line
+        // that isn't ranked against anything stays grey, rule 2 above).
+        const tone = given ? (s.color ? 'set' : null) : toneFor(scale, s)
         const col = s.color || (tone ? TONE_COLOR[tone] : C.text2)
         return (
           <div
             key={s.id}
-            title={s.color ? s.title : toneTitle(tone, scale, s)}
+            title={given ? s.title : toneTitle(tone, scale, s)}
             style={{
               minWidth: 0, textAlign: 'center', cursor: 'default',
               background: tone === 'mid' || !tone ? 'rgba(255,255,255,.03)' : `${col}12`,
