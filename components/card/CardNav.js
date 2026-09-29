@@ -100,7 +100,9 @@ export function Navigator({ peers, cur, onNavigate, idOf = mlbIdOf, noun = 'hitt
     background: 'transparent', border: `1px solid ${enabled ? C.border2 : C.border}`,
     color: enabled ? C.text2 : C.text3, borderRadius: 7, padding: '3px 9px',
     fontSize: 13, lineHeight: 1, cursor: enabled ? 'pointer' : 'default',
-    opacity: enabled ? 1 : 0.4, minWidth: 34, minHeight: 32,   // past the 32px tap floor (mobile pass C)
+    // 44px to a thumb (2026-09-29, CLAUDE.md phone rule; was 34x32 from mobile
+    // pass C). The card's ‹ › 👥 🔍 are the four targets every card carries.
+    opacity: enabled ? 1 : 0.4, minWidth: 44, minHeight: 44,
   })
 
   return (
