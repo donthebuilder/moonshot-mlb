@@ -1,4 +1,5 @@
 'use client'
+import { leaveTarget } from '../../lib/openTarget'
 import { useState, useMemo } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { nameOf, teamOf, oppOf, n, clean, hrScore, mlbId } from '../../lib/player'
@@ -377,7 +378,10 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
   const projGames = useMemo(() => groupGames(players), [players])
   const secProjected = (
     <Fold key="projected" label="📈 Projected output">
-      <ProjectedOutput games={projGames} players={players} watchIds={watchIds} />
+      {/* Every game is a link (CLAUDE.md; audit J1, 2026-09-29): a game here opens
+          it on the Slate, the same hand-off the Ledger and Storylines use. */}
+      <ProjectedOutput games={projGames} players={players} watchIds={watchIds}
+        onOpenGame={onNavigate ? (pk) => { leaveTarget('game', pk); onNavigate('games') } : null} />
     </Fold>
   )
   // 🧾 THE LEDGER IS BACK (2026-09-13, Donovan: "move the home run ledger
