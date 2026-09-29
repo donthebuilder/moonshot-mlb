@@ -457,6 +457,10 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
                 cursor: 'pointer', fontSize: 12, lineHeight: 1, flexShrink: 0,
                 color: targets.includes(c.pk) ? C.yellow : C.text3,
                 opacity: targets.includes(c.pk) ? 1 : 0.5,
+                // A 44px thumb target around the same 12px star (2026-09-28: the
+                // Slate opens on cards now, so the phone rule reaches it). The
+                // negative margin keeps the card's layout exactly as it was.
+                display: 'inline-grid', placeItems: 'center', minWidth: 44, minHeight: 44, margin: -16,
               }}
             >{targets.includes(c.pk) ? '★' : '☆'}</span>
           ) : null

@@ -50,10 +50,10 @@ const kickText = (g) => {
   return new Date(at).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit' })
 }
 const airText = (g) => (g.indoors ? 'indoors' : Number.isFinite(g.weather_temp_f) ? `${Math.round(g.weather_temp_f)}°F${g.weather_condition ? ` ${String(g.weather_condition).toLowerCase()}` : ''}` : null)
-const restText = (g) => {
-  const one = (t, d, sw) => (d == null ? null : `${t} ${d} day${d === 1 ? '' : 's'}${sw ? ' (short week)' : ''}`)
+const restText = (g, link = (t) => t) => {
+  const one = (t, d, sw) => (d == null ? null : <span key={t}>{link(t)} {d} day{d === 1 ? '' : 's'}{sw ? ' (short week)' : ''}</span>)
   const parts = [one(g.away, g.away_rest_days, g.away_short_week), one(g.home, g.home_rest_days, g.home_short_week)].filter(Boolean)
-  return parts.length ? `${parts.join(' · ')} since their last game.` : null
+  return parts.length ? <>{parts.flatMap((x, i) => (i ? [' · ', x] : [x]))} since their last game.</> : null
 }
 
 /** The bot's headline calls that land in this game: [{ market, call, block }]. */
@@ -170,7 +170,7 @@ export default function NflSlate({ data, picks, matchup, odds = null, initialGam
                   <span style={{ fontSize: TYPE.micro, fontFamily: NUM_FONT, color: live ? C.green : C.text3, fontWeight: 800 }}>
                     {live ? (g.detail || 'LIVE') : g.completed ? 'FINAL' : kickText(g)}
                   </span>
-                  {(live || g.completed) && <span style={{ fontFamily: NUM_FONT, fontSize: 14, fontWeight: 900, color: live ? C.green : C.text2 }}>{g.away} {g.away_score ?? 0}–{g.home_score ?? 0} {g.home}</span>}
+                  {(live || g.completed) && <span style={{ fontFamily: NUM_FONT, fontSize: 14, fontWeight: 900, color: live ? C.green : C.text2 }}>{teamLink(g.away)} {g.away_score ?? 0}–{g.home_score ?? 0} {teamLink(g.home)}</span>}
                 </GameHeaderLine>
                 {live && (g.down_distance || g.possession) && (
                   <div style={{ marginTop: 4, color: g.red_zone ? C.yellow : C.green, fontSize: TYPE.micro, fontWeight: 800, fontFamily: NUM_FONT }}>
@@ -185,7 +185,7 @@ export default function NflSlate({ data, picks, matchup, odds = null, initialGam
                 <PanelAnchor id="read" gamePk={g.game_id}>
                   <FactLines theme={C} lines={[
                     ['Where', g.venue || airText(g) ? <>{g.venue || 'venue not published'}{airText(g) ? ` · ${airText(g)}` : ''}.</> : null],
-                    ['Rest', restText(g)],
+                    ['Rest', restText(g, teamLink)],
                     ['Expected TDs', `${(xtdByGame[g.game_id] || 0).toFixed(1)} between the two teams (the sum of each scored player's xTD).`],
                   ]} />
                   {story && (
@@ -202,10 +202,10 @@ export default function NflSlate({ data, picks, matchup, odds = null, initialGam
                         <div key={off} style={{ border: `1px solid ${C.border}`, borderRadius: 12, padding: '11px 13px', minWidth: 0 }}>
                           <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 6 }}>{teamLink(off)} offense <span style={{ color: C.text3, fontWeight: 600, fontFamily: NUM_FONT, fontSize: 11 }}>vs {teamLink(def)} defense</span></div>
                           <p style={{ margin: '0 0 8px', fontSize: 12.5, lineHeight: 1.5, color: C.text2 }}>
-                            {soft?.standout ? <><b style={{ color: C.text }}>{def}</b> {softLine(soft)}.</> : <><b style={{ color: C.text }}>{def}</b> has no standout weakness this week.</>}
+                            {soft?.standout ? <><b style={{ color: C.text }}>{teamLink(def)}</b> {softLine(soft)}.</> : <><b style={{ color: C.text }}>{teamLink(def)}</b> has no standout weakness this week.</>}
                           </p>
                           <FactLines theme={C} lines={defenseFacts(matchup, def)} />
-                          {side.length > 0 && <SubLabel theme={C} numFont={NUM_FONT}>{off}&apos;S TOP TD LOOKS</SubLabel>}
+                          {side.length > 0 && <SubLabel theme={C} numFont={NUM_FONT}>TOP TD LOOKS</SubLabel>}
                           <div style={{ display: 'grid', gap: 4 }}>
                             {side.map((p) => (
                               <button key={p.player_id} onClick={() => onPlayerClick?.(p, 'TD')} style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 44, padding: '6px 9px', borderRadius: 10, border: `1px solid ${C.border}`, background: C.glass, color: C.text, cursor: 'pointer', textAlign: 'left' }}>
@@ -230,7 +230,7 @@ export default function NflSlate({ data, picks, matchup, odds = null, initialGam
                   <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))' }}>
                     {[g.home, g.away].map((def) => (
                       <div key={def} style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 6 }}>{teamLink(def)} defense <span style={{ color: C.text3, fontWeight: 600, fontFamily: NUM_FONT, fontSize: 11 }}>facing {def === g.home ? g.away : g.home}</span></div>
+                        <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 6 }}>{teamLink(def)} defense <span style={{ color: C.text3, fontWeight: 600, fontFamily: NUM_FONT, fontSize: 11 }}>facing {teamLink(def === g.home ? g.away : g.home)}</span></div>
                         <Zones field={matchup?.field} team={def} />
                       </div>
                     ))}

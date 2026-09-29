@@ -79,7 +79,8 @@ export default function Games({ data, picks, matchup, logs, results, odds = null
   const [selectedGame, setSelectedGame] = useState('all')
   const [stateFilter, setStateFilter] = useState('all')
   const [query, setQuery] = useState('')
-  const [view, setView] = useState(() => (handed ? 'games' : 'table'))
+  // Cards first, like MOONSHOT's Slate (Donovan 2026-09-28); Table one tap away.
+  const [view, setView] = useState('games')
   const watchlist = useNflWatchlist(data)
   const playersById = useMemo(() => Object.fromEntries(players.map((player) => [String(player.player_id), player])), [players])
 

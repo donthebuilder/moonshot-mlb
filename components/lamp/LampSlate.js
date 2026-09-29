@@ -131,7 +131,7 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
         const away = g.game.away.abbrev; const home = g.game.home.abbrev
         const called = g.rows.filter((r) => r.status === 'called').sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99))
         const gaOf = (team) => g.rows.find((r) => r.team === team)?.context?.oppGaPg ?? null   // what THIS team's opponent allows
-        const restLine = (t) => { const sp = spotOf(g, t, true); return sp?.b2b ? `${t} on the second night of a back-to-back` : sp?.rest != null ? `${t} ${sp.rest} day${sp.rest === 1 ? '' : 's'} of rest` : null }
+        const restLine = (t) => { const sp = spotOf(g, t, true); return sp?.b2b ? <span key={t}>{teamLink(t)} on the second night of a back-to-back</span> : sp?.rest != null ? <span key={t}>{teamLink(t)} {sp.rest} day{sp.rest === 1 ? '' : 's'} of rest</span> : null }
         return (
           <div id="lamp-slate-game" style={{ scrollMarginTop: 'calc(var(--hdr-h, 0px) + var(--gsw-h, 0px) + 8px)', marginBottom: 20 }}>
             <GameFrame accent={C.ice} past={st === 'final'}>
@@ -140,7 +140,7 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
                   <span style={{ fontSize: TYPE.micro, fontFamily: NUM_FONT, color: st === 'live' ? C.ice : C.text3, fontWeight: 800 }}>
                     {st === 'live' ? (g.game.statusLine || 'LIVE') : st === 'final' ? 'FINAL' : timeOf(g)}
                   </span>
-                  {st !== 'upcoming' && <span style={{ fontFamily: NUM_FONT, fontSize: 14, fontWeight: 900, color: st === 'live' ? C.ice : C.text2 }}>{away} {g.game.away.score ?? 0}–{g.game.home.score ?? 0} {home}</span>}
+                  {st !== 'upcoming' && <span style={{ fontFamily: NUM_FONT, fontSize: 14, fontWeight: 900, color: st === 'live' ? C.ice : C.text2 }}>{teamLink(away)} {g.game.away.score ?? 0}–{g.game.home.score ?? 0} {teamLink(home)}</span>}
                   {st !== 'upcoming' && onOpenGame && <Tap onClick={() => onOpenGame(g.game.id)}><span style={{ fontSize: TYPE.micro, fontFamily: NUM_FONT, color: C.ice, fontWeight: 800 }}>box score ›</span></Tap>}
                 </GameHeaderLine>
               </div>
@@ -152,7 +152,7 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
                   <FactLines theme={C} lines={[
                     ['The board', g.graded ? 'graded.' : g.locked ? `locked at ${new Date(g.lockedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}, before puck drop.` : 'a preview until it locks before puck drop — not a call yet.'],
                     ['Lineups', g.lineupKnown ? 'posted — dressed skaters only.' : 'not posted yet — the full roster is scored.'],
-                    ['Rest', [restLine(away), restLine(home)].filter(Boolean).join(' · ') || null],
+                    ['Rest', (() => { const r = [restLine(away), restLine(home)].filter(Boolean); return r.length ? r.flatMap((x, i) => (i ? [' · ', x] : [x])) : null })()],
                     ['In net', g.net || null],
                   ]} />
                   <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', marginBottom: 6 }}>
@@ -164,10 +164,10 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
                         <div key={att} style={{ border: `1px solid ${C.border}`, borderRadius: 12, padding: '11px 13px', minWidth: 0 }}>
                           <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 6 }}>{teamLink(att)} attack <span style={{ color: C.text3, fontWeight: 600, fontFamily: NUM_FONT, fontSize: 11 }}>vs {teamLink(def)} defense</span></div>
                           <FactLines theme={C} lines={[
-                            ['Goals allowed', ga != null ? `${def} allow ${ga.toFixed(2)} a game.` : null],
-                            ['Power play', pct1(us?.ppPct) && pct1(them?.pkPct) ? `${att} score on ${pct1(us.ppPct)}% of power plays; ${def} kill ${pct1(them.pkPct)}%.` : null],
+                            ['Goals allowed', ga != null ? <>{teamLink(def)} allow {ga.toFixed(2)} a game.</> : null],
+                            ['Power play', pct1(us?.ppPct) && pct1(them?.pkPct) ? <>{teamLink(att)} score on {pct1(us.ppPct)}% of power plays; {teamLink(def)} kill {pct1(them.pkPct)}%.</> : null],
                           ]} />
-                          {side.length > 0 && <SubLabel theme={C} numFont={NUM_FONT}>{att}&apos;S TOP OF THE BOARD</SubLabel>}
+                          {side.length > 0 && <SubLabel theme={C} numFont={NUM_FONT}>TOP OF THE BOARD</SubLabel>}
                           <div style={{ display: 'grid', gap: 4 }}>
                             {side.map((r) => (
                               <button key={r.playerId} onClick={() => onOpenPlayer?.(r.playerId)} style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 44, padding: '6px 9px', borderRadius: 10, border: `1px solid ${r.status === 'called' ? C.ice : C.border}`, background: C.glass, color: C.text, cursor: 'pointer', textAlign: 'left' }}>

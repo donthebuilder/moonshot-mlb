@@ -433,7 +433,9 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
   // A game tapped on another tab (Storylines, the Ledger) opens on the games
   // view, focused on it -- taken once, before either state is seeded.
   const [openTarget] = useState(() => (typeof window === 'undefined' ? null : takeTarget('game')))
-  const [gview, setGview] = useState(openTarget ? 'games' : 'table')
+  // CARDS FIRST (2026-09-28, Donovan: "have it open the slate as cards first") --
+  // reverses the 2026-08-30 table-first call; Table is one tap away.
+  const [gview, setGview] = useState('games')
   // ── THE LEAGUE'S LINEUP, NOT THE BOT'S (2026-08-10) ──────────────────────
   //
   // Donovan: "make sure the live wire and games can update the lineups — does
