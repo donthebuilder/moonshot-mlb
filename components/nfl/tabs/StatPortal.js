@@ -264,9 +264,14 @@ function PlayerDirectory({ players, selected, choose, initialTeam = null, listOp
   // Rated players first, best score down, then the rest of the roster A-Z
   // (phone pass 2026-09-27): the list opened on an offensive lineman on the
   // practice squad, alphabetically first of 2,531.
+  // Team defenses (DEF, the v1 Defense/ST TD market) rank on a 32-team scale,
+  // not the league-wide player scale, so a D/ST 92 is not a player 92 -- six of
+  // them led the list (2026-09-29). Tier first: rated players, then the D/ST
+  // units by their own score, then the unrated roster.
   )).sort((a, b) => {
     const best = (p) => Math.max(-1, ...Object.values(p.scores || {}).filter(Number.isFinite))
-    return best(b) - best(a) || a.name.localeCompare(b.name)
+    const tier = (p) => (best(p) < 0 ? 2 : p.position === 'DEF' ? 1 : 0)
+    return tier(a) - tier(b) || best(b) - best(a) || a.name.localeCompare(b.name)
   })
   const preview = usePreview(rows, 25)
   return (

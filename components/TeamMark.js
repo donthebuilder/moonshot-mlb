@@ -13,13 +13,16 @@ import { sportKey } from '../lib/routes'
 // are the club's colour (identity); its TEXT is readableInk() -- the first of
 // the club's two colours that clears AA on the page, else the primary lifted
 // toward white -- so NE / PIT / BAL / CLE / IND / TEN / HOU / LV stop
-// vanishing. That applies to TUDDY's table; MOONSHOT's is hand-curated and
-// its chips are unchanged (13 of its reds sit under AA -- a finding, not
-// changed without Donovan). The old MlbTeamMark / NflTeamMark are wrappers of this.
+// vanishing. That applies to both tables (MOONSHOT's since 2026-09-29: 13 of its reds sat
+// under AA). The old MlbTeamMark / NflTeamMark are wrappers of this.
 const CLUBS = {
   // MOONSHOT's table is hand-curated (lib/mlbTeams.js picks readable club
   // colours itself), so its ink is its own colour -- MOONSHOT's chips unchanged.
-  mlb: (code) => { const col = teamColor(code); return { col, ink: col, known: isKnownTeam(code), name: teamName(code) } },
+  // 2026-09-29 (Donovan: "do all the other stuff"): 13 of MOONSHOT's reds sat
+  // under AA as text, so its ink goes through readableInk too -- the club
+  // colour stays as the chip's tint and border; only a colour that fails AA on
+  // the page is lifted toward white for the letters.
+  mlb: (code) => { const col = teamColor(code); return { col, ink: readableInk(col), known: isKnownTeam(code), name: teamName(code) } },
   nfl: (code) => {
     const [col, alt] = nflTones(code)
     const known = Object.prototype.hasOwnProperty.call(NFL_TEAM_TONES, code) && code !== 'FA'
