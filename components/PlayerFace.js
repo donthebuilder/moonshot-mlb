@@ -2,6 +2,7 @@
 import NflFace from './nfl/NflFace'
 import { nflHeadshot } from '../lib/nfl/nflAssets'
 import { teamColor, isKnownTeam } from '../lib/mlbTeams'
+import { CHASSIS } from '../lib/design/tokens'
 
 // ONE FACE, ALL THREE PRODUCTS (2026-09-27, BATCH-FACES step 8).
 //
@@ -82,11 +83,16 @@ export default function PlayerFace({ sport, id = null, espnId = null, photo = nu
   }
   if (variant === 'table') {
     if (!src) return null
+    // LAMP'S LOOK IN THE ROWS TOO (2026-09-28, Donovan: LAMP's faces are the
+    // target). The silo / mug is a transparent cut-out, and this variant drew
+    // it with nothing behind it, so a head and shoulders floated on the row.
+    // LAMP's PlayerMark puts the page's dark circle (bg3) behind the same
+    // image; every table face does now -- MOONSHOT, LAMP's board, TUDDY's.
     return (
       // A table face that 404s disappears -- no monogram, no broken-image box.
       <img src={src} alt="" width={size} height={size} loading="lazy" decoding="async" className={className || undefined}
         onError={(e) => { e.currentTarget.style.display = 'none' }}
-        style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', objectPosition: 'center', flex: 'none', verticalAlign: 'middle', ...style }} />
+        style={{ width: size, height: size, borderRadius: '50%', background: theme?.bg3 || CHASSIS.bg3, objectFit: 'cover', objectPosition: 'center', flex: 'none', verticalAlign: 'middle', ...style }} />
     )
   }
   const bg = theme?.bg3 || 'rgba(255,255,255,.06)'
