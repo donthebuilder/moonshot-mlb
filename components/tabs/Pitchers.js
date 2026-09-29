@@ -1,4 +1,5 @@
 'use client'
+import { hashParams, writeHash } from '../../lib/urlState'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../lib/theme'
 import { FilterPill, FilterLabel, FilterSelect } from '../Filters'
@@ -847,6 +848,19 @@ export default function Pitchers({ players, onPlayerClick }) {
   const [sortKey, setSortKey] = useState('weak')
   const [openId, setOpenId] = useState(null)
   const [modalPitcher, setModalPitcher] = useState(null)
+  // The open pitcher card is in the address (pitcher=<id>), so a tapped arm
+  // can be refreshed, shared and reached by Back (audit 00A root fix 1 2b).
+  // Not on mount: with no card open yet it would wipe a pitcher= link before
+  // the reader below gets to open it.
+  const pitcherWritten = useRef(false)
+  useEffect(() => {
+    const id = modalPitcher?.pitcher_id
+    if (!id && !pitcherWritten.current) return
+    pitcherWritten.current = true
+    const h = hashParams()
+    if (id) h.set('pitcher', String(id)); else h.delete('pitcher')
+    writeHash(h)
+  }, [modalPitcher])
   // Which game's full weather clause is expanded — "Where they're throwing"
   // shows a verdict by default now, detail on click. See airRowVerdict below.
   const [openAirGame, setOpenAirGame] = useState(null)

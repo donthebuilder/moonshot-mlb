@@ -47,7 +47,8 @@ const vs = (r) => `${r.home ? 'vs' : '@'} ${r.opp}`
 
 export default function Player({ id, onOpenTeam, onOpenGame, onBack, backLabel = 'Players' }) {
   const { data: p, error, loading } = useLampPlayer(id)
-  if (!/^\d{7}$/.test(String(id || ''))) return <EmptyState title="NO PLAYER PICKED" note="Open a player from a roster, the directory, a leaders table, or a goal."><BackBtn onBack={onBack} label={backLabel} /></EmptyState>
+  if (!id) return <EmptyState title="NO PLAYER PICKED" note="Open a player from a roster, the directory, a leaders table, or a goal."><BackBtn onBack={onBack} label={backLabel} /></EmptyState>
+  if (!/^\d{7}$/.test(String(id))) return <EmptyState title="NO SUCH PLAYER" note={`“${String(id)}” is not an NHL player id -- the link may be old or cut short.`} tone={C.text3}><BackBtn onBack={onBack} label={backLabel} /></EmptyState>
   if (loading && !p) return <Loading what="the player file" />
   if (!p) {
     const nobody = error?.status === 400 || error?.status === 404

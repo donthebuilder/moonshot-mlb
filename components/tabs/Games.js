@@ -1,4 +1,5 @@
 'use client'
+import { hashParams, writeHash } from '../../lib/urlState'
 import { takeTarget } from '../../lib/openTarget'
 import { useMemo, useState, useRef, useEffect } from 'react'
 import { C, NUM_FONT, TYPE } from '../../lib/theme'
@@ -606,6 +607,14 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
   // the slot-by-slot depth open; everything else steps aside until the back
   // button (or re-clicking the bubble) restores the wall.
   const [lineupFocus, setLineupFocus] = useState(openTarget)
+  // The focused game is in the address (game=<pk>): refresh, share and Back
+  // keep it (audit 00A root fix 1 stage 2b). Replace -- picking a game is a
+  // view of this tab, not a new place.
+  useEffect(() => {
+    const h = hashParams()
+    if (lineupFocus) h.set('game', String(lineupFocus)); else h.delete('game')
+    writeHash(h)
+  }, [lineupFocus])
   const gameRefs                = useRef({})
 
   const allGames = useMemo(() => groupGames(players), [players])

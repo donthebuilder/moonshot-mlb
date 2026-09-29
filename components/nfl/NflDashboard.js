@@ -1,6 +1,7 @@
 'use client'
 import { easternToday, easternDate } from '../../lib/data'
 import { TodayContext } from '../TodayContext'
+import { hashParams, writeHash, closeOpened } from '../../lib/urlState'
 import { leaveTarget } from '../../lib/openTarget'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { resolveTab, pageTitle, NFL_TABS as NFL_TAB_KEYS } from '../../lib/routes'
@@ -135,21 +136,37 @@ export default function NflDashboard({ palettePass = 0 }) {
   // bot's look-ahead build (lib/nfl/dataSource.js); the graded record, the
   // report card and the live feed stay on this week, because a week that
   // hasn't happened has no results and nothing live in it.
-  const [weekMode, setWeekMode] = useState('this')
+  const [weekMode, setWeekModeRaw] = useState('this')
+  // THIS / NEXT WEEK IS IN THE ADDRESS (2026-09-27, audit 00A root fix 1
+  // stage 2): week=next, pushed so Back returns to This week; This week
+  // writes nothing. Read on mount and on every hash change below.
+  const setWeekMode = (next) => {
+    setWeekModeRaw(next)
+    const hash = hashParams()
+    hash.set('sport', 'nfl')
+    if (next === 'next') hash.set('week', 'next'); else hash.delete('week')
+    hash.delete('card'); hash.delete('cm')
+    writeHash(hash, { push: true })
+  }
 
   const [missingTab, setMissingTab] = useState('')
-  const setTab = (next) => {
+  // `push` (2026-09-27, audit 00A root fix 1): a tab you tap adds a history
+  // entry so Back returns to the last one; the mount-time resolve of the
+  // address you arrived on replaces (it is the same page, not a new one).
+  const setTab = (next, { push = true } = {}) => {
     if (!NFL_TABS.has(next)) return
     setMissingTab('')
     setTabRaw(next)
-    try {
-      const hash = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''))
-      hash.set('sport', 'nfl')
-      hash.set('tab', next)
-      if (next !== 'players') hash.delete('player')
-      if (next !== 'games') hash.delete('game')   // the Slate's open game (NflSlate)
-      window.history.replaceState(null, '', `#${hash.toString()}`)
-    } catch { /* ignore URL failures; the tab still works */ }
+    const hash = hashParams()
+    const was = hash.get('tab')
+    hash.set('sport', 'nfl')
+    hash.set('tab', next)
+    if (next !== 'players') hash.delete('player')
+    if (next !== 'games') hash.delete('game')   // the Slate's open game (NflSlate)
+    // A card belongs to the page it was opened on: a real tab change drops
+    // it; resolving the address you arrived on (same tab) keeps it.
+    if (was && was !== next) { hash.delete('card'); hash.delete('cm') }
+    writeHash(hash, { push: push && Boolean(was) && was !== next })
   }
 
   // Deep links: #sport=nfl&tab=boards is a real address, same contract the
@@ -200,7 +217,8 @@ export default function NflDashboard({ palettePass = 0 }) {
     // shared "here are the receipts" as #sport=nfl&tab=results was sending
     // people to the wrong page with no error at all -- that is finding 15.
     if (r.status === 'missing') setMissingTab(r.asked)
-    else setTab(r.tab)
+    else setTab(r.tab, { push: false })
+    if (hashParams().get('week') === 'next') setWeekModeRaw('next')
   }, [])
 
   // Keep manually edited hashes and browser-driven hash changes in sync with
@@ -217,6 +235,7 @@ export default function NflDashboard({ palettePass = 0 }) {
         // MLB url. lib/sport.js has no hashchange listener of its own.
         if (sp && sp !== 'nfl') { setSport(sp); return }
         if (sp !== 'nfl') return
+        setWeekModeRaw(hash.get('week') === 'next' ? 'next' : 'this')
         const r = resolveTab('nfl', hash.get('tab'))
         // Finding 16: this used to bail on anything not in the key set, so a
         // hash change to an unrecognised tab left the PREVIOUS panel rendered
@@ -226,6 +245,13 @@ export default function NflDashboard({ palettePass = 0 }) {
         // No tab = Home (2026-09-26, same rule as LAMP and MOONSHOT), unless
         // the hash only names a player, which opens him where you are.
         if (r.status !== 'default' || !(hash.get('player') || hash.get('p'))) setTabRaw(r.tab)
+        // The card follows the address too (Back closes it, Forward reopens).
+        const cardId = hash.get('card')
+        if (!cardId) setModal(null)
+        else {
+          const found = (slateRef.current?.players || []).find((x) => String(x.player_id) === cardId)
+          if (found) setModal((m) => (m && String(m.player?.player_id) === cardId ? m : { player: found, market: hash.get('cm') || 'TD' }))
+        }
       } catch { /* ignore malformed hashes */ }
     }
     window.addEventListener('hashchange', readHash)
@@ -287,7 +313,40 @@ export default function NflDashboard({ palettePass = 0 }) {
   // The league feed, laid over the slate. Games/Home/Live/Watchlist read the
   // overlaid copy; everything with a score on it is now ESPN's score.
   const liveSnap = useNflLive(data)
+  const slateRef = useRef(null)   // the handler below reads the slate it can't close over
   const slate = useMemo(() => withLive(data, liveSnap), [data, liveSnap])
+  const cardOpenedRef = useRef(false)
+  useEffect(() => {
+    slateRef.current = slate
+    if (cardOpenedRef.current || !slate?.players?.length) return
+    const h = hashParams()
+    const cardId = h.get('card')
+    if (!cardId) return
+    const found = slate.players.find((x) => String(x.player_id) === cardId)
+    if (found) { cardOpenedRef.current = true; setModal({ player: found, market: h.get('cm') || 'TD' }) }
+  }, [slate])
+
+  // THE CARD IS IN THE ADDRESS (2026-09-27, audit 00A: 80 of 82 TUDDY player
+  // taps opened a card the URL never mentioned -- refresh or share lost him).
+  // `card=` rather than `p=`: p= links already open the Players file (NAV-6
+  // above) and stay that way. Opening pushes; closing steps back.
+  // `peers` (optional, 2026-09-29): the list the tab had ON SCREEN, in its order
+  // and filter -- the card's ‹ › walk that, as MOONSHOT's do. Tabs that don't
+  // pass one fall back to the whole board below.
+  const openPlayer = (player, market = 'TD', peers = null) => {
+    setModal({ player, market, peers: Array.isArray(peers) && peers.length ? peers : null })
+    const id = String(player?.player_id || '')
+    if (!id) return
+    const hash = hashParams()
+    if (hash.get('card') === id) return
+    hash.set('sport', 'nfl'); hash.set('card', id)
+    if (market && market !== 'TD') hash.set('cm', market); else hash.delete('cm')
+    writeHash(hash, { push: true, state: { nflCard: 1 } })
+  }
+  const closePlayer = () => closeOpened('nflCard', () => {
+    setModal(null)
+    const hash = hashParams(); hash.delete('card'); hash.delete('cm'); writeHash(hash)
+  })
 
   // THE TODAY LINE's day (2026-09-28): today's games by their own ET date,
   // the next game day from the same week file.
@@ -297,10 +356,6 @@ export default function NflDashboard({ palettePass = 0 }) {
     const later = [...new Set(all.map((g) => easternDate(g.start)).filter((d) => d > todayET))].sort()
     return { sport: 'nfl', date: todayET, games: all.filter((g) => easternDate(g.start) === todayET), next: later[0] ? { date: later[0], games: all.filter((g) => easternDate(g.start) === later[0]) } : null }
   }, [slate])
-  // `peers` (optional, 2026-09-29): the list the tab had ON SCREEN, in its order
-  // and filter -- the card's ‹ › walk that, as MOONSHOT's do. Tabs that don't
-  // pass one fall back to the whole board below.
-  const openPlayer = (player, market = 'TD', peers = null) => setModal({ player, market, peers: Array.isArray(peers) && peers.length ? peers : null })
   // The card's peer list: everyone playing, ranked by the market the card is
   // showing, so ‹ › walks from a better name to a worse one rather than
   // through payload order. Recomputed only when the slate or that market
@@ -401,7 +456,7 @@ export default function NflDashboard({ palettePass = 0 }) {
         slate={slate}
         picks={picks}
         results={nflResults}
-        onClose={() => setModal(null)}
+        onClose={closePlayer}
         onFullProfile={openFullProfile}
         // ‹ › AND THE SEARCH INSIDE THE CARD (2026-09-20). MOONSHOT walks the
         // list that was ON SCREEN, in its order, because Dashboard already

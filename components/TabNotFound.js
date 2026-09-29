@@ -12,7 +12,9 @@ import { BRAND, sportKey } from '../lib/routes'
 //
 // It names what was typed. Somebody who shared #tab=results on TUDDY needs to
 // see that the word exists on the other product, not just that they are lost.
-export default function TabNotFound({ asked, sport = 'mlb', onNavigate, doors = [], palette = null }) {
+// `kicker` / `message` (2026-09-27, audit 00A fix 5): the same panel says "no
+// such player" for a player link that matches nobody.
+export default function TabNotFound({ asked, sport = 'mlb', onNavigate, doors = [], palette = null, kicker = 'NO SUCH TAB', message = null }) {
   // TUDDY has its own palette (lib/nfl/theme); it passes it in so this panel
   // never renders MOONSHOT's orange inside the NFL shell.
   const C = palette || MLB_C
@@ -26,16 +28,16 @@ export default function TabNotFound({ asked, sport = 'mlb', onNavigate, doors = 
       padding: '28px 22px', textAlign: 'center', margin: '10px 0 18px',
     }}>
       <p style={{ margin: 0, color: C.orange, font: `900 9px/1 ${NUM_FONT}`, letterSpacing: '.18em' }}>
-        {BRAND[here].name} · NO SUCH TAB
+        {BRAND[here].name} · {kicker}
       </p>
       <h2 style={{ margin: '12px 0 8px', fontSize: 22, letterSpacing: '-.02em', color: C.text }}>
         That page isn&apos;t on the board.
       </h2>
       <p style={{ margin: '0 auto', maxWidth: 420, color: C.text3, fontSize: 12.5, lineHeight: 1.6 }}>
-        {asked
+        {message || (asked
           ? <>Nothing here is called <b style={{ color: C.text2, fontFamily: NUM_FONT }}>{asked}</b>. It may be a
             page on the other side of the network, or the address may have changed.</>
-          : <>That address doesn&apos;t match a page here.</>}
+          : <>That address doesn&apos;t match a page here.</>)}
       </p>
       <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 8, marginTop: 20 }}>
         {doors.map(([key, label]) => (

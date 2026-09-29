@@ -1,4 +1,5 @@
 'use client'
+import Tap from '../Tap'
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../lib/theme'
 import { STATE, alpha } from '../../lib/scales'
@@ -122,7 +123,7 @@ const av = (v) => {
   return x.toFixed(3).replace(/^0\./, '.')
 }
 
-function MatchupLine({ row }) {
+function MatchupLine({ row, onOpenPitcher = null }) {
   if (!row) return null
   const arm = clean(row.pitcher_name, '')
   const throws = String(row.pitcher_throws || '').toUpperCase().startsWith('L') ? 'L' : 'R'
@@ -136,7 +137,9 @@ function MatchupLine({ row }) {
     <div style={{ fontFamily: NUM_FONT, fontSize: TYPE.body, color: C.text3, marginTop: 3, lineHeight: 1.5 }}>
       {arm && (
         <span title={`Tonight's starter${throws ? ` — throws ${throws}HP` : ''}`}>
-          vs <b style={{ color: C.text2 }}>{arm}</b>{throws ? ` (${throws})` : ''}
+          {/* the pitcher opens the PITCHER, not the hitter whose row this is
+              (audit 00A P0: "Parker Messick" opened Jac Caglianone) */}
+          vs <Tap onClick={onOpenPitcher && row.pitcher_id ? () => onOpenPitcher(row.pitcher_id) : null}><b style={{ color: C.text2 }}>{arm}</b></Tap>{throws ? ` (${throws})` : ''}
         </span>
       )}
       {sideTxt && (
@@ -239,7 +242,7 @@ function DonutLine({ g }) {
   )
 }
 
-export default function Runs({ players = [], onPlayerClick }) {
+export default function Runs({ players = [], onPlayerClick, onOpenPitcher = null }) {
   const [data, setData] = useState(undefined)
   const [mk, setMk] = useState('hit')
   const [thr, setThr] = useState(1)
@@ -562,7 +565,7 @@ export default function Runs({ players = [], onPlayerClick }) {
               <RunLeaderCard key={p.player_id} r={r} name={p.name} label={label}
                 kicker={<>{p.team}{p.opp ? ` vs ${p.opp}` : ''} · {label}</>}
                 onClick={() => onPlayerClick?.(slateRow(players, p))}>
-                <MatchupLine row={slateRow(players, p)} />
+                <MatchupLine row={slateRow(players, p)} onOpenPitcher={onOpenPitcher} />
                 <DonutLine g={p.g} />
               </RunLeaderCard>
             ))}

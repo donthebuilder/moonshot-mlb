@@ -1,5 +1,6 @@
 'use client'
 import { TodayContext } from '../TodayContext'
+import { writeHash } from '../../lib/urlState'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { resolveTab, pageTitle, NHL_TABS as NHL_TAB_KEYS, NHL_NAV } from '../../lib/routes'
 import { usePageTitle } from '../../lib/usePageTitle'
@@ -84,6 +85,10 @@ export default function LampDashboard({ palettePass = 0 }) {
   // on. null = today. It rides the address (`date=`) on the dated tabs, so a
   // refresh or a shared link keeps it.
   const [date, setDateRaw] = useState(() => readHashDay())
+  // A date= that isn't a real day (audit 00A fix 5: date=2026-13-45) used to
+  // become tonight in silence. It still does -- but the page says so, once.
+  const [badDate, setBadDate] = useState('')
+  useEffect(() => { const raw = readHashParam('date'); if (raw && !readHashDay()) setBadDate(String(raw).slice(0, 20)) }, [])
   const setDate = (d) => setDateRaw(d && d !== etToday() ? d : null)
   useEffect(() => { if (DATED_TABS.has(tab)) writeHashParam('date', date) }, [tab, date])
   // On a cold open Next writes the route's static <title> after the first
@@ -91,7 +96,9 @@ export default function LampDashboard({ palettePass = 0 }) {
   // -- it replaced the 600ms second write that used to live here.
   usePageTitle(`${pageTitle('nhl', tab)} · DASH Network`)
 
-  const setTab = (next) => {
+  // `push` (2026-09-27, audit 00A root fix 1): a tab you tap adds a history
+  // entry, so Back returns to the last one; the mount-time resolve replaces.
+  const setTab = (next, { push = true } = {}) => {
     if (!NHL_TABS.has(next)) return
     // Leaving through the chrome (rail, bar, sheet, wordmark, a Guide door)
     // is a fresh start, not a step on the trail; only the openers above
@@ -110,8 +117,12 @@ export default function LampDashboard({ palettePass = 0 }) {
       if (next !== 'player') { hash.delete('player'); hash.delete('p') }
       // A detail page keeps its entry's marker (openDetail); the chrome's
       // own navigation starts clean.
-      const keep = next === 'game' || next === 'team' || next === 'player' ? window.history.state : null
-      window.history.replaceState(keep, '', `#${hash.toString()}`)
+      // Only LAMP's own marker rides along -- never window.history.state, whose
+      // __NA flag makes Next skip syncing the new URL (lib/urlState.js).
+      const detail = next === 'game' || next === 'team' || next === 'player'
+      const keep = detail && window.history.state?.lampDetail ? { lampDetail: true } : null
+      const was = new URLSearchParams(String(window.location.hash || '').replace(/^#/, '')).get('tab')
+      writeHash(hash, { push: push && !detail && Boolean(was) && was !== next, state: keep })
     } catch { /* the tab still works without the address */ }
   }
 
@@ -230,8 +241,11 @@ export default function LampDashboard({ palettePass = 0 }) {
     const tm = String(readHashParam('team') || initialHashParams().get('team') || '').toUpperCase()
     if (r.tab === 'team' && /^[A-Z]{3}$/.test(tm)) setTeamKey(tm)
     const pl = readHashParam('player') || readHashParam('p') || initialHashParams().get('player') || initialHashParams().get('p')
-    if (r.tab === 'player' && /^\d{7}$/.test(String(pl || ''))) setPlayerId(String(pl))
-    setTab(r.tab)
+    // Any id a link carries reaches the player page -- a malformed one too, so
+    // the page can say NO SUCH PLAYER instead of "no player picked" (audit 00A
+    // fix 5: player=1 used to look like a link with no player at all).
+    if (r.tab === 'player' && pl) setPlayerId(String(pl).slice(0, 20))
+    setTab(r.tab, { push: false })
   }, [])
 
   // Manually edited hashes and browser-driven hash changes stay in sync
@@ -249,7 +263,7 @@ export default function LampDashboard({ palettePass = 0 }) {
         setMissingTab('')
         if (r.tab === 'game') { const g = hash.get('game'); if (/^\d{10}$/.test(String(g || ''))) setGameId(String(g)) }
         if (r.tab === 'team') { const tm = String(hash.get('team') || '').toUpperCase(); if (/^[A-Z]{3}$/.test(tm)) setTeamKey(tm) }
-        if (r.tab === 'player') { const pl = hash.get('player') || hash.get('p'); if (/^\d{7}$/.test(String(pl || ''))) setPlayerId(String(pl)) }
+        if (r.tab === 'player') { const pl = hash.get('player') || hash.get('p'); if (pl) setPlayerId(String(pl).slice(0, 20)) }
         // A hash that names LAMP and no tab IS an address — Tonight. This
         // used to leave the previous panel on screen under a URL that said
         // otherwise (measured live, 2026-09-25); MOONSHOT's and TUDDY's
@@ -288,6 +302,12 @@ export default function LampDashboard({ palettePass = 0 }) {
       <main id="board-main" className="dashboard-main" style={{ maxWidth: 1300, margin: '0 auto', padding: '14px 14px 40px', background: C.bg, color: C.text }}>
         <h1 className="sr-only">{pageTitle('nhl', missingTab ? 'home' : tab)}</h1>
         {!missingTab && <TabExplainer tab={tab} texts={NHL_TEXTS} storageKey="tab_explained_nhl" accent={C.ice} />}
+        {badDate && !missingTab && (
+          <div role="status" style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '4px 0 10px', padding: '8px 12px', border: `1px solid ${C.border}`, borderLeft: `3px solid ${C.amber}`, borderRadius: 10, background: C.bg2, fontSize: 12, color: C.text2 }}>
+            <span style={{ flex: 1 }}><b style={{ color: C.text, fontFamily: NUM_FONT }}>{badDate}</b> isn&apos;t a real date, so that day is unavailable -- showing tonight instead.</span>
+            <button type="button" onClick={() => setBadDate('')} aria-label="Dismiss" style={{ minWidth: 44, minHeight: 44, background: 'transparent', border: 'none', color: C.text3, cursor: 'pointer', fontSize: 14 }}>✕</button>
+          </div>
+        )}
         {missingTab ? (
           <TabNotFound
             asked={missingTab}

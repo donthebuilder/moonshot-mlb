@@ -1,6 +1,7 @@
 'use client'
 import PlayerFace from './PlayerFace'
 import TeamMark from './TeamMark'
+import Tap from './Tap'
 import { useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import {
@@ -649,10 +650,20 @@ export default function DenseTable({
                           const f = faceOf(r)
                           return f ? <PlayerFace {...f} variant="table" size={18} className="dense-face" style={{ margin: '-6px 5px -6px 0' }} /> : null
                         })()}
-                        {/* `teamMark: '<sport>'` (2026-09-29, queue batch 5): the shared
-                            club chip instead of a bare code -- a column says which
-                            sport, the table draws components/TeamMark. */}
-                        {c.teamMark && v ? <TeamMark sport={c.teamMark} abbr={v} /> : c.fmt ? c.fmt(v, r) : (v ?? '—')}
+                        {(() => {
+                          // A NAME IN A CELL OPENS THAT NAME (2026-09-27, audit
+                          // 00A P0). The row's onRowClick caught every cell, so
+                          // tapping the pitcher in a hitter's row ("Kyle
+                          // Freeland" in Murakami's) opened the HITTER. A column
+                          // with `link: (row) => handler | null` renders its
+                          // content as the shared Tap, which stops the tap
+                          // reaching the row. No handler -> plain text.
+                          // `teamMark: '<sport>'` (2026-09-29, queue batch 5): the
+                          // shared club chip instead of a bare code.
+                          const content = c.teamMark && v ? <TeamMark sport={c.teamMark} abbr={v} /> : c.fmt ? c.fmt(v, r) : (v ?? '—')
+                          const go = c.link ? c.link(r._raw ?? r) : null
+                          return go ? <Tap onClick={go}>{content}</Tap> : content
+                        })()}
                         {/* THE FOLDED VALUES, on the phone only. Same row,
                             same data, one line down — see the note at the top
                             of this file on why Rundown needed it. */}

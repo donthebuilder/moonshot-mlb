@@ -1,5 +1,6 @@
 'use client'
 import WatchBox from '../WatchBox'
+import { leaveTarget } from '../../lib/openTarget'
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../lib/theme'
 import BoardFilters, { useBoardFilter } from '../BoardFilters'
@@ -560,7 +561,7 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
       ) : bview === 'patterns' ? (
         /* allPlayers: a streak board silently narrowed by the header's team
            filter reads as the whole board — the audit's wrong-number find. */
-        <Runs players={allPlayers.length ? allPlayers : players} onPlayerClick={onPlayerClick} />
+        <Runs players={allPlayers.length ? allPlayers : players} onPlayerClick={onPlayerClick} onOpenPitcher={onNavigate ? (pid) => { leaveTarget('pitcher', pid); onNavigate('pitchers') } : null} />
       ) : bview === 'power' ? (
         /* 🚀 POWER, mounted whole. Its three lenses (Farthest / Overdue /
            Parks) stay INSIDE it, on its own row — folding them into the nine-
@@ -632,7 +633,7 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
             ? <AlignedSignalsSection players={filtered} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} />
             : view === 'matchupedge'
             ? <MatchupEdgeSection players={filtered} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} />
-            : <RankedBoard players={players} type={viewKey} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} slateDate={slateDate} filterState={filterState} setupHomers={setupHomers} />
+            : <RankedBoard players={players} type={viewKey} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} onOpenPitcher={onNavigate ? (pid) => { leaveTarget('pitcher', pid); onNavigate('pitchers') } : null} slateDate={slateDate} filterState={filterState} setupHomers={setupHomers} />
           }
         </>
       )}
