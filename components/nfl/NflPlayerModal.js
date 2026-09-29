@@ -11,7 +11,8 @@ import HisNumbers from '../HisNumbers'
 import { etToday } from '../../lib/freshness'
 import { VerdictStamp, PutOnCard } from './CardActions'
 import MatchupMap from './MatchupMap'
-import NflFace from './NflFace'
+import VerdictHero from '../VerdictHero'
+import { faceUrl } from '../PlayerFace'
 import SourceSeason from './SourceSeason'
 import NflExplain from './NflExplain'
 import { statLabel, statFmt } from '../../lib/nfl/statLabels'
@@ -661,34 +662,39 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
             screen. The actions used to share this row without wrapping, which
             pushed the 📸 and the close button off the right edge of a phone --
             there was no visible way out of the card. They have their own row now. */}
-        <div className="nfl-card-head" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {/* 2026-09-07. Donovan, 8/27: "site needs visuals; we don't have
-              player pictures." We did have them -- FRANCHISE has rendered faces
-              for weeks -- TUDDY just never got one. See NflFace. */}
-          <NflFace player={player} size={44} />
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ fontSize: 17, fontWeight: 900, color: C.text, lineHeight: 1.15 }}>{player.name}</div>
-            <div style={{ fontSize: 11, color: C.text3, fontFamily: NUM_FONT, marginTop: 2 }}>
-              {/* #number and age, both published on >92% of players. Age is
-                  derived from birth_date, which Storylines and Numerology read. */}
-              {player.jersey_number ? `#${player.jersey_number} · ` : ''}
-              {player.position} · {player.team}{player.opp ? ` vs ${player.opp}` : ''}
-              {ageOf(player.birth_date) ? ` · age ${ageOf(player.birth_date)}` : ''}
-              {injuryTag(player) && (
-                <span title={injuryTitle(injuryTag(player))}
-                      style={{ color: injuryColor(injuryTag(player), C), fontWeight: 900 }}>
-                  {' · '}{injuryTag(player)}
-                </span>
-              )}
-              {player.low_sample && <span style={{ color: C.text3 }}> · low sample</span>}
-            </div>
-          </div>
+        {/* THE CLOSE, ALWAYS ON SCREEN (phone pass 2026-09-27): a zero-height
+            sticky bar, so the ✕ pins without pinning the whole hero under it. */}
+        <div className="nfl-card-head" style={{ position: 'sticky', top: 0, zIndex: 4, height: 0, display: 'flex', justifyContent: 'flex-end' }}>
           <button type="button" onClick={onClose} aria-label="Close" style={{
-            flexShrink: 0, width: 40, height: 40, display: 'grid', placeItems: 'center',
-            background: 'transparent', border: `1px solid ${C.border}`, color: C.text2,
+            flexShrink: 0, width: 44, height: 44, marginTop: 6, marginRight: 6, display: 'grid', placeItems: 'center',
+            background: C.bg2, border: `1px solid ${C.border}`, color: C.text2,
             borderRadius: 10, cursor: 'pointer', fontSize: 16, lineHeight: 1,
           }}>✕</button>
         </div>
+        {/* MOONSHOT'S HERO (2026-09-29, parity): the face-led VerdictHero the
+            MLB props card uses -- face, name, the grade for the market on
+            screen as the badge, its score on the dial -- in TUDDY's theme. */}
+        {(() => {
+          const s0 = player.scores?.[market]
+          const g0 = gradeFor(s0)
+          const tag = injuryTag(player)
+          return (
+            <VerdictHero lead="face" theme={C} numFont={NUM_FONT}
+              photo={faceUrl({ sport: 'nfl', espnId: player.espn_id, size: 96 })}
+              col={g0.color} score={Number.isFinite(s0) ? s0 : null}
+              title={player.name} badge={Number.isFinite(s0) ? g0.label : 'UNSCORED'} badgeQuiet={!Number.isFinite(s0)}
+              market={spec?.label || market}
+              meta={<>
+                {player.jersey_number ? `#${player.jersey_number} · ` : ''}
+                {player.position} · {player.team}{player.opp ? ` vs ${player.opp}` : ''}
+                {ageOf(player.birth_date) ? ` · age ${ageOf(player.birth_date)}` : ''}
+                {tag && <span title={injuryTitle(tag)} style={{ color: injuryColor(tag, C), fontWeight: 900 }}>{' · '}{tag}</span>}
+                {player.low_sample && <span style={{ color: C.text3 }}> · low sample</span>}
+              </>}
+              right={<span aria-hidden="true" style={{ display: 'inline-block', width: 44 }} />}
+            />
+          )
+        })()}
         <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginTop: 10 }}>
           <FollowButton sport="nfl" id={player?.player_id} name={player?.name} team={player?.team} position={player?.position} compact />
           <button onClick={() => watchlist.toggle(player)}
@@ -891,9 +897,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
             now inside MOONSHOT's scroll box, which is full-screen on a phone. */}
         <style>{`
           @media (max-width: 560px) {
-            .nfl-card-head { position: sticky; top: -14px; z-index: 3; background: ${C.bg2};
-              margin: -14px -12px 0; padding: calc(10px + env(safe-area-inset-top)) 12px 10px;
-              border-bottom: 1px solid ${C.border}; }
+            .nfl-card-head { top: env(safe-area-inset-top) !important; margin-right: -8px; }
             .nfl-card-stats { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
           }
         `}</style>

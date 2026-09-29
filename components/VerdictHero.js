@@ -1,8 +1,15 @@
 'use client'
-import { useEffect, useState } from 'react'
-import { C, NUM_FONT } from '../lib/theme'
+import { createContext, useContext, useEffect, useState } from 'react'
+import { C as MLB_C, NUM_FONT as MLB_NUM } from '../lib/theme'
 import { alpha, score as fmtScore } from '../lib/scales'
 import { useIsPhone } from './MobileFold'
+
+// THEME (2026-09-29, parity): LAMP already renders this hero and TUDDY's card
+// is moving onto it, so the surfaces follow the sport's theme. VerdictHero
+// takes theme / numFont props and hands them to its parts through context;
+// the default is MOONSHOT's, so MOONSHOT's output is unchanged.
+const ThemeCtx = createContext(null)
+const useT = () => useContext(ThemeCtx) || { C: MLB_C, NUM_FONT: MLB_NUM }
 
 // ══ THE DIAL AND THE HERO ═══════════════════════════════════════════════════
 //
@@ -30,6 +37,7 @@ import { useIsPhone } from './MobileFold'
  * caller is expected to say so in a title.
  */
 export function Dial({ value, col, size = 64, max = 100, title, dp = 0, pct: pctOverride, photo = null }) {
+  const { C, NUM_FONT } = useT()
   const [broken, setBroken] = useState(false)
   useEffect(() => { setBroken(false) }, [photo])
   const v = value == null ? null : Number(value)
@@ -83,6 +91,7 @@ export function Dial({ value, col, size = 64, max = 100, title, dp = 0, pct: pct
 
 /** The badge capsule — the site's role codes, drawn once. */
 export function VerdictBadge({ label, col, quiet }) {
+  const { C, NUM_FONT } = useT()
   return (
     <span style={{
       flexShrink: 0, fontSize: 8.5, fontWeight: 900, letterSpacing: '.07em',
@@ -111,6 +120,7 @@ export function VerdictBadge({ label, col, quiet }) {
 // small numeral on the right, where the badge used to sit. `lead="dial"` is the
 // default and is what the player and pitcher modals still use, untouched.
 function VerdictPlate({ badge, col, quiet, market, size = 64, photo = null }) {
+  const { C, NUM_FONT } = useT()
   const [broken, setBroken] = useState(false)
   useEffect(() => { setBroken(false) }, [photo])
   const label = String(badge || '').replace(/^[^\w]*\s*/, '')  // strip a leading emoji
@@ -154,6 +164,7 @@ function VerdictPlate({ badge, col, quiet, market, size = 64, photo = null }) {
 }
 
 export function ScoreChip({ value, col, title }) {
+  const { C, NUM_FONT } = useT()
   const v = value == null ? null : Number(value)
   return (
     <span title={title} style={{
@@ -175,6 +186,7 @@ export function ScoreChip({ value, col, title }) {
 // marks). The face is 24px smaller than the 64px plate it replaces, so the head
 // never grows. No photo -> the circle stays, empty, so rows still line up.
 function FaceCircle({ photo, size }) {
+  const { C, NUM_FONT } = useT()
   const [broken, setBroken] = useState(false)
   useEffect(() => { setBroken(false) }, [photo])
   return (
@@ -190,8 +202,10 @@ function FaceCircle({ photo, size }) {
 export default function VerdictHero({
   col, score, max, dialTitle, dp,
   title, badge, badgeQuiet, meta, metaRight, market, line, line2, facts, right,
-  chips, footer, style, lead = 'dial', photo = null,
+  chips, footer, style, lead = 'dial', photo = null, theme = null, numFont = null,
 }) {
+  const C = theme || MLB_C
+  const NUM_FONT = numFont || MLB_NUM
   const faceLeads = lead === 'face'
   const phone = useIsPhone()
   const badgeLeads = lead === 'badge' || faceLeads
@@ -205,6 +219,7 @@ export default function VerdictHero({
     ? facts.filter((f) => !chipKeys.has(factKey(f)))
     : []
   return (
+    <ThemeCtx.Provider value={{ C, NUM_FONT }}>
     <div style={{
       position: 'relative', overflow: 'hidden',
       border: `1px solid ${alpha(col, 0.26)}`, borderRadius: 18, padding: '14px 14px 13px',
@@ -329,11 +344,13 @@ export default function VerdictHero({
           caught in the render, fixed here so every caller gets it right. */}
       {footer}
     </div>
+    </ThemeCtx.Provider>
   )
 }
 
 /** The three period tiles, doubling as the streak display. */
 export function PeriodTiles({ tiles }) {
+  const { C, NUM_FONT } = useT()
   return (
     <div style={{ display: 'flex', gap: 7 }}>
       {tiles.map((t) => (

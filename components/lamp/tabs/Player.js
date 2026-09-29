@@ -111,7 +111,7 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel }) {
       <DelayedBanner error={error} what="the league’s player feed" />
       <header>
         <h2 className="sr-only">{p.name}</h2>
-        <VerdictHero
+        <VerdictHero theme={C} numFont={NUM_FONT}
           col={C.ice} score={row?.score ?? null} photo={p.headshot || null}
           dialTitle={row ? 'Tonight’s goal-board score: the mean of three percentile ranks tonight -- shots, goals and ice time per game over his last 82 NHL games.' : 'Not on tonight’s goal board, so no score.'}
           title={<>{p.number != null && <span style={{ color: C.text3, fontWeight: 700, fontFamily: NUM_FONT }}>#{p.number} </span>}{p.name}</>}
