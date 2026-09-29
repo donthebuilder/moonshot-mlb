@@ -34,7 +34,7 @@ export const MLB_WORDS = {
 export default function AlignmentsView({
   model, tonight, todayKey, todayRoot, AXIS_META, scoreOf = () => null,
   head = null, days = null, watchedRows = [], hasWatch = false,
-  words = MLB_WORDS, builder = false, onBuildAround, onName, children = null,
+  words = MLB_WORDS, builder = false, chipLimit = 24, compact = false, onBuildAround, onName, children = null,
   theme = MLB_C, numFont = MLB_NUM, accent = null,
 }) {
   const C = theme
@@ -105,6 +105,16 @@ export default function AlignmentsView({
               it on two or more of their own numbers
             </span>
           </div>
+          {compact ? (
+            // One line on a phone (2026-09-29): the counts that matter, the
+            // full reading one tap away. MOONSHOT never passes compact.
+            <details style={{ margin: '4px 0 7px' }}>
+              <summary style={{ fontSize: 9.5, color: C.text3, cursor: 'pointer', minHeight: 0, display: 'list-item' }}>
+                ~{Math.round(tonight.expectedTwoPlus)} expected by chance
+                {W.scoreName && tonight.medianScoreAligned != null && tonight.medianScoreSlate != null
+                  ? ` · median score ${tonight.medianScoreAligned.toFixed(1)} aligned vs ${tonight.medianScoreSlate.toFixed(1)} all` : ''}
+              </summary>
+              <div style={{ marginTop: 5 }}>
           <div style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.6, margin: '4px 0 7px' }}>
             Expect about <b style={{ color: C.text2, fontFamily: NUM_FONT }}>{Math.round(tonight.expectedTwoPlus)}</b>{' '}
             of those by arithmetic alone on a slate this size, so{' '}
@@ -145,11 +155,55 @@ export default function AlignmentsView({
                   : <> — {W.night} the aligned set is the weaker half. One {W.unit} is not a finding either way.</>}
             </div>
           )}
+              </div>
+            </details>
+          ) : (<>
+          <div style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.6, margin: '4px 0 7px' }}>
+            Expect about <b style={{ color: C.text2, fontFamily: NUM_FONT }}>{Math.round(tonight.expectedTwoPlus)}</b>{' '}
+            of those by arithmetic alone on a slate this size, so{' '}
+            {tonight.twoPlus > tonight.expectedTwoPlus * 1.25
+              ? <>{W.night} is running <b style={{ color: ROOT_COLORS[todayRoot] }}>above</b> its share</>
+              : tonight.twoPlus < tonight.expectedTwoPlus * 0.8
+                ? <>{W.night} is running <b style={{ color: C.text2 }}>below</b> its share</>
+                : <>{W.night} is <b style={{ color: C.text2 }}>about normal</b></>}
+            {' '}— which is the honest read on nearly every night. Raw number → root on every chip.
+          </div>
+          {/* ── NUMBERS FIRST, THEN THE BOT (2026-08-31) ───────────────────
+              Donovan: "those predctions are base on the numbers first then how
+              they socred on the bot to help with predicting."
+
+              That is the only defensible ordering and it is worth saying out
+              loud on the page. The reduction is arithmetic — it SELECTS a set
+              and claims nothing about whether the men in it can hit. The bot's
+              HR score is the part of this site with sixty graded nights behind
+              it. So the numbers narrow and the thing with a record ranks what
+              is left; neither is asked to do the other's job.
+
+              Which makes the median comparison below mandatory rather than
+              decorative: if the reduction were quietly picking better bats,
+              the aligned median would sit above the slate's. Printing it is
+              running the test on his own idea with his own data, every night,
+              in public. */}
+          {W.scoreName && tonight.medianScoreAligned != null && tonight.medianScoreSlate != null && (
+            <div style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.6, marginBottom: 7 }}>
+              The numbers pick the set; the <b style={{ color: C.text2 }}>{W.scoreName}</b> — {W.scoreRecord} — ranks what is in it. Median score among
+              the aligned is{' '}
+              <b style={{ fontFamily: NUM_FONT, color: C.text2 }}>{tonight.medianScoreAligned.toFixed(1)}</b>{' '}
+              against the whole slate&apos;s{' '}
+              <b style={{ fontFamily: NUM_FONT, color: C.text2 }}>{tonight.medianScoreSlate.toFixed(1)}</b>
+              {Math.abs(tonight.medianScoreAligned - tonight.medianScoreSlate) < 2
+                ? <> — the same board, in other words, which is what you should expect and what it almost always says.</>
+                : tonight.medianScoreAligned > tonight.medianScoreSlate
+                  ? <> — {W.night} the aligned set happens to be the stronger half. One {W.unit} is not a finding.</>
+                  : <> — {W.night} the aligned set is the weaker half. One {W.unit} is not a finding either way.</>}
+            </div>
+          )}
+          </>)}
           <div style={{ fontSize: 8.5, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em', fontWeight: 800, marginBottom: 4 }}>
             {W.carrying}
           </div>
           <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-            {(tonight.byBotScore || []).slice(0, 24).map(({ a, keys, strength }) => (
+            {(tonight.byBotScore || []).slice(0, chipLimit).map(({ a, keys, strength }) => (
               <button key={a.pid} onClick={() => toggle(a.pid)}
                 title={`${keys.map((k) => AXIS_META[k].why(a)).join(' · ')} — all reducing to ${todayRoot}.${Number.isFinite(scoreOf(a)) && W.scoreShort ? ` Bot ${W.scoreShort} ${scoreOf(a).toFixed(0)}.` : ''} ${clickWord(a.pid)}.`}
                 style={{
@@ -176,8 +230,8 @@ export default function AlignmentsView({
                 </span>
               </button>
             ))}
-            {tonight.twoPlus > 24 && (
-              <span style={{ fontSize: 9.5, color: C.text3 }}>+{tonight.twoPlus - 24} more</span>
+            {tonight.twoPlus > chipLimit && (
+              <span style={{ fontSize: 9.5, color: C.text3 }}>+{tonight.twoPlus - chipLimit} more</span>
             )}
           </div>
         </div>
