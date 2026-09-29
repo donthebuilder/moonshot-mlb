@@ -13,6 +13,7 @@ import {
 } from '../../lib/leaders'
 import { tone, alpha } from '../../lib/scales'
 import { hr9Color } from '../../lib/hr9'
+import { leaveTarget } from '../../lib/openTarget'
 
 // League Leaders — SEASON STATS ONLY.
 //
@@ -162,7 +163,7 @@ function HistBoard({ title, lead, rows, empty, renderRow }) {
 // One ranked line: rank, name, the number, and the number's own denominator or
 // context underneath it. `onClick` is only wired when the man is on tonight's
 // slate — a name from nine nights ago has no card to open.
-function HistRow({ i, name, team, main, note, onClick, title }) {
+function HistRow({ i, name, team, main, note, onClick, title, onTeam }) {
   return (
     <div
       onClick={onClick}
@@ -177,7 +178,15 @@ function HistRow({ i, name, team, main, note, onClick, title }) {
         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0,
       }}>
         {name}{onClick ? ' 🤖' : ''}
-        {team ? <> <MlbTeamMark abbr={team} style={{ height: 16, verticalAlign: 'middle' }} /></> : null}
+        {/* THE CLUB OPENS ITS GAME TONIGHT (2026-09-29, check-clickable: 20
+            dead team codes). MOONSHOT has no team page; a club on tonight's
+            slate opens its game, a club off tonight has nowhere to go. */}
+        {team ? <> {onTeam?.(team)
+          ? <button type="button" onClick={(e) => { e.stopPropagation(); onTeam(team)() }} title={`Open ${team}'s game tonight`}
+              style={{ padding: 0, border: 'none', background: 'none', cursor: 'pointer', verticalAlign: 'middle' }}>
+              <MlbTeamMark abbr={team} style={{ height: 16, verticalAlign: 'middle' }} />
+            </button>
+          : <MlbTeamMark abbr={team} style={{ height: 16, verticalAlign: 'middle' }} />}</> : null}
       </span>
       <span style={{ marginLeft: 'auto', textAlign: 'right', flexShrink: 0 }}>
         <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.body, fontWeight: 900, color: C.orange }}>{main}</span>
@@ -189,7 +198,7 @@ function HistRow({ i, name, team, main, note, onClick, title }) {
   )
 }
 
-export default function Leaders({ players = [], onPlayerClick }) {
+export default function Leaders({ players = [], onPlayerClick, onNavigate }) {
   const [minPA, setMinPA] = useState(100)
   const [hand, setHand] = useState('all')
   const [query, setQuery] = useState('')
@@ -293,6 +302,16 @@ export default function Leaders({ players = [], onPlayerClick }) {
 
   // Clicking a historical name only opens a card if he is playing tonight —
   // otherwise there is no slate row behind him and the click would do nothing.
+  // Club -> tonight's game_pk, for the historical rows' team chips.
+  const gameByTeam = useMemo(() => {
+    const m = new Map()
+    players.forEach((p) => { const t = teamOf(p); if (t && p?.game_pk && !m.has(t)) m.set(t, p.game_pk) })
+    return m
+  }, [players])
+  const openTeam = (team) => {
+    const pk = gameByTeam.get(team)
+    return pk && onNavigate ? () => { leaveTarget('game', pk); onNavigate('games') } : undefined
+  }
   const openIfOnSlate = (pid) => {
     const p = slateById.get(Number(pid))
     return p && onPlayerClick ? () => onPlayerClick(p) : undefined
@@ -416,7 +435,7 @@ export default function Leaders({ players = [], onPlayerClick }) {
                 <HistRow key={p.pid} i={i} name={p.name} team={p.team}
                   main={`${p.hr} HR`}
                   note={`${p.hrNights}/${p.nights} nights`}
-                  onClick={openIfOnSlate(p.pid)}
+                  onClick={openIfOnSlate(p.pid)} onTeam={openTeam}
                   title={`${p.name} — ${p.hr} home runs over ${w.loaded} graded nights, on ${p.hrNights} of the ${p.nights} nights he was in the file. Deduped per night: the graded file lists a hitter once per pick category, so counting raw rows would give a man picked twice two homers for one swing.`} />
               )} />
 
@@ -429,7 +448,7 @@ export default function Leaders({ players = [], onPlayerClick }) {
                 <HistRow key={p.pid} i={i} name={p.name} team={p.team}
                   main={`${Math.round((100 * p.cleared) / p.judged)}%`}
                   note={`${p.cleared}/${p.judged} in ${p.pickNights}n${p.voids ? ` · ${p.voids} void` : ''}`}
-                  onClick={openIfOnSlate(p.pid)}
+                  onClick={openIfOnSlate(p.pid)} onTeam={openTeam}
                   title={`${p.name} cleared ${p.cleared} of ${p.judged} judged picks across ${p.pickNights} nights${p.voids ? `, plus ${p.voids} void (tracked, never batted — out of the denominator)` : ''}. Conditional on the bot having designated him in the first place: this is his rate once picked, not a league rate.`} />
               )} />
 
@@ -442,7 +461,7 @@ export default function Leaders({ players = [], onPlayerClick }) {
                 <HistRow key={p.pid} i={i} name={p.name} team={p.team}
                   main={`${p.pickNights} ${p.pickNights === 1 ? 'night' : 'nights'}`}
                   note={`${p.picks} slots · ${p.cleared}/${p.judged}`}
-                  onClick={openIfOnSlate(p.pid)}
+                  onClick={openIfOnSlate(p.pid)} onTeam={openTeam}
                   title={`${p.name} was designated on ${p.pickNights} of the ${w.loaded} graded nights, ${p.picks} pick slots in total, clearing ${p.cleared} of ${p.judged} judged. Volume, not endorsement — the bot picks the same names often.`} />
               )} />
 
@@ -455,7 +474,7 @@ export default function Leaders({ players = [], onPlayerClick }) {
                 <HistRow key={`${b.pid}-${b.date}`} i={i} name={b.name} team={b.team}
                   main={`${b.tb} TB`}
                   note={`${b.date.slice(5)} · ${b.h}-${b.ab}${b.hr ? `, ${b.hr} HR` : ''}`}
-                  onClick={openIfOnSlate(b.pid)}
+                  onClick={openIfOnSlate(b.pid)} onTeam={openTeam}
                   title={`${b.name} on ${b.date}${b.opp ? ` vs ${b.opp}` : ''} — ${b.h} for ${b.ab}, ${b.hr} HR, ${b.tb} total bases, ${b.r} R, ${b.rbi} RBI.`} />
               )} />
           </div>

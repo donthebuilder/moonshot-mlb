@@ -37,7 +37,7 @@ const ROWS = [
   ['players', 'Every player on a current roster. Type a name or a club, tap for the file: the season line, career, last five, the game log, season by season.'],
   ['goalies', 'Every goalie, and a goalie’s file is its own page — starts, record, GAA, save percentage, shutouts — not a skater’s with different labels.'],
   ['teams', 'The 32 clubs by division. Tap one for its record and place, next up, last five, the roster with season lines, team leaders, the whole schedule.'],
-  ['leaders', 'Who leads the league in each category, ten deep, regular season, straight from the league. Measured, not modelled.'],
+  ['leaders', 'Who leads: tonight\'s leaders with who they face, the league top 10s, and every skater\'s and goalie\'s season line in one sortable table. Regular season, straight from the league. Measured, not modelled.'],
   ['watchlist', null],
   ['numerology', null],
 ]
