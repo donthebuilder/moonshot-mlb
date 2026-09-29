@@ -1,5 +1,7 @@
 'use client'
 import ShotPanel from '../ShotPanel'
+import FollowButton from '../../FollowButton'
+import PlayerNotes from '../../PlayerNotes'
 import MultiLine from '../../ledger/MultiLine'
 import PageHeader from '../../PageHeader'
 import LampTable from '../LampTable'
@@ -131,6 +133,8 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel }) {
         <div style={{ minWidth: 0, borderBottom: `1px solid ${C.border2}`, paddingBottom: 12 }}>
           <div style={{ color: C.text3, fontSize: 11, lineHeight: 1.5 }}>{bio}</div>
           {!goalie && <MultiLine sport="nhl" playerId={p.id} words={{ G: 'multi-goal' }} color={C.ice} textColor={C.text2} />}
+          {/* Follow, as on MOONSHOT's and TUDDY's cards (lib/dash/follow.js takes nhl). */}
+          <div style={{ marginTop: 8 }}><FollowButton sport="nhl" id={String(p.id)} name={p.name} team={p.team} position={p.pos} compact /></div>
         </div>
       </header>
 
@@ -209,6 +213,7 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel }) {
       {/* 🔢 His numbers (numerology step 7). Skaters: goals are LAMP's number.
           Next goal only from THIS season's line (a stale featured season would
           count last year's); career next from the league's career totals. */}
+      <PlayerNotes playerId={String(p.id)} scope="nhl" accent={C.ice} />
       {!goalie && <HisNumbers name={p.name} jersey={p.number} birthDate={p.birthDate} next={!stale && Number.isFinite(f.regular?.g) ? f.regular.g + 1 : null} career={Number.isFinite(p.career?.regular?.g) ? p.career.regular.g + 1 : null} nextWord="goal" date={etToday()} theme={C} accent={C.ice} numFont={NUM_FONT} />}
       <SourceLine>Source: NHL player/{p.id}/landing and player/{p.id}/game-log/{'{season}'}/2 via /api/lamp/player, cached ten minutes. The featured season is the feed’s own.</SourceLine>
     </div>

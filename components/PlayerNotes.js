@@ -14,7 +14,12 @@ const load = () => {
   try { return JSON.parse(localStorage.getItem(KEY) || '{}') } catch { return {} }
 }
 
-export default function PlayerNotes({ playerId }) {
+// accent: the sport's colour (MOONSHOT's orange by default, unchanged).
+// scope: a key prefix for sports whose ids could collide with MLB's numeric
+// ones (LAMP's NHL ids). MOONSHOT and TUDDY keep their bare keys so notes
+// already saved still load (TUDDY's gsis ids can't collide).
+export default function PlayerNotes({ playerId: rawId, accent = null, scope = null }) {
+  const playerId = rawId && scope ? `${scope}:${rawId}` : rawId
   const [text, setText] = useState('')
   const [savedAt, setSavedAt] = useState(null)
   const [dirty, setDirty] = useState(false)
@@ -53,8 +58,8 @@ export default function PlayerNotes({ playerId }) {
             onClick={save}
             style={{
               fontSize: 9.5, fontWeight: 800, padding: '2px 10px', borderRadius: 6,
-              border: `1px solid ${C.orange}`, background: 'rgba(249,115,22,.12)',
-              color: C.orange, cursor: 'pointer', fontFamily: NUM_FONT,
+              border: `1px solid ${accent || C.orange}`, background: accent ? `color-mix(in srgb, ${accent} 12%, transparent)` : 'rgba(249,115,22,.12)',
+              color: accent || C.orange, cursor: 'pointer', fontFamily: NUM_FONT,
             }}
           >Save</button>
         )}

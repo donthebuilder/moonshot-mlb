@@ -22,6 +22,7 @@ import ChartFrame from './ChartFrame'
 import { downloadNflPickCard } from './shareCard'
 import { useNflWatchlist } from '../../lib/nfl/watchlist'
 import FollowButton from '../FollowButton'
+import MultiLine from '../ledger/MultiLine'
 import { injuryTag, injuryTitle, injuryColor } from '../../lib/nfl/injury'
 import ScoreAnatomy from './ScoreAnatomy'
 import SplitDumbbell from './SplitDumbbell'
@@ -139,7 +140,7 @@ function KV({ k, v, hi }) {
   )
 }
 
-function CoverageAndExplosive({ player, matchup }) {
+function CoverageAndExplosive({ player, matchup, slate = null }) {
   const cov = matchup?.coverage_player?.[player?.player_id]
   const exp = matchup?.player_explosive?.[player?.player_id]
   const oppCov = matchup?.coverage_team?.[player?.opp]
@@ -450,7 +451,7 @@ function MatchupSection({ player, matchup, market }) {
 // ...and the same defence read the orthodox way. The map says where the field
 // is soft; this says whether it's soft to somebody in HIS chair. A defence can
 // leak deep right all day and still smother the WR3 who runs those routes.
-function DvpSection({ player, matchup }) {
+function DvpSection({ player, matchup, slate = null }) {
   const group = GROUP[player?.position]
   if (!group || !matchup?.dvp?.season?.[player?.opp]) return null
   const role = matchup?.roles?.[player.player_id]
@@ -738,6 +739,8 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
               borderRadius: 8, padding: '4px 10px', cursor: 'pointer', fontSize: 12,
             }}>📸</button>
         </div>
+        {/* MOONSHOT's multi-HR line, TUDDY's words (it was on the player file, not the card). */}
+        <MultiLine sport="nfl" playerId={player?.player_id} words={{ TD: 'multi-TD', PASS_TD: '2+ passing-TD' }} color={C.green} textColor={C.text2} />
 
         {/* every market's score, so you can see the whole player at once */}
         <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', margin: '13px 0 4px' }}>
@@ -814,8 +817,8 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
 
         {tab === 'matchup' && <>
         <MatchupSection player={player} matchup={matchup} market={market} />
-        <DvpSection player={player} matchup={matchup} />
-        <CoverageAndExplosive player={player} matchup={matchup} />
+        <DvpSection player={player} matchup={matchup} slate={slate} />
+        <CoverageAndExplosive player={player} matchup={matchup} slate={slate} />
         </>}
 
         {tab === 'overview' && Object.keys(comps).length > 0 && (
@@ -895,7 +898,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
 
         {/* Same per-device note store as MOONSHOT's card; ids can't collide.
             Stays on Overview, where MOONSHOT keeps its own. */}
-        {tab === 'overview' && <PlayerNotes playerId={player.player_id} />}
+        {tab === 'overview' && <PlayerNotes playerId={player.player_id} accent={C.green} />}
         {/* 🔢 His numbers (numerology step 7). A team defense is not a name. */}
         {tab === 'overview' && player.position !== 'DEF' && <HisNumbers name={player.name} jersey={player.jersey_number} birthDate={player.birth_date} next={Number.isFinite(player?.season_td) ? player.season_td + 1 : null} nextWord="TD" date={etToday()} theme={C} accent={C.green} numFont={NUM_FONT} />}
 
