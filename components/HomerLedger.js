@@ -11,6 +11,7 @@ import { hrShapeMeta, hrLine } from '../lib/hrShape'
 import { fetchLiveSlate } from '../lib/liveSlate'
 import { easternToday } from '../lib/data'
 import { WhatThis } from './ui'
+import { LedgerFrame, RoundLine, WatchStrip, AlignBox, LookOutBox, NextUpBox, ScorerChips, SpotBars } from './ledger/LedgerBlocks'
 import { pitcherTags } from '../lib/pitcherTags'
 import { pregameLedger } from '../lib/pregameLedger'
 import { writeAlignArchive, readAlignArchive, shiftDateKey, usePeople, axesOf } from '../lib/alignments'
@@ -206,85 +207,33 @@ function LookOut({ players, onPlayerClick = null, onOpenPitcher = null }) {
   // The footnote moves into the header for the same reason: a caveat nobody
   // reaches is not a caveat.
   if (!model.arms.length && !model.milestones.length) return null
+  // THE BOX IS SHARED NOW (2026-09-28): components/ledger/LedgerBlocks.js
+  // LookOutBox, style for style, for TUDDY and LAMP too.
   return (
-    <div className="lookout" style={{
-      background: 'rgba(255,255,255,.02)', border: `1px solid ${C.border}`,
-      borderRadius: 10, padding: '9px 11px', marginBottom: 9,
-    }}>
-      <div className="lookout-head">
-        <span>👀 The look-out — tonight, before it happens</span>
-        <em>lookups, not predictions</em>
-      </div>
-
-      {model.arms.length > 0 && (
-        <div className="lookout-row">
-          <span className="lookout-label">
-            Arms to watch
-            <i title="An arm lands here when the tag rules trip at least two independent alarms on it, or a live wear signal fires. BLOWUP RISK is the tag set's own label for the worst of them. The rules run live off tonight's rows — these are lookups, not predictions.">
-              BLOWUP RISK · alarms
-            </i>
-          </span>
-          <div className="lookout-chips">
-            {model.arms.map((a) => (
-              <span
-                key={a.pid}
-                className={a.blowup ? 'chip chip-hot' : 'chip'}
-                title={`${a.leaks} independent alarms${a.tiring ? ' · wear signal live' : ''}${a.evidence ? ` — ${a.evidence}` : ''}`}
-              >
-                <Tap onClick={onOpenPitcher && (() => onOpenPitcher(a.pid))}>
-                  <b>{a.name}</b>
-                  {a.team && <small>{a.team}{a.opp ? `·${a.opp}` : ''}</small>}
-                </Tap>
-                <em>{a.leaks}🔔</em>
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {model.milestones.length > 0 && (
-        <div className="lookout-row">
-          <span className="lookout-label">
-            Who needs what
-            <i title="A hitter one home run short of the next multiple of ten. A round number is a counting fact, not a reason to expect a swing — it is here because it is the thing people notice, and it is labelled as a lookup for that reason.">
-              one swing from a round number
-            </i>
-          </span>
-          <div className="lookout-chips">
-            {model.milestones.map((m) => (
-              <span key={m.pid} className="chip">
-                <Tap onClick={onPlayerClick && (() => onPlayerClick({ player_id: m.pid, name: m.name, team: m.team }))}>
-                  <b>{m.name}</b>
-                  {m.team && <small>{m.team}</small>}
-                </Tap>
-                <em>{m.hr}→{m.next}</em>
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div style={{ fontSize: 8.5, color: C.text3, marginTop: 6 }}>
-        Pool load arrives when the bot publishes pool membership.
-      </div>
-
-      <style jsx>{`
-        .lookout-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:7px}
-        .lookout-head span{font-size:9px;font-weight:800;letter-spacing:.07em;color:${C.text3};text-transform:uppercase}
-        .lookout-head em{color:${C.text3};font-family:${NUM_FONT};font-size:8px;font-weight:800;font-style:normal;white-space:nowrap}
-        .lookout-row{margin-top:7px}
-        .lookout-label{display:flex;align-items:baseline;gap:7px;flex-wrap:wrap;margin-bottom:5px;font-size:10.5px;font-weight:800;color:${C.text}}
-        .lookout-label i{color:${C.text3};font-family:${NUM_FONT};font-size:8px;font-weight:800;font-style:normal;letter-spacing:.06em;text-transform:uppercase;border-bottom:1px dotted ${C.border2}}
-        .lookout-chips{display:flex;flex-wrap:wrap;gap:5px}
-        .lookout-chips :global(.chip){display:inline-flex;align-items:baseline;gap:5px;padding:4px 8px;border:1px solid ${C.border};border-radius:999px;background:${C.bg}}
-        .lookout-chips :global(.chip-hot){border-color:rgba(249,115,22,.45);background:rgba(249,115,22,.08)}
-        .lookout-chips :global(.chip b){font-size:10.5px;font-weight:800;color:${C.text}}
-        .lookout-chips :global(.chip-hot b){color:${C.orange}}
-        .lookout-chips :global(.chip small){color:${C.text3};font-family:${NUM_FONT};font-size:8px;font-weight:800;letter-spacing:.04em}
-        .lookout-chips :global(.chip em){color:${C.text2};font-family:${NUM_FONT};font-size:9px;font-weight:900;font-style:normal}
-        .lookout-chips :global(.chip-hot em){color:${C.orange}}
-      `}</style>
-    </div>
+    <LookOutBox
+      title="👀 The look-out — tonight, before it happens"
+      tag="lookups, not predictions"
+      rows={[
+        {
+          key: 'arms', label: 'Arms to watch', hint: 'BLOWUP RISK · alarms',
+          hintTitle: 'An arm lands here when the tag rules trip at least two independent alarms on it, or a live wear signal fires. BLOWUP RISK is the tag set\'s own label for the worst of them. The rules run live off tonight\'s rows — these are lookups, not predictions.',
+          chips: model.arms.map((a) => ({
+            key: a.pid, name: a.name, small: a.team ? `${a.team}${a.opp ? `·${a.opp}` : ''}` : null, em: `${a.leaks}🔔`, hot: a.blowup,
+            title: `${a.leaks} independent alarms${a.tiring ? ' · wear signal live' : ''}${a.evidence ? ` — ${a.evidence}` : ''}`,
+            onClick: onOpenPitcher && (() => onOpenPitcher(a.pid)),
+          })),
+        },
+        {
+          key: 'needs', label: 'Who needs what', hint: 'one swing from a round number',
+          hintTitle: 'A hitter one home run short of the next multiple of ten. A round number is a counting fact, not a reason to expect a swing — it is here because it is the thing people notice, and it is labelled as a lookup for that reason.',
+          chips: model.milestones.map((m) => ({
+            key: m.pid, name: m.name, small: m.team || null, em: `${m.hr}→${m.next}`,
+            onClick: onPlayerClick && (() => onPlayerClick({ player_id: m.pid, name: m.name, team: m.team })),
+          })),
+        },
+      ]}
+      foot="Pool load arrives when the bot publishes pool membership."
+    />
   )
 }
 
@@ -1538,10 +1487,7 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
   const milestones = cards.filter((c) => c.milestone)
 
   return (
-    <div style={{
-      background: `linear-gradient(155deg, ${C.bg2}, rgba(249,115,22,.04))`,
-      border: `1px solid ${C.border}`, borderRadius: 12, padding: '10px 14px', marginBottom: 14,
-    }}>
+    <LedgerFrame accent={C.orange}>
       {/* ── THE WHOLE HEADER WAS ONE BIG CLOSE BUTTON (2026-08-23) ────────
           Donovan: "i'm wondering what happened to the home runs on the
           ledger." Nothing had: ms_ledger_open was "0" on his phone and
@@ -1591,19 +1537,8 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
         which homer of the season each one was, and where in the order tonight&apos;s power is coming from.
       </WhatThis>
 
-      {milestones.length > 0 && (
-        <div style={{ fontSize: 10.5, color: C.text2, marginBottom: 8, lineHeight: 1.6 }}>
-          🎯 <b style={{ color: C.orange }}>{pastNight ? `Round number on ${night}:` : 'Round number tonight:'}</b>{' '}
-          {milestones.map((c, i) => (
-            <span key={c.pid}>
-              {i > 0 ? ' · ' : ''}
-              <b onClick={() => c.p && onPlayerClick?.(c.p)} style={{ color: C.text, cursor: c.p ? 'pointer' : 'default' }}>
-                {c.name}
-              </b>{' '}<span style={{ fontFamily: NUM_FONT }}>{ord(c.roundNum ?? c.nth)}</span>
-            </span>
-          ))}
-        </div>
-      )}
+      <RoundLine label={pastNight ? `Round number on ${night}:` : 'Round number tonight:'}
+        items={milestones.map((c) => ({ key: c.pid, name: c.name, num: ord(c.roundNum ?? c.nth), onClick: c.p ? () => onPlayerClick?.(c.p) : null }))} />
 
       {/* ── DID TONIGHT'S HOMERS HIT THE PREGAME WATCHLIST? (2026-08-17) ─────
           Donovan: "home rundegler sshould also knwo todals numeroldy and see if
@@ -1629,19 +1564,10 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
         const watched = pre.milestones.length + pre.jerseys.length + pre.echoes.length
         if (!watched) return null
         return (
-          <div style={{
-            background: 'rgba(192,132,252,.06)', border: '1px solid rgba(192,132,252,.25)',
-            borderRadius: 10, padding: '7px 11px', marginBottom: 9,
-          }}>
-            <div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.65 }}>
-              🔮 <b style={{ color: '#c084fc' }}>Tonight&apos;s watchlist:</b>{' '}
-              <b style={{ color: hits ? C.text : C.text3, fontFamily: NUM_FONT }}>{hits}</b>
-              <span style={{ color: C.text3, fontFamily: NUM_FONT }}>/{watched}</span>{' '}
-              <span style={{ color: C.text3 }}>
-                {hits === 0
-                  ? 'landed so far — stated before first pitch, and none of it has come in yet.'
-                  : 'landed so far, off a list written before first pitch.'}
-              </span>
+          <WatchStrip label="Tonight's watchlist:" hits={hits} watched={watched}
+            sentence={hits === 0
+              ? 'landed so far — stated before first pitch, and none of it has come in yet.'
+              : 'landed so far, off a list written before first pitch.'}>
               {hitMs.map((m) => (
                 <span key={`m-${m.name}`}>
                   {' · '}<b onClick={() => m._raw && onPlayerClick?.(m._raw)}
@@ -1662,53 +1588,18 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
                   <span style={{ color: C.text3 }}> — one of the rhyme went</span>
                 </span>
               ))}
-            </div>
-          </div>
+          </WatchStrip>
         )
       })()}
 
       {/* 🧲 ALIGNING WITH THE NIGHT — the lead, because it's the question.
           Everything below this is the raw material; this is the answer. */}
-      {aligned.length > 0 && (
-        <div style={{
-          background: 'rgba(249,115,22,.07)', border: '1px solid rgba(249,115,22,.32)',
-          borderRadius: 10, padding: '8px 11px', marginBottom: 9,
-        }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 5 }}>
-            <span style={{ fontSize: 10.5, fontWeight: 900, color: C.orange }}>
-              🧲 {pastNight ? `Aligning on ${night}` : 'Aligning with tonight'}
-            </span>
-            <span style={{ fontSize: 9, color: C.text3 }}>
-              {aligned.length} homer{aligned.length === 1 ? '' : 's'} lining up with{' '}
-              {pastNight ? `${night}'s` : "tonight's"} numbers
-            </span>
-          </div>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {aligned.map((c) => (
-              <button key={`al${c.pid}`} onClick={() => c.p && onPlayerClick?.(c.p)}
-                title={c.tags.map((t) => t.why).join(' ')}
-                style={{
-                  display: 'flex', gap: 6, alignItems: 'baseline', cursor: c.p ? 'pointer' : 'default',
-                  border: '1px solid rgba(249,115,22,.45)', background: 'rgba(249,115,22,.10)',
-                  borderRadius: 8, padding: '4px 10px',
-                }}>
-                <span style={{ fontSize: 11, fontWeight: 800, color: C.text }}>{c.name}</span>
-                {c.tags.map((t) => (
-                  <span key={t.k} style={{
-                    fontSize: 8.5, fontWeight: 800, fontFamily: NUM_FONT, color: C.orange,
-                    border: '1px solid rgba(249,115,22,.4)', borderRadius: 999, padding: '0 6px',
-                  }}>{t.label}</span>
-                ))}
-              </button>
-            ))}
-          </div>
-          <div style={{ fontSize: 8.5, color: C.text3, marginTop: 5, lineHeight: 1.5 }}>
-            Overlap, not evidence. ~25 homers spread over fifty numbers, nine lineup spots, jersey
-            numbers and birthdays will line up by arithmetic alone — this is the trend made visible
-            while it forms, never a reason to chase one.
-          </div>
-        </div>
-      )}
+      <AlignBox
+        title={`🧲 ${pastNight ? `Aligning on ${night}` : 'Aligning with tonight'}`}
+        sub={`${aligned.length} homer${aligned.length === 1 ? '' : 's'} lining up with ${pastNight ? `${night}'s` : "tonight's"} numbers`}
+        chips={aligned.map((c) => ({ key: `al${c.pid}`, name: c.name, tags: c.tags, onClick: c.p ? () => onPlayerClick?.(c.p) : null }))}
+        foot="Overlap, not evidence. ~25 homers spread over fifty numbers, nine lineup spots, jersey numbers and birthdays will line up by arithmetic alone — this is the trend made visible while it forms, never a reason to chase one."
+      />
 
       {/* ── 🔤 NAME ECHOES (2026-08-16) ───────────────────────────────────
           Donovan: "all track common names or names that vibe together like
@@ -1763,63 +1654,10 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
           .slice(0, 8)
         if (!upcoming.length) return null
         return (
-          <div style={{
-            background: 'rgba(34,211,238,.06)', border: '1px solid rgba(34,211,238,.28)',
-            borderRadius: 10, padding: '7px 11px', marginBottom: 9,
-          }}>
-            {/* ONE MAN PER ROW (2026-08-23). This was a single wrapping
-                paragraph — eight names, their state and up to five chips each,
-                all separated by middots. On a desktop that is a dense line; on
-                a phone it was a green wall where names, chips and separators
-                ran together and nothing could be scanned. A row per hitter
-                costs the vertical space it was already taking and gives the
-                eye a left edge to run down. */}
-            <div style={{ fontSize: 10.5, fontWeight: 800, color: C.cyan, marginBottom: 5 }}>
-              🔮 Fits tonight&apos;s pattern, hasn&apos;t gone yet
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {upcoming.map((x) => (
-                <div key={x.pid} style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 10, flexShrink: 0 }}
-                    title={x.when === 'now' ? 'his game is live' : 'first pitch still ahead'}>
-                    {x.when === 'now' ? '⚡' : '⏳'}
-                  </span>
-                  <b
-                    onClick={() => onPlayerClick?.(x.p)}
-                    title={`${x.why.join('. ')}. Bot HR score ${x.hrScore.toFixed(0)}.`}
-                    style={{ fontSize: 11, color: C.text, cursor: onPlayerClick ? 'pointer' : 'default', flexShrink: 0 }}
-                  >{x.name}</b>
-                  {x.chips.slice(0, 4).map((c) => (
-                    <span key={c} style={{
-                      fontSize: 8.5, fontFamily: NUM_FONT, padding: '1px 5px', whiteSpace: 'nowrap',
-                      borderRadius: 5, border: `1px solid ${C.cyan}44`, color: C.cyan,
-                    }}>{c}</span>
-                  ))}
-                  {x.chips.length > 4 && (
-                    <span style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}
-                      title={x.why.join('. ')}>+{x.chips.length - 4}</span>
-                  )}
-                </div>
-              ))}
-            </div>
-            {/* THE CAPTION FOLDS. Six lines of prose under an eight-row list is
-                most of a phone screen spent on a caption. One tap away, and it
-                still says everything it said. */}
-            <details style={{ marginTop: 6 }}>
-              <summary style={{ fontSize: 9, color: C.text3, cursor: 'pointer', fontFamily: NUM_FONT }}>
-                what this is
-              </summary>
-              <div style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.6, marginTop: 4 }}>
-                Hitters not in the ledger who sit on whatever tonight is landing on — the leading root, a
-                repeated number, the hot lineup spot, a jersey, a birth day, a life path, the name echo
-                running tonight, or a straight match with somebody who already went: the same first name,
-                the same surname, a name one letter apart, an odd syllable shape they share, or the same
-                number on the back. ↔ is a match with that man. ⚡ means his game is live, ⏳ means first
-                pitch is still ahead. Ranked by how many of those he sits on, then by HR score. A watch,
-                not a prediction — nothing here is graded, scored, or fed to a pick.
-              </div>
-            </details>
-          </div>
+          <NextUpBox title="🔮 Fits tonight's pattern, hasn't gone yet"
+            rows={upcoming.map((x) => ({ key: x.pid, when: x.when, name: x.name, chips: x.chips,
+              title: `${x.why.join('. ')}. Bot HR score ${x.hrScore.toFixed(0)}.`, onClick: onPlayerClick ? () => onPlayerClick(x.p) : null }))}
+            about="Hitters not in the ledger who sit on whatever tonight is landing on — the leading root, a repeated number, the hot lineup spot, a jersey, a birth day, a life path, the name echo running tonight, or a straight match with somebody who already went: the same first name, the same surname, a name one letter apart, an odd syllable shape they share, or the same number on the back. ↔ is a match with that man. ⚡ means his game is live, ⏳ means first pitch is still ahead. Ranked by how many of those he sits on, then by HR score. A watch, not a prediction — nothing here is graded, scored, or fed to a pick." />
         )
       })()}
 
@@ -1863,104 +1701,40 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
         </div>
       )}
 
-      {/* every homer tonight, numbered */}
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
-        {cards.map((c) => (
-          <button key={c.pid} onClick={() => c.p && onPlayerClick?.(c.p)}
-            title={`${c.name}${c.team ? ` (${c.team})` : ''}${c.spot ? ` · batting ${ord(c.spot)}` : ''}${
-              c.nth == null
-                ? ' — no season HR count available for him, so the number is left blank rather than guessed'
-                : ` — his ${ord(c.nth)} homer of the season${c.hr > 1 ? ` (${c.tonightNums.slice().reverse().map(ord).join(' and ')} tonight)` : ''}. ${
-                    c.exact
-                      ? 'Season total read straight from the league, so it already includes tonight.'
-                      : 'APPROXIMATE — the league total could not be read, so this is the slate’s pregame count plus tonight’s homers, which can run one high if the slate was rebuilt after he went deep.'}`}`}
-            style={{
-              display: 'flex', gap: 6, alignItems: 'baseline', cursor: c.p ? 'pointer' : 'default',
-              border: `1px solid ${c.milestone ? 'rgba(249,115,22,.6)' : C.border}`,
-              background: c.milestone ? 'rgba(249,115,22,.10)' : C.bg2,
-              borderRadius: 8, padding: '4px 10px',
-            }}>
-            <span style={{ fontSize: 10 }}>💥</span>
-            <span style={{ fontSize: 11, fontWeight: 800, color: C.text }}>{c.name}</span>
-            {c.hr > 1 && <span style={{ fontSize: 9, fontFamily: NUM_FONT, color: C.orange, fontWeight: 900 }}>×{c.hr}</span>}
-            <span style={{ fontSize: 9.5, fontFamily: NUM_FONT, color: c.milestone ? C.orange : C.text3, fontWeight: c.milestone ? 900 : 600 }}>
-              {c.nth != null ? `${ord(c.nth)}${c.exact ? '' : '≈'}` : '—'}
-            </span>
-            {c.spot && <span style={{ fontSize: 8.5, fontFamily: NUM_FONT, color: C.text3 }}>#{c.spot}</span>}
-            {/* WHAT KIND of homer (2026-08-11). Only renders when the ball was
-                actually tracked — hr_events is absent on every night graded
-                before the backfill, and an untracked homer is not a
-                wall-scraper. The band is a PERCENTILE slice, not physics; the
-                tooltip carries the real numbers so the label is never the only
-                thing on offer. See lib/hrShape.js. */}
-            {(c.events || []).map((e, i) => {
-              const m = hrShapeMeta(e)
-              if (!m) return null
-              return (
-                <span key={i} title={`${m.label} — ${hrLine(e)}. ${m.blurb}`}
-                  style={{
-                    fontSize: 8, fontFamily: NUM_FONT, fontWeight: 900, letterSpacing: '.04em',
-                    color: m.color, border: `1px solid ${m.color}55`, borderRadius: 4, padding: '1px 4px',
-                  }}>{m.short}</span>
-              )
-            })}
-            {/* ── THE MAGNET SAID NOTHING (2026-09-03) ─────────────────────
-                Donovan: "I don't know what the magnet badge is, please just
-                remove unless it's useful."
-                It IS the useful thing -- it is the count of ways this hitter
-                lines up with the night's numbers, which is the entire subject
-                of this panel and, since today, what the strip is SORTED by. So
-                deleting it would leave the order unexplainable while removing
-                the one signal the ledger exists to show.
-                What was wrong is that it was a glyph and nothing else. A
-                reader had no way to learn what 🧲 meant except by hovering,
-                and on a phone there is no hover at all. It says the word now.
-                The tag labels ride in the tooltip beside the whys, so the
-                answer to "aligning HOW" is one tap rather than a guess. */}
-            {c.tags?.length > 0 && (
-              <span
-                title={`${c.tags.map((t) => t.label).join(' · ')} — ${c.tags.map((t) => t.why).join(' ')}`}
-                style={{
-                  fontSize: 8, fontFamily: NUM_FONT, fontWeight: 900, letterSpacing: '.04em',
-                  color: C.orange, border: `1px solid ${C.orange}55`, borderRadius: 4, padding: '1px 4px',
-                }}
-              >
-                {c.tags.length > 1 ? `${c.tags.length} ALIGNS` : 'ALIGNS'}
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
+      {/* every homer tonight, numbered -- ScorerChips (components/ledger/LedgerBlocks.js) */}
+      <ScorerChips accent={C.orange} cards={cards.map((c) => ({
+        key: c.pid, icon: '💥', name: c.name, times: c.hr, milestone: c.milestone, numHot: c.milestone,
+        num: c.nth != null ? `${ord(c.nth)}${c.exact ? '' : '≈'}` : '—',
+        spot: c.spot ? `#${c.spot}` : null,
+        onClick: c.p ? () => onPlayerClick?.(c.p) : null,
+        title: `${c.name}${c.team ? ` (${c.team})` : ''}${c.spot ? ` · batting ${ord(c.spot)}` : ''}${
+          c.nth == null
+            ? ' — no season HR count available for him, so the number is left blank rather than guessed'
+            : ` — his ${ord(c.nth)} homer of the season${c.hr > 1 ? ` (${c.tonightNums.slice().reverse().map(ord).join(' and ')} tonight)` : ''}. ${
+                c.exact
+                  ? 'Season total read straight from the league, so it already includes tonight.'
+                  : 'APPROXIMATE — the league total could not be read, so this is the slate’s pregame count plus tonight’s homers, which can run one high if the slate was rebuilt after he went deep.'}`}`,
+        badges: [
+          // WHAT KIND of homer (hrShapeMeta, only when the ball was tracked).
+          ...(c.events || []).map((e, i) => { const m = hrShapeMeta(e); return m ? { k: `e${i}`, label: m.short, color: m.color, title: `${m.label} — ${hrLine(e)}. ${m.blurb}` } : null }).filter(Boolean),
+          // The ways he lines up with the night's numbers, said as a word.
+          ...(c.tags?.length > 0 ? [{ k: 'al', label: c.tags.length > 1 ? `${c.tags.length} ALIGNS` : 'ALIGNS', color: C.orange, title: `${c.tags.map((t) => t.label).join(' · ')} — ${c.tags.map((t) => t.why).join(' ')}` }] : []),
+        ],
+      }))} />
 
       {/* where in the order tonight's power came from */}
       {placed > 0 && (
-        <>
-          <div style={{ fontSize: 9.5, color: C.text3, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', fontFamily: NUM_FONT, marginBottom: 4 }}>
-            Homers by lineup spot
-          </div>
-          <div style={{ display: 'flex', gap: 4, alignItems: 'flex-end', height: 46 }}>
-            {spots.slice(1).map((v, i) => (
-              <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}
-                title={`${v} homer${v === 1 ? '' : 's'} tonight from the ${ord(i + 1)} spot, out of ${placed} placed`}>
-                <span style={{ fontSize: 8.5, fontFamily: NUM_FONT, color: v ? C.text2 : C.text3, fontWeight: 800 }}>{v || ''}</span>
-                <div style={{
-                  width: '100%', height: `${Math.max(3, (26 * v) / spotMax)}px`, borderRadius: 3,
-                  background: v === spotMax && v > 0 ? C.orange : v ? 'rgba(249,115,22,.45)' : 'rgba(255,255,255,.06)',
-                }} />
-                <span style={{ fontSize: 8, fontFamily: NUM_FONT, color: C.text3 }}>{i + 1}</span>
-              </div>
-            ))}
-          </div>
-          <div style={{ fontSize: 9, color: C.text3, marginTop: 7, lineHeight: 1.55 }}>
+        <SpotBars title="Homers by lineup spot" accent={C.orange}
+          bars={spots.slice(1).map((v, i) => ({ key: i, label: i + 1, value: v, title: `${v} homer${v === 1 ? '' : 's'} tonight from the ${ord(i + 1)} spot, out of ${placed} placed` }))}
+          foot={<>
             {placed} of {total} homers have a known lineup spot.
             {spots[topSpot] >= 3 && <> The <b style={{ color: C.text2 }}>{ord(topSpot)} spot</b> leads {nightWord} with {spots[topSpot]}.</>}
             {' '}A full slate is ~25 homers across nine spots, so a tall bar is a picture of one night,
             not a finding about baseball — read it as texture, never as a signal to chase.
-          </div>
-        </>
+          </>} />
       )}
       </>
       )}
-    </div>
+    </LedgerFrame>
   )
 }

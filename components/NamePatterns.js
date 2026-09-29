@@ -1,7 +1,7 @@
 'use client'
 import { useMemo } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
-import { findNameEchoes } from '../lib/namePatterns'
+import { findNameEchoes, ECHO_WORDS } from '../lib/namePatterns'
 
 // ── 🔤 NAME ECHOES (2026-08-16) ─────────────────────────────────────────────
 //
@@ -84,7 +84,9 @@ import { findNameEchoes } from '../lib/namePatterns'
 // still see that two names line up, but it cannot say whether lining up is
 // unusual, so it says so on screen and every number disappears. That is a
 // noticeably worse panel and it is one prop away from being the good one.
-export default function NamePatterns({ homers = [], population = [] }) {
+// `sport` (2026-09-28): the words (lib/namePatterns ECHO_WORDS) -- MOONSHOT's by default.
+export default function NamePatterns({ homers = [], population = [], sport = 'mlb' }) {
+  const W = ECHO_WORDS[sport] || ECHO_WORDS.mlb
   // Keyed on the NAMES, not the array identity: the ledger rebuilds its card
   // list on every poll, and re-running a 1200-draw null forty times an evening
   // for an unchanged set of names would be forty times too many. The pool goes
@@ -94,7 +96,7 @@ export default function NamePatterns({ homers = [], population = [] }) {
     (homers || []).map((h) => (typeof h === 'string' ? h : h?.name)).join('|'),
     (population || []).map((p) => (typeof p === 'string' ? p : p?.name)).join('|'),
   ].join('#'), [homers, population])
-  const echoes = useMemo(() => findNameEchoes(homers, population), [key]) // eslint-disable-line react-hooks/exhaustive-deps
+  const echoes = useMemo(() => findNameEchoes(homers, population, { words: W }), [key, sport]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Rule 1. Nothing found, nothing rendered — no card, no heading, no space.
   if (!echoes.length) return null
@@ -112,7 +114,7 @@ export default function NamePatterns({ homers = [], population = [] }) {
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 5 }}>
         <span style={{ fontSize: 10.5, fontWeight: 900, color: C.cyan }}>🔤 Name echoes</span>
         <span style={{ fontSize: 9, color: C.text3 }}>
-          across the <span style={{ fontFamily: NUM_FONT, color: C.text2 }}>{denom}</span> hitters who homered tonight
+          across the <span style={{ fontFamily: NUM_FONT, color: C.text2 }}>{denom}</span> {W.who}
         </span>
       </div>
 
@@ -155,13 +157,13 @@ export default function NamePatterns({ homers = [], population = [] }) {
           <>
             Six kinds of echo get checked every night — shared first names, shared surnames, a first
             name that is somebody else&apos;s surname, near-miss spellings, matching cadence, and a hot
-            initial. Drawing {denom} names at random from tonight&apos;s bats, <b style={{ color: C.text2 }}>{anyWords}</b> turns
+            initial. Drawing {denom} names at random from {W.when} {W.pool}, <b style={{ color: C.text2 }}>{anyWords}</b> turns
             up something at least as striking as the line at the top. That is the number to hold on to.
           </>
         ) : (
           <>
             No slate was handed to this panel tonight, so it can tell you the names line up and
-            nothing about whether lining up is unusual — and with ~25 homers, some of them always do.
+            nothing about whether lining up is unusual — and with {W.many}, some of them always do.
             Everything above is unmeasured.
           </>
         )}
