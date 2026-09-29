@@ -4,6 +4,7 @@ import { C, NUM_FONT } from '../lib/theme'
 import { alpha, verdictInk } from '../lib/scales'
 import { airGlance } from '../lib/conditions'
 import SlateCard from './slate/SlateCard'
+import MlbTeamMark from './MlbTeamMark'
 import { useSpot } from '../lib/spotlight'
 import { nn, hrScore, prodScore, median as med } from '../lib/player'
 import MobileFold from './MobileFold'
@@ -196,6 +197,7 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
         })(),
         pk: g.game_pk,
         matchup: `${g.away || '—'} @ ${g.home || '—'}`,
+        away: g.away || null, home: g.home || null,
         time: timeText(g.game_time),
         past: isPast(g.game_time),
         confirmed: !!g.lineup_confirmed,
@@ -415,7 +417,14 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
           // SlateCard.js draws it, style for style, for TUDDY and LAMP too.
           const [awayAbbr, homeAbbr] = c.matchup.split(' @ ')
           const card = {
-            id: c.pk, title: c.matchup, past: c.past, heat: c.heat,
+            // TEAM CHIPS (2026-09-28, PREVIEW for Donovan): the club-colour
+            // code chip MOONSHOT already has (MlbTeamMark -- text, no image
+            // logos) on each side of the matchup, where the card said plain
+            // "PHI @ ATL". Falls back to the text when a code is missing.
+            id: c.pk, title: c.away && c.home
+              ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, verticalAlign: 'middle' }}><MlbTeamMark abbr={c.away} size="md" /><span style={{ color: C.text3, fontSize: 12 }}>@</span><MlbTeamMark abbr={c.home} size="md" /></span>
+              : c.matchup,
+            past: c.past, heat: c.heat,
             tooltip: [c.matchup, c.armsFull && `⚾ ${c.armsFull}`, c.topBat && `🔝 ${c.topBat}`].filter(Boolean).join('\n'),
             dial: { value: c.gs, pct: 100 * c.heat, title: `Game Score ${c.gs.toFixed(0)} ${c.edge} — #${c.gsRank} on tonight's slate${c.weak > 0 ? `, ${c.weak} weak lineup spot${c.weak === 1 ? '' : 's'}` : ''}. The ring fills against tonight's own GS range, because a Game Score is defined relative to the slate rather than out of 100.` },
             band,
