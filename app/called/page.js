@@ -26,7 +26,8 @@ import { unstable_cache } from 'next/cache'
 import { postseasonOn } from '../../lib/dash/seasonGuard'
 import { easternToday } from '../../lib/data'
 import { matchupWord, oddsWord, roleWord } from '../../lib/dash/homerFeed'
-import { tdCallWord, tdPlayWord } from '../../lib/nfl/tdFeed'
+import { tdCallWord, tdPlayWord, matchRoster } from '../../lib/nfl/tdFeed'
+import { nflSlatePaths } from '../../lib/nfl/dataSource'
 import { BRAND, SPORT_KEYS, sportKey, appHref, playerHref } from '../../lib/routes'
 import { nhlCaptureFrom, readNhlRecords } from '../../lib/record/nhl'
 import { readMlbEvents } from '../../lib/record/mlb'
@@ -202,8 +203,15 @@ function normMlb(e) {
   }
 }
 
-function normNfl(e) {
+function normNfl(e, slate) {
   const r = e.payload
+  // THE PASSER IS A NAME TOO (2026-09-29, check-clickable: Purdy, Mahomes,
+  // Ward in "5 yd from ..." were the page's only dead player names). The
+  // feed stores the passer's name, not his id, so he is joined to this
+  // week's slate the way the scorer is (team + exact name, lib/nfl/tdFeed
+  // matchRoster); no unique match, no link.
+  const passer = r.passer_name ? matchRoster(slate, r.passer_name, r.team) : null
+  const scorerId = r.gsis_id || (r.scorer_name ? matchRoster(slate, r.scorer_name, r.team)?.gsis_id : null) || null
   return {
     key: `${r.game_id}:${r.td_n}`,
     day: r.day,
@@ -211,7 +219,9 @@ function normNfl(e) {
     repeat: null,
     // The gsis_id is nullable by design (see tdFeed.js) — an unresolved
     // scorer still gets his row, just without a link into the board.
-    href: r.gsis_id ? `/app#sport=nfl&tab=players&player=${encodeURIComponent(r.gsis_id)}` : null,
+    // A row stored without one (the QB rushing TDs) joins the same way at
+    // read time; the stored row is never rewritten.
+    href: scorerId ? `/app#sport=nfl&tab=players&player=${encodeURIComponent(scorerId)}` : null,
     called: e.status === 'called',
     onBoard: e.status !== 'off',
     detail: [
@@ -222,6 +232,7 @@ function normNfl(e) {
     // No public touchdown-card route yet, so no card link rather than a
     // link to a 404.
     cardHref: null,
+    passer: passer?.gsis_id ? { name: r.passer_name, href: `/app#sport=nfl&tab=players&player=${encodeURIComponent(passer.gsis_id)}` } : null,
     call: tdCallWord(r),
   }
 }
@@ -313,9 +324,13 @@ async function load(key) {
 // actually had a touchdown — same ten bars, each one a real game day.
 async function loadNfl(sport, db, today) {
   const since = shiftDay(today, -(sport.window - 1))
-  const { events } = await readNflEvents(db, { since, until: today })
+  const [{ events }, slate] = await Promise.all([
+    readNflEvents(db, { since, until: today }),
+    // This week's slate (~70 KB, Data Cache 10 min), only for the passer links.
+    fetch(nflSlatePaths()[0], { next: { revalidate: 600 } }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+  ])
   const outside = sport.outsidePool || (() => false)
-  const all = events.map((e) => ({ ...e, day: e.game_date, _n: normNfl(e) }))
+  const all = events.map((e) => ({ ...e, day: e.game_date, _n: normNfl(e, slate) }))
   const rows = all.filter((r) => r.day === today && !outside(r))
   const outRows = all.filter((r) => r.day === today && outside(r))
   const byDay = new Map()
@@ -680,7 +695,9 @@ function Row({ n, dim }) {
         ? <a className={styles.name} href={n.href}>{n.name}{n.repeat ? <small> ({n.repeat})</small> : null}</a>
         : <span className={styles.name}>{n.name}</span>}
       <span className={styles.meta}>
-        {n.detail}
+        {n.passer && n.detail.endsWith(n.passer.name)
+          ? <>{n.detail.slice(0, -n.passer.name.length)}<a className={styles.cardLink} href={n.passer.href}>{n.passer.name}</a></>
+          : n.detail}
         {n.cardHref ? <>{' · '}<a className={styles.cardLink} href={n.cardHref} target="_blank" rel="noreferrer">card</a></> : null}
       </span>
       <span className={styles.call}>{n.call}</span>
