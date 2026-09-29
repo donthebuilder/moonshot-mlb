@@ -1,12 +1,16 @@
 'use client'
+import { useMemo } from 'react'
 import PageHeader from '../../PageHeader'
-import LampTable from '../LampTable'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
-import { useLampNumerology } from '../../../lib/nhl/useLamp'
+import { useLampNumerology, useLampBoardOnce } from '../../../lib/nhl/useLamp'
 import { DelayedBanner, Loading, EmptyState, SourceLine, fmtDay } from '../ui'
 import TonightsNumbers from '../../numerology/TonightsNumbers'
 import LaneTable from '../../numerology/LaneTable'
 import HotNumbers from '../../numerology/HotNumbers'
+import AlignmentsView from '../../numerology/AlignmentsView'
+import { alignModel, alignedWithBy } from '../../../lib/numerology/align'
+import { nameParts } from '../../../lib/namePatterns'
+import { useIsPhone } from '../../MobileFold'
 
 // 🔮 NUMEROLOGY (lamp research step 5, 2026-09-26) — the slot MOONSHOT's
 // Alignments and TUDDY's Numerology fill, hockey edition. FOR FUN: numbers
@@ -14,45 +18,99 @@ import HotNumbers from '../../numerology/HotNumbers'
 // the board. Tonight's dressed skaters only (posted lineups); the count
 // chance alone would give is printed beside the count that lined up, every
 // time. Data: /api/lamp/numerology (lib/nhl/numerology.js).
-const AXIS = { jersey: 'JERSEY', day: 'BIRTH DAY', path: 'LIFE PATH' }
-const COLUMNS = [
-  { key: 'name', label: 'Skater', heat: false, sticky: true, bold: true, w: 150 },
-  { key: 'team', label: 'TM', heat: false, mono: true, w: 40 },
-  { key: 'game', label: 'GAME', heat: false, mono: true, w: 80 },
-  { key: 'jersey', label: '#', heat: false, mono: true, w: 36, fmt: (v) => v ?? '—' },
-  { key: 'lined', label: 'LINES UP ON', heat: false, w: 190, fmt: (v, r) => r.hits.map((k) => AXIS[k]).join(' · ') },
-  { key: 'n', label: 'AXES', heat: false, mono: true, w: 44 },
-]
+//
+// THROUGH MOONSHOT'S ALIGNMENTS (2026-09-29, numerology parity). This was one
+// table of skaters who lined up; it is MOONSHOT's sections now
+// (components/numerology/AlignmentsView.js): tonight's number (numbers pick
+// the set, LAMP's goal score ranks it where the board rates him), the nine
+// clubs against their arithmetic share, full braids and name families. Three
+// axes -- jersey, birth day, life path -- because those are what the route
+// publishes; no season-goal axis until the route carries skater stats, and
+// no yesterday/today archive or builder (MOONSHOT-only). A skater the board
+// doesn't rate shows no score rather than a zero.
+
+const AXIS_META = {
+  jersey: { label: 'jersey', why: (a) => `jersey #${a.jersey}`, raw: (a) => a.jersey },
+  day: { label: 'birth day', why: (a) => `born on the ${String(a.birthDate).slice(8, 10)}`, raw: (a) => Number(String(a.birthDate || '').slice(8, 10)) || null },
+  path: { label: 'life path', why: (a) => `life path from ${a.birthDate}`, raw: () => null },
+}
+
+const WORDS = {
+  person: 'skater', persons: 'skaters', night: 'tonight', NIGHT: 'TONIGHT', unit: 'night',
+  axesWord: 'three', slate: <>tonight&apos;s lineups</>, onSlate: 'in tonight’s lineups', empty: 'No dressed skaters yet.',
+  scoreName: <>LAMP goal score</>, scoreShort: 'goal score',
+  scoreRecord: 'the number LAMP grades every night',
+  carrying: <>Carrying tonight&apos;s number, highest goal score first</>,
+  braidNote: 'Two or more of his own numbers -- jersey, birth day, life path -- on one root. The rarest read here, and still arithmetic.',
+  namesNote: 'Shared surnames (2+) and first names (3+; a pair of common first names is arithmetic).',
+}
+
+const scoreOf = (a) => (Number.isFinite(a.score) ? a.score : null)
 
 export default function Numerology({ date = null, onOpenPlayer }) {
   const { data, error, loading } = useLampNumerology(date)
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+  const { data: board } = useLampBoardOnce(data?.date || date)
+  const phone = useIsPhone()
+
+  const model = useMemo(() => {
+    const scores = new Map()
+    for (const g of board?.games || []) for (const r of g.rows || []) if (Number.isFinite(r.score)) scores.set(Number(r.playerId), r.score)
+    const rows = (data?.all || []).map((r) => ({
+      pid: r.id, name: r.name, team: r.team, p: r, jersey: r.jersey, birthDate: r.birthDate,
+      axes: r.roots || {}, parts: nameParts(r.name), score: scores.has(Number(r.id)) ? scores.get(Number(r.id)) : null,
+    }))
+    return alignModel(rows, scoreOf)
+  }, [data, board])
+  const tonight = useMemo(() => (data?.dateRoot ? alignedWithBy(data.dateRoot, model.rows, scoreOf) : null), [data, model])
+
+  const head = (
+    <>
       <PageHeader eyebrow="LAMP · NUMEROLOGY" title={data ? `${fmtDay(data.date)} · the night's number is ${data.dateRoot}` : 'Numerology'}
         note="For fun: numbers that line up, not a prediction. Every digit of the date, added until one is left, against each dressed skater's jersey, birth day and life path. Not graded, and never part of the score."
         theme={C} numFont={NUM_FONT} accent={C.ice}
         stats={data ? [{ value: data.skaters, label: 'DRESSED', tone: C.text2 }, { value: data.aligned.length, label: 'LINED UP', tone: C.ice }, { value: `${data.alignedHits} v ${data.expectedHits}`, label: 'HITS V CHANCE', tone: C.text2 }] : null} />
-      {data?.date ? <TonightsNumbers date={data.date} theme={C} numFont={NUM_FONT} accent={C.ice} /> : null}
+      {data?.date ? <div style={{ margin: '14px 0 10px' }}><TonightsNumbers date={data.date} theme={C} numFont={NUM_FONT} accent={C.ice} /></div> : null}
       <HotNumbers sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} eventWord="goals" />
       <DelayedBanner error={error} what="tonight’s lineups" />
-      {loading && !data ? <Loading what="tonight’s lineups" /> : null}
-      {data && data.games === 0 ? <EmptyState title="NO GAMES TODAY" note="Nothing to line up." /> : null}
       {data?.waiting?.length ? (
-        <div style={{ color: C.text3, font: `700 10.5px/1.5 ${NUM_FONT}` }}>
+        <div style={{ color: C.text3, font: `700 10.5px/1.5 ${NUM_FONT}`, margin: '8px 0' }}>
           Lineup not posted yet: {data.waiting.join(', ')} — those skaters join once it is.
         </div>
       ) : null}
-      {data && data.skaters > 0 && !data.aligned.length ? <EmptyState title="NOTHING LINES UP" note="No dressed skater's numbers reduce to tonight's." /> : null}
-      {data?.aligned?.length ? (
-        <LampTable rows={data.aligned.map((r) => ({ ...r, lined: r.n }))} columns={COLUMNS} heatMode="none" maxRows={40} maxHeight={9999}
-          onRowClick={(r) => onOpenPlayer?.(r.id)} />
-      ) : null}
-      <p style={{ margin: 0, color: C.text3, fontSize: 11, lineHeight: 1.5 }}>
+      <p style={{ margin: '8px 0 10px', color: C.text3, fontSize: 11, lineHeight: 1.5 }}>
         Chance alone lines up one axis in nine, so {data ? <b style={{ color: C.text2 }}>{data.expectedHits}</b> : 'about a ninth'} of tonight&apos;s axes would match whatever the date was{data ? `; ${data.alignedHits} did` : ''}.
       </p>
-      <SourceLine>Jersey: gamecenter/{'{id}'}/play-by-play rosterSpots (the posted lineup). Birth date: roster/{'{team}'}/current. Date: the game day.</SourceLine>
+    </>
+  )
+  const foot = (
+    <>
+      <SourceLine>Jersey: gamecenter/{'{id}'}/play-by-play rosterSpots (the posted lineup). Birth date: roster/{'{team}'}/current. Score: tonight&apos;s goal board. Date: the game day.</SourceLine>
       {/* WHICH LANES RUN HOT (numerology v2 step 6), at the bottom. */}
       <LaneTable sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} />
-    </div>
+    </>
+  )
+
+  if (!model.rows.length) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {head}
+        {loading && !data ? <Loading what="tonight’s lineups" /> : null}
+        {data && data.games === 0 ? <EmptyState title="NO GAMES TODAY" note="Nothing to line up." /> : null}
+        {data && data.games > 0 && !data.skaters ? <EmptyState title="NO LINEUPS YET" note="Skaters join once each game's lineup is posted." /> : null}
+        {foot}
+      </div>
+    )
+  }
+
+  return (
+    <AlignmentsView
+      model={model} tonight={tonight} todayKey={data.date} todayRoot={data.dateRoot}
+      AXIS_META={AXIS_META} scoreOf={scoreOf} words={WORDS}
+      onName={(a) => onOpenPlayer?.(a.pid)} theme={C} numFont={NUM_FONT} accent={C.ice}
+      chipLimit={phone ? 6 : 24} compact={phone}
+      head={head}
+    >
+      {foot}
+    </AlignmentsView>
   )
 }
