@@ -258,6 +258,9 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
   }, [bandFiltered, drawer, rows, query, position, team, angle, angles, onlyWatched, onlyUpcoming, onlyPriced, sortBy, matchup, watchlist, odds, data, now])
 
   const capped = all ? filtered : filtered.slice(0, SOFT_CAP)
+  // The card's ‹ › walk THIS list -- your filters, in this order (NflDashboard's
+  // openPlayer third argument, 2026-09-29), like MOONSHOT's.
+  const openFromBoard = (p, market) => onPlayerClick?.(p, market, filtered)
   const hidden = filtered.length - capped.length
 
   if (!rows.length) {
@@ -327,11 +330,11 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
       ) : (
         <>
           {view === 'list'
-            ? <NflBoardList players={capped} market={MARKET} weights={weights} odds={odds} phone={phone} onPlayerClick={onPlayerClick} />
+            ? <NflBoardList players={capped} market={MARKET} weights={weights} odds={odds} phone={phone} onPlayerClick={openFromBoard} />
             : <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))' }}>
                 {capped.map((p, i) => (
                   <Card key={p.player_id} p={p} rank={i + 1} matchup={matchup} odds={odds}
-                        onPlayerClick={onPlayerClick} weights={weights} base={base} pool={rows} watchlist={watchlist} />
+                        onPlayerClick={openFromBoard} weights={weights} base={base} pool={rows} watchlist={watchlist} />
                 ))}
               </div>}
           {hidden > 0 && (
