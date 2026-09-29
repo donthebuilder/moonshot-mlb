@@ -23,7 +23,7 @@ function fmtStat(v, c) {
 }
 const clock = (iso) => (iso ? new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '')
 
-export default function Longshots({ sport, eyebrow, theme: C, numFont, accent, Table = DenseTable, onOpenPlayer }) {
+export default function Longshots({ sport, eyebrow, theme: C, numFont, accent, Table = DenseTable, onOpenPlayer, onOpenPitcher = null }) {
   const [data, setData] = useState(null)
   const [error, setError] = useState(null)
   const [scope, setScope] = useState('all')
@@ -56,6 +56,9 @@ export default function Longshots({ sport, eyebrow, theme: C, numFont, accent, T
     ...(data?.statColumns || []).map((c) => ({
       key: `s_${c.key}`, label: c.label, title: c.title, w: c.w || 58, heat: false,
       fmt: (v) => fmtStat(v, c),
+      // A pitcher's name in a hitter's row opens the pitcher, not the hitter
+      // (audit 00A P0, found again here 2026-09-29): DenseTable's `link`.
+      ...(c.link === 'pitcher' && onOpenPitcher ? { link: (r) => (r?.[`s_${c.linkId}`] ? () => onOpenPitcher(r[`s_${c.linkId}`]) : null) } : {}),
     })),
     { key: 'flag', label: 'NOTE', w: 150, heat: false },
     { key: 'asOf', label: 'AS OF', w: 80, heat: false },
