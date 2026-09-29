@@ -73,7 +73,7 @@ export default function Ledger({ data, picks, results, matchup, onPlayerClick, o
   const P = { C, numFont: NUM_FONT, accent: C.green }
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <PageHeader eyebrow="TUDDY · THE WEEK" title="The week in names and numbers" theme={C} numFont={NUM_FONT} accent={C.green}
+      <PageHeader eyebrow="TUDDY · WEEK IN NUMBERS" title="The week in names and numbers" theme={C} numFont={NUM_FONT} accent={C.green}
         note="The card's calls against who scored, round numbers, what lines up, the look-out, name echoes -- and the first touchdown of every game." />
       <FirstScorers sport="nfl" {...P} onOpenGame={onOpenGame} onOpenPlayer={(id) => { const p = byId.get(String(id)); if (p) onPlayerClick?.(p) }} />
       <LedgerSection {...P} title={`✅ THE WATCHLIST · ${landed} OF ${calls.length} SCORED`} blurb="the card's touchdown calls, written before kickoff"
