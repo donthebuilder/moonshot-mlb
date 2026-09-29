@@ -36,6 +36,31 @@ const cap = (x) => (x ? x[0].toUpperCase() + x.slice(1) : x)
 const ordinal = (n) => { const suf = ['th', 'st', 'nd', 'rd']; const v = n % 100; return `${n}${suf[(v - 20) % 10] || suf[v] || suf[0]}` }
 const P = { theme: C, numFont: NUM_FONT }
 
+// WHAT HAPPENS IN EACH LANE (2026-09-28): the bot counts, per defence and
+// league-wide, carries stopped for 0 or less (stf) and runs of 10+ (x10) --
+// bots/nfl/nfl_field.py. A lane is only named when it has LANE_MIN carries and
+// sits LANE_GAP points off the league's rate there; otherwise no line, because
+// three weeks of one lane is a handful of carries.
+const LANE_MIN = 15
+const LANE_GAP = 4
+const rate = (n, d) => (d ? (100 * n) / d : null)
+export function laneOutcomes(field, team) {
+  const mine = field?.def_rush?.[team]
+  const lg = field?.league_rush
+  if (!mine || !lg) return null
+  let stuff = null, leak = null
+  for (const z of LANES) {
+    const c = mine[z], l = lg[z]
+    if (!c || !l || c.stf == null || c.att < LANE_MIN) continue
+    const s = rate(c.stf, c.att), sl = rate(l.stf, l.att)
+    const x = rate(c.x10, c.att), xl = rate(l.x10, l.att)
+    if (s - sl >= LANE_GAP && (!stuff || s - sl > stuff.d)) stuff = { z, v: s, lg: sl, n: c.att, d: s - sl }
+    if (x - xl >= LANE_GAP && (!leak || x - xl > leak.d)) leak = { z, v: x, lg: xl, n: c.att, d: x - xl }
+  }
+  return { stuff, leak }
+}
+const pct0 = (v) => `${Math.round(v)}%`
+
 // WHERE THEY GET BEATEN: the map's own numbers, as MOONSHOT's zone tiles.
 export function Zones({ field, team }) {
   const [pass, setPass] = useState(true)
@@ -66,7 +91,8 @@ export function Zones({ field, team }) {
             key: z, heat: Number.isFinite(c?.leak) ? c.heat : null,
             big: Number.isFinite(c?.leak) ? fmtPct(c.leak) : '—',
             small: c?.att ? `${c.tdN} TD` : null,
-            title: c?.tip || where(z),
+            title: [c?.tip || where(z), !pass && field?.def_rush?.[team]?.[z]?.stf != null
+              ? `stopped for 0 or less on ${pct0(rate(field.def_rush[team][z].stf, field.def_rush[team][z].att))}, 10+ yards on ${pct0(rate(field.def_rush[team][z].x10, field.def_rush[team][z].att))} (${field.def_rush[team][z].att} carries)` : null].filter(Boolean).join(' · '),
           }
         })}
         cols={pass ? 3 : 7} hotKey={spot?.z ?? null}
@@ -75,6 +101,17 @@ export function Zones({ field, team }) {
         rowLabelWidth={84} maxWidth={pass ? 380 : 560} aspect={pass ? '1.6 / 1' : '1 / 1.1'}
         legend={<>Big number: yards per {unit} {team} allow there, against a normal defence (+ = leakier). Small: touchdowns they have allowed there. More orange = leakier; — = too few plays to call.</>}
       />
+      {!pass && (() => {
+        const o = laneOutcomes(field, team)
+        return o && (o.stuff || o.leak) ? (
+          <div style={{ marginTop: 8 }}>
+            <FactLines theme={C} lines={[
+              ['Stuffs it', o.stuff ? <>{LANE_WORD[o.stuff.z].replace('runs ', '')}, {pct0(o.stuff.v)} of {o.stuff.n} carries go for 0 or less (league {pct0(o.stuff.lg)}).</> : null],
+              ['Springs leaks', o.leak ? <>{LANE_WORD[o.leak.z].replace('runs ', '')}, {pct0(o.leak.v)} of {o.leak.n} carries go 10+ yards (league {pct0(o.leak.lg)}).</> : null],
+            ]} />
+          </div>
+        ) : null
+      })()}
     </div>
   )
 }
