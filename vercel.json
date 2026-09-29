@@ -3,6 +3,7 @@
   "framework": "nextjs",
   "buildCommand": "next build",
   "installCommand": "npm install --no-audit --no-fund",
+  "ignoreCommand": "bash scripts/vercel-ignore.sh",
   "crons": [
     {
       "path": "/api/dash/push/tick",
