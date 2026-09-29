@@ -10,6 +10,7 @@ import TonightsNumbers from '../../numerology/TonightsNumbers'
 import { easternDate } from '../../../lib/data'
 import LaneTable from '../../numerology/LaneTable'
 import HotNumbers from '../../numerology/HotNumbers'
+import { FilterSearch } from '../../Filters'
 
 // 🔮 NUMEROLOGY — B10(d), 2026-09-15. TUDDY's clone of MLB's Alignments view
 // (components/Alignments.js + lib/alignments.js). Donovan approved shipping
@@ -48,10 +49,24 @@ import HotNumbers from '../../numerology/HotNumbers'
 const VIOLET = '#c084fc'
 const ROOT_COLORS = ['', MLB_C.orange, MLB_C.yellow, MLB_C.cyan, MLB_C.green, MLB_C.purple, MLB_C.red, MLB_C.blue, '#FCD34D', VIOLET]
 
-export default function Numerology({ data }) {
+// EVERY NAME OPENS HIS CARD, AND A SEARCH BOX (2026-09-29, queue batch 12).
+// Names on this page were plain text in four places (watchlist, clubs,
+// braids, name families). Each is a button now, onto the same player card
+// every other tab opens. The search box finds a man and prints every one of
+// his numbers -- raw value, then the root -- so "what are Gibbs's numbers" is
+// one query instead of opening all nine clubs.
+const SEARCH_MAX = 5
+
+export default function Numerology({ data, onPlayerClick }) {
   const watchlist = useNflWatchlist(data)
   const [openRoot, setOpenRoot] = useState(null)
+  const [query, setQuery] = useState('')
   const players = data?.players || []
+  const byId = useMemo(() => new Map(players.map((p) => [String(p.player_id), p])), [players])
+  const open = (a) => { const p = byId.get(String(a.pid)); if (p) onPlayerClick?.(p) }
+  // minHeight 0: MobileCSS gives every phone button 32px, which made the chip
+  // clouds ~600px taller than the plain-text chips they replaced.
+  const btn = { background: 'transparent', font: 'inherit', cursor: onPlayerClick ? 'pointer' : 'default', textAlign: 'left', minHeight: 0 }
 
   const model = useMemo(() => slateAlignments(players), [players])
   // The next game day this week, on the game's own (Eastern) date.
@@ -61,6 +76,11 @@ export default function Numerology({ data }) {
     return days.find((d) => d >= today) || days.at(-1) || null
   }, [data])
   const { rows, clubs, totalMemberships, braids, names } = model
+  const found = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (q.length < 2) return []
+    return rows.filter((a) => String(a.name || '').toLowerCase().includes(q)).slice(0, SEARCH_MAX + 1)
+  }, [rows, query])
 
   const ranked = useMemo(() => [...clubs].sort((a, b) => b.count - a.count), [clubs])
   // How many men on the slate have PLAYED and not scored -- the honest reason
@@ -106,20 +126,41 @@ export default function Numerology({ data }) {
         sub={`${rows.length} players this week · five axes, one reduction`}
         theme={C}
         numFont={NUM_FONT}
+        right={<FilterSearch value={query} onChange={setQuery} placeholder="Find a player's numbers…" width={190} />}
       />
+      {found.length > 0 && (
+        <div style={{ border: `1px solid ${C.border}`, background: C.bg2, borderRadius: 10, padding: '8px 11px', marginBottom: 10, display: 'flex', flexDirection: 'column', gap: 5 }}>
+          {found.slice(0, SEARCH_MAX).map((a) => (
+            <div key={a.pid} style={{ fontSize: TYPE.body, color: C.text2, lineHeight: 1.5 }}>
+              <button type="button" onClick={() => open(a)} style={{ ...btn, border: 'none', padding: 0, color: C.text, fontWeight: 800 }}>{a.name}</button>
+              <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: TYPE.micro }}> {a.team} · </span>
+              {Object.entries(a.axes).filter(([, v]) => v != null).map(([k, root], i) => {
+                const raw = AXIS_META[k]?.raw ? AXIS_META[k].raw(a) : null
+                return (
+                  <span key={k} title={AXIS_META[k]?.why(a)} style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro }}>
+                    {i > 0 && ' · '}{AXIS_META[k]?.label || k} {raw != null ? `${raw}→` : ''}<b style={{ color: ROOT_COLORS[root] }}>{root}</b>
+                  </span>
+                )
+              })}
+            </div>
+          ))}
+          {found.length > SEARCH_MAX && <div style={{ fontSize: TYPE.micro, color: C.text3 }}>More match — keep typing.</div>}
+        </div>
+      )}
+      {query.trim().length >= 2 && !found.length && (
+        <div style={{ fontSize: TYPE.micro, color: C.text3, marginBottom: 10 }}>No one on this week&apos;s slate matches “{query.trim()}”.</div>
+      )}
       {/* TONIGHT'S NUMBERS (numerology v2): the next game day's own date,
           from this week's kickoffs (never the wall clock). */}
       {nextGameDay ? <TonightsNumbers date={nextGameDay} theme={C} numFont={NUM_FONT} accent={C.green} label={`next game day · ${nextGameDay.slice(5).replace('-', '/')}`} /> : null}
       <HotNumbers sport="nfl" theme={C} numFont={NUM_FONT} accent={C.green} eventWord="TDs" />
       <div style={{ fontSize: TYPE.body, color: C.text2, lineHeight: 1.65, maxWidth: 860, marginBottom: 12 }}>
-        Every number a player carries -- the <b style={{ color: C.text }}>touchdowns he&apos;s sitting on</b>, his{' '}
-        <b style={{ color: C.text }}>next touchdown</b>, his <b style={{ color: C.text }}>jersey</b>, his{' '}
-        <b style={{ color: C.text }}>birth day</b>, his <b style={{ color: C.text }}>life path</b> -- reduced the
-        same way: add the digits until one is left (17 → 8).{' '}
-        Pattern watching, not evidence: ~{rows.length} players over nine roots put ~{Math.round(expected)} memberships
-        in every club by arithmetic alone, so read the <b style={{ color: C.text2 }}>×</b> against that share, not the
-        raw count. MLB&apos;s own sweep of this same method tested 18 axes against 4,238 real player-nights and found
-        zero significant ones -- fun to track, never a reason to bet. Nothing here feeds any score, board, or call.
+        Five numbers a player carries -- the <b style={{ color: C.text }}>touchdowns he&apos;s sitting on</b>, his{' '}
+        <b style={{ color: C.text }}>next touchdown</b>, <b style={{ color: C.text }}>jersey</b>,{' '}
+        <b style={{ color: C.text }}>birth day</b> and <b style={{ color: C.text }}>life path</b> -- each added down to one
+        digit (17 → 8). Pattern watching, not evidence: {rows.length} players over nine roots put ~{Math.round(expected)} in
+        every club by arithmetic alone, so read the <b style={{ color: C.text2 }}>×</b> against that. MLB tested this method
+        on 4,238 player-nights and found nothing significant. Nothing here feeds any score, board or call.
       </div>
 
       {/* WHY ROOT 1 IS THE BIG ONE, AND WHY THAT IS ARITHMETIC (2026-09-18).
@@ -136,9 +177,8 @@ export default function Numerology({ data }) {
           fontSize: TYPE.micro, color: C.text3, lineHeight: 1.6, maxWidth: 860,
         }}>
           <b style={{ color: C.text2 }}>Root 1 is crowded for a boring reason.</b>{' '}
-          {zeroTdCount} of these players have not scored yet this season, so every one of them is
-          sitting on 0 and his next touchdown is #1. That is the calendar, not a cluster -- it
-          thins out as the season puts touchdowns on people.
+          {zeroTdCount} players haven&apos;t scored yet, so each sits on 0 and his next touchdown is #1 --
+          the calendar, not a cluster. It thins out as the season goes.
         </div>
       )}
 
@@ -166,8 +206,8 @@ export default function Numerology({ data }) {
               </div>
               <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
                 {watchedRows.map(({ a, hitsTomorrow }) => (
-                  <span key={a.pid} style={{
-                    padding: '3px 10px', borderRadius: 999, fontSize: TYPE.body, fontWeight: 700,
+                  <button type="button" key={a.pid} onClick={() => open(a)} title={`Open ${a.name}`} style={{
+                    ...btn, padding: '3px 10px', borderRadius: 999, fontSize: TYPE.body, fontWeight: 700,
                     border: `1px solid ${hitsTomorrow ? C.orange : C.border}`,
                     background: hitsTomorrow ? 'rgba(249,115,22,.14)' : 'transparent', color: C.text2,
                   }}>
@@ -175,7 +215,7 @@ export default function Numerology({ data }) {
                     {hitsTomorrow && (
                       <span style={{ color: C.orange, fontFamily: NUM_FONT, fontSize: TYPE.micro, marginLeft: 4 }}>+1</span>
                     )}
-                  </span>
+                  </button>
                 ))}
               </div>
             </>
@@ -214,10 +254,10 @@ export default function Numerology({ data }) {
             </div>
             <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
               {members.slice(0, 40).map(({ a, axisKeys }) => (
-                <span key={a.pid}
+                <button type="button" key={a.pid} onClick={() => open(a)}
                   title={`${axisKeys.map((k) => AXIS_META[k].why(a)).join(' · ')} · ${a.team}`}
                   style={{
-                    padding: '3px 10px', borderRadius: 999, fontSize: TYPE.body, fontWeight: 700,
+                    ...btn, padding: '3px 10px', borderRadius: 999, fontSize: TYPE.body, fontWeight: 700,
                     border: `1px solid ${C.border}`, color: C.text2,
                   }}>
                   {a.name}
@@ -227,7 +267,7 @@ export default function Numerology({ data }) {
                       return raw ? `${AXIS_META[k].label} ${raw}→${openRoot}` : AXIS_META[k].label
                     }).join(' · ')}
                   </span>
-                </span>
+                </button>
               ))}
               {members.length > 40 && <span style={{ fontSize: TYPE.micro, color: C.text3 }}>+{members.length - 40} more</span>}
             </div>
@@ -242,21 +282,20 @@ export default function Numerology({ data }) {
             🧬 FULL BRAIDS · {braids.length} players whose own numbers agree
           </div>
           <div style={{ fontSize: TYPE.micro, color: C.text3, lineHeight: 1.6, marginBottom: 6 }}>
-            Two or more of a man&apos;s OWN axes on one root -- jersey, birthday, next touchdown braided together.
-            The rarest read here, and still arithmetic.
+            Two or more of his own numbers on one root. The rarest read here, and still arithmetic.
           </div>
           <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
             {braids.slice(0, 24).map(({ a, root, keys, strength }) => (
-              <span key={a.pid}
+              <button type="button" key={a.pid} onClick={() => open(a)}
                 title={`Root ${root}: ${keys.map((k) => AXIS_META[k].why(a)).join(' · ')} · ${a.team}`}
                 style={{
-                  padding: '3px 10px', borderRadius: 999, fontSize: TYPE.body, fontWeight: 700,
+                  ...btn, padding: '3px 10px', borderRadius: 999, fontSize: TYPE.body, fontWeight: 700,
                   border: `1px solid ${strength >= 3 ? VIOLET : C.border}`, color: C.text2,
                 }}>
                 {a.name}
                 <span style={{ color: ROOT_COLORS[root], fontFamily: NUM_FONT, fontSize: TYPE.micro, fontWeight: 900 }}> {root}</span>
                 <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: TYPE.micro }}>×{strength}</span>
-              </span>
+              </button>
             ))}
           </div>
         </div>
@@ -269,7 +308,7 @@ export default function Numerology({ data }) {
             🔤 NAME CONNECTIONS · {names.length} families this week
           </div>
           <div style={{ fontSize: TYPE.micro, color: C.text3, lineHeight: 1.6, marginBottom: 6 }}>
-            Shared surnames (2+) and first names (3+ -- pairs of a common first name are arithmetic, not a pattern).
+            Shared surnames (2+) and first names (3+; a pair of common first names is arithmetic).
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             {names.slice(0, 8).map((f) => (
@@ -277,7 +316,7 @@ export default function Numerology({ data }) {
                 <b style={{ color: C.cyan, fontFamily: NUM_FONT }}>{f.key.toUpperCase()}</b>
                 <span style={{ color: C.text3 }}> ({f.kind === 'first' ? 'first name' : 'surname'}, {f.list.length}) — </span>
                 {f.list.map((a, i) => (
-                  <span key={a.pid}>{i > 0 && ' · '}<span style={{ fontWeight: 700 }}>{a.name}</span></span>
+                  <span key={a.pid}>{i > 0 && ' · '}<button type="button" onClick={() => open(a)} style={{ ...btn, border: 'none', padding: 0, color: C.text2, fontWeight: 700 }}>{a.name}</button></span>
                 ))}
               </div>
             ))}
