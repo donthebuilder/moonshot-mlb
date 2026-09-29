@@ -66,19 +66,25 @@ export function FactLines({ lines = [], theme = MLB_C }) {
 export function HeatTiles({
   label, lead, legend, cells = [], cols = 3, hotKey = null, accent,
   rowLabels = null, colLabels = null, rowLabelWidth = 64, maxWidth = 300, aspect = '1.2 / 1',
-  theme = MLB_C, numFont = MLB_NUM,
+  theme = MLB_C, numFont = MLB_NUM, onPick = null, pickedKey = null,
 }) {
   const ink = accent || theme.orange
   const axis = { fontFamily: numFont, fontSize: 10, fontWeight: 800, color: theme.text3, letterSpacing: '.04em', lineHeight: 1.2 }
-  const tile = (c) => (
-    <div key={c.key} title={c.title}
-      style={{ aspectRatio: aspect, borderRadius: 6, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2,
-        background: c.heat == null ? theme.bg2 : `color-mix(in srgb, ${ink} ${Math.round(8 + c.heat * 55)}%, ${theme.bg2})`,
-        outline: hotKey != null && hotKey === c.key ? `2px solid ${ink}` : 'none', outlineOffset: 1 }}>
-      <b style={{ fontFamily: numFont, fontSize: 13, color: theme.text }}>{c.big}</b>
-      {c.small != null ? <span style={{ fontFamily: numFont, fontSize: 10, color: theme.text2 }}>{c.small}</span> : null}
-    </div>
-  )
+  // onPick (optional, 2026-09-29): tiles become buttons that open a detail
+  // (TUDDY's "where he gets the ball"); without it, the same plain tiles.
+  const tile = (c) => {
+    const Tag = onPick ? 'button' : 'div'
+    return (
+      <Tag key={c.key} title={c.title} {...(onPick ? { type: 'button', onClick: () => onPick(c), 'aria-pressed': pickedKey === c.key } : {})}
+        style={{ aspectRatio: aspect, borderRadius: 6, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2,
+          background: c.heat == null ? theme.bg2 : `color-mix(in srgb, ${ink} ${Math.round(8 + c.heat * 55)}%, ${theme.bg2})`,
+          outline: (hotKey != null && hotKey === c.key) || (pickedKey != null && pickedKey === c.key) ? `2px solid ${pickedKey === c.key ? theme.text : ink}` : 'none', outlineOffset: 1,
+          ...(onPick ? { border: 'none', padding: 0, cursor: 'pointer', color: 'inherit', font: 'inherit', minHeight: 0, minWidth: 0 } : {}) }}>
+        <b style={{ fontFamily: numFont, fontSize: 13, color: theme.text }}>{c.big}</b>
+        {c.small != null ? <span style={{ fontFamily: numFont, fontSize: 10, color: theme.text2 }}>{c.small}</span> : null}
+      </Tag>
+    )
+  }
   const rows = []
   for (let i = 0; i < cells.length; i += cols) rows.push(cells.slice(i, i + cols))
   return (

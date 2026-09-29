@@ -11,6 +11,7 @@ import HisNumbers from '../HisNumbers'
 import { etToday } from '../../lib/freshness'
 import { VerdictStamp, PutOnCard } from './CardActions'
 import MatchupMap from './MatchupMap'
+import TouchMap from './TouchMap'
 import VerdictHero from '../VerdictHero'
 import { faceUrl } from '../PlayerFace'
 import SourceSeason from './SourceSeason'
@@ -798,6 +799,12 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
         </>}
 
         {tab === 'matchup' && <>
+        {/* Football's spray chart (2026-09-29): his own map first, then how it
+            lines up with this week's defence below. */}
+        {(matchup?.field?.player_pass?.[player.player_id] || matchup?.field?.player_rush?.[player.player_id]) && <>
+          <Head>WHERE HE GETS THE BALL</Head>
+          <TouchMap field={matchup.field} player={player} season={matchup?.season} />
+        </>}
         <MatchupSection player={player} matchup={matchup} market={market} />
         <DvpSection player={player} matchup={matchup} slate={slate} />
         <CoverageAndExplosive player={player} matchup={matchup} slate={slate} />
