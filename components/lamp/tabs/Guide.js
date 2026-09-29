@@ -22,7 +22,7 @@ const ROWS = [
   ['shots', null],
   ['games', null],
   ['scores', 'Every game on one day: score, period and clock, shots on goal, and who scored (tap the goals count). Tap a row for the game.'],
-  ['results', 'Every graded night: of the skaters who scored, how many the board called and how many it had on the board. The base rate to beat is about 15%.'],
+  ['results', 'Every graded night: of the skaters who scored, how many the board called and how many it had on the board. The base rate to beat is the share of every dressed skater who scored on the same nights, measured, not assumed.'],
   ['ledger', null],
   ['lampledger', null],
   ['matchups', null],

@@ -21,7 +21,7 @@ export default function Results({ onOpenPlayer }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <PageHeader eyebrow="LAMP · THE RECORD" title="Every graded night"
-        note="The question the board is measured on: of the skaters who actually scored, how many were called, and how many were on the board, before puck drop. Base rate to beat is about 15% of dressed skaters scoring. Regular season and playoffs only; preseason nights are graded but kept out of this number. Nothing here is recomputed later."
+        note="The question the board is measured on: of the skaters who actually scored, how many were called, and how many were on the board, before puck drop. The base rate to beat is the share of all dressed skaters who scored on the same nights, measured and shown as the table’s last row. Regular season and playoffs only; preseason nights are graded but kept out of this number. Nothing here is recomputed later."
         theme={C} numFont={NUM_FONT} accent={C.ice}
         stats={T ? [
           { value: T.scorers, label: 'SCORERS', tone: C.text2 },
