@@ -594,7 +594,7 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
   return (
     <div>
       <PanelTitle
-        title={boardOnly ? 'The Board' : 'Live'}
+        title={boardOnly ? 'Rankings' : 'Live'}
         sub={boardOnly
           ? `${rows.length} hitters, #1 to #${rows.length} — every one the model rated tonight, in order`
           : `${rows.length} batters on the board${alignedOnly ? ' (aligned only — the filter is on)' : ''}${liveNow ? ' · live — the wire and tonight’s homers lead' : ''}`}

@@ -184,7 +184,7 @@ export default function Research({ data, onPlayerClick }) {
   return (
     <div>
       <PageHeader
-        eyebrow="TUDDY · THE BOARD"
+        eyebrow="TUDDY · RANKINGS"
         title="Every player, #1 to the bottom, every number"
         note="The whole board in order — every scored player ranked on the Anytime TD board, with every market score, the six numbers behind the TD score, and every stat the bot publishes. Sort any column; the # column brings back the board's own order. Tap a name to open his card."
         theme={C}

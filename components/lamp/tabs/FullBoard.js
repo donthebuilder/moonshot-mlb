@@ -37,7 +37,7 @@ export default function FullBoard({ onOpenPlayer, onOpenTeam, date = null, setDa
   const shown = data?.date || date
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <PageHeader eyebrow="LAMP · THE BOARD" title={shown ? fmtDay(shown) : 'Tonight'}
+      <PageHeader eyebrow="LAMP · RANKINGS" title={shown ? fmtDay(shown) : 'Tonight'}
         note="Every skater the model scored tonight, all games together, #1 to the bottom by score. CALLED is still the top three in his own game — that is the GAME # column. A PREVIEW row is not a call; a LOCKED score was frozen at its game's lock."
         theme={C} numFont={NUM_FONT} accent={C.ice}
         stats={data ? [{ value: rows.length, label: 'SKATERS', tone: C.text2 }, { value: calledN, label: 'CALLED', tone: C.ice }, { value: games.length, label: 'GAMES', tone: C.text2 }] : null} />

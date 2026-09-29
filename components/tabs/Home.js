@@ -213,7 +213,7 @@ const HOME_VIEWS = [
   { key: 'boxes', label: 'Box scores' },
   // 2026-09-25: the full board on a page of its own (#tab=fullboard). Same
   // Scoreboard component in boardOnly mode -- see its header.
-  { key: 'fullboard', label: 'The Board' },
+  { key: 'fullboard', label: 'Rankings' },
 ]
 const HOME_VIEW_KEYS = new Set(HOME_VIEWS.map((v) => v.key))
 const BARE_BUTTON = {
