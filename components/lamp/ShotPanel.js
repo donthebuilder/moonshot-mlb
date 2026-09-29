@@ -4,6 +4,7 @@ import Rink from './Rink'
 import { C, NUM_FONT } from '../../lib/nhl/theme'
 import { useLampShots } from '../../lib/nhl/useLamp'
 import { DelayedBanner, Loading, Pills } from './ui'
+import { FactLines } from '../matchup/MatchupParts'
 
 // 🏒 WHERE HE SHOOTS FROM (lamp research step 3). The rink plus the numbers
 // it is drawn from, for one player or one club: season or last 10 games,
@@ -12,6 +13,23 @@ import { DelayedBanner, Loading, Pills } from './ui'
 // empty rink. Data: /api/lamp/shots (aggregates, cached a day).
 const WINDOWS = [{ key: 'all', text: 'SEASON' }, { key: 'last10', text: 'LAST 10' }]
 const pct = (v) => (v == null ? '—' : `${Math.round(v * 100)}%`)
+const share = (n, d) => `${Math.round((100 * n) / d)}%`
+
+// SHOT DEPTH (2026-09-28): what the archive already knows past the rink --
+// the shot types (unblocked attempts; a block has no type), how far out the
+// shots on net and the goals come from, and, once the archive keeps it, why
+// the misses missed. MOONSHOT's plain lines, LAMP's colours.
+function depthLines(m, who, against = false) {
+  const types = Object.entries(m.types || {}).sort((a, b) => b[1].att - a[1].att)
+  const nTyped = types.reduce((a, [, t]) => a + t.att, 0)
+  const top = types.slice(0, 3)
+  const his = against ? "opponents'" : who === 'He' ? 'his' : 'their'
+  return [
+    ['Shot types', nTyped >= 10 ? <>{top.map(([k, t], i) => <span key={k}>{i ? ' · ' : ''}{k} {share(t.att, nTyped)}{t.g ? ` (${t.g} ${t.g === 1 ? 'goal' : 'goals'})` : ''}</span>)}<span style={{ color: C.text3 }}> of {nTyped} unblocked</span>.</> : null],
+    ['Distance', m.distSog != null ? <>{his} shots on net come from {m.distSog} ft on average{m.distGoal != null ? <>, {his} goals from {m.distGoal} ft</> : null}.</> : null],
+    ['Misses', m.missWhy && m.missWhy.n >= 10 ? <>wide {share(m.missWhy.wide, m.missWhy.n)} · high {share(m.missWhy.high, m.missWhy.n)} · off the post or bar {share(m.missWhy.iron, m.missWhy.n)}<span style={{ color: C.text3 }}> of {m.missWhy.n} misses</span>.</> : null],
+  ]
+}
 
 export default function ShotPanel({ sel, who = 'He', height = 300 }) {
   const { data, error, loading } = useLampShots(sel)
@@ -56,6 +74,7 @@ export default function ShotPanel({ sel, who = 'He', height = 300 }) {
               </dd>
             </dl>
           </div>
+          <FactLines theme={C} lines={depthLines(m, who, Boolean(sel?.against))} />
         </>
       ) : null}
     </div>
