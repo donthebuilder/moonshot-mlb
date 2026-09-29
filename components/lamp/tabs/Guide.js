@@ -1,77 +1,90 @@
 'use client'
-import PageHeader from '../../PageHeader'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import { NHL_NAV } from '../../../lib/nhl/routes'
+import { GuideTheme, Section, P, Term, StartHere, GuideTitle } from '../../guide/GuideParts'
 
 // 🏒 HOW THIS WORKS — LAMP explained to somebody who has never seen it
 // (spec §32, "test NHL as a stranger"). Says what is here, where it comes
 // from, and what is NOT here yet, in that order. Nothing promised as if it
 // existed.
+//
+// MOONSHOT'S GUIDE, LAMP'S WORDS (2026-09-29, Donovan: "all pages take from
+// MLB components ... even the guide page"): the plain title, the numbered
+// START HERE path, accordion sections and one-line Term rows from
+// components/guide/GuideParts.js. The tab map covers every LAMP page now --
+// the rows written for this page keep their words, the rest read the
+// registry's own blurb (lib/nhl/routes.js), so a page can't be described two
+// ways. "What LAMP does not do yet" said no matchups, shot maps or alerts and
+// nothing priced; all four exist now, so it says only what is still true.
 const ROWS = [
+  ['board', 'The goal board: three skaters called per game, locked before puck drop, graded after. Tap a called man for the three percentiles behind his score.'],
+  ['fullboard', 'Every skater the model scored tonight, all games together, ranked #1 to the bottom by score, with the numbers behind it. CALLED still means top three in his own game.'],
+  ['shots', null],
+  ['games', null],
   ['scores', 'Every game on one day: score, period and clock, shots on goal, and who scored (tap the goals count). Tap a row for the game.'],
+  ['results', 'Every graded night: of the skaters who scored, how many the board called and how many it had on the board. The base rate to beat is about 15%.'],
+  ['ledger', null],
+  ['lampledger', null],
+  ['matchups', null],
+  ['shotmap', null],
+  ['power', null],
+  ['hotsticks', null],
+  ['specialteams', null],
+  ['storylines', null],
+  ['longshots', null],
   ['schedule', 'The league week, day by day, with puck-drop times in your zone. Games already played show their score.'],
   ['standings', 'Division, wild card, conference and league tables, in the league’s own order. Tap a column’s ⓘ for what it means.'],
-  ['game', 'One game top to bottom: by-period goals and shots, every goal with its assists and strength, penalties, the team comparison, three stars.'],
   ['players', 'Every player on a current roster. Type a name or a club, tap for the file: the season line, career, last five, the game log, season by season.'],
   ['goalies', 'Every goalie, and a goalie’s file is its own page — starts, record, GAA, save percentage, shutouts — not a skater’s with different labels.'],
   ['teams', 'The 32 clubs by division. Tap one for its record and place, next up, last five, the roster with season lines, team leaders, the whole schedule.'],
   ['leaders', 'Who leads the league in each category, ten deep, regular season, straight from the league. Measured, not modelled.'],
-  ['fullboard', 'Every skater the model scored tonight, all games together, ranked #1 to the bottom by score, with the numbers behind it. CALLED still means top three in his own game.'],
-  ['board', 'The goal board: three skaters called per game, locked before puck drop, graded after. Tap a called man for the three percentiles behind his score.'],
-  ['results', 'Every graded night: of the skaters who scored, how many the board called and how many it had on the board. The base rate to beat is about 15%.'],
+  ['numerology', null],
 ]
 
 export default function Guide({ onNavigate }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 760 }}>
-      <PageHeader eyebrow="LAMP · HOW THIS WORKS" title="What LAMP is" theme={C} numFont={NUM_FONT} accent={C.ice}
-        note="LAMP is the NHL desk inside DASH Network, next to MOONSHOT (MLB) and TUDDY (NFL). It reads the league’s own feed and shows you the game, in hockey’s own words." />
+    <GuideTheme theme={C} accent={C.ice} numFont={NUM_FONT}>
+    <div style={{ maxWidth: 760, margin: '0 auto' }}>
+      <GuideTitle title="What LAMP is">
+        LAMP is the NHL desk inside DASH Network, next to MOONSHOT (MLB) and TUDDY (NFL). It reads
+        the league’s own feed and shows you the game, in hockey’s own words — and a goal board it
+        grades on itself every morning.
+      </GuideTitle>
 
-      <Section title="WHAT IS HERE NOW">
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-          <tbody>
-            {ROWS.map(([key, what]) => (
-              <tr key={key} style={{ borderTop: `1px solid ${C.border}` }}>
-                <td style={{ padding: '9px 8px 9px 0', whiteSpace: 'nowrap', verticalAlign: 'top' }}>
-                  <button type="button" onClick={() => onNavigate?.(key === 'game' ? 'scores' : key)}
-                    style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', color: C.ice, font: `900 11px/1.3 ${NUM_FONT}`, letterSpacing: '.04em' }}>
-                    {NHL_NAV[key].icon} {NHL_NAV[key].label.toUpperCase()}
-                  </button>
-                </td>
-                <td style={{ padding: '9px 0', color: C.text2, lineHeight: 1.5 }}>{what}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <StartHere heading="Three steps, in order" onNavigate={onNavigate} steps={[
+        { n: 1, tab: 'board', title: `Open the ${NHL_NAV.board.label}`, body: 'Three skaters called per game, locked before puck drop, graded after.' },
+        { n: 2, tab: 'board', title: 'Tap a called skater', body: 'His file opens on the three percentiles behind his score: shots, goals and ice time per game.' },
+        { n: 3, tab: 'results', title: `The next morning, open ${NHL_NAV.results.label}`, body: 'Of the skaters who scored, how many the board called and how many it had on the board — the receipts for everything above.' },
+      ]} footer={<>
+        That&apos;s the whole path. Everything below is reference — open a section when a word or a
+        colour on screen doesn&apos;t make sense.
+      </>} />
+
+      <Section title="The three words" emoji="🔖" defaultOpen={true}>
+        <P><b style={{ color: C.ice }}>CALLED</b> — one of the three the board picked in his game. <b style={{ color: C.text }}>ON THE BOARD</b> — scored and ranked, but fourth or worse. <b style={{ color: C.text3 }}>NOT ON THE BOARD</b> — on the roster, not scored, and the reason is printed (usually fewer than ten NHL games on file). Same words, same meaning, on MOONSHOT and TUDDY.</P>
+        <P>The score is the average of three percentile ranks among the night’s scored skaters: shots per game, goals per game, ice time per game, each over his last 82 NHL games (this season first, last season for the rest). A board is <b style={{ color: C.amber }}>PREVIEW</b> until 100 minutes before puck drop, <b style={{ color: C.teal }}>LOCKED</b> from the last write before the puck drops, <b style={{ color: C.cream }}>GRADED</b> after the final. A locked row is never rewritten.</P>
       </Section>
 
-      <Section title="WHERE THE NUMBERS COME FROM">
-        <p style={p}>Every number on LAMP is a field from the NHL’s public feed (api-web.nhle.com), read once on our server and cached for a few seconds, then shown to you. Scores refresh every 30 seconds while a game is on. Each page says at its foot exactly which feed it read and when.</p>
-        <p style={p}>The day is the league’s Eastern calendar day. The times are yours. The season on every page comes from the feed itself, which is why, before opening night, the standings page says plainly that it is showing last season’s final table.</p>
+      <Section title="Reading a score row" emoji="🚨">
+        <P><b style={{ color: C.lamp }}>Red</b> means the lamp is lit — a goal, or a game that is on right now. It never means a miss. <b style={{ color: C.text }}>STR</b> on a goal is the strength: EV even strength, PP power play, SH short-handed, EN empty net, PS penalty shot. The number in brackets after a scorer is his goals this season including that one.</P>
       </Section>
 
-      <Section title="WHAT LAMP DOES NOT DO YET">
-        <p style={p}>No goalie in the score — the league feed names no starter before a game, so the board makes no claim about the net until the game is over, then records who actually started and his line beside the graded board. That archive is what a later version fits on. No matchups, no shot maps, no alerts yet. Those arrive in order, each only when its numbers trace to the feed. Nothing here is priced.</p>
+      <Section title="What each page is for" emoji="🧭">
+        {ROWS.map(([key, what]) => (
+          <Term key={key} tab={key} go={onNavigate} icon={NHL_NAV[key].icon} term={NHL_NAV[key].label}
+            def={what || `${NHL_NAV[key].blurb.charAt(0).toLowerCase()}${NHL_NAV[key].blurb.slice(1)}.`} />
+        ))}
       </Section>
 
-      <Section title="THE THREE WORDS">
-        <p style={p}><b style={{ color: C.ice }}>CALLED</b> — one of the three the board picked in his game. <b style={{ color: C.text }}>ON THE BOARD</b> — scored and ranked, but fourth or worse. <b style={{ color: C.text3 }}>NOT ON THE BOARD</b> — on the roster, not scored, and the reason is printed (usually fewer than ten NHL games on file). Same words, same meaning, on MOONSHOT and TUDDY.</p>
-        <p style={p}>The score is the average of three percentile ranks among the night’s scored skaters: shots per game, goals per game, ice time per game, each over his last 82 NHL games (this season first, last season for the rest). A board is <b style={{ color: C.amber }}>PREVIEW</b> until 100 minutes before puck drop, <b style={{ color: C.teal }}>LOCKED</b> from the last write before the puck drops, <b style={{ color: C.cream }}>GRADED</b> after the final. A locked row is never rewritten.</p>
+      <Section title="Where the numbers come from" emoji="📦">
+        <P>Every number on LAMP is a field from the NHL’s public feed (api-web.nhle.com), read once on our server and cached for a few seconds, then shown to you. Scores refresh every 30 seconds while a game is on. Each page says at its foot exactly which feed it read and when.</P>
+        <P>The day is the league’s Eastern calendar day. The times are yours. The season on every page comes from the feed itself, which is why, before opening night, the standings page says plainly that it is showing last season’s final table.</P>
       </Section>
 
-      <Section title="READING A SCORE ROW">
-        <p style={p}><b style={{ color: C.lamp }}>Red</b> means the lamp is lit — a goal, or a game that is on right now. It never means a miss. <b style={{ color: C.text }}>STR</b> on a goal is the strength: EV even strength, PP power play, SH short-handed, EN empty net, PS penalty shot. The number in brackets after a scorer is his goals this season including that one.</p>
+      <Section title="What LAMP does not do yet" emoji="🚧">
+        <P>No goalie in the score — the league feed names no starter before a game, so the board makes no claim about the net until the game is over, then records who actually started and his line beside the graded board. That archive is what a later version fits on. The score never reads a price: {NHL_NAV.longshots.label} shows what the books offer beside it, and nothing more.</P>
       </Section>
     </div>
+    </GuideTheme>
   )
 }
-
-function Section({ title, children }) {
-  return (
-    <section>
-      <div style={{ color: C.ice, font: `900 8px/1 ${NUM_FONT}`, letterSpacing: '.14em', marginBottom: 8 }}>{title}</div>
-      {children}
-    </section>
-  )
-}
-const p = { margin: '0 0 10px', color: C.text2, fontSize: 12.5, lineHeight: 1.6 }

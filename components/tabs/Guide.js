@@ -1,10 +1,10 @@
 'use client'
-import { useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../lib/theme'
 import { ORANGE_RAMP, inkFor } from '../Heatmap'
 import PaletteToggle from '../PaletteToggle'
 import { RAMPS, usePalette } from '../../lib/palette'
 import { tabName } from '../../lib/routes'
+import { Section, P, Note, Term, Stat, StartHere, GuideTitle } from '../guide/GuideParts'
 
 // GUIDE — rewritten short, 2026-08-09.
 //
@@ -29,77 +29,7 @@ import { tabName } from '../../lib/routes'
 //     assumes; AB and "vs" were not the confusing part.
 //   · "What is a trap?" — folded into the ⚠️ glossary row it explained.
 
-// ── small pieces ─────────────────────────────────────────────────────────────
-
-function Section({ title, emoji, children, defaultOpen = false }) {
-  const [open, setOpen] = useState(defaultOpen)
-  return (
-    <div style={{ background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 12, marginBottom: 10, overflow: 'hidden' }}>
-      <button
-        onClick={() => setOpen(o => !o)}
-        style={{
-          width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '13px 16px', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left',
-        }}
-      >
-        <span style={{ fontSize: TYPE.title, fontWeight: 800, color: C.text, display: 'flex', alignItems: 'center', gap: 8 }}>
-          {emoji && <span style={{ fontSize: 16 }}>{emoji}</span>}
-          {title}
-        </span>
-        <span style={{ color: C.text3, fontSize: 14, transform: open ? 'rotate(90deg)' : 'none', transition: 'transform .15s' }}>›</span>
-      </button>
-      {open && <div style={{ padding: '0 16px 16px' }}>{children}</div>}
-    </div>
-  )
-}
-
-function P({ children }) {
-  return <p style={{ fontSize: TYPE.body, color: C.text2, lineHeight: 1.65, marginBottom: 10 }}>{children}</p>
-}
-
-function Note({ children, color = C.orange }) {
-  return (
-    <div style={{ background: `${color}14`, border: `1px solid ${color}33`, borderRadius: 8, padding: '9px 12px', fontSize: TYPE.body, color: C.text2, lineHeight: 1.55, marginBottom: 12 }}>
-      {children}
-    </div>
-  )
-}
-
-// One line per term. The old version carried an optional example line under
-// every row; it doubled the height of the glossary and the examples were
-// mostly restatements, so the definition has to do the whole job now.
-function Term({ icon, term, def, tab, go }) {
-  const clickable = !!(tab && go)
-  return (
-    <div
-      onClick={clickable ? () => go(tab) : undefined}
-      className={clickable ? 'tap-row' : undefined}
-      title={clickable ? `Open the ${term} tab` : undefined}
-      style={{
-        display: 'flex', gap: 10, padding: '7px 0', borderBottom: `1px solid ${C.border}`,
-        cursor: clickable ? 'pointer' : 'default',
-      }}>
-      <div style={{ width: 24, flexShrink: 0, fontSize: 14, textAlign: 'center', lineHeight: '18px' }}>{icon}</div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <span style={{ fontSize: TYPE.name, fontWeight: 800, color: clickable ? C.orange : C.text }}>{term}</span>
-        {clickable && <span style={{ color: C.orange, fontSize: 11, fontWeight: 900 }}> →</span>}
-        <span style={{ fontSize: TYPE.body, color: C.text2, lineHeight: 1.55 }}> — {def}</span>
-      </div>
-    </div>
-  )
-}
-
-function Stat({ stat, def, good }) {
-  return (
-    <div style={{ display: 'flex', gap: 10, padding: '6px 0', borderBottom: `1px solid ${C.border}` }}>
-      <span style={{ fontSize: TYPE.label, fontWeight: 800, color: C.orange, fontFamily: NUM_FONT, width: 74, flexShrink: 0 }}>{stat}</span>
-      <span style={{ flex: 1, minWidth: 0, fontSize: TYPE.body, color: C.text2, lineHeight: 1.55 }}>
-        {def}
-        {good && <span style={{ color: '#4ade80', fontFamily: NUM_FONT }}> · {good}</span>}
-      </span>
-    </div>
-  )
-}
+// ── small pieces: components/guide/GuideParts.js (shared with TUDDY and LAMP, 2026-09-29) ──
 
 // THE FIVE STEPS. First, second, third — in order, with the tab named and the
 // one thing to read on it. This is the whole point of the page.
@@ -204,14 +134,11 @@ export default function Guide({ onNavigate }) {
   return (
     <div style={{ maxWidth: 760, margin: '0 auto' }}>
 
-      <div style={{ marginBottom: 16 }}>
-        <div style={{ fontSize: TYPE.title, fontWeight: 900, color: C.text, marginBottom: 6 }}>Guide</div>
-        <P>
+      <GuideTitle>
           This site predicts which hitters are most likely to go deep tonight, and then grades
           itself on it the next morning. You don&apos;t need to know a single advanced stat to use
           it — follow the five steps below in order.
-        </P>
-      </div>
+      </GuideTitle>
 
       {/* The palette picker lives here rather than buried in a settings menu.
           Colour is how every board on this site says "high" and "low", so
@@ -229,51 +156,11 @@ export default function Guide({ onNavigate }) {
       </div>
 
       {/* ── START HERE — the whole reason this page exists ── */}
-      <div style={{
-        background: `linear-gradient(155deg, rgba(249,115,22,.11), ${C.bg2} 60%)`,
-        border: `1px solid ${C.orange}55`, borderRadius: 14,
-        padding: '16px 18px', marginBottom: 14,
-      }}>
-        <div style={{ fontSize: TYPE.label, fontWeight: 900, color: C.orange, letterSpacing: '.1em', fontFamily: NUM_FONT, marginBottom: 3 }}>
-          ▶ START HERE
-        </div>
-        <div style={{ fontSize: TYPE.title, fontWeight: 900, marginBottom: 10 }}>
-          Five steps, in order
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
-          {STEPS.map((s) => (
-            <div key={s.n}
-              onClick={s.tab && onNavigate ? () => onNavigate(s.tab) : undefined}
-              className={s.tab && onNavigate ? 'tap-row' : undefined}
-              title={s.tab && onNavigate ? 'Take me there' : undefined}
-              style={{
-                display: 'flex', gap: 11, alignItems: 'flex-start',
-                cursor: s.tab && onNavigate ? 'pointer' : 'default',
-                borderRadius: 9, padding: s.tab && onNavigate ? '3px 5px' : 0,
-                margin: s.tab && onNavigate ? '-3px -5px' : 0,
-              }}>
-              <span style={{
-                flexShrink: 0, width: 24, height: 24, borderRadius: '50%',
-                border: `1px solid ${C.orange}77`, background: `${C.orange}18`,
-                color: C.orange, fontFamily: NUM_FONT, fontWeight: 900, fontSize: TYPE.label,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>{s.n}</span>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: TYPE.name, fontWeight: 800, color: C.text, lineHeight: 1.4 }}>
-                  {s.title}
-                  {s.tab && onNavigate && <span style={{ color: C.orange, fontWeight: 900 }}> →</span>}
-                </div>
-                <div style={{ fontSize: TYPE.body, color: C.text2, lineHeight: 1.6, marginTop: 2 }}>{s.body}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-        <div style={{ fontSize: TYPE.body, color: C.text3, lineHeight: 1.6, marginTop: 12, paddingTop: 10, borderTop: `1px solid ${C.orange}33` }}>
+      <StartHere steps={STEPS} heading="Five steps, in order" onNavigate={onNavigate} footer={<>
           That&apos;s the whole path. Everything below is reference — open a section only when a
           symbol or a stat on screen doesn&apos;t make sense, and remember that almost everything on
           this site explains itself if you hover it.
-        </div>
-      </div>
+      </>} />
 
       <ColorKey />
 
