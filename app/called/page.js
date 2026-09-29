@@ -125,7 +125,7 @@ const SPORTS = {
   nfl: {
     key: 'nfl', label: 'NFL', product: 'TUDDY', event: 'touchdowns', eventOne: 'touchdown',
     verb: 'found the end zone', table: 'nfl_td_feed', board: appHref('nfl'),
-    legend: '🤖 on the bot before the snap  ·  ⚪ on the board, no call  ·  💥 not on the board',
+    legend: '🤖 on the bot before the snap  ·  ⚪ on the board (top third of the TD board), no call  ·  💥 not on the board',
     frozen: 'Tags are frozen when the touchdown is first seen and never re-graded.',
     empty: 'No touchdowns yet today',
     fills: 'This page fills in within a minute of each one.',
