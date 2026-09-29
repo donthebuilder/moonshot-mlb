@@ -130,6 +130,29 @@ function ByPosition({ matchup, team, win, setWin, slateSeason }) {
 
 // ONE DEFENSE IN PLAIN LINES (2026-09-28): Coverage / Big plays / Pass rush /
 // Up front. The Matchups detail and the Slate's read both print these.
+// THIS SEASON'S TENDENCIES (2026-09-28): FTN charting, weekly, published by
+// the bot as matchup.tendencies (bots/nfl/nfl_tendencies.py) with its own
+// season, a games count per team, league figures and a rank (1 = the most).
+// Every line says its season and how many games it is over, because three
+// weeks in "over 2 games" is the honest size of it.
+const tendNote = (t, games, slate) => (
+  <span style={{ color: C.text3 }}> · {t.season}{slate && t.season < slate ? ' season' : ''}, {games} {games === 1 ? 'game' : 'games'}</span>
+)
+const ofN = (rank, side) => (rank ? ` (${ordinal(rank)} of ${Object.keys(side || {}).length})` : '')
+
+/** The offense's own shape this season, one line: formation, motion, play-action. */
+export function offenseFacts(matchup, team, slateSeason = null) {
+  const t = matchup?.tendencies
+  const o = t?.offense?.[team]
+  if (!o) return []
+  const r = t.rank?.offense?.[team] || {}
+  const gun = o.shotgun_pct != null && o.under_center_pct != null && o.shotgun_pct >= o.under_center_pct
+  const lead = gun ? ['shotgun', o.shotgun_pct, r.shotgun_pct] : ['under center', o.under_center_pct, r.under_center_pct]
+  return [
+    ['Lines up', lead[1] != null ? <>{lead[0]} on {lead[1]}% of snaps{ofN(lead[2], t.offense)}, motion on {o.motion_pct}%{o.play_action_pct != null ? <>, play-action on {o.play_action_pct}% of dropbacks{ofN(r.play_action_pct, t.offense)}</> : null}{tendNote(t, o.games, Number(slateSeason) || null)}.</> : null],
+  ]
+}
+
 export function defenseFacts(matchup, team, rushThreat = passRushThreat(matchup, team), slateSeason = null) {
   // A line from an older season than the slate says so (charting is last
   // season's all year; pass_rush can be at the flip). Same year = no note.
@@ -142,9 +165,16 @@ export function defenseFacts(matchup, team, rushThreat = passRushThreat(matchup,
   const exp = matchup?.def_explosive?.[team]
   const dis = matchup?.disruption_team?.[team]
   return [
-    ['Coverage', dominant ? <>{dominant} on {domPct}% of snaps{covRank ? ` (${ordinal(covRank)}-most in the league)` : ''}.</> : null],
+    ['Coverage', dominant ? <>{dominant} on {domPct}% of snaps{covRank ? ` (${ordinal(covRank)}-most in the league)` : ''}{older(Number(matchup?.chart_season))}.</> : null],
     ['Big plays', exp ? <>{exp.pass_20} passes of 20+ yards allowed, {exp.deep_td} touchdowns on throws of 20+ air yards ({exp.deep_cmp} of {exp.deep_att} completed).</> : null],
     ['Pass rush', dis?.pressure?.created_pct != null ? <>pressure on {dis.pressure.created_pct}% of {dis.pressure.created_plays || 'their'} pass plays faced{older(Number(matchup?.chart_season))}.</> : null],
+    ['Front', (() => {
+      const t = matchup?.tendencies
+      const d = t?.defense?.[team]
+      if (!d || d.box_avg == null) return null
+      const r = t.rank?.defense?.[team] || {}
+      return <>{d.box_avg} in the box on average, 8+ on {d.box8_pct}% of runs faced{d.blitz_pct != null ? <>; blitz on {d.blitz_pct}% of dropbacks{ofN(r.blitz_pct, t.defense)}</> : null}{tendNote(t, d.games, slate)}.</>
+    })()],
     ['Up front', rushThreat && rushThreat.percentile >= PASS_RUSH_AVOID ? <><b style={{ color: C.red }}>{rushThreat.name}</b> ({rushThreat.position}) is {ordinal(Math.round(rushThreat.percentile))}-percentile at turning pressure into sacks{older(blockSeason(matchup, 'pass_rush'))}.</> : null],
   ]
 }
