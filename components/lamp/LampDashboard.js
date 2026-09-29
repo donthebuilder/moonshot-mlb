@@ -32,6 +32,8 @@ import Ledger from './tabs/Ledger'
 import Matchups from './tabs/Matchups'
 import HotSticks from './tabs/HotSticks'
 import Power from './tabs/Power'
+import Watchlist from './tabs/Watchlist'
+import { useLampSaves } from '../../lib/nhl/useLampSaves'
 import Longshots from '../Longshots'
 import StorylinesPage from '../StorylinesPage'
 import LampTable from './LampTable'
@@ -69,6 +71,8 @@ const DATED_TABS = new Set(['home', 'scores', 'schedule', 'board', 'shots', 'gam
 
 export default function LampDashboard({ palettePass = 0 }) {
   const [tab, setTabRaw] = useState('home')
+  // Followed skaters, remembered night by night for "Your nights, graded".
+  useLampSaves()
   const [gameId, setGameId] = useState(null)
   const [teamKey, setTeamKey] = useState(null)
   const [playerId, setPlayerId] = useState(null)
@@ -311,6 +315,7 @@ export default function LampDashboard({ palettePass = 0 }) {
             {tab === 'ledger' && <Ledger date={date} onOpenPlayer={openPlayer} onOpenTeam={openTeam} onOpenGame={openGame} />}
             {tab === 'hotsticks' && <HotSticks onOpenPlayer={openPlayer} />}
             {tab === 'power' && <Power onOpenPlayer={openPlayer} />}
+            {tab === 'watchlist' && <Watchlist onOpenPlayer={openPlayer} />}
             {tab === 'storylines' && <StorylinesPage sport="nhl" eyebrow="LAMP · STORYLINES" theme={C} numFont={NUM_FONT} accent={C.ice} onOpenPlayer={openPlayer} onOpenGame={openGame} date={date} />}
             {tab === 'longshots' && <Longshots sport="nhl" eyebrow="LAMP · LONGSHOTS" theme={C} numFont={NUM_FONT} accent={C.ice} Table={LampTable} onOpenPlayer={openPlayer} />}
             {tab === 'shotmap' && <ShotMap onOpenPlayer={openPlayer} />}

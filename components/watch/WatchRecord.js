@@ -25,12 +25,12 @@ import { gradeSaved, priceIndex, SPORT_WATCH } from '../../lib/watchGrade'
 // with the priced count beside them.
 //
 // Props: sport ('mlb' | ...), pricesPath (optional odds_history-shaped JSON),
-// theme (the sport's C), onRecord(byPid) for the per-name column on the list,
+// theme (the sport's C), accent (its primary; MOONSHOT's by default), onRecord(byPid) for the per-name column on the list,
 // onOpen(row) to open a player.
 
 const fmtU = (u) => `${u >= 0 ? '+' : '−'}${Math.abs(u).toFixed(1)}u`
 
-export default function WatchRecord({ sport = 'mlb', pricesPath = null, theme = MLB_C, onRecord = null, onOpen = null }) {
+export default function WatchRecord({ sport = 'mlb', pricesPath = null, theme = MLB_C, accent = null, onRecord = null, onOpen = null }) {
   const C = theme
   const S = SPORT_WATCH[sport]
   const [nights, setNights] = useState([])
@@ -98,13 +98,17 @@ export default function WatchRecord({ sport = 'mlb', pricesPath = null, theme = 
   if (!rec) return <div style={{ fontSize: 11, color: C.text3, marginBottom: 12 }}>⭐ Grading your saved nights…</div>
 
   const L = rec.list
-  const priced = S.bars.map((b) => ({ b, u: L.units[b.key] })).filter((x) => x.u.n > 0)
+  // Only the bars somebody on the list is graded on (a list of receivers has
+  // no kicking column), and units only where the sport has archived prices.
+  const bars = S.bars.filter((b) => L.bars[b.key].n > 0)
+  const pricedSport = S.bars.some((b) => b.price)
+  const priced = bars.map((b) => ({ b, u: L.units[b.key] })).filter((x) => x.u.n > 0)
   const columns = [
     { key: 'name', label: 'Player', heat: false, w: 150, bold: true, sticky: true },
     { key: 'saved', label: 'Saved', w: 46, heat: false, title: 'Nights he was on your list and his game is over' },
     { key: 'starts', label: 'Played', w: 48, heat: false, title: 'Of those nights, the ones he actually played' },
-    ...S.bars.map((b) => ({ key: b.key, label: b.label, w: 70, heat: false, mono: true, title: `Starts he ${b.word}, of starts` })),
-    ...S.bars.map((b) => ({ key: `${b.key}_u`, label: `${b.label} u`, w: 84, heat: false, mono: true, dim: true, title: `1 unit on ${b.label} each priced night, settled: units won or lost · nights priced` })),
+    ...bars.map((b) => ({ key: b.key, label: b.label, w: 70, heat: false, mono: true, title: `Games he ${b.word}, of games graded on it` })),
+    ...bars.filter((b) => b.price).map((b) => ({ key: `${b.key}_u`, label: `${b.label} u`, w: 84, heat: false, mono: true, dim: true, title: `1 unit on ${b.label} each priced night, settled: units won or lost · nights priced` })),
   ]
 
   return (
@@ -122,24 +126,27 @@ export default function WatchRecord({ sport = 'mlb', pricesPath = null, theme = 
       <div style={{ fontSize: 11.5, color: C.text2, lineHeight: 1.65, marginBottom: 8 }}>
         Your saved {S.noun}s played <b style={{ fontFamily: NUM_FONT, color: C.text }}>{L.starts}</b> of{' '}
         <b style={{ fontFamily: NUM_FONT, color: C.text }}>{L.saved}</b> saved nights
-        {L.starts > 0 && <>: {S.bars.map((b, i) => (
+        {L.starts > 0 && <>: {bars.map((b, i) => (
           <span key={b.key}>{i ? ' · ' : ''}{b.label} <b style={{ fontFamily: NUM_FONT, color: C.text }}>{L.bars[b.key].k}/{L.bars[b.key].n}</b></span>
         ))}</>}.
         {priced.length > 0
           ? <> At the pregame price, 1 unit a bar on the nights one was archived: {priced.map(({ b, u }, i) => (
               <span key={b.key}>{i ? ' · ' : ''}{b.label} <b style={{ fontFamily: NUM_FONT, color: u.u >= 0 ? C.green : C.red }}>{fmtU(u.u)}</b> <span style={{ color: C.text3 }}>over {u.n}</span></span>
             ))}.</>
-          : <> No archived prices cover these nights yet, so there are no units to show.</>}
+          : pricedSport
+            ? <> No archived prices cover these nights yet, so there are no units to show.</>
+            : <> Units need an archive of past prices, which this sport doesn&apos;t have yet — so this is the did-he-deliver half only.</>}
       </div>
-      <DenseTable rows={preview.shown} columns={columns} heatMode="none" maxHeight={9999} maxRows={400}
+      <DenseTable rows={preview.shown} columns={columns} heatMode="none" maxHeight={9999} maxRows={400} accent={accent}
+        caption={`Your list first, then each ${S.noun}. Tap a name for his card.`}
         onRowClick={onOpen ? (r) => { if (!r._list) onOpen(r) } : null}
         dimRow={(r) => !r._list && r.starts < 3} />
       <ShowMoreButton open={preview.open} restN={preview.restN} toggle={preview.toggle} itemWord="names" />
       <div style={{ fontSize: 9, color: C.text3, lineHeight: 1.55, marginTop: 6 }}>
         A night counts when he was on your list for that game and the game is over — saved and didn&apos;t play is
-        <b style={{ color: C.text2 }}> void, not a miss</b>. Results are his own line from the league&apos;s game log.
-        Units are flat 1-unit bets at the price we archived before the start; nights with no archived price sit out
-        and the number after each total is how many were priced. Dimmed: under 3 games played. Your saved nights
+        <b style={{ color: C.text2 }}> void, not a miss</b>. Results are his own line from the game log.
+        {pricedSport && <> Units are flat 1-unit bets at the price we archived before the start; nights with no archived price sit out
+        and the number after each total is how many were priced.</>} Dimmed: under 3 games played. Your saved nights
         follow your account when you&apos;re signed in.
       </div>
     </div>
