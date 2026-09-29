@@ -78,7 +78,7 @@ export function StripFold({ isPhone, count, summary, rememberKey = 'moonshot_gam
 // JUMP LINKS, NOT A SWITCHER: every section of the open game renders stacked,
 // a pill scrolls to it. Sticky under the header (and the game switcher) on a
 // phone, from the CSS variables those two publish -- no scroll listener.
-export function GamePanelPills({ panels, subs = {}, badges = {}, panel, setPanel, gamePk = '', isPhone = false, note = null, accent = C.orange }) {
+export function GamePanelPills({ panels, subs = {}, badges = {}, panel, setPanel, gamePk = '', isPhone = false, note = null, accent = C.orange, stickyTop = 'calc(var(--hdr-h, 0px) + var(--gsw-h, 0px))' }) {
   const jump = (k) => {
     setPanel(k)
     try {
@@ -87,7 +87,7 @@ export function GamePanelPills({ panels, subs = {}, badges = {}, panel, setPanel
   }
   return (
     <div style={isPhone ? {
-      marginBottom: 10, position: 'sticky', top: 'calc(var(--hdr-h, 0px) + var(--gsw-h, 0px))', zIndex: 30,
+      marginBottom: 10, position: 'sticky', top: stickyTop, zIndex: 30,
       background: C.bg, margin: '0 -14px 10px', padding: '8px 14px 6px',
       borderBottom: `1px solid ${C.border}`,
     } : { marginBottom: 10 }}>

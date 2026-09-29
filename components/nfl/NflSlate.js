@@ -153,7 +153,7 @@ export default function NflSlate({ data, picks, matchup, odds = null, initialGam
           <div style={{ marginTop: 7, fontSize: 9.5, color: C.text3 }}>Kickoff order. The dial is expected touchdowns in the game; 🌋 the most this week, 🔥 hot, 🧊 cold.</div>
         </div>
       </StripFold>
-      <GameSwitcher games={switcherGames} activeGame={activeId} onSelect={select} live={switcherLive} accent={C.green} bigTargets />
+      <GameSwitcher games={switcherGames} activeGame={activeId} onSelect={select} live={switcherLive} accent={C.green} stickyTop="0px" />
 
       {g && (() => {
         const live = g.state === 'in'
@@ -179,7 +179,7 @@ export default function NflSlate({ data, picks, matchup, odds = null, initialGam
                 )}
               </div>
               <div style={{ borderTop: `1px solid ${C.border}`, padding: '12px 14px 14px', background: 'rgba(0,0,0,.15)' }}>
-                <GamePanelPills panels={PANELS} subs={SUBS} panel={panel} setPanel={setPanel} gamePk={g.game_id} isPhone={isPhone} accent={C.green}
+                <GamePanelPills panels={PANELS} subs={SUBS} panel={panel} setPanel={setPanel} gamePk={g.game_id} isPhone={isPhone} accent={C.green} stickyTop="var(--gsw-h, 0px)"
                   badges={{ picks: calls.length ? String(calls.length) : '' }} />
 
                 <PanelAnchor id="read" gamePk={g.game_id}>

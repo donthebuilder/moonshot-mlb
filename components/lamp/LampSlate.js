@@ -122,7 +122,7 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
               <div style={{ marginTop: 7, fontSize: 9.5, color: C.text3 }}>Puck-drop order. The dial is the game&apos;s best LAMP score; 🔒 locked before puck drop, ◻ still a preview.</div>
             </div>
           </StripFold>
-          <GameSwitcher games={switcherGames} activeGame={activeId} onSelect={select} live={switcherLive} accent={C.ice} bigTargets />
+          <GameSwitcher games={switcherGames} activeGame={activeId} onSelect={select} live={switcherLive} accent={C.ice} stickyTop="0px" />
         </>
       )}
 
@@ -145,7 +145,7 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
                 </GameHeaderLine>
               </div>
               <div style={{ borderTop: `1px solid ${C.border}`, padding: '12px 14px 14px', background: 'rgba(0,0,0,.15)' }}>
-                <GamePanelPills panels={PANELS} subs={SUBS} panel={panel} setPanel={setPanel} gamePk={g.game.id} isPhone={isPhone} accent={C.ice}
+                <GamePanelPills panels={PANELS} subs={SUBS} panel={panel} setPanel={setPanel} gamePk={g.game.id} isPhone={isPhone} accent={C.ice} stickyTop="var(--gsw-h, 0px)"
                   badges={{ calls: called.length ? String(called.length) : '' }} />
 
                 <PanelAnchor id="read" gamePk={g.game.id}>

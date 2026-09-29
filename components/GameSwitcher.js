@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { alpha } from '../lib/scales'
 import { useIsPhone } from './MobileFold'
@@ -57,9 +57,10 @@ const timeText = (t) => {
   return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).replace(/\s?[AP]M$/i, '')
 }
 
-export default function GameSwitcher({ games = [], activeGame, onSelect, live = null, accent = C.orange, bigTargets = false }) {
+export default function GameSwitcher({ games = [], activeGame, onSelect, live = null, accent = C.orange, stickyTop = 'var(--hdr-h, 96px)' }) {
   const isPhone = useIsPhone(760)
   const activeRef = useRef(null)
+  const [open, setOpen] = useState(false)
   const barRef = useRef(null)
 
   // Centre the open game inside the rail whenever it changes — including when
@@ -103,101 +104,97 @@ export default function GameSwitcher({ games = [], activeGame, onSelect, live = 
   }, [shown, games.length])
 
   if (!shown) return null
-
   const idx = games.findIndex((g) => g.game_pk === activeGame)
-  const step = (d) => {
-    const next = games[idx + d]
-    if (next) onSelect(next.game_pk)
-  }
 
-  // bigTargets (2026-09-28, TUDDY + LAMP): the same 28px arrow drawn inside a
-  // 44x44 tap area (CLAUDE.md phone rule), laid out the same size via negative
-  // margin. MOONSHOT keeps its own arrow until Donovan says otherwise.
-  const arrow = (label, d, disabled) => bigTargets ? (
-    <button
-      onClick={disabled ? undefined : () => step(d)}
-      aria-label={d < 0 ? 'Previous game' : 'Next game'}
-      style={{ flexShrink: 0, width: 44, height: 44, minHeight: 44, margin: -8, padding: 0, border: 'none', background: 'transparent', cursor: disabled ? 'default' : 'pointer', display: 'grid', placeItems: 'center' }}
-    >
-      <span style={{
-        width: 28, height: 28, borderRadius: 9, display: 'grid', placeItems: 'center',
-        border: `1px solid ${C.border}`, color: disabled ? C.border2 : C.text2, fontSize: 15, fontWeight: 900, lineHeight: 1,
-      }}>{label}</span>
-    </button>
-  ) : (
-    <button
-      onClick={disabled ? undefined : () => step(d)}
-      aria-label={d < 0 ? 'Previous game' : 'Next game'}
-      style={{
-        flexShrink: 0, width: 28, height: 28, minHeight: 28, borderRadius: 9, cursor: disabled ? 'default' : 'pointer',
-        border: `1px solid ${C.border}`, background: 'transparent',
-        color: disabled ? C.border2 : C.text2, fontSize: 15, fontWeight: 900, lineHeight: 1,
-      }}
-    >{label}</button>
-  )
+  // ── THE SCORE STRIP (2026-09-28) ──────────────────────────────────────────
+  // Donovan: "I don't really like the arrow switcher, do something better
+  // overall." The ‹ › steppers and the one-line pills are gone. Same place
+  // (sticky under the header, his call), same job: each game is a two-line
+  // chip -- the matchup, then the time or the score -- 44px tall so a thumb
+  // lands it, the open one filled in the product's colour, the rail fading at
+  // its edges so it reads as swipeable. The last button, All, opens every
+  // game as a grid: on a 15-game slate that is one tap to any game instead of
+  // a swipe hunt. Picking one closes it.
+  const subOf = (g) => {
+    const l = live?.[g.game_pk] || null
+    return l && (l.away_score != null || l.home_score != null)
+      ? `${l.away_score ?? 0}-${l.home_score ?? 0}`
+      : timeText(g.game_time)
+  }
+  const chip = (g, { inGrid = false } = {}) => {
+    const on = g.game_pk === activeGame
+    return (
+      <button
+        key={g.game_pk}
+        ref={on && !inGrid ? activeRef : undefined}
+        onClick={() => { onSelect(g.game_pk); setOpen(false) }}
+        aria-pressed={on}
+        title={`${g.away || '—'} @ ${g.home || '—'}`}
+        style={{
+          flexShrink: 0, minHeight: 44, minWidth: inGrid ? 0 : 76, padding: '5px 12px', borderRadius: 12, cursor: 'pointer',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2,
+          border: `1px solid ${on ? accent : C.border}`,
+          background: on ? alpha(accent, 0.16) : C.bg2,
+          scrollSnapAlign: 'center',
+        }}
+      >
+        <span style={{ fontSize: 12, fontWeight: 900, fontFamily: NUM_FONT, whiteSpace: 'nowrap', letterSpacing: '-.01em', color: on ? accent : C.text }}>
+          {g.away || '—'}<span style={{ opacity: 0.5, fontWeight: 400, margin: '0 2px' }}>@</span>{g.home || '—'}
+        </span>
+        <span style={{ fontSize: 11, fontFamily: NUM_FONT, fontWeight: 700, whiteSpace: 'nowrap', color: on ? C.text2 : C.text3 }}>{subOf(g)}</span>
+      </button>
+    )
+  }
 
   return (
     <div
       ref={barRef}
       className="game-switcher"
       style={{
-        // --hdr-h is written by components/Header.js. The fallback is roughly
-        // the condensed bar, so a first paint before the observer has fired
-        // still lands under the header rather than sliding beneath the logo.
-        position: 'sticky', top: 'var(--hdr-h, 96px)', zIndex: 40,
+        // --hdr-h is written by components/Header.js; the fallback is roughly
+        // the condensed bar, so a first paint lands under the header.
+        // stickyTop: TUDDY's and LAMP's headers scroll away on a phone, so their
+        // Slates pin this to the very top (0px); MOONSHOT's header stays.
+        position: 'sticky', top: stickyTop, zIndex: 40,
         margin: '0 -8px 10px', padding: '7px 8px',
         background: C.bg, borderBottom: `1px solid ${C.border2}`,
         boxShadow: `0 10px 24px -16px ${alpha(accent, 0.55)}`,
-        display: 'flex', alignItems: 'center', gap: 7,
       }}
     >
-      {arrow('‹', -1, idx <= 0)}
-      <div
-        className="game-switcher-rail"
-        style={{
-          flex: 1, minWidth: 0, display: 'flex', gap: 6, overflowX: 'auto',
-          WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none',
-        }}
-      >
-        {games.map((g) => {
-          const on = g.game_pk === activeGame
-          const l = live?.[g.game_pk] || null
-          // A game in progress says the score; one that has not started says
-          // its first pitch. Both are what you would ask the rail for.
-          const sub = l && (l.away_score != null || l.home_score != null)
-            ? `${l.away_score ?? 0}-${l.home_score ?? 0}`
-            : timeText(g.game_time)
-          return (
-            <button
-              key={g.game_pk}
-              ref={on ? activeRef : undefined}
-              onClick={() => onSelect(g.game_pk)}
-              title={`${g.away || '—'} @ ${g.home || '—'}`}
-              style={{
-                flexShrink: 0, cursor: 'pointer', borderRadius: 999, padding: '4px 10px',
-                display: 'flex', alignItems: 'baseline', gap: 5,
-                border: `1px solid ${on ? accent : C.border}`,
-                background: on ? alpha(accent, 0.14) : 'transparent',
-              }}
-            >
-              {/* ONE LINE, NOT TWO (2026-08-23). Stacked matchup-over-time
-                  made every chip 34px tall and the whole rail 52px — and this
-                  bar now shares the top of a phone with the header AND the
-                  section pills, so every pixel it spends is a pixel of slate
-                  nobody can see. Same two facts, one line, 40px of bar. */}
-              <span style={{
-                fontSize: 11, fontWeight: 900, fontFamily: NUM_FONT, whiteSpace: 'nowrap',
-                letterSpacing: '-.02em', color: on ? accent : C.text2,
-              }}>{g.away || '—'}<span style={{ opacity: 0.5, fontWeight: 400 }}>@</span>{g.home || '—'}</span>
-              <span style={{
-                fontSize: 8.5, fontFamily: NUM_FONT, fontWeight: 700, whiteSpace: 'nowrap',
-                color: on ? C.text2 : C.text3,
-              }}>{sub}</span>
-            </button>
-          )
-        })}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div className="game-switcher-rail" style={{
+          flex: 1, minWidth: 0, display: 'flex', gap: 6, overflowX: 'auto', scrollSnapType: 'x proximity',
+          scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch',
+          maskImage: 'linear-gradient(90deg, transparent 0, black 14px, black calc(100% - 14px), transparent 100%)',
+          WebkitMaskImage: 'linear-gradient(90deg, transparent 0, black 14px, black calc(100% - 14px), transparent 100%)',
+          padding: '0 10px',
+        }}>
+          {games.map((g) => chip(g))}
+        </div>
+        <button
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          aria-label="Show every game"
+          style={{
+            flexShrink: 0, minWidth: 48, minHeight: 44, borderRadius: 12, cursor: 'pointer',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1,
+            border: `1px solid ${open ? accent : C.border}`, background: open ? alpha(accent, 0.16) : 'transparent',
+            color: open ? accent : C.text2, fontFamily: NUM_FONT,
+          }}
+        >
+          <span style={{ fontSize: 12, fontWeight: 900 }}>{open ? '✕' : 'All'}</span>
+          <span style={{ fontSize: 11, fontWeight: 700, color: C.text3 }}>{idx + 1}/{games.length}</span>
+        </button>
       </div>
-      {arrow('›', 1, idx < 0 || idx >= games.length - 1)}
+      {open && (
+        <div style={{
+          marginTop: 8, display: 'grid', gap: 6, gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))',
+          maxHeight: '55vh', overflowY: 'auto', paddingBottom: 2,
+        }}>
+          {games.map((g) => chip(g, { inGrid: true }))}
+        </div>
+      )}
+      <style>{'.game-switcher-rail::-webkit-scrollbar{display:none}'}</style>
     </div>
   )
 }
