@@ -14,6 +14,7 @@ import ParkBoard, { parkRows } from '../ParkBoard'
 import FenceBoard from '../FenceBoard'
 import ShapeBoard from '../ShapeBoard'
 import { alpha } from '../../lib/scales'
+import { Para, Num, ConvictionClause, PowerLead, LensRow } from '../power/PowerParts'
 
 // 🚀 POWER — one lead, one board, three lenses (rebuilt 2026-08-15).
 //
@@ -134,13 +135,6 @@ const ord = (i) => (i % 10 === 1 && i % 100 !== 11 ? 'st' : i % 10 === 2 && i % 
 const distOf = (p) => n(p?.longest_hr_score, 0)
 const p3Of = (p) => n(p?.power3_score, 0)
 
-function Para({ children, dim }) {
-  return <p style={{ margin: '0 0 7px', fontSize: 12.5, lineHeight: 1.72, color: dim ? C.text3 : C.text2, maxWidth: 760 }}>{children}</p>
-}
-
-const Num = ({ children, color = C.text }) => (
-  <b style={{ color, fontFamily: NUM_FONT, fontWeight: 800 }}>{children}</b>
-)
 
 // The conditions for one game as a clause rather than a chip strip — same
 // helper the game deep-dive uses, so temp, wind, park factor, humidity, rain
@@ -171,20 +165,6 @@ function AirClause({ p }) {
 // winner was 0.3 clear of the runner-up, the reader got a confident headline
 // and no way to see that the two were a coin flip. The lead is a ranking
 // claim; the strength of the ranking belongs in the sentence either way.
-function ConvictionClause({ conv, field }) {
-  if (!conv || !Number.isFinite(conv.z)) return null
-  const strong = conv.z >= 0.8
-  return (
-    <>
-      , <Num>{conv.z.toFixed(1)}</Num> standard deviation{conv.z === 1 ? '' : 's'}{' '}
-      {strong ? 'clear of' : 'above'} {field}
-      {strong && conv.gap != null && <> and <Num>{conv.gap.toFixed(1)}</Num> points clear of the next name</>}
-      {!strong && (
-        <span style={{ color: C.text3 }}> — close enough to the next name that this is an ordering, not a separation</span>
-      )}
-    </>
-  )
-}
 
 export default function PowerTab({ players, slateDate = '', results = null, onWatch, watchIds, onPlayerClick, initial = 'longest' }) {
   const [view, setView] = useState(initial === 'due' ? 'power3' : initial)
@@ -282,22 +262,8 @@ export default function PowerTab({ players, slateDate = '', results = null, onWa
           // borderLeft rule that used to sit directly above the lens pills —
           // 2026-08-24, "looks off/cluttered" against a purple callout with no
           // card edge of its own. See components/VerdictHero.js.
-          <section style={{
-            marginBottom: 18, maxWidth: 780, borderRadius: 18,
-            border: `1px solid ${alpha(h.color, 0.26)}`,
-            background: `linear-gradient(158deg, ${alpha(h.color, 0.1)}, ${C.bg2} 60%)`,
-            padding: '16px 18px 15px',
-          }}>
-            <div style={{
-              fontSize: 9, fontFamily: NUM_FONT, fontWeight: 900, letterSpacing: '.14em',
-              textTransform: 'uppercase', color: h.color, marginBottom: 5,
-            }}>
-              {h.kicker}
-            </div>
-            <h2 style={{ margin: '0 0 8px', fontSize: 27, fontWeight: 900, letterSpacing: '-.02em', lineHeight: 1.1 }}>
-              <span onClick={() => onPlayerClick?.(p)} style={{ cursor: onPlayerClick ? 'pointer' : 'default' }}>{nameOf(p)}</span>
-              <span style={{ fontSize: 13, fontWeight: 700, color: C.text3, fontFamily: NUM_FONT }}> {teamOf(p)} vs {oppOf(p)}</span>
-            </h2>
+          <PowerLead color={h.color} kicker={h.kicker} name={nameOf(p)} meta={`${teamOf(p)} vs ${oppOf(p)}`}
+            onName={onPlayerClick ? () => onPlayerClick(p) : undefined}>
 
             {/* THE ARGUMENT. Every number is a published field spoken inside a
                 sentence — no tile, no meter, and deliberately no percentage on
@@ -409,7 +375,7 @@ export default function PowerTab({ players, slateDate = '', results = null, onWa
               </Para>
             )}
             </details>
-          </section>
+          </PowerLead>
         )
       })()}
 
@@ -418,20 +384,7 @@ export default function PowerTab({ players, slateDate = '', results = null, onWa
           below run with showTitle={false}. The active lens's own one-line
           answer rides the row rather than getting a paragraph of its own — the
           longer explanation belongs to the board and is printed by the board. */}
-      <div style={{ display: 'flex', gap: 6, marginTop: 4, marginBottom: 12, flexWrap: 'wrap', alignItems: 'baseline' }}>
-        {LENSES.map((l) => (
-          <button key={l.k} onClick={() => setView(l.k)} style={btnStyle(l.color, view === l.k)}>
-            {l.label}
-          </button>
-        ))}
-        {/* The count is read off LENSES rather than typed, because "three
-            lenses" survived as a hard-coded word for exactly as long as it
-            took to add a fourth. */}
-        <span style={{ fontSize: 10.5, color: C.text3, marginLeft: 2 }}>
-          {LENSES.length === 4 ? 'four' : LENSES.length === 3 ? 'three' : LENSES.length} lenses on one
-          question — {lens.tag}
-        </span>
-      </div>
+      <LensRow lenses={LENSES} value={view} onChange={setView} btn={btnStyle} />
 
       {view === 'shape' ? (
         /* 🧬 SHAPE. Same prop contract as the other two board lenses —
