@@ -25,6 +25,8 @@ export default function NflTable(props) {
   return (
     <DenseTable
       {...props}
+      // DenseTable's default caption says "each row opens that hitter" (MOONSHOT).
+      caption={props.caption || 'Ranked board. Column headers sort; each row opens that player.'}
       dict={NFL_GLOSSARY}
       scoreTerms={NFL_SCORE_TERMS}
       caveat={NFL_RANK_NOT_PERCENT}

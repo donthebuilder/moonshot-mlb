@@ -106,9 +106,11 @@ export function RunLeaderCard({ r, name, label, kicker, onClick, children }) {
             return (
               <span style={{ fontSize: TYPE.micro, fontWeight: 700, color: C.text3, fontFamily: NUM_FONT }}
                 title={prev
-                  ? `Nothing else in these ${r.n} games comes close: his next-longest ${word} is ${prev}. Strict consecutive, both measured the same way.`
+                  ? (prev === Math.abs(r.run)
+                    ? `He has had one this long before in these ${r.n} games: another ${word} of ${prev}. Strict consecutive, both measured the same way.`
+                    : `Nothing else in these ${r.n} games comes close: his next-longest ${word} is ${prev}. Strict consecutive, both measured the same way.`)
                   : `The only ${word} of any length he has in these ${r.n} games.`}>
-                {prev ? <>past a previous <b style={{ color: hot ? C.green : C.red }}>{prev}</b></> : 'his first of any length'}
+                {prev ? <>{prev === Math.abs(r.run) ? 'matches' : 'past'} a previous <b style={{ color: hot ? C.green : C.red }}>{prev}</b></> : 'his first of any length'}
               </span>
             )
           }

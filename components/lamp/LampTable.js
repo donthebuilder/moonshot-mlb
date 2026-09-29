@@ -8,5 +8,6 @@ import { NHL_GLOSSARY } from '../../lib/nhl/glossary'
 // table swaps one tag name and gets the glossary and the sport's accent.
 // Tables lead every LAMP page (Donovan, 2026-09-14, standing rule).
 export default function LampTable(props) {
-  return <DenseTable {...props} dict={NHL_GLOSSARY} accent={C.ice} />
+  // DenseTable's default caption says "each row opens that hitter" (MOONSHOT).
+  return <DenseTable {...props} caption={props.caption || 'Ranked board. Column headers sort; each row opens that skater.'} dict={NHL_GLOSSARY} accent={C.ice} />
 }

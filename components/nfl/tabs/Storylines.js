@@ -1,4 +1,5 @@
 'use client'
+import { etToday } from '../../../lib/freshness'
 // 📰 STORYLINES (2026-09-12, updated same day; reformatted + expanded
 // 2026-09-16, round 6) — Phase 3, four angles now, in MOONSHOT's own compact
 // row format.
@@ -106,7 +107,9 @@ export default function Storylines({ data, logs, results, onPlayerClick, setTab,
   // published in nfl_week.json before any log or grade exists, so they must
   // not be gated behind the same "no logs yet" empty state as the other two.
   const rivalries = useMemo(() => rivalryNights(data), [data])
-  const bdays = useMemo(() => lim(birthdays(data), 99), [data, compact, cap])
+  // Eastern game day, not the UTC clock (2026-09-29): after 8pm ET the bare
+  // `new Date()` already read tomorrow's birthdays.
+  const bdays = useMemo(() => lim(birthdays(data, new Date(`${etToday()}T12:00:00Z`)), 99), [data, compact, cap])
 
   // The second wave (2026-09-25). See lib/nfl/storylines.js for each rule.
   const b2b = useMemo(() => lim(scoredLastTimeOut(data), 8), [data, compact, cap])
