@@ -7,8 +7,7 @@ import { downloadNflPickCard } from '../shareCard'
 import PageHeader from '../../PageHeader'
 import { WhatThis } from '../../ui'
 import NflSignalAudit from '../NflSignalAudit'
-import { bandTint } from '../../ScoreBands'
-import { wilson } from '../../../lib/interval'
+import BandTable, { bandClaim } from '../../bands/BandTable'
 
 // DID THE PICKS DO THEIR OWN JOB? — the NFL sibling of MLB's PickScorecard +
 // ScoreAudit (components/PickScorecard.js, components/ScoreAudit.js).
@@ -344,12 +343,8 @@ function bandMarket(key, bar, players, lines) {
   // column claims only when its bands run in order AND the top quarter differs
   // from the bottom by a real margin (two-proportion z >= 1.96).
   const base = (100 * rows.filter((x) => x.hit).length) / rows.length
-  const top = bands[bands.length - 1], bot = bands[0]
-  const pool = (top.ok + bot.ok) / (top.n + bot.n)
-  const se = Math.sqrt(pool * (1 - pool) * (1 / top.n + 1 / bot.n))
-  const z = se > 0 ? (top.ok / top.n - bot.ok / bot.n) / se : 0
-  const ordered = bands.every((b, i) => i === 0 || b.pct >= bands[i - 1].pct)
-  return { state: 'measured', bands, n: rows.length, spread: hi - lo, works: hi - lo > 0, base, z, claims: ordered && z >= 1.96 }
+  const { claims, z } = bandClaim(bands, 1)
+  return { state: 'measured', bands, n: rows.length, spread: hi - lo, works: hi - lo > 0, base, z, claims }
 }
 
 function ScoreBands({ data, results }) {
@@ -374,8 +369,6 @@ function ScoreBands({ data, results }) {
   // vs bottom inside the noise) or the cell's own interval covers the base.
   // Was a stack of cards, one per market.
   const QUARTILES = ['Bottom 25%', '25–50%', '50–75%', 'Top 25%']
-  const th = { padding: '5px 9px', textAlign: 'right', fontSize: 9.5, fontWeight: 800, color: C.text2, textTransform: 'uppercase', letterSpacing: '.06em', borderBottom: `1px solid ${C.border}`, whiteSpace: 'nowrap' }
-  const td = { padding: '5px 9px', textAlign: 'right', whiteSpace: 'nowrap', borderTop: `1px solid ${C.border}` }
   const status = (r) => r.state === 'missing' ? 'NO JOINED LINES'
     : r.state === 'thin' ? `TOO THIN · n=${r.n}, need ${BAND_MIN}`
     : r.state === 'degenerate' ? 'NOT READABLE · every line cleared'
@@ -397,42 +390,13 @@ function ScoreBands({ data, results }) {
         and no claim.</b>
       </div>
 
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ borderCollapse: 'collapse', fontFamily: NUM_FONT, fontSize: 10.5 }}>
-          <thead>
-            <tr>
-              <th style={{ ...th, textAlign: 'left', minWidth: 118, position: 'sticky', left: 0, background: C.bg, zIndex: 2 }}>market</th>
-              {QUARTILES.map((q) => <th key={q} style={{ ...th, minWidth: 92 }}>{q}</th>)}
-              <th style={{ ...th, textAlign: 'left', minWidth: 190 }}>verdict</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.key}>
-                <td style={{ ...td, textAlign: 'left', fontWeight: 800, color: r.color, position: 'sticky', left: 0, background: C.bg, zIndex: 1 }}>
-                  {r.label}
-                  <div style={{ fontWeight: 500, fontSize: 9, color: C.text3, marginTop: 2 }}>bar {r.bar ?? '—'}{r.state === 'measured' ? ` · base ${r.base.toFixed(1)}%` : ''}</div>
-                </td>
-                {QUARTILES.map((q) => {
-                  const b = r.state === 'measured' ? r.bands.find((x) => x.label === q) : null
-                  if (!b) return <td key={q} style={{ ...td, color: C.text3 }}>—</td>
-                  const ci = wilson(b.ok, b.n)
-                  const resolved = !!ci && !(ci[0] <= r.base && r.base <= ci[1])
-                  const { bg, fg } = bandTint(b.pct - r.base, r.claims && resolved, C)
-                  return (
-                    <td key={q} title={`${r.label} ${q}: ${b.ok} of ${b.n} cleared bar ${r.bar}\nBase for this market this run: ${r.base.toFixed(1)}%${ci ? `\n95% interval: ${ci[0].toFixed(1)}–${ci[1].toFixed(1)}%` : ''}`}
-                      style={{ ...td, background: bg, opacity: r.claims && !resolved ? 0.7 : 1 }}>
-                      <span style={{ fontWeight: 800, color: fg }}>{b.pct.toFixed(1)}%</span>
-                      <span style={{ color: C.text3, fontSize: 9 }}> {b.ok}/{b.n}</span>
-                    </td>
-                  )
-                })}
-                <td style={{ ...td, textAlign: 'left', fontSize: 9.5, fontWeight: 800, color: r.state === 'measured' && r.claims ? (r.works ? C.green : C.red) : C.text3 }}>{status(r)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <BandTable theme={C} numFont={NUM_FONT} firstHead="market" columns={QUARTILES}
+        rows={rows.map((r) => ({
+          key: r.key, label: r.label, color: r.color,
+          sub: `bar ${r.bar ?? '—'}${r.state === 'measured' ? ` · base ${r.base.toFixed(1)}%` : ''}`,
+          base: r.base ?? 0, bands: r.state === 'measured' ? r.bands : [], claims: !!r.claims,
+          verdict: status(r), verdictTone: r.state === 'measured' && r.claims ? (r.works ? C.green : C.red) : C.text3,
+        }))} />
 
       {notes.map((r) => (
         <div key={r.key} style={{ fontSize: TYPE.micro, color: C.text3, marginTop: 6, lineHeight: 1.55 }}>
