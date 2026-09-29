@@ -161,7 +161,7 @@ export default function NflDashboard({ palettePass = 0 }) {
     const was = hash.get('tab')
     hash.set('sport', 'nfl')
     hash.set('tab', next)
-    if (next !== 'players') hash.delete('player')
+    if (next !== 'players') { hash.delete('player'); hash.delete('team') }
     if (next !== 'games') hash.delete('game')   // the Slate's open game (NflSlate)
     // A card belongs to the page it was opened on: a real tab change drops
     // it; resolving the address you arrived on (same tab) keeps it.

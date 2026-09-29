@@ -245,7 +245,19 @@ function PlayerDirectory({ players, selected, choose, initialTeam = null, listOp
   const [query, setQuery] = useState('')
   const [position, setPosition] = useState('all')
   // A team tapped on Standings opens the directory on that club (2026-09-26).
-  const [team, setTeam] = useState(initialTeam || 'all')
+  // The team is in the address (team=, 2026-09-29 nav audit): a club tapped on
+  // Standings / Games / Matchups / the Ledger opens here filtered, and refresh
+  // or share keeps the filter.
+  const [team, setTeamRaw] = useState(() => initialTeam || (typeof window === 'undefined' ? null : new URLSearchParams(String(window.location.hash || '').replace(/^#/, '')).get('team')) || 'all')
+  const setTeam = (t) => {
+    setTeamRaw(t)
+    try {
+      const h = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''))
+      if (t && t !== 'all') h.set('team', t); else h.delete('team')
+      window.history.replaceState(null, '', `#${h.toString()}`)
+    } catch {}
+  }
+  useEffect(() => { if (initialTeam) setTeam(initialTeam) }, [initialTeam]) // eslint-disable-line react-hooks/exhaustive-deps
   const counts = (key) => players.reduce((out, player) => {
     const value = player[key]
     if (value) out[value] = (out[value] || 0) + 1
