@@ -3,6 +3,8 @@ import { dayLine } from '../../../lib/dayLine'
 import DayHero from '../../DayHero'
 import { useEffect, useState } from 'react'
 import HeadlineStrip from '../../HeadlineStrip'
+import PlayerFace from '../../PlayerFace'
+import { nhlMug } from '../../../lib/nhl/format'
 import StorylinesStrip from '../../StorylinesStrip'
 import LampHeadline from '../LampHeadline'
 import LongshotsPreview from '../../LongshotsPreview'
@@ -125,7 +127,11 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
           model's top three called skaters -- MOONSHOT's The Four layout -- then
           Around the League below, the same order MOONSHOT uses. */}
       <LampHeadline theme={C} numFont={NUM_FONT} goalBoard={board.data} sogBoard={sogBoard.data} record={regT} onOpenPlayer={onOpenPlayer} />
-      <HeadlineStrip cards={cards} onOpen={openCard} theme={C} numFont={NUM_FONT} accent={C.ice} />
+      {/* FACES ON THE CARDS (2026-09-29, queue batch 5): MOONSHOT's and TUDDY's
+          strips pass faceOf; LAMP's didn't. The shared PlayerFace, table
+          variant -- LAMP's circle, and it hides itself if a mug 404s. */}
+      <HeadlineStrip cards={cards} onOpen={openCard} theme={C} numFont={NUM_FONT} accent={C.ice}
+        faceOf={(c) => { const url = c.playerId && c.team ? nhlMug(board.data?.season?.current || board.data?.season?.id, c.team, c.playerId) : null; return url ? <PlayerFace sport="nhl" photo={url} variant="table" size={22} theme={C} /> : null }} />
       {/* 2026-09-27 (BATCH-STORYLINES-PAGE step 4): the story engine's rarest
           five (History Watch's claims lead as the rarest), then the Storylines tab. */}
       <StorylinesStrip sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} max={5} onSeeAll={() => setTab?.('storylines')} onOpenPlayer={(id) => onOpenPlayer?.(Number(id))} />

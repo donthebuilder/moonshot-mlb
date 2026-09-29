@@ -4,6 +4,7 @@ import { C, NUM_FONT, TYPE } from '../../lib/theme'
 import { n, clean, nameOf, teamOf, oppOf } from '../../lib/player'
 import { PanelTitle, Empty } from '../ui'
 import DenseTable from '../DenseTable'
+import MlbTeamMark from '../MlbTeamMark'
 import {
   leagueLeaders, LEADER_CATS,
   gradedHistory, HIST_FIRST, HIST_MAX, HIST_MIN_PICKS, HIST_MIN_NIGHTS,
@@ -64,7 +65,8 @@ const estAB = (p) => {
 
 const COLUMNS = [
   { key: 'name', label: 'Batter', heat: false, w: 150, bold: true, sticky: true },
-  { key: 'team', label: 'Tm',  heat: false, w: 34, mono: true, dim: true },
+  // Team marks on the leaders (2026-09-29, queue batch 5): the shared chip, not a bare code.
+  { key: 'team', label: 'Tm',  heat: false, w: 34, mono: true, dim: true, teamMark: 'mlb' },
   { key: 'opp',  label: 'Opp', heat: false, w: 34, mono: true, dim: true },
   { key: 'bats', label: 'B',   heat: false, w: 26, mono: true, dim: true },
   { key: 'pa',   label: 'PA',  w: 46,
@@ -123,7 +125,7 @@ function LeaderTile({ label, rows, fmt, color, onPlayerClick }) {
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
         <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.title, fontWeight: 900, color }}>{fmt(top)}</span>
         <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>
-          {top.team} · {top.pa} PA
+          <MlbTeamMark abbr={top.team} style={{ height: 16, verticalAlign: 'middle' }} /> · {top.pa} PA
         </span>
       </div>
       {facing && (
@@ -231,7 +233,7 @@ function HistRow({ i, name, team, main, note, onClick, title }) {
         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0,
       }}>
         {name}{onClick ? ' 🤖' : ''}
-        {team ? <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: TYPE.micro }}> {team}</span> : null}
+        {team ? <> <MlbTeamMark abbr={team} style={{ height: 16, verticalAlign: 'middle' }} /></> : null}
       </span>
       <span style={{ marginLeft: 'auto', textAlign: 'right', flexShrink: 0 }}>
         <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.body, fontWeight: 900, color: C.orange }}>{main}</span>

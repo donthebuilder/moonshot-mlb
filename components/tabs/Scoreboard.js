@@ -417,7 +417,7 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
           { key: 'rank', label: 'Board', heat: false, w: 46, mono: true, dim: true,
             fmt: (v) => (v == null ? '—' : `#${v}`) },
           { key: 'name', label: 'Player', heat: false, w: 132, bold: true, sticky: true },
-          { key: 'team', label: 'Tm',     heat: false, w: 34, mono: true, dim: true },
+          { key: 'team', label: 'Tm',     heat: false, w: 34, mono: true, dim: true, teamMark: 'mlb' },
           // ── DISTANCE / EV / SHAPE, AS COLUMNS (2026-09-14) ────────────────
           // Donovan didn't want the card treatment on this page — pulled the
           // event-card version, kept the underlying fact: distance and exit
