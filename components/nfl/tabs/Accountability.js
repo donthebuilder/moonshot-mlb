@@ -190,7 +190,9 @@ function CardGrid({ results }) {
 
   const boxes = MARKETS.map(([key, label]) => {
     const t = totals[key]
-    return { key, label, color: MARKET_COLOR()[key], bar: bars[key], t }
+    // A market with no accent of its own (DEF_TD, v1, not graded today) falls
+    // back to the page ink rather than an undefined colour.
+    return { key, label, color: MARKET_COLOR()[key] || C.text2, bar: bars[key], t }
   }).filter((b) => b.t)
 
   const sumN = boxes.reduce((a, b) => a + (b.t.n || 0), 0)
@@ -222,7 +224,7 @@ function CardGrid({ results }) {
         {boxes.map((b) => {
           const { n, hit, pct, void: voidN } = b.t
           return (
-            <div key={b.key} title={`Graded against ${MARKET_OUTCOME_TEXT[b.key]}, bar ${b.bar}.`}
+            <div key={b.key} title={MARKET_OUTCOME_TEXT[b.key] ? `Graded against ${MARKET_OUTCOME_TEXT[b.key]}, bar ${b.bar}.` : `Graded against its own bar (${b.bar}).`}
               style={{
                 background: `linear-gradient(155deg, ${b.color}1c, ${b.color}06)`,
                 border: `1px solid ${b.color}44`, borderRadius: 11, padding: '8px 12px',
