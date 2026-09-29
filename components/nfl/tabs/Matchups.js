@@ -177,15 +177,34 @@ const tendNote = (t, games, slate) => (
 )
 const ofN = (rank, side) => (rank ? ` (${ordinal(rank)} of ${Object.keys(side || {}).length})` : '')
 
+// UNDER PRESSURE (2026-09-28): this week's QB (the one with the most dropbacks
+// in his team's latest game), from matchup.qb_pressure (bots/nfl/
+// nfl_qb_pressure.py): PFR's pressure rate, ranked among starters, and FTN's
+// yards a dropback blitzed vs not -- only when both sides have 10+ dropbacks.
+// Beside it, how often the defence he faces blitzes (tendencies).
+function pressureLine(matchup, team, def, slate) {
+  const q = matchup?.qb_pressure
+  const id = q?.starter?.[team]
+  const p = id ? q.qbs?.[id] : null
+  if (!p || p.pressure_pct == null) return null
+  const rk = q.rank?.[id]
+  const split = p.blitz?.n >= 10 && p.no_blitz?.n >= 10
+  const d = def ? matchup?.tendencies?.defense?.[def] : null
+  const dr = def ? matchup?.tendencies?.rank?.defense?.[def]?.blitz_pct : null
+  return <>{p.name} is pressured on {p.pressure_pct}% of dropbacks{rk ? ` (${ordinal(rk)}-most of ${q.ranked})` : ''}{split ? <>; {p.blitz.ypd} yds a dropback when blitzed, {p.no_blitz.ypd} when not</> : null}{d?.blitz_pct != null ? <>. {def} blitz on {d.blitz_pct}% of dropbacks{dr ? ` (${ordinal(dr)})` : ''}</> : null}<span style={{ color: C.text3 }}> · {q.season}{slate && q.season < slate ? ' season' : ''}, {p.games} {p.games === 1 ? 'game' : 'games'}</span>.</>
+}
+
 /** The offense's own shape this season, one line: formation, motion, play-action. */
-export function offenseFacts(matchup, team, slateSeason = null) {
+export function offenseFacts(matchup, team, slateSeason = null, def = null) {
   const t = matchup?.tendencies
   const o = t?.offense?.[team]
-  if (!o) return []
+  const pressure = ['Under pressure', pressureLine(matchup, team, def, Number(slateSeason) || null)]
+  if (!o) return [pressure]
   const r = t.rank?.offense?.[team] || {}
   const gun = o.shotgun_pct != null && o.under_center_pct != null && o.shotgun_pct >= o.under_center_pct
   const lead = gun ? ['shotgun', o.shotgun_pct, r.shotgun_pct] : ['under center', o.under_center_pct, r.under_center_pct]
   return [
+    pressure,
     ['Lines up', lead[1] != null ? <>{lead[0]} on {lead[1]}% of snaps{ofN(lead[2], t.offense)}, motion on {o.motion_pct}%{o.play_action_pct != null ? <>, play-action on {o.play_action_pct}% of dropbacks{ofN(r.play_action_pct, t.offense)}</> : null}{tendNote(t, o.games, Number(slateSeason) || null)}.</> : null],
   ]
 }
