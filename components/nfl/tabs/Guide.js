@@ -173,7 +173,8 @@ export default function Guide({ onNavigate, data }) {
           <PageCard tab="boxscores" title="Box Scores" note="This week's games broken into passing, rushing, receiving and kicking lines, plus each team's defense." onNavigate={onNavigate} />
           <PageCard tab="streaks" title="Streaks" note="Who is hot or cold at a line you pick, last 30 games, no model in the way. Hot is the play; cold is the fade." onNavigate={onNavigate} />
           <PageCard tab="accountability" title="The record" note="Public receipts for completed calls, including misses. This is where trust is earned." onNavigate={onNavigate} />
-          <PageCard tab="tuddyledger" title="Tuddy Ledger" note="Every touchdown this season sorted into called, on the board, or never tracked, with the season's running totals." onNavigate={onNavigate} />
+          <PageCard tab="ledger" title={NFL_NAV.ledger.label} note="The week in names and numbers: the card's touchdown calls and how many scored, round numbers, who needs what, name echoes -- counting facts, not picks." onNavigate={onNavigate} />
+          <PageCard tab="tuddyledger" title={NFL_NAV.tuddyledger.label} note="Every touchdown this season sorted into called, on the board, or never tracked, with the season's running totals." onNavigate={onNavigate} />
           <PageCard tab="report" title="Report Card" note="Backtests each model against a simple trailing-average baseline." onNavigate={onNavigate} />
           <PageCard tab="explosive" title="Explosive" note="Who turns a normal target into a chunk play, and which defence keeps allowing one. Measured off real play-by-play, no model score." onNavigate={onNavigate} />
           <PageCard tab="numerology" title="Numerology" note="Jersey, birthday, life path, reduced to one digit. Pattern watching, disclosed as exactly that — it feeds no score, board or call." onNavigate={onNavigate} />

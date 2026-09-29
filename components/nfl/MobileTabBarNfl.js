@@ -40,8 +40,6 @@ const MAIN = mainFor(MAIN_KEYS)
 // (2026-09-18) -- neither bar carries them, so neither bar needs its own copy
 // of the group.
 const MORE = [
-  ['@This week', ''],
-  ['home', NFL_NAV.home.label, NFL_NAV.home.blurb],
   ...NFL_MORE_GROUPS.flatMap(([group, keys]) => [
     [`@${group}`, ''],
     ...keys.map((k) => [k, NFL_NAV[k].label, NFL_NAV[k].blurb]),
