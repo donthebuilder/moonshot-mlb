@@ -1936,7 +1936,9 @@ function LiveStamp({ meta, anyLive, onRefresh }) {
         title={meta.stale && meta.reason ? `Live feed status: ${meta.reason}` : undefined}
         style={{ color: bad ? C.red : C.text2, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
       >
-        {meta.stale
+        {meta.offDay && !anyLive
+          ? 'no MLB games today · the board below is the published slate'
+          : meta.stale
           ? (meta.at ? `Can’t reach MLB’s live feed — showing the snapshot from ${ageText}` : 'Can’t reach MLB’s live feed right now — scores below are from the published board')
           : anyLive ? `live · updated ${ageText}` : `no game live · lineups checked ${ageText}`}
       </span>
