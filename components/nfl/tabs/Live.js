@@ -365,7 +365,7 @@ export default function Live({ data, picks, live, matchup = null, logs = null, r
       .tl-crawl-item{flex-shrink:0}.tl-crawl-item b{color:${C.text}}.tl-crawl-next{color:${C.text3}}
       .tl-title small{color:${C.green};font:900 8px/1 ${NUM_FONT};letter-spacing:.12em}.tl-title h2{margin:5px 0 0;font-size:17px;letter-spacing:-.02em}
       .tl-title button{border:1px solid ${C.border};border-radius:8px;background:transparent;color:${C.text2};padding:6px 10px;font:800 9px/1 ${NUM_FONT};cursor:pointer}
-      .tl-blocks{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:9px}
+      .tl-blocks{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,330px),1fr));gap:9px}
       .tl-block{border:1px solid ${C.border};border-radius:12px;background:${C.bg2};overflow:hidden}
       .tl-block header{display:flex;justify-content:space-between;align-items:baseline;padding:9px 11px;border-bottom:1px solid ${C.border}}
       .tl-block header b{font-size:12px}.tl-block header small{color:${C.text3};font:800 9px/1 ${NUM_FONT}}

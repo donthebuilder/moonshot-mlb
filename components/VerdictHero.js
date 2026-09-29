@@ -255,9 +255,11 @@ export default function VerdictHero({
             }}>{[String(badge || '').replace(/^[^\w]*\s*/, ''), market].filter(Boolean).join(' · ')}</div>
           )}
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
+            {/* Wraps to a second line rather than "Kyle Fre…" beside the badge
+                and the ✕ (audit 00A: the pitcher card's header on a phone). */}
             <span style={{
-              fontSize: 16.5, fontWeight: 900, letterSpacing: '-.01em', minWidth: 0,
-              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+              fontSize: 16.5, fontWeight: 900, letterSpacing: '-.01em', minWidth: 0, lineHeight: 1.15,
+              overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
             }}>{title}</span>
             <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
               {badgeLeads

@@ -1,5 +1,6 @@
 'use client'
 import { C, NUM_FONT } from '../lib/theme'
+import { useIsPhone } from './MobileFold'
 import { n, clean, nameOf } from '../lib/player'
 
 // 🆚 TEAM vs THE STARTER — the whole lineup's history against tonight's arm.
@@ -54,7 +55,11 @@ const H = ({ children, w, grow = false, right = true }) => (
   }}>{children}</span>
 )
 
-export default function TeamVsStarter({ players = [], team = '', pitcherName = '', pitcherThrows = '', onPlayerClick, compact = false }) {
+export default function TeamVsStarter({ players = [], team = '', pitcherName = '', pitcherThrows = '', onPlayerClick, compact: compactProp = false }) {
+  // The compact column set on a phone (audit 00A S4): the full nine columns
+  // ran the K% column past a 320-375px screen on MOONSHOT Matchups.
+  const phone = useIsPhone(430)
+  const compact = compactProp || phone
   const rows = [...players]
     .filter(Boolean)
     .sort((a, b) => (n(a?.lineup_spot, 99) || 99) - (n(b?.lineup_spot, 99) || 99))
