@@ -137,7 +137,7 @@ function TickerStrip({ children }) {
 // (touchdowns); Scores is the plain scores page and Live moved into More;
 // Standings is new (components/nfl/tabs/Standings.js). Labels live in
 // lib/routes.js NFL_NAV.
-const PRIMARY_KEY_LIST = ['touchdowns', 'scores', 'games', 'standings', 'players', 'leaders']
+const PRIMARY_KEY_LIST = ['picks', 'boards', 'live', 'games']   // MOONSHOT's bar (2026-09-28)
 const PRIMARY_TABS = PRIMARY_KEY_LIST.map((k) => [k, `${NFL_NAV[k].icon} ${NFL_NAV[k].label}`])
 const PRIMARY_KEYS = new Set(PRIMARY_KEY_LIST)
 // Same exception as MOONSHOT's: This week is reached from the wordmark, so it

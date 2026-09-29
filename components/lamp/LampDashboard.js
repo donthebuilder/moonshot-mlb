@@ -39,6 +39,7 @@ import LampLedger from './tabs/LampLedger'
 import Numerology from './tabs/Numerology'
 import Leaders from './tabs/Leaders'
 import Board from './tabs/Board'
+import LampSlate from './LampSlate'
 import FullBoard from './tabs/FullBoard'
 import Results from './tabs/Results'
 
@@ -63,7 +64,7 @@ import Results from './tabs/Results'
 const NHL_TABS = new Set(NHL_TAB_KEYS)
 // Pages that show one day and keep it in the address (`date=`). One list,
 // read by setTab (which clears it elsewhere) and goBack (which restores it).
-const DATED_TABS = new Set(['home', 'scores', 'schedule', 'board', 'fullboard', 'numerology', 'matchups', 'ledger'])
+const DATED_TABS = new Set(['home', 'scores', 'schedule', 'board', 'shots', 'games', 'fullboard', 'numerology', 'matchups', 'ledger'])
 
 export default function LampDashboard({ palettePass = 0 }) {
   const [tab, setTabRaw] = useState('home')
@@ -97,7 +98,8 @@ export default function LampDashboard({ palettePass = 0 }) {
       const hash = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''))
       hash.set('sport', 'nhl')
       hash.set('tab', next)
-      if (next !== 'game') hash.delete('game')
+      if (next !== 'game' && next !== 'games') hash.delete('game')   // the Slate keeps its open game too
+      if (next !== 'board' && next !== 'shots') hash.delete('m')
       if (!DATED_TABS.has(next)) hash.delete('date')
       if (next !== 'team') hash.delete('team')
       if (next !== 'player') { hash.delete('player'); hash.delete('p') }
@@ -215,6 +217,8 @@ export default function LampDashboard({ palettePass = 0 }) {
     if (!liveIsUs) t = snapTab
     else if (t && resolveTab('nhl', t).status === 'missing' && snapTab && resolveTab('nhl', snapTab).status !== 'missing') t = snapTab
     const r = resolveTab('nhl', t)
+    // #tab=board&m=sog predates the Shots slot (2026-09-28): it opens there.
+    if (r.tab === 'board' && String(readHashParam('m') || initialHashParams().get('m') || '').toLowerCase() === 'sog') r.tab = 'shots'
     const g = readHashParam('game') || initialHashParams().get('game')
     if (r.status === 'missing') { setMissingTab(r.asked); return }
     if (r.tab === 'game' && /^\d{10}$/.test(String(g || ''))) setGameId(String(g))
@@ -236,6 +240,7 @@ export default function LampDashboard({ palettePass = 0 }) {
         if (sp !== 'nhl') return
         const r = resolveTab('nhl', hash.get('tab'))
         if (r.status === 'missing') { setMissingTab(r.asked); return }
+        if (r.tab === 'board' && String(hash.get('m') || '').toLowerCase() === 'sog') r.tab = 'shots'
         setMissingTab('')
         if (r.tab === 'game') { const g = hash.get('game'); if (/^\d{10}$/.test(String(g || ''))) setGameId(String(g)) }
         if (r.tab === 'team') { const tm = String(hash.get('team') || '').toUpperCase(); if (/^[A-Z]{3}$/.test(tm)) setTeamKey(tm) }
@@ -309,7 +314,9 @@ export default function LampDashboard({ palettePass = 0 }) {
             {tab === 'shotmap' && <ShotMap onOpenPlayer={openPlayer} />}
             {tab === 'lampledger' && <LampLedger onOpenPlayer={openPlayer} />}
             {tab === 'numerology' && <Numerology date={date} onOpenPlayer={openPlayer} />}
-            {tab === 'board' && <Board onOpenPlayer={openPlayer} onOpenGame={openGame} onOpenTeam={openTeam} date={date} setDate={setDate} />}
+            {(tab === 'board' || tab === 'shots') && <Board onOpenPlayer={openPlayer} onOpenGame={openGame} onOpenTeam={openTeam} date={date} setDate={setDate}
+              market={tab === 'shots' ? 'SOG' : 'GOAL'} onMarket={(m) => setTab(m === 'SOG' ? 'shots' : 'board')} />}
+            {tab === 'games' && <LampSlate onOpenPlayer={openPlayer} onOpenGame={openGame} onOpenTeam={openTeam} date={date} setDate={setDate} />}
             {tab === 'fullboard' && <FullBoard onOpenPlayer={openPlayer} onOpenTeam={openTeam} date={date} setDate={setDate} />}
             {tab === 'results' && <Results onOpenPlayer={openPlayer} />}
           </ErrorBoundary>

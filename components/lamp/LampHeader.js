@@ -28,7 +28,7 @@ import { fmtDay, shiftDay } from './ui'
 //   · under 760px the rail hides; components/MobileTabBar owns switching.
 // The board leads the rail, the way MOONSHOT's Props and TUDDY's Touchdowns
 // lead theirs (2026-09-25, batch 3).
-const PRIMARY = ['board', 'scores', 'schedule', 'standings', 'players', 'leaders']
+const PRIMARY = ['board', 'shots', 'scores', 'games']   // MOONSHOT's bar (2026-09-28)
 
 export default function LampHeader({ tab, setTab, live = 0, date = null, setDate = () => {}, scores = null, liveScores = null, onOpenPlayer, onOpenGame }) {
   const today = etToday()

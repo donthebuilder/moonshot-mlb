@@ -153,7 +153,7 @@ export default function NflSlate({ data, picks, matchup, odds = null, initialGam
           <div style={{ marginTop: 7, fontSize: 9.5, color: C.text3 }}>Kickoff order. The dial is expected touchdowns in the game; 🌋 the most this week, 🔥 hot, 🧊 cold.</div>
         </div>
       </StripFold>
-      <GameSwitcher games={switcherGames} activeGame={activeId} onSelect={select} live={switcherLive} accent={C.green} />
+      <GameSwitcher games={switcherGames} activeGame={activeId} onSelect={select} live={switcherLive} accent={C.green} bigTargets />
 
       {g && (() => {
         const live = g.state === 'in'

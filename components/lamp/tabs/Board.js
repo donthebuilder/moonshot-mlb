@@ -1,7 +1,7 @@
 'use client'
 import { useHashFilter } from '../../../lib/filterHash'
 import { nhlMug } from '../../../lib/nhl/format'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import PageHeader from '../../PageHeader'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import LampTable from '../LampTable'
@@ -29,11 +29,16 @@ export { STATUS }
 // The day is the LAMP shell's (LampDashboard, 2026-09-26): one date for the
 // header's Today/Tmrw, every dated tab and the address -- this tab's day
 // buttons move it for all of them.
-export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = null, setDate = () => {} }) {
+export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = null, setDate = () => {}, market: marketTab = null, onMarket = null }) {
   // The market lives in the address (#...&m=sog) so a shared link opens the
   // same board; GOAL is the default and writes nothing.
-  const [market, setMarketRaw] = useState(() => { const m = String(readHashParam('m') || '').toUpperCase(); return MARKETS.some((x) => x.key === m) ? m : 'GOAL' })
-  const setMarket = (m) => { setMarketRaw(m); writeHashParam('m', m === 'GOAL' ? null : m.toLowerCase()) }
+  // THE SHOTS SLOT (2026-09-28, nav like MOONSHOT's): the bar's Shots tab
+  // passes market="SOG"; the market pills tell the shell (onMarket) so the
+  // bar lights the slot you are actually on. Old #tab=board&m=sog links still
+  // open the shots board.
+  const [market, setMarketRaw] = useState(() => { if (marketTab) return marketTab; const m = String(readHashParam('m') || '').toUpperCase(); return MARKETS.some((x) => x.key === m) ? m : 'GOAL' })
+  useEffect(() => { if (marketTab) setMarketRaw(marketTab) }, [marketTab])
+  const setMarket = (m) => { setMarketRaw(m); writeHashParam('m', m === 'GOAL' ? null : m.toLowerCase()); onMarket?.(m) }
   const M = marketOf(market)
   const { data, error, loading } = useLampBoard(date, market)
   const games = data?.games || []
@@ -157,14 +162,14 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
 const PREVIEW_ROWS = 8
 
 // A side's spot for a skater's club (mine) or tonight's opponent (!mine).
-const spotOf = (g, team, mine) => {
+export const spotOf = (g, team, mine) => {
   if (!g.spots) return null
   const home = g.game.home.abbrev === team
   return mine ? (home ? g.spots.home : g.spots.away) : (home ? g.spots.away : g.spots.home)
 }
-const pct1 = (v) => (v == null ? null : (v * 100).toFixed(1))
-const ppVsPk = (us, them) => (pct1(us?.ppPct) && pct1(them?.pkPct) ? `${pct1(us.ppPct)} v ${pct1(them.pkPct)}` : null)
-const restWord = (s) => (s?.b2b ? 'B2B' : s?.rest != null ? `${s.rest}d` : null)
+export const pct1 = (v) => (v == null ? null : (v * 100).toFixed(1))
+export const ppVsPk = (us, them) => (pct1(us?.ppPct) && pct1(them?.pkPct) ? `${pct1(us.ppPct)} v ${pct1(them.pkPct)}` : null)
+export const restWord = (s) => (s?.b2b ? 'B2B' : s?.rest != null ? `${s.rest}d` : null)
 const factsOf = (g, r) => ({ ppvpk: ppVsPk(spotOf(g, r.team, true), spotOf(g, r.team, false)), rest: restWord(spotOf(g, r.team, true)) })
 
 // The LEGS bars are PctBars (../LampCard), shared with the Cards view.
@@ -214,7 +219,8 @@ function columnsFor(g, onOpenTeam, market = 'GOAL') {
   ]
 }
 
-function GameBoard({ g, onOpenPlayer, onOpenGame, onOpenTeam, market = 'GOAL', keep = null, layout = 'list' }) {
+// Exported (2026-09-28) for LAMP's Slate -- the same game board, not a copy.
+export function GameBoard({ g, onOpenPlayer, onOpenGame, onOpenTeam, market = 'GOAL', keep = null, layout = 'list' }) {
   const game = g.game
   const scored = g.rows.filter((r) => r.status !== 'off' && (!keep || keep.has(`${game.id}|${r.playerId}`)))
   const off = g.rows.filter((r) => r.status === 'off')

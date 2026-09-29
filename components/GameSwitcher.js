@@ -57,7 +57,7 @@ const timeText = (t) => {
   return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).replace(/\s?[AP]M$/i, '')
 }
 
-export default function GameSwitcher({ games = [], activeGame, onSelect, live = null, accent = C.orange }) {
+export default function GameSwitcher({ games = [], activeGame, onSelect, live = null, accent = C.orange, bigTargets = false }) {
   const isPhone = useIsPhone(760)
   const activeRef = useRef(null)
   const barRef = useRef(null)
@@ -110,7 +110,21 @@ export default function GameSwitcher({ games = [], activeGame, onSelect, live = 
     if (next) onSelect(next.game_pk)
   }
 
-  const arrow = (label, d, disabled) => (
+  // bigTargets (2026-09-28, TUDDY + LAMP): the same 28px arrow drawn inside a
+  // 44x44 tap area (CLAUDE.md phone rule), laid out the same size via negative
+  // margin. MOONSHOT keeps its own arrow until Donovan says otherwise.
+  const arrow = (label, d, disabled) => bigTargets ? (
+    <button
+      onClick={disabled ? undefined : () => step(d)}
+      aria-label={d < 0 ? 'Previous game' : 'Next game'}
+      style={{ flexShrink: 0, width: 44, height: 44, minHeight: 44, margin: -8, padding: 0, border: 'none', background: 'transparent', cursor: disabled ? 'default' : 'pointer', display: 'grid', placeItems: 'center' }}
+    >
+      <span style={{
+        width: 28, height: 28, borderRadius: 9, display: 'grid', placeItems: 'center',
+        border: `1px solid ${C.border}`, color: disabled ? C.border2 : C.text2, fontSize: 15, fontWeight: 900, lineHeight: 1,
+      }}>{label}</span>
+    </button>
+  ) : (
     <button
       onClick={disabled ? undefined : () => step(d)}
       aria-label={d < 0 ? 'Previous game' : 'Next game'}

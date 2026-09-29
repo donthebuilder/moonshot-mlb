@@ -31,9 +31,15 @@ const VIEWS = [
 ]
 const readHash = () => { try { return new URLSearchParams(window.location.hash.slice(1)) } catch { return new URLSearchParams() } }
 
-export default function BoardHub({ slate, data, logs, matchup, odds, oddsStatus, picks, results, liveSnap = null, onPlayerClick, initialView = 'board', onTitle = null }) {
+export default function BoardHub({ slate, data, logs, matchup, odds, oddsStatus, picks, results, liveSnap = null, onPlayerClick, initialView = 'board', onTitle = null, onView = null }) {
   const [market, setMarket] = useState('TD')
-  const [view, setView] = useState(initialView)
+  const [view, setViewRaw] = useState(initialView)
+  // THE BAR'S TWO SLOTS (2026-09-28, nav like MOONSHOT's): Props opens CALLED,
+  // Boards opens BOARD -- one hub, kept mounted so its market and filters
+  // survive the switch. The Board / Called pills tell the shell (onView) so
+  // the bar lights the slot you are on.
+  useEffect(() => { setViewRaw(initialView) }, [initialView])
+  const setView = (v) => { setViewRaw(v); onView?.(v) }
   // THE TOP BAR (2026-09-27): search, team and GAME, owned here so every
   // market's board reads the same three (MOONSHOT's Controls, one level up).
   const [query, setQuery] = useState('')
