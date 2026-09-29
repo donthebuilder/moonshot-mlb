@@ -5,7 +5,9 @@ import { injuryTag, injuryTitle, injuryColor } from '../../../lib/nfl/injury'
 import PageHeader from '../../PageHeader'
 import LeaderTile from '../../LeaderTile'
 import NflTeamMark from '../NflTeamMark'
-import { PillRow } from '../../Filters'
+import NflTable from '../NflTable'
+import { SportTheme } from '../../SportTheme'
+import { LeadersIntro, LeadersFilterBar, LeadersLead } from '../../leaders/LeadersParts'
 
 // 🏆 LEADERS — who is actually first, per category.
 //
@@ -53,6 +55,25 @@ const MIN_QUALIFIED = 5      // fewer than this and the "leaderboard" is a list
 
 const POSITIONS = ['ALL', 'QB', 'RB', 'WR', 'TE', 'K']
 
+// MOONSHOT'S PAGE, NOT ONLY ITS TILE (2026-09-29, Donovan: "make sure the
+// leaders page for nfl and nhl look like mlb"). Same order as MOONSHOT's
+// Leaders (components/tabs/Leaders.js): title with the count, the ruled intro,
+// the tiles, then MOONSHOT's filter bar (sample, position, lens, search) over
+// the full table of every published stat, sorted by the lens. Stats only --
+// the model's scores stay on Research, the same line MOONSHOT draws.
+// Low-sample rows are the payload's own low_sample flag (TUDDY has no games
+// count to set a minimum by), hidden until asked for, the way MOONSHOT's
+// Min PA hides a 30-PA .400.
+const LENSES = [
+  ['TD', '🏈 Touchdowns'], ['RECYD', '🙌 Receiving'], ['TGT%', '🎯 Targets'],
+  ['RUYD', '🏃 Rushing'], ['PAYD', '🚀 Passing'], ['RZ', '🔴 Red zone'], ['FGM', '🦵 Kicking'],
+]
+const SAMPLES = [['full', 'Full'], ['any', 'Any']]
+// SIX TILES, MOONSHOT'S COUNT. Every category is a column in the table below;
+// only these lead as tiles, because 23 tiles was ~2,800px of phone before the
+// first row of the table.
+const TILE_KEYS = ['TD', 'RECYD', 'RUYD', 'PAYD', 'TGT%', 'RZ']
+
 // One colour per family of stat, so a glance down the grid reads as groups.
 const FAMILY = {
   'TGT%': 'cyan', WOPR: 'cyan', TGT: 'cyan', REC: 'cyan', RECYD: 'cyan', AIRYD: 'cyan', '20+': 'cyan', SEP: 'cyan', YACOE: 'cyan',
@@ -86,16 +107,22 @@ const facing = (top) => (top._raw?.opp
 
 export default function Leaders({ data, onPlayerClick }) {
   const [pos, setPos] = useState('ALL')
+  const [sample, setSample] = useState('full')
+  const [lens, setLens] = useState('TD')
+  const [query, setQuery] = useState('')
 
   const cols = data?.research_columns || []
   const players = data?.players || []
 
+  // Everyone the week can rank: not on bye (he is not leading anything this
+  // week), in the position asked for.
+  const pool = useMemo(() => players.filter((p) => {
+    if (p?.on_bye) return false
+    if (pos !== 'ALL' && p?.position !== pos) return false
+    return true
+  }), [players, pos])
+
   const cards = useMemo(() => {
-    const pool = players.filter((p) => {
-      if (p?.on_bye) return false          // he is not leading anything this week
-      if (pos !== 'ALL' && p?.position !== pos) return false
-      return true
-    })
     const out = []
     for (const col of cols) {
       const rows = pool
@@ -104,56 +131,121 @@ export default function Leaders({ data, onPlayerClick }) {
         .sort((a, b) => b.v - a.v)
       // A card has to be a leaderboard, not a shortlist. See the header note
       // about SEP / YACOE / RYOE, which no player carries at all.
-      if (rows.length >= MIN_QUALIFIED) out.push({ col, rows: rows.slice(0, 3) })
+      if (rows.length >= MIN_QUALIFIED) out.push({ col, rows: rows.slice(0, 3), n: rows.length })
     }
     return out
-  }, [players, cols, pos])
+  }, [pool, cols])
 
   const dropped = cols.length - cards.length
 
+  // The table: every category that has a board, as a column. A pct column is a
+  // rate in the payload (0.37), so it is carried as a percentage here and dp
+  // formats it, the way Research does.
+  const columns = useMemo(() => [
+    { key: 'name', label: 'Player', heat: false, w: 150, bold: true, sticky: true },
+    { key: 'team', label: 'Tm', heat: false, w: 34, mono: true, dim: true, teamMark: 'nfl' },
+    { key: 'opp', label: 'Opp', heat: false, w: 38, mono: true, dim: true },
+    { key: 'pos', label: 'Pos', heat: false, w: 34, mono: true, dim: true },
+    ...cards.map(({ col }) => ({
+      key: col.key, label: col.label, w: 56, dp: col.dp ?? 2,
+      title: col.desc ? `${col.desc}${col.pct ? ' (a share, as a percentage)' : ''}` : undefined,
+    })),
+  ], [cards])
+
+  const all = useMemo(() => pool.map((p) => {
+    const row = { _key: p.player_id, _raw: p, name: p.name, team: p.team, opp: p.opp || '', pos: p.position }
+    for (const { col } of cards) {
+      const v = Number(p?.stats?.[col.key])
+      row[col.key] = Number.isFinite(v) ? (col.pct ? v * 100 : v) : null
+    }
+    return row
+  }), [pool, cards])
+
+  const rows = useMemo(() => {
+    const q = query.toLowerCase().trim()
+    return all
+      .filter((r) => sample === 'any' || !r._raw?.low_sample)
+      .filter((r) => !q || `${r.name} ${r.team} ${r.opp}`.toLowerCase().includes(q))
+  }, [all, sample, query])
+
+  // A lens whose stat has no board this week (kickers filtered out, say)
+  // falls back to the first column that does, rather than an unsorted table.
+  const lenses = LENSES.filter(([k]) => cards.some((c) => c.col.key === k))
+  const sortKey = lenses.some(([k]) => k === lens) ? lens : (lenses[0]?.[0] || cards[0]?.col.key || 'name')
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <PageHeader
-        eyebrow="TUDDY · LEADERS"
-        title="Who is first, and by how much"
-        note="Measured per-game rates from the slate — no model score anywhere on this page. Tap a name to open his card."
-        theme={C}
-        numFont={NUM_FONT}
-      />
+    <SportTheme theme={C} accent={C.green} numFont={NUM_FONT}>
+      <div>
+        <PageHeader
+          title="League Leaders"
+          sub="Measured per-game rates for this week's players — no model scores on this page"
+          right={(
+            <span title="Players on this week's slate the table is showing, out of everyone not on bye at this position."
+              style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>{rows.length} of {all.length} players</span>
+          )}
+          theme={C}
+          numFont={NUM_FONT}
+        />
 
-      <PillRow
-        value={pos}
-        onChange={setPos}
-        options={POSITIONS.map((k) => ({ key: k, label: k }))}
-        hint={`${cards.length} categor${cards.length === 1 ? 'y' : 'ies'}${dropped > 0 ? ` · ${dropped} hidden for want of data` : ''}`}
-      />
+        <LeadersIntro>
+          Straight per-game numbers over the trailing window the slate publishes — nothing weighted or
+          projected. Every other board here ranks by the model; this one doesn&apos;t. It&apos;s the page for
+          what a player has actually done, rather than what the model thinks of him this week.
+        </LeadersIntro>
 
-      {cards.length === 0 ? (
-        <div style={{
-          background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 12,
-          padding: 18, fontSize: TYPE.body, color: C.text2,
-        }}>
-          Nothing to rank at {pos} on this slate yet.
-        </div>
-      ) : (
-        <div className="bot-picks-grid" style={{
-          display: 'grid', gap: 8,
-          gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
-        }}>
-          {cards.map(({ col, rows }) => (
-            <LeaderTile key={col.key} label={col.desc || col.label} rows={rows}
-              fmt={(r) => fmt(r.v, col.dp, col.pct)} color={C[FAMILY[col.key] || 'green']}
-              meta={meta} facing={facing} onPlayerClick={onPlayerClick}
-              theme={C} numFont={NUM_FONT} />
-          ))}
-        </div>
-      )}
+        {cards.length === 0 ? (
+          <div style={{
+            background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 12,
+            padding: 18, fontSize: TYPE.body, color: C.text2, marginBottom: 12,
+          }}>
+            Nothing to rank at {pos} on this slate yet.
+          </div>
+        ) : (
+          <>
+            <LeadersLead>
+              Every leader below is <b style={{ color: C.text2 }}>on this week&apos;s slate</b> — tiles show who
+              each one plays, plus the #2 and #3. The table under them carries all {cards.length} categories.{dropped > 0 ? ` ${dropped} categor${dropped === 1 ? 'y' : 'ies'} the payload doesn't carry yet ${dropped === 1 ? 'is' : 'are'} left out rather than shown empty.` : ''}
+            </LeadersLead>
+            <div className="bot-picks-grid" style={{
+              display: 'grid', gap: 8, marginBottom: 12,
+              gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
+            }}>
+              {TILE_KEYS.map((k) => cards.find((c) => c.col.key === k)).filter(Boolean).map(({ col, rows: top }) => (
+                <LeaderTile key={col.key} label={col.desc || col.label} rows={top}
+                  fmt={(r) => fmt(r.v, col.dp, col.pct)} color={C[FAMILY[col.key] || 'green']}
+                  meta={meta} facing={facing} onPlayerClick={onPlayerClick}
+                  theme={C} numFont={NUM_FONT} />
+              ))}
+            </div>
+          </>
+        )}
 
-      <p style={{ fontSize: TYPE.micro, color: C.text3, lineHeight: 1.6, margin: '2px 2px 0' }}>
-        Per-game rates over the trailing window the slate publishes, players on bye excluded.
-        A category needs {MIN_QUALIFIED} qualified players to appear at all; one the payload
-        doesn&apos;t carry is left out rather than shown empty.
-      </p>
-    </div>
+        <LeadersFilterBar
+          groups={[
+            { label: 'Sample', value: sample, onChange: setSample, options: SAMPLES },
+            { label: 'Pos', value: pos, onChange: setPos, options: POSITIONS.map((k) => [k, k === 'ALL' ? 'All' : k]), wrap: true },
+            { label: 'Lens', value: sortKey, onChange: setLens, options: lenses, wrap: true },
+          ]}
+          search={{ value: query, onChange: setQuery, placeholder: 'Search a player…' }}
+        />
+
+        {!rows.length ? (
+          <div style={{ fontSize: TYPE.body, color: C.text3, padding: '10px 2px' }}>
+            Nobody matches this filter{sample === 'full' ? ' with a full sample — try Sample: Any' : ''}.
+          </div>
+        ) : (
+          <NflTable
+            heatMode="sorted"
+            key={sortKey}
+            rows={rows}
+            columns={columns}
+            onRowClick={onPlayerClick}
+            initialSort={sortKey}
+            maxHeight={620}
+            caption={`Per-game rates over the trailing window the slate publishes, players on bye excluded. Sample: Full hides the rows the payload flags low-sample, because a rate on one or two games belongs to nobody. A category needs ${MIN_QUALIFIED} players with a number to get a tile and a column; one the payload doesn't carry is left out rather than shown empty.`}
+          />
+        )}
+      </div>
+    </SportTheme>
   )
 }

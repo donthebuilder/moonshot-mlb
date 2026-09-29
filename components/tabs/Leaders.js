@@ -6,6 +6,7 @@ import { PanelTitle, Empty } from '../ui'
 import DenseTable from '../DenseTable'
 import MlbTeamMark from '../MlbTeamMark'
 import SharedLeaderTile from '../LeaderTile'
+import { LeadersIntro, LeadersFilterBar, LeadersLead, LeagueTopCard, LeadersSection } from '../leaders/LeadersParts'
 import {
   leagueLeaders, LEADER_CATS,
   gradedHistory, HIST_FIRST, HIST_MAX, HIST_MIN_PICKS, HIST_MIN_NIGHTS,
@@ -133,39 +134,9 @@ function LeaderTile(props) {
 // call), NOT filtered to tonight — that's the point. 🤖 marks the ones who ARE
 // on tonight's slate, matched by MLB person id, and those rows open the card.
 function LeagueLeadersCard({ cat, rows, slateById, onPlayerClick }) {
-  if (!rows?.length) return null
   return (
-    <div style={{
-      background: C.bg2, border: `1px solid ${C.border}`,
-      borderRadius: 11, padding: '8px 12px', minWidth: 0,
-    }}>
-      <div style={{
-        fontSize: TYPE.label, color: C.text3, textTransform: 'uppercase',
-        letterSpacing: '.09em', fontWeight: 800, marginBottom: 5,
-      }}>{cat.icon} {cat.label} — MLB top 10</div>
-      {rows.map((r, i) => {
-        const onSlate = slateById.get(Number(r.id))
-        return (
-          <div key={r.id}
-            onClick={onSlate && onPlayerClick ? () => onPlayerClick(onSlate) : undefined}
-            title={`${r.name} — ${r.team} · ${r.value} ${cat.unit}${onSlate ? ' · on tonight’s slate — click to open his card' : ''}`}
-            style={{
-              display: 'flex', alignItems: 'baseline', gap: 6, padding: '1.5px 0',
-              cursor: onSlate && onPlayerClick ? 'pointer' : 'default',
-            }}>
-            <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, color: C.text3, width: 14, textAlign: 'right', flexShrink: 0 }}>{i + 1}</span>
-            <span style={{
-              fontSize: TYPE.name, fontWeight: onSlate ? 800 : 600,
-              color: onSlate ? C.text : C.text2,
-              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0,
-            }}>{r.name}{onSlate ? ' 🤖' : ''}</span>
-            <span style={{ marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: TYPE.body, fontWeight: 900, color: onSlate ? C.orange : C.text2, flexShrink: 0 }}>
-              {r.value}
-            </span>
-          </div>
-        )
-      })}
-    </div>
+    <LeagueTopCard title={`${cat.icon} ${cat.label} — MLB top 10`} unit={cat.unit} rows={rows} mark="🤖"
+      open={(r) => { const onSlate = slateById.get(Number(r.id)); return onSlate && onPlayerClick ? () => onPlayerClick(onSlate) : undefined }} />
   )
 }
 
@@ -535,18 +506,6 @@ export default function Leaders({ players = [], onPlayerClick }) {
     .sort((a, b) => b.collide - a.collide)
     .slice(0, 8)
 
-  const chip = (on) => ({
-    padding: '3px 9px', fontSize: TYPE.body, fontWeight: 700, borderRadius: 6, cursor: 'pointer',
-    fontFamily: NUM_FONT,
-    border: `1px solid ${on ? C.orange : C.border}`,
-    background: on ? alpha(C.orange, 0.12) : 'transparent',
-    color: on ? C.orange : C.text3,
-  })
-  const lbl = {
-    fontSize: TYPE.label, color: C.text3, textTransform: 'uppercase',
-    letterSpacing: '.09em', fontWeight: 800,
-  }
-
   return (
     <div>
       <PanelTitle
@@ -562,22 +521,19 @@ export default function Leaders({ players = [], onPlayerClick }) {
         )}
       />
 
-      <div style={{
-        fontSize: TYPE.body, color: C.text3, lineHeight: 1.6, margin: '6px 0 12px',
-        borderLeft: `2px solid ${C.orange}`, paddingLeft: 10, maxWidth: 700,
-      }}>
+      <LeadersIntro>
         Straight season numbers — the batting line, nothing weighted or projected. Every other board
         here ranks by the model; this one doesn&apos;t. It&apos;s the page for what a hitter has actually
         done, rather than what the bot thinks of him tonight. The strip directly below is the same idea
         stretched over time — the last week of graded nights, on request.
-      </div>
+      </LeadersIntro>
 
       {historyStrip}
 
-      <div style={{ fontSize: TYPE.body, color: C.text3, margin: '0 0 6px' }}>
+      <LeadersLead>
         Every leader below is <b style={{ color: C.text2 }}>on tonight&apos;s slate</b> — tiles show who
         each one faces, plus the #2 and #3 so the tile is a lead, not a trivia answer.
-      </div>
+      </LeadersLead>
       <div className="bot-picks-grid" style={{
         display: 'grid', gap: 8, marginBottom: 12,
         gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
@@ -594,17 +550,13 @@ export default function Leaders({ players = [], onPlayerClick }) {
           field, so SB (and league R/RBI for context) come straight from the
           MLB StatsAPI leaders endpoint — whole league, not tonight's hitters.
           🤖 = that leader IS on tonight's slate (matched by MLB person id). */}
-      <div style={{
-        background: `linear-gradient(155deg, ${C.bg2}, rgba(74,222,128,.04))`,
-        border: `1px solid ${C.border}`, borderRadius: 11, padding: '8px 12px', marginBottom: 12,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
-          <span style={{ fontSize: TYPE.title, fontWeight: 900 }}>🏃 League-wide top 10s — speed &amp; run production</span>
-          <span style={{ fontSize: TYPE.body, color: C.text3 }}>
-            whole league, live from the MLB StatsAPI — the slate publishes no stolen bases, so this
-            board is the only speed read here. 🤖 = on tonight&apos;s slate (click to open his card).
-          </span>
-        </div>
+      <LeadersSection
+        title="🏃 League-wide top 10s — speed &amp; run production"
+        tint="rgba(74,222,128,.04)"
+        lead={<>
+          whole league, live from the MLB StatsAPI — the slate publishes no stolen bases, so this
+          board is the only speed read here. 🤖 = on tonight&apos;s slate (click to open his card).
+        </>}>
         {league === undefined ? (
           <div style={{ fontSize: TYPE.body, color: C.text3, padding: '4px 0' }}>Fetching live league leaders…</div>
         ) : league === null ? (
@@ -623,7 +575,7 @@ export default function Leaders({ players = [], onPlayerClick }) {
             ))}
           </div>
         )}
-      </div>
+      </LeadersSection>
 
       {/* The actionable cut: season power crossing a homer-prone arm tonight.
           Both numbers are published season fields — his ISO, the starter's
@@ -669,39 +621,14 @@ export default function Leaders({ players = [], onPlayerClick }) {
         </div>
       )}
 
-      <div style={{
-        display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginBottom: 12,
-        background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 10, padding: '8px 11px',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-          <span style={lbl}>Min PA</span>
-          {MIN_PA_STEPS.map((v) => (
-            <button key={v} onClick={() => setMinPA(v)} style={chip(minPA === v)}>{v || 'Any'}</button>
-          ))}
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-          <span style={lbl}>Bats</span>
-          {[['all', 'All'], ['L', 'LHB'], ['R', 'RHB']].map(([k, l]) => (
-            <button key={k} onClick={() => setHand(k)} style={chip(hand === k)}>{l}</button>
-          ))}
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
-          <span style={lbl}>Lens</span>
-          {LENSES.map(([k, l]) => (
-            <button key={k} onClick={() => setLens(k)} style={chip(lens === k)}>{l}</button>
-          ))}
-        </div>
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search a hitter…"
-          style={{
-            flex: 1, minWidth: 150, background: C.bg3, border: `1px solid ${C.border}`,
-            borderRadius: 7, padding: '5px 10px', fontSize: TYPE.body, color: C.text,
-            outline: 'none', fontFamily: NUM_FONT,
-          }}
-        />
-      </div>
+      <LeadersFilterBar
+        groups={[
+          { label: 'Min PA', value: minPA, onChange: setMinPA, options: MIN_PA_STEPS.map((v) => [v, v || 'Any']) },
+          { label: 'Bats', value: hand, onChange: setHand, options: [['all', 'All'], ['L', 'LHB'], ['R', 'RHB']] },
+          { label: 'Lens', value: lens, onChange: setLens, options: LENSES, wrap: true },
+        ]}
+        search={{ value: query, onChange: setQuery, placeholder: 'Search a hitter…' }}
+      />
 
       {!rows.length ? (
         <Empty text={`Nobody clears ${minPA} plate appearances with this filter.`} />
