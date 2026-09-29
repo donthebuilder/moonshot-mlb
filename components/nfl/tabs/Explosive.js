@@ -3,9 +3,12 @@ import { useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../../lib/nfl/theme'
 import NflTable from '../NflTable'
 import PageHeader from '../../PageHeader'
-import { ActiveFilters, FilterBar, FilterSearch, FilterSelect, PillRow } from '../../Filters'
+import { ActiveFilters, FilterBar, FilterSearch, FilterSelect } from '../../Filters'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 import NflFace from '../NflFace'
+import { Para, Num, ConvictionClause, PowerLead, LensRow } from '../../power/PowerParts'
+import { convictionOf, percentileOf, standingPhrase } from '../../../lib/whyPick'
+import { btnStyle } from '../../ui'
 
 // 🚀 EXPLOSIVE — TUDDY'S SIDE OF PATH TO VICTORY B10(l), THE POWER BOARD.
 //
@@ -45,6 +48,14 @@ import NflFace from '../NflFace'
 // there is no rush-chunk-play equivalent published anywhere yet. Showing one
 // here would mean inventing it. If that ever matters, it is bot-side work,
 // not a client-side guess.
+
+// The lead needs a real sample: a man with 3 targets and one long catch is a
+// fluke, not a read.
+const LEAD_MIN_TGT = 15
+const LENSES = [
+  { k: 'player', label: 'Players', tag: 'who turns a target into a chunk play', color: C.green },
+  { k: 'defense', label: 'Defense allowed', tag: 'which defense gives up the chunk play', color: C.cyan },
+]
 
 const BUCKET_COLS = [
   { key: 'rec_10', label: '10+', w: 34, dp: 0, title: '10+ yard receptions' },
@@ -156,6 +167,15 @@ export default function Explosive({ matchup, data, onPlayerClick }) {
     }).filter(Boolean)
   }, [matchup, rosterById, watchlist])
 
+  const lead = useMemo(() => {
+    const pool = playerRows.filter((r) => Number(r.tgts) >= LEAD_MIN_TGT)
+    if (pool.length < 8) return null
+    const rateOf = (r) => (100 * (Number(r.rec_20) || 0)) / Number(r.tgts)
+    const row = [...pool].sort((a, b) => rateOf(b) - rateOf(a))[0]
+    if (!(Number(row?.rec_20) > 0)) return null
+    return { row, rate: rateOf(row), conv: convictionOf(row, pool, rateOf), pct: percentileOf(rateOf(row), pool.map(rateOf)) }
+  }, [playerRows])
+
   const defenseRows = useMemo(() => {
     const de = matchup?.def_explosive || {}
     // nfl_explosive.py computes att/cmp internally (to build exp_pct) but
@@ -214,22 +234,35 @@ export default function Explosive({ matchup, data, onPlayerClick }) {
         numFont={NUM_FONT}
         accent={lens === 'player' ? C.green : C.cyan}
       />
-      {lens === 'player' && <BigPlayWatch data={data} onPlayerClick={onPlayerClick} />}
+      {/* MOONSHOT'S POWER FRAME (2026-09-29, Donovan: "did we ever do the
+          player powers for all the sports?"): one lead -- the receiver who
+          turns targets into chunk plays most, argued with his own numbers and
+          how far clear of the field he stands -- then one board behind a
+          lens row (components/power/PowerParts.js, MOONSHOT's Power look). */}
+      {lead && (
+        <PowerLead theme={C} numFont={NUM_FONT} color={C.green} kicker="The chunk-play read of the week"
+          name={lead.row.name} meta={`${lead.row.team}${lead.row.opp ? ` vs ${lead.row.opp}` : ''} · ${lead.row.position}`}
+          onName={onPlayerClick ? () => onPlayerClick(lead.row._raw, 'REC_YDS') : undefined}>
+          <Para theme={C}>
+            Nobody on the slate turns a target into a chunk play like him:{' '}
+            <Num theme={C} numFont={NUM_FONT} color={C.green}>{lead.row.rec_20}</Num> catches of 20+ yards on{' '}
+            <Num theme={C} numFont={NUM_FONT}>{lead.row.tgts}</Num> targets,{' '}
+            <Num theme={C} numFont={NUM_FONT} color={C.green}>{lead.rate.toFixed(0)}%</Num>
+            {lead.pct != null && <> — <b style={{ color: C.text2 }}>{standingPhrase(lead.pct).replace('of the slate', `of receivers with ${LEAD_MIN_TGT}+ targets`)}</b></>}
+            <ConvictionClause theme={C} numFont={NUM_FONT} conv={lead.conv} field={`receivers with ${LEAD_MIN_TGT}+ targets`} unit="percentage points" />.
+            {lead.row.lng > 0 && <> His longest catch is <Num theme={C} numFont={NUM_FONT}>{lead.row.lng}</Num> yards{lead.row.lng_td > 0 ? <>, his longest touchdown <Num theme={C} numFont={NUM_FONT}>{lead.row.lng_td}</Num></> : null}.</>}
+          </Para>
+          <Para theme={C} dim>A rate of big plays already made, from {matchup?.season || 'this season'}&apos;s play-by-play -- not a chance of one this week.</Para>
+        </PowerLead>
+      )}
+      <LensRow theme={C} lenses={LENSES} value={lens} onChange={setLens}
+        btn={(color, on) => ({ ...btnStyle(color, on), border: `1px solid ${on ? `${color}99` : C.border}`, color: on ? color : C.text2 })} />
 
       <div style={{
         display: 'flex', flexDirection: 'column', gap: 9, marginBottom: 11,
         padding: '10px 12px', border: `1px solid ${C.border}`, borderRadius: 12,
         background: C.bg2,
       }}>
-        <PillRow
-          label="Board"
-          value={lens}
-          options={[
-            { key: 'player', label: 'Players', count: playerRows.length },
-            { key: 'defense', label: 'Defense allowed', count: defenseRows.length },
-          ]}
-          onChange={setLens}
-        />
         <FilterBar>
           <FilterSearch value={query} onChange={setQuery} placeholder={lens === 'player' ? 'Search player…' : 'Search team…'} width={165} />
           {lens === 'player' && (
@@ -267,6 +300,8 @@ export default function Explosive({ matchup, data, onPlayerClick }) {
           maxRows={32}
         />
       )}
+
+      {lens === 'player' && <div style={{ marginTop: 12 }}><BigPlayWatch data={data} onPlayerClick={onPlayerClick} /></div>}
 
       <div style={{ marginTop: 10, padding: '10px 13px', border: `1px dashed ${C.border2}`, borderRadius: 10, color: C.text3, fontSize: TYPE.micro, lineHeight: 1.6 }}>
         Receiving only — rushing has no chunk-play split published yet, so this board doesn't guess at one.
