@@ -1,6 +1,4 @@
 'use client'
-import { useState } from 'react'
-import { NHL_NAV, NHL_MORE_GROUPS } from '../../lib/nhl/routes'
 import { C, NUM_FONT, GRADIENT } from '../../lib/nhl/theme'
 import { setSport } from '../../lib/sport'
 import SignUpPill from '../SignUpPill'
@@ -28,25 +26,12 @@ import { fmtDay, shiftDay } from './ui'
 //   · under 760px the rail hides; components/MobileTabBar owns switching.
 // The board leads the rail, the way MOONSHOT's Props and TUDDY's Touchdowns
 // lead theirs (2026-09-25, batch 3).
-const PRIMARY = ['board', 'shots', 'scores', 'games']   // MOONSHOT's bar (2026-09-28)
 
 export default function LampHeader({ tab, setTab, live = 0, date = null, setDate = () => {}, scores = null, liveScores = null, onOpenPlayer, onOpenGame }) {
   const today = etToday()
   const tomorrow = shiftDay(today, 1)
-  const [moreOpen, setMoreOpen] = useState(false)
-  const go = (next) => { setMoreOpen(false); setTab(next) }
-  const inMore = (key) => !PRIMARY.includes(key) && key !== 'home'
+  const go = (next) => setTab(next)
 
-  const tabBtn = (key, label, active, onClick, extra = {}) => (
-    <button key={key} type="button" onClick={onClick} {...extra} aria-current={active ? 'page' : undefined} style={{
-      padding: '0 10px', height: 44, fontSize: 11.5, fontWeight: active ? 800 : 600, letterSpacing: '.01em',
-      cursor: 'pointer', border: 'none', borderRadius: 0, background: 'transparent',
-      color: active ? C.ice : C.text3, position: 'relative', whiteSpace: 'nowrap', flex: '1 1 0', textAlign: 'center',
-    }}>
-      {label}
-      {active && <div style={{ position: 'absolute', bottom: 0, left: 8, right: 8, height: 2, background: GRADIENT, borderRadius: '2px 2px 0 0' }} />}
-    </button>
-  )
 
   return (
     <header style={{ background: C.bg, borderBottom: `1px solid ${C.border}` }}>
@@ -105,41 +90,8 @@ export default function LampHeader({ tab, setTab, live = 0, date = null, setDate
         <LampTicker date={date} scores={scores} liveScores={liveScores} onOpenPlayer={onOpenPlayer} onOpenGame={onOpenGame} />
       </div>
 
-      {/* ── row 3: the rail ── */}
-      <nav className="rail lamp-header-rail" aria-label="LAMP sections" style={{ maxWidth: 1300, margin: '0 auto', padding: '0 16px 6px', display: 'flex', alignItems: 'stretch', width: '100%' }}>
-        {PRIMARY.map((key) => tabBtn(key, `${NHL_NAV[key].icon} ${NHL_NAV[key].label}`, tab === key, () => go(key)))}
-        {tabBtn('more', '••• More', inMore(tab), () => setMoreOpen((o) => !o), { 'aria-expanded': moreOpen })}
-      </nav>
+      {/* TOP RAIL REMOVED (2026-09-28, Donovan: "remove the top line nav site wide... keep the bottom nav"). The dock (MobileTabBar) is the one navigation on every screen; its More is the side drawer. */}
 
-      {moreOpen && (
-        <div className="lamp-header-more" style={{ borderTop: `1px solid ${C.border}`, background: C.bg2 }}>
-          <div style={{ maxWidth: 1300, margin: '0 auto', padding: '9px 16px 11px', display: 'grid', gap: 6 }}>
-            <a href="/" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 10px', border: `1px solid ${C.border}`, borderRadius: 8, background: C.glass, color: C.text2, fontSize: 10, fontWeight: 750, textDecoration: 'none' }}>
-              <span style={{ color: C.ice }}>⌂ DASH HOME</span>
-              <span style={{ color: C.text3, fontWeight: 600 }}>Tonight across MOONSHOT · TUDDY · LAMP · FRANCHISE →</span>
-            </a>
-            {NHL_MORE_GROUPS.map(([group, keys]) => (
-              <div key={group}>
-                <div style={{ fontSize: 8, fontWeight: 900, letterSpacing: '.14em', color: C.text3, textTransform: 'uppercase', margin: '8px 2px 5px' }}>{group}</div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(118px,1fr))', gap: 6 }}>
-                  {keys.map((key) => (
-                    <button key={key} type="button" onClick={() => go(key)} title={NHL_NAV[key].blurb} style={{
-                      padding: '9px 10px', border: `1px solid ${tab === key ? C.ice + '66' : C.border}`, borderRadius: 8,
-                      background: tab === key ? `${C.ice}20` : C.glass, color: tab === key ? C.ice : C.text2,
-                      fontSize: 10, fontWeight: 750, textAlign: 'left', cursor: 'pointer',
-                    }}>{NHL_NAV[key].icon} {NHL_NAV[key].label}</button>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-      <style>{`
-        @media (max-width: 760px) {
-          .lamp-header-rail, .lamp-header-more { display: none !important; }
-        }
-      `}</style>
     </header>
   )
 }

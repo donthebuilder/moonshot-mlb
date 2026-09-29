@@ -1,6 +1,5 @@
 'use client'
 import { Children, cloneElement, isValidElement, useEffect, useMemo, useRef, useState } from 'react'
-import { NFL_NAV, NFL_MORE_GROUPS } from '../../lib/routes'
 import { C, NUM_FONT, GRADIENT } from '../../lib/nfl/theme'
 import { setSport } from '../../lib/sport'
 // LAMP's ice for the third pill -- a token import, not a literal (hex budget).
@@ -137,12 +136,6 @@ function TickerStrip({ children }) {
 // (touchdowns); Scores is the plain scores page and Live moved into More;
 // Standings is new (components/nfl/tabs/Standings.js). Labels live in
 // lib/routes.js NFL_NAV.
-const PRIMARY_KEY_LIST = ['picks', 'boards', 'live', 'games']   // MOONSHOT's bar (2026-09-28)
-const PRIMARY_TABS = PRIMARY_KEY_LIST.map((k) => [k, `${NFL_NAV[k].icon} ${NFL_NAV[k].label}`])
-const PRIMARY_KEYS = new Set(PRIMARY_KEY_LIST)
-// Same exception as MOONSHOT's: This week is reached from the wordmark, so it
-// must not make ••• More read as the active section.
-const inMore = (key) => !PRIMARY_KEYS.has(key) && key !== 'home'
 
 // The NFL header. Deliberately the same silhouette as the MLB one — logo tile
 // left, status strip centre, controls right, tab rail underneath — so the
@@ -192,8 +185,7 @@ function NflSettingsSheet() {
 }
 
 export default function NflHeader({ tab, setTab, data, meta, matchup, weekMode = 'this', setWeekMode, onPlayerClick }) {
-  const [moreOpen, setMoreOpen] = useState(false)
-  const go = (next) => { setMoreOpen(false); setTab(next) }
+  const go = (next) => setTab(next)
   const games = data?.games?.length ?? 0
   const live = (data?.games || []).filter((g) => g.state === 'in').length
   const isPre = data?.mode === 'preseason'
@@ -328,20 +320,6 @@ export default function NflHeader({ tab, setTab, data, meta, matchup, weekMode =
         : `${Math.floor(ageHours / 24)}d ago`
   const freshCol = ageHours >= 24 ? C.orange : ageHours >= 8 ? C.yellow : C.text3
 
-  const tabBtn = (key, label, active, onClick, extra = {}) => (
-    <button key={key} onClick={onClick} {...extra} style={{
-      padding: '0 10px', height: 44, fontSize: 11.5, fontWeight: active ? 800 : 600, letterSpacing: '.01em',
-      cursor: 'pointer', border: 'none', borderRadius: 0, background: 'transparent',
-      color: active ? C.green : C.text3, position: 'relative', transition: 'color .12s',
-      whiteSpace: 'nowrap', flex: '1 1 0', textAlign: 'center',
-    }}>
-      {label}
-      {active && <div style={{
-        position: 'absolute', bottom: 0, left: 8, right: 8, height: 2,
-        background: GRADIENT, borderRadius: '2px 2px 0 0',
-      }} />}
-    </button>
-  )
 
   return (
     // NOT STICKY (2026-09-06) — same rule MOONSHOT's header got the same
@@ -622,59 +600,8 @@ export default function NflHeader({ tab, setTab, data, meta, matchup, weekMode =
         </div>
       )}
 
-      {/* ── row 3: the rail, equal and precise, same fix MOONSHOT's got
-          the same day. Was content-sized and horizontally scrolling, so
-          "Research" sat narrower than "Boards" and the row read as a strip
-          you had to swipe rather than a bar. tabBtn's flex is '1 1 0' now —
-          every tab, including More, splits the row evenly. */}
-      <nav className="rail nfl-header-rail" aria-label="TUDDY sections" style={{
-        maxWidth: 1300, margin: '0 auto', padding: '0 16px 6px',
-        display: 'flex', alignItems: 'stretch', width: '100%',
-      }}>
-        {PRIMARY_TABS.map(([key, label]) => tabBtn(key, label, tab === key, () => go(key)))}
-        {tabBtn('more', '••• More', inMore(tab), () => setMoreOpen((open) => !open), { 'aria-expanded': moreOpen })}
-      </nav>
+      {/* TOP RAIL REMOVED (2026-09-28, Donovan: "remove the top line nav site wide... keep the bottom nav"). The dock (MobileTabBar) is the one navigation on every screen; its More is the side drawer. */}
 
-      {moreOpen && (
-        <div style={{ borderTop:`1px solid ${C.border}`, background:hexToRgba(C.bg2, .98) }}>
-          <div className="nfl-simple-more" style={{
-            maxWidth:1300, margin:'0 auto', padding:'9px 16px 11px',
-            display:'grid', gridTemplateColumns:'repeat(4,minmax(0,1fr))', gap:6,
-          }}>
-            {/* The front door, same placement as MOONSHOT's More drawer. */}
-            <a href="/" style={{
-              gridColumn:'1/-1', display:'flex', alignItems:'center', justifyContent:'space-between',
-              padding:'9px 10px', border:`1px solid ${C.border}`, borderRadius:8,
-              background:C.glass, color:C.text2, fontSize:10, fontWeight:750, textDecoration:'none',
-            }}>
-              <span style={{ color:C.green }}>⌂ DASH HOME</span>
-              <span style={{ color:C.text3, fontWeight:600 }}>This week across MOONSHOT · TUDDY · FRANCHISE →</span>
-            </a>
-            {/* Grouped, same as MOONSHOT's (2026-09-03). TUDDY has no orphan
-                pages to rescue -- every key was already named somewhere -- so
-                this is about saying what KIND of thing each one is, which is
-                the half of the MLB fix that applies here. */}
-            {NFL_MORE_GROUPS.map(([group, keys]) => (
-              <div key={group} style={{ gridColumn:'1/-1' }}>
-                <div style={{
-                  fontSize:8, fontWeight:900, letterSpacing:'.14em', color:C.text3,
-                  textTransform:'uppercase', margin:'8px 2px 5px',
-                }}>{group}</div>
-                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(118px,1fr))', gap:6 }}>
-                  {keys.map((key) => (
-                    <button key={key} onClick={() => go(key)} title={NFL_NAV[key].blurb} style={{
-                      padding:'9px 10px', border:`1px solid ${tab === key ? C.green + '66' : C.border}`,
-                      borderRadius:8, background:tab === key ? `${C.green}20` : C.glass,
-                      color:tab === key ? C.green : C.text2, fontSize:10, fontWeight:750,
-                      textAlign:'left', cursor:'pointer',
-                    }}>{NFL_NAV[key].icon} {NFL_NAV[key].label}</button>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       <style>{`
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
@@ -695,7 +622,6 @@ export default function NflHeader({ tab, setTab, data, meta, matchup, weekMode =
           padding-right: 6px; flex: none; min-width: max-content;
         }
         @media (max-width: 760px) {
-          .nfl-header-rail { display: none !important; }
           /* Same mobile size as Header.js's .hdr-mark (40px). */
           .nfl-hdr-mark { width: 40px !important; height: 40px !important; }
           /* THE TICKER COMES BACK, EXCEPT ON HOME (2026-08-31). It went

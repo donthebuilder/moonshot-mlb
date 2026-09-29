@@ -26,7 +26,6 @@ import SignUpPill from './SignUpPill'
 // bar sitting above a white page. Fixed generically: derive the translucent
 // background from whichever C.bg is actually active, for every theme, not
 // just this one. (2026-08-18)
-import { MLB_NAV, MLB_MORE_GROUPS } from '../lib/routes'
 
 const hexToRgba = (hex, a) => {
   const h = String(hex).replace('#', '')
@@ -62,12 +61,6 @@ const hexToRgba = (hex, a) => {
 // it navigates to the product's own front page and never leaves MOONSHOT. The
 // square mark still goes to the network. Two marks, two homes, neither
 // pretending to be the other.
-const PRIMARY_KEY_LIST = ['props', 'board', 'scoreboard', 'games', 'bot']
-const PRIMARY_TABS = PRIMARY_KEY_LIST.map((k) => [k, `${MLB_NAV[k].icon} ${MLB_NAV[k].label}`])
-const PRIMARY_KEYS = new Set(PRIMARY_KEY_LIST)
-// Same exception as MobileTabBar's: Tonight is reached from the wordmark, so
-// it must not make ••• More read as the active section.
-const inMore = (key) => !PRIMARY_KEYS.has(key) && key !== 'home'
 
 
 // ── THE ONE BAR (2026-09-06) ─────────────────────────────────────────────────
@@ -274,8 +267,7 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDat
   // Anything else that wants to stick (the Games lineup jump strip) sits
   // below this bar via `top: var(--hdr-h)`. Measured, not a constant.
   const hdrRef = useRef(null)
-  const [moreOpen, setMoreOpen] = useState(false)
-  const go = (next) => { setMoreOpen(false); setTab(next) }
+  const go = (next) => setTab(next)
 
   useEffect(() => {
     const el = hdrRef.current
@@ -289,20 +281,6 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDat
     return () => { if (ro) ro.disconnect() }
   }, [])
 
-  const tabBtn = (key, label, active, onClick, extra = {}) => (
-    <button key={key} onClick={onClick} {...extra} style={{
-      padding:'0 10px', height:44, fontSize:11.5, fontWeight:active ? 800 : 600, letterSpacing:'.01em',
-      cursor:'pointer', border:'none', borderRadius:0, background:'transparent',
-      color:active ? '#f97316' : C.text3, position:'relative', transition:'color .12s',
-      whiteSpace:'nowrap', flex:'1 1 0', textAlign:'center',
-    }}>
-      {label}
-      {active && <div style={{
-        position:'absolute', bottom:0, left:8, right:8, height:2,
-        background:'linear-gradient(90deg, #f97316, #ef4444)', borderRadius:'2px 2px 0 0',
-      }} />}
-    </button>
-  )
 
   return (
     <header ref={hdrRef} className="hdr-one-bar" style={{
@@ -409,54 +387,10 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDat
             narrow strip. */}
         <Scorebug players={players} results={results} games={games} mode={mode} slateDate={slateDate} runMeta={runMeta} onPlayerClick={onPlayerClick} go={go} />
 
-        {/* ── row 3: the rail, equal and precise ─────────────────────────
-            Donovan: "the tabs section need to be equal and precise." Was
-            content-sized (flex:'1 0 auto'), so "Bot" sat narrower than
-            "Scoreboard" -- five uneven widths reading as unstyled rather
-            than as a bar. tabBtn's flex is '1 1 0' now: every tab, including
-            More, splits the row evenly, same grid idea the phone bar's five
-            equal columns already use. */}
-        <nav className="rail hdr-rail" aria-label="MOONSHOT sections" style={{
-          display:'flex', alignItems:'stretch', width:'100%',
-        }}>
-          {PRIMARY_TABS.map(([key, label]) => tabBtn(key, label, tab === key, () => go(key)))}
-          {tabBtn('more', '••• More', inMore(tab), () => setMoreOpen((open) => !open), { 'aria-expanded': moreOpen })}
-        </nav>
+        {/* TOP RAIL REMOVED (2026-09-28, Donovan: "remove the top line nav site wide... keep the bottom nav"). The dock (MobileTabBar) is the one navigation on every screen; its More is the side drawer. */}
       </div>
 
 
-      {moreOpen && (
-        <div style={{ borderTop:`1px solid ${C.border}`, background:hexToRgba(C.bg2, .98) }}>
-          <div className="simple-more-grid" style={{
-            maxWidth:1300, margin:'0 auto', padding:'9px 16px 11px',
-            display:'grid', gridTemplateColumns:'repeat(6,minmax(0,1fr))', gap:6,
-          }}>
-            <a href="/" style={{
-              gridColumn:'1/-1', display:'flex', alignItems:'center', justifyContent:'space-between',
-              padding:'9px 10px', border:`1px solid ${C.border}`, borderRadius:8,
-              background:C.glass, color:C.text2, fontSize:10, fontWeight:750, textDecoration:'none',
-            }}>
-              <span style={{ color:C.orange }}>⌂ DASH HOME</span>
-              <span style={{ color:C.text3, fontWeight:600 }}>Tonight across MOONSHOT · TUDDY · FRANCHISE →</span>
-            </a>
-            {MLB_MORE_GROUPS.map(([group, keys]) => (
-              <div key={group} style={{ gridColumn:'1/-1' }}>
-                <div style={{ fontSize:8, fontWeight:900, letterSpacing:'.14em', color:C.text3, textTransform:'uppercase', margin:'8px 2px 5px' }}>{group}</div>
-                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(118px,1fr))', gap:6 }}>
-                  {keys.map((key) => (
-                    <button key={key} onClick={() => go(key)} title={MLB_NAV[key].blurb} style={{
-                      padding:'9px 10px', border:`1px solid ${tab === key ? '#f9731666' : C.border}`,
-                      borderRadius:8, background:tab === key ? 'rgba(249,115,22,.10)' : C.glass,
-                      color:tab === key ? '#f97316' : C.text2, fontSize:10, fontWeight:750,
-                      textAlign:'left', cursor:'pointer',
-                    }}>{MLB_NAV[key].icon} {MLB_NAV[key].label}</button>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       <style>{`
         @keyframes pulse {
@@ -470,13 +404,10 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDat
         @media (max-width: 700px) {
           .simple-more-grid { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
         }
-        /* Under the bottom bar's breakpoint (760px, components/MobileTabBar.js)
-           the bar owns tab switching, so the in-bar rail goes; the scorebug
-           stays as the one line of slate context; the account pill and ⚙
-           stay; the date badge drops to keep the row on one line. Only
-           hdr-rail is hidden -- .rail is a shared scroll utility. */
+        /* Under the bottom bar's breakpoint (760px, components/MobileTabBar.js):
+           the scorebug stays as the one line of slate context; the account
+           pill and ⚙ stay; the date badge drops to keep the row on one line. */
         @media (max-width: 760px) {
-          .hdr-rail { display: none !important; }
           .hdr-bar { gap: 6px !important; padding-bottom: 6px !important; }
           .hdr-row1 { flex-wrap: wrap !important; gap: 6px !important; }
           .hdr-mark { width: 40px !important; height: 40px !important; }
