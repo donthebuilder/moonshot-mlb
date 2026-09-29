@@ -58,7 +58,9 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
   // BY GAME (the layout Donovan likes, unchanged) or ALL GAMES (one table,
   // every scored skater tonight ranked by score). One filter row + one Angle
   // row cut both views. Every test reads a field the row already carries.
-  const [view, setView] = useState('game')
+  // Opens on ALL GAMES (2026-09-29, Donovan: "boards nhl need to open to all
+  // games"); By game is one tap away.
+  const [view, setView] = useState('all')
   const [q, setQ] = useState('')
   const [team, setTeam] = useHashFilter('fteam')
   const [pos, setPos] = useState('all')
