@@ -1,4 +1,5 @@
 'use client'
+import { ChipGroup } from './matchup/SprayParts'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { C, NUM_FONT } from '../lib/theme'
@@ -1282,44 +1283,27 @@ export default function SprayField({
           sample than the field is drawing. */}
       {!liveOnly && (
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 7, alignItems: 'center' }}>
-        <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em' }}>Arm</span>
-        {[['ALL', 'All'], ['L', 'vs LHP'], ['R', 'vs RHP']].map(([k, label]) => {
-          const n = k === 'ALL' ? inRange.length : inRange.filter((h) => h.arm === k).length
-          return (
-            <button key={k} onClick={() => setArmPick(k)} disabled={n === 0 && k !== 'ALL'}
-              title={k === 'ALL' ? 'Every batted ball in the window' : `Only balls he hit off a ${k === 'L' ? 'left' : 'right'}-handed pitcher. Balls with no pitcher hand recorded are kept rather than hidden.`}
-              style={{ ...chipBtn(armPick === k, C.orange), opacity: (n || k === 'ALL') ? 1 : 0.35 }}>
-              {label}{k !== 'ALL' && <span style={{ opacity: 0.65 }}> {n}</span>}
-            </button>
-          )
-        })}
-        <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em', marginLeft: 6 }}>Side</span>
-        {[['ALL', 'All'], ['pull', 'Pull'], ['center', 'Centre'], ['oppo', 'Oppo']].map(([k, label]) => {
-          const n = k === 'ALL' ? inRange.length : inRange.filter((h) => h.side === k).length
-          return (
-            <button key={k} onClick={() => setSidePick(k)} disabled={n === 0 && k !== 'ALL'}
-              title={k === 'ALL' ? 'Every direction' : `Only balls he hit to the ${k === 'oppo' ? 'opposite field' : k} side. Direction only — where it went, not how hard.`}
-              style={{ ...chipBtn(sidePick === k, '#fb9d3a'), opacity: (n || k === 'ALL') ? 1 : 0.35 }}>
-              {label}{k !== 'ALL' && <span style={{ opacity: 0.65 }}> {n}</span>}
-            </button>
-          )
-        })}
-        <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em', marginLeft: 6 }}>Distance</span>
-        {[['ALL', 'All'], ['375', '375+ ft'], ['400', '400+ ft'], ['pullair', 'Pull-air']].map(([k, label]) => {
-          const n = k === 'ALL' ? inRange.length
-            : k === '375' ? inRange.filter((h) => h.far375).length
-              : k === '400' ? inRange.filter((h) => h.far400).length
-                : inRange.filter((h) => h.pullAir).length
-          return (
-            <button key={k} onClick={() => setDeepPick(k)} disabled={n === 0 && k !== 'ALL'}
-              title={k === 'ALL' ? 'Every batted ball in the window'
-                : k === 'pullair' ? 'Pulled AND in the air — the batted-ball shape that actually leaves buildings. The bot\u2019s own flag.'
-                  : `Balls that travelled ${k}+ feet — the same tiers the pitcher panel reports as distance given up.`}
-              style={{ ...chipBtn(deepPick === k, '#c084fc'), opacity: (n || k === 'ALL') ? 1 : 0.35 }}>
-              {label}{k !== 'ALL' && <span style={{ opacity: 0.65 }}> {n}</span>}
-            </button>
-          )
-        })}
+        <ChipGroup first label="Arm" value={armPick} onChange={setArmPick} color={C.orange}
+          options={[['ALL', 'All'], ['L', 'vs LHP'], ['R', 'vs RHP']].map(([k, label]) => ({
+            k, label, n: k === 'ALL' ? inRange.length : inRange.filter((h) => h.arm === k).length,
+            title: k === 'ALL' ? 'Every batted ball in the window' : `Only balls he hit off a ${k === 'L' ? 'left' : 'right'}-handed pitcher. Balls with no pitcher hand recorded are kept rather than hidden.`,
+          }))} />
+        <ChipGroup label="Side" value={sidePick} onChange={setSidePick} color="#fb9d3a"
+          options={[['ALL', 'All'], ['pull', 'Pull'], ['center', 'Centre'], ['oppo', 'Oppo']].map(([k, label]) => ({
+            k, label, n: k === 'ALL' ? inRange.length : inRange.filter((h) => h.side === k).length,
+            title: k === 'ALL' ? 'Every direction' : `Only balls he hit to the ${k === 'oppo' ? 'opposite field' : k} side. Direction only — where it went, not how hard.`,
+          }))} />
+        <ChipGroup label="Distance" value={deepPick} onChange={setDeepPick} color="#c084fc"
+          options={[['ALL', 'All'], ['375', '375+ ft'], ['400', '400+ ft'], ['pullair', 'Pull-air']].map(([k, label]) => ({
+            k, label,
+            n: k === 'ALL' ? inRange.length
+              : k === '375' ? inRange.filter((h) => h.far375).length
+                : k === '400' ? inRange.filter((h) => h.far400).length
+                  : inRange.filter((h) => h.pullAir).length,
+            title: k === 'ALL' ? 'Every batted ball in the window'
+              : k === 'pullair' ? 'Pulled AND in the air — the batted-ball shape that actually leaves buildings. The bot\u2019s own flag.'
+                : `Balls that travelled ${k}+ feet — the same tiers the pitcher panel reports as distance given up.`,
+          }))} />
       </div>
       )}
 
