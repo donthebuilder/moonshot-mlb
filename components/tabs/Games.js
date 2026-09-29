@@ -1915,7 +1915,7 @@ const PANEL_SUB = {
   // spot read is the pill. A caption promising the old order would send people
   // hunting for a click that no longer exists.
   lineups: 'both batting orders 1 through 9 as the full stat table — every column sortable, with the spot read (what this arm has done to each slot, in words) one pill over.',
-  h2h: 'what these hitters have done against tonight’s starter across their careers, both sides.',
+  h2h: 'what these hitters have done against tonight’s starter this season, both sides.',
   picks: 'the bot’s designated slots for this game as full cards — score bars, pills, add to slip.',
 }
 // ── THE LIVE STAMP (2026-09-01) ───────────────────────────────────────────────

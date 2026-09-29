@@ -145,7 +145,7 @@ function MatchupLine({ row }) {
         </span>
       )}
       {ab > 0 ? (
-        <span title={`Career against this pitcher: ${hits} for ${ab}${hr ? `, ${hr} HR` : ''}. Small samples are the norm here — the raw fraction is shown instead of an average for exactly that reason.`}>
+        <span title={`This season against this pitcher: ${hits} for ${ab}${hr ? `, ${hr} HR` : ''}. Small samples are the norm here — the raw fraction is shown instead of an average for exactly that reason.`}>
           {' · '}<b style={{ color: C.text2 }}>{hits}/{ab}</b> off him{hr ? `, ${hr} HR` : ''}
         </span>
       ) : arm ? (

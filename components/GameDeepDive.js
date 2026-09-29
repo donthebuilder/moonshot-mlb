@@ -65,7 +65,7 @@ import TeamVsStarter from './TeamVsStarter'
 //   'all'  every block, in the original order — the DEFAULT, so any other
 //          mount of this component (and every old deep link) is unchanged
 //   'read' the live cockpit, the air, both arms as a read, the storylines
-//   'h2h'  the career-vs-this-starter tables for both sides
+//   'h2h'  the this-season-vs-this-starter tables for both sides
 //
 // Splitting rather than deleting is deliberate: the sections still exist, they
 // are just no longer stacked on top of each other by force.
