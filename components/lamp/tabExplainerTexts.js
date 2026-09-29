@@ -3,7 +3,7 @@
 export const NHL_TEXTS = {
   // 2026-09-26 (stranger test F12): the product first, then the page.
   home: { what: 'LAMP predicts which NHL skaters score tonight: three called per game, locked before puck drop, graded after the final, in public. This page is tonight in one screen: the games, each game’s three calls, and the division leaders. Tap a game for its whole board.' },
-  scores: { what: 'Every game on one day — score, period and clock, shots, and who scored. Tap the goals count to see the scorers; tap the row for the whole game.' },
+  scores: { what: 'Every game on one day — score, period and clock, shots, and who scored. Tap a game for its goals and shots; Open game for the whole game.' },
   schedule: { what: 'The league week, day by day, puck-drop times in your zone. Games already played show their score. Page a week at a time.' },
   standings: { what: 'Division, wild card, conference and league, in the league’s own order. Before opening night this is last season’s final table, and it says so.' },
   game: { what: 'One game top to bottom: goals and shots by period, every goal with its assists and strength, penalties, the team comparison, three stars.' },
@@ -16,5 +16,6 @@ export const NHL_TEXTS = {
   teams: { what: 'The 32 clubs by division with their records. Tap a club for its roster, schedule and season lines.' },
   team: { what: 'One club: record and place, next up and last five, the roster with each man\u2019s season line, team leaders, the whole schedule.' },
   leaders: { what: 'Who leads the league, top three per category, regular season, straight from the league. Measured, not modelled.' },
+  power: { what: 'Shooters, three ways: who puts the most pucks on net, who is shooting above his season, who turns shots into goals. One lead, one board; every number is the league\u2019s own.' },
   guide: { what: 'What LAMP is, where its numbers come from, and what it does not do yet.' },
 }
