@@ -6,6 +6,7 @@ import { alertPrefs, alertWanted, setAlertMaster, ALERTS_EVENT } from '../lib/da
 import { nameOf, playerId as pidOf } from '../lib/player'
 import { fetchLiveSlate, pickCleared, fetchHrContext, lineupStatus } from '../lib/liveSlate'
 import LiveWire from './LiveWire'
+import WireToasts from './WireToasts'
 
 // 📡 MINI WIRE + TOASTS — the live layer that follows you (2026-08-06).
 //
@@ -41,6 +42,14 @@ const primaryRole = (p) => String(p?.game_pick_role || '').split('/')[0].trim().
 // strip, on whatever tab you are standing on. `onGo` survives as a secondary
 // link for when Rundown is genuinely where you want to be — nothing was
 // removed, the default just stopped being the destructive one.
+// MOONSHOT's toast colours, as they were inline here (components/WireToasts.js
+// draws the stack; TUDDY's wire passes its own).
+const WIRE_LOOK = {
+  hiBg: `linear-gradient(135deg, ${C.green}29, ${C.scrim})`, bg: C.scrim,
+  hiBorder: 'rgba(74,222,128,.5)', warnBorder: 'rgba(248,113,113,.4)', border: C.border2,
+  shadow: C.shadow, text: C.text, text2: C.text2,
+}
+
 export default function MiniWire({
   players = [], watchIds, tab, mode = 'today', onGo, onPlayerClick,
   // Passed through to the in-place panel so it renders the same wire the
@@ -470,55 +479,14 @@ export default function MiniWire({
           the stack sits in a corner of a monitor, which is what it was
           designed for. When it does show on a phone it now clears the tab bar
           rather than covering it. */}
-      {toasts.length > 0 && (!narrow || wireOpen) && (
-        <div
-          role="log"
-          aria-live="polite"
-          aria-label="Live wire"
-          style={{
-          // TOP-right (2026-08-06, on request) — where the eye actually goes
-          // for news. Offset clears the sticky header.
-          position: 'fixed', right: narrow ? 8 : 14, top: narrow ? 122 : 74, zIndex: 300,
-          display: 'flex', flexDirection: 'column', gap: 7,
-          maxWidth: narrow ? 'calc(100vw - 16px)' : 'min(340px, 90vw)',
-        }}>
-          {toasts.map((t) => (
-            <div key={t.key}
-              onClick={() => { onPlayerClick?.(t.p); setToasts((cur) => cur.filter((x) => x.key !== t.key)) }}
-              style={{
-                display: 'flex', gap: 8, alignItems: 'flex-start', cursor: 'pointer',
-                background: t.pri === 0 ? `linear-gradient(135deg, ${C.green}29, ${C.scrim})` : C.scrim,
-                border: `1px solid ${t.pri === 0 ? 'rgba(74,222,128,.5)' : t.pri === 2 ? 'rgba(248,113,113,.4)' : C.border2}`,
-                borderRadius: 10, padding: '8px 12px',
-                boxShadow: `0 8px 28px ${C.shadow}`,
-                animation: 'wireToastIn .18s ease-out',
-              }}>
-              <span style={{ fontSize: 14, flexShrink: 0, lineHeight: 1.4 }}>{t.icon}</span>
-              <span style={{ fontSize: 11.5, fontWeight: 700, color: C.text, lineHeight: 1.4, flex: 1, minWidth: 0 }}>{t.text}</span>
-              {/* ── AN X (2026-09-03) ────────────────────────────────────
-                  "they need a little X button and can disappear faster."
-                  The card body still opens the player, which is the reason
-                  most of these get clicked -- so the dismiss has to be its
-                  own target and has to stopPropagation, or closing a toast
-                  would open a modal on the way out. 28px is the smallest
-                  square a thumb hits reliably; it is a bigger hit area than
-                  it looks, deliberately, because a control you miss twice is
-                  worse than no control. */}
-              <button
-                type="button"
-                aria-label="Dismiss"
-                onClick={(e) => { e.stopPropagation(); setToasts((cur) => cur.filter((x) => x.key !== t.key)) }}
-                style={{
-                  flexShrink: 0, width: 28, height: 28, marginTop: -4, marginRight: -6,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: 'transparent', border: 0, borderRadius: 8,
-                  color: C.text2, fontSize: 15, lineHeight: 1, cursor: 'pointer', padding: 0,
-                }}
-              >×</button>
-            </div>
-          ))}
-          <style>{'@keyframes wireToastIn { from { transform: translateY(-8px); opacity: 0 } to { transform: none; opacity: 1 } }'}</style>
-        </div>
+      {(!narrow || wireOpen) && (
+        <WireToasts
+          toasts={toasts}
+          narrow={narrow}
+          look={WIRE_LOOK}
+          onOpen={(t) => { onPlayerClick?.(t.p); setToasts((cur) => cur.filter((x) => x.key !== t.key)) }}
+          onDismiss={(t) => setToasts((cur) => cur.filter((x) => x.key !== t.key))}
+        />
       )}
 
       {/* Scoreboard gets the bell alone — the full wire panel is right there,

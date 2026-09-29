@@ -33,7 +33,9 @@
 
 import { useEffect, useRef, useState } from 'react'
 
-import { C, NUM_FONT } from '../../lib/nfl/theme'
+import { C } from '../../lib/nfl/theme'
+import { C as MLB_C } from '../../lib/theme'
+import WireToasts from '../WireToasts'
 import { fetchNflLive, gameFor, lineFor, marketValue, tdsIn } from '../../lib/nfl/liveSlate'
 import { worthPolling as slateWorthPolling } from '../../lib/nfl/liveMerge'
 import { useNflWatchlist } from '../../lib/nfl/watchlist'
@@ -43,10 +45,35 @@ import { notify } from '../../lib/notify'
 
 const POLL_MS = 45000
 
+// ON SCREEN, MOONSHOT'S NOTICES (2026-09-28). This used to draw its own stack
+// in the bottom corner, at z 300 under the bottom dock (z 390): on desktop the
+// dock covered it completely, and on a notched phone it ran 14px under the
+// bar. It now draws through MOONSHOT's stack (components/WireToasts.js):
+// top-right under the header, clear of the dock, with the X, MOONSHOT's
+// budget (one on a phone, three on a desktop) and MOONSHOT's dwell. The
+// surface and shadow are MOONSHOT's; the highlight is TUDDY's green.
+const WIRE_LOOK = {
+  hiBg: `linear-gradient(135deg, ${C.green}29, ${MLB_C.scrim})`, bg: MLB_C.scrim,
+  hiBorder: `${C.green}80`, warnBorder: `${C.red}66`, border: C.border2,
+  shadow: MLB_C.shadow, text: C.text, text2: C.text2,
+}
+
 export default function NflWire({ data, onPlayerClick }) {
   const { pins } = useNflWatchlist(data)
   const { rows: followed } = useFollowing('nfl')
   const [toasts, setToasts] = useState([])
+  // MiniWire's phone test, so both wires agree on what a phone is.
+  const narrowRef = useRef(false)
+  const [narrow, setNarrow] = useState(false)
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return undefined
+    const mq = window.matchMedia('(max-width: 700px), (pointer: coarse)')
+    const apply = () => { narrowRef.current = mq.matches; setNarrow(mq.matches) }
+    apply()
+    if (mq.addEventListener) { mq.addEventListener('change', apply); return () => mq.removeEventListener('change', apply) }
+    mq.addListener(apply)
+    return () => mq.removeListener(apply)
+  }, [])
   const prevRef = useRef(null)
   const firedRef = useRef(new Set())
 
@@ -73,7 +100,8 @@ export default function NflWire({ data, onPlayerClick }) {
 
     const push = (items) => {
       if (!items.length) return
-      setToasts((cur) => [...items, ...cur].slice(0, 3))
+      const phone = narrowRef.current
+      setToasts((cur) => [...items, ...cur].slice(0, phone ? 1 : 3))
       const prefs = alertPrefs()
       if (prefs.on && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
         const hidden = typeof document !== 'undefined' && document.hidden
@@ -83,7 +111,7 @@ export default function NflWire({ data, onPlayerClick }) {
       }
       items.forEach((t) => setTimeout(() => {
         setToasts((cur) => cur.filter((x) => x.key !== t.key))
-      }, t.kind === 'nfltd' ? 15000 : 9000))
+      }, t.pri === 0 ? (phone ? 5000 : 8000) : (phone ? 3500 : 5000)))
     }
 
     const tick = async () => {
@@ -103,7 +131,7 @@ export default function NflWire({ data, onPlayerClick }) {
             const key = `${game.game_id}:kick`
             if (!firedRef.current.has(key)) {
               firedRef.current.add(key)
-              out.push({ key, kind: 'nflkick', icon: '🏈', player,
+              out.push({ key, kind: 'nflkick', pri: 1, icon: '🏈', player,
                 text: `${game.away} @ ${game.home} is under way — ${player.name} is on your list` })
             }
           }
@@ -121,7 +149,7 @@ export default function NflWire({ data, onPlayerClick }) {
           const key = `${line.game_id || 'g'}:${id}:td:${tds}`
           if (!firedRef.current.has(key)) {
             firedRef.current.add(key)
-            out.push({ key, kind: 'nfltd', icon: '🏈', player,
+            out.push({ key, kind: 'nfltd', pri: 0, icon: '🏈', player,
               text: `${player.name} SCORES${tds > 1 ? ` — that's ${tds}` : ''}` })
           }
         }
@@ -138,14 +166,15 @@ export default function NflWire({ data, onPlayerClick }) {
             const key = `${line.game_id || 'g'}:${id}:${market}:${bar}`
             if (firedRef.current.has(key)) continue
             firedRef.current.add(key)
-            out.push({ key, kind: 'nflbar', icon: '✓', player,
+            out.push({ key, kind: 'nflbar', pri: 1, icon: '✓', player,
               text: `${player.name} clears ${market.replace('_', ' ').toLowerCase()} — ${now} (bar ${bar})` })
           }
         }
       }
 
       prevRef.current = snap
-      push(out)
+      // Loudest first: on a phone only the first one shows (a TD beats a bar).
+      push(out.sort((a, b) => a.pri - b.pri))
     }
 
 
@@ -168,22 +197,14 @@ export default function NflWire({ data, onPlayerClick }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wantedKey, data])
 
-  if (!toasts.length) return null
-
+  const drop = (t) => setToasts((cur) => cur.filter((x) => x.key !== t.key))
   return (
-    <div className="tuddy-wire" aria-live="polite">
-      {toasts.map((t) => (
-        <button key={t.key} type="button" onClick={() => t.player && onPlayerClick?.(t.player, 'TD')}>
-          <i>{t.icon}</i><span>{t.text}</span>
-        </button>
-      ))}
-      <style jsx>{`
-        .tuddy-wire{position:fixed;z-index:300;right:12px;bottom:max(12px,env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:6px;max-width:min(360px,calc(100vw - 24px))}
-        .tuddy-wire button{display:flex;align-items:center;gap:9px;padding:10px 12px;border:1px solid ${C.border2};border-radius:12px;background:${C.bg2};color:${C.text};box-shadow:0 16px 44px rgba(0,0,0,.55);text-align:left;cursor:pointer}
-        .tuddy-wire i{font-size:16px;font-style:normal}
-        .tuddy-wire span{font-family:${NUM_FONT};font-size:11px;font-weight:700;line-height:1.35}
-        @media(max-width:760px){.tuddy-wire{left:12px;right:12px;bottom:82px;max-width:none}}
-      `}</style>
-    </div>
+    <WireToasts
+      toasts={toasts}
+      narrow={narrow}
+      look={WIRE_LOOK}
+      onOpen={(t) => { if (t.player) onPlayerClick?.(t.player, 'TD'); drop(t) }}
+      onDismiss={drop}
+    />
   )
 }

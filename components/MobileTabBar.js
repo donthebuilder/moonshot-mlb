@@ -98,6 +98,33 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
     try { localStorage.setItem(SEEN_KEY, '1') } catch { /* a full store is not a reason to nag */ }
   }
   useEffect(() => setOpen(false), [tab])
+
+  // ── OUT OF THE WAY WHILE YOU READ (2026-09-28, Donovan) ──────────────────
+  // Hide on scroll down, back on scroll up, every sport, phone and desktop.
+  // Back as well near the top and at the very bottom of a page, and never
+  // tucked while the More sheet is open or a key has focus in the bar (CSS
+  // :focus-within). 12px of travel before it moves, so a thumb resting on
+  // the glass doesn't flicker it. A jump bigger than a screen in one frame is
+  // the page moving itself (a modal's scroll lock giving the page back, a
+  // tab change) rather than someone reading, so it doesn't count either way.
+  const [tucked, setTucked] = useState(false)
+  useEffect(() => {
+    let last = window.scrollY || 0
+    let queued = false
+    const read = () => {
+      queued = false
+      const y = Math.max(0, window.scrollY || 0)
+      const dy = y - last
+      const bottom = window.innerHeight + y >= document.documentElement.scrollHeight - 4
+      if (y < 80 || bottom) { setTucked(false); last = y; return }
+      if (Math.abs(dy) < 12) return
+      if (Math.abs(dy) < window.innerHeight) setTucked(dy > 0)
+      last = y
+    }
+    const onScroll = () => { if (!queued) { queued = true; requestAnimationFrame(read) } }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
   const go = (key) => { setOpen(false); setTab(key); window.scrollTo({ top: 0, behavior: 'smooth' }) }
   const mainKeys = new Set(main.map(([key]) => key))
   // 'home' is in neither the bar nor `mainKeys` any more -- the MOONSHOT
@@ -154,7 +181,7 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
         </div>
       </aside>
 
-      <nav className="mobileTabBar" aria-label={`${brand} primary navigation`} style={{ '--tab-count': main.length + 1 }}>
+      <nav className={`mobileTabBar${tucked && !open ? ' tucked' : ''}`} aria-label={`${brand} primary navigation`} style={{ '--tab-count': main.length + 1 }}>
         {main.map(([key, icon, label]) => (
           <button key={key} tabIndex={open ? undefined : -1} className={tab === key ? 'active' : ''} onClick={() => go(key)} aria-current={tab === key ? 'page' : undefined}>
             <i>{icon}</i><span>{label}</span>
@@ -173,6 +200,8 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
 
       <style jsx>{`
         .mobileTabBar,.mobileMore,.mobileTabScrim{display:none}
+        .mobileTabBar{transition:transform .22s ease}
+        @media(prefers-reduced-motion:reduce){.mobileTabBar{transition:none}}
         /* ── THE BAR, ON DESKTOP TOO (2026-08-29) ──────────────────────────
            Donovan picked it from three mocked options: "the nav going
            horizontal across the bottom screen like on the phone — just make
@@ -185,6 +214,7 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
         @media(min-width:761px){
           :global(.dashboard-main){padding-bottom:66px!important}
           .mobileTabBar{position:fixed;z-index:390;left:50%;transform:translateX(-50%);bottom:10px;display:flex;gap:2px;height:46px;padding:5px 8px;border:1px solid ${C.border2};border-radius:14px;background:color-mix(in srgb,${C.bg2} 90%,transparent);box-shadow:0 14px 45px #000b,inset 0 1px 0 #ffffff0a;backdrop-filter:blur(18px) saturate(140%)}
+          .mobileTabBar.tucked:not(:focus-within){transform:translate(-50%,calc(100% + 24px))}
           .mobileTabBar button{position:relative;display:flex;flex-direction:row;align-items:center;gap:7px;padding:0 14px;border:0;border-radius:9px;background:transparent;color:${C.text3};font-family:${NUM_FONT};font-size:10px;font-weight:800;letter-spacing:.03em;cursor:pointer}
           .mobileTabBar button i{color:${C.text2};font-family:system-ui;font-size:15px;font-style:normal;line-height:1}
           .mobileTabBar button:hover{color:${C.text2}}
@@ -216,6 +246,7 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
         @media(max-width:760px){
           :global(.dashboard-main){padding-bottom:102px!important}
           .mobileTabBar{position:fixed;z-index:390;left:10px;right:10px;bottom:max(9px,env(safe-area-inset-bottom));display:grid;grid-template-columns:repeat(var(--tab-count,5),1fr);height:62px;padding:5px;border:1px solid ${C.border2};border-radius:17px;background:color-mix(in srgb,${C.bg2} 92%,transparent);box-shadow:0 18px 55px #000b,inset 0 1px 0 #ffffff0a;backdrop-filter:blur(18px) saturate(140%)}
+          .mobileTabBar.tucked:not(:focus-within){transform:translateY(calc(100% + 24px + env(safe-area-inset-bottom)))}
           .mobileTabBar button{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-width:0;border:0;border-radius:12px;background:transparent;color:${C.text3};font-family:${NUM_FONT};font-size:8px;font-weight:900;letter-spacing:.02em}
           .mobileTabBar button i{height:20px;color:${C.text2};font-family:system-ui;font-size:16px;font-style:normal;line-height:20px}
           .mobileTabBar button.active{background:linear-gradient(145deg,#f9731628,#fcd34d0b);color:#fbbf24}
