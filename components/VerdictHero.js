@@ -1,15 +1,20 @@
 'use client'
 import { createContext, useContext, useEffect, useState } from 'react'
-import { C as MLB_C, NUM_FONT as MLB_NUM } from '../lib/theme'
 import { alpha, score as fmtScore } from '../lib/scales'
 import { useIsPhone } from './MobileFold'
+import { useSportTheme } from './SportTheme'
 
 // THEME (2026-09-29, parity): LAMP already renders this hero and TUDDY's card
 // is moving onto it, so the surfaces follow the sport's theme. VerdictHero
 // takes theme / numFont props and hands them to its parts through context;
 // the default is MOONSHOT's, so MOONSHOT's output is unchanged.
 const ThemeCtx = createContext(null)
-const useT = () => useContext(ThemeCtx) || { C: MLB_C, NUM_FONT: MLB_NUM }
+// Inside a themed CardShell (or any SportTheme) the hero follows it too.
+const useT = () => {
+  const own = useContext(ThemeCtx)
+  const sport = useSportTheme()
+  return own || sport
+}
 
 // ══ THE DIAL AND THE HERO ═══════════════════════════════════════════════════
 //
@@ -204,8 +209,9 @@ export default function VerdictHero({
   title, badge, badgeQuiet, meta, metaRight, market, line, line2, facts, right,
   chips, footer, style, lead = 'dial', photo = null, theme = null, numFont = null,
 }) {
-  const C = theme || MLB_C
-  const NUM_FONT = numFont || MLB_NUM
+  const sport = useSportTheme()
+  const C = theme || sport.C
+  const NUM_FONT = numFont || sport.NUM_FONT
   const faceLeads = lead === 'face'
   const phone = useIsPhone()
   const badgeLeads = lead === 'badge' || faceLeads

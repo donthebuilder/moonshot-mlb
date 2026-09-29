@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { C, NUM_FONT } from '../lib/theme'
+import { useSportTheme } from './SportTheme'
 
 // PLAYER NOTES — "why I liked him", remembered.
 //
@@ -18,7 +18,10 @@ const load = () => {
 // scope: a key prefix for sports whose ids could collide with MLB's numeric
 // ones (LAMP's NHL ids). MOONSHOT and TUDDY keep their bare keys so notes
 // already saved still load (TUDDY's gsis ids can't collide).
-export default function PlayerNotes({ playerId: rawId, accent = null, scope = null }) {
+export default function PlayerNotes({ playerId: rawId, accent: given = null, scope = null }) {
+  // Inside a TUDDY / LAMP card the sport's theme and accent arrive by context.
+  const { C, NUM_FONT, accent: sportAccent, themed } = useSportTheme()
+  const accent = given || (themed ? sportAccent : null)
   const playerId = rawId && scope ? `${scope}:${rawId}` : rawId
   const [text, setText] = useState('')
   const [savedAt, setSavedAt] = useState(null)

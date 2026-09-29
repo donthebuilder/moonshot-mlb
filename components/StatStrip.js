@@ -1,5 +1,5 @@
 'use client'
-import { C, NUM_FONT } from '../lib/theme'
+import { useSportTheme } from './SportTheme'
 import { statLineFor, hrRateBoxes, useSlateScale, toneFor, toneTitle, TONE_COLOR, marketKey } from '../lib/statline'
 
 // 📊 The stat row that now leads every card. See lib/statline.js for why.
@@ -16,9 +16,14 @@ import { statLineFor, hrRateBoxes, useSlateScale, toneFor, toneTitle, TONE_COLOR
 //   3. NOTHING RENDERS EMPTY. A stat with no published value is dropped, not
 //      dashed. Four dashes in a row is worse than three stats.
 
-export default function StatStrip({ p, type = 'hr', count = 4, size = 'md', style }) {
+// OTHER SPORTS (2026-09-29, player cards step 5): pass `stats` -- a list of
+// { id, label, text, color, title } -- and the strip draws them in MOONSHOT's
+// look with the colour given (TUDDY: each market's grade). Without it, the
+// MOONSHOT path below is unchanged.
+export default function StatStrip({ p, type = 'hr', count = 4, size = 'md', style, stats: given }) {
+  const { C, NUM_FONT } = useSportTheme()
   const scale = useSlateScale()
-  const stats = statLineFor(p, type, count)
+  const stats = given || statLineFor(p, type, count)
   if (!stats.length) return null
 
   const sm = size === 'sm'
@@ -33,12 +38,12 @@ export default function StatStrip({ p, type = 'hr', count = 4, size = 'md', styl
       }}
     >
       {stats.map((s) => {
-        const tone = toneFor(scale, s)
-        const col = tone ? TONE_COLOR[tone] : C.text2
+        const tone = s.color ? 'set' : toneFor(scale, s)
+        const col = s.color || (tone ? TONE_COLOR[tone] : C.text2)
         return (
           <div
             key={s.id}
-            title={toneTitle(tone, scale, s)}
+            title={s.color ? s.title : toneTitle(tone, scale, s)}
             style={{
               minWidth: 0, textAlign: 'center', cursor: 'default',
               background: tone === 'mid' || !tone ? 'rgba(255,255,255,.03)' : `${col}12`,
@@ -104,6 +109,7 @@ const COUNTS = {
 }
 
 export function SlashLine({ p, type = 'hr', style }) {
+  const { C, NUM_FONT, accent } = useSportTheme()
   const val = (k) => {
     const v = Number(p?.[k])
     return Number.isFinite(v) ? v : null
@@ -142,7 +148,7 @@ export function SlashLine({ p, type = 'hr', style }) {
       <div style={{ display: 'flex', gap: 9, alignItems: 'baseline' }}>
         {counts.map(([lab, v, tip], i) => (
           <span key={lab} title={tip} style={{ fontFamily: NUM_FONT, fontSize: 10.5, color: C.text2, cursor: 'default', whiteSpace: 'nowrap' }}>
-            <b style={{ color: i === 0 ? C.orange : C.text, fontWeight: 800 }}>{v}</b>
+            <b style={{ color: i === 0 ? accent : C.text, fontWeight: 800 }}>{v}</b>
             <span style={{ color: C.text3, fontSize: 8.5 }}> {lab}</span>
           </span>
         ))}
@@ -164,8 +170,16 @@ export function SlashLine({ p, type = 'hr', style }) {
  * GAME, season is per PLATE APPEARANCE, and each box prints its own
  * denominator underneath so the two units are never silently compared.
  */
-export function HitRateBoxes({ p, style }) {
-  const boxes = hrRateBoxes(p)
+// Other sports (2026-09-29): pass `boxes` (same shape: id, label, num, den,
+// unit 'G' or anything else) and `stat` ('TD', 'G' ...) with `statWord`
+// ('touchdown', 'goal') -- the look, the colour-on-the-count rule and the
+// printed denominator stay MOONSHOT's. Defaults are MOONSHOT's HR boxes.
+// text / sub / tip (functions of a box) replace the number line, the line under
+// it and the tooltip, for a rate that isn't a count of one event (TUDDY: games
+// that reached the card's bar, "3/4" over "G at 40+").
+export function HitRateBoxes({ p, style, boxes: given, stat = 'HR', statWord = 'home run', unitWord, text, sub, tip }) {
+  const { C, NUM_FONT, accent } = useSportTheme()
+  const boxes = given || hrRateBoxes(p)
   if (!boxes.length) return null
   return (
     <div className="stat-strip" style={{
@@ -176,14 +190,14 @@ export function HitRateBoxes({ p, style }) {
         // Colour is on the COUNT, not the rate: "he has gone deep recently" is
         // the fact. No thresholds pretending to be a probability.
         const hot = b.num > 0
-        const col = hot ? C.orange : C.text3
+        const col = hot ? accent : C.text3
         return (
           <div key={b.id}
-            title={`${b.num} home run${b.num === 1 ? '' : 's'} in his last ${b.den} ${b.unit === 'G' ? 'games' : 'plate appearances'}.`}
+            title={tip ? tip(b) : `${b.num} ${statWord}${b.num === 1 ? '' : 's'} in his last ${b.den} ${b.unit === 'G' ? 'games' : (unitWord || 'plate appearances')}.`}
             style={{
               minWidth: 0, textAlign: 'center', cursor: 'default',
-              background: hot ? `${C.orange}12` : 'rgba(255,255,255,.03)',
-              border: `1px solid ${hot ? `${C.orange}44` : C.border}`,
+              background: hot ? `${accent}12` : 'rgba(255,255,255,.03)',
+              border: `1px solid ${hot ? `${accent}44` : C.border}`,
               borderRadius: 7, padding: '4px 3px 5px',
             }}>
             <div style={{
@@ -191,10 +205,10 @@ export function HitRateBoxes({ p, style }) {
               color: C.text3, fontFamily: NUM_FONT, lineHeight: 1.3,
             }}>{b.label}</div>
             <div style={{ fontSize: 12.5, fontWeight: 800, color: col, fontFamily: NUM_FONT, lineHeight: 1.2 }}>
-              {b.num} HR
+              {text ? text(b) : `${b.num} ${stat}`}
             </div>
             <div style={{ fontSize: 8, color: C.text3, fontFamily: NUM_FONT, lineHeight: 1.3 }}>
-              in {b.den} {b.unit}
+              {sub ? sub(b) : `in ${b.den} ${b.unit}`}
             </div>
           </div>
         )
