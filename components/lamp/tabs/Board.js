@@ -304,7 +304,15 @@ export function lampAngles(flat, market) {
   const soft = market === 'SOG' ? (r) => r.legs?.oppSaPg : (r) => r.context?.oppGaPg
   const softCut = cut(flat.map(({ r }) => soft(r)), 2 / 3)
   const toiCut = cut(flat.map(({ r }) => r.legs?.toi), 0.75)
+  // WEAK SPOT (2026-09-28, parity 00Q step 2): his opponent's penalty kill is
+  // in tonight's weakest third and he has power-play goals -- the Slate's
+  // weak-spot cards (components/lamp/LampWeakSpots.js), same rule.
+  const pkOf = ({ r, g }) => Number(spotOf(g, r.team, false)?.pkPct)
+  const seen = new Map()
+  for (const x of flat) seen.set(`${x.g.game.id}|${x.r.team}`, pkOf(x))
+  const pkCut = cut([...seen.values()], 1 / 3)
   return [
+    { key: 'weak', label: '★ Weak spot', title: 'Power-play goals this season, against a penalty kill in tonight\u2019s weakest third.', test: (x) => Number(x.r.ppg) > 0 && Number.isFinite(pkOf(x)) && pkOf(x) <= pkCut },
     { key: 'pp', label: 'Power play', title: 'Power-play goals this season (the reports\u2019 season).', test: ({ r }) => Number(r.ppg) > 0 },
     { key: 'soft', label: 'Soft opponent', title: market === 'SOG' ? 'His opponent allows shots per 60 in tonight\u2019s top third.' : 'His opponent allows goals per game in tonight\u2019s top third.', test: ({ r }) => Number.isFinite(soft(r)) && soft(r) >= softCut },
     { key: 'rested', label: 'Rested edge', title: 'Tonight\u2019s opponent is on the second night of a back-to-back.', test: ({ r, g }) => Boolean(spotOf(g, r.team, false)?.b2b) },

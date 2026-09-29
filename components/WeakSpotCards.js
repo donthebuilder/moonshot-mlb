@@ -1,5 +1,5 @@
 'use client'
-import { C, NUM_FONT } from '../lib/theme'
+import { WeakSpotGrid } from './slate/WeakSpotCard'
 import { n, clean } from '../lib/player'
 
 // ★ WEAK SPOTS, AS CARDS (2026-09-03)
@@ -51,95 +51,44 @@ export default function WeakSpotCards({ entries = [], onPlayerClick }) {
 
   if (!cards.length) return null
 
+  // THE CARD IS SHARED NOW (2026-09-28): components/slate/WeakSpotCard.js
+  // draws it, style for style, for TUDDY and LAMP too. MOONSHOT's reading of
+  // the arm and the slot stays here.
   return (
-    <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}>
-      {cards.map(({ e, hit, damage }) => {
-        const hr9 = n(e.pitcher_hr9, null)
-        const hot = hr9 != null && hr9 > LG_HR9
-        return (
-          <div key={e.pitcher_id ?? e.pitcher_name} style={{
-            border: `1px solid ${C.border}`, borderRadius: 11, padding: '9px 11px',
-            background: 'rgba(255,255,255,.02)', minWidth: 0,
-          }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 12, fontWeight: 800, color: C.text }}>{e.pitcher_name}</span>
-              <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>
-                {e.pitcher_throws}HP · {e.team} vs {e.opponent_team}
-              </span>
-              <span style={{
-                marginLeft: 'auto', fontSize: 10, fontWeight: 800, fontFamily: NUM_FONT,
-                // Coloured against the league mark, not against zero. An arm at
-                // 1.10 is not "good", it is average, and a ramp anchored at
-                // zero would paint it green.
-                color: hr9 == null ? C.text3 : hot ? C.orange : C.text2,
-              }}>
-                {hr9 == null ? 'HR/9 —' : `${hr9.toFixed(2)} HR/9`}
-                <span style={{ color: C.text3, fontWeight: 500 }}> vs {LG_HR9.toFixed(2)}</span>
-              </span>
-            </div>
-
-            <div style={{ fontSize: 9.5, color: C.text2, marginTop: 4, lineHeight: 1.45 }}>
-              {hit.length === 1
-                ? `One soft slot tonight, and ${hit[0].name} is in it.`
-                : `${hit.length} soft slots tonight.`}
-              {damage > 0 && <span style={{ color: C.text3 }}> Spot damage {damage.toFixed(0)}.</span>}
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginTop: 7 }}>
-              {hit.map((b) => {
-                const role = clean(b.raw?.game_pick_role, '').split('/')[0].trim().toUpperCase()
-                const why = clean(b.raw?.pitcher_spot_damage_reason, '') || clean(b.weak_spot_reason, '')
-                const l5hr = n(b.raw?.last5_hr, 0)
-                // The platoon half of the read: does this hitter stand on the
-                // side the arm is actually weak to?
-                const weak = clean(e.pitcher_weak_side, '')
-                const onWeakSide = (weak === 'LHB' && b.bats === 'L') || (weak === 'RHB' && b.bats === 'R')
-                return (
-                  <div
-                    key={b.player_id ?? b.name}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => b.raw && onPlayerClick?.(b.raw)}
-                    onKeyDown={(ev) => { if (ev.key === 'Enter' && b.raw) onPlayerClick?.(b.raw) }}
-                    style={{
-                      borderLeft: `2px solid ${onWeakSide ? C.orange : C.border2}`,
-                      paddingLeft: 8, cursor: b.raw ? 'pointer' : 'default', minWidth: 0,
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0 }}>
-                        #{b.lineup_spot ?? '—'}
-                      </span>
-                      <span style={{ fontSize: 11.5, fontWeight: 700, color: C.text }}>{b.name}</span>
-                      <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>{b.bats}HB</span>
-                      {onWeakSide && (
-                        <span style={{ fontSize: 8.5, fontWeight: 900, color: C.orange, fontFamily: NUM_FONT, letterSpacing: '.05em' }}>
-                          HIS SIDE
-                        </span>
-                      )}
-                      {/* The bot's tag is a SECOND reason when it agrees, and
-                          its absence is not a mark against the hitter — the
-                          model only tags 105 of 268 bats. Shown, never scored. */}
-                      {role && (
-                        <span style={{ fontSize: 8.5, fontWeight: 900, color: C.cyan, fontFamily: NUM_FONT, letterSpacing: '.05em' }}>
-                          {role}
-                        </span>
-                      )}
-                      <span style={{ marginLeft: 'auto', fontSize: 10.5, fontWeight: 800, fontFamily: NUM_FONT, color: C.text2, flexShrink: 0 }}>
-                        {n(b.hr_score, 0) > 0 ? n(b.hr_score, 0).toFixed(0) : '—'}
-                        {l5hr > 0 && <span style={{ color: C.orange }}> · {l5hr} L5</span>}
-                      </span>
-                    </div>
-                    {why && (
-                      <div style={{ fontSize: 8.5, color: C.text3, lineHeight: 1.45, marginTop: 1 }}>{why}</div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        )
-      })}
-    </div>
+    <WeakSpotGrid cards={cards.map(({ e, hit, damage }) => {
+      const hr9 = n(e.pitcher_hr9, null)
+      const hot = hr9 != null && hr9 > LG_HR9
+      return {
+        key: e.pitcher_id ?? e.pitcher_name,
+        title: e.pitcher_name,
+        meta: `${e.pitcher_throws}HP · ${e.team} vs ${e.opponent_team}`,
+        // Coloured against the league mark, not against zero: an arm at 1.10
+        // is average, and a ramp anchored at zero would paint it green.
+        stat: { text: hr9 == null ? 'HR/9 —' : `${hr9.toFixed(2)} HR/9`, hot, vs: `vs ${LG_HR9.toFixed(2)}` },
+        lead: hit.length === 1
+          ? `One soft slot tonight, and ${hit[0].name} is in it.`
+          : `${hit.length} soft slots tonight.`,
+        damage: damage > 0 ? `Spot damage ${damage.toFixed(0)}.` : null,
+        rows: hit.map((b) => {
+          const role = clean(b.raw?.game_pick_role, '').split('/')[0].trim().toUpperCase()
+          const why = clean(b.raw?.pitcher_spot_damage_reason, '') || clean(b.weak_spot_reason, '')
+          const l5hr = n(b.raw?.last5_hr, 0)
+          // The platoon half of the read: does this hitter stand on the side
+          // the arm is actually weak to? The bot's tag is a SECOND reason when
+          // it agrees -- shown, never scored.
+          const weak = clean(e.pitcher_weak_side, '')
+          const onWeakSide = (weak === 'LHB' && b.bats === 'L') || (weak === 'RHB' && b.bats === 'R')
+          return {
+            key: b.player_id ?? b.name,
+            spot: `#${b.lineup_spot ?? '—'}`, name: b.name, side: `${b.bats}HB`,
+            flag: onWeakSide ? 'HIS SIDE' : null, tag: role || null, edge: onWeakSide,
+            value: n(b.hr_score, 0) > 0 ? n(b.hr_score, 0).toFixed(0) : '—',
+            extra: l5hr > 0 ? `${l5hr} L5` : null,
+            why: why || null,
+            onClick: b.raw ? () => onPlayerClick?.(b.raw) : null,
+          }
+        }),
+      }
+    })} />
   )
 }

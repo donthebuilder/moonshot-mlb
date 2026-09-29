@@ -10,6 +10,7 @@ import NflSlate from '../NflSlate'
 import { ViewPills } from '../../slate/SlateParts'
 import BoardTopBar from '../../BoardTopBar'
 import NflProjected from '../NflProjected'
+import NflWeakSpots from '../NflWeakSpots'
 import { nflGameOptions } from '../NflBoardExtras'
 import { readHashKey, useHashFilter } from '../../../lib/filterHash'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
@@ -268,6 +269,8 @@ export default function Games({ data, picks, matchup, logs, results, odds = null
       {/* PROJECTED OUTPUT, MOONSHOT's Slate Table view's own panel (00Q step 1). */}
       <NflProjected data={data} matchup={matchup} logs={logs} players={players.filter(inView)} games={sorted} watchlist={watchlist}
         onOpenGame={(id) => { setOpenGame(String(id)); setView('games') }} onOpenTeam={onOpenTeam} />
+      {/* WEAK SPOTS, MOONSHOT's "★ Weak spots" cards (00Q step 2). */}
+      <NflWeakSpots matchup={matchup} players={players.filter(inView)} games={sorted} onPlayerClick={onPlayerClick} onOpenTeam={onOpenTeam} />
 
         <NflTable
           rows={tableRows}

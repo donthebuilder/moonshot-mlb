@@ -1,4 +1,5 @@
 'use client'
+import { weakSpotRoles } from '../../lib/nfl/dvpSignal'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT, gradeFor } from '../../lib/nfl/theme'
 import { LABELS } from '../../lib/nfl/scoreLabels'
@@ -146,7 +147,13 @@ export function tdRun(logs, id, before = null) {
 }
 export function angleDefs({ matchup, logs, market, matchupTag, week = null }) {
   const stat = ['TD', 'REC_YDS', 'REC', 'RUSH_YDS', 'RUSH_ATT', 'PASS_YDS'].includes(market) ? market : 'TD'
+  // WEAK SPOT (2026-09-28, parity 00Q step 2): he holds a role his opponent is
+  // clearly soft against (softRoles, z >= 1) -- MOONSHOT's weak-spot flag.
+  const softByDef = new Map()
+  const softOf = (d) => { if (!softByDef.has(d)) softByDef.set(d, weakSpotRoles(matchup, d)); return softByDef.get(d) }
   return [
+    { key: 'weak', label: '★ Weak spot', title: 'A starter whose role his opponent gives up clearly more touchdowns or red-zone chances to than the league average (a standard deviation or more).',
+      test: (p) => { const role = matchup?.roles?.[p.player_id]; return Boolean(role && p.opp && softOf(p.opp).some((d) => d.role === role)) } },
     { key: 'soft', label: 'Softest matchup', title: 'His opponent ranks in the league’s softest 8 against his role on this market (DvP).',
       test: (p) => { const t = matchupTag?.(matchup, p, stat); return Boolean(t && Number.isFinite(t.rank) && t.rank <= 8) } },
     { key: 'rz', label: 'Red-zone role', title: 'Red-zone touches in the top quarter of the week’s pool.', test: (p) => (tdc(p, 'f_rz_opp') ?? -1) >= 75 },

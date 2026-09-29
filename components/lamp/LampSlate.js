@@ -13,6 +13,7 @@ import { ViewPills, GameFilterRail, StripFold, GamePanelPills, PanelAnchor, Game
 import { SubLabel, FactLines } from '../matchup/MatchupParts'
 import { GameBoard, NavBtn, AllGamesTable, spotOf, pct1, ppVsPk, restWord } from './tabs/Board'
 import LampProjected from './LampProjected'
+import LampWeakSpots from './LampWeakSpots'
 import BoardTopBar from '../BoardTopBar'
 import { LampCards } from './LampCard'
 import { EmptyState, DelayedBanner, Loading, StaleSeasonNote, fmtPuckDrop, zoneAbbrev, shiftDay, fmtDay } from './ui'
@@ -130,6 +131,8 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
         <>
           <LampProjected items={items} games={all} stale={Boolean(data?.season?.stale)} onOpenTeam={onOpenTeam}
             onOpenGame={(id) => { setHashGame(String(id)); setView('games') }} />
+          {/* WEAK SPOTS, MOONSHOT's "★ Weak spots" cards (00Q step 2). */}
+          <LampWeakSpots items={items} games={all} onOpenPlayer={onOpenPlayer} />
           <AllGamesTable kept={items} market="GOAL" onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} />
         </>
       )}
