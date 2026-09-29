@@ -335,7 +335,7 @@ export default function Live({ data, picks, live, matchup = null, logs = null, r
             initialSort="score"
             maxHeight={620}
             maxRows={300}
-            onRowClick={(r) => onPlayerClick?.(r._raw, boardMarket)}
+            onRowClick={(r) => onPlayerClick?.(r?._raw ?? r, boardMarket)}
             dimRow={(r) => r._raw?.low_sample}
           />
         ) : (

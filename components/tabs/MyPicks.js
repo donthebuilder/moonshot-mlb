@@ -1,4 +1,5 @@
 'use client'
+import Tap from '../Tap'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { nameOf, teamOf, txt } from '../../lib/player'
@@ -1562,7 +1563,8 @@ export default function MyPicks({ players = [], results, odds, slateDate, onPlay
                 <VerdictHero
                   col={cat.color}
                   score={holder ? cat.score(holder) : null}
-                  title={holderName || 'no bot pick'}
+                  // The name opens his card (a name is a link; nav audit 09-29).
+                  title={holder && holderName ? <Tap onClick={() => onPlayerClick?.(holder)}>{holderName}</Tap> : (holderName || 'no bot pick')}
                   dialTitle={`${cat.label} score for whoever holds this slot`}
                   badge={mine ? 'YOURS' : 'THE BOT'}
                   badgeQuiet={!mine}

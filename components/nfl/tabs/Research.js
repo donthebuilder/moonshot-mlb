@@ -228,7 +228,8 @@ export default function Research({ data, onPlayerClick }) {
         maxHeight={620}
         // Every single one, in order (2026-09-25): no cap on this table.
         maxRows={Math.max(rows.length, 1)}
-        onRowClick={(r) => onPlayerClick?.(r._p)}
+        // DenseTable hands onRowClick r._raw when a row has one (nav audit 09-29).
+        onRowClick={(r) => onPlayerClick?.(r?._p ?? r)}
         dimRow={(r) => r._p?.low_sample}
         caption={
           'Per-game trailing averages. In preseason these are last season\'s ' +

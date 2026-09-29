@@ -1,7 +1,8 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../lib/theme'
-import { nameOf, teamOf, oppOf, playerId, clean, n } from '../../lib/player'
+import { nameOf, teamOf, oppOf, playerId, mlbId, clean, n } from '../../lib/player'
+import { hashParams, writeHash } from '../../lib/urlState'
 import { scoreFor, tierRole } from '../../lib/scoring'
 import { Empty, inputStyle } from '../ui'
 import PlayerModal from '../PlayerModal'
@@ -32,13 +33,30 @@ const ASKS = [
 
 export default function PlayerBoard({ players, onAdd, onWatch, watchIds, odds = null }) {
   const [query, setQuery] = useState('')
-  const [selectedId, setSelectedId] = useState(null)
+  const [selectedId, setSelectedIdRaw] = useState(null)
   const [ask, setAsk] = useState(null)
 
   const ranked = useMemo(
     () => [...players].sort((a, b) => scoreFor(b, 'hr') - scoreFor(a, 'hr')),
     [players],
   )
+  // THE PICK IS IN THE ADDRESS (2026-09-29, nav audit: the Players page
+  // showed his card with no URL change, so refresh / share lost him).
+  // `player=<MLB id>` (TUDDY's Players page uses the same key); the row key is
+  // player+game, so the id is matched back to tonight's row on load.
+  const setSelectedId = (id) => {
+    setSelectedIdRaw(id)
+    const h = hashParams()
+    const row = id ? ranked.find((p) => playerId(p) === id) : null
+    if (row) h.set('player', String(mlbId(row))); else h.delete('player')
+    writeHash(h, { push: Boolean(row) })
+  }
+  useEffect(() => {
+    if (selectedId || !ranked.length) return
+    const want = hashParams().get('player')
+    const row = want ? ranked.find((p) => String(mlbId(p)) === String(want)) : null
+    if (row) setSelectedIdRaw(playerId(row))
+  }, [ranked]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const matches = useMemo(() => {
     const q = query.toLowerCase().trim()

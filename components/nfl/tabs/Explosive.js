@@ -289,7 +289,7 @@ export default function Explosive({ matchup, data, onPlayerClick }) {
           rows={filteredPlayers}
           columns={buildPlayerColumns(watchlist)}
           initialSort="rec_20"
-          onRowClick={onPlayerClick ? (r) => onPlayerClick(r._raw, 'REC_YDS') : null}
+          onRowClick={onPlayerClick ? (r) => onPlayerClick(r?._raw ?? r, 'REC_YDS') : null}
           maxRows={269}
         />
       ) : (

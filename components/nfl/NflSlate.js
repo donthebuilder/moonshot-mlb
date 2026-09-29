@@ -224,7 +224,7 @@ export default function NflSlate({ data, picks, matchup, odds = null, initialGam
 
                 <PanelAnchor id="players" gamePk={g.game_id} style={{ marginTop: 14 }}>
                   <SubLabel theme={C} numFont={NUM_FONT}>PLAYERS · BOTH ROSTERS, BY TD SCORE</SubLabel>
-                  <NflTable rows={rows} columns={tableColumns} onRowClick={(r) => onPlayerClick?.(r._raw)} maxRows={12} maxHeight={9999} />
+                  <NflTable rows={rows} columns={tableColumns} onRowClick={(r) => onPlayerClick?.(r?._raw ?? r)} maxRows={12} maxHeight={9999} />
                 </PanelAnchor>
 
                 <PanelAnchor id="matchup" gamePk={g.game_id} style={{ marginTop: 14 }}>

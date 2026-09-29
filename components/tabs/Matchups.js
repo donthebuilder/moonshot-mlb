@@ -118,7 +118,9 @@ export default function Matchups({ players = [], onPlayerClick, onNavigate = nul
     { key: 'vs', label: 'Faces', w: 82, heat: false, fmt: (v, r) => `${r.team} v ${v}` },
     { key: 'fit', label: 'Lineup fit', w: 70, primary: true, scale: 'seq', domain: [40, 80], dp: 1 },
     { key: 'mixTxt', label: 'His top pitches', w: 120, heat: false },
-    { key: 'bestTxt', label: 'Best fit', w: 190, heat: false, fmt: (v, r) => (r.best
+    // The best-fit hitter's name opens HIS card (a name is a link); the starter
+    // cell keeps the row's job, the matchup ("Tap a starter for the matchup").
+    { key: 'bestTxt', label: 'Best fit', w: 190, heat: false, link: (r) => (r?.best && onPlayerClick ? () => onPlayerClick(r.best) : null), fmt: (v, r) => (r.best
       ? <span>{v} <span style={{ color: C.text3, fontSize: 10 }}>{r.best.pitch_mix_note || ''} · {Math.round(num(r.best.pitch_mix_score))}</span></span>
       : <span style={{ color: C.text3 }}>—</span>) },
     { key: 'park', label: 'Park HR', w: 60, heat: false, fmt: (v) => (v == null ? '—' : `${v.toFixed(2)}x`) },

@@ -275,7 +275,7 @@ export default function Games({ data, picks, matchup, logs, results, odds = null
         <NflTable
           rows={tableRows}
           columns={TABLE_COLUMNS}
-          onRowClick={(r) => onPlayerClick?.(r._raw)}
+          onRowClick={(r) => onPlayerClick?.(r?._raw ?? r)}
           caption={`${tableRows.length} players · sorted by TD score`}
           maxRows={300}
         />

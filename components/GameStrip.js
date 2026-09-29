@@ -116,7 +116,7 @@ function timeText(t) {
 
 const isPast = (t) => !!t && new Date(t) < new Date(Date.now() - 3 * 60 * 60 * 1000)
 
-export default function GameStrip({ games, activeGame, onSelect, mode, onPairPick, pairIds, sortBy = 'time', live = null, targets = [], onTarget = null, nested = false }) {
+export default function GameStrip({ games, activeGame, onSelect, mode, onPairPick, pairIds, sortBy = 'time', live = null, targets = [], onTarget = null, nested = false, onPlayerClick = null }) {
   // 🔗 CROSS-GAME PAIR BUILDING (2026-08-09, Donovan: "from this view I
   // should be able to visually pair a TOP pick or HR pick / alt pick from
   // each game"). The chips below become tappable legs: tap one here, tap
@@ -450,8 +450,11 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
               ['ALT', c.altPick, C.purple, c.altWhy || "The bot's secondary HR look in this game"],
             ].filter(([, pk2]) => pk2).map(([tag, pk2, cc, tip]) => ({
               key: tag, tag, color: cc, name: pk2.name, score: pk2.score,
-              title: [pairing ? `${tag} — ${tip} — tap to add him as a pair leg` : `${tag} — ${tip}`, spotTitle(pk2.p)].filter(Boolean).join('\n'),
-              onClick: pairing ? (e) => { e.stopPropagation(); onPairPick(pk2.p) } : undefined,
+              title: [pairing ? `${tag} — ${tip} — tap to add him as a pair leg` : `${tag} — ${tip}${onPlayerClick ? ' — tap for his card' : ''}`, spotTitle(pk2.p)].filter(Boolean).join('\n'),
+              // A name is a link (CLAUDE.md; nav audit 09-29): outside pair-building
+              // the chip opens his card instead of falling through to the game.
+              onClick: pairing ? (e) => { e.stopPropagation(); onPairPick(pk2.p) }
+                : onPlayerClick ? (e) => { e.stopPropagation(); onPlayerClick(pk2.p) } : undefined,
               leg: isLeg(pk2.p), style: chipSpot(pk2.p),
             })),
           }

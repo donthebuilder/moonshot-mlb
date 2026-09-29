@@ -150,7 +150,7 @@ export function NflBox({ game, byTeam, defense, onPlayerClick, watchlist }) {
             <NflTable
               rows={rows}
               columns={[watchColumn, ...cat.columns]}
-              onRowClick={onPlayerClick ? (r) => onPlayerClick(r._raw, cat.key === 'passing' ? 'PASS_YDS' : cat.key === 'rushing' ? 'RUSH_YDS' : cat.key === 'receiving' ? 'REC_YDS' : 'KICK_PTS') : null}
+              onRowClick={onPlayerClick ? (r) => onPlayerClick(r?._raw ?? r, cat.key === 'passing' ? 'PASS_YDS' : cat.key === 'rushing' ? 'RUSH_YDS' : cat.key === 'receiving' ? 'REC_YDS' : 'KICK_PTS') : null}
               maxHeight={9999}
               dense
             />

@@ -235,7 +235,9 @@ function signature() {
 
 const hashOf = (u) => { try { return new URLSearchParams(new URL(u, BASE).hash.slice(1)) } catch { return new URLSearchParams() } }
 const sportOfUrl = (u) => hashOf(u).get('sport') || (new URL(u, BASE).searchParams.get('sport')) || null
-const idInUrl = (u) => { const h = hashOf(u); return h.get('p') || h.get('player') || null }
+// card= (TUDDY's open card) and pitcher= (MOONSHOT's pitcher card) are ids too
+// since the URL-state fix (2026-09-29).
+const idInUrl = (u) => { const h = hashOf(u); return h.get('p') || h.get('player') || h.get('card') || h.get('pitcher') || null }
 
 async function settle(page, ms = 1500) {
   await page.waitForLoadState('networkidle', { timeout: 8000 }).catch(() => {})

@@ -767,7 +767,7 @@ export default function Home({
           who's actually due up. All three are mounted unmodified — they carry
           their own headers, fetches and empty states. */}
       {view === 'live' && (
-        <AtThePlate players={players} watchIds={watchIds} mode={mode} slateMode={mode} onPlayerClick={onPlayerClick} />
+        <AtThePlate players={players} watchIds={watchIds} mode={mode} slateMode={mode} onPlayerClick={onPlayerClick} onNavigate={onNavigate} />
       )}
       {view === 'board' && (
         <Scoreboard

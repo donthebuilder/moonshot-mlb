@@ -372,7 +372,7 @@ export default function PairHistory({ summary, players = [], onPlayerClick }) {
           { key: 'last',     label: 'Last',    heat: false, w: 80, mono: true, dim: true },
           { key: 'bucket',   label: 'Window',  heat: false, w: 62, dim: true },
         ]}
-        onRowClick={onPlayerClick ? (r) => r._raw && onPlayerClick(r._raw) : null}
+        onRowClick={onPlayerClick ? (r) => (r?._raw ?? r) && onPlayerClick(r?._raw ?? r) : null}
         initialSort="sameGame"
         maxHeight={520}
         caption="Sorted by same-game hits, not by pair score — score mixes in a boost you can't see. Days ago is inverted so a recent pairing reads bright. Tonight is 2 when both hitters are actually playable today."

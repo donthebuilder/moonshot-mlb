@@ -156,7 +156,7 @@ const clusterLbl = () => ({
   letterSpacing: '.09em', fontWeight: 800, whiteSpace: 'nowrap',
 })
 
-export default function BattedBallLog({ players = [], onPlayerClick, limit = 30 }) {
+export default function BattedBallLog({ players = [], onPlayerClick, onOpenPitcher = null, limit = 30 }) {
   const [rows, setRows] = useState([])
   const [hasGames, setHasGames] = useState(false)
   const [outcomeSel, setOutcomeSel] = useState('all')
@@ -228,6 +228,7 @@ export default function BattedBallLog({ players = [], onPlayerClick, limit = 30 
     deepFly: r.deepFly ? 1 : 0,
     hr: r.tone === 'hr' ? 1 : 0,
     pitcher: r.pitcher || '—',
+    pitcherId: r.pitcherId || null,
   })), [filteredRows])
 
   if (!rows.length && !hasGames) return null
@@ -295,8 +296,12 @@ export default function BattedBallLog({ players = [], onPlayerClick, limit = 30 
           ) : (
             <DenseTable
               rows={tableRows}
-              columns={COLUMNS}
-              onRowClick={(row) => { const p = byId.get(row.id); if (p) onPlayerClick?.(p) }}
+              columns={COLUMNS.map((c) => (c.key === 'pitcher' && onOpenPitcher
+                // The pitcher's name opens the pitcher (a name is a link; nav audit 09-29).
+                ? { ...c, link: (row) => (row?.pitcherId ? () => onOpenPitcher(row.pitcherId) : null) } : c))}
+              // Off tonight's slate he still opens -- MOONSHOT's api_only card,
+              // the one search opens -- instead of a dead tap (nav audit 09-29).
+              onRowClick={(row) => { const p = byId.get(row.id); if (p) onPlayerClick?.(p); else if (row.id) onPlayerClick?.({ api_only: true, player_id: String(row.id), name: row.name }) }}
               initialSort={null}
               maxHeight={380}
               caption="Every live and final batted ball tonight that cleared a bar — 95+ mph, a real barrel, or a fly ball hit 370+ ft that still got caught. Sorted most-notable first: home runs, then barrels / deep fly outs / extra-base hits, then everything else that qualified — EV only breaks ties inside a tier. Result and Quality filter above; click a header to sort what's left, a row to open his card."

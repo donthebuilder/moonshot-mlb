@@ -1,4 +1,5 @@
 'use client'
+import { leaveTarget } from '../../lib/openTarget'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../lib/theme'
 import { fullBox, forget } from '../../lib/boxscore'
@@ -441,7 +442,7 @@ const LABEL = () => ({
   color: C.text3, fontFamily: NUM_FONT,
 })
 
-export default function AtThePlate({ players = [], watchIds, mode = 'today', slateMode, onPlayerClick }) {
+export default function AtThePlate({ players = [], watchIds, mode = 'today', slateMode, onPlayerClick, onNavigate = null }) {
   const [snap, setSnap] = useState(null)
   // Team abbreviations for the box score header. One cached /teams call,
   // shared with the timeline that already uses it.
@@ -1103,7 +1104,8 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
           2026-08-14 restructure) — what you check BETWEEN at-bats, not what
           should stand between you and the man currently hitting. */}
       <div style={{ marginTop: 14 }}>
-        <BattedBallLog players={players} onPlayerClick={onPlayerClick} />
+        <BattedBallLog players={players} onPlayerClick={onPlayerClick}
+          onOpenPitcher={onNavigate ? (pid) => { leaveTarget('pitcher', pid); onNavigate('pitchers') } : null} />
         <JustNow players={players} watchIds={watchIds} onPlayerClick={onPlayerClick} />
       </div>
 

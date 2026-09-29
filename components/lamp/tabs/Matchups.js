@@ -1,4 +1,5 @@
 'use client'
+import Tap from '../../Tap'
 import { useEffect, useState } from 'react'
 import PageHeader from '../../PageHeader'
 import LampTable from '../LampTable'
@@ -123,7 +124,7 @@ function Detail({ row, league, onOpenPlayer }) {
   )
 }
 
-export default function Matchups({ date = null, onOpenPlayer }) {
+export default function Matchups({ date = null, onOpenPlayer, onOpenTeam = null }) {
   const { data, error, loading } = useMatchups(date)
   const [pick, setPick] = useState(null)
   const rows = data?.rows || []
@@ -143,7 +144,8 @@ export default function Matchups({ date = null, onOpenPlayer }) {
     { key: 'pk', label: 'PK%', w: 58, invert: true, fmt: (v, r) => (v == null ? '—' : `${(v * 100).toFixed(1)} ${ord(r.pkRank)}`) },
     { key: 'oppPp', label: 'Opp PP%', w: 70, fmt: (v, r) => (v == null ? '—' : `${(v * 100).toFixed(1)} ${ord(r.oppPpRank)}`) },
     { key: 'restTxt', label: 'Rest', w: 46, heat: false, mono: true },
-    { key: 'fits', label: 'Who fits it', w: 170, heat: false, fmt: (v, r) => (r.called.length
+    // The name here opens HIM (a name is a link); the rest of the row opens the defence.
+    { key: 'fits', label: 'Who fits it', w: 170, heat: false, link: (r) => (r?.called?.length && onOpenPlayer ? () => onOpenPlayer(r.called[0].playerId) : null), fmt: (v, r) => (r.called.length
       ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>{r.called.map((p) => (p.mug ? <img key={p.playerId} src={p.mug} alt="" width={20} height={20} loading="lazy" style={{ width: 20, height: 20, borderRadius: '50%', background: C.bg3 }} /> : null))}<span>{r.called[0].name}{r.called.length > 1 ? ` +${r.called.length - 1}` : ''}</span></span>
       : <span style={{ color: C.text3 }}>—</span>) },
   ]
@@ -159,7 +161,7 @@ export default function Matchups({ date = null, onOpenPlayer }) {
         <>
           <div style={{ fontSize: 12.5, color: C.text2, lineHeight: 1.5 }}>
             {lastSeason ? <b style={{ color: C.amber, fontFamily: NUM_FONT, letterSpacing: '.04em' }}>LAST SEASON&apos;S NUMBERS · </b> : null}
-            Softest: <b style={{ color: C.text }}>{lead.def}</b>, {lead.gaPg ?? '—'} goals allowed a game{league.gaPg != null ? ` (league ${league.gaPg})` : ''}, penalty kill {pct(lead.pk)} {ord(lead.pkRank)}{lead.called[0] ? <>; <b style={{ color: C.text }}>{lead.called[0].name}</b> leads {lead.opp}&apos;s called skaters</> : null}.
+            Softest: <Tap onClick={onOpenTeam ? () => onOpenTeam(lead.def) : null}><b style={{ color: C.text }}>{lead.def}</b></Tap>, {lead.gaPg ?? '—'} goals allowed a game{league.gaPg != null ? ` (league ${league.gaPg})` : ''}, penalty kill {pct(lead.pk)} {ord(lead.pkRank)}{lead.called[0] ? <>; <Tap onClick={onOpenPlayer ? () => onOpenPlayer(lead.called[0].playerId) : null}><b style={{ color: C.text }}>{lead.called[0].name}</b></Tap> leads {lead.opp}&apos;s called skaters</> : null}.
           </div>
           <LampTable rows={tableRows} columns={columns} heatMode="primary" maxRows={PREVIEW} maxHeight={9999}
             rowEdge={(r) => (r.def === active?.def ? C.ice : null)}

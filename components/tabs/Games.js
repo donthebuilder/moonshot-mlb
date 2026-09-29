@@ -869,7 +869,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
             counts={gCounts}
           />
           <StripFold isPhone={isPhone} count={games.length} summary={(() => { const open = games.find((g) => g.game_pk === activeGame); return open ? `reading ${open.away || '—'} @ ${open.home || '—'}` : 'tap to pick one' })()}>
-            <GameStrip nested games={games} activeGame={activeGame} onSelect={scrollTo} mode={mode} onPairPick={togglePairLeg} pairIds={pairIds} live={liveByPk} targets={targets} onTarget={toggleTarget} />
+            <GameStrip nested onPlayerClick={onPlayerClick} games={games} activeGame={activeGame} onSelect={scrollTo} mode={mode} onPairPick={togglePairLeg} pairIds={pairIds} live={liveByPk} targets={targets} onTarget={toggleTarget} />
           </StripFold>
         </div>
       )}
@@ -1370,7 +1370,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
             counts={gCounts}
           />
           <StripFold isPhone={isPhone} count={games.length} summary={(() => { const open = games.find((g) => g.game_pk === activeGame); return open ? `reading ${open.away || '—'} @ ${open.home || '—'}` : 'tap to pick one' })()}>
-            <GameStrip nested games={games} activeGame={activeGame} onSelect={scrollTo} mode={mode} onPairPick={togglePairLeg} pairIds={pairIds} sortBy={sortBy} live={liveByPk} targets={targets} onTarget={toggleTarget} />
+            <GameStrip nested onPlayerClick={onPlayerClick} games={games} activeGame={activeGame} onSelect={scrollTo} mode={mode} onPairPick={togglePairLeg} pairIds={pairIds} sortBy={sortBy} live={liveByPk} targets={targets} onTarget={toggleTarget} />
           </StripFold>
           {/* ── THE ANSWER TO "hella scrolling" (2026-08-23) ─────────────────
               Phone only. It sits here, right under the game grid, and pins

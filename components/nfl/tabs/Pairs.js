@@ -159,7 +159,7 @@ function buildSamePlayerRows(players, bars, results) {
       const grade = gradePair(p.player_id, t.a, p.player_id, t.b, bars, results)
       rows.push({
         _key: `${p.player_id}-${t.a}-${t.b}`,
-        _raw: p,
+        _player: p,
         _market: t.a,
         name: p.name,
         position: p.position,
@@ -203,7 +203,7 @@ function buildCrossPlayerRows(players, bars, results) {
     const grade = gradePair(qb.player_id, 'PASS_YDS', wr.player_id, 'REC_YDS', bars, results)
     rows.push({
       _key: `${team}-qb-wr`,
-      _raw: qb,
+      _player: qb,
       _market: 'PASS_YDS',
       pairName: `${qb.name} + ${wr.name}`,
       team,
@@ -267,7 +267,7 @@ function buildStackRows(players, bars, results) {
     const grade = gradePair(a.player_id, 'TD', b.player_id, 'TD', bars, results)
     rows.push({
       _key: `${team}-atd-stack`,
-      _raw: a,
+      _player: a,
       _market: 'TD',
       pairName: `${a.name} + ${b.name}`,
       team,
@@ -305,7 +305,9 @@ export default function Pairs({ data, results, onPlayerClick }) {
     )
   }
 
-  const openRow = (r) => onPlayerClick?.(r._raw, r._market)
+  // Rows carry the player as _player, not _raw: DenseTable hands onRowClick
+  // r._raw when a row has one, and a pair row needs its market too (nav audit 09-29).
+  const openRow = (r) => onPlayerClick?.(r._player, r._market)
   const gradedCount = results ? sameRows.filter((r) => r.gradeState === 'both').length : null
 
   // The featured card used to be "sturdiest pair" unconditionally — which on
@@ -350,7 +352,7 @@ export default function Pairs({ data, results, onPlayerClick }) {
             {results && <span style={{ marginLeft: 'auto' }}><GradeBadge state={lead.gradeState} /></span>}
           </div>
           <div
-            onClick={() => onPlayerClick?.(lead._raw, lead._market)}
+            onClick={() => onPlayerClick?.(lead._player, lead._market)}
             className="tap-row"
             style={{ cursor: onPlayerClick ? 'pointer' : 'default' }}
           >
