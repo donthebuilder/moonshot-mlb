@@ -350,7 +350,7 @@ export default function NflHeader({ tab, setTab, data, meta, matchup, weekMode =
           brand and the account controls, which is what used to squeeze it
           down to three tiles wide on anything but a very wide desktop. */}
       <div className="nfl-header-tiles" style={{
-        maxWidth: 1300, margin: '0 auto', padding: '0 0 2px',
+        maxWidth: 1300, margin: '0 auto', padding: '0 0 2px', width: '100%', overflow: 'hidden',
         display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', minWidth: 0,
       }}>
           {/* ── TUDDY GETS THE MOVING STRIP (2026-08-29, mechanism replaced 2026-09-16) ──
