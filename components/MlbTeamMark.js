@@ -1,5 +1,5 @@
 'use client'
-import { teamColor, teamName, isKnownTeam } from '../lib/mlbTeams'
+import TeamMark from './TeamMark'
 
 // ⚾ THE TEAM MARK (2026-08-29).
 //
@@ -20,28 +20,8 @@ import { teamColor, teamName, isKnownTeam } from '../lib/mlbTeams'
 // An unknown abbreviation renders in neutral grey rather than a guess, and
 // keeps the abbreviation visible — the same "no data, no panel, but never a
 // blank" rule the rest of the site follows.
-export default function MlbTeamMark({ abbr, size = 'sm', dim = false, style }) {
-  const code = String(abbr || '').trim().toUpperCase()
-  if (!code) return null
-  const col = teamColor(code)
-  const known = isKnownTeam(code)
-  const name = teamName(code)
-  const big = size === 'md'
-  return (
-    <span
-      title={name ? `${name} (${code})` : code}
-      style={{
-        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-        minWidth: big ? 34 : 28, height: big ? 20 : 17, padding: '0 5px',
-        borderRadius: 5, flexShrink: 0,
-        border: `1px solid ${known ? `${col}66` : 'rgba(255,255,255,.14)'}`,
-        background: known ? `${col}1f` : 'rgba(255,255,255,.05)',
-        color: col,
-        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-        fontSize: big ? 10.5 : 9.5, fontWeight: 900, letterSpacing: '.02em',
-        opacity: dim ? 0.55 : 1,
-        ...style,
-      }}
-    >{code}</span>
-  )
+export default function MlbTeamMark(props) {
+  // One chip for every sport now (components/TeamMark.js); this name stays for
+  // the call sites that already use it.
+  return <TeamMark sport="mlb" {...props} />
 }

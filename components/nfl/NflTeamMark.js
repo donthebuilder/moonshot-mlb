@@ -1,5 +1,5 @@
 'use client'
-import { nflTones, NFL_TEAM_TONES } from '../../lib/nfl/teamColors'
+import TeamMark from '../TeamMark'
 
 // 🏈 THE TEAM MARK — TUDDY's twin of components/MlbTeamMark.js, built for the
 // shared ScoreRail (2026-09-16, the "shell it out" pass).
@@ -15,27 +15,8 @@ import { nflTones, NFL_TEAM_TONES } from '../../lib/nfl/teamColors'
 // the original — only the colour source changes: lib/nfl/teamColors.js's own
 // nflTones() instead of lib/mlbTeams.js's teamColor(). No logo, same reasoning
 // as the original: a rail this fast can't afford thirty-two image requests.
-export default function NflTeamMark({ abbr, size = 'sm', dim = false, style }) {
-  const code = String(abbr || '').trim().toUpperCase()
-  if (!code) return null
-  const known = Object.prototype.hasOwnProperty.call(NFL_TEAM_TONES, code) && code !== 'FA'
-  const [col] = nflTones(code)
-  const big = size === 'md'
-  return (
-    <span
-      title={code}
-      style={{
-        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-        minWidth: big ? 34 : 28, height: big ? 20 : 17, padding: '0 5px',
-        borderRadius: 5, flexShrink: 0,
-        border: `1px solid ${known ? `${col}66` : 'rgba(255,255,255,.14)'}`,
-        background: known ? `${col}1f` : 'rgba(255,255,255,.05)',
-        color: col,
-        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-        fontSize: big ? 10.5 : 9.5, fontWeight: 900, letterSpacing: '.02em',
-        opacity: dim ? 0.55 : 1,
-        ...style,
-      }}
-    >{code}</span>
-  )
+export default function NflTeamMark(props) {
+  // One chip for every sport now (components/TeamMark.js), with readable ink
+  // for the dark clubs; this name stays for the call sites that already use it.
+  return <TeamMark sport="nfl" {...props} />
 }
