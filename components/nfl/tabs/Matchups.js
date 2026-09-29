@@ -5,6 +5,7 @@ import { C, NUM_FONT, TYPE } from '../../../lib/nfl/theme'
 import { btnStyle } from '../../ui'
 import DefensesTable from '../DefensesTable'
 import Tap from '../../Tap'
+import MobileFold from '../../MobileFold'
 import { fieldModel, phrase, fmtPct, DEPTHS, SIDES, DEPTH_AX, LANES, LANE_WORD } from '../MatchupMap'
 import PageHeader from '../../PageHeader'
 import NflTable from '../NflTable'
@@ -235,7 +236,13 @@ export function PassGame({ matchup, data, off, def, onPlayerClick = null }) {
     </div>
   )
   const yr = (y) => (slate && y && y < slate ? ` · ${y}` : '')
+  // PHONE FOLD (2026-09-28, Donovan: "get them done"): six rows of faces per
+  // side made the Matchups detail ~2,300px and each Slate game side ~1,200px
+  // at 390. On a phone the block is one tap-to-open line (MOONSHOT's
+  // MobileFold); on a desktop it renders exactly as before.
+  const top = tg[0] ? (rowOf(tg[0].player_id)?.name || tg[0].name) : null
   return (
+    <MobileFold title="Top targets · corners" summary={`${off}${top ? ` · ${top}` : ''} vs ${def}'s corners`} count={tg.length + cb.length} accent={C.cyan}>
     <div style={{ marginBottom: 12 }}>
       <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))' }}>
         <div>
@@ -265,6 +272,7 @@ export function PassGame({ matchup, data, off, def, onPlayerClick = null }) {
         </p>
       ) : null}
     </div>
+    </MobileFold>
   )
 }
 
