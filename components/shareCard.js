@@ -1,3 +1,5 @@
+import { makePoster, savePoster, HEAD_H } from '../lib/poster'
+import { POSTER } from '../lib/theme'
 // SHARE CARD v2 — a poster, not a screenshot of a table.
 //
 // 2026-08-15, Donovan, holding the v1 export: "can you make this better…
@@ -518,62 +520,10 @@ function hitScore2(p) { return n(p?.hit_score, 0) }
 // "don't touch what already ships" — so there's a little duplication between
 // this section and the one above it, on purpose.
 
-const HEAD_H = 88
 
-function posterField(g, W, H) {
-  g.fillStyle = '#0a0a0d'; g.fillRect(0, 0, W, H)
-  let rg = g.createRadialGradient(90, 0, 0, 90, 0, Math.max(W, H) * 0.85)
-  rg.addColorStop(0, 'rgba(249,115,22,0.16)'); rg.addColorStop(1, 'rgba(249,115,22,0)')
-  g.fillStyle = rg; g.fillRect(0, 0, W, H)
-  rg = g.createRadialGradient(W, H, 0, W, H, Math.max(W, H) * 0.9)
-  rg.addColorStop(0, 'rgba(239,68,68,0.10)'); rg.addColorStop(1, 'rgba(239,68,68,0)')
-  g.fillStyle = rg; g.fillRect(0, 0, W, H)
-}
-
-function posterHeader(g, W, label, sub) {
-  g.fillStyle = '#f97316'
-  g.beginPath(); g.roundRect(24, 22, 44, 44, 11); g.fill()
-  g.fillStyle = '#fff'; g.font = `900 16px ${MONO}`
-  g.textAlign = 'center'; g.fillText('HR', 46, 45); g.textAlign = 'left'
-  g.fillStyle = '#f4f4f5'; g.font = `900 19px ${SANS}`
-  g.fillText('DASH NETWORK', 82, 36)
-  const wmW = g.measureText('DASH NETWORK').width
-  g.fillStyle = '#f97316'; g.font = `900 12px ${MONO}`
-  g.fillText('🌙 MOONSHOT · ' + label, 84 + wmW + 10, 37)
-  g.fillStyle = '#a1a1aa'; g.font = `600 11px ${MONO}`
-  g.fillText(sub, 82, 58)
-  g.strokeStyle = 'rgba(255,255,255,0.07)'
-  g.beginPath(); g.moveTo(0, HEAD_H - 0.5); g.lineTo(W, HEAD_H - 0.5); g.stroke()
-}
-
-function posterFooter(g, W, H, note) {
-  const fy = H - 23
-  g.fillStyle = '#52525b'; g.font = `600 10px ${MONO}`
-  g.fillText(note, 24, fy)
-  g.fillStyle = '#a1a1aa'; g.font = `800 10px ${MONO}`
-  g.textAlign = 'right'
-  g.fillText('DASH NETWORK · MOONSHOT', W - 24, fy)
-  g.textAlign = 'left'
-  g.fillStyle = '#f97316'; g.fillRect(0, H - 3, W, 3)
-}
-
-function newPoster(W, H) {
-  const c = document.createElement('canvas')
-  const scale = 2
-  c.width = W * scale; c.height = H * scale
-  const g = c.getContext('2d')
-  g.scale(scale, scale)
-  g.textBaseline = 'middle'
-  posterField(g, W, H)
-  return { c, g }
-}
-
-function savePoster(c, filename) {
-  const a = document.createElement('a')
-  a.download = filename
-  a.href = c.toDataURL('image/png')
-  a.click()
-}
+// The poster (field, header, footer, canvas, save) is lib/poster.js now,
+// shared with TUDDY's cards; MOONSHOT's brand is POSTER in lib/theme.js.
+const { posterField, posterHeader, posterFooter, newPoster } = makePoster(POSTER)
 
 const slug = (s) => String(s || 'card').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'card'
 const todayStamp = () => new Date().toLocaleDateString('en-CA')

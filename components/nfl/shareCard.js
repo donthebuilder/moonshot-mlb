@@ -31,9 +31,8 @@
 // same pair.
 
 import { C, gradeFor } from '../../lib/nfl/theme'
+import { makePoster, savePoster, ellipsize, MONO, SANS, HEAD_H } from '../../lib/poster'
 
-const MONO = "'Roboto Mono','SF Mono','Cascadia Mono',Menlo,Consolas,monospace"
-const SANS = 'system-ui, -apple-system, sans-serif'
 
 // Mirrors Accountability.js's own MARKET_COLOR — kept in lockstep by hand,
 // same discipline that file's MARKET_OUTCOME_TEXT comment already calls out
@@ -50,75 +49,17 @@ const MARKET_COLOR = () => ({
   KICK_PTS: C.yellow,
 })
 
-const HEAD_H = 84
 
-function ellipsize(g, text, max) {
-  const t0 = String(text ?? '')
-  if (g.measureText(t0).width <= max) return t0
-  let t = t0
-  while (t.length > 2 && g.measureText(t + '…').width > max) t = t.slice(0, -1)
-  return t + '…'
-}
-
-// Field: near-black with two accent glows — the same "MOONSHOT front page"
-// language as the MLB card, in the NFL green/cyan pair instead of orange/red.
-function posterField(g, W, H) {
-  g.fillStyle = C.bg; g.fillRect(0, 0, W, H)
-  let rg = g.createRadialGradient(90, 0, 0, 90, 0, Math.max(W, H) * 0.85)
-  rg.addColorStop(0, 'rgba(0,245,173,0.16)'); rg.addColorStop(1, 'rgba(0,245,173,0)')
-  g.fillStyle = rg; g.fillRect(0, 0, W, H)
-  rg = g.createRadialGradient(W, H, 0, W, H, Math.max(W, H) * 0.9)
-  rg.addColorStop(0, 'rgba(53,205,255,0.12)'); rg.addColorStop(1, 'rgba(53,205,255,0)')
-  g.fillStyle = rg; g.fillRect(0, 0, W, H)
-}
-
-function posterHeader(g, W, label, sub) {
-  const grad = g.createLinearGradient(22, 0, 66, 0)
-  grad.addColorStop(0, C.green); grad.addColorStop(1, C.cyan)
-  g.fillStyle = grad
-  g.beginPath(); g.roundRect(22, 20, 44, 44, 11); g.fill()
-  g.fillStyle = '#052e16'; g.font = `900 15px ${MONO}`
-  g.textAlign = 'center'; g.fillText('TD', 44, 43); g.textAlign = 'left'
-
-  g.fillStyle = C.text; g.font = `900 19px ${SANS}`
-  g.fillText('DASH NETWORK', 80, 34)
-  const wmW = g.measureText('DASH NETWORK').width
-  g.fillStyle = C.green; g.font = `900 12px ${MONO}`
-  g.fillText('🏈 TUDDY · ' + label, 82 + wmW + 10, 35)
-  g.fillStyle = C.text3; g.font = `600 11px ${MONO}`
-  g.fillText(sub, 80, 56)
-  g.strokeStyle = C.border
-  g.beginPath(); g.moveTo(0, HEAD_H - 0.5); g.lineTo(W, HEAD_H - 0.5); g.stroke()
-}
-
-function posterFooter(g, W, H, note) {
-  const fy = H - 23
-  g.fillStyle = C.text3; g.font = `600 10px ${MONO}`
-  g.fillText(note, 22, fy)
-  g.fillStyle = C.text2; g.font = `800 10px ${MONO}`
-  g.textAlign = 'right'
-  g.fillText('DASH NETWORK · TUDDY', W - 22, fy)
-  g.textAlign = 'left'
-  g.fillStyle = C.green; g.fillRect(0, H - 3, W, 3)
-}
-
-function newPoster(W, H) {
-  const c = document.createElement('canvas')
-  const scale = 2
-  c.width = W * scale; c.height = H * scale
-  const g = c.getContext('2d')
-  g.scale(scale, scale)
-  g.textBaseline = 'middle'
-  posterField(g, W, H)
-  return { c, g }
-}
-
-function savePoster(c, filename) {
-  const a = document.createElement('a')
-  a.download = filename
-  a.href = c.toDataURL('image/png')
-  a.click()
-}
+// MOONSHOT's poster (lib/poster.js, 2026-09-29) in TUDDY's pair: the same
+// field, header, footer and canvas, jade / cyan instead of orange / red.
+const { posterHeader, posterFooter, newPoster } = makePoster({
+  bg: C.bg,
+  glowA: ['rgba(0,245,173,0.16)', 'rgba(0,245,173,0)'],
+  glowB: ['rgba(53,205,255,0.12)', 'rgba(53,205,255,0)'],
+  tile: [C.green, C.cyan], tileInk: C.bg, tileWord: 'TD',
+  text: C.text, accent: C.green, dim: C.text3, faint: C.text3,
+  rule: C.border, product: '🏈 TUDDY', footer: 'DASH NETWORK · TUDDY',
+})
 
 const slug = (s) => String(s || 'pick').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'pick'
 const todayStamp = () => new Date().toLocaleDateString('en-CA')
