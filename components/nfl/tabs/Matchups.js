@@ -10,6 +10,7 @@ import { fieldModel, phrase, fmtPct, DEPTHS, SIDES, DEPTH_AX, LANES, LANE_WORD }
 import PageHeader from '../../PageHeader'
 import NflTable from '../NflTable'
 import SourceSeason from '../SourceSeason'
+import SeasonToggle from '../../SeasonToggle'
 import useDvpSeason from '../../../lib/nfl/useDvpSeason'
 import { MatchupTitle, SubLabel, BarList, FactLines, HeatTiles } from '../../matchup/MatchupParts'
 import { softRole, softLine, passRushThreat, blockSeason, PASS_RUSH_AVOID, STARTER_ROLES } from '../../../lib/nfl/dvpSignal'
@@ -149,9 +150,7 @@ function ByPosition({ matchup, team, win, setWin, slateSeason }) {
         {WINDOWS.filter(([k]) => data?.dvp?.[k]).map(([k, label]) => (
           <button key={k} onClick={() => setWin(k)} style={btnStyle(C.cyan, k === win)}>{label}</button>
         ))}
-        {dvpSeason.hasToggle && [dvpSeason.current, dvpSeason.alt].map((yr) => (
-          <button key={yr} onClick={() => dvpSeason.pick(yr)} style={btnStyle(C.cyan, dvpSeason.showing === yr)}>{yr}{dvpSeason.state === 'loading' && dvpSeason.showing === yr ? '…' : ''}</button>
-        ))}
+        {dvpSeason.hasToggle && <SeasonToggle seasons={[dvpSeason.current, dvpSeason.alt]} slateSeason={slateSeason} value={dvpSeason.showing} onPick={dvpSeason.pick} loading={dvpSeason.state === 'loading' ? dvpSeason.showing : null} />}
       </div>
       {rows.length ? (
         <NflTable rows={rows} columns={columns} heatMode="full" maxHeight={9999} />

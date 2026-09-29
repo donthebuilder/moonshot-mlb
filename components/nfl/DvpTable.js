@@ -2,6 +2,7 @@
 import { C, NUM_FONT } from '../../lib/nfl/theme'
 import { softRole } from '../../lib/nfl/dvpSignal'
 import SourceSeason from './SourceSeason'
+import SeasonToggle from '../SeasonToggle'
 import useDvpSeason from '../../lib/nfl/useDvpSeason'
 
 // Defence vs position, BY DEPTH ROLE.
@@ -127,18 +128,7 @@ export default function DvpTable({ data: payload, team, win = 'season', roles, h
       <div style={{ padding: '10px 12px 14px' }}>
         {dvpSeason.hasToggle && (
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6, marginBottom: 8 }}>
-            {[dvpSeason.current, dvpSeason.alt].map((yr) => {
-              const on = dvpSeason.showing === yr
-              return (
-                <button key={yr} onClick={() => dvpSeason.pick(yr)} style={{
-                  fontFamily: NUM_FONT, fontSize: 9, fontWeight: 900, letterSpacing: '.06em',
-                  padding: '2px 7px', borderRadius: 5, cursor: 'pointer',
-                  border: `1px solid ${on ? C.cyan : C.border}`,
-                  background: on ? `${C.cyan}1f` : 'transparent',
-                  color: on ? C.cyan : C.text3,
-                }}>{yr}</button>
-              )
-            })}
+            <SeasonToggle seasons={[dvpSeason.current, dvpSeason.alt]} slateSeason={slateSeason} value={dvpSeason.showing} onPick={dvpSeason.pick} loading={dvpSeason.state === 'loading' ? dvpSeason.showing : null} />
           </div>
         )}
         <div style={{ color: C.text3, fontSize: 12 }}>
@@ -182,24 +172,7 @@ export default function DvpTable({ data: payload, team, win = 'season', roles, h
             {dvpSeason.alt} table didn&apos;t load — still showing {dvpSeason.current}
           </span>
         )}
-        {dvpSeason.hasToggle && [dvpSeason.current, dvpSeason.alt].map((yr) => {
-          const on = dvpSeason.showing === yr
-          return (
-            <button
-              key={yr} onClick={() => dvpSeason.pick(yr)}
-              title={yr === dvpSeason.current
-                ? 'The season the bot scores this week against'
-                : 'The other season, fetched on demand'}
-              style={{
-                fontFamily: NUM_FONT, fontSize: 9, fontWeight: 900, letterSpacing: '.06em',
-                padding: '2px 7px', borderRadius: 5, cursor: 'pointer',
-                border: `1px solid ${on ? C.cyan : C.border}`,
-                background: on ? `${C.cyan}1f` : 'transparent',
-                color: on ? C.cyan : C.text3,
-              }}
-            >{yr}{dvpSeason.state === 'loading' && dvpSeason.showing === yr ? '…' : ''}</button>
-          )
-        })}
+        {dvpSeason.hasToggle && <SeasonToggle seasons={[dvpSeason.current, dvpSeason.alt]} slateSeason={slateSeason} value={dvpSeason.showing} onPick={dvpSeason.pick} loading={dvpSeason.state === 'loading' ? dvpSeason.showing : null} />}
         <SourceSeason matchup={data} kind="stats" slateSeason={slateSeason} />
       </div>
       <div className="dense-scroll" style={{ overflowX: 'auto' }}>
