@@ -1,5 +1,6 @@
 'use client'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
+import { btnStyle } from '../../ui'
 import { C, NUM_FONT, MARKETS, TYPE } from '../../../lib/nfl/theme'
 import NflTable from '../NflTable'
 
@@ -59,6 +60,7 @@ import NflTable from '../NflTable'
 // took the field and scored zero. results is optional; every pair here is
 // still shown, just unranked by outcome, before anything is graded.
 
+const PAIR_VIEWS = [['same', 'Same player'], ['qb', 'QB + receiver'], ['stack', 'TD stacks']]
 const MARKET_LABEL = Object.fromEntries(MARKETS.map(([k, label]) => [k, label]))
 
 // Five same-player combinations, one per eligible position group. Chosen to
@@ -286,7 +288,8 @@ function buildStackRows(players, bars, results) {
 
 // ── the tab ──────────────────────────────────────────────────────────────────
 
-export default function Pairs({ data, results, onPlayerClick }) {
+export default function Pairs({ data, results, onPlayerClick, setTab = null }) {
+  const [view, setView] = useState('same')
   // data?.players || [] mints a fresh array reference on every render when
   // data.players is absent, so — same fix Accountability.js's ScoreBands
   // already applies — the fallback lives INSIDE each memo callback rather
@@ -308,6 +311,7 @@ export default function Pairs({ data, results, onPlayerClick }) {
   // Rows carry the player as _player, not _raw: DenseTable hands onRowClick
   // r._raw when a row has one, and a pair row needs its market too (nav audit 09-29).
   const openRow = (r) => onPlayerClick?.(r._player, r._market)
+  const counts = { same: sameRows.length, qb: crossRows.length, stack: stackRows.length }
   const gradedCount = results ? sameRows.filter((r) => r.gradeState === 'both').length : null
 
   // The featured card used to be "sturdiest pair" unconditionally — which on
@@ -338,6 +342,28 @@ export default function Pairs({ data, results, onPlayerClick }) {
         )}
       </div>
 
+      {/* MOONSHOT'S PAIRS FRAME (2026-09-29, Donovan: "figure it out"):
+          Parlays opens on a pill row of views and points at its ledger
+          (components/tabs/Combos.js). TUDDY's three pair tables are its views,
+          one at a time -- they were stacked, ~3 tables of phone scroll. Pools,
+          pair history and the builder need NFL pair data the bot does not
+          publish yet (nfl_pair_builder.json / nfl_pair_summary.json), so they
+          are not faked here. */}
+      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 12 }}>
+        {PAIR_VIEWS.map(([k, label]) => (
+          <button key={k} onClick={() => setView(k)} style={btnStyle(C.green, view === k)}>
+            {label}{counts[k] != null ? ` (${counts[k]})` : ''}
+          </button>
+        ))}
+      </div>
+      {setTab && (
+        <button type="button" onClick={() => setTab('ledger')}
+          style={{ display: 'block', margin: '-4px 0 12px', minHeight: 44, padding: 0, border: 0, background: 'transparent', cursor: 'pointer', font: `800 11px/1.5 ${NUM_FONT}`, color: C.green }}>
+          🧾 Every touchdown this week, and who had it → Ledger
+        </button>
+      )}
+
+      {view === 'same' && <>
       {lead && (
         <div style={{
           background: `linear-gradient(155deg, ${lead.color}1c, ${lead.color}06)`,
@@ -410,7 +436,10 @@ export default function Pairs({ data, results, onPlayerClick }) {
         </div>
       )}
 
-      <div style={{ marginTop: 18, display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 7 }}>
+      </>}
+
+      {view === 'qb' && <>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 7 }}>
         <span style={{ fontSize: TYPE.title, fontWeight: 800 }}>QB + his own top receiver, same game</span>
         <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>
           {crossRows.length} teams · the cross-player case, kept to the one the brief named
@@ -442,7 +471,10 @@ export default function Pairs({ data, results, onPlayerClick }) {
         </div>
       )}
 
-      <div style={{ marginTop: 18, display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 7 }}>
+      </>}
+
+      {view === 'stack' && <>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 7 }}>
         <span style={{ fontSize: TYPE.title, fontWeight: 800 }}>ATD stack — two scorers, same team</span>
         <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>
           {stackRows.length} teams · same market both legs, the plan's own named case
@@ -475,6 +507,7 @@ export default function Pairs({ data, results, onPlayerClick }) {
           No team on this slate currently has two players carrying an Anytime TD score.
         </div>
       )}
+      </>}
     </div>
   )
 }
