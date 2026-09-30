@@ -522,9 +522,16 @@ export default function Dashboard({ palettePass = 0 }) {
     const before = hashParams()
     const cardId = modalPlayer ? String(modalPlayer?.player_id ?? modalPlayer?.id ?? '') : ''
     const newTab = (h.get('tab') || '') !== (before.get('tab') || '')
-    const newCard = Boolean(cardId) && cardId !== (before.get('p') || '')
+    // ONE ENTRY PER CARD, NOT PER PLAYER (2026-09-30, Donovan: "if I change
+    // the player on the modal I have to close out all the players instead of
+    // just the last one"). Opening a card pushes one entry; walking to
+    // another player INSIDE the open card (‹ › / search) replaces it and keeps
+    // its dashCard marker, so one close -- or one Back -- leaves the card.
+    const hadCard = Boolean(before.get('p'))
+    const newCard = Boolean(cardId) && !hadCard
+    const swapCard = Boolean(cardId) && hadCard && cardId !== before.get('p')
     const newDay = (h.get('day') || '') !== (before.get('day') || '')
-    writeHash(h, { push: newTab || newCard || newDay, state: newCard ? { dashCard: 1 } : null })
+    writeHash(h, { push: newTab || newCard || newDay, state: newCard ? { dashCard: 1 } : swapCard ? window.history.state : null })
   }, [tab, modalPlayer, missingTab, missingPlayer, mode])
 
 
