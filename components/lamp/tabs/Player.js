@@ -183,20 +183,16 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel }) {
       {p.last5.length > 0 && (
         <section aria-label="Last five">
           <Kicker>LAST FIVE</Kicker>
-          <table style={tbl}>
-            <thead><tr style={thr}><th style={th}>DATE</th><th style={th}>OPP</th>{goalie ? <><th style={th}>DEC</th><th style={{ ...th, textAlign: 'right' }}>SA</th><th style={{ ...th, textAlign: 'right' }}>GA</th><th style={{ ...th, textAlign: 'right' }}>SV%</th><th className="sm-hide" style={{ ...th, textAlign: 'right' }}>TOI</th></> : <><th style={{ ...th, textAlign: 'right' }}>G</th><th style={{ ...th, textAlign: 'right' }}>A</th><th style={{ ...th, textAlign: 'right' }}>PTS</th><th style={{ ...th, textAlign: 'right' }}>S</th><th className="sm-hide" style={{ ...th, textAlign: 'right' }}>+/-</th><th className="sm-hide" style={{ ...th, textAlign: 'right' }}>TOI</th></>}</tr></thead>
-            <tbody>
-              {p.last5.map((g) => (
-                <tr key={g.gameId} onClick={() => onOpenGame?.(g.gameId)} tabIndex={0} role="link" onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpenGame?.(g.gameId) } }} style={{ cursor: 'pointer', borderTop: `1px solid ${C.border}` }}>
-                  <td style={{ ...td, fontFamily: NUM_FONT, fontSize: 10.5, color: C.text3, whiteSpace: 'nowrap' }}>{fmtDay(g.date)}{g.gameType === 3 ? <span style={{ marginLeft: 6, color: C.amber, fontSize: 8, letterSpacing: '.1em' }}>PLAYOFF</span> : null}</td>
-                  <td style={{ ...td, fontFamily: NUM_FONT, fontSize: 11 }}>{g.home ? 'vs' : '@'} {g.opp}</td>
-                  {goalie
-                    ? <><td style={{ ...td, fontFamily: NUM_FONT, fontWeight: 800, color: g.decision === 'W' ? C.teal : C.text2 }}>{dash(g.decision)}</td><td style={num}>{dash(g.sa)}</td><td style={num}>{dash(g.ga)}</td><td style={{ ...num, fontWeight: 800 }}>{fmtPct3(g.svPct)}</td><td className="sm-hide" style={num}>{dash(g.toi)}</td></>
-                    : <><td style={{ ...num, color: g.g > 0 ? C.lamp : C.text2, fontWeight: g.g > 0 ? 900 : 600 }}>{dash(g.g)}</td><td style={num}>{dash(g.a)}</td><td style={{ ...num, fontWeight: 800 }}>{dash(g.pts)}</td><td style={num}>{dash(g.shots)}</td><td className="sm-hide" style={num}>{plusMinus(g.plusMinus)}</td><td className="sm-hide" style={num}>{dash(g.toi)}</td></>}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {/* MOONSHOT's table (2026-09-29, the LAMP walk-through): the game log's
+              own LampTable and columns, so the two read alike; a playoff game
+              keeps its tag. */}
+          <LampTable
+            rows={p.last5.map((g) => ({ ...g, _key: g.gameId, vs: vs(g) }))}
+            columns={(goalie ? G_LOG_COLS : SK_LOG_COLS).map((c) => (c.key === 'date'
+              ? { ...c, fmt: (v, r) => <>{fmtDay(v)}{r.gameType === 3 ? <span style={{ marginLeft: 6, color: C.amber, fontSize: 8, letterSpacing: '.1em' }}>PLAYOFF</span> : null}</> , w: 118 }
+              : c))}
+            maxHeight={9999} maxRows={5} heatMode="standouts" onRowClick={(r) => onOpenGame?.(r.gameId)}
+            caption="His last five games, newest first. Each row opens the game." />
         </section>
       )}
 

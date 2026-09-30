@@ -3,8 +3,8 @@ import { useMemo, useState } from 'react'
 import PageHeader from '../../PageHeader'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import { useLampPlayers } from '../../../lib/nhl/useLamp'
-import { usePreview, ShowMoreButton } from '../../ListPreview'
-import { EmptyState, DelayedBanner, Loading, SourceLine, Pills, PlayerMark } from '../ui'
+import LampTable from '../LampTable'
+import { EmptyState, DelayedBanner, Loading, SourceLine, Pills } from '../ui'
 
 // 🏒 PLAYERS / GOALIES — the directory. Every player on every current roster
 // (roster/{team}/current × 32, one route), a name box, a position filter,
@@ -32,7 +32,6 @@ export default function Players({ goaliesOnly = false, onOpenPlayer, onOpenTeam 
       return true
     })
   }, [all, q, pos])
-  const prev = usePreview(rows, q ? 200 : 25)
   const title = goaliesOnly ? 'Every goalie' : 'Every player'
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -51,25 +50,26 @@ export default function Players({ goaliesOnly = false, onOpenPlayer, onOpenTeam 
       {data && rows.length === 0 && <EmptyState title="NO ONE BY THAT NAME" note="Nobody on a current roster matches. Try the surname alone, or the club’s three letters." />}
       {rows.length > 0 && (
         <>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-            <thead><tr style={{ color: C.text3, font: `800 8px/1 ${NUM_FONT}`, letterSpacing: '.12em', textAlign: 'left' }}><th style={th}>PLAYER</th><th style={th}>POS</th><th style={th}>#</th><th style={th}>TEAM</th></tr></thead>
-            <tbody>
-              {prev.shown.map((p) => (
-                <tr key={p.id} style={{ borderTop: `1px solid ${C.border}` }}>
-                  <td style={td}><PlayerMark headshot={p.headshot} name={p.name} onClick={() => onOpenPlayer?.(p.id)} /></td>
-                  <td style={{ ...td, fontFamily: NUM_FONT, fontSize: 10.5, color: C.text2 }}>{p.pos}</td>
-                  <td style={{ ...td, fontFamily: NUM_FONT, fontSize: 10.5, color: C.text3 }}>{p.number ?? '—'}</td>
-                  <td style={td}><button type="button" onClick={() => onOpenTeam?.(p.team)} style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', color: C.ice, font: `800 10.5px/1 ${NUM_FONT}`, letterSpacing: '.04em' }}>{p.team}</button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <ShowMoreButton open={prev.open} restN={prev.restN} toggle={prev.toggle} itemWord="players" />
+          {/* MOONSHOT's table (2026-09-29, the LAMP walk-through): was a
+              hand-built <table>; LampTable sorts, keeps the name column, shows the
+              face, and previews the first rows itself (the site-wide long-list rule). */}
+          <LampTable
+            rows={rows.map((p) => ({ ...p, _key: p.id, _raw: p, num: p.number ?? null }))}
+            columns={[
+              { key: 'name', label: 'Player', w: 170, heat: false, bold: true, sticky: true },
+              { key: 'pos', label: 'Pos', w: 40, heat: false, mono: true },
+              { key: 'num', label: '#', w: 36, heat: false, mono: true, dim: true },
+              { key: 'team', label: 'Team', w: 62, heat: false, mono: true, teamMark: 'nhl', link: (r) => (onOpenTeam ? () => onOpenTeam(r.team) : null) },
+            ]}
+            onRowClick={(r) => onOpenPlayer?.((r?._raw ?? r).id)}
+            faceOf={(r) => ({ sport: 'nhl', photo: r.headshot, name: r.name })}
+            initialSort={{ key: 'name', dir: 'asc' }}
+            maxHeight={620}
+            maxRows={q ? 200 : 25}
+            caption="Every player on a current roster. Column headers sort; each row opens his file; the team opens the club." />
         </>
       )}
       <SourceLine>Source: NHL roster/{'{team}'}/current for all 32 clubs via /api/lamp/players, cached thirty minutes. Camp rosters shrink as cuts are made.</SourceLine>
     </div>
   )
 }
-const th = { padding: '0 8px 8px', fontWeight: 800 }
-const td = { padding: '7px 8px', verticalAlign: 'middle' }
