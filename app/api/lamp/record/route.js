@@ -75,6 +75,6 @@ function lists(rs) {
   return {
     called: rs.filter((r) => r.status === 'called' && r.dressed).sort((a, b) => a.game_id - b.game_id || a.rank - b.rank).map((r) => ({ playerId: r.player_id, name: r.name, team: r.team, opp: r.opp, rank: r.rank, score: r.score, goals: r.goals, hit: r.hit })),
     // `scorersOff` is coverage()'s COUNT; the list is `offScorers` (a clash the render harness caught).
-    offScorers: rs.filter((r) => r.hit && r.status !== 'called').map((r) => ({ name: r.name, team: r.team, rank: r.rank, status: r.status, goals: r.goals })),
+    offScorers: rs.filter((r) => r.hit && r.status !== 'called').map((r) => ({ playerId: r.player_id, name: r.name, team: r.team, opp: r.opp, rank: r.rank, status: r.status, goals: r.goals })),
   }
 }

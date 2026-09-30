@@ -3,6 +3,7 @@ import Leaders from './Leaders'
 import MoneyAnswer from '../MoneyAnswer'
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import Tap from '../Tap'
+import { ModeBar as ModeBarPart, TabBtn } from '../results/ResultsParts'
 import { etToday } from '../../lib/freshness'
 import { mlbSlateState } from '../../lib/mlbSlateState'
 import { tabName } from '../../lib/routes'
@@ -141,16 +142,7 @@ const Fold = ({ label, children }) => (
 
 // ── micro components ────────────────────────────────────────────────────────
 
-function TabBtn({ active, onClick, children }) {
-  return (
-    <button onClick={onClick} style={{
-      padding: '5px 12px', fontSize: TYPE.body, fontWeight: 700, borderRadius: 999,
-      border: `1px solid ${active ? C.orange : C.border}`,
-      background: active ? `${C.orange}22` : 'rgba(255,255,255,.035)',
-      color: active ? C.orange : C.text2, cursor: 'pointer', whiteSpace: 'nowrap',
-    }}>{children}</button>
-  )
-}
+// TabBtn: components/results/ResultsParts.js (2026-09-30).
 
 function StatRow({ label, value, accent }) {
   return (
@@ -1871,25 +1863,5 @@ const MODES = [
   ['bands',   '📊 Score bands', 'what a 0-100 is actually worth'],
 ]
 function ModeBar({ mode, setMode }) {
-  return (
-    <div style={{ display: 'flex', gap: 6, marginBottom: 11, flexWrap: 'wrap' }}>
-      {MODES.map(([k, label, question]) => {
-        const on = mode === k
-        return (
-          <button
-            key={k} onClick={() => setMode(k)}
-            style={{
-              flex: '1 1 170px', minWidth: 0, textAlign: 'left', cursor: 'pointer',
-              padding: '7px 13px', borderRadius: 11,
-              border: `1px solid ${on ? C.orange : C.border}`,
-              background: on ? 'rgba(249,115,22,.13)' : 'rgba(255,255,255,.03)',
-            }}
-          >
-            <div style={{ fontSize: TYPE.name, fontWeight: 900, color: on ? C.orange : C.text2 }}>{label}</div>
-            <div style={{ fontSize: TYPE.micro, color: C.text3, marginTop: 1 }}>{question}</div>
-          </button>
-        )
-      })}
-    </div>
-  )
+  return <ModeBarPart modes={MODES} mode={mode} setMode={setMode} />   // components/results/ResultsParts.js
 }

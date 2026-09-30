@@ -1,4 +1,6 @@
 'use client'
+import { ModeBar as ModeBarPart, TabBtn } from '../../results/ResultsParts'
+import { SportTheme } from '../../SportTheme'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT, MARKETS, gradeFor, TYPE } from '../../../lib/nfl/theme'
 import NflTable from '../NflTable'
@@ -509,39 +511,10 @@ const MODES = [
 ]
 
 function ModeBar({ mode, setMode }) {
-  return (
-    <div style={{ display: 'flex', gap: 6, marginBottom: 11, flexWrap: 'wrap' }}>
-      {MODES.map(([k, label, question]) => {
-        const on = mode === k
-        return (
-          <button
-            key={k} onClick={() => setMode(k)}
-            style={{
-              flex: '1 1 170px', minWidth: 0, textAlign: 'left', cursor: 'pointer',
-              padding: '7px 13px', borderRadius: 11,
-              border: `1px solid ${on ? C.green : C.border}`,
-              background: on ? 'rgba(0,245,173,.13)' : 'rgba(255,255,255,.03)',
-            }}
-          >
-            <div style={{ fontSize: TYPE.name, fontWeight: 900, color: on ? C.green : C.text2 }}>{label}</div>
-            <div style={{ fontSize: TYPE.micro, color: C.text3, marginTop: 1 }}>{question}</div>
-          </button>
-        )
-      })}
-    </div>
-  )
+  return <ModeBarPart modes={MODES} mode={mode} setMode={setMode} />   // components/results/ResultsParts.js
 }
 
-function TabBtn({ active, onClick, children }) {
-  return (
-    <button onClick={onClick} style={{
-      padding: '5px 12px', fontSize: TYPE.body, fontWeight: 700, borderRadius: 999,
-      border: `1px solid ${active ? C.green : C.border}`,
-      background: active ? `${C.green}22` : 'rgba(255,255,255,.035)',
-      color: active ? C.green : C.text2, cursor: 'pointer', whiteSpace: 'nowrap',
-    }}>{children}</button>
-  )
-}
+// TabBtn: components/results/ResultsParts.js (2026-09-30).
 
 // 👤 TRACK RECORD — which players the card has actually been right about,
 // across every graded week in the archive. MOONSHOT's Results has the same
@@ -631,6 +604,7 @@ export default function Accountability({ data, results: latest, onPlayerClick })
   const weeksRows = mode === 'season' && subTab === 'weeks' ? weekRows(archive, keys, currentKey) : []
 
   return (
+    <SportTheme theme={C} accent={C.green} numFont={NUM_FONT}>
     <div>
       <ModeBar mode={mode} setMode={pickMode} />
 
@@ -840,5 +814,6 @@ export default function Accountability({ data, results: latest, onPlayerClick })
         }
       `}</style>
     </div>
+    </SportTheme>
   )
 }
