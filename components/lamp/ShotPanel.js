@@ -4,7 +4,8 @@ import Rink from './Rink'
 import { C, NUM_FONT } from '../../lib/nhl/theme'
 import { useLampShots } from '../../lib/nhl/useLamp'
 import { DelayedBanner, Loading, Pills } from './ui'
-import { FactLines, BarList } from '../matchup/MatchupParts'
+import { FactLines } from '../matchup/MatchupParts'
+import { chipColor } from '../Heatmap'
 import { ChipGroup } from '../matchup/SprayParts'
 
 // 🏒 WHERE HE SHOOTS FROM (lamp research step 3). The rink plus the numbers
@@ -64,6 +65,7 @@ export default function ShotPanel({ sel, who = 'He', height = 300 }) {
   const [str, setStr] = useState('ALL')
   const [per, setPer] = useState('ALL')
   const [picked, setPicked] = useState(null)
+  const [help, setHelp] = useState(false)
   const m = data?.[win]
   const recent = m?.recent || []
   const pass = (sh, skip) => (skip === 'res' || res === 'ALL' || sh[2] === res)
@@ -80,7 +82,7 @@ export default function ShotPanel({ sel, who = 'He', height = 300 }) {
   const zoneItems = ZONES.map((z) => {
     const inZ = shots.filter(z.test)
     const g = inZ.filter((sh) => sh[2] === 'goal').length
-    return { key: z.key, label: z.label, pct: shots.length ? (100 * inZ.length) / shots.length : 0,
+    return { key: z.key, label: z.label, g, pct: shots.length ? (100 * inZ.length) / shots.length : 0,
       text: `${inZ.length}${g ? ` · ${g}G` : ''}`, def: z.def }
   })
   const filtered = res !== 'ALL' || type !== 'ALL' || str !== 'ALL' || per !== 'ALL'
@@ -115,57 +117,88 @@ export default function ShotPanel({ sel, who = 'He', height = 300 }) {
             </div>
           )}
           {filtered && !shots.length && <p style={{ margin: 0, color: C.text3, fontSize: 12 }}>None of {who === 'He' ? 'his' : 'their'} last {recent.length} attempts match every filter at once.</p>}
-          <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 }}>
+          {/* MOONSHOT'S SPRAY CHART LAYOUT (2026-09-30, Donovan: "shot map I
+              already told you I want basically like the spray chart"). The
+              chart and its readout share one framed panel (SprayField's
+              .spray-wrap): the rink on the left; on the right the readout in a
+              fixed place (tapping a dot never moves the page), the zone lanes
+              as SprayField's lane bars (share + goals, like LF/CF/RF + HR),
+              the colour key in one line, the numbers, and the fine print
+              behind "how to read this". */}
+          <div className="spray-wrap" style={{
+            display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'flex-start',
+            background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 12, padding: 10,
+          }}>
             <Rink map={m} slot={data.slot} gridSpec={data.gridSpec} height={height} shots={shots}
               onPick={(sh) => setPicked(sh === picked ? null : sh)} picked={picked}
               onPickCell={(cell) => setPicked({ cell })} />
-            {/* The card has a fixed place under the rink, so tapping a dot
-                never moves the page (SprayField's readout rule). */}
-            <div aria-live="polite" style={{ minHeight: 40, maxWidth: 340, padding: '7px 10px', borderRadius: 9, border: `1px solid ${C.border}`, background: C.bg2, font: `700 10.5px/1.5 ${NUM_FONT}`, color: C.text2 }}>
-              {!picked ? <span style={{ color: C.text3 }}>Tap a shot for its detail{m?.grid ? ' · on HEAT, tap a zone' : ''}.</span>
-                : picked.cell ? <>{picked.cell.att} attempts in that zone · {picked.cell.sog} on net · <b style={{ color: C.lamp }}>{picked.cell.g} goal{picked.cell.g === 1 ? '' : 's'}</b></>
+            <div style={{ flex: 1, minWidth: 180 }}>
+              <div aria-live="polite" style={{ minHeight: 54, fontFamily: NUM_FONT, fontSize: 10.5, lineHeight: 1.7, color: C.text2 }}>
+                {!picked ? (
+                  <div style={{ fontSize: 10, color: C.text3, lineHeight: 1.6 }}>
+                    Tap a shot for its result, type, distance and moment{m?.grid ? ' · on HEAT, tap a zone' : ''}.
+                    {' '}Showing <b style={{ color: C.text2 }}>{shots.length}</b> of the last {recent.length} attempts.
+                  </div>
+                ) : picked.cell ? <>{picked.cell.att} attempts in that zone · {picked.cell.sog} on net · <b style={{ color: C.lamp }}>{picked.cell.g} goal{picked.cell.g === 1 ? '' : 's'}</b></>
                   : <>
-                    <b style={{ color: picked[2] === 'goal' ? C.lamp : C.text }}>{RES_WORD[picked[2]] || picked[2]}</b>
-                    {picked[3] ? ` · ${picked[3]}` : ''} · {distOf(picked)} ft
-                    {picked[4] ? ` · ${picked[4].toUpperCase()}` : ''}
-                    {picked[5] != null ? ` · ${perOf(picked) === 'OT' ? 'OT' : `P${picked[5]}`} ${clock(picked[7])}` : ''}
-                    {picked[8] ? ` · ${picked[8]}` : ''}
-                    {picked[9] ? ` · ${picked[9].replace(/-/g, ' ')}` : ''}
+                    <div style={{ color: picked[2] === 'goal' ? C.lamp : C.text, fontWeight: 800, fontSize: 11 }}>{(RES_WORD[picked[2]] || picked[2] || '').toUpperCase()}</div>
+                    <div>{picked[3] ? `${picked[3]} · ` : ''}{distOf(picked)} ft{picked[4] ? ` · ${picked[4].toUpperCase()}` : ''}</div>
+                    <div style={{ color: C.text3 }}>
+                      {picked[5] != null ? `${perOf(picked) === 'OT' ? 'OT' : `P${picked[5]}`} ${clock(picked[7])}` : ''}
+                      {picked[8] ? ` · ${picked[8]}` : ''}
+                      {picked[9] ? ` · ${picked[9].replace(/-/g, ' ')}` : ''}
+                    </div>
                   </>}
-            </div>
-            </div>
-            <dl style={{ margin: 0, display: 'grid', gridTemplateColumns: 'auto auto', gap: '6px 14px', alignContent: 'start', fontFamily: NUM_FONT }}>
-              {[
-                ['SLOT SHARE', pct(m.slotShare), C.ice],
-                ['ATTEMPTS', m.attempts, C.text],
-                ['ON NET', m.sog, C.text],
-                ['GOALS', m.goals, C.lamp],
-                ['MISSED', m.misses, C.text2],
-                ['BLOCKED', m.blocked, C.text2],
-                ['ON THE PP', m.byStrength?.pp || 0, C.text2],
-              ].map(([k, v, tone]) => (
-                <div key={k} style={{ display: 'contents' }}>
-                  <dt style={{ color: C.text3, fontSize: 9, fontWeight: 800, letterSpacing: '.1em', alignSelf: 'center' }}>{k}</dt>
-                  <dd style={{ margin: 0, color: tone, fontSize: 15, fontWeight: 900, textAlign: 'right' }}>{v}</dd>
-                </div>
-              ))}
-              <dd style={{ gridColumn: '1 / -1', margin: '4px 0 0', color: C.text3, fontSize: 10, lineHeight: 1.45, maxWidth: 220, fontFamily: 'inherit' }}>
-                {sel?.against
-                  ? <>Opponents&apos; shots on net from the slot — between the faceoff dots and the goal line — as a share of every shot on net against them.</>
-                  : <>{who === 'He' ? 'His' : 'Their'} shots on net from the slot — between the faceoff dots and the goal line — as a share of all {who === 'He' ? 'his' : 'their'} shots on net.</>}
-              </dd>
-            </dl>
-          </div>
-          {shots.length > 0 && recent[0]?.length > 3 && (
-            <div>
-              <BarList theme={C} numFont={NUM_FONT} accent={C.ice} labelWidth={74}
-                label={`WHERE ${filtered ? 'THESE' : `THE LAST ${recent.length}`} COME FROM`} items={zoneItems} />
-              <div style={{ marginTop: -8, fontSize: 10.5, color: C.text3, lineHeight: 1.5 }}>
-                {ZONES.map((z, i) => <span key={z.key}>{i ? ' · ' : ''}<b style={{ color: C.text2 }}>{z.label}</b> {z.def}</span>)}.
               </div>
+              {shots.length > 0 && recent[0]?.length > 3 && (
+                <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {zoneItems.map((z) => (
+                    <div key={z.key} title={`${z.label}: ${z.def}`} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10 }}>
+                      <span style={{ width: 58, color: C.text3, fontFamily: NUM_FONT }}>{z.label}</span>
+                      <div style={{ flex: 1, height: 11, background: C.bg3, borderRadius: 2 }}>
+                        <div style={{ width: `${Math.max(2, z.pct)}%`, height: '100%', background: chipColor(z.pct, 0, 45), borderRadius: 2 }} />
+                      </div>
+                      <span style={{ fontFamily: NUM_FONT, color: C.text2, minWidth: 52, textAlign: 'right' }}>
+                        {z.pct.toFixed(0)}%{z.g > 0 && <span style={{ color: C.lamp }}> {z.g}G</span>}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div style={{ fontSize: 9.5, color: C.text3, marginTop: 8, lineHeight: 1.6 }}>
+                <b style={{ color: C.lamp }}>red</b> goal · <b style={{ color: C.ice }}>blue</b> on net · ring = missed or blocked · shaded box = the slot
+              </div>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 8, fontFamily: NUM_FONT }}>
+                {[
+                  ['slot share', pct(m.slotShare), C.ice],
+                  ['attempts', m.attempts, C.text],
+                  ['on net', m.sog, C.text],
+                  ['goals', m.goals, C.lamp],
+                  ['missed', m.misses, C.text2],
+                  ['blocked', m.blocked, C.text2],
+                  ['on the PP', m.byStrength?.pp || 0, C.text2],
+                ].map(([k, v, tone]) => (
+                  <span key={k} style={{ fontSize: 10, color: C.text3 }}><b style={{ color: tone, fontSize: 12.5, fontWeight: 900 }}>{v}</b> {k}</span>
+                ))}
+              </div>
+              <button type="button" onClick={() => setHelp((v) => !v)} style={{
+                marginTop: 7, fontSize: 9.5, fontWeight: 700, color: C.text3, cursor: 'pointer',
+                background: 'transparent', border: `1px dashed ${C.border2}`, borderRadius: 6,
+                padding: '3px 9px', fontFamily: NUM_FONT, minHeight: 0,
+              }}>{help ? 'hide the fine print ▾' : 'how to read this ▸'}</button>
+              {help && (
+                <div style={{ fontSize: 9, color: C.text3, marginTop: 7, lineHeight: 1.55 }}>
+                  <div style={{ marginBottom: 5 }}>
+                    {sel?.against
+                      ? <>Slot share: opponents&apos; shots on net from the slot as a share of every shot on net against them.</>
+                      : <>Slot share: {who === 'He' ? 'his' : 'their'} shots on net from the slot as a share of all {who === 'He' ? 'his' : 'their'} shots on net.</>}
+                    {' '}The dots are the last {recent.length} attempts; the numbers are the whole {win === 'all' ? 'season' : 'last ten games'}.
+                  </div>
+                  {ZONES.map((z, i) => <span key={z.key}>{i ? ' · ' : ''}<b style={{ color: C.text2 }}>{z.label}</b> {z.def}</span>)}.
+                </div>
+              )}
             </div>
-          )}
+          </div>
           <FactLines theme={C} lines={depthLines(m, who, Boolean(sel?.against))} />
         </>
       ) : null}

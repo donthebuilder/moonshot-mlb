@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { C, NUM_FONT, rampAt } from '../../lib/nhl/theme'
 
 // 🏒 THE RINK (lamp research step 3, 2026-09-26). One attacking half seen
@@ -20,6 +20,7 @@ const sy = (y) => 42.5 - y
 // open the detail card beside the rink. Each dot gets a wider invisible hit
 // circle -- SprayField's lesson: a 1-foot dot is not a thumb target.
 export default function Rink({ map, slot, gridSpec, height = 300, shots = null, onPick = null, onPickCell = null, picked = null }) {
+  const clipId = `rink-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`
   const [view, setView] = useState('dots')
   const drawn = shots || map?.recent || []
   if (!map) return null
@@ -40,6 +41,19 @@ export default function Rink({ map, slot, gridSpec, height = 300, shots = null, 
         style={{ height, width: 'auto', maxWidth: '100%', display: 'block' }}>
         <path d={`M0,0 H${W - 28} A28,28 0 0 1 ${W},28 V${H - 28} A28,28 0 0 1 ${W - 28},${H} H0 Z`} fill={C.bg2} stroke={line} strokeWidth="0.6" />
         <rect x={sx(slot.x0)} y={sy(slot.y)} width={slot.x1 - slot.x0} height={slot.y * 2} fill={`${C.ice}14`} />
+        {/* DISTANCE ARCS (2026-09-30, "like the spray chart"): SprayField
+            draws fixed-feet arcs from home plate so a dot's position reads as a
+            distance; these are fixed-feet arcs from the net, 20 / 40 / 60 ft,
+            clipped to the rink, labelled on the centre line. */}
+        <clipPath id={clipId}><path d={`M0,0 H${W - 28} A28,28 0 0 1 ${W},28 V${H - 28} A28,28 0 0 1 ${W - 28},${H} H0 Z`} /></clipPath>
+        <g clipPath={`url(#${clipId})`}>
+          {[20, 40, 60].map((r) => (
+            <circle key={r} cx={sx(89)} cy={sy(0)} r={r} fill="none" stroke={line} strokeWidth="0.3" strokeDasharray="1.2 1.4" />
+          ))}
+        </g>
+        {[20, 40, 60].map((r) => (
+          <text key={`t${r}`} x={sx(89 - r)} y={sy(0) - 1} fill={C.text3} fontSize="3" fontFamily={NUM_FONT} textAnchor="middle">{r} ft</text>
+        ))}
         {view === 'heat' && map.grid.map((row, r) => row.map((cell, c) => cell.att ? (
           <rect key={`${r}-${c}`} x={sx(gridSpec.x0 + c * cw)} y={r * ch} width={cw} height={ch} fill={rampAt(cell.att / max)} opacity={0.18 + 0.6 * (cell.att / max)}>
             <title>{`${cell.att} attempts · ${cell.sog} on net · ${cell.g} goals`}</title>
