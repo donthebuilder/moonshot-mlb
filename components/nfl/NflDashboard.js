@@ -1,4 +1,6 @@
 'use client'
+import HighlightBar from '../HighlightBar'
+import { SportTheme } from '../SportTheme'
 import { easternToday, easternDate } from '../../lib/data'
 import { TodayContext } from '../TodayContext'
 import { hashParams, writeHash, closeOpened } from '../../lib/urlState'
@@ -396,7 +398,11 @@ export default function NflDashboard({ palettePass = 0 }) {
             border: `1px dashed ${C.border2}`, borderRadius: 12, padding: 28,
             textAlign: 'center', color: C.text3, fontSize: 12.5,
           }}>Loading slate…</div>
-        ) : (
+        ) : (<>
+          {/* ✨ who you highlighted (lib/pickLight.js) -- only while someone is */}
+          <SportTheme theme={C} accent={C.green} numFont={NUM_FONT}>
+            <HighlightBar sport="nfl" onOpen={(id) => { const p = (slate?.players || []).find((x) => String(x.player_id) === String(id)); if (p) openPlayer(p) }} />
+          </SportTheme>
           <ErrorBoundary resetKey={tab} label={`the ${tab} tab`}>
             {tab === 'home' && <Home data={slate} picks={picks} results={nflResults} matchup={matchup} logs={logs} onPlayerClick={openPlayer} setTab={setTab} />}
             {/* MOONSHOT's Players page (2026-09-30): list + the card inline. */}
@@ -435,6 +441,7 @@ export default function NflDashboard({ palettePass = 0 }) {
                 The old section view stays as Home's compact strip (tabs/Storylines.js compact). */}
             {tab === 'storylines' && <StorylinesPage sport="nfl" eyebrow="TUDDY · STORYLINES" theme={C} numFont={NUM_FONT} accent={C.green} onOpenGame={(id) => { leaveTarget('game', id); setTab('games') }} onOpenPlayer={(id) => { const p = (data?.players || []).find((x) => String(x.player_id) === String(id)); if (p) openPlayer(p, 'TD') }} />}
           </ErrorBoundary>
+        </>
         )}
       </main>
       </TodayContext.Provider>

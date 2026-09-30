@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { usePickLight } from '../../lib/pickLight'
 import { C as MLB_C, NUM_FONT as MLB_NUM } from '../../lib/theme'
 
 // 🔮 THE ALIGNMENTS VIEW, EVERY SPORT (2026-09-29, numerology parity).
@@ -35,28 +36,34 @@ export default function AlignmentsView({
   model, tonight, todayKey, todayRoot, AXIS_META, scoreOf = () => null,
   head = null, days = null, watchedRows = [], hasWatch = false,
   words = MLB_WORDS, builder = false, chipLimit = 24, compact = false, onBuildAround, onName, children = null,
-  theme = MLB_C, numFont = MLB_NUM, accent = null,
+  theme = MLB_C, numFont = MLB_NUM, accent = null, sport = 'mlb',
 }) {
   const C = theme
   const NUM_FONT = numFont
   accent = accent || C.orange
   const W = { ...MLB_WORDS, ...words }
   const { rows, clubs, totalMemberships, braids, names } = model
-  const [picked, setPicked] = useState(() => new Set())
+  // THE PICKED SET IS SITE-WIDE (2026-09-30, Donovan: "click and highlight
+  // players and then click thru and see they are highlighted -- that
+  // component needs to be everywhere"). lib/pickLight.js: a tapped name stays
+  // lit on every page of this product, not only in these clubs; MOONSHOT's
+  // builder hand-off still reads the same set.
+  const light = usePickLight(sport)
+  const picked = { has: (pid) => light.has(String(pid)) }
   const [openRoot, setOpenRoot] = useState(null)
   const { yesterdayArchive, todayArchive, tomorrowKey, tomorrowRoot } = days || {}
   // MOONSHOT collects names for its builder; the other sports open the card.
-  const CHIP = builder ? {} : { minHeight: 0, font: 'inherit', fontSize: 10.5, fontWeight: 700 }
+  // MOONSHOT's chip size on every product (2026-09-30, "plus the text size
+  // too" -> MLB's). The old override ended in `font: 'inherit'`, which lands
+  // AFTER fontSize in the style object and reset TUDDY/LAMP chips to the
+  // page's bigger text; only the tap-floor reset stays.
+  const CHIP = builder ? {} : { minHeight: 0 }
   const clickWord = (pid, lower) => builder
     ? `${lower ? 'click' : 'Click'} to ${picked.has(pid) ? 'remove from' : 'add to'} your build list`
-    : `${lower ? 'tap' : 'Tap'} to open his card`
+    : `${lower ? 'tap' : 'Tap'} to ${picked.has(pid) ? 'stop highlighting him' : 'highlight him on every page'}`
   const toggle = (pid) => {
-    if (!builder) { const a = rows.find((r) => r.pid === pid); if (a) onName?.(a); return }
-    setPicked((v) => {
-      const next = new Set(v)
-      if (next.has(pid)) next.delete(pid); else next.add(pid)
-      return next
-    })
+    const a = rows.find((r) => r.pid === pid)
+    light.toggle(String(pid), a?.name || '')
   }
   const pickedRows = rows.filter((a) => picked.has(a.pid))
 

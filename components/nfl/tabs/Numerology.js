@@ -123,7 +123,7 @@ export default function Numerology({ data, onPlayerClick }) {
       watchedRows={watchedRows} hasWatch={watchlist.pins.length > 0}
       // Six on a phone: the full 24 added ~1,000px above the clubs.
       chipLimit={phone ? 6 : 24} compact={phone}
-      words={WORDS} onName={open} theme={C} numFont={NUM_FONT} accent={C.green}
+      words={WORDS} onName={open} theme={C} numFont={NUM_FONT} accent={C.green} sport="nfl"
       head={(
         <>
       <PageHeader

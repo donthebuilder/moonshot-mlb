@@ -1,4 +1,5 @@
 'use client'
+import HighlightBar from './HighlightBar'
 import { TodayContext } from './TodayContext'
 import { useHashFilter, readHashKey, FILTER_KEYS } from '../lib/filterHash'
 import { hashParams, writeHash, closeOpened } from '../lib/urlState'
@@ -918,7 +919,9 @@ export default function Dashboard({ palettePass = 0 }) {
           <Empty text={data === null
             ? 'LIVE DATA DELAYED \u2014 we could not reach the board feed. Check your connection, or try the refresh button; the site retries on its own.'
             : 'No players found. The slate may not be built yet \u2014 check back after the next scheduled run.'} />
-        ) : (
+        ) : (<>
+          {/* ✨ who you highlighted (lib/pickLight.js) -- only while someone is */}
+          <HighlightBar sport="mlb" onOpen={(id) => { const p = allPlayers.find((x) => String(x?.player_id ?? x?.id) === String(id)); if (p) setModalPlayer(p) }} />
           <div key={tab} className="tab-fade">
             {/* Same boundary the NFL side got (2026-09-07, components/
                 ErrorBoundary.js): a throw inside one tab used to unmount the
@@ -1022,6 +1025,7 @@ export default function Dashboard({ palettePass = 0 }) {
             {tab === 'guide'       && <Guide onNavigate={setTab} />}
             </ErrorBoundary>
           </div>
+        </>
         )}
         {/* THE DISCLAIMER (2026-08-08, Donovan: "make sure we know it's all
             not financial advice, just stats") — every tab, every visit. */}

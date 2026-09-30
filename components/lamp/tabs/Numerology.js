@@ -106,7 +106,7 @@ export default function Numerology({ date = null, onOpenPlayer }) {
     <AlignmentsView
       model={model} tonight={tonight} todayKey={data.date} todayRoot={data.dateRoot}
       AXIS_META={AXIS_META} scoreOf={scoreOf} words={WORDS}
-      onName={(a) => onOpenPlayer?.(a.pid)} theme={C} numFont={NUM_FONT} accent={C.ice}
+      onName={(a) => onOpenPlayer?.(a.pid)} theme={C} numFont={NUM_FONT} accent={C.ice} sport="nhl"
       chipLimit={phone ? 6 : 24} compact={phone}
       head={head}
     >

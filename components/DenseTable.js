@@ -7,6 +7,8 @@ import { C, NUM_FONT } from '../lib/theme'
 import {
   useSpotlight, washOf, cellTint, cellEdge, cellMark, SPOT_MARK,
 } from '../lib/spotlight'
+import { usePickLight, rowPid, pickColorOf } from '../lib/pickLight'
+import { useSport } from '../lib/sport'
 import { ORANGE_RAMP, rampColor, inkFor } from './Heatmap'
 import { edgeOn } from '../lib/palette'
 import { seqColor, divTone, SEQ_AUTO, DIV_FIELD, fieldAnchor, fieldLabel } from '../lib/scales'
@@ -156,6 +158,10 @@ export default function DenseTable({
   // the user's named highlights washes in THAT light's color; when several
   // match, priority (1 = top) decides. Rows without _raw simply can't match.
   const { firstMatch } = useSpotlight()
+  // ✨ THE TAP HIGHLIGHT (2026-09-30, lib/pickLight.js): names tapped on the
+  // numerology chips (any product) stay lit here too, worn as one more light.
+  // It wins the row over a Spotlight rule (resolved below).
+  const pick = usePickLight(useSport())
   const railRef = useRef(null)
 
   // 📖 TAP A HEADER'S ⓘ FOR WHAT THE COLUMN MEANS (2026-08-09).
@@ -538,7 +544,10 @@ export default function DenseTable({
               // wear it: text cells take a tint, the first cell takes the bar
               // and a glyph, and heat cells are left alone because their
               // background already means their own value.
-              const light = firstMatch(r._raw ?? r)
+              const pid = pick.count ? rowPid(r) : ''
+              // A name you tapped beats a Spotlight rule: it is the more
+              // specific ask, and it wears ✨ so it never reads as a rule's row.
+              const light = (pid && pick.has(pid) ? { color: pickColorOf(C), name: `you highlighted ${pick.map[pid] || 'him'}`, mark: '✨' } : null) || firstMatch(r._raw ?? r)
               return (
               <tr
                 key={r._key ?? ri}
@@ -644,7 +653,7 @@ export default function DenseTable({
                           <span
                             title={`Highlight: ${light.name || 'match'}`}
                             style={cellMark(light.color)}
-                          >{SPOT_MARK}</span>
+                          >{light.mark || SPOT_MARK}</span>
                         )}
                         {faceOf && isFirstText && (() => {
                           const f = faceOf(r)

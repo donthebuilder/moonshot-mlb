@@ -1,4 +1,6 @@
 'use client'
+import HighlightBar from '../HighlightBar'
+import { SportTheme } from '../SportTheme'
 import { listenForWorkerOpen } from '../../lib/workerOpen'
 import { resolveColdTab } from '../../lib/shellRoute'
 import { TodayContext } from '../TodayContext'
@@ -318,7 +320,11 @@ export default function LampDashboard({ palettePass = 0 }) {
             onNavigate={setTab}
             doors={[['home', '\u{1F3E0} TONIGHT'], ['board', '\u{1F3AF} BOARD'], ['scores', '\u{1F4E1} SCORES'], ['schedule', '\u{1F4C5} SCHEDULE'], ['standings', '\u{1F4CA} STANDINGS'], ['players', '\u{1F464} PLAYERS'], ['teams', '\u{1F3DF} TEAMS'], ['leaders', '\u{1F3C6} LEADERS'], ['guide', '\u{1F4D6} GUIDE']]}
           />
-        ) : (
+        ) : (<>
+          {/* ✨ who you highlighted (lib/pickLight.js) -- only while someone is */}
+          <SportTheme theme={C} accent={C.ice} numFont={NUM_FONT}>
+            <HighlightBar sport="nhl" onOpen={(id) => openPlayer(id)} />
+          </SportTheme>
           <ErrorBoundary resetKey={`${tab}:${gameId || ''}:${teamKey || ''}:${playerId || ''}`} label={`the ${tab} tab`}>
             {tab === 'home' && <Home today={shown} date={date} onOpenGame={openGame} onOpenPlayer={openPlayer} onOpenTeam={openTeam} setTab={setTab} />}
             {tab === 'scores' && <Scores onOpenGame={openGame} date={date} setDate={setDate} />}
@@ -349,6 +355,7 @@ export default function LampDashboard({ palettePass = 0 }) {
             {tab === 'fullboard' && <FullBoard onOpenPlayer={openPlayer} onOpenTeam={openTeam} date={date} setDate={setDate} />}
             {tab === 'results' && <Results onOpenPlayer={openPlayer} />}
           </ErrorBoundary>
+        </>
         )}
       </main>
       </TodayContext.Provider>
