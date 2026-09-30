@@ -159,14 +159,14 @@ const BAND = {
 const MID = (d) => (BAND[d][0] + BAND[d][1]) / 2
 const COL = { left: 16.7, middle: 50, right: 83.3 }
 
-const TURF = `linear-gradient(180deg, ${C.turf1}, ${C.turf2})`
-const CHALK = 'rgba(255,255,255,.17)'
-const CHALK_SOFT = 'rgba(255,255,255,.09)'
+export const TURF = `linear-gradient(180deg, ${C.turf1}, ${C.turf2})`
+export const CHALK = 'rgba(255,255,255,.17)'
+export const CHALK_SOFT = 'rgba(255,255,255,.09)'
 
 // THE ONE SCALE (2026-09-27, matchups Part A): soft = DASH orange, drawn as
 // the theme's orange at an alpha -- was a hard-coded red that read like an
 // error. Holding up = cyan (TUDDY's analysis ink).
-const HEAT = (a) => `color-mix(in srgb, ${C.orange} ${Math.round(Math.max(0, Math.min(1, a)) * 100)}%, transparent)`
+export const HEAT = (a) => `color-mix(in srgb, ${C.orange} ${Math.round(Math.max(0, Math.min(1, a)) * 100)}%, transparent)`
 export const fmtPct = (n) => `${n > 0 ? '+' : ''}${Math.round(n)}%`
 
 // "1st", "2nd", "3rd", "11th"... — real ordinal formatting for a rank

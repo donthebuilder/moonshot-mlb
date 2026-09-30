@@ -1,7 +1,7 @@
 'use client'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/nfl/theme'
-import { HeatTiles } from '../matchup/MatchupParts'
+import FootballField from './FootballField'
 import { ChipGroup } from '../matchup/SprayParts'
 import { SIDES, DEPTHS, DEPTH_AX, LANES, LANE_AX, LANE_WORD, phrase } from './MatchupMap'
 
@@ -73,12 +73,14 @@ export default function TouchMap({ field, player, season = null }) {
       </div>
       {model ? (
         <>
-          <HeatTiles {...nf} accent={C.green} cells={model.cells}
-            cols={model.isPass ? 3 : 7} maxWidth={model.isPass ? 320 : 460} aspect={model.isPass ? '1.5 / 1' : '0.8 / 1'}
-            rowLabels={model.isPass ? DEPTHS.map((d) => `${DEPTH_AX[d][0]} ${DEPTH_AX[d][1]}`) : null} rowLabelWidth={78}
-            colLabels={model.isPass ? ['LEFT', 'MIDDLE', 'RIGHT'] : LANES.map((z) => LANE_AX[z].replace('OUTSIDE ', 'OUT ').replace(' TACKLE', ' T').replace(' GUARD', ' G'))}
-            onPick={(cell) => setPick(pick === cell.key ? null : cell.key)} pickedKey={pick}
-            lead={model.top?.m?.att ? <>His biggest zone: <b style={{ color: C.text }}>{model.isPass ? phrase(model.top.z) : LANE_WORD[model.top.z].replace(/^runs /, '')}</b> — {Math.round(model.top.share)}% of his {model.n} {unit}{season ? ` in ${season}` : ''}.</> : null} />
+          {/* THE FIELD, DRAWN (2026-09-30, components/nfl/FootballField.js):
+              the zones painted on the grass, or the run holes as arrows at the
+              line -- was a grid of tiles. */}
+          {model.top?.m?.att ? <p style={{ margin: '0 0 8px', fontSize: 12.5, lineHeight: 1.5, color: C.text2 }}>His biggest zone: <b style={{ color: C.text }}>{model.isPass ? phrase(model.top.z) : LANE_WORD[model.top.z].replace(/^runs /, '')}</b> — {Math.round(model.top.share)}% of his {model.n} {unit}{season ? ` in ${season}` : ''}.</p> : null}
+          <FootballField mode={model.isPass ? 'pass' : 'rush'} maxWidth={model.isPass ? 360 : 420}
+            cells={Object.fromEntries(model.cells.map((x) => [x.key, { big: x.big, small: x.small, heat: x.heat, title: x.title, len: x.share / 40 }]))}
+            onPick={(key) => setPick(pick === key ? null : key)} pickedKey={pick} />
+          <div style={{ height: 8 }} />
           <div aria-live="polite" style={{ minHeight: 40, padding: '7px 10px', borderRadius: 9, border: `1px solid ${C.border}`, background: C.bg2, font: `700 10.5px/1.5 ${NUM_FONT}`, color: C.text2, maxWidth: 460 }}>
             {!c ? <span style={{ color: C.text3 }}>Tap a zone for his line there.</span> : (
               <>

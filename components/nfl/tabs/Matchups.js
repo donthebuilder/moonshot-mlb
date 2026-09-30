@@ -12,7 +12,8 @@ import NflTable from '../NflTable'
 import SourceSeason from '../SourceSeason'
 import SeasonToggle from '../../SeasonToggle'
 import useDvpSeason from '../../../lib/nfl/useDvpSeason'
-import { MatchupTitle, SubLabel, BarList, FactLines, HeatTiles } from '../../matchup/MatchupParts'
+import { MatchupTitle, SubLabel, BarList, FactLines } from '../../matchup/MatchupParts'
+import FootballField from '../FootballField'
 import { softRole, softLine, passRushThreat, blockSeason, PASS_RUSH_AVOID, STARTER_ROLES } from '../../../lib/nfl/dvpSignal'
 
 // Matchups -- the defenses to attack this week, then one defense read the
@@ -83,26 +84,31 @@ export function Zones({ field, team }) {
     <div>
       <SubLabel {...P}>WHERE THEY GET BEATEN</SubLabel>
       {toggle}
-      <HeatTiles {...P}
-        lead={spot
+      {/* THE FIELD, DRAWN (2026-09-30, Donovan: "I want to be able to see the
+          field"; components/nfl/FootballField.js). Was a 4x3 / 7-wide grid of
+          tiles; now the zones are painted on the grass (pass) or the holes are
+          arrows at the line (run), the leakiest one ringed. */}
+      <p style={{ margin: '0 0 8px', fontSize: 12.5, lineHeight: 1.5, color: C.text2 }}>
+        {spot
           ? <><b style={{ color: C.text }}>{cap(where(spot.z))}</b>: {team} give up <b style={{ color: C.orange }}>{fmtPct(spot.leak)}</b> yards a {unit} against a normal defence there, and {Math.round(spot.share)}% of all the yards they allow come from it{spot.tdN ? <> — <b style={{ color: C.text }}>{spot.tdN} TD{spot.tdN === 1 ? '' : 's'}</b></> : null}.</>
           : <>No zone stands out: nowhere do {team} give up clearly more than a normal defence.</>}
-        cells={order.map((z) => {
+      </p>
+      <FootballField mode={pass ? 'pass' : 'rush'} maxWidth={pass ? 380 : 460} pickedKey={spot?.z ?? null}
+        cells={Object.fromEntries(order.map((z) => {
           const c = model.by[z]
-          return {
-            key: z, heat: Number.isFinite(c?.leak) ? c.heat : null,
-            big: Number.isFinite(c?.leak) ? fmtPct(c.leak) : '—',
-            small: c?.att ? `${c.tdN} TD` : null,
+          const ok = Number.isFinite(c?.leak)
+          return [z, {
+            heat: ok ? c.heat : null,
+            len: ok ? 0.3 + 0.7 * (c.heat || 0) : 0.15,
+            big: ok ? fmtPct(c.leak) : '—',
+            small: pass ? (c?.att ? `${c.tdN} TD` : null) : LANE_TILE[z],
             title: [c?.tip || where(z), !pass && field?.def_rush?.[team]?.[z]?.stf != null
               ? `stopped for 0 or less on ${pct0(rate(field.def_rush[team][z].stf, field.def_rush[team][z].att))}, 10+ yards on ${pct0(rate(field.def_rush[team][z].x10, field.def_rush[team][z].att))} (${field.def_rush[team][z].att} carries)` : null].filter(Boolean).join(' · '),
-          }
-        })}
-        cols={pass ? 3 : 7} hotKey={spot?.z ?? null}
-        rowLabels={pass ? DEPTHS.map((d) => `${DEPTH_AX[d][0]} ${DEPTH_AX[d][1]}`) : null}
-        colLabels={pass ? ['LEFT', 'MIDDLE', 'RIGHT'] : LANES.map((z) => LANE_TILE[z])}
-        rowLabelWidth={84} maxWidth={pass ? 380 : 560} aspect={pass ? '1.6 / 1' : '1 / 1.1'}
-        legend={<>Big number: yards per {unit} {team} allow there, against a normal defence (+ = leakier). Small: touchdowns they have allowed there. More orange = leakier; — = too few plays to call.</>}
-      />
+          }]
+        }))} />
+      <div style={{ fontSize: 10, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
+        <b style={{ color: C.orange }}>orange</b> = they give up more there than a normal defence · the number is yards per {unit} vs normal{pass ? ', with touchdowns allowed under it' : ''} · ringed = the softest spot · — = too few plays
+      </div>
       {!pass && (() => {
         const o = laneOutcomes(field, team)
         return o && (o.stuff || o.leak) ? (
