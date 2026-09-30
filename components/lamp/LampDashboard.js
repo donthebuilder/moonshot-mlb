@@ -1,4 +1,5 @@
 'use client'
+import { listenForWorkerOpen } from '../../lib/workerOpen'
 import { TodayContext } from '../TodayContext'
 import { writeHash } from '../../lib/urlState'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -275,7 +276,10 @@ export default function LampDashboard({ palettePass = 0 }) {
       } catch { /* ignore malformed hashes */ }
     }
     window.addEventListener('hashchange', readHash)
-    return () => window.removeEventListener('hashchange', readHash)
+    // A LAMP push tapped while LAMP is open (lib/workerOpen.js): LAMP never
+    // listened, so the tap focused the tab and went nowhere (09-29 plan find).
+    const stopWorker = listenForWorkerOpen(readHash)
+    return () => { window.removeEventListener('hashchange', readHash); stopWorker() }
   }, [])
 
   // Today's live count for the header lamp. Same route Home reads; the CDN

@@ -2,6 +2,7 @@
 import { easternToday, easternDate } from '../../lib/data'
 import { TodayContext } from '../TodayContext'
 import { hashParams, writeHash, closeOpened } from '../../lib/urlState'
+import { listenForWorkerOpen } from '../../lib/workerOpen'
 import { leaveTarget } from '../../lib/openTarget'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { resolveTab, pageTitle, NFL_TABS as NFL_TAB_KEYS } from '../../lib/routes'
@@ -260,19 +261,10 @@ export default function NflDashboard({ palettePass = 0 }) {
     // (pushRules.js sends people to #sport=nfl&tab=watchlist) tapped while
     // the football board was open focused the tab and went nowhere. Same
     // contract as components/Dashboard.js: write the hash, let readHash route.
-    const fromWorker = (ev) => {
-      const d = ev?.data
-      if (!d || d.type !== 'dash-open' || typeof d.url !== 'string') return
-      const i = d.url.indexOf('#')
-      if (i < 0) return
-      const next = d.url.slice(i)
-      if (window.location.hash === next) readHash()
-      else window.location.hash = next
-    }
-    navigator.serviceWorker?.addEventListener?.('message', fromWorker)
+    const stopWorker = listenForWorkerOpen(readHash)   // lib/workerOpen.js
     return () => {
       window.removeEventListener('hashchange', readHash)
-      navigator.serviceWorker?.removeEventListener?.('message', fromWorker)
+      stopWorker()
     }
   }, [])
 
@@ -302,13 +294,17 @@ export default function NflDashboard({ palettePass = 0 }) {
   // card comes from the league feed below, not from here -- until 2026-09-05
   // this 45s poll was the only thing behind a "live" score, and it re-read a
   // file that had not changed.
+  // A hidden tab doesn't refetch (the visibilitychange below catches it up
+  // when it comes back), and the timer restarts only when live flips -- it
+  // used to depend on [data], so every fetch reset it (09-29 shell plan find;
+  // MOONSHOT's poll already works this way).
+  const nflLive = (data?.games || []).some((g) => g.state === 'in')
   useEffect(() => {
-    const live = (data?.games || []).some((g) => g.state === 'in')
-    const id = setInterval(() => setRefreshKey((k) => k + 1), live ? 3 * 60_000 : 10 * 60_000)
+    const id = setInterval(() => { if (!document.hidden) setRefreshKey((k) => k + 1) }, nflLive ? 3 * 60_000 : 10 * 60_000)
     const onVis = () => { if (!document.hidden) setRefreshKey((k) => k + 1) }
     document.addEventListener('visibilitychange', onVis)
     return () => { clearInterval(id); document.removeEventListener('visibilitychange', onVis) }
-  }, [data])
+  }, [nflLive])
 
   // The league feed, laid over the slate. Games/Home/Live/Watchlist read the
   // overlaid copy; everything with a score on it is now ESPN's score.

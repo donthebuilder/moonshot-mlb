@@ -3,6 +3,7 @@ import { TodayContext } from './TodayContext'
 import { useHashFilter, readHashKey, FILTER_KEYS } from '../lib/filterHash'
 import { hashParams, writeHash, closeOpened } from '../lib/urlState'
 import { leaveTarget } from '../lib/openTarget'
+import { listenForWorkerOpen } from '../lib/workerOpen'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { resolveTab, pageTitle, isSport } from '../lib/routes'
@@ -265,20 +266,11 @@ export default function Dashboard({ palettePass = 0 }) {
     // through the normal path -- there is no second routing code path to keep
     // in sync -- and writing a hash that is already current does nothing, so
     // the belt and the braces cannot fight.
-    const fromWorker = (ev) => {
-      const d = ev?.data
-      if (!d || d.type !== 'dash-open' || typeof d.url !== 'string') return
-      const i = d.url.indexOf('#')
-      if (i < 0) return
-      const next = d.url.slice(i)
-      if (window.location.hash === next) apply()
-      else window.location.hash = next
-    }
-    navigator.serviceWorker?.addEventListener?.('message', fromWorker)
+    const stopWorker = listenForWorkerOpen(apply)   // lib/workerOpen.js
 
     return () => {
       window.removeEventListener('hashchange', apply)
-      navigator.serviceWorker?.removeEventListener?.('message', fromWorker)
+      stopWorker()
     }
   }, [])
 
