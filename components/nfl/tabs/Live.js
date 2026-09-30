@@ -24,7 +24,7 @@ import { lineFor, marketValue } from '../../../lib/nfl/liveSlate'
 import { nextKickoff } from '../../../lib/nfl/liveMerge'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 import { useFollowing } from '../../../lib/dash/follow'
-import PageHeader from '../../PageHeader'
+import { PanelTitle, WhatThis } from '../../ui'
 import NflTable from '../NflTable'
 import { FilterBar, FilterPill, FilterSearch, FilterSelect } from '../../Filters'
 import GameScoreboard, { fmtKick } from '../GameScoreboard'
@@ -205,39 +205,25 @@ export default function Live({ data, picks, live, matchup = null, logs = null, r
     return [...(live?.plays || [])].reverse().map((p) => ({ ...p, mine: [...names].some((n) => n && p.text && p.text.includes(n.split(' ').slice(-1)[0])) }))
   }, [live, card, depth, yours])
 
-  return (
-    <div className="tl">
-      <PageHeader
-        eyebrow="TUDDY · LIVE"
-        title={anyLive ? 'The card, live' : allDone ? 'The week is in' : anyDone ? 'Most of the week is in' : 'Nothing kicked off yet'}
-        note={anyLive
-          ? 'Every rung on the card against the bar the bot promised, updated from the league feed every 30 seconds while a game is on.'
-          : allDone ? 'Every game on the slate is final. The graded record is on The record; the scores below are the last the feed sent.'
-            : next ? `${doneCount} game${doneCount === 1 ? '' : 's'} final. Next kickoff ${fmtKick(next.t)} — ${next.game.away} @ ${next.game.home}. The scoreboard wakes up twenty minutes before.`
-              : 'The scoreboard wakes up twenty minutes before kickoff.'}
-        theme={C}
-        numFont={NUM_FONT}
-        accent={C.cyan}
-        stats={[
-          { value: tally.hit, label: 'CLEARED', tone: C.green },
-          { value: tally.live, label: 'LIVE', tone: C.cyan },
-          { value: tally.miss, label: 'MISSED', tone: C.red },
-        ]}
-      />
-
-      {/* SlateRibbon (the block-schedule timeline) sat here through
-          2026-09-21 -- pulled per Donovan's page-by-page pass that day: it
-          answered "when," which Scoreboard's kickoff times already say, and
-          on a slate with most of the week final it read as clutter above the
-          thing people actually came for -- the scores. The component itself
-          is untouched (components/nfl/SlateRibbon.js) in case the exposure
-          concept it drew -- how many rungs ride on each game -- earns its
-          own spot later. */}
+  // MOONSHOT'S LIVE FRAME (2026-09-29, Donovan on TUDDY Picks/Pairs/Live:
+  // "figure it out"). components/tabs/Scoreboard.js is MOONSHOT's Live: a
+  // PanelTitle with the count in its sub line, one context sentence, then the
+  // sections in a LIVE order (what just happened leads) or a PRE-GAME order
+  // (the plan leads), and the every-player board last, introduced the same
+  // way. TUDDY's sections are its own; the frame and the running order are
+  // MOONSHOT's. The scoring plays are TUDDY's wire, so they lead while a
+  // game is on instead of sitting at the foot of the page.
+  const rungTotal = card.reduce((n, b) => n + (b.rungs || []).slice(0, depth).length, 0)
+  const secHeadline = (
+    <>
       {!anyLive && (
         <NflHeadlineStrip players={players} games={games} markets={data?.markets} matchup={matchup}
           onPlayerClick={onPlayerClick} setTab={setTab} />
       )}
-
+    </>
+  )
+  const secScores = (
+    <>
       {anyLive
         ? (games.length ? <GameScoreboard games={games} /> : <div className="tl-empty">No games on the slate yet.</div>)
         : (
@@ -250,7 +236,10 @@ export default function Live({ data, picks, live, matchup = null, logs = null, r
             {!next && !anyDone && <span className="tl-crawl-item">no kickoff on the schedule yet</span>}
           </div>
         )}
-
+    </>
+  )
+  const secCard = (
+    <>
       <section>
         <div className="tl-title"><div><small>THE CARD</small><h2>Every rung, against its bar</h2></div>{setTab && <button onClick={() => setTab('picks')}>Picks →</button>}</div>
         {!card.length && <div className="tl-empty">The bot hasn't published a card for this week.</div>}
@@ -267,20 +256,29 @@ export default function Live({ data, picks, live, matchup = null, logs = null, r
           ))}
         </div>
       </section>
-
+    </>
+  )
+  const secStory = (
+    <>
       {!anyLive && (
         <section>
           <div className="tl-title"><div><small>STORYLINES</small><h2>What the numbers are already saying</h2></div>{setTab && <button onClick={() => setTab('storylines')}>All →</button>}</div>
           <Storylines compact data={data} logs={logs} results={results} onPlayerClick={onPlayerClick} setTab={setTab} />
         </section>
       )}
-
+    </>
+  )
+  const secSched = (
+    <>
       {!anyLive && games.length > 0 && (
         <Fold id="tuddy-live-schedule" title="🗓 The full schedule" meta={`${games.length} games this week`}>
           <GameScoreboard games={games} />
         </Fold>
       )}
-
+    </>
+  )
+  const secYours = (
+    <>
       <section>
         <div className="tl-title"><div><small>YOUR NAMES</small><h2>Pinned and followed</h2></div>{setTab && <button onClick={() => setTab('watchlist')}>Watchlist →</button>}</div>
         {!yours.length && <div className="tl-empty">Star a player from any card and his live line shows here.</div>}
@@ -304,7 +302,43 @@ export default function Live({ data, picks, live, matchup = null, logs = null, r
           })}
         </div>
       </section>
+    </>
+  )
+  const secPlays = (
+    <>
+      <section>
+        <div className="tl-title"><div><small>JUST NOW</small><h2>Scoring plays</h2></div></div>
+        {!plays.length && <div className="tl-empty">{anyLive ? 'No scores yet.' : 'Plays show here while games are on.'}</div>}
+        <ol className="tl-plays">
+          {plays.slice(0, 40).map((p, i) => (
+            <li key={`${p.game_id}:${i}`} className={p.mine ? 'is-mine' : ''}>
+              <span>{p.team}</span><em>Q{p.quarter ?? '?'} {p.clock || ''}</em><b>{p.type}</b><p>{p.text}</p>
+            </li>
+          ))}
+        </ol>
+      </section>
+    </>
+  )
+  const order = anyLive
+    ? [secScores, secPlays, secCard, secYours]
+    // Pre-game, an empty wire is scroll for nothing; it joins once a play lands.
+    : [secHeadline, secScores, secCard, secYours, secStory, secSched, ...(plays.length ? [secPlays] : [])]
+  const sub = `${players.length} players on the board${anyLive ? ' · live — the scores and the plays lead' : allDone ? ' · the week is in' : next ? ` · next kickoff ${fmtKick(next.t)}` : ''}`
 
+  return (
+    <div className="tl">
+      <PanelTitle title="Live" sub={sub} theme={C} numFont={NUM_FONT} />
+      <WhatThis maxWidth={760}>
+        {rungTotal > 0 && <>The card: <b style={{ color: C.green }}>{tally.hit} cleared</b>, {tally.live} live, {tally.miss} missed of {rungTotal} rungs. </>}
+        {anyLive ? 'Every rung against the bar the bot promised, from the league feed every 30 seconds. Live action leads below.'
+          : allDone ? 'Every game is final; the graded record is on The record.'
+            : 'The plan leads; the sortable full board follows. The scoreboard wakes up twenty minutes before kickoff.'}
+      </WhatThis>
+      {order.map((sec, i) => <div key={i}>{sec}</div>)}
+      <WhatThis>
+        Every scored player, in the market you pick — <b style={{ color: C.text2 }}>his live number against the
+        bar, whether or not he was ever a call</b>. Sort any header for a different question.
+      </WhatThis>
       <section>
         <div className="tl-title"><div><small>EVERY PLAYER</small><h2>The full board, live</h2></div></div>
         <div className="chip-row" style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center', marginBottom: 8 }}>
@@ -343,18 +377,6 @@ export default function Live({ data, picks, live, matchup = null, logs = null, r
             {boardWatched ? 'None of your starred players are scored in this market.' : 'Nobody is scored in this market on this slate.'}
           </div>
         )}
-      </section>
-
-      <section>
-        <div className="tl-title"><div><small>JUST NOW</small><h2>Scoring plays</h2></div></div>
-        {!plays.length && <div className="tl-empty">{anyLive ? 'No scores yet.' : 'Plays show here while games are on.'}</div>}
-        <ol className="tl-plays">
-          {plays.slice(0, 40).map((p, i) => (
-            <li key={`${p.game_id}:${i}`} className={p.mine ? 'is-mine' : ''}>
-              <span>{p.team}</span><em>Q{p.quarter ?? '?'} {p.clock || ''}</em><b>{p.type}</b><p>{p.text}</p>
-            </li>
-          ))}
-        </ol>
       </section>
 
       <style>{`
