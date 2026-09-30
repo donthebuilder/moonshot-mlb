@@ -644,7 +644,7 @@ export default function Accountability({ data, results: latest, onPlayerClick })
       <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         {(mode === 'week'
           ? [['overview', '📊 Overview'], ['bands', '🔬 Score bands']]
-          : [['card', '🧾 Report card'], ['record', '👤 Track record'], ['weeks', '📅 Week by week'], ['signals', '🔬 Signals']]
+          : [['card', '🧾 The card'], ['record', '👤 Track record'], ['weeks', '📅 Week by week'], ['signals', '🔬 Signals']]
         ).map(([k, label]) => (
           <TabBtn key={k} active={subTab === k} onClick={() => setSubTab(k)}>{label}</TabBtn>
         ))}

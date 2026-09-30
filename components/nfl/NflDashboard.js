@@ -14,7 +14,7 @@ import ErrorBoundary from '../ErrorBoundary'
 import TabNotFound from '../TabNotFound'
 import { C, NUM_FONT } from '../../lib/nfl/theme'
 import { AccentProvider } from '../Filters'
-import { fetchNfl, nflSlatePaths, nflReportPaths, nflMetaPaths, nflMatchupPaths, nflLogPaths, nflPicksPaths, nflResultsPaths, nflOddsPaths, nflOddsStatusPaths, nflSlateLooksReal, nflMatchupLooksReal, nflPicksLooksReal, nflOddsLooksReal } from '../../lib/nfl/dataSource'
+import { fetchNfl, nflSlatePaths, nflMetaPaths, nflMatchupPaths, nflLogPaths, nflPicksPaths, nflResultsPaths, nflOddsPaths, nflOddsStatusPaths, nflSlateLooksReal, nflMatchupLooksReal, nflPicksLooksReal, nflOddsLooksReal } from '../../lib/nfl/dataSource'
 import { initialHashParams, setSport } from '../../lib/sport'
 import { useNflLive } from '../../lib/nfl/useNflLive'
 import { withLive } from '../../lib/nfl/liveMerge'
@@ -41,7 +41,6 @@ import Longshots from '../Longshots'
 import StorylinesPage from '../StorylinesPage'
 import NflTable from './NflTable'
 import Numerology from './tabs/Numerology'
-import Report from './tabs/Report'
 import Accountability from './tabs/Accountability'
 import TuddyLedger from './tabs/TuddyLedger'
 import Scores from './tabs/Scores'
@@ -114,7 +113,6 @@ export default function NflDashboard({ palettePass = 0 }) {
   const onHub = tab === 'touchdowns' || tab === 'boards'
   usePageTitle(`${(onHub && hubTitle) || pageTitle('nfl', tab)} \u00b7 DASH Network`)
   const [data, setData] = useState(null)
-  const [report, setReport] = useState(null)
   const [meta, setMeta] = useState(null)
   const [matchup, setMatchup] = useState(null)
   const [logs, setLogs] = useState(null)
@@ -269,7 +267,6 @@ export default function NflDashboard({ palettePass = 0 }) {
     if (refreshKey === 0) setLoading(true)
     Promise.allSettled([
       fetchNfl(nflSlatePaths(weekMode), nflSlateLooksReal).then((j) => { if (alive) setData(j) }),
-      fetchNfl(nflReportPaths()).then((j) => { if (alive) setReport(j) }),
       fetchNfl(nflMetaPaths()).then((j) => { if (alive) setMeta(j) }),
       fetchNfl(nflMatchupPaths(weekMode), nflMatchupLooksReal).then((j) => { if (alive) setMatchup(j) }),
       fetchNfl(nflLogPaths(weekMode)).then((j) => { if (alive) setLogs(j) }),
@@ -391,7 +388,7 @@ export default function NflDashboard({ palettePass = 0 }) {
             sport="nfl"
             palette={C}
             onNavigate={setTab}
-            doors={[['home', '🏠 HOME'], ['live', '🏈 LIVE'], ['picks', '🎯 PICKS'], ['boards', '📊 BOARDS'], ['accountability', '🧾 RESULTS'], ['report', '📋 REPORT CARD'], ['guide', '📖 GUIDE']]}
+            doors={[['home', '🏠 HOME'], ['live', '🏈 LIVE'], ['picks', '🎯 PICKS'], ['boards', '📊 BOARDS'], ['accountability', '🧾 RESULTS'], ['guide', '📖 GUIDE']]}
           />
         ) : loading ? (
           <div style={{
@@ -426,7 +423,6 @@ export default function NflDashboard({ palettePass = 0 }) {
             {tab === 'redzone' && <RedZone data={data} matchup={matchup} onPlayerClick={openPlayer} />}
             {tab === 'longshots' && <Longshots sport="nfl" eyebrow="TUDDY · LONGSHOTS" theme={C} numFont={NUM_FONT} accent={C.green} Table={NflTable} onOpenPlayer={(id) => { const p = (data?.players || []).find((x) => String(x.player_id) === String(id)); if (p) openPlayer(p, 'TD') }} />}
             {tab === 'numerology' && <Numerology data={data} onPlayerClick={openPlayer} />}
-            {tab === 'report' && <Report report={report} />}
             {tab === 'accountability' && <Accountability data={data} results={nflResults} onPlayerClick={openPlayer} />}
             {tab === 'tuddyledger' && <TuddyLedger data={data} results={nflResults} onPlayerClick={openPlayer} />}
             {tab === 'ledger' && <Ledger data={slate} picks={picks} results={nflResults} matchup={matchup} onPlayerClick={openPlayer} onOpenTeam={(abbr) => { setPortalTeam(abbr); setTab('players') }} onOpenGame={(id) => { leaveTarget('game', id); setTab('games') }} />}

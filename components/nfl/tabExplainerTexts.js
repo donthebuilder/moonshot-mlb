@@ -14,6 +14,5 @@ export const NFL_TEXTS = {
   matchups: { what: 'Defense versus position by depth role, coverage shells, explosive plays allowed. Team-level — look any defense up from here.' },
   pairs: { what: 'Two-leg same-team combinations from the card. Relationship labels are context, not an independent grade — a season of results is needed before a real co-occurrence number exists.' },
   accountability: { what: 'The bot’s own record on its own published card: season to date, one row per market, and any graded week on the picker. Hits, misses, voids and the bar each market had to clear.' },
-  report: { what: 'The model’s report card: out-of-sample edge per market across two backtested seasons. What a score has been worth, before this season’s results exist to say.' },
   guide: { what: 'What every page is for, in plain words.' },
 }
