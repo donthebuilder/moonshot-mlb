@@ -36,7 +36,7 @@ const LOW_IS_GOOD = new Set(['gaa'])
 
 const SKATER_COLS = [
   { key: 'name', label: 'Skater', heat: false, w: 150, bold: true, sticky: true },
-  { key: 'team', label: 'Tm', heat: false, w: 34, mono: true, dim: true, teamMark: 'nhl' },
+  { key: 'team', label: 'Tm', heat: false, w: 62, mono: true, dim: true, teamMark: 'nhl' },
   { key: 'opp', label: 'Tonight', heat: false, w: 50, mono: true, dim: true },
   { key: 'pos', label: 'Pos', heat: false, w: 34, mono: true, dim: true },
   { key: 'gp', label: 'GP', w: 40, title: 'Games played — read this before any rate on the row' },
@@ -56,7 +56,7 @@ const SKATER_COLS = [
 ]
 const GOALIE_COLS = [
   { key: 'name', label: 'Goalie', heat: false, w: 150, bold: true, sticky: true },
-  { key: 'team', label: 'Tm', heat: false, w: 34, mono: true, dim: true, teamMark: 'nhl' },
+  { key: 'team', label: 'Tm', heat: false, w: 62, mono: true, dim: true, teamMark: 'nhl' },
   { key: 'opp', label: 'Tonight', heat: false, w: 50, mono: true, dim: true },
   { key: 'gp', label: 'GP', w: 40 },
   { key: 'gs', label: 'GS', w: 40, title: 'Games started' },
@@ -88,7 +88,10 @@ const GOALIE_TOP = [['wins', 'Wins'], ['savePctg', 'Save %', fmtPct3], ['goalsAg
 
 export default function Leaders({ onOpenPlayer }) {
   const [view, setView] = useState('skaters')
-  const [minGP, setMinGP] = useState(10)
+  // null = automatic: 10 once the season has 20+ games in it, Any before
+  // (opening week, every skater has 1-3 GP and a 10-game floor empties the
+  // table). A tap on a step sets it for good.
+  const [minGPPicked, setMinGP] = useState(null)
   const [pos, setPos] = useState('all')
   const [lens, setLens] = useState('pts')
   const [query, setQuery] = useState('')
@@ -100,6 +103,8 @@ export default function Leaders({ onOpenPlayer }) {
 
   const setViewAndLens = (v) => { setView(v); setLens(v === 'goalies' ? 'w' : 'pts'); setPos('all') }
 
+  const maxGP = useMemo(() => Math.max(0, ...(stats.data?.skaters || []).map((r) => r.gp || 0)), [stats.data])
+  const minGP = minGPPicked ?? (maxGP >= 20 ? 10 : 0)
   const all = useMemo(() => (stats.data?.[view] || []).map((r) => ({
     ...r, _key: r.id, _raw: r,
     opp: tonight[r.team] ? `${tonight[r.team].home ? 'v' : '@'} ${tonight[r.team].opp}` : '',

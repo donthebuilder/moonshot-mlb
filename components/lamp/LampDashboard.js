@@ -343,7 +343,7 @@ export default function LampDashboard({ palettePass = 0 }) {
             {tab === 'storylines' && <StorylinesPage sport="nhl" eyebrow="LAMP · STORYLINES" theme={C} numFont={NUM_FONT} accent={C.ice} onOpenPlayer={openPlayer} onOpenGame={openGame} date={date} />}
             {tab === 'longshots' && <Longshots sport="nhl" eyebrow="LAMP · LONGSHOTS" theme={C} numFont={NUM_FONT} accent={C.ice} Table={LampTable} onOpenPlayer={openPlayer} />}
             {tab === 'shotmap' && <ShotMap onOpenPlayer={openPlayer} />}
-            {tab === 'lampledger' && <LampLedger onOpenPlayer={openPlayer} />}
+            {tab === 'lampledger' && <LampLedger onOpenPlayer={openPlayer} onOpenTeam={openTeam} />}
             {tab === 'numerology' && <Numerology date={date} onOpenPlayer={openPlayer} />}
             {(tab === 'board' || tab === 'shots') && <Board onOpenPlayer={openPlayer} onOpenGame={openGame} onOpenTeam={openTeam} date={date} setDate={setDate}
               market={tab === 'shots' ? 'SOG' : 'GOAL'} onMarket={(m) => setTab(m === 'SOG' ? 'shots' : 'board')} />}

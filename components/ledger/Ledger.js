@@ -61,6 +61,8 @@ export default function Ledger({
   // THE 2+ CLUB (2026-09-27): the sport key turns on a third view,
   // components/ledger/MultiClub.js. Omit it and the Ledger is unchanged.
   multiSport = null,
+  // A team code opens its club (LAMP's team page). Omit it and the column is plain text, as before.
+  onTeamClick = null,
 }) {
   const [viewState, setViewState] = useState('night')
   const view = viewProp || viewState
@@ -73,9 +75,12 @@ export default function Ledger({
     <span onClick={() => open(r)} style={{ cursor: onPlayerClick ? 'pointer' : 'default', borderBottom: onPlayerClick ? `1px dotted ${C.border2}` : 'none' }}>{v}</span>
   )
 
+  const teamCol = { key: 'team', label: 'Team', heat: false, w: 46,
+    ...(onTeamClick ? { fmt: (v) => (v ? <span onClick={(e) => { e.stopPropagation(); onTeamClick(v) }} style={{ cursor: 'pointer', borderBottom: `1px dotted ${C.border2}` }}>{v}</span> : '—') } : {}) }
+
   const nightColumns = [
     { key: 'name', label: 'Player', heat: false, sticky: true, bold: true, w: 130, fmt: nameCell },
-    { key: 'team', label: 'Team', heat: false, w: 46 },
+    teamCol,
     { key: 'value', label: eventLabel, w: 40, dp: 0, primary: true, title: `${eventLabelLong}s that ${periodWord}` },
     { key: 'score', label: 'Score', w: 50, dp: 0, blankWhen: (n) => !Number.isFinite(n), title: `The model's score for him that ${periodWord}, where it had one` },
     {
@@ -95,7 +100,7 @@ export default function Ledger({
 
   const hitterColumns = [
     { key: 'name', label: 'Player', heat: false, sticky: true, bold: true, w: 130, fmt: nameCell },
-    { key: 'team', label: 'Team', heat: false, w: 46 },
+    teamCol,
     { key: 'value', label: eventLabel, w: 44, dp: 0, primary: true, title: `Total ${eventLabelLong}s in this window` },
     { key: 'statusLabel', label: 'Record', heat: false, w: 118 },
     { key: 'score', label: 'Avg score', w: 62, dp: 0, blankWhen: (n) => !Number.isFinite(n) },

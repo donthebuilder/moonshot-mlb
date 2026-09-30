@@ -12,7 +12,7 @@ import { fmtDay } from '../ui'
 // re-derived), how he scored from the shot archive, a season block and each
 // scorer's history. Preseason nights are shown and labelled; the season
 // numbers are regular season only. Data: /api/lamp/ledger.
-export default function LampLedger({ onOpenPlayer }) {
+export default function LampLedger({ onOpenPlayer, onOpenTeam }) {
   const [date, setDate] = useState(null)       // null = the latest graded night
   const [days, setDays] = useState(null)
   const [view, setView] = useState('night')
@@ -63,6 +63,7 @@ export default function LampLedger({ onOpenPlayer }) {
       seasonMessage={days && season.data && !s ? 'No regular-season nights graded in this window yet — the regular season opens Tue, Sep 29.' : season.error ? 'The record did not answer.' : ''}
       onLoadSeason={(n) => setDays(n)}
       onPlayerClick={(r) => onOpenPlayer?.(r.player_id ?? r.id)}
+      onTeamClick={onOpenTeam}
       view={view}
       onViewChange={setView}
     />

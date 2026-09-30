@@ -3,8 +3,9 @@ import PageHeader from '../../PageHeader'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import { useLampBoard } from '../../../lib/nhl/useLamp'
 import { rankNight } from '../../../lib/nhl/goalModel'
-import { usePreview, ShowMoreButton } from '../../ListPreview'
-import { EmptyState, DelayedBanner, Loading, SourceLine, LampDot, StaleSeasonNote, PlayerMark, fmtDay, fmtSec, shiftDay } from '../ui'
+import LampTable from '../LampTable'
+import { nhlMug } from '../../../lib/nhl/format'
+import { EmptyState, DelayedBanner, Loading, SourceLine, LampDot, StaleSeasonNote, fmtDay, fmtSec, shiftDay } from '../ui'
 import { STATUS, NavBtn } from './Board'
 
 // 📋 THE BOARD, NIGHT-WIDE (2026-09-25). Donovan: "is there no boards like
@@ -33,7 +34,8 @@ export default function FullBoard({ onOpenPlayer, onOpenTeam, date = null, setDa
   const offN = games.reduce((n, g) => n + g.rows.filter((r) => r.status === 'off').length, 0)
   const calledN = rows.filter((r) => r.status === 'called').length
   const previewN = rows.filter((r) => r.stamp === 'preview').length
-  const prev = usePreview(rows, 10)
+  // Faces: a mug is keyed by the game's season (Board.js's nhlMug call).
+  const seasonOf = new Map(games.map((g) => [g.game?.id, g.game?.season]))
   const shown = data?.date || date
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -59,42 +61,45 @@ export default function FullBoard({ onOpenPlayer, onOpenTeam, date = null, setDa
               {previewN === rows.length ? 'EVERY GAME IS STILL PREVIEW — NOT A CALL YET' : `${previewN} OF ${rows.length} ROWS ARE PREVIEW — NOT A CALL YET`}
             </div>
           )}
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-              <thead><tr style={{ color: C.text3, font: `800 8px/1 ${NUM_FONT}`, letterSpacing: '.12em', textAlign: 'left' }}>
-                <th style={th}>#</th><th style={th}>PLAYER</th><th style={th}>TM</th><th style={th}>OPP</th>
-                <th style={{ ...th, textAlign: 'right' }}>SCORE</th>
-                <th className="sm-hide" style={{ ...th, textAlign: 'right' }}>S/GP</th><th className="sm-hide" style={{ ...th, textAlign: 'right' }}>G/GP</th><th className="sm-hide" style={{ ...th, textAlign: 'right' }}>TOI</th>
-                <th style={{ ...th, textAlign: 'right' }}>GAME #</th><th style={{ ...th, textAlign: 'right' }}>STATUS</th>
-              </tr></thead>
-              <tbody>
-                {prev.shown.map((r) => {
-                  const called = r.status === 'called'
-                  const hit = r.hit === true
-                  return (
-                    <tr key={`${r.gameId}:${r.playerId}`} style={{ borderTop: `1px solid ${C.border}`, background: hit ? `linear-gradient(90deg, ${C.lamp}14, transparent 50%)` : called ? `${C.ice}0a` : 'transparent', opacity: r.graded && r.dressed === false ? .45 : 1 }}>
-                      <td style={{ ...td, fontFamily: NUM_FONT, color: C.text3, fontWeight: 700, fontSize: 11 }}>{r.nightRank}</td>
-                      <td style={td}><PlayerMark name={r.name} onClick={() => onOpenPlayer?.(r.playerId)} /><span style={{ color: C.text3, font: `800 9px/1 ${NUM_FONT}`, marginLeft: 6 }}>{r.pos}</span></td>
-                      <td style={td}><button type="button" onClick={() => onOpenTeam?.(r.team)} style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', color: C.text2, font: `800 10.5px/1 ${NUM_FONT}` }}>{r.team}</button></td>
-                      <td style={{ ...td, color: C.text3, font: `800 10.5px/1 ${NUM_FONT}`, whiteSpace: 'nowrap' }}>{r.home ? '' : '@'}{r.opp}</td>
-                      <td style={{ ...td, textAlign: 'right', fontFamily: NUM_FONT, fontWeight: 900, fontSize: 14, color: called ? C.text : C.text2 }}>{r.score}</td>
-                      <td className="sm-hide" style={num}>{r.legs ? r.legs.shotsPg.toFixed(2) : '—'}</td>
-                      <td className="sm-hide" style={num}>{r.legs ? r.legs.goalsPg.toFixed(2) : '—'}</td>
-                      <td className="sm-hide" style={num}>{r.legs ? fmtSec(r.legs.toi) : '—'}</td>
-                      <td style={{ ...num, color: called ? C.ice : C.text3, fontWeight: called ? 900 : 700 }}>{r.rank}</td>
-                      <td style={{ ...td, textAlign: 'right', whiteSpace: 'nowrap' }}>
-                        {r.graded
-                          ? (r.dressed === false ? <span style={{ color: C.text3, font: `800 9px/1 ${NUM_FONT}` }}>VOID</span> : <span style={{ color: hit ? C.lamp : C.text3, font: `900 12px/1 ${NUM_FONT}` }}>{hit && <LampDot />}{r.goals ?? 0}</span>)
-                          : <span style={{ color: called ? C.ice : C.text3, font: `800 8px/1 ${NUM_FONT}`, letterSpacing: '.1em' }}>{STATUS[r.status]}</span>}
-                        <div style={{ color: STAMP_TONE[r.stamp], font: `800 7px/1 ${NUM_FONT}`, letterSpacing: '.12em', marginTop: 3 }}>{STAMP[r.stamp]}</div>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-          <ShowMoreButton open={prev.open} restN={prev.restN} toggle={prev.toggle} itemWord="on the board" />
+          {/* MOONSHOT'S TABLE (2026-09-29, Donovan: "make sure the nhl side is up
+              to date with all the components"). Was a hand-built <table>; now
+              LampTable (DenseTable): every column sorts, the name column sticks,
+              faces, and the team and opponent open the club. */}
+          <LampTable
+            rows={rows.map((r) => ({ ...r, _key: `${r.gameId}:${r.playerId}`, _raw: r,
+              oppTxt: `${r.home ? '' : '@'}${r.opp}`, sPg: r.legs ? r.legs.shotsPg : null, gPg: r.legs ? r.legs.goalsPg : null, toi: r.legs ? r.legs.toi : null }))}
+            columns={[
+              { key: 'nightRank', label: '#', w: 36, heat: false, mono: true, dim: true },
+              { key: 'name', label: 'Player', w: 150, heat: false, bold: true, sticky: true },
+              { key: 'pos', label: 'Pos', w: 34, heat: false, mono: true, dim: true },
+              { key: 'team', label: 'Tm', w: 62, heat: false, mono: true, teamMark: 'nhl', link: (r) => (onOpenTeam ? () => onOpenTeam(r.team) : null) },
+              { key: 'oppTxt', label: 'Opp', w: 44, heat: false, mono: true, dim: true, link: (r) => (onOpenTeam ? () => onOpenTeam(r.opp) : null) },
+              { key: 'score', label: 'Score', w: 54, dp: 0, primary: true, title: 'The model’s 0-100 score, a percentile against every scored skater tonight' },
+              { key: 'sPg', label: 'S/GP', w: 48, dp: 2, title: 'Shots per game' },
+              { key: 'gPg', label: 'G/GP', w: 48, dp: 2, title: 'Goals per game' },
+              { key: 'toi', label: 'TOI', w: 48, fmt: (v) => fmtSec(v), title: 'Ice time per game' },
+              { key: 'rank', label: 'Game #', w: 52, heat: false, mono: true,
+                fmt: (v, r) => <span style={{ color: r.status === 'called' ? C.ice : C.text3, fontWeight: r.status === 'called' ? 900 : 700 }}>{v}</span>,
+                title: 'His rank in his own game. CALLED is the top three in his game.' },
+              { key: 'status', label: 'Status', w: 74, heat: false,
+                fmt: (v, r) => (
+                  <span style={{ whiteSpace: 'nowrap' }}>
+                    {r.graded
+                      ? (r.dressed === false ? <span style={{ color: C.text3, font: `800 9px/1 ${NUM_FONT}` }}>VOID</span> : <span style={{ color: r.hit === true ? C.lamp : C.text3, font: `900 12px/1 ${NUM_FONT}` }}>{r.hit === true && <LampDot />}{r.goals ?? 0}</span>)
+                      : <span style={{ color: r.status === 'called' ? C.ice : C.text3, font: `800 8px/1 ${NUM_FONT}`, letterSpacing: '.1em' }}>{STATUS[r.status]}</span>}
+                    <span style={{ color: STAMP_TONE[r.stamp], font: `800 7px/1 ${NUM_FONT}`, letterSpacing: '.12em', marginLeft: 5 }}>{STAMP[r.stamp]}</span>
+                  </span>
+                ) },
+            ]}
+            onRowClick={(r) => onOpenPlayer?.((r?._raw ?? r).playerId)}
+            faceOf={(r) => ({ sport: 'nhl', photo: nhlMug(seasonOf.get(r.gameId), r.team, r.playerId), name: r.name })}
+            dimRow={(r) => r.graded && r.dressed === false}
+            initialSort={{ key: 'nightRank', dir: 'asc' }}
+            heatMode="sorted"
+            maxHeight={620}
+            maxRows={Math.max(rows.length, 1)}
+            caption="Every scored skater tonight, #1 to the bottom. Column headers sort; each row opens that skater; the team and opponent open the club."
+          />
           {offN > 0 && (
             <div style={{ marginTop: 8, color: C.text3, font: `800 9px/1.5 ${NUM_FONT}`, letterSpacing: '.08em' }}>
               {offN} NOT ON THE BOARD — UNSCORED, USUALLY FEWER THAN TEN NHL GAMES. EACH GAME ON THE BOARD PAGE PRINTS THE REASON.
@@ -106,7 +111,3 @@ export default function FullBoard({ onOpenPlayer, onOpenTeam, date = null, setDa
     </div>
   )
 }
-
-const th = { padding: '0 8px 8px', fontWeight: 800 }
-const td = { padding: '7px 8px', verticalAlign: 'middle' }
-const num = { ...td, textAlign: 'right', fontFamily: NUM_FONT, color: C.text3, fontSize: 10.5 }

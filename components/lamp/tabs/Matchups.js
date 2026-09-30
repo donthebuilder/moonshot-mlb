@@ -51,7 +51,7 @@ const ppScale = (v) => (v == null ? 0 : (v / 0.35) * 100)
 const pkScale = (v) => (v == null ? 0 : ((v - 0.65) / 0.3) * 100)
 const Kicker = ({ children }) => <SubLabel theme={C} numFont={NUM_FONT}>{children}</SubLabel>
 
-function Detail({ row, league, onOpenPlayer }) {
+function Detail({ row, league, onOpenPlayer, onOpenTeam = null }) {
   const goalies = useGoalies(row?.def)
   if (!row) return null
   const edge = row.oppPp != null && row.pk != null && league.pp != null && league.pk != null
@@ -67,7 +67,7 @@ function Detail({ row, league, onOpenPlayer }) {
       <div>
         <Kicker>POWER PLAY vs PENALTY KILL</Kicker>
         <p style={{ margin: '0 0 8px', fontSize: 12.5, color: C.text2, lineHeight: 1.5 }}>
-          <b style={{ color: C.text }}>{row.opp}</b>&apos;s power play ({pct(row.oppPp)}, {ord(row.oppPpRank)}) against <b style={{ color: C.text }}>{row.def}</b>&apos;s penalty kill ({pct(row.pk)}, {ord(row.pkRank)}){edge ? `: ${edge}.` : '.'}
+          <Tap onClick={onOpenTeam ? () => onOpenTeam(row.opp) : null}><b style={{ color: C.text }}>{row.opp}</b></Tap>&apos;s power play ({pct(row.oppPp)}, {ord(row.oppPpRank)}) against <Tap onClick={onOpenTeam ? () => onOpenTeam(row.def) : null}><b style={{ color: C.text }}>{row.def}</b></Tap>&apos;s penalty kill ({pct(row.pk)}, {ord(row.pkRank)}){edge ? `: ${edge}.` : '.'}
         </p>
         <BarList theme={C} numFont={NUM_FONT} accent={C.ice} labelWidth={120} items={[
           { key: 'pp', label: `${row.opp} power play`, pct: ppScale(row.oppPp), text: pct(row.oppPp), tick: league.pp != null ? ppScale(league.pp) : null },
@@ -166,7 +166,7 @@ export default function Matchups({ date = null, onOpenPlayer, onOpenTeam = null 
           <LampTable rows={tableRows} columns={columns} heatMode="primary" maxRows={PREVIEW} maxHeight={9999}
             rowEdge={(r) => (r.def === active?.def ? C.ice : null)}
             onRowClick={(r) => { setPick(r.def); if (typeof document !== 'undefined') requestAnimationFrame(() => document.getElementById('lamp-def-detail')?.scrollIntoView({ behavior: 'smooth', block: 'start' })) }} />
-          <Detail row={active} league={league} onOpenPlayer={onOpenPlayer} />
+          <Detail row={active} league={league} onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} />
         </>
       )}
       <SourceLine>Goals allowed: the league standings (goalAgainst / gamesPlayed). PK% and PP%: api.nhle.com/stats team reports, regular season; ranks against all 32 clubs, #1 = best for the attacking club (the weakest penalty kill, the strongest power play, the most goals allowed). Rest: each club&apos;s schedule. Who fits: tonight&apos;s LAMP board, the three called per game. Goalies: club stats.</SourceLine>
