@@ -27,6 +27,7 @@ import Home from './tabs/Home'
 import StatPortal from './tabs/StatPortal'
 import Watchlist from './tabs/Watchlist'
 import Games from './tabs/Games'
+import Bot from './tabs/Bot'
 import BoardHub from './tabs/BoardHub'
 import Ledger from './tabs/Ledger'
 import Research from './tabs/Research'
@@ -107,7 +108,7 @@ export default function NflDashboard({ palettePass = 0 }) {
   // The Board hub names its own market/view (BoardHub onTitle); every other
   // page is the registry's title. One hook, so the two never fight.
   const [hubTitle, setHubTitle] = useState(null)
-  const onHub = tab === 'touchdowns' || tab === 'boards' || tab === 'picks'
+  const onHub = tab === 'touchdowns' || tab === 'boards'
   usePageTitle(`${(onHub && hubTitle) || pageTitle('nfl', tab)} \u00b7 DASH Network`)
   const [data, setData] = useState(null)
   const [report, setReport] = useState(null)
@@ -406,9 +407,14 @@ export default function NflDashboard({ palettePass = 0 }) {
             {tab === 'games' && <Games data={slate} picks={picks} matchup={matchup} logs={logs} results={nflResults} odds={odds} onPlayerClick={openPlayer} onOpenTeam={(abbr) => { setPortalTeam(abbr); setTab('players') }} />}
             {/* One Board page (2026-09-26, option (b)): touchdowns / boards /
                 picks are the same hub; boards opens BOARD, picks opens CALLED. */}
-            {(tab === 'touchdowns' || tab === 'boards' || tab === 'picks') && (
-              <BoardHub onTitle={setHubTitle} onView={(v) => { const want = v === 'called' ? 'picks' : 'boards'; if (tab !== want && !(tab === 'touchdowns' && v === 'board')) setTab(want) }} slate={slate} data={data} logs={logs} matchup={matchup} odds={odds} oddsStatus={oddsRaw?.source === 'sportsgameodds' && !oddsRaw?.empty ? null : oddsStatus}
-                picks={picks} results={nflResults} liveSnap={liveSnap} onPlayerClick={openPlayer} initialView={tab === 'picks' ? 'called' : 'board'} />
+            {/* PICKS IS THE BOT PAGE (2026-09-29, MOONSHOT's Bot frame; components/nfl/tabs/Bot.js).
+                The hub keeps Board and Called for the boards; its Called view no
+                longer jumps to 'picks', it stays where it was opened. */}
+            {tab === 'picks' && <Bot data={slate} picks={picks} results={nflResults} logs={logs} matchup={matchup} odds={odds}
+              oddsStatus={oddsRaw?.source === 'sportsgameodds' && !oddsRaw?.empty ? null : oddsStatus} onPlayerClick={openPlayer} />}
+            {(tab === 'touchdowns' || tab === 'boards') && (
+              <BoardHub onTitle={setHubTitle} onView={() => {}} slate={slate} data={data} logs={logs} matchup={matchup} odds={odds} oddsStatus={oddsRaw?.source === 'sportsgameodds' && !oddsRaw?.empty ? null : oddsStatus}
+                picks={picks} results={nflResults} liveSnap={liveSnap} onPlayerClick={openPlayer} initialView="board" />
             )}
             {tab === 'research' && <Research data={data} onPlayerClick={openPlayer} />}
             {tab === 'matchups' && <Matchups matchup={matchup} data={data} onPlayerClick={openPlayer} onOpenTeam={(abbr) => { setPortalTeam(abbr); setTab('players') }} />}

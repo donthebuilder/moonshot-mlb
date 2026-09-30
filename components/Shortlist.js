@@ -1,4 +1,5 @@
 'use client'
+import { ShortlistHead, ShortlistPills } from './shortlist/ShortlistParts'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { nameOf, teamOf, oppOf, playerId, n, clean } from '../lib/player'
@@ -333,25 +334,7 @@ export default function Shortlist({ players = [], odds = null, onPlayerClick, on
         <Empty text={state.active ? 'No hitters clear this filter.' : 'No slate loaded, so there is nothing to rank yet.'} />
       ) : (
       <>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap', marginBottom: 4 }}>
-        <span style={{ fontSize: 12.5, fontWeight: 900 }}>🎯 Who stands out for a homer</span>
-        <span style={{ fontSize: 9.5, color: C.text3 }}>
-          showing <b style={{ color: C.text2 }}>{rows.length}</b> of {ranked.length} scored ·
-          every column sorts on click
-        </span>
-        {ranked.length > 40 && (
-          <button
-            onClick={() => setLimit((v) => (v >= ranked.length ? 40 : ranked.length))}
-            style={{
-              padding: '2px 9px', borderRadius: 999, cursor: 'pointer', fontSize: 9.5,
-              fontWeight: 800, fontFamily: NUM_FONT,
-              border: `1px solid ${limit >= ranked.length ? C.orange : C.border}`,
-              background: limit >= ranked.length ? 'rgba(249,115,22,.14)' : 'transparent',
-              color: limit >= ranked.length ? C.orange : C.text3,
-            }}
-          >{limit >= ranked.length ? 'Back to top 40' : `Show all ${ranked.length}`}</button>
-        )}
-      </div>
+      <ShortlistHead title="🎯 Who stands out for a homer" shown={rows.length} total={ranked.length} limit={limit} setLimit={setLimit} />
 
       {/* THE COUNT HE COULD NOT GET AT. Two different numbers, and conflating
           them is the confusion this line exists to end: how many bats the bot
@@ -371,15 +354,7 @@ export default function Shortlist({ players = [], odds = null, onPlayerClick, on
         </div>
       )}
       <div style={{ display: 'flex', gap: 5, marginBottom: 9 }}>
-        {[['profile', 'Strongest profiles'], ['fit', 'Best odds fits']].map(([k, label]) => (
-          <button key={k} onClick={() => setView(k)} style={{
-            padding: '3px 11px', borderRadius: 999, cursor: 'pointer', fontSize: 10,
-            fontWeight: 800, fontFamily: NUM_FONT,
-            border: `1px solid ${view === k ? C.orange : C.border}`,
-            background: view === k ? 'rgba(249,115,22,.14)' : 'transparent',
-            color: view === k ? C.orange : C.text3,
-          }}>{label}</button>
-        ))}
+        <ShortlistPills options={[['profile', 'Strongest profiles'], ['fit', 'Best odds fits']]} value={view} onChange={setView} />
         {view === 'fit' && !anyPriced && (
           <span style={{ fontSize: 9.5, color: C.text3, alignSelf: 'center' }}>
             no board published yet — every row reads &ldquo;no price posted&rdquo; until the odds run lands
@@ -391,15 +366,7 @@ export default function Shortlist({ players = [], odds = null, onPlayerClick, on
           switching packs never costs you the thing you were reading. */}
       <div style={{ display: 'flex', gap: 5, marginBottom: 9, alignItems: 'baseline', flexWrap: 'wrap' }}>
         <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em' }}>Stats</span>
-        {PACKS.map(([k, label]) => (
-          <button key={k} onClick={() => setPack(k)} style={{
-            padding: '2.5px 10px', borderRadius: 999, cursor: 'pointer', fontSize: 9.5,
-            fontWeight: 800, fontFamily: NUM_FONT,
-            border: `1px solid ${pack === k ? C.orange : C.border}`,
-            background: pack === k ? 'rgba(249,115,22,.14)' : 'transparent',
-            color: pack === k ? C.orange : C.text3,
-          }}>{label}</button>
-        ))}
+        <ShortlistPills options={PACKS} value={pack} onChange={setPack} size="pack" />
         <span style={{ fontSize: 9, color: C.text3 }}>
           {pack === 'profile' ? 'the ranking and what it is built from'
             : pack === 'contact' ? 'how the ball is leaving the bat — every one a batted-ball measurement, not a score'
