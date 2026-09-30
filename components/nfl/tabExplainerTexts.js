@@ -9,7 +9,7 @@ export const NFL_TEXTS = {
   live: { what: 'Sunday’s page. Every rung on the card against its bar while the game is on — cleared, live, or missed — plus your pinned names’ lines and the scoring plays as they land. Wakes twenty minutes before kickoff.' },
   streaks: { what: 'Who is hot, or cold, at a line you choose — consecutive games on the same side of it, last 30, no model in the way. Low-volume names only appear with a reason printed next to them.' },
   research: { what: 'The scoring breakdown: every component the bot weighs for this market and where each man sits on it. The same numbers as the board, unfolded.' },
-  players: { what: 'Every player, the full file — game log, hit rates at any line, splits, coverage and matchup. The long version of the card.' },
+  players: { what: 'Every rostered player, ranked, with his card beside the list: the Read, his graded week, your card, his rates at every bar, then the Matchup and Splits tabs. Tap a name to open him; the team filter narrows the list.' },
   watchlist: { what: 'Your starred names for this week, one game at a time. A pin lives on this device; the follow it creates outlives the slate.' },
   matchups: { what: 'Defense versus position by depth role, coverage shells, explosive plays allowed. Team-level — look any defense up from here.' },
   pairs: { what: 'Two-leg same-team combinations from the card. Relationship labels are context, not an independent grade — a season of results is needed before a real co-occurrence number exists.' },

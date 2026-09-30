@@ -3,6 +3,7 @@ import { easternToday, easternDate } from '../../lib/data'
 import { TodayContext } from '../TodayContext'
 import { hashParams, writeHash, closeOpened } from '../../lib/urlState'
 import { listenForWorkerOpen } from '../../lib/workerOpen'
+import { resolveColdTab } from '../../lib/shellRoute'
 import { leaveTarget } from '../../lib/openTarget'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { resolveTab, pageTitle, NFL_TABS as NFL_TAB_KEYS } from '../../lib/routes'
@@ -24,10 +25,10 @@ import TabExplainer from '../TabExplainer'
 import { NFL_TEXTS } from './tabExplainerTexts'
 
 import Home from './tabs/Home'
-import StatPortal from './tabs/StatPortal'
 import Watchlist from './tabs/Watchlist'
 import Games from './tabs/Games'
 import Bot from './tabs/Bot'
+import NflPlayers from './tabs/NflPlayers'
 import BoardHub from './tabs/BoardHub'
 import Ledger from './tabs/Ledger'
 import Research from './tabs/Research'
@@ -205,16 +206,8 @@ export default function NflDashboard({ palettePass = 0 }) {
     // have rewritten before this shell mounted: when the live hash does not
     // name TUDDY, or names it with a word TUDDY cannot resolve at all while
     // the snapshot carries one it can. Same change in LampDashboard.
-    let t = null
-    let liveIsUs = false
-    try {
-      const live = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''))
-      if (live.get('sport') === 'nfl') { liveIsUs = true; t = live.get('tab') }
-    } catch { /* ignore */ }
-    const snapTab = initialHashParams().get('tab')
-    if (!liveIsUs) t = snapTab
-    else if (t && resolveTab('nfl', t).status === 'missing' && snapTab && resolveTab('nfl', snapTab).status !== 'missing') t = snapTab
-    const r = resolveTab('nfl', t)
+    // lib/shellRoute.js: the live hash answers when it names TUDDY, else the snapshot.
+    const r = resolveColdTab('nfl', window.location.hash, initialHashParams().get('tab'))
     // An unknown tab is NOT quietly rewritten to Home any more. Somebody who
     // shared "here are the receipts" as #sport=nfl&tab=results was sending
     // people to the wrong page with no error at all -- that is finding 15.
@@ -336,9 +329,13 @@ export default function NflDashboard({ palettePass = 0 }) {
     if (!id) return
     const hash = hashParams()
     if (hash.get('card') === id) return
+    // One history entry per card, not per player (2026-09-30, the MLB fix in
+    // Dashboard.js): walking to another player inside an open card replaces
+    // the entry and keeps its nflCard marker, so one close leaves the card.
+    const swap = Boolean(hash.get('card'))
     hash.set('sport', 'nfl'); hash.set('card', id)
     if (market && market !== 'TD') hash.set('cm', market); else hash.delete('cm')
-    writeHash(hash, { push: true, state: { nflCard: 1 } })
+    writeHash(hash, swap ? { push: false, state: window.history.state } : { push: true, state: { nflCard: 1 } })
   }
   const closePlayer = () => closeOpened('nflCard', () => {
     setModal(null)
@@ -402,7 +399,8 @@ export default function NflDashboard({ palettePass = 0 }) {
         ) : (
           <ErrorBoundary resetKey={tab} label={`the ${tab} tab`}>
             {tab === 'home' && <Home data={slate} picks={picks} results={nflResults} matchup={matchup} logs={logs} onPlayerClick={openPlayer} setTab={setTab} />}
-            {tab === 'players' && <StatPortal data={data} logs={logs} matchup={matchup} initialTeam={portalTeam} odds={odds} />}
+            {/* MOONSHOT's Players page (2026-09-30): list + the card inline. */}
+            {tab === 'players' && <NflPlayers data={data} logs={logs} matchup={matchup} picks={picks} results={nflResults} initialTeam={portalTeam} odds={odds} />}
             {tab === 'watchlist' && <Watchlist data={slate} matchup={matchup} logs={logs} onPlayerClick={openPlayer} />}
             {tab === 'games' && <Games data={slate} picks={picks} matchup={matchup} logs={logs} results={nflResults} odds={odds} onPlayerClick={openPlayer} onOpenTeam={(abbr) => { setPortalTeam(abbr); setTab('players') }} />}
             {/* One Board page (2026-09-26, option (b)): touchdowns / boards /

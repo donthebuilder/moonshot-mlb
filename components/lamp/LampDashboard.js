@@ -1,5 +1,6 @@
 'use client'
 import { listenForWorkerOpen } from '../../lib/workerOpen'
+import { resolveColdTab } from '../../lib/shellRoute'
 import { TodayContext } from '../TodayContext'
 import { writeHash } from '../../lib/urlState'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -217,11 +218,9 @@ export default function LampDashboard({ palettePass = 0 }) {
     // have rewritten before this shell mounted: when the live hash does not
     // name LAMP, or names it with a word LAMP cannot resolve at all and the
     // snapshot carries one it can.
-    let t = null
-    let liveIsUs = false
     try {
       const live = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''))
-      if (live.get('sport') === 'nhl') { liveIsUs = true; t = live.get('tab') }
+      const liveIsUs = live.get('sport') === 'nhl'
       // One address per page: `p=` (MOONSHOT's parameter, what the other two
       // shells also accept) is rewritten to LAMP's own `player=` before the
       // tab resolves, the way NflDashboard does.
@@ -230,10 +229,8 @@ export default function LampDashboard({ palettePass = 0 }) {
         window.history.replaceState(null, '', `#${live.toString()}`)
       }
     } catch { /* ignore */ }
-    const snapTab = initialHashParams().get('tab')
-    if (!liveIsUs) t = snapTab
-    else if (t && resolveTab('nhl', t).status === 'missing' && snapTab && resolveTab('nhl', snapTab).status !== 'missing') t = snapTab
-    const r = resolveTab('nhl', t)
+    // lib/shellRoute.js: the live hash answers when it names LAMP, else the snapshot.
+    const r = resolveColdTab('nhl', window.location.hash, initialHashParams().get('tab'))
     // #tab=board&m=sog predates the Shots slot (2026-09-28): it opens there.
     if (r.tab === 'board' && String(readHashParam('m') || initialHashParams().get('m') || '').toLowerCase() === 'sog') r.tab = 'shots'
     const g = readHashParam('game') || initialHashParams().get('game')

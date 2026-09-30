@@ -25,7 +25,9 @@ import { quoteFor, fmtOdds, fairOdds, hrPerGame, impliedPct } from '../lib/odds'
 // the slate publishes — every other market shows the price and says what it
 // needs, no green word, because a 0-100 score is not a rate.
 
-function Line({ icon, children }) {
+// Exported (2026-09-30) so TUDDY's and LAMP's cards write their sentences in
+// MOONSHOT's Read (components/nfl/NflPlayerRead.js).
+export function Line({ icon, children }) {
   return (
     <div style={{
       display: 'flex', gap: 8, alignItems: 'baseline', fontSize: 11,
@@ -293,13 +295,18 @@ export default function PlayerRead({ p, odds }) {
     )
   }
 
+  return <ReadFrame>{lines}</ReadFrame>
+}
+
+/** The Read's head and body: "🧭 The read" and its promise, then the lines. */
+export function ReadFrame({ sub = 'tonight in sentences — every number below backs one of these', children }) {
   return (
     <div style={{ marginBottom: 13 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, marginBottom: 4, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 11.5, fontWeight: 900 }}>🧭 The read</span>
-        <span style={{ fontSize: 9, color: C.text3 }}>tonight in sentences — every number below backs one of these</span>
+        <span style={{ fontSize: 9, color: C.text3 }}>{sub}</span>
       </div>
-      {lines}
+      {children}
     </div>
   )
 }

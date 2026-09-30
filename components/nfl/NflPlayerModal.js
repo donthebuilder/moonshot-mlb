@@ -32,6 +32,7 @@ import FollowButton from '../FollowButton'
 import MultiLine from '../ledger/MultiLine'
 import { injuryTag, injuryTitle, injuryColor } from '../../lib/nfl/injury'
 import ScoreAnatomy from './ScoreAnatomy'
+import NflPlayerRead from './NflPlayerRead'
 import SplitDumbbell from './SplitDumbbell'
 
 // Why this player scores what he scores — see components/nfl/ScoreAnatomy.js.
@@ -542,8 +543,11 @@ const TABS = [
 
 
 
-export default function NflPlayerModal({ player, market, markets, splitMeta, logs, matchup, slate, picks, results, onClose, onFullProfile, peers = [], onNavigate = null, initialTab = '', odds = null }) {
-  useScrollLock(Boolean(player))
+export default function NflPlayerModal({ player, market, markets, splitMeta, logs, matchup, slate, picks, results, onClose, onFullProfile, peers = [], onNavigate = null, initialTab = '', odds = null, inline = false }) {
+  // inline (2026-09-30): the Players page shows this card in its right pane,
+  // the way MOONSHOT's PlayerBoard shows PlayerModal inline -- no backdrop,
+  // no scroll lock, no close.
+  useScrollLock(Boolean(player) && !inline)
   const watchlist = useNflWatchlist(slate)
   const [tab, setTab] = useState('overview')
   // A new player opens on Overview unless the caller asked for a view --
@@ -564,20 +568,20 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
     // MOONSHOT's shell (components/CardShell.js, 2026-09-29): same backdrop,
     // focus trap and the .modal-* phone sheet as the MLB card. Width still
     // follows the content (620 overview / 900 table tabs).
-    <CardShell theme={C} accent={C.green} width={tab === 'overview' ? 620 : 900} onClose={onClose} label={`${player?.name || 'Player'} card`}>
+    <CardShell inline={inline} theme={C} accent={C.green} width={tab === 'overview' ? 620 : 900} onClose={onClose} label={`${player?.name || 'Player'} card`}>
         {/* THE HEAD (phone pass, 2026-09-27): name + a close that is always on
             screen. The actions used to share this row without wrapping, which
             pushed the 📸 and the close button off the right edge of a phone --
             there was no visible way out of the card. They have their own row now. */}
         {/* THE CLOSE, ALWAYS ON SCREEN (phone pass 2026-09-27): a zero-height
             sticky bar, so the ✕ pins without pinning the whole hero under it. */}
-        <div className="nfl-card-head" style={{ position: 'sticky', top: 0, zIndex: 4, height: 0, display: 'flex', justifyContent: 'flex-end' }}>
+        {!inline && <div className="nfl-card-head" style={{ position: 'sticky', top: 0, zIndex: 4, height: 0, display: 'flex', justifyContent: 'flex-end' }}>
           <button type="button" onClick={onClose} aria-label="Close" style={{
             flexShrink: 0, width: 44, height: 44, marginTop: 6, marginRight: 6, display: 'grid', placeItems: 'center',
             background: C.bg2, border: `1px solid ${C.border}`, color: C.text2,
             borderRadius: 10, cursor: 'pointer', fontSize: 16, lineHeight: 1,
           }}>✕</button>
-        </div>
+        </div>}
         {/* MOONSHOT'S HERO (2026-09-29, parity): the face-led VerdictHero the
             MLB props card uses -- face, name, the grade for the market on
             screen as the badge, its score on the dial -- in TUDDY's theme. */}
@@ -700,6 +704,9 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
         {/* Plain facts before the analysis. The score anatomy below explains
             why the model likes him; this says who he is and what he has
             actually done, which is what the card was missing entirely. */}
+        {/* MOONSHOT's Read (2026-09-30): the storyline desk's sentences, where
+            the MLB card puts its own -- before the facts that back them. */}
+        <NflPlayerRead player={player} market={market} rows={logs?.logs?.[player.player_id]?.log || []} matchup={matchup} />
         <TheFile player={player} log={logs?.logs?.[player.player_id]?.log} />
         <RatesTable player={player} markets={markets} log={logs?.logs?.[player.player_id]?.log} />
         </>}
