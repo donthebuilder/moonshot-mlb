@@ -6,7 +6,7 @@ import { STATE, alpha } from '../../lib/scales'
 import { fetchJSON, groupGames } from '../../lib/data'
 import { clean, teamOf } from '../../lib/player'
 import { Empty } from '../ui'
-import { RunLeaderCard, RunBoardRow, runChip as chip, runPct as pct } from '../runs/RunParts'
+import { RunHistogram, RunLeaderCard, RunBoardRow, runChip as chip, runPct as pct } from '../runs/RunParts'
 // H and HRR are the game-log column indices donutStats reads. They were NOT in
 // this import when DonutLine first shipped — the build compiled clean, and the
 // ReferenceError at render killed the ENTIRE Patterns page. Caught by the
@@ -497,64 +497,7 @@ export default function Runs({ players = [], onPlayerClick, onOpenPitcher = null
               never disagree with the cards under it — same rows, same `run`,
               just counted. Hot to the right, cold to the left, and the column
               a card belongs to is the one wearing its own colour. */}
-          {(() => {
-            const buckets = new Map()
-            rows.forEach(({ r }) => {
-              // Anything past 8 in either direction lives in one end column;
-              // beyond that the bars are ones and twos and the shape is noise.
-              const v = Math.max(-8, Math.min(8, r.run))
-              buckets.set(v, (buckets.get(v) || 0) + 1)
-            })
-            const cols = []
-            for (let v = -8; v <= 8; v += 1) { if (v !== 0) cols.push([v, buckets.get(v) || 0]) }
-            const top = Math.max(1, ...cols.map(([, c2]) => c2))
-            const longest = Math.max(0, ...rows.map(({ r }) => r.run))
-            const coldest = Math.min(0, ...rows.map(({ r }) => r.run))
-            return (
-              <div style={{
-                border: `1px solid ${C.border}`, borderRadius: 11, padding: '9px 12px',
-                background: C.bg2, marginBottom: 11,
-              }}>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 7 }}>
-                  <b style={{ fontSize: TYPE.name }}>Every active run on the board</b>
-                  <span style={{ fontSize: TYPE.micro, color: C.text3 }}>
-                    {rows.length} hitters on {label} · longest{' '}
-                    <b style={{ color: C.green, fontFamily: NUM_FONT }}>{longest}</b>
-                    {coldest < 0 ? <> · deepest drought <b style={{ color: C.red, fontFamily: NUM_FONT }}>{Math.abs(coldest)}</b></> : null}
-                  </span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 54 }}>
-                  {cols.map(([v, c2]) => {
-                    const hotCol = v > 0
-                    const tone = hotCol ? C.green : C.red
-                    return (
-                      <div key={v} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, minWidth: 0 }}
-                        title={`${c2} hitter${c2 === 1 ? '' : 's'} ${hotCol ? 'on a run of' : 'in a drought of'} ${Math.abs(v)}${Math.abs(v) === 8 ? ' or more' : ''} game${Math.abs(v) === 1 ? '' : 's'} for ${label}.`}>
-                        <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.label, color: c2 ? tone : C.text3 }}>{c2 || ''}</span>
-                        <span style={{
-                          width: '100%', height: Math.max(2, Math.round((c2 / top) * 34)),
-                          borderRadius: 2, background: c2 ? alpha(tone, 0.55) : C.border,
-                        }} />
-                        <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, color: C.text3 }}>
-                          {Math.abs(v) === 8 ? `${Math.abs(v)}+` : Math.abs(v)}
-                        </span>
-                      </div>
-                    )
-                  })}
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 3 }}>
-                  <span style={{ fontSize: TYPE.label, color: C.red, fontFamily: NUM_FONT, letterSpacing: '.06em' }}>← DROUGHT</span>
-                  <span style={{ fontSize: TYPE.label, color: C.green, fontFamily: NUM_FONT, letterSpacing: '.06em' }}>RUN →</span>
-                </div>
-                <div style={{ fontSize: TYPE.body, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
-                  The same {rows.length} rows the board is sorted by, counted rather than listed — so a card&apos;s
-                  number can be read against the field instead of against the card beside it. Most of any board
-                  lives in the first two columns on each side; that is what a run board looks like when nothing
-                  unusual is happening, and it is the shape to compare a long one against.
-                </div>
-              </div>
-            )
-          })()}
+          <RunHistogram runs={rows.map(({ r }) => r.run)} label={label} />   {/* components/runs/RunParts.js */}
 
           {/* ── the leaders, as cards ── */}
           <div style={{

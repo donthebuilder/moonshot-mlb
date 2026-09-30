@@ -10,7 +10,8 @@ import { streakMarkets, streakBoard, barChoices, seriesFor } from '../../../lib/
 import PageHeader from '../../PageHeader'
 import { FilterPill } from '../../Filters'
 import NflExplain from '../NflExplain'
-import { RunLeaderCard, RunBoardRow, runChip } from '../../runs/RunParts'
+import { RunLeaderCard, RunBoardRow, runChip, RunHistogram } from '../../runs/RunParts'
+import { SportTheme } from '../../SportTheme'
 import { readRun } from '../../../lib/runs'
 import { useIsPhone } from '../../MobileFold'
 
@@ -68,9 +69,22 @@ export default function Streaks({ data, logs, onPlayerClick }) {
       .filter((r) => r.run)
   }, [logs, data, market, line, side, pos])
 
+  // MOONSHOT's "every active run on the board" (components/runs/RunParts.js
+  // RunHistogram): every eligible player's active run at this line, both
+  // directions -- the board below lists one side; the chart counts the field.
+  const allRuns = useMemo(() => {
+    if (!market) return []
+    const eligible = new Set((data?.markets || []).find((m) => m.key === market.key)?.positions || [])
+    return (data?.players || [])
+      .filter((p) => !p.on_bye && (!eligible.size || eligible.has(p.position)) && (pos === 'ALL' || p.position === pos))
+      .map((p) => runOf(seriesFor(logs, p.player_id, market.field, 30), line)?.run)
+      .filter((v) => Number.isFinite(v) && v !== 0)
+  }, [logs, data, market, line, pos])
+
   if (!markets.length) return <div className="ts-empty">No game logs published yet — the bot ships nfl_logs.json on its first run of the season.</div>
 
   return (
+    <SportTheme theme={C} accent={C.green} numFont={NUM_FONT}>
     <div className="ts">
       <PageHeader
         eyebrow="TUDDY · STREAKS"
@@ -129,6 +143,7 @@ export default function Streaks({ data, logs, onPlayerClick }) {
         const shown = all ? board : board.slice(0, PREVIEW)
         return (
           <>
+            {allRuns.length > 0 && <RunHistogram runs={allRuns} label={label} noun="players" nounOne="player" />}
             <div style={{ display: 'grid', gap: 7, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))' }}>
               {featured.map((x) => {
                 const score = x.player.scores?.[market.key]
@@ -171,5 +186,6 @@ export default function Streaks({ data, logs, onPlayerClick }) {
       .ts-empty{padding:26px;border:1px dashed ${C.border2};border-radius:12px;text-align:center;color:${C.text3};font-size:10.5px}
       `}</style>
     </div>
+    </SportTheme>
   )
 }

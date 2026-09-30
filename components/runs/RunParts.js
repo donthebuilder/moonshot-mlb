@@ -2,6 +2,7 @@
 import { C, NUM_FONT, TYPE } from '../../lib/theme'
 import { STATE, alpha } from '../../lib/scales'
 import Sparkline, { GameStrip } from '../Sparkline'
+import { useSportTheme } from '../SportTheme'
 
 // MOONSHOT'S RUN PIECES, SHARED (2026-09-29, queue batch 9/11). Lifted out of
 // components/tabs/Runs.js unchanged so TUDDY's Streaks is drawn by the same
@@ -189,6 +190,70 @@ export function RunBoardRow({ r, name, team, label, open, onToggle, onOpenCard, 
           <RunOddsLine run={r.run} base={r.l30 || r.l15} size={9.5} />
         </div>
       )}
+    </div>
+  )
+}
+
+// EVERY ACTIVE RUN ON THE BOARD (lifted from components/tabs/Runs.js,
+// 2026-09-30, so TUDDY's Streaks draws the same chart): every row's active
+// run on this bar, stacked by length -- a histogram of the thing the board is
+// sorted by, so it can never disagree with the cards under it. Hot to the
+// right, cold to the left; anything past 8 either way lives in the end column.
+// Reads the sport's theme (SportTheme); MOONSHOT draws what it always drew.
+export function RunHistogram({ runs, label, noun = 'hitters', nounOne = 'hitter' }) {
+  const { C: T, NUM_FONT: NF } = useSportTheme()
+  const buckets = new Map()
+  runs.forEach((run) => {
+    const v = Math.max(-8, Math.min(8, run))
+    buckets.set(v, (buckets.get(v) || 0) + 1)
+  })
+  const cols = []
+  for (let v = -8; v <= 8; v += 1) { if (v !== 0) cols.push([v, buckets.get(v) || 0]) }
+  const top = Math.max(1, ...cols.map(([, c2]) => c2))
+  const longest = Math.max(0, ...runs)
+  const coldest = Math.min(0, ...runs)
+  return (
+    <div style={{
+      border: `1px solid ${T.border}`, borderRadius: 11, padding: '9px 12px',
+      background: T.bg2, marginBottom: 11,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 7 }}>
+        <b style={{ fontSize: TYPE.name }}>Every active run on the board</b>
+        <span style={{ fontSize: TYPE.micro, color: T.text3 }}>
+          {runs.length} {noun} on {label} · longest{' '}
+          <b style={{ color: T.green, fontFamily: NF }}>{longest}</b>
+          {coldest < 0 ? <> · deepest drought <b style={{ color: T.red, fontFamily: NF }}>{Math.abs(coldest)}</b></> : null}
+        </span>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 54 }}>
+        {cols.map(([v, c2]) => {
+          const hotCol = v > 0
+          const tone = hotCol ? T.green : T.red
+          return (
+            <div key={v} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, minWidth: 0 }}
+              title={`${c2} ${c2 === 1 ? nounOne : noun} ${hotCol ? 'on a run of' : 'in a drought of'} ${Math.abs(v)}${Math.abs(v) === 8 ? ' or more' : ''} game${Math.abs(v) === 1 ? '' : 's'} for ${label}.`}>
+              <span style={{ fontFamily: NF, fontSize: TYPE.label, color: c2 ? tone : T.text3 }}>{c2 || ''}</span>
+              <span style={{
+                width: '100%', height: Math.max(2, Math.round((c2 / top) * 34)),
+                borderRadius: 2, background: c2 ? alpha(tone, 0.55) : T.border,
+              }} />
+              <span style={{ fontFamily: NF, fontSize: TYPE.micro, color: T.text3 }}>
+                {Math.abs(v) === 8 ? `${Math.abs(v)}+` : Math.abs(v)}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 3 }}>
+        <span style={{ fontSize: TYPE.label, color: T.red, fontFamily: NF, letterSpacing: '.06em' }}>← DROUGHT</span>
+        <span style={{ fontSize: TYPE.label, color: T.green, fontFamily: NF, letterSpacing: '.06em' }}>RUN →</span>
+      </div>
+      <div style={{ fontSize: TYPE.body, color: T.text3, marginTop: 6, lineHeight: 1.5 }}>
+        The same {runs.length} rows the board is sorted by, counted rather than listed — so a card&apos;s
+        number can be read against the field instead of against the card beside it. Most of any board
+        lives in the first two columns on each side; that is what a run board looks like when nothing
+        unusual is happening, and it is the shape to compare a long one against.
+      </div>
     </div>
   )
 }
