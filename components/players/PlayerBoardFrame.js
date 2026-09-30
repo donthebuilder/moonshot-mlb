@@ -6,6 +6,8 @@ import { alpha } from '../../lib/scales'
 import { Empty, inputStyle } from '../ui'
 import { rampColor, inkFor } from '../Heatmap'
 import { useSportTheme } from '../SportTheme'
+import { usePickLight, pickColorOf } from '../../lib/pickLight'
+import { useSport } from '../../lib/sport'
 
 // MOONSHOT'S PLAYERS PAGE, AS A FRAME (2026-09-30, Donovan: "the mlb players
 // page is the base i like that, use those components"). components/tabs/
@@ -29,6 +31,8 @@ export default function PlayerBoardFrame({
   renderDetail, notice = null, listCap = 40, searchText = (r) => nameOf(r), sideTop = null,
 }) {
   const { C, NUM_FONT, accent, themed } = useSportTheme()
+  // ✨ The tap highlight (lib/pickLight.js) marks his row here too.
+  const pick = usePickLight(useSport())
   const [query, setQuery] = useState('')
   const [selectedId, setSelectedIdRaw] = useState(null)
   const [ask, setAsk] = useState(null)
@@ -120,6 +124,7 @@ export default function PlayerBoardFrame({
           {matches.map((p) => {
             const id = idOf(p)
             const on = selected && idOf(selected) === id
+            const lit = pick.count > 0 && pick.has(String(urlIdOf(p)))
             const sc = scoreOf(p)
             const has = Number.isFinite(Number(sc)) && sc !== null
             const bg = has ? rampColor(Number(sc), sLo, sHi) : null
@@ -132,12 +137,13 @@ export default function PlayerBoardFrame({
                   padding: '8px 10px', border: 'none', cursor: 'pointer',
                   textAlign: 'left', color: on ? C.text : C.text2,
                   background: on ? C.bg3 : 'transparent',
-                  borderLeft: `2px solid ${on ? C.green : 'transparent'}`,
+                  borderLeft: `2px solid ${on ? C.green : lit ? pickColorOf(C) : 'transparent'}`,
                   borderBottom: `1px solid ${C.border}`,
                 }}
               >
                 <span style={{ flex: 1, minWidth: 0 }}>
                   <span style={{ display: 'block', fontSize: TYPE.name, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {lit && <span title="You highlighted him" style={{ color: pickColorOf(C), marginRight: 4 }}>✨</span>}
                     {nameOf(p)}
                     {badgesOf(p)}
                   </span>
