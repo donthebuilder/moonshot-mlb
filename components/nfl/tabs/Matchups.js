@@ -14,6 +14,9 @@ import SeasonToggle from '../../SeasonToggle'
 import useDvpSeason from '../../../lib/nfl/useDvpSeason'
 import { MatchupTitle, SubLabel, BarList, FactLines } from '../../matchup/MatchupParts'
 import FootballField from '../FootballField'
+import MatchupExplorer from '../MatchupExplorer'
+import { ViewRow } from '../../results/ResultsParts'
+import { SportTheme } from '../../SportTheme'
 import { softRole, softLine, passRushThreat, blockSeason, PASS_RUSH_AVOID, STARTER_ROLES } from '../../../lib/nfl/dvpSignal'
 
 // Matchups -- the defenses to attack this week, then one defense read the
@@ -320,6 +323,8 @@ export default function Matchups({ matchup, data, onPlayerClick = null, onOpenTe
     [matchup, onSlate])
 
   const [team, setTeam] = useState(null)
+  // THREE WAYS IN (2026-09-30): this week's defenses, the league by coverage, the league by hole.
+  const [view, setView] = useState('week')
   const [win, setWin] = useState('season')
   // The detail opens on the table's #1 (the softest defense this week) until a
   // row is tapped -- same measure, starters only.
@@ -386,6 +391,12 @@ export default function Matchups({ matchup, data, onPlayerClick = null, onOpenTe
         numFont={NUM_FONT}
         accent={C.cyan}
       />
+      <SportTheme theme={C} accent={C.cyan} numFont={NUM_FONT}>
+        <ViewRow value={view} onChange={setView}
+          views={[['week', '🛡 This week'], ['coverage', '🎯 Coverage explorer'], ['holes', '🏃 Run holes']]} />
+      </SportTheme>
+      {view !== 'week' && <MatchupExplorer matchup={matchup} data={data} onPlayerClick={onPlayerClick} view={view} />}
+      {view === 'week' && <>
       <DefensesTable matchup={matchup} data={data} win={win} active={active} onPlayerClick={onPlayerClick} onPick={(t) => { setTeam(t); if (typeof document !== 'undefined') requestAnimationFrame(() => document.getElementById('tuddy-def-detail')?.scrollIntoView({ behavior: 'smooth', block: 'start' })) }} />
 
       <section id="tuddy-def-detail" aria-label={`${active} defense`} style={{ scrollMarginTop: 80 }}>
@@ -418,6 +429,7 @@ export default function Matchups({ matchup, data, onPlayerClick = null, onOpenTe
           </div>
         )}
       </section>
+      </>}
     </div>
   )
 }
