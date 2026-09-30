@@ -4,26 +4,28 @@ import { C, NUM_FONT, TYPE } from '../../lib/nfl/theme'
 import { Segmented } from '../Filters'
 import SeasonToggle from '../SeasonToggle'
 import useDvpSeason from '../../lib/nfl/useDvpSeason'
+import { chipColor } from '../Heatmap'
+import FootballField from './FootballField'
+import NflTable from './NflTable'
 
-// 🎯 THE RED ZONE, ONE DOT PER TOUCH (2026-09-29, queue batch 10; Donovan
-// approved the bot publishing the touches). Every red-zone carry and target
-// the bot counted, placed by how far from the goal line it happened (20 on
-// the left, the goal on the right), filled when it scored. The shaded band is
-// inside the 5, where carries turn into touchdowns. TD rate at the right is
-// tds / touches -- the same two numbers the bot's own red_zone totals carry.
+// 🔴 EVERY RED-ZONE TOUCH, ON THE FIELD (2026-09-30, Donovan: "make something
+// I can visually understand, football field wise ... I want to be able to see
+// the field"). Was one dot strip per player. Now MOONSHOT's spray-chart page
+// (components/SprayField.js): a row of name chips, the red zone drawn as a
+// field in a framed panel (components/nfl/FootballField.js mode 'redzone'),
+// every touch at the yard line it started -- carries in the running lane,
+// targets across, green when it scored -- and on the right the readout, the
+// three bands as lane bars (20-11 / 10-6 / inside 5, share + TDs, like the
+// spray chart's LF/CF/RF + HR), and the totals. Under it every player as a
+// table; a row puts him on the field.
 //
-// SOURCE: nfl_matchup.json red_zone[gsis].plays, "12r,5pT,..." -- yard line,
-// r(ush) / p(ass), T if it scored. Nothing here is estimated; a player with
-// no plays string (an older payload) is simply not drawn, and the page falls
-// back to the old field when no one has one (see RedZone.js).
-//
-// Also: the leader of each distance band ("inside 5: Gibbs, 9 touches"), a
-// rush / pass / both switch, and the season switch (the other season comes
-// from nfl_matchup_prev.json, fetched only when you flip it).
+// Source: nfl_matchup.json red_zone[pid].plays ("5rT,11r,20r,14p": yards to
+// go, r = carry / p = target, T = touchdown). Where a touch sat side to side
+// is not published, so the across position is only the kind of play.
 
 const BANDS = [[20, 11, '20–11'], [10, 6, '10–6'], [5, 1, 'inside 5']]
-const PREVIEW = 5
 const KINDS = [{ key: 'both', label: 'Both' }, { key: 'r', label: 'Rush' }, { key: 'p', label: 'Pass' }]
+const CHIPS = 16
 
 export function parsePlays(s) {
   if (!s) return []
@@ -38,44 +40,12 @@ export function hasPlays(matchup) {
 }
 
 const surname = (name) => String(name || '').split(' ').slice(1).join(' ') || name
-// "J. Gibbs": the full name clipped to "Jahmyr Gib…" at 375.
-const short = (name) => { const [f, ...rest] = String(name || '').split(' '); return rest.length ? `${f[0]}. ${rest.join(' ')}` : name }
-
-function Row({ r, onOpen }) {
-  // Touches at the same yard stack into up to three lanes so they stay countable.
-  const lanes = {}
-  return (
-    <button type="button" onClick={onOpen} title={`${r.name}: ${r.touches.length} red-zone touches, ${r.tds} TD`} style={{
-      display: 'grid', gridTemplateColumns: 'minmax(78px, 26%) 1fr 44px', alignItems: 'center', gap: 8,
-      width: '100%', padding: '3px 0', border: 0, background: 'transparent', color: 'inherit', cursor: 'pointer', textAlign: 'left', minHeight: 0,
-    }}>
-      <span style={{ fontSize: TYPE.body, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-        {short(r.name)}<span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: TYPE.micro }}> {r.pos}</span>
-      </span>
-      <span style={{ position: 'relative', height: 22, borderRadius: 4, background: `linear-gradient(90deg, transparent ${(15 / 19) * 100}%, ${C.green}1c ${(15 / 19) * 100}%)`, borderRight: `2px solid ${C.text2}` }}>
-        {r.touches.map((t, i) => {
-          const lane = (lanes[t.yl] = (lanes[t.yl] ?? -1) + 1) % 3
-          return (
-            <i key={i} style={{
-              position: 'absolute', left: `calc(${((20 - t.yl) / 19) * 100}% - 4px)`, top: 2 + lane * 6.5,
-              width: 7, height: 7, borderRadius: '50%',
-              background: t.td ? C.green : 'transparent', border: `1.5px solid ${t.td ? C.green : t.k === 'r' ? C.orange : C.cyan}`,
-            }} />
-          )
-        })}
-      </span>
-      <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.body, fontWeight: 900, textAlign: 'right', color: r.tds ? C.green : C.text3 }}>
-        {Math.round((100 * r.tds) / r.touches.length)}%
-        <small style={{ display: 'block', fontSize: TYPE.label, fontWeight: 700, color: C.text3 }}>{r.tds}/{r.touches.length}</small>
-      </span>
-    </button>
-  )
-}
 
 export default function RedZoneDots({ data, matchup, team = 'all', onPlayerClick }) {
   const season = useDvpSeason(matchup)
   const [kind, setKind] = useState('both')
-  const [all, setAll] = useState(false)
+  const [who, setWho] = useState(null)          // pid, or null = everyone
+  const [pick, setPick] = useState(null)
   const byId = useMemo(() => new Map((data?.players || []).map((p) => [String(p.player_id), p])), [data])
 
   const rows = useMemo(() => {
@@ -85,59 +55,132 @@ export default function RedZoneDots({ data, matchup, team = 'all', onPlayerClick
       if (team !== 'all' && p?.team !== team) continue
       const touches = parsePlays(v?.plays).filter((t) => kind === 'both' || t.k === kind)
       if (!touches.length) continue
-      out.push({ pid, name: v.name || p?.name || pid, pos: v.position || p?.position || '', team: p?.team || null, touches, tds: touches.filter((t) => t.td).length, _raw: p })
+      const tds = touches.filter((t) => t.td).length
+      out.push({
+        pid, _key: pid, name: v.name || p?.name || pid, pos: v.position || p?.position || '', team: p?.team || '',
+        touches, n: touches.length, tds, tdPct: (100 * tds) / touches.length,
+        in10: touches.filter((t) => t.yl <= 10).length, in5: touches.filter((t) => t.yl <= 5).length,
+        _raw: p || null,
+      })
     }
-    return out.sort((a, b) => (b.touches.length - a.touches.length) || (b.tds - a.tds))
+    return out.sort((a, b) => (b.n - a.n) || (b.tds - a.tds))
   }, [season.view, byId, team, kind])
 
-  const leaders = useMemo(() => BANDS.map(([hi, lo, label]) => {
-    let best = null
-    for (const r of rows) {
-      const n = r.touches.filter((t) => t.yl <= hi && t.yl >= lo).length
-      if (n && (!best || n > best.n)) best = { r, n }
-    }
-    return { label, best }
-  }), [rows])
-
-  const shown = all ? rows : rows.slice(0, PREVIEW)
+  const focus = who ? rows.find((r) => r.pid === who) : null
+  const touches = focus ? focus.touches.map((t, i) => ({ ...t, who: focus })) : rows.flatMap((r) => r.touches.map((t) => ({ ...t, who: r })))
+  const plays = touches.map((t, i) => ({ key: `${t.who.pid}-${i}`, yd: t.yl, kind: t.k, td: t.td, t,
+    title: `${t.who.name} · ${t.yl}-yard ${t.k === 'r' ? 'carry' : 'target'}${t.td ? ' · touchdown' : ''}` }))
+  const picked = plays.find((p) => p.key === pick)
+  const nTd = touches.filter((t) => t.td).length
+  const bands = BANDS.map(([hi, lo, label]) => {
+    const inB = touches.filter((t) => t.yl <= hi && t.yl >= lo)
+    return { label, n: inB.length, td: inB.filter((t) => t.td).length, pct: touches.length ? (100 * inB.length) / touches.length : 0 }
+  })
+  const top = rows.slice(0, CHIPS)
+  const maxN = Math.max(1, ...top.map((r) => r.n))
   const seasonShown = season.showing || matchup?.season
 
   return (
-    <section aria-label="Red-zone touches, one dot each" style={{ margin: '0 0 12px', padding: '12px 12px 10px', border: `1px solid ${C.border}`, borderRadius: 12, background: C.bg2 }}>
+    <section aria-label="Red-zone touches on the field" style={{ margin: '0 0 12px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
         <span style={{ fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.1em', color: C.green, fontFamily: NUM_FONT }}>EVERY RED-ZONE TOUCH</span>
+        {seasonShown && <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>{seasonShown}{season.showing && season.showing !== season.current ? ' · LAST SEASON' : ''}</span>}
         <span style={{ marginLeft: 'auto', display: 'inline-flex', gap: 6, flexWrap: 'wrap' }}>
-          <Segmented value={kind} onChange={setKind} options={KINDS} />
+          <Segmented value={kind} onChange={(k) => { setKind(k); setPick(null) }} options={KINDS} />
           {season.hasToggle && <SeasonToggle seasons={[season.current, season.alt]} slateSeason={data?.season} value={season.showing} onPick={season.pick} loading={season.state === 'loading' ? season.showing : null} />}
         </span>
       </div>
 
-      {leaders.some((l) => l.best) && (
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 8, fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>
-          {leaders.map(({ label, best }) => best && (
-            <button type="button" key={label} onClick={() => best.r._raw && onPlayerClick?.(best.r._raw, 'TD')}
-              style={{ border: 0, background: 'transparent', padding: 0, minHeight: 0, color: C.text3, font: 'inherit', cursor: 'pointer' }}>
-              {label}: <b style={{ color: C.text }}>{surname(best.r.name)}</b>, {best.n} touch{best.n === 1 ? '' : 'es'}
+      {/* the name chips, MOONSHOT's spray-page row: heat by red-zone touches */}
+      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 8 }}>
+        <button type="button" onClick={() => { setWho(null); setPick(null) }} style={chip(!who, null)}>Everyone · {rows.reduce((a, r) => a + r.n, 0)}</button>
+        {top.map((r) => (
+          <button key={r.pid} type="button" onClick={() => { setWho(who === r.pid ? null : r.pid); setPick(null) }}
+            title={`${r.name}: ${r.n} red-zone touches, ${r.tds} TD`} style={chip(who === r.pid, chipColor(r.n, 0, maxN))}>
+            {surname(r.name)}
+          </button>
+        ))}
+      </div>
+
+      <div className="spray-wrap" style={{
+        display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'flex-start',
+        background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 12, padding: 10,
+      }}>
+        <div style={{ flex: '0 1 340px', minWidth: 0, width: '100%', maxWidth: 340 }}>
+          <FootballField mode="redzone" plays={plays} maxWidth={340} pickedKey={pick}
+            onPick={(k) => setPick(pick === k ? null : k)} />
+        </div>
+        <div style={{ flex: 1, minWidth: 180 }}>
+          <div style={{ fontSize: TYPE.name, fontWeight: 900 }}>
+            {focus ? <>{focus.name} <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: TYPE.micro }}>{focus.pos} · {focus.team}</span></> : `Everyone${team !== 'all' ? ` · ${team}` : ''}`}
+          </div>
+          <div aria-live="polite" style={{ minHeight: 40, fontFamily: NUM_FONT, fontSize: 10.5, lineHeight: 1.6, color: C.text2, marginTop: 2 }}>
+            {picked ? <>
+              <b style={{ color: picked.td ? C.green : C.text }}>{picked.t.yl}-YARD {picked.t.k === 'r' ? 'CARRY' : 'TARGET'}{picked.td ? ' · TOUCHDOWN' : ''}</b>
+              {!focus && <div>{picked.t.who.name} · {picked.t.who.team}</div>}
+            </> : <span style={{ color: C.text3 }}>Tap a dot for the touch. Showing {touches.length} touch{touches.length === 1 ? '' : 'es'}.</span>}
+          </div>
+          <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {bands.map((b) => (
+              <div key={b.label} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10 }}>
+                <span style={{ width: 52, color: C.text3, fontFamily: NUM_FONT }}>{b.label}</span>
+                <div style={{ flex: 1, height: 11, background: C.bg3, borderRadius: 2 }}>
+                  <div style={{ width: `${Math.max(2, b.pct)}%`, height: '100%', background: chipColor(b.pct, 0, 60), borderRadius: 2 }} />
+                </div>
+                <span style={{ fontFamily: NUM_FONT, color: C.text2, minWidth: 58, textAlign: 'right' }}>
+                  {Math.round(b.pct)}%{b.td > 0 && <span style={{ color: C.green }}> {b.td}TD</span>}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 8, fontFamily: NUM_FONT }}>
+            <span style={{ fontSize: 10, color: C.text3 }}><b style={{ color: C.text, fontSize: 12.5 }}>{touches.length}</b> touches</span>
+            <span style={{ fontSize: 10, color: C.text3 }}><b style={{ color: C.green, fontSize: 12.5 }}>{nTd}</b> TD</span>
+            <span style={{ fontSize: 10, color: C.text3 }}><b style={{ color: C.text, fontSize: 12.5 }}>{touches.length ? Math.round((100 * nTd) / touches.length) : 0}%</b> scored</span>
+          </div>
+          <div style={{ fontSize: 9.5, color: C.text3, marginTop: 8, lineHeight: 1.6 }}>
+            <b style={{ color: C.orange }}>orange ring</b> carry · <b style={{ color: C.cyan }}>blue ring</b> target · <b style={{ color: C.green }}>filled</b> scored · the dot sits on the yard line the play started
+          </div>
+          {focus?._raw && onPlayerClick && (
+            <button type="button" onClick={() => onPlayerClick(focus._raw, 'TD')} style={{ marginTop: 8, padding: '6px 12px', border: `1px solid ${C.border}`, borderRadius: 999, background: 'transparent', color: C.text2, fontFamily: NUM_FONT, fontSize: TYPE.label, fontWeight: 800, cursor: 'pointer' }}>
+              Open his card →
             </button>
-          ))}
+          )}
+        </div>
+      </div>
+
+      {rows.length > 0 && (
+        <div style={{ marginTop: 10 }}>
+          <NflTable
+            rows={rows}
+            columns={[
+              { key: 'name', label: 'Player', w: 150, heat: false, bold: true, sticky: true },
+              { key: 'pos', label: 'Pos', w: 38, heat: false, mono: true, dim: true },
+              { key: 'team', label: 'Tm', w: 44, heat: false, mono: true, dim: true, teamMark: 'nfl' },
+              { key: 'n', label: 'RZ touches', w: 68, dp: 0, primary: true },
+              { key: 'in10', label: 'Inside 10', w: 60, dp: 0 },
+              { key: 'in5', label: 'Inside 5', w: 58, dp: 0 },
+              { key: 'tds', label: 'TD', w: 40, dp: 0 },
+              { key: 'tdPct', label: 'TD%', w: 50, dp: 0 },
+            ]}
+            onRowClick={(r) => { const x = rows.find((q) => q._raw === r || q === r || q.pid === r?.player_id); if (x) { setWho(x.pid); setPick(null); if (typeof window !== 'undefined') window.scrollBy({ top: -1, behavior: 'smooth' }) } }}
+            initialSort={{ key: 'n', dir: 'desc' }}
+            maxHeight={420}
+            maxRows={12}
+            caption="Every player with a red-zone touch. Tap a row to put him on the field above."
+          />
         </div>
       )}
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(78px, 26%) 1fr 44px', gap: 8, fontFamily: NUM_FONT, fontSize: TYPE.label, color: C.text3 }}>
-        <span>{seasonShown ? `${seasonShown}${season.showing && season.showing !== season.current ? ' · LAST SEASON' : ''}` : ''}</span>
-        <span style={{ position: 'relative', height: 14 }}>{[[20, '20'], [10, '10'], [5, '5'], [1, 'G']].map(([y, t]) => <span key={t} style={{ position: 'absolute', left: `${((20 - y) / 19) * 100}%`, transform: y === 20 ? 'none' : y === 1 ? 'translateX(-100%)' : 'translateX(-50%)' }}>{t}</span>)}</span>
-        <span style={{ textAlign: 'right' }}>TD%</span>
-      </div>
-      {shown.length ? shown.map((r) => <Row key={r.pid} r={r} onOpen={() => r._raw && onPlayerClick?.(r._raw, 'TD')} />)
-        : <div style={{ fontSize: TYPE.body, color: C.text3, padding: '8px 0' }}>No red-zone touches for this selection.</div>}
-      {rows.length > PREVIEW && (
-        <button type="button" onClick={() => setAll(!all)} style={{ marginTop: 6, padding: '6px 12px', border: `1px solid ${C.border}`, borderRadius: 999, background: 'transparent', color: C.text3, fontFamily: NUM_FONT, fontSize: TYPE.label, fontWeight: 800, cursor: 'pointer' }}>
-          {all ? 'show fewer' : `show all ${rows.length}`}
-        </button>
-      )}
-      <div style={{ fontSize: TYPE.micro, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
-        One dot per carry (orange ring) or target (blue ring) inside the 20; filled green when it scored. Shaded: inside the 5.
-      </div>
     </section>
   )
+}
+
+function chip(on, heat) {
+  return {
+    padding: '3px 10px', borderRadius: 7, cursor: 'pointer', fontSize: TYPE.label, fontWeight: 800,
+    fontFamily: NUM_FONT, whiteSpace: 'nowrap', minHeight: 0,
+    border: `1px solid ${on ? C.text : C.border}`,
+    background: heat || 'transparent', color: heat ? C.bg : C.text2,
+    boxShadow: on ? `0 0 0 1px ${C.text}` : 'none',
+  }
 }
