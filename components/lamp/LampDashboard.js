@@ -116,7 +116,8 @@ export default function LampDashboard({ palettePass = 0 }) {
       if (next !== 'board' && next !== 'shots') hash.delete('m')
       if (!DATED_TABS.has(next)) hash.delete('date')
       if (next !== 'team') hash.delete('team')
-      if (next !== 'player') { hash.delete('player'); hash.delete('p') }
+      // Players / Goalies keep their pick too (MOONSHOT's Players page, 2026-09-30).
+      if (next !== 'player' && next !== 'players' && next !== 'goalies') { hash.delete('player'); hash.delete('p') }
       // A detail page keeps its entry's marker (openDetail); the chrome's
       // own navigation starts clean.
       // Only LAMP's own marker rides along -- never window.history.state, whose
@@ -327,8 +328,8 @@ export default function LampDashboard({ palettePass = 0 }) {
             {tab === 'guide' && <Guide onNavigate={setTab} />}
             {tab === 'teams' && <Teams onOpenTeam={openTeam} />}
             {tab === 'team' && <Team abbrev={teamKey} onOpenPlayer={openPlayer} onOpenGame={openGame} backLabel={backLabel('teams')} onBack={() => goBack('teams')} />}
-            {tab === 'players' && <Players onOpenPlayer={openPlayer} onOpenTeam={openTeam} />}
-            {tab === 'goalies' && <Players goaliesOnly onOpenPlayer={openPlayer} onOpenTeam={openTeam} />}
+            {tab === 'players' && <Players onOpenTeam={openTeam} onOpenGame={openGame} />}
+            {tab === 'goalies' && <Players goaliesOnly onOpenTeam={openTeam} onOpenGame={openGame} />}
             {tab === 'player' && <Player id={playerId} onOpenTeam={openTeam} onOpenGame={openGame} backLabel={backLabel('players')} onBack={() => goBack('players')} />}
             {tab === 'leaders' && <Leaders onOpenPlayer={openPlayer} onOpenTeam={openTeam} />}
             {tab === 'specialteams' && <SpecialTeams onOpenTeam={openTeam} />}

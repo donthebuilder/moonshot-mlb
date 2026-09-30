@@ -335,7 +335,7 @@ export default function NflDashboard({ palettePass = 0 }) {
     const swap = Boolean(hash.get('card'))
     hash.set('sport', 'nfl'); hash.set('card', id)
     if (market && market !== 'TD') hash.set('cm', market); else hash.delete('cm')
-    writeHash(hash, swap ? { push: false, state: window.history.state } : { push: true, state: { nflCard: 1 } })
+    writeHash(hash, swap ? { push: false, state: window.history.state?.nflCard ? { nflCard: 1 } : null } : { push: true, state: { nflCard: 1 } })
   }
   const closePlayer = () => closeOpened('nflCard', () => {
     setModal(null)

@@ -136,7 +136,7 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel }) {
   return (
     <SportTheme theme={C} accent={C.ice}>
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <BackBtn onBack={onBack} label={backLabel} />
+      {onBack && <BackBtn onBack={onBack} label={backLabel} />}
       <DelayedBanner error={error} what="the league’s player feed" />
       <header>
         <h2 className="sr-only">{p.name}</h2>

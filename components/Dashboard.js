@@ -527,11 +527,14 @@ export default function Dashboard({ palettePass = 0 }) {
     // just the last one"). Opening a card pushes one entry; walking to
     // another player INSIDE the open card (‹ › / search) replaces it and keeps
     // its dashCard marker, so one close -- or one Back -- leaves the card.
+    // Only the marker rides along, never window.history.state itself (its
+    // __NA flag makes Next skip syncing the URL -- lib/urlState.js); a card
+    // opened by a cold link has no marker and must not gain one.
     const hadCard = Boolean(before.get('p'))
     const newCard = Boolean(cardId) && !hadCard
     const swapCard = Boolean(cardId) && hadCard && cardId !== before.get('p')
     const newDay = (h.get('day') || '') !== (before.get('day') || '')
-    writeHash(h, { push: newTab || newCard || newDay, state: newCard ? { dashCard: 1 } : swapCard ? window.history.state : null })
+    writeHash(h, { push: newTab || newCard || newDay, state: newCard || (swapCard && window.history.state?.dashCard) ? { dashCard: 1 } : null })
   }, [tab, modalPlayer, missingTab, missingPlayer, mode])
 
 
