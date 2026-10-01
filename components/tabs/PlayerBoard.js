@@ -30,7 +30,7 @@ const ASKS = [
 
 // The page itself is components/players/PlayerBoardFrame.js now (2026-09-30):
 // the same layout, lifted so TUDDY and LAMP build their Players pages from it.
-export default function PlayerBoard({ players, onAdd, onWatch, watchIds, odds = null }) {
+export default function PlayerBoard({ players, slate = null, onAdd, onWatch, watchIds, odds = null }) {
   const ranked = useMemo(
     () => [...players].sort((a, b) => scoreFor(b, 'hr') - scoreFor(a, 'hr')),
     [players],
@@ -55,6 +55,7 @@ export default function PlayerBoard({ players, onAdd, onWatch, watchIds, odds = 
         // is the page's header; Watch lives in the card's action row.
         <PlayerModal
           player={selected}
+          slate={slate || players}
           inline
           onAdd={onAdd}
           onWatch={onWatch}

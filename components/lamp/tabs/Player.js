@@ -15,6 +15,8 @@ import StatStrip, { HitRateBoxes } from '../../StatStrip'
 import { nhlTeam } from '../../../lib/nhl/teams'
 import { usePreview, ShowMoreButton } from '../../ListPreview'
 import { STATUS, EmptyState, DelayedBanner, Loading, SourceLine, Kicker, StaleSeasonNote, fmtDay, fmtPuckDrop, zoneAbbrev, ageFrom, fmtHeight, fmtPct1, fmtPct3, fmt2, fmtSec, plusMinus, dash } from '../ui'
+import WhyLines from '../../WhyLines'
+import { goalWhy } from '../../../lib/nhl/goalWhy'
 
 // 🏒 PLAYER — one man's file, at a stable address (#sport=nhl&tab=player&
 // player=<id>). A skater and a goalie share the route and NOT the page:
@@ -159,6 +161,13 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel }) {
           line={row ? (row.why || (row.reason ? `Not on the board: ${row.reason}` : null)) : spot && !goalie && (spot.g.rows || []).length ? 'Not on tonight’s board: he isn’t in the posted lineup or on the club’s current roster.' : null}
           style={{ marginBottom: 10 }}
         />
+        {/* The goal model's three legs, ranked against tonight's GOAL board
+            (lib/nhl/goalWhy.js, BATCH-SIGNAL-WHY S3a) -- under the board's own
+            why line, never instead of it. */}
+        {row && !goalie && (() => {
+          const w = goalWhy(row, board)
+          return w ? <WhyLines theme={C} numFont={NUM_FONT} accent={C.ice} why={[w.why]} watch={w.watch} explain={w.explain} /> : null
+        })()}
         <div style={{ minWidth: 0, borderBottom: `1px solid ${C.border2}`, paddingBottom: 12 }}>
           <div style={{ color: C.text3, fontSize: 11, lineHeight: 1.5 }}>{bio}</div>
           {!goalie && <MultiLine sport="nhl" playerId={p.id} words={{ G: 'multi-goal' }} color={C.ice} textColor={C.text2} />}

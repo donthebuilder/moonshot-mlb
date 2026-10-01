@@ -2,6 +2,12 @@
 
 Found while working, not fixed. Newest first.
 
+## 2026-09-30 · SIGNAL-WHY
+
+- **The MLB card shows two exit velos and two barrel rates.** The stat strip (lib/statline.js) reads `l25pa_avg_ev` and `l20pa_barrel_rate`. The board columns, and so the WHY lines, read `recent_ev` and `recent_barrel_rate`. Alvarez tonight: 98.8 vs 97.2 mph, and 0.0% vs a non-zero recent barrel rate. The WHY lines say "Recent…" so they don't look like one stat contradicting itself, but one window per card would be clearer.
+- **TUDDY Home: duplicate React key `401872969|streak|00-0040719`.** It comes from a streak list, not the headline block. Dev console only.
+- **LAMP Home: VAN / EDM / PHI team codes aren't links.** Also on the live site.
+
 ## 2026-09-30 · MEMBERS M1/M2
 
 - **LAMP's /start: 8 game names are not links** (`check-clickable /start?sport=nhl`; also on the live site). /start?sport=nfl was fixed in 05fd73f the same way: carry the game id and link it.

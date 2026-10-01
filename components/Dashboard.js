@@ -1017,7 +1017,7 @@ export default function Dashboard({ palettePass = 0 }) {
             {tab === 'watch'       && <You players={allPlayers} watchItems={watchLive} pairSummary={pairSummary} results={resultsForSlate} odds={odds} slateDate={slateDate} mode={mode} onWatch={toggleWatch} onAdd={addSlip} onPlayerClick={setModalPlayer} initial="watch" />}
             {tab === 'trueprice'   && <OddsBoard players={players} odds={oddsRaw} onPlayerClick={setModalPlayer} initialView="trueprice" />}
             {tab === 'leaders'     && <Leaders players={players} onPlayerClick={setModalPlayer} onNavigate={setTab} />}
-            {tab === 'player'      && <PlayerBoard players={players} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} odds={odds} />}
+            {tab === 'player'      && <PlayerBoard players={players} slate={allPlayers} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} odds={odds} />}
             {tab === 'derby'       && <Derby players={players} results={resultsForSlate} slateDate={slateDate} onPlayerClick={setModalPlayer} />}
             {tab === 'runs'        && <Runs players={allPlayers} onPlayerClick={setModalPlayer} onOpenPitcher={(pid) => { leaveTarget('pitcher', pid); setTab('pitchers') }} />}
             {tab === 'spray'       && <SprayBoard players={players} slateMode={mode} onPlayerClick={setModalPlayer} />}
@@ -1054,6 +1054,7 @@ export default function Dashboard({ palettePass = 0 }) {
       <ErrorBoundary resetKey={modalPlayer && (modalPlayer.player_id ?? modalPlayer.id)} label="the player card">
       <PlayerModal
         player={modalPlayer}
+        slate={allPlayers}
         initialTab={modalPlayer && String(modalPlayer?.player_id ?? modalPlayer?.id ?? '') === modalView.pid ? modalView.view : ''}
         slateMode={mode}
         onClose={() => closeOpened('dashCard', () => setModalPlayer(null))}

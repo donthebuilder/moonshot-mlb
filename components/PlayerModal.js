@@ -1,6 +1,6 @@
 'use client'
 import { mlbFaceStrict } from './PlayerFace'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import useScrollLock from '../lib/useScrollLock'
 import { C, NUM_FONT } from '../lib/theme'
@@ -52,6 +52,8 @@ import { venueRecord } from '../lib/venueHr'
 import { pullWallFor } from '../lib/walls'
 import PlayerCompare from './PlayerCompare'
 import ContactSection from './ContactSection'
+import { reasonContext, boardReasonFor, reasonLines } from '../lib/mlb/boardReason'
+import WhyLines from './WhyLines'
 
 // 🧱 "How far is HIS wall tonight" (audit #7, 2026-08-08). fieldInfo hydrate
 // verified live; percentile computed from the same payload. Switch hitters
@@ -222,7 +224,7 @@ const TABS = [
 // here is indistinguishable from one added from a card.
 const BETS = ['HR', 'Hit', 'HRR', 'TB']
 
-export default function PlayerModal({ player, slateMode, initialTab = '', onClose, inline = false, onAdd, onWatch, watched = false, peers = [], onNavigate = null, odds = null, pairSummary = null, onOpenPairHistory = null }) {
+export default function PlayerModal({ player, slate = null, slateMode, initialTab = '', onClose, inline = false, onAdd, onWatch, watched = false, peers = [], onNavigate = null, odds = null, pairSummary = null, onOpenPairHistory = null }) {
   // Inline mode is not an overlay -- it renders in the page, and pinning the
   // body under it would freeze the very thing the reader is scrolling.
   useScrollLock(Boolean(player) && !inline)
@@ -419,6 +421,16 @@ export default function PlayerModal({ player, slateMode, initialTab = '', onClos
       .catch(() => {})
     return () => { alive = false }
   }, [pid, player])
+
+  // WHY / WATCH (2026-09-30, BATCH-SIGNAL-WHY S3a): lib/mlb/boardReason.js
+  // for this hitter, ranked against `slate` -- the WHOLE slate the caller
+  // holds (never the filtered on-screen list). No slate, or a live-API-only
+  // player with no board row -> no block, never a guess.
+  const reasons = useMemo(() => {
+    if (!player || player.api_only || !Array.isArray(slate) || slate.length < 2) return null
+    const r = boardReasonFor(player, reasonContext(slate))
+    return r.why.length || r.watch ? r : null
+  }, [player, slate])
 
   if (!player) return null
   // IDENTITY FIELDS NEVER COME FROM detail (2026-08-24, Donovan: "the add to
@@ -633,6 +645,10 @@ export default function PlayerModal({ player, slateMode, initialTab = '', onClos
           <SlashLine p={p} type={primaryType} style={{ marginBottom: 9 }} />
           <StatStrip p={p} type="hr" count={6} style={{ marginBottom: 8 }} />
           <HitRateBoxes p={p} style={{ marginBottom: 10, maxWidth: 320 }} />
+          {reasons && !apiOnly && (() => {
+            const all = reasonLines(reasons, nameOf(p))
+            return <WhyLines theme={C} numFont={NUM_FONT} accent={C.orange} why={reasons.why.map((r) => r.text)} watch={reasons.watch?.text || null} explain={all.explain} />
+          })()}
 
           {/* THE BUTTON THAT WASN'T THERE (2026-08-24, Donovan: "I click add
               to watch, nothing happens"). It wasn't broken — this whole block
