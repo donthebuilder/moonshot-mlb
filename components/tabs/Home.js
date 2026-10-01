@@ -783,7 +783,7 @@ export default function Home({
       {view === 'fullboard' && (
         <Scoreboard
           boardOnly
-          players={filteredPlayers ?? players} slate={players} mode={mode} slateDate={slateDate}
+          players={filteredPlayers ?? players} mode={mode} slateDate={slateDate}
           results={results} backtest={backtest} odds={odds}
           onWatch={onWatch} watchIds={watchIds}
           onPlayerClick={onPlayerClick} onNavigate={onNavigate}

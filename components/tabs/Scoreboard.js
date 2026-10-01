@@ -26,8 +26,6 @@ import { groupPitchers, groupGames } from '../../lib/data'
 import { airVerdict } from '../../lib/conditions'
 import { DIV_FIELD } from '../../lib/scales'
 import { boardColumns, boardRows, LG } from '../../lib/boardColumns'
-import { reasonContext, boardReasonFor, reasonLines } from '../../lib/mlb/boardReason'
-import { useIsPhone } from '../MobileFold'
 
 // ── FOLD LIVES AT MODULE SCOPE, NOT INSIDE Scoreboard() (fixed 2026-08-18) ──
 //
@@ -124,7 +122,7 @@ function Tracker({ title, count, children, note, answers }) {
 // bottom of Live under eight other sections; now it also has a page where it
 // is the only thing on it. One component, one table, one column list -- not
 // a second copy that would drift.
-export default function Scoreboard({ players, slate = null, mode = 'today', slateDate = '', results, backtest, onWatch, watchIds, onPlayerClick, onNavigate, odds = null, boardOnly = false }) {
+export default function Scoreboard({ players, mode = 'today', slateDate = '', results, backtest, onWatch, watchIds, onPlayerClick, onNavigate, odds = null, boardOnly = false }) {
   const [alignedOnly, setAlignedOnly] = useState(false)
 
   const alignedCount = useMemo(() => players.filter(isAligned).length, [players])
@@ -157,30 +155,6 @@ export default function Scoreboard({ players, slate = null, mode = 'today', slat
     // (2026-09-25) so every hitter table on the site reads the same list.
     return boardRows(pool, { dh, laneOf, slateSize: players.length, watchIds, rankOf: boardRankOf })
   }, [players, filtered, alignedOnly, watchIds, dh, laneOf, boardRankOf])
-
-  // THE WHY COLUMN (2026-09-30, BATCH-SIGNAL-WHY S3b, Donovan YES 09-30):
-  // lib/mlb/boardReason.js's top two reasons for each row, ranked against the
-  // WHOLE slate (`slate`; the site's team filter narrows `players`). Text,
-  // one line; the header and the cell carry the full read on hover. Not on a
-  // phone: there the row's tap-in (the card's WHY block, S3a) is the read.
-  const isPhone = useIsPhone()
-  const rctx = useMemo(() => (boardOnly && !isPhone ? reasonContext(slate || players) : null), [boardOnly, isPhone, slate, players])
-  const shownRows = useMemo(() => {
-    if (!rctx) return rows
-    return rows.map((r) => {
-      const why = boardReasonFor(r._raw, rctx)
-      const lines = reasonLines(why, r.name)
-      return { ...r, why: why.why.slice(0, 2).map((x) => x.text).join('; ') || null, whyTitle: lines?.explain.text || undefined }
-    })
-  }, [rows, rctx])
-  const columns = useMemo(() => {
-    const cols = boardColumns({ onWatch, dhOn: dh.size > 0 })
-    if (!rctx) return cols
-    const at = cols.findIndex((c) => c.key === 'role')
-    const why = { key: 'why', label: 'Why', heat: false, w: 360, dim: true, titleKey: 'whyTitle',
-      title: 'The two published numbers that lift him furthest above tonight\'s board, each ranked against tonight (lib/mlb/boardReason.js). Tap the row for the full read, with the number against him.' }
-    return [...cols.slice(0, at + 1), why, ...cols.slice(at + 1)]
-  }, [onWatch, dh, rctx])
 
   // Who has already homered tonight, matched back to where the board had him.
   // The board rank is the point: a scoreboard that only lists the homers tells
@@ -700,8 +674,8 @@ export default function Scoreboard({ players, slate = null, mode = 'today', slat
       )}
 
       <DenseTable
-        rows={shownRows}
-        columns={columns}
+        rows={rows}
+        columns={boardColumns({ onWatch, dhOn: dh.size > 0 })}
         onRowClick={onPlayerClick}
         initialSort={{ key: 'rank', dir: 'asc' }}
         heatMode="sorted"

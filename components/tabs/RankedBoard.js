@@ -19,8 +19,6 @@ import { SCORE } from '../../lib/scales'
 import { categoryColumns, categoryValues } from '../../lib/categoryColumns'
 import { downloadBoardCard } from '../shareCard'
 import { usePreview, ShowMoreButton } from '../ListPreview'
-import { reasonContext, boardReasonFor, reasonLines } from '../../lib/mlb/boardReason'
-import { useIsPhone } from '../MobileFold'
 
 // The nine inputs the old profile grid drew as columns. They are not drawn
 // now — they are tested against the slate and surface only where a hitter is
@@ -84,7 +82,7 @@ const CAT_OMIT = {
   hr: ['hrw', 'pHR9', 'hrsc', 'iso'],
 }
 
-export default function RankedBoard({ players, slate = null, type = 'hr', onAdd, onWatch, watchIds, onPlayerClick, onOpenPitcher = null, limit = 60, slateDate = null, filterState = null, setupHomers }) {
+export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watchIds, onPlayerClick, onOpenPitcher = null, limit = 60, slateDate = null, filterState = null, setupHomers }) {
   // 🔁 PROVEN, NOT INFERRED. This column read `games_since_last_hr === 0`
   // directly, which lib/b2b.js exists to stop: the field means "he homered in
   // his most recent game", and on a slate rebuilt after the 12:05 window that
@@ -171,19 +169,6 @@ export default function RankedBoard({ players, slate = null, type = 'hr', onAdd,
   const slateRank = useMemo(() => (type === 'hr' ? hrRank(players) : null), [players, type])
   // Slate-wide facts for the board columns, over the FULL players prop.
   const boardCtx = useMemo(() => boardRowContext(players, { watchIds }), [players, watchIds])
-  // THE WHY COLUMN (2026-09-30, BATCH-SIGNAL-WHY S3b): the HR and TOP boards
-  // only -- lib/mlb/boardReason.js's legs are home-run legs (power, park, the
-  // starter's HR/9), and printing them on the HIT or CONTACT board would
-  // explain the wrong score. Ranked against the WHOLE slate; not on a phone,
-  // where the row's tap-in (the card's WHY block) is the read.
-  const isPhone = useIsPhone()
-  const whyOn = (type === 'hr' || type === 'top') && !isPhone
-  const rctx = useMemo(() => (whyOn ? reasonContext(slate || players) : null), [whyOn, slate, players])
-  const whyCell = (p) => {
-    if (!rctx) return {}
-    const r = boardReasonFor(p, rctx)
-    return { why: r.why.slice(0, 2).map((x) => x.text).join('; ') || null, whyTitle: reasonLines(r, nameOf(p))?.explain.text || undefined }
-  }
 
   // ── THE DOUBLEHEADER, ON THIS LIST TOO (2026-08-17) ────────────────────────
   // The G column shipped to the Scoreboard and HitterHeat and MISSED this
@@ -335,7 +320,6 @@ export default function RankedBoard({ players, slate = null, type = 'hr', onAdd,
               // THE CATEGORY'S OWN STAT SET (2026-09-06) -- lib/categoryColumns.js.
               // Same keys, same order, on every table that shows this category.
               ...categoryValues(p, type, { omit: CAT_OMIT[type] || CAT_OMIT.default }),
-              ...whyCell(p),
             }
           })}
           columns={withBoardColumns([
@@ -365,8 +349,6 @@ export default function RankedBoard({ players, slate = null, type = 'hr', onAdd,
             // The pitcher opens the PITCHER, not the hitter whose row he's in
             // (audit 00A P0: "Kyle Freeland" opened Murakami).
             { key: 'facing', label: 'Facing', heat: false, w: 116, dim: true, link: (p) => (onOpenPitcher && p?.pitcher_id ? () => onOpenPitcher(p.pitcher_id) : null) },
-            ...(rctx ? [{ key: 'why', label: 'Why', heat: false, w: 360, dim: true, titleKey: 'whyTitle',
-              title: 'The two published numbers that lift him furthest above tonight\'s board, each ranked against tonight (lib/mlb/boardReason.js). Tap the row for the full read, with the number against him.' }] : []),
             { key: 'isPick', label: '🤖', flag: true, mark: '●', w: 30,
               title: `The bot's designated ${{ top: 'TOP', hr: 'HR', hit: 'HIT', hrr: 'HRR', tb: 'CONTACT', contact: 'CONTACT' }[type] || ''} pick tonight — THIS category's pick specifically, not any pick. A hitter picked in a different category shows in the Pick column instead.` },
             { key: 'otherPick', label: 'Pick', heat: false, w: 46, mono: true, dim: true,
