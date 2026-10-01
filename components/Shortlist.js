@@ -492,7 +492,7 @@ export default function Shortlist({ players = [], odds = null, onPlayerClick, on
             title: 'Season isolated power — slugging minus average, so it is extra-base ability with singles taken out. The most direct power stat on the row.',
             fmt: (v) => (v == null ? '—' : String(v.toFixed(3)).replace(/^0/, '')) },
           { key: 'hrw', label: 'HRW', w: 50, dp: 1,
-            title: "The HR score with tonight's park and weather folded in. Compare it to HR score: a gap between the two IS the ballpark and the air, and the direction tells you which way they cut." },
+            title: "HR window: how his bat has looked lately. His last 20 plate appearances of contact (ideal home-run contact, barrels, 350 and 375 ft balls, hard-hit, exit velo, fly balls, pull, xwOBA) plus his last 5-7 games (home runs first, then extra-base hits), trusted more the more recent data there is. 0-88. 🌋 80+ · 🚀 70+ · ⚡ 55+ · 🌤️ 45+ · 🧊 below." },
           { key: 'arm', label: 'Arm HR9', w: 58, dp: 2, mono: true, invert: true,
             title: "Home runs allowed per nine by tonight's starter. Higher is better for the hitter, so this column is inverted — the heat reads the way the bat reads it.",
             fmt: (v) => (v == null ? '—' : v.toFixed(2)) },

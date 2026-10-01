@@ -1820,7 +1820,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                         // Pairs.js passes made for their own unmatched
                         // categorical accents.
                         const extras = [
-                          { l: 'HRW', v: Number(p?.hrw_score) || 0, max: 100, c2: '#f472b6', txt: (Number(p?.hrw_score) || 0).toFixed(0), tip: 'HR Watch score' },
+                          { l: 'HRW', v: Number(p?.hrw_score) || 0, max: 100, c2: '#f472b6', txt: (Number(p?.hrw_score) || 0).toFixed(0), tip: 'HR window: his last 20 PA of contact + last 5-7 games' },
                           { l: 'DMG', v: Number(p?.damage_conversion_score) || 0, max: 100, c2: '#34d399', txt: (Number(p?.damage_conversion_score) || 0).toFixed(0), tip: 'Damage conversion score' },
                           { l: 'ARM', v: Number(p?.pitcher_hr9) || 0, max: 2, c2: C.orange, txt: (Number(p?.pitcher_hr9) || 0).toFixed(2), tip: 'Opposing starter HR/9 — bar runs 0 to 2.00, higher favors the bat' },
                         ].filter((e) => e.v > 0)

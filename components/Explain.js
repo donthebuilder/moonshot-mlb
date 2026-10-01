@@ -86,7 +86,7 @@ export const GLOSSARY = {
   'tb score': 'Total bases — ranks him on piling up bases (a double is 2, a homer is 4). Higher ranks better. Trust this one least: across 37 graded nights the old version finished level with picking names at random. Rebuilt 2026-08-09 and still under watch.',
   'contact': 'The total-bases market — doubles, triples and homers, not just whether he got a hit. The weakest of the four scores by a distance; see TB score.',
   'contact score': 'The total-bases market. Rebuilt 2026-08-09 after it graded out level with a random shuffle. Now built on recent extra-base form, the opposing arm’s contact allowed, and how many hits the park gives up. Better, not yet proven.',
-  'hrw': 'HR Watch — the bot’s separate “he looks due to go deep” read, ranked. Higher ranks better.',
+  'hrw': 'HR window: how his bat has looked lately. His last 20 plate appearances of contact (ideal home-run contact, barrels, 350 and 375 ft balls, hard-hit, exit velo, fly balls, pull, xwOBA) plus his last 5-7 games (home runs first, then extra-base hits), trusted more the more recent data there is. 0-88. Higher is hotter.',
   'due': 'Retired 2026-09-06. The due score measured backwards — hitters 10+ games without a homer went deep 9% of the time against 12.6% for everyone else. Drought is still shown as a plain count; it does not move a score.',
   'power-3': 'Season power, ranked on tonight’s slate: the mean of his HR-per-ball-in-play, average EV and max EV ranks. The top ten each night homered 21.4% of the time over 155 nights (11.2% base).',
   'pwr-3': 'Season power, ranked on tonight’s slate: the mean of his HR-per-ball-in-play, average EV and max EV ranks. The top ten each night homered 21.4% of the time over 155 nights (11.2% base).',
