@@ -793,16 +793,18 @@ export function downloadPoolsCard(pools = [], { title = "TONIGHT'S POOLS", grade
   savePoster(c, `pools_${todayStamp()}.png`)
 }
 
-// ── 🔗 PAIRS CARD — "by the record" pairs, ranked on their measured
-// both-homer rate. Same leaderboard shape as the board/watchlist cards,
-// with two names sharing a row instead of one, and the measured rate
-// standing in for the score.
-export function downloadPairsCard(pairs = [], { title = 'PAIRS BY THE RECORD', baseline = null } = {}) {
+// ── 🔗 PAIRS CARD — "by the record" pairs. Same leaderboard shape as the
+// board/watchlist cards, with two names sharing a row instead of one.
+// 2026-10-01 (queue 0d): the both-homer rate column ("5.3%", "random pair
+// 2.2%") came off. Those rates were measured on post-game graded files, the
+// page beside the button already said so, and the image still printed them.
+// The pair's category stands where the rate stood, as on the page.
+export function downloadPairsCard(pairs = [], { title = 'PAIRS BY THE RECORD' } = {}) {
   const list = pairs.slice(0, 10)
   const W = 720, rowH = 54, footH = 46
   const H = HEAD_H + 14 + Math.max(1, list.length) * rowH + footH
   const { c, g } = newPoster(W, H)
-  posterHeader(g, W, title, `${new Date().toLocaleDateString()} · measured both-homer rate${baseline != null ? ` · random pair ${baseline}%` : ''}`)
+  posterHeader(g, W, title, `${new Date().toLocaleDateString()} · each pair's category`)
 
   let y = HEAD_H + 14
   if (!list.length) {
@@ -826,14 +828,12 @@ export function downloadPairsCard(pairs = [], { title = 'PAIRS BY THE RECORD', b
       if (k === 0) { g.fillStyle = '#71717a'; g.font = `700 11px ${MONO}`; g.fillText('+', nx - 10, mid) }
     })
 
-    const rate = n(p.rate, 0)
-    scoreBar(g, 480, mid, 130, rate)
-    g.fillStyle = '#f97316'; g.font = `900 15px ${MONO}`
-    g.textAlign = 'right'; g.fillText(`${rate.toFixed(1)}%`, W - 24, mid); g.textAlign = 'left'
+    g.fillStyle = '#f97316'; g.font = `800 12px ${SANS}`
+    g.textAlign = 'right'; g.fillText(ellipsize(g, p.rule ? p.rule.label : 'no measured bar', 150), W - 24, mid); g.textAlign = 'left'
     y += rowH
   })
 
-  posterFooter(g, W, H, 'measured across every graded night — not a model output')
+  posterFooter(g, W, H, 'both-homer rates are being re-measured on the locked pregame record')
   savePoster(c, `pairs_${todayStamp()}.png`)
 }
 

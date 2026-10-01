@@ -55,7 +55,7 @@ const COLUMNS = [
   { key: 'hrPct', label: 'HR%', w: 48, dp: 1, domain: [0, 35], primary: true,
     title: 'His small-sample-shrunk season-derived chance of 1+ HR in this game. This is a probability; HR score is not.' },
   { key: 'hrFit', label: 'Power', w: 48, dp: 0, domain: [0, 2], fmt: (v) => `${Number(v).toFixed(0)}/2`,
-    title: 'Current HR Overlay progress: Air% >50 and Avg EV >87. The full 2/2 gate went 23/130 (17.7%) versus 8.0% outside it in the newest clean locked slice.' },
+    title: 'Current HR Overlay progress: Air% >50 and Avg EV >87. A tracking gate, not a measured rate: it has not been measured on the clean pregame record yet.' },
   { key: 'weak',    label: '★ Spot',  flag: true, mark: '★', w: 44 },
   { key: 'aligned', label: 'Align',   flag: true, mark: '◆', w: 40 },
   { key: 'edge',    label: 'Edge',    flag: true, mark: '▲', w: 40 },

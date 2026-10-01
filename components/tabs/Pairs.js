@@ -1539,7 +1539,7 @@ import PartnerWatch from '../PartnerWatch'
 import PairBoard from '../PairBoard'
 import Rail from '../Rail'
 import {
-  buildPairs, PAIR_BASELINE,
+  buildPairs,
   GROUP_ORDER, GROUP_META,
   LEG_SIGNALS, ALL_SIGNAL_IDS, buildGroupTickets, buildSignalTickets,
   signalRecordText, slateDateOf, useSlateOdds, spokenSignals,
@@ -2415,7 +2415,7 @@ export default function Pairs({ players=[], pairBuilder, pairHistorySummary, res
             </span>
             {/* 📸 SHARE (2026-08-23) — zero-backend PNG export, same canvas
                 mechanism as the Watchlist/Player cards. */}
-            <button onClick={() => downloadPairsCard(evPairs, { title: 'PAIRS BY THE RECORD', baseline: PAIR_BASELINE })}
+            <button onClick={() => downloadPairsCard(evPairs, { title: 'PAIRS BY THE RECORD' })}
               title="Download these pairs as a PNG for posting"
               aria-label="Download pairs as image"
               style={{
