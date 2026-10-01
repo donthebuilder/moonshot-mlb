@@ -34,6 +34,7 @@ import { readMlbEvents } from '../../lib/record/mlb'
 import { readNflEvents } from '../../lib/record/nfl'
 import { eventCapture } from '../../lib/record/shape'
 import { readNflCardRecord, edgeParts } from '../../lib/nfl/cardRecord'
+import { regradeNote } from '../../lib/nfl/regrades'
 import styles from './called.module.css'
 import { membersUrl, MEMBERS_LINE } from '../../lib/members'
 
@@ -600,6 +601,7 @@ export default async function CalledPage({ searchParams }) {
             Cleared = the call reached the bar in its game. Void = no game line or an ineligible position, never a miss.
             {card.backtest ? ` Back-test: the card against a pick made on recent form alone, same depth, ${card.backtest.picks} picks per market (${card.backtest.seasons.join(', ')}). Trust words are the bot's: holds, leans, thin, sinks, fails.` : ''}
             {card.live ? ` Week ${card.live.week} is in progress: ${card.live.graded ? `${card.live.graded} of its calls are graded so far, and ` : 'none of its calls are graded yet; '}they count as they land.` : ''}
+            {card.weeks.map((w) => regradeNote(card.season, w)).filter(Boolean).map((t) => ` ${t}`).join('')}
             {' '}Regular season only. <a href={`${appHref('nfl', 'accountability')}`}>Every rung, week by week →</a>
           </p>
         </section>

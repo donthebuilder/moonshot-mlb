@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react'
 import { C, NUM_FONT, MARKETS, gradeFor, TYPE } from '../../../lib/nfl/theme'
 import NflTable from '../NflTable'
 import { useResultsArchive, seasonTotals, grandTotal, gradeBands, labelOf, weekKey } from '../../../lib/nfl/resultsArchive'
+import { regradeNote, regradeNotes } from '../../../lib/nfl/regrades'
 import { downloadNflPickCard } from '../shareCard'
 import PageHeader from '../../PageHeader'
 import { WhatThis } from '../../ui'
@@ -448,7 +449,7 @@ function SeasonStrip({ archive, keys, loading, picked, onPick, currentKey, mode 
       {mode === 'season' && (
       <div className="acc-season-head">
         <div><small>SEASON TO DATE</small><h2>{grand.n ? `${grand.hit}/${grand.n} · ${grand.pct}%` : loading ? 'Harvesting weeks…' : 'One week graded so far'}</h2>
-          <p>{keys.length} graded week{keys.length === 1 ? '' : 's'} on the branch. The bot&apos;s own card, every rung, every week, bars unchanged. Refreshes on load; older weeks are remembered on this device.</p></div>
+          <p>{keys.length} graded week{keys.length === 1 ? '' : 's'} on the branch. The bot&apos;s own card, every rung, every week, bars unchanged. Refreshes on load; older weeks are remembered on this device.{regradeNotes(keys).map((t) => ` ${t}`).join('')}</p></div>
       </div>
       )}
       {mode === 'season' && markets.length > 0 && (
@@ -647,7 +648,8 @@ export default function Accountability({ data, results: latest, onPlayerClick })
       }}>
         {picked && picked !== currentKey ? 'Showing' : 'Last graded'}: <b style={{ color: C.text2 }}>{when}</b>
         {results.exhibition && <> · <b style={{ color: C.yellow }}>preseason counts</b>, starters play two series</>}
-        {results.graded_at_human && <> · graded {results.graded_at_human}</>}. This is the
+        {results.graded_at_human && <> · graded {results.graded_at_human}</>}.
+        {regradeNote(results.season, results.week, results.mode) && <> {regradeNote(results.season, results.week, results.mode)}</>} This is the
         bot&apos;s own record on its own published card — not anyone&apos;s personal calls. For
         your record against the bot, see the Picks tab.
       </div>
@@ -769,7 +771,7 @@ export default function Accountability({ data, results: latest, onPlayerClick })
             onRowClick={(r) => { setMode('week'); setSubTab('overview'); setPicked(r.key === currentKey ? null : r.key) }}
             initialSort="week"
             maxHeight={420}
-            caption="One row per graded week the archive has on the branch. Click a row to open that week under This week."
+            caption={`One row per graded week the archive has on the branch. Click a row to open that week under This week.${regradeNotes(keys).map((t) => ` ${t}`).join('')}`}
           />
         )
       )}
