@@ -624,7 +624,7 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
                 <Num color={C.green}>{fmtOdds(night.shop.best)}</Num>
                 {night.shop.book ? ` at ${night.shop.book}` : ''} — {one(night.shop.gain)} points of break-even for shopping it.</>
             )}
-            {' '}<span title="Home runs only, off the site's own P&L: flat one unit on every HR pick the board named, Aug 15 to Sep 13. +401..+900 came back +4.4% on 438 bets; +901 and up came back −21.8% on 156, and −24% and −34% in two earlier joins. Same sign three times, with a mechanism — the +901 bats are the wall-scrapers the board measures below random on. No score changes; only which prices get a name next to them.">
+            {' '}<span title="Home runs only. +901 and up is the price band the site does not put its name on. The returns that rule was set on did not hold up when re-measured (Oct 1), so no edge is claimed while it is re-measured on the locked pregame prices. No score changes.">
               Homer prices are taken <b style={{ color: C.text }}>+401 to +900</b>; <b style={{ color: C.red }}>+901 and up is a pass</b>
               {night.passed > 0 ? <> — <Num color={C.red}>{night.passed}</Num> rated {night.passed === 1 ? 'bat' : 'bats'} tonight sit there and none is named below</> : null}.
             </span>
@@ -925,7 +925,7 @@ key={market}
             },
             ...(market === 'batter_home_runs' ? [
               { key: 'band', label: 'BAND', w: 50, heat: false,
-                title: 'The price rule, home runs only, from the site\'s own P&L (736 priced HR picks, Aug 15 to Sep 13, flat one unit): PLAY is +401 to +900 (15.8% hit, ROI +4.4%) — the only band above water. SHORT is +151 to +400 (20.4% hit, ROI −13.0%) — right about who, wrong about the number. PASS is +901 and up (5.1% hit, ROI −21.8%) — never taken, and never named in the read above. Changes no score.',
+                title: 'The price bands, home runs only: PLAY is +401 to +900, SHORT is +151 to +400, PASS is +901 and up (never named in the read above). The returns these bands were set on did not hold up when re-measured (Oct 1), so no edge is claimed while they are re-measured on the locked pregame prices. Changes no score.',
                 fmt: (v) => (v == null ? '—' : (
                   <b style={{ fontFamily: NUM_FONT, fontSize: TYPE.label, letterSpacing: '.06em',
                               color: v === 'PLAY' ? C.green : v === 'PASS' ? C.red : C.yellow }}>{v}</b>
