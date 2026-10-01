@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import ScoreArt from './ScoreArt'
 import { C, NUM_FONT } from '../lib/theme'
 
 // 📖 GLOSSARY-ON-TAP (2026-08-09).
@@ -325,7 +326,7 @@ export default function Explain({ label, term, text, color, style, dict = null, 
  * grow a paragraph (and its click already sorts), so the ⓘ in a header opens
  * the explanation in a banner ABOVE the table instead, where there is width.
  */
-export function ExplainBanner({ label, text, onClose, scoreTerms = null, caveat = null, accent = null }) {
+export function ExplainBanner({ label, text, onClose, scoreTerms = null, caveat = null, accent = null, art = null }) {
   if (!text) return null
   // Same two-sport shape as Explain: which set of terms counts as a score, and
   // which caveat rides along, are data now rather than baked in. Defaults are
@@ -353,6 +354,9 @@ export function ExplainBanner({ label, text, onClose, scoreTerms = null, caveat 
         {isScore && (
           <span style={{ display: 'block', marginTop: 3, color: C.text3 }}>{NOTE}</span>
         )}
+        {/* A column that names `art` gets a drawing of what goes into the
+            score (components/ScoreArt.js), 2026-10-01. */}
+        {art && <ScoreArt id={art} accent={hue} />}
       </span>
       <span
         onClick={onClose}

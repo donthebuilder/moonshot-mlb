@@ -366,7 +366,7 @@ export default function DenseTable({
   return (
     <div>
       <ExplainBanner label={explain?.label} text={explain?.text} onClose={() => setExplain(null)}
-        scoreTerms={scoreTerms} caveat={caveat} accent={accent} />
+        scoreTerms={scoreTerms} caveat={caveat} accent={accent} art={explain?.art} />
       {/* The stack, said out loud. Shift-click was the only way to build a
           tiebreaker and nothing ever showed what was stacked — on a phone it
           was impossible outright. These chips ARE the stack: tap one to flip
@@ -512,7 +512,7 @@ export default function DenseTable({
                       <InfoDot
                         on={explain?.key === c.key}
                         onClick={() => setExplain((cur) => (
-                          cur?.key === c.key ? null : { key: c.key, label: c.label, text: plain }
+                          cur?.key === c.key ? null : { key: c.key, label: c.label, text: plain, art: c.art || null }
                         ))}
                       />
                     )}

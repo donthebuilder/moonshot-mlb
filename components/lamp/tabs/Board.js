@@ -300,6 +300,14 @@ const MARKETS = [
   { key: 'GOAL', label: 'GOAL', eyebrow: 'LAMP · GOAL BOARD', note: 'Three called per game, locked before puck drop, graded after. Score = mean of three percentile ranks tonight: shots, goals, ice time per game over his last 82 NHL games.', result: 'GOALS', log: 'lamp_goal_log' },
   { key: 'SOG', label: 'SHOTS 3+', eyebrow: 'LAMP · SHOTS BOARD', note: 'Three called per game for 3+ shots on goal, locked before puck drop, graded after. Score = mean of three percentile ranks tonight: shots per game over his last 82, ice time, and how many shots his opponent allows per 60.', result: 'SOG', log: 'lamp_prop_log' },
 ]
+// The SCORE header's ⓘ, per market (it had none, so no explanation and no
+// picture). The legs are the models' own: lib/nhl/goalModel.js and
+// lib/nhl/sogModel.js (BAND_DEFS above names the same three per market).
+const SCORE_TITLE = {
+  GOAL: 'Tonight\u2019s goal score: three ranks against tonight\u2019s skaters, averaged \u2014 shots, goals and ice time per game over his last 82 games. Higher ranks better.',
+  SOG: 'Tonight\u2019s shots score: shots and ice time per game, and how many shots his opponent allows, each ranked against tonight\u2019s skaters. Higher ranks better.',
+}
+const SCORE_ART = { GOAL: 'nhl-goal' }   // components/ScoreArt.js
 const marketOf = (k) => MARKETS.find((m) => m.key === k) || MARKETS[0]
 
 function columnsFor(g, onOpenTeam, market = 'GOAL') {
@@ -314,7 +322,7 @@ function columnsFor(g, onOpenTeam, market = 'GOAL') {
       fmt: (v, r) => <>{v}<span style={{ color: C.text3, font: `800 9px/1 ${NUM_FONT}`, marginLeft: 6 }}>{r.pos}</span></> },
     { key: 'team', label: 'TM', heat: false, mono: true, w: 40,
       fmt: (v) => <button type="button" onClick={(e) => { e.stopPropagation(); onOpenTeam?.(v) }} style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', color: C.text2, font: `800 10.5px/1 ${NUM_FONT}` }}>{v}</button> },
-    { key: 'score', label: 'SCORE', primary: true, scale: 'seq', domain: [0, 100], w: 50 },
+    { key: 'score', label: 'SCORE', primary: true, scale: 'seq', domain: [0, 100], w: 50, explain: SCORE_TITLE[market], art: SCORE_ART[market] || null },
     { key: 'spg', label: 'S/GP', primary: true, dp: 2, w: 44 },
     ...(sog ? [] : [{ key: 'gpg', label: 'G/GP', primary: true, dp: 2, w: 44 }]),
     { key: 'toi', label: 'TOI', primary: true, w: 48, fmt: (v) => (Number.isFinite(v) ? fmtSec(v) : '—') },
@@ -454,7 +462,7 @@ export function AllGamesTable({ kept, market, onOpenPlayer, onOpenTeam }) {
     { key: 'name', label: 'PLAYER', heat: false, sticky: true, bold: true, w: 160, fmt: (v, r) => <>{v}<span style={{ color: C.text3, font: `800 9px/1 ${NUM_FONT}`, marginLeft: 6 }}>{r.pos}</span></> },
     { key: 'team', label: 'TM', heat: false, mono: true, w: 40, fmt: (v) => <button type="button" onClick={(e) => { e.stopPropagation(); onOpenTeam?.(v) }} style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', color: C.text2, font: `800 10.5px/1 ${NUM_FONT}` }}>{v}</button> },
     { key: 'game', label: 'GAME', heat: false, mono: true, w: 70 },
-    { key: 'score', label: 'SCORE', primary: true, scale: 'seq', domain: [0, 100], w: 50 },
+    { key: 'score', label: 'SCORE', primary: true, scale: 'seq', domain: [0, 100], w: 50, explain: SCORE_TITLE[market], art: SCORE_ART[market] || null },
     { key: 'spg', label: 'S/GP', primary: true, dp: 2, w: 44 },
     ...(sog ? [{ key: 'osa', label: 'OPP SA/60', primary: true, dp: 1, w: 62 }] : [{ key: 'gpg', label: 'G/GP', primary: true, dp: 2, w: 44 }]),
     { key: 'toi', label: 'TOI', primary: true, w: 48, fmt: (v) => (Number.isFinite(v) ? fmtSec(v) : '—') },

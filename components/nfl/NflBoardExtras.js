@@ -77,6 +77,9 @@ export function nflGameOptions(games) {
  * columns: rank, player, score and the two heaviest components; the rest is on
  * the card a tap away. Sort any header; shift-click adds a tiebreaker.
  */
+// The ⓘ picture per market (components/ScoreArt.js); TD only so far.
+const SCORE_ART = { TD: 'nfl-td' }
+
 export function NflBoardList({ players, market, weights, odds, phone, onPlayerClick }) {
   const top = Object.entries(weights || {}).sort((a, b) => b[1] - a[1]).slice(0, phone ? 2 : 3).map(([k]) => k)
   const rows = players.map((p, i) => {
@@ -98,7 +101,7 @@ export function NflBoardList({ players, market, weights, odds, phone, onPlayerCl
         <span style={{ whiteSpace: 'normal', lineHeight: 1.15, minWidth: 0 }}>{v}</span>
       </span>) },
     ...(phone ? [] : [{ key: 'pos', label: 'Pos', w: 40, heat: false }, { key: 'matchup', label: 'Game', w: 80, heat: false }]),
-    { key: 'score', label: 'Score', w: 52, primary: true, scale: 'seq', domain: [0, 100] },
+    { key: 'score', label: 'Score', w: 52, primary: true, scale: 'seq', domain: [0, 100], art: SCORE_ART[market] || null },
     ...(phone ? [] : [{ key: 'grade', label: 'Grade', w: 56, heat: false }]),
     ...top.map((k) => ({ key: k, label: LABELS[k] || k, w: phone ? 74 : 86, scale: 'seq', domain: [0, 100] })),
     ...(phone || !odds ? [] : [{ key: 'price', label: 'Price', w: 60, heat: false, fmt: (v) => (v == null ? '—' : v > 0 ? `+${v}` : String(v)) }]),

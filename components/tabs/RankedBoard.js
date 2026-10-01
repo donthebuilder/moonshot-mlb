@@ -376,7 +376,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
             // is. ISO keeps its own column: the audit's finding is real and
             // now it's VISIBLE next to the score instead of folded silently
             // into it.
-            { key: 'adj',    label: type === 'hr' ? 'HR score' : 'Score', w: 56, dp: 1, ...SCORE, primary: true,
+            { key: 'adj',    label: type === 'hr' ? 'HR score' : 'Score', w: 56, dp: 1, ...SCORE, primary: true, art: type === 'hr' ? 'mlb-hr' : null,  // components/ScoreArt.js
               title: type === 'hr'
                 ? 'The bot’s own HR score — the number this board is ranked by. Read the ISO column beside it — a big score on thin power is the trap to watch for.'
                 : 'The score this board is ranked by' },
