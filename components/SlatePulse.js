@@ -158,7 +158,7 @@ export default function SlatePulse({ players = [], slateDate = '', backtest, onP
               ⏳ {unconfirmed.length} pick{unconfirmed.length > 1 ? 's' : ''} not lineup-confirmed {unconfOpen ? '▾' : '▸'}
             </span>
             <span style={{ fontSize: 9, color: C.text3 }}>
-              unconfirmed hitters homered 10.2% vs 15.2% confirmed across the archive — watch these until they lock
+              watch these until they lock
             </span>
           </div>
           {unconfOpen && (<>

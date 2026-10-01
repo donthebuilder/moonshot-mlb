@@ -179,8 +179,7 @@ export default function Guide({ onNavigate }) {
       <Section title="What actually predicts a home run" emoji="🎯">
         <P>
           Short version: <b style={{ color: C.text }}>who has hit the ball hardest and farthest
-          all season</b>. Almost nothing else survives testing. Any hitter on any night homers
-          about 11.4% of the time — that&apos;s the number everything below is measured against.
+          all season</b>. Almost nothing else survives testing.
         </P>
 
         <div style={{
@@ -195,9 +194,7 @@ export default function Guide({ onNavigate }) {
           <Stat stat="Avg EV" def="season average exit velocity" />
           <Stat stat="Max EV" def="season hardest ball hit" />
           <div style={{ fontSize: TYPE.body, color: C.text2, lineHeight: 1.6, marginTop: 9 }}>
-            Each is ranked inside tonight&apos;s slate and the three ranks are averaged. The top ten
-            of that board homer at <b style={{ color: C.orange, fontFamily: NUM_FONT }}>20–21%</b> —
-            roughly double the field — and the board beats the field on 94–97% of nights. Adding a
+            Each is ranked inside tonight&apos;s slate and the three ranks are averaged. Adding a
             fourth signal to it has never helped.
           </div>
         </div>
@@ -209,9 +206,9 @@ export default function Guide({ onNavigate }) {
         <Stat stat="XBH" def="real but tiny, and already inside the three above" />
         <Stat stat="RBI" def="points the wrong way once power is known — it measures lineup spot, not power" />
         <Stat stat="Runs" def="nothing once power is known" />
-        <Stat stat="&quot;He's due&quot;" def="backwards. 10+ games without one homers 9.0% against 12.6% for everyone else" />
-        <Stat stat="Park factor" def="1.01× — dead on our coverage" />
-        <Stat stat="Temperature" def="0.90× — dead" />
+        <Stat stat="&quot;He's due&quot;" def="backwards" />
+        <Stat stat="Park factor" def="dead on our coverage" />
+        <Stat stat="Temperature" def="dead" />
         <Stat stat="Distance" def="no gain as a fourth signal. Season max distance is usually set on a home run, so it's already counted" />
 
         <Note>
@@ -309,7 +306,7 @@ export default function Guide({ onNavigate }) {
         <Term tab="games" go={onNavigate} icon="⚾" term={tabName('mlb', 'games')} def="one matchup at a time: the arm, the park, the lineup." />
         <Term tab="board" go={onNavigate} icon="🏆" term="HR Board" def="ranked purely by home-run score." />
         <Term tab="longest" go={onNavigate} icon="🚀" term="Longest" def="who hits the farthest ball, not who is likeliest to homer. It disagrees with the HR board on purpose." />
-        <Term tab="due" go={onNavigate} icon="⚡" term="Power-3" def="who hits it hardest and farthest all season — HR per ball in play, average EV and max EV, ranked on tonight's slate and averaged. Replaced the Due board: measured over 155 nights, drought predicts nothing and the top ten by Power-3 homer 21% of the time." />
+        <Term tab="due" go={onNavigate} icon="⚡" term="Power-3" def="who hits it hardest and farthest all season — HR per ball in play, average EV and max EV, ranked on tonight's slate and averaged. Replaced the Due board: drought predicts nothing." />
         <Term tab="board" go={onNavigate} icon="💎" term="Hits & HRR" def="contact and extra-base plays instead of power." />
         <Term tab="pairs" go={onNavigate} icon="🔗" term="Pairs" def="two-man home-run combinations — who's live tonight and what the bot recommends." />
         <Term tab="pools" go={onNavigate} icon="🏊" term="Pools" def="the bot's three- and four-man group tickets, plus the Pair Builder for making your own pair." />

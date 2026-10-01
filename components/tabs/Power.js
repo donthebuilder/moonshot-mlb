@@ -293,7 +293,7 @@ export default function PowerTab({ players, slateDate = '', results = null, onWa
                 <Num>{n(p?.season_max_ev, 0).toFixed(1)}</Num>, over <Num>{n(p?.season_bbe_n, 0)}</Num> balls.
                 {perGame != null && <> His own rate makes him about <Num color={h.color}>{perGame.toFixed(0)}%</Num> to homer in a given game.</>}
                 {' '}He last went deep <Num>{drought === 0 ? 'in his most recent game' : `${drought} game${drought === 1 ? '' : 's'} ago`}</Num> — said
-                for the record, because measured over 155 nights the drought tells you{' '}
+                for the record, because the drought tells you{' '}
                 <b style={{ color: C.text2 }}>nothing</b> about tonight; the three season numbers are the whole read.
               </Para>
             )}

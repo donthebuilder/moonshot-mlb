@@ -239,23 +239,9 @@ export default function PickScorecard({ slots = [], backtest = null, onPlayerCli
             panel exists to prevent. Two other surfaces quoted the old numbers
             and now disagree with this one two panels away; they are corrected
             in the same commit. */}
-        The cards above are this day only. Measured across the full local archive —
-        <b style={{ color: C.text2 }}> 5,184 judgeable picks over 62 graded nights</b>, roughly six
-        times what the published branch carries — the categories land at: HIT 69.6% (968/1391),
-        HRR 50.9% (709/1392), CONTACT 39.9% (316/791), TOP 21.3% (172/807), HR 15.9% (128/803).
-        Voids are excluded throughout: a man who never batted is not a loss.
-        <br /><br />
-        On home runs specifically, <b style={{ color: C.text2 }}>TOP 21.3% and HR 15.9%</b>, against
-        14.6% across every pick in the archive. That gap is <b style={{ color: C.text2 }}>not
-        statistically significant</b> — TOP vs HR is p=0.084, and HR against every other pick is
-        p=0.556, which is no difference at all. The 95% intervals overlap heavily: TOP [16.2, 22.6],
-        HR [12.7, 18.6].
-        <br /><br />
-        So the honest read is narrow and worth stating exactly: <b style={{ color: C.text2 }}>the HR
-        bucket does not distinguish itself from any other pick on home runs.</b> It is not
-        established that it&apos;s worse, and it is not established that TOP is better. An earlier
-        version of this note claimed HR picks homered below baseline while TOP nearly doubled it;
-        that came from a nine-day slice and did not survive the full archive.
+        The cards above are this day only. Voids are excluded throughout: a man who never batted is
+        not a loss. The archive-wide category rates that used to sit here are being re-measured on the
+        locked pregame record.
       </div>
     </div>
   )

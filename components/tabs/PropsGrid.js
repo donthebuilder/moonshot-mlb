@@ -237,10 +237,10 @@ const SOFT_CAP = 60
 // coverage board one tap away on the same remembered pill. Anyone who has
 // ever picked a depth keeps their choice — localStorage still wins.
 const PRECISION = [
-  { key: 0, label: 'All', title: 'Every badge the bot published tonight. Graded 41.2% across 2,048 picks over 25 nights.' },
-  { key: 1, label: '🎯 1 each', title: 'The single best pick in each market — the same board as The Four on Live. Graded 65.0% across 100 picks over 25 nights; its 95% floor clears the full board\u2019s ceiling.' },
-  { key: 2, label: '2 each', title: 'The top two in each market. Roughly 59% on the same 25 nights — still well clear of the full board, with twice the plays.' },
-  { key: 3, label: '3 each', title: 'The top three in each market. Roughly 55% — the lift is real and decaying; past here it flattens toward the full board.' },
+  { key: 0, label: 'All', title: 'Every badge the bot published tonight.' },
+  { key: 1, label: '🎯 1 each', title: 'The single best pick in each market — the same board as The Four on Live.' },
+  { key: 2, label: '2 each', title: 'The top two in each market.' },
+  { key: 3, label: '3 each', title: 'The top three in each market.' },
 ]
 
 export default function PropsGrid({ players = [], odds = null, onPlayerClick, onWatch, watchIds }) {
@@ -512,7 +512,6 @@ export default function PropsGrid({ players = [], odds = null, onPlayerClick, on
             {' '}<b style={{ color: C.text2 }}>Precision is on</b> — the top{' '}
             {precision === 1 ? 'pick' : `${precision}`} in each market, with{' '}
             <b style={{ color: C.text2 }}>{dropped}</b> further badge{dropped === 1 ? '' : 's'} cut.
-            {precision === 1 && ' That exact board graded 65.0% over 25 nights against 41.2% for every designation.'}
             {' '}Nothing is deleted — switch to <b style={{ color: C.text2 }}>All</b> for the whole card.
           </>
         )}

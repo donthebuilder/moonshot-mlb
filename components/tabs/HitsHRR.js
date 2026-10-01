@@ -17,7 +17,7 @@ import MobileFold from '../MobileFold'
 // HitterHeat (the heat-painted 'top 15 profile' tables) left this page 2026-09-06 -- Donovan:
 // "I don't like those ones." The cards below carry the same names.
 import { hrScore, mlbId, nameOf, playerId, teamOf } from '../../lib/player'
-import { useSetupHomers, useBackToBack, B2B_VALIDATED } from '../../lib/b2b'
+import { useSetupHomers, useBackToBack } from '../../lib/b2b'
 import { dedupeGraded } from '../../lib/graded'
 
 // Which BoardFilters score-slider a view means by "Score" — mirrors the keys
@@ -142,43 +142,43 @@ const LENS_TITLE = (o) => `${o.label} — ${ANSWERS[o.key] || ''}`
 const PROOF = () => ({
   top: {
     color: C.yellow,
-    head: 'The bot’s overall ranking — graded as an HR bet, honestly',
-    body: 'top_board_score_v2 blends every lane into one number; the TOP pick is the bot’s single favorite play per game. Graded on homers across 62 nights and 811 games TOP delivered 21.3% (172/807) — decent for an any-HR bet — and the same man got a hit 70.8% of the time (571/807), which is the bar that actually decides how this board should be read. Since a TOP designation is "best in his game", his 🤖 lights here only when he IS tonight’s TOP pick.',
+    head: 'The bot’s overall ranking',
+    body: 'top_board_score_v2 blends every lane into one number; the TOP pick is the bot’s single favorite play per game. Since a TOP designation is "best in his game", his 🤖 lights here only when he IS tonight’s TOP pick.',
   },
   hr: {
     color: C.orange,
     head: 'The Board — one order, everywhere on the site',
-    body: 'Every hitter tonight, ranked once: the HR score, his season home run count and his season exit velocity, each turned into a rank within tonight\u2019s slate and averaged. Measured on 21 pregame nights it put 22% of its top ten over the fence against 17% for the HR score alone, and won 13 of the 21 nights at the top 25. This is the same order as the full board (#tab=fullboard), the homer alerts\u2019 "#N on the board" and the MOONSHOT BOARD post. The old Top lens (top_board_score_v2) is folded into it \u2014 two boards with one name was the confusion.',
+    body: 'Every hitter tonight, ranked once: the HR score, his season home run count and his season exit velocity, each turned into a rank within tonight\u2019s slate and averaged. This is the same order as the full board (#tab=fullboard), the homer alerts\u2019 "#N on the board" and the MOONSHOT BOARD post. The old Top lens (top_board_score_v2) is folded into it \u2014 two boards with one name was the confusion.',
   },
   hit: {
     color: C.purple,
     head: 'The site’s most reliable product',
-    body: 'HIT picks got their hit 69.6% of the time — 968 of 1,391 across 62 graded nights — and hit_score separates cleanly (59.7% bottom quartile → 71.3% top on the full archive). Restated 2026-08-16 from the 62-night sweep; the old banner quoted 64.5% on 3,973 picks over 39 days, and both the rate AND the sample moved. The "When picked" column below is each hitter’s own delivery record in this exact category.',
+    body: 'HIT picks are graded on getting at least one hit. The archive rates that used to sit here are being re-measured on the locked pregame record. The "When picked" column below is each hitter’s own delivery record in this exact category.',
   },
   hrr: {
     color: C.cyan,
     head: 'The best-calibrated score in the system',
-    body: 'HRR picks cleared their 2+ H+R+RBI bar 50.9% of the time — 709 of 1,392 across 62 graded nights (restated 2026-08-16; the earlier 48% came from the 39-day sample). hrr_score’s calibration claim is under re-measurement on the bigger archive — the v2 extract does not carry hrr_total, so its quartile spread cannot be recomputed yet and the old 41.2→54.5 figure is retired rather than repeated.',
+    body: 'HRR picks are graded on clearing 2+ H+R+RBI. The archive rates that used to sit here, and hrr_score’s calibration claim, are being re-measured on the locked pregame record.',
   },
   contact: {
     color: C.blue,
     head: 'Two singles clear it — which is why the power scores are wrong here',
-    body: 'TWO BASES IS THE ODD BAR ON THIS SITE, and it is the key to reading this board: it can be cleared without any power at all. A double does it, and so do two singles. That is not a technicality — it is measurable, and it runs the opposite way to intuition. Sorting tonight’s field on the 2+ HITS outcome, hit_score separates hardest (19.0% bottom quartile to 29.8% top, +10.8) while hr_score runs BACKWARDS at −3.8 and top_board_score_v2 at −6.0. Sluggers strike out; the men who pile up bases two at a time are contact hitters. So a total-bases play is a frequency bet wearing a power bet’s clothes, and the power boards are the wrong place to shop for it. CONTACT picks cleared 2+ TB 39.9% of the time (316/791) — and the graded files record no walks, so a pick who walked twice is scored a failure; read these as a floor. The score itself was re-measured on 2026-08-15 against its OWN bar across 4,971 tracked hitters: the bottom three quartiles are indistinguishable (39.3%, 40.3%, 38.3% — Q1 vs Q3 z=0.49, no difference) and only the top quartile separates (44.9%, z=2.83 vs Q1). It is also unstable across time — spreads by chronological quarter ran +5.4, +0.5, −1.0, +17.4, a standard deviation larger than the mean. So: being IN the top quarter of this board is the signal; the order inside the rest of it is not one. Five candidate replacements were fitted on the first 31 nights and tested on the last 21; none beat it out of sample with non-overlapping intervals, so nothing was retuned.',
+    body: 'TWO BASES IS THE ODD BAR ON THIS SITE, and it is the key to reading this board: it can be cleared without any power at all. A double does it, and so do two singles. Sluggers strike out; the men who pile up bases two at a time are contact hitters. So a total-bases play is a frequency bet wearing a power bet’s clothes, and the power boards are the wrong place to shop for it. The graded files record no walks, so a pick who walked twice is scored a failure. The archive rates that used to sit here are being re-measured on the locked pregame record.',
   },
   weakspot: {
     color: C.yellow,
     head: 'Validated: ⭐ hitters homer more',
-    body: 'A weak spot means tonight’s starter has given up real damage to this lineup slot. Measured across the archive: flagged hitters homered 18.0% vs 13.9% unflagged, and cleared 2+ TB 41.3% vs 37.5%. One of only three flags on the site that survives grading.',
+    body: 'A weak spot means tonight’s starter has given up real damage to this lineup slot.',
   },
   aligned: {
     color: C.purple,
     head: 'Rebuilt on the two flags that grade out — the old 🧩 didn’t',
-    body: 'The bot’s 🧩 tag graded at 15.4% vs 14.6% baseline on 39 samples — nothing. Aligned now means the measured stack instead: weak spot ⭐ AND pitch match 🎯 AND ISO ≥ .18. That trio homered 29.2% across 154 graded slots — more than double the 12.9% rate of hitters with neither flag, the strongest composite on the site.',
+    body: 'The bot’s 🧩 tag did not grade out. Aligned now means a stack instead: weak spot ⭐ AND pitch match 🎯 AND ISO ≥ .18.',
   },
   matchupedge: {
     color: C.orange,
     head: 'Validated: 🎯 pitch match is a real HR signal',
-    body: 'The hitter’s damage pitches overlap what tonight’s arm actually throws. Measured: matched hitters homered 18.4% vs 13.6% unmatched across 1,669 graded slots — the same size edge as the weak-spot flag, and the two stack: both together homered 23.3%.',
+    body: 'The hitter’s damage pitches overlap what tonight’s arm actually throws.',
   },
 })
 
@@ -227,10 +227,10 @@ function SectionHead({ color, icon, title, rate, rateTitle, count, children }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 14 }}>{icon}</span>
         <span style={{ fontSize: TYPE.name, fontWeight: 800, color: C.text }}>{title}</span>
-        <span title={rateTitle} style={{
+        {rate && <span title={rateTitle} style={{
           fontSize: TYPE.micro, fontWeight: 900, fontFamily: NUM_FONT, color, cursor: 'default',
           border: `1px solid ${color}55`, borderRadius: 999, padding: '1px 8px',
-        }}>{rate}</span>
+        }}>{rate}</span>}
         <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>{count} players</span>
       </div>
       {children && (
@@ -258,8 +258,6 @@ function WeakSpotSection({ players, onAdd, onWatch, watchIds, onPlayerClick }) {
     <div style={{ marginBottom: 18 }}>
       <SectionHead
         color={C.yellow} icon="⭐" title="Weak Spot Matchups"
-        rate="18.0% HR"
-        rateTitle="Validated: flagged hitters homered 18.0% vs 13.9% baseline across the graded archive"
         count={ws.length}
       />
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 10 }}>
@@ -297,12 +295,9 @@ function AlignedSignalsSection({ players, onAdd, onWatch, watchIds, onPlayerClic
           column is a category worth distrusting. */}
       <SectionHead
         color={C.purple} icon="🧩" title="Aligned Signals"
-        rate="29.2% HR"
-        rateTitle="The measured stack: 29.2% HR across 154 graded slots — the strongest validated combo on the site"
         count={aligned.length}
       >
-        Weak-spot lineup matchup, pitch-type match, and real recent contact quality all line up —
-        the strongest validated signal combo found in backtesting.
+        Weak-spot lineup matchup, pitch-type match, and real recent contact quality all line up.
       </SectionHead>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 10 }}>
         {alignedPreview.shown.map(p => (
@@ -339,12 +334,9 @@ function MatchupEdgeSection({ players, onAdd, onWatch, watchIds, onPlayerClick }
           column is a category worth distrusting. */}
       <SectionHead
         color={C.cyan} icon="🎯" title="Matchup Edge"
-        rate="23.9% HR"
-        rateTitle="Backtested separator: 23.9% HR with the flag vs 9.5% without"
         count={edge.length}
       >
-        Documented batter-vs-pitch exploit — backtested separator: players with this flag hit
-        23.9% vs 9.5% without it.
+        Documented batter-vs-pitch exploit.
       </SectionHead>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 10 }}>
         {edgePreview.shown.map(p => (
@@ -406,7 +398,6 @@ function b2bItems(players, cashed, onPlayerClick) {
     }
   })
 }
-const b2bRate = (rate) => (rate != null ? `validated ${rate.pct}% (${rate.hits}/${rate.n} archive)` : null)
 
 function B2BStrip({ list, verified, loading, cashed, onPlayerClick }) {
   const strict = list.filter((p) => (p._b2bGapDays ?? 1) <= 1)
@@ -417,15 +408,9 @@ function B2BStrip({ list, verified, loading, cashed, onPlayerClick }) {
       status={loading ? 'checking the setup game…' : !verified ? 'setup proof unavailable' : list.length ? `${list.length} verified encore chase${list.length === 1 ? '' : 's'}` : 'no verified encore chases on this slate'}
       note="last-game homer proven · no hit-rate claim"
       rows={[
-        { key: 'b2b', label: '🔁 back-to-back — played the very next game', rate: b2bRate(B2B_VALIDATED.backToBack), items: b2bItems(strict, cashed, onPlayerClick) },
-        { key: 'off', label: '🌙 returning from a day off', rate: b2bRate(B2B_VALIDATED.oneDayOff), accent: C.blue || C.orange, items: b2bItems(dayOff, cashed, onPlayerClick) },
+        { key: 'b2b', label: '🔁 back-to-back — played the very next game', items: b2bItems(strict, cashed, onPlayerClick) },
+        { key: 'off', label: '🌙 returning from a day off', accent: C.blue || C.orange, items: b2bItems(dayOff, cashed, onPlayerClick) },
       ]}
-      footer={<>
-        Validated against 70 nights of the graded archive: back-to-back clears at {B2B_VALIDATED.backToBack.pct}%,
-        a day-off return at {B2B_VALIDATED.oneDayOff.pct}% — statistically the same rate, both under the
-        {' '}{B2B_VALIDATED.baseline.pct}% baseline for any graded slot. A day off neither helps nor hurts an
-        encore chase; treat both rows as the same claim, not two different edges.
-      </>}
     />
   )
 }
@@ -544,7 +529,7 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
           of chrome before the first ranked row, and this strip was 200px of
           it -- three card rows and two paragraphs above the board the tab is
           named for. Folded to one line on a phone; desktop unchanged. */}
-      <MobileFold title="🔁 B2B Watch" summary={b2b.list?.length ? `${b2b.list.length} encore chase${b2b.list.length === 1 ? '' : 's'} \u00b7 back-to-back homers ${B2B_VALIDATED.backToBack.pct}% vs ${B2B_VALIDATED.baseline.pct}% base` : 'no back-to-back setups tonight'} count={b2b.list?.length || null} accent={C.orange} rememberKey="fold_b2b_v1">
+      <MobileFold title="🔁 B2B Watch" summary={b2b.list?.length ? `${b2b.list.length} encore chase${b2b.list.length === 1 ? '' : 's'}` : 'no back-to-back setups tonight'} count={b2b.list?.length || null} accent={C.orange} rememberKey="fold_b2b_v1">
         <B2BStrip
           list={b2b.list}
           verified={b2b.verified}

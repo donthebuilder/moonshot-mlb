@@ -131,11 +131,6 @@ export default function PairHistory({ summary, players = [], onPlayerClick }) {
             pair landing: two individually good bats, nothing about where they
             play. */}
         <b style={{ color: C.text2 }}>A pair is two independent events — including in the same game.</b>{' '}
-        We checked: across 58 graded nights, two picks in the same ballpark cleared together
-        1.05× as often as pure chance, and two on the same team 1.04×. That is no correlation at
-        all. What does move the number is both halves being good bats —
-        two <b style={{ color: C.text2 }}>TOP</b> picks landed together 5.3% of the time
-        and two big-ISO bats 4.8%, against 2.2% for a random pair off the same slate.
         So build a pair on the two names you like most, not on the ballpark. Use{' '}
         <b style={{ color: C.text2 }}>Playable tonight</b> to drop pairs where one half isn&apos;t
         even in a lineup.

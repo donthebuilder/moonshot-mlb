@@ -9,13 +9,13 @@ import { mlbSlateState } from '../../lib/mlbSlateState'
 import { tabName } from '../../lib/routes'
 import { C, NUM_FONT, TYPE } from '../../lib/theme'
 import { hr9Color } from '../../lib/hr9'
-import { catColor, verdictInk } from '../../lib/scales'
+import { verdictInk } from '../../lib/scales'
 import { gradedResultsUrl } from '../../lib/dataSource'
 import { dedupeGraded } from '../../lib/graded'
 import { arr, n, clean } from '../../lib/player'
 import { PanelTitle, Empty, Chip, Card, WhatThis } from '../ui'
 import Backtest from './Backtest'
-import ResultsDepth, { ARCHIVE, archText } from './ResultsDepth'
+import ResultsDepth from './ResultsDepth'
 import SignalAudit from '../SignalAudit'
 import PickScorecard, { pickJob } from '../PickScorecard'
 import ScoreAudit from '../ScoreAudit'
@@ -1273,7 +1273,7 @@ export default function Results({ results, liveResults = null, slateDate = '', b
       <div>
         <PanelTitle
           title={RECORD_NAME}
-          sub="what each 0-100 score is actually worth, measured against every outcome"
+          sub="score bands, being re-measured on the locked pregame record"
         />
         <ModeBar mode={mode} setMode={setMode} />
         <ScoreBands />
@@ -1491,23 +1491,18 @@ export default function Results({ results, liveResults = null, slateDate = '', b
           }
           if (bestLane) {
             const p = (100 * bestLane.did) / bestLane.n
-            const a = ARCHIVE.lanes[bestLane.role]
             takes.push(
-              <Take key="best" col={bestLane.color}
-                title={a ? `Over ${ARCHIVE.nights} graded nights the ${bestLane.role} lane cleared ${a.bar} ${archText(a)}, voids excluded.` : undefined}>
+              <Take key="best" col={bestLane.color}>
                 <B col={bestLane.color}>{bestLane.label}</B> picks cleared <B col={bestLane.color}>{bestLane.did} of {bestLane.n}</B>{' '}
-                ({p.toFixed(0)}%) — {p >= 65 ? 'the reliable lane again' : 'the night’s strongest lane'}
-                {a ? <> ; the lane&apos;s own archive rate is <B>{archText(a)}</B> over {ARCHIVE.nights} graded nights</> : ''}.
+                ({p.toFixed(0)}%) — {p >= 65 ? 'the reliable lane again' : 'the night’s strongest lane'}.
               </Take>,
             )
           }
           if (worstLane && (100 * worstLane.did) / worstLane.n < 50 && worstLane.role !== bestLane?.role) {
-            const a = ARCHIVE.lanes[worstLane.role]
             takes.push(
               <Take key="worst" col={C.text3}>
                 <B col={worstLane.color}>{worstLane.label}</B> went <B>{worstLane.did} of {worstLane.n}</B> — the lane to be
-                patient with tonight; its bar is {worstLane.job}
-                {a ? <> , and it clears that bar <B>{archText(a)}</B> of the time across the archive</> : ''}.
+                patient with tonight; its bar is {worstLane.job}.
               </Take>,
             )
           }
@@ -1608,47 +1603,6 @@ export default function Results({ results, liveResults = null, slateDate = '', b
           <Fold label="📡 Capture detail — the full net, caught vs missed">
             <CaptureBanner report={captureReport} uniqueReport={uniqueReport} byGame={view?.pick_coverage_report || null} />
           </Fold>
-          <Fold label={`📐 What ${ARCHIVE.nights} graded nights say each lane is worth`}>
-            {/* Restated from the 2026-08-16 backtest over this project's own
-                archive. Older copy elsewhere in the repo was fit on nine days
-                and counted voids as losses, which is most of the gap. */}
-            <div style={{ fontSize: TYPE.body, color: C.text2, lineHeight: 1.7 }}>
-              <B>{ARCHIVE.nights}</B> graded nights, <B>{ARCHIVE.games.toLocaleString()}</B> games,{' '}
-              <B>{ARCHIVE.picks.toLocaleString()}</B> judgeable designated picks. Each lane on its own
-              bar, voids excluded — a man who never batted is a void, not a loss.
-              {/* Each lane name below wears its CAT.role identity colour --
-                  except TOP, which stays the literal established gold
-                  rather than catColor('role','TOP') (=C.yellow): CAT.role
-                  says TOP is 'yellow' but this gold is visibly a different
-                  shade, and PickScorecard.js's own TOP colour is this same
-                  gold, not C.yellow either. A real fix is a registry
-                  decision (add a gold CAT token, or reconcile
-                  CAT.role.TOP to what's actually shipping) -- flagged in
-                  the session report, not decided here. */}
-              <div style={{ marginTop: 6 }}>
-                HIT <B col={catColor('role', 'HIT')}>{archText(ARCHIVE.lanes.HIT)}</B> ·{' '}
-                HRR <B col={C.cyan}>{archText(ARCHIVE.lanes.HRR)}</B> ·{' '}
-                CONTACT <B col={verdictInk(true).color}>{archText(ARCHIVE.lanes.CONTACT)}</B> ·{' '}
-                legacy TOP <B col="#FCD34D">{archText(ARCHIVE.lanes.TOP)}</B> on its HR bar ·{' '}
-                HR <B col={C.orange}>{archText(ARCHIVE.lanes.HR)}</B>.
-              </div>
-              <div style={{ marginTop: 6, color: C.text3 }}>
-                The bar matters more than the pick: the same legacy per-game TOP pick, the same night,
-                judged on 1+ hit instead of a homer went <B col={C.text}>{archText(ARCHIVE.topOnHits)}</B>.
-                {' '}This archived tier is not The Four, which are the current four market headline calls.
-                {' '}And taking a
-                single pick per game — always the top-scored HIT pick — returned{' '}
-                <B col={C.text}>{archText(ARCHIVE.onePerGame)}</B>; count the voids as losses instead of
-                setting them aside and that floor is{' '}
-                <B>{ARCHIVE.onePerGame.voidsAsLossesPct}%</B>.
-              </div>
-              <div style={{ marginTop: 6, fontSize: TYPE.micro, color: C.text3 }}>
-                These are measured frequencies with their denominators, over an archive that is not a
-                random sample of the season — it is whatever survived on disk, 62 nights inside a
-                119-day span. Tonight is one night against them.
-              </div>
-            </div>
-          </Fold>
 
           {/* 2 · WHO DELIVERED — names stay visible; names are the takeaway */}
           <Flow num="2" title="Who delivered" note="homers first, then the multi-hit nights" />
@@ -1660,11 +1614,7 @@ export default function Results({ results, liveResults = null, slateDate = '', b
           {laneList.length > 0 && (
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
               {laneList.map((l) => (
-                <span key={l.role} title={`A ${l.label} pick's job is ${l.job}.${
-                  ARCHIVE.lanes[l.role]
-                    ? ` Across ${ARCHIVE.nights} graded nights that lane cleared it ${archText(ARCHIVE.lanes[l.role])}, voids excluded.`
-                    : ''
-                }`} style={{
+                <span key={l.role} title={`A ${l.label} pick's job is ${l.job}.`} style={{
                   display: 'inline-flex', alignItems: 'baseline', gap: 6,
                   border: `1px solid ${l.color}44`, background: `${l.color}10`, borderRadius: 9, padding: '4px 11px',
                 }}>

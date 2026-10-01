@@ -40,7 +40,7 @@ const buildColumns = (onWatch) => [
     titleOn: 'Remove from watchlist', titleOff: 'Add to watchlist', onAction: onWatch },
   { key: 'name',    label: 'Batter',  heat: false, w: 148, bold: true, sticky: true },
   { key: 'p3flag',  label: '⚡',       flag: true, mark: '⚡', w: 30,
-    title: 'Power-3 top ten tonight (with a real season sample). Historically these homer 21% of the time.' },
+    title: 'Power-3 top ten tonight (with a real season sample).' },
   { key: 'p3',      label: 'Power-3', w: 58, dp: 0, domain: [0, 100], primary: true,
     title: 'Mean of his three season-power ranks on tonight’s slate — HR per ball in play, average EV, max EV. 100 = best on the slate in all three.' },
   { key: 'p3rank',  label: 'Rank',    w: 44, invert: true,
@@ -50,23 +50,23 @@ const buildColumns = (onWatch) => [
   { key: 'avgEV',   label: 'Avg EV',  w: 52, dp: 1,
     title: 'Season average exit velocity — one of the three' },
   { key: 'maxEV',   label: 'Max EV',  w: 52, dp: 1,
-    title: 'Hardest ball he has hit this season — one of the three. 115+ homers 18% of the time.' },
+    title: 'Hardest ball he has hit this season — one of the three.' },
   { key: 'bbe',     label: 'BBE',     w: 44,
     title: 'Season balls in play — the sample under the three numbers. The ⚡ flag needs 60.' },
   { key: 'drought', label: 'Drought', heat: false, w: 58, mono: true,
     fmt: (v) => (Number(v) === 0 ? 'last gm' : `${v}g`),
-    title: 'Games since his last home run. Kept because you asked for it; measured over 155 nights it predicts nothing — 10+ games without one homer at 9%, the game after a homer at 15%.' },
+    title: 'Games since his last home run. Kept because you asked for it; it does not move the rank.' },
   { key: 'l5hr',    label: 'HR L5',   w: 46,
-    title: 'Homers in his last five games — 3+ homered 17.5% of the time' },
+    title: 'Homers in his last five games' },
   { key: 'hr',      label: 'HR scr',  w: 48, dp: 1, ...SCORE },
   { key: 'hrw',     label: 'HRW',     w: 46, dp: 0, ...SCORE,
-    title: 'The bot’s HR window score — its strongest single term in the audit (80+ homered 25% of the time in the tracked pool)' },
+    title: 'The bot’s HR window score' },
   { key: 'barrel',  label: 'Brl%',    w: 44, dp: 1,
     title: 'Recent barrel rate' },
   { key: 'matchup', label: 'vs',      heat: false, w: 120, dim: true,
     title: 'Tonight’s starter' },
   { key: 'hr9',     label: 'P HR/9',  w: 48, dp: 2,
-    title: 'Homers per nine the starter allows — 1.3+ was worth about +3.5 points of HR rate in the audit' },
+    title: 'Homers per nine the starter allows' },
   { key: 'parkHR',  label: 'Park×',   w: 46, dp: 2,
     title: 'Park home-run factor — measured near coin-flip in the audit; shown for context' },
 ]
@@ -160,7 +160,7 @@ function RecentBombers({ all = [], onPlayerClick }) {
           onRowClick={onPlayerClick}
           initialSort={null}
           maxHeight={360}
-          caption={`Everyone on tonight's slate whose last homer came within his last ${win} game${win > 1 ? 's' : ''} — the only parameter is games_since_last_hr ≤ ${win - 1}. A hitter whose team isn't on tonight's slate can't appear, and the window counts HIS games, not calendar days. The audit's read on this list: the game after a homer is the best night to be on a hitter (14.6% vs 11.2% base) and it fades from there — read Power-3 next to it, not the drought.`}
+          caption={`Everyone on tonight's slate whose last homer came within his last ${win} game${win > 1 ? 's' : ''} — the only parameter is games_since_last_hr ≤ ${win - 1}. A hitter whose team isn't on tonight's slate can't appear, and the window counts HIS games, not calendar days. Read Power-3 next to it, not the drought.`}
         />
       ))}
     </div>
@@ -237,10 +237,7 @@ export default function Power3Board({ players = [], onWatch, watchIds, onPlayerC
           </>
         )}
         Three season numbers, ranked against tonight&apos;s slate and averaged: <b style={{ color: C.text2 }}>HR per ball in play</b>,{' '}
-        <b style={{ color: C.text2 }}>average exit velocity</b>, <b style={{ color: C.text2 }}>max exit velocity</b>. Over 155 nights this
-        ordering beat the field on 150 of them, and the top ten each night homered{' '}
-        <b style={{ color: C.text2, fontFamily: NUM_FONT }}>21.4%</b> of the time against an{' '}
-        <b style={{ color: C.text2, fontFamily: NUM_FONT }}>11.2%</b> base. The drought column is for information — it does not move the rank.
+        <b style={{ color: C.text2 }}>average exit velocity</b>, <b style={{ color: C.text2 }}>max exit velocity</b>. The drought column is for information — it does not move the rank.
       </div>
 
       {!published ? (

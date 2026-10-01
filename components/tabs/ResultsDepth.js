@@ -162,16 +162,10 @@ export default function ResultsDepth({ results, onPlayerClick }) {
       const hr = list.filter((s) => s?.got_hr).length
       const hit = list.filter((s) => s?.got_base_hit).length
       const xbh = list.filter((s) => s?.got_xbh).length
-      // TONIGHT NEXT TO 62 NIGHTS. A tier that went 2-for-3 means nothing on
-      // its own; against the lane's own archive rate it means something. TOP15
-      // is the night's top-15 board rather than a per-game designation, so it
-      // has no archive row and prints a dash rather than borrowing one.
-      const base = ARCHIVE.lanes[k] || null
       return {
         _key: k,
         icon, label, n: list.length,
         needs: clean(list[0]?.designed_outcome, '—'),
-        base: base ? archText(base) : '—',
         did, didPct: (100 * did) / list.length,
         hr, hrPct: (100 * hr) / list.length,
         hit, hitPct: (100 * hit) / list.length,
@@ -274,8 +268,6 @@ rows={tiers}
             { key: 'n',      label: 'N',       heat: false, w: 34, mono: true, dim: true },
             { key: 'did',    label: 'Did job', w: 50 },
             { key: 'didPct', label: 'Rate %',  w: 52, dp: 1 },
-            { key: 'base',   label: `${ARCHIVE.nights} nights`, heat: false, w: 108, mono: true, dim: true,
-              title: `What this lane has done on its own bar across the whole archive — ${ARCHIVE.nights} graded nights, ${ARCHIVE.games.toLocaleString()} games, ${ARCHIVE.picks.toLocaleString()} judgeable picks, voids excluded. Tonight is one night against that.` },
             // HR count lives here now. It used to be its own "HRs by pick type"
             // bar chart at the bottom of the page, which drew the same six
             // numbers a second time; one column is the whole chart.
@@ -299,29 +291,6 @@ rows={tiers}
           that game. It is not The Four, which are today&apos;s four market headline calls. A legacy TOP
           only counts here if it out-produced the other tracked picks from its game; it never means
           best player in the game.
-        </div>
-        {/* THE ARCHIVE, IN SENTENCES, UNDER THE ONE TABLE IT GRADES. Restated
-            from the 62-night backtest rather than the older nine-day copy that
-            still sits in the pick scorecard — same lanes, several points apart,
-            mostly because voids used to be counted as losses. */}
-        <div style={{ fontSize: 10.5, color: C.text2, marginTop: 9, lineHeight: 1.65 }}>
-          <b style={{ color: C.text }}>The bar dominates the pick.</b> Over{' '}
-          <b style={{ fontFamily: NUM_FONT }}>{ARCHIVE.nights}</b> graded nights —{' '}
-          <b style={{ fontFamily: NUM_FONT }}>{ARCHIVE.games.toLocaleString()}</b> games,{' '}
-          <b style={{ fontFamily: NUM_FONT }}>{ARCHIVE.picks.toLocaleString()}</b> judgeable
-          designated picks, voids left out — the legacy per-game TOP pick cleared its own HR bar{' '}
-          <b style={{ fontFamily: NUM_FONT }}>{archText(ARCHIVE.lanes.TOP)}</b>. The identical man on
-          the identical night got a base hit{' '}
-          <b style={{ fontFamily: NUM_FONT, color: C.text }}>{archText(ARCHIVE.topOnHits)}</b> of the
-          time. Choosing what you ask him to do is worth more than choosing who.
-          <div style={{ marginTop: 5, color: C.text3 }}>
-            Lane by lane on their own bars: HIT {archText(ARCHIVE.lanes.HIT)} · HRR{' '}
-            {archText(ARCHIVE.lanes.HRR)} · CONTACT {archText(ARCHIVE.lanes.CONTACT)} · TOP{' '}
-            {archText(ARCHIVE.lanes.TOP)} · HR {archText(ARCHIVE.lanes.HR)}. Taking one pick per game
-            and always the top-scored HIT pick: {archText(ARCHIVE.onePerGame)} — and counting the
-            voids as losses instead of setting them aside drops that to{' '}
-            {ARCHIVE.onePerGame.voidsAsLossesPct}%, which is the floor to quote if anyone asks.
-          </div>
         </div>
       </Section>
 

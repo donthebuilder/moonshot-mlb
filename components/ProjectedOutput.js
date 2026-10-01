@@ -478,10 +478,9 @@ export default function ProjectedOutput({ games = [], players: allPlayers = [], 
       by={by} setBy={setBy}
       note={<>
         <b style={{ color: C.text2 }}>model v2</b> — each hitter&apos;s HR probability blends his
-        score-band rate 50/50 with his measured season-ISO band rate (8.2% under .130 → 22.2% at
-        .230+, from the graded archive), weighted by expected PA from his lineup slot (÷4.2 avg,
-        ×0.9 if the lineup is unconfirmed), with a +10% form bump per last-5 HR capped at +30%
-        (measured: 0 recent HR → 9.0%, 3+ → 23.0%).
+        score-band rate 50/50 with his season-ISO band rate, weighted by expected PA from his
+        lineup slot (÷4.2 avg, ×0.9 if the lineup is unconfirmed), with a +10% form bump per
+        last-5 HR capped at +30%.
       </>}
       rows={rows} primary="Proj HR" adj="Adj HR" unit="HR" columns={cols}
       sortCol={sortCol} sortDir={sortDir} onSort={sortClick(sortCol, setSortCol, setSortDir)}
@@ -496,8 +495,7 @@ export default function ProjectedOutput({ games = [], players: allPlayers = [], 
         by PA and last-5 form). Adj HR layers park, the published weather effect, pitcher trend and the
         opposing pen&apos;s live HR/9 on top — Proj HR is calibrated, Adj HR is calibrated × modeled, and
         a colored pill on either column means that game sits clearly above (▲) or below (▼) tonight&apos;s
-        own average, not a hard threshold. A higher score does not always mean a higher projection: the
-        85+ band produced 16.1% where the 70 band produced 18.7%, straight from the graded archive.
+        own average, not a hard threshold. A higher score does not always mean a higher projection.
       </>}
       onOpenGame={onOpenGame} accent={C.orange} tick={C.amber}
       palette={{

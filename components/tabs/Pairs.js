@@ -1171,7 +1171,7 @@ function LiveHRPairs({ results, pairBuilder, players=[], pairHistorySummary, onP
               { key:'sameDay',  label:'Same-day', w:56,
                 title:'Times these two homered on the same date this season — different parks counts' },
               { key:'sameGame', label:'Same-gm', w:52,
-                title:'Times they homered in the same game. NOT more correlated than any other pair — measured 2026-08-09 across 58 graded nights, same-game pairs cleared 1.05x the independence expectation, which is 1.00 to within noise.' },
+                title:'Times they homered in the same game. NOT more correlated than any other pair.' },
               { key:'boost',    label:'Boost', w:46 },
               { key:'since',    label:'Days ago', w:52, invert:true, fmt:(v)=> v==null?'—':String(v) },
               { key:'last',     label:'Last', heat:false, w:82, mono:true, dim:true },
@@ -1515,7 +1515,7 @@ function HistorySection({ data, q, players=[] }) {
             { key:'sameDay',  label:'Same-day',  w:60,
               title:'Days this season both homered — different ballparks included' },
             { key:'sameGame', label:'Same-gm',   w:56,
-              title:'Days both homered in the SAME game. Measured 2026-08-09: same-game pairs are no more correlated than any other pair (1.05x the independence expectation). Interesting history, not an edge.' },
+              title:'Days both homered in the SAME game. Same-game pairs are no more correlated than any other pair. Interesting history, not an edge.' },
             { key:'boost',    label:'Boost',     w:48 },
             { key:'pairScore', label:'Pair',     w:48 },
             { key:'since',    label:'Days ago',  w:56, invert:true, fmt:(v)=> v==null?'—':String(v) },
@@ -1525,7 +1525,7 @@ function HistorySection({ data, q, players=[] }) {
           ]}
           initialSort="sameDay"
           maxHeight={520}
-          caption="Capped at 200 rendered rows — this table used to lock the browser tab at 350. Days ago is inverted so a recent pairing reads bright. CORRECTION 2026-08-09: this caption used to say same-game was the column that implies correlation. It isn't. Across 58 graded nights, same-game pairs cleared together 1.05x the independence expectation and same-team 1.04x — no correlation at all. Two big-ISO bats landed together 4.8% of the time and two TOP picks 5.3%, against 2.2% for a random same-night pair. Build on the bats, not the ballpark."
+          caption="Capped at 200 rendered rows — this table used to lock the browser tab at 350. Days ago is inverted so a recent pairing reads bright. Same-game is not the column that implies correlation. Build on the bats, not the ballpark."
         />
       )}
     </div>
@@ -1540,9 +1540,9 @@ import PairBoard from '../PairBoard'
 import Rail from '../Rail'
 import {
   buildPairs, PAIR_BASELINE,
-  GROUP_ORDER, GROUP_META, GROUP_RATE, GROUP_BACKTEST, TOP_ON_HIT_BAR,
+  GROUP_ORDER, GROUP_META,
   LEG_SIGNALS, ALL_SIGNAL_IDS, buildGroupTickets, buildSignalTickets,
-  rateText, signalRecordText, slateDateOf, useSlateOdds, spokenSignals,
+  signalRecordText, slateDateOf, useSlateOdds, spokenSignals,
 } from '../../lib/pairEvidence'
 import { useSetupHomers, useBackToBack } from '../../lib/b2b'
 import { quoteFor, fmtOdds, impliedPct } from '../../lib/odds'
@@ -1741,9 +1741,7 @@ function LegSentence({ leg, odds, reserved = false }) {
       {spot ? `, batting ${spot}` : ''}
       {arm ? ` against ${arm}` : ''}
       {' — is the bot’s '}<B color={col}>{leg.group}</B>{' pick in that game and needs '}
-      <B color={col}>{leg.bar}</B>{'. That bar cleared '}
-      <B><span style={{ fontFamily: NUM_FONT }}>{rateText(leg.rate)}</span></B>
-      {` across ${GROUP_BACKTEST.nights} graded nights.`}
+      <B color={col}>{leg.bar}</B>{'.'}
 
       {/* THE TOP CAVEAT. A TOP pick is a very good bat being asked a very hard
           question: the same 807 slots cleared 1+ hit 571 times. Leaving that
@@ -1751,9 +1749,7 @@ function LegSentence({ leg, odds, reserved = false }) {
           makes it 21.3% is the bar, not the hitter. */}
       {leg.group === 'TOP' && (
         <>
-          {' The same TOP picks graded on the easier 1+ hit bar instead cleared '}
-          <span style={{ fontFamily: NUM_FONT }}>{rateText(TOP_ON_HIT_BAR)}</span>
-          {' — the designation is a good bat, the home-run bar is what makes this a hard leg.'}
+          {' The designation is a good bat; the home-run bar is what makes this a hard leg.'}
         </>
       )}
 
@@ -1902,16 +1898,14 @@ function TicketBlock({ ticket, index, odds, onPlayerClick, word }) {
         <B color={C.text2}>cannot land more often than its worst leg</B>
         {ticket.ceiling ? (
           <>
-            {' — the '}{ticket.ceiling.group}{' bar, '}
-            <span style={{ fontFamily: NUM_FONT, color: C.text2 }}>{rateText(ticket.ceiling.rate)}</span>
-            {'. That is a ceiling, not a forecast: the real number is lower and nobody here has measured how much.'}
+            {' — the '}{ticket.ceiling.group}{' bar. That is a ceiling, not a forecast: the real number is lower and nobody here has measured how much.'}
           </>
         ) : '.'}
         {ticket.sameGame ? (
           <>
             {' '}<B color={C.cyan}>Both legs are in the same game</B>
             {` (${gamePhrase(legs[0].player)}) — one park, one air, one starting pitcher, one game state.`}
-            {' The two rates above are each leg’s own and are '}
+            {' Each leg stands on its own and the two are '}
             <B color={C.text2}>not multiplied</B>
             {', because what a shared game does to these bars has never been measured on this archive.'}
           </>
@@ -2107,16 +2101,8 @@ export function GroupTicketBuilder({
       <div className="quiet-note" style={{ fontSize: 10.5, color: C.text3, lineHeight: 1.7, marginBottom: 9, maxWidth: 860 }}>
         The bot designates exactly one hitter per group per game, so a combination of groups is a
         real object: pick two and you are choosing between one candidate per game on each side.
-        {' '}Each bar is what it is regardless of whose name is on it — measured over{' '}
-        <b style={{ color: C.text2 }}>{GROUP_BACKTEST.nights} graded nights and {GROUP_BACKTEST.games} games</b>
-        {' '}of this project’s own archive:{' '}
-        <span style={{ fontFamily: NUM_FONT }}>
-          1+ hit {rateText(GROUP_RATE.HIT)} · 2+ of hits, runs and RBI {rateText(GROUP_RATE.HRR)} ·
-          {' '}2+ total bases {rateText(GROUP_RATE.CONTACT)} · 1+ home run {rateText(GROUP_RATE.TOP)} as a
-          {' '}TOP pick and {rateText(GROUP_RATE.HR)} as an HR pick
-        </span>.
-        {' '}That spread is far wider than anything a signal moves, which is why every leg below states
-        its own bar first.
+        {' '}Each bar is what it is regardless of whose name is on it, which is why every leg below
+        states its own bar first.
       </div>
 
       {/* ── controls ── */}
@@ -2141,7 +2127,7 @@ export function GroupTicketBuilder({
             <button
               key={g}
               onClick={() => toggle(groups, setGroups, g)}
-              title={`${meta.bar} — ${rateText(GROUP_RATE[g])} over ${GROUP_BACKTEST.nights} nights. ${meta.blurb}.`}
+              title={`${meta.bar}. ${meta.blurb}.`}
               style={btnStyle(col, groups.includes(g))}
             >{g}</button>
           )
@@ -2347,10 +2333,10 @@ export function GroupTicketBuilder({
         <b style={{ color: C.text2 }}>No combined percentage is printed here, on purpose.</b>{' '}
         Two legs in the same game share a park, an air, a starting pitcher and a game state, and this
         archive has never measured what that does to a 1+ hit or a 2+ total-bases bar — the one
-        same-game result it does have is for home runs (1.05× the independence expectation over 58
-        nights, see the Pair History note), and that does not transfer. Multiplying two rates as
+        same-game result it does have is for home runs (see the Pair History note), and that does
+        not transfer. Multiplying two rates as
         though the legs were independent would be asserting something nobody has checked, so each leg
-        keeps its own measured rate and the only combined figure is the ceiling, which is true under
+        keeps its own bar and the only combined figure is the ceiling, which is true under
         any dependence at all.
         {' '}Ranking inside a group is by distinct signals first — aligned counting once for the weak spot
         and pitch match it contains — and then by that group’s own 0-100 score:
@@ -2425,7 +2411,7 @@ export default function Pairs({ players=[], pairBuilder, pairHistorySummary, res
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 3, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 13, fontWeight: 900 }}>🔗 By the record</span>
             <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
-              pairs ranked on what actually landed across 58 graded nights
+              pairs grouped by the category they fall in
             </span>
             {/* 📸 SHARE (2026-08-23) — zero-backend PNG export, same canvas
                 mechanism as the Watchlist/Player cards. */}
@@ -2439,11 +2425,9 @@ export default function Pairs({ players=[], pairBuilder, pairHistorySummary, res
               }}>📸</button>
           </div>
           <div style={{ fontSize: 10, color: C.text3, marginBottom: 8, lineHeight: 1.6, maxWidth: 760 }}>
-            Every percentage here is a <b style={{ color: C.text2 }}>measured</b> both-homer rate, not a
-            model output. A random pair off the same slate lands{' '}
-            <b style={{ color: C.text2 }}>{PAIR_BASELINE}%</b> of the time — that is the number to beat.
-            {' '}Same game and same team are <i>not</i> on this list: they measured 1.05× and 1.04× the
-            independence expectation, which is chance. Two good bats is the whole edge.
+            Each card names the category the pair falls in. The both-homer rates that used to sit here
+            were measured on post-game files and are being re-measured on the locked pregame record.
+            {' '}Same game and same team are <i>not</i> on this list.
           </div>
           <Rail gap={8} label="pairs by measured rate">
             {evPairs.map((p, i) => (
@@ -2461,19 +2445,6 @@ export default function Pairs({ players=[], pairBuilder, pairHistorySummary, res
                     category now leads and the rate is explicitly its rate. */}
                 <div style={{ fontSize: 9.5, fontWeight: 800, color: C.text2, marginBottom: 2 }}>
                   {p.rule ? p.rule.label : 'neither half clears a measured bar'}
-                </div>
-                <div
-                  title="Measured across every pair in this category, not for these two hitters specifically. Two pairs in the same category carry the same rate."
-                  style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                  <span style={{
-                    fontFamily: NUM_FONT, fontSize: 17, fontWeight: 900, color: C.orange,
-                  }}>{p.rate.toFixed(1)}%</span>
-                  <span style={{ fontSize: 9, color: C.text3 }}>
-                    {p.lift > 0 ? `${p.lift.toFixed(1)} over random` : 'no rule fired'}
-                  </span>
-                </div>
-                <div style={{ fontSize: 8.5, color: C.text3, marginTop: 1, lineHeight: 1.4 }}>
-                  rate for this category, not for this pair
                 </div>
                 {[p.a, p.b].map((pl, k) => (
                   <div key={k}

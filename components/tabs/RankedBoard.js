@@ -375,18 +375,18 @@ export default function RankedBoard({ players, slate = null, type = 'hr', onAdd,
               title: 'Homered on the night that would set this up, PROVEN from that day\u2019s graded file — not inferred from a slate field that means \u201chis most recent game\u201d and can mean today. A heads-up, not a signal: B2Bs are folklore-grade, the score columns are the evidence.' },
             { key: 'weak',   label: '★', flag: true, mark: '★', w: 28,
               title: ['hr', 'hrr'].includes(type)
-                ? 'Weak spot — validated on HR outcomes: flagged hitters homered 18.0% vs 13.9%'
-                : 'Weak spot — an HR-validated signal (18.0% vs 13.9% HR). Shown for context on this board; it was not measured on this category\'s outcome.' },
+                ? 'Weak spot — a home-run flag: tonight’s starter has given up real damage to this lineup slot'
+                : 'Weak spot — a home-run flag. Shown for context on this board; it was not measured on this category\'s outcome.' },
             { key: 'multiHit', label: '2️⃣', flag: true, mark: '2️⃣', w: 30,
               title: 'Multi-hit look — real contact skill (average, BABIP, K-rate, recent hit volume), lineup spot for actual at-bat volume, and a pitcher who\'s been hit hard this year (WHIP, AVG/OBP/BABIP allowed). New as of 2026-08-13 — unlike ★ weak spot, this hasn\'t been graded against the archive yet, so read it as a reasoned first cut, not a proven one.' },
             { key: 'aligned', label: '🧩', flag: true, mark: '◆', w: 28,
               title: ['hr', 'hrr'].includes(type)
-                ? 'Aligned — weak spot + pitch match + ISO ≥ .18. The measured stack: 29.2% HR across 154 graded slots'
-                : 'Aligned — the HR-validated stack (29.2% HR). Context here, not proof: it was measured on homers, not this category.' },
+                ? 'Aligned — weak spot + pitch match + ISO ≥ .18'
+                : 'Aligned — the home-run stack. Context here, not proof: it was measured on homers, not this category.' },
             { key: 'edgeF', label: '🎯', flag: true, mark: '●', w: 28,
               title: ['hr', 'hrr'].includes(type)
-                ? 'Pitch match — his damage pitches overlap tonight\'s arsenal: 18.4% vs 13.6% HR, and it stacks with ★ (23.3% together)'
-                : 'Pitch match — HR-validated (18.4% vs 13.6%). Context on this board, not category proof.' },
+                ? 'Pitch match — his damage pitches overlap tonight\'s arsenal'
+                : 'Pitch match — a home-run flag. Context on this board, not category proof.' },
             // 'Adj' and 'Raw' were two columns showing the same hitter before
             // and after the site's ISO adjustment. The site ranks on the bot's
             // raw score now (2026-08-09, see lib/scoring.js), so they'd print
@@ -396,7 +396,7 @@ export default function RankedBoard({ players, slate = null, type = 'hr', onAdd,
             // into it.
             { key: 'adj',    label: type === 'hr' ? 'HR score' : 'Score', w: 56, dp: 1, ...SCORE, primary: true,
               title: type === 'hr'
-                ? 'The bot’s own HR score — the number this board is ranked by. Read the ISO column beside it: across 3,973 graded picks the sub-.130 ISO band homered 8.2% and the .230+ band 22.2%, so a big score on thin power is the board’s most common trap.'
+                ? 'The bot’s own HR score — the number this board is ranked by. Read the ISO column beside it — a big score on thin power is the trap to watch for.'
                 : 'The score this board is ranked by' },
             ...(type !== 'hr' ? [
               { key: 'hrRaw', label: 'HR sc', w: 48, dp: 1, ...SCORE,
@@ -404,10 +404,10 @@ export default function RankedBoard({ players, slate = null, type = 'hr', onAdd,
             ] : []),
             ...(type === 'hr' ? [
               { key: 'iso', label: 'ISO', w: 42, dp: 0, primary: true,
-                title: 'Season ISO ×100 — slugging minus batting average, so it measures extra-base pop with the singles stripped out. Across the graded archive, sub-13 homered 8.2% and 23+ homered 22.2%. Read it WITH the score, not instead of it.' },
+                title: 'Season ISO ×100 — slugging minus batting average, so it measures extra-base pop with the singles stripped out. Read it WITH the score, not instead of it.' },
             ] : []),
             { key: 'rec',    label: 'When picked', heat: false, w: 82, mono: true,
-              title: `His archive record when the bot designated him in this category — a rate at 3+ picks, a raw fraction under that. From 5,184 judgeable picks over 62 graded nights (2026-08-15 sweep).` },
+              title: `His archive record when the bot designated him in this category — a rate at 3+ picks, a raw fraction under that.` },
             { key: 'bestOther', label: 'Best other', heat: false, w: 66, mono: true, dim: true,
               title: 'His strongest OTHER category tonight — if this number dwarfs his score here, he might be the wrong kind of bet' },
             { key: 'hrw',    label: 'HRW', w: 44, dp: 0, ...SCORE, primary: true },
@@ -503,7 +503,7 @@ export default function RankedBoard({ players, slate = null, type = 'hr', onAdd,
           ? 'Top 15 by HR score — what separates them'
           : `Top 15 by ${title.replace(' Board', '')} — what separates them`}
         caption={type === 'hr'
-          ? 'Read ISO with the score especially: across 3,973 graded picks the sub-.130 ISO band homered 8.2% and the .230+ band 22.2%, while the score itself barely separated — so a big score on thin power is the board’s most common trap, and it is exactly the kind of thing a ▼ ISO chip is here to say out loud.'
+          ? 'Read ISO with the score especially: a big score on thin power is the trap to watch for, and it is exactly the kind of thing a ▼ ISO chip is here to say out loud.'
           : undefined}
         // DenseTable already unwraps _raw for the handler -- see Shortlist.
         onRowClick={onPlayerClick || null}

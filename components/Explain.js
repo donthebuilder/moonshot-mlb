@@ -48,8 +48,7 @@ import { C, NUM_FONT } from '../lib/theme'
 // caveat travels with the definition instead of relying on whoever writes the
 // next component to remember it.
 export const RANK_NOT_PERCENT =
-  'This is a ranking, not a percentage — a 78 sits above a 62, it is not a 78% chance. '
-  + 'The bot’s headline picks homer about 29% of the time.'
+  'This is a ranking, not a percentage — a 78 sits above a 62, it is not a 78% chance.'
 
 // Terms that get RANK_NOT_PERCENT attached automatically.
 export const SCORE_TERMS = new Set([
@@ -63,11 +62,11 @@ export const GLOSSARY = {
   // Each one says WHAT IT RANKS ON and which way is good. None of them claims
   // a chance of anything; the banner adds RANK_NOT_PERCENT on top.
   'hr': 'Ranks the slate on how good tonight looks for him to go deep — his power, the arm he faces, the park and the weather. Higher ranks better.',
-  'hr score': 'Ranks the slate on how good tonight looks for him to go deep — his power, the arm he faces, the park and the weather, plus how many trips to the plate he is likely to get. Higher ranks better. Measured across 58 graded nights: the top 20 of this board homered 21.6% against 14.7% for a random 20 off the same slate, so the ordering is doing real work.',
+  'hr score': 'Ranks the slate on how good tonight looks for him to go deep — his power, the arm he faces, the park and the weather, plus how many trips to the plate he is likely to get. Higher ranks better.',
   // 2026-08-09. The score changed twice today and the site has to say so.
-  'the fold': 'On 2026-08-09 the HR score started carrying 20% of the runs-and-RBI score and 10% of the base-hit score. Reason: the archive showed the bucket named HR was NOT the best bucket at home runs — TOP picks homered 21.9% against 15.9% for HR picks — and TOP is drawn from the blend of all four scores. What the HR model was missing is opportunity: how many times he actually bats, and whether the lineup around him turns over.',
+  'the fold': 'On 2026-08-09 the HR score started carrying 20% of the runs-and-RBI score and 10% of the base-hit score. Reason: the archive showed the bucket named HR was NOT the best bucket at home runs, and TOP is drawn from the blend of all four scores. What the HR model was missing is opportunity: how many times he actually bats, and whether the lineup around him turns over.',
   'opportunity': 'How many trips to the plate he is likely to get, and whether the lineup around him keeps the inning alive. You cannot homer in the dugout. Folded into the HR score on 2026-08-09 after the archive showed it was the missing piece.',
-  'power weight': 'How much of the HR score is season-long power (ISO, slugging, homers per plate appearance). Doubled from 0.12 to 0.24 on 2026-08-09: sweeping the weight across 49 graded nights, the board peaked at 0.24 (21.1% vs 19.7% at the old weight) and everything past it was flat.',
+  'power weight': 'How much of the HR score is season-long power (ISO, slugging, homers per plate appearance). Doubled from 0.12 to 0.24 on 2026-08-09.',
   'hits': 'Every base hit by every hitter on tonight’s slate, added up as the games go.',
   'vs typical': 'The league averages 16.4 hits per game this season, so the yardstick is that number times the games actually under way. It scales with the slate — a nine-game Thursday is not supposed to look like a fifteen-game Sunday.',
   'hits vs typical': 'Tonight’s hits against what a slate this size usually produces. The league averages 16.4 hits per game, so the yardstick grows as more games start. Orange means the bats are loud, blue means quiet.',
@@ -82,14 +81,14 @@ export const GLOSSARY = {
   // formula was rebuilt from what actually separates the outcome, and the new
   // one beat the old in 8 of 9 held-out tests — but it still has not been
   // shown to beat a shuffle. Saying so is the whole point of the site.
-  'tb': 'Total bases — ranks him on piling up bases (a double is 2, a homer is 4). Higher ranks better. Trust this one least: across 37 graded nights the old version of this score finished level with picking names at random, so it was rebuilt on 2026-08-09 around recent extra-base form, the arm’s contact allowed and the park’s hit factor. The new one grades better but has not yet proven it beats a coin flip.',
-  'tb score': 'Total bases — ranks him on piling up bases (a double is 2, a homer is 4). Higher ranks better. Trust this one least: across 37 graded nights the old version finished level with picking names at random. Rebuilt 2026-08-09 and still under watch.',
+  'tb': 'Total bases — ranks him on piling up bases (a double is 2, a homer is 4). Higher ranks better. Trust this one least: the old version of this score finished level with picking names at random, so it was rebuilt on 2026-08-09 around recent extra-base form, the arm’s contact allowed and the park’s hit factor. The new one grades better but has not yet proven it beats a coin flip.',
+  'tb score': 'Total bases — ranks him on piling up bases (a double is 2, a homer is 4). Higher ranks better. Trust this one least: the old version finished level with picking names at random. Rebuilt 2026-08-09 and still under watch.',
   'contact': 'The total-bases market — doubles, triples and homers, not just whether he got a hit. The weakest of the four scores by a distance; see TB score.',
   'contact score': 'The total-bases market. Rebuilt 2026-08-09 after it graded out level with a random shuffle. Now built on recent extra-base form, the opposing arm’s contact allowed, and how many hits the park gives up. Better, not yet proven.',
   'hrw': 'HR window: how his bat has looked lately. His last 20 plate appearances of contact (ideal home-run contact, barrels, 350 and 375 ft balls, hard-hit, exit velo, fly balls, pull, xwOBA) plus his last 5-7 games (home runs first, then extra-base hits), trusted more the more recent data there is. 0-88. Higher is hotter.',
-  'due': 'Retired 2026-09-06. The due score measured backwards — hitters 10+ games without a homer went deep 9% of the time against 12.6% for everyone else. Drought is still shown as a plain count; it does not move a score.',
-  'power-3': 'Season power, ranked on tonight’s slate: the mean of his HR-per-ball-in-play, average EV and max EV ranks. The top ten each night homered 21.4% of the time over 155 nights (11.2% base).',
-  'pwr-3': 'Season power, ranked on tonight’s slate: the mean of his HR-per-ball-in-play, average EV and max EV ranks. The top ten each night homered 21.4% of the time over 155 nights (11.2% base).',
+  'due': 'Retired 2026-09-06. The due score measured backwards. Drought is still shown as a plain count; it does not move a score.',
+  'power-3': 'Season power, ranked on tonight’s slate: the mean of his HR-per-ball-in-play, average EV and max EV ranks.',
+  'pwr-3': 'Season power, ranked on tonight’s slate: the mean of his HR-per-ball-in-play, average EV and max EV ranks.',
   'long': 'Ranks him on hitting the LONGEST ball of the night, which is a different question from hitting any homer. Higher ranks better.',
   'longest': 'Ranks him on hitting the LONGEST ball of the night, which is a different question from hitting any homer. Higher ranks better.',
   'damage': 'When he does hit the ball hard, how often that turns into real damage instead of an out. Higher ranks better.',

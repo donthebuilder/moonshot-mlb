@@ -1331,7 +1331,7 @@ export default function Home({
                         </span>
                         <span style={{ fontSize: TYPE.body, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0, flex: 1 }}>
                           {nameOf(p)}
-                          {p?.weak_spot_flag ? <span title="Weak lineup spot vs this starter — the validated 18.0% vs 13.9% flag" style={{ fontSize: TYPE.micro }}> ★</span> : null}
+                          {p?.weak_spot_flag ? <span title="Weak lineup spot vs this starter" style={{ fontSize: TYPE.micro }}> ★</span> : null}
                         </span>
                         <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, color: C.text3, whiteSpace: 'nowrap', flexShrink: 0 }}>
                           vs {clean(p?.pitcher_name, 'TBD').split(' ').slice(-1)[0]}
