@@ -90,7 +90,7 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
       tooltip: `${g.game.away.abbrev} @ ${g.game.home.abbrev}`,
       dial: { value: best || null, pct: best, title: `The best LAMP score in this game: ${best ? best.toFixed(0) : '—'} of 100.` },
       band: topId === g.game.id && games.length > 1 ? { icon: '🌋', word: 'MAIN EVENT' } : heat >= 0.62 ? { icon: '🔥', word: '' } : heat < 0.3 && games.length > 2 ? { icon: '🧊', word: '' } : null,
-      lead: <span title={g.locked ? 'The board locked before puck drop' : 'A preview until the board locks'}>{g.locked ? '🔒' : '◻'}</span>,
+      lead: <span title={g.locked ? 'The board locked before puck drop' : g.setting ? 'Setting: the calls can still change until puck drop' : 'A preview until the board locks'}>{g.locked ? '🔒' : '◻'}</span>,
       status: st === 'live' ? { kind: 'live', text: g.game.statusLine || 'LIVE' } : st === 'final' ? { kind: 'final', text: 'FINAL' } : { kind: 'time', text: timeOf(g) },
       extra: b2b.length ? <span>{b2b.join(' & ')} on a back-to-back</span> : null,
       score: st !== 'upcoming' ? { away: g.game.away.abbrev, home: g.game.home.abbrev, awayScore: g.game.away.score, homeScore: g.game.home.score, live: st === 'live' } : null,

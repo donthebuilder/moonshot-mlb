@@ -171,7 +171,7 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
             <tbody>
               {boardGames.map((g) => {
                 const called = g.rows.filter((r) => r.status === 'called')
-                const stamp = g.graded ? 'GRADED' : g.locked ? 'LOCKED' : 'PREVIEW'
+                const stamp = g.graded ? 'GRADED' : g.locked ? 'LOCKED' : g.setting ? 'SETTING' : 'PREVIEW'
                 return (
                   <tr key={g.game.id} onClick={() => setTab?.('board')} style={{ borderTop: `1px solid ${C.border}`, cursor: 'pointer' }}>
                     <td style={{ ...td, whiteSpace: 'nowrap', fontFamily: NUM_FONT, fontWeight: 800, fontSize: 11 }}>{g.game.away.abbrev}@{g.game.home.abbrev}</td>

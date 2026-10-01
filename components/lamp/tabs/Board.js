@@ -355,8 +355,8 @@ export function GameBoard({ g, onOpenPlayer, onOpenGame, onOpenTeam, market = 'G
   const [showOff, setShowOff] = useState(false)
   const live = game.state === 'live'; const done = game.state === 'final'
   const ctx = g.rows[0]?.context || {}
-  const stamp = g.graded ? 'GRADED' : g.locked ? 'LOCKED' : 'PREVIEW · NOT A CALL'
-  const stampTone = g.graded ? C.cream : g.locked ? C.teal : C.amber
+  const stamp = g.graded ? 'GRADED' : g.locked ? 'LOCKED' : g.setting ? 'SETTING · LOCKS AT PUCK DROP' : 'PREVIEW · NOT A CALL'
+  const stampTone = g.graded ? C.cream : g.locked ? C.teal : g.setting ? C.ice : C.amber
   // Rank order as the board gives it -- no initial sort, so no "sorted by"
   // line above the table (a phone row the old table didn't spend).
   const rows = [...scored].sort((a, b) => (a.rank ?? 999) - (b.rank ?? 999)).map((r) => ({
@@ -382,7 +382,8 @@ export function GameBoard({ g, onOpenPlayer, onOpenGame, onOpenTeam, market = 'G
         {/* The stamp leads this line rather than wrapping the header onto a
             second one at 390px. */}
         <span style={{ color: C.bg, background: stampTone, font: `900 8px/1 ${NUM_FONT}`, letterSpacing: '.14em', borderRadius: 5, padding: '3px 6px', marginRight: 7, verticalAlign: '1px' }}>{stamp}</span>
-        {g.locked ? `Locked ${new Date(g.lockedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} · ${g.snapshots} snapshot${g.snapshots === 1 ? '' : 's'}` : `Locks from ${new Date(g.locksAtUtc).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}, last write before puck drop`}
+        {g.locked ? `Locked ${new Date(g.lockedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} · ${g.snapshots} snapshot${g.snapshots === 1 ? '' : 's'}`
+          : g.setting ? `Updated ${new Date(g.lockedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} · final at puck drop` : `Locks from ${new Date(g.locksAtUtc).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}, last write before puck drop`}
         {' · '}{g.lineupKnown ? 'lineup posted — dressed skaters only' : 'lineup not posted — full roster'}
         {ctx.oppGaPg != null ? ` · opp allows ${ctx.oppGaPg.toFixed(2)} GA/GP` : ''}{ctx.b2b ? ' · 2nd of back-to-back' : ''}
         {/* The net. Pregame the feed names no starter, so nothing is printed (rule 16); once graded, who started and his line. */}

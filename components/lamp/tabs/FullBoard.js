@@ -21,7 +21,7 @@ import { STATUS, NavBtn } from './Board'
 //
 // Every row carries its game's stamp. A PREVIEW is not a call; a LOCKED
 // score was frozen at that game's lock, so one night can mix snapshots.
-const STAMP = { graded: 'GRADED', locked: 'LOCKED', preview: 'PREVIEW' }
+const STAMP = { graded: 'GRADED', locked: 'LOCKED', setting: 'SETTING', preview: 'PREVIEW' }
 const STAMP_TONE = { graded: C.cream, locked: C.teal, preview: C.amber }
 
 // The day is the LAMP shell's (LampDashboard, 2026-09-26): one date for the

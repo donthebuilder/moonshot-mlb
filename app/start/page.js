@@ -349,7 +349,7 @@ async function computeLampCalls() {
   return {
     games: board.games.map((g) => ({
       id: g.game.id, away: g.game.away.abbrev, home: g.game.home.abbrev, startUtc: g.game.startUtc, state: g.game.state,
-      locked: g.locked, graded: g.graded,
+      locked: g.locked, setting: Boolean(g.setting), graded: g.graded,
       called: g.rows.filter((r) => r.status === 'called').map((r) => ({ name: r.name, score: r.score, hit: r.hit, dressed: r.dressed })),
     })),
   }
@@ -360,7 +360,7 @@ const etClock = (iso) => `${new Date(iso).toLocaleTimeString('en-US', { timeZone
 /** A game on the hockey board as one bite: stamp · matchup · the three · the clock. */
 const lampBite = (g) => ({
   k: String(g.id), icon: '🏒', gameId: g.id,
-  tag: g.graded ? 'GRADED' : g.locked ? 'LOCKED' : 'PREVIEW',
+  tag: g.graded ? 'GRADED' : g.locked ? 'LOCKED' : g.setting ? 'SETTING' : 'PREVIEW',
   col: g.graded ? 'var(--ink)' : g.locked ? 'var(--nhl)' : 'var(--dim)',
   name: `${g.away} @ ${g.home}`,
   why: g.called.length

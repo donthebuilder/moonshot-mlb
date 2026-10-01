@@ -157,7 +157,7 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel }) {
             )}
             {[p.team ? '' : null, p.pos, spot ? `${opp} · ${spot.g.game.state === 'pre' ? `${fmtPuckDrop(spot.g.game.startUtc)} ${zoneAbbrev()}` : spot.g.game.statusLine || spot.g.game.state}` : null, !p.active ? 'not active' : null].filter((x) => x != null && x !== false).join(' · ')}
           </>}
-          market={[goalie ? 'LAMP · GOALIE' : 'LAMP', !goalie && word, spot && !goalie ? (spot.g.locked ? 'LOCKED' : 'PREVIEW') : null].filter(Boolean).join(' · ')}
+          market={[goalie ? 'LAMP · GOALIE' : 'LAMP', !goalie && word, spot && !goalie ? (spot.g.locked ? 'LOCKED' : spot.g.setting ? 'SETTING' : 'PREVIEW') : null].filter(Boolean).join(' · ')}
           line={row ? (row.why || (row.reason ? `Not on the board: ${row.reason}` : null)) : spot && !goalie && (spot.g.rows || []).length ? 'Not on tonight’s board: he isn’t in the posted lineup or on the club’s current roster.' : null}
           style={{ marginBottom: 10 }}
         />
