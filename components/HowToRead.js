@@ -33,14 +33,21 @@ function Mark({ n, accent }) {
   )
 }
 
-function Part({ n, accent, children, style }) {
+// A part of the row is a button: tap it and the callout under the picture
+// says what it is. The one being explained lights up; the rest step back.
+function Part({ n, accent, active, dim, onPick, label, children, style }) {
   return (
-    <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 8,
-      padding: '8px 10px', borderRadius: 10, border: `1px solid ${accent}40`,
-      background: `linear-gradient(180deg, ${accent}14, ${accent}06)`, ...style }}>
+    <button type="button" onClick={onPick} aria-pressed={active} aria-label={`Part ${n}: ${label}`}
+      style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 8, minHeight: 44,
+        padding: '8px 10px', borderRadius: 10, cursor: 'pointer', font: 'inherit', textAlign: 'left',
+        color: 'inherit', transition: 'opacity .18s, box-shadow .18s, border-color .18s',
+        border: `1px solid ${active ? accent : `${accent}40`}`,
+        background: active ? `linear-gradient(180deg, ${accent}2e, ${accent}10)` : `linear-gradient(180deg, ${accent}14, ${accent}06)`,
+        boxShadow: active ? `0 0 0 3px ${accent}26, 0 0 22px ${accent}40` : 'none',
+        opacity: dim ? 0.55 : 1, ...style }}>
       <Mark n={n} accent={accent} />
       {children}
-    </span>
+    </button>
   )
 }
 
@@ -53,6 +60,7 @@ function Part({ n, accent, children, style }) {
 export default function HowToRead({ id, accent = C.orange, row, notes, steps = [], title = 'How to read this board' }) {
   const [open, setOpen] = useState(false)
   const [seen, setSeen] = useState(true)
+  const [active, setActive] = useState(0)
   const isPhone = useIsPhone()
   const closeRef = useRef(null)
   useEffect(() => { setSeen(readSeen(id)) }, [id])
@@ -64,22 +72,28 @@ export default function HowToRead({ id, accent = C.orange, row, notes, steps = [
     return () => document.removeEventListener('keydown', key)
   }, [open])
   if (!row) return null
-  const openIt = () => { setOpen(true); if (!seen) { markSeen(id); setSeen(true) } }
+  const openIt = () => { setActive(0); setOpen(true); if (!seen) { markSeen(id); setSeen(true) } }
+  const pick = (i) => () => setActive(i)
+  const partProps = (i) => ({ n: i + 1, accent, active: active === i, dim: active !== i, onPick: pick(i), label: notes[i]?.title || '' })
 
   return (
     <>
-      {/* 44px tall hit area without growing the sentence it sits in. */}
+      {/* A pill, so it reads as a thing to tap. Its 44px hit area is an
+          invisible inset span, and the negative margin keeps the sentence's
+          line from growing. */}
       <button type="button" onClick={openIt} aria-haspopup="dialog"
         style={{
-          background: 'transparent', border: 'none', font: 'inherit', cursor: 'pointer',
-          color: accent, fontWeight: 800, padding: '12px 6px', margin: '-12px -6px -12px 4px',
-          minHeight: 44, display: 'inline-flex', alignItems: 'center', gap: 5,
+          position: 'relative', font: 'inherit', cursor: 'pointer', color: accent, fontWeight: 800,
+          margin: '-6px 0 -6px 6px', padding: '3px 10px 3px 8px', borderRadius: 999,
+          border: `1px solid ${accent}66`, background: `${accent}14`, minHeight: 0,
+          display: 'inline-flex', alignItems: 'center', gap: 5, verticalAlign: 'middle', whiteSpace: 'nowrap',
         }}>
+        <span aria-hidden="true" style={{ position: 'absolute', inset: '-10px -4px' }} />
         <span aria-hidden="true">🧭</span>
-        {/* Short on a phone so it shares the line with the sentence before it
-            instead of taking a line of its own; first visit gets a dot. */}
-        <span style={{ borderBottom: `1px dashed ${accent}66` }}>{isPhone ? 'How to read' : (seen ? 'How to read this' : 'New here? How to read this')}</span>
-        {isPhone && !seen && <span aria-label="new" style={{ width: 7, height: 7, borderRadius: 999, background: accent }} />}
+        {/* Short on a phone so it shares the line with the sentence before it;
+            first visit gets a dot. */}
+        <span>{isPhone ? 'How to read' : (seen ? 'How to read this' : 'New here? How to read this')}</span>
+        {!seen && <span aria-label="new" style={{ width: 7, height: 7, borderRadius: 999, background: accent, boxShadow: `0 0 8px ${accent}` }} />}
       </button>
 
       {/* Portalled: the button sits inside a sentence (<p>), and a sheet is
@@ -108,7 +122,7 @@ export default function HowToRead({ id, accent = C.orange, row, notes, steps = [
                   color: C.text2, fontSize: 18, cursor: 'pointer', flex: '0 0 auto' }}>✕</button>
             </div>
             <div style={{ fontSize: TYPE.body, color: C.text2, margin: '2px 0 16px' }}>
-              {row.caption || 'One row from tonight\u2019s board, taken apart.'}
+              {row.caption || 'One row from tonight\u2019s board, taken apart.'} Tap any part of it.
             </div>
 
             {/* THE PICTURE: a real row, drawn like the table draws it. */}
@@ -120,10 +134,10 @@ export default function HowToRead({ id, accent = C.orange, row, notes, steps = [
             }}>
               <span aria-hidden="true" style={{ position: 'absolute', top: 9, left: 12, fontSize: 10, fontWeight: 900, letterSpacing: '.14em',
                 textTransform: 'uppercase', color: accent }}>{row.eyebrow || 'Live from tonight\u2019s board'}</span>
-              <Part n={1} accent={accent}>
+              <Part {...partProps(0)}>
                 <span style={{ fontFamily: NUM_FONT, fontWeight: 900, fontSize: 15, color: C.text }}>#{row.rank}</span>
               </Part>
-              <Part n={2} accent={accent} style={{ flex: '1 1 180px', minWidth: 0 }}>
+              <Part {...partProps(1)} style={{ flex: '1 1 180px', minWidth: 0 }}>
                 <span style={{ borderRadius: 999, padding: 2, background: `conic-gradient(${accent}, ${accent}33, ${accent})`, display: 'inline-flex', flex: '0 0 auto' }}>
                   <span style={{ borderRadius: 999, padding: 2, background: C.bg2, display: 'inline-flex' }}>
                     <PlayerFace sport={row.sport} id={row.faceId} espnId={row.espnId} photo={row.photo} team={row.team} name={row.name} size={42} />
@@ -134,37 +148,46 @@ export default function HowToRead({ id, accent = C.orange, row, notes, steps = [
                   <span style={{ fontSize: TYPE.label, color: C.text3, fontFamily: NUM_FONT }}>{row.team}{row.opp ? ` vs ${row.opp}` : ''}</span>
                 </span>
               </Part>
-              <Part n={3} accent={accent}>
+              <Part {...partProps(2)}>
                 <span style={{ fontSize: TYPE.label, color: C.text3, fontWeight: 800 }}>{row.score.label}</span>
                 <span style={{ fontFamily: NUM_FONT, fontWeight: 900, fontSize: 17, color: C.bg, borderRadius: 7, padding: '3px 9px',
                   background: `linear-gradient(180deg, ${accent}, ${accent}cc)`, boxShadow: `0 0 16px ${accent}55` }}>
                   {Number(row.score.value).toFixed(row.score.dp ?? 1)}
                 </span>
               </Part>
-              <Part n={4} accent={accent}>
+              <Part {...partProps(3)}>
                 <span style={{ fontSize: 15 }} aria-hidden="true">🤖</span>
                 <span style={{ fontSize: TYPE.label, color: row.pick ? accent : C.text3, fontWeight: 800 }}>{row.pick ? `● ${row.pick}` : (row.pickNone || 'not picked tonight')}</span>
               </Part>
-              <Part n={5} accent={accent}>
+              <Part {...partProps(4)}>
                 <span style={{ fontSize: TYPE.label, color: C.text3, fontWeight: 800 }}>{row.fifth.label}</span>
                 <span style={{ fontSize: TYPE.body, color: C.text, fontWeight: 700 }}>{row.fifth.value}</span>
               </Part>
             </div>
 
-            {/* WHAT EACH MARK MEANS */}
-            <ol style={{ listStyle: 'none', margin: '18px 0 0', padding: '0 0 0 2px', display: 'grid', gap: 11,
-              backgroundImage: `linear-gradient(${accent}44, ${accent}44)`, backgroundSize: '2px calc(100% - 20px)', backgroundRepeat: 'no-repeat', backgroundPosition: '11px 10px' }}>
-              {notes.map((nt, i) => (
-                <li key={nt.title} style={{ display: 'grid', gridTemplateColumns: '22px 1fr', gap: 9, alignItems: 'start' }}>
-                  <span aria-hidden="true" style={{ width: 20, height: 20, borderRadius: 999, background: accent, color: C.bg,
-                    fontSize: 11, fontWeight: 900, lineHeight: '20px', textAlign: 'center', fontFamily: NUM_FONT, marginTop: 1,
-                    boxShadow: `0 0 0 3px ${C.bg2}` }}>{i + 1}</span>
-                  <span style={{ fontSize: TYPE.body, color: C.text2, lineHeight: 1.5 }}>
-                    <b style={{ color: C.text }}>{nt.title}.</b> {nt.text}
-                  </span>
-                </li>
-              ))}
-            </ol>
+            {/* THE CALLOUT: what the lit part means, right under it. Tap a part,
+                or step through with the arrows. */}
+            <div aria-live="polite" style={{ marginTop: 12, padding: '12px 12px 10px', borderRadius: 12,
+              background: `${accent}12`, border: `1px solid ${accent}55`, borderLeft: `4px solid ${accent}` }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                <span style={{ fontFamily: NUM_FONT, fontWeight: 900, color: accent, fontSize: 13 }}>{active + 1}</span>
+                <b style={{ color: C.text, fontSize: 15 }}>{notes[active]?.title}</b>
+              </div>
+              <div style={{ fontSize: 13, color: C.text2, lineHeight: 1.5, marginTop: 4, minHeight: 58 }}>{notes[active]?.text}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
+                <button type="button" onClick={() => setActive((a) => (a + notes.length - 1) % notes.length)} aria-label="Previous part"
+                  style={{ width: 44, height: 44, borderRadius: 999, border: `1px solid ${C.border}`, background: C.glass, color: C.text2, fontSize: 18, cursor: 'pointer' }}>‹</button>
+                <span aria-hidden="true" style={{ display: 'inline-flex', gap: 6, flex: 1, justifyContent: 'center' }}>
+                  {notes.map((nt, k) => (
+                    <span key={nt.title} style={{ width: k === active ? 18 : 7, height: 7, borderRadius: 999, transition: 'width .18s',
+                      background: k === active ? accent : `${accent}44` }} />
+                  ))}
+                </span>
+                <button type="button" onClick={() => setActive((a) => (a + 1) % notes.length)}
+                  style={{ minWidth: 88, height: 44, borderRadius: 999, border: `1px solid ${accent}`, background: accent, color: C.bg,
+                    fontWeight: 900, fontSize: 13, cursor: 'pointer' }}>{active === notes.length - 1 ? 'Start over' : 'Next \u203a'}</button>
+              </div>
+            </div>
 
             {steps.length > 0 && (
               <>

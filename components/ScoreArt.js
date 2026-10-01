@@ -118,14 +118,22 @@ function Park({ accent }) {
   )
 }
 
+// items: [name, share %, shown (if not "N%"), short label for inside the bar]
 const ART = {
-  'nfl-td': { Draw: Field, title: 'Where the TD score comes from', items: [['Red-zone work: chances, goal-line looks, expected TDs', 53], ['His team’s expected points', 18], ['Touches', 16], ['Snap share', 13]] },
-  'nhl-goal': { Draw: Rink, title: 'Where the goal score comes from', items: [['Shots a game', 100 / 3, '⅓'], ['Goals a game', 100 / 3, '⅓'], ['Ice time a game', 100 / 3, '⅓']] },
-  'mlb-hr': { Draw: Park, title: 'Where the HR score comes from', items: [['Season power (the biggest part), the starter, park and weather, pitch fit', 70], ['Recent home-run form', 30]] },
+  'nfl-td': { Draw: Field, title: 'Where the TD score comes from',
+    plain: 'About half of it is one question: does he get the ball near the end zone?',
+    items: [['Red-zone work: chances, goal-line looks, expected TDs', 53, null, 'Red zone'], ['His team\u2019s expected points', 18, null, 'Team pts'], ['Touches', 16, null, 'Touches'], ['Snap share', 13, null, 'Snaps']] },
+  'nhl-goal': { Draw: Rink, title: 'Where the goal score comes from',
+    plain: 'Three equal questions: does he shoot, does he score, does he play big minutes?',
+    items: [['Shots a game', 100 / 3, '\u2153', 'Shots'], ['Goals a game', 100 / 3, '\u2153', 'Goals'], ['Ice time a game', 100 / 3, '\u2153', 'Ice time']] },
+  'mlb-hr': { Draw: Park, title: 'Where the HR score comes from',
+    plain: 'Mostly tonight\u2019s setup (his power, the pitcher, the park), plus how he\u2019s been hitting them lately.',
+    items: [['Season power (the biggest part), the starter, park and weather, pitch fit', 70, null, 'Tonight\u2019s setup'], ['Recent home-run form', 30, null, 'Recent form']] },
 }
 
 export const hasScoreArt = (id) => Boolean(ART[id])
 
+const SLICE_ALPHA = ['', 'a6', '73', '4d']
 const tone = (i) => [1, 0.72, 0.5, 0.34][i] ?? 0.3
 
 export default function ScoreArt({ id, accent = C.orange }) {
@@ -138,11 +146,20 @@ export default function ScoreArt({ id, accent = C.orange }) {
       <style>{`@keyframes saFlight{to{stroke-dashoffset:-14}}.sa-flight{animation:saFlight 1.2s linear infinite}@media (prefers-reduced-motion: reduce){.sa-flight{animation:none}}`}</style>
       <Draw accent={accent} />
       <div style={{ minWidth: 0 }}>
-        <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.08em', textTransform: 'uppercase', color: C.text, marginBottom: 7 }}>{a.title}</div>
-        {/* THE WEIGHT BAR: one bar, each part's share as its slice. */}
-        <div aria-hidden="true" style={{ display: 'flex', height: 10, borderRadius: 999, overflow: 'hidden', gap: 2, marginBottom: 8 }}>
-          {a.items.map(([name, share], i) => (
-            <span key={name} style={{ flex: `${share} 0 0`, background: accent, opacity: tone(i) }} />
+        <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.08em', textTransform: 'uppercase', color: accent, marginBottom: 4 }}>{a.title}</div>
+        {/* IN PLAIN WORDS first, then the parts. */}
+        <div style={{ fontSize: 13, fontWeight: 700, color: C.text, lineHeight: 1.4, marginBottom: 9 }}>{a.plain}</div>
+        {/* THE WEIGHT BAR: one bar, each part's share as its slice, named
+            inside when the slice has room. */}
+        <div aria-hidden="true" style={{ display: 'flex', height: 22, borderRadius: 7, overflow: 'hidden', gap: 2, marginBottom: 9 }}>
+          {a.items.map(([name, share, , short], i) => (
+            <span key={name} style={{ flex: `${share} 0 0`, minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              // Faded with background alpha, not opacity, so the label stays
+              // solid; light ink on the paler slices.
+              background: `${accent}${SLICE_ALPHA[i] ?? '4d'}`, color: i === 0 ? C.bg : C.text,
+              fontSize: 10, fontWeight: 900, whiteSpace: 'nowrap', overflow: 'hidden' }}>
+              {share >= 25 ? short : ''}
+            </span>
           ))}
         </div>
         <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 4 }}>

@@ -104,41 +104,46 @@ function Track({ accent, line, dim, ink }) {
 }
 
 const STEPS = [
-  { key: 'look', verb: 'Look', Art: Board },
-  { key: 'pick', verb: 'Pick', Art: Pick },
-  { key: 'track', verb: 'Track', Art: Track },
+  { key: 'look', verb: 'Look', Art: Board, cta: 'Open board' },
+  { key: 'pick', verb: 'Pick', Art: Pick, cta: 'See picks' },
+  { key: 'track', verb: 'Track', Art: Track, cta: 'See record' },
 ]
 
 /**
  * sport: 'mlb' | 'nfl' | 'nhl'
  * colors: { accent, ink, dim, line, bg } -- CSS colours (variables welcome); bg inks the step number
- * recordHref: where "Track" points (the sport's public record)
+ * hrefs: { look, pick, track } -- each tile is a tap-through to the real place
+ *        (recordHref is the older name for hrefs.track)
  */
-export default function HowItWorks({ sport, colors, recordHref = null, title = 'How it works' }) {
+export default function HowItWorks({ sport, colors, recordHref = null, hrefs = {}, title = 'How it works' }) {
+  const to = { ...hrefs, track: hrefs.track || recordHref }
   const words = WORDS[sport] || WORDS.mlb
   const { accent, ink, dim, line, bg } = colors
   return (
     <div>
       <h2 style={{ margin: '0 0 12px', fontSize: 17, fontWeight: 800, color: ink }}>{title}</h2>
       <ol style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 14 }}>
-        {STEPS.map(({ key, verb, Art }, i) => (
+        {STEPS.map(({ key, verb, Art, cta }, i) => (
           <li key={key} style={{
             position: 'relative', minWidth: 0, borderRadius: 12, padding: '10px 8px 12px',
             border: `1px solid ${tint(accent, 30)}`,
             background: `radial-gradient(120% 80% at 50% 0%, ${tint(accent, 14)}, transparent 70%)`,
-            display: 'grid', justifyItems: 'center', textAlign: 'center', gap: 7, alignContent: 'start',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: 7,
           }}>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
               <span aria-hidden="true" style={{ width: 20, height: 20, borderRadius: 999, background: accent, color: bg || ink, fontSize: 11, fontWeight: 900, lineHeight: '20px' }}>{i + 1}</span>
               <span style={{ fontSize: 12, fontWeight: 900, letterSpacing: '.12em', textTransform: 'uppercase', color: accent }}>{verb}</span>
             </span>
             <Art accent={accent} line={line} dim={dim} ink={ink} />
-            <span style={{ fontSize: 12, lineHeight: 1.4, color: dim }}>
-              {words[key]}
-              {key === 'track' && recordHref && (
-                <> <a href={recordHref} style={{ color: ink, fontWeight: 700, display: 'inline-block', padding: '12px 4px', margin: '-12px -4px' }}>See the record</a></>
-              )}
-            </span>
+            <span style={{ fontSize: 12, lineHeight: 1.4, color: dim }}>{words[key]}</span>
+            {/* The whole tile is the link (a stretched anchor), so a thumb
+                anywhere on it lands on the real place. */}
+            {to[key] && (
+              <a href={to[key]} style={{ fontSize: 12, fontWeight: 800, color: accent, textDecoration: 'none', marginTop: 'auto', whiteSpace: 'nowrap' }}>
+                <span aria-hidden="true" style={{ position: 'absolute', inset: 0, borderRadius: 12 }} />
+                {cta}{'\u00a0\u203a'}
+              </a>
+            )}
             {/* the arrow to the next step, sitting in the gap */}
             {i < STEPS.length - 1 && (
               <svg aria-hidden="true" focusable="false" viewBox="0 0 12 12" width="12" height="12"

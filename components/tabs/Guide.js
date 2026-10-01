@@ -4,7 +4,7 @@ import HowItWorks from '../HowItWorks'
 import { ORANGE_RAMP, inkFor } from '../Heatmap'
 import PaletteToggle from '../PaletteToggle'
 import { RAMPS, usePalette } from '../../lib/palette'
-import { tabName } from '../../lib/routes'
+import { tabName, appHref } from '../../lib/routes'
 import { Section, P, Note, Term, Stat, StartHere, GuideTitle, PlaybookLink } from '../guide/GuideParts'
 
 // GUIDE — rewritten short, 2026-08-09.
@@ -143,7 +143,7 @@ export default function Guide({ onNavigate }) {
       <PlaybookLink market="hr" label="How to research a home run" />
       {/* LOOK -> PICK -> TRACK (2026-10-01): the same three drawings as /start. */}
       <div style={{ margin: '14px 0 18px' }}>
-        <HowItWorks sport="mlb" recordHref="/called?sport=mlb"
+        <HowItWorks sport="mlb" hrefs={{ look: appHref('mlb', 'board'), pick: appHref('mlb', 'board'), track: '/called?sport=mlb' }}
           colors={{ accent: C.orange, ink: C.text, dim: C.text2, line: C.border, bg: C.bg }} />
       </div>
 

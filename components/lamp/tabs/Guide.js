@@ -1,5 +1,6 @@
 'use client'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
+import { appHref } from '../../../lib/routes'
 import HowItWorks from '../../HowItWorks'
 import { NHL_NAV } from '../../../lib/nhl/routes'
 import { GuideTheme, Section, P, Term, StartHere, GuideTitle, PlaybookLink } from '../../guide/GuideParts'
@@ -55,7 +56,7 @@ export default function Guide({ onNavigate }) {
       <PlaybookLink market="goal" label="How to research a goal" />
       {/* LOOK -> PICK -> TRACK (2026-10-01): the same three drawings as /start. */}
       <div style={{ margin: '14px 0 18px' }}>
-        <HowItWorks sport="nhl" recordHref="/called?sport=nhl"
+        <HowItWorks sport="nhl" hrefs={{ look: appHref('nhl', 'board'), pick: appHref('nhl', 'board'), track: '/called?sport=nhl' }}
           colors={{ accent: C.ice, ink: C.text, dim: C.text2, line: C.border, bg: C.bg }} />
       </div>
 

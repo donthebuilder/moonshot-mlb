@@ -507,7 +507,7 @@ export default async function StartPage({ searchParams }) {
         </div>
       </section>
 
-      <section className={styles.panel}>
+      <section className={styles.panel} id="picks">
         {/* ── ONE HEADER, NOT TWO (2026-09-21) ────────────────────────────
             BotPicksStrip carries its OWN header -- the "The Four" title, the
             "four categories, three deep" line, and the measured "65% over 25
@@ -553,7 +553,7 @@ export default async function StartPage({ searchParams }) {
           site is for, under the picks so the first picks stay where they were.
           Colours are this page's own CSS variables (--accent per sport). */}
       <section className={styles.panel} data-sport={sportKey}>
-        <HowItWorks sport={sportKey} recordHref={sport.recordHref}
+        <HowItWorks sport={sportKey} hrefs={{ look: appHref(sportKey, 'board'), pick: '#picks', track: sport.recordHref }}
           colors={{ accent: 'var(--accent)', ink: 'var(--ink)', dim: 'var(--dim)', line: 'var(--line)', bg: 'var(--bg)' }} />
       </section>
 

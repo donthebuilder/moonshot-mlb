@@ -1,7 +1,7 @@
 'use client'
 import { C, NUM_FONT, MARKETS } from '../../../lib/nfl/theme'
 import HowItWorks from '../../HowItWorks'
-import { NFL_NAV } from '../../../lib/routes'
+import { NFL_NAV, appHref } from '../../../lib/routes'
 import { GuideTheme, Section, P, Note, Term, Stat, StartHere, GuideTitle, PlaybookLink } from '../../guide/GuideParts'
 
 // Guide — what every number means, and what it doesn't.
@@ -28,7 +28,7 @@ export default function Guide({ onNavigate, data }) {
       <PlaybookLink market="td" label="How to research a touchdown" />
       {/* LOOK -> PICK -> TRACK (2026-10-01): the same three drawings as /start. */}
       <div style={{ margin: '14px 0 18px' }}>
-        <HowItWorks sport="nfl" recordHref="/called?sport=nfl"
+        <HowItWorks sport="nfl" hrefs={{ look: appHref('nfl', 'board'), pick: appHref('nfl', 'board'), track: '/called?sport=nfl' }}
           colors={{ accent: C.green, ink: C.text, dim: C.text2, line: C.border, bg: C.bg }} />
       </div>
 
