@@ -2,9 +2,8 @@
 // Donovan's own statement -- not legal advice. Static, indexable, linked
 // from the footers of /start, /called and /login.
 //
-// The words are BATCH-MEMBERS-PLAN.md's TERMS DRAFT, verbatim. The contact
-// line renders only when NEXT_PUBLIC_CONTACT_EMAIL is set: no address is
-// published on the site today, and this page doesn't invent one.
+// The words are BATCH-MEMBERS-PLAN.md's TERMS DRAFT, verbatim (Donovan
+// approved them 2026-10-01). The contact address is the one he gave.
 import AuthPageHeader from '../../components/AuthPageHeader'
 import styles from '../(front)/dash.module.css'
 
@@ -14,7 +13,9 @@ export const metadata = {
 }
 
 export default function TermsPage() {
-  const email = String(process.env.NEXT_PUBLIC_CONTACT_EMAIL || '').trim()
+  // Donovan, 2026-10-01: donto123@gmail.com until there is a DASH address.
+  // NEXT_PUBLIC_CONTACT_EMAIL overrides it without a code change.
+  const email = String(process.env.NEXT_PUBLIC_CONTACT_EMAIL || 'donto123@gmail.com').trim()
   const contact = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null
   return (
     <main className={styles.page}>
