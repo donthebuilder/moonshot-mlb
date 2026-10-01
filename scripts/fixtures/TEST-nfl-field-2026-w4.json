@@ -1,0 +1,595 @@
+{
+ "_note": "TEST DATA -- a frozen slice of nfl_matchup.json (data branch, season 2026, built for week 4; fetched 2026-10-01) for scripts/check-field-model.mjs. Not read by the site.",
+ "season": 2026,
+ "field": {
+  "def_pass": {
+   "PIT": {
+    "right|short": {
+     "att": 10,
+     "cmp": 6,
+     "yds": 33,
+     "td": 1,
+     "ypa": 3.3,
+     "cmp_pct": 60
+    },
+    "middle|deep": {
+     "att": 1,
+     "cmp": 1,
+     "yds": 25,
+     "td": 1,
+     "ypa": 25,
+     "cmp_pct": 100
+    },
+    "left|behind": {
+     "att": 8,
+     "cmp": 7,
+     "yds": 40,
+     "td": 0,
+     "ypa": 5,
+     "cmp_pct": 88
+    },
+    "right|mid": {
+     "att": 4,
+     "cmp": 2,
+     "yds": 34,
+     "td": 0,
+     "ypa": 8.5,
+     "cmp_pct": 50
+    },
+    "left|deep": {
+     "att": 2,
+     "cmp": 1,
+     "yds": 30,
+     "td": 0,
+     "ypa": 15,
+     "cmp_pct": 50
+    },
+    "middle|behind": {
+     "att": 1,
+     "cmp": 0,
+     "yds": 0,
+     "td": 0,
+     "ypa": 0,
+     "cmp_pct": 0
+    },
+    "middle|mid": {
+     "att": 4,
+     "cmp": 3,
+     "yds": 39,
+     "td": 0,
+     "ypa": 9.8,
+     "cmp_pct": 75
+    },
+    "middle|short": {
+     "att": 11,
+     "cmp": 7,
+     "yds": 68,
+     "td": 0,
+     "ypa": 6.2,
+     "cmp_pct": 64
+    },
+    "right|deep": {
+     "att": 4,
+     "cmp": 3,
+     "yds": 120,
+     "td": 1,
+     "ypa": 30,
+     "cmp_pct": 75
+    },
+    "right|behind": {
+     "att": 8,
+     "cmp": 5,
+     "yds": 37,
+     "td": 1,
+     "ypa": 4.6,
+     "cmp_pct": 62
+    },
+    "left|short": {
+     "att": 16,
+     "cmp": 13,
+     "yds": 88,
+     "td": 0,
+     "ypa": 5.5,
+     "cmp_pct": 81
+    },
+    "left|mid": {
+     "att": 8,
+     "cmp": 6,
+     "yds": 119,
+     "td": 0,
+     "ypa": 14.9,
+     "cmp_pct": 75
+    }
+   },
+   "CAR": {
+    "right|mid": {
+     "att": 6,
+     "cmp": 4,
+     "yds": 67,
+     "td": 0,
+     "ypa": 11.2,
+     "cmp_pct": 67
+    },
+    "right|short": {
+     "att": 16,
+     "cmp": 7,
+     "yds": 51,
+     "td": 2,
+     "ypa": 3.2,
+     "cmp_pct": 44
+    },
+    "middle|deep": {
+     "att": 1,
+     "cmp": 0,
+     "yds": 0,
+     "td": 0,
+     "ypa": 0,
+     "cmp_pct": 0
+    },
+    "right|behind": {
+     "att": 12,
+     "cmp": 9,
+     "yds": 56,
+     "td": 0,
+     "ypa": 4.7,
+     "cmp_pct": 75
+    },
+    "left|short": {
+     "att": 16,
+     "cmp": 11,
+     "yds": 80,
+     "td": 0,
+     "ypa": 5,
+     "cmp_pct": 69
+    },
+    "left|mid": {
+     "att": 3,
+     "cmp": 2,
+     "yds": 38,
+     "td": 1,
+     "ypa": 12.7,
+     "cmp_pct": 67
+    },
+    "left|deep": {
+     "att": 3,
+     "cmp": 2,
+     "yds": 50,
+     "td": 1,
+     "ypa": 16.7,
+     "cmp_pct": 67
+    },
+    "middle|mid": {
+     "att": 6,
+     "cmp": 1,
+     "yds": 15,
+     "td": 0,
+     "ypa": 2.5,
+     "cmp_pct": 17
+    },
+    "middle|short": {
+     "att": 14,
+     "cmp": 13,
+     "yds": 116,
+     "td": 0,
+     "ypa": 8.3,
+     "cmp_pct": 93
+    },
+    "right|deep": {
+     "att": 3,
+     "cmp": 1,
+     "yds": 47,
+     "td": 0,
+     "ypa": 15.7,
+     "cmp_pct": 33
+    },
+    "left|behind": {
+     "att": 7,
+     "cmp": 6,
+     "yds": 38,
+     "td": 0,
+     "ypa": 5.4,
+     "cmp_pct": 86
+    }
+   }
+  },
+  "def_rush": {
+   "PIT": {
+    "left|tackle": {
+     "att": 13,
+     "yds": 46,
+     "td": 0,
+     "ypc": 3.5,
+     "stf": 2,
+     "x10": 0
+    },
+    "right|end": {
+     "att": 7,
+     "yds": 52,
+     "td": 0,
+     "ypc": 7.4,
+     "stf": 0,
+     "x10": 2
+    },
+    "right|guard": {
+     "att": 8,
+     "yds": 13,
+     "td": 0,
+     "ypc": 1.6,
+     "stf": 4,
+     "x10": 0
+    },
+    "left|guard": {
+     "att": 9,
+     "yds": 68,
+     "td": 1,
+     "ypc": 7.6,
+     "stf": 1,
+     "x10": 1
+    },
+    "left|end": {
+     "att": 6,
+     "yds": 32,
+     "td": 0,
+     "ypc": 5.3,
+     "stf": 3,
+     "x10": 2
+    },
+    "middle|middle": {
+     "att": 26,
+     "yds": 102,
+     "td": 0,
+     "ypc": 3.9,
+     "stf": 6,
+     "x10": 3
+    },
+    "right|tackle": {
+     "att": 6,
+     "yds": 29,
+     "td": 0,
+     "ypc": 4.8,
+     "stf": 1,
+     "x10": 1
+    }
+   },
+   "CAR": {
+    "left|tackle": {
+     "att": 12,
+     "yds": 61,
+     "td": 0,
+     "ypc": 5.1,
+     "stf": 0,
+     "x10": 1
+    },
+    "right|tackle": {
+     "att": 9,
+     "yds": 67,
+     "td": 0,
+     "ypc": 7.4,
+     "stf": 1,
+     "x10": 2
+    },
+    "middle|middle": {
+     "att": 25,
+     "yds": 142,
+     "td": 3,
+     "ypc": 5.7,
+     "stf": 4,
+     "x10": 3
+    },
+    "right|end": {
+     "att": 13,
+     "yds": 83,
+     "td": 0,
+     "ypc": 6.4,
+     "stf": 1,
+     "x10": 2
+    },
+    "left|end": {
+     "att": 11,
+     "yds": 62,
+     "td": 2,
+     "ypc": 5.6,
+     "stf": 2,
+     "x10": 1
+    },
+    "right|guard": {
+     "att": 14,
+     "yds": 71,
+     "td": 1,
+     "ypc": 5.1,
+     "stf": 0,
+     "x10": 1
+    },
+    "left|guard": {
+     "att": 15,
+     "yds": 96,
+     "td": 0,
+     "ypc": 6.4,
+     "stf": 1,
+     "x10": 3
+    }
+   }
+  },
+  "league_pass": {
+   "middle|behind": {
+    "att": 46,
+    "cmp": 30,
+    "yds": 110,
+    "td": 4,
+    "ypa": 2.4,
+    "cmp_pct": 65
+   },
+   "middle|deep": {
+    "att": 67,
+    "cmp": 31,
+    "yds": 1017,
+    "td": 9,
+    "ypa": 15.2,
+    "cmp_pct": 46
+   },
+   "right|mid": {
+    "att": 228,
+    "cmp": 138,
+    "yds": 2452,
+    "td": 14,
+    "ypa": 10.8,
+    "cmp_pct": 61
+   },
+   "right|behind": {
+    "att": 234,
+    "cmp": 197,
+    "yds": 996,
+    "td": 6,
+    "ypa": 4.3,
+    "cmp_pct": 84
+   },
+   "left|short": {
+    "att": 543,
+    "cmp": 404,
+    "yds": 3500,
+    "td": 30,
+    "ypa": 6.4,
+    "cmp_pct": 74
+   },
+   "left|deep": {
+    "att": 144,
+    "cmp": 48,
+    "yds": 1544,
+    "td": 8,
+    "ypa": 10.7,
+    "cmp_pct": 33
+   },
+   "right|deep": {
+    "att": 142,
+    "cmp": 52,
+    "yds": 1776,
+    "td": 14,
+    "ypa": 12.5,
+    "cmp_pct": 37
+   },
+   "middle|short": {
+    "att": 304,
+    "cmp": 223,
+    "yds": 2013,
+    "td": 20,
+    "ypa": 6.6,
+    "cmp_pct": 73
+   },
+   "right|short": {
+    "att": 604,
+    "cmp": 440,
+    "yds": 3423,
+    "td": 31,
+    "ypa": 5.7,
+    "cmp_pct": 73
+   },
+   "middle|mid": {
+    "att": 196,
+    "cmp": 131,
+    "yds": 2405,
+    "td": 14,
+    "ypa": 12.3,
+    "cmp_pct": 67
+   },
+   "left|behind": {
+    "att": 223,
+    "cmp": 190,
+    "yds": 929,
+    "td": 1,
+    "ypa": 4.2,
+    "cmp_pct": 85
+   },
+   "left|mid": {
+    "att": 226,
+    "cmp": 124,
+    "yds": 2035,
+    "td": 7,
+    "ypa": 9,
+    "cmp_pct": 55
+   }
+  },
+  "league_rush": {
+   "middle|middle": {
+    "att": 705,
+    "yds": 2718,
+    "td": 27,
+    "ypc": 3.9,
+    "stf": 101,
+    "x10": 49
+   },
+   "right|guard": {
+    "att": 310,
+    "yds": 1108,
+    "td": 6,
+    "ypc": 3.6,
+    "stf": 58,
+    "x10": 20
+   },
+   "left|guard": {
+    "att": 306,
+    "yds": 1320,
+    "td": 11,
+    "ypc": 4.3,
+    "stf": 30,
+    "x10": 24
+   },
+   "left|end": {
+    "att": 306,
+    "yds": 1748,
+    "td": 15,
+    "ypc": 5.7,
+    "stf": 59,
+    "x10": 61
+   },
+   "right|end": {
+    "att": 293,
+    "yds": 1552,
+    "td": 10,
+    "ypc": 5.3,
+    "stf": 46,
+    "x10": 51
+   },
+   "right|tackle": {
+    "att": 268,
+    "yds": 1084,
+    "td": 7,
+    "ypc": 4,
+    "stf": 51,
+    "x10": 29
+   },
+   "left|tackle": {
+    "att": 294,
+    "yds": 1278,
+    "td": 3,
+    "ypc": 4.3,
+    "stf": 44,
+    "x10": 29
+   }
+  },
+  "player_pass": {
+   "00-0038794": {
+    "middle|short": {
+     "att": 1,
+     "cmp": 0,
+     "yds": 0,
+     "td": 0,
+     "ypa": 0,
+     "cmp_pct": 0
+    }
+   },
+   "00-0039139": {
+    "left|short": {
+     "att": 5,
+     "cmp": 5,
+     "yds": 45,
+     "td": 0,
+     "ypa": 9,
+     "cmp_pct": 100
+    },
+    "right|mid": {
+     "att": 1,
+     "cmp": 1,
+     "yds": 11,
+     "td": 1,
+     "ypa": 11,
+     "cmp_pct": 100
+    },
+    "left|behind": {
+     "att": 2,
+     "cmp": 1,
+     "yds": 13,
+     "td": 0,
+     "ypa": 6.5,
+     "cmp_pct": 50
+    },
+    "right|behind": {
+     "att": 3,
+     "cmp": 3,
+     "yds": 19,
+     "td": 1,
+     "ypa": 6.3,
+     "cmp_pct": 100
+    },
+    "middle|short": {
+     "att": 6,
+     "cmp": 6,
+     "yds": 55,
+     "td": 0,
+     "ypa": 9.2,
+     "cmp_pct": 100
+    },
+    "middle|behind": {
+     "att": 1,
+     "cmp": 0,
+     "yds": 0,
+     "td": 0,
+     "ypa": 0,
+     "cmp_pct": 0
+    },
+    "right|short": {
+     "att": 3,
+     "cmp": 2,
+     "yds": 13,
+     "td": 0,
+     "ypa": 4.3,
+     "cmp_pct": 67
+    }
+   }
+  },
+  "player_rush": {
+   "00-0038794": {
+    "right|tackle": {
+     "att": 1,
+     "yds": 3,
+     "td": 0,
+     "ypc": 3
+    }
+   },
+   "00-0039139": {
+    "right|tackle": {
+     "att": 11,
+     "yds": 66,
+     "td": 0,
+     "ypc": 6
+    },
+    "left|tackle": {
+     "att": 6,
+     "yds": 23,
+     "td": 0,
+     "ypc": 3.8
+    },
+    "right|guard": {
+     "att": 7,
+     "yds": 24,
+     "td": 0,
+     "ypc": 3.4
+    },
+    "right|end": {
+     "att": 7,
+     "yds": 50,
+     "td": 1,
+     "ypc": 7.1
+    },
+    "middle|middle": {
+     "att": 21,
+     "yds": 88,
+     "td": 2,
+     "ypc": 4.2
+    },
+    "left|end": {
+     "att": 5,
+     "yds": 18,
+     "td": 0,
+     "ypc": 3.6
+    },
+    "left|guard": {
+     "att": 8,
+     "yds": 38,
+     "td": 1,
+     "ypc": 4.8
+    }
+   }
+  },
+  "qb_pass": {}
+ }
+}

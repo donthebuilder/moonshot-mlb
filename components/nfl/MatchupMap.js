@@ -106,52 +106,17 @@ import Tap from '../Tap'
 // this is two real fields that already exist, read together for the
 // first time.
 
-export const SIDES = ['left', 'middle', 'right']
-export const DEPTHS = ['deep', 'mid', 'short', 'behind']
-
-// Plain English, everywhere, for both halves of a zone name. "TE2", "RECYD/G"
-// and "intermediate" are all jargon to someone who has never watched a game.
-export const DEPTH_WORD = {
-  deep: 'long balls', mid: 'medium passes', short: 'quick passes',
-  behind: 'dumpoffs behind the line',
-}
-export const DEPTH_AX = {
-  deep: ['LONG', '20+ yds'], mid: ['MEDIUM', '10–19'],
-  short: ['QUICK', '0–9'], behind: ['BEHIND', 'the line'],
-}
-export const SIDE_WORD = {
-  left: 'down the left', middle: 'over the middle', right: 'down the right',
+// THE MODEL MOVED (2026-10-01, 0e c F1): lib/nfl/fieldModel.js, pure and
+// tested. Re-exported here until this file goes (F5).
+import {
+  SIDES, DEPTHS, DEPTH_WORD, DEPTH_AX, SIDE_WORD, LANES, LANE_AX, LANE_WORD,
+  TURF, CHALK, CHALK_SOFT, HEAT, fmtPct, phrase, fieldModel,
+} from '../../lib/nfl/fieldModel'
+export {
+  SIDES, DEPTHS, DEPTH_WORD, DEPTH_AX, SIDE_WORD, LANES, LANE_AX, LANE_WORD,
+  TURF, CHALK, CHALK_SOFT, HEAT, fmtPct, phrase, fieldModel,
 }
 
-export const LANES = ['left|end', 'left|tackle', 'left|guard', 'middle|middle',
-  'right|guard', 'right|tackle', 'right|end']
-export const LANE_AX = {
-  'left|end': 'OUTSIDE L', 'left|tackle': 'L TACKLE', 'left|guard': 'L GUARD',
-  'middle|middle': 'MIDDLE', 'right|guard': 'R GUARD', 'right|tackle': 'R TACKLE',
-  'right|end': 'OUTSIDE R',
-}
-export const LANE_WORD = {
-  'left|end': 'runs round the left end', 'left|tackle': 'runs behind the left tackle',
-  'left|guard': 'runs behind the left guard', 'middle|middle': 'runs straight up the middle',
-  'right|guard': 'runs behind the right guard', 'right|tackle': 'runs behind the right tackle',
-  'right|end': 'runs round the right end',
-}
-
-// A leak is only a leak against the league. Against its own grid every defence
-// on earth has a worst zone and the map says nothing at all.
-const MIN_DEF_ATT = 8
-const SPOT_MIN_DEF_ATT = 12
-const SPOT_MIN_SHARE = 4
-
-// Heat saturates at +40% over league. Past that the picture stops
-// distinguishing anything, and +40% is already an enormous hole.
-const HEAT_FULL = 40
-const heatOf = (leak) => (Number.isFinite(leak) && leak > 0 ? Math.min(1, leak / HEAT_FULL) : 0)
-const coolOf = (leak) => (Number.isFinite(leak) && leak < 0 ? Math.min(1, -leak / HEAT_FULL) : 0)
-
-// The four bands as percentages of the field box, end zone included. One
-// table, so the turf, the blooms, the labels and the rings can never disagree
-// about where a band is.
 const EZ = 7
 const BAND = {
   deep: [EZ, 30.25], mid: [30.25, 53.5], short: [53.5, 76.75], behind: [76.75, 100],
@@ -159,114 +124,10 @@ const BAND = {
 const MID = (d) => (BAND[d][0] + BAND[d][1]) / 2
 const COL = { left: 16.7, middle: 50, right: 83.3 }
 
-export const TURF = `linear-gradient(180deg, ${C.turf1}, ${C.turf2})`
-export const CHALK = 'rgba(255,255,255,.17)'
-export const CHALK_SOFT = 'rgba(255,255,255,.09)'
-
-// THE ONE SCALE (2026-09-27, matchups Part A): soft = DASH orange, drawn as
-// the theme's orange at an alpha -- was a hard-coded red that read like an
-// error. Holding up = cyan (TUDDY's analysis ink).
-export const HEAT = (a) => `color-mix(in srgb, ${C.orange} ${Math.round(Math.max(0, Math.min(1, a)) * 100)}%, transparent)`
-export const fmtPct = (n) => `${n > 0 ? '+' : ''}${Math.round(n)}%`
-
-// "1st", "2nd", "3rd", "11th"... — real ordinal formatting for a rank
-// computed off the same 32-team coverage_team dict this card already reads,
-// never a canned "top defense" label.
 const ordinal = (n) => {
   const suf = ['th', 'st', 'nd', 'rd']
   const v = n % 100
   return `${n}${suf[(v - 20) % 10] || suf[v] || suf[0]}`
-}
-
-// THE ZONE MODEL, PURE (2026-09-28): lifted out of the component so the
-// Matchups detail can print the same twelve zones as tiles (components/
-// matchup/MatchupParts HeatTiles) without drawing the field.
-export function phrase(z) {
-  const [side, d] = z.split('|')
-  return d === 'behind'
-    ? `dumpoffs behind the line, ${side === 'middle' ? 'in the middle' : `to the ${side}`}`
-    : `${DEPTH_WORD[d]} ${SIDE_WORD[side]}`
-}
-
-export function fieldModel({ field, defTeam, player = null, mode = 'def', pass = true, qb = false }) {
-  if (!field || !defTeam) return null
-  const dGrid = (pass ? field.def_pass : field.def_rush)?.[defTeam]
-  const lg = (pass ? field.league_pass : field.league_rush) || {}
-  const zones = pass ? SIDES.flatMap((s) => DEPTHS.map((d) => `${s}|${d}`)) : LANES
-  const metric = pass ? 'ypa' : 'ypc'
-  if (!dGrid) return null
-
-  let src = null
-  let sizeOf = null
-  // QB MODE: pass reads from qb_pass (his own throws) instead of
-  // player_pass (who was thrown to). Rush is untouched — a scramble is a
-  // carry either way, already correctly attributed by rusher_player_id.
-  if (mode === 'player') {
-    src = (pass ? (qb ? field.qb_pass : field.player_pass) : field.player_rush)?.[player?.player_id]
-    if (!src) return null
-    const tot = zones.reduce((a, z) => a + (src[z]?.att || 0), 0)
-    if (!tot) return null
-    sizeOf = (z) => (100 * (src[z]?.att || 0)) / tot
-  } else {
-    const tot = zones.reduce((a, z) => a + Math.max(0, dGrid[z]?.yds || 0), 0)
-    if (!tot) return null
-    sizeOf = (z) => (100 * Math.max(0, dGrid[z]?.yds || 0)) / tot
-  }
-
-  const cells = zones.map((z) => {
-    const dz = dGrid[z]
-    const lz = lg[z]
-    const att = dz?.att || 0
-    const share = sizeOf(z)
-    const leak = (att >= MIN_DEF_ATT && lz?.[metric] > 0)
-      ? ((dz[metric] - lz[metric]) / lz[metric]) * 100
-      : null
-    const mine = mode === 'player' ? src[z] : null
-    const where = pass ? phrase(z) : LANE_WORD[z]
-    const unit = qb ? 'throws' : (pass ? 'targets' : 'carries')
-
-    // TD LEAK. Same shape as the yards leak above, off the same payload
-    // (dz.td / lz.td, published alongside .att and .yds all along) —
-    // TUDDY is a touchdown product, and until now this chart never once
-    // said the word. Gated the same way: needs the MIN_DEF_ATT sample and
-    // a real league rate to divide by, or it says nothing rather than
-    // guess.
-    const tdN = dz?.td || 0
-    const tdRate = att > 0 ? tdN / att : null
-    const lgTdRate = lz?.att > 0 ? (lz.td || 0) / lz.att : null
-    const tdLeak = (att >= MIN_DEF_ATT && tdRate != null && lgTdRate > 0)
-      ? ((tdRate - lgTdRate) / lgTdRate) * 100
-      : null
-    const tdLine = att >= MIN_DEF_ATT
-      ? (tdN
-        ? `${tdN} TD${tdN === 1 ? '' : 's'} on ${att} ${unit}${Number.isFinite(tdLeak) && tdLeak > 15 ? ` — ${fmtPct(tdLeak)} vs a normal defence` : ''}`
-        : `No touchdowns there yet on ${att} ${unit}`)
-      : null
-
-    return {
-      z, share, leak, att, dz, lz, mine, tdN, tdLeak,
-      heat: heatOf(leak), cool: coolOf(leak),
-      tip: [
-        where,
-        Number.isFinite(leak)
-          ? `${defTeam} give up ${fmtPct(leak)} vs a normal defence here`
-          : `${defTeam}: too few plays here to call it`,
-        mode === 'player'
-          ? `${player?.name}: ${mine?.att || 0} of his ${unit} (${share.toFixed(1)}%)`
-          : `${dz?.yds || 0} yards allowed — ${share.toFixed(1)}% of everything they give up`,
-        tdLine,
-      ].filter(Boolean).join('\n'),
-    }
-  })
-
-  let spot = null
-  for (const c of cells) {
-    if (!Number.isFinite(c.leak) || c.leak <= 0) continue
-    if (c.share < SPOT_MIN_SHARE || c.att < SPOT_MIN_DEF_ATT) continue
-    const v = c.share * c.leak
-    if (!spot || v > spot.v) spot = { ...c, v }
-  }
-  return { cells, by: Object.fromEntries(cells.map((c) => [c.z, c])), spot, metric }
 }
 
 export default function MatchupMap({
