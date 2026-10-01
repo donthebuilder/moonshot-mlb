@@ -338,7 +338,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
             // ☆/★ marks and the same wording — not a new mechanism.
             { key: 'watched', label: '☆', action: true, w: 30, mark: '★', markOff: '☆',
               titleOn: 'Remove from watchlist', titleOff: 'Add to watchlist', onAction: onWatch },
-            { key: 'rank',   label: '#', heat: false, w: 34, mono: true, dim: true,
+            { key: 'rank', answers: 'mlb-rank', label: '#', heat: false, w: 34, mono: true, dim: true,
               title: 'His rank on this board — the thing the cards never showed' },
             { key: 'name',   label: 'Player', heat: false, w: 150, bold: true, sticky: true },
             { key: 'team',   label: 'Tm', heat: false, w: 34, mono: true, dim: true },
@@ -349,7 +349,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
             // The pitcher opens the PITCHER, not the hitter whose row he's in
             // (audit 00A P0: "Kyle Freeland" opened Murakami).
             { key: 'facing', label: 'Facing', heat: false, w: 116, dim: true, link: (p) => (onOpenPitcher && p?.pitcher_id ? () => onOpenPitcher(p.pitcher_id) : null) },
-            { key: 'isPick', label: '🤖', flag: true, mark: '●', w: 30,
+            { key: 'isPick', answers: 'called', label: '🤖', flag: true, mark: '●', w: 30,
               title: `The bot's designated ${{ top: 'TOP', hr: 'HR', hit: 'HIT', hrr: 'HRR', tb: 'CONTACT', contact: 'CONTACT' }[type] || ''} pick tonight — THIS category's pick specifically, not any pick. A hitter picked in a different category shows in the Pick column instead.` },
             { key: 'otherPick', label: 'Pick', heat: false, w: 46, mono: true, dim: true,
               title: 'Picked tonight, but in a DIFFERENT category than this board — informational, not an endorsement here' },
@@ -376,7 +376,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
             // is. ISO keeps its own column: the audit's finding is real and
             // now it's VISIBLE next to the score instead of folded silently
             // into it.
-            { key: 'adj',    label: type === 'hr' ? 'HR score' : 'Score', w: 56, dp: 1, ...SCORE, primary: true, art: type === 'hr' ? 'mlb-hr' : null,  // components/ScoreArt.js
+            { key: 'adj', answers: type === 'hr' ? 'mlb-hr' : null, label: type === 'hr' ? 'HR score' : 'Score', w: 56, dp: 1, ...SCORE, primary: true, art: type === 'hr' ? 'mlb-hr' : null,  // components/ScoreArt.js
               title: type === 'hr'
                 ? 'The bot’s own HR score — the number this board is ranked by. Read the ISO column beside it — a big score on thin power is the trap to watch for.'
                 : 'The score this board is ranked by' },
@@ -392,7 +392,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
               title: `His archive record when the bot designated him in this category — a rate at 3+ picks, a raw fraction under that.` },
             { key: 'bestOther', label: 'Best other', heat: false, w: 66, mono: true, dim: true,
               title: 'His strongest OTHER category tonight — if this number dwarfs his score here, he might be the wrong kind of bet' },
-            { key: 'hrw',    label: 'HRW', w: 44, dp: 0, ...SCORE, primary: true },
+            { key: 'hrw', answers: 'mlb-hrw', label: 'HRW', w: 44, dp: 0, ...SCORE, primary: true },
             { key: 'xpa',    label: 'xPA', w: 44, dp: 2, title: XPA_TITLE },
             { key: 'l5',     label: 'L5', heat: false, w: 58, mono: true, dim: true },
             // ── #45: THE OUTLIER THAT FED THE NIGHT'S LEAD CALL ─────────

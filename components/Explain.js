@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { ANSWERS, ANSWER_ROWS, ANSWER_FIRST } from '../lib/scoreAnswers'
 import ScoreArt from './ScoreArt'
 import { C, NUM_FONT } from '../lib/theme'
 
@@ -326,8 +327,10 @@ export default function Explain({ label, term, text, color, style, dict = null, 
  * grow a paragraph (and its click already sorts), so the ⓘ in a header opens
  * the explanation in a banner ABOVE the table instead, where there is width.
  */
-export function ExplainBanner({ label, text, onClose, scoreTerms = null, caveat = null, accent = null, art = null }) {
-  if (!text) return null
+export function ExplainBanner({ label, text, onClose, scoreTerms = null, caveat = null, accent = null, art = null, answers = null }) {
+  const [full, setFull] = useState(false)
+  const six = answers ? ANSWERS[answers] : null
+  if (!text && !six) return null
   // Same two-sport shape as Explain: which set of terms counts as a score, and
   // which caveat rides along, are data now rather than baked in. Defaults are
   // the baseball ones, so every existing caller is unchanged.
@@ -342,16 +345,33 @@ export function ExplainBanner({ label, text, onClose, scoreTerms = null, caveat 
   const isScore = TERMS.has(String(label || '').toLowerCase().trim())
   return (
     <div style={{
-      display: 'flex', gap: 8, alignItems: 'flex-start',
+      // Six answers need the width: the label sits above them, not beside.
+      position: 'relative', display: 'flex', gap: 8, alignItems: 'flex-start', flexDirection: six ? 'column' : 'row',
       background: `${hue}14`, border: `1px solid ${hue}4d`,
-      borderRadius: 9, padding: '7px 10px', marginBottom: 7,
+      borderRadius: 9, padding: six ? '10px 12px 12px' : '7px 10px', marginBottom: 7,
     }}>
       <span style={{ fontSize: 10, fontWeight: 900, fontFamily: NUM_FONT, color: hue, flexShrink: 0, letterSpacing: '.04em' }}>
         {label}
       </span>
       <span style={{ fontSize: 11, lineHeight: 1.5, color: C.text2, minWidth: 0 }}>
-        {text}
-        {isScore && (
+        {/* S4 (2026-10-01): a number with its six answers (lib/scoreAnswers.js)
+            reads them -- the three that matter first, the rest a tap away. */}
+        {six ? (
+          <span style={{ display: 'grid', gap: 7 }}>
+            {ANSWER_ROWS.slice(0, full ? ANSWER_ROWS.length : ANSWER_FIRST).map(([k, head]) => six[k] && (
+              <span key={k} style={{ display: 'block' }}>
+                <b style={{ display: 'block', color: k === 'measured' ? hue : C.text, fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase', marginBottom: 1 }}>{head}</b>
+                <span style={{ fontSize: 12, color: C.text2 }}>{six[k]}</span>
+              </span>
+            ))}
+            <button type="button" onClick={() => setFull((v) => !v)} aria-expanded={full}
+              style={{ justifySelf: 'start', minHeight: 44, padding: '0 14px', borderRadius: 999, cursor: 'pointer', font: 'inherit',
+                fontSize: 12, fontWeight: 800, color: hue, background: `${hue}14`, border: `1px solid ${hue}55` }}>
+              {full ? 'Less \u25b4' : 'The full read \u25be  why it matters \u00b7 what goes in \u00b7 how it\u2019s built'}
+            </button>
+          </span>
+        ) : text}
+        {isScore && !six && (
           <span style={{ display: 'block', marginTop: 3, color: C.text3 }}>{NOTE}</span>
         )}
         {/* A column that names `art` gets a drawing of what goes into the
@@ -360,7 +380,9 @@ export function ExplainBanner({ label, text, onClose, scoreTerms = null, caveat 
       </span>
       <span
         onClick={onClose}
-        style={{ marginLeft: 'auto', cursor: 'pointer', color: C.text3, fontSize: 13, lineHeight: 1, flexShrink: 0, padding: '0 2px' }}
+        style={six
+          ? { position: 'absolute', top: 0, right: 0, width: 44, height: 44, display: 'grid', placeItems: 'center', cursor: 'pointer', color: C.text3, fontSize: 15 }
+          : { marginLeft: 'auto', cursor: 'pointer', color: C.text3, fontSize: 13, lineHeight: 1, flexShrink: 0, padding: '0 2px' }}
       >✕</span>
     </div>
   )

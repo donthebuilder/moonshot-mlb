@@ -1,5 +1,6 @@
 'use client'
 import PlayerFace from './PlayerFace'
+import { ANSWERS } from '../lib/scoreAnswers'
 import TeamMark from './TeamMark'
 import Tap from './Tap'
 import { useMemo, useRef, useState } from 'react'
@@ -366,7 +367,7 @@ export default function DenseTable({
   return (
     <div>
       <ExplainBanner label={explain?.label} text={explain?.text} onClose={() => setExplain(null)}
-        scoreTerms={scoreTerms} caveat={caveat} accent={accent} art={explain?.art} />
+        scoreTerms={scoreTerms} caveat={caveat} accent={accent} art={explain?.art} answers={explain?.answers} />
       {/* The stack, said out loud. Shift-click was the only way to build a
           tiebreaker and nothing ever showed what was stacked — on a phone it
           was impossible outright. These chips ARE the stack: tap one to flip
@@ -462,7 +463,7 @@ export default function DenseTable({
                 // safe for every table on the site without touching them.
                 const plain = c.explain || (dict
                   ? explainFrom(dict, c.term, c.key, c.label)
-                  : explainFor(c.term, c.key, c.label))
+                  : explainFor(c.term, c.key, c.label)) || (c.answers ? ANSWERS[c.answers]?.what : null)
                 return (
                   <th
                     key={c.key}
@@ -512,7 +513,7 @@ export default function DenseTable({
                       <InfoDot
                         on={explain?.key === c.key}
                         onClick={() => setExplain((cur) => (
-                          cur?.key === c.key ? null : { key: c.key, label: c.label, text: plain, art: c.art || null }
+                          cur?.key === c.key ? null : { key: c.key, label: c.label, text: plain, art: c.art || null, answers: c.answers || null }
                         ))}
                       />
                     )}

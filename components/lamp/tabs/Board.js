@@ -322,7 +322,7 @@ function columnsFor(g, onOpenTeam, market = 'GOAL') {
       fmt: (v, r) => <>{v}<span style={{ color: C.text3, font: `800 9px/1 ${NUM_FONT}`, marginLeft: 6 }}>{r.pos}</span></> },
     { key: 'team', label: 'TM', heat: false, mono: true, w: 40,
       fmt: (v) => <button type="button" onClick={(e) => { e.stopPropagation(); onOpenTeam?.(v) }} style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', color: C.text2, font: `800 10.5px/1 ${NUM_FONT}` }}>{v}</button> },
-    { key: 'score', label: 'SCORE', primary: true, scale: 'seq', domain: [0, 100], w: 50, explain: SCORE_TITLE[market], art: SCORE_ART[market] || null },
+    { key: 'score', label: 'SCORE', primary: true, scale: 'seq', domain: [0, 100], w: 50, explain: SCORE_TITLE[market], art: SCORE_ART[market] || null, answers: market === 'GOAL' ? 'nhl-goal' : null },
     { key: 'spg', label: 'S/GP', primary: true, dp: 2, w: 44 },
     ...(sog ? [] : [{ key: 'gpg', label: 'G/GP', primary: true, dp: 2, w: 44 }]),
     { key: 'toi', label: 'TOI', primary: true, w: 48, fmt: (v) => (Number.isFinite(v) ? fmtSec(v) : '—') },
@@ -335,7 +335,7 @@ function columnsFor(g, onOpenTeam, market = 'GOAL') {
     { key: 'ppg', label: 'PP G', primary: true, w: 44 },
     { key: 'ppvpk', label: 'PP v PK', heat: false, mono: true, w: 84, fmt: (v) => v || '—' },
     { key: 'rest', label: 'REST', heat: false, mono: true, w: 48, fmt: (v) => v || '—' },
-    { key: 'result', label: graded ? marketOf(market).result : 'STATUS', heat: false, w: 96, fmt: (v, r) => {
+    { answers: 'called', key: 'result', label: graded ? marketOf(market).result : 'STATUS', heat: false, w: 96, fmt: (v, r) => {
       const row = r._row
       if (graded) {
         if (row.dressed === false) return <span style={{ color: C.text3, font: `800 9px/1 ${NUM_FONT}` }}>VOID</span>
@@ -462,11 +462,11 @@ export function AllGamesTable({ kept, market, onOpenPlayer, onOpenTeam }) {
     { key: 'name', label: 'PLAYER', heat: false, sticky: true, bold: true, w: 160, fmt: (v, r) => <>{v}<span style={{ color: C.text3, font: `800 9px/1 ${NUM_FONT}`, marginLeft: 6 }}>{r.pos}</span></> },
     { key: 'team', label: 'TM', heat: false, mono: true, w: 40, fmt: (v) => <button type="button" onClick={(e) => { e.stopPropagation(); onOpenTeam?.(v) }} style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', color: C.text2, font: `800 10.5px/1 ${NUM_FONT}` }}>{v}</button> },
     { key: 'game', label: 'GAME', heat: false, mono: true, w: 70 },
-    { key: 'score', label: 'SCORE', primary: true, scale: 'seq', domain: [0, 100], w: 50, explain: SCORE_TITLE[market], art: SCORE_ART[market] || null },
+    { key: 'score', label: 'SCORE', primary: true, scale: 'seq', domain: [0, 100], w: 50, explain: SCORE_TITLE[market], art: SCORE_ART[market] || null, answers: market === 'GOAL' ? 'nhl-goal' : null },
     { key: 'spg', label: 'S/GP', primary: true, dp: 2, w: 44 },
     ...(sog ? [{ key: 'osa', label: 'OPP SA/60', primary: true, dp: 1, w: 62 }] : [{ key: 'gpg', label: 'G/GP', primary: true, dp: 2, w: 44 }]),
     { key: 'toi', label: 'TOI', primary: true, w: 48, fmt: (v) => (Number.isFinite(v) ? fmtSec(v) : '—') },
-    { key: 'status', label: 'STATUS', heat: false, w: 90, fmt: (v) => (v === 'called' ? <CalledChip /> : <span style={{ color: C.text3, font: `800 8px/1 ${NUM_FONT}`, letterSpacing: '.1em' }}>{STATUS[v]}</span>) },
+    { answers: 'called', key: 'status', label: 'STATUS', heat: false, w: 90, fmt: (v) => (v === 'called' ? <CalledChip /> : <span style={{ color: C.text3, font: `800 8px/1 ${NUM_FONT}`, letterSpacing: '.1em' }}>{STATUS[v]}</span>) },
   ]
   return (
     <LampTable rows={rows} columns={columns} heatMode="primary"
