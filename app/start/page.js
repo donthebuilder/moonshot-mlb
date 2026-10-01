@@ -70,6 +70,8 @@ import {
 } from '../../lib/nfl/dataSource'
 import { buildNflHeadlines } from '../../lib/nfl/headlines'
 import { trimForFour } from '../../lib/theFourFields'
+import { nameOf } from '../../lib/player'
+import { reasonContext, boardReasonFor, reasonLines } from '../../lib/mlb/boardReason'
 import { readBoard } from '../../lib/nhl/boardRead'
 import { nhlCaptureFrom, readNhlRecords } from '../../lib/record/nhl'
 import { readMlbEvents } from '../../lib/record/mlb'
@@ -393,7 +395,15 @@ async function computeCalls(sportKey) {
   const league = buildHeadlines({ players: rows || [] })
     .filter((b) => LEAGUE_BITES.includes(b.k))
     .map(biteText)
-  return { players: trimForFour(rows || []), strip: league }
+  // The Four's WHY / WATCH lines (BATCH-SIGNAL-WHY S2), ranked here against
+  // the FULL board -- the trimmed rows below are only the designated bats --
+  // and handed down as strings on each row (`_why`), never the row itself.
+  const rctx = reasonContext(rows || [])
+  const players = trimForFour(rows || []).map((s) => {
+    const full = (rows || []).find((r) => String(r?.player_id) === String(s.player_id) && String(r?.game_pk ?? '') === String(s.game_pk ?? ''))
+    return { ...s, _why: full ? reasonLines(boardReasonFor(full, rctx), nameOf(s)) : null }
+  })
+  return { players, strip: league }
 }
 
 // The cached faces of the two loaders. unstable_cache keys on the arguments,
@@ -530,7 +540,7 @@ export default async function StartPage({ searchParams }) {
           // Mounted as-is, per the locked scope. No onPlayerClick: there is no
           // hitter modal on this page and a card that looks tappable and does
           // nothing is worse than one that doesn't.
-          <BotPicksStrip players={calls.players} />
+          <BotPicksStrip players={calls.players} rankWhy={false} />
         )}
       </section>
 

@@ -36,6 +36,8 @@ import PageHeader from '../../PageHeader'
 import { NFL_NAV } from '../../../lib/routes'
 import HotNumbers from '../../numerology/HotNumbers'
 import { easternToday, easternDate } from '../../../lib/data'
+import { boardReason } from '../../../lib/nfl/boardReason'
+import { baselineFor } from '../ScoreAnatomy'
 
 const SIX = [
   ['TD', 'ATD', 'Touchdown'],
@@ -114,8 +116,22 @@ const recordWord = (t) => {
   return `${t.hit} of ${t.n} over ${t.weeks} wk${t.weeks === 1 ? '' : 's'}${t.n >= 20 && t.pct != null ? ` · ${Math.round(t.pct)}%` : ''}`
 }
 
-function TheSix({ picks, playersById, onPlayerClick, onPicks, totals }) {
+function TheSix({ picks, playersById, players = [], markets = [], onPlayerClick, onPicks, totals }) {
   const colors = MARKET_COLOR()
+  // WHY ON EACH #1 (2026-09-30, BATCH-SIGNAL-WHY S2): lib/nfl/boardReason.js,
+  // the Boards card's own line -- his top component with the number behind
+  // it -- against the market's FULL eligible pool and its median (the same
+  // inputs Boards.js passes), so the line here and on the board can't differ.
+  const whyBy = useMemo(() => {
+    const out = {}
+    for (const [key] of SIX) {
+      const spec = markets.find((m) => m.key === key)
+      if (!spec?.weights) continue
+      const pool = players.filter((p) => Number.isFinite(p?.scores?.[key]))
+      out[key] = { spec, pool, base: baselineFor(pool, key) }
+    }
+    return out
+  }, [players, markets])
   const lanes = SIX.map(([key, short]) => {
     const block = picks?.card?.[key]
     return {
@@ -127,6 +143,7 @@ function TheSix({ picks, playersById, onPlayerClick, onPicks, totals }) {
         const player = playersById[String(call.player_id)] || null
         const st = player?.stats || {}
         const tag = player?.coverage_mismatch_tag ? ` · ${player.coverage_mismatch_tag}` : ''
+        const w = i === 0 && player && whyBy[key] ? boardReason(player, whyBy[key].spec.weights, whyBy[key].base, key, whyBy[key].pool) : null
         return {
           key: String(call.player_id), raw: { player, key }, name: call.name,
           face: i === 0 && player ? <NflFace player={player} size={28} /> : null,
@@ -134,6 +151,7 @@ function TheSix({ picks, playersById, onPlayerClick, onPicks, totals }) {
           lines: i === 0 ? [PROOF[key](st).filter(Boolean).join(' · '), `${call.team} vs ${call.opp} · ${call.position}${tag}`] : [],
           team: i === 0 ? null : call.team,
           micro: i === 0 ? null : MICRO[key](st) || null,
+          ...(w ? { why: w.text, explain: { label: `Why ${call.name}`, text: w.text } } : {}),
         }
       }),
     }
@@ -401,7 +419,7 @@ export default function Home({ data, picks, results, matchup, logs, onPlayerClic
         <button onClick={() => setTab('accountability')} title={record.n ? `${record.hit} of ${record.n} card rungs this season cleared their own bar -- every market blended, ${keys.length} graded week${keys.length === 1 ? '' : 's'}. Anytime TD on its own: ${tdRec?.hit ?? 0} of ${tdRec?.n ?? 0}. Tap for every market's record.` : undefined}><small>RECORD · ALL</small><strong style={{ color: record.pct == null ? C.text3 : record.pct >= 55 ? C.green : record.pct < 45 ? C.red : C.text }}>{record.pct == null ? '—' : `${record.pct}%`}</strong><span>{record.n ? <>{record.hit}/{record.n}{tdRec?.n ? <> · <b style={{ color: C.text }}>TD {Math.round(tdRec.pct)}%</b></> : null}</> : 'nothing graded yet'}</span></button>
         <button onClick={() => topTd && onPlayerClick?.(topTd, 'TD')}><small>TOP TD SCORE</small><strong>{topTd ? Math.round(topTd.scores.TD) : '—'}</strong><span>{topTd?.name || 'awaiting slate'}</span></button>
       </section>
-      <TheSix picks={picks} playersById={playersById} onPlayerClick={onPlayerClick} onPicks={() => setTab('picks')} totals={seasonTotals(keys.map((k) => archive[k]))} />
+      <TheSix picks={picks} playersById={playersById} players={players} markets={data?.markets || []} onPlayerClick={onPlayerClick} onPicks={() => setTab('picks')} totals={seasonTotals(keys.map((k) => archive[k]))} />
       {/* TONIGHT'S NUMBERS (numerology v2 step 6b): one line under the calls, taps to Numerology. */}
       <HotNumbers compact sport="nfl" date={nextGameDay} theme={C} numFont={NUM_FONT} accent={C.green} onOpen={() => setTab('numerology')} eventWord="TDs" />
 

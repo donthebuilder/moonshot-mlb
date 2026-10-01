@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { WhatThis } from '../ui'
+import { explain } from '../../lib/explain'
 
 // THE HEADLINE PICKS, ONE LAYOUT FOR EVERY PRODUCT (2026-09-27,
 // BATCH-HEADLINE-PICKS step 1). Lifted out of components/BotPicksStrip.js
@@ -14,7 +15,13 @@ import { WhatThis } from '../ui'
 // lanes: [{ key, label, icon?, blurb, color, record?, empty?,
 //           picks: [{ key, name, score, flag?: {icon, title}, result?: {hit, title},
 //                     lines: [node, node],
-//                     team?: node, micro?: string, raw }] }]
+//                     team?: node, micro?: string, raw,
+//                     why?: string, watch?: string, explain?: { label, text } }] }]
+//   why / watch (2026-09-30, BATCH-SIGNAL-WHY S2): one line each under the
+//   #1's stat lines -- the caller's reason in numbers and the one number
+//   against. Ellipsis on a phone; a tap sends `explain` (every reason, full
+//   length) to the app's ExplainToast (lib/explain.js), so nothing depends
+//   on hover. Both optional: a lane without them renders exactly as before.
 //   picks[0] is the featured #1 (name, score, two lines); picks[1..] the
 //   compact rows (index, name, team, micro stat, score).
 // collapsePhone: on a phone each lane shows only its #1 until tapped
@@ -107,6 +114,26 @@ export default function HeadlinePicks({ theme, numFont, title, subtitle, record 
                       </div>
                     )}
                   </div>
+                  {(lead.why || lead.watch) && (
+                    <button type="button"
+                      onClick={() => explain(lead.explain?.label || lead.name, lead.explain?.text || [lead.why, lead.watch].filter(Boolean).join(' · '))}
+                      aria-label={`Why ${lead.name}: ${[lead.why, lead.watch && `watch: ${lead.watch}`].filter(Boolean).join('; ')}`}
+                      style={{
+                        display: 'block', width: '100%', minHeight: 0, marginTop: 3, padding: 0, border: 0, background: 'transparent',
+                        textAlign: 'left', cursor: 'pointer', fontFamily: NUM_FONT, fontSize: 10, lineHeight: 1.45, minWidth: 0,
+                      }}>
+                      {lead.why && (
+                        <span style={{ display: 'block', color: C.text2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          <b style={{ color: f.color, fontWeight: 900, letterSpacing: '.06em' }}>WHY</b> {lead.why}
+                        </span>
+                      )}
+                      {lead.watch && (
+                        <span style={{ display: 'block', color: C.text3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          <b style={{ color: C.text3, fontWeight: 900, letterSpacing: '.06em' }}>WATCH</b> {lead.watch}
+                        </span>
+                      )}
+                    </button>
+                  )}
 
                   {/* On a phone, collapsed lanes offer the rest behind one tap. */}
                   {collapsePhone && rest.length > 0 && (

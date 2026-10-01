@@ -8,6 +8,7 @@ import HeadlinePicks from './headline/HeadlinePicks'
 import { rankBuckets, fourGrade } from '../lib/mlbFour'
 import { playerHref } from '../lib/routes'
 import PlayerFace from './PlayerFace'
+import { reasonContext, boardReasonFor, reasonLines } from '../lib/mlb/boardReason'
 
 // THE FOUR — the bot's own headline section, rebuilt on the site.
 //
@@ -184,8 +185,15 @@ export function pickBuckets(players = []) {
   return rankBuckets(players, CATEGORIES)
 }
 
-export default function BotPicksStrip({ players = [], onPlayerClick, onFullCard = null, graded = null }) {
+export default function BotPicksStrip({ players = [], onPlayerClick, onFullCard = null, graded = null, rankWhy = true }) {
   const four = useMemo(() => pickBuckets(players), [players])
+  // WHY / WATCH ON EACH #1 (2026-09-30, BATCH-SIGNAL-WHY S2): lib/mlb/
+  // boardReason.js, ranked against `players` -- the whole slate on Home. A
+  // caller holding only a trimmed list (/start) sets rankWhy={false} and
+  // hands each row its own precomputed `_why` instead, so a rank is never
+  // taken over a partial board.
+  const rctx = useMemo(() => (rankWhy ? reasonContext(players) : null), [players, rankWhy])
+  const whyOf = (p) => (p?._why !== undefined ? p._why : rctx ? reasonLines(boardReasonFor(p, rctx), nameOf(p)) : null)
   // ✓ / ✗ ONCE A PICK IS SETTLED (2026-09-28, DAY-AWARE-OPENERS): Home hands in
   // the slate's own graded rows (resultsForSlate, date-gated in Dashboard).
   // Each shown pick is graded on its category's bar by lib/mlbFour.js
@@ -244,6 +252,7 @@ export default function BotPicksStrip({ players = [], onPlayerClick, onFullCard 
       result: gradeOf(p, f.role),
       flag: p?.weak_spot_flag === true ? { icon: '⭐', title: i === 0 ? 'Weak lineup spot for this pitcher' : undefined } : null,
       micro: i === 0 ? null : microStat(p, f.role),
+      ...(i === 0 ? (() => { const w = whyOf(p); return w ? { why: w.why, watch: w.watch, explain: w.explain } : {} })() : {}),
       lines: i === 0 ? [statLine(p, f.role), (
         <>
           {teamOf(p)} · vs {clean(p?.pitcher_name, 'TBD')}
