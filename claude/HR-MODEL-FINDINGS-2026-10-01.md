@@ -27,7 +27,47 @@ re-run. So any figure measured on this archive is biased one way or the other:
 
 **None of them can be trusted as printed.**
 
-## 2. The only clean test: 13 pregame boards (2026-09-17 to 09-30)
+## 2b. UPDATE, later 10-01: the bigger clean test (supersedes §2–§3)
+
+The pick lock already kept which run was standing at each first pitch, and that run's log holds the
+full board, about 18 hitters a game. 4,450 of those rows survived pruning (Sep 9–30). Bot commit
+b41f7684 now keeps them permanently (`por_rows_<date>.jsonl`).
+
+**Measured on them:** 21 nights, 4,096 hitter-games, 471 HR, an 11.5% base. A hitter counts as
+homered if he's in the night's capture list.
+
+**Top 10 each night by:**
+- season_power (component) 22.4% (47/210) 1.95x
+- season_hr_game_probability 20.5% (43/210)
+- hrw 20.0% (42/210)
+- hr 19.0% (40/210)
+- overall 19.0% (40/210)
+- pitcher_side_ops 19.0% (40/210)
+- pitcher_hr9 18.1% (38/210)
+- last10_hr 17.6% (37/210)
+- pmix 17.6% (37/210)
+- pitch_type_match 17.1% (36/210)
+- last5_hr 16.7% (35/210)
+- damage_conversion 15.2% (32/210)
+- … weak_spot_bonus 8.6% (18/210)
+- **games_since_last_hr ("due") 4.8% (10/210)**: a trap.
+
+**Bands:**
+- HRW: 80+ 17.0% (46/271) · 70–80 13.3% · 55–70 12.6% · 45–55 14.9% · <45 9.9% (262/2637).
+- hr_score: 70+ 25.0% (14/56) · 50–70 15.1% · 30–50 14.0% · <30 8.6% (184/2130).
+
+**Pick roles:** TOP 18.5% (42/227) · HRR 16.2% · WATCH 14.7% · HR 13.5% (31/229) · CONTACT 13.2% ·
+HIT 12.3%. Swapping the HR slot to the best hr_score in the game (not TOP) also gives 13.5% (31/229).
+
+**What changes from §3:**
+- The HR slot isn't uniquely broken. One pick per game is just hard at an 11.5% base, and the gain
+  has to come from a better score, not a different slot rule.
+- Last-5 homers' "36%" was 13-night noise; on 21 nights it's 16.7%.
+- Season power is the strongest single input. HRW and hr_score are close behind.
+- Point 3 in §4 ("HR pick v4") drops to "re-weight the score toward season power and the pitcher's
+  side, shadow-tested", once the por_rows archive has a few more weeks.
+
+## 2. The first clean test: 13 pregame boards (2026-09-17 to 09-30). Superseded by §2b.
 
 The pregame board as published, joined only to whether the hitter actually homered. That's 632
 hitter-games and 95 homers, a 15.0% base. It's small, so treat it as direction, not proof.
