@@ -3,7 +3,7 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/nfl/theme'
 import { NFL_DATA_BASE } from '../../lib/nfl/dataSource'
 import { ChipGroup, ChartCard, ChartLegend, ChartEmpty } from '../charts'
-import { fieldModel } from './MatchupMap'
+import { fieldModel } from '../../lib/nfl/fieldModel'
 import { RedZoneStrip } from './RedZoneField'
 import { appHref, playerHref } from '../../lib/routes'
 
@@ -21,7 +21,7 @@ import { appHref, playerHref } from '../../lib/routes'
 //   is the last N games HE was targeted in (TEAM: the offence's last N
 //   weeks); NORMAL is yardline_100 > 20, RED ZONE <= 20.
 // THE LEAK is not in that file. It is matchup.field.def_pass vs league_pass
-// through MatchupMap's own fieldModel(), so a zone reads the same here and on
+// through lib/nfl/fieldModel.js fieldModel(), so a zone reads the same here and on
 // the Matchup map: (their yards a target - the league's) / the league's, and
 // nothing under 8 targets against that defence in the zone.
 //

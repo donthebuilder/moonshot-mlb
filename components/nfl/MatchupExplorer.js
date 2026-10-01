@@ -6,7 +6,7 @@ import { ChipGroup } from '../matchup/SprayParts'
 import NflTable from './NflTable'
 import NflFace from './NflFace'
 import FootballField from './FootballField'
-import { LANES, LANE_WORD } from './MatchupMap'
+import { LANES, LANE_WORD } from '../../lib/nfl/fieldModel'
 
 // 🔍 THE LEAGUE, BY COVERAGE AND BY HOLE (2026-09-30, Donovan: "I want to be
 // able to filter teams' coverages, then see who fits best ... who across the

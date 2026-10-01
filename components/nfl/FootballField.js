@@ -1,7 +1,7 @@
 'use client'
 import { useId } from 'react'
 import { C, NUM_FONT } from '../../lib/nfl/theme'
-import { CHALK, CHALK_SOFT, HEAT, SIDES, DEPTHS, LANES } from './MatchupMap'
+import { CHALK, CHALK_SOFT, HEAT, SIDES, DEPTHS, LANES } from '../../lib/nfl/fieldModel'
 
 // 🏈 THE FIELD, DRAWN (2026-09-30, Donovan: "make something I can visually
 // understand, football field wise ... I want to be able to see the field,
