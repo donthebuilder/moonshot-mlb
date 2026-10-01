@@ -11,7 +11,7 @@ import { fetchNfl, nflRosterPaths } from '../../../lib/nfl/dataSource'
 import { ActiveFilters, FilterSearch, FilterSelect } from '../../Filters'
 import { usePreview, ShowMoreButton } from '../../ListPreview'
 import GamelogFilterBar from '../GamelogFilterBar'
-import AgainstTheBar from '../AgainstTheBar'
+import { barRead, barSentence } from '../AgainstTheBar'
 import SplitDumbbell from '../SplitDumbbell'
 import ScoreAnatomy from '../ScoreAnatomy'
 import MultiLine from '../../ledger/MultiLine'
@@ -87,16 +87,21 @@ function ScoreProfile({ player, market, setMarket }) {
 }
 
 function Trend({ rows, market, bar }) {
-  // 2026-09-13: was ten columns whose heights repeated the numbers in the
-  // table directly beneath them. Now it is the same ten games as dots against
-  // the bar, which is the only chart on this page that answers "by how much".
+  // 2026-10-01 (0e a): the dot strip against the bar went ("I actually hate
+  // these"); its sentence stays, over the same ten games. The games
+  // themselves are the log rows right under it.
   const [field, label] = MARKET_LOG[market] || MARKET_LOG.TD
   return (
     <div className="portal-trend">
-      <AgainstTheBar log={rows} statKey={field} bar={bar} span={10} height={52} />
-      <p>{label} · last published games · the dashed rule is the bar ({bar})</p>
+      <AgainstTheBarLine log={rows} statKey={field} bar={bar} label={label} />
     </div>
   )
+}
+
+function AgainstTheBarLine({ log, statKey, bar, label }) {
+  const read = barRead(log, statKey, bar, 10)
+  if (!read) return null
+  return <p style={{ fontSize: 12, color: C.text2, lineHeight: 1.5, margin: '0 0 11px' }}>{barSentence(read, bar, label)}</p>
 }
 
 function RecentGames({ rows, market, bar, setMarket }) {
