@@ -1,0 +1,25 @@
+/* THE PLAYBOOK (2026-09-30). Layout only: colours are /start's variables
+   (app/start/start.module.css .page), so the public pages read as one set. */
+.steps { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 0; padding: 0; list-style: none; font-size: 11px; letter-spacing: 0.12em; color: var(--dim); }
+.steps li + li::before { content: '→'; margin-right: 6px; }
+.core { margin: 18px 0 0; font-size: 15px; line-height: 1.5; border-left: 2px solid var(--mlb); padding-left: 12px; max-width: 560px; }
+.list { list-style: none; margin: 22px 0 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.stop { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+.stopHead { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.num { font-variant-numeric: tabular-nums; font-weight: 800; color: var(--mlb); font-size: 14px; }
+.step { font-size: 11px; letter-spacing: 0.14em; color: var(--dim); }
+.stopTitle { margin: 0; font-size: 18px; line-height: 1.25; font-weight: 800; }
+.open { display: inline-flex; align-items: center; min-height: 44px; margin-top: 4px; color: var(--mlb); font-weight: 700; text-decoration: none; font-size: 14px; }
+.open:hover { text-decoration: underline; }
+.rows { margin: 4px 0 0; display: grid; grid-template-columns: 96px 1fr; gap: 6px 12px; font-size: 14px; line-height: 1.5; }
+.rows dt { color: var(--dim); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; padding-top: 3px; }
+.rows dd { margin: 0; }
+.cards { list-style: none; margin: 22px 0 0; padding: 0; display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+.card { display: block; min-height: 44px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; color: inherit; text-decoration: none; }
+.card:hover { border-color: var(--dim); }
+.card small { display: block; font-size: 11px; letter-spacing: 0.14em; color: var(--dim); }
+.card strong { display: block; margin-top: 4px; font-size: 16px; }
+@media (max-width: 480px) {
+  .rows { grid-template-columns: 1fr; gap: 0 0; }
+  .rows dt { padding-top: 8px; }
+}

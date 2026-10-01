@@ -578,6 +578,8 @@ export default async function StartPage({ searchParams }) {
           <a href={sport.recordHref}>The public record</a>
           {' · '}
           <a href={sport.board}>The {sport.label} board</a>
+          {' · '}
+          <a href="/playbook">How to use DASH</a>
         </span>
       </footer>
     </main>

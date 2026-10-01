@@ -17,6 +17,9 @@ export default function sitemap() {
     { url: url('/called'), lastModified: now, changeFrequency: 'hourly', priority: 0.8 },
     { url: url('/called?sport=nfl'), lastModified: now, changeFrequency: 'daily', priority: 0.7 },
     { url: url('/called?sport=nhl'), lastModified: now, changeFrequency: 'daily', priority: 0.7 },
+    // The Playbook (2026-09-30): how to research a pick, one page per market.
+    { url: url('/playbook'), lastModified: now, changeFrequency: 'weekly', priority: 0.6 },
+    ...['hr', 'hit', 'hrr', 'bases', 'td', 'goal', 'shots'].map((m) => ({ url: url(`/playbook/${m}`), lastModified: now, changeFrequency: 'weekly', priority: 0.5 })),
     // LAMP's crawlable league pages (2026-09-26): the tabs are hash routes
     // no crawler can see; these carry the same tables at real addresses.
     { url: url('/nhl/standings'), lastModified: now, changeFrequency: 'daily', priority: 0.6 },
