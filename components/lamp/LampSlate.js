@@ -36,8 +36,8 @@ import { EmptyState, DelayedBanner, Loading, StaleSeasonNote, fmtPuckDrop, zoneA
 const PANELS = [['read', 'The read'], ['board', 'The board'], ['calls', 'The calls']]
 const SUBS = {
   read: 'rest, power play against penalty kill, and each attack against the other defense.',
-  board: "this game's whole goal board — three called on top, every scored skater under them.",
-  calls: 'the three called in this game, as cards.',
+  board: "this game's whole goal board — the two called (one per team) on top, every scored skater under them.",
+  calls: 'the two called in this game (one per team), as cards.',
 }
 const stateOf = (g) => (g.game.state === 'live' ? 'live' : g.game.state === 'final' ? 'final' : 'upcoming')
 
@@ -110,7 +110,7 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
   return (
     <div>
       <PageHeader eyebrow="LAMP · SLATE" title="Slate" theme={C} numFont={NUM_FONT} accent={C.ice}
-        note="Every game on the night. Open one for its read, its whole goal board and the three called." />
+        note="Every game on the night. Open one for its read, its whole goal board and its two calls." />
       <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
         <NavBtn onClick={() => setDate(shiftDay(shown, -1))} disabled={loading}>‹ Previous day</NavBtn>
         <NavBtn onClick={() => setDate(null)} disabled={loading || !date} strong>Tonight</NavBtn>

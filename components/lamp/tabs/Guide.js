@@ -19,7 +19,7 @@ import { GuideTheme, Section, P, Term, StartHere, GuideTitle, PlaybookLink } fro
 // ways. "What LAMP does not do yet" said no matchups, shot maps or alerts and
 // nothing priced; all four exist now, so it says only what is still true.
 const ROWS = [
-  ['board', 'The goal board: three skaters called per game, locked before puck drop, graded after. Tap a called man for the three percentiles behind his score.'],
+  ['board', 'The goal board: one skater called per team in every game, locked before puck drop, graded after. Tap a called man for the three percentiles behind his score.'],
   ['fullboard', 'Every skater the model scored tonight, all games together, ranked #1 to the bottom by score, with the numbers behind it. CALLED still means top three in his own game.'],
   ['shots', null],
   ['games', null],
@@ -61,7 +61,7 @@ export default function Guide({ onNavigate }) {
       </div>
 
       <StartHere heading="Three steps, in order" onNavigate={onNavigate} steps={[
-        { n: 1, tab: 'board', title: `Open the ${NHL_NAV.board.label}`, body: 'Three skaters called per game, locked before puck drop, graded after.' },
+        { n: 1, tab: 'board', title: `Open the ${NHL_NAV.board.label}`, body: 'One skater called per team in every game, locked before puck drop, graded after.' },
         { n: 2, tab: 'board', title: 'Tap a called skater', body: 'His file opens on the three percentiles behind his score: shots, goals and ice time per game.' },
         { n: 3, tab: 'results', title: `The next morning, open ${NHL_NAV.results.label}`, body: 'Of the skaters who scored, how many the board called and how many it had on the board — the receipts for everything above.' },
       ]} footer={<>

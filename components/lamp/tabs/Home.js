@@ -88,7 +88,7 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
       <DayHero
         icon="🏒" eyebrow={hero.eyebrow} live={Boolean(day?.live)}
         lead={!day ? 'Tonight on LAMP.' : hero.lead}
-        accentText={!day ? '' : games.length ? (allLocked ? 'Grading as they land.' : 'Three called in each.') : hero.accent}
+        accentText={!day ? '' : games.length ? (allLocked ? 'Grading as they land.' : 'One called per team.') : hero.accent}
         // The chip row only carries a fact on a game night; an off night has
         // nothing to add there, and the opener may not grow on a phone.
         chip={games.length ? '🏒 GAME NIGHT' : null}

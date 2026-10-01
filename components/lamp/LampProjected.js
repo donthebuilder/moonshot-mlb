@@ -20,7 +20,7 @@ export default function LampProjected({ items = [], games = [], stale = false, o
   const [sortCol, setSortCol] = useState('Proj goals')
   const [sortDir, setSortDir] = useState('desc')
   const lenses = useMemo(() => [
-    { key: 'called', label: '🔒 Called only', tip: 'Only the three called per game.', test: ({ r }) => r.status === 'called' },
+    { key: 'called', label: '🔒 Called only', tip: 'Only the called skaters.', test: ({ r }) => r.status === 'called' },
     ...lampAngles(items, 'GOAL'),
   ].map((a) => ({ key: a.key, label: a.label, tip: a.tip || a.title, hit: a.test })), [items])
 
@@ -64,7 +64,7 @@ export default function LampProjected({ items = [], games = [], stale = false, o
       note={<>
         <b style={{ color: C.text2 }}>goals per game</b> — each scored skater&apos;s goals a game, summed over the board
         {stale ? ' (last season’s — the league’s new tables open with the season)' : ''}. Proj shots is the same
-        for shots on goal; Called goals is Proj goals over the three called per game only.
+        for shots on goal; Called goals is Proj goals over the called skaters only.
       </>}
       rows={rows} primary="Proj goals" unit="goals" columns={COLS}
       sortCol={sortCol} sortDir={sortDir} onSort={sortClick(sortCol, setSortCol, setSortDir)}

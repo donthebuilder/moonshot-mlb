@@ -77,7 +77,7 @@ export default function Ledger({ date = null, onOpenPlayer, onOpenTeam = null, o
         {noGames && <div style={{ fontSize: 10.5, color: C.text3, marginBottom: 8 }}>{quiet}</div>}
         {!noGames && !scorers.length && <div style={{ fontSize: 10.5, color: C.text3, marginBottom: 8 }}>No goals graded yet tonight — the ledger fills after the finals.</div>}
         <WatchStrip label="Tonight's watchlist:" hits={landed} watched={called.length}
-          sentence={!graded ? 'called — the three per game, graded after the final.' : landed === 0 ? 'scored — the three called per game, written before puck drop.' : 'scored, off the three called per game written before puck drop.'}>
+          sentence={!graded ? 'called — one per team in every game, graded after the final.' : landed === 0 ? 'scored — the calls, one per team, written before puck drop.' : 'scored, off the three called per game written before puck drop.'}>
           {called.filter((r) => r.hit).map((r) => (
             <span key={r.key}>{' · '}<b onClick={open(r.playerId)} style={{ color: C.text, cursor: 'pointer' }}>{r.name}</b><span style={{ color: C.text3, fontFamily: NUM_FONT }}> {r.goals} G</span></span>
           ))}

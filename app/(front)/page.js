@@ -421,7 +421,7 @@ export default async function DashHome({ searchParams }) {
 
         <article className={`${styles.product} ${styles.nhl}`}>
           <header><i>L</i><div><strong>LAMP</strong><small>NHL</small></div></header>
-          <h3>Three called per game, locked before puck drop.</h3>
+          <h3>One called per team, every game, locked before puck drop.</h3>
           <p>{nhl?.label ? `${nhl.label} — ` : ''}the goal board: shots, goals and ice time per game over his last 82, ranked against tonight&apos;s skaters, graded off the boxscore.</p>
           {nhl?.calls?.length ? (
             // The #1 called in each LOCKED game. Once graded, the lamp on a scorer.

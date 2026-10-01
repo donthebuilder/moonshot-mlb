@@ -241,7 +241,7 @@ const SPORTS = {
     // No live goal events yet (LAMP phase 4): a scorer is graded after the
     // final, against the board as it locked.
     pending: 'Every goal scorer is graded after the final against the board as it locked before puck drop. Preseason nights are graded but not quoted here — the first regular-season night is September 29.',
-    callsHead: 'Tonight’s board — three called per game',
+    callsHead: 'Tonight’s board — one called per team',
     callsSub: 'Shots, goals and ice time per game over his last 82, ranked against tonight’s skaters. PREVIEW until a game’s lock; the lock is the call.',
     unit: 'night',
   },

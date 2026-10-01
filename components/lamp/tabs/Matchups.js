@@ -107,7 +107,7 @@ function Detail({ row, league, onOpenPlayer, onOpenTeam = null }) {
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             {row.called.map((p) => <span key={p.playerId} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 44 }}><PlayerMark headshot={p.mug} name={p.name} size={28} onClick={() => onOpenPlayer?.(p.playerId)} /><span style={{ fontFamily: NUM_FONT, fontSize: 10, color: C.text3 }}>{p.pos} · #{p.rank} in the game</span></span>)}
           </div>
-        ) : <div style={{ fontSize: 12, color: C.text3 }}>None of tonight&apos;s three called skaters in this game plays for {row.opp}.</div>}
+        ) : <div style={{ fontSize: 12, color: C.text3 }}>Neither of this game&apos;s called skaters plays for {row.opp}.</div>}
       </div>
 
       <div>

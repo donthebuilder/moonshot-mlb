@@ -2,13 +2,13 @@
 // Hockey words; the MLB map lives in TabExplainer itself, NFL's beside it.
 export const NHL_TEXTS = {
   // 2026-09-26 (stranger test F12): the product first, then the page.
-  home: { what: 'LAMP predicts which NHL skaters score tonight: three called per game, locked before puck drop, graded after the final, in public. This page is tonight in one screen: the games, each game’s three calls, and the division leaders. Tap a game for its whole board.' },
+  home: { what: 'LAMP predicts which NHL skaters score tonight: one skater called per team in every game, locked before puck drop, graded after the final, in public. This page is tonight in one screen: the games, each game’s three calls, and the division leaders. Tap a game for its whole board.' },
   scores: { what: 'Every game on one day — score, period and clock, shots, and who scored. Tap a game for its goals and shots; Open game for the whole game.' },
   schedule: { what: 'The league week, day by day, puck-drop times in your zone. Games already played show their score. Page a week at a time.' },
   standings: { what: 'Division, wild card, conference and league, in the league’s own order. Before opening night this is last season’s final table, and it says so.' },
   game: { what: 'One game top to bottom: goals and shots by period, every goal with its assists and strength, penalties, the team comparison, three stars.' },
   fullboard: { what: 'Every skater the model scored tonight, across every game, ranked #1 to the bottom by score. The GAME # column is his rank in his own game \u2014 the top three there are CALLED. A PREVIEW row is not a call yet.' },
-  board: { what: 'Tonight\u2019s goal board: three skaters called per game, locked before puck drop, graded after. The score is three percentile ranks averaged \u2014 shots, goals, ice time per game \u2014 nothing hidden, nothing priced.' },
+  board: { what: 'Tonight\u2019s goal board: one skater called per team in every game, locked before puck drop, graded after. The score is three percentile ranks averaged \u2014 shots, goals, ice time per game \u2014 nothing hidden, nothing priced.' },
   results: { what: 'Every graded night. Of the skaters who scored, how many the board called and how many it had on the board before the puck dropped. The base rate to beat is the share of every dressed skater who scored, measured on the same nights (the last row of the page\u2019s table).' },
   players: { what: 'Every player on a current roster, camp invites included. Type a name or a club; tap a row for his file.' },
   goalies: { what: 'Every goalie on a current roster. A goalie\u2019s file is its own page \u2014 starts, record, save percentage \u2014 not a skater\u2019s with different labels.' },

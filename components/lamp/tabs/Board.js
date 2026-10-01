@@ -181,7 +181,7 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
           {MARKETS.map((m) => <button key={m.key} type="button" onClick={() => setMarket(m.key)} aria-pressed={m.key === market} style={pill(m.key === market)}>{m.label}</button>)}
         </div>
         {data && <span style={{ marginLeft: 'auto' }}><Segmented value={view} onChange={setView}
-          options={[{ key: 'game', label: 'By game', title: 'Each game, three called on top' }, { key: 'all', label: 'All games', title: 'Every scored skater tonight, one ranked table' }]} /></span>}
+          options={[{ key: 'game', label: 'By game', title: 'Each game, its two calls (one per team) on top' }, { key: 'all', label: 'All games', title: 'Every scored skater tonight, one ranked table' }]} /></span>}
       </div>
       <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
         <NavBtn onClick={() => setDate(shiftDay(shown, -1))} disabled={loading}>‹ Previous day</NavBtn>
@@ -194,7 +194,7 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
           <AngleRow defs={angles} pool={flat} value={angle} onChange={setAngle} accent={C.ice} className="lamp-angle-row" hideEmpty />
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             <Segmented label="Pos" value={pos} onChange={setPos} options={[{ key: 'all', label: 'All' }, { key: 'F', label: 'Forwards' }, { key: 'D', label: 'Defence' }]} />
-            <FilterPill active={calledOnly} onClick={() => setCalledOnly((v) => !v)} title="Only the three called per game.">Called only</FilterPill>
+            <FilterPill active={calledOnly} onClick={() => setCalledOnly((v) => !v)} title="Only the called skaters.">Called only</FilterPill>
             {/* HOW TO READ THIS (2026-10-01): beside the List / Cards switch,
                 which already takes a line of its own on a phone. GOAL only. */}
             <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 10, fontSize: 12 }}>
@@ -297,7 +297,7 @@ const factsOf = (g, r) => ({ ppvpk: ppVsPk(spotOf(g, r.team, true), spotOf(g, r.
 // LAMP v2 (2026-09-27): the board reads one market at a time. GOAL is the
 // original; SOG is lamp-sog-v1 (3+ shots on goal). Same table, same words.
 const MARKETS = [
-  { key: 'GOAL', label: 'GOAL', eyebrow: 'LAMP · GOAL BOARD', note: 'Three called per game, locked before puck drop, graded after. Score = mean of three percentile ranks tonight: shots, goals, ice time per game over his last 82 NHL games.', result: 'GOALS', log: 'lamp_goal_log' },
+  { key: 'GOAL', label: 'GOAL', eyebrow: 'LAMP · GOAL BOARD', note: 'One called per team in every game, locked before puck drop, graded after. Score = mean of three percentile ranks tonight: shots, goals, ice time per game over his last 82 NHL games.', result: 'GOALS', log: 'lamp_goal_log' },
   { key: 'SOG', label: 'SHOTS 3+', eyebrow: 'LAMP · SHOTS BOARD', note: 'Three called per game for 3+ shots on goal, locked before puck drop, graded after. Score = mean of three percentile ranks tonight: shots per game over his last 82, ice time, and how many shots his opponent allows per 60.', result: 'SOG', log: 'lamp_prop_log' },
 ]
 // The SCORE header's ⓘ, per market (it had none, so no explanation and no
