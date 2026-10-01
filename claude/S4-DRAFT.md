@@ -10,8 +10,10 @@ v2 changes:
   HR-MODEL-FINDINGS-2026-10-01.md). The only "Measured" lines left come from the locked pregame record:
   21 nights, Sep 9–30, 4,096 hitter-games, 11.5% base.
 
-Still **NEEDS YOUR WORDS** in two places: DC's "why it matters" and the goal score's "why it matters".
-Write a line or say "leave it out".
+**10-01, ~2 am: Donovan chose both missing lines** (DC and the goal score, below). Nothing in this draft
+needs his words any more; S4 builds from it. Two notes for the build: (a) every "Measured" line must
+stay por_rows-only with its n (0d); (b) the goal score section becomes lamp-goal-v2 when 0f ships —
+CALLED = one per team, ON THE BOARD = top third of the night board — update items 1/4/6 then.
 
 ---
 
@@ -57,7 +59,7 @@ Write a line or say "leave it out".
 
 ## DC: damage conversion (MOONSHOT)
 1. **What it is:** When he squares one up, how often it becomes damage instead of an out.
-2. **Why it matters:** **NEEDS YOUR WORDS.** (Clean record: its top ten homered 15.2%, 32/210, a weak signal.)
+2. **Why it matters:** It separates loud contact from loud outs. Two hitters can square it up the same amount; this says whose hard contact turns into extra bases. Weak on its own (clean pregame record: its top ten homered 15.2%, 32 of 210) — read it next to the HR score, not instead of it. *(Donovan's pick, 10-01)*
 3. **What goes in:** His damage on the pitch types he'll see (ISO, SLG, barrels, hard-hit); his recent batted-ball shape (375+ ft balls, max EV, launch angle, pull-air); the starter's mistakes (barrels and hard-hit allowed, HR/9); how the two overlap; the park. *(md:7246–7379)*
 4. **How to read it:** 0–100, higher is better.
 5. **Timeframe:** Season and pitch-type history, plus his last ~8 games of batted balls.
@@ -78,7 +80,7 @@ for that audit's clean numbers.)
 
 ## Goal score (LAMP)
 1. **What it is:** Tonight's goal-board score: three percentile ranks averaged (shots, goals and ice time per game).
-2. **Why it matters:** **NEEDS YOUR WORDS.**
+2. **Why it matters:** Who gets the most shots, who's been finishing them, and who's on the ice the most — ranked against everyone playing tonight. It's the first filter for a goal; the goalie and the matchup aren't in it yet. *(Donovan's pick, 10-01)*
 3. **What goes in:** Shots, goals and ice time per game.
 4. **How to read it:** Ranks tonight's pool, 0–100; not a probability.
 5. **Timeframe:** His last 82 NHL games, this season first.
