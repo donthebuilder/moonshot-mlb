@@ -37,7 +37,7 @@ import DashAuthCard from '../../components/DashAuthCard'
 import LegacyHashRedirect from '../../components/LegacyHashRedirect'
 import SubmitButton from '../../components/fantasy/SubmitButton'
 import { getNetworkPulse, liveProduct } from '../../lib/dash/pulse'
-import { appHref, BRAND } from '../../lib/routes'
+import { appHref, BRAND, playerHref } from '../../lib/routes'
 import { nextLine } from '../../lib/mlbNext'
 import { wilson } from '../../lib/interval'
 import { hasSupabaseConfig } from '../../lib/supabase/config'
@@ -386,7 +386,7 @@ export default async function DashHome({ searchParams }) {
           {mlb?.topCalls?.length && !mlbOff ? (
             <ul className={styles.six}>
               {mlb.topCalls.map((c) => (
-                <li key={c.id}><small>HR CALL</small><b>{c.name}</b><span>{c.team ? `${c.team} · ` : ''}{Math.round(c.score)}{c.homered ? ' · 🏠 HOMERED' : ''}</span></li>
+                <li key={c.id}><small>HR CALL</small><b>{c.id ? <Link href={playerHref('mlb', c.id)} className="tap-link" style={{ color: 'inherit' }}>{c.name}</Link> : c.name}</b><span>{c.team ? `${c.team} · ` : ''}{Math.round(c.score)}{c.homered ? ' · 🏠 HOMERED' : ''}</span></li>
               ))}
             </ul>
           ) : (
@@ -406,7 +406,7 @@ export default async function DashHome({ searchParams }) {
           {nfl?.six?.length ? (
             <ul className={styles.six}>
               {nfl.six.map((call) => (
-                <li key={call.key}><small>{call.label}</small><b>{call.name}</b><span>{call.team} · {Math.round(call.score)}</span></li>
+                <li key={call.key}><small>{call.label}</small><b>{call.player_id ? <Link href={playerHref('nfl', call.player_id)} className="tap-link" style={{ color: 'inherit' }}>{call.name}</Link> : call.name}</b><span>{call.team} · {Math.round(call.score)}</span></li>
               ))}
             </ul>
           ) : (
@@ -427,7 +427,7 @@ export default async function DashHome({ searchParams }) {
             // The #1 called in each LOCKED game. Once graded, the lamp on a scorer.
             <ul className={styles.six}>
               {nhl.calls.map((call) => (
-                <li key={call.gameId}><small>{call.away} @ {call.home}</small><b>{call.name}</b><span>{call.team} · {Math.round(call.score)}{call.graded ? (call.hit ? ' · 🚨 SCORED' : call.dressed === false ? ' · VOID' : ' · no goal') : ''}</span></li>
+                <li key={call.gameId}><small>{call.away} @ {call.home}</small><b>{call.playerId ? <Link href={playerHref('nhl', call.playerId)} className="tap-link" style={{ color: 'inherit' }}>{call.name}</Link> : call.name}</b><span>{call.team} · {Math.round(call.score)}{call.graded ? (call.hit ? ' · 🚨 SCORED' : call.dressed === false ? ' · VOID' : ' · no goal') : ''}</span></li>
               ))}
             </ul>
           ) : nhl?.games ? (

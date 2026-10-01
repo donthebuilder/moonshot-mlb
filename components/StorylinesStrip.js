@@ -10,7 +10,7 @@ import StoryRow, { StoryParts, BoardBadge } from './StoryRow'
 // each home showed before (MOONSHOT's collapsed panel + History Watch, TUDDY's
 // whole Storylines view, LAMP's History Watch), in the same place, no taller.
 // Renders nothing when there is no story: an empty box is not a section.
-export default function StorylinesStrip({ sport, theme: C, numFont, accent, max = 5, onSeeAll = null, onOpenPlayer = null }) {
+export default function StorylinesStrip({ sport, theme: C, numFont, accent, max = 5, onSeeAll = null, onOpenPlayer = null, onOpenTeam = null }) {
   const [data, setData] = useState(null)
   useEffect(() => {
     let alive = true
@@ -38,7 +38,10 @@ export default function StorylinesStrip({ sport, theme: C, numFont, accent, max 
       <div style={{ marginTop: 2 }}>
         {top.map((s) => (
           <StoryRow key={`${s.game_id}|${s.type}|${s.player_id}`} icon={s.icon} theme={C} title={`Source: ${s.source}`}
-            onClick={onOpenPlayer && s.board ? () => onOpenPlayer(s.player_id, s) : null}
+            // A team story (player_id "team:VAN") opens the team, so its club
+            // name is a link like every other name (the clickable rule).
+            onClick={String(s.player_id).startsWith('team:') ? (onOpenTeam ? () => onOpenTeam(s.team) : null)
+              : onOpenPlayer && s.board ? () => onOpenPlayer(s.player_id, s) : null}
             style={{ fontSize: 12 }}>
             {/* the chip rides at the end of the sentence, not in a right column that squeezes it */}
             <StoryParts parts={s.parts} theme={C} numFont={numFont} />{s.board ? <> · <BoardBadge b={s.board} theme={C} numFont={numFont} accent={accent} /></> : null}

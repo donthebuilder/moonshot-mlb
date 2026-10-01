@@ -134,7 +134,7 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
         faceOf={(c) => { const url = c.playerId && c.team ? nhlMug(board.data?.season?.current || board.data?.season?.id, c.team, c.playerId) : null; return url ? <PlayerFace sport="nhl" photo={url} variant="table" size={22} theme={C} /> : null }} />
       {/* 2026-09-27 (BATCH-STORYLINES-PAGE step 4): the story engine's rarest
           five (History Watch's claims lead as the rarest), then the Storylines tab. */}
-      <StorylinesStrip sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} max={5} onSeeAll={() => setTab?.('storylines')} onOpenPlayer={(id) => onOpenPlayer?.(Number(id))} />
+      <StorylinesStrip sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} max={5} onOpenTeam={onOpenTeam} onSeeAll={() => setTab?.('storylines')} onOpenPlayer={(id) => onOpenPlayer?.(Number(id))} />
       <LongshotsPreview sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} onSeeAll={() => setTab?.('longshots')} onOpenPlayer={(id) => onOpenPlayer?.(id)} />
 
       <section aria-label="Tonight's games">

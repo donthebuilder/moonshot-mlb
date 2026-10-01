@@ -169,6 +169,11 @@ export default function HeadlinePicks({ theme, numFont, title, subtitle, record 
                       {rest.map((p, idx) => (
                         <div
                           key={p.key ?? idx}
+                          // A real control (role + keyboard), so the name in it
+                          // counts as tappable; the look is unchanged.
+                          role={onPick ? 'button' : undefined}
+                          tabIndex={onPick ? 0 : undefined}
+                          onKeyDown={onPick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onPick(p, f) } } : undefined}
                           onClick={() => onPick?.(p, f)}
                           style={{
                             display: 'flex', alignItems: 'baseline', gap: 6,
