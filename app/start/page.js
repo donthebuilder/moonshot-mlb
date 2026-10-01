@@ -62,6 +62,7 @@ import { unstable_cache } from 'next/cache'
 import { postseasonOn } from '../../lib/dash/seasonGuard'
 
 import BotPicksStrip from '../../components/BotPicksStrip'
+import HowItWorks from '../../components/HowItWorks'
 import { easternToday } from '../../lib/data'
 import { fetchBoardFull } from '../../lib/dash/board'
 import { buildHeadlines } from '../../lib/headlinesCore'
@@ -358,7 +359,7 @@ const etClock = (iso) => `${new Date(iso).toLocaleTimeString('en-US', { timeZone
 
 /** A game on the hockey board as one bite: stamp · matchup · the three · the clock. */
 const lampBite = (g) => ({
-  k: String(g.id), icon: '🏒',
+  k: String(g.id), icon: '🏒', gameId: g.id,
   tag: g.graded ? 'GRADED' : g.locked ? 'LOCKED' : 'PREVIEW',
   col: g.graded ? 'var(--ink)' : g.locked ? 'var(--nhl)' : 'var(--dim)',
   name: `${g.away} @ ${g.home}`,
@@ -416,6 +417,10 @@ const loadCalls = unstable_cache(computeCalls, ['start-calls-v2'], { revalidate:
 const loadRecord = unstable_cache(computeRecord, ['start-record-v3'], { revalidate: START_TTL })
 
 /** One bite row. Shared by both sports and by the league strip. */
+// The tab a game opens on, per product (LAMP's game page is `tab=game`,
+// LampDashboard's deep link; the others land on their Games tab).
+const GAME_TAB = { mlb: 'games', nfl: 'games', nhl: 'game' }
+
 function Bite({ b, sport = 'mlb' }) {
   return (
     <li className={styles.bite}>
@@ -425,7 +430,7 @@ function Bite({ b, sport = 'mlb' }) {
       {b.pid
         ? <a className={`${styles.biteName} tap-link`} href={playerHref(sport, b.pid)} style={{ color: 'inherit', textDecoration: 'none' }}>{b.name}</a>
         : b.gameId != null
-          ? <a className={`${styles.biteName} tap-link`} href={`${appHref(sport, 'games')}&game=${encodeURIComponent(String(b.gameId))}`} style={{ color: 'inherit', textDecoration: 'none' }}>{b.name}</a>
+          ? <a className={`${styles.biteName} tap-link`} href={`${appHref(sport, GAME_TAB[sport] || 'games')}&game=${encodeURIComponent(String(b.gameId))}`} style={{ color: 'inherit', textDecoration: 'none' }}>{b.name}</a>
           : <span className={styles.biteName}>{b.name}</span>}
       <span className={styles.biteWhy}>{b.why}</span>
       <span className={styles.biteStat}>{b.stat}</span>
@@ -530,7 +535,7 @@ export default async function StartPage({ searchParams }) {
           </p>
         ) : sportKey === 'nhl' ? (
           <ul className={styles.bites}>
-            {calls.games.map((g) => <Bite key={g.id} b={lampBite(g)} />)}
+            {calls.games.map((g) => <Bite key={g.id} b={lampBite(g)} sport="nhl" />)}
           </ul>
         ) : sportKey === 'nfl' ? (
           <ul className={styles.bites}>
@@ -542,6 +547,14 @@ export default async function StartPage({ searchParams }) {
           // nothing is worse than one that doesn't.
           <BotPicksStrip players={calls.players} rankWhy={false} />
         )}
+      </section>
+
+      {/* LOOK -> PICK -> TRACK (2026-10-01): three drawings for what this
+          site is for, under the picks so the first picks stay where they were.
+          Colours are this page's own CSS variables (--accent per sport). */}
+      <section className={styles.panel} data-sport={sportKey}>
+        <HowItWorks sport={sportKey} recordHref={sport.recordHref}
+          colors={{ accent: 'var(--accent)', ink: 'var(--ink)', dim: 'var(--dim)', line: 'var(--line)' }} />
       </section>
 
       {strip.length > 0 && (

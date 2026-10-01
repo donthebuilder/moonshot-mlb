@@ -15,6 +15,7 @@
   --panel: #131211;
   --mlb: #f97316;
   --nhl: #8ecbff; /* LAMP ice — lib/nhl/theme.js C.ice; the LOCKED tag on the hockey bites */
+  --nfl: #00f5ad; /* TUDDY green — lib/nfl/theme.js C.green */
   --bg: #0b0b0a;
   max-width: 760px;
   margin: 0 auto;
@@ -142,3 +143,8 @@
   .bite { grid-template-columns: 22px 1fr; grid-template-areas: "i tag" "i name" "i stat" "i why"; }
   .biteStat { text-align: left; }
 }
+
+/* HowItWorks accent, per sport (2026-10-01). */
+.panel[data-sport] { --accent: var(--mlb); }
+.panel[data-sport="nfl"] { --accent: var(--nfl); }
+.panel[data-sport="nhl"] { --accent: var(--nhl); }

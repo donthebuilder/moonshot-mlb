@@ -1,5 +1,6 @@
 'use client'
 import { C, NUM_FONT, TYPE } from '../../lib/theme'
+import HowItWorks from '../HowItWorks'
 import { ORANGE_RAMP, inkFor } from '../Heatmap'
 import PaletteToggle from '../PaletteToggle'
 import { RAMPS, usePalette } from '../../lib/palette'
@@ -140,6 +141,11 @@ export default function Guide({ onNavigate }) {
           it — follow the five steps below in order.
       </GuideTitle>
       <PlaybookLink market="hr" label="How to research a home run" />
+      {/* LOOK -> PICK -> TRACK (2026-10-01): the same three drawings as /start. */}
+      <div style={{ margin: '14px 0 18px' }}>
+        <HowItWorks sport="mlb" recordHref="/called?sport=mlb"
+          colors={{ accent: C.orange, ink: C.text, dim: C.text2, line: C.border }} />
+      </div>
 
       {/* The palette picker lives here rather than buried in a settings menu.
           Colour is how every board on this site says "high" and "low", so
