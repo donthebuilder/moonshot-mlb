@@ -528,7 +528,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
       const i = LANES.indexOf(runSpot.z)
       const cxs = rx0 + i * gw + gw / 2, cys = (bTop + bBot) / 2
       const rr = Math.min(gw, bBot - bTop) * 0.5
-      const tagTxt = `THE SPOT ${fmtPct(runSpot.leak)}`
+      const tagTxt = `${pid ? "THE SPOT" : "WEAK SPOT"} ${fmtPct(runSpot.leak)}`
       const tagPx = phone ? 9.5 : 10.5
       const tagW = u(tagTxt.length * tagPx * 0.68 + 10), tagH = u(tagPx + 8)
       const tx = Math.max(rx0, Math.min(rx1 - tagW, cxs - tagW / 2))
@@ -659,8 +659,8 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
     .filter((t) => rzWeeks.has(t.wk) || win === 'SZN')
   const rzBy = new Map()
   for (const t of rz) { if (!rzBy.has(t.pid)) rzBy.set(t.pid, []); rzBy.get(t.pid).push(t) }
-  let stripIds = asPlayer ? [pid] : [...rzBy.keys()].sort((a, b) => rzBy.get(b).length - rzBy.get(a).length).slice(0, 5)
-  if (!asPlayer && pid && !stripIds.includes(pid) && rzBy.has(pid)) stripIds = [...stripIds.slice(0, 4), pid]
+  let stripIds = asPlayer ? [pid] : [...rzBy.keys()].sort((a, b) => rzBy.get(b).length - rzBy.get(a).length).slice(0, phone ? 3 : 5)
+  if (!asPlayer && pid && !stripIds.includes(pid) && rzBy.has(pid)) stripIds = [...stripIds.slice(0, (phone ? 3 : 5) - 1), pid]
   const stripRows = stripIds.map((id) => ({ key: id, name: nameOf(id), href: playerHref('nfl', id), player: byPid.get(String(id)) || { name: nameOf(id), team }, clickable: byPid.has(String(id)), touches: rzBy.get(id) || [] }))
   const stripKicker = (
     <div style={{ fontFamily: NUM_FONT, fontSize: 12, fontWeight: 800, letterSpacing: '.06em', color: C.text3, margin: '10px 0 4px' }}>

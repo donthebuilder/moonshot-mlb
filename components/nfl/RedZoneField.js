@@ -148,7 +148,7 @@ export default function RedZoneField({ data, matchup, onPlayerClick }) {
 // ── THE STRIP: EVERY TOUCH, ONE LANE A PLAYER (2026-09-30, BATCH-NFL-FIELD) ──
 // The same last-20 ruler and the same player lanes as the field above, one
 // mark per touch instead of a bar per game: it is the red-zone half of The
-// Field (components/nfl/FieldChart.js), which draws everything outside the 20.
+// Field (components/nfl/TheField.js), which draws everything outside the 20.
 // x = yards to the goal line, the 20 on the left, the goal line on the right
 // (the orange bar). Circle = target, square = carry; cream = catch, hollow =
 // incomplete or intercepted, amber = a carry that didn't score, orange = TD.

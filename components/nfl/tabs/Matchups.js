@@ -18,7 +18,7 @@ import MatchupExplorer from '../MatchupExplorer'
 import { ViewRow } from '../../results/ResultsParts'
 import { SportTheme } from '../../SportTheme'
 import { softRole, softLine, passRushThreat, blockSeason, PASS_RUSH_AVOID, STARTER_ROLES } from '../../../lib/nfl/dvpSignal'
-import FieldChart from '../FieldChart'
+import TheField from '../TheField'
 
 // Matchups -- the defenses to attack this week, then one defense read the
 // way MOONSHOT reads a starter (2026-09-28, Donovan: "the match up page on nfl
@@ -418,18 +418,27 @@ export default function Matchups({ matchup, data, onPlayerClick = null, onOpenTe
         )}
         <FactLines theme={C} lines={facts} />
         {opp ? <PassGame matchup={matchup} data={data} off={opp} def={active} onPlayerClick={onPlayerClick} /> : null}
-        {/* THE FIELD, TEAM mode (2026-09-30): every target the offence facing
-            this defence has thrown, over where this defence leaks. */}
-        {/* Folded on a phone (~720px open), like PassGame above; a desktop
-            sees it open. */}
-        {opp ? (
-          <MobileFold title="The Field" summary={`every ${opp} target over ${active}'s zones`} accent={C.green}>
-            <FieldChart key={`${opp}-${active}`} team={opp} defTeam={active} defWeek={data?.week} matchup={matchup}
-              players={data?.players} initialMode="TEAM" onPlayerClick={onPlayerClick} onOpenTeam={onOpenTeam} fallback={null} />
-          </MobileFold>
-        ) : null}
-
-        <Zones field={matchup.field} team={active} />
+        {/* THE FIELD, TEAM mode (0e c F6): ONE picture of where this defence
+            gets beaten -- the offence facing it, every target, over the ink,
+            the run gaps a tap away. It replaced the FootballField heat map
+            (Zones) and a second, folded FieldChart of the same defence. A
+            defence with no game on the slate has no offence to draw, so it
+            keeps the zone read. */}
+        {opp ? <>
+          <TheField key={`${opp}-${active}`} team={opp} defTeam={active} defWeek={data?.week} matchup={matchup}
+            players={data?.players} initialMode="TEAM" onPlayerClick={onPlayerClick} onOpenTeam={onOpenTeam} />
+          {(() => {
+            const o = laneOutcomes(matchup.field, active)
+            return o && (o.stuff || o.leak) ? (
+              <div style={{ marginBottom: 12 }}>
+                <FactLines theme={C} lines={[
+                  ['Stuffs it', o.stuff ? <>{LANE_WORD[o.stuff.z].replace('runs ', '')}, {pct0(o.stuff.v)} of {o.stuff.n} carries go for 0 or less (league {pct0(o.stuff.lg)}).</> : null],
+                  ['Springs leaks', o.leak ? <>{LANE_WORD[o.leak.z].replace('runs ', '')}, {pct0(o.leak.v)} of {o.leak.n} carries go 10+ yards (league {pct0(o.leak.lg)}).</> : null],
+                ]} />
+              </div>
+            ) : null
+          })()}
+        </> : <Zones field={matchup.field} team={active} />}
         <ByPosition matchup={matchup} team={active} win={win} setWin={setWin} slateSeason={data?.season} />
 
         {facing.length > 0 && (
