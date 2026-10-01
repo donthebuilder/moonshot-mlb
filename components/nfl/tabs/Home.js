@@ -164,6 +164,7 @@ function TheSix({ picks, playersById, players = [], markets = [], onPlayerClick,
       lanes={lanes}
       collapsePhone
       gridClass="tuddy-six-picks"
+      foldWhy
       onPick={(pick) => pick.raw.player && onPlayerClick?.(pick.raw.player, pick.raw.key)}
       record={<button type="button" className="tuddy-panel-action" onClick={onPicks} style={{ marginLeft: 'auto' }}>Full card →</button>}
     />

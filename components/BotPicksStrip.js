@@ -290,6 +290,7 @@ export default function BotPicksStrip({ players = [], onPlayerClick, onFullCard 
       // The Six: measured, the 44px "#2 and #3" button is taller than the two
       // compact rows it hides, so four collapsed cards were taller, not shorter.
       cols={{ wide: 4, mid: 2 }}
+      foldWhy
       // No opener (the /start page): a name links to his card in the app.
       onPick={onPlayerClick ? (pick) => onPlayerClick(pick.raw) : (pick) => { const id = pick.raw?.player_id ?? pick.raw?.id; if (id != null) window.location.assign(playerHref('mlb', id)) }}
       whatThis={{ label: 'how these are ranked', body: 'Each category uses its own score and evidence. ⭐ marks a weak lineup spot; tap a name for the hitter detail.' }}

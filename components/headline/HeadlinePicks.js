@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { WhatThis } from '../ui'
 import { explain } from '../../lib/explain'
+import { useIsPhone } from '../MobileFold'
 
 // THE HEADLINE PICKS, ONE LAYOUT FOR EVERY PRODUCT (2026-09-27,
 // BATCH-HEADLINE-PICKS step 1). Lifted out of components/BotPicksStrip.js
@@ -22,6 +23,10 @@ import { explain } from '../../lib/explain'
 //   against. Ellipsis on a phone; a tap sends `explain` (every reason, full
 //   length) to the app's ExplainToast (lib/explain.js), so nothing depends
 //   on hover. Both optional: a lane without them renders exactly as before.
+// foldWhy (BATCH-SIGNAL-WHY S5): on a phone the why / watch lines start
+//   folded behind one WHY chip in the header (measured: four or six lines
+//   pushed the board down 72-108px, past the plan's one-line budget). A tap
+//   unfolds every card at once. Desktop always shows them.
 //   picks[0] is the featured #1 (name, score, two lines); picks[1..] the
 //   compact rows (index, name, team, micro stat, score).
 // collapsePhone: on a phone each lane shows only its #1 until tapped
@@ -29,10 +34,14 @@ import { explain } from '../../lib/explain'
 // cols: { wide, mid } -- an even grid instead of auto-fit (which left
 //   MOONSHOT's CONTACT alone on a second row): `wide` lanes across from
 //   1100px, `mid` from 561px, one column on a phone. Omitted -> auto-fit.
-export default function HeadlinePicks({ theme, numFont, title, subtitle, record = null, lanes = [], onPick, whatThis = null, collapsePhone = false, gridClass = 'bot-picks-grid', cols = null }) {
+export default function HeadlinePicks({ theme, numFont, title, subtitle, record = null, lanes = [], onPick, whatThis = null, collapsePhone = false, gridClass = 'bot-picks-grid', cols = null, foldWhy = false }) {
   const C = theme
   const NUM_FONT = numFont
   const [open, setOpen] = useState(() => new Set())
+  const isPhone = useIsPhone()
+  const [whyOpen, setWhyOpen] = useState(false)
+  const anyWhy = lanes.some((l) => l.picks?.[0]?.why || l.picks?.[0]?.watch)
+  const whyShown = !foldWhy || !isPhone || whyOpen
   const toggle = (k) => setOpen((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n })
   if (!lanes.some((l) => l.picks?.length)) return null
 
@@ -41,6 +50,12 @@ export default function HeadlinePicks({ theme, numFont, title, subtitle, record 
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 7, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 13, fontWeight: 900, letterSpacing: '-.01em' }}>{title}</span>
         {subtitle && <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>{subtitle}</span>}
+        {foldWhy && isPhone && anyWhy && (
+          <button type="button" onClick={() => setWhyOpen((v) => !v)} aria-expanded={whyOpen}
+            style={{ minHeight: 44, margin: '-13px 0', padding: '0 8px', border: 'none', background: 'transparent', color: C.text2, font: `800 11px/1 ${NUM_FONT}`, letterSpacing: '.06em', cursor: 'pointer' }}>
+            WHY {whyOpen ? '▾' : '▸'}
+          </button>
+        )}
         {record}
       </div>
 
@@ -114,7 +129,7 @@ export default function HeadlinePicks({ theme, numFont, title, subtitle, record 
                       </div>
                     )}
                   </div>
-                  {(lead.why || lead.watch) && (
+                  {whyShown && (lead.why || lead.watch) && (
                     <button type="button"
                       onClick={() => explain(lead.explain?.label || lead.name, lead.explain?.text || [lead.why, lead.watch].filter(Boolean).join(' · '))}
                       aria-label={`Why ${lead.name}: ${[lead.why, lead.watch && `watch: ${lead.watch}`].filter(Boolean).join('; ')}`}
