@@ -43,7 +43,7 @@
     },
     {
       "path": "/api/fantasy/draft-tick",
-      "schedule": "* * * * *"
+      "schedule": "*/10 * * * *"
     },
     {
       "path": "/api/dash/homers/tick",
