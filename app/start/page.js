@@ -159,7 +159,7 @@ const START_TTL = 120
 /** A bite with only what the markup reads. `p` (the full row) never crosses. */
 // `pid` (2026-09-27, CLICK-EVERYTHING-PLAN): the player's id rides along so his name links
 // to his card in the app -- the id only, never the row.
-const biteText = (b) => ({ k: b.k, icon: b.icon, tag: b.tag, name: b.name, why: b.why, stat: b.stat, col: b.col, pid: b.p?.player_id ?? b.p?.id ?? null })
+const biteText = (b) => ({ k: b.k, icon: b.icon, tag: b.tag, name: b.name, why: b.why, stat: b.stat, col: b.col, pid: b.p?.player_id ?? b.p?.id ?? null, gameId: b.gameId ?? null })
 
 const SPORTS = {
   mlb: {
@@ -411,9 +411,12 @@ function Bite({ b, sport = 'mlb' }) {
     <li className={styles.bite}>
       <span className={styles.biteIcon} aria-hidden="true">{b.icon}</span>
       <span className={styles.biteTag} style={{ color: b.col }}>{b.tag}</span>
+      {/* every player and every game is a link (the clickable rule) */}
       {b.pid
         ? <a className={`${styles.biteName} tap-link`} href={playerHref(sport, b.pid)} style={{ color: 'inherit', textDecoration: 'none' }}>{b.name}</a>
-        : <span className={styles.biteName}>{b.name}</span>}
+        : b.gameId != null
+          ? <a className={`${styles.biteName} tap-link`} href={`${appHref(sport, 'games')}&game=${encodeURIComponent(String(b.gameId))}`} style={{ color: 'inherit', textDecoration: 'none' }}>{b.name}</a>
+          : <span className={styles.biteName}>{b.name}</span>}
       <span className={styles.biteWhy}>{b.why}</span>
       <span className={styles.biteStat}>{b.stat}</span>
     </li>
