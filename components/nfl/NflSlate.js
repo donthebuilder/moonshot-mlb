@@ -13,6 +13,7 @@ import { SubLabel, FactLines } from '../matchup/MatchupParts'
 import { Zones, defenseFacts, offenseFacts, PassGame } from './tabs/Matchups'
 import { Card as TdCard, tdPool } from './tabs/Touchdowns'
 import NflTable from './NflTable'
+import GameCalls, { useGameCalls } from './GameCalls'
 import { useNflWatchlist } from '../../lib/nfl/watchlist'
 
 // TUDDY'S SLATE (2026-09-28). Donovan: "there's no breakdown page like the
@@ -71,6 +72,7 @@ export default function NflSlate({ data, picks, matchup, odds = null, initialGam
   const isPhone = useIsPhone()
   const watchlist = useNflWatchlist(data)
   const pool = useMemo(() => tdPool(data), [data])
+  const gameCalls = useGameCalls()   // BATCH-GAME-CALLS G5: TOP + TD per game
   const playersById = useMemo(() => Object.fromEntries(players.map((p) => [String(p.player_id), p])), [players])
 
   const [gfilter, setGfilter] = useState('all')
@@ -177,6 +179,7 @@ export default function NflSlate({ data, picks, matchup, odds = null, initialGam
                     {g.possession ? `${g.possession} ball` : ''}{g.possession && g.down_distance ? ' · ' : ''}{g.down_distance || ''}{g.red_zone ? ' · RED ZONE' : ''}
                   </div>
                 )}
+                <GameCalls calls={gameCalls} game={g} playersById={playersById} weights={pool.weights} base={pool.base} onPlayerClick={onPlayerClick} />
               </div>
               <div style={{ borderTop: `1px solid ${C.border}`, padding: '12px 14px 14px', background: 'rgba(0,0,0,.15)' }}>
                 <GamePanelPills panels={PANELS} subs={SUBS} panel={panel} setPanel={setPanel} gamePk={g.game_id} isPhone={isPhone} accent={C.green} stickyTop="var(--gsw-h, 0px)"
