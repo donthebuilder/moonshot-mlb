@@ -29,6 +29,8 @@ import { shotsFromPlayByPlay, writeShots } from '../../../../lib/nhl/shots'
 import { postLongshotsOnce } from '../../../../lib/dash/longshotsPost'
 import { postMultiClubOnce } from '../../../../lib/dash/multiClubPost'
 import { toPropRow, gradeSogRows, MODEL_VERSION as SOG_VERSION, MARKET as SOG } from '../../../../lib/nhl/sogModel'
+import { toPtsRow, gradePtsRows, MODEL_VERSION as PTS_VERSION, MARKET as PTS } from '../../../../lib/nhl/ptsModel'
+import { toAstRow, gradeAstRows, MODEL_VERSION as AST_VERSION, MARKET as AST } from '../../../../lib/nhl/astModel'
 import { readNumerology } from '../../../../lib/nhl/numerology'
 import { writeNight as writeNumerology, gradeNight as gradeNumerology, refreshLaneNights, writeNumbersNight } from '../../../../lib/numerology/record'
 import { fromNhl } from '../../../../lib/numerology/adapters'
@@ -57,6 +59,13 @@ async function writeGame(db, game_id, row, op) {
   }
   return res
 }
+// SHADOW MARKETS (2026-10-01): lamp-pts-v1 / lamp-ast-v1. Locked and graded
+// exactly like LAMP SHOTS, read by nothing on the site. lamp_prop_log's
+// market check already allows 'PTS' and 'AST' (202609280100_lamp_prop_log.sql).
+const SHADOW = [
+  { market: PTS, version: PTS_VERSION, byGame: 'ptsByGame', toRow: toPtsRow, grade: gradePtsRows },
+  { market: AST, version: AST_VERSION, byGame: 'astByGame', toRow: toAstRow, grade: gradeAstRows },
+]
 const dayBefore = (ymd) => { const [y, m, d] = ymd.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d - 1, 12)).toISOString().slice(0, 10) }
 
 export async function GET(request) {
@@ -100,6 +109,19 @@ export async function GET(request) {
           if (sdel.error) console.error(`[lamp tick] sog prune ${g.id}: ${sdel.error.message}`)
         }
       }
+      // SHADOW points / assists: same snapshot, same lockedAt; the clock is
+      // re-read before each write (never at or after puck drop). Own failures.
+      const shadowLocked = {}
+      for (const m of SHADOW) {
+        const mRows = night[m.byGame]?.get(g.id) || []
+        if (!mRows.length) continue
+        if (Date.now() >= start) { out.skipped.push({ game: g.id, why: `${m.market}: puck dropped before its write` }); continue }
+        const mu = await db.from('lamp_prop_log').upsert(mRows.map((r) => m.toRow(r, g, night.day, lockedAt)), { onConflict: 'game_id,player_id,market,model_version' })
+        if (mu.error) { console.error(`[lamp tick] ${m.market} upsert ${g.id}: ${mu.error.message}`); continue }
+        const md = await db.from('lamp_prop_log').delete().eq('game_id', g.id).eq('market', m.market).eq('model_version', m.version).lt('locked_at', lockedAt)
+        if (md.error) console.error(`[lamp tick] ${m.market} prune ${g.id}: ${md.error.message}`)
+        shadowLocked[m.market] = mRows.length
+      }
       const prevGame = await db.from('lamp_goal_games').select('snapshots').eq('game_id', g.id).eq('model_version', MODEL_VERSION).maybeSingle()
       const gm = await writeGame(db, g.id, {
         game_id: g.id, model_version: MODEL_VERSION, game_date: night.day.date, season: g.season, game_type: g.gameType, start_utc: g.startUtc,
@@ -110,7 +132,7 @@ export async function GET(request) {
       }, 'upsert')
       if (gm.error) console.error(`[lamp tick] games ${g.id}: ${gm.error.message}`)
       out.locked.push({ game: g.id, matchup: `${g.away.abbrev}@${g.home.abbrev}`, rows: rows.length, called: rows.filter((r) => r.status === 'called').map((r) => r.name),
-        sogCalled: sogRows.filter((r) => r.status === 'called').map((r) => r.name), lineupKnown: Boolean(night.lineups[g.id]), minutesToDrop: Math.round((start - Date.now()) / 60000) })
+        sogCalled: sogRows.filter((r) => r.status === 'called').map((r) => r.name), shadow: shadowLocked, lineupKnown: Boolean(night.lineups[g.id]), minutesToDrop: Math.round((start - Date.now()) / 60000) })
     }
   }
 
@@ -177,13 +199,27 @@ export async function GET(request) {
           sogGraded = { rows: gs.length, hits: gs.filter((r) => r.hit).length, calledHits: gs.filter((r) => r.hit && r.status === 'called').length }
         }
       } catch (e) { console.error(`[lamp tick] sog grade ${p.game_id}: ${e?.message}`) }
+      // SHADOW grade (points >= 1 / assists >= 1), off the same boxscore, the
+      // same way as SOG: not dressed = void; scoring columns untouched.
+      const shadowGraded = {}
+      for (const m of SHADOW) {
+        try {
+          const sh = await db.from('lamp_prop_log').select('*').eq('game_id', p.game_id).eq('market', m.market).eq('model_version', m.version).is('graded_at', null)
+          if (sh.error) throw new Error(sh.error.message)
+          if (!sh.data?.length) continue
+          const gs = m.grade(sh.data, box.playerByGameStats)
+          const su = await db.from('lamp_prop_log').upsert(gs.map((r) => ({ ...r, graded_at: gradedAt })), { onConflict: 'game_id,player_id,market,model_version' })
+          if (su.error) throw new Error(su.error.message)
+          shadowGraded[m.market] = { rows: gs.length, hits: gs.filter((r) => r.hit).length, calledHits: gs.filter((r) => r.hit && r.status === 'called').length }
+        } catch (e) { console.error(`[lamp tick] ${m.market} grade ${p.game_id}: ${e?.message}`) }
+      }
       // Numerology grade for this game's skaters: played = dressed, hit = scored.
       try {
         const results = new Map(graded.map((r) => [String(r.playerId), { played: r.dressed, hit: Boolean(r.dressed && r.goals >= 1) }]))
         if (await gradeNumerology(db, 'nhl', p.game_date, results)) await refreshLaneNights(db, 'nhl', p.game_date)
       } catch (e) { console.error(`[lamp tick] numerology grade ${p.game_id}: ${e?.message}`) }
       const scorers = graded.filter((r) => r.hit)
-      out.graded.push({ game: p.game_id, matchup: `${g.away.abbrev}@${g.home.abbrev}`, rows: graded.length, dressed: graded.filter((r) => r.dressed).length, net: [startersActual?.away?.name, startersActual?.home?.name], shots: shotRows, scorers: scorers.map((r) => `${r.name} (${r.status}${r.rank ? ` #${r.rank}` : ''})`), sog: sogGraded })
+      out.graded.push({ game: p.game_id, matchup: `${g.away.abbrev}@${g.home.abbrev}`, rows: graded.length, dressed: graded.filter((r) => r.dressed).length, net: [startersActual?.away?.name, startersActual?.home?.name], shots: shotRows, scorers: scorers.map((r) => `${r.name} (${r.status}${r.rank ? ` #${r.rank}` : ''})`), sog: sogGraded, shadow: shadowGraded })
     } catch (e) {
       console.error(`[lamp tick] grade ${p.game_id}: ${e?.message}`); out.skipped.push({ game: p.game_id, why: `grade: ${e?.message}` })
     }
