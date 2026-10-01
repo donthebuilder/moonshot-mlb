@@ -118,7 +118,7 @@ export default function HowToRead({ id, accent = C.orange, row, notes, steps = [
                 <span style={{ fontFamily: NUM_FONT, fontWeight: 900, fontSize: 15, color: C.text }}>#{row.rank}</span>
               </Part>
               <Part n={2} accent={accent} style={{ flex: '1 1 180px', minWidth: 0 }}>
-                <PlayerFace sport={row.sport} id={row.faceId} espnId={row.espnId} team={row.team} name={row.name} size={36} />
+                <PlayerFace sport={row.sport} id={row.faceId} espnId={row.espnId} photo={row.photo} team={row.team} name={row.name} size={36} />
                 <span style={{ minWidth: 0 }}>
                   <span style={{ display: 'block', fontSize: TYPE.name, fontWeight: 800, color: C.text }}>{row.name}</span>
                   <span style={{ fontSize: TYPE.label, color: C.text3, fontFamily: NUM_FONT }}>{row.team}{row.opp ? ` vs ${row.opp}` : ''}</span>

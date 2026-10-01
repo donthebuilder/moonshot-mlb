@@ -11,6 +11,7 @@ import FiltersDrawer, { DrawerSection, drawerChip } from '../../FiltersDrawer'
 import { TIME_WINDOWS, inWindow } from '../../BoardFilters'
 import RangeDual from '../../RangeDual'
 import GoalWatch from '../GoalWatch'
+import HowToRead from '../../HowToRead'
 import { LampCards, PctBars } from '../LampCard'
 import { alpha } from '../../../lib/scales'
 import { useLampBoard } from '../../../lib/nhl/useLamp'
@@ -28,6 +29,21 @@ import { TeamMark, EmptyState, DelayedBanner, Loading, SourceLine, Kicker, GameT
 // lights the lamp. Every number is a field or a percentile of a field.
 // The three words live in ../ui (STATUS), shared with the goal lists.
 export { STATUS }
+
+// HOW TO READ THIS, LAMP's words (components/HowToRead.js draws them; the same
+// component as MOONSHOT's and TUDDY's boards). Describes the page; no hit rates.
+const HOW_NOTES = [
+  { title: 'Rank in his game', text: 'LAMP ranks each game on its own, #1 first. The top three in every game are the calls.' },
+  { title: 'The player', text: 'Tap a name to open his page: his shots, goals and ice time.' },
+  { title: 'Goal score', text: 'Three ranks averaged against tonight\u2019s skaters: shots, goals and ice time per game over his last 82 games, 0\u2013100. A ranking, not a percent.' },
+  { title: 'The call', text: 'CALLED means he\u2019s one of the three picks in his game. ON THE BOARD means he\u2019s scored but not called. Calls lock before puck drop.' },
+  { title: 'Game', text: 'His game and puck drop, in your time zone.' },
+]
+const HOW_STEPS = [
+  { icon: '👆', text: 'Tap a name to open his page.' },
+  { icon: '★', text: 'Add him to your watchlist.' },
+  { icon: '✅', text: 'After the game, every call is graded under Results.' },
+]
 
 // The day is the LAMP shell's (LampDashboard, 2026-09-26): one date for the
 // header's Today/Tmrw, every dated tab and the address -- this tab's day
@@ -88,6 +104,24 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
   const [timeWindow, setTimeWindow] = useState('all')
   const [minPpg, setMinPpg] = useState(0)
   const flat = useMemo(() => games.filter((g) => !g.noMarketLock).flatMap((g) => g.rows.filter((r) => r.status !== 'off').map((r) => ({ r, g }))), [games])
+  // The row the "How to read this" picture draws: tonight's real top goal
+  // score. Its label is the row's own status (goalModel scoreNight), never
+  // re-derived here.
+  const howRow = useMemo(() => {
+    if (market !== 'GOAL') return null
+    let best = null
+    for (const x of flat) if (!best || (x.r.score ?? -1) > (best.r.score ?? -1)) best = x
+    if (!best) return null
+    const { r, g } = best
+    const home = g.game.home.abbrev === r.team
+    return {
+      sport: 'nhl', photo: nhlMug(g.game.season, r.team, r.playerId), team: r.team, opp: null, name: r.name, rank: r.rank ?? 1,
+      caption: 'One row from tonight\u2019s board, taken apart.',
+      score: { label: 'Goal', value: r.score, dp: 0 },
+      pick: r.status === 'off' ? null : STATUS[r.status], pickNone: STATUS.off,
+      fifth: { label: 'Game', value: `${home ? 'vs' : '@'} ${home ? g.game.away.abbrev : g.game.home.abbrev} \u00b7 ${fmtPuckDrop(g.game.startUtc)} ${zoneAbbrev()}` },
+    }
+  }, [flat, market])
   const angles = useMemo(() => lampAngles(flat, market), [flat, market])
   const angleTest = angle ? angles.find((a) => a.key === angle)?.test : null
   const needle = q.trim().toLowerCase()
@@ -161,8 +195,13 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             <Segmented label="Pos" value={pos} onChange={setPos} options={[{ key: 'all', label: 'All' }, { key: 'F', label: 'Forwards' }, { key: 'D', label: 'Defence' }]} />
             <FilterPill active={calledOnly} onClick={() => setCalledOnly((v) => !v)} title="Only the three called per game.">Called only</FilterPill>
-            <span style={{ marginLeft: 'auto' }}><Segmented value={layout} onChange={setLayout}
-              options={[{ key: 'list', label: '☰ List', title: 'One sortable table per game' }, { key: 'cards', label: '▦ Cards', title: 'The card board' }]} /></span>
+            {/* HOW TO READ THIS (2026-10-01): beside the List / Cards switch,
+                which already takes a line of its own on a phone. GOAL only. */}
+            <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 10, fontSize: 12 }}>
+              {howRow && <HowToRead id="nhl-goal-board" accent={C.ice} row={howRow} notes={HOW_NOTES} steps={HOW_STEPS} />}
+            <Segmented value={layout} onChange={setLayout}
+              options={[{ key: 'list', label: '☰ List', title: 'One sortable table per game' }, { key: 'cards', label: '▦ Cards', title: 'The card board' }]} />
+            </span>
           </div>
           <FiltersDrawer
             active={chips.length + drawerChips.length > 0} activeCount={drawerChips.length}
