@@ -5,7 +5,10 @@ import { Segmented } from '../Filters'
 import SeasonToggle from '../SeasonToggle'
 import useDvpSeason from '../../lib/nfl/useDvpSeason'
 import { chipColor } from '../Heatmap'
-import FootballField from './FootballField'
+import { RedZoneStrip } from './RedZoneField'
+import { ChartCard, ChartLegend } from '../charts'
+import { useIsPhone } from '../MobileFold'
+import { playerHref } from '../../lib/routes'
 import NflTable from './NflTable'
 
 // 🔴 EVERY RED-ZONE TOUCH, ON THE FIELD (2026-09-30, Donovan: "make something
@@ -21,7 +24,14 @@ import NflTable from './NflTable'
 //
 // Source: nfl_matchup.json red_zone[pid].plays ("5rT,11r,20r,14p": yards to
 // go, r = carry / p = target, T = touchdown). Where a touch sat side to side
-// is not published, so the across position is only the kind of play.
+// is not published.
+//
+// ONE PICTURE PER TRUTH (2026-10-01, BATCH-2D-CORE flag 1+4): the field is now
+// RedZoneStrip rows -- one lane per player, each touch at the yard line it
+// started -- instead of FootballField's redzone mode, which spread touches
+// across the field at side-to-side spots that were never published. A target
+// that did not score is drawn hollow: the plays string doesn't say whether it
+// was caught.
 
 const BANDS = [[20, 11, '20–11'], [10, 6, '10–6'], [5, 1, 'inside 5']]
 const KINDS = [{ key: 'both', label: 'Both' }, { key: 'r', label: 'Rush' }, { key: 'p', label: 'Pass' }]
@@ -66,7 +76,15 @@ export default function RedZoneDots({ data, matchup, team = 'all', onPlayerClick
     return out.sort((a, b) => (b.n - a.n) || (b.tds - a.tds))
   }, [season.view, byId, team, kind])
 
+  const phone = useIsPhone()
+  const STRIP_ROWS = phone ? 6 : 10
   const focus = who ? rows.find((r) => r.pid === who) : null
+  // RedZoneStrip's row shape: { key, name, player, href, touches: [{ d, kind, res }] }
+  const stripOf = (r) => ({
+    key: r.pid, name: r.name, player: r._raw, href: playerHref('nfl', r.pid),
+    touches: r.touches.map((t, i) => ({ d: t.yl, kind: t.k === 'r' ? 'rush' : 'pass', res: t.td ? 'td' : t.k === 'r' ? 'carry' : 'target', seed: i })),
+  })
+  const stripRows = focus ? [stripOf(focus)] : rows.slice(0, STRIP_ROWS).map(stripOf)
   const touches = focus ? focus.touches.map((t, i) => ({ ...t, who: focus })) : rows.flatMap((r) => r.touches.map((t) => ({ ...t, who: r })))
   const plays = touches.map((t, i) => ({ key: `${t.who.pid}-${i}`, yd: t.yl, kind: t.k, td: t.td, t,
     title: `${t.who.name} · ${t.yl}-yard ${t.k === 'r' ? 'carry' : 'target'}${t.td ? ' · touchdown' : ''}` }))
@@ -102,15 +120,16 @@ export default function RedZoneDots({ data, matchup, team = 'all', onPlayerClick
         ))}
       </div>
 
-      <div className="spray-wrap" style={{
-        display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'flex-start',
-        background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 12, padding: 10,
-      }}>
-        <div style={{ flex: '0 1 340px', minWidth: 0, width: '100%', maxWidth: 340 }}>
-          <FootballField mode="redzone" plays={plays} maxWidth={340} pickedKey={pick}
-            onPick={(k) => setPick(pick === k ? null : k)} />
+      <ChartCard theme={C}>
+        {/* A real minimum: the strip's lanes hold absolutely placed marks, so
+            their content width is zero and a flex row would crush them. */}
+        <div style={{ flex: '1 1 380px', minWidth: 'min(100%, 300px)', maxWidth: '100%' }}>
+          <RedZoneStrip rows={stripRows} rulerLabel="YARDS OUT" phone={phone} onPlayerClick={onPlayerClick} />
+          {!focus && rows.length > STRIP_ROWS && (
+            <div style={{ fontSize: 11, color: C.text3, marginTop: 6 }}>+{rows.length - STRIP_ROWS} more below, in the table</div>
+          )}
         </div>
-        <div style={{ flex: 1, minWidth: 180 }}>
+        <div style={{ flex: '1 1 200px', minWidth: 0, maxWidth: '100%' }}>
           <div style={{ fontSize: TYPE.name, fontWeight: 900 }}>
             {focus ? <>{focus.name} <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: TYPE.micro }}>{focus.pos} · {focus.team}</span></> : `Everyone${team !== 'all' ? ` · ${team}` : ''}`}
           </div>
@@ -118,7 +137,7 @@ export default function RedZoneDots({ data, matchup, team = 'all', onPlayerClick
             {picked ? <>
               <b style={{ color: picked.td ? C.green : C.text }}>{picked.t.yl}-YARD {picked.t.k === 'r' ? 'CARRY' : 'TARGET'}{picked.td ? ' · TOUCHDOWN' : ''}</b>
               {!focus && <div>{picked.t.who.name} · {picked.t.who.team}</div>}
-            </> : <span style={{ color: C.text3 }}>Tap a dot for the touch. Showing {touches.length} touch{touches.length === 1 ? '' : 'es'}.</span>}
+            </> : <span style={{ color: C.text3 }}>Showing {touches.length} touch{touches.length === 1 ? '' : 'es'}{focus ? '' : ` across ${rows.length} player${rows.length === 1 ? '' : 's'}`}. Tap a name to put one player on the strip.</span>}
           </div>
           <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
             {bands.map((b) => (
@@ -138,8 +157,13 @@ export default function RedZoneDots({ data, matchup, team = 'all', onPlayerClick
             <span style={{ fontSize: 10, color: C.text3 }}><b style={{ color: C.green, fontSize: 12.5 }}>{nTd}</b> TD</span>
             <span style={{ fontSize: 10, color: C.text3 }}><b style={{ color: C.text, fontSize: 12.5 }}>{touches.length ? Math.round((100 * nTd) / touches.length) : 0}%</b> scored</span>
           </div>
-          <div style={{ fontSize: 9.5, color: C.text3, marginTop: 8, lineHeight: 1.6 }}>
-            <b style={{ color: C.orange }}>orange ring</b> carry · <b style={{ color: C.cyan }}>blue ring</b> target · <b style={{ color: C.green }}>filled</b> scored · the dot sits on the yard line the play started
+          <ChartLegend theme={C} style={{ marginTop: 8 }} items={[
+            { key: 'td', mark: <i aria-hidden="true" style={{ width: 9, height: 9, borderRadius: '50%', background: C.orange, boxShadow: `0 0 6px ${C.orange}` }} />, label: 'touchdown' },
+            { key: 'carry', mark: <i aria-hidden="true" style={{ width: 9, height: 9, borderRadius: 2, background: C.amber }} />, label: 'carry' },
+            { key: 'target', mark: <i aria-hidden="true" style={{ width: 9, height: 9, borderRadius: '50%', border: `1.5px solid ${C.text2}`, boxSizing: 'border-box' }} />, label: 'target' },
+          ]} />
+          <div style={{ fontSize: 10, color: C.text3, marginTop: 4, lineHeight: 1.5 }}>
+            Each mark sits at the yard line the play started; up and down in a row is only spacing, not where on the field.
           </div>
           {focus?._raw && onPlayerClick && (
             <button type="button" onClick={() => onPlayerClick(focus._raw, 'TD')} style={{ marginTop: 8, padding: '6px 12px', border: `1px solid ${C.border}`, borderRadius: 999, background: 'transparent', color: C.text2, fontFamily: NUM_FONT, fontSize: TYPE.label, fontWeight: 800, cursor: 'pointer' }}>
@@ -147,7 +171,7 @@ export default function RedZoneDots({ data, matchup, team = 'all', onPlayerClick
             </button>
           )}
         </div>
-      </div>
+      </ChartCard>
 
       {rows.length > 0 && (
         <div style={{ marginTop: 10 }}>

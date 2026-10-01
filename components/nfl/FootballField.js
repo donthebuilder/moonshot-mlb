@@ -15,12 +15,11 @@ import { CHALK, CHALK_SOFT, HEAT, SIDES, DEPTHS, LANES } from '../../lib/nfl/fie
 //   mode 'rush'     the seven run holes at the line (end / tackle / guard /
 //                   middle, each side), each an arrow the length of its
 //                   yards a carry, painted by its heat, the five linemen drawn
-//   mode 'redzone'  the 20 to the goal line, one dot per touch where it
-//                   started: carries in the running lane, targets spread
-//                   across, filled green when it scored
+//   (mode 'redzone' was removed 2026-10-01, BATCH-2D-CORE: it spread touches
+//   across the field at side-to-side spots never published. Per-touch red
+//   zone is RedZoneStrip -- one lane per player, the yard line the fact.)
 //
 // cells:  { zoneKey: { big, small, heat 0-1 | null, title } } (pass / rush)
-// plays:  [{ yd, kind: 'r'|'p', td, key, title }] (redzone)
 // Heat is MatchupMap's one scale (DASH orange at an alpha); the turf and the
 // chalk are MatchupMap's too, so every football picture on the site is one
 // drawing. Tap a zone / hole / dot -> onPick(key).
@@ -68,7 +67,7 @@ function Chalk({ from, to, step, labels = [] }) {
 
 const fill = (heat) => (heat == null ? 'transparent' : HEAT(0.12 + heat * 0.7))
 
-export default function FootballField({ mode = 'pass', cells = {}, plays = [], onPick = null, pickedKey = null, maxWidth = 420, endZoneLabel = 'END ZONE' }) {
+export default function FootballField({ mode = 'pass', cells = {}, onPick = null, pickedKey = null, maxWidth = 420, endZoneLabel = 'END ZONE' }) {
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, '')
   const tap = (key) => (onPick ? { onClick: () => onPick(key), style: { cursor: 'pointer' } } : {})
 
@@ -136,41 +135,5 @@ export default function FootballField({ mode = 'pass', cells = {}, plays = [], o
     )
   }
 
-  // redzone: the 20 to the goal line, end zone at the top.
-  const EZ = 34, TOP = EZ, BOT = 250, H = 262
-  const yOf = (yd) => TOP + ((Math.max(0, Math.min(20, yd))) / 20) * (BOT - TOP)
-  // Carries run the middle lane; targets spread across the width. Where a
-  // touch sat side to side is not published, so the across position is a
-  // fixed spread by order -- the yard line is the fact, the lane is the kind.
-  const placed = plays.map((pl, i) => {
-    const lane = pl.kind === 'r' ? 0.5 + (((i * 37) % 21) - 10) / 100 : [0.2, 0.8, 0.32, 0.68, 0.14, 0.86][i % 6]
-    return { ...pl, x: W * lane, y: yOf(pl.yd) }
-  })
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Red-zone touches on the field" style={{ width: '100%', maxWidth, display: 'block' }}>
-      <Turf id={`t${uid}`} h={H} />
-      <rect x="1" y="1" width={W - 2} height={EZ - 1} rx="7" fill={HEAT(0.18)} />
-      <text x={W / 2} y={21} fill={C.text2} fontSize="9" fontFamily={NUM_FONT} fontWeight="900" textAnchor="middle" letterSpacing="3">{endZoneLabel}</text>
-      <line x1="0" x2={W} y1={TOP} y2={TOP} stroke={C.text2} strokeWidth="2" />
-      {[5, 10, 15, 20].map((yd) => (
-        <g key={yd}>
-          <line x1="0" x2={W} y1={yOf(yd)} y2={yOf(yd)} stroke={yd % 10 ? CHALK_SOFT : CHALK} strokeWidth="1" />
-          <text x="6" y={yOf(yd) - 3} fill={C.text3} fontSize="8" fontFamily={NUM_FONT} fontWeight="700">{yd}</text>
-          <text x={W - 6} y={yOf(yd) - 3} fill={C.text3} fontSize="8" fontFamily={NUM_FONT} fontWeight="700" textAnchor="end">{yd}</text>
-        </g>
-      ))}
-      <rect x={W * 0.38} y={TOP} width={W * 0.24} height={BOT - TOP} fill={CHALK_SOFT} opacity="0.35" />
-      {placed.map((p) => {
-        const on = pickedKey === p.key
-        const col = p.kind === 'r' ? C.orange : C.cyan
-        return (
-          <g key={p.key} {...tap(p.key)}>
-            <title>{p.title || `${p.yd} yd ${p.kind === 'r' ? 'carry' : 'target'}${p.td ? ' · touchdown' : ''}`}</title>
-            <circle cx={p.x} cy={p.y} r={on ? 7 : p.td ? 5.5 : 4.5}
-              fill={p.td ? C.green : 'transparent'} stroke={p.td ? C.green : col} strokeWidth={on ? 2 : 1.6} />
-          </g>
-        )
-      })}
-    </svg>
-  )
+  return null   // unknown mode: draw nothing rather than guess
 }
