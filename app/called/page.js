@@ -35,6 +35,7 @@ import { readNflEvents } from '../../lib/record/nfl'
 import { eventCapture } from '../../lib/record/shape'
 import { readNflCardRecord, edgeParts } from '../../lib/nfl/cardRecord'
 import styles from './called.module.css'
+import { membersUrl, MEMBERS_LINE } from '../../lib/members'
 
 // 2026-09-20 — FOOTBALL MOVED IN, IT DIDN'T GET ITS OWN HOUSE. Donovan:
 // "can you not just build it on the same side of the site." Right call, and
@@ -410,6 +411,7 @@ const PREVIEW = 5
 const glyph = (n) => (n.called ? '🤖' : n.onBoard ? '⚪' : '💥')
 
 export default async function CalledPage({ searchParams }) {
+  const members = membersUrl()
   const params = (await searchParams) || {}
   const key = sportKey(String(params.sport || '').toLowerCase())
   const { sport, today, rows, outRows = [], picks, picksDay = null, calledIds, history, byDay, configured } = await load(key)
@@ -643,6 +645,12 @@ export default async function CalledPage({ searchParams }) {
           <strong>Create a free account</strong>
           <span>{sport.close[2]}</span>
         </a>
+        {members ? (
+          <p>
+            {MEMBERS_LINE}{' '}
+            <a href={members} target="_blank" rel="noopener noreferrer">Join →</a>
+          </p>
+        ) : null}
       </section>
 
       <footer className={styles.foot}>

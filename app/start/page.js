@@ -77,6 +77,7 @@ import { readNflEvents } from '../../lib/record/nfl'
 import { eventCapture } from '../../lib/record/shape'
 import { appHref, playerHref } from '../../lib/routes'
 import styles from './start.module.css'
+import { membersUrl, MEMBERS_LINE } from '../../lib/members'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -420,6 +421,7 @@ function Bite({ b, sport = 'mlb' }) {
 }
 
 export default async function StartPage({ searchParams }) {
+  const members = membersUrl()
   const params = (await searchParams) || {}
   const asked = String(params.sport || '').toLowerCase()
   const sportKey = SPORTS[asked] ? asked : 'mlb'
@@ -545,6 +547,14 @@ export default async function StartPage({ searchParams }) {
         <a href={sport.board}>{sport.open} →</a> Want the calls before the game?{' '}
         <a href={SIGNUP}>A free account</a> saves your watchlist and turns on alerts.
       </p>
+      {/* The founding-members line (lib/members.js): only once the Whop
+          checkout exists, under the free account it never replaces. */}
+      {members ? (
+        <p className={styles.alt} style={{ marginTop: 6 }}>
+          {MEMBERS_LINE}{' '}
+          <a href={members} target="_blank" rel="noopener noreferrer">Join →</a>
+        </p>
+      ) : null}
 
       <footer className={styles.foot}>
         <span>

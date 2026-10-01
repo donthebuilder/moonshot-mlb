@@ -111,6 +111,8 @@
 .close { margin-top: 28px; padding: 22px 0 0; border-top: 1px solid var(--line); }
 .closeH { margin: 0; font-size: 20px; line-height: 1.2; font-weight: 800; }
 .close p { margin: 8px 0 0; font-size: 14px; color: var(--dim); max-width: 520px; }
+/* the founding-members line under the CTA (lib/members.js): /start's .alt link */
+.close p a { color: var(--mlb); text-decoration: underline dotted; text-underline-offset: 2px; }
 
 /* ── PAST NIGHTS (2026-09-06) ────────────────────────────────────────────
    Each bar in "Last N nights" links to one of these, or to #tonight for
