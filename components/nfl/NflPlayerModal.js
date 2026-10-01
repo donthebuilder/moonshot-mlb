@@ -17,6 +17,7 @@ import { etToday } from '../../lib/freshness'
 import { VerdictStamp, PutOnCard } from './CardActions'
 import MatchupMap from './MatchupMap'
 import TouchMap from './TouchMap'
+import FieldChart from './FieldChart'
 import VerdictHero from '../VerdictHero'
 import { faceUrl } from '../PlayerFace'
 import SourceSeason from './SourceSeason'
@@ -414,6 +415,15 @@ const FALLBACK_MIN_ATT = 20
 const mapAttempts = (m) =>
   Object.values(m || {}).reduce((n, z) => n + (Number(z?.att) || 0), 0)
 
+// Who gets The Field: a receiver or a back who is targeted at least as often
+// as he carries it. QBs throw rather than get targeted.
+function isPassCatcher(player, matchup) {
+  if (!player?.team || String(player.position).toUpperCase() === 'QB') return false
+  const tg = mapAttempts(matchup?.field?.player_pass?.[player.player_id])
+  const ca = mapAttempts(matchup?.field?.player_rush?.[player.player_id])
+  return tg > 0 && tg >= ca
+}
+
 function MatchupSection({ player, matchup, market }) {
   const field = matchup?.field
   if (!field || !player?.opp) return null
@@ -554,7 +564,10 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
   // MOONSHOT's initialTab, same contract, so a deep link can land on the
   // tab that matters instead of the top of the card every time.
   useEffect(() => {
-    setTab(TABS.some((t) => t.key === initialTab) ? initialTab : 'overview')
+    // A shared Field link (#...&view=field&win=&sit=, FieldChart.js) opens
+    // the card on the Matchup tab, where the Field is.
+    const fieldLink = typeof window !== 'undefined' && /(?:^#|&)view=field(?:&|$)/.test(window.location.hash)
+    setTab(TABS.some((t) => t.key === initialTab) ? initialTab : fieldLink ? 'matchup' : 'overview')
   }, [player?.player_id, initialTab])
   // Escape lives in lib/useDialog.js now (2026-09-24), with focus and Tab.
 
@@ -712,12 +725,20 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
         </>}
 
         {tab === 'matchup' && <>
-        {/* Football's spray chart (2026-09-29): his own map first, then how it
-            lines up with this week's defence below. */}
-        {(matchup?.field?.player_pass?.[player.player_id] || matchup?.field?.player_rush?.[player.player_id]) && <>
-          <Head>WHERE HE GETS THE BALL</Head>
-          <TouchMap field={matchup.field} player={player} season={matchup?.season} />
-        </>}
+        {/* THE FIELD (2026-09-30) for a pass-catcher: every target at its
+            depth over this week's defence, the red zone under it. Its title
+            is the section head. A runner (more carries than targets) and a QB
+            keep football's spray chart, TouchMap -- the Field draws targets. */}
+        {(() => {
+          const touch = (matchup?.field?.player_pass?.[player.player_id] || matchup?.field?.player_rush?.[player.player_id]) ? <>
+            <Head>WHERE HE GETS THE BALL</Head>
+            <TouchMap field={matchup.field} player={player} season={matchup?.season} />
+          </> : null
+          return isPassCatcher(player, matchup)
+            ? <FieldChart team={player.team} player={player} defTeam={player.opp} defWeek={slate?.week}
+                matchup={matchup} players={slate?.players} hashSync={inline} fallback={touch} />
+            : touch
+        })()}
         <MatchupSection player={player} matchup={matchup} market={market} />
         <DvpSection player={player} matchup={matchup} slate={slate} />
         <CoverageAndExplosive player={player} matchup={matchup} slate={slate} />

@@ -1,5 +1,5 @@
 'use client'
-import { ChipGroup } from './matchup/SprayParts'
+import { ChipGroup, ChartCard, ChartEmpty, chipBtn as coreChip } from './charts'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { C, NUM_FONT } from '../lib/theme'
@@ -865,26 +865,26 @@ export default function SprayField({
   // game says so in plain words rather than drawing a bare field.
   if (liveOnly && !liveN) {
     return (
-      <div style={{ fontSize: 11, color: C.text3, padding: '10px 0', lineHeight: 1.6 }}>
+      <ChartEmpty theme={C}>
         No balls in play from this game yet tonight — this chart is <b style={{ color: C.text2 }}>tonight
         only</b>, so it stays empty until somebody makes contact. It fills in on its own.
-      </div>
+      </ChartEmpty>
     )
   }
 
   if (!pid && !liveN) return null
   if (state === 'loading' && !liveN) {
-    return <div style={{ fontSize: 11, color: C.text3, padding: '10px 0' }}>Loading batted balls…</div>
+    return <ChartEmpty theme={C} style={{ lineHeight: 'normal' }}>Loading batted balls…</ChartEmpty>
   }
   if (state === 'error' && !liveN) {
-    return <div style={{ fontSize: 11, color: C.text3, padding: '10px 0' }}>Couldn&apos;t load his batted-ball detail.</div>
+    return <ChartEmpty theme={C} style={{ lineHeight: 'normal' }}>Couldn&apos;t load his batted-ball detail.</ChartEmpty>
   }
   if (!hits.length && !liveN) {
     return (
-      <div style={{ fontSize: 11, color: C.text3, padding: '10px 0', lineHeight: 1.6 }}>
+      <ChartEmpty theme={C}>
         No tracked batted balls for this hitter — nothing in the bot&apos;s cache, and the live
         Statcast pull came back empty too. That is every source this chart has.
-      </div>
+      </ChartEmpty>
     )
   }
 
@@ -1017,13 +1017,7 @@ export default function SprayField({
   // branching logic changed, only the colour source.
   const windCol = _wind.color
   const hasWind = _wind.has
-  const chipBtn = (on, col) => ({
-    padding: '3px 9px', fontSize: 10, fontWeight: 700, borderRadius: 6,
-    cursor: 'pointer', fontFamily: NUM_FONT,
-    border: `1px solid ${on ? col : C.border}`,
-    background: on ? `${col}22` : 'transparent',
-    color: on ? col : C.text3,
-  })
+  const chipBtn = (on, col) => coreChip(on, col, C, NUM_FONT)   // the shared chart core's chip
 
   const pitcherName = clean(player?.pitcher_name, '')
   const allPicked = !picked || picked.size === pitches.length
@@ -1660,10 +1654,7 @@ export default function SprayField({
       )}
 
       {!(stadium && webgl3d) && (
-      <div className="spray-wrap" style={{
-        display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'flex-start',
-        background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 12, padding: 10,
-      }}>
+      <ChartCard theme={C}>
         {/* .spray-svg is a phone hook. The inline `height` is a fixed pixel
             number, and an inline style beats the blanket `svg { height: auto }`
             in MobileCSS — so on a narrow screen the field kept its full desktop
@@ -2260,7 +2251,7 @@ export default function SprayField({
             </div>
           )}
         </div>
-      </div>
+      </ChartCard>
       )}
     </div>
   )

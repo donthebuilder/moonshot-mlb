@@ -144,3 +144,80 @@ export default function RedZoneField({ data, matchup, onPlayerClick }) {
     </section>
   )
 }
+
+// ── THE STRIP: EVERY TOUCH, ONE LANE A PLAYER (2026-09-30, BATCH-NFL-FIELD) ──
+// The same last-20 ruler and the same player lanes as the field above, one
+// mark per touch instead of a bar per game: it is the red-zone half of The
+// Field (components/nfl/FieldChart.js), which draws everything outside the 20.
+// x = yards to the goal line, the 20 on the left, the goal line on the right
+// (the orange bar). Circle = target, square = carry; cream = catch, hollow =
+// incomplete or intercepted, amber = a carry that didn't score, orange = TD.
+// Source: nfl_field_{TEAM}.json redzone[] (bots/nfl/nfl_field.py team_plays).
+// HTML boxes, like the field above, so a mark and a name keep their real size
+// on a phone.
+const atStrip = (d) => `${Math.max(0, Math.min(1, (20 - d) / 20)) * 100}%`
+
+// A fixed scatter per touch so the same window always draws the same picture.
+function seeded(n) {
+  const x = Math.sin((n + 1) * 12.9898) * 43758.5453
+  return x - Math.floor(x) - 0.5
+}
+
+/** rows: [{ key, name, player, touches: [{ d, kind: 'pass'|'rush', res, seed }] }] */
+export function RedZoneStrip({ rows, kicker = null, rulerLabel = null, onPlayerClick = null, phone = false }) {
+  if (!rows?.length) return null
+  const lane = phone ? 30 : 34
+  const dot = phone ? 9 : 10
+  const nameCol = phone ? 'minmax(104px, 30%) 1fr 54px' : 'minmax(120px, 22%) 1fr 72px'
+  return (
+    <div aria-label="Red-zone touches by distance to the goal line">
+      {kicker}
+      <div style={{ display: 'grid', gridTemplateColumns: nameCol, gap: 8, alignItems: 'end', marginTop: kicker ? 0 : 10 }}>
+        <span style={{ fontFamily: NUM_FONT, fontSize: 10.5, fontWeight: 800, letterSpacing: '.08em', lineHeight: '14px' }}>{rulerLabel}</span>
+        <div style={{ position: 'relative', height: 14, fontFamily: NUM_FONT, fontSize: 11, color: C.text3, fontWeight: 800 }}>
+          {[[20, '20'], [15, '15'], [10, '10'], [5, '5'], [0, 'GOAL']].map(([y, t]) => (
+            <span key={t} style={{ position: 'absolute', left: atStrip(y), transform: y === 20 ? 'none' : y === 0 ? 'translateX(-100%)' : 'translateX(-50%)', color: y === 0 ? C.orange : C.text3 }}>{t}</span>
+          ))}
+        </div>
+        <span />
+      </div>
+      {rows.map((r) => {
+        const td = r.touches.filter((t) => t.res === 'td').length
+        // A slate player opens his card; anyone else (or no handler) is a link
+        // to his file -- every name on the strip goes somewhere.
+        const Name = onPlayerClick && r.player && r.clickable !== false ? 'button' : r.href ? 'a' : 'span'
+        return (
+          <div key={r.key} style={{ display: 'grid', gridTemplateColumns: nameCol, gap: 8, alignItems: 'center', borderTop: `1px solid ${C.border}` }}>
+            <Name {...(Name === 'button' ? { type: 'button', onClick: () => onPlayerClick(r.player, 'TD'), 'aria-label': `${r.name} -- open his card` } : Name === 'a' ? { href: r.href, 'aria-label': `${r.name} -- open his file` } : {})}
+              title={r.name}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, minHeight: 44, padding: 0, border: 0, background: 'transparent', color: C.text, textAlign: 'left', cursor: Name === 'span' ? 'default' : 'pointer', textDecoration: 'none' }}>
+              {r.player ? <NflFace player={r.player} size={phone ? 22 : 26} /> : null}
+              <span style={{ fontSize: 12, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{laneName(r.name)}</span>
+            </Name>
+            <div style={{ position: 'relative', height: lane, borderRadius: 4, background: `linear-gradient(90deg, ${C.turf1}, ${C.turf2})` }}>
+              {[15, 10, 5].map((y) => <div key={y} aria-hidden="true" style={{ position: 'absolute', top: 0, bottom: 0, left: atStrip(y), borderLeft: `1px dashed ${C.border2}` }} />)}
+              <div aria-hidden="true" style={{ position: 'absolute', top: 0, bottom: 0, right: 0, width: 4, background: C.orange, opacity: 0.55, borderRadius: '0 4px 4px 0' }} />
+              {r.touches.map((t, i) => {
+                const fill = t.res === 'td' ? C.orange : t.res === 'catch' ? C.cream : t.res === 'carry' ? C.amber : 'transparent'
+                const stroke = t.res === 'td' ? C.orange : t.res === 'carry' ? C.amber : t.res === 'catch' ? C.cream : C.text2
+                return (
+                  <i key={i} aria-hidden="true" title={`${t.d} yards out · ${t.kind === 'rush' ? 'carry' : 'target'} · ${t.res === 'td' ? 'touchdown' : t.res}`}
+                    style={{
+                      position: 'absolute', left: `calc(${atStrip(t.d)} + ${(seeded(t.seed ?? i) * 8).toFixed(1)}px)`,
+                      top: `calc(50% + ${(seeded((t.seed ?? i) + 7) * (lane - dot - 6)).toFixed(1)}px)`,
+                      width: dot, height: dot, marginLeft: -dot / 2, marginTop: -dot / 2,
+                      borderRadius: t.kind === 'rush' ? 2 : '50%', background: fill, border: `1.5px solid ${stroke}`,
+                      boxSizing: 'border-box', boxShadow: t.res === 'td' ? `0 0 8px ${C.orange}` : 'none',
+                    }} />
+                )
+              })}
+            </div>
+            <span style={{ fontFamily: NUM_FONT, fontSize: 12, fontWeight: 800, color: C.text2, textAlign: 'right', whiteSpace: 'nowrap' }}>
+              {r.touches.length}<span style={{ color: C.text3 }}> · </span><span style={{ color: td ? C.orange : C.text3 }}>{td} TD</span>
+            </span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}

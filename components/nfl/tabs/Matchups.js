@@ -18,6 +18,7 @@ import MatchupExplorer from '../MatchupExplorer'
 import { ViewRow } from '../../results/ResultsParts'
 import { SportTheme } from '../../SportTheme'
 import { softRole, softLine, passRushThreat, blockSeason, PASS_RUSH_AVOID, STARTER_ROLES } from '../../../lib/nfl/dvpSignal'
+import FieldChart from '../FieldChart'
 
 // Matchups -- the defenses to attack this week, then one defense read the
 // way MOONSHOT reads a starter (2026-09-28, Donovan: "the match up page on nfl
@@ -417,6 +418,16 @@ export default function Matchups({ matchup, data, onPlayerClick = null, onOpenTe
         )}
         <FactLines theme={C} lines={facts} />
         {opp ? <PassGame matchup={matchup} data={data} off={opp} def={active} onPlayerClick={onPlayerClick} /> : null}
+        {/* THE FIELD, TEAM mode (2026-09-30): every target the offence facing
+            this defence has thrown, over where this defence leaks. */}
+        {/* Folded on a phone (~720px open), like PassGame above; a desktop
+            sees it open. */}
+        {opp ? (
+          <MobileFold title="The Field" summary={`every ${opp} target over ${active}'s zones`} accent={C.green}>
+            <FieldChart key={`${opp}-${active}`} team={opp} defTeam={active} defWeek={data?.week} matchup={matchup}
+              players={data?.players} initialMode="TEAM" onPlayerClick={onPlayerClick} onOpenTeam={onOpenTeam} fallback={null} />
+          </MobileFold>
+        ) : null}
 
         <Zones field={matchup.field} team={active} />
         <ByPosition matchup={matchup} team={active} win={win} setWin={setWin} slateSeason={data?.season} />
