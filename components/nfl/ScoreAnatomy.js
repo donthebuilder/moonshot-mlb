@@ -3,6 +3,11 @@ import { C, NUM_FONT, RAMP } from '../../lib/nfl/theme'
 
 // SCORE ANATOMY — the number, taken apart.
 //
+// 2026-10-01 (0e b): the stacked-bar panel below is gone from the card; the
+// default export is now the one WHY line + the board rank (see the bottom of
+// this file). anatomyOf / reasonFor / baselineFor / topStatChips stay -- the
+// boards and the pick cards read them.
+//
 // 2026-09-13. The WHY panel this replaces was a correct list: every component,
 // its percentile, its weight, one row each. The trouble with a list is that
 // you have to read six rows and do the multiplication yourself before you know
@@ -32,8 +37,8 @@ import { C, NUM_FONT, RAMP } from '../../lib/nfl/theme'
 // Imported AND re-exported: this file still uses both tables itself (the
 // label lookup in anatomyOf and the clause picker in reasonFor), and a bare
 // `export ... from` does not bring a binding into local scope.
-import NflExplain from './NflExplain'
 import { LABELS, WHY } from '../../lib/nfl/scoreLabels'
+import { boardReason } from '../../lib/nfl/boardReason'
 export { LABELS, WHY }
 
 // The shared ramp (lib/nfl/theme.js), heaviest component at the warm end.
@@ -166,84 +171,36 @@ export function AnatomyStrip({ components, weights, width = 84 }) {
   )
 }
 
-export default function ScoreAnatomy({ components, weights, score, marketLabel, dropped }) {
-  const a = anatomyOf(components, weights)
-  if (!a) return null
-  const { parts, composite, lead } = a
+// ── THE CARD'S WHY (2026-10-01, 0e b) ────────────────────────────────────
+// The stacked bar, its swatch legend and the component arithmetic
+// ("53p x 22% = 11.8") that used to be drawn here went on Donovan's word
+// ("I actually hate these"): an analyst instrument that needed a legend and
+// sat in front of the answer. The card now says what the board card says --
+// the boardReason line, his top component with the number behind it --
+// and where the score puts him on the board. The arithmetic lives only in
+// the score's own "what am I looking at?" tap (components/Explain.js).
+//
+// `pool` is the market's FULL eligible pool (every player with a score in
+// it, as Boards.js passes), so the median, the rank inside the WHY line and
+// the board rank are the same numbers the board shows.
+export default function ScoreAnatomy({ player, market, weights, pool = [], marketLabel }) {
+  const score = player?.scores?.[market]
+  if (!Number.isFinite(score)) return null
+  const eligible = (pool || []).filter((p) => Number.isFinite(p?.scores?.[market]))
+  const why = boardReason(player, weights, baselineFor(eligible, market), market, eligible)
+  const rank = eligible.length ? 1 + eligible.filter((p) => p.scores[market] > score).length : null
 
   return (
     <div>
-      <div style={{
-        display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
-        gap: 8, marginBottom: 7, flexWrap: 'wrap',
-      }}>
-        <span style={{
-          fontSize: 10, fontWeight: 900, color: C.text3, letterSpacing: '.1em',
-        }}>ANATOMY — {(marketLabel || '').toUpperCase()}</span>
-        <span style={{ fontFamily: NUM_FONT, fontSize: 9.5, color: C.text3 }}>
-          composite <b style={{ color: C.text }}>{composite.toFixed(1)}</b>
-          {Number.isFinite(score) && <> · board score <b style={{ color: C.green }}>{Math.round(score)}</b></>}
-        </span>
+      <div style={{ fontSize: 10, fontWeight: 900, color: C.text3, letterSpacing: '.1em', marginBottom: 6 }}>
+        WHY — {(marketLabel || market || '').toUpperCase()}
       </div>
-
-      {/* the bar: full width is 100 composite points, the ghost is the rest.
-          Segments carry a top highlight and a hairline divider so the blocks
-          read as stacked material rather than a flat painted strip. */}
-      <div style={{
-        display: 'flex', width: '100%', height: 24, borderRadius: 7,
-        overflow: 'hidden', background: 'rgba(255,255,255,.05)',
-        border: `1px solid rgba(255,255,255,.12)`,
-        boxShadow: `inset 0 1px 0 rgba(255,255,255,.10), inset 0 -2px 4px rgba(0,0,0,.45), 0 0 16px -8px ${RAMP[0]}`,
-      }}>
-        {parts.map((p, i) => (
-          <div
-            key={p.key}
-            title={`${p.label} — ${Math.round(p.pct)}th percentile of his position pool, weighted ${Math.round(p.w * 100)}%, worth ${p.points.toFixed(1)} of ${composite.toFixed(1)}`}
-            style={{
-              width: `${p.points}%`, minWidth: p.points > 0 ? 2 : 0,
-              background: `linear-gradient(180deg, ${tone(i)}, ${tone(i)}c4)`,
-              borderRight: i < parts.length - 1 ? '1px solid rgba(0,0,0,.45)' : 'none',
-              boxShadow: 'inset 0 1px 0 rgba(255,255,255,.18)',
-            }}
-          />
-        ))}
-      </div>
-
-      {/* legend, in the same order as the bar */}
-      <div style={{
-        display: 'flex', flexWrap: 'wrap', gap: '4px 10px', marginTop: 8,
-      }}>
-        {parts.map((p, i) => (
-          <div key={p.key} style={{
-            display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: C.text2,
-          }}>
-            <span style={{
-              width: 8, height: 8, borderRadius: 2, background: tone(i), flex: '0 0 auto',
-            }} />
-            {/* TAPPABLE (2026-09-20). This legend is where someone asks
-                "what is WOPR". lib/nfl/glossary.js keys these by the exact
-                LABELS string printed here, so a label change breaks visibly
-                rather than silently dropping the dot. */}
-            <span><NflExplain label={p.label} /></span>
-            <span style={{ fontFamily: NUM_FONT, fontSize: 9, color: C.text3 }}>
-              {Math.round(p.pct)}p × {Math.round(p.w * 100)}% = <b style={{ color: C.text2 }}>{p.points.toFixed(1)}</b>
-            </span>
-          </div>
-        ))}
-      </div>
-
-      <div style={{ fontSize: 10.5, color: C.text2, marginTop: 8, lineHeight: 1.6 }}>
-        His case is <b style={{ color: C.green }}>{lead.label.toLowerCase()}</b>, doing{' '}
-        <b style={{ color: C.green }}>{Math.round((100 * lead.points) / composite)}%</b> of the work.
-      </div>
-      <div style={{ fontSize: 9.5, color: C.text3, marginTop: 5, lineHeight: 1.55 }}>
-        Percentile against his position pool × the weight it carries. These add
-        to the composite, not to the board score — the score is that composite
-        ranked league-wide on the shared scale.
-        {Array.isArray(dropped) && dropped.length > 0 && (
-          <> Weights renormalised: {dropped.length} component
-            {dropped.length > 1 ? 's are' : ' is'} unpublished this slate.</>
-        )}
+      {why && (
+        <div style={{ fontSize: 13, fontWeight: 700, color: C.text, lineHeight: 1.5 }}>{why.text}</div>
+      )}
+      <div style={{ fontFamily: NUM_FONT, fontSize: 12, color: C.text2, marginTop: why ? 4 : 0 }}>
+        board score <b style={{ color: C.green }}>{Math.round(score)}</b>
+        {rank != null && <> · <b style={{ color: C.text }}>#{rank}</b> of {eligible.length} on the board</>}
       </div>
     </div>
   )

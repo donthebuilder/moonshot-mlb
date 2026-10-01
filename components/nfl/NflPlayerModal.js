@@ -37,10 +37,8 @@ import NflPlayerRead from './NflPlayerRead'
 import SplitDumbbell from './SplitDumbbell'
 
 // Why this player scores what he scores — see components/nfl/ScoreAnatomy.js.
-// The list of components that used to live here (label map included) moved
-// there on 2026-09-13 when the WHY panel became a stacked bar; the panel is
-// mounted below and the labels are exported from that file so the board rungs
-// and this modal cannot drift apart.
+// Since 2026-10-01 (0e b) that is one line: the board card's WHY sentence
+// and where the score puts him on the board; the stacked bar is gone.
 
 
 // ── splits ────────────────────────────────────────────────────────────────────
@@ -573,7 +571,6 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
 
   if (!player) return null
   const spec = (markets || []).find((m) => m.key === market)
-  const comps = player.components?.[market] || {}
   const weights = spec?.weights || {}
 
 
@@ -744,14 +741,14 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
         <CoverageAndExplosive player={player} matchup={matchup} slate={slate} />
         </>}
 
-        {tab === 'overview' && Object.keys(comps).length > 0 && (
+        {tab === 'overview' && Number.isFinite(player.scores?.[market]) && (
           <div style={{ marginTop: 18 }}>
             <ScoreAnatomy
-              components={comps}
+              player={player}
+              market={market}
               weights={weights}
-              score={player.scores?.[market]}
+              pool={slate?.players}
               marketLabel={spec?.label || market}
-              dropped={spec?.dropped}
             />
           </div>
         )}
