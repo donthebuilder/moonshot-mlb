@@ -7,7 +7,7 @@ import { etToday } from '../../lib/freshness'
 import { C, NUM_FONT, TYPE } from '../../lib/theme'
 import LongshotsPreview from '../LongshotsPreview'
 import { logUrl, dataUrl } from '../../lib/dataSource'
-import { nameOf, teamOf, oppOf, clean, n, obj, hrScore, hitScore, dateText } from '../../lib/player'
+import { nameOf, teamOf, oppOf, clean, n, hrScore, hitScore, dateText } from '../../lib/player'
 import { boardOrder } from '../../lib/boardOrder'
 import { laneRecord } from '../../lib/lanes'
 import { groupGames } from '../../lib/data'
@@ -41,6 +41,7 @@ import { mlbSlateState } from '../../lib/mlbSlateState'
 import HeadlineStrip from '../HeadlineStrip'
 import HeroStat from '../HeroStat'
 import { mlbNextGames, nextLine } from '../../lib/mlbNext'
+import { CLEAN_PICKS, CLEAN_SOURCE } from '../../lib/cleanRecord'
 
 // An Eastern calendar day n days from today (YYYY-MM-DD), on etToday's clock.
 const etShift = (n) => { const d = new Date(`${etToday()}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10) }
@@ -562,14 +563,11 @@ export default function Home({
     return best
   }, [players])
 
-  // Bot record from the graded backtest file — the number he can quote.
-  const record = useMemo(() => {
-    const bt = obj(backtest)
-    const acc = n(bt.overall_base_hit_accuracy, null)
-    const per = bt.per_day
-    const days = Array.isArray(per) ? per.length : Object.keys(obj(per)).length
-    return acc != null && acc > 0 ? { acc, days } : null
-  }, [backtest])
+  // The hit-call record. Was backtest_summary.json's overall_base_hit_accuracy
+  // (62.6% on 10-01), which adds up the post-game graded archive (re-run scores
+  // and picks). 2026-10-01 (queue 0d): the clean pregame record instead, with
+  // the base beside it, because on clean data the HIT call matches its base.
+  const record = CLEAN_PICKS.HIT
 
   // ── the rotating pulse line ──
   const confirmed = useMemo(() => players.filter((p) => p?.lineup_confirmed === true).length, [players])
@@ -668,9 +666,9 @@ export default function Home({
     // how many there are.
     if (weakStars > 0) out.push(`★ ${weakStars} hitters draw a lineup spot tonight's starter has already been beaten in — that is what a star means on every board.`)
     if (picks > 0) out.push(`🎯 The bot designated ${picks} picks on this slate — The Four, just above, is the headline cut.`)
-    if (confirmed > 0 && players.length > 0) out.push(`✓ ${confirmed} of ${players.length} hitters are in confirmed lineups — confirmed picks homer at a meaningfully higher clip.`)
+    if (confirmed > 0 && players.length > 0) out.push(`✓ ${confirmed} of ${players.length} hitters are in confirmed lineups — the rest can still change before first pitch.`)
     if (proj?.grade) out.push(`💣 The bot calls tonight's power grade "${proj.grade}" — the range is in the line above.`)
-    if (record) out.push(`📈 Every pick gets graded in public — ${record.acc.toFixed(1)}% base-hit accuracy across ${record.days} days is the honest number.`)
+    out.push(`📈 Every pick gets graded in public. On the ${CLEAN_SOURCE}, hit calls got a hit ${record.pct}% of the time against ${record.base.toFixed(1)}% for every hitter (n=${record.n}).`)
     // SCORES IN THE CRAWL (2026-09-06): every live game, then every final,
     // interleaved so the strip reads like a scoreboard crawl and not a list.
     const scores = live.items.filter((i) => i.live).concat(live.items.filter((i) => !i.live && !i.pregame))
@@ -935,10 +933,8 @@ export default function Home({
                 col={airRanked[0].edge > 0 ? C.orange : C.text3}
                 title={`${airLine(airRanked[0]) || ''}${airTitle(airRanked[0]) ? `\n${airTitle(airRanked[0])}` : ''}\nPark HR factor plus the published weather effect, as a percentage swing on the rate — not a chance of anything.${airRanked[0].edge > 0 ? '' : ' Nothing on tonight\'s slate is playing above neutral; that is the finding, not a missing section.'}`} />
             )}
-            {record && (
-              <Stat label="BASE HITS" value={`${record.acc.toFixed(1)}%`} sub={`graded · ${record.days} days`} col={C.green}
-                title="Base-hit accuracy across every graded pick in the archive — a measured rate, not a projection." />
-            )}
+            <Stat label="HIT CALLS" value={`${record.pct.toFixed(1)}%`} sub={`vs ${record.base.toFixed(1)}% base · n=${record.n}`} col={C.text}
+              title={`Hit calls that got a hit, on the ${CLEAN_SOURCE}, against ${record.base.toFixed(1)}% for every hitter on the board. Level with the base rate, not an edge.`} />
           </div>
         )}
 

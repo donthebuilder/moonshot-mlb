@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import {
   clean, nameOf, teamOf, hrScore, hitScore, prodScore, tbScore, PLATE_BAR,
@@ -222,12 +222,13 @@ export default function BotPicksStrip({ players = [], onPlayerClick, onFullCard 
   // cached on the server (/api/dash/four-record; the nightly files are 2.4 MB
   // each). Replaces the one "65% over 25 nights · Aug 23" pill, which was a
   // study snapshot a month old. Unreadable -> no record line, never a guess.
-  const [rec, setRec] = useState(null)
-  useEffect(() => {
-    let alive = true
-    fetch('/api/dash/four-record').then((r) => (r.ok ? r.json() : null)).then((j) => { if (alive && j?.record) setRec(j.record) }).catch(() => {})
-    return () => { alive = false }
-  }, [])
+  //
+  // 2026-10-01 (queue 0d PUBLIC NUMBERS): OFF. That record ranked each night's
+  // #1 by the scores in graded_results_<date>.json, which are a post-game
+  // re-run (claude/HR-MODEL-FINDINGS-2026-10-01.md §1), so "9 of 14 nights"
+  // was measured on the leaky archive. The card's record returns when it can
+  // be read from the locked pick record. (/api/dash/four-record still exists:
+  // scripts/playbook/series.mjs reads it -- Donovan's call.)
 
   if (!four.some((f) => f.picks.length)) return null
 
@@ -240,7 +241,7 @@ export default function BotPicksStrip({ players = [], onPlayerClick, onFullCard 
     // THE BAR beside the market, like TUDDY's "bar 1+" (2026-09-27, The Four
     // like The Six): the words the Props plate prints (PLATE_BAR, one copy).
     key: f.role, label: f.label, icon: f.icon, blurb: `bar ${PLATE_BAR[f.role]}`, color: f.color,
-    record: rec?.[f.role]?.n ? `${rec[f.role].hit} of ${rec[f.role].n} nights` : null,
+    record: null,
     picks: f.picks.map((p, i) => ({
       key: p?.player_id ?? i,
       raw: p,

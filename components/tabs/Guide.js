@@ -48,7 +48,7 @@ const STEPS = [
     // 2026-09-26 (Batch 5): Home no longer shows exactly four -- the count
     // was a stale claim. Name what is there instead of counting it.
     title: `Tap the MOONSHOT wordmark for ${tabName('mlb', 'home')} and read the tiles at the top`,
-    body: 'Games tonight, when the last game starts, the bot’s projected homer range, the best park for homers, and its base-hit record across every graded night. Thirty seconds tells you whether tonight is a big slate and whether the model has been right lately.',
+    body: 'Games tonight, when the last game starts, the bot’s projected homer range, the best park for homers, and the hit calls’ clean record beside the base rate. Thirty seconds tells you whether tonight is a big slate.',
   },
   {
     n: 2,
@@ -238,7 +238,7 @@ export default function Guide({ onNavigate }) {
       <Section title="Symbols you'll see on a player" emoji="🔖" defaultOpen={true}>
         <P><b style={{ color: C.text }}>The role tag — which bet he belongs in</b></P>
         <Term icon="💎" term="HR Bet" def="top-confidence home run play: recent power, a favourable matchup and a pitch-type fit all at once." />
-        <Term icon="📈" term="HR Lean" def="a good home run shot, not quite airtight. Historically the best-performing tag on the site." />
+        <Term icon="📈" term="HR Lean" def="a good home run shot, not quite airtight." />
         <Term icon="🧲" term="HRR / XBH" def="extra-base hits rather than a homer specifically. Good for total-bases bets." />
         <Term icon="🔭" term="Power Watch" def="real raw power, more matchup uncertainty. Monitor, don't lead with him." />
         <Term icon="🧭" term="Contact / Monitor" def="no homer projected. Can still be a fine hits pick — just not a power one." />

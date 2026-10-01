@@ -21,6 +21,7 @@ import { hrRank } from '../../lib/scoring'
 import { hrScore, mlbId, nameOf, playerId, teamOf } from '../../lib/player'
 import { useSetupHomers, useBackToBack } from '../../lib/b2b'
 import { dedupeGraded } from '../../lib/graded'
+import { CLEAN_SOURCE, CLEAN_PICKS } from '../../lib/cleanRecord'
 
 // Which BoardFilters score-slider a view means by "Score" — mirrors the keys
 // BoardFilters.js's own SCORE_FOR_TYPE understands. weakspot/aligned/
@@ -103,11 +104,11 @@ const HOW_STEPS = [
 const ANSWERS = {
   top: 'if you were making one play per game, who would it be.',
   hr: 'who to back to hit a home run tonight.',
-  hit: 'who to back for a 1+ hit prop — the site’s most reliable market.',
+  hit: 'who to back for a 1+ hit prop.',
   hrr: 'who to back for 2+ hits+runs+RBI.',
   contact: 'who to back for 2+ total bases.',
   weakspot: 'which hitters are standing in a slot tonight’s starter has already been beaten in.',
-  aligned: 'which hitters have every flag that grades out firing at once.',
+  aligned: 'which hitters have the weak spot, the pitch match and power firing at once.',
   matchupedge: 'which hitters get to face the exact pitches they punish.',
   blank: 'who went hitless last time out — and whether his own bounce-back record beats what the book is charging.',
 }
@@ -146,14 +147,12 @@ const ANGLE_LENSES = [
 ]
 const LENS_TITLE = (o) => `${o.label} — ${ANSWERS[o.key] || ''}`
 
-// THE PROOF. This tab covers the categories the archive says actually work —
-// HIT picks delivered 64.5% and hit_score is the second-best-calibrated score
-// in the system; hrr_score is THE best-calibrated (+13.3 quartile spread). The
-// HR tab can't make those claims; this one can, so it does — per view, with
-// the numbers, so the tab reads as the site's proven product rather than the
-// undercard. Was a full-width gradient banner; now the head is a line you can
-// read at a glance and the body is one tap behind it. Wording untouched: these
-// are measured archive figures and they get quoted, not paraphrased.
+// THE PROOF. Once "the categories the archive says actually work" (HIT 64.5%,
+// hrr_score "best-calibrated"): measured on post-game graded files. On the
+// clean pregame record (lib/cleanRecord.js, 10-01) HIT 64.5% sits on a 64.0%
+// base and CONTACT 32.4% under a 39.0% one, so neither beats its base and the
+// heads now say so; HRR has no clean measure and claims nothing (queue 0d).
+// The head is a line you can read at a glance; the body is one tap behind it.
 // Called, not frozen: C is mutated after mount (applyTheme, lib/theme.js), so a
 // module-level literal keeps the palette it was imported with. See #23.
 const PROOF = () => ({
@@ -169,32 +168,32 @@ const PROOF = () => ({
   },
   hit: {
     color: C.purple,
-    head: 'The site’s most reliable product',
-    body: 'HIT picks are graded on getting at least one hit. The archive rates that used to sit here are being re-measured on the locked pregame record. The "When picked" column below is each hitter’s own delivery record in this exact category.',
+    head: 'Hit calls have matched the base rate, not beaten it',
+    body: `HIT picks are graded on getting at least one hit. On the ${CLEAN_SOURCE} they got one ${CLEAN_PICKS.HIT.pct}% of the time (n=${CLEAN_PICKS.HIT.n}), against ${CLEAN_PICKS.HIT.base.toFixed(1)}% for every hitter on the board: the base rate, not an edge. The "When picked" column below is each hitter’s own delivery record in this exact category, from the post-game graded files.`,
   },
   hrr: {
     color: C.cyan,
-    head: 'The best-calibrated score in the system',
-    body: 'HRR picks are graded on clearing 2+ H+R+RBI. The archive rates that used to sit here, and hrr_score’s calibration claim, are being re-measured on the locked pregame record.',
+    head: '2+ hits, runs and RBI',
+    body: 'HRR picks are graded on clearing 2+ H+R+RBI. The clean pregame record has no measure of this bar yet, so no rate is printed here.',
   },
   contact: {
     color: C.blue,
     head: 'Two singles clear it — which is why the power scores are wrong here',
-    body: 'TWO BASES IS THE ODD BAR ON THIS SITE, and it is the key to reading this board: it can be cleared without any power at all. A double does it, and so do two singles. Sluggers strike out; the men who pile up bases two at a time are contact hitters. So a total-bases play is a frequency bet wearing a power bet’s clothes, and the power boards are the wrong place to shop for it. The graded files record no walks, so a pick who walked twice is scored a failure. The archive rates that used to sit here are being re-measured on the locked pregame record.',
+    body: `TWO BASES IS THE ODD BAR ON THIS SITE, and it is the key to reading this board: it can be cleared without any power at all. A double does it, and so do two singles. Sluggers strike out; the men who pile up bases two at a time are contact hitters. So a total-bases play is a frequency bet wearing a power bet’s clothes, and the power boards are the wrong place to shop for it. The graded files record no walks, so a pick who walked twice is scored a failure. On the ${CLEAN_SOURCE}, CONTACT picks cleared 2+ bases ${CLEAN_PICKS.CONTACT.pct}% of the time (n=${CLEAN_PICKS.CONTACT.n}), below the ${CLEAN_PICKS.CONTACT.base.toFixed(1)}% every hitter on the board managed.`,
   },
   weakspot: {
     color: C.yellow,
-    head: 'Validated: ⭐ hitters homer more',
+    head: 'Weak spot: the starter has been hit in this slot',
     body: 'A weak spot means tonight’s starter has given up real damage to this lineup slot.',
   },
   aligned: {
     color: C.purple,
-    head: 'Rebuilt on the two flags that grade out — the old 🧩 didn’t',
-    body: 'The bot’s 🧩 tag did not grade out. Aligned now means a stack instead: weak spot ⭐ AND pitch match 🎯 AND ISO ≥ .18.',
+    head: 'Aligned: weak spot, pitch match and power at once',
+    body: 'Aligned means a stack: weak spot ⭐ AND pitch match 🎯 AND ISO ≥ .18. None of the three has been measured on the clean pregame record yet.',
   },
   matchupedge: {
     color: C.orange,
-    head: 'Validated: 🎯 pitch match is a real HR signal',
+    head: '🎯 Pitch match: his damage pitches, tonight',
     body: 'The hitter’s damage pitches overlap what tonight’s arm actually throws.',
   },
 })
@@ -629,13 +628,13 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
               <>
                 <button
                   onClick={() => setProofOpen((v) => !v)}
-                  title={proofOpen ? 'Hide the measured record' : 'Open the measured record behind this board — the archive rates, in full'}
+                  title={proofOpen ? 'Hide the note' : 'Open the note behind this board: what it is graded on, and its clean pregame record where one exists'}
                   style={{
                     background: 'transparent', border: 'none', padding: 0, margin: 0,
                     font: 'inherit', cursor: 'pointer', color: pr.color, fontWeight: 800,
                     borderBottom: `1px dashed ${pr.color}66`, textAlign: 'left',
                   }}
-                >✓ {pr.head} {proofOpen ? '▴' : '▾'}</button>
+                >{pr.head} {proofOpen ? '▴' : '▾'}</button>
               </>
             )}
           </div>

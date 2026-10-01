@@ -288,7 +288,9 @@ export default async function DashHome({ searchParams }) {
           56 called slots, 31 homers — and not one number about whether any of
           it has ever been right. The most persuasive thing this site can show
           was the one thing the front door was withholding, and it has been in
-          backtest_summary.json all along.
+          backtest_summary.json all along. (2026-10-01: that file adds up the
+          post-game graded archive, so the rows now come from the clean pregame
+          record, lib/cleanRecord.js, via lib/dash/pulse.js recordFrom.)
 
           EACH ROW ON ITS OWN BAR. An HR call is graded on homers, a HIT call
           on getting a hit, an HRR call on 2+ H+R+RBI, a CONTACT call on 2+
@@ -324,7 +326,7 @@ export default async function DashHome({ searchParams }) {
                 <div key={r.key} className={styles.recordRow}>
                   <div className={styles.recordHead}>
                     <strong>{r.label}</strong>
-                    <span>graded on {r.bar}</span>
+                    <span>graded on {r.bar}{r.base != null ? ` · every hitter ${r.base.toFixed(1)}%` : ''}</span>
                   </div>
                   <div className={styles.recordNum}>
                     <b>{r.pct.toFixed(1)}%</b>
@@ -360,10 +362,11 @@ export default async function DashHome({ searchParams }) {
           <details className={styles.recordFold}>
             <summary>How this is counted</summary>
             <p className={styles.stamp}>
-              {record?.nights ? `${record.nights} graded nights, pooled` : 'Graded nights, pooled'} — the real totals divided, not an average of nightly
-              percentages, which would weight a six-pick night the same as a thirty-pick one. Each MOONSHOT row is
-              scored on the bar that call was made for, so the four are four different questions and are
-              never ranked against each other. TUDDY leads with board coverage because its ladder names five
+              MOONSHOT: the {record?.source || 'clean pregame record'}: the calls as they stood at first pitch,
+              graded on what happened, measured Oct 1. &quot;Every hitter&quot; is the rate for everyone on the board
+              on the same bar, which is the number a call has to beat. Each row is scored on the bar that call was
+              made for, so the four are four different questions and are never ranked against each other. The
+              H+R+RBI call has no clean measure yet, so it is not shown. TUDDY leads with board coverage because its ladder names five
               players a week against two dozen touchdowns; LAMP counts goal scorers against the three it calls in
               each game, regular season only. Every night behind these numbers is on the{' '}
               <Link href="/app#sport=mlb&tab=results">Results page</Link> and each product&apos;s record page, one row at a time.

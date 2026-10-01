@@ -1,6 +1,7 @@
 'use client'
-import { C } from '../lib/theme'
+import { C, NUM_FONT, TYPE } from '../lib/theme'
 import { alpha } from '../lib/scales'
+import { CLEAN_SOURCE, CLEAN_NIGHTS, CLEAN_HITTER_GAMES, CLEAN_HR_BASE, CLEAN_HR_BANDS, CLEAN_HRW_BANDS } from '../lib/cleanRecord'
 
 // 📊 WHAT A SCORE IS WORTH — the band table, on screen.
 //
@@ -56,12 +57,55 @@ function mlbTint(lift, claims) {
   }
 }
 
+// ── 2026-10-01: BACK, FROM THE CLEAN RECORD ─────────────────────────────────
+//
+// The bands return measured on the locked pregame record (lib/cleanRecord.js,
+// 21 nights, Sep 9-30), two scores only, exactly as measured: a band prints
+// its count where the measure recorded one and its rate alone where it did
+// not. Colour is the lift against the 11.5% base, the same ramp as before.
+function BandList({ title, bands }) {
+  return (
+    <table style={{ borderCollapse: 'collapse', fontFamily: NUM_FONT, fontSize: 12, minWidth: 0 }}>
+      <caption style={{ textAlign: 'left', fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.08em', color: C.text2, padding: '0 0 4px', fontFamily: NUM_FONT }}>{title}</caption>
+      <thead>
+        <tr>
+          <th scope="col" style={{ textAlign: 'left', padding: '4px 10px 4px 0', fontSize: TYPE.micro, color: C.text3, fontWeight: 800 }}>BAND</th>
+          <th scope="col" style={{ textAlign: 'right', padding: '4px 0', fontSize: TYPE.micro, color: C.text3, fontWeight: 800 }}>HOMERED</th>
+        </tr>
+      </thead>
+      <tbody>
+        {bands.map((b) => {
+          const { bg, fg } = bandTint(b.pct - CLEAN_HR_BASE, true)
+          return (
+            <tr key={b.band} style={{ borderTop: `1px solid ${C.border}` }}>
+              <th scope="row" style={{ textAlign: 'left', padding: '6px 10px 6px 0', color: C.text, fontWeight: 800 }}>{b.band}</th>
+              <td style={{ textAlign: 'right', padding: '6px 8px', background: bg, whiteSpace: 'nowrap' }}>
+                <b style={{ color: fg }}>{b.pct.toFixed(1)}%</b>
+                {b.ok != null ? <span style={{ color: C.text3, fontSize: 11 }}> {b.ok}/{b.n.toLocaleString('en-US')}</span> : null}
+              </td>
+            </tr>
+          )
+        })}
+      </tbody>
+    </table>
+  )
+}
+
 export default function ScoreBands() {
   return (
     <div>
       <p style={{ margin: '0 0 12px', fontSize: 12, lineHeight: 1.72, color: C.text2, maxWidth: 800 }}>
-        <b style={{ color: C.text }}>Re-measuring.</b> These bands were measured on post-game files and
-        are being rebuilt from the locked pregame record; they come back once enough clean nights are in.
+        <b style={{ color: C.text }}>What a score has been worth</b>, on the {CLEAN_SOURCE}: the board
+        as it stood at first pitch, {CLEAN_HITTER_GAMES.toLocaleString('en-US')} hitter-games, an{' '}
+        {CLEAN_HR_BASE}% home-run base. The older bands were measured on post-game files and are gone.
+      </p>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '14px 32px', alignItems: 'flex-start' }}>
+        <BandList title="HR SCORE" bands={CLEAN_HR_BANDS} />
+        <BandList title="HRW" bands={CLEAN_HRW_BANDS} />
+      </div>
+      <p style={{ margin: '12px 0 0', fontSize: 12, lineHeight: 1.6, color: C.text3, maxWidth: 800 }}>
+        {CLEAN_NIGHTS} nights is a small sample, and the middle bands carry no count in the measure, so read
+        them as direction. HRW&apos;s middle bands do not step down in order. A score is a ranking, not a chance.
       </p>
     </div>
   )

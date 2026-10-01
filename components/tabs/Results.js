@@ -23,6 +23,7 @@ import ReportCard from '../ReportCard'
 import PlayerPickRecord from '../PlayerPickRecord'
 import PLSimulator from '../PLSimulator'
 import ScoreBands from '../ScoreBands'
+import { CLEAN_PICK_LINE } from '../../lib/cleanRecord'
 
 // EVERY NAME OPENS HIS CARD (2026-09-27, CLICK-EVERYTHING-PLAN): the page's
 // onPlayerClick, available to every panel below without threading a prop
@@ -186,6 +187,22 @@ function SectionHeader({ title, color = C.text3, right }) {
 // section. See ui.WhatThis for why these stopped printing in full.
 function Purpose({ children }) {
   return <WhatThis maxWidth={760}>{children}</WhatThis>
+}
+
+// WHERE AN ARCHIVE-WIDE RATE COMES FROM (2026-10-01, queue 0d). Track record,
+// Signals, P/L and the Card add up graded_results_<date>.json, which is written
+// after the games (season counts include that night's homer; scores and picks
+// are a later re-run -- claude/HR-MODEL-FINDINGS-2026-10-01.md §1). ADDENDUM
+// §35: every number names its source and date, so these views say theirs and
+// print the clean pick record beside it (lib/cleanRecord.js).
+function ArchiveSource() {
+  return (
+    <p style={{ margin: '0 0 10px', fontSize: 12, lineHeight: 1.6, color: C.text3, maxWidth: 760 }}>
+      <b style={{ color: C.text2 }}>Source:</b> the post-game graded files, which carry re-run scores and
+      season counts that include that night&apos;s homer, so archive-wide rates here read biased. The{' '}
+      {CLEAN_PICK_LINE}.
+    </p>
+  )
 }
 
 // ── Tracking legend + expanded stats ─────────────────────────────────────────
@@ -1273,7 +1290,7 @@ export default function Results({ results, liveResults = null, slateDate = '', b
       <div>
         <PanelTitle
           title={RECORD_NAME}
-          sub="score bands, being re-measured on the locked pregame record"
+          sub="score bands, on the clean pregame record (Sep 9–30)"
         />
         <ModeBar mode={mode} setMode={setMode} />
         <ScoreBands />
@@ -1494,7 +1511,7 @@ export default function Results({ results, liveResults = null, slateDate = '', b
             takes.push(
               <Take key="best" col={bestLane.color}>
                 <B col={bestLane.color}>{bestLane.label}</B> picks cleared <B col={bestLane.color}>{bestLane.did} of {bestLane.n}</B>{' '}
-                ({p.toFixed(0)}%) — {p >= 65 ? 'the reliable lane again' : 'the night’s strongest lane'}.
+                ({p.toFixed(0)}%) — the night’s strongest lane.
               </Take>,
             )
           }
@@ -1753,6 +1770,7 @@ export default function Results({ results, liveResults = null, slateDate = '', b
 
       {/* PER-PLAYER TRACK RECORD — spans every graded day, so it ignores the
           day picker above on purpose. */}
+      {(subTab === 'record' || subTab === 'signals' || subTab === 'pl' || subTab === 'card') && <ArchiveSource />}
       {subTab === 'record' && (
         <PlayerPickRecord players={players} backtest={backtest} onPlayerClick={onPlayerClick} />
       )}
