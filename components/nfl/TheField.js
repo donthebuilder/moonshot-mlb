@@ -4,7 +4,7 @@ import { C, NUM_FONT } from '../../lib/nfl/theme'
 import { NFL_DATA_BASE } from '../../lib/nfl/dataSource'
 import { ChipGroup, ChartCard, ChartEmpty } from '../charts'
 import {
-  fieldModel, phrase, fmtPct, heatOf, coolOf,
+  fieldModel, fieldView, mapAttempts, phrase, fmtPct, heatOf, coolOf, LANES, LANE_WORD, LANE_SHORT,
   SIDES, DEPTHS, MIN_DEF_ATT, SPOT_MIN_DEF_ATT, SPOT_MIN_SHARE, SPOT_MIN_MINE, FALLBACK_MIN_ATT,
 } from '../../lib/nfl/fieldModel'
 import { softRole, softLine } from '../../lib/nfl/dvpSignal'
@@ -144,6 +144,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   const [fw, setFw] = useState(560)
   const uid = useId().replace(/[^a-zA-Z0-9]/g, '')
   const field = matchup?.field
+  const [viewPick, setViewPick] = useState(null)
 
   useEffect(() => {
     const ro = new ResizeObserver(() => {
@@ -225,6 +226,20 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
     return best
   }, [cells, drawn.length, qbModel, mode, isQB, byZ])
 
+  // ── PASSING / RUNNING, ONE VIEW (plan items 3 + 8) ─────────────────────
+  // The picture follows where his work is (lib/nfl/fieldModel.js
+  // fieldView: targets -- a QB's throws -- vs carries, the season grids); a
+  // toggle only for a pass-catching back. With no player (the Matchups
+  // tab's TEAM read) both sides of the defence are a tap apart.
+  const tgN = pid ? mapAttempts(isQB ? field?.qb_pass?.[pid] : field?.player_pass?.[pid]) : 0
+  const caN = pid ? mapAttempts(field?.player_rush?.[pid]) : 0
+  const dv = pid ? fieldView({ tg: tgN, ca: caN }) : { view: 'pass', toggle: Boolean(field?.def_rush?.[defTeam]) }
+  const isRun = (dv.toggle && viewPick ? viewPick : dv.view) === 'rush'
+  const runDef = useMemo(() => fieldModel({ field, defTeam, mode: 'def', pass: false }), [field, defTeam])
+  const runMine = useMemo(() => (pid ? fieldModel({ field, defTeam, player, mode: 'player', pass: false }) : null), [field, defTeam, player, pid])
+  const runModel = pid ? runMine : runDef
+  const runSpot = runModel?.spot || null
+
   // ── the sentence ────────────────────────────────────────────────────────
   const TL = (t) => <TeamLink t={t} onOpenTeam={onOpenTeam} />
   const usingQb = Boolean(qbModel) && isQB && mode === 'TEAM'
@@ -247,6 +262,27 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
       lines.push(<>{TL(defTeam)} have no zone that leaks on enough plays to call it.</>)
     } else {
       lines.push(<>Nothing lines up. Every hole {TL(defTeam)} leave is one {who} {asPlayer || usingQb ? "doesn't" : "don't"} {usingQb ? 'throw into' : asPlayer ? 'work' : 'throw into'}.</>)
+    }
+  }
+  if (isRun) {
+    // THE RUN VIEW'S SENTENCE: the same three shapes, on the seven gaps.
+    lines.length = 0
+    const rn = pid ? (runMine?.mineTotal || caN) : null
+    const runHoles = (runDef?.cells || []).filter((c) => Number.isFinite(c.leak) && c.leak > 0 && c.att >= SPOT_MIN_DEF_ATT)
+    const gap = (z) => LANE_WORD[z].replace(/^runs /, '')
+    if (pid && rn < FALLBACK_MIN_ATT) lines.push(<>Built on {plural(rn, 'carry').replace('carrys', 'carries')}: a hint, not a tendency.</>)
+    if (!defTeam) lines.push(<>No opponent this week, so no defence to read.</>)
+    else if (!runDef) lines.push(<>No running map for {TL(defTeam)} yet, so the line has no ink.</>)
+    else if (!pid || rn >= SPOT_MIN_MINE) {
+      if (runSpot && pid) {
+        lines.push(<><b style={{ color: C.orange, fontFamily: NUM_FONT, letterSpacing: '.04em' }}>THE SPOT</b>: {gap(runSpot.z)}. {TL(defTeam)} give up <b style={{ color: C.text }}>{fmtPct(runSpot.leak)}</b> a carry there, and <b style={{ color: C.text }}>{runSpot.mine?.att || 0} of his {rn}</b> carries went there.</>)
+      } else if (runSpot) {
+        lines.push(<><b style={{ color: C.orange, fontFamily: NUM_FONT, letterSpacing: '.04em' }}>THE WEAK SPOT</b>: {gap(runSpot.z)}. {TL(defTeam)} give up <b style={{ color: C.text }}>{fmtPct(runSpot.leak)}</b> a carry there, {Math.round(runSpot.share)}% of all the rushing yards they allow.</>)
+      } else if (!runHoles.length) {
+        lines.push(<>{TL(defTeam)} have no gap that leaks on enough carries to call it.</>)
+      } else {
+        lines.push(<>Nothing lines up. Every gap {TL(defTeam)} leave open is one {player?.name || 'he'} doesn&apos;t run.</>)
+      }
     }
   }
   const roleLine = soft?.standout && soft.role === role
@@ -272,9 +308,11 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
     </div>
   )
 
-  if (file.state === 'loading') return <section ref={wrap}>{head}<ChartEmpty theme={C}>Loading every target…</ChartEmpty></section>
-  if (file.state === 'error' || file.state === 'none') return <section ref={wrap}>{head}<ChartEmpty theme={C}>Couldn&apos;t load {team}&apos;s plays file (nfl_field_{team}.json), so there are no dots to draw yet.</ChartEmpty></section>
-  if (!mine.length) return <section ref={wrap}>{head}<ChartEmpty theme={C}>{asPlayer ? `No targets for ${player?.name || 'him'} in ${body?.season || 'this'} season's play-by-play yet.` : `No targets for ${team} yet.`}</ChartEmpty></section>
+  // Zero targets and zero carries: nothing to draw, no section.
+  if (pid && !dv.view) return null
+  if (!isRun && file.state === 'loading') return <section ref={wrap}>{head}<ChartEmpty theme={C}>Loading every target…</ChartEmpty></section>
+  if (!isRun && (file.state === 'error' || file.state === 'none')) return <section ref={wrap}>{head}<ChartEmpty theme={C}>Couldn&apos;t load {team}&apos;s plays file (nfl_field_{team}.json), so there are no dots to draw yet.</ChartEmpty></section>
+  if (!isRun && !mine.length) return <section ref={wrap}>{head}<ChartEmpty theme={C}>{asPlayer ? `No targets for ${player?.name || 'him'} in ${body?.season || 'this'} season's play-by-play yet.` : `No targets for ${team} yet.`}</ChartEmpty></section>
 
   // ── the chips ────────────────────────────────────────────────────────────
   const chipH = phone ? { minHeight: 44, padding: '0 11px', fontSize: 11, whiteSpace: 'nowrap', flexShrink: 0 } : { minHeight: 32, padding: '0 10px', fontSize: 10.5, whiteSpace: 'nowrap' }
@@ -283,12 +321,16 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
       display: 'flex', alignItems: 'center', gap: 5, marginBottom: phone ? 6 : 8,
       ...(phone ? { flexWrap: 'nowrap', overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', margin: '0 -2px 6px', padding: '0 2px' } : { flexWrap: 'wrap' }),
     }}>
-      {pid && !isQB && (
-        <ChipGroup first theme={C} numFont={NUM_FONT} color={C.green} value={mode} onChange={setMode} chipStyle={chipH}
+      {dv.toggle && (
+        <ChipGroup first theme={C} numFont={NUM_FONT} color={C.amber} value={isRun ? 'rush' : 'pass'} onChange={setViewPick} chipStyle={chipH}
+          options={[{ k: 'pass', label: 'PASSING', n: pid ? tgN : null, title: pid ? `${isQB ? 'His throws' : 'His targets'}, where they went` : 'Where they get beaten through the air' }, { k: 'rush', label: 'RUNNING', n: pid ? caN : null, title: pid ? 'His carries, gap by gap' : 'Where they get beaten on the ground' }]} />
+      )}
+      {pid && !isQB && !isRun && (
+        <ChipGroup first={!dv.toggle} theme={C} numFont={NUM_FONT} color={C.green} value={mode} onChange={setMode} chipStyle={chipH}
           options={[{ k: 'PLAYER', label: 'PLAYER', n: null, title: `${player?.name}'s targets` }, { k: 'TEAM', label: 'TEAM', n: null, title: `Every target ${team} threw` }]} />
       )}
-      <ChipGroup first={!pid || isQB} label={phone ? null : 'Window'} theme={C} numFont={NUM_FONT} color={C.cyan} value={win} onChange={setWin} chipStyle={chipH}
-        options={WINS.map(([k, label, nn]) => ({ k, label, n: k === 'SZN' ? null : inWin(k).length, title: k === 'SZN' ? 'The whole season' : `The last ${nn === 1 ? 'game' : `${nn} games`} ${asPlayer ? 'he was targeted in' : `${team} played`}` }))} />
+      <ChipGroup first={!dv.toggle && (!pid || isQB || isRun)} label={phone ? null : 'Window'} theme={C} numFont={NUM_FONT} color={C.cyan} value={win} onChange={setWin} chipStyle={chipH}
+        options={WINS.map(([k, label, nn]) => ({ k, label, n: k === 'SZN' || isRun ? null : inWin(k).length, title: k === 'SZN' ? 'The whole season' : `The last ${nn === 1 ? 'game' : `${nn} games`} ${asPlayer ? 'he was targeted in' : `${team} played`}` }))} />
     </div>
   )
 
@@ -424,6 +466,82 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   })
 
   const subjName = asPlayer ? player.name : `${team} offence`
+
+  // ── THE RUN VIEW (plan item 3): the same field, the ink on the seven gaps
+  // as a band along the line of scrimmage, THE SPOT circled on the one gap
+  // where his carries and their leak meet. No dot grids, no per-gap legend.
+  // His carries outside the 20 are not in the plays file (checked), so the
+  // band is the season grid and the dots are his red-zone touches, in the
+  // strip under it.
+  let runPicture = null
+  if (isRun) {
+    const RH = phone ? 236 : 290
+    const rx0 = u(8), rx1 = W - u(8)
+    const gw = (rx1 - rx0) / LANES.length
+    const ry0 = u(6), ry1 = RH - u(6)
+    const YR = (a) => ry0 + ((11 - Math.max(-7, Math.min(11, a))) / 18) * (ry1 - ry0)
+    const bTop = YR(3.6), bBot = YR(-3.6)
+    const rdefs = []
+    const rparts = [<rect key="turf" x={0} y={0} width={W} height={RH} fill={C.turf2} />]
+    for (let a = -10; a < 11; a += 5) {
+      if (Math.round(a / 5) % 2 === 0) continue
+      const top = YR(Math.min(11, a + 5)), bot = YR(Math.max(-7, a))
+      if (bot > top) rparts.push(<rect key={`mow${a}`} x={0} y={top} width={W} height={bot - top} fill={C.turf1} />)
+    }
+    for (const a of [-5, 5, 10]) rparts.push(<line key={`yl${a}`} x1={0} y1={YR(a)} x2={W} y2={YR(a)} stroke={C.cream} strokeOpacity={a % 10 === 0 ? 0.28 : 0.14} vectorEffect="non-scaling-stroke" strokeWidth={1} />)
+    const rlabels = []
+    LANES.forEach((z, i) => {
+      const c = runModel?.by?.[z] || runDef?.by?.[z]
+      const gx = rx0 + i * gw
+      const ins = u(1.5)
+      const h = heatOf(c?.leak), cl = coolOf(c?.leak)
+      if (h >= 0.12) {
+        const pitch = u(10 - h * 4.5), r = u(1.1 + h * 1.7)
+        rdefs.push(<pattern key={`rp${i}`} id={`rink${uid}${i}`} width={pitch} height={pitch} patternUnits="userSpaceOnUse"><circle cx={pitch / 2} cy={pitch / 2} r={r} fill={C.orange} fillOpacity={(0.42 + h * 0.4).toFixed(2)} /></pattern>)
+        rparts.push(<rect key={`rg${i}`} x={gx + ins} y={bTop} width={gw - 2 * ins} height={bBot - bTop} rx={u(3)} fill={C.orange} opacity={(0.04 + h * 0.1).toFixed(3)} />)
+        rparts.push(<rect key={`rf${i}`} x={gx + ins} y={bTop} width={gw - 2 * ins} height={bBot - bTop} rx={u(3)} fill={`url(#rink${uid}${i})`} />)
+      } else if (cl >= 0.12) {
+        const pitch = u(9 - cl * 3), r = u(0.8 + cl * 0.9)
+        rdefs.push(<pattern key={`rp${i}`} id={`rink${uid}${i}`} width={pitch} height={pitch} patternUnits="userSpaceOnUse"><circle cx={pitch / 2} cy={pitch / 2} r={r} fill={C.cyan} fillOpacity={(0.22 + cl * 0.3).toFixed(2)} /></pattern>)
+        rparts.push(<rect key={`rf${i}`} x={gx + ins} y={bTop} width={gw - 2 * ins} height={bBot - bTop} rx={u(3)} fill={`url(#rink${uid}${i})`} />)
+      } else {
+        rparts.push(<rect key={`rf${i}`} x={gx + ins} y={bTop} width={gw - 2 * ins} height={bBot - bTop} rx={u(3)} fill={C.cream} opacity={0.03} />)
+      }
+      if (i > 0) rparts.push(<line key={`gb${i}`} x1={gx} y1={bTop} x2={gx} y2={bBot} stroke={C.cream} strokeOpacity={0.12} vectorEffect="non-scaling-stroke" strokeWidth={1} />)
+      if (!(runSpot && runSpot.z === z)) {
+        rlabels.push(<text key={`rl${i}`} x={gx + gw / 2} y={YR(1.7)} textAnchor="middle" fontFamily={NUM_FONT} fontWeight={800} fontSize={u(11)}
+          fill={!Number.isFinite(c?.leak) ? C.text3 : c.leak > 0 ? C.orange : C.cyan} {...KO}>{Number.isFinite(c?.leak) ? fmtPct(c.leak) : 'thin'}</text>)
+      }
+      rlabels.push(<text key={`rn${i}`} x={gx + gw / 2} y={YR(-5.4)} textAnchor="middle" fontFamily={NUM_FONT} fontWeight={800} fontSize={u(phone ? 10 : 11)} letterSpacing={u(0.3)} fill={C.text3}>{LANE_SHORT[z]}</text>)
+    })
+    // the five linemen the gaps are named after, on the line
+    for (let i = 1; i <= 5; i += 1) {
+      const lx = rx0 + i * gw + gw / 2
+      rparts.push(<rect key={`ol${i}`} x={lx - gw * 0.16} y={YR(0) + u(2)} width={gw * 0.32} height={u(7)} rx={u(2)} fill={C.cream} opacity={0.32} />)
+    }
+    rparts.push(<line key="los" x1={0} y1={YR(0)} x2={W} y2={YR(0)} stroke={C.ice} strokeWidth={2.4} vectorEffect="non-scaling-stroke" />)
+    rlabels.push(<text key="loslbl" x={rx1} y={YR(4.6)} textAnchor="end" fontFamily={NUM_FONT} fontWeight={800} fontSize={u(phone ? 10 : 10.5)} letterSpacing={u(0.8)} fill={C.ice} {...KO}>LINE OF SCRIMMAGE</text>)
+    if (runSpot) {
+      const i = LANES.indexOf(runSpot.z)
+      const cxs = rx0 + i * gw + gw / 2, cys = (bTop + bBot) / 2
+      const rr = Math.min(gw, bBot - bTop) * 0.5
+      const tagW = u(phone ? 74 : 84), tagH = u(phone ? 17 : 19)
+      const tx = Math.max(rx0, Math.min(rx1 - tagW, cxs - tagW / 2))
+      rlabels.push(<g key="rspot" aria-hidden="true">
+        <circle cx={cxs} cy={cys} r={rr} fill="none" stroke={C.text} strokeWidth={2} strokeOpacity={0.95} vectorEffect="non-scaling-stroke" />
+        <circle cx={cxs + rr * 0.06} cy={cys - rr * 0.05} r={rr * 1.06} fill="none" stroke={C.text} strokeWidth={1.1} strokeOpacity={0.5} vectorEffect="non-scaling-stroke" />
+        <rect x={tx} y={bTop - tagH - u(4)} width={tagW} height={tagH} rx={u(3)} fill={C.orange} />
+        <text x={tx + tagW / 2} y={bTop - tagH / 2 - u(4)} dy=".35em" textAnchor="middle" fontFamily={NUM_FONT} fontWeight={900} fontSize={u(phone ? 9.5 : 10.5)} letterSpacing={u(0.4)} fill={C.bg}>THE SPOT {fmtPct(runSpot.leak)}</text>
+      </g>)
+    }
+    runPicture = (
+      <svg viewBox={`0 0 ${W} ${RH}`} role="img" aria-label={`${defTeam || 'The defence'}: rushing yards allowed by gap vs a normal defence${pid ? `, with ${player?.name}'s carries` : ''}`}
+        style={{ display: 'block', width: '100%', height: 'auto', borderRadius: 8 }}>
+        <defs>{rdefs}</defs>
+        {rparts}{rlabels}
+      </svg>
+    )
+  }
   const picture = (
     <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${subjName}: ${drawn.length} targets by depth and lane${defTeam ? `, over ${defTeam}'s yards allowed by zone` : ''}`}
       style={{ display: 'block', width: '100%', height: 'auto', borderRadius: 8 }}>
@@ -436,7 +554,12 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   )
 
   // THE CAPTION (plan item 6): the whole explanation, one line.
-  const caption = (
+  const caption = isRun ? (
+    <div style={{ fontSize: 11.5, lineHeight: 1.5, color: C.text3, marginTop: 6 }}>
+      {runDef ? <>Ink: where {TL(defTeam)} get beaten on the ground, gap by gap, vs a normal defence. Thin = too few carries to say. </> : null}
+      Carries by gap are from the season grid; the dots in the strip are {pid ? 'his' : 'their'} touches inside the 20.
+    </div>
+  ) : (
     <div style={{ fontSize: 11.5, lineHeight: 1.5, color: C.text3, marginTop: 6 }}>
       {defModel ? <>Ink: where {TL(defTeam)} get beaten, vs a normal defence. </> : null}
       Dots: {asPlayer ? 'his' : `${team}'s`} targets, where they went (hollow = incomplete, orange = touchdown).
@@ -466,7 +589,14 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
     ['AIR', airs.length ? one(airs.reduce((s, p) => s + p.air, 0) / airs.length) : '—', C.text2],
     ['YAC', ct.length ? one(ct.reduce((s, p) => s + (p.yac || 0), 0) / ct.length) : '—', C.text2],
   ]
-  const statBlock = (
+  const runSrc = isRun && pid ? field?.player_rush?.[pid] : null
+  if (runSrc) {
+    const att = mapAttempts(runSrc)
+    const ry = Object.values(runSrc).reduce((a, z) => a + (Number(z?.yds) || 0), 0)
+    const rt = Object.values(runSrc).reduce((a, z) => a + (Number(z?.td) || 0), 0)
+    stats.splice(0, stats.length, ['CAR', att, C.text], ['YDS', ry, C.text], ['TD', rt, C.orange], ['YPC', att ? one(ry / att) : '—', C.text2])
+  }
+  const statBlock = isRun && !runSrc ? null : (
     <div role="list" style={{ display: 'grid', gridTemplateColumns: `repeat(${stats.length}, 1fr)`, gap: 2, marginTop: 8 }}>
       {stats.map(([l, v, col]) => (
         <div key={l} role="listitem" style={{ textAlign: 'center', minWidth: 0 }}>
@@ -480,8 +610,14 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   // EVERY PART OF THE FIELD, WITH THE NUMBERS (plan item 7): MatchupMap's
   // table, one tap down, closed by default. Same model as the picture, so a
   // zone's % here is the % drawn on it.
-  const tableRows = DEPTHS.flatMap((d) => SIDES.map((s) => byZ[`${s}|${d}`])).filter(Boolean)
-  const table = defModel ? (
+  const tableRows = isRun
+    ? LANES.map((z) => {
+      const c = runModel?.by?.[z] || runDef?.by?.[z]
+      return c ? { z, where: cap(LANE_WORD[z]), leak: Number.isFinite(c.leak) ? c.leak : null, tdLine: c.tdLine, right: pid ? `${c.mine?.att || 0} of ${runMine?.mineTotal || 0}` : `${Math.round(c.share)}%` } : null
+    }).filter(Boolean)
+    : DEPTHS.flatMap((d) => SIDES.map((s) => byZ[`${s}|${d}`])).filter(Boolean)
+      .map((c) => ({ ...c, where: cap(phrase(c.z)), right: `${c.n} of ${drawn.length}` }))
+  const table = (isRun ? runDef : defModel) ? (
     <div>
       <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} style={{
         marginTop: 10, width: '100%', minHeight: 44, textAlign: 'left', cursor: 'pointer',
@@ -494,15 +630,17 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
           {tableRows.map((c, i) => (
             <div key={c.z} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 48px 58px', gap: 8, alignItems: 'baseline', padding: '7px 11px', borderTop: i ? `1px solid ${C.border}` : 0 }}>
               <span style={{ minWidth: 0, fontSize: 12, color: C.text2, lineHeight: 1.4 }}>
-                {cap(phrase(c.z))}
+                {c.where}
                 {c.tdLine ? <span style={{ display: 'block', fontSize: 11, color: C.text3 }}>{c.tdLine}</span> : null}
               </span>
               <span style={{ fontFamily: NUM_FONT, fontSize: 12, fontWeight: 900, textAlign: 'right', color: c.leak == null ? C.text3 : c.leak > 0 ? C.orange : C.cyan }}>{c.leak == null ? 'thin' : fmtPct(c.leak)}</span>
-              <span style={{ fontFamily: NUM_FONT, fontSize: 11, color: C.text3, textAlign: 'right' }}>{c.n} of {drawn.length}</span>
+              <span style={{ fontFamily: NUM_FONT, fontSize: 11, color: C.text3, textAlign: 'right' }}>{c.right}</span>
             </div>
           ))}
           <div style={{ padding: '6px 11px 8px', fontSize: 11, color: C.text3, borderTop: `1px solid ${C.border}` }}>
-            Middle: {defTeam}&apos;s yards a target vs the league&apos;s there ({matchup?.season || 'this'} season, thin under {MIN_DEF_ATT} targets). Right: {whose} {win === 'SZN' ? '' : `${win} `}targets that went there.
+            {isRun
+              ? <>Middle: {defTeam}&apos;s yards a carry vs the league&apos;s in that gap ({matchup?.season || 'this'} season, thin under {MIN_DEF_ATT} carries). Right: {pid ? 'his season carries that went there' : 'their share of the rushing yards they allow'}.</>
+              : <>Middle: {defTeam}&apos;s yards a target vs the league&apos;s there ({matchup?.season || 'this'} season, thin under {MIN_DEF_ATT} targets). Right: {whose} {win === 'SZN' ? '' : `${win} `}targets that went there.</>}
           </div>
         </div>
       )}
@@ -523,7 +661,9 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
       <span style={{ color: C.orange }}>RED ZONE</span> · every touch inside the 20{phone ? '' : ', by distance to the goal line'}
     </div>
   )
-  const strip = stripRows.some((r) => r.touches.length)
+  const strip = file.state !== 'ready'
+    ? <>{stripKicker}<ChartEmpty theme={C} style={{ padding: '2px 0' }}>{file.state === 'loading' ? 'Loading the red-zone touches…' : `No plays file for ${team} yet, so no red-zone touches to draw.`}</ChartEmpty></>
+    : stripRows.some((r) => r.touches.length)
     ? <RedZoneStrip rows={stripRows} kicker={phone ? null : stripKicker} phone={phone} onPlayerClick={onPlayerClick}
         rulerLabel={phone ? <span style={{ color: C.orange }}>RED ZONE</span> : null} />
     : <>{stripKicker}<ChartEmpty theme={C} style={{ padding: '2px 0' }}>No red-zone touches{asPlayer ? ' for him' : ''} in this window.</ChartEmpty></>
@@ -558,10 +698,10 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
       {dock}
       <ChartCard theme={C} className="field-card" style={phone ? { display: 'block', padding: 7 } : { gap: 18, padding: 12, flexWrap: 'nowrap' }}>
         <div style={{ flex: '1 1 auto', minWidth: 0, maxWidth: phone ? 'none' : 680 }}>
-          <div ref={fieldBox}>{picture}</div>
-          {emptyWin}
+          <div ref={fieldBox}>{isRun ? runPicture : picture}</div>
+          {!isRun && emptyWin}
           {caption}
-          {whoRow}
+          {!isRun && whoRow}
           {phone && statBlock}
           {strip}
           {phone && table}
@@ -569,7 +709,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
         {!phone && (
           <div style={{ flex: '1 0 280px', maxWidth: 420, display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0 }}>
             {statBlock}
-            <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 10, minHeight: 64 }}>{card}</div>
+            {!isRun && <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 10, minHeight: 64 }}>{card}</div>}
             {table}
           </div>
         )}
