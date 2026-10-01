@@ -4,7 +4,7 @@ import { ORANGE_RAMP, inkFor } from '../Heatmap'
 import PaletteToggle from '../PaletteToggle'
 import { RAMPS, usePalette } from '../../lib/palette'
 import { tabName } from '../../lib/routes'
-import { Section, P, Note, Term, Stat, StartHere, GuideTitle } from '../guide/GuideParts'
+import { Section, P, Note, Term, Stat, StartHere, GuideTitle, PlaybookLink } from '../guide/GuideParts'
 
 // GUIDE — rewritten short, 2026-08-09.
 //
@@ -139,6 +139,7 @@ export default function Guide({ onNavigate }) {
           itself on it the next morning. You don&apos;t need to know a single advanced stat to use
           it — follow the five steps below in order.
       </GuideTitle>
+      <PlaybookLink market="hr" label="How to research a home run" />
 
       {/* The palette picker lives here rather than buried in a settings menu.
           Colour is how every board on this site says "high" and "low", so

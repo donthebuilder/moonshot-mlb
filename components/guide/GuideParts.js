@@ -152,3 +152,15 @@ export function GuideTitle({ title = 'Guide', children }) {
     </div>
   )
 }
+
+// THE PLAYBOOK, FROM THE GUIDE (2026-09-30, BATCH-PLAYBOOK P1). The Guide
+// says what each page is; the Playbook (/playbook) walks one pick through
+// them in order. One line under every product's Guide title.
+export function PlaybookLink({ market, label }) {
+  const { C } = useSportTheme()
+  return (
+    <a href={`/playbook/${market}`} style={{ display: 'inline-flex', alignItems: 'center', minHeight: 44, margin: '-6px 0 10px', color: C.text, fontSize: TYPE.body, fontWeight: 800, textDecoration: 'none' }}>
+      <span aria-hidden="true" style={{ marginRight: 6 }}>📘</span>New here? {label} — the Playbook, step by step →
+    </a>
+  )
+}

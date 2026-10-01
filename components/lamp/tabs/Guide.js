@@ -1,7 +1,7 @@
 'use client'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import { NHL_NAV } from '../../../lib/nhl/routes'
-import { GuideTheme, Section, P, Term, StartHere, GuideTitle } from '../../guide/GuideParts'
+import { GuideTheme, Section, P, Term, StartHere, GuideTitle, PlaybookLink } from '../../guide/GuideParts'
 
 // 🏒 HOW THIS WORKS — LAMP explained to somebody who has never seen it
 // (spec §32, "test NHL as a stranger"). Says what is here, where it comes
@@ -51,6 +51,7 @@ export default function Guide({ onNavigate }) {
         the league’s own feed and shows you the game, in hockey’s own words — and a goal board it
         grades on itself every morning.
       </GuideTitle>
+      <PlaybookLink market="goal" label="How to research a goal" />
 
       <StartHere heading="Three steps, in order" onNavigate={onNavigate} steps={[
         { n: 1, tab: 'board', title: `Open the ${NHL_NAV.board.label}`, body: 'Three skaters called per game, locked before puck drop, graded after.' },

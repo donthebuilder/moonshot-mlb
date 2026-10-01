@@ -1,7 +1,7 @@
 'use client'
 import { C, NUM_FONT, MARKETS } from '../../../lib/nfl/theme'
 import { NFL_NAV } from '../../../lib/routes'
-import { GuideTheme, Section, P, Note, Term, Stat, StartHere, GuideTitle } from '../../guide/GuideParts'
+import { GuideTheme, Section, P, Note, Term, Stat, StartHere, GuideTitle, PlaybookLink } from '../../guide/GuideParts'
 
 // Guide — what every number means, and what it doesn't.
 //
@@ -24,6 +24,7 @@ export default function Guide({ onNavigate, data }) {
       <GuideTitle>
         What every page is for, in plain words — and what the numbers on them do and don&apos;t claim.
       </GuideTitle>
+      <PlaybookLink market="td" label="How to research a touchdown" />
 
       <StartHere heading="Three taps, in order" onNavigate={onNavigate} steps={[
         { n: 1, tab: 'home', title: 'Read the slate', body: 'Home shows the live ledger, The Six, lookout spots and the strongest boards.' },
