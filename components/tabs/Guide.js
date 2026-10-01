@@ -144,7 +144,7 @@ export default function Guide({ onNavigate }) {
       {/* LOOK -> PICK -> TRACK (2026-10-01): the same three drawings as /start. */}
       <div style={{ margin: '14px 0 18px' }}>
         <HowItWorks sport="mlb" recordHref="/called?sport=mlb"
-          colors={{ accent: C.orange, ink: C.text, dim: C.text2, line: C.border }} />
+          colors={{ accent: C.orange, ink: C.text, dim: C.text2, line: C.border, bg: C.bg }} />
       </div>
 
       {/* The palette picker lives here rather than buried in a settings menu.

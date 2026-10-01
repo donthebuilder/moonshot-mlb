@@ -554,7 +554,7 @@ export default async function StartPage({ searchParams }) {
           Colours are this page's own CSS variables (--accent per sport). */}
       <section className={styles.panel} data-sport={sportKey}>
         <HowItWorks sport={sportKey} recordHref={sport.recordHref}
-          colors={{ accent: 'var(--accent)', ink: 'var(--ink)', dim: 'var(--dim)', line: 'var(--line)' }} />
+          colors={{ accent: 'var(--accent)', ink: 'var(--ink)', dim: 'var(--dim)', line: 'var(--line)', bg: 'var(--bg)' }} />
       </section>
 
       {strip.length > 0 && (

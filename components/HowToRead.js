@@ -26,9 +26,9 @@ function markSeen(id) { try { window.localStorage.setItem(seenKey(id), '1') } ca
 function Mark({ n, accent }) {
   return (
     <span aria-hidden="true" style={{
-      position: 'absolute', top: -9, left: -7, width: 18, height: 18, borderRadius: 999,
-      background: accent, color: C.bg, fontSize: 10.5, fontWeight: 900, lineHeight: '18px',
-      textAlign: 'center', fontFamily: NUM_FONT, boxShadow: `0 0 0 2px ${C.bg}`,
+      position: 'absolute', top: -10, left: -8, width: 20, height: 20, borderRadius: 999,
+      background: accent, color: C.bg, fontSize: 11, fontWeight: 900, lineHeight: '20px',
+      textAlign: 'center', fontFamily: NUM_FONT, boxShadow: `0 0 0 2px ${C.bg2}, 0 0 12px ${accent}88`,
     }}>{n}</span>
   )
 }
@@ -36,7 +36,8 @@ function Mark({ n, accent }) {
 function Part({ n, accent, children, style }) {
   return (
     <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 8,
-      padding: '7px 9px', borderRadius: 9, border: `1px dashed ${accent}66`, ...style }}>
+      padding: '8px 10px', borderRadius: 10, border: `1px solid ${accent}40`,
+      background: `linear-gradient(180deg, ${accent}14, ${accent}06)`, ...style }}>
       <Mark n={n} accent={accent} />
       {children}
     </span>
@@ -85,7 +86,8 @@ export default function HowToRead({ id, accent = C.orange, row, notes, steps = [
           not allowed in one -- nor should a parent's stacking trap it. */}
       {open && typeof document !== 'undefined' && createPortal(
         <div role="presentation" onClick={() => setOpen(false)} style={{
-          position: 'fixed', inset: 0, zIndex: 1000,  // above the phone tab bar (MobileTabBar, 390) background: 'rgba(0,0,0,.62)',
+          // zIndex: above the phone tab bar (MobileTabBar, 390).
+          position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,.66)', backdropFilter: 'blur(3px)', WebkitBackdropFilter: 'blur(3px)',
           display: 'flex', alignItems: isPhone ? 'flex-end' : 'center', justifyContent: 'center',
           padding: isPhone ? 0 : 24,
         }}>
@@ -93,7 +95,8 @@ export default function HowToRead({ id, accent = C.orange, row, notes, steps = [
             width: isPhone ? '100%' : 560, maxWidth: '100%',
             maxHeight: isPhone ? 'calc(100dvh - 40px - env(safe-area-inset-top))' : 'calc(100dvh - 48px)',
             overflowY: 'auto', overscrollBehavior: 'contain',
-            background: C.bg2, border: `1px solid ${C.border}`,
+            background: `radial-gradient(140% 60% at 50% 0%, ${accent}1a, transparent 60%), ${C.bg2}`,
+            border: `1px solid ${C.border}`, borderTop: `3px solid ${accent}`,
             borderRadius: isPhone ? '16px 16px 0 0' : 16,
             padding: `14px 16px calc(18px + env(safe-area-inset-bottom))`,
             boxShadow: '0 -12px 40px rgba(0,0,0,.5)',
@@ -110,15 +113,22 @@ export default function HowToRead({ id, accent = C.orange, row, notes, steps = [
 
             {/* THE PICTURE: a real row, drawn like the table draws it. */}
             <div style={{
-              display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '16px 12px',
-              padding: '18px 12px 14px', borderRadius: 12, background: C.bg3 || C.bg,
-              border: `1px solid ${C.border}`,
+              position: 'relative', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '18px 12px',
+              padding: '30px 12px 16px', borderRadius: 14,
+              background: `radial-gradient(90% 120% at 0% 0%, ${accent}22, transparent 55%), ${C.bg3 || C.bg}`,
+              border: `1px solid ${accent}33`, boxShadow: `inset 0 1px 0 ${accent}22`,
             }}>
+              <span aria-hidden="true" style={{ position: 'absolute', top: 9, left: 12, fontSize: 10, fontWeight: 900, letterSpacing: '.14em',
+                textTransform: 'uppercase', color: accent }}>{row.eyebrow || 'Live from tonight\u2019s board'}</span>
               <Part n={1} accent={accent}>
                 <span style={{ fontFamily: NUM_FONT, fontWeight: 900, fontSize: 15, color: C.text }}>#{row.rank}</span>
               </Part>
               <Part n={2} accent={accent} style={{ flex: '1 1 180px', minWidth: 0 }}>
-                <PlayerFace sport={row.sport} id={row.faceId} espnId={row.espnId} photo={row.photo} team={row.team} name={row.name} size={36} />
+                <span style={{ borderRadius: 999, padding: 2, background: `conic-gradient(${accent}, ${accent}33, ${accent})`, display: 'inline-flex', flex: '0 0 auto' }}>
+                  <span style={{ borderRadius: 999, padding: 2, background: C.bg2, display: 'inline-flex' }}>
+                    <PlayerFace sport={row.sport} id={row.faceId} espnId={row.espnId} photo={row.photo} team={row.team} name={row.name} size={42} />
+                  </span>
+                </span>
                 <span style={{ minWidth: 0 }}>
                   <span style={{ display: 'block', fontSize: TYPE.name, fontWeight: 800, color: C.text }}>{row.name}</span>
                   <span style={{ fontSize: TYPE.label, color: C.text3, fontFamily: NUM_FONT }}>{row.team}{row.opp ? ` vs ${row.opp}` : ''}</span>
@@ -126,7 +136,8 @@ export default function HowToRead({ id, accent = C.orange, row, notes, steps = [
               </Part>
               <Part n={3} accent={accent}>
                 <span style={{ fontSize: TYPE.label, color: C.text3, fontWeight: 800 }}>{row.score.label}</span>
-                <span style={{ fontFamily: NUM_FONT, fontWeight: 900, fontSize: 15, color: C.bg, background: accent, borderRadius: 6, padding: '2px 7px' }}>
+                <span style={{ fontFamily: NUM_FONT, fontWeight: 900, fontSize: 17, color: C.bg, borderRadius: 7, padding: '3px 9px',
+                  background: `linear-gradient(180deg, ${accent}, ${accent}cc)`, boxShadow: `0 0 16px ${accent}55` }}>
                   {Number(row.score.value).toFixed(row.score.dp ?? 1)}
                 </span>
               </Part>
@@ -141,11 +152,13 @@ export default function HowToRead({ id, accent = C.orange, row, notes, steps = [
             </div>
 
             {/* WHAT EACH MARK MEANS */}
-            <ol style={{ listStyle: 'none', margin: '16px 0 0', padding: 0, display: 'grid', gap: 10 }}>
+            <ol style={{ listStyle: 'none', margin: '18px 0 0', padding: '0 0 0 2px', display: 'grid', gap: 11,
+              backgroundImage: `linear-gradient(${accent}44, ${accent}44)`, backgroundSize: '2px calc(100% - 20px)', backgroundRepeat: 'no-repeat', backgroundPosition: '11px 10px' }}>
               {notes.map((nt, i) => (
                 <li key={nt.title} style={{ display: 'grid', gridTemplateColumns: '22px 1fr', gap: 9, alignItems: 'start' }}>
                   <span aria-hidden="true" style={{ width: 20, height: 20, borderRadius: 999, background: accent, color: C.bg,
-                    fontSize: 11, fontWeight: 900, lineHeight: '20px', textAlign: 'center', fontFamily: NUM_FONT, marginTop: 1 }}>{i + 1}</span>
+                    fontSize: 11, fontWeight: 900, lineHeight: '20px', textAlign: 'center', fontFamily: NUM_FONT, marginTop: 1,
+                    boxShadow: `0 0 0 3px ${C.bg2}` }}>{i + 1}</span>
                   <span style={{ fontSize: TYPE.body, color: C.text2, lineHeight: 1.5 }}>
                     <b style={{ color: C.text }}>{nt.title}.</b> {nt.text}
                   </span>
@@ -160,9 +173,10 @@ export default function HowToRead({ id, accent = C.orange, row, notes, steps = [
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: isPhone ? '1fr' : `repeat(${steps.length}, 1fr)`, gap: 8 }}>
                   {steps.map((s) => (
-                    <div key={s.text} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '10px 11px', borderRadius: 10,
-                      border: `1px solid ${C.border}`, background: C.glass }}>
-                      <span aria-hidden="true" style={{ fontSize: 20 }}>{s.icon}</span>
+                    <div key={s.text} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '10px 11px', borderRadius: 12,
+                      border: `1px solid ${accent}33`, background: `linear-gradient(135deg, ${accent}12, transparent 70%)` }}>
+                      <span aria-hidden="true" style={{ width: 36, height: 36, borderRadius: 999, flex: '0 0 auto', display: 'grid', placeItems: 'center',
+                        fontSize: 18, background: `${accent}1f`, border: `1px solid ${accent}55` }}>{s.icon}</span>
                       <span style={{ fontSize: TYPE.body, color: C.text2, lineHeight: 1.4 }}>{s.text}</span>
                     </div>
                   ))}

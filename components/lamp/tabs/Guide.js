@@ -56,7 +56,7 @@ export default function Guide({ onNavigate }) {
       {/* LOOK -> PICK -> TRACK (2026-10-01): the same three drawings as /start. */}
       <div style={{ margin: '14px 0 18px' }}>
         <HowItWorks sport="nhl" recordHref="/called?sport=nhl"
-          colors={{ accent: C.ice, ink: C.text, dim: C.text2, line: C.border }} />
+          colors={{ accent: C.ice, ink: C.text, dim: C.text2, line: C.border, bg: C.bg }} />
       </div>
 
       <StartHere heading="Three steps, in order" onNavigate={onNavigate} steps={[

@@ -1,10 +1,12 @@
 // HOW IT WORKS: LOOK -> PICK -> TRACK (2026-10-01). Donovan: "something that
-// will help the people understand what they're looking at, picking and doing."
+// will help the people understand what they're looking at, picking and doing",
+// then "now upgrade them visually".
 //
-// Three small drawings, one verb and one short line each. Server-safe (no
-// hooks), so /start renders it on the server. Colours come in as props, so
-// /start passes its own CSS variables and an in-app page passes its theme
-// tokens -- no hex here. The words differ per sport and live in ONE lookup
+// Three drawings, one verb and one short line each, with arrows between the
+// steps. Server-safe (no hooks), so /start renders it on the server. Colours
+// come in as props, so /start passes its own CSS variables and an in-app page
+// passes its theme tokens -- no hex here; tints are color-mix() of the accent,
+// which works with either. The words differ per sport and live in ONE lookup
 // (WORDS), never a sport ternary.
 
 const WORDS = {
@@ -25,50 +27,78 @@ const WORDS = {
   },
 }
 
+const tint = (c, pct) => `color-mix(in srgb, ${c} ${pct}%, transparent)`
+
+// A head-and-shoulders silhouette, centred on (x, y), radius r.
+const Face = ({ x, y, r, fill, ring }) => (
+  <g>
+    <circle cx={x} cy={y} r={r} fill={tint(fill, 22)} stroke={ring || 'none'} strokeWidth={ring ? 1.4 : 0} />
+    <circle cx={x} cy={y - r * 0.18} r={r * 0.36} fill={fill} opacity="0.85" />
+    <path d={`M${x - r * 0.62} ${y + r * 0.72} a${r * 0.62} ${r * 0.5} 0 0 1 ${r * 1.24} 0`} fill={fill} opacity="0.85" />
+  </g>
+)
+
 // ── the drawings: decorative, aria-hidden; the words carry the meaning ──
-function Board({ accent, line, dim }) {
-  const rows = [0, 1, 2, 3]
+function Board({ accent, line, dim, ink }) {
   return (
-    <svg viewBox="0 0 96 64" width="96" height="64" aria-hidden="true" focusable="false">
-      {rows.map((i) => (
-        <g key={i} transform={`translate(4 ${4 + i * 15})`}>
-          <rect width="88" height="12" rx="3" fill="none" stroke={i === 0 ? accent : line} strokeWidth={i === 0 ? 1.6 : 1} />
-          <circle cx="9" cy="6" r="3.2" fill={i === 0 ? accent : dim} opacity={i === 0 ? 1 : 0.5} />
-          <rect x="16" y="4.5" width={30 - i * 3} height="3" rx="1.5" fill={dim} opacity="0.6" />
-          <rect x="60" y="3" width={24 - i * 5} height="6" rx="2" fill={accent} opacity={1 - i * 0.22} />
-        </g>
-      ))}
+    <svg viewBox="0 0 120 76" width="100%" style={{ maxWidth: 150, display: 'block' }} aria-hidden="true" focusable="false">
+      <rect x="2" y="2" width="116" height="72" rx="8" fill={tint(accent, 4)} stroke={line} />
+      <rect x="2" y="2" width="116" height="11" rx="8" fill={tint(dim, 14)} />
+      {[0, 1, 2, 3].map((i) => {
+        const y = 17 + i * 14, top = i === 0
+        return (
+          <g key={i}>
+            {top && <rect x="5" y={y - 1} width="110" height="13" rx="4" fill={tint(accent, 16)} stroke={accent} strokeWidth="1.2" />}
+            <text x="11" y={y + 8.5} textAnchor="middle" fontSize="7" fontWeight="900" fill={top ? accent : dim}>{i + 1}</text>
+            <Face x={23} y={y + 5.5} r={4.6} fill={top ? accent : dim} />
+            <rect x="31" y={y + 3.5} width={34 - i * 4} height="3.6" rx="1.8" fill={top ? ink : dim} opacity={top ? 0.9 : 0.55} />
+            <rect x="82" y={y + 1} width="30" height="9" rx="2.5" fill={accent} opacity={1 - i * 0.24} />
+          </g>
+        )
+      })}
     </svg>
   )
 }
 
-function Pick({ accent, line, dim }) {
+function Pick({ accent, line, dim, ink }) {
   return (
-    <svg viewBox="0 0 96 64" width="96" height="64" aria-hidden="true" focusable="false">
-      <rect x="10" y="6" width="76" height="52" rx="8" fill="none" stroke={line} strokeWidth="1.2" />
-      <circle cx="30" cy="27" r="10" fill={dim} opacity="0.45" />
-      <rect x="45" y="20" width="30" height="4" rx="2" fill={dim} opacity="0.7" />
-      <rect x="45" y="29" width="20" height="3" rx="1.5" fill={dim} opacity="0.45" />
-      <rect x="20" y="42" width="56" height="9" rx="4.5" fill={accent} opacity="0.18" stroke={accent} strokeWidth="1" />
-      <circle cx="28" cy="46.5" r="2.4" fill={accent} />
-      <rect x="34" y="45" width="34" height="3" rx="1.5" fill={accent} />
+    <svg viewBox="0 0 120 76" width="100%" style={{ maxWidth: 150, display: 'block' }} aria-hidden="true" focusable="false">
+      <rect x="10" y="10" width="100" height="60" rx="10" fill={tint(dim, 6)} stroke={line} transform="rotate(-4 60 40)" />
+      <rect x="12" y="6" width="100" height="62" rx="10" fill={tint(accent, 6)} stroke={accent} strokeOpacity="0.6" />
+      <Face x={34} y={28} r={12} fill={accent} ring={accent} />
+      <rect x="52" y="20" width="44" height="5" rx="2.5" fill={ink} opacity="0.85" />
+      <rect x="52" y="30" width="30" height="4" rx="2" fill={dim} opacity="0.6" />
+      <rect x="22" y="47" width="80" height="13" rx="6.5" fill={tint(accent, 22)} stroke={accent} />
+      <circle cx="31" cy="53.5" r="3" fill={accent} />
+      <text x="62" y="56.4" textAnchor="middle" fontSize="7.5" fontWeight="900" letterSpacing=".14em" fill={accent}>CALLED</text>
+      <path d="M92 50.5 l2.4 2.4 l4.6 -4.6" fill="none" stroke={accent} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M104 8 l1.4 3.4 l3.4 1.4 l-3.4 1.4 l-1.4 3.4 l-1.4 -3.4 l-3.4 -1.4 l3.4 -1.4 z" fill={accent} />
     </svg>
   )
 }
 
-function Track({ accent, line, dim }) {
+function Track({ accent, line, dim, ink }) {
   const marks = [true, false, true]
   return (
-    <svg viewBox="0 0 96 64" width="96" height="64" aria-hidden="true" focusable="false">
-      {marks.map((hit, i) => (
-        <g key={i} transform={`translate(8 ${6 + i * 18})`}>
-          <rect width="80" height="14" rx="3" fill="none" stroke={line} strokeWidth="1" />
-          <rect x="8" y="5.5" width={34 - i * 4} height="3" rx="1.5" fill={dim} opacity="0.6" />
-          {hit
-            ? <path d="M60 7.5 l4 4 l8 -8" fill="none" stroke={accent} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-            : <path d="M61 3.5 l7 7 M68 3.5 l-7 7" fill="none" stroke={dim} strokeWidth="2" strokeLinecap="round" />}
-        </g>
-      ))}
+    <svg viewBox="0 0 120 76" width="100%" style={{ maxWidth: 150, display: 'block' }} aria-hidden="true" focusable="false">
+      <rect x="4" y="4" width="112" height="68" rx="8" fill={tint(accent, 4)} stroke={line} />
+      {marks.map((hit, i) => {
+        const y = 12 + i * 19
+        return (
+          <g key={i}>
+            <rect x="10" y={y} width="72" height="14" rx="4" fill={hit ? tint(accent, 12) : tint(dim, 8)} stroke={hit ? accent : line} strokeOpacity={hit ? 0.7 : 1} />
+            <rect x="16" y={y + 5.4} width={30 - i * 4} height="3.2" rx="1.6" fill={hit ? ink : dim} opacity={hit ? 0.85 : 0.5} />
+            {hit
+              ? <path d={`M62 ${y + 7} l3.6 3.6 l7.2 -7.2`} fill="none" stroke={accent} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+              : <path d={`M63 ${y + 3.5} l7 7 M70 ${y + 3.5} l-7 7`} fill="none" stroke={dim} strokeWidth="2" strokeLinecap="round" />}
+          </g>
+        )
+      })}
+      <g transform="rotate(-14 99 40)">
+        <circle cx="99" cy="40" r="15" fill="none" stroke={accent} strokeWidth="1.6" />
+        <circle cx="99" cy="40" r="11.5" fill="none" stroke={accent} strokeWidth="0.8" strokeDasharray="2 1.6" />
+        <text x="99" y="42" textAnchor="middle" fontSize="5.4" fontWeight="900" letterSpacing=".02em" fill={accent}>GRADED</text>
+      </g>
     </svg>
   )
 }
@@ -81,28 +111,41 @@ const STEPS = [
 
 /**
  * sport: 'mlb' | 'nfl' | 'nhl'
- * colors: { accent, ink, dim, line } -- CSS colours (variables welcome)
+ * colors: { accent, ink, dim, line, bg } -- CSS colours (variables welcome); bg inks the step number
  * recordHref: where "Track" points (the sport's public record)
  */
 export default function HowItWorks({ sport, colors, recordHref = null, title = 'How it works' }) {
   const words = WORDS[sport] || WORDS.mlb
-  const { accent, ink, dim, line } = colors
+  const { accent, ink, dim, line, bg } = colors
   return (
     <div>
       <h2 style={{ margin: '0 0 12px', fontSize: 17, fontWeight: 800, color: ink }}>{title}</h2>
-      <ol style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10 }}>
+      <ol style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 14 }}>
         {STEPS.map(({ key, verb, Art }, i) => (
-          <li key={key} style={{ minWidth: 0, border: `1px solid ${line}`, borderRadius: 10, padding: '10px 8px 12px', display: 'grid', justifyItems: 'center', textAlign: 'center', gap: 6 }}>
-            <Art accent={accent} line={line} dim={dim} />
-            <span style={{ fontSize: 12, fontWeight: 900, letterSpacing: '.12em', textTransform: 'uppercase', color: accent }}>
-              {i + 1} · {verb}
+          <li key={key} style={{
+            position: 'relative', minWidth: 0, borderRadius: 12, padding: '10px 8px 12px',
+            border: `1px solid ${tint(accent, 30)}`,
+            background: `radial-gradient(120% 80% at 50% 0%, ${tint(accent, 14)}, transparent 70%)`,
+            display: 'grid', justifyItems: 'center', textAlign: 'center', gap: 7, alignContent: 'start',
+          }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <span aria-hidden="true" style={{ width: 20, height: 20, borderRadius: 999, background: accent, color: bg || ink, fontSize: 11, fontWeight: 900, lineHeight: '20px' }}>{i + 1}</span>
+              <span style={{ fontSize: 12, fontWeight: 900, letterSpacing: '.12em', textTransform: 'uppercase', color: accent }}>{verb}</span>
             </span>
+            <Art accent={accent} line={line} dim={dim} ink={ink} />
             <span style={{ fontSize: 12, lineHeight: 1.4, color: dim }}>
               {words[key]}
               {key === 'track' && recordHref && (
                 <> <a href={recordHref} style={{ color: ink, fontWeight: 700, display: 'inline-block', padding: '12px 4px', margin: '-12px -4px' }}>See the record</a></>
               )}
             </span>
+            {/* the arrow to the next step, sitting in the gap */}
+            {i < STEPS.length - 1 && (
+              <svg aria-hidden="true" focusable="false" viewBox="0 0 12 12" width="12" height="12"
+                style={{ position: 'absolute', right: -13, top: 58, zIndex: 1 }}>
+                <path d="M3 2 l5 4 l-5 4" fill="none" stroke={accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            )}
           </li>
         ))}
       </ol>

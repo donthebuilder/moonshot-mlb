@@ -111,6 +111,7 @@ export default function BoardHub({ slate, data, logs, matchup, odds, oddsStatus,
     return {
       sport: 'nfl', espnId: p.espn_id, team: p.team, opp: null, name: p.name, rank: 1,  // the Game mark says vs / @
       caption: 'One row from this week\u2019s board, taken apart.',
+      eyebrow: 'Live from this week\u2019s board',
       score: { label: 'TD', value: p.scores.TD, dp: 0 },
       pick: CALL_WORDS[status] ? `${CALL_WORDS[status]}${rung?.rank ? ` \u00b7 #${rung.rank}` : ''}` : null,
       pickNone: 'not called',
