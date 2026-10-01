@@ -15,9 +15,7 @@ import PlayerNotes from '../PlayerNotes'
 import HisNumbers from '../HisNumbers'
 import { etToday } from '../../lib/freshness'
 import { VerdictStamp, PutOnCard } from './CardActions'
-import MatchupMap from './MatchupMap'
-import TouchMap from './TouchMap'
-import FieldChart from './FieldChart'
+import TheField from './TheField'
 import VerdictHero from '../VerdictHero'
 import { faceUrl } from '../PlayerFace'
 import SourceSeason from './SourceSeason'
@@ -387,82 +385,11 @@ function Head({ children }) {
   )
 }
 
-// The map, scoped to this player and the defence he's actually facing.
-//
-// This is the one thing in the modal that isn't about him in the abstract —
-// every other section would read the same if he were playing a bye week.
-// 2026-09-07 — two things were wrong with which side of the map opened.
-//
-// The old rule flipped to rushing whenever the passing map was missing. But
-// `player_pass` is keyed by the man CATCHING the ball, so a quarterback is
-// absent from it by construction: 77 of 87 quarterbacks have no entry. Open
-// Jared Goff from the PASSING YARDS board and the old rule sent you to his
-// rushing map, which is built on eight carries in his entire log, and then the
-// map asserted underneath it that he "takes 62.5% of his carries up the
-// middle." Five carries out of eight, stated like a tendency.
-//
-// So: the map follows the market's own stat family, and the fallback to the
-// other side has to earn it with a real sample. A thin map still renders — the
-// grid already dims what it can't support — but it says it is thin instead of
-// narrating a spot. Against the live Week 1 payload this suppresses 37
-// market/player maps (23 QB, 12 RB, 2 TE) and notes 340 more.
-const PASS_MARKETS = new Set(['PASS_YDS', 'REC', 'REC_YDS'])
-const RUSH_MARKETS = new Set(['RUSH_YDS', 'RUSH_ATT'])
-const FALLBACK_MIN_ATT = 20
-
-const mapAttempts = (m) =>
-  Object.values(m || {}).reduce((n, z) => n + (Number(z?.att) || 0), 0)
-
-// Who gets The Field: a receiver or a back who is targeted at least as often
-// as he carries it. QBs throw rather than get targeted.
-function isPassCatcher(player, matchup) {
-  if (!player?.team || String(player.position).toUpperCase() === 'QB') return false
-  const tg = mapAttempts(matchup?.field?.player_pass?.[player.player_id])
-  const ca = mapAttempts(matchup?.field?.player_rush?.[player.player_id])
-  return tg > 0 && tg >= ca
-}
-
-function MatchupSection({ player, matchup, market }) {
-  const field = matchup?.field
-  if (!field || !player?.opp) return null
-  const passMap = field.player_pass?.[player.player_id]
-  const rushMap = field.player_rush?.[player.player_id]
-  if (!passMap && !rushMap) return null
-
-  const passAtt = mapAttempts(passMap)
-  const rushAtt = mapAttempts(rushMap)
-
-  // TD is played from both sides, so it opens on whichever side he does more of.
-  const natural = PASS_MARKETS.has(market) ? 'pass'
-    : RUSH_MARKETS.has(market) ? 'rush'
-      : (passAtt >= rushAtt ? 'pass' : 'rush')
-
-  const have = (v) => (v === 'pass' ? Boolean(passMap) : Boolean(rushMap))
-  const att = (v) => (v === 'pass' ? passAtt : rushAtt)
-
-  let view = natural
-  if (!have(natural)) {
-    const other = natural === 'pass' ? 'rush' : 'pass'
-    // Falling back across the ball is only worth doing on a real sample.
-    if (!have(other) || att(other) < FALLBACK_MIN_ATT) return null
-    view = other
-  }
-
-  const thin = att(view) < FALLBACK_MIN_ATT
-  return (
-    <>
-      <Head>MATCHUP MAP — HIS WORK ON {player.opp}&apos;S HOLES</Head>
-      <MatchupMap field={field} player={player} mode="player" compact
-                  defaultView={view} />
-      {thin && (
-        <div style={{ fontSize: 10, color: C.text3, marginTop: 6, lineHeight: 1.55 }}>
-          Built on {att(view)} {view === 'pass' ? 'targets' : 'carries'} — thin enough
-          that the shape is a hint, not a tendency.
-        </div>
-      )}
-    </>
-  )
-}
+// THE FIELD (2026-10-01, 0e c): one football picture on the Matchup tab --
+// components/nfl/TheField.js. It replaced three drawings of the same
+// defence (FieldChart, TouchMap, and MatchupSection's MatchupMap), the
+// isPassCatcher() rule that gave a 1-target, 1-carry back a passing field,
+// and the thin-sample paragraph, which is TheField's own lead line now.
 
 // ...and the same defence read the orthodox way. The map says where the field
 // is soft; this says whether it's soft to somebody in HIS chair. A defence can
@@ -525,7 +452,7 @@ function pickFromPlayer(player, market, spec) {
 // the door of this card. Inside, MOONSHOT's PlayerModal has seven tabs, a peer
 // navigator, a width that follows its content and an inline mode; this file
 // had none of them and rendered nine sections as one scroll. The ANALYSIS was
-// cloned honestly -- PropsGrid, MatchupMap, DvpTable, ScoreAnatomy are real
+// cloned honestly -- PropsGrid, the Field, DvpTable, ScoreAnatomy are real
 // football instruments, not faked baseball ones -- but the chrome around it
 // never was, and none of the chrome is sport-specific.
 //
@@ -562,7 +489,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
   // MOONSHOT's initialTab, same contract, so a deep link can land on the
   // tab that matters instead of the top of the card every time.
   useEffect(() => {
-    // A shared Field link (#...&view=field&win=&sit=, FieldChart.js) opens
+    // A shared Field link (#...&view=field&win=, TheField.js) opens
     // the card on the Matchup tab, where the Field is.
     const fieldLink = typeof window !== 'undefined' && /(?:^#|&)view=field(?:&|$)/.test(window.location.hash)
     setTab(TABS.some((t) => t.key === initialTab) ? initialTab : fieldLink ? 'matchup' : 'overview')
@@ -722,21 +649,13 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
         </>}
 
         {tab === 'matchup' && <>
-        {/* THE FIELD (2026-09-30) for a pass-catcher: every target at its
-            depth over this week's defence, the red zone under it. Its title
-            is the section head. A runner (more carries than targets) and a QB
-            keep football's spray chart, TouchMap -- the Field draws targets. */}
-        {(() => {
-          const touch = (matchup?.field?.player_pass?.[player.player_id] || matchup?.field?.player_rush?.[player.player_id]) ? <>
-            <Head>WHERE HE GETS THE BALL</Head>
-            <TouchMap field={matchup.field} player={player} season={matchup?.season} />
-          </> : null
-          return isPassCatcher(player, matchup)
-            ? <FieldChart team={player.team} player={player} defTeam={player.opp} defWeek={slate?.week}
-                matchup={matchup} players={slate?.players} hashSync={inline} fallback={touch} />
-            : touch
-        })()}
-        <MatchupSection player={player} matchup={matchup} market={market} />
+        {/* THE FIELD (0e c): one picture -- his targets (or his gaps, by
+            where his work is) over this week's defence, the red zone under
+            it. Its title is the section head. */}
+        {player.team && (
+          <TheField key={player.player_id} team={player.team} player={player} defTeam={player.opp} defWeek={slate?.week}
+            matchup={matchup} players={slate?.players} hashSync={inline} />
+        )}
         <DvpSection player={player} matchup={matchup} slate={slate} />
         <CoverageAndExplosive player={player} matchup={matchup} slate={slate} />
         </>}

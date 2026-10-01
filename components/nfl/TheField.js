@@ -7,7 +7,7 @@ import {
   fieldModel, fieldView, mapAttempts, phrase, fmtPct, heatOf, coolOf, LANES, LANE_WORD, LANE_SHORT,
   SIDES, DEPTHS, MIN_DEF_ATT, SPOT_MIN_DEF_ATT, SPOT_MIN_SHARE, SPOT_MIN_MINE, FALLBACK_MIN_ATT,
 } from '../../lib/nfl/fieldModel'
-import { softRole, softLine } from '../../lib/nfl/dvpSignal'
+import { softRole, softLine, fitsSoft } from '../../lib/nfl/dvpSignal'
 import { RedZoneStrip } from './RedZoneField'
 import { appHref, playerHref } from '../../lib/routes'
 
@@ -285,7 +285,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
       }
     }
   }
-  const roleLine = soft?.standout && soft.role === role
+  const roleLine = soft?.standout && soft.role === role && fitsSoft(player, soft)
     ? <>{TL(defTeam)} {softLine(soft)}: the same role {player?.name || 'he'} plays.</>
     : null
 
@@ -410,16 +410,17 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
       const li = LANES3.indexOf(c.L)
       const bx = cx0 + li * lw, by = Y(c.B.hi)
       if (spot && c.z === spot.z) continue
-      labels.push(c.leak != null
-        ? <text key={`lk${c.k}`} x={bx + u(7)} y={by + u(16)} fontFamily={NUM_FONT} fontWeight={800} fontSize={u(labelPx)} fill={c.leak > 0 ? C.orange : C.cyan} {...KO}>{fmtPct(c.leak)}</text>
-        : <text key={`lk${c.k}`} x={bx + u(7)} y={by + u(16)} fontFamily={NUM_FONT} fontWeight={700} fontSize={u(labelPx)} fill={C.text3} {...KO}>thin</text>)
+      const txt = c.leak != null ? fmtPct(c.leak) : 'thin'
+      labels.push(<rect key={`lb${c.k}`} x={bx + u(4)} y={by + u(4)} width={u(txt.length * labelPx * 0.66 + 7)} height={u(labelPx + 6)} rx={u(4)} fill={C.bg} opacity={0.62} />)
+      labels.push(<text key={`lk${c.k}`} x={bx + u(7.5)} y={by + u(4 + labelPx * 0.5 + 3)} dy=".35em" fontFamily={NUM_FONT} fontWeight={c.leak != null ? 800 : 700} fontSize={u(labelPx)}
+        fill={c.leak == null ? C.text3 : c.leak > 0 ? C.orange : C.cyan}>{txt}</text>)
     }
   }
   for (const B of BANDS) {
     labels.push(<text key={`bl${B.key}`} x={x0 - u(6)} y={(Y(B.lo) + Y(B.hi)) / 2} dy=".35em" textAnchor="end" fontFamily={NUM_FONT} fontWeight={800} fontSize={u(labelPx)} fill={C.text3}>{B.label}</text>)
   }
   LANES3.forEach((L, li) => labels.push(<text key={`ln${L}`} x={cx0 + li * lw + lw / 2} y={H - u(phone ? 6 : 8)} textAnchor="middle" fontFamily={NUM_FONT} fontWeight={800} fontSize={u(labelPx)} letterSpacing={u(1)} fill={C.text3}>{{ L: 'LEFT', M: 'MIDDLE', R: 'RIGHT' }[L]}</text>))
-  labels.push(<text key="loslbl" x={cx1 - u(6)} y={Y(0) - u(6)} textAnchor="end" fontFamily={NUM_FONT} fontWeight={800} fontSize={u(phone ? 10 : 10.5)} letterSpacing={u(0.8)} fill={C.ice} {...KO}>LINE OF SCRIMMAGE</text>)
+  labels.push(<text key="loslbl" x={x0 - u(6)} y={Y(0)} dy=".35em" textAnchor="end" fontFamily={NUM_FONT} fontWeight={900} fontSize={u(10)} fill={C.ice}>LINE</text>)
 
   // THE SPOT: MatchupMap's hand-circled double ring, centred on the zone,
   // with the zone's number on a tag under it.
@@ -428,12 +429,14 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
     const cxs = cx0 + li * lw + lw / 2
     const cys = (Y(spot.B.hi) + Y(spot.B.lo)) / 2
     const rr = Math.min(lw, Y(spot.B.lo) - Y(spot.B.hi)) * 0.42
-    const tagW = u(phone ? 74 : 84), tagH = u(phone ? 17 : 19)
+    const tagTxt = `THE SPOT ${fmtPct(spot.leak)}`
+    const tagPx = phone ? 9.5 : 10.5
+    const tagW = u(tagTxt.length * tagPx * 0.68 + 10), tagH = u(tagPx + 8)
     labels.push(<g key="spot" aria-hidden="true">
       <circle cx={cxs} cy={cys} r={rr} fill="none" stroke={C.text} strokeWidth={2} strokeOpacity={0.95} vectorEffect="non-scaling-stroke" />
       <circle cx={cxs + rr * 0.06} cy={cys - rr * 0.05} r={rr * 1.06} fill="none" stroke={C.text} strokeWidth={1.1} strokeOpacity={0.5} vectorEffect="non-scaling-stroke" />
-      <rect x={cxs - tagW / 2} y={cys + rr - tagH / 2} width={tagW} height={tagH} rx={u(3)} fill={C.orange} transform={`rotate(-0.6 ${cxs} ${cys + rr})`} />
-      <text x={cxs} y={cys + rr} dy=".35em" textAnchor="middle" fontFamily={NUM_FONT} fontWeight={900} fontSize={u(phone ? 9.5 : 10.5)} letterSpacing={u(0.4)} fill={C.bg}>THE SPOT {fmtPct(spot.leak)}</text>
+      <rect x={cx0 + li * lw + u(4)} y={Y(spot.B.hi) + u(4)} width={tagW} height={tagH} rx={u(3)} fill={C.orange} />
+      <text x={cx0 + li * lw + u(4) + tagW / 2} y={Y(spot.B.hi) + u(4) + tagH / 2} dy=".35em" textAnchor="middle" fontFamily={NUM_FONT} fontWeight={900} fontSize={u(tagPx)} letterSpacing={u(0.4)} fill={C.bg}>{tagTxt}</text>
     </g>)
   }
 
@@ -475,20 +478,20 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   // strip under it.
   let runPicture = null
   if (isRun) {
-    const RH = phone ? 236 : 290
+    const RH = phone ? 232 : 280
     const rx0 = u(8), rx1 = W - u(8)
     const gw = (rx1 - rx0) / LANES.length
     const ry0 = u(6), ry1 = RH - u(6)
-    const YR = (a) => ry0 + ((11 - Math.max(-7, Math.min(11, a))) / 18) * (ry1 - ry0)
+    const YR = (a) => ry0 + ((8 - Math.max(-9.5, Math.min(8, a))) / 17.5) * (ry1 - ry0)
     const bTop = YR(3.6), bBot = YR(-3.6)
     const rdefs = []
     const rparts = [<rect key="turf" x={0} y={0} width={W} height={RH} fill={C.turf2} />]
-    for (let a = -10; a < 11; a += 5) {
+    for (let a = -10; a < 8; a += 5) {
       if (Math.round(a / 5) % 2 === 0) continue
-      const top = YR(Math.min(11, a + 5)), bot = YR(Math.max(-7, a))
+      const top = YR(Math.min(8, a + 5)), bot = YR(Math.max(-9.5, a))
       if (bot > top) rparts.push(<rect key={`mow${a}`} x={0} y={top} width={W} height={bot - top} fill={C.turf1} />)
     }
-    for (const a of [-5, 5, 10]) rparts.push(<line key={`yl${a}`} x1={0} y1={YR(a)} x2={W} y2={YR(a)} stroke={C.cream} strokeOpacity={a % 10 === 0 ? 0.28 : 0.14} vectorEffect="non-scaling-stroke" strokeWidth={1} />)
+    for (const a of [5]) rparts.push(<line key={`yl${a}`} x1={0} y1={YR(a)} x2={W} y2={YR(a)} stroke={C.cream} strokeOpacity={a % 10 === 0 ? 0.28 : 0.14} vectorEffect="non-scaling-stroke" strokeWidth={1} />)
     const rlabels = []
     LANES.forEach((z, i) => {
       const c = runModel?.by?.[z] || runDef?.by?.[z]
@@ -520,18 +523,21 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
       rparts.push(<rect key={`ol${i}`} x={lx - gw * 0.16} y={YR(0) + u(2)} width={gw * 0.32} height={u(7)} rx={u(2)} fill={C.cream} opacity={0.32} />)
     }
     rparts.push(<line key="los" x1={0} y1={YR(0)} x2={W} y2={YR(0)} stroke={C.ice} strokeWidth={2.4} vectorEffect="non-scaling-stroke" />)
-    rlabels.push(<text key="loslbl" x={rx1} y={YR(4.6)} textAnchor="end" fontFamily={NUM_FONT} fontWeight={800} fontSize={u(phone ? 10 : 10.5)} letterSpacing={u(0.8)} fill={C.ice} {...KO}>LINE OF SCRIMMAGE</text>)
+    rlabels.push(<text key="loslbl" x={rx1} y={YR(5.4)} textAnchor="end" fontFamily={NUM_FONT} fontWeight={800} fontSize={u(phone ? 10 : 10.5)} letterSpacing={u(0.8)} fill={C.ice} {...KO}>LINE OF SCRIMMAGE</text>)
     if (runSpot) {
       const i = LANES.indexOf(runSpot.z)
       const cxs = rx0 + i * gw + gw / 2, cys = (bTop + bBot) / 2
       const rr = Math.min(gw, bBot - bTop) * 0.5
-      const tagW = u(phone ? 74 : 84), tagH = u(phone ? 17 : 19)
+      const tagTxt = `THE SPOT ${fmtPct(runSpot.leak)}`
+      const tagPx = phone ? 9.5 : 10.5
+      const tagW = u(tagTxt.length * tagPx * 0.68 + 10), tagH = u(tagPx + 8)
       const tx = Math.max(rx0, Math.min(rx1 - tagW, cxs - tagW / 2))
+      const ty = YR(-7.2)
       rlabels.push(<g key="rspot" aria-hidden="true">
         <circle cx={cxs} cy={cys} r={rr} fill="none" stroke={C.text} strokeWidth={2} strokeOpacity={0.95} vectorEffect="non-scaling-stroke" />
         <circle cx={cxs + rr * 0.06} cy={cys - rr * 0.05} r={rr * 1.06} fill="none" stroke={C.text} strokeWidth={1.1} strokeOpacity={0.5} vectorEffect="non-scaling-stroke" />
-        <rect x={tx} y={bTop - tagH - u(4)} width={tagW} height={tagH} rx={u(3)} fill={C.orange} />
-        <text x={tx + tagW / 2} y={bTop - tagH / 2 - u(4)} dy=".35em" textAnchor="middle" fontFamily={NUM_FONT} fontWeight={900} fontSize={u(phone ? 9.5 : 10.5)} letterSpacing={u(0.4)} fill={C.bg}>THE SPOT {fmtPct(runSpot.leak)}</text>
+        <rect x={tx} y={ty} width={tagW} height={tagH} rx={u(3)} fill={C.orange} />
+        <text x={tx + tagW / 2} y={ty + tagH / 2} dy=".35em" textAnchor="middle" fontFamily={NUM_FONT} fontWeight={900} fontSize={u(tagPx)} letterSpacing={u(0.4)} fill={C.bg}>{tagTxt}</text>
       </g>)
     }
     runPicture = (
@@ -594,7 +600,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
     const att = mapAttempts(runSrc)
     const ry = Object.values(runSrc).reduce((a, z) => a + (Number(z?.yds) || 0), 0)
     const rt = Object.values(runSrc).reduce((a, z) => a + (Number(z?.td) || 0), 0)
-    stats.splice(0, stats.length, ['CAR', att, C.text], ['YDS', ry, C.text], ['TD', rt, C.orange], ['YPC', att ? one(ry / att) : '—', C.text2])
+    stats.splice(0, stats.length, ['CARRIES', att, C.text], ['YDS', ry, C.text], ['TD', rt, C.orange], ['YPC', att ? one(ry / att) : '—', C.text2])
   }
   const statBlock = isRun && !runSrc ? null : (
     <div role="list" style={{ display: 'grid', gridTemplateColumns: `repeat(${stats.length}, 1fr)`, gap: 2, marginTop: 8 }}>
@@ -623,7 +629,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
         marginTop: 10, width: '100%', minHeight: 44, textAlign: 'left', cursor: 'pointer',
         border: `1px solid ${C.border}`, borderRadius: 10, padding: '8px 11px',
         background: 'rgba(255,255,255,.015)', color: C.text2,
-        fontFamily: NUM_FONT, fontSize: 11, fontWeight: 800, letterSpacing: '.08em',
+        fontFamily: NUM_FONT, fontSize: 12, fontWeight: 800, letterSpacing: '.06em',
       }}>{open ? '▾' : '▸'} EVERY PART OF THE FIELD, WITH THE NUMBERS</button>
       {open && (
         <div style={{ marginTop: 6, border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden' }}>
@@ -657,7 +663,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   if (!asPlayer && pid && !stripIds.includes(pid) && rzBy.has(pid)) stripIds = [...stripIds.slice(0, 4), pid]
   const stripRows = stripIds.map((id) => ({ key: id, name: nameOf(id), href: playerHref('nfl', id), player: byPid.get(String(id)) || { name: nameOf(id), team }, clickable: byPid.has(String(id)), touches: rzBy.get(id) || [] }))
   const stripKicker = (
-    <div style={{ fontFamily: NUM_FONT, fontSize: 11, fontWeight: 800, letterSpacing: '.08em', color: C.text3, margin: '10px 0 4px' }}>
+    <div style={{ fontFamily: NUM_FONT, fontSize: 12, fontWeight: 800, letterSpacing: '.06em', color: C.text3, margin: '10px 0 4px' }}>
       <span style={{ color: C.orange }}>RED ZONE</span> · every touch inside the 20{phone ? '' : ', by distance to the goal line'}
     </div>
   )
