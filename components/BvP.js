@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { bvpSplits } from '../lib/situational'
+import { ContactStrip, toLogRow } from './tabs/EVLog'
 
 // BATTER vs PITCHER — the head-to-head, live from the API.
 //
@@ -40,8 +41,45 @@ const sameName = (a, b) => {
   return hit >= Math.min(ta.size, tb.size)
 }
 
+// One ball off him, in a line: when, the pitch, how hard, what it became.
+function BallLine({ r }) {
+  const hot = r.hr || r.barrel
+  // Two lines so nothing is cut off on a phone: when + what it became, then
+  // the pitch and the contact.
+  return (
+    <div style={{ fontSize: 11, fontFamily: NUM_FONT, padding: '6px 0', borderTop: `1px solid ${C.border}` }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+        <span style={{ color: C.text3 }}>{r.date}</span>
+        <span style={{ color: hot ? C.orange : r.k ? C.text3 : C.text2, fontWeight: hot ? 900 : 700, textTransform: 'capitalize' }}>
+          {r.k ? 'strikeout' : r.result || r.traj}
+        </span>
+      </div>
+      <div style={{ color: C.text2, marginTop: 2 }}>
+        {r.pitch}{r.velo ? ` ${r.velo.toFixed(0)} mph` : ''}
+        {r.k ? '' : <> · <b style={{ color: r.hard ? C.orange : C.text }}>{r.ev ? `${r.ev.toFixed(1)} EV` : 'no EV'}</b>{r.la != null ? ` · ${Math.round(r.la)}°` : ''}{r.dist ? ` · ${Math.round(r.dist)} ft` : ''}</>}
+      </div>
+    </div>
+  )
+}
+
 export default function BvP({ batterId, pitcherId, pitcherName, player }) {
   const [data, setData] = useState(undefined)
+  // THE MATCHUP'S OWN EV LOG (2026-10-01, Donovan: "it can tell me more
+  // stats just like the ev log about the pitcher batter matchup"): every
+  // Statcast pitch this batter has seen from this pitcher since 2015, live
+  // from Savant (lib/savant.js matchup mode), in the EV Log's row shape and
+  // stat strip. undefined = loading, [] = none / unreachable.
+  const [career, setCareer] = useState(undefined)
+  const [allBalls, setAllBalls] = useState(false)
+  useEffect(() => {
+    let alive = true
+    setCareer(undefined); setAllBalls(false)
+    if (!batterId || !pitcherId) { setCareer([]); return undefined }
+    import('../lib/savant').then(({ savantBattedBalls }) => savantBattedBalls(batterId, { pitcherId, career: true }))
+      .then((rows) => { if (alive) setCareer(rows || []) })
+      .catch(() => { if (alive) setCareer([]) })
+    return () => { alive = false }
+  }, [batterId, pitcherId])
 
   useEffect(() => {
     let alive = true
@@ -78,12 +116,11 @@ export default function BvP({ batterId, pitcherId, pitcherName, player }) {
   // under? If not, the chips are not a breakdown of it and must not be
   // presented as one.
   const seasonAb = (data.seasons || []).reduce((acc, s2) => acc + num(s2?.stat?.atBats), 0)
-  const bbe = vsHim.length
-  const hh = vsHim.filter((h) => h.is_hard_hit).length
-  const brl = vsHim.filter((h) => h.is_barrel).length
-  const evs = vsHim.map((h) => Number(h.ev) || 0).filter((v) => v > 0)
-  const avgEv = evs.length ? evs.reduce((a, b) => a + b, 0) / evs.length : null
-  const maxEv = evs.length ? Math.max(...evs) : null
+  // Newest first: the career pull when it came back with anything, else his
+  // recent log's balls off this pitcher (the old source).
+  const fromCareer = Array.isArray(career) && career.length > 0
+  const contactRows = (fromCareer ? career : vsHim).map(toLogRow)
+    .sort((a, b) => String(b.date).localeCompare(String(a.date)))
   const small = pa < 10
   const verdict = small
     ? `${pa} PA is noise, not a scouting report — color only.`
@@ -113,37 +150,34 @@ export default function BvP({ batterId, pitcherId, pitcherName, player }) {
         <Stat label="K" value={num(t.strikeOuts)} />
       </div>
 
-      {bbe > 0 && (
-        <div style={{
-          display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'baseline', marginTop: 9,
-          paddingTop: 8, borderTop: `1px dashed ${C.border2}`,
-        }}>
-          <span style={{ fontSize: 8, color: C.text3, textTransform: 'uppercase', letterSpacing: '.08em', fontWeight: 800 }}>
-            Contact vs him
-          </span>
-          <span style={{ fontSize: 10.5, fontFamily: NUM_FONT, color: C.text2 }}>
-            <b style={{ color: C.text }}>{bbe}</b> tracked ball{bbe === 1 ? '' : 's'}
-          </span>
-          <span style={{ fontSize: 10.5, fontFamily: NUM_FONT, color: hh > 0 ? C.orange : C.text3 }}>
-            <b>{hh}</b> hard-hit
-          </span>
-          <span style={{ fontSize: 10.5, fontFamily: NUM_FONT, color: brl > 0 ? C.orange : C.text3 }}>
-            <b>{brl}</b> barrel{brl === 1 ? '' : 's'}
-          </span>
-          {avgEv != null && (
-            <span style={{ fontSize: 10.5, fontFamily: NUM_FONT, color: C.text2 }}>
-              avg EV <b>{avgEv.toFixed(1)}</b>
+      {/* CONTACT VS HIM: the EV Log's strip over every ball he's hit off
+          this pitcher (Statcast, 2015 on). Falls back to the balls on his own
+          recent log when Savant can't be reached. */}
+      {contactRows.length > 0 && (
+        <div style={{ marginTop: 10, paddingTop: 9, borderTop: `1px dashed ${C.border2}` }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', marginBottom: 6 }}>
+            <span style={{ fontSize: 10, color: C.text, textTransform: 'uppercase', letterSpacing: '.08em', fontWeight: 900 }}>
+              Contact vs him
             </span>
-          )}
-          {maxEv != null && (
-            <span style={{ fontSize: 10.5, fontFamily: NUM_FONT, color: maxEv >= 105 ? C.orange : C.text2 }}>
-              max <b>{maxEv.toFixed(1)}</b>
+            <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
+              {fromCareer ? 'every Statcast game since 2015, postseason included' : 'from his recent tracked balls'} · how the contact looked, not just what it counted for
             </span>
+          </div>
+          <ContactStrip rows={contactRows} suffix={fromCareer ? 'off him since 2015' : 'off him, recent log'} />
+          <div>
+            {(allBalls ? contactRows : contactRows.slice(0, 5)).map((r) => <BallLine key={r._key} r={r} />)}
+          </div>
+          {contactRows.length > 5 && (
+            <button type="button" onClick={() => setAllBalls((v) => !v)}
+              style={{ marginTop: 6, minHeight: 44, padding: '0 14px', borderRadius: 999, cursor: 'pointer', font: 'inherit',
+                fontSize: 12, fontWeight: 800, color: C.orange, background: 'transparent', border: `1px solid ${C.border2}` }}>
+              {allBalls ? 'Show the last 5' : `+${contactRows.length - 5} more off him`}
+            </button>
           )}
-          <span style={{ fontSize: 8.5, color: C.text3 }}>
-            how the contact looked, not just what it counted for — a loud 0-for-5 lives here
-          </span>
         </div>
+      )}
+      {career === undefined && (
+        <div style={{ fontSize: 10, color: C.text3, marginTop: 8, fontFamily: NUM_FONT }}>Pulling every ball he&apos;s hit off him…</div>
       )}
 
       {/* ── #61: THE CHIPS HAD NO HEADING AND DID NOT ALWAYS RECONCILE ─────

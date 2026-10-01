@@ -128,6 +128,191 @@ const GAME_STEPS = [5, 10, 15, 25, 40]
 const BBE_STEPS = [15, 25, 50, 100, 9999]
 const bbeLabel = (v) => (v >= 9999 ? 'All' : `${v}BBE`)
 
+// ONE ROW SHAPE (2026-10-01): the EV Log's table row, exported so the
+// head-to-head (components/BvP.js) reads a batter-vs-pitcher log the same way.
+export function toLogRow(h, i) {
+  return {
+    _key: `${h.date}-${i}`,
+    date: h.date || '—',
+    pitcher: h.pitcher || '—',
+    arm: h.arm || h.pitcher_throws || '—',
+    pitch: PITCH_NAMES[h.pitch_type] || h.pitch_type || '—',
+    ev: Number(h.ev) || null,
+    la: h.launch_angle ?? h.la ?? null,
+    dist: Number(h.distance) || null,
+    velo: Number(h.pitch_velocity) || null,
+    barrel: h.is_barrel ? 1 : 0,
+    hard: h.is_hard_hit ? 1 : 0,
+    hr: h.is_hr ? 1 : 0,
+    result: String(h.result || h.event || '').replace(/_/g, ' '),
+    // K rows carry no bb_type (there's no batted ball to classify) — fall
+    // back to a dash like side/lane already do below, instead of a blank cell.
+    traj: String(h.bb_type || h.trajectory || '').replace(/_/g, ' ') || '—',
+    // is_pull_air is spray_cache's own flag: pulled AND in the air — the
+    // batted-ball shape that actually leaves buildings
+    pullAir: h.is_pull_air ? 1 : 0,
+    // ── FIELDS THAT WERE ALREADY IN THE PAYLOAD AND NEVER DRAWN ───────────
+    // (2026-08-29, Donovan: "the ev log can be updated now with more stats
+    // that we know will help.") Every one of these is a key spray_cache.py
+    // already writes on each batted ball; none of it is new maths and none
+    // of it is estimated. Checked against a live detail file before adding,
+    // which is also how one earlier idea got dropped: there is NO xwOBA per
+    // batted ball in this payload, so a per-ball xwOBA column would have had
+    // to be invented, and it isn't here.
+    lane: String(h.lane || '').toUpperCase() || '—',
+    side: String(h.spray_side || '').replace(/_/g, ' ') || '—',
+    xbh: h.is_xbh ? 1 : 0,
+    // The distance tiers the pitcher panel already reports as "balls he's let
+    // travel" / "real distance given up" — the batter's side of the same fact.
+    d350: h.is_350_plus ? 1 : 0,
+    d375: h.is_375_plus ? 1 : 0,
+    d400: h.is_400_plus ? 1 : 0,
+    // ── K, RIDING IN THE SAME ROW SHAPE (2026-09-08) ──────────────────────
+    // Donovan: "add k rate to the mix and ... ad the k as bbe like what
+    // ever the last picth was, the K, the batter['s] out." spray_cache.py
+    // (and the live Savant fallback) now write a strikeout as a row with
+    // every batted-ball-only field null and is_k true — this just carries
+    // that flag through so the stat strip and the K column below can use it.
+    k: h.is_k ? 1 : 0,
+  }
+}
+
+// THE STAT STRIP (2026-10-01): the EV Log's window averages, exported so the
+// head-to-head shows the same strip over the balls hit off one pitcher.
+// `suffix` replaces the caption's tail ("shown below").
+export function ContactStrip({ rows, suffix = 'shown below' }) {
+        // FIX (2026-10-01): a strikeout row carries ev/la/dist as null, and
+        // Number(null) is 0 -- finite -- so every K dragged AVG EV, AVG ANGLE
+        // and AVG DIST toward zero (Harper vs Kerr: 107.2 and 77.7 read 61.6).
+        // Empty values are skipped before the number is taken.
+        const avg = (k) => {
+          const xs = rows.map((r) => r[k]).filter((v) => v != null && v !== '').map(Number).filter(Number.isFinite)
+          return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null
+        }
+        const hh = rows.filter((r) => r.hard).length
+        const brl = rows.filter((r) => r.barrel).length
+        const hr = rows.filter((r) => r.hr).length
+        // ── K RATE (2026-09-08, Donovan: "add k rate to the mix") ──────────
+        // Strikeouts ride in `rows` now (spray_cache.py / the live Savant
+        // fallback tag them is_k), but a K is not a batted ball — every
+        // shape/quality % below MUST stay over batted balls only (bbCount),
+        // never rows.length, or GB/FLY/hard-hit/barrel/pull rates would
+        // quietly shrink every time a strikeout entered the window without
+        // one fewer ball actually being put in play. hh/brl/pullAir/xbh/far/
+        // mid themselves don't need filtering — r.hard/r.barrel/... are
+        // already 0 on every K row, only their % denominators change.
+        const kCount = rows.filter((r) => r.k).length
+        const bbCount = rows.length - kCount
+        const kRate = rows.length ? (100 * kCount) / rows.length : null
+        // batted-ball shape over the same rows (2026-08-08, Donovan: "show
+        // gb fb ld pull barrel %s") — traj is Statcast's own bb_type label
+        const shapePct = (re) => {
+          const k = rows.filter((r) => re.test(r.traj)).length
+          return bbCount ? (100 * k) / bbCount : null
+        }
+        const pullAir = rows.filter((r) => r.pullAir).length
+        const sidePct = (name) => {
+          const k = rows.filter((r) => String(r.side).toLowerCase() === name).length
+          return bbCount ? (100 * k) / bbCount : null
+        }
+        const xbh = rows.filter((r) => r.xbh).length
+        const far = rows.filter((r) => r.d400).length
+        const mid = rows.filter((r) => r.d375).length
+        const pct = (v) => `${v.toFixed(0)}%`
+
+        // ── AVG / ISO OVER THE ROWS SHOWN (2026-09-07; K's changed this 09-08) ─
+        // Donovan: "show batting avg and iso, hr to the stats when you filter
+        // on the ev log". HR was already here; AVG and ISO were not, because
+        // this payload had no plate appearances in it.
+        //
+        // 2026-09-08: strikeouts are now rows too (is_k, see above), and a
+        // strikeout IS an at-bat — so `abs` below (built the same way it
+        // always was, off every row that isn't a sac) now counts them as
+        // outs instead of silently excluding them. That's a real
+        // improvement: AVG/ISO ON CONTACT now match true batting average /
+        // ISO wherever the only gap left is walks and hit-by-pitches, which
+        // still never became a row here. Kept the "ON CONTACT" name and the
+        // honesty caveat rather than renaming to "AVG" — it still isn't the
+        // full thing.
+        //
+        // A reached-on-error IS left in as a hitless at-bat, which is what
+        // the scorer does too.
+        //
+        // Read straight off `result`, which is Statcast's own `events` string
+        // with underscores swapped for spaces — matched exactly, never by
+        // prefix, because "double" and "double play" / "grounded into double
+        // play" are three different outcomes and only the first is a hit.
+        // `outcome`, not `ev` — in this file EV always means exit velo.
+        const outcome = (r) => String(r.result || '').toLowerCase().trim()
+        const isSac = (r) => /^sac /.test(outcome(r))
+        const abs = rows.filter((r) => !isSac(r)).length
+        const n1b = rows.filter((r) => outcome(r) === 'single').length
+        const n2b = rows.filter((r) => outcome(r) === 'double').length
+        const n3b = rows.filter((r) => outcome(r) === 'triple').length
+        const nHr = rows.filter((r) => outcome(r) === 'home run' || r.hr).length
+        const hits = n1b + n2b + n3b + nHr
+        const tb = n1b + 2 * n2b + 3 * n3b + 4 * nHr
+        const ba = abs ? hits / abs : null
+        const iso = abs ? (tb - hits) / abs : null
+        // .272 not 0.272 — the way a slash line is written everywhere else.
+        const slash = (v) => v.toFixed(3).replace(/^0/, '')
+        const contactNote = `${hits} hit${hits === 1 ? '' : 's'} in ${abs} at-bat${abs === 1 ? '' : 's'}`
+        const cells = [
+          ['AVG EV', avg('ev'), (v) => v.toFixed(1), AMBER],
+          ['AVG ANGLE', avg('la'), (v) => `${v.toFixed(0)}°`, C.text2],
+          ['AVG DIST', avg('dist'), (v) => `${v.toFixed(0)}ft`, AMBER],
+          ['AVG VELO SEEN', avg('velo'), (v) => v.toFixed(1), C.text2],
+          ['GB', shapePct(/ground/i), pct, C.text2],
+          ['FLY', shapePct(/fly/i), pct, CYAN],
+          ['LD', shapePct(/line/i), pct, C.text2],
+          ['POP', shapePct(/pop/i), pct, C.text3],
+          // bbCount guarded to null, not just divided: a window that comes back
+          // all strikeouts (a real possibility once K's are rows too) must
+          // hide these rather than print a 0/0 "NaN%".
+          ['PULL-AIR', bbCount ? pullAir : null, (v) => `${pct((100 * v) / bbCount)}`, AMBER],
+          ['HARD HIT', bbCount ? hh : null, (v) => `${v} (${(100 * v / bbCount).toFixed(0)}%)`, AMBER],
+          ['BARRELS', bbCount ? brl : null, (v) => `${v} (${(100 * v / bbCount).toFixed(0)}%)`, VIOLET],
+          ['K RATE', kRate, pct, RED,
+            `Strikeouts as a share of everything logged in this window — ${kCount} K in ${rows.length} (${bbCount} balls in play + ${kCount} strikeouts). Walks and hit-by-pitches still never become a row here, so this isn't a full-PA K% — it's the closest this page can get without one.`],
+          ['AVG ON CONTACT', ba, slash, CYAN,
+            `Batting average over this window — ${contactNote}, sacrifices left out of the denominator. Strikeouts now count as outs (${kCount} of them); walks and hit-by-pitches still don't become a row here, so it's close to his real average but not quite it.`],
+          ['ISO ON CONTACT', iso, slash, VIOLET,
+            `Isolated power (slugging minus average) over the same ${abs} at-bats, strikeouts included as outs. Not his season ISO, for the same reason as AVG ON CONTACT: no walks/HBP in this payload.`],
+          ['HR', hr, (v) => `${v}`, GREEN],
+          // Direction and real distance, from the flags spray_cache already
+          // writes. PULL / OPPO are the batted-ball direction split; 375+ and
+          // 400+ are the same "balls he's let travel" tiers the pitcher panel
+          // reports, read from the bat's side. All counted over exactly the
+          // rows below, like everything else in this strip.
+          ['PULL', sidePct('pull'), pct, AMBER],
+          ['OPPO', sidePct('oppo'), pct, C.text2],
+          ['XBH', bbCount ? xbh : null, (v) => `${v} (${(100 * v / bbCount).toFixed(0)}%)`, CYAN],
+          ['375+ FT', mid, (v) => `${v}`, AMBER],
+          ['400+ FT', far, (v) => `${v}`, RED],
+        ]
+        return (
+          <div style={{
+            display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 8,
+            background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 10,
+            padding: '8px 14px',
+          }}>
+            {cells.map(([l, v, fmt, col, tip]) => v == null ? null : (
+              <div key={l} title={tip || undefined} style={{ minWidth: 0, cursor: tip ? 'help' : undefined }}>
+                {/* 7.5px → 8.5px (2026-09-13). Donovan named this exact
+                    stat-strip label — "little text in the ev log" — as too
+                    small to read. Matches the "over the N balls" caption
+                    two lines down, which was already 8.5. */}
+                <div style={{ fontSize: 8.5, color: C.text3, fontWeight: 800, letterSpacing: '.09em', fontFamily: NUM_FONT }}>{l}</div>
+                <div style={{ fontSize: 15, fontWeight: 900, fontFamily: NUM_FONT, color: col }}>{fmt(v)}</div>
+              </div>
+            ))}
+            <div style={{ marginLeft: 'auto', alignSelf: 'end', fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}>
+              over the {bbCount} ball{bbCount === 1 ? '' : 's'}{kCount > 0 ? ` + ${kCount} K${kCount === 1 ? '' : 's'}` : ''} {suffix}
+            </div>
+          </div>
+        )
+}
+
 export default function EVLog({ player, bbeRange: bbeRangeProp }) {
   const [mode, setMode] = useState('bbe')          // 'bbe' | 'games'
   const [games, setGames] = useState(10)
@@ -273,50 +458,7 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
     if (pitchSel && pitchSel.size && !pitchSel.has(h.pitch_type)) return false
     if (resFilter !== 'ALL' && (h.result || h.event) !== resFilter) return false
     return true
-  }).map((h, i) => ({
-    _key: `${h.date}-${i}`,
-    date: h.date || '—',
-    pitcher: h.pitcher || '—',
-    arm: h.arm || h.pitcher_throws || '—',
-    pitch: PITCH_NAMES[h.pitch_type] || h.pitch_type || '—',
-    ev: Number(h.ev) || null,
-    la: h.launch_angle ?? h.la ?? null,
-    dist: Number(h.distance) || null,
-    velo: Number(h.pitch_velocity) || null,
-    barrel: h.is_barrel ? 1 : 0,
-    hard: h.is_hard_hit ? 1 : 0,
-    hr: h.is_hr ? 1 : 0,
-    result: String(h.result || h.event || '').replace(/_/g, ' '),
-    // K rows carry no bb_type (there's no batted ball to classify) — fall
-    // back to a dash like side/lane already do below, instead of a blank cell.
-    traj: String(h.bb_type || h.trajectory || '').replace(/_/g, ' ') || '—',
-    // is_pull_air is spray_cache's own flag: pulled AND in the air — the
-    // batted-ball shape that actually leaves buildings
-    pullAir: h.is_pull_air ? 1 : 0,
-    // ── FIELDS THAT WERE ALREADY IN THE PAYLOAD AND NEVER DRAWN ───────────
-    // (2026-08-29, Donovan: "the ev log can be updated now with more stats
-    // that we know will help.") Every one of these is a key spray_cache.py
-    // already writes on each batted ball; none of it is new maths and none
-    // of it is estimated. Checked against a live detail file before adding,
-    // which is also how one earlier idea got dropped: there is NO xwOBA per
-    // batted ball in this payload, so a per-ball xwOBA column would have had
-    // to be invented, and it isn't here.
-    lane: String(h.lane || '').toUpperCase() || '—',
-    side: String(h.spray_side || '').replace(/_/g, ' ') || '—',
-    xbh: h.is_xbh ? 1 : 0,
-    // The distance tiers the pitcher panel already reports as "balls he's let
-    // travel" / "real distance given up" — the batter's side of the same fact.
-    d350: h.is_350_plus ? 1 : 0,
-    d375: h.is_375_plus ? 1 : 0,
-    d400: h.is_400_plus ? 1 : 0,
-    // ── K, RIDING IN THE SAME ROW SHAPE (2026-09-08) ──────────────────────
-    // Donovan: "add k rate to the mix and ... ad the k as bbe like what
-    // ever the last picth was, the K, the batter['s] out." spray_cache.py
-    // (and the live Savant fallback) now write a strikeout as a row with
-    // every batted-ball-only field null and is_k true — this just carries
-    // that flag through so the stat strip and the K column below can use it.
-    k: h.is_k ? 1 : 0,
-  })), [windowed, armFilter, batterHand, pitchSel, resFilter])
+  }).map(toLogRow), [windowed, armFilter, batterHand, pitchSel, resFilter])
 
   const pid = player?.player_id || player?.id
 
@@ -579,134 +721,7 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
       {/* WINDOW AVERAGES (2026-08-08, "show the avgs of each category at
           the top"): computed from EXACTLY the rows below — change the
           window or a filter and these move with it. */}
-      {rows.length > 0 && (() => {
-        const avg = (k) => {
-          const xs = rows.map((r) => Number(r[k])).filter(Number.isFinite)
-          return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null
-        }
-        const hh = rows.filter((r) => r.hard).length
-        const brl = rows.filter((r) => r.barrel).length
-        const hr = rows.filter((r) => r.hr).length
-        // ── K RATE (2026-09-08, Donovan: "add k rate to the mix") ──────────
-        // Strikeouts ride in `rows` now (spray_cache.py / the live Savant
-        // fallback tag them is_k), but a K is not a batted ball — every
-        // shape/quality % below MUST stay over batted balls only (bbCount),
-        // never rows.length, or GB/FLY/hard-hit/barrel/pull rates would
-        // quietly shrink every time a strikeout entered the window without
-        // one fewer ball actually being put in play. hh/brl/pullAir/xbh/far/
-        // mid themselves don't need filtering — r.hard/r.barrel/... are
-        // already 0 on every K row, only their % denominators change.
-        const kCount = rows.filter((r) => r.k).length
-        const bbCount = rows.length - kCount
-        const kRate = rows.length ? (100 * kCount) / rows.length : null
-        // batted-ball shape over the same rows (2026-08-08, Donovan: "show
-        // gb fb ld pull barrel %s") — traj is Statcast's own bb_type label
-        const shapePct = (re) => {
-          const k = rows.filter((r) => re.test(r.traj)).length
-          return bbCount ? (100 * k) / bbCount : null
-        }
-        const pullAir = rows.filter((r) => r.pullAir).length
-        const sidePct = (name) => {
-          const k = rows.filter((r) => String(r.side).toLowerCase() === name).length
-          return bbCount ? (100 * k) / bbCount : null
-        }
-        const xbh = rows.filter((r) => r.xbh).length
-        const far = rows.filter((r) => r.d400).length
-        const mid = rows.filter((r) => r.d375).length
-        const pct = (v) => `${v.toFixed(0)}%`
-
-        // ── AVG / ISO OVER THE ROWS SHOWN (2026-09-07; K's changed this 09-08) ─
-        // Donovan: "show batting avg and iso, hr to the stats when you filter
-        // on the ev log". HR was already here; AVG and ISO were not, because
-        // this payload had no plate appearances in it.
-        //
-        // 2026-09-08: strikeouts are now rows too (is_k, see above), and a
-        // strikeout IS an at-bat — so `abs` below (built the same way it
-        // always was, off every row that isn't a sac) now counts them as
-        // outs instead of silently excluding them. That's a real
-        // improvement: AVG/ISO ON CONTACT now match true batting average /
-        // ISO wherever the only gap left is walks and hit-by-pitches, which
-        // still never became a row here. Kept the "ON CONTACT" name and the
-        // honesty caveat rather than renaming to "AVG" — it still isn't the
-        // full thing.
-        //
-        // A reached-on-error IS left in as a hitless at-bat, which is what
-        // the scorer does too.
-        //
-        // Read straight off `result`, which is Statcast's own `events` string
-        // with underscores swapped for spaces — matched exactly, never by
-        // prefix, because "double" and "double play" / "grounded into double
-        // play" are three different outcomes and only the first is a hit.
-        // `outcome`, not `ev` — in this file EV always means exit velo.
-        const outcome = (r) => String(r.result || '').toLowerCase().trim()
-        const isSac = (r) => /^sac /.test(outcome(r))
-        const abs = rows.filter((r) => !isSac(r)).length
-        const n1b = rows.filter((r) => outcome(r) === 'single').length
-        const n2b = rows.filter((r) => outcome(r) === 'double').length
-        const n3b = rows.filter((r) => outcome(r) === 'triple').length
-        const nHr = rows.filter((r) => outcome(r) === 'home run' || r.hr).length
-        const hits = n1b + n2b + n3b + nHr
-        const tb = n1b + 2 * n2b + 3 * n3b + 4 * nHr
-        const ba = abs ? hits / abs : null
-        const iso = abs ? (tb - hits) / abs : null
-        // .272 not 0.272 — the way a slash line is written everywhere else.
-        const slash = (v) => v.toFixed(3).replace(/^0/, '')
-        const contactNote = `${hits} hit${hits === 1 ? '' : 's'} in ${abs} at-bat${abs === 1 ? '' : 's'}`
-        const cells = [
-          ['AVG EV', avg('ev'), (v) => v.toFixed(1), AMBER],
-          ['AVG ANGLE', avg('la'), (v) => `${v.toFixed(0)}°`, C.text2],
-          ['AVG DIST', avg('dist'), (v) => `${v.toFixed(0)}ft`, AMBER],
-          ['AVG VELO SEEN', avg('velo'), (v) => v.toFixed(1), C.text2],
-          ['GB', shapePct(/ground/i), pct, C.text2],
-          ['FLY', shapePct(/fly/i), pct, CYAN],
-          ['LD', shapePct(/line/i), pct, C.text2],
-          ['POP', shapePct(/pop/i), pct, C.text3],
-          // bbCount guarded to null, not just divided: a window that comes back
-          // all strikeouts (a real possibility once K's are rows too) must
-          // hide these rather than print a 0/0 "NaN%".
-          ['PULL-AIR', bbCount ? pullAir : null, (v) => `${pct((100 * v) / bbCount)}`, AMBER],
-          ['HARD HIT', bbCount ? hh : null, (v) => `${v} (${(100 * v / bbCount).toFixed(0)}%)`, AMBER],
-          ['BARRELS', bbCount ? brl : null, (v) => `${v} (${(100 * v / bbCount).toFixed(0)}%)`, VIOLET],
-          ['K RATE', kRate, pct, RED,
-            `Strikeouts as a share of everything logged in this window — ${kCount} K in ${rows.length} (${bbCount} balls in play + ${kCount} strikeouts). Walks and hit-by-pitches still never become a row here, so this isn't a full-PA K% — it's the closest this page can get without one.`],
-          ['AVG ON CONTACT', ba, slash, CYAN,
-            `Batting average over this window — ${contactNote}, sacrifices left out of the denominator. Strikeouts now count as outs (${kCount} of them); walks and hit-by-pitches still don't become a row here, so it's close to his real average but not quite it.`],
-          ['ISO ON CONTACT', iso, slash, VIOLET,
-            `Isolated power (slugging minus average) over the same ${abs} at-bats, strikeouts included as outs. Not his season ISO, for the same reason as AVG ON CONTACT: no walks/HBP in this payload.`],
-          ['HR', hr, (v) => `${v}`, GREEN],
-          // Direction and real distance, from the flags spray_cache already
-          // writes. PULL / OPPO are the batted-ball direction split; 375+ and
-          // 400+ are the same "balls he's let travel" tiers the pitcher panel
-          // reports, read from the bat's side. All counted over exactly the
-          // rows below, like everything else in this strip.
-          ['PULL', sidePct('pull'), pct, AMBER],
-          ['OPPO', sidePct('oppo'), pct, C.text2],
-          ['XBH', bbCount ? xbh : null, (v) => `${v} (${(100 * v / bbCount).toFixed(0)}%)`, CYAN],
-          ['375+ FT', mid, (v) => `${v}`, AMBER],
-          ['400+ FT', far, (v) => `${v}`, RED],
-        ]
-        return (
-          <div style={{
-            display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 8,
-            background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 10,
-            padding: '8px 14px',
-          }}>
-            {cells.map(([l, v, fmt, col, tip]) => v == null ? null : (
-              <div key={l} title={tip || undefined} style={{ minWidth: 0, cursor: tip ? 'help' : undefined }}>
-                {/* 7.5px → 8.5px (2026-09-13). Donovan named this exact
-                    stat-strip label — "little text in the ev log" — as too
-                    small to read. Matches the "over the N balls" caption
-                    two lines down, which was already 8.5. */}
-                <div style={{ fontSize: 8.5, color: C.text3, fontWeight: 800, letterSpacing: '.09em', fontFamily: NUM_FONT }}>{l}</div>
-                <div style={{ fontSize: 15, fontWeight: 900, fontFamily: NUM_FONT, color: col }}>{fmt(v)}</div>
-              </div>
-            ))}
-            <div style={{ marginLeft: 'auto', alignSelf: 'end', fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}>
-              over the {bbCount} ball{bbCount === 1 ? '' : 's'}{kCount > 0 ? ` + ${kCount} K${kCount === 1 ? '' : 's'}` : ''} shown below
-            </div>
-          </div>
-        )
-      })()}
+      {rows.length > 0 && <ContactStrip rows={rows} />}
 
       {/* The exit-velo-against-launch-angle scatter lived here and is gone
           (2026-08-31, Donovan: "remove this chart"). The wedge was scenery
