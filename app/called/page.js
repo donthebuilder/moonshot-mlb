@@ -656,6 +656,7 @@ export default async function CalledPage({ searchParams }) {
       <footer className={styles.foot}>
         <span>{sport.foot}</span>
         <span><a href="/playbook">How to use DASH: the Playbook</a></span>
+        <span><a href="/terms">Terms</a>{' · 21+ · information, not advice'}</span>
       </footer>
     </main>
   )

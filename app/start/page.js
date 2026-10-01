@@ -581,6 +581,7 @@ export default async function StartPage({ searchParams }) {
           {' · '}
           <a href="/playbook">How to use DASH</a>
         </span>
+        <span><a href="/terms">Terms</a>{' · 21+ · information, not advice'}</span>
       </footer>
     </main>
   )

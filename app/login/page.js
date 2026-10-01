@@ -72,6 +72,9 @@ export default async function LoginPage({ searchParams }) {
         <p className={styles.authEscape}>
           Forgot your password? <Link href="/forgot-password">Send yourself a reset link →</Link>
         </p>
+        <p className={styles.authEscape}>
+          <Link href="/terms">Terms</Link>{' · 21+ · information, not advice'}
+        </p>
       </section>
     </main>
   )
