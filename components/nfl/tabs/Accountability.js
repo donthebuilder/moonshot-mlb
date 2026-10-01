@@ -8,6 +8,7 @@ import { useResultsArchive, seasonTotals, grandTotal, gradeBands, labelOf, weekK
 import { regradeNote, regradeNotes } from '../../../lib/nfl/regrades'
 import { downloadNflPickCard } from '../shareCard'
 import PageHeader from '../../PageHeader'
+import { GameCallsRecord } from '../GameCalls'
 import { WhatThis } from '../../ui'
 import NflSignalAudit from '../NflSignalAudit'
 import BandTable, { bandClaim } from '../../bands/BandTable'
@@ -637,6 +638,7 @@ export default function Accountability({ data, results: latest, onPlayerClick })
       </WhatThis>
 
       <SeasonStrip archive={archive} keys={keys} loading={loading} picked={picked || currentKey} onPick={(k) => setPicked(k === currentKey ? null : k)} currentKey={currentKey} mode={mode} />
+      {mode === 'season' && subTab === 'card' && <GameCallsRecord season={results?.season || data?.season} />}
 
       {mode === 'week' && <ReceiptHero results={results} when={when} />}
 

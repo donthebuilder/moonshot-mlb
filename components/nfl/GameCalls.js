@@ -12,7 +12,7 @@
 // gate).
 import { useEffect, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../lib/nfl/theme'
-import { fetchNfl, nflGameCallsPaths } from '../../lib/nfl/dataSource'
+import { fetchNfl, nflGameCallsPaths, nflGameCallsTotalsPaths } from '../../lib/nfl/dataSource'
 import { reasonFor } from './ScoreAnatomy'
 
 /** The week's game-calls file, fetched once per mount. null = loading / none. */
@@ -77,6 +77,32 @@ export default function GameCalls({ calls, game, playersById, weights, base, onP
             {n.text || `No call for ${n.team} — best is ${n.best_name}, #${n.best_rank} of ${n.of}.`}
           </div>
         ))}
+      </div>
+    </div>
+  )
+}
+
+/** The season's game-call record in one sentence (BATCH-GAME-CALLS RECORD):
+ *  "16 games · 31 calls · 9 scored (TOP 6 of 16, TD 3 of 15) · 1 void".
+ *  Kept apart from the week card's five, never merged into its count. */
+export function GameCallsRecord({ season }) {
+  const [t, setT] = useState(undefined)
+  useEffect(() => {
+    let alive = true
+    if (!season) { setT(null); return undefined }
+    fetchNfl(nflGameCallsTotalsPaths(season)).then((d) => { if (alive) setT(d || null) }).catch(() => { if (alive) setT(null) })
+    return () => { alive = false }
+  }, [season])
+  if (t === undefined) return null
+  const top = t?.top || {}, second = t?.second || {}
+  const graded = (top.n || 0) + (second.n || 0)
+  return (
+    <div style={{ margin: '8px 0 12px', padding: '10px 12px', borderRadius: 10, border: `1px solid ${C.border}`, background: C.glass }}>
+      <div style={{ fontSize: TYPE.micro, fontWeight: 900, letterSpacing: '.12em', color: C.text, fontFamily: NUM_FONT, marginBottom: 3 }}>GAME CALLS</div>
+      <div style={{ fontSize: 12.5, color: C.text2, lineHeight: 1.5 }}>
+        {graded
+          ? <>{t.games} games · {graded} calls · <b style={{ color: C.text }}>{(top.hit || 0) + (second.hit || 0)} scored</b> (TOP {top.hit || 0} of {top.n || 0}, TD {second.hit || 0} of {second.n || 0}){t.voids ? ` · ${t.voids} void` : ''}. One TD call per team, every game, locked at kickoff.</>
+          : 'One TD call per team, every game, locked at kickoff. Nothing graded yet \u2014 the first calls grade after this week\u2019s games.'}
       </div>
     </div>
   )
