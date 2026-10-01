@@ -633,7 +633,7 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
             ? <AlignedSignalsSection players={filtered} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} />
             : view === 'matchupedge'
             ? <MatchupEdgeSection players={filtered} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} />
-            : <RankedBoard players={players} type={viewKey} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} onOpenPitcher={onNavigate ? (pid) => { leaveTarget('pitcher', pid); onNavigate('pitchers') } : null} slateDate={slateDate} filterState={filterState} setupHomers={setupHomers} />
+            : <RankedBoard players={players} slate={allPlayers?.length ? allPlayers : players} type={viewKey} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} onOpenPitcher={onNavigate ? (pid) => { leaveTarget('pitcher', pid); onNavigate('pitchers') } : null} slateDate={slateDate} filterState={filterState} setupHomers={setupHomers} />
           }
         </>
       )}
