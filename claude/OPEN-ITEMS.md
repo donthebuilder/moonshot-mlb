@@ -2,6 +2,11 @@
 
 Found while working, not fixed. Newest first.
 
+## 2026-09-30 · MEMBERS M1/M2
+
+- **LAMP's /start: 8 game names are not links** (`check-clickable /start?sport=nhl`; also on the live site). /start?sport=nfl was fixed in 05fd73f the same way: carry the game id and link it.
+- **M2's contact line is hidden until `NEXT_PUBLIC_CONTACT_EMAIL` is set.** The terms draft says "Questions: <email>", and no address is published on the site.
+
 ## 2026-09-30 · BATCH-NFL-FIELD
 
 - **Field files go live on the bot's next run.** Bot pushed at 63814cab; until `nfl.yml` runs, `nfl_field_{TEAM}.json` 404s on the data branch and the card falls back to TouchMap. Check after the next run: `curl -sI https://raw.githubusercontent.com/donthebuilder/MLB-HR-DASHBOARD-STREAMLIT/data/public/data/current/nfl_field_NO.json` should return 200.
