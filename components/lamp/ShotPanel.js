@@ -6,7 +6,7 @@ import { useLampShots } from '../../lib/nhl/useLamp'
 import { DelayedBanner, Loading, Pills } from './ui'
 import { FactLines } from '../matchup/MatchupParts'
 import { chipColor } from '../Heatmap'
-import { ChipGroup } from '../matchup/SprayParts'
+import { ChipGroup, ChartCard, ChartLegend, ChartEmpty } from '../charts'
 
 // 🏒 WHERE HE SHOOTS FROM (lamp research step 3). The rink plus the numbers
 // it is drawn from, for one player or one club: season or last 10 games,
@@ -35,7 +35,7 @@ function depthLines(m, who, against = false) {
 
 // THE SPRAY-CHART PASS (2026-09-29, Donovan: "i love the where he shoots from
 // -- make it better just like the spray chart"). MOONSHOT's spray chart
-// pieces on the rink: its filter chips (components/matchup/SprayParts.js --
+// pieces on the rink: its filter chips (components/charts ChipGroup, was matchup/SprayParts --
 // result, shot type, strength, period, each chip counting what is in the
 // window), zone bars (MatchupParts BarList) with every zone defined in words,
 // and a tap-a-shot card. Filters cut the drawn shots (the most recent 200);
@@ -66,6 +66,7 @@ export default function ShotPanel({ sel, who = 'He', height = 300 }) {
   const [per, setPer] = useState('ALL')
   const [picked, setPicked] = useState(null)
   const [help, setHelp] = useState(false)
+  const [view, setView] = useState('dots')   // DOTS / HEAT, held here so the legend reads what is drawn
   const m = data?.[win]
   const recent = m?.recent || []
   const pass = (sh, skip) => (skip === 'res' || res === 'ALL' || sh[2] === res)
@@ -90,11 +91,11 @@ export default function ShotPanel({ sel, who = 'He', height = 300 }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       <DelayedBanner error={error} what="the shot map" />
-      {loading && !data ? <Loading what="the shot map" /> : null}
+      {loading && !data ? <ChartEmpty theme={C}>Loading the shot map…</ChartEmpty> : null}
       {data && !data.season ? (
-        <p style={{ margin: 0, color: C.text3, fontSize: 12, lineHeight: 1.5 }}>
+        <ChartEmpty theme={C}>
           No regular-season shots on file for {sel?.team || sel?.against ? 'this club' : 'him'} yet. The archive holds 2025-26 and fills in after every graded game.
-        </p>
+        </ChartEmpty>
       ) : null}
       {data?.season && m ? (
         <>
@@ -116,7 +117,7 @@ export default function ShotPanel({ sel, who = 'He', height = 300 }) {
                 style={{ background: 'transparent', border: 'none', color: C.text3, font: `700 10px/1 ${NUM_FONT}`, cursor: 'pointer', textDecoration: 'underline dotted', minHeight: 0 }}>clear</button>}
             </div>
           )}
-          {filtered && !shots.length && <p style={{ margin: 0, color: C.text3, fontSize: 12 }}>None of {who === 'He' ? 'his' : 'their'} last {recent.length} attempts match every filter at once.</p>}
+          {filtered && !shots.length && <ChartEmpty theme={C}>None of {who === 'He' ? 'his' : 'their'} last {recent.length} attempts match every filter at once.</ChartEmpty>}
           {/* MOONSHOT'S SPRAY CHART LAYOUT (2026-09-30, Donovan: "shot map I
               already told you I want basically like the spray chart"). The
               chart and its readout share one framed panel (SprayField's
@@ -125,11 +126,8 @@ export default function ShotPanel({ sel, who = 'He', height = 300 }) {
               as SprayField's lane bars (share + goals, like LF/CF/RF + HR),
               the colour key in one line, the numbers, and the fine print
               behind "how to read this". */}
-          <div className="spray-wrap" style={{
-            display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'flex-start',
-            background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 12, padding: 10,
-          }}>
-            <Rink map={m} slot={data.slot} gridSpec={data.gridSpec} height={height} shots={shots}
+          <ChartCard theme={C}>
+            <Rink map={m} slot={data.slot} gridSpec={data.gridSpec} height={height} shots={shots} view={view} onView={setView}
               onPick={(sh) => setPicked(sh === picked ? null : sh)} picked={picked}
               onPickCell={(cell) => setPicked({ cell })} />
             <div style={{ flex: 1, minWidth: 180 }}>
@@ -165,9 +163,17 @@ export default function ShotPanel({ sel, who = 'He', height = 300 }) {
                   ))}
                 </div>
               )}
-              <div style={{ fontSize: 9.5, color: C.text3, marginTop: 8, lineHeight: 1.6 }}>
-                <b style={{ color: C.lamp }}>red</b> goal · <b style={{ color: C.ice }}>blue</b> on net · ring = missed or blocked · shaded box = the slot
-              </div>
+              {/* ONE LEGEND, FROM WHAT IS DRAWN (BATCH-2D-CORE flag 2): the
+                  two hand-written keys (under the rink and here) became this. */}
+              <ChartLegend theme={C} style={{ marginTop: 8 }} items={view === 'heat'
+                ? [{ key: 'heat', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, background: `${C.ice}88` }} />, label: 'shaded by attempts per zone' },
+                  { key: 'slot', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 1, background: `${C.ice}24` }} />, label: 'the slot' },
+                  { key: 'arcs', mark: <b aria-hidden="true">◌</b>, label: '20 / 40 / 60 ft from the net' }]
+                : [{ key: 'goal', mark: <b aria-hidden="true" style={{ color: C.lamp }}>●</b>, label: 'goal' },
+                  { key: 'sog', mark: <b aria-hidden="true" style={{ color: C.ice }}>●</b>, label: 'on net' },
+                  { key: 'miss', mark: <b aria-hidden="true">○</b>, label: 'missed / blocked' },
+                  { key: 'slot', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 1, background: `${C.ice}24` }} />, label: 'the slot' },
+                  { key: 'arcs', mark: <b aria-hidden="true">◌</b>, label: '20 / 40 / 60 ft from the net' }]} />
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 8, fontFamily: NUM_FONT }}>
                 {[
                   ['slot share', pct(m.slotShare), C.ice],
@@ -198,7 +204,7 @@ export default function ShotPanel({ sel, who = 'He', height = 300 }) {
                 </div>
               )}
             </div>
-          </div>
+          </ChartCard>
           <FactLines theme={C} lines={depthLines(m, who, Boolean(sel?.against))} />
         </>
       ) : null}

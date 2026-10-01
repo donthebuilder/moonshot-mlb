@@ -2,7 +2,7 @@
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../lib/nfl/theme'
 import { alpha } from '../../lib/scales'
-import { ChipGroup } from '../matchup/SprayParts'
+import { ChipGroup } from '../charts'
 import NflTable from './NflTable'
 import NflFace from './NflFace'
 import FootballField from './FootballField'

@@ -19,9 +19,13 @@ const sy = (y) => 42.5 - y
 // list, defaulting to map.recent) are drawn; `onPick(shot)` / `onPickCell`
 // open the detail card beside the rink. Each dot gets a wider invisible hit
 // circle -- SprayField's lesson: a 1-foot dot is not a thumb target.
-export default function Rink({ map, slot, gridSpec, height = 300, shots = null, onPick = null, onPickCell = null, picked = null }) {
+// `view` / `onView` (2026-10-01, BATCH-2D-CORE): the caller can hold the
+// DOTS/HEAT state so its legend (ChartLegend) is built from what is drawn.
+export default function Rink({ map, slot, gridSpec, height = 300, shots = null, onPick = null, onPickCell = null, picked = null, view: viewProp = null, onView = null }) {
   const clipId = `rink-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`
-  const [view, setView] = useState('dots')
+  const [viewOwn, setViewOwn] = useState('dots')
+  const view = viewProp || viewOwn
+  const setView = onView || setViewOwn
   const drawn = shots || map?.recent || []
   if (!map) return null
   const max = Math.max(1, ...map.grid.flat().map((c) => c.att))
@@ -86,12 +90,7 @@ export default function Rink({ map, slot, gridSpec, height = 300, shots = null, 
           )
         })}
       </svg>
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', color: C.text3, font: `700 9px/1.4 ${NUM_FONT}` }}>
-        {view === 'dots'
-          ? <><span><b style={{ color: C.lamp }}>●</b> goal</span><span><b style={{ color: C.ice }}>●</b> on net</span><span>○ miss / blocked</span><span>{drawn.length === (map.recent || []).length ? `last ${drawn.length} attempts` : `${drawn.length} of the last ${(map.recent || []).length} attempts`}{onPick ? ' · tap a dot' : ''}</span></>
-          : <span>shaded by attempts per zone · {onPickCell ? 'tap' : 'hover'} a zone for its counts</span>}
-        <span>shaded box = the slot</span>
-      </div>
+      {/* The key moved to the caller's ChartLegend (BATCH-2D-CORE flag 2). */}
     </div>
   )
 }
