@@ -44,7 +44,8 @@ function Part({ n, accent, children, style }) {
 }
 
 /**
- * row: { sport, faceId, team, opp, name, rank, score: { label, value }, pick: label or null, facing }
+ * row: { sport, faceId, espnId?, team, opp, name, rank, score: { label, value, dp? },
+ *        pick: label or null, pickNone?, fifth: { label, value } }
  * notes: [{ title, text }] in mark order 1..5 (rank, player, score, pick, facing)
  * steps: [{ icon, text }] what to do next
  */
@@ -104,7 +105,7 @@ export default function HowToRead({ id, accent = C.orange, row, notes, steps = [
                   color: C.text2, fontSize: 18, cursor: 'pointer', flex: '0 0 auto' }}>✕</button>
             </div>
             <div style={{ fontSize: TYPE.body, color: C.text2, margin: '2px 0 16px' }}>
-              One row from tonight&apos;s board, taken apart.
+              {row.caption || 'One row from tonight\u2019s board, taken apart.'}
             </div>
 
             {/* THE PICTURE: a real row, drawn like the table draws it. */}
@@ -117,7 +118,7 @@ export default function HowToRead({ id, accent = C.orange, row, notes, steps = [
                 <span style={{ fontFamily: NUM_FONT, fontWeight: 900, fontSize: 15, color: C.text }}>#{row.rank}</span>
               </Part>
               <Part n={2} accent={accent} style={{ flex: '1 1 180px', minWidth: 0 }}>
-                <PlayerFace sport={row.sport} id={row.faceId} team={row.team} name={row.name} size={36} />
+                <PlayerFace sport={row.sport} id={row.faceId} espnId={row.espnId} team={row.team} name={row.name} size={36} />
                 <span style={{ minWidth: 0 }}>
                   <span style={{ display: 'block', fontSize: TYPE.name, fontWeight: 800, color: C.text }}>{row.name}</span>
                   <span style={{ fontSize: TYPE.label, color: C.text3, fontFamily: NUM_FONT }}>{row.team}{row.opp ? ` vs ${row.opp}` : ''}</span>
@@ -126,16 +127,16 @@ export default function HowToRead({ id, accent = C.orange, row, notes, steps = [
               <Part n={3} accent={accent}>
                 <span style={{ fontSize: TYPE.label, color: C.text3, fontWeight: 800 }}>{row.score.label}</span>
                 <span style={{ fontFamily: NUM_FONT, fontWeight: 900, fontSize: 15, color: C.bg, background: accent, borderRadius: 6, padding: '2px 7px' }}>
-                  {Number(row.score.value).toFixed(1)}
+                  {Number(row.score.value).toFixed(row.score.dp ?? 1)}
                 </span>
               </Part>
               <Part n={4} accent={accent}>
                 <span style={{ fontSize: 15 }} aria-hidden="true">🤖</span>
-                <span style={{ fontSize: TYPE.label, color: row.pick ? accent : C.text3, fontWeight: 800 }}>{row.pick ? `● ${row.pick}` : 'not picked tonight'}</span>
+                <span style={{ fontSize: TYPE.label, color: row.pick ? accent : C.text3, fontWeight: 800 }}>{row.pick ? `● ${row.pick}` : (row.pickNone || 'not picked tonight')}</span>
               </Part>
               <Part n={5} accent={accent}>
-                <span style={{ fontSize: TYPE.label, color: C.text3, fontWeight: 800 }}>Facing</span>
-                <span style={{ fontSize: TYPE.body, color: C.text, fontWeight: 700 }}>{row.facing}</span>
+                <span style={{ fontSize: TYPE.label, color: C.text3, fontWeight: 800 }}>{row.fifth.label}</span>
+                <span style={{ fontSize: TYPE.body, color: C.text, fontWeight: 700 }}>{row.fifth.value}</span>
               </Part>
             </div>
 

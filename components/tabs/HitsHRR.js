@@ -487,7 +487,7 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
         const role = String(top?.game_pick_role || '').split('/')[0].trim().toUpperCase()
         return role === 'TOP' || role === 'HR' ? `${role} pick` : null
       })(),
-      facing: top?.pitcher_name || 'TBD',
+      fifth: { label: 'Facing', value: top?.pitcher_name || 'TBD' },
     }
   }, [allPlayers, players, viewKey])
 

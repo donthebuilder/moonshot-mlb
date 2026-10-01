@@ -6,7 +6,9 @@ import { PillRow } from '../../Filters'
 import { alpha } from '../../../lib/scales'
 import BoardTopBar from '../../BoardTopBar'
 import { nflGameOptions } from '../NflBoardExtras'
-import Touchdowns from './Touchdowns'
+import Touchdowns, { tdPool } from './Touchdowns'
+import HowToRead from '../../HowToRead'
+import { tdCallStatus } from '../../../lib/callStatus'
 import Boards from './Boards'
 import Picks from './Picks'
 
@@ -30,6 +32,22 @@ const VIEWS = [
   { key: 'board', label: 'Board', title: 'Everyone the model scored, ranked' },
 ]
 const readHash = () => { try { return new URLSearchParams(window.location.hash.slice(1)) } catch { return new URLSearchParams() } }
+
+// HOW TO READ THIS, TUDDY's words (components/HowToRead.js draws them; the
+// same component MOONSHOT's HR board uses). Describes the page; no hit rates.
+const HOW_NOTES = [
+  { title: 'Board rank', text: 'His place on this week\u2019s touchdown board, #1 first, ranked by the model\u2019s touchdown score.' },
+  { title: 'The player', text: 'Tap a name to open his card, with the full picture behind the score.' },
+  { title: 'TD score', text: 'How good this week looks for him to score a touchdown, 0\u2013100. It\u2019s a ranking, not a percent: the week\u2019s #1 always sits near 80.' },
+  { title: 'The bot\u2019s call', text: 'CALLED means he\u2019s one of the bot\u2019s five touchdown picks this week. ON THE BOARD means he\u2019s in the top third of the board.' },
+  { title: 'Game', text: 'His opponent and kickoff. The picks lock at kickoff, and nothing changes after.' },
+]
+const HOW_STEPS = [
+  { icon: '👆', text: 'Tap a name to open his card.' },
+  { icon: '★', text: 'Add him to your watchlist.' },
+  { icon: '✅', text: 'After the games, every call is graded under Called.' },
+]
+const CALL_WORDS = { called: 'CALLED', board: 'ON THE BOARD' }
 
 export default function BoardHub({ slate, data, logs, matchup, odds, oddsStatus, picks, results, liveSnap = null, onPlayerClick, initialView = 'board', onTitle = null, onView = null }) {
   const [market, setMarket] = useState('TD')
@@ -79,6 +97,26 @@ export default function BoardHub({ slate, data, logs, matchup, odds, oddsStatus,
   const teams = useMemo(() => [...new Set((slate?.players || data?.players || []).map((p) => p.team).filter(Boolean))].sort(), [slate, data])
   const games = useMemo(() => nflGameOptions(slate?.games || data?.games), [slate, data])
   const top = { query, team, game }
+  // The row the "How to read this" picture draws: this week's real #1 on the
+  // TD board (tdPool, the board's own order). Its label comes from
+  // tdCallStatus -- on the bot's card (picks.card.TD) = CALLED, top third =
+  // ON THE BOARD -- never re-derived here.
+  const howRow = useMemo(() => {
+    const rows = tdPool(slate).rows
+    const p = rows[0]
+    if (!p) return null
+    const rung = (picks?.card?.TD?.rungs || []).find((r) => String(r.player_id) === String(p.player_id)) || null
+    const status = tdCallStatus({ on_bot: rung, td_board: { rank: 1, of: rows.length } })
+    const g = (slate?.games || []).find((x) => x.home === p.team || x.away === p.team)
+    return {
+      sport: 'nfl', espnId: p.espn_id, team: p.team, opp: null, name: p.name, rank: 1,  // the Game mark says vs / @
+      caption: 'One row from this week\u2019s board, taken apart.',
+      score: { label: 'TD', value: p.scores.TD, dp: 0 },
+      pick: CALL_WORDS[status] ? `${CALL_WORDS[status]}${rung?.rank ? ` \u00b7 #${rung.rank}` : ''}` : null,
+      pickNone: 'not called',
+      fifth: { label: 'Game', value: [p.opp ? `${g?.home === p.team ? 'vs' : '@'} ${p.opp}` : null, g?.detail].filter(Boolean).join(' \u00b7 ') || 'TBD' },
+    }
+  }, [slate, picks])
   return (
     <div>
       {(
@@ -99,6 +137,13 @@ export default function BoardHub({ slate, data, logs, matchup, odds, oddsStatus,
             color: view === v.key ? C.green : C.text3,
           }}>{v.key === 'board' ? 'Board' : 'Called'}</button>
         ))}
+        {/* HOW TO READ THIS (2026-10-01): in the pill row's spare room, so it
+            costs no line. TD board only -- the notes describe the TD score. */}
+        {view === 'board' && market === 'TD' && howRow && (
+          <span style={{ marginLeft: 'auto', paddingRight: 6, fontSize: TYPE.body }}>
+            <HowToRead id="nfl-td-board" accent={C.green} row={howRow} notes={HOW_NOTES} steps={HOW_STEPS} />
+          </span>
+        )}
       </div>
       <PillRow label="Market" value={market} options={marketOptions} onChange={setMarket} />
       {view === 'called'
