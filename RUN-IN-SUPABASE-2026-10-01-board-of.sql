@@ -18,6 +18,5 @@ update public.homer_feed set stats = coalesce(stats, '{}'::jsonb) || jsonb_build
 update public.homer_feed set stats = coalesce(stats, '{}'::jsonb) || jsonb_build_object('board_of', 269) where day = '2026-09-27' and (stats->>'board_of') is null;  -- 269 on the board
 update public.homer_feed set stats = coalesce(stats, '{}'::jsonb) || jsonb_build_object('board_of', 71) where day = '2026-09-29' and (stats->>'board_of') is null;  -- 71 on the board
 update public.homer_feed set stats = coalesce(stats, '{}'::jsonb) || jsonb_build_object('board_of', 72) where day = '2026-09-30' and (stats->>'board_of') is null;  -- 72 on the board
-update public.homer_feed set stats = coalesce(stats, '{}'::jsonb) || jsonb_build_object('board_of', 71) where day = '2026-10-01' and (stats->>'board_of') is null;  -- 71 on the board
 commit;
 -- PROBE afterwards:  select day, max((stats->>'board_of')::int) as board_of, count(*) as homers from public.homer_feed where day >= '2026-09-17' group by day order by day;
