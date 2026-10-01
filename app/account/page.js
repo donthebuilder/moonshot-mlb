@@ -28,6 +28,7 @@ import SubmitButton from '../../components/fantasy/SubmitButton'
 import DeviceData from '../../components/DeviceData'
 import { hasSupabaseConfig } from '../../lib/supabase/config'
 import { createSupabaseServerClient } from '../../lib/supabase/server'
+import { isAdminEmail } from '../../lib/admin'
 import { signOutEverywhere, updateDisplayName, updateEmail, updatePassword } from './actions'
 import { dashSignOut } from '../(front)/actions'
 import styles from '../(front)/dash.module.css'
@@ -162,6 +163,8 @@ export default async function AccountPage({ searchParams }) {
         <Link href="/app#sport=mlb&tab=home">MOONSHOT · MLB</Link>
         <Link href="/app#sport=nfl&tab=home">TUDDY · NFL</Link>
         <Link href="/fantasy">FRANCHISE · FANTASY</Link>
+        {/* Only an admin (ADMIN_EMAILS) ever sees this link; /admin 404s for anyone else. */}
+        {isAdminEmail(user.email) ? <Link href="/admin">Admin</Link> : null}
       </footer>
     </main>
   )
