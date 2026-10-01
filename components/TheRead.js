@@ -520,10 +520,9 @@ export default function TheRead({ players = [], onPlayerClick, odds = null }) {
 
       <Section n="2" title="The ISO lens" note="the measurement the site does not rank on">
         <Para dim>
-          Across 3,973 graded picks, hitters under a .130 ISO homered <b style={{ color: C.text2 }}>8.2%</b> of
-          the time and hitters at .230 or better homered <b style={{ color: C.orange }}>22.2%</b> — and that
-          held <i>inside every hr_score quartile</i>, so a bottom-quartile high-ISO bat out-homered a
-          top-quartile low-ISO one. Those ratios are what the multipliers below are; nothing is tuned.
+          Season power (ISO) is the strongest single home-run input in the locked pregame record. The
+          multipliers below come from an older archive measurement that is being re-measured on the locked
+          pregame record, so read them as a lens, not a promise.
         </Para>
         <Para dim>
           The site does <b style={{ color: C.text2 }}>not</b> rank on this, on purpose: hr_score already
