@@ -112,6 +112,7 @@ const SPORTS = {
     fills: 'This page fills in within a minute of each one.',
     foot: "CALLED IT is MOONSHOT's home run record — every home run, graded in public. Data from MLB's public feeds.",
     lead: 'called', onWhat: 'the bot', capture: eventCapture, window: DAYS, unit: ['night', 'nights'],
+    rule: 'CALLED = a TOP, HR, HIT, HRR or CONTACT pick in his game. ON THE BOARD = the top third of that night\u2019s board (nights before Sep 17: anyone the board rated).',
     cta: ['See who the bot likes tonight', 'The headline picks and the full board, in the app — no account needed'],
     callsHead: 'Tonight\u2019s calls', callsPill: 'posted before first pitch',
     eventsHead: 'Tonight\u2019s home runs',
@@ -133,6 +134,7 @@ const SPORTS = {
     fills: 'This page fills in within a minute of each one.',
     foot: "CALLED IT is TUDDY's touchdown record — every touchdown, graded in public. Data from public NFL feeds.",
     lead: 'board', onWhat: 'the board', capture: eventCapture, window: 28, unit: ['game day', 'game days'],
+    rule: 'CALLED = a pick in any TUDDY market that week, or his game\u2019s TD call. ON THE BOARD = the top third of the week\u2019s TD board.',
     cta: ['See who the bot likes this week', 'This week\u2019s reads and the full board, in the app — no account needed'],
     callsHead: 'This week\u2019s calls', callsPill: 'posted before kickoff',
     eventsHead: 'Today\u2019s touchdowns',
@@ -168,6 +170,7 @@ const SPORTS = {
     fills: 'Each game fills in once its final is graded.',
     foot: "CALLED IT is LAMP's goal record — every goal scorer, graded in public. Data from the NHL's public feeds.",
     lead: 'called', onWhat: 'CALLED', capture: nhlCaptureFrom, window: 14, unit: ['game night', 'game nights'],
+    rule: 'CALLED = one of the calls in his game: the goal board or SHOTS 3+. ON THE BOARD = scored by the model, not called.',
     cta: ['See tonight\u2019s goal board', 'Three called per game and the full board, in the app — no account needed'],
     callsHead: 'Tonight\u2019s calls', callsPill: 'locked before puck drop',
     eventsHead: 'Tonight\u2019s goal scorers',
@@ -489,6 +492,9 @@ export default async function CalledPage({ searchParams }) {
             </p>
           </>
         )}
+        {/* 0c (2026-10-01): what the two words mean here, in one line, on
+            every state of the page, so each count reads against it. */}
+        {sport.rule && <p className={styles.rule}>{sport.rule}</p>}
         {/* FUNNEL STEP 1 (2026-09-26): the primary goes FORWARD, into the
             board. It used to open /start, whose own buttons came back here --
             a loop with no way into the app. /start is a small text link now. */}

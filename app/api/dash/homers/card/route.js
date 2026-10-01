@@ -53,7 +53,7 @@ export async function GET(request) {
     const since = new Date(`${day}T12:00:00Z`)
     since.setUTCDate(since.getUTCDate() - 9)
     const [{ data: rows }, { data: hist }] = await Promise.all([
-      db.from('homer_feed').select('name,team,role,on_board,board_rank').eq('day', day),
+      db.from('homer_feed').select('name,team,role,on_board,board_rank,board_of:stats->>board_of').eq('day', day),
       db.from('homer_feed').select('day,role').gte('day', since.toISOString().slice(0, 10)).lte('day', day),
     ])
     img = await recapCard(day, rows || [], hist || [], { site })

@@ -897,7 +897,7 @@ async function postRecap(db, day, { force = false } = {}) {
   }
   if (!claim?.length && !force) return { recap: 'already' }
   {
-    const { data: rows } = await db.from('homer_feed').select('name,team,role,on_board,board_rank,player_id').eq('day', day)
+    const { data: rows } = await db.from('homer_feed').select('name,team,role,on_board,board_rank,board_of:stats->>board_of,player_id').eq('day', day)
     const c = captureFrom(rows)
     if (c.total) {
       // Rewritten 2026-09-13 (Donovan's stacked-format pass): scoreboard feel,

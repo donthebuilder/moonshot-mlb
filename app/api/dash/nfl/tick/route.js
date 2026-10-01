@@ -59,7 +59,7 @@ import { timingSafeEqual } from 'node:crypto'
 import { easternToday, etHoursSinceNoon } from '../../../../../lib/data'
 import {
   fetchNfl, nflFantasyStatsPaths, nflLogPaths, nflMatchupLooksReal, nflMatchupPaths,
-  nflPicksLooksReal, nflPicksPaths, nflRosterPaths, nflSlateLooksReal, nflSlatePaths,
+  nflPicksLooksReal, nflPicksPaths, nflRosterPaths, nflSlateLooksReal, nflSlatePaths, nflGameCallsPaths,
 } from '../../../../../lib/nfl/dataSource'
 import {
   milestonePicks, milestoneText,
@@ -318,12 +318,14 @@ async function runTouchdownTick(db, day) {
     // own note that nfl_roster.json has no committed-snapshot fallback yet)
     // and buildTdEvent() already treats a missing input as "skip that
     // enrichment," never as a reason to fail the whole event.
-    const [roster0, slate, logs, picksData, matchup] = await Promise.all([
+    const [roster0, slate, logs, picksData, matchup, gameCalls] = await Promise.all([
       fetchNfl(nflRosterPaths()).catch(() => null),
       fetchNfl(nflSlatePaths(), nflSlateLooksReal).catch(() => null),
       fetchNfl(nflLogPaths()).catch(() => null),
       fetchNfl(nflPicksPaths(), nflPicksLooksReal).catch(() => null),
       fetchNfl(nflMatchupPaths(), nflMatchupLooksReal).catch(() => null),
+      // 0c / G4: the locked game calls -- a scorer who was his game's call is CALLED.
+      fetchNfl(nflGameCallsPaths()).catch(() => null),
     ])
     // 2026-09-13: nfl_roster.json is not published (404), so every live card
     // was name-only -- gsis_id null meant no season line, no on-the-bot rank,
@@ -348,7 +350,7 @@ async function runTouchdownTick(db, day) {
       // under D+1: duplicate X + Discord posts. Key on the game's own kickoff
       // day instead; the sweep day is only the fallback.
       const gameDay = kickoffDayOf(game) || day
-      const ev = buildTdEvent(play, { game, roster, directory, logs, picksCard, matchup, season, day: gameDay })
+      const ev = buildTdEvent(play, { game, roster, directory, logs, picksCard, gameCalls, matchup, season, day: gameDay })
       const row = rowFromEvent(gameDay, ev)
       // 2026-09-24 audit: a touchdown stored without a scorer or without a
       // board rank is the public record silently calling him "not on the
@@ -446,7 +448,8 @@ async function runTouchdownTick(db, day) {
             // and a missing reply must never release its claim or re-post
             // the touchdown.
             try {
-              const nbrs = row.on_bot
+              // The call sheet is the TD ladder: only a TD-ladder call gets it.
+              const nbrs = row.on_bot && (!row.on_bot.market || row.on_bot.market === 'TD')
                 ? tdCallNeighbors(picksCard, row.gsis_id, TD_NEIGHBOR_SPAN)
                 : []
               // FROZEN RANK WINS, AND THIS IS NOT HYPOTHETICAL. nfl_td_feed
