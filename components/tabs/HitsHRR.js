@@ -14,6 +14,8 @@ import BlankBoard from '../BlankBoard'
 import PlayerCard from '../PlayerCard'
 import { usePreview, ShowMoreButton } from '../ListPreview'
 import MobileFold from '../MobileFold'
+import HowToRead from '../HowToRead'
+import { hrRank } from '../../lib/scoring'
 // HitterHeat (the heat-painted 'top 15 profile' tables) left this page 2026-09-06 -- Donovan:
 // "I don't like those ones." The cards below carry the same names.
 import { hrScore, mlbId, nameOf, playerId, teamOf } from '../../lib/player'
@@ -83,6 +85,21 @@ const SCORE_TYPE_FOR_VIEW = { top: 'top', hr: 'hr', hit: 'hit', hrr: 'hrr', cont
 // that all look like rankings needed one line naming the market each answers.
 // (2026-08-09 spoon-feed pass; text unchanged, lifted to module scope so the
 // header sentence and the lens row can both read it.)
+// HOW TO READ THIS, MOONSHOT's words (components/HowToRead.js draws them).
+// Every line describes what the page shows; none claims a hit rate.
+const HOW_NOTES = [
+  { title: 'Board rank', text: 'His place on tonight\u2019s board, #1 first. It blends his HR score, his season home runs and how hard he hits the ball.' },
+  { title: 'The player', text: 'Tap any row to open his card: why he\u2019s up there, and what\u2019s working against him.' },
+  { title: 'HR score', text: 'How good tonight looks for him to go deep, 0\u2013100. It\u2019s a ranking, not a percent: a 78 sits above a 62, it isn\u2019t a 78% chance.' },
+  { title: 'The bot\u2019s pick', text: 'The bot makes two calls in every game: TOP, its single best play, and HR, its home-run pick. In the table, the \ud83e\udd16 dot marks the HR pick and the Pick column says TOP.' },
+  { title: 'Facing', text: 'Tonight\u2019s starting pitcher. Tap his name to open him.' },
+]
+const HOW_STEPS = [
+  { icon: '👆', text: 'Tap a row to see why he\u2019s up there.' },
+  { icon: '☆', text: 'Star him to keep him on your watchlist.' },
+  { icon: '✅', text: 'After the game, every pick is graded in public.' },
+]
+
 const ANSWERS = {
   top: 'if you were making one play per game, who would it be.',
   hr: 'who to back to hit a home run tonight.',
@@ -455,6 +472,24 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
 
   const boards = bview === 'boards'
   const pr = PROOF()[viewKey]
+  // The row the "How to read this" picture draws: tonight's real #1 on the
+  // board (lib/scoring hrRank, the same order the # column prints).
+  const howRow = useMemo(() => {
+    const pool = allPlayers?.length ? allPlayers : players
+    if (viewKey !== 'hr' || !pool?.length) return null
+    const ranks = hrRank(pool)
+    const top = pool.find((p) => ranks.get(mlbId(p)) === 1)
+    if (!top) return null
+    return {
+      sport: 'mlb', faceId: mlbId(top), team: teamOf(top), opp: String(top?.opponent || top?.opp || ''),
+      name: nameOf(top), rank: 1, score: { label: 'HR', value: hrScore(top) },
+      pick: (() => {  // his role in his game, read the way RankedBoard reads it
+        const role = String(top?.game_pick_role || '').split('/')[0].trim().toUpperCase()
+        return role === 'TOP' || role === 'HR' ? `${role} pick` : null
+      })(),
+      facing: top?.pitcher_name || 'TBD',
+    }
+  }, [allPlayers, players, viewKey])
 
   return (
     <div>
@@ -581,7 +616,15 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
                 click, and duplicated into a title= tooltip a phone cannot show
                 at all. The receipts clause below still folds: a measured
                 record is worth a tap, an orientation sentence is not. */}
-            <LensAnswer maxWidth={840}>{ANSWERS[viewKey] || ANSWER_FALLBACK}</LensAnswer>
+            {/* HOW TO READ THIS (2026-10-01): tonight's #1 row, taken apart.
+                HR and TOP only -- the notes describe the HR score. Inside the
+                sentence, so it costs no line of its own. */}
+            <LensAnswer maxWidth={840}>
+              {ANSWERS[viewKey] || ANSWER_FALLBACK}
+              {viewKey === 'hr' && howRow && (
+                <HowToRead id="mlb-hr-board" accent={C.orange} row={howRow} notes={HOW_NOTES} steps={HOW_STEPS} />
+              )}
+            </LensAnswer>
             {pr && (
               <>
                 <button
