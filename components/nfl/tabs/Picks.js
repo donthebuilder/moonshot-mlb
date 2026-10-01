@@ -17,7 +17,7 @@ import {
 import SlateGaps from '../SlateGaps'
 import PickCard from '../PickCard'
 import { baselineFor } from '../ScoreAnatomy'
-import ChartFrame from '../ChartFrame'
+import { ChartCard } from '../../charts'
 
 // 🎫 PICKS — the bot's card, and yours on top of it.
 //
@@ -498,7 +498,7 @@ export default function Picks({ picks, results, data, matchup, onPlayerClick, od
           const e = blk.edge
           const t = TRUST()[e?.trust] || TRUST().thin
           return (
-            <ChartFrame key={market} pad="0" style={{
+            <ChartCard theme={C} block className="" key={market} style={{ padding: 0,
               borderRadius: 12, overflow: 'hidden',
             }}>
               <div style={{ padding: '10px 13px', borderBottom: `1px solid ${C.border}` }}>
@@ -665,7 +665,7 @@ export default function Picks({ picks, results, data, matchup, onPlayerClick, od
                   </div>
                 )
               })}
-            </ChartFrame>
+            </ChartCard>
           )
         })}
       </div>

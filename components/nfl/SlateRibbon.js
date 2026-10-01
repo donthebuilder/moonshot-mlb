@@ -1,7 +1,7 @@
 'use client'
 import { useMemo } from 'react'
 import { C, NUM_FONT } from '../../lib/nfl/theme'
-import ChartFrame from './ChartFrame'
+import { ChartCard } from '../charts'
 
 // THE SLATE AS A CLOCK.
 //
@@ -90,7 +90,7 @@ export default function SlateRibbon({ games, picks, now = Date.now(), onGame }) 
               {live > 0 && <span style={{ color: C.green }}>{live} live</span>}
             </div>
 
-            <ChartFrame accent={C.green} live={live > 0} pad="8px 9px">
+            <ChartCard theme={C} block className="" accent={C.green} live={live > 0} style={{ padding: '8px 9px' }}>
               <div style={{ position: 'relative', height: d.lanes * LANE_H + 14 }}>
                 {/* hour rules, so the width of a block means something */}
                 {Array.from({ length: Math.ceil(span / 3600000) + 1 }, (_, i) => d.lo + i * 3600000)
@@ -153,7 +153,7 @@ export default function SlateRibbon({ games, picks, now = Date.now(), onGame }) 
                   }}>{new Date(t).toLocaleTimeString([], { hour: 'numeric' })}</span>
                 ))}
               </div>
-            </ChartFrame>
+            </ChartCard>
           </div>
         )
       })}

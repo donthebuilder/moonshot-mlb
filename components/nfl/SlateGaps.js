@@ -1,7 +1,7 @@
 'use client'
 import { useMemo } from 'react'
 import { C, NUM_FONT, RAMP } from '../../lib/nfl/theme'
-import ChartFrame from './ChartFrame'
+import { ChartCard } from '../charts'
 
 // THE GAPS.
 //
@@ -89,7 +89,7 @@ export default function SlateGaps({ players, market, rungIds, onPick, compact = 
 
   return (
     <div style={{ padding: '2px 0 4px' }}>
-      <ChartFrame accent={model.cliff ? C.green : RAMP[0]} live={model.cliff} pad="0">
+      <ChartCard theme={C} block className="" accent={model.cliff ? C.green : RAMP[0]} live={model.cliff} style={{ padding: '0' }}>
       <div style={{
         position: 'relative', height: H,
         display: 'flex', alignItems: 'flex-end', gap: 3, padding: '9px 7px 0',
@@ -146,7 +146,7 @@ export default function SlateGaps({ players, market, rungIds, onPick, compact = 
           )
         })}
       </div>
-      </ChartFrame>
+      </ChartCard>
 
       <div style={{
         display: 'flex', justifyContent: 'space-between',

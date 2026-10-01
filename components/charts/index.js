@@ -40,13 +40,24 @@ export function ChipGroup({ label, options, value, onChange, color, first = fals
 }
 
 /** The framed panel. `className` keeps SprayField's phone hook (.spray-wrap). */
-export function ChartCard({ children, theme = MLB_C, style = null, className = 'spray-wrap', ...rest }) {
+// `block` (2026-10-01, BATCH-2D-CORE flag 3): a plain block panel for content
+// that isn't the chart + readout row (TUDDY's ChartFrame users). `live` +
+// `accent`: the 2px status rail on the left edge -- the one cue kept from the
+// retired ChartFrame (its grid, brackets, edge ticks and bloom are gone).
+export function ChartCard({ children, theme = MLB_C, style = null, className = 'spray-wrap', block = false, live = false, accent = null, ...rest }) {
   return (
     <div className={className} {...rest} style={{
-      display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'flex-start',
+      ...(block ? { display: 'block' } : { display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'flex-start' }),
+      position: live ? 'relative' : undefined,
       background: theme.bg2, border: `1px solid ${theme.border}`, borderRadius: 12, padding: 10,
       ...(style || {}),
-    }}>{children}</div>
+    }}>
+      {live && (
+        <span aria-hidden="true" style={{ position: 'absolute', left: 0, top: 10, bottom: 10, width: 2, borderRadius: '0 2px 2px 0',
+          background: `linear-gradient(180deg, ${accent || theme.text2}, ${accent || theme.text2}22)` }} />
+      )}
+      {children}
+    </div>
   )
 }
 

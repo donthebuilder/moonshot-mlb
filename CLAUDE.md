@@ -47,6 +47,8 @@ reads, via its `data` branch.
   FRANCHISE.
 - No new hex literals in .js files. Import the product's theme token
   instead. `node scripts/check-scales.mjs` counts them.
+- The 3D views (stadium / zone / arena) are loaded with `next/dynamic`, so a
+  grep for their importers returns nothing. That does not mean they are dead.
 
 - MOONSHOT's components are the base for everything (Donovan, 2026-09-28).
   A new page, a new sport, or a new sport's twin of an existing page is built
