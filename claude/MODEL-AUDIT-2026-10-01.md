@@ -76,3 +76,18 @@ written before the game. Samples are small throughout, so treat everything as di
    where a price exists?
 6. **New markets** (MLB runs/RBI/SB/K; NHL points/assists): build them as hidden shadow models
    first, or wait until the existing markets show lift?
+
+## Done, later 10-01 (Donovan: regrade w01, count each player once, ship claims, build all)
+- **Claims cleanup shipped** (bdae81d, 99b086b).
+- **NFL records corrected** (bot 9f2a9ae2, published by the manual `nfl-regrade.yml`):
+  - w01 regraded against the card rebuilt from the pregame logs: TD 3/5 → 5/5, KICK 5/5 → 3/5
+    (26/35 either way).
+  - Each player is graded once per market: w02 TD 3/5 → 3/4 (Javonte Williams); w03 KICK 3/5 → 3/4
+    (Carlson). Repeat rungs stay visible, marked `dup`.
+- **MLB challengers logged nightly, never published** (bot a0321201, cf898013):
+  - HIT `hit:avg_hand_k`, `hit:avg_spot_k`;
+  - CONTACT `tb:slg_spot`, `tb:iso_avg_k`;
+  - runs `run:rpa_obp_spot`, RBI `rbi:rpa_iso_onbase`, SB `sb:attempts_pitcher`.
+  - Graded by `bots/eval_shadow_picks.py`. Baselines on 247 clean games: HIT 63.1%, CONTACT 31.5%.
+- **Pitcher K:** the starter's K/9 and the hitter's K rate are now in the pregame log (ba939cb9).
+  The offline ranking waits for data.
