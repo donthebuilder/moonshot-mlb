@@ -7,7 +7,6 @@ import {
   fieldModel, fieldView, mapAttempts, phrase, fmtPct, heatOf, coolOf, LANES, LANE_WORD, LANE_SHORT,
   SIDES, DEPTHS, MIN_DEF_ATT, SPOT_MIN_DEF_ATT, SPOT_MIN_SHARE, SPOT_MIN_MINE, FALLBACK_MIN_ATT,
 } from '../../lib/nfl/fieldModel'
-import { softRole, softLine, fitsSoft } from '../../lib/nfl/dvpSignal'
 import { RedZoneStrip } from './RedZoneField'
 import { appHref, playerHref } from '../../lib/routes'
 
@@ -249,8 +248,6 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   const who = asPlayer || usingQb ? (player?.name || 'he') : team
   const thinSample = (asPlayer || usingQb) && n < FALLBACK_MIN_ATT
   const holes = cells.filter((c) => c.leak != null && c.leak > 0 && c.att >= SPOT_MIN_DEF_ATT)
-  const role = pid ? matchup?.roles?.[pid] : null
-  const soft = role && defTeam ? softRole(matchup, defTeam, 'season', [role]) : null
   const lines = []
   if (thinSample) lines.push(<>Built on {plural(n, unit)}: a hint, not a tendency.</>)
   if (!defTeam) lines.push(<>No opponent this week, so no defence to read: {whose} targets only.</>)
@@ -285,9 +282,9 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
       }
     }
   }
-  const roleLine = soft?.standout && soft.role === role && fitsSoft(player, soft)
-    ? <>{TL(defTeam)} {softLine(soft)}: the same role {player?.name || 'he'} plays.</>
-    : null
+  // No ROLE line here (0e d): the DvP read under the Field says his role in
+  // a sentence and ranks the doors -- one place, not two.
+  const roleLine = null
 
   const lastWk = weeksIn[0] || null
   const head = (

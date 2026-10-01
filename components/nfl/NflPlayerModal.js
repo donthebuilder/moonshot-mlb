@@ -22,9 +22,7 @@ import SourceSeason from './SourceSeason'
 import NflExplain from './NflExplain'
 import { statLabel, statFmt } from '../../lib/nfl/statLabels'
 import { quoteFor, fmtOdds } from '../../lib/nfl/oddsMatch'
-import DvpTable, { GROUP } from './DvpTable'
-import DvpDrift from './DvpDrift'
-import ChartFrame from './ChartFrame'
+import DvpRead from './DvpRead'
 import { downloadNflPickCard } from './shareCard'
 import { useNflWatchlist } from '../../lib/nfl/watchlist'
 import FollowButton from '../FollowButton'
@@ -394,31 +392,13 @@ function Head({ children }) {
 // ...and the same defence read the orthodox way. The map says where the field
 // is soft; this says whether it's soft to somebody in HIS chair. A defence can
 // leak deep right all day and still smother the WR3 who runs those routes.
+// 0e d (2026-10-01): the BY DEPTH ROLE grid and the DRIFT chart went; the
+// read is sentences per role, the ranked Doors, and the table one tap down
+// (components/nfl/DvpRead.js).
 function DvpSection({ player, matchup, slate = null }) {
-  const group = GROUP[player?.position]
-  if (!group || !matchup?.dvp?.season?.[player?.opp]) return null
-  const role = matchup?.roles?.[player.player_id]
-  return (
-    <>
-      <Head>{player.opp} DEFENCE VS {player.position} — BY DEPTH ROLE</Head>
-      {/* The grid is a measurement too, so it wears the same chrome — the
-          frame means "this is an instrument", and a table of league ranks is
-          exactly that. Game cards are deliberately NOT framed yet: that grid
-          is the next thing being rebuilt and decorating it first would be
-          decorating something about to change. */}
-      <ChartFrame accent={C.cyan} pad="0" style={{ overflow: 'hidden' }}>
-        <DvpTable data={matchup} team={player.opp} roles={group} slateSeason={slate?.season}
-                  highlight={role} minWidth={340} />
-      </ChartFrame>
-      <div style={{ marginTop: 14 }}>
-        <DvpDrift data={matchup} team={player.opp} roles={group} highlight={role} />
-      </div>
-      <div style={{ fontSize: 10, color: C.text3, marginTop: 6, lineHeight: 1.55 }}>
-        Rank 1 = allows the most = softest matchup. {matchup.season} season.
-        {!role && ' Depth roles publish with the next bot run, so no row is pinned to him yet.'}
-      </div>
-    </>
-  )
+  if (!player?.opp) return null
+  return <DvpRead matchup={matchup} def={player.opp} position={player.position}
+    role={matchup?.roles?.[player.player_id] || null} slateSeason={slate?.season} playerName={player.name} />
 }
 
 // 📸 SHARE (2026-08-24) — the pregame half of the NFL share-card pair. Builds
@@ -452,7 +432,7 @@ function pickFromPlayer(player, market, spec) {
 // the door of this card. Inside, MOONSHOT's PlayerModal has seven tabs, a peer
 // navigator, a width that follows its content and an inline mode; this file
 // had none of them and rendered nine sections as one scroll. The ANALYSIS was
-// cloned honestly -- PropsGrid, the Field, DvpTable, ScoreAnatomy are real
+// cloned honestly -- PropsGrid, the Field, the DvP read, ScoreAnatomy are real
 // football instruments, not faked baseball ones -- but the chrome around it
 // never was, and none of the chrome is sport-specific.
 //
