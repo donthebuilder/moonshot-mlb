@@ -38,6 +38,7 @@ import LegacyHashRedirect from '../../components/LegacyHashRedirect'
 import SubmitButton from '../../components/fantasy/SubmitButton'
 import { getNetworkPulse, liveProduct } from '../../lib/dash/pulse'
 import { appHref, BRAND, playerHref, SPORT_KEYS } from '../../lib/routes'
+import { easternDate } from '../../lib/data'
 import { nextLine } from '../../lib/mlbNext'
 import { wilson } from '../../lib/interval'
 import { hasSupabaseConfig } from '../../lib/supabase/config'
@@ -132,8 +133,9 @@ export default async function DashHome({ searchParams }) {
   const nflOff = (() => {
     const ks = (nfl?.kickoffs || []).map((k) => Date.parse(k)).filter(Number.isFinite).sort((a, b) => a - b)
     const now = Date.now()
-    const todayEt = new Date(now).toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
-    const on = ks.some((t) => new Date(t).toLocaleDateString('en-CA', { timeZone: 'America/New_York' }) === todayEt || (t <= now && now - t < 4 * 3600e3))
+    // the same ET-date reader liveProduct uses (0g D8: one clock for "is football on")
+    const todayEt = easternDate(now)
+    const on = ks.some((t) => easternDate(t) === todayEt || (t <= now && now - t < 4 * 3600e3))
     if (on || !ks.length) return null
     const next = ks.find((t) => t > now)
     return next ? `next game ${new Date(next).toLocaleString('en-US', { timeZone: 'America/New_York', weekday: 'short', hour: 'numeric', minute: '2-digit' })} ET` : 'no game left this week'
@@ -410,7 +412,12 @@ export default async function DashHome({ searchParams }) {
               ))}
             </ul>
           ) : (
-            <dl><div><dt>Games</dt><dd>{nfl?.games ?? '—'}</dd></div><div><dt>Players rated</dt><dd>{nfl?.players ?? '—'}</dd></div></dl>
+            // no week loaded (off-season, or the slate not published): one sentence, not two dashes (0g D7)
+            nfl?.games ? (
+              <dl><div><dt>Games</dt><dd>{nfl.games}</dd></div><div><dt>Players rated</dt><dd>{nfl?.players ?? 0}</dd></div></dl>
+            ) : (
+              <p className={styles.muted}>{nflOff ? `No board this week yet · ${nflOff}.` : 'This week’s board posts once the slate is set.'}</p>
+            )
           )}
           <footer>
             <Link href="/app#sport=nfl&tab=home">Open TUDDY →</Link>
