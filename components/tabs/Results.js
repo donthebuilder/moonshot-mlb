@@ -1341,7 +1341,7 @@ export default function Results({ results, liveResults = null, slateDate = '', b
           : `every graded night in the archive · ${gradedDays.length} of them`}
         right={mode === 'night' ? (
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            <Chip color={C.green}>{homers.length} HRs on sheet</Chip>
+            <Chip color={C.green}>{homers.length} HR{homers.length === 1 ? '' : 's'} on sheet</Chip>
             {topHit > 0 && <Chip color={C.orange}>{topHit}/{topBoard.length} Top Board</Chip>}
           </div>
         ) : null}

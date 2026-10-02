@@ -10,7 +10,7 @@ import { C, NUM_FONT } from '../lib/theme'
 import { resolveTab, pageTitle, isSport } from '../lib/routes'
 import { usePageTitle } from '../lib/usePageTitle'
 import TabNotFound from './TabNotFound'
-import { fetchJSON, normalizeData, groupGames, slateLooksReal, slateDateFromRows, keepNewerSlate, easternDate } from '../lib/data'
+import { fetchJSON, normalizeData, groupGames, slateLooksReal, slateDateFromRows, keepNewerSlate, easternDate, mlbScheduleSpan } from '../lib/data'
 import { stampSave, unstampSave, seedFromOldLedger } from '../lib/watchNights'
 import { slatePaths, resultsPaths, runMetaPaths, pairBuilderPaths, pairSummaryPaths, backtestPaths, evalReportPaths, oddsPaths, gradedResultsUrl, setSlateMode } from '../lib/dataSource'
 import { nameOf, teamOf, oppOf, clean, playerId, obj } from '../lib/player'
@@ -722,7 +722,20 @@ export default function Dashboard({ palettePass = 0 }) {
     sport: 'mlb', date: slateDate || null,
     games: headerGames.map((g) => { const t = Date.parse(g.game_time || ''); return { away: g.away, home: g.home, start: t, state: Number.isFinite(t) && t > Date.now() ? 'pre' : 'started' } }),
   }), [headerGames, slateDate])
-  const slateIsReal = !data || slateLooksReal(data)
+  // MLB's schedule from the slate's date to today (one read per slate date, no
+  // polling): how many games the slate's night had, and whether every day since
+  // was a day off -- so a one-game postseason night isn't "incomplete" and an
+  // off day isn't "the run failed".
+  const [sched, setSched] = useState(null)
+  useEffect(() => {
+    if (!slateDate) return undefined
+    let live = true
+    const today = easternDate(Date.now())
+    mlbScheduleSpan(slateDate, today > slateDate ? today : slateDate).then((x) => { if (live) setSched(x ? { ...x, from: slateDate } : null) })
+    return () => { live = false }
+  }, [slateDate])
+  const schedHere = sched?.from === slateDate ? sched : null
+  const slateIsReal = !data || slateLooksReal(data, schedHere?.byDate?.[slateDate] ?? null)
   // FALLBACK TO THE DATED FILE WHEN results_live.json GOES STALE.
   //
   // 2026-08-15: the branch was serving results_live.json dated 2026-07-26
@@ -825,7 +838,7 @@ export default function Dashboard({ palettePass = 0 }) {
             has the full panel) — live info dies when it needs visiting. */}
         {/* Loudest thing on the page when it fires, and silent otherwise:
             "you are looking at a slate that already happened". */}
-        <StaleBanner compact slateDate={slateDate} mode={mode} loading={loading} truncated={!slateIsReal} games={groupGames(allPlayers).length} />
+        <StaleBanner compact slateDate={slateDate} mode={mode} loading={loading} truncated={!slateIsReal} games={groupGames(allPlayers).length} schedule={schedHere} />
         <MiniWire players={players} watchIds={watchIds} tab={tab} mode={mode} results={resultsForSlate} odds={odds} onGo={() => setTab('scoreboard')} onPlayerClick={setModalPlayer} />
         {/* One beginner paragraph per tab — auto-opens on first visit,
             collapses to a pill forever after. The answer to "looks nice

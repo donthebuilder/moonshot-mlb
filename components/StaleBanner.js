@@ -47,7 +47,7 @@ const daysBetween = (a, b) => Math.round(
   (new Date(`${a}T12:00:00Z`).getTime() - new Date(`${b}T12:00:00Z`).getTime()) / 864e5,
 )
 
-export default function StaleBanner({ slateDate = '', mode = 'today', loading = false, truncated = false, games = 0, compact = false }) {
+export default function StaleBanner({ slateDate = '', mode = 'today', loading = false, truncated = false, games = 0, compact = false, schedule = null }) {
   // Re-check on a slow timer so a tab left open overnight notices the rollover
   // rather than sitting on the assumption it made when it was opened.
   const [now, setNow] = useState(null)
@@ -110,6 +110,18 @@ export default function StaleBanner({ slateDate = '', mode = 'today', loading = 
   // Now: one day behind before 10am ET says nothing at all. After 10am ET
   // the build is genuinely late and the banner is right to say so.
   if (behind === 1 && now.hour < 10) return null
+  // NO GAMES SINCE (2026-10-02): every day after the slate's own date, up to the
+  // one being asked for, had no MLB games on the schedule -- the slate shown IS
+  // the last night played, and the bot has nothing newer to publish.
+  if (schedule?.byDate) {
+    const between = []
+    for (let d = addDays(slateDate, 1); d <= expected; d = addDays(d, 1)) between.push(d)
+    if (between.length && between.every((d) => !schedule.byDate[d])) {
+      const nx = schedule.next ? new Date(`${schedule.next}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' }) : null
+      return <StaleNote compact={compact} tone={C.blue} icon="📅" title={`No MLB games ${mode === 'tomorrow' ? 'tomorrow' : 'today'}`}
+        meta={`showing ${slateDate}, the last night played${nx ? ` · next games ${nx}` : ''}`} />
+    }
+  }
   const early = false
   const col = '#f87171'
 
