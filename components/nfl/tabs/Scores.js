@@ -37,7 +37,7 @@ function statusOf(g) {
 
 const byKickoff = (a, b) => (Date.parse(a.kickoff || 0) || 0) - (Date.parse(b.kickoff || 0) || 0)
 
-export default function Scores({ data, onPlayerClick }) {
+export default function Scores({ data, onPlayerClick, onOpenGame = null }) {
   const watchlist = useNflWatchlist(data)
   const slateGames = useMemo(() => (data?.games || []).slice().sort(byKickoff), [data])
   // The feed carries abbreviations only; the slate knows every club's name.
@@ -137,6 +137,14 @@ export default function Scores({ data, onPlayerClick }) {
               }))}
             >
               {boxFor(g)}
+              {/* the game's own read on the Slate, as Ledger / Storylines open it (0g A10);
+                  only a game on this week's slate has one */}
+              {onOpenGame && slateGames.some((s) => String(s.game_id) === String(g.game_id)) && (
+                <button type="button" onClick={() => onOpenGame(g.game_id)}
+                  style={{ display: 'inline-flex', alignItems: 'center', minHeight: 44, marginTop: 6, padding: '0 12px', borderRadius: 8, border: `1px solid ${C.border}`, background: 'transparent', color: C.cyan, font: `800 11px/1 ${NUM_FONT}`, cursor: 'pointer' }}>
+                  The read on {NFL_NAV.games.label} →
+                </button>
+              )}
             </GameRow>
           )
         })}

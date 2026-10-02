@@ -430,7 +430,7 @@ export default function NflDashboard({ palettePass = 0 }) {
             {tab === 'accountability' && <Accountability data={data} results={nflResults} onPlayerClick={openPlayer} />}
             {tab === 'tuddyledger' && <TuddyLedger data={data} results={nflResults} onPlayerClick={openPlayer} />}
             {tab === 'ledger' && <Ledger data={slate} picks={picks} results={nflResults} matchup={matchup} onPlayerClick={openPlayer} onOpenTeam={(abbr) => { setPortalTeam(abbr); setTab('players') }} onOpenGame={(id) => { leaveTarget('game', id); setTab('games') }} />}
-            {tab === 'scores' && <Scores data={slate} onPlayerClick={openPlayer} />}
+            {tab === 'scores' && <Scores data={slate} onPlayerClick={openPlayer} onOpenGame={(id) => { leaveTarget('game', id); setTab('games') }} />}
             {tab === 'standings' && <Standings onOpenTeam={(abbr) => { setPortalTeam(abbr); setTab('players') }} />}
             {tab === 'pairs' && <Pairs data={data} results={nflResults} onPlayerClick={openPlayer} setTab={setTab} />}
             {tab === 'guide' && <Guide onNavigate={setTab} data={data} />}
