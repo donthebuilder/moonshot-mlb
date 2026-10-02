@@ -103,7 +103,7 @@ function inkTexture(svg, box) {
   })
 }
 
-export default function FieldArena({ dots = [], cells = [], spot = null, rz = [], onPick = null, title = '', subtitle = '', inkSvg = null, inkBox = null, stats = null, showDiscs = true }) {
+export default function FieldArena({ dots = [], cells = [], spot = null, rz = [], onPick = null, title = '', subtitle = '', inkSvg = null, inkBox = null, stats = null, showDiscs = true, venue = null }) {
   const mountRef = useRef(null)
   const tipRef = useRef(null)
   const [ok, setOk] = useState(true)
@@ -411,6 +411,8 @@ export default function FieldArena({ dots = [], cells = [], spot = null, rz = []
   ]
   const caption = (
     <div style={{ marginTop: 6 }}>
+      {/* THE BUILDING (Donovan 10-02, "just show whatever building they are at"): its name, nothing modelled */}
+      {venue ? <div style={{ fontFamily: NUM_FONT, fontSize: 11, fontWeight: 800, letterSpacing: '.06em', color: C.text2, marginBottom: 4 }}>🏟 {venue}</div> : null}
       <ChartLegend theme={C} items={[
         { key: 'td', mark: <b aria-hidden="true" style={{ color: C.orange }}>●</b>, label: 'touchdown' },
         { key: 'catch', mark: <b aria-hidden="true" style={{ color: C.cream }}>●</b>, label: 'catch' },
@@ -437,7 +439,7 @@ export default function FieldArena({ dots = [], cells = [], spot = null, rz = []
           emptyText="The window chips above set what is drawn." stats={narrowBox ? null : dockStats} theme={C} numFont={NUM_FONT}
           accent={C.green} accentSoft={`${C.green}1a`} maxWidth="72%" />
         {/* on a phone the field's own title sits right above, and the plate would cover the BEHIND row */}
-        {!narrowBox && <LowerThird title={title} subtitle={subtitle} theme={C} numFont={NUM_FONT} accent={C.green} fallback="TUDDY" />}
+        {!narrowBox && <LowerThird title={title} subtitle={venue ? `${subtitle} · ${venue}` : subtitle} theme={C} numFont={NUM_FONT} accent={C.green} fallback="TUDDY" />}
         <FilmOverlay />
         <HoverReadout ref={tipRef} theme={C} numFont={NUM_FONT} maxWidth={220} />
       </div>

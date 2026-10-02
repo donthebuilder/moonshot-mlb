@@ -33,6 +33,7 @@ import ScoreAnatomy from './ScoreAnatomy'
 import NflPlayerRead from './NflPlayerRead'
 import SplitDumbbell from './SplitDumbbell'
 import { playerHref } from '../../lib/routes'
+import { gameVenue } from '../../lib/nfl/venueOf'
 
 // Why this player scores what he scores — see components/nfl/ScoreAnatomy.js.
 // Since 2026-10-01 (0e b) that is one line: the board card's WHY sentence
@@ -621,7 +622,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
             where his work is) over this week's defence, the red zone under
             it. Its title is the section head. */}
         {player.team && (
-          <TheField key={player.player_id} team={player.team} player={player} defTeam={player.opp} defWeek={slate?.week}
+          <TheField key={player.player_id} team={player.team} player={player} defTeam={player.opp} defWeek={slate?.week} venue={gameVenue(slate?.games, player.team, player.opp)}
             matchup={matchup} players={slate?.players} hashSync={inline} />
         )}
         <DvpSection player={player} matchup={matchup} slate={slate} />

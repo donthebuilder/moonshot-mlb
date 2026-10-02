@@ -68,7 +68,7 @@ function shotTip(sh, speed, hardest) {
   return `${head}<br/>${line}${sh[9] ? `<br/><span style="color:${C.text3}">${String(sh[9]).replace(/-/g, ' ')}</span>` : ''}<br/><span style="color:${C.text3}">${sp}</span>`
 }
 
-export default function RinkArena({ shots = [], map = null, league = null, slot = null, gridSpec = null, view = 'dots', onPick = null, onPickCell = null, title = '', subtitle = '',
+export default function RinkArena({ shots = [], map = null, league = null, slot = null, gridSpec = null, view = 'dots', onPick = null, onPickCell = null, title = '', subtitle = '', venue = null,
   speed = null, hardest = null, stats = null, dockChips = [], onClearAll = null, totalShots = null, slotPct = null, goalieRead = null, onPickZone = null }) {
   const tipRef = useRef(null)
   // on a phone the dock starts shut and carries no stats line: the same numbers
@@ -444,6 +444,8 @@ export default function RinkArena({ shots = [], map = null, league = null, slot 
   ]
   const caption = (
     <div style={{ marginTop: 6 }}>
+      {/* THE BUILDING (Donovan 10-02, "just show whatever building they are at"): its name, nothing modelled */}
+      {venue ? <div style={{ fontFamily: NUM_FONT, fontSize: 11, fontWeight: 800, letterSpacing: '.06em', color: C.text2, marginBottom: 4 }}>🏟 {venue}</div> : null}
       <ChartLegend theme={C} items={view === 'vs'
         ? [{ key: 'vs', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, background: `${C.lamp}aa` }} />, label: 'more than the league / blue fewer, as on the rink above' }]
         : view === 'heat'
@@ -471,7 +473,7 @@ export default function RinkArena({ shots = [], map = null, league = null, slot 
         <StadiumDock open={dockOpen} onToggle={() => setDockOpen((v) => !v)} now={shots.length || (map?.attempts ?? 0)} all={totalShots ?? shots.length}
           chips={dockChips} onClearAll={onClearAll || (() => {})} stats={narrowBox ? null : stats} theme={C} numFont={NUM_FONT} accent={C.ice} accentSoft={`${C.ice}1a`}
           emptyText="No filters on — every drawn attempt is on the ice." maxWidth="72%" />
-        <LowerThird title={title} subtitle={subtitle} theme={C} numFont={NUM_FONT} accent={C.ice} fallback="LAMP" scrim={C.bg} />
+        <LowerThird title={title} subtitle={venue ? `${subtitle} · ${venue}` : subtitle} theme={C} numFont={NUM_FONT} accent={C.ice} fallback="LAMP" scrim={C.bg} />
         <FilmOverlay />
         <HoverReadout ref={tipRef} theme={C} numFont={NUM_FONT} maxWidth={200} />
       </div>

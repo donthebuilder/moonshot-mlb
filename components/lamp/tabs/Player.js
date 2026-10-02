@@ -18,6 +18,7 @@ import { usePreview, ShowMoreButton } from '../../ListPreview'
 import { STATUS, EmptyState, DelayedBanner, Loading, SourceLine, Kicker, StaleSeasonNote, fmtDay, fmtPuckDrop, zoneAbbrev, ageFrom, fmtHeight, fmtPct1, fmtPct3, fmt2, fmtSec, plusMinus, dash } from '../ui'
 import WhyLines from '../../WhyLines'
 import { goalWhy } from '../../../lib/nhl/goalWhy'
+import { arenaOf } from '../../../lib/nhl/arenas'
 
 // 🏒 PLAYER — one man's file, at a stable address (#sport=nhl&tab=player&
 // player=<id>). A skater and a goalie share the route and NOT the page:
@@ -211,7 +212,8 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel }) {
       {!goalie && (
         <section aria-label="Where he shoots from">
           <Kicker>WHERE HE SHOOTS FROM</Kicker>
-          <ShotPanel sel={{ player: p.id }} who="He" height={260} />
+          {/* the building: tonight's game's when he plays tonight, else his club's own */}
+          <ShotPanel sel={{ player: p.id }} who="He" height={260} venue={arenaOf(spot?.g?.game?.home?.abbrev || p.team)?.name} />
         </section>
       )}
 

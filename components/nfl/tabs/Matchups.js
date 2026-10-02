@@ -21,6 +21,7 @@ import { SportTheme } from '../../SportTheme'
 import { softRole, softLine, passRushThreat, blockSeason, PASS_RUSH_AVOID, STARTER_ROLES } from '../../../lib/nfl/dvpSignal'
 import TheField from '../TheField'
 import { ordinal } from '../../../lib/format'
+import { gameVenue } from '../../../lib/nfl/venueOf'
 
 // Matchups -- the defenses to attack this week, then one defense read the
 // way MOONSHOT reads a starter (2026-09-28, Donovan: "the match up page on nfl
@@ -427,7 +428,7 @@ export default function Matchups({ matchup, data, onPlayerClick = null, onOpenTe
             defence with no game on the slate has no offence to draw, so it
             keeps the zone read. */}
         {opp ? <>
-          <TheField key={`${opp}-${active}`} team={opp} defTeam={active} defWeek={data?.week} matchup={matchup}
+          <TheField key={`${opp}-${active}`} team={opp} defTeam={active} defWeek={data?.week} matchup={matchup} venue={gameVenue(data?.games, opp, active)}
             players={data?.players} initialMode="TEAM" onPlayerClick={onPlayerClick} onOpenTeam={onOpenTeam} />
           {(() => {
             const o = laneOutcomes(matchup.field, active)

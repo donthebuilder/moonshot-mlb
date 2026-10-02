@@ -8,6 +8,7 @@ import ShotPanel from '../ShotPanel'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import { DelayedBanner, Loading, SourceLine, EmptyState, PlayerMark } from '../ui'
 import { MatchupTitle, SubLabel, BarList, FactLines } from '../../matchup/MatchupParts'
+import { arenaOf } from '../../../lib/nhl/arenas'
 
 // 🏒 LAMP MATCHUPS (2026-09-27, matchups plan Part B, in the shape Donovan
 // signed off on TUDDY's): a ranked table of tonight's defences leads --
@@ -110,13 +111,13 @@ function Detail({ row, league, onOpenPlayer, onOpenTeam = null }) {
 
       <div>
         <Kicker>WHERE {row.def} ALLOWS SHOTS FROM</Kicker>
-        <ShotPanel sel={{ against: row.def }} who={row.def} height={260} />
+        <ShotPanel sel={{ against: row.def }} who={row.def} height={260} venue={arenaOf(row.home ? row.def : row.opp)?.name} />
         <div style={{ marginTop: 4, fontSize: 11, color: C.text3 }}>Every attempt the other club took in {row.def}&apos;s games, drawn on one attacking half.</div>
       </div>
 
       <div>
         <Kicker>WHERE {row.opp} SHOOTS FROM</Kicker>
-        <ShotPanel sel={{ team: row.opp }} who={row.opp} height={260} />
+        <ShotPanel sel={{ team: row.opp }} who={row.opp} height={260} venue={arenaOf(row.home ? row.def : row.opp)?.name} />
       </div>
     </section>
   )

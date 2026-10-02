@@ -222,7 +222,7 @@ function writeHash(win, { share = true, dots = true, res = 'ALL', dn = 'ALL', ty
  * players    slate rows, for names in TEAM mode
  * hashSync   read/write view=field&win= on the URL (the player card)
  */
-export default function TheField({ team, player = null, defTeam, defWeek = null, matchup, players = [], initialMode = null, hashSync = false, onPlayerClick = null, onOpenTeam = null }) {
+export default function TheField({ team, player = null, defTeam, defWeek = null, matchup, players = [], initialMode = null, hashSync = false, onPlayerClick = null, onOpenTeam = null, venue = null }) {
   const file = useFieldFile(team)
   const pid = player ? String(player.player_id) : null
   const isQB = String(player?.position || '').toUpperCase() === 'QB'
@@ -963,7 +963,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
       {statBlock}
       {/* THE STADIUM (BATCH-NFL-3D): opens above the card, as LAMP's arena does */}
       {stadium && gl && !isRun && (
-        <FieldArena dots={dots3} cells={cells} spot={spot} rz={stripRows.flatMap((r) => r.touches)} onPick={(i) => setPick(i)} inkSvg={() => inkRef.current} inkBox={inkBox} stats={stats} showDiscs={dotsOn}
+        <FieldArena dots={dots3} cells={cells} spot={spot} rz={stripRows.flatMap((r) => r.touches)} onPick={(i) => setPick(i)} inkSvg={() => inkRef.current} inkBox={inkBox} stats={stats} showDiscs={dotsOn} venue={venue}
           title={subjName} subtitle={`${plural(drawn.length, unit)}${defTeam ? ` · vs ${defTeam}` : ''}`} />
       )}
       {/* MOONSHOT'S SPRAY CHART FRAME (SprayField .spray-wrap, as LAMP's shot map): the
