@@ -1,4 +1,5 @@
 'use client'
+import { STATUS_WORD as CALL_WORDS } from '../lib/callStatus'
 import { useEffect, useMemo, useState } from 'react'
 import PageHeader from './PageHeader'
 import DenseTable from './DenseTable'
@@ -12,7 +13,9 @@ import { PillRow } from './Filters'
 //
 // Each product passes its own theme, table and player opener -- no sport
 // branches in here (lib/routes.js is the one place sports are listed).
-const STATUS_WORD = { called: 'CALLED', board: 'ON THE BOARD', off: '' }
+// lib/callStatus's words; Longshots shows no badge for a man off the board (a
+// longshot usually is), so off draws nothing here -- a choice, not a missing word
+const STATUS_WORD = { ...CALL_WORDS, off: '' }
 const plus = (v) => (v == null ? '—' : v > 0 ? `+${v}` : String(v))
 function fmtStat(v, c) {
   if (v === null || v === undefined || v === '') return '\u2014'

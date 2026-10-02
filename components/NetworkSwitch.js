@@ -1,8 +1,8 @@
 'use client'
+import { SPORT_ACCENT } from '../lib/sportAccent'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { setSport, useSport } from '../lib/sport'
-import { C as LAMP_C } from '../lib/nhl/theme'
 
 // 🧭 THE NETWORK SWITCH (2026-08-29).
 //
@@ -22,10 +22,10 @@ import { C as LAMP_C } from '../lib/nhl/theme'
 //    navigational fact, and hiding it makes the row jump between screens.
 
 const PRODUCTS = [
-  { key: 'mlb', name: 'MOONSHOT', meta: 'MLB', href: '/app#sport=mlb&tab=home', color: '#f97316' },
-  { key: 'nfl', name: 'TUDDY', meta: 'NFL', href: '/app#sport=nfl&tab=home', color: '#22c55e' },
+  { key: 'mlb', name: 'MOONSHOT', meta: 'MLB', href: '/app#sport=mlb&tab=home', color: SPORT_ACCENT.mlb },
+  { key: 'nfl', name: 'TUDDY', meta: 'NFL', href: '/app#sport=nfl&tab=home', color: SPORT_ACCENT.nfl },  // jade, its theme's own (R2a; was #22c55e)
   // 2026-09-25: LAMP, the NHL product. Ice, so it reads apart from orange and jade.
-  { key: 'nhl', name: 'LAMP', meta: 'NHL', href: '/app#sport=nhl&tab=home', color: LAMP_C.ice },
+  { key: 'nhl', name: 'LAMP', meta: 'NHL', href: '/app#sport=nhl&tab=home', color: SPORT_ACCENT.nhl },
   { key: 'fantasy', name: 'FRANCHISE', meta: 'FANTASY', href: '/fantasy', color: '#ff633e' },
 ]
 

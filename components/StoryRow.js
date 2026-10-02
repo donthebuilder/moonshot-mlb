@@ -1,4 +1,5 @@
 'use client'
+import { STATUS_WORD } from '../lib/callStatus'
 import { useSportTheme } from './SportTheme'
 
 // ONE ROW FOR EVERY STORYLINES LINE (HISTORY WATCH 2 step 1, 2026-09-27).
@@ -45,7 +46,7 @@ export function StoryParts({ parts, theme: C, numFont }) {
     : x.t === 'num' ? <b key={j} style={{ fontFamily: numFont, color: num }}>{x.v}</b> : <span key={j}>{x.v}</span>))
 }
 
-const STATUS = { called: 'CALLED', board: 'ON THE BOARD', off: 'NOT ON THE BOARD' }
+const STATUS = STATUS_WORD   // lib/callStatus.js, the one set of words (R2)
 /** The player's board chip beside a story (lib/stories/index.js `board`). */
 export function BoardBadge({ b, theme: C, numFont, accent }) {
   if (!b) return null

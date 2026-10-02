@@ -39,6 +39,7 @@ import SubmitButton from '../../components/SubmitButton'
 import { getNetworkPulse, liveProduct } from '../../lib/dash/pulse'
 import { appHref, BRAND, playerHref, SPORT_KEYS } from '../../lib/routes'
 import { easternDate } from '../../lib/data'
+import { SPORT_ACCENT } from '../../lib/sportAccent'
 import { nextLine } from '../../lib/mlbNext'
 import { wilson } from '../../lib/interval'
 import { hasSupabaseConfig } from '../../lib/supabase/config'
@@ -145,7 +146,8 @@ export default async function DashHome({ searchParams }) {
   const authOpen = Boolean(welcomeName || params.error || params.message || params.confirm || params.em)
 
   return (
-    <main className={styles.page} id="top">
+    // each product's accent from its own theme (R2a): dash.module.css reads --mlb / --nfl / --nhl
+    <main className={styles.page} id="top" style={{ '--mlb': SPORT_ACCENT.mlb, '--nfl': SPORT_ACCENT.nfl, '--nhl': SPORT_ACCENT.nhl }}>
       {/* Old /#sport=…&tab=… links land here now. This sends them on to the
           board with the hash intact — see the component for why it cannot be
           done on the server. */}

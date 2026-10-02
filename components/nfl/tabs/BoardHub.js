@@ -8,7 +8,7 @@ import BoardTopBar from '../../BoardTopBar'
 import { nflGameOptions } from '../NflBoardExtras'
 import Touchdowns, { tdPool } from './Touchdowns'
 import HowToRead from '../../HowToRead'
-import { tdCallStatus } from '../../../lib/callStatus'
+import { tdCallStatus, STATUS_WORD } from '../../../lib/callStatus'
 import Boards from './Boards'
 import Picks from './Picks'
 
@@ -47,7 +47,7 @@ const HOW_STEPS = [
   { icon: '★', text: 'Add him to your watchlist.' },
   { icon: '✅', text: 'After the games, every call is graded under Called.' },
 ]
-const CALL_WORDS = { called: 'CALLED', board: 'ON THE BOARD' }
+const CALL_WORDS = { called: STATUS_WORD.called, board: STATUS_WORD.board }   // lib/callStatus.js (R2)
 
 export default function BoardHub({ slate, data, logs, matchup, odds, oddsStatus, picks, results, liveSnap = null, onPlayerClick, initialView = 'board', onTitle = null, onView = null }) {
   const [market, setMarket] = useState('TD')

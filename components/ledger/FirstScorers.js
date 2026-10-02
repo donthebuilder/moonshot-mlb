@@ -1,4 +1,5 @@
 'use client'
+import { STATUS_WORD } from '../../lib/callStatus'
 import { useEffect, useState } from 'react'
 import LedgerSection from './LedgerSection'
 import Tap from '../Tap'
@@ -12,7 +13,7 @@ const WORD = {
   nfl: { event: 'TD', first: 'first touchdown', title: 'FIRST TOUCHDOWN OF EACH GAME', note: null },
   nhl: { event: 'goal', first: 'first goal', title: 'FIRST GOAL OF EACH GAME', note: null },
 }
-const STATUS_WORD = { called: 'CALLED', board: 'ON THE BOARD', off: 'NOT ON THE BOARD' }
+// lib/callStatus.js, the one set of words (R2)
 
 export default function FirstScorers({ sport, C, numFont, accent, day = null, emptyWhy, onOpenPlayer, onOpenGame = null }) {
   const [data, setData] = useState(null)

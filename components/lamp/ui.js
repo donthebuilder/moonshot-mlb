@@ -1,4 +1,5 @@
 'use client'
+import { STATUS_WORD } from '../../lib/callStatus'
 import Tap from '../Tap'
 import { C, NUM_FONT } from '../../lib/nhl/theme'
 import { nhlLogo } from '../../lib/nhl/teams'
@@ -12,7 +13,7 @@ export { fmtDay, fmtPct3, fmt2, fmtSec, plusMinus } from '../../lib/nhl/format'
 
 // CALLED / ON THE BOARD / NOT ON THE BOARD: the words, letter for letter,
 // wherever LAMP prints a lock's label (the board, the goal lists).
-export const STATUS = { called: 'CALLED', board: 'ON THE BOARD', off: 'NOT ON THE BOARD' }
+export const STATUS = STATUS_WORD   // lib/callStatus.js, the one set of words (R2)
 
 export function CalledChip({ style = null }) {
   return <span style={{ marginRight: 7, background: C.ice, color: C.bg, font: `900 7.5px/1 ${NUM_FONT}`, letterSpacing: '.12em', borderRadius: 4, padding: '2px 5px', verticalAlign: '1px', whiteSpace: 'nowrap', ...style }}>{STATUS.called}</span>
