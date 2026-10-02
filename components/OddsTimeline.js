@@ -1,5 +1,5 @@
 'use client'
-import { C, NUM_FONT } from '../lib/theme'
+import { C as MLB_C, NUM_FONT as MLB_NUM } from '../lib/theme'
 import { fmtOdds, impliedPct } from '../lib/odds'
 
 const finite = (value) => value == null || value === ''
@@ -64,7 +64,10 @@ const timeLabel = (point, index) => {
   return index === 0 ? 'Open' : `#${index + 1}`
 }
 
-export default function OddsTimeline({ quote, compact = false, marketLabel = 'price' }) {
+// theme / numFont: the sport's (2026-10-02, the Odds page for every sport); MOONSHOT's by default
+export default function OddsTimeline({ quote, compact = false, marketLabel = 'price', theme = null, numFont = null }) {
+  const C = theme || MLB_C
+  const NUM_FONT = numFont || MLB_NUM
   const points = oddsTimelinePoints(quote)
   if (points.length < 2) return null
 

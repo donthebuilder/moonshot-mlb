@@ -1,10 +1,11 @@
 'use client'
-import { useMemo, useState } from 'react'
-import { C, NUM_FONT, TYPE } from '../../lib/theme'
-import { nameOf, teamOf, oppOf, n, clean, hrScore, hitScore, prodScore, tbScore } from '../../lib/player'
-import { fmtOdds, impliedPct, fairOdds, hrPerGame, edgeOf, normName, priceBand, priceTaken } from '../../lib/odds'
+import { useEffect, useMemo, useState } from 'react'
+import { C as MLB_C, NUM_FONT as MLB_NUM, TYPE } from '../../lib/theme'
+import { nameOf, teamOf, oppOf, n, clean } from '../../lib/player'
+import { fmtOdds, impliedPct, fairOdds, edgeOf, priceBand, priceTaken } from '../../lib/odds'
+import { oddsAdapter } from '../../lib/odds/adapters'
 import { verdictInk } from '../../lib/scales'
-import { hrGameBand, edgeBand } from '../../lib/hrRateBand'
+import { edgeBand } from '../../lib/hrRateBand'
 import { CalibrationScatter } from '../OddsChart'
 import DenseTable from '../DenseTable'
 import OddsStatus, { useOddsStatus, siteHasPrices } from '../OddsStatus'
@@ -85,32 +86,10 @@ import { btnStyle } from '../ui'
 // price and the best one on the board. Inventing a delta from a field that
 // doesn't exist would be the second most confident wrong thing on this page.
 
-const MARKETS = [
-  { key: 'batter_home_runs', label: 'HR', std: 0.5, color: '#FB923C', verb: 'to go deep' },
-  { key: 'batter_hits', label: 'Hits', std: 0.5, color: '#60A5FA', verb: 'for a hit' },
-  { key: 'batter_hits_runs_rbis', label: 'H+R+RBI', std: 1.5, color: '#4ade80', verb: 'for two of hits / runs / RBI' },
-  { key: 'batter_total_bases', label: 'Bases', std: 1.5, color: '#FCD34D', verb: 'for two total bases' },
-  { key: 'batter_runs_scored', label: 'Runs', std: 0.5, color: '#c084fc', verb: 'to score' },
-  { key: 'batter_rbis', label: 'RBI', std: 0.5, color: '#f87171', verb: 'to drive one in' },
-  { key: 'batter_doubles', label: '2B', std: 0.5, color: '#38bdf8', verb: 'for a double' },
-  { key: 'batter_triples', label: '3B', std: 0.5, color: '#a78bfa', verb: 'for a triple' },
-]
-const MK = Object.fromEntries(MARKETS.map((m) => [m.key, m]))
-
-// Only four markets have a score on this site. Runs, RBI, doubles and
-// triples have none — and a column of 0.0 (2026-08-15, straight off his
-// screenshot) reads as "the model rates every one of these zero", which is a
-// claim, and a false one. No score, no column.
-const HAS_SCORE = new Set([
-  'batter_home_runs', 'batter_hits', 'batter_hits_runs_rbis', 'batter_total_bases',
-])
-const scoreFor = (p, mk) => (
-  mk === 'batter_home_runs' ? hrScore(p)
-    : mk === 'batter_hits' ? hitScore(p)
-    : mk === 'batter_hits_runs_rbis' ? prodScore(p)
-    : mk === 'batter_total_bases' ? tbScore(p)
-    : 0
-)
+// THE MARKETS, THE SCORES AND THE ONE REAL RATE are per sport now
+// (lib/odds/adapters.js, 2026-10-02): MOONSHOT's eight batter markets, its four
+// scores and hr_per_pa are the MLB adapter, unchanged; TUDDY and LAMP bring
+// their own markets and scores and no rate.
 
 // The bar a named call has to clear to be allowed to lead. hr_per_pa is a
 // season rate and it is only as good as the trips it was measured over; at 40
@@ -150,7 +129,7 @@ const one = (v) => (Number.isFinite(v) ? (Math.round(10 * v) / 10).toFixed(1) : 
 // #tab=trueprice deep link can open this tab already switched — optional,
 // defaulting to the board, so the current Dashboard mount renders unchanged
 // until routing is rewired.
-const PAGE_VIEWS = [
+const PAGE_VIEWS_ALL = [
   // "Tonight's board" was a lie whenever the fetch was old (see the
   // freshness gate below) — the label now claims nothing about when.
   ['board', '💵 Odds board'],
@@ -163,11 +142,41 @@ const PAGE_VIEWS = [
   ['shop', '🛒 Line shop'],
 ]
 
-export default function OddsBoard({ players = [], odds = null, onPlayerClick, initialView = 'board' }) {
+// One page for every sport (2026-10-02, Donovan: "for all sports, like a
+// component"): MOONSHOT mounts it as before; TUDDY and LAMP pass their sport,
+// theme and table, and their own player rows (the week's / the night's board).
+// `odds` undefined = fetch the sport's own payload; Moves and Line shop always
+// fetch the detail (each quote's trail and its books, /api/odds/latest?detail=1).
+const DETAIL = new Map()
+function useOddsPayload(sport, want) {
+  const [body, setBody] = useState(() => DETAIL.get(sport) || null)
+  useEffect(() => {
+    if (!want || DETAIL.get(sport)) { if (want) setBody(DETAIL.get(sport)); return undefined }
+    let live = true
+    fetch(`/api/odds/latest?sport=${sport}&detail=1`).then((r) => (r.ok ? r.json() : null)).then((b) => {
+      if (b && !b.error) DETAIL.set(sport, b)
+      if (live) setBody(b && !b.error ? b : null)
+    }).catch(() => {})
+    return () => { live = false }
+  }, [sport, want])
+  return want ? body : null
+}
+
+export default function OddsBoard({ players = [], odds: oddsProp, onPlayerClick, initialView = 'board', sport = 'mlb', theme = null, numFont = null, Table = DenseTable }) {
+  const A = oddsAdapter(sport)
+  const C = theme || MLB_C
+  const NUM_FONT = numFont || MLB_NUM
+  const MARKETS = A.markets
+  const MK = Object.fromEntries(MARKETS.map((m) => [m.key, m]))
+  const HAS_SCORE = { has: (mk) => A.hasScore(mk) }
+  const scoreFor = (p, mk) => A.scoreFor(p, mk)
+  const PAGE_VIEWS = PAGE_VIEWS_ALL.filter(([k]) => k !== 'trueprice' || A.trueprice)
   const [view, setView] = useState(
     initialView === 'trueprice' ? 'trueprice' : initialView === 'signals' ? 'signals' : initialView === 'shop' ? 'shop' : 'board'
   )
-  const [market, setMarket] = useState('batter_home_runs')
+  const [market, setMarket] = useState(MARKETS[0].key)
+  const detail = useOddsPayload(sport, oddsProp === undefined || view === 'signals' || view === 'shop')
+  const odds = (view === 'signals' || view === 'shop' || oddsProp === undefined ? detail : null) || oddsProp || null
   const [plusOnly, setPlusOnly] = useState(false)
   const [offStd, setOffStd] = useState(false)
   const [need, setNeed] = useState('any')   // 1+ / 2+ / 3+
@@ -219,7 +228,7 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
     let shop = null          // biggest median → best-available improvement
 
     players.forEach((p) => {
-      const quotes = byId[String(p?.player_id ?? p?.id)] || byName[normName(nameOf(p))]
+      const quotes = A.quotesOf(odds, p)
       if (!quotes) return
       MARKETS.forEach((m) => {
         const q = quotes[m.key]
@@ -265,9 +274,9 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
         // hrPerGame() is the chance of ONE homer, so it may only be set
         // against the over on 0.5. A book on 1.5 is selling a multi-homer
         // game and its price answers a different question entirely.
-        if (m.key === 'batter_home_runs' && onBar) {
-          const rate = hrPerGame(p)
-          const pa = n(p?.season_pa, 0)
+        if (m.key === A.rateMarket && onBar) {
+          const rate = A.rateOf(p)
+          const pa = A.sampleOf(p)
           if (rate != null && pa >= LEAD_MIN_PA) {
             const e = edgeOf(q, rate)   // takes a RATE, never a score
             if (e && e.need <= LEAD_MAX_NEED) hr.push({ p, m, q, over, rate, pa, ...e, fair: fairOdds(rate) })
@@ -314,7 +323,7 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
     if (!Object.keys(byId).length && !Object.keys(byName).length) return []
     const out = []
     players.forEach((p) => {
-      const q = (byId[String(p?.player_id ?? p?.id)] || byName[normName(nameOf(p))] || {})[market]
+      const q = (A.quotesOf(odds, p) || {})[market]
       if (!q) return
       const over = n(q.over, NaN)
       const line = n(q.line, NaN)
@@ -325,7 +334,7 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
       // printed the difference as an EDGE anyway — +14.7 on a 1.5 HR line
       // tonight. A blank here is the truthful cell.
       const onBar = Number.isFinite(line) && Math.abs(line - live.std) < 1e-9
-      const rate = market === 'batter_home_runs' && onBar ? hrPerGame(p) : null
+      const rate = market === A.rateMarket && onBar ? A.rateOf(p) : null
       const edge = rate != null && need != null ? rate - need : null
       // ── THE EDGE'S OWN ERROR BAR (2026-08-30) ─────────────────────────
       // EDGE has printed to one decimal since the day this table shipped,
@@ -336,12 +345,12 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
       // so the column can say which of those two it is. It is a floor on
       // the uncertainty and nothing more — park, weather and the arm are
       // all outside it, and the tooltip says so.
-      const band = rate != null ? hrGameBand(p) : null
+      const band = rate != null ? A.bandOf(p) : null
       const eb = band ? edgeBand(need, band) : null
       out.push({
-        _key: `${p?.player_id}-${p?.game_pk}`,
+        _key: A.rowKey(p),
         _raw: p,
-        _pa: n(p?.season_pa, 0),
+        _pa: A.sampleOf(p),
         player: nameOf(p),
         tm: teamOf(p),
         opp: oppOf(p),
@@ -364,7 +373,7 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
         rateThin: band?.thin ? 1 : 0,
         rateWhy: band?.why || '',
         fair: rate != null ? fairOdds(rate) : null,
-        band: market === 'batter_home_runs' ? (priceBand(over)?.label || null) : null,
+        band: A.priceBands && market === A.rateMarket ? (priceBand(over)?.label || null) : null,
         frozen: q.frozen ? 1 : 0,
         books: n(q.books, 0),
         best: n(q.best_over, over),
@@ -536,7 +545,7 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
     return (
       <div>
         {viewBar}
-        <OddsSignals players={players} odds={odds} onPlayerClick={onPlayerClick} />
+        <OddsSignals players={players} odds={odds} onPlayerClick={onPlayerClick} sport={sport} theme={theme} numFont={numFont} Table={Table} />
       </div>
     )
   }
@@ -545,7 +554,7 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
     return (
       <div>
         {viewBar}
-        <OddsDiscrepancies players={players} odds={odds} onPlayerClick={onPlayerClick} />
+        <OddsDiscrepancies players={players} odds={odds} onPlayerClick={onPlayerClick} sport={sport} theme={theme} numFont={numFont} Table={Table} />
       </div>
     )
   }
@@ -583,7 +592,7 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
           only the FORM is condensed. The summary line carries the two figures
           worth seeing without opening anything: how many prices, and the widest
           shopping gap. The board is now the first thing on the page. */}
-      {night && (
+      {A.lead && night && (
         <details style={{ margin: '12px 0 18px' }}>
           <summary style={{
             cursor: 'pointer', fontSize: TYPE.body, color: C.text3, lineHeight: 1.6,
@@ -775,18 +784,25 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap', borderTop: `1px solid ${C.border}`, paddingTop: 14, marginBottom: 6 }}>
         <h3 style={{ fontSize: TYPE.name, fontWeight: 900, margin: 0, letterSpacing: '-.01em' }}>The full board</h3>
         <span style={{ fontSize: TYPE.micro, color: C.text3 }}>
-          every price the bot pulled tonight — with the number the book is actually offering
+          {`${A.words.pulled} — with the number the book is actually offering`}
         </span>
       </div>
       <div style={{ fontSize: TYPE.label, color: C.text2, lineHeight: 1.6, maxWidth: 760, marginBottom: 10 }}>
+        {A.rateMarket ? <>
         <b style={{ color: C.text }}>LINE is the bar the book set.</b> Everywhere else this site
         assumes the standard one ({live.label} at {live.std}); when a book moves it — a hit line at
         1.5, bases at 2.5 — a rate measured against the standard bar is answering a different
         question. <b style={{ color: C.text }}>NEED</b> is what the price has to hit to break even.
-        On home runs only, and only on the standard {MK.batter_home_runs.std} bar,
+        On home runs only, and only on the standard {MK[A.rateMarket].std} bar,
         the slate publishes a real per-game rate, so <b style={{ color: C.text }}>EDGE</b> is
         his rate minus that break-even; every other market shows the score beside the price and
         leaves the judgement to you.
+        </> : <>
+        <b style={{ color: C.text }}>LINE is the bar the book set</b> ({live.label}&apos;s standard is {live.std}); a different
+        line is a different bet. <b style={{ color: C.text }}>NEED</b> is what the price has to hit to break even.
+        No market here has a published per-game rate, so there is no edge column: where the site has a score
+        it sits beside the price, never subtracted from it, and the judgement is yours.
+        </>}
       </div>
 
       {/* market picker */}
@@ -797,7 +813,7 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
             const byName = odds?.by_name || {}
             let k = 0
             players.forEach((p) => {
-              if ((byId[String(p?.player_id ?? p?.id)] || byName[normName(nameOf(p))] || {})[m.key]) k++
+              if ((A.quotesOf(odds, p) || {})[m.key]) k++
             })
             return k
           })()
@@ -857,7 +873,7 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
           board is still what he came for. HR only: it is the only market with
           a real rate, so it is the only one with a diagonal that means
           anything. */}
-      {market === 'batter_home_runs' && shown.filter((r) => r.rate != null).length >= 4 && (
+      {market === A.rateMarket && shown.filter((r) => r.rate != null).length >= 4 && (
         <details style={{ marginBottom: 10 }}>
           <summary style={{ cursor: 'pointer', fontSize: TYPE.label, color: C.text3, listStyle: 'revert' }}>
             <span style={{ color: C.text2 }}>See the board as a picture</span>
@@ -881,19 +897,18 @@ export default function OddsBoard({ players = [], odds = null, onPlayerClick, in
           background: C.bg2, border: `1px dashed ${C.border2}`, borderRadius: 12,
           padding: '14px 16px', fontSize: TYPE.micro, color: C.text3, lineHeight: 1.6,
         }}>
-          No {live.label} prices joined to tonight&apos;s slate yet. The status line above says where
-          the fetch stands — an empty board here with a healthy status usually just means the books
-          haven&apos;t posted this market for this slate.
+          {/* one text node after the label, as before (a split node shifts the glyphs) */}
+          No {live.label}{` prices joined to ${A.words.slate} yet. The status line above says where the fetch stands — an empty board here with a healthy status usually just means the books haven't posted this market for this slate.`}
         </div>
       ) : (
-        <DenseTable
+        <Table
           heatMode="sorted"
 key={market}
           rows={shown}
           columns={[
-            { key: 'player', label: 'Hitter', heat: false, w: 152, bold: true, sticky: true },
-            { key: 'tm', label: 'TM', heat: false, w: 34, mono: true, dim: true, teamMark: 'mlb' },
-            { key: 'opp', label: 'vs', heat: false, w: 34, mono: true, dim: true, teamMark: 'mlb' },
+            { key: 'player', label: A.words.noun, heat: false, w: 152, bold: true, sticky: true },
+            { key: 'tm', label: 'TM', heat: false, w: 34, mono: true, dim: true, teamMark: A.sport },
+            { key: 'opp', label: 'vs', heat: false, w: 34, mono: true, dim: true, teamMark: A.sport },
             {
               key: 'line', label: 'LINE', w: 52, heat: false, dp: 1,
               title: `The bar the book set. Standard for ${live.label} is ${live.std} — anything else is a different bet than the boards assume.`,
@@ -923,7 +938,7 @@ key={market}
                 </span>
               ),
             },
-            ...(market === 'batter_home_runs' ? [
+            ...(A.priceBands && market === A.rateMarket ? [
               { key: 'band', label: 'BAND', w: 50, heat: false,
                 title: 'The price bands, home runs only: PLAY is +401 to +900, SHORT is +151 to +400, PASS is +901 and up (never named in the read above). The returns these bands were set on did not hold up when re-measured (Oct 1), so no edge is claimed while they are re-measured on the locked pregame prices. Changes no score.',
                 fmt: (v) => (v == null ? '—' : (
@@ -939,7 +954,7 @@ key={market}
               key: 'score', label: `${live.label} score`, w: 62, dp: 1,
               title: "The bot's 0-100 confidence on THIS market. Not a probability — never compare it to NEED.",
             }] : []),
-            ...(market === 'batter_home_runs' ? [
+            ...(market === A.rateMarket ? [
               { key: 'rate', label: 'HIS RATE %', w: 78, dp: 1,
                 title: `His own per-game homer probability, from hr_per_pa and his lineup spot. The one real rate the slate publishes — and blank on any row where the book has moved off the ${live.std} bar, because that price is for two homers and this rate is for one. The small range under it is the 95% Wilson interval on his season homer counts, pushed through the same per-game conversion: it is how much resolution the number actually has.`,
                 fmt: (v, r) => (v == null ? '—' : (
@@ -983,10 +998,10 @@ key={market}
           // on forty plate appearances rendered at full weight is how a 4-for-40
           // sample ended up sorting to the top of this board. The row still
           // carries every number; it just stops shouting.
-          dimRow={market === 'batter_home_runs' ? ((r) => r?._pa > 0 && r._pa < LEAD_MIN_PA) : null}
-          initialSort={market === 'batter_home_runs' ? 'edge' : HAS_SCORE.has(market) ? 'score' : 'need'}
+          dimRow={market === A.rateMarket ? ((r) => r?._pa > 0 && r._pa < LEAD_MIN_PA) : null}
+          initialSort={market === A.rateMarket ? 'edge' : HAS_SCORE.has(market) ? 'score' : 'need'}
           maxHeight={560}
-          caption={`Click a header to sort, a row to open his card. LINE in yellow with a ≠ means the book is NOT on the standard ${live.std} bar for ${live.label} — the boards' hit rates are measured against ${live.std}, so read those two together carefully.${market === 'batter_home_runs' ? ` Dimmed rows are hitters with under ${LEAD_MIN_PA} plate appearances this season: their rate is real arithmetic on a sample too thin to lead with, and no dimmed row is ever named in the read above.` : ''}`}
+          caption={`Click a header to sort, a row to open his card. LINE in yellow with a ≠ means the book is NOT on the standard ${live.std} bar for ${live.label} — the boards' hit rates are measured against ${live.std}, so read those two together carefully.${market === A.rateMarket ? ` Dimmed rows are hitters with under ${LEAD_MIN_PA} plate appearances this season: their rate is real arithmetic on a sample too thin to lead with, and no dimmed row is ever named in the read above.` : ''}`}
         />
       )}
     </div>

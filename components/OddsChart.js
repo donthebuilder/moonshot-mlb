@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
-import { C, NUM_FONT } from '../lib/theme'
+import { C as MLB_C, NUM_FONT } from '../lib/theme'
+const C = MLB_C
 import { verdictInk } from '../lib/scales'
 
 // 📊 THE FOUR PICTURES THE ODDS PAGES WERE MISSING.
@@ -57,7 +58,9 @@ const clip = (text, chars) => {
 // SSR has no width. The first paint uses 1000, the observer corrects on mount,
 // and because both are the same markup shape there is nothing to hydrate
 // wrong — the marks just move.
-function Frame({ title, sub, height, children, footer, minW = 300 }) {
+// theme: the sport's (2026-10-02); MOONSHOT's by default, so every MOONSHOT chart is unchanged
+function Frame({ title, sub, height, children, footer, minW = 300, theme = null }) {
+  const C = theme || MLB_C
   const ref = useRef(null)
   const [w, setW] = useState(1000)
   useEffect(() => {
@@ -477,7 +480,8 @@ export function CalibrationScatter({ rows = [], onPick, footer }) {
 //
 // The histogram answers that in one look: where the mass sits, how fat the
 // tails are, and exactly where the threshold falls on it.
-export function MoveSpread({ values = [], threshold = 3, footer }) {
+export function MoveSpread({ values = [], threshold = 3, footer, theme = null }) {
+  const C = theme || MLB_C
   const vals = values.filter((v) => Number.isFinite(v))
   if (vals.length < 8) return null
   const height = 190
@@ -499,7 +503,7 @@ export function MoveSpread({ values = [], threshold = 3, footer }) {
   const ticks = [-reach, -threshold, 0, threshold, reach]
 
   return (
-    <Frame
+    <Frame theme={theme}
       title="⚡ Where tonight's moves actually sit"
       sub={`every price with a second snapshot · ${beyond} of ${vals.length} moved ${threshold}+ points from open`}
       height={height}

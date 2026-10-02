@@ -22,32 +22,28 @@
 // the first run carrying by_book lands, the page says so and shows the one
 // thing the old payload can say -- the best price and who posted it.
 import { useMemo, useState } from 'react'
-import { C, NUM_FONT } from '../../lib/theme'
+import { C as MLB_C, NUM_FONT as MLB_NUM } from '../../lib/theme'
+import { oddsAdapter } from '../../lib/odds/adapters'
 import { nameOf, teamOf, oppOf, n, clean } from '../../lib/player'
-import { fmtOdds, impliedPct, normName } from '../../lib/odds'
-import { hrGameBand } from '../../lib/hrRateBand'
+import { fmtOdds, impliedPct } from '../../lib/odds'
 import DenseTable from '../DenseTable'
 import { btnStyle } from '../ui'
 
-const MARKETS = [
-  ['batter_home_runs', 'HR', 0.5], ['batter_hits', 'Hits', 0.5], ['batter_hits_runs_rbis', 'H+R+RBI', 1.5],
-  ['batter_total_bases', 'Bases', 1.5], ['batter_runs_scored', 'Runs', 0.5], ['batter_rbis', 'RBI', 0.5],
-  ['batter_doubles', '2B', 0.5], ['batter_triples', '3B', 0.5],
-]
-const LABEL = Object.fromEntries(MARKETS.map(([k, l]) => [k, l]))
+// the markets are the sport's (lib/odds/adapters.js); MOONSHOT's eight batter markets are the MLB one
 
-const shortBook = (b) => ({ DraftKings: 'DK', Fanatics: 'FAN', FanDuel: 'FD', BetMGM: 'MGM', Caesars: 'CZR' }[b] || String(b || '').slice(0, 4).toUpperCase())
+// our feed's book keys are lowercase (draftkings, fanduel ...); the bot's were display names
+const shortBook = (b) => ({ DraftKings: 'DK', Fanatics: 'FAN', FanDuel: 'FD', BetMGM: 'MGM', Caesars: 'CZR',
+  draftkings: 'DK', fanatics: 'FAN', fanduel: 'FD', betmgm: 'MGM', caesars: 'CZR', espnbet: 'ESPN', bovada: 'BOV' }[b] || String(b || '').slice(0, 4).toUpperCase())
 
 /** One row per (player, market) that at least one book quotes. Pure. */
-export function shopRows(players, odds) {
-  const byId = odds?.by_player_id || {}
-  const byName = odds?.by_name || {}
+export function shopRows(players, odds, A = oddsAdapter('mlb')) {
+  const MARKETS = A.markets.map((m) => [m.key, m.label, m.std])
   const out = []
   let hasByBook = false
   players.forEach((p) => {
-    const quotes = byId[String(p?.player_id ?? p?.id)] || byName[normName(nameOf(p))]
+    const quotes = A.quotesOf(odds, p)
     if (!quotes) return
-    const band = hrGameBand(p)
+    const band = A.bandOf(p)
     MARKETS.forEach(([mk, label, std]) => {
       const q = quotes[mk]
       if (!q) return
@@ -67,7 +63,7 @@ export function shopRows(players, odds) {
       const oNeed = impliedPct(n(q.over, NaN)), uNeed = impliedPct(n(q.under, NaN))
       const hold = oNeed != null && uNeed != null ? Math.round(10 * (oNeed + uNeed - 100)) / 10 : null
       // The model's side, HR only: his season rate against the BEST price.
-      const rate = mk === 'batter_home_runs' && band && !band.thin ? band.rate : null
+      const rate = mk === A.rateMarket && band && !band.thin ? band.rate : null
       const bestOver = bestQ ? bestQ.over : n(q.best_over, NaN)
       const edge = rate != null && Number.isFinite(bestOver) ? Math.round(10 * (rate - impliedPct(bestOver))) / 10 : null
       // The same edge at the WORST book -- what betting at the wrong shop
@@ -76,7 +72,7 @@ export function shopRows(players, odds) {
       const edgeWorst = rate != null && Number.isFinite(worstOver) && needs.length > 1 ? Math.round(10 * (rate - impliedPct(worstOver))) / 10 : null
       const perBook = Object.fromEntries(books.map(([bk, b]) => [shortBook(bk), { line: n(b.line, NaN), over: n(b.over, NaN), under: n(b.under, NaN) }]))
       out.push({
-        id: `${p?.player_id ?? p?.id}-${mk}`, _p: p, _mk: mk,
+        id: `${A.rowKey(p)}-${mk}`, _p: p, _mk: mk,
         player: nameOf(p), tm: teamOf(p), opp: oppOf(p), market: label, mk,
         line: Number.isFinite(line) ? line : null, std, offStd: Number.isFinite(line) && Math.abs(line - std) > 1e-9,
         books: n(q.books, books.length), linesSeen: n(q.lines_seen, lines.length || 1),
@@ -90,11 +86,15 @@ export function shopRows(players, odds) {
   return { rows: out, hasByBook }
 }
 
-export default function OddsDiscrepancies({ players = [], odds = null, onPlayerClick }) {
+export default function OddsDiscrepancies({ players = [], odds = null, onPlayerClick, sport = 'mlb', theme = null, numFont = null, Table = DenseTable }) {
+  const A = oddsAdapter(sport)
+  const C = theme || MLB_C
+  const NUM_FONT = numFont || MLB_NUM
+  const MARKETS = A.markets.map((m) => [m.key, m.label, m.std])
   const [market, setMarket] = useState('all')
   const [only, setOnly] = useState('any')   // any | price | line | plus
   const [minSpread, setMinSpread] = useState(0)
-  const { rows, hasByBook } = useMemo(() => shopRows(players, odds), [players, odds])
+  const { rows, hasByBook } = useMemo(() => shopRows(players, odds, A), [players, odds, A])
   const bookCols = useMemo(() => {
     const s = new Set(); rows.forEach((r) => Object.keys(r.perBook).forEach((b) => s.add(b))); return [...s].sort()
   }, [rows])
@@ -154,12 +154,12 @@ export default function OddsDiscrepancies({ players = [], odds = null, onPlayerC
       {!rows.length ? (
         <div style={{ border: `1px dashed ${C.border2}`, borderRadius: 12, padding: 24, textAlign: 'center', color: C.text3, fontSize: 11.5 }}>No quotes on the board.</div>
       ) : (
-        <DenseTable
+        <Table
           heatMode="sorted"
           rows={shown}
           columns={[
-            { key: 'player', label: 'Hitter', heat: false, w: 148, bold: true, sticky: true },
-            { key: 'tm', label: 'TM', heat: false, w: 34, mono: true, dim: true, teamMark: 'mlb' },
+            { key: 'player', label: A.words.noun, heat: false, w: 148, bold: true, sticky: true },
+            { key: 'tm', label: 'TM', heat: false, w: 34, mono: true, dim: true, teamMark: A.sport },
             { key: 'market', label: 'Prop', heat: false, w: 64, mono: true },
             { key: 'line', label: 'LINE', heat: false, w: 46, dp: 1, title: 'The consensus bar. Yellow ≠ means off the standard number.',
               fmt: (v, r) => (v == null ? '—' : <b style={{ fontFamily: NUM_FONT, color: r?.offStd ? '#FCD34D' : C.text }}>{r?.offStd ? '≠ ' : ''}{v}</b>) },
