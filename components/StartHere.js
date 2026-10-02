@@ -1,4 +1,5 @@
 'use client'
+import { MLB_NAV } from '../lib/routes'
 import { useEffect, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { RAMP_CHIPS } from './Heatmap'
@@ -35,13 +36,13 @@ const STEPS = [
   // this page in the same pass — it is the whole of the Picks tab and was
   // being rendered here a second time — so the sentence was pointing at
   // nothing. Copy that names a section has to move when the section does.
-  { n: 1, title: 'Tonight’s picks', color: '#f97316', link: 'bot', linkWord: 'Picks',
+  { n: 1, title: 'Tonight’s picks', color: C.orange, link: 'bot', linkWord: MLB_NAV.bot?.label || 'Picks',
     body: 'is The Four — the bot’s best bat per category, three deep. If you only have a minute, that is the whole site.' },
-  { n: 2, title: 'Rank the slate', color: '#FCD34D', link: 'board', linkWord: 'Boards',
+  { n: 2, title: 'Rank the slate', color: C.amber, link: 'board', linkWord: MLB_NAV.board?.label || 'Boards',
     body: 'ranks every hitter tonight, one board per bet type, with Power and Patterns alongside them. A brighter cell is stronger for the hitter, scaled to tonight and nothing else. Click any name for his full breakdown.' },
-  { n: 3, title: 'Check the matchup', color: '#22d3ee', link: 'games', linkWord: 'Games',
+  { n: 3, title: 'Check the matchup', color: C.cyan, link: 'games', linkWord: MLB_NAV.games?.label || 'Slate',
     body: 'opens each game in place — its read, its lineups, the head-to-head and its picks — and Pitchers ranks every starter by how attackable he is.' },
-  { n: 4, title: 'See what worked', color: '#4ade80', link: 'results', linkWord: 'Results',
+  { n: 4, title: 'See what worked', color: C.green, link: 'results', linkWord: MLB_NAV.results?.label || 'The record',
     body: 'grades every pick against its own job, night by night, and its Track record view shows who actually delivers when the bot names him.' },
 ]
 

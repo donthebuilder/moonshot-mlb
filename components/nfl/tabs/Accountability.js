@@ -799,14 +799,14 @@ export default function Accountability({ data, results: latest, onPlayerClick })
         .receiptHero{position:relative;margin-bottom:12px}
         .receiptKpis span{display:block;font-family:${NUM_FONT};font-size:8px;font-weight:900;letter-spacing:.1em;color:${C.text3}}
         .receiptKpis{position:relative;display:grid;grid-template-columns:1.4fr repeat(3,1fr);gap:8px;margin-top:18px}
-        .receiptKpis>div{min-width:0;padding:10px 11px;border:1px solid ${C.border};border-radius:10px;background:#050b0ee0}
+        .receiptKpis>div{min-width:0;padding:10px 11px;border:1px solid ${C.border};border-radius:10px;background:${C.bg}e0}
         .receiptKpis strong{display:block;margin-top:4px;font-family:${NUM_FONT};font-size:22px;line-height:1;color:${C.text}}
         .receiptKpis strong.leader{font-size:15px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
         .receiptKpis small{display:block;margin-top:5px;font-size:8.5px;color:${C.text3}}
         .receiptMeter{height:4px;margin-top:8px;border-radius:99px;background:${C.border};overflow:hidden}
         .receiptMeter i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,${C.green},${C.lime})}
         .receiptMarkets{position:relative;display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-top:8px}
-        .receiptMarkets>div{padding:7px 8px;border-radius:8px;background:#050b0eb8;border:1px solid ${C.border}}
+        .receiptMarkets>div{padding:7px 8px;border-radius:8px;background:${C.bg}b8;border:1px solid ${C.border}}
         .receiptMarkets span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:${NUM_FONT};font-size:8px;font-weight:900}
         .receiptMarkets b{display:block;margin-top:3px;font-family:${NUM_FONT};font-size:12px;color:${C.text2}}
         .receiptMarkets i{display:block;height:2px;margin-top:5px;background:${C.border};border-radius:9px;overflow:hidden}

@@ -62,7 +62,7 @@ export default function GamelogFilterBar({ rows, fields, children }) {
       <style>{`
         .glf{display:flex;flex-direction:column;gap:8px;margin-bottom:11px}
         .glf-build{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
-        .glf-build select,.glf-build input{height:28px;padding:0 7px;border:1px solid ${C.border};border-radius:7px;background:#0b0b0d;color:${C.text2};font-size:9.5px;font-family:${NUM_FONT}}
+        .glf-build select,.glf-build input{height:28px;padding:0 7px;border:1px solid ${C.border};border-radius:7px;background:${C.bg2};color:${C.text2};font-size:9.5px;font-family:${NUM_FONT}}
         .glf-build input{width:64px}
         .glf-build button{height:28px;padding:0 10px;border:1px solid ${C.green}66;border-radius:7px;background:${C.green}24;color:${C.green};font:900 9px/1 ${NUM_FONT};letter-spacing:.03em;cursor:pointer;white-space:nowrap}
         .glf-build button:disabled{opacity:.35;cursor:default}

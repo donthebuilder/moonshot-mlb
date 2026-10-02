@@ -102,7 +102,7 @@ export default function StartSit({ players = [], onPlayerClick }) {
         .ss-vs{align-self:center;font:900 10px/1 var(--num-font,ui-monospace,monospace);opacity:.5}
         .ss-search{position:relative}
         .ss-search input{width:100%;box-sizing:border-box;padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.04);color:inherit;font-size:12px;outline:none}
-        .ss-hits{position:absolute;left:0;right:0;top:100%;z-index:5;margin-top:4px;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:#0b0f14;overflow:hidden}
+        .ss-hits{position:absolute;left:0;right:0;top:100%;z-index:5;margin-top:4px;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:${C.bg2};overflow:hidden}
         .ss-hits>button{display:flex;align-items:center;gap:8px;width:100%;padding:7px 9px;background:transparent;border:none;color:inherit;cursor:pointer;text-align:left;font-size:12px}
         .ss-hits>button:hover{background:rgba(255,255,255,.06)}
         .ss-hits small,.ss-pick small{font-size:9.5px;opacity:.6}

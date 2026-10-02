@@ -89,7 +89,7 @@ function NflStaleBanner({ meta, data, loading }) {
   return (
     <div role="status" style={{
       margin: '0 0 12px', padding: '10px 14px', borderRadius: 10,
-      border: `1px solid ${loud ? C.orange : C.border2}`, background: loud ? 'rgba(249,115,22,.08)' : C.bg2,
+      border: `1px solid ${loud ? C.orange : C.border2}`, background: loud ? `${C.orange}14` : C.bg2,
       color: C.text2, fontSize: 12, lineHeight: 1.5,
     }}>
       <b style={{ color: loud ? C.orange : C.text, fontFamily: NUM_FONT, letterSpacing: '.04em' }}>
