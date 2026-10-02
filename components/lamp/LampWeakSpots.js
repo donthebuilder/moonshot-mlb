@@ -1,4 +1,5 @@
 'use client'
+import { useTeamNav } from '../../lib/teamNav'
 import { useMemo } from 'react'
 import { C, NUM_FONT } from '../../lib/nhl/theme'
 import { WeakSpotGrid } from '../slate/WeakSpotCard'
@@ -32,6 +33,8 @@ export function weakCuts(games) {
 }
 
 export default function LampWeakSpots({ items = [], games = [], onOpenPlayer }) {
+  // the card title opens the club (0g A3): LAMP's team door
+  const openTeam = useTeamNav()
   const cards = useMemo(() => {
     const { pkCut, gaCut } = weakCuts(games)
     const out = []
@@ -63,6 +66,7 @@ export default function LampWeakSpots({ items = [], games = [], onOpenPlayer }) 
         out.push({
           key: `${g.game.id}-${def}`,
           title: `${def} defense`,
+          onTitle: openTeam ? () => openTeam(def) : undefined,
           meta: `vs ${att}`,
           stat: softPk ? { text: `PK ${pct1(pk)}%`, hot: true, vs: "tonight's weakest third" } : { text: `${ga.toFixed(2)} GA/GP`, hot: true, vs: "tonight's top third" },
           lead: softPk && softD ? 'A soft penalty kill and leaky five-on-five.' : softPk ? `A soft penalty kill; ${pp.length} ${att} skater${pp.length === 1 ? '' : 's'} with power-play goals face it.` : 'Leaky: goals allowed in tonight’s top third.',
@@ -72,7 +76,7 @@ export default function LampWeakSpots({ items = [], games = [], onOpenPlayer }) 
       }
     }
     return out.sort((a, b) => b._best - a._best)
-  }, [items, games, onOpenPlayer])
+  }, [items, games, onOpenPlayer, openTeam])
 
   if (!cards.length) return null
   return (

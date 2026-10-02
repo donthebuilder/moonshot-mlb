@@ -120,6 +120,7 @@ export default function Numerology({ data, onPlayerClick }) {
     <AlignmentsView
       model={model} tonight={tonight} todayKey={nextGameDay} todayRoot={dayRoot}
       AXIS_META={AXIS_META} scoreOf={(a) => a.tdScore}
+      onName={onPlayerClick ? (a) => { const pl = (data?.players || []).find((x) => String(x.player_id) === String(a.pid)); if (pl) onPlayerClick(pl) } : undefined}
       watchedRows={watchedRows} hasWatch={watchlist.pins.length > 0}
       // Six on a phone: the full 24 added ~1,000px above the clubs.
       chipLimit={phone ? 6 : 24} compact={phone}

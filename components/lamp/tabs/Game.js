@@ -1,4 +1,5 @@
 'use client'
+import { useTeamNav } from '../../../lib/teamNav'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import { useLampGame } from '../../../lib/nhl/useLamp'
 import { nhlLogo } from '../../../lib/nhl/teams'
@@ -212,11 +213,13 @@ export default function Game({ id, onBack, onOpenPlayer = null, onOpenTeam = nul
 }
 
 function Side({ team, lead, align }) {
+  // the club opens its page (0g A5)
+  const teamNav = useTeamNav()
   return (
     <div style={{ display: 'flex', flexDirection: align === 'right' ? 'row-reverse' : 'row', alignItems: 'center', gap: 10, minWidth: 0, justifyContent: 'flex-start' }}>
       <img src={team.logo || nhlLogo(team.abbrev)} alt="" width={44} height={44} style={{ width: 44, height: 44, flex: 'none', objectFit: 'contain' }} />
       <div style={{ textAlign: align, minWidth: 0 }}>
-        <div style={{ font: `900 15px/1 ${NUM_FONT}`, color: lead ? C.text : C.text2, letterSpacing: '.04em' }}>{team.abbrev}</div>
+        <div style={{ font: `900 15px/1 ${NUM_FONT}`, color: lead ? C.text : C.text2, letterSpacing: '.04em' }}>{teamNav ? <Tap onClick={() => teamNav(team.abbrev)}>{team.abbrev}</Tap> : team.abbrev}</div>
         <div style={{ marginTop: 4, color: C.text3, fontSize: 11, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{team.place ? `${team.place} ${team.name}` : team.name}</div>
         {team.record && <div style={{ marginTop: 3, color: C.text3, font: `800 9px/1 ${NUM_FONT}` }}>{team.record}</div>}
       </div>

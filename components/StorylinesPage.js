@@ -1,4 +1,5 @@
 'use client'
+import { useTeamNav } from '../lib/teamNav'
 import DenseTable from './DenseTable'
 import Tap from './Tap'
 import { useEffect, useMemo, useState } from 'react'
@@ -42,6 +43,8 @@ const timeOf = (iso) => {
 // for a product whose shell already has a search / team filter (MOONSHOT), the
 // page follows that filter instead of stacking a second box under it.
 export default function StorylinesPage({ sport, eyebrow, theme: C, numFont, accent, onOpenPlayer = null, onOpenGame = null, date = null, searchBox = true, keepIds = null }) {
+  // a team story opens the club (0g A7) where the product has a team door
+  const teamNav = useTeamNav()
   const [data, setData] = useState(null)
   const [err, setErr] = useState(null)
   const [types, setTypes] = useState(() => new Set())
@@ -118,7 +121,8 @@ export default function StorylinesPage({ sport, eyebrow, theme: C, numFont, acce
             <div style={{ marginTop: 4 }}>
               {(all ? rows : rows.slice(0, SHOW)).map((s) => (
                 <StoryRow key={`${s.type}|${s.player_id}|${s.text}`} icon={s.icon} theme={C} title={`Source: ${s.source}`}
-                  onClick={onOpenPlayer && s.board ? () => onOpenPlayer(s.player_id, s) : null}
+                  onClick={onOpenPlayer && s.board ? () => onOpenPlayer(s.player_id, s)
+                    : teamNav && String(s.player_id).startsWith('team:') ? () => teamNav(String(s.player_id).slice(5)) : null}
                   tag={<Badge b={s.board} />} style={{ fontSize: 12 }}>
                   <Parts parts={s.parts} />
                   {s.outcome ? (

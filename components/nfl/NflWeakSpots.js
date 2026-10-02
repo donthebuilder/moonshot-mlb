@@ -1,4 +1,5 @@
 'use client'
+import { useTeamNav } from '../../lib/teamNav'
 import { useMemo } from 'react'
 import { weakSpotRoles, softLine, plainRole, fitsSoft } from '../../lib/nfl/dvpSignal'
 import { WeakSpotGrid } from '../slate/WeakSpotCard'
@@ -17,6 +18,9 @@ import { C, NUM_FONT } from '../../lib/nfl/theme'
 // computed; a defense with no standout soft role has no card.
 
 export default function NflWeakSpots({ matchup, players = [], games = [], onPlayerClick, onOpenTeam = null }) {
+  // the card title opens the club (0g A3): the prop, else TUDDY's team door
+  const teamNav = useTeamNav()
+  const openTeam = onOpenTeam || teamNav
   const cards = useMemo(() => {
     const byTeamRole = new Map()
     for (const p of players) {
@@ -46,6 +50,7 @@ export default function NflWeakSpots({ matchup, players = [], games = [], onPlay
         out.push({
           key: `${def}-${g.game_id}`,
           title: `${def} defense`,
+          onTitle: openTeam ? () => openTeam(def) : undefined,
           meta: `vs ${off}`,
           stat: { text: top.multiple ? `${top.multiple.toFixed(1)}x` : `z ${top.z.toFixed(1)}`, hot: true, vs: `on ${plainRole(top.role)} ${top.label}` },
           lead: rows.length === 1 ? `One soft role this week, and ${rows[0].name} is in it.` : `${soft.length} soft role${soft.length === 1 ? '' : 's'} this week, ${rows.length} players in them.`,
@@ -57,7 +62,7 @@ export default function NflWeakSpots({ matchup, players = [], games = [], onPlay
     }
     // The best player standing in a soft role first, like MOONSHOT's.
     return out.sort((a, b) => b._best - a._best || b._z - a._z)
-  }, [matchup, players, games, onPlayerClick])
+  }, [matchup, players, games, onPlayerClick, openTeam])
 
   if (!cards.length) return null
   return (

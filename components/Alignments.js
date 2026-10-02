@@ -86,6 +86,7 @@ export default function Alignments({ players = [], watchIds = null, slateDate = 
     <AlignmentsView
       model={model} tonight={tonight} todayKey={todayKey} todayRoot={todayRoot}
       AXIS_META={AXIS_META} scoreOf={(a) => a.hrScore}
+      onName={onPlayerClick ? (a) => onPlayerClick(a.p) : undefined}
       days={{ yesterdayArchive, todayArchive, tomorrowKey, tomorrowRoot }}
       watchedRows={watchedRows} hasWatch={Boolean(watchIds && watchIds.size > 0)}
       builder onBuildAround={onBuildAround}

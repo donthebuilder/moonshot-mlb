@@ -1,4 +1,5 @@
 'use client'
+import Tap from '../Tap'
 import { useState } from 'react'
 import { usePickLight } from '../../lib/pickLight'
 import { C as MLB_C, NUM_FONT as MLB_NUM } from '../../lib/theme'
@@ -474,8 +475,9 @@ export default function AlignmentsView({
         <span style={{ fontSize: 10, fontFamily: NUM_FONT, color: pickedRows.length ? C.orange : C.text3, fontWeight: 800 }}>
           {pickedRows.length ? `${pickedRows.length} PICKED` : 'CLICK NAMES TO COLLECT THEM'}
         </span>
+        {/* a picked name opens his file (0g A6: onName was accepted and never called) */}
         {pickedRows.map((a) => (
-          <span key={a.pid} style={{ fontSize: 10, color: C.text2 }}>{a.name}</span>
+          <span key={a.pid} style={{ fontSize: 10, color: C.text2 }}>{onName ? <Tap onClick={() => onName(a)}>{a.name}</Tap> : a.name}</span>
         ))}
         <button
           disabled={!pickedRows.length}
