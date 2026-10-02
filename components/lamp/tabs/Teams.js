@@ -3,6 +3,8 @@ import PageHeader from '../../PageHeader'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import { useLampStandings } from '../../../lib/nhl/useLamp'
 import { nhlTeam } from '../../../lib/nhl/teams'
+import LampTable from '../LampTable'
+import SiteTeamMark from '../../TeamMark'
 import { TeamMark, EmptyState, DelayedBanner, Loading, SourceLine, Kicker, StaleSeasonNote, plusMinus } from '../ui'
 
 // 🏒 TEAMS — the 32 clubs by division, each with its record, each a door to
@@ -26,35 +28,30 @@ export default function Teams({ onOpenTeam }) {
       {divs.map((d) => (
         <section key={d} aria-label={d}>
           <Kicker>{d.toUpperCase()}</Kicker>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-            <thead><tr style={{ color: C.text3, font: `800 8px/1 ${NUM_FONT}`, letterSpacing: '.12em', textAlign: 'left' }}><th style={th}>TEAM</th><th style={{ ...th, textAlign: 'right' }}>REC</th><th style={{ ...th, textAlign: 'right' }}>PTS</th><th className="sm-hide" style={{ ...th, textAlign: 'right' }}>GF</th><th className="sm-hide" style={{ ...th, textAlign: 'right' }}>GA</th><th style={{ ...th, textAlign: 'right' }}>DIFF</th><th className="sm-hide" style={{ ...th, textAlign: 'right' }}>STRK</th></tr></thead>
-            <tbody>
-              {rows.filter((r) => r.divName === d).sort((a, b) => (a.divRank ?? 99) - (b.divRank ?? 99)).map((r) => {
-                const t = nhlTeam(r.abbrev)
-                return (
-                  <tr key={r.abbrev} onClick={() => onOpenTeam?.(r.abbrev)} tabIndex={0} role="link" aria-label={`${r.name}, open team`}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpenTeam?.(r.abbrev) } }}
-                    style={{ cursor: 'pointer', borderTop: `1px solid ${C.border}` }}>
-                    {/* The nickname stays visible on a phone here (TeamMark's name is
-                        sm-hide elsewhere): a directory of three-letter codes is not a
-                        directory for someone who does not know the league. */}
-                    <td style={td}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><TeamMark abbrev={r.abbrev} size={20} /><span style={{ color: C.text2, fontSize: 11.5 }}>{t ? t.nickname : r.nickname}</span></span></td>
-                    <td style={{ ...td, textAlign: 'right', fontFamily: NUM_FONT, color: C.text2 }}>{rec(r)}</td>
-                    <td style={{ ...td, textAlign: 'right', fontFamily: NUM_FONT, fontWeight: 900 }}>{r.pts}</td>
-                    <td className="sm-hide" style={{ ...td, textAlign: 'right', fontFamily: NUM_FONT, color: C.text3 }}>{r.gf}</td>
-                    <td className="sm-hide" style={{ ...td, textAlign: 'right', fontFamily: NUM_FONT, color: C.text3 }}>{r.ga}</td>
-                    <td style={{ ...td, textAlign: 'right', fontFamily: NUM_FONT, color: r.diff > 0 ? C.teal : r.diff < 0 ? C.text3 : C.text2 }}>{plusMinus(r.diff)}</td>
-                    <td className="sm-hide" style={{ ...td, textAlign: 'right', fontFamily: NUM_FONT, color: C.text3 }}>{r.streak || '—'}</td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+          {/* THE SHARED TABLE (2026-10-01, BATCH-TABLE-SKIN-V2 4b / R8): the
+              hand-rolled <table> is LampTable now -- every column sorts, the club
+              stays pinned on a phone with its nickname (a directory of codes is
+              not a directory). Division order until you sort. */}
+          <LampTable rows={rows.filter((r) => r.divName === d).sort((a, b) => (a.divRank ?? 99) - (b.divRank ?? 99)).map((r) => ({ ...r, _key: r.abbrev, club: nhlTeam(r.abbrev)?.nickname || r.nickname, recTxt: rec(r) }))}
+            columns={TEAM_COLS} heatMode="sorted" maxHeight={9999} maxRows={40} bare
+            onRowClick={onOpenTeam ? (r) => onOpenTeam(r.abbrev) : undefined}
+            caption={`${d}: division order. Every column sorts; each row opens that club.`} />
         </section>
       ))}
       <SourceLine>Source: NHL standings/now via /api/lamp/standings. Season and as-of date are the feed’s own.</SourceLine>
     </div>
   )
 }
-const th = { padding: '0 8px 8px', fontWeight: 800 }
-const td = { padding: '8px 8px', verticalAlign: 'middle' }
+const TG = {
+  club: { key: 'club', label: 'Club', order: 0 }, rec: { key: 'rec', label: 'Record', order: 1 },
+  goals: { key: 'goals', label: 'Goals', order: 2 }, form: { key: 'form', label: 'Form', order: 3 },
+}
+const TEAM_COLS = [
+  { key: 'club', label: 'Team', heat: false, sticky: true, bold: true, w: 150, group: TG.club,
+    fmt: (v, r) => <span title={`${v} (${r.abbrev})`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><SiteTeamMark sport="nhl" abbr={r.abbrev} variant="logo" px={16} /><span>{v}</span></span> },
+  { key: 'recTxt', label: 'REC', heat: false, mono: true, w: 64, group: TG.rec },
+  { key: 'pts', label: 'PTS', w: 44, dp: 0, primary: true, group: TG.rec },
+  { key: 'gf', label: 'GF', w: 44, dp: 0, group: TG.goals }, { key: 'ga', label: 'GA', w: 44, dp: 0, invert: true, group: TG.goals },
+  { key: 'diff', label: 'DIFF', w: 50, dp: 0, scale: 'div', anchor: 0, ceiling: 40, anchorLabel: 'even', group: TG.goals, fmt: (v) => plusMinus(v) },
+  { key: 'streak', label: 'STRK', heat: false, mono: true, w: 52, group: TG.form, fmt: (v) => v || '—' },
+]

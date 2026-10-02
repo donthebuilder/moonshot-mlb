@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import PageHeader from '../../PageHeader'
 import NflTeamMark from '../NflTeamMark'
+import NflTable from '../NflTable'
 import { C, NUM_FONT } from '../../../lib/nfl/theme'
 import { fetchNflStandings } from '../../../lib/nfl/standings'
 
@@ -11,14 +12,6 @@ import { fetchNflStandings } from '../../../lib/nfl/standings'
 // other site's names on the page (Donovan): the team is TUDDY's own text
 // mark, and the source line names the kind of feed, not a brand.
 // Data: lib/nfl/standings.js (public feed, read in the browser, 10 min).
-const COLS = [
-  ['W', (t) => t.w], ['L', (t) => t.l], ['T', (t) => t.t],
-  ['PCT', (t) => (t.pct == null ? '—' : t.pct.toFixed(3).replace(/^0/, ''))],
-  ['PF', (t) => t.pf], ['PA', (t) => t.pa],
-  ['DIFF', (t) => (t.diff == null ? '—' : t.diff > 0 ? `+${t.diff}` : String(t.diff))],
-  ['HOME', (t) => t.home || '—'], ['ROAD', (t) => t.road || '—'],
-  ['DIV', (t) => t.div || '—'], ['CONF', (t) => t.conf || '—'], ['STRK', (t) => t.strk || '—'],
-]
 
 export default function Standings({ onOpenTeam }) {
   const [data, setData] = useState(null)
@@ -50,29 +43,13 @@ export default function Standings({ onOpenTeam }) {
           {conf.divisions.map((div) => (
             <div key={div.name}>
               <div style={{ color: C.text3, font: `900 9px/1 ${NUM_FONT}`, letterSpacing: '.14em', margin: '4px 0 6px' }}>{div.name.toUpperCase()}</div>
-              {/* Wide on a phone: the table scrolls inside its box, never the page. */}
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', minWidth: 640, borderCollapse: 'collapse', fontSize: 12 }}>
-                  <thead><tr>
-                    <th style={th}>TEAM</th>
-                    {COLS.map(([h]) => <th key={h} style={{ ...th, textAlign: 'right' }}>{h}</th>)}
-                  </tr></thead>
-                  <tbody>
-                    {div.teams.map((t) => (
-                      <tr key={t.abbr} style={{ borderTop: `1px solid ${C.border}` }}>
-                        <td style={{ ...td, whiteSpace: 'nowrap' }}>
-                          <button type="button" onClick={() => onOpenTeam?.(t.abbr)} title={`${t.place} ${t.nickname} — open their players`}
-                            style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', color: C.text, font: 'inherit' }}>
-                            <NflTeamMark abbr={t.abbr} />
-                            <span style={{ fontWeight: 700 }}>{t.nickname}</span>
-                          </button>
-                        </td>
-                        {COLS.map(([h, f]) => <td key={h} style={{ ...td, textAlign: 'right', fontFamily: NUM_FONT, color: h === 'W' ? C.text : C.text2, fontWeight: h === 'W' ? 800 : 400 }}>{f(t) ?? '—'}</td>)}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              {/* THE SHARED TABLE (2026-10-01, BATCH-TABLE-SKIN-V2 4b / R8): the
+                  hand-rolled <table> is NflTable now -- every column sorts, the
+                  sorted one is graded, the team stays pinned on a phone. The
+                  feed's own order until you sort. The team is TUDDY's text
+                  mark, not a logo (Donovan, this page: "no logos"). */}
+              <NflTable rows={div.teams.map((t) => ({ ...t, _key: t.abbr, nick: t.nickname }))} columns={STAND_COLS(onOpenTeam)}
+                heatMode="sorted" maxHeight={9999} maxRows={40} bare caption={`${div.name}: the feed's order. Every column sorts.`} />
             </div>
           ))}
         </section>
@@ -84,5 +61,20 @@ export default function Standings({ onOpenTeam }) {
   )
 }
 
-const th = { padding: '0 8px 6px', color: C.text3, font: `800 8px/1 ${NUM_FONT}`, letterSpacing: '.12em', textAlign: 'left', whiteSpace: 'nowrap' }
-const td = { padding: '7px 8px', verticalAlign: 'middle' }
+const SG = {
+  team: { key: 'team', label: 'Team', order: 0 }, rec: { key: 'rec', label: 'Record', order: 1 },
+  pts: { key: 'pts', label: 'Points', order: 2 }, split: { key: 'split', label: 'Splits', order: 3 },
+}
+const STAND_COLS = (onOpenTeam) => [
+  { key: 'nick', label: 'Team', heat: false, sticky: true, bold: true, w: 150, group: SG.team, fold: false,
+    fmt: (v, t) => <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><NflTeamMark abbr={t.abbr} /><span>{v}</span></span>,
+    link: (t) => (onOpenTeam ? () => onOpenTeam(t.abbr) : null) },
+  { key: 'w', label: 'W', w: 40, dp: 0, group: SG.rec }, { key: 'l', label: 'L', w: 40, dp: 0, invert: true, group: SG.rec },
+  { key: 't', label: 'T', w: 36, dp: 0, group: SG.rec },
+  { key: 'pct', label: 'PCT', w: 50, dp: 3, group: SG.rec, fmt: (v) => (v == null ? '—' : Number(v).toFixed(3).replace(/^0/, '')) },
+  { key: 'pf', label: 'PF', w: 44, dp: 0, group: SG.pts }, { key: 'pa', label: 'PA', w: 44, dp: 0, invert: true, group: SG.pts },
+  { key: 'diff', label: 'DIFF', w: 50, dp: 0, scale: 'div', anchor: 0, ceiling: 100, anchorLabel: 'even', group: SG.pts, fmt: (v) => (v == null ? '—' : v > 0 ? `+${v}` : String(v)) },
+  { key: 'home', label: 'HOME', heat: false, mono: true, w: 52, group: SG.split }, { key: 'road', label: 'ROAD', heat: false, mono: true, w: 52, group: SG.split },
+  { key: 'div', label: 'DIV', heat: false, mono: true, w: 48, group: SG.split }, { key: 'conf', label: 'CONF', heat: false, mono: true, w: 52, group: SG.split },
+  { key: 'strk', label: 'STRK', heat: false, mono: true, w: 48, group: SG.split },
+]

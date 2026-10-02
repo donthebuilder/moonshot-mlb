@@ -147,6 +147,9 @@ export default function DenseTable({
   skin: skinProp = null,
   statusOf = null,
   title = '',
+  //   bare      v2: no footer (caption fold + CSV) -- for small tables repeated
+  //             down a page (a division each), where eight footers are scroll.
+  bare = false,
 }) {
   const [skinAuto, setSkinAuto] = useState(null)
   useEffect(() => { if (!skinProp) setSkinAuto(readSkin()) }, [skinProp])
@@ -390,7 +393,7 @@ export default function DenseTable({
       ramp, rowEdge, faceOf, onRowClick, dimRow, pick, rowPid, pickColorOf, firstMatch,
       explain, setExplain, dict, scoreTerms, caveat, accent, maxHeight, caption,
       truncated, maxRows, extra, setExtra, exportCsv, railRef, statusOf, title, initialStack, firstTextKey,
-      capOpen, setCapOpen,
+      capOpen, setCapOpen, bare,
     })
   }
 

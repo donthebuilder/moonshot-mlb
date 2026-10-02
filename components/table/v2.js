@@ -196,7 +196,7 @@ export function renderV2(ctx) {
     ramp, rowEdge, faceOf, onRowClick, dimRow, pick, rowPid, pickColorOf, firstMatch,
     explain, setExplain, dict, scoreTerms, caveat, accent, maxHeight, caption,
     truncated, maxRows, extra, setExtra, exportCsv, railRef, statusOf, title, initialStack, firstTextKey,
-    capOpen, setCapOpen,
+    capOpen, setCapOpen, bare,
   } = ctx
   const ordered = orderByGroup(rawColumns)
   // THE STATUS STAMP (plan step 4): when the caller can say each row's status,
@@ -541,7 +541,7 @@ export function renderV2(ctx) {
           </div>
         </div>
       </div>
-      <div style={{ fontSize: 9.5, color: C.text3, marginTop: 6, lineHeight: 1.5, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+      {!bare && <div style={{ fontSize: 9.5, color: C.text3, marginTop: 6, lineHeight: 1.5, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           {(() => {
             const full = caption || 'Colour follows what you sort by: the sorted column is graded, ▲ above the middle of the rows on screen, ▼ below. Click a header to sort, a row to open the hitter.'
@@ -566,7 +566,7 @@ export function renderV2(ctx) {
         </div>
         <button type="button" onClick={exportCsv} title="Download this table — current sort, raw values — as a CSV cheat sheet"
           style={{ fontFamily: NUM_FONT, fontSize: 8.5, fontWeight: 800, cursor: 'pointer', border: `1px solid ${C.border}`, background: 'transparent', color: C.text3, borderRadius: 999, padding: '5px 12px', marginTop: 6 }}>⬇ CSV</button>
-      </div>
+      </div>}
     </div>
   )
 }
