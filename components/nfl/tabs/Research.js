@@ -161,7 +161,22 @@ export default function Research({ data, onPlayerClick }) {
     // dash column is noise, and with seven positions sharing one table most
     // columns are empty for most of them.
     const present = specs.filter((s) => rows.some((r) => Number.isFinite(r[s.key])))
-    return [...base, ...present.map((s) => ({
+    // THE GROUPS (2026-10-01, BATCH-TABLE-SKIN-V2 decision C; read by the v2
+    // skin only): the call, the market scores, the six numbers behind the TD
+    // score, his TD record, the marks, then every stat the bot publishes.
+    const G = {
+      call: { key: 'call', label: 'Call', order: 0 }, scores: { key: 'scores', label: 'The scores', order: 1 },
+      behind: { key: 'behind', label: 'Behind the score', order: 2 }, record: { key: 'record', label: 'The record', order: 3 },
+      marks: { key: 'marks', label: 'Marks', order: 4 }, stats: { key: 'stats', label: 'Every stat', order: 5 },
+    }
+    const GROUP_OF = {
+      watched: G.call, rank: G.call, name: G.call, pos: G.call, team: G.call, opp: G.call, matchup: G.call,
+      TDSC: G.scores, RECYDSC: G.scores, RECSC: G.scores, RUYDSC: G.scores, RUATSC: G.scores, PAYDSC: G.scores, KICKSC: G.scores,
+      cRz: G.behind, cGl: G.behind, cTouch: G.behind, cXtd: G.behind, cSnap: G.behind, cTot: G.behind,
+      seasonTd: G.record, sinceTd: G.record, hiConf: G.marks, quest: G.marks, lowS: G.marks, carry: G.marks,
+    }
+    return [...base.map((c) => ({ ...c, group: GROUP_OF[c.key] || G.stats, ...(c.key === 'TDSC' ? { bar: 'primary' } : {}) })), ...present.map((s) => ({
+      group: G.stats,
       key: s.key,
       label: s.label,
       w: 58,

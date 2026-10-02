@@ -114,6 +114,9 @@ export function v2Css(C, ac, NUM_FONT) {
     .dtv2 .h-row th { font: 700 9px/1.2 ${NUM_FONT}; letter-spacing: .06em; text-transform: uppercase; color: ${C.text3};
       height: 24px; padding: 0 7px; white-space: nowrap; cursor: pointer; user-select: none; border-bottom: 1px solid ${C.border}; }
     .dtv2 .h-row th.on { color: ${C.text}; box-shadow: inset 0 -2px 0 ${ac}; }
+    /* the ⓘ keeps its tap padding but not the line: middle-aligned, no line height of its own */
+    .dtv2 .h-row th .explain-dot { vertical-align: middle; line-height: 1; }
+    .dtv2 .h-row th > span { line-height: 0; }
     .dtv2 td { height: 36px; padding: 0 7px; border-bottom: 1px solid ${C.border}; white-space: nowrap; }
     .dtv2 td.num { font: 500 11.5px/1 ${NUM_FONT}; color: ${C.text2}; text-align: right; }
     .dtv2 td.num b { font-weight: 700; }
@@ -139,18 +142,24 @@ export function v2Css(C, ac, NUM_FONT) {
       .dtv2 .dtv2-scroll { scrollbar-width: none; }
       .dtv2 .dtv2-scroll::-webkit-scrollbar { display: none; }
       .dtv2 .fold { display: none !important; }
-      .dtv2 td { height: 32px; padding: 0 5px; }
+      .dtv2 td { height: 32px; padding: 0 5px !important; }
+      .dtv2 .g-row th { padding: 0 8px !important; }
       .dtv2 td.num { font-size: 10px; }
       .dtv2 td.name { font-size: 11px; line-height: 1.1; padding: 2px 6px !important; }
       .dtv2 td.name, .dtv2 th.name { width: 122px !important; min-width: 122px !important; max-width: 122px !important; }
-      .dtv2 td.rank { font-size: 13px; padding: 0 3px 0 0; }
+      .dtv2 td.rank { font-size: 13px; padding: 0 3px 0 0 !important; }
       .dtv2 td.rank, .dtv2 th.rank { width: 26px !important; min-width: 26px !important; max-width: 26px !important; padding: 0 3px 0 0; }
       .dtv2 .sub img { width: 11px !important; height: 11px !important; margin: -2px 0; }
       .dtv2 td.name > button { min-height: 0 !important; }
       /* the star: a 44px hit box, a 32px layout box (classic's negative-margin trick) */
       .dtv2 td.dense-action button { height: 44px !important; min-height: 44px !important; margin: -6px 0 !important; }
       .dtv2 .pin2 { left: 26px !important; }
-      .dtv2 .h-row th { font-size: 8px; padding: 0 5px; }
+      /* a long label wraps to two lines on a phone rather than widening its column */
+      /* the site's phone table rule pads every th / td 6px; the sheet sets its own */
+      .dtv2 .h-row th { font-size: 8px; padding: 0 5px !important; }
+      /* the ⓘ in a header: the site's phone button floor (32px) must not make the header row taller */
+      .dtv2 .h-row th button { min-height: 0 !important; }
+      .dtv2 .h-row th.long { white-space: normal; line-height: 1.15; vertical-align: bottom; min-width: 0 !important; }
       .dtv2 .bar { width: 20px; margin-right: 4px; }
       .dtv2 .sub { display: block; font: 700 8.5px/1.15 ${NUM_FONT}; color: ${C.text3}; letter-spacing: .02em; margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .dtv2 .long .full { display: none; }
@@ -175,8 +184,10 @@ export function renderV2(ctx) {
   // a Status column joins the CALL group, after its last column. The word is
   // lib/callStatus STATUS_WORD via CallStatusBadge; the status is the caller's.
   const withStatus = typeof statusOf === 'function'
+  // a table that already draws its own status column (LAMP's, which also
+  // carries the graded result) marks it `statusCol` and keeps it
   const columns = (() => {
-    if (!withStatus) return ordered
+    if (!withStatus || ordered.some((c) => c.statusCol)) return ordered
     const nm = ordered.find((c) => c.sticky && c.heat === false)
     const g = nm?._g || null
     let at = ordered.indexOf(nm)
@@ -184,12 +195,16 @@ export function renderV2(ctx) {
     const col = { key: '_status', label: 'Status', heat: false, _status: true, _g: g, w: 118, title: 'CALLED / ON THE BOARD / NOT ON THE BOARD, from the one status rule (lib/callStatus).' }
     return [...ordered.slice(0, at + 1), col, ...ordered.slice(at + 1)]
   })()
-  const isRank = (c) => c.rankCol === true
+  // the # column: tagged, or the plain '#' text column every board uses
+  const isRank = (c) => c.rankCol === true || (c.rankCol !== false && c.heat === false && String(c.label).trim() === '#')
   const rankC = columns.find(isRank)
   const nameC = columns.find((c) => c.sticky && c.heat === false) || columns.find((c) => c.key === firstTextKey)
   // the 'call' group's other text columns fold into the phone sub-line
   const callKey = nameC?._g?.key ?? null
-  const folds = (c) => !!callKey && c._g?.key === callKey && c !== nameC && !isRank(c) && (c.heat === false || c.action)
+  // (or a column tagged `fold`, for tables without groups)
+  const folds = (c) => c !== nameC && !isRank(c) && (c.fold === true
+    || (c.fold !== false && !!callKey && c._g?.key === callKey && (c.heat === false || c.action)))
+  const logoOf = (c) => c.teamMark || c.logo || null
   const s0 = sort[0]?.key ?? null, s1 = sort[1]?.key ?? null
   const eligible = (c) => c.heat !== false && !c.flag && !c.action
   const medians = {}
@@ -252,7 +267,7 @@ export function renderV2(ctx) {
           const plain = c.explain || (dict ? explainFrom(dict, c.term, c.key, c.label) : explainFor(c.term, c.key, c.label)) || (c.answers ? ANSWERS[c.answers]?.what : null)
           return (
             <th key={c.key} scope="col" aria-sort={on ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'}
-              className={cls(c, [on ? 'on' : '', isRank(c) ? 'rank' : '', c === nameC ? 'name' : ''].filter(Boolean).join(' '))}
+              className={cls(c, [on ? 'on' : '', isRank(c) ? 'rank' : '', c === nameC ? 'name' : '', /\s/.test(String(c.label || '').trim()) && String(c.label).length > 9 ? 'long' : ''].filter(Boolean).join(' '))}
               onClick={c._status ? undefined : (e) => toggle(c.key, e.shiftKey)}
               title={`${c.title || c.label}\n\nClick to sort. Shift-click to add as a tiebreaker under the current sort.`}
               style={{ ...(pinStyle(c, true) || {}), textAlign: c.heat === false || c.action ? 'left' : 'right', width: c.w, minWidth: c.w }}>
@@ -327,8 +342,8 @@ export function renderV2(ctx) {
                     </td>
                   )
                 }
-                if (c.teamMark && v) {
-                  const mark = <TeamMark sport={c.teamMark} abbr={v} variant="logo" px={18} />
+                if (logoOf(c) && v) {
+                  const mark = <TeamMark sport={logoOf(c)} abbr={v} variant="logo" px={18} />
                   return <td key={c.key} className={cls(c, 'txt')} title={String(v)} style={{ ...pin, ...(bgTint || {}) }}>{go ? <Tap onClick={go}>{mark}</Tap> : mark}</td>
                 }
                 const content = c.fmt ? c.fmt(v, r) : (v ?? '—')
@@ -345,9 +360,14 @@ export function renderV2(ctx) {
                     const fv = r[fc.key]
                     if (isBlank(fv)) continue
                     // a called row has no room for the opponent at 122px (plan: rough edge)
-                    if (fc.teamMark && !(called && !firstTeam)) {
-                      sub.push(<span key={fc.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>{firstTeam ? null : 'v '}<TeamMark sport={fc.teamMark} abbr={fv} variant="logo" px={13} />{firstTeam ? String(fv) : null}</span>)
+                    if (logoOf(fc)) {
+                      if (!(called && !firstTeam)) sub.push(<span key={fc.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>{firstTeam ? null : 'v '}<TeamMark sport={logoOf(fc)} abbr={fv} variant="logo" px={13} />{firstTeam ? String(fv) : null}</span>)
                       firstTeam = false
+                    } else if (fc.key !== 'role' && !fc._status) {
+                      // a short folded value (POS "RB", a G2) rides the sub-line; a long one
+                      // (a role sentence) stays on the desktop column only
+                      const txt = String(fc.fmt ? fc.fmt(fv, r) : fv)
+                      if (txt.length <= 6) sub.push(<span key={fc.key}>{txt}</span>)
                     }
                   }
                   if (watched) sub.push(<span key="w" style={{ color: ac }}>★</span>)

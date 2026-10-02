@@ -27,6 +27,17 @@ const STAMP_TONE = { graded: C.cream, locked: C.teal, preview: C.amber }
 // The day is the LAMP shell's (LampDashboard, 2026-09-26): one date for the
 // header's Today/Tmrw, every dated tab and the address -- this tab's day
 // buttons move it for all of them.
+// THE BOARD'S GROUPS (2026-10-01, BATCH-TABLE-SKIN-V2): read by the v2 skin
+// only. `status` is the board's own status column (scoreNight's word plus the
+// graded result), so v2 keeps it rather than stamping a second one.
+const LG = {
+  call: { key: 'call', label: 'Call', order: 0 },
+  signal: { key: 'signal', label: 'The signal', order: 1 },
+  shooter: { key: 'shooter', label: 'The shooter', order: 2 },
+}
+const LAMP_GROUP_OF = { nightRank: LG.call, name: LG.call, pos: LG.call, team: LG.call, oppTxt: LG.call, status: LG.call, score: LG.signal, rank: LG.signal, sPg: LG.shooter, gPg: LG.shooter, toi: LG.shooter }
+const lampBoardGroups = (cols) => cols.map((c) => ({ ...c, group: LAMP_GROUP_OF[c.key] || LG.shooter, ...(c.key === 'status' ? { statusCol: true } : {}), ...(c.key === 'score' ? { bar: 'primary' } : {}) }))
+
 export default function FullBoard({ onOpenPlayer, onOpenTeam, date = null, setDate = () => {} }) {
   const { data, error, loading } = useLampBoard(date)
   const games = data?.games || []
@@ -68,7 +79,10 @@ export default function FullBoard({ onOpenPlayer, onOpenTeam, date = null, setDa
           <LampTable
             rows={rows.map((r) => ({ ...r, _key: `${r.gameId}:${r.playerId}`, _raw: r,
               oppTxt: `${r.home ? '' : '@'}${r.opp}`, sPg: r.legs ? r.legs.shotsPg : null, gPg: r.legs ? r.legs.goalsPg : null, toi: r.legs ? r.legs.toi : null }))}
-            columns={[
+            // groups (BATCH-TABLE-SKIN-V2 decision C; the v2 skin only): the call,
+            // the signal (score + his rank in his game), the shooter's legs
+            statusOf={(r) => r.status}
+            columns={lampBoardGroups([
               { key: 'nightRank', label: '#', w: 36, heat: false, mono: true, dim: true },
               { key: 'name', label: 'Player', w: 150, heat: false, bold: true, sticky: true },
               { key: 'pos', label: 'Pos', w: 34, heat: false, mono: true, dim: true },
@@ -90,7 +104,7 @@ export default function FullBoard({ onOpenPlayer, onOpenTeam, date = null, setDa
                     <span style={{ color: STAMP_TONE[r.stamp], font: `800 7px/1 ${NUM_FONT}`, letterSpacing: '.12em', marginLeft: 5 }}>{STAMP[r.stamp]}</span>
                   </span>
                 ) },
-            ]}
+            ])}
             onRowClick={(r) => onOpenPlayer?.((r?._raw ?? r).playerId)}
             faceOf={(r) => ({ sport: 'nhl', photo: nhlMug(seasonOf.get(r.gameId), r.team, r.playerId), name: r.name })}
             dimRow={(r) => r.graded && r.dressed === false}

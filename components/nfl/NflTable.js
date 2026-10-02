@@ -1,7 +1,9 @@
 'use client'
+import { useMemo } from 'react'
 import DenseTable from '../DenseTable'
 import { C } from '../../lib/nfl/theme'
 import { NFL_GLOSSARY, NFL_SCORE_TERMS, NFL_RANK_NOT_PERCENT } from '../../lib/nfl/glossary'
+import { tagIdentity } from '../../lib/tableTags'
 
 // 📊 TUDDY'S TABLE — DenseTable with the football dictionary in it.
 //
@@ -22,9 +24,12 @@ import { NFL_GLOSSARY, NFL_SCORE_TERMS, NFL_RANK_NOT_PERCENT } from '../../lib/n
 // does not define them -- obvious words do not need a definition, and a dot on
 // every header is noise on a phone. Adding a term is how a column earns one.
 export default function NflTable(props) {
+  const columns = useMemo(() => tagIdentity(props.columns, 'nfl', props.rows), [props.columns, props.rows])
   return (
     <DenseTable
       {...props}
+      // v2-only identity tags (logos, the phone fold); classic ignores them
+      columns={columns}
       // DenseTable's default caption says "each row opens that hitter" (MOONSHOT).
       caption={props.caption || 'Ranked board. Column headers sort; each row opens that player.'}
       dict={NFL_GLOSSARY}
