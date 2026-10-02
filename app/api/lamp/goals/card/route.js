@@ -3,17 +3,14 @@
 // lamp_goal_feed row, so Discord can embed it by URL and a post can be
 // re-checked by eye. Reads the frozen row; never recomputes a label.
 //   /api/lamp/goals/card?game=<game_id>&pid=<player_id>[&n=<goal_n>]
-import { createClient } from '@supabase/supabase-js'
 import { goalCard } from '../../../../../lib/nhl/goalCard'
+import { adminClient } from '../../../../../lib/supabase/admin'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 const client = () => {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  if (!url || !key) return null
-  return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } })
+  return adminClient({ anon: true })
 }
 
 export async function GET(request) {

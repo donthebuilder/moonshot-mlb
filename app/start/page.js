@@ -58,7 +58,6 @@
 // NO JS FOR THE SPORT SWITCH — two plain links, same as /called's own switch
 // and its night anchors.
 import { windowFor, lastGameDays, inPool } from '../../lib/recordWindow'
-import { createClient } from '@supabase/supabase-js'
 import { unstable_cache } from 'next/cache'
 import { postseasonOn } from '../../lib/dash/seasonGuard'
 
@@ -82,6 +81,7 @@ import { eventCapture } from '../../lib/record/shape'
 import { appHref, playerHref, SPORT_KEYS, BRAND } from '../../lib/routes'
 import styles from './start.module.css'
 import { membersUrl, MEMBERS_LINE } from '../../lib/members'
+import { adminClient } from '../../lib/supabase/admin'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -249,10 +249,7 @@ const SPORTS = {
 }
 
 function client() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  if (!url || !key) return null
-  return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } })
+  return adminClient({ anon: true })
 }
 
 /**

@@ -8,17 +8,14 @@
 // Cached hard: a row never changes after it is written (the role is frozen at
 // first sight), so the image for (day, pid, n) is the same forever.
 
-import { createClient } from '@supabase/supabase-js'
 import { homerCard, pregameCard, recapCard } from '../../../../../lib/dash/homerCard'
+import { adminClient } from '../../../../../lib/supabase/admin'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 const client = () => {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  if (!url || !key) return null
-  return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } })
+  return adminClient({ anon: true })
 }
 
 export async function GET(request) {

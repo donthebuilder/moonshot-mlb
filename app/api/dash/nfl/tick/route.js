@@ -53,7 +53,6 @@ import { xDailyAllows } from '../../../../../lib/dash/xBudget'
 import { isRested } from '../../../../../lib/dash/xRest'
 import { tdCallStatus } from '../../../../../lib/callStatus'
 import { xEventsCalledOnly } from '../../../../../lib/dash/xEvents'
-import { createClient } from '@supabase/supabase-js'
 import { timingSafeEqual } from 'node:crypto'
 
 import { easternToday, etHoursSinceNoon, shiftDay } from '../../../../../lib/data'
@@ -87,6 +86,7 @@ import { fromNfl } from '../../../../../lib/numerology/adapters'
 import { easternDate } from '../../../../../lib/data'
 import { storiesTick } from '../../../../../lib/stories/record'
 import { postNflListOnce } from '../../../../../lib/lists/post'
+import { adminClient } from '../../../../../lib/supabase/admin'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -514,10 +514,7 @@ function authorized(request) {
 }
 
 const service = () => {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!url || !key) return null
-  return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } })
+  return adminClient()
 }
 
 // THE MID-WEEK CONTENT POSTS. Same claim-then-post shape as Milestone below

@@ -22,7 +22,6 @@
 // data already fetched — no new query.
 
 import { windowFor, OUTSIDE_POOL } from '../../lib/recordWindow'
-import { createClient } from '@supabase/supabase-js'
 import { unstable_cache } from 'next/cache'
 import { postseasonOn } from '../../lib/dash/seasonGuard'
 import { slateNight } from '../../lib/slateNight'
@@ -39,6 +38,7 @@ import { regradeNote } from '../../lib/nfl/regrades'
 import styles from './called.module.css'
 import { membersUrl, MEMBERS_LINE } from '../../lib/members'
 import { shiftDay } from '../../lib/data'
+import { adminClient } from '../../lib/supabase/admin'
 
 // 2026-09-20 — FOOTBALL MOVED IN, IT DIDN'T GET ITS OWN HOUSE. Donovan:
 // "can you not just build it on the same side of the site." Right call, and
@@ -75,10 +75,7 @@ export async function generateMetadata({ searchParams }) {
 const DAYS = windowFor('mlb').gameDays
 
 function client() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  if (!url || !key) return null
-  return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } })
+  return adminClient({ anon: true })
 }
 
 function prettyDay(iso) {

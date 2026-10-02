@@ -32,7 +32,6 @@ import { gameCalls, gameCallText } from '../../../../../lib/dash/gameCall'
 import { xDailyAllows } from '../../../../../lib/dash/xBudget'
 import { isRested } from '../../../../../lib/dash/xRest'
 import { xEventsCalledOnly } from '../../../../../lib/dash/xEvents'
-import { createClient } from '@supabase/supabase-js'
 import { timingSafeEqual } from 'node:crypto'
 
 import { easternToday, etHoursSinceNoon, slateDateFromRows, shiftDay } from '../../../../../lib/data'
@@ -67,6 +66,7 @@ import { mlbSeasonActive, postseasonOn, priorPostseasonHr } from '../../../../..
 import { storiesTick } from '../../../../../lib/stories/record'
 import { mlbNumerologyWrite, mlbNumerologyGrade } from '../../../../../lib/numerology/mlbWriter'
 import { postMlbListOnce } from '../../../../../lib/lists/post'
+import { adminClient } from '../../../../../lib/supabase/admin'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -416,10 +416,7 @@ function authorized(request) {
 }
 
 const service = () => {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!url || !key) return null
-  return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } })
+  return adminClient()
 }
 
 // ── the published files, cached per instance ───────────────────────────────

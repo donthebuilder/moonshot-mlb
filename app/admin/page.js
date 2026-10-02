@@ -10,13 +10,13 @@
 // Cached 60 s.
 import { notFound } from 'next/navigation'
 import { unstable_cache } from 'next/cache'
-import { createClient } from '@supabase/supabase-js'
 import { hasSupabaseConfig } from '../../lib/supabase/config'
 import { createSupabaseServerClient } from '../../lib/supabase/server'
 import { logXBudget } from '../../lib/dash/xBudget'
 import { easternToday } from '../../lib/data'
 import { isAdminEmail } from '../../lib/admin'
 import start from '../start/start.module.css'
+import { adminClient } from '../../lib/supabase/admin'
 
 export const dynamic = 'force-dynamic'
 // The title is computed, not static: a static one rides the 404's payload
@@ -35,10 +35,7 @@ const WATCH_KEYS = ['mlb_watchlist_v1', 'tuddy_watchlist_v1', 'dash_follow_v1']
 const DAY = 86400000
 
 function service() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!url || !key) return null
-  return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } })
+  return adminClient()
 }
 
 // A saved list holds at least one live entry: an array with items, or a map

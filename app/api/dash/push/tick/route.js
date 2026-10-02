@@ -28,7 +28,6 @@
 // honest promise today is under a minute, not ten.
 
 import webpush from 'web-push'
-import { createClient } from '@supabase/supabase-js'
 import { createHash, timingSafeEqual } from 'node:crypto'
 
 import { easternToday } from '../../../../../lib/data'
@@ -43,6 +42,7 @@ import { audienceFrom, boardInfoFrom, laneOf, lineupUpdatesFrom, mlbEventsFrom, 
 import { fanOutToDiscord } from '../../../../../lib/dash/discordAlerts'
 import { isMaintenanceMode, isRedZoneAlertsEnabled } from '../../../../../lib/edgeConfig'
 import { readUserState } from '../../../../../lib/dash/stateCache'
+import { adminClient } from '../../../../../lib/supabase/admin'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -59,10 +59,7 @@ function authorized(request) {
 }
 
 const service = () => {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!url || !key) return null
-  return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } })
+  return adminClient()
 }
 
 // ── what happened ──────────────────────────────────────────────────────────

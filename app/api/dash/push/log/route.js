@@ -12,10 +12,10 @@
 // the whole route. No user, no rows. Missing table (migration not run) is an
 // empty list, not an error: the panel says "nothing yet" and moves on.
 
-import { createClient } from '@supabase/supabase-js'
 import { createSupabaseServerClient } from '../../../../../lib/supabase/server'
 import { hasSupabaseConfig } from '../../../../../lib/supabase/config'
 import { isSport } from '../../../../../lib/routes'
+import { adminClient } from '../../../../../lib/supabase/admin'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -23,10 +23,7 @@ export const runtime = 'nodejs'
 const LIMIT = 60
 
 const service = () => {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!url || !key) return null
-  return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } })
+  return adminClient()
 }
 
 export async function GET(request) {

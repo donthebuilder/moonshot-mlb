@@ -30,7 +30,6 @@
 //   4. IT WRITES NOTHING A PERSON CAN SEE. No push, no user state, no UI. The
 //      table is read by hand, later, when there are enough nights in it.
 
-import { createClient } from '@supabase/supabase-js'
 import { timingSafeEqual } from 'node:crypto'
 // fetchBoardFull, NOT fetchBoard: the slimmed read keeps seventeen fields and
 // the simulator needs about forty. With the slim rows nothing throws — every
@@ -39,6 +38,7 @@ import { timingSafeEqual } from 'node:crypto'
 import { fetchBoardFull } from '../../../../lib/dash/board'
 import { gameFrom, simulate } from '../../../../lib/gameSim'
 import { shiftDay } from '../../../../lib/data'
+import { adminClient } from '../../../../lib/supabase/admin'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -58,10 +58,7 @@ function authorized(request) {
 }
 
 function admin() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!url || !key) return null
-  return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } })
+  return adminClient()
 }
 
 // The slate's own day, not the server's. A 10pm Phoenix first pitch is already
