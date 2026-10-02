@@ -114,38 +114,45 @@ export default function StaleBanner({ slateDate = '', mode = 'today', loading = 
   const col = '#f87171'
 
   return (
-    <div style={{
-      background: `linear-gradient(155deg, ${col}14, ${col}05)`,
-      border: `1px solid ${col}55`, borderRadius: 12,
+    <StaleNote tone={col} icon={early ? '🕐' : '⚠️'} compact={compact}
+      title={early
+        ? 'Tonight’s slate hasn’t published yet'
+        : `This is not ${mode === 'tomorrow' ? 'tomorrow’s' : 'tonight’s'} slate`}
+      meta={`showing ${slateDate} · ${behind} day${behind === 1 ? '' : 's'} behind`}
+      body={early ? (
+        <>
+          The daily build normally lands around <b>1am ET</b> and it hasn’t yet, so everything below is
+          still <b style={{ color: col }}>{slateDate}</b>. Nothing here is wrong — it’s just the previous
+          night. It’ll swap over on its own once the bot publishes.
+        </>
+      ) : (
+        <>
+          The bot hasn’t published a newer slate, so every board, pick and score below belongs to{' '}
+          <b style={{ color: col }}>{slateDate}</b> — games that have already been played.{' '}
+          <b>Don’t read these as tonight’s picks.</b> This usually means the scheduled run failed;
+          the site is read-only and can’t fix it from here.
+        </>
+      )} />
+  )
+}
+
+// THE BANNER ITSELF (R7, 2026-10-02): MOONSHOT's stale-slate banner as a piece
+// every product draws its own warning with -- TUDDY's stale / preseason board,
+// LAMP's delayed feed -- in its own theme and tone, instead of three looks.
+// The markup is exactly what StaleBanner drew; MOONSHOT's banner is unchanged.
+export function StaleNote({ tone, icon = '⚠️', title, meta = null, body = null, compact = false, theme = C, numFont = NUM_FONT, role = 'status' }) {
+  return (
+    <div role={role} style={{
+      background: `linear-gradient(155deg, ${tone}14, ${tone}05)`,
+      border: `1px solid ${tone}55`, borderRadius: 12,
       padding: '10px 14px', marginBottom: 12,
     }}>
       <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 13 }}>{early ? '🕐' : '⚠️'}</span>
-        <span style={{ fontSize: 12, fontWeight: 900, color: col }}>
-          {early
-            ? 'Tonight’s slate hasn’t published yet'
-            : `This is not ${mode === 'tomorrow' ? 'tomorrow’s' : 'tonight’s'} slate`}
-        </span>
-        <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
-          showing {slateDate} · {behind} day{behind === 1 ? '' : 's'} behind
-        </span>
+        <span style={{ fontSize: 13 }}>{icon}</span>
+        <span style={{ fontSize: 12, fontWeight: 900, color: tone }}>{title}</span>
+        {meta ? <span style={{ fontSize: 9.5, color: theme.text3, fontFamily: numFont }}>{meta}</span> : null}
       </div>
-      {!compact && <div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.6, marginTop: 5, maxWidth: 720 }}>
-        {early ? (
-          <>
-            The daily build normally lands around <b>1am ET</b> and it hasn’t yet, so everything below is
-            still <b style={{ color: col }}>{slateDate}</b>. Nothing here is wrong — it’s just the previous
-            night. It’ll swap over on its own once the bot publishes.
-          </>
-        ) : (
-          <>
-            The bot hasn’t published a newer slate, so every board, pick and score below belongs to{' '}
-            <b style={{ color: col }}>{slateDate}</b> — games that have already been played.{' '}
-            <b>Don’t read these as tonight’s picks.</b> This usually means the scheduled run failed;
-            the site is read-only and can’t fix it from here.
-          </>
-        )}
-      </div>}
+      {!compact && body ? <div style={{ fontSize: 10.5, color: theme.text2, lineHeight: 1.6, marginTop: 5, maxWidth: 720 }}>{body}</div> : null}
     </div>
   )
 }

@@ -7,6 +7,8 @@ import { nhlLogo } from '../../lib/nhl/teams'
 // Formats live in lib/nhl/format.js (no 'use client') so the crawlable
 // server pages print numbers the same way; re-exported here for the tabs.
 import { fmtDay } from '../../lib/nhl/format'
+import { hashParams, writeHash } from '../../lib/urlState'
+import { StaleNote } from '../StaleBanner'
 export { fmtDay, fmtPct3, fmt2, fmtSec, plusMinus } from '../../lib/nhl/format'
 
 // The handful of small pieces every LAMP page shares. Kept in one file so a
@@ -112,15 +114,9 @@ export function EmptyState({ title, note = null, tone = C.text3, children = null
 /** LIVE DATA DELAYED — the feed failed; the page keeps whatever it last had. */
 export function DelayedBanner({ error, what = 'the league feed' }) {
   if (!error) return null
-  return (
-    <div role="alert" style={{
-      margin: '0 0 12px', padding: '10px 14px', borderRadius: 10,
-      border: `1px solid ${C.amber}`, background: 'rgba(251,191,36,.08)', color: C.text2, fontSize: 12, lineHeight: 1.5,
-    }}>
-      <b style={{ color: C.amber, fontFamily: NUM_FONT, letterSpacing: '.06em' }}>LIVE DATA DELAYED</b>
-      {' · '}We’re waiting on {what}. Anything below is the last copy we had.
-    </div>
-  )
+  // MOONSHOT's banner (components/StaleBanner.js StaleNote, R7) in LAMP's theme
+  return <StaleNote role="alert" tone={C.amber} theme={C} numFont={NUM_FONT} title="LIVE DATA DELAYED"
+    body={<>We’re waiting on {what}. Anything below is the last copy we had.</>} />
 }
 
 /** A quiet loading line. */
@@ -166,8 +162,10 @@ export function SourceLine({ children }) {
 // LAMP's pages carry their one parameter (a date, a game id) in the same
 // hash the rest of /app routes on, so a link to a night or a game is a real
 // address. replaceState, never pushState: the back button leaves the site.
+// Both on lib/urlState.js now (R7, 2026-10-02): one address reader / writer for
+// every shell. These two names stay for LAMP's 15 call sites.
 export function readHashParam(key) {
-  try { return new URLSearchParams(String(window.location.hash || '').replace(/^#/, '')).get(key) } catch { return null }
+  return hashParams().get(key)
 }
 /** `date=` off the hash, only when it is a REAL calendar day; else null (today).
  *  `2026-13-45` matched the old \d{4}-\d{2}-\d{2} test, the route answered
@@ -183,15 +181,14 @@ export function readHashDay() {
 }
 export function writeHashParam(key, value) {
   try {
-    const h = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''))
+    const h = hashParams()
     if (value == null || value === '') h.delete(key); else h.set(key, String(value))
     // Keeps the entry's OWN marker (a detail page's entry is marked by
     // LampDashboard openDetail so the in-page Back can step the browser's
     // history) -- but not the whole history.state: its __NA flag made Next's
     // patched replaceState skip syncing its router, which is why Next could
     // later write a stale URL back (2026-09-27, audit 00A; lib/urlState.js).
-    const mark = window.history.state?.lampDetail ? { lampDetail: true } : null
-    window.history.replaceState(mark, '', `#${h.toString()}`)
+    writeHash(h, { state: window.history.state?.lampDetail ? { lampDetail: true } : null })
   } catch { /* the page still works without the address */ }
 }
 

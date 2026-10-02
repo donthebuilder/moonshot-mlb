@@ -53,6 +53,7 @@ import Streaks from './tabs/Streaks'
 import Leaders from './tabs/Leaders'
 import Storylines from './tabs/Storylines'
 import { liveOdds } from '../../lib/oddsFreshness'
+import { StaleNote } from '../StaleBanner'
 
 // The key set now lives in lib/routes.js alongside MOONSHOT's, with the
 // aliases that make each product answer to the other's words -- #tab=results
@@ -86,20 +87,13 @@ function NflStaleBanner({ meta, data, loading }) {
   const days = Math.floor(ageH / 24)
   const loud = ageH >= 24 * 7 || preseason
   const when = new Date(t).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  // MOONSHOT's banner (components/StaleBanner.js StaleNote, R7) in TUDDY's theme
   return (
-    <div role="status" style={{
-      margin: '0 0 12px', padding: '10px 14px', borderRadius: 10,
-      border: `1px solid ${loud ? C.orange : C.border2}`, background: loud ? `${C.orange}14` : C.bg2,
-      color: C.text2, fontSize: 12, lineHeight: 1.5,
-    }}>
-      <b style={{ color: loud ? C.orange : C.text, fontFamily: NUM_FONT, letterSpacing: '.04em' }}>
-        {preseason ? 'PRESEASON BOARD' : 'BOARD DATA DELAYED'}
-      </b>
-      {' \u00b7 '}
-      {preseason
+    <StaleNote tone={loud ? C.orange : C.text3} icon={loud ? '⚠️' : '🕐'} theme={C} numFont={NUM_FONT}
+      title={preseason ? 'PRESEASON BOARD' : 'BOARD DATA DELAYED'}
+      body={<>{preseason
         ? `This is a preseason build from ${when}, not this week\u2019s slate. The football pipeline has not published a regular-season board yet.`
-        : `The last football build landed ${days >= 1 ? `${days} day${days === 1 ? '' : 's'}` : `${Math.round(ageH)}h`} ago (${when}). Everything on TUDDY is from that run until the next one lands.`}
-    </div>
+        : `The last football build landed ${days >= 1 ? `${days} day${days === 1 ? '' : 's'}` : `${Math.round(ageH)}h`} ago (${when}). Everything on TUDDY is from that run until the next one lands.`}</>} />
   )
 }
 
