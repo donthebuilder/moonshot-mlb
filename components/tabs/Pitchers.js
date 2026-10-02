@@ -1783,9 +1783,28 @@ rows={(() => {
           { key: 'wxHr',   label: 'Wx HR%', w: 58, dp: 0, fmt: (v) => (v == null || !Number.isFinite(Number(v)) ? '—' : `${Number(v) > 0 ? '+' : ''}${Number(v).toFixed(0)}%`),
             title: 'weather_hr_effect_pct — the bot\'s published swing on the home-run RATE from tonight\'s conditions at this park. A percentage change to a rate, not anybody\'s chance of hitting one.' },
         ]
-          if (colGroup === 'all') return all
+          // THE GROUP ROW (2026-10-01, BATCH-TABLE-SKIN-V2; the v2 skin only):
+          // the starter's own columns, then the view's columns under the view's
+          // own name from the picker above; Core splits into his read, his
+          // line and the marks. "Everything" groups each column by the first
+          // view it belongs to, so the whole wall reads as the views in order.
+          const VIEW_LABEL = { recent: 'Recent form', cmd: 'Command', bot: 'Bot scores', bb: 'Batted ball', pen: 'His pen', air: 'The air' }
+          const WHO = new Set(['name', 't', 'tm', 'vs', 'weakSide', 'trend'])
+          const CORE = { read: ['gbTrap', 'hardCon', 'lowK', 'conf', 'overall'], line: ['hr9', 'hr', 'ip', 'xallowed', 'xluck', 'luck', 'era', 'whip', 'kpct'], marks: ['spots', 'runOn'] }
+          const G = { who: { key: 'who', label: 'Starter', order: 0 }, read: { key: 'read', label: 'His read', order: 1 }, line: { key: 'line', label: 'His line', order: 2 }, marks: { key: 'marks', label: 'Marks', order: 3 } }
+          const viewG = (v, i) => ({ key: v, label: VIEW_LABEL[v], order: 4 + i })
+          const groupFor = (key, view) => {
+            if (WHO.has(key)) return G.who
+            if (view === 'core' || view === 'all') for (const [g, ks] of Object.entries(CORE)) if (ks.includes(key)) return G[g]
+            if (view !== 'all' && view !== 'core') return viewG(view, 0)
+            const order = Object.keys(VIEW_LABEL)
+            const first = order.find((v) => GROUPS[v].includes(key))
+            return first ? viewG(first, order.indexOf(first)) : G.marks
+          }
+          const tag = (cols) => cols.map((c) => ({ ...c, group: groupFor(c.key, colGroup) }))
+          if (colGroup === 'all') return tag(all)
           const keep = new Set(GROUPS[colGroup] || GROUPS.core)
-          return all.filter((c) => keep.has(c.key))
+          return tag(all.filter((c) => keep.has(c.key)))
         })()}
         onRowClick={(p) => setModalPitcher(p)}
         initialSort="hr9"

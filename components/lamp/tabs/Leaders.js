@@ -86,6 +86,17 @@ const SKATER_TOP = [['points', 'Points'], ['goals', 'Goals'], ['plusMinus', '+/-
 const GOALIE_TOP = [['wins', 'Wins'], ['savePctg', 'Save %', fmtPct3], ['goalsAgainstAverage', 'GAA', fmt2]]
 // Three cards, MOONSHOT's count (its SB / R / RBI top 10s): five was ~1,000px of phone.
 
+// THE GROUP ROW (2026-10-01, BATCH-TABLE-SKIN-V2; the v2 skin only).
+const LG = {
+  skater: { key: 'who', label: 'Skater', order: 0 }, goalie: { key: 'who', label: 'Goalie', order: 0 },
+  scoring: { key: 'scoring', label: 'Scoring', order: 1 }, shooting: { key: 'shooting', label: 'Shooting', order: 2 },
+  pp: { key: 'pp', label: 'Power play', order: 3 }, usage: { key: 'usage', label: 'Usage', order: 4 },
+  record: { key: 'record', label: 'Record', order: 1 }, net: { key: 'net', label: 'In net', order: 2 },
+  more: { key: 'more', label: 'More', order: 9 },
+}
+const SKATER_GROUP_OF = { name: LG.skater, team: LG.skater, opp: LG.skater, pos: LG.skater, gp: LG.scoring, g: LG.scoring, a: LG.scoring, pts: LG.scoring, ptsPg: LG.scoring, pm: LG.scoring, gwg: LG.scoring, sog: LG.shooting, shPct: LG.shooting, ppg: LG.pp, ppp: LG.pp, toi: LG.usage, fo: LG.usage, pim: LG.usage }
+const GOALIE_GROUP_OF = { name: LG.goalie, team: LG.goalie, opp: LG.goalie, gp: LG.record, gs: LG.record, w: LG.record, l: LG.record, otl: LG.record, so: LG.record, svPct: LG.net, gaa: LG.net, sa: LG.net }
+
 export default function Leaders({ onOpenPlayer }) {
   const [view, setView] = useState('skaters')
   // null = automatic: 10 once the season has 20+ games in it, Any before
@@ -226,7 +237,7 @@ export default function Leaders({ onOpenPlayer }) {
             heatMode="sorted"
             key={`${view}-${sortKey}`}
             rows={rows}
-            columns={goalies ? GOALIE_COLS : SKATER_COLS}
+            columns={(goalies ? GOALIE_COLS : SKATER_COLS).map((c) => ({ ...c, group: (goalies ? GOALIE_GROUP_OF : SKATER_GROUP_OF)[c.key] || LG.more }))}
             onRowClick={openRow}
             faceOf={(r) => ({ sport: 'nhl', photo: nhlMug(season, r.team, r.id), name: r.name })}
             initialSort={{ key: sortKey, dir: LOW_IS_GOOD.has(sortKey) ? 'asc' : 'desc' }}

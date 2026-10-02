@@ -55,6 +55,14 @@ function rowsFor(rows, view, rankKey) {
 
 // `onOpenTeam` (2026-09-25, navigation pass): 32 clubs in a table and none
 // opened its page. A row is the club; tap it for the club.
+// THE GROUP ROW (2026-10-01, BATCH-TABLE-SKIN-V2; the v2 skin only).
+const SG = {
+  team: { key: 'team', label: 'Team', order: 0 }, record: { key: 'record', label: 'Record', order: 1 },
+  goals: { key: 'goals', label: 'Goals', order: 2 }, form: { key: 'form', label: 'Form', order: 3 },
+}
+const STAND_GROUP_OF = { rank: SG.team, team: SG.team, gp: SG.record, w: SG.record, l: SG.record, otl: SG.record, pts: SG.record, pPct: SG.record, rw: SG.record, row: SG.record, gf: SG.goals, ga: SG.goals, diff: SG.goals, l10: SG.form, strk: SG.form, home: SG.form, road: SG.form }
+const GROUPED_COLUMNS = COLUMNS.map((c) => ({ ...c, group: STAND_GROUP_OF[c.key] || SG.form }))
+
 export default function Standings({ onOpenTeam }) {
   const [view, setView] = useState('division')
   const { data, error, loading } = useLampStandings()
@@ -110,7 +118,7 @@ export default function Standings({ onOpenTeam }) {
       {groups.map((g) => (
         <section key={g.title} aria-label={g.title}>
           <Kicker>{g.title.toUpperCase()}</Kicker>
-          <LampTable rows={g.rows} columns={COLUMNS} maxHeight={9999} heatMode="standouts" maxRows={40} onRowClick={onOpenTeam ? (r) => onOpenTeam(r._abbrev) : undefined} />
+          <LampTable rows={g.rows} columns={GROUPED_COLUMNS} maxHeight={9999} heatMode="standouts" maxRows={40} onRowClick={onOpenTeam ? (r) => onOpenTeam(r._abbrev) : undefined} />
           {g.cutAfter && g.rows.length > g.cutAfter && (
             <div style={{ color: C.text3, font: `800 8px/1.4 ${NUM_FONT}`, letterSpacing: '.08em', marginTop: 4 }}>THE LINE IS AFTER #{g.cutAfter} — two wild cards per conference make the playoffs.</div>
           )}

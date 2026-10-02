@@ -198,6 +198,13 @@ function HistRow({ i, name, team, main, note, onClick, title, onTeam }) {
   )
 }
 
+const LEADER_G = {
+  who: { key: 'who', label: 'Batter', order: 0 }, line: { key: 'line', label: 'Season line', order: 1 },
+  rates: { key: 'rates', label: 'Rates', order: 2 }, split: { key: 'split', label: 'Vs the hand', order: 3 },
+}
+const LEADER_GROUP_OF = { name: 'who', team: 'who', opp: 'who', bats: 'who', pa: 'line', avg: 'line', obp: 'line', slg: 'line', ops: 'line', iso: 'line', hr: 'line', rbi: 'line', runs: 'line', tb: 'line', hrPA: 'rates', paHR: 'rates', kPct: 'rates', bbPct: 'rates', babip: 'rates', avgL: 'split', avgR: 'split', isoL: 'split', isoR: 'split' }
+const LEADER_COLUMNS = COLUMNS.map((c) => ({ ...c, group: LEADER_G[LEADER_GROUP_OF[c.key]] || LEADER_G.rates }))
+
 export default function Leaders({ players = [], onPlayerClick, onNavigate }) {
   const [minPA, setMinPA] = useState(100)
   const [hand, setHand] = useState('all')
@@ -656,7 +663,9 @@ export default function Leaders({ players = [], onPlayerClick, onNavigate }) {
           heatMode="sorted"
 key={lens}
           rows={rows}
-          columns={COLUMNS}
+          // groups (BATCH-TABLE-SKIN-V2; the v2 skin only): who, the season line,
+          // the rates, the splits by the pitcher's hand
+          columns={LEADER_COLUMNS}
           onRowClick={onPlayerClick}
           faceOf={(r) => (r._raw?.player_id ? { sport: 'mlb', id: String(r._raw.player_id), name: r.name } : null)}
           initialSort={lens}

@@ -160,7 +160,7 @@ function Shortlist({ data, picks, logs, odds, market, setMarket, onPlayerClick, 
           <NflTable
             key={`${market}-${view}-${week}`}
             rows={rows}
-            columns={columns}
+            columns={columns.map((c) => ({ ...c, group: BOT_GROUP_OF(c.key) }))}
             onRowClick={onPlayerClick ? (p) => onPlayerClick(p, market) : null}
             initialSort={null}
             heatMode="sorted"
@@ -191,6 +191,15 @@ function useNextWeek(on) {
   }, [on]) // eslint-disable-line react-hooks/exhaustive-deps
   return st
 }
+
+// THE GROUP ROW (2026-10-01, BATCH-TABLE-SKIN-V2; the v2 skin only): who and
+// his rung on the card, the case for him (the score and the stats behind it),
+// then the price.
+const BOT_G = {
+  call: { key: 'call', label: 'Call', order: 0 }, why: { key: 'why', label: 'The case', order: 1 }, price: { key: 'price', label: 'The price', order: 2 },
+}
+const BOT_GROUP_OF = (key) => (['name', 'team', 'opp', 'pos', 'pick'].includes(key) ? BOT_G.call
+  : ['rate', 'price', 'assume', 'room', 'read'].includes(key) ? BOT_G.price : BOT_G.why)
 
 export default function Bot({ data, picks, results, logs, matchup, odds, oddsStatus, onPlayerClick }) {
   const [view, setView] = useState('short')

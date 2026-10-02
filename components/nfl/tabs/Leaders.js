@@ -105,6 +105,16 @@ const facing = (top) => (top._raw?.opp
   ? { text: `this week vs ${top._raw.opp}`, title: `This week: ${top._raw.team} vs ${top._raw.opp}` }
   : null)
 
+// THE GROUP ROW (2026-10-01, BATCH-TABLE-SKIN-V2; the v2 skin only): the
+// stat families FAMILY already colours, named. A column with no group rides
+// with the one before it, so Tm / Opp / Pos stay with the player.
+const FAMILY_GROUP = {
+  who: { key: 'who', label: 'Player', order: 0 }, cyan: { key: 'rec', label: 'Receiving', order: 1 },
+  orange: { key: 'rush', label: 'Rushing', order: 2 }, green: { key: 'score', label: 'Scoring', order: 3 },
+  purple: { key: 'pass', label: 'Passing', order: 4 }, yellow: { key: 'kick', label: 'Kicking', order: 5 },
+  other: { key: 'other', label: 'More', order: 6 },
+}
+
 export default function Leaders({ data, onPlayerClick }) {
   const [pos, setPos] = useState('ALL')
   const [sample, setSample] = useState('full')
@@ -142,11 +152,12 @@ export default function Leaders({ data, onPlayerClick }) {
   // rate in the payload (0.37), so it is carried as a percentage here and dp
   // formats it, the way Research does.
   const columns = useMemo(() => [
-    { key: 'name', label: 'Player', heat: false, w: 150, bold: true, sticky: true },
+    { group: FAMILY_GROUP.who, key: 'name', label: 'Player', heat: false, w: 150, bold: true, sticky: true },
     { key: 'team', label: 'Tm', heat: false, w: 34, mono: true, dim: true, teamMark: 'nfl' },
     { key: 'opp', label: 'Opp', heat: false, w: 38, mono: true, dim: true },
     { key: 'pos', label: 'Pos', heat: false, w: 34, mono: true, dim: true },
     ...cards.map(({ col }) => ({
+      group: FAMILY_GROUP[FAMILY[col.key]] || FAMILY_GROUP.other,
       key: col.key, label: col.label, w: 56, dp: col.dp ?? 2,
       title: col.desc ? `${col.desc}${col.pct ? ' (a share, as a percentage)' : ''}` : undefined,
     })),

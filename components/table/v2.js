@@ -71,7 +71,24 @@ export function readSkin() {
 //    label, ordered by first appearance. Ungrouped columns ride with the
 //    group before them, so a partly-tagged table never scatters.
 const groupOf = (c) => (c.group == null ? null : typeof c.group === 'string' ? { key: c.group, label: c.group, order: null } : c.group)
-export function orderByGroup(columns) {
+// A WIDE TABLE WITH NO GROUPS (8+ columns) is split in two, never guessed
+// further: the who-columns up to and including its name column, labelled with
+// that column's own name ("Player", "Team"), then the numbers. A small table
+// gets no group row -- on a phone that row is 18px of scroll for nothing.
+const AUTO_MIN = 8
+function autoGroups(columns) {
+  if (columns.length < AUTO_MIN || columns.some((c) => c.group != null)) return columns
+  const ni = columns.findIndex((c) => c.sticky && c.heat === false)
+  if (ni < 0) return columns
+  let end = ni
+  while (end + 1 < columns.length && columns[end + 1].heat === false && !columns[end + 1].flag && (columns[end + 1].fold || columns[end + 1].logo || columns[end + 1].teamMark || /^(pos|position|team|tm|opp|oppTxt|vs|g)$/.test(columns[end + 1].key))) end++
+  const who = { key: 'who', label: String(columns[ni].label || 'Who').trim() || 'Who', order: 0, auto: true }
+  const nums = { key: 'numbers', label: 'The numbers', order: 1, auto: true }
+  return columns.map((c, i) => ({ ...c, group: i <= end ? who : nums }))
+}
+
+export function orderByGroup(input) {
+  const columns = autoGroups(input)
   if (!columns.some((c) => c.group != null)) return columns
   let last = null
   const seen = new Map()
@@ -205,7 +222,7 @@ export function renderV2(ctx) {
   const callKey = nameC?._g?.key ?? null
   // (or a column tagged `fold`, for tables without groups)
   const folds = (c) => c !== nameC && !isRank(c) && (c.fold === true
-    || (c.fold !== false && !!callKey && c._g?.key === callKey && (c.heat === false || c.action)))
+    || (c.fold !== false && !!callKey && c._g?.key === callKey && (c.heat === false || (c.action && !c._g?.auto))))
   const logoOf = (c) => c.teamMark || c.logo || null
   const s0 = sort[0]?.key ?? null, s1 = sort[1]?.key ?? null
   const eligible = (c) => c.heat !== false && !c.flag && !c.action
