@@ -1,4 +1,5 @@
 'use client'
+import NflTable from './NflTable'
 import { useState } from 'react'
 import { C, NUM_FONT } from '../../lib/nfl/theme'
 import { softCells, plainRole, blockSeason, STARTER_ROLES, SOFT_THIN_GAMES } from '../../lib/nfl/dvpSignal'
@@ -106,27 +107,18 @@ export default function DvpRead({ matchup, def, position, role = null, slateSeas
         fontFamily: NUM_FONT, fontSize: 12, fontWeight: 800, letterSpacing: '.06em',
       }}>{open ? '▾' : '▸'} EVERY ROLE, EVERY STAT · RANK OF 32</button>
       {open && (
-        <div className="dense-scroll" style={{ overflowX: 'auto', marginTop: 6 }}>
-          <table style={{ borderCollapse: 'collapse', fontFamily: NUM_FONT, fontSize: 12, minWidth: '100%' }}>
-            <thead>
-              <tr>
-                <th scope="col" style={{ position: 'sticky', left: 0, background: C.bg2, textAlign: 'left', padding: '4px 8px', color: C.text3, fontSize: 11 }}>ROLE</th>
-                {stats.map((st) => <th key={st} scope="col" style={{ padding: '4px 6px', color: C.text3, fontSize: 11, textAlign: 'right', whiteSpace: 'nowrap' }}>{labels[st] || st}</th>)}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r} style={{ borderTop: `1px solid ${C.border}` }}>
-                  <th scope="row" style={{ position: 'sticky', left: 0, background: C.bg2, textAlign: 'left', padding: '6px 8px', whiteSpace: 'nowrap', color: r === role ? C.cyan : C.text, borderLeft: `3px solid ${r === role ? C.cyan : 'transparent'}` }}>{r}</th>
-                  {stats.map((st) => {
-                    const rk = blob[r]?.[`${st}_rank`]
-                    const v = blob[r]?.[st]
-                    return <td key={st} title={Number.isFinite(rk) ? `${v} -- ${ordinal(rk)} of 32` : 'not a stat this role records'} style={{ padding: '6px', textAlign: 'right', color: Number.isFinite(rk) ? C.text : C.text3 }}>{Number.isFinite(rk) ? rk : '—'}</td>
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div style={{ marginTop: 6 }}>
+          {/* THE SHARED SHEET (2026-10-01, BATCH-TABLE-SKIN-V2 4b): every role x
+              every stat, the rank of 32 (1 allows the most), the same scale the
+              Matchups by-position sheet uses; his role is edged in cyan. */}
+          <NflTable bare noGroups tight heatMode="sorted" maxHeight={9999} maxRows={40} caption={`${def}: rank of 32 for what it allows each role`}
+            rows={rows.map((r) => ({ _key: r, role: r, ...Object.fromEntries(stats.map((st) => [st, Number.isFinite(blob[r]?.[`${st}_rank`]) ? blob[r][`${st}_rank`] : null])), _vals: blob[r] || {} }))}
+            rowEdge={(x) => (x.role === role ? C.cyan : null)}
+            columns={[
+              { key: 'role', label: 'Role', heat: false, sticky: true, w: 70, fmt: (v) => <b style={{ color: v === role ? C.cyan : C.text }}>{v}</b> },
+              ...stats.map((st) => ({ key: st, label: labels[st] || st, w: 56, scale: 'seq', domain: [1, 32], invert: true, dp: 0,
+                fmt: (rk, x) => <span title={Number.isFinite(rk) ? `${x._vals[st]} -- ${ordinal(rk)} of 32` : 'not a stat this role records'}>{Number.isFinite(rk) ? rk : '—'}</span> })),
+            ]} />
           <div style={{ fontSize: 11, color: C.text3, marginTop: 5, lineHeight: 1.5 }}>Each cell is {def}&apos;s rank of 32 for what it allows that role: 1 allows the most. {matchup?.season} season.</div>
         </div>
       )}

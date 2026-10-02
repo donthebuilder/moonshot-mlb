@@ -1,4 +1,5 @@
 'use client'
+import NflTable from './NflTable'
 import { useEffect, useState } from 'react'
 
 import useScrollLock from '../../lib/useScrollLock'
@@ -326,49 +327,34 @@ export function ratesFor(player, markets, log) {
     .sort((a, b) => b.score - a.score)
 }
 
-function RateCell({ pair }) {
-  const [h, n] = pair || [0, 0]
-  if (!n) return <td style={{ padding: '6px 4px', textAlign: 'right', color: C.text3 }}>—</td>
-  const pct = (100 * h) / n
-  const col = pct >= 60 ? C.green : pct >= 45 ? C.yellow : C.red
-  return <td style={{ padding: '6px 4px', textAlign: 'right', fontFamily: NUM_FONT, fontSize: 12, fontWeight: 800, color: col, whiteSpace: 'nowrap' }}>{h}/{n}</td>
-}
 
 function RatesTable({ player, markets, log }) {
   const rows = ratesFor(player, markets, log)
   if (!rows.length || !Array.isArray(log) || !log.length) return null
-  const th = { padding: '0 4px 6px', fontSize: 9.5, fontWeight: 900, color: C.text3, letterSpacing: '.08em', textAlign: 'right' }
   return (
     <>
       <Head>RATES AT THE CARD&apos;S BAR</Head>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-        <thead>
-          <tr>
-            <th scope="col" style={{ ...th, textAlign: 'left' }}>MARKET · BAR</th>
-            <th scope="col" style={th}>SCORE</th>
-            <th scope="col" style={th}>L4</th>
-            <th scope="col" style={th}>L8</th>
-            <th scope="col" style={th}>{rows[0].seasonYear || 'SEASON'}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r, i) => {
-            const g = gradeFor(r.score)
-            return (
-              <tr key={r.key} style={{ borderTop: `1px solid ${C.border}` }}>
-                <th scope="row" style={{ padding: '6px 4px', textAlign: 'left', fontWeight: i === 0 ? 900 : 700, color: i === 0 ? C.text : C.text2 }}>
-                  <NflExplain label={r.label} term={r.key} />
-                  <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 10.5, fontWeight: 700 }}>{r.bar != null ? ` · ${r.bar}+` : ''}</span>
-                </th>
-                <td style={{ padding: '6px 4px', textAlign: 'right', fontFamily: NUM_FONT, fontWeight: 900, color: g.color }}>{Math.round(r.score)}</td>
-                <RateCell pair={r.l4} />
-                <RateCell pair={r.l8} />
-                <RateCell pair={r.season} />
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
+      {/* THE SHARED SHEET (2026-10-01, BATCH-TABLE-SKIN-V2 4b): the same rows
+          and colours; each window sorts by the share of games that reached the
+          bar. Best score first, as before. */}
+      <NflTable bare noGroups tight heatMode="sorted" maxHeight={9999} maxRows={20} caption="His rates at the card's bar"
+        rows={rows.map((r, i) => {
+          const share = (pair) => (pair && pair[1] ? (100 * pair[0]) / pair[1] : null)
+          return { ...r, _key: r.key, _i: i, l4p: share(r.l4), l8p: share(r.l8), seasonp: share(r.season) }
+        })}
+        columns={[
+          { key: 'label', label: 'Market · bar', heat: false, sticky: true, w: 150, fmt: (v, r) => (
+            <span style={{ fontWeight: r._i === 0 ? 900 : 700, color: r._i === 0 ? C.text : C.text2 }}>
+              <NflExplain label={v} term={r.key} />
+              <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 10.5, fontWeight: 700 }}>{r.bar != null ? ` · ${r.bar}+` : ''}</span>
+            </span>) },
+          { key: 'score', label: 'Score', w: 50, primary: true, fmt: (v) => Math.round(v), tone: (n) => ({ color: gradeFor(n).color, weight: 900 }) },
+          ...[['l4p', 'l4', 'L4'], ['l8p', 'l8', 'L8'], ['seasonp', 'season', rows[0].seasonYear || 'Season']].map(([k, pk, label]) => ({
+            key: k, label: String(label), w: 52,
+            fmt: (_, r) => { const pair = r[pk]; if (!pair || !pair[1]) return '—'; return `${pair[0]}/${pair[1]}` },
+            tone: (pct) => (Number.isFinite(pct) ? { color: pct >= 60 ? C.green : pct >= 45 ? C.yellow : C.red, weight: 800 } : { color: C.text3 }),
+          })),
+        ]} />
       <div style={{ fontSize: 10.5, color: C.text3, marginTop: 5 }}>Games that reached the bar, of games played. Best score first; the chart below opens on it.</div>
     </>
   )
