@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { C, NUM_FONT } from '../../lib/nhl/theme'
 import { TeamMark, LampDot, GoalLabel, fmtPuckDrop } from './ui'
+import LampTable from './LampTable'
 
 // 🏒 THE SCORE TABLE — one row per game, a table not a card grid (Donovan's
 // standing rule). Every value is a field off score/{date} reduced by
@@ -46,84 +47,45 @@ export default function ScoreTable({ games = [], onOpen, compact = false }) {
   const [open, setOpen] = useState(() => new Set())
   const toggle = (id) => setOpen((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
   const rows = sortGames(games)
+  // THE SHARED SHEET (2026-10-01, BATCH-TABLE-SKIN-V2 4b; Donovan: "convert
+  // them all"). Live first, then by puck drop, as before; a live game wears
+  // the lamp edge, a postponed one is dimmed, a row opens the game. The goals
+  // button still opens that game's goal lines -- under the sheet now (it has
+  // no expanding rows), one panel per opened game.
   return (
-    <div className="lamp-scores" style={{ overflowX: 'auto' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-        <thead>
-          <tr style={{ color: C.text3, font: `800 8px/1 ${NUM_FONT}`, letterSpacing: '.12em', textAlign: 'left' }}>
-            <th style={th}>STATUS</th>
-            <th style={th}>AWAY</th>
-            <th style={{ ...th, textAlign: 'center' }}>SCORE</th>
-            <th style={th}>HOME</th>
-            {!compact && <th className="sm-hide" style={{ ...th, textAlign: 'right' }} title="Shots on goal, away-home">SOG</th>}
-            <th style={{ ...th, textAlign: 'right' }}>GOALS</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((g) => {
-            const live = g.state === 'live'
-            const done = g.state === 'final'
-            const scored = live || done
-            const off = g.scheduleState !== 'OK'
-            const status = g.statusLine || fmtPuckDrop(g.startUtc)
-            const isOpen = open.has(g.id)
-            const awayLead = scored && g.away.score > g.home.score
-            const homeLead = scored && g.home.score > g.away.score
-            return (
-              <FragmentRow key={g.id}>
-                <tr
-                  onClick={() => onOpen?.(g.id)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen?.(g.id) } }}
-                  tabIndex={0} role="link" aria-label={`${g.away.abbrev} at ${g.home.abbrev}, ${status}. Open game.`}
-                  style={{
-                    cursor: 'pointer', borderTop: `1px solid ${C.border}`,
-                    background: live ? `linear-gradient(90deg, ${C.lamp}12, transparent 40%)` : 'transparent',
-                    opacity: off ? .55 : 1,
-                  }}
-                >
-                  <td style={{ ...td, whiteSpace: 'nowrap', color: live ? C.lamp : done ? C.text2 : C.text3, font: `${live ? 900 : 800} 10px/1.2 ${NUM_FONT}`, letterSpacing: '.04em' }}>
-                    {live && <LampDot />}{status}
-                  </td>
-                  <td style={td}><TeamMark abbrev={g.away.abbrev} name={compact ? null : g.away.name} bold={awayLead} /></td>
-                  <td style={{ ...td, textAlign: 'center', whiteSpace: 'nowrap', font: `900 ${compact ? 15 : 18}px/1 ${NUM_FONT}` }}>
-                    {scored
-                      ? <><span style={{ color: awayLead ? C.text : C.text2 }}>{g.away.score ?? '–'}</span><span style={{ color: C.text3, margin: '0 6px', fontWeight: 400 }}>–</span><span style={{ color: homeLead ? C.text : C.text2 }}>{g.home.score ?? '–'}</span></>
-                      : <span style={{ color: C.text3, fontSize: 11, fontWeight: 700 }}>@</span>}
-                  </td>
-                  <td style={td}><TeamMark abbrev={g.home.abbrev} name={compact ? null : g.home.name} bold={homeLead} /></td>
-                  {!compact && (
-                    <td className="sm-hide" style={{ ...td, textAlign: 'right', color: C.text3, fontFamily: NUM_FONT, fontSize: 10.5 }}>
-                      {scored && g.away.sog != null ? `${g.away.sog}–${g.home.sog ?? '–'}` : '—'}
-                    </td>
-                  )}
-                  <td style={{ ...td, textAlign: 'right', whiteSpace: 'nowrap' }}>
-                    {g.goals?.length
-                      ? <button type="button" aria-expanded={isOpen} onClick={(e) => { e.stopPropagation(); toggle(g.id) }}
-                          style={{ background: 'transparent', border: `1px solid ${C.border2}`, borderRadius: 6, color: C.text2, cursor: 'pointer', font: `800 9px/1 ${NUM_FONT}`, padding: '5px 7px' }}>
-                          {g.goals.length} {isOpen ? '▴' : '▾'}
-                        </button>
-                      : <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 10 }}>{scored ? '0' : '—'}</span>}
-                  </td>
-                </tr>
-                {isOpen && (
-                  <tr>
-                    <td colSpan={compact ? 5 : 6} style={{ padding: '0 8px', background: C.bg2 }}>
-                      <GoalLines goals={g.goals} />
-                    </td>
-                  </tr>
-                )}
-              </FragmentRow>
-            )
-          })}
-        </tbody>
-      </table>
+    <div className="lamp-scores">
+      <LampTable bare noGroups tight heatMode="sorted" maxHeight={9999} maxRows={Math.max(rows.length, 1)} caption="Every game on the date"
+        rows={rows.map((g) => ({ ...g, _key: g.id, ord: rank(g) * 1e13 + (Date.parse(g.startUtc || 0) || 0), awayTm: g.away.abbrev, homeTm: g.home.abbrev, goalsN: g.goals?.length ?? null }))}
+        onRowClick={onOpen ? (g) => onOpen(g.id) : undefined}
+        rowEdge={(g) => (g.state === 'live' ? C.lamp : null)}
+        dimRow={(g) => g.scheduleState !== 'OK'}
+        columns={[
+          { key: 'ord', label: 'Status', heat: false, numeric: false, sticky: true, w: 96, fmt: (_, g) => {
+            const live = g.state === 'live'; const done = g.state === 'final'
+            return <span style={{ whiteSpace: 'nowrap', color: live ? C.lamp : done ? C.text2 : C.text3, font: `${live ? 900 : 800} 10px/1.2 ${NUM_FONT}`, letterSpacing: '.04em' }}>{live && <LampDot />}{g.statusLine || fmtPuckDrop(g.startUtc)}</span> } },
+          { key: 'awayTm', label: 'Away', heat: false, w: compact ? 60 : 150, fmt: (_, g) => <TeamMark abbrev={g.away.abbrev} name={compact ? null : g.away.name} bold={(g.state === 'live' || g.state === 'final') && g.away.score > g.home.score} /> },
+          { key: 'score', label: 'Score', heat: false, numeric: false, w: 80, fmt: (_, g) => {
+            const scored = g.state === 'live' || g.state === 'final'
+            const awayLead = scored && g.away.score > g.home.score, homeLead = scored && g.home.score > g.away.score
+            return scored
+              ? <span style={{ whiteSpace: 'nowrap', font: `900 ${compact ? 15 : 17}px/1 ${NUM_FONT}` }}><span style={{ color: awayLead ? C.text : C.text2 }}>{g.away.score ?? '–'}</span><span style={{ color: C.text3, margin: '0 6px', fontWeight: 400 }}>–</span><span style={{ color: homeLead ? C.text : C.text2 }}>{g.home.score ?? '–'}</span></span>
+              : <span style={{ color: C.text3, fontSize: 11, fontWeight: 700 }}>@</span> } },
+          { key: 'homeTm', label: 'Home', heat: false, w: compact ? 60 : 150, fmt: (_, g) => <TeamMark abbrev={g.home.abbrev} name={compact ? null : g.home.name} bold={(g.state === 'live' || g.state === 'final') && g.home.score > g.away.score} /> },
+          ...(compact ? [] : [{ key: 'sog', label: 'SOG', heat: false, numeric: false, w: 60, title: 'Shots on goal, away-home', fmt: (_, g) => <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 10.5 }}>{(g.state === 'live' || g.state === 'final') && g.away.sog != null ? `${g.away.sog}–${g.home.sog ?? '–'}` : '—'}</span> }]),
+          { key: 'goalsN', label: 'Goals', heat: false, numeric: false, w: 64, fmt: (n, g) => (n
+            ? <button type="button" aria-expanded={open.has(g.id)} onClick={(e) => { e.stopPropagation(); toggle(g.id) }}
+                style={{ background: 'transparent', border: `1px solid ${C.border2}`, borderRadius: 6, color: C.text2, cursor: 'pointer', font: `800 9px/1 ${NUM_FONT}`, padding: '5px 7px', minHeight: 30 }}>
+                {n} {open.has(g.id) ? '▴' : '▾'}
+              </button>
+            : <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 10 }}>{g.state === 'live' || g.state === 'final' ? '0' : '—'}</span>) },
+        ]} />
+      {rows.filter((g) => open.has(g.id) && g.goals?.length).map((g) => (
+        <div key={`goals-${g.id}`} style={{ border: `1px solid ${C.border}`, borderRadius: 10, padding: '6px 10px', marginTop: 6 }}>
+          <div style={{ color: C.text3, font: `900 9px/1.4 ${NUM_FONT}`, letterSpacing: '.1em' }}>{g.away.abbrev} @ {g.home.abbrev} · GOALS</div>
+          <GoalLines goals={g.goals} />
+        </div>
+      ))}
     </div>
   )
 }
 
-// A keyed fragment for the row pair without importing Fragment by name in
-// three places.
-function FragmentRow({ children }) { return <>{children}</> }
-
-const th = { padding: '0 8px 8px', fontWeight: 800 }
-const td = { padding: '9px 8px', verticalAlign: 'middle' }
