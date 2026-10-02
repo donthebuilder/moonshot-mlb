@@ -380,7 +380,13 @@ export function renderV2(ctx) {
                 if (isRank(c)) {
                   return (
                     <td key={c.key} className={cls(c, 'rank')} style={{ ...pin, ...(called ? { color: ac } : {}), ...(bgTint || {}) }}>
-                      {c.fmt ? String(c.fmt(v, r)).replace(/^#/, '') : (v ?? '—')}
+                      {(() => {
+                        if (!c.fmt) return v ?? '—'
+                        // a formatter that returns an element (LAMP's CALLED chip on the
+                        // rank) is drawn as one; String() printed "[object Object]"
+                        const out = c.fmt(v, r)
+                        return typeof out === 'string' || typeof out === 'number' ? String(out).replace(/^#/, '') : out
+                      })()}
                     </td>
                   )
                 }
@@ -405,7 +411,8 @@ export function renderV2(ctx) {
                     if (isBlank(fv)) continue
                     // a called row has no room for the opponent at 122px (plan: rough edge)
                     if (logoOf(fc)) {
-                      if (!(called && !firstTeam)) sub.push(<span key={fc.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>{firstTeam ? null : 'v '}<TeamMark sport={logoOf(fc)} abbr={fv} variant="logo" px={11} />{firstTeam ? String(fv) : null}</span>)
+                      // logos only (Donovan 10-02: "just do logos simple"); the code rides the logo's title / alt
+                      if (!(called && !firstTeam)) sub.push(<span key={fc.key} data-vs={firstTeam ? undefined : 1} style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>{firstTeam ? null : 'v '}<TeamMark sport={logoOf(fc)} abbr={fv} variant="logo" px={11} /></span>)
                       firstTeam = false
                     } else if (fc.key !== 'role' && !fc._status) {
                       // a short folded value (POS "RB", a G2) rides the sub-line; a long one
@@ -425,7 +432,7 @@ export function renderV2(ctx) {
                       {faceOf && (() => { const f = faceOf(r); return f ? <PlayerFace {...f} variant="table" size={18} className="dense-face" style={{ margin: '-6px 5px -6px 0' }} /> : null })()}
                       {go ? <Tap onClick={go}>{nameEl}</Tap> : nameEl}
                       {sub.length > 0 && (
-                        <div className="sub">{sub.map((x, i) => <span key={i}>{i ? ' · ' : ''}{x}</span>)}</div>
+                        <div className="sub">{sub.map((x, i) => <span key={i}>{i && !x.props?.['data-vs'] ? ' · ' : i ? ' ' : ''}{x}</span>)}</div>
                       )}
                     </td>
                   )

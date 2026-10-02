@@ -112,7 +112,7 @@ const zoneColor = (label) => (
 const COLUMNS = [
   { key: 'spot',   label: '#',      heat: false, w: 26, mono: true, dim: true },
   { key: 'name',   label: 'Batter', heat: false, w: 148, bold: true, sticky: true },
-  { key: 'team',   label: 'Tm',     heat: false, w: 34, mono: true, dim: true },
+  { key: 'team',   label: 'Tm',     heat: false, w: 34, mono: true, dim: true, teamMark: 'mlb' },   // a logo, like Opp (Donovan 10-02: "just do logos")
   { key: 'b',      label: 'B',      heat: false, w: 22, mono: true, dim: true },
   { key: 'role',   label: 'Role',   heat: false, w: 158, dim: true, titleKey: 'roleTitle',
     title: 'The hitter archetype comes first; the grading market stays in parentheses. Official picks settle on that market. Other rows show their strongest profile lane, not an official pick.' },
