@@ -2,6 +2,7 @@
 import { NUM_FONT as MLB_NUM } from '../../lib/theme'
 import { wilson } from '../../lib/interval'
 import { bandTint } from '../ScoreBands'
+import DenseTable from '../DenseTable'
 
 // MOONSHOT'S SCORE-BANDS TABLE, FOR ANY SPORT (2026-09-29, parity plan D).
 // The shape of components/ScoreBands.js: one row per score (or market), the
@@ -31,47 +32,35 @@ export function bandClaim(bands, dir = 1) {
   return { claims: ordered && z >= 1.96, z, ordered }
 }
 
-export default function BandTable({ rows, columns, theme, numFont = MLB_NUM, firstHead = 'score', minFirst = 118 }) {
+// THE SHARED SHEET (2026-10-01, BATCH-TABLE-SKIN-V2 4b; Donovan: "convert
+// them all"). Same rows, same bands, same tint and claim rule (bandTint; grey
+// = no claim, dimmed = unresolved); each band sorts by its rate.
+export default function BandTable({ rows, columns, theme, numFont = MLB_NUM, firstHead = 'score', minFirst = 118, accent = null }) {
   const C = theme
-  const th = { padding: '5px 9px', textAlign: 'right', fontSize: 9.5, fontWeight: 800, color: C.text2, textTransform: 'uppercase', letterSpacing: '.06em', borderBottom: `1px solid ${C.border}`, whiteSpace: 'nowrap' }
-  const td = { padding: '5px 9px', textAlign: 'right', whiteSpace: 'nowrap', borderTop: `1px solid ${C.border}` }
+  const cell = (r, q) => {
+    const b = (r.bands || []).find((x) => x.label === q)
+    if (!b || !b.n) return null
+    const p = (100 * b.ok) / b.n
+    const ci = wilson(b.ok, b.n)
+    const resolved = !!ci && !(ci[0] <= r.base && r.base <= ci[1])
+    return { b, p, ci, resolved, tint: bandTint(p - r.base, r.claims && resolved, C) }
+  }
   return (
-    <div style={{ overflowX: 'auto' }}>
-      <table style={{ borderCollapse: 'collapse', fontFamily: numFont, fontSize: 10.5 }}>
-        <thead>
-          <tr>
-            <th style={{ ...th, textAlign: 'left', minWidth: minFirst, position: 'sticky', left: 0, background: C.bg, zIndex: 2 }}>{firstHead}</th>
-            {columns.map((q) => <th key={q} style={{ ...th, minWidth: 92 }}>{q}</th>)}
-            <th style={{ ...th, textAlign: 'left', minWidth: 190 }}>verdict</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => (
-            <tr key={r.key}>
-              <td style={{ ...td, textAlign: 'left', fontWeight: 800, color: r.color || C.text, position: 'sticky', left: 0, background: C.bg, zIndex: 1 }}>
-                {r.label}
-                {r.sub && <div style={{ fontWeight: 500, fontSize: 9, color: C.text3, marginTop: 2 }}>{r.sub}</div>}
-              </td>
-              {columns.map((q) => {
-                const b = (r.bands || []).find((x) => x.label === q)
-                if (!b || !b.n) return <td key={q} style={{ ...td, color: C.text3 }}>—</td>
-                const p = (100 * b.ok) / b.n
-                const ci = wilson(b.ok, b.n)
-                const resolved = !!ci && !(ci[0] <= r.base && r.base <= ci[1])
-                const { bg, fg } = bandTint(p - r.base, r.claims && resolved, C)
-                return (
-                  <td key={q} title={`${r.label} ${q}: ${b.ok} of ${b.n}\nBase for this row: ${r.base.toFixed(1)}%${ci ? `\n95% interval: ${ci[0].toFixed(1)}–${ci[1].toFixed(1)}%` : ''}${r.claims ? '' : '\nGrey: this row does not support a claim.'}`}
-                    style={{ ...td, background: bg, opacity: r.claims && !resolved ? 0.7 : 1 }}>
-                    <span style={{ fontWeight: 800, color: fg }}>{p.toFixed(1)}%</span>
-                    <span style={{ color: C.text3, fontSize: 9 }}> {b.ok}/{b.n}</span>
-                  </td>
-                )
-              })}
-              <td style={{ ...td, textAlign: 'left', fontSize: 9.5, fontWeight: 800, color: r.verdictTone || C.text3 }}>{r.verdict}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <DenseTable bare noGroups tight heatMode="sorted" maxHeight={9999} maxRows={Math.max(rows.length, 1)} accent={accent}
+      caption={`Hit rate by ${firstHead} band, with the verdict for each row`}
+      rows={rows.map((r) => ({ ...r, _key: r.key, ...Object.fromEntries(columns.map((q, k) => [`b${k}`, cell(r, q)?.p ?? null])) }))}
+      columns={[
+        { key: 'label', label: firstHead, heat: false, sticky: true, w: minFirst, fmt: (v, r) => (
+          <span style={{ fontWeight: 800, color: r.color || C.text }}>{v}{r.sub && <span style={{ display: 'block', fontWeight: 500, fontSize: 9, color: C.text3, marginTop: 2 }}>{r.sub}</span>}</span>) },
+        ...columns.map((q, k) => ({ key: `b${k}`, label: q, w: 96, heat: false, numeric: false, fmt: (_, r) => {
+          const x = cell(r, q)
+          if (!x) return <span style={{ color: C.text3 }}>—</span>
+          return (
+            <span title={`${r.label} ${q}: ${x.b.ok} of ${x.b.n}\nBase for this row: ${r.base.toFixed(1)}%${x.ci ? `\n95% interval: ${x.ci[0].toFixed(1)}–${x.ci[1].toFixed(1)}%` : ''}${r.claims ? '' : '\nGrey: this row does not support a claim.'}`}
+              style={{ fontFamily: numFont, background: x.tint.bg, padding: '2px 5px', borderRadius: 4, opacity: r.claims && !x.resolved ? 0.7 : 1, whiteSpace: 'nowrap' }}>
+              <b style={{ color: x.tint.fg }}>{x.p.toFixed(1)}%</b><span style={{ color: C.text3, fontSize: 9 }}> {x.b.ok}/{x.b.n}</span>
+            </span>) } })),
+        { key: 'verdict', label: 'verdict', heat: false, w: 190, fmt: (v, r) => <span style={{ fontSize: 9.5, fontWeight: 800, color: r.verdictTone || C.text3 }}>{v}</span> },
+      ]} />
   )
 }

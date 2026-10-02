@@ -1,4 +1,5 @@
 'use client'
+import DenseTable from '../DenseTable'
 import { useEffect, useState } from 'react'
 
 // WHICH LANES RUN HOT (2026-09-27, BATCH-NUMEROLOGY step 6). Reads
@@ -37,28 +38,18 @@ export default function LaneTable({ sport, theme: C, numFont, accent }) {
     <section aria-label="Which lanes run hot" style={box}>
       {head}
       <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>
-          <thead>
-            <tr style={{ color: C.text3, fontSize: 11, textAlign: 'right' }}>
-              <th scope="col" style={{ textAlign: 'left', padding: '4px 4px' }}>Lane</th>
-              <th scope="col" style={{ padding: '4px 4px' }}>Nights</th>
-              <th scope="col" style={{ padding: '4px 4px' }}>Matched hit</th>
-              <th scope="col" style={{ padding: '4px 4px' }}>Everyone</th>
-              <th scope="col" style={{ padding: '4px 4px' }}>z</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((l) => (
-              <tr key={l.lane} style={{ borderTop: `1px solid ${C.border}`, textAlign: 'right' }}>
-                <th scope="row" style={{ textAlign: 'left', padding: '6px 4px', fontWeight: 700 }}>{l.label}</th>
-                <td style={{ padding: '6px 4px', fontFamily: numFont }}>{l.nights}</td>
-                <td style={{ padding: '6px 4px', fontFamily: numFont }}>{pct(l.matchedRate)} <span style={{ color: C.text3, fontSize: 11 }}>{l.matchedHits}/{l.matched}</span></td>
-                <td style={{ padding: '6px 4px', fontFamily: numFont, color: C.text2 }}>{pct(l.baseRate)}</td>
-                <td style={{ padding: '6px 4px', fontFamily: numFont, fontWeight: 800, color: Math.abs(l.z || 0) >= 2 ? accent : C.text3 }}>{l.z == null ? '—' : l.z.toFixed(1)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {/* THE SHARED SHEET (2026-10-01, BATCH-TABLE-SKIN-V2 4b): the same
+            columns; |z| of 2+ in the accent, as before. */}
+        <DenseTable bare noGroups tight heatMode="sorted" maxHeight={9999} maxRows={Math.max(rows.length, 1)} accent={accent}
+          caption="Which number lanes have run hot on graded nights"
+          rows={rows.map((l) => ({ ...l, _key: l.lane }))}
+          columns={[
+            { key: 'label', label: 'Lane', heat: false, sticky: true, w: 140, fmt: (v) => <b>{v}</b> },
+            { key: 'nights', label: 'Nights', w: 54, dp: 0 },
+            { key: 'matchedRate', label: 'Matched hit', w: 110, fmt: (v, l) => <span style={{ fontFamily: numFont }}>{pct(v)} <span style={{ color: C.text3, fontSize: 11 }}>{l.matchedHits}/{l.matched}</span></span> },
+            { key: 'baseRate', label: 'Everyone', w: 70, fmt: (v) => pct(v), tone: () => ({ color: C.text2 }) },
+            { key: 'z', label: 'z', w: 44, fmt: (v) => (v == null ? '—' : Number(v).toFixed(1)), tone: (n) => ({ color: Math.abs(n || 0) >= 2 ? accent : C.text3, weight: 800 }) },
+          ]} />
       </div>
       {shown.length > 5 && <button type="button" onClick={() => setAll((v) => !v)} style={{ marginTop: 6, minHeight: 36, padding: '0 10px', border: `1px solid ${C.border}`, borderRadius: 8, background: 'transparent', color: accent, fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>{all ? 'Show five' : `+${shown.length - 5} more lanes`}</button>}
       <div style={{ marginTop: 6, fontSize: 11, color: C.text3 }}>z = matched players against the rest of the eligible pool; |z| under 2 is chance. Graded nights only. Never part of a score.</div>

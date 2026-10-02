@@ -396,7 +396,7 @@ function ScoreBands({ data, results }) {
         and no claim.</b>
       </div>
 
-      <BandTable theme={C} numFont={NUM_FONT} firstHead="market" columns={QUARTILES}
+      <BandTable theme={C} numFont={NUM_FONT} accent={C.green} firstHead="market" columns={QUARTILES}
         rows={rows.map((r) => ({
           key: r.key, label: r.label, color: r.color,
           sub: `bar ${r.bar ?? '—'}${r.state === 'measured' ? ` · base ${r.base.toFixed(1)}%` : ''}`,

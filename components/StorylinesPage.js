@@ -1,4 +1,5 @@
 'use client'
+import DenseTable from './DenseTable'
 import Tap from './Tap'
 import { useEffect, useMemo, useState } from 'react'
 import PageHeader from './PageHeader'
@@ -142,22 +143,17 @@ export default function StorylinesPage({ sport, eyebrow, theme: C, numFont, acce
         <div style={{ fontSize: 12, color: C.text3, margin: '4px 0 6px' }}>Every story is frozen at the start of its game and checked after it against the player&apos;s own line. A story with no outcome of its own is graded on a productive night; &ldquo;everyone&rdquo; is the same bar for every player who played those nights. The record started {data?.summary?.length ? data.summary.reduce((a, r) => (r.since < a ? r.since : a), data.summary[0].since) : 'the day this shipped'}{data?.summary?.length ? '' : ' — no game has been graded yet'}.</div>
         {data?.summary?.length ? (
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-              <thead><tr style={{ color: C.text3, fontFamily: numFont, fontSize: 10, textAlign: 'left' }}><th style={{ padding: '4px 6px 4px 0' }}>STORY</th><th style={{ padding: 4 }}>GRADED</th><th style={{ padding: 4 }}>CAME TRUE</th><th style={{ padding: 4 }}>EVERYONE</th></tr></thead>
-              <tbody>
-                {data.summary.map((r) => {
-                  const pct = (h, n) => (n >= MIN_PCT ? `${Math.round((100 * h) / n)}%` : `${h} of ${n}`)
-                  return (
-                    <tr key={r.type} style={{ borderTop: `1px solid ${C.border}` }}>
-                      <td style={{ padding: '5px 6px 5px 0', color: C.text }}>{TYPE_LABEL[r.type] || r.type}{r.bar ? <span style={{ color: C.text3 }}> · {barWord(r.bar)}</span> : null}</td>
-                      <td style={{ padding: 4, fontFamily: numFont }}>{r.n}</td>
-                      <td style={{ padding: 4, fontFamily: numFont, color: C.text }}>{pct(r.hit, r.n)}</td>
-                      <td style={{ padding: 4, fontFamily: numFont, color: C.text3 }}>{r.base ? pct(r.base.hits, r.base.players) : '—'}</td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+            {/* THE SHARED SHEET (2026-10-01, BATCH-TABLE-SKIN-V2 4b). A rate under
+                MIN_PCT graded prints as "h of n", as before; sorts by the rate. */}
+            <DenseTable bare noGroups tight heatMode="sorted" maxHeight={9999} maxRows={40} accent={accent}
+              caption="Each kind of story: how often it came true, against everyone"
+              rows={data.summary.map((r) => ({ ...r, _key: r.type, rate: r.n ? r.hit / r.n : null, baseRate: r.base?.players ? r.base.hits / r.base.players : null }))}
+              columns={[
+                { key: 'type', label: 'Story', heat: false, sticky: true, w: 180, fmt: (v, r) => <span>{TYPE_LABEL[v] || v}{r.bar ? <span style={{ color: C.text3 }}> · {barWord(r.bar)}</span> : null}</span> },
+                { key: 'n', label: 'Graded', w: 56, dp: 0 },
+                { key: 'rate', label: 'Came true', w: 76, fmt: (_, r) => (r.n >= MIN_PCT ? `${Math.round((100 * r.hit) / r.n)}%` : `${r.hit} of ${r.n}`), tone: () => ({ color: C.text }) },
+                { key: 'baseRate', label: 'Everyone', w: 76, fmt: (_, r) => (r.base ? (r.base.players >= MIN_PCT ? `${Math.round((100 * r.base.hits) / r.base.players)}%` : `${r.base.hits} of ${r.base.players}`) : '—'), tone: () => ({ color: C.text3 }) },
+              ]} />
           </div>
         ) : null}
       </section>

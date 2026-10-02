@@ -1,4 +1,5 @@
 'use client'
+import DenseTable from '../DenseTable'
 import Tap from '../Tap'
 import { C, NUM_FONT } from '../../lib/theme'
 import { alpha } from '../../lib/scales'
@@ -191,56 +192,21 @@ export default function ProjectedView({
             role="region"
             aria-label="Projected output table — scrolls sideways"
           >
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
-              <thead>
-                <tr>
-                  <th
-                    onClick={() => onSort('label')}
-                    style={{
-                      textAlign: 'left', padding: '5px 8px', borderBottom: `1px solid ${C.border}`,
-                      color: sortCol === 'label' ? accent : C.text3, fontWeight: 700, fontSize: 9,
-                      textTransform: 'uppercase', letterSpacing: '.05em', cursor: 'pointer', whiteSpace: 'nowrap',
-                    }}
-                  >{by === 'game' ? 'Game' : 'Team'}{sortCol === 'label' ? (sortDir === 'desc' ? ' ▾' : ' ▴') : ''}</th>
-                  {columns.map((c) => (
-                    <th
-                      key={c}
-                      onClick={() => onSort(c)}
-                      title="Click to sort"
-                      style={{
-                        textAlign: 'right', padding: '5px 8px', borderBottom: `1px solid ${C.border}`,
-                        color: sortCol === c ? accent : C.text3, fontWeight: 700, fontSize: 9,
-                        textTransform: 'uppercase', letterSpacing: '.05em', cursor: 'pointer', whiteSpace: 'nowrap',
-                      }}
-                    >{c}{sortCol === c ? (sortDir === 'desc' ? ' ▾' : ' ▴') : ''}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr key={r.label}>
-                    <td style={{ padding: '6px 8px', borderBottom: `1px solid ${C.border}`, fontWeight: 700, whiteSpace: 'nowrap' }}><Tap onClick={openOf(r)}>{r.label}</Tap></td>
-                    {columns.map((c) => {
-                      const v = r.values[c]
-                      const g = gradeOf(c, v)
-                      const text = Number.isFinite(Number(v)) ? Number(v).toFixed(1) : '—'
-                      return (
-                        <td key={c} style={{ padding: '6px 8px', borderBottom: `1px solid ${C.border}`, textAlign: 'right', fontFamily: NUM_FONT }}>
-                          {g ? (
-                            <span style={{
-                              display: 'inline-flex', alignItems: 'center', gap: 3, padding: '2px 7px', borderRadius: 6,
-                              fontWeight: 800, background: pal.bg[g.cls], color: pal.color[g.cls],
-                            }}>{text} {g.arrow}</span>
-                          ) : (
-                            <span style={{ fontWeight: 600, color: C.text2 }}>{text}</span>
-                          )}
-                        </td>
-                      )
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            {/* THE SHARED SHEET (2026-10-01, BATCH-TABLE-SKIN-V2 4b). Opens in the
+                page's own order (the podium and bars read the same sort); its
+                headers re-sort the table; the grade pills and arrows kept. */}
+            <DenseTable key={`${sortCol}-${sortDir}`} bare noGroups heatMode="sorted" maxHeight={9999} maxRows={Math.max(rows.length, 1)} accent={accent}
+              caption={by === 'game' ? 'Projected output by game' : 'Projected output by team'}
+              rows={rows.map((r) => ({ _key: r.label, label: r.label, _r: r, ...Object.fromEntries(columns.map((c, k) => [`c${k}`, Number.isFinite(Number(r.values[c])) ? Number(r.values[c]) : null])) }))}
+              columns={[
+                { key: 'label', label: by === 'game' ? 'Game' : 'Team', heat: false, sticky: true, w: 120, link: (x) => openOf(x._r), fmt: (v) => <b>{v}</b> },
+                ...columns.map((c, k) => ({ key: `c${k}`, label: c, w: 70, heat: false, numeric: false, fmt: (v) => {
+                  const g = gradeOf(c, v)
+                  const text = Number.isFinite(Number(v)) ? Number(v).toFixed(1) : '—'
+                  return g
+                    ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '2px 7px', borderRadius: 6, fontWeight: 800, fontFamily: NUM_FONT, background: pal.bg[g.cls], color: pal.color[g.cls] }}>{text} {g.arrow}</span>
+                    : <span style={{ fontWeight: 600, fontFamily: NUM_FONT, color: C.text2 }}>{text}</span> } })),
+              ]} />
             {footnote && <div style={{ fontSize: 9, color: C.text3, lineHeight: 1.5, marginTop: 8 }}>{footnote}</div>}
           </div>
         )

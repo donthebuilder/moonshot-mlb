@@ -1,4 +1,5 @@
 'use client'
+import DenseTable from './DenseTable'
 import { C, NUM_FONT, TYPE } from '../lib/theme'
 import { alpha } from '../lib/scales'
 import { CLEAN_SOURCE, CLEAN_NIGHTS, CLEAN_HITTER_GAMES, CLEAN_HR_BASE, CLEAN_HR_BANDS, CLEAN_HRW_BANDS } from '../lib/cleanRecord'
@@ -64,30 +65,20 @@ function mlbTint(lift, claims) {
 // its count where the measure recorded one and its rate alone where it did
 // not. Colour is the lift against the 11.5% base, the same ramp as before.
 function BandList({ title, bands }) {
+  // THE SHARED SHEET (2026-10-01, BATCH-TABLE-SKIN-V2 4b): the band and what
+  // it homered at, tinted against the base as before.
   return (
-    <table style={{ borderCollapse: 'collapse', fontFamily: NUM_FONT, fontSize: 12, minWidth: 0 }}>
-      <caption style={{ textAlign: 'left', fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.08em', color: C.text2, padding: '0 0 4px', fontFamily: NUM_FONT }}>{title}</caption>
-      <thead>
-        <tr>
-          <th scope="col" style={{ textAlign: 'left', padding: '4px 10px 4px 0', fontSize: TYPE.micro, color: C.text3, fontWeight: 800 }}>BAND</th>
-          <th scope="col" style={{ textAlign: 'right', padding: '4px 0', fontSize: TYPE.micro, color: C.text3, fontWeight: 800 }}>HOMERED</th>
-        </tr>
-      </thead>
-      <tbody>
-        {bands.map((b) => {
-          const { bg, fg } = bandTint(b.pct - CLEAN_HR_BASE, true)
-          return (
-            <tr key={b.band} style={{ borderTop: `1px solid ${C.border}` }}>
-              <th scope="row" style={{ textAlign: 'left', padding: '6px 10px 6px 0', color: C.text, fontWeight: 800 }}>{b.band}</th>
-              <td style={{ textAlign: 'right', padding: '6px 8px', background: bg, whiteSpace: 'nowrap' }}>
-                <b style={{ color: fg }}>{b.pct.toFixed(1)}%</b>
-                {b.ok != null ? <span style={{ color: C.text3, fontSize: 11 }}> {b.ok}/{b.n.toLocaleString('en-US')}</span> : null}
-              </td>
-            </tr>
-          )
-        })}
-      </tbody>
-    </table>
+    <div style={{ minWidth: 200 }}>
+      <div style={{ fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.08em', color: C.text2, padding: '0 0 4px', fontFamily: NUM_FONT }}>{title}</div>
+      <DenseTable bare noGroups tight heatMode="sorted" maxHeight={9999} maxRows={20} caption={`${title}: home-run rate by band`}
+        rows={bands.map((b) => ({ ...b, _key: b.band }))}
+        columns={[
+          { key: 'band', label: 'Band', heat: false, sticky: true, w: 80, fmt: (v) => <b>{v}</b> },
+          { key: 'pct', label: 'Homered', heat: false, numeric: false, w: 120, fmt: (v, b) => {
+            const { bg, fg } = bandTint(v - CLEAN_HR_BASE, true)
+            return <span style={{ background: bg, padding: '2px 6px', borderRadius: 4, whiteSpace: 'nowrap' }}><b style={{ color: fg }}>{Number(v).toFixed(1)}%</b>{b.ok != null ? <span style={{ color: C.text3, fontSize: 11 }}> {b.ok}/{b.n.toLocaleString('en-US')}</span> : null}</span> } },
+        ]} />
+    </div>
   )
 }
 
