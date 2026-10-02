@@ -1548,6 +1548,7 @@ import { useSetupHomers, useBackToBack } from '../../lib/b2b'
 import { quoteFor, fmtOdds, impliedPct } from '../../lib/odds'
 import { nameOf, teamOf, oppOf, clean, n, mlbId } from '../../lib/player'
 import { downloadPairsCard } from '../shareCard'
+import { ordinal as ordinalOf } from '../../lib/format'
 
 // ══ 🧱 BUILD FROM THE GROUPS ═══════════════════════════════════════════════
 //
@@ -1596,13 +1597,10 @@ import { downloadPairsCard } from '../shareCard'
 
 const TICKET_WORD = (k) => (k === 2 ? 'Pair' : `Pool of ${k}`)
 
+// lib/format.js, blank for anything under 1 (R4)
 function ordinal(v) {
   const x = Number(v)
-  if (!Number.isFinite(x) || x < 1) return ''
-  const s = x % 10 === 1 && x % 100 !== 11 ? 'st'
-    : x % 10 === 2 && x % 100 !== 12 ? 'nd'
-      : x % 10 === 3 && x % 100 !== 13 ? 'rd' : 'th'
-  return `${x}${s}`
+  return Number.isFinite(x) && x >= 1 ? ordinalOf(x) : ''
 }
 
 // "CWS vs DET at Comerica Park" — read off the leg's own row, never inferred.

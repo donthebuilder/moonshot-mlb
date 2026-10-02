@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { C, NUM_FONT } from '../../lib/nfl/theme'
 import { softCells, plainRole, blockSeason, STARTER_ROLES, SOFT_THIN_GAMES } from '../../lib/nfl/dvpSignal'
 import SourceSeason from './SourceSeason'
+import { ordinal } from '../../lib/format'
 
 // THE DEFENCE, BY HIS ROLE, IN WORDS (2026-10-01, 0e d).
 //
@@ -34,7 +35,6 @@ export const GROUP = {
 const YARD_STAT = { WR: 'recyd_g', TE: 'recyd_g', RB: 'rshyd_g', QB: 'rshyd_g' }
 const STAT_WORD = { td: 'touchdowns', rectd: 'receiving touchdowns', rshtd: 'rushing touchdowns', recyd_g: 'receiving yards a game', rshyd_g: 'rushing yards a game', rz_tgts: 'red-zone targets', rz_car: 'red-zone carries' }
 
-const ordinal = (n) => { const suf = ['th', 'st', 'nd', 'rd']; const v = n % 100; return `${n}${suf[(v - 20) % 10] || suf[v] || suf[0]}` }
 const most = (r) => (r === 1 ? 'the most' : `the ${ordinal(r)}-most`)
 const plural = (w) => (/s$/.test(w) ? w : `${w}s`)
 const fmtVal = (n) => (Math.abs(n) >= 10 ? Math.round(n) : Math.round(n * 10) / 10)

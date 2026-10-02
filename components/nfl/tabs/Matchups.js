@@ -20,6 +20,7 @@ import { ViewRow } from '../../results/ResultsParts'
 import { SportTheme } from '../../SportTheme'
 import { softRole, softLine, passRushThreat, blockSeason, PASS_RUSH_AVOID, STARTER_ROLES } from '../../../lib/nfl/dvpSignal'
 import TheField from '../TheField'
+import { ordinal } from '../../../lib/format'
 
 // Matchups -- the defenses to attack this week, then one defense read the
 // way MOONSHOT reads a starter (2026-09-28, Donovan: "the match up page on nfl
@@ -41,7 +42,6 @@ const SHELL_WORD = { C0: 'Cover 0', C1: 'Cover 1', C2: 'Cover 2', C3: 'Cover 3',
 // Short enough for seven tiles across a phone.
 const LANE_TILE = { 'left|end': 'L END', 'left|tackle': 'L TKL', 'left|guard': 'L GRD', 'middle|middle': 'MID', 'right|guard': 'R GRD', 'right|tackle': 'R TKL', 'right|end': 'R END' }
 const cap = (x) => (x ? x[0].toUpperCase() + x.slice(1) : x)
-const ordinal = (n) => { const suf = ['th', 'st', 'nd', 'rd']; const v = n % 100; return `${n}${suf[(v - 20) % 10] || suf[v] || suf[0]}` }
 const P = { theme: C, numFont: NUM_FONT }
 
 // WHAT HAPPENS IN EACH LANE (2026-09-28): the bot counts, per defence and

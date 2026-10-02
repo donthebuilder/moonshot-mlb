@@ -6,6 +6,7 @@ import { useLampTeam } from '../../../lib/nhl/useLamp'
 import { nhlLogo } from '../../../lib/nhl/teams'
 import { usePreview, ShowMoreButton } from '../../ListPreview'
 import { EmptyState, DelayedBanner, Loading, SourceLine, Kicker, StaleSeasonNote, GameTypeChip, LampDot, TeamMark, fmtDay, fmtPuckDrop, ageFrom, fmtPct1, fmtPct3, fmt2, fmtSec, plusMinus, dash } from '../ui'
+import { ordinal as ordinalOf } from '../../../lib/format'
 
 // 🏒 TEAM — one club, a real destination (spec §11), never a modal. Its
 // record and place from the standings feed; NEXT UP and LAST FIVE from the
@@ -162,7 +163,7 @@ function GameSheet({ games, onOpen, caption }) {
       ]} />
   )
 }
-const ordinal = (n) => { if (n == null) return '—'; const r = n % 100; if (r >= 11 && r <= 13) return `${n}th`; return `${n}${['th', 'st', 'nd', 'rd'][n % 10] || 'th'}` }
+const ordinal = (n) => (n == null ? '—' : ordinalOf(n))   // lib/format.js, a dash for none (R4)
 function BackBtn({ onBack, label }) {
   return <div><button type="button" onClick={onBack} style={{ height: 28, padding: '0 11px', borderRadius: 8, cursor: 'pointer', border: `1px solid ${C.border2}`, background: C.bg2, color: C.text2, font: `800 10px/1 ${NUM_FONT}`, letterSpacing: '.04em' }}>‹ {label}</button></div>
 }

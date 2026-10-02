@@ -68,6 +68,7 @@ import { mlbNumerologyWrite, mlbNumerologyGrade } from '../../../../../lib/numer
 import { postMlbListOnce } from '../../../../../lib/lists/post'
 import { adminClient } from '../../../../../lib/supabase/admin'
 import { claimSlot as sharedClaimSlot, bytesOf as sharedBytesOf } from '../../../../../lib/dash/postClaim'
+import { ordinal } from '../../../../../lib/format'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -659,7 +660,6 @@ async function published(slot, paths, ok) {
   }
   return c.data
 }
-const ordinal = (k) => `${k}${[11, 12, 13].includes(k % 100) ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[k % 10] || 'th')}`
 /** "His 3rd multi-HR game this season." for the homer that makes his game a
  *  2-HR game (his 2nd in THIS game, counted per game_pk -- hr_n counts the
  *  day), else null. */
