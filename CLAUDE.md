@@ -47,6 +47,11 @@ reads, via its `data` branch.
   FRANCHISE.
 - No new hex literals in .js files. Import the product's theme token
   instead. `node scripts/check-scales.mjs` counts them.
+- Accents come from each product's theme (lib/sportAccent.js SPORT_ACCENT,
+  SportTheme), never typed. Status words come from lib/callStatus
+  STATUS_WORD and render through components/CallStatusBadge.js.
+- FRANCHISE's components stay in FRANCHISE: nothing outside app/fantasy
+  imports components/fantasy/ (check-routes fails on it).
 - Tables (DenseTable skin v2, 2026-10-01): no cell washes at rest -- only
   the column you sort by is graded. No new fonts: hierarchy comes from
   weight and size in the system sans and NUM_FONT. Every table's columns

@@ -5,7 +5,7 @@
 // was a drawer button that did nothing.
 //   node scripts/check-routes.mjs
 import { readdirSync, readFileSync, statSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, dirname } from 'node:path'
 // lib/routes.js imports './nhl/routes' without an extension (fine under Next,
 // not under plain node) -- the resolver has to be registered before the
 // registry is loaded, so both are dynamic imports, in this order.
@@ -50,7 +50,7 @@ if (!R.isSport('nhl') || R.isSport('xfl') || R.isSport(null) || R.isSport('toStr
 // reported so the number below can be lowered in the same commit.
 // FRANCHISE is another workflow's; the registry files are the registry.
 const TERNARY_BASELINE = {
-  'app/start/page.js': 9,       // copy per sport; Batch 6 (search titles)
+  'app/start/page.js': 6,       // copy per sport; Batch 6 (search titles)
   'components/Header.js': 2,    // (ticker nav fixed 2026-09-26)
   'components/nfl/NflHeader.js': 3,
   'components/ScoreRail.js': 1, // MOONSHOT keeps its pre-merge storage key
@@ -84,5 +84,19 @@ for (const [f, n] of Object.entries(TERNARY_BASELINE)) {
   if ((seen[f] || 0) < n) console.log(`note ${f}: ${seen[f] || 0} sport ternaries, baseline ${n} -- lower it`)
 }
 
-console.log(bad ? `${bad} problem(s)` : 'OK routes registry: nav, More groups and aliases all resolve; no new sport ternaries')
+// FRANCHISE STAYS IN ITS LANE (R1 guard rail, 2026-10-02): nothing outside
+// app/fantasy + components/fantasy (+ its API routes) imports components/fantasy/.
+// The shared pieces moved out (components/SubmitButton.js, TeamMark) instead.
+for (const f of ['app', 'components', 'lib'].flatMap(walk)) {
+  if (/^(app\/fantasy|components\/fantasy|app\/api\/fantasy)\//.test(f)) continue
+  const text = code(readFileSync(f, 'utf8'))
+  for (const m of text.matchAll(/(?:from\s+|import\()\s*['"](\.[^'"]*)['"]/g)) {
+    // resolve the relative import against the file, then ask where it lands
+    const to = join(dirname(f), m[1])
+    if (!/^components\/fantasy\//.test(to)) continue
+    console.log(`FAIL ${f}: imports ${m[1]} -- FRANCHISE's components stay in FRANCHISE; move the shared piece out`)
+    bad += 1
+  }
+}
+console.log(bad ? `${bad} problem(s)` : 'OK routes registry: nav, More groups and aliases all resolve; no new sport ternaries; no FRANCHISE components outside FRANCHISE')
 process.exit(bad ? 1 : 0)

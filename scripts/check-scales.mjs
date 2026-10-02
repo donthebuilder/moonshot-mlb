@@ -152,7 +152,7 @@ const EXEMPT = new Set([
 //    795  2026-09-26: TUDDY's Morning Edition (75d41bc..e598c59) had put it
 //         at 797 -- two near-black hand-spelled darks in CSS strings (the
 //         Live crawl tag's ink, the Home hero's base). Now C.bg / C.bg2.
-const HEX_BUDGET = 795
+const HEX_BUDGET = 731   // ratcheted 2026-10-02 after 0g / R1 / R2 (was 795)
 
 const TRACKED = (() => {
   try {
