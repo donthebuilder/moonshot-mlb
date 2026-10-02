@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
-import Rink from './Rink'
+import Rink, { VS_MIN, VS_FULL } from './Rink'
 import HowToRead from '../charts/HowToRead'
 import dynamic from 'next/dynamic'
 import { webglOk } from '../../lib/webglOk'
@@ -139,12 +139,12 @@ export default function ShotPanel({ sel, who = 'He', height = 300 }) {
               Opens above the card; the 2D rink and its readout stay, so a
               tapped puck fills the same detail card. */}
           {arena && gl && (
-            <RinkArena shots={view === 'heat' ? NO_SHOTS : shots} map={m} slot={data.slot} gridSpec={data.gridSpec} view={view}
+            <RinkArena shots={view === 'dots' ? shots : NO_SHOTS} map={m} league={data.league} slot={data.slot} gridSpec={data.gridSpec} view={view}
               title={sel?.name || sel?.team || sel?.against || ''} subtitle={`${shots.length} of the last ${recent.length} attempts`}
               onPick={(sh) => setPicked(sh)} onPickCell={(cell) => setPicked({ cell })} />
           )}
           <ChartCard theme={C}>
-            <Rink map={m} slot={data.slot} gridSpec={data.gridSpec} height={height} shots={shots} view={view} onView={setView}
+            <Rink map={m} slot={data.slot} gridSpec={data.gridSpec} height={height} shots={shots} view={view} onView={setView} league={data.league}
               extraView={gl ? (
                 <button type="button" onClick={() => setArena((v) => !v)} aria-pressed={arena}
                   title={arena ? 'Close the 3D arena' : 'The same shots, in the arena, in 3D'}
@@ -162,7 +162,8 @@ export default function ShotPanel({ sel, who = 'He', height = 300 }) {
                     Tap a shot for its result, type, distance and moment{m?.grid ? ' · on HEAT, tap a zone' : ''}.
                     {' '}Showing <b style={{ color: C.text2 }}>{shots.length}</b> of the last {recent.length} attempts.
                   </div>
-                ) : picked.cell ? <>{picked.cell.att} attempts in that zone · {picked.cell.sog} on net · <b style={{ color: C.lamp }}>{picked.cell.g} goal{picked.cell.g === 1 ? '' : 's'}</b></>
+                ) : picked.cell?.vs ? <><b style={{ color: C.text }}>{Math.round(picked.cell.vs.mine * 100)}%</b> of {who === 'He' ? 'his' : 'their'} attempts are in that zone · the league <b style={{ color: C.text }}>{Math.round(picked.cell.vs.lg * 100)}%</b> · {picked.cell.att} attempts, {picked.cell.g} goal{picked.cell.g === 1 ? '' : 's'}</>
+                : picked.cell ? <>{picked.cell.att} attempts in that zone · {picked.cell.sog} on net · <b style={{ color: C.lamp }}>{picked.cell.g} goal{picked.cell.g === 1 ? '' : 's'}</b></>
                   : <>
                     <div style={{ color: picked[2] === 'goal' ? C.lamp : C.text, fontWeight: 800, fontSize: 11 }}>{(RES_WORD[picked[2]] || picked[2] || '').toUpperCase()}</div>
                     <div>{picked[3] ? `${picked[3]} · ` : ''}{distOf(picked)} ft{picked[4] ? ` · ${picked[4].toUpperCase()}` : ''}</div>
@@ -190,7 +191,11 @@ export default function ShotPanel({ sel, who = 'He', height = 300 }) {
               )}
               {/* ONE LEGEND, FROM WHAT IS DRAWN (BATCH-2D-CORE flag 2): the
                   two hand-written keys (under the rink and here) became this. */}
-              <ChartLegend theme={C} style={{ marginTop: 8 }} items={view === 'heat'
+              <ChartLegend theme={C} style={{ marginTop: 8 }} items={view === 'vs'
+                ? [{ key: 'more', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, background: `${C.lamp}aa` }} />, label: `more of ${who === 'He' ? 'his' : 'their'} attempts here than the league's (points)` },
+                  { key: 'less', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, background: `${C.ice}aa` }} />, label: 'fewer' },
+                  { key: 'blank', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, border: `1px solid ${C.border2}` }} />, label: `blank = under ${VS_MIN} attempts` }]
+                : view === 'heat'
                 ? [{ key: 'heat', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, background: `${C.ice}88` }} />, label: 'shaded by attempts per zone' },
                   { key: 'slot', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 1, background: `${C.ice}24` }} />, label: 'the slot' },
                   { key: 'arcs', mark: <b aria-hidden="true">◌</b>, label: '20 / 40 / 60 ft from the net' }]
@@ -202,6 +207,7 @@ export default function ShotPanel({ sel, who = 'He', height = 300 }) {
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 8, fontFamily: NUM_FONT }}>
                 {[
                   ['slot share', pct(m.slotShare), C.ice],
+                  ...(data.league?.slotShare != null ? [[`league's ${data.seasonLabel || ''}`.trim(), pct(data.league.slotShare), C.text2]] : []),
                   ['attempts', m.attempts, C.text],
                   ['on net', m.sog, C.text],
                   ['goals', m.goals, C.lamp],
@@ -228,7 +234,8 @@ export default function ShotPanel({ sel, who = 'He', height = 300 }) {
                   {ZONES.map((z, i) => <span key={z.key}>{i ? ' · ' : ''}<b style={{ color: C.text2 }}>{z.label}</b> {z.def}</span>)}.
                 </div>
                 <div>
-                  HEAT splits the attacking end into a 5 × 5 grid and shades each zone by its share of the attempts. 🏟 ARENA draws the same shots in 3D; its lines run from the shot to the net along the ice and are not tracked puck paths.
+                  HEAT splits the attacking end into a 5 × 5 grid and shades each zone by its share of the attempts.
+                  {data.league ? <> VS LEAGUE puts the same grid against every regular-season attempt in the league that season ({data.league.attempts.toLocaleString()} of them): each zone&apos;s number is {who === 'He' ? 'his' : 'their'} share there minus the league&apos;s, in points, from {win === 'all' ? 'the season' : 'the last ten games'} against the league&apos;s season; under {VS_MIN} attempts a zone is left blank, and the colour is full at {Math.round(VS_FULL * 100)} points. The league&apos;s slot share is cut the same way as {who === 'He' ? 'his' : 'theirs'}.</> : null} 🏟 ARENA draws the same shots in 3D; its lines run from the shot to the net along the ice and are not tracked puck paths.
                 </div>
               </HowToRead>
             </div>

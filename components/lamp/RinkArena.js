@@ -28,6 +28,7 @@ import { makeComposer, isCoarse } from '../../lib/stadiumLook'
 import { webglOk } from '../../lib/webglOk'
 import StadiumShell from '../charts/StadiumShell'
 import { ChartLegend, ChartEmpty } from '../charts'
+import { vsCells, vsAlpha, VS_MIN } from './Rink'
 
 // where a line ends at the net, by result / miss reason (the rink's y: +y is
 // the shooter's left). The net mouth is y -3..3; "wide" ends 1.5 ft outside it.
@@ -44,7 +45,7 @@ function lineEnd(sh) {
   return [GOAL_X, 0]
 }
 
-export default function RinkArena({ shots = [], map = null, slot = null, gridSpec = null, view = 'dots', onPick = null, onPickCell = null, title = '', subtitle = '' }) {
+export default function RinkArena({ shots = [], map = null, league = null, slot = null, gridSpec = null, view = 'dots', onPick = null, onPickCell = null, title = '', subtitle = '' }) {
   const mountRef = useRef(null)
   const [ok, setOk] = useState(true)
   const [motion, setMotion] = useState('replay')
@@ -135,7 +136,20 @@ export default function RinkArena({ shots = [], map = null, slot = null, gridSpe
     }
     const lines = []
     const pickables = []
-    if (view === 'heat' && map?.grid && gridSpec) {
+    const vs = view === 'vs' ? vsCells(map?.grid, league) : null
+    if (vs && gridSpec) {
+      // VS LEAGUE: the 2D's cells and colours (his share minus the league's)
+      const cw = (gridSpec.x1 - gridSpec.x0) / gridSpec.cols, ch = (gridSpec.y1 - gridSpec.y0) / gridSpec.rows
+      vs.forEach((row, r) => row.forEach((v, c) => {
+        if (v.att < VS_MIN) return
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(cw - 0.4, ch - 0.4),
+          new THREE.MeshBasicMaterial({ color: new THREE.Color(v.d >= 0 ? C.lamp : C.ice), transparent: true, opacity: vsAlpha(v.d, 0.75), depthWrite: false }))
+        m.rotation.x = -Math.PI / 2
+        m.position.copy(rinkPoint(gridSpec.x0 + (c + 0.5) * cw, gridSpec.y1 - (r + 0.5) * ch, 0.06))
+        m.userData.cell = { ...map.grid[r][c], r, c, vs: v }
+        group.add(m); pickables.push(m)
+      }))
+    } else if (view === 'heat' && map?.grid && gridSpec) {
       // the HEAT view: the 2D's 5x5 cells as tiles on the ice, same ramp
       const max = Math.max(1, ...map.grid.flat().map((c) => c.att))
       const cw = (gridSpec.x1 - gridSpec.x0) / gridSpec.cols, ch = (gridSpec.y1 - gridSpec.y0) / gridSpec.rows
@@ -294,7 +308,7 @@ export default function RinkArena({ shots = [], map = null, slot = null, gridSpe
       look.dispose(); renderer.dispose()
       if (renderer.domElement.parentNode === mount) mount.removeChild(renderer.domElement)
     }
-  }, [shots, map, slot, gridSpec, view, full])
+  }, [shots, map, slot, gridSpec, view, full, league])
 
   if (!ok) return <ChartEmpty theme={C}>This device can&apos;t draw WebGL, so the arena isn&apos;t available here — the rink above shows the same shots.</ChartEmpty>
 
@@ -317,13 +331,15 @@ export default function RinkArena({ shots = [], map = null, slot = null, gridSpe
   ]
   const caption = (
     <div style={{ marginTop: 6 }}>
-      <ChartLegend theme={C} items={view === 'heat'
+      <ChartLegend theme={C} items={view === 'vs'
+        ? [{ key: 'vs', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, background: `${C.lamp}aa` }} />, label: 'more than the league / blue fewer, as on the rink above' }]
+        : view === 'heat'
         ? [{ key: 'heat', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, background: `${C.ice}88` }} />, label: 'shaded by attempts per zone, as on the rink above' }]
         : [{ key: 'goal', mark: <b aria-hidden="true" style={{ color: C.lamp }}>●</b>, label: 'goal' },
           { key: 'sog', mark: <b aria-hidden="true" style={{ color: C.ice }}>●</b>, label: 'on net' },
           { key: 'miss', mark: <b aria-hidden="true">○</b>, label: 'missed / blocked' }]} />
       <div style={{ fontSize: 10, color: C.text3, marginTop: 4, lineHeight: 1.5, fontFamily: NUM_FONT }}>
-        Lines run from the shot to the net along the ice — not tracked puck paths. The same {shots.length} shot{shots.length === 1 ? '' : 's'} as the rink above · drag to orbit · tap a puck for the shot
+        {view === 'dots' ? 'Lines run from the shot to the net along the ice — not tracked puck paths. ' : ''}{view === 'dots' ? <>The same {shots.length} shot{shots.length === 1 ? '' : 's'} as the rink above</> : 'The same zones as the rink above'} · drag to orbit · tap a puck for the shot
       </div>
     </div>
   )

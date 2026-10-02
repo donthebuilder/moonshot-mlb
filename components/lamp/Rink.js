@@ -21,7 +21,26 @@ const sy = (y) => 42.5 - y
 // circle -- SprayField's lesson: a 1-foot dot is not a thumb target.
 // `view` / `onView` (2026-10-01, BATCH-2D-CORE): the caller can hold the
 // DOTS/HEAT state so its legend (ChartLegend) is built from what is drawn.
-export default function Rink({ map, slot, gridSpec, height = 300, shots = null, onPick = null, onPickCell = null, picked = null, view: viewProp = null, onView = null, extraView = null }) {
+// VS LEAGUE (2026-10-01, 2D TOP TIER 2): each zone shaded by HIS share of
+// the attempts there minus the LEAGUE's share (percentage points), from the
+// same grid. A zone needs VS_MIN of his attempts to be inked -- fewer and the
+// difference is noise, so it is left blank.
+export const VS_MIN = 5
+// A FIXED scale, not each map's own max: a 2-point gap must not look as loud
+// as a 20-point one. Full colour at VS_FULL points.
+export const VS_FULL = 0.08
+export const vsAlpha = (d, k = 0.55) => 0.1 + k * Math.min(1, Math.abs(d) / VS_FULL)
+export const vsText = (d) => { const v = Math.round(d * 1000) / 10; return v === 0 ? '0' : `${v > 0 ? '+' : '−'}${Math.abs(v).toFixed(1)}` }
+/** his grid + the league's -> per cell { mine, lg, d } in shares (0..1); null when no league */
+export function vsCells(grid, league) {
+  if (!grid || !league?.grid) return null
+  const tot = (g) => g.flat().reduce((n, c) => n + c.att, 0)
+  const a = tot(grid), b = tot(league.grid)
+  if (!a || !b) return null
+  return grid.map((row, r) => row.map((cell, c) => ({ att: cell.att, mine: cell.att / a, lg: league.grid[r][c].att / b, d: cell.att / a - league.grid[r][c].att / b })))
+}
+
+export default function Rink({ map, slot, gridSpec, height = 300, shots = null, onPick = null, onPickCell = null, picked = null, view: viewProp = null, onView = null, extraView = null, league = null, vsMin = VS_MIN }) {
   const clipId = `rink-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`
   const [viewOwn, setViewOwn] = useState('dots')
   const view = viewProp || viewOwn
@@ -31,13 +50,14 @@ export default function Rink({ map, slot, gridSpec, height = 300, shots = null, 
   const max = Math.max(1, ...map.grid.flat().map((c) => c.att))
   const cw = (gridSpec.x1 - gridSpec.x0) / gridSpec.cols; const ch = (gridSpec.y1 - gridSpec.y0) / gridSpec.rows
   const line = C.border2
+  const vs = view === 'vs' ? vsCells(map.grid, league) : null
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-start' }}>
       <div role="group" aria-label="Map view" style={{ display: 'inline-flex', gap: 4 }}>
-        {['dots', 'heat'].map((v) => (
+        {(league ? ['dots', 'heat', 'vs'] : ['dots', 'heat']).map((v) => (
           <button key={v} type="button" onClick={() => setView(v)} aria-pressed={view === v}
             style={{ padding: '4px 10px', borderRadius: 7, cursor: 'pointer', font: `800 9px/1 ${NUM_FONT}`, letterSpacing: '.08em', border: `1px solid ${view === v ? C.ice : C.border2}`, background: view === v ? `${C.ice}1f` : 'transparent', color: view === v ? C.ice : C.text3 }}>
-            {v.toUpperCase()}
+            {v === 'vs' ? 'VS LEAGUE' : v.toUpperCase()}
           </button>
         ))}
         {/* the caller's extra view (ShotPanel's 🏟 ARENA, BATCH-NHL-3D) */}
@@ -64,6 +84,20 @@ export default function Rink({ map, slot, gridSpec, height = 300, shots = null, 
           <rect key={`${r}-${c}`} x={sx(gridSpec.x0 + c * cw)} y={r * ch} width={cw} height={ch} fill={rampAt(cell.att / max)} opacity={0.18 + 0.6 * (cell.att / max)}>
             <title>{`${cell.att} attempts · ${cell.sog} on net · ${cell.g} goals`}</title>
           </rect>
+        ) : null))}
+        {vs && vs.map((row, r) => row.map((v, c) => v.att >= vsMin ? (
+          <g key={`vs${r}-${c}`}>
+            <rect x={sx(gridSpec.x0 + c * cw)} y={r * ch} width={cw} height={ch} fill={v.d >= 0 ? C.lamp : C.ice} opacity={vsAlpha(v.d)}>
+              <title>{`${Math.round(v.mine * 100)}% of the attempts here · the league ${Math.round(v.lg * 100)}%`}</title>
+            </rect>
+            <text x={sx(gridSpec.x0 + c * cw + cw / 2)} y={r * ch + ch / 2 + 1.4} fill={C.text} fontSize="4" fontWeight="800" fontFamily={NUM_FONT} textAnchor="middle" pointerEvents="none">
+              {vsText(v.d)}
+            </text>
+          </g>
+        ) : null))}
+        {vs && onPickCell && map.grid.map((row, r) => row.map((cell, c) => vs[r][c].att >= vsMin ? (
+          <rect key={`vhit-${r}-${c}`} x={sx(gridSpec.x0 + c * cw)} y={r * ch} width={cw} height={ch} fill="transparent" style={{ cursor: 'pointer' }}
+            onClick={() => onPickCell({ ...cell, r, c, vs: vs[r][c] })} />
         ) : null))}
         {view === 'heat' && onPickCell && map.grid.map((row, r) => row.map((cell, c) => cell.att ? (
           <rect key={`hit-${r}-${c}`} x={sx(gridSpec.x0 + c * cw)} y={r * ch} width={cw} height={ch} fill="transparent" style={{ cursor: 'pointer' }}
