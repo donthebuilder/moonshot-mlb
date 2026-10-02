@@ -48,11 +48,41 @@ const AIR_TOP = 36, AIR_BOT = -6
 const at = (u, air, h = 0) => new THREE.Vector3(clampAir(air) * YD, h, -FIELD_W / 2 + u * FIELD_W)
 
 // The 2D SVG, minus its dots, as an image -- the turf's texture (b).
+// ITS WORDS ARE DRAWN APART (2026-10-02, Donovan: the field's font was
+// "different from the site"): an SVG drawn as an image can't reach the
+// page's fonts, so it fell back to a typewriter face. Each <text> is lifted
+// out of the picture and drawn onto the canvas, where the page's fonts resolve.
+function textsOf(svg) {
+  return [...svg.querySelectorAll('text')].filter((t) => !t.closest('[data-layer="dots"]')).map((t) => {
+    const b = t.getBBox(), cs = getComputedStyle(t), A = (k) => t.getAttribute(k)
+    return {
+      s: t.textContent, x: b.x + b.width / 2, y: b.y + b.height / 2,
+      size: parseFloat(A('font-size')) || parseFloat(cs.fontSize), weight: A('font-weight') || cs.fontWeight,
+      family: A('font-family') || cs.fontFamily, stretch: t.style.fontStretch || 'normal',
+      fill: A('fill') || cs.fill, fillOp: A('fill-opacity') != null ? +A('fill-opacity') : 1,
+      stroke: A('stroke'), sw: +(A('stroke-width') || 0), strokeOp: A('stroke-opacity') != null ? +A('stroke-opacity') : 1,
+      ls: parseFloat(A('letter-spacing')) || 0,
+    }
+  })
+}
+function drawTexts(ctx, texts, box, S) {
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round'
+  for (const t of texts) {
+    ctx.font = `${t.weight} ${t.size * S}px ${t.family}`
+    if ('fontStretch' in ctx) ctx.fontStretch = t.stretch === 'condensed' ? 'condensed' : 'normal'
+    if ('letterSpacing' in ctx) ctx.letterSpacing = `${t.ls * S}px`
+    const x = (t.x - box.cx0) * S, y = (t.y - box.yTop) * S
+    if (t.stroke && t.sw) { ctx.globalAlpha = t.strokeOp; ctx.strokeStyle = t.stroke; ctx.lineWidth = t.sw * S; ctx.strokeText(t.s, x, y) }
+    ctx.globalAlpha = t.fillOp; ctx.fillStyle = t.fill; ctx.fillText(t.s, x, y)
+  }
+  ctx.globalAlpha = 1
+}
 function inkTexture(svg, box) {
   return new Promise((resolve) => {
     if (!svg || !box) { resolve(null); return }
+    const texts = textsOf(svg)
     const clone = svg.cloneNode(true)
-    clone.querySelectorAll('[data-layer="dots"]').forEach((n) => n.remove())
+    clone.querySelectorAll('[data-layer="dots"], [data-layer="edge"], text').forEach((n) => n.remove())
     clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
     const S = 2
     clone.setAttribute('width', String(box.W * S)); clone.setAttribute('height', String(box.H * S))
@@ -62,7 +92,9 @@ function inkTexture(svg, box) {
       // crop to the three lanes x the drawn depth
       const cw = Math.round((box.cx1 - box.cx0) * S), ch = Math.round((box.yBot - box.yTop) * S)
       const cv = document.createElement('canvas'); cv.width = cw; cv.height = ch
-      cv.getContext('2d').drawImage(img, box.cx0 * S, box.yTop * S, cw, ch, 0, 0, cw, ch)
+      const ctx = cv.getContext('2d')
+      ctx.drawImage(img, box.cx0 * S, box.yTop * S, cw, ch, 0, 0, cw, ch)
+      drawTexts(ctx, texts, box, S)
       const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8
       resolve(t)
     }

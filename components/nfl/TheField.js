@@ -36,6 +36,34 @@ import { LANES3, acrossOf, dotRadiusPx } from '../../lib/nfl/fieldPlace'
 // The sentence under the title says what the picture shows; one caption line
 // under the picture is the whole explanation for whoever asks.
 //
+// THE GRASS (2026-10-02): grain + a dark edge over the mowing stripes, so the
+// field reads as turf under lights. Pure SVG (feTurbulence), so the 3D turf,
+// which is a picture of this SVG, gets the same grass. Seeded: the same every load.
+const rgb01 = (hex) => [1, 3, 5].map((i) => (parseInt(hex.slice(i, i + 2), 16) / 255).toFixed(3))
+function turfLayers(id, x, y, w, h) {
+  const [lr, lg, lb] = rgb01(C.turfGrain), [dr, dg, db] = rgb01(C.turfShade)
+  const defs = [
+    <filter key="gl" id={`gl${id}`} x="0" y="0" width="100%" height="100%" colorInterpolationFilters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9 0.22" numOctaves="2" seed="4" />
+      <feColorMatrix type="matrix" values={`0 0 0 0 ${lr}  0 0 0 0 ${lg}  0 0 0 0 ${lb}  0 0 0 2.4 -1.25`} />
+    </filter>,
+    <filter key="gd" id={`gd${id}`} x="0" y="0" width="100%" height="100%" colorInterpolationFilters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency="0.7 0.16" numOctaves="2" seed="11" />
+      <feColorMatrix type="matrix" values={`0 0 0 0 ${dr}  0 0 0 0 ${dg}  0 0 0 0 ${db}  0 0 0 2.6 -1.2`} />
+    </filter>,
+    <radialGradient key="ge" id={`ge${id}`} cx="50%" cy="50%" r="72%">
+      <stop offset="55%" stopColor={C.turfShade} stopOpacity="0" />
+      <stop offset="100%" stopColor={C.turfShade} stopOpacity="0.7" />
+    </radialGradient>,
+  ]
+  const over = [
+    <rect key="gl" x={x} y={y} width={w} height={h} filter={`url(#gl${id})`} opacity={0.5} />,
+    <rect key="gd" x={x} y={y} width={w} height={h} filter={`url(#gd${id})`} opacity={0.6} />,
+    <rect key="ge" data-layer="edge" x={x} y={y} width={w} height={h} fill={`url(#ge${id})`} />,
+  ]
+  return { defs, over }
+}
+
 // GEOMETRY (unchanged from FieldChart). One viewBox, 640 wide. Air yards run
 // up: Y(a) = y0 + (36 - clamp(a, -5.5, 35)) / 42 * plot height. Three lanes,
 // four depth bands are the zones. Labels are sized in SCREEN pixels (u()).
@@ -372,6 +400,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
     const top = Y(Math.min(36, a + 5)), bot = Y(Math.max(-6, a))
     if (bot > top) parts.push(<rect key={`mow${a}`} x={x0} y={top} width={x1 - x0} height={bot - top} fill={C.turf1} />)
   }
+  { const g = turfLayers(`p${uid}`, 0, 0, W, H); defs.push(...g.defs); parts.push(...g.over) }
 
   // THE INK (plan item 2): MatchupMap's halftone, as an SVG pattern per zone
   // -- dot size and pitch scale with how far above a normal defence the zone
@@ -509,6 +538,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
       const top = YR(Math.min(8, a + 5)), bot = YR(Math.max(-9.5, a))
       if (bot > top) rparts.push(<rect key={`mow${a}`} x={0} y={top} width={W} height={bot - top} fill={C.turf1} />)
     }
+    { const g = turfLayers(`r${uid}`, 0, 0, W, RH); rdefs.push(...g.defs); rparts.push(...g.over) }
     for (const a of [5]) rparts.push(<line key={`yl${a}`} x1={0} y1={YR(a)} x2={W} y2={YR(a)} stroke={C.cream} strokeOpacity={a % 10 === 0 ? 0.28 : 0.14} vectorEffect="non-scaling-stroke" strokeWidth={1} />)
     const rlabels = []
     LANES.forEach((z, i) => {
