@@ -51,6 +51,20 @@ export default function PlayerBoardFrame({
     const row = want ? rows.find((p) => String(urlIdOf(p)) === String(want)) : null
     if (row) setSelectedIdRaw(idOf(row))
   }, [rows]) // eslint-disable-line react-hooks/exhaustive-deps
+  // BACK CLOSES THE FILE (0g B1, 2026-10-01). A pick pushes player= onto the
+  // URL; nothing listened for it leaving, so Back popped the URL and the file
+  // stayed open. Back / Forward now re-read player= -- on all three Players
+  // pages, which all sit on this frame.
+  useEffect(() => {
+    const sync = () => {
+      const want = hashParams().get('player')
+      const row = want ? rows.find((p) => String(urlIdOf(p)) === String(want)) : null
+      setSelectedIdRaw(row ? idOf(row) : null)
+    }
+    window.addEventListener('hashchange', sync)
+    window.addEventListener('popstate', sync)
+    return () => { window.removeEventListener('hashchange', sync); window.removeEventListener('popstate', sync) }
+  }, [rows]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const matches = useMemo(() => {
     const q = query.toLowerCase().trim()
