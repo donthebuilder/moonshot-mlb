@@ -15,12 +15,13 @@ import { C, NUM_FONT, TYPE } from '../../lib/nfl/theme'
 import { fetchNfl, nflGameCallsPaths, nflGameCallsTotalsPaths } from '../../lib/nfl/dataSource'
 import { reasonFor } from './ScoreAnatomy'
 
-/** The week's game-calls file, fetched once per mount. null = loading / none. */
+/** The week's game-calls file, fetched once per mount. null = loading; { missing: true } = not there. */
 export function useGameCalls() {
   const [data, setData] = useState(null)
   useEffect(() => {
     let alive = true
-    fetchNfl(nflGameCallsPaths()).then((d) => { if (alive) setData(d || null) }).catch(() => {})
+    // a failed or missing file is said, not hidden (0g E1): { missing: true } draws the waiting line
+    fetchNfl(nflGameCallsPaths()).then((d) => { if (alive) setData(d || { missing: true }) }).catch(() => { if (alive) setData({ missing: true }) })
     return () => { alive = false }
   }, [])
   return data
@@ -53,7 +54,15 @@ function CallRow({ c, player, why, onPlayerClick }) {
 
 export default function GameCalls({ calls, game, playersById, weights, base, onPlayerClick }) {
   const g = gameCallsFor(calls, game)
-  if (!g) return null
+  if (!g) {
+    if (!calls?.missing) return null
+    return (
+      <div style={{ marginTop: 10, fontSize: 12, color: C.text3 }}>
+        <span style={{ fontSize: TYPE.micro, fontWeight: 900, letterSpacing: '.12em', color: C.text, fontFamily: NUM_FONT, marginRight: 8 }}>GAME CALLS</span>
+        Waiting on this week&apos;s calls. They post with the board and lock at kickoff.
+      </div>
+    )
+  }
   const started = game?.state === 'in' || game?.completed
   const list = g.calls || []
   return (

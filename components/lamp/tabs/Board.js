@@ -33,7 +33,7 @@ export { STATUS }
 // HOW TO READ THIS, LAMP's words (components/HowToRead.js draws them; the same
 // component as MOONSHOT's and TUDDY's boards). Describes the page; no hit rates.
 const HOW_NOTES = [
-  { title: 'Rank in his game', text: 'LAMP ranks each game on its own, #1 first. The top three in every game are the calls.' },
+  { title: 'Rank in his game', text: 'LAMP ranks each game on its own, #1 first. The top skater on each team is the call, two in every game.' },
   { title: 'The player', text: 'Tap a name to open his page: his shots, goals and ice time.' },
   { title: 'Goal score', text: 'Three ranks averaged against tonight\u2019s skaters: shots, goals and ice time per game over his last 82 games, 0\u2013100. A ranking, not a percent.' },
   { title: 'The call', text: 'CALLED means he\u2019s one of the three picks in his game. ON THE BOARD means he\u2019s scored but not called. Calls lock before puck drop.' },
@@ -271,7 +271,7 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
 }
 
 // THE BOARD, MADE TO POP (lamp research step 1, 2026-09-26). Same structure
-// Donovan likes -- grouped by game, three called on top -- drawn the way
+// Donovan likes -- grouped by game, the called skaters on top -- drawn the way
 // MOONSHOT's Picks reads: the table is LampTable (DenseTable), SCORE and the
 // three legs heat-shaded on MOONSHOT's own heat scale (2026-09-28: was LAMP's
 // ice ramp, which ended in goal-light red -- red read as bad; a high score now

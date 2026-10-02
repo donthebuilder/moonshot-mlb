@@ -126,7 +126,7 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
       </nav>
 
       {/* TONIGHT'S CALLS (BATCH-HEADLINE-PICKS step 3): GOAL and SHOTS, each
-          model's top three called skaters -- MOONSHOT's The Four layout -- then
+          model's called skaters -- MOONSHOT's The Four layout -- then
           Around the League below, the same order MOONSHOT uses. */}
       <LampHeadline theme={C} numFont={NUM_FONT} goalBoard={board.data} sogBoard={sogBoard.data} record={regT} onOpenPlayer={onOpenPlayer} />
       {/* FACES ON THE CARDS (2026-09-29, queue batch 5): MOONSHOT's and TUDDY's
@@ -214,7 +214,7 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
       <section aria-label="What this is">
         <Kicker tone={C.cream}>THIS DESK</Kicker>
         <p style={{ margin: 0, color: C.text2, fontSize: 12.5, lineHeight: 1.6, maxWidth: 640 }}>
-          LAMP is the NHL side of DASH Network: the game itself — scores, schedule, standings, every goal, every player and club, the leaders — and one signal, the goal board: three skaters called per game, locked before puck drop, graded after, the record public. Nothing is priced.{' '}
+          LAMP is the NHL side of DASH Network: the game itself — scores, schedule, standings, every goal, every player and club, the leaders — and one signal, the goal board: one skater called per team, locked before puck drop, graded after, the record public. Nothing is priced.{' '}
           <button type="button" onClick={() => setTab?.('guide')} style={{ ...link, display: 'inline', padding: 0 }}>How this works ›</button>
         </p>
       </section>

@@ -167,7 +167,7 @@ export default function Matchups({ date = null, onOpenPlayer, onOpenTeam = null 
           <Detail row={active} league={league} onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} />
         </>
       )}
-      <SourceLine>Goals allowed: the league standings (goalAgainst / gamesPlayed). PK% and PP%: api.nhle.com/stats team reports, regular season; ranks against all 32 clubs, #1 = best for the attacking club (the weakest penalty kill, the strongest power play, the most goals allowed). Rest: each club&apos;s schedule. Who fits: tonight&apos;s LAMP board, the three called per game. Goalies: club stats.</SourceLine>
+      <SourceLine>Goals allowed: the league standings (goalAgainst / gamesPlayed). PK% and PP%: api.nhle.com/stats team reports, regular season; ranks against all 32 clubs, #1 = best for the attacking club (the weakest penalty kill, the strongest power play, the most goals allowed). Rest: each club&apos;s schedule. Who fits: tonight&apos;s LAMP board, the skater called on each team. Goalies: club stats.</SourceLine>
     </div>
   )
 }
