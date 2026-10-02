@@ -20,7 +20,7 @@ import { GuideTheme, Section, P, Term, StartHere, GuideTitle, PlaybookLink } fro
 // nothing priced; all four exist now, so it says only what is still true.
 const ROWS = [
   ['board', 'The goal board: one skater called per team in every game, locked before puck drop, graded after. Tap a called man for the three percentiles behind his score.'],
-  ['fullboard', 'Every skater the model scored tonight, all games together, ranked #1 to the bottom by score, with the numbers behind it. CALLED still means top three in his own game.'],
+  ['fullboard', 'Every skater the model scored tonight, all games together, ranked #1 to the bottom by score, with the numbers behind it. CALLED still means the top skater on his team in his own game.'],
   ['shots', null],
   ['games', null],
   ['scores', 'Every game on one day: score, period and clock, shots on goal, and who scored (tap the goals count). Tap a row for the game.'],

@@ -22,7 +22,7 @@ const WORDS = {
   },
   nhl: {
     look: 'Every skater on tonight’s board, ranked before puck drop.',
-    pick: 'The bot calls three in every game. Tap a name to see why.',
+    pick: 'The bot calls one skater per team, two in every game. Tap a name to see why.',
     track: 'Every call is graded after the game, hit or miss.',
   },
 }

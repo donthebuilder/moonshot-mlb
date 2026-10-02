@@ -18,7 +18,7 @@ import { useLampBoard } from '../../../lib/nhl/useLamp'
 import { TeamMark, EmptyState, DelayedBanner, Loading, SourceLine, Kicker, GameTypeChip, LampDot, StaleSeasonNote, fmtDay, fmtPuckDrop, fmtSec, zoneAbbrev, shiftDay, STATUS, CalledChip, readHashParam, writeHashParam } from '../ui'
 
 // 🏒 THE LAMP GOAL BOARD (lamp-goal-v1) — the product's first signal page.
-// Per game: every scored skater ranked, the top three CALLED, the rest ON
+// Per game: every scored skater ranked, the top skater on each TEAM CALLED, the rest ON
 // THE BOARD, the unscored roster men NOT ON THE BOARD with the reason
 // printed. Three words, same meaning as MOONSHOT and TUDDY.
 //

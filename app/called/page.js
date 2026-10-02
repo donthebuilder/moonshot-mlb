@@ -159,7 +159,7 @@ const SPORTS = {
   },
   // LAMP (Batch 2). Read through the shared record (lib/record/nhl.js): the
   // board as LOCKED before puck drop, graded after the final. Leads with the
-  // calls (Donovan, 09-25): three per game against ~6 scorers is a fair
+  // calls (Donovan, 09-25): two per game (one per team) against ~6 scorers is a fair
   // capture rate, and board coverage runs near 100% because nearly every
   // skater with ten NHL games is scored.
   nhl: {
@@ -175,7 +175,7 @@ const SPORTS = {
     cta: ['See tonight\u2019s goal board', 'One called per team in every game, and the full board, in the app — no account needed'],
     callsHead: 'Tonight\u2019s calls', callsPill: 'locked before puck drop',
     eventsHead: 'Tonight\u2019s goal scorers',
-    close: ['Tomorrow\u2019s calls lock before puck drop.', 'LAMP locks three skaters per game before the puck drops. The 🤖 you see here is what it said before the game.', 'Save your watchlist, picks and alerts when your guys score'],
+    close: ['Tomorrow\u2019s calls lock before puck drop.', 'LAMP locks one skater per team before the puck drops. The 🤖 you see here is what it said before the game.', 'Save your watchlist, picks and alerts when your guys score'],
     playerHref: (id) => playerHref('nhl', id),
     meta: {
       title: 'NHL goal picks, graded in public · CALLED IT · LAMP',
@@ -204,7 +204,9 @@ function normMlb(e) {
     cardHref: `/api/dash/homers/card?day=${r.day}&pid=${r.player_id}&n=${r.hr_n}`,
     call: r.role
       ? `${roleWord(r.role)}${r.board_rank ? ` · #${r.board_rank}` : ''}`
-      : r.on_board ? `on the board, no call${r.board_rank ? ` · #${r.board_rank}` : ''}` : 'not on the board',
+      // from the row's status (lib/callStatus top-third rule), as normNfl / normNhl do --
+      // not r.on_board, which called a #41 below the cut "on the board" (0g D2)
+      : e.status === 'board' ? `on the board, no call${r.board_rank ? ` · #${r.board_rank}` : ''}` : `not on the board${r.board_rank ? ` · #${r.board_rank}` : ''}`,
   }
 }
 
@@ -516,7 +518,7 @@ export default async function CalledPage({ searchParams }) {
             {picks.slice(0, PREVIEW).map((p, i) => <Pick key={p.player_id || i} p={p} i={i} sport={sport} calledIds={calledIds} />)}
           </ol>
           {picks.length > PREVIEW ? (
-            // LAMP calls three per game -- forty-odd names on a full night.
+            // LAMP calls one per team (two a game) -- thirty-odd names on a full night.
             // Five preview, the rest behind one tap, like the scorer lists.
             <details className={styles.more}>
               <summary>Show the other {picks.length - PREVIEW}</summary>
