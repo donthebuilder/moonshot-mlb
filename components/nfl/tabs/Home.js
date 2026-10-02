@@ -1,5 +1,7 @@
 'use client'
 
+import Tap from '../../Tap'
+import { playerHref } from '../../../lib/routes'
 import { fmtCountdown } from '../../../lib/headlines'
 import { dayLine } from '../../../lib/dayLine'
 import HeroStat from '../../HeroStat'
@@ -172,7 +174,7 @@ function TheSix({ picks, playersById, players = [], markets = [], onPlayerClick,
   )
 }
 
-function TouchdownLedger({ results, playersById }) {
+function TouchdownLedger({ results, playersById, onPlayerClick }) {
   const scorers = useMemo(() => Object.entries(results?.lines || {})
     .map(([playerId, line]) => ({ playerId, touchdowns: number(line?.TD), player: playersById[playerId] }))
     .filter((row) => row.touchdowns > 0)
@@ -184,7 +186,14 @@ function TouchdownLedger({ results, playersById }) {
       <SectionTitle eyebrow="BUILDS AS GAMES PLAY" title="Touchdown ledger" />
       <div className="tuddy-ledger-total"><strong>{total}</strong><span>touchdowns recorded<br/>in the latest graded feed</span></div>
       <div className="tuddy-ledger-list">
-        {scorers.slice(0, 8).map((row) => <div key={row.playerId}><NflTeamMark size={26} team={row.player?.team || 'FA'}/><b>{row.player?.name || results?.names?.[row.playerId] || row.playerId}</b><em>{row.touchdowns} TD{row.touchdowns === 1 ? '' : 's'}</em></div>)}
+        {/* A NAME IS A LINK (0g A1, 2026-10-01): his card when he is on this
+            week's slate, else his player page. */}
+        {scorers.slice(0, 8).map((row) => <div key={row.playerId}><NflTeamMark size={26} team={row.player?.team || 'FA'}/><b>{(() => {
+          const name = row.player?.name || results?.names?.[row.playerId] || row.playerId
+          return row.player && onPlayerClick
+            ? <Tap onClick={() => onPlayerClick(row.player)}>{name}</Tap>
+            : <a href={playerHref('nfl', row.playerId)} style={{ color: 'inherit', textDecoration: 'none' }}>{name}</a>
+        })()}</b><em>{row.touchdowns} TD{row.touchdowns === 1 ? '' : 's'}</em></div>)}
         {!scorers.length && <p>Kickoff hasn’t produced a graded touchdown yet. This ledger fills from the public results feed.</p>}
       </div>
     </section>
@@ -503,7 +512,7 @@ export default function Home({ data, picks, results, matchup, logs, onPlayerClic
           <StartSit players={players} onPlayerClick={onPlayerClick} />
         </Fold>
         <Fold id="tuddy-lookout" title="🩹 The Look-Out" meta="who's scored · defenses leaking touchdowns">
-          <div className="tuddy-home-split"><TouchdownLedger results={results} playersById={playersById}/><LookOut matchup={matchup} games={games}/></div>
+          <div className="tuddy-home-split"><TouchdownLedger results={results} playersById={playersById} onPlayerClick={onPlayerClick}/><LookOut matchup={matchup} games={games}/></div>
         </Fold>
         <Fold id="tuddy-angles" title="📖 Tonight's angles" meta="every line from this slate's own data">
           <Angles players={players} matchup={matchup}/>

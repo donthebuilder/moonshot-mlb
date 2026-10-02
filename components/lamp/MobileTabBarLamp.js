@@ -1,5 +1,6 @@
 'use client'
 import MobileTabBar from '../MobileTabBar'
+import { C } from '../../lib/nhl/theme'
 import { NHL_NAV, NHL_MORE_GROUPS } from '../../lib/nhl/routes'
 
 // LAMP's phone bar: the shared MobileTabBar with hockey's words, read from
@@ -22,5 +23,5 @@ const MORE = [
 ]
 
 export default function MobileTabBarLamp({ tab, setTab }) {
-  return <MobileTabBar tab={tab} setTab={setTab} main={MAIN} more={MORE} brand="LAMP" />
+  return <MobileTabBar tab={tab} setTab={setTab} main={MAIN} more={MORE} brand="LAMP" accent={C.ice} />
 }

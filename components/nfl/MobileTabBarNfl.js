@@ -1,5 +1,6 @@
 'use client'
 import MobileTabBar from '../MobileTabBar'
+import { C } from '../../lib/nfl/theme'
 import { NFL_NAV, NFL_MORE_GROUPS } from '../../lib/routes'
 
 // C3's NFL half: "if it feels right, NFL copies it" (dash-network-master-
@@ -47,5 +48,5 @@ const MORE = [
 ]
 
 export default function MobileTabBarNfl({ tab, setTab }) {
-  return <MobileTabBar tab={tab} setTab={setTab} main={MAIN} more={MORE} brand="TUDDY" />
+  return <MobileTabBar tab={tab} setTab={setTab} main={MAIN} more={MORE} brand="TUDDY" accent={C.green} />
 }

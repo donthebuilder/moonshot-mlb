@@ -79,7 +79,15 @@ const MORE = [
 // someone looks, and it never comes back.
 const SEEN_KEY = 'moonshot_more_seen_v1'
 
-export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, brand = 'MOONSHOT' }) {
+export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, brand = 'MOONSHOT', accent = null }) {
+  // EACH PRODUCT ITS OWN ACCENT (0g C1, 2026-10-01). The active tab, its
+  // underline, the More dot and the active More row were MOONSHOT orange on
+  // TUDDY's and LAMP's bars. `accent` (TUDDY jade, LAMP ice) replaces them;
+  // MOONSHOT passes none and keeps exactly the orange / amber it had.
+  const AC = accent || '#f97316'
+  const AC_TEXT = accent || '#fbbf24'
+  const AC_ICON = accent || '#fb923c'
+  const AC_FADE = accent ? `${accent}0b` : '#fcd34d0b'
   const [open, setOpen] = useState(false)
   const sheetRef = useRef(null)
   useEffect(() => {
@@ -236,11 +244,11 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
         .mobileMore.open{transform:none;visibility:visible;transition:transform .22s ease}
         @media(prefers-reduced-motion:reduce){.mobileMore,.mobileMore.open{transition:none}}
         .mobileMoreHead{display:flex;align-items:center;justify-content:space-between;padding:2px 3px 11px}
-        .mobileMoreHead small{display:block;color:#f97316;font-family:${NUM_FONT};font-size:8px;font-weight:900;letter-spacing:.14em}
+        .mobileMoreHead small{display:block;color:${AC};font-family:${NUM_FONT};font-size:8px;font-weight:900;letter-spacing:.14em}
         .mobileMoreHead strong{display:block;margin-top:3px;font-size:18px;color:${C.text}}
         .mobileMoreHead button{width:44px;height:44px;border:1px solid ${C.border};border-radius:11px;background:${C.bg};color:${C.text2};cursor:pointer;font-size:22px}
         .mobileMoreLede{margin:0 3px 10px;color:${C.text3};font-size:12px;line-height:1.5}
-        .mobileMoreDot{position:absolute;top:6px;right:calc(50% - 17px);width:7px;height:7px;border-radius:50%;background:#f97316;box-shadow:0 0 0 2px ${C.bg2}}
+        .mobileMoreDot{position:absolute;top:6px;right:calc(50% - 17px);width:7px;height:7px;border-radius:50%;background:${AC};box-shadow:0 0 0 2px ${C.bg2}}
         .mobileMoreList{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;margin:0 -14px;padding:0 14px calc(96px + env(safe-area-inset-bottom))}
         .mobileMoreGroup{margin:16px 3px 4px;font-family:${NUM_FONT};font-size:9px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:${C.text3}}
         .mobileMoreRow{display:grid;grid-template-columns:1fr auto;align-items:center;column-gap:10px;width:100%;min-height:48px;padding:8px 10px;border:0;border-bottom:1px solid ${C.border};border-radius:0;background:transparent;color:${C.text2};text-align:left;cursor:pointer}
@@ -248,8 +256,8 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
         .mobileMoreRow small{grid-column:1;margin-top:2px;color:${C.text3};font-size:11px;line-height:1.3}
         .mobileMoreRow em{grid-column:2;grid-row:1/span 2;color:${C.text3};font-style:normal;font-size:18px}
         .mobileMoreRow:hover{background:${C.bg}}
-        .mobileMoreRow.active{border-radius:10px;border-bottom-color:transparent;background:#f9731614}
-        .mobileMoreRow.active span,.mobileMoreRow.active em{color:${C.orange}}
+        .mobileMoreRow.active{border-radius:10px;border-bottom-color:transparent;background:${AC}14}
+        .mobileMoreRow.active span,.mobileMoreRow.active em{color:${accent || C.orange}}
         @media(min-width:761px){.mobileMoreList{padding-bottom:76px}}
         /* ── THE BAR, ON DESKTOP TOO (2026-08-29) ──────────────────────────
            Donovan picked it from three mocked options: "the nav going
@@ -267,8 +275,8 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
           .mobileTabBar button{position:relative;display:flex;flex-direction:row;align-items:center;gap:7px;padding:0 14px;border:0;border-radius:9px;background:transparent;color:${C.text3};font-family:${NUM_FONT};font-size:10px;font-weight:800;letter-spacing:.03em;cursor:pointer}
           .mobileTabBar button i{color:${C.text2};font-family:system-ui;font-size:15px;font-style:normal;line-height:1}
           .mobileTabBar button:hover{color:${C.text2}}
-          .mobileTabBar button.active{background:linear-gradient(145deg,#f9731628,#fcd34d0b);color:#fbbf24}
-          .mobileTabBar button.active i{color:#fb923c;text-shadow:0 0 14px #f9731688}
+          .mobileTabBar button.active{background:linear-gradient(145deg,${AC}28,${AC_FADE});color:${AC_TEXT}}
+          .mobileTabBar button.active i{color:${AC_ICON};text-shadow:0 0 14px ${AC}88}
         }
         @media(max-width:760px){
           :global(.dashboard-main){padding-bottom:102px!important}
@@ -276,9 +284,9 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
           .mobileTabBar.tucked:not(:focus-within){transform:translateY(calc(100% + 24px + env(safe-area-inset-bottom)))}
           .mobileTabBar button{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-width:0;border:0;border-radius:12px;background:transparent;color:${C.text3};font-family:${NUM_FONT};font-size:8px;font-weight:900;letter-spacing:.02em}
           .mobileTabBar button i{height:20px;color:${C.text2};font-family:system-ui;font-size:16px;font-style:normal;line-height:20px}
-          .mobileTabBar button.active{background:linear-gradient(145deg,#f9731628,#fcd34d0b);color:#fbbf24}
-          .mobileTabBar button.active i{color:#fb923c;text-shadow:0 0 14px #f9731688}
-          .mobileTabBar button.active:after{content:'';position:absolute;left:28%;right:28%;bottom:2px;height:2px;border-radius:9px;background:#f97316}
+          .mobileTabBar button.active{background:linear-gradient(145deg,${AC}28,${AC_FADE});color:${AC_TEXT}}
+          .mobileTabBar button.active i{color:${AC_ICON};text-shadow:0 0 14px ${AC}88}
+          .mobileTabBar button.active:after{content:'';position:absolute;left:28%;right:28%;bottom:2px;height:2px;border-radius:9px;background:${AC}}
         }
       `}</style>
     </>
