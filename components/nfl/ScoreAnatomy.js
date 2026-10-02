@@ -103,20 +103,9 @@ export function anatomyOf(components, weights) {
  * search/tier filters narrow the view; Boards.js does the same per market,
  * so the baseline doesn't collapse to n=1 the moment someone searches a
  * name. */
-export function baselineFor(rows, market) {
-  const acc = {}
-  for (const p of rows) {
-    for (const [k, v] of Object.entries(p?.components?.[market] || {})) {
-      if (Number.isFinite(Number(v))) (acc[k] ||= []).push(Number(v))
-    }
-  }
-  const out = {}
-  for (const [k, vals] of Object.entries(acc)) {
-    vals.sort((a, b) => a - b)
-    out[k] = vals[Math.floor(vals.length / 2)]
-  }
-  return out
-}
+// lib/nfl/tdPool.js (Members M3): the same function, server-safe; re-exported here
+import { baselineFor } from '../../lib/nfl/tdPool'
+export { baselineFor }
 
 /** The single biggest reason THIS player is scoring what he's scoring in
  * `market`, as a plain clause ("gets handed the ball constantly...") — or

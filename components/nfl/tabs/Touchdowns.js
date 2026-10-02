@@ -73,19 +73,9 @@ const SOFT_CAP = 60
 // ── THE CARD ─────────────────────────────────────────────────────────────
 // THE TD POOL, once (2026-09-28): the eligible scored players, the market's
 // weights and the pool baseline the card's "why" line reads. The Slate uses it.
-export function tdPool(data) {
-  const m = (data?.markets || []).find((x) => x.key === MARKET)
-  const elig = new Set(m?.positions || ['RB', 'WR', 'TE'])
-  const list = (data?.players || [])
-    .filter((p) => !p.on_bye && elig.has(p.position) && Number.isFinite(Number(p.scores?.[MARKET])))
-    .sort((a, b) => (b.scores[MARKET] ?? 0) - (a.scores[MARKET] ?? 0))
-  return {
-    rows: list,
-    weights: m?.weights || null,
-    base: baselineFor(list, MARKET),
-    games: new Set(list.map((p) => [p.team, p.opp].sort().join('@'))).size,
-  }
-}
+// lib/nfl/tdPool.js (Members M3): the board's pool, server-safe; re-exported here
+import { tdPool } from '../../../lib/nfl/tdPool'
+export { tdPool }
 
 // Exported (2026-09-28) for the Slate's Picks section -- the same card, not a copy.
 // MOONSHOT'S CARD FRAME (2026-09-29, parity plan E; components/PlayerCard.js
