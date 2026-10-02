@@ -1,6 +1,7 @@
 'use client'
 import ShotPanel from '../ShotPanel'
 import FollowButton from '../../FollowButton'
+import StarMemory from '../../watch/StarMemory'
 import PlayerNotes from '../../PlayerNotes'
 import MultiLine from '../../ledger/MultiLine'
 import PageHeader from '../../PageHeader'
@@ -172,7 +173,7 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel }) {
           <div style={{ color: C.text3, fontSize: 11, lineHeight: 1.5 }}>{bio}</div>
           {!goalie && <MultiLine sport="nhl" playerId={p.id} words={{ G: 'multi-goal' }} color={C.ice} textColor={C.text2} />}
           {/* Follow, as on MOONSHOT's and TUDDY's cards (lib/dash/follow.js takes nhl). */}
-          <div style={{ marginTop: 8 }}><FollowButton sport="nhl" id={String(p.id)} name={p.name} team={p.team} position={p.pos} compact /></div>
+          <div style={{ marginTop: 8, display: 'grid', gap: 6, justifyItems: 'start' }}><FollowButton sport="nhl" id={String(p.id)} name={p.name} team={p.team} position={p.pos} compact /><StarMemory sport="nhl" id={String(p.id)} /></div>
         </div>
       </header>
 

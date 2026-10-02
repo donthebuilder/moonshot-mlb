@@ -220,7 +220,7 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
                 </PanelAnchor>
 
                 <PanelAnchor id="calls" gamePk={g.game.id} style={{ marginTop: 14 }}>
-                  <SubLabel theme={C} numFont={NUM_FONT}>THE THREE CALLED IN THIS GAME</SubLabel>
+                  <SubLabel theme={C} numFont={NUM_FONT}>THE TWO CALLED IN THIS GAME · ONE PER TEAM</SubLabel>
                   {called.length
                     ? <LampCards market="GOAL" onOpen={onOpenPlayer} items={called.map((r) => ({ key: String(r.playerId), r, g, rank: r.rank, facts: { ppvpk: ppVsPk(spotOf(g, r.team, true), spotOf(g, r.team, false)), rest: restWord(spotOf(g, r.team, true)) } }))} />
                     : <p style={{ margin: 0, fontSize: 12.5, color: C.text3 }}>No skater in this game has enough NHL games on file to call.</p>}

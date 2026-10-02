@@ -142,7 +142,9 @@ export default function Results({ onOpenPlayer }) {
         // tinted against every dressed skater's rate, grey when the bands
         // don't fall in order, top vs bottom is inside the noise, or the
         // band's own interval covers the base.
-        const bands = [['1–3 (called)', T.bands.top3], ['4–8', T.bands.r4to8], ['9–15', T.bands.r9to15], ['16+', T.bands.r16plus]]
+        // '1–3' is rank 1-3 in his game -- since lamp-goal-v2 the call is the top
+        // skater on each TEAM, so this band no longer equals "called".
+        const bands = [['1–3', T.bands.top3], ['4–8', T.bands.r4to8], ['9–15', T.bands.r9to15], ['16+', T.bands.r16plus]]
           .map(([label, b]) => ({ label, ok: b.hits, n: b.n }))
         const base = T.dressed ? (100 * T.scorers) / T.dressed : 0
         const { claims, z } = bandClaim(bands, -1)

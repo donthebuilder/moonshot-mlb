@@ -64,7 +64,7 @@ export default function LampHeadline({ theme: C, numFont, goalBoard, sogBoard, r
     <HeadlinePicks
       theme={C} numFont={numFont}
       title="🏒 Tonight's calls"
-      subtitle="each model's top three called skaters, every game. Scores rank tonight's pool, 0–100 — not probabilities."
+      subtitle="the called skaters in every game: one per team on goals, three per game on the other boards. Scores rank tonight's pool, 0–100 — not probabilities."
       lanes={lanes}
       collapsePhone
       onPick={(pick) => pick.raw?.playerId && onOpenPlayer?.(Number(pick.raw.playerId))}

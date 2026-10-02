@@ -10,6 +10,7 @@ import { STATUS, LampDot, fmtSec } from './ui'
 import { Card, Chip } from '../ui'
 import StatStrip from '../StatStrip'
 import FollowButton from '../FollowButton'
+import StarMemory from '../watch/StarMemory'
 import { SportTheme } from '../SportTheme'
 import { CardName, ScoreBadge, ExplainStrip } from '../card/CardParts'
 
@@ -113,6 +114,7 @@ export function LampCard({ r, g, rank, market = 'GOAL', facts = {}, onOpen }) {
       </div>
       <div style={{ display: 'flex', gap: 6, alignItems: 'center' }} onClick={(e) => e.stopPropagation()}>
         <FollowButton sport="nhl" id={String(r.playerId)} name={r.name} team={r.team} position={r.pos} />
+        <StarMemory sport="nhl" id={String(r.playerId)} />
         {graded && (
           <span style={{ marginLeft: 'auto', font: `900 12px/1 ${NUM_FONT}`, color: r.hit ? C.lamp : C.text3 }}>
             {r.dressed === false ? 'VOID' : <>{r.hit && <LampDot />}{n ?? 0} {sog ? 'SOG' : (n === 1 ? 'GOAL' : 'GOALS')}</>}

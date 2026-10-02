@@ -94,7 +94,7 @@ export default function FullBoard({ onOpenPlayer, onOpenTeam, date = null, setDa
               { key: 'toi', label: 'TOI', w: 48, fmt: (v) => fmtSec(v), title: 'Ice time per game' },
               { key: 'rank', label: 'Game #', w: 52, heat: false, mono: true,
                 fmt: (v, r) => <span style={{ color: r.status === 'called' ? C.ice : C.text3, fontWeight: r.status === 'called' ? 900 : 700 }}>{v}</span>,
-                title: 'His rank in his own game. CALLED is the top three in his game.' },
+                title: 'His rank in his own game. CALLED is the top-scored skater on each team (lamp-goal-v2).' },
               { key: 'status', label: 'Status', w: 74, heat: false,
                 fmt: (v, r) => (
                   <span style={{ whiteSpace: 'nowrap' }}>

@@ -162,7 +162,7 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
 
       <section aria-label="Tonight's board">
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
-          <Kicker>THE BOARD · THREE CALLED PER GAME</Kicker>
+          <Kicker>THE BOARD · ONE CALLED PER TEAM</Kicker>
           <button type="button" onClick={() => setTab?.('board')} style={link}>Full board ›</button>
         </div>
         {board.loading && !board.data ? <Loading what="the board" /> : null}
