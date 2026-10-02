@@ -131,20 +131,21 @@ function readHash() {
   if (typeof window === 'undefined') return null
   const h = new URLSearchParams(window.location.hash.slice(1))
   if (h.get('view') !== 'field') return null
-  return { win: { szn: 'SZN', l5: 'L5', l3: 'L3', wk: 'WK' }[h.get('win')] || null }
+  return { win: { szn: 'SZN', l5: 'L5', l3: 'L3', wk: 'WK' }[h.get('win')] || null, show: h.get('show') === 'plays' ? 'plays' : null }
 }
 function clearHash() {
   if (typeof window === 'undefined') return
   const h = new URLSearchParams(window.location.hash.slice(1))
-  if (!h.has('view') && !h.has('win') && !h.has('sit')) return
+  if (!h.has('view') && !h.has('win') && !h.has('sit') && !h.has('show')) return
   if (h.get('view') === 'field') h.delete('view')
-  h.delete('win'); h.delete('sit')
+  h.delete('win'); h.delete('sit'); h.delete('show')
   window.history.replaceState(window.history.state, '', `#${h.toString()}`)
 }
-function writeHash(win) {
+function writeHash(win, show = 'zones') {
   if (typeof window === 'undefined') return
   const h = new URLSearchParams(window.location.hash.slice(1))
   h.set('view', 'field'); h.set('win', win.toLowerCase()); h.delete('sit')
+  if (show === 'plays') h.set('show', 'plays'); else h.delete('show')
   window.history.replaceState(window.history.state, '', `#${h.toString()}`)
 }
 
@@ -164,6 +165,9 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   // A QB is never targeted, so his picture is his offence's targets.
   const [mode, setMode] = useState(initialMode || (pid && !isQB ? 'PLAYER' : 'TEAM'))
   const [win, setWin] = useState(fromHash?.win || 'SZN')
+  // ZONES (default, Donovan 10-02: "zone percent instead of individual events")
+  // or PLAYS (every target as a dot, tap for the play)
+  const [show, setShow] = useState(fromHash?.show || 'zones')
   const [pick, setPick] = useState(null)
   const [open, setOpen] = useState(false)
   const wrap = useRef(null)
@@ -190,10 +194,10 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   useEffect(() => {
     if (fromHash && wrap.current) wrap.current.scrollIntoView({ block: 'start' })
   }, [fromHash, file.state])
-  useEffect(() => { if (hashSync && file.state === 'ready') writeHash(win) }, [hashSync, win, file.state])
+  useEffect(() => { if (hashSync && file.state === 'ready') writeHash(win, show) }, [hashSync, win, show, file.state])
   // Leaving the Field takes its params with it.
   useEffect(() => () => { if (hashSync) clearHash() }, [hashSync])
-  useEffect(() => { setPick(null) }, [mode, win, team, pid])
+  useEffect(() => { setPick(null) }, [mode, win, team, pid, show])
 
   const phone = cw < PHONE_AT
   const body = file.body
@@ -270,6 +274,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   const caN = pid ? mapAttempts(field?.player_rush?.[pid]) : 0
   const dv = pid ? fieldView({ tg: tgN, ca: caN }) : { view: 'pass', toggle: Boolean(field?.def_rush?.[defTeam]) }
   const isRun = (dv.toggle && viewPick ? viewPick : dv.view) === 'rush'
+  const zonesView = !isRun && show === 'zones'
   const runDef = useMemo(() => fieldModel({ field, defTeam, mode: 'def', pass: false }), [field, defTeam])
   const runMine = useMemo(() => (pid ? fieldModel({ field, defTeam, player, mode: 'player', pass: false }) : null), [field, defTeam, player, pid])
   const runModel = pid ? runMine : runDef
@@ -364,6 +369,10 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
       )}
       <ChipGroup first={!dv.toggle && (!pid || isQB || isRun)} label={phone ? null : 'Window'} theme={C} numFont={NUM_FONT} color={C.cyan} value={win} onChange={setWin} chipStyle={chipH}
         options={WINS.map(([k, label, nn]) => ({ k, label, n: k === 'SZN' || isRun ? null : inWin(k).length, title: k === 'SZN' ? 'The whole season' : `The last ${nn === 1 ? 'game' : `${nn} games`} ${asPlayer ? 'he was targeted in' : `${team} played`}` }))} />
+      {!isRun && (
+        <ChipGroup theme={C} numFont={NUM_FONT} color={C.green} value={show} onChange={setShow} chipStyle={chipH}
+          options={[{ k: 'zones', label: 'ZONES', n: null, title: `The share of ${asPlayer ? 'his' : 'their'} targets in each zone` }, { k: 'plays', label: 'PLAYS', n: null, title: 'Every target as a dot; tap one for the play' }]} />
+      )}
       {gl && !isRun && (
         <button type="button" onClick={() => setStadium((v) => !v)} aria-pressed={stadium}
           title={stadium ? 'Close the 3D stadium' : 'The same targets, in the stadium, in 3D'}
@@ -406,7 +415,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   // -- dot size and pitch scale with how far above a normal defence the zone
   // runs (heatOf); a zone that holds up gets a finer, quieter cyan (coolOf).
   // A zone under MIN_DEF_ATT attempts gets no ink and says "thin".
-  for (const c of cells) {
+  for (const c of zonesView ? [] : cells) {
     if (c.leak == null) continue
     const li = LANES3.indexOf(c.L)
     const bx = cx0 + li * lw, by = Y(c.B.hi), bh = Y(c.B.lo) - by
@@ -421,6 +430,16 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
       const pitch = u(9 - cl * 3), r = u(0.8 + cl * 0.9)
       defs.push(<pattern key={`p${c.k}`} id={`ink${uid}${c.k}`} width={pitch} height={pitch} patternUnits="userSpaceOnUse"><circle cx={pitch / 2} cy={pitch / 2} r={r} fill={C.cyan} fillOpacity={(0.22 + cl * 0.3).toFixed(2)} /></pattern>)
       parts.push(<rect key={`f${c.k}`} x={bx + ins} y={by + ins} width={lw - 2 * ins} height={bh - 2 * ins} rx={u(2)} fill={`url(#ink${uid}${c.k})`} />)
+    }
+  }
+  // ZONES: each zone tinted by its share of the targets drawn (the cells memo)
+  const maxShare = Math.max(1, ...cells.map((c) => c.share))
+  if (zonesView) {
+    for (const c of cells) {
+      if (!c.n) continue
+      const li = LANES3.indexOf(c.L), ins = u(1.5)
+      const bx = cx0 + li * lw, by = Y(c.B.hi), bh = Y(c.B.lo) - by
+      parts.push(<rect key={`z${c.k}`} x={bx + ins} y={by + ins} width={lw - 2 * ins} height={bh - 2 * ins} rx={u(2)} fill={C.green} fillOpacity={(0.06 + 0.4 * (c.share / maxShare)).toFixed(3)} />)
     }
   }
   for (const bxl of [cx0, cx0 + lw, cx0 + 2 * lw, cx1]) {
@@ -452,7 +471,9 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
       const li = LANES3.indexOf(c.L)
       const bx = cx0 + li * lw, by = Y(c.B.hi)
       if (spot && c.z === spot.z) continue
-      const txt = c.leak != null ? fmtPct(c.leak) : 'thin'
+      // ZONES: only a real defence number earns a tag (thin is said once, in the caption)
+      if (zonesView && c.leak == null) continue
+      const txt = `${zonesView && !phone && defTeam ? `${defTeam} ` : ''}${c.leak != null ? fmtPct(c.leak) : 'thin'}`
       labels.push(<rect key={`lb${c.k}`} x={bx + u(4)} y={by + u(4)} width={u(txt.length * labelPx * 0.66 + 7)} height={u(labelPx + 6)} rx={u(4)} fill={C.bg} opacity={0.62} />)
       labels.push(<text key={`lk${c.k}`} x={bx + u(7.5)} y={by + u(4 + labelPx * 0.5 + 3)} dy=".35em" fontFamily={NUM_FONT} fontWeight={c.leak != null ? 800 : 700} fontSize={u(labelPx)}
         fill={c.leak == null ? C.text3 : c.leak > 0 ? C.orange : C.cyan}>{txt}</text>)
@@ -460,6 +481,24 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   }
   for (const B of BANDS) {
     labels.push(<text key={`bl${B.key}`} x={x0 - u(6)} y={(Y(B.lo) + Y(B.hi)) / 2} dy=".35em" textAnchor="end" fontFamily={NUM_FONT} fontWeight={800} fontSize={u(labelPx)} fill={C.text3}>{B.label}</text>)
+  }
+  // ZONES: the share, big, bottom-right of its zone, the count under it
+  if (zonesView) {
+    for (const c of cells) {
+      if (!c.n) continue
+      const li = LANES3.indexOf(c.L)
+      const rx = cx0 + (li + 1) * lw - u(6), bot = Y(c.B.lo) - u(4)
+      // a short zone (BEHIND) takes the share and the count on one line
+      if (Y(c.B.lo) - Y(c.B.hi) < u(44)) {
+        // two texts, not a tspan: the 3D turf redraws each <text> as one run (FieldArena textsOf)
+        const cnt = `${c.n}/${drawn.length}`
+        labels.push(<text key={`zn${c.k}`} x={rx} y={bot - u(2)} textAnchor="end" fontFamily={NUM_FONT} fontWeight={700} fontSize={u(11)} fill={C.text2} {...KO}>{cnt}</text>)
+        labels.push(<text key={`zs${c.k}`} x={rx - u(cnt.length * 11 * 0.6 + 5)} y={bot - u(2)} textAnchor="end" fontFamily={NUM_FONT} fontWeight={900} fontSize={u(15)} fill={C.text} {...KO}>{Math.round(c.share)}%</text>)
+      } else {
+        labels.push(<text key={`zs${c.k}`} x={rx} y={bot - u(13)} textAnchor="end" fontFamily={NUM_FONT} fontWeight={900} fontSize={u(19)} fill={C.text} {...KO}>{Math.round(c.share)}%</text>)
+        labels.push(<text key={`zn${c.k}`} x={rx} y={bot} textAnchor="end" fontFamily={NUM_FONT} fontWeight={700} fontSize={u(11)} fill={C.text2} {...KO}>{c.n}/{drawn.length}</text>)
+      }
+    }
   }
   LANES3.forEach((L, li) => labels.push(<text key={`ln${L}`} x={cx0 + li * lw + lw / 2} y={H - u(phone ? 6 : 8)} textAnchor="middle" fontFamily={NUM_FONT} fontWeight={800} fontSize={u(labelPx)} letterSpacing={u(1)} fill={C.text3}>{{ L: 'LEFT', M: 'MIDDLE', R: 'RIGHT' }[L]}</text>))
   labels.push(<text key="loslbl" x={x0 - u(6)} y={Y(0)} dy=".35em" textAnchor="end" fontFamily={NUM_FONT} fontWeight={900} fontSize={u(10)} fill={C.ice}>LINE</text>)
@@ -471,12 +510,17 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
     const cxs = cx0 + li * lw + lw / 2
     const cys = (Y(spot.B.hi) + Y(spot.B.lo)) / 2
     const rr = Math.min(lw, Y(spot.B.lo) - Y(spot.B.hi)) * 0.42
-    const tagTxt = `THE SPOT ${fmtPct(spot.leak)}`
+    // in ZONES the orange outline is the spot, so the tag stays short and clear of the share
+    const tagTxt = zonesView ? `${phone ? '' : 'SPOT '}${fmtPct(spot.leak)}` : `THE SPOT ${fmtPct(spot.leak)}`
     const tagPx = phone ? 9.5 : 10.5
     const tagW = u(tagTxt.length * tagPx * 0.68 + 10), tagH = u(tagPx + 8)
     labels.push(<g key="spot" aria-hidden="true">
-      <circle cx={cxs} cy={cys} r={rr} fill="none" stroke={C.text} strokeWidth={2} strokeOpacity={0.95} vectorEffect="non-scaling-stroke" />
-      <circle cx={cxs + rr * 0.06} cy={cys - rr * 0.05} r={rr * 1.06} fill="none" stroke={C.text} strokeWidth={1.1} strokeOpacity={0.5} vectorEffect="non-scaling-stroke" />
+      {zonesView
+        ? <rect x={cx0 + li * lw + u(1.5)} y={Y(spot.B.hi) + u(1.5)} width={lw - u(3)} height={Y(spot.B.lo) - Y(spot.B.hi) - u(3)} rx={u(3)} fill="none" stroke={C.orange} strokeWidth={2} vectorEffect="non-scaling-stroke" />
+        : <>
+          <circle cx={cxs} cy={cys} r={rr} fill="none" stroke={C.text} strokeWidth={2} strokeOpacity={0.95} vectorEffect="non-scaling-stroke" />
+          <circle cx={cxs + rr * 0.06} cy={cys - rr * 0.05} r={rr * 1.06} fill="none" stroke={C.text} strokeWidth={1.1} strokeOpacity={0.5} vectorEffect="non-scaling-stroke" />
+        </>}
       <rect x={cx0 + li * lw + u(4)} y={Y(spot.B.hi) + u(4)} width={tagW} height={tagH} rx={u(3)} fill={C.orange} />
       <text x={cx0 + li * lw + u(4) + tagW / 2} y={Y(spot.B.hi) + u(4) + tagH / 2} dy=".35em" textAnchor="middle" fontFamily={NUM_FONT} fontWeight={900} fontSize={u(tagPx)} letterSpacing={u(0.4)} fill={C.bg}>{tagTxt}</text>
     </g>)
@@ -603,7 +647,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
         <filter id={`glow${uid}`} x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation={3 * dotScale} /></filter>
         {defs}
       </defs>
-      {parts}<g data-layer="dots">{dots}</g>{labels}
+      {parts}<g data-layer="dots">{zonesView ? null : dots}</g>{labels}
     </svg>
   )
 
@@ -615,8 +659,14 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
     </div>
   ) : (
     <div style={{ fontSize: 11.5, lineHeight: 1.5, color: C.text3, marginTop: 6 }}>
+      {zonesView ? <>
+        Big number: the share of {asPlayer ? 'his' : `${team}'s`} {plural(drawn.length, unit)} thrown to that zone (count under it).
+        {defModel ? <> Tag: {TL(defTeam)}&apos;s yards a target there vs a normal defence.</> : null}
+        {' '}Routes aren&apos;t in the feed, only lane and air yards. PLAYS shows each target.
+      </> : <>
       {defModel ? <>Ink: where {TL(defTeam)} get beaten, vs a normal defence. </> : null}
       Dots: {asPlayer ? 'his' : `${team}'s`} targets, where they went (hollow = incomplete, orange = touchdown).
+      </>}
       {defModel ? ' Thin = too few plays to say.' : ''}
       {usingQb ? ' The spot uses his own throws this season.' : ''}
       {/* components/charts/HowToRead (2D TOP TIER 1): SprayField's panel, shared */}
@@ -771,14 +821,14 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
               3D. The 2D field stays under it; a tapped dot opens the same card. */}
           {stadium && gl && !isRun && (
             <div style={{ marginBottom: 10 }}>
-              <FieldArena dots={dots3} cells={cells} spot={spot} rz={stripRows.flatMap((r) => r.touches)} onPick={(i) => setPick(i)} inkSvg={() => inkRef.current} inkBox={inkBox} stats={stats}
+              <FieldArena dots={dots3} cells={cells} spot={spot} rz={stripRows.flatMap((r) => r.touches)} onPick={(i) => setPick(i)} inkSvg={() => inkRef.current} inkBox={inkBox} stats={stats} showDiscs={!zonesView}
                 title={subjName} subtitle={`${plural(drawn.length, unit)}${defTeam ? ` · vs ${defTeam}` : ''}`} />
             </div>
           )}
           <div ref={fieldBox}>{isRun ? runPicture : picture}</div>
           {!isRun && emptyWin}
           {caption}
-          {!isRun && whoRow}
+          {!isRun && !zonesView && whoRow}
           {phone && statBlock}
           {strip}
           {phone && table}
@@ -786,7 +836,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
         {!phone && (
           <div style={{ flex: '1 0 280px', maxWidth: 420, display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0 }}>
             {statBlock}
-            {!isRun && <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 10, minHeight: 64 }}>{card}</div>}
+            {!isRun && !zonesView && <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 10, minHeight: 64 }}>{card}</div>}
             {table}
           </div>
         )}

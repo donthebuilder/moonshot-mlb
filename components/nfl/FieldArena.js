@@ -103,12 +103,12 @@ function inkTexture(svg, box) {
   })
 }
 
-export default function FieldArena({ dots = [], cells = [], spot = null, rz = [], onPick = null, title = '', subtitle = '', inkSvg = null, inkBox = null, stats = null }) {
+export default function FieldArena({ dots = [], cells = [], spot = null, rz = [], onPick = null, title = '', subtitle = '', inkSvg = null, inkBox = null, stats = null, showDiscs = true }) {
   const mountRef = useRef(null)
   const tipRef = useRef(null)
   const [ok, setOk] = useState(true)
   const [lines, setLines] = useState(false)      // d: off by default
-  const [zones, setZones] = useState(false)      // e: off by default
+  const [zones, setZones] = useState(false)      // e: off by default (in ZONES the turf already carries the shares)
   const [orbit, setOrbit] = useState(false)
   const [full, setFull] = useState(false)
   const [preset, setPreset] = useState('endzone')
@@ -119,7 +119,7 @@ export default function FieldArena({ dots = [], cells = [], spot = null, rz = []
   const apiRef = useRef({})
   const pickRef = useRef(onPick); pickRef.current = onPick
   const inkRef = useRef({ inkSvg, inkBox }); inkRef.current = { inkSvg, inkBox }
-  const sig = `${dots.map((d) => `${d.i}${d.ink}${d.res}`).join(',')}|${cells.map((c) => `${c.k}:${c.leak}`).join(',')}|${spot ? spot.L + spot.B.key : ''}|${rz.map((t) => `${t.seed}${t.res}`).join(',')}|${lines}|${zones}`
+  const sig = `${dots.map((d) => `${d.i}${d.ink}${d.res}`).join(',')}|${cells.map((c) => `${c.k}:${c.leak}`).join(',')}|${spot ? spot.L + spot.B.key : ''}|${rz.map((t) => `${t.seed}${t.res}`).join(',')}|${lines}|${zones}|${showDiscs}`
 
   useEffect(() => {
     const mount = mountRef.current
@@ -210,7 +210,7 @@ export default function FieldArena({ dots = [], cells = [], spot = null, rz = []
     const edge = new THREE.RingGeometry(1, 1.16, 28)
     const order = { inc: 0, int: 0, catch: 1, td: 2 }
     const sorted = [...dots].sort((a, b) => (order[a.res] - order[b.res]) || (a.i - b.i))
-    sorted.forEach((p, n) => {
+    if (showDiscs) sorted.forEach((p, n) => {
       const td = p.res === 'td', caught = p.res === 'catch' || td
       const r = (p.rPx || 5) * ftPerPx
       const pos = at(acrossOf(p), p.air, 0.14 + (n % 7) * 0.004)
@@ -425,7 +425,8 @@ export default function FieldArena({ dots = [], cells = [], spot = null, rz = []
         <StadiumDock open={dockOpen} onToggle={() => setDockOpen((v) => !v)} now={dots.length} all={dots.length} chips={[]}
           emptyText="The window chips above set what is drawn." stats={narrowBox ? null : dockStats} theme={C} numFont={NUM_FONT}
           accent={C.green} accentSoft={`${C.green}1a`} maxWidth="72%" />
-        <LowerThird title={title} subtitle={subtitle} theme={C} numFont={NUM_FONT} accent={C.green} fallback="TUDDY" />
+        {/* on a phone the field's own title sits right above, and the plate would cover the BEHIND row */}
+        {!narrowBox && <LowerThird title={title} subtitle={subtitle} theme={C} numFont={NUM_FONT} accent={C.green} fallback="TUDDY" />}
         <FilmOverlay />
         <HoverReadout ref={tipRef} theme={C} numFont={NUM_FONT} maxWidth={220} />
       </div>
