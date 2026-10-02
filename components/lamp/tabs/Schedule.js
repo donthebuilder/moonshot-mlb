@@ -2,6 +2,7 @@
 import PageHeader from '../../PageHeader'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import { useLampSchedule } from '../../../lib/nhl/useLamp'
+import LampTable from '../LampTable'
 import { TeamMark, EmptyState, DelayedBanner, Loading, SourceLine, GameTypeChip, LampDot, fmtDay, fmtPuckDrop, zoneAbbrev } from '../ui'
 
 // 🏒 SCHEDULE — the league week, day by day. Football's unit is a week and
@@ -56,35 +57,27 @@ export default function Schedule({ onOpenGame, date = null, setDate = () => {} }
             <span style={{ color: C.text3, font: `800 9px/1 ${NUM_FONT}` }}>{d.games.length} GAME{d.games.length === 1 ? '' : 'S'}</span>
             {[...new Set(d.games.map((g) => g.gameTypeLabel))].map((t) => <GameTypeChip key={t} label={t} />)}
           </div>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-              <thead>
-                <tr style={{ color: C.text3, font: `800 8px/1 ${NUM_FONT}`, letterSpacing: '.12em', textAlign: 'left' }}>
-                  <th style={th}>PUCK DROP</th><th style={th}>AWAY</th><th style={th}>HOME</th><th className="sm-hide" style={th}>VENUE</th>
-                </tr>
-              </thead>
-              <tbody>
-                {[...d.games].sort((a, b) => Date.parse(a.startUtc) - Date.parse(b.startUtc)).map((g) => {
-                  const live = g.state === 'live'; const done = g.state === 'final'; const off = g.scheduleState !== 'OK'
-                  const label = g.statusLine || fmtPuckDrop(g.startUtc)
-                  return (
-                    <tr key={g.id} onClick={() => onOpenGame?.(g.id)} tabIndex={0} role="link"
-                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpenGame?.(g.id) } }}
-                      aria-label={`${g.away.abbrev} at ${g.home.abbrev}, ${label}. Open game.`}
-                      style={{ cursor: 'pointer', borderTop: `1px solid ${C.border}`, opacity: off ? .55 : 1, background: live ? `linear-gradient(90deg, ${C.lamp}12, transparent 40%)` : 'transparent' }}>
-                      <td style={{ ...td, whiteSpace: 'nowrap', color: live ? C.lamp : done ? C.text2 : C.text, font: `800 10.5px/1.2 ${NUM_FONT}` }}>
-                        {live && <LampDot />}{label}
-                        {(live || done) && g.away.score != null && <span style={{ marginLeft: 8, color: C.text3 }}>{g.away.abbrev} {g.away.score}, {g.home.abbrev} {g.home.score}</span>}
-                      </td>
-                      <td style={td}><TeamMark abbrev={g.away.abbrev} name={g.away.name} /></td>
-                      <td style={td}><TeamMark abbrev={g.home.abbrev} name={g.home.name} /></td>
-                      <td className="sm-hide" style={{ ...td, color: C.text3, fontSize: 11 }}>{g.venue}{g.neutralSite ? ' · neutral site' : ''}</td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
+          {/* THE SHARED SHEET (2026-10-01, BATCH-TABLE-SKIN-V2 4b; Donovan: "convert
+              them all"). Puck-drop order; a live game wears the lamp edge, a
+              postponed one is dimmed, a row opens the game. */}
+          <LampTable bare noGroups tight heatMode="sorted" maxHeight={9999} maxRows={40}
+            caption={`${fmtDay(d.date)}: every game`}
+            rows={[...d.games].sort((a, b) => Date.parse(a.startUtc) - Date.parse(b.startUtc)).map((g) => ({ ...g, _key: g.id, t: Date.parse(g.startUtc), awayTm: g.away.abbrev, homeTm: g.home.abbrev }))}
+            onRowClick={onOpenGame ? (g) => onOpenGame(g.id) : undefined}
+            rowEdge={(g) => (g.state === 'live' ? C.lamp : null)}
+            dimRow={(g) => g.scheduleState !== 'OK'}
+            columns={[
+              { key: 't', label: 'Puck drop', heat: false, numeric: false, sticky: true, w: 150, fmt: (_, g) => {
+                const live = g.state === 'live'; const done = g.state === 'final'
+                return (
+                  <span style={{ whiteSpace: 'nowrap', color: live ? C.lamp : done ? C.text2 : C.text, font: `800 10.5px/1.2 ${NUM_FONT}` }}>
+                    {live && <LampDot />}{g.statusLine || fmtPuckDrop(g.startUtc)}
+                    {(live || done) && g.away.score != null && <span style={{ marginLeft: 8, color: C.text3 }}>{g.away.abbrev} {g.away.score}, {g.home.abbrev} {g.home.score}</span>}
+                  </span>) } },
+              { key: 'awayTm', label: 'Away', heat: false, w: 150, fmt: (_, g) => <TeamMark abbrev={g.away.abbrev} name={g.away.name} /> },
+              { key: 'homeTm', label: 'Home', heat: false, w: 150, fmt: (_, g) => <TeamMark abbrev={g.home.abbrev} name={g.home.name} /> },
+              { key: 'venue', label: 'Venue', heat: false, w: 180, fmt: (v, g) => <span style={{ color: C.text3, fontSize: 11 }}>{v}{g.neutralSite ? ' · neutral site' : ''}</span> },
+            ]} />
         </section>
       ))}
       <SourceLine>Source: NHL (api-web.nhle.com) schedule/{'{date}'}, read server-side by /api/lamp/schedule, cached five minutes.</SourceLine>
@@ -101,5 +94,3 @@ function NavBtn({ children, onClick, disabled, strong = false }) {
     }}>{children}</button>
   )
 }
-const th = { padding: '0 8px 8px', fontWeight: 800 }
-const td = { padding: '8px 8px', verticalAlign: 'middle' }
