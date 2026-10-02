@@ -9,16 +9,15 @@
 // was that page in everything but name and a URL of its own.
 import { C, NUM_FONT } from '../../lib/nfl/theme'
 import NflTeamMark from './NflTeamMark'
+import { rankGames, NFL_GAME_ORDER } from '../../lib/gameOrder'
 
 export const fmtKick = (t) => {
   try { return new Date(t).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit' }) } catch { return 'TBD' }
 }
 
 export default function GameScoreboard({ games }) {
-  const sorted = [...games].sort((a, b) => {
-    const rank = (g) => (g.state === 'in' ? 0 : g.completed || g.state === 'post' ? 2 : 1)
-    return rank(a) - rank(b) || Date.parse(a.kickoff || 0) - Date.parse(b.kickoff || 0)
-  })
+  // live, then to come by kickoff, then finals: lib/gameOrder.js, LAMP's order too (R9)
+  const sorted = rankGames(games, NFL_GAME_ORDER)
   return (
     <div className="gsb-board">
       {sorted.map((g) => {

@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { C, NUM_FONT } from '../../lib/nhl/theme'
 import { TeamMark, LampDot, GoalLabel, fmtPuckDrop } from './ui'
 import LampTable from './LampTable'
+import { rankGames, NHL_GAME_ORDER, strengthTag } from '../../lib/gameOrder'
 
 // 🏒 THE SCORE TABLE — one row per game, a table not a card grid (Donovan's
 // standing rule). Every value is a field off score/{date} reduced by
@@ -16,12 +17,10 @@ import LampTable from './LampTable'
 //
 // ORDER: live first, then games still to come by puck drop, then finals —
 // same rank rule TUDDY's GameScoreboard uses, so the two products agree.
-const rank = (g) => (g.state === 'live' ? 0 : g.state === 'pre' ? 1 : 2)
-export const sortGames = (games) => [...games].sort((a, b) =>
-  rank(a) - rank(b) || Date.parse(a.startUtc || 0) - Date.parse(b.startUtc || 0))
-
-const STR = { ev: 'EV', pp: 'PP', sh: 'SH' }
-export const strengthTag = (g) => (g.modifier === 'empty-net' ? 'EN' : g.modifier === 'penalty-shot' ? 'PS' : STR[g.strength] || 'EV')
+// The order and the strength tag live in lib/gameOrder.js now (R8), shared with
+// TUDDY's GameScoreboard; these names stay for their importers.
+export const sortGames = (games) => rankGames(games, NHL_GAME_ORDER)
+export { strengthTag }
 
 export function GoalLines({ goals }) {
   if (!goals?.length) return null
@@ -55,7 +54,7 @@ export default function ScoreTable({ games = [], onOpen, compact = false }) {
   return (
     <div className="lamp-scores">
       <LampTable bare noGroups tight heatMode="sorted" maxHeight={9999} maxRows={Math.max(rows.length, 1)} caption="Every game on the date"
-        rows={rows.map((g) => ({ ...g, _key: g.id, ord: rank(g) * 1e13 + (Date.parse(g.startUtc || 0) || 0), awayTm: g.away.abbrev, homeTm: g.home.abbrev, goalsN: g.goals?.length ?? null }))}
+        rows={rows.map((g) => ({ ...g, _key: g.id, ord: NHL_GAME_ORDER.phaseOf(g) * 1e13 + (Date.parse(g.startUtc || 0) || 0), awayTm: g.away.abbrev, homeTm: g.home.abbrev, goalsN: g.goals?.length ?? null }))}
         onRowClick={onOpen ? (g) => onOpen(g.id) : undefined}
         rowEdge={(g) => (g.state === 'live' ? C.lamp : null)}
         dimRow={(g) => g.scheduleState !== 'OK'}
