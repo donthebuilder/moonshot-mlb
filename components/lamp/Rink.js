@@ -129,14 +129,6 @@ export default function Rink({ map, slot, gridSpec, height = 300, shots = null, 
                 </path>
               )
             })}
-            {GOALIE_ZONES.map((z) => {
-              const r = goalieRead[z.key]; const [lx, ly] = ZONE_LABEL_AT[z.key]
-              return (
-                <text key={`l${z.key}`} x={sx(lx)} y={sy(ly)} fill={RINK.puck} fontSize="3" fontWeight="800" fontFamily={NUM_FONT} textAnchor="middle" pointerEvents="none">
-                  {r.thin ? 'thin' : `${Math.round(r.rate * 1000) / 10}%`}
-                </text>
-              )
-            })}
           </g>
         )}
         {/* in VS GOALIE the zone labels sit on the centre line, so the ft labels step aside */}
@@ -184,6 +176,16 @@ export default function Rink({ map, slot, gridSpec, height = 300, shots = null, 
               <Mark shot={shot} cx={sx(shot[0])} cy={sy(shot[1])} sel={sel} hard={hard} />
               {onPick && <circle cx={sx(shot[0])} cy={sy(shot[1])} r="2.6" fill="transparent" style={{ cursor: 'pointer' }} onClick={() => onPick(shot)} />}
             </g>
+          )
+        })}
+        {/* the zone rates over the pucks (a ring of ice keeps them readable; taps pass through) */}
+        {view === 'goalie' && goalieRead && GOALIE_ZONES.map((z) => {
+          const r = goalieRead[z.key]; const [lx, ly] = ZONE_LABEL_AT[z.key]
+          return (
+            <text key={`l${z.key}`} x={sx(lx)} y={sy(ly)} fill={RINK.puck} stroke={RINK.ice} strokeWidth="0.9" paintOrder="stroke" strokeLinejoin="round"
+              fontSize="3" fontWeight="800" fontFamily={NUM_FONT} textAnchor="middle" pointerEvents="none">
+              {r.thin ? 'thin' : `${Math.round(r.rate * 1000) / 10}%`}
+            </text>
           )
         })}
       </svg>
