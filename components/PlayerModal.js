@@ -25,7 +25,8 @@ import VerdictHero from './VerdictHero'
 import CardShell from './CardShell'
 import { TabBtn, Navigator } from './card/CardNav'
 import PickVerdictStamp from './PickVerdictStamp'
-import FollowButton from './FollowButton'
+import StarMemory from './watch/StarMemory'
+import { oddsHistoryPaths } from '../lib/dataSource'
 import MultiLine from './ledger/MultiLine'
 import { Chip } from './ui'
 import Explain from './Explain'
@@ -666,21 +667,19 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
               border: `1px dashed ${C.border}`, borderRadius: 7, display: 'inline-block',
             }}>
               Watch/slip unavailable — pulled live from the league, not from tonight's published slate yet.
-              {' '}Following still works: it saves the player, not the game.
             </div>
           )}
-          {apiOnly && (
-            <div style={{ marginBottom: 10 }}>
-              <FollowButton sport="mlb" id={clean(p?.player_id, '')} name={nameOf(p)} team={teamOf(p)} />
-            </div>
-          )}
+          {/* YOUR EYE FOR HIM (2026-10-01, one star + memory): on every card,
+              on the slate or not -- the nights you starred him and how he did. */}
+          <div style={{ marginBottom: 8 }}>
+            <StarMemory sport="mlb" id={clean(p?.player_id, '')} pricesPath={oddsHistoryPaths()[0]} />
+          </div>
           <MultiLine sport="mlb" playerId={clean(p?.player_id, '')} words={{ HR: 'multi-HR' }} color={C.orange} textColor={C.text2} />
           {/* Watchlist + slip. You could open a hitter from any board, decide
               he's worth playing, and then have to close the modal and find his
               card again to add him. Both actions live here now. */}
           {!apiOnly && (onAdd || onWatch) && (
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
-              <FollowButton sport="mlb" id={clean(p?.player_id, '')} name={nameOf(p)} team={teamOf(p)} />
               {onWatch && (
                 <button
                   onClick={() => onWatch(p)}

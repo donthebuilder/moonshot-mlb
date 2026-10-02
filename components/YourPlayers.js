@@ -255,7 +255,7 @@ export default function YourPlayers({ players = [], onPlayerClick = null, watchI
         </div>
         <p style={{ ...note, margin: '6px 0 0', lineHeight: 1.6 }}>
           Star a player anywhere on the board and he lands here, with tonight&apos;s line
-          beside him. Stars clear with the slate; following doesn&apos;t.
+          beside him. A star lasts the night; his card remembers how he did for you.
         </p>
       </div>
     )
@@ -428,7 +428,7 @@ export default function YourPlayers({ players = [], onPlayerClick = null, watchI
                 type="button"
                 className="yp-x"
                 aria-label={`Remove ${r.name} from your players`}
-                title="Remove — he stops coming back"
+                title="Remove — un-star him"
                 onClick={(e) => {
                   e.stopPropagation()
                   unfollow(r.id)

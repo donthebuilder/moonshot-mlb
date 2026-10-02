@@ -27,10 +27,10 @@ export default function FollowingStrip({ sport = 'mlb', onPlayerClick = null, li
   if (!rows.length) {
     return (
       <div style={wrap()}>
-        <div style={head()}><b style={title()}>★ Following</b><span style={note()}>nobody yet</span></div>
+        <div style={head()}><b style={title()}>★ Your players</b><span style={note()}>nobody yet</span></div>
         <p style={body()}>
-          {emptyText || <>Star a player anywhere on the board and he lands here. Stars clear with the
-          slate; this list doesn&apos;t.</>}
+          {emptyText || <>Star a player anywhere on the board and he lands here. A star lasts the
+          night; his card remembers how he did for you.</>}
         </p>
       </div>
     )

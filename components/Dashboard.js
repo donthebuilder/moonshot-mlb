@@ -29,7 +29,7 @@ import MobileTabBar from './MobileTabBar'
 import Home from './tabs/Home'
 import QuickSearch from './QuickSearch'
 import { SlateScaleProvider } from '../lib/statline'
-import { follow, unfollow, useFollowing } from '../lib/dash/follow'
+import { follow, unfollow } from '../lib/dash/follow'
 import { liveOdds } from '../lib/oddsFreshness'
 import { markDirty } from '../lib/dash/sync'
 import ErrorBoundary from './ErrorBoundary'
@@ -610,6 +610,12 @@ export default function Dashboard({ palettePass = 0 }) {
         return onSlate.has(pk) && !dead.has(String(pk))
       })
       if (kept.length === watch.length) return
+      // ONE STAR + MEMORY (Donovan 10-01): a star clears with its night and
+      // its follow goes with it, so nothing comes back on its own. The night
+      // itself stays in lib/watchNights (stamped below), which is what his
+      // card's "you starred him N nights" line reads.
+      const keptIds = new Set(kept.map((p) => clean(p?.player_id, '')))
+      watch.forEach((p) => { const pid = clean(p?.player_id, ''); if (pid && !keptIds.has(pid)) unfollow('mlb', pid) })
       setWatch(kept)
       try {
         localStorage.setItem(WATCH_KEY, JSON.stringify(kept))
@@ -621,44 +627,10 @@ export default function Dashboard({ palettePass = 0 }) {
 
   const watchIds = useMemo(() => new Set(watch.map(playerId)), [watch])
 
-  // FOLLOWED NAMES COME BACK ON THEIR OWN.
-  //
-  // A followed hitter who is on tonight's board gets his star back without
-  // being re-starred — that is what "keeping track" has to mean for a list
-  // that is pruned nightly by design. Keyed on raw player_id, never on the
-  // composite `${player_id}-${game_pk}`: the composite is exactly what stops
-  // last night's entry from matching tonight's row (see the prune above), so
-  // matching on it here would restore nothing.
-  //
-  // ONE DIRECTION ONLY. This adds; it never removes. Un-starring tonight has
-  // to survive the next render, so a star is only added for a followed player
-  // who is on the board and not already present — and `relitRef` remembers
-  // who has been offered this slate so an un-star can't be undone by the next
-  // data poll.
-  const { rows: followedRows } = useFollowing('mlb')
-  const relitRef = useRef(new Set())
-  useEffect(() => {
-    if (!allPlayers?.length || !followedRows.length) return
-    const wanted = new Set(followedRows.map((row) => String(row.id)))
-    const already = new Set(watch.map((w) => clean(w?.player_id, '')))
-    const add = allPlayers.filter((p) => {
-      const pid = clean(p?.player_id, '')
-      if (!pid || !wanted.has(String(pid))) return false
-      if (already.has(pid) || relitRef.current.has(pid)) return false
-      return true
-    })
-    if (!add.length) return
-    add.forEach((p) => relitRef.current.add(clean(p?.player_id, '')))
-    setWatch((prev) => {
-      const ids = new Set(prev.map(playerId))
-      const next = [...prev, ...add.filter((p) => !ids.has(playerId(p)))]
-      try {
-        localStorage.setItem(WATCH_KEY, JSON.stringify(next))
-        window.dispatchEvent(new Event(WATCH_EVENT))
-      } catch { /* ignore */ }
-      return next
-    })
-  }, [allPlayers, followedRows, watch])
+  // FOLLOWED NAMES NO LONGER COME BACK ON THEIR OWN (2026-10-01). The relight
+  // that re-starred every followed man on each new board is gone: Donovan
+  // picked "one star + memory" -- a star clears with its night, and a past
+  // star shows on his card (components/watch/StarMemory.js) instead.
 
   const addSlip = (p, bet) => setSlip((s) => [...s, { p, bet }])
 
@@ -731,15 +703,6 @@ export default function Dashboard({ palettePass = 0 }) {
       const t = new Date(p?.game_time || 0).getTime()
       if (Number.isFinite(t) && t) unstampSave({ sport: 'mlb', id: clean(p?.player_id, ''), date: easternDate(t), startMs: t })
     }
-    // Un-starring a still-followed player is a decision, not a lapse. Record
-    // it in relitRef (declared above, populated only when the relight effect
-    // itself adds someone) so that effect's very next run treats him as
-    // "already decided this slate" instead of "never offered" -- otherwise
-    // it saw an un-starred-but-followed player as new and put the star right
-    // back on the next render, and removing him only stuck on the SECOND
-    // click, once the bounce-back finally landed in relitRef. Donovan,
-    // 2026-09-17: "i have to click them twice to remove them."
-    if (on) relitRef.current.add(clean(p?.player_id, ''))
     markDirty()
     return next
   })

@@ -25,7 +25,7 @@ import { quoteFor, fmtOdds } from '../../lib/nfl/oddsMatch'
 import DvpRead from './DvpRead'
 import { downloadNflPickCard } from './shareCard'
 import { useNflWatchlist } from '../../lib/nfl/watchlist'
-import FollowButton from '../FollowButton'
+import StarMemory from '../watch/StarMemory'
 import MultiLine from '../ledger/MultiLine'
 import { injuryTag, injuryTitle, injuryColor } from '../../lib/nfl/injury'
 import ScoreAnatomy from './ScoreAnatomy'
@@ -524,7 +524,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
           )
         })()}
         <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginTop: 10 }}>
-          <FollowButton sport="nfl" id={player?.player_id} name={player?.name} team={player?.team} position={player?.position} compact />
+          <StarMemory sport="nfl" id={player?.player_id} />
           <button onClick={() => watchlist.toggle(player)}
             aria-label={watchlist.isPinned(player.player_id) ? `Remove ${player.name} from watchlist` : `Save ${player.name} to watchlist`}
             style={{
