@@ -1,3 +1,4 @@
+import { SPORT_KEYS, sportPage, DEFAULT_SPORT } from '../lib/routes'
 // sitemap.xml (2026-09-24 audit, SEO-3). Only real, public, non-duplicate
 // URLs. The board is one document however many hashes point into it, so it
 // is listed once. /called and /start carry a sport in the query string and
@@ -11,12 +12,11 @@ export default function sitemap() {
   return [
     { url: url('/'), lastModified: now, changeFrequency: 'daily', priority: 1 },
     { url: url('/app'), lastModified: now, changeFrequency: 'hourly', priority: 0.9 },
-    { url: url('/start'), lastModified: now, changeFrequency: 'daily', priority: 0.8 },
-    { url: url('/start?sport=nfl'), lastModified: now, changeFrequency: 'weekly', priority: 0.7 },
-    { url: url('/start?sport=nhl'), lastModified: now, changeFrequency: 'daily', priority: 0.7 },
-    { url: url('/called'), lastModified: now, changeFrequency: 'hourly', priority: 0.8 },
-    { url: url('/called?sport=nfl'), lastModified: now, changeFrequency: 'daily', priority: 0.7 },
-    { url: url('/called?sport=nhl'), lastModified: now, changeFrequency: 'daily', priority: 0.7 },
+    // /start and /called per sport, off the one registry (0g D6): a new sport is listed by being added there
+    ...SPORT_KEYS.flatMap((k) => [
+      { url: url(sportPage('/start', k)), lastModified: now, changeFrequency: 'daily', priority: k === DEFAULT_SPORT ? 0.8 : 0.7 },
+      { url: url(sportPage('/called', k)), lastModified: now, changeFrequency: k === DEFAULT_SPORT ? 'hourly' : 'daily', priority: k === DEFAULT_SPORT ? 0.8 : 0.7 },
+    ]),
     // The Playbook (2026-09-30): how to research a pick, one page per market.
     { url: url('/playbook'), lastModified: now, changeFrequency: 'weekly', priority: 0.6 },
     ...['hr', 'hit', 'hrr', 'bases', 'td', 'goal', 'shots'].map((m) => ({ url: url(`/playbook/${m}`), lastModified: now, changeFrequency: 'weekly', priority: 0.5 })),

@@ -79,7 +79,7 @@ import { nhlCaptureFrom, readNhlRecords } from '../../lib/record/nhl'
 import { readMlbEvents } from '../../lib/record/mlb'
 import { readNflEvents } from '../../lib/record/nfl'
 import { eventCapture } from '../../lib/record/shape'
-import { appHref, playerHref } from '../../lib/routes'
+import { appHref, playerHref, SPORT_KEYS, BRAND } from '../../lib/routes'
 import styles from './start.module.css'
 import { membersUrl, MEMBERS_LINE } from '../../lib/members'
 
@@ -472,9 +472,8 @@ export default async function StartPage({ searchParams }) {
           <div><small>DASH NETWORK</small><strong>{sport.product}</strong></div>
         </a>
         <nav className={styles.nav}>
-          <a className={sportKey === 'mlb' ? styles.navOn : styles.navOff} href="/start?sport=mlb">⚾ MLB</a>
-          <a className={sportKey === 'nfl' ? styles.navOn : styles.navOff} href="/start?sport=nfl">🏈 NFL</a>
-          <a className={sportKey === 'nhl' ? styles.navOn : styles.navOff} href="/start?sport=nhl">🏒 NHL</a>
+          {/* one link per sport, off the registry (0g D6) */}
+          {SPORT_KEYS.map((k) => <a key={k} className={sportKey === k ? styles.navOn : styles.navOff} href={`/start?sport=${k}`}>{BRAND[k].icon} {BRAND[k].league}</a>)}
         </nav>
       </header>
 

@@ -73,6 +73,8 @@ const Dashboard = dynamic(() => import('./Dashboard'), { ssr: false, loading: ()
 const NflDashboard = dynamic(() => import('./nfl/NflDashboard'), { ssr: false, loading: () => <Shell /> })
 const LampDashboard = dynamic(() => import('./lamp/LampDashboard'), { ssr: false, loading: () => <Shell /> })
 
+const SHELLS = { nfl: NflDashboard, nhl: LampDashboard }
+
 export default function SportRoot() {
   const sport = useSport()
   const [pass, setPass] = useState(0)
@@ -92,7 +94,7 @@ export default function SportRoot() {
   // The account ask (funnel step 3) and the explain panel (tap-to-explain
   // ticker pills), once for all three products.
   const nudge = <><AccountNudge sport={sport} /><ExplainToast sport={sport} /></>
-  if (sport === 'nfl') return <><NflDashboard palettePass={pass} />{nudge}</>
-  if (sport === 'nhl') return <><LampDashboard palettePass={pass} />{nudge}</>
-  return <><Dashboard palettePass={pass} />{nudge}</>
+  // one shell per sport key (0g D6); a key without one is MOONSHOT, as it always was
+  const Shell2 = SHELLS[sport] || Dashboard
+  return <><Shell2 palettePass={pass} />{nudge}</>
 }

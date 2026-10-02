@@ -4,14 +4,15 @@
 import start from '../start/start.module.css'
 import styles from './playbook.module.css'
 import { PLAYBOOKS, SPORT_MARKETS, CORE_LINE, STEPS } from '../../lib/playbook'
-import { appHref } from '../../lib/routes'
+import { appHref, BRAND } from '../../lib/routes'
 
 export const metadata = {
   title: 'How to research a pick · DASH Playbook',
   description: 'How to use DASH to research a home run, a hit, a touchdown or a goal: find the player on the board, check the record, read the card, the matchup, then make your own read.',
 }
 
-const SPORT_LABEL = { mlb: '⚾ MOONSHOT · MLB', nfl: '🏈 TUDDY · NFL', nhl: '🏒 LAMP · NHL' }
+// from the one sport registry (0g D6), so a new sport is labelled here too
+const SPORT_LABEL = Object.fromEntries(Object.entries(BRAND).map(([k, b]) => [k, `${b.icon} ${b.name} · ${b.league}`]))
 
 export default function PlaybookIndex() {
   return (

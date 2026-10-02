@@ -37,7 +37,7 @@ import DashAuthCard from '../../components/DashAuthCard'
 import LegacyHashRedirect from '../../components/LegacyHashRedirect'
 import SubmitButton from '../../components/fantasy/SubmitButton'
 import { getNetworkPulse, liveProduct } from '../../lib/dash/pulse'
-import { appHref, BRAND, playerHref } from '../../lib/routes'
+import { appHref, BRAND, playerHref, SPORT_KEYS } from '../../lib/routes'
 import { nextLine } from '../../lib/mlbNext'
 import { wilson } from '../../lib/interval'
 import { hasSupabaseConfig } from '../../lib/supabase/config'
@@ -224,7 +224,7 @@ export default async function DashHome({ searchParams }) {
           <Link href={appHref(live)}>Open tonight&apos;s board <b>→</b><small className={styles.heroWhich}>{BRAND[live].name} · {BRAND[live].league}</small></Link>
           {/* Signed in (F): the other two products, as two small links. */}
           {me.user ? (
-            <span className={styles.otherProducts}>or {['mlb', 'nfl', 'nhl'].filter((k) => k !== live).map((k, i) => <span key={k}>{i ? ' · ' : ''}<Link href={appHref(k)}>{BRAND[k].name}</Link></span>)}</span>
+            <span className={styles.otherProducts}>or {SPORT_KEYS.filter((k) => k !== live).map((k, i) => <span key={k}>{i ? ' · ' : ''}<Link href={appHref(k)}>{BRAND[k].name}</Link></span>)}</span>
           ) : null}
           <Link href="/start">What is this?</Link>
           <Link href="/called">CALLED IT &middot; the public record</Link>
