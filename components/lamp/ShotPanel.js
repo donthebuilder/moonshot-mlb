@@ -9,7 +9,7 @@ const RinkArena = dynamic(() => import('./RinkArena'), { ssr: false })
 const NO_SHOTS = []   // one empty list, so the HEAT arena isn't rebuilt every render
 import { C, NUM_FONT, RINK } from '../../lib/nhl/theme'
 import { useLampShots, useLampShotSpeed, useLampGoalies, useLampGoalieZones } from '../../lib/nhl/useLamp'
-import { goalieZoneRead, overlapSentence, ZONE_LABEL } from '../../lib/nhl/zones'
+import { goalieZoneRead, overlapSentence, matchZones, MATCH_SHARE, ZONE_LABEL } from '../../lib/nhl/zones'
 import { shotLine } from '../../lib/nhl/shotStats'
 import { hardestIndex, measuredMph } from '../../lib/nhl/shotPath'
 import { DelayedBanner, Loading, Pills } from './ui'
@@ -260,7 +260,29 @@ export default function ShotPanel({ sel, who = 'He', height = 300 }) {
                     </div>
                   </>}
               </div>
-              {shots.length > 0 && recent[0]?.length > 3 && (
+              {/* VS GOALIE: the goalie's named zones -- his share of the shots there (the bar), the
+                  goalie's rate vs the league's, MATCH where both line up (lib/nhl/zones matchZones) */}
+              {view === 'goalie' && goalieRead && shots.length > 0 && (
+                <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 4 }} aria-label="Where the shooter and the goalie match">
+                  {matchZones(goalieRead, shots).filter((z) => z.n).map((z) => {
+                    const pct = Math.round(z.share * 100)
+                    return (
+                      <button key={z.key} type="button" onClick={() => setPicked({ zone: z.key })} title={`${z.label}: ${z.n} of ${who === 'He' ? 'his' : 'their'} ${shots.length} shots${z.r.thin ? '; the goalie is thin here' : `; ${goalie?.name} lets in ${(z.r.rate * 100).toFixed(1)}% (league ${(z.r.lg * 100).toFixed(1)}%)`}`}
+                        style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', color: 'inherit' }}>
+                        <span style={{ width: 70, color: z.match ? C.lamp : C.text3, fontFamily: NUM_FONT, fontWeight: z.match ? 800 : 400 }}>{z.label}</span>
+                        <div style={{ flex: 1, height: 11, background: C.bg3, borderRadius: 2, outline: z.match ? `1px dashed ${C.lamp}` : 'none', outlineOffset: 1 }}>
+                          <div style={{ width: `${Math.max(2, pct)}%`, height: '100%', background: chipColor(pct, 0, 45), borderRadius: 2 }} />
+                        </div>
+                        <span style={{ fontFamily: NUM_FONT, color: C.text2, minWidth: 96, textAlign: 'right' }}>
+                          {pct}% <span style={{ color: z.r.thin ? C.text3 : z.r.tint === 'worse' ? C.lamp : z.r.tint === 'better' ? RINK.blue : C.text3 }}>{z.r.thin ? 'thin' : `${(z.r.rate * 100).toFixed(1)}%`}</span>
+                          {z.match ? <b style={{ color: C.lamp }}> MATCH</b> : null}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+              {view !== 'goalie' && shots.length > 0 && recent[0]?.length > 3 && (
                 <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 4 }}>
                   {zoneItems.map((z) => (
                     <div key={z.key} title={`${z.label}: ${z.def}`} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10 }}>
@@ -277,7 +299,13 @@ export default function ShotPanel({ sel, who = 'He', height = 300 }) {
               )}
               {/* ONE LEGEND, FROM WHAT IS DRAWN (BATCH-2D-CORE flag 2): the
                   two hand-written keys (under the rink and here) became this. */}
-              <ChartLegend theme={C} style={{ marginTop: 8 }} items={view === 'vs'
+              <ChartLegend theme={C} style={{ marginTop: 8 }} items={view === 'goalie' && goalieRead
+                ? [{ key: 'worse', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, background: `${C.lamp}aa` }} />, label: `${goalie?.name || 'the goalie'} lets in more than the league` },
+                  { key: 'better', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, background: `${RINK.blue}aa` }} />, label: 'fewer' },
+                  { key: 'thin', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, border: `1px solid ${C.border2}` }} />, label: 'thin' },
+                  { key: 'match', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, border: `1.5px dashed ${C.lamp}` }} />, label: `MATCH = he's weak there and ${who === 'He' ? 'he takes' : 'they take'} ${Math.round(MATCH_SHARE * 100)}%+ of the shots from it` },
+                  { key: 'bar', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, background: chipColor(30, 0, 45) }} />, label: `bar = ${who === 'He' ? 'his' : 'their'} share of the shots` }]
+                : view === 'vs'
                 ? [{ key: 'more', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, background: `${C.lamp}aa` }} />, label: `more of ${who === 'He' ? 'his' : 'their'} attempts here than the league's (points)` },
                   { key: 'less', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, background: `${C.ice}aa` }} />, label: 'fewer' },
                   { key: 'blank', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, border: `1px solid ${C.border2}` }} />, label: `blank = under ${VS_MIN} attempts` }]

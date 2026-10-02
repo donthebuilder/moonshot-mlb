@@ -2,7 +2,7 @@
 import { useId, useState } from 'react'
 import { C, NUM_FONT, RINK, rampAt } from '../../lib/nhl/theme'
 import { measuredMph } from '../../lib/nhl/shotPath'
-import { GOALIE_ZONES, ZONE_SHAPES, ZONE_LABEL_AT, tintAlpha } from '../../lib/nhl/zones'
+import { GOALIE_ZONES, ZONE_SHAPES, ZONE_LABEL_AT, tintAlpha, matchZones } from '../../lib/nhl/zones'
 import { ViewToggle } from '../charts'
 
 // 🏒 THE RINK (lamp research step 3, 2026-09-26). One attacking half seen
@@ -78,6 +78,7 @@ export default function Rink({ map, slot, gridSpec, height = 300, shots = null, 
   const max = Math.max(1, ...map.grid.flat().map((c) => c.att))
   const cw = (gridSpec.x1 - gridSpec.x0) / gridSpec.cols; const ch = (gridSpec.y1 - gridSpec.y0) / gridSpec.rows
   const vs = view === 'vs' ? vsCells(map.grid, league) : null
+  const matches = view === 'goalie' && goalieRead ? matchZones(goalieRead, shots || []) : []
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-start' }}>
       {/* components/charts ViewToggle (lifted from here, shared with TUDDY's Field); the caller's extra view is ShotPanel's 🏟 ARENA */}
@@ -172,14 +173,33 @@ export default function Rink({ map, slot, gridSpec, height = 300, shots = null, 
             </g>
           )
         })}
+        {/* WHERE THEY MATCH (lib/nhl/zones matchZones): a zone the goalie is weak in AND the
+            shooter shoots from -- a bold lamp-red outline over the pucks, his share on its label */}
+        {view === 'goalie' && goalieRead && (
+          <g clipPath={`url(#${clipId})`} pointerEvents="none">
+            {matches.filter((m) => m.match).map((m) => {
+              const sh = ZONE_SHAPES[m.key]
+              return <path key={`m${m.key}`} d={ringPath(sh.outer)} fill="none" stroke={C.lamp} strokeWidth="1.1" strokeDasharray="2.2 1.2" strokeLinejoin="round" />
+            })}
+          </g>
+        )}
         {/* the zone rates over the pucks (a ring of ice keeps them readable; taps pass through) */}
         {view === 'goalie' && goalieRead && GOALIE_ZONES.map((z) => {
           const r = goalieRead[z.key]; const [lx, ly] = ZONE_LABEL_AT[z.key]
+          const m = matches.find((x) => x.key === z.key)
           return (
-            <text key={`l${z.key}`} x={sx(lx)} y={sy(ly)} fill={RINK.puck} stroke={RINK.ice} strokeWidth="0.9" paintOrder="stroke" strokeLinejoin="round"
-              fontSize="3" fontWeight="800" fontFamily={NUM_FONT} textAnchor="middle" pointerEvents="none">
-              {r.thin ? 'thin' : `${Math.round(r.rate * 1000) / 10}%`}
-            </text>
+            <g key={`l${z.key}`} pointerEvents="none">
+              <text x={sx(lx)} y={sy(ly)} fill={RINK.puck} stroke={RINK.ice} strokeWidth="0.9" paintOrder="stroke" strokeLinejoin="round"
+                fontSize="3" fontWeight="800" fontFamily={NUM_FONT} textAnchor="middle">
+                {r.thin ? 'thin' : `${Math.round(r.rate * 1000) / 10}%`}
+              </text>
+              {m?.match && (
+                <text x={sx(lx)} y={sy(ly) + 3.4} fill={C.lamp} stroke={RINK.ice} strokeWidth="0.9" paintOrder="stroke" strokeLinejoin="round"
+                  fontSize="2.4" fontWeight="900" fontFamily={NUM_FONT} textAnchor="middle" letterSpacing="0.1">
+                  MATCH · {Math.round(m.share * 100)}%
+                </text>
+              )}
+            </g>
           )
         })}
       </svg>
