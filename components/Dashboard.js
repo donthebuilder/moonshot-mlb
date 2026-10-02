@@ -311,7 +311,6 @@ export default function Dashboard({ palettePass = 0 }) {
   }, [])
 
   const [refreshKey, setRefreshKey] = useState(0)
-  const [refreshing, setRefreshing] = useState(false)
   // A manual refresh is the one fetch that must beat the CDN's five-minute
   // copy (lib/data.js fetchJSON). Poll ticks revalidate instead.
   const hardRefreshRef = useRef(false)
@@ -368,7 +367,7 @@ export default function Dashboard({ palettePass = 0 }) {
       fetchJSON(backtestPaths(), null, opt).then((j) => { if (alive) setBacktest(j) }),
       fetchJSON(evalReportPaths(), null, opt).then((j) => { if (alive) setEvalReport(j) }),
     ]).then(() => {
-      if (alive) { setLoading(false); setRefreshing(false) }
+      if (alive) setLoading(false)
     })
     return () => { alive = false }
   }, [mode, refreshKey])
@@ -401,14 +400,10 @@ export default function Dashboard({ palettePass = 0 }) {
     return () => { clearInterval(id); document.removeEventListener('visibilitychange', onVis) }
   }, [results?.live_mode])
 
-  // Re-fetches everything above by bumping refreshKey, which the effect
-  // depends on. Doesn't touch local UI state (active tab, search, slip,
-  // watchlist) -- only the underlying slate/results/pair data refreshes.
-  const handleRefresh = () => {
-    hardRefreshRef.current = true
-    setRefreshing(true)
-    setRefreshKey((k) => k + 1)
-  }
+  // 0g E4 (2026-10-02): a refresh handler and its spinner state were built here
+  // and passed to Header, which never accepted them -- no control ever drew. The
+  // dead handler and state are gone; refreshKey / hardRefreshRef stay as the
+  // load effect's hook should a refresh control be wanted (Donovan's call).
 
   const normalized = useMemo(() => normalizeData(data || {}), [data])
   const allPlayers = normalized.players
@@ -822,7 +817,7 @@ export default function Dashboard({ palettePass = 0 }) {
           It is sr-only because the visual design already answers "where am I"
           through the tab row; the document never did. */}
       <a className="skip-link" href="#board-main">Skip to the board</a>
-      <Header tab={tab} setTab={setTab} dateLabel={dateLabel} slateDate={slateDate} mode={mode} setMode={setMode} results={resultsForSlate} players={allPlayers} games={headerGames} runMeta={runMeta} onRefresh={handleRefresh} refreshing={refreshing} onPlayerClick={setModalPlayer} />
+      <Header tab={tab} setTab={setTab} dateLabel={dateLabel} slateDate={slateDate} mode={mode} setMode={setMode} results={resultsForSlate} players={allPlayers} games={headerGames} runMeta={runMeta} onPlayerClick={setModalPlayer} />
       <TodayContext.Provider value={mlbToday}>
       <main id="board-main" className="dashboard-main" style={{ maxWidth: 1300, margin: '0 auto', padding: '0 14px 28px' }}>
         <h1 className="sr-only">{pageTitle('mlb', missingTab ? 'home' : tab)}</h1>
