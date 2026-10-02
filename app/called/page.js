@@ -25,7 +25,7 @@ import { windowFor, OUTSIDE_POOL } from '../../lib/recordWindow'
 import { createClient } from '@supabase/supabase-js'
 import { unstable_cache } from 'next/cache'
 import { postseasonOn } from '../../lib/dash/seasonGuard'
-import { easternToday } from '../../lib/data'
+import { slateNight } from '../../lib/slateNight'
 import { matchupWord, oddsWord, roleWord } from '../../lib/dash/homerFeed'
 import { tdCallWord, tdPlayWord, matchRoster } from '../../lib/nfl/tdFeed'
 import { nflSlatePaths } from '../../lib/nfl/dataSource'
@@ -301,7 +301,8 @@ const LOADERS = { mlb: loadMlb, nfl: loadNfl, nhl: loadNhl }
 async function loadFresh(key) {
   const sport = SPORTS[key] || SPORTS.mlb
   const db = client()
-  const today = easternToday()
+  // the slate's own date (lib/slateNight.js, 0g D5): yesterday while its games are still live
+  const today = await slateNight(sport.key)
   const blank = { sport, today, rows: [], picks: [], calledIds: new Set(), history: [], byDay: new Map(), configured: false }
   if (!db) return blank
   return LOADERS[sport.key](sport, db, today)
@@ -322,7 +323,7 @@ const loadPlain = unstable_cache(async (key) => {
 const cardPlain = unstable_cache(async (key) => (SPORTS[key]?.cardRecord ? SPORTS[key].cardRecord() : null), ['called-card-v1'], { revalidate: CALLED_TTL })
 
 async function load(key) {
-  const p = await loadPlain(key, easternToday())
+  const p = await loadPlain(key, await slateNight(SPORTS[key]?.key || 'mlb'))
   return { ...p, sport: SPORTS[p.key] || SPORTS.mlb, calledIds: new Set(p.calledIds), byDay: new Map(p.byDay) }
 }
 
