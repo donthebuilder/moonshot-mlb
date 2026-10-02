@@ -487,8 +487,8 @@ export default function SprayField({
     // league-wide, slate-independent archive spray_archive.py fills in
     // gradually (see lib/dataSource.js). Same fetch/shape either way — the
     // rest of this component doesn't know or care which source answered.
-    // Shared with PlayerModal / HRPitchProfile / HotZoneMap — one request per
-    // file per card open instead of four. See lib/dataSource.js.
+    // Shared with PlayerModal / HRPitchProfile — one request per file per
+    // card open instead of one each. See lib/dataSource.js.
     fetchBatterDetail(pid, { archive: !!player?.api_only, mode: slateMode })
       .then(({ data: j }) => {
         if (!alive) return

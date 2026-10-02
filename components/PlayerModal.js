@@ -271,8 +271,8 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
     setDetailState('loading'); setDetail(null)
     const archive = !!player?.api_only
     // ── ONE REQUEST, AND A THROTTLE IS NOT AN ABSENCE (2026-09-07) ────────
-    // Three other panels on this card (SprayField, HRPitchProfile,
-    // HotZoneMap) fetch this same file; fetchBatterDetail collapses all four
+    // Two other panels on this card (SprayField, HRPitchProfile) fetch this
+    // same file (a third, HotZoneMap, was deleted 2026-10-01); fetchBatterDetail collapses them
     // into one request. It also returns the HTTP status, which is the whole
     // point: `r.ok ? json : null` used to turn a 429 from
     // raw.githubusercontent into the same null as a real 404, and the header

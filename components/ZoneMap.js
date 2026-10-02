@@ -198,7 +198,7 @@ function Cell({ main, sub, mark, alpha, red, glow, big, align, title, dim, onHov
 //
 // RESOLVED 2026-08-31. That third source is gone: lib/livePitches no longer
 // holds a hex table at all — pitchColor() defers to catColor('pitch'), the
-// same call HotZoneMap makes. One source, and because CAT holds token names
+// same call the rest of the site makes. One source, and because CAT holds token names
 // rather than hexes, pitch colour now follows the theme toggle.
 
 // ── TONIGHT'S PITCHES, ON THIS MAP ──────────────────────────────────────────
@@ -452,8 +452,8 @@ export default function ZoneMap({
     setApi(undefined); setBot(null); setStat('ev')
     hotColdZones(playerId).then((d) => { if (alive) setApi(d) })
     if (playerId) {
-      // Shared with HotZoneMap, which asks for the same zones file. See
-      // lib/dataSource.js.
+      // Through fetchShared, so any other reader of the same zones file shares
+      // the request. See lib/dataSource.js.
       fetchShared(zonesUrl(playerId))
         .then(({ data: d }) => {
           if (!alive) return
