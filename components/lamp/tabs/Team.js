@@ -80,17 +80,17 @@ function TeamBody({ t, error, onOpenPlayer, onOpenGame, onBack, backLabel }) {
       {live.length > 0 && (
         <section aria-label="Live now">
           <Kicker tone={C.lamp}>LIVE NOW</Kicker>
-          {live.map((g) => <GameRow key={g.id} g={g} onOpen={onOpenGame} />)}
+          <GameSheet games={live} onOpen={onOpenGame} caption="Live now" />
         </section>
       )}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
         <section aria-label="Next up">
           <Kicker>NEXT UP</Kicker>
-          {next5.length ? <table style={tbl}><tbody>{next5.map((g) => <GameRow key={g.id} g={g} onOpen={onOpenGame} />)}</tbody></table> : <EmptyState title="NO GAMES SCHEDULED" note="Nothing left on the club’s schedule." />}
+          {next5.length ? <GameSheet games={next5} onOpen={onOpenGame} caption="Next up" /> : <EmptyState title="NO GAMES SCHEDULED" note="Nothing left on the club’s schedule." />}
         </section>
         <section aria-label="Last five">
           <Kicker>LAST FIVE</Kicker>
-          {last5.length ? <table style={tbl}><tbody>{last5.map((g) => <GameRow key={g.id} g={g} onOpen={onOpenGame} />)}</tbody></table> : <EmptyState title="NO GAMES PLAYED" note={`The club’s ${t.schedule?.seasonLabel} schedule has not started.`} />}
+          {last5.length ? <GameSheet games={last5} onOpen={onOpenGame} caption="Last five" /> : <EmptyState title="NO GAMES PLAYED" note={`The club’s ${t.schedule?.seasonLabel} schedule has not started.`} />}
         </section>
       </div>
 
@@ -112,22 +112,22 @@ function TeamBody({ t, error, onOpenPlayer, onOpenGame, onBack, backLabel }) {
       {skaterLeaders.length > 0 && (
         <section aria-label="Team leaders">
           <Kicker>TEAM LEADERS · {stats.seasonLabel}{stale ? ' (LAST SEASON)' : ''}</Kicker>
-          <table style={tbl}><tbody>
-            {skaterLeaders.map((p, i) => (
-              <tr key={p.id} style={{ borderTop: `1px solid ${C.border}` }}>
-                <td style={{ ...td, width: 22, fontFamily: NUM_FONT, color: C.text3, fontSize: 10 }}>{i + 1}</td>
-                <td style={td}><button type="button" onClick={() => onOpenPlayer?.(p.id)} style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', color: C.text, font: 'inherit', fontWeight: 700 }}>{p.name}</button> <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 10 }}>{p.pos}</span></td>
-                <td style={{ ...td, textAlign: 'right', fontFamily: NUM_FONT, color: C.text2 }}>{p.g} G · {p.a} A</td>
-                <td style={{ ...td, textAlign: 'right', fontFamily: NUM_FONT, fontWeight: 900 }}>{p.pts} <span style={{ color: C.text3, fontSize: 9 }}>PTS</span></td>
-              </tr>
-            ))}
-          </tbody></table>
+          {/* THE SHARED SHEET (2026-10-01, BATCH-TABLE-SKIN-V2 4b). */}
+          <LampTable bare noGroups tight heatMode="sorted" maxHeight={9999} maxRows={5} caption="The club's top five scorers"
+            rows={skaterLeaders.map((p, i) => ({ ...p, _key: p.id, rank: i + 1 }))} initialSort={{ key: 'pts', dir: 'desc' }}
+            columns={[
+              { key: 'rank', label: '#', heat: false, w: 26 },
+              { key: 'name', label: 'Skater', heat: false, sticky: true, w: 160, link: (p) => (onOpenPlayer ? () => onOpenPlayer(p.id) : null) },
+              { key: 'g', label: 'G', w: 36, dp: 0 },
+              { key: 'a', label: 'A', w: 36, dp: 0 },
+              { key: 'pts', label: 'PTS', w: 44, dp: 0, primary: true, tone: () => ({ color: C.text, weight: 900 }) },
+            ]} />
         </section>
       )}
 
       <section aria-label="Schedule">
         <Kicker>SCHEDULE · {t.schedule?.seasonLabel} · {games.length} GAMES</Kicker>
-        <table style={tbl}><tbody>{sched.shown.map((g) => <GameRow key={g.id} g={g} onOpen={onOpenGame} />)}</tbody></table>
+        <GameSheet games={sched.shown} onOpen={onOpenGame} caption="The season schedule" />
         <ShowMoreButton open={sched.open} restN={sched.restN} toggle={sched.toggle} itemWord="games" />
       </section>
 
@@ -136,26 +136,33 @@ function TeamBody({ t, error, onOpenPlayer, onOpenGame, onBack, backLabel }) {
   )
 }
 
-function GameRow({ g, onOpen }) {
-  const live = g.state === 'live'; const done = g.state === 'final'
-  const status = g.statusLine || fmtPuckDrop(g.startUtc)
-  const tone = g.result === 'W' ? C.teal : g.result ? C.text3 : C.text2
+// The club's games as the shared sheet (2026-10-01, BATCH-TABLE-SKIN-V2 4b):
+// date, opponent, result or puck drop. A live game wears the lamp edge, a
+// postponed one is dimmed, a row opens the game. Every list on this page.
+function GameSheet({ games, onOpen, caption }) {
   return (
-    <tr onClick={() => onOpen?.(g.id)} tabIndex={0} role="link" aria-label={`${fmtDay(g.date)} ${g.home ? 'vs' : 'at'} ${g.opponent.abbrev}, ${status}. Open game.`}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen?.(g.id) } }}
-      style={{ cursor: 'pointer', borderTop: `1px solid ${C.border}`, background: live ? `linear-gradient(90deg, ${C.lamp}12, transparent 40%)` : 'transparent', opacity: g.scheduleState !== 'OK' ? .55 : 1 }}>
-      <td style={{ ...td, fontFamily: NUM_FONT, fontSize: 10.5, color: C.text3, whiteSpace: 'nowrap' }}>{fmtDay(g.date)}{g.gameType === 1 ? <span style={{ marginLeft: 6, color: C.amber, fontSize: 8, letterSpacing: '.1em' }}>PRE</span> : null}</td>
-      <td style={td}><span style={{ color: C.text3, font: `800 9px/1 ${NUM_FONT}`, marginRight: 6 }}>{g.home ? 'VS' : '@'}</span><TeamMark abbrev={g.opponent.abbrev} size={16} /></td>
-      <td style={{ ...td, textAlign: 'right', whiteSpace: 'nowrap', fontFamily: NUM_FONT, color: live ? C.lamp : tone, fontWeight: 800, fontSize: 11 }}>
-        {live && <LampDot />}
-        {done ? <>{g.result} {g.us.score}–{g.opponent.score}{g.outcome && g.outcome !== 'REG' ? ` (${g.outcome})` : ''}</> : live ? `${g.us.score}–${g.opponent.score} · ${status}` : status}
-      </td>
-    </tr>
+    <LampTable bare noGroups tight heatMode="sorted" maxHeight={9999} maxRows={Math.max(games.length, 1)} caption={caption}
+      rows={games.map((g) => ({ ...g, _key: g.id, t: Date.parse(g.startUtc || g.date), opp: g.opponent.abbrev }))}
+      onRowClick={onOpen ? (g) => onOpen(g.id) : undefined}
+      rowEdge={(g) => (g.state === 'live' ? C.lamp : null)}
+      dimRow={(g) => g.scheduleState !== 'OK'}
+      columns={[
+        { key: 't', label: 'Date', heat: false, numeric: false, sticky: true, w: 90, fmt: (_, g) => (
+          <span style={{ fontFamily: NUM_FONT, fontSize: 10.5, color: C.text3, whiteSpace: 'nowrap' }}>{fmtDay(g.date)}{g.gameType === 1 ? <span style={{ marginLeft: 6, color: C.amber, fontSize: 8, letterSpacing: '.08em' }}>PRE</span> : null}</span>) },
+        { key: 'opp', label: 'Opponent', heat: false, w: 130, fmt: (_, g) => <span style={{ display: 'inline-flex', alignItems: 'center' }}><span style={{ color: C.text3, font: `800 9px/1 ${NUM_FONT}`, marginRight: 6 }}>{g.home ? 'VS' : '@'}</span><TeamMark abbrev={g.opponent.abbrev} size={16} /></span> },
+        { key: 'result', label: 'Result', heat: false, numeric: false, w: 130, fmt: (_, g) => {
+          const live = g.state === 'live'; const done = g.state === 'final'
+          const status = g.statusLine || fmtPuckDrop(g.startUtc)
+          const tone = g.result === 'W' ? C.teal : g.result ? C.text3 : C.text2
+          return (
+            <span style={{ whiteSpace: 'nowrap', fontFamily: NUM_FONT, color: live ? C.lamp : tone, fontWeight: 800, fontSize: 11 }}>
+              {live && <LampDot />}
+              {done ? <>{g.result} {g.us.score}–{g.opponent.score}{g.outcome && g.outcome !== 'REG' ? ` (${g.outcome})` : ''}</> : live ? `${g.us.score}–${g.opponent.score} · ${status}` : status}
+            </span>) } },
+      ]} />
   )
 }
 const ordinal = (n) => { if (n == null) return '—'; const r = n % 100; if (r >= 11 && r <= 13) return `${n}th`; return `${n}${['th', 'st', 'nd', 'rd'][n % 10] || 'th'}` }
 function BackBtn({ onBack, label }) {
   return <div><button type="button" onClick={onBack} style={{ height: 28, padding: '0 11px', borderRadius: 8, cursor: 'pointer', border: `1px solid ${C.border2}`, background: C.bg2, color: C.text2, font: `800 10px/1 ${NUM_FONT}`, letterSpacing: '.04em' }}>‹ {label}</button></div>
 }
-const tbl = { width: '100%', borderCollapse: 'collapse', fontSize: 12 }
-const td = { padding: '7px 8px', verticalAlign: 'middle' }
