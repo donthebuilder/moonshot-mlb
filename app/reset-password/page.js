@@ -9,7 +9,7 @@ import Link from 'next/link'
 
 import PasswordInput from '../../components/PasswordInput'
 import AuthPageHeader from '../../components/AuthPageHeader'
-import SubmitButton from '../../components/fantasy/SubmitButton'
+import SubmitButton from '../../components/SubmitButton'
 import { hasSupabaseConfig } from '../../lib/supabase/config'
 import { createSupabaseServerClient } from '../../lib/supabase/server'
 import { dashResetPassword } from '../(front)/actions'

@@ -1,6 +1,6 @@
 'use client'
 import { useMemo, useState } from 'react'
-import NflTeamMark from '../fantasy/NflTeamMark'
+import TeamMark from '../TeamMark'  // the shared club mark (R1: was FRANCHISE's roster badge)
 import { projectedFantasyPoints } from '../../lib/fantasy/scoring'
 import { RAMP } from '../../lib/nfl/theme'
 
@@ -77,7 +77,7 @@ export default function TeamPower({ players = [], statSeason, onPlayerClick }) {
           <div key={r.team} className={`tp-row${isOpen ? ' open' : ''}`}>
             <button onClick={() => setOpen(isOpen ? null : r.team)} title={`${r.team}: passing ${r.pass.toFixed(1)} · rushing ${r.ground.toFixed(1)} · receiving ${r.air.toFixed(1)}${r.missing ? ` · ${r.missing} slot${r.missing === 1 ? '' : 's'} unfilled in the feed` : ''}`}>
               <span className="tp-rank">{i + 1}</span>
-              <NflTeamMark size={24} team={r.team} />
+              <TeamMark sport="nfl" variant="logo" px={24} abbr={r.team} />
               <b>{r.team}</b>
               <span className="tp-bar"><span style={{ width: `${(100 * r.total) / max}%` }} /></span>
               <em>{r.total.toFixed(1)}</em>

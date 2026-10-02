@@ -12,7 +12,7 @@ import FollowingStrip from '../../FollowingStrip'
 import { discordParts } from '../../../lib/discordText'
 import PageHeader from '../../PageHeader'
 import TuddyRecentAlerts from '../TuddyRecentAlerts'
-import StorylineStrip from '../../StorylineStrip'
+import StorylineStrip from '../../TextRail'
 import WatchRecord from '../../watch/WatchRecord'
 import { storiesByPlayer } from '../../../lib/nfl/playerStories'
 

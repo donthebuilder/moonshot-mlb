@@ -4,7 +4,7 @@
 import Link from 'next/link'
 
 import AuthPageHeader from '../../components/AuthPageHeader'
-import SubmitButton from '../../components/fantasy/SubmitButton'
+import SubmitButton from '../../components/SubmitButton'
 import { hasSupabaseConfig } from '../../lib/supabase/config'
 import { dashForgotPassword } from '../(front)/actions'
 import styles from '../(front)/dash.module.css'

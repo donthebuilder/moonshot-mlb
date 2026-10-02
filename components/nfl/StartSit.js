@@ -1,6 +1,6 @@
 'use client'
 import { useMemo, useState } from 'react'
-import NflTeamMark from '../fantasy/NflTeamMark'
+import TeamMark from '../TeamMark'  // the shared club mark (R1: was FRANCHISE's roster badge)
 import { projectPlayer } from './TeamPower'
 import { C } from '../../lib/nfl/theme'
 
@@ -31,7 +31,7 @@ function Picker({ players, value, onChange, placeholder }) {
   if (value) {
     return (
       <div className="ss-pick">
-        <NflTeamMark size={22} team={value.team} />
+        <TeamMark sport="nfl" variant="logo" px={22} abbr={value.team} />
         <b>{value.name}</b><small>{value.team} · {value.position}</small>
         <button onClick={() => { onChange(null); setQ('') }} title="Change">✕</button>
       </div>
@@ -42,7 +42,7 @@ function Picker({ players, value, onChange, placeholder }) {
       <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={placeholder} />
       {hits.length > 0 && (
         <div className="ss-hits">
-          {hits.map((p) => <button key={p.player_id} onClick={() => { onChange(p); setQ('') }}><NflTeamMark size={18} team={p.team} /><b>{p.name}</b><small>{p.team} · {p.position}</small></button>)}
+          {hits.map((p) => <button key={p.player_id} onClick={() => { onChange(p); setQ('') }}><TeamMark sport="nfl" variant="logo" px={18} abbr={p.team} /><b>{p.name}</b><small>{p.team} · {p.position}</small></button>)}
         </div>
       )}
     </div>

@@ -25,7 +25,7 @@ import { SPORT_KEYS, BRAND, appHref } from '../../lib/routes'
 import Link from 'next/link'
 
 import PasswordInput from '../../components/PasswordInput'
-import SubmitButton from '../../components/fantasy/SubmitButton'
+import SubmitButton from '../../components/SubmitButton'
 import DeviceData from '../../components/DeviceData'
 import { hasSupabaseConfig } from '../../lib/supabase/config'
 import { createSupabaseServerClient } from '../../lib/supabase/server'

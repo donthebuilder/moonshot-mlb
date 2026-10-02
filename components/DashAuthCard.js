@@ -38,7 +38,7 @@ import Link from 'next/link'
 import { useEffect, useState } from 'react'
 
 import PasswordInput from './PasswordInput'
-import SubmitButton from './fantasy/SubmitButton'
+import SubmitButton from './SubmitButton'
 import { dashSignIn, dashSignUp } from '../app/(front)/actions'
 import styles from '../app/(front)/dash.module.css'
 

@@ -12,7 +12,7 @@ import { C, NUM_FONT, gradeFor } from '../../../lib/nfl/theme'
 import NflYourPlayers from '../NflYourPlayers'
 import { useResultsArchive, seasonTotals, grandTotal } from '../../../lib/nfl/resultsArchive'
 import { ledgerTotals } from '../../../lib/nfl/myPicks'
-import NflTeamMark from '../../fantasy/NflTeamMark'
+import TeamMark from '../../TeamMark'  // the shared club mark (R1: was FRANCHISE's roster badge)
 import TeamPower from '../TeamPower'
 import StartSit from '../StartSit'
 import StorylinesStrip from '../../StorylinesStrip'
@@ -188,7 +188,7 @@ function TouchdownLedger({ results, playersById, onPlayerClick }) {
       <div className="tuddy-ledger-list">
         {/* A NAME IS A LINK (0g A1, 2026-10-01): his card when he is on this
             week's slate, else his player page. */}
-        {scorers.slice(0, 8).map((row) => <div key={row.playerId}><NflTeamMark size={26} team={row.player?.team || 'FA'}/><b>{(() => {
+        {scorers.slice(0, 8).map((row) => <div key={row.playerId}><TeamMark sport="nfl" variant="logo" px={26} abbr={row.player?.team || 'FA'} /><b>{(() => {
           const name = row.player?.name || results?.names?.[row.playerId] || row.playerId
           return row.player && onPlayerClick
             ? <Tap onClick={() => onPlayerClick(row.player)}>{name}</Tap>
@@ -256,7 +256,7 @@ function MiniBoard({ market, title, players, onPlayerClick, onBoards }) {
       <SectionTitle eyebrow="POWER RANKINGS" title={title} action="Full board" onAction={onBoards} />
       {rows.map((player, index) => {
         const grade = gradeFor(player.scores[market])
-        return <button key={player.player_id} onClick={() => onPlayerClick?.(player, market)}><span>{index + 1}</span><NflTeamMark size={22} team={player.team}/><b>{player.name}</b><em>{player.team} · {player.position}</em><strong style={{ color: grade.color }}>{Math.round(player.scores[market])}</strong></button>
+        return <button key={player.player_id} onClick={() => onPlayerClick?.(player, market)}><span>{index + 1}</span><TeamMark sport="nfl" variant="logo" px={22} abbr={player.team} /><b>{player.name}</b><em>{player.team} · {player.position}</em><strong style={{ color: grade.color }}>{Math.round(player.scores[market])}</strong></button>
       })}
     </section>
   )
