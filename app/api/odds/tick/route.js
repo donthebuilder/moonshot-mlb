@@ -27,6 +27,8 @@ import { hasKey, monthUsage, eventsBetween, eventsById } from '../../../../lib/o
 import { playerJoin } from '../../../../lib/odds/playerJoin'
 import { LEAGUES, MARKETS, snapRows, startsAt, gameDate } from '../../../../lib/odds/snap'
 import { linesRows } from '../../../../lib/odds/lines'
+import { freezeDashLines } from '../../../../lib/dashLock'
+import { gradeDashLines } from '../../../../lib/dashGrade'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -173,20 +175,26 @@ export async function GET(request) {
         }
         // EVERY MARKET WE SCORE, AT LOCK (lib/odds/lines.js): same object, no
         // extra cost. Its own failure, logged; never the snapshot's.
-        let lines = null
+        let lines = null, dash = null
         if (snap === 'lock') {
           const L = linesRows(ev, snap, takenAt, match)
           lines = L.rows.length
           if (!dry && L.rows.length) {
             const w = await db.from('odds_lines').upsert(L.rows, { onConflict: 'event_id,odd_id,snap', ignoreDuplicates: true })
             if (w.error) { console.error(`[odds tick] lines ${ev.eventID}: ${w.error.message}`); lines = `error: ${w.error.message}` }
+            // THE DASH LINE (lib/dashLock.js): ours, frozen beside the book's at this same instant
+            else { try { dash = await freezeDashLines(db, ev, L.rows, takenAt) } catch (e) { dash = `error: ${e?.message}` } }
           }
         }
-        out.snaps.push({ event: ev.eventID, league: ev.leagueID, snap, rows: r.rows.length, lines, players: r.players, matched: r.matched, minutesToStart: Math.round((Date.parse(startsAt(ev)) - Date.parse(takenAt)) / MIN) })
+        out.snaps.push({ event: ev.eventID, league: ev.leagueID, snap, rows: r.rows.length, lines, dash, players: r.players, matched: r.matched, minutesToStart: Math.round((Date.parse(startsAt(ev)) - Date.parse(takenAt)) / MIN) })
       }
     }
   } else if (due.size) out.skipped.push({ why: `due ${due.size} games but ${used} objects used (cap ${HARD_CAP})` })
 
+  // THE DASH LINE'S GRADE (lib/dashGrade.js): once a day, on the first run (11:00 UTC)
+  if (!dry && new Date(t0).getUTCHours() === 11 && new Date(t0).getUTCMinutes() < 10) {
+    try { out.dashGraded = await gradeDashLines(db, easternToday()) } catch (e) { out.dashGraded = `error: ${e?.message}` }
+  }
   out.usage.spentThisTick = used - out.usage.before
   out.ms = Date.now() - t0
   console.log(`[odds tick] ${date} listed ${out.listed.length} snaps ${out.snaps.length} skipped ${out.skipped.length} objects +${out.usage.spentThisTick} (month ${used}) in ${out.ms}ms`)

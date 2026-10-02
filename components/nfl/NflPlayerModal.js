@@ -34,6 +34,7 @@ import NflPlayerRead from './NflPlayerRead'
 import SplitDumbbell from './SplitDumbbell'
 import { playerHref } from '../../lib/routes'
 import { gameVenue } from '../../lib/nfl/venueOf'
+import DashChip, { useDashLines, DASH_OF } from './DashChip'
 
 // Why this player scores what he scores — see components/nfl/ScoreAnatomy.js.
 // Since 2026-10-01 (0e b) that is one line: the board card's WHY sentence
@@ -447,6 +448,7 @@ const TABS = [
 
 
 export default function NflPlayerModal({ player, market, markets, splitMeta, logs, matchup, slate, picks, results, onClose, onFullProfile, peers = [], onNavigate = null, initialTab = '', odds = null, inline = false }) {
+  const dash = useDashLines()   // our line beside the book's (TEST)
   // inline (2026-09-30): the Players page shows this card in its right pane,
   // the way MOONSHOT's PlayerBoard shows PlayerModal inline -- no backdrop,
   // no scroll lock, no close.
@@ -585,6 +587,10 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
             </div>
           )
         })()}
+        {/* OUR LINE beside the book's (TEST, BATCH-DASH-LINE): DASH 62.5 · BOOK 54.5 · OVER */}
+        {dash && DASH_OF[market] && dash.by.get(`${player.player_id}|${DASH_OF[market]}`) && (
+          <div style={{ margin: '2px 0 4px' }}><DashChip row={dash.by.get(`${player.player_id}|${DASH_OF[market]}`)} /></div>
+        )}
 
         {/* THE TAB ROW AND THE PEER ARROWS, on one line. MOONSHOT puts the
             navigator beside its tabs for the same reason: they are both "which

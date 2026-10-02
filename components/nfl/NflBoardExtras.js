@@ -13,6 +13,7 @@ import WatchBox from '../WatchBox'
 import MobileFold from '../MobileFold'
 import { lineFor, tdsIn } from '../../lib/nfl/liveSlate'
 import { nflBoardRow, withNflBoardColumns } from '../../lib/nfl/boardColumns'
+import DashChip, { useDashLines, DASH_OF } from './DashChip'
 
 // TUDDY BOARD EXTRAS (2026-09-27, board filters plan): the pieces MOONSHOT's
 // board has that TUDDY's two boards (Touchdowns.js for TD, Boards.js for the
@@ -82,6 +83,9 @@ export function nflGameOptions(games) {
 const SCORE_ART = { TD: 'nfl-td' }
 
 export function NflBoardList({ players, market, weights, odds, phone, onPlayerClick }) {
+  // our line beside the book's (TEST, BATCH-DASH-LINE): only where one exists for this market
+  const dash = useDashLines()
+  const dmk = DASH_OF[market]
   const top = Object.entries(weights || {}).sort((a, b) => b[1] - a[1]).slice(0, phone ? 2 : 3).map(([k]) => k)
   const rows = players.map((p, i) => {
     const q = odds ? quoteFor(odds, p, market) : null
@@ -90,6 +94,8 @@ export function NflBoardList({ players, market, weights, odds, phone, onPlayerCl
       matchup: `${p.team}${p.opp ? ` v ${p.opp}` : ''}`,
       score: Math.round(p.scores[market]), grade: gradeFor(p.scores[market]).label,
       price: q && q.over != null && q.matches !== false ? Number(q.over) : null,
+      _dash: dmk && dash ? dash.by.get(`${p.player_id}|${dmk}`) || null : null,
+      dash: dmk && dash ? (dash.by.get(`${p.player_id}|${dmk}`)?.dash_line ?? null) : null,
       ...Object.fromEntries(top.map((k) => [k, Number.isFinite(p.components?.[market]?.[k]) ? Math.round(p.components[market][k]) : null])),
       // the full column set (R6, lib/nfl/boardColumns.js): every number his row carries
       ...nflBoardRow(p),
@@ -108,6 +114,10 @@ export function NflBoardList({ players, market, weights, odds, phone, onPlayerCl
     ...(phone ? [] : [{ key: 'grade', label: 'Grade', w: 56, heat: false }]),
     ...top.map((k) => ({ key: k, label: LABELS[k] || k, w: phone ? 74 : 86, scale: 'seq', domain: [0, 100] })),
     ...(phone || !odds ? [] : [{ key: 'price', label: 'Price', w: 60, heat: false, fmt: (v) => (v == null ? '—' : v > 0 ? `+${v}` : String(v)) }]),
+    // DASH: our median for the stat, coloured by its lean against the book's line (a TEST)
+    ...(dmk && dash && !dash.off ? [{ key: 'dash', label: 'DASH · TEST', w: phone ? 108 : 118, heat: false, numeric: true,
+      title: 'Our median for this stat (dash-line-v1), beside the book\u2019s line. Green = above it (OVER), red = below (UNDER), grey = within half a unit. A preview until the game locks, then frozen. A TEST: nothing is called from it.',
+      fmt: (v, r) => (r._dash ? <DashChip row={r._dash} compact /> : '—') }] : []),
   ]
   if (!rows.length) return null
   // this board's own columns, then the full set (its own market's score is already 'Score')

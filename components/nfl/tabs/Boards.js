@@ -17,6 +17,7 @@ import NflBoardFilters, { useNflBoardFilter } from '../NflBoardFilters'
 import MobileFold, { useIsPhone } from '../../MobileFold'
 import { NflBoardList, BoardHead, DrawerPills, AngleRow, angleDefs, useNflDrawerFilters } from '../NflBoardExtras'
 import { matchupTag } from '../../../lib/nfl/dvpSignal'
+import DashChip, { useDashLines, DASH_OF } from '../DashChip'
 
 // Same soft cap Touchdowns.js uses, so the two boards cut at the same depth.
 const SOFT_CAP = 60
@@ -112,6 +113,7 @@ function FormBadge({ form, color }) {
 // `market` + `hideMarketPicker` (2026-09-26, the Board hub): the hub's own
 // market picker drives this page; standalone it keeps its own.
 export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsStatus, market: marketProp = null, hideMarketPicker = false, top = null }) {
+  const dash = useDashLines()
   // ── SAVE FROM THE CARD ITSELF (parity pass, 2026-09-16) ─────────────────
   // MOONSHOT's PropsGrid found this exact gap 2026-08-24 (Donovan: "click a
   // player to add to watch list, nothing happens") -- its card board had no
@@ -434,6 +436,8 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
                     a normal, per-player state; the banner above is what says
                     whether the FETCH itself found anything at all). */}
                 {odds && <OddsLine quote={quoteFor(odds, p, market)} compact />}
+                {/* our line beside it (TEST, BATCH-DASH-LINE) */}
+                {dash && DASH_OF[market] && <DashChip row={dash.by.get(`${p.player_id}|${DASH_OF[market]}`)} compact />}
               </div>
 
               {(injuryTag(p) || p.carryover) && (
