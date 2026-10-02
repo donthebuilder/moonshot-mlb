@@ -21,6 +21,7 @@
 // "not this one". Two settings pages that each hold half the settings is
 // worse than one that admits where the other half is, so this links there.
 
+import { SPORT_KEYS, BRAND, appHref } from '../../lib/routes'
 import Link from 'next/link'
 
 import PasswordInput from '../../components/PasswordInput'
@@ -62,7 +63,7 @@ export default async function AccountPage({ searchParams }) {
           <div className={styles.authIntro}>
             <p className={styles.kicker}>YOUR ACCOUNT</p>
             <h2>Sign in to see it.</h2>
-            <span>Nothing on MOONSHOT or TUDDY needs an account — this page is only for the one you have.</span>
+            <span>Nothing on {SPORT_KEYS.map((k) => BRAND[k].name).join(', ').replace(/, ([^,]*)$/, ' or $1')} needs an account — this page is only for the one you have.</span>
           </div>
           <p className={styles.muted}><Link href="/#sign-in">Sign in on the front door →</Link></p>
         </section>
@@ -160,8 +161,7 @@ export default async function AccountPage({ searchParams }) {
       <footer className={styles.foot}>
         <span>DASH NETWORK</span>
         <Link href="/">Front door</Link>
-        <Link href="/app#sport=mlb&tab=home">MOONSHOT · MLB</Link>
-        <Link href="/app#sport=nfl&tab=home">TUDDY · NFL</Link>
+        {SPORT_KEYS.map((k) => <Link key={k} href={appHref(k)}>{BRAND[k].name} · {BRAND[k].league}</Link>)}
         <Link href="/fantasy">FRANCHISE · FANTASY</Link>
         {/* Only an admin (ADMIN_EMAILS) ever sees this link; /admin 404s for anyone else. */}
         {isAdminEmail(user.email) ? <Link href="/admin">Admin</Link> : null}

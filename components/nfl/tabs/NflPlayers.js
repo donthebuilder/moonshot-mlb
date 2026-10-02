@@ -48,6 +48,14 @@ export default function NflPlayers({ data, logs, matchup, picks, results, odds =
     } catch { /* ignore */ }
   }
   useEffect(() => { if (initialTeam) setTeam(initialTeam) }, [initialTeam]) // eslint-disable-line react-hooks/exhaustive-deps
+  // BACK FOLLOWS THE FILTER (0g B3, 2026-10-01): team= was read once, so Back
+  // from players&team=KC to players left KC on screen.
+  useEffect(() => {
+    const sync = () => setTeamRaw(hashParams().get('team') || 'all')
+    window.addEventListener('hashchange', sync)
+    window.addEventListener('popstate', sync)
+    return () => { window.removeEventListener('hashchange', sync); window.removeEventListener('popstate', sync) }
+  }, [])
 
   const onCard = useMemo(() => {
     const m = new Map()

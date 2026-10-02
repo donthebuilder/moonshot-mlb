@@ -7,6 +7,8 @@
 import Link from 'next/link'
 
 import NotFoundAccountDoor from '../components/NotFoundAccountDoor'
+import { SPORT_KEYS, BRAND, appHref } from '../lib/routes'
+import { SPORT_ACCENT } from '../lib/sportAccent'
 
 export const metadata = { title: 'Not found · DASH Network' }
 
@@ -53,8 +55,8 @@ export default function NotFound() {
       </p>
       <nav style={doors} aria-label="DASH Network destinations">
         <Link href="/" style={door('#f4f1eb')}>⌂ FRONT DOOR</Link>
-        <Link href="/app#sport=mlb&tab=home" style={door('#f97316')}>MOONSHOT · MLB</Link>
-        <Link href="/app#sport=nfl&tab=home" style={door('#22c55e')}>TUDDY · NFL</Link>
+        {/* every sport in the registry, in its own colour (0g B4: LAMP was missing) */}
+        {SPORT_KEYS.map((k) => <Link key={k} href={appHref(k)} style={door(SPORT_ACCENT[k])}>{BRAND[k].name} · {BRAND[k].league}</Link>)}
         <Link href="/fantasy" style={door('#ff633e')}>FRANCHISE · FANTASY</Link>
         <NotFoundAccountDoor style={door('#8a8580')} />
       </nav>
