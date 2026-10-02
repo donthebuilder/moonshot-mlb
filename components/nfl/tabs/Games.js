@@ -16,6 +16,7 @@ import { readHashKey, useHashFilter } from '../../../lib/filterHash'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 import { useResultsArchive } from '../../../lib/nfl/resultsArchive'
 import { milestoneStreaks, modelNarrativeStories, milestoneHeadline, modelHeadline } from '../../../lib/nfl/storylines'
+import { withNflFullSet } from '../../../lib/nfl/boardColumns'
 
 const HEADLINE_MARKETS = new Set(['TD', 'REC_YDS', 'RUSH_YDS', 'REC', 'PASS_YDS', 'KICK_PTS'])
 
@@ -273,8 +274,7 @@ export default function Games({ data, picks, matchup, logs, results, odds = null
       <NflWeakSpots matchup={matchup} players={players.filter(inView)} games={sorted} onPlayerClick={onPlayerClick} onOpenTeam={onOpenTeam} />
 
         <NflTable
-          rows={tableRows}
-          columns={TABLE_COLUMNS}
+          {...withNflFullSet(tableRows, TABLE_COLUMNS, { skip: ['sc_TD'] })}
           onRowClick={(r) => onPlayerClick?.(r?._raw ?? r)}
           caption={`${tableRows.length} players · sorted by TD score`}
           maxRows={60 /* 0g E3: inside its box, but 300 DOM rows; "show N more" */}

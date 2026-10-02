@@ -9,6 +9,7 @@ import NflTable from '../NflTable'
 import Picks from './Picks'
 import { quoteFor, impliedPct, fmtOdds, edgeOf } from '../../../lib/nfl/oddsMatch'
 import { fetchNfl, nflSlatePaths, nflPicksPaths, nflLogPaths, nflSlateLooksReal, nflPicksLooksReal } from '../../../lib/nfl/dataSource'
+import { withNflFullSet } from '../../../lib/nfl/boardColumns'
 
 // 🤖 THE BOT, TUDDY (2026-09-29, Donovan on Picks/Pairs/Live: "figure it
 // out" -- build it from MOONSHOT's). MOONSHOT's Bot page (components/tabs/
@@ -159,8 +160,7 @@ function Shortlist({ data, picks, logs, odds, market, setMarket, onPlayerClick, 
           </div>
           <NflTable
             key={`${market}-${view}-${week}`}
-            rows={rows}
-            columns={columns.map((c) => ({ ...c, group: BOT_GROUP_OF(c.key) }))}
+            {...withNflFullSet(rows, columns.map((c) => ({ ...c, group: BOT_GROUP_OF(c.key) })), { skip: [`sc_${market}`] })}
             onRowClick={onPlayerClick ? (p) => onPlayerClick(p, market) : null}
             initialSort={null}
             heatMode="sorted"

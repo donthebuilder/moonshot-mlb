@@ -9,6 +9,7 @@ import NflFace from '../NflFace'
 import { Para, Num, ConvictionClause, PowerLead, LensRow } from '../../power/PowerParts'
 import { convictionOf, percentileOf, standingPhrase } from '../../../lib/whyPick'
 import { btnStyle } from '../../ui'
+import { withNflFullSet } from '../../../lib/nfl/boardColumns'
 
 // 🚀 EXPLOSIVE — TUDDY'S SIDE OF PATH TO VICTORY B10(l), THE POWER BOARD.
 //
@@ -286,8 +287,7 @@ export default function Explosive({ matchup, data, onPlayerClick }) {
 
       {lens === 'player' ? (
         <NflTable
-          rows={filteredPlayers}
-          columns={buildPlayerColumns(watchlist)}
+          {...withNflFullSet(filteredPlayers, buildPlayerColumns(watchlist))}
           initialSort="rec_20"
           onRowClick={onPlayerClick ? (r) => onPlayerClick(r?._raw ?? r, 'REC_YDS') : null}
           maxRows={60 /* 0g E3: inside its box, but 269 DOM rows; "show N more" */}
