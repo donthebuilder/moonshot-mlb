@@ -11,7 +11,7 @@
 // SAME red-zone touches as its strip. Nothing is fetched.
 //
 // WHAT IT DOES NOT DRAW. The feed gives a target's LANE (a third of the field,
-// from FTN charting) and AIR YARDS, not the spot across the field or the
+// the play-by-play's pass_location) and AIR YARDS, not the spot across the field or the
 // ball's flight. So a mark sits at its true depth in one of three FIXED
 // columns of its lane, in game order, stacked when two land together; a line
 // runs flat on the turf from the line of scrimmage (no arc height). A red-zone

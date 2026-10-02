@@ -3,6 +3,7 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/nfl/theme'
 import { NFL_DATA_BASE } from '../../lib/nfl/dataSource'
 import { ChipGroup, ChartCard, ChartEmpty } from '../charts'
+import HowToRead from '../charts/HowToRead'
 import {
   fieldModel, fieldView, mapAttempts, phrase, fmtPct, heatOf, coolOf, LANES, LANE_WORD, LANE_SHORT,
   SIDES, DEPTHS, MIN_DEF_ATT, SPOT_MIN_DEF_ATT, SPOT_MIN_SHARE, SPOT_MIN_MINE, FALLBACK_MIN_ATT,
@@ -587,6 +588,21 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
       Dots: {asPlayer ? 'his' : `${team}'s`} targets, where they went (hollow = incomplete, orange = touchdown).
       {defModel ? ' Thin = too few plays to say.' : ''}
       {usingQb ? ' The spot uses his own throws this season.' : ''}
+      {/* components/charts/HowToRead (2D TOP TIER 1): SprayField's panel, shared */}
+      <div><HowToRead theme={C} numFont={NUM_FONT} size={12}>
+        <div style={{ marginBottom: 6 }}>
+          A dot is one target: up the field by its <b style={{ color: C.text2 }}>air yards</b> (how far past the line of scrimmage the ball was thrown, not where it was caught), in its <b style={{ color: C.text2 }}>lane</b> — the play-by-play&apos;s left / middle / right, a third of the field. Across the lane the spot isn&apos;t charted, so dots are spread to stay apart. Bigger = more yards after the catch. Targets with no lane or air yards charted aren&apos;t drawn.
+        </div>
+        {defModel && (
+          <div style={{ marginBottom: 6 }}>
+            The ink is {TL(defTeam)}&apos;s yards per attempt in each lane and depth against the league&apos;s in the same zone: orange gives up more than the league, cyan less, and a zone close to normal gets no ink. A zone with fewer than {MIN_DEF_ATT} attempts against them is left blank (thin).
+            {' '}THE SPOT is the zone where {asPlayer ? 'his' : 'their'} share of the work times the leak is biggest — only a zone with {SPOT_MIN_DEF_ATT}+ attempts against, a real leak, {SPOT_MIN_SHARE}%+ of the work and {SPOT_MIN_MINE}+ of the plays behind it.
+          </div>
+        )}
+        <div>
+          The window chips (season / last 5 / last 3 / last week) cut the dots and the red-zone strip; the ink is the season. 🏟 STADIUM draws the same targets in 3D, in set columns of their lane; its lines are not ball flights.
+        </div>
+      </HowToRead></div>
     </div>
   )
   // TEAM mode: whose dots are whose -- names (links), not a legend.

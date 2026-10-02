@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
 import Rink from './Rink'
+import HowToRead from '../charts/HowToRead'
 import dynamic from 'next/dynamic'
 import { webglOk } from '../../lib/webglOk'
 // 🏟 the arena rides in on demand -- three.js is ~600KB (BATCH-NHL-3D)
@@ -211,22 +212,25 @@ export default function ShotPanel({ sel, who = 'He', height = 300 }) {
                   <span key={k} style={{ fontSize: 10, color: C.text3 }}><b style={{ color: tone, fontSize: 12.5, fontWeight: 900 }}>{v}</b> {k}</span>
                 ))}
               </div>
-              <button type="button" onClick={() => setHelp((v) => !v)} style={{
-                marginTop: 7, fontSize: 9.5, fontWeight: 700, color: C.text3, cursor: 'pointer',
-                background: 'transparent', border: `1px dashed ${C.border2}`, borderRadius: 6,
-                padding: '3px 9px', fontFamily: NUM_FONT, minHeight: 0,
-              }}>{help ? 'hide the fine print ▾' : 'how to read this ▸'}</button>
-              {help && (
-                <div style={{ fontSize: 9, color: C.text3, marginTop: 7, lineHeight: 1.55 }}>
-                  <div style={{ marginBottom: 5 }}>
-                    {sel?.against
-                      ? <>Slot share: opponents&apos; shots on net from the slot as a share of every shot on net against them.</>
-                      : <>Slot share: {who === 'He' ? 'his' : 'their'} shots on net from the slot as a share of all {who === 'He' ? 'his' : 'their'} shots on net.</>}
-                    {' '}The dots are the last {recent.length} attempts; the numbers are the whole {win === 'all' ? 'season' : 'last ten games'}.
-                  </div>
+              {/* components/charts/HowToRead (2D TOP TIER 1): SprayField's panel,
+                  shared; size 12 for the phone rule */}
+              <HowToRead theme={C} numFont={NUM_FONT} open={help} onToggle={setHelp} size={12}>
+                <div style={{ marginBottom: 6 }}>
+                  {sel?.against
+                    ? <>Slot share: opponents&apos; shots on net from the slot as a share of every shot on net against them.</>
+                    : <>Slot share: {who === 'He' ? 'his' : 'their'} shots on net from the slot as a share of all {who === 'He' ? 'his' : 'their'} shots on net.</>}
+                  {' '}The dots are the last {recent.length} attempts; the numbers are the whole {win === 'all' ? 'season' : 'last ten games'}.
+                </div>
+                <div style={{ marginBottom: 6 }}>
+                  Every attempt is turned to attack the same net (the right-hand one), so the ends a team switches between periods read as one. Positions are the league feed&apos;s, in feet: goal line at 89, blue line at 25. The filter chips cut the dots, the zone bars and the arena together.
+                </div>
+                <div style={{ marginBottom: 6 }}>
                   {ZONES.map((z, i) => <span key={z.key}>{i ? ' · ' : ''}<b style={{ color: C.text2 }}>{z.label}</b> {z.def}</span>)}.
                 </div>
-              )}
+                <div>
+                  HEAT splits the attacking end into a 5 × 5 grid and shades each zone by its share of the attempts. 🏟 ARENA draws the same shots in 3D; its lines run from the shot to the net along the ice and are not tracked puck paths.
+                </div>
+              </HowToRead>
             </div>
           </ChartCard>
           <FactLines theme={C} lines={depthLines(m, who, Boolean(sel?.against))} />

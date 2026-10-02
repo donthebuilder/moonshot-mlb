@@ -1,5 +1,6 @@
 'use client'
 import { ChipGroup, ChartCard, ChartEmpty, chipBtn as coreChip } from './charts'
+import HowToRead from './charts/HowToRead'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { C, NUM_FONT } from '../lib/theme'
@@ -2201,14 +2202,9 @@ export default function SprayField({
             </div>
           )}
 
-          <button onClick={() => setShowHelp((v) => !v)} style={{
-            marginTop: 7, fontSize: 9.5, fontWeight: 700, color: C.text3, cursor: 'pointer',
-            background: 'transparent', border: `1px dashed ${C.border2}`, borderRadius: 6,
-            padding: '3px 9px', fontFamily: NUM_FONT,
-          }}>{showHelp ? 'hide the fine print ▾' : 'how to read this ▸'}</button>
-
-          {showHelp && (
-            <div style={{ fontSize: 9, color: C.text3, marginTop: 7, lineHeight: 1.55 }}>
+          {/* the button + fine print are components/charts/HowToRead.js now
+              (the rink and the field mount the same one) */}
+          <HowToRead theme={C} numFont={NUM_FONT} open={showHelp} onToggle={setShowHelp}>
               {/* the lane cuts are still DRAWN in liveOnly (they're geometry),
                   but their counts aren't, so the counts paragraph is dropped */}
               {!liveOnly && (
@@ -2248,8 +2244,7 @@ export default function SprayField({
                   dashed, outside the lines, rather than hidden.</>
                 )}
               </div>
-            </div>
-          )}
+          </HowToRead>
         </div>
       </ChartCard>
       )}
