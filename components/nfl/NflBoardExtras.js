@@ -12,6 +12,7 @@ import RangeDual from '../RangeDual'
 import WatchBox from '../WatchBox'
 import MobileFold from '../MobileFold'
 import { lineFor, tdsIn } from '../../lib/nfl/liveSlate'
+import { nflBoardRow, withNflBoardColumns } from '../../lib/nfl/boardColumns'
 
 // TUDDY BOARD EXTRAS (2026-09-27, board filters plan): the pieces MOONSHOT's
 // board has that TUDDY's two boards (Touchdowns.js for TD, Boards.js for the
@@ -90,6 +91,8 @@ export function NflBoardList({ players, market, weights, odds, phone, onPlayerCl
       score: Math.round(p.scores[market]), grade: gradeFor(p.scores[market]).label,
       price: q && q.over != null && q.matches !== false ? Number(q.over) : null,
       ...Object.fromEntries(top.map((k) => [k, Number.isFinite(p.components?.[market]?.[k]) ? Math.round(p.components[market][k]) : null])),
+      // the full column set (R6, lib/nfl/boardColumns.js): every number his row carries
+      ...nflBoardRow(p),
     }
   })
   const columns = [
@@ -107,10 +110,12 @@ export function NflBoardList({ players, market, weights, odds, phone, onPlayerCl
     ...(phone || !odds ? [] : [{ key: 'price', label: 'Price', w: 60, heat: false, fmt: (v) => (v == null ? '—' : v > 0 ? `+${v}` : String(v)) }]),
   ]
   if (!rows.length) return null
+  // this board's own columns, then the full set (its own market's score is already 'Score')
+  const allColumns = withNflBoardColumns(columns, rows).filter((c) => c.key !== `sc_${market}`)
   return (
     <div className="nfl-board-list">
     <style>{`@media (max-width: 860px){.nfl-board-list .dense-sticky{max-width:150px!important;min-width:132px!important}}`}</style>
-    <NflTable rows={rows} columns={columns} heatMode="primary" maxRows={rows.length} maxHeight={9999}
+    <NflTable rows={rows} columns={allColumns} heatMode="primary" maxRows={rows.length} maxHeight={9999}
       dimRow={(r) => r._p?.low_sample} onRowClick={(r) => (r._p?.position === 'DEF' ? null : onPlayerClick?.(r._p, market))}
       caption={phone
         ? 'Score and the two heaviest parts of it, as percentiles in this week’s pool. Tap a row for the full card.'
