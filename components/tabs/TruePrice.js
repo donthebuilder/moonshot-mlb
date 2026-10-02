@@ -1,10 +1,9 @@
 'use client'
-import { Fragment, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { verdictInk } from '../../lib/scales'
 import { fetchJSON } from '../../lib/data'
 import OddsStatus, { useOddsStatus, siteHasPrices } from '../OddsStatus'
-import SortTh from '../SortTh'
 import { oddsHistoryPaths } from '../../lib/dataSource'
 import { fmtOdds, impliedPct } from '../../lib/odds'
 import { hrScore, hitScore, prodScore, tbScore } from '../../lib/player'
@@ -14,7 +13,7 @@ import {
 import { wilson, wilsonLower } from '../../lib/interval'
 import { benjaminiHochberg, expectedFalseAlarms } from '../../lib/fdr'
 import { RoiErrorBars, GapFunnel, GapIntervals } from '../OddsChart'
-import { moreBtn } from '../DenseTable'
+import DenseTable, { moreBtn } from '../DenseTable'
 
 // 🏷 TRUE PRICE
 //
@@ -157,9 +156,6 @@ export default function TruePrice({ onPlayerClick, players = [], odds = null }) 
     if (fromHeader && k === sort) { setDir((d) => (d === 'desc' ? 'asc' : 'desc')); return }
     setSortKey(k); setDir(fromHeader && ASC_FIRST.has(k) ? 'asc' : 'desc')
   }
-  const th = (label, key, title, align = 'right') => (
-    <SortTh label={label} title={title} align={align} style={{ padding: '0 6px 4px', borderBottom: 'none', letterSpacing: '.07em' }} active={sort === key} dir={sort === key ? dir : null} onSort={key ? () => setSort(key, true) : null} />
-  )
   const [q, setQ] = useState('')
   const [tonightOnly, setTonightOnly] = useState(false)
   const [lean, setLean] = useState('all')      // all | up | down
@@ -609,135 +605,73 @@ export default function TruePrice({ onPlayerClick, players = [], odds = null }) 
           })()}
         </div>
       ) : (
-        <div className="dense-scroll rail" style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 2px', fontFamily: NUM_FONT }}>
-            <thead>
-              <tr>
-                {th('Player', 'name', 'Sort by name', 'left')}
-                {th('Prop', 'market', 'Sort by prop', 'left')}
-                {th('N', 'n', 'Nights he was priced at this exact line AND graded. Games he never batted in are void, not misses.')}
-                {th('Hit rate', 'rate', 'His rate at this line')}
-                {th('True', 'price', 'The American price at which his own rate breaks even. This is the number the page is named after.')}
-                {th('Goes at', 'goesAt', 'What the book has actually been paying him, averaged as probability and converted back.')}
-                {th('Gap', 'gap', 'His rate minus what those prices needed. Positive = the market has been slow on him. Proven gaps sort first.')}
-                {th('Reads as', 'reads', 'Whether the gap is bigger than its own error bar.', 'left')}
-                {th('Streak', 'streak', 'Current run, newest night first. +3 = cleared his last three priced nights; −4 = missed his last four.')}
-                {th('Cashed at', 'cashed', 'The average pregame price on the nights he actually cashed this prop — what it cost to be on him when it worked.')}
-                {th('Score', 'score', "The model's score for this same market, off tonight's slate. Blank if he isn't playing tonight.")}
-                {th('Tonight', 'tonightPrice', "What the book is posting right now at this exact line. Blank if he isn't priced tonight, or the book is at a different number.")}
-                {th('Edge', 'tonight', "His rate minus what tonight's price needs. The gap column, against a number you can actually bet.")}
-              </tr>
-            </thead>
-            <tbody>
-              {view.map((r) => {
-                const t = readsAs(r.trust, r.edge)
-                const isOpen = open === r.id
-                return (
-                  <Fragment key={r.id}>
-                    <tr onClick={() => setOpen(isOpen ? null : r.id)}
-                      style={{ cursor: 'pointer', background: isOpen ? 'rgba(249,115,22,.07)' : 'transparent' }}>
-                      <td style={{ fontSize: 11.5, fontWeight: 700, color: C.text, padding: '4px 6px', whiteSpace: 'nowrap' }}>
-                        <span
-                          onClick={(e) => { e.stopPropagation(); onPlayerClick?.({ player_id: r.pid, player_name: r.name, team: r.team }) }}
-                          style={{ borderBottom: `1px dotted ${C.border2}` }}
-                          title="Open his card"
-                        >{r.name}</span>
-                        {r.team && <span style={{ fontSize: 9, color: C.text3, marginLeft: 6 }}>{r.team}</span>}
-                      </td>
-                      <td style={{ fontSize: 10.5, color: C.text2, padding: '4px 6px', whiteSpace: 'nowrap' }}>{r.label}</td>
-                      <td style={{ ...cell, color: C.text3 }} title={`${r.hits} of ${r.n}`}>{r.n}</td>
-                      {/* THE RATE, WITH ITS OWN RESOLUTION UNDER IT. A bare
-                          "80%" off five nights and a "80%" off eighty nights
-                          are the same three characters and different facts;
-                          the Wilson range is the difference, printed. */}
-                      <td style={{ ...cell, color: C.text, fontWeight: 900 }}
-                        title={`${r.hits}/${r.n} · 95% Wilson interval ${ciOf(r) || 'n/a'} · the gap's own error bar is ±${r.se} points`}>
-                        {r.rate.toFixed(0)}%
-                        {ciOf(r) && (
-                          <div style={{ fontSize: 8, fontWeight: 700, color: C.text3, marginTop: 1 }}>{ciOf(r)}</div>
-                        )}
-                      </td>
-                      <td style={{ ...cell, color: C.orange, fontWeight: 900 }}>
-                        {priceText(r.truePrice, r.rate, r.n)}
-                      </td>
-                      <td style={{ ...cell, color: C.text2 }} title={`needs ${r.avgImplied}% to break even`}>
-                        {r.avgPrice != null ? fmtOdds(r.avgPrice) : '—'}
-                      </td>
-                      <td style={{
-                        ...cell, fontWeight: 900,
-                        color: r.trust === 'real' ? verdictInk(r.edge > 0).color : C.text2,
-                      }} title={r.z != null ? `${r.edge > 0 ? '+' : ''}${r.edge} points, error bar ±${r.se} → ${r.z} standard errors` : ''}>
-                        {r.edge > 0 ? '+' : ''}{r.edge.toFixed(0)}
-                      </td>
-                      <td style={{ padding: '4px 6px', whiteSpace: 'nowrap' }}>
-                        <span title={t.why} style={{
-                          fontSize: 8.5, fontWeight: 800, letterSpacing: '.04em', padding: '1.5px 7px',
-                          borderRadius: 999, border: `1px solid ${t.tone}55`, background: `${t.tone}14`, color: t.tone,
-                        }}>{t.label}</span>
-                        {r.z != null && <span style={{ fontSize: 8.5, color: C.text3, marginLeft: 6 }}>{r.z > 0 ? '+' : ''}{r.z}σ</span>}
-                        {lead.survivors.has(r.id) && (
-                          <span
-                            title={`This row survives a Benjamini–Hochberg correction at ${Math.round(FDR_Q * 100)}% across all ${lead.pool.length.toLocaleString()} lines tested — it is not just significant on its own, it is significant given how many lines were searched to find it.`}
-                            style={{
-                              fontSize: 8, fontWeight: 900, letterSpacing: '.04em', marginLeft: 6,
-                              padding: '1.5px 6px', borderRadius: 999,
-                              border: `1px solid ${verdictInk(true).color}55`,
-                              color: verdictInk(true).color,
-                            }}
-                          >survives the board</span>
-                        )}
-                      </td>
-                      {/* ── TONIGHT, BESIDE THE HISTORY (2026-09-01) ── */}
-                      <td style={{ ...cell, fontWeight: 900, color: r.streak > 0 ? verdictInk(true).color : r.streak < 0 ? C.text3 : C.text2 }}
-                        title={r.streak > 0 ? `Cleared his last ${r.streak} priced night${r.streak === 1 ? '' : 's'}` : r.streak < 0 ? `Missed his last ${-r.streak} priced night${r.streak === -1 ? '' : 's'}` : ''}>
-                        {r.streak > 0 ? `+${r.streak}` : r.streak < 0 ? `${r.streak}` : '—'}
-                      </td>
-                      <td style={{ ...cell, color: C.text2 }}
-                        title={r.cashPrice != null ? `${r.hits} cash night${r.hits === 1 ? '' : 's'}; last one ${r.lastCash || '—'}` : 'Has not cashed this line yet'}>
-                        {r.cashPrice != null ? fmtOdds(r.cashPrice) : '—'}
-                      </td>
-                      <td style={{ ...cell, color: r.tonight.score != null ? C.text : C.text3 }}
-                        title={r.tonight.onSlate ? 'Tonight’s model score for this market' : 'Not on tonight’s slate'}>
-                        {r.tonight.score != null ? Math.round(r.tonight.score) : '—'}
-                      </td>
-                      <td style={{ ...cell, color: r.tonight.price != null ? C.text : C.text3 }}
-                        title={r.tonight.price != null
-                          ? `Tonight’s price needs ${r.tonight.need}% to break even`
-                          : r.tonight.bookLine != null ? `Book is at ${r.tonight.bookLine} tonight, not ${r.line}` : r.tonight.onSlate ? 'No price posted yet' : 'Not on tonight’s slate'}>
-                        {r.tonight.price != null ? fmtOdds(r.tonight.price) : '—'}
-                      </td>
-                      <td style={{ ...cell, fontWeight: 900, color: r.tonight.edge == null ? C.text3 : verdictInk(r.tonight.edge > 0).color }}
-                        title={r.tonight.edge != null ? `${r.rate.toFixed(0)}% rate vs ${r.tonight.need}% needed tonight` : ''}>
-                        {r.tonight.edge != null ? `${r.tonight.edge > 0 ? '+' : ''}${r.tonight.edge.toFixed(0)}` : '—'}
-                      </td>
-                    </tr>
-                    {isOpen && (
-                      <tr>
-                        <td colSpan={13} style={{ padding: '2px 8px 8px' }}>
-                          {/* THE RECEIPTS. Without these the two prices above are
-                              a claim; with them they're checkable. */}
-                          <div style={{
-                            display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center',
-                            fontSize: 9.5, color: C.text3,
-                          }}>
-                            <span>last {r.log.length} nights, newest first:</span>
-                            {r.log.map(([date, over, got], i) => (
-                              <span key={i} title={`${date} — priced ${fmtOdds(over)}, ${got ? 'cleared' : 'missed'}`} style={{
-                                padding: '1.5px 6px', borderRadius: 5, whiteSpace: 'nowrap',
-                                border: `1px solid ${got ? 'rgba(74,222,128,.35)' : C.border}`,
-                                background: got ? 'rgba(74,222,128,.08)' : 'transparent',
-                                color: got ? verdictInk(true).color : C.text3,
-                              }}>{date.slice(5)} {fmtOdds(over)}</span>
-                            ))}
-                          </div>
-                        </td>
-                      </tr>
+        <div>
+          {/* THE SHARED SHEET (2026-10-01, BATCH-TABLE-SKIN-V2 4b; Donovan:
+              "convert them all to the new sortable sheet"). It opens in the
+              page's own order (proven gaps first, or the pill you chose) and
+              every header re-sorts; tap a row for its receipts, which open
+              under the table. */}
+          <DenseTable key={`${sort}-${dir}`} bare noGroups
+            rows={view.map((r) => ({ ...r, _key: r.id, tScore: r.tonight.score, tPrice: r.tonight.price, tEdge: r.tonight.edge }))}
+            onRowClick={(r) => setOpen(open === r.id ? null : r.id)}
+            rowEdge={(r) => (open === r.id ? C.orange : null)}
+            columns={[
+              { key: 'name', label: 'Player', heat: false, sticky: true, w: 150,
+                link: (r) => (onPlayerClick ? () => onPlayerClick({ player_id: r.pid, player_name: r.name, team: r.team }) : null),
+                fmt: (v, r) => <span title="Open his card">{v}{r.team && <span style={{ fontSize: 9, color: C.text3, marginLeft: 6 }}>{r.team}</span>}</span> },
+              { key: 'label', label: 'Prop', heat: false, w: 90 },
+              { key: 'n', label: 'N', w: 36, dp: 0, tone: () => ({ color: C.text3 }), title: 'Nights he was priced at this exact line AND graded. Games he never batted in are void, not misses.' },
+              { key: 'rate', label: 'Hit rate', w: 64, tone: () => ({ color: C.text, weight: 900 }), title: 'His rate at this line',
+                fmt: (v, r) => <span title={`${r.hits}/${r.n} · 95% Wilson interval ${ciOf(r) || 'n/a'} · the gap's own error bar is ±${r.se} points`}>{Number(v).toFixed(0)}%{ciOf(r) && <span style={{ display: 'block', fontSize: 8, fontWeight: 700, color: C.text3 }}>{ciOf(r)}</span>}</span> },
+              { key: 'truePrice', label: 'True', w: 58, tone: () => ({ color: C.orange, weight: 900 }), fmt: (v, r) => priceText(v, r.rate, r.n),
+                title: 'The American price at which his own rate breaks even. This is the number the page is named after.' },
+              { key: 'avgPrice', label: 'Goes at', w: 58, fmt: (v, r) => <span title={`needs ${r.avgImplied}% to break even`}>{v != null ? fmtOdds(v) : '—'}</span>,
+                title: 'What the book has actually been paying him, averaged as probability and converted back.' },
+              { key: 'edge', label: 'Gap', w: 46, tone: (_, r) => ({ color: r.trust === 'real' ? verdictInk(r.edge > 0).color : C.text2, weight: 900 }),
+                fmt: (v, r) => <span title={r.z != null ? `${r.edge > 0 ? '+' : ''}${r.edge} points, error bar ±${r.se} → ${r.z} standard errors` : ''}>{v > 0 ? '+' : ''}{Number(v).toFixed(0)}</span>,
+                title: 'His rate minus what those prices needed. Positive = the market has been slow on him. Proven gaps sort first.' },
+              { key: 'z', label: 'Reads as', heat: false, numeric: false, w: 170, title: 'Whether the gap is bigger than its own error bar.',
+                fmt: (_, r) => { const t = readsAs(r.trust, r.edge); return (
+                  <span style={{ whiteSpace: 'nowrap' }}>
+                    <span title={t.why} style={{ fontSize: 8.5, fontWeight: 800, letterSpacing: '.04em', padding: '1.5px 7px', borderRadius: 999, border: `1px solid ${t.tone}55`, background: `${t.tone}14`, color: t.tone }}>{t.label}</span>
+                    {r.z != null && <span style={{ fontSize: 8.5, color: C.text3, marginLeft: 6 }}>{r.z > 0 ? '+' : ''}{r.z}σ</span>}
+                    {lead.survivors.has(r.id) && (
+                      <span title={`This row survives a Benjamini–Hochberg correction at ${Math.round(FDR_Q * 100)}% across all ${lead.pool.length.toLocaleString()} lines tested — it is not just significant on its own, it is significant given how many lines were searched to find it.`}
+                        style={{ fontSize: 8, fontWeight: 900, letterSpacing: '.04em', marginLeft: 6, padding: '1.5px 6px', borderRadius: 999, border: `1px solid ${verdictInk(true).color}55`, color: verdictInk(true).color }}>survives the board</span>
                     )}
-                  </Fragment>
-                )
-              })}
-            </tbody>
-          </table>
+                  </span>) } },
+              { key: 'streak', label: 'Streak', w: 52, tone: (n) => ({ color: n > 0 ? verdictInk(true).color : n < 0 ? C.text3 : C.text2, weight: 900 }),
+                fmt: (v) => (v > 0 ? `+${v}` : v < 0 ? `${v}` : '—'), title: 'Current run, newest night first. +3 = cleared his last three priced nights; −4 = missed his last four.' },
+              { key: 'cashPrice', label: 'Cashed at', w: 66, fmt: (v, r) => <span title={v != null ? `${r.hits} cash night${r.hits === 1 ? '' : 's'}; last one ${r.lastCash || '—'}` : 'Has not cashed this line yet'}>{v != null ? fmtOdds(v) : '—'}</span>,
+                title: 'The average pregame price on the nights he actually cashed this prop — what it cost to be on him when it worked.' },
+              { key: 'tScore', label: 'Score', w: 50, fmt: (v) => (v != null ? Math.round(v) : '—'), title: "The model's score for this same market, off tonight's slate. Blank if he isn't playing tonight." },
+              { key: 'tPrice', label: 'Tonight', w: 60, fmt: (v, r) => <span title={v != null ? `Tonight’s price needs ${r.tonight.need}% to break even` : r.tonight.bookLine != null ? `Book is at ${r.tonight.bookLine} tonight, not ${r.line}` : r.tonight.onSlate ? 'No price posted yet' : 'Not on tonight’s slate'}>{v != null ? fmtOdds(v) : '—'}</span>,
+                title: "What the book is posting right now at this exact line. Blank if he isn't priced tonight, or the book is at a different number." },
+              { key: 'tEdge', label: 'Edge', w: 50, tone: (n) => (Number.isFinite(n) ? { color: verdictInk(n > 0).color, weight: 900 } : { color: C.text3 }),
+                fmt: (v, r) => <span title={v != null ? `${r.rate.toFixed(0)}% rate vs ${r.tonight.need}% needed tonight` : ''}>{v != null ? `${v > 0 ? '+' : ''}${Number(v).toFixed(0)}` : '—'}</span>,
+                title: "His rate minus what tonight's price needs. The gap column, against a number you can actually bet." },
+            ]}
+            heatMode="sorted" maxHeight={9999} maxRows={Math.max(view.length, 1)} caption="Every priced line with a graded history: his rate, the price it breaks even at, and what the book has paid." />
+          {(() => {
+            const r = view.find((x) => x.id === open)
+            if (!r) return null
+            return (
+              <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, padding: '8px 10px', marginTop: 8 }}>
+                <div style={{ fontSize: 11, fontWeight: 800, color: C.text, marginBottom: 5 }}>{r.name} · {r.label} <span style={{ color: C.text3, fontWeight: 600 }}>— the receipts</span></div>
+                {/* THE RECEIPTS. Without these the two prices above are a claim; with them they're checkable. */}
+                <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center', fontSize: 9.5, color: C.text3 }}>
+                  <span>last {r.log.length} nights, newest first:</span>
+                  {r.log.map(([date, over, got], i) => (
+                    <span key={i} title={`${date} — priced ${fmtOdds(over)}, ${got ? 'cleared' : 'missed'}`} style={{
+                      padding: '1.5px 6px', borderRadius: 5, whiteSpace: 'nowrap',
+                      border: `1px solid ${got ? `${C.green}59` : C.border}`, background: got ? `${C.green}14` : 'transparent',
+                      color: got ? verdictInk(true).color : C.text3,
+                    }}>{date.slice(5)} {fmtOdds(over)}</span>
+                  ))}
+                </div>
+              </div>
+            )
+          })()}
           {truncated > 0 && (
             <div style={{ fontSize: 9.5, color: C.text3, padding: '6px 2px' }}>
               Showing the first {view.length} of {shown.length} — narrow it with a prop filter or the search box, or{' '}
@@ -767,7 +701,6 @@ export default function TruePrice({ onPlayerClick, players = [], odds = null }) 
   )
 }
 
-const cell = { textAlign: 'center', fontSize: 11, padding: '4px 6px', whiteSpace: 'nowrap' }
 
 // The lead band's two atoms. A numeral is always NUM_FONT so a rate and a
 // denominator line up down the block instead of drifting.

@@ -241,7 +241,7 @@ export function renderV2(ctx) {
   // never a name, club, role or status.
   const numericText = new Map()
   const isNumericText = (c) => {
-    if (!c || c.heat !== false || c.rankCol || isRank(c) || c.sticky || c.teamMark || c.logo || c.key === 'role' || c._status || c.statusCol) return false
+    if (!c || c.heat !== false || c.numeric === false || c.rankCol || isRank(c) || c.sticky || c.teamMark || c.logo || c.key === 'role' || c._status || c.statusCol) return false
     if (!numericText.has(c.key)) {
       const vs = sorted.map((r) => r[c.key]).filter((v) => !isBlank(v))
       const nums = vs.map(Number).filter(Number.isFinite)

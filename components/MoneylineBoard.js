@@ -28,13 +28,10 @@ import { C, NUM_FONT } from '../lib/theme'
 import { fetchJSON } from '../lib/data'
 import { moneylinePaths } from '../lib/dataSource'
 import { Empty } from './ui'
-import { useSort } from '../lib/useSort'
-import SortTh from './SortTh'
+import DenseTable from './DenseTable'
+import TeamMark from './TeamMark'
 
 // Hoisted so the sort memo sees stable references.
-const ML_SORT = { key: 'edge', dir: 'desc' }
-const ML_GET = { game: (p) => `${p.away} @ ${p.home}` }
-const ML_OPTS = { text: new Set(['game', 'side']) }
 
 const price = (v) => (Number(v) > 0 ? `+${Math.round(v)}` : `${Math.round(v)}`)
 const pct = (v) => `${Math.round((Number(v) || 0) * 100)}%`
@@ -43,7 +40,7 @@ const signed = (v) => `${Number(v) >= 0 ? '+' : ''}${(Number(v) || 0).toFixed(2)
 export default function MoneylineBoard() {
   const [data, setData] = useState(null)
   const [state, setState] = useState('loading')
-  const { sorted: todaySorted, thProps } = useSort(data?.today || [], ML_SORT, ML_GET, ML_OPTS)
+  const todaySorted = [...(data?.today || [])].sort((a, b) => (Number(b.edge) || 0) - (Number(a.edge) || 0))
 
   useEffect(() => {
     let alive = true
@@ -153,48 +150,26 @@ export default function MoneylineBoard() {
       {today.length === 0 ? (
         <Empty text="No disagreements on tonight's board that clear the floor. That is the normal outcome." />
       ) : (
-        <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: NUM_FONT, minWidth: 330 }}>
-          <caption className="sr-only">Tonight&apos;s disagreements between the model and the market</caption>
-          <thead>
-            <tr>
-              {[['Game', 'left', '', 'game'], ['Leans', 'left', '', 'side'], ['Price', 'right', '', 'price'],
-                ['Model', 'right', 'sm-hide', 'model_p'], ['Market', 'right', 'sm-hide', 'market_p'], ['Gap', 'right', '', 'edge'],
-                ['From the arms', 'right', 'sm-hide', 'starter_shift']]
-                .map(([l, a, cls, key]) => (
-                  <SortTh key={l} label={l} align={a} className={cls || undefined} {...thProps(key)} />
-                ))}
-            </tr>
-          </thead>
-          <tbody>
-            {today.map((p) => (
-              <tr key={p.game_pk} style={{ borderBottom: `1px solid ${C.border}` }}>
-                <td style={{ padding: '5px 6px', fontSize: 10.5, color: C.text2, whiteSpace: 'nowrap' }}>
-                  {p.away} @ {p.home}
-                </td>
-                <td style={{ padding: '5px 6px', fontSize: 11.5, fontWeight: 800, color: C.text }}
-                    title={p.base === 'record' ? 'Priced from the record — a side had too few games for its rates' : `Priced from OBP/SLG merged with the record (${p.base})`}>
-                  {p.side}
-                  {p.base === 'record' ? <span style={{ fontSize: 8, color: C.text3, marginLeft: 5, fontWeight: 700 }}>REC</span> : null}
-                </td>
-                <td style={{ padding: '5px 6px', textAlign: 'right', fontSize: 11, color: C.text }}>{price(p.price)}</td>
-                <td className="sm-hide" style={{ padding: '5px 6px', textAlign: 'right', fontSize: 10.5, color: C.text2 }}>{pct(p.model_p)}</td>
-                <td className="sm-hide" style={{ padding: '5px 6px', textAlign: 'right', fontSize: 10.5, color: C.text3 }}
-                    title={`Book's raw hold on this game: ${pct(p.hold)}`}>{pct(p.market_p)}</td>
-                <td style={{ padding: '5px 6px', textAlign: 'right', fontSize: 11, fontWeight: 800, color: C.orange }}>
-                  {pct(p.edge)}
-                </td>
-                {/* How much of the opinion is the pitching rather than the
-                    records — the thing version one could not see at all. */}
-                <td className="sm-hide" style={{ padding: '5px 6px', textAlign: 'right', fontSize: 10, color: C.text3, whiteSpace: 'nowrap' }}
-                    title={p.home_sp || p.away_sp ? `${p.away_sp || '?'} vs ${p.home_sp || '?'}` : undefined}>
-                  {p.starter_shift ? `${Number(p.starter_shift) > 0 ? '+' : ''}${Math.round(p.starter_shift * 100)}pt` : '—'}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        </div>
+        // THE SHARED SHEET (2026-10-01, BATCH-TABLE-SKIN-V2 4b). Was SortTh.
+        <DenseTable bare noGroups rows={today.map((p) => ({ ...p, _key: p.game_pk, game: `${p.away} @ ${p.home}` }))}
+          columns={[
+            { key: 'game', label: 'Game', heat: false, sticky: true, w: 118, fmt: (_, p) => (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10.5 }}>
+                <TeamMark sport="mlb" abbr={p.away} variant="logo" px={14} />{p.away}<span style={{ color: C.text3 }}>@</span><TeamMark sport="mlb" abbr={p.home} variant="logo" px={14} />{p.home}
+              </span>) },
+            { key: 'side', label: 'Leans', heat: false, w: 70, fmt: (v, p) => (
+              <b title={p.base === 'record' ? 'Priced from the record — a side had too few games for its rates' : `Priced from OBP/SLG merged with the record (${p.base})`}>
+                {v}{p.base === 'record' ? <span style={{ fontSize: 8, color: C.text3, marginLeft: 5, fontWeight: 700 }}>REC</span> : null}
+              </b>) },
+            { key: 'price', label: 'Price', w: 56, fmt: (v) => price(v) },
+            { key: 'model_p', label: 'Model', w: 54, fmt: (v) => pct(v) },
+            { key: 'market_p', label: 'Market', w: 56, fmt: (v, p) => <span title={`Book's raw hold on this game: ${pct(p.hold)}`}>{pct(v)}</span>, tone: () => ({ color: C.text3 }) },
+            { key: 'edge', label: 'Gap', w: 50, primary: true, fmt: (v) => pct(v), tone: () => ({ color: C.orange, weight: 800 }) },
+            { key: 'starter_shift', label: 'From the arms', w: 84, tone: () => ({ color: C.text3 }),
+              fmt: (v, p) => <span title={p.home_sp || p.away_sp ? `${p.away_sp || '?'} vs ${p.home_sp || '?'}` : undefined}>{v ? `${Number(v) > 0 ? '+' : ''}${Math.round(v * 100)}pt` : '—'}</span> },
+          ]}
+          initialSort={{ key: 'edge', dir: 'desc' }} heatMode="sorted" maxHeight={9999} maxRows={40}
+          caption="Tonight's disagreements between the model and the market" />
       )}
 
       <p style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.55, margin: '10px 2px 0', maxWidth: 720 }}>

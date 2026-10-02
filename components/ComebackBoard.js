@@ -27,12 +27,8 @@ import { C, NUM_FONT } from '../lib/theme'
 import { fetchJSON } from '../lib/data'
 import { comebackPaths } from '../lib/dataSource'
 import { Empty } from './ui'
-import { useSort } from '../lib/useSort'
-import SortTh from './SortTh'
-
-const CB_SORT = { key: 'comeback_wins', dir: 'desc' }
-const CB_GET = {}
-const CB_OPTS = { text: new Set(['abbr']) }
+import DenseTable from './DenseTable'
+import TeamMark from './TeamMark'
 
 const SORTS = [
   ['comeback_wins', 'Most comebacks', 'Games won after trailing'],
@@ -44,10 +40,9 @@ const SORTS = [
 export default function ComebackBoard() {
   const [data, setData] = useState(null)
   const [state, setState] = useState('loading')
-  // Header clicks and the pills drive the same sort (lib/useSort.js).
-  const { sorted, sort: sortState, setSort: setSortState, thProps } = useSort(data?.teams || [], CB_SORT, CB_GET, CB_OPTS)
-  const sort = sortState.key
-  const setSort = (key) => setSortState({ key, dir: 'desc' })
+  // The pills pick the question (the twelve shown) and open the sheet sorted
+  // by it; the sheet's own headers then sort those twelve any way you like.
+  const [sort, setSort] = useState('comeback_wins')
 
   useEffect(() => {
     let alive = true
@@ -66,12 +61,8 @@ export default function ComebackBoard() {
     return <Empty text="No comeback board published yet — the bot writes this on its next run." />
   }
 
-  const rows = sorted.slice(0, 12)
+  const rows = [...(data?.teams || [])].sort((a, b) => (Number(b[sort]) || 0) - (Number(a[sort]) || 0)).slice(0, 12)
   const active = SORTS.find(([k]) => k === sort)
-
-  const th = (label, align = 'right', cls = '', key = null) => (
-    <SortTh label={label} align={align} className={cls || undefined} {...(key ? thProps(key) : {})} />
-  )
 
   return (
     <div>
@@ -81,7 +72,7 @@ export default function ComebackBoard() {
             aria-pressed={sort === key}
             style={{
               border: `1px solid ${sort === key ? C.orange : C.border}`,
-              background: sort === key ? 'rgba(249,115,22,.12)' : 'transparent',
+              background: sort === key ? `${C.orange}1f` : 'transparent',
               color: sort === key ? C.orange : C.text2,
               borderRadius: 999, padding: '3px 11px', fontSize: 9.5, fontWeight: 800,
               fontFamily: 'inherit', cursor: 'pointer',
@@ -89,55 +80,24 @@ export default function ComebackBoard() {
         ))}
       </div>
 
-      {/* See PennantRace for why this wrapper exists: body { overflow-x: clip }
-          turns a too-wide table into a silently truncated one. */}
-      <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: NUM_FONT, minWidth: 320 }}>
-        <caption className="sr-only">
-          Comeback wins and blown leads by team, sorted by {active?.[1] || sort}
-        </caption>
-        <thead>
-          <tr>
-            {th('', 'left')}{th('Team', 'left', '', 'abbr')}{th('W-L', 'right', 'sm-hide', 'wins')}
-            {th('Came back', 'right', '', 'comeback_wins')}{th('Rate', 'right', 'sm-hide', 'comeback_rate')}{th('Biggest', 'right', '', 'biggest_comeback')}{th('Gave away', 'right', '', 'blown_leads')}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((t, i) => (
-            <tr key={t.abbr} style={{ borderBottom: `1px solid ${C.border}` }}>
-              <td style={{ padding: '5px 6px', fontSize: 9.5, color: C.text3, width: 18 }}>{i + 1}</td>
-              <td style={{ padding: '5px 6px' }}><b style={{ fontSize: 11.5, color: C.text }}>{t.abbr && t.abbr !== '?' ? t.abbr : (t.name || '?')}</b></td>
-              <td className="sm-hide" style={{ padding: '5px 6px', textAlign: 'right', fontSize: 10.5, color: C.text3, whiteSpace: 'nowrap' }}>
-                {t.wins}-{t.losses}
-              </td>
-              <td style={{ padding: '5px 6px', textAlign: 'right', fontSize: 11.5, fontWeight: 800,
-                           color: sort === 'comeback_wins' ? C.orange : C.text }}>
-                {t.comeback_wins}
-              </td>
-              <td className="sm-hide" style={{ padding: '5px 6px', textAlign: 'right', fontSize: 10.5,
-                           color: sort === 'comeback_rate' ? C.orange : C.text2 }}>
-                {Math.round((Number(t.comeback_rate) || 0) * 100)}%
-              </td>
-              <td style={{ padding: '5px 6px', textAlign: 'right', fontSize: 10.5,
-                           color: t.biggest_comeback >= (data.notable_deficit || 4) ? C.yellow
-                                 : sort === 'biggest_comeback' ? C.orange : C.text2 }}
-                  title={t.top_comebacks?.[0]
-                    ? `Biggest: down ${t.top_comebacks[0].deficit} to ${t.top_comebacks[0].opp} on ${t.top_comebacks[0].date}`
-                    : undefined}>
-                {t.biggest_comeback ? `−${t.biggest_comeback}` : '—'}
-              </td>
-              <td style={{ padding: '5px 6px', textAlign: 'right', fontSize: 10.5,
-                           color: sort === 'blown_leads' ? C.orange : C.text3 }}
-                  title={t.top_collapses?.[0]
-                    ? `Worst: led ${t.top_collapses[0].lead} and lost to ${t.top_collapses[0].opp} on ${t.top_collapses[0].date}`
-                    : undefined}>
-                {t.blown_leads}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      </div>
+      {/* THE SHARED SHEET (2026-10-01, BATCH-TABLE-SKIN-V2 4b). Was a
+          hand-rolled <table> on SortTh. */}
+      <DenseTable key={sort} bare noGroups rows={rows.map((t, i) => ({ ...t, _key: t.abbr || t.name || i, rank: i + 1, wlN: Number(t.wins) - Number(t.losses) }))}
+        columns={[
+          { key: 'rank', label: '#', heat: false, w: 26 },
+          { key: 'abbr', label: 'Team', heat: false, sticky: true, w: 90, fmt: (v, t) => (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              {v && v !== '?' ? <TeamMark sport="mlb" abbr={v} variant="logo" px={16} /> : null}<b>{v && v !== '?' ? v : (t.name || '?')}</b>
+            </span>) },
+          { key: 'wlN', label: 'W-L', w: 54, fmt: (_, t) => `${t.wins}-${t.losses}`, tone: () => ({ color: C.text3 }) },
+          { key: 'comeback_wins', label: 'Came back', w: 70, dp: 0, primary: true, tone: () => ({ color: C.text, weight: 800 }) },
+          { key: 'comeback_rate', label: 'Rate', w: 50, fmt: (v) => `${Math.round((Number(v) || 0) * 100)}%` },
+          { key: 'biggest_comeback', label: 'Biggest', w: 58, fmt: (v, t) => <span title={t.top_comebacks?.[0] ? `Biggest: down ${t.top_comebacks[0].deficit} to ${t.top_comebacks[0].opp} on ${t.top_comebacks[0].date}` : undefined}>{v ? `−${v}` : '—'}</span>,
+            tone: (n) => (n >= (data.notable_deficit || 4) ? { color: C.yellow } : null) },
+          { key: 'blown_leads', label: 'Gave away', w: 70, tone: () => ({ color: C.text3 }), fmt: (v, t) => <span title={t.top_collapses?.[0] ? `Worst: led ${t.top_collapses[0].lead} and lost to ${t.top_collapses[0].opp} on ${t.top_collapses[0].date}` : undefined}>{v}</span> },
+        ]}
+        initialSort={{ key: sort, dir: 'desc' }} heatMode="sorted" maxHeight={9999} maxRows={12}
+        caption={`Comeback wins and blown leads by team, sorted by ${active?.[1] || sort}`} />
 
       <p style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.55, margin: '9px 2px 0', maxWidth: 720 }}>
         {data.method} Read from {Number(data.games || 0).toLocaleString()} finished games.

@@ -2,7 +2,7 @@
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { btnStyle, WhatThis } from './ui'
-import SortTh from './SortTh'
+import DenseTable from './DenseTable'
 
 // ══ 🧾 THE SEASON RECORD ══════════════════════════════════════════════════════
 //
@@ -43,11 +43,6 @@ const panel = (accent) => ({
 
 // Called, not frozen: C is mutated after mount (applyTheme, lib/theme.js), so a
 // module-level literal keeps the palette it was imported with. See #23.
-const thCell = () => ({
-  fontSize: 8.5, color: C.text3, fontWeight: 800, textTransform: 'uppercase',
-  letterSpacing: '.07em', padding: '0 6px 4px', whiteSpace: 'nowrap', textAlign: 'center',
-})
-const td = { textAlign: 'center', fontSize: 11, padding: '4px 6px', whiteSpace: 'nowrap', fontFamily: NUM_FONT }
 
 function Head({ icon, title, note }) {
   return (
@@ -107,9 +102,6 @@ export default function SeasonRecord({ season, busy = false, msg = '', onPull, o
     if (fromHeader && k === hSort) { setHDir((d) => (d === 'desc' ? 'asc' : 'desc')); return }
     setHSortKey(k); setHDir(fromHeader && k === 'name' ? 'asc' : 'desc')
   }
-  const hTh = (label, key, title, align = 'center') => (
-    <SortTh label={label} title={title} align={align} style={{ padding: '0 6px 4px', borderBottom: 'none', letterSpacing: '.07em' }} active={hSort === key} dir={hSort === key ? hDir : null} onSort={key ? () => setHSort(key, true) : null} />
-  )
 
   const hitters = useMemo(() => {
     if (!season) return []
@@ -211,38 +203,21 @@ export default function SeasonRecord({ season, busy = false, msg = '', onPull, o
                     <span style={{ fontSize: 10, color: C.text3 }}>{isOpen ? '▲' : '▼'}</span>
                   </button>
                   {isOpen && (
-                    <div className="dense-scroll rail" style={{ overflowX: 'auto', padding: '0 0 9px' }}>
-                      <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 1px' }}>
-                        <thead>
-                          <tr>
-                            <th style={{ ...thCell(), textAlign: 'left' }}>Hitter</th>
-                            <th style={thCell()}>HR</th>
-                            <th style={thCell()} title="Longest of the night, feet">Ft</th>
-                            <th style={thCell()} title="Hardest of the night, mph off the bat">EV</th>
-                            <th style={thCell()} title="Lineup spot on the sheet">Spot</th>
-                            <th style={thCell()} title="The bot's HR score for him that night, where the sheet had him">Score</th>
-                            <th style={{ ...thCell(), textAlign: 'left' }}>Sheet</th>
-                            <th style={thCell()} title="Season total the slate carried for him that night — not added to">Was on</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {n.homers.map((r, i) => (
-                            <tr key={`${r.pid || r.name}-${i}`}>
-                              <td style={{ ...td, textAlign: 'left', fontFamily: 'inherit', fontWeight: 700, color: C.text }}>
-                                <span onClick={() => open(r)} style={{ cursor: 'pointer', borderBottom: `1px dotted ${C.border2}` }} title="Open his card">{r.name}</span>
-                                {r.team && <span style={{ fontSize: 9, color: C.text3, marginLeft: 6 }}>{r.team}</span>}
-                              </td>
-                              <td style={{ ...td, fontWeight: 900, color: r.hr >= 2 ? C.orange : C.text }}>{r.hr}</td>
-                              <td style={{ ...td, color: C.text2 }}>{r.ft || '—'}</td>
-                              <td style={{ ...td, color: C.text2 }}>{r.ev ? r.ev.toFixed(1) : '—'}</td>
-                              <td style={{ ...td, color: C.text3 }}>{r.spot || '—'}</td>
-                              <td style={{ ...td, color: r.hrScore != null ? C.text : C.text3 }}>{r.hrScore != null ? Math.round(r.hrScore) : '—'}</td>
-                              <td style={{ ...td, textAlign: 'left' }}><RoleChip r={r} /></td>
-                              <td style={{ ...td, color: C.text3 }}>{r.seasonHrSlate != null ? r.seasonHrSlate : '—'}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                    <div style={{ padding: '0 0 9px' }}>
+                      {/* THE SHARED SHEET (2026-10-01, BATCH-TABLE-SKIN-V2 4b). */}
+                      <DenseTable bare noGroups tight rows={n.homers.map((r, i) => ({ ...r, _key: `${r.pid || r.name}-${i}` }))}
+                        columns={[
+                          { key: 'name', label: 'Hitter', heat: false, sticky: true, w: 150, link: (r) => () => open(r),
+                            fmt: (v, r) => <span title="Open his card">{v}{r.team && <span style={{ fontSize: 9, color: C.text3, marginLeft: 6 }}>{r.team}</span>}</span> },
+                          { key: 'hr', label: 'HR', w: 36, dp: 0, tone: (x) => ({ color: x >= 2 ? C.orange : C.text, weight: 900 }) },
+                          { key: 'ft', label: 'Ft', w: 40, dp: 0, title: 'Longest of the night, feet', fmt: (v) => v || '—' },
+                          { key: 'ev', label: 'EV', w: 44, dp: 1, title: 'Hardest of the night, mph off the bat', fmt: (v) => (v ? Number(v).toFixed(1) : '—') },
+                          { key: 'spot', label: 'Spot', w: 38, dp: 0, title: 'Lineup spot on the sheet', fmt: (v) => v || '—', tone: () => ({ color: C.text3 }) },
+                          { key: 'hrScore', label: 'Score', w: 46, title: "The bot's HR score for him that night, where the sheet had him", fmt: (v) => (v != null ? Math.round(v) : '—') },
+                          { key: 'sheet', label: 'Sheet', heat: false, numeric: false, w: 90, fmt: (_, r) => <RoleChip r={r} /> },
+                          { key: 'seasonHrSlate', label: 'Was on', w: 50, title: 'Season total the slate carried for him that night — not added to', fmt: (v) => (v != null ? v : '—'), tone: () => ({ color: C.text3 }) },
+                        ]}
+                        heatMode="sorted" maxHeight={9999} maxRows={60} caption={`Every homer on ${shortDate(n.date)}`} />
                     </div>
                   )}
                 </div>
@@ -271,45 +246,25 @@ export default function SeasonRecord({ season, busy = false, msg = '', onPull, o
                 }}
               />
             </div>
-            <div className="dense-scroll rail" style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 2px' }}>
-                <thead>
-                  <tr>
-                    {hTh('Hitter', 'name', 'Sort by name', 'left')}
-                    {hTh('HR', 'hr', 'Home runs across the nights held')}
-                    {hTh('Nights', 'nights', 'Nights he went deep')}
-                    {hTh('Badged', 'badged', 'Nights he went deep wearing a call badge -- TOP, HR, HIT, HRR or CONTACT')}
-                    {hTh('On sheet', 'sheet', 'Nights he went deep while on the sheet at all (badged or not)')}
-                    {hTh('Avg score', 'score', "Average of the bot's HR score on his homer nights, where the sheet had him")}
-                    {hTh('Longest', 'far', 'His longest in the window, feet')}
-                    {hTh('Max EV', 'ev', 'Hardest, mph')}
-                    {hTh('Last', 'recent', 'Most recent homer night')}
-                    <th style={thCell()} title="Season total the slate carried for him on his latest homer night — not added to">Was on</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(allHitters ? hitters : hitters.slice(0, HITTERS_FOLD)).map((h) => (
-                    <tr key={h.k}>
-                      <td style={{ ...td, textAlign: 'left', fontFamily: 'inherit', fontWeight: 700, color: C.text }}>
-                        <span onClick={() => open(h)} style={{ cursor: 'pointer', borderBottom: `1px dotted ${C.border2}` }} title="Open his card">{h.name}</span>
-                        {h.team && <span style={{ fontSize: 9, color: C.text3, marginLeft: 6 }}>{h.team}</span>}
-                      </td>
-                      <td style={{ ...td, fontWeight: 900, color: C.orange }}>{h.hr}</td>
-                      <td style={{ ...td, color: C.text2 }} title={h.multi ? `${h.multi} multi-homer night${h.multi === 1 ? '' : 's'}` : ''}>
-                        {h.nights}{h.multi ? <span style={{ color: C.orange, fontSize: 8.5, marginLeft: 3 }}>×{h.multi}</span> : null}
-                      </td>
-                      <td style={{ ...td, fontWeight: 800, color: h.badgedNights ? C.green : C.text3 }}>{h.badgedNights}</td>
-                      <td style={{ ...td, color: C.text2 }}>{h.sheetNights}</td>
-                      <td style={{ ...td, color: h.avgScore != null ? C.text : C.text3 }}>{h.avgScore ?? '—'}</td>
-                      <td style={{ ...td, color: C.text2 }} title={h.longest ? shortDate(h.longest.date) : ''}>{h.longest ? h.longest.ft : '—'}</td>
-                      <td style={{ ...td, color: C.text2 }}>{h.ev ? h.ev.toFixed(1) : '—'}</td>
-                      <td style={{ ...td, color: C.text3 }}>{shortDate(h.last)}</td>
-                      <td style={{ ...td, color: C.text3 }}>{h.wasOn ?? '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            {/* THE SHARED SHEET (2026-10-01, BATCH-TABLE-SKIN-V2 4b): opens in the
+                pill's order; every header re-sorts. */}
+            <DenseTable key={`${hSort}-${hDir}`} bare noGroups
+              rows={(allHitters ? hitters : hitters.slice(0, HITTERS_FOLD)).map((h) => ({ ...h, _key: h.k, far: h.longest ? h.longest.ft : null }))}
+              columns={[
+                { key: 'name', label: 'Hitter', heat: false, sticky: true, w: 150, link: (h) => () => open(h),
+                  fmt: (v, h) => <span title="Open his card">{v}{h.team && <span style={{ fontSize: 9, color: C.text3, marginLeft: 6 }}>{h.team}</span>}</span> },
+                { key: 'hr', label: 'HR', w: 36, dp: 0, primary: true, tone: () => ({ color: C.orange, weight: 900 }), title: 'Home runs across the nights held' },
+                { key: 'nights', label: 'Nights', w: 50, title: 'Nights he went deep',
+                  fmt: (v, h) => <span title={h.multi ? `${h.multi} multi-homer night${h.multi === 1 ? '' : 's'}` : ''}>{v}{h.multi ? <span style={{ color: C.orange, fontSize: 8.5, marginLeft: 3 }}>×{h.multi}</span> : null}</span> },
+                { key: 'badgedNights', label: 'Badged', w: 52, dp: 0, tone: (x) => ({ color: x ? C.green : C.text3, weight: 800 }), title: 'Nights he went deep wearing a call badge -- TOP, HR, HIT, HRR or CONTACT' },
+                { key: 'sheetNights', label: 'On sheet', w: 58, dp: 0, title: 'Nights he went deep while on the sheet at all (badged or not)' },
+                { key: 'avgScore', label: 'Avg score', w: 62, fmt: (v) => v ?? '—', title: "Average of the bot's HR score on his homer nights, where the sheet had him" },
+                { key: 'far', label: 'Longest', w: 56, fmt: (v, h) => <span title={h.longest ? shortDate(h.longest.date) : ''}>{v ?? '—'}</span>, title: 'His longest in the window, feet' },
+                { key: 'ev', label: 'Max EV', w: 52, fmt: (v) => (v ? Number(v).toFixed(1) : '—'), title: 'Hardest, mph' },
+                { key: 'last', label: 'Last', heat: false, numeric: false, w: 52, fmt: (v) => shortDate(v), title: 'Most recent homer night' },
+                { key: 'wasOn', label: 'Was on', w: 50, fmt: (v) => v ?? '—', tone: () => ({ color: C.text3 }), title: 'Season total the slate carried for him on his latest homer night — not added to' },
+              ]}
+              heatMode="sorted" maxHeight={9999} maxRows={Math.max(hitters.length, 1)} caption="Every hitter who has gone deep in the nights held" />
             {hitters.length > HITTERS_FOLD && (
               <button onClick={() => setAllHitters((v) => !v)} style={{ ...btnStyle(C.green, false), marginTop: 9 }}>
                 {allHitters ? 'Fewer' : `All ${hitters.length}`}

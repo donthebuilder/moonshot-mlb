@@ -40,12 +40,8 @@ import { C, NUM_FONT } from '../lib/theme'
 import { fetchJSON } from '../lib/data'
 import { oddsHistoryPaths } from '../lib/dataSource'
 import { historyLooksReal, roiRows, roiVerdict } from '../lib/oddsHistory'
-import { useSort } from '../lib/useSort'
-import SortTh from './SortTh'
+import DenseTable from './DenseTable'
 
-const MA_SORT = { key: 'roi', dir: 'desc' }
-const MA_GET = { n: (r) => r.all?.n, roi: (r) => r.all?.roi, se: (r) => r.all?.roi_se, verdict: (r) => r.verdict?.label }
-const MA_OPTS = { text: new Set(['label', 'verdict']) }
 
 const pct = (v) => `${v > 0 ? '+' : ''}${Number(v).toFixed(1)}%`
 
@@ -75,14 +71,12 @@ export default function MoneyAnswer({ compact = false, onNavigate = null }) {
     return { rows, up, down, flat, bets, days, widest }
   }, [hist])
 
-  // Hook before the early returns, as hooks must be.
-  const { sorted: maSorted, thProps } = useSort(read?.rows || [], MA_SORT, MA_GET, MA_OPTS)
 
   if (state === 'loading') return null
   if (state === 'empty' || !read) return null
 
   const { up, down, flat, bets, days, widest } = read
-  const rows = maSorted
+  const rows = read.rows || []
   const headline = up.length
     ? `${up.length} of ${rows.length} markets ${up.length === 1 ? 'is' : 'are'} measurably profitable`
     : `No market is measurably profitable yet`
@@ -123,29 +117,16 @@ export default function MoneyAnswer({ compact = false, onNavigate = null }) {
         {days ? `, across ${days} graded nights` : ''} and {bets.toLocaleString()} settled bets.
       </p>
 
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: NUM_FONT }}>
-        <caption className="sr-only">Return on investment by market, with the verdict for each</caption>
-        <thead>
-          <tr>
-            {[['Market', 'left', 'label'], ['Bets', 'right', 'n'], ['ROI', 'right', 'roi'], ['± error bar', 'right', 'se'], ['Verdict', 'left', 'verdict']].map(([l, a, key]) => (
-              <SortTh key={l} label={l} align={a} {...thProps(key)} />
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => (
-            <tr key={r.market} style={{ borderBottom: `1px solid ${C.border}` }}>
-              <td style={{ padding: '4px 6px', fontSize: 11, color: C.text }}>{r.label}</td>
-              <td style={{ padding: '4px 6px', textAlign: 'right', fontSize: 10.5, color: C.text3 }}>{r.all.n}</td>
-              <td style={{ padding: '4px 6px', textAlign: 'right', fontSize: 11, color: r.verdict.tone }}>{pct(r.all.roi)}</td>
-              <td style={{ padding: '4px 6px', textAlign: 'right', fontSize: 10.5, color: C.text3 }}>
-                {r.all.roi_se != null ? `±${Number(r.all.roi_se).toFixed(1)}` : '—'}
-              </td>
-              <td style={{ padding: '4px 6px', fontSize: 10, color: r.verdict.tone }}>{r.verdict.label}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {/* THE SHARED SHEET (2026-10-01, BATCH-TABLE-SKIN-V2 4b). Was SortTh. */}
+      <DenseTable bare noGroups rows={rows.map((r) => ({ ...r, _key: r.market, n: r.all.n, roi: r.all.roi, se: r.all.roi_se, verdictTxt: r.verdict.label }))}
+        columns={[
+          { key: 'label', label: 'Market', heat: false, sticky: true, w: 120 },
+          { key: 'n', label: 'Bets', w: 50, dp: 0, tone: () => ({ color: C.text3 }) },
+          { key: 'roi', label: 'ROI', w: 56, fmt: (v) => pct(v), tone: (_, r) => ({ color: r.verdict.tone }) },
+          { key: 'se', label: '± error bar', w: 74, fmt: (v) => (v != null ? `±${Number(v).toFixed(1)}` : '—'), tone: () => ({ color: C.text3 }) },
+          { key: 'verdictTxt', label: 'Verdict', heat: false, w: 120, fmt: (v, r) => <span style={{ color: r.verdict.tone, fontSize: 10 }}>{v}</span> },
+        ]}
+        initialSort={{ key: 'roi', dir: 'desc' }} heatMode="sorted" maxHeight={9999} maxRows={40} caption="Return on investment by market, with the verdict for each" />
 
       {/* THE ERROR BAR IS THE POINT, and it is why this is a component and not
           a sentence. A market can show a headline loss and still be telling you

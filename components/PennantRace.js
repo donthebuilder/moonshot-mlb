@@ -27,12 +27,9 @@ import { C, NUM_FONT } from '../lib/theme'
 import { fetchJSON } from '../lib/data'
 import { playoffOddsPaths } from '../lib/dataSource'
 import { Empty } from './ui'
-import { useSort } from '../lib/useSort'
-import SortTh from './SortTh'
+import DenseTable from './DenseTable'
+import TeamMark from './TeamMark'
 
-const PR_SORT = { key: 'win_world_series', dir: 'desc' }
-const PR_GET = { wl: (t) => Number(t.wins) - Number(t.losses), now: (t) => (t.race?.divisionRank || 9) * 10 + (t.race?.wildCardRank || 9) }
-const PR_OPTS = { text: new Set(['abbr']) }
 
 // ── THE LIVE RACE, NOT LAST NIGHT'S ─────────────────────────────────────────
 //
@@ -115,16 +112,6 @@ const tone = (v) => {
 // Scaled to the FIELD'S favourite, not a fixed 25%: a 30% favourite used to
 // clip at full width and read the same as a 25% one. The leader fills the
 // bar; everyone else is a fraction of him.
-function Bar({ v, color, top = 0.25 }) {
-  const scale = Math.max(Number(top) || 0, 0.05)
-  const w = Math.max(2, Math.min(100, Math.round((Number(v) || 0) / scale * 100 * 100) / 100))
-  return (
-    <i style={{
-      display: 'block', height: 3, marginTop: 3, borderRadius: 2,
-      width: `${w}%`, background: color, opacity: .55,
-    }} />
-  )
-}
 
 export default function PennantRace() {
   const [data, setData] = useState(null)
@@ -180,9 +167,8 @@ export default function PennantRace() {
       win_division: race?.clinch === 'y' || race?.clinch === 'z' ? 1 : t.win_division,
     }
   })
-  // Header clicks sort (lib/useSort.js); the default is the Series column,
-  // playoff odds as the tie-break -- the order the table always had.
-  const { sorted: teamsSorted, thProps } = useSort(teams, PR_SORT, PR_GET, PR_OPTS)
+  // The order the table always had: Series, playoff odds as the tie-break.
+  const teamsSorted = [...teams].sort((a, b) => (Number(b.win_world_series) - Number(a.win_world_series)) || (Number(b.make_playoffs) - Number(a.make_playoffs)))
 
   if (state === 'loading') return <div style={{ fontSize: 11, color: C.text3, padding: '6px 2px' }}>Simulating…</div>
   if (state === 'empty' || !data) {
@@ -208,63 +194,33 @@ export default function PennantRace() {
           below: at phone width the columns that only matter when you are
           comparing teams closely are dropped, so the common case needs no
           sideways scrolling at all. */}
-      <div className="pr-scroll" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: NUM_FONT, minWidth: 340 }}>
-        <caption className="sr-only">
-          Playoff, pennant and World Series odds by team, from {Number(data.sims).toLocaleString()} simulations
-        </caption>
-        <thead>
-          <tr>
-            {[['', 'left', '', null], ['Team', 'left', '', 'abbr'], ['W-L', 'right', 'sm-hide', 'wl'], ['Now', 'left', '', null], ['Proj', 'right', 'sm-hide', 'proj_wins'],
-              ['Playoffs', 'right', '', 'make_playoffs'], ['Division', 'right', 'sm-hide', 'win_division'], ['Pennant', 'right', 'sm-hide', 'win_league'], ['Series', 'right', '', 'win_world_series']]
-              .map(([label, align, cls, key], i) => (
-                <SortTh key={label + i} label={label} align={align} className={cls || undefined} {...(key ? thProps(key) : {})} />
-              ))}
-          </tr>
-        </thead>
-        <tbody>
-          {shown.map((t, i) => (
-            <tr key={t.team_id} style={{ borderBottom: `1px solid ${C.border}` }}>
-              <td style={{ padding: '5px 6px', fontSize: 9.5, color: C.text3, width: 18 }}>{i + 1}</td>
-              <td style={{ padding: '5px 6px', minWidth: 0 }}>
-                <b style={{ fontSize: 11.5, color: C.text }}>{t.abbr || t.name || t.team_id}</b>
-                <span className="sm-hide" style={{ fontSize: 9, color: C.text3, marginLeft: 6 }}>{t.division}</span>
-              </td>
-              <td className="sm-hide" style={{ padding: '5px 6px', textAlign: 'right', fontSize: 10.5, color: C.text2, whiteSpace: 'nowrap' }}>
-                {t.wins}-{t.losses}
-              </td>
-              {/* NOW — tonight's standing, live. Clinched and eliminated are
-                  the league's own stamps, not the model's. */}
-              <td style={{ padding: '5px 6px', fontSize: 9.5, whiteSpace: 'nowrap',
-                           color: t.locked === 'in' ? C.green : t.locked === 'out' ? C.text3 : C.text2 }}
-                  title={t.race?.clinch ? CLINCH_WORD[t.race.clinch] || 'clinched' : t.race?.eliminated ? 'Eliminated' : (t.race ? `${t.race.gamesBack} GB in the division, ${t.race.wildCardGamesBack} in the wild card` : undefined)}>
-                {t.locked === 'in' ? `✓ ${t.race.clinch === 'y' || t.race.clinch === 'z' ? 'div' : t.race.clinch === 'w' ? 'WC' : 'in'}`
-                  : t.locked === 'out' ? '✗ out'
-                    : raceWord(t.race) || '—'}
-                {t.race?.streak && t.locked !== 'out' ? <span style={{ color: C.text3, marginLeft: 5 }}>{t.race.streak}</span> : null}
-              </td>
-              <td className="sm-hide" style={{ padding: '5px 6px', textAlign: 'right', fontSize: 10.5, color: C.text3 }}
-                  title="Average wins across every simulated season">
-                {Number(t.proj_wins).toFixed(0)}
-              </td>
-              <td style={{ padding: '5px 6px', textAlign: 'right', fontSize: 11, color: tone(t.make_playoffs) }}>
-                {pct(t.make_playoffs)}
-              </td>
-              <td className="sm-hide" style={{ padding: '5px 6px', textAlign: 'right', fontSize: 10.5, color: C.text2 }}>
-                {pct(t.win_division)}
-              </td>
-              <td className="sm-hide" style={{ padding: '5px 6px', textAlign: 'right', fontSize: 10.5, color: C.text2 }}>
-                {pct(t.win_league)}
-              </td>
-              <td style={{ padding: '5px 6px', textAlign: 'right', fontSize: 11.5, fontWeight: 800, color: tone(t.win_world_series), minWidth: 54 }}>
-                {pct(t.win_world_series)}
-                <Bar v={t.win_world_series} color={tone(t.win_world_series)} top={topWs} />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      </div>
+      {/* THE SHARED SHEET (2026-10-01, BATCH-TABLE-SKIN-V2 4b; Donovan: "convert
+          them all to the new sortable sheet"). Was a hand-rolled <table> on
+          SortTh. Same columns, same Series-first order, every header sorts. */}
+      <DenseTable bare noGroups rows={shown.map((t, i) => ({ ...t, _key: t.team_id, rank: i + 1, wlN: Number(t.wins) - Number(t.losses), nowN: (t.race?.divisionRank || 9) * 10 + (t.race?.wildCardRank || 9) }))}
+        columns={[
+          { key: 'rank', label: '#', heat: false, w: 26 },
+          { key: 'abbr', label: 'Team', heat: false, sticky: true, w: 120, fmt: (v, t) => (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <TeamMark sport="mlb" abbr={v} variant="logo" px={16} /><b>{v || t.name || t.team_id}</b>
+              <span style={{ fontSize: 9, color: C.text3 }}>{t.division}</span>
+            </span>) },
+          { key: 'wlN', label: 'W-L', w: 54, fmt: (_, t) => `${t.wins}-${t.losses}` },
+          { key: 'nowN', label: 'Now', heat: false, numeric: false, w: 86, fmt: (_, t) => (
+            <span title={t.race?.clinch ? CLINCH_WORD[t.race.clinch] || 'clinched' : t.race?.eliminated ? 'Eliminated' : (t.race ? `${t.race.gamesBack} GB in the division, ${t.race.wildCardGamesBack} in the wild card` : undefined)}
+              style={{ color: t.locked === 'in' ? C.green : t.locked === 'out' ? C.text3 : C.text2 }}>
+              {t.locked === 'in' ? `✓ ${t.race.clinch === 'y' || t.race.clinch === 'z' ? 'div' : t.race.clinch === 'w' ? 'WC' : 'in'}`
+                : t.locked === 'out' ? '✗ out' : raceWord(t.race) || '—'}
+              {t.race?.streak && t.locked !== 'out' ? <span style={{ color: C.text3, marginLeft: 5 }}>{t.race.streak}</span> : null}
+            </span>) },
+          { key: 'proj_wins', label: 'Proj', w: 44, dp: 0, title: 'Average wins across every simulated season' },
+          { key: 'make_playoffs', label: 'Playoffs', w: 62, fmt: (v) => pct(v), tone: (n) => ({ color: tone(n) }) },
+          { key: 'win_division', label: 'Division', w: 62, fmt: (v) => pct(v) },
+          { key: 'win_league', label: 'Pennant', w: 62, fmt: (v) => pct(v) },
+          { key: 'win_world_series', label: 'Series', w: 76, primary: true, bar: 'primary', domain: [0, topWs], fmt: (v) => pct(v), tone: (n) => ({ color: tone(n), weight: 800 }) },
+        ]}
+        initialSort={{ key: 'win_world_series', dir: 'desc' }} heatMode="sorted" maxHeight={9999} maxRows={16}
+        caption={`Playoff, pennant and World Series odds by team, from ${Number(data.sims).toLocaleString()} simulations`} />
       <p style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.55, margin: '9px 2px 0', maxWidth: 720 }}>
         {fieldLocked
           ? <b style={{ color: C.green }}>The field is locked — all twelve spots are clinched. Odds below are the bracket only. </b>
