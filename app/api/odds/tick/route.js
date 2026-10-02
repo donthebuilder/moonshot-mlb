@@ -29,6 +29,7 @@ import { LEAGUES, MARKETS, snapRows, startsAt, gameDate } from '../../../../lib/
 import { linesRows } from '../../../../lib/odds/lines'
 import { freezeDashLines } from '../../../../lib/dashLock'
 import { gradeDashLines } from '../../../../lib/dashGrade'
+import { monthPlan } from '../../../../lib/odds/budget'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -139,6 +140,9 @@ export async function GET(request) {
   // ── LOCK / CLOSE: the games inside a window, one eventIDs read ─────────
   const now = Date.now()
   const due = new Map() // event_id -> Set of snaps
+  // THE MONTH PLANNER (lib/odds/budget.js): CLOSE stays off all month when the month can't afford it
+  let plan = null
+  try { plan = await monthPlan(date.slice(0, 7), LEAGUES); out.plan = { month: plan.month, games: plan.games, projected: plan.projected, closeOff: plan.closeOff, why: plan.why } } catch (e) { out.plan = { error: e?.message } }
   const forced = q.get('event')
   if (forced && WINDOWS[q.get('snap')]) due.set(forced, new Set([q.get('snap')]))
   else {
@@ -151,7 +155,8 @@ export async function GET(request) {
       const want = new Set()
       if (!g.lock_at && mins >= W.lock[0] && mins <= W.lock[1]) want.add('lock')
       if (W.close && !g.close_at && mins >= W.close[0] && mins <= W.close[1]) {
-        if (used < SOFT_CAP) want.add('close')
+        if (plan?.closeOff) out.skipped.push({ event: g.event_id, why: `close off this month: ${plan.why}` })
+        else if (used < SOFT_CAP) want.add('close')
         else out.skipped.push({ event: g.event_id, why: `close skipped: ${used} objects used (soft cap ${SOFT_CAP})` })
       }
       if (want.size) due.set(g.event_id, want)

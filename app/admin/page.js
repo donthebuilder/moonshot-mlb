@@ -18,6 +18,9 @@ import { isAdminEmail } from '../../lib/admin'
 import start from '../start/start.module.css'
 import { adminClient } from '../../lib/supabase/admin'
 import { MEMBERS_KINDS } from '../../lib/dash/membersPost'
+import { monthUsage } from '../../lib/odds/sgo'
+import { monthPlan, SOFT_CAP } from '../../lib/odds/budget'
+import { LEAGUES } from '../../lib/odds/snap'
 
 export const dynamic = 'force-dynamic'
 // The title is computed, not static: a static one rides the 404's payload
@@ -128,6 +131,11 @@ export default async function AdminPage() {
   const c = await cachedCounts()
   const a = c.accounts || {}
   const p = c.push || {}
+  // THE ODDS MONTH (lib/odds/budget.js): what SGO says we've spent, and the planner's call
+  const [usage, plan] = await Promise.all([
+    monthUsage().catch((e) => ({ error: e?.message })),
+    monthPlan(easternToday().slice(0, 7), LEAGUES).catch((e) => ({ error: e?.message })),
+  ])
   return (
     <main className={start.page}>
       <header className={start.bar}>
@@ -176,6 +184,15 @@ export default async function AdminPage() {
         <Line k="Checkout link" v={process.env.NEXT_PUBLIC_MEMBERS_URL ? 'set' : 'not set'} src="NEXT_PUBLIC_MEMBERS_URL (Vercel) -- the members line on /start and /called shows only when set" />
         <Line k="#members webhook" v={process.env.DISCORD_MEMBERS_WEBHOOK ? 'wired' : 'not wired'} src="DISCORD_MEMBERS_WEBHOOK (Vercel) -- no members post runs until it is" />
         <Line k="Last members post" v={c.membersLast ? `${c.membersLast.day}` : 'none yet'} src={c.membersLast ? `${c.membersLast.kind}${c.membersLast.discord_sent ? ' · sent to Discord' : ' · claimed, not sent'}` : 'homer_feed_posts, kinds *_members_board / *_members_grade'} />
+
+        <h2 className={start.kicker} style={{ marginTop: 18 }}>Odds</h2>
+        {usage.error ? <p>Odds usage unavailable: {usage.error}</p>
+          : <Line k="Objects this month" v={`${usage.used} / ${usage.max}`} src={`SGO /account/usage · soft cap ${SOFT_CAP} drops CLOSE, 2450 stops`} />}
+        {plan.error ? <p>Month plan unavailable: {plan.error}</p> : <>
+          <Line k="Games this month" v={Object.entries(plan.games).map(([L, n]) => `${L} ${n ?? '?'}`).join(' · ')} src={`each league's own schedule (${plan.leagues.join(', ')})`} />
+          <Line k="Projected" v={`${plan.projected.withClose} with CLOSE · ${plan.projected.noClose} without`} src="games × snapshots (list + lock + close; NHL list + lock)" />
+          <Line k="CLOSE this month" v={plan.closeOff ? 'off' : 'on'} src={plan.why} />
+        </>}
 
         <h2 className={start.kicker} style={{ marginTop: 18 }}>Waitlist</h2>
         <Line k="DASH Pro waitlist" v="—" src="not built (no waitlist exists yet)" />
