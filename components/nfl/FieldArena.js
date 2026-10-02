@@ -157,7 +157,9 @@ export default function FieldArena({ dots = [], cells = [], spot = null, rz = []
 
     const V = (x, y, z) => new THREE.Vector3(x, y, z)
     const SHOTS = {
-      endzone: () => [V(-24 * YD, narrow ? 120 : 84, 0.01), V(14 * YD, 0, 0)],
+      // on a narrow box (a phone) the camera sits further back and higher, so all three lanes
+      // fit at the line of scrimmage (fov 42, ~1:1 box: 160 ft across needs ~200 ft of distance)
+      endzone: () => [narrow ? V(-50 * YD, 150, 0.01) : V(-24 * YD, 84, 0.01), V((narrow ? 19 : 14) * YD, 0, 0)],
       sideline: () => [V(15 * YD, 70, FIELD_W / 2 + 120), V(15 * YD, 0, 0)],
       all22: () => [V(-8 * YD, 230, 0.01), V(16 * YD, 0, 0)],
       // straight down on the drawn span (-6..36 yd), the 2D chart's frame

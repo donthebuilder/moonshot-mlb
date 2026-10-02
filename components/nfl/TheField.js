@@ -2,7 +2,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/nfl/theme'
 import { NFL_DATA_BASE } from '../../lib/nfl/dataSource'
-import { ChipGroup, ChartCard, ChartEmpty, ChartLegend, StatStrip, ViewToggle, viewBtn } from '../charts'
+import { ChipGroup, ChartCard, ChartEmpty, ChartLegend, StatStrip, ViewToggle, viewBtn, chipBtn } from '../charts'
 import { SubLabel } from '../matchup/MatchupParts'
 import { chipColor } from '../Heatmap'
 import HowToRead from '../charts/HowToRead'
@@ -245,6 +245,8 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   const [src, setSrc] = useState(fromHash?.src || '26')
   const [rtF, setRtF] = useState(fromHash?.rt || 'ALL')
   const [cvF, setCvF] = useState(fromHash?.cv || 'ALL')
+  // on a phone the filter rows fold behind one chip (five rows of chips sat above the field)
+  const [filtersOpen, setFiltersOpen] = useState(false)
   const rf = useRoutesFile({ team, pid: mode === 'PLAYER' && !isQB ? pid : null, want: src === 'r25' })
   const routesOn = src === 'r25' && rf.state === 'ready'
   const [pick, setPick] = useState(null)
@@ -310,6 +312,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   const P = PW.filter((p) => passF(p))
   const drawn = P.filter((p) => p.lane && p.air != null)
   const fOn = res !== 'ALL' || dn !== 'ALL' || ty !== 'ALL' || (routesOn && (rtF !== 'ALL' || cvF !== 'ALL'))
+  const nOn = [res, dn, ty, ...(routesOn ? [rtF, cvF] : [])].filter((v) => v !== 'ALL').length
 
   // TEAM mode inks: the four most-targeted in what is drawn.
   const topWho = useMemo(() => {
@@ -471,6 +474,12 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
       )}
       <ChipGroup first={!dv.toggle && !(rf.available && !isRun) && !(pid && !isQB && !isRun)} label="Window" theme={C} numFont={NUM_FONT} color={C.cyan} value={win} onChange={setWin} chipStyle={chipH}
         options={WINS.map(([k, label, nn]) => ({ k, label, n: k === 'SZN' || isRun ? null : inWin(k).length, title: k === 'SZN' ? 'The whole season' : `The last ${nn === 1 ? 'game' : `${nn} games`} ${asPlayer ? 'he was targeted in' : `${team} played`}` }))} />
+      {phone && !isRun && (
+        <button type="button" onClick={() => setFiltersOpen((v) => !v)} aria-expanded={filtersOpen}
+          style={{ ...chipBtn(filtersOpen || fOn, C.orange, C, NUM_FONT), marginLeft: 6 }}>
+          {filtersOpen ? '▾' : '▸'} FILTERS{nOn ? <span style={{ opacity: 0.65 }}> {nOn} on</span> : null}
+        </button>
+      )}
     </div>
   )
 
@@ -478,7 +487,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   // with the other filters on
   const cnt = (skip, f) => PW.filter((p) => passF(p, skip) && f(p)).length
   const clearAll = () => { setRes('ALL'); setDn('ALL'); setTy('ALL'); setRtF('ALL'); setCvF('ALL'); setPick(null) }
-  const filterRow = isRun ? null : (
+  const filterRow = isRun || (phone && !filtersOpen) ? null : (
     <div className="field-filters" style={rowStyle}>
       <ChipGroup first label="Result" theme={C} numFont={NUM_FONT} color={C.orange} value={res} onChange={setRes} chipStyle={chipH}
         options={[['ALL', 'All', () => true, 'Every target'], ['catch', 'Catch', (p) => p.res === 'catch', 'Only catches (not touchdowns)'], ['td', 'TD', (p) => p.res === 'td', 'Only touchdowns'], ['inc', 'No catch', (p) => p.res === 'inc' || p.res === 'int', 'Incomplete or intercepted']]
@@ -901,7 +910,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   })() : null
   // THE READOUT (SprayField / ShotPanel): a fixed place beside the field, so a tap never moves the page
   const card = (
-    <div aria-live="polite" style={{ minHeight: 54, fontFamily: NUM_FONT, fontSize: 10.5, lineHeight: 1.7, color: C.text2 }}>
+    <div aria-live="polite" style={{ minHeight: phone && !cardLines ? 0 : 54, fontFamily: NUM_FONT, fontSize: 10.5, lineHeight: 1.7, color: C.text2 }}>
       {cardLines ? <>
         <div style={{ color: cardLines.td ? C.orange : C.text, fontWeight: 800, fontSize: 11 }}>{cardLines.head1}{cardLines.yardsBit}{cardLines.who ? <> · <a href={playerHref('nfl', picked.pid)} style={{ ...linkStyle, color: C.text }}>{cardLines.who}</a></> : null}</div>
         <div>{cardLines.l2}</div>
