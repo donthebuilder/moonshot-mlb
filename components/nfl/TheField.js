@@ -483,8 +483,8 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   })
 
   const subjName = asPlayer ? player.name : `${team} offence`
-  // the 3D stadium's targets: the same plays, lane offset and ink as the dots
-  const dots3 = drawn.map((p) => ({ i: p.i, lane: p.lane, air: p.air, res: p.res, yac: p.yac, off: jitter(p.i) * 0.72, ink: inkOf(p) }))
+  // the 3D stadium's targets: the same plays, size and ink as the dots
+  const dots3 = drawn.map((p) => ({ i: p.i, wk: p.wk, lane: p.lane, air: p.air, res: p.res, yac: p.yac, ink: inkOf(p) }))
 
   // ── THE RUN VIEW (plan item 3): the same field, the ink on the seven gaps
   // as a band along the line of scrimmage, THE SPOT circled on the one gap
@@ -724,7 +724,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
               3D. The 2D field stays under it; a tapped dot opens the same card. */}
           {stadium && gl && !isRun && (
             <div style={{ marginBottom: 10 }}>
-              <FieldArena dots={dots3} cells={cells} spot={spot} onPick={(i) => setPick(i)}
+              <FieldArena dots={dots3} cells={cells} spot={spot} rz={stripRows.flatMap((r) => r.touches)} onPick={(i) => setPick(i)}
                 title={subjName} subtitle={`${plural(drawn.length, unit)}${defTeam ? ` · vs ${defTeam}` : ''}`} />
             </div>
           )}

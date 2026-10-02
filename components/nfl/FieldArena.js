@@ -6,14 +6,17 @@
 // (components/charts/StadiumShell). The twin of components/lamp/RinkArena.js.
 //
 // WHAT IT DRAWS IS WHAT THE 2D DRAWS. TheField hands over the SAME targets
-// it plots (window, PLAYER / TEAM), each already in its lane, at its air
-// yards, with the 2D's jitter, size (YAC) and ink; the SAME zone cells
-// (fieldModel's leak -> heatOf / coolOf) and THE SPOT. Nothing is fetched.
+// it plots (window, PLAYER / TEAM), with the 2D's size (YAC) and ink; the
+// SAME zone cells (fieldModel's leak -> heatOf / coolOf) and THE SPOT; the
+// SAME red-zone touches as its strip. Nothing is fetched.
 //
-// WHAT IT DOES NOT DRAW. The feed gives a target's LANE and AIR YARDS, not the
-// spot it was caught or the ball's flight. A dot sits in its lane at its depth
-// (the 2D's spread inside the lane), and the arc from the line of scrimmage is
-// drawn to that dot -- the caption says it is not a tracked ball flight.
+// WHAT IT DOES NOT DRAW. The feed gives a target's LANE (a third of the field,
+// from FTN charting) and AIR YARDS, not the spot across the field or the
+// ball's flight. So a mark sits at its true depth in one of three FIXED
+// columns of its lane, in game order, stacked when two land together; a line
+// runs flat on the turf from the line of scrimmage (no arc height). A red-zone
+// touch has a distance and no lane: it sits at its yard line on a rail just
+// outside the sideline. The caption says all of it.
 import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
@@ -29,7 +32,7 @@ import { ChartLegend, ChartEmpty } from '../charts'
 // TheField's depth bands, in air yards (the 2D's BANDS)
 const BAND_YD = { behind: [-6, 0], short: [0, 10], mid: [10, 20], deep: [20, 36] }
 
-export default function FieldArena({ dots = [], cells = [], spot = null, onPick = null, title = '', subtitle = '' }) {
+export default function FieldArena({ dots = [], cells = [], spot = null, rz = [], onPick = null, title = '', subtitle = '' }) {
   const mountRef = useRef(null)
   const [ok, setOk] = useState(true)
   const [motion, setMotion] = useState('replay')
@@ -40,7 +43,7 @@ export default function FieldArena({ dots = [], cells = [], spot = null, onPick 
   const orbitRef = useRef(orbit); orbitRef.current = orbit
   const apiRef = useRef({})
   const pickRef = useRef(onPick); pickRef.current = onPick
-  const sig = `${dots.map((d) => `${d.i}${d.ink}${d.res}`).join(',')}|${cells.map((c) => `${c.k}:${c.leak}`).join(',')}|${spot ? spot.L + spot.B.key : ''}`
+  const sig = `${dots.map((d) => `${d.i}${d.ink}${d.res}`).join(',')}|${cells.map((c) => `${c.k}:${c.leak}`).join(',')}|${spot ? spot.L + spot.B.key : ''}|${rz.map((t) => `${t.seed}${t.res}`).join(',')}`
 
   useEffect(() => {
     const mount = mountRef.current
@@ -136,36 +139,59 @@ export default function FieldArena({ dots = [], cells = [], spot = null, onPick 
       m.rotation.x = -Math.PI / 2; m.position.set(0, 0.1, 0); group.add(m)
     }
 
-    // ── the targets: one per play, the 2D's colour rule and size
+    // ── the targets: one per play, the 2D's colour rule and size, in game
+    //    order. Three fixed columns per lane (the lane is known, the spot
+    //    across it is not); two marks at the same depth in a column stack.
     const pickables = [], arcs = []
     const geo = new THREE.SphereGeometry(1, 20, 14)
     const ringGeo = new THREE.RingGeometry(0.72, 1, 24)
-    const order = { inc: 0, int: 0, catch: 1, td: 2 }
-    const sorted = [...dots].sort((a, b) => (order[a.res] - order[b.res]) || (a.i - b.i))
+    const COLS = [-1 / 3, 0, 1 / 3]
+    const inLane = {}, stack = {}
+    const sorted = [...dots].sort((a, b) => (a.wk - b.wk) || (a.i - b.i))
     sorted.forEach((p, n) => {
       const td = p.res === 'td', caught = p.res === 'catch' || td
       const r = 1.6 + (Math.min(25, p.yac || 0) / 25) * 2.2
-      const at = fieldPoint(p.air, p.lane, p.off, 0)
+      const k = (inLane[p.lane] = (inLane[p.lane] || 0) + 1) - 1
+      const col = k % 3
+      const at = fieldPoint(p.air, p.lane, COLS[col], 0)
+      const sk = `${p.lane}${col}${Math.round(at.x / 4)}`
+      const lift = (stack[sk] = (stack[sk] || 0) + 1) - 1
       const ink = new THREE.Color(td ? C.orange : p.ink)
       let mesh
       if (caught) {
         mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: ink, emissive: ink, emissiveIntensity: td ? 2.2 : 0.55 }))
-        mesh.scale.setScalar(r); mesh.position.copy(at).setY(r * 0.9)
+        mesh.scale.setScalar(r); mesh.position.copy(at).setY(r * 0.9 + lift * 3.4)
       } else {
         mesh = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: ink, side: THREE.DoubleSide, transparent: true, opacity: 0.8 }))
-        mesh.scale.setScalar(r); mesh.rotation.x = -Math.PI / 2; mesh.position.copy(at).setY(0.15)
+        mesh.scale.setScalar(r); mesh.rotation.x = -Math.PI / 2; mesh.position.copy(at).setY(0.15 + lift * 3.4)
       }
       mesh.userData.play = p
       group.add(mesh); pickables.push(mesh)
-      // the arc from the line of scrimmage (the middle) to the target
-      const from = V(-1 * YD, 6, 0), to = at.clone().setY(caught ? r : 0.4)
-      const peak = Math.min(40, 4 + from.distanceTo(to) * 0.22)
-      const midP = from.clone().lerp(to, 0.5).setY(Math.max(from.y, to.y) + peak)
-      const curve = new THREE.QuadraticBezierCurve3(from, midP, to)
-      const g = new THREE.BufferGeometry().setFromPoints(curve.getPoints(28))
-      const l = new THREE.Line(g, new THREE.LineBasicMaterial({ color: ink, transparent: true, opacity: td ? 0.8 : caught ? 0.4 : 0.22 }))
+      // a flat line on the turf from the line of scrimmage, down the column
+      const g = new THREE.BufferGeometry().setFromPoints([V(0, 0.12, at.z), V(at.x, 0.12, at.z)])
+      const l = new THREE.Line(g, new THREE.LineBasicMaterial({ color: ink, transparent: true, opacity: td ? 0.75 : caught ? 0.35 : 0.18 }))
       group.add(l); arcs.push({ l, n })
     })
+    // ── the red zone: each touch at its yard line on a rail past the near
+    //    sideline (+z), the strip's touches; the goal line is 65 yd from the LOS
+    const GOAL_YD = 65, RAIL_Z = FIELD_W / 2 + 7
+    {
+      const rail = new THREE.Mesh(new THREE.PlaneGeometry(20 * YD, 6), new THREE.MeshBasicMaterial({ color: new THREE.Color(C.orange), transparent: true, opacity: 0.16, depthWrite: false }))
+      rail.rotation.x = -Math.PI / 2; rail.position.set((GOAL_YD - 10) * YD, 0.1, RAIL_Z); group.add(rail)
+      const at = {}
+      for (const t of rz) {
+        const d = Math.max(0, Math.min(20, Number(t.d) || 0))
+        const x = (GOAL_YD - d) * YD
+        const lift = (at[d] = (at[d] || 0) + 1) - 1
+        // the strip's colour rule (RedZoneField): td orange, catch cream, carry amber, else a hollow ring
+        const ink = { td: C.orange, catch: C.cream, carry: C.amber }[t.res]
+        const m = ink
+          ? new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: new THREE.Color(ink), emissive: new THREE.Color(ink), emissiveIntensity: t.res === 'td' ? 2 : 0.35 }))
+          : new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: new THREE.Color(C.text2), side: THREE.DoubleSide }))
+        if (ink) { m.scale.setScalar(1.5); m.position.set(x, 1.4 + lift * 3, RAIL_Z) } else { m.scale.setScalar(1.5); m.rotation.x = -Math.PI / 2; m.position.set(x, 0.2 + lift * 3, RAIL_Z) }
+        group.add(m)
+      }
+    }
 
     // ── REPLAY: the throws land in order over ~4 s
     let replayT0 = performance.now()
@@ -286,7 +312,7 @@ export default function FieldArena({ dots = [], cells = [], spot = null, onPick 
   })
   const chips = (
     <>
-      <button type="button" style={chipBtn(motion === 'replay', C.green)} onClick={() => { setMotion('replay'); apiRef.current.replay?.() }} title="Land the throws in order">▶ replay</button>
+      <button type="button" style={chipBtn(motion === 'replay', C.green)} onClick={() => { setMotion('replay'); apiRef.current.replay?.() }} title="Draw the targets in game order">▶ replay</button>
       <button type="button" style={chipBtn(motion === 'hold', C.text2)} onClick={() => setMotion('hold')} title="Every throw at once, nothing moving">⏸ hold</button>
       <button type="button" style={chipBtn(orbit, C.cream)} onClick={() => setOrbit((v) => !v)} title="Turn slowly round the field until you grab it">⟳ orbit</button>
     </>
@@ -306,7 +332,7 @@ export default function FieldArena({ dots = [], cells = [], spot = null, onPick 
         { key: 'heat', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, background: `${C.orange}88` }} />, label: 'a zone that gives up more than normal' },
       ]} />
       <div style={{ fontSize: 10, color: C.text3, marginTop: 4, lineHeight: 1.5, fontFamily: NUM_FONT }}>
-        A dot sits in its lane at its air yards — the feed gives the lane, not the spot it was caught, and the arcs are not tracked ball flights. The same {dots.length} target{dots.length === 1 ? '' : 's'} as the field below · drag to orbit · tap a dot for the play
+        A target&apos;s lane is known, its exact spot across the field is not: each sits at its true depth in one of three set columns of its lane, and the lines on the turf are not tracked ball flights. Red-zone touches sit at their yard line on the rail past the sideline (the feed gives the distance, not the lane). The same {dots.length} target{dots.length === 1 ? '' : 's'} as the field below · drag to orbit · tap a dot for the play
       </div>
     </div>
   )
