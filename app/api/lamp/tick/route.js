@@ -36,6 +36,7 @@ import { writeNight as writeNumerology, gradeNight as gradeNumerology, refreshLa
 import { fromNhl } from '../../../../lib/numerology/adapters'
 import { storiesTick } from '../../../../lib/stories/record'
 import { postNhlListOnce } from '../../../../lib/lists/post'
+import { postHardestOnce } from '../../../../lib/nhl/hardestShot'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -243,6 +244,20 @@ export async function GET(request) {
       const players = (num.all || []).filter((r) => dressed.has(String(r.id))).map((r) => ({ player_id: r.id, ...fromNhl(r) }))
       out.hotNumbers = { ...(out.hotNumbers || {}), [d]: players.length ? await writeNumbersNight(db, 'nhl', d, players, hits) : 'no players' }
     } catch (e) { console.error(`[lamp tick] hot numbers ${d}: ${e?.message}`) }
+  }
+
+  // ⚡ THE HARDEST SHOT OF THE NIGHT (BATCH-3D-V2 step 3): once a night's games
+  // are all graded, its fastest MEASURED shot (NHL EDGE's ten-hardest lists),
+  // once. lib/nhl/hardestShot.js; skips everything until its SQL has run.
+  for (const d of [date, dayBefore(date)]) {
+    try {
+      const [games, left] = await Promise.all([
+        db.from('lamp_goal_games').select('game_id', { count: 'exact', head: true }).eq('model_version', MODEL_VERSION).eq('game_date', d),
+        db.from('lamp_goal_games').select('game_id', { count: 'exact', head: true }).eq('model_version', MODEL_VERSION).eq('game_date', d).is('graded_at', null),
+      ])
+      if (games.error || left.error || !games.count || left.count) continue
+      out.hardest = { ...(out.hardest || {}), [d]: await postHardestOnce(db, d) }
+    } catch (e) { console.error(`[lamp tick] hardest ${d}: ${e?.message}`) }
   }
 
   // 🎯 LONGSHOTS (2026-09-27): today only, from 5pm ET, once, when at least
