@@ -21,7 +21,7 @@ const sy = (y) => 42.5 - y
 // circle -- SprayField's lesson: a 1-foot dot is not a thumb target.
 // `view` / `onView` (2026-10-01, BATCH-2D-CORE): the caller can hold the
 // DOTS/HEAT state so its legend (ChartLegend) is built from what is drawn.
-export default function Rink({ map, slot, gridSpec, height = 300, shots = null, onPick = null, onPickCell = null, picked = null, view: viewProp = null, onView = null }) {
+export default function Rink({ map, slot, gridSpec, height = 300, shots = null, onPick = null, onPickCell = null, picked = null, view: viewProp = null, onView = null, extraView = null }) {
   const clipId = `rink-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`
   const [viewOwn, setViewOwn] = useState('dots')
   const view = viewProp || viewOwn
@@ -40,6 +40,8 @@ export default function Rink({ map, slot, gridSpec, height = 300, shots = null, 
             {v.toUpperCase()}
           </button>
         ))}
+        {/* the caller's extra view (ShotPanel's 🏟 ARENA, BATCH-NHL-3D) */}
+        {extraView}
       </div>
       <svg viewBox={`-1 -1 ${W + 2} ${H + 2}`} role="img" aria-label={`Shot map: ${map.attempts} attempts, ${map.goals} goals`}
         style={{ height, width: 'auto', maxWidth: '100%', display: 'block' }}>

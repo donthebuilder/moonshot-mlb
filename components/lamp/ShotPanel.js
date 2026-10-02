@@ -1,6 +1,10 @@
 'use client'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Rink from './Rink'
+import dynamic from 'next/dynamic'
+import { webglOk } from '../../lib/webglOk'
+// 🏟 the arena rides in on demand -- three.js is ~600KB (BATCH-NHL-3D)
+const RinkArena = dynamic(() => import('./RinkArena'), { ssr: false })
 import { C, NUM_FONT } from '../../lib/nhl/theme'
 import { useLampShots } from '../../lib/nhl/useLamp'
 import { DelayedBanner, Loading, Pills } from './ui'
@@ -67,6 +71,9 @@ export default function ShotPanel({ sel, who = 'He', height = 300 }) {
   const [picked, setPicked] = useState(null)
   const [help, setHelp] = useState(false)
   const [view, setView] = useState('dots')   // DOTS / HEAT, held here so the legend reads what is drawn
+  const [arena, setArena] = useState(false)  // 🏟 the 3D arena, open beside the 2D
+  const [gl, setGl] = useState(false)
+  useEffect(() => { setGl(webglOk()) }, [])
   const m = data?.[win]
   const recent = m?.recent || []
   const pass = (sh, skip) => (skip === 'res' || res === 'ALL' || sh[2] === res)
@@ -126,8 +133,24 @@ export default function ShotPanel({ sel, who = 'He', height = 300 }) {
               as SprayField's lane bars (share + goals, like LF/CF/RF + HR),
               the colour key in one line, the numbers, and the fine print
               behind "how to read this". */}
+          {/* THE ARENA (BATCH-NHL-3D): the same filtered shots, in the building.
+              Opens above the card; the 2D rink and its readout stay, so a
+              tapped puck fills the same detail card. */}
+          {arena && gl && (
+            <RinkArena shots={view === 'heat' ? [] : shots} map={m} slot={data.slot} gridSpec={data.gridSpec} view={view}
+              title={sel?.name || sel?.team || sel?.against || ''} subtitle={`${shots.length} of the last ${recent.length} attempts`}
+              onPick={(sh) => setPicked(sh)} onPickCell={(cell) => setPicked({ cell })} />
+          )}
           <ChartCard theme={C}>
             <Rink map={m} slot={data.slot} gridSpec={data.gridSpec} height={height} shots={shots} view={view} onView={setView}
+              extraView={gl ? (
+                <button type="button" onClick={() => setArena((v) => !v)} aria-pressed={arena}
+                  title={arena ? 'Close the 3D arena' : 'The same shots, in the arena, in 3D'}
+                  style={{ padding: '4px 10px', borderRadius: 7, cursor: 'pointer', font: `800 9px/1 ${NUM_FONT}`, letterSpacing: '.08em',
+                    border: `1px solid ${arena ? C.ice : C.border2}`, background: arena ? `${C.ice}1f` : 'transparent', color: arena ? C.ice : C.text3 }}>
+                  🏟 ARENA
+                </button>
+              ) : null}
               onPick={(sh) => setPicked(sh === picked ? null : sh)} picked={picked}
               onPickCell={(cell) => setPicked({ cell })} />
             <div style={{ flex: 1, minWidth: 180 }}>
