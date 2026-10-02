@@ -69,6 +69,7 @@ import { postMlbListOnce } from '../../../../../lib/lists/post'
 import { adminClient } from '../../../../../lib/supabase/admin'
 import { claimSlot as sharedClaimSlot, bytesOf as sharedBytesOf } from '../../../../../lib/dash/postClaim'
 import { ordinal } from '../../../../../lib/format'
+import { postMembers, membersWebhook, MEMBERS_KINDS, mlbMembersBoard, mlbMembersGrade } from '../../../../../lib/dash/membersPost'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -1086,6 +1087,19 @@ export async function GET(request) {
   // (homer_feed_posts.payload.picks) -- no new table, just a read-back one
   // day later. Deliberately placed before the no-games early return below:
   // an off day for TODAY is not a reason to skip grading YESTERDAY.
+  // 🔒 MEMBERS GRADE (BATCH-MEMBERS-PLAN M3): last night's members board against
+  // last night's homers, the next morning, #members only. Same read-back as the
+  // accountability post below; nothing runs until DISCORD_MEMBERS_WEBHOOK is set.
+  if (membersWebhook() && etHoursSinceNoon() >= ACCOUNTABILITY_HOUR) {
+    const yday = shiftDay(day, -1)
+    await postMembers(db, { day: yday, kind: MEMBERS_KINDS.mlbGrade, build: async () => {
+      const { data: board } = await db.from('homer_feed_posts').select('payload').match({ day: yday, kind: MEMBERS_KINDS.mlbBoard }).maybeSingle()
+      if (!board?.payload?.picks?.length) return null
+      const { data: yHits } = await db.from('homer_feed').select('player_id').eq('day', yday)
+      return mlbMembersGrade({ board: board.payload, events: yHits || [] })
+    } }).catch((e) => console.error(`[homers] members grade: ${e?.message}`))
+  }
+
   if (etHoursSinceNoon() >= ACCOUNTABILITY_HOUR) {
     const yday = shiftDay(day, -1)
     const acctClaim = await claimSlot(db, yday, 'accountability')
@@ -1883,6 +1897,13 @@ export async function GET(request) {
       // the `!pregameLockReady` path), which would 500 the whole tick route
       // the moment either branch ran. `let` here, assigned inside the branch
       // that actually has picks, empty otherwise.
+      // 🔒 MEMBERS BOARD (BATCH-MEMBERS-PLAN M3): tonight's top of the HR board at
+      // the same lock the pregame call waits for, #members only. Its own claim,
+      // so it posts once whatever the public call does.
+      if (pregameLockReady && membersWebhook()) {
+        await postMembers(db, { day, kind: MEMBERS_KINDS.mlbBoard, build: async () => mlbMembersBoard({ rows: boardRows(), day }) })
+          .catch((e) => console.error(`[homers] members board: ${e?.message}`))
+      }
       let picks = []
       if (!pregameLockReady) {
         if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: 'waiting-for-lock-window', statErrors, discordErrors: discordFailuresSnapshot() })

@@ -88,6 +88,8 @@ import { storiesTick } from '../../../../../lib/stories/record'
 import { postNflListOnce } from '../../../../../lib/lists/post'
 import { adminClient } from '../../../../../lib/supabase/admin'
 import { claimSlot as sharedClaimSlot, bytesOf as sharedBytesOf } from '../../../../../lib/dash/postClaim'
+import { postMembers, membersWebhook, MEMBERS_KINDS, nflMembersBoard, nflMembersGrade } from '../../../../../lib/dash/membersPost'
+import { readNflEvents } from '../../../../../lib/record/nfl'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -758,6 +760,33 @@ async function runNflNumerology(db, day) {
   return out
 }
 
+const SUN_MEMBERS_HOUR = -3   //  9am ET Sunday: the board, before the 1pm wave
+const MON_MEMBERS_HOUR = -2   // 10am ET Monday: the grade (Monday night marked still to play)
+async function runNflMembers(db, day) {
+  if (!membersWebhook()) return 'no-members-webhook'
+  const wd = etWeekday(day)
+  if (wd === 0 && etHoursSinceNoon() >= SUN_MEMBERS_HOUR) {
+    return postMembers(db, { day, kind: MEMBERS_KINDS.nflBoard, build: async () => {
+      const [data, picks, gameCalls] = await Promise.all([
+        fetchNfl(nflSlatePaths(), nflSlateLooksReal).catch(() => null),
+        fetchNfl(nflPicksPaths(), nflPicksLooksReal).catch(() => null),
+        fetchNfl(nflGameCallsPaths()).catch(() => null),
+      ])
+      return data ? nflMembersBoard({ data, picksCard: picks?.card || null, gameCalls }) : null
+    } })
+  }
+  if (wd === 1 && etHoursSinceNoon() >= MON_MEMBERS_HOUR) {
+    return postMembers(db, { day, kind: MEMBERS_KINDS.nflGrade, build: async () => {
+      const { data: board } = await db.from('homer_feed_posts').select('payload').match({ day: shiftDay(day, -1), kind: MEMBERS_KINDS.nflBoard }).maybeSingle()
+      if (!board?.payload?.picks?.length) return null
+      // the week's touchdowns: Thursday through today
+      const { events } = await readNflEvents(db, { since: shiftDay(day, -4), until: day })
+      return nflMembersGrade({ board: board.payload, events })
+    } })
+  }
+  return 'not-now'
+}
+
 export async function GET(request) {
   if (!authorized(request)) return Response.json({ error: 'Unauthorized' }, { status: 401 })
   if (await isMaintenanceMode()) return Response.json({ skipped: 'maintenance_mode' })
@@ -790,11 +819,16 @@ export async function GET(request) {
     ? await postNflListOnce(db, day).catch((e) => `error: ${e?.message}`)
     : 'not-now'
 
+  // 🔒 MEMBERS (BATCH-MEMBERS-PLAN M3): the week's board Sunday from 9am ET and
+  // its grade Monday from 10am ET, to the private #members channel only
+  // (lib/dash/membersPost.js). Nothing runs until DISCORD_MEMBERS_WEBHOOK is set.
+  const members = await runNflMembers(db, day).catch((e) => `error: ${e?.message}`)
+
   const numerology = await runNflNumerology(db, day)
   // 📰 STORYLINES (BATCH-STORYLINES-PAGE step 3): freeze each game's stories in
   // the 15 minutes before kickoff, grade them once final. Never throws.
   const storylines = await storiesTick(db, 'nfl')
 
   const threads = threadsSnapshot()
-  return Response.json({ day, td, milestone, weekly, longshots, multiClub, lists, numerology, storylines, ...(threads.length ? { threads } : {}) })
+  return Response.json({ day, td, milestone, weekly, longshots, multiClub, lists, members, numerology, storylines, ...(threads.length ? { threads } : {}) })
 }

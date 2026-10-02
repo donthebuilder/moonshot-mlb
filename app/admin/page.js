@@ -17,6 +17,7 @@ import { easternToday } from '../../lib/data'
 import { isAdminEmail } from '../../lib/admin'
 import start from '../start/start.module.css'
 import { adminClient } from '../../lib/supabase/admin'
+import { MEMBERS_KINDS } from '../../lib/dash/membersPost'
 
 export const dynamic = 'force-dynamic'
 // The title is computed, not static: a static one rides the 404's payload
@@ -99,6 +100,10 @@ async function readCounts() {
   const x = await logXBudget(db, day, { mode: 'admin', cap: Number.MAX_SAFE_INTEGER })
   const per = Number(process.env.X_COST_PER_POST)
   out.x = x ? { used: x.used, cap: cap || null, cost: Number.isFinite(per) && per > 0 ? x.used * per : null, per: Number.isFinite(per) && per > 0 ? per : null } : null
+  // Members (M4): the last members-only post, if any has gone out
+  const { data: lastMember } = await db.from('homer_feed_posts').select('day,kind,discord_sent')
+    .in('kind', Object.values(MEMBERS_KINDS)).order('day', { ascending: false }).limit(1)
+  out.membersLast = lastMember?.[0] || null
   return out
 }
 
@@ -162,6 +167,15 @@ export default async function AdminPage() {
           <Line k="Posts this month" v={c.x.cap ? `${c.x.used} / ${c.x.cap}` : c.x.used} src="lib/dash/xBudget.js logXBudget: homer_feed + homer_feed_posts + nfl_td_feed rows with an X post id" />
           <Line k="Estimated cost" v={c.x.cost != null ? `$${c.x.cost.toFixed(2)}` : null} src={c.x.per != null ? `posts × X_COST_PER_POST ($${c.x.per})` : 'X_COST_PER_POST is not set'} />
         </> : <p>X count unavailable.</p>}
+
+        {/* MEMBERS (BATCH-MEMBERS-PLAN M4): Whop holds the count -- a link, not an
+            integration built for one number. The two settings say set / not set,
+            never their values. */}
+        <h2 className={start.kicker} style={{ marginTop: 18 }}>Members</h2>
+        <Line k="Founding members" v={<a href="https://whop.com/dashboard" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit' }}>Whop →</a>} src="counted in the Whop dashboard (the $5 founders product)" />
+        <Line k="Checkout link" v={process.env.NEXT_PUBLIC_MEMBERS_URL ? 'set' : 'not set'} src="NEXT_PUBLIC_MEMBERS_URL (Vercel) -- the members line on /start and /called shows only when set" />
+        <Line k="#members webhook" v={process.env.DISCORD_MEMBERS_WEBHOOK ? 'wired' : 'not wired'} src="DISCORD_MEMBERS_WEBHOOK (Vercel) -- no members post runs until it is" />
+        <Line k="Last members post" v={c.membersLast ? `${c.membersLast.day}` : 'none yet'} src={c.membersLast ? `${c.membersLast.kind}${c.membersLast.discord_sent ? ' · sent to Discord' : ' · claimed, not sent'}` : 'homer_feed_posts, kinds *_members_board / *_members_grade'} />
 
         <h2 className={start.kicker} style={{ marginTop: 18 }}>Waitlist</h2>
         <Line k="DASH Pro waitlist" v="—" src="not built (no waitlist exists yet)" />
