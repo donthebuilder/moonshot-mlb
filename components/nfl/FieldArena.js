@@ -1,51 +1,93 @@
 'use client'
-// 🏟 THE STADIUM (2026-10-01, BATCH-NFL-3D). Donovan: "I want the NHL and NFL
-// to do the same thing MLB did — have a 3D map." TUDDY's Field, under the
-// lights: the field in lib/fieldWorld.js, the open bowl in lib/arena.js
-// buildArenaRect, MOONSHOT's look (lib/stadiumLook makeComposer) and shell
-// (components/charts/StadiumShell). The twin of components/lamp/RinkArena.js.
-//
-// WHAT IT DRAWS IS WHAT THE 2D DRAWS. TheField hands over the SAME targets
-// it plots (window, PLAYER / TEAM), with the 2D's size (YAC) and ink; the
-// SAME zone cells (fieldModel's leak -> heatOf / coolOf) and THE SPOT; the
-// SAME red-zone touches as its strip. Nothing is fetched.
-//
-// WHAT IT DOES NOT DRAW. The feed gives a target's LANE (a third of the field,
-// the play-by-play's pass_location) and AIR YARDS, not the spot across the field or the
-// ball's flight. So a mark sits at its true depth in one of three FIXED
-// columns of its lane, in game order, stacked when two land together; a line
-// runs flat on the turf from the line of scrimmage (no arc height). A red-zone
-// touch has a distance and no lane: it sits at its yard line on a rail just
-// outside the sideline. The caption says all of it.
+// 🏟 THE STADIUM (2026-10-01 BATCH-NFL-3D; rebuilt 2026-10-02 BATCH-3D-V2 step 2).
+// Donovan on the first one: "I hate it" -- a bright daytime field, a pile of
+// coloured spheres, towers of stacked balls, a big white ring: not the 2D Field
+// he likes, and not part of the site. This is THAT chart, laid in a stadium at
+// night:
+//   a  NIGHT, LIKE MOONSHOT: near-black turf (FIELD3D), MOONSHOT's look
+//      (lib/stadiumLook makeComposer), the bowl's light, fog.
+//   b  THE TURF IS THE 2D CHART: TheField lends its own SVG (minus the dots) and
+//      it is drawn onto the turf, cropped to the three lanes x the drawn depth --
+//      the lane lines, the LINE, the yard numbers, the halftone zone ink, THE
+//      SPOT, the "thin" tags. Same picture, so the 2D and 3D cannot disagree.
+//   c  DOTS LIKE THE 2D: flat discs on the turf, the same colours (hollow =
+//      incomplete, orange = touchdown), placed by the 2D's own functions
+//      (lib/nfl/fieldPlace.js acrossOf / dotRadiusPx). No stacking; a target past
+//      the drawn depth clamps to the edge, as in 2D.
+//   d  Lines from the line of scrimmage are OFF by default (a chip), flat.
+//   e  ZONES (a chip, off by default): each zone's targets rise as a short
+//      column, height = the real count there. Donovan judges it from the preview.
+//   f  The spray chart's dock with the 2D panel's numbers, its name plate, film
+//      and hover readout. Tap a dot -> the same play card the 2D opens.
+//   g  Presets stay; TOP looks straight down on the same picture as the 2D.
+// WHAT IT DOES NOT DRAW: the ball's flight or the exact spot across the lane --
+// the feed gives the lane and the air yards. The caption says so.
 import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { C, NUM_FONT, FIELD3D } from '../../lib/nfl/theme'
-import { buildField, fieldPoint, FIELD_L, FIELD_W, LANE_W, YD } from '../../lib/fieldWorld'
+import { buildField, FIELD_L, FIELD_W, LANE_W, YD } from '../../lib/fieldWorld'
 import { buildArenaRect } from '../../lib/arena'
 import { heatOf, coolOf } from '../../lib/nfl/fieldModel'
+import { acrossOf, clampAir, LANES3 } from '../../lib/nfl/fieldPlace'
 import { makeComposer, isCoarse } from '../../lib/stadiumLook'
 import { webglOk } from '../../lib/webglOk'
+import { labelSprite } from '../../lib/three/sprites'
 import StadiumShell from '../charts/StadiumShell'
+import StadiumDock from '../charts/stadium/StadiumDock'
 import LowerThird from '../charts/stadium/LowerThird'
 import FilmOverlay from '../charts/stadium/FilmOverlay'
+import HoverReadout, { placeTip } from '../charts/stadium/HoverReadout'
 import { ChartLegend, ChartEmpty } from '../charts'
 
 // TheField's depth bands, in air yards (the 2D's BANDS)
 const BAND_YD = { behind: [-6, 0], short: [0, 10], mid: [10, 20], deep: [20, 36] }
+const bandOf = (air) => (air < 0 ? 'behind' : air < 10 ? 'short' : air < 20 ? 'mid' : 'deep')
+const AIR_TOP = 36, AIR_BOT = -6
+/** across 0..1 + air yards -> the world (x downfield from the LOS, z across, left = -z) */
+const at = (u, air, h = 0) => new THREE.Vector3(clampAir(air) * YD, h, -FIELD_W / 2 + u * FIELD_W)
 
-export default function FieldArena({ dots = [], cells = [], spot = null, rz = [], onPick = null, title = '', subtitle = '' }) {
+// The 2D SVG, minus its dots, as an image -- the turf's texture (b).
+function inkTexture(svg, box) {
+  return new Promise((resolve) => {
+    if (!svg || !box) { resolve(null); return }
+    const clone = svg.cloneNode(true)
+    clone.querySelectorAll('[data-layer="dots"]').forEach((n) => n.remove())
+    clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
+    const S = 2
+    clone.setAttribute('width', String(box.W * S)); clone.setAttribute('height', String(box.H * S))
+    const url = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(new XMLSerializer().serializeToString(clone))}`
+    const img = new Image()
+    img.onload = () => {
+      // crop to the three lanes x the drawn depth
+      const cw = Math.round((box.cx1 - box.cx0) * S), ch = Math.round((box.yBot - box.yTop) * S)
+      const cv = document.createElement('canvas'); cv.width = cw; cv.height = ch
+      cv.getContext('2d').drawImage(img, box.cx0 * S, box.yTop * S, cw, ch, 0, 0, cw, ch)
+      const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8
+      resolve(t)
+    }
+    img.onerror = () => resolve(null)
+    img.src = url
+  })
+}
+
+export default function FieldArena({ dots = [], cells = [], spot = null, rz = [], onPick = null, title = '', subtitle = '', inkSvg = null, inkBox = null, stats = null }) {
   const mountRef = useRef(null)
+  const tipRef = useRef(null)
   const [ok, setOk] = useState(true)
-  const [motion, setMotion] = useState('replay')
+  const [lines, setLines] = useState(false)      // d: off by default
+  const [zones, setZones] = useState(false)      // e: off by default
   const [orbit, setOrbit] = useState(false)
   const [full, setFull] = useState(false)
   const [preset, setPreset] = useState('endzone')
-  const motionRef = useRef(motion); motionRef.current = motion
+  const [dockOpen, setDockOpen] = useState(true)
+  const [narrowBox, setNarrowBox] = useState(false)
+  useEffect(() => { if (typeof window !== 'undefined' && window.innerWidth < 640) { setNarrowBox(true); setDockOpen(false) } }, [])
   const orbitRef = useRef(orbit); orbitRef.current = orbit
   const apiRef = useRef({})
   const pickRef = useRef(onPick); pickRef.current = onPick
-  const sig = `${dots.map((d) => `${d.i}${d.ink}${d.res}`).join(',')}|${cells.map((c) => `${c.k}:${c.leak}`).join(',')}|${spot ? spot.L + spot.B.key : ''}|${rz.map((t) => `${t.seed}${t.res}`).join(',')}`
+  const inkRef = useRef({ inkSvg, inkBox }); inkRef.current = { inkSvg, inkBox }
+  const sig = `${dots.map((d) => `${d.i}${d.ink}${d.res}`).join(',')}|${cells.map((c) => `${c.k}:${c.leak}`).join(',')}|${spot ? spot.L + spot.B.key : ''}|${rz.map((t) => `${t.seed}${t.res}`).join(',')}|${lines}|${zones}`
 
   useEffect(() => {
     const mount = mountRef.current
@@ -54,19 +96,16 @@ export default function FieldArena({ dots = [], cells = [], spot = null, rz = []
     const boxH = (w) => (full ? Math.max(240, mount.clientHeight || Math.round(window.innerHeight * 0.7)) : Math.max(340, Math.round(w * 0.6)))
     const W = mount.clientWidth || 640
     const H = boxH(W)
+    let alive = true
 
     const scene = new THREE.Scene()
     scene.background = new THREE.Color(FIELD3D.sky)
-    scene.fog = new THREE.Fog(new THREE.Color(FIELD3D.sky), 700, 1500)
+    scene.fog = new THREE.Fog(new THREE.Color(FIELD3D.sky), 520, 1300)
     const { mid } = buildField(scene)
-    // the bowl round the whole field (the 'rect' footprint, open to the night)
     const bowl = new THREE.Group(); scene.add(bowl)
     buildArenaRect(bowl, { w: FIELD_W + 40, l: FIELD_L + 40, cornerR: 30, roof: false, colors: { seat: FIELD3D.seat, fascia: FIELD3D.fascia } })
     bowl.position.x = mid
 
-    // ── the camera: END ZONE opens -- behind the offence, looking downfield,
-    //    left lane on the left, exactly as the 2D reads
-    const target = new THREE.Vector3(16 * YD, 0, 0)
     const camera = new THREE.PerspectiveCamera(42, W / H, 1, 4000)
     const narrow = W / H < 1.15
     const renderer = new THREE.WebGLRenderer({ antialias: true })
@@ -88,16 +127,13 @@ export default function FieldArena({ dots = [], cells = [], spot = null, rz = []
       endzone: () => [V(-24 * YD, narrow ? 120 : 84, 0.01), V(14 * YD, 0, 0)],
       sideline: () => [V(15 * YD, 70, FIELD_W / 2 + 120), V(15 * YD, 0, 0)],
       all22: () => [V(-8 * YD, 230, 0.01), V(16 * YD, 0, 0)],
-      top: () => [V(15 * YD, narrow ? 330 : 250, 0.01), V(15 * YD, 0, 0)],
+      // straight down on the drawn span (-6..36 yd), the 2D chart's frame
+      // the camera a few feet behind its target, so 'up' on screen is downfield --
+      // deep at the top, left lane on the left, exactly the 2D chart's frame
+      top: () => [V(15 * YD - 6, narrow ? 300 : 210, 0), V(15 * YD, 0, 0)],
     }
-    {
-      const [p, t] = SHOTS.endzone()
-      camera.position.copy(p); controls.target.copy(t); target.copy(t)
-    }
+    { const [p, t] = SHOTS.endzone(); camera.position.copy(p); controls.target.copy(t) }
 
-    // ── IN THE BOWL'S AIR, OUT OF ITS SEATS. Past the sideline the decks rise;
-    //    the camera's floor rises with its distance outside the field, so it
-    //    looks down over the rail. Never under the turf, never into the night.
     const hx = FIELD_L / 2, hz = FIELD_W / 2
     const outside = (p) => Math.hypot(Math.max(0, Math.abs(p.x - mid) - hx), Math.max(0, Math.abs(p.z) - hz))
     const _off = new THREE.Vector3()
@@ -115,93 +151,86 @@ export default function FieldArena({ dots = [], cells = [], spot = null, rz = []
       camera.position.copy(controls.target).add(_off)
     }
 
-    // ── the zones: the 2D's ink as tiles on the turf
     const group = new THREE.Group(); scene.add(group)
-    const LANES = ['L', 'M', 'R']
-    for (const c of cells) {
-      if (c.leak == null) continue
-      const h = heatOf(c.leak), cl = coolOf(c.leak)
-      if (h < 0.12 && cl < 0.12) continue
-      const [y0, y1] = BAND_YD[c.B.key] || [0, 0]
-      const m = new THREE.Mesh(new THREE.PlaneGeometry((y1 - y0) * YD - 1.2, LANE_W - 1.2),
-        new THREE.MeshBasicMaterial({ color: new THREE.Color(h >= 0.12 ? C.orange : C.cyan), transparent: true, opacity: h >= 0.12 ? 0.08 + h * 0.26 : 0.06 + cl * 0.18, depthWrite: false }))
-      m.rotation.x = -Math.PI / 2
-      m.position.copy(fieldPoint((y0 + y1) / 2, c.L, 0, 0.08))
-      group.add(m)
-    }
-    if (spot && LANES.includes(spot.L)) {
-      const [y0, y1] = BAND_YD[spot.B.key] || [0, 0]
-      const rr = Math.min(LANE_W, (y1 - y0) * YD) * 0.42
-      const ring = new THREE.Mesh(new THREE.RingGeometry(rr - 1, rr, 64), new THREE.MeshBasicMaterial({ color: new THREE.Color(C.text), transparent: true, opacity: 0.9, depthWrite: false, side: THREE.DoubleSide }))
-      ring.rotation.x = -Math.PI / 2; ring.position.copy(fieldPoint((y0 + y1) / 2, spot.L, 0, 0.12)); group.add(ring)
-    }
-    // the line of scrimmage, in the 2D's ice
+    // ── b: THE TURF IS THE 2D CHART -- four explicit corners, each tied to its
+    //    corner of the cropped picture (deep at the top, left lane on the left)
     {
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(0.9, FIELD_W), new THREE.MeshBasicMaterial({ color: new THREE.Color(C.ice), transparent: true, opacity: 0.85 }))
-      m.rotation.x = -Math.PI / 2; m.position.set(0, 0.1, 0); group.add(m)
+      const g = new THREE.BufferGeometry()
+      const x0 = AIR_BOT * YD, x1 = AIR_TOP * YD, z0 = -FIELD_W / 2, z1 = FIELD_W / 2
+      g.setAttribute('position', new THREE.Float32BufferAttribute([x1, 0.05, z0, x1, 0.05, z1, x0, 0.05, z0, x0, 0.05, z1], 3))
+      g.setAttribute('uv', new THREE.Float32BufferAttribute([0, 1, 1, 1, 0, 0, 1, 0], 2))
+      g.setIndex([0, 2, 1, 1, 2, 3])
+      const mat = new THREE.MeshBasicMaterial({ color: new THREE.Color(FIELD3D.turf), side: THREE.DoubleSide, toneMapped: false })
+      const plate = new THREE.Mesh(g, mat)
+      group.add(plate)
+      const { inkSvg: getSvg, inkBox: box } = inkRef.current
+      inkTexture(getSvg?.(), box).then((tex) => {
+        if (!alive) { tex?.dispose(); return }
+        if (tex) { mat.map = tex; mat.color.setRGB(1, 1, 1); mat.needsUpdate = true }
+      })
     }
 
-    // ── the targets: one per play, the 2D's colour rule and size, in game
-    //    order. Three fixed columns per lane (the lane is known, the spot
-    //    across it is not); two marks at the same depth in a column stack.
-    const pickables = [], arcs = []
-    const geo = new THREE.SphereGeometry(1, 20, 14)
-    const ringGeo = new THREE.RingGeometry(0.72, 1, 24)
-    const COLS = [-1 / 3, 0, 1 / 3]
-    const inLane = {}, stack = {}
-    const sorted = [...dots].sort((a, b) => (a.wk - b.wk) || (a.i - b.i))
+    // ── c: THE TARGETS, flat discs in the 2D's spots, size and ink
+    const ftPerPx = inkRef.current.inkBox?.pxPerFt ? 1 / inkRef.current.inkBox.pxPerFt : 0.42
+    const pickables = [], lineObjs = []
+    const disc = new THREE.CircleGeometry(1, 28)
+    const ring = new THREE.RingGeometry(0.72, 1, 28)
+    const edge = new THREE.RingGeometry(1, 1.16, 28)
+    const order = { inc: 0, int: 0, catch: 1, td: 2 }
+    const sorted = [...dots].sort((a, b) => (order[a.res] - order[b.res]) || (a.i - b.i))
     sorted.forEach((p, n) => {
       const td = p.res === 'td', caught = p.res === 'catch' || td
-      const r = 1.6 + (Math.min(25, p.yac || 0) / 25) * 2.2
-      const k = (inLane[p.lane] = (inLane[p.lane] || 0) + 1) - 1
-      const col = k % 3
-      const at = fieldPoint(p.air, p.lane, COLS[col], 0)
-      const sk = `${p.lane}${col}${Math.round(at.x / 4)}`
-      const lift = (stack[sk] = (stack[sk] || 0) + 1) - 1
+      const r = (p.rPx || 5) * ftPerPx
+      const pos = at(acrossOf(p), p.air, 0.14 + (n % 7) * 0.004)
       const ink = new THREE.Color(td ? C.orange : p.ink)
-      let mesh
-      if (caught) {
-        mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: ink, emissive: ink, emissiveIntensity: td ? 2.2 : 0.55 }))
-        mesh.scale.setScalar(r); mesh.position.copy(at).setY(r * 0.9 + lift * 3.4)
-      } else {
-        mesh = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: ink, side: THREE.DoubleSide, transparent: true, opacity: 0.8 }))
-        mesh.scale.setScalar(r); mesh.rotation.x = -Math.PI / 2; mesh.position.copy(at).setY(0.15 + lift * 3.4)
+      const mark = new THREE.Group(); mark.position.copy(pos)
+      const flat = (geo, mat) => { const m = new THREE.Mesh(geo, mat); m.rotation.x = -Math.PI / 2; mark.add(m); return m }
+      if (caught) flat(disc, new THREE.MeshBasicMaterial({ color: ink, toneMapped: false, transparent: true, opacity: 0.92 }))
+      else flat(ring, new THREE.MeshBasicMaterial({ color: ink, side: THREE.DoubleSide, transparent: true, opacity: 0.9 }))
+      // a touchdown keeps a cream edge so it never melts into the orange ink, and a soft glow
+      if (td) { flat(edge, new THREE.MeshBasicMaterial({ color: new THREE.Color(C.cream), side: THREE.DoubleSide })); const glow = flat(disc, new THREE.MeshBasicMaterial({ color: ink, transparent: true, opacity: 0.25, depthWrite: false })); glow.scale.setScalar(1.7); glow.position.y = -0.02 }
+      mark.scale.setScalar(r)
+      mark.userData.play = p
+      group.add(mark); pickables.push(mark)
+      // d: a flat line from the line of scrimmage, off by default
+      if (lines) {
+        const lg = new THREE.BufferGeometry().setFromPoints([V(0, 0.1, pos.z), V(pos.x, 0.1, pos.z)])
+        const l = new THREE.Line(lg, new THREE.LineBasicMaterial({ color: ink, transparent: true, opacity: td ? 0.7 : caught ? 0.35 : 0.18 }))
+        group.add(l); lineObjs.push(l)
       }
-      mesh.userData.play = p
-      group.add(mesh); pickables.push(mesh)
-      // a flat line on the turf from the line of scrimmage, down the column
-      const g = new THREE.BufferGeometry().setFromPoints([V(0, 0.12, at.z), V(at.x, 0.12, at.z)])
-      const l = new THREE.Line(g, new THREE.LineBasicMaterial({ color: ink, transparent: true, opacity: td ? 0.75 : caught ? 0.35 : 0.18 }))
-      group.add(l); arcs.push({ l, n })
     })
-    // ── the red zone: each touch at its yard line on a rail past the near
-    //    sideline (+z), the strip's touches; the goal line is 65 yd from the LOS
+    // ── e: ZONES -- each zone's targets as a short column, height = the real count
+    if (zones) {
+      const cnt = {}
+      for (const p of dots) { const k = `${p.lane}|${bandOf(clampAir(p.air))}`; cnt[k] = (cnt[k] || 0) + 1 }
+      const max = Math.max(1, ...Object.values(cnt))
+      for (const L of LANES3) for (const B of Object.keys(BAND_YD)) {
+        const n = cnt[`${L}|${B}`] || 0
+        if (!n) continue
+        const c = cells.find((x) => x.L === L && x.B?.key === B)
+        const h = heatOf(c?.leak), cl = coolOf(c?.leak)
+        const [y0, y1] = BAND_YD[B]
+        const ht = 4 + (36 * n) / max
+        const box = new THREE.Mesh(new THREE.BoxGeometry((y1 - y0) * YD - 4, ht, LANE_W - 6),
+          // the zone's own ink colour; a zone with no ink stays dim so the columns never hide the turf
+          new THREE.MeshBasicMaterial({ color: new THREE.Color(h >= 0.12 ? C.orange : cl >= 0.12 ? C.cyan : C.text3), transparent: true, opacity: h >= 0.12 || cl >= 0.12 ? 0.42 : 0.16, depthWrite: false }))
+        box.position.copy(at((LANES3.indexOf(L) + 0.5) / 3, (y0 + y1) / 2, ht / 2))
+        group.add(box)
+        const lab = labelSprite(String(n), C.text); lab.position.copy(at((LANES3.indexOf(L) + 0.5) / 3, (y0 + y1) / 2, ht + 5)); lab.scale.multiplyScalar(0.9); group.add(lab)
+      }
+    }
+    // the red zone: each touch at its yard line on a rail past the near sideline
     const GOAL_YD = 65, RAIL_Z = FIELD_W / 2 + 7
     {
       const rail = new THREE.Mesh(new THREE.PlaneGeometry(20 * YD, 6), new THREE.MeshBasicMaterial({ color: new THREE.Color(C.orange), transparent: true, opacity: 0.16, depthWrite: false }))
       rail.rotation.x = -Math.PI / 2; rail.position.set((GOAL_YD - 10) * YD, 0.1, RAIL_Z); group.add(rail)
-      const at = {}
       for (const t of rz) {
         const d = Math.max(0, Math.min(20, Number(t.d) || 0))
-        const x = (GOAL_YD - d) * YD
-        const lift = (at[d] = (at[d] || 0) + 1) - 1
-        // the strip's colour rule (RedZoneField): td orange, catch cream, carry amber, else a hollow ring
         const ink = { td: C.orange, catch: C.cream, carry: C.amber }[t.res]
-        const m = ink
-          ? new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: new THREE.Color(ink), emissive: new THREE.Color(ink), emissiveIntensity: t.res === 'td' ? 2 : 0.35 }))
-          : new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: new THREE.Color(C.text2), side: THREE.DoubleSide }))
-        if (ink) { m.scale.setScalar(1.5); m.position.set(x, 1.4 + lift * 3, RAIL_Z) } else { m.scale.setScalar(1.5); m.rotation.x = -Math.PI / 2; m.position.set(x, 0.2 + lift * 3, RAIL_Z) }
+        const m = new THREE.Mesh(ink ? disc : ring, new THREE.MeshBasicMaterial({ color: new THREE.Color(ink || C.text2), side: THREE.DoubleSide }))
+        m.rotation.x = -Math.PI / 2; m.scale.setScalar(1.6); m.position.set((GOAL_YD - d) * YD, 0.18, RAIL_Z)
         group.add(m)
       }
-    }
-
-    // ── REPLAY: the throws land in order over ~4 s
-    let replayT0 = performance.now()
-    apiRef.current.replay = () => { replayT0 = performance.now() }
-    const stepReplay = (t) => {
-      const k = motionRef.current === 'hold' ? 1 : Math.min(1, (t - replayT0) / 4000)
-      const shown = Math.ceil(k * arcs.length)
-      arcs.forEach(({ l, n }) => { l.visible = n < shown })
     }
 
     let anim = null
@@ -214,8 +243,6 @@ export default function FieldArena({ dots = [], cells = [], spot = null, rz = []
       const sph = new THREE.Spherical(controls.minDistance + distK * (controls.maxDistance - controls.minDistance), Math.max(0.05, polarK * controls.maxPolarAngle), AZ0 + (azDeg * Math.PI) / 180)
       camera.position.copy(controls.target).add(new THREE.Vector3().setFromSpherical(sph)); controls.update(); keepOut()
     }
-    // the sweep test's measure: share of a 24 x 16 ray grid whose first solid
-    // hit is the field (or anything on it), inside the sidelines and end lines
     const _ray = new THREE.Raycaster(), _ndc = new THREE.Vector2()
     apiRef.current.fieldShare = () => {
       camera.updateMatrixWorld(true)
@@ -231,30 +258,42 @@ export default function FieldArena({ dots = [], cells = [], spot = null, rz = []
     }
     if (typeof window !== 'undefined') window.__dash3d = apiRef.current
 
-    // ── TAP A TARGET -> the same play card the 2D opens
+    // ── f: hover readout + tap -> the same play card the 2D opens
     const ray = new THREE.Raycaster(), ndc = new THREE.Vector2()
-    let down = null
-    const onDown = (e) => { down = [e.clientX, e.clientY] }
-    const onUp = (e) => {
-      if (!down || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 6) return
+    const markAt = (e) => {
       const rc = renderer.domElement.getBoundingClientRect()
       ndc.set(((e.clientX - rc.left) / rc.width) * 2 - 1, -((e.clientY - rc.top) / rc.height) * 2 + 1)
       ray.setFromCamera(ndc, camera)
-      let pick = ray.intersectObjects(pickables, false)[0]?.object
-      if (!pick) {
-        // a few-foot dot is not a thumb target: the nearest within 4 yd of the tap on the turf
+      let pick = ray.intersectObjects(pickables, true)[0]?.object
+      while (pick && !pick.userData.play && pick.parent) pick = pick.parent
+      if (!pick?.userData.play) {
+        pick = null
         const pt = new THREE.Vector3()
         if (ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), pt)) {
           let bd = 4 * YD
           for (const m of pickables) { const d = Math.hypot(m.position.x - pt.x, m.position.z - pt.z); if (d < bd) { bd = d; pick = m } }
         }
       }
+      return { pick, x: e.clientX - rc.left, y: e.clientY - rc.top, w: rc.width }
+    }
+    const tip = (pick, x, y, w) => placeTip(tipRef.current, pick ? `<b style="color:${pick.userData.play.res === 'td' ? C.orange : C.text}">${pick.userData.play.label || ''}</b>` : null, x, y, w)
+    let driving = false
+    const coarse = isCoarse()
+    const onMove = (e) => { if (coarse || driving) return; const { pick, x, y, w } = markAt(e); tip(pick, x, y, w); renderer.domElement.style.cursor = pick ? 'pointer' : '' }
+    const onLeave = () => placeTip(tipRef.current, null)
+    let down = null
+    const onDown = (e) => { down = [e.clientX, e.clientY] }
+    const onUp = (e) => {
+      if (!down || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 6) return
+      const { pick, x, y, w } = markAt(e)
+      tip(pick, x, y, w)
       if (pick?.userData.play) pickRef.current?.(pick.userData.play.i)
     }
     renderer.domElement.addEventListener('pointerdown', onDown)
     renderer.domElement.addEventListener('pointerup', onUp)
+    renderer.domElement.addEventListener('pointermove', onMove)
+    renderer.domElement.addEventListener('pointerleave', onLeave)
 
-    let driving = false
     controls.addEventListener('start', () => { driving = true })
     controls.addEventListener('end', () => { driving = false })
     let raf = 0
@@ -265,10 +304,9 @@ export default function FieldArena({ dots = [], cells = [], spot = null, rz = []
         camera.position.lerpVectors(anim.p0, anim.p1, e); controls.target.lerpVectors(anim.t0, anim.t1, e)
         if (k >= 1) anim = null
       }
-      controls.autoRotate = !!orbitRef.current && !driving && motionRef.current !== 'hold'
+      controls.autoRotate = !!orbitRef.current && !driving
       controls.autoRotateSpeed = 0.5
       controls.update(); keepOut()
-      stepReplay(t)
       look.render()
       raf = requestAnimationFrame(tick)
     }
@@ -288,11 +326,14 @@ export default function FieldArena({ dots = [], cells = [], spot = null, rz = []
     if (ro) ro.observe(mount)
 
     return () => {
+      alive = false
       cancelAnimationFrame(raf)
       if (io) io.disconnect(); if (ro) ro.disconnect()
       document.removeEventListener('visibilitychange', onVis)
       renderer.domElement.removeEventListener('pointerdown', onDown)
       renderer.domElement.removeEventListener('pointerup', onUp)
+      renderer.domElement.removeEventListener('pointermove', onMove)
+      renderer.domElement.removeEventListener('pointerleave', onLeave)
       if (typeof window !== 'undefined' && window.__dash3d === apiRef.current) delete window.__dash3d
       controls.dispose()
       scene.traverse((o) => {
@@ -314,16 +355,16 @@ export default function FieldArena({ dots = [], cells = [], spot = null, rz = []
   })
   const chips = (
     <>
-      <button type="button" style={chipBtn(motion === 'replay', C.green)} onClick={() => { setMotion('replay'); apiRef.current.replay?.() }} title="Draw the targets in game order">▶ replay</button>
-      <button type="button" style={chipBtn(motion === 'hold', C.text2)} onClick={() => setMotion('hold')} title="Every throw at once, nothing moving">⏸ hold</button>
-      <button type="button" style={chipBtn(orbit, C.cream)} onClick={() => setOrbit((v) => !v)} title="Turn slowly round the field until you grab it">⟳ orbit</button>
+      <button type="button" style={chipBtn(lines, C.green)} aria-pressed={lines} onClick={() => setLines((v) => !v)} title="Flat lines from the line of scrimmage to each target">— lines</button>
+      <button type="button" style={chipBtn(zones, C.orange)} aria-pressed={zones} onClick={() => setZones((v) => !v)} title="Each zone's targets as a column: height = the count there">▥ zones</button>
+      <button type="button" style={chipBtn(orbit, C.cream)} aria-pressed={orbit} onClick={() => setOrbit((v) => !v)} title="Turn slowly round the field until you grab it">⟳ orbit</button>
     </>
   )
   const PRESETS = [
     { key: 'sideline', label: 'SIDELINE', title: 'From the sideline seats' },
     { key: 'endzone', label: 'END ZONE', title: 'Behind the offence, looking downfield' },
     { key: 'all22', label: 'ALL-22', title: 'High behind the offence, every lane in frame' },
-    { key: 'top', label: 'TOP', title: 'Straight down' },
+    { key: 'top', label: 'TOP', title: 'Straight down: the same picture as the field below' },
   ]
   const caption = (
     <div style={{ marginTop: 6 }}>
@@ -334,10 +375,11 @@ export default function FieldArena({ dots = [], cells = [], spot = null, rz = []
         { key: 'heat', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, background: `${C.orange}88` }} />, label: 'a zone that gives up more than normal' },
       ]} />
       <div style={{ fontSize: 10, color: C.text3, marginTop: 4, lineHeight: 1.5, fontFamily: NUM_FONT }}>
-        A target&apos;s lane is known, its exact spot across the field is not: each sits at its true depth in one of three set columns of its lane, and the lines on the turf are not tracked ball flights. Red-zone touches sit at their yard line on the rail past the sideline (the feed gives the distance, not the lane). The same {dots.length} target{dots.length === 1 ? '' : 's'} as the field below · drag to orbit · tap a dot for the play
+        The turf is the field below, the same ink and numbers. A target sits at its air yards in its lane; its exact spot across the lane isn&apos;t in the feed, so it keeps the field&apos;s fixed scatter, and the lines (off unless you turn them on) are not ball flights. Red-zone touches sit at their yard line on the rail past the sideline. The same {dots.length} target{dots.length === 1 ? '' : 's'} · drag to orbit · tap a dot for the play
       </div>
     </div>
   )
+  const dockStats = (stats || []).map(([k, v, tone]) => ({ k, v, tone: tone === C.text2 ? undefined : tone }))
 
   return (
     <StadiumShell theme={C} accent={C.green} chips={chips} presets={PRESETS} active={preset}
@@ -347,9 +389,13 @@ export default function FieldArena({ dots = [], cells = [], spot = null, rz = []
           width: '100%', ...(full ? { height: '100%' } : { minHeight: 340, aspectRatio: '1 / 0.6' }),
           borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}`,
         }} />
-        {/* the spray chart's name plate + film (components/charts/stadium, BATCH-3D-V2 step 0) */}
+        {/* the spray chart's dock with the 2D panel's numbers, plate, film, readout (step 0 parts) */}
+        <StadiumDock open={dockOpen} onToggle={() => setDockOpen((v) => !v)} now={dots.length} all={dots.length} chips={[]}
+          emptyText="The window chips above set what is drawn." stats={narrowBox ? null : dockStats} theme={C} numFont={NUM_FONT}
+          accent={C.green} accentSoft={`${C.green}1a`} maxWidth="72%" />
         <LowerThird title={title} subtitle={subtitle} theme={C} numFont={NUM_FONT} accent={C.green} fallback="TUDDY" />
         <FilmOverlay />
+        <HoverReadout ref={tipRef} theme={C} numFont={NUM_FONT} maxWidth={220} />
       </div>
     </StadiumShell>
   )

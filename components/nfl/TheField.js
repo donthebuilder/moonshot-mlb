@@ -14,6 +14,7 @@ import { webglOk } from '../../lib/webglOk'
 // 🏟 the stadium rides in on demand -- three.js is ~600KB (BATCH-NFL-3D)
 const FieldArena = dynamic(() => import('./FieldArena'), { ssr: false })
 import { appHref, playerHref } from '../../lib/routes'
+import { LANES3, acrossOf, dotRadiusPx } from '../../lib/nfl/fieldPlace'
 
 // 🏈 THE FIELD (2026-10-01, 0e c -- BATCH-FIELD-FUSION-PLAN). ONE football
 // picture where there were two (Donovan, two screenshots of the McLaughlin
@@ -40,7 +41,6 @@ import { appHref, playerHref } from '../../lib/routes'
 // four depth bands are the zones. Labels are sized in SCREEN pixels (u()).
 
 const W = 640
-const LANES3 = ['L', 'M', 'R']
 const LANE_WORD3 = { L: 'left', M: 'middle', R: 'right' }
 const ZONE_SIDE = { L: 'left', M: 'middle', R: 'right' }
 const BANDS = [
@@ -92,10 +92,6 @@ function useFieldFile(team) {
 
 // A fixed scatter per play (by its index in the file), so a window change
 // never reshuffles the dots that stay.
-function jitter(n) {
-  const x = Math.sin((n + 1) * 78.233) * 43758.5453
-  return x - Math.floor(x) - 0.5
-}
 
 const yardWords = (yl) => (yl == null ? '' : yl > 50 ? `at their own ${100 - yl}` : yl === 50 ? 'at midfield' : `at their ${yl}`)
 const one = (v) => (v == null || !Number.isFinite(v) ? '—' : (Math.round(v * 10) / 10).toFixed(1))
@@ -146,6 +142,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   const fieldBox = useRef(null)
   const [cw, setCw] = useState(900)
   const [fw, setFw] = useState(560)
+  const inkRef = useRef(null)   // the field SVG, lent to the 3D stadium as its turf
   const uid = useId().replace(/[^a-zA-Z0-9]/g, '')
   const field = matchup?.field
   const [viewPick, setViewPick] = useState(null)
@@ -459,11 +456,11 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   // dots: misses under catches under touchdowns, so the loudest sits on top
   const order = { inc: 0, int: 0, catch: 1, td: 2 }
   const dots = [...drawn].sort((a, b) => (order[a.res] - order[b.res]) || (a.i - b.i)).map((p) => {
-    const li = LANES3.indexOf(p.lane)
-    const cx = cx0 + li * lw + lw / 2 + jitter(p.i) * lw * 0.72
+    // lib/nfl/fieldPlace.js: the 3D stadium places its discs with the same two functions
+    const cx = cx0 + acrossOf(p) * (cx1 - cx0)
     const cy = Y(p.air)
     const on = pick === p.i
-    const r = (3.6 + (Math.min(25, p.yac || 0) / 25) * 4.4) * dotScale
+    const r = dotRadiusPx(p.yac, dotScale)
     const ink = inkOf(p)
     const td = p.res === 'td'
     const caught = p.res === 'catch' || td
@@ -485,7 +482,11 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
 
   const subjName = asPlayer ? player.name : `${team} offence`
   // the 3D stadium's targets: the same plays, size and ink as the dots
-  const dots3 = drawn.map((p) => ({ i: p.i, wk: p.wk, lane: p.lane, air: p.air, res: p.res, yac: p.yac, ink: inkOf(p) }))
+  const dots3 = drawn.map((p) => ({ i: p.i, wk: p.wk, lane: p.lane, air: p.air, res: p.res, yac: p.yac, ink: inkOf(p), pid: p.pid,
+    rPx: dotRadiusPx(p.yac, dotScale), label: `${p.res === 'td' ? 'Touchdown' : p.res === 'catch' ? 'Catch' : p.res === 'int' ? 'Intercepted' : 'Incomplete'} · ${p.air} air yd · ${LANE_WORD3[p.lane]} · week ${p.wk}${asPlayer ? '' : ` · ${nameOf(p.pid)}`}` }))
+  // THE TURF IS THE 2D CHART (BATCH-3D-V2 2b): the stadium lays this very SVG
+  // (minus its dots) on its turf, cropped to the three lanes x the drawn depth
+  const inkBox = { W, H, cx0, cx1, yTop: Y(36), yBot: Y(-6), pxPerFt: (cx1 - cx0) / 160 }
 
   // ── THE RUN VIEW (plan item 3): the same field, the ink on the seven gaps
   // as a band along the line of scrimmage, THE SPOT circled on the one gap
@@ -566,13 +567,13 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
     )
   }
   const picture = (
-    <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${subjName}: ${drawn.length} targets by depth and lane${defTeam ? `, over ${defTeam}'s yards allowed by zone` : ''}`}
+    <svg ref={inkRef} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${subjName}: ${drawn.length} targets by depth and lane${defTeam ? `, over ${defTeam}'s yards allowed by zone` : ''}`}
       style={{ display: 'block', width: '100%', height: 'auto', borderRadius: 8 }}>
       <defs>
         <filter id={`glow${uid}`} x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation={3 * dotScale} /></filter>
         {defs}
       </defs>
-      {parts}{dots}{labels}
+      {parts}<g data-layer="dots">{dots}</g>{labels}
     </svg>
   )
 
@@ -740,7 +741,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
               3D. The 2D field stays under it; a tapped dot opens the same card. */}
           {stadium && gl && !isRun && (
             <div style={{ marginBottom: 10 }}>
-              <FieldArena dots={dots3} cells={cells} spot={spot} rz={stripRows.flatMap((r) => r.touches)} onPick={(i) => setPick(i)}
+              <FieldArena dots={dots3} cells={cells} spot={spot} rz={stripRows.flatMap((r) => r.touches)} onPick={(i) => setPick(i)} inkSvg={() => inkRef.current} inkBox={inkBox} stats={stats}
                 title={subjName} subtitle={`${plural(drawn.length, unit)}${defTeam ? ` · vs ${defTeam}` : ''}`} />
             </div>
           )}
