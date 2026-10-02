@@ -278,7 +278,8 @@ async function computeRecord(sportKey, today) {
   // the shared window (lib/recordWindow.js, 0g D4): /called's span and cut
   const win = windowFor(sport.key)
   const since = shiftDay(today, -(win.fetchDays - 1))
-  if (sport.key === 'nhl') return computeLampRecord(db, since, today, win.gameDays)
+  // a sport with its own record reader (LAMP: lamp_goal_log, not an event feed)
+  if (sport.ownRecord) return sport.ownRecord(db, since, today, win.gameDays)
   const { events: read, error } = await EVENT_READERS[sport.key](db, { since, until: today })
   // the same pool /called counts (lib/recordWindow OUTSIDE_POOL: TUDDY's QB TDs sit outside)
   const events = (read || []).filter(inPool(sport.key))
@@ -287,10 +288,9 @@ async function computeRecord(sportKey, today) {
   // Football: only days whose board rank was actually recorded can be counted.
   // See NFL_MIN_RECORD_DAYS above for the measurement behind this.
   let usable = null
-  if (sport.key === 'nfl') {
-    const recorded = new Set(events.filter((e) => e.payload.td_board).map((e) => e.game_date))
-    if (recorded.size < NFL_MIN_RECORD_DAYS) return null
-    usable = recorded
+  if (sport.usableDays) {
+    usable = sport.usableDays(events)
+    if (!usable) return null
   }
 
   // THE POSTSEASON IS ITS OWN RECORD (2026-09-27, list-posts step 6): in
@@ -353,6 +353,43 @@ async function computeLampCalls() {
   }
 }
 
+// EACH SPORT'S CALLS AND RECORD, ON ITS OWN ENTRY (R9 step 15, 2026-10-02). The
+// page used to choose these with sportKey === 'nfl' / 'nhl' ternaries in five
+// places, which a new sport (BUCKETS) would have fallen through silently. A
+// sport now says how its calls load, whether there are any, what to say while
+// it waits, how they draw, and (if it isn't the event-feed default) how its
+// record reads. Moved verbatim from the branches they replace.
+Object.assign(SPORTS.mlb, {
+  hasCalls: (calls) => Boolean(calls.players?.length),
+  callsHeading: false,   // BotPicksStrip carries its own heading
+  waiting: 'Waiting on tonight’s board — it publishes before first pitch.',
+  // Mounted as-is, per the locked scope. No onPlayerClick: there is no hitter
+  // modal on this page and a card that looks tappable and does nothing is
+  // worse than one that doesn't.
+  renderCalls: (calls) => <BotPicksStrip players={calls.players} rankWhy={false} />,
+})
+Object.assign(SPORTS.nfl, {
+  loadCalls: computeNflCalls,
+  hasCalls: (calls) => Boolean(calls.bites?.length),
+  callsHeading: true,
+  waiting: 'Waiting on this week’s board — it publishes well before kickoff.',
+  renderCalls: (calls) => <ul className={styles.bites}>{calls.bites.map((b) => <Bite key={b.k} b={b} sport="nfl" />)}</ul>,
+  // Football: only days whose board rank was actually recorded can be counted
+  // (NFL_MIN_RECORD_DAYS above has the measurement); null = not enough yet.
+  usableDays: (events) => {
+    const recorded = new Set(events.filter((e) => e.payload.td_board).map((e) => e.game_date))
+    return recorded.size < NFL_MIN_RECORD_DAYS ? null : recorded
+  },
+})
+Object.assign(SPORTS.nhl, {
+  loadCalls: () => computeLampCalls(),
+  hasCalls: (calls) => Boolean(calls.games?.length),
+  callsHeading: true,
+  waiting: 'No NHL games tonight — the board comes back with the next slate.',
+  renderCalls: (calls) => <ul className={styles.bites}>{calls.games.map((g) => <Bite key={g.id} b={lampBite(g)} sport="nhl" />)}</ul>,
+  ownRecord: (db, since, today, gameDays) => computeLampRecord(db, since, today, gameDays),
+})
+
 const etClock = (iso) => `${new Date(iso).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' })} ET`
 
 /** A game on the hockey board as one bite: stamp · matchup · the three · the clock. */
@@ -368,28 +405,32 @@ const lampBite = (g) => ({
 })
 
 async function computeCalls(sportKey) {
-  if (sportKey === 'nhl') return computeLampCalls()
-  if (sportKey === 'nfl') {
-    const [slate, matchup] = await Promise.all([
-      fetchNfl(nflSlatePaths(), nflSlateLooksReal).catch(() => null),
-      fetchNfl(nflMatchupPaths(), nflMatchupLooksReal).catch(() => null),
-    ])
-    if (!slate) return { bites: [], strip: [] }
-    // `p` on each bite is a whole player row and `col` is a theme colour. Only
-    // the text and the colour are read below — the row itself must not cross
-    // into the markup, or the payload this page exists to avoid comes back.
-    const bites = buildNflHeadlines({
-      players: slate.players || [],
-      games: slate.games || [],
-      markets: slate.markets || [],
-      matchup,
-    })
-    // Football's bites ARE its best-calls section, so there is no second strip
-    // to build from them. Not a parity gap with baseball — a consequence of
-    // TUDDY having one board and MOONSHOT having a board plus The Four.
-    return { bites: bites.map(biteText), strip: [] }
-  }
+  if (SPORTS[sportKey]?.loadCalls) return SPORTS[sportKey].loadCalls()
+  return computeMlbCalls()
+}
 
+async function computeNflCalls() {
+  const [slate, matchup] = await Promise.all([
+    fetchNfl(nflSlatePaths(), nflSlateLooksReal).catch(() => null),
+    fetchNfl(nflMatchupPaths(), nflMatchupLooksReal).catch(() => null),
+  ])
+  if (!slate) return { bites: [], strip: [] }
+  // `p` on each bite is a whole player row and `col` is a theme colour. Only
+  // the text and the colour are read below — the row itself must not cross
+  // into the markup, or the payload this page exists to avoid comes back.
+  const bites = buildNflHeadlines({
+    players: slate.players || [],
+    games: slate.games || [],
+    markets: slate.markets || [],
+    matchup,
+  })
+  // Football's bites ARE its best-calls section, so there is no second strip
+  // to build from them. Not a parity gap with baseball — a consequence of
+  // TUDDY having one board and MOONSHOT having a board plus The Four.
+  return { bites: bites.map(biteText), strip: [] }
+}
+
+async function computeMlbCalls() {
   const rows = await fetchBoardFull('today').catch(() => null)
   const league = buildHeadlines({ players: rows || [] })
     .filter((b) => LEAGUE_BITES.includes(b.k))
@@ -452,7 +493,7 @@ export default async function StartPage({ searchParams }) {
   const byCalls = sport.quote === 'called'
 
   const SIGNUP = `/login?next=${encodeURIComponent(sport.board)}#create-account`
-  const hasCalls = sportKey === 'nfl' ? Boolean(calls.bites?.length) : sportKey === 'nhl' ? Boolean(calls.games?.length) : Boolean(calls.players?.length)
+  const hasCalls = sport.hasCalls(calls)
   const strip = calls.strip || []
 
   return (
@@ -515,7 +556,7 @@ export default async function StartPage({ searchParams }) {
             So baseball lets the component speak and only gets a heading when
             there is no board to show; football's bites have no header of
             their own, so they keep this one. */}
-        {(sportKey === 'nfl' || sportKey === 'nhl' || !hasCalls) && (
+        {(sport.callsHeading || !hasCalls) && (
           <>
             <h2 className={styles.h2}>{sport.callsHead}</h2>
             <p className={styles.note}>{sport.callsSub}</p>
@@ -524,26 +565,9 @@ export default async function StartPage({ searchParams }) {
 
         {!hasCalls ? (
           <p className={styles.empty}>
-            {sportKey === 'nfl'
-              ? 'Waiting on this week’s board — it publishes well before kickoff.'
-              : sportKey === 'nhl'
-                ? 'No NHL games tonight — the board comes back with the next slate.'
-                : 'Waiting on tonight’s board — it publishes before first pitch.'}
+            {sport.waiting}
           </p>
-        ) : sportKey === 'nhl' ? (
-          <ul className={styles.bites}>
-            {calls.games.map((g) => <Bite key={g.id} b={lampBite(g)} sport="nhl" />)}
-          </ul>
-        ) : sportKey === 'nfl' ? (
-          <ul className={styles.bites}>
-            {calls.bites.map((b) => <Bite key={b.k} b={b} sport={sportKey} />)}
-          </ul>
-        ) : (
-          // Mounted as-is, per the locked scope. No onPlayerClick: there is no
-          // hitter modal on this page and a card that looks tappable and does
-          // nothing is worse than one that doesn't.
-          <BotPicksStrip players={calls.players} rankWhy={false} />
-        )}
+        ) : sport.renderCalls(calls)}
       </section>
 
       {/* LOOK -> PICK -> TRACK (2026-10-01): three drawings for what this
