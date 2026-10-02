@@ -38,6 +38,7 @@ import { readNflCardRecord, edgeParts } from '../../lib/nfl/cardRecord'
 import { regradeNote } from '../../lib/nfl/regrades'
 import styles from './called.module.css'
 import { membersUrl, MEMBERS_LINE } from '../../lib/members'
+import { shiftDay } from '../../lib/data'
 
 // 2026-09-20 — FOOTBALL MOVED IN, IT DIDN'T GET ITS OWN HOUSE. Donovan:
 // "can you not just build it on the same side of the site." Right call, and
@@ -78,12 +79,6 @@ function client() {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   if (!url || !key) return null
   return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } })
-}
-
-function shiftDay(iso, n) {
-  const d = new Date(`${iso}T12:00:00Z`)
-  d.setUTCDate(d.getUTCDate() + n)
-  return d.toISOString().slice(0, 10)
 }
 
 function prettyDay(iso) {

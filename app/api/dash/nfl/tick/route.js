@@ -56,7 +56,7 @@ import { xEventsCalledOnly } from '../../../../../lib/dash/xEvents'
 import { createClient } from '@supabase/supabase-js'
 import { timingSafeEqual } from 'node:crypto'
 
-import { easternToday, etHoursSinceNoon } from '../../../../../lib/data'
+import { easternToday, etHoursSinceNoon, shiftDay } from '../../../../../lib/data'
 import {
   fetchNfl, nflFantasyStatsPaths, nflLogPaths, nflMatchupLooksReal, nflMatchupPaths,
   nflPicksLooksReal, nflPicksPaths, nflRosterPaths, nflSlateLooksReal, nflSlatePaths, nflGameCallsPaths,
@@ -235,12 +235,6 @@ function etWeekday(day) {
 }
 
 // Noon UTC for the same DST-safety reason etWeekday uses it.
-function shiftDay(day, delta) {
-  const d = new Date(`${day}T12:00:00Z`)
-  d.setUTCDate(d.getUTCDate() + delta)
-  return d.toISOString().slice(0, 10)
-}
-
 // Same one claim function homers/tick's own claimSlot is — copied rather
 // than imported since that file doesn't export it; kept byte-for-byte
 // identical in shape (upsert + ignoreDuplicates, error is checked and

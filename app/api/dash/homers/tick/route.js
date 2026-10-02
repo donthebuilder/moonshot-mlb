@@ -35,7 +35,7 @@ import { xEventsCalledOnly } from '../../../../../lib/dash/xEvents'
 import { createClient } from '@supabase/supabase-js'
 import { timingSafeEqual } from 'node:crypto'
 
-import { easternToday, etHoursSinceNoon, slateDateFromRows } from '../../../../../lib/data'
+import { easternToday, etHoursSinceNoon, slateDateFromRows, shiftDay } from '../../../../../lib/data'
 import { callStatus } from '../../../../../lib/callStatus'
 import { mlbWatch, historyWatchText, reachedLine } from '../../../../../lib/history/watch'
 import { fetchLiveSlate, liveSlateStatus } from '../../../../../lib/liveSlate'
@@ -822,12 +822,6 @@ let _numerology = { day: null, count: -1, done: false }
 // History Watch: when this instance last found nothing to post, per day.
 const WATCH_RETRY_MS = 10 * 60 * 1000
 const _watchTried = new Map()
-
-const shiftDay = (iso, n) => {
-  const d = new Date(`${iso}T12:00:00Z`)
-  d.setUTCDate(d.getUTCDate() + n)
-  return d.toISOString().slice(0, 10)
-}
 
 /**
  * The slate's own day, off the live snapshot rather than the wall clock.

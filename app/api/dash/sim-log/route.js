@@ -38,6 +38,7 @@ import { timingSafeEqual } from 'node:crypto'
 // generic ballclub every night.
 import { fetchBoardFull } from '../../../../lib/dash/board'
 import { gameFrom, simulate } from '../../../../lib/gameSim'
+import { shiftDay } from '../../../../lib/data'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -71,12 +72,6 @@ const slateDay = (d = new Date()) => {
   const p = new Date(d.toLocaleString('en-US', { timeZone: 'America/Phoenix' }))
   return `${p.getFullYear()}-${String(p.getMonth() + 1).padStart(2, '0')}-${String(p.getDate()).padStart(2, '0')}`
 }
-const shiftDay = (day, by) => {
-  const [y, m, d] = day.split('-').map(Number)
-  const t = new Date(Date.UTC(y, m - 1, d + by))
-  return t.toISOString().slice(0, 10)
-}
-
 const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : null)
 
 // How many games per simulate() call. 2,000 is what the panel runs for one

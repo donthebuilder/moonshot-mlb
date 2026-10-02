@@ -17,7 +17,7 @@
 // touching the scoring columns. A postponed game is closed with state PPD
 // and its rows stay void. Failures are logged loudly and skipped; the next
 // tick tries again. Nothing here ever invents a row.
-import { easternToday } from '../../../../lib/data'
+import { easternToday, dayBefore } from '../../../../lib/data'
 import { scoreFor, nhlGet, validDate, TTL } from '../../../../lib/nhl/api'
 import { reduceScoreDay } from '../../../../lib/nhl/reduce'
 import { buildNight, toLogRow } from '../../../../lib/nhl/goalBoard'
@@ -66,7 +66,6 @@ const SHADOW = [
   { market: PTS, version: PTS_VERSION, byGame: 'ptsByGame', toRow: toPtsRow, grade: gradePtsRows },
   { market: AST, version: AST_VERSION, byGame: 'astByGame', toRow: toAstRow, grade: gradeAstRows },
 ]
-const dayBefore = (ymd) => { const [y, m, d] = ymd.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d - 1, 12)).toISOString().slice(0, 10) }
 
 export async function GET(request) {
   if (!cronAuthorized(request)) return Response.json({ error: 'unauthorized' }, { status: 401 })

@@ -19,7 +19,7 @@
 // Manual: ?date=YYYY-MM-DD lists that ET day; ?event=<id>&snap=lock|close
 // forces one snapshot of one pregame game; ?dry=1 writes nothing (it still
 // spends objects -- the feed is what costs, not the write).
-import { easternDate, easternToday } from '../../../../lib/data'
+import { easternDate, easternToday, nextDay } from '../../../../lib/data'
 import { validDate } from '../../../../lib/nhl/api'
 import { whichSeason } from '../../../../lib/nhl/whichSeason'
 import { cronAuthorized, adminClient } from '../../../../lib/nhl/db'
@@ -49,7 +49,6 @@ function etMidnight(ymd) {
   }
   return Date.parse(`${ymd}T04:00:00Z`)
 }
-const nextDay = (ymd) => { const [y, m, d] = ymd.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d + 1, 12)).toISOString().slice(0, 10) }
 
 async function insertRows(db, rows) {
   for (let i = 0; i < rows.length; i += 500) {

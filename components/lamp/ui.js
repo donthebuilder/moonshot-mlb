@@ -47,12 +47,7 @@ export function zoneAbbrev() {
 }
 
 /** Shift a YYYY-MM-DD by n days, as a calendar day (no zone drift). */
-export function shiftDay(ymd, n) {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd || ''))
-  if (!m) return ymd
-  const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3] + n, 12))
-  return d.toISOString().slice(0, 10)
-}
+export { shiftDay } from '../../lib/data'   // one copy, lib/data.js (R3)
 
 /** Logo + abbreviation. The league's own SVG; the abbreviation is the text. */
 // onClick (2026-09-27, CLICK-EVERYTHING-PLAN): a team opens the team -- the mark

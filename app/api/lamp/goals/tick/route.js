@@ -19,7 +19,7 @@
 //     still standing 3 min after confirmation; preseason never posts
 // The push is not here: app/api/dash/push/tick reads the confirmed rows
 // (lib/dash/pushRules.js nhlEventsFrom), same split as the homer feed.
-import { easternToday } from '../../../../../lib/data'
+import { easternToday, dayBefore, etHour } from '../../../../../lib/data'
 import { scoreFor, validDate } from '../../../../../lib/nhl/api'
 import { reduceScoreDay } from '../../../../../lib/nhl/reduce'
 import { MODEL_VERSION } from '../../../../../lib/nhl/goalModel'
@@ -36,8 +36,6 @@ const SITE_HOST = (process.env.NEXT_PUBLIC_SITE_URL || 'dashnetwork.vercel.app')
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
-const dayBefore = (ymd) => { const [y, m, d] = ymd.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d - 1, 12)).toISOString().slice(0, 10) }
-const etHour = () => Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', hourCycle: 'h23' }).format(new Date()))
 const KEY = (row) => ({ game_id: row.game_id, player_id: row.player_id, goal_n: row.goal_n })
 
 /** lamp_goal_feed / lamp_goal_log / multi_games through the service role. */

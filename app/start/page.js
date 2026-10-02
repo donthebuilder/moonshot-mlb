@@ -64,7 +64,7 @@ import { postseasonOn } from '../../lib/dash/seasonGuard'
 
 import BotPicksStrip from '../../components/BotPicksStrip'
 import HowItWorks from '../../components/HowItWorks'
-import { easternToday } from '../../lib/data'
+import { easternToday, shiftDay } from '../../lib/data'
 import { fetchBoardFull } from '../../lib/dash/board'
 import { buildHeadlines } from '../../lib/headlinesCore'
 import {
@@ -246,12 +246,6 @@ const SPORTS = {
     callsSub: 'Shots, goals and ice time per game over his last 82, ranked against tonight’s skaters. PREVIEW until a game’s lock; the lock is the call.',
     unit: 'night',
   },
-}
-
-function shiftDay(iso, n) {
-  const d = new Date(`${iso}T12:00:00Z`)
-  d.setUTCDate(d.getUTCDate() + n)
-  return d.toISOString().slice(0, 10)
 }
 
 function client() {
