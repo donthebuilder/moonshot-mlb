@@ -32,7 +32,7 @@ export default function OddsSignals({ players = [], odds = null, onPlayerClick, 
   const NUM_FONT = numFont || MLB_NUM
   const MARKET_LABEL = Object.fromEntries(A.markets.map((m) => [m.key, m.label]))
   const quoteSet = (o, p) => A.quotesOf(o, p)
-  const [mode, setMode] = useState(A.rateMarket ? 'gaps' : 'moves')
+  const [mode, setMode] = useState(A.rateMarket ? 'gaps' : 'market')
   const [moveFilter, setMoveFilter] = useState('large')
 
   const gaps = useMemo(() => {
@@ -76,6 +76,39 @@ export default function OddsSignals({ players = [], odds = null, onPlayerClick, 
     })
     return out
   }, [players, odds])
+
+  // MARKET GAPS (2026-10-02, Donovan: "odds discrepancies for all"): the best price on the
+  // board against the MARKET's own no-vig fair price (our odds provider's fair line, built
+  // from every book) -- a fact about the market, needing no model, so every sport has it.
+  // gap = fair's break-even minus the best price's, in points: positive = a book pays more
+  // than the market as a whole says the bet is worth.
+  const marketGaps = useMemo(() => {
+    const out = []
+    players.forEach((p) => {
+      const quotes = quoteSet(odds, p)
+      if (!quotes) return
+      Object.entries(quotes).forEach(([mk, q]) => {
+        const fair = Number(q?.fair_over), best = Number(q?.best_over ?? q?.over), med = Number(q?.over)
+        if (!Number.isFinite(fair) || !Number.isFinite(best) || !fair || !best) return
+        const fNeed = impliedPct(fair), bNeed = impliedPct(best), mNeed = Number.isFinite(med) && med ? impliedPct(med) : null
+        if (fNeed == null || bNeed == null) return
+        out.push({
+          _key: `mkt-${A.rowKey(p)}-${mk}`, _raw: p,
+          player: nameOf(p), tm: teamOf(p), opp: oppOf(p), market: MARKET_LABEL[mk] || mk, _mk: mk,
+          line: q.line == null ? null : Number(q.line),
+          best, bestBook: q.best_book || '', median: Number.isFinite(med) ? med : null, fair,
+          gap: Math.round(10 * (fNeed - bNeed)) / 10,
+          medGap: mNeed != null ? Math.round(10 * (fNeed - mNeed)) / 10 : null,
+          books: n(q.books, 0),
+        })
+      })
+    })
+    return out
+  }, [players, odds])
+  const [mktFilter, setMktFilter] = useState('all')
+  const marketsPriced = useMemo(() => [...new Set(marketGaps.map((r) => r._mk))], [marketGaps])
+  const shownMarket = useMemo(() => marketGaps.filter((r) => mktFilter === 'all' || r._mk === mktFilter), [marketGaps, mktFilter])
+  const overFair = marketGaps.filter((r) => r.gap >= 2)
 
   const movements = useMemo(() => {
     const out = []
@@ -186,12 +219,56 @@ export default function OddsSignals({ players = [], odds = null, onPlayerClick, 
         {A.rateMarket && <button onClick={() => setMode('gaps')} style={btnStyle(C.orange, mode === 'gaps')}>
           Price gaps · {values.length} value / {pricedOut.length} expensive
         </button>}
+        <button onClick={() => setMode('market')} style={btnStyle(C.orange, mode === 'market')}>
+          Market gaps · {overFair.length} over fair
+        </button>
         <button onClick={() => setMode('moves')} style={btnStyle(C.orange, mode === 'moves')}>
           Line moves · {large.length} large
         </button>
       </div>
 
-      {mode === 'gaps' ? (
+      {mode === 'market' ? (
+        <>
+          <div style={{ fontSize: 10.5, lineHeight: 1.65, color: C.text2, maxWidth: 780, marginBottom: 9 }}>
+            <b style={{ color: C.text }}>FAIR</b> is the market&apos;s own price with the bookmaker margin taken out (our odds
+            provider builds it from every book). <b style={{ color: C.text }}>GAP</b> is how many break-even points the best
+            price sits past it: a <b style={{ color: C.green }}>positive</b> gap is a book paying more than the market as a whole
+            says the bet is worth. It is a fact about the prices, not a model call, and one book can be slow to move.
+          </div>
+          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 9 }}>
+            <button onClick={() => setMktFilter('all')} style={btnStyle(C.orange, mktFilter === 'all')}>All markets</button>
+            {marketsPriced.map((k) => <button key={k} onClick={() => setMktFilter(k)} style={btnStyle(C.orange, mktFilter === k)}>{MARKET_LABEL[k] || k}</button>)}
+          </div>
+          {shownMarket.length ? (
+            <Table
+              heatMode="sorted"
+              rows={shownMarket}
+              columns={[
+                { key: 'player', label: A.words.noun, heat: false, w: 152, bold: true, sticky: true },
+                { key: 'tm', label: 'TM', heat: false, w: 34, mono: true, dim: true, teamMark: A.sport },
+                { key: 'market', label: 'Market', heat: false, w: 66, bold: true },
+                { key: 'line', label: 'LINE', w: 48, heat: false, fmt: (v) => <span style={{ fontFamily: NUM_FONT }}>{lineText(v)}</span> },
+                { key: 'best', label: 'BEST', w: 62, heat: false,
+                  fmt: (v, r) => <span style={{ fontFamily: NUM_FONT }}><b style={{ color: v > 0 ? C.green : C.text }}>{fmtOdds(v)}</b>{r?.bestBook ? <span style={{ display: 'block', fontSize: 9, color: C.text3 }}>{r.bestBook}</span> : null}</span> },
+                { key: 'fair', label: 'FAIR', w: 58, heat: false, title: 'The market\u2019s no-vig price for this bet (our odds provider\u2019s fair line, from every book).',
+                  fmt: (v) => <span style={{ fontFamily: NUM_FONT, color: C.text2 }}>{fmtOdds(v)}</span> },
+                { key: 'gap', label: 'GAP', w: 64, dp: 1, title: 'Break-even points the best price sits past the fair one. Positive = a book pays more than the market says the bet is worth.',
+                  fmt: (v) => <b style={{ fontFamily: NUM_FONT, color: v >= 2 ? C.green : v <= -2 ? C.red : C.text2 }}>{v > 0 ? '+' : ''}{one(v)}</b> },
+                { key: 'median', label: 'MEDIAN', w: 62, heat: false, fmt: (v) => <span style={{ fontFamily: NUM_FONT }}>{fmtOdds(v)}</span> },
+                { key: 'medGap', label: 'MED GAP', w: 62, dp: 1, title: 'The same gap at the median book: what the typical shop pays against fair.',
+                  fmt: (v) => v == null ? '—' : <span style={{ fontFamily: NUM_FONT, color: C.text2 }}>{v > 0 ? '+' : ''}{one(v)}</span> },
+                { key: 'books', label: 'BKS', w: 40, heat: false, dim: true },
+              ]}
+              onRowClick={onPlayerClick}
+              initialSort="gap"
+              maxHeight={560}
+              caption="GAP: the best price against the market's own no-vig fair price, in break-even points. A screen for the shop paying over the odds, not a forecast."
+            />
+          ) : (
+            <EmptySignals C={C} text="No prices with a fair line yet for this slate." />
+          )}
+        </>
+      ) : mode === 'gaps' ? (
         gaps.length ? (
           <Table
             heatMode="sorted"

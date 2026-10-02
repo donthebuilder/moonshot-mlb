@@ -170,9 +170,8 @@ export default function OddsBoard({ players = [], odds: oddsProp, onPlayerClick,
   const MK = Object.fromEntries(MARKETS.map((m) => [m.key, m]))
   const HAS_SCORE = { has: (mk) => A.hasScore(mk) }
   const scoreFor = (p, mk) => A.scoreFor(p, mk)
-  // the gaps need a real rate (MOONSHOT's home runs); without one the view is the moves alone
+  // every sport has gaps now: the market's (book vs fair), and MOONSHOT's model gaps on top
   const PAGE_VIEWS = PAGE_VIEWS_ALL.filter(([k]) => k !== 'trueprice' || A.trueprice)
-    .map(([k, label]) => [k, k === 'signals' && !A.rateMarket ? '\u26A1 Moves' : label])
   const [view, setView] = useState(
     initialView === 'trueprice' ? 'trueprice' : initialView === 'signals' ? 'signals' : initialView === 'shop' ? 'shop' : 'board'
   )
