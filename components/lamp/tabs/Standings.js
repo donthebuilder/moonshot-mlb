@@ -1,4 +1,5 @@
 'use client'
+import SiteTeamMark from '../../TeamMark'
 import { useMemo, useState } from 'react'
 import PageHeader from '../../PageHeader'
 import LampTable from '../LampTable'
@@ -27,7 +28,8 @@ const VIEWS = [
 const rec = (r) => (r && r.w != null ? `${r.w}-${r.l}-${r.otl}` : '—')
 const COLUMNS = [
   { key: 'rank', label: '#', w: 30, heat: false, fmt: (v) => v ?? '' },
-  { key: 'team', label: 'Team', w: 150, heat: false, sticky: true },
+  { key: 'team', label: 'Team', w: 150, heat: false, sticky: true,
+    fmt: (v, r) => (r?._abbrev ? <span title={String(v)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><SiteTeamMark sport="nhl" abbr={r._abbrev} variant="logo" px={16} />{String(v).replace(new RegExp(`^${r._abbrev}\\s+`), '')}</span> : v) },
   { key: 'gp', label: 'GP', w: 36, heat: false },
   { key: 'w', label: 'W', w: 36 },
   { key: 'l', label: 'L', w: 36, invert: true },
@@ -118,7 +120,7 @@ export default function Standings({ onOpenTeam }) {
       {groups.map((g) => (
         <section key={g.title} aria-label={g.title}>
           <Kicker>{g.title.toUpperCase()}</Kicker>
-          <LampTable rows={g.rows} columns={GROUPED_COLUMNS} maxHeight={9999} heatMode="standouts" maxRows={40} onRowClick={onOpenTeam ? (r) => onOpenTeam(r._abbrev) : undefined} />
+          <LampTable bare rows={g.rows} columns={GROUPED_COLUMNS} maxHeight={9999} heatMode="standouts" maxRows={40} onRowClick={onOpenTeam ? (r) => onOpenTeam(r._abbrev) : undefined} />
           {g.cutAfter && g.rows.length > g.cutAfter && (
             <div style={{ color: C.text3, font: `800 8px/1.4 ${NUM_FONT}`, letterSpacing: '.08em', marginTop: 4 }}>THE LINE IS AFTER #{g.cutAfter} — two wild cards per conference make the playoffs.</div>
           )}

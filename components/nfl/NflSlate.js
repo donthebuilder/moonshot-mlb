@@ -1,4 +1,5 @@
 'use client'
+import TeamMark from '../TeamMark'
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE, gradeFor } from '../../lib/nfl/theme'
 import { softRole, softLine } from '../../lib/nfl/dvpSignal'
@@ -140,7 +141,7 @@ export default function NflSlate({ data, picks, matchup, odds = null, initialGam
   const switcherGames = games.map((g) => ({ game_pk: String(g.game_id), away: g.away, home: g.home, game_time: g.kickoff }))
   const switcherLive = Object.fromEntries(games.filter((g) => g.state === 'in' || g.completed).map((g) => [String(g.game_id), { away_score: g.away_score, home_score: g.home_score }]))
   const g = games.find((x) => String(x.game_id) === activeId) || null
-  const teamLink = (t) => <Tap onClick={onOpenTeam && (() => onOpenTeam(t))}>{t}</Tap>
+  const teamLink = (t) => <Tap onClick={onOpenTeam && (() => onOpenTeam(t))}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><TeamMark sport="nfl" abbr={t} variant="logo" px={18} />{t}</span></Tap>
 
   return (
     <div>

@@ -1,4 +1,5 @@
 'use client'
+import TeamMark from '../TeamMark'
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../lib/theme'
 import { groupPitchers } from '../../lib/data'
@@ -115,7 +116,10 @@ export default function Matchups({ players = [], onPlayerClick, onNavigate = nul
         {r.g.pitcher_id ? <img src={mlbFaceStrict(r.g.pitcher_id, 44)} alt="" width={22} height={22} loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none' }} style={{ width: 22, height: 22, borderRadius: '50%', objectFit: 'cover', background: C.bg3 }} /> : null}
         <b>{v}</b><span style={{ color: C.text3, fontSize: 10 }}>{r.throws}HP</span>
       </span>) },
-    { key: 'vs', label: 'Faces', w: 82, heat: false, fmt: (v, r) => `${r.team} v ${v}` },
+    { key: 'vs', label: 'Faces', w: 96, heat: false, fmt: (v, r) => (
+      <span title={`${r.team} v ${v}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap' }}>
+        <TeamMark sport="mlb" abbr={r.team} variant="logo" px={16} />{r.team}<span style={{ color: C.text3 }}>v</span><TeamMark sport="mlb" abbr={v} variant="logo" px={16} />{v}
+      </span>) },
     { key: 'fit', label: 'Lineup fit', w: 70, primary: true, scale: 'seq', domain: [40, 80], dp: 1 },
     { key: 'mixTxt', label: 'His top pitches', w: 120, heat: false },
     // The best-fit hitter's name opens HIS card (a name is a link); the starter
@@ -152,7 +156,7 @@ export default function Matchups({ players = [], onPlayerClick, onNavigate = nul
 
       {active && (
         <section id="ms-matchup-detail" aria-label={`${active.pitcher} matchup`} style={{ scrollMarginTop: 80 }}>
-          <MatchupTitle name={active.pitcher} meta={`${active.team} vs ${active.vs} · tap another row above to switch`} />
+          <MatchupTitle logo={{ sport: 'mlb', abbr: active.team }} name={active.pitcher} meta={`${active.team} vs ${active.vs} · tap another row above to switch`} />
           <BarList label="HIS PITCH MIX" items={active.mix.slice(0, 6).map((p) => ({ key: p.code, label: p.code, pct: p.use, text: `${Math.round(p.use)}%` }))} />
           <FactLines lines={[
             ['Handedness', `a ${active.throws}HP against ${Object.entries(active.bats).filter(([h]) => h !== '?').map(([h, c]) => `${c} ${h === 'S' ? 'switch' : h === 'L' ? 'left' : 'right'}`).join(', ') || 'an unknown lineup'}-handed hitter${active.hitters === 1 ? '' : 's'}.`],

@@ -172,6 +172,9 @@ export function v2Css(C, ac, NUM_FONT) {
       .dtv2 td.name > button { min-height: 0 !important; }
       /* the star: a 44px hit box, a 32px layout box (classic's negative-margin trick) */
       .dtv2 td.dense-action button { height: 44px !important; min-height: 44px !important; margin: -6px 0 !important; }
+      /* the ☆ is a real control on a phone: a full 44 x 44 thumb target */
+      .dtv2 td.dense-action, .dtv2 .h-row th.act { width: 44px !important; min-width: 44px !important; max-width: 44px !important; }
+      .dtv2 td.dense-action button { width: 44px !important; }
       .dtv2 .pin2 { left: 26px !important; }
       /* a long label wraps to two lines on a phone rather than widening its column */
       /* the site's phone table rule pads every th / td 6px; the sheet sets its own */
@@ -222,7 +225,9 @@ export function renderV2(ctx) {
   const callKey = nameC?._g?.key ?? null
   // (or a column tagged `fold`, for tables without groups)
   const folds = (c) => c !== nameC && !isRank(c) && (c.fold === true
-    || (c.fold !== false && !!callKey && c._g?.key === callKey && (c.heat === false || (c.action && !c._g?.auto))))
+    // the ☆ never folds (Donovan 10-01: "fix the watchlist bug star") -- a
+    // phone must be able to watch a player from every table, the Board too
+    || (c.fold !== false && !!callKey && c._g?.key === callKey && c.heat === false && !c.action))
   const logoOf = (c) => c.teamMark || c.logo || null
   const s0 = sort[0]?.key ?? null, s1 = sort[1]?.key ?? null
   const eligible = (c) => c.heat !== false && !c.flag && !c.action
@@ -302,10 +307,10 @@ export function renderV2(ctx) {
           const plain = c.explain || (dict ? explainFrom(dict, c.term, c.key, c.label) : explainFor(c.term, c.key, c.label)) || (c.answers ? ANSWERS[c.answers]?.what : null)
           return (
             <th key={c.key} scope="col" aria-sort={on ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'}
-              className={cls(c, [on ? 'on' : '', isRank(c) ? 'rank' : '', c === nameC ? 'name' : '', /\s/.test(String(c.label || '').trim()) && String(c.label).length > 9 ? 'long' : ''].filter(Boolean).join(' '))}
+              className={cls(c, [on ? 'on' : '', isRank(c) ? 'rank' : '', c === nameC ? 'name' : '', c.action ? 'act' : '', /\s/.test(String(c.label || '').trim()) && String(c.label).length > 9 ? 'long' : ''].filter(Boolean).join(' '))}
               onClick={c._status ? undefined : (e) => toggle(c.key, e.shiftKey)}
               title={`${c.title || c.label}\n\nClick to sort. Shift-click to add as a tiebreaker under the current sort.`}
-              style={{ ...(pinStyle(c, true) || {}), textAlign: c.heat === false || c.action ? 'left' : 'right', width: logoOf(c) ? 30 : c.w, minWidth: logoOf(c) ? 30 : c.w }}>
+              style={{ ...(pinStyle(c, true) || {}), textAlign: (c.heat === false && !isNumericText(c)) || c.action ? 'left' : 'right', width: logoOf(c) ? 30 : c.w, minWidth: logoOf(c) ? 30 : c.w }}>
               {String(c.label || '').trim() ? c.label : <span className="sr-only">{c.title || c.key || 'Column'}</span>}
               {plain && (
                 <span style={{ opacity: explain?.key === c.key ? 1 : 0.55 }}>
@@ -432,8 +437,8 @@ export function renderV2(ctx) {
                   if (c.key === s0) { const g = seqGlyph(n, medians[c.key]); tArrow = g === DIV_UP || g === DIV_DOWN ? g : '' }
                 }
                 return (
-                  <td key={c.key} title={textTitle} className={cls(c, c.mono ? 'num' : 'txt')}
-                    style={{ ...pin, textAlign: 'left', maxWidth: c.w, ...(tBg ? { background: `linear-gradient(${tBg}, ${tBg}), ${C.bg2}` } : bgTint || {}) }}>
+                  <td key={c.key} title={textTitle} className={cls(c, c.mono || isNumericText(c) ? 'num' : 'txt')}
+                    style={{ ...pin, textAlign: isNumericText(c) ? 'right' : 'left', maxWidth: c.w, ...(tBg ? { background: `linear-gradient(${tBg}, ${tBg}), ${C.bg2}` } : bgTint || {}) }}>
                     {role && !isBlank(v)
                       ? <span style={{ border: `1px solid ${C.border2}`, borderRadius: 5, padding: '2px 6px', fontSize: 10.5 }}>{go ? <Tap onClick={go}>{content}</Tap> : content}</span>
                       : go ? <Tap onClick={go}>{content}</Tap> : content}

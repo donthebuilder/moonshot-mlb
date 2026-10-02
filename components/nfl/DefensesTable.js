@@ -1,4 +1,5 @@
 'use client'
+import TeamMark from '../TeamMark'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../lib/nfl/theme'
 import { softRole, stingyRole, fitsSoft, STARTER_ROLES, SOFT_THIN_GAMES } from '../../lib/nfl/dvpSignal'
@@ -58,7 +59,7 @@ export default function DefensesTable({ matchup, data, win = 'season', active, o
 
   const columns = [
     { key: 'rank', label: '#', w: 30, heat: false },
-    { key: 'def', label: 'Defense', w: 70, heat: false, sticky: true, fmt: (v) => <b>{v}</b> },
+    { key: 'def', label: 'Defense', w: 84, heat: false, sticky: true, fmt: (v) => <b style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><TeamMark sport="nfl" abbr={v} variant="logo" px={16} />{v}</b> },
     { key: 'opp', label: 'Vs', w: 50, heat: false },
     { key: 'edge', label: 'Edge', w: 54, primary: true, scale: 'seq', domain: [1, 3], fmt: (v) => (v == null ? '—' : `+${v.toFixed(1)}`) },
     { key: 'soft', label: 'Softest spot', w: 190, heat: false, fmt: (v, r) => <span style={{ color: r._standout ? C.cyan : C.text3, fontWeight: r._standout ? 800 : 500 }}>{v}</span> },

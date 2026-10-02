@@ -1,16 +1,16 @@
 'use client'
 import { useEffect, useState } from 'react'
 import PageHeader from '../../PageHeader'
-import NflTeamMark from '../NflTeamMark'
+import TeamMark from '../../TeamMark'
 import NflTable from '../NflTable'
 import { C, NUM_FONT } from '../../../lib/nfl/theme'
 import { fetchNflStandings } from '../../../lib/nfl/standings'
 
 // 🏈 STANDINGS (2026-09-26, shell-parity step 3) -- the slot LAMP's bar has
 // and TUDDY's didn't. Tables lead: one per division, the feed's own order,
-// every column the feed publishes for a standings line. No logos and no
-// other site's names on the page (Donovan): the team is TUDDY's own text
-// mark, and the source line names the kind of feed, not a brand.
+// every column the feed publishes for a standings line. Club logos since
+// 2026-10-01 (Donovan: "logo need to be on the standings"); the source line
+// still names the kind of feed, not a brand.
 // Data: lib/nfl/standings.js (public feed, read in the browser, 10 min).
 
 export default function Standings({ onOpenTeam }) {
@@ -67,7 +67,7 @@ const SG = {
 }
 const STAND_COLS = (onOpenTeam) => [
   { key: 'nick', label: 'Team', heat: false, sticky: true, bold: true, w: 150, group: SG.team, fold: false,
-    fmt: (v, t) => <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><NflTeamMark abbr={t.abbr} /><span>{v}</span></span>,
+    fmt: (v, t) => <span title={`${t.place} ${v} (${t.abbr})`} style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}><TeamMark sport="nfl" abbr={t.abbr} variant="logo" px={18} /><span>{v}</span></span>,
     link: (t) => (onOpenTeam ? () => onOpenTeam(t.abbr) : null) },
   { key: 'w', label: 'W', w: 40, dp: 0, group: SG.rec }, { key: 'l', label: 'L', w: 40, dp: 0, invert: true, group: SG.rec },
   { key: 't', label: 'T', w: 36, dp: 0, group: SG.rec },

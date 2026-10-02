@@ -1,4 +1,5 @@
 'use client'
+import TeamMark from '../TeamMark'
 import { C as MLB_C, NUM_FONT as MLB_NUM, TYPE as MLB_TYPE } from '../../lib/theme'
 
 // THE MATCHUP DETAIL, ONCE (2026-09-28). MOONSHOT's Matchups detail
@@ -15,9 +16,12 @@ import { C as MLB_C, NUM_FONT as MLB_NUM, TYPE as MLB_TYPE } from '../../lib/the
 //   HeatTiles     the zone grid: a big number and a small one per tile, more
 //                 accent = more of what the lead sentence is about
 
-export function MatchupTitle({ name, meta, theme = MLB_C, numFont = MLB_NUM, type = MLB_TYPE }) {
+// `logo` = { sport, abbr }: the club's logo before the name (Donovan 10-01:
+// "logo need to be on the standings and on the match up components").
+export function MatchupTitle({ name, meta, theme = MLB_C, numFont = MLB_NUM, type = MLB_TYPE, logo = null }) {
   return (
     <h2 style={{ margin: '0 0 8px', fontSize: type.title, fontWeight: 900 }}>
+      {logo?.abbr ? <TeamMark sport={logo.sport} abbr={logo.abbr} variant="logo" px={22} style={{ marginRight: 8, verticalAlign: '-4px' }} /> : null}
       {name} <span style={{ fontFamily: numFont, fontSize: 11, color: theme.text3, fontWeight: 600 }}>· {meta}</span>
     </h2>
   )

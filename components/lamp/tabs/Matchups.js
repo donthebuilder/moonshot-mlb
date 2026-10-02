@@ -1,4 +1,5 @@
 'use client'
+import SiteTeamMark from '../../TeamMark'
 import Tap from '../../Tap'
 import { useEffect, useState } from 'react'
 import PageHeader from '../../PageHeader'
@@ -62,7 +63,7 @@ function Detail({ row, league, onOpenPlayer, onOpenTeam = null }) {
       {/* MOONSHOT'S MATCHUP PARTS (2026-09-29, parity): title, section labels,
           bars and fact lines are components/matchup/MatchupParts.js -- the
           pieces MOONSHOT's and TUDDY's matchup details are built from. */}
-      <MatchupTitle name={`${row.def} defence`} meta={`${row.home ? 'vs' : '@'} ${row.opp} · tap another row above to switch`} theme={C} numFont={NUM_FONT} />
+      <MatchupTitle logo={{ sport: 'nhl', abbr: row.def }} name={`${row.def} defence`} meta={`${row.home ? 'vs' : '@'} ${row.opp} · tap another row above to switch`} theme={C} numFont={NUM_FONT} />
 
       <div>
         <Kicker>POWER PLAY vs PENALTY KILL</Kicker>
@@ -138,8 +139,8 @@ export default function Matchups({ date = null, onOpenPlayer, onOpenTeam = null 
   }))
   const columns = [
     { key: 'rank', label: '#', w: 30, heat: false },
-    { key: 'def', label: 'Defence', w: 70, heat: false, sticky: true, bold: true },
-    { key: 'vs', label: 'Vs', w: 60, heat: false, mono: true },
+    { key: 'def', label: 'Defence', w: 84, heat: false, sticky: true, bold: true, fmt: (v) => <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><SiteTeamMark sport="nhl" abbr={v} variant="logo" px={16} />{v}</span> },
+    { key: 'vs', label: 'Vs', w: 70, heat: false, mono: true, fmt: (v, r) => <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>{r.home ? 'vs' : '@'}<SiteTeamMark sport="nhl" abbr={r.opp} variant="logo" px={16} />{r.opp}</span> },
     { key: 'gaPg', label: 'GA/GP', w: 56, primary: true, dp: 2 },
     { key: 'pk', label: 'PK%', w: 58, invert: true, fmt: (v, r) => (v == null ? '—' : `${(v * 100).toFixed(1)} ${ord(r.pkRank)}`) },
     { key: 'oppPp', label: 'Opp PP%', w: 70, fmt: (v, r) => (v == null ? '—' : `${(v * 100).toFixed(1)} ${ord(r.oppPpRank)}`) },
