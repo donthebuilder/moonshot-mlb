@@ -2,7 +2,9 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/nfl/theme'
 import { NFL_DATA_BASE } from '../../lib/nfl/dataSource'
-import { ChipGroup, ChartCard, ChartEmpty } from '../charts'
+import { ChipGroup, ChartCard, ChartEmpty, ChartLegend, StatStrip, ViewToggle, viewBtn } from '../charts'
+import { SubLabel } from '../matchup/MatchupParts'
+import { chipColor } from '../Heatmap'
 import HowToRead from '../charts/HowToRead'
 import {
   fieldModel, fieldView, mapAttempts, phrase, fmtPct, heatOf, coolOf, LANES, LANE_WORD, LANE_SHORT,
@@ -232,8 +234,10 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   // heat always under; the targets (dots) and each zone's share on top, each
   // its own chip. THE FILTERS cut the dots, the shares, the numbers and the 3D;
   // the heat stays the season defence.
-  const [shareOn, setShareOn] = useState(fromHash?.share ?? fromHash?.src !== 'r25')
-  const [dotsOn, setDotsOn] = useState(fromHash?.dots ?? true)
+  // THE VIEW (2026-10-02, the Rink's toggle): DOTS = the targets over the
+  // defence; ZONES = each zone's share printed big, no dots. dots=0 in the link = ZONES.
+  const [fv, setFv] = useState(fromHash?.dots === false ? 'zones' : 'dots')
+  const dotsOn = fv === 'dots', shareOn = fv === 'zones'
   const [res, setRes] = useState(fromHash?.res || 'ALL')
   const [dn, setDn] = useState(fromHash?.dn || 'ALL')
   const [ty, setTy] = useState(fromHash?.ty || 'ALL')
@@ -269,7 +273,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   useEffect(() => {
     if (fromHash && wrap.current) wrap.current.scrollIntoView({ block: 'start' })
   }, [fromHash, file.state])
-  useEffect(() => { if (hashSync && file.state === 'ready') writeHash(win, { share: shareOn, dots: dotsOn, res, dn, ty, src, rt: rtF, cv: cvF }) }, [hashSync, win, shareOn, dotsOn, res, dn, ty, src, rtF, cvF, file.state])
+  useEffect(() => { if (hashSync && file.state === 'ready') writeHash(win, { dots: dotsOn, res, dn, ty, src, rt: rtF, cv: cvF }) }, [hashSync, win, dotsOn, res, dn, ty, src, rtF, cvF, file.state])
   // Leaving the Field takes its params with it.
   useEffect(() => () => { if (hashSync) clearHash() }, [hashSync])
   useEffect(() => { setPick(null) }, [mode, win, team, pid, dotsOn, res, dn, ty, src, rtF, cvF])
@@ -426,23 +430,20 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   const roleLine = null
 
   const lastWk = weeksIn[0] || null
+  // THE TITLE: the matchup components' SubLabel, like its neighbours (was a display-font h3)
   const head = (
-    <div style={{ marginBottom: phone ? 6 : 8 }}>
-      <h3 style={{ margin: 0, fontFamily: DISPLAY, fontStretch: 'condensed', fontWeight: 800, fontSize: phone ? 21 : 26, lineHeight: 1.05, letterSpacing: '.01em', textTransform: 'uppercase', color: C.text }}>
-        <span style={{ color: C.green }}>The Field</span>
-        <span style={{ color: C.text3, margin: '0 .3em' }}>·</span>
-        {pid && player
-          ? <><a href={playerHref('nfl', pid)} style={linkStyle}>{player.name}</a><span style={{ color: C.text3 }}> · {TL(team)}</span></>
-          : <>{TL(team)} offence</>}
-      </h3>
-      {(lines.length > 0 || roleLine) && (
-        <div style={{ marginTop: 5, fontSize: 13, lineHeight: 1.5, color: C.text2 }}>
-          {lines.map((l, i) => <div key={i}>{l}</div>)}
-          {roleLine && <div style={{ marginTop: 3, fontSize: 12, color: C.text3 }}>{roleLine}</div>}
-        </div>
-      )}
-    </div>
+    <SubLabel theme={C} numFont={NUM_FONT} style={{ marginBottom: 8 }}>
+      THE FIELD · {pid && player
+        ? <><a href={playerHref('nfl', pid)} style={{ ...linkStyle, color: C.text2 }}>{player.name.toUpperCase()}</a> · {TL(team)}</>
+        : <>{TL(team)} OFFENCE</>}
+    </SubLabel>
   )
+  // THE SENTENCES, under the card in FactLines' type (ShotPanel's place for them)
+  const facts = lines.length > 0 ? (
+    <div style={{ fontSize: 12.5, lineHeight: 1.6, color: C.text2, marginTop: 8 }}>
+      {lines.map((l, i) => <div key={i}>{l}</div>)}
+    </div>
+  ) : null
 
   // Zero targets and zero carries: nothing to draw, no section.
   if (pid && !dv.view) return null
@@ -451,51 +452,34 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   if (!isRun && !mine.length && !routesOn) return <section ref={wrap}>{head}<ChartEmpty theme={C}>{asPlayer ? `No targets for ${player?.name || 'him'} in ${body?.season || 'this'} season's play-by-play yet.` : `No targets for ${team} yet.`}</ChartEmpty></section>
 
   // ── the chips ────────────────────────────────────────────────────────────
-  const chipH = phone ? { minHeight: 44, padding: '0 11px', fontSize: 11, whiteSpace: 'nowrap', flexShrink: 0 } : { minHeight: 32, padding: '0 10px', fontSize: 10.5, whiteSpace: 'nowrap' }
+  // THE ROWS (ShotPanel's): wrap, never scroll sideways; the shared chips as they come
+  const chipH = null
+  const rowStyle = { display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }
   const dock = (
-    <div className="field-dock" style={{
-      display: 'flex', alignItems: 'center', gap: 5, marginBottom: phone ? 6 : 8,
-      ...(phone ? { flexWrap: 'nowrap', overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', margin: '0 -2px 6px', padding: '0 2px' } : { flexWrap: 'wrap' }),
-    }}>
-      {/* the season first: on a phone the row scrolls, and this is the one to find */}
+    <div className="field-dock" style={rowStyle}>
       {!isRun && rf.available && (
-        <ChipGroup first label={phone ? null : 'Season'} theme={C} numFont={NUM_FONT} color={C.cream} value={src} onChange={(k) => { setSrc(k); setRtF('ALL'); setCvF('ALL'); setShareOn(k !== 'r25') }} chipStyle={chipH}
+        <ChipGroup first label="Season" theme={C} numFont={NUM_FONT} color={C.cream} value={src} onChange={(k) => { setSrc(k); setRtF('ALL'); setCvF('ALL'); if (k === 'r25') setFv('dots') }} chipStyle={chipH}
           options={[{ k: '26', label: String(file.body?.season || 'NOW'), n: null, title: 'This season\u2019s targets' }, { k: 'r25', label: `${rf.season} ROUTES`, n: null, title: `Last season\u2019s targets with the route he ran and the coverage (charted once a year, after the playoffs)` }]} />
       )}
       {dv.toggle && (
-        <ChipGroup first theme={C} numFont={NUM_FONT} color={C.amber} value={isRun ? 'rush' : 'pass'} onChange={setViewPick} chipStyle={chipH}
+        <ChipGroup first={!(rf.available && !isRun)} label="Play" theme={C} numFont={NUM_FONT} color={C.amber} value={isRun ? 'rush' : 'pass'} onChange={setViewPick} chipStyle={chipH}
           options={[{ k: 'pass', label: 'PASSING', n: pid ? tgN : null, title: pid ? `${isQB ? 'His throws' : 'His targets'}, where they went` : 'Where they get beaten through the air' }, { k: 'rush', label: 'RUNNING', n: pid ? caN : null, title: pid ? 'His carries, gap by gap' : 'Where they get beaten on the ground' }]} />
       )}
       {pid && !isQB && !isRun && (
-        <ChipGroup first={!dv.toggle} theme={C} numFont={NUM_FONT} color={C.green} value={mode} onChange={setMode} chipStyle={chipH}
+        <ChipGroup label="Whose" theme={C} numFont={NUM_FONT} color={C.green} value={mode} onChange={setMode} chipStyle={chipH}
           options={[{ k: 'PLAYER', label: 'PLAYER', n: null, title: `${player?.name}'s targets` }, { k: 'TEAM', label: 'TEAM', n: null, title: `Every target ${team} threw` }]} />
       )}
-      <ChipGroup first={!dv.toggle && (!pid || isQB || isRun)} label={phone ? null : 'Window'} theme={C} numFont={NUM_FONT} color={C.cyan} value={win} onChange={setWin} chipStyle={chipH}
+      <ChipGroup first={!dv.toggle && !(rf.available && !isRun) && !(pid && !isQB && !isRun)} label="Window" theme={C} numFont={NUM_FONT} color={C.cyan} value={win} onChange={setWin} chipStyle={chipH}
         options={WINS.map(([k, label, nn]) => ({ k, label, n: k === 'SZN' || isRun ? null : inWin(k).length, title: k === 'SZN' ? 'The whole season' : `The last ${nn === 1 ? 'game' : `${nn} games`} ${asPlayer ? 'he was targeted in' : `${team} played`}` }))} />
-      {!isRun && [['TARGETS', dotsOn, setDotsOn, 'Every target as a dot; tap one for the play'], ['SHARE', shareOn, setShareOn, `Each zone's share of ${asPlayer ? 'his' : 'their'} targets`]].map(([l, on, set, t]) => (
-        <button key={l} type="button" onClick={() => set((v) => !v)} aria-pressed={on} title={t}
-          style={{ ...chipH, borderRadius: 999, cursor: 'pointer', fontFamily: NUM_FONT, fontWeight: 800, letterSpacing: '.06em',
-            border: `1px solid ${on ? C.green : C.border2}`, background: on ? `${C.green}1f` : 'transparent', color: on ? C.green : C.text3 }}>{on ? <span aria-hidden="true">✓ </span> : null}{l}</button>
-      ))}
-      {gl && !isRun && (
-        <button type="button" onClick={() => setStadium((v) => !v)} aria-pressed={stadium}
-          title={stadium ? 'Close the 3D stadium' : 'The same targets, in the stadium, in 3D'}
-          style={{ ...chipH, borderRadius: 999, cursor: 'pointer', fontFamily: NUM_FONT, fontWeight: 800, letterSpacing: '.06em', marginLeft: phone ? 0 : 'auto',
-            border: `1px solid ${stadium ? C.green : C.border2}`, background: stadium ? `${C.green}1f` : 'transparent', color: stadium ? C.green : C.text3 }}>
-          🏟 STADIUM
-        </button>
-      )}
     </div>
   )
 
   // THE FILTERS (NHL ShotPanel's rows): each chip's count is what it would show
   // with the other filters on
   const cnt = (skip, f) => PW.filter((p) => passF(p, skip) && f(p)).length
+  const clearAll = () => { setRes('ALL'); setDn('ALL'); setTy('ALL'); setRtF('ALL'); setCvF('ALL'); setPick(null) }
   const filterRow = isRun ? null : (
-    <div className="field-filters" style={{
-      display: 'flex', alignItems: 'center', gap: 5, marginBottom: phone ? 6 : 8,
-      ...(phone ? { flexWrap: 'nowrap', overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', margin: '0 -2px 6px', padding: '0 2px' } : { flexWrap: 'wrap' }),
-    }}>
+    <div className="field-filters" style={rowStyle}>
       <ChipGroup first label="Result" theme={C} numFont={NUM_FONT} color={C.orange} value={res} onChange={setRes} chipStyle={chipH}
         options={[['ALL', 'All', () => true, 'Every target'], ['catch', 'Catch', (p) => p.res === 'catch', 'Only catches (not touchdowns)'], ['td', 'TD', (p) => p.res === 'td', 'Only touchdowns'], ['inc', 'No catch', (p) => p.res === 'inc' || p.res === 'int', 'Incomplete or intercepted']]
           .map(([k, label, f, title]) => ({ k, label, n: cnt('res', f), title }))} />
@@ -503,16 +487,29 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
         options={[['ALL', 'All'], ['1', '1st'], ['2', '2nd'], ['3', '3rd'], ['4', '4th']].map(([k, label]) => ({ k, label, n: cnt('dn', (p) => k === 'ALL' || String(p.dn) === k), title: k === 'ALL' ? 'Every down' : `Only ${label} down` }))} />
       <ChipGroup label="Type" theme={C} numFont={NUM_FONT} color={C.amber} value={ty} onChange={setTy} chipStyle={chipH}
         options={[['ALL', 'All', () => true], ['pa', 'Play action', (p) => Boolean(p.pa)], ['sc', 'Screen', (p) => Boolean(p.sc)]].map(([k, label, f]) => ({ k, label, n: cnt('ty', f), title: k === 'ALL' ? 'Every pass' : `Only ${label.toLowerCase()} passes` }))} />
-      {routesOn && (
+      {routesOn && !phone && (
         <ChipGroup label="Route" theme={C} numFont={NUM_FONT} color={C.green} value={rtF} onChange={setRtF} chipStyle={chipH}
           options={[{ k: 'ALL', label: 'All', n: cnt('rt', () => true), title: 'Every route' },
             ...ROUTES.map((k) => ({ k, label: ROUTE_WORD[k].toUpperCase(), n: cnt('rt', (p) => p.rt === k), title: `Only ${ROUTE_WORD[k]} routes` })).filter((o) => o.n || o.k === rtF)]} />
       )}
-      {routesOn && (
+      {routesOn && !phone && (
         <ChipGroup label="Coverage" theme={C} numFont={NUM_FONT} color={C.blue} value={cvF} onChange={setCvF} chipStyle={chipH}
           options={[{ k: 'ALL', label: 'All', n: cnt('cv', () => true), title: 'Every coverage' },
             ...COVS.map((k) => ({ k, label: COV_WORD[k] || k, n: cnt('cv', (p) => (k === 'M' || k === 'Z' ? p.mz === k : p.cv === k)), title: COV_WORD[k] ? `Only vs ${COV_WORD[k].toLowerCase()}` : `Only vs ${k} (the shell is charted on some snaps only)` })).filter((o) => o.n || o.k === cvF)]} />
       )}
+      {routesOn && phone && [['Route', rtF, setRtF, [{ k: 'ALL', label: 'All routes', n: cnt('rt', () => true) }, ...ROUTES.map((k) => ({ k, label: cap(ROUTE_WORD[k]), n: cnt('rt', (p) => p.rt === k) }))]],
+        ['Coverage', cvF, setCvF, [{ k: 'ALL', label: 'All coverages', n: cnt('cv', () => true) }, ...COVS.map((k) => ({ k, label: COV_WORD[k] || k, n: cnt('cv', (p) => (k === 'M' || k === 'Z' ? p.mz === k : p.cv === k)) }))]]].map(([l, v, set, opts]) => (
+        // ShotPanel's goalie picker, as a filter
+        <label key={l} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em' }}>
+          {l}
+          <select value={v} onChange={(e) => set(e.target.value)}
+            style={{ minHeight: 36, background: C.bg2, color: C.text, border: `1px solid ${v === 'ALL' ? C.border2 : C.green}`, borderRadius: 8, padding: '0 8px', font: `700 13px/1 ${NUM_FONT}`, maxWidth: 190 }}>
+            {opts.filter((o) => o.n || o.k === v).map((o) => <option key={o.k} value={o.k}>{o.label} · {o.n}</option>)}
+          </select>
+        </label>
+      ))}
+      {fOn && <button type="button" onClick={clearAll}
+        style={{ background: 'transparent', border: 'none', color: C.text3, font: `700 10px/1 ${NUM_FONT}`, cursor: 'pointer', textDecoration: 'underline dotted', minHeight: 0 }}>clear</button>}
     </div>
   )
 
@@ -582,21 +579,8 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   // per-zone numbers (plan item 5): the leak where the sample holds, "thin"
   // elsewhere; the spot's number rides its ring.
   const labels = []
-  if (defModel) {
-    for (const c of cells) {
-      const li = LANES3.indexOf(c.L)
-      const bx = cx0 + li * lw, by = Y(c.B.hi)
-      if (spot && c.z === spot.z) continue
-      // only a real defence number earns a tag (thin is the hatch, said once in the caption);
-      // a short zone (BEHIND) is the share's -- its colour carries the defence, the table its number
-      if (c.leak == null) continue
-      if (shareOn && Y(c.B.lo) - Y(c.B.hi) < u(44)) continue
-      const txt = `${!phone && defTeam ? `${defTeam} ` : ''}${fmtPct(c.leak)}`
-      labels.push(<rect key={`lb${c.k}`} x={bx + u(4)} y={by + u(4)} width={u(txt.length * labelPx * 0.66 + 7)} height={u(labelPx + 6)} rx={u(4)} fill={C.bg} opacity={0.62} />)
-      labels.push(<text key={`lk${c.k}`} x={bx + u(7.5)} y={by + u(4 + labelPx * 0.5 + 3)} dy=".35em" fontFamily={NUM_FONT} fontWeight={c.leak != null ? 800 : 700} fontSize={u(labelPx)}
-        fill={c.leak > 0 ? C.red : C.blue}>{txt}</text>)
-    }
-  }
+  // the defence's number per zone lives in the zone bars and the table now (2026-10-02,
+  // the MOONSHOT frame): the field carries only turf, the red / blue layer, the spot and the plays
   for (const B of BANDS) {
     labels.push(<text key={`bl${B.key}`} x={x0 - u(6)} y={(Y(B.lo) + Y(B.hi)) / 2} dy=".35em" textAnchor="end" fontFamily={NUM_FONT} fontWeight={800} fontSize={u(labelPx)} fill={C.text3}>{B.label}</text>)
   }
@@ -622,25 +606,11 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   LANES3.forEach((L, li) => labels.push(<text key={`ln${L}`} x={cx0 + li * lw + lw / 2} y={H - u(phone ? 6 : 8)} textAnchor="middle" fontFamily={NUM_FONT} fontWeight={800} fontSize={u(labelPx)} letterSpacing={u(1)} fill={C.text3}>{{ L: 'LEFT', M: 'MIDDLE', R: 'RIGHT' }[L]}</text>))
   labels.push(<text key="loslbl" x={x0 - u(6)} y={Y(0)} dy=".35em" textAnchor="end" fontFamily={NUM_FONT} fontWeight={900} fontSize={u(10)} fill={C.ice}>LINE</text>)
 
-  // THE SPOT: MatchupMap's hand-circled double ring, centred on the zone,
-  // with the zone's number on a tag under it.
+  // THE SPOT: an orange outline round its zone (its number is in the zone bars and the sentence)
   if (spot) {
     const li = LANES3.indexOf(spot.L)
-    const cxs = cx0 + li * lw + lw / 2
-    const cys = (Y(spot.B.hi) + Y(spot.B.lo)) / 2
-    const rr = Math.min(lw, Y(spot.B.lo) - Y(spot.B.hi)) * 0.42
-    // in ZONES the orange outline is the spot, so the tag stays short and clear of the share
-    // the orange outline is the spot, so the tag stays short and clear of the share
-    const tagTxt = `${phone ? '' : 'SPOT '}${fmtPct(spot.leak)}`
-    const shortSpot = shareOn && Y(spot.B.lo) - Y(spot.B.hi) < u(44)   // the outline alone marks it there
-    const tagPx = phone ? 9.5 : 10.5
-    const tagW = u(tagTxt.length * tagPx * 0.68 + 10), tagH = u(tagPx + 8)
     labels.push(<g key="spot" aria-hidden="true">
       <rect x={cx0 + li * lw + u(1.5)} y={Y(spot.B.hi) + u(1.5)} width={lw - u(3)} height={Y(spot.B.lo) - Y(spot.B.hi) - u(3)} rx={u(3)} fill="none" stroke={C.orange} strokeWidth={2} vectorEffect="non-scaling-stroke" />
-      {!shortSpot && <>
-        <rect x={cx0 + li * lw + u(4)} y={Y(spot.B.hi) + u(4)} width={tagW} height={tagH} rx={u(3)} fill={C.orange} />
-        <text x={cx0 + li * lw + u(4) + tagW / 2} y={Y(spot.B.hi) + u(4) + tagH / 2} dy=".35em" textAnchor="middle" fontFamily={NUM_FONT} fontWeight={900} fontSize={u(tagPx)} letterSpacing={u(0.4)} fill={C.bg}>{tagTxt}</text>
-      </>}
     </g>)
   }
 
@@ -770,7 +740,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   }
   const picture = (
     <svg ref={inkRef} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${subjName}: ${drawn.length} targets by depth and lane${defTeam ? `, over ${defTeam}'s yards allowed by zone` : ''}`}
-      style={{ display: 'block', width: '100%', height: 'auto', borderRadius: 8 }}>
+      style={{ display: 'block', width: '100%', maxWidth: 520, height: 'auto', borderRadius: 8 }}>
       <defs>
         <filter id={`glow${uid}`} x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation={3 * dotScale} /></filter>
         {defs}
@@ -781,25 +751,23 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
     </svg>
   )
 
-  // THE CAPTION (plan item 6): the whole explanation, one line.
-  const caption = isRun ? (
-    <div style={{ fontSize: 11.5, lineHeight: 1.5, color: C.text3, marginTop: 6 }}>
+  // THE STAMP (ShotPanel's 9px caps line): which season, and what the lines are
+  const stamp = isRun ? null : (
+    <span style={{ color: C.text3, font: `800 9px/1.5 ${NUM_FONT}`, letterSpacing: '.08em' }}>
+      {routesOn
+        ? (phone ? `${rf.season} · ROUTE SHAPES, NOT TRACKED PATHS` : `${rf.season} SEASON · ROUTE SHAPES FROM THE CHARTED ROUTE NAME, NOT TRACKED PATHS`)
+        : (phone ? `${file.body?.season || ''} SEASON · LANE + AIR YARDS` : `${file.body?.season || ''} SEASON · LANE + AIR YARDS (ROUTES AREN'T IN THIS SEASON'S FEED)`)}
+      {src === 'r25' && rf.state === 'loading' ? ' · LOADING LAST SEASON\u2019S ROUTES' : ''}
+      {src === 'r25' && rf.state === 'error' ? ' · COULDN\u2019T LOAD THE ROUTE FILES' : ''}
+    </span>
+  )
+  const howTo = isRun ? (
+    <div style={{ fontSize: 11, lineHeight: 1.5, color: C.text3, marginTop: 6 }}>
       {runDef ? <>Ink: where {TL(defTeam)} get beaten on the ground, gap by gap, vs a normal defence. Thin = too few carries to say. </> : null}
       Carries by gap are from the season grid; the dots in the strip are {pid ? 'his' : 'their'} touches inside the 20.
     </div>
   ) : (
-    <div style={{ fontSize: 11.5, lineHeight: 1.5, color: C.text3, marginTop: 6 }}>
-      {defModel ? <>Under: {TL(defTeam)}&apos;s yards a target in each zone vs the league&apos;s this season, red = they give up more, blue = they hold up, hatched = too few plays to say. </> : null}
-      {dotsOn ? <>Dots: {asPlayer ? 'his' : `${team}'s`} targets (hollow = incomplete, orange = touchdown). </> : null}
-      {shareOn ? <>%: the share of {asPlayer ? 'his' : 'their'} {plural(drawn.length, unit)} in that zone{fOn ? ' (filtered)' : ''}, the count under it. </> : null}
-      {routesOn
-        ? <><b style={{ color: C.text2 }}>{rf.season} season</b>: route shapes from the charted route name, ending where the ball went; not tracked paths. The coverage shell is charted on some snaps only (counts on the chips).</>
-        : <>Routes aren&apos;t in this season&apos;s feed yet, only lane and air yards{rf.available ? <>; {rf.season} ROUTES shows last season&apos;s</> : null}.</>}
-      {src === 'r25' && rf.state === 'loading' ? ' Loading last season\u2019s routes…' : null}
-      {src === 'r25' && rf.state === 'error' ? ' Couldn\u2019t load last season\u2019s route files.' : null}
-      {usingQb ? ' The spot uses his own throws this season.' : ''}
-      {/* components/charts/HowToRead (2D TOP TIER 1): SprayField's panel, shared */}
-      <div><HowToRead theme={C} numFont={NUM_FONT} size={12}>
+      <HowToRead theme={C} numFont={NUM_FONT} size={12}>
         <div style={{ marginBottom: 6 }}>
           A dot is one target: up the field by its <b style={{ color: C.text2 }}>air yards</b> (how far past the line of scrimmage the ball was thrown, not where it was caught), in its <b style={{ color: C.text2 }}>lane</b> — the play-by-play&apos;s left / middle / right, a third of the field. Across the lane the spot isn&apos;t charted, so dots are spread to stay apart. Bigger = more yards after the catch. Targets with no lane or air yards charted aren&apos;t drawn.
         </div>
@@ -810,23 +778,10 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
           </div>
         )}
         <div>
-          The window chips (season / last 5 / last 3 / last week) and the Result / Down / Type filters cut the dots, the zone shares and the numbers; the red / blue layer is always the season. TARGETS and SHARE turn those layers on and off. 🏟 STADIUM draws the same targets in 3D, each zone&apos;s share rising as a column in the layer&apos;s colour; its lines are not ball flights.
+          The window chips (season / last 5 / last 3 / last week) and the Result / Down / Type filters cut the dots, the zone shares and the numbers; the red / blue layer is always the season. DOTS shows every target over the defence; ZONES prints each zone's share instead. 🏟 STADIUM draws the same targets in 3D, each zone&apos;s share rising as a column in the layer&apos;s colour; its lines are not ball flights.
         </div>
-      </HowToRead></div>
-    </div>
+      </HowToRead>
   )
-  // TEAM mode: whose dots are whose -- names (links), not a legend.
-  const whoRow = !asPlayer && topWho.length ? (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0 12px', marginTop: 2, fontSize: 12 }}>
-      {topWho.map((w, i) => (
-        <a key={w} href={playerHref('nfl', w)} onClick={onPlayerClick && byPid.get(String(w)) ? (e) => { e.preventDefault(); onPlayerClick(byPid.get(String(w))) } : undefined}
-          style={{ ...linkStyle, display: 'inline-flex', alignItems: 'center', gap: 5, minHeight: 32, color: C.text2 }}>
-          <i aria-hidden="true" style={{ width: 9, height: 9, borderRadius: '50%', background: WHO_INK[i], display: 'inline-block' }} />{nameOf(w)}
-        </a>
-      ))}
-    </div>
-  ) : null
-
   // ── the numbers ──────────────────────────────────────────────────────────
   const ct = P.filter((p) => p.res === 'catch' || p.res === 'td')
   const tds = P.filter((p) => p.res === 'td').length
@@ -844,15 +799,9 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
     const rt = Object.values(runSrc).reduce((a, z) => a + (Number(z?.td) || 0), 0)
     stats.splice(0, stats.length, ['CARRIES', att, C.text], ['YDS', ry, C.text], ['TD', rt, C.orange], ['YPC', att ? one(ry / att) : '—', C.text2])
   }
+  // components/charts StatStrip (ShotPanel's line), above the card
   const statBlock = isRun && !runSrc ? null : (
-    <div role="list" style={{ display: 'grid', gridTemplateColumns: `repeat(${stats.length}, 1fr)`, gap: 2, marginTop: 8 }}>
-      {stats.map(([l, v, col]) => (
-        <div key={l} role="listitem" style={{ textAlign: 'center', minWidth: 0 }}>
-          <div style={{ fontFamily: DISPLAY, fontStretch: 'condensed', fontWeight: 800, fontSize: phone ? 19 : 24, lineHeight: 1, color: col }}>{v}</div>
-          <div style={{ fontFamily: NUM_FONT, fontSize: 11, fontWeight: 800, color: C.text3, marginTop: 2, whiteSpace: 'nowrap', letterSpacing: '.02em' }}>{l}</div>
-        </div>
-      ))}
-    </div>
+    <StatStrip theme={C} numFont={NUM_FONT} label="The shown targets, in numbers" stats={stats.map(([k, v, col]) => ({ k, v, tone: col }))} />
   )
 
   // EVERY PART OF THE FIELD, WITH THE NUMBERS (plan item 7): MatchupMap's
@@ -950,61 +899,86 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
     const l4 = p.rt || p.mz ? [p.rt ? `Route: ${ROUTE_WORD[p.rt] || p.rt}` : null, p.mz ? `vs ${p.mz === 'M' ? 'man' : 'zone'}${p.cv ? ` (${p.cv})` : ''}` : null].filter(Boolean).join(' · ') : null
     return { head1, yardsBit, l2, l3, l4, who: asPlayer ? null : nameOf(p.pid), td: p.res === 'td' }
   })() : null
+  // THE READOUT (SprayField / ShotPanel): a fixed place beside the field, so a tap never moves the page
   const card = (
-    <div aria-live="polite" style={{ fontFamily: NUM_FONT, fontSize: 12, lineHeight: 1.6, color: C.text2 }}>
+    <div aria-live="polite" style={{ minHeight: 54, fontFamily: NUM_FONT, fontSize: 10.5, lineHeight: 1.7, color: C.text2 }}>
       {cardLines ? <>
-        <div><b style={{ color: cardLines.td ? C.orange : C.cream, letterSpacing: '.04em' }}>{cardLines.head1}</b>{cardLines.yardsBit}{cardLines.who ? <span style={{ color: C.text }}> · <a href={playerHref('nfl', picked.pid)} style={linkStyle}>{cardLines.who}</a></span> : null}</div>
+        <div style={{ color: cardLines.td ? C.orange : C.text, fontWeight: 800, fontSize: 11 }}>{cardLines.head1}{cardLines.yardsBit}{cardLines.who ? <> · <a href={playerHref('nfl', picked.pid)} style={{ ...linkStyle, color: C.text }}>{cardLines.who}</a></> : null}</div>
         <div>{cardLines.l2}</div>
-        {cardLines.l3 && <div style={{ color: C.text3 }}>{cardLines.l3}</div>}
         {cardLines.l4 && <div style={{ color: C.text2 }}>{cardLines.l4}</div>}
-      </> : <span style={{ color: C.text3 }}>Tap a target for the play.</span>}
+        {cardLines.l3 && <div style={{ color: C.text3 }}>{cardLines.l3}</div>}
+      </> : (
+        <div style={{ fontSize: 10, color: C.text3, lineHeight: 1.6 }}>
+          {dotsOn ? 'Tap a target for the play.' : 'ZONES: each zone\u2019s share of the targets.'}{' '}Showing <b style={{ color: C.text2 }}>{drawn.length}</b> of {PW.length} targets.
+        </div>
+      )}
     </div>
+  )
+  // THE ZONE BARS (SprayField's lane bars): the busiest zones, share + count, the defence's leak beside it
+  const zoneBars = isRun ? null : cells.filter((c) => c.n).sort((a, b) => b.n - a.n).slice(0, 6)
+  const bars = zoneBars && zoneBars.length ? (
+    <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 4 }}>
+      {zoneBars.map((c) => (
+        <div key={c.k} title={`${cap(phrase(c.z))}: ${c.n} of ${drawn.length} targets${c.leak != null ? `; ${defTeam} ${fmtPct(c.leak)} vs a normal defence` : ''}`} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10 }}>
+          <span style={{ width: 58, color: C.text3, fontFamily: NUM_FONT }}>{c.L} {c.B.label}</span>
+          <div style={{ flex: 1, height: 11, background: C.bg3, borderRadius: 2 }}>
+            <div style={{ width: `${Math.max(2, c.share)}%`, height: '100%', background: chipColor(c.share, 0, 45), borderRadius: 2 }} />
+          </div>
+          <span style={{ fontFamily: NUM_FONT, color: C.text2, minWidth: 74, textAlign: 'right' }}>
+            {Math.round(c.share)}% <span style={{ color: C.text3 }}>{c.n}</span>{c.leak != null && <span style={{ color: c.leak > 0 ? C.red : C.blue }}> {fmtPct(c.leak)}</span>}
+          </span>
+        </div>
+      ))}
+    </div>
+  ) : null
+  // ONE LEGEND, FROM WHAT IS DRAWN (ShotPanel's ChartLegend); TEAM mode's names are its items, still links
+  const sw = (bg, extra = {}) => <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, background: bg, display: 'inline-block', ...extra }} />
+  const legend = isRun ? null : (
+    <ChartLegend theme={C} style={{ marginTop: 8 }} items={[
+      ...(dotsOn && asPlayer ? [{ key: 'catch', mark: <b aria-hidden="true" style={{ color: C.cream }}>●</b>, label: 'catch' }, { key: 'inc', mark: <b aria-hidden="true" style={{ color: C.cream }}>○</b>, label: 'no catch' }] : []),
+      ...(dotsOn && !asPlayer ? topWho.map((w, i) => ({ key: w, mark: <b aria-hidden="true" style={{ color: WHO_INK[i] }}>●</b>,
+        label: <a href={playerHref('nfl', w)} onClick={onPlayerClick && byPid.get(String(w)) ? (e) => { e.preventDefault(); onPlayerClick(byPid.get(String(w))) } : undefined} style={{ ...linkStyle, color: C.text2 }}>{nameOf(w)}</a> })) : []),
+      ...(dotsOn ? [{ key: 'td', mark: <b aria-hidden="true" style={{ color: C.orange }}>●</b>, label: 'touchdown' }] : []),
+      ...(routesOn && dotsOn ? [{ key: 'rt', mark: <b aria-hidden="true">╱</b>, label: 'route shape' }] : []),
+      ...(defModel ? [{ key: 'red', mark: sw(`${C.red}88`), label: `${defTeam} give up more` }, { key: 'blue', mark: sw(`${C.blue}88`), label: 'hold up' }, { key: 'thin', mark: sw('transparent', { border: `1px dashed ${C.border2}` }), label: 'thin' }] : []),
+      ...(spot ? [{ key: 'spot', mark: sw('transparent', { border: `1.5px solid ${C.orange}` }), label: 'the spot' }] : []),
+    ]} />
   )
   const emptyWin = !P.length ? <ChartEmpty theme={C} style={{ padding: '4px 0 0' }}>{routesOn && !mine.length ? `No ${rf.season} targets for ${asPlayer ? player?.name || 'him' : team}.` : 'No targets in this window. Try SZN.'}</ChartEmpty> : null
 
   return (
-    <section ref={wrap} aria-label={`The Field: ${subjName}`} style={{ margin: '4px 0 12px' }}>
-      {head}
+    <section ref={wrap} aria-label={`The Field: ${subjName}`} style={{ margin: '4px 0 12px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div>{head}{stamp}</div>
       {dock}
       {filterRow}
-      <ChartCard theme={C} className="field-card" style={phone ? { display: 'block', padding: 7 } : { gap: 18, padding: 12, flexWrap: 'nowrap' }}>
-        <div style={{ flex: '1 1 auto', minWidth: 0, maxWidth: phone ? 'none' : 680 }}>
-          {/* THE STADIUM (BATCH-NFL-3D): the same targets, zones and spot, in
-              3D. The 2D field stays under it; a tapped dot opens the same card. */}
-          {stadium && gl && !isRun && (
-            <div style={{ marginBottom: 10 }}>
-              <FieldArena dots={dots3} cells={cells} spot={spot} rz={stripRows.flatMap((r) => r.touches)} onPick={(i) => setPick(i)} inkSvg={() => inkRef.current} inkBox={inkBox} stats={stats} showDiscs={dotsOn}
-                title={subjName} subtitle={`${plural(drawn.length, unit)}${defTeam ? ` · vs ${defTeam}` : ''}`} />
-            </div>
-          )}
-          <div ref={fieldBox}>{isRun ? runPicture : picture}</div>
-          {!isRun && emptyWin}
-          {caption}
-          {!isRun && dotsOn && whoRow}
-          {phone && statBlock}
-          {strip}
-          {phone && table}
-        </div>
-        {!phone && (
-          <div style={{ flex: '1 0 280px', maxWidth: 420, display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0 }}>
-            {statBlock}
-            {!isRun && dotsOn && <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 10, minHeight: 64 }}>{card}</div>}
-            {table}
-          </div>
-        )}
-      </ChartCard>
-      {phone && picked && (
-        <div role="dialog" aria-label="The play" style={{
-          position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 1000,
-          padding: '12px 16px calc(12px + env(safe-area-inset-bottom))', background: C.bg2,
-          borderTop: `1px solid ${C.border2}`, boxShadow: '0 -12px 32px rgba(0,0,0,.5)',
-          display: 'flex', gap: 10, alignItems: 'flex-start',
-        }}>
-          <div style={{ flex: 1, minWidth: 0 }}>{card}</div>
-          <button type="button" onClick={() => setPick(null)} aria-label="Close the play"
-            style={{ flex: '0 0 44px', width: 44, height: 44, border: `1px solid ${C.border}`, borderRadius: 10, background: 'transparent', color: C.text2, fontSize: 18, cursor: 'pointer' }}>×</button>
-        </div>
+      {statBlock}
+      {/* THE STADIUM (BATCH-NFL-3D): opens above the card, as LAMP's arena does */}
+      {stadium && gl && !isRun && (
+        <FieldArena dots={dots3} cells={cells} spot={spot} rz={stripRows.flatMap((r) => r.touches)} onPick={(i) => setPick(i)} inkSvg={() => inkRef.current} inkBox={inkBox} stats={stats} showDiscs={dotsOn}
+          title={subjName} subtitle={`${plural(drawn.length, unit)}${defTeam ? ` · vs ${defTeam}` : ''}`} />
       )}
+      {/* MOONSHOT'S SPRAY CHART FRAME (SprayField .spray-wrap, as LAMP's shot map): the
+          field on the left, its readout, zone bars, legend and fine print on the right */}
+      <ChartCard theme={C}>
+        <div ref={fieldBox} style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-start', minWidth: 0, maxWidth: 520, ...(phone ? { width: '100%' } : { flex: '1 1 320px' }) }}>
+          {!isRun && (
+            <ViewToggle theme={C} numFont={NUM_FONT} accent={C.green} value={fv} onChange={(k) => { setFv(k); setPick(null) }} label="Field view"
+              views={[{ k: 'dots', label: 'DOTS', title: 'Every target over the defence; tap one for the play' }, { k: 'zones', label: 'ZONES', title: 'Each zone\u2019s share of the targets' }]}
+              extra={gl ? <button type="button" onClick={() => setStadium((v) => !v)} aria-pressed={stadium} title={stadium ? 'Close the 3D stadium' : 'The same targets, in the stadium, in 3D'} style={viewBtn(stadium, C.green, C, NUM_FONT)}>🏟 STADIUM</button> : null} />
+          )}
+          <div style={{ width: '100%' }}>{isRun ? runPicture : picture}</div>
+          {!isRun && emptyWin}
+        </div>
+        <div style={{ flex: 1, minWidth: 180 }}>
+          {!isRun && card}
+          {bars}
+          {legend}
+          {howTo}
+        </div>
+      </ChartCard>
+      {facts}
+      {strip}
+      {table}
     </section>
   )
 }

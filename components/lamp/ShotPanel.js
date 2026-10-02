@@ -15,7 +15,7 @@ import { hardestIndex, measuredMph } from '../../lib/nhl/shotPath'
 import { DelayedBanner, Loading, Pills } from './ui'
 import { FactLines } from '../matchup/MatchupParts'
 import { chipColor } from '../Heatmap'
-import { ChipGroup, ChartCard, ChartLegend, ChartEmpty } from '../charts'
+import { ChipGroup, ChartCard, ChartLegend, ChartEmpty, StatStrip, viewBtn } from '../charts'
 
 // 🏒 WHERE HE SHOOTS FROM (lamp research step 3). The rink plus the numbers
 // it is drawn from, for one player or one club: season or last 10 games,
@@ -177,15 +177,7 @@ export default function ShotPanel({ sel, who = 'He', height = 300 }) {
           )}
           {/* THE NUMBERS, ON SCREEN (BATCH-3D-V2 1c): the filtered list's line,
               above the rink so it never disappears when the arena toggles */}
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontFamily: NUM_FONT }} aria-label="The shown shots, in numbers">
-            {stats.map((x) => (
-              <span key={x.k} title={x.title || undefined} style={{ display: 'inline-flex', alignItems: 'baseline', gap: 4, whiteSpace: 'nowrap' }}>
-                <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.08em', color: C.text3 }}>{x.k}</span>
-                <span style={{ fontSize: 15, fontWeight: 900, color: x.tone || C.text }}>{x.v ?? '—'}</span>
-                {x.sub ? <span style={{ fontSize: 10, color: C.text3 }}>{x.sub}</span> : null}
-              </span>
-            ))}
-          </div>
+          <StatStrip stats={stats} theme={C} numFont={NUM_FONT} label="The shown shots, in numbers" />
           {view === 'goalie' && goalieRead && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: C.text3, fontFamily: NUM_FONT }}>
@@ -225,8 +217,7 @@ export default function ShotPanel({ sel, who = 'He', height = 300 }) {
               extraView={gl ? (
                 <button type="button" onClick={() => setArena((v) => !v)} aria-pressed={arena}
                   title={arena ? 'Close the 3D arena' : 'The same shots, in the arena, in 3D'}
-                  style={{ padding: '4px 10px', borderRadius: 7, cursor: 'pointer', font: `800 9px/1 ${NUM_FONT}`, letterSpacing: '.08em',
-                    border: `1px solid ${arena ? C.ice : C.border2}`, background: arena ? `${C.ice}1f` : 'transparent', color: arena ? C.ice : C.text3 }}>
+                  style={viewBtn(arena, C.ice, C, NUM_FONT)}>
                   🏟 ARENA
                 </button>
               ) : null}

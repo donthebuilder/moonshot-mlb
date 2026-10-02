@@ -3,6 +3,7 @@ import { useId, useState } from 'react'
 import { C, NUM_FONT, RINK, rampAt } from '../../lib/nhl/theme'
 import { measuredMph } from '../../lib/nhl/shotPath'
 import { GOALIE_ZONES, ZONE_SHAPES, ZONE_LABEL_AT, tintAlpha } from '../../lib/nhl/zones'
+import { ViewToggle } from '../charts'
 
 // 🏒 THE RINK (lamp research step 3, 2026-09-26). One attacking half seen
 // from above, net on the right, drawn in the league's own feet: blue line
@@ -79,16 +80,9 @@ export default function Rink({ map, slot, gridSpec, height = 300, shots = null, 
   const vs = view === 'vs' ? vsCells(map.grid, league) : null
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-start' }}>
-      <div role="group" aria-label="Map view" style={{ display: 'inline-flex', gap: 4 }}>
-        {[...(league ? ['dots', 'heat', 'vs'] : ['dots', 'heat']), ...(goalieRead ? ['goalie'] : [])].map((v) => (
-          <button key={v} type="button" onClick={() => setView(v)} aria-pressed={view === v}
-            style={{ padding: '4px 10px', borderRadius: 7, cursor: 'pointer', font: `800 9px/1 ${NUM_FONT}`, letterSpacing: '.08em', border: `1px solid ${view === v ? C.ice : C.border2}`, background: view === v ? `${C.ice}1f` : 'transparent', color: view === v ? C.ice : C.text3 }}>
-            {v === 'vs' ? 'VS LEAGUE' : v === 'goalie' ? 'VS GOALIE' : v.toUpperCase()}
-          </button>
-        ))}
-        {/* the caller's extra view (ShotPanel's 🏟 ARENA, BATCH-NHL-3D) */}
-        {extraView}
-      </div>
+      {/* components/charts ViewToggle (lifted from here, shared with TUDDY's Field); the caller's extra view is ShotPanel's 🏟 ARENA */}
+      <ViewToggle theme={C} numFont={NUM_FONT} accent={C.ice} value={view} onChange={setView} extra={extraView}
+        views={[...(league ? ['dots', 'heat', 'vs'] : ['dots', 'heat']), ...(goalieRead ? ['goalie'] : [])].map((v) => ({ k: v, label: v === 'vs' ? 'VS LEAGUE' : v === 'goalie' ? 'VS GOALIE' : v.toUpperCase() }))} />
       <svg viewBox={`-1 -1 ${W + 2} ${H + 2}`} role="img" aria-label={`Shot map: ${map.attempts} attempts, ${map.goals} goals`}
         style={{ height, width: 'auto', maxWidth: '100%', display: 'block' }}>
         {/* the sheet: ice, inside the boards */}
