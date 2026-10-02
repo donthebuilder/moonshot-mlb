@@ -87,6 +87,7 @@ import { easternDate } from '../../../../../lib/data'
 import { storiesTick } from '../../../../../lib/stories/record'
 import { postNflListOnce } from '../../../../../lib/lists/post'
 import { adminClient } from '../../../../../lib/supabase/admin'
+import { claimSlot as sharedClaimSlot, bytesOf as sharedBytesOf } from '../../../../../lib/dash/postClaim'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -235,32 +236,10 @@ function etWeekday(day) {
 }
 
 // Noon UTC for the same DST-safety reason etWeekday uses it.
-// Same one claim function homers/tick's own claimSlot is — copied rather
-// than imported since that file doesn't export it; kept byte-for-byte
-// identical in shape (upsert + ignoreDuplicates, error is checked and
-// logged rather than swallowed — see that file's own header note on why a
-// silently-refused claim is the one failure mode that matters here).
-async function claimSlot(db, day, kind) {
-  const { data, error } = await db
-    .from('homer_feed_posts')
-    .upsert([{ day, kind, payload: {} }], { onConflict: 'day,kind', ignoreDuplicates: true })
-    .select('day')
-  if (error) { console.error(`[nfl-tick] ${kind} claim failed: ${error.message}`); return false }
-  return Boolean(data?.length)
-}
-
-// Card render -> PNG bytes, or null. Copied from homers/tick's own bytesOf()
-// (that file doesn't export it either) -- a failed render degrades a post to
-// text-only, never to no post.
-async function bytesOf(make) {
-  try {
-    const img = await make()
-    return Buffer.from(await img.arrayBuffer())
-  } catch (err) {
-    console.error(`[nfl-tick] card failed: ${String(err?.message || err)}`)
-    return null
-  }
-}
+// The one claim + card render homers/tick uses: lib/dash/postClaim.js (R3; it
+// was copied here because that file didn't export it). No MLB gates here.
+const claimSlot = (db, day, kind) => sharedClaimSlot(db, day, kind, { tag: 'nfl-tick' })
+const bytesOf = (make) => sharedBytesOf(make, { tag: 'nfl-tick' })
 
 // ── THE LIVE TOUCHDOWN ALERT (2026-09-13) ──────────────────────────────────
 // Runs every tick, any day this route's cron fires (see vercel.json) --

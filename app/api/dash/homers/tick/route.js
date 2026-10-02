@@ -67,6 +67,7 @@ import { storiesTick } from '../../../../../lib/stories/record'
 import { mlbNumerologyWrite, mlbNumerologyGrade } from '../../../../../lib/numerology/mlbWriter'
 import { postMlbListOnce } from '../../../../../lib/lists/post'
 import { adminClient } from '../../../../../lib/supabase/admin'
+import { claimSlot as sharedClaimSlot, bytesOf as sharedBytesOf } from '../../../../../lib/dash/postClaim'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -197,15 +198,8 @@ function perGameOn(day) { return !/^off$/i.test(String(process.env.X_PER_GAME ||
 // before its first pitch -- never after it starts.
 const PER_GAME_LEAD_MS = 4 * 60 * 60 * 1000
 
-async function claimSlot(db, day, kind) {
-  if (!postKindOn(kind, day) || isRested(kind)) return false
-  const { data, error } = await db
-    .from('homer_feed_posts')
-    .upsert([{ day, kind, payload: {} }], { onConflict: 'day,kind', ignoreDuplicates: true })
-    .select('day')
-  if (error) { console.error(`[homers] ${kind} claim failed: ${error.message}`); return false }
-  return Boolean(data?.length)
-}
+// lib/dash/postClaim.js (R3), with this tick's own gates
+const claimSlot = (db, day, kind) => sharedClaimSlot(db, day, kind, { gate: (k, d) => postKindOn(k, d) && !isRested(k), tag: 'homers' })
 
 // `payload` (2026-09-15, matchup-history posts): every other caller leaves
 // this at the default `{}` -- claimAndPostStat has never persisted anything
@@ -796,16 +790,8 @@ function birthdayText(people, { day = '', site = '', handle = '' } = {}) {
   return [head, tail].filter(Boolean).join('\n')
 }
 
-// PNG bytes, or null. Never throws: the image is the garnish.
-async function bytesOf(make) {
-  try {
-    const img = await make()
-    return Buffer.from(await img.arrayBuffer())
-  } catch (err) {
-    console.error(`[homers] card failed: ${String(err?.message || err)}`)
-    return null
-  }
-}
+// PNG bytes, or null. Never throws: the image is the garnish. lib/dash/postClaim.js (R3).
+const bytesOf = (make) => sharedBytesOf(make, { tag: 'homers' })
 
 const strip = (row) => {
   const out = {}
