@@ -8,6 +8,10 @@ import {
   SIDES, DEPTHS, MIN_DEF_ATT, SPOT_MIN_DEF_ATT, SPOT_MIN_SHARE, SPOT_MIN_MINE, FALLBACK_MIN_ATT,
 } from '../../lib/nfl/fieldModel'
 import { RedZoneStrip } from './RedZoneField'
+import dynamic from 'next/dynamic'
+import { webglOk } from '../../lib/webglOk'
+// 🏟 the stadium rides in on demand -- three.js is ~600KB (BATCH-NFL-3D)
+const FieldArena = dynamic(() => import('./FieldArena'), { ssr: false })
 import { appHref, playerHref } from '../../lib/routes'
 
 // 🏈 THE FIELD (2026-10-01, 0e c -- BATCH-FIELD-FUSION-PLAN). ONE football
@@ -144,6 +148,9 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   const uid = useId().replace(/[^a-zA-Z0-9]/g, '')
   const field = matchup?.field
   const [viewPick, setViewPick] = useState(null)
+  const [stadium, setStadium] = useState(false)   // 🏟 the 3D stadium, open above the field
+  const [gl, setGl] = useState(false)
+  useEffect(() => { setGl(webglOk()) }, [])
 
   useEffect(() => {
     const ro = new ResizeObserver(() => {
@@ -194,6 +201,9 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
     for (const p of drawn) n.set(p.pid, (n.get(p.pid) || 0) + 1)
     return [...n.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([k]) => k)
   }, [asPlayer, drawn])
+
+  // The ink of a target, one rule for the 2D dots and the 3D stadium.
+  const inkOf = (p) => { if (asPlayer) return C.cream; const whoI = topWho.indexOf(p.pid); return whoI >= 0 ? WHO_INK[whoI] : C.text3 }
 
   // ── the defence, through the one model ──────────────────────────────────
   const defModel = useMemo(() => fieldModel({ field, defTeam, mode: 'def', pass: true }), [field, defTeam])
@@ -328,6 +338,14 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
       )}
       <ChipGroup first={!dv.toggle && (!pid || isQB || isRun)} label={phone ? null : 'Window'} theme={C} numFont={NUM_FONT} color={C.cyan} value={win} onChange={setWin} chipStyle={chipH}
         options={WINS.map(([k, label, nn]) => ({ k, label, n: k === 'SZN' || isRun ? null : inWin(k).length, title: k === 'SZN' ? 'The whole season' : `The last ${nn === 1 ? 'game' : `${nn} games`} ${asPlayer ? 'he was targeted in' : `${team} played`}` }))} />
+      {gl && !isRun && (
+        <button type="button" onClick={() => setStadium((v) => !v)} aria-pressed={stadium}
+          title={stadium ? 'Close the 3D stadium' : 'The same targets, in the stadium, in 3D'}
+          style={{ ...chipH, borderRadius: 999, cursor: 'pointer', fontFamily: NUM_FONT, fontWeight: 800, letterSpacing: '.06em', marginLeft: phone ? 0 : 'auto',
+            border: `1px solid ${stadium ? C.green : C.border2}`, background: stadium ? `${C.green}1f` : 'transparent', color: stadium ? C.green : C.text3 }}>
+          🏟 STADIUM
+        </button>
+      )}
     </div>
   )
 
@@ -445,8 +463,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
     const cy = Y(p.air)
     const on = pick === p.i
     const r = (3.6 + (Math.min(25, p.yac || 0) / 25) * 4.4) * dotScale
-    const whoI = asPlayer ? 0 : topWho.indexOf(p.pid)
-    const ink = asPlayer ? C.cream : (whoI >= 0 ? WHO_INK[whoI] : C.text3)
+    const ink = inkOf(p)
     const td = p.res === 'td'
     const caught = p.res === 'catch' || td
     const fill = td ? C.orange : caught ? ink : 'none'
@@ -466,6 +483,8 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   })
 
   const subjName = asPlayer ? player.name : `${team} offence`
+  // the 3D stadium's targets: the same plays, lane offset and ink as the dots
+  const dots3 = drawn.map((p) => ({ i: p.i, lane: p.lane, air: p.air, res: p.res, yac: p.yac, off: jitter(p.i) * 0.72, ink: inkOf(p) }))
 
   // ── THE RUN VIEW (plan item 3): the same field, the ink on the seven gaps
   // as a band along the line of scrimmage, THE SPOT circled on the one gap
@@ -701,6 +720,14 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
       {dock}
       <ChartCard theme={C} className="field-card" style={phone ? { display: 'block', padding: 7 } : { gap: 18, padding: 12, flexWrap: 'nowrap' }}>
         <div style={{ flex: '1 1 auto', minWidth: 0, maxWidth: phone ? 'none' : 680 }}>
+          {/* THE STADIUM (BATCH-NFL-3D): the same targets, zones and spot, in
+              3D. The 2D field stays under it; a tapped dot opens the same card. */}
+          {stadium && gl && !isRun && (
+            <div style={{ marginBottom: 10 }}>
+              <FieldArena dots={dots3} cells={cells} spot={spot} onPick={(i) => setPick(i)}
+                title={subjName} subtitle={`${plural(drawn.length, unit)}${defTeam ? ` · vs ${defTeam}` : ''}`} />
+            </div>
+          )}
           <div ref={fieldBox}>{isRun ? runPicture : picture}</div>
           {!isRun && emptyWin}
           {caption}

@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic'
 import { webglOk } from '../../lib/webglOk'
 // 🏟 the arena rides in on demand -- three.js is ~600KB (BATCH-NHL-3D)
 const RinkArena = dynamic(() => import('./RinkArena'), { ssr: false })
+const NO_SHOTS = []   // one empty list, so the HEAT arena isn't rebuilt every render
 import { C, NUM_FONT } from '../../lib/nhl/theme'
 import { useLampShots } from '../../lib/nhl/useLamp'
 import { DelayedBanner, Loading, Pills } from './ui'
@@ -137,7 +138,7 @@ export default function ShotPanel({ sel, who = 'He', height = 300 }) {
               Opens above the card; the 2D rink and its readout stay, so a
               tapped puck fills the same detail card. */}
           {arena && gl && (
-            <RinkArena shots={view === 'heat' ? [] : shots} map={m} slot={data.slot} gridSpec={data.gridSpec} view={view}
+            <RinkArena shots={view === 'heat' ? NO_SHOTS : shots} map={m} slot={data.slot} gridSpec={data.gridSpec} view={view}
               title={sel?.name || sel?.team || sel?.against || ''} subtitle={`${shots.length} of the last ${recent.length} attempts`}
               onPick={(sh) => setPicked(sh)} onPickCell={(cell) => setPicked({ cell })} />
           )}
