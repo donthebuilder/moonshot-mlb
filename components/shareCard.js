@@ -22,16 +22,7 @@ const pickOf = (p) => String(p?.game_pick_role || '').split('/')[0].trim().toUpp
 
 // Primary team colors — recognition without trademarks. Chip text flips dark
 // on light colors (PIT gold, MIA blue) via luminance.
-export const TEAM_COLORS = {
-  ARI: '#A71930', ATH: '#003831', ATL: '#CE1141', BAL: '#DF4601', BOS: '#BD3039',
-  CHC: '#0E3386', CIN: '#C6011F', CLE: '#00385D', COL: '#333366', CWS: '#3E3A38',
-  DET: '#0C2340', HOU: '#EB6E1F', KC: '#004687', LAA: '#BA0021', LAD: '#005A9C',
-  MIA: '#00A3E0', MIL: '#12284B', MIN: '#002B5C', NYM: '#002D72', NYY: '#1C2841',
-  PHI: '#E81828', PIT: '#FDB827', SD: '#2F241D', SEA: '#0C2C56', SF: '#FD5A1E',
-  STL: '#C41E3A', TB: '#092C5C', TEX: '#003278', TOR: '#134A8E', WSH: '#AB0003',
-  WSN: '#AB0003', OAK: '#003831',
-}
-const teamColor = (abbr) => TEAM_COLORS[String(abbr || '').toUpperCase()] || '#3f3f46'
+const teamColor = teamPrimary   // lib/mlbTeams.js (R4: the table was copied here and in the homer card)
 const inkOn = (hex) => {
   const m = /^#([0-9a-f]{6})$/i.exec(hex || '')
   if (!m) return '#fff'
@@ -244,6 +235,7 @@ export function downloadShareCard(items = [], { title = 'MY WATCHLIST' } = {}) {
 
 import { compactRole, gradeFor, bestBet } from '../lib/scoring'
 import { clean } from '../lib/player'
+import { teamPrimary } from '../lib/mlbTeams'
 
 const BANDS = [
   ['wall_scraper', 'WALL', '#9ca3af'],
