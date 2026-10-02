@@ -3,6 +3,8 @@ import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import { useLampGame } from '../../../lib/nhl/useLamp'
 import { nhlLogo } from '../../../lib/nhl/teams'
 import { strengthTag } from '../ScoreTable'
+import LampTable from '../LampTable'
+import SiteTeamMark from '../../TeamMark'
 import { EmptyState, DelayedBanner, Loading, SourceLine, Kicker, GameTypeChip, LampDot, GoalLabel, fmtDay, fmtPuckDrop, zoneAbbrev } from '../ui'
 
 // 🏒 GAME — one game, top to bottom: the header (score, period, clock),
@@ -72,27 +74,24 @@ export default function Game({ id, onBack, onOpenPlayer = null, backLabel = 'Sco
       {(g.linescore?.length || g.shotsByPeriod?.length) ? (
         <section aria-label="By period">
           <Kicker>BY PERIOD</Kicker>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={tbl}>
-              <thead><tr style={thr}><th style={th}></th>{(g.linescore.length ? g.linescore : g.shotsByPeriod).map((p) => <th key={p.label} style={{ ...th, textAlign: 'center' }}>{p.label}</th>)}<th style={{ ...th, textAlign: 'center' }}>T</th></tr></thead>
-              <tbody>
-                {['away', 'home'].map((side) => (
-                  <tr key={side} style={{ borderTop: `1px solid ${C.border}` }}>
-                    <td style={td}><b style={{ fontFamily: NUM_FONT, fontSize: 11 }}>{g[side].abbrev}</b> <span style={{ color: C.text3, fontSize: 10 }}>goals</span></td>
-                    {g.linescore.map((p) => <td key={p.label} style={{ ...td, textAlign: 'center', fontFamily: NUM_FONT, fontWeight: 800 }}>{p[side] ?? '—'}</td>)}
-                    <td style={{ ...td, textAlign: 'center', fontFamily: NUM_FONT, fontWeight: 900, color: C.text }}>{g.linescoreTotals?.[side] ?? g[side].score ?? '—'}</td>
-                  </tr>
-                ))}
-                {g.shotsByPeriod?.length ? ['away', 'home'].map((side) => (
-                  <tr key={`s-${side}`} style={{ borderTop: `1px solid ${C.border}`, color: C.text3 }}>
-                    <td style={td}><b style={{ fontFamily: NUM_FONT, fontSize: 11, color: C.text2 }}>{g[side].abbrev}</b> <span style={{ fontSize: 10 }}>shots</span></td>
-                    {g.shotsByPeriod.map((p) => <td key={p.label} style={{ ...td, textAlign: 'center', fontFamily: NUM_FONT }}>{p[side] ?? '—'}</td>)}
-                    <td style={{ ...td, textAlign: 'center', fontFamily: NUM_FONT, fontWeight: 800, color: C.text2 }}>{g[side].sog ?? '—'}</td>
-                  </tr>
-                )) : null}
-              </tbody>
-            </table>
-          </div>
+          {/* THE SHARED SHEET (2026-10-01, BATCH-TABLE-SKIN-V2 4b; Donovan:
+              "convert them all to the new sortable sheet") -- every table on
+              this page. Each opens in the game's own order. */}
+          {(() => {
+            const per = g.linescore.length ? g.linescore : g.shotsByPeriod
+            const rows = [
+              ...['away', 'home'].map((side) => ({ _key: `g-${side}`, who: g[side].abbrev, what: 'goals', ...Object.fromEntries(g.linescore.map((p) => [`p_${p.label}`, p[side]])), total: g.linescoreTotals?.[side] ?? g[side].score })),
+              ...(g.shotsByPeriod?.length ? ['away', 'home'].map((side) => ({ _key: `s-${side}`, who: g[side].abbrev, what: 'shots', dim: true, ...Object.fromEntries(g.shotsByPeriod.map((p) => [`p_${p.label}`, p[side]])), total: g[side].sog })) : []),
+            ]
+            return (
+              <LampTable bare noGroups tight heatMode="sorted" maxHeight={9999} maxRows={99} caption="Goals and shots by period"
+                rows={rows} columns={[
+                  { key: 'who', label: 'Club', heat: false, sticky: true, w: 96, fmt: (v, r) => <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><SiteTeamMark sport="nhl" abbr={v} variant="logo" px={16} /><b style={{ fontFamily: NUM_FONT, fontSize: 11, color: r.dim ? C.text2 : C.text }}>{v}</b><span style={{ color: C.text3, fontSize: 10 }}>{r.what}</span></span> },
+                  ...per.map((p) => ({ key: `p_${p.label}`, label: p.label, w: 34, fmt: (v) => v ?? '—', tone: (_, r) => ({ color: r.dim ? C.text3 : C.text, weight: r.dim ? 500 : 800 }) })),
+                  { key: 'total', label: 'T', w: 36, fmt: (v) => v ?? '—', tone: (_, r) => ({ color: r.dim ? C.text2 : C.text, weight: 900 }) },
+                ]} />
+            )
+          })()}
         </section>
       ) : null}
 
@@ -102,38 +101,25 @@ export default function Game({ id, onBack, onOpenPlayer = null, backLabel = 'Sco
         {g.goals.length === 0
           ? <EmptyState title={scored ? 'NO GOALS YET' : 'PUCK NOT DROPPED'} note={scored ? 'Nobody has lit the lamp.' : `Puck drop ${fmtPuckDrop(g.startUtc)} ${zoneAbbrev()}.`} />
           : (
-            <div style={{ overflowX: 'auto' }}>
-              <table style={tbl}>
-                <thead><tr style={thr}><th style={th}>PER</th><th style={th}>TIME</th><th style={th}>TEAM</th><th style={th} title="Strength">STR</th><th style={th}>SCORER</th><th className="sm-hide" style={th}>ASSISTS</th><th className="sm-hide" style={th}>SHOT</th><th style={{ ...th, textAlign: 'right' }}>SCORE</th></tr></thead>
-                <tbody>
-                  {g.goals.map((x, i) => (
-                    <tr key={`${x.period}-${x.time}-${x.scorer.id ?? i}`} style={{ borderTop: `1px solid ${C.border}` }}>
-                      <td style={{ ...td, fontFamily: NUM_FONT, color: C.text3, fontSize: 10.5 }}>{x.periodLabel}</td>
-                      <td style={{ ...td, fontFamily: NUM_FONT, fontSize: 10.5 }}>{x.time}</td>
-                      <td style={{ ...td, fontFamily: NUM_FONT, fontWeight: 900, fontSize: 11 }}>{x.team}</td>
-                      <td style={{ ...td, fontFamily: NUM_FONT, fontSize: 9.5, fontWeight: 800, color: x.strength === 'pp' ? C.teal : x.strength === 'sh' ? C.amber : C.text3 }}>{strengthTag(x)}</td>
-                      <td style={td}>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', flexWrap: 'wrap', columnGap: 7, rowGap: 3 }}>
-                          {/* Tappable (2026-09-27): face + name open the player. The 11px
-                              padding/-11px margin makes a 44px target without
-                              growing the row. */}
-                          <button type="button" disabled={!x.scorer.id || !onOpenPlayer} onClick={() => onOpenPlayer?.(x.scorer.id)} aria-label={`Open ${x.scorer.first ? `${x.scorer.first} ${x.scorer.last}` : x.scorer.name}`}
-                            style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: 'transparent', border: 'none', padding: '11px 0', margin: '-11px 0', cursor: x.scorer.id && onOpenPlayer ? 'pointer' : 'default', color: 'inherit', font: 'inherit', textAlign: 'left' }}>
-                            {x.scorer.headshot && <img src={x.scorer.headshot} alt="" width={22} height={22} loading="lazy" style={{ width: 22, height: 22, borderRadius: '50%', background: C.bg3, objectFit: 'cover' }} />}
-                            <span style={{ color: C.text, fontWeight: 700 }}>{x.scorer.first ? `${x.scorer.first} ${x.scorer.last}` : x.scorer.name}</span>
-                          </button>
-                          {x.scorer.goalsToDate != null && <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 9.5 }}>({x.scorer.goalsToDate})</span>}
-                          <GoalLabel label={x.label} />
-                        </span>
-                      </td>
-                      <td className="sm-hide" style={{ ...td, color: C.text2, fontSize: 11 }}>{x.assists.length ? x.assists.map((a) => `${a.name}${a.assistsToDate != null ? ` (${a.assistsToDate})` : ''}`).join(', ') : <span style={{ color: C.text3 }}>unassisted</span>}</td>
-                      <td className="sm-hide" style={{ ...td, color: C.text3, fontSize: 10.5 }}>{x.shotType || '—'}</td>
-                      <td style={{ ...td, textAlign: 'right', fontFamily: NUM_FONT, fontWeight: 800, color: C.text2, whiteSpace: 'nowrap' }}>{x.awayScore != null ? `${x.awayScore}–${x.homeScore}` : ''}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <LampTable bare noGroups tight heatMode="sorted" maxHeight={9999} maxRows={99} caption="Every goal, in order"
+              rows={g.goals.map((x, i) => ({ ...x, _key: `${x.period}-${x.time}-${x.scorer.id ?? i}`, seq: i, name: x.scorer.first ? `${x.scorer.first} ${x.scorer.last}` : x.scorer.name, assistTxt: x.assists.length ? x.assists.map((a) => `${a.name}${a.assistsToDate != null ? ` (${a.assistsToDate})` : ''}`).join(', ') : '' }))}
+              columns={[
+                { key: 'seq', label: 'Per', w: 40, fmt: (_, x) => x.periodLabel, tone: () => ({ color: C.text3 }) },
+                { key: 'time', label: 'Time', heat: false, mono: true, w: 48 },
+                { key: 'team', label: 'Team', heat: false, w: 54 },
+                { key: 'strength', label: 'Str', heat: false, w: 40, title: 'Strength', fmt: (_, x) => <span style={{ fontFamily: NUM_FONT, fontSize: 9.5, fontWeight: 800, color: x.strength === 'pp' ? C.teal : x.strength === 'sh' ? C.amber : C.text3 }}>{strengthTag(x)}</span> },
+                { key: 'name', label: 'Scorer', heat: false, sticky: true, w: 190, link: (x) => (x.scorer.id && onOpenPlayer ? () => onOpenPlayer(x.scorer.id) : null),
+                  fmt: (v, x) => (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', flexWrap: 'wrap', columnGap: 7, rowGap: 3 }}>
+                      {x.scorer.headshot && <img src={x.scorer.headshot} alt="" width={20} height={20} loading="lazy" style={{ width: 20, height: 20, borderRadius: '50%', background: C.bg3, objectFit: 'cover' }} />}
+                      <span style={{ color: C.text, fontWeight: 700 }}>{v}</span>
+                      {x.scorer.goalsToDate != null && <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 9.5 }}>({x.scorer.goalsToDate})</span>}
+                      <GoalLabel label={x.label} />
+                    </span>) },
+                { key: 'assistTxt', label: 'Assists', heat: false, w: 200, fmt: (v) => v || <span style={{ color: C.text3 }}>unassisted</span> },
+                { key: 'shotType', label: 'Shot', heat: false, w: 64, fmt: (v) => v || '—' },
+                { key: 'awayScore', label: 'Score', heat: false, numeric: false, w: 52, fmt: (_, x) => (x.awayScore != null ? `${x.awayScore}–${x.homeScore}` : '') },
+              ]} />
           )}
       </section>
 
@@ -141,30 +127,23 @@ export default function Game({ id, onBack, onOpenPlayer = null, backLabel = 'Sco
       {Object.keys(ts).length > 0 && (
         <section aria-label="Team comparison">
           <Kicker>TEAM COMPARISON</Kicker>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={tbl}>
-              <thead><tr style={thr}><th style={{ ...th, textAlign: 'right' }}>{g.away.abbrev}</th><th style={{ ...th, textAlign: 'center' }}></th><th style={th}>{g.home.abbrev}</th></tr></thead>
-              <tbody>
-                {[
-                  ['Shots on goal', stat('sog').away, stat('sog').home],
-                  ['Power play', stat('powerPlay').away, stat('powerPlay').home],
-                  ['Power play %', pct(stat('powerPlayPctg').away), pct(stat('powerPlayPctg').home)],
-                  ['Faceoffs won', pct(stat('faceoffWinningPctg').away), pct(stat('faceoffWinningPctg').home)],
-                  ['Penalty minutes', stat('pim').away, stat('pim').home],
-                  ['Hits', stat('hits').away, stat('hits').home],
-                  ['Blocked shots', stat('blockedShots').away, stat('blockedShots').home],
-                  ['Giveaways', stat('giveaways').away, stat('giveaways').home],
-                  ['Takeaways', stat('takeaways').away, stat('takeaways').home],
-                ].map(([label, a, h]) => (
-                  <tr key={label} style={{ borderTop: `1px solid ${C.border}` }}>
-                    <td style={{ ...td, textAlign: 'right', fontFamily: NUM_FONT, fontWeight: 800 }}>{a ?? '—'}</td>
-                    <td style={{ ...td, textAlign: 'center', color: C.text3, fontSize: 10.5, whiteSpace: 'nowrap' }}>{label}</td>
-                    <td style={{ ...td, fontFamily: NUM_FONT, fontWeight: 800 }}>{h ?? '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <LampTable bare noGroups tight heatMode="sorted" maxHeight={9999} maxRows={99} caption={`${g.away.abbrev} and ${g.home.abbrev}, side by side`}
+            rows={[
+              ['Shots on goal', stat('sog').away, stat('sog').home],
+              ['Power play', stat('powerPlay').away, stat('powerPlay').home],
+              ['Power play %', pct(stat('powerPlayPctg').away), pct(stat('powerPlayPctg').home)],
+              ['Faceoffs won', pct(stat('faceoffWinningPctg').away), pct(stat('faceoffWinningPctg').home)],
+              ['Penalty minutes', stat('pim').away, stat('pim').home],
+              ['Hits', stat('hits').away, stat('hits').home],
+              ['Blocked shots', stat('blockedShots').away, stat('blockedShots').home],
+              ['Giveaways', stat('giveaways').away, stat('giveaways').home],
+              ['Takeaways', stat('takeaways').away, stat('takeaways').home],
+            ].map(([label, a, h]) => ({ _key: label, label, a: a ?? '—', h: h ?? '—' }))}
+            columns={[
+              { key: 'label', label: 'Stat', heat: false, sticky: true, w: 130 },
+              { key: 'a', label: g.away.abbrev, heat: false, numeric: false, mono: true, w: 70, fmt: (v) => <b>{v}</b> },
+              { key: 'h', label: g.home.abbrev, heat: false, numeric: false, mono: true, w: 70, fmt: (v) => <b>{v}</b> },
+            ]} />
         </section>
       )}
 
@@ -172,24 +151,17 @@ export default function Game({ id, onBack, onOpenPlayer = null, backLabel = 'Sco
       {g.penalties.length > 0 && (
         <section aria-label="Penalties">
           <Kicker>PENALTIES · {g.penalties.length}</Kicker>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={tbl}>
-              <thead><tr style={thr}><th style={th}>PER</th><th style={th}>TIME</th><th style={th}>TEAM</th><th style={th}>PLAYER</th><th style={th}>CALL</th><th className="sm-hide" style={th}>MIN</th><th className="sm-hide" style={th}>DRAWN BY</th></tr></thead>
-              <tbody>
-                {g.penalties.map((p, i) => (
-                  <tr key={`${p.period}-${p.time}-${i}`} style={{ borderTop: `1px solid ${C.border}` }}>
-                    <td style={{ ...td, fontFamily: NUM_FONT, color: C.text3, fontSize: 10.5 }}>{p.periodLabel}</td>
-                    <td style={{ ...td, fontFamily: NUM_FONT, fontSize: 10.5 }}>{p.time}</td>
-                    <td style={{ ...td, fontFamily: NUM_FONT, fontWeight: 900, fontSize: 11 }}>{p.team}</td>
-                    <td style={td}>{p.by || <span style={{ color: C.text3 }}>bench</span>}{p.byNumber != null && <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 9.5 }}> #{p.byNumber}</span>}</td>
-                    <td style={{ ...td, color: C.text2 }}>{p.desc}{p.type && p.type !== 'MIN' ? <span style={{ color: C.amber, fontFamily: NUM_FONT, fontSize: 9, marginLeft: 6 }}>{p.type}</span> : null}</td>
-                    <td className="sm-hide" style={{ ...td, fontFamily: NUM_FONT, color: C.text3 }}>{p.minutes ?? '—'}</td>
-                    <td className="sm-hide" style={{ ...td, color: C.text3, fontSize: 11 }}>{p.drawnBy || '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <LampTable bare noGroups tight heatMode="sorted" maxHeight={9999} maxRows={99} caption="Every penalty, in order"
+            rows={g.penalties.map((x, i) => ({ ...x, _key: `${x.period}-${x.time}-${i}`, seq: i, who: x.by || 'bench' }))}
+            columns={[
+              { key: 'seq', label: 'Per', w: 40, fmt: (_, x) => x.periodLabel, tone: () => ({ color: C.text3 }) },
+              { key: 'time', label: 'Time', heat: false, mono: true, w: 48 },
+              { key: 'team', label: 'Team', heat: false, w: 54 },
+              { key: 'who', label: 'Player', heat: false, sticky: true, w: 150, fmt: (v, x) => <span>{x.by ? v : <span style={{ color: C.text3 }}>bench</span>}{x.byNumber != null && <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 9.5 }}> #{x.byNumber}</span>}</span> },
+              { key: 'desc', label: 'Call', heat: false, w: 170, fmt: (v, x) => <span style={{ color: C.text2 }}>{v}{x.type && x.type !== 'MIN' ? <span style={{ color: C.amber, fontFamily: NUM_FONT, fontSize: 9, marginLeft: 6 }}>{x.type}</span> : null}</span> },
+              { key: 'minutes', label: 'Min', w: 40, fmt: (v) => v ?? '—', tone: () => ({ color: C.text3 }) },
+              { key: 'drawnBy', label: 'Drawn by', heat: false, w: 130, fmt: (v) => v || '—' },
+            ]} />
         </section>
       )}
 
@@ -197,24 +169,19 @@ export default function Game({ id, onBack, onOpenPlayer = null, backLabel = 'Sco
       {g.threeStars.length > 0 && (
         <section aria-label="Three stars">
           <Kicker tone={C.cream}>THREE STARS</Kicker>
-          <table style={tbl}>
-            <tbody>
-              {g.threeStars.map((s) => (
-                <tr key={s.star} style={{ borderTop: `1px solid ${C.border}` }}>
-                  <td style={{ ...td, width: 28, fontFamily: NUM_FONT, fontWeight: 900, color: C.cream }}>{'★'.repeat(Math.max(1, 4 - (s.star || 3)))}</td>
-                  <td style={td}>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
-                      {s.headshot && <img src={s.headshot} alt="" width={22} height={22} loading="lazy" style={{ width: 22, height: 22, borderRadius: '50%', background: C.bg3, objectFit: 'cover' }} />}
-                      <b>{s.name}</b><span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 10 }}>{s.team} · {s.pos}{s.number != null ? ` #${s.number}` : ''}</span>
-                    </span>
-                  </td>
-                  <td style={{ ...td, textAlign: 'right', fontFamily: NUM_FONT, color: C.text2, fontSize: 11 }}>
-                    {s.pos === 'G' ? (s.savePctg != null ? `${s.savePctg.toFixed(3).replace(/^0/, '')} SV%` : '') : `${s.goals ?? 0} G · ${s.assists ?? 0} A`}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <LampTable bare noGroups tight heatMode="sorted" maxHeight={9999} maxRows={99} caption="The three stars"
+            rows={g.threeStars.map((x) => ({ ...x, _key: x.star }))}
+            columns={[
+              { key: 'star', label: '★', w: 40, fmt: (v) => '★'.repeat(Math.max(1, 4 - (v || 3))), tone: () => ({ color: C.cream, weight: 900 }) },
+              { key: 'name', label: 'Player', heat: false, sticky: true, w: 210, link: (x) => (x.playerId && onOpenPlayer ? () => onOpenPlayer(x.playerId) : null),
+                fmt: (v, x) => (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+                    {x.headshot && <img src={x.headshot} alt="" width={20} height={20} loading="lazy" style={{ width: 20, height: 20, borderRadius: '50%', background: C.bg3, objectFit: 'cover' }} />}
+                    <b>{v}</b><span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 10 }}>{x.team} · {x.pos}{x.number != null ? ` #${x.number}` : ''}</span>
+                  </span>) },
+              { key: 'line', label: 'Line', heat: false, numeric: false, w: 110,
+                fmt: (_, x) => (x.pos === 'G' ? (x.savePctg != null ? `${x.savePctg.toFixed(3).replace(/^0/, '')} SV%` : '') : `${x.goals ?? 0} G · ${x.assists ?? 0} A`) },
+            ]} />
         </section>
       )}
 
@@ -222,17 +189,14 @@ export default function Game({ id, onBack, onOpenPlayer = null, backLabel = 'Sco
       {g.seasonSeries?.length > 1 && (
         <section aria-label="Season series">
           <Kicker>SEASON SERIES</Kicker>
-          <table style={tbl}>
-            <tbody>
-              {g.seasonSeries.map((m) => (
-                <tr key={m.id} style={{ borderTop: `1px solid ${C.border}`, opacity: m.id === g.id ? 1 : .8 }}>
-                  <td style={{ ...td, fontFamily: NUM_FONT, color: C.text3, fontSize: 10.5 }}>{fmtDay(m.date)}</td>
-                  <td style={{ ...td, fontFamily: NUM_FONT, fontWeight: 800 }}>{m.away.abbrev} {m.state === 'pre' ? '@' : (m.away.score ?? '–')} {m.state === 'pre' ? '' : '–'} {m.state === 'pre' ? '' : (m.home.score ?? '–')} {m.home.abbrev}</td>
-                  <td style={{ ...td, textAlign: 'right', color: m.state === 'live' ? C.lamp : C.text3, font: `800 9px/1 ${NUM_FONT}` }}>{m.id === g.id ? 'THIS GAME' : m.state.toUpperCase()}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <LampTable bare noGroups tight heatMode="sorted" maxHeight={9999} maxRows={99} caption="The season series"
+            rows={g.seasonSeries.map((m) => ({ ...m, _key: m.id }))}
+            rowEdge={(m) => (m.id === g.id ? C.ice : null)}
+            columns={[
+              { key: 'date', label: 'Date', heat: false, sticky: true, w: 90, fmt: (v) => fmtDay(v) },
+              { key: 'game', label: 'Game', heat: false, numeric: false, w: 140, fmt: (_, m) => <b style={{ fontFamily: NUM_FONT }}>{m.away.abbrev} {m.state === 'pre' ? '@' : (m.away.score ?? '–')} {m.state === 'pre' ? '' : '–'} {m.state === 'pre' ? '' : (m.home.score ?? '–')} {m.home.abbrev}</b> },
+              { key: 'state', label: 'State', heat: false, w: 80, fmt: (v, m) => <span style={{ color: m.state === 'live' ? C.lamp : C.text3, font: `800 9px/1 ${NUM_FONT}` }}>{m.id === g.id ? 'THIS GAME' : String(v).toUpperCase()}</span> },
+            ]} />
         </section>
       )}
 
@@ -267,7 +231,3 @@ function BackBtn({ onBack, label }) {
   )
 }
 
-const tbl = { width: '100%', borderCollapse: 'collapse', fontSize: 12 }
-const thr = { color: C.text3, font: `800 8px/1 ${NUM_FONT}`, letterSpacing: '.12em', textAlign: 'left' }
-const th = { padding: '0 8px 8px', fontWeight: 800 }
-const td = { padding: '8px 8px', verticalAlign: 'middle' }
