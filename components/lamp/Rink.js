@@ -139,7 +139,8 @@ export default function Rink({ map, slot, gridSpec, height = 300, shots = null, 
             })}
           </g>
         )}
-        {[20, 40, 60].map((r) => (
+        {/* in VS GOALIE the zone labels sit on the centre line, so the ft labels step aside */}
+        {view !== 'goalie' && [20, 40, 60].map((r) => (
           <text key={`t${r}`} x={sx(89 - r)} y={sy(0) - 1} fill={RINK.missInk} fontSize="3" fontFamily={NUM_FONT} textAnchor="middle">{r} ft</text>
         ))}
         {vs && vs.map((row, r) => row.map((v, c) => v.att >= vsMin ? (
