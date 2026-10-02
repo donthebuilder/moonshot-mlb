@@ -1,6 +1,7 @@
 'use client'
 import { ChipGroup, ChartCard, ChartEmpty, chipBtn as coreChip } from './charts'
 import HowToRead from './charts/HowToRead'
+import StadiumDock from './charts/stadium/StadiumDock'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { C, NUM_FONT } from '../lib/theme'
@@ -1561,72 +1562,19 @@ export default function SprayField({
             const dockAll = liveOnly ? liveHits.length : inRange.length
 
             return (
-              <div style={{
-                position: 'absolute', top: 10, left: 10, zIndex: 3, maxWidth: '58%',
-                background: C.scrim, border: `1px solid ${C.border}`,
-                borderRadius: 10, padding: dockOpen ? '7px 9px' : '4px 8px',
-                backdropFilter: 'blur(6px)', pointerEvents: 'auto',
-              }}>
-                <button
-                  onClick={() => setDockOpen((v) => !v)}
-                  title={dockOpen ? 'Collapse' : 'Show what is on this chart'}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 7, width: '100%',
-                    background: 'transparent', border: 0, padding: 0, cursor: 'pointer',
-                    fontFamily: NUM_FONT, fontSize: 9.5, fontWeight: 900,
-                    letterSpacing: '.07em', color: C.text2,
-                  }}>
-                  <span style={{ color: C.text3 }}>{dockOpen ? '▾' : '▸'}</span>
-                  <span>SHOWING</span>
-                  <span style={{ color: on.length ? C.orange : C.text2 }}>
-                    {dockNow}
-                  </span>
-                  <span style={{ color: C.text3, fontWeight: 700 }}>of {dockAll}</span>
-                  {!dockOpen && on.length > 0 && (
-                    <span style={{
-                      color: C.orange, fontWeight: 900, fontSize: 8.5,
-                      border: `1px solid ${C.orange}66`, borderRadius: 999, padding: '0 5px',
-                    }}>{on.length}</span>
-                  )}
-                </button>
-
-                {dockOpen && (
-                  <div style={{ marginTop: 6 }}>
-                    {on.length === 0 ? (
-                      <div style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT, lineHeight: 1.5 }}>
-                        {liveOnly
-                          ? "No filters on — every ball in play tonight is in the park."
-                          : 'No filters on — every batted ball in the window is in the park.'}
-                      </div>
-                    ) : (
-                      <>
-                        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                          {on.map(([k, txt, clear]) => (
-                            <button key={k} onClick={clear} title={`Turn off: ${txt}`}
-                              style={{
-                                fontSize: 9, fontFamily: NUM_FONT, fontWeight: 700,
-                                borderRadius: 999, padding: '1px 7px', cursor: 'pointer',
-                                border: `1px solid ${C.orange}55`, color: C.orange,
-                                background: 'rgba(249,115,22,.10)', whiteSpace: 'nowrap',
-                              }}>{txt} ✕</button>
-                          ))}
-                        </div>
-                        <button
-                          onClick={() => {
-                            if (liveOnly) {
-                              setLiveRes('all'); setLiveQual(new Set()); setLivePitch(null)
-                            } else {
-                              setOnly('all'); setArmPick('ALL'); setSidePick('ALL')
-                              setDeepPick('ALL'); setBbPick(null); setPicked(null); setTestPark('')
-                            }
-                          }}
-                          style={{
-                            marginTop: 6, fontSize: 8.5, fontFamily: NUM_FONT, fontWeight: 900,
-                            letterSpacing: '.07em', background: 'transparent', border: 0,
-                            padding: 0, cursor: 'pointer', color: C.text3,
-                          }}>CLEAR ALL</button>
-                      </>
-                    )}
+              <StadiumDock open={dockOpen} onToggle={() => setDockOpen((v) => !v)} now={dockNow} all={dockAll} chips={on}
+                emptyText={liveOnly
+                  ? "No filters on — every ball in play tonight is in the park."
+                  : 'No filters on — every batted ball in the window is in the park.'}
+                onClearAll={() => {
+                  if (liveOnly) {
+                    setLiveRes('all'); setLiveQual(new Set()); setLivePitch(null)
+                  } else {
+                    setOnly('all'); setArmPick('ALL'); setSidePick('ALL')
+                    setDeepPick('ALL'); setBbPick(null); setPicked(null); setTestPark('')
+                  }
+                }}
+                legend={<>
                     {/* THE LEGEND, on the canvas (2026-09-01) — the marks
                         now match the flat chart's, and the flat chart's
                         legend is under a chart that is hidden while this
@@ -1646,9 +1594,7 @@ export default function SprayField({
                       <span><span style={{ color: C.text2 }}>◯</span> barrel</span>
                       <span>size = result</span>
                     </div>
-                  </div>
-                )}
-              </div>
+                </>} />
             )
           })()}
         </div>

@@ -1,6 +1,11 @@
 'use client'
+import LowerThird from './charts/stadium/LowerThird'
+import FilmOverlay from './charts/stadium/FilmOverlay'
+import HoverReadout from './charts/stadium/HoverReadout'
+import { createHoverFlight } from './charts/stadium/hoverFlight'
 import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
+import { labelSprite } from '../lib/three/sprites'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { C, NUM_FONT } from '../lib/theme'
 import StadiumShell from './charts/StadiumShell'
@@ -56,45 +61,10 @@ const lerp5 = (arr, ang) => {
 
 // Distance number as a sprite texture — three.js has no text; a small canvas
 // does. Drawn once per anchor, cached per call, disposed with the scene.
-function numberSprite(text) {
-  const cv = document.createElement('canvas')
-  cv.width = 128; cv.height = 64
-  const g = cv.getContext('2d')
-  g.font = '900 44px SF Mono, Menlo, monospace'
-  g.textAlign = 'center'; g.textBaseline = 'middle'
-  g.fillStyle = '#f4f4f5'
-  g.globalAlpha = 0.92
-  g.fillText(text, 64, 34)
-  const tex = new THREE.CanvasTexture(cv)
-  tex.anisotropy = 4
-  const m = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false })
-  const s = new THREE.Sprite(m)
-  s.scale.set(26, 13, 1)
-  return s
-}
 
 // A short line of text as a sprite. numberSprite() above is tuned for a
 // two- or three-digit wall number; this one is a phrase, so it measures the
 // text and sizes its own canvas rather than cropping at 128px.
-function labelSprite(text, hex) {
-  const cv = document.createElement('canvas')
-  const g0 = cv.getContext('2d')
-  g0.font = '900 40px SF Mono, Menlo, monospace'
-  const w = Math.ceil(g0.measureText(text).width) + 24
-  cv.width = w; cv.height = 60
-  const g = cv.getContext('2d')
-  g.font = '900 40px SF Mono, Menlo, monospace'
-  g.textAlign = 'center'; g.textBaseline = 'middle'
-  g.fillStyle = hex
-  g.globalAlpha = 0.95
-  g.fillText(text, w / 2, 32)
-  const tex = new THREE.CanvasTexture(cv)
-  tex.anisotropy = 4
-  const m = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, depthTest: false })
-  const sp = new THREE.Sprite(m)
-  sp.scale.set(w * 0.155, 9.2, 1)
-  return sp
-}
 
 // 🌬 WIND — THE SAME HONESTY THE 2D CHART ALREADY ENFORCES.
 //
@@ -785,43 +755,25 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
     // each hit's real trajectory on demand instead of only at page-load.
     // Distinct from `replay`: a separate mesh/state pair so hovering during
     // the load-time replay (or after it) never fights over the same ball.
-    let hoverFlight = null // { flightIndex, mesh, t0 }
-    const clearHoverFlight = () => {
-      if (!hoverFlight) return
-      scene.remove(hoverFlight.mesh)
-      hoverFlight.mesh.material.dispose()
-      if (hoverFlight.mesh.userData.shadow) { scene.remove(hoverFlight.mesh.userData.shadow); hoverFlight.mesh.userData.shadow.material.dispose() }
-      hoverFlight = null
-    }
+    // the shared player (components/charts/stadium/hoverFlight.js, BATCH-3D-V2)
+    const hoverFlight = createHoverFlight(scene)
+    const clearHoverFlight = () => hoverFlight.clear()
     const startHoverFlight = (flightIndex) => {
-      if (hoverFlight?.flightIndex === flightIndex) return // already flying this one
-      clearHoverFlight()
+      if (hoverFlight.playing() === flightIndex) return // already flying this one
       const fl = flights[flightIndex]
-      if (!fl) return
+      if (!fl) { hoverFlight.clear(); return }
       const mesh = new THREE.Mesh(flyGeo, new THREE.MeshBasicMaterial({ color: 0xffffff }))
       mesh.add(makeHalo(fl.col || 0xffffff))
-      mesh.position.copy(fl.pts[0])
-      scene.add(mesh)
+      // Real hang time, same 4x-ish feel as the full replay, clamped so a
+      // routine grounder-turned-flyout and a moonshot are both watchable.
+      const dur = Math.max(700, Math.min(3200, fl.hang * 400))
+      hoverFlight.start(flightIndex, { pts: fl.pts, dur, mesh, onStep: (m) => { if (m.userData.shadow) placeShadow(m.userData.shadow, m.position) } })
       const sh = new THREE.Mesh(shadowGeo, shadowMat.clone())
       sh.rotation.x = -Math.PI / 2
       scene.add(sh)
       mesh.userData.shadow = sh
-      hoverFlight = { flightIndex, mesh, t0: performance.now() }
     }
-    const stepHoverFlight = (now) => {
-      if (!hoverFlight) return
-      const fl = flights[hoverFlight.flightIndex]
-      // Real hang time, same 4x-ish feel as the full replay, clamped so a
-      // routine grounder-turned-flyout and a moonshot are both watchable.
-      const dur = Math.max(700, Math.min(3200, fl.hang * 400))
-      const p = (now - hoverFlight.t0) / dur
-      const idx = Math.min(fl.pts.length - 1, Math.max(0, Math.floor(p * fl.pts.length)))
-      hoverFlight.mesh.position.copy(fl.pts[idx])
-      if (hoverFlight.mesh.userData.shadow) placeShadow(hoverFlight.mesh.userData.shadow, hoverFlight.mesh.position)
-      // Holds at the landing point (like the site's 2D hover animation) —
-      // rather than disappearing or looping — until the cursor actually
-      // leaves that ball, so a still cursor shows a still-standing result.
-    }
+    const stepHoverFlight = (now) => hoverFlight.step(now)
 
     const onMove = (e) => {
       const tip = tipRef.current
@@ -1444,33 +1396,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
                 one corner nothing else uses: the dock sits top-left and the
                 replay button top-right. pointerEvents off so it never eats a
                 drag meant for the scene. */}
-            {(title || subtitle) && (
-              <div style={{
-                position: 'absolute', left: 12, bottom: 12, zIndex: 2,
-                pointerEvents: 'none', maxWidth: '70%',
-              }}>
-                {title && (
-                  <div style={{
-                    fontFamily: NUM_FONT, fontSize: 15, fontWeight: 900,
-                    letterSpacing: '.06em', color: C.text, lineHeight: 1.1,
-                    textShadow: '0 2px 10px rgba(0,0,0,.85)',
-                  }}>{String(title).toUpperCase()}</div>
-                )}
-                <div style={{
-                  display: 'flex', alignItems: 'center', gap: 7, marginTop: 3,
-                }}>
-                  <span style={{
-                    display: 'inline-block', width: 16, height: 2,
-                    background: C.orange, borderRadius: 2,
-                  }} />
-                  <span style={{
-                    fontFamily: NUM_FONT, fontSize: 9, fontWeight: 800,
-                    letterSpacing: '.14em', color: C.text3,
-                    textShadow: '0 2px 8px rgba(0,0,0,.85)',
-                  }}>{subtitle ? String(subtitle).toUpperCase() : 'MOONSHOT'}</span>
-                </div>
-              </div>
-            )}
+            <LowerThird title={title} subtitle={subtitle} />
           </div>
         {/* FILM OVERLAYS (2026-08-31). Grain, scanlines and a vignette, as
             three plain divs — no shaders, no post-processing pass, no cost
@@ -1478,33 +1404,9 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
             chart" and "a broadcast still", and it is the cheapest thing in
             the file. pointerEvents none so the orbit, the raycast hover and
             the replay button all still get their events. */}
-        <style>{'@keyframes sfsGrain{0%{transform:translate(0,0)}33%{transform:translate(-3%,2%)}66%{transform:translate(2%,-3%)}100%{transform:translate(0,0)}}'}</style>
-        <div style={{
-          position: 'absolute', inset: 0, borderRadius: 12, pointerEvents: 'none', zIndex: 2,
-          background: 'radial-gradient(125% 95% at 50% 44%, rgba(0,0,0,0) 36%, rgba(0,0,0,.42) 78%, rgba(0,0,0,.72) 100%)',
-        }} />
-        <div style={{
-          position: 'absolute', inset: 0, borderRadius: 12, pointerEvents: 'none', zIndex: 2,
-          opacity: 0.09, mixBlendMode: 'overlay',
-          background: 'repeating-linear-gradient(to bottom, rgba(255,255,255,.05) 0 1px, transparent 1px 3px)',
-        }} />
-        <div style={{
-          position: 'absolute', inset: 0, borderRadius: 12, pointerEvents: 'none', zIndex: 2,
-          overflow: 'hidden',
-        }}>
-          <div style={{
-            position: 'absolute', inset: '-50%', opacity: 0.05, mixBlendMode: 'overlay',
-            animation: 'sfsGrain 1.1s steps(3) infinite',
-            backgroundImage: "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/></filter><rect width='140' height='140' filter='url(%23n)'/></svg>\")",
-          }} />
-        </div>
+        <FilmOverlay />
         {/* the hover readout — display driven directly by the raycaster */}
-        <div ref={tipRef} style={{
-          display: 'none', position: 'absolute', zIndex: 5, pointerEvents: 'none',
-          maxWidth: 180, padding: '6px 9px', borderRadius: 8,
-          background: 'rgba(9,9,11,.92)', border: `1px solid ${C.border2}`,
-          fontSize: 10, lineHeight: 1.5, color: C.text2, fontFamily: NUM_FONT,
-        }} />
+        <HoverReadout ref={tipRef} />
       </div>
     </StadiumShell>
   )

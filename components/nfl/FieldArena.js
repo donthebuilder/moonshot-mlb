@@ -27,6 +27,8 @@ import { heatOf, coolOf } from '../../lib/nfl/fieldModel'
 import { makeComposer, isCoarse } from '../../lib/stadiumLook'
 import { webglOk } from '../../lib/webglOk'
 import StadiumShell from '../charts/StadiumShell'
+import LowerThird from '../charts/stadium/LowerThird'
+import FilmOverlay from '../charts/stadium/FilmOverlay'
 import { ChartLegend, ChartEmpty } from '../charts'
 
 // TheField's depth bands, in air yards (the 2D's BANDS)
@@ -345,12 +347,9 @@ export default function FieldArena({ dots = [], cells = [], spot = null, rz = []
           width: '100%', ...(full ? { height: '100%' } : { minHeight: 340, aspectRatio: '1 / 0.6' }),
           borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}`,
         }} />
-        {(title || subtitle) && (
-          <div style={{ position: 'absolute', left: 12, bottom: 12, zIndex: 2, pointerEvents: 'none', maxWidth: '70%' }}>
-            {title && <div style={{ fontFamily: NUM_FONT, fontSize: 15, fontWeight: 900, letterSpacing: '.06em', color: C.text, textShadow: '0 2px 10px rgba(0,0,0,.85)' }}>{String(title).toUpperCase()}</div>}
-            <div style={{ fontFamily: NUM_FONT, fontSize: 9, fontWeight: 800, letterSpacing: '.14em', color: C.text3, marginTop: 3, textShadow: '0 2px 8px rgba(0,0,0,.85)' }}>{subtitle ? String(subtitle).toUpperCase() : 'TUDDY'}</div>
-          </div>
-        )}
+        {/* the spray chart's name plate + film (components/charts/stadium, BATCH-3D-V2 step 0) */}
+        <LowerThird title={title} subtitle={subtitle} theme={C} numFont={NUM_FONT} accent={C.green} fallback="TUDDY" />
+        <FilmOverlay />
       </div>
     </StadiumShell>
   )
