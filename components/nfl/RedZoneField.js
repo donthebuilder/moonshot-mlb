@@ -168,7 +168,8 @@ export function RedZoneStrip({ rows, kicker = null, rulerLabel = null, onPlayerC
   if (!rows?.length) return null
   const lane = phone ? 30 : 34
   const dot = phone ? 9 : 10
-  const nameCol = phone ? 'minmax(104px, 30%) 1fr 54px' : 'minmax(120px, 22%) 1fr 72px'
+  // the count column sizes to its text ('12 · 3 TD' overran a fixed 54px on a phone)
+  const nameCol = phone ? 'minmax(96px, 28%) 1fr max-content' : 'minmax(120px, 22%) 1fr max-content'
   return (
     <div aria-label="Red-zone touches by distance to the goal line">
       {kicker}
