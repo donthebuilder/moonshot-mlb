@@ -150,6 +150,13 @@ export default function DenseTable({
   //   bare      v2: no footer (caption fold + CSV) -- for small tables repeated
   //             down a page (a division each), where eight footers are scroll.
   bare = false,
+  //   footRows  v2: rows drawn under the body, never sorted, under a rule --
+  //             a box score's TOTALS line.
+  footRows = null,
+  //   tight     v2: 24px rows (a box score: a lineup is read top to bottom)
+  //   noGroups  v2: no group row, not even the automatic one
+  tight = false,
+  noGroups = false,
 }) {
   const [skinAuto, setSkinAuto] = useState(null)
   useEffect(() => { if (!skinProp) setSkinAuto(readSkin()) }, [skinProp])
@@ -393,7 +400,7 @@ export default function DenseTable({
       ramp, rowEdge, faceOf, onRowClick, dimRow, pick, rowPid, pickColorOf, firstMatch,
       explain, setExplain, dict, scoreTerms, caveat, accent, maxHeight, caption,
       truncated, maxRows, extra, setExtra, exportCsv, railRef, statusOf, title, initialStack, firstTextKey,
-      capOpen, setCapOpen, bare,
+      capOpen, setCapOpen, bare, footRows, tight, noGroups,
     })
   }
 

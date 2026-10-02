@@ -1,20 +1,7 @@
 'use client'
-import { Fragment } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
-import { useSort } from '../lib/useSort'
-import SortTh from './SortTh'
-
-// Sortable headers (2026-09-05). A box score opens in lineup order -- no
-// sort key -- and any column click ranks it; clicking Batters/Pitchers puts
-// the lineup order back.
-const BOX_SORT = { key: '', dir: 'desc' }
-const BAT_GET = { spot: (p) => Number(p.spot) || 99, avg: (p) => Number(p.avg) }
-const BAT_OPTS = { text: new Set([]) }
-const boxTh = (label, key, thProps, extra = {}) => (
-  <SortTh label={label} align={extra.align || 'right'} className={extra.className} title={extra.title}
-    style={{ fontFamily: NUM_FONT, letterSpacing: '.06em', padding: '0 5px 4px', borderBottom: 'none', ...(extra.style || {}) }}
-    {...(key ? thProps(key) : {})} />
-)
+import DenseTable from './DenseTable'
+import { teamCodeFromName } from '../lib/mlbTeams'
 
 // 📋 ONE BOX SCORE, ONE COMPONENT.
 //
@@ -40,21 +27,6 @@ const boxTh = (label, key, thProps, extra = {}) => (
 //      tell a 3-for-4 from a 3-for-4 across two people in the same slot.
 //   5. THE TOTALS ROW IS A RULE, not another row of the same weight.
 
-const cell = (dim) => ({
-  fontFamily: NUM_FONT, fontSize: 11.5, textAlign: 'right',
-  padding: '3px 5px', whiteSpace: 'nowrap',
-  color: dim ? C.text3 : C.text,
-  fontVariantNumeric: 'tabular-nums',
-})
-
-// Called, not frozen: C is mutated after mount (applyTheme, lib/theme.js), so a
-// module-level literal keeps the palette it was imported with. See #23.
-const thCell = () => ({
-  fontFamily: NUM_FONT, fontSize: 8.5, fontWeight: 800, textAlign: 'right',
-  letterSpacing: '.06em', color: C.text3, padding: '0 5px 4px',
-  textTransform: 'uppercase', whiteSpace: 'nowrap',
-})
-
 const BAT_COLS = [
   ['ab', 'AB'], ['r', 'R'], ['h', 'H'], ['rbi', 'RBI'],
   ['bb', 'BB'], ['k', 'K'], ['lob', 'LOB'],
@@ -66,109 +38,50 @@ const BAT_COLS = [
 // box-score rewrite because it read variables the rewrite removed, so the
 // tags come back here, in the shared table, where the Boxes tab gets them too.
 export function BattingBox({ side, highlight, onPlayerClick, title, marks = null }) {
-  const { sorted: rows, thProps, sort, setSort } = useSort(side?.batting || [], BOX_SORT, BAT_GET, BAT_OPTS)
-  const lineupOrder = () => setSort({ key: '', dir: 'desc' })
+  const rows = side?.batting || []
   if (!rows.length) return null
   const t = side?.totals?.batting
+  const name = title || side?.team?.name || 'Team'
+  // THE SHARED SHEET (2026-10-01, BATCH-TABLE-SKIN-V2 4b, Donovan: "convert
+  // them all to the new sortable sheet"). The box keeps what made it readable:
+  // lineup order until you sort (the head's reset puts it back), subs indented
+  // under the man they replaced, zeros dim, hits / RBI warm, TOTALS under a
+  // rule, the AT BAT / ON DECK / IN HOLE tags, the HR / 2B / SB lines below.
+  const columns = [
+    { key: 'name', label: 'Batters', heat: false, sticky: true, w: 170, title: 'Lineup order until you sort a column',
+      fmt: (v, p) => (
+        <span style={{ paddingLeft: (p.depth || 0) * 11, fontWeight: highlight?.has?.(p.id) ? 800 : 500, color: highlight?.has?.(p.id) ? C.orange : undefined }}>
+          {p.sub && <span style={{ color: C.text3, marginRight: 3 }}>↳</span>}
+          {v}
+          <span style={{ fontFamily: NUM_FONT, fontSize: 8.5, color: C.text3, marginLeft: 5 }}>{p.pos}</span>
+          {marks?.up === p.id && <b title="At the plate right now" style={{ fontSize: 7.5, fontWeight: 900, color: C.green, marginLeft: 4, letterSpacing: '.05em' }}>AT BAT</b>}
+          {marks?.deck === p.id && <b title="On deck" style={{ fontSize: 7.5, fontWeight: 900, color: C.amber, marginLeft: 4, letterSpacing: '.05em' }}>ON DECK</b>}
+          {marks?.hole === p.id && <b title="In the hole — two away" style={{ fontSize: 7.5, fontWeight: 900, color: C.purple, marginLeft: 4, letterSpacing: '.05em' }}>IN HOLE</b>}
+        </span>
+      ) },
+    ...BAT_COLS.map(([k, l]) => ({
+      key: k, label: l, w: 34, fmt: (v) => v ?? '—',
+      tone: (n) => (!n ? { color: C.text3 } : (k === 'rbi' || k === 'h') ? { color: C.green, weight: 800 } : { color: C.text, weight: 500 }),
+    })),
+    { key: 'avg', label: 'AVG', w: 44, fmt: (v) => v ?? '—', tone: () => ({ color: C.text3 }), title: 'Season batting average coming into today' },
+  ]
   return (
     <div style={{ minWidth: 0 }}>
       <div style={{
         display: 'flex', alignItems: 'baseline', gap: 7, marginBottom: 3,
         paddingBottom: 3, borderBottom: `1px solid ${C.border}`,
       }}>
-        <span style={{ fontSize: 11.5, fontWeight: 900 }}>{title || side?.team?.name}</span>
+        <span style={{ fontSize: 11.5, fontWeight: 900 }}>{name}</span>
         {t && (
           <span style={{ fontFamily: NUM_FONT, fontSize: 9, color: C.text3 }}>
             {t.r} R · {t.h} H · {t.hr ? `${t.hr} HR · ` : ''}{t.lob} LOB
           </span>
         )}
       </div>
-      {/* A SCROLLING BOX IS A CONTROL (2026-09-01). If a region scrolls, a
-          keyboard has to be able to reach it and move it -- WCAG 2.1.1 -- and
-          a screen reader has to be told what it is. tabIndex + role + a label,
-          on all three tables in this file. */}
-      <div className="dense-scroll rail box-scroll" role="region" tabIndex={0}
-        aria-label={`${title || side?.team?.name || 'Team'} batting`}
-        style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          {/* The team name is rendered above as a plain div: a heading to the
-              eye, nothing to a screen reader. This is what ties the numbers to
-              a team for anyone not looking at it. */}
-          <caption className="sr-only">{`${title || side?.team?.name || 'Team'} batting`}</caption>
-          <thead>
-            <tr>
-              <SortTh label={sort.key ? 'Batters ↩' : 'Batters'} align="left" title="Back to lineup order" onSort={sort.key ? lineupOrder : null} active={false}
-                style={{ fontFamily: NUM_FONT, letterSpacing: '.06em', padding: '0 5px 4px', borderBottom: 'none', width: '100%' }} />
-              {BAT_COLS.map(([k, l]) => <Fragment key={k}>{boxTh(l, k, thProps)}</Fragment>)}
-              {boxTh('AVG', 'avg', thProps, { className: 'box-avg', title: 'Season batting average coming into today' })}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((p) => {
-              const on = highlight?.has?.(p.id)
-              return (
-                <tr key={`${p.id}-${p.spot}-${p.depth}`}
-                  onClick={onPlayerClick ? () => onPlayerClick(p) : undefined}
-                  style={{
-                    cursor: onPlayerClick ? 'pointer' : 'default',
-                    background: on ? 'rgba(249,115,22,.10)' : 'transparent',
-                  }}>
-                  {/* A ROW HEADER, not another cell (2026-09-01). With
-                      scope="row" a screen reader reads "Henderson, AB 4, R 1"
-                      instead of five naked numbers with nothing to attach them
-                      to. Being a th also keeps it clear of MobileCSS's
-                      .dense-scroll td button { min-height: 44px } -- right for
-                      a dense table of buttons, and it would have tripled the
-                      height of a nine-man lineup. */}
-                  <th scope="row" style={{
-                    fontSize: 11.5, padding: '3px 5px', whiteSpace: 'nowrap',
-                    overflow: 'hidden', textOverflow: 'ellipsis',
-                    textAlign: 'left', fontWeight: on ? 800 : 500,
-                    // The indent IS the information: this man came in for the
-                    // one above him.
-                    paddingLeft: 5 + p.depth * 11,
-                    color: on ? C.orange : C.text,
-                  }}>
-                    {p.sub && <span style={{ color: C.text3, marginRight: 3 }}>↳</span>}
-                    {p.name}
-                    <span style={{ fontFamily: NUM_FONT, fontSize: 8.5, color: C.text3, marginLeft: 5 }}>{p.pos}</span>
-                    {marks?.up === p.id && <b title="At the plate right now" style={{ fontSize: 7.5, fontWeight: 900, color: '#4ade80', marginLeft: 4, letterSpacing: '.05em' }}>AT BAT</b>}
-                    {marks?.deck === p.id && <b title="On deck" style={{ fontSize: 7.5, fontWeight: 900, color: '#FCD34D', marginLeft: 4, letterSpacing: '.05em' }}>ON DECK</b>}
-                    {marks?.hole === p.id && <b title="In the hole — two away" style={{ fontSize: 7.5, fontWeight: 900, color: '#a78bfa', marginLeft: 4, letterSpacing: '.05em' }}>IN HOLE</b>}
-                  </th>
-                  {BAT_COLS.map(([k]) => {
-                    const v = p[k]
-                    const hot = (k === 'rbi' || k === 'h') && v > 0
-                    return (
-                      <td key={k} style={{
-                        ...cell(!v),
-                        color: !v ? C.text3 : hot ? '#4ade80' : C.text,
-                        fontWeight: hot ? 800 : 500,
-                      }}>{v}</td>
-                    )
-                  })}
-                  <td className="box-avg" style={{ ...cell(true), fontSize: 10.5 }}>{p.avg ?? '—'}</td>
-                </tr>
-              )
-            })}
-            {t && (
-              <tr>
-                <th scope="row" style={{
-                  fontSize: 10, fontWeight: 800, padding: '4px 5px 2px', textAlign: 'left',
-                  color: C.text3, borderTop: `1px solid ${C.border2}`, letterSpacing: '.05em',
-                }}>TOTALS</th>
-                {BAT_COLS.map(([k]) => (
-                  <td key={k} style={{
-                    ...cell(false), fontWeight: 800, fontSize: 11,
-                    borderTop: `1px solid ${C.border2}`, color: C.text2,
-                  }}>{t[k]}</td>
-                ))}
-                <td className="box-avg" style={{ ...cell(true), borderTop: `1px solid ${C.border2}` }}>{t.avg ?? '—'}</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <DenseTable bare tight noGroups rows={rows.map((p, i) => ({ ...p, _key: `${p.id}-${p.spot}-${p.depth}-${i}` }))} columns={columns}
+        onRowClick={onPlayerClick || null} rowEdge={(p) => (highlight?.has?.(p.id) ? C.orange : null)}
+        heatMode="sorted" maxHeight={9999} maxRows={60} caption={`${name} batting`}
+        footRows={t ? [{ name: 'TOTALS', ...Object.fromEntries(BAT_COLS.map(([k]) => [k, t[k]])), avg: t.avg ?? '—' }] : null} />
       {/* Extra-base hits and homers, called out below the table the way a
           newspaper box does — they're buried inside TB otherwise. */}
       {(() => {
@@ -196,106 +109,54 @@ const PIT_COLS = [['ip', 'IP'], ['h', 'H'], ['r', 'R'], ['er', 'ER'], ['bb', 'BB
 export function PitchingBox({ side, title }) {
   const rows = side?.pitching || []
   if (!rows.length) return null
+  const name = title || `${side?.team?.abbr || ''} pitchers`
+  // The shared sheet (see BattingBox): order of appearance until you sort,
+  // relievers indented, ER / HR red, a 6+ K line warm, zeros dim.
+  const columns = [
+    { key: 'name', label: name, heat: false, sticky: true, w: 170,
+      fmt: (v, p) => (
+        <span style={{ paddingLeft: p.started ? 0 : 11 }}>
+          {!p.started && <span style={{ color: C.text3, marginRight: 3 }}>↳</span>}
+          {v}
+          {p.note && <span style={{ fontFamily: NUM_FONT, fontSize: 8.5, color: C.orange, marginLeft: 5 }}>{p.note}</span>}
+        </span>
+      ) },
+    ...PIT_COLS.map(([k, l]) => ({
+      key: k, label: l, w: 34, fmt: (v) => v ?? '—',
+      tone: (n) => (k === 'ip' ? { color: C.text, weight: 800 } : !n ? { color: C.text3 }
+        : (k === 'er' || k === 'hr') ? { color: C.red, weight: 800 } : k === 'k' ? { color: C.green, weight: n >= 6 ? 800 : 500 } : { color: C.text, weight: 500 }),
+    })),
+    { key: 'ps', label: 'P-S', w: 46, heat: false, mono: true, title: 'Pitches thrown (strikes)' },
+    { key: 'era', label: 'ERA', w: 44, fmt: (v) => v ?? '—', tone: () => ({ color: C.text3 }), title: 'Season ERA' },
+  ]
   return (
     <div style={{ minWidth: 0, marginTop: 9 }}>
-      <div className="dense-scroll rail box-scroll" role="region" tabIndex={0}
-        aria-label={`${title || side?.team?.abbr || 'Team'} pitching`}
-        style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <caption className="sr-only">{`${title || side?.team?.abbr || 'Team'} pitching`}</caption>
-          <thead>
-            <tr>
-              <th scope="col" style={{ ...thCell(), textAlign: 'left', width: '100%' }}>
-                {title || `${side?.team?.abbr || ''} pitchers`}
-              </th>
-              {PIT_COLS.map(([k, l]) => <th scope="col" key={k} style={thCell()}>{l}</th>)}
-              <th scope="col" style={thCell()} title="Pitches thrown (strikes)">P-S</th>
-              <th scope="col" className="box-avg" style={thCell()} title="Season ERA">ERA</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((p, i) => (
-              <tr key={`${p.id}-${i}`}>
-                <th scope="row" style={{
-                  fontSize: 11.5, padding: '3px 5px', whiteSpace: 'nowrap',
-                  overflow: 'hidden', textOverflow: 'ellipsis',
-                  textAlign: 'left', fontWeight: 500,
-                  paddingLeft: p.started ? 5 : 16,
-                }}>
-                  {!p.started && <span style={{ color: C.text3, marginRight: 3 }}>↳</span>}
-                  {p.name}
-                  {p.note && <span style={{ fontFamily: NUM_FONT, fontSize: 8.5, color: C.orange, marginLeft: 5 }}>{p.note}</span>}
-                </th>
-                {PIT_COLS.map(([k]) => {
-                  const v = p[k]
-                  const bad = (k === 'er' || k === 'hr') && v > 0
-                  return (
-                    <td key={k} style={{
-                      ...cell(k !== 'ip' && !v),
-                      color: k === 'ip' ? C.text : !v ? C.text3 : bad ? '#f87171' : k === 'k' ? '#4ade80' : C.text,
-                      fontWeight: (k === 'ip' || bad || (k === 'k' && v >= 6)) ? 800 : 500,
-                    }}>{v}</td>
-                  )
-                })}
-                <td style={{ ...cell(true), fontSize: 10 }}>
-                  {p.pitches ? `${p.pitches}-${p.strikes}` : '—'}
-                </td>
-                <td style={{ ...cell(true), fontSize: 10.5 }}>{p.era ?? '—'}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <DenseTable bare tight noGroups rows={rows.map((p, i) => ({ ...p, _key: `${p.id}-${i}`, ps: p.pitches ? `${p.pitches}-${p.strikes}` : '—' }))}
+        columns={columns} heatMode="sorted" maxHeight={9999} maxRows={30} caption={`${name} pitching`} />
     </div>
   )
 }
 
-/** The innings across the top — R H E down the side. */
+/** The innings across the top — R H E down the side. The shared sheet too:
+ *  the two clubs, the innings, then R H E (R in the accent). */
 export function LineScore({ game }) {
   const innings = game?.innings || []
   if (!innings.length) return null
-  const row = (who, label) => (
-    <tr>
-      <th scope="row" style={{
-        fontFamily: NUM_FONT, fontSize: 11, fontWeight: 800, padding: '2px 8px 2px 0',
-        whiteSpace: 'nowrap', color: C.text, textAlign: 'left',
-      }}>{label}</th>
-      {innings.map((i) => (
-        <td key={i.n} style={{
-          ...cell(i[who] == null || i[who] === 0), textAlign: 'center', minWidth: 20, padding: '2px 4px',
-        }}>{i[who] == null ? '·' : i[who]}</td>
-      ))}
-      {['r', 'h', 'e'].map((k) => (
-        <td key={k} style={{
-          ...cell(false), textAlign: 'center', minWidth: 24, fontWeight: 800,
-          color: k === 'r' ? C.orange : C.text2,
-          borderLeft: k === 'r' ? `1px solid ${C.border2}` : 'none',
-        }}>{game.totals?.[who]?.[k] ?? '—'}</td>
-      ))}
-    </tr>
-  )
+  const INN = { key: 'inn', label: 'Innings', order: 1 }, TOT = { key: 'tot', label: 'Final', order: 2 }, WHO = { key: 'who', label: 'Club', order: 0 }
+  const columns = [
+    { key: 'club', label: 'Club', heat: false, sticky: true, w: 70, group: WHO, fmt: (v) => <b style={{ fontFamily: NUM_FONT }}>{v}</b> },
+    ...innings.map((i) => ({ key: `i${i.n}`, label: String(i.n), w: 24, group: INN, fmt: (v) => (v == null ? '·' : v), tone: (n) => (!n ? { color: C.text3 } : { color: C.text }) })),
+    ...['r', 'h', 'e'].map((k) => ({ key: k, label: k.toUpperCase(), w: 30, group: TOT, fmt: (v) => v ?? '—', tone: () => ({ color: k === 'r' ? C.orange : C.text2, weight: 800 }) })),
+  ]
+  const row = (who, label) => ({
+    _key: who, club: label,
+    ...Object.fromEntries(innings.map((i) => [`i${i.n}`, i[who]])),
+    ...Object.fromEntries(['r', 'h', 'e'].map((k) => [k, game.totals?.[who]?.[k]])),
+  })
   return (
-    <div className="dense-scroll rail box-scroll" role="region" tabIndex={0}
-      aria-label="Line score by inning"
-      style={{ overflowX: 'auto', marginBottom: 9 }}>
-      <table style={{ borderCollapse: 'collapse' }}>
-        <caption className="sr-only">Line score by inning</caption>
-        <thead>
-          <tr>
-            <th scope="col" style={{ ...thCell(), textAlign: 'left' }}><span className="sr-only">Team</span></th>
-            {innings.map((i) => (
-              <th scope="col" key={i.n} style={{ ...thCell(), textAlign: 'center', minWidth: 20 }}>{i.n}</th>
-            ))}
-            {['R', 'H', 'E'].map((k) => (
-              <th scope="col" key={k} style={{ ...thCell(), textAlign: 'center', minWidth: 24, color: k === 'R' ? C.orange : C.text3 }}>{k}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {row('away', game.away?.abbr || 'AWAY')}
-          {row('home', game.home?.abbr || 'HOME')}
-        </tbody>
-      </table>
+    <div style={{ marginBottom: 9 }}>
+      <DenseTable bare tight noGroups rows={[row('away', game.away?.abbr || teamCodeFromName(game.away?.name) || 'AWAY'), row('home', game.home?.abbr || teamCodeFromName(game.home?.name) || 'HOME')]} columns={columns}
+        heatMode="sorted" maxHeight={9999} maxRows={2} caption="Line score by inning" />
     </div>
   )
 }

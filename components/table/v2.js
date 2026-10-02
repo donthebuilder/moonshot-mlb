@@ -150,6 +150,8 @@ export function v2Css(C, ac, NUM_FONT) {
     .dtv2 .glyph { font-size: 12px; font-weight: 800; }
     .dtv2 .arrow { margin-left: 3px; font-size: 8px; opacity: .9; }
     .dtv2 .sub { display: none; }
+    .dtv2.dtv2-tight td { height: 24px !important; }
+    .dtv2.dtv2-tight td.name { padding-top: 0 !important; padding-bottom: 0 !important; }
     .dtv2 .dtv2-scroll { -webkit-overflow-scrolling: touch; }
     .dtv2 th.rank { overflow: hidden; }
     .dtv2 .short { display: none; }
@@ -199,9 +201,9 @@ export function renderV2(ctx) {
     ramp, rowEdge, faceOf, onRowClick, dimRow, pick, rowPid, pickColorOf, firstMatch,
     explain, setExplain, dict, scoreTerms, caveat, accent, maxHeight, caption,
     truncated, maxRows, extra, setExtra, exportCsv, railRef, statusOf, title, initialStack, firstTextKey,
-    capOpen, setCapOpen, bare,
+    capOpen, setCapOpen, bare, footRows, tight, noGroups,
   } = ctx
-  const ordered = orderByGroup(rawColumns)
+  const ordered = noGroups ? rawColumns.map((c) => ({ ...c, group: null })) : orderByGroup(rawColumns)
   // THE STATUS STAMP (plan step 4): when the caller can say each row's status,
   // a Status column joins the CALL group, after its last column. The word is
   // lib/callStatus STATUS_WORD via CallStatusBadge; the status is the caller's.
@@ -468,6 +470,9 @@ export function renderV2(ctx) {
                 if (arrow !== DIV_UP && arrow !== DIV_DOWN) arrow = ''
               }
               if (isTie) arrow = ''
+              // a column's own tone (a box score: zeros recede, hits / RBI warm,
+              // ER / HR red) -- the meaning of the number, not a heat wash
+              if (typeof c.tone === 'function') { const tn = c.tone(num, r); if (tn?.color) ink = tn.color; if (tn?.weight) weight = tn.weight }
               const shown = gone ? '—' : c.fmt ? c.fmt(v, r) : (Number.isFinite(num) ? num.toFixed(c.dp ?? 0) : '—')
               const titleNum = !Number.isFinite(num) ? '—' : Number.isInteger(num) ? String(num) : num.toFixed(c.dp ?? 2)
               const zero = divOK ? (fld ? fieldLabel(fld, c.dp ?? 1) : (c.anchorLabel || String(c.anchor ?? 0))) : null
@@ -494,6 +499,26 @@ export function renderV2(ctx) {
     </tbody>
   )
 
+  const foot = Array.isArray(footRows) && footRows.length ? (
+    <tfoot>
+      {footRows.map((fr, fi) => (
+        <tr key={`f${fi}`}>
+          {columns.map((c) => {
+            const v = fr[c.key]
+            const isName = c === nameC
+            const first = fi === 0 ? { borderTop: `1px solid ${C.border2}` } : {}
+            return (
+              <td key={c.key} className={cls(c, isName ? 'name' : c.heat === false && !isNumericText(c) ? 'txt' : 'num')}
+                style={{ ...(pinStyle(c, false) || {}), ...first, fontWeight: 800, color: isName ? C.text3 : C.text2, ...(isName ? { fontSize: 10, letterSpacing: '.05em' } : {}) }}>
+                {v == null ? '' : c.fmt && !isName ? c.fmt(v, fr) : v}
+              </td>
+            )
+          })}
+        </tr>
+      ))}
+    </tfoot>
+  ) : null
+
   const sortWords = sort.map((s, i) => {
     const col = rawColumns.find((c) => c.key === s.key)
     return `${i ? ' then ' : ''}${col?.label || s.key} ${s.dir === 'desc' ? '▼' : '▲'}`
@@ -501,7 +526,7 @@ export function renderV2(ctx) {
   const isInitial = JSON.stringify(sort) === JSON.stringify(initialStack())
 
   return (
-    <div className="dtv2">
+    <div className={tight ? 'dtv2 dtv2-tight' : 'dtv2'}>
       <style>{v2Css(C, ac, NUM_FONT)}</style>
       <ExplainBanner label={explain?.label} text={explain?.text} onClose={() => setExplain(null)}
         scoreTerms={scoreTerms} caveat={caveat} accent={accent || ac} art={explain?.art} answers={explain?.answers} />
@@ -542,6 +567,7 @@ export function renderV2(ctx) {
               <caption className="sr-only">{caption || 'Ranked board. Column headers sort; each row opens that hitter.'}</caption>
               {head}
               {body}
+              {foot}
             </table>
           </div>
         </div>
