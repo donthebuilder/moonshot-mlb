@@ -7,6 +7,7 @@ import LampTable from '../LampTable'
 import { nhlMug } from '../../../lib/nhl/format'
 import { EmptyState, DelayedBanner, Loading, SourceLine, LampDot, StaleSeasonNote, fmtDay, fmtSec, shiftDay } from '../ui'
 import { STATUS, NavBtn } from './Board'
+import { nhlFullRows, nhlFullColumns } from '../../../lib/nhl/boardColumns'
 
 // 📋 THE BOARD, NIGHT-WIDE (2026-09-25). Donovan: "is there no boards like
 // mlb ranking all the players". MOONSHOT has #tab=fullboard (every hitter,
@@ -48,10 +49,12 @@ export default function FullBoard({ onOpenPlayer, onOpenTeam, date = null, setDa
   // Faces: a mug is keyed by the game's season (Board.js's nhlMug call).
   const seasonOf = new Map(games.map((g) => [g.game?.id, g.game?.season]))
   const shown = data?.date || date
+  const fbRows = nhlFullRows(rows.map((r) => ({ ...r, _key: `${r.gameId}:${r.playerId}`, _raw: r,
+    oppTxt: `${r.home ? '' : '@'}${r.opp}`, sPg: r.legs ? r.legs.shotsPg : null, gPg: r.legs ? r.legs.goalsPg : null, toi: r.legs ? r.legs.toi : null })))
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <PageHeader eyebrow="LAMP · RANKINGS" title={shown ? fmtDay(shown) : 'Tonight'}
-        note="Every skater the model scored tonight, all games together, #1 to the bottom by score. CALLED is still the top three in his own game — that is the GAME # column. A PREVIEW row is not a call; a LOCKED score was frozen at its game's lock."
+        note="Every skater the model scored tonight, all games together, #1 to the bottom by score. CALLED is still the top skater on his team in his own game — that is the GAME # column. A PREVIEW row is not a call; a LOCKED score was frozen at its game's lock."
         theme={C} numFont={NUM_FONT} accent={C.ice}
         stats={data ? [{ value: rows.length, label: 'SKATERS', tone: C.text2 }, { value: calledN, label: 'CALLED', tone: C.ice }, { value: games.length, label: 'GAMES', tone: C.text2 }] : null} />
       <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -77,12 +80,12 @@ export default function FullBoard({ onOpenPlayer, onOpenTeam, date = null, setDa
               LampTable (DenseTable): every column sorts, the name column sticks,
               faces, and the team and opponent open the club. */}
           <LampTable
-            rows={rows.map((r) => ({ ...r, _key: `${r.gameId}:${r.playerId}`, _raw: r,
-              oppTxt: `${r.home ? '' : '@'}${r.opp}`, sPg: r.legs ? r.legs.shotsPg : null, gPg: r.legs ? r.legs.goalsPg : null, toi: r.legs ? r.legs.toi : null }))}
+            rows={fbRows}
             // groups (BATCH-TABLE-SKIN-V2 decision C; the v2 skin only): the call,
             // the signal (score + his rank in his game), the shooter's legs
             statusOf={(r) => r.status}
-            columns={lampBoardGroups([
+            // its own columns, then the full set (R6, lib/nhl/boardColumns.js)
+            columns={nhlFullColumns(fbRows, lampBoardGroups([
               { key: 'nightRank', label: '#', w: 36, heat: false, mono: true, dim: true },
               { key: 'name', label: 'Player', w: 150, heat: false, bold: true, sticky: true },
               { key: 'pos', label: 'Pos', w: 34, heat: false, mono: true, dim: true },
@@ -104,7 +107,7 @@ export default function FullBoard({ onOpenPlayer, onOpenTeam, date = null, setDa
                     <span style={{ color: STAMP_TONE[r.stamp], font: `800 7px/1 ${NUM_FONT}`, letterSpacing: '.12em', marginLeft: 5 }}>{STAMP[r.stamp]}</span>
                   </span>
                 ) },
-            ])}
+            ]))}
             onRowClick={(r) => onOpenPlayer?.((r?._raw ?? r).playerId)}
             faceOf={(r) => ({ sport: 'nhl', photo: nhlMug(seasonOf.get(r.gameId), r.team, r.playerId), name: r.name })}
             dimRow={(r) => r.graded && r.dressed === false}

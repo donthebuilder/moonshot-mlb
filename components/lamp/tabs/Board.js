@@ -16,6 +16,7 @@ import { LampCards, PctBars } from '../LampCard'
 import { alpha } from '../../../lib/scales'
 import { useLampBoard } from '../../../lib/nhl/useLamp'
 import { TeamMark, EmptyState, DelayedBanner, Loading, SourceLine, Kicker, GameTypeChip, LampDot, StaleSeasonNote, fmtDay, fmtPuckDrop, fmtSec, zoneAbbrev, shiftDay, STATUS, CalledChip, readHashParam, writeHashParam } from '../ui'
+import { withNhlFullSet } from '../../../lib/nhl/boardColumns'
 
 // 🏒 THE LAMP GOAL BOARD (lamp-goal-v1) — the product's first signal page.
 // Per game: every scored skater ranked, the top skater on each TEAM CALLED, the rest ON
@@ -395,7 +396,7 @@ export function GameBoard({ g, onOpenPlayer, onOpenGame, onOpenTeam, market = 'G
       {scored.length === 0 ? <EmptyState title="NOBODY SCORED YET" note="No skater on either roster has ten NHL games on file." /> : layout === 'cards' ? (
         <LampCards market={market} onOpen={onOpenPlayer} items={rows.map((x) => ({ key: x.id, r: x._row, g, rank: x.rank, facts: { ppvpk: x.ppvpk, rest: x.rest } }))} />
       ) : (
-        <LampTable rows={rows} columns={columnsFor(g, onOpenTeam, market)} heatMode="primary"
+        <LampTable {...withNhlFullSet(rows, columnsFor(g, onOpenTeam, market))} heatMode="primary"
           rowEdge={(r) => (r.status === 'called' ? C.ice : null)}
           faceOf={(r) => ({ sport: 'nhl', photo: nhlMug(game.season, r._row?.team, r._row?.playerId), name: r._row?.name })}
           dimRow={(r) => g.graded && r._row.dressed === false}
@@ -470,7 +471,7 @@ export function AllGamesTable({ kept, market, onOpenPlayer, onOpenTeam }) {
     { answers: 'called', key: 'status', label: 'STATUS', heat: false, w: 90, fmt: (v) => (v === 'called' ? <CalledChip /> : <span style={{ color: C.text3, font: `800 8px/1 ${NUM_FONT}`, letterSpacing: '.1em' }}>{STATUS[v]}</span>) },
   ]
   return (
-    <LampTable rows={rows} columns={columns} heatMode="primary"
+    <LampTable {...withNhlFullSet(rows, columns)} heatMode="primary"
       rowEdge={(r) => (r.status === 'called' ? C.ice : null)}
       faceOf={(r) => ({ sport: 'nhl', photo: nhlMug(r._g.game.season, r._row?.team, r._row?.playerId), name: r._row?.name })}
       maxRows={12 /* 0g E3: tonight's top twelve by score, the rest behind "show N more" */} maxHeight={9999} onRowClick={(r) => onOpenPlayer?.(r.id)} />
