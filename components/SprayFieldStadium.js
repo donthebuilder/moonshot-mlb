@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { C, NUM_FONT } from '../lib/theme'
+import StadiumShell from './charts/StadiumShell'
 import { catColor } from '../lib/scales'
 import { solveFlight } from '../lib/trajectory'
 // Seating shape — the half of a park parkWalls.js does not describe. Falls
@@ -37,6 +38,8 @@ import { shapeFor, resultScale } from '../lib/pitchShape'
 // fallback and the screen-reader version — this is still additive.
 
 const DEG = Math.PI / 180
+// The "off this wall" ball: one value for the scene and its caption.
+const WALL_AMBER = 0xfbbf24
 
 export function webglOk() {
   try {
@@ -137,6 +140,11 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
   //      · ORBIT  — a slow turn around the park until you grab it.
   const [motion, setMotion] = useState(live ? 'live' : 'replay')
   const [orbit, setOrbit] = useState(false)
+  // BATCH-3D-CAMERA: full screen (StadiumShell), the camera presets, and the
+  // effect's own handle (apiRef.preset / setView) so a chip can move the camera.
+  const [full, setFull] = useState(false)
+  const [preset, setPreset] = useState('press')
+  const apiRef = useRef({})
   const motionRef = useRef(motion); motionRef.current = motion
   const orbitRef = useRef(orbit); orbitRef.current = orbit
   const prevCountRef = useRef(0)
@@ -154,8 +162,10 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
     if (!mount) return undefined
     if (!webglOk()) { setOk(false); return undefined }
 
+    // Inline: max(340, 0.6W). Full screen (StadiumShell): the box's own height.
+    const boxH = (w) => (full ? Math.max(240, mount.clientHeight || Math.round(window.innerHeight * 0.7)) : Math.max(340, Math.round(w * 0.6)))
     const W = mount.clientWidth || 640
-    const H = Math.max(340, Math.round(W * 0.6))
+    const H = boxH(W)
 
     const scene = new THREE.Scene()
     // A vertical gradient sky, not a flat black — cheap: a big inverted dome
@@ -240,7 +250,9 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
     controls.target.copy(target)
     controls.maxPolarAngle = Math.PI * 0.47
     controls.minDistance = maxD * 0.16
-    controls.maxDistance = maxD * 1.8
+    // 1.5 (was 1.8): past it the park was under 15% of the frame on desktop
+    // (the sweep test, BATCH-3D-CAMERA) -- zoomed out into empty night.
+    controls.maxDistance = maxD * 1.5
     controls.enableDamping = true
 
     // ── MAKING IT DRIVEABLE (2026-08-31). Donovan: "the spray chart was hard
@@ -262,6 +274,106 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
     controls.rotateSpeed = 0.55
     controls.zoomSpeed = 0.75
     controls.dampingFactor = 0.075
+
+    // ── NEVER ORBIT INTO NOTHING (2026-10-01, BATCH-3D-CAMERA). Donovan: "when
+    //    you move to a certain angle you're in the stands behind home plate and
+    //    you see nothing." Polar and distance were clamped, azimuth was not, and
+    //    the bowl is DoubleSide -- swing round far enough and the inside of the
+    //    deck filled the frame. Allow 100 deg either side of the opening
+    //    broadcast angle: the field side of the foul-line extensions.
+    controls.update()
+    const AZ0 = controls.getAzimuthalAngle()
+    const SWING = (100 * Math.PI) / 180
+    controls.minAzimuthAngle = AZ0 - SWING
+    controls.maxAzimuthAngle = AZ0 + SWING
+    // THUMB-SCALED ROTATE: 0.55 was tuned for a 780px panel; scale it so a drag
+    // turns the same angle on a 390px phone.
+    const thumb = (w) => { controls.rotateSpeed = 0.55 * Math.min(2.2, Math.max(1, 780 / Math.max(1, w))) }
+    thumb(W)
+
+    // PRESETS (StadiumShell chips): PRESS BOX is the opening frame; the rest are
+    // fixed shots of the same park, all inside the azimuth clamp. ~600 ms ease.
+    const P0 = camera.position.clone(), T0 = controls.target.clone()
+    const V = (x, y, z) => new THREE.Vector3(x, y, z)
+    const SHOTS = {
+      press: () => [P0.clone(), T0.clone()],
+      plate: () => [V(maxD * 0.03, maxD * 0.10, -maxD * 0.20), V(0, 8, maxD * 0.5)],
+      outfield: () => [V(maxD * 0.02, maxD * 0.22, maxD * 0.12), V(0, 10, maxD * 0.92)],
+      // a tall phone frame needs the camera higher to fit the whole fan
+      top: () => [V(maxD * 0.004, maxD * (camera.aspect < 1.15 ? 2.1 : 1.25), maxD * 0.40), V(0, 0, maxD * 0.45)],
+    }
+    let anim = null
+    const ease = (k) => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2)
+    apiRef.current.preset = (key) => {
+      const shot = SHOTS[key]; if (!shot) return
+      const [p1, t1] = shot()
+      anim = { p0: camera.position.clone(), t0: controls.target.clone(), p1, t1, s: performance.now() }
+    }
+    // ── OUT OF THE STANDS (BATCH-3D-CAMERA, measured by the sweep test): the
+    //    azimuth clamp keeps the camera on the field side, but far out and low
+    //    it still backed into the bowl behind the plate and down the lines --
+    //    the deck filling the frame. Past the backstop (R0 from home) the
+    //    camera's floor rises with its distance, so a far camera looks DOWN on
+    //    the park over the seats. The orbit radius is kept (the polar angle
+    //    gives), so this never fights the distance clamp.
+    const R0 = maxD * 0.22, Y0 = maxD * 0.10, SLOPE = 0.85
+    const _off = new THREE.Vector3()
+    const outOfStands = () => {
+      if (apiRef.current.noFloor) return   // the sweep test's negative control only
+      const R = Math.hypot(camera.position.x, camera.position.z)
+      if (R <= R0) return
+      const yMin = Y0 + (R - R0) * SLOPE
+      if (camera.position.y >= yMin) return
+      _off.copy(camera.position).sub(controls.target)
+      const r = _off.length()
+      const dy = Math.min(r * 0.98, yMin - controls.target.y)
+      const h = Math.sqrt(Math.max(0, r * r - dy * dy))
+      const hz = Math.hypot(_off.x, _off.z) || 1
+      _off.set((_off.x / hz) * h, dy, (_off.z / hz) * h)
+      camera.position.copy(controls.target).add(_off)
+    }
+    // The test's measure: of a 24 x 16 grid of rays from the camera, the share
+    // whose first solid hit is the playing field -- at ground level, inside the
+    // park. Geometry, not colour, so a brown deck never counts as dirt.
+    const _ray = new THREE.Raycaster(), _ndc = new THREE.Vector2()
+    apiRef.current.fieldShare = () => {
+      // the loop pauses off screen, so the camera's matrix can be stale
+      camera.updateMatrixWorld(true)
+      let hit = 0, n = 0
+      for (let i = 0; i < 24; i++) for (let j = 0; j < 16; j++) {
+        _ndc.set(-1 + (2 * i + 1) / 24, -1 + (2 * j + 1) / 16)
+        _ray.setFromCamera(_ndc, camera)
+        const first = _ray.intersectObjects(scene.children, true).find((x) => { const m = x.object.material; return x.object.isMesh && x.object.visible && !m?.transparent && !(m?.alphaTest > 0) && !(m?.opacity < 1) })   // halos, decals, glows and the cut-out netting are see-through
+        n++
+        // the playing field = the first solid hit is at ground level and
+        // inside the park (the seats and decks are all above it)
+        const pt = first?.point
+        if (pt && Math.abs(pt.y) < 4) {
+          // P(r, ang) maps to x = -r sin(ang), z = r cos(ang): invert it, then
+          // fair ground out to this park's wall, or foul ground near the infield
+          const R = Math.hypot(pt.x, pt.z)
+          const ang = (Math.atan2(-pt.x, pt.z) * 180) / Math.PI
+          const fair = Math.abs(ang) <= 45 && R <= wallD(ang) + 3
+          const foul = R <= maxD * 0.33 && pt.z > -maxD * 0.16
+          if (fair || foul) hit++
+        }
+      }
+      return hit / n
+    }
+    // A handle for scripts/check-3d-view.mjs: a camera at offset degrees from
+    // the opening azimuth, a distance fraction of the clamp, a polar fraction.
+    apiRef.current.setView = (azDeg, distK, polarK) => {
+      const sph = new THREE.Spherical(
+        controls.minDistance + distK * (controls.maxDistance - controls.minDistance),
+        Math.max(0.05, polarK * controls.maxPolarAngle),
+        AZ0 + (azDeg * Math.PI) / 180,
+      )
+      camera.position.copy(controls.target).add(new THREE.Vector3().setFromSpherical(sph))
+      controls.update()
+      outOfStands()
+    }
+    apiRef.current.controls = controls   // the sweep test's negative control lifts the clamp
+    if (typeof window !== 'undefined') window.__dash3d = apiRef.current
 
     // Two fingers to orbit on a touch device, one to scroll past the chart —
     // same reasoning as ZoneMapStadium: a canvas that claims one-finger drag
@@ -333,7 +445,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
     //    reason the park-test control exists. Folding it into the double's
     //    green would delete the one thing this chart knows that the flat one
     //    does not.
-    const COL_WALL = new THREE.Color(0xfbbf24)
+    const COL_WALL = new THREE.Color(WALL_AMBER)
 
     // ── THE MARKS THE FLAT CHART HAS HAD ALL ALONG (2026-09-01). Its legend
     //    reads "ring = barrel · shape = pitch · size = result" and none of the
@@ -1123,6 +1235,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
     // after the render, so OrbitControls never sees it — leave it on the
     // camera and the next update() treats the drift as user input and the
     // whole view walks off on its own.
+    let orbitDir = 1
     const tick = (now) => {
       const t = now || performance.now()
       const hold = motionRef.current === 'hold'
@@ -1132,8 +1245,21 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
       // auto-orbit: OrbitControls' own slow turn, paused while grabbed and
       // in HOLD, resumed on release
       controls.autoRotate = !!orbitRef.current && !driving && !hold
-      controls.autoRotateSpeed = 0.55
+      // The clamped orbit turns back at each edge instead of stalling there
+      // (a positive speed walks theta down).
+      const th = controls.getAzimuthalAngle()
+      const near = (a, b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b))) < 0.03
+      if (near(th, controls.minAzimuthAngle)) orbitDir = -1
+      else if (near(th, controls.maxAzimuthAngle)) orbitDir = 1
+      controls.autoRotateSpeed = 0.55 * orbitDir
+      if (anim) {
+        const k = Math.min(1, (t - anim.s) / 600), e = ease(k)
+        camera.position.lerpVectors(anim.p0, anim.p1, e)
+        controls.target.lerpVectors(anim.t0, anim.t1, e)
+        if (k >= 1) anim = null
+      }
       controls.update()
+      outOfStands()
       if (windStep) windStep(t)
       world.step(t)
       if (!hold) { stepReplay(t); stepHoverFlight(t) }
@@ -1174,21 +1300,26 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
     document.addEventListener('visibilitychange', onVis)
     tick()
 
+    // RESIZE FROM THE BOX, NOT THE WINDOW (BATCH-3D-CAMERA): StadiumShell's full
+    // screen changes the mount's size without the window changing.
     const onResize = () => {
       const w = mount.clientWidth || W
-      const h2 = Math.max(340, Math.round(w * 0.6))
+      const h2 = boxH(w)
       camera.aspect = w / h2
       camera.updateProjectionMatrix()
       renderer.setSize(w, h2)
       look.setSize(w, h2)
+      thumb(w)
     }
-    window.addEventListener('resize', onResize)
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => onResize()) : null
+    if (ro) ro.observe(mount); else window.addEventListener('resize', onResize)
 
     return () => {
       cancelAnimationFrame(raf)
       if (io) io.disconnect()
       document.removeEventListener('visibilitychange', onVis)
-      window.removeEventListener('resize', onResize)
+      if (ro) ro.disconnect(); else window.removeEventListener('resize', onResize)
+      if (typeof window !== 'undefined' && window.__dash3d === apiRef.current) delete window.__dash3d
       renderer.domElement.removeEventListener('pointermove', onMove)
       renderer.domElement.removeEventListener('pointerleave', onLeave)
       replayRef.current = null
@@ -1209,7 +1340,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
     // the wrong reason, and two parks with the same wall profile and
     // different bowls would have exposed it. (roofOpen lived here too, until
     // the roof itself was removed — see NO ROOF, EVER above.)
-  }, [hits, dims, heights, venue, windMph, windLabel, windTo, windHex])
+  }, [hits, dims, heights, venue, windMph, windLabel, windTo, windHex, full])
 
   if (!ok) {
     return (
@@ -1220,9 +1351,66 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
     )
   }
 
+  // The motion modes + orbit row (was floating top-right on the canvas): now
+  // StadiumShell's chip slot, under the canvas, at a thumb's 44px.
+  const chipBtn = (on, col) => ({
+    minHeight: 44, padding: '0 14px', fontSize: 12, fontWeight: 800, borderRadius: 999,
+    cursor: 'pointer', fontFamily: NUM_FONT,
+    border: `1px solid ${on ? col : C.border2}`,
+    background: on ? `${col}22` : 'transparent', color: on ? col : C.text2,
+  })
+  const chipsRow = (
+    <>
+      {[
+        live ? ['live', '● live', 'Only the ball that just landed flies when the feed adds one'] : null,
+        ['replay', '▶ replay', 'Fly every ball along its reconstructed arc, in sequence'],
+        ['hold', '⏸ hold', 'Nothing moves — the still picture'],
+      ].filter(Boolean).map(([k, txt, tip]) => (
+        <button key={k} type="button" title={tip}
+          onClick={() => { setMotion(k); if (k === 'replay' && replayRef.current) replayRef.current() }}
+          style={chipBtn(motion === k, k === 'live' ? C.green : k === 'hold' ? C.text2 : C.orange)}>{txt}</button>
+      ))}
+      <button type="button" onClick={() => setOrbit((v) => !v)}
+        title={orbit ? 'Stop the slow turn' : 'Turn slowly around the park until you grab it'}
+        style={chipBtn(orbit, C.cyan)}>⟳ orbit</button>
+    </>
+  )
+  const PRESETS = [
+    { key: 'press', label: 'PRESS BOX', title: 'The broadcast frame, high behind first base' },
+    { key: 'plate', label: 'PLATE', title: 'Low, from behind home plate' },
+    { key: 'outfield', label: 'OUTFIELD', title: 'From behind second base, looking out at the wall' },
+    { key: 'top', label: 'TOP', title: 'Straight down on the park' },
+  ]
+  const fill = full ? { height: '100%' } : null
+  const caption = (
+      <div style={{ fontSize: 9, color: C.text3, marginTop: 5, lineHeight: 1.5, fontFamily: NUM_FONT }}>
+        drag to orbit · scroll to zoom · swipe sideways on a phone, or ⛶ full screen · presets jump the camera · hover a ball for its readout{venue ? ` · ${venue}` : ''} · wall numbers are the park&apos;s five
+        published distances ·{' '}
+        {windMph > 0 && windLabel && (
+          <>
+            <b style={{ color: windHex }}>wind {windMph.toFixed(1)} mph {windLabel}</b> — the flag flies
+            with it and its snap scales with the speed; the arrow and the band along the wall show the
+            component that matters for carry (out, in or across) and nothing finer:
+            the published direction is park-relative, not a compass bearing, and the arcs are drawn
+            WITHOUT it, so the wind is context beside the geometry, never folded into it ·{' '}
+          </>
+        )}
+        <b style={{ color: C.red }}>red</b> HR ·{' '}
+        <b style={{ color: catColor('result', 'triple') }}>purple</b> 3B ·{' '}
+        <b style={{ color: C.green }}>green</b> 2B ·{' '}
+        <b style={{ color: catColor('result', 'single') }}>blue</b> 1B ·{' '}
+        <b style={{ color: `#${WALL_AMBER.toString(16)}` }}>amber</b> off this wall · dark = out — the same five the flat
+        chart uses, plus amber, which is the one thing only this view can say: a ball that hit THIS
+        park&apos;s wall. Arcs are reconstructed from EV + launch angle so each ball lands where its dot is
+        (geometry, not measured trajectory); a ball without both is drawn as a dot only.
+      </div>
+  )
+
   return (
-    <div>
-      <div style={{ position: 'relative' }}>
+    <StadiumShell theme={C} accent={C.orange} chips={chipsRow} presets={PRESETS} active={preset}
+      onPreset={(k) => { setPreset(k); apiRef.current.preset?.(k) }} onFullChange={setFull}
+      caption={caption}>
+      <div style={{ position: 'relative', ...fill }}>
         {/* ── THE HEIGHT IS ON THE DIV, NOT ON THE CANVAS (2026-08-31).
               Donovan: "when i click a filter it's like it sends me up almost
               like a refresh."
@@ -1238,9 +1426,9 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
               minHeight + aspectRatio restate Math.max(340, W * 0.6) in CSS, so
               the box holds its size whether or not a canvas is in it. The
               rebuild still happens; it just stops moving the page. */}
-          <div style={{ position: 'relative' }}>
+          <div style={{ position: 'relative', ...fill }}>
             <div ref={mountRef} style={{
-              width: '100%', minHeight: 340, aspectRatio: '1 / 0.6',
+              width: '100%', ...(full ? { height: '100%' } : { minHeight: 340, aspectRatio: '1 / 0.6' }),
               borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}`,
             }} />
 
@@ -1317,62 +1505,7 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
           background: 'rgba(9,9,11,.92)', border: `1px solid ${C.border2}`,
           fontSize: 10, lineHeight: 1.5, color: C.text2, fontFamily: NUM_FONT,
         }} />
-        {/* motion modes + orbit, top-right. The ▶ replay button grew into a
-            row: what moves, and whether the camera turns on its own. */}
-        <div style={{ position: 'absolute', right: 8, top: 8, zIndex: 4, display: 'flex', gap: 4, flexWrap: 'wrap', justifyContent: 'flex-end', maxWidth: '40%' }}>
-          {[
-            live ? ['live', '● live', 'Only the ball that just landed flies when the feed adds one'] : null,
-            ['replay', '▶ replay', 'Fly every ball along its reconstructed arc, in sequence'],
-            ['hold', '⏸ hold', 'Nothing moves — the still picture'],
-          ].filter(Boolean).map(([k, txt, tip]) => {
-            const on = motion === k
-            const col = k === 'live' ? C.green : k === 'hold' ? C.text2 : C.orange
-            return (
-              <button key={k}
-                onClick={() => { setMotion(k); if (k === 'replay' && replayRef.current) replayRef.current() }}
-                title={tip}
-                style={{
-                  padding: '3px 9px', fontSize: 10, fontWeight: 700, borderRadius: 7,
-                  cursor: 'pointer', fontFamily: NUM_FONT,
-                  border: `1px solid ${on ? col : C.border2}`,
-                  background: on ? `${col}22` : 'rgba(9,9,11,.75)', color: on ? col : C.text2,
-                }}
-              >{txt}</button>
-            )
-          })}
-          <button
-            onClick={() => setOrbit((v) => !v)}
-            title={orbit ? 'Stop the slow turn' : 'Turn slowly around the park until you grab it'}
-            style={{
-              padding: '3px 9px', fontSize: 10, fontWeight: 700, borderRadius: 7,
-              cursor: 'pointer', fontFamily: NUM_FONT,
-              border: `1px solid ${orbit ? C.cyan : C.border2}`,
-              background: orbit ? `${C.cyan}22` : 'rgba(9,9,11,.75)', color: orbit ? C.cyan : C.text2,
-            }}
-          >⟳ orbit</button>
-        </div>
       </div>
-      <div style={{ fontSize: 9, color: C.text3, marginTop: 5, lineHeight: 1.5, fontFamily: NUM_FONT }}>
-        drag to orbit · scroll to zoom · swipe sideways on a phone · hover a ball for its readout{venue ? ` · ${venue}` : ''} · wall numbers are the park&apos;s five
-        published distances ·{' '}
-        {windMph > 0 && windLabel && (
-          <>
-            <b style={{ color: windHex }}>wind {windMph.toFixed(1)} mph {windLabel}</b> — the flag flies
-            with it and its snap scales with the speed; the arrow and the band along the wall show the
-            component that matters for carry (out, in or across) and nothing finer:
-            the published direction is park-relative, not a compass bearing, and the arcs are drawn
-            WITHOUT it, so the wind is context beside the geometry, never folded into it ·{' '}
-          </>
-        )}
-        <b style={{ color: C.red }}>red</b> HR ·{' '}
-        <b style={{ color: catColor('result', 'triple') }}>purple</b> 3B ·{' '}
-        <b style={{ color: C.green }}>green</b> 2B ·{' '}
-        <b style={{ color: catColor('result', 'single') }}>blue</b> 1B ·{' '}
-        <b style={{ color: '#fbbf24' }}>amber</b> off this wall · dark = out — the same five the flat
-        chart uses, plus amber, which is the one thing only this view can say: a ball that hit THIS
-        park&apos;s wall. Arcs are reconstructed from EV + launch angle so each ball lands where its dot is
-        (geometry, not measured trajectory); a ball without both is drawn as a dot only.
-      </div>
-    </div>
+    </StadiumShell>
   )
 }

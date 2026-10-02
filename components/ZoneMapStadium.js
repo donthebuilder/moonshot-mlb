@@ -7,6 +7,7 @@ import { C, NUM_FONT } from '../lib/theme'
 // value, so the glyphs drawn on light tiles take it from there.
 import { INK_DARK } from '../lib/palette'
 import { pitchColor, PITCH_NAMES, zoneBox, zoneCell, inZone as pitchInZone } from '../lib/livePitches'
+import StadiumShell from './charts/StadiumShell'
 import { buildPark, lerp5, fieldPoint, GENERIC_DIMS, GENERIC_HEIGHTS } from '../lib/stadiumWorld'
 import { makeComposer, enableShadows, loadPhotoSurfaces, loadSky, loadModels, isCoarse } from '../lib/stadiumLook'
 import { PARK_WALLS } from '../lib/parkWalls'
@@ -121,6 +122,10 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
   // 'flight' opened on an empty box — which read as broken rather than as
   // empty. Matchup needs no pitches, so that is the honest first view.
   const [mode, setMode] = useState(hasPitches ? 'flight' : 'matchup')
+  // BATCH-3D-CAMERA: full screen (StadiumShell), camera presets, the effect's handle
+  const [full, setFull] = useState(false)
+  const [preset, setPreset] = useState(null)
+  const apiRef = useRef({})
   const hasMatchup = !!(pzp?.tendency?.length || pzp?.damage?.length || pzp?.kill_zones?.length)
   const hasZoneStats = Object.keys(zoneStats || {}).length > 0
 
@@ -134,8 +139,10 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
     const ZT = box.top, ZB = box.bot, ZH = Math.max(0.1, ZT - ZB)
     const SHADOW = 0.30
 
+    // Inline: max(320, 0.62W). Full screen (StadiumShell): the box's own height.
+    const boxH = (w) => (full ? Math.max(240, mount.clientHeight || Math.round(window.innerHeight * 0.7)) : Math.max(320, Math.round(w * 0.62)))
     const W = mount.clientWidth || 640
-    const H = Math.max(320, Math.round(W * 0.62))
+    const H = boxH(W)
 
     const scene = new THREE.Scene()
     scene.background = new THREE.Color(0x0d0f14)
@@ -209,16 +216,22 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
       controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_ROTATE }
       renderer.domElement.style.touchAction = 'pan-y'
     }
-    controls.maxPolarAngle = Math.PI * 0.62
+    // 0.5 (was 0.62): below level the camera sat under the zone looking up at
+    // empty sky -- the sweep test's only blank frames (BATCH-3D-CAMERA).
+    controls.maxPolarAngle = Math.PI * 0.5
     controls.minDistance = 2.2
     // far enough back to see the park you are standing in
-    controls.maxDistance = 420
+    // 90 (was 420): the subject is the plate. Past ~90 ft the camera was out
+    // in the seats or behind the backstop screen (BATCH-3D-CAMERA).
+    controls.maxDistance = 90
     // Pan off, and the same calmed rotate/zoom as the spray chart. Panning a
     // grid whose whole subject is nine boxes in the middle can only lose it.
     controls.enablePan = false
     controls.rotateSpeed = 0.55
     controls.zoomSpeed = 0.75
     controls.dampingFactor = 0.075
+    const thumb = (w) => { controls.rotateSpeed = 0.55 * Math.min(2.2, Math.max(1, 780 / Math.max(1, w))) }
+    thumb(W)
 
     // ── THE PARK (2026-09-02). Donovan: "based in the same world, not on
     //    the same line — I like where each lived." This map keeps its own
@@ -240,6 +253,80 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
     // The park's rig is dusk-dim on purpose (the arcs are its light); the
     // zone's tiles and marks need a little of their own, close in, or the
     // matchup shading reads as mud from three feet away.
+    // ── NEVER BEHIND THE BACKSTOP (BATCH-3D-CAMERA). The camera circles the
+    //    plate; once it is out past the backstop (R0 from home) its floor rises
+    //    with distance, so it looks down over the screen instead of sitting in
+    //    the seats behind it. The radius is kept; the polar angle gives.
+    const R0 = 50, Y0 = 6, SLOPE = 0.85
+    const _off = new THREE.Vector3()
+    const outOfStands = () => {
+      if (apiRef.current.noFloor) return   // the sweep test's negative control only
+      const R = Math.hypot(camera.position.x, camera.position.z)
+      if (R <= R0) return
+      const yMin = Y0 + (R - R0) * SLOPE
+      if (camera.position.y >= yMin) return
+      _off.copy(camera.position).sub(controls.target)
+      const r = _off.length()
+      const dy = Math.min(r * 0.98, yMin - controls.target.y)
+      const h = Math.sqrt(Math.max(0, r * r - dy * dy))
+      const hz = Math.hypot(_off.x, _off.z) || 1
+      _off.set((_off.x / hz) * h, dy, (_off.z / hz) * h)
+      camera.position.copy(controls.target).add(_off)
+    }
+    // PRESETS: MOUND (the pitcher's side, looking in) · CATCHER (the opening
+    // matchup frame) · SIDE (first-base side, level) · TOP (straight down).
+    const V = (x, y, z) => new THREE.Vector3(x, y, z)
+    const SHOTS = {
+      mound: () => [V(0, cy + 3, 30), V(0, cy, 0)],
+      catcher: () => [V(0, cy, -5.4), V(0, cy, 0)],
+      side: () => [V(-16, cy + 1.5, 0.4), V(0, cy, 0)],
+      top: () => [V(0.01, 26, 0.6), V(0, 0, 0.6)],
+    }
+    let anim = null
+    const ease = (k) => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2)
+    apiRef.current.preset = (key) => {
+      const shotFn = SHOTS[key]; if (!shotFn) return
+      const [p1, t1] = shotFn()
+      anim = { p0: camera.position.clone(), t0: controls.target.clone(), p1, t1, s: performance.now() }
+    }
+    controls.update()
+    const AZ0 = controls.getAzimuthalAngle()
+    apiRef.current.controls = controls
+    apiRef.current.setView = (azDeg, distK, polarK) => {
+      const sph = new THREE.Spherical(
+        controls.minDistance + distK * (controls.maxDistance - controls.minDistance),
+        Math.max(0.05, polarK * controls.maxPolarAngle),
+        AZ0 + (azDeg * Math.PI) / 180,
+      )
+      camera.position.copy(controls.target).add(new THREE.Vector3().setFromSpherical(sph))
+      controls.update()
+      outOfStands()
+    }
+    // The sweep test's measure: of a 24 x 16 ray grid, the share whose first
+    // solid hit is the playing field (ground level, inside this park).
+    const _ray = new THREE.Raycaster(), _ndc = new THREE.Vector2()
+    const zMaxD = Math.max(...dims)
+    apiRef.current.fieldShare = () => {
+      camera.updateMatrixWorld(true)
+      let hit = 0, n = 0
+      for (let i = 0; i < 24; i++) for (let j = 0; j < 16; j++) {
+        _ndc.set(-1 + (2 * i + 1) / 24, -1 + (2 * j + 1) / 16)
+        _ray.setFromCamera(_ndc, camera)
+        const first = _ray.intersectObjects(scene.children, true).find((x) => { const m = x.object.material; return x.object.isMesh && x.object.visible && !m?.transparent && !(m?.alphaTest > 0) && !(m?.opacity < 1) })
+        n++
+        const pt = first?.point
+        if (pt && Math.abs(pt.y) < 4) {
+          const R = Math.hypot(pt.x, pt.z)
+          const ang = (Math.atan2(-pt.x, pt.z) * 180) / Math.PI
+          const fair = Math.abs(ang) <= 45 && R <= lerp5(dims, ang) + 3
+          const foul = R <= zMaxD * 0.33 && pt.z > -zMaxD * 0.16
+          if (fair || foul) hit++
+        }
+      }
+      return hit / n
+    }
+    if (typeof window !== 'undefined') window.__dash3d = apiRef.current
+
     const zoneLamp = new THREE.PointLight(0xfff2df, 1.1, 60)
     zoneLamp.position.set(0, 9, -7)
     scene.add(zoneLamp)
@@ -788,7 +875,29 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
     show()
 
     let raf = 0
-    const tick = (now) => { controls.update(); world.step(now || performance.now()); look.render(); raf = requestAnimationFrame(tick) }
+    const tick = (now) => {
+      const t = now || performance.now()
+      if (anim) {
+        const k = Math.min(1, (t - anim.s) / 600), e = ease(k)
+        camera.position.lerpVectors(anim.p0, anim.p1, e)
+        controls.target.lerpVectors(anim.t0, anim.t1, e)
+        if (k >= 1) anim = null
+      }
+      controls.update(); outOfStands(); world.step(t); look.render(); raf = requestAnimationFrame(tick)
+    }
+    // RESIZE FROM THE BOX (BATCH-3D-CAMERA): the shell's full screen changes the
+    // mount's size without the window changing. (The zone map had no resize.)
+    const onResize = () => {
+      const w = mount.clientWidth || W
+      const h2 = boxH(w)
+      camera.aspect = w / h2
+      camera.updateProjectionMatrix()
+      renderer.setSize(w, h2)
+      look.setSize(w, h2)
+      thumb(w)
+    }
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => onResize()) : null
+    if (ro) ro.observe(mount)
     // Same rule as SprayFieldStadium (2026-09-24): a post-processed 60fps
     // loop only while the canvas is on screen and the tab is visible.
     let onScreen = true
@@ -807,6 +916,8 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
     return () => {
       cancelAnimationFrame(raf)
       if (io) io.disconnect()
+      if (ro) ro.disconnect()
+      if (typeof window !== 'undefined' && window.__dash3d === apiRef.current) delete window.__dash3d
       document.removeEventListener('visibilitychange', onVis)
       renderer.domElement.removeEventListener('pointermove', onMove)
       renderer.domElement.removeEventListener('pointerleave', onLeave)
@@ -822,7 +933,7 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
       renderer.dispose()
       if (renderer.domElement.parentNode === mount) mount.removeChild(renderer.domElement)
     }
-  }, [pitches, pzp, zoneStats, zoneCells, mode, venue])
+  }, [pitches, pzp, zoneStats, zoneCells, mode, venue, full])
 
   if (!ok) {
     return (
@@ -845,7 +956,7 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
         disabled={off}
         title={off ? 'No tracked pitches yet — this view needs a live or completed at-bat.' : ''}
         style={{
-          padding: '2px 9px', fontSize: 10, fontWeight: 700, borderRadius: 6,
+          minHeight: 44, padding: '0 14px', fontSize: 12, fontWeight: 800, borderRadius: 999,
           cursor: off ? 'not-allowed' : 'pointer',
           fontFamily: NUM_FONT,
           opacity: off ? 0.42 : 1,
@@ -857,14 +968,18 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
     )
   }
 
+  // The view modes are StadiumShell's chip row now (under the canvas, 44px).
+  const chipsRow = <>{btn('flight', 'Flight')}{btn('tunnel', 'Release + tunnel')}{btn('command', 'Command')}{btn('matchup', 'Matchup')}</>
+  const PRESETS = [
+    { key: 'mound', label: 'MOUND', title: "From the pitcher's side, looking in" },
+    { key: 'catcher', label: 'CATCHER', title: 'Behind the plate, the matchup frame' },
+    { key: 'side', label: 'SIDE', title: 'Level, from the first-base side' },
+    { key: 'top', label: 'TOP', title: 'Straight down on the plate' },
+  ]
   return (
-    <div>
-      <div style={{ display: 'flex', gap: 6, marginBottom: 7, flexWrap: 'wrap' }}>
-        {btn('flight', 'Flight')}
-        {btn('tunnel', 'Release + tunnel')}
-        {btn('command', 'Command')}
-        {btn('matchup', 'Matchup')}
-      </div>
+    <StadiumShell theme={C} accent={C.orange} chips={chipsRow} presets={PRESETS} active={preset}
+      onPreset={(k) => { setPreset(k); apiRef.current.preset?.(k) }} onFullChange={setFull}>
+    <div style={full ? { height: '100%' } : null}>
       {/* ── THE HEIGHT IS ON THE DIV, NOT ON THE CANVAS (2026-08-31).
               Donovan: "when i click a filter it's like it sends me up almost
               like a refresh."
@@ -880,9 +995,9 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
               minHeight + aspectRatio restate Math.max(320, W * 0.62) in CSS, so
               the box holds its size whether or not a canvas is in it. The
               rebuild still happens; it just stops moving the page. */}
-          <div style={{ position: 'relative' }}>
+          <div style={{ position: 'relative', ...(full ? { height: '100%' } : {}) }}>
             <div ref={mountRef} style={{
-              width: '100%', minHeight: 320, aspectRatio: '1 / 0.62',
+              width: '100%', ...(full ? { height: '100%' } : { minHeight: 320, aspectRatio: '1 / 0.62' }),
               borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}`,
             }} />
 
@@ -946,5 +1061,6 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
             It is a heat map, not an edge.</>}
       </div>
     </div>
+    </StadiumShell>
   )
 }
