@@ -471,7 +471,7 @@ export default function RinkArena({ shots = [], map = null, league = null, slot 
         <StadiumDock open={dockOpen} onToggle={() => setDockOpen((v) => !v)} now={shots.length || (map?.attempts ?? 0)} all={totalShots ?? shots.length}
           chips={dockChips} onClearAll={onClearAll || (() => {})} stats={narrowBox ? null : stats} theme={C} numFont={NUM_FONT} accent={C.ice} accentSoft={`${C.ice}1a`}
           emptyText="No filters on — every drawn attempt is on the ice." maxWidth="72%" />
-        <LowerThird title={title} subtitle={subtitle} theme={C} numFont={NUM_FONT} accent={C.ice} fallback="LAMP" />
+        <LowerThird title={title} subtitle={subtitle} theme={C} numFont={NUM_FONT} accent={C.ice} fallback="LAMP" scrim={C.bg} />
         <FilmOverlay />
         <HoverReadout ref={tipRef} theme={C} numFont={NUM_FONT} maxWidth={200} />
       </div>

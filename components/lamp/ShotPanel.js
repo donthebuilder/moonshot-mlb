@@ -123,7 +123,7 @@ export default function ShotPanel({ sel, who = 'He', height = 300 }) {
   // THE NUMBERS ON SCREEN (1c): one line off the filtered list, the same in the
   // 3D dock; EDGE's average / top when it has him
   const stats = [
-    ...shotLine(shots, data?.league),
+    ...shotLine(shots, data?.league, { resultOn: res !== 'ALL' }),
     ...(speed ? [{ k: 'AVG SHOT', v: speed.avg, sub: `mph · lg ${speed.leagueAvg}`, title: `His average shot speed, NHL EDGE (league ${speed.leagueAvg} mph)` },
       { k: 'TOP', v: speed.top, sub: 'mph', title: `His hardest shot this season, NHL EDGE (league ${speed.topLeague} mph)` }] : []),
   ].map((x) => (x.goal ? { ...x, tone: C.lamp } : x))

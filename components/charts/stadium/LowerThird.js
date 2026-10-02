@@ -3,15 +3,17 @@
 // The broadcast name plate, lower-left: the one corner nothing else uses (the
 // dock is top-left, the replay button top-right). pointerEvents off so it never
 // eats a drag meant for the scene. Moved unchanged; `accent` / `fallback` let
-// another product put its own colour and name on it.
+// another product put its own colour and name on it. `scrim` (a theme colour)
+// backs it for a light surface like LAMP's white ice; MOONSHOT passes none.
 import { C as MLB_C, NUM_FONT as MLB_NUM } from '../../../lib/theme'
 
-export default function LowerThird({ title, subtitle, theme: C = MLB_C, numFont = MLB_NUM, accent = MLB_C.orange, fallback = 'MOONSHOT' }) {
+export default function LowerThird({ title, subtitle, theme: C = MLB_C, numFont = MLB_NUM, accent = MLB_C.orange, fallback = 'MOONSHOT', scrim = null }) {
   if (!title && !subtitle) return null
   return (
     <div style={{
       position: 'absolute', left: 12, bottom: 12, zIndex: 2,
       pointerEvents: 'none', maxWidth: '70%',
+      ...(scrim ? { background: `color-mix(in srgb, ${scrim} 82%, transparent)`, padding: '6px 9px', borderRadius: 8 } : null),
     }}>
       {title && (
         <div style={{
