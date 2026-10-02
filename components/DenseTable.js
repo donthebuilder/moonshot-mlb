@@ -16,6 +16,7 @@ import { seqColor, divTone, SEQ_AUTO, DIV_FIELD, fieldAnchor, fieldLabel } from 
 import { explainFor, explainFrom, InfoDot, ExplainBanner } from './Explain'
 import { useSportTheme } from './SportTheme'
 import { readSkin, renderV2 } from './table/v2'
+import { useTeamNav } from '../lib/teamNav'
 
 // ── ABSENT IS NOT ZERO (2026-08-23) ─────────────────────────────────────────
 // `Number(null)` is 0 and `Number('')` is 0, and both are finite, so every
@@ -164,6 +165,7 @@ export default function DenseTable({
   // fallback the plan keeps; then classic is deleted.
   const skin = skinProp || skinAuto || 'v2'
   const sportTheme = useSportTheme()
+  const teamNav = useTeamNav()
   // MULTI-SORT. `sort` is an ordered list of keys, not one key.
   //
   // Plain click  -> make this the only sort key, descending.
@@ -400,7 +402,7 @@ export default function DenseTable({
       ramp, rowEdge, faceOf, onRowClick, dimRow, pick, rowPid, pickColorOf, firstMatch,
       explain, setExplain, dict, scoreTerms, caveat, accent, maxHeight, caption,
       truncated, maxRows, extra, setExtra, exportCsv, railRef, statusOf, title, initialStack, firstTextKey,
-      capOpen, setCapOpen, bare, footRows, tight, noGroups,
+      capOpen, setCapOpen, bare, footRows, tight, noGroups, onOpenTeam: teamNav,
     })
   }
 

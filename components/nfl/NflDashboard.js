@@ -1,4 +1,5 @@
 'use client'
+import { TeamNav } from '../../lib/teamNav'
 import HighlightBar from '../HighlightBar'
 import { SportTheme } from '../SportTheme'
 import { easternToday, easternDate } from '../../lib/data'
@@ -400,6 +401,7 @@ export default function NflDashboard({ palettePass = 0 }) {
           <SportTheme theme={C} accent={C.green} numFont={NUM_FONT}>
             <HighlightBar sport="nfl" onOpen={(id) => { const p = (slate?.players || []).find((x) => String(x.player_id) === String(id)); if (p) openPlayer(p) }} />
           </SportTheme>
+          <TeamNav.Provider value={(abbr) => { setPortalTeam(abbr); setTab('players') }}>
           <ErrorBoundary resetKey={tab} label={`the ${tab} tab`}>
             {tab === 'home' && <Home data={slate} picks={picks} results={nflResults} matchup={matchup} logs={logs} onPlayerClick={openPlayer} setTab={setTab} />}
             {/* MOONSHOT's Players page (2026-09-30): list + the card inline. */}
@@ -437,6 +439,7 @@ export default function NflDashboard({ palettePass = 0 }) {
                 The old section view stays as Home's compact strip (tabs/Storylines.js compact). */}
             {tab === 'storylines' && <StorylinesPage sport="nfl" eyebrow="TUDDY · STORYLINES" theme={C} numFont={NUM_FONT} accent={C.green} onOpenGame={(id) => { leaveTarget('game', id); setTab('games') }} onOpenPlayer={(id) => { const p = (data?.players || []).find((x) => String(x.player_id) === String(id)); if (p) openPlayer(p, 'TD') }} />}
           </ErrorBoundary>
+          </TeamNav.Provider>
         </>
         )}
       </main>

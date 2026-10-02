@@ -1,4 +1,5 @@
 'use client'
+import { TeamNav } from '../../lib/teamNav'
 import HighlightBar from '../HighlightBar'
 import { SportTheme } from '../SportTheme'
 import { listenForWorkerOpen } from '../../lib/workerOpen'
@@ -325,6 +326,7 @@ export default function LampDashboard({ palettePass = 0 }) {
           <SportTheme theme={C} accent={C.ice} numFont={NUM_FONT}>
             <HighlightBar sport="nhl" onOpen={(id) => openPlayer(id)} />
           </SportTheme>
+          <TeamNav.Provider value={openTeam}>
           <ErrorBoundary resetKey={`${tab}:${gameId || ''}:${teamKey || ''}:${playerId || ''}`} label={`the ${tab} tab`}>
             {tab === 'home' && <Home today={shown} date={date} onOpenGame={openGame} onOpenPlayer={openPlayer} onOpenTeam={openTeam} setTab={setTab} />}
             {tab === 'scores' && <Scores onOpenGame={openGame} date={date} setDate={setDate} />}
@@ -355,6 +357,7 @@ export default function LampDashboard({ palettePass = 0 }) {
             {tab === 'fullboard' && <FullBoard onOpenPlayer={openPlayer} onOpenTeam={openTeam} date={date} setDate={setDate} />}
             {tab === 'results' && <Results onOpenPlayer={openPlayer} />}
           </ErrorBoundary>
+          </TeamNav.Provider>
         </>
         )}
       </main>

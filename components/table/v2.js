@@ -201,7 +201,7 @@ export function renderV2(ctx) {
     ramp, rowEdge, faceOf, onRowClick, dimRow, pick, rowPid, pickColorOf, firstMatch,
     explain, setExplain, dict, scoreTerms, caveat, accent, maxHeight, caption,
     truncated, maxRows, extra, setExtra, exportCsv, railRef, statusOf, title, initialStack, firstTextKey,
-    capOpen, setCapOpen, bare, footRows, tight, noGroups,
+    capOpen, setCapOpen, bare, footRows, tight, noGroups, onOpenTeam = null,
   } = ctx
   const ordered = noGroups ? rawColumns.map((c) => ({ ...c, group: null })) : orderByGroup(rawColumns)
   // THE STATUS STAMP (plan step 4): when the caller can say each row's status,
@@ -386,7 +386,9 @@ export function renderV2(ctx) {
                 }
                 if (logoOf(c) && v) {
                   const mark = <TeamMark sport={logoOf(c)} abbr={v} variant="logo" px={14} />
-                  return <td key={c.key} className={cls(c, 'txt')} title={String(v)} style={{ ...pin, ...(bgTint || {}) }}>{go ? <Tap onClick={go}>{mark}</Tap> : mark}</td>
+                  // the column's own link, else the product's team door (lib/teamNav)
+                  const open = go || (onOpenTeam && /^[A-Z]{2,4}$/.test(String(v)) ? () => onOpenTeam(String(v)) : null)
+                  return <td key={c.key} className={cls(c, 'txt')} title={String(v)} style={{ ...pin, ...(bgTint || {}) }}>{open ? <Tap onClick={open}>{mark}</Tap> : mark}</td>
                 }
                 const content = c.fmt ? c.fmt(v, r) : (v ?? '—')
                 if (isName) {
