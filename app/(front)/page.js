@@ -206,7 +206,7 @@ export default async function DashHome({ searchParams }) {
           const words = (
             <dl className={styles.words}>
               <div><dt>The board</dt><dd>every player the model rated before the game, ranked.</dd></div>
-              <div><dt>A call</dt><dd>a player the model &mdash; the bot &mdash; designated before the game: MOONSHOT&apos;s HR, HIT, HRR and CONTACT picks, TUDDY&apos;s touchdown picks, LAMP&apos;s top three in each game.</dd></div>
+              <div><dt>A call</dt><dd>a player the model &mdash; the bot &mdash; designated before the game: MOONSHOT&apos;s HR, HIT, HRR and CONTACT picks, TUDDY&apos;s touchdown picks, LAMP&apos;s top skater on each team.</dd></div>
               <div><dt>Graded</dt><dd>after the game, every call is checked against the bar it was made for, in public, wins and misses alike.</dd></div>
             </dl>
           )

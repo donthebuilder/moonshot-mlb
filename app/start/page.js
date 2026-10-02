@@ -57,6 +57,7 @@
 //
 // NO JS FOR THE SPORT SWITCH — two plain links, same as /called's own switch
 // and its night anchors.
+import { windowFor, lastGameDays, inPool } from '../../lib/recordWindow'
 import { createClient } from '@supabase/supabase-js'
 import { unstable_cache } from 'next/cache'
 import { postseasonOn } from '../../lib/dash/seasonGuard'
@@ -283,9 +284,13 @@ async function computeRecord(sportKey, today) {
   const sport = SPORTS[sportKey]
   const db = client()
   if (!db) return null
-  const since = shiftDay(today, -(DAYS - 1))
-  if (sport.key === 'nhl') return computeLampRecord(db, since, today)
-  const { events, error } = await EVENT_READERS[sport.key](db, { since, until: today })
+  // the shared window (lib/recordWindow.js, 0g D4): /called's span and cut
+  const win = windowFor(sport.key)
+  const since = shiftDay(today, -(win.fetchDays - 1))
+  if (sport.key === 'nhl') return computeLampRecord(db, since, today, win.gameDays)
+  const { events: read, error } = await EVENT_READERS[sport.key](db, { since, until: today })
+  // the same pool /called counts (lib/recordWindow OUTSIDE_POOL: TUDDY's QB TDs sit outside)
+  const events = (read || []).filter(inPool(sport.key))
   if (error || !events.length) return null
 
   // Football: only days whose board rank was actually recorded can be counted.
@@ -304,7 +309,7 @@ async function computeRecord(sportKey, today) {
   const post = split ? await split(today) : { postseason: false }
   const inPost = post.postseason === true
   const nights = []
-  for (let i = 0; i < DAYS; i += 1) {
+  for (let i = 0; i < win.fetchDays && nights.length < win.gameDays; i += 1) {
     const day = shiftDay(today, -i)
     if (usable && !usable.has(day)) continue
     if (post.start && (day >= post.start) !== inPost) continue
@@ -333,14 +338,16 @@ async function computeRecord(sportKey, today) {
  * by the same coverage() the in-app record tab uses. Same shape as the other
  * two: scorers who were CALLED, and CALLED or ON THE BOARD, at lock.
  */
-async function computeLampRecord(db, since, today) {
+async function computeLampRecord(db, since, today, gameDays = 10) {
   // Scorers only: nhlCaptureFrom counts scorers, so the other ~90% of a
   // night's rows would be read for nothing.
   const { rows, error } = await readNhlRecords(db, { since, until: today, includePre: false, graded: true, hitOnly: true })
   if (error || !rows.length) return null
-  const cap = nhlCaptureFrom(rows)
+  const keep = new Set(lastGameDays(rows.map((r) => r.game_date), gameDays))
+  const inWin = rows.filter((r) => keep.has(r.game_date))
+  const cap = nhlCaptureFrom(inWin)
   if (!cap.total) return null
-  return { called: cap.called, onBoard: cap.onBoard, total: cap.total, days: new Set(rows.map((r) => r.game_date)).size }
+  return { called: cap.called, onBoard: cap.onBoard, total: cap.total, days: keep.size }
 }
 
 /** Tonight's hockey board, one line per game — read by the same function the Board page's route uses. */

@@ -21,6 +21,7 @@
 // the SAME rows the bars are already counting, one extra grouping pass on
 // data already fetched — no new query.
 
+import { windowFor, OUTSIDE_POOL } from '../../lib/recordWindow'
 import { createClient } from '@supabase/supabase-js'
 import { unstable_cache } from 'next/cache'
 import { postseasonOn } from '../../lib/dash/seasonGuard'
@@ -69,7 +70,8 @@ export async function generateMetadata({ searchParams }) {
   const params = (await searchParams) || {}
   return SPORTS[sportKey(String(params.sport || '').toLowerCase())].meta
 }
-const DAYS = 10
+// the newest ten game days: lib/recordWindow.js (0g D4), shared with /start + the front door
+const DAYS = windowFor('mlb').gameDays
 
 function client() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -134,7 +136,7 @@ const SPORTS = {
     empty: 'No touchdowns yet today',
     fills: 'This page fills in within a minute of each one.',
     foot: "CALLED IT is TUDDY's touchdown record — every touchdown, graded in public. Data from public NFL feeds.",
-    lead: 'board', onWhat: 'the board', capture: eventCapture, window: 28, unit: ['game day', 'game days'],
+    lead: 'board', onWhat: 'the board', capture: eventCapture, window: windowFor('nfl').fetchDays, unit: ['game day', 'game days'],
     rule: 'CALLED = a pick in any TUDDY market that week, or his game\u2019s TD call. ON THE BOARD = the top third of the week\u2019s TD board.',
     cta: ['See who the bot likes this week', 'This week\u2019s reads and the full board, in the app — no account needed'],
     callsHead: 'This week\u2019s calls', callsPill: 'posted before kickoff',
@@ -148,7 +150,7 @@ const SPORTS = {
     // QBs join the TD model in the bot). The TD model scores RB / WR / TE, so a
     // QB touchdown was always NOT ON THE BOARD -- counted as a miss the model
     // never had the chance to make. Counted separately now, and said plainly.
-    outsidePool: (e) => String(e?.payload?.position || '').toUpperCase() === 'QB',
+    outsidePool: OUTSIDE_POOL.nfl,   // lib/recordWindow.js -- shared with /start and the front door
     outsideNote: 'TD calls cover RB / WR / TE. QB touchdowns are outside the pool',
     outsideHead: 'QB touchdowns · outside the pool',
     meta: {
@@ -170,7 +172,7 @@ const SPORTS = {
     empty: 'No games graded yet tonight',
     fills: 'Each game fills in once its final is graded.',
     foot: "CALLED IT is LAMP's goal record — every goal scorer, graded in public. Data from the NHL's public feeds.",
-    lead: 'called', onWhat: 'CALLED', capture: nhlCaptureFrom, window: 14, unit: ['game night', 'game nights'],
+    lead: 'called', onWhat: 'CALLED', capture: nhlCaptureFrom, window: windowFor('nhl').fetchDays, unit: ['game night', 'game nights'],
     rule: 'CALLED = one of the calls in his game: the goal board (the top skater on each team, from Oct 1) or SHOTS 3+. ON THE BOARD = the top third of tonight\u2019s board.',
     cta: ['See tonight\u2019s goal board', 'One called per team in every game, and the full board, in the app — no account needed'],
     callsHead: 'Tonight\u2019s calls', callsPill: 'locked before puck drop',
