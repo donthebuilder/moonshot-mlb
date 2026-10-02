@@ -32,6 +32,7 @@ import { injuryTag, injuryTitle, injuryColor } from '../../lib/nfl/injury'
 import ScoreAnatomy from './ScoreAnatomy'
 import NflPlayerRead from './NflPlayerRead'
 import SplitDumbbell from './SplitDumbbell'
+import { playerHref } from '../../lib/routes'
 
 // Why this player scores what he scores — see components/nfl/ScoreAnatomy.js.
 // Since 2026-10-01 (0e b) that is one line: the board card's WHY sentence
@@ -496,7 +497,8 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
             <VerdictHero lead="face" theme={C} numFont={NUM_FONT}
               photo={faceUrl({ sport: 'nfl', espnId: player.espn_id, size: 96 })}
               col={g0.color} score={Number.isFinite(s0) ? s0 : null}
-              title={player.name} badge={Number.isFinite(s0) ? g0.label : 'UNSCORED'} badgeQuiet={!Number.isFinite(s0)}
+              // the name is the player's own link (a shared link to his page; check-clickable)
+              title={<a href={playerHref('nfl', player.player_id)} style={{ color: 'inherit', textDecoration: 'none' }}>{player.name}</a>} badge={Number.isFinite(s0) ? g0.label : 'UNSCORED'} badgeQuiet={!Number.isFinite(s0)}
               market={spec?.label || market}
               meta={<>
                 {player.jersey_number ? `#${player.jersey_number} · ` : ''}
