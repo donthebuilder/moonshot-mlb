@@ -84,10 +84,10 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
   // underline, the More dot and the active More row were MOONSHOT orange on
   // TUDDY's and LAMP's bars. `accent` (TUDDY jade, LAMP ice) replaces them;
   // MOONSHOT passes none and keeps exactly the orange / amber it had.
-  const AC = accent || '#f97316'
+  const AC = accent || C.orange
   const AC_TEXT = accent || '#fbbf24'
   const AC_ICON = accent || '#fb923c'
-  const AC_FADE = accent ? `${accent}0b` : '#fcd34d0b'
+  const AC_FADE = `${accent || C.amber}0b`
   const [open, setOpen] = useState(false)
   const sheetRef = useRef(null)
   useEffect(() => {
