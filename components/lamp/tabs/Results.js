@@ -32,6 +32,9 @@ const MODES = [
   ['bands', '📊 Score bands', 'what a rank in the game is worth'],
 ]
 
+// a few rows, then "show N more" (0g E2: a 12-game night drew ~100 rows here on a phone)
+const PREVIEW = 8
+
 export default function Results({ onOpenPlayer }) {
   const { data, error, loading } = useLampRecord(60)
   const T = data?.total
@@ -86,7 +89,7 @@ export default function Results({ onOpenPlayer }) {
           columns={[
             { key: 'result', label: '✓', flag: true, mark: '✓', w: 26, title: 'Did he score?' },
             { key: 'name', label: 'Called', w: 150, heat: false, bold: true, sticky: true },
-            { key: 'rank', label: '#', w: 34, heat: false, mono: true, title: 'His rank in his own game — the top three are the calls' },
+            { key: 'rank', label: '#', w: 34, heat: false, mono: true, title: 'His rank in his own game — the top skater on each team is the call' },
             { key: 'game', label: 'Game', w: 84, heat: false, mono: true, dim: true },
             { key: 'score', label: 'Score', w: 52, dp: 0, primary: true },
             { key: 'goals', label: 'G', w: 34, dp: 0 },
@@ -94,8 +97,8 @@ export default function Results({ onOpenPlayer }) {
           onRowClick={open}
           initialSort={{ key: 'score', dir: 'desc' }}
           maxHeight={9999}
-          maxRows={Math.max(night.called.length, 1)}
-          caption="The three calls in every game that night, locked before puck drop and graded after the final. Each row opens that skater."
+          maxRows={PREVIEW}
+          caption="The calls in every game that night, one per team, locked before puck drop and graded after the final. Each row opens that skater."
         />
         {night.offScorers?.length > 0 && (<>
           <Kicker>SCORED, NOT CALLED · {night.offScorers.length}</Kicker>
@@ -109,7 +112,7 @@ export default function Results({ onOpenPlayer }) {
             ]}
             onRowClick={open}
             maxHeight={9999}
-            maxRows={Math.max(night.offScorers.length, 1)}
+            maxRows={PREVIEW}
             caption="Skaters who scored that night without a call — ranked lower in their game, or never on the board at all."
           />
         </>)}

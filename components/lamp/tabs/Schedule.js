@@ -60,7 +60,7 @@ export default function Schedule({ onOpenGame, date = null, setDate = () => {} }
           {/* THE SHARED SHEET (2026-10-01, BATCH-TABLE-SKIN-V2 4b; Donovan: "convert
               them all"). Puck-drop order; a live game wears the lamp edge, a
               postponed one is dimmed, a row opens the game. */}
-          <LampTable bare noGroups tight heatMode="sorted" maxHeight={9999} maxRows={40}
+          <LampTable bare noGroups tight heatMode="sorted" maxHeight={9999} maxRows={6 /* a day's first six, then "show N more" (0g E2) */}
             caption={`${fmtDay(d.date)}: every game`}
             rows={[...d.games].sort((a, b) => Date.parse(a.startUtc) - Date.parse(b.startUtc)).map((g) => ({ ...g, _key: g.id, t: Date.parse(g.startUtc), awayTm: g.away.abbrev, homeTm: g.home.abbrev }))}
             onRowClick={onOpenGame ? (g) => onOpenGame(g.id) : undefined}
