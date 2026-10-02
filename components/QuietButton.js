@@ -1,4 +1,5 @@
 'use client'
+import { useSportTheme } from './SportTheme'
 import { C } from '../lib/theme'
 import { alpha } from '../lib/scales'
 import { useQuiet } from '../lib/quiet'
@@ -15,6 +16,9 @@ import { useQuiet } from '../lib/quiet'
 // back. A toggle that reads as its own name leaves you guessing which way it
 // is pointing.
 export default function QuietButton() {
+  // the product's accent when quiet is on (0g C4), MOONSHOT orange otherwise
+  const { accent, themed } = useSportTheme()
+  const on = themed ? accent : C.orange
   // `flip`, not `setQuiet` — lib/quiet.js exports a module-level setQuiet(),
   // and a local binding with the same name is exactly the shadowing that
   // scripts/check-undefined.mjs exists to catch. It caught it here.
@@ -30,9 +34,9 @@ export default function QuietButton() {
         display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
         height: 32, minHeight: 32, width: 34, borderRadius: 8, cursor: 'pointer',
         fontSize: 14, lineHeight: 1,
-        border: `1px solid ${quiet ? alpha(C.orange, 0.5) : C.border}`,
-        background: quiet ? alpha(C.orange, 0.12) : 'transparent',
-        color: quiet ? C.orange : C.text3,
+        border: `1px solid ${quiet ? alpha(on, 0.5) : C.border}`,
+        background: quiet ? alpha(on, 0.12) : 'transparent',
+        color: quiet ? on : C.text3,
       }}
     >{quiet ? '🔕' : '🔔'}</button>
   )

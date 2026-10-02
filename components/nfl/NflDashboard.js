@@ -401,6 +401,8 @@ export default function NflDashboard({ palettePass = 0 }) {
           <SportTheme theme={C} accent={C.green} numFont={NUM_FONT}>
             <HighlightBar sport="nfl" onOpen={(id) => { const p = (slate?.players || []).find((x) => String(x.player_id) === String(id)); if (p) openPlayer(p) }} />
           </SportTheme>
+          {/* ONE ACCENT SOURCE (0g C2-C6 root cause): every tab inside its product's theme */}
+          <SportTheme theme={C} accent={C.green} numFont={NUM_FONT}>
           <TeamNav.Provider value={(abbr) => { setPortalTeam(abbr); setTab('players') }}>
           <ErrorBoundary resetKey={tab} label={`the ${tab} tab`}>
             {tab === 'home' && <Home data={slate} picks={picks} results={nflResults} matchup={matchup} logs={logs} onPlayerClick={openPlayer} setTab={setTab} />}
@@ -440,6 +442,7 @@ export default function NflDashboard({ palettePass = 0 }) {
             {tab === 'storylines' && <StorylinesPage sport="nfl" eyebrow="TUDDY · STORYLINES" theme={C} numFont={NUM_FONT} accent={C.green} onOpenGame={(id) => { leaveTarget('game', id); setTab('games') }} onOpenPlayer={(id) => { const p = (data?.players || []).find((x) => String(x.player_id) === String(id)); if (p) openPlayer(p, 'TD') }} />}
           </ErrorBoundary>
           </TeamNav.Provider>
+          </SportTheme>
         </>
         )}
       </main>

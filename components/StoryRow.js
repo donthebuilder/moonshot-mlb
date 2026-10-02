@@ -1,4 +1,5 @@
 'use client'
+import { useSportTheme } from './SportTheme'
 
 // ONE ROW FOR EVERY STORYLINES LINE (HISTORY WATCH 2 step 1, 2026-09-27).
 // Donovan: "why are they two different text?" -- MOONSHOT's Storylines drew
@@ -36,9 +37,12 @@ export default function StoryRow({ icon, children, onClick = null, title, tag = 
 
 /** A story engine row's parts ({ t: 'name'|'num'|'text', v }): names bold, numbers mono orange. */
 export function StoryParts({ parts, theme: C, numFont }) {
+  // numbers in the product's accent, not MOONSHOT orange (0g C3)
+  const { accent, themed } = useSportTheme()
+  const num = themed ? accent : C.orange
   return (parts || []).map((x, j) => (x.t === 'name'
     ? <b key={j} style={{ color: C.text }}>{x.v}</b>
-    : x.t === 'num' ? <b key={j} style={{ fontFamily: numFont, color: C.orange }}>{x.v}</b> : <span key={j}>{x.v}</span>))
+    : x.t === 'num' ? <b key={j} style={{ fontFamily: numFont, color: num }}>{x.v}</b> : <span key={j}>{x.v}</span>))
 }
 
 const STATUS = { called: 'CALLED', board: 'ON THE BOARD', off: 'NOT ON THE BOARD' }
@@ -51,7 +55,9 @@ export function BoardBadge({ b, theme: C, numFont, accent }) {
 
 /** A sentence with every number (counts, years) in the mono font, orange. */
 export function Numbered({ text, theme: C, numFont }) {
+  const { accent, themed } = useSportTheme()
+  const num = themed ? accent : C.orange
   return String(text || '').split(/(\d[\d,]*)/).map((x, j) => (/^\d/.test(x)
-    ? <b key={j} style={{ fontFamily: numFont, color: C.orange }}>{x}</b>
+    ? <b key={j} style={{ fontFamily: numFont, color: num }}>{x}</b>
     : <span key={j}>{x}</span>))
 }

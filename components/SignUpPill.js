@@ -1,4 +1,5 @@
 'use client'
+import { C as MLB_C } from '../lib/theme'
 // THE ACCOUNT PILL (2026-09-06). Two states, one slot in the header.
 //
 // SIGNED OUT — "Sign up · free". It always linked to /login (which bounces a
@@ -94,13 +95,13 @@ export default function SignUpPill({ accent = '#f97316', dark = '#0d0c0a', onWat
             <div style={{ padding: '6px 10px 8px', fontSize: 10, opacity: .7, borderBottom: '1px solid rgba(128,128,128,.25)', marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {who.email || 'signed in'}
             </div>
-            <MenuLink href="/account">⚙ Account</MenuLink>
+            <MenuLink ac={accent} href="/account">⚙ Account</MenuLink>
             {onWatchlist
-              ? <MenuButton onClick={() => { setOpen(false); onWatchlist() }}>⭐ Watchlist</MenuButton>
-              : <MenuLink href="/app#sport=mlb&tab=you">⭐ Watchlist</MenuLink>}
+              ? <MenuButton ac={accent} onClick={() => { setOpen(false); onWatchlist() }}>⭐ Watchlist</MenuButton>
+              : <MenuLink ac={accent} href="/app#sport=mlb&tab=you">⭐ Watchlist</MenuLink>}
             <form action={dashSignOut} style={{ display: 'contents' }}>
               <input type="hidden" name="next" value={next} />
-              <MenuButton type="submit">Sign out</MenuButton>
+              <MenuButton ac={accent} type="submit">Sign out</MenuButton>
             </form>
           </div>
         )}
@@ -141,13 +142,15 @@ const itemStyle = {
   fontSize: 12, fontWeight: 700, color: 'inherit', textDecoration: 'none', background: 'transparent',
   border: 'none', cursor: 'pointer', font: 'inherit',
 }
-function MenuLink({ href, children }) {
+// the menu hover defaults to MOONSHOT's accent; every caller passes its own
+const MLB_ORANGE = MLB_C.orange
+function MenuLink({ href, children, ac = MLB_ORANGE }) {
   const [h, setH] = useState(false)
   return <a role="menuitem" href={href} onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
-    style={{ ...itemStyle, background: h ? 'rgba(249,115,22,.12)' : 'transparent' }}>{children}</a>
+    style={{ ...itemStyle, background: h ? `${ac}1f` : 'transparent' }}>{children}</a>
 }
-function MenuButton({ children, onClick, type = 'button' }) {
+function MenuButton({ children, onClick, type = 'button', ac = MLB_ORANGE }) {
   const [h, setH] = useState(false)
   return <button role="menuitem" type={type} onClick={onClick} onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
-    style={{ ...itemStyle, background: h ? 'rgba(249,115,22,.12)' : 'transparent' }}>{children}</button>
+    style={{ ...itemStyle, background: h ? `${ac}1f` : 'transparent' }}>{children}</button>
 }

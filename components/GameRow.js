@@ -15,13 +15,14 @@ import { C as MLB_C, NUM_FONT as MLB_NUM } from '../lib/theme'
 //        stake strip); omitted = no strip row at all.
 export default function GameRow({
   id, open, onToggle, sides, winner = null, status, sub = null, strip, children,
-  theme = MLB_C, numFont = MLB_NUM, accent = theme.orange, openBg = 'rgba(249,115,22,.03)',
+  theme = MLB_C, numFont = MLB_NUM, accent = theme.orange, openBg = null,
 }) {
   const C = theme
   return (
     <div style={{
       border: `1px solid ${open ? `${accent}55` : C.border}`, borderRadius: 12,
-      background: open ? openBg : C.bg2, marginBottom: 8, overflow: 'hidden',
+      // an open game's wash is its product's accent at 3% (0g C6: was MOONSHOT orange by default)
+      background: open ? (openBg || `${accent}08`) : C.bg2, marginBottom: 8, overflow: 'hidden',
     }}>
       <div onClick={() => onToggle(id)} className="tap-row" style={{
         display: 'flex', alignItems: 'center', gap: 12, padding: '9px 13px', cursor: 'pointer',

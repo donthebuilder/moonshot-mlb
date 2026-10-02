@@ -326,6 +326,8 @@ export default function LampDashboard({ palettePass = 0 }) {
           <SportTheme theme={C} accent={C.ice} numFont={NUM_FONT}>
             <HighlightBar sport="nhl" onOpen={(id) => openPlayer(id)} />
           </SportTheme>
+          {/* ONE ACCENT SOURCE (0g C2-C6 root cause): every tab inside its product's theme */}
+          <SportTheme theme={C} accent={C.ice} numFont={NUM_FONT}>
           <TeamNav.Provider value={openTeam}>
           <ErrorBoundary resetKey={`${tab}:${gameId || ''}:${teamKey || ''}:${playerId || ''}`} label={`the ${tab} tab`}>
             {tab === 'home' && <Home today={shown} date={date} onOpenGame={openGame} onOpenPlayer={openPlayer} onOpenTeam={openTeam} setTab={setTab} />}
@@ -358,6 +360,7 @@ export default function LampDashboard({ palettePass = 0 }) {
             {tab === 'results' && <Results onOpenPlayer={openPlayer} />}
           </ErrorBoundary>
           </TeamNav.Provider>
+          </SportTheme>
         </>
         )}
       </main>

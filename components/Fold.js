@@ -1,4 +1,5 @@
 'use client'
+import { useSportTheme } from './SportTheme'
 
 // ── A SECTION YOU CAN SHUT (2026-09-03) ─────────────────────────────────────
 //
@@ -45,6 +46,9 @@ export default function Fold({
   // where localStorage does not exist, and a first paint that disagrees with
   // the second is a hydration error.
   const [open, setOpen] = useState(defaultOpen)
+  // the caret in the product's accent (0g C6), MOONSHOT orange otherwise
+  const { accent, themed } = useSportTheme()
+  const caret = themed ? accent : C.orange
   useEffect(() => {
     try {
       const v = localStorage.getItem(KEY(id))
@@ -88,7 +92,7 @@ export default function Fold({
           <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>{meta}</span>
         ) : null}
         <span style={{
-          marginLeft: 'auto', fontSize: 10, color: C.orange,
+          marginLeft: 'auto', fontSize: 10, color: caret,
           fontFamily: NUM_FONT, fontWeight: 800, flexShrink: 0,
         }}>{open ? '▴' : '▾'}</span>
       </button>
