@@ -116,6 +116,8 @@ export function v2Css(C, ac, NUM_FONT) {
     .dtv2 .h-row th.on { color: ${C.text}; box-shadow: inset 0 -2px 0 ${ac}; }
     /* the ⓘ keeps its tap padding but not the line: middle-aligned, no line height of its own */
     .dtv2 .h-row th .explain-dot { vertical-align: middle; line-height: 1; }
+    /* on a mouse, the ⓘ's tap padding must not swallow a click meant to sort */
+    @media (pointer: fine) { .dtv2 .h-row th .explain-dot { padding: 2px 3px !important; margin: -2px -1px -2px 2px !important; } }
     .dtv2 .h-row th > span { line-height: 0; }
     .dtv2 td { height: 36px; padding: 0 7px; border-bottom: 1px solid ${C.border}; white-space: nowrap; }
     .dtv2 td.num { font: 500 11.5px/1 ${NUM_FONT}; color: ${C.text2}; text-align: right; }
@@ -207,10 +209,26 @@ export function renderV2(ctx) {
   const logoOf = (c) => c.teamMark || c.logo || null
   const s0 = sort[0]?.key ?? null, s1 = sort[1]?.key ?? null
   const eligible = (c) => c.heat !== false && !c.flag && !c.action
+  // EVERY SORTED STAT GETS THE GRADE (Donovan 10-01: "when i click on each
+  // sort they all should have the new heat mapping"). A text-flagged column
+  // whose values are numbers (L5 AVG, Spot, a count) is graded like any stat
+  // when you sort by it -- the ramp over its own range. Never the # column
+  // (it is the opening sort, and a wash at rest is the one thing v2 removes),
+  // never a name, club, role or status.
+  const numericText = new Map()
+  const isNumericText = (c) => {
+    if (!c || c.heat !== false || c.rankCol || isRank(c) || c.sticky || c.teamMark || c.logo || c.key === 'role' || c._status || c.statusCol) return false
+    if (!numericText.has(c.key)) {
+      const vs = sorted.map((r) => r[c.key]).filter((v) => !isBlank(v))
+      const nums = vs.map(Number).filter(Number.isFinite)
+      numericText.set(c.key, vs.length > 0 && nums.length / vs.length >= 0.6 ? [Math.min(...nums), Math.max(...nums)] : null)
+    }
+    return !!numericText.get(c.key)
+  }
   const medians = {}
   for (const k of [s0, s1]) {
     const c = columns.find((x) => x.key === k)
-    if (c && eligible(c)) medians[k] = medianOf(sorted.map((r) => numOf(r[k])))
+    if (c && (eligible(c) || isNumericText(c))) medians[k] = medianOf(sorted.map((r) => numOf(r[k])))
   }
   const groupStart = new Set()
   columns.forEach((c, i) => { if (i > 0 && c._g && c._g.key !== columns[i - 1]._g?.key) groupStart.add(c.key) })
@@ -270,7 +288,7 @@ export function renderV2(ctx) {
               className={cls(c, [on ? 'on' : '', isRank(c) ? 'rank' : '', c === nameC ? 'name' : '', /\s/.test(String(c.label || '').trim()) && String(c.label).length > 9 ? 'long' : ''].filter(Boolean).join(' '))}
               onClick={c._status ? undefined : (e) => toggle(c.key, e.shiftKey)}
               title={`${c.title || c.label}\n\nClick to sort. Shift-click to add as a tiebreaker under the current sort.`}
-              style={{ ...(pinStyle(c, true) || {}), textAlign: c.heat === false || c.action ? 'left' : 'right', width: c.w, minWidth: c.w }}>
+              style={{ ...(pinStyle(c, true) || {}), textAlign: c.heat === false || c.action ? 'left' : 'right', width: logoOf(c) ? 30 : c.w, minWidth: logoOf(c) ? 30 : c.w }}>
               {String(c.label || '').trim() ? c.label : <span className="sr-only">{c.title || c.key || 'Column'}</span>}
               {plain && (
                 <span style={{ opacity: explain?.key === c.key ? 1 : 0.55 }}>
@@ -343,7 +361,7 @@ export function renderV2(ctx) {
                   )
                 }
                 if (logoOf(c) && v) {
-                  const mark = <TeamMark sport={logoOf(c)} abbr={v} variant="logo" px={18} />
+                  const mark = <TeamMark sport={logoOf(c)} abbr={v} variant="logo" px={14} />
                   return <td key={c.key} className={cls(c, 'txt')} title={String(v)} style={{ ...pin, ...(bgTint || {}) }}>{go ? <Tap onClick={go}>{mark}</Tap> : mark}</td>
                 }
                 const content = c.fmt ? c.fmt(v, r) : (v ?? '—')
@@ -361,7 +379,7 @@ export function renderV2(ctx) {
                     if (isBlank(fv)) continue
                     // a called row has no room for the opponent at 122px (plan: rough edge)
                     if (logoOf(fc)) {
-                      if (!(called && !firstTeam)) sub.push(<span key={fc.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>{firstTeam ? null : 'v '}<TeamMark sport={logoOf(fc)} abbr={fv} variant="logo" px={13} />{firstTeam ? String(fv) : null}</span>)
+                      if (!(called && !firstTeam)) sub.push(<span key={fc.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>{firstTeam ? null : 'v '}<TeamMark sport={logoOf(fc)} abbr={fv} variant="logo" px={11} />{firstTeam ? String(fv) : null}</span>)
                       firstTeam = false
                     } else if (fc.key !== 'role' && !fc._status) {
                       // a short folded value (POS "RB", a G2) rides the sub-line; a long one
@@ -387,12 +405,22 @@ export function renderV2(ctx) {
                   )
                 }
                 const role = c.key === 'role'
+                // a number in a text column, sorted: the grade + its arrow
+                let tBg = null, tArrow = ''
+                if ((c.key === s0 || c.key === s1) && isNumericText(c)) {
+                  const n = numOf(v)
+                  const [lo, hi] = numericText.get(c.key)
+                  const col = Number.isFinite(n) ? (c.invert ? rampColor(hi - (n - lo), lo, hi) : rampColor(n, lo, hi)) : null
+                  if (col) tBg = withAlpha(col, c.key === s0 ? SORT_ALPHA : TIE_ALPHA)
+                  if (c.key === s0) { const g = seqGlyph(n, medians[c.key]); tArrow = g === DIV_UP || g === DIV_DOWN ? g : '' }
+                }
                 return (
                   <td key={c.key} title={textTitle} className={cls(c, c.mono ? 'num' : 'txt')}
-                    style={{ ...pin, textAlign: 'left', maxWidth: c.w, ...(bgTint || {}) }}>
+                    style={{ ...pin, textAlign: 'left', maxWidth: c.w, ...(tBg ? { background: `linear-gradient(${tBg}, ${tBg}), ${C.bg2}` } : bgTint || {}) }}>
                     {role && !isBlank(v)
                       ? <span style={{ border: `1px solid ${C.border2}`, borderRadius: 5, padding: '2px 6px', fontSize: 10.5 }}>{go ? <Tap onClick={go}>{content}</Tap> : content}</span>
                       : go ? <Tap onClick={go}>{content}</Tap> : content}
+                    {tArrow && <span className="arrow" style={{ color: tArrow === DIV_UP ? (C.cream || C.text) : C.text3 }}>{tArrow}</span>}
                   </td>
                 )
               }

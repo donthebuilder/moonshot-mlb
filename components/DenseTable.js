@@ -140,7 +140,7 @@ export default function DenseTable({
   faceOf = null,
   // SKIN V2 (2026-10-01, BATCH-TABLE-SKIN-V2 -- components/table/v2.js).
   //   skin      'classic' | 'v2'; absent -> ?skin= in the URL -> localStorage
-  //             'dash_table_skin' -> 'classic'. Classic is today, unchanged.
+  //             'dash_table_skin' -> 'v2' (the default since 10-01).
   //   statusOf  (row) -> 'called'|'board'|'off'|null, from the caller's one
   //             status rule; v2 stamps it in the CALL group. Classic ignores it.
   //   title     v2's sheet head. Classic ignores it.
@@ -150,7 +150,9 @@ export default function DenseTable({
 }) {
   const [skinAuto, setSkinAuto] = useState(null)
   useEffect(() => { if (!skinProp) setSkinAuto(readSkin()) }, [skinProp])
-  const skin = skinProp || skinAuto || 'classic'
+  // v2 IS THE DEFAULT (Donovan 10-01: "yes"). ?skin=classic is the one-week
+  // fallback the plan keeps; then classic is deleted.
+  const skin = skinProp || skinAuto || 'v2'
   const sportTheme = useSportTheme()
   // MULTI-SORT. `sort` is an ordered list of keys, not one key.
   //
