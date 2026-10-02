@@ -4,6 +4,7 @@ import { useLampGame } from '../../../lib/nhl/useLamp'
 import { nhlLogo } from '../../../lib/nhl/teams'
 import { strengthTag } from '../ScoreTable'
 import LampTable from '../LampTable'
+import Tap from '../../Tap'
 import SiteTeamMark from '../../TeamMark'
 import { EmptyState, DelayedBanner, Loading, SourceLine, Kicker, GameTypeChip, LampDot, GoalLabel, fmtDay, fmtPuckDrop, zoneAbbrev } from '../ui'
 
@@ -19,7 +20,7 @@ import { EmptyState, DelayedBanner, Loading, SourceLine, Kicker, GameTypeChip, L
 // gamecenter/{id}/boxscore — batch 2, with the goalie pages that give those
 // numbers a home), a shot map (play-by-play has the coordinates; it comes
 // with the ice-map component, not before). Nothing here is a placeholder.
-export default function Game({ id, onBack, onOpenPlayer = null, backLabel = 'Scores' }) {
+export default function Game({ id, onBack, onOpenPlayer = null, onOpenTeam = null, onOpenGame = null, backLabel = 'Scores' }) {
   const { data: g, error, loading } = useLampGame(id)
   if (!/^\d{10}$/.test(String(id || ''))) {
     return <EmptyState title="NO GAME PICKED" note="Open a game from Scores or the Schedule."><BackBtn onBack={onBack} label={backLabel} /></EmptyState>
@@ -86,7 +87,7 @@ export default function Game({ id, onBack, onOpenPlayer = null, backLabel = 'Sco
             return (
               <LampTable bare noGroups tight heatMode="sorted" maxHeight={9999} maxRows={99} caption="Goals and shots by period"
                 rows={rows} columns={[
-                  { key: 'who', label: 'Club', heat: false, sticky: true, w: 96, fmt: (v, r) => <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><SiteTeamMark sport="nhl" abbr={v} variant="logo" px={16} /><b style={{ fontFamily: NUM_FONT, fontSize: 11, color: r.dim ? C.text2 : C.text }}>{v}</b><span style={{ color: C.text3, fontSize: 10 }}>{r.what}</span></span> },
+                  { key: 'who', label: 'Club', heat: false, sticky: true, w: 96, link: (r) => (onOpenTeam ? () => onOpenTeam(r.who) : null), fmt: (v, r) => <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><SiteTeamMark sport="nhl" abbr={v} variant="logo" px={16} /><b style={{ fontFamily: NUM_FONT, fontSize: 11, color: r.dim ? C.text2 : C.text }}>{v}</b><span style={{ color: C.text3, fontSize: 10 }}>{r.what}</span></span> },
                   ...per.map((p) => ({ key: `p_${p.label}`, label: p.label, w: 34, fmt: (v) => v ?? '—', tone: (_, r) => ({ color: r.dim ? C.text3 : C.text, weight: r.dim ? 500 : 800 }) })),
                   { key: 'total', label: 'T', w: 36, fmt: (v) => v ?? '—', tone: (_, r) => ({ color: r.dim ? C.text2 : C.text, weight: 900 }) },
                 ]} />
@@ -106,7 +107,7 @@ export default function Game({ id, onBack, onOpenPlayer = null, backLabel = 'Sco
               columns={[
                 { key: 'seq', label: 'Per', w: 40, fmt: (_, x) => x.periodLabel, tone: () => ({ color: C.text3 }) },
                 { key: 'time', label: 'Time', heat: false, mono: true, w: 48 },
-                { key: 'team', label: 'Team', heat: false, w: 54 },
+                { key: 'team', label: 'Team', heat: false, w: 54, link: (x) => (onOpenTeam && x.team ? () => onOpenTeam(x.team) : null) },
                 { key: 'strength', label: 'Str', heat: false, w: 40, title: 'Strength', fmt: (_, x) => <span style={{ fontFamily: NUM_FONT, fontSize: 9.5, fontWeight: 800, color: x.strength === 'pp' ? C.teal : x.strength === 'sh' ? C.amber : C.text3 }}>{strengthTag(x)}</span> },
                 { key: 'name', label: 'Scorer', heat: false, sticky: true, w: 190, link: (x) => (x.scorer.id && onOpenPlayer ? () => onOpenPlayer(x.scorer.id) : null),
                   fmt: (v, x) => (
@@ -116,7 +117,9 @@ export default function Game({ id, onBack, onOpenPlayer = null, backLabel = 'Sco
                       {x.scorer.goalsToDate != null && <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 9.5 }}>({x.scorer.goalsToDate})</span>}
                       <GoalLabel label={x.label} />
                     </span>) },
-                { key: 'assistTxt', label: 'Assists', heat: false, w: 200, fmt: (v) => v || <span style={{ color: C.text3 }}>unassisted</span> },
+                { key: 'assistTxt', label: 'Assists', heat: false, w: 200, fmt: (v, x) => (x.assists.length
+                  ? <span>{x.assists.map((a, k) => <span key={a.id ?? k}>{k ? ', ' : ''}{a.id && onOpenPlayer ? <Tap onClick={() => onOpenPlayer(a.id)}>{a.name}</Tap> : a.name}{a.assistsToDate != null ? ` (${a.assistsToDate})` : ''}</span>)}</span>
+                  : <span style={{ color: C.text3 }}>unassisted</span>) },
                 { key: 'shotType', label: 'Shot', heat: false, w: 64, fmt: (v) => v || '—' },
                 { key: 'awayScore', label: 'Score', heat: false, numeric: false, w: 52, fmt: (_, x) => (x.awayScore != null ? `${x.awayScore}–${x.homeScore}` : '') },
               ]} />
@@ -156,7 +159,7 @@ export default function Game({ id, onBack, onOpenPlayer = null, backLabel = 'Sco
             columns={[
               { key: 'seq', label: 'Per', w: 40, fmt: (_, x) => x.periodLabel, tone: () => ({ color: C.text3 }) },
               { key: 'time', label: 'Time', heat: false, mono: true, w: 48 },
-              { key: 'team', label: 'Team', heat: false, w: 54 },
+              { key: 'team', label: 'Team', heat: false, w: 54, link: (x) => (onOpenTeam && x.team ? () => onOpenTeam(x.team) : null) },
               { key: 'who', label: 'Player', heat: false, sticky: true, w: 150, fmt: (v, x) => <span>{x.by ? v : <span style={{ color: C.text3 }}>bench</span>}{x.byNumber != null && <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 9.5 }}> #{x.byNumber}</span>}</span> },
               { key: 'desc', label: 'Call', heat: false, w: 170, fmt: (v, x) => <span style={{ color: C.text2 }}>{v}{x.type && x.type !== 'MIN' ? <span style={{ color: C.amber, fontFamily: NUM_FONT, fontSize: 9, marginLeft: 6 }}>{x.type}</span> : null}</span> },
               { key: 'minutes', label: 'Min', w: 40, fmt: (v) => v ?? '—', tone: () => ({ color: C.text3 }) },
@@ -173,7 +176,7 @@ export default function Game({ id, onBack, onOpenPlayer = null, backLabel = 'Sco
             rows={g.threeStars.map((x) => ({ ...x, _key: x.star }))}
             columns={[
               { key: 'star', label: '★', w: 40, fmt: (v) => '★'.repeat(Math.max(1, 4 - (v || 3))), tone: () => ({ color: C.cream, weight: 900 }) },
-              { key: 'name', label: 'Player', heat: false, sticky: true, w: 210, link: (x) => (x.playerId && onOpenPlayer ? () => onOpenPlayer(x.playerId) : null),
+              { key: 'name', label: 'Player', heat: false, sticky: true, w: 210, link: (x) => (x.id && onOpenPlayer ? () => onOpenPlayer(x.id) : null),
                 fmt: (v, x) => (
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
                     {x.headshot && <img src={x.headshot} alt="" width={20} height={20} loading="lazy" style={{ width: 20, height: 20, borderRadius: '50%', background: C.bg3, objectFit: 'cover' }} />}
@@ -194,7 +197,7 @@ export default function Game({ id, onBack, onOpenPlayer = null, backLabel = 'Sco
             rowEdge={(m) => (m.id === g.id ? C.ice : null)}
             columns={[
               { key: 'date', label: 'Date', heat: false, sticky: true, w: 90, fmt: (v) => fmtDay(v) },
-              { key: 'game', label: 'Game', heat: false, numeric: false, w: 140, fmt: (_, m) => <b style={{ fontFamily: NUM_FONT }}>{m.away.abbrev} {m.state === 'pre' ? '@' : (m.away.score ?? '–')} {m.state === 'pre' ? '' : '–'} {m.state === 'pre' ? '' : (m.home.score ?? '–')} {m.home.abbrev}</b> },
+              { key: 'game', label: 'Game', heat: false, numeric: false, w: 140, link: (m) => (onOpenGame && m.id !== g.id ? () => onOpenGame(m.id) : null), fmt: (_, m) => <b style={{ fontFamily: NUM_FONT }}>{m.away.abbrev} {m.state === 'pre' ? '@' : (m.away.score ?? '–')} {m.state === 'pre' ? '' : '–'} {m.state === 'pre' ? '' : (m.home.score ?? '–')} {m.home.abbrev}</b> },
               { key: 'state', label: 'State', heat: false, w: 80, fmt: (v, m) => <span style={{ color: m.state === 'live' ? C.lamp : C.text3, font: `800 9px/1 ${NUM_FONT}` }}>{m.id === g.id ? 'THIS GAME' : String(v).toUpperCase()}</span> },
             ]} />
         </section>

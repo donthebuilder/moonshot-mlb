@@ -330,7 +330,7 @@ export default function LampDashboard({ palettePass = 0 }) {
             {tab === 'scores' && <Scores onOpenGame={openGame} date={date} setDate={setDate} />}
             {tab === 'schedule' && <Schedule onOpenGame={openGame} date={date} setDate={setDate} />}
             {tab === 'standings' && <Standings onOpenTeam={openTeam} />}
-            {tab === 'game' && <Game id={gameId} onOpenPlayer={openPlayer} backLabel={backLabel('scores')} onBack={() => goBack('scores')} />}
+            {tab === 'game' && <Game id={gameId} onOpenPlayer={openPlayer} onOpenTeam={openTeam} onOpenGame={openGame} backLabel={backLabel('scores')} onBack={() => goBack('scores')} />}
             {tab === 'guide' && <Guide onNavigate={setTab} />}
             {tab === 'teams' && <Teams onOpenTeam={openTeam} />}
             {tab === 'team' && <Team abbrev={teamKey} onOpenPlayer={openPlayer} onOpenGame={openGame} backLabel={backLabel('teams')} onBack={() => goBack('teams')} />}
