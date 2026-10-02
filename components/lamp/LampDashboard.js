@@ -51,6 +51,8 @@ import Board from './tabs/Board'
 import LampSlate from './LampSlate'
 import FullBoard from './tabs/FullBoard'
 import Results from './tabs/Results'
+import dynamic from 'next/dynamic'
+const LampOdds = dynamic(() => import('./LampOdds'))
 
 // 🏒 THE LAMP SHELL. Thin on purpose, the same shape as NflDashboard and
 // the MLB Dashboard: state and routing only; every opinion lives in a tab.
@@ -349,6 +351,8 @@ export default function LampDashboard({ palettePass = 0 }) {
             {tab === 'power' && <Power onOpenPlayer={openPlayer} />}
             {tab === 'watchlist' && <Watchlist onOpenPlayer={openPlayer} />}
             {tab === 'storylines' && <StorylinesPage sport="nhl" eyebrow="LAMP · STORYLINES" theme={C} numFont={NUM_FONT} accent={C.ice} onOpenPlayer={openPlayer} onOpenGame={openGame} date={date} />}
+            {/* MOONSHOT's Odds page, sport="nhl" (2026-10-02, components/lamp/LampOdds.js) */}
+            {tab === 'odds' && <LampOdds onOpenPlayer={openPlayer} />}
             {tab === 'longshots' && <Longshots sport="nhl" eyebrow="LAMP · LONGSHOTS" theme={C} numFont={NUM_FONT} accent={C.ice} Table={LampTable} onOpenPlayer={openPlayer} />}
             {tab === 'shotmap' && <ShotMap onOpenPlayer={openPlayer} />}
             {tab === 'lampledger' && <LampLedger onOpenPlayer={openPlayer} onOpenTeam={openTeam} />}

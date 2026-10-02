@@ -54,6 +54,8 @@ import Leaders from './tabs/Leaders'
 import Storylines from './tabs/Storylines'
 import { liveOdds } from '../../lib/oddsFreshness'
 import { StaleNote } from '../StaleBanner'
+import dynamic from 'next/dynamic'
+const OddsBoard = dynamic(() => import('../tabs/OddsBoard'))
 
 // The key set now lives in lib/routes.js alongside MOONSHOT's, with the
 // aliases that make each product answer to the other's words -- #tab=results
@@ -419,6 +421,8 @@ export default function NflDashboard({ palettePass = 0 }) {
             {tab === 'matchups' && <Matchups matchup={matchup} data={data} onPlayerClick={openPlayer} onOpenTeam={(abbr) => { setPortalTeam(abbr); setTab('players') }} />}
             {tab === 'explosive' && <Explosive matchup={matchup} data={data} onPlayerClick={openPlayer} />}
             {tab === 'redzone' && <RedZone data={data} matchup={matchup} onPlayerClick={openPlayer} />}
+            {/* MOONSHOT's Odds page, sport="nfl" (2026-10-02): this week's players, their prices, moves and books */}
+            {tab === 'odds' && <OddsBoard sport="nfl" players={data?.players || []} theme={C} numFont={NUM_FONT} Table={NflTable} onPlayerClick={(p) => p && openPlayer(p, 'TD')} />}
             {tab === 'longshots' && <Longshots sport="nfl" eyebrow="TUDDY · LONGSHOTS" theme={C} numFont={NUM_FONT} accent={C.green} Table={NflTable} onOpenPlayer={(id) => { const p = (data?.players || []).find((x) => String(x.player_id) === String(id)); if (p) openPlayer(p, 'TD') }} />}
             {tab === 'numerology' && <Numerology data={data} onPlayerClick={openPlayer} />}
             {tab === 'accountability' && <Accountability data={data} results={nflResults} onPlayerClick={openPlayer} />}

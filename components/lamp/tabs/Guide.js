@@ -34,6 +34,7 @@ const ROWS = [
   ['specialteams', null],
   ['storylines', null],
   ['longshots', null],
+  ['odds', null],
   ['schedule', 'The league week, day by day, with puck-drop times in your zone. Games already played show their score.'],
   ['standings', 'Division, wild card, conference and league tables, in the league’s own order. Tap a column’s ⓘ for what it means.'],
   ['players', 'Every player on a current roster. Type a name or a club, tap for the file: the season line, career, last five, the game log, season by season.'],
