@@ -14,6 +14,8 @@ import { useLampStandings, useLampBoard, useLampLeaders, useLampRecord, useLampH
 import { buildLampHeadlines } from '../../../lib/nhl/headlines'
 import { usePreview, ShowMoreButton } from '../../ListPreview'
 import ScoreTable, { sortGames } from '../ScoreTable'
+import LampTable from '../LampTable'
+import Tap from '../../Tap'
 import { TeamMark, EmptyState, DelayedBanner, Loading, SourceLine, Kicker, GameTypeChip, fmtDay, fmtPuckDrop, zoneAbbrev } from '../ui'
 import { NHL_NAV } from '../../../lib/nhl/routes'
 import HotNumbers from '../../numerology/HotNumbers'
@@ -166,22 +168,20 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
         {board.loading && !board.data ? <Loading what="the board" /> : null}
         {board.data && boardGames.length === 0 && <EmptyState title="NO BOARD TONIGHT" note="No games, so nothing to call." />}
         {boardGames.length > 0 && (
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-            <thead><tr style={{ color: C.text3, font: `800 8px/1 ${NUM_FONT}`, letterSpacing: '.12em', textAlign: 'left' }}><th style={th}>GAME</th><th style={th}>CALLED</th><th style={{ ...th, textAlign: 'right' }}>STATE</th></tr></thead>
-            <tbody>
-              {boardGames.map((g) => {
-                const called = g.rows.filter((r) => r.status === 'called')
-                const stamp = g.graded ? 'GRADED' : g.locked ? 'LOCKED' : g.setting ? 'SETTING' : 'PREVIEW'
-                return (
-                  <tr key={g.game.id} onClick={() => setTab?.('board')} style={{ borderTop: `1px solid ${C.border}`, cursor: 'pointer' }}>
-                    <td style={{ ...td, whiteSpace: 'nowrap', fontFamily: NUM_FONT, fontWeight: 800, fontSize: 11 }}>{g.game.away.abbrev}@{g.game.home.abbrev}</td>
-                    <td style={{ ...td, fontSize: 11.5, lineHeight: 1.4 }}>{called.map((r, i) => <span key={r.playerId}>{i ? ' · ' : ''}<span style={{ color: r.hit ? C.lamp : C.text }}>{r.name}</span> <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 10 }}>{r.score}</span></span>)}</td>
-                    <td style={{ ...td, textAlign: 'right', color: g.graded ? C.cream : g.locked ? C.teal : C.amber, font: `900 8px/1 ${NUM_FONT}`, letterSpacing: '.12em' }}>{stamp}</td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+          // THE SHARED SHEET (2026-10-01, BATCH-TABLE-SKIN-V2 4b): each game's
+          // called skaters (names open the player), its state; the game opens it.
+          <LampTable bare noGroups tight heatMode="sorted" maxHeight={9999} maxRows={40} caption="Tonight's board: who is called in each game"
+            rows={boardGames.map((g) => ({ _key: g.game.id, g, game: `${g.game.away.abbrev}@${g.game.home.abbrev}`, stamp: g.graded ? 'GRADED' : g.locked ? 'LOCKED' : g.setting ? 'SETTING' : 'PREVIEW' }))}
+            columns={[
+              { key: 'game', label: 'Game', heat: false, sticky: true, w: 90, link: (r) => (onOpenGame ? () => onOpenGame(r.g.game.id) : null), fmt: (v) => <b style={{ fontFamily: NUM_FONT, fontSize: 11 }}>{v}</b> },
+              { key: 'called', label: 'Called', heat: false, numeric: false, w: 260, fmt: (_, r) => (
+                <span style={{ fontSize: 11.5, lineHeight: 1.4, whiteSpace: 'normal' }}>
+                  {r.g.rows.filter((x) => x.status === 'called').map((x, i) => (
+                    <span key={x.playerId}>{i ? ' · ' : ''}{onOpenPlayer ? <Tap onClick={() => onOpenPlayer(x.playerId)}><span style={{ color: x.hit ? C.lamp : C.text }}>{x.name}</span></Tap> : <span style={{ color: x.hit ? C.lamp : C.text }}>{x.name}</span>} <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 10 }}>{x.score}</span></span>
+                  ))}
+                </span>) },
+              { key: 'stamp', label: 'State', heat: false, w: 70, fmt: (v, r) => <span style={{ color: r.g.graded ? C.cream : r.g.locked ? C.teal : C.amber, font: `900 8px/1 ${NUM_FONT}`, letterSpacing: '.12em' }}>{v}</span> },
+            ]} />
         )}
       </section>
 
@@ -200,19 +200,14 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
         )}
         {standings.loading && !standings.data ? <Loading what="the standings" /> : null}
         {leaders.length > 0 && (
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-            <thead><tr style={{ color: C.text3, font: `800 8px/1 ${NUM_FONT}`, letterSpacing: '.12em', textAlign: 'left' }}><th style={th}>DIVISION</th><th style={th}>TEAM</th><th style={{ ...th, textAlign: 'right' }}>REC</th><th style={{ ...th, textAlign: 'right' }}>PTS</th></tr></thead>
-            <tbody>
-              {leaders.map((r) => (
-                <tr key={r.abbrev} style={{ borderTop: `1px solid ${C.border}` }}>
-                  <td style={{ ...td, color: C.text3, fontSize: 11 }}>{r.divName}</td>
-                  <td style={td}><TeamMark abbrev={r.abbrev} name={r.nickname} onClick={onOpenTeam ? () => onOpenTeam(r.abbrev) : null} /></td>
-                  <td style={{ ...td, textAlign: 'right', fontFamily: NUM_FONT, color: C.text2 }}>{r.w}-{r.l}-{r.otl}</td>
-                  <td style={{ ...td, textAlign: 'right', fontFamily: NUM_FONT, fontWeight: 900 }}>{r.pts}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <LampTable bare noGroups tight heatMode="sorted" maxHeight={9999} maxRows={8} caption="Each division's leader"
+            rows={leaders.map((r) => ({ ...r, _key: r.abbrev, rec: `${r.w}-${r.l}-${r.otl}` }))}
+            columns={[
+              { key: 'nickname', label: 'Team', heat: false, sticky: true, w: 150, fmt: (_, r) => <TeamMark abbrev={r.abbrev} name={r.nickname} onClick={onOpenTeam ? () => onOpenTeam(r.abbrev) : null} /> },
+              { key: 'divName', label: 'Division', heat: false, w: 100 },
+              { key: 'rec', label: 'Rec', heat: false, mono: true, w: 64 },
+              { key: 'pts', label: 'Pts', w: 44, dp: 0, tone: () => ({ color: C.text, weight: 900 }) },
+            ]} />
         )}
       </section>
 
@@ -229,5 +224,3 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
 }
 
 const link = { background: 'transparent', border: 'none', cursor: 'pointer', color: C.ice, font: `800 10px/1 ${NUM_FONT}`, letterSpacing: '.04em', padding: 0 }
-const th = { padding: '0 8px 8px', fontWeight: 800 }
-const td = { padding: '8px 8px', verticalAlign: 'middle' }

@@ -239,14 +239,13 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel }) {
       {p.awards.length > 0 && (
         <section aria-label="Awards">
           <Kicker tone={C.cream}>AWARDS</Kicker>
-          <table style={tbl}><tbody>
-            {p.awards.map((a) => (
-              <tr key={a.trophy} style={{ borderTop: `1px solid ${C.border}` }}>
-                <td style={td}><b>{a.trophy}</b></td>
-                <td style={{ ...td, textAlign: 'right', fontFamily: NUM_FONT, color: C.text3, fontSize: 10.5 }}>{a.seasons.length} × · {a.seasons.map((s) => `${String(s).slice(0, 4)}-${String(s).slice(6, 8)}`).join(', ')}</td>
-              </tr>
-            ))}
-          </tbody></table>
+          <LampTable bare noGroups tight heatMode="sorted" maxHeight={9999} maxRows={40} caption="His trophies"
+            rows={p.awards.map((a) => ({ ...a, _key: a.trophy, times: a.seasons.length }))}
+            columns={[
+              { key: 'trophy', label: 'Trophy', heat: false, sticky: true, w: 200, fmt: (v) => <b>{v}</b> },
+              { key: 'times', label: 'Won', w: 44, dp: 0, fmt: (v) => `${v} ×` },
+              { key: 'seasons', label: 'Seasons', heat: false, numeric: false, w: 200, fmt: (v) => <span style={{ fontFamily: NUM_FONT, color: C.text3, fontSize: 10.5 }}>{v.map((x) => `${String(x).slice(0, 4)}-${String(x).slice(6, 8)}`).join(', ')}</span> },
+            ]} />
         </section>
       )}
       {/* 🔢 His numbers (numerology step 7). Skaters: goals are LAMP's number.

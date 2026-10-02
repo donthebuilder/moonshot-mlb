@@ -149,28 +149,26 @@ export default function Results({ onOpenPlayer }) {
         return (
           <section aria-label="Hit rate by rank">
             <Kicker>HIT RATE BY RANK · {data.days} DAYS</Kicker>
-            <table style={tbl}>
-              <thead><tr style={thr}><th style={th}>RANK IN GAME</th><th style={{ ...th, textAlign: 'right' }}>SKATERS</th><th style={{ ...th, textAlign: 'right' }}>SCORED</th><th style={{ ...th, textAlign: 'right' }}>RATE</th></tr></thead>
-              <tbody>
-                {bands.map((b) => {
-                  const p = b.n ? (100 * b.ok) / b.n : null
-                  const ci = wilson(b.ok, b.n)
-                  const resolved = !!ci && !(ci[0] <= base && base <= ci[1])
-                  const { bg, fg } = bandTint(p == null ? null : p - base, claims && resolved, C)
-                  return (
-                    <tr key={b.label} style={{ borderTop: `1px solid ${C.border}` }}>
-                      <td style={td}>{b.label}</td><td style={num}>{b.n}</td><td style={num}>{b.ok}</td>
-                      <td title={ci ? `95% interval ${ci[0].toFixed(1)}–${ci[1].toFixed(1)}% · base ${base.toFixed(1)}%` : undefined}
-                        style={{ ...num, fontWeight: 900, color: fg, background: bg, opacity: claims && !resolved ? 0.7 : 1 }}>{pct(b.ok, b.n)}</td>
-                    </tr>
-                  )
-                })}
-                <tr style={{ borderTop: `1px solid ${C.border}` }}>
-                  <td style={td}>all dressed</td><td style={num}>{T.dressed}</td><td style={num}>{T.scorers}</td>
-                  <td style={{ ...num, fontWeight: 900, color: C.text }}>{pct(T.scorers, T.dressed)}</td>
-                </tr>
-              </tbody>
-            </table>
+            {/* THE SHARED SHEET (2026-10-01, BATCH-TABLE-SKIN-V2 4b): each band's
+                rate keeps its own colour rule (bandTint, grey = a number with no
+                claim); all dressed is the baseline line under the rule. */}
+            <LampTable bare noGroups tight heatMode="sorted" maxHeight={9999} maxRows={10} caption="Goal rate by a skater's rank in his own game"
+              rows={bands.map((b) => {
+                const p = b.n ? (100 * b.ok) / b.n : null
+                const ci = wilson(b.ok, b.n)
+                const resolved = !!ci && !(ci[0] <= base && base <= ci[1])
+                return { _key: b.label, ...b, rate: p, ci, resolved, tint: bandTint(p == null ? null : p - base, claims && resolved, C) }
+              })}
+              footRows={[{ label: 'all dressed', n: T.dressed, ok: T.scorers, rate: T.dressed ? (100 * T.scorers) / T.dressed : null }]}
+              columns={[
+                { key: 'label', label: 'Rank in game', heat: false, sticky: true, w: 120 },
+                { key: 'n', label: 'Skaters', w: 60, dp: 0 },
+                { key: 'ok', label: 'Scored', w: 60, dp: 0 },
+                { key: 'rate', label: 'Rate', heat: false, numeric: false, w: 70, fmt: (v, r) => (r.tint
+                  ? <span title={r.ci ? `95% interval ${r.ci[0].toFixed(1)}–${r.ci[1].toFixed(1)}% · base ${base.toFixed(1)}%` : undefined}
+                      style={{ fontFamily: NUM_FONT, fontWeight: 900, color: r.tint.fg, background: r.tint.bg, padding: '2px 6px', borderRadius: 4, opacity: claims && !r.resolved ? 0.7 : 1 }}>{pct(r.ok, r.n)}</span>
+                  : <b style={{ fontFamily: NUM_FONT }}>{pct(r.ok, r.n)}</b>) },
+              ]} />
             <div style={{ fontSize: 10.5, color: C.text3, marginTop: 6, fontFamily: NUM_FONT }}>
               <b style={{ color: claims ? C.teal : C.text3 }}>{claims ? 'SEPARATES' : 'NO CLAIM'}</b> · z {z.toFixed(2)} top band vs 16+ · a grey rate has a number and no claim
             </div>

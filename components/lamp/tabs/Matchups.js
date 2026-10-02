@@ -81,17 +81,14 @@ function Detail({ row, league, onOpenPlayer, onOpenTeam = null }) {
         <Kicker>THE NET · {row.def}</Kicker>
         {!goalies ? <div style={{ fontSize: 12, color: C.text3 }}>Loading the goalies…</div> : goalies.list.length ? (
           <>
-            <table style={{ borderCollapse: 'collapse', fontSize: 12, width: '100%', maxWidth: 520 }}>
-              <thead><tr style={{ color: C.text3, font: `800 9px/1 ${NUM_FONT}`, letterSpacing: '.1em', textAlign: 'left' }}><th style={{ padding: '0 8px 6px 0' }}>GOALIE</th><th style={{ textAlign: 'right' }}>GP</th><th style={{ textAlign: 'right' }}>SV%</th><th style={{ textAlign: 'right' }}>GAA</th></tr></thead>
-              <tbody>{goalies.list.map((g) => (
-                <tr key={g.id} style={{ borderTop: `1px solid ${C.border}` }}>
-                  <td style={{ padding: '7px 8px 7px 0' }}><PlayerMark headshot={g.headshot} name={g.name} onClick={() => onOpenPlayer?.(g.id)} /></td>
-                  <td style={{ textAlign: 'right', fontFamily: NUM_FONT, color: C.text2 }}>{g.gp ?? '—'}</td>
-                  <td style={{ textAlign: 'right', fontFamily: NUM_FONT, color: C.text }}>{g.svPct != null ? g.svPct.toFixed(3).replace(/^0/, '') : '—'}</td>
-                  <td style={{ textAlign: 'right', fontFamily: NUM_FONT, color: C.text }}>{g.gaa != null ? g.gaa.toFixed(2) : '—'}</td>
-                </tr>
-              ))}</tbody>
-            </table>
+            <LampTable bare noGroups tight heatMode="sorted" maxHeight={9999} maxRows={10} caption={`${row.def}'s goalies`}
+              rows={goalies.list.map((g) => ({ ...g, _key: g.id }))}
+              columns={[
+                { key: 'name', label: 'Goalie', heat: false, sticky: true, w: 180, fmt: (_, g) => <PlayerMark headshot={g.headshot} name={g.name} onClick={() => onOpenPlayer?.(g.id)} /> },
+                { key: 'gp', label: 'GP', w: 40, fmt: (v) => v ?? '—' },
+                { key: 'svPct', label: 'SV%', w: 54, fmt: (v) => (v != null ? Number(v).toFixed(3).replace(/^0/, '') : '—') },
+                { key: 'gaa', label: 'GAA', w: 50, invert: true, fmt: (v) => (v != null ? Number(v).toFixed(2) : '—') },
+              ]} />
             <div style={{ marginTop: 4, fontSize: 11, color: C.text3 }}>Starter not announced: the league names no starter before puck drop, so both are shown.{goalies.stale ? ' Last season’s lines.' : ''}</div>
           </>
         ) : <div style={{ fontSize: 12, color: C.text3 }}>No goalie lines for {row.def} yet.</div>}
