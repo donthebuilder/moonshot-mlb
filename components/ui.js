@@ -105,10 +105,17 @@ export function Stack({ children, gap = 10, style }) {
   )
 }
 
-export function Empty({ text }) {
+// title / note / tone / theme (R8, 2026-10-02): LAMP's EmptyState is this box
+// now (Donovan: "yeah"), with its mono title and a note. MOONSHOT's text-only
+// use draws exactly as it did.
+export function Empty({ text = null, title = null, note = null, tone = null, theme = null, numFont = null, children = null }) {
+  const T = theme || C
   return (
-    <div style={{ padding: 36, textAlign: 'center', background: C.bg2, border: `1px dashed ${C.border2}`, borderRadius: 18, color: C.text3 }}>
+    <div role={title ? 'status' : undefined} style={{ padding: 36, textAlign: 'center', background: T.bg2, border: `1px dashed ${T.border2}`, borderRadius: 18, color: T.text3 }}>
+      {title ? <div style={{ color: tone || T.text3, font: `900 10px/1 ${numFont || NUM_FONT}`, letterSpacing: '.16em' }}>{title}</div> : null}
+      {note ? <div style={{ color: T.text3, fontSize: 12, lineHeight: 1.5, maxWidth: 520, margin: '8px auto 0' }}>{note}</div> : null}
       {text}
+      {children}
     </div>
   )
 }

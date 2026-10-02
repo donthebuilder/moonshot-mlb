@@ -9,6 +9,7 @@ import { nhlLogo } from '../../lib/nhl/teams'
 import { fmtDay } from '../../lib/nhl/format'
 import { hashParams, writeHash } from '../../lib/urlState'
 import { StaleNote } from '../StaleBanner'
+import { Empty } from '../ui'
 export { fmtDay, fmtPct3, fmt2, fmtSec, plusMinus } from '../../lib/nhl/format'
 
 // The handful of small pieces every LAMP page shares. Kept in one file so a
@@ -98,17 +99,9 @@ export function LampDot({ size = 7 }) {
  * An empty panel that says WHY it is empty (project rule 24). `title` is the
  * short capitals line; `note` the sentence under it.
  */
+// MOONSHOT's Empty (components/ui.js, R8) in LAMP's theme; LAMP's words.
 export function EmptyState({ title, note = null, tone = C.text3, children = null }) {
-  return (
-    <div role="status" style={{
-      border: `1px dashed ${C.border2}`, borderRadius: 12, padding: '22px 18px',
-      textAlign: 'center', background: C.bg2,
-    }}>
-      <div style={{ color: tone, font: `900 10px/1 ${NUM_FONT}`, letterSpacing: '.16em' }}>{title}</div>
-      {note && <div style={{ marginTop: 8, color: C.text3, fontSize: 12, lineHeight: 1.5, maxWidth: 520, margin: '8px auto 0' }}>{note}</div>}
-      {children}
-    </div>
-  )
+  return <Empty title={title} note={note} tone={tone} theme={C} numFont={NUM_FONT}>{children}</Empty>
 }
 
 /** LIVE DATA DELAYED — the feed failed; the page keeps whatever it last had. */
