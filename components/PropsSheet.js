@@ -282,7 +282,9 @@ export default function PropsSheet({ player, odds = null, onClose, onFullResearc
 
   return (
     <div style={{
-      position: 'fixed', inset: 0, zIndex: 120, background: C.bg,
+      // above the floating bottom nav (z 390), as CardShell's 395 is (R9 step 12):
+      // at 120 the nav sat on the sheet's last rows on a phone
+      position: 'fixed', inset: 0, zIndex: 395, background: C.bg,
       display: 'flex', flexDirection: 'column',
     }}>
       {/* the bar you close from — always there, never scrolls away */}
