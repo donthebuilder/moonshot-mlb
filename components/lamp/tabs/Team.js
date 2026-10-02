@@ -104,7 +104,7 @@ function TeamBody({ t, error, onOpenPlayer, onOpenGame, onBack, backLabel }) {
         {[['FORWARDS', fwd, SKATER_COLS], ['DEFENCE', def, SKATER_COLS], ['GOALIES', gk, GOALIE_COLS]].map(([title, rows, cols]) => rows.length ? (
           <div key={title} style={{ marginBottom: 12 }}>
             <Kicker tone={C.text3}>{title} · {rows.length}</Kicker>
-            <LampTable rows={rows} columns={cols} maxHeight={9999} maxRows={60} heatMode="standouts" initialSort={cols === GOALIE_COLS ? 'gp' : 'pts'} onRowClick={(r) => onOpenPlayer?.(r.id)} />
+            <LampTable rows={rows} columns={cols} maxHeight={9999} maxRows={15 /* 0g E3: a roster previews; "show N more" */} heatMode="standouts" initialSort={cols === GOALIE_COLS ? 'gp' : 'pts'} onRowClick={(r) => onOpenPlayer?.(r.id)} />
           </div>
         ) : null)}
       </section>

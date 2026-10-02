@@ -48,7 +48,7 @@ export default function SpecialTeams({ onOpenTeam }) {
       {loading && !data ? <Loading what="special teams" /> : null}
       {data && !rows.length ? <EmptyState title="NO REPORT YET" note="The league's special-teams report returned no clubs." /> : null}
       {rows.length > 0 && (
-        <LampTable rows={rows} columns={COLUMNS} heatMode="primary" initialSort="ppPct" maxRows={40} maxHeight={9999}
+        <LampTable rows={rows} columns={COLUMNS} heatMode="primary" initialSort="ppPct" maxRows={12 /* 0g E3: 32 clubs, preview then "show N more" */} maxHeight={9999}
           rowEdge={(r) => (r._playing ? C.ice : null)} onRowClick={(r) => onOpenTeam?.(r.abbrev)} />
       )}
       <SourceLine>api.nhle.com/stats team/powerplay and team/penaltykill, regular season (gameTypeId 2): powerPlayPct, ppOpportunitiesPerGame, ppGoalsPerGame, ppTimeOnIcePerGame, penaltyKillPct, timesShorthandedPerGame, pkTimeOnIcePerGame. Tonight: the league scoreboard.</SourceLine>

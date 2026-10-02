@@ -290,7 +290,7 @@ export default function Explosive({ matchup, data, onPlayerClick }) {
           columns={buildPlayerColumns(watchlist)}
           initialSort="rec_20"
           onRowClick={onPlayerClick ? (r) => onPlayerClick(r?._raw ?? r, 'REC_YDS') : null}
-          maxRows={269}
+          maxRows={60 /* 0g E3: inside its box, but 269 DOM rows; "show N more" */}
         />
       ) : (
         <NflTable

@@ -277,7 +277,7 @@ export default function Games({ data, picks, matchup, logs, results, odds = null
           columns={TABLE_COLUMNS}
           onRowClick={(r) => onPlayerClick?.(r?._raw ?? r)}
           caption={`${tableRows.length} players · sorted by TD score`}
-          maxRows={300}
+          maxRows={60 /* 0g E3: inside its box, but 300 DOM rows; "show N more" */}
         />
       </>)}
 

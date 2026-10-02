@@ -36,7 +36,7 @@ const HOW_NOTES = [
   { title: 'Rank in his game', text: 'LAMP ranks each game on its own, #1 first. The top skater on each team is the call, two in every game.' },
   { title: 'The player', text: 'Tap a name to open his page: his shots, goals and ice time.' },
   { title: 'Goal score', text: 'Three ranks averaged against tonight\u2019s skaters: shots, goals and ice time per game over his last 82 games, 0\u2013100. A ranking, not a percent.' },
-  { title: 'The call', text: 'CALLED means he\u2019s one of the three picks in his game. ON THE BOARD means he\u2019s scored but not called. Calls lock before puck drop.' },
+  { title: 'The call', text: 'CALLED means he\u2019s the top skater on his team in his game (the shots and points boards call three a game). ON THE BOARD means he\u2019s scored but not called. Calls lock before puck drop.' },
   { title: 'Game', text: 'His game and puck drop, in your time zone.' },
 ]
 const HOW_STEPS = [
@@ -473,7 +473,7 @@ export function AllGamesTable({ kept, market, onOpenPlayer, onOpenTeam }) {
     <LampTable rows={rows} columns={columns} heatMode="primary"
       rowEdge={(r) => (r.status === 'called' ? C.ice : null)}
       faceOf={(r) => ({ sport: 'nhl', photo: nhlMug(r._g.game.season, r._row?.team, r._row?.playerId), name: r._row?.name })}
-      maxRows={25} maxHeight={9999} onRowClick={(r) => onOpenPlayer?.(r.id)} />
+      maxRows={12 /* 0g E3: tonight's top twelve by score, the rest behind "show N more" */} maxHeight={9999} onRowClick={(r) => onOpenPlayer?.(r.id)} />
   )
 }
 
