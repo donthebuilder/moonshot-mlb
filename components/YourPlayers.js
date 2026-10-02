@@ -215,7 +215,8 @@ export default function YourPlayers({ players = [], onPlayerClick = null, watchI
       const p = bySlate.get(r.id) || null
       const line = lines[r.id] || lines[Number(r.id)] || null
       const g = line ? games.get(Number(line.pk)) : (p ? games.get(Number(p.game_pk)) : null)
-      const onBoard = !!p
+      // on tonight's slate (R2: was onBoard, which read like the board's status word)
+      const onSlate = !!p
 
       // WHY `settled` AND NOT `state === 'Final'`. A postponed or suspended
       // game is stopped, not finished, and calling its empty line "final"
@@ -225,7 +226,7 @@ export default function YourPlayers({ players = [], onPlayerClick = null, watchI
       if (line && line.settled) status = 'final'
       else if (line && n(line.ab) + n(line.h) > 0) status = 'live'
       else if (g && g.state === 'Live') status = 'live'
-      else if (onBoard || g) status = 'pre'
+      else if (onSlate || g) status = 'pre'
 
       const bars = line ? barsCleared(line) : []
       return {
@@ -233,7 +234,7 @@ export default function YourPlayers({ players = [], onPlayerClick = null, watchI
         p,
         line,
         g,
-        onBoard,
+        onSlate,
         status,
         bars,
         hr: n(line?.hr),

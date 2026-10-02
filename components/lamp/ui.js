@@ -1,5 +1,6 @@
 'use client'
 import { STATUS_WORD } from '../../lib/callStatus'
+import CallStatusBadge from '../CallStatusBadge'
 import Tap from '../Tap'
 import { C, NUM_FONT } from '../../lib/nhl/theme'
 import { nhlLogo } from '../../lib/nhl/teams'
@@ -16,7 +17,7 @@ export { fmtDay, fmtPct3, fmt2, fmtSec, plusMinus } from '../../lib/nhl/format'
 export const STATUS = STATUS_WORD   // lib/callStatus.js, the one set of words (R2)
 
 export function CalledChip({ style = null }) {
-  return <span style={{ marginRight: 7, background: C.ice, color: C.bg, font: `900 7.5px/1 ${NUM_FONT}`, letterSpacing: '.12em', borderRadius: 4, padding: '2px 5px', verticalAlign: '1px', whiteSpace: 'nowrap', ...style }}>{STATUS.called}</span>
+  return <CallStatusBadge variant="chip" status="called" theme={C} accent={C.ice} numFont={NUM_FONT} style={style} />
 }
 
 /** A goal's label from lamp_goal_feed (the scores route puts it on the goal):

@@ -86,15 +86,16 @@ export default function NflYourPlayers({ players = [], onPlayerClick = null }) {
       const p = byName.get(`${r.name}|${r.team}`) || null
       const line = lineFor(snap, r)
       const g = gameFor(snap, r)
-      const onBoard = !!p
+      // on tonight's slate (R2: was onBoard, which read like the board's status word)
+      const onSlate = !!p
       let status = 'off'
       if (g?.completed || g?.state === 'post') status = 'final'
       else if (line && (tdsIn(line) > 0 || n(line.receiving_yards) > 0 || n(line.rushing_yards) > 0 || n(line.passing_yards) > 0 || n(line.receptions) > 0)) status = 'live'
       else if (g?.state === 'in') status = 'live'
-      else if (onBoard || g) status = 'pre'
+      else if (onSlate || g) status = 'pre'
       const opp = g ? (g.home === r.team ? g.away : g.home) : (p?.opp || '')
       return {
-        ...r, p, line, g, onBoard, status,
+        ...r, p, line, g, onSlate, status,
         bars: line ? barsCleared(line) : [],
         tds: line ? tdsIn(line) : 0,
         highConf: !!p?.high_confidence_td_flag,
