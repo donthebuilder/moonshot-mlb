@@ -120,7 +120,7 @@ export default function FieldArena({ dots = [], cells = [], spot = null, rz = []
   const apiRef = useRef({})
   const pickRef = useRef(onPick); pickRef.current = onPick
   const inkRef = useRef({ inkSvg, inkBox }); inkRef.current = { inkSvg, inkBox }
-  const sig = `${dots.map((d) => `${d.i}${d.ink}${d.res}`).join(',')}|${cells.map((c) => `${c.k}:${c.leak}`).join(',')}|${spot ? spot.L + spot.B.key : ''}|${rz.map((t) => `${t.seed}${t.res}`).join(',')}|${lines}|${zones}|${showDiscs}`
+  const sig = `${dots.map((d) => `${d.i}${d.ink}${d.res}${d.path ? 'p' : ''}`).join(',')}|${cells.map((c) => `${c.k}:${c.leak}`).join(',')}|${spot ? spot.L + spot.B.key : ''}|${rz.map((t) => `${t.seed}${t.res}`).join(',')}|${lines}|${zones}|${showDiscs}`
 
   useEffect(() => {
     const mount = mountRef.current
@@ -225,8 +225,15 @@ export default function FieldArena({ dots = [], cells = [], spot = null, rz = []
       mark.scale.setScalar(r)
       mark.userData.play = p
       group.add(mark); pickables.push(mark)
+      // ROUTES: last season's route shape (lib/nfl/routeShape), flat on the turf, ending at its disc
+      if (p.path) {
+        const pg = new THREE.BufferGeometry().setFromPoints(p.path.map(([uu, a]) => at(uu, a, 0.12)))
+        const pa = Math.max(0.16, Math.min(0.6, 30 / Math.max(1, dots.length)))   // TheField's routeAlpha
+        const pl = new THREE.Line(pg, new THREE.LineBasicMaterial({ color: ink, transparent: true, opacity: td ? Math.min(0.85, pa * 1.6) : pa }))
+        group.add(pl)
+      }
       // d: a flat line from the line of scrimmage, off by default
-      if (lines) {
+      if (lines && !p.path) {
         const lg = new THREE.BufferGeometry().setFromPoints([V(0, 0.1, pos.z), V(pos.x, 0.1, pos.z)])
         const l = new THREE.Line(lg, new THREE.LineBasicMaterial({ color: ink, transparent: true, opacity: td ? 0.7 : caught ? 0.35 : 0.18 }))
         group.add(l); lineObjs.push(l)

@@ -11,6 +11,7 @@ import {
 import { RedZoneStrip } from './RedZoneField'
 import dynamic from 'next/dynamic'
 import { webglOk } from '../../lib/webglOk'
+import { routeShape, ROUTE_WORD, ROUTES } from '../../lib/nfl/routeShape'
 // 🏟 the stadium rides in on demand -- three.js is ~600KB (BATCH-NFL-3D)
 const FieldArena = dynamic(() => import('./FieldArena'), { ssr: false })
 import { appHref, playerHref } from '../../lib/routes'
@@ -118,6 +119,54 @@ function useFieldFile(team) {
   return st.team === team ? st : { team, state: 'loading', body: null }
 }
 
+// ROUTES (2026-10-02): the charting season's targets with their routes and
+// coverage (bots/nfl nfl_field.route_bundle -> nfl_routes_<TEAM>.json, _who,
+// _def). Participation is once a year, so this is LAST season all season and
+// the page says so. The 10 KB who-index loads with the field (it decides
+// whether the chip shows); the team file(s) and the defence file only when the
+// chip is picked. A player who moved mid-season gets every team he played for.
+const RFILES = new Map()
+const getJSON = (name) => {
+  if (!RFILES.has(name)) {
+    RFILES.set(name, fetch(`${NFL_DATA_BASE}/${name}`, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .catch((e) => { RFILES.delete(name); throw e }))
+  }
+  return RFILES.get(name)
+}
+const ROUTE_MIN_TGT = 15
+const COVS = ['M', 'Z', 'C0', 'C1', 'C2', 'C2M', 'C3', 'C4', 'C6', 'C9']
+const COV_WORD = { M: 'Man', Z: 'Zone' }
+function useRoutesFile({ team, pid, want }) {
+  const [who, setWho] = useState(null)
+  useEffect(() => {
+    let live = true
+    getJSON('nfl_routes_who.json').then((w) => { if (live) setWho(w) }, () => { if (live) setWho(false) })
+    return () => { live = false }
+  }, [])
+  const teams = !who ? [] : pid && who.who?.[pid] ? who.who[pid] : team ? [team] : []
+  const key = teams.join(',')
+  const [st, setSt] = useState({ key: null, state: 'idle', body: null, def: null })
+  useEffect(() => {
+    if (!want || !key) return undefined
+    let live = true
+    setSt({ key, state: 'loading', body: null, def: null })
+    Promise.all([Promise.all(key.split(',').map((t) => getJSON(`nfl_routes_${t}.json`))), getJSON('nfl_routes_def.json')])
+      .then(([bodies, def]) => {
+        if (!live) return
+        const body = {
+          ...bodies[0], team: key.replace(/,/g, '/'), plays: bodies.flatMap((b) => b.plays),
+          weeks: [...new Set(bodies.flatMap((b) => b.weeks))].sort((a, b) => b - a),
+          names: Object.assign({}, ...bodies.map((b) => b.names)),
+        }
+        setSt({ key, state: 'ready', body, def })
+      }, () => { if (live) setSt({ key, state: 'error', body: null, def: null }) })
+    return () => { live = false }
+  }, [want, key])
+  const cur = st.key === key ? st : { state: want && key ? 'loading' : 'idle', body: null, def: null }
+  return { available: Boolean(who && teams.length), season: who?.season || null, ...cur }
+}
+
 // A fixed scatter per play (by its index in the file), so a window change
 // never reshuffles the dots that stay.
 
@@ -138,24 +187,28 @@ function readHash() {
     res: ['catch', 'td', 'inc'].includes(h.get('res')) ? h.get('res') : null,
     dn: ['1', '2', '3', '4'].includes(h.get('dn')) ? h.get('dn') : null,
     ty: ['pa', 'sc'].includes(h.get('ty')) ? h.get('ty') : null,
+    src: h.get('src') === 'r25' ? 'r25' : null,
+    rt: ROUTES.includes(h.get('rt')) ? h.get('rt') : null,
+    cv: COVS.includes(h.get('cv')) ? h.get('cv') : null,
   }
 }
 function clearHash() {
   if (typeof window === 'undefined') return
   const h = new URLSearchParams(window.location.hash.slice(1))
-  const KEYS = ['win', 'sit', 'show', 'share', 'dots', 'res', 'dn', 'ty']
+  const KEYS = ['win', 'sit', 'show', 'share', 'dots', 'res', 'dn', 'ty', 'src', 'rt', 'cv']
   if (!h.has('view') && !KEYS.some((k) => h.has(k))) return
   if (h.get('view') === 'field') h.delete('view')
   KEYS.forEach((k) => h.delete(k))
   window.history.replaceState(window.history.state, '', `#${h.toString()}`)
 }
-function writeHash(win, { share = true, dots = true, res = 'ALL', dn = 'ALL', ty = 'ALL' } = {}) {
+function writeHash(win, { share = true, dots = true, res = 'ALL', dn = 'ALL', ty = 'ALL', src = '26', rt = 'ALL', cv = 'ALL' } = {}) {
   if (typeof window === 'undefined') return
   const h = new URLSearchParams(window.location.hash.slice(1))
   h.set('view', 'field'); h.set('win', win.toLowerCase()); h.delete('sit'); h.delete('show')
   const put = (k, v, on) => { if (on) h.set(k, v); else h.delete(k) }
   put('share', '0', !share); put('dots', '0', !dots)
   put('res', res, res !== 'ALL'); put('dn', dn, dn !== 'ALL'); put('ty', ty, ty !== 'ALL')
+  put('src', 'r25', src === 'r25'); put('rt', rt, src === 'r25' && rt !== 'ALL'); put('cv', cv, src === 'r25' && cv !== 'ALL')
   window.history.replaceState(window.history.state, '', `#${h.toString()}`)
 }
 
@@ -184,6 +237,12 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   const [res, setRes] = useState(fromHash?.res || 'ALL')
   const [dn, setDn] = useState(fromHash?.dn || 'ALL')
   const [ty, setTy] = useState(fromHash?.ty || 'ALL')
+  // the season the targets come from: this season's plays, or last season's routes
+  const [src, setSrc] = useState(fromHash?.src || '26')
+  const [rtF, setRtF] = useState(fromHash?.rt || 'ALL')
+  const [cvF, setCvF] = useState(fromHash?.cv || 'ALL')
+  const rf = useRoutesFile({ team, pid: mode === 'PLAYER' && !isQB ? pid : null, want: src === 'r25' })
+  const routesOn = src === 'r25' && rf.state === 'ready'
   const [pick, setPick] = useState(null)
   const [open, setOpen] = useState(false)
   const wrap = useRef(null)
@@ -210,13 +269,13 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   useEffect(() => {
     if (fromHash && wrap.current) wrap.current.scrollIntoView({ block: 'start' })
   }, [fromHash, file.state])
-  useEffect(() => { if (hashSync && file.state === 'ready') writeHash(win, { share: shareOn, dots: dotsOn, res, dn, ty }) }, [hashSync, win, shareOn, dotsOn, res, dn, ty, file.state])
+  useEffect(() => { if (hashSync && file.state === 'ready') writeHash(win, { share: shareOn, dots: dotsOn, res, dn, ty, src, rt: rtF, cv: cvF }) }, [hashSync, win, shareOn, dotsOn, res, dn, ty, src, rtF, cvF, file.state])
   // Leaving the Field takes its params with it.
   useEffect(() => () => { if (hashSync) clearHash() }, [hashSync])
-  useEffect(() => { setPick(null) }, [mode, win, team, pid, dotsOn, res, dn, ty])
+  useEffect(() => { setPick(null) }, [mode, win, team, pid, dotsOn, res, dn, ty, src, rtF, cvF])
 
   const phone = cw < PHONE_AT
-  const body = file.body
+  const body = routesOn ? rf.body : file.body
   const all = useMemo(() => {
     if (!body?.plays) return []
     const cols = body.cols || []
@@ -227,7 +286,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
     })
   }, [body])
   const byPid = useMemo(() => new Map((players || []).map((p) => [String(p.player_id), p])), [players])
-  const nameOf = (id) => byPid.get(String(id))?.name || body?.names?.[id] || id
+  const nameOf = (id) => byPid.get(String(id))?.name || body?.names?.[id] || file.body?.names?.[id] || id
 
   const asPlayer = mode === 'PLAYER' && pid && !isQB
   const mine = asPlayer ? all.filter((p) => p.pid === pid) : all
@@ -241,10 +300,12 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   const passF = (p, skip) => (skip === 'res' || res === 'ALL' || (res === 'inc' ? p.res === 'inc' || p.res === 'int' : p.res === res))
     && (skip === 'dn' || dn === 'ALL' || String(p.dn) === dn)
     && (skip === 'ty' || ty === 'ALL' || (ty === 'pa' ? Boolean(p.pa) : Boolean(p.sc)))
+    && (!routesOn || skip === 'rt' || rtF === 'ALL' || p.rt === rtF)
+    && (!routesOn || skip === 'cv' || cvF === 'ALL' || (cvF === 'M' || cvF === 'Z' ? p.mz === cvF : p.cv === cvF))
   const PW = inWin(win)
   const P = PW.filter((p) => passF(p))
   const drawn = P.filter((p) => p.lane && p.air != null)
-  const fOn = res !== 'ALL' || dn !== 'ALL' || ty !== 'ALL'
+  const fOn = res !== 'ALL' || dn !== 'ALL' || ty !== 'ALL' || (routesOn && (rtF !== 'ALL' || cvF !== 'ALL'))
 
   // TEAM mode inks: the four most-targeted in what is drawn.
   const topWho = useMemo(() => {
@@ -258,9 +319,11 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   const inkOf = (p) => { if (asPlayer) return C.cream; const whoI = topWho.indexOf(p.pid); return whoI >= 0 ? WHO_INK[whoI] : C.text3 }
 
   // ── the defence, through the one model ──────────────────────────────────
-  const defModel = useMemo(() => fieldModel({ field, defTeam, mode: 'def', pass: true }), [field, defTeam])
+  // under last season's routes, last season's defence (nfl_routes_def.json's own grids)
+  const defField = useMemo(() => (routesOn ? { def_pass: rf.def?.def_pass || {}, league_pass: rf.def?.league_pass || {} } : field), [routesOn, rf.def, field])
+  const defModel = useMemo(() => fieldModel({ field: defField, defTeam, mode: 'def', pass: true }), [defField, defTeam])
   // A QB's spot is his own throws (field.qb_pass), the season grid.
-  const qbModel = useMemo(() => (pid && isQB ? fieldModel({ field, defTeam, player, mode: 'player', pass: true, qb: true }) : null), [field, defTeam, player, pid, isQB])
+  const qbModel = useMemo(() => (pid && isQB && !routesOn ? fieldModel({ field, defTeam, player, mode: 'player', pass: true, qb: true }) : null), [field, defTeam, player, pid, isQB, routesOn])
   const cells = useMemo(() => {
     const cnt = {}
     for (const p of drawn) { const k = p.lane + bandOf(p.air); cnt[k] = (cnt[k] || 0) + 1 }
@@ -323,6 +386,20 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
       lines.push(<>Nothing lines up. Every hole {TL(defTeam)} leave is one {who} {asPlayer || usingQb ? "doesn't" : "don't"} {usingQb ? 'throw into' : asPlayer ? 'work' : 'throw into'}.</>)
     }
   }
+  // LAST SEASON'S ROUTES: the route this defence leaked most on (15+ targets
+  // against, yards a target over the league's), and man vs zone
+  if (routesOn && defTeam && rf.def) {
+    const mineR = rf.def.def_route?.[defTeam] || {}, lgR = rf.def.league_route || {}
+    const worst = Object.entries(mineR).filter(([k, v]) => v.tgt >= ROUTE_MIN_TGT && lgR[k]?.ypt != null)
+      .map(([k, v]) => ({ k, v, d: v.ypt - lgR[k].ypt })).sort((a, b) => b.d - a.d)[0]
+    if (worst && worst.d > 0) {
+      lines.push(<>In {rf.season}, {TL(defTeam)} gave up <b style={{ color: C.red }}>{worst.v.ypt.toFixed(1)}</b> yds a target on <b style={{ color: C.text }}>{ROUTE_WORD[worst.k]}</b> routes (league {lgR[worst.k].ypt.toFixed(1)}), {worst.v.tgt} targets.</>)
+    }
+    const cv = rf.def.def_cov?.[defTeam] || {}, lgC = rf.def.league_cov || {}
+    if (cv.M && cv.Z) {
+      lines.push(<>Vs man {cv.M.ypt?.toFixed(1)} (league {lgC.M?.ypt?.toFixed(1)}), vs zone {cv.Z.ypt?.toFixed(1)} (league {lgC.Z?.ypt?.toFixed(1)}); they played zone on {Math.round((100 * cv.Z.tgt) / (cv.M.tgt + cv.Z.tgt))}% of targets.</>)
+    }
+  }
   if (isRun) {
     // THE RUN VIEW'S SENTENCE: the same three shapes, on the seven gaps.
     lines.length = 0
@@ -371,7 +448,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   if (pid && !dv.view) return null
   if (!isRun && file.state === 'loading') return <section ref={wrap}>{head}<ChartEmpty theme={C}>Loading every target…</ChartEmpty></section>
   if (!isRun && (file.state === 'error' || file.state === 'none')) return <section ref={wrap}>{head}<ChartEmpty theme={C}>Couldn&apos;t load {team}&apos;s plays file (nfl_field_{team}.json), so there are no dots to draw yet.</ChartEmpty></section>
-  if (!isRun && !mine.length) return <section ref={wrap}>{head}<ChartEmpty theme={C}>{asPlayer ? `No targets for ${player?.name || 'him'} in ${body?.season || 'this'} season's play-by-play yet.` : `No targets for ${team} yet.`}</ChartEmpty></section>
+  if (!isRun && !mine.length && !routesOn) return <section ref={wrap}>{head}<ChartEmpty theme={C}>{asPlayer ? `No targets for ${player?.name || 'him'} in ${body?.season || 'this'} season's play-by-play yet.` : `No targets for ${team} yet.`}</ChartEmpty></section>
 
   // ── the chips ────────────────────────────────────────────────────────────
   const chipH = phone ? { minHeight: 44, padding: '0 11px', fontSize: 11, whiteSpace: 'nowrap', flexShrink: 0 } : { minHeight: 32, padding: '0 10px', fontSize: 10.5, whiteSpace: 'nowrap' }
@@ -390,6 +467,10 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
       )}
       <ChipGroup first={!dv.toggle && (!pid || isQB || isRun)} label={phone ? null : 'Window'} theme={C} numFont={NUM_FONT} color={C.cyan} value={win} onChange={setWin} chipStyle={chipH}
         options={WINS.map(([k, label, nn]) => ({ k, label, n: k === 'SZN' || isRun ? null : inWin(k).length, title: k === 'SZN' ? 'The whole season' : `The last ${nn === 1 ? 'game' : `${nn} games`} ${asPlayer ? 'he was targeted in' : `${team} played`}` }))} />
+      {!isRun && rf.available && (
+        <ChipGroup label={phone ? null : 'Season'} theme={C} numFont={NUM_FONT} color={C.cream} value={src} onChange={(k) => { setSrc(k); setRtF('ALL'); setCvF('ALL') }} chipStyle={chipH}
+          options={[{ k: '26', label: String(file.body?.season || 'NOW'), n: null, title: 'This season\u2019s targets' }, { k: 'r25', label: `${rf.season} ROUTES`, n: null, title: `Last season\u2019s targets with the route he ran and the coverage (charted once a year, after the playoffs)` }]} />
+      )}
       {!isRun && [['TARGETS', dotsOn, setDotsOn, 'Every target as a dot; tap one for the play'], ['SHARE', shareOn, setShareOn, `Each zone's share of ${asPlayer ? 'his' : 'their'} targets`]].map(([l, on, set, t]) => (
         <button key={l} type="button" onClick={() => set((v) => !v)} aria-pressed={on} title={t}
           style={{ ...chipH, borderRadius: 999, cursor: 'pointer', fontFamily: NUM_FONT, fontWeight: 800, letterSpacing: '.06em',
@@ -421,6 +502,16 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
         options={[['ALL', 'All'], ['1', '1st'], ['2', '2nd'], ['3', '3rd'], ['4', '4th']].map(([k, label]) => ({ k, label, n: cnt('dn', (p) => k === 'ALL' || String(p.dn) === k), title: k === 'ALL' ? 'Every down' : `Only ${label} down` }))} />
       <ChipGroup label="Type" theme={C} numFont={NUM_FONT} color={C.amber} value={ty} onChange={setTy} chipStyle={chipH}
         options={[['ALL', 'All', () => true], ['pa', 'Play action', (p) => Boolean(p.pa)], ['sc', 'Screen', (p) => Boolean(p.sc)]].map(([k, label, f]) => ({ k, label, n: cnt('ty', f), title: k === 'ALL' ? 'Every pass' : `Only ${label.toLowerCase()} passes` }))} />
+      {routesOn && (
+        <ChipGroup label="Route" theme={C} numFont={NUM_FONT} color={C.green} value={rtF} onChange={setRtF} chipStyle={chipH}
+          options={[{ k: 'ALL', label: 'All', n: cnt('rt', () => true), title: 'Every route' },
+            ...ROUTES.map((k) => ({ k, label: ROUTE_WORD[k].toUpperCase(), n: cnt('rt', (p) => p.rt === k), title: `Only ${ROUTE_WORD[k]} routes` })).filter((o) => o.n || o.k === rtF)]} />
+      )}
+      {routesOn && (
+        <ChipGroup label="Coverage" theme={C} numFont={NUM_FONT} color={C.blue} value={cvF} onChange={setCvF} chipStyle={chipH}
+          options={[{ k: 'ALL', label: 'All', n: cnt('cv', () => true), title: 'Every coverage' },
+            ...COVS.map((k) => ({ k, label: COV_WORD[k] || k, n: cnt('cv', (p) => (k === 'M' || k === 'Z' ? p.mz === k : p.cv === k)), title: COV_WORD[k] ? `Only vs ${COV_WORD[k].toLowerCase()}` : `Only vs ${k} (the shell is charted on some snaps only)` })).filter((o) => o.n || o.k === cvF)]} />
+      )}
     </div>
   )
 
@@ -495,8 +586,10 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
       const li = LANES3.indexOf(c.L)
       const bx = cx0 + li * lw, by = Y(c.B.hi)
       if (spot && c.z === spot.z) continue
-      // only a real defence number earns a tag (thin is the hatch, said once in the caption)
+      // only a real defence number earns a tag (thin is the hatch, said once in the caption);
+      // a short zone (BEHIND) is the share's -- its colour carries the defence, the table its number
       if (c.leak == null) continue
+      if (shareOn && Y(c.B.lo) - Y(c.B.hi) < u(44)) continue
       const txt = `${!phone && defTeam ? `${defTeam} ` : ''}${fmtPct(c.leak)}`
       labels.push(<rect key={`lb${c.k}`} x={bx + u(4)} y={by + u(4)} width={u(txt.length * labelPx * 0.66 + 7)} height={u(labelPx + 6)} rx={u(4)} fill={C.bg} opacity={0.62} />)
       labels.push(<text key={`lk${c.k}`} x={bx + u(7.5)} y={by + u(4 + labelPx * 0.5 + 3)} dy=".35em" fontFamily={NUM_FONT} fontWeight={c.leak != null ? 800 : 700} fontSize={u(labelPx)}
@@ -538,12 +631,15 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
     // in ZONES the orange outline is the spot, so the tag stays short and clear of the share
     // the orange outline is the spot, so the tag stays short and clear of the share
     const tagTxt = `${phone ? '' : 'SPOT '}${fmtPct(spot.leak)}`
+    const shortSpot = shareOn && Y(spot.B.lo) - Y(spot.B.hi) < u(44)   // the outline alone marks it there
     const tagPx = phone ? 9.5 : 10.5
     const tagW = u(tagTxt.length * tagPx * 0.68 + 10), tagH = u(tagPx + 8)
     labels.push(<g key="spot" aria-hidden="true">
       <rect x={cx0 + li * lw + u(1.5)} y={Y(spot.B.hi) + u(1.5)} width={lw - u(3)} height={Y(spot.B.lo) - Y(spot.B.hi) - u(3)} rx={u(3)} fill="none" stroke={C.orange} strokeWidth={2} vectorEffect="non-scaling-stroke" />
-      <rect x={cx0 + li * lw + u(4)} y={Y(spot.B.hi) + u(4)} width={tagW} height={tagH} rx={u(3)} fill={C.orange} />
-      <text x={cx0 + li * lw + u(4) + tagW / 2} y={Y(spot.B.hi) + u(4) + tagH / 2} dy=".35em" textAnchor="middle" fontFamily={NUM_FONT} fontWeight={900} fontSize={u(tagPx)} letterSpacing={u(0.4)} fill={C.bg}>{tagTxt}</text>
+      {!shortSpot && <>
+        <rect x={cx0 + li * lw + u(4)} y={Y(spot.B.hi) + u(4)} width={tagW} height={tagH} rx={u(3)} fill={C.orange} />
+        <text x={cx0 + li * lw + u(4) + tagW / 2} y={Y(spot.B.hi) + u(4) + tagH / 2} dy=".35em" textAnchor="middle" fontFamily={NUM_FONT} fontWeight={900} fontSize={u(tagPx)} letterSpacing={u(0.4)} fill={C.bg}>{tagTxt}</text>
+      </>}
     </g>)
   }
 
@@ -574,9 +670,19 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
     )
   })
 
+  // LAST SEASON'S ROUTES: each target's route shape (lib/nfl/routeShape), ending at its dot
+  // the more lines, the fainter each one: a team's 500 read as a pattern, a filtered 20 stay sharp
+  const routeAlpha = Math.max(0.16, Math.min(0.6, 30 / Math.max(1, drawn.length)))
+  const routeLines = routesOn ? [...drawn].sort((a, b) => (order[a.res] - order[b.res]) || (a.i - b.i)).map((p) => {
+    const pts = routeShape(p)
+    if (!pts) return null
+    const td = p.res === 'td'
+    return <polyline key={`r${p.i}`} points={pts.map(([uu, a]) => `${(cx0 + uu * (cx1 - cx0)).toFixed(1)},${Y(a).toFixed(1)}`).join(' ')} fill="none"
+      stroke={td ? C.orange : inkOf(p)} strokeOpacity={pick === p.i ? 1 : td ? Math.min(0.85, routeAlpha * 1.6) : routeAlpha} strokeWidth={pick === p.i ? 2.4 : 1.3} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" pointerEvents="none" />
+  }) : null
   const subjName = asPlayer ? player.name : `${team} offence`
   // the 3D stadium's targets: the same plays, size and ink as the dots
-  const dots3 = drawn.map((p) => ({ i: p.i, wk: p.wk, lane: p.lane, air: p.air, res: p.res, yac: p.yac, ink: inkOf(p), pid: p.pid,
+  const dots3 = drawn.map((p) => ({ i: p.i, wk: p.wk, lane: p.lane, air: p.air, res: p.res, yac: p.yac, ink: inkOf(p), pid: p.pid, path: routesOn ? routeShape(p) : null,
     rPx: dotRadiusPx(p.yac, dotScale), label: `${p.res === 'td' ? 'Touchdown' : p.res === 'catch' ? 'Catch' : p.res === 'int' ? 'Intercepted' : 'Incomplete'} · ${p.air} air yd · ${LANE_WORD3[p.lane]} · week ${p.wk}${asPlayer ? '' : ` · ${nameOf(p.pid)}`}` }))
   // THE TURF IS THE 2D CHART (BATCH-3D-V2 2b): the stadium lays this very SVG
   // (minus its dots) on its turf, cropped to the three lanes x the drawn depth
@@ -668,7 +774,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
         <filter id={`glow${uid}`} x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation={3 * dotScale} /></filter>
         {defs}
       </defs>
-      {parts}<g data-layer="dots">{dotsOn ? dots : null}</g>{labels}
+      {parts}<g data-layer="dots">{dotsOn ? routeLines : null}{dotsOn ? dots : null}</g>{labels}
       {/* the shares sit apart: the 3D turf leaves them out (its columns carry them) */}
       <g data-layer="share">{shareLabels}</g>
     </svg>
@@ -685,7 +791,11 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
       {defModel ? <>Under: {TL(defTeam)}&apos;s yards a target in each zone vs the league&apos;s this season, red = they give up more, blue = they hold up, hatched = too few plays to say. </> : null}
       {dotsOn ? <>Dots: {asPlayer ? 'his' : `${team}'s`} targets (hollow = incomplete, orange = touchdown). </> : null}
       {shareOn ? <>%: the share of {asPlayer ? 'his' : 'their'} {plural(drawn.length, unit)} in that zone{fOn ? ' (filtered)' : ''}, the count under it. </> : null}
-      Routes aren&apos;t in this season&apos;s feed yet, only lane and air yards.
+      {routesOn
+        ? <><b style={{ color: C.text2 }}>{rf.season} season</b>: route shapes from the charted route name, ending where the ball went; not tracked paths. The coverage shell is charted on some snaps only (counts on the chips).</>
+        : <>Routes aren&apos;t in this season&apos;s feed yet, only lane and air yards{rf.available ? <>; {rf.season} ROUTES shows last season&apos;s</> : null}.</>}
+      {src === 'r25' && rf.state === 'loading' ? ' Loading last season\u2019s routes…' : null}
+      {src === 'r25' && rf.state === 'error' ? ' Couldn\u2019t load last season\u2019s route files.' : null}
       {usingQb ? ' The spot uses his own throws this season.' : ''}
       {/* components/charts/HowToRead (2D TOP TIER 1): SprayField's panel, shared */}
       <div><HowToRead theme={C} numFont={NUM_FONT} size={12}>
@@ -754,6 +864,12 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
     }).filter(Boolean)
     : DEPTHS.flatMap((d) => SIDES.map((s) => byZ[`${s}|${d}`])).filter(Boolean)
       .map((c) => ({ ...c, where: cap(phrase(c.z)), right: `${c.n} of ${drawn.length}` }))
+  // last season's defence by route and by coverage (nfl_routes_def.json)
+  const routeRows = routesOn && defTeam && rf.def ? [
+    ...ROUTES.map((k) => ({ k, label: cap(ROUTE_WORD[k]), v: rf.def.def_route?.[defTeam]?.[k], l: rf.def.league_route?.[k] })),
+    ...COVS.map((k) => ({ k: `cv${k}`, label: `vs ${COV_WORD[k] ? COV_WORD[k].toLowerCase() : k}`, v: rf.def.def_cov?.[defTeam]?.[k], l: rf.def.league_cov?.[k] })),
+  ].filter((r) => r.v && r.v.tgt >= ROUTE_MIN_TGT && r.v.ypt != null)
+    .map((r) => ({ k: r.k, label: r.label, ypt: r.v.ypt, tgt: r.v.tgt, lg: r.l?.ypt ?? null, d: r.l?.ypt != null ? r.v.ypt - r.l.ypt : null })) : []
   const table = (isRun ? runDef : defModel) ? (
     <div>
       <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} style={{
@@ -777,8 +893,21 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
           <div style={{ padding: '6px 11px 8px', fontSize: 11, color: C.text3, borderTop: `1px solid ${C.border}` }}>
             {isRun
               ? <>Middle: {defTeam}&apos;s yards a carry vs the league&apos;s in that gap ({matchup?.season || 'this'} season, thin under {MIN_DEF_ATT} carries). Right: {pid ? 'his season carries that went there' : 'their share of the rushing yards they allow'}.</>
-              : <>Middle: {defTeam}&apos;s yards a target vs the league&apos;s there ({matchup?.season || 'this'} season, thin under {MIN_DEF_ATT} targets). Right: {whose} {win === 'SZN' ? '' : `${win} `}targets that went there.</>}
+              : <>Middle: {defTeam}&apos;s yards a target vs the league&apos;s there ({routesOn ? rf.season : matchup?.season || 'this'} season, thin under {MIN_DEF_ATT} targets). Right: {whose} {win === 'SZN' ? '' : `${win} `}targets that went there.</>}
           </div>
+          {routeRows.length > 0 && (
+            <div style={{ borderTop: `1px solid ${C.border}` }}>
+              <div style={{ padding: '7px 11px 2px', fontFamily: NUM_FONT, fontSize: 11, fontWeight: 800, letterSpacing: '.06em', color: C.text3 }}>{defTeam} BY ROUTE AND COVERAGE · {rf.season}</div>
+              {routeRows.map((r) => (
+                <div key={r.k} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 48px 58px', gap: 8, alignItems: 'baseline', padding: '5px 11px' }}>
+                  <span style={{ fontSize: 12, color: C.text2 }}>{r.label}</span>
+                  <span style={{ fontFamily: NUM_FONT, fontSize: 12, fontWeight: 900, textAlign: 'right', color: r.d == null || Math.abs(r.d) < 0.5 ? C.text2 : r.d > 0 ? C.red : C.blue }}>{r.ypt.toFixed(1)}</span>
+                  <span style={{ fontFamily: NUM_FONT, fontSize: 11, color: C.text3, textAlign: 'right' }}>lg {r.lg != null ? r.lg.toFixed(1) : '—'} · {r.tgt}</span>
+                </div>
+              ))}
+              <div style={{ padding: '4px 11px 8px', fontSize: 11, color: C.text3 }}>Yards a target {defTeam} allowed vs each route and coverage ({rf.season}, routes with {ROUTE_MIN_TGT}+ targets), the league&apos;s, and the targets behind it.</div>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -786,7 +915,8 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
 
   // ── the red zone strip (kept: his pick) ──────────────────────────────────
   const rzWeeks = winWeeks(win)
-  const rz = (body?.redzone || []).map((r, i) => Object.fromEntries((body.rz_cols || []).map((c, j) => [c, r[j]]).concat([['seed', i]])))
+  const rzBody = file.body   // the red zone is always this season's (the routes file carries none)
+  const rz = (rzBody?.redzone || []).map((r, i) => Object.fromEntries((rzBody.rz_cols || []).map((c, j) => [c, r[j]]).concat([['seed', i]])))
     .filter((t) => rzWeeks.has(t.wk) || win === 'SZN')
   const rzBy = new Map()
   for (const t of rz) { if (!rzBy.has(t.pid)) rzBy.set(t.pid, []); rzBy.get(t.pid).push(t) }
@@ -816,7 +946,8 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
     const l3 = [p.lane ? `${LANE_WORD3[p.lane]} lane` : null, p.hash ? `snapped from the ${{ L: 'left', R: 'right', M: 'middle' }[p.hash]} hash` : null,
       p.box ? `${p.box} in the box` : null, p.sc ? 'screen' : null, p.pa ? 'play action' : null,
       p.epa != null ? `${p.epa > 0 ? '+' : ''}${p.epa.toFixed(2)} EPA` : null].filter(Boolean).join(' · ')
-    return { head1, yardsBit, l2, l3, who: asPlayer ? null : nameOf(p.pid), td: p.res === 'td' }
+    const l4 = p.rt || p.mz ? [p.rt ? `Route: ${ROUTE_WORD[p.rt] || p.rt}` : null, p.mz ? `vs ${p.mz === 'M' ? 'man' : 'zone'}${p.cv ? ` (${p.cv})` : ''}` : null].filter(Boolean).join(' · ') : null
+    return { head1, yardsBit, l2, l3, l4, who: asPlayer ? null : nameOf(p.pid), td: p.res === 'td' }
   })() : null
   const card = (
     <div aria-live="polite" style={{ fontFamily: NUM_FONT, fontSize: 12, lineHeight: 1.6, color: C.text2 }}>
@@ -824,10 +955,11 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
         <div><b style={{ color: cardLines.td ? C.orange : C.cream, letterSpacing: '.04em' }}>{cardLines.head1}</b>{cardLines.yardsBit}{cardLines.who ? <span style={{ color: C.text }}> · <a href={playerHref('nfl', picked.pid)} style={linkStyle}>{cardLines.who}</a></span> : null}</div>
         <div>{cardLines.l2}</div>
         {cardLines.l3 && <div style={{ color: C.text3 }}>{cardLines.l3}</div>}
+        {cardLines.l4 && <div style={{ color: C.text2 }}>{cardLines.l4}</div>}
       </> : <span style={{ color: C.text3 }}>Tap a target for the play.</span>}
     </div>
   )
-  const emptyWin = !P.length ? <ChartEmpty theme={C} style={{ padding: '4px 0 0' }}>No targets in this window. Try SZN.</ChartEmpty> : null
+  const emptyWin = !P.length ? <ChartEmpty theme={C} style={{ padding: '4px 0 0' }}>{routesOn && !mine.length ? `No ${rf.season} targets for ${asPlayer ? player?.name || 'him' : team}.` : 'No targets in this window. Try SZN.'}</ChartEmpty> : null
 
   return (
     <section ref={wrap} aria-label={`The Field: ${subjName}`} style={{ margin: '4px 0 12px' }}>
