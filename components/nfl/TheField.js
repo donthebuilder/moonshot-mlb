@@ -131,21 +131,31 @@ function readHash() {
   if (typeof window === 'undefined') return null
   const h = new URLSearchParams(window.location.hash.slice(1))
   if (h.get('view') !== 'field') return null
-  return { win: { szn: 'SZN', l5: 'L5', l3: 'L3', wk: 'WK' }[h.get('win')] || null, show: h.get('show') === 'plays' ? 'plays' : null }
+  // show=plays (the d037023 links) = the dots with the share off
+  return {
+    win: { szn: 'SZN', l5: 'L5', l3: 'L3', wk: 'WK' }[h.get('win')] || null,
+    share: h.get('share') === '0' || h.get('show') === 'plays' ? false : null, dots: h.get('dots') === '0' ? false : null,
+    res: ['catch', 'td', 'inc'].includes(h.get('res')) ? h.get('res') : null,
+    dn: ['1', '2', '3', '4'].includes(h.get('dn')) ? h.get('dn') : null,
+    ty: ['pa', 'sc'].includes(h.get('ty')) ? h.get('ty') : null,
+  }
 }
 function clearHash() {
   if (typeof window === 'undefined') return
   const h = new URLSearchParams(window.location.hash.slice(1))
-  if (!h.has('view') && !h.has('win') && !h.has('sit') && !h.has('show')) return
+  const KEYS = ['win', 'sit', 'show', 'share', 'dots', 'res', 'dn', 'ty']
+  if (!h.has('view') && !KEYS.some((k) => h.has(k))) return
   if (h.get('view') === 'field') h.delete('view')
-  h.delete('win'); h.delete('sit'); h.delete('show')
+  KEYS.forEach((k) => h.delete(k))
   window.history.replaceState(window.history.state, '', `#${h.toString()}`)
 }
-function writeHash(win, show = 'zones') {
+function writeHash(win, { share = true, dots = true, res = 'ALL', dn = 'ALL', ty = 'ALL' } = {}) {
   if (typeof window === 'undefined') return
   const h = new URLSearchParams(window.location.hash.slice(1))
-  h.set('view', 'field'); h.set('win', win.toLowerCase()); h.delete('sit')
-  if (show === 'plays') h.set('show', 'plays'); else h.delete('show')
+  h.set('view', 'field'); h.set('win', win.toLowerCase()); h.delete('sit'); h.delete('show')
+  const put = (k, v, on) => { if (on) h.set(k, v); else h.delete(k) }
+  put('share', '0', !share); put('dots', '0', !dots)
+  put('res', res, res !== 'ALL'); put('dn', dn, dn !== 'ALL'); put('ty', ty, ty !== 'ALL')
   window.history.replaceState(window.history.state, '', `#${h.toString()}`)
 }
 
@@ -165,9 +175,15 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   // A QB is never targeted, so his picture is his offence's targets.
   const [mode, setMode] = useState(initialMode || (pid && !isQB ? 'PLAYER' : 'TEAM'))
   const [win, setWin] = useState(fromHash?.win || 'SZN')
-  // ZONES (default, Donovan 10-02: "zone percent instead of individual events")
-  // or PLAYS (every target as a dot, tap for the play)
-  const [show, setShow] = useState(fromHash?.show || 'zones')
+  // THE LAYERS (Donovan 10-02, "like the shot thing in NHL"): the defence's
+  // heat always under; the targets (dots) and each zone's share on top, each
+  // its own chip. THE FILTERS cut the dots, the shares, the numbers and the 3D;
+  // the heat stays the season defence.
+  const [shareOn, setShareOn] = useState(fromHash?.share ?? true)
+  const [dotsOn, setDotsOn] = useState(fromHash?.dots ?? true)
+  const [res, setRes] = useState(fromHash?.res || 'ALL')
+  const [dn, setDn] = useState(fromHash?.dn || 'ALL')
+  const [ty, setTy] = useState(fromHash?.ty || 'ALL')
   const [pick, setPick] = useState(null)
   const [open, setOpen] = useState(false)
   const wrap = useRef(null)
@@ -194,10 +210,10 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   useEffect(() => {
     if (fromHash && wrap.current) wrap.current.scrollIntoView({ block: 'start' })
   }, [fromHash, file.state])
-  useEffect(() => { if (hashSync && file.state === 'ready') writeHash(win, show) }, [hashSync, win, show, file.state])
+  useEffect(() => { if (hashSync && file.state === 'ready') writeHash(win, { share: shareOn, dots: dotsOn, res, dn, ty }) }, [hashSync, win, shareOn, dotsOn, res, dn, ty, file.state])
   // Leaving the Field takes its params with it.
   useEffect(() => () => { if (hashSync) clearHash() }, [hashSync])
-  useEffect(() => { setPick(null) }, [mode, win, team, pid, show])
+  useEffect(() => { setPick(null) }, [mode, win, team, pid, dotsOn, res, dn, ty])
 
   const phone = cw < PHONE_AT
   const body = file.body
@@ -221,8 +237,14 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   }, [mine, asPlayer, body])
   const winWeeks = (k) => new Set(weeksIn.slice(0, (WINS.find((w) => w[0] === k) || WINS[0])[2]))
   const inWin = (k) => { const s = winWeeks(k); return mine.filter((p) => s.has(p.wk)) }
-  const P = inWin(win)
+  // a target passes the filters (skip = the row whose own chips are being counted)
+  const passF = (p, skip) => (skip === 'res' || res === 'ALL' || (res === 'inc' ? p.res === 'inc' || p.res === 'int' : p.res === res))
+    && (skip === 'dn' || dn === 'ALL' || String(p.dn) === dn)
+    && (skip === 'ty' || ty === 'ALL' || (ty === 'pa' ? Boolean(p.pa) : Boolean(p.sc)))
+  const PW = inWin(win)
+  const P = PW.filter((p) => passF(p))
   const drawn = P.filter((p) => p.lane && p.air != null)
+  const fOn = res !== 'ALL' || dn !== 'ALL' || ty !== 'ALL'
 
   // TEAM mode inks: the four most-targeted in what is drawn.
   const topWho = useMemo(() => {
@@ -274,7 +296,6 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   const caN = pid ? mapAttempts(field?.player_rush?.[pid]) : 0
   const dv = pid ? fieldView({ tg: tgN, ca: caN }) : { view: 'pass', toggle: Boolean(field?.def_rush?.[defTeam]) }
   const isRun = (dv.toggle && viewPick ? viewPick : dv.view) === 'rush'
-  const zonesView = !isRun && show === 'zones'
   const runDef = useMemo(() => fieldModel({ field, defTeam, mode: 'def', pass: false }), [field, defTeam])
   const runMine = useMemo(() => (pid ? fieldModel({ field, defTeam, player, mode: 'player', pass: false }) : null), [field, defTeam, player, pid])
   const runModel = pid ? runMine : runDef
@@ -369,10 +390,11 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
       )}
       <ChipGroup first={!dv.toggle && (!pid || isQB || isRun)} label={phone ? null : 'Window'} theme={C} numFont={NUM_FONT} color={C.cyan} value={win} onChange={setWin} chipStyle={chipH}
         options={WINS.map(([k, label, nn]) => ({ k, label, n: k === 'SZN' || isRun ? null : inWin(k).length, title: k === 'SZN' ? 'The whole season' : `The last ${nn === 1 ? 'game' : `${nn} games`} ${asPlayer ? 'he was targeted in' : `${team} played`}` }))} />
-      {!isRun && (
-        <ChipGroup theme={C} numFont={NUM_FONT} color={C.green} value={show} onChange={setShow} chipStyle={chipH}
-          options={[{ k: 'zones', label: 'ZONES', n: null, title: `The share of ${asPlayer ? 'his' : 'their'} targets in each zone` }, { k: 'plays', label: 'PLAYS', n: null, title: 'Every target as a dot; tap one for the play' }]} />
-      )}
+      {!isRun && [['TARGETS', dotsOn, setDotsOn, 'Every target as a dot; tap one for the play'], ['SHARE', shareOn, setShareOn, `Each zone's share of ${asPlayer ? 'his' : 'their'} targets`]].map(([l, on, set, t]) => (
+        <button key={l} type="button" onClick={() => set((v) => !v)} aria-pressed={on} title={t}
+          style={{ ...chipH, borderRadius: 999, cursor: 'pointer', fontFamily: NUM_FONT, fontWeight: 800, letterSpacing: '.06em',
+            border: `1px solid ${on ? C.green : C.border2}`, background: on ? `${C.green}1f` : 'transparent', color: on ? C.green : C.text3 }}>{on ? <span aria-hidden="true">✓ </span> : null}{l}</button>
+      ))}
       {gl && !isRun && (
         <button type="button" onClick={() => setStadium((v) => !v)} aria-pressed={stadium}
           title={stadium ? 'Close the 3D stadium' : 'The same targets, in the stadium, in 3D'}
@@ -381,6 +403,24 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
           🏟 STADIUM
         </button>
       )}
+    </div>
+  )
+
+  // THE FILTERS (NHL ShotPanel's rows): each chip's count is what it would show
+  // with the other filters on
+  const cnt = (skip, f) => PW.filter((p) => passF(p, skip) && f(p)).length
+  const filterRow = isRun ? null : (
+    <div className="field-filters" style={{
+      display: 'flex', alignItems: 'center', gap: 5, marginBottom: phone ? 6 : 8,
+      ...(phone ? { flexWrap: 'nowrap', overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', margin: '0 -2px 6px', padding: '0 2px' } : { flexWrap: 'wrap' }),
+    }}>
+      <ChipGroup first label="Result" theme={C} numFont={NUM_FONT} color={C.orange} value={res} onChange={setRes} chipStyle={chipH}
+        options={[['ALL', 'All', () => true, 'Every target'], ['catch', 'Catch', (p) => p.res === 'catch', 'Only catches (not touchdowns)'], ['td', 'TD', (p) => p.res === 'td', 'Only touchdowns'], ['inc', 'No catch', (p) => p.res === 'inc' || p.res === 'int', 'Incomplete or intercepted']]
+          .map(([k, label, f, title]) => ({ k, label, n: cnt('res', f), title }))} />
+      <ChipGroup label="Down" theme={C} numFont={NUM_FONT} color={C.cyan} value={dn} onChange={setDn} chipStyle={chipH}
+        options={[['ALL', 'All'], ['1', '1st'], ['2', '2nd'], ['3', '3rd'], ['4', '4th']].map(([k, label]) => ({ k, label, n: cnt('dn', (p) => k === 'ALL' || String(p.dn) === k), title: k === 'ALL' ? 'Every down' : `Only ${label} down` }))} />
+      <ChipGroup label="Type" theme={C} numFont={NUM_FONT} color={C.amber} value={ty} onChange={setTy} chipStyle={chipH}
+        options={[['ALL', 'All', () => true], ['pa', 'Play action', (p) => Boolean(p.pa)], ['sc', 'Screen', (p) => Boolean(p.sc)]].map(([k, label, f]) => ({ k, label, n: cnt('ty', f), title: k === 'ALL' ? 'Every pass' : `Only ${label.toLowerCase()} passes` }))} />
     </div>
   )
 
@@ -411,36 +451,20 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   }
   { const g = turfLayers(`p${uid}`, 0, 0, W, H); defs.push(...g.defs); parts.push(...g.over) }
 
-  // THE INK (plan item 2): MatchupMap's halftone, as an SVG pattern per zone
-  // -- dot size and pitch scale with how far above a normal defence the zone
-  // runs (heatOf); a zone that holds up gets a finer, quieter cyan (coolOf).
-  // A zone under MIN_DEF_ATT attempts gets no ink and says "thin".
-  for (const c of zonesView ? [] : cells) {
-    if (c.leak == null) continue
+  // THE HEAT (10-02, the NHL VS GOALIE way): each zone by the defence's
+  // yards a target there vs the league's -- red where they give up more, blue
+  // where they hold up, no tint near normal (heatOf / coolOf, lib/nfl/fieldModel),
+  // hatched where too few plays against them to say (thin).
+  defs.push(<pattern key="thin" id={`thin${uid}`} width={u(5)} height={u(5)} patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2={u(5)} stroke={C.cream} strokeOpacity={0.12} strokeWidth={u(1.2)} /></pattern>)
+  for (const c of cells) {
     const li = LANES3.indexOf(c.L)
     const bx = cx0 + li * lw, by = Y(c.B.hi), bh = Y(c.B.lo) - by
     const ins = u(1.5)
+    const box = { x: bx + ins, y: by + ins, width: lw - 2 * ins, height: bh - 2 * ins, rx: u(2) }
+    if (c.leak == null) { if (defModel) parts.push(<rect key={`t${c.k}`} {...box} fill={`url(#thin${uid})`} />); continue }
     const h = heatOf(c.leak), cl = coolOf(c.leak)
-    if (h >= 0.12) {
-      const pitch = u(10 - h * 4.5), r = u(1.1 + h * 1.7)
-      defs.push(<pattern key={`p${c.k}`} id={`ink${uid}${c.k}`} width={pitch} height={pitch} patternUnits="userSpaceOnUse"><circle cx={pitch / 2} cy={pitch / 2} r={r} fill={C.orange} fillOpacity={(0.42 + h * 0.4).toFixed(2)} /></pattern>)
-      parts.push(<rect key={`g${c.k}`} x={bx + ins} y={by + ins} width={lw - 2 * ins} height={bh - 2 * ins} rx={u(2)} fill={C.orange} opacity={(0.04 + h * 0.1).toFixed(3)} />)
-      parts.push(<rect key={`f${c.k}`} x={bx + ins} y={by + ins} width={lw - 2 * ins} height={bh - 2 * ins} rx={u(2)} fill={`url(#ink${uid}${c.k})`} />)
-    } else if (cl >= 0.12) {
-      const pitch = u(9 - cl * 3), r = u(0.8 + cl * 0.9)
-      defs.push(<pattern key={`p${c.k}`} id={`ink${uid}${c.k}`} width={pitch} height={pitch} patternUnits="userSpaceOnUse"><circle cx={pitch / 2} cy={pitch / 2} r={r} fill={C.cyan} fillOpacity={(0.22 + cl * 0.3).toFixed(2)} /></pattern>)
-      parts.push(<rect key={`f${c.k}`} x={bx + ins} y={by + ins} width={lw - 2 * ins} height={bh - 2 * ins} rx={u(2)} fill={`url(#ink${uid}${c.k})`} />)
-    }
-  }
-  // ZONES: each zone tinted by its share of the targets drawn (the cells memo)
-  const maxShare = Math.max(1, ...cells.map((c) => c.share))
-  if (zonesView) {
-    for (const c of cells) {
-      if (!c.n) continue
-      const li = LANES3.indexOf(c.L), ins = u(1.5)
-      const bx = cx0 + li * lw, by = Y(c.B.hi), bh = Y(c.B.lo) - by
-      parts.push(<rect key={`z${c.k}`} x={bx + ins} y={by + ins} width={lw - 2 * ins} height={bh - 2 * ins} rx={u(2)} fill={C.green} fillOpacity={(0.06 + 0.4 * (c.share / maxShare)).toFixed(3)} />)
-    }
+    if (h >= 0.12) parts.push(<rect key={`h${c.k}`} {...box} fill={C.red} fillOpacity={(0.12 + h * 0.38).toFixed(3)} />)
+    else if (cl >= 0.12) parts.push(<rect key={`h${c.k}`} {...box} fill={C.blue} fillOpacity={(0.1 + cl * 0.32).toFixed(3)} />)
   }
   for (const bxl of [cx0, cx0 + lw, cx0 + 2 * lw, cx1]) {
     parts.push(<line key={`lb${bxl}`} x1={bxl} y1={yTop} x2={bxl} y2={yBot} stroke={C.cream} strokeOpacity={bxl === cx0 || bxl === cx1 ? 0.22 : 0.07} vectorEffect="non-scaling-stroke" strokeWidth={1} />)
@@ -471,19 +495,20 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
       const li = LANES3.indexOf(c.L)
       const bx = cx0 + li * lw, by = Y(c.B.hi)
       if (spot && c.z === spot.z) continue
-      // ZONES: only a real defence number earns a tag (thin is said once, in the caption)
-      if (zonesView && c.leak == null) continue
-      const txt = `${zonesView && !phone && defTeam ? `${defTeam} ` : ''}${c.leak != null ? fmtPct(c.leak) : 'thin'}`
+      // only a real defence number earns a tag (thin is the hatch, said once in the caption)
+      if (c.leak == null) continue
+      const txt = `${!phone && defTeam ? `${defTeam} ` : ''}${fmtPct(c.leak)}`
       labels.push(<rect key={`lb${c.k}`} x={bx + u(4)} y={by + u(4)} width={u(txt.length * labelPx * 0.66 + 7)} height={u(labelPx + 6)} rx={u(4)} fill={C.bg} opacity={0.62} />)
       labels.push(<text key={`lk${c.k}`} x={bx + u(7.5)} y={by + u(4 + labelPx * 0.5 + 3)} dy=".35em" fontFamily={NUM_FONT} fontWeight={c.leak != null ? 800 : 700} fontSize={u(labelPx)}
-        fill={c.leak == null ? C.text3 : c.leak > 0 ? C.orange : C.cyan}>{txt}</text>)
+        fill={c.leak > 0 ? C.red : C.blue}>{txt}</text>)
     }
   }
   for (const B of BANDS) {
     labels.push(<text key={`bl${B.key}`} x={x0 - u(6)} y={(Y(B.lo) + Y(B.hi)) / 2} dy=".35em" textAnchor="end" fontFamily={NUM_FONT} fontWeight={800} fontSize={u(labelPx)} fill={C.text3}>{B.label}</text>)
   }
-  // ZONES: the share, big, bottom-right of its zone, the count under it
-  if (zonesView) {
+  // SHARE: each zone's share of the (filtered) targets, bottom-right, the count under it
+  const shareLabels = []
+  if (shareOn && !isRun) {
     for (const c of cells) {
       if (!c.n) continue
       const li = LANES3.indexOf(c.L)
@@ -492,11 +517,11 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
       if (Y(c.B.lo) - Y(c.B.hi) < u(44)) {
         // two texts, not a tspan: the 3D turf redraws each <text> as one run (FieldArena textsOf)
         const cnt = `${c.n}/${drawn.length}`
-        labels.push(<text key={`zn${c.k}`} x={rx} y={bot - u(2)} textAnchor="end" fontFamily={NUM_FONT} fontWeight={700} fontSize={u(11)} fill={C.text2} {...KO}>{cnt}</text>)
-        labels.push(<text key={`zs${c.k}`} x={rx - u(cnt.length * 11 * 0.6 + 5)} y={bot - u(2)} textAnchor="end" fontFamily={NUM_FONT} fontWeight={900} fontSize={u(15)} fill={C.text} {...KO}>{Math.round(c.share)}%</text>)
+        shareLabels.push(<text key={`zn${c.k}`} x={rx} y={bot - u(2)} textAnchor="end" fontFamily={NUM_FONT} fontWeight={700} fontSize={u(11)} fill={C.text2} {...KO}>{cnt}</text>)
+        shareLabels.push(<text key={`zs${c.k}`} x={rx - u(cnt.length * 11 * 0.6 + 4)} y={bot - u(2)} textAnchor="end" fontFamily={NUM_FONT} fontWeight={900} fontSize={u(13)} fill={C.text} {...KO}>{Math.round(c.share)}%</text>)
       } else {
-        labels.push(<text key={`zs${c.k}`} x={rx} y={bot - u(13)} textAnchor="end" fontFamily={NUM_FONT} fontWeight={900} fontSize={u(19)} fill={C.text} {...KO}>{Math.round(c.share)}%</text>)
-        labels.push(<text key={`zn${c.k}`} x={rx} y={bot} textAnchor="end" fontFamily={NUM_FONT} fontWeight={700} fontSize={u(11)} fill={C.text2} {...KO}>{c.n}/{drawn.length}</text>)
+        shareLabels.push(<text key={`zs${c.k}`} x={rx} y={bot - u(13)} textAnchor="end" fontFamily={NUM_FONT} fontWeight={900} fontSize={u(15)} fill={C.text} {...KO}>{Math.round(c.share)}%</text>)
+        shareLabels.push(<text key={`zn${c.k}`} x={rx} y={bot} textAnchor="end" fontFamily={NUM_FONT} fontWeight={700} fontSize={u(11)} fill={C.text2} {...KO}>{c.n}/{drawn.length}</text>)
       }
     }
   }
@@ -511,16 +536,12 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
     const cys = (Y(spot.B.hi) + Y(spot.B.lo)) / 2
     const rr = Math.min(lw, Y(spot.B.lo) - Y(spot.B.hi)) * 0.42
     // in ZONES the orange outline is the spot, so the tag stays short and clear of the share
-    const tagTxt = zonesView ? `${phone ? '' : 'SPOT '}${fmtPct(spot.leak)}` : `THE SPOT ${fmtPct(spot.leak)}`
+    // the orange outline is the spot, so the tag stays short and clear of the share
+    const tagTxt = `${phone ? '' : 'SPOT '}${fmtPct(spot.leak)}`
     const tagPx = phone ? 9.5 : 10.5
     const tagW = u(tagTxt.length * tagPx * 0.68 + 10), tagH = u(tagPx + 8)
     labels.push(<g key="spot" aria-hidden="true">
-      {zonesView
-        ? <rect x={cx0 + li * lw + u(1.5)} y={Y(spot.B.hi) + u(1.5)} width={lw - u(3)} height={Y(spot.B.lo) - Y(spot.B.hi) - u(3)} rx={u(3)} fill="none" stroke={C.orange} strokeWidth={2} vectorEffect="non-scaling-stroke" />
-        : <>
-          <circle cx={cxs} cy={cys} r={rr} fill="none" stroke={C.text} strokeWidth={2} strokeOpacity={0.95} vectorEffect="non-scaling-stroke" />
-          <circle cx={cxs + rr * 0.06} cy={cys - rr * 0.05} r={rr * 1.06} fill="none" stroke={C.text} strokeWidth={1.1} strokeOpacity={0.5} vectorEffect="non-scaling-stroke" />
-        </>}
+      <rect x={cx0 + li * lw + u(1.5)} y={Y(spot.B.hi) + u(1.5)} width={lw - u(3)} height={Y(spot.B.lo) - Y(spot.B.hi) - u(3)} rx={u(3)} fill="none" stroke={C.orange} strokeWidth={2} vectorEffect="non-scaling-stroke" />
       <rect x={cx0 + li * lw + u(4)} y={Y(spot.B.hi) + u(4)} width={tagW} height={tagH} rx={u(3)} fill={C.orange} />
       <text x={cx0 + li * lw + u(4) + tagW / 2} y={Y(spot.B.hi) + u(4) + tagH / 2} dy=".35em" textAnchor="middle" fontFamily={NUM_FONT} fontWeight={900} fontSize={u(tagPx)} letterSpacing={u(0.4)} fill={C.bg}>{tagTxt}</text>
     </g>)
@@ -647,7 +668,9 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
         <filter id={`glow${uid}`} x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation={3 * dotScale} /></filter>
         {defs}
       </defs>
-      {parts}<g data-layer="dots">{zonesView ? null : dots}</g>{labels}
+      {parts}<g data-layer="dots">{dotsOn ? dots : null}</g>{labels}
+      {/* the shares sit apart: the 3D turf leaves them out (its columns carry them) */}
+      <g data-layer="share">{shareLabels}</g>
     </svg>
   )
 
@@ -659,15 +682,10 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
     </div>
   ) : (
     <div style={{ fontSize: 11.5, lineHeight: 1.5, color: C.text3, marginTop: 6 }}>
-      {zonesView ? <>
-        Big number: the share of {asPlayer ? 'his' : `${team}'s`} {plural(drawn.length, unit)} thrown to that zone (count under it).
-        {defModel ? <> Tag: {TL(defTeam)}&apos;s yards a target there vs a normal defence.</> : null}
-        {' '}Routes aren&apos;t in the feed, only lane and air yards. PLAYS shows each target.
-      </> : <>
-      {defModel ? <>Ink: where {TL(defTeam)} get beaten, vs a normal defence. </> : null}
-      Dots: {asPlayer ? 'his' : `${team}'s`} targets, where they went (hollow = incomplete, orange = touchdown).
-      </>}
-      {defModel ? ' Thin = too few plays to say.' : ''}
+      {defModel ? <>Under: {TL(defTeam)}&apos;s yards a target in each zone vs the league&apos;s this season, red = they give up more, blue = they hold up, hatched = too few plays to say. </> : null}
+      {dotsOn ? <>Dots: {asPlayer ? 'his' : `${team}'s`} targets (hollow = incomplete, orange = touchdown). </> : null}
+      {shareOn ? <>%: the share of {asPlayer ? 'his' : 'their'} {plural(drawn.length, unit)} in that zone{fOn ? ' (filtered)' : ''}, the count under it. </> : null}
+      Routes aren&apos;t in this season&apos;s feed yet, only lane and air yards.
       {usingQb ? ' The spot uses his own throws this season.' : ''}
       {/* components/charts/HowToRead (2D TOP TIER 1): SprayField's panel, shared */}
       <div><HowToRead theme={C} numFont={NUM_FONT} size={12}>
@@ -676,12 +694,12 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
         </div>
         {defModel && (
           <div style={{ marginBottom: 6 }}>
-            The ink is {TL(defTeam)}&apos;s yards per attempt in each lane and depth against the league&apos;s in the same zone: orange gives up more than the league, cyan less, and a zone close to normal gets no ink. A zone with fewer than {MIN_DEF_ATT} attempts against them is left blank (thin).
+            The layer under the dots is {TL(defTeam)}&apos;s yards per attempt in each lane and depth against the league&apos;s in the same zone, this season: red gives up more than the league, blue less, and a zone close to normal gets no tint. A zone with fewer than {MIN_DEF_ATT} attempts against them is hatched (thin).
             {' '}THE SPOT is the zone where {asPlayer ? 'his' : 'their'} share of the work times the leak is biggest — only a zone with {SPOT_MIN_DEF_ATT}+ attempts against, a real leak, {SPOT_MIN_SHARE}%+ of the work and {SPOT_MIN_MINE}+ of the plays behind it.
           </div>
         )}
         <div>
-          The window chips (season / last 5 / last 3 / last week) cut the dots and the red-zone strip; the ink is the season. 🏟 STADIUM draws the same targets in 3D, in set columns of their lane; its lines are not ball flights.
+          The window chips (season / last 5 / last 3 / last week) and the Result / Down / Type filters cut the dots, the zone shares and the numbers; the red / blue layer is always the season. TARGETS and SHARE turn those layers on and off. 🏟 STADIUM draws the same targets in 3D, each zone&apos;s share rising as a column in the layer&apos;s colour; its lines are not ball flights.
         </div>
       </HowToRead></div>
     </div>
@@ -752,7 +770,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
                 {c.where}
                 {c.tdLine ? <span style={{ display: 'block', fontSize: 11, color: C.text3 }}>{c.tdLine}</span> : null}
               </span>
-              <span style={{ fontFamily: NUM_FONT, fontSize: 12, fontWeight: 900, textAlign: 'right', color: c.leak == null ? C.text3 : c.leak > 0 ? C.orange : C.cyan }}>{c.leak == null ? 'thin' : fmtPct(c.leak)}</span>
+              <span style={{ fontFamily: NUM_FONT, fontSize: 12, fontWeight: 900, textAlign: 'right', color: c.leak == null ? C.text3 : c.leak > 0 ? (isRun ? C.orange : C.red) : (isRun ? C.cyan : C.blue) }}>{c.leak == null ? 'thin' : fmtPct(c.leak)}</span>
               <span style={{ fontFamily: NUM_FONT, fontSize: 11, color: C.text3, textAlign: 'right' }}>{c.right}</span>
             </div>
           ))}
@@ -815,20 +833,21 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
     <section ref={wrap} aria-label={`The Field: ${subjName}`} style={{ margin: '4px 0 12px' }}>
       {head}
       {dock}
+      {filterRow}
       <ChartCard theme={C} className="field-card" style={phone ? { display: 'block', padding: 7 } : { gap: 18, padding: 12, flexWrap: 'nowrap' }}>
         <div style={{ flex: '1 1 auto', minWidth: 0, maxWidth: phone ? 'none' : 680 }}>
           {/* THE STADIUM (BATCH-NFL-3D): the same targets, zones and spot, in
               3D. The 2D field stays under it; a tapped dot opens the same card. */}
           {stadium && gl && !isRun && (
             <div style={{ marginBottom: 10 }}>
-              <FieldArena dots={dots3} cells={cells} spot={spot} rz={stripRows.flatMap((r) => r.touches)} onPick={(i) => setPick(i)} inkSvg={() => inkRef.current} inkBox={inkBox} stats={stats} showDiscs={!zonesView}
+              <FieldArena dots={dots3} cells={cells} spot={spot} rz={stripRows.flatMap((r) => r.touches)} onPick={(i) => setPick(i)} inkSvg={() => inkRef.current} inkBox={inkBox} stats={stats} showDiscs={dotsOn}
                 title={subjName} subtitle={`${plural(drawn.length, unit)}${defTeam ? ` · vs ${defTeam}` : ''}`} />
             </div>
           )}
           <div ref={fieldBox}>{isRun ? runPicture : picture}</div>
           {!isRun && emptyWin}
           {caption}
-          {!isRun && !zonesView && whoRow}
+          {!isRun && dotsOn && whoRow}
           {phone && statBlock}
           {strip}
           {phone && table}
@@ -836,7 +855,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
         {!phone && (
           <div style={{ flex: '1 0 280px', maxWidth: 420, display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0 }}>
             {statBlock}
-            {!isRun && !zonesView && <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 10, minHeight: 64 }}>{card}</div>}
+            {!isRun && dotsOn && <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 10, minHeight: 64 }}>{card}</div>}
             {table}
           </div>
         )}

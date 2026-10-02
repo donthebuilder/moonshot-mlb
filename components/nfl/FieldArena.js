@@ -53,7 +53,7 @@ const at = (u, air, h = 0) => new THREE.Vector3(clampAir(air) * YD, h, -FIELD_W 
 // page's fonts, so it fell back to a typewriter face. Each <text> is lifted
 // out of the picture and drawn onto the canvas, where the page's fonts resolve.
 function textsOf(svg) {
-  return [...svg.querySelectorAll('text')].filter((t) => !t.closest('[data-layer="dots"]')).map((t) => {
+  return [...svg.querySelectorAll('text')].filter((t) => !t.closest('[data-layer="dots"], [data-layer="share"]')).map((t) => {
     const b = t.getBBox(), cs = getComputedStyle(t), A = (k) => t.getAttribute(k)
     return {
       s: t.textContent, x: b.x + b.width / 2, y: b.y + b.height / 2,
@@ -82,7 +82,7 @@ function inkTexture(svg, box) {
     if (!svg || !box) { resolve(null); return }
     const texts = textsOf(svg)
     const clone = svg.cloneNode(true)
-    clone.querySelectorAll('[data-layer="dots"], [data-layer="edge"], text').forEach((n) => n.remove())
+    clone.querySelectorAll('[data-layer="dots"], [data-layer="edge"], [data-layer="share"], text').forEach((n) => n.remove())
     clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
     const S = 2
     clone.setAttribute('width', String(box.W * S)); clone.setAttribute('height', String(box.H * S))
@@ -108,7 +108,8 @@ export default function FieldArena({ dots = [], cells = [], spot = null, rz = []
   const tipRef = useRef(null)
   const [ok, setOk] = useState(true)
   const [lines, setLines] = useState(false)      // d: off by default
-  const [zones, setZones] = useState(false)      // e: off by default (in ZONES the turf already carries the shares)
+  // e: ON by default (Donovan 10-02, "the numbers coming up off the ground"): each zone's share rises as a column
+  const [zones, setZones] = useState(true)
   const [orbit, setOrbit] = useState(false)
   const [full, setFull] = useState(false)
   const [preset, setPreset] = useState('endzone')
@@ -235,7 +236,7 @@ export default function FieldArena({ dots = [], cells = [], spot = null, rz = []
     if (zones) {
       const cnt = {}
       for (const p of dots) { const k = `${p.lane}|${bandOf(clampAir(p.air))}`; cnt[k] = (cnt[k] || 0) + 1 }
-      const max = Math.max(1, ...Object.values(cnt))
+      const max = Math.max(1, ...Object.values(cnt)), total = Math.max(1, dots.length)
       for (const L of LANES3) for (const B of Object.keys(BAND_YD)) {
         const n = cnt[`${L}|${B}`] || 0
         if (!n) continue
@@ -243,12 +244,13 @@ export default function FieldArena({ dots = [], cells = [], spot = null, rz = []
         const h = heatOf(c?.leak), cl = coolOf(c?.leak)
         const [y0, y1] = BAND_YD[B]
         const ht = 4 + (36 * n) / max
-        const box = new THREE.Mesh(new THREE.BoxGeometry((y1 - y0) * YD - 4, ht, LANE_W - 6),
-          // the zone's own ink colour; a zone with no ink stays dim so the columns never hide the turf
-          new THREE.MeshBasicMaterial({ color: new THREE.Color(h >= 0.12 ? C.orange : cl >= 0.12 ? C.cyan : C.text3), transparent: true, opacity: h >= 0.12 || cl >= 0.12 ? 0.42 : 0.16, depthWrite: false }))
+        // slim, so the turf and the discs read around it
+        const box = new THREE.Mesh(new THREE.BoxGeometry(Math.min(14, (y1 - y0) * YD * 0.45), ht, LANE_W * 0.32),
+          // the 2D's heat: red = the defence gives up more there, blue = holds up, dim = normal or thin
+          new THREE.MeshBasicMaterial({ color: new THREE.Color(h >= 0.12 ? C.red : cl >= 0.12 ? C.blue : C.text3), transparent: true, opacity: h >= 0.12 || cl >= 0.12 ? 0.45 : 0.2, depthWrite: false }))
         box.position.copy(at((LANES3.indexOf(L) + 0.5) / 3, (y0 + y1) / 2, ht / 2))
         group.add(box)
-        const lab = labelSprite(String(n), C.text); lab.position.copy(at((LANES3.indexOf(L) + 0.5) / 3, (y0 + y1) / 2, ht + 5)); lab.scale.multiplyScalar(0.9); group.add(lab)
+        const lab = labelSprite(`${Math.round((100 * n) / total)}%`, C.text); lab.position.copy(at((LANES3.indexOf(L) + 0.5) / 3, (y0 + y1) / 2, ht + 5)); lab.scale.multiplyScalar(0.9); group.add(lab)
       }
     }
     // the red zone: each touch at its yard line on a rail past the near sideline
