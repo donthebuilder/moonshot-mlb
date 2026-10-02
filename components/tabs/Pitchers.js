@@ -522,7 +522,7 @@ function BullpenBoard({ pitchers, onTeamClick }) {
         <button onClick={() => setOpen(!open)} style={{
           marginTop: 6, fontSize: TYPE.micro, fontWeight: 700, cursor: 'pointer', color: C.text3,
           background: 'transparent', border: `1px dashed ${C.border}`, borderRadius: 6, padding: '2px 9px',
-        }}>{open ? 'show less' : `all ${rows.length} pens`}</button>
+        }}>{open ? 'Show less' : `Show all ${rows.length} pens`}</button>
       )}
 
       {/* ── THE PENS WORTH TALKING ABOUT ─────────────────────────────────────

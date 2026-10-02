@@ -138,7 +138,7 @@ export default function NflYourPlayers({ players = [], onPlayerClick = null }) {
           <button type="button" onClick={toggle} style={{
             marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer',
             fontFamily: NUM_FONT, fontSize: 9.5, color: C.green, fontWeight: 800,
-          }}>{open ? 'show less' : `+${hiddenN} more`}</button>
+          }}>{open ? 'Show less' : `Show ${hiddenN} more`}</button>
         )}
       </div>
       <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 2 }}>

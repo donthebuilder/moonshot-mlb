@@ -174,7 +174,7 @@ export default function Streaks({ data, logs, onPlayerClick }) {
             )}
             {board.length > PREVIEW && (
               <button type="button" onClick={() => setAll(!all)} style={{ ...runChip(false), alignSelf: 'flex-start', padding: '8px 14px' }}>
-                {all ? 'show fewer' : `show all ${board.length}`}
+                {all ? 'Show less' : `Show all ${board.length}`}
               </button>
             )}
           </>

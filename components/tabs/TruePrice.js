@@ -679,7 +679,7 @@ export default function TruePrice({ onPlayerClick, players = [], odds = null }) 
                 type="button"
                 onClick={() => setExtra((n) => n + TRUE_PRICE_CAP)}
                 style={moreBtn()}
-              >show {Math.min(TRUE_PRICE_CAP, truncated)} more</button>
+              >Show {Math.min(TRUE_PRICE_CAP, truncated)} more</button>
               {truncated > TRUE_PRICE_CAP && (
                 <>
                   {' '}
@@ -687,7 +687,7 @@ export default function TruePrice({ onPlayerClick, players = [], odds = null }) 
                     type="button"
                     onClick={() => setExtra(shown.length)}
                     style={moreBtn()}
-                  >show all {shown.length}</button>
+                  >Show all {shown.length}</button>
                 </>
               )}
               .

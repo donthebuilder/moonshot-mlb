@@ -859,7 +859,7 @@ export default function DenseTable({
               type="button"
               onClick={() => setExtra((n) => n + maxRows)}
               style={moreBtn()}
-            >show {Math.min(maxRows, truncated)} more</button>
+            >Show {Math.min(maxRows, truncated)} more</button>
             {truncated > maxRows && (
               <>
                 {' '}
@@ -867,7 +867,7 @@ export default function DenseTable({
                   type="button"
                   onClick={() => setExtra(sorted.length)}
                   style={moreBtn()}
-                >show all {sorted.length}</button>
+                >Show all {sorted.length}</button>
               </>
             )}
             .{' '}

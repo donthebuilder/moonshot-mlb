@@ -21,7 +21,10 @@ export default function CardShell({ inline, onClose, width, children: kids, labe
   const { ref, dialogProps } = useDialog({ open: !inline, onClose, label })
   if (inline) {
     return (
-      <div style={{
+      // modal-content: the inline panel takes the modal's phone padding (MobileCSS,
+      // 14-16px a side instead of 20) -- at 390 its 20px cut "Connor McDavid" to
+      // "Connor Mc…" (Donovan 10-02: "fix that")
+      <div className="modal-content" style={{
         background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 18,
         padding: '18px 20px 22px',
       }}>{children}</div>

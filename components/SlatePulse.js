@@ -192,7 +192,7 @@ export default function SlatePulse({ players = [], slateDate = '', backtest, onP
                 background: 'transparent', border: '1px dashed rgba(252,211,77,.4)',
                 borderRadius: 7, padding: '3px 10px', fontFamily: NUM_FONT,
               }}>
-                {showAllUnconf ? 'show fewer' : `+${unconfirmed.length - 8} more`}
+                {showAllUnconf ? 'Show less' : `Show ${unconfirmed.length - 8} more`}
               </button>
             )}
           </div>
@@ -349,7 +349,7 @@ export default function SlatePulse({ players = [], slateDate = '', backtest, onP
                           <button onClick={() => setColOpen((s) => ({ ...s, [k]: !open }))} style={{
                             marginTop: 5, fontSize: 9, fontWeight: 700, color, cursor: 'pointer',
                             background: 'transparent', border: 'none', padding: 0, fontFamily: NUM_FONT,
-                          }}>{open ? 'show fewer' : `+${list.length - 10} more`}</button>
+                          }}>{open ? 'Show less' : `Show ${list.length - 10} more`}</button>
                         )}
                       </div>
                     )

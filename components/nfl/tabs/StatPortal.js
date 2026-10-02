@@ -136,7 +136,7 @@ function RecentGames({ rows, market, bar, setMarket }) {
               {shown.map(renderRow)}
               {!ordered.length && <p className="portal-empty">{active ? 'No published games clear this slice.' : 'No published game log for this player yet.'}</p>}
               {active && ordered.length > 5 && (
-                <button className="portal-see-all" onClick={() => setShowAll((v) => !v)}>{showAll ? 'Show fewer' : `See all ${ordered.length} matching games`}</button>
+                <button className="portal-see-all" onClick={() => setShowAll((v) => !v)}>{showAll ? 'Show less' : `Show all ${ordered.length} matching games`}</button>
               )}
             </>
           )

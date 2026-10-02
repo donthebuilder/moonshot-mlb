@@ -22,7 +22,7 @@ export default function LedgerSection({ C, numFont, accent, title, blurb, rows =
       {rows.length > preview && (
         <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open}
           style={{ marginTop: 6, minHeight: 44, padding: '0 10px', border: `1px solid ${C.border}`, borderRadius: 8, background: 'transparent', color: accent, font: `800 11px/1 ${numFont}`, cursor: 'pointer' }}>
-          {open ? 'Show fewer' : `Show all ${rows.length}`}
+          {open ? 'Show less' : `Show all ${rows.length}`}
         </button>
       )}
       {footer}

@@ -68,7 +68,7 @@ export default function HistoryWatch({ sport = 'mlb', theme = null, numFont = nu
       })}
       {items.length > max && (
         <button type="button" onClick={() => setAll((v) => !v)} style={{ marginTop: 4, background: 'none', border: 'none', padding: 0, color: C.text3, cursor: 'pointer', fontFamily: NUM_FONT, fontSize: 10 }}>
-          {all ? 'show fewer' : `+${items.length - max} more`}
+          {all ? 'Show less' : `Show ${items.length - max} more`}
         </button>
       )}
     </div>

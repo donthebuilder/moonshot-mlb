@@ -27,7 +27,7 @@ function More({ n, open, setOpen, accent }) {
     <button type="button" onClick={() => setOpen((v) => !v)} style={{
       alignSelf: 'center', minHeight: 32, padding: '4px 10px', borderRadius: 8, cursor: 'pointer',
       border: `1px dashed ${C.border2}`, background: 'transparent', color: accent, fontFamily: NUM_FONT, fontSize: 10, fontWeight: 800,
-    }}>{open ? 'show fewer' : `+${n} more`}</button>
+    }}>{open ? 'Show less' : `Show ${n} more`}</button>
   )
 }
 

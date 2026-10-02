@@ -148,7 +148,7 @@ export default function OffBoardStrip({ players = [], onPlayerClick }) {
           marginTop: 6, background: 'transparent', border: 'none', padding: 0,
           fontSize: 9.5, fontWeight: 800, fontFamily: NUM_FONT, color: C.text3, cursor: 'pointer',
         }}>
-          {open ? 'show fewer' : `+${Math.min(filtered.length, 40) - SHOWN} more`}
+          {open ? 'Show less' : `Show ${Math.min(filtered.length, 40) - SHOWN} more`}
         </button>
       )}
     </div>

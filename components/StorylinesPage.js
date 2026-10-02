@@ -136,7 +136,7 @@ export default function StorylinesPage({ sport, eyebrow, theme: C, numFont, acce
             {rows.length > SHOW ? (
               <button type="button" onClick={() => setOpen((o) => { const n = new Set(o); if (n.has(g.game_id)) n.delete(g.game_id); else n.add(g.game_id); return n })}
                 style={{ minHeight: 44, padding: 0, border: 'none', background: 'transparent', color: C.text2, font: 'inherit', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
-                {all ? 'Show fewer' : `+${rows.length - SHOW} more`}
+                {all ? 'Show less' : `Show ${rows.length - SHOW} more`}
               </button>
             ) : null}
           </section>

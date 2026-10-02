@@ -101,7 +101,7 @@ export default function RecentAlerts({ styles = null, enabled, sport = null, emp
       ) : null}
       {list.length > PREVIEW ? (
         <button type="button" className={styles?.armBtn} style={styles ? { marginTop: 8 } : { marginTop: 8, padding: '6px 10px', border: '1px solid currentColor', borderRadius: 8, background: 'transparent', color: 'inherit', font: 'inherit', fontSize: 11, cursor: 'pointer' }} onClick={() => setAll(!all)} aria-expanded={all}>
-          {all ? 'Show fewer' : `Show all ${list.length}`}
+          {all ? 'Show less' : `Show all ${list.length}`}
         </button>
       ) : null}
     </div>
