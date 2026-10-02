@@ -1,0 +1,507 @@
+'use client'
+// DENSETABLE, SKIN V2 (2026-10-01, BATCH-TABLE-SKIN-V2 -- .claude-notes/
+// BATCH-TABLE-SKIN-V2-PLAN.md). Donovan, on the live mock of The Board: "this
+// looks great … this is the new component … push this style to all the charts
+// site wide." The SAME table -- every behaviour DenseTable owns (sort,
+// shift-click tiebreak, sticky header, watch star, ⓘ, row click, CSV, the cap
+// and its "show more", spotlight, pickLight) -- drawn as a DASH sheet:
+//
+//   - NO WASHES AT REST. Only the column you sort by is graded (the ramp the
+//     table already uses, at <= 35% alpha) and every cell in it carries ▲ / ▼;
+//     a shift-click tiebreak column is graded at 45% of that, no arrows.
+//     Sorting by a name / team / role paints nothing.
+//   - Scores (`bar`) draw a 28 x 3 bar + the figure, not a tinted cell.
+//     League columns (`scale:'div'`) print plain; the warm side's figure is
+//     cream 700, the other side text3, the ▲ / ▼ as today.
+//   - Flags are a glyph in the accent on transparent; off is the glyph at 12%.
+//   - Columns sit in their GROUPS (`group: { key, label, order }` or a plain
+//     label), one group row above the headers, one rule between groups, no
+//     vertical borders inside one.
+//   - Team columns draw the club LOGO (TeamMark variant="logo").
+//   - PHONE (<= 640px): rank + name pinned (<= 150px); the 'call' group's other
+//     columns fold into a mono sub-line under the name; numbers 10px, names
+//     11px, 32px rows. A name too long for the pinned cell at 11px shows the
+//     surname (the full name in title=).
+//   - The product's accent everywhere the skin uses one: accent prop -> the
+//     SportTheme accent -> C.orange. No orange by accident.
+//
+// Plain functions, no hooks: DenseTable owns the state and calls renderV2.
+import TeamMark from '../TeamMark'
+import Tap from '../Tap'
+import PlayerFace from '../PlayerFace'
+import CallStatusBadge from '../CallStatusBadge'
+import { ShowMoreButton } from '../ListPreview'
+import { InfoDot, ExplainBanner, explainFor, explainFrom } from '../Explain'
+import { ANSWERS } from '../../lib/scoreAnswers'
+import { cellMark, SPOT_MARK } from '../../lib/spotlight'
+import { rampColor } from '../Heatmap'
+import { seqColor, divTone, SEQ_AUTO, DIV_FIELD, DIV_UP, DIV_DOWN, fieldLabel, medianOf, seqGlyph, rgbOf } from '../../lib/scales'
+
+const SORT_ALPHA = 0.35
+const TIE_ALPHA = SORT_ALPHA * 0.45
+const isBlank = (v) => v === null || v === undefined || v === '' || v === '—'
+const numOf = (v) => (isBlank(v) ? NaN : Number(v))
+
+/** any CSS colour we produce (hex or rgb[a]) at alpha a */
+export function withAlpha(col, a) {
+  const s = String(col || '')
+  const m = /^rgba?\(([^)]+)\)/.exec(s)
+  const [r, g, b] = m ? m[1].split(',').slice(0, 3).map((x) => Number(x.trim())) : rgbOf(s)
+  return `rgba(${r},${g},${b},${Math.max(0, Math.min(1, a)).toFixed(3)})`
+}
+
+// ── the skin, resolved: prop -> ?skin= (search or hash; also remembered) ->
+//    localStorage 'dash_table_skin' -> null (the caller's default)
+export const SKIN_KEY = 'dash_table_skin'
+export function readSkin() {
+  if (typeof window === 'undefined') return null
+  try {
+    const q = new URLSearchParams(window.location.search).get('skin')
+      || new URLSearchParams(String(window.location.hash || '').replace(/^#/, '')).get('skin')
+    if (q === 'v2' || q === 'classic') {
+      try { window.localStorage.setItem(SKIN_KEY, q) } catch { /* private mode */ }
+      return q
+    }
+    const ls = window.localStorage.getItem(SKIN_KEY)
+    return ls === 'v2' || ls === 'classic' ? ls : null
+  } catch { return null }
+}
+
+// ── groups: a column's group as { key, label, order }; a string is its own
+//    label, ordered by first appearance. Ungrouped columns ride with the
+//    group before them, so a partly-tagged table never scatters.
+const groupOf = (c) => (c.group == null ? null : typeof c.group === 'string' ? { key: c.group, label: c.group, order: null } : c.group)
+export function orderByGroup(columns) {
+  if (!columns.some((c) => c.group != null)) return columns
+  let last = null
+  const seen = new Map()
+  const tagged = columns.map((c, i) => {
+    const g = groupOf(c) || last
+    last = g
+    if (g && !seen.has(g.key)) seen.set(g.key, seen.size)
+    return { c, i, g }
+  })
+  const rank = (g) => (g ? (g.order ?? 1000 + seen.get(g.key)) : -1)
+  return tagged.sort((a, b) => (rank(a.g) - rank(b.g)) || (a.i - b.i)).map((t) => ({ ...t.c, _g: t.g }))
+}
+
+// ── names that fit: measured at the phone's 11px, against the pinned cell
+const NAME_ROOM = 108   // 122px pinned name cell - 2 x 6px padding - a hair
+let _ctx = null
+const fits = (name) => {
+  if (typeof document === 'undefined') return true
+  try {
+    if (!_ctx) _ctx = document.createElement('canvas').getContext('2d')
+    const fam = getComputedStyle(document.body).fontFamily || 'system-ui, sans-serif'
+    _ctx.font = `600 11px ${fam}`
+    return _ctx.measureText(String(name)).width <= NAME_ROOM
+  } catch { return true }
+}
+const surname = (name) => {
+  const parts = String(name || '').trim().split(/\s+/)
+  if (parts.length < 2) return name
+  const tail = /^(jr\.?|sr\.?|ii|iii|iv)$/i.test(parts[parts.length - 1]) ? parts.slice(-2).join(' ') : parts[parts.length - 1]
+  return tail
+}
+
+export function v2Css(C, ac, NUM_FONT) {
+  return `
+    .dtv2 table { border-collapse: separate; border-spacing: 0; width: 100%; }
+    .dtv2 th, .dtv2 td { background: ${C.bg2}; }
+    .dtv2 .g-row th { font: 800 10px/1 system-ui, -apple-system, sans-serif; letter-spacing: .16em; text-transform: uppercase;
+      color: ${C.text3}; height: 18px; padding: 0 8px; position: relative; text-align: left; white-space: nowrap; overflow: visible; }
+    .dtv2 .g-tick { display: inline-block; width: 14px; height: 2px; background: ${ac}; vertical-align: middle; margin-right: 6px; border-radius: 1px; }
+    .dtv2 .h-row th { font: 700 9px/1.2 ${NUM_FONT}; letter-spacing: .06em; text-transform: uppercase; color: ${C.text3};
+      height: 24px; padding: 0 7px; white-space: nowrap; cursor: pointer; user-select: none; border-bottom: 1px solid ${C.border}; }
+    .dtv2 .h-row th.on { color: ${C.text}; box-shadow: inset 0 -2px 0 ${ac}; }
+    .dtv2 td { height: 36px; padding: 0 7px; border-bottom: 1px solid ${C.border}; white-space: nowrap; }
+    .dtv2 td.num { font: 500 11.5px/1 ${NUM_FONT}; color: ${C.text2}; text-align: right; }
+    .dtv2 td.num b { font-weight: 700; }
+    .dtv2 td.name { font: 600 12.5px/1.15 system-ui, -apple-system, sans-serif; color: ${C.text}; overflow: hidden; text-overflow: ellipsis; }
+    .dtv2 td.txt { font: 500 11px/1.2 system-ui, -apple-system, sans-serif; color: ${C.text2}; overflow: hidden; text-overflow: ellipsis; }
+    .dtv2 td.rank, .dtv2 th.rank { font: 800 15px/1 system-ui, -apple-system, sans-serif; color: ${C.text3}; text-align: right; }
+    .dtv2 th.rank { font-size: 9px; }
+    .dtv2 .g0 { box-shadow: inset 1px 0 0 ${C.border2}; }
+    .dtv2 .h-row th.g0.on { box-shadow: inset 1px 0 0 ${C.border2}, inset 0 -2px 0 ${ac}; }
+    .dtv2 .bar { display: inline-block; width: 28px; height: 3px; border-radius: 2px; background: ${C.bg3}; vertical-align: middle; margin-right: 6px; position: relative; overflow: hidden; }
+    .dtv2 .bar i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 2px; }
+    .dtv2 .glyph { font-size: 12px; font-weight: 800; }
+    .dtv2 .arrow { margin-left: 3px; font-size: 8px; opacity: .9; }
+    .dtv2 .sub { display: none; }
+    .dtv2 .dtv2-scroll { -webkit-overflow-scrolling: touch; }
+    .dtv2 th.rank { overflow: hidden; }
+    .dtv2 .short { display: none; }
+    .dtv2 tr.dtv2-row { cursor: default; }
+    .dtv2 tr.dtv2-click { cursor: pointer; }
+    @media (hover: hover) { .dtv2 tr.dtv2-row:hover td { background: ${C.bg3}; } }
+    @media (max-width: 760px) { .dtv2 .dense-face { display: none !important; } }
+    @media (max-width: 640px) {
+      .dtv2 .dtv2-scroll { scrollbar-width: none; }
+      .dtv2 .dtv2-scroll::-webkit-scrollbar { display: none; }
+      .dtv2 .fold { display: none !important; }
+      .dtv2 td { height: 32px; padding: 0 5px; }
+      .dtv2 td.num { font-size: 10px; }
+      .dtv2 td.name { font-size: 11px; line-height: 1.1; padding: 2px 6px !important; }
+      .dtv2 td.name, .dtv2 th.name { width: 122px !important; min-width: 122px !important; max-width: 122px !important; }
+      .dtv2 td.rank { font-size: 13px; padding: 0 3px 0 0; }
+      .dtv2 td.rank, .dtv2 th.rank { width: 26px !important; min-width: 26px !important; max-width: 26px !important; padding: 0 3px 0 0; }
+      .dtv2 .sub img { width: 11px !important; height: 11px !important; margin: -2px 0; }
+      .dtv2 td.name > button { min-height: 0 !important; }
+      /* the star: a 44px hit box, a 32px layout box (classic's negative-margin trick) */
+      .dtv2 td.dense-action button { height: 44px !important; min-height: 44px !important; margin: -6px 0 !important; }
+      .dtv2 .pin2 { left: 26px !important; }
+      .dtv2 .h-row th { font-size: 8px; padding: 0 5px; }
+      .dtv2 .bar { width: 20px; margin-right: 4px; }
+      .dtv2 .sub { display: block; font: 700 8.5px/1.15 ${NUM_FONT}; color: ${C.text3}; letter-spacing: .02em; margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .dtv2 .long .full { display: none; }
+      .dtv2 .long .short { display: inline; }
+    }
+  `
+}
+
+/**
+ * renderV2(ctx): the v2 sheet. ctx carries DenseTable's own state and props.
+ */
+export function renderV2(ctx) {
+  const {
+    C, NUM_FONT, ac, columns: rawColumns, view, sorted, sort, setSort, toggle, ranges, fields, lit,
+    ramp, rowEdge, faceOf, onRowClick, dimRow, pick, rowPid, pickColorOf, firstMatch,
+    explain, setExplain, dict, scoreTerms, caveat, accent, maxHeight, caption,
+    truncated, maxRows, extra, setExtra, exportCsv, railRef, statusOf, title, initialStack, firstTextKey,
+    capOpen, setCapOpen,
+  } = ctx
+  const ordered = orderByGroup(rawColumns)
+  // THE STATUS STAMP (plan step 4): when the caller can say each row's status,
+  // a Status column joins the CALL group, after its last column. The word is
+  // lib/callStatus STATUS_WORD via CallStatusBadge; the status is the caller's.
+  const withStatus = typeof statusOf === 'function'
+  const columns = (() => {
+    if (!withStatus) return ordered
+    const nm = ordered.find((c) => c.sticky && c.heat === false)
+    const g = nm?._g || null
+    let at = ordered.indexOf(nm)
+    ordered.forEach((c, i) => { if (g && c._g?.key === g.key) at = i })
+    const col = { key: '_status', label: 'Status', heat: false, _status: true, _g: g, w: 118, title: 'CALLED / ON THE BOARD / NOT ON THE BOARD, from the one status rule (lib/callStatus).' }
+    return [...ordered.slice(0, at + 1), col, ...ordered.slice(at + 1)]
+  })()
+  const isRank = (c) => c.rankCol === true
+  const rankC = columns.find(isRank)
+  const nameC = columns.find((c) => c.sticky && c.heat === false) || columns.find((c) => c.key === firstTextKey)
+  // the 'call' group's other text columns fold into the phone sub-line
+  const callKey = nameC?._g?.key ?? null
+  const folds = (c) => !!callKey && c._g?.key === callKey && c !== nameC && !isRank(c) && (c.heat === false || c.action)
+  const s0 = sort[0]?.key ?? null, s1 = sort[1]?.key ?? null
+  const eligible = (c) => c.heat !== false && !c.flag && !c.action
+  const medians = {}
+  for (const k of [s0, s1]) {
+    const c = columns.find((x) => x.key === k)
+    if (c && eligible(c)) medians[k] = medianOf(sorted.map((r) => numOf(r[k])))
+  }
+  const groupStart = new Set()
+  columns.forEach((c, i) => { if (i > 0 && c._g && c._g.key !== columns[i - 1]._g?.key) groupStart.add(c.key) })
+
+  const pinStyle = (c, head) => {
+    if (c === rankC) return { position: 'sticky', left: 0, zIndex: head ? 5 : 2 }
+    if (c === nameC) return { position: 'sticky', left: rankC ? (rankC.w || 40) : 0, zIndex: head ? 5 : 2 }
+    return null
+  }
+  const cls = (c, base) => [base, groupStart.has(c.key) ? 'g0' : '', folds(c) ? 'fold' : '', c === nameC && rankC ? 'pin2' : ''].filter(Boolean).join(' ')
+
+  // the grade a sorted column wears, from the SAME colour the classic table
+  // computes for it (ramp / seq domain / ramp over the column's range / divTone)
+  const gradeOf = (c, num, a) => {
+    if (!Number.isFinite(num)) return null
+    const fld = c.anchor === DIV_FIELD ? fields[c.key] : null
+    if (c.scale === 'div' && (c.anchor !== DIV_FIELD || fld)) {
+      const d = divTone(num, { anchor: fld ? fld.anchor : (c.anchor ?? 0), ceiling: fld ? fld.ceiling : (c.ceiling ?? 1), deadband: c.deadband ?? 0.08, invert: c.invert === true })
+      return d.bg === 'transparent' ? null : withAlpha(d.bg, a)
+    }
+    const [lo, hi] = ranges[c.key] || [0, 1]
+    const [dlo, dhi] = c.domain && c.domain !== SEQ_AUTO ? c.domain : [lo, hi]
+    const col = ramp
+      ? ramp(dhi > dlo ? (c.invert ? (dhi - num) : (num - dlo)) / (dhi - dlo) : 0.5)
+      : c.scale === 'seq' && c.domain && c.domain !== SEQ_AUTO ? seqColor(num, c.domain)
+        : c.invert ? rampColor(hi - (num - lo), lo, hi) : rampColor(num, lo, hi)
+    return col ? withAlpha(col, a) : null
+  }
+
+  const head = (
+    <thead style={{ position: 'sticky', top: 0, zIndex: 3 }}>
+      {columns.some((c) => c._g) && (
+        <tr className="g-row">
+          {columns.map((c, i) => {
+            // the label sits on the first column of its run that a phone still
+            // shows (a folded column is hidden there), so it is drawn once and
+            // never hides under a pinned cell
+            const lead = columns.find((x) => x._g?.key === c._g?.key && !folds(x))
+            const label = c._g && c === lead ? c._g.label : null
+            return (
+              <th key={c.key} className={cls(c, '')} style={{ ...(pinStyle(c, true) || {}), position: pinStyle(c, true) ? 'sticky' : 'relative', zIndex: pinStyle(c, true) ? (label ? 7 : 6) : label ? 4 : 3 }}>
+                {/* absolute: a group's label must not widen its first column */}
+                {label ? <span style={{ position: 'absolute', left: 8, top: 0, bottom: 0, display: 'flex', alignItems: 'center', whiteSpace: 'nowrap', pointerEvents: 'none' }}><span className="g-tick" />{label}</span> : null}
+              </th>
+            )
+          })}
+        </tr>
+      )}
+      <tr className="h-row">
+        {columns.map((c) => {
+          const si = sort.findIndex((x) => x.key === c.key)
+          const on = si >= 0
+          const dir = on ? sort[si].dir : null
+          const plain = c.explain || (dict ? explainFrom(dict, c.term, c.key, c.label) : explainFor(c.term, c.key, c.label)) || (c.answers ? ANSWERS[c.answers]?.what : null)
+          return (
+            <th key={c.key} scope="col" aria-sort={on ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'}
+              className={cls(c, [on ? 'on' : '', isRank(c) ? 'rank' : '', c === nameC ? 'name' : ''].filter(Boolean).join(' '))}
+              onClick={c._status ? undefined : (e) => toggle(c.key, e.shiftKey)}
+              title={`${c.title || c.label}\n\nClick to sort. Shift-click to add as a tiebreaker under the current sort.`}
+              style={{ ...(pinStyle(c, true) || {}), textAlign: c.heat === false || c.action ? 'left' : 'right', width: c.w, minWidth: c.w }}>
+              {String(c.label || '').trim() ? c.label : <span className="sr-only">{c.title || c.key || 'Column'}</span>}
+              {plain && (
+                <span style={{ opacity: explain?.key === c.key ? 1 : 0.55 }}>
+                  <InfoDot on={explain?.key === c.key}
+                    onClick={() => setExplain((cur) => (cur?.key === c.key ? null : { key: c.key, label: c.label, text: plain, art: c.art || null, answers: c.answers || null }))} />
+                </span>
+              )}
+              {on && <>{dir === 'desc' ? ' ▾' : ' ▴'}{sort.length > 1 && <sup style={{ fontSize: 7.5, marginLeft: 1, opacity: 0.85 }}>{si + 1}</sup>}</>}
+            </th>
+          )
+        })}
+      </tr>
+    </thead>
+  )
+
+  const body = (
+    <tbody>
+      {view.map((r, ri) => {
+        const pid = pick.count ? rowPid(r) : ''
+        const light = (pid && pick.has(pid) ? { color: pickColorOf(C), name: `you highlighted ${pick.map[pid] || 'him'}`, mark: '✨' } : null) || firstMatch(r._raw ?? r)
+        const tint = light ? withAlpha(light.color, 0.05) : null
+        const status = withStatus ? statusOf(r) : null
+        const called = status === 'called'
+        const watched = columns.some((c) => c.action && r[c.key])
+        return (
+          <tr key={r._key ?? ri} onClick={onRowClick ? () => onRowClick(r._raw ?? r) : undefined}
+            title={light ? `Highlight: ${light.name || 'match'}` : undefined}
+            className={onRowClick ? 'dtv2-row dtv2-click dense-row dense-click' : 'dtv2-row dense-row'}
+            style={{ opacity: dimRow?.(r) ? 0.42 : 1 }}>
+            {columns.map((c) => {
+              const v = r[c.key]
+              const pin = pinStyle(c, false) || {}
+              const bgTint = tint ? { background: `linear-gradient(${tint}, ${tint}), ${C.bg2}` } : null
+
+              if (c.action) {
+                const on = !!v && v !== 0
+                return (
+                  <td key={c.key} className={cls(c, 'dense-action')} style={{ textAlign: 'center', padding: 0, ...pin, ...(bgTint || {}) }}>
+                    <button type="button" onClick={(e) => { e.stopPropagation(); c.onAction?.(r._raw ?? r) }}
+                      title={on ? (c.titleOn || 'Remove') : (c.titleOff || 'Add')} aria-pressed={on}
+                      style={{ width: '100%', height: 36, border: 'none', background: 'transparent', cursor: 'pointer', color: on ? ac : C.text3, fontSize: 13, fontWeight: 800 }}>
+                      {on ? (c.mark || '★') : (c.markOff || '☆')}
+                    </button>
+                  </td>
+                )
+              }
+
+              if (c.flag) {
+                const on = !!v && v !== 0 && v !== '—'
+                return (
+                  <td key={c.key} className={cls(c, 'num')} style={{ textAlign: 'center', ...(bgTint || {}) }}>
+                    <span className="glyph" style={{ color: on ? ac : C.text3, opacity: on ? 1 : 0.12 }}>{c.mark || '●'}</span>
+                  </td>
+                )
+              }
+
+              if (c._status) {
+                return <td key={c.key} className={cls(c, 'txt')} style={bgTint || undefined}><CallStatusBadge status={status} accent={ac} /></td>
+              }
+
+              if (c.heat === false) {
+                const isName = c === nameC
+                const textTitle = c.titleKey ? (r?.[c.titleKey] || undefined) : undefined
+                const go = c.link ? c.link(r._raw ?? r) : null
+                if (isRank(c)) {
+                  return (
+                    <td key={c.key} className={cls(c, 'rank')} style={{ ...pin, ...(called ? { color: ac } : {}), ...(bgTint || {}) }}>
+                      {c.fmt ? String(c.fmt(v, r)).replace(/^#/, '') : (v ?? '—')}
+                    </td>
+                  )
+                }
+                if (c.teamMark && v) {
+                  const mark = <TeamMark sport={c.teamMark} abbr={v} variant="logo" px={18} />
+                  return <td key={c.key} className={cls(c, 'txt')} title={String(v)} style={{ ...pin, ...(bgTint || {}) }}>{go ? <Tap onClick={go}>{mark}</Tap> : mark}</td>
+                }
+                const content = c.fmt ? c.fmt(v, r) : (v ?? '—')
+                if (isName) {
+                  const full = String(typeof content === 'string' ? content : (v ?? ''))
+                  const long = typeof content === 'string' && !fits(full)
+                  const edge = light ? light.color : rowEdge?.(r) || (called ? ac : null)
+                  // the phone sub-line: CALLED · [logo] ATL · v [logo] (+ ★ when watched)
+                  const sub = []
+                  if (called) sub.push(<span key="st" style={{ color: ac }}>CALLED</span>)
+                  let firstTeam = true
+                  for (const fc of columns) {
+                    if (!folds(fc) || fc.action) continue
+                    const fv = r[fc.key]
+                    if (isBlank(fv)) continue
+                    // a called row has no room for the opponent at 122px (plan: rough edge)
+                    if (fc.teamMark && !(called && !firstTeam)) {
+                      sub.push(<span key={fc.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>{firstTeam ? null : 'v '}<TeamMark sport={fc.teamMark} abbr={fv} variant="logo" px={13} />{firstTeam ? String(fv) : null}</span>)
+                      firstTeam = false
+                    }
+                  }
+                  if (watched) sub.push(<span key="w" style={{ color: ac }}>★</span>)
+                  const nameEl = typeof content === 'string'
+                    ? <><span className="full">{content}</span><span className="short">{surname(content)}</span></>
+                    : content
+                  return (
+                    <td key={c.key} title={long ? full : textTitle} className={cls(c, `name${long ? ' long' : ''}`)}
+                      style={{ ...pin, ...(edge ? { boxShadow: `inset 3px 0 0 ${edge}` } : {}), ...(bgTint || {}), maxWidth: c.w }}>
+                      {light && <span title={`Highlight: ${light.name || 'match'}`} style={cellMark(light.color)}>{light.mark || SPOT_MARK}</span>}
+                      {faceOf && (() => { const f = faceOf(r); return f ? <PlayerFace {...f} variant="table" size={18} className="dense-face" style={{ margin: '-6px 5px -6px 0' }} /> : null })()}
+                      {go ? <Tap onClick={go}>{nameEl}</Tap> : nameEl}
+                      {sub.length > 0 && (
+                        <div className="sub">{sub.map((x, i) => <span key={i}>{i ? ' · ' : ''}{x}</span>)}</div>
+                      )}
+                    </td>
+                  )
+                }
+                const role = c.key === 'role'
+                return (
+                  <td key={c.key} title={textTitle} className={cls(c, c.mono ? 'num' : 'txt')}
+                    style={{ ...pin, textAlign: 'left', maxWidth: c.w, ...(bgTint || {}) }}>
+                    {role && !isBlank(v)
+                      ? <span style={{ border: `1px solid ${C.border2}`, borderRadius: 5, padding: '2px 6px', fontSize: 10.5 }}>{go ? <Tap onClick={go}>{content}</Tap> : content}</span>
+                      : go ? <Tap onClick={go}>{content}</Tap> : content}
+                  </td>
+                )
+              }
+
+              // ── numbers
+              const num = numOf(v)
+              const gone = typeof c.blankWhen === 'function' && c.blankWhen(num, r)
+              const isSort = c.key === s0, isTie = c.key === s1
+              const bg = !gone && (isSort || isTie) ? gradeOf(c, num, isSort ? SORT_ALPHA : TIE_ALPHA) : null
+              let arrow = ''
+              let ink = C.text2, weight = 500
+              const fld = c.anchor === DIV_FIELD ? fields[c.key] : null
+              const divOK = c.scale === 'div' && (c.anchor !== DIV_FIELD || !!fld)
+              if (divOK && !gone && (lit(c, num) || isSort)) {
+                const d = divTone(num, { anchor: fld ? fld.anchor : (c.anchor ?? 0), ceiling: fld ? fld.ceiling : (c.ceiling ?? 1), deadband: c.deadband ?? 0.08, invert: c.invert === true })
+                const warm = d.t != null && Math.abs(d.t) >= (c.deadband ?? 0.08) && (c.invert ? d.t < 0 : d.t > 0)
+                if (d.glyph === DIV_UP || d.glyph === DIV_DOWN) {
+                  arrow = d.glyph
+                  if (warm) { ink = C.cream || C.text; weight = 700 } else ink = C.text3
+                }
+              } else if (isSort && !gone) {
+                arrow = seqGlyph(num, medians[c.key])
+                if (arrow !== DIV_UP && arrow !== DIV_DOWN) arrow = ''
+              }
+              if (isTie) arrow = ''
+              const shown = gone ? '—' : c.fmt ? c.fmt(v, r) : (Number.isFinite(num) ? num.toFixed(c.dp ?? 0) : '—')
+              const titleNum = !Number.isFinite(num) ? '—' : Number.isInteger(num) ? String(num) : num.toFixed(c.dp ?? 2)
+              const zero = divOK ? (fld ? fieldLabel(fld, c.dp ?? 1) : (c.anchorLabel || String(c.anchor ?? 0))) : null
+              let barEl = null
+              if (c.bar && Number.isFinite(num) && !gone) {
+                const [lo, hi] = ranges[c.key] || [0, 1]
+                const [dlo, dhi] = c.domain && c.domain !== SEQ_AUTO ? c.domain : [lo, hi]
+                const f = dhi > dlo ? Math.max(0, Math.min(1, (num - dlo) / (dhi - dlo))) : 0
+                barEl = <span className="bar" aria-hidden="true"><i style={{ width: `${Math.round(f * 100)}%`, background: c.bar === 'primary' ? ac : C.text3 }} /></span>
+                ink = C.text; weight = 700
+              }
+              return (
+                <td key={c.key} className={cls(c, 'num')}
+                  title={`${c.label}: ${titleNum}${zero ? ` · against ${zero}` : ''}`}
+                  style={{ ...(bg ? { background: `linear-gradient(${bg}, ${bg}), ${C.bg2}` } : bgTint || {}), color: ink, fontWeight: weight, minWidth: c.w || 40 }}>
+                  {barEl}{shown}
+                  {arrow && <span className="arrow" style={{ color: arrow === DIV_UP ? (C.cream || C.text) : C.text3 }}>{arrow}</span>}
+                </td>
+              )
+            })}
+          </tr>
+        )
+      })}
+    </tbody>
+  )
+
+  const sortWords = sort.map((s, i) => {
+    const col = rawColumns.find((c) => c.key === s.key)
+    return `${i ? ' then ' : ''}${col?.label || s.key} ${s.dir === 'desc' ? '▼' : '▲'}`
+  }).join('')
+  const isInitial = JSON.stringify(sort) === JSON.stringify(initialStack())
+
+  return (
+    <div className="dtv2">
+      <style>{v2Css(C, ac, NUM_FONT)}</style>
+      <ExplainBanner label={explain?.label} text={explain?.text} onClose={() => setExplain(null)}
+        scoreTerms={scoreTerms} caveat={caveat} accent={accent || ac} art={explain?.art} answers={explain?.answers} />
+      <div style={{ border: `1px solid ${C.border}`, borderRadius: 12, background: C.bg2, overflow: 'hidden' }}>
+        {/* THE SHEET HEAD, only when it says something the table doesn't: a
+            title, or a sort you chose (with its reset). At the opening sort the
+            header's own ▴ says it, and a head would push the first row down
+            (plan: first-row y no lower than classic). */}
+        {(title || !isInitial) && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '2px 12px', minHeight: 28, flexWrap: 'wrap', borderBottom: `1px solid ${C.border}` }}>
+          {title && <span style={{ font: '800 16px/1.1 system-ui, -apple-system, sans-serif', color: C.text }}>{title}</span>}
+          <span style={{ fontFamily: NUM_FONT, fontSize: 10, color: C.text3 }}>{sorted.length} row{sorted.length === 1 ? '' : 's'}</span>
+          <span style={{ marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: 10, color: C.text3 }}>
+            {sort.length ? <>sorted · <b style={{ color: C.text2 }}>{sortWords}</b></> : 'unsorted'}
+            {!isInitial && (
+              <button type="button" onClick={() => setSort(initialStack())}
+                style={{ marginLeft: 8, background: 'none', border: 'none', color: C.text3, textDecoration: 'underline dotted', cursor: 'pointer', fontFamily: NUM_FONT, fontSize: 10, padding: '6px 2px', minHeight: 0 }}>reset</button>
+            )}
+          </span>
+        </div>
+        )}
+        <div className="dense-wrap">
+          <div className="dtv2-scroll kb-rail" ref={railRef} tabIndex={0}
+            onKeyDown={(e) => {
+              const el = railRef.current
+              if (!el) return
+              const step = e.shiftKey ? el.clientWidth * 0.9 : 90
+              if (e.key === 'ArrowRight') { el.scrollBy({ left: step, behavior: 'smooth' }); e.preventDefault() }
+              else if (e.key === 'ArrowLeft') { el.scrollBy({ left: -step, behavior: 'smooth' }); e.preventDefault() }
+            }}
+            style={{ overflow: 'auto', maxHeight, outline: 'none' }}>
+            <style>{`
+              .dtv2 .kb-rail::-webkit-scrollbar { height: 7px; width: 7px; display: block; }
+              .dtv2 .kb-rail::-webkit-scrollbar-thumb { background: ${withAlpha(ac, 0.35)}; border-radius: 4px; }
+              .dtv2 .kb-rail:focus-visible { box-shadow: inset 0 0 0 1.5px ${withAlpha(ac, 0.5)}; }
+            `}</style>
+            <table>
+              <caption className="sr-only">{caption || 'Ranked board. Column headers sort; each row opens that hitter.'}</caption>
+              {head}
+              {body}
+            </table>
+          </div>
+        </div>
+      </div>
+      <div style={{ fontSize: 9.5, color: C.text3, marginTop: 6, lineHeight: 1.5, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {(() => {
+            const full = caption || 'Colour follows what you sort by: the sorted column is graded, ▲ above the middle of the rows on screen, ▼ below. Click a header to sort, a row to open the hitter.'
+            const m = String(full).match(/^([\s\S]*?[.!?])\s+(?=[A-Z“"])/)
+            const headTxt = m ? m[1] : full
+            const rest = m ? String(full).slice(m[0].length) : ''
+            return (
+              <div style={{ marginTop: 6 }}>
+                {headTxt}{rest && <>{' '}
+                  <button type="button" onClick={() => setCapOpen((v) => !v)} style={{ background: 'none', border: 'none', padding: '12px 6px', margin: '-12px -6px', minHeight: 0, cursor: 'pointer', color: C.text2, fontSize: 9.5, textDecoration: 'underline dotted', textUnderlineOffset: 3, fontFamily: 'inherit' }}>{capOpen ? 'less ▴' : 'why ▸'}</button>
+                  {capOpen && <> {rest} <b style={{ color: C.text2 }}>Shift-click a header</b> to add it as a tiebreaker. Blanks always sort to the bottom.</>}
+                </>}
+              </div>
+            )
+          })()}
+          {truncated > 0 && (
+            <ShowMoreButton open={false} restN={Math.min(maxRows, truncated)} toggle={() => setExtra((n) => n + maxRows)} itemWord={`of ${sorted.length}`} />
+          )}
+          {extra > 0 && (
+            <ShowMoreButton open restN={0} toggle={() => setExtra(0)} />
+          )}
+        </div>
+        <button type="button" onClick={exportCsv} title="Download this table — current sort, raw values — as a CSV cheat sheet"
+          style={{ fontFamily: NUM_FONT, fontSize: 8.5, fontWeight: 800, cursor: 'pointer', border: `1px solid ${C.border}`, background: 'transparent', color: C.text3, borderRadius: 999, padding: '5px 12px', marginTop: 6 }}>⬇ CSV</button>
+      </div>
+    </div>
+  )
+}

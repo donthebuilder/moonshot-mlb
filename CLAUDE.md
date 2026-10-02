@@ -47,6 +47,10 @@ reads, via its `data` branch.
   FRANCHISE.
 - No new hex literals in .js files. Import the product's theme token
   instead. `node scripts/check-scales.mjs` counts them.
+- Tables (DenseTable skin v2, 2026-10-01): no cell washes at rest -- only
+  the column you sort by is graded. No new fonts: hierarchy comes from
+  weight and size in the system sans and NUM_FONT. Every table's columns
+  carry a `group`, in order.
 - The 3D views (stadium / zone / arena) are loaded with `next/dynamic`, so a
   grep for their importers returns nothing. That does not mean they are dead.
 
@@ -75,7 +79,8 @@ fixed bar). Each of these is a production bug even when the data is right:
 - **Tap targets:** anything tappable under 44×44 px, or two targets
   so close that a thumb hits the wrong one.
 - **Readability:** body text under 12px, numbers under 11px, or contrast
-  below WCAG AA on the dark theme.
+  below WCAG AA on the dark theme. Exception (Donovan, 2026-10-01): in
+  a table on a portrait phone (<= 430px), numbers >= 10px.
 - **Scroll cost:** a change that pushes the first useful row lower
   needs a reason. Long lists preview a few rows ("+N more"). Measure the
   first-row y before and after, and write it in the commit.

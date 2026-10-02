@@ -8,6 +8,7 @@ import { designationOf, hitterRoleTitle, hitterLaneLabel, hitterLaneTitle, laneR
 import { gameNumbers, doubleheaderNote } from '../../lib/doubleheader'
 import { PanelTitle, Empty, btnStyle, WhatThis } from '../ui'
 import DenseTable from '../DenseTable'
+import { callStatus } from '../../lib/callStatus'
 import BoardFilters, { useBoardFilter } from '../BoardFilters'
 import OffBoardStrip from '../OffBoardStrip'
 import HomerLedger from '../HomerLedger'
@@ -679,6 +680,9 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
         onRowClick={onPlayerClick}
         initialSort={{ key: 'rank', dir: 'asc' }}
         heatMode="sorted"
+        // the v2 skin's status stamp: the one rule (lib/callStatus), the
+        // bot's designation + this board's rank of the whole slate
+        statusOf={(r) => callStatus({ role: r._raw?.game_pick_role, board_rank: r.rank, board_of: players.length })}
         maxHeight={640}
         // Every single one, in order (2026-09-25): no cap on this table. It
         // is the one place the whole board can be read #1 to #N; a "show 200

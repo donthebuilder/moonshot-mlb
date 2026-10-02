@@ -3,7 +3,7 @@ import PlayerFace from './PlayerFace'
 import { ANSWERS } from '../lib/scoreAnswers'
 import TeamMark from './TeamMark'
 import Tap from './Tap'
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import {
   useSpotlight, washOf, cellTint, cellEdge, cellMark, SPOT_MARK,
@@ -14,6 +14,8 @@ import { ORANGE_RAMP, rampColor, inkFor } from './Heatmap'
 import { edgeOn } from '../lib/palette'
 import { seqColor, divTone, SEQ_AUTO, DIV_FIELD, fieldAnchor, fieldLabel } from '../lib/scales'
 import { explainFor, explainFrom, InfoDot, ExplainBanner } from './Explain'
+import { useSportTheme } from './SportTheme'
+import { readSkin, renderV2 } from './table/v2'
 
 // ── ABSENT IS NOT ZERO (2026-08-23) ─────────────────────────────────────────
 // `Number(null)` is 0 and `Number('')` is 0, and both are finite, so every
@@ -136,7 +138,20 @@ export default function DenseTable({
   // rule below). Negative vertical margins keep it out of the line box, so
   // the row height does not change. Absent: nothing renders.
   faceOf = null,
+  // SKIN V2 (2026-10-01, BATCH-TABLE-SKIN-V2 -- components/table/v2.js).
+  //   skin      'classic' | 'v2'; absent -> ?skin= in the URL -> localStorage
+  //             'dash_table_skin' -> 'classic'. Classic is today, unchanged.
+  //   statusOf  (row) -> 'called'|'board'|'off'|null, from the caller's one
+  //             status rule; v2 stamps it in the CALL group. Classic ignores it.
+  //   title     v2's sheet head. Classic ignores it.
+  skin: skinProp = null,
+  statusOf = null,
+  title = '',
 }) {
+  const [skinAuto, setSkinAuto] = useState(null)
+  useEffect(() => { if (!skinProp) setSkinAuto(readSkin()) }, [skinProp])
+  const skin = skinProp || skinAuto || 'classic'
+  const sportTheme = useSportTheme()
   // MULTI-SORT. `sort` is an ordered list of keys, not one key.
   //
   // Plain click  -> make this the only sort key, descending.
@@ -348,6 +363,7 @@ export default function DenseTable({
 
   if (!rows.length || !columns.length) return null
 
+
   const pad = dense ? '5px 6px' : '8px 9px'
 
   const toggle = (key, additive) => setSort((s) => {
@@ -363,6 +379,18 @@ export default function DenseTable({
     next.splice(i, 1)                       // third shift-click removes it
     return next
   })
+
+  if (skin === 'v2') {
+    // the product's accent, never orange by accident (plan: R0 step 4, C2)
+    const ac = accent || (sportTheme.themed ? sportTheme.accent : null) || C.orange
+    return renderV2({
+      C, NUM_FONT, ac, columns, view, sorted, sort, setSort, toggle, ranges, fields, lit,
+      ramp, rowEdge, faceOf, onRowClick, dimRow, pick, rowPid, pickColorOf, firstMatch,
+      explain, setExplain, dict, scoreTerms, caveat, accent, maxHeight, caption,
+      truncated, maxRows, extra, setExtra, exportCsv, railRef, statusOf, title, initialStack, firstTextKey,
+      capOpen, setCapOpen,
+    })
+  }
 
   return (
     <div>

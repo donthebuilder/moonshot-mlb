@@ -1,5 +1,8 @@
 'use client'
-import { teamColor, teamName, isKnownTeam } from '../lib/mlbTeams'
+import { useState } from 'react'
+import { teamColor, teamName, isKnownTeam, mlbTeamLogo } from '../lib/mlbTeams'
+import { nflTeamLogo } from '../lib/nfl/nflAssets'
+import { nhlLogo } from '../lib/nhl/teams'
 import { nflTones, NFL_TEAM_TONES } from '../lib/nfl/teamColors'
 import { readableInk } from '../lib/teamInk'
 import { TeamMark as LampTeamMark } from './lamp/ui'
@@ -30,10 +33,29 @@ const CLUBS = {
   },
 }
 
-export default function TeamMark({ sport = 'mlb', abbr, size = 'sm', dim = false, style }) {
+// THE LOGO (2026-10-01, BATCH-TABLE-SKIN-V2 decision A): variant="logo" draws
+// the club's own logo (the league's / ESPN's CDN, lazy) with the code as its
+// title and accessible name, no bordered chip. A logo that fails to load (an
+// unknown code, the CDN down) falls back to the chip below -- never a blank.
+const LOGO_OF = {
+  mlb: (code, px) => mlbTeamLogo(code, px * 2),
+  nfl: (code, px) => nflTeamLogo(code, px),
+  nhl: (code) => nhlLogo(code, true),
+}
+
+export default function TeamMark({ sport = 'mlb', abbr, size = 'sm', dim = false, style, variant = 'chip', px = 18 }) {
   const key = sportKey(sport)
   const code = String(abbr || '').trim().toUpperCase()
+  const [broken, setBroken] = useState(false)
   if (!code) return null
+  const src = variant === 'logo' && !broken ? LOGO_OF[key]?.(code, px) : null
+  if (src) {
+    return (
+      <img src={src} alt={code} title={code} width={px} height={px} loading="lazy" decoding="async"
+        onError={() => setBroken(true)}
+        style={{ width: px, height: px, objectFit: 'contain', verticalAlign: 'middle', flexShrink: 0, opacity: dim ? 0.55 : 1, ...style }} />
+    )
+  }
   if (!CLUBS[key]) return <LampTeamMark abbrev={code} size={size === 'md' ? 20 : 16} />
   const { col, ink, known, name } = CLUBS[key](code)
   const big = size === 'md'
