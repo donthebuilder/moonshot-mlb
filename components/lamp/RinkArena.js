@@ -29,8 +29,14 @@ import { webglOk } from '../../lib/webglOk'
 import StadiumShell from '../charts/StadiumShell'
 import LowerThird from '../charts/stadium/LowerThird'
 import FilmOverlay from '../charts/stadium/FilmOverlay'
+import StadiumDock from '../charts/stadium/StadiumDock'
+import HoverReadout, { placeTip } from '../charts/stadium/HoverReadout'
+import { createHoverFlight } from '../charts/stadium/hoverFlight'
+import { labelSprite } from '../../lib/three/sprites'
 import { ChartLegend, ChartEmpty } from '../charts'
-import { vsCells, vsAlpha, VS_MIN } from './Rink'
+import { vsCells, vsAlpha, VS_MIN, heatAlpha } from './Rink'
+import { shotPath, paceMs, measuredMph } from '../../lib/nhl/shotPath'
+import { GOALIE_ZONES, ZONE_SHAPES, tintAlpha } from '../../lib/nhl/zones'
 
 // where a line ends at the net, by result / miss reason (the rink's y: +y is
 // the shooter's left). The net mouth is y -3..3; "wide" ends 1.5 ft outside it.
@@ -47,7 +53,30 @@ function lineEnd(sh) {
   return [GOAL_X, 0]
 }
 
-export default function RinkArena({ shots = [], map = null, league = null, slot = null, gridSpec = null, view = 'dots', onPick = null, onPickCell = null, title = '', subtitle = '' }) {
+const RES_WORD = { goal: 'GOAL', sog: 'ON NET · SAVED', miss: 'MISSED THE NET', block: 'BLOCKED' }
+const clock = (t) => (t == null ? '' : `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`)
+/** The readout for one shot: type · distance · period/time · strength · result, and its speed only if measured. */
+function shotTip(sh, speed, hardest) {
+  const dist = Math.round(Math.hypot(GOAL_X - sh[0], sh[1]))
+  const per = sh[6] && sh[6] !== 'REG' ? 'OT' : sh[5] != null ? `P${sh[5]}` : ''
+  const mph = measuredMph(hardest, sh)
+  const head = `<b style="color:${sh[2] === 'goal' ? C.lamp : C.text}">${RES_WORD[sh[2]] || ''}</b>`
+  const line = [sh[3], `${dist} ft`, [per, clock(sh[7])].filter(Boolean).join(' '), sh[4] ? String(sh[4]).toUpperCase() : null].filter(Boolean).join(' · ')
+  const sp = mph != null ? `<span style="color:${C.ice}">${mph} MPH, measured (NHL EDGE)</span>`
+    : speed ? `HIS AVG SHOT ${speed.avg} MPH (league ${speed.leagueAvg}) — not this shot's speed`
+      : 'No shot speed on file — fixed pace'
+  return `${head}<br/>${line}${sh[9] ? `<br/><span style="color:${C.text3}">${String(sh[9]).replace(/-/g, ' ')}</span>` : ''}<br/><span style="color:${C.text3}">${sp}</span>`
+}
+
+export default function RinkArena({ shots = [], map = null, league = null, slot = null, gridSpec = null, view = 'dots', onPick = null, onPickCell = null, title = '', subtitle = '',
+  speed = null, hardest = null, stats = null, dockChips = [], onClearAll = null, totalShots = null, slotPct = null, goalieRead = null, onPickZone = null }) {
+  const tipRef = useRef(null)
+  // on a phone the dock starts shut and carries no stats line: the same numbers
+  // sit in the line above the rink, and an open dock would cover the ice
+  const [narrowBox, setNarrowBox] = useState(false)
+  const [dockOpen, setDockOpen] = useState(true)
+  useEffect(() => { if (typeof window !== 'undefined' && window.innerWidth < 640) { setNarrowBox(true); setDockOpen(false) } }, [])
+  const playRef = useRef({ speed, hardest }); playRef.current = { speed, hardest }
   const mountRef = useRef(null)
   const [ok, setOk] = useState(true)
   const [motion, setMotion] = useState('replay')
@@ -57,7 +86,7 @@ export default function RinkArena({ shots = [], map = null, league = null, slot 
   const motionRef = useRef(motion); motionRef.current = motion
   const orbitRef = useRef(orbit); orbitRef.current = orbit
   const apiRef = useRef({})
-  const pickRef = useRef({ onPick, onPickCell }); pickRef.current = { onPick, onPickCell }
+  const pickRef = useRef({ onPick, onPickCell, onPickZone }); pickRef.current = { onPick, onPickCell, onPickZone }
 
   useEffect(() => {
     const mount = mountRef.current
@@ -72,7 +101,7 @@ export default function RinkArena({ shots = [], map = null, league = null, slot 
     scene.fog = new THREE.Fog(new THREE.Color(RINK.ceiling), 260, 620)
     const arenaB = buildArenaRect(scene, { w: RINK_W, l: RINK_L, cornerR: RINK_R, roof: true, colors: { seat: RINK.seat, ceiling: RINK.ceiling, bank: RINK.bank } })
     const CEIL = (arenaB.ceilingY || 120) - 10   // never above the roof (the sweep test's blank frames)
-    buildRink(scene)
+    const rinkB = buildRink(scene)
 
     // ── the camera: BLUE LINE opens, the attacking end filling the frame
     const target = new THREE.Vector3(64, 0, 0)
@@ -124,18 +153,28 @@ export default function RinkArena({ shots = [], map = null, league = null, slot 
     // ── the marks: one puck per attempt, at its (x, y), the 2D's colour rule
     const disposables = []
     const group = new THREE.Group(); scene.add(group); disposables.push(group)
+    // THE MARKS (BATCH-3D-V2 1a): real pucks are black. On net a charcoal disc
+    // with a thin light rim; a goal lamp red, 1.5x, glowing; a miss a small
+    // dark x; a block a short dark stub. Each keeps a minimum on-screen size.
     const puckGeo = new THREE.CylinderGeometry(1.0, 1.0, 0.35, 20)
-    const ringGeo = new THREE.RingGeometry(0.7, 1.0, 24)
+    const goalGeo = new THREE.CylinderGeometry(1.5, 1.5, 0.4, 24)
+    const rimGeo = new THREE.RingGeometry(1.0, 1.22, 24)
+    const hardGeo = new THREE.RingGeometry(1.75, 1.95, 32)
+    const barGeo = new THREE.BoxGeometry(1.7, 0.18, 0.32)
     const mat = {
-      goal: new THREE.MeshStandardMaterial({ color: new THREE.Color(C.lamp), emissive: new THREE.Color(C.lamp), emissiveIntensity: 2.4 }),
-      sog: new THREE.MeshStandardMaterial({ color: new THREE.Color(C.ice), emissive: new THREE.Color(C.ice), emissiveIntensity: 0.6 }),
-      dim: new THREE.MeshBasicMaterial({ color: new THREE.Color(C.text3), side: THREE.DoubleSide, transparent: true, opacity: 0.75 }),
+      // emissive under the bloom's wash-out point, so a goal reads RED with a glow, not salmon
+      goal: new THREE.MeshStandardMaterial({ color: new THREE.Color(C.lamp), emissive: new THREE.Color(RINK.red), emissiveIntensity: 0.9 }),
+      sog: new THREE.MeshStandardMaterial({ color: new THREE.Color(RINK.puck), roughness: 0.55 }),
+      rim: new THREE.MeshBasicMaterial({ color: new THREE.Color(RINK.puckRim), side: THREE.DoubleSide }),
+      hard: new THREE.MeshBasicMaterial({ color: new THREE.Color(C.ice), side: THREE.DoubleSide }),
+      ink: new THREE.MeshBasicMaterial({ color: new THREE.Color(RINK.missInk) }),
     }
     const lineMat = {
       goal: new THREE.LineBasicMaterial({ color: new THREE.Color(C.lamp), transparent: true, opacity: 0.85 }),
-      sog: new THREE.LineBasicMaterial({ color: new THREE.Color(C.ice), transparent: true, opacity: 0.55 }),
-      dim: new THREE.LineDashedMaterial({ color: new THREE.Color(C.text3), transparent: true, opacity: 0.45, dashSize: 1.2, gapSize: 1 }),
+      sog: new THREE.LineBasicMaterial({ color: new THREE.Color(RINK.puck), transparent: true, opacity: 0.45 }),
+      dim: new THREE.LineDashedMaterial({ color: new THREE.Color(RINK.missInk), transparent: true, opacity: 0.45, dashSize: 1.2, gapSize: 1 }),
     }
+    const marks = []   // scaled each frame so a far puck never vanishes
     const lines = []
     const pickables = []
     const vs = view === 'vs' ? vsCells(map?.grid, league) : null
@@ -159,21 +198,40 @@ export default function RinkArena({ shots = [], map = null, league = null, slot 
         if (!cell.att) return
         const t = cell.att / max
         const m = new THREE.Mesh(new THREE.PlaneGeometry(cw - 0.4, ch - 0.4),
-          new THREE.MeshBasicMaterial({ color: new THREE.Color(rampAt(t)), transparent: true, opacity: 0.18 + 0.6 * t, depthWrite: false }))
+          new THREE.MeshBasicMaterial({ color: new THREE.Color(rampAt(t)), transparent: true, opacity: heatAlpha(t), depthWrite: false }))
         m.rotation.x = -Math.PI / 2
         const cx = gridSpec.x0 + (c + 0.5) * cw, cy = gridSpec.y1 - (r + 0.5) * ch
         m.position.copy(rinkPoint(cx, cy, 0.06))
         m.userData.cell = { ...cell, r, c }
         group.add(m); pickables.push(m)
+        // the count on the ice, the way the ballpark prints its wall numbers (1d)
+        const lab = labelSprite(String(cell.att), RINK.puck)
+        lab.position.copy(rinkPoint(cx, cy, 2.2)); lab.scale.multiplyScalar(0.62)
+        group.add(lab)
       }))
     } else {
       shots.forEach((sh, i) => {
         const res = sh[2]
         const kind = res === 'goal' ? 'goal' : res === 'sog' ? 'sog' : 'dim'
-        let mesh
-        if (kind === 'dim') { mesh = new THREE.Mesh(ringGeo, mat.dim); mesh.rotation.x = -Math.PI / 2; mesh.position.copy(rinkPoint(sh[0], sh[1], 0.12)) } else { mesh = new THREE.Mesh(puckGeo, mat[kind]); mesh.position.copy(rinkPoint(sh[0], sh[1], 0.2)) }
+        const mark = new THREE.Group()
+        mark.position.copy(rinkPoint(sh[0], sh[1], 0))
+        if (res === 'goal') { const g = new THREE.Mesh(goalGeo, mat.goal); g.position.y = 0.22; mark.add(g) }
+        else if (res === 'sog') {
+          const d = new THREE.Mesh(puckGeo, mat.sog); d.position.y = 0.2; mark.add(d)
+          const rim = new THREE.Mesh(rimGeo, mat.rim); rim.rotation.x = -Math.PI / 2; rim.position.y = 0.39; mark.add(rim)
+        } else if (res === 'block') {
+          // a short stub, pointing at the net
+          // world: x along the rink, z = -y; the net's mouth is (89, 0)
+          const ang = -Math.atan2(sh[1], GOAL_X - sh[0])
+          const b2 = new THREE.Mesh(barGeo, mat.ink); b2.position.set(Math.cos(ang) * 0.85, 0.12, -Math.sin(ang) * 0.85)
+          b2.rotation.y = ang; mark.add(b2)
+        } else {
+          for (const r2 of [Math.PI / 4, -Math.PI / 4]) { const x = new THREE.Mesh(barGeo, mat.ink); x.position.y = 0.12; x.rotation.y = r2; mark.add(x) }
+        }
+        if (measuredMph(hardest, sh) != null) { const h = new THREE.Mesh(hardGeo, mat.hard); h.rotation.x = -Math.PI / 2; h.position.y = 0.45; mark.add(h) }
+        const mesh = mark
         mesh.userData.shot = sh
-        group.add(mesh); pickables.push(mesh)
+        group.add(mesh); pickables.push(mesh); marks.push(mesh)
         // the line along the ice
         const from = rinkPoint(sh[0], sh[1], 0.15)
         const end = lineEnd(sh)
@@ -183,11 +241,31 @@ export default function RinkArena({ shots = [], map = null, league = null, slot 
         group.add(l); lines.push({ l, i })
       })
     }
+    // VS GOALIE (1h): his zones on the ice UNDER the shooter's pucks, the 2D's
+    // shapes and tints (lib/nhl/zones.js), each tappable for its saves / goals
+    if (goalieRead) {
+      for (const z of GOALIE_ZONES) {
+        const r = goalieRead[z.key]
+        if (!r || (!r.thin && !r.tint)) continue
+        const sh = ZONE_SHAPES[z.key]
+        const shape = new THREE.Shape(sh.outer.map(([x, y]) => new THREE.Vector2(x, y)))
+        for (const h of sh.holes) shape.holes.push(new THREE.Path(h.map(([x, y]) => new THREE.Vector2(x, y))))
+        const m = new THREE.Mesh(new THREE.ShapeGeometry(shape), new THREE.MeshBasicMaterial({
+          color: new THREE.Color(r.thin ? RINK.iceLine : r.tint === 'worse' ? C.lamp : RINK.blue),
+          transparent: true, opacity: r.thin ? 0.12 : tintAlpha(r.d), depthWrite: false, side: THREE.DoubleSide }))
+        // ShapeGeometry is in the x/y plane: lay it on the ice (shot map +y -> world -z)
+        m.rotation.x = -Math.PI / 2; m.position.y = 0.055
+        m.userData.zone = z.key
+        group.add(m); pickables.push(m)
+      }
+    }
     // the slot, shaded as in 2D
-    if (slot) {
+    if (slot && !goalieRead) {
       const sm = new THREE.Mesh(new THREE.PlaneGeometry(slot.x1 - slot.x0, slot.y * 2),
         new THREE.MeshBasicMaterial({ color: new THREE.Color(C.ice), transparent: true, opacity: 0.08, depthWrite: false }))
       sm.rotation.x = -Math.PI / 2; sm.position.copy(rinkPoint((slot.x0 + slot.x1) / 2, 0, 0.05)); group.add(sm)
+      // the slot prints its own share (1d), as on the 2D rink
+      if (slotPct != null) { const t = labelSprite(`SLOT ${slotPct}%`, RINK.blue); t.position.copy(rinkPoint(slot.x0 + 5, slot.y - 3, 1.6)); t.scale.multiplyScalar(0.3); t.material.opacity = 0.8; group.add(t) }
     }
 
     // ── REPLAY: the lines draw in order over ~4 s
@@ -235,31 +313,76 @@ export default function RinkArena({ shots = [], map = null, league = null, slot 
     }
     if (typeof window !== 'undefined') window.__dash3d = apiRef.current
 
-    // ── TAP A PUCK / A TILE -> the same detail card the 2D opens
+    // ── THE SHOT PLAYS (BATCH-3D-V2 1g): hover (or tap) a puck and it moves
+    //    along its path (lib/nhl/shotPath.js) into the net, to the crease, wide,
+    //    off the post, short -- at the pace his EDGE average gives, or its real
+    //    speed when it is one of his ten measured hardest. A goal twitches the
+    //    net and flashes the goal light. The shared player (charts/stadium).
+    const flight = createHoverFlight(scene)
+    const net = rinkB.nets?.[1], goalLight = rinkB.lights?.[1]
+    let flash = 0, twitch = 0
+    const playShot = (sh) => {
+      if (flight.playing() === sh) return
+      const pts = shotPath(sh).map(([x, y, h]) => rinkPoint(x, y, 0.3 + h))
+      const { speed: sp, hardest: hd } = playRef.current
+      const dur = paceMs(shotPath(sh), { avg: sp?.avg, leagueAvg: sp?.leagueAvg, mph: measuredMph(hd, sh) })
+      const goal = sh[2] === 'goal'
+      const mesh = new THREE.Mesh(goal ? goalGeo : puckGeo, goal ? mat.goal.clone() : mat.sog.clone())
+      let done = false
+      flight.start(sh, { pts, dur, mesh, onStep: (_m, p) => { if (p >= 1 && !done) { done = true; if (goal) { flash = performance.now(); twitch = performance.now() } } } })
+    }
+    // the mark under a point: a ray first, then the nearest within 4.5 ft on the ice
     const ray = new THREE.Raycaster(), ndc = new THREE.Vector2()
-    let down = null
-    const onDown = (e) => { down = [e.clientX, e.clientY] }
-    const onUp = (e) => {
-      if (!down || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 6) return
+    const markAt = (e) => {
       const r = renderer.domElement.getBoundingClientRect()
       ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1)
       ray.setFromCamera(ndc, camera)
-      // a 1-ft puck is not a thumb target: test against a generous radius
-      const hits = ray.intersectObjects(pickables, false)
-      let pick = hits[0]?.object
-      if (!pick) {
+      const hit = ray.intersectObjects(pickables, true)[0]?.object
+      let pick = hit
+      while (pick && !pick.userData.shot && !pick.userData.cell && !pick.userData.zone && pick.parent) pick = pick.parent
+      if (!pick?.userData.shot && !pick?.userData.cell && !pick?.userData.zone) {
+        pick = null
         const ground = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), pt = new THREE.Vector3()
         if (ray.ray.intersectPlane(ground, pt)) {
-          let best = null, bd = 4.5
-          for (const m of pickables) { const d = Math.hypot(m.position.x - pt.x, m.position.z - pt.z); if (d < bd) { bd = d; best = m } }
-          pick = best
+          let bd = 4.5
+          for (const m of pickables) { if (m.userData.zone) continue; const d = Math.hypot(m.position.x - pt.x, m.position.z - pt.z); if (d < bd) { bd = d; pick = m } }
         }
       }
-      if (pick?.userData.shot) pickRef.current.onPick?.(pick.userData.shot)
+      return { pick, x: e.clientX - r.left, y: e.clientY - r.top, w: r.width }
+    }
+    const showTip = (pick, x, y, w) => {
+      const tip = tipRef.current
+      if (!pick) { placeTip(tip, null); return }
+      const { speed: sp, hardest: hd } = playRef.current
+      const c = pick.userData.cell
+      placeTip(tip, pick.userData.shot ? shotTip(pick.userData.shot, sp, hd)
+        : c ? `<b style="color:${C.text}">${c.att} attempts</b><br/>${c.sog} on net · <span style="color:${C.lamp}">${c.g} goal${c.g === 1 ? '' : 's'}</span>${c.sog ? `<br/><span style="color:${C.text3}">SH% ${((100 * c.g) / c.sog).toFixed(1)}</span>` : ''}` : null, x, y, w)
+    }
+    const coarse = isCoarse()
+    const onMove = (e) => {
+      if (coarse || driving) return
+      const { pick, x, y, w } = markAt(e)
+      showTip(pick, x, y, w)
+      renderer.domElement.style.cursor = pick ? 'pointer' : ''
+      if (pick?.userData.shot) playShot(pick.userData.shot)
+    }
+    const onLeave = () => { placeTip(tipRef.current, null); flight.clear() }
+    let down = null
+    const onDown = (e) => { down = [e.clientX, e.clientY] }
+    // TAP A PUCK / A TILE -> it plays (on a phone, tap = hover) and the same
+    // detail card the 2D opens fills
+    const onUp = (e) => {
+      if (!down || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 6) return
+      const { pick, x, y, w } = markAt(e)
+      showTip(pick, x, y, w)
+      if (pick?.userData.shot) { playShot(pick.userData.shot); pickRef.current.onPick?.(pick.userData.shot) }
       else if (pick?.userData.cell) pickRef.current.onPickCell?.(pick.userData.cell)
+      else if (pick?.userData.zone) pickRef.current.onPickZone?.(pick.userData.zone)
     }
     renderer.domElement.addEventListener('pointerdown', onDown)
     renderer.domElement.addEventListener('pointerup', onUp)
+    renderer.domElement.addEventListener('pointermove', onMove)
+    renderer.domElement.addEventListener('pointerleave', onLeave)
 
     let driving = false
     controls.addEventListener('start', () => { driving = true })
@@ -276,6 +399,13 @@ export default function RinkArena({ shots = [], map = null, league = null, slot 
       controls.autoRotateSpeed = 0.5
       controls.update(); keepOut()
       stepReplay(t)
+      flight.step(t)
+      // a goal: the net twitches, the goal light flashes lamp red (1g)
+      if (net) { const k = twitch ? (t - twitch) / 420 : 1; net.scale.x = k < 1 ? 1 + 0.08 * Math.sin(k * Math.PI * 4) * (1 - k) : 1; if (k >= 1) twitch = 0 }
+      if (goalLight) { const k = flash ? (t - flash) / 1600 : 1; goalLight.material.emissiveIntensity = k < 1 ? 0.08 + 3.2 * (0.6 + 0.4 * Math.sin(k * Math.PI * 6)) * (1 - k) : 0.08; if (k >= 1) flash = 0 }
+      // a far puck keeps a minimum on-screen size (1a): scale with the camera distance
+      // per mark, by ITS distance: a near puck stays true size, a far one grows
+      for (const mk of marks) mk.scale.setScalar(Math.max(1, camera.position.distanceTo(mk.position) / 85))
       look.render()
       raf = requestAnimationFrame(tick)
     }
@@ -301,6 +431,9 @@ export default function RinkArena({ shots = [], map = null, league = null, slot 
       document.removeEventListener('visibilitychange', onVis)
       renderer.domElement.removeEventListener('pointerdown', onDown)
       renderer.domElement.removeEventListener('pointerup', onUp)
+      renderer.domElement.removeEventListener('pointermove', onMove)
+      renderer.domElement.removeEventListener('pointerleave', onLeave)
+      flight.clear()
       if (typeof window !== 'undefined' && window.__dash3d === apiRef.current) delete window.__dash3d
       controls.dispose()
       scene.traverse((o) => {
@@ -310,7 +443,7 @@ export default function RinkArena({ shots = [], map = null, league = null, slot 
       look.dispose(); renderer.dispose()
       if (renderer.domElement.parentNode === mount) mount.removeChild(renderer.domElement)
     }
-  }, [shots, map, slot, gridSpec, view, full, league])
+  }, [shots, map, slot, gridSpec, view, full, league, slotPct, hardest, goalieRead])
 
   if (!ok) return <ChartEmpty theme={C}>This device can&apos;t draw WebGL, so the arena isn&apos;t available here — the rink above shows the same shots.</ChartEmpty>
 
@@ -338,10 +471,11 @@ export default function RinkArena({ shots = [], map = null, league = null, slot 
         : view === 'heat'
         ? [{ key: 'heat', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, background: `${C.ice}88` }} />, label: 'shaded by attempts per zone, as on the rink above' }]
         : [{ key: 'goal', mark: <b aria-hidden="true" style={{ color: C.lamp }}>●</b>, label: 'goal' },
-          { key: 'sog', mark: <b aria-hidden="true" style={{ color: C.ice }}>●</b>, label: 'on net' },
-          { key: 'miss', mark: <b aria-hidden="true">○</b>, label: 'missed / blocked' }]} />
+          { key: 'sog', mark: <b aria-hidden="true" style={{ color: RINK.puck, WebkitTextStroke: `0.6px ${RINK.puckRim}` }}>●</b>, label: 'on net (saved)' },
+          { key: 'miss', mark: <b aria-hidden="true">✕</b>, label: 'missed' },
+          { key: 'block', mark: <b aria-hidden="true">╱</b>, label: 'blocked' }]} />
       <div style={{ fontSize: 10, color: C.text3, marginTop: 4, lineHeight: 1.5, fontFamily: NUM_FONT }}>
-        {view === 'dots' ? 'Lines run from the shot to the net along the ice — not tracked puck paths. ' : ''}{view === 'dots' ? <>The same {shots.length} shot{shots.length === 1 ? '' : 's'} as the rink above</> : 'The same zones as the rink above'} · drag to orbit · tap a puck for the shot
+        {view === 'dots' ? 'Lines run from the shot to the net along the ice — not tracked puck paths. ' : ''}{view === 'dots' ? <>The same {shots.length} shot{shots.length === 1 ? '' : 's'} as the rink above</> : 'The same zones as the rink above'} · drag to orbit · hover or tap a puck and it plays (pace from his average shot speed, NHL EDGE; real speed only for his measured ten hardest)
       </div>
     </div>
   )
@@ -355,8 +489,13 @@ export default function RinkArena({ shots = [], map = null, league = null, slot 
           borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}`,
         }} />
         {/* the spray chart's name plate + film (components/charts/stadium, BATCH-3D-V2 step 0) */}
+        {/* the spray chart's dock, with the numbers on screen (BATCH-3D-V2 1c) */}
+        <StadiumDock open={dockOpen} onToggle={() => setDockOpen((v) => !v)} now={shots.length || (map?.attempts ?? 0)} all={totalShots ?? shots.length}
+          chips={dockChips} onClearAll={onClearAll || (() => {})} stats={narrowBox ? null : stats} theme={C} numFont={NUM_FONT} accent={C.ice} accentSoft={`${C.ice}1a`}
+          emptyText="No filters on — every drawn attempt is on the ice." maxWidth="72%" />
         <LowerThird title={title} subtitle={subtitle} theme={C} numFont={NUM_FONT} accent={C.ice} fallback="LAMP" />
         <FilmOverlay />
+        <HoverReadout ref={tipRef} theme={C} numFont={NUM_FONT} maxWidth={200} />
       </div>
     </StadiumShell>
   )
