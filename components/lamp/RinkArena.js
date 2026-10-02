@@ -34,8 +34,8 @@ import HoverReadout, { placeTip } from '../charts/stadium/HoverReadout'
 import { createHoverFlight } from '../charts/stadium/hoverFlight'
 import { labelSprite } from '../../lib/three/sprites'
 import { ChartLegend, ChartEmpty } from '../charts'
-import { vsCells, vsAlpha, VS_MIN, heatAlpha } from './Rink'
-import { shotPath, paceMs, measuredMph } from '../../lib/nhl/shotPath'
+import { vsCells, vsAlpha, VS_MIN, heatAlpha, shotInk } from './Rink'
+import { measuredMph } from '../../lib/nhl/shotPath'
 import { GOALIE_ZONES, ZONE_SHAPES, tintAlpha } from '../../lib/nhl/zones'
 
 // where a line ends at the net, by result / miss reason (the rink's y: +y is
@@ -175,6 +175,8 @@ export default function RinkArena({ shots = [], map = null, league = null, slot 
       dim: new THREE.LineDashedMaterial({ color: new THREE.Color(RINK.missInk), transparent: true, opacity: 0.45, dashSize: 1.2, gapSize: 1 }),
     }
     const marks = []   // scaled each frame so a far puck never vanishes
+    const inks = {}
+    const inkMat = (res) => (inks[res] ||= new THREE.MeshStandardMaterial({ color: new THREE.Color(shotInk(res)), roughness: 0.5 }))
     const lines = []
     const pickables = []
     const vs = view === 'vs' ? vsCells(map?.grid, league) : null
@@ -215,30 +217,16 @@ export default function RinkArena({ shots = [], map = null, league = null, slot 
         const kind = res === 'goal' ? 'goal' : res === 'sog' ? 'sog' : 'dim'
         const mark = new THREE.Group()
         mark.position.copy(rinkPoint(sh[0], sh[1], 0))
+        // one solid puck per shot, in its result's colour (Rink.js shotInk), a goal a size up and glowing
         if (res === 'goal') { const g = new THREE.Mesh(goalGeo, mat.goal); g.position.y = 0.22; mark.add(g) }
-        else if (res === 'sog') {
-          const d = new THREE.Mesh(puckGeo, mat.sog); d.position.y = 0.2; mark.add(d)
+        else {
+          const d = new THREE.Mesh(puckGeo, inkMat(res)); d.position.y = 0.2; mark.add(d)
           const rim = new THREE.Mesh(rimGeo, mat.rim); rim.rotation.x = -Math.PI / 2; rim.position.y = 0.39; mark.add(rim)
-        } else if (res === 'block') {
-          // a short stub, pointing at the net
-          // world: x along the rink, z = -y; the net's mouth is (89, 0)
-          const ang = -Math.atan2(sh[1], GOAL_X - sh[0])
-          const b2 = new THREE.Mesh(barGeo, mat.ink); b2.position.set(Math.cos(ang) * 0.85, 0.12, -Math.sin(ang) * 0.85)
-          b2.rotation.y = ang; mark.add(b2)
-        } else {
-          for (const r2 of [Math.PI / 4, -Math.PI / 4]) { const x = new THREE.Mesh(barGeo, mat.ink); x.position.y = 0.12; x.rotation.y = r2; mark.add(x) }
         }
         if (measuredMph(hardest, sh) != null) { const h = new THREE.Mesh(hardGeo, mat.hard); h.rotation.x = -Math.PI / 2; h.position.y = 0.45; mark.add(h) }
         const mesh = mark
         mesh.userData.shot = sh
         group.add(mesh); pickables.push(mesh); marks.push(mesh)
-        // the line along the ice
-        const from = rinkPoint(sh[0], sh[1], 0.15)
-        const end = lineEnd(sh)
-        const to = end ? rinkPoint(end[0], end[1], 0.15) : from.clone().lerp(rinkPoint(GOAL_X, 0, 0.15), 0.18)
-        const g = new THREE.BufferGeometry().setFromPoints([from, to])
-        const l = new THREE.Line(g, lineMat[kind]); if (kind === 'dim') l.computeLineDistances()
-        group.add(l); lines.push({ l, i })
       })
     }
     // VS GOALIE (1h): his zones on the ice UNDER the shooter's pucks, the 2D's
@@ -321,16 +309,8 @@ export default function RinkArena({ shots = [], map = null, league = null, slot 
     const flight = createHoverFlight(scene)
     const net = rinkB.nets?.[1], goalLight = rinkB.lights?.[1]
     let flash = 0, twitch = 0
-    const playShot = (sh) => {
-      if (flight.playing() === sh) return
-      const pts = shotPath(sh).map(([x, y, h]) => rinkPoint(x, y, 0.3 + h))
-      const { speed: sp, hardest: hd } = playRef.current
-      const dur = paceMs(shotPath(sh), { avg: sp?.avg, leagueAvg: sp?.leagueAvg, mph: measuredMph(hd, sh) })
-      const goal = sh[2] === 'goal'
-      const mesh = new THREE.Mesh(goal ? goalGeo : puckGeo, goal ? mat.goal.clone() : mat.sog.clone())
-      let done = false
-      flight.start(sh, { pts, dur, mesh, onStep: (_m, p) => { if (p >= 1 && !done) { done = true; if (goal) { flash = performance.now(); twitch = performance.now() } } } })
-    }
+    // NO MOVEMENT (Donovan 10-02: "leave puck movement off"): a shot stays where it was taken
+    const playShot = () => {}
     // the mark under a point: a ray first, then the nearest within 4.5 ft on the ice
     const ray = new THREE.Raycaster(), ndc = new THREE.Vector2()
     const markAt = (e) => {
@@ -453,8 +433,6 @@ export default function RinkArena({ shots = [], map = null, league = null, slot 
   })
   const chips = (
     <>
-      <button type="button" style={chipBtn(motion === 'replay', C.ice)} onClick={() => { setMotion('replay'); apiRef.current.replay?.() }} title="Draw the shots in order">▶ replay</button>
-      <button type="button" style={chipBtn(motion === 'hold', C.text2)} onClick={() => setMotion('hold')} title="Every line at once, nothing moving">⏸ hold</button>
       <button type="button" style={chipBtn(orbit, C.cream)} onClick={() => setOrbit((v) => !v)} title="Turn slowly round the rink until you grab it">⟳ orbit</button>
     </>
   )

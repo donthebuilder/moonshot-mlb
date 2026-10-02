@@ -1,7 +1,7 @@
 'use client'
 import { useId, useState } from 'react'
 import { C, NUM_FONT, RINK, rampAt } from '../../lib/nhl/theme'
-import { shotPath, shotOutcome, paceMs, measuredMph } from '../../lib/nhl/shotPath'
+import { measuredMph } from '../../lib/nhl/shotPath'
 import { GOALIE_ZONES, ZONE_SHAPES, ZONE_LABEL_AT, tintAlpha } from '../../lib/nhl/zones'
 
 // 🏒 THE RINK (lamp research step 3, 2026-09-26). One attacking half seen
@@ -14,16 +14,13 @@ import { GOALIE_ZONES, ZONE_SHAPES, ZONE_LABEL_AT, tintAlpha } from '../../lib/n
 // Every shot is already normalised to attack this net (the route does it).
 //
 // BATCH-3D-V2 (2026-10-02), the same rules as the 3D arena so the two match:
-//   THE SHEET IS ICE (RINK.ice), real line colours, so the marks can be what
-//   real pucks are -- black. On net: a charcoal disc with a thin light rim.
-//   Goal: lamp red, 1.5x, glowing. Miss: a small dark x. Blocked: a short dark
-//   stub toward the net. Nothing on the ice is red except a goal: the faceoff
-//   dots are thin red rings (they read as goals before, 1b).
+//   THE SHEET IS ICE (RINK.ice), real line colours. Every shot is a solid puck
+//   coloured by its result, as MOONSHOT colours its events (Donovan 10-02): goal
+//   lamp red (a size up, glowing), saved blue, missed amber, blocked grey. The
+//   faceoff dots are thin red rings so only a goal reads red. Shots don't move
+//   (Donovan: "leave puck movement off").
 //   HEAT: tiles floor at 35% (a cold zone still reads), each with its count;
 //   the slot prints its own share.
-//   HOVER / TAP plays the shot along its line (lib/nhl/shotPath.js), at the
-//   pace his EDGE average gives (or a measured hardest-ten speed), 0.8 s with
-//   neither. The line is to the net along the ice -- not a tracked puck path.
 const X0 = 25; const W = 75; const H = 85
 const sx = (x) => x - X0
 const sy = (y) => 42.5 - y
@@ -49,38 +46,19 @@ export function vsCells(grid, league) {
 /** The heat tile's opacity: never under 35%, so a cold zone still reads (1d). */
 export const heatAlpha = (t) => 0.35 + 0.5 * t
 
-/** One mark, by result, in rink feet at (cx, cy). Shared rule with the 3D arena. */
+/** A shot's colour, by result (Donovan 10-02: "just like mlb has different
+ *  colors for different events"). Shared with the 3D arena. */
+export const shotInk = (res) => (res === 'goal' ? C.lamp : res === 'sog' ? RINK.save : res === 'block' ? RINK.block : RINK.miss)
+
+/** One mark: a solid puck in its result's colour, a goal a size up with a glow. */
 function Mark({ shot, cx, cy, sel, hard }) {
-  const out = shotOutcome(shot)
-  if (shot[2] === 'goal') {
-    return (
-      <g>
-        <circle cx={cx} cy={cy} r={2.4} fill={C.lamp} opacity={0.28} />
-        <circle cx={cx} cy={cy} r={sel ? 1.8 : 1.35} fill={C.lamp} stroke={sel ? C.text : C.lamp} strokeWidth={sel ? 0.45 : 0.2} />
-        {hard && <circle cx={cx} cy={cy} r={2.2} fill="none" stroke={RINK.puckRim} strokeWidth={0.25} />}
-      </g>
-    )
-  }
-  if (shot[2] === 'sog') {
-    return (
-      <g>
-        <circle cx={cx} cy={cy} r={sel ? 1.3 : 0.95} fill={RINK.puck} stroke={sel ? C.lamp : RINK.puckRim} strokeWidth={sel ? 0.4 : 0.22} />
-        {hard && <circle cx={cx} cy={cy} r={1.7} fill="none" stroke={C.ice} strokeWidth={0.3} />}
-      </g>
-    )
-  }
-  if (out === 'block') {
-    // a short stub toward the net
-    const d = Math.hypot(89 - (cx + X0), 42.5 - cy) || 1
-    const ux = (89 - (cx + X0)) / d, uy = (42.5 - cy) / d
-    return <line x1={cx} y1={cy} x2={cx + ux * 1.8} y2={cy + uy * 1.8} stroke={sel ? C.lamp : RINK.missInk} strokeWidth={sel ? 0.55 : 0.4} strokeLinecap="round" />
-  }
-  const k = sel ? 0.95 : 0.7
+  const goal = shot[2] === 'goal'
+  const r = goal ? 1.35 : 0.95
   return (
-    <g stroke={sel ? C.lamp : RINK.missInk} strokeWidth={sel ? 0.4 : 0.3} strokeLinecap="round">
-      <line x1={cx - k} y1={cy - k} x2={cx + k} y2={cy + k} />
-      <line x1={cx - k} y1={cy + k} x2={cx + k} y2={cy - k} />
-      {hard && <circle cx={cx} cy={cy} r={1.5} fill="none" stroke={C.ice} strokeWidth={0.3} />}
+    <g>
+      {goal && <circle cx={cx} cy={cy} r={2.4} fill={C.lamp} opacity={0.28} />}
+      <circle cx={cx} cy={cy} r={sel ? r + 0.45 : r} fill={shotInk(shot[2])} stroke={sel ? RINK.puck : RINK.puckRim} strokeWidth={sel ? 0.45 : 0.2} />
+      {hard && <circle cx={cx} cy={cy} r={r + 0.75} fill="none" stroke={RINK.puck} strokeWidth={0.25} />}
     </g>
   )
 }
@@ -92,7 +70,6 @@ export default function Rink({ map, slot, gridSpec, height = 300, shots = null, 
   goalieRead = null, onPickZone = null, pickedZone = null }) {
   const clipId = `rink-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`
   const [viewOwn, setViewOwn] = useState('dots')
-  const [play, setPlay] = useState(null)        // { shot, n } -- n restarts the animation
   const view = viewProp || viewOwn
   const setView = onView || setViewOwn
   const drawn = shots || map?.recent || []
@@ -100,15 +77,6 @@ export default function Rink({ map, slot, gridSpec, height = 300, shots = null, 
   const max = Math.max(1, ...map.grid.flat().map((c) => c.att))
   const cw = (gridSpec.x1 - gridSpec.x0) / gridSpec.cols; const ch = (gridSpec.y1 - gridSpec.y0) / gridSpec.rows
   const vs = view === 'vs' ? vsCells(map.grid, league) : null
-  const start = (shot) => setPlay((p) => (p?.shot === shot ? p : { shot, n: (p?.n || 0) + 1 }))
-  // the playing shot: its path as an SVG polyline, timed by its pace
-  const playing = play && (view === 'dots' || view === 'goalie') ? (() => {
-    const pts = shotPath(play.shot)
-    const mph = measuredMph(hardest, play.shot)
-    const ms = paceMs(pts, { avg: speed?.avg, leagueAvg: speed?.leagueAvg, mph })
-    const d = pts.map(([x, y], i) => `${i ? 'L' : 'M'}${sx(x).toFixed(2)},${sy(y).toFixed(2)}`).join(' ')
-    return { d, ms, goal: play.shot[2] === 'goal' }
-  })() : null
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-start' }}>
       <div role="group" aria-label="Map view" style={{ display: 'inline-flex', gap: 4 }}>
@@ -122,7 +90,7 @@ export default function Rink({ map, slot, gridSpec, height = 300, shots = null, 
         {extraView}
       </div>
       <svg viewBox={`-1 -1 ${W + 2} ${H + 2}`} role="img" aria-label={`Shot map: ${map.attempts} attempts, ${map.goals} goals`}
-        style={{ height, width: 'auto', maxWidth: '100%', display: 'block' }} onMouseLeave={() => setPlay(null)}>
+        style={{ height, width: 'auto', maxWidth: '100%', display: 'block' }}>
         {/* the sheet: ice, inside the boards */}
         <path d={`M0,0 H${W - 28} A28,28 0 0 1 ${W},28 V${H - 28} A28,28 0 0 1 ${W - 28},${H} H0 Z`} fill={RINK.ice} stroke={RINK.cap} strokeWidth="0.8" />
         {view !== 'goalie' && <rect x={sx(slot.x0)} y={sy(slot.y)} width={slot.x1 - slot.x0} height={slot.y * 2} fill={RINK.crease} opacity={0.22} />}
@@ -213,20 +181,10 @@ export default function Rink({ map, slot, gridSpec, height = 300, shots = null, 
           return (
             <g key={i}>
               <Mark shot={shot} cx={sx(shot[0])} cy={sy(shot[1])} sel={sel} hard={hard} />
-              {onPick && <circle cx={sx(shot[0])} cy={sy(shot[1])} r="2.6" fill="transparent" style={{ cursor: 'pointer' }}
-                onMouseEnter={() => start(shot)} onClick={() => { start(shot); onPick(shot) }} />}
+              {onPick && <circle cx={sx(shot[0])} cy={sy(shot[1])} r="2.6" fill="transparent" style={{ cursor: 'pointer' }} onClick={() => onPick(shot)} />}
             </g>
           )
         })}
-        {/* THE PLAY: the shot's line, and the puck sliding along it */}
-        {playing && (
-          <g key={play.n} pointerEvents="none">
-            <path d={playing.d} fill="none" stroke={playing.goal ? C.lamp : RINK.missInk} strokeWidth="0.35" strokeDasharray={playing.goal ? '0' : '1 0.8'} opacity="0.85" />
-            <circle r={playing.goal ? 1.2 : 0.9} fill={playing.goal ? C.lamp : RINK.puck} stroke={RINK.puckRim} strokeWidth="0.2">
-              <animateMotion dur={`${playing.ms}ms`} fill="freeze" path={playing.d} />
-            </circle>
-          </g>
-        )}
       </svg>
       {/* The key moved to the caller's ChartLegend (BATCH-2D-CORE flag 2). */}
     </div>
