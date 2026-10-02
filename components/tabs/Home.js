@@ -255,7 +255,7 @@ function Headlines({ players = [], headline, results, isLive, airRanked = [], od
   }, [players, headline, results, isLive, airRanked, hist])
   const open = (c) => (c.p ? onPlayerClick?.(c.p) : c.nav ? onNavigate?.(c.nav) : null)
   const faceOf = (c) => (c.p?.player_id ? <PlayerFace sport="mlb" id={String(c.p.player_id)} name={c.name} size={22} theme={C} /> : null)
-  return <HeadlineStrip cards={cards} onOpen={open} theme={C} numFont={NUM_FONT} accent={C.orange} speed={30} faceOf={faceOf} />
+  return <HeadlineStrip sport="mlb" cards={cards} onOpen={open} theme={C} numFont={NUM_FONT} accent={C.orange} speed={30} faceOf={faceOf} />
 }
 
 export default function Home({

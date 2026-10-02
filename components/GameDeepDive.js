@@ -11,6 +11,7 @@ import { Dial } from './VerdictHero'
 import GameCockpit from './GameCockpit'
 import Storylines from './Storylines'
 import TeamVsStarter from './TeamVsStarter'
+import TeamMark from './TeamMark'
 
 // GAME DEEP DIVE — what clicking a game actually earns you (2026-08-06).
 //
@@ -362,7 +363,7 @@ function SidePanel({ team, rows, odds, onPlayerClick }) {
     }}>
       {/* header: whose bats, which arm, and which way he is trending */}
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, flexWrap: 'wrap', marginBottom: 8 }}>
-        <span style={{ fontSize: 12.5, fontWeight: 900 }}>{team} bats</span>
+        <span style={{ fontSize: 12.5, fontWeight: 900, display: 'inline-flex', alignItems: 'center', gap: 5 }}><TeamMark sport="mlb" abbr={team} variant="logo" px={16} /> bats</span>
         <span style={{ fontSize: 10.5, color: C.text2, fontFamily: NUM_FONT, minWidth: 0 }}>
           vs {name}{throws ? ` (${throws}HP)` : ''}
           {projected && (

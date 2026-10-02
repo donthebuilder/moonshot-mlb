@@ -61,7 +61,7 @@ export default function LampHeadline({ theme: C, numFont, goalBoard, sogBoard, r
     })),
   })).filter((l) => l.picks.length)   // no empty boxes: a model with nothing called tonight sits out
   return (
-    <HeadlinePicks
+    <HeadlinePicks sport="nhl"
       theme={C} numFont={numFont}
       title="🏒 Tonight's calls"
       subtitle="the called skaters in every game: one per team on goals, three per game on the other boards. Scores rank tonight's pool, 0–100 — not probabilities."

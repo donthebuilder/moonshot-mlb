@@ -207,7 +207,7 @@ function Scorebug({ players, results, games, mode, slateDate, runMeta, onPlayerC
   const Pill = ({ it, echo }) => (
     <TickerPill
       label={it.label} value={it.value} icon={it.icon} color={it.color}
-      live={it.live} title={it.title} echo={echo} onClick={() => open(it)}
+      live={it.live} title={it.title} echo={echo} onClick={() => open(it)} sport={it.sport || 'mlb'}
     />
   )
   // ── #97: -webkit-overflow-scrolling:touch FREEZES A JS-DRIVEN SCROLLLEFT

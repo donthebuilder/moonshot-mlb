@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { n, clean, surname } from '../lib/player'
 import { pitcherSlotDamage } from '../lib/situational'
+import TeamMark from './TeamMark'
 
 // SLOT-BY-SLOT MATCHUP (2026-08-06) — what clicking a game bubble earns in
 // Lineups mode: the depth read for the selected game only.
@@ -50,7 +51,7 @@ export default function LineupSlotMatchup({ team, lineup = [], onPlayerClick }) 
     // squeezing into unreadable halves.
     <div style={{ flex: '1 1 300px', minWidth: 0 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 5 }}>
-        <span style={{ fontSize: 11, fontWeight: 900, fontFamily: NUM_FONT }}>{team}</span>
+        <TeamMark sport="mlb" abbr={team} variant="logo" px={16} />
         <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
           vs {String(pitcherName).split(' ').slice(-1)[0]} ({throws}HP)
           {weakSide && <> · weak vs <b style={{ color: C.yellow }}>{weakSide}</b></>}

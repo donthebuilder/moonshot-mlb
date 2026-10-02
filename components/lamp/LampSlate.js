@@ -17,6 +17,7 @@ import LampWeakSpots from './LampWeakSpots'
 import BoardTopBar from '../BoardTopBar'
 import { LampCards } from './LampCard'
 import { EmptyState, DelayedBanner, Loading, StaleSeasonNote, fmtPuckDrop, zoneAbbrev, shiftDay, fmtDay } from './ui'
+import TeamMark, { MatchLogos } from '../TeamMark'
 
 // LAMP'S SLATE (2026-09-28). MOONSHOT's Slate (components/tabs/Games.js,
 // Games view) built from its own pieces -- components/slate/* -- with the
@@ -86,7 +87,7 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
     const called = g.rows.filter((r) => r.status === 'called').sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99))
     const b2b = [g.game.away.abbrev, g.game.home.abbrev].filter((t) => spotOf(g, t, true)?.b2b)
     return {
-      id: String(g.game.id), title: `${g.game.away.abbrev} @ ${g.game.home.abbrev}`, past: st === 'final', heat,
+      id: String(g.game.id), title: <MatchLogos sport="nhl" away={g.game.away.abbrev} home={g.game.home.abbrev} px={20} gap={5} />, past: st === 'final', heat,
       tooltip: `${g.game.away.abbrev} @ ${g.game.home.abbrev}`,
       dial: { value: best || null, pct: best, title: `The best LAMP score in this game: ${best ? best.toFixed(0) : '—'} of 100.` },
       band: topId === g.game.id && games.length > 1 ? { icon: '🌋', word: 'MAIN EVENT' } : heat >= 0.62 ? { icon: '🔥', word: '' } : heat < 0.3 && games.length > 2 ? { icon: '🧊', word: '' } : null,
@@ -103,7 +104,8 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
   })
 
   const g = games.find((x) => String(x.game.id) === activeId) || null
-  const teamLink = (t) => <Tap onClick={onOpenTeam && (() => onOpenTeam(t))}>{t}</Tap>
+  // the club's logo (Donovan 10-02, logos site-wide); the code rides its title / alt
+  const teamLink = (t) => <Tap onClick={onOpenTeam && (() => onOpenTeam(t))} title={t}><span style={{ display: 'inline-flex', alignItems: 'center' }}><TeamMark sport="nhl" abbr={t} variant="logo" px={18} /></span></Tap>
   const switcherGames = games.map((x) => ({ game_pk: String(x.game.id), away: x.game.away.abbrev, home: x.game.home.abbrev, game_time: x.game.startUtc }))
   const switcherLive = Object.fromEntries(games.filter((x) => stateOf(x) !== 'upcoming').map((x) => [String(x.game.id), { away_score: x.game.away.score, home_score: x.game.home.score }]))
 
@@ -145,16 +147,16 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
         <>
           <GameFilterRail value={gfilter} onChange={setGfilter} counts={counts} />
           <StripFold isPhone={isPhone} count={games.length} rememberKey="lamp_games_fold_v1" accent={C.ice}
-            summary={g ? `reading ${g.game.away.abbrev} @ ${g.game.home.abbrev}` : 'tap to pick one'}>
+            summary={g ? <>reading <MatchLogos sport="nhl" away={g.game.away.abbrev} home={g.game.home.abbrev} px={14} gap={3} /></> : 'tap to pick one'}>
             <div style={{ marginBottom: 16 }}>
               <style>{'@keyframes gsLivePulse{0%,100%{opacity:1}50%{opacity:.3}}'}</style>
               <Rail itemMin={264} gap={8} wheelScroll={false}>
-                {cards.map((c) => <SlateCard key={c.id} card={c} on={c.id === activeId} accent={C.ice} onSelect={select} />)}
+                {cards.map((c) => <SlateCard key={c.id} card={c} on={c.id === activeId} accent={C.ice} onSelect={select} sport="nhl" />)}
               </Rail>
               <div style={{ marginTop: 7, fontSize: 9.5, color: C.text3 }}>Puck-drop order. The dial is the game&apos;s best LAMP score; 🔒 locked before puck drop, ◻ still a preview.</div>
             </div>
           </StripFold>
-          <GameSwitcher games={switcherGames} activeGame={activeId} onSelect={select} live={switcherLive} accent={C.ice} stickyTop="0px" />
+          <GameSwitcher sport="nhl" games={switcherGames} activeGame={activeId} onSelect={select} live={switcherLive} accent={C.ice} stickyTop="0px" />
         </>
       )}
 
@@ -230,7 +232,7 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
           </div>
         )
       })()}
-      {view === 'games' && <PrevNextGame games={games.map((x) => ({ id: String(x.game.id), away: x.game.away.abbrev, home: x.game.home.abbrev }))} activeId={activeId} idOf={(x) => x.id} onGo={select} accent={C.ice} />}
+      {view === 'games' && <PrevNextGame sport="nhl" games={games.map((x) => ({ id: String(x.game.id), away: x.game.away.abbrev, home: x.game.home.abbrev }))} activeId={activeId} idOf={(x) => x.id} onGo={select} accent={C.ice} />}
     </div>
   )
 }

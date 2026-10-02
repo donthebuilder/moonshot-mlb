@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { clean } from '../lib/player'
+import TeamMark from './TeamMark'
 
 // 🎥 GAME COCKPIT — per-at-bat depth for the ONE game you're locked into.
 //
@@ -139,8 +140,8 @@ export default function GameCockpit({ game, onPlayerClick }) {
           const aR = ls?.teams?.away?.runs, hR = ls?.teams?.home?.runs
           if (aR == null && hR == null) return null
           return (
-            <span style={{ fontSize: 11, fontWeight: 900, fontFamily: NUM_FONT, color: C.text }}>
-              {gt?.away?.abbreviation || 'AWY'} {aR ?? 0}–{hR ?? 0} {gt?.home?.abbreviation || 'HOM'}
+            <span style={{ fontSize: 11, fontWeight: 900, fontFamily: NUM_FONT, color: C.text, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <TeamMark sport="mlb" abbr={gt?.away?.abbreviation} variant="logo" px={14} /> {aR ?? 0}–{hR ?? 0} <TeamMark sport="mlb" abbr={gt?.home?.abbreviation} variant="logo" px={14} />
             </span>
           )
         })()}

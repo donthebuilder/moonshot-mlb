@@ -3,6 +3,7 @@ import DenseTable from '../DenseTable'
 import Tap from '../Tap'
 import { C, NUM_FONT } from '../../lib/theme'
 import { alpha } from '../../lib/scales'
+import { asLogos } from '../TeamMark'
 
 // PROJECTED OUTPUT, THE VIEW (2026-09-28). MOONSHOT's Projected output
 // (components/ProjectedOutput.js) split in two: its model stays in that file,
@@ -20,8 +21,10 @@ export default function ProjectedView({
   by, setBy, byOptions = ['game', 'team'],
   note = null, rows = [], primary, adj = null, unit, columns = [], pillCols = null,
   sortCol, sortDir, onSort, podiumTip = null, barsTitle = null, barsFoot = null, footnote = null,
-  onOpenGame = null, onOpenTeam = null, accent = C.orange, tick = C.amber, palette = null,
+  onOpenGame = null, onOpenTeam = null, accent = C.orange, tick = C.amber, palette = null, sport = null,
 }) {
+  // LOGOS (Donovan 10-02): a game or club label drawn as logos (components/TeamMark asLogos)
+  const showLabel = (label, { rank = true } = {}) => asLogos(sport, String(label || ''), { px: 14, rank })
   if (!rows.length) return null
   const total = rows.reduce((a, r) => a + (r.values[primary] || 0), 0)
   const podium = rows.slice(0, 3)
@@ -103,7 +106,7 @@ export default function ProjectedView({
               #{i + 1} by {primary.toLowerCase()}
             </div>
             <div style={{ fontSize: 12, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              <Tap onClick={openOf(r)}>{r.label.replace(/^\d+\.\s+/, '')}</Tap>
+              <Tap onClick={openOf(r)} title={r.label}>{showLabel(r.label, { rank: false })}</Tap>
             </div>
             <div style={{ fontSize: 14, fontWeight: 900, color: i === 0 ? accent : C.text2, fontFamily: NUM_FONT }}>
               {r.values[primary].toFixed(1)} {unit}
@@ -143,7 +146,7 @@ export default function ProjectedView({
                     <span style={{
                       width: 150, flexShrink: 0, fontSize: 10, color: C.text2, fontWeight: 700,
                       whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                    }} title={r.label}><Tap onClick={openOf(r)}>{r.label}</Tap></span>
+                    }} title={r.label}><Tap onClick={openOf(r)} title={r.label}>{showLabel(r.label)}</Tap></span>
                     <span style={{ flex: 1, position: 'relative', height: 13, background: 'rgba(255,255,255,.04)', borderRadius: 4, overflow: 'visible', minWidth: 0 }}>
                       <span style={{
                         position: 'absolute', left: 0, top: 0, bottom: 0, width: `${pct}%`, borderRadius: 4,
@@ -199,7 +202,7 @@ export default function ProjectedView({
               caption={by === 'game' ? 'Projected output by game' : 'Projected output by team'}
               rows={rows.map((r) => ({ _key: r.label, label: r.label, _r: r, ...Object.fromEntries(columns.map((c, k) => [`c${k}`, Number.isFinite(Number(r.values[c])) ? Number(r.values[c]) : null])) }))}
               columns={[
-                { key: 'label', label: by === 'game' ? 'Game' : 'Team', heat: false, sticky: true, w: 120, link: (x) => openOf(x._r), fmt: (v) => <b>{v}</b> },
+                { key: 'label', label: by === 'game' ? 'Game' : 'Team', heat: false, sticky: true, w: 120, link: (x) => openOf(x._r), fmt: (v) => <b>{showLabel(v)}</b> },
                 ...columns.map((c, k) => ({ key: `c${k}`, label: c, w: 70, heat: false, numeric: false, fmt: (v) => {
                   const g = gradeOf(c, v)
                   const text = Number.isFinite(Number(v)) ? Number(v).toFixed(1) : '—'

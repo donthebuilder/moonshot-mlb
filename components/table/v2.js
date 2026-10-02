@@ -390,7 +390,7 @@ export function renderV2(ctx) {
                     </td>
                   )
                 }
-                if (logoOf(c) && v) {
+                if (logoOf(c) && v && v !== '—') {
                   const mark = <TeamMark sport={logoOf(c)} abbr={v} variant="logo" px={14} />
                   // the column's own link, else the product's team door (lib/teamNav)
                   const open = go || (onOpenTeam && /^[A-Z]{2,4}$/.test(String(v)) ? () => onOpenTeam(String(v)) : null)

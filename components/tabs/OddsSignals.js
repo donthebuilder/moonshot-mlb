@@ -205,8 +205,8 @@ export default function OddsSignals({ players = [], odds = null, onPlayerClick }
             rows={gaps}
             columns={[
               { key: 'player', label: 'Hitter', heat: false, w: 152, bold: true, sticky: true },
-              { key: 'tm', label: 'TM', heat: false, w: 34, mono: true, dim: true },
-              { key: 'opp', label: 'vs', heat: false, w: 34, mono: true, dim: true },
+              { key: 'tm', label: 'TM', heat: false, w: 34, mono: true, dim: true, teamMark: 'mlb' },
+              { key: 'opp', label: 'vs', heat: false, w: 34, mono: true, dim: true, teamMark: 'mlb' },
               { key: 'price', label: 'BOOK', w: 58, heat: false,
                 fmt: (v) => <b style={{ fontFamily: NUM_FONT }}>{fmtOdds(v)}</b> },
               { key: 'fair', label: 'FAIR', w: 58, heat: false,

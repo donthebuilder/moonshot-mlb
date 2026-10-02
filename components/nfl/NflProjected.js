@@ -60,7 +60,7 @@ export default function NflProjected({ data, matchup, logs, players: pool = [], 
 
   return (
     <ProjectedView
-      lenses={lenses} active={active} setActive={setActive} shownCount={players.length} totalCount={total} noun="players"
+      lenses={lenses} active={active} setActive={setActive} shownCount={players.length} totalCount={total} noun="players" sport="nfl"
       by={by} setBy={setBy}
       note={<>
         <b style={{ color: C.text2 }}>xTD</b> — each player&apos;s expected touchdowns a game from the model, summed over

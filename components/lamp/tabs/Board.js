@@ -17,6 +17,7 @@ import { alpha } from '../../../lib/scales'
 import { useLampBoard } from '../../../lib/nhl/useLamp'
 import { TeamMark, EmptyState, DelayedBanner, Loading, SourceLine, Kicker, GameTypeChip, LampDot, StaleSeasonNote, fmtDay, fmtPuckDrop, fmtSec, zoneAbbrev, shiftDay, STATUS, CalledChip, readHashParam, writeHashParam } from '../ui'
 import { withNhlFullSet } from '../../../lib/nhl/boardColumns'
+import { MatchLogos } from '../../TeamMark'
 
 // 🏒 THE LAMP GOAL BOARD (lamp-goal-v1) — the product's first signal page.
 // Per game: every scored skater ranked, the top skater on each TEAM CALLED, the rest ON
@@ -371,7 +372,8 @@ export function GameBoard({ g, onOpenPlayer, onOpenGame, onOpenTeam, market = 'G
     <section aria-label={`${game.away.abbrev} at ${game.home.abbrev}`} style={{ border: `1px solid ${C.border2}`, borderRadius: 12, background: C.bg2, padding: '8px 10px 10px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 6 }}>
         <button type="button" onClick={() => onOpenGame?.(game.id)} style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', color: C.text, font: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-          <TeamMark abbrev={game.away.abbrev} size={22} bold /><span style={{ color: C.text3, font: `800 10px/1 ${NUM_FONT}` }}>@</span><TeamMark abbrev={game.home.abbrev} size={22} bold />
+          {/* logos only (Donovan 10-02); the codes ride the logos' title / alt */}
+          <MatchLogos sport="nhl" away={game.away.abbrev} home={game.home.abbrev} px={24} gap={6} />
         </button>
         {done || live
           ? <span style={{ color: live ? C.lamp : C.text, font: `900 17px/1 ${NUM_FONT}` }}>{live && <LampDot />}{game.away.score}–{game.home.score}</span>

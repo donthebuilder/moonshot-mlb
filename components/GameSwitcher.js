@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { alpha } from '../lib/scales'
 import { useIsPhone } from './MobileFold'
+import { MatchLogos } from './TeamMark'
 
 // ══ THE GAME SWITCHER ═════════════════════════════════════════════════════
 //
@@ -57,7 +58,7 @@ const timeText = (t) => {
   return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).replace(/\s?[AP]M$/i, '')
 }
 
-export default function GameSwitcher({ games = [], activeGame, onSelect, live = null, accent = C.orange, stickyTop = 'var(--hdr-h, 96px)' }) {
+export default function GameSwitcher({ games = [], activeGame, onSelect, live = null, accent = C.orange, stickyTop = 'var(--hdr-h, 96px)', sport = 'mlb' }) {
   const isPhone = useIsPhone(760)
   const activeRef = useRef(null)
   const [open, setOpen] = useState(false)
@@ -139,7 +140,8 @@ export default function GameSwitcher({ games = [], activeGame, onSelect, live = 
         }}
       >
         <span style={{ fontSize: 12, fontWeight: 900, fontFamily: NUM_FONT, whiteSpace: 'nowrap', letterSpacing: '-.01em', color: on ? accent : C.text }}>
-          {g.away || '—'}<span style={{ opacity: 0.5, fontWeight: 400, margin: '0 2px' }}>@</span>{g.home || '—'}
+          {/* logos (Donovan 10-02); the codes ride the chip's title */}
+          <MatchLogos sport={sport} away={g.away} home={g.home} px={16} gap={3} />
         </span>
         <span style={{ fontSize: 11, fontFamily: NUM_FONT, fontWeight: 700, whiteSpace: 'nowrap', color: on ? C.text2 : C.text3 }}>{subOf(g)}</span>
       </button>

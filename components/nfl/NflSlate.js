@@ -1,5 +1,5 @@
 'use client'
-import TeamMark from '../TeamMark'
+import TeamMark, { MatchLogos } from '../TeamMark'
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE, gradeFor } from '../../lib/nfl/theme'
 import { softRole, softLine } from '../../lib/nfl/dvpSignal'
@@ -122,7 +122,7 @@ export default function NflSlate({ data, picks, matchup, odds = null, initialGam
         .map((p) => ({ market: 'TD', name: p.name, score: p.scores.TD, pid: p.player_id }))
     const live = g.state === 'in'
     return {
-      id: String(g.game_id), title: `${g.away} @ ${g.home}`, past: Boolean(g.completed), heat,
+      id: String(g.game_id), title: <MatchLogos sport="nfl" away={g.away} home={g.home} px={20} gap={5} />, past: Boolean(g.completed), heat,
       tooltip: `${g.away} @ ${g.home}${g.venue ? ` · ${g.venue}` : ''}`,
       dial: { value: x, dp: 1, pct: 100 * heat, title: `${x.toFixed(1)} expected touchdowns between the two teams — the sum of each scored player's xTD. The ring fills against this week's range.` },
       band: top && g.game_id === top.game_id ? { icon: '🌋', word: 'MAIN EVENT' } : heat >= 0.62 ? { icon: '🔥', word: '' } : heat < 0.3 ? { icon: '🧊', word: '' } : null,
@@ -141,22 +141,23 @@ export default function NflSlate({ data, picks, matchup, odds = null, initialGam
   const switcherGames = games.map((g) => ({ game_pk: String(g.game_id), away: g.away, home: g.home, game_time: g.kickoff }))
   const switcherLive = Object.fromEntries(games.filter((g) => g.state === 'in' || g.completed).map((g) => [String(g.game_id), { away_score: g.away_score, home_score: g.home_score }]))
   const g = games.find((x) => String(x.game_id) === activeId) || null
-  const teamLink = (t) => <Tap onClick={onOpenTeam && (() => onOpenTeam(t))}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><TeamMark sport="nfl" abbr={t} variant="logo" px={18} />{t}</span></Tap>
+  // logo-only (Donovan 10-02); the code rides the logo's title / alt and the tap's label
+  const teamLink = (t) => <Tap onClick={onOpenTeam && (() => onOpenTeam(t))} title={t}><span style={{ display: 'inline-flex', alignItems: 'center' }}><TeamMark sport="nfl" abbr={t} variant="logo" px={18} /></span></Tap>
 
   return (
     <div>
       <GameFilterRail value={gfilter} onChange={setGfilter} counts={counts} />
       <StripFold isPhone={isPhone} count={games.length} rememberKey="tuddy_games_fold_v1" accent={C.green}
-        summary={g ? `reading ${g.away} @ ${g.home}` : 'tap to pick one'}>
+        summary={g ? <>reading <MatchLogos sport="nfl" away={g.away} home={g.home} px={14} gap={3} /></> : 'tap to pick one'}>
         <div style={{ marginBottom: 16 }}>
           <style>{'@keyframes gsLivePulse{0%,100%{opacity:1}50%{opacity:.3}}'}</style>
           <Rail itemMin={264} gap={8} wheelScroll={false}>
-            {cards.map((c) => <SlateCard key={c.id} card={c} on={c.id === activeId} accent={C.green} onSelect={select} />)}
+            {cards.map((c) => <SlateCard key={c.id} card={c} on={c.id === activeId} accent={C.green} onSelect={select} sport="nfl" />)}
           </Rail>
           <div style={{ marginTop: 7, fontSize: 9.5, color: C.text3 }}>Kickoff order. The dial is expected touchdowns in the game; 🌋 the most this week, 🔥 hot, 🧊 cold.</div>
         </div>
       </StripFold>
-      <GameSwitcher games={switcherGames} activeGame={activeId} onSelect={select} live={switcherLive} accent={C.green} stickyTop="0px" />
+      <GameSwitcher sport="nfl" games={switcherGames} activeGame={activeId} onSelect={select} live={switcherLive} accent={C.green} stickyTop="0px" />
 
       {g && (() => {
         const live = g.state === 'in'
@@ -272,7 +273,7 @@ export default function NflSlate({ data, picks, matchup, odds = null, initialGam
           </div>
         )
       })()}
-      <PrevNextGame games={games} activeId={activeId} idOf={(x) => String(x.game_id)} onGo={select} accent={C.green} />
+      <PrevNextGame sport="nfl" games={games} activeId={activeId} idOf={(x) => String(x.game_id)} onGo={select} accent={C.green} />
     </div>
   )
 }

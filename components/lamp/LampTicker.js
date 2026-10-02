@@ -77,14 +77,14 @@ export default function LampTicker({ date = null, scores, liveScores, onOpenPlay
     }
     for (const i of others.items) {
       if (i.kind !== 'score') continue
-      out.push({ k: i.k, icon: i.icon, label: i.sub || (i.live ? 'live' : i.pregame ? 'soon' : 'F'), value: i.text, color: i.live ? C.teal : C.text3, live: i.live, onClick: () => setSport(i.sport) })
+      out.push({ k: i.k, icon: i.icon, label: i.sub || (i.live ? 'live' : i.pregame ? 'soon' : 'F'), value: i.text, sport: i.sport, color: i.live ? C.teal : C.text3, live: i.live, onClick: () => setSport(i.sport) })
     }
     return out
   }, [date, board.data, leaders.data, scores?.data, liveScores?.data, others.items, onOpenPlayer, onOpenGame])
 
   if (!items.length) return null
   const Pill = ({ it, echo }) => (
-    <TickerPill label={it.label} value={it.value} icon={it.icon} color={it.color} live={it.live} title={it.title} echo={echo} onClick={it.onClick} theme={C} numFont={NUM_FONT} />
+    <TickerPill sport={it.sport || 'nhl'} label={it.label} value={it.value} icon={it.icon} color={it.color} live={it.live} title={it.title} echo={echo} onClick={it.onClick} theme={C} numFont={NUM_FONT} />
   )
   return (
     <div className="hdr-scorebug lamp-ticker" ref={trackRef}

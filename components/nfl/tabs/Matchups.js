@@ -365,7 +365,8 @@ export default function Matchups({ matchup, data, onPlayerClick = null, onOpenTe
         .map(([k, v]) => ({ key: k, label: SHELL_WORD[k] || k, pct: v, text: `${v}%` }))
     : []
   const facts = defenseFacts(matchup, active, rushThreat, data?.season)
-  const teamLink = (t) => <Tap onClick={onOpenTeam && (() => onOpenTeam(t))}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><TeamMark sport="nfl" abbr={t} variant="logo" px={18} />{t}</span></Tap>
+  // logo-only (Donovan 10-02, logos site-wide); the code rides the logo's title / alt
+  const teamLink = (t) => <Tap onClick={onOpenTeam && (() => onOpenTeam(t))} title={t}><span style={{ display: 'inline-flex', alignItems: 'center' }}><TeamMark sport="nfl" abbr={t} variant="logo" px={18} /></span></Tap>
 
   const whoColumns = [
     { key: 'name', label: 'Player', w: 150, heat: false, sticky: true, fmt: (v, r) => (

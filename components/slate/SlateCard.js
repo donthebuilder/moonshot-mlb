@@ -2,6 +2,7 @@
 import { C, NUM_FONT } from '../../lib/theme'
 import { alpha, verdictInk } from '../../lib/scales'
 import { Dial } from '../VerdictHero'
+import TeamMark from '../TeamMark'
 
 // ONE GAME CARD, ANY SPORT (2026-09-28). MOONSHOT's game card
 // (components/GameStrip.js, "the same style as the prop cards", 2026-08-23)
@@ -20,7 +21,7 @@ import { Dial } from '../VerdictHero'
 //   score: { away, home, awayScore, homeScore, live } | null,
 //   chips: [{ key, tag, color, name, score, title, onClick, leg, style }],
 // }
-export default function SlateCard({ card: c, on = false, accent = C.orange, onSelect, target = null }) {
+export default function SlateCard({ card: c, on = false, accent = C.orange, onSelect, target = null, sport = 'mlb' }) {
   const ink = verdictInk(c.heat >= 0.55 ? true : c.heat <= 0.25 ? false : null)
   const col = on ? accent : ink.color
   const wash = alpha(col, 0.05 + 0.11 * c.heat)
@@ -96,9 +97,10 @@ export default function SlateCard({ card: c, on = false, accent = C.orange, onSe
             color: c.score.live ? C.green : C.text2,
             display: 'flex', gap: 6, alignItems: 'baseline',
           }}>
-            <span style={{ color: aS > hS ? undefined : C.text3 }}>{c.score.away}</span>
+            {/* logos (Donovan 10-02); the trailing side dims, as its code did */}
+            <TeamMark sport={sport} abbr={c.score.away} variant="logo" px={16} dim={aS < hS} />
             <span>{aS}–{hS}</span>
-            <span style={{ color: hS > aS ? undefined : C.text3 }}>{c.score.home}</span>
+            <TeamMark sport={sport} abbr={c.score.home} variant="logo" px={16} dim={hS < aS} />
           </div>
         )
       })()}

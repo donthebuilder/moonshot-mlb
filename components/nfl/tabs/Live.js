@@ -31,6 +31,7 @@ import GameScoreboard, { fmtKick } from '../GameScoreboard'
 import NflHeadlineStrip from '../NflHeadlineStrip'
 import Storylines from './Storylines'
 import Fold from '../../Fold'
+import TeamMark, { MatchLogos } from '../../TeamMark'
 
 const MARKET_SHORT = { TD: 'TD', REC_YDS: 'REC YDS', REC: 'REC', RUSH_YDS: 'RUSH YDS', RUSH_ATT: 'CARRIES', PASS_YDS: 'PASS YDS', KICK_PTS: 'KICK PTS' }
 const short = (m) => MARKET_SHORT[m] || String(m || '').replace('_', ' ')
@@ -230,9 +231,9 @@ export default function Live({ data, picks, live, matchup = null, logs = null, r
           <div className="tl-crawl">
             <span className="tl-crawl-tag">{anyDone ? 'FINAL' : 'NEXT'}</span>
             {games.filter((g) => g.completed || g.state === 'post').map((g) => (
-              <span key={g.game_id} className="tl-crawl-item"><b>{g.away} {g.away_score ?? 0}</b> – <b>{g.home_score ?? 0} {g.home}</b></span>
+              <span key={g.game_id} className="tl-crawl-item" title={`${g.away} ${g.away_score ?? 0} – ${g.home_score ?? 0} ${g.home}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><TeamMark sport="nfl" abbr={g.away} variant="logo" px={16} /><b>{g.away_score ?? 0}</b> – <b>{g.home_score ?? 0}</b><TeamMark sport="nfl" abbr={g.home} variant="logo" px={16} /></span>
             ))}
-            {next && <span className="tl-crawl-item tl-crawl-next">{anyDone ? 'next ' : ''}{next.game.away} @ {next.game.home} · {fmtKick(next.t)}</span>}
+            {next && <span className="tl-crawl-item tl-crawl-next">{anyDone ? 'next ' : ''}<MatchLogos sport="nfl" away={next.game.away} home={next.game.home} px={16} gap={3} /> · {fmtKick(next.t)}</span>}
             {!next && !anyDone && <span className="tl-crawl-item">no kickoff on the schedule yet</span>}
           </div>
         )}

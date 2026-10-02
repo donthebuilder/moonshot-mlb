@@ -12,6 +12,7 @@ import DenseTable from './DenseTable'
 import { boardRow, withBoardColumns } from '../lib/boardColumns'
 import { gameNumbers } from '../lib/doubleheader'
 import { SCORE } from '../lib/scales'
+import TeamMark from './TeamMark'
 
 // The full lineup, dense and colored — not the top-8 card grid.
 //
@@ -245,7 +246,7 @@ function SideRead({ team, rows, onPlayerClick }) {
       border: `1px solid ${C.border}`, borderRadius: 11, padding: '10px 13px',
     }}>
       <div style={{ fontSize: 12.5, fontWeight: 900, marginBottom: 4 }}>
-        {team} bats <span style={{ color: C.text3, fontWeight: 600 }}>vs {arm}{throws ? ` (${throws}HP)` : ''}</span>
+        <TeamMark sport="mlb" abbr={team} variant="logo" px={16} style={{ marginRight: 5, verticalAlign: '-3px' }} />bats <span style={{ color: C.text3, fontWeight: 600 }}>vs {arm}{throws ? ` (${throws}HP)` : ''}</span>
       </div>
 
       {/* THE ORDER IN THIRDS — the zone fields, which nothing on this tab used
@@ -419,7 +420,7 @@ function LineupCard({ row, onPlayerClick }) {
       >
         <span style={{ fontFamily: NUM_FONT, fontSize: 10, color: C.text3, width: 16, flexShrink: 0 }}>{row.spot}</span>
         <span style={{ fontWeight: 800, fontSize: 12.5, color: C.text }}>{row.name}</span>
-        <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>{row.team} · {row.b}</span>
+        <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT, display: 'inline-flex', alignItems: 'center', gap: 3 }}><TeamMark sport="mlb" abbr={row.team} variant="logo" px={12} /> · {row.b}</span>
         <span style={{ fontSize: 9.5, color: C.text2 }} title={row.roleTitle}>{row.role}</span>
         {row.weak ? <span style={{ color: C.yellow, fontSize: 10 }} title="Weak lineup spot">★</span> : null}
         {row.aligned ? <span style={{ color: C.purple, fontSize: 10 }} title="Signals aligned">◆</span> : null}
@@ -587,8 +588,8 @@ export default function GameLineup({ players, onPlayerClick }) {
               <button
                 key={t}
                 onClick={(e) => { e.stopPropagation(); setTeam(t) }}
-                style={pill(team === t)}
-              >{t}</button>
+                style={pill(team === t)} title={t}
+              >{t === 'Both' || t === 'BOTH' ? t : <TeamMark sport="mlb" abbr={t} variant="logo" px={16} />}</button>
             ))}
           </div>
         )}

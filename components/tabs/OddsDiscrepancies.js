@@ -159,7 +159,7 @@ export default function OddsDiscrepancies({ players = [], odds = null, onPlayerC
           rows={shown}
           columns={[
             { key: 'player', label: 'Hitter', heat: false, w: 148, bold: true, sticky: true },
-            { key: 'tm', label: 'TM', heat: false, w: 34, mono: true, dim: true },
+            { key: 'tm', label: 'TM', heat: false, w: 34, mono: true, dim: true, teamMark: 'mlb' },
             { key: 'market', label: 'Prop', heat: false, w: 64, mono: true },
             { key: 'line', label: 'LINE', heat: false, w: 46, dp: 1, title: 'The consensus bar. Yellow ≠ means off the standard number.',
               fmt: (v, r) => (v == null ? '—' : <b style={{ fontFamily: NUM_FONT, color: r?.offStd ? '#FCD34D' : C.text }}>{r?.offStd ? '≠ ' : ''}{v}</b>) },

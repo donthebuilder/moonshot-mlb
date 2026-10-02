@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { WhatThis } from '../ui'
 import { explain } from '../../lib/explain'
 import { useIsPhone } from '../MobileFold'
+import { asLogos } from '../TeamMark'
 
 // THE HEADLINE PICKS, ONE LAYOUT FOR EVERY PRODUCT (2026-09-27,
 // BATCH-HEADLINE-PICKS step 1). Lifted out of components/BotPicksStrip.js
@@ -34,7 +35,7 @@ import { useIsPhone } from '../MobileFold'
 // cols: { wide, mid } -- an even grid instead of auto-fit (which left
 //   MOONSHOT's CONTACT alone on a second row): `wide` lanes across from
 //   1100px, `mid` from 561px, one column on a phone. Omitted -> auto-fit.
-export default function HeadlinePicks({ theme, numFont, title, subtitle, record = null, lanes = [], onPick, whatThis = null, collapsePhone = false, gridClass = 'bot-picks-grid', cols = null, foldWhy = false }) {
+export default function HeadlinePicks({ theme, numFont, title, subtitle, record = null, lanes = [], onPick, whatThis = null, collapsePhone = false, gridClass = 'bot-picks-grid', cols = null, foldWhy = false, sport = null }) {
   const C = theme
   const NUM_FONT = numFont
   const [open, setOpen] = useState(() => new Set())
@@ -190,8 +191,9 @@ export default function HeadlinePicks({ theme, numFont, title, subtitle, record 
                           }}>{p.name}</span>
                           {p.flag && <span style={{ fontSize: 9 }}>{p.flag.icon}</span>}
                           {p.result && <Mark r={p.result} C={C} size={11} />}
-                          <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0 }}>
-                            {p.team}
+                          <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0, alignSelf: 'center' }}>
+                            {/* a club code draws as its logo (Donovan 10-02, logos site-wide) */}
+                            {asLogos(sport, p.team, { px: 12 })}
                           </span>
                           {p.micro && (
                             <span style={{

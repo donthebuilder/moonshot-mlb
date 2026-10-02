@@ -35,6 +35,7 @@ import { ViewPills, GameFilterRail, BASE_GAME_FILTERS, StripFold, GamePanelPills
 import { statLineFor, useSlateScale, toneFor, toneTitle, TONE_COLOR } from '../../lib/statline'
 import { downloadGameCard } from '../shareCard'
 import ProjectedOutput from '../ProjectedOutput'
+import TeamMark, { MatchLogos } from '../TeamMark'
 
 // A game card's pick chip, stat-first.
 //
@@ -868,7 +869,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
             onChange={(k) => { setGfilter(k); setActive(null) }}
             counts={gCounts}
           />
-          <StripFold isPhone={isPhone} count={games.length} summary={(() => { const open = games.find((g) => g.game_pk === activeGame); return open ? `reading ${open.away || '—'} @ ${open.home || '—'}` : 'tap to pick one' })()}>
+          <StripFold isPhone={isPhone} count={games.length} summary={(() => { const open = games.find((g) => g.game_pk === activeGame); return open ? <>reading <MatchLogos sport="mlb" away={open.away} home={open.home} px={14} gap={3} /></> : 'tap to pick one' })()}>
             <GameStrip nested onPlayerClick={onPlayerClick} games={games} activeGame={activeGame} onSelect={scrollTo} mode={mode} onPairPick={togglePairLeg} pairIds={pairIds} live={liveByPk} targets={targets} onTarget={toggleTarget} />
           </StripFold>
         </div>
@@ -1120,7 +1121,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                   padding: '9px 14px', background: C.bg3, borderBottom: `1px solid ${C.border}`,
                   cursor: 'pointer',
                 }}>
-                  <span style={{ fontSize: TYPE.name, fontWeight: 900, fontFamily: NUM_FONT }}>{g.away} @ {g.home}</span>
+                  <MatchLogos sport="mlb" away={g.away} home={g.home} px={20} gap={5} />
                   {/* ── THE SCORE, WHILE IT IS HAPPENING (2026-08-10) ──────
                       liveSlate has carried homeScore/awayScore/inning/half
                       since the wire was built; this card just never asked for
@@ -1194,7 +1195,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                       borderLeft: ti ? `1px solid ${C.border}` : 'none',
                     }}>
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 5 }}>
-                        <span style={{ fontSize: TYPE.body, fontWeight: 900, fontFamily: NUM_FONT }}>{t}</span>
+                        <TeamMark sport="mlb" abbr={t} variant="logo" px={18} />
                         <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>
                           vs {String(lineup[0]?.pitcher_name || 'TBD').split(' ').slice(-1)[0]}
                           {lineup[0]?.pitcher_projected ? ' ≈' : ''}
@@ -1369,7 +1370,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
             onChange={(k) => { setGfilter(k); setActive(null) }}
             counts={gCounts}
           />
-          <StripFold isPhone={isPhone} count={games.length} summary={(() => { const open = games.find((g) => g.game_pk === activeGame); return open ? `reading ${open.away || '—'} @ ${open.home || '—'}` : 'tap to pick one' })()}>
+          <StripFold isPhone={isPhone} count={games.length} summary={(() => { const open = games.find((g) => g.game_pk === activeGame); return open ? <>reading <MatchLogos sport="mlb" away={open.away} home={open.home} px={14} gap={3} /></> : 'tap to pick one' })()}>
             <GameStrip nested onPlayerClick={onPlayerClick} games={games} activeGame={activeGame} onSelect={scrollTo} mode={mode} onPairPick={togglePairLeg} pairIds={pairIds} sortBy={sortBy} live={liveByPk} targets={targets} onTarget={toggleTarget} />
           </StripFold>
           {/* ── THE ANSWER TO "hella scrolling" (2026-08-23) ─────────────────
@@ -1427,7 +1428,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                     >
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', minWidth: 0 }}>
                         <span style={{ fontSize: TYPE.title, fontWeight: 900, fontFamily: NUM_FONT, letterSpacing: '-.02em', color: past ? C.text3 : C.text }}>
-                          {past ? '✓ ' : ''}{g.away || '—'} <span style={{ color: C.text3, fontWeight: 400 }}>@</span> {g.home || '—'}
+                          {past ? '✓ ' : ''}<MatchLogos sport="mlb" away={g.away} home={g.home} px={22} gap={6} />
                         </span>
                         {/* GLOSSARY-ON-TAP (2026-09-06). Donovan found this
                             badge "confusing, not broken" -- it had zero
@@ -1492,7 +1493,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                             background: 'rgba(255,255,255,.025)', border: `1px solid ${C.border}`,
                             borderRadius: 8, padding: '4px 10px',
                           }}>
-                            <span style={{ fontSize: TYPE.body, fontWeight: 900, fontFamily: NUM_FONT, flexShrink: 0 }}>{s.team}</span>
+                            <TeamMark sport="mlb" abbr={s.team} variant="logo" px={18} />
                             <span style={{ fontSize: TYPE.micro, color: C.text3, flexShrink: 0 }}>vs</span>
                             <span style={{ fontSize: TYPE.body, fontWeight: 700, color: C.text2, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                               {s.arm}{s.throws ? ` (${s.throws})` : ''}{s.projected ? ' ≈' : ''}

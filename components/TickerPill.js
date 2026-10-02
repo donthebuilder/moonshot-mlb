@@ -1,6 +1,7 @@
 'use client'
 import { C as MLB_C, NUM_FONT as MLB_NUM } from '../lib/theme'
 import { explain } from '../lib/explain'
+import { asLogos } from './TeamMark'
 
 // ── THE TICKER PILL, ONE SHAPE FOR BOTH HEADERS (2026-09-18) ───────────────
 // Donovan: "why dont the score rail on headers dont match."
@@ -39,6 +40,7 @@ export default function TickerPill({
   echo = false,
   theme = null,
   numFont = null,
+  sport = null,   // set: a value that is a game or a club draws as logos (components/TeamMark asLogos)
 }) {
   const T = theme || MLB_C
   const NF = numFont || MLB_NUM
@@ -65,7 +67,7 @@ export default function TickerPill({
           fontFamily: NF, fontSize: 11, fontWeight: 900, color: color || T.text,
           letterSpacing: '-.01em', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis',
         }}>
-          {value}
+          {asLogos(sport, value, { px: 14 })}
         </span>
       </span>
     </>

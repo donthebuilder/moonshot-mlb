@@ -143,11 +143,11 @@ function TickerStrip({ children }) {
 // two strips read differently at the same speed. components/TickerPill.js
 // carries MOONSHOT's shape for both; this wrapper only supplies TUDDY's theme
 // and keeps the inert variant for the static slate tiles.
-function Tile({ label, value, color, title, live = false, onClick }) {
+function Tile({ label, value, color, title, live = false, onClick, sport = 'nfl' }) {
   return (
     <TickerPill
       label={label} value={value} color={color} title={title}
-      live={live} onClick={onClick} theme={C} numFont={NUM_FONT}
+      live={live} onClick={onClick} theme={C} numFont={NUM_FONT} sport={sport}
     />
   )
 }
@@ -397,7 +397,7 @@ export default function NflHeader({ tab, setTab, data, meta, matchup, weekMode =
                 leader tile right after each. Every tile is tappable -- see
                 `openTile` above. */}
             {scores.live.map((i) => (
-              <Tile key={i.k} label={`${i.icon ? `${i.icon} ` : ''}${i.sub || 'live'}`} value={i.text}
+              <Tile key={i.k} sport={i.sport || 'nfl'} label={`${i.icon ? `${i.icon} ` : ''}${i.sub || 'live'}`} value={i.text}
                 color={i.col} live onClick={() => openTile(i)}
                 title={i.title || (i.sport === 'mlb'
                   ? (i.kind === 'leader' ? `Leading this game's stat line on MOONSHOT — tap to switch` : 'Live on MOONSHOT — tap to switch to MOONSHOT')
@@ -440,7 +440,7 @@ export default function NflHeader({ tab, setTab, data, meta, matchup, weekMode =
             {/* TUDDY's own finals and upcoming games first, then MOONSHOT's
                 and LAMP's (lib/headlines.js scoreOrder). */}
             {scores.rest.map((i) => (
-              <Tile key={i.k} label={`${i.icon ? `${i.icon} ` : ''}${i.sub || (i.pregame ? 'kickoff' : 'final')}`} value={i.text}
+              <Tile key={i.k} sport={i.sport || 'nfl'} label={`${i.icon ? `${i.icon} ` : ''}${i.sub || (i.pregame ? 'kickoff' : 'final')}`} value={i.text}
                 color={i.col} onClick={() => openTile(i)}
                 title={i.title || (i.pregame
                   ? (i.sport === 'mlb' ? 'Not underway yet — tap to switch to MOONSHOT' : 'Not underway yet — open TUDDY’s Live tab')

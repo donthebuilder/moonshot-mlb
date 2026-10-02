@@ -19,6 +19,7 @@ import Tap from '../../Tap'
 import { TeamMark, EmptyState, DelayedBanner, Loading, SourceLine, Kicker, GameTypeChip, fmtDay, fmtPuckDrop, zoneAbbrev } from '../ui'
 import { NHL_NAV } from '../../../lib/nhl/routes'
 import HotNumbers from '../../numerology/HotNumbers'
+import { MatchLogos } from '../../TeamMark'
 
 // 🏒 TONIGHT — LAMP's front page. Three things and no more (spec §6: the
 // home page is not a data wall): tonight's games, where the league stands,
@@ -132,7 +133,7 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
       {/* FACES ON THE CARDS (2026-09-29, queue batch 5): MOONSHOT's and TUDDY's
           strips pass faceOf; LAMP's didn't. The shared PlayerFace, table
           variant -- LAMP's circle, and it hides itself if a mug 404s. */}
-      <HeadlineStrip cards={cards} onOpen={openCard} theme={C} numFont={NUM_FONT} accent={C.ice}
+      <HeadlineStrip sport="nhl" cards={cards} onOpen={openCard} theme={C} numFont={NUM_FONT} accent={C.ice}
         faceOf={(c) => { const url = c.playerId && c.team ? nhlMug(board.data?.season?.current || board.data?.season?.id, c.team, c.playerId) : null; return url ? <PlayerFace sport="nhl" photo={url} variant="table" size={22} theme={C} /> : null }} />
       {/* 2026-09-27 (BATCH-STORYLINES-PAGE step 4): the story engine's rarest
           five (History Watch's claims lead as the rarest), then the Storylines tab. */}
@@ -173,7 +174,7 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
           <LampTable bare noGroups tight heatMode="sorted" maxHeight={9999} maxRows={40} caption="Tonight's board: who is called in each game"
             rows={boardGames.map((g) => ({ _key: g.game.id, g, game: `${g.game.away.abbrev}@${g.game.home.abbrev}`, stamp: g.graded ? 'GRADED' : g.locked ? 'LOCKED' : g.setting ? 'SETTING' : 'PREVIEW' }))}
             columns={[
-              { key: 'game', label: 'Game', heat: false, sticky: true, w: 90, link: (r) => (onOpenGame ? () => onOpenGame(r.g.game.id) : null), fmt: (v) => <b style={{ fontFamily: NUM_FONT, fontSize: 11 }}>{v}</b> },
+              { key: 'game', label: 'Game', heat: false, sticky: true, w: 90, link: (r) => (onOpenGame ? () => onOpenGame(r.g.game.id) : null), fmt: (_, r) => <MatchLogos sport="nhl" away={r.g.game.away.abbrev} home={r.g.game.home.abbrev} px={16} gap={3} /> },
               { key: 'called', label: 'Called', heat: false, numeric: false, w: 260, fmt: (_, r) => (
                 <span style={{ fontSize: 11.5, lineHeight: 1.4, whiteSpace: 'normal' }}>
                   {r.g.rows.filter((x) => x.status === 'called').map((x, i) => (

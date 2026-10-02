@@ -9,6 +9,7 @@ import { useSpot } from '../lib/spotlight'
 import { nn, hrScore, prodScore, median as med } from '../lib/player'
 import MobileFold from './MobileFold'
 import Rail from './Rail'
+import { MatchLogos } from './TeamMark'
 
 // Game selector strip — the PropFinder pattern.
 //
@@ -422,7 +423,7 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
             // logos) on each side of the matchup, where the card said plain
             // "PHI @ ATL". Falls back to the text when a code is missing.
             id: c.pk, title: c.away && c.home
-              ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, verticalAlign: 'middle' }}><MlbTeamMark abbr={c.away} size="md" /><span style={{ color: C.text3, fontSize: 12 }}>@</span><MlbTeamMark abbr={c.home} size="md" /></span>
+              ? <MatchLogos sport="mlb" away={c.away} home={c.home} px={20} gap={5} />
               : c.matchup,
             past: c.past, heat: c.heat,
             tooltip: [c.matchup, c.armsFull && `⚾ ${c.armsFull}`, c.topBat && `🔝 ${c.topBat}`].filter(Boolean).join('\n'),
@@ -476,7 +477,7 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
               }}
             >{targets.includes(c.pk) ? '★' : '☆'}</span>
           ) : null
-          return <SlateCard key={c.pk} card={card} on={on} accent={accent} onSelect={onSelect} target={target} />
+          return <SlateCard key={c.pk} card={card} on={on} accent={accent} onSelect={onSelect} target={target} sport="mlb" />
         })}
       </Rail>
 

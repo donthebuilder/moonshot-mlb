@@ -1,4 +1,5 @@
 'use client'
+import { useState } from 'react'
 import { STATUS_WORD } from '../../lib/callStatus'
 import CallStatusBadge from '../CallStatusBadge'
 import Tap from '../Tap'
@@ -55,15 +56,19 @@ export { shiftDay } from '../../lib/data'   // one copy, lib/data.js (R3)
 /** Logo + abbreviation. The league's own SVG; the abbreviation is the text. */
 // onClick (2026-09-27, CLICK-EVERYTHING-PLAN): a team opens the team -- the mark
 // becomes a Tap (text unchanged, 44px on touch). None -> the plain mark.
+// LOGO, THEN THE NAME (Donovan 10-02, logos site-wide): the club code is the
+// logo's alt / title, and prints only if the logo fails to load.
 export function TeamMark({ abbrev, name = null, size = 18, bold = false, onClick = null }) {
   const ab = String(abbrev || '').toUpperCase()
-  if (onClick) return <Tap onClick={onClick}><TeamMark abbrev={abbrev} name={name} size={size} bold={bold} /></Tap>
+  const [broken, setBroken] = useState(false)
+  // a logo-only tap (the name hides on a phone) keeps a thumb-wide target
+  if (onClick) return <Tap onClick={onClick} title={ab} style={{ minWidth: 44, display: 'inline-flex', alignItems: 'center' }}><TeamMark abbrev={abbrev} name={name} size={size} bold={bold} /></Tap>
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-      {ab && <img src={nhlLogo(ab)} alt="" width={size} height={size} loading="lazy"
+    <span title={ab} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+      {ab && !broken && <img src={nhlLogo(ab)} alt={ab} width={size} height={size} loading="lazy" onError={() => setBroken(true)}
         style={{ width: size, height: size, flex: 'none', objectFit: 'contain' }} />}
-      <span style={{ font: `${bold ? 900 : 800} 11.5px/1 ${NUM_FONT}`, color: C.text, letterSpacing: '.03em' }}>{ab}</span>
-      {name && <span className="sm-hide" style={{ color: C.text3, fontSize: 11 }}>{name}</span>}
+      {(broken || !ab) && <span style={{ font: `${bold ? 900 : 800} 11.5px/1 ${NUM_FONT}`, color: C.text, letterSpacing: '.03em' }}>{ab}</span>}
+      {name && <span className="sm-hide" style={{ color: bold ? C.text : C.text3, fontSize: 11, fontWeight: bold ? 800 : 400 }}>{name}</span>}
     </span>
   )
 }

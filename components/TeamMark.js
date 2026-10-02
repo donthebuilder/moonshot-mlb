@@ -7,6 +7,7 @@ import { nflTones, NFL_TEAM_TONES } from '../lib/nfl/teamColors'
 import { readableInk } from '../lib/teamInk'
 import { TeamMark as LampTeamMark } from './lamp/ui'
 import { sportKey } from '../lib/routes'
+import { NUM_FONT } from '../lib/theme'
 
 // ONE TEAM MARK, EVERY SPORT (2026-09-29, queue batch 5). The club-code chip
 // MOONSHOT and TUDDY each drew from their own copy (MlbTeamMark, NflTeamMark --
@@ -56,6 +57,12 @@ export default function TeamMark({ sport = 'mlb', abbr, size = 'sm', dim = false
         style={{ width: px, height: px, objectFit: 'contain', verticalAlign: 'middle', flexShrink: 0, opacity: dim ? 0.55 : 1, ...style }} />
     )
   }
+  // a broken NHL logo: the code in a quiet box, never lamp/ui's logo-plus-code (a second broken image)
+  if (!CLUBS[key] && variant === 'logo') {
+    return (
+      <span title={code} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: px, height: px, padding: '0 3px', borderRadius: 4, border: '1px solid rgba(255,255,255,.14)', fontFamily: NUM_FONT, fontSize: Math.max(8, px * 0.5), fontWeight: 900, flexShrink: 0, opacity: dim ? 0.55 : 1, ...style }}>{code}</span>
+    )
+  }
   if (!CLUBS[key]) return <LampTeamMark abbrev={code} size={size === 'md' ? 20 : 16} />
   const { col, ink, known, name } = CLUBS[key](code)
   const big = size === 'md'
@@ -76,4 +83,43 @@ export default function TeamMark({ sport = 'mlb', abbr, size = 'sm', dim = false
       }}
     >{code}</span>
   )
+}
+
+/** A GAME AS LOGOS (2026-10-02, Donovan: logos site-wide): away · @ · home, the
+ *  codes in the title -- the one way a matchup is drawn on a game surface. */
+export function MatchLogos({ sport = 'mlb', away, home, px = 16, sep = '@', gap = 4, dim = false, style }) {
+  return (
+    <span title={`${away || '—'} ${sep} ${home || '—'}`} style={{ display: 'inline-flex', alignItems: 'center', gap, verticalAlign: 'middle', ...style }}>
+      <TeamMark sport={sport} abbr={away} variant="logo" px={px} dim={dim} />
+      <span aria-hidden="true" style={{ opacity: 0.5, fontWeight: 400 }}>{sep}</span>
+      <TeamMark sport={sport} abbr={home} variant="logo" px={px} dim={dim} />
+    </span>
+  )
+}
+
+/** A value that is exactly a game ("3.  PHI @ ATL", "DET @ CAR") or a club ("NYY") drawn as
+ *  logos, its text riding the title; anything else comes back unchanged. One rule for the
+ *  ticker pills, the projected rows and the rest (Donovan 10-02, logos site-wide). */
+export function asLogos(sport, value, { px = 14, rank = true } = {}) {
+  if (!sport || typeof value !== 'string') return value
+  const g = value.match(/^(\d+\.\s+)?([A-Z]{2,3})\s?@\s?([A-Z]{2,3})$/)
+  if (g) {
+    return (
+      <span title={value} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, verticalAlign: 'middle' }}>
+        {rank && g[1] ? <span>{g[1].trim()}</span> : null}
+        <MatchLogos sport={sport} away={g[2]} home={g[3]} px={px} gap={3} />
+      </span>
+    )
+  }
+  // a score line, "IND 21 – 17 CHI": logo, score, logo
+  const sc = value.match(/^([A-Z]{2,3}) (\d+) [–-] (\d+) ([A-Z]{2,3})$/)
+  if (sc) {
+    return (
+      <span title={value} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, verticalAlign: 'middle' }}>
+        <TeamMark sport={sport} abbr={sc[1]} variant="logo" px={px} /><span>{sc[2]}–{sc[3]}</span><TeamMark sport={sport} abbr={sc[4]} variant="logo" px={px} />
+      </span>
+    )
+  }
+  if (/^[A-Z]{2,3}$/.test(value)) return <TeamMark sport={sport} abbr={value} variant="logo" px={px} />
+  return rank ? value : value.replace(/^\d+\.\s+/, '')
 }

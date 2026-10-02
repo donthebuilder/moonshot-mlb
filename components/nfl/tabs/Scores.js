@@ -19,13 +19,13 @@
 import { useMemo, useState } from 'react'
 import PageHeader from '../../PageHeader'
 import GameRow from '../../GameRow'
-import NflTeamMark from '../NflTeamMark'
 import { Segmented } from '../../Filters'
 import { Empty } from '../../ui'
 import { NflBox, useNflBoxFeed } from '../NflBox'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 import { C, NUM_FONT } from '../../../lib/nfl/theme'
 import { NFL_NAV } from '../../../lib/routes'
+import TeamMark from '../../TeamMark'
 
 function statusOf(g) {
   if (g.completed || g.state === 'post') return { text: 'FINAL', tone: C.text3 }
@@ -133,7 +133,7 @@ export default function Scores({ data, onPlayerClick, onOpenGame = null }) {
               winner={winner} status={statusOf(g)}
               sides={[['away', g.away, g.away_name, g.away_score], ['home', g.home, g.home_name, g.home_score]].map(([key, abbr, name, score]) => ({
                 key, label: name || clubName.get(abbr) || abbr, score: started ? (score ?? 0) : null,
-                mark: <NflTeamMark abbr={abbr} dim={Boolean(winner) && winner !== key} />,
+                mark: <TeamMark sport="nfl" abbr={abbr} variant="logo" px={22} dim={Boolean(winner) && winner !== key} />,
               }))}
             >
               {boxFor(g)}

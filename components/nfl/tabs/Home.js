@@ -160,7 +160,7 @@ function TheSix({ picks, playersById, players = [], markets = [], onPlayerClick,
     }
   })
   return (
-    <HeadlinePicks
+    <HeadlinePicks sport="nfl"
       theme={C} numFont={NUM_FONT}
       title="🏈 The Six"
       subtitle="six markets, three deep — the card's calls. Scores are league rankings, 0–100, not probabilities."

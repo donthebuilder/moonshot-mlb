@@ -712,7 +712,7 @@ export default function DenseTable({
                           // reaching the row. No handler -> plain text.
                           // `teamMark: '<sport>'` (2026-09-29, queue batch 5): the
                           // shared club chip instead of a bare code.
-                          const content = c.teamMark && v ? <TeamMark sport={c.teamMark} abbr={v} /> : c.fmt ? c.fmt(v, r) : (v ?? '—')
+                          const content = c.teamMark && v && v !== '—' ? <TeamMark sport={c.teamMark} abbr={v} variant="logo" px={14} /> : c.fmt ? c.fmt(v, r) : (v ?? '—')
                           const go = c.link ? c.link(r._raw ?? r) : null
                           return go ? <Tap onClick={go}>{content}</Tap> : content
                         })()}

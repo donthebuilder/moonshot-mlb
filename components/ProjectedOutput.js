@@ -474,7 +474,7 @@ export default function ProjectedOutput({ games = [], players: allPlayers = [], 
   const cols = [...COLUMNS, ...(pens ? ['Adj HR'] : [])]
   return (
     <ProjectedView
-      lenses={LENSES} active={lenses} setActive={setLenses} shownCount={players.length} totalCount={allPlayers.length} noun="hitters"
+      lenses={LENSES} active={lenses} setActive={setLenses} shownCount={players.length} totalCount={allPlayers.length} noun="hitters" sport="mlb"
       by={by} setBy={setBy}
       note={<>
         <b style={{ color: C.text2 }}>model v2</b> — each hitter&apos;s HR probability blends his

@@ -59,7 +59,7 @@ export default function LampProjected({ items = [], games = [], stale = false, o
 
   return (
     <ProjectedView
-      lenses={lenses} active={active} setActive={setActive} shownCount={pool.length} totalCount={items.length} noun="skaters"
+      lenses={lenses} active={active} setActive={setActive} shownCount={pool.length} totalCount={items.length} noun="skaters" sport="nhl"
       by={by} setBy={setBy}
       note={<>
         <b style={{ color: C.text2 }}>goals per game</b> — each scored skater&apos;s goals a game, summed over the board

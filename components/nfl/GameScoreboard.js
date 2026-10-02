@@ -8,8 +8,8 @@
 // tracking, and this grid — with no market/card knowledge at all — already
 // was that page in everything but name and a URL of its own.
 import { C, NUM_FONT } from '../../lib/nfl/theme'
-import NflTeamMark from './NflTeamMark'
 import { rankGames, NFL_GAME_ORDER } from '../../lib/gameOrder'
+import TeamMark from '../TeamMark'
 
 export const fmtKick = (t) => {
   try { return new Date(t).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit' }) } catch { return 'TBD' }
@@ -31,11 +31,11 @@ export default function GameScoreboard({ games }) {
               {live && pos && <span className="gsb-pos">{pos} ball{g.downDistance ? ` · ${g.downDistance}` : ''}{g.redZone ? ' · RED ZONE' : ''}</span>}
             </div>
             <div className="gsb-score">
-              <span className={pos === g.away ? 'has-ball' : ''}><NflTeamMark abbr={g.away} /></span>
+              <span className={pos === g.away ? 'has-ball' : ''}><TeamMark sport="nfl" abbr={g.away} variant="logo" px={22} /></span>
               <b>{live || done ? (g.away_score ?? 0) : ''}</b>
               <em>{live || done ? '–' : '@'}</em>
               <b>{live || done ? (g.home_score ?? 0) : ''}</b>
-              <span className={pos === g.home ? 'has-ball' : ''}><NflTeamMark abbr={g.home} /></span>
+              <span className={pos === g.home ? 'has-ball' : ''}><TeamMark sport="nfl" abbr={g.home} variant="logo" px={22} /></span>
             </div>
           </div>
         )

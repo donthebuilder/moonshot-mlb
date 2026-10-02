@@ -4,6 +4,7 @@ import { alpha } from '../../lib/scales'
 import { btnStyle } from '../ui'
 import { FilterPill } from '../Filters'
 import MobileFold from '../MobileFold'
+import { MatchLogos } from '../TeamMark'
 
 // THE SLATE, ONCE (2026-09-28). MOONSHOT's Slate (components/tabs/Games.js)
 // pieces lifted out unchanged so TUDDY's and LAMP's Slates are built FROM them
@@ -158,19 +159,20 @@ export function GameHeaderLine({ away, home, past = false, children }) {
 }
 
 /** ‹ previous · 3 / 15 · next ›, from the bottom of a game's read. */
-export function PrevNextGame({ games, activeId, idOf = (g) => g.game_pk, onGo, accent = C.orange }) {
+export function PrevNextGame({ games, activeId, idOf = (g) => g.game_pk, onGo, accent = C.orange, sport = 'mlb' }) {
   if (activeId == null || games.length < 2) return null
   const idx = games.findIndex((g) => idOf(g) === activeId)
   const prev = idx > 0 ? games[idx - 1] : null
   const next = idx >= 0 && idx < games.length - 1 ? games[idx + 1] : null
-  const lbl = (g) => `${g.away || '?'} @ ${g.home || '?'}`
+  // logos (Donovan 10-02); the codes ride the logos' title / alt
+  const lbl = (g) => <MatchLogos sport={sport} away={g.away} home={g.home} px={16} gap={3} />
   return (
     <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between', alignItems: 'center', margin: '-8px 0 20px' }}>
-      <button disabled={!prev} onClick={() => prev && onGo(idOf(prev))} style={{ ...btnStyle(accent, false), opacity: prev ? 1 : 0.35 }}>
+      <button disabled={!prev} onClick={() => prev && onGo(idOf(prev))} title={prev ? `${prev.away} @ ${prev.home}` : undefined} style={{ ...btnStyle(accent, false), opacity: prev ? 1 : 0.35, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
         ‹ {prev ? lbl(prev) : 'first game'}
       </button>
       <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>{idx + 1} / {games.length}</span>
-      <button disabled={!next} onClick={() => next && onGo(idOf(next))} style={{ ...btnStyle(accent, false), opacity: next ? 1 : 0.35 }}>
+      <button disabled={!next} onClick={() => next && onGo(idOf(next))} title={next ? `${next.away} @ ${next.home}` : undefined} style={{ ...btnStyle(accent, false), opacity: next ? 1 : 0.35, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
         {next ? lbl(next) : 'last game'} ›
       </button>
     </div>

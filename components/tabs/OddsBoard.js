@@ -892,8 +892,8 @@ key={market}
           rows={shown}
           columns={[
             { key: 'player', label: 'Hitter', heat: false, w: 152, bold: true, sticky: true },
-            { key: 'tm', label: 'TM', heat: false, w: 34, mono: true, dim: true },
-            { key: 'opp', label: 'vs', heat: false, w: 34, mono: true, dim: true },
+            { key: 'tm', label: 'TM', heat: false, w: 34, mono: true, dim: true, teamMark: 'mlb' },
+            { key: 'opp', label: 'vs', heat: false, w: 34, mono: true, dim: true, teamMark: 'mlb' },
             {
               key: 'line', label: 'LINE', w: 52, heat: false, dp: 1,
               title: `The bar the book set. Standard for ${live.label} is ${live.std} — anything else is a different bet than the boards assume.`,

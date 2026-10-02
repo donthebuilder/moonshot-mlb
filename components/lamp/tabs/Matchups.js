@@ -136,8 +136,8 @@ export default function Matchups({ date = null, onOpenPlayer, onOpenTeam = null 
   }))
   const columns = [
     { key: 'rank', label: '#', w: 30, heat: false },
-    { key: 'def', label: 'Defence', w: 84, heat: false, sticky: true, bold: true, fmt: (v) => <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><SiteTeamMark sport="nhl" abbr={v} variant="logo" px={16} />{v}</span> },
-    { key: 'vs', label: 'Vs', w: 70, heat: false, mono: true, fmt: (v, r) => <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>{r.home ? 'vs' : '@'}<SiteTeamMark sport="nhl" abbr={r.opp} variant="logo" px={16} />{r.opp}</span> },
+    { key: 'def', label: 'Defence', w: 84, heat: false, sticky: true, bold: true, fmt: (v) => <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><SiteTeamMark sport="nhl" abbr={v} variant="logo" px={18} /></span> },
+    { key: 'vs', label: 'Vs', w: 70, heat: false, mono: true, fmt: (v, r) => <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>{r.home ? 'vs' : '@'}<SiteTeamMark sport="nhl" abbr={r.opp} variant="logo" px={16} /></span> },
     { key: 'gaPg', label: 'GA/GP', w: 56, primary: true, dp: 2 },
     { key: 'pk', label: 'PK%', w: 58, invert: true, fmt: (v, r) => (v == null ? '—' : `${(v * 100).toFixed(1)} ${ord(r.pkRank)}`) },
     { key: 'oppPp', label: 'Opp PP%', w: 70, fmt: (v, r) => (v == null ? '—' : `${(v * 100).toFixed(1)} ${ord(r.oppPpRank)}`) },

@@ -1624,7 +1624,7 @@ rows={(() => {
           // and makes the whole row harder to scan than it needs to be.
           { key: 'name',   label: 'Starter', heat: false, w: 148, bold: true, sticky: true },
           { key: 't',      label: 'T',   heat: false, w: 24, mono: true, dim: true },
-          { key: 'tm',     label: 'Tm',  heat: false, w: 32, mono: true, dim: true },
+          { key: 'tm',     label: 'Tm',  heat: false, w: 32, mono: true, dim: true, teamMark: 'mlb' },
           // #6: at ~950px these two clipped to nothing -- VS showed "S…" "C…"
           // "T…" and TREND showed "worse…" "impro…". The table already scrolls
           // horizontally, so the container was never the constraint: 32px does

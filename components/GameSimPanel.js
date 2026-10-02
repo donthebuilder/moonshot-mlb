@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { hrScore } from '../lib/player'
 import { gameFrom, simGame, simulate } from '../lib/gameSim'
+import TeamMark from './TeamMark'
 
 // 🎲 GAME SIM PANEL (2026-09-03)
 //
@@ -44,7 +45,7 @@ const Side = ({ s, onPlayerClick }) => (
     background: C.glass, minWidth: 300, flex: '1 1 340px',
   }}>
     <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 8 }}>
-      <span style={{ fontSize: 13, fontWeight: 800, color: C.text, letterSpacing: '.06em' }}>{s.team}</span>
+      <TeamMark sport="mlb" abbr={s.team} variant="logo" px={18} />
       <span style={{ ...num, marginLeft: 'auto', fontSize: 11, fontWeight: 800, color: C.yellow }}>
         {s.runs} R · {s.hits} H · {s.errors} E
       </span>
@@ -196,9 +197,9 @@ export default function GameSimPanel({ game, onPlayerClick, runs = 2000 }) {
             <div>
               <div style={{ fontSize: 9, letterSpacing: '.08em', color: C.text3 }}>WIN PROBABILITY</div>
               <div style={{ ...num, fontSize: 15, fontWeight: 800, color: C.text }}>
-                {sim.g.away.team} {pct(sim.dist.winPct.away)}
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><TeamMark sport="mlb" abbr={sim.g.away.team} variant="logo" px={16} /> {pct(sim.dist.winPct.away)}</span>
                 <span style={{ color: C.text3, fontWeight: 600 }}> · </span>
-                {sim.g.home.team} {pct(sim.dist.winPct.home)}
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><TeamMark sport="mlb" abbr={sim.g.home.team} variant="logo" px={16} /> {pct(sim.dist.winPct.home)}</span>
               </div>
             </div>
             <div>

@@ -3,6 +3,7 @@ import { STATUS_WORD as CALL_WORDS } from '../lib/callStatus'
 import { useEffect, useMemo, useState } from 'react'
 import PageHeader from './PageHeader'
 import DenseTable from './DenseTable'
+import { sportKey } from '../lib/routes'
 import { PillRow } from './Filters'
 
 // 🎯 LONGSHOTS (2026-09-27), one page on all three products. Players the
@@ -50,8 +51,8 @@ export default function Longshots({ sport, eyebrow, theme: C, numFont, accent, T
     { key: 'median', label: 'PRICE', w: 58, heat: false, fmt: plus, title: 'Median book\u2019s price at our newest snapshot' },
     { key: 'score', label: 'SCORE', w: 54, primary: true, dp: 0, title: 'Our model\u2019s score for this market (0\u2013100), as the product publishes it' },
     { key: 'best', label: 'BEST', w: 56, heat: false, fmt: plus, title: 'Longest price any book offered' },
-    { key: 'team', label: 'Team', w: 46, heat: false },
-    { key: 'matchup', label: 'Opp', w: 56, heat: false },
+    { key: 'team', label: 'Team', w: 46, heat: false, teamMark: sportKey(sport) },
+    { key: 'opp', label: 'Opp', w: 46, heat: false, teamMark: sportKey(sport) },
     { key: 'statusWord', label: 'Call', w: 104, heat: false },
     { key: 'bestBook', label: 'BOOK', w: 78, heat: false },
     { key: 'books', label: 'BOOKS', w: 50, heat: false, title: 'How many books listed him' },

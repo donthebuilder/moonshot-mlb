@@ -2,6 +2,7 @@
 import { useRef } from 'react'
 import { useAutoScroll } from '../lib/headlines'
 import { C as MLB_C, NUM_FONT as MLB_NUM, TYPE } from '../lib/theme'
+import { asLogos } from './TeamMark'
 
 // ── THE HEADLINES STRIP, ONE COMPONENT FOR ALL THREE PRODUCTS (2026-09-26) ──
 // MOONSHOT's Home drew it privately (components/tabs/Home.js `Headlines`),
@@ -18,7 +19,7 @@ import { C as MLB_C, NUM_FONT as MLB_NUM, TYPE } from '../lib/theme'
 // to back for a seamless loop, the echo hidden from screen readers.
 // faceOf(card) -> node | null (BATCH-FACES step 8): a small face beside the
 // name on a card about one player. Absent, the card draws exactly as before.
-export default function HeadlineStrip({ cards = [], onOpen = null, theme = null, numFont = null, accent = null, speed = 30, faceOf = null }) {
+export default function HeadlineStrip({ cards = [], onOpen = null, theme = null, numFont = null, accent = null, speed = 30, faceOf = null, sport = null }) {
   const C = theme || MLB_C
   const NUM_FONT = numFont || MLB_NUM
   const stripRef = useRef(null)
@@ -39,7 +40,7 @@ export default function HeadlineStrip({ cards = [], onOpen = null, theme = null,
       </span>
       {(() => {
         const face = faceOf?.(c)
-        const nameEl = <span style={{ fontSize: TYPE.name, fontWeight: 800, letterSpacing: '-.01em', lineHeight: 1.15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{c.name}</span>
+        const nameEl = <span style={{ fontSize: TYPE.name, fontWeight: 800, letterSpacing: '-.01em', lineHeight: 1.15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{asLogos(sport, c.name, { px: 18 })}</span>
         return face ? <span style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>{face}{nameEl}</span> : nameEl
       })()}
       <span style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8 }}>

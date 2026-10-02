@@ -281,7 +281,7 @@ export default function BotPicksStrip({ players = [], onPlayerClick, onFullCard 
   }))
 
   return (
-    <HeadlinePicks
+    <HeadlinePicks sport="mlb"
       theme={C} numFont={NUM_FONT}
       title="🎯 The Four"
       subtitle={<>four categories, three deep — the bot&apos;s headline picks</>}
