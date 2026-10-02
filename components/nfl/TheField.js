@@ -232,7 +232,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   // heat always under; the targets (dots) and each zone's share on top, each
   // its own chip. THE FILTERS cut the dots, the shares, the numbers and the 3D;
   // the heat stays the season defence.
-  const [shareOn, setShareOn] = useState(fromHash?.share ?? true)
+  const [shareOn, setShareOn] = useState(fromHash?.share ?? fromHash?.src !== 'r25')
   const [dotsOn, setDotsOn] = useState(fromHash?.dots ?? true)
   const [res, setRes] = useState(fromHash?.res || 'ALL')
   const [dn, setDn] = useState(fromHash?.dn || 'ALL')
@@ -457,6 +457,11 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
       display: 'flex', alignItems: 'center', gap: 5, marginBottom: phone ? 6 : 8,
       ...(phone ? { flexWrap: 'nowrap', overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', margin: '0 -2px 6px', padding: '0 2px' } : { flexWrap: 'wrap' }),
     }}>
+      {/* the season first: on a phone the row scrolls, and this is the one to find */}
+      {!isRun && rf.available && (
+        <ChipGroup first label={phone ? null : 'Season'} theme={C} numFont={NUM_FONT} color={C.cream} value={src} onChange={(k) => { setSrc(k); setRtF('ALL'); setCvF('ALL'); setShareOn(k !== 'r25') }} chipStyle={chipH}
+          options={[{ k: '26', label: String(file.body?.season || 'NOW'), n: null, title: 'This season\u2019s targets' }, { k: 'r25', label: `${rf.season} ROUTES`, n: null, title: `Last season\u2019s targets with the route he ran and the coverage (charted once a year, after the playoffs)` }]} />
+      )}
       {dv.toggle && (
         <ChipGroup first theme={C} numFont={NUM_FONT} color={C.amber} value={isRun ? 'rush' : 'pass'} onChange={setViewPick} chipStyle={chipH}
           options={[{ k: 'pass', label: 'PASSING', n: pid ? tgN : null, title: pid ? `${isQB ? 'His throws' : 'His targets'}, where they went` : 'Where they get beaten through the air' }, { k: 'rush', label: 'RUNNING', n: pid ? caN : null, title: pid ? 'His carries, gap by gap' : 'Where they get beaten on the ground' }]} />
@@ -467,10 +472,6 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
       )}
       <ChipGroup first={!dv.toggle && (!pid || isQB || isRun)} label={phone ? null : 'Window'} theme={C} numFont={NUM_FONT} color={C.cyan} value={win} onChange={setWin} chipStyle={chipH}
         options={WINS.map(([k, label, nn]) => ({ k, label, n: k === 'SZN' || isRun ? null : inWin(k).length, title: k === 'SZN' ? 'The whole season' : `The last ${nn === 1 ? 'game' : `${nn} games`} ${asPlayer ? 'he was targeted in' : `${team} played`}` }))} />
-      {!isRun && rf.available && (
-        <ChipGroup label={phone ? null : 'Season'} theme={C} numFont={NUM_FONT} color={C.cream} value={src} onChange={(k) => { setSrc(k); setRtF('ALL'); setCvF('ALL') }} chipStyle={chipH}
-          options={[{ k: '26', label: String(file.body?.season || 'NOW'), n: null, title: 'This season\u2019s targets' }, { k: 'r25', label: `${rf.season} ROUTES`, n: null, title: `Last season\u2019s targets with the route he ran and the coverage (charted once a year, after the playoffs)` }]} />
-      )}
       {!isRun && [['TARGETS', dotsOn, setDotsOn, 'Every target as a dot; tap one for the play'], ['SHARE', shareOn, setShareOn, `Each zone's share of ${asPlayer ? 'his' : 'their'} targets`]].map(([l, on, set, t]) => (
         <button key={l} type="button" onClick={() => set((v) => !v)} aria-pressed={on} title={t}
           style={{ ...chipH, borderRadius: 999, cursor: 'pointer', fontFamily: NUM_FONT, fontWeight: 800, letterSpacing: '.06em',
@@ -672,13 +673,13 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
 
   // LAST SEASON'S ROUTES: each target's route shape (lib/nfl/routeShape), ending at its dot
   // the more lines, the fainter each one: a team's 500 read as a pattern, a filtered 20 stay sharp
-  const routeAlpha = Math.max(0.16, Math.min(0.6, 30 / Math.max(1, drawn.length)))
+  const routeAlpha = Math.max(0.3, Math.min(0.8, 90 / Math.max(1, drawn.length)))
   const routeLines = routesOn ? [...drawn].sort((a, b) => (order[a.res] - order[b.res]) || (a.i - b.i)).map((p) => {
     const pts = routeShape(p)
     if (!pts) return null
     const td = p.res === 'td'
     return <polyline key={`r${p.i}`} points={pts.map(([uu, a]) => `${(cx0 + uu * (cx1 - cx0)).toFixed(1)},${Y(a).toFixed(1)}`).join(' ')} fill="none"
-      stroke={td ? C.orange : inkOf(p)} strokeOpacity={pick === p.i ? 1 : td ? Math.min(0.85, routeAlpha * 1.6) : routeAlpha} strokeWidth={pick === p.i ? 2.4 : 1.3} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" pointerEvents="none" />
+      stroke={td ? C.orange : inkOf(p)} strokeOpacity={pick === p.i ? 1 : td ? Math.min(0.85, routeAlpha * 1.6) : routeAlpha} strokeWidth={pick === p.i ? 2.6 : 1.7} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" pointerEvents="none" />
   }) : null
   const subjName = asPlayer ? player.name : `${team} offence`
   // the 3D stadium's targets: the same plays, size and ink as the dots

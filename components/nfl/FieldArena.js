@@ -228,7 +228,7 @@ export default function FieldArena({ dots = [], cells = [], spot = null, rz = []
       // ROUTES: last season's route shape (lib/nfl/routeShape), flat on the turf, ending at its disc
       if (p.path) {
         const pg = new THREE.BufferGeometry().setFromPoints(p.path.map(([uu, a]) => at(uu, a, 0.12)))
-        const pa = Math.max(0.16, Math.min(0.6, 30 / Math.max(1, dots.length)))   // TheField's routeAlpha
+        const pa = Math.max(0.3, Math.min(0.8, 90 / Math.max(1, dots.length)))   // TheField's routeAlpha
         const pl = new THREE.Line(pg, new THREE.LineBasicMaterial({ color: ink, transparent: true, opacity: td ? Math.min(0.85, pa * 1.6) : pa }))
         group.add(pl)
       }
