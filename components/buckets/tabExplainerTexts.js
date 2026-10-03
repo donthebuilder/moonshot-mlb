@@ -8,6 +8,7 @@ export const NBA_TEXTS = {
   games: { what: 'Tonight one game at a time: the matchup, then that game’s calls and board for the market you pick.' },
   game: { what: 'One game top to bottom: the line score, both box scores, every field-goal attempt where it was taken, and who scored first.' },
   schedule: { what: 'The league week, day by day: tip times in your zone, finals with the score. Page a week at a time; tap a game for its page.' },
+  odds: { what: 'The books’ lines on tonight’s players, every market BUCKETS calls -- the consensus, the no-vig fair line, the moves, the best book. Shown beside the board, never inside its score.' },
   storylines: { what: 'The stories in the day’s games -- a run of 25-point nights, a scoring surge, a soft defence, a back-to-back -- each frozen at tip and graded after the final.' },
   watchlist: { what: 'The players you starred. A star lasts for his next game and clears after it; every night you starred him is graded below off his own game log.' },
   ledger: { what: 'Every player who cleared a bar that night -- PTS 25+, REB 10+, AST 8+, 3PM 4+, PRA 35+ -- live while the games are on, each tagged with how his row locked before tip.' },

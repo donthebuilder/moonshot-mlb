@@ -42,6 +42,8 @@ import Hot from './tabs/Hot'
 import Ledger from './tabs/Ledger'
 import Watchlist from './tabs/Watchlist'
 import StorylinesPage from '../StorylinesPage'
+import dynamic from 'next/dynamic'
+const BucketsOdds = dynamic(() => import('./BucketsOdds'))
 import { useBucketsSaves } from '../../lib/nba/useBucketsSaves'
 import Teams from './tabs/Teams'
 import Team from './tabs/Team'
@@ -53,7 +55,7 @@ import Results from './tabs/Results'
 import Guide from './tabs/Guide'
 
 // Pages that show one day and keep it in the address (`date=`).
-const DATED_TABS = new Set(['home', 'scores', 'board', 'fullboard', 'games', 'schedule', 'matchups', 'hot', 'ledger', 'storylines'])
+const DATED_TABS = new Set(['home', 'scores', 'board', 'fullboard', 'games', 'schedule', 'matchups', 'hot', 'ledger', 'storylines', 'odds'])
 const MARKETS = new Set(['pts', 'reb', 'ast', '3pm', 'pra', 'first'])
 const ROUTE = {
   sport: 'nba', nav: NBA_NAV, datedTabs: DATED_TABS,
@@ -114,6 +116,7 @@ export default function BucketsDashboard() {
             {tab === 'games' && <Slate date={date} setDate={setDate} market={market} {...nav} />}
             {tab === 'game' && <Game id={gameId} {...nav} backLabel={backLabel('scores')} onBack={() => goBack('scores')} />}
             {tab === 'schedule' && <Schedule date={date} setDate={setDate} onOpenGame={openGame} onOpenTeam={openTeam} />}
+            {tab === 'odds' && <BucketsOdds date={date} onOpenPlayer={openPlayer} />}
             {tab === 'storylines' && <StorylinesPage sport="nba" eyebrow="BUCKETS · STORYLINES" theme={C} numFont={NUM_FONT} accent={C.purple} onOpenPlayer={openPlayer} onOpenGame={openGame} date={date} />}
             {tab === 'watchlist' && <Watchlist onOpenPlayer={openPlayer} />}
             {tab === 'ledger' && <Ledger date={date} setDate={setDate} {...nav} />}
