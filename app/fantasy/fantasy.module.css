@@ -112,7 +112,7 @@
   border: 0;
   border-radius: 9px;
   background: var(--gold);
-  color: #171009;
+  color: var(--fx-panel);
   padding: 13px 17px;
   font-weight: 900;
   cursor: pointer;
@@ -142,12 +142,12 @@
   border-radius: 10px;
 }
 .error {
-  background: #3b1714;
-  color: #ffb3a7;
+  background: color-mix(in srgb, var(--fx-accent-hot) 12%, var(--fx-panel));
+  color: color-mix(in srgb, var(--fx-accent-hot) 48%, var(--fx-ink));
 }
 .message {
-  background: #17301e;
-  color: #baf3c7;
+  background: color-mix(in srgb, var(--fx-good) 14%, var(--fx-panel));
+  color: color-mix(in srgb, var(--fx-good) 30%, var(--fx-ink));
 }
 .topbar {
   height: 74px;
@@ -160,7 +160,7 @@
 .topbar p {
   margin: 0 0 2px;
   color: var(--gold);
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: .17em;
 }
 .topbar strong {
@@ -222,12 +222,12 @@
   border: 1px solid currentColor;
   border-radius: 999px;
   color: var(--muted);
-  font: 800 9px/1 monospace;
+  font: 800 10px/1 monospace;
   font-style: normal;
   letter-spacing: .1em;
 }
-.leagueStatus[data-status="drafting"] { color: #ff8b45; }
-.leagueStatus[data-status="active"] { color: #6fe0a6; }
+.leagueStatus[data-status="drafting"] { color: color-mix(in srgb, var(--fx-gold) 93%, var(--fx-panel)); }
+.leagueStatus[data-status="active"] { color: color-mix(in srgb, var(--fx-good) 79%, var(--fx-ink)); }
 .leagueHead b { margin-left: auto; }
 .leagueHead {
   display: flex;
@@ -254,7 +254,7 @@
   border: 1px solid var(--line);
   border-radius: 999px;
   padding: 6px 8px;
-  color: #c6c0b6;
+  color: var(--fx-muted);
   font-size: 10px;
 }
 /* The label and the controls were flex SIBLINGS with space-between, and the
@@ -272,7 +272,7 @@
   display: block;
   margin-bottom: 9px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: .12em;
 }
 .invite strong {
@@ -362,9 +362,9 @@
   --orange: var(--fx-accent-hot);
   --orange2: var(--fx-accent);
   --green: var(--fx-good);
-  --cyan: #20b8d4;
-  --ink: #f4f1eb;
-  --muted: #8d8a86;
+  --cyan: var(--fx-info);
+  --ink: var(--fx-ink);
+  --muted: var(--fx-muted-2);
   --line: var(--fx-line-3);
   min-height: 100vh;
   background: var(--fx-bg);
@@ -402,7 +402,7 @@
   width: 39px;
   height: 39px;
   border-radius: 10px;
-  background: linear-gradient(145deg,#ff923b,#ff443b);
+  background: linear-gradient(145deg,var(--fx-gold),color-mix(in srgb, var(--fx-accent-hot) 78%, var(--fx-panel)));
   font: 900 12px/1 monospace;
 }
 .sportPill {
@@ -414,8 +414,8 @@
   letter-spacing: .08em;
 }
 .selectedPill {
-  border-color: #703321;
-  background: #21130e;
+  border-color: color-mix(in srgb, var(--fx-accent-hot) 37%, var(--fx-panel));
+  background: var(--fx-row);
   color: var(--orange2);
 }
 .scoreRail {
@@ -425,14 +425,14 @@
 .scoreRail>div {
   min-width: 104px;
   padding: 7px 12px;
-  border: 1px solid #27343b;
+  border: 1px solid var(--fx-line);
   border-radius: 10px;
   background: linear-gradient(135deg,var(--fx-row),var(--fx-panel-2));
 }
 .scoreRail small {
   display: block;
-  color: #778086;
-  font: 700 9px/1.2 monospace;
+  color: var(--fx-muted-2);
+  font: 700 10px/1.2 monospace;
   letter-spacing: .11em;
 }
 .scoreRail b {
@@ -445,18 +445,18 @@
   color: var(--orange2);
 }
 .scoreRail>div:nth-child(3) b {
-  color: #31bad5;
+  color: color-mix(in srgb, var(--fx-info) 91%, var(--fx-panel));
 }
 .leagueBar {
   display: flex;
   justify-content: space-between;
   padding: 8px 14px;
   border-bottom: 1px solid var(--fx-line-3);
-  color: #8d8982;
+  color: var(--fx-muted-2);
   font: 11px/1.2 monospace;
 }
 .leagueBar b {
-  color: #d8d2c9;
+  color: var(--fx-ink-2);
 }
 .liveDot {
   color: var(--green);
@@ -472,7 +472,7 @@
   position: relative;
   display: flex;
   align-items: center;
-  color: #8d8985;
+  color: var(--fx-muted-2);
   font: 11px/1 monospace;
 }
 .desktopNav .navActive {
@@ -485,7 +485,7 @@
   right: 0;
   bottom: 0;
   height: 2px;
-  background: linear-gradient(90deg,var(--orange),#ee3595);
+  background: linear-gradient(90deg,var(--orange),color-mix(in srgb, var(--fx-violet) 71%, var(--fx-panel)));
 }
 .previewMode {
   display: flex;
@@ -494,14 +494,14 @@
   max-width: 1120px;
   margin: 10px auto;
   padding: 8px 12px;
-  border: 1px solid #553b15;
+  border: 1px solid color-mix(in srgb, var(--fx-gold) 28%, var(--fx-panel));
   border-radius: 9px;
-  background: #19150c;
-  color: #b7a68c;
+  background: var(--fx-row);
+  color: color-mix(in srgb, var(--fx-gold) 94%, var(--fx-panel));
   font: 11px/1.35 monospace;
 }
 .previewMode>span {
-  color: #f2b94b;
+  color: color-mix(in srgb, var(--fx-gold) 82%, var(--fx-ink));
   font-weight: 900;
   white-space: nowrap;
 }
@@ -523,10 +523,10 @@
   align-items: center;
   margin: 14px 0;
   padding: 10px 12px;
-  border: 1px solid #22483a;
+  border: 1px solid color-mix(in srgb, var(--fx-good) 28%, var(--fx-panel));
   border-radius: 9px;
-  background: #0d1b17;
-  color: #85958e;
+  background: var(--fx-row);
+  color: var(--fx-muted-2);
   font: 10px/1 monospace;
 }
 .weekTicker>span:first-child {
@@ -534,7 +534,7 @@
   font-weight: 900;
 }
 .weekTicker b {
-  color: #c9d5cf;
+  color: var(--fx-ink-2);
 }
 .weekTicker>span:last-child {
   margin-left: auto;
@@ -547,15 +547,15 @@
   min-height: 230px;
   margin-bottom: 14px;
   padding: 30px 28px;
-  border: 1px solid #3a2a22;
+  border: 1px solid color-mix(in srgb, var(--fx-gold) 18%, var(--fx-panel));
   border-radius: 20px;
-  background: radial-gradient(circle at 85% 15%,rgba(255,94,54,.18),transparent 35%),linear-gradient(135deg,#1a1210,var(--fx-panel-2) 60%,var(--fx-row));
+  background: radial-gradient(circle at 85% 15%,rgba(255,94,54,.18),transparent 35%),linear-gradient(135deg,var(--fx-row),var(--fx-panel-2) 60%,var(--fx-row));
   box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
 }
 .panelLabel {
   margin: 0 0 8px;
   color: var(--fx-muted-3);
-  font: 800 9px/1.2 monospace;
+  font: 800 10px/1.2 monospace;
   letter-spacing: .12em;
 }
 .previewHero h1 {
@@ -571,7 +571,7 @@
 .previewHero>div:first-child>p:last-child {
   max-width: 620px;
   margin: 0;
-  color: #aaa49c;
+  color: var(--fx-muted);
   font-size: 14px;
   line-height: 1.5;
 }
@@ -582,14 +582,14 @@
 .heroScores>div {
   min-width: 106px;
   padding: 14px;
-  border: 1px solid #3a322d;
+  border: 1px solid var(--fx-line);
   border-radius: 12px;
   background: rgba(10,10,10,.55);
 }
 .heroScores small,
 .heroScores span {
   display: block;
-  font: 700 8px/1.2 monospace;
+  font: 700 10px/1.2 monospace;
   color: var(--fx-dim);
 }
 .heroScores strong {
@@ -628,7 +628,7 @@
 .panelFoot button {
   border: 0;
   background: none;
-  color: #888;
+  color: var(--fx-muted-2);
   font: 10px/1 monospace;
 }
 .matchupTeams {
@@ -657,7 +657,7 @@
 }
 .matchupTeams small {
   color: var(--fx-dim);
-  font: 9px/1 monospace;
+  font: 10px/1 monospace;
   margin-top: 5px;
 }
 .matchupTeams strong {
@@ -668,7 +668,7 @@
 }
 .matchupTeams>div:last-child strong {
   grid-column: 1;
-  color: #b5b2ad;
+  color: var(--fx-muted);
 }
 .avatar {
   grid-row: 1/3;
@@ -676,16 +676,16 @@
   place-items: center;
   width: 45px;
   height: 45px;
-  border: 1px solid #79402d;
+  border: 1px solid color-mix(in srgb, var(--fx-accent-hot) 45%, var(--fx-panel));
   border-radius: 12px;
-  background: #2c1812;
+  background: color-mix(in srgb, var(--fx-accent-hot) 9%, var(--fx-panel));
   color: var(--orange2);
   font: 900 11px/1 monospace;
 }
 .rivalAvatar {
-  border-color: #34404b;
-  background: #171d21;
-  color: #98a7b0;
+  border-color: color-mix(in srgb, var(--fx-info) 31%, var(--fx-panel));
+  background: var(--fx-row);
+  color: var(--fx-info);
 }
 .versus {
   text-align: center;
@@ -698,12 +698,12 @@
 .versus small {
   display: block;
   margin: 3px 0 8px;
-  color: #567364;
-  font: 7px/1 monospace;
+  color: color-mix(in srgb, var(--fx-good) 58%, var(--fx-panel));
+  font: 10px/1 monospace;
 }
 .versus i {
-  color: #555;
-  font: 800 9px/1 monospace;
+  color: var(--fx-dim);
+  font: 800 10px/1 monospace;
 }
 .projectionBar {
   height: 4px;
@@ -721,7 +721,7 @@
   display: flex;
   justify-content: space-between;
   padding: 14px 18px;
-  color: #7e7a75;
+  color: var(--fx-muted-2);
   font: 10px/1 monospace;
 }
 .panelFoot b {
@@ -731,18 +731,18 @@
   color: var(--orange);
 }
 .coachPanel {
-  border-color: #46331d;
-  background: linear-gradient(145deg,#19130d,var(--fx-panel-2));
+  border-color: color-mix(in srgb, var(--fx-gold) 23%, var(--fx-panel));
+  background: linear-gradient(145deg,var(--fx-row),var(--fx-panel-2));
 }
 .coachPanel>p {
   margin: 4px 18px 14px;
-  color: #aaa39a;
+  color: var(--fx-muted);
   font-size: 12px;
   line-height: 1.55;
 }
 .scoreChip {
   padding: 6px 8px!important;
-  border: 1px solid #3b654d!important;
+  border: 1px solid color-mix(in srgb, var(--fx-good) 46%, var(--fx-panel))!important;
   border-radius: 999px!important;
   color: var(--green)!important;
 }
@@ -750,30 +750,30 @@
   display: grid;
   grid-template-columns: 52px 1fr;
   padding: 12px 18px;
-  border-top: 1px solid #352a1e;
-  border-bottom: 1px solid #352a1e;
+  border-top: 1px solid color-mix(in srgb, var(--fx-gold) 17%, var(--fx-panel));
+  border-bottom: 1px solid color-mix(in srgb, var(--fx-gold) 17%, var(--fx-panel));
 }
 .coachMove span {
   grid-row: 1/3;
   align-self: center;
   color: var(--green);
-  font: 900 9px/1 monospace;
+  font: 900 10px/1 monospace;
 }
 .coachMove b {
   font-size: 13px;
 }
 .coachMove small {
   margin-top: 4px;
-  color: #76716b;
-  font: 9px/1 monospace;
+  color: var(--fx-dim);
+  font: 10px/1 monospace;
 }
 .orangeButton {
   width: calc(100% - 36px);
   margin: 14px 18px 18px;
   padding: 10px;
-  border: 1px solid #6f361f;
+  border: 1px solid color-mix(in srgb, var(--fx-gold) 32%, var(--fx-panel));
   border-radius: 8px;
-  background: #2a160f;
+  background: color-mix(in srgb, var(--fx-gold) 6%, var(--fx-panel));
   color: var(--orange2);
   font: 800 10px/1 monospace;
 }
@@ -790,8 +790,8 @@
   padding: 7px 14px;
   border-top: 1px solid var(--fx-line-3);
   border-bottom: 1px solid var(--fx-line-3);
-  color: #666;
-  font: 8px/1 monospace;
+  color: var(--fx-dim);
+  font: 10px/1 monospace;
 }
 .lineupHeader span:first-child {
   grid-column: 1/3;
@@ -808,14 +808,14 @@
   border-radius: 5px;
   color: var(--orange2);
   text-align: center;
-  font: 800 8px/1 monospace;
+  font: 800 10px/1 monospace;
 }
 .playerRow b {
   font-size: 12px;
 }
 .playerRow small {
-  color: #787572;
-  font: 9px/1 monospace;
+  color: var(--fx-dim);
+  font: 10px/1 monospace;
 }
 .playerRow strong {
   text-align: right;
@@ -826,10 +826,10 @@
   justify-content: space-between;
   padding: 14px;
   color: var(--fx-dim);
-  font: 9px/1 monospace;
+  font: 10px/1 monospace;
 }
 .lineupTotal b {
-  color: #aaa;
+  color: var(--fx-muted);
 }
 .lineupTotal em {
   color: var(--green);
@@ -856,13 +856,13 @@
   line-height: 1.35;
 }
 .feedItem p b {
-  color: #c7c2bb;
+  color: var(--fx-muted);
   font-size: 11px;
 }
 .feedItem small {
   text-align: right;
-  color: #5f5c59;
-  font: 8px/1 monospace;
+  color: var(--fx-dim);
+  font: 10px/1 monospace;
 }
 .standingsMini {
   margin: 8px 14px 14px;
@@ -884,13 +884,13 @@
 .standingsMini span,
 .standingsMini em {
   color: var(--fx-dim);
-  font: 9px/1 monospace;
+  font: 10px/1 monospace;
 }
 .standingsMini em {
   font-style: normal;
 }
 .myStanding {
-  background: #21150f;
+  background: var(--fx-row);
 }
 .myStanding b,
 .myStanding span {
@@ -919,7 +919,7 @@
   }
   .sportPill {
     padding: 7px;
-    font-size: 8px;
+    font-size: 10px;
   }
   .brandRow .sportPill:nth-of-type(2),
   .brandRow .sportPill:nth-of-type(3) {
@@ -935,13 +935,13 @@
     padding: 6px 8px;
   }
   .scoreRail small {
-    font-size: 7px;
+    font-size: 10px;
   }
   .scoreRail b {
     font-size: 14px;
   }
   .leagueBar {
-    font-size: 9px;
+    font-size: 10px;
   }
   .desktopNav {
     display: none;
@@ -953,7 +953,7 @@
   }
   .previewMode p {
     flex-basis: 70%;
-    font-size: 9px;
+    font-size: 10px;
   }
   .previewMode code {
     display: none;
@@ -963,7 +963,7 @@
   }
   .weekTicker {
     gap: 8px;
-    font-size: 8px;
+    font-size: 10px;
   }
   .previewHero {
     display: block;
@@ -1048,7 +1048,7 @@
     font-size: 15px;
   }
   .mobilePreviewNav a span {
-    font: 8px/1 monospace;
+    font: 10px/1 monospace;
   }
   .mobilePreviewNav .navActive {
     color: var(--orange);
@@ -1060,9 +1060,9 @@
   display: block;
   margin-top: 18px;
   padding: 10px;
-  border: 1px solid #66321f;
+  border: 1px solid color-mix(in srgb, var(--fx-gold) 29%, var(--fx-panel));
   border-radius: 8px;
-  color: #ff8b45;
+  color: color-mix(in srgb, var(--fx-gold) 93%, var(--fx-panel));
   text-align: center;
   text-decoration: none;
   font: 800 10px/1 monospace;
@@ -1076,7 +1076,7 @@
   --line: var(--fx-line-3);
   min-height: 100vh;
   background: var(--fx-bg);
-  color: #f4f1eb;
+  color: var(--fx-ink);
   font-family: Arial,Helvetica,sans-serif;
 }
 .roomApp * {
@@ -1118,7 +1118,7 @@
 }
 .roomHeader small {
   color: var(--green);
-  font: 8px/1 monospace;
+  font: 10px/1 monospace;
   text-transform: uppercase;
 }
 .roomHeader strong {
@@ -1161,7 +1161,7 @@
   justify-content: space-between;
   align-items: flex-end;
   padding: 30px 26px;
-  border: 1px solid #3d2920;
+  border: 1px solid color-mix(in srgb, var(--fx-gold) 18%, var(--fx-panel));
   border-radius: 17px;
   background: radial-gradient(circle at 85% 20%,rgba(255,89,49,.18),transparent 37%),var(--fx-panel-2);
 }
@@ -1172,7 +1172,7 @@
 }
 .draftHero>div>p:last-child {
   margin: 0;
-  color: #8e8982;
+  color: var(--fx-muted-2);
   font: 11px/1.4 monospace;
 }
 .roomStats {
@@ -1192,8 +1192,8 @@
   font-family: monospace;
 }
 .roomStats small {
-  color: #6e6b67;
-  font-size: 8px;
+  color: var(--fx-dim);
+  font-size: 10px;
 }
 .roomStats b {
   margin-top: 5px;
@@ -1206,9 +1206,9 @@
   gap: 10px;
   margin: 12px 0;
   padding: 12px 14px;
-  border: 1px solid #4b391d;
+  border: 1px solid color-mix(in srgb, var(--fx-gold) 26%, var(--fx-panel));
   border-radius: 11px;
-  background: #17130d;
+  background: var(--fx-panel);
 }
 .commishBar>div {
   margin-right: auto;
@@ -1221,16 +1221,16 @@
   margin-top: 3px;
   font-size: 11px;
   line-height: 1.35;
-  color: var(--muted, #a89f8c);
+  color: var(--muted, color-mix(in srgb, var(--fx-gold) 89%, var(--fx-panel)));
 }
 .commishBar button,
 .draftPlayer button {
   padding: 9px 11px;
-  border: 1px solid #673620;
+  border: 1px solid color-mix(in srgb, var(--fx-gold) 31%, var(--fx-panel));
   border-radius: 7px;
-  background: #28160f;
+  background: color-mix(in srgb, var(--fx-gold) 6%, var(--fx-panel));
   color: var(--gold);
-  font: 800 9px/1 monospace;
+  font: 800 10px/1 monospace;
 }
 .commishBar button:disabled {
   opacity: .35;
@@ -1241,13 +1241,13 @@
   gap: 7px;
 }
 .orderForm label {
-  color: #888;
-  font: 8px/1 monospace;
+  color: var(--fx-muted-2);
+  font: 10px/1 monospace;
 }
 .orderForm select {
   margin-left: 4px;
   background: var(--fx-panel-2);
-  color: #ddd;
+  color: var(--fx-ink-2);
   border: 1px solid var(--fx-line);
 }
 .waitingRoom {
@@ -1256,9 +1256,9 @@
   align-items: center;
   margin: 12px 0;
   padding: 14px;
-  border: 1px solid #28453b;
+  border: 1px solid color-mix(in srgb, var(--fx-good) 28%, var(--fx-panel));
   border-radius: 11px;
-  background: #0e1915;
+  background: var(--fx-row);
 }
 .waitingRoom>span {
   color: var(--green);
@@ -1273,8 +1273,8 @@
 }
 .waitingRoom small {
   margin-top: 5px;
-  color: #77867f;
-  font: 9px/1.4 monospace;
+  color: var(--fx-muted-2);
+  font: 10px/1.4 monospace;
 }
 .draftLayout {
   display: grid;
@@ -1329,7 +1329,7 @@
   flex: 0 0 auto;
   white-space: nowrap;
   color: var(--fx-dim);
-  font: 9px/1 monospace;
+  font: 10px/1 monospace;
 }
 .positionFilters {
   display: flex;
@@ -1345,11 +1345,11 @@
   color: var(--fx-dim);
   text-align: center;
   text-decoration: none;
-  font: 800 9px/1 monospace;
+  font: 800 10px/1 monospace;
 }
 .positionFilters .positionActive {
-  border-color: #814126;
-  background: #2b1710;
+  border-color: color-mix(in srgb, var(--fx-gold) 40%, var(--fx-panel));
+  background: color-mix(in srgb, var(--fx-gold) 7%, var(--fx-panel));
   color: var(--gold);
 }
 .draftColumns {
@@ -1359,8 +1359,8 @@
   padding: 7px 14px;
   border-top: 1px solid var(--fx-line-3);
   background: var(--fx-bg);
-  color: #5e5b58;
-  font: 8px/1 monospace;
+  color: var(--fx-dim);
+  font: 10px/1 monospace;
 }
 .draftColumns span:nth-child(4),
 .draftColumns span:nth-child(5) {
@@ -1376,17 +1376,17 @@
   border-top: 1px solid var(--fx-line-3);
 }
 .rankNumber {
-  color: #5e5b58;
-  font: 9px/1 monospace;
+  color: var(--fx-dim);
+  font: 10px/1 monospace;
 }
 .positionTag {
   width: 35px;
   padding: 6px 0;
-  border: 1px solid #493226;
+  border: 1px solid color-mix(in srgb, var(--fx-gold) 24%, var(--fx-panel));
   border-radius: 6px;
   color: var(--gold);
   text-align: center;
-  font: 900 8px/1 monospace;
+  font: 900 10px/1 monospace;
 }
 .draftPlayer b,
 .draftPlayer small {
@@ -1398,7 +1398,7 @@
 .draftPlayer small {
   margin-top: 4px;
   color: var(--fx-dim);
-  font: 9px/1 monospace;
+  font: 10px/1 monospace;
 }
 .playerDash {
   text-align: right;
@@ -1407,12 +1407,12 @@
 }
 .lockedPick {
   text-align: right;
-  color: #555;
-  font: 800 8px/1 monospace;
+  color: var(--fx-dim);
+  font: 800 10px/1 monospace;
 }
 .clockChip {
   padding: 6px 8px;
-  border: 1px solid #6b3723;
+  border: 1px solid color-mix(in srgb, var(--fx-gold) 32%, var(--fx-panel));
   border-radius: 999px;
   color: var(--gold)!important;
 }
@@ -1428,7 +1428,7 @@
 .pickRow span,
 .activePick span {
   color: var(--fx-dim);
-  font: 9px/1 monospace;
+  font: 10px/1 monospace;
 }
 .pickRow b,
 .activePick b {
@@ -1438,10 +1438,10 @@
 .activePick small {
   text-align: right;
   color: var(--fx-dim);
-  font: 9px/1 monospace;
+  font: 10px/1 monospace;
 }
 .activePick {
-  background: #24150f;
+  background: var(--fx-row);
   border-left: 2px solid var(--orange);
 }
 .activePick span,
@@ -1524,7 +1524,7 @@
   gap: 9px;
   margin: 0 0 12px;
   padding: 12px 14px;
-  border: 1px solid #34333f;
+  border: 1px solid var(--fx-line);
   border-radius: 10px;
   background: var(--fx-panel-2);
 }
@@ -1542,12 +1542,12 @@
   border: 1px solid var(--fx-line-2);
   border-radius: 7px;
   background: var(--fx-bg);
-  color: #c9c4bd;
+  color: var(--fx-muted);
   padding: 0 9px;
-  font: 9px/1 monospace;
+  font: 10px/1 monospace;
 }
 .assignmentBar button {
-  border-color: #703720;
+  border-color: color-mix(in srgb, var(--fx-gold) 33%, var(--fx-panel));
   color: var(--gold);
 }
 
@@ -1561,12 +1561,12 @@
   border: 1px solid var(--fx-line-2);
   border-radius: 7px;
   padding: 0 9px;
-  color: #c9c4bd;
-  font: 9px/1 monospace;
+  color: var(--fx-muted);
+  font: 10px/1 monospace;
   text-decoration: none;
 }
 .assignToggle:hover {
-  border-color: #703720;
+  border-color: color-mix(in srgb, var(--fx-gold) 33%, var(--fx-panel));
   color: var(--gold);
 }
 .playerSearch {
@@ -1584,8 +1584,8 @@
   color: var(--gold);
 }
 .queueButton {
-  border-color: #30483d!important;
-  background: #101d18!important;
+  border-color: color-mix(in srgb, var(--fx-good) 31%, var(--fx-panel))!important;
+  background: var(--fx-row)!important;
   color: var(--green)!important;
 }
 .queueRow {
@@ -1597,7 +1597,7 @@
 }
 .queueRow>span {
   color: var(--green);
-  font: 9px/1 monospace;
+  font: 10px/1 monospace;
 }
 .queueRow b,
 .queueRow small {
@@ -1609,7 +1609,7 @@
 .queueRow small {
   margin-top: 3px;
   color: var(--fx-dim);
-  font: 8px/1 monospace;
+  font: 10px/1 monospace;
 }
 .queueRow button {
   border: 0;
@@ -1656,7 +1656,7 @@
   align-items: flex-end;
   padding: 28px 25px;
   margin-bottom: 12px;
-  border: 1px solid #283a33;
+  border: 1px solid var(--fx-line);
   border-radius: 16px;
   background: radial-gradient(circle at 85% 20%,rgba(24,200,120,.13),transparent 38%),var(--fx-panel-2);
 }
@@ -1667,7 +1667,7 @@
 }
 .teamHero>div>p:last-child {
   margin: 0;
-  color: #85817b;
+  color: var(--fx-muted-2);
   font: 10px/1.45 monospace;
 }
 .teamLayout {
@@ -1699,11 +1699,11 @@
 .slotBadge {
   width: 38px;
   padding: 7px 0;
-  border: 1px solid #3e382f;
+  border: 1px solid var(--fx-line);
   border-radius: 6px;
   color: var(--fx-accent);
   text-align: center;
-  font: 900 8px/1 monospace;
+  font: 900 10px/1 monospace;
 }
 .slotRow b,
 .slotRow small {
@@ -1715,24 +1715,24 @@
 .slotRow small {
   margin-top: 4px;
   color: var(--fx-dim);
-  font: 8px/1 monospace;
+  font: 10px/1 monospace;
 }
 .slotRow select {
   height: 34px;
   border: 1px solid var(--fx-line-2);
   border-radius: 7px;
   background: var(--fx-bg);
-  color: #bcb7b0;
+  color: var(--fx-muted);
   padding: 0 8px;
   font-size: 10px;
 }
 .slotRow button {
   height: 32px;
-  border: 1px solid #65351f;
+  border: 1px solid color-mix(in srgb, var(--fx-gold) 30%, var(--fx-panel));
   border-radius: 7px;
-  background: #28160f;
+  background: color-mix(in srgb, var(--fx-gold) 6%, var(--fx-panel));
   color: var(--fx-accent);
-  font: 800 9px/1 monospace;
+  font: 800 10px/1 monospace;
 }
 .slotLocked {
   background: var(--fx-panel-2);
@@ -1743,7 +1743,7 @@
 .slotLocked button {
   border-color: var(--fx-line);
   background: var(--fx-row);
-  color: #666;
+  color: var(--fx-dim);
 }
 .positionCount {
   display: grid;
@@ -1754,7 +1754,7 @@
 }
 .positionCount span {
   color: var(--fx-dim);
-  font: 9px/1 monospace;
+  font: 10px/1 monospace;
 }
 .positionCount b {
   color: var(--fx-good);
@@ -1799,11 +1799,11 @@
   color: var(--fx-dim);
   text-align: center;
   text-decoration: none;
-  font: 800 9px/1 monospace;
+  font: 800 10px/1 monospace;
 }
 .weekStrip .weekActive {
-  border-color: #71351f;
-  background: #28160f;
+  border-color: color-mix(in srgb, var(--fx-gold) 32%, var(--fx-panel));
+  background: color-mix(in srgb, var(--fx-gold) 6%, var(--fx-panel));
   color: var(--fx-accent);
 }
 .scheduleEmpty {
@@ -1812,7 +1812,7 @@
   gap: 22px;
   min-height: 230px;
   padding: 30px;
-  border: 1px solid #3d2920;
+  border: 1px solid color-mix(in srgb, var(--fx-gold) 18%, var(--fx-panel));
   border-radius: 17px;
   background: radial-gradient(circle at 90% 10%,rgba(255,99,62,.14),transparent 40%),var(--fx-panel-2);
 }
@@ -1821,7 +1821,7 @@
   place-items: center;
   flex: 0 0 78px;
   height: 78px;
-  border: 1px solid #66351f;
+  border: 1px solid color-mix(in srgb, var(--fx-gold) 30%, var(--fx-panel));
   border-radius: 50%;
   color: var(--fx-accent);
   font: 900 20px/1 monospace;
@@ -1842,16 +1842,16 @@
 }
 .scheduleEmpty button {
   padding: 12px 15px;
-  border: 1px solid #7b3d23;
+  border: 1px solid color-mix(in srgb, var(--fx-gold) 37%, var(--fx-panel));
   border-radius: 8px;
-  background: #2a160f;
+  background: color-mix(in srgb, var(--fx-gold) 6%, var(--fx-panel));
   color: var(--fx-accent);
-  font: 900 9px/1 monospace;
+  font: 900 10px/1 monospace;
 }
 .scheduleEmpty>small {
   margin-left: auto;
   color: var(--fx-dim);
-  font: 9px/1 monospace;
+  font: 10px/1 monospace;
 }
 
 /* == MATCHUP · head to head ============================================== */
@@ -1862,7 +1862,7 @@
   min-height: 235px;
   margin-bottom: 12px;
   padding: 25px;
-  border: 1px solid #3d2920;
+  border: 1px solid color-mix(in srgb, var(--fx-gold) 18%, var(--fx-panel));
   border-radius: 17px;
   background: radial-gradient(circle at 50% 50%,rgba(255,99,62,.12),transparent 33%),var(--fx-panel-2);
   text-align: center;
@@ -1871,7 +1871,7 @@
 .matchupHero>div em {
   display: block;
   color: var(--fx-dim);
-  font: 8px/1 monospace;
+  font: 10px/1 monospace;
 }
 .matchupHero h1 {
   margin: 10px 0 7px;
@@ -1880,7 +1880,7 @@
 }
 .matchupHero>div>strong {
   display: block;
-  color: #f4f1eb;
+  color: var(--fx-ink);
   font: 900 42px/1 monospace;
 }
 .matchupHero>div>em {
@@ -1899,7 +1899,7 @@
 .matchupHero>span i {
   margin-top: 7px;
   color: var(--fx-dim);
-  font: 8px/1 monospace;
+  font: 10px/1 monospace;
   text-transform: uppercase;
 }
 .matchupGrid {
@@ -1925,7 +1925,7 @@
 }
 .matchupPlayer>span {
   color: var(--fx-accent);
-  font: 900 8px/1 monospace;
+  font: 900 10px/1 monospace;
 }
 .matchupPlayer b,
 .matchupPlayer small {
@@ -1937,7 +1937,7 @@
 .matchupPlayer small {
   margin-top: 3px;
   color: var(--fx-dim);
-  font: 8px/1 monospace;
+  font: 10px/1 monospace;
 }
 .matchupPlayer strong {
   text-align: right;
@@ -1978,7 +1978,7 @@
   color: var(--fx-dim);
   text-align: center;
   text-decoration: none;
-  font: 9px/1 monospace;
+  font: 10px/1 monospace;
 }
 .gameCell:hover,
 .gameCell:focus-visible {
@@ -1997,7 +1997,7 @@
   align-items: flex-end;
   padding: 29px 25px;
   margin-bottom: 12px;
-  border: 1px solid #2d3b36;
+  border: 1px solid var(--fx-line);
   border-radius: 17px;
   background: radial-gradient(circle at 85% 20%,rgba(24,200,120,.12),transparent 38%),var(--fx-panel-2);
 }
@@ -2008,7 +2008,7 @@
 }
 .leagueHero p:last-child {
   margin: 0;
-  color: #85817b;
+  color: var(--fx-muted-2);
   font: 10px/1.4 monospace;
 }
 .leagueHero p b {
@@ -2026,8 +2026,8 @@
   min-height: 28px;
   border-top: 1px solid var(--fx-line-3);
   background: var(--fx-bg);
-  color: #595754;
-  font: 8px/1 monospace;
+  color: var(--fx-dim);
+  font: 10px/1 monospace;
 }
 .standingRow {
   min-height: 58px;
@@ -2035,7 +2035,7 @@
 }
 .standingRow>span:first-child {
   color: var(--fx-dim);
-  font: 9px/1 monospace;
+  font: 10px/1 monospace;
 }
 .standingRow b,
 .standingRow small {
@@ -2047,7 +2047,7 @@
 .standingRow small {
   margin-top: 4px;
   color: var(--fx-good);
-  font: 7px/1 monospace;
+  font: 10px/1 monospace;
 }
 .standingRow strong {
   text-align: center;
@@ -2055,7 +2055,7 @@
 }
 .standingRow>span:nth-last-child(-n+2) {
   text-align: right;
-  color: #aaa49e;
+  color: var(--fx-muted);
   font: 10px/1 monospace;
 }
 @media(max-width:760px) {
@@ -2124,7 +2124,7 @@
   align-items: flex-end;
   padding: 29px 25px;
   margin-bottom: 12px;
-  border: 1px solid #3d2920;
+  border: 1px solid color-mix(in srgb, var(--fx-gold) 18%, var(--fx-panel));
   border-radius: 17px;
   background: radial-gradient(circle at 85% 20%,rgba(255,99,62,.16),transparent 38%),var(--fx-panel-2);
 }
@@ -2169,8 +2169,8 @@
   min-height: 27px;
   border-top: 1px solid var(--fx-line-3);
   background: var(--fx-bg);
-  color: #5f5c58;
-  font: 8px/1 monospace;
+  color: var(--fx-dim);
+  font: 10px/1 monospace;
 }
 .wireColumns span:nth-child(n+3) {
   text-align: right;
@@ -2189,7 +2189,7 @@
 .wirePlayer small {
   margin-top: 4px;
   color: var(--fx-dim);
-  font: 8px/1 monospace;
+  font: 10px/1 monospace;
 }
 .wirePlayer>strong {
   text-align: right;
@@ -2199,7 +2199,7 @@
 .freeStatus,
 .waiverStatus {
   text-align: right;
-  font: 800 8px/1 monospace;
+  font: 800 10px/1 monospace;
 }
 .freeStatus {
   color: var(--fx-good);
@@ -2222,18 +2222,18 @@
   background: var(--fx-bg);
   color: var(--fx-muted-3);
   padding: 0 5px;
-  font: 8px/1 monospace;
+  font: 10px/1 monospace;
 }
 .wireMove button,
 .claimRow button,
 .identitySave {
   height: 31px;
-  border: 1px solid #6d3821;
+  border: 1px solid color-mix(in srgb, var(--fx-gold) 32%, var(--fx-panel));
   border-radius: 6px;
-  background: #29160f;
+  background: color-mix(in srgb, var(--fx-gold) 6%, var(--fx-panel));
   color: var(--fx-accent);
   padding: 0 10px;
-  font: 900 8px/1 monospace;
+  font: 900 10px/1 monospace;
 }
 .wireMove button:disabled {
   opacity: .35;
@@ -2256,12 +2256,12 @@
 .claimRow small {
   margin-top: 4px;
   color: var(--fx-accent);
-  font: 8px/1 monospace;
+  font: 10px/1 monospace;
 }
 .claimRow button {
-  border-color: #3a3330;
+  border-color: var(--fx-line);
   background: var(--fx-panel-2);
-  color: #888;
+  color: var(--fx-muted-2);
 }
 .priorityRow {
   display: grid;
@@ -2273,7 +2273,7 @@
 }
 .priorityRow span {
   color: var(--fx-accent);
-  font: 900 9px/1 monospace;
+  font: 900 10px/1 monospace;
 }
 .priorityRow b {
   font-size: 10px;
@@ -2281,7 +2281,7 @@
 .priorityRow small {
   color: var(--fx-good);
   text-align: right;
-  font: 8px/1 monospace;
+  font: 10px/1 monospace;
 }
 @media(max-width:760px) {
   .wireHero {
@@ -2340,7 +2340,7 @@
   align-items: flex-end;
   padding: 29px 25px;
   margin-bottom: 12px;
-  border: 1px solid #342c42;
+  border: 1px solid color-mix(in srgb, var(--fx-violet) 22%, var(--fx-panel));
   border-radius: 17px;
   background: radial-gradient(circle at 85% 20%,rgba(129,82,255,.15),transparent 38%),var(--fx-panel-2);
 }
@@ -2382,7 +2382,7 @@
 }
 .tradeBuilderHead label {
   color: var(--fx-dim);
-  font: 8px/1 monospace;
+  font: 10px/1 monospace;
 }
 .tradeBuilderHead select,
 .tradeBuilderHead button,
@@ -2394,13 +2394,13 @@
   border: 1px solid var(--fx-line-2);
   border-radius: 7px;
   background: var(--fx-bg);
-  color: #bcb7b0;
+  color: var(--fx-muted);
   padding: 0 9px;
-  font: 9px/1 monospace;
+  font: 10px/1 monospace;
 }
 .tradeBuilderHead button,
 .tradeNote button {
-  border-color: #633d88;
+  border-color: color-mix(in srgb, var(--fx-violet) 45%, var(--fx-panel));
   color: var(--fx-violet);
   font-weight: 900;
 }
@@ -2465,7 +2465,7 @@
 }
 .tradeRoster label>span {
   color: var(--fx-accent);
-  font: 900 8px/1 monospace;
+  font: 900 10px/1 monospace;
 }
 .tradeRoster b,
 .tradeRoster small {
@@ -2477,7 +2477,7 @@
 .tradeRoster small {
   margin-top: 3px;
   color: var(--fx-dim);
-  font: 8px/1 monospace;
+  font: 10px/1 monospace;
 }
 .tradeNote {
   display: flex;
@@ -2506,28 +2506,28 @@
 }
 .tradeCardTop>small {
   color: var(--fx-dim);
-  font: 8px/1 monospace;
+  font: 10px/1 monospace;
 }
 .tradeStatus {
   padding: 5px 7px;
   border: 1px solid var(--fx-line-2);
   border-radius: 999px;
-  color: #aaa;
-  font: 900 7px/1 monospace;
+  color: var(--fx-muted);
+  font: 900 10px/1 monospace;
   text-transform: uppercase;
 }
 .trade_accepted {
-  border-color: #69501e;
-  color: #ffba45;
+  border-color: color-mix(in srgb, var(--fx-gold) 40%, var(--fx-panel));
+  color: color-mix(in srgb, var(--fx-gold) 76%, var(--fx-ink));
 }
 .trade_completed {
-  border-color: #245d43;
+  border-color: color-mix(in srgb, var(--fx-good) 37%, var(--fx-panel));
   color: var(--fx-good);
 }
 .trade_vetoed,
 .trade_rejected {
-  border-color: #61302e;
-  color: #ff766f;
+  border-color: color-mix(in srgb, var(--fx-accent-hot) 33%, var(--fx-panel));
+  color: var(--fx-accent-hot);
 }
 .tradeSummary {
   display: grid;
@@ -2548,8 +2548,8 @@
 }
 .tradeSummary span {
   margin-top: 4px;
-  color: #a39d95;
-  font: 9px/1.3 monospace;
+  color: var(--fx-muted-2);
+  font: 10px/1.3 monospace;
 }
 .tradeSummary em {
   text-align: center;
@@ -2560,10 +2560,10 @@
 .tradeMessage {
   margin: 12px 0 0;
   padding: 9px 11px;
-  border-left: 2px solid #6d4198;
+  border-left: 2px solid color-mix(in srgb, var(--fx-violet) 50%, var(--fx-panel));
   background: var(--fx-panel-2);
-  color: #9b949e;
-  font: 9px/1.4 monospace;
+  color: var(--fx-muted-2);
+  font: 10px/1.4 monospace;
 }
 .tradeActions {
   display: flex;
@@ -2573,12 +2573,12 @@
 }
 .tradeActions button {
   height: 30px;
-  border: 1px solid #4e365f;
+  border: 1px solid color-mix(in srgb, var(--fx-violet) 34%, var(--fx-panel));
   border-radius: 6px;
-  background: #1b1420;
+  background: var(--fx-row);
   color: var(--fx-violet);
   padding: 0 10px;
-  font: 900 8px/1 monospace;
+  font: 900 10px/1 monospace;
 }
 @media(max-width:760px) {
   .tradeHero {
@@ -2626,7 +2626,7 @@
   align-items: flex-end;
   padding: 29px 25px;
   margin-bottom: 12px;
-  border: 1px solid #293c37;
+  border: 1px solid var(--fx-line);
   border-radius: 17px;
   background: radial-gradient(circle at 85% 20%,rgba(24,200,120,.14),transparent 38%),var(--fx-panel-2);
 }
@@ -2666,11 +2666,11 @@
   place-items: center;
   width: 38px;
   height: 38px;
-  border: 1px solid #3c4e46;
+  border: 1px solid var(--fx-line);
   border-radius: 9px;
-  background: #101914;
+  background: var(--fx-row);
   color: var(--fx-good);
-  font: 900 9px/1 monospace;
+  font: 900 10px/1 monospace;
 }
 .feedComposer textarea {
   min-height: 76px;
@@ -2678,19 +2678,19 @@
   border: 1px solid var(--fx-line-2);
   border-radius: 8px;
   background: var(--fx-bg);
-  color: #d4cfc8;
+  color: var(--fx-ink-2);
   padding: 11px;
   font: 11px/1.5 Arial;
 }
 .feedComposer button,
 .commentForm button {
   height: 36px;
-  border: 1px solid #2e624b;
+  border: 1px solid color-mix(in srgb, var(--fx-good) 42%, var(--fx-panel));
   border-radius: 7px;
-  background: #102018;
+  background: var(--fx-row);
   color: var(--fx-good);
   padding: 0 12px;
-  font: 900 8px/1 monospace;
+  font: 900 10px/1 monospace;
 }
 .feedStream {
   display: flex;
@@ -2721,11 +2721,11 @@
 .feedPostHead small {
   margin-top: 4px;
   color: var(--fx-dim);
-  font: 8px/1 monospace;
+  font: 10px/1 monospace;
 }
 .feedPost>p {
   margin: 15px 0;
-  color: #d4cec6;
+  color: var(--fx-ink-2);
   font-size: 13px;
   line-height: 1.55;
 }
@@ -2747,12 +2747,12 @@
 }
 .reactionBar button span {
   margin-left: 4px;
-  color: #aaa;
-  font: 8px/1 monospace;
+  color: var(--fx-muted);
+  font: 10px/1 monospace;
 }
 .reactionBar .reacted {
-  border-color: #6d4321;
-  background: #25160e;
+  border-color: color-mix(in srgb, var(--fx-gold) 37%, var(--fx-panel));
+  background: color-mix(in srgb, var(--fx-gold) 5%, var(--fx-panel));
 }
 .commentList {
   margin-top: 12px;
@@ -2767,17 +2767,17 @@
 }
 .commentList b {
   color: var(--fx-accent);
-  font: 900 8px/1.4 monospace;
+  font: 900 10px/1.4 monospace;
 }
 .commentList p {
   margin: 0;
-  color: #aaa49c;
+  color: var(--fx-muted);
   font-size: 10px;
   line-height: 1.4;
 }
 .commentList small {
-  color: #666;
-  font: 8px/1 monospace;
+  color: var(--fx-dim);
+  font: 10px/1 monospace;
 }
 .commentForm {
   display: flex;
@@ -2790,7 +2790,7 @@
   border: 1px solid var(--fx-line);
   border-radius: 7px;
   background: var(--fx-bg);
-  color: #c9c4bd;
+  color: var(--fx-muted);
   padding: 0 9px;
   font-size: 10px;
 }
@@ -2805,7 +2805,7 @@
   place-items: center;
   width: 42px;
   height: 42px;
-  border: 1px solid #654023;
+  border: 1px solid color-mix(in srgb, var(--fx-gold) 34%, var(--fx-panel));
   border-radius: 50%;
   color: var(--fx-accent);
   font-size: 17px;
@@ -2816,7 +2816,7 @@
 }
 .feedTransaction small {
   color: var(--fx-dim);
-  font: 8px/1 monospace;
+  font: 10px/1 monospace;
 }
 .feedTransaction b {
   margin: 5px 0 3px;
@@ -2824,8 +2824,8 @@
 }
 .feedTransaction p {
   margin: 0;
-  color: #9b958e;
-  font: 9px/1.4 monospace;
+  color: var(--fx-muted-2);
+  font: 10px/1.4 monospace;
 }
 .feedEmpty {
   padding: 30px;
@@ -2867,7 +2867,7 @@
 .feedOwner small {
   margin-top: 3px;
   color: var(--fx-dim);
-  font: 8px/1 monospace;
+  font: 10px/1 monospace;
 }
 @media(max-width:760px) {
   .feedHero {
@@ -2925,7 +2925,7 @@
 .coachHero>div:first-child>p:last-child {
   max-width: 720px;
   margin: 0;
-  color: #99938d;
+  color: var(--fx-muted-2);
   font-size: 12px;
   line-height: 1.55;
 }
@@ -2941,8 +2941,8 @@
 }
 .coachGrade small {
   grid-column: 1/3;
-  color: #6d7c89;
-  font: 800 8px/1 monospace;
+  color: var(--fx-muted-2);
+  font: 800 10px/1 monospace;
 }
 .coachGrade strong {
   margin-top: 7px;
@@ -2971,8 +2971,8 @@
 }
 .scoreCards small {
   grid-column: 1/3;
-  color: #747b82;
-  font: 800 8px/1 monospace;
+  color: var(--fx-muted-2);
+  font: 800 10px/1 monospace;
 }
 .scoreCards strong {
   margin-top: 7px;
@@ -2997,7 +2997,7 @@
   grid-column: 1/3;
   margin: 6px 0 0;
   color: var(--fx-dim);
-  font: 8px/1.4 monospace;
+  font: 10px/1.4 monospace;
 }
 .scoreCards article:nth-child(2) strong,
 .scoreCards article:nth-child(3) strong {
@@ -3040,7 +3040,7 @@
 }
 .coachRecommendations article small {
   color: var(--fx-good);
-  font: 800 8px/1 monospace;
+  font: 800 10px/1 monospace;
 }
 .coachRecommendations article h3 {
   margin: 5px 0 4px;
@@ -3048,7 +3048,7 @@
 }
 .coachRecommendations article p {
   margin: 0;
-  color: #908b85;
+  color: var(--fx-muted-2);
   font-size: 10px;
   line-height: 1.45;
 }
@@ -3066,7 +3066,7 @@
 }
 .coachMetric span {
   color: var(--fx-muted-3);
-  font: 9px/1 monospace;
+  font: 10px/1 monospace;
 }
 .coachMetric b {
   color: var(--fx-info);
@@ -3127,10 +3127,10 @@
   color: var(--fx-dim);
   text-decoration: none;
   white-space: nowrap;
-  font: 800 9px/1 monospace;
+  font: 800 10px/1 monospace;
 }
 .leagueViews .leagueViewActive {
-  background: #27170f;
+  background: color-mix(in srgb, var(--fx-gold) 6%, var(--fx-panel));
   color: var(--fx-accent);
 }
 .leagueViews form {
@@ -3144,9 +3144,9 @@
   border: 1px solid var(--fx-line-2);
   border-radius: 6px;
   background: var(--fx-bg);
-  color: #aaa;
+  color: var(--fx-muted);
   padding: 0 8px;
-  font: 8px/1 monospace;
+  font: 10px/1 monospace;
 }
 .leagueViews button {
   color: var(--fx-accent);
@@ -3175,13 +3175,13 @@
 }
 .powerBoard p {
   margin: 0;
-  color: #7f7a74;
-  font: 8px/1.4 monospace;
+  color: var(--fx-muted-2);
+  font: 10px/1.4 monospace;
 }
 .powerBoard article>span {
   text-align: center;
   color: var(--fx-good);
-  font: 900 8px/1 monospace;
+  font: 900 10px/1 monospace;
 }
 .powerBoard article>b {
   text-align: right;
@@ -3197,7 +3197,7 @@
 .recapHero {
   min-height: 210px;
   padding: 29px 27px;
-  border: 1px solid #3d2920;
+  border: 1px solid color-mix(in srgb, var(--fx-gold) 18%, var(--fx-panel));
   border-radius: 16px;
   background: radial-gradient(circle at 85% 20%,rgba(255,99,62,.16),transparent 40%),var(--fx-panel-2);
 }
@@ -3210,7 +3210,7 @@
 .recapHero>p:last-child {
   max-width: 800px;
   margin: 0;
-  color: #9c968e;
+  color: var(--fx-muted-2);
   font-size: 12px;
   line-height: 1.55;
 }
@@ -3233,7 +3233,7 @@
   display: block;
   margin-top: 13px;
   color: var(--fx-accent);
-  font: 900 8px/1 monospace;
+  font: 900 10px/1 monospace;
   text-transform: uppercase;
 }
 .awardGrid h3 {
@@ -3242,8 +3242,8 @@
 }
 .awardGrid p {
   margin: 0;
-  color: #87827c;
-  font: 9px/1.5 monospace;
+  color: var(--fx-muted-2);
+  font: 10px/1.5 monospace;
 }
 @media(max-width:760px) {
   .leagueViews {
@@ -3327,7 +3327,7 @@
   transition: color .18s ease,transform .18s ease;
 }
 .roomNav a:hover {
-  color: #d6d0c8;
+  color: var(--fx-ink-2);
   transform: translateY(-1px);
 }
 .roomNav .roomActive {
@@ -3408,17 +3408,17 @@
   align-items: center;
   margin-top: 15px;
   padding: 9px 12px;
-  border: 1px solid #62331f;
+  border: 1px solid color-mix(in srgb, var(--fx-gold) 28%, var(--fx-panel));
   border-radius: 8px;
-  background: #24140e;
+  background: color-mix(in srgb, var(--fx-gold) 4%, var(--fx-panel));
   color: var(--fx-accent);
   text-decoration: none;
-  font: 900 9px/1 monospace;
+  font: 900 10px/1 monospace;
   transition: transform .18s ease,background .18s ease;
 }
 .leagueSettingsLink:hover {
   transform: translateY(-1px);
-  background: #321a11;
+  background: color-mix(in srgb, var(--fx-gold) 9%, var(--fx-panel));
 }
 
 /* == MOBILE · league bottom bar ========================================== */
@@ -3432,7 +3432,7 @@
   min-height: 218px;
   margin-bottom: 12px;
   padding: 30px 28px;
-  border: 1px solid #4a3023;
+  border: 1px solid color-mix(in srgb, var(--fx-gold) 23%, var(--fx-panel));
   border-radius: 18px;
   background: radial-gradient(circle at 86% 18%,rgba(255,99,62,.2),transparent 38%),radial-gradient(circle at 12% 120%,rgba(246,169,40,.08),transparent 40%),var(--fx-panel-2);
 }
@@ -3444,7 +3444,7 @@
 .settingsHero p:last-child {
   max-width: 690px;
   margin: 0;
-  color: #99938d;
+  color: var(--fx-muted-2);
   font-size: 12px;
   line-height: 1.55;
 }
@@ -3453,7 +3453,7 @@
   place-items: center;
   width: 94px;
   height: 94px;
-  border: 1px solid #673b27;
+  border: 1px solid color-mix(in srgb, var(--fx-gold) 33%, var(--fx-panel));
   border-radius: 24px;
   background: rgba(13,10,9,.7);
   color: var(--fx-accent);
@@ -3482,8 +3482,8 @@
   display: flex;
   flex-direction: column;
   gap: 7px;
-  color: #8e8982;
-  font: 800 9px/1 monospace;
+  color: var(--fx-muted-2);
+  font: 800 10px/1 monospace;
 }
 .settingsFields input,
 .settingsFields select {
@@ -3492,7 +3492,7 @@
   border: 1px solid var(--fx-line-2);
   border-radius: 8px;
   background: var(--fx-bg);
-  color: #e6e0d7;
+  color: var(--fx-ink-2);
   padding: 0 11px;
   font: 600 12px/1 Arial;
 }
@@ -3513,7 +3513,7 @@
   padding: 12px;
   border: 1px solid var(--fx-line);
   border-radius: 8px;
-  color: #aaa49c;
+  color: var(--fx-muted);
   font: 800 10px/1 monospace;
 }
 .settingsChecks input {
@@ -3525,11 +3525,11 @@
 .settingsSide button {
   margin: 0 16px 16px;
   padding: 11px 14px;
-  border: 1px solid #703923;
+  border: 1px solid color-mix(in srgb, var(--fx-gold) 34%, var(--fx-panel));
   border-radius: 8px;
-  background: linear-gradient(135deg,#382014,#25140e);
+  background: linear-gradient(135deg,color-mix(in srgb, var(--fx-gold) 13%, var(--fx-panel)),color-mix(in srgb, var(--fx-gold) 4%, var(--fx-panel)));
   color: var(--fx-accent);
-  font: 900 9px/1 monospace;
+  font: 900 10px/1 monospace;
   cursor: pointer;
 }
 .settingsSave {
@@ -3542,7 +3542,7 @@
 }
 .settingsSide>section>p {
   margin: 0 16px 14px;
-  color: #7f7a74;
+  color: var(--fx-muted-2);
   font-size: 10px;
   line-height: 1.5;
 }
@@ -3563,7 +3563,7 @@
 }
 .settingsTeam span {
   color: var(--fx-accent);
-  font: 900 9px/1 monospace;
+  font: 900 10px/1 monospace;
 }
 .settingsTeam b {
   font-size: 11px;
@@ -3583,7 +3583,7 @@
   align-items: center;
   height: 62px;
   padding: 0 18px;
-  border-top: 3px solid #3b2118;
+  border-top: 3px solid color-mix(in srgb, var(--fx-gold) 14%, var(--fx-panel));
 }
 .loadingHeader i,
 .loadingNav i,
@@ -3652,9 +3652,9 @@
   height: 210px;
 }
 .loadingBody>p {
-  color: #555;
+  color: var(--fx-dim);
   text-align: center;
-  font: 800 8px/1 monospace;
+  font: 800 10px/1 monospace;
   letter-spacing: .14em;
 }
 @keyframes franchiseEnter {
@@ -3713,7 +3713,7 @@
     align-items: center;
     justify-content: center;
     gap: 5px;
-    color: #706c67;
+    color: var(--fx-dim);
     text-decoration: none;
   }
   .leagueMobileNav a span {
@@ -3721,10 +3721,10 @@
     line-height: 1;
   }
   .leagueMobileNav a small {
-    font: 800 8px/1 monospace;
+    font: 800 10px/1 monospace;
   }
   .leagueMobileNav .leagueMobileActive {
-    color: #ff7b43;
+    color: color-mix(in srgb, var(--fx-gold) 87%, var(--fx-panel));
   }
   .leagueMobileNav .leagueMobileActive:after {
     content: "";
@@ -3780,16 +3780,16 @@
 }
 .syncHealth {
   padding: 6px 8px;
-  border: 1px solid #28533e;
+  border: 1px solid color-mix(in srgb, var(--fx-good) 34%, var(--fx-panel));
   border-radius: 999px;
-  background: #102019;
+  background: var(--fx-row);
   color: var(--fx-good)!important;
   text-transform: uppercase;
 }
 .syncFailed {
-  border-color: #61302c;
-  background: #251211;
-  color: #ff796e!important;
+  border-color: color-mix(in srgb, var(--fx-accent-hot) 33%, var(--fx-panel));
+  background: var(--fx-row);
+  color: color-mix(in srgb, var(--fx-accent-hot) 93%, var(--fx-ink))!important;
 }
 .syncMetrics {
   display: grid;
@@ -3809,8 +3809,8 @@
   display: block;
 }
 .syncMetrics small {
-  color: #696f74;
-  font: 800 7px/1 monospace;
+  color: var(--fx-dim);
+  font: 800 10px/1 monospace;
 }
 .syncMetrics b {
   margin-top: 6px;
@@ -3824,18 +3824,18 @@
   gap: 24px;
   margin-top: 12px;
   padding: 20px;
-  border: 1px solid #652d2b;
+  border: 1px solid color-mix(in srgb, var(--fx-accent-hot) 33%, var(--fx-panel));
   border-radius: 13px;
   background: radial-gradient(circle at 90% 0,rgba(239,68,68,.1),transparent 42%),var(--fx-panel-2);
 }
 .dangerZone h2 {
   margin: 0 0 7px;
-  color: #ff7a72;
+  color: color-mix(in srgb, var(--fx-accent-hot) 92%, var(--fx-ink));
 }
 .dangerZone>div>p:last-child {
   max-width: 680px;
   margin: 0;
-  color: #8e7774;
+  color: var(--fx-muted-2);
   font-size: 10px;
   line-height: 1.5;
 }
@@ -3844,29 +3844,29 @@
   gap: 8px;
 }
 .dangerZone label {
-  color: #a58e8a;
-  font: 800 9px/1.4 monospace;
+  color: var(--fx-accent-hot);
+  font: 800 10px/1.4 monospace;
 }
 .dangerZone label b {
-  color: #ff7a72;
+  color: color-mix(in srgb, var(--fx-accent-hot) 92%, var(--fx-ink));
 }
 .dangerZone input {
   width: 100%;
   height: 39px;
   margin-top: 7px;
-  border: 1px solid #56302e;
+  border: 1px solid color-mix(in srgb, var(--fx-accent-hot) 31%, var(--fx-panel));
   border-radius: 7px;
   background: var(--fx-bg);
-  color: #f0d9d6;
+  color: color-mix(in srgb, var(--fx-accent-hot) 23%, var(--fx-ink));
   padding: 0 10px;
 }
 .dangerZone button {
   height: 39px;
-  border: 1px solid #8a3531;
+  border: 1px solid color-mix(in srgb, var(--fx-accent-hot) 45%, var(--fx-panel));
   border-radius: 7px;
-  background: #351312;
-  color: #ff8b83;
-  font: 900 9px/1 monospace;
+  background: color-mix(in srgb, var(--fx-accent-hot) 9%, var(--fx-panel));
+  color: color-mix(in srgb, var(--fx-accent-hot) 79%, var(--fx-ink));
+  font: 900 10px/1 monospace;
   cursor: pointer;
 }
 .liveMatchupControl {
@@ -3876,15 +3876,15 @@
   gap: 12px;
   margin-bottom: 10px;
   padding: 12px 14px;
-  border: 1px solid #2a4038;
+  border: 1px solid color-mix(in srgb, var(--fx-good) 26%, var(--fx-panel));
   border-radius: 11px;
-  background: linear-gradient(120deg,#0e1713,var(--fx-panel-2));
+  background: linear-gradient(120deg,var(--fx-panel),var(--fx-panel-2));
 }
 .liveMatchupPulse {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #65716b;
+  background: color-mix(in srgb, var(--fx-dim) 74%, var(--fx-panel));
 }
 .liveMatchupControl small,
 .liveMatchupControl strong,
@@ -3892,8 +3892,8 @@
   display: block;
 }
 .liveMatchupControl small {
-  color: #7d8c85;
-  font: 900 7px/1 monospace;
+  color: var(--fx-muted-2);
+  font: 900 10px/1 monospace;
   letter-spacing: .13em;
 }
 .liveMatchupControl strong {
@@ -3902,26 +3902,26 @@
 }
 .liveMatchupControl em {
   margin-top: 3px;
-  color: #65716b;
-  font: 8px/1 monospace;
+  color: var(--fx-dim);
+  font: 10px/1 monospace;
   font-style: normal;
 }
 .liveMatchupControl button {
   height: 34px;
-  border: 1px solid #315c49;
+  border: 1px solid color-mix(in srgb, var(--fx-good) 40%, var(--fx-panel));
   border-radius: 7px;
-  background: #101f18;
+  background: var(--fx-row);
   color: var(--fx-good);
   padding: 0 11px;
-  font: 900 8px/1 monospace;
+  font: 900 10px/1 monospace;
   cursor: pointer;
 }
 .liveMatchupControl button:disabled {
   opacity: .5;
 }
 .liveMatchupActive {
-  border-color: #276948;
-  background: linear-gradient(120deg,#0c1c14,var(--fx-panel-2));
+  border-color: color-mix(in srgb, var(--fx-good) 43%, var(--fx-panel));
+  background: linear-gradient(120deg,var(--fx-row),var(--fx-panel-2));
 }
 .liveMatchupActive .liveMatchupPulse {
   background: var(--fx-good);
@@ -3952,7 +3952,7 @@
 .nflGameGrid article>span {
   display: block;
   color: var(--fx-dim);
-  font: 900 7px/1 monospace;
+  font: 900 10px/1 monospace;
 }
 .nflGameGrid article>div {
   display: flex;
@@ -3964,13 +3964,13 @@
   font: 900 12px/1 monospace;
 }
 .nflGameGrid article em {
-  color: #555;
-  font: 8px/1 monospace;
+  color: var(--fx-dim);
+  font: 10px/1 monospace;
   font-style: normal;
 }
 .nflGameGrid article small {
-  color: #666;
-  font: 8px/1 monospace;
+  color: var(--fx-dim);
+  font: 10px/1 monospace;
 }
 /* One heading per day, and the cards under it stop repeating the date. Week 1
    is sixteen games; sixteen copies of "Sun, Sep 13" was a third of the scroll
@@ -3979,15 +3979,15 @@
   grid-column: 1/-1;
   margin: 6px 0 -1px;
   color: var(--fx-muted-3);
-  font: 900 8px/1 monospace;
+  font: 900 10px/1 monospace;
   letter-spacing: .1em;
 }
 .nflGameDay:first-child {
   margin-top: 0;
 }
 .nflGameGrid .nflGameLive {
-  border-color: #286548;
-  background: #0d1913;
+  border-color: color-mix(in srgb, var(--fx-good) 42%, var(--fx-panel));
+  background: var(--fx-row);
 }
 .nflGameGrid .nflGameLive>span,
 .livePlayerScore {
@@ -4084,7 +4084,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
     animation: franchiseTapPulse .62s ease-in-out infinite alternate;
   }
   .leagueMobileNav a[aria-busy="true"] small {
-    font-size: 7px;
+    font-size: 10px;
   }
 }
 @keyframes franchiseTapPulse {
@@ -4095,10 +4095,10 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 }
 /* Product-first signed-out experience. */ .launchApp {
   --launchOrange: var(--fx-accent-hot);
-  --launchGold: #ffad45;
+  --launchGold: var(--fx-gold);
   --launchGreen: var(--fx-good);
-  --launchInk: #f6f2eb;
-  --launchMuted: #96918a;
+  --launchInk: var(--fx-ink);
+  --launchMuted: var(--fx-muted-2);
   min-height: 100vh;
   overflow: hidden;
   background: radial-gradient(circle at 78% 6%,rgba(255,99,62,.14),transparent 27%),radial-gradient(circle at 8% 28%,rgba(32,184,212,.07),transparent 24%),var(--fx-bg);
@@ -4141,8 +4141,8 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   display: block;
 }
 .launchBrand small {
-  color: #756f69;
-  font: 800 7px/1 monospace;
+  color: var(--fx-dim);
+  font: 800 10px/1 monospace;
   letter-spacing: .18em;
 }
 .launchBrand strong {
@@ -4157,18 +4157,18 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   gap: 25px;
 }
 .launchHeader nav a {
-  color: #96918a;
+  color: var(--fx-muted-2);
   text-decoration: none;
-  font: 800 9px/1 monospace;
+  font: 800 10px/1 monospace;
 }
 .launchHeader nav a:hover {
-  color: #eee8df;
+  color: var(--fx-ink);
 }
 .launchHeader .launchNavCta {
   padding: 10px 13px;
-  border: 1px solid #74402a;
+  border: 1px solid color-mix(in srgb, var(--fx-gold) 37%, var(--fx-panel));
   border-radius: 8px;
-  background: #2a1710;
+  background: color-mix(in srgb, var(--fx-gold) 7%, var(--fx-panel));
   color: var(--launchGold);
 }
 .launchHero {
@@ -4189,8 +4189,8 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   align-items: center;
   gap: 8px;
   margin: 0 0 25px;
-  color: #a59e95;
-  font: 900 9px/1 monospace;
+  color: var(--fx-muted-2);
+  font: 900 10px/1 monospace;
   letter-spacing: .15em;
 }
 .launchEyebrow span {
@@ -4211,7 +4211,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 .launchHeroCopy>p:nth-of-type(2) {
   max-width: 700px;
   margin: 28px 0 0;
-  color: #aaa49b;
+  color: var(--fx-muted);
   font-size: 17px;
   line-height: 1.65;
 }
@@ -4225,14 +4225,14 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   padding: 15px 18px;
   border: 1px solid var(--fx-line);
   border-radius: 10px;
-  color: #aaa49c;
+  color: var(--fx-muted);
   text-decoration: none;
   font: 900 10px/1 monospace;
 }
 .launchActions a:first-child {
-  border-color: #8c4228;
-  background: linear-gradient(135deg,#ff753f,#ff513c);
-  color: #160e0b;
+  border-color: color-mix(in srgb, var(--fx-gold) 42%, var(--fx-panel));
+  background: linear-gradient(135deg,color-mix(in srgb, var(--fx-gold) 84%, var(--fx-panel)),color-mix(in srgb, var(--fx-accent-hot) 83%, var(--fx-panel)));
+  color: var(--fx-panel);
   box-shadow: 0 16px 50px rgba(255,83,53,.17);
 }
 .launchActions a b {
@@ -4242,8 +4242,8 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   display: flex;
   gap: 18px;
   margin-top: 25px;
-  color: #6f6b66;
-  font: 800 8px/1 monospace;
+  color: var(--fx-dim);
+  font: 800 10px/1 monospace;
 }
 .launchTrust span {
   white-space: nowrap;
@@ -4251,7 +4251,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 .launchScoreCard {
   position: relative;
   padding: 25px;
-  border: 1px solid #4c3529;
+  border: 1px solid color-mix(in srgb, var(--fx-gold) 26%, var(--fx-panel));
   border-radius: 22px;
   background: radial-gradient(circle at 82% 8%,rgba(255,99,62,.17),transparent 35%),linear-gradient(145deg,var(--fx-panel-2),var(--fx-panel-2));
   box-shadow: 0 35px 90px rgba(0,0,0,.45),inset 0 1px rgba(255,255,255,.04);
@@ -4263,11 +4263,11 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   top: -12px;
   right: 20px;
   padding: 7px 10px;
-  border: 1px solid #2c6049;
+  border: 1px solid color-mix(in srgb, var(--fx-good) 40%, var(--fx-panel));
   border-radius: 999px;
-  background: #0c1712;
+  background: var(--fx-panel);
   color: var(--launchGreen);
-  font: 900 7px/1 monospace;
+  font: 900 10px/1 monospace;
   letter-spacing: .12em;
 }
 .launchScoreCard>div:first-child {
@@ -4277,8 +4277,8 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 }
 .launchScoreCard>div:first-child small {
   grid-column: 1/3;
-  color: #7e7770;
-  font: 900 8px/1 monospace;
+  color: var(--fx-muted-2);
+  font: 900 10px/1 monospace;
   letter-spacing: .13em;
 }
 .launchScoreCard>div:first-child strong {
@@ -4294,7 +4294,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 .launchScoreCard>p:nth-of-type(1) {
   margin: 28px 0 8px;
   color: var(--launchGreen);
-  font: 900 8px/1 monospace;
+  font: 900 10px/1 monospace;
   letter-spacing: .13em;
 }
 .launchScoreCard h2 {
@@ -4305,7 +4305,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 }
 .launchScoreCard>p:nth-of-type(2) {
   margin: 12px 0 25px;
-  color: #8d867f;
+  color: var(--fx-muted-2);
   font-size: 12px;
   line-height: 1.55;
 }
@@ -4315,8 +4315,8 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   gap: 8px;
   padding-top: 16px;
   border-top: 1px solid var(--fx-line-3);
-  color: #77716b;
-  font: 800 7px/1.3 monospace;
+  color: var(--fx-dim);
+  font: 800 10px/1.3 monospace;
 }
 .launchScoreFooter span:last-child {
   text-align: right;
@@ -4324,7 +4324,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 .launchScoreFooter b {
   display: block;
   margin-top: 4px;
-  color: #ddd6cd;
+  color: var(--fx-ink-2);
   font-size: 13px;
 }
 .launchProof {
@@ -4353,8 +4353,8 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   font: 1000 25px/1 monospace;
 }
 .launchProof span {
-  color: #77716b;
-  font: 800 8px/1.35 monospace;
+  color: var(--fx-dim);
+  font: 800 10px/1.35 monospace;
   text-transform: uppercase;
 }
 .launchProduct {
@@ -4371,7 +4371,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 .launchSectionHead p {
   margin: 0 0 15px;
   color: var(--launchOrange);
-  font: 900 8px/1 monospace;
+  font: 900 10px/1 monospace;
   letter-spacing: .18em;
 }
 .launchSectionHead h2 {
@@ -4383,7 +4383,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   display: block;
   max-width: 640px;
   margin: 17px auto 0;
-  color: #8d8881;
+  color: var(--fx-muted-2);
   font-size: 14px;
   line-height: 1.6;
 }
@@ -4393,7 +4393,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   min-height: 0;
   margin: auto;
   padding-bottom: 0;
-  border: 1px solid #332e2a;
+  border: 1px solid var(--fx-line);
   border-radius: 20px;
   overflow: hidden;
   pointer-events: none;
@@ -4436,7 +4436,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 .launchReasons article>p {
   margin: 38px 0 13px;
   color: var(--launchOrange);
-  font: 900 8px/1 monospace;
+  font: 900 10px/1 monospace;
   letter-spacing: .15em;
 }
 .launchReasons h3 {
@@ -4450,19 +4450,19 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   display: block;
   max-width: 330px;
   margin-top: 55px;
-  color: #817b75;
+  color: var(--fx-muted-2);
   font-size: 11px;
   line-height: 1.6;
 }
 .launchReasons article:nth-child(2) {
-  border-color: #293a40;
+  border-color: color-mix(in srgb, var(--fx-info) 25%, var(--fx-panel));
   background: radial-gradient(circle at 80% 0,rgba(40,185,231,.09),transparent 40%),var(--fx-panel-2);
 }
 .launchReasons article:nth-child(2)>p {
   color: var(--fx-info);
 }
 .launchReasons article:nth-child(3) {
-  border-color: #293a34;
+  border-color: var(--fx-line);
 }
 .launchReasons article:nth-child(3)>p {
   color: var(--launchGreen);
@@ -4480,7 +4480,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 .launchAuthIntro p {
   margin: 0 0 13px;
   color: var(--launchGold);
-  font: 900 8px/1 monospace;
+  font: 900 10px/1 monospace;
   letter-spacing: .18em;
 }
 .launchAuthIntro h2 {
@@ -4492,7 +4492,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   display: block;
   max-width: 610px;
   margin: 16px auto 0;
-  color: #8d8881;
+  color: var(--fx-muted-2);
   font-size: 13px;
   line-height: 1.55;
 }
@@ -4512,7 +4512,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   box-shadow: 0 25px 70px rgba(0,0,0,.22);
 }
 .launchAuthCard:first-child {
-  border-color: #603725;
+  border-color: color-mix(in srgb, var(--fx-gold) 30%, var(--fx-panel));
   background: radial-gradient(circle at 95% 0,rgba(255,99,62,.11),transparent 32%),var(--fx-panel-2);
 }
 .launchAuthCard h3 {
@@ -4523,7 +4523,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 .launchAuthCard>p:nth-of-type(2) {
   min-height: 37px;
   margin: 0 0 22px;
-  color: #817b75;
+  color: var(--fx-muted-2);
   font-size: 11px;
   line-height: 1.5;
 }
@@ -4532,8 +4532,8 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   flex-direction: column;
   gap: 7px;
   margin: 0 0 13px;
-  color: #aaa39b;
-  font: 800 9px/1 monospace;
+  color: var(--fx-muted);
+  font: 800 10px/1 monospace;
 }
 .launchAuthCard input {
   width: 100%;
@@ -4541,13 +4541,13 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   border: 1px solid var(--fx-line-2);
   border-radius: 9px;
   background: var(--fx-bg);
-  color: #f1ece4;
+  color: var(--fx-ink);
   padding: 0 12px;
   font: 600 14px/1 Arial;
   outline: 0;
 }
 .launchAuthCard input:focus {
-  border-color: #8b4c30;
+  border-color: color-mix(in srgb, var(--fx-gold) 46%, var(--fx-panel));
   box-shadow: 0 0 0 3px rgba(255,99,62,.08);
 }
 .launchAuthCard button {
@@ -4557,25 +4557,25 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   width: 100%;
   height: 46px;
   margin-top: 7px;
-  border: 1px solid #85452b;
+  border: 1px solid color-mix(in srgb, var(--fx-gold) 42%, var(--fx-panel));
   border-radius: 9px;
-  background: linear-gradient(135deg,#ff733f,#ff503c);
-  color: #190e0a;
+  background: linear-gradient(135deg,color-mix(in srgb, var(--fx-gold) 84%, var(--fx-panel)),color-mix(in srgb, var(--fx-accent-hot) 83%, var(--fx-panel)));
+  color: var(--fx-panel);
   padding: 0 15px;
   font: 1000 10px/1 monospace;
   cursor: pointer;
 }
 .launchAuthCard:last-child button {
-  border-color: #3a5e4e;
-  background: #122219;
+  border-color: color-mix(in srgb, var(--fx-good) 43%, var(--fx-panel));
+  background: var(--fx-row);
   color: var(--launchGreen);
 }
 .launchAuthCard>small {
   display: block;
   margin-top: 12px;
-  color: #66615c;
+  color: var(--fx-dim);
   text-align: center;
-  font: 700 7px/1 monospace;
+  font: 700 10px/1 monospace;
 }
 .launchFooter {
   display: flex;
@@ -4584,8 +4584,8 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   gap: 28px;
   min-height: 82px;
   border-top: 1px solid var(--fx-line-3);
-  color: #5f5b57;
-  font: 800 8px/1 monospace;
+  color: var(--fx-dim);
+  font: 800 10px/1 monospace;
 }
 .launchFooter span {
   color: var(--launchOrange);
@@ -4602,7 +4602,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
     display: none;
   }
   .launchHeader nav a {
-    font-size: 8px;
+    font-size: 10px;
   }
   .launchHeader .launchNavCta {
     padding: 9px;
@@ -4615,7 +4615,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   }
   .launchEyebrow {
     margin-bottom: 19px;
-    font-size: 7px;
+    font-size: 10px;
   }
   .launchHero h1 {
     font-size: 54px;
@@ -4752,11 +4752,11 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   grid-column: 1/3;
   margin-top: 13px;
   padding: 9px 10px;
-  border: 1px solid #31566a;
+  border: 1px solid color-mix(in srgb, var(--fx-info) 42%, var(--fx-panel));
   border-radius: 8px;
-  background: #0e1a20;
+  background: var(--fx-row);
   color: var(--fx-info);
-  font: 900 8px/1 monospace;
+  font: 900 10px/1 monospace;
   cursor: pointer;
 }
 /* == FRANCHISE SMOOTH PASS · 2026-08-28 ================================= */
@@ -4802,7 +4802,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   color: var(--fx-accent);
 }
 .clockChip [data-expired="true"] {
-  color: #ff7b43;
+  color: color-mix(in srgb, var(--fx-gold) 87%, var(--fx-panel));
   animation: franchiseTapPulse .7s ease-in-out infinite alternate;
 }
 /* #90: a pulsing red line means "this is happening right now." Once the pick
@@ -4833,7 +4833,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 }
 .weekSwitch a:hover {
   color: var(--fx-ink);
-  border-color: #4a453f;
+  border-color: var(--fx-line);
 }
 .roomApp button[aria-busy="true"],
 .app button[aria-busy="true"],
@@ -4865,25 +4865,15 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
    can't miss, a scannable board, and states you can see. */
 
 .roomApp {
-  --fx-s0: #0a0a09;   /* page ground */
-  --fx-s1: #121110;   /* panel */
-  --fx-s2: #171512;   /* row, raised */
-  --fx-s3: #1e1b17;   /* row hover / active */
-  --fx-edge: #24211d; /* hairline inside a panel */
-  --fx-edge-2: #322e28;
+  /* R10 (2026-10-03): the room's surface scale on the DASH chassis (--dx-*,
+     lib/design/cssVars.js) -- dark and light both, so no light copy below. */
+  --fx-s0: var(--dx-bg);    /* page ground */
+  --fx-s1: var(--dx-bg2);   /* panel */
+  --fx-s2: var(--dx-bg3);   /* row, raised */
+  --fx-s3: color-mix(in srgb, var(--dx-bg3) 94%, var(--dx-text)); /* row hover / active */
+  --fx-edge: var(--dx-border); /* hairline inside a panel */
+  --fx-edge-2: var(--dx-border2);
   background: var(--fx-s0);
-}
-/* #76: the league room carries its OWN surface scale — the one real surface
-   scale this file has, added when the room was rebuilt — so it needs the light
-   values too. Missing this is what would leave the room dark while the rest of
-   FRANCHISE went pale, which is the half-fix this whole pass exists to avoid. */
-:global(html[data-theme='light']) .roomApp {
-  --fx-s0: #f1f1ef;
-  --fx-s1: #ffffff;
-  --fx-s2: #f7f6f3;
-  --fx-s3: #eeece7;
-  --fx-edge: #e4e1db;
-  --fx-edge-2: #d3cfc8;
 }
 
 /* --- panels ------------------------------------------------------------- */
@@ -4895,7 +4885,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   box-shadow: 0 1px 0 rgba(255,255,255,.02) inset, 0 10px 30px rgba(0,0,0,.32);
 }
 .roomApp .draftHero {
-  border-color: #37281f;
+  border-color: color-mix(in srgb, var(--fx-gold) 16%, var(--fx-panel));
   background: radial-gradient(circle at 88% 12%,rgba(246,169,40,.13),transparent 42%),var(--fx-s1);
 }
 .roomApp .roomStats span {
@@ -4935,10 +4925,10 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   border: 1px solid var(--fx-edge-2);
   border-radius: 7px;
   color: var(--fx-dim);
-  font: 900 9px/1 monospace;
+  font: 900 10px/1 monospace;
   letter-spacing: .1em;
 }
-.clockBar[data-yours="true"] .clockPick { border-color: #2c4c3d; color: var(--fx-good); }
+.clockBar[data-yours="true"] .clockPick { border-color: color-mix(in srgb, var(--fx-good) 32%, var(--fx-panel)); color: var(--fx-good); }
 .clockWho { min-width: 0; margin-right: auto; }
 .clockWho b {
   display: block;
@@ -4952,7 +4942,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   display: block;
   margin-top: 3px;
   color: var(--fx-muted-2);
-  font: 9px/1.3 monospace;
+  font: 10px/1.3 monospace;
 }
 .clockTime {
   flex: 0 0 auto;
@@ -4961,7 +4951,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   color: var(--gold);
   font-variant-numeric: tabular-nums;
 }
-.clockTime [data-urgent="true"] { color: #ff8f4a; }
+.clockTime [data-urgent="true"] { color: var(--fx-gold); }
 .clockTime [data-expired="true"] { color: var(--orange); }
 
 /* --- board: the head stays put while you scroll ------------------------- */
@@ -5059,15 +5049,15 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 }
 
 /* your turn should be visible from across the room */
-.roomApp .playerBoard[data-yours="true"] { border-color: #2c4c3d; }
-.roomApp .playerBoard[data-yours="true"] .draftPlayer button { border-color: #2f6a48; }
+.roomApp .playerBoard[data-yours="true"] { border-color: color-mix(in srgb, var(--fx-good) 32%, var(--fx-panel)); }
+.roomApp .playerBoard[data-yours="true"] .draftPlayer button { border-color: color-mix(in srgb, var(--fx-good) 45%, var(--fx-panel)); }
 
 /* --- side panels -------------------------------------------------------- */
 .roomApp .pickRow,
 .roomApp .activePick,
 .roomApp .queueRow,
 .roomApp .rosterRow { border-top: 1px solid var(--fx-edge); }
-.roomApp .activePick { background: #1d1710; }
+.roomApp .activePick { background: var(--fx-row); }
 .roomApp .queueRow:hover,
 .roomApp .rosterRow:hover,
 .roomApp .pickRow:hover { background: var(--fx-s2); }
@@ -5099,7 +5089,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   border-radius: 6px;
 }
 .roomApp .draftPlayer button { transition: background .13s ease, border-color .13s ease; }
-.roomApp .draftPlayer button:hover:not(:disabled) { background: #33190f; }
+.roomApp .draftPlayer button:hover:not(:disabled) { background: color-mix(in srgb, var(--fx-gold) 9%, var(--fx-panel)); }
 
 @media(max-width:760px) {
   .clockBar {
@@ -5108,7 +5098,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
     padding: 11px 12px;
   }
   .clockWho b { font-size: 14px; }
-  .clockPick { padding: 6px 7px; font-size: 8px; }
+  .clockPick { padding: 6px 7px; font-size: 10px; }
   .roomApp .playerBoard>.boardHead { position: static; }
   .roomApp .playerBoard>.positionFilters { top: 0; }
   .roomApp .playerBoard>.draftColumns { top: 40px; }
@@ -5127,7 +5117,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   box-shadow: 0 1px 0 rgba(255,255,255,.02) inset, 0 10px 30px rgba(0,0,0,.32);
 }
 .roomApp .teamHero {
-  border-color: #26382f;
+  border-color: var(--fx-line);
   background: radial-gradient(circle at 88% 14%,rgba(24,200,120,.11),transparent 42%),var(--fx-s1);
 }
 
@@ -5146,13 +5136,13 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 .slotGroup:first-child .slotGroupHead { border-top: 0; }
 .slotGroupHead span {
   color: var(--fx-ink);
-  font: 900 9px/1 monospace;
+  font: 900 10px/1 monospace;
   letter-spacing: .17em;
 }
 .slotGroupHead small {
   margin-right: auto;
   color: var(--fx-muted-2);
-  font: 9px/1 monospace;
+  font: 10px/1 monospace;
 }
 .slotGroupHead b {
   color: var(--fx-muted);
@@ -5202,7 +5192,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   display: block;
   margin-top: 4px;
   color: var(--fx-dim);
-  font: 400 7px/1 monospace;
+  font: 400 10px/1 monospace;
   font-style: normal;
   letter-spacing: .1em;
 }
@@ -5263,8 +5253,8 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   background: var(--fx-s1);
   box-shadow: 0 1px 0 rgba(255,255,255,.02) inset, 0 10px 30px rgba(0,0,0,.32);
 }
-.roomApp .matchupHero { border-color: #37281f; background: radial-gradient(circle at 50% 45%,rgba(246,169,40,.12),transparent 36%),var(--fx-s1); }
-.roomApp .leagueHero { border-color: #26382f; background: radial-gradient(circle at 88% 14%,rgba(24,200,120,.10),transparent 42%),var(--fx-s1); }
+.roomApp .matchupHero { border-color: color-mix(in srgb, var(--fx-gold) 16%, var(--fx-panel)); background: radial-gradient(circle at 50% 45%,rgba(246,169,40,.12),transparent 36%),var(--fx-s1); }
+.roomApp .leagueHero { border-color: var(--fx-line); background: radial-gradient(circle at 88% 14%,rgba(24,200,120,.10),transparent 42%),var(--fx-s1); }
 .roomApp .wireHero,
 .roomApp .settingsHero,
 .roomApp .coachHero { background-color: var(--fx-s1); }
@@ -5317,7 +5307,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   background: var(--fx-ink);
   box-shadow: 0 0 8px rgba(0,0,0,.7);
 }
-.marginBar[data-live="true"] .marginTrack i { background: linear-gradient(90deg,var(--fx-good),#4de29a); }
+.marginBar[data-live="true"] .marginTrack i { background: linear-gradient(90deg,var(--fx-good),color-mix(in srgb, var(--fx-good) 92%, var(--fx-ink))); }
 .marginLegend {
   display: flex;
   align-items: baseline;
@@ -5349,15 +5339,15 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   border: 1px solid var(--fx-edge-2);
   border-radius: 5px;
   color: var(--fx-dim);
-  font: 900 7px/1 monospace;
+  font: 900 10px/1 monospace;
   letter-spacing: .08em;
 }
-.playerState[data-state="live"] { border-color: #2c4c3d; color: var(--fx-good); }
-.playerState[data-state="final"] { border-color: #3a352e; color: var(--fx-muted); }
+.playerState[data-state="live"] { border-color: color-mix(in srgb, var(--fx-good) 32%, var(--fx-panel)); color: var(--fx-good); }
+.playerState[data-state="final"] { border-color: var(--fx-line); color: var(--fx-muted); }
 /* BYE (2026-08-31). It has to read as a warning, not as another status: this
    is a starter who cannot score, and the whole point of the badge is that you
    notice it while there is still time to move him. */
-.playerState[data-state="bye"] { border-color: #5a3a22; color: var(--orange2); }
+.playerState[data-state="bye"] { border-color: color-mix(in srgb, var(--fx-gold) 30%, var(--fx-panel)); color: var(--orange2); }
 .roomApp .matchupPlayer { grid-template-columns: 44px 1fr auto 54px; gap: 9px; }
 .roomApp .matchupPlayer b { font-size: 12px; }
 .roomApp .matchupPlayer strong { font-variant-numeric: tabular-nums; }
@@ -5369,7 +5359,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   background: var(--fx-s2);
   transition: border-color .14s ease, transform .14s ease;
 }
-.roomApp .nflGameGrid article:hover { transform: translateY(-1px); border-color: #3f3a33; }
+.roomApp .nflGameGrid article:hover { transform: translateY(-1px); border-color: var(--fx-line); }
 .roomApp .nflGameGrid .nflGameLive { box-shadow: 0 0 0 1px rgba(24,200,120,.16); }
 
 /* --- league HQ: the playoff cut is a line, not a label ------------------ */
@@ -5392,7 +5382,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   transition: background .13s ease, border-color .13s ease, transform .1s ease;
 }
 .roomApp .reactionBar button:hover { transform: translateY(-1px); }
-.roomApp .reactionBar .reacted { border-color: #6b4a20; background: #241a10; }
+.roomApp .reactionBar .reacted { border-color: color-mix(in srgb, var(--fx-gold) 39%, var(--fx-panel)); background: var(--fx-row); }
 .roomApp .coachRecommendations article { border-top: 1px solid var(--fx-edge); }
 .roomApp .coachRecommendations article:hover { background: var(--fx-s2); }
 .roomApp .settingsFields input:focus,
@@ -5403,11 +5393,11 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   border-color: var(--fx-gold);
   color: var(--fx-ink);
 }
-.roomApp .dangerZone { border-color: #4a2622; }
+.roomApp .dangerZone { border-color: color-mix(in srgb, var(--fx-accent-hot) 23%, var(--fx-panel)); }
 
 @media(max-width:760px) {
   .roomApp .matchupPlayer { grid-template-columns: 38px 1fr auto 50px; }
-  .marginLegend span { font-size: 9px; }
+  .marginLegend span { font-size: 10px; }
   .roomApp .nflGameGrid { grid-template-columns: repeat(auto-fit,minmax(116px,1fr)); }
 }
 
@@ -5437,7 +5427,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
     grid-template-columns: 26px 36px 1fr 38px minmax(72px,auto);
     gap: 6px;
   }
-  .roomApp .draftPlayer button { padding: 8px 7px; font-size: 8px; }
+  .roomApp .draftPlayer button { padding: 8px 7px; font-size: 10px; }
 }
 
 /* A commissioner's escape hatch should look like one. */
@@ -5446,11 +5436,11 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   display: block;
   margin-top: 5px;
   color: var(--fx-muted-2);
-  font: 9px/1.4 monospace;
+  font: 10px/1.4 monospace;
 }
 
 /* fantasy-theme-tokens.css: draft banner + start-confirm rules moved here (css-loader pure-selector fix, 2026-09-06) */
-.roomApp .commishBar button[data-short="true"] { border-color: #6b3723; color: var(--fx-gold); }
+.roomApp .commishBar button[data-short="true"] { border-color: color-mix(in srgb, var(--fx-gold) 32%, var(--fx-panel)); color: var(--fx-gold); }
 
 .resetZone {
   display: flex;
@@ -5458,7 +5448,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   gap: 20px;
   margin-top: 14px;
   padding: 20px 22px;
-  border: 1px solid #4a3a22;
+  border: 1px solid color-mix(in srgb, var(--fx-gold) 27%, var(--fx-panel));
   border-radius: 14px;
   background: var(--fx-s1);
 }
@@ -5467,9 +5457,9 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 .resetZone p { margin: 0; color: var(--fx-muted); font-size: 12px; line-height: 1.55; }
 .resetZone b { color: var(--fx-gold); }
 .resetZone form { display: flex; flex-direction: column; gap: 9px; min-width: 240px; }
-.resetZone label { display: flex; flex-direction: column; gap: 6px; color: var(--fx-muted-2); font: 700 9px/1.4 monospace; }
+.resetZone label { display: flex; flex-direction: column; gap: 6px; color: var(--fx-muted-2); font: 700 10px/1.4 monospace; }
 .resetZone input { border: 1px solid var(--fx-line-2); border-radius: 8px; background: var(--fx-bg); color: var(--fx-ink); padding: 9px; font: inherit; font-size: 13px; }
-.resetZone button { border: 1px solid #6b4a20; border-radius: 8px; background: #241a10; color: var(--fx-gold); padding: 10px; font: 900 10px/1 monospace; cursor: pointer; }
+.resetZone button { border: 1px solid color-mix(in srgb, var(--fx-gold) 39%, var(--fx-panel)); border-radius: 8px; background: var(--fx-row); color: var(--fx-gold); padding: 10px; font: 900 10px/1 monospace; cursor: pointer; }
 @media(max-width:760px) {
   .resetZone { flex-direction: column; align-items: stretch; }
   .resetZone form { min-width: 0; }
@@ -5497,13 +5487,13 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 .identitySwatches input:focus-visible + span {
   outline: 2px solid var(--fx-gold); outline-offset: 2px;
 }
-.identityMonogram { display: grid; gap: 7px; color: var(--fx-muted); font: 800 9px/1.4 monospace; letter-spacing: .08em; text-transform: uppercase; }
+.identityMonogram { display: grid; gap: 7px; color: var(--fx-muted); font: 800 10px/1.4 monospace; letter-spacing: .08em; text-transform: uppercase; }
 .identityMonogram input {
   width: 100%; box-sizing: border-box; padding: 10px 12px;
   border: 1px solid var(--fx-line-2); border-radius: 9px; background: var(--fx-well);
   color: var(--ink); font: 900 15px/1 monospace; letter-spacing: .2em; text-transform: uppercase;
 }
-.identityHint { color: var(--fx-muted); font-size: 9.5px; line-height: 1.5; }
+.identityHint { color: var(--fx-muted); font-size: 10px; line-height: 1.5; }
 
 /* ── Native-control polish (2026-08-29 review) ────────────────────────────
    The create-league and settings forms rendered OS-default select arrows and
@@ -5519,7 +5509,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 }
 .checks input[type="checkbox"],
 .settingsChecks input[type="checkbox"] {
-  width: 16px; height: 16px; accent-color: var(--gold, #f2a33c);
+  width: 16px; height: 16px; accent-color: var(--gold, var(--fx-gold));
 }
 
 /* #75: the invite code is the league's only lock, and the League HQ hero
@@ -5536,7 +5526,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 }
 .leagueInvite small {
   color: var(--muted);
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: .12em;
 }
 .leagueInvite strong {
@@ -5571,7 +5561,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 /* A DASH cell with no priced market. It prints an em dash rather than the
    defaulted 50 -- see hasMarketScore in lib/fantasy/scoring.js -- and is dimmed
    so a column of dashes reads as "no market here", not as a missing value. */
-.dashUnpriced { color: #6c6862 !important; }
+.dashUnpriced { color: var(--fx-dim) !important; }
 
 
 /* ── #76 · TINTED SURFACES IN DAYLIGHT (generated 2026-09-03) ──────────────
@@ -5789,8 +5779,8 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 .wirePlayer>strong i {
   display: none;
   margin-top: 4px;
-  color: #5f5c58;
-  font: 7px/1 monospace;
+  color: var(--fx-dim);
+  font: 10px/1 monospace;
   font-style: normal;
   letter-spacing: .08em;
 }
@@ -5827,7 +5817,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   padding: 12px 13px;
   border-top: 1px solid var(--fx-line-3);
   color: var(--fx-dim);
-  font: 8px/1 monospace;
+  font: 10px/1 monospace;
   letter-spacing: .08em;
 }
 .wireMore a {
@@ -5854,8 +5844,8 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   padding: 0 13px;
   border-top: 1px solid var(--fx-line-3);
   background: var(--fx-bg);
-  color: #5f5c58;
-  font: 8px/1 monospace;
+  color: var(--fx-dim);
+  font: 10px/1 monospace;
   letter-spacing: .08em;
 }
 .slotColumns span:nth-child(n+3) {
@@ -5899,7 +5889,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   border: 1px solid var(--fx-edge-2);
   background: var(--fx-bg);
   color: var(--fx-muted);
-  font: 800 9px/1 monospace;
+  font: 800 10px/1 monospace;
   letter-spacing: .1em;
   text-decoration: none;
   cursor: pointer;
@@ -5911,17 +5901,17 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   color: var(--fx-ink);
 }
 .roomApp .slotAction .slotTargetButton {
-  border-color: #2f6a48;
+  border-color: color-mix(in srgb, var(--fx-good) 45%, var(--fx-panel));
   background: rgba(24,200,120,.1);
-  color: #6fe0a6;
+  color: color-mix(in srgb, var(--fx-good) 79%, var(--fx-ink));
 }
 .roomApp .slotAction .slotTargetButton:hover {
   background: rgba(24,200,120,.18);
-  color: #b6f3d3;
+  color: color-mix(in srgb, var(--fx-good) 30%, var(--fx-ink));
 }
 .slotLockedTag {
   color: var(--fx-dim);
-  font: 800 9px/1 monospace;
+  font: 800 10px/1 monospace;
   letter-spacing: .1em;
 }
 
@@ -5932,7 +5922,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 }
 .roomApp .slotRow[data-target="true"] {
   background: linear-gradient(90deg,rgba(24,200,120,.09),transparent 55%);
-  box-shadow: inset 2px 0 0 #2f6a48;
+  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--fx-good) 45%, var(--fx-panel));
 }
 
 /* Moving <name> — the banner above the board, so the state is legible without
@@ -5955,11 +5945,11 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 .moveBanner small {
   margin-right: auto;
   color: var(--fx-dim);
-  font: 9px/1.4 monospace;
+  font: 10px/1.4 monospace;
 }
 .moveBanner a {
   color: var(--fx-accent);
-  font: 800 9px/1 monospace;
+  font: 800 10px/1 monospace;
   letter-spacing: .1em;
   text-decoration: none;
 }
@@ -6009,14 +5999,14 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 }
 .tradeSideHead b {
   color: var(--fx-dim);
-  font: 800 9px/1 monospace;
+  font: 800 10px/1 monospace;
   letter-spacing: .08em;
 }
 .tradeSideHead b[data-none] {
-  color: #5f5c58;
+  color: var(--fx-dim);
 }
 .tradeSideHead b[data-over] {
-  color: #ff5c5c;
+  color: color-mix(in srgb, var(--fx-accent-hot) 91%, var(--fx-panel));
 }
 
 /* A commissioner reviewing a trade they are in. Not forbidden -- in a league
@@ -6026,7 +6016,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   align-self: center;
   margin-right: auto;
   color: var(--fx-accent);
-  font: 800 9px/1 monospace;
+  font: 800 10px/1 monospace;
   font-style: normal;
   letter-spacing: .1em;
 }
@@ -6097,8 +6087,8 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   background: linear-gradient(90deg,rgba(246,169,40,.08),transparent 60%);
 }
 .feedNum {
-  color: #5f5c58;
-  font: 800 9px/1 monospace;
+  color: var(--fx-dim);
+  font: 800 10px/1 monospace;
   text-align: right;
 }
 .feedPick>div {
@@ -6116,7 +6106,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 }
 .feedPick small {
   margin-top: 3px;
-  font: 800 8px/1 monospace;
+  font: 800 10px/1 monospace;
   letter-spacing: .06em;
 }
 .feedTeam {
@@ -6131,7 +6121,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--fx-dim);
-  font: 800 8px/1 monospace;
+  font: 800 10px/1 monospace;
   font-style: normal;
 }
 @media(max-width:760px) {
@@ -6149,7 +6139,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 .identityLabel {
   margin: 16px 0 8px;
   color: var(--fx-dim);
-  font: 800 8px/1 monospace;
+  font: 800 10px/1 monospace;
   letter-spacing: .14em;
 }
 .emblemPicker {
@@ -6185,7 +6175,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 }
 .emblemPicker small {
   color: var(--fx-dim);
-  font: 800 7px/1 monospace;
+  font: 800 10px/1 monospace;
   letter-spacing: .06em;
 }
 .emblemPicker label:has(input:checked) {
@@ -6298,7 +6288,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 .oddsGrid small {
   overflow: hidden;
   color: var(--fx-muted-3);
-  font: 800 8px/1.3 monospace;
+  font: 800 10px/1.3 monospace;
   letter-spacing: .1em;
   text-overflow: ellipsis;
   text-transform: uppercase;
@@ -6316,7 +6306,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 }
 .oddsGrid i {
   color: var(--fx-muted-3);
-  font: 8px/1.35 monospace;
+  font: 10px/1.35 monospace;
   font-style: normal;
 }
 .oddsNote {
@@ -6398,7 +6388,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 }
 .playerRankOwner {
   overflow: hidden;
-  font: 800 9px/1.3 monospace;
+  font: 800 10px/1.3 monospace;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -6423,13 +6413,13 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 }
 .playerRankRow .playerIdentity small {
   margin-top: 3px;
-  font: 8px/1 monospace;
+  font: 10px/1 monospace;
 }
 .playerRankRow strong i {
   display: block;
   margin-top: 3px;
   color: var(--fx-muted-3);
-  font: 7px/1 monospace;
+  font: 10px/1 monospace;
   font-style: normal;
 }
 @media(max-width:760px) {
@@ -6463,7 +6453,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 .dropMore summary {
   padding: 9px 13px;
   color: var(--fx-muted-3);
-  font: 800 8px/1 monospace;
+  font: 800 10px/1 monospace;
   letter-spacing: .1em;
   text-transform: uppercase;
   cursor: pointer;
@@ -6507,7 +6497,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   display: block;
   margin-top: 2px;
   color: var(--fx-dim);
-  font: 800 9px/1 monospace;
+  font: 800 10px/1 monospace;
 }
 .duelName[data-win="true"] b {
   color: var(--fx-ink);
@@ -6524,7 +6514,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 .duelSlot span {
   display: block;
   color: var(--fx-muted-3);
-  font: 900 8px/1 monospace;
+  font: 900 10px/1 monospace;
   letter-spacing: .1em;
 }
 .duelSlot i {
@@ -6563,7 +6553,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   justify-content: space-between;
   padding: 11px 13px;
   color: var(--fx-muted-2);
-  font: 900 9px/1 monospace;
+  font: 900 10px/1 monospace;
   letter-spacing: .08em;
   cursor: pointer;
   list-style: none;
@@ -6600,7 +6590,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 }
 .gameStrip b {
   color: var(--fx-dim);
-  font: 900 8px/1 monospace;
+  font: 900 10px/1 monospace;
   letter-spacing: .1em;
 }
 .gameStrip em {
@@ -6645,7 +6635,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   justify-content: center;
   align-items: baseline;
   gap: 12px;
-  font: 900 9px/1 monospace;
+  font: 900 10px/1 monospace;
   letter-spacing: .14em;
   color: var(--fx-dim);
 }
@@ -6690,7 +6680,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 .scoreMeta {
   display: block;
   margin-top: 7px;
-  font: 800 9px/1.3 monospace;
+  font: 800 10px/1.3 monospace;
   letter-spacing: .08em;
   text-transform: uppercase;
   color: var(--fx-dim);
@@ -6713,7 +6703,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 .scoreVerdict span {
   display: block;
   margin-top: 5px;
-  font: 800 8px/1.35 monospace;
+  font: 800 10px/1.35 monospace;
   letter-spacing: .1em;
   text-transform: uppercase;
   color: var(--fx-dim);
@@ -6844,7 +6834,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 .dramaSide small {
   display: block;
   margin-top: 4px;
-  font: 800 8px/1.3 monospace;
+  font: 800 10px/1.3 monospace;
   letter-spacing: .09em;
   text-transform: uppercase;
   color: var(--fx-dim);
@@ -6922,13 +6912,13 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   height: 17px;
   border-radius: 4px;
   background: var(--fx-line-3);
-  font: 900 9px/1 monospace;
+  font: 900 10px/1 monospace;
   text-decoration: none;
   color: var(--fx-dim);
 }
 .formStrip u[data-out="W"] {
   background: var(--fx-accent);
-  color: #1a0f00; /* warm ink on the orange fill: dark in both modes on purpose (2026-09-23) */
+  color: color-mix(in srgb, var(--fx-gold) 6%, var(--fx-panel)); /* warm ink on the orange fill: dark in both modes on purpose (2026-09-23) */
 }
 .formStrip u[data-out="L"] {
   background: transparent;
@@ -6936,7 +6926,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   color: var(--fx-muted-3);
 }
 .formStrip em {
-  font: 700 9px/17px monospace;
+  font: 700 10px/17px monospace;
   font-style: normal;
   letter-spacing: .08em;
   text-transform: uppercase;
@@ -6951,7 +6941,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   justify-content: flex-end;
 }
 .receiptStats dt {
-  font: 900 8px/1 monospace;
+  font: 900 10px/1 monospace;
   letter-spacing: .1em;
   color: var(--fx-dim);
 }
@@ -6977,7 +6967,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 }
 .receiptNotes b {
   margin-right: 7px;
-  font: 900 8px/1 monospace;
+  font: 900 10px/1 monospace;
   letter-spacing: .11em;
   color: var(--fx-accent);
 }
@@ -6987,7 +6977,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
     margin-top: 10px;
   }
   .dramaSide b { font-size: 17px; }
-  .dramaSide i { font-size: 9px; }
+  .dramaSide i { font-size: 10px; }
   .receiptCols { gap: 10px; padding: 0 11px; }
   .receiptCol strong { font-size: 22px; }
   .receiptStats { gap: 9px; }
@@ -7090,7 +7080,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 .moreFold>summary {
   padding: 9px 14px;
   cursor: pointer;
-  font: 800 9px/1 monospace;
+  font: 800 10px/1 monospace;
   letter-spacing: .1em;
   text-transform: uppercase;
   color: var(--fx-dim);
@@ -7189,7 +7179,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 .formNote {
   display: block;
   margin-top: 3px;
-  font: 800 7.5px/1 monospace;
+  font: 800 10px/1 monospace;
   font-style: normal;
   letter-spacing: .06em;
   color: var(--fx-dim);
@@ -7215,7 +7205,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   flex-wrap: wrap;
 }
 .sortFilters>span {
-  font: 900 8px/1 monospace;
+  font: 900 10px/1 monospace;
   letter-spacing: .12em;
   color: var(--fx-dim);
 }
@@ -7223,7 +7213,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   padding: 6px 10px;
   border: 1px solid var(--fx-line-3);
   border-radius: 999px;
-  font: 800 9px/1 monospace;
+  font: 800 10px/1 monospace;
   letter-spacing: .07em;
   color: var(--fx-muted-3);
   text-decoration: none;
@@ -7323,7 +7313,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 }
 .bracketGame > small {
   color: var(--fx-dim);
-  font: 900 8px/1 monospace;
+  font: 900 10px/1 monospace;
   letter-spacing: .1em;
 }
 .bracketSide {
@@ -7352,7 +7342,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   background: var(--fx-bg);
   color: var(--fx-ink);
   padding: 0 6px;
-  font: 9px/1 monospace;
+  font: 10px/1 monospace;
 }
 .activityDay {
   padding: 0 14px 6px;
@@ -7360,7 +7350,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 .activityDate {
   margin: 12px 0 6px;
   color: var(--fx-dim);
-  font: 800 9px/1 monospace;
+  font: 800 10px/1 monospace;
   letter-spacing: .08em;
 }
 .activityRow {
@@ -7380,7 +7370,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 }
 .activityMeta small {
   color: var(--fx-dim);
-  font: 800 8px/1 monospace;
+  font: 800 10px/1 monospace;
   letter-spacing: .06em;
 }
 .activitySides {
@@ -7411,7 +7401,7 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
 }
 .activityPlayer small {
   margin-left: 5px;
-  font: 800 8px/1 monospace;
+  font: 800 10px/1 monospace;
 }
 .activityAdd {
   color: var(--fx-good);

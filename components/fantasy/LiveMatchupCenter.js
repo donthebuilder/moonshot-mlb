@@ -18,13 +18,15 @@ import styles from '../../app/fantasy/fantasy.module.css'
 // the server starts a real sync at most every 2 minutes (route.js
 // MEMBER_SYNC_MIN_MS), and the page only re-renders when that answer says the
 // scores are newer than the ones on screen. The button always re-renders.
-const REFRESH_SECONDS = 60
-
+// LIVE ON YOUR TAP (2026-10-03, the network rule from 10-02: "live in game
+// based on personal refresh"). The 60 s auto-ask is gone, as the other
+// products' timers went: the scores update when you tap Refresh, and the
+// server still starts a real sync at most every 2 minutes however often
+// anyone taps. One request per tap, not one a minute per open tab all Sunday.
 const newer = (a, b) => Boolean(a) && (!b || new Date(a).getTime() > new Date(b).getTime())
 
 export default function LiveMatchupCenter({ leagueId, live, lastUpdated }) {
   const router = useRouter()
-  const [seconds, setSeconds] = useState(REFRESH_SECONDS)
   const [refreshing, setRefreshing] = useState(false)
   const busy = useRef(false)
   const shown = useRef(lastUpdated || null)
@@ -41,43 +43,31 @@ export default function LiveMatchupCenter({ leagueId, live, lastUpdated }) {
         if (body?.completedAt) shown.current = body.completedAt
         router.refresh()
       }
-      setSeconds(REFRESH_SECONDS)
     } finally {
       busy.current = false
       setRefreshing(false)
     }
   }, [leagueId, router])
 
-  // Auto-refresh only while something is actually live, and never fire the
-  // network call from inside a state updater (React may run it twice, which
-  // meant two full scoring syncs per tick).
+  // A tab that comes back to the foreground during a live game asks once --
+  // the moment it is looked at again, not on a clock.
   useEffect(() => {
     if (!live) return undefined
-    setSeconds(REFRESH_SECONDS)
-    const timer = setInterval(() => {
-      if (document.visibilityState !== 'visible') return
-      setSeconds((value) => (value <= 1 ? REFRESH_SECONDS : value - 1))
-    }, 1000)
-    return () => clearInterval(timer)
-  }, [live])
-
-  useEffect(() => {
-    if (!live) return
-    if (seconds === REFRESH_SECONDS && !busy.current) return
-    if (seconds > 1) return
-    refresh()
-  }, [live, seconds, refresh])
+    const onVisible = () => { if (document.visibilityState === 'visible') refresh() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [live, refresh])
 
   return (
     <section className={`${styles.liveMatchupControl} ${live ? styles.liveMatchupActive : ''}`}>
       <span className={styles.liveMatchupPulse} />
       <div>
         <small>{live ? 'LIVE GAME CENTER' : 'GAME CENTER'}</small>
-        <strong>{live ? 'Fantasy scores are updating' : 'Waiting for NFL action'}</strong>
-        <em>{lastUpdated ? <>Feed checked <LocalTime value={lastUpdated} /></> : 'Refresh any time — auto-updates start at kickoff'}</em>
+        <strong>{live ? 'Games are on' : 'Waiting for NFL action'}</strong>
+        <em>{lastUpdated ? <>Feed checked <LocalTime value={lastUpdated} /> · tap Refresh for the latest</> : 'Tap Refresh any time for the latest scores'}</em>
       </div>
-      <button onClick={() => refresh({ force: true })} disabled={refreshing} type="button">
-        {refreshing ? 'Updating…' : live ? `Refresh · ${seconds}s` : 'Refresh now'}
+      <button onClick={() => refresh({ force: true })} disabled={refreshing} type="button" style={{ minHeight: 44 }}>
+        {refreshing ? 'Updating…' : '↻ Refresh'}
       </button>
     </section>
   )

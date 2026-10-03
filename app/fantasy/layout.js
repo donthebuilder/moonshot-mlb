@@ -36,6 +36,8 @@ export const metadata = {
 // #76: stamps html[data-theme] on Franchise routes. Without it every light
 // rule in fantasy.module.css matches nothing — see ThemeSync.js.
 import ThemeSync from '../../components/fantasy/ThemeSync'
+// R10 (2026-10-03): the DASH chassis as --dx-* variables; theme-tokens.css reads them
+import { chassisCss } from '../../lib/design/cssVars'
 // css-loader pure-selector fix, 2026-09-06 — see theme-tokens.css's own header
 import './theme-tokens.css'
 // The player sheet's styles, plain rather than modular for the same
@@ -46,6 +48,7 @@ import './player-sheet.css'
 export default function FantasyLayout({ children }) {
   return (
     <>
+      <style dangerouslySetInnerHTML={{ __html: chassisCss() }} />
       <ThemeSync />
       {children}
     </>

@@ -113,9 +113,15 @@ if (orphans.length) {
 }
 
 // The light token blocks themselves must exist, or none of the above matters.
-for (const need of ["--fx-bg: #f1f1ef", "--fx-s0: #f1f1ef"]) {
-  if (!css.includes(need)) { bad++; console.log(`MISS the light palette is missing (${need})`) }
+// R10 (2026-10-03): the neutrals are the DASH chassis now -- FRANCHISE's tokens
+// point at --dx-*, which lib/design/cssVars.js prints for BOTH themes from
+// lib/themes.js. So: the tokens must point there, and the light block must exist.
+const { chassisCss } = await import('../lib/design/cssVars.js')
+const vars = chassisCss()
+for (const need of ['--fx-bg: var(--dx-bg)', '--fx-s0: var(--dx-bg)']) {
+  if (!css.includes(need)) { bad++; console.log(`MISS a FRANCHISE surface is off the chassis (${need})`) }
 }
+if (!/html\[data-theme='light'\]\{--dx-bg:#/.test(vars)) { bad++; console.log('MISS the light chassis block (lib/design/cssVars.js)') }
 
 console.log(bad ? `\n${bad} problem(s) — FRANCHISE would go half-light` : '\nok   FRANCHISE follows the network theme')
 process.exit(bad ? 1 : 0)

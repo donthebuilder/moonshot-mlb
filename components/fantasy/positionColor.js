@@ -13,17 +13,20 @@
 // editing it blind risks breaking an unrelated rule sharing the same line.
 // An inline color on the existing .positionTag/.playerDash/.slotBadge
 // elements gets the same visual result without touching that file.
+// R10 (2026-10-03): the same five hues, read from FRANCHISE's theme (the
+// chassis palette) instead of typed here -- one red, one green ... network-wide.
+import { C } from '../../lib/fantasy/theme'
 export const POSITION_COLORS = {
-  QB: '#ff6b5c',
-  RB: '#18c878',
-  WR: '#20b8d4',
-  TE: '#b78bff',
-  K: '#ffd166',
-  DEF: '#9aa0a6',
-  DST: '#9aa0a6',
+  QB: C.red,
+  RB: C.green,
+  WR: C.cyan,
+  TE: C.purple,
+  K: C.yellow,
+  DEF: C.text3,
+  DST: C.text3,
 }
 
-export const DEFAULT_COLOR = '#ff9d42' // the existing --gold fallback, unchanged for an unrecognized position
+export const DEFAULT_COLOR = C.gold // FRANCHISE's accent, for an unrecognized position
 
 export function colorForPosition(position) {
   return POSITION_COLORS[String(position || '').toUpperCase()] || DEFAULT_COLOR

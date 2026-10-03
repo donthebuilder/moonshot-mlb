@@ -4,9 +4,8 @@ import TeamMark from '../TeamMark'
 // 🏈 THE TEAM MARK — TUDDY's twin of components/MlbTeamMark.js, built for the
 // shared ScoreRail (2026-09-16, the "shell it out" pass).
 //
-// Not the same file as components/fantasy/NflTeamMark.js — that one is a
-// FRANCHISE roster badge (square, gradient, no dim state, sized in px for a
-// draft grid) built for a different job. This one matches MlbTeamMark's exact
+// (FRANCHISE's own roster badge of the same name had no importers and was
+// deleted 2026-10-03; its colours live on in lib/nfl/teamColors.js.) This one matches MlbTeamMark's exact
 // contract instead — {abbr, size: 'sm'|'md', dim} — because that is the
 // contract the rail actually calls: a losing team has to be able to dim, and
 // a roster badge was never asked to.

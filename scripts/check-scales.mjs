@@ -80,6 +80,7 @@ const EXEMPT = new Set([
   'lib/hrShape.js',        // HR_BANDS: one definition, four consumers, already right
   'lib/nfl/theme.js',      // the NFL fork — its own problem, tracked separately
   'lib/nhl/theme.js',      // 2026-09-25: the NHL (LAMP) token set, same ground as the NFL fork
+  'lib/fantasy/theme.js',  // 2026-10-03: FRANCHISE's token set (chassis + gold), R10
   'lib/nba/theme.js',      // 2026-10-02: the NBA (BUCKETS) token set, the same ground as LAMP's
   'components/shareCard.js', // a PNG poster: 32 team colours, dark by construction
   'lib/dash/homerCard.js',   // the same poster, rendered server-side for @CalledItHR: same 32 colours, same dark field

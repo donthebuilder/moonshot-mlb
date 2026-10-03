@@ -19,15 +19,17 @@
 // is declared once and reused three times rather than three times over
 // (check-scales.mjs counts literal appearances, not distinct colours).
 import { POSITION_COLORS, DEFAULT_COLOR } from './positionColor'
+import { C, NUM_FONT } from '../../lib/fantasy/theme'
 
-const RED = '#ff5c5c'
+// R10 (2026-10-03): the out-of-action red and suspended purple are the chassis's
+const RED = C.red
 const TAGS = {
   questionable: ['Q', POSITION_COLORS.K, 'Questionable'],
   doubtful: ['D', DEFAULT_COLOR, 'Doubtful'],
   out: ['O', RED, 'Out'],
   ir: ['IR', RED, 'Injured reserve'],
   pup: ['PUP', RED, 'Physically unable to perform'],
-  suspended: ['SUSP', '#c084fc', 'Suspended'],
+  suspended: ['SUSP', C.purple, 'Suspended'],
   probable: ['P', POSITION_COLORS.DEF, 'Probable'],
   // Not in this week's NFL data at all -- usually injured (lib/fantasy/injury.js offSlate).
   notonslate: ['OUT?', RED, "Not in this week's NFL data -- usually injured or inactive. The auto-lineup treats him as out."],
@@ -50,7 +52,7 @@ export default function InjuryTag({ status }) {
         display: 'inline-block', verticalAlign: 'middle', marginLeft: 6,
         padding: '1px 4px', borderRadius: 3,
         border: `1px solid ${color}66`, background: `${color}1f`, color,
-        font: '800 8px/1.35 monospace', letterSpacing: '.02em',
+        font: `800 10px/1.35 ${NUM_FONT}`, letterSpacing: '.02em',
       }}
     >{label}</span>
   )

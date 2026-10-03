@@ -25,6 +25,7 @@
 // channels (a screenshot, a read-aloud) where a link doesn't work.
 
 import { useEffect, useRef, useState } from 'react'
+import { C } from '../../lib/fantasy/theme'
 
 export default function InviteCode({ code, className, codeClassName, label = 'INVITE CODE' }) {
   const [shown, setShown] = useState(false)
@@ -117,7 +118,7 @@ const btn = {
   color: 'var(--muted)',
   cursor: 'pointer',
   fontFamily: 'inherit',
-  fontSize: 9,
+  fontSize: 10,
   letterSpacing: '.08em',
   padding: '3px 8px',
   textTransform: 'uppercase',
@@ -127,10 +128,10 @@ const linkBtn = {
   background: 'var(--fx-accent, #ff633e)',
   border: '1px solid transparent',
   borderRadius: 7,
-  color: '#fff',
+  color: C.text,
   cursor: 'pointer',
   fontFamily: 'inherit',
-  fontSize: 9,
+  fontSize: 10,
   fontWeight: 700,
   letterSpacing: '.06em',
   padding: '4px 10px',

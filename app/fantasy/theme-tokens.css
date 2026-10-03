@@ -16,26 +16,32 @@
  */
 
 :root {
-  --fx-bg: #0b0b0a; /* page ground */
-  --fx-panel: #141311; /* raised card */
-  --fx-panel-2: #111; /* inner panel / list surface */
-  --fx-well: #0c0c0b; /* inset field */
-  --fx-row: #1a1917; /* raised row -- added 2026-09-03, see the note below */
-  --fx-line: #302d29; /* default border */
-  --fx-line-2: #34312f; /* border, slightly lighter */
-  --fx-line-3: #292826; /* hairline / divider */
-  --fx-ink: #f8f4ec; /* primary text */
-  --fx-ink-2: #d8d2c8; /* label text */
-  --fx-muted: #a9a39a; /* secondary text */
-  --fx-muted-2: #89847e; /* tertiary text */
-  --fx-muted-3: #85817c; /* tertiary text, cooler */
-  --fx-dim: #777; /* faded text / inactive icon */
-  --fx-gold: #f6a928; /* FRANCHISE accent */
-  --fx-accent: #ff9d42; /* warm accent / hover */
-  --fx-accent-hot: #ff633e; /* active accent, live states */
-  --fx-good: #18c878; /* positive / win / free agent */
-  --fx-info: #28b9e7; /* informational */
-  --fx-violet: #bd8dff; /* secondary data hue */
+  /* R10 (2026-10-03, Donovan 10-01 "stay gold"): FRANCHISE on the DASH
+     chassis. Every neutral is the network's own (--dx-*, printed from
+     lib/themes.js by lib/design/cssVars.js in app/fantasy/layout.js); gold is
+     FRANCHISE's one accent and the only colour this file spells out. The
+     data hues are the chassis's. Old values, for the record: bg #0b0b0a,
+     panel #141311, ink #f8f4ec, line #302d29, accent #ff9d42, hot #ff633e. */
+  --fx-bg: var(--dx-bg); /* page ground */
+  --fx-panel: var(--dx-bg2); /* raised card */
+  --fx-panel-2: var(--dx-bg2); /* inner panel / list surface */
+  --fx-well: var(--dx-bg); /* inset field */
+  --fx-row: var(--dx-bg3); /* raised row */
+  --fx-line: var(--dx-border2); /* default border */
+  --fx-line-2: var(--dx-border2); /* border, slightly lighter */
+  --fx-line-3: var(--dx-border); /* hairline / divider */
+  --fx-ink: var(--dx-text); /* primary text */
+  --fx-ink-2: color-mix(in srgb, var(--dx-text) 55%, var(--dx-text2)); /* label text */
+  --fx-muted: var(--dx-text2); /* secondary text */
+  --fx-muted-2: var(--dx-text3); /* tertiary text */
+  --fx-muted-3: var(--dx-text3); /* tertiary text */
+  --fx-dim: var(--dx-text3); /* faded text / inactive icon */
+  --fx-gold: #f6a928; /* FRANCHISE accent -- the one */
+  --fx-accent: var(--fx-gold); /* hover / warm accent: gold, not a second orange */
+  --fx-accent-hot: color-mix(in srgb, var(--fx-gold) 60%, var(--dx-red)); /* live states: gold run hot, not a second brand colour */
+  --fx-good: var(--dx-green); /* positive / win / free agent */
+  --fx-info: var(--dx-cyan); /* informational */
+  --fx-violet: var(--dx-purple); /* secondary data hue */
 }
 
 /* ── #76 · FRANCHISE FOLLOWS THE NETWORK'S THEME NOW ───────────────────────
@@ -75,31 +81,10 @@ body {
 }
 
 html[data-theme='light'] {
-  --fx-bg: #f1f1ef;
-  --fx-panel: #ffffff;
-  --fx-panel-2: #f8f8f6;
-  --fx-well: #eceae6;
-  --fx-row: #f4f3f0;
-  --fx-line: #d7d4ce;
-  --fx-line-2: #cbc7c0;
-  --fx-line-3: #e6e3dd;
-  --fx-ink: #16150f;
-  --fx-ink-2: #34322b;
-  --fx-muted: #5b584f;
-  --fx-muted-2: #6e6a60;
-  --fx-muted-3: #726e64;
-  --fx-dim: #8a867b;
-  /* Same hues, darkened until they clear 4.5:1 on the page ground — measured,
-     not eyeballed: gold and accent both landed at 3.89 and 4.45 on the first
-     pass and were taken down until they cleared. --fx-dim stays at 3.2 on
-     purpose; it is the faded/inactive tier and is never the only carrier of
-     anything. */
+  /* The light neutrals and data hues come from the shared light palette
+     (--dx-* above). Gold alone is FRANCHISE's: darkened until it clears 4.5:1
+     on the light ground (measured 09-06). */
   --fx-gold: #916503;
-  --fx-accent: #af540e;
-  --fx-accent-hot: #c0361a;
-  --fx-good: #0d7d4a;
-  --fx-info: #0b6f92;
-  --fx-violet: #6a3dc2;
 }
 
 /* == DRAFT NIGHT · start guard, reset, dismissible banner ================= */
@@ -113,8 +98,8 @@ html[data-theme='light'] {
   border-radius: 10px;
   font: 700 11px/1.4 monospace;
 }
-.draftBannerMessage { background: #17301e; color: #baf3c7; }
-.draftBannerError { background: #3b1714; color: #ffb3a7; }
+.draftBannerMessage { background: color-mix(in srgb, var(--fx-good) 14%, var(--fx-panel)); color: color-mix(in srgb, var(--fx-good) 30%, var(--fx-ink)); }
+.draftBannerError { background: color-mix(in srgb, var(--fx-accent-hot) 12%, var(--fx-panel)); color: color-mix(in srgb, var(--fx-accent-hot) 48%, var(--fx-ink)); }
 .draftBannerMessage button,
 .draftBannerError button {
   margin-left: auto;
@@ -132,14 +117,14 @@ html[data-theme='light'] {
   gap: 7px;
   max-width: 330px;
   padding: 11px 12px;
-  border: 1px solid #6b3723;
+  border: 1px solid color-mix(in srgb, var(--fx-gold) 32%, var(--fx-panel));
   border-radius: 10px;
-  background: #1d1108;
+  background: var(--fx-panel);
 }
 .startConfirm b { color: var(--fx-gold); font: 900 11px/1 monospace; }
-.startConfirm small { color: var(--fx-muted); font: 9px/1.5 monospace; }
+.startConfirm small { color: var(--fx-muted); font: 10px/1.5 monospace; }
 .startConfirm > span { display: flex; gap: 7px; }
-.startConfirm button[type="submit"] { background: #7a2f16; border-color: #a24521; color: #ffd9c4; }
+.startConfirm button[type="submit"] { background: color-mix(in srgb, var(--fx-gold) 31%, var(--fx-panel)); border-color: color-mix(in srgb, var(--fx-gold) 47%, var(--fx-panel)); color: color-mix(in srgb, var(--fx-gold) 27%, var(--fx-ink)); }
 
 html[data-theme='light'] .draftBannerMessage {
   background: hsl(137 19% 92%);

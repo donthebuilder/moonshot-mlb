@@ -1,6 +1,7 @@
 'use client'
 import { SPORT_ACCENT } from '../lib/sportAccent'
 import { useVisibleSports } from '../lib/useVisibleSports'
+import { ACCENT as FRANCHISE_ACCENT } from '../lib/fantasy/theme'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { setSport, useSport } from '../lib/sport'
@@ -29,7 +30,8 @@ const PRODUCTS = [
   { key: 'nhl', name: 'LAMP', meta: 'NHL', href: '/app#sport=nhl&tab=home', color: SPORT_ACCENT.nhl },
   // 2026-10-02: BUCKETS, the NBA product -- shown only to a visitor who may see it (lib/useVisibleSports.js)
   { key: 'nba', name: 'BUCKETS', meta: 'NBA', href: '/app#sport=nba&tab=home', color: SPORT_ACCENT.nba, hidden: true },
-  { key: 'fantasy', name: 'FRANCHISE', meta: 'FANTASY', href: '/fantasy', color: '#ff633e' },
+  // FRANCHISE is gold (R10, Donovan 10-01 "stay gold"), from its own theme -- was a typed orange-red
+  { key: 'fantasy', name: 'FRANCHISE', meta: 'FANTASY', href: '/fantasy', color: FRANCHISE_ACCENT },
 ]
 
 // ── THE INLINE VARIANT (2026-09-06) ─────────────────────────────────────────
