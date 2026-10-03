@@ -32,7 +32,7 @@ import { heatOf, coolOf } from '../../lib/nfl/fieldModel'
 import { acrossOf, clampAir, LANES3 } from '../../lib/nfl/fieldPlace'
 import { makeComposer, isCoarse } from '../../lib/stadiumLook'
 import { webglOk } from '../../lib/webglOk'
-import { labelSprite } from '../../lib/three/sprites'
+import { labelSprite, declutterLabels } from '../../lib/three/sprites'
 import StadiumShell from '../charts/StadiumShell'
 import StadiumDock from '../charts/stadium/StadiumDock'
 import LowerThird from '../charts/stadium/LowerThird'
@@ -259,7 +259,7 @@ export default function FieldArena({ dots = [], cells = [], spot = null, rz = []
           new THREE.MeshBasicMaterial({ color: new THREE.Color(h >= 0.12 ? C.red : cl >= 0.12 ? C.blue : C.text3), transparent: true, opacity: h >= 0.12 || cl >= 0.12 ? 0.45 : 0.2, depthWrite: false }))
         box.position.copy(at((LANES3.indexOf(L) + 0.5) / 3, (y0 + y1) / 2, ht / 2))
         group.add(box)
-        const lab = labelSprite(`${Math.round((100 * n) / total)}%`, C.text); lab.position.copy(at((LANES3.indexOf(L) + 0.5) / 3, (y0 + y1) / 2, ht + 5)); lab.scale.multiplyScalar(0.9); group.add(lab)
+        const lab = labelSprite(`${Math.round((100 * n) / total)}%`, C.text); lab.position.copy(at((LANES3.indexOf(L) + 0.5) / 3, (y0 + y1) / 2, ht + 5)); lab.scale.multiplyScalar(0.9); lab.userData.declutter = true; group.add(lab)
       }
     }
     // the red zone: each touch at its yard line on a rail past the near sideline
@@ -350,6 +350,7 @@ export default function FieldArena({ dots = [], cells = [], spot = null, rz = []
       controls.autoRotate = !!orbitRef.current && !driving
       controls.autoRotateSpeed = 0.5
       controls.update(); keepOut()
+      declutterLabels(scene, camera, renderer.domElement.clientWidth, renderer.domElement.clientHeight)
       look.render()
       raf = requestAnimationFrame(tick)
     }
