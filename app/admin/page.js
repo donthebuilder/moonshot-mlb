@@ -23,7 +23,8 @@ import { monthPlan, SOFT_CAP } from '../../lib/odds/budget'
 import { LEAGUES } from '../../lib/odds/snap'
 import { autopostState, FACTS_CONFIG } from '../../lib/facts/engine'
 import { AutopostSwitch, DeleteFactPost } from '../../components/admin/FactsControls'
-import { readShadows } from '../../lib/shadowRecord'
+import { readShadows, readVsBook } from '../../lib/shadowRecord'
+import { VERSIONS as NHL_VERSIONS } from '../../lib/nhl/versions'
 
 export const dynamic = 'force-dynamic'
 // The title is computed, not static: a static one rides the 404's payload
@@ -116,6 +117,8 @@ async function readCounts() {
 const cachedCounts = unstable_cache(readCounts, ['admin-counts-v1'], { revalidate: 60 })
 // the shadow models' graded lines (lib/shadowRecord.js), 10 min: they change once a night
 const cachedShadows = unstable_cache(async () => { const db = service(); return db ? readShadows(db) : [] }, ['admin-shadows-v1'], { revalidate: 600 })
+// LAMP SHOTS 3+ (public) against the book's lock line (M3)
+const cachedVsBook = unstable_cache(async () => { const db = service(); return db ? readVsBook(db, { table: 'lamp_prop_log', market: 'SOG', oddsMarket: 'sog', sport: 'nhl', versions: NHL_VERSIONS.sog, bar: 3 }) : null }, ['admin-vsbook-v1'], { revalidate: 600 })
 
 function Line({ k, v, src }) {
   return (
@@ -148,6 +151,7 @@ export default async function AdminPage() {
     fdb.from('fact_posts').select('id, day, sport, family, status, text, writer, tokens_in, tokens_out, x_post_id, fact, posted_at, error').order('created_at', { ascending: false }).limit(20),
   ]) : [{ on: false, why: 'no database', missing: true }, { data: [], error: null }]
   const shadows = await cachedShadows().catch((e) => [{ key: 'x', label: 'Shadow models', error: e?.message }])
+  const vsBook = await cachedVsBook().catch((e) => ({ error: e?.message }))
   const pct = (l) => (l?.n ? `${l.pct}% ±${l.pm} (${l.hit}/${l.n})` : 'no graded calls yet')
   const today = easternToday()
   const fToday = (frows.data || []).filter((r) => r.day === today)
@@ -243,6 +247,12 @@ export default async function AdminPage() {
               {s.live ? <Line k="  … the live model, same games" v={pct(s.live)} src="lamp_goal_log called rows on the games the shadow locked" /> : null}
               <Line k="  … base rate (every graded row)" v={pct(s.base)} src="the share of all graded rows that hit -- the bar any pick has to clear" />
             </div>))}
+ <h2 className={start.kicker} style={{ marginTop: 18 }}>Against the book</h2>
+        {vsBook?.error ? <Line k="LAMP SHOTS 3+ calls" v="—" src={`unavailable: ${vsBook.error}`} /> : vsBook?.n ? <>
+          <Line k="LAMP SHOTS 3+ · cleared our bar" v={pct(vsBook.cleared)} src={`${vsBook.n} of ${vsBook.calls} graded calls have the book's lock line (odds_lines, nhl sog, fair line)`} />
+          <Line k="  … beat the book's line" v={pct(vsBook.beat)} src="his shots on goal above the book's own lock line -- chalk that only clears a soft bar shows up here" />
+          <Line k="  … the book's no-vig chance (at 2.5)" v={vsBook.bookP != null ? `${vsBook.bookP}% (${vsBook.bookPn})` : '—'} src="mean implied probability of the over, from the fair price, where the line was our bar" />
+        </> : <Line k="LAMP SHOTS 3+ calls" v="no graded calls with a lock line yet" src="odds_lines nhl sog at lock, joined to lamp_prop_log SOG called rows" />}
         <Line k="MLB · HR pick shadow (M0)" v="bot repo" src="python3 bots/eval_shadow_picks.py --fetch (hr_pick_top_score #1 vs the real HR pick, from por_rows)" />
 
         <h2 className={start.kicker} style={{ marginTop: 18 }}>Waitlist</h2>
