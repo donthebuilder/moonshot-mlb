@@ -59,7 +59,7 @@ export default function ShotMap({ onOpenPlayer, onOpenTeam }) {
       {shots.length > 0 && (
         <div>
           <NavBtn onClick={() => setThree((v) => !v)} strong={three}>{three ? 'Close the 3D court' : '🏀 3D court'}</NavBtn>
-          {three ? <div style={{ marginTop: 8 }}><CourtArena shots={shots} names={{}} /></div> : null}
+          {three ? <div style={{ marginTop: 8 }}><CourtArena shots={shots} names={{}} title={mode === 'team' ? team : (pname || 'Shot map')} /></div> : null}
         </div>
       )}
       <SourceLine>/api/buckets/shots reads buckets_shots in pages of 1,000, in a fixed order, so every attempt is counted once.</SourceLine>
