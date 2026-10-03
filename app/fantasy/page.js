@@ -1,12 +1,10 @@
 import {
   createLeague,
   joinLeague,
-  signIn,
   signOut,
-  signUp,
 } from './actions'
 import Link from 'next/link'
-import PasswordInput from '../../components/PasswordInput'
+import DashAuthCard from '../../components/DashAuthCard'
 import TeamMark from '../../components/fantasy/TeamMark'
 import InviteCode from '../../components/fantasy/InviteCode'
 import SubmitButton from '../../components/fantasy/SubmitButton'
@@ -35,7 +33,8 @@ function Notice({ error, message }) {
   return <p className={error ? styles.error : styles.message}>{error || message}</p>
 }
 
-function AuthScreen({ error, message, invite }) {
+function AuthScreen({ error, message, invite, em = '', nm = '', confirm = '' }) {
+  const home = invite ? `/fantasy?invite=${encodeURIComponent(invite)}` : '/fantasy'
   return (
     <main className={styles.launchApp}>
       {(error || message) && <div className={styles.authBanner}><Notice error={error} message={message} /></div>}
@@ -100,28 +99,15 @@ function AuthScreen({ error, message, invite }) {
           <span>Create the league now or sign back into the front office you already started.</span>
         </div>
         <Notice error={error} message={message} />
-        <div className={styles.launchAuthGrid}>
-        <form action={signUp} className={styles.launchAuthCard} id="create-account">
-          {invite && <input type="hidden" name="invite" value={invite} />}
-          <p className={styles.kicker}>START HERE · FREE</p>
-          <h3>Create your account</h3>
-          <p>One account lets you own teams in multiple private leagues.</p>
-          <label>Your name<input name="displayName" autoComplete="name" maxLength="40" required /></label>
-          <label>Email<input name="email" type="email" autoComplete="email" required /></label>
-          <label>Password<PasswordInput autoComplete="new-password" minLength={8} /></label>
-          <SubmitButton pendingLabel="Creating your account…">Start my Franchise <span>→</span></SubmitButton>
-          <small>No card. No payment. Just your league.</small>
-        </form>
-        <form action={signIn} className={styles.launchAuthCard} id="sign-in">
-          {invite && <input type="hidden" name="invite" value={invite} />}
-          <p className={styles.kicker}>WELCOME BACK</p>
-          <h3>Enter your front office</h3>
-          <p>Use the email and password you created for Franchise.</p>
-          <label>Email<input name="email" type="email" autoComplete="email" required /></label>
-          <label>Password<PasswordInput autoComplete="current-password" /></label>
-          <SubmitButton pendingLabel="Signing in…">Sign in <span>→</span></SubmitButton>
-          <small><Link href="/forgot-password">Forgot your password?</Link></small>
-        </form>
+        {/* ONE CARD, THE NETWORK'S (2026-10-03, R10 step 5). Since the 09-05
+            gate (proxy.js) a signed-out visit to /fantasy goes to /login, which
+            already uses this card with next=/fantasy?invite=..., so this screen
+            is only reached when a session lapses between the gate and the page.
+            It was two side-by-side forms on FRANCHISE's own actions (emptied
+            every field on a mistake, no confirm step); now it is the same card
+            as everywhere else, and a mistake lands on /login like the rest. */}
+        <div id="sign-in" style={{ display: 'flex', justifyContent: 'center' }}>
+          <DashAuthCard next={home} notice={error || message || null} noticeType={error ? 'error' : 'message'} defaultEmail={em} defaultName={nm} confirmEmail={confirm} />
         </div>
       </section>
       <footer className={styles.launchFooter}><span>DASH NETWORK</span><p>MOONSHOT · MLB</p><p>TUDDY · NFL</p><p>FRANCHISE · FANTASY</p></footer>
@@ -259,7 +245,8 @@ export default async function FantasyPage({ searchParams }) {
 
   const supabase = await createSupabaseServerClient()
   const user=await signedInUser(supabase)
-  if (!user) return <AuthScreen error={params.error} message={params.message} invite={invite} />
+  const str = (v) => (typeof v === 'string' ? v : '')
+  if (!user) return <AuthScreen error={params.error} message={params.message} invite={invite} em={str(params.em)} nm={str(params.nm)} confirm={str(params.confirm)} />
 
   const { data: membershipRows, error: membershipError } = await supabase
     .from('fantasy_league_memberships')

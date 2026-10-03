@@ -21,51 +21,11 @@ async function requireClient() {
   return supabase
 }
 
-export async function signUp(formData) {
-  const supabase = await requireClient()
-  const email = clean(formData.get('email'), 200).toLowerCase()
-  const password = String(formData.get('password') || '')
-  const displayName = clean(formData.get('displayName'), 40)
-  // Carried in from an invite LINK (?invite=CODE) via a hidden field on the
-  // auth forms, so clicking someone's invite through sign-up still lands you
-  // back on the join form with the code filled in, instead of losing it.
-  const invite = clean(formData.get('invite'), 20).toUpperCase()
-
-  if (!email || password.length < 8 || !displayName) {
-    fantasyRedirect('error', 'Enter a name, email, and password of at least 8 characters', { invite })
-  }
-
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
-  const next = invite ? `/fantasy?invite=${encodeURIComponent(invite)}` : '/fantasy'
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: { display_name: displayName },
-      emailRedirectTo: `${siteUrl}/auth/callback?next=${encodeURIComponent(next)}`,
-    },
-  })
-
-  if (error) fantasyRedirect('error', error.message, { invite })
-  if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
-    fantasyRedirect('error', 'That account already exists — use Sign in with the same email and password', { invite })
-  }
-  if (!data.session) fantasyRedirect('message', 'Check your email to confirm your account', { invite })
-  revalidatePath('/fantasy')
-  redirect(next)
-}
-
-export async function signIn(formData) {
-  const supabase = await requireClient()
-  const email = clean(formData.get('email'), 200).toLowerCase()
-  const password = String(formData.get('password') || '')
-  const invite = clean(formData.get('invite'), 20).toUpperCase()
-  const { error } = await supabase.auth.signInWithPassword({ email, password })
-
-  if (error) fantasyRedirect('error', error.message, { invite })
-  revalidatePath('/fantasy')
-  redirect(invite ? `/fantasy?invite=${encodeURIComponent(invite)}` : '/fantasy')
-}
+// Sign-up and sign-in are the network's own (app/(front)/actions.js
+// dashSignUp / dashSignIn through components/DashAuthCard.js, 2026-10-03 R10;
+// /login has carried every signed-out /fantasy visit since the 09-05 gate):
+// they keep what you typed on a mistake and have the confirm step; the invite
+// rides in `next`.
 
 export async function signOut() {
   const supabase = await requireClient()

@@ -37,6 +37,14 @@ export default async function LoginPage({ searchParams }) {
     if (user) redirect(next)
   }
 
+  // A FRANCHISE INVITE LANDS HERE (2026-10-03, R10): the /fantasy gate sends
+  // a signed-out invite link to /login with next=/fantasy?invite=CODE. The
+  // invite survives in `next`, but nothing on this page said so -- a friend
+  // got a plain "Create an account". FRANCHISE's own screen used to carry
+  // this line; it lives where the invite actually arrives now.
+  let invite = null
+  try { const u = new URL(next, 'https://dash.invalid'); if (u.pathname === '/fantasy') invite = u.searchParams.get('invite') } catch { invite = null }
+
   return (
     <main className={styles.page}>
       <AuthPageHeader />
@@ -58,6 +66,11 @@ export default async function LoginPage({ searchParams }) {
 
             `next` still flows through, so signing in from here still returns
             you where you were. */}
+        {invite ? (
+          <p className={styles.message} role="status" style={{ marginBottom: 14 }}>
+            🔗 You&apos;ve been invited to a FRANCHISE league. Create an account or sign in, and the invite opens on the other side.
+          </p>
+        ) : null}
         <DashAuthCard
           next={next}
           notice={params.error || params.message || null}
