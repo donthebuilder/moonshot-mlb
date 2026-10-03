@@ -9,6 +9,7 @@ import { teamAbbrs } from '../lib/gamelogs'
 import { fetchPenFatigue, penTier } from '../lib/bullpen'
 import { leagueRates, tonightTotals } from '../lib/leagueRates'
 import { ActiveFilters, FilterBar, FilterSearch, FilterSelect } from './Filters'
+import { requestLiveRefresh, useLiveRefresh } from '../lib/liveRefresh'
 
 // 📡 LIVE WIRE — the site's live feed, and deliberately NOT a highlight
 // ticker (ESPN owns that). This is the model grading itself in public:
@@ -52,6 +53,9 @@ export default function LiveWire({ players = [], results, watchIds, mode = 'toda
     const s = await fetchLiveSlate({ force })
     setSnap(s); setBusy(false)
   }
+  // the ↻ anywhere on the page pulls the wire too (lib/liveRefresh.js)
+  useLiveRefresh(() => refresh(true))
+
   useEffect(() => { refresh() }, [])
   useEffect(() => {
     clearInterval(timer.current)
@@ -333,7 +337,7 @@ export default function LiveWire({ players = [], results, watchIds, mode = 'toda
             border: `1px solid ${auto ? '#4ade80' : C.border}`, background: auto ? 'rgba(74,222,128,.12)' : 'transparent',
             color: auto ? '#4ade80' : C.text3,
           }}>{auto ? '● auto 60s' : '○ auto'}</button>
-          <button onClick={() => refresh(true)} disabled={busy} style={{
+          <button onClick={() => requestLiveRefresh('tap')} disabled={busy} style={{
             fontSize: 9, fontWeight: 700, fontFamily: NUM_FONT, cursor: 'pointer', borderRadius: 6, padding: '2px 8px',
             border: `1px solid ${C.border}`, background: 'transparent', color: C.text3,
           }}>{busy ? '…' : '↻ refresh'}</button>

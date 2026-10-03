@@ -4,6 +4,7 @@ import { C, NUM_FONT } from '../lib/theme'
 import { fetchLiveSlate } from '../lib/liveSlate'
 import { fetchBattedBallLog } from '../lib/livePitches'
 import DenseTable from './DenseTable'
+import { onLiveRefresh } from '../lib/liveRefresh'
 
 // 📡 BATTED BALL LOG — the loudest contact on today's slate, everyone's.
 //
@@ -176,7 +177,6 @@ export default function BattedBallLog({ players = [], onPlayerClick, onOpenPitch
 
   useEffect(() => {
     let alive = true
-    let t = null
     const pull = async () => {
       const snap = await fetchLiveSlate().catch(() => null)
       if (!alive || !snap) return
@@ -185,13 +185,10 @@ export default function BattedBallLog({ players = [], onPlayerClick, onOpenPitch
       if (!alive) return
       setRows(ev)
       const anyLive = snap.games?.some((g) => g.state === 'Live')
-      clearInterval(t)
-      // Matches the 45s feed-cache TTL, same cadence as JustNow — never asks
-      // for bytes it wouldn't already get handed back from cache.
-      t = setInterval(() => { if (!document.hidden) pull() }, anyLive ? 45000 : 180000)
     }
     pull()
-    return () => { alive = false; clearInterval(t) }
+    const off = onLiveRefresh(pull)   // LIVE ON YOUR TAP (2026-10-02): no timer -- a ↻ or a return to the tab (lib/liveRefresh.js)
+    return () => { alive = false; off() }
   }, [limit])
 
   // Filters apply to the RAW rows (before the display map below), since

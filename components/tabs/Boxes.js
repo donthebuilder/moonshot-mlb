@@ -9,6 +9,7 @@ import { fetchLiveSlate, pickCleared } from '../../lib/liveSlate'
 import { primaryRole } from '../../lib/verdict'
 import { BattingBox, PitchingBox, LineScore } from '../BoxTable'
 import GameRow from '../GameRow'
+import { onLiveRefresh } from '../../lib/liveRefresh'
 
 // 📋 BOXES — every game, live or finished, with the whole box under it.
 //
@@ -115,8 +116,7 @@ function GameCard({ g, open, onToggle, watchIds, onPlayerClick, stake }) {
     if (!g.live) return undefined
     // A live box is worth re-pulling while you're looking at it; a final one
     // never changes, so it is fetched once and cached for ten minutes.
-    const t = setInterval(() => { if (!document.hidden) load(true) }, 30000)
-    return () => clearInterval(t)
+    return onLiveRefresh(() => load(true))   // LIVE ON YOUR TAP (2026-10-02): no timer -- a ↻ or a return to the tab (lib/liveRefresh.js)
   }, [open, started, g.live, load])
 
   const winner = g.final && g.away.score != null && g.home.score != null
@@ -218,11 +218,7 @@ export default function Boxes({ watchIds, onPlayerClick, players = [], results =
   // live. The box under an open card has its own faster timer.
   useEffect(() => {
     if (!games?.some((g) => g.live)) return undefined
-    const t = setInterval(() => {
-      if (document.hidden) return
-      scheduleFor(day).then((g) => g && setGames(g)).catch(() => {})
-    }, 30000)
-    return () => clearInterval(t)
+    return onLiveRefresh(() => { scheduleFor(day).then((g) => g && setGames(g)).catch(() => {}) })   // LIVE ON YOUR TAP (2026-10-02): no timer -- a ↻ or a return to the tab (lib/liveRefresh.js)
   }, [games, day])
 
   const today = slateDay(0)
@@ -278,8 +274,8 @@ export default function Boxes({ watchIds, onPlayerClick, players = [], results =
     let alive = true
     const pull = () => fetchLiveSlate().then((snap) => { if (alive) setLiveLines(snap?.lines || null) }).catch(() => {})
     pull()
-    const id = setInterval(() => { if (!document.hidden) pull() }, 60000)
-    return () => { alive = false; clearInterval(id) }
+    const id = onLiveRefresh(pull)   // LIVE ON YOUR TAP (2026-10-02): no timer -- a ↻ or a return to the tab (lib/liveRefresh.js)
+    return () => { alive = false; id() }
   }, [])
 
   const stakes = useMemo(() => {

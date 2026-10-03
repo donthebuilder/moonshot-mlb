@@ -9,6 +9,7 @@ import { dataUrl } from '../lib/dataSource'
 import { divChip, seqChip, SEQ_AUTO } from '../lib/scales'
 import { projectPool, projectionPublished } from '../lib/projection'
 import MobileFold from './MobileFold'
+import { onLiveRefresh } from '../lib/liveRefresh'
 
 // WEATHER-PAGE MODE (2026-08-07, Donovan): one schedule call turns the park
 // board into tonight's weather desk — live game status (delayed / postponed /
@@ -34,8 +35,8 @@ function useGameStatus(slateDate) {
     }
     load()
     // Background tabs don't poll (2026-08-09 scan).
-    const id = setInterval(() => { if (!document.hidden) load() }, 5 * 60_000) // weather desk cadence, not live-wire cadence
-    return () => { alive = false; clearInterval(id) }
+    const id = onLiveRefresh(load)   // LIVE ON YOUR TAP (2026-10-02): no timer -- a ↻ or a return to the tab (lib/liveRefresh.js)
+    return () => { alive = false; id() }
   }, [slateDate])
   return st
 }

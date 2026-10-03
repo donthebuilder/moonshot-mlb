@@ -7,6 +7,7 @@ import {
 } from '../../../lib/tuddyLedger'
 import { labelOf, weekKey } from '../../../lib/nfl/resultsArchive'
 import { C as NFL_C } from '../../../lib/nfl/theme'
+import { useLiveRefresh } from '../../../lib/liveRefresh'
 
 // 📒 THE TUDDY LEDGER — NFL'S SIDE OF PATH TO VICTORY B10a.
 //
@@ -70,6 +71,8 @@ export default function TuddyLedger({ data, results, onPlayerClick = null }) {
   }, [season, maxWeek])
 
   useEffect(() => { loadWeek(week) }, [week, loadWeek])
+  // the ↻ re-reads the week on screen (lib/liveRefresh.js)
+  useLiveRefresh(() => { if (week) loadWeek(week) })
 
   const loadSeason = useCallback(async (n) => {
     if (!season || !maxWeek) return

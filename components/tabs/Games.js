@@ -36,6 +36,7 @@ import { statLineFor, useSlateScale, toneFor, toneTitle, TONE_COLOR } from '../.
 import { downloadGameCard } from '../shareCard'
 import ProjectedOutput from '../ProjectedOutput'
 import TeamMark, { MatchLogos } from '../TeamMark'
+import { requestLiveRefresh, useLiveRefresh } from '../../lib/liveRefresh'
 
 // A game card's pick chip, stat-first.
 //
@@ -491,6 +492,8 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
   // Home's ScoreRail keeps its own poll — deliberately scoped to this tab.
   const [liveMeta, setLiveMeta] = useState({ at: 0, failedAt: 0, stale: false, pulling: false })
   const pullRef = useRef(null)
+  // the one ↻: this stamp's button asks the whole page (lib/liveRefresh.js), and this view answers
+  useLiveRefresh(() => pullRef.current?.(true))
   useEffect(() => {
     let alive = true
     const pull = (force = false) => {
@@ -897,7 +900,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
           One line, always: the age of the live snapshot and a tap to pull
           again. Red when the last pull failed, because a score that stopped
           updating and a score that is not moving look identical otherwise. */}
-      <LiveStamp meta={liveMeta} anyLive={(live?.games || []).some((x) => x.state === 'Live')} onRefresh={() => pullRef.current?.(true)} />
+      <LiveStamp meta={liveMeta} anyLive={(live?.games || []).some((x) => x.state === 'Live')} onRefresh={() => requestLiveRefresh('tap')} />
 
       {/* LINEUPS — every game's confirmed batting orders at once, 1 through
           9, both teams side by side. The site had lineup data on every row

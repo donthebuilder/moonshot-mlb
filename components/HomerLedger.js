@@ -20,6 +20,7 @@ import { gradedResultsUrl } from '../lib/dataSource'
 import { findNameEchoes, nameParts, pairEcho, cadenceShape } from '../lib/namePatterns'
 import NamePatterns from './NamePatterns'
 import { digitRoot, dayRootOf, lifePathOf } from '../lib/numerology/core'
+import { onLiveRefresh } from '../lib/liveRefresh'
 
 // 🧾 THE HOMER LEDGER (2026-08-09, Donovan: "somewhere showing what number
 // home run people are hitting — like if you notice more people getting their
@@ -524,18 +525,13 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
       .then((s) => { if (alive) { setLive(s); setLiveErr(null) } })
       .catch((e) => { if (alive) setLiveErr(String(e?.message || e || 'league call failed')) })
     pull()
-    // 30s, matched to the shared snapshot's own TTL — this does NOT add a
-    // request per tick. fetchLiveSlate hands back the cached snapshot when it
-    // is fresh, so with MiniWire on the page these two callers share one poll.
-    // 12s, was 30 (2026-08-17, "the hr ledger is not updating fast enough").
-    // One slim boxscore sweep per tick; 12s keeps a homer's appearance inside
-    // half an at-bat without hammering statsapi.
-    const id = setInterval(() => { if (!document.hidden) pull() }, 12_000)
+    // was a 12 s loop (2026-08-17); now it pulls on load, on a ↻ and on return
+    const id = onLiveRefresh(pull)   // LIVE ON YOUR TAP (2026-10-02): no timer -- a ↻ or a return to the tab (lib/liveRefresh.js)
     const onVis = () => { if (!document.hidden) pull() }
     document.addEventListener('visibilitychange', onVis)
     return () => {
       alive = false
-      clearInterval(id)
+      id()
       document.removeEventListener('visibilitychange', onVis)
     }
   }, [isTmrw])

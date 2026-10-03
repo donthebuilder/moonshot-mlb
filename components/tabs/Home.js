@@ -42,6 +42,7 @@ import HeadlineStrip from '../HeadlineStrip'
 import HeroStat from '../HeroStat'
 import { mlbNextGames, nextLine } from '../../lib/mlbNext'
 import { CLEAN_PICKS, CLEAN_SOURCE } from '../../lib/cleanRecord'
+import { onLiveRefresh } from '../../lib/liveRefresh'
 
 // An Eastern calendar day n days from today (YYYY-MM-DD), on etToday's clock.
 const etShift = (n) => { const d = new Date(`${etToday()}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10) }
@@ -358,8 +359,8 @@ export default function Home({
     let alive = true
     const ask = () => mlbSlateState(slateDate).then((st) => { if (alive && st) setFeedOver(st.over) })
     ask()
-    const id = setInterval(ask, 120000)
-    return () => { alive = false; clearInterval(id) }
+    const id = onLiveRefresh(ask)   // LIVE ON YOUR TAP (2026-10-02): no timer -- a ↻ or a return to the tab (lib/liveRefresh.js)
+    return () => { alive = false; id() }
   }, [payloadLive, slateDate])
   const isLive = payloadLive && !feedOver
   // The league says the slate is over but the payload's last build ran

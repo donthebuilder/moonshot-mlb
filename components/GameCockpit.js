@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { clean } from '../lib/player'
 import TeamMark from './TeamMark'
+import { onLiveRefresh } from '../lib/liveRefresh'
 
 // 🎥 GAME COCKPIT — per-at-bat depth for the ONE game you're locked into.
 //
@@ -92,7 +93,7 @@ export default function GameCockpit({ game, onPlayerClick }) {
   const gamePk = game?.game_pk
   const gp = game?.players || []
   const [data, setData] = useState(undefined)
-  const [auto, setAuto] = useState(true)
+  const [auto, setAuto] = useState(false)   // LIVE ON YOUR TAP (2026-10-02): auto-refresh is a choice you turn on, not the default
   const timer = useRef(null)
 
   const pull = async () => {
@@ -102,6 +103,8 @@ export default function GameCockpit({ game, onPlayerClick }) {
     setData(j || null)
   }
   useEffect(() => { setData(undefined); pull() }, [gamePk])
+  // the ↻ pulls this game too (lib/liveRefresh.js); auto, if you turn it on, still ticks
+  useEffect(() => onLiveRefresh(() => pull()), [gamePk]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     clearInterval(timer.current)
     const live = data?.gameData?.status?.abstractGameState === 'Live'

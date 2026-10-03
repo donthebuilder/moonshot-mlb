@@ -18,6 +18,7 @@ import BattedBallLog from '../BattedBallLog'
 import JustNow from '../JustNow'
 import ZoneMap from '../ZoneMap'
 import SprayField from '../SprayField'
+import { onLiveRefresh } from '../../lib/liveRefresh'
 
 // 🎤 AT THE PLATE — the live batter's room.
 //
@@ -450,7 +451,7 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
   useEffect(() => { let a = true; teamAbbrs().then((m) => { if (a && m) setAbbrs(m) }).catch(() => {}); return () => { a = false } }, [])
   const [pinnedGame, setPinnedGame] = useState(null)   // gamePk the user locked onto
   const [pinnedHitter, setPinnedHitter] = useState(null)   // mlb id driving the charts
-  const [auto, setAuto] = useState(true)
+  const [auto, setAuto] = useState(false)   // LIVE ON YOUR TAP (2026-10-02): auto-refresh is a choice you turn on, not the default
   const [feed, setFeed] = useState(undefined)   // undefined = loading, null = failed
   const timer = useRef(null)
   const feedTimer = useRef(null)
@@ -471,7 +472,8 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
     // 25s: an at-bat runs ~3-4 minutes, so this lands inside it comfortably
     // while a hidden tab does nothing.
     if (auto) timer.current = setInterval(() => { if (!document.hidden) pullSlate() }, 25000)
-    return () => clearInterval(timer.current)
+    const off = onLiveRefresh(() => pullSlate())   // the ↻ pulls it too (lib/liveRefresh.js)
+    return () => { clearInterval(timer.current); off() }
   }, [auto, isTomorrow])
 
   const byId = useMemo(
@@ -530,7 +532,8 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
     // request; the slate poll above stays at 25s and shares its snapshot with
     // MiniWire through the cache in lib/liveSlate.
     if (auto) feedTimer.current = setInterval(() => { if (!document.hidden) pullFeed(gamePk) }, 15000)
-    return () => clearInterval(feedTimer.current)
+    const off = onLiveRefresh(() => pullFeed(gamePk))
+    return () => { clearInterval(feedTimer.current); off() }
   }, [gamePk, auto])
 
   // the current batter of the selected game resets the hitter selection

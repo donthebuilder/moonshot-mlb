@@ -9,7 +9,7 @@ import { listenForWorkerOpen } from '../../lib/workerOpen'
 import { resolveColdTab } from '../../lib/shellRoute'
 import { leaveTarget } from '../../lib/openTarget'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { resolveTab, pageTitle, NFL_TABS as NFL_TAB_KEYS } from '../../lib/routes'
+import { resolveTab, pageTitle, NFL_TABS as NFL_TAB_KEYS, isLiveTab } from '../../lib/routes'
 import { usePageTitle } from '../../lib/usePageTitle'
 import ErrorBoundary from '../ErrorBoundary'
 import TabNotFound from '../TabNotFound'
@@ -55,6 +55,8 @@ import Storylines from './tabs/Storylines'
 import { liveOdds } from '../../lib/oddsFreshness'
 import { StaleNote } from '../StaleBanner'
 import dynamic from 'next/dynamic'
+import { useLiveRefresh } from '../../lib/liveRefresh'
+import RefreshStamp from '../RefreshStamp'
 const OddsBoard = dynamic(() => import('../tabs/OddsBoard'))
 
 // The key set now lives in lib/routes.js alongside MOONSHOT's, with the
@@ -289,12 +291,8 @@ export default function NflDashboard({ palettePass = 0 }) {
   // used to depend on [data], so every fetch reset it (09-29 shell plan find;
   // MOONSHOT's poll already works this way).
   const nflLive = (data?.games || []).some((g) => g.state === 'in')
-  useEffect(() => {
-    const id = setInterval(() => { if (!document.hidden) setRefreshKey((k) => k + 1) }, nflLive ? 3 * 60_000 : 10 * 60_000)
-    const onVis = () => { if (!document.hidden) setRefreshKey((k) => k + 1) }
-    document.addEventListener('visibilitychange', onVis)
-    return () => { clearInterval(id); document.removeEventListener('visibilitychange', onVis) }
-  }, [nflLive])
+  // LIVE ON YOUR TAP (2026-10-02): no timer -- a ↻ or a return to the tab (lib/liveRefresh.js)
+  useLiveRefresh(() => setRefreshKey((k) => k + 1))
 
   // The league feed, laid over the slate. Games/Home/Live/Watchlist read the
   // overlaid copy; everything with a score on it is now ESPN's score.
@@ -399,6 +397,8 @@ export default function NflDashboard({ palettePass = 0 }) {
           </SportTheme>
           {/* ONE ACCENT SOURCE (0g C2-C6 root cause): every tab inside its product's theme */}
           <SportTheme theme={C} accent={C.green} numFont={NUM_FONT}>
+          {/* the ↻ on the live pages: nothing refreshes on a timer (lib/liveRefresh.js) */}
+          {isLiveTab('nfl', tab) && <RefreshStamp live={nflLive} style={{ marginBottom: 8 }} />}
           <TeamNav.Provider value={(abbr) => { setPortalTeam(abbr); setTab('players') }}>
           <ErrorBoundary resetKey={tab} label={`the ${tab} tab`}>
             {tab === 'home' && <Home data={slate} picks={picks} results={nflResults} matchup={matchup} logs={logs} onPlayerClick={openPlayer} setTab={setTab} />}

@@ -27,6 +27,7 @@ import { C, NUM_FONT } from '../../lib/nfl/theme'
 import { useFollowing } from '../../lib/dash/follow'
 import { useDashAccount } from '../../lib/dash/sync'
 import { fetchNflLive, lineFor, gameFor, tdsIn } from '../../lib/nfl/liveSlate'
+import { onLiveRefresh } from '../../lib/liveRefresh'
 
 const n = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0)
 
@@ -76,8 +77,8 @@ export default function NflYourPlayers({ players = [], onPlayerClick = null }) {
     let alive = true
     const pull = () => fetchNflLive().then((s) => { if (alive && s) setSnap(s) }).catch(() => {})
     pull()
-    const t = setInterval(() => { if (!document.hidden) pull() }, 45000)
-    return () => { alive = false; clearInterval(t) }
+    const t = onLiveRefresh(pull)   // LIVE ON YOUR TAP (2026-10-02): no timer -- a ↻ or a return to the tab (lib/liveRefresh.js)
+    return () => { alive = false; t() }
   }, [])
 
   const rows = useMemo(() => {

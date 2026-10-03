@@ -7,7 +7,7 @@ import { resolveColdTab } from '../../lib/shellRoute'
 import { TodayContext } from '../TodayContext'
 import { writeHash } from '../../lib/urlState'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { resolveTab, pageTitle, NHL_TABS as NHL_TAB_KEYS, NHL_NAV } from '../../lib/routes'
+import { resolveTab, pageTitle, NHL_TABS as NHL_TAB_KEYS, NHL_NAV, isLiveTab } from '../../lib/routes'
 import { usePageTitle } from '../../lib/usePageTitle'
 import { initialHashParams, setSport } from '../../lib/sport'
 import { C, NUM_FONT } from '../../lib/nhl/theme'
@@ -52,6 +52,7 @@ import LampSlate from './LampSlate'
 import FullBoard from './tabs/FullBoard'
 import Results from './tabs/Results'
 import dynamic from 'next/dynamic'
+import RefreshStamp from '../RefreshStamp'
 const LampOdds = dynamic(() => import('./LampOdds'))
 
 // 🏒 THE LAMP SHELL. Thin on purpose, the same shape as NflDashboard and
@@ -330,6 +331,8 @@ export default function LampDashboard({ palettePass = 0 }) {
           </SportTheme>
           {/* ONE ACCENT SOURCE (0g C2-C6 root cause): every tab inside its product's theme */}
           <SportTheme theme={C} accent={C.ice} numFont={NUM_FONT}>
+          {/* the ↻ on the live pages: nothing refreshes on a timer (lib/liveRefresh.js) */}
+          {isLiveTab('nhl', tab) && <RefreshStamp live={live > 0} style={{ marginBottom: 8 }} />}
           <TeamNav.Provider value={openTeam}>
           <ErrorBoundary resetKey={`${tab}:${gameId || ''}:${teamKey || ''}:${playerId || ''}`} label={`the ${tab} tab`}>
             {tab === 'home' && <Home today={shown} date={date} onOpenGame={openGame} onOpenPlayer={openPlayer} onOpenTeam={openTeam} setTab={setTab} />}

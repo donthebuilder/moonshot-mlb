@@ -4,6 +4,7 @@ import { C, NUM_FONT } from '../lib/theme'
 import { nameOf, clean, playerId } from '../lib/player'
 import { fetchLiveSlate } from '../lib/liveSlate'
 import { teamAbbrs } from '../lib/gamelogs'
+import { onLiveRefresh } from '../lib/liveRefresh'
 
 // 🎙️ EVERY AT-BAT AT ONCE — the whole slate, one strip.
 //
@@ -54,19 +55,14 @@ export default function LiveAtBats({
 
   useEffect(() => {
     let alive = true
-    let t = null
     const pull = () => fetchLiveSlate().then((s) => {
       if (!alive || !s) return
       setSnap(s)
       const anyLive = s.games?.some((x) => x.state === 'Live')
-      clearInterval(t)
-      // 25s while live — an at-bat lasts three or four minutes, so this is
-      // inside the window where "who is up" is still true. Idle otherwise;
-      // there is nothing to watch.
-      t = setInterval(() => { if (!document.hidden) pull() }, anyLive ? 25000 : 120000)
     }).catch(() => {})
     pull()
-    return () => { alive = false; clearInterval(t) }
+    const off = onLiveRefresh(pull)   // LIVE ON YOUR TAP (2026-10-02): no timer -- a ↻ or a return to the tab (lib/liveRefresh.js)
+    return () => { alive = false; off() }
   }, [])
 
   const byId = useMemo(() => {

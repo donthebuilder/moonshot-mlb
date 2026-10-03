@@ -5,6 +5,7 @@ import { scheduleFor, slateDay } from '../lib/boxscore'
 import { mlbId } from '../lib/player'
 import { pickCleared } from '../lib/liveSlate'
 import MlbTeamMark from './MlbTeamMark'
+import { onLiveRefresh } from '../lib/liveRefresh'
 
 // 🛰 THE RAIL — every game on the slate, at a glance, with your side of it.
 //
@@ -205,8 +206,8 @@ export default function ScoreRail({
     let alive = true
     const pull = () => fetchGamesRef.current().then((g) => { if (alive && g) setGames(g) }).catch(() => {})
     pull()
-    const t = setInterval(() => { if (!document.hidden) pull() }, 45000)
-    return () => { alive = false; clearInterval(t) }
+    const t = onLiveRefresh(pull)   // LIVE ON YOUR TAP (2026-10-02): no timer -- a ↻ or a return to the tab (lib/liveRefresh.js)
+    return () => { alive = false; t() }
   }, [])
 
   // The bot's picks, per game. MLB's default reads the graded results file

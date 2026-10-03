@@ -29,6 +29,7 @@ import { playoffOddsPaths } from '../lib/dataSource'
 import { Empty } from './ui'
 import DenseTable from './DenseTable'
 import TeamMark from './TeamMark'
+import { onLiveRefresh } from '../lib/liveRefresh'
 
 
 // ── THE LIVE RACE, NOT LAST NIGHT'S ─────────────────────────────────────────
@@ -128,8 +129,8 @@ export default function PennantRace() {
     pull()
     // Standings only change when games end; five minutes is plenty and it is
     // the same "not while hidden" guard every live surface on Home uses.
-    const t = setInterval(() => { if (!document.hidden) pull() }, 5 * 60 * 1000)
-    return () => { alive = false; clearInterval(t) }
+    const t = onLiveRefresh(pull)   // LIVE ON YOUR TAP (2026-10-02): no timer -- a ↻ or a return to the tab (lib/liveRefresh.js)
+    return () => { alive = false; t() }
   }, [data?.season])
 
   useEffect(() => {

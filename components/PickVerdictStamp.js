@@ -9,6 +9,7 @@ import { primaryRole } from '../lib/verdict'
 // (LiveWire, AtThePlate, the Boxes counters). Number() of the composite is
 // NaN, which would make this component silently render nothing, forever.
 import { mlbId } from '../lib/player'
+import { onLiveRefresh } from '../lib/liveRefresh'
 
 // ── #59: THE CARD HAD NO POST-GAME STATE, ON A SITE BUILT ON GRADING ────────
 //
@@ -59,8 +60,8 @@ export default function PickVerdictStamp({ player }) {
       .then((snap) => { if (alive) setLine(snap?.lines?.[pid] || null) })
       .catch(() => {})
     pull()
-    const id = setInterval(() => { if (!document.hidden) pull() }, 60000)
-    return () => { alive = false; clearInterval(id) }
+    const id = onLiveRefresh(pull)   // LIVE ON YOUR TAP (2026-10-02): no timer -- a ↻ or a return to the tab (lib/liveRefresh.js)
+    return () => { alive = false; id() }
   }, [pid])
 
   if (!line) return null

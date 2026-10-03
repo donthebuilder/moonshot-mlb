@@ -39,6 +39,7 @@ import { useFollowing } from '../lib/dash/follow'
 import { useDashAccount } from '../lib/dash/sync'
 import { fetchLiveSlate } from '../lib/liveSlate'
 import { nameOf, teamOf, oppOf, mlbId, playerId as rowKey } from '../lib/player'
+import { onLiveRefresh } from '../lib/liveRefresh'
 
 const n = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0)
 
@@ -172,8 +173,8 @@ export default function YourPlayers({ players = [], onPlayerClick = null, watchI
     // 45s, and never while the tab is hidden — the same cadence and the same
     // guard as every other live surface on this page. The TTL cache means two
     // components on the same tick share one request.
-    const t = setInterval(() => { if (!document.hidden) pull() }, 45000)
-    return () => { alive = false; clearInterval(t) }
+    const t = onLiveRefresh(pull)   // LIVE ON YOUR TAP (2026-10-02): no timer -- a ↻ or a return to the tab (lib/liveRefresh.js)
+    return () => { alive = false; t() }
   }, [])
 
   const rows = useMemo(() => {

@@ -7,7 +7,7 @@ import { leaveTarget } from '../lib/openTarget'
 import { listenForWorkerOpen } from '../lib/workerOpen'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
-import { resolveTab, pageTitle, isSport } from '../lib/routes'
+import { resolveTab, pageTitle, isSport, isLiveTab } from '../lib/routes'
 import { usePageTitle } from '../lib/usePageTitle'
 import TabNotFound from './TabNotFound'
 import { fetchJSON, normalizeData, groupGames, slateLooksReal, slateDateFromRows, keepNewerSlate, easternDate, mlbScheduleSpan } from '../lib/data'
@@ -34,6 +34,8 @@ import { liveOdds } from '../lib/oddsFreshness'
 import { markDirty } from '../lib/dash/sync'
 import ErrorBoundary from './ErrorBoundary'
 import dynamic from 'next/dynamic'
+import { useLiveRefresh } from '../lib/liveRefresh'
+import RefreshStamp from './RefreshStamp'
 
 // ── ONE TAB'S CODE AT A TIME (2026-09-27) ────────────────────────────────
 // Every tab used to be a static import, so a cold MOONSHOT link downloaded
@@ -391,15 +393,11 @@ export default function Dashboard({ palettePass = 0 }) {
   // twenty-minute-old scores until the next tick. A visibilitychange listener
   // refreshes immediately on return, so the tab is fresher than before rather
   // than staler — you get the update when you actually look.
-  useEffect(() => {
-    const isLive = results?.live_mode === true
-    const intervalMs = isLive ? 45_000 : 5 * 60_000 // 45s live, 5min idle
-    const bump = () => setRefreshKey((k) => k + 1)   // >0, so no loading spinner
-    const id = setInterval(() => { if (!document.hidden) bump() }, intervalMs)
-    const onVis = () => { if (!document.hidden) bump() }
-    document.addEventListener('visibilitychange', onVis)
-    return () => { clearInterval(id); document.removeEventListener('visibilitychange', onVis) }
-  }, [results?.live_mode])
+  // LIVE ON YOUR TAP (2026-10-02, Donovan: "live in game based on personal
+  // refresh"): no timer. The slate, results and odds re-read when someone taps
+  // a ↻ or comes back to the tab after a minute (lib/liveRefresh.js). The 45 s
+  // loop called /api/odds/latest from every open phone during a live slate.
+  useLiveRefresh(() => setRefreshKey((k) => k + 1))   // >0, so no loading spinner
 
   // 0g E4 (2026-10-02): a refresh handler and its spinner state were built here
   // and passed to Header, which never accepted them -- no control ever drew. The
@@ -841,6 +839,8 @@ export default function Dashboard({ palettePass = 0 }) {
             "you are looking at a slate that already happened". */}
         <StaleBanner compact slateDate={slateDate} mode={mode} loading={loading} truncated={!slateIsReal} games={groupGames(allPlayers).length} schedule={schedHere} />
         <MiniWire players={players} watchIds={watchIds} tab={tab} mode={mode} results={resultsForSlate} odds={odds} onGo={() => setTab('scoreboard')} onPlayerClick={setModalPlayer} />
+        {/* the ↻ on the live pages: nothing refreshes on a timer (lib/liveRefresh.js) */}
+        {isLiveTab('mlb', tab) && <RefreshStamp live={results?.live_mode === true} style={{ marginBottom: 8 }} />}
         {/* One beginner paragraph per tab — auto-opens on first visit,
             collapses to a pill forever after. The answer to "looks nice
             but I don't know what I'm looking at." */}

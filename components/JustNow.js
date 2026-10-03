@@ -4,6 +4,7 @@ import { C, NUM_FONT } from '../lib/theme'
 import { playerId } from '../lib/player'
 import { fetchLiveSlate } from '../lib/liveSlate'
 import { fetchSkinEvents } from '../lib/livePitches'
+import { onLiveRefresh } from '../lib/liveRefresh'
 
 // 📻 JUST NOW — what happened to the names you have skin on.
 //
@@ -86,7 +87,6 @@ export default function JustNow({ players = [], watchIds, onPlayerClick, limit =
     // have rows costs nothing to skip.
     if (!ids.size) { setRows([]); return undefined }
     let alive = true
-    let t = null
     const pull = async () => {
       const snap = await fetchLiveSlate().catch(() => null)
       if (!alive || !snap) return
@@ -94,14 +94,10 @@ export default function JustNow({ players = [], watchIds, onPlayerClick, limit =
       if (!alive) return
       setRows(ev)
       const anyLive = snap.games?.some((g) => g.state === 'Live')
-      clearInterval(t)
-      // 45s matches the feed cache, so this never asks for bytes it would be
-      // handed from cache anyway. Idle when nothing is live — there is no
-      // "just now" before first pitch.
-      t = setInterval(() => { if (!document.hidden) pull() }, anyLive ? 45000 : 180000)
     }
     pull()
-    return () => { alive = false; clearInterval(t) }
+    const off = onLiveRefresh(pull)   // LIVE ON YOUR TAP (2026-10-02): no timer -- a ↻ or a return to the tab (lib/liveRefresh.js)
+    return () => { alive = false; off() }
   }, [ids, limit])
 
   if (!rows.length) return null
