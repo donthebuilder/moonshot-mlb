@@ -275,6 +275,7 @@ export default async function AdminPage() {
           </div>
         }) : null}
         <Line k="MLB · HR pick shadow (M0)" v="bot repo" src="python3 bots/eval_shadow_picks.py --fetch (hr_pick_top_score #1 vs the real HR pick, from por_rows)" />
+        <Line k="NFL · playing time shadows (M2)" v="bot repo" src="python3 bots/nfl/nfl_playtime_lab.py --live 2026 --weeks 4 5 6 (REC + snap 30%, RUSH_ATT + snap 10%: shadow top-5 vs the live top-5, latest log before kickoff, voids out)" />
 
         <h2 className={start.kicker} style={{ marginTop: 18 }}>Waitlist</h2>
         <Line k="DASH Pro waitlist" v="—" src="not built (no waitlist exists yet)" />
