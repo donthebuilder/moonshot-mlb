@@ -1,5 +1,6 @@
 'use client'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useContext, useEffect, useRef, useState } from 'react'
+import { TeamNav } from '../../../lib/teamNav'
 import Ledger from '../../ledger/Ledger'
 import {
   getTuddyWeekLedger, loadTuddySeason, tdBaseRate,
@@ -24,6 +25,8 @@ import { useLiveRefresh } from '../../../lib/liveRefresh'
 // tdCallStatus (2026-10-02), the same as /called and the record page.
 
 export default function TuddyLedger({ data, results, onPlayerClick = null }) {
+  // a team code opens its club, as on LAMP's ledger (the dashboard's TeamNav)
+  const openTeam = useContext(TeamNav)
   const season = Number(data?.season || results?.season) || null
   const mode = results?.mode || 'week'
   const currentWeek = Number(results?.week) || 0
@@ -110,6 +113,7 @@ export default function TuddyLedger({ data, results, onPlayerClick = null }) {
 
   return (
     <Ledger
+      onTeamClick={openTeam || null}
       eventLabel="TD"
       eventLabelLong="Touchdown"
       multiSport="nfl"
