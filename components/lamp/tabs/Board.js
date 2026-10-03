@@ -54,6 +54,8 @@ const HOW_STEPS = [
 const BAND_DEFS = {
   GOAL: [{ key: 'shotsPg', label: 'Shots / GP' }, { key: 'goalsPg', label: 'Goals / GP' }, { key: 'toi', label: 'Ice time' }],
   SOG: [{ key: 'shotsPg', label: 'Shots / GP' }, { key: 'toi', label: 'Ice time' }, { key: 'oppSaPg', label: 'Opp shots allowed' }],
+  PTS: [{ key: 'ptsPg', label: 'Points / GP' }, { key: 'toi', label: 'Ice time' }, { key: 'oppGaPg', label: 'Opp goals allowed' }],
+  AST: [{ key: 'astPg', label: 'Assists / GP' }, { key: 'toi', label: 'Ice time' }, { key: 'oppGaPg', label: 'Opp goals allowed' }],
 }
 
 export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = null, setDate = () => {}, market: marketTab = null, onMarket = null }) {
@@ -301,6 +303,10 @@ const factsOf = (g, r) => ({ ppvpk: ppVsPk(spotOf(g, r.team, true), spotOf(g, r.
 const MARKETS = [
   { key: 'GOAL', label: 'GOAL', eyebrow: 'LAMP · GOAL BOARD', note: 'One called per team in every game, locked before puck drop, graded after. Score = mean of three percentile ranks tonight: shots, goals, ice time per game over his last 82 NHL games.', result: 'GOALS', log: 'lamp_goal_log' },
   { key: 'SOG', label: 'SHOTS 3+', eyebrow: 'LAMP · SHOTS BOARD', note: 'Three called per game for 3+ shots on goal, locked before puck drop, graded after. Score = mean of three percentile ranks tonight: shots per game over his last 82, ice time, and how many shots his opponent allows per 60.', result: 'SOG', log: 'lamp_prop_log' },
+  // POINTS and ASSISTS (2026-10-02, Donovan: "the new markets"): locked and graded every night since
+  // 10-01 (lamp-pts / lamp-ast), shown as a TEST until each has 30 graded nights (the record rule)
+  { key: 'PTS', label: 'POINTS 1+ · TEST', eyebrow: 'LAMP · POINTS BOARD · TEST', note: 'A TEST: three called per game for 1+ point, locked before puck drop, graded after; no record is printed until 30 graded nights. Score = mean of three percentile ranks tonight: points per game over his last 82, ice time, and how many goals his opponent allows.', result: 'PTS', log: 'lamp_prop_log' },
+  { key: 'AST', label: 'ASSISTS 1+ · TEST', eyebrow: 'LAMP · ASSISTS BOARD · TEST', note: 'A TEST: three called per game for 1+ assist, locked before puck drop, graded after; no record is printed until 30 graded nights. Score = mean of three percentile ranks tonight: assists per game over his last 82, ice time, and how many goals his opponent allows.', result: 'AST', log: 'lamp_prop_log' },
 ]
 // The SCORE header's ⓘ, per market (it had none, so no explanation and no
 // picture). The legs are the models' own: lib/nhl/goalModel.js and
@@ -308,9 +314,20 @@ const MARKETS = [
 const SCORE_TITLE = {
   GOAL: 'Tonight\u2019s goal score: three ranks against tonight\u2019s skaters, averaged \u2014 shots, goals and ice time per game over his last 82 games. Higher ranks better.',
   SOG: 'Tonight\u2019s shots score: shots and ice time per game, and how many shots his opponent allows, each ranked against tonight\u2019s skaters. Higher ranks better.',
+  PTS: 'Tonight\u2019s points score (a TEST): points and ice time per game, and how many goals his opponent allows, each ranked against tonight\u2019s skaters. Higher ranks better.',
+  AST: 'Tonight\u2019s assists score (a TEST): assists and ice time per game, and how many goals his opponent allows, each ranked against tonight\u2019s skaters. Higher ranks better.',
 }
 const SCORE_ART = { GOAL: 'nhl-goal' }   // components/ScoreArt.js
 const marketOf = (k) => MARKETS.find((m) => m.key === k) || MARKETS[0]
+// each market's own rate columns, read off its legs (one lookup, both tables)
+const RATE_COLS = {
+  GOAL: [{ key: 'spg', label: 'S/GP', leg: 'shotsPg', dp: 2, w: 44 }, { key: 'gpg', label: 'G/GP', leg: 'goalsPg', dp: 2, w: 44 }],
+  SOG: [{ key: 'spg', label: 'S/GP', leg: 'shotsPg', dp: 2, w: 44 }, { key: 'osa', label: 'OPP SA/60', leg: 'oppSaPg', dp: 1, w: 62 }],
+  PTS: [{ key: 'ptspg', label: 'P/GP', leg: 'ptsPg', dp: 2, w: 44 }, { key: 'oga', label: 'OPP GA/GP', leg: 'oppGaPg', dp: 2, w: 66 }],
+  AST: [{ key: 'apg', label: 'A/GP', leg: 'astPg', dp: 2, w: 44 }, { key: 'oga', label: 'OPP GA/GP', leg: 'oppGaPg', dp: 2, w: 66 }],
+}
+const rateCols = (market) => (RATE_COLS[market] || RATE_COLS.GOAL).map(({ key, label, dp, w }) => ({ key, label, primary: true, dp, w }))
+const rateVals = (r, market) => Object.fromEntries((RATE_COLS[market] || RATE_COLS.GOAL).map((c) => [c.key, r.legs ? r.legs[c.leg] ?? null : null]))
 
 function columnsFor(g, onOpenTeam, market = 'GOAL') {
   const graded = g.graded
@@ -325,10 +342,8 @@ function columnsFor(g, onOpenTeam, market = 'GOAL') {
     { key: 'team', label: 'TM', heat: false, mono: true, w: 40,
       fmt: (v) => <button type="button" onClick={(e) => { e.stopPropagation(); onOpenTeam?.(v) }} style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', color: C.text2, font: `800 10.5px/1 ${NUM_FONT}` }}>{v}</button> },
     { key: 'score', label: 'SCORE', primary: true, scale: 'seq', domain: [0, 100], w: 50, explain: SCORE_TITLE[market], art: SCORE_ART[market] || null, answers: market === 'GOAL' ? 'nhl-goal' : null },
-    { key: 'spg', label: 'S/GP', primary: true, dp: 2, w: 44 },
-    ...(sog ? [] : [{ key: 'gpg', label: 'G/GP', primary: true, dp: 2, w: 44 }]),
+    ...rateCols(market),
     { key: 'toi', label: 'TOI', primary: true, w: 48, fmt: (v) => (Number.isFinite(v) ? fmtSec(v) : '—') },
-    ...(sog ? [{ key: 'osa', label: 'OPP SA/60', primary: true, dp: 1, w: 62 }] : []),
     { key: 'pctl', label: 'LEGS', heat: false, w: 118, fmt: (v, r) => (r.status === 'called' ? <PctBars r={r._row} market={market} /> : null) },
     // Context columns (lamp research step 2): shown beside the score, never
     // in it. PP G is his season's power-play goals; PP v PK is his club's
@@ -363,7 +378,7 @@ export function GameBoard({ g, onOpenPlayer, onOpenGame, onOpenTeam, market = 'G
   // line above the table (a phone row the old table didn't spend).
   const rows = [...scored].sort((a, b) => (a.rank ?? 999) - (b.rank ?? 999)).map((r) => ({
     id: r.playerId, rank: r.rank, name: r.name, pos: r.pos, team: r.team, score: r.score,
-    spg: r.legs ? r.legs.shotsPg : null, gpg: r.legs ? r.legs.goalsPg : null, toi: r.legs ? r.legs.toi : null,
+    ...rateVals(r, market), toi: r.legs ? r.legs.toi : null,
     osa: r.legs ? r.legs.oppSaPg ?? null : null,
     pctl: r.status === 'called' ? 1 : 0, result: r.status, status: r.status, _row: r,
     ppg: r.ppg, ppvpk: ppVsPk(spotOf(g, r.team, true), spotOf(g, r.team, false)), rest: restWord(spotOf(g, r.team, true)),
@@ -458,7 +473,7 @@ export function AllGamesTable({ kept, market, onOpenPlayer, onOpenTeam }) {
   const sog = market === 'SOG'
   const rows = [...kept].sort((a, b) => (b.r.score ?? 0) - (a.r.score ?? 0)).map(({ r, g }, i) => ({
     id: r.playerId, rank: i + 1, name: r.name, pos: r.pos, team: r.team, game: `${g.game.away.abbrev}@${g.game.home.abbrev}`,
-    score: r.score, spg: r.legs ? r.legs.shotsPg : null, gpg: r.legs ? r.legs.goalsPg : null, toi: r.legs ? r.legs.toi : null,
+    score: r.score, ...rateVals(r, market), toi: r.legs ? r.legs.toi : null,
     osa: r.legs ? r.legs.oppSaPg ?? null : null, status: r.status, _row: r, _g: g,
   }))
   const columns = [
@@ -467,8 +482,7 @@ export function AllGamesTable({ kept, market, onOpenPlayer, onOpenTeam }) {
     { key: 'team', label: 'TM', heat: false, mono: true, w: 40, fmt: (v) => <button type="button" onClick={(e) => { e.stopPropagation(); onOpenTeam?.(v) }} style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', color: C.text2, font: `800 10.5px/1 ${NUM_FONT}` }}>{v}</button> },
     { key: 'game', label: 'GAME', heat: false, mono: true, w: 70 },
     { key: 'score', label: 'SCORE', primary: true, scale: 'seq', domain: [0, 100], w: 50, explain: SCORE_TITLE[market], art: SCORE_ART[market] || null, answers: market === 'GOAL' ? 'nhl-goal' : null },
-    { key: 'spg', label: 'S/GP', primary: true, dp: 2, w: 44 },
-    ...(sog ? [{ key: 'osa', label: 'OPP SA/60', primary: true, dp: 1, w: 62 }] : [{ key: 'gpg', label: 'G/GP', primary: true, dp: 2, w: 44 }]),
+    ...rateCols(market),
     { key: 'toi', label: 'TOI', primary: true, w: 48, fmt: (v) => (Number.isFinite(v) ? fmtSec(v) : '—') },
     { answers: 'called', key: 'status', label: 'STATUS', heat: false, w: 90, fmt: (v) => (v === 'called' ? <CalledChip /> : <span style={{ color: C.text3, font: `800 8px/1 ${NUM_FONT}`, letterSpacing: '.1em' }}>{STATUS[v]}</span>) },
   ]

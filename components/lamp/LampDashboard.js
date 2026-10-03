@@ -361,7 +361,8 @@ export default function LampDashboard({ palettePass = 0 }) {
             {tab === 'lampledger' && <LampLedger onOpenPlayer={openPlayer} onOpenTeam={openTeam} />}
             {tab === 'numerology' && <Numerology date={date} onOpenPlayer={openPlayer} />}
             {(tab === 'board' || tab === 'shots') && <Board onOpenPlayer={openPlayer} onOpenGame={openGame} onOpenTeam={openTeam} date={date} setDate={setDate}
-              market={tab === 'shots' ? 'SOG' : 'GOAL'} onMarket={(m) => setTab(m === 'SOG' ? 'shots' : 'board')} />}
+              market={tab === 'shots' ? 'SOG' : (['PTS', 'AST'].includes(String(readHashParam('m') || '').toUpperCase()) ? String(readHashParam('m')).toUpperCase() : 'GOAL')}
+              onMarket={(m) => setTab(m === 'SOG' ? 'shots' : 'board')} />}
             {tab === 'games' && <LampSlate onOpenPlayer={openPlayer} onOpenGame={openGame} onOpenTeam={openTeam} date={date} setDate={setDate} />}
             {tab === 'fullboard' && <FullBoard onOpenPlayer={openPlayer} onOpenTeam={openTeam} date={date} setDate={setDate} />}
             {tab === 'results' && <Results onOpenPlayer={openPlayer} />}
