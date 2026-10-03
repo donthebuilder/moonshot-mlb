@@ -30,6 +30,7 @@ import { bucketsPublic } from '../../../../lib/nba/gate'
 import { linesRows } from '../../../../lib/odds/lines'
 import { freezeDashLines } from '../../../../lib/dashLock'
 import { gradeDashLines } from '../../../../lib/dashGrade'
+import { freezeTdBoard, gradeBoardLock } from '../../../../lib/boardLock'
 import { monthPlan } from '../../../../lib/odds/budget'
 
 export const dynamic = 'force-dynamic'
@@ -181,8 +182,10 @@ export async function GET(request) {
         }
         // EVERY MARKET WE SCORE, AT LOCK (lib/odds/lines.js): same object, no
         // extra cost. Its own failure, logged; never the snapshot's.
-        let lines = null, dash = null
+        let lines = null, dash = null, board = null
         if (snap === 'lock') {
+          // THE TD BOARD (lib/boardLock.js): the whole pregame board for this game, beside these prices (value call, shadow)
+          if (!dry) { try { board = await freezeTdBoard(db, ev, r.rows, takenAt, startsAt(ev)) } catch (e) { board = `error: ${e?.message}` } }
           const L = linesRows(ev, snap, takenAt, match)
           lines = L.rows.length
           if (!dry && L.rows.length) {
@@ -192,7 +195,7 @@ export async function GET(request) {
             else { try { dash = await freezeDashLines(db, ev, L.rows, takenAt) } catch (e) { dash = `error: ${e?.message}` } }
           }
         }
-        out.snaps.push({ event: ev.eventID, league: ev.leagueID, snap, rows: r.rows.length, lines, dash, players: r.players, matched: r.matched, minutesToStart: Math.round((Date.parse(startsAt(ev)) - Date.parse(takenAt)) / MIN) })
+        out.snaps.push({ event: ev.eventID, league: ev.leagueID, snap, rows: r.rows.length, lines, dash, board, players: r.players, matched: r.matched, minutesToStart: Math.round((Date.parse(startsAt(ev)) - Date.parse(takenAt)) / MIN) })
       }
     }
   } else if (due.size) out.skipped.push({ why: `due ${due.size} games but ${used} objects used (cap ${HARD_CAP})` })
@@ -200,6 +203,7 @@ export async function GET(request) {
   // THE DASH LINE'S GRADE (lib/dashGrade.js): once a day, on the first run (11:00 UTC)
   if (!dry && new Date(t0).getUTCHours() === 11 && new Date(t0).getUTCMinutes() < 10) {
     try { out.dashGraded = await gradeDashLines(db, easternToday()) } catch (e) { out.dashGraded = `error: ${e?.message}` }
+    try { out.boardGraded = await gradeBoardLock(db, easternToday()) } catch (e) { out.boardGraded = `error: ${e?.message}` }
   }
   out.usage.spentThisTick = used - out.usage.before
   out.ms = Date.now() - t0

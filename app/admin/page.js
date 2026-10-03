@@ -24,7 +24,7 @@ import { activeLeagues } from '../../lib/odds/snap'
 import { bucketsPublic } from '../../lib/nba/gate'
 import { autopostState, FACTS_CONFIG } from '../../lib/facts/engine'
 import { AutopostSwitch, DeleteFactPost } from '../../components/admin/FactsControls'
-import { readShadows, readVsBook, readValueNhl } from '../../lib/shadowRecord'
+import { readShadows, readVsBook, readValueNhl, readValueNfl } from '../../lib/shadowRecord'
 import { VERSIONS as NHL_VERSIONS } from '../../lib/nhl/versions'
 
 export const dynamic = 'force-dynamic'
@@ -125,10 +125,10 @@ const cachedVsBook = unstable_cache(async () => { const db = service(); return d
 // against the lock price -- the picks list stays on the server
 const cachedValue = unstable_cache(async () => {
   const db = service(); if (!db) return null
-  const v = await readValueNhl(db)
   const lean = ({ picks, ...t }) => t
-  return { ...v, live: lean(v.live), goalpos: lean(v.goalpos) }
-}, ['admin-value-v1'], { revalidate: 600 })
+  const [v, f] = await Promise.all([readValueNhl(db), readValueNfl(db).catch((e) => ({ error: e?.message }))])
+  return { ...v, live: lean(v.live), goalpos: lean(v.goalpos), nfl: f.error ? { error: f.error } : lean(f.live) }
+}, ['admin-value-v2'], { revalidate: 600 })
 
 function Line({ k, v, src }) {
   return (
@@ -265,11 +265,12 @@ export default async function AdminPage() {
           <Line k="  … beat the book's line" v={pct(vsBook.beat)} src="his shots on goal above the book's own lock line -- chalk that only clears a soft bar shows up here" />
           <Line k="  … the book's no-vig chance (at 2.5)" v={vsBook.bookP != null ? `${vsBook.bookP}% (${vsBook.bookPn})` : '—'} src="mean implied probability of the over, from the fair price, where the line was our bar" />
         </> : <Line k="LAMP SHOTS 3+ calls" v="no graded calls with a lock line yet" src="odds_lines nhl sog at lock, joined to lamp_prop_log SOG called rows" />}
-        {value?.error ? <Line k="LAMP goal · value call" v="—" src={`unavailable: ${value.error}`} /> : value ? [['live', 'live board (lamp-goal)'], ['goalpos', 'goalpos shadow (ice time within position)']].map(([k, label]) => {
+        {value?.error ? <Line k="Value call" v="—" src={`unavailable: ${value.error}`} /> : value ? [['live', 'LAMP goal', 'live board (lamp-goal)'], ['goalpos', 'LAMP goal', 'goalpos shadow (ice time within position)'], ['nfl', 'TUDDY TD', 'the TD board frozen at lock (board_lock)']].map(([k, sport, label]) => {
           const t = value[k]
+          if (t?.error) return <Line key={k} k={`${sport} · value call · ${label}`} v="—" src={`unavailable: ${/does not exist|schema cache/i.test(t.error) ? 'board_lock not created yet (supabase/migrations/202610030400_board_lock.sql)' : t.error}`} />
           const edge = (l) => (l?.n ? `${l.pct}% vs ${l.implied}% · ROI ${l.roiMed > 0 ? '+' : ''}${l.roiMed}%` : 'no graded calls yet')
           return <div key={k}>
-            <Line k={`LAMP goal · value call · ${label}`} v={edge(t.value)} src={`${value.version}: per game, the board/called skater the model ranks ${value.rule.minGap}+ above the book's lock price (${value.rule.minPriced}+ priced) · ${t.value.n ? `${t.value.hit}/${t.value.n} ±${t.value.pm}, ${t.dCalls} of ${t.withCall} calls defencemen, ` : ''}${t.games} priced games · hit rate vs the median book's implied chance (vig in) · flat 1u ROI at the median book${t.value.n ? ` (best book ${t.value.roiBest > 0 ? '+' : ''}${t.value.roiBest}%)` : ''}`} />
+            <Line k={`${sport} · value call · ${label}`} v={edge(t.value)} src={`${value.version}: per game, the board/called player the model ranks ${value.rule.minGap}+ above the book's lock price (${value.rule.minPriced}+ priced) · ${t.value.n ? `${t.value.hit}/${t.value.n} ±${t.value.pm}${t.dCalls != null ? `, ${t.dCalls} of ${t.withCall} calls defencemen` : ''}, ` : ''}${t.games} priced games · hit rate vs the median book's implied chance (vig in) · flat 1u ROI at the median book${t.value.n ? ` (best book ${t.value.roiBest > 0 ? '+' : ''}${t.value.roiBest}%)` : ''}`} />
             <Line k="  … its CALLED picks, same games" v={edge(t.called)} src={`the chalk the value call is meant to fix${t.called.n ? ` · ${t.called.hit}/${t.called.n} ±${t.called.pm}` : ''}`} />
           </div>
         }) : null}

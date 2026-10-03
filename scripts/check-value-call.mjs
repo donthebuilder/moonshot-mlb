@@ -7,6 +7,7 @@
 import { valueCalls } from '../lib/model/valueCall.js'
 import { gradeValueCalls, beforeStart } from '../lib/shadowRecord.js'
 import { priceKey } from '../lib/odds/priceAtLock.js'
+import { tdBoardRows, tdResult } from '../lib/boardLock.js'
 let bad = 0, n = 0
 const eq = (name, got, want) => { n++; if (got !== want && !(Number.isFinite(got) && Math.abs(got - want) < 1e-9)) { bad++; console.log('  FAIL', name, 'got', got, 'want', want) } }
 
@@ -74,6 +75,44 @@ const kept = beforeStart([
   { id: 'd', taken_at: '2099-01-01T23:50:00Z', starts_at: null },
 ]).map((r) => r.id).join(',')
 eq('only prices read before the start', kept, 'a')
+
+// NFL BOARD AT LOCK (TEST DATA): one week file, two games; the event is AAA at BBB.
+const wk = {
+  week: 9, built_at: 'TEST', games: [
+    { game_id: 'G1', home: 'BBB', away: 'AAA', kickoff: '2099-01-01T18:00Z' },
+    { game_id: 'G2', home: 'DDD', away: 'CCC', kickoff: '2099-01-01T18:00Z' },
+  ],
+  players: [
+    { player_id: 'a1', name: 'Test A1', team: 'AAA', opp: 'BBB', position: 'RB', scores: { TD: 90 } },
+    { player_id: 'a2', name: 'Test A2', team: 'AAA', opp: 'BBB', position: 'WR', scores: { TD: 50 } },
+    { player_id: 'b1', name: 'Test B1', team: 'BBB', opp: 'AAA', position: 'TE', scores: { TD: 10 } },
+    { player_id: 'b2', name: 'Test B2', team: 'BBB', opp: 'AAA', position: 'QB', scores: {} },              // no TD score: not rated
+    { player_id: 'c1', name: 'Test C1', team: 'CCC', opp: 'DDD', position: 'RB', scores: { TD: 80 } },
+    { player_id: 'd1', name: 'Test D1', team: 'DDD', opp: 'CCC', position: 'RB', scores: { TD: 70 } },
+  ],
+}
+const picks = { card: { TD: { rungs: [{ player_id: 'a2', rank: 1 }] } } }
+const lock = (over = {}) => tdBoardRows({ pricedIds: ['a1', 'a2', 'b1'], week: wk, picks, gameCalls: null, eventId: 'EV', gameDate: '2099-01-01', startsAt: '2099-01-01T18:00:00Z', takenAt: '2099-01-01T17:00:00Z', ...over })
+const L = lock()
+eq('only this game\'s rated players', L.rows.map((r) => r.player_id).join(','), 'a1,a2,b1')
+eq('a TD pick is CALLED', L.rows.find((r) => r.player_id === 'a2').status, 'called')
+eq('called_by names the market', L.rows.find((r) => r.player_id === 'a2').called_by, 'TD')
+// week board: a1 90, c1 80, d1 70, a2 50, b1 10 -> of 5, top third = rank <= 2
+eq('a1 rank 1 of 5 -> ON THE BOARD', L.rows.find((r) => r.player_id === 'a1').status, 'board')
+eq('a1 board_of', L.rows.find((r) => r.player_id === 'a1').board_of, 5)
+eq('b1 rank 5 -> off', L.rows.find((r) => r.player_id === 'b1').status, 'off')
+eq('stale week file (kickoff a week off) writes nothing', lock({ startsAt: '2099-01-08T18:00:00Z' }).rows.length, 0)
+eq('no priced player on the file writes nothing', lock({ pricedIds: ['zz'] }).rows.length, 0)
+
+// grading (TEST DATA)
+const logs = { logs: {
+  a1: { log: [{ s: 2099, w: 9, tm: 'AAA', g_td: 2 }] },
+  a2: { log: [{ s: 2099, w: 9, tm: 'AAA', g_td: 0 }] },
+} }
+eq('a TD = hit', tdResult({ player_id: 'a1', week: 9, team: 'AAA' }, logs, 2099)?.result, 'hit')
+eq('no TD = miss', tdResult({ player_id: 'a2', week: 9, team: 'AAA' }, logs, 2099)?.result, 'miss')
+eq('no row, his team logged = void', tdResult({ player_id: 'a3', week: 9, team: 'AAA' }, logs, 2099)?.result, 'void')
+eq('team not logged yet = wait', tdResult({ player_id: 'b1', week: 9, team: 'BBB' }, logs, 2099), null)
 
 console.log(`${n - bad}/${n} value-call checks pass`)
 process.exit(bad ? 1 : 0)
