@@ -30,6 +30,7 @@ import { tdCallWord, tdPlayWord, matchRoster } from '../../lib/nfl/tdFeed'
 import { nflSlatePaths } from '../../lib/nfl/dataSource'
 import { BRAND, SPORT_KEYS, sportKey, appHref, playerHref, isHiddenSport } from '../../lib/routes'
 import { nhlCaptureFrom, readNhlRecords } from '../../lib/record/nhl'
+import { nbaCaptureFrom, readNbaRecords, NBA_EVENT_BAR } from '../../lib/record/nba'
 import { readMlbEvents } from '../../lib/record/mlb'
 import { readNflEvents } from '../../lib/record/nfl'
 import { eventCapture } from '../../lib/record/shape'
@@ -179,6 +180,32 @@ const SPORTS = {
       alternates: { canonical: '/called?sport=nhl' },
     },
   },
+  // BUCKETS (2026-10-03): ready for the day it opens -- calledKey() sends a
+  // hidden product to MOONSHOT, so this page answers for it only once
+  // BRAND.nba.hidden is off (BUCKETS_PUBLIC=on). The event is a 25-point game
+  // (the points market's bar, graded every night); CALLED = a call in any
+  // BUCKETS market in his game, ON THE BOARD = the points board's top third.
+  nba: {
+    key: 'nba', label: 'NBA', product: 'BUCKETS', event: '25-point games', eventOne: '25-point game',
+    verb: `scored ${NBA_EVENT_BAR}+`, table: 'buckets_log', board: appHref('nba'),
+    legend: '🤖 called before tip  ·  ⚪ on the board, no call  ·  💥 not on the board',
+    frozen: 'Tags are the board as locked before tip, graded after the final, never re-graded.',
+    empty: 'No games graded yet tonight',
+    fills: 'Each game fills in once its final is graded.',
+    foot: "CALLED IT is BUCKETS' record — every 25-point game, graded in public. Data from ESPN's public NBA feeds.",
+    lead: 'called', onWhat: 'CALLED', capture: nbaCaptureFrom, window: windowFor('nba').fetchDays, unit: ['game night', 'game nights'],
+    rule: 'CALLED = one of the calls in his game, in any BUCKETS market (the top player on each team per market). ON THE BOARD = the top third of the night\u2019s points board.',
+    cta: ['See tonight\u2019s board', 'One called per team in every game, every market, in the app — no account needed'],
+    callsHead: 'Tonight\u2019s points calls', callsPill: 'locked before tip',
+    eventsHead: 'Tonight\u2019s 25-point games',
+    close: ['Tomorrow\u2019s calls lock before tip.', 'BUCKETS locks one player per team before the ball goes up. The 🤖 you see here is what it said before the game.', 'Save your watchlist, picks and alerts'],
+    playerHref: (id) => playerHref('nba', id),
+    meta: {
+      title: 'NBA picks, graded in public · CALLED IT · BUCKETS',
+      description: 'Every 25-point game in the NBA, tagged with whether BUCKETS called him before tip. One call per team per game, locked and graded in public.',
+      alternates: { canonical: '/called?sport=nba' },
+    },
+  },
 }
 
 // ── ONE ROW SHAPE, EVERY SPORT ─────────────────────────────────────────────
@@ -257,6 +284,48 @@ function normNhl(r) {
   }
 }
 
+// A BUCKETS 25-point game: one row per player who cleared it, tagged with the
+// status locked before tip (any-market calls relabelled by lib/record/nba.js).
+function normNba(r) {
+  return {
+    key: `${r.game_id}:${r.player_id}`,
+    day: r.game_date,
+    name: r.name,
+    repeat: null,
+    href: SPORTS.nba.playerHref(r.player_id),
+    called: r.status === 'called',
+    onBoard: r.status !== 'off',
+    detail: [r.team || '', r.opp ? `vs ${r.opp}` : '', r.actual != null ? `${r.actual} pts` : ''].filter(Boolean).join(' · '),
+    cardHref: null,
+    call: r.status === 'called' ? (r.called_by && r.called_by !== 'pts' ? `called · ${r.called_by.toUpperCase()}` : `called${r.role ? ` · ${r.role}` : ''}`) : r.status === 'board' ? `on the board, no call${r.rank ? ` · #${r.rank}` : ''}` : 'not on the board',
+  }
+}
+
+// BUCKETS' reads, LAMP's shape: the window's 25-point games and tonight's
+// locked points calls.
+async function loadNba(sport, db, today) {
+  const since = shiftDay(today, -(sport.window - 1))
+  const [scorers, calls] = await Promise.all([
+    readNbaRecords(db, { since, until: today, includePre: true, graded: true, hitOnly: true }),
+    readNbaRecords(db, { since: today, until: today, includePre: true, graded: false, status: 'called' }),
+  ])
+  const all = scorers.rows.map((r) => ({ ...r, _n: normNba(r) }))
+  const rows = all.filter((r) => r.game_date === today)
+  const byDay = new Map()
+  const history = []
+  const days = [...new Set(all.map((r) => r.game_date))].sort().slice(-DAYS)
+  for (const day of days) {
+    const dayRows = all.filter((r) => r.game_date === day)
+    byDay.set(day, dayRows)
+    history.push({ day, pre: dayRows.every((r) => r.game_type === 1), ...nbaCaptureFrom(dayRows) })
+  }
+  const picks = calls.rows
+    .sort((a, b) => String(a.game_id).localeCompare(String(b.game_id)) || (a.rank || 0) - (b.rank || 0))
+    .map((r) => ({ player_id: r.player_id, name: r.name, team: r.team, opp: r.opp, outcome: r.result === 'miss' ? `under ${NBA_EVENT_BAR}` : r.result === 'void' ? 'did not play' : null }))
+  const calledIds = new Set(rows.filter((r) => r.status === 'called').map((r) => String(r.player_id)))
+  return { sport, today, rows, picks, calledIds, history, byDay, configured: !scorers.error }
+}
+
 // LAMP's two reads, both lean: the window's SCORERS (all the capture counts
 // need) and tonight's CALLED rows (the calls panel). Preseason is read and
 // labelled -- it is graded like any night -- but kept out of the span.
@@ -290,7 +359,7 @@ async function loadNhl(sport, db, today) {
 }
 
 // One loader per sport, picked off the table -- no sport branch in load().
-const LOADERS = { mlb: loadMlb, nfl: loadNfl, nhl: loadNhl }
+const LOADERS = { mlb: loadMlb, nfl: loadNfl, nhl: loadNhl, nba: loadNba }
 
 async function loadFresh(key) {
   const sport = SPORTS[key] || SPORTS.mlb

@@ -45,8 +45,10 @@ for (const [sport, nav] of [['mlb', R.MLB_NAV], ['nfl', R.NFL_NAV], ['nhl', R.NH
 if (R.ALL_SPORT_KEYS.join() !== Object.keys(R.BRAND).join()) { console.log(`FAIL ALL_SPORT_KEYS ${R.ALL_SPORT_KEYS} vs BRAND ${Object.keys(R.BRAND)}`); bad += 1 }
 const publicKeys = Object.keys(R.BRAND).filter((k) => !R.BRAND[k].hidden)
 if (R.SPORT_KEYS.join() !== publicKeys.join()) { console.log(`FAIL SPORT_KEYS ${R.SPORT_KEYS} vs the unhidden BRAND keys ${publicKeys}`); bad += 1 }
-// a hidden product stays off the public list (BUCKETS until BUCKETS_PUBLIC=on)
-if (R.SPORT_KEYS.includes('nba') || !R.isSport('nba') || !R.isHiddenSport('nba')) { console.log('FAIL BUCKETS must be routable but off the public sport list'); bad += 1 }
+// a hidden product stays off the public list (BUCKETS until BUCKETS_PUBLIC=on,
+// which next.config.js copies to NEXT_PUBLIC_BUCKETS_PUBLIC for the build)
+const bucketsOpen = String(process.env.NEXT_PUBLIC_BUCKETS_PUBLIC || process.env.BUCKETS_PUBLIC || '').toLowerCase() === 'on'
+if (!R.isSport('nba') || R.SPORT_KEYS.includes('nba') !== bucketsOpen || R.isHiddenSport('nba') === bucketsOpen) { console.log(`FAIL BUCKETS must be routable, and on the public sport list only when BUCKETS_PUBLIC=on (it is ${bucketsOpen ? 'on' : 'off'})`); bad += 1 }
 if (!R.isSport('nhl') || R.isSport('xfl') || R.isSport(null) || R.isSport('toString')) { console.log('FAIL isSport answers wrong'); bad += 1 }
 
 // ── NO NEW HAND-WRITTEN SPORT TERNARIES (Batch 1, 2026-09-25) ──────────────

@@ -78,7 +78,9 @@ import { nhlCaptureFrom, readNhlRecords } from '../../lib/record/nhl'
 import { readMlbEvents } from '../../lib/record/mlb'
 import { readNflEvents } from '../../lib/record/nfl'
 import { eventCapture } from '../../lib/record/shape'
-import { appHref, playerHref, SPORT_KEYS, BRAND } from '../../lib/routes'
+import { appHref, playerHref, SPORT_KEYS, BRAND, isHiddenSport } from '../../lib/routes'
+import { readNbaBoard } from '../../lib/nba/boardRead'
+import { nbaCaptureFrom, readNbaRecords } from '../../lib/record/nba'
 import styles from './start.module.css'
 import { membersUrl, MEMBERS_LINE } from '../../lib/members'
 import { adminClient } from '../../lib/supabase/admin'
@@ -92,7 +94,7 @@ export const revalidate = 0
 export async function generateMetadata({ searchParams }) {
   const params = (await searchParams) || {}
   const asked = String(params.sport || '').toLowerCase()
-  const sport = SPORTS[asked] || SPORTS.mlb
+  const sport = (!isHiddenSport(asked) && SPORTS[asked]) || SPORTS.mlb
   return {
     title: sport.metaTitle,
     description: sport.metaDescription,
@@ -245,6 +247,30 @@ const SPORTS = {
     callsHead: 'Tonight’s board — one called per team',
     callsSub: 'Shots, goals and ice time per game over his last 82, ranked against tonight’s skaters. PREVIEW until a game’s lock; the lock is the call.',
     unit: 'night',
+  },  // BUCKETS (2026-10-03): ready for the day it opens (BRAND.nba.hidden off).
+  // The receipt is 25-point games, /called's event: CALLED in any market.
+  nba: {
+    key: 'nba',
+    label: 'NBA',
+    product: 'BUCKETS',
+    board: appHref('nba'),
+    open: 'Open tonight\u2019s board',
+    recordHref: '/called?sport=nba',
+    event: '25-point games',
+    eventOne: '25-point game',
+    lead: 'Who gets buckets tonight',
+    recordLink: 'See every one, night by night.',
+    promise: 'BUCKETS calls one player per team in every game, for points, rebounds, assists, threes, PRA and the first basket, locks them before tip, then grades itself in public.',
+    metaTitle: 'NBA player prop picks tonight · BUCKETS',
+    canonical: '/start?sport=nba',
+    metaDescription: 'Who gets buckets tonight: BUCKETS calls one NBA player per team in every game, locks them before tip, and grades them in public.',
+    quote: 'called',
+    calledPhrase: 'were CALLED before tip',
+    boardPhrase: 'were on the board',
+    pending: 'Every 25-point game is graded after the final against the board as it locked before tip. Preseason nights are graded but not quoted here — the regular season opens October 20.',
+    callsHead: 'Tonight’s points board — one called per team',
+    callsSub: 'Points, minutes, shots and free throws a game, pooled from this season and last, ranked against tonight’s players. PREVIEW until a game’s lock; the lock is the call.',
+    unit: 'night',
   },
 }
 
@@ -390,6 +416,47 @@ Object.assign(SPORTS.nhl, {
   ownRecord: (db, since, today, gameDays) => computeLampRecord(db, since, today, gameDays),
 })
 
+Object.assign(SPORTS.nba, {
+  loadCalls: () => computeBucketsCalls(),
+  hasCalls: (calls) => Boolean(calls.games?.length),
+  callsHeading: true,
+  waiting: 'No NBA games tonight — the board comes back with the next slate.',
+  renderCalls: (calls) => <ul className={styles.bites}>{calls.games.map((g) => <Bite key={g.id} b={bucketsBite(g)} sport="nba" />)}</ul>,
+  ownRecord: (db, since, today, gameDays) => computeBucketsRecord(db, since, today, gameDays),
+})
+
+/** BUCKETS' receipts: 25-point games (regular season), CALLED in any market at lock. */
+async function computeBucketsRecord(db, since, today, gameDays = 10) {
+  const { rows, error } = await readNbaRecords(db, { since, until: today, includePre: false, graded: true, hitOnly: true })
+  if (error || !rows.length) return null
+  const keep = new Set(lastGameDays(rows.map((r) => r.game_date), gameDays))
+  const cap = nbaCaptureFrom(rows.filter((r) => keep.has(r.game_date)))
+  if (!cap.total) return null
+  return { called: cap.called, onBoard: cap.onBoard, total: cap.total, days: keep.size }
+}
+
+/** Tonight's points board, one line per game -- the same read the Props page's route makes. */
+async function computeBucketsCalls() {
+  const b = await readNbaBoard(easternToday(), 'pts')
+  const locked = new Set(b.lockedGames || [])
+  return {
+    games: (b.games || []).map((g) => ({
+      id: g.id, away: g.away.abbrev, home: g.home.abbrev, start: g.start, state: g.state, locked: locked.has(g.id),
+      called: b.rows.filter((r) => r.gameId === g.id && r.status === 'called').map((r) => ({ name: r.name, score: r.score, hit: r.hit, void: Boolean(r.voidReason) })),
+    })),
+  }
+}
+
+/** A game on the points board as one bite: stamp · matchup · the calls · the clock. */
+const bucketsBite = (g) => ({
+  k: String(g.id), icon: '🏀', gameId: g.id,
+  tag: g.state === 'final' && g.called.some((c) => c.hit != null) ? 'GRADED' : g.locked ? 'LOCKED' : 'PREVIEW',
+  col: g.locked ? 'var(--nba)' : 'var(--dim)',
+  name: `${g.away} @ ${g.home}`,
+  why: g.called.length ? g.called.map((c) => `${c.name} ${c.score}${c.hit ? ' 🏀' : c.void ? ' (void)' : ''}`).join(' · ') : 'nobody rated yet — fewer than ten NBA games on file across both rosters',
+  stat: g.state === 'final' ? 'FINAL' : g.state === 'live' ? 'LIVE' : etClock(g.start),
+})
+
 const etClock = (iso) => `${new Date(iso).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' })} ET`
 
 /** A game on the hockey board as one bite: stamp · matchup · the three · the clock. */
@@ -458,7 +525,7 @@ const loadRecord = unstable_cache(computeRecord, ['start-record-v3'], { revalida
 /** One bite row. Shared by both sports and by the league strip. */
 // The tab a game opens on, per product (LAMP's game page is `tab=game`,
 // LampDashboard's deep link; the others land on their Games tab).
-const GAME_TAB = { mlb: 'games', nfl: 'games', nhl: 'game' }
+const GAME_TAB = { mlb: 'games', nfl: 'games', nhl: 'game', nba: 'game' }
 
 function Bite({ b, sport = 'mlb' }) {
   return (
@@ -481,7 +548,8 @@ export default async function StartPage({ searchParams }) {
   const members = membersUrl()
   const params = (await searchParams) || {}
   const asked = String(params.sport || '').toLowerCase()
-  const sportKey = SPORTS[asked] ? asked : 'mlb'
+  // a hidden product (BUCKETS before it opens) is MOONSHOT here, as an unknown one is
+  const sportKey = SPORTS[asked] && !isHiddenSport(asked) ? asked : 'mlb'
   const sport = SPORTS[sportKey]
   const today = easternToday()
 

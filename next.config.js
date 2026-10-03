@@ -18,9 +18,14 @@
 // instead (NEXT_DIST_DIR=.next-check npx next build) and verify its own work.
 // Unset — which is every normal run, including SHIP.sh and Vercel — this is
 // exactly the default it always was.
+// BUCKETS' ONE SWITCH (2026-10-03). BUCKETS_PUBLIC=on opens the data routes at
+// runtime (lib/nba/gate.js) AND, copied here into the build, takes BUCKETS off
+// the hidden list in lib/routes.js on the client and the server alike -- so
+// setting the one variable and redeploying opens everything together.
 const nextConfig = {
   reactStrictMode: true,
   distDir: process.env.NEXT_DIST_DIR || '.next',
+  env: { NEXT_PUBLIC_BUCKETS_PUBLIC: process.env.BUCKETS_PUBLIC || '' },
 }
 
 module.exports = nextConfig
