@@ -17,21 +17,10 @@ import { C as NFL_C } from '../../../lib/nfl/theme'
 // components/ledger/Ledger.js MOONSHOT's own Called Ledger
 // (components/tabs/CalledLedger.js) renders through — same component, same
 // three-way call, "week" instead of "night", "TD" instead of "HR". See
-// lib/tuddyLedger.js's own header for exactly where every number here comes
-// from (nfl_results_<season>_w{NN}.json, the one real per-week archive file
-// TUDDY already publishes) and the one honest gap it discloses rather than
-// papers over: NOT ON BOARD (a touchdown the model never tracked at all)
-// can only be computed for whichever week nfl_fantasy_stats.json still
-// covers — almost always the most recent one. Every other week's CALLED and
-// ON BOARD counts are still complete; this component says so rather than
-// silently showing a NOT ON BOARD count of zero for a week that was never
-// actually checked.
+// lib/tuddyLedger.js's own header for where every number here comes from.
 //
-// "CALLED" here (lib/tuddyLedger.js's weekToRows): one of that week's five
-// TD rungs (payload.card.TD.rungs) who actually scored. ON BOARD: the TD
-// market had a real line on him (payload.lines[id].TD) and he scored, but
-// he wasn't one of the five. Both are read straight off the model's own
-// published grade for that week — never recomputed here.
+// The three states come from lib/tuddyLedger.js -> /api/nfl/tds ->
+// tdCallStatus (2026-10-02), the same as /called and the record page.
 
 export default function TuddyLedger({ data, results, onPlayerClick = null }) {
   const season = Number(data?.season || results?.season) || null
@@ -67,11 +56,10 @@ export default function TuddyLedger({ data, results, onPlayerClick = null }) {
       const entry = await getTuddyWeekLedger(season, w)
       if (!entry) {
         setWk(null)
-        setWkNote(`LIVE DATA DELAYED — Week ${w} hasn't been graded and published yet.`)
+        setWkNote(`No touchdowns recorded for Week ${w} yet.`)
       } else {
         setWk(entry)
-        setWkNote(entry.offAvailable ? null
-          : `NOT ON BOARD isn't available for Week ${w} — the live box score file only still covers the most recent week. Called and on-board counts here are complete either way.`)
+        setWkNote(entry.live ? `Week ${w} is still being played: the count grows as touchdowns land.` : null)
       }
     } catch {
       setWk(null)
