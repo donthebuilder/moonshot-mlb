@@ -1,5 +1,5 @@
 'use client'
-import { C as MLB_C, NUM_FONT as MLB_NUM } from '../lib/theme'
+import { C as MLB_C, NUM_FONT as MLB_NUM, TYPE } from '../lib/theme'
 import { explain } from '../lib/explain'
 import { asLogos } from './TeamMark'
 
@@ -60,7 +60,7 @@ export default function TickerPill({
         animation: live ? 'pulse 2s infinite' : 'none',
       }} />
       <span style={{ display: 'grid', lineHeight: 1.05 }}>
-        <span style={{ fontSize: 7.5, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: T.text3 }}>
+        <span style={{ fontSize: TYPE.label, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: T.text3 }}>
           {icon ? `${icon} ` : ''}{label}
         </span>
         <span style={{

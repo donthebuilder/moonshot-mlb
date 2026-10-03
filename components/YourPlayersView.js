@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { C as MLB_C, NUM_FONT as MLB_NUM } from '../lib/theme'
+import { C as MLB_C, NUM_FONT as MLB_NUM, TYPE } from '../lib/theme'
 import { useFollowing } from '../lib/dash/follow'
 import { useDashAccount } from '../lib/dash/sync'
 
@@ -72,7 +72,7 @@ const wrapOf = (C) => ({
 })
 const headS = { display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap' }
 const titleOf = (C) => ({ fontSize: 11, fontWeight: 900, color: C.text, letterSpacing: '.04em' })
-const noteOf = (C, NUM_FONT) => ({ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT })
+const noteOf = (C, NUM_FONT) => ({ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT })
 
 export default function YourPlayersView({
   sport = 'mlb', rows, onPlayerClick = null, collapsible = true, onUnstar = null, previewN = COLLAPSED_N,
@@ -168,7 +168,7 @@ export default function YourPlayersView({
             style={{ ...head, width: '100%', background: 'transparent', border: 0, padding: 0, cursor: 'pointer', textAlign: 'left', font: 'inherit', color: 'inherit' }}>
             <b style={title}>★ Your players</b>
             {summary}
-            <span style={{ marginLeft: 'auto', fontSize: 10, color: ACC, fontFamily: NUM_FONT, fontWeight: 800 }}>▾</span>
+            <span style={{ marginLeft: 'auto', fontSize: TYPE.micro, color: ACC, fontFamily: NUM_FONT, fontWeight: 800 }}>▾</span>
           </button>
         </h2>
       </div>
@@ -183,7 +183,7 @@ export default function YourPlayersView({
             style={{ ...head, width: '100%', background: 'transparent', border: 0, padding: 0, cursor: 'pointer', textAlign: 'left', font: 'inherit', color: 'inherit' }}>
             <b style={title}>★ Your players</b>
             {summary}
-            <span style={{ marginLeft: 'auto', fontSize: 10, color: ACC, fontFamily: NUM_FONT, fontWeight: 800 }}>▴</span>
+            <span style={{ marginLeft: 'auto', fontSize: TYPE.micro, color: ACC, fontFamily: NUM_FONT, fontWeight: 800 }}>▴</span>
           </button>
         </h2>
       ) : (
@@ -219,12 +219,12 @@ export default function YourPlayersView({
 
             {r.role && (
               <span style={{
-                fontSize: 8.5, fontWeight: 900, fontFamily: NUM_FONT, color: ACC,
+                fontSize: TYPE.micro, fontWeight: 900, fontFamily: NUM_FONT, color: ACC,
                 letterSpacing: '.06em', flexShrink: 0,
               }}>{r.role}</span>
             )}
 
-            <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0 }}>
+            <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0 }}>
               {r.matchup}
             </span>
 
@@ -235,12 +235,12 @@ export default function YourPlayersView({
                 under it on a phone — see MobileCSS. */}
             <span className="yp-line" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'baseline', gap: 8, minWidth: 0, flexWrap: 'wrap' }}>
               {r.bars.length > 0 && (
-                <span style={{ fontSize: 9, fontWeight: 800, color: LIVE, fontFamily: NUM_FONT }}>
+                <span style={{ fontSize: TYPE.micro, fontWeight: 800, color: LIVE, fontFamily: NUM_FONT }}>
                   {r.bars.join(' · ')}
                 </span>
               )}
               {r.lineNode}
-              <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT, whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT, whiteSpace: 'nowrap' }}>
                 {r.clock}
               </span>
               {/* ── × MEANS GONE, ON EVERY ROW (2026-09-18) ──────────────
@@ -298,7 +298,7 @@ export default function YourPlayersView({
             width: '100%', marginTop: 6, padding: '6px 9px',
             background: 'transparent', border: `1px solid ${C.border}`,
             borderRadius: 8, cursor: 'pointer',
-            fontSize: 10, fontWeight: 800, fontFamily: NUM_FONT,
+            fontSize: TYPE.micro, fontWeight: 800, fontFamily: NUM_FONT,
             color: C.text3, letterSpacing: '.04em',
           }}
         >

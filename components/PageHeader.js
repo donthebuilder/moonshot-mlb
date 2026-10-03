@@ -1,6 +1,6 @@
 'use client'
 import { useContext } from 'react'
-import { C as MLB_C, NUM_FONT as MLB_NUM } from '../lib/theme'
+import { C as MLB_C, NUM_FONT as MLB_NUM, TYPE } from '../lib/theme'
 import { TodayContext } from './TodayContext'
 import { todayLine } from '../lib/dayLine'
 
@@ -110,7 +110,7 @@ export default function PageHeader({
     >
       <div style={{ minWidth: 0 }}>
         {eyebrow && (
-          <div style={{ color: ac, font: `900 8px/1 ${NF}`, letterSpacing: '.12em', marginBottom: 5 }}>
+          <div style={{ color: ac, font: `900 ${TYPE.label}px/1 ${NF}`, letterSpacing: '.12em', marginBottom: 5 }}>
             {eyebrow}
           </div>
         )}

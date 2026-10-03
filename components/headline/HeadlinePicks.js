@@ -4,6 +4,7 @@ import { WhatThis } from '../ui'
 import { explain } from '../../lib/explain'
 import { useIsPhone } from '../MobileFold'
 import { asLogos } from '../TeamMark'
+import { TYPE } from '../../lib/theme'
 
 // THE HEADLINE PICKS, ONE LAYOUT FOR EVERY PRODUCT (2026-09-27,
 // BATCH-HEADLINE-PICKS step 1). Lifted out of components/BotPicksStrip.js
@@ -50,7 +51,7 @@ export default function HeadlinePicks({ theme, numFont, title, subtitle, record 
     <div style={{ marginBottom: 16 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 7, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 13, fontWeight: 900, letterSpacing: '-.01em' }}>{title}</span>
-        {subtitle && <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>{subtitle}</span>}
+        {subtitle && <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>{subtitle}</span>}
         {foldWhy && isPhone && anyWhy && (
           <button type="button" onClick={() => setWhyOpen((v) => !v)} aria-expanded={whyOpen}
             style={{ minHeight: 44, margin: '-13px 0', padding: '0 8px', border: 'none', background: 'transparent', color: C.text2, font: `800 11px/1 ${NUM_FONT}`, letterSpacing: '.06em', cursor: 'pointer' }}>
@@ -82,11 +83,11 @@ export default function HeadlinePicks({ theme, numFont, title, subtitle, record 
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                 {f.icon && <span style={{ fontSize: 12 }}>{f.icon}</span>}
                 <span style={{
-                  fontSize: 10, fontWeight: 900, color: f.color,
+                  fontSize: TYPE.micro, fontWeight: 900, color: f.color,
                   letterSpacing: '.09em', fontFamily: NUM_FONT,
                 }}>{f.label}</span>
-                <span style={{ fontSize: 9, color: C.text3 }}>{f.blurb}</span>
-                {f.record && <span style={{ marginLeft: 'auto', fontSize: 9.5, color: C.text2, fontFamily: NUM_FONT, fontWeight: 700, whiteSpace: 'nowrap' }}>{f.record}</span>}
+                <span style={{ fontSize: TYPE.micro, color: C.text3 }}>{f.blurb}</span>
+                {f.record && <span style={{ marginLeft: 'auto', fontSize: TYPE.micro, color: C.text2, fontFamily: NUM_FONT, fontWeight: 700, whiteSpace: 'nowrap' }}>{f.record}</span>}
               </div>
 
               {!lead ? (
@@ -115,7 +116,7 @@ export default function HeadlinePicks({ theme, numFont, title, subtitle, record 
                     </div>
                     {lead.lines?.[0] && (
                       <div style={{
-                        fontSize: 10, color: C.text2, fontFamily: NUM_FONT, marginTop: 2,
+                        fontSize: TYPE.micro, color: C.text2, fontFamily: NUM_FONT, marginTop: 2,
                         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                       }}>
                         {lead.lines[0]}
@@ -123,7 +124,7 @@ export default function HeadlinePicks({ theme, numFont, title, subtitle, record 
                     )}
                     {lead.lines?.[1] && (
                       <div style={{
-                        fontSize: 10, color: C.text3, fontFamily: NUM_FONT, marginTop: 1,
+                        fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT, marginTop: 1,
                         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                       }}>
                         {lead.lines[1]}
@@ -136,7 +137,7 @@ export default function HeadlinePicks({ theme, numFont, title, subtitle, record 
                       aria-label={`Why ${lead.name}: ${[lead.why, lead.watch && `watch: ${lead.watch}`].filter(Boolean).join('; ')}`}
                       style={{
                         display: 'block', width: '100%', minHeight: 0, marginTop: 3, padding: 0, border: 0, background: 'transparent',
-                        textAlign: 'left', cursor: 'pointer', fontFamily: NUM_FONT, fontSize: 10, lineHeight: 1.45, minWidth: 0,
+                        textAlign: 'left', cursor: 'pointer', fontFamily: NUM_FONT, fontSize: TYPE.micro, lineHeight: 1.45, minWidth: 0,
                       }}>
                       {lead.why && (
                         <span style={{ display: 'block', color: C.text2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -182,22 +183,22 @@ export default function HeadlinePicks({ theme, numFont, title, subtitle, record 
                           }}
                         >
                           <span style={{
-                            fontSize: 8.5, fontFamily: NUM_FONT, fontWeight: 800,
+                            fontSize: TYPE.micro, fontFamily: NUM_FONT, fontWeight: 800,
                             color: `${f.color}99`, flexShrink: 0,
                           }}>{idx + 2}</span>
                           <span style={{
                             fontSize: 11, fontWeight: 700, color: C.text2, minWidth: 0,
                             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                           }}>{p.name}</span>
-                          {p.flag && <span style={{ fontSize: 9 }}>{p.flag.icon}</span>}
+                          {p.flag && <span style={{ fontSize: TYPE.micro }}>{p.flag.icon}</span>}
                           {p.result && <Mark r={p.result} C={C} size={11} />}
-                          <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0, alignSelf: 'center' }}>
+                          <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0, alignSelf: 'center' }}>
                             {/* a club code draws as its logo (Donovan 10-02, logos site-wide) */}
                             {asLogos(sport, p.team, { px: 12 })}
                           </span>
                           {p.micro && (
                             <span style={{
-                              marginLeft: 'auto', fontSize: 9, color: C.text3,
+                              marginLeft: 'auto', fontSize: TYPE.micro, color: C.text3,
                               fontFamily: NUM_FONT, flexShrink: 0,
                             }}>{p.micro}</span>
                           )}
