@@ -1461,10 +1461,16 @@
 .rosterRow small {
   color: var(--fx-dim);
 }
+/* 2026-10-03 (R10): was 10px monospace -- under the 12px body-text floor
+   (CLAUDE.md readability). An empty line is a sentence, so it reads in the
+   body face at 12px. Kept inline: ui.Empty's 36px dashed box is for a page
+   with nothing on it, and these sit inside panels -- 23 of them would each
+   push the panel ~70px taller for no new information. */
 .emptyRoom {
   padding: 14px;
   color: var(--fx-dim);
-  font: 10px/1.5 monospace;
+  font-size: 12px;
+  line-height: 1.5;
 }
 @media(max-width:760px) {
   .roomHeader {
