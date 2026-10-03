@@ -161,10 +161,11 @@ export default function Game({ id, onBack, onOpenPlayer = null, onOpenTeam = nul
               { key: 'seq', label: 'Per', w: 40, fmt: (_, x) => x.periodLabel, tone: () => ({ color: C.text3 }) },
               { key: 'time', label: 'Time', heat: false, mono: true, w: 48 },
               { key: 'team', label: 'Team', heat: false, w: 54, link: (x) => (onOpenTeam && x.team ? () => onOpenTeam(x.team) : null) },
-              { key: 'who', label: 'Player', heat: false, sticky: true, w: 150, fmt: (v, x) => <span>{x.by ? v : <span style={{ color: C.text3 }}>bench</span>}{x.byNumber != null && <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 9.5 }}> #{x.byNumber}</span>}</span> },
+              { key: 'who', label: 'Player', heat: false, sticky: true, w: 150, link: (x) => (x.byId && onOpenPlayer ? () => onOpenPlayer(x.byId) : null),
+                fmt: (v, x) => <span>{x.by ? v : <span style={{ color: C.text3 }}>bench{x.servedBy ? ` (served by ${x.servedBy})` : ''}</span>}{x.byNumber != null && <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 9.5 }}> #{x.byNumber}</span>}</span> },
               { key: 'desc', label: 'Call', heat: false, w: 170, fmt: (v, x) => <span style={{ color: C.text2 }}>{v}{x.type && x.type !== 'MIN' ? <span style={{ color: C.amber, fontFamily: NUM_FONT, fontSize: 9, marginLeft: 6 }}>{x.type}</span> : null}</span> },
               { key: 'minutes', label: 'Min', w: 40, fmt: (v) => v ?? '—', tone: () => ({ color: C.text3 }) },
-              { key: 'drawnBy', label: 'Drawn by', heat: false, w: 130, fmt: (v) => v || '—' },
+              { key: 'drawnBy', label: 'Drawn by', heat: false, w: 130, link: (x) => (x.drawnById && onOpenPlayer ? () => onOpenPlayer(x.drawnById) : null), fmt: (v) => v || '—' },
             ]} />
         </section>
       )}

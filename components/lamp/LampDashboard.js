@@ -344,7 +344,7 @@ export default function LampDashboard({ palettePass = 0 }) {
             {tab === 'goalies' && <Players goaliesOnly onOpenTeam={openTeam} onOpenGame={openGame} />}
             {tab === 'player' && <Player id={playerId} onOpenTeam={openTeam} onOpenGame={openGame} backLabel={backLabel('players')} onBack={() => goBack('players')} />}
             {tab === 'leaders' && <Leaders onOpenPlayer={openPlayer} onOpenTeam={openTeam} />}
-            {tab === 'specialteams' && <SpecialTeams onOpenTeam={openTeam} />}
+            {tab === 'specialteams' && <SpecialTeams onOpenTeam={openTeam} onOpenPlayer={openPlayer} />}
             {tab === 'matchups' && <Matchups date={date} onOpenPlayer={openPlayer} onOpenTeam={openTeam} />}
             {tab === 'ledger' && <Ledger date={date} onOpenPlayer={openPlayer} onOpenTeam={openTeam} onOpenGame={openGame} />}
             {tab === 'hotsticks' && <HotSticks onOpenPlayer={openPlayer} />}
