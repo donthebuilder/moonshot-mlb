@@ -8,6 +8,8 @@ import { MARKET_OPTIONS, NBA_MARKETS } from '../../../lib/nba/legs'
 import BucketsTable from '../BucketsTable'
 import { boardRows, boardColumns, faceOf } from '../boardTable'
 import { sortGames } from '../GameList'
+import BucketsProjected from '../BucketsProjected'
+import BucketsWeakSpots from '../BucketsWeakSpots'
 import { EmptyState, DelayedBanner, Loading, SourceLine, Pills, NavBtn, DayPager, RimDot, fmtDay, fmtTip, readHashParam, writeHashParam } from '../ui'
 
 // 📋 THE SLATE -- tonight one game at a time (LAMP's Slate): pick a game, see
@@ -15,7 +17,11 @@ import { EmptyState, DelayedBanner, Loading, SourceLine, Pills, NavBtn, DayPager
 // address (game=), so a link opens the same game.
 export default function Slate({ date, setDate, market = 'pts', onOpenPlayer, onOpenTeam, onOpenGame }) {
   const [m, setM] = useState(market)
+  // MOONSHOT's / LAMP's two views: the whole night as a table, or one game at a time
+  const [view, setView] = useState('games')
   const { data, error, loading } = useBucketsBoard(date, m)
+  // the table view reads the points board whatever market the games view is on (its legs are points legs)
+  const pts = useBucketsBoard(date, 'pts')
   const games = sortGames(data?.games || [])
   const [pick, setPick] = useState(() => readHashParam('game'))
   const g = games.find((x) => x.id === pick) || games[0] || null
@@ -32,7 +38,14 @@ export default function Slate({ date, setDate, market = 'pts', onOpenPlayer, onO
       <DelayedBanner error={error} what="the board" />
       {loading && !data ? <Loading what="the slate" /> : null}
       {data && !games.length && <EmptyState title="NO GAMES THAT DAY" note="Page a day for the next slate." />}
-      {games.length > 0 && (
+      {games.length > 0 && <Pills ariaLabel="View" value={view} onChange={setView} options={[{ key: 'games', text: '🏟 Games' }, { key: 'table', text: '📊 Table' }]} />}
+      {view === 'table' && games.length > 0 && (
+        <div>
+          <BucketsProjected rows={pts.data?.rows || []} games={games} onOpenTeam={onOpenTeam} onOpenGame={(id) => { choose(id); setView('games') }} />
+          <BucketsWeakSpots rows={pts.data?.rows || []} games={games} onOpenPlayer={onOpenPlayer} />
+        </div>
+      )}
+      {view === 'games' && games.length > 0 && (
         <div role="tablist" aria-label="Games" style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4 }}>
           {games.map((x) => {
             const on = g?.id === x.id
@@ -45,7 +58,7 @@ export default function Slate({ date, setDate, market = 'pts', onOpenPlayer, onO
           })}
         </div>
       )}
-      {g && (<>
+      {view === 'games' && g && (<>
         <Pills ariaLabel="Market" value={m} onChange={(k) => { setM(k); writeHashParam('m', k === 'pts' ? null : k) }} options={MARKET_OPTIONS} />
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', fontSize: 12, color: C.text2 }}>
           <b style={{ color: C.text }}>{g.away.name} at {g.home.name}</b>
