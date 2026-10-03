@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { teamColor, teamName, isKnownTeam, mlbTeamLogo } from '../lib/mlbTeams'
 import { nflTeamLogo } from '../lib/nfl/nflAssets'
 import { nhlLogo } from '../lib/nhl/teams'
-import { nbaLogo } from '../lib/nba/teams'
+import { nbaLogo, nbaTeam } from '../lib/nba/teams'
 import { nflTones, NFL_TEAM_TONES } from '../lib/nfl/teamColors'
 import { readableInk } from '../lib/teamInk'
 import { TeamMark as LampTeamMark } from './lamp/ui'
@@ -105,10 +105,14 @@ export function MatchLogos({ sport = 'mlb', away, home, px = 16, sep = '@', gap 
 /** A value that is exactly a game ("3.  PHI @ ATL", "DET @ CAR") or a club ("NYY") drawn as
  *  logos, its text riding the title; anything else comes back unchanged. One rule for the
  *  ticker pills, the projected rows and the rest (Donovan 10-02, logos site-wide). */
+// A 4-letter code is a club only where the sport has one (BUCKETS' UTAH) --
+// never a word like LIVE or PUSH on the other products.
+const KNOWN4 = { nba: (c) => Boolean(nbaTeam(c)) }
+const isCode = (sport, c) => c.length <= 3 || Boolean(KNOWN4[sportKey(sport)]?.(c))
 export function asLogos(sport, value, { px = 14, rank = true } = {}) {
   if (!sport || typeof value !== 'string') return value
   const g = value.match(/^(\d+\.\s+)?([A-Z]{2,4})\s?@\s?([A-Z]{2,4})$/)
-  if (g) {
+  if (g && isCode(sport, g[2]) && isCode(sport, g[3])) {
     return (
       <span title={value} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, verticalAlign: 'middle' }}>
         {rank && g[1] ? <span>{g[1].trim()}</span> : null}
@@ -118,13 +122,13 @@ export function asLogos(sport, value, { px = 14, rank = true } = {}) {
   }
   // a score line, "IND 21 – 17 CHI": logo, score, logo
   const sc = value.match(/^([A-Z]{2,4}) (\d+) [–-] (\d+) ([A-Z]{2,4})$/)
-  if (sc) {
+  if (sc && isCode(sport, sc[1]) && isCode(sport, sc[4])) {
     return (
       <span title={value} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, verticalAlign: 'middle' }}>
         <TeamMark sport={sport} abbr={sc[1]} variant="logo" px={px} /><span>{sc[2]}–{sc[3]}</span><TeamMark sport={sport} abbr={sc[4]} variant="logo" px={px} />
       </span>
     )
   }
-  if (/^[A-Z]{2,4}$/.test(value)) return <TeamMark sport={sport} abbr={value} variant="logo" px={px} />
+  if (/^[A-Z]{2,4}$/.test(value) && isCode(sport, value)) return <TeamMark sport={sport} abbr={value} variant="logo" px={px} />
   return rank ? value : value.replace(/^\d+\.\s+/, '')
 }
