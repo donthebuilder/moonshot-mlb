@@ -921,8 +921,19 @@ export default function Dashboard({ palettePass = 0 }) {
             {/* PROPS GRID — the mobile pilot page (2026-08-23). Its own tab
                 per Donovan's sequencing call: the grid stays an entry point,
                 the drill-down is the existing player modal on top of it. */}
-            {tab === 'props'       && <PropsGrid players={players} odds={odds} onPlayerClick={setModalPlayer} onWatch={toggleWatch} watchIds={watchIds} />}
-            {tab === 'bot'         && <Bot players={allPlayers} onPlayerClick={setModalPlayer} onGoPairs={goToPairsFor} odds={odds} onWatch={toggleWatch} watchIds={watchIds} />}
+            {/* PROPS + PICKS, ONE PAGE (2026-10-03, Donovan: "merge into Props"):
+                what DASH shows (the prop cards), then why and the data behind it
+                (the bot's shortlist, today's sheet, tomorrow, The Read). `bot` /
+                `picks` links land here too, so no bookmark breaks. */}
+            {(tab === 'props' || tab === 'bot') && (
+              <>
+                <PropsGrid players={players} odds={odds} onPlayerClick={setModalPlayer} onWatch={toggleWatch} watchIds={watchIds} />
+                <section aria-label="The picks behind the cards" style={{ marginTop: 26, paddingTop: 18, borderTop: `1px solid ${C.border}` }}>
+                  <div style={{ font: `900 11px/1 ${NUM_FONT}`, letterSpacing: '.16em', color: C.orange, marginBottom: 10 }}>THE PICKS · THE SHORTLIST, THE SHEET AND THE READ</div>
+                  <Bot players={allPlayers} onPlayerClick={setModalPlayer} onGoPairs={goToPairsFor} odds={odds} onWatch={toggleWatch} watchIds={watchIds} />
+                </section>
+              </>
+            )}
             {tab === 'combos'      && <Combos onNavigate={setTab} odds={odds} slateDate={slateDate} players={players} allPlayers={allPlayers} pairBuilder={pairBuilder} pairSummary={pairSummary} results={resultsForSlate} watchIds={watchIds} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} />}
             {tab === 'odds'        && <OddsBoard players={players} odds={oddsRaw} onPlayerClick={setModalPlayer} />}
             {tab === 'you'         && <You players={allPlayers} watchItems={watchLive} pairSummary={pairSummary} results={resultsForSlate} odds={odds} slateDate={slateDate} mode={mode} onWatch={toggleWatch} onAdd={addSlip} onPlayerClick={setModalPlayer} />}

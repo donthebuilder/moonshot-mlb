@@ -51,7 +51,7 @@ const MAIN = MAIN_KEYS.map((k) => [k, MLB_NAV[k].icon, MLB_NAV[k].label])
 const MORE = [
   ['@Tonight', ''],
   ['home', MLB_NAV.home.label, MLB_NAV.home.blurb],
-  ['bot', MLB_NAV.bot.label, MLB_NAV.bot.blurb],
+  // `bot` (Picks) is no longer a separate stop: it is the lower half of Props (10-03)
   ...MLB_MORE_GROUPS.flatMap(([group, keys]) => [
     [`@${group}`, ''],
     ...keys.map((k) => [k, MLB_NAV[k].label, MLB_NAV[k].blurb]),
