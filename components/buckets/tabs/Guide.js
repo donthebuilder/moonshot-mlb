@@ -9,7 +9,7 @@ import { GuideTheme, Section, P, Term, StartHere, GuideTitle } from '../../guide
 // it comes from, and what is NOT here yet. Nothing promised as if it existed.
 // The page rows read the registry's own blurbs (lib/nba/routes.js), so a page
 // can't be described two ways.
-const PAGES = ['board', 'fullboard', 'scores', 'games', 'results', 'standings', 'teams', 'players', 'leaders', 'shotmap']
+const PAGES = ['board', 'fullboard', 'scores', 'games', 'schedule', 'results', 'standings', 'teams', 'players', 'leaders', 'shotmap']
 
 export default function Guide({ onNavigate }) {
   return (

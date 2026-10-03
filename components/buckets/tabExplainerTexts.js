@@ -7,6 +7,7 @@ export const NBA_TEXTS = {
   scores: { what: 'Every game on one day: score, quarter and clock. Tap a game for its box score and every shot on the floor.' },
   games: { what: 'Tonight one game at a time: the matchup, then that game’s calls and board for the market you pick.' },
   game: { what: 'One game top to bottom: the line score, both box scores, every field-goal attempt where it was taken, and who scored first.' },
+  schedule: { what: 'The league week, day by day: tip times in your zone, finals with the score. Page a week at a time; tap a game for its page.' },
   standings: { what: 'Both conferences, seeded. Before opening night this is last season’s final table, and it says so.' },
   teams: { what: 'The 30 clubs by division. Tap a club for its roster, schedule and season lines.' },
   team: { what: 'One club: record and seed, the roster with each player’s season line, and the schedule.' },
