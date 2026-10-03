@@ -5,11 +5,16 @@ import { C, NUM_FONT } from '../../../lib/nba/theme'
 import { useBucketsRecord } from '../../../lib/nba/useBuckets'
 import { NBA_MARKETS } from '../../../lib/nba/legs'
 import BucketsTable from '../BucketsTable'
+import RecordPage from '../../record/RecordPage'
+import { nbaRecordModel } from '../../../lib/record/page'
 import { DelayedBanner, Loading, SourceLine, EmptyState, Pills, Kicker, fmtDay } from '../ui'
 
-// 🧾 THE RECORD -- every graded night (buckets_log, graded after the final,
-// never rewritten): per market, how many calls hit. Preseason is counted
-// apart (off by default, one tap on). No hit rate is shown before a call is graded.
+// 🧾 THE RECORD -- MOONSHOT's / TUDDY's / LAMP's one record page
+// (components/record/RecordPage.js) with BUCKETS' numbers (lib/record/page.js
+// nbaRecordModel): the last night graded, by market with windows, the calls
+// that hit, what got away; the full tables are the receipts underneath.
+// buckets_log rows are graded after the final and never rewritten. Preseason
+// is counted apart (off by default, one tap on).
 const MK = Object.keys(NBA_MARKETS)
 const LABEL = (k) => NBA_MARKETS[k]?.label || (k === 'first_fg' ? 'FIRST BASKET' : k === 'first_pts' ? 'FIRST POINTS' : k)
 
@@ -30,6 +35,7 @@ export default function Results({ onOpenPlayer, onOpenTeam }) {
     { key: 'hit', label: 'Hit', group: 'Record', w: 52, heat: false, mono: true },
     { key: 'rate', label: 'Hit %', group: 'Record', w: 60, heat: false, mono: true, fmt: (v) => (v == null ? '—' : `${(v * 100).toFixed(1)}%`) },
   ]
+  const record = useMemo(() => nbaRecordModel({ rec: data, onOpen: (r) => onOpenPlayer?.(r.player_id) }), [data]) // eslint-disable-line react-hooks/exhaustive-deps
   const hits = nights.slice().reverse().flatMap((n) => n.called.map((r) => ({ ...r, _id: `${r.game_date}-${r.player_id}-${r.market}`, playerId: r.player_id, marketLabel: LABEL(r.market) })))
   const hitCols = [
     { key: 'game_date', label: 'Date', group: 'Night', w: 84, heat: false, fmt: (v) => fmtDay(v) },
@@ -49,13 +55,17 @@ export default function Results({ onOpenPlayer, onOpenTeam }) {
       {loading && !data ? <Loading what="the record" /> : null}
       {data && data.dbReady === false && <EmptyState title="NOT RECORDING YET" note="The BUCKETS log isn’t reachable right now." />}
       {data?.dbReady && !nights.length && <EmptyState title="NOTHING GRADED YET" note={pre ? 'The first locked night grades after its last final.' : 'No regular-season night is graded yet. “With preseason” shows the preseason nights.'} />}
-      {sumRows.length > 0 && <BucketsTable rows={sumRows} columns={sumCols} heatMode="none" maxHeight={9999} maxRows={sumRows.length} caption="Calls and hits per market, every graded night in the window." />}
-      {hits.length > 0 && (
-        <section>
-          <Kicker>THE CALLS THAT HIT</Kicker>
-          <BucketsTable rows={hits} columns={hitCols} onRowClick={(r) => onOpenPlayer?.((r?._raw ?? r).playerId)} faceOf={(r) => ({ sport: 'nba', id: r.playerId, name: r.name })}
-            heatMode="none" maxHeight={480} maxRows={hits.length} caption="Every call that hit, newest night first. Each row opens that player." />
-        </section>
+      {nights.length > 0 && (
+        <RecordPage record={record} Table={BucketsTable} receiptsLabel="every market, every call that hit" receipts={(<>
+          {sumRows.length > 0 && <BucketsTable rows={sumRows} columns={sumCols} heatMode="none" maxHeight={9999} maxRows={sumRows.length} caption="Calls and hits per market, every graded night in the window." />}
+          {hits.length > 0 && (
+            <section>
+              <Kicker>THE CALLS THAT HIT</Kicker>
+              <BucketsTable rows={hits} columns={hitCols} onRowClick={(r) => onOpenPlayer?.((r?._raw ?? r).playerId)} faceOf={(r) => ({ sport: 'nba', id: r.playerId, name: r.name })}
+                heatMode="none" maxHeight={480} maxRows={hits.length} caption="Every call that hit, newest night first. Each row opens that player." />
+            </section>
+          )}
+        </>)} />
       )}
       <SourceLine>Source: buckets_log rows with a grade (/api/buckets/record), the last 120 days.</SourceLine>
     </div>
