@@ -69,6 +69,7 @@ import { postMlbListOnce } from '../../../../../lib/lists/post'
 import { adminClient } from '../../../../../lib/supabase/admin'
 import { claimSlot as sharedClaimSlot, bytesOf as sharedBytesOf } from '../../../../../lib/dash/postClaim'
 import { ordinal } from '../../../../../lib/format'
+import { feedHooks, withReceipts } from '../../../../../lib/dash/discordChannels'
 import { postMembers, membersWebhook, MEMBERS_KINDS, mlbMembersBoard, mlbMembersGrade } from '../../../../../lib/dash/membersPost'
 
 export const dynamic = 'force-dynamic'
@@ -135,14 +136,8 @@ const pregameUrl = (day) => (SITE ? `${SITE}/api/dash/homers/card?day=${day}&pre
 // messages a night is a firehose people opt into, and dropping it into a
 // general channel would drown everything else posted there. Change that one
 // line if the wide channels should carry it too.
-const FEED_WEBHOOKS = () => {
-  const seen = new Set()
-  return [process.env.DISCORD_HOMER_WEBHOOK, process.env.DISCORD_MLB_WEBHOOKS]
-    .flatMap((v) => String(v || '').split(/[,\n]/))
-    .map((x) => x.trim())
-    .filter((x) => x && !seen.has(x) && seen.add(x))
-    .join(',')
-}
+// 2026-10-02: shared with the NFL/NHL ticks via lib/dash/discordChannels.js.
+const FEED_WEBHOOKS = () => feedHooks('mlb')
 
 // ── THE ONE CLAIM SITE ──────────────────────────────────────────────────────
 //
@@ -923,7 +918,7 @@ async function postRecap(db, day, { force = false } = {}) {
       if (straight >= 2) blocks.push([`🔥 TOP pick streak: ${straight} nights`])
       if (tailLine) blocks.push([tailLine])
       const text = blocks.map((b) => b.join('\n')).join('\n\n')
-      await postToDiscord(text, { imageUrl: recapUrl(day) }, FEED_WEBHOOKS())
+      await postToDiscord(text, { imageUrl: recapUrl(day) }, withReceipts(FEED_WEBHOOKS()))
       if (xOn) {
         const png = await bytesOf(() => recapCard(day, rows || [], histSide, { site: SITE_HOST }))
         const mediaId = png ? await uploadImageToX(png) : null
@@ -952,7 +947,7 @@ async function postRecap(db, day, { force = false } = {}) {
           // sentence, and it is the one kind where a poster adds nothing the
           // text does not already say. Deliberate, not the oversight it looks
           // like next to the other twelve.
-          const d = await postToDiscord(wtext, {}, FEED_WEBHOOKS())
+          const d = await postToDiscord(wtext, {}, withReceipts(FEED_WEBHOOKS()))
           if (d.ok) patch.discord_sent = true
           if (xOn) {
             const r = await postToX(wtext, { kind: 'weekly' })
@@ -1008,7 +1003,7 @@ async function postRecap(db, day, { force = false } = {}) {
               mc.rated ? `${mc.rated} more on the board, no call` : '',
             ].filter(Boolean),
           }, { site: SITE_HOST }))
-          const d = await postToDiscord(mtext, { png: mpng }, FEED_WEBHOOKS())
+          const d = await postToDiscord(mtext, { png: mpng }, withReceipts(FEED_WEBHOOKS()))
           if (d.ok) patch.discord_sent = true
           if (xOn) {
             const mediaId = mpng ? await uploadImageToX(mpng) : null

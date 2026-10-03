@@ -25,7 +25,8 @@ import { reduceScoreDay } from '../../../../../lib/nhl/reduce'
 import { MODEL_VERSION } from '../../../../../lib/nhl/goalModel'
 import { cronAuthorized, adminClient } from '../../../../../lib/nhl/db'
 import { gameActive, tickGoals } from '../../../../../lib/nhl/goalFeed'
-import { hasX, postToX, uploadImageToX, xProblem } from '../../../../../lib/dash/xPost'
+import { hasX, postToDiscord, postToX, uploadImageToX, xProblem } from '../../../../../lib/dash/xPost'
+import { feedHooks } from '../../../../../lib/dash/discordChannels'
 import { goalCard } from '../../../../../lib/nhl/goalCard'
 import { kindOn } from '../../../../../lib/dash/longshotsPost'
 import { isMaintenanceMode } from '../../../../../lib/edgeConfig'
@@ -88,13 +89,19 @@ export async function GET(request) {
     if (hasX()) poster = {
       post: async (text, row) => {
         let mediaId = null
+        let png = null
         if (row) {
           try {
             const img = await goalCard(row, { site: SITE_HOST })
             const buf = Buffer.from(await img.arrayBuffer())
-            if (buf.length) mediaId = await uploadImageToX(buf)
+            if (buf.length) { png = buf; mediaId = await uploadImageToX(buf) }
           } catch (e) { console.error(`[lamp goals] card failed for ${row.name}: ${e?.message || e}`) }
         }
+        // #lamp-nhl (DISCORD_NHL_WEBHOOKS, falling back like the other feeds). Only
+        // CALLED goals reach this poster, so the channel never hears a random goal.
+        // Best effort: a Discord problem never costs the X post or the claim.
+        const hooks = feedHooks('nhl')
+        if (hooks) await postToDiscord(text, png ? { png } : {}, hooks).catch((e) => console.error(`[lamp goals] discord: ${e?.message || e}`))
         return postToX(text, { kind: 'nhlgoal', ...(mediaId ? { mediaId } : {}) })
       },
     }

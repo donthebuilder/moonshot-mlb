@@ -194,6 +194,15 @@ export default async function AdminPage() {
         <Line k="Founding members" v={<a href="https://whop.com/dashboard" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit' }}>Whop →</a>} src="counted in the Whop dashboard (the $5 founders product)" />
         <Line k="Checkout link" v={process.env.NEXT_PUBLIC_MEMBERS_URL ? 'set' : 'not set'} src="NEXT_PUBLIC_MEMBERS_URL (Vercel) -- the members line on /start and /called shows only when set" />
         <Line k="#members webhook" v={process.env.DISCORD_MEMBERS_WEBHOOK ? 'wired' : 'not wired'} src="DISCORD_MEMBERS_WEBHOOK (Vercel) -- no members post runs until it is" />
+
+        {/* DISCORD CHANNELS (2026-10-02): one line per channel, wired / not wired,
+            never the URL. Which var feeds which channel: lib/dash/discordChannels.js. */}
+        <h2 className={start.kicker} style={{ marginTop: 18 }}>Discord channels</h2>
+        <Line k="#moonshot-mlb" v={process.env.DISCORD_MLB_WEBHOOKS ? 'wired' : 'not wired'} src="DISCORD_MLB_WEBHOOKS -- MLB board, last call, scratch, board-hit homers, MLB feed posts" />
+        <Line k="#tuddy-nfl" v={process.env.DISCORD_NFL_WEBHOOKS ? 'wired' : (process.env.DISCORD_MLB_WEBHOOKS ? 'not wired (football posts fall back to #moonshot-mlb)' : 'not wired')} src="DISCORD_NFL_WEBHOOKS -- kickoff, red zone, CALLED / ON THE BOARD touchdowns" />
+        <Line k="#lamp-nhl" v={process.env.DISCORD_NHL_WEBHOOKS ? 'wired' : (process.env.DISCORD_MLB_WEBHOOKS ? 'not wired (hockey posts fall back to #moonshot-mlb)' : 'not wired')} src="DISCORD_NHL_WEBHOOKS -- CALLED goals" />
+        <Line k="#called-it" v={process.env.DISCORD_RECEIPTS_WEBHOOK ? 'wired' : 'not wired'} src="DISCORD_RECEIPTS_WEBHOOK -- the night's recap, the week, the month" />
+        <Line k="Live room" v={process.env.DISCORD_LIVE_WEBHOOKS ? 'wired' : 'falls back to #moonshot-mlb'} src="DISCORD_LIVE_WEBHOOKS -- followed-hitter homers, slams, board-hit slate homers (MLB only)" />
         <Line k="Last members post" v={c.membersLast ? `${c.membersLast.day}` : 'none yet'} src={c.membersLast ? `${c.membersLast.kind}${c.membersLast.discord_sent ? ' · sent to Discord' : ' · claimed, not sent'}` : 'homer_feed_posts, kinds *_members_board / *_members_grade'} />
 
         <h2 className={start.kicker} style={{ marginTop: 18 }}>Odds</h2>

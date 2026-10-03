@@ -88,6 +88,7 @@ import { storiesTick } from '../../../../../lib/stories/record'
 import { postNflListOnce } from '../../../../../lib/lists/post'
 import { adminClient } from '../../../../../lib/supabase/admin'
 import { claimSlot as sharedClaimSlot, bytesOf as sharedBytesOf } from '../../../../../lib/dash/postClaim'
+import { feedHooks, feedHooksFor } from '../../../../../lib/dash/discordChannels'
 import { postMembers, membersWebhook, MEMBERS_KINDS, nflMembersBoard, nflMembersGrade } from '../../../../../lib/dash/membersPost'
 import { readNflEvents } from '../../../../../lib/record/nfl'
 
@@ -115,14 +116,9 @@ const X_MONTHLY_CAP = Number(process.env.X_MONTHLY_CAP || 1100) || 1100
 // "same account" answer) — the homer feed's own webhook plus the general
 // MLB channels, deduped so a URL in both env vars gets one message not two.
 // Copied verbatim from homers/tick/route.js's own FEED_WEBHOOKS.
-const FEED_WEBHOOKS = () => {
-  const seen = new Set()
-  return [process.env.DISCORD_HOMER_WEBHOOK, process.env.DISCORD_MLB_WEBHOOKS]
-    .flatMap((v) => String(v || '').split(/[,\n]/))
-    .map((x) => x.trim())
-    .filter((x) => x && !seen.has(x) && seen.add(x))
-    .join(',')
-}
+// 2026-10-02: the football channel (DISCORD_NFL_WEBHOOKS, falling back to the MLB
+// list while it is unset) comes from lib/dash/discordChannels.js, shared by every post.
+const FEED_WEBHOOKS = () => feedHooks('nfl')
 
 // "A Thursday-night and Sunday-morning Milestone post" — Donovan's own
 // example in the question he answered. Expressed the same "hours since noon
@@ -375,7 +371,10 @@ async function runTouchdownTick(db, day) {
       const png = needsCard ? await bytesOf(() => tdCard(ev, { site: SITE_HOST })) : null
 
       if (!row.discord_sent) {
-        const d = await postToDiscord(text, { png }, FEED_WEBHOOKS())
+        // The football channel only hears about men on the TUDDY board (CALLED /
+        // ON THE BOARD); the bare homer feed still gets every touchdown.
+        const tdStatus = tdCallStatus({ on_bot: ev.onBot, td_board: ev.tdBoard })
+        const d = await postToDiscord(text, { png }, feedHooksFor('nfl', tdStatus))
         if (d.ok) { patch.discord_sent = true; totals.discord += 1 }
       }
       // CALLED touchdowns only get their own X post (lib/dash/xEvents,
