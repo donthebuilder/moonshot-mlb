@@ -54,6 +54,7 @@ import ShotMap from './tabs/ShotMap'
 import Results from './tabs/Results'
 import Guide from './tabs/Guide'
 import DashFooter from '../DashFooter'
+import PlayerPeek from '../PlayerPeek'
 
 // Pages that show one day and keep it in the address (`date=`).
 const DATED_TABS = new Set(['home', 'scores', 'board', 'fullboard', 'games', 'schedule', 'matchups', 'hot', 'ledger', 'storylines', 'odds'])
@@ -66,7 +67,7 @@ const ROUTE = {
 }
 
 export default function BucketsDashboard() {
-  const { tab, setTab, gameId, teamKey, playerId, missingTab, date, setDate, badDate, setBadDate, openGame, openTeam, openPlayer, backLabel, goBack } = useShellRoute(ROUTE)
+  const { tab, setTab, gameId, teamKey, playerId, missingTab, date, setDate, badDate, setBadDate, openGame, openTeam, openPlayer, backLabel, goBack, peekId, peekPlayer, closePeek } = useShellRoute(ROUTE)
   usePageTitle(`${pageTitle('nba', tab)} · DASH Network`)
   // starred players, remembered night by night for "Your nights, graded"
   useBucketsSaves()
@@ -82,13 +83,14 @@ export default function BucketsDashboard() {
   }, [shown])
   const m = String(readHashParam('m') || '').toLowerCase()
   const market = MARKETS.has(m) ? m : 'pts'
-  const nav = { onOpenPlayer: openPlayer, onOpenGame: openGame, onOpenTeam: openTeam }
+  // a tapped player opens his card over the page (components/PlayerPeek); Full page = openPlayer
+  const nav = { onOpenPlayer: peekPlayer, onOpenGame: openGame, onOpenTeam: openTeam }
 
   return (
     <AccentProvider value={C.purple}>
       <MobileCSS />
       <a className="skip-link" href="#board-main">Skip to the board</a>
-      <BucketsHeader setTab={setTab} live={live} date={date} setDate={setDate} scores={shown} liveScores={today} onOpenPlayer={openPlayer} onOpenGame={openGame} />
+      <BucketsHeader setTab={setTab} live={live} date={date} setDate={setDate} scores={shown} liveScores={today} onOpenPlayer={peekPlayer} onOpenGame={openGame} />
       <TodayContext.Provider value={nbaToday}>
       <main id="board-main" className="dashboard-main" style={{ maxWidth: 1300, margin: '0 auto', padding: '14px 14px 40px', background: C.bg, color: C.text }}>
         <h1 className="sr-only">{pageTitle('nba', missingTab ? 'home' : tab)}</h1>
@@ -104,7 +106,7 @@ export default function BucketsDashboard() {
             doors={[['home', '\u{1F319} TONIGHT'], ['board', '\u{1F0CF} PROPS'], ['scores', '\u{1F4E1} LIVE'], ['standings', '\u{1F4C8} STANDINGS'], ['players', '\u{1F464} PLAYERS'], ['teams', '\u{1F3DF} TEAMS'], ['leaders', '\u{1F3C6} LEADERS'], ['guide', '❓ GUIDE']]} />
         ) : (<>
           <SportTheme theme={C} accent={C.purple} numFont={NUM_FONT}>
-            <HighlightBar sport="nba" onOpen={(id) => openPlayer(id)} />
+            <HighlightBar sport="nba" onOpen={(id) => peekPlayer(id)} />
           </SportTheme>
           <SportTheme theme={C} accent={C.purple} numFont={NUM_FONT}>
           {isLiveTab('nba', tab) && <RefreshStamp live={live > 0} style={{ marginBottom: 8 }} />}
@@ -117,9 +119,9 @@ export default function BucketsDashboard() {
             {tab === 'games' && <Slate date={date} setDate={setDate} market={market} {...nav} />}
             {tab === 'game' && <Game id={gameId} {...nav} backLabel={backLabel('scores')} onBack={() => goBack('scores')} />}
             {tab === 'schedule' && <Schedule date={date} setDate={setDate} onOpenGame={openGame} onOpenTeam={openTeam} />}
-            {tab === 'odds' && <BucketsOdds date={date} onOpenPlayer={openPlayer} />}
-            {tab === 'storylines' && <StorylinesPage sport="nba" eyebrow="BUCKETS · STORYLINES" theme={C} numFont={NUM_FONT} accent={C.purple} onOpenPlayer={openPlayer} onOpenGame={openGame} date={date} />}
-            {tab === 'watchlist' && <Watchlist onOpenPlayer={openPlayer} />}
+            {tab === 'odds' && <BucketsOdds date={date} onOpenPlayer={peekPlayer} />}
+            {tab === 'storylines' && <StorylinesPage sport="nba" eyebrow="BUCKETS · STORYLINES" theme={C} numFont={NUM_FONT} accent={C.purple} onOpenPlayer={peekPlayer} onOpenGame={openGame} date={date} />}
+            {tab === 'watchlist' && <Watchlist onOpenPlayer={peekPlayer} />}
             {tab === 'ledger' && <Ledger date={date} setDate={setDate} {...nav} />}
             {tab === 'hot' && <Hot date={date} setDate={setDate} {...nav} />}
             {tab === 'matchups' && <Matchups date={date} setDate={setDate} onOpenTeam={openTeam} onOpenGame={openGame} />}
@@ -134,6 +136,7 @@ export default function BucketsDashboard() {
             {tab === 'guide' && <Guide onNavigate={setTab} />}
           </ErrorBoundary>
           <DashFooter sport="nba" theme={C} onGuide={() => setTab('guide')} />
+          <PlayerPeek id={peekId} Page={Player} theme={C} accent={C.purple} onClose={closePeek} onFullPage={openPlayer} onOpenTeam={openTeam} onOpenGame={openGame} />
           </TeamNav.Provider>
           </SportTheme>
         </>)}

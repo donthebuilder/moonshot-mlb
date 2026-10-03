@@ -263,6 +263,7 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel }) {
 }
 
 function BackBtn({ onBack, label }) {
+  if (!onBack) return null   // inside the player card (PlayerPeek) the card's × is the way out
   return <div><button type="button" onClick={onBack} style={{ height: 28, padding: '0 11px', borderRadius: 8, cursor: 'pointer', border: `1px solid ${C.border2}`, background: C.bg2, color: C.text2, font: `800 10px/1 ${NUM_FONT}`, letterSpacing: '.04em' }}>‹ {label}</button></div>
 }
 const tbl = { width: '100%', borderCollapse: 'collapse', fontSize: 12 }

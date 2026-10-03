@@ -50,6 +50,7 @@ import Results from './tabs/Results'
 import dynamic from 'next/dynamic'
 import RefreshStamp from '../RefreshStamp'
 import DashFooter from '../DashFooter'
+import PlayerPeek from '../PlayerPeek'
 const LampOdds = dynamic(() => import('./LampOdds'))
 
 // 🏒 THE LAMP SHELL. Thin on purpose, the same shape as NflDashboard and
@@ -87,7 +88,7 @@ const ROUTE = {
 export default function LampDashboard({ palettePass = 0 }) {
   // Followed skaters, remembered night by night for "Your nights, graded".
   useLampSaves()
-  const { tab, setTab, gameId, teamKey, playerId, missingTab, date, setDate, badDate, setBadDate, openGame, openTeam, openPlayer, backLabel, goBack } = useShellRoute(ROUTE)
+  const { tab, setTab, gameId, teamKey, playerId, missingTab, date, setDate, badDate, setBadDate, openGame, openTeam, openPlayer, backLabel, goBack, peekId, peekPlayer, closePeek } = useShellRoute(ROUTE)
   usePageTitle(`${pageTitle('nhl', tab)} · DASH Network`)
 
   // Today's live count for the header lamp. Same route Home reads; the CDN
@@ -109,7 +110,7 @@ export default function LampDashboard({ palettePass = 0 }) {
     <AccentProvider value={C.ice}>
       <MobileCSS />
       <a className="skip-link" href="#board-main">Skip to the board</a>
-      <LampHeader tab={tab} setTab={setTab} live={live} date={date} setDate={setDate} scores={shown} liveScores={today} onOpenPlayer={openPlayer} onOpenGame={openGame} />
+      <LampHeader tab={tab} setTab={setTab} live={live} date={date} setDate={setDate} scores={shown} liveScores={today} onOpenPlayer={peekPlayer} onOpenGame={openGame} />
       <TodayContext.Provider value={nhlToday}>
       <main id="board-main" className="dashboard-main" style={{ maxWidth: 1300, margin: '0 auto', padding: '14px 14px 40px', background: C.bg, color: C.text }}>
         <h1 className="sr-only">{pageTitle('nhl', missingTab ? 'home' : tab)}</h1>
@@ -131,7 +132,7 @@ export default function LampDashboard({ palettePass = 0 }) {
         ) : (<>
           {/* ✨ who you highlighted (lib/pickLight.js) -- only while someone is */}
           <SportTheme theme={C} accent={C.ice} numFont={NUM_FONT}>
-            <HighlightBar sport="nhl" onOpen={(id) => openPlayer(id)} />
+            <HighlightBar sport="nhl" onOpen={(id) => peekPlayer(id)} />
           </SportTheme>
           {/* ONE ACCENT SOURCE (0g C2-C6 root cause): every tab inside its product's theme */}
           <SportTheme theme={C} accent={C.ice} numFont={NUM_FONT}>
@@ -139,39 +140,41 @@ export default function LampDashboard({ palettePass = 0 }) {
           {isLiveTab('nhl', tab) && <RefreshStamp live={live > 0} style={{ marginBottom: 8 }} />}
           <TeamNav.Provider value={openTeam}>
           <ErrorBoundary resetKey={`${tab}:${gameId || ''}:${teamKey || ''}:${playerId || ''}`} label={`the ${tab} tab`}>
-            {tab === 'home' && <Home today={shown} date={date} onOpenGame={openGame} onOpenPlayer={openPlayer} onOpenTeam={openTeam} setTab={setTab} />}
+            {tab === 'home' && <Home today={shown} date={date} onOpenGame={openGame} onOpenPlayer={peekPlayer} onOpenTeam={openTeam} setTab={setTab} />}
             {tab === 'scores' && <Scores onOpenGame={openGame} date={date} setDate={setDate} />}
             {tab === 'schedule' && <Schedule onOpenGame={openGame} date={date} setDate={setDate} />}
             {tab === 'standings' && <Standings onOpenTeam={openTeam} />}
-            {tab === 'game' && <Game id={gameId} onOpenPlayer={openPlayer} onOpenTeam={openTeam} onOpenGame={openGame} backLabel={backLabel('scores')} onBack={() => goBack('scores')} />}
+            {tab === 'game' && <Game id={gameId} onOpenPlayer={peekPlayer} onOpenTeam={openTeam} onOpenGame={openGame} backLabel={backLabel('scores')} onBack={() => goBack('scores')} />}
             {tab === 'guide' && <Guide onNavigate={setTab} />}
             {tab === 'teams' && <Teams onOpenTeam={openTeam} />}
-            {tab === 'team' && <Team abbrev={teamKey} onOpenPlayer={openPlayer} onOpenGame={openGame} backLabel={backLabel('teams')} onBack={() => goBack('teams')} />}
+            {tab === 'team' && <Team abbrev={teamKey} onOpenPlayer={peekPlayer} onOpenGame={openGame} backLabel={backLabel('teams')} onBack={() => goBack('teams')} />}
             {tab === 'players' && <Players onOpenTeam={openTeam} onOpenGame={openGame} />}
             {tab === 'goalies' && <Players goaliesOnly onOpenTeam={openTeam} onOpenGame={openGame} />}
             {tab === 'player' && <Player id={playerId} onOpenTeam={openTeam} onOpenGame={openGame} backLabel={backLabel('players')} onBack={() => goBack('players')} />}
-            {tab === 'leaders' && <Leaders onOpenPlayer={openPlayer} onOpenTeam={openTeam} />}
-            {tab === 'specialteams' && <SpecialTeams onOpenTeam={openTeam} onOpenPlayer={openPlayer} />}
-            {tab === 'matchups' && <Matchups date={date} onOpenPlayer={openPlayer} onOpenTeam={openTeam} />}
-            {tab === 'ledger' && <Ledger date={date} onOpenPlayer={openPlayer} onOpenTeam={openTeam} onOpenGame={openGame} />}
-            {tab === 'hotsticks' && <HotSticks onOpenPlayer={openPlayer} />}
-            {tab === 'power' && <Power onOpenPlayer={openPlayer} />}
-            {tab === 'watchlist' && <Watchlist onOpenPlayer={openPlayer} />}
-            {tab === 'storylines' && <StorylinesPage sport="nhl" eyebrow="LAMP · STORYLINES" theme={C} numFont={NUM_FONT} accent={C.ice} onOpenPlayer={openPlayer} onOpenGame={openGame} date={date} />}
+            {tab === 'leaders' && <Leaders onOpenPlayer={peekPlayer} onOpenTeam={openTeam} />}
+            {tab === 'specialteams' && <SpecialTeams onOpenTeam={openTeam} onOpenPlayer={peekPlayer} />}
+            {tab === 'matchups' && <Matchups date={date} onOpenPlayer={peekPlayer} onOpenTeam={openTeam} />}
+            {tab === 'ledger' && <Ledger date={date} onOpenPlayer={peekPlayer} onOpenTeam={openTeam} onOpenGame={openGame} />}
+            {tab === 'hotsticks' && <HotSticks onOpenPlayer={peekPlayer} />}
+            {tab === 'power' && <Power onOpenPlayer={peekPlayer} />}
+            {tab === 'watchlist' && <Watchlist onOpenPlayer={peekPlayer} />}
+            {tab === 'storylines' && <StorylinesPage sport="nhl" eyebrow="LAMP · STORYLINES" theme={C} numFont={NUM_FONT} accent={C.ice} onOpenPlayer={peekPlayer} onOpenGame={openGame} date={date} />}
             {/* MOONSHOT's Odds page, sport="nhl" (2026-10-02, components/lamp/LampOdds.js) */}
-            {tab === 'odds' && <LampOdds onOpenPlayer={openPlayer} />}
-            {tab === 'longshots' && <Longshots sport="nhl" eyebrow="LAMP · LONGSHOTS" theme={C} numFont={NUM_FONT} accent={C.ice} Table={LampTable} onOpenPlayer={openPlayer} />}
-            {tab === 'shotmap' && <ShotMap onOpenPlayer={openPlayer} />}
-            {tab === 'lampledger' && <LampLedger onOpenPlayer={openPlayer} onOpenTeam={openTeam} />}
-            {tab === 'numerology' && <Numerology date={date} onOpenPlayer={openPlayer} />}
-            {(tab === 'board' || tab === 'shots') && <Board onOpenPlayer={openPlayer} onOpenGame={openGame} onOpenTeam={openTeam} date={date} setDate={setDate}
+            {tab === 'odds' && <LampOdds onOpenPlayer={peekPlayer} />}
+            {tab === 'longshots' && <Longshots sport="nhl" eyebrow="LAMP · LONGSHOTS" theme={C} numFont={NUM_FONT} accent={C.ice} Table={LampTable} onOpenPlayer={peekPlayer} />}
+            {tab === 'shotmap' && <ShotMap onOpenPlayer={peekPlayer} />}
+            {tab === 'lampledger' && <LampLedger onOpenPlayer={peekPlayer} onOpenTeam={openTeam} />}
+            {tab === 'numerology' && <Numerology date={date} onOpenPlayer={peekPlayer} />}
+            {(tab === 'board' || tab === 'shots') && <Board onOpenPlayer={peekPlayer} onOpenGame={openGame} onOpenTeam={openTeam} date={date} setDate={setDate}
               market={tab === 'shots' ? 'SOG' : (['PTS', 'AST'].includes(String(readHashParam('m') || '').toUpperCase()) ? String(readHashParam('m')).toUpperCase() : 'GOAL')}
               onMarket={(m) => setTab(m === 'SOG' ? 'shots' : 'board')} />}
-            {tab === 'games' && <LampSlate onOpenPlayer={openPlayer} onOpenGame={openGame} onOpenTeam={openTeam} date={date} setDate={setDate} />}
-            {tab === 'fullboard' && <FullBoard onOpenPlayer={openPlayer} onOpenTeam={openTeam} date={date} setDate={setDate} />}
-            {tab === 'results' && <Results onOpenPlayer={openPlayer} />}
+            {tab === 'games' && <LampSlate onOpenPlayer={peekPlayer} onOpenGame={openGame} onOpenTeam={openTeam} date={date} setDate={setDate} />}
+            {tab === 'fullboard' && <FullBoard onOpenPlayer={peekPlayer} onOpenTeam={openTeam} date={date} setDate={setDate} />}
+            {tab === 'results' && <Results onOpenPlayer={peekPlayer} />}
           </ErrorBoundary>
           <DashFooter sport="nhl" theme={C} onGuide={() => setTab('guide')} />
+          {/* a tapped player opens his card over the page (Donovan 10-03); Full page = the player tab */}
+          <PlayerPeek id={peekId} Page={Player} theme={C} accent={C.ice} onClose={closePeek} onFullPage={openPlayer} onOpenTeam={openTeam} onOpenGame={openGame} />
           </TeamNav.Provider>
           </SportTheme>
         </>

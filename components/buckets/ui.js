@@ -109,6 +109,7 @@ export function SourceLine() {
 }
 /** "‹ <where you came from>" -- the shell's trail names the place (lib/useShellRoute). */
 export function BackBtn({ onBack, label }) {
+  if (!onBack) return null   // inside the player card (PlayerPeek) the card's × is the way out
   return <div><NavBtn onClick={onBack} ariaLabel={`Back to ${label}`}>‹ {label}</NavBtn></div>
 }
 /** A player's face by his ESPN id (the shared PlayerFace, BUCKETS' CDN). */
