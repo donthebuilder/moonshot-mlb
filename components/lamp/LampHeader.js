@@ -37,7 +37,7 @@ export default function LampHeader({ tab, setTab, live = 0, date = null, setDate
   // the bar, the mark, the wordmark, the other products' pills and the phone
   // rules. LAMP's own pieces (its day, its gear, its ticker) stay here.
   return (
-    <HeaderShell sport="nhl" theme={C} wordmark={GRADIENT} league="NHL"
+    <HeaderShell sport="nhl" theme={C} wordmark={GRADIENT}
       onHome={() => go('home')} homeTitle="LAMP home — tonight in one page"
       glow={`${C.ice}55`} dot={live > 0 ? { color: C.lamp, pulse: false } : null}
       meta={<>

@@ -10,7 +10,9 @@ import { NHL_NAV, NHL_MORE_GROUPS } from '../../lib/nhl/routes'
 // Players joined once the directory existed).
 // Board · Scores · Schedule · Standings, the board first (batch 3); Players
 // moved to the sheet, the same slot it holds on MOONSHOT's bar.
-const MAIN_KEYS = ['board', 'shots', 'scores', 'games']   // MOONSHOT's four (2026-09-28)
+// Props · Boards · Live · Slate, the words MOONSHOT's and TUDDY's bars use (2026-10-02;
+// Shots is the board's SHOTS chip, and still in More)
+const MAIN_KEYS = ['board', 'fullboard', 'scores', 'games']
 const MAIN = MAIN_KEYS.map((k) => [k, NHL_NAV[k].icon, NHL_NAV[k].label])
 
 const MORE = [
