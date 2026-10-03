@@ -4,6 +4,7 @@
 import { adminClient } from '../../../../lib/supabase/admin'
 import { ok, bucketsRoute } from '../../../../lib/nba/respond'
 import { easternToday, shiftDay } from '../../../../lib/data'
+import { LIVE_VERSIONS } from '../../../../lib/nba/model'
 
 export const dynamic = 'force-dynamic'
 export const GET = bucketsRoute('record', async (q) => {
@@ -14,7 +15,7 @@ export const GET = bucketsRoute('record', async (q) => {
   if (!db) return ok({ dbReady: false, nights: [] }, 60)
   const rows = []
   for (let from = 0; from < 100000; from += 1000) {
-    let qy = db.from('buckets_log').select('game_date, game_id, player_id, name, team, opp, market, status, role, score, rank_in_game, actual, hit, season_type').gte('game_date', since).not('graded_at', 'is', null)
+    let qy = db.from('buckets_log').select('game_date, game_id, player_id, name, team, opp, market, status, role, score, rank_in_game, actual, hit, season_type').in('model_version', LIVE_VERSIONS).gte('game_date', since).not('graded_at', 'is', null)
     if (!pre) qy = qy.neq('season_type', 1)
     const { data, error } = await qy.order('game_date').order('game_id').order('player_id').order('market').range(from, from + 999)
     if (error) return ok({ dbReady: false, nights: [], note: error.message }, 60)

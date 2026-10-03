@@ -7,6 +7,7 @@ import { seasonStats } from '../../../../lib/nba/stats'
 import { nbaSeason, seasonLabel } from '../../../../lib/nba/season'
 import { adminClient } from '../../../../lib/supabase/admin'
 import { ok, bad, bucketsRoute } from '../../../../lib/nba/respond'
+import { LIVE_VERSIONS } from '../../../../lib/nba/model'
 
 export const dynamic = 'force-dynamic'
 // Supabase answers at most 1,000 rows a read: page through (Doncic 2025-26 has 1,460)
@@ -31,7 +32,7 @@ export const GET = bucketsRoute('player', async (q) => {
     gamelogFor(id, sn.prev).then(reduceGamelog).catch(() => []),
     seasonStats(sn.cur), seasonStats(sn.prev),
     db ? shotsOf(db, id) : { data: [] },
-    db ? db.from('buckets_log').select('game_date, market, status, role, score, hit, actual, opp').eq('player_id', id).order('game_date', { ascending: false }).limit(200) : { data: [] },
+    db ? db.from('buckets_log').select('game_date, market, status, role, score, hit, actual, opp').in('model_version', LIVE_VERSIONS).eq('player_id', id).order('game_date', { ascending: false }).limit(200) : { data: [] },
   ])
   // his club's next game (any season type), for "his games against them"
   const club = nbaTeam(card?.team)

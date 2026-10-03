@@ -7,7 +7,7 @@
 // nothing until its SQL has run (no buckets_log table = an early exit).
 import { adminClient, cronAuthorized } from '../../../../lib/supabase/admin'
 import { buildNbaNight } from '../../../../lib/nba/board'
-import { NBA_MARKETS, gradeNba } from '../../../../lib/nba/model'
+import { NBA_MARKETS, NBA_SHADOWS, gradeNba } from '../../../../lib/nba/model'
 import { scoreboardFor, reduceScoreboard, summaryFor, reduceBox, reduceShots, firstBaskets } from '../../../../lib/nba/api'
 import { easternToday, shiftDay } from '../../../../lib/data'
 import { storiesTick } from '../../../../lib/stories/record'
@@ -54,6 +54,10 @@ export async function GET(request) {
       const rows = []
       for (const [m, M] of Object.entries(NBA_MARKETS)) for (const name of WRITE_AS[m] || [m]) {
         for (const r of night.markets[m].filter((x) => x.gameId === g.id)) rows.push(logRow(name, r, g, night, lockedAt, M.version))
+      }
+      // shadows (lib/nba/model.js NBA_SHADOWS): same lock, same instant, their own version
+      for (const [k, S] of Object.entries(NBA_SHADOWS)) {
+        for (const r of (night.shadows?.[k] || []).filter((x) => x.gameId === g.id)) rows.push(logRow(S.market, r, g, night, lockedAt, S.version))
       }
       const up = await db.from('buckets_log').upsert(rows, { onConflict: 'game_id,player_id,market,model_version' })
       if (up.error) { out.skipped.push({ game: g.id, why: `upsert: ${up.error.message}` }); continue }

@@ -256,7 +256,7 @@ export default async function AdminPage() {
           ? <Line key={s.key} k={s.label} v="—" src={`unavailable: ${s.error}`} />
           : <div key={s.key}>
               <Line k={s.label} v={pct(s.shadow)} src={`${s.what} · ${s.note} · 95% range`} />
-              {s.live ? <Line k="  … the live model, same games" v={pct(s.live)} src="lamp_goal_log called rows on the games the shadow locked" /> : null}
+              {s.live ? <Line k="  … the live model, same games" v={pct(s.live)} src="the live board's called rows on the games the shadow locked" /> : null}
               <Line k="  … base rate (every graded row)" v={pct(s.base)} src="the share of all graded rows that hit -- the bar any pick has to clear" />
             </div>))}
  <h2 className={start.kicker} style={{ marginTop: 18 }}>Against the book</h2>

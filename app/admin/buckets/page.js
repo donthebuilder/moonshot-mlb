@@ -6,7 +6,7 @@ import { notFound } from 'next/navigation'
 import { bucketsAccess } from '../../../lib/nba/gate'
 import { adminClient } from '../../../lib/supabase/admin'
 import { buildNbaNight } from '../../../lib/nba/board'
-import { NBA_MARKETS, whyNba } from '../../../lib/nba/model'
+import { NBA_MARKETS, LIVE_VERSIONS, whyNba } from '../../../lib/nba/model'
 import { easternToday, shiftDay } from '../../../lib/data'
 import { summaryFor, reduceShots, reduceBox, GAME_ID_RE } from '../../../lib/nba/api'
 import BucketsAdmin from '../../../components/buckets/BucketsAdmin'
@@ -42,7 +42,7 @@ export default async function BucketsPage({ searchParams }) {
 
   // what's locked and graded so far (empty until QUEUE SQL part 3 runs)
   const db = adminClient()
-  const log = db ? await db.from('buckets_log').select('game_date, market, status, hit, void_reason, season_type').not('graded_at', 'is', null).limit(20000) : { data: null, error: { message: 'no database' } }
+  const log = db ? await db.from('buckets_log').select('game_date, market, status, hit, void_reason, season_type').in('model_version', LIVE_VERSIONS).not('graded_at', 'is', null).limit(20000) : { data: null, error: { message: 'no database' } }
   return (
     <BucketsAdmin date={date} prev={shiftDay(date, -1)} next={shiftDay(date, 1)} games={night.games || []} markets={markets}
       defs={Object.fromEntries(Object.entries(NBA_MARKETS).map(([k, M]) => [k, { label: M.label, legs: M.legs, highVariance: Boolean(M.highVariance), startersOnly: Boolean(M.startersOnly) }]))}
