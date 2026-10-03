@@ -1,0 +1,19 @@
+/* NetworkSwitch, the inline row (every product's header). A real stylesheet,
+   sent with the page: as styled-jsx these rules arrived only after hydration,
+   so a hard load showed the row as run-together text (measured on the live
+   FRANCHISE league page, 2026-10-03).
+   NO HEX LITERALS: the product colour arrives as --product; everything else is
+   derived from the header's own text colour, so the row inherits on light too. */
+.netBar{display:flex;align-items:center;gap:5px;min-width:0}
+.netBar .netHome{display:grid;place-items:center;width:26px;height:26px;flex:none;border:1px solid color-mix(in srgb,currentColor 16%,transparent);border-radius:8px;color:inherit;opacity:.6;font-size:12px;text-decoration:none}
+.netBar .netHome:hover{border-color:color-mix(in srgb,currentColor 40%,transparent);opacity:1}
+.netBar a:not(.netHome){display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 8px;border:1px solid color-mix(in srgb,var(--product) 32%,transparent);border-radius:8px;background:color-mix(in srgb,var(--product) 6%,transparent);color:inherit;opacity:.74;text-decoration:none;white-space:nowrap}
+.netBar a:not(.netHome):hover{border-color:var(--product);opacity:1}
+.netBar a.here{border-color:var(--product);background:color-mix(in srgb,var(--product) 15%,transparent);opacity:1}
+.netBar a i{font:900 10px/1 ui-monospace,SFMono-Regular,Menlo,monospace;font-style:normal;color:var(--product)}
+.netBar a b{font:900 10px/1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.1em}
+/* On a phone the row keeps the coloured letters and drops the words. */
+@media(max-width:640px){
+  .netBar a b{display:none}
+  .netBar a:not(.netHome){padding:0 7px}
+}

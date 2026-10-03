@@ -1,6 +1,9 @@
 'use client'
 import { SPORT_ACCENT } from '../lib/sportAccent'
 import { useVisibleSports } from '../lib/useVisibleSports'
+// the inline row's rules as a real stylesheet, sent with the page: as styled-jsx they
+// arrived only after hydration, so a hard load showed the row unstyled (2026-10-03)
+import './NetworkSwitch.css'
 import { ACCENT as FRANCHISE_ACCENT } from '../lib/fantasy/theme'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -88,30 +91,6 @@ function InlineSwitch({ onNavigate }) {
           <b>{product.name}</b>
         </Link>
       ))}
-      <style jsx>{`
-        /* NO HEX LITERALS. scripts/check-scales.mjs caps hard-coded hexes across
-           app/, lib/ and components/, the repo sits on that ceiling, and this row
-           put it over. Rather than spend the last of the budget: the product
-           colour already arrives as --product, and everything else is derived
-           from the header's own text colour with color-mix and opacity. It also
-           means the row inherits correctly on the light theme instead of being
-           three fixed whites that only worked on the dark one. */
-        .netBar{display:flex;align-items:center;gap:5px;min-width:0}
-        .netHome{display:grid;place-items:center;width:26px;height:26px;flex:none;border:1px solid color-mix(in srgb,currentColor 16%,transparent);border-radius:8px;color:inherit;opacity:.6;font-size:12px;text-decoration:none}
-        .netHome:hover{border-color:color-mix(in srgb,currentColor 40%,transparent);opacity:1}
-        .netBar :global(a:not(.netHome)){display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 8px;border:1px solid color-mix(in srgb,var(--product) 32%,transparent);border-radius:8px;background:color-mix(in srgb,var(--product) 6%,transparent);color:inherit;opacity:.74;text-decoration:none;white-space:nowrap}
-        .netBar :global(a:not(.netHome):hover){border-color:var(--product);opacity:1}
-        .netBar :global(a.here){border-color:var(--product);background:color-mix(in srgb,var(--product) 15%,transparent);opacity:1}
-        .netBar :global(a i){font:900 10px/1 ui-monospace,SFMono-Regular,Menlo,monospace;font-style:normal;color:var(--product)}
-        .netBar :global(a b){font:900 10px/1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.1em}
-        /* On a phone the row keeps the coloured letters and drops the words --
-           three names plus a league name will not share 390px, and the letters
-           are the part that is already colour-coded per product. */
-        @media(max-width:640px){
-          .netBar :global(a b){display:none}
-          .netBar :global(a:not(.netHome)){padding:0 7px}
-        }
-      `}</style>
     </nav>
   )
 }
