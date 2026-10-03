@@ -99,26 +99,52 @@ const today = () => easternToday()
 // right after, from the same snapshot, so a man in tonight's posted lineup
 // updates his own row before this function returns -- ready for whichever
 // future night actually needs it.
+// EGRESS (2026-10-03): this pair was a full read AND a full write of every
+// followed player's row on every sweep -- up to three a minute, all evening,
+// ~17 KB in and ~170 upserts an hour out (the API gateway's top paths). A
+// row only changes when a followed man first appears in a posted lineup that
+// day, so: the read is kept 10 minutes per instance for the same follow set,
+// this instance's own writes are merged into it (so the next sweep sees
+// exactly what a fresh read would), and only rows that differ are written.
+// A cold instance still reads once; a row another instance wrote is picked
+// up within 10 minutes, and it is the same row from the same lineup anyway.
+// event keys this instance has already put in dash_push_seen today (see the claim)
+let knownClaimed = { day: '', keys: new Set() }
+const LINEUP_TTL_MS = 10 * 60 * 1000
+let lineupCache = { key: '', at: 0, state: {} }
 async function fetchLineupState(db, audience) {
   if (!audience?.mlb?.size) return {}
-  const { data } = await db
+  const ids = [...audience.mlb].sort()
+  const key = `${ids.length}:${ids.join(',')}`
+  if (lineupCache.key === key && Date.now() - lineupCache.at < LINEUP_TTL_MS) return lineupCache.state
+  const { data, error } = await db
     .from('dash_lineup_state')
     .select('player_id,team_id,name,last_seen_day')
-    .in('player_id', [...audience.mlb])
+    .in('player_id', ids)
+  if (error) return lineupCache.key === key ? lineupCache.state : {}
   const out = {}
   for (const row of data || []) {
     out[row.player_id] = { teamId: row.team_id, name: row.name, lastSeenDay: row.last_seen_day }
   }
+  lineupCache = { key, at: Date.now(), state: out }
   return out
 }
 
 // Best-effort, like everything else in this file that isn't the send itself:
 // a missed write costs one night's drop-out check for whoever it belonged
-// to, not a broken cron.
+// to, not a broken cron. Only rows that differ from what this instance
+// already holds are written (see above).
 async function saveLineupState(db, rows) {
-  if (!rows.length) return
+  const st = lineupCache.state
+  const changed = rows.filter((r) => {
+    const cur = st[r.player_id]
+    return !cur || cur.teamId !== r.team_id || cur.name !== r.name || cur.lastSeenDay !== r.last_seen_day
+  })
+  if (!changed.length) return
   try {
-    await db.from('dash_lineup_state').upsert(rows, { onConflict: 'player_id' })
+    const { error } = await db.from('dash_lineup_state').upsert(changed, { onConflict: 'player_id' })
+    if (error) throw error
+    for (const r of changed) st[r.player_id] = { teamId: r.team_id, name: r.name, lastSeenDay: r.last_seen_day }
   } catch (err) {
     console.error('[push] dash_lineup_state upsert failed: ' + String(err?.message || err))
   }
@@ -677,20 +703,35 @@ async function sweep(db, subs, stateByUser, audience, { full }) {
   // this tick reads as already-claimed. The whole push feed goes silent with
   // the route still answering 200 -- the same shape as the
   // homer_feed_posts_kind_check bug (2026-09-07), one table over.
-  const { data: claimed, error: claimError } = await db
-    .from('dash_push_seen')
-    .upsert(events.map((e) => ({ event_key: e.key })), { onConflict: 'event_key', ignoreDuplicates: true })
-    .select('event_key')
-  if (claimError) {
-    console.error(`[push] event claim failed (${events.length} events): ${claimError.message}`)
-    return { ...nothing, events: events.length, error: claimError.message }
+  //
+  // EGRESS (2026-10-03): a sweep re-produces events it has already claimed
+  // (a final, a posted lineup) and re-submitted all of them every sweep --
+  // ~240 inserts an hour that each answered "already seen". Keys this
+  // instance has submitted are in the table (claimed now or before), so they
+  // are filtered out first; a sweep with nothing unknown makes no request.
+  // Per instance and per day, so a cold instance just asks once.
+  const day = today()
+  if (knownClaimed.day !== day) knownClaimed = { day, keys: new Set() }
+  const unknown = events.filter((e) => !knownClaimed.keys.has(e.key))
+  let claimed = []
+  if (unknown.length) {
+    const r = await db
+      .from('dash_push_seen')
+      .upsert(unknown.map((e) => ({ event_key: e.key })), { onConflict: 'event_key', ignoreDuplicates: true })
+      .select('event_key')
+    if (r.error) {
+      console.error(`[push] event claim failed (${unknown.length} events): ${r.error.message}`)
+      return { ...nothing, events: events.length, error: r.error.message }
+    }
+    claimed = r.data || []
+    for (const e of unknown) knownClaimed.keys.add(e.key)
   }
   // The goals' events are claimed (dash_push_seen now remembers them), so the
   // rows are done: the next sweep skips them without a second read.
   await markSwept(db, nhl.unswept)
   await markSweptNba(db, nba.unswept)
 
-  const fresh = new Set((claimed || []).map((r) => r.event_key))
+  const fresh = new Set(claimed.map((r) => r.event_key))
   const toSend = events.filter((e) => fresh.has(e.key))
   if (!toSend.length) return { ...nothing, events: events.length }
 
