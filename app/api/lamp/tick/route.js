@@ -32,6 +32,7 @@ import { postMultiClubOnce } from '../../../../lib/dash/multiClubPost'
 import { toPropRow, gradeSogRows, MARKET as SOG } from '../../../../lib/nhl/sogModel'
 import { toPtsRow, gradePtsRows, MARKET as PTS } from '../../../../lib/nhl/ptsModel'
 import { toAstRow, gradeAstRows, MARKET as AST } from '../../../../lib/nhl/astModel'
+import { MARKET as GOALPOS, toGoalPosRow, gradeGoalPosRows } from '../../../../lib/nhl/goalPosModel'
 import { readNumerology } from '../../../../lib/nhl/numerology'
 import { writeNight as writeNumerology, gradeNight as gradeNumerology, refreshLaneNights, writeNumbersNight } from '../../../../lib/numerology/record'
 import { fromNhl } from '../../../../lib/numerology/adapters'
@@ -67,6 +68,10 @@ async function writeGame(db, game_id, row, op, version) {
 const SHADOW = [
   { market: PTS, key: 'pts', byGame: 'ptsByGame', toRow: toPtsRow, grade: gradePtsRows },
   { market: AST, key: 'ast', byGame: 'astByGame', toRow: toAstRow, grade: gradeAstRows },
+  // lamp-goalpos-v1 (2026-10-03): the goal board, ice time ranked within position.
+  // Needs lamp_prop_log's market check to allow 'GOAL' (RUN-IN-SUPABASE-2026-10-03-lamp-goalpos.sql);
+  // until then its upsert fails, is logged, and nothing else is touched.
+  { market: GOALPOS, key: 'goalpos', byGame: 'goalPosByGame', toRow: toGoalPosRow, grade: gradeGoalPosRows },
 ]
 
 export async function GET(request) {
