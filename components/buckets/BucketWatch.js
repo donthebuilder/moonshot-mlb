@@ -45,7 +45,7 @@ export default function BucketWatch({ rows = [], date = null, onOpenPlayer }) {
   return (
     <MobileFold title="🔁 Bucket Watch" count={total || b2b.length || null} accent={C.purple} rememberKey="fold_bucketwatch_v1"
       summary={[two.length && `${two.length} with 25+ in 2+ straight`, last.length && `${last.length} with 25+ last game`, b2b.length && `${b2b.length} on a back-to-back`].filter(Boolean).join(' · ') || (waiting ? 'fills once this season has games' : 'nobody on a run tonight')}>
-      <WatchBox icon="🔁" title="BUCKET WATCH" accent={C.purple} theme={C} numFont={NUM_FONT} ariaLabel="Bucket watch"
+      <WatchBox logoSport="nba" icon="🔁" title="BUCKET WATCH" accent={C.purple} theme={C} numFont={NUM_FONT} ariaLabel="Bucket watch"
         status={hot.loading && !hot.data ? 'checking last games…' : waiting ? 'the 25+ rows fill once this season has games' : total ? `${total} scored 25+ last time out` : 'nobody on the board scored 25+ last time out'}
         note="facts from each player's game log and yesterday's schedule · no hit-rate claim"
         rows={[

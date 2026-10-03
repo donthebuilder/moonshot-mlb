@@ -1,5 +1,6 @@
 'use client'
 import { C as MLB_C, NUM_FONT as MLB_NUM, TYPE } from '../lib/theme'
+import TeamMark from './TeamMark'
 
 // THE WATCH BOX, ONCE (2026-09-28, MLB-PARITY-BOARDS plan "ADDED 09-28" + D;
 // CLAUDE.md: MOONSHOT's components are the base). MOONSHOT's B2B WATCH --
@@ -16,7 +17,11 @@ import { C as MLB_C, NUM_FONT as MLB_NUM, TYPE } from '../lib/theme'
 //
 // rows: [{ key, label, rate?: string, accent?, items: [{ key, tile, name, line,
 //          hit?: boolean, hitText?, onClick? }] }]
-export default function WatchBox({ icon, title, status, note, rows = [], footer = null, accent = null, theme = null, numFont = null, ariaLabel = null }) {
+// `logoSport` (2026-10-03, Donovan: "the b2b watch can have players team
+// logo ... keep the same look"): a tile that is a team code draws that club's
+// logo in the same tinted square; without it (or a code with no logo) the
+// tile prints as before.
+export default function WatchBox({ icon, title, status, note, rows = [], footer = null, accent = null, theme = null, numFont = null, ariaLabel = null, logoSport = null }) {
   const C = theme || MLB_C
   const NUM_FONT = numFont || MLB_NUM
   const ac = accent || C.orange
@@ -46,10 +51,10 @@ export default function WatchBox({ icon, title, status, note, rows = [], footer 
                 background: it.hit ? `${C.green}12` : C.bg2, color: C.text, textAlign: 'left',
               }}>
                 <span style={{
-                  display: 'grid', placeItems: 'center', width: 28, height: 28, borderRadius: 8,
+                  display: 'grid', placeItems: 'center', width: 30, height: 30, borderRadius: 8, flexShrink: 0,
                   background: `${it.hit ? C.green : ac}18`, color: it.hit ? C.green : ac,
                   fontFamily: NUM_FONT, fontSize: TYPE.micro, fontWeight: 900,
-                }}>{it.tile}</span>
+                }}>{logoSport && typeof it.tile === 'string' && /^[A-Z]{2,4}$/.test(it.tile) ? <TeamMark sport={logoSport} abbr={it.tile} variant="logo" px={22} /> : it.tile}</span>
                 <span><b style={{ display: 'block', fontSize: TYPE.name }}>{it.name}</b><small style={{ display: 'block', marginTop: 3, color: it.hit ? C.green : C.text3, fontFamily: NUM_FONT, fontSize: TYPE.micro }}>{it.hit ? it.hitText : it.line}</small></span>
               </button>
             ))}

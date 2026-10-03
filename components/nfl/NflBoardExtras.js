@@ -322,7 +322,7 @@ export function TdWatch({ players, games, logs = null, results = null, liveSnap 
   return (
     <MobileFold title="🔁 TD Watch" count={total || null} accent={C.green} rememberKey="fold_tdwatch_v1"
       summary={[two.length && `${two.length} TD in 2+ straight`, scored.length && `${scored.length} scored last week`, bye.length && `${bye.length} back from a bye`].filter(Boolean).join(' · ')}>
-    <WatchBox
+    <WatchBox logoSport="nfl"
       icon="🔁" title="TD WATCH" accent={C.green} theme={C} numFont={NUM_FONT} ariaLabel="TD watch"
       status={total ? `${total} scored last time out` : 'nobody on a scoring run this week'}
       note="facts from the week file · no hit-rate claim"

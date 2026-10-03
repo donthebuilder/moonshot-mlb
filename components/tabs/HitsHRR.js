@@ -419,7 +419,7 @@ function B2BStrip({ list, verified, loading, cashed, onPlayerClick }) {
   const strict = list.filter((p) => (p._b2bGapDays ?? 1) <= 1)
   const dayOff = list.filter((p) => (p._b2bGapDays ?? 1) > 1)
   return (
-    <WatchBox
+    <WatchBox logoSport="mlb"
       icon="🔁" title="B2B WATCH" accent={C.orange}
       status={loading ? 'checking the setup game…' : !verified ? 'setup proof unavailable' : list.length ? `${list.length} verified encore chase${list.length === 1 ? '' : 's'}` : 'no verified encore chases on this slate'}
       note="last-game homer proven · no hit-rate claim"

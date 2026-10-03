@@ -51,7 +51,7 @@ export default function GoalWatch({ flat = [], onOpenPlayer }) {
   return (
     <MobileFold title="🔁 Goal Watch" count={total || b2b.length || null} accent={C.ice} rememberKey="fold_goalwatch_v1"
       summary={[two.length && `${two.length} goal in 2+ straight`, last.length && `${last.length} scored last game`, b2b.length && `${b2b.length} on a back-to-back`].filter(Boolean).join(' · ') || (waiting ? 'fills once this season has games' : 'nobody on a run tonight')}>
-    <WatchBox
+    <WatchBox logoSport="nhl"
       icon="🔁" title="GOAL WATCH" accent={C.ice} theme={C} numFont={NUM_FONT} ariaLabel="Goal watch"
       status={loading && !hot ? 'checking last games…' : waiting ? 'goal rows fill once this season has games' : total ? `${total} scored last time out` : 'nobody on the board scored last time out'}
       note="facts from the league's game rows · no hit-rate claim"
