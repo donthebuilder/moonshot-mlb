@@ -5,6 +5,7 @@ import { createSupabaseServerClient } from '../../../../../lib/supabase/server'
 import styles from '../../../fantasy.module.css'
 import { matchupState, weekStates } from '../../../../../lib/fantasy/matchupState'
 import TeamMark from '../../../../../components/fantasy/TeamMark'
+import { FranchiseStandings, FranchisePower } from '../../../../../components/fantasy/FranchiseTables'
 import SubmitButton from '../../../../../components/fantasy/SubmitButton'
 import { generateWeeklyContent } from './actions'
 import NetworkSwitch from '../../../../../components/NetworkSwitch'
@@ -183,7 +184,7 @@ export default async function LeaguePage({params,searchParams}) {
       {league.commissioner_id===user.id&&['power','recap'].includes(view)&&<section className={styles.commishBar}><div><p className={styles.panelLabel}>WEEKLY PUBLISHER</p><strong>{weekFinals?`${weekFinals} final games available`:`Week ${week} still needs final scores`}</strong></div><form action={generateWeeklyContent}><input type="hidden" name="leagueId" value={leagueId}/><input type="hidden" name="week" value={week}/><SubmitButton disabled={!weekFinals} pendingLabel="Generating…">Generate Week {week}</SubmitButton></form></section>}
       {view==='standings'&&<Standings leagueId={leagueId} finalGames={finalGames} playoffSpots={playoffSpots} table={table} user={user}/>}
       {view==='playoffs'&&<Playoffs bracket={bracket} table={table} playoffSpots={playoffSpots} startWeek={Number(league.playoff_start_week)||FANTASY_REGULAR_WEEKS+1} teams={teams} leagueId={leagueId} user={user} finalGames={finalGames}/>}
-      {view==='power'&&<PowerRankings rankings={safeRankings} teamName={teamName} teams={teams}/>}
+      {view==='power'&&<PowerRankings rankings={safeRankings} teamName={teamName} teams={teams} leagueId={leagueId} user={user}/>}
       {view==='players'&&<PlayerPower sheets={playerSheets} filters={{q:playerQ,pos:playerPos,own:playerOwn,week,posList:POS_FILTERS}} board={shownPlayerBoard} leagueId={leagueId} moreHref={playerBoard.length>shownPlayerBoard.length?morePlayersHref:null} teams={teams} total={playerBoard.length}/>}
       {view==='activity'&&<LeagueActivity activity={activity} leagueId={leagueId} teams={teams} type={actType} team={actTeam} page={actPage} week={week}/>}
       {view==='recap'&&<WeeklyRecap recap={recap} awards={safeAwards} teamName={teamName} week={week}/>}
@@ -191,10 +192,15 @@ export default async function LeaguePage({params,searchParams}) {
   </main>
 }
 
-function Standings({finalGames,leagueId,playoffSpots,table,user}){return <section className={styles.standings}><div className={styles.boardHead}><div><p className={styles.panelLabel}>2026 REGULAR SEASON · WEEKS 1-{FANTASY_REGULAR_WEEKS}</p><h2>Standings</h2></div><span>{table.length%2?`By win % · ${table.length} teams, one idle a week`:'W-L-T · Points'}</span></div><div className={styles.standingHead}><span>RK</span><span>TEAM</span><span>W</span><span>L</span><span>T</span><span>PF</span><span>PA</span></div>{table.map((team,index)=><div className={styles.standingRow} data-cut={finalGames&&index===playoffSpots-1?'true':undefined} data-mine={team.owner_id===user.id?'true':undefined} key={team.id}><span>{index+1}</span><div style={{display:'flex',alignItems:'center',gap:9}}><TeamMark team={team}/><div><b><Link className={styles.teamLink} href={`/fantasy/league/${leagueId}/team/${team.id}`}>{team.name}</Link></b>{/* NO GAMES YET, printed under all nine teams, is the same fact the 0-0-0
-        and the 0.0 already carry -- and it cost a line of row height on every
-        one of them. The line is rendered only when it distinguishes a team. */}
-      {(team.owner_id===user.id||finalGames)&&<small>{team.owner_id===user.id?(index<playoffSpots&&finalGames?`YOUR TEAM · #${index+1} SEED`:'YOUR TEAM'):index<playoffSpots?`PLAYOFF SPOT · #${index+1} SEED`:'IN THE HUNT'}</small>}</div></div><strong>{team.wins}</strong><strong>{team.losses}</strong><strong>{team.ties}</strong><span>{team.pointsFor.toFixed(1)}</span><span>{team.pointsAgainst.toFixed(1)}</span></div>)}</section>}
+// STANDINGS ON THE SHARED TABLE (2026-10-03, R10 step 4): the rows are
+// components/fantasy/FranchiseTables.js FranchiseStandings (DenseTable); this
+// keeps the heading and hands it plain rows. The old "YOUR TEAM / PLAYOFF SPOT"
+// line is the row's edge now (gold yours, green a playoff spot once games are
+// final), and the whole row opens the team, not just its name.
+function Standings({finalGames,leagueId,playoffSpots,table,user}){
+  const rows=table.map((team,index)=>({id:team.id,name:team.name,mark:team,rank:index+1,w:team.wins,l:team.losses,t:team.ties,pf:team.pointsFor,pa:team.pointsAgainst,mine:team.owner_id===user.id,seed:Boolean(finalGames)&&index<playoffSpots}))
+  return <section className={styles.standings}><div className={styles.boardHead}><div><p className={styles.panelLabel}>2026 REGULAR SEASON · WEEKS 1-{FANTASY_REGULAR_WEEKS}</p><h2>Standings</h2></div><span>{table.length%2?`By win % · ${table.length} teams, one idle a week`:'W-L-T · Points'}</span></div><FranchiseStandings leagueId={leagueId} rows={rows}/></section>
+}
 
 // ── THE BRACKET (2026-09-24) ──────────────────────────────────────────────
 // Four teams, Weeks 15-16: semifinals 1v4 and 2v3, then the championship and
@@ -238,7 +244,14 @@ function Playoffs({bracket,table,playoffSpots,startWeek,teams,leagueId,user,fina
   </section>
 }
 
-function PowerRankings({rankings,teamName,teams=[]}){const teamOf=(id)=>teams.find((team)=>team.id===id);return <section className={styles.powerBoard}><div className={styles.boardHead}><div><p className={styles.panelLabel}>DASH POWER INDEX</p><h2>Power Rankings</h2></div><span>Results · scoring · momentum</span></div>{rankings.map((item)=><article key={item.team_id}><strong>{item.rank}</strong><div><h3 style={{display:'flex',alignItems:'center',gap:8}}><TeamMark size={22} team={teamOf(item.team_id)}/>{teamName(item.team_id)}</h3><p>{item.explanation}</p></div><span>{item.previous_rank?item.previous_rank-item.rank>0?`▲ ${item.previous_rank-item.rank}`:item.previous_rank-item.rank<0?`▼ ${Math.abs(item.previous_rank-item.rank)}`:'—':'NEW'}</span><b>{Number(item.power_score).toFixed(1)}</b></article>)}{!rankings.length&&<p className={styles.leagueEmpty}>Power rankings publish after the commissioner generates a completed week.</p>}</section>}
+// POWER RANKINGS ON THE SHARED TABLE (2026-10-03, R10 step 4): were a stack
+// of cards with nothing tappable; now FranchisePower (DenseTable), whole row
+// opens the team, the explanation its WHY column.
+function PowerRankings({rankings,teamName,teams=[],leagueId,user}){
+  const teamOf=(id)=>teams.find((team)=>team.id===id)
+  const rows=rankings.map((item)=>({id:item.team_id,name:teamName(item.team_id),mark:teamOf(item.team_id)||null,rank:item.rank,move:item.previous_rank?item.previous_rank-item.rank:null,power:Number(item.power_score),why:item.explanation||'',mine:teamOf(item.team_id)?.owner_id===user?.id}))
+  return <section className={styles.powerBoard}><div className={styles.boardHead}><div><p className={styles.panelLabel}>DASH POWER INDEX</p><h2>Power Rankings</h2></div><span>Results · scoring · momentum</span></div>{rows.length?<FranchisePower leagueId={leagueId} rows={rows}/>:<p className={styles.leagueEmpty}>Power rankings publish after the commissioner generates a completed week.</p>}</section>
+}
 
 function WeeklyRecap({recap,awards,teamName,week}){return <><section className={styles.recapHero}><p className={styles.panelLabel}>WEEK {week} RECAP</p><h2>{recap?.headline||'The story is still being written.'}</h2><p>{recap?.summary||'Finalize the week, then generate the recap to publish awards and the latest power rankings.'}</p></section><section className={styles.awardGrid}>{awards.map((award)=><article key={award.id}><span>{award.award_type==='high_score'?'🏆':award.award_type==='closest_win'?'🎯':'💥'}</span><small>{award.title}</small><h3>{teamName(award.team_id)}</h3><p>{award.detail}</p></article>)}</section></>}
 
