@@ -38,11 +38,11 @@ export function ScoreBadge({ label = 'BOT', score, sub, color, open, onToggle })
         border: `1px solid ${color}44`, background: `${color}10`,
         borderRadius: 8, padding: '3px 8px 4px',
       }}>
-      <div style={{ fontSize: 7.5, letterSpacing: '.08em', color: C.text3, fontFamily: NUM_FONT, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+      <div style={{ fontSize: 9, letterSpacing: '.08em', color: C.text3, fontFamily: NUM_FONT, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
         {label}<InfoDot on={open} onClick={() => onToggle?.()} />
       </div>
       <div style={{ fontSize: 15, fontWeight: 900, color, lineHeight: 1.1, fontFamily: NUM_FONT }}>{score}</div>
-      <div style={{ fontSize: 8, color: C.text3 }}>{sub}</div>
+      <div style={{ fontSize: 9, color: C.text3 }}>{sub}</div>
     </div>
   )
 }
@@ -59,7 +59,7 @@ export function ExplainStrip({ notes }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 7, marginTop: -3 }}>
       {shown.map((n, i) => (
         <div key={i} style={{
-          fontSize: 10, lineHeight: 1.5, color: C.text2,
+          fontSize: 11, lineHeight: 1.5, color: C.text2,
           background: bg, border: bd,
           borderRadius: 7, padding: '5px 8px',
         }}>{n}</div>

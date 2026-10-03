@@ -14,7 +14,7 @@ export default function LedgerSection({ C, numFont, accent, title, blurb, rows =
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
         <b style={{ color: accent, fontFamily: numFont, fontSize: 11, letterSpacing: '.1em' }}>{title}</b>
         {blurb ? <span style={{ color: C.text3, fontSize: 11 }}>{blurb}</span> : null}
-        {rows.length ? <span style={{ marginLeft: 'auto', color: C.text3, fontFamily: numFont, fontSize: 10 }}>{rows.length}</span> : null}
+        {rows.length ? <span style={{ marginLeft: 'auto', color: C.text3, fontFamily: numFont, fontSize: 11 }}>{rows.length}</span> : null}
       </div>
       {rows.length
         ? <div style={{ display: 'flex', flexDirection: 'column' }}>{shown.map((r, i) => <div key={r.key ?? i} style={{ borderTop: i ? `1px solid ${C.border}` : 'none' }}>{render(r, i)}</div>)}</div>

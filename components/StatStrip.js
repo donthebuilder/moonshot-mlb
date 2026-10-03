@@ -56,7 +56,7 @@ export default function StatStrip({ p, type = 'hr', count = 4, size = 'md', styl
             }}
           >
             <div style={{
-              fontSize: sm ? 7.5 : 8, letterSpacing: '.05em', textTransform: 'uppercase',
+              fontSize: 9, letterSpacing: '.05em', textTransform: 'uppercase',
               color: C.text3, fontFamily: NUM_FONT,
               ...(wrap ? { lineHeight: 1.2 } : { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1.3 }),
             }}>{s.label}</div>
@@ -144,20 +144,20 @@ export function SlashLine({ p, type = 'hr', style }) {
           <div style={{ fontFamily: NUM_FONT, fontSize: 14, fontWeight: 800, color: C.text, letterSpacing: '-.01em', lineHeight: 1.15 }}>
             {fmt(avg)}<span style={{ color: C.text3, fontWeight: 400 }}>/</span>{fmt(obp)}<span style={{ color: C.text3, fontWeight: 400 }}>/</span>{fmt(slg)}
           </div>
-          <div style={{ fontFamily: NUM_FONT, fontSize: 7.5, color: C.text3, letterSpacing: '.06em', display: 'flex', justifyContent: 'space-between' }}>
+          <div style={{ fontFamily: NUM_FONT, fontSize: 9, color: C.text3, letterSpacing: '.06em', display: 'flex', justifyContent: 'space-between' }}>
             <span>AVG</span><span>OBP</span><span>SLG</span>
           </div>
         </div>
       )}
       <div style={{ display: 'flex', gap: 9, alignItems: 'baseline' }}>
         {counts.map(([lab, v, tip], i) => (
-          <span key={lab} title={tip} style={{ fontFamily: NUM_FONT, fontSize: 10.5, color: C.text2, cursor: 'default', whiteSpace: 'nowrap' }}>
+          <span key={lab} title={tip} style={{ fontFamily: NUM_FONT, fontSize: 11, color: C.text2, cursor: 'default', whiteSpace: 'nowrap' }}>
             <b style={{ color: i === 0 ? accent : C.text, fontWeight: 800 }}>{v}</b>
-            <span style={{ color: C.text3, fontSize: 8.5 }}> {lab}</span>
+            <span style={{ color: C.text3, fontSize: 9 }}> {lab}</span>
           </span>
         ))}
         {anyWindowed && (
-          <span style={{ fontSize: 8, color: C.text3, fontFamily: NUM_FONT }}
+          <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}
             title="Hits, runs, RBI and extra-base hits are his LAST 5 GAMES — the slate publishes those as a five-game window, not a season count. Home runs, where shown, are the season total.">
             L5 ⓘ
           </span>
@@ -205,13 +205,13 @@ export function HitRateBoxes({ p, style, boxes: given, stat = 'HR', statWord = '
               borderRadius: 7, padding: '4px 3px 5px',
             }}>
             <div style={{
-              fontSize: 8, letterSpacing: '.05em', textTransform: 'uppercase',
+              fontSize: 9, letterSpacing: '.05em', textTransform: 'uppercase',
               color: C.text3, fontFamily: NUM_FONT, lineHeight: 1.3,
             }}>{b.label}</div>
             <div style={{ fontSize: 12.5, fontWeight: 800, color: col, fontFamily: NUM_FONT, lineHeight: 1.2 }}>
               {text ? text(b) : `${b.num} ${stat}`}
             </div>
-            <div style={{ fontSize: 8, color: C.text3, fontFamily: NUM_FONT, lineHeight: 1.3 }}>
+            <div style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT, lineHeight: 1.3 }}>
               {sub ? sub(b) : `in ${b.den} ${b.unit}`}
             </div>
           </div>

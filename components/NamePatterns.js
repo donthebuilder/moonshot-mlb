@@ -112,8 +112,8 @@ export default function NamePatterns({ homers = [], population = [], sport = 'ml
       borderRadius: 10, padding: '8px 11px', marginBottom: 9,
     }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 5 }}>
-        <span style={{ fontSize: 10.5, fontWeight: 900, color: C.cyan }}>🔤 Name echoes</span>
-        <span style={{ fontSize: 9, color: C.text3 }}>
+        <span style={{ fontSize: 11, fontWeight: 900, color: C.cyan }}>🔤 Name echoes</span>
+        <span style={{ fontSize: 11, color: C.text3 }}>
           across the <span style={{ fontFamily: NUM_FONT, color: C.text2 }}>{denom}</span> {W.who}
         </span>
       </div>
@@ -126,7 +126,7 @@ export default function NamePatterns({ homers = [], population = [], sport = 'ml
           {/* The kind, as words. Colour is the panel's, not this row's — what
               kind of echo it is has to survive being read in greyscale. */}
           <span style={{
-            flex: '0 0 auto', fontSize: 8.5, fontWeight: 900, fontFamily: NUM_FONT,
+            flex: '0 0 auto', fontSize: 11, fontWeight: 900, fontFamily: NUM_FONT,
             letterSpacing: '.04em', textTransform: 'uppercase', color: C.cyan,
             border: `1px solid ${C.cyan}55`, borderRadius: 4, padding: '2px 5px', marginTop: 1,
           }}>{e.label}</span>
@@ -136,7 +136,7 @@ export default function NamePatterns({ homers = [], population = [], sport = 'ml
               {e.names.join(' · ')}
             </div>
             {/* Rule 2: the claim and the count it came out of, one sentence. */}
-            <div style={{ fontSize: 9.5, color: C.text2, lineHeight: 1.5 }}>{e.detail}</div>
+            <div style={{ fontSize: 11, color: C.text2, lineHeight: 1.5 }}>{e.detail}</div>
             {/* Rule 2, second half: what chance alone does with the same slate.
                 Same tier of type as the claim above it — this is not fine print.
                 Only when there IS a baseline: without one every row's note is
@@ -144,7 +144,7 @@ export default function NamePatterns({ homers = [], population = [], sport = 'ml
                 three times over plus once in the footer reads as an apology.
                 The footer says it once instead. */}
             {e.baselined && (
-              <div style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.5 }}>{e.note}</div>
+              <div style={{ fontSize: 11, color: C.text3, lineHeight: 1.5 }}>{e.note}</div>
             )}
           </div>
         </div>
@@ -152,7 +152,7 @@ export default function NamePatterns({ homers = [], population = [], sport = 'ml
 
       {/* Rule 3. The number that answers "but you'd always find something",
           stated before anyone has to think of the objection themselves. */}
-      <div style={{ fontSize: 8.5, color: C.text3, marginTop: 6, lineHeight: 1.55, borderTop: `1px solid ${C.border}`, paddingTop: 5 }}>
+      <div style={{ fontSize: 11, color: C.text3, marginTop: 6, lineHeight: 1.55, borderTop: `1px solid ${C.border}`, paddingTop: 5 }}>
         {top.baselined ? (
           <>
             Six kinds of echo get checked every night — shared first names, shared surnames, a first
@@ -169,7 +169,7 @@ export default function NamePatterns({ homers = [], population = [], sport = 'ml
         )}
         {' '}Syllable counts are spelling-based and approximate; they never carry a line on their own.
       </div>
-      <div style={{ fontSize: 8.5, color: C.text3, marginTop: 3, lineHeight: 1.55 }}>
+      <div style={{ fontSize: 11, color: C.text3, marginTop: 3, lineHeight: 1.55 }}>
         Names are for noticing. None of this has ever been graded, none of it moves a score or a
         pick, and no hitter has ever been retired by his own initials.
       </div>

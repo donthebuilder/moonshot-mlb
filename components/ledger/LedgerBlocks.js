@@ -27,7 +27,7 @@ function More({ n, open, setOpen, accent }) {
   return (
     <button type="button" onClick={() => setOpen((v) => !v)} style={{
       alignSelf: 'center', minHeight: 32, padding: '4px 10px', borderRadius: 8, cursor: 'pointer',
-      border: `1px dashed ${C.border2}`, background: 'transparent', color: accent, fontFamily: NUM_FONT, fontSize: 10, fontWeight: 800,
+      border: `1px dashed ${C.border2}`, background: 'transparent', color: accent, fontFamily: NUM_FONT, fontSize: 11, fontWeight: 800,
     }}>{open ? 'Show less' : `Show ${n} more`}</button>
   )
 }
@@ -51,8 +51,8 @@ export function LedgerHead({ title, count, countWord, note, accent = C.orange })
   return (
     <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
       <span style={{ fontSize: 12.5, fontWeight: 900 }}>{title}</span>
-      <span style={{ fontSize: 10, color: accent, fontFamily: NUM_FONT, fontWeight: 800 }}>{count} {countWord}</span>
-      {note && <span style={{ fontSize: 9, color: C.text3 }}>{note}</span>}
+      <span style={{ fontSize: 11, color: accent, fontFamily: NUM_FONT, fontWeight: 800 }}>{count} {countWord}</span>
+      {note && <span style={{ fontSize: 11, color: C.text3 }}>{note}</span>}
     </div>
   )
 }
@@ -61,7 +61,7 @@ export function LedgerHead({ title, count, countWord, note, accent = C.orange })
 export function RoundLine({ label, items = [], accent = C.orange }) {
   if (!items.length) return null
   return (
-    <div style={{ fontSize: 10.5, color: C.text2, marginBottom: 8, lineHeight: 1.6 }}>
+    <div style={{ fontSize: 11, color: C.text2, marginBottom: 8, lineHeight: 1.6 }}>
       🎯 <b style={{ color: accent }}>{label}</b>{' '}
       {items.map((c, i) => (
         <span key={c.key}>
@@ -83,7 +83,7 @@ export function WatchStrip({ label, hits, watched, sentence, children, color = C
       background: alpha(color, 0.06), border: `1px solid ${alpha(color, 0.25)}`,
       borderRadius: 10, padding: '7px 11px', marginBottom: 9,
     }}>
-      <div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.65 }}>
+      <div style={{ fontSize: 11, color: C.text2, lineHeight: 1.65 }}>
         🔮 <b style={{ color }}>{label}</b>{' '}
         <b style={{ color: hits ? C.text : C.text3, fontFamily: NUM_FONT }}>{hits}</b>
         <span style={{ color: C.text3, fontFamily: NUM_FONT }}>/{watched}</span>{' '}
@@ -105,8 +105,8 @@ export function AlignBox({ title, sub, chips = [], foot, accent = C.orange, prev
       borderRadius: 10, padding: '8px 11px', marginBottom: 9,
     }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 5 }}>
-        <span style={{ fontSize: 10.5, fontWeight: 900, color: accent }}>{title}</span>
-        <span style={{ fontSize: 9, color: C.text3 }}>{sub}</span>
+        <span style={{ fontSize: 11, fontWeight: 900, color: accent }}>{title}</span>
+        <span style={{ fontSize: 11, color: C.text3 }}>{sub}</span>
       </div>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         {shownChips.map((c) => (
@@ -122,7 +122,7 @@ export function AlignBox({ title, sub, chips = [], foot, accent = C.orange, prev
             <span style={{ fontSize: 11, fontWeight: 800, color: C.text }}>{c.name}</span>
             {c.tags.map((t) => (
               <span key={t.k} style={{
-                fontSize: 8.5, fontWeight: 800, fontFamily: NUM_FONT, color: accent,
+                fontSize: 11, fontWeight: 800, fontFamily: NUM_FONT, color: accent,
                 border: `1px solid ${alpha(accent, 0.4)}`, borderRadius: 999, padding: '0 6px',
               }}>{t.label}</span>
             ))}
@@ -130,7 +130,7 @@ export function AlignBox({ title, sub, chips = [], foot, accent = C.orange, prev
         ))}
         {preview ? <More n={chips.length - preview} open={open} setOpen={setOpen} accent={accent} /> : null}
       </div>
-      {foot && <div style={{ fontSize: 8.5, color: C.text3, marginTop: 5, lineHeight: 1.5 }}>{foot}</div>}
+      {foot && <div style={{ fontSize: 11, color: C.text3, marginTop: 5, lineHeight: 1.5 }}>{foot}</div>}
     </div>
   )
 }
@@ -169,7 +169,7 @@ export function LookOutBox({ title, tag, rows = [], foot, accent = C.orange }) {
         </div>
       ))}
 
-      {foot && <div style={{ fontSize: 8.5, color: C.text3, marginTop: 6 }}>{foot}</div>}
+      {foot && <div style={{ fontSize: 11, color: C.text3, marginTop: 6 }}>{foot}</div>}
 
       <style jsx>{`
         .lookout-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:7px}
@@ -199,11 +199,11 @@ export function NextUpBox({ title, rows = [], about, color = C.cyan }) {
       background: alpha(color, 0.06), border: `1px solid ${alpha(color, 0.28)}`,
       borderRadius: 10, padding: '7px 11px', marginBottom: 9,
     }}>
-      <div style={{ fontSize: 10.5, fontWeight: 800, color, marginBottom: 5 }}>{title}</div>
+      <div style={{ fontSize: 11, fontWeight: 800, color, marginBottom: 5 }}>{title}</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         {rows.map((x) => (
           <div key={x.key} style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 10, flexShrink: 0 }}
+            <span style={{ fontSize: 11, flexShrink: 0 }}
               title={x.when === 'now' ? 'his game is live' : 'still to come'}>
               {x.when === 'now' ? '⚡' : '⏳'}
             </span>
@@ -214,12 +214,12 @@ export function NextUpBox({ title, rows = [], about, color = C.cyan }) {
             >{x.name}</b>
             {x.chips.slice(0, 4).map((c) => (
               <span key={c} style={{
-                fontSize: 8.5, fontFamily: NUM_FONT, padding: '1px 5px', whiteSpace: 'nowrap',
+                fontSize: 11, fontFamily: NUM_FONT, padding: '1px 5px', whiteSpace: 'nowrap',
                 borderRadius: 5, border: `1px solid ${color}44`, color,
               }}>{c}</span>
             ))}
             {x.chips.length > 4 && (
-              <span style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}
+              <span style={{ fontSize: 11, color: C.text3, fontFamily: NUM_FONT }}
                 title={x.title}>+{x.chips.length - 4}</span>
             )}
           </div>
@@ -227,10 +227,10 @@ export function NextUpBox({ title, rows = [], about, color = C.cyan }) {
       </div>
       {about && (
         <details style={{ marginTop: 6 }}>
-          <summary style={{ fontSize: 9, color: C.text3, cursor: 'pointer', fontFamily: NUM_FONT }}>
+          <summary style={{ fontSize: 11, color: C.text3, cursor: 'pointer', fontFamily: NUM_FONT }}>
             what this is
           </summary>
-          <div style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.6, marginTop: 4 }}>{about}</div>
+          <div style={{ fontSize: 11, color: C.text3, lineHeight: 1.6, marginTop: 4 }}>{about}</div>
         </details>
       )}
     </div>
@@ -266,7 +266,7 @@ export function ScorerChips({ cards = [], accent = C.orange, preview = null, spo
           {(c.badges || []).map((b) => (
             <span key={b.k} title={b.title}
               style={{
-                fontSize: 8, fontFamily: NUM_FONT, fontWeight: 900, letterSpacing: '.04em',
+                fontSize: 11, fontFamily: NUM_FONT, fontWeight: 900, letterSpacing: '.04em',
                 color: b.color || accent, border: `1px solid ${b.color || accent}55`, borderRadius: 4, padding: '1px 4px',
               }}>{b.label}</span>
           ))}
@@ -283,22 +283,22 @@ export function SpotBars({ title, bars = [], foot, accent = C.orange }) {
   if (!bars.some((b) => b.value)) return null
   return (
     <>
-      <div style={{ fontSize: 9.5, color: C.text3, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', fontFamily: NUM_FONT, marginBottom: 4 }}>
+      <div style={{ fontSize: 11, color: C.text3, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', fontFamily: NUM_FONT, marginBottom: 4 }}>
         {title}
       </div>
       <div style={{ display: 'flex', gap: 4, alignItems: 'flex-end', height: 46 }}>
         {bars.map((b) => (
           <div key={b.key} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }} title={b.title}>
-            <span style={{ fontSize: 8.5, fontFamily: NUM_FONT, color: b.value ? C.text2 : C.text3, fontWeight: 800 }}>{b.value || ''}</span>
+            <span style={{ fontSize: 11, fontFamily: NUM_FONT, color: b.value ? C.text2 : C.text3, fontWeight: 800 }}>{b.value || ''}</span>
             <div style={{
               width: '100%', height: `${Math.max(3, (26 * b.value) / max)}px`, borderRadius: 3,
               background: b.value === max && b.value > 0 ? accent : b.value ? alpha(accent, 0.45) : 'rgba(255,255,255,.06)',
             }} />
-            <span style={{ fontSize: 8, fontFamily: NUM_FONT, color: C.text3 }}>{b.label}</span>
+            <span style={{ fontSize: 11, fontFamily: NUM_FONT, color: C.text3 }}>{b.label}</span>
           </div>
         ))}
       </div>
-      {foot && <div style={{ fontSize: 9, color: C.text3, marginTop: 7, lineHeight: 1.55 }}>{foot}</div>}
+      {foot && <div style={{ fontSize: 11, color: C.text3, marginTop: 7, lineHeight: 1.55 }}>{foot}</div>}
     </>
   )
 }
