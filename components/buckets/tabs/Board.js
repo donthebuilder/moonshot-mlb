@@ -7,6 +7,7 @@ import { useBucketsBoard } from '../../../lib/nba/useBuckets'
 import { NBA_MARKETS, MARKET_OPTIONS } from '../../../lib/nba/legs'
 import BucketsTable from '../BucketsTable'
 import { boardRows, boardColumns, faceOf } from '../boardTable'
+import BucketWatch from '../BucketWatch'
 import { EmptyState, DelayedBanner, Loading, SourceLine, Pills, NavBtn, DayPager, fmtDay, writeHashParam } from '../ui'
 
 // 🎯 PROPS -- the BUCKETS board for one market (lib/nba/boardRead.js): every
@@ -55,6 +56,7 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
           {games.some((g) => g.seasonType === 1) ? ' · PRESEASON' : ''}
         </div>
       )}
+      {m === 'pts' && (data?.rows || []).length > 0 && <BucketWatch rows={data.rows} date={data.date} onOpenPlayer={onOpenPlayer} />}
       {rows.length > 0 && !noStarters && (
         <BucketsTable rows={rows} columns={boardColumns(m, { onOpenTeam, onOpenGame })} statusOf={(r) => r.status}
           onRowClick={(r) => onOpenPlayer?.((r?._raw ?? r).playerId)} faceOf={faceOf}
