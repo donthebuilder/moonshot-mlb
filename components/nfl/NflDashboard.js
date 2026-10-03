@@ -65,6 +65,7 @@ import RefreshStamp from '../RefreshStamp'
 import DashFooter from '../DashFooter'
 import SkipLink from '../SkipLink'
 import NflProps from './NflProps'
+import NflTeam from './tabs/Team'
 const OddsBoard = dynamic(() => import('../tabs/OddsBoard'))
 
 // The key set now lives in lib/routes.js alongside MOONSHOT's, with the
@@ -109,7 +110,8 @@ function NflStaleBanner({ meta, data, loading }) {
   )
 }
 
-const NFL_TAB_KEEP = { player: new Set(['players']), team: new Set(['players']), game: new Set(['games']) }
+// the team page keeps its club (10-03)
+const NFL_TAB_KEEP = { player: new Set(['players']), team: new Set(['players', 'team']), game: new Set(['games']) }
 
 export default function NflDashboard({ palettePass = 0 }) {
   const [tab, setTabRaw] = useState('home')
@@ -165,6 +167,8 @@ export default function NflDashboard({ palettePass = 0 }) {
   // `push` (2026-09-27, audit 00A root fix 1): a tab you tap adds a history
   // entry so Back returns to the last one; the mount-time resolve of the
   // address you arrived on replaces (it is the same page, not a new one).
+  // a tapped club opens its team page (10-03; was the Players list filtered to it)
+  const openTeamPage = (abbr) => { if (!abbr) return; leaveTarget('team', String(abbr).toUpperCase()); setTab('team') }
   const setTab = (next, { push = true } = {}) => {
     if (!NFL_TABS.has(next)) return
     setMissingTab('')
@@ -409,13 +413,13 @@ export default function NflDashboard({ palettePass = 0 }) {
           <SportTheme theme={C} accent={C.green} numFont={NUM_FONT}>
           {/* the ↻ on the live pages: nothing refreshes on a timer (lib/liveRefresh.js) */}
           {isLiveTab('nfl', tab) && <RefreshStamp live={nflLive} style={{ marginBottom: 8 }} />}
-          <TeamNav.Provider value={(abbr) => { setPortalTeam(abbr); setTab('players') }}>
+          <TeamNav.Provider value={openTeamPage}>
           <ErrorBoundary resetKey={tab} label={`the ${tab} tab`}>
             {tab === 'home' && <Home data={slate} picks={picks} results={nflResults} matchup={matchup} logs={logs} onPlayerClick={openPlayer} setTab={setTab} />}
             {/* MOONSHOT's Players page (2026-09-30): list + the card inline. */}
             {tab === 'players' && <NflPlayers data={data} logs={logs} matchup={matchup} picks={picks} results={nflResults} initialTeam={portalTeam} odds={odds} />}
             {tab === 'watchlist' && <Watchlist data={slate} matchup={matchup} logs={logs} onPlayerClick={openPlayer} />}
-            {tab === 'games' && <Games data={slate} picks={picks} matchup={matchup} logs={logs} results={nflResults} odds={odds} onPlayerClick={openPlayer} onOpenTeam={(abbr) => { setPortalTeam(abbr); setTab('players') }} />}
+            {tab === 'games' && <Games data={slate} picks={picks} matchup={matchup} logs={logs} results={nflResults} odds={odds} onPlayerClick={openPlayer} onOpenTeam={openTeamPage} />}
             {/* One Board page (2026-09-26, option (b)): touchdowns / boards /
                 picks are the same hub; boards opens BOARD, picks opens CALLED. */}
             {/* PICKS IS THE BOT PAGE (2026-09-29, MOONSHOT's Bot frame; components/nfl/tabs/Bot.js).
@@ -431,7 +435,7 @@ export default function NflDashboard({ palettePass = 0 }) {
                 picks={picks} results={nflResults} liveSnap={liveSnap} onPlayerClick={openPlayer} initialView="board" />
             )}
             {tab === 'research' && <Research data={data} onPlayerClick={openPlayer} />}
-            {tab === 'matchups' && <Matchups matchup={matchup} data={data} onPlayerClick={openPlayer} onOpenTeam={(abbr) => { setPortalTeam(abbr); setTab('players') }} />}
+            {tab === 'matchups' && <Matchups matchup={matchup} data={data} onPlayerClick={openPlayer} onOpenTeam={openTeamPage} />}
             {tab === 'explosive' && <Explosive matchup={matchup} data={data} onPlayerClick={openPlayer} />}
             {tab === 'redzone' && <RedZone data={data} matchup={matchup} onPlayerClick={openPlayer} />}
             {/* MOONSHOT's Odds page, sport="nfl" (2026-10-02): this week's players, their prices, moves and books */}
@@ -440,9 +444,10 @@ export default function NflDashboard({ palettePass = 0 }) {
             {tab === 'numerology' && <Numerology data={data} onPlayerClick={openPlayer} />}
             {tab === 'accountability' && <Accountability data={data} results={nflResults} onPlayerClick={openPlayer} />}
             {tab === 'tuddyledger' && <TuddyLedger data={data} results={nflResults} onPlayerClick={openPlayer} />}
-            {tab === 'ledger' && <Ledger data={slate} picks={picks} results={nflResults} matchup={matchup} onPlayerClick={openPlayer} onOpenTeam={(abbr) => { setPortalTeam(abbr); setTab('players') }} onOpenGame={(id) => { leaveTarget('game', id); setTab('games') }} />}
+            {tab === 'ledger' && <Ledger data={slate} picks={picks} results={nflResults} matchup={matchup} onPlayerClick={openPlayer} onOpenTeam={openTeamPage} onOpenGame={(id) => { leaveTarget('game', id); setTab('games') }} />}
             {tab === 'scores' && <Scores data={slate} onPlayerClick={openPlayer} onOpenGame={(id) => { leaveTarget('game', id); setTab('games') }} />}
-            {tab === 'standings' && <Standings onOpenTeam={(abbr) => { setPortalTeam(abbr); setTab('players') }} />}
+            {tab === 'team' && <NflTeam data={data} onOpenPlayer={openPlayer} onOpenGame={(id) => { leaveTarget('game', id); setTab('games') }} />}
+            {tab === 'standings' && <Standings onOpenTeam={openTeamPage} />}
             {tab === 'pairs' && <Pairs data={data} results={nflResults} onPlayerClick={openPlayer} setTab={setTab} />}
             {tab === 'guide' && <Guide onNavigate={setTab} data={data} />}
             {tab === 'live' && <Live data={slate} picks={picks} live={liveSnap} matchup={matchup} logs={logs} results={nflResults} onPlayerClick={openPlayer} setTab={setTab} />}
