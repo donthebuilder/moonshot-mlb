@@ -4,6 +4,7 @@ import { C, NUM_FONT } from '../lib/theme'
 import { clean } from '../lib/player'
 import { dedupeGraded } from '../lib/graded'
 import DenseTable from './DenseTable'
+import { PICK_JOBS, PICK_JOB_ORDER, pickJobOf } from '../lib/pickJob'
 import { usePickRecords } from './PlayerPickRecord'
 
 // DID THE PICK DO ITS OWN JOB?
@@ -39,37 +40,20 @@ import { usePickRecords } from './PlayerPickRecord'
 // baseline — but it is nine days of evidence that the HR bucket is not adding
 // anything, and it is displayed rather than buried.
 
-const JOBS = {
-  HR:      { label: 'HR',      job: '1+ HR',        color: '#f97316',
-             test: (r) => r.gotHr },
-  TOP:     { label: 'Top',     job: '1+ HR',        color: '#FCD34D',
-             test: (r) => r.gotHr },
-  HIT:     { label: 'Hit',     job: '1+ hit',       color: '#a78bfa',
-             test: (r) => r.hits > 0 },
-  HRR:     { label: 'HRR',     job: '2+ H+R+RBI',   color: '#22d3ee',
-             test: (r) => r.hits + r.runs + r.rbi >= 2 },
-  CONTACT: { label: 'Contact', job: '2+ total bases', color: '#4ade80',
-             test: (r) => r.tb >= 2 },
-  ATS:     { label: 'ATS',     job: 'beat spread',  color: '#06b6d4',
-             test: (r) => r.atsHit },
+// The rule lives in lib/pickJob.js (shared with the record page); the lane
+// colours stay here.
+const LANE_COLOR = {
+  HR: C.orange, TOP: C.amber, HIT: C.purple, HRR: C.cyan, CONTACT: C.green, ATS: C.teal,
 }
-const ORDER = ['TOP', 'HR', 'HIT', 'HRR', 'CONTACT', 'ATS']
-
 const i = (v) => { const x = Number(v); return Number.isFinite(x) ? x : 0 }
+const JOBS = Object.fromEntries(Object.entries(PICK_JOBS).map(([k, j]) => [k, { ...j, color: LANE_COLOR[k] }]))
+const ORDER = PICK_JOB_ORDER
 
 // Shared with PickRow so the badge on an individual row and the rate in the
 // scorecard can never disagree about what "did its job" means.
 export function pickJob(s) {
-  if (!s) return null
-  const role = clean(s.game_pick_role || s.pick_type, '').split('/')[0].trim().toUpperCase()
-  const j = JOBS[role]
-  if (!j) return null
-  const r = {
-    gotHr: s.got_hr === 1 || i(s.actual_hr) > 0,
-    hits: i(s.actual_hits), runs: i(s.actual_runs),
-    rbi: i(s.actual_rbi), tb: i(s.actual_tb),
-  }
-  return { role, label: j.label, job: j.job, color: j.color, did: j.test(r) }
+  const j = pickJobOf(s)
+  return j ? { ...j, color: LANE_COLOR[j.role] } : null
 }
 
 export default function PickScorecard({ slots = [], backtest = null, onPlayerClick }) {

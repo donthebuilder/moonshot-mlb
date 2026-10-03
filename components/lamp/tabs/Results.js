@@ -2,7 +2,7 @@
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import { useLampRecord } from '../../../lib/nhl/useLamp'
-import { PanelTitle, Chip, WhatThis } from '../../ui'
+import { PanelTitle, WhatThis } from '../../ui'
 import { SportTheme } from '../../SportTheme'
 import { ModeBar, ViewRow } from '../../results/ResultsParts'
 import LampTable from '../LampTable'
@@ -10,6 +10,8 @@ import { EmptyState, DelayedBanner, Loading, SourceLine, Kicker, fmtDay } from '
 import { bandClaim } from '../../bands/BandTable'
 import { bandTint } from '../../ScoreBands'
 import { wilson } from '../../../lib/interval'
+import RecordPage from '../../record/RecordPage'
+import { nhlRecordModel } from '../../../lib/record/page'
 
 // 🏒 THE RECORD, MOONSHOT'S RESULTS FRAME (2026-09-30, Donovan: "upgrade the
 // results pages to fit the mlb components for each sport"). MOONSHOT's
@@ -44,6 +46,8 @@ export default function Results({ onOpenPlayer }) {
   const newest = useMemo(() => [...nights].sort((a, b) => (a.date < b.date ? 1 : -1)), [nights])
   const night = newest.find((n) => n.date === picked) || newest[0] || null
   const open = (r) => { const id = (r?._raw ?? r)?.playerId; if (id) onOpenPlayer?.(id) }
+  // THE RECORD PAGE (BATCH-RECORD-PAGE): the night on screen + every night in the window
+  const record = useMemo(() => nhlRecordModel({ rec: data, night, onOpen: (p) => open(p) }), [data, night]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <SportTheme theme={C} accent={C.ice} numFont={NUM_FONT}>
@@ -51,16 +55,11 @@ export default function Results({ onOpenPlayer }) {
       <PanelTitle
         title="The record"
         sub={T ? `${nights.length} graded ${nights.length === 1 ? 'night' : 'nights'} · last ${data.days} days` : 'every graded night'}
-        right={T ? (
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            <Chip color={C.ice}>{pct(T.scorersCalled, T.scorers)} of scorers called</Chip>
-            <Chip color={C.lamp}>{T.calledHits}/{T.calledN} calls hit</Chip>
-          </div>
-        ) : null}
         theme={C}
         numFont={NUM_FONT}
       />
 
+      <RecordPage record={record} Table={LampTable} receiptsLabel="every night, every call, the bands" receipts={(<>
       <ModeBar modes={MODES} mode={mode} setMode={setMode} />
 
       <WhatThis maxWidth={760}>
@@ -181,6 +180,7 @@ export default function Results({ onOpenPlayer }) {
         )
       })()}
 
+      </>)} />
       <SourceLine>Source: lamp_goal_log, graded rows only (dressed / goals / hit from gamecenter/{'{id}'}/boxscore after the final). Void men (not dressed) are out of every denominator.</SourceLine>
     </div>
     </SportTheme>

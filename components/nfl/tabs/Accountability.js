@@ -1,7 +1,7 @@
 'use client'
 import { ModeBar as ModeBarPart, TabBtn } from '../../results/ResultsParts'
 import { SportTheme } from '../../SportTheme'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT, MARKETS, gradeFor, TYPE } from '../../../lib/nfl/theme'
 import NflTable from '../NflTable'
 import { useResultsArchive, seasonTotals, grandTotal, gradeBands, labelOf, weekKey } from '../../../lib/nfl/resultsArchive'
@@ -12,6 +12,8 @@ import { GameCallsRecord } from '../GameCalls'
 import { WhatThis } from '../../ui'
 import NflSignalAudit from '../NflSignalAudit'
 import BandTable, { bandClaim } from '../../bands/BandTable'
+import RecordPage from '../../record/RecordPage'
+import { nflRecordModel } from '../../../lib/record/page'
 
 // DID THE PICKS DO THEIR OWN JOB? — the NFL sibling of MLB's PickScorecard +
 // ScoreAudit (components/PickScorecard.js, components/ScoreAudit.js).
@@ -588,6 +590,23 @@ export default function Accountability({ data, results: latest, onPlayerClick })
     if (p) onPlayerClick?.(p, r.market)
   }
 
+  // THE RECORD PAGE (BATCH-RECORD-PAGE): the week's touchdowns in their three
+  // states (/api/nfl/tds -- nfl_td_feed through tdCallStatus), read once per week.
+  const [tds, setTds] = useState(null)
+  const lw = results?.week ? `season=${results.season}&week=${results.week}${results.mode === 'preseason' ? '&pre=1' : ''}` : null
+  useEffect(() => {
+    if (!lw) { setTds(null); return undefined }
+    let live = true
+    fetch(`/api/nfl/tds?${lw}`).then((r) => (r.ok ? r.json() : null)).then((x) => { if (live) setTds(x?.available ? x : null) }).catch(() => {})
+    return () => { live = false }
+  }, [lw])
+  const record = useMemo(() => nflRecordModel({
+    weeks: keys.map((k) => archive[k]).filter(Boolean),
+    latest: results, tds, markets: MARKETS, playerOf: (pid) => byPid[String(pid)] || null, bars: results?.bars || {},
+    labelOf: (p) => (p ? labelOf(weekKey(p.season, p.mode, p.week)) : ''),
+    onOpen: onPlayerClick ? (raw) => onPlayerClick(byPid[String(raw.player_id)] || raw) : null,
+  }), [keys, archive, results, tds, byPid, onPlayerClick])
+
   if (!results) {
     return (
       <div style={{
@@ -608,6 +627,7 @@ export default function Accountability({ data, results: latest, onPlayerClick })
   return (
     <SportTheme theme={C} accent={C.green} numFont={NUM_FONT}>
     <div>
+      <RecordPage record={record} Table={NflTable} receiptsLabel="every week, every rung, the season's audits" receipts={(<>
       <ModeBar mode={mode} setMode={pickMode} />
 
       {/* ONE ROW OF VIEWS, scoped to the question above it — the same row the
@@ -817,6 +837,7 @@ export default function Accountability({ data, results: latest, onPlayerClick })
           .receiptMarkets>div{min-width:82px}
         }
       `}</style>
+      </>)} />
     </div>
     </SportTheme>
   )

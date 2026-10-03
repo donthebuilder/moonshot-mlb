@@ -66,6 +66,7 @@ const MlbLedger = dynamic(() => import('./tabs/MlbLedger'), { loading: TabLoadin
 const You = dynamic(() => import('./tabs/You'), { loading: TabLoading })
 const Pools = dynamic(() => import('./tabs/Pools'), { loading: TabLoading })
 const Leaders = dynamic(() => import('./tabs/Leaders'), { loading: TabLoading })
+const ScoreBands = dynamic(() => import('./ScoreBands'), { loading: TabLoading })
 const Results = dynamic(() => import('./tabs/Results'), { loading: TabLoading })
 const CalledLedger = dynamic(() => import('./tabs/CalledLedger'), { loading: TabLoading })
 const Watchlist = dynamic(() => import('./tabs/Watchlist'), { loading: TabLoading })
@@ -988,6 +989,7 @@ export default function Dashboard({ palettePass = 0 }) {
             {tab === 'watch'       && <You players={allPlayers} watchItems={watchLive} pairSummary={pairSummary} results={resultsForSlate} odds={odds} slateDate={slateDate} mode={mode} onWatch={toggleWatch} onAdd={addSlip} onPlayerClick={setModalPlayer} initial="watch" />}
             {tab === 'trueprice'   && <OddsBoard players={players} odds={oddsRaw} onPlayerClick={setModalPlayer} initialView="trueprice" />}
             {tab === 'leaders'     && <Leaders players={players} onPlayerClick={setModalPlayer} onNavigate={setTab} />}
+            {tab === 'bands'       && <ScoreBands />}
             {tab === 'player'      && <PlayerBoard players={players} slate={allPlayers} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} odds={odds} />}
             {tab === 'derby'       && <Derby players={players} results={resultsForSlate} slateDate={slateDate} onPlayerClick={setModalPlayer} />}
             {tab === 'runs'        && <Runs players={allPlayers} onPlayerClick={setModalPlayer} onOpenPitcher={(pid) => { leaveTarget('pitcher', pid); setTab('pitchers') }} />}
