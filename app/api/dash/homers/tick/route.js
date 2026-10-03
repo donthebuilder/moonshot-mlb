@@ -1458,7 +1458,7 @@ export async function GET(request) {
         await claimAndPostStat(db, day, 'callofnight', CALL_OF_NIGHT_HOUR,
           callOfTheNightText(call, { day, ...TAIL }),
           call ? {
-            pill: 'CALL', label: 'THE CALL OF THE NIGHT',
+            pill: 'CALL', label: 'THE BEST LOOK',
             headline: `${call.name}${call.pitcher ? ` vs ${call.pitcher}` : ''}`,
             lines: [
               call.edgeSd != null ? `EDGE ${call.edgeSd} SD` : '',
