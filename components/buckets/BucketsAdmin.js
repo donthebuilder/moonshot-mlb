@@ -9,6 +9,10 @@ import { SportTheme } from '../SportTheme'
 import DenseTable from '../DenseTable'
 import CallStatusBadge from '../CallStatusBadge'
 import ShotChart from './ShotChart'
+import dynamic from 'next/dynamic'
+
+// the 3D court loads only when opened (next/dynamic, as the other 3D views)
+const CourtArena = dynamic(() => import('./CourtArena'), { ssr: false })
 
 const ACCENT = C.purple
 // BUCKETS has no glossary yet: an empty one, so the table doesn't borrow MOONSHOT's baseball terms
@@ -22,6 +26,7 @@ const day = (d) => new Date(`${d}T12:00:00Z`).toLocaleDateString('en-US', { week
 export default function BucketsAdmin({ date, prev, next, games, markets, defs, season, error, graded, gradedError, chart = null }) {
   const [m, setM] = useState('pts')
   const [calledOnly, setCalledOnly] = useState(false)
+  const [three, setThree] = useState(false)
   const D = defs[m]
   // a starters-only market with nobody scored yet has no board (not 120 'not a starter' rows)
   const noBoard = D?.startersOnly && !(markets[m] || []).some((r) => r.score != null)
@@ -92,6 +97,10 @@ export default function BucketsAdmin({ date, prev, next, games, markets, defs, s
               </div>
             ) : null}
             <ShotChart shots={chart.shots} names={chart.names} teams={chart.teams} title={`Shot chart ${chart.title}`} />
+            <div style={{ marginTop: 10 }}>
+              <button type="button" aria-pressed={three} onClick={() => setThree((v) => !v)} style={chip(three)}>{three ? 'Close the 3D court' : '🏀 3D court'}</button>
+            </div>
+            {three ? <div style={{ marginTop: 8 }}><CourtArena shots={chart.shots} names={chart.names} /></div> : null}
           </section>
         ) : null}
 
