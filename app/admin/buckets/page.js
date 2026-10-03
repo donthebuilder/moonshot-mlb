@@ -3,9 +3,7 @@
 // /admin (signed in + ADMIN_EMAILS), anyone else gets a 404. The night is built
 // server-side (lib/nba/board.js) -- no public API route serves it.
 import { notFound } from 'next/navigation'
-import { hasSupabaseConfig } from '../../../lib/supabase/config'
-import { createSupabaseServerClient } from '../../../lib/supabase/server'
-import { isAdminEmail } from '../../../lib/admin'
+import { bucketsAccess } from '../../../lib/nba/gate'
 import { adminClient } from '../../../lib/supabase/admin'
 import { buildNbaNight } from '../../../lib/nba/board'
 import { NBA_MARKETS, whyNba } from '../../../lib/nba/model'
@@ -21,10 +19,8 @@ const slim = (m, r) => ({ id: r.playerId, name: r.name, team: r.team, opp: r.opp
   legs: r.legs?.ok ? Object.fromEntries(NBA_MARKETS[m].legs.map((l) => [l, r.legs[l]])) : null, why: r.score != null ? whyNba(m, r) : r.reason })
 
 export default async function BucketsPage({ searchParams }) {
-  if (!hasSupabaseConfig()) notFound()
-  const supabase = await createSupabaseServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user || !isAdminEmail(user.email)) notFound()
+  // the one gate every BUCKETS surface asks (lib/nba/gate.js)
+  if (!(await bucketsAccess()).ok) notFound()
 
   const sp = await searchParams
   const date = /^\d{4}-\d{2}-\d{2}$/.test(sp?.date || '') ? sp.date : easternToday()
