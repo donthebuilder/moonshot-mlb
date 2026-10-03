@@ -8,6 +8,7 @@ import { NBA_MARKETS, MARKET_OPTIONS } from '../../../lib/nba/legs'
 import BucketsTable from '../BucketsTable'
 import { boardRows, boardColumns, faceOf } from '../boardTable'
 import BucketWatch from '../BucketWatch'
+import { BucketsCards } from '../BucketsCard'
 import { EmptyState, DelayedBanner, Loading, SourceLine, Pills, NavBtn, DayPager, fmtDay, writeHashParam } from '../ui'
 
 // 🎯 PROPS -- the BUCKETS board for one market (lib/nba/boardRead.js): every
@@ -25,6 +26,8 @@ const HOW_NOTES = [
 export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onOpenTeam, onOpenGame }) {
   const [m, setM] = useState(market)
   const [calledOnly, setCalledOnly] = useState(false)
+  // CARDS FIRST (2026-10-03, Donovan: the props page has the cards, like MLB's); the table one tap away
+  const [layout, setLayout] = useState('cards')
   const { data, error, loading } = useBucketsBoard(date, m)
   const D = NBA_MARKETS[m]
   const shown = data?.date || date
@@ -44,6 +47,7 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
       <DayPager shown={shown} date={date} setDate={setDate} disabled={loading}>
         <NavBtn onClick={() => setCalledOnly((v) => !v)} strong={calledOnly} ariaLabel="Called only">{calledOnly ? '✓ Called only' : 'Called only'}</NavBtn>
       </DayPager>
+      <Pills ariaLabel="Layout" value={layout} onChange={setLayout} options={[{ key: 'cards', text: 'CARDS' }, { key: 'table', text: 'TABLE' }]} />
       <HowToRead id="buckets-board" accent={C.purple} notes={HOW_NOTES} />
       <DelayedBanner error={error} what="the board" />
       {loading && !data ? <Loading what="the board" /> : null}
@@ -57,7 +61,10 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
         </div>
       )}
       {m === 'pts' && (data?.rows || []).length > 0 && <BucketWatch rows={data.rows} date={data.date} onOpenPlayer={onOpenPlayer} />}
-      {rows.length > 0 && !noStarters && (
+      {rows.length > 0 && !noStarters && layout === 'cards' && (
+        <BucketsCards market={m} onOpen={onOpenPlayer} rows={[...rows].filter((r) => Number.isFinite(Number(r.score))).sort((a, b) => b.score - a.score)} />
+      )}
+      {rows.length > 0 && !noStarters && layout === 'table' && (
         <BucketsTable rows={rows} columns={boardColumns(m, { onOpenTeam, onOpenGame })} statusOf={(r) => r.status}
           onRowClick={(r) => onOpenPlayer?.((r?._raw ?? r).playerId)} faceOf={faceOf}
           dimRow={(r) => Boolean(r.voidReason) || r.status === 'off'}
