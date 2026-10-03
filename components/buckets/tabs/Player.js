@@ -10,6 +10,9 @@ import { NBA_MARKETS } from '../../../lib/nba/legs'
 import { unpackShots } from '../../../lib/nba/shots'
 import BucketsTable from '../BucketsTable'
 import ShotChart from '../ShotChart'
+import PlayerBars from '../PlayerBars'
+import FollowButton from '../../FollowButton'
+import StarMemory from '../../watch/StarMemory'
 import CallStatusBadge from '../../CallStatusBadge'
 import { EmptyState, DelayedBanner, Loading, SourceLine, Kicker, BackBtn, PlayerFace, SeasonTypeChip, fmtDay, gameDay, RimDot } from '../ui'
 
@@ -78,12 +81,15 @@ export default function Player({ id, onBack, backLabel = 'Players', onOpenTeam, 
               {card.team ? <Tap onClick={() => onOpenTeam?.(card.team)}><span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}><TeamMark sport="nba" abbr={card.team} variant="logo" px={18} />{card.team}</span></Tap> : null}
               {[card.age ? `age ${card.age}` : null, card.height, card.weight, card.status && card.status !== 'Active' ? card.status : null].filter(Boolean).join(' · ')}
             </span>} />
+          {/* Star, as on the other three products' files (lib/dash/follow.js takes nba) */}
+          <div style={{ marginTop: 8, display: 'grid', gap: 6, justifyItems: 'start' }}><FollowButton sport="nba" id={String(card.id)} name={card.name} team={card.team} position={card.pos} compact /><StarMemory sport="nba" id={String(card.id)} /></div>
         </div>
       </div>
       <DelayedBanner error={error} what="the player feed" />
       {lineRows.length > 0
         ? <section><Kicker>SEASON LINES</Kicker><BucketsTable rows={lineRows} columns={lineCols} heatMode="none" maxHeight={9999} maxRows={2} caption="Per game, this season beside last season." /></section>
         : <EmptyState title="NO NBA LINES ON FILE" note="No regular-season games this season or last." />}
+      <PlayerBars log={data.log || []} logSeason={data.logSeason} nextGame={data.nextGame} onOpenTeam={onOpenTeam} />
       {shots.length > 0 && (
         <section>
           <Kicker>EVERY SHOT ON FILE · {shots.length} ATTEMPTS{data.shotsFrom ? ` SINCE ${fmtDay(data.shotsFrom).toUpperCase()}` : ''}</Kicker>

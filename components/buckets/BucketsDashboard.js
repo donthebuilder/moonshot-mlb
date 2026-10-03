@@ -38,6 +38,10 @@ import Game from './tabs/Game'
 import Standings from './tabs/Standings'
 import Schedule from './tabs/Schedule'
 import Matchups from './tabs/Matchups'
+import Hot from './tabs/Hot'
+import Ledger from './tabs/Ledger'
+import Watchlist from './tabs/Watchlist'
+import { useBucketsSaves } from '../../lib/nba/useBucketsSaves'
 import Teams from './tabs/Teams'
 import Team from './tabs/Team'
 import Players from './tabs/Players'
@@ -48,7 +52,7 @@ import Results from './tabs/Results'
 import Guide from './tabs/Guide'
 
 // Pages that show one day and keep it in the address (`date=`).
-const DATED_TABS = new Set(['home', 'scores', 'board', 'fullboard', 'games', 'schedule', 'matchups'])
+const DATED_TABS = new Set(['home', 'scores', 'board', 'fullboard', 'games', 'schedule', 'matchups', 'hot', 'ledger'])
 const MARKETS = new Set(['pts', 'reb', 'ast', '3pm', 'pra', 'first'])
 const ROUTE = {
   sport: 'nba', nav: NBA_NAV, datedTabs: DATED_TABS,
@@ -60,6 +64,8 @@ const ROUTE = {
 export default function BucketsDashboard() {
   const { tab, setTab, gameId, teamKey, playerId, missingTab, date, setDate, badDate, setBadDate, openGame, openTeam, openPlayer, backLabel, goBack } = useShellRoute(ROUTE)
   usePageTitle(`${pageTitle('nba', tab)} · DASH Network`)
+  // starred players, remembered night by night for "Your nights, graded"
+  useBucketsSaves()
 
   const today = useBucketsScores(null)
   const live = today.data?.live || 0
@@ -107,6 +113,9 @@ export default function BucketsDashboard() {
             {tab === 'games' && <Slate date={date} setDate={setDate} market={market} {...nav} />}
             {tab === 'game' && <Game id={gameId} {...nav} backLabel={backLabel('scores')} onBack={() => goBack('scores')} />}
             {tab === 'schedule' && <Schedule date={date} setDate={setDate} onOpenGame={openGame} onOpenTeam={openTeam} />}
+            {tab === 'watchlist' && <Watchlist onOpenPlayer={openPlayer} />}
+            {tab === 'ledger' && <Ledger date={date} setDate={setDate} {...nav} />}
+            {tab === 'hot' && <Hot date={date} setDate={setDate} {...nav} />}
             {tab === 'matchups' && <Matchups date={date} setDate={setDate} onOpenTeam={openTeam} onOpenGame={openGame} />}
             {tab === 'standings' && <Standings onOpenTeam={openTeam} />}
             {tab === 'teams' && <Teams onOpenTeam={openTeam} />}

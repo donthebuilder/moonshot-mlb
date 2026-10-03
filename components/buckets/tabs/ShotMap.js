@@ -6,6 +6,10 @@ import { NBA_TEAMS } from '../../../lib/nba/teams'
 import { useBucketsShots, useBucketsPlayers } from '../../../lib/nba/useBuckets'
 import { unpackShots } from '../../../lib/nba/shots'
 import ShotChart from '../ShotChart'
+import dynamic from 'next/dynamic'
+
+// the 3D court loads only when opened (next/dynamic, as the other 3D views)
+const CourtArena = dynamic(() => import('../CourtArena'), { ssr: false })
 import { DelayedBanner, Loading, SourceLine, EmptyState, Pills, NavBtn, readHashParam, writeHashParam } from '../ui'
 
 // 🎯 SHOT MAP -- where a club or a player shoots from: every field-goal
@@ -15,6 +19,7 @@ export default function ShotMap({ onOpenPlayer, onOpenTeam }) {
   const [mode, setMode] = useState(() => (readHashParam('player') ? 'player' : 'team'))
   const [team, setTeam] = useState(() => readHashParam('team') || 'BOS')
   const [who, setWho] = useState(() => readHashParam('player') || '')
+  const [three, setThree] = useState(false)
   const players = useBucketsPlayers()
   const sel = mode === 'team' ? { team } : who ? { player: who } : null
   const { data, error, loading } = useBucketsShots(sel)
@@ -51,6 +56,12 @@ export default function ShotMap({ onOpenPlayer, onOpenTeam }) {
       {data && sel && !shots.length && <EmptyState title="NO SHOTS ON FILE" note="Nothing in the play-by-play store for this pick yet." />}
       {shots.length > 0 && <ShotChart shots={shots} filters={['result', 'type']} title={`Shot map, ${mode === 'team' ? team : pname || ''}`}
         source="Source: ESPN play-by-play, every field-goal attempt on file (buckets_shots, backfilled from last season and kept by the nightly tick)." />}
+      {shots.length > 0 && (
+        <div>
+          <NavBtn onClick={() => setThree((v) => !v)} strong={three}>{three ? 'Close the 3D court' : '🏀 3D court'}</NavBtn>
+          {three ? <div style={{ marginTop: 8 }}><CourtArena shots={shots} names={{}} /></div> : null}
+        </div>
+      )}
       <SourceLine>/api/buckets/shots reads buckets_shots in pages of 1,000, in a fixed order, so every attempt is counted once.</SourceLine>
     </div>
   )

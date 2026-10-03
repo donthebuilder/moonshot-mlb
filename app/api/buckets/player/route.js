@@ -1,7 +1,8 @@
 // GET /api/buckets/player?id=ESPN athlete id -- one player: the card, this season
 // and last season's lines, the game log, his shots on the floor (buckets_shots,
 // packed [x, y, made, three, gameId]), and the model's rows on him. Gated.
-import { athleteFor, reduceAthlete, gamelogFor, reduceGamelog } from '../../../../lib/nba/api'
+import { athleteFor, reduceAthlete, gamelogFor, reduceGamelog, teamScheduleFor, reduceTeamSchedule } from '../../../../lib/nba/api'
+import { nbaTeam } from '../../../../lib/nba/teams'
 import { seasonStats } from '../../../../lib/nba/stats'
 import { nbaSeason, seasonLabel } from '../../../../lib/nba/season'
 import { adminClient } from '../../../../lib/supabase/admin'
@@ -32,7 +33,12 @@ export const GET = bucketsRoute('player', async (q) => {
     db ? shotsOf(db, id) : { data: [] },
     db ? db.from('buckets_log').select('game_date, market, status, role, score, hit, actual, opp').eq('player_id', id).order('game_date', { ascending: false }).limit(200) : { data: [] },
   ])
+  // his club's next game (any season type), for "his games against them"
+  const club = nbaTeam(card?.team)
+  const sched = club ? await teamScheduleFor(club.id, sn.cur).then((j) => reduceTeamSchedule(j, club.abbrev)).catch(() => []) : []
+  const nextGame = sched.find((g) => g.state !== 'final') || null
   return ok({
+    nextGame: nextGame ? { id: nextGame.id, start: nextGame.start, opp: nextGame.opp, home: nextGame.home, seasonType: nextGame.seasonType } : null,
     card, season: sn.read, seasonLabel: seasonLabel(sn.read), stale: sn.stale,
     lines: { cur: sCur.athletes.get(id) || null, prev: sPrev.athletes.get(id) || null, curLabel: seasonLabel(sn.cur), prevLabel: seasonLabel(sn.prev) },
     log: logCur.length ? logCur : logPrev, logSeason: logCur.length ? seasonLabel(sn.cur) : seasonLabel(sn.prev),

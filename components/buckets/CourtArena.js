@@ -49,15 +49,24 @@ export default function CourtArena({ shots = [], names = {} }) {
     if (isCoarse()) { controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_ROTATE }; renderer.domElement.style.touchAction = 'pan-y' }
     const look = makeComposer(renderer, scene, camera, W, H, { ao: !isCoarse(), scale: 0.4 })
 
-    // the shots: a disc each, on the floor
-    const discs = new THREE.Group(); scene.add(discs)
+    // the shots: a disc each, on the floor -- INSTANCED (2026-10-03): one draw
+    // call for the makes and one for the misses, so a club's season (7,000+
+    // attempts, the Shot map's 3D) costs what one game's did
     const made = new THREE.MeshBasicMaterial({ color: new THREE.Color(ACCENT) })
     const miss = new THREE.MeshBasicMaterial({ color: new THREE.Color(C.text3), transparent: true, opacity: 0.85 })
-    for (const s of shots) {
-      const m = new THREE.Mesh(s.made ? new THREE.CircleGeometry(0.55, 20) : new THREE.RingGeometry(0.38, 0.55, 20), s.made ? made : miss)
-      m.rotation.x = -Math.PI / 2; m.position.copy(courtPoint(s.x, s.y, 0.06)); m.userData.shot = s
-      discs.add(m)
+    const pts = shots.map((s) => courtPoint(s.x, s.y, 0.06))
+    const flat = new THREE.Object3D()
+    const build = (list, geo, mat) => {
+      const inst = new THREE.InstancedMesh(geo, mat, Math.max(1, list.length))
+      inst.count = list.length
+      list.forEach((i, n) => { flat.position.copy(pts[i]); flat.rotation.set(-Math.PI / 2, 0, 0); flat.updateMatrix(); inst.setMatrixAt(n, flat.matrix) })
+      inst.instanceMatrix.needsUpdate = true
+      scene.add(inst)
+      return inst
     }
+    const idx = shots.map((_, i) => i)
+    const madeMesh = build(idx.filter((i) => shots[i].made), new THREE.CircleGeometry(0.55, 20), made)
+    const missMesh = build(idx.filter((i) => !shots[i].made), new THREE.RingGeometry(0.38, 0.55, 20), miss)
     // the drawn arc for a picked shot
     let arc = null
     const showArc = (s) => {
@@ -81,9 +90,9 @@ export default function CourtArena({ shots = [], names = {} }) {
       // a forgiving tap: the nearest disc to where the ray meets the floor, within 2 ft
       const hit = new THREE.Vector3()
       if (!ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), hit)) return
-      let best = null, bd = 2
-      for (const m of discs.children) { const d = m.position.distanceTo(hit); if (d < bd) { bd = d; best = m } }
-      const s = best?.userData.shot || null
+      let best = -1, bd = 2
+      pts.forEach((p, i) => { const d = p.distanceTo(hit); if (d < bd) { bd = d; best = i } })
+      const s = best >= 0 ? shots[best] : null
       setPicked(s); showArc(s)
     }
     renderer.domElement.addEventListener('pointerdown', onDown)
@@ -97,10 +106,11 @@ export default function CourtArena({ shots = [], names = {} }) {
     const onVis = () => { cancelAnimationFrame(raf); if (!document.hidden && onScreen) raf = requestAnimationFrame(tick) }
     document.addEventListener('visibilitychange', onVis)
     raf = requestAnimationFrame(tick)
-    if (typeof window !== 'undefined') window.__bucketsCourt = { scene, discs: discs.children.length }
+    if (typeof window !== 'undefined') window.__bucketsCourt = { scene, discs: shots.length }
     return () => {
       cancelAnimationFrame(raf); io.disconnect(); document.removeEventListener('visibilitychange', onVis)
       renderer.domElement.removeEventListener('pointerdown', onDown); renderer.domElement.removeEventListener('pointerup', onUp)
+      for (const m of [madeMesh, missMesh]) { m.geometry.dispose(); m.dispose() }
       controls.dispose(); renderer.dispose(); el.removeChild(renderer.domElement)
     }
   }, [shots])
@@ -114,7 +124,7 @@ export default function CourtArena({ shots = [], names = {} }) {
       <div ref={mount} style={{ width: '100%', borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}` }} />
       <p style={{ margin: 0, fontSize: 12, color: C.text2, fontFamily: NUM_FONT, minHeight: 18 }}>
         {picked
-          ? <><b style={{ color: picked.made ? ACCENT : C.text }}>{names[picked.player_id] || picked.player_id}</b> · {picked.made ? 'made' : 'missed'} {picked.three ? 'a three' : 'a two'} · {picked.shot_type}{picked.distance != null ? ` · ${picked.distance} ft` : ''} · Q{picked.period > 4 ? `OT${picked.period - 4}` : picked.period} {picked.clock}</>
+          ? <>{picked.player_id ? <><b style={{ color: picked.made ? ACCENT : C.text }}>{names[picked.player_id] || picked.player_id}</b> · </> : null}{picked.made ? 'made' : 'missed'} {picked.three ? 'a three' : 'a two'}{picked.shot_type ? ` · ${picked.shot_type}` : ''}{picked.distance != null ? ` · ${picked.distance} ft` : ''}{picked.period ? ` · Q${picked.period > 4 ? `OT${picked.period - 4}` : picked.period} ${picked.clock || ''}` : ''}</>
           : 'Tap a shot to draw it to the rim. Drag to turn the court.'}
       </p>
       <p style={{ margin: 0, fontSize: 11, color: C.text3 }}>Where each shot was taken is the feed's own spot. The arc to the rim is drawn, not measured: no release point or arc height is published.</p>
