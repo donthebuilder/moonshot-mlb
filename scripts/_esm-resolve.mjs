@@ -10,6 +10,10 @@ export async function resolve(spec, ctx, next) {
       const base = spec.startsWith('.') ? fileURLToPath(new URL(spec, ctx.parentURL)) : spec
       for (const ext of ['.js', '.mjs', '/index.js']) if (existsSync(base + ext)) return next(pathToFileURL(base + ext).href, ctx)
     }
+    // a bare deep import with no exports map (next/cache, next/server): try .js
+    if (!spec.startsWith('.') && !spec.startsWith('/') && !spec.startsWith('node:') && spec.includes('/') && !spec.endsWith('.js')) {
+      try { return await next(spec + '.js', ctx) } catch { /* fall through to the original error */ }
+    }
     throw e
   }
 }`)), import.meta.url)

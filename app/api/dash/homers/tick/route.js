@@ -67,7 +67,7 @@ import { storiesTick } from '../../../../../lib/stories/record'
 import { mlbNumerologyWrite, mlbNumerologyGrade } from '../../../../../lib/numerology/mlbWriter'
 import { postMlbListOnce } from '../../../../../lib/lists/post'
 import { adminClient } from '../../../../../lib/supabase/admin'
-import { claimSlot as sharedClaimSlot, bytesOf as sharedBytesOf } from '../../../../../lib/dash/postClaim'
+import { claimSlot as sharedClaimSlot, bytesOf as sharedBytesOf, knownTaken } from '../../../../../lib/dash/postClaim'
 import { ordinal } from '../../../../../lib/format'
 import { feedHooks, withReceipts } from '../../../../../lib/dash/discordChannels'
 import { postMembers, membersWebhook, MEMBERS_KINDS, mlbMembersBoard, mlbMembersGrade } from '../../../../../lib/dash/membersPost'
@@ -1566,6 +1566,7 @@ export async function GET(request) {
     }
     if (etHoursSinceNoon() >= HOT_WEEK_HOUR) {
       await safeStat('hot_week', async () => {
+        if (knownTaken(day, 'hot_week')) return   // egress: posted already, skip the exclude read
         const exclude = await hotStretchSeenIds(db, day)
         const { pick, window: win } = await hotStretchPicks(pregameRows(), day, { window: 'week', exclude })
         await claimAndPostStat(db, day, 'hot_week', HOT_WEEK_HOUR,
@@ -1650,6 +1651,7 @@ export async function GET(request) {
     // does not pad with a repeat to hit a count.
     if (etHoursSinceNoon() >= STORYLINE_WATCH_1_HOUR) {
       await safeStat('storyline_watch_1', async () => {
+        if (knownTaken(day, 'storyline_watch_1')) return   // egress: posted already, skip the exclude read
         const seen = await storylineSeenTexts(db, day)
         // 2026-09-15 (Donovan: "some of these I just wanted tweets and no
         // card... a decent list of names"). No card -- storylineWatchPicks
@@ -1665,6 +1667,7 @@ export async function GET(request) {
     }
     if (etHoursSinceNoon() >= STORYLINE_WATCH_2_HOUR && !isRetired('storyline_watch_2')) {
       await safeStat('storyline_watch_2', async () => {
+        if (knownTaken(day, 'storyline_watch_2')) return   // egress: posted already, skip the exclude read
         const seen = await storylineSeenTexts(db, day)
         // text-only now, see storyline_watch_1 above
         const picks = await storylineWatchPicks(pregameRows(), day, { exclude: seen })
@@ -1676,6 +1679,7 @@ export async function GET(request) {
     }
     if (etHoursSinceNoon() >= STORYLINE_WATCH_3_HOUR && !isRetired('storyline_watch_3')) {
       await safeStat('storyline_watch_3', async () => {
+        if (knownTaken(day, 'storyline_watch_3')) return   // egress: posted already, skip the exclude read
         const seen = await storylineSeenTexts(db, day)
         // text-only now, see storyline_watch_1 above
         const picks = await storylineWatchPicks(pregameRows(), day, { exclude: seen })
@@ -1687,6 +1691,7 @@ export async function GET(request) {
     }
     if (etHoursSinceNoon() >= STORYLINE_WATCH_4_HOUR && !isRetired('storyline_watch_4')) {
       await safeStat('storyline_watch_4', async () => {
+        if (knownTaken(day, 'storyline_watch_4')) return   // egress: posted already, skip the exclude read
         const seen = await storylineSeenTexts(db, day)
         // text-only now, see storyline_watch_1 above
         const picks = await storylineWatchPicks(pregameRows(), day, { exclude: seen })
@@ -2044,6 +2049,9 @@ export async function GET(request) {
   //    unlike hotcontact_mid/dangercombos_mid just above which only re-rank
   //    the board already in memory.
   await safeStat('matchuphistory_late', async () => {
+    // egress (2026-10-03): the exclude read ran every minute before the claim,
+    // all evening; nothing to do before the hour or once the slot is taken
+    if (etHoursSinceNoon() < MATCHUP_LATE_HOUR || knownTaken(day, 'matchup_hr_late')) return
     const seen = await matchupHistorySeenIds(db, day)
     const lines = await vsPitcherCareerLines(midRows(), { exclude: seen })
     const hrPicks = hrVsStarterPicks(lines)  // text-only now, see the day wave above
@@ -2227,8 +2235,11 @@ export async function GET(request) {
   if ((pending || []).length && !xOn) {
     console.error(`[homers] ${pending.length} pending row(s) want X but hasX() is false: ${xProblem()}`)
   }
-  // The morning's call, so a homer by one of its names quotes it.
-  const { data: pre } = await db.from('homer_feed_posts').select('x_post_id,payload').match({ day, kind: 'pregame' }).maybeSingle()
+  // The morning's call, so a homer by one of its names quotes it. Read only
+  // when a homer is actually waiting to post (egress, 2026-10-03: these two
+  // reads ran every minute, all evening, for a quote nobody needed).
+  const quoting = (pending || []).length > 0
+  const { data: pre } = quoting ? await db.from('homer_feed_posts').select('x_post_id,payload').match({ day, kind: 'pregame' }).maybeSingle() : { data: null }
   // `called` is every roled name on the board; `picks` is only the ten that
   // fit the tweet. Fall back to picks so a pregame row written before this
   // shipped (no `called` key) still quotes for its ten.
@@ -2244,7 +2255,7 @@ export async function GET(request) {
   // QUOTE THE GAME'S OWN CALL FIRST (postseason plan step 2): a CALLED homer by
   // the hitter a per-game post named quotes THAT post ("✅ Called at 5:10 PM ET");
   // otherwise the morning's call, as before.
-  const { data: gamePosts } = await db.from('homer_feed_posts').select('kind,x_post_id,payload').eq('day', day).like('kind', 'call_%')
+  const { data: gamePosts } = quoting ? await db.from('homer_feed_posts').select('kind,x_post_id,payload').eq('day', day).like('kind', 'call_%') : { data: [] }
   const gameCall = new Map((gamePosts || []).filter((g) => g.x_post_id && g.payload?.player_id).map((g) => [`${g.payload.game_pk}:${g.payload.player_id}`, g]))
   const gameCallFor = (row) => (callStatus(row) === 'called' ? gameCall.get(`${row.game_pk}:${row.player_id}`) || null : null)
   const quoteFor = (row) => gameCallFor(row)?.x_post_id || (pre?.x_post_id && preIds.has(String(row.player_id)) && callStatus(row) === 'called' ? pre.x_post_id : null)
