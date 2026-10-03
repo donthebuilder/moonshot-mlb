@@ -24,7 +24,7 @@ import { activeLeagues } from '../../lib/odds/snap'
 import { bucketsPublic } from '../../lib/nba/gate'
 import { autopostState, FACTS_CONFIG } from '../../lib/facts/engine'
 import { AutopostSwitch, DeleteFactPost } from '../../components/admin/FactsControls'
-import { readShadows, readVsBook, readValueNhl, readValueNfl } from '../../lib/shadowRecord'
+import { readShadows, readVsBook, readValueNhl, readValueNfl, readValueMlb } from '../../lib/shadowRecord'
 import { VERSIONS as NHL_VERSIONS } from '../../lib/nhl/versions'
 
 export const dynamic = 'force-dynamic'
@@ -126,9 +126,9 @@ const cachedVsBook = unstable_cache(async () => { const db = service(); return d
 const cachedValue = unstable_cache(async () => {
   const db = service(); if (!db) return null
   const lean = ({ picks, ...t }) => t
-  const [v, f] = await Promise.all([readValueNhl(db), readValueNfl(db).catch((e) => ({ error: e?.message }))])
-  return { ...v, live: lean(v.live), goalpos: lean(v.goalpos), nfl: f.error ? { error: f.error } : lean(f.live) }
-}, ['admin-value-v2'], { revalidate: 600 })
+  const [v, f, m] = await Promise.all([readValueNhl(db), readValueNfl(db).catch((e) => ({ error: e?.message })), readValueMlb(db, { today: easternToday() }).catch((e) => ({ error: e?.message }))])
+  return { ...v, live: lean(v.live), goalpos: lean(v.goalpos), nfl: f.error ? { error: f.error } : lean(f.live), mlb: m.error ? { error: m.error } : lean(m.live) }
+}, ['admin-value-v3'], { revalidate: 600 })
 
 function Line({ k, v, src }) {
   return (
@@ -265,7 +265,7 @@ export default async function AdminPage() {
           <Line k="  … beat the book's line" v={pct(vsBook.beat)} src="his shots on goal above the book's own lock line -- chalk that only clears a soft bar shows up here" />
           <Line k="  … the book's no-vig chance (at 2.5)" v={vsBook.bookP != null ? `${vsBook.bookP}% (${vsBook.bookPn})` : '—'} src="mean implied probability of the over, from the fair price, where the line was our bar" />
         </> : <Line k="LAMP SHOTS 3+ calls" v="no graded calls with a lock line yet" src="odds_lines nhl sog at lock, joined to lamp_prop_log SOG called rows" />}
-        {value?.error ? <Line k="Value call" v="—" src={`unavailable: ${value.error}`} /> : value ? [['live', 'LAMP goal', 'live board (lamp-goal)'], ['goalpos', 'LAMP goal', 'goalpos shadow (ice time within position)'], ['nfl', 'TUDDY TD', 'the TD board frozen at lock (board_lock)']].map(([k, sport, label]) => {
+        {value?.error ? <Line k="Value call" v="—" src={`unavailable: ${value.error}`} /> : value ? [['live', 'LAMP goal', 'live board (lamp-goal)'], ['goalpos', 'LAMP goal', 'goalpos shadow (ice time within position)'], ['nfl', 'TUDDY TD', 'the TD board frozen at lock (board_lock)'], ['mlb', 'MOONSHOT HR', "the bot's rows locked at first pitch (por_rows, from 10-04)"]].map(([k, sport, label]) => {
           const t = value[k]
           if (t?.error) return <Line key={k} k={`${sport} · value call · ${label}`} v="—" src={`unavailable: ${/does not exist|schema cache/i.test(t.error) ? 'board_lock not created yet (supabase/migrations/202610030400_board_lock.sql)' : t.error}`} />
           const edge = (l) => (l?.n ? `${l.pct}% vs ${l.implied}% · ROI ${l.roiMed > 0 ? '+' : ''}${l.roiMed}%` : 'no graded calls yet')

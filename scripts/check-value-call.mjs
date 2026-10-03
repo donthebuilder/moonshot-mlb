@@ -5,7 +5,7 @@
 // (the commit names the games).
 //   node --import ./scripts/_esm-resolve.mjs scripts/check-value-call.mjs
 import { valueCalls } from '../lib/model/valueCall.js'
-import { gradeValueCalls, beforeStart } from '../lib/shadowRecord.js'
+import { gradeValueCalls, beforeStart, boxLines, mlbRecordsFromPor } from '../lib/shadowRecord.js'
 import { priceKey } from '../lib/odds/priceAtLock.js'
 import { tdBoardRows, tdResult } from '../lib/boardLock.js'
 let bad = 0, n = 0
@@ -113,6 +113,28 @@ eq('a TD = hit', tdResult({ player_id: 'a1', week: 9, team: 'AAA' }, logs, 2099)
 eq('no TD = miss', tdResult({ player_id: 'a2', week: 9, team: 'AAA' }, logs, 2099)?.result, 'miss')
 eq('no row, his team logged = void', tdResult({ player_id: 'a3', week: 9, team: 'AAA' }, logs, 2099)?.result, 'void')
 eq('team not logged yet = wait', tdResult({ player_id: 'b1', week: 9, team: 'BBB' }, logs, 2099), null)
+
+// MLB (TEST DATA): por_rows -> records, graded off a made-up final box
+const feed = (state, players) => ({ gameData: { status: { abstractGameState: state } }, liveData: { boxscore: { teams: { away: { players }, home: { players: {} } } } } })
+const fin = boxLines(feed('Final', { ID1: { person: { id: 1 }, stats: { batting: { plateAppearances: 4, homeRuns: 1 } } }, ID2: { person: { id: 2 }, stats: { batting: { plateAppearances: 3, homeRuns: 0 } } }, ID3: { person: { id: 3 }, stats: { batting: {} } } }))
+eq('box final', fin.final, true)
+eq('box hr', fin.byId.get('1').hr, 1)
+const por = (id, pk, role, rank, of) => ({ prediction_date: '2099-01-01', player_id: id, player: `Test ${id}`, game_pk: pk, team: 'TST', game_pick_role: role, scores: { hr: 50, board_rank: rank, board_of: of } })
+const boxes = new Map([['100', fin], ['200', boxLines(feed('Live', {}))]])
+const recs2 = mlbRecordsFromPor([
+  por(1, 100, 'HR', 40, 90),        // a call: CALLED, homered -> hit
+  por(2, 100, '', 10, 90),          // rank 10 of 90 (cut 30): ON THE BOARD, no HR -> miss
+  por(3, 100, '', 50, 90),          // rank 50: NOT ON THE BOARD, 0 PA -> void
+  por(4, 100, '', 5, null),         // no n and no role: out, never guessed
+  por(1, 100, 'HR', 40, 90),        // the same row twice: once
+  por(5, 200, 'TOP', 1, 90),        // game not final: not graded
+  por(6, 100, '', 20, 90),          // not in the box at all -> void
+], boxes)
+eq('mlb rows kept', recs2.map((r) => r.player_id).join(','), '1,2,3,6')
+eq('role -> CALLED', recs2[0].status, 'called'); eq('called homered', recs2[0].result, 'hit')
+eq('rank 10/90 -> board', recs2[1].status, 'board'); eq('no HR -> miss', recs2[1].result, 'miss')
+eq('rank 50/90 -> off', recs2[2].status, 'off'); eq('0 PA -> void', recs2[2].result, 'void')
+eq('not in the box -> void', recs2[3].result, 'void')
 
 console.log(`${n - bad}/${n} value-call checks pass`)
 process.exit(bad ? 1 : 0)
