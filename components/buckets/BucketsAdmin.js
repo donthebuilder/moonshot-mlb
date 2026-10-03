@@ -8,6 +8,7 @@ import { C, NUM_FONT } from '../../lib/theme'
 import { SportTheme } from '../SportTheme'
 import DenseTable from '../DenseTable'
 import CallStatusBadge from '../CallStatusBadge'
+import ShotChart from './ShotChart'
 
 const ACCENT = C.purple
 // BUCKETS has no glossary yet: an empty one, so the table doesn't borrow MOONSHOT's baseball terms
@@ -18,7 +19,7 @@ const chip = (on) => ({ minHeight: 44, padding: '0 14px', borderRadius: 999, bor
 const linkBtn = { ...chip(false), display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }
 const day = (d) => new Date(`${d}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' })
 
-export default function BucketsAdmin({ date, prev, next, games, markets, defs, season, error, graded, gradedError }) {
+export default function BucketsAdmin({ date, prev, next, games, markets, defs, season, error, graded, gradedError, chart = null }) {
   const [m, setM] = useState('pts')
   const [calledOnly, setCalledOnly] = useState(false)
   const D = defs[m]
@@ -81,6 +82,18 @@ export default function BucketsAdmin({ date, prev, next, games, markets, defs, s
           ? <DenseTable rows={rows} columns={columns} heatMode="primary" maxRows={30} maxHeight={9999} accent={ACCENT} dict={BUCKETS_GLOSSARY}
               caption="Every player on tonight's rosters, ranked by the market's score. Calls are one per team; the second only while he's in the top third." />
           : <p style={{ fontSize: 13, color: C.text3 }}>{D?.startersOnly ? 'No starters listed yet for these games.' : 'No games on this date.'}</p>}
+
+        {chart ? (
+          <section style={{ marginTop: 22 }}>
+            <h2 style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.1em', color: C.text2, fontFamily: NUM_FONT }}>SHOT CHART · {chart.title}{chart.sample ? ' · LAST SEASON SAMPLE' : ''}</h2>
+            {chart.finals.length > 1 ? (
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+                {chart.finals.map((g) => <a key={g.id} href={`/admin/buckets?date=${date}&game=${g.id}`} style={{ ...linkBtn, ...(g.id === chart.id ? chip(true) : {}) }}>{g.label}</a>)}
+              </div>
+            ) : null}
+            <ShotChart shots={chart.shots} names={chart.names} teams={chart.teams} title={`Shot chart ${chart.title}`} />
+          </section>
+        ) : null}
 
         <section style={{ marginTop: 22 }}>
           <h2 style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.1em', color: C.text2, fontFamily: NUM_FONT }}>THE RECORD SO FAR</h2>

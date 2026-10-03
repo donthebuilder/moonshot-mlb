@@ -10,6 +10,7 @@ import { adminClient } from '../../../lib/supabase/admin'
 import { buildNbaNight } from '../../../lib/nba/board'
 import { NBA_MARKETS, whyNba } from '../../../lib/nba/model'
 import { easternToday, shiftDay } from '../../../lib/data'
+import { summaryFor, reduceShots, reduceBox, GAME_ID_RE } from '../../../lib/nba/api'
 import BucketsAdmin from '../../../components/buckets/BucketsAdmin'
 
 export const dynamic = 'force-dynamic'
@@ -29,6 +30,20 @@ export default async function BucketsPage({ searchParams }) {
   const date = /^\d{4}-\d{2}-\d{2}$/.test(sp?.date || '') ? sp.date : easternToday()
   const night = await buildNbaNight(date).catch((e) => ({ date, games: [], markets: {}, error: e?.message }))
   const markets = Object.fromEntries(Object.entries(night.markets || {}).map(([m, rows]) => [m, rows.map((r) => slim(m, r))]))
+  // THE SHOT CHART: a finished game on this date (?game=), else last season's sample (MEM@PHI, 03-10)
+  const finals = (night.games || []).filter((g) => g.state === 'final')
+  const SAMPLE = '401810791'
+  const gameId = GAME_ID_RE.test(sp?.game || '') ? sp.game : finals[0]?.id || SAMPLE
+  const sum = await summaryFor(gameId, true).catch(() => null)
+  const chart = sum ? {
+    id: gameId, sample: gameId === SAMPLE && !finals.length,
+    title: (sum.header?.competitions?.[0]?.competitors || []).map((c) => `${c.team?.abbreviation} ${c.score ?? ''}`).join(' · '),
+    shots: reduceShots(sum, gameId),
+    names: Object.fromEntries(reduceBox(sum).map((b) => [b.id, b.name])),
+    teams: Object.fromEntries((sum.header?.competitions?.[0]?.competitors || []).map((c) => [String(c.team?.id), c.team?.abbreviation])),
+    finals: finals.map((g) => ({ id: g.id, label: `${g.away.abbrev}@${g.home.abbrev}` })),
+  } : null
+
   // what's locked and graded so far (empty until QUEUE SQL part 3 runs)
   const db = adminClient()
   const log = db ? await db.from('buckets_log').select('game_date, market, status, hit, void_reason, season_type').not('graded_at', 'is', null).limit(20000) : { data: null, error: { message: 'no database' } }
@@ -36,6 +51,6 @@ export default async function BucketsPage({ searchParams }) {
     <BucketsAdmin date={date} prev={shiftDay(date, -1)} next={shiftDay(date, 1)} games={night.games || []} markets={markets}
       defs={Object.fromEntries(Object.entries(NBA_MARKETS).map(([k, M]) => [k, { label: M.label, legs: M.legs, highVariance: Boolean(M.highVariance), startersOnly: Boolean(M.startersOnly) }]))}
       season={night.season || null} error={night.error || night.note || null}
-      graded={log.error ? null : log.data || []} gradedError={log.error?.message || null} />
+      graded={log.error ? null : log.data || []} gradedError={log.error?.message || null} chart={chart} />
   )
 }
