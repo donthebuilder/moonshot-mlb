@@ -38,6 +38,7 @@ import { useLiveRefresh } from '../lib/liveRefresh'
 import RefreshStamp from './RefreshStamp'
 import DashFooter from './DashFooter'
 import SkipLink from './SkipLink'
+import { TeamNav } from '../lib/teamNav'
 
 // ── ONE TAB'S CODE AT A TIME (2026-09-27) ────────────────────────────────
 // Every tab used to be a static import, so a cold MOONSHOT link downloaded
@@ -70,6 +71,7 @@ const MlbLedger = dynamic(() => import('./tabs/MlbLedger'), { loading: TabLoadin
 const You = dynamic(() => import('./tabs/You'), { loading: TabLoading })
 const Pools = dynamic(() => import('./tabs/Pools'), { loading: TabLoading })
 const Leaders = dynamic(() => import('./tabs/Leaders'), { loading: TabLoading })
+const Team = dynamic(() => import('./tabs/Team'), { loading: TabLoading })   // 10-03: MOONSHOT's team page
 const ScoreBands = dynamic(() => import('./ScoreBands'), { loading: TabLoading })
 const Results = dynamic(() => import('./tabs/Results'), { loading: TabLoading })
 const CalledLedger = dynamic(() => import('./tabs/CalledLedger'), { loading: TabLoading })
@@ -105,6 +107,7 @@ export default function Dashboard({ palettePass = 0 }) {
   // Every page of both products read as the site name before this.
   // lib/usePageTitle.js holds it against Next's own static <title> write.
   usePageTitle(`${pageTitle('mlb', tab)} \u00b7 DASH Network`)
+  const openTeam = (abbr) => { if (!abbr) return; leaveTarget('team', String(abbr).toUpperCase()); setTab('team') }
   const setTab = (next) => {
     if (next !== 'pairs') setFocusPlayerId(null)
     setModalView({ pid: '', view: '' })
@@ -515,6 +518,7 @@ export default function Dashboard({ palettePass = 0 }) {
     if (tab === 'games' && live.get('game')) h.set('game', live.get('game'))
     if (tab === 'pitchers' && live.get('pitcher')) h.set('pitcher', live.get('pitcher'))
     if (tab === 'player' && live.get('player')) h.set('player', live.get('player'))   // PlayerBoard's pick (2026-09-29)
+    if (tab === 'team' && live.get('team')) h.set('team', live.get('team'))           // the team page's club (10-03)
     // PUSH WHAT YOU OPENED (2026-09-27, audit 00A root fix 1; lib/urlState).
     // A new tab or a newly opened card adds a history entry, so Back returns
     // where you were instead of leaving the site; anything else replaces.
@@ -936,6 +940,8 @@ export default function Dashboard({ palettePass = 0 }) {
             {/* Same boundary the NFL side got (2026-09-07, components/
                 ErrorBoundary.js): a throw inside one tab used to unmount the
                 whole app to a white screen. Now it is one panel. */}
+            {/* a team logo tapped in any table opens the club's page (lib/teamNav, 10-03) */}
+            <TeamNav.Provider value={openTeam}>
             <ErrorBoundary resetKey={tab} label={`the ${tab} tab`}>
             {/* resultsForSlate, NOT results (2026-08-09 audit). Home's pulse line
                 counts "balls already left a yard tonight" straight out of the
@@ -1045,7 +1051,9 @@ export default function Dashboard({ palettePass = 0 }) {
             {tab === 'spray'       && <SprayBoard players={players} slateMode={mode} onPlayerClick={setModalPlayer} />}
             {tab === 'pitchermap'  && <PitcherMap players={players} />}
             {tab === 'guide'       && <Guide onNavigate={setTab} />}
+            {tab === 'team'        && <Team players={allPlayers} onPlayerClick={setModalPlayer} onOpenGame={() => setTab('games')} />}
             </ErrorBoundary>
+            </TeamNav.Provider>
           </div>
         </>
         )}
