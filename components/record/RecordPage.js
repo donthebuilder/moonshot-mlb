@@ -34,7 +34,8 @@ const pctOf = (h, n) => (n > 0 ? Math.round((h / n) * 100) : null)
 /** The window's calls / hits per market, from the series (oldest -> newest). */
 export function windowTotals(series = [], markets = [], take = Infinity) {
   const units = Number.isFinite(take) ? series.slice(-take) : series
-  return markets.map((m) => ({ key: m.key, n: sum(units, m.key, 'n'), hit: sum(units, m.key, 'hit'), units: units.filter((u) => u.markets?.[m.key]?.n > 0).length }))
+  const sumLine = (key, f) => units.reduce((a, u) => a + (Number(u.markets?.[key]?.line?.[f]) || 0), 0)
+  return markets.map((m) => ({ key: m.key, n: sum(units, m.key, 'n'), hit: sum(units, m.key, 'hit'), lineN: sumLine(m.key, 'n'), lineHit: sumLine(m.key, 'hit'), units: units.filter((u) => u.markets?.[m.key]?.n > 0).length }))
 }
 
 function Dots({ units, mk, C, accent, unitWord }) {
@@ -125,7 +126,7 @@ export default function RecordPage({ record, Table, Face = PlayerFace, receipts 
 
   const rows = markets.map((m, i) => {
     const t = totals[i]
-    return { _id: m.key, market: m.label, job: m.job || '', calls: t.n, hits: t.hit, pct: pctOf(t.hit, t.n), units: t.units, _key: m.key }
+    return { _id: m.key, market: m.label, job: m.job || '', calls: t.n, hits: t.hit, pct: pctOf(t.hit, t.n), units: t.units, _key: m.key, lineN: t.lineN, lineHit: t.lineHit, vsline: t.lineN ? pctOf(t.lineHit, t.lineN) : null }
   })
   const columns = [
     { key: 'market', label: 'Market', group: 'Market', sticky: true, heat: false, w: 84, fmt: (v, row) => (
@@ -137,6 +138,11 @@ export default function RecordPage({ record, Table, Face = PlayerFace, receipts 
       fmt: (v, row) => (v == null ? '—' : building
         ? <span title={`${v}% so far`} style={{ display: 'grid', lineHeight: 1.15, color: C.text3, fontSize: 10.5 }}><span>building</span><span>(n={row.calls})</span></span>
         : `${v}%`) },
+    // BEAT THE LINE (M3, 2026-10-03): only when the record carries book lines
+    // (TUDDY's card does); clearing our bar and beating the book's are two claims.
+    ...(rows.some((x) => x.lineN > 0) ? [{ key: 'vsline', label: 'Beat line', group: 'Record', w: 64, heat: false, numeric: true,
+      title: "Of the graded calls with the book's line on file at lock, the share whose result beat that line -- a harder test than clearing our own bar.",
+      fmt: (v, row) => (row.lineN ? <span style={{ display: 'grid', lineHeight: 1.15 }}><span>{v}%</span><span style={{ fontSize: 10, color: C.text3 }}>{row.lineHit}/{row.lineN}</span></span> : '—') }] : []),
     { key: 'dots', label: 'Last 10', group: 'Form', w: 84, heat: false, sortable: false,
       fmt: (v, row) => <Dots units={series} mk={row._key} C={C} accent={accent} unitWord={unitWord} /> },
   ]
@@ -189,7 +195,7 @@ export default function RecordPage({ record, Table, Face = PlayerFace, receipts 
           </div>
         )}>
         {rows.length
-          ? <Table rows={rows} columns={columns} heatMode="sorted" maxRows={rows.length} maxHeight={9999} caption={`Each market against its own job. Last 10: one dot a ${unitWord}, filled by the share that hit.`} />
+          ? <Table rows={rows} columns={columns} heatMode="sorted" maxRows={rows.length} maxHeight={9999} caption={`Each market against its own job. Last 10: one dot a ${unitWord}, filled by the share that hit.${rows.some((x) => x.lineN > 0) ? ` Beat line counts only the calls with the book's line on file at lock (n under it); a ${unitWord} without one is left out.` : ''}`} />
           : <p style={{ fontSize: 12, color: C.text3 }}>Nothing graded yet.</p>}
       </Section>
 
