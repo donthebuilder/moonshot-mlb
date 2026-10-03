@@ -25,7 +25,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/nfl/theme'
 import { useFollowing } from '../../lib/dash/follow'
-import { useDashAccount } from '../../lib/dash/sync'
+import YourPlayersView, { KEYS } from '../YourPlayersView'
 import { fetchNflLive, lineFor, gameFor, tdsIn } from '../../lib/nfl/liveSlate'
 import { onLiveRefresh } from '../../lib/liveRefresh'
 
@@ -52,26 +52,21 @@ const RANK = { live: 0, pre: 1, final: 2, off: 3 }
 // Mobile-scroll discipline: preview the loudest three, everything else is
 // one tap away. Same cap MOONSHOT settled on after "make sure it only shows
 // 3 players max for the preview, it takes up the whole page."
-const COLLAPSED_N = 3
-const OPEN_KEY = 'tuddy_yourplayers_open_v1'
-const readOpen = () => { try { return localStorage.getItem(OPEN_KEY) === '1' } catch { return false } }
-const writeOpen = (v) => { try { localStorage.setItem(OPEN_KEY, v ? '1' : '0') } catch {} }
-
-const wrap = { border: `1px solid ${C.border}`, borderRadius: 12, padding: '12px 14px' }
-const head = { display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }
-const title = { fontSize: 12.5, color: C.text }
-const note = { fontSize: 10, color: C.text3, fontFamily: NUM_FONT }
+// THE SECTION IS MOONSHOT'S (2026-10-03, parity): components/YourPlayersView.js
+// draws it -- the collapsible header with live and TD counts, × to remove, show
+// more, Clear all -- and this file is TUDDY's data: the follow list, this
+// week's live line, the bars it cleared.
+const statLine = (l) => {
+  const parts = []
+  if (n(l?.receptions) || n(l?.receiving_yards)) parts.push(`${n(l.receptions)} rec ${n(l.receiving_yards)} yds`)
+  if (n(l?.rushing_yards)) parts.push(`${n(l.rushing_yards)} rush`)
+  if (n(l?.passing_yards)) parts.push(`${n(l.passing_yards)} pass`)
+  return parts.join(' · ')
+}
 
 export default function NflYourPlayers({ players = [], onPlayerClick = null }) {
-  const { rows: followed, unfollow } = useFollowing('nfl')
-  const account = useDashAccount()
+  const { rows: followed } = useFollowing('nfl')
   const [snap, setSnap] = useState(null)
-  // Starts closed on server + first client render, then adopts the stored
-  // choice in an effect -- reading localStorage during render is the exact
-  // hydration mismatch lib/theme.js's applyTheme() comment warns about.
-  const [open, setOpen] = useState(false)
-  useEffect(() => { setOpen(readOpen()) }, [])
-  const toggle = () => setOpen((v) => { writeOpen(!v); return !v })
 
   useEffect(() => {
     let alive = true
@@ -87,7 +82,6 @@ export default function NflYourPlayers({ players = [], onPlayerClick = null }) {
       const p = byName.get(`${r.name}|${r.team}`) || null
       const line = lineFor(snap, r)
       const g = gameFor(snap, r)
-      // on tonight's slate (R2: was onBoard, which read like the board's status word)
       const onSlate = !!p
       let status = 'off'
       if (g?.completed || g?.state === 'post') status = 'final'
@@ -95,82 +89,30 @@ export default function NflYourPlayers({ players = [], onPlayerClick = null }) {
       else if (g?.state === 'in') status = 'live'
       else if (onSlate || g) status = 'pre'
       const opp = g ? (g.home === r.team ? g.away : g.home) : (p?.opp || '')
+      const tds = line ? tdsIn(line) : 0
+      const sl = line ? statLine(line) : ''
       return {
         ...r, p, line, g, onSlate, status,
         bars: line ? barsCleared(line) : [],
-        tds: line ? tdsIn(line) : 0,
-        highConf: !!p?.high_confidence_td_flag,
-        tdScore: Number.isFinite(p?.scores?.TD) ? Math.round(p.scores.TD) : null,
+        hr: tds,
+        // The role slot carries the bot's TD score, the board's number for him.
+        role: Number.isFinite(p?.scores?.TD) ? `TD ${Math.round(p.scores.TD)}${p.high_confidence_td_flag ? ' ⭐' : ''}` : '',
         matchup: `${r.team}${opp ? ` vs ${opp}` : ''}`.trim(),
+        lineNode: sl
+          ? <span style={{ fontSize: 11.5, fontWeight: 700, color: C.text, fontFamily: NUM_FONT, whiteSpace: 'nowrap' }}>{sl}{tds > 0 && <b style={{ color: C.green }}>{' '}{tds} TD</b>}</span>
+          : <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, whiteSpace: 'nowrap' }}>{status === 'off' ? 'not on this week’s board' : status === 'final' ? 'no stat line' : status === 'live' ? 'in progress' : 'not kicked off'}</span>,
+        clock: status === 'live' ? 'live' : status === 'final' ? 'final' : status === 'pre' && g?.detail ? g.detail : '',
       }
     }).sort((a, b) => (RANK[a.status] - RANK[b.status])
-      || (b.tds - a.tds)
+      || (b.hr - a.hr)
       || String(a.name).localeCompare(String(b.name)))
   }, [followed, players, snap])
 
-  if (!rows.length) {
-    return (
-      <div style={wrap}>
-        <div style={head}><b style={title}>★ Your players</b><span style={note}>nobody yet</span></div>
-        <p style={{ ...note, margin: '6px 0 0', lineHeight: 1.6 }}>
-          Star a player anywhere on the board and he lands here, with this week&apos;s
-          line beside him.
-        </p>
-      </div>
-    )
-  }
-
-  const liveN = rows.filter((r) => r.status === 'live').length
-  const tdN = rows.reduce((a, r) => a + r.tds, 0)
-  const shown = open ? rows : rows.slice(0, COLLAPSED_N)
-  const hiddenN = rows.length - shown.length
-
   return (
-    <div style={wrap}>
-      <div style={head}>
-        <b style={title}>★ Your players</b>
-        <span style={note}>
-          {rows.length} {rows.length === 1 ? 'player' : 'players'} ·{' '}
-          {account.signedIn ? 'saved to your account' : 'saved on this device'}
-          {liveN > 0 && <> · <b style={{ color: C.green }}>{liveN} live</b></>}
-          {tdN > 0 && <> · <b style={{ color: C.green }}>{tdN} TD{tdN > 1 ? 's' : ''}</b> tonight</>}
-        </span>
-        {rows.length > COLLAPSED_N && (
-          <button type="button" onClick={toggle} style={{
-            marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer',
-            fontFamily: NUM_FONT, fontSize: 9.5, color: C.green, fontWeight: 800,
-          }}>{open ? 'Show less' : `Show ${hiddenN} more`}</button>
-        )}
-      </div>
-      <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 2 }}>
-        {shown.map((r) => (
-          <button key={`${r.sport}:${r.id}`} type="button" onClick={() => r.p && onPlayerClick?.(r.p, 'TD')}
-            disabled={!r.p}
-            style={{
-              display: 'grid', gridTemplateColumns: '1fr auto auto', alignItems: 'center', gap: 8,
-              width: '100%', padding: '7px 4px', border: 0, borderTop: `1px solid ${C.border}`,
-              background: 'transparent', color: 'inherit', textAlign: 'left',
-              cursor: r.p ? 'pointer' : 'default',
-            }}>
-            <span style={{ minWidth: 0 }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                {r.status === 'live' && <i style={{ width: 5, height: 5, borderRadius: '50%', background: C.green, flexShrink: 0 }} />}
-                <b style={{ fontSize: 11.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</b>
-                {r.highConf && <span title="Bot's high-confidence TD flag" style={{ fontSize: 10 }}>⭐</span>}
-              </span>
-              <span style={{ display: 'block', marginTop: 2, fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
-                {r.matchup || 'not on this week’s board'}
-              </span>
-            </span>
-            <span style={{ fontSize: 10, color: C.text2, textAlign: 'right' }}>
-              {r.bars.length ? r.bars.join(' · ') : (r.status === 'live' ? 'in progress' : r.status === 'final' ? 'no stat line' : r.status === 'pre' ? 'not kicked off' : '')}
-            </span>
-            {r.tdScore != null && (
-              <span style={{ fontFamily: NUM_FONT, fontSize: 12, fontWeight: 900, color: C.green, textAlign: 'right', minWidth: 26 }}>{r.tdScore}</span>
-            )}
-          </button>
-        ))}
-      </div>
-    </div>
+    <YourPlayersView sport="nfl" rows={rows} onPlayerClick={onPlayerClick ? (p) => onPlayerClick(p, 'TD') : null}
+      theme={C} numFont={NUM_FONT} accent={C.green} liveInk={C.cyan} keys={KEYS.nfl}
+      eventWord={(k) => `${k} TD${k > 1 ? 's' : ''} this week`} hiddenEventWord={(k) => `${k} with a TD`}
+      emptyNote={<>Star a player anywhere on the board and he lands here, with this week&apos;s
+          line beside him.</>} />
   )
 }

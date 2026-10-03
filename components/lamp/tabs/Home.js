@@ -10,6 +10,7 @@ import LampHeadline from '../LampHeadline'
 import LongshotsPreview from '../../LongshotsPreview'
 import HeroStat from '../../HeroStat'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
+import LampYourPlayers from '../LampYourPlayers'
 import { useLampStandings, useLampBoard, useLampLeaders, useLampRecord, useLampHotSticks } from '../../../lib/nhl/useLamp'
 import { buildLampHeadlines } from '../../../lib/nhl/headlines'
 import { usePreview, ShowMoreButton } from '../../ListPreview'
@@ -137,6 +138,8 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
         faceOf={(c) => { const url = c.playerId && c.team ? nhlMug(board.data?.season?.current || board.data?.season?.id, c.team, c.playerId) : null; return url ? <PlayerFace sport="nhl" photo={url} variant="table" size={22} theme={C} /> : null }} />
       {/* 2026-09-27 (BATCH-STORYLINES-PAGE step 4): the story engine's rarest
           five (History Watch's claims lead as the rarest), then the Storylines tab. */}
+      {/* ⭐ YOUR PLAYERS (2026-10-03): MOONSHOT's section, fed by the scores and board read above. */}
+      <LampYourPlayers games={games} board={board.data} onOpenPlayer={onOpenPlayer} />
       <StorylinesStrip sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} max={5} onOpenTeam={onOpenTeam} onSeeAll={() => setTab?.('storylines')} onOpenPlayer={(id) => onOpenPlayer?.(Number(id))} />
       <LongshotsPreview sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} onSeeAll={() => setTab?.('longshots')} onOpenPlayer={(id) => onOpenPlayer?.(id)} />
 
