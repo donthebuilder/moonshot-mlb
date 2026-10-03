@@ -7,6 +7,7 @@ import { nameOf, playerId as pidOf } from '../lib/player'
 import { fetchLiveSlate, pickCleared, fetchHrContext, lineupStatus } from '../lib/liveSlate'
 import LiveWire from './LiveWire'
 import WireToasts from './WireToasts'
+import { subscribePush } from '../lib/dash/push'
 
 // 📡 MINI WIRE + TOASTS — the live layer that follows you (2026-08-06).
 //
@@ -117,6 +118,8 @@ export default function MiniWire({
     if (perm === 'granted') {
       setNotif('on'); notifRef.current = 'on'
       setAlertMaster(true)
+      // and with the site closed: register this device for push (needs an account; quiet if not)
+      subscribePush().then((r) => { if (r && !r.ok && r.reason === 'signed-out') addToasts([{ key: `push:${Date.now()}`, icon: '🔑', pri: 0, p: null, text: 'Alerts are on while the site is open. Sign in to get them with the site closed too.' }]) }).catch(() => {})
       // Self-verifying arm (2026-08-06): "did it work?" answers itself — a
       // demo toast fires instantly, and the same event hits the OS so you
       // see both channels the moment you opt in.

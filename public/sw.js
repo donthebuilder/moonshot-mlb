@@ -124,12 +124,17 @@ self.addEventListener('notificationclick', (e) => {
   })())
 })
 
-// Web Push, for the day a server exists to send it. Harmless until then: with
-// no subscription on file this never fires.
+// WEB PUSH (the server sends it: /api/dash/push/tick). The product a push is
+// about comes from its own link (sport=nfl / sport=nhl / the MLB default), so
+// a TUDDY touchdown or a LAMP goal says TUDDY or LAMP, not MOONSHOT
+// (2026-10-02; the payload has no sport field and its sender isn't changed).
+const PRODUCT = { nfl: '🏈 TUDDY', nhl: '🚨 LAMP', mlb: '⚾ MOONSHOT' }
+const sportOf = (url) => { const m = String(url || '').match(/[?#&]sport=(nfl|nhl|mlb)/); return m ? m[1] : 'mlb' }
 self.addEventListener('push', (e) => {
   let d = {}
   try { d = e.data ? e.data.json() : {} } catch { d = { body: e.data ? e.data.text() : '' } }
-  e.waitUntil(self.registration.showNotification(d.title || '⚾ DASH Network · Moonshot', {
+  const product = PRODUCT[sportOf(d.url)]
+  e.waitUntil(self.registration.showNotification(d.title || `${product} · DASH Network`, {
     body: d.body || '',
     tag: d.tag || undefined,
     icon: '/icon-192.png',

@@ -8,6 +8,8 @@ import QuietButton from '../QuietButton'
 import LampTicker from './LampTicker'
 import { etToday } from '../../lib/freshness'
 import { fmtDay, shiftDay } from './ui'
+import AlertBell from '../AlertBell'
+import { SportTheme } from '../SportTheme'
 
 // 🏒 LAMP'S HEADER — the same three rows MOONSHOT's and TUDDY's headers
 // settled on: brand row (date · account · gear) · the moving ticker · rail.
@@ -52,9 +54,12 @@ export default function LampHeader({ tab, setTab, live = 0, date = null, setDate
           theme={C} numFont={NUM_FONT}
         />
         <SignUpPill accent={C.ice} />
-        <SettingsSheet theme={C} accent={C.ice} title="View settings — quiet mode" hint="Quiet mode. Sticks on this device.">
+        <SettingsSheet theme={C} accent={C.ice} title="View settings — quiet mode, alerts" hint="Quiet mode and alerts. Stick on this device.">
           <SheetLabel theme={C}>View</SheetLabel>
           <SheetRow><QuietButton /></SheetRow>
+          {/* LAMP's alerts (the shared bell, LAMP's ice): goals for the skaters you follow */}
+          <SheetLabel theme={C}>Alerts</SheetLabel>
+          <SheetRow><SportTheme theme={C} accent={C.ice} numFont={NUM_FONT}><AlertBell what="goals for the skaters you follow" /></SportTheme></SheetRow>
         </SettingsSheet>
       </>}>
       {/* ── row 2: the moving header (as MOONSHOT's) ── */}

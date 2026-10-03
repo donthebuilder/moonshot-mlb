@@ -64,9 +64,10 @@ async function user() {
 // alerts.
 const WELCOME = {
   title: '\u{1F514} Alerts are on',
-  body: 'This is what one looks like. Follow a player and you will hear from us when he goes deep.',
+  // every product's (2026-10-02): was MOONSHOT-only ("when he goes deep", opened MOONSHOT)
+  body: 'This is what one looks like. Follow a player on MOONSHOT, TUDDY or LAMP and you will hear from us when he homers, scores a touchdown or a goal.',
   tag: 'dash-welcome',
-  url: '/app#sport=mlb&tab=you',
+  url: '/app',
 }
 
 // The browser push services a PushSubscription.endpoint can legitimately
