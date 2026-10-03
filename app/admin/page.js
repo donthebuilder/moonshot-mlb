@@ -21,6 +21,8 @@ import { MEMBERS_KINDS } from '../../lib/dash/membersPost'
 import { monthUsage } from '../../lib/odds/sgo'
 import { monthPlan, SOFT_CAP } from '../../lib/odds/budget'
 import { LEAGUES } from '../../lib/odds/snap'
+import { autopostState, FACTS_CONFIG } from '../../lib/facts/engine'
+import { AutopostSwitch, DeleteFactPost } from '../../components/admin/FactsControls'
 
 export const dynamic = 'force-dynamic'
 // The title is computed, not static: a static one rides the 404's payload
@@ -136,6 +138,15 @@ export default async function AdminPage() {
     monthUsage().catch((e) => ({ error: e?.message })),
     monthPlan(easternToday().slice(0, 7), LEAGUES).catch((e) => ({ error: e?.message })),
   ])
+  // THE FACT ENGINE (lib/facts/engine.js): the switch, today's spend, the last posts
+  const fdb = adminClient()
+  const [fstate, frows] = fdb ? await Promise.all([
+    autopostState(fdb).catch((e) => ({ on: false, why: e?.message, missing: true })),
+    fdb.from('fact_posts').select('id, day, sport, family, status, text, writer, tokens_in, tokens_out, x_post_id, fact, posted_at, error').order('created_at', { ascending: false }).limit(20),
+  ]) : [{ on: false, why: 'no database', missing: true }, { data: [], error: null }]
+  const today = easternToday()
+  const fToday = (frows.data || []).filter((r) => r.day === today)
+  const tokensToday = fToday.reduce((a, r) => a + (r.tokens_in || 0) + (r.tokens_out || 0), 0)
   return (
     <main className={start.page}>
       <header className={start.bar}>
@@ -193,6 +204,20 @@ export default async function AdminPage() {
           <Line k="Projected" v={`${plan.projected.withClose} with CLOSE · ${plan.projected.noClose} without`} src="games × snapshots (list + lock + close; NHL list + lock)" />
           <Line k="CLOSE this month" v={plan.closeOff ? 'off' : 'on'} src={plan.why} />
         </>}
+
+        <h2 className={start.kicker} style={{ marginTop: 18 }}>Fact posts</h2>
+        <Line k="Auto-post" v={<AutopostSwitch on={fstate.on} missing={Boolean(fstate.missing)} />} src={fstate.why} />
+        <Line k="Writer" v={process.env.ANTHROPIC_API_KEY ? 'Claude' : 'templates'} src={process.env.ANTHROPIC_API_KEY ? 'ANTHROPIC_API_KEY set (Vercel)' : 'ANTHROPIC_API_KEY not set: fixed templates, same checks'} />
+        <Line k="Today" v={`${fToday.filter((r) => r.status === 'posted').length} / ${FACTS_CONFIG.maxPerDay} posted · ${fToday.filter((r) => r.status === 'rejected').length} rejected`} src={`fact_posts on ${today}, at least ${FACTS_CONFIG.spacingMin} min apart`} />
+        <Line k="AI tokens today" v={tokensToday} src="input + output, summed over today's fact_posts rows" />
+        {frows.error ? <p>Fact posts unavailable: {frows.error.message}</p> : (frows.data || []).map((r) => (
+          <div key={r.id} style={{ borderTop: '1px solid rgba(127,127,127,.25)', padding: '10px 0', fontSize: 13, lineHeight: 1.5 }}>
+            <div><b>{r.status.toUpperCase()}</b> · {r.sport} · {r.family} · {r.day}{r.writer ? ` · ${r.writer}` : ''}</div>
+            {r.text ? <div style={{ whiteSpace: 'pre-wrap', margin: '4px 0' }}>{r.text}</div> : null}
+            <div style={{ opacity: 0.7 }}>{r.fact?.why}{r.fact?.source ? ` · source: ${r.fact.source}` : ''}{r.error ? ` · error: ${r.error}` : ''}</div>
+            {r.status === 'posted' && r.x_post_id ? <div style={{ marginTop: 6 }}><a href={`https://x.com/i/web/status/${r.x_post_id}`} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', marginRight: 12 }}>on X →</a><DeleteFactPost id={r.id} /></div> : null}
+          </div>
+        ))}
 
         <h2 className={start.kicker} style={{ marginTop: 18 }}>Waitlist</h2>
         <Line k="DASH Pro waitlist" v="—" src="not built (no waitlist exists yet)" />
