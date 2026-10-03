@@ -62,12 +62,16 @@ function AuthScreen({ error, message, invite }) {
           <div className={styles.launchActions}><a href="#create-account">Create your free league <b>→</b></a><a href="#sign-in">I already have an account</a></div>
           <div className={styles.launchTrust}><span>✓ Free to play</span><span>✓ Invite-only leagues</span><span>✓ No payment screen</span></div>
         </div>
+        {/* NO MADE-UP NUMBERS (2026-10-02): this card showed a DASH score of 87, a
+            DeVonta Smith start, 62% and 124.8 that came from nowhere -- an example
+            dressed as a result (CLAUDE.md: never invent data). It now says what the
+            Coach does, with nothing to mistake for a real projection. */}
         <div className={styles.launchScoreCard}>
-          <div><small>DASH SCORE</small><strong>87</strong><span>A−</span></div>
-          <p>YOUR WEEK 2 EDGE</p>
-          <h2>Start DeVonta Smith at FLEX.</h2>
-          <p>Higher target ceiling in a matchup you&apos;re projected to win by 7.3.</p>
-          <div className={styles.launchScoreFooter}><span>WIN CHANCE <b>62%</b></span><span>PROJECTED <b>124.8</b></span></div>
+          <div><small>DASH COACH</small><strong>✓</strong><span>EVERY WEEK</span></div>
+          <p>YOUR WEEK, ANSWERED</p>
+          <h2>Who to start, who to add, and why.</h2>
+          <p>Built from this week&apos;s projections and prop markets for your own roster, with the reason beside every call.</p>
+          <div className={styles.launchScoreFooter}><span>BEST LINEUP <b>for your roster</b></span><span>WIRE <b>who&apos;s free</b></span></div>
         </div>
       </section>
 
