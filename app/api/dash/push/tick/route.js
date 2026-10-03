@@ -38,7 +38,7 @@ import { reduceScoreDay } from '../../../../../lib/nhl/reduce'
 import { hasVapid, vapidDetails, vapidProblem } from '../../../../../lib/dash/vapid'
 import { claimBoardWindow, fetchBoard } from '../../../../../lib/dash/board'
 import { byeStarterEventsFrom, franchiseEventsFrom, lineupGapEventsFrom, starterScoreEventsFrom } from '../../../../../lib/dash/franchise'
-import { audienceFrom, boardInfoFrom, laneOf, lineupUpdatesFrom, mlbEventsFrom, nflEventsFrom, followNameKey, nflFollowMisses, nhlEventsFrom, pregameEventsFrom, priorityOf, wants } from '../../../../../lib/dash/pushRules'
+import { audienceFrom, boardInfoFrom, deviceWantsSport, laneOf, lineupUpdatesFrom, mlbEventsFrom, nflEventsFrom, followNameKey, nflFollowMisses, nhlEventsFrom, pregameEventsFrom, priorityOf, wants } from '../../../../../lib/dash/pushRules'
 import { fanOutToDiscord } from '../../../../../lib/dash/discordAlerts'
 import { fetchNfl, nflGameCallsPaths, nflPicksLooksReal, nflPicksPaths, nflSlateLooksReal, nflSlatePaths } from '../../../../../lib/nfl/dataSource'
 import { tdPool } from '../../../../../lib/nfl/tdPool'
@@ -493,7 +493,14 @@ export async function GET(request) {
   const db = service()
   if (!db) return Response.json({ skipped: 'supabase-service-key-missing' })
 
-  const { data: subs } = await db.from('dash_push_subscriptions').select('endpoint,user_id,p256dh,auth')
+  // `sports` is the per-device sport choice. If its migration has not run the
+  // select errors; fall back to the old columns rather than silencing every
+  // push (a missing column must never be a missing night).
+  let { data: subs, error: subsError } = await db.from('dash_push_subscriptions').select('endpoint,user_id,p256dh,auth,sports')
+  if (subsError) {
+    console.error(`[push] sports column unavailable (${subsError.message}) -- sending to all sports`)
+    ;({ data: subs } = await db.from('dash_push_subscriptions').select('endpoint,user_id,p256dh,auth'))
+  }
   if (!subs?.length) return Response.json({ sent: 0, reason: 'no-subscriptions' })
 
   // WHO IS LISTENING, BEFORE WHAT HAPPENED.
@@ -683,6 +690,9 @@ async function sweep(db, subs, stateByUser, audience, { full }) {
     const mine = toSend
       .filter((e) => !e.owner || e.owner === sub.user_id)
       .filter((e) => wants(state, e))
+      // Device sport choice: only the "everyone" alerts are about no one in
+      // particular, so only they are filtered; followed names always arrive.
+      .filter((e) => !e.everyone || deviceWantsSport(sub.sports, e.sport))
       .sort((a, b) => priorityOf(a) - priorityOf(b))
     if (!mine.length) return
 

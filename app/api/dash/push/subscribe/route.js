@@ -109,6 +109,15 @@ async function welcome(sub) {
   }
 }
 
+const SPORTS = ['mlb', 'nfl', 'nhl']
+// undefined = the caller did not say (leave the stored choice alone);
+// otherwise a clean list, [] and all-three both meaning every sport (null).
+function cleanSports(raw) {
+  if (!Array.isArray(raw)) return undefined
+  const picked = SPORTS.filter((s) => raw.includes(s))
+  return picked.length === 0 || picked.length === SPORTS.length ? null : picked
+}
+
 export async function GET() {
   // `problem` is deliberately readable without signing in: it names an
   // environment variable and its expected shape, never any part of a value,
@@ -151,14 +160,24 @@ export async function POST(request) {
     .eq('endpoint', endpoint)
     .maybeSingle()
 
-  const { error } = await supabase.from('dash_push_subscriptions').upsert({
+  // Only written when the caller sent a choice: the silent re-register on page
+  // load carries none and must not reset what the person picked.
+  const sports = cleanSports(body?.sports)
+  const row = {
     endpoint,
     user_id: me.id,
     p256dh,
     auth,
     user_agent: String(body?.userAgent || '').slice(0, 300) || null,
     failures: 0,
-  }, { onConflict: 'endpoint' })
+    ...(sports !== undefined ? { sports } : {}),
+  }
+  let { error } = await supabase.from('dash_push_subscriptions').upsert(row, { onConflict: 'endpoint' })
+  if (error && sports !== undefined && /sports/.test(error.message)) {
+    console.error('[push] sports column missing -- run migration 202610030300; saving without it')
+    delete row.sports
+    ;({ error } = await supabase.from('dash_push_subscriptions').upsert(row, { onConflict: 'endpoint' }))
+  }
 
   if (error) return Response.json({ error: error.message }, { status: 500 })
 

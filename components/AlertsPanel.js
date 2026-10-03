@@ -64,14 +64,26 @@ export default function AlertsPanel({ styles }) {
   const [pushNote, setPushNote] = useState(null)
   const [pushReady, setPushReady] = useState(false)
   const [showAll, setShowAll] = useState(false)
+  // This device's sport choice for the "everyone" alerts (slate homer, TUDDY
+  // red zone, LAMP called goal). All three on = every sport = the default.
+  const [sports, setSports] = useState(['mlb', 'nfl', 'nhl'])
 
   useEffect(() => {
     setMounted(true)
     setPerm(permission())
     setHint(installHint())
+    try { const saved = JSON.parse(localStorage.getItem('dash_push_sports') || 'null'); if (Array.isArray(saved) && saved.length) setSports(saved) } catch { /* default: all */ }
     currentSubscription().then((sub) => setClosedSite(Boolean(sub)))
     vapidPublicKey().then((key) => setPushReady(Boolean(key)))
   }, [])
+
+  const toggleSport = async (key) => {
+    const next = sports.includes(key) ? sports.filter((x) => x !== key) : [...sports, key]
+    if (!next.length) return                    // at least one sport stays on
+    setSports(next)
+    try { localStorage.setItem('dash_push_sports', JSON.stringify(next)) } catch { /* per-device convenience only */ }
+    if (closedSite) await subscribePush(next)   // store it server-side for this device
+  }
 
   const toggleClosedSite = async () => {
     setBusy(true)
@@ -80,7 +92,7 @@ export default function AlertsPanel({ styles }) {
       await unsubscribePush()
       setClosedSite(false)
     } else {
-      const res = await subscribePush()
+      const res = await subscribePush(sports)
       if (res.ok) { setClosedSite(true); setPushNote('Sent one to this device — it should be on your screen now.') }
       else setPushNote(
         res.reason === 'signed-out' ? 'Sign in first — a subscription belongs to an account.'
@@ -195,6 +207,19 @@ export default function AlertsPanel({ styles }) {
           ? 'Switched on one at a time. Pick a preset above to start over.'
           : PRESETS.find((p) => p.key === active)?.detail}
       </p>
+
+      {/* SPORTS ON THIS DEVICE: filters only the alerts about nobody in
+          particular; the names you follow always come through. */}
+      <div className={styles.presetRow} role="group" aria-label="Sports on this device">
+        {[['mlb', 'MLB'], ['nfl', 'NFL'], ['nhl', 'NHL']].map(([k, label]) => (
+          <button key={k} type="button" aria-pressed={sports.includes(k)}
+            className={sports.includes(k) ? `${styles.presetBtn} ${styles.presetBtnOn}` : styles.presetBtn}
+            onClick={() => toggleSport(k)}>
+            <b>{label}{sports.includes(k) ? ' ✓' : ''}</b>
+          </button>
+        ))}
+      </div>
+      <p className={styles.muted} style={{ marginTop: 0 }}>Sports this device hears slate-wide alerts for. Players you follow always come through.</p>
 
       <button
         type="button"
