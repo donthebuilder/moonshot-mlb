@@ -23,6 +23,7 @@ import { monthPlan, SOFT_CAP } from '../../lib/odds/budget'
 import { LEAGUES } from '../../lib/odds/snap'
 import { autopostState, FACTS_CONFIG } from '../../lib/facts/engine'
 import { AutopostSwitch, DeleteFactPost } from '../../components/admin/FactsControls'
+import { readShadows } from '../../lib/shadowRecord'
 
 export const dynamic = 'force-dynamic'
 // The title is computed, not static: a static one rides the 404's payload
@@ -113,6 +114,8 @@ async function readCounts() {
 }
 
 const cachedCounts = unstable_cache(readCounts, ['admin-counts-v1'], { revalidate: 60 })
+// the shadow models' graded lines (lib/shadowRecord.js), 10 min: they change once a night
+const cachedShadows = unstable_cache(async () => { const db = service(); return db ? readShadows(db) : [] }, ['admin-shadows-v1'], { revalidate: 600 })
 
 function Line({ k, v, src }) {
   return (
@@ -144,6 +147,8 @@ export default async function AdminPage() {
     autopostState(fdb).catch((e) => ({ on: false, why: e?.message, missing: true })),
     fdb.from('fact_posts').select('id, day, sport, family, status, text, writer, tokens_in, tokens_out, x_post_id, fact, posted_at, error').order('created_at', { ascending: false }).limit(20),
   ]) : [{ on: false, why: 'no database', missing: true }, { data: [], error: null }]
+  const shadows = await cachedShadows().catch((e) => [{ key: 'x', label: 'Shadow models', error: e?.message }])
+  const pct = (l) => (l?.n ? `${l.pct}% ±${l.pm} (${l.hit}/${l.n})` : 'no graded calls yet')
   const today = easternToday()
   const fToday = (frows.data || []).filter((r) => r.day === today)
   const tokensToday = fToday.reduce((a, r) => a + (r.tokens_in || 0) + (r.tokens_out || 0), 0)
@@ -227,6 +232,18 @@ export default async function AdminPage() {
             {r.status === 'posted' && r.x_post_id ? <div style={{ marginTop: 6 }}><a href={`https://x.com/i/web/status/${r.x_post_id}`} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', marginRight: 12 }}>on X →</a><DeleteFactPost id={r.id} /></div> : null}
           </div>
         ))}
+
+        {/* SHADOW MODELS (BATCH-MODEL-V2 "PROVE IT"): logged-only, never public;
+            a shadow goes live only as a new version when its range clears the live one */}
+        <h2 className={start.kicker} style={{ marginTop: 18 }}>Shadow models</h2>
+        {shadows.map((s) => (s.error
+          ? <Line key={s.key} k={s.label} v="—" src={`unavailable: ${s.error}`} />
+          : <div key={s.key}>
+              <Line k={s.label} v={pct(s.shadow)} src={`${s.what} · ${s.note} · 95% range`} />
+              {s.live ? <Line k="  … the live model, same games" v={pct(s.live)} src="lamp_goal_log called rows on the games the shadow locked" /> : null}
+              <Line k="  … base rate (every graded row)" v={pct(s.base)} src="the share of all graded rows that hit -- the bar any pick has to clear" />
+            </div>))}
+        <Line k="MLB · HR pick shadow (M0)" v="bot repo" src="python3 bots/eval_shadow_picks.py --fetch (hr_pick_top_score #1 vs the real HR pick, from por_rows)" />
 
         <h2 className={start.kicker} style={{ marginTop: 18 }}>Waitlist</h2>
         <Line k="DASH Pro waitlist" v="—" src="not built (no waitlist exists yet)" />
