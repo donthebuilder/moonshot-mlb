@@ -1,8 +1,9 @@
 import { createSupabaseServerClient } from '../../../../lib/supabase/server'
-import LeagueMobileNav from './LeagueMobileNav'
+import { Suspense } from 'react'
+import FranchiseTabBar from './FranchiseTabBar'
 import { signedInUser } from '../../../../lib/supabase/authUser'
 
-// The phone bar needs to know whether to list Commissioner in its More sheet.
+// The phone bar (FranchiseTabBar, on components/MobileTabBar.js) needs to know whether to list Commissioner in its More sheet.
 // The desktop rail has always gated that link on the same fact; the phone bar
 // used to show all nine stops to everyone, so a member could tap through to a
 // control room that is not theirs and be refused there instead of here.
@@ -28,5 +29,7 @@ export default async function LeagueLayout({ children, params }) {
       isCommissioner = data?.commissioner_id === user.id
     }
   } catch { isCommissioner = false }
-  return <>{children}<LeagueMobileNav leagueId={leagueId} isCommissioner={isCommissioner} /></>
+  // FranchiseTabBar reads the query (?view=players, ?board=1) to light the
+  // right stop, which needs a Suspense boundary of its own.
+  return <>{children}<Suspense fallback={null}><FranchiseTabBar leagueId={leagueId} isCommissioner={isCommissioner} /></Suspense></>
 }

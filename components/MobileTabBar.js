@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { C, NUM_FONT } from '../lib/theme'
 import NetworkSwitch from './NetworkSwitch'
 import { MLB_NAV, MLB_MORE_GROUPS } from '../lib/routes'
@@ -79,14 +80,26 @@ const MORE = [
 // someone looks, and it never comes back.
 const SEEN_KEY = 'moonshot_more_seen_v1'
 
-export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, brand = 'MOONSHOT', accent = null }) {
+// ── LINK MODE (2026-10-03, R10: FRANCHISE onto this bar) ──────────────────
+// A product whose pages are real URLs (FRANCHISE's league rooms) passes
+// `hrefOf(key)`: every item is a real <a href> (prefetched, pushed through the
+// router; a modifier-click still opens a new tab), `tab` is the key the
+// caller worked out from the URL, a tapped item reads "Opening…" until the
+// page changes, and the drawer closes on arrival. Without hrefOf nothing
+// below changes -- the four sports' buttons render exactly as before.
+// `network={false}` drops the cross-site row (FRANCHISE's room header carries
+// its own), `title` / `lede` name the drawer, `desktop={false}` keeps the
+// bar to phones where a product has its own desktop rail, and `accentText`
+// lets a theme-aware colour (a CSS var) paint the active words while
+// `accent` stays the hex the tints are mixed from.
+export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, brand = 'MOONSHOT', accent = null, hrefOf = null, network = true, title = 'Everything on this site', lede = 'Every page, what each one is for, and the way across to the other two sites.', desktop = true, accentText = null }) {
   // EACH PRODUCT ITS OWN ACCENT (0g C1, 2026-10-01). The active tab, its
   // underline, the More dot and the active More row were MOONSHOT orange on
   // TUDDY's and LAMP's bars. `accent` (TUDDY jade, LAMP ice) replaces them;
   // MOONSHOT passes none and keeps exactly the orange / amber it had.
   const AC = accent || C.orange
-  const AC_TEXT = accent || '#fbbf24'
-  const AC_ICON = accent || '#fb923c'
+  const AC_TEXT = accentText || accent || '#fbbf24'
+  const AC_ICON = accentText || accent || '#fb923c'
   const AC_FADE = `${accent || C.amber}0b`
   const [open, setOpen] = useState(false)
   const sheetRef = useRef(null)
@@ -105,7 +118,8 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
     setSeen(true)
     try { localStorage.setItem(SEEN_KEY, '1') } catch { /* a full store is not a reason to nag */ }
   }
-  useEffect(() => setOpen(false), [tab])
+  const [pending, setPending] = useState(null)
+  useEffect(() => { setOpen(false); setPending(null) }, [tab])
   // Escape closes the drawer; a swipe to the right (60px, mostly sideways)
   // closes it the way it came in.
   useEffect(() => {
@@ -151,6 +165,22 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
   const go = (key) => { setOpen(false); setTab(key); window.scrollTo({ top: 0, behavior: 'smooth' }) }
+  // Link mode: each item is a native <a>, pushed through the router; tapping
+  // one that isn't where you are reads pending until `tab` moves. Both kinds
+  // are written inline below, never through a helper: styled-jsx only scopes
+  // elements written directly in this render, and a helper's buttons lost
+  // their class (caught by the before/after DOM diff, 2026-10-03).
+  const router = useRouter()
+  const linkKeys = hrefOf ? [...main.map(([k]) => k), ...more.map(([k]) => k).filter((k) => !k.startsWith('@'))].join('|') : ''
+  useEffect(() => { if (hrefOf) for (const k of linkKeys.split('|')) router.prefetch(hrefOf(k)) }, [linkKeys]) // eslint-disable-line react-hooks/exhaustive-deps
+  const follow = (e, k) => {
+    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
+    e.preventDefault()
+    setOpen(false)
+    if (tab === k) return
+    setPending(k)
+    router.push(hrefOf(k))
+  }
   const mainKeys = new Set(main.map(([key]) => key))
   // 'home' is in neither the bar nor `mainKeys` any more -- the MOONSHOT
   // wordmark in the header owns it (2026-09-03). Without this exception the
@@ -185,8 +215,8 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
         onTouchStart={swipeStart}
         onTouchEnd={swipeEnd}
       >
-        <div className="mobileMoreHead"><div><small>{brand} · THE MAP</small><strong>Everything on this site</strong></div><button tabIndex={open ? undefined : -1} onClick={() => setOpen(false)} aria-label="Close More menu">×</button></div>
-        <p className="mobileMoreLede">Every page, what each one is for, and the way across to the other two sites.</p>
+        <div className="mobileMoreHead"><div><small>{brand} · THE MAP</small><strong>{title}</strong></div><button tabIndex={open ? undefined : -1} onClick={() => setOpen(false)} aria-label="Close More menu">×</button></div>
+        <p className="mobileMoreLede">{lede}</p>
         <div className="mobileMoreList">
           {/* THE NETWORK SWITCH LIVES HERE NOW (2026-08-29). Donovan: "remove
               the little floating ico, its redundant now — just make it so we
@@ -196,24 +226,36 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
               the sheet because on a phone the switcher is the hardest thing
               to find. Leaving the sport is a link, not a tab, so it sits
               outside the grid of tabs below. */}
-          <NetworkSwitch onNavigate={() => setOpen(false)} />
+          {network && <NetworkSwitch onNavigate={() => setOpen(false)} />}
           {more.map(([key, label, detail]) => (
             key.startsWith('@') ? (
               <div key={key} className="mobileMoreGroup">{key.slice(1)}</div>
             ) : (
-              <button key={key} tabIndex={open ? undefined : -1} onClick={() => go(key)} className={`mobileMoreRow${tab === key ? ' active' : ''}`} aria-current={tab === key ? 'page' : undefined}>
-                <span>{label}</span><small>{detail}</small><em aria-hidden="true">›</em>
-              </button>
+              hrefOf ? (
+                <a key={key} href={hrefOf(key)} tabIndex={open ? undefined : -1} onClick={(e) => follow(e, key)} className={`mobileMoreRow${tab === key ? ' active' : ''}`} aria-current={tab === key ? 'page' : undefined} aria-busy={pending === key || undefined}>
+                  <span>{label}</span><small>{detail}</small><em aria-hidden="true">›</em>
+                </a>
+              ) : (
+                <button key={key} tabIndex={open ? undefined : -1} onClick={() => go(key)} className={`mobileMoreRow${tab === key ? ' active' : ''}`} aria-current={tab === key ? 'page' : undefined}>
+                  <span>{label}</span><small>{detail}</small><em aria-hidden="true">›</em>
+                </button>
+              )
             )
           ))}
         </div>
       </aside>
 
-      <nav className={`mobileTabBar${tucked && !open ? ' tucked' : ''}`} aria-label={`${brand} primary navigation`} style={{ '--tab-count': main.length + 1 }}>
+      <nav className={`mobileTabBar${tucked && !open ? ' tucked' : ''}${desktop ? '' : ' phoneOnly'}`} aria-label={`${brand} primary navigation`} style={{ '--tab-count': main.length + 1 }}>
         {main.map(([key, icon, label]) => (
-          <button key={key} tabIndex={open ? undefined : -1} className={tab === key ? 'active' : ''} onClick={() => go(key)} aria-current={tab === key ? 'page' : undefined}>
-            <i>{icon}</i><span>{label}</span>
-          </button>
+          hrefOf ? (
+            <a key={key} href={hrefOf(key)} tabIndex={open ? undefined : -1} className={tab === key ? 'active' : ''} onClick={(e) => follow(e, key)} aria-current={tab === key ? 'page' : undefined} aria-busy={pending === key || undefined}>
+              <i>{pending === key ? '•' : icon}</i><span>{pending === key ? 'Opening…' : label}</span>
+            </a>
+          ) : (
+            <button key={key} tabIndex={open ? undefined : -1} className={tab === key ? 'active' : ''} onClick={() => go(key)} aria-current={tab === key ? 'page' : undefined}>
+              <i>{icon}</i><span>{label}</span>
+            </button>
+          )
         ))}
         <button
           className={moreActive || open ? 'active' : ''}
@@ -255,6 +297,7 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
         .mobileMoreRow span{font-size:13px;font-weight:800;color:${C.text}}
         .mobileMoreRow small{grid-column:1;margin-top:2px;color:${C.text3};font-size:11px;line-height:1.3}
         .mobileMoreRow em{grid-column:2;grid-row:1/span 2;color:${C.text3};font-style:normal;font-size:18px}
+        a.mobileMoreRow{text-decoration:none}
         .mobileMoreRow:hover{background:${C.bg}}
         .mobileMoreRow.active{border-radius:10px;border-bottom-color:transparent;background:${AC}14}
         .mobileMoreRow.active span,.mobileMoreRow.active em{color:${accent || C.orange}}
@@ -272,21 +315,24 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
           :global(.dashboard-main){padding-bottom:66px!important}
           .mobileTabBar{position:fixed;z-index:390;left:50%;transform:translateX(-50%);bottom:10px;display:flex;gap:2px;height:46px;padding:5px 8px;border:1px solid ${C.border2};border-radius:14px;background:color-mix(in srgb,${C.bg2} 90%,transparent);box-shadow:0 14px 45px #000b,inset 0 1px 0 #ffffff0a;backdrop-filter:blur(18px) saturate(140%)}
           .mobileTabBar.tucked:not(:focus-within){transform:translate(-50%,calc(100% + 24px))}
-          .mobileTabBar button{position:relative;display:flex;flex-direction:row;align-items:center;gap:7px;padding:0 14px;border:0;border-radius:9px;background:transparent;color:${C.text3};font-family:${NUM_FONT};font-size:10px;font-weight:800;letter-spacing:.03em;cursor:pointer}
-          .mobileTabBar button i{color:${C.text2};font-family:system-ui;font-size:15px;font-style:normal;line-height:1}
-          .mobileTabBar button:hover{color:${C.text2}}
-          .mobileTabBar button.active{background:linear-gradient(145deg,${AC}28,${AC_FADE});color:${AC_TEXT}}
-          .mobileTabBar button.active i{color:${AC_ICON};text-shadow:0 0 14px ${AC}88}
+          .mobileTabBar.phoneOnly{display:none}
+          .mobileTabBar a{text-decoration:none}
+          .mobileTabBar button,.mobileTabBar a{position:relative;display:flex;flex-direction:row;align-items:center;gap:7px;padding:0 14px;border:0;border-radius:9px;background:transparent;color:${C.text3};font-family:${NUM_FONT};font-size:10px;font-weight:800;letter-spacing:.03em;cursor:pointer}
+          .mobileTabBar button i,.mobileTabBar a i{color:${C.text2};font-family:system-ui;font-size:15px;font-style:normal;line-height:1}
+          .mobileTabBar button:hover,.mobileTabBar a:hover{color:${C.text2}}
+          .mobileTabBar button.active,.mobileTabBar a.active{background:linear-gradient(145deg,${AC}28,${AC_FADE});color:${AC_TEXT}}
+          .mobileTabBar button.active i,.mobileTabBar a.active i{color:${AC_ICON};text-shadow:0 0 14px ${AC}88}
         }
         @media(max-width:760px){
           :global(.dashboard-main){padding-bottom:102px!important}
           .mobileTabBar{position:fixed;z-index:390;left:10px;right:10px;bottom:max(9px,env(safe-area-inset-bottom));display:grid;grid-template-columns:repeat(var(--tab-count,5),1fr);height:62px;padding:5px;border:1px solid ${C.border2};border-radius:17px;background:color-mix(in srgb,${C.bg2} 92%,transparent);box-shadow:0 18px 55px #000b,inset 0 1px 0 #ffffff0a;backdrop-filter:blur(18px) saturate(140%)}
           .mobileTabBar.tucked:not(:focus-within){transform:translateY(calc(100% + 24px + env(safe-area-inset-bottom)))}
-          .mobileTabBar button{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-width:0;border:0;border-radius:12px;background:transparent;color:${C.text3};font-family:${NUM_FONT};font-size:8px;font-weight:900;letter-spacing:.02em}
-          .mobileTabBar button i{height:20px;color:${C.text2};font-family:system-ui;font-size:16px;font-style:normal;line-height:20px}
-          .mobileTabBar button.active{background:linear-gradient(145deg,${AC}28,${AC_FADE});color:${AC_TEXT}}
-          .mobileTabBar button.active i{color:${AC_ICON};text-shadow:0 0 14px ${AC}88}
-          .mobileTabBar button.active:after{content:'';position:absolute;left:28%;right:28%;bottom:2px;height:2px;border-radius:9px;background:${AC}}
+          .mobileTabBar a{text-decoration:none}
+          .mobileTabBar button,.mobileTabBar a{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-width:0;border:0;border-radius:12px;background:transparent;color:${C.text3};font-family:${NUM_FONT};font-size:8px;font-weight:900;letter-spacing:.02em}
+          .mobileTabBar button i,.mobileTabBar a i{height:20px;color:${C.text2};font-family:system-ui;font-size:16px;font-style:normal;line-height:20px}
+          .mobileTabBar button.active,.mobileTabBar a.active{background:linear-gradient(145deg,${AC}28,${AC_FADE});color:${AC_TEXT}}
+          .mobileTabBar button.active i,.mobileTabBar a.active i{color:${AC_ICON};text-shadow:0 0 14px ${AC}88}
+          .mobileTabBar button.active:after,.mobileTabBar a.active:after{content:'';position:absolute;left:28%;right:28%;bottom:2px;height:2px;border-radius:9px;background:${AC}}
         }
       `}</style>
     </>

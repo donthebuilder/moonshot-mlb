@@ -64,7 +64,21 @@ for (const [dir, key] of Object.entries(pages)) {
   if (active !== key) { console.log(`MISS ${key}: marks "${active}" as the current tab`); bad++; continue }
   if (!/isCommissioner=\{/.test(tag[0])) { console.log(`MISS ${key}: <LeagueNav> gets no isCommissioner -- Settings can never show`); bad++ }
 }
+// THE PHONE BAR'S LIGHT (2026-10-03, R10): every stop's own URL lights
+// itself -- query-string stops included (Players, Draft never lit on the old
+// bar) -- and another manager's team lights none (More does).
+const { FRANCHISE_NAV: NAV, franchiseHref, franchiseKeyOf } = await import('../lib/fantasy/nav.js')
+for (const key of Object.keys(NAV)) {
+  const u = new URL(franchiseHref('L1', key), 'http://x')
+  const got = franchiseKeyOf('L1', u.pathname, u.search)
+  if (got !== key) { console.log(`MISS phone bar: ${u.pathname}${u.search} lights "${got}", not "${key}"`); bad++ }
+}
+for (const [url, want] of [['/fantasy/league/L1/team/T9', null], ['/fantasy/league/L1', null], ['/fantasy/league/L1/league?view=standings', 'league']]) {
+  const u = new URL(url, 'http://x')
+  const got = franchiseKeyOf('L1', u.pathname, u.search)
+  if (got !== want) { console.log(`MISS phone bar: ${url} lights "${got}", not "${want}"`); bad++ }
+}
 console.log(bad
   ? `\n${bad} league nav(s) out of step - a tab is unreachable from somewhere`
-  : `\nok   all ${Object.keys(pages).length} league pages render the one shared nav`)
+  : `\nok   all ${Object.keys(pages).length} league pages render the one shared nav; the phone bar lights all ${Object.keys(NAV).length} stops`)
 process.exit(bad ? 1 : 0)
