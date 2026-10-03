@@ -22,7 +22,7 @@
 import { easternToday, dayBefore, etHour } from '../../../../../lib/data'
 import { scoreFor, validDate } from '../../../../../lib/nhl/api'
 import { reduceScoreDay } from '../../../../../lib/nhl/reduce'
-import { MODEL_VERSION } from '../../../../../lib/nhl/goalModel'
+import { VERSIONS, versionsFor } from '../../../../../lib/nhl/versions'
 import { cronAuthorized, adminClient } from '../../../../../lib/nhl/db'
 import { gameActive, tickGoals } from '../../../../../lib/nhl/goalFeed'
 import { hasX, postToDiscord, postToX, uploadImageToX, xProblem } from '../../../../../lib/dash/xPost'
@@ -44,7 +44,8 @@ function supabaseStore(db) {
   const must = (what, { data, error }) => { if (error) throw new Error(`${what}: ${error.message}`); return data || [] }
   return {
     existing: async (ids) => must('existing', await db.from('lamp_goal_feed').select('*').in('game_id', ids)),
-    locks: async (ids) => must('locks', await db.from('lamp_goal_log').select('game_id, player_id, status, rank_in_game, score').in('game_id', ids).eq('model_version', MODEL_VERSION)),
+    // a game has rows under one version only (its date's): read both
+    locks: async (ids) => must('locks', await db.from('lamp_goal_log').select('game_id, player_id, status, rank_in_game, score').in('game_id', ids).in('model_version', VERSIONS.goal)),
     insert: async (rows) => must('insert', await db.from('lamp_goal_feed').upsert(rows, { onConflict: 'game_id,player_id,goal_n', ignoreDuplicates: true }).select('*')),
     confirm: async (row, at) => must('confirm', await db.from('lamp_goal_feed').update({ confirmed_at: at }).match(KEY(row)).is('confirmed_at', null).is('overturned_at', null)),
     overturn: async (row, at) => must('overturn', await db.from('lamp_goal_feed').update({ overturned_at: at }).match(KEY(row)).is('overturned_at', null)),
@@ -113,7 +114,7 @@ export async function GET(request) {
     else console.error(`[lamp goals] nhlgoal is on but neither X nor a Discord channel is configured: ${xProblem()}`)
   }
   try {
-    const out = await tickGoals({ games, store: supabaseStore(db), poster, modelVersion: MODEL_VERSION })
+    const out = await tickGoals({ games, store: supabaseStore(db), poster, modelVersion: (game) => versionsFor(game.date).goal })
     out.ms = Date.now() - t0
     console.log(`[lamp goals] ${dates.join(',')} active ${out.active} goals ${out.goals} new ${out.inserted} confirmed ${out.confirmed} overturned ${out.overturned} posted ${out.posted.length} in ${out.ms}ms`)
     return Response.json({ dates, ...out }, { headers: { 'Cache-Control': 'no-store' } })

@@ -21,16 +21,17 @@ import { easternToday, dayBefore } from '../../../../lib/data'
 import { scoreFor, nhlGet, validDate, TTL } from '../../../../lib/nhl/api'
 import { reduceScoreDay } from '../../../../lib/nhl/reduce'
 import { buildNight, toLogRow } from '../../../../lib/nhl/goalBoard'
-import { gradeRows, MODEL_VERSION } from '../../../../lib/nhl/goalModel'
+import { gradeRows } from '../../../../lib/nhl/goalModel'
+import { VERSIONS, versionsFor } from '../../../../lib/nhl/versions'
 import { cronAuthorized, adminClient } from '../../../../lib/nhl/db'
 import { LOCK_WINDOW_MS } from '../../../../lib/nhl/boardRead'
 import { startersFromPlayByPlay, goaliesFromBoxscore } from '../../../../lib/nhl/goalies'
 import { shotsFromPlayByPlay, writeShots } from '../../../../lib/nhl/shots'
 import { postLongshotsOnce } from '../../../../lib/dash/longshotsPost'
 import { postMultiClubOnce } from '../../../../lib/dash/multiClubPost'
-import { toPropRow, gradeSogRows, MODEL_VERSION as SOG_VERSION, MARKET as SOG } from '../../../../lib/nhl/sogModel'
-import { toPtsRow, gradePtsRows, MODEL_VERSION as PTS_VERSION, MARKET as PTS } from '../../../../lib/nhl/ptsModel'
-import { toAstRow, gradeAstRows, MODEL_VERSION as AST_VERSION, MARKET as AST } from '../../../../lib/nhl/astModel'
+import { toPropRow, gradeSogRows, MARKET as SOG } from '../../../../lib/nhl/sogModel'
+import { toPtsRow, gradePtsRows, MARKET as PTS } from '../../../../lib/nhl/ptsModel'
+import { toAstRow, gradeAstRows, MARKET as AST } from '../../../../lib/nhl/astModel'
 import { readNumerology } from '../../../../lib/nhl/numerology'
 import { writeNight as writeNumerology, gradeNight as gradeNumerology, refreshLaneNights, writeNumbersNight } from '../../../../lib/numerology/record'
 import { fromNhl } from '../../../../lib/numerology/adapters'
@@ -49,9 +50,9 @@ export const maxDuration = 60
 // idempotent.
 const NET_COLS = ['starters', 'starters_source', 'starters_actual', 'goalies']
 const missingNetColumn = (error) => Boolean(error && /column|schema cache/i.test(error.message || '') && NET_COLS.some((c) => (error.message || '').includes(c)))
-async function writeGame(db, game_id, row, op) {
+async function writeGame(db, game_id, row, op, version) {
   const run = (r) => (op === 'update'
-    ? db.from('lamp_goal_games').update(r).eq('game_id', game_id).eq('model_version', MODEL_VERSION)
+    ? db.from('lamp_goal_games').update(r).eq('game_id', game_id).eq('model_version', version)
     : db.from('lamp_goal_games').upsert(r, { onConflict: 'game_id,model_version' }))
   let res = await run(row)
   if (res.error && missingNetColumn(res.error)) {
@@ -64,8 +65,8 @@ async function writeGame(db, game_id, row, op) {
 // exactly like LAMP SHOTS, read by nothing on the site. lamp_prop_log's
 // market check already allows 'PTS' and 'AST' (202609280100_lamp_prop_log.sql).
 const SHADOW = [
-  { market: PTS, version: PTS_VERSION, byGame: 'ptsByGame', toRow: toPtsRow, grade: gradePtsRows },
-  { market: AST, version: AST_VERSION, byGame: 'astByGame', toRow: toAstRow, grade: gradeAstRows },
+  { market: PTS, key: 'pts', byGame: 'ptsByGame', toRow: toPtsRow, grade: gradePtsRows },
+  { market: AST, key: 'ast', byGame: 'astByGame', toRow: toAstRow, grade: gradeAstRows },
 ]
 
 export async function GET(request) {
@@ -75,7 +76,9 @@ export async function GET(request) {
   const t0 = Date.now()
   const { searchParams } = new URL(request.url)
   const date = validDate(searchParams.get('date')) ? searchParams.get('date') : easternToday()
-  const out = { date, modelVersion: MODEL_VERSION, locked: [], graded: [], skipped: [] }
+  // the versions tonight's games lock under (lib/nhl/versions.js: v3 from 10-03)
+  const V = versionsFor(date)
+  const out = { date, modelVersion: V.goal, locked: [], graded: [], skipped: [] }
 
   // ── LOCK ──────────────────────────────────────────────────────────────
   let night = null
@@ -95,7 +98,7 @@ export async function GET(request) {
       if (Date.parse(lockedAt) >= start) { out.skipped.push({ game: g.id, why: 'puck dropped during build' }); continue }
       const { error } = await db.from('lamp_goal_log').upsert(rows.map((r) => toLogRow(r, g, night.day, lockedAt)), { onConflict: 'game_id,player_id,model_version' })
       if (error) { console.error(`[lamp tick] upsert ${g.id}: ${error.message}`); out.skipped.push({ game: g.id, why: `upsert: ${error.message}` }); continue }
-      const del = await db.from('lamp_goal_log').delete().eq('game_id', g.id).eq('model_version', MODEL_VERSION).lt('locked_at', lockedAt)
+      const del = await db.from('lamp_goal_log').delete().eq('game_id', g.id).eq('model_version', V.goal).lt('locked_at', lockedAt)
       if (del.error) console.error(`[lamp tick] prune ${g.id}: ${del.error.message}`)
       // LAMP SHOTS (lamp-sog-v1): same game, same snapshot, same lockedAt, the
       // same "never at or after puck drop" (checked above). Its own failure,
@@ -105,7 +108,7 @@ export async function GET(request) {
         const up = await db.from('lamp_prop_log').upsert(sogRows.map((r) => toPropRow(r, g, night.day, lockedAt)), { onConflict: 'game_id,player_id,market,model_version' })
         if (up.error) console.error(`[lamp tick] sog upsert ${g.id}: ${up.error.message}`)
         else {
-          const sdel = await db.from('lamp_prop_log').delete().eq('game_id', g.id).eq('market', SOG).eq('model_version', SOG_VERSION).lt('locked_at', lockedAt)
+          const sdel = await db.from('lamp_prop_log').delete().eq('game_id', g.id).eq('market', SOG).eq('model_version', V.sog).lt('locked_at', lockedAt)
           if (sdel.error) console.error(`[lamp tick] sog prune ${g.id}: ${sdel.error.message}`)
         }
       }
@@ -118,18 +121,18 @@ export async function GET(request) {
         if (Date.now() >= start) { out.skipped.push({ game: g.id, why: `${m.market}: puck dropped before its write` }); continue }
         const mu = await db.from('lamp_prop_log').upsert(mRows.map((r) => m.toRow(r, g, night.day, lockedAt)), { onConflict: 'game_id,player_id,market,model_version' })
         if (mu.error) { console.error(`[lamp tick] ${m.market} upsert ${g.id}: ${mu.error.message}`); continue }
-        const md = await db.from('lamp_prop_log').delete().eq('game_id', g.id).eq('market', m.market).eq('model_version', m.version).lt('locked_at', lockedAt)
+        const md = await db.from('lamp_prop_log').delete().eq('game_id', g.id).eq('market', m.market).eq('model_version', V[m.key]).lt('locked_at', lockedAt)
         if (md.error) console.error(`[lamp tick] ${m.market} prune ${g.id}: ${md.error.message}`)
         shadowLocked[m.market] = mRows.length
       }
-      const prevGame = await db.from('lamp_goal_games').select('snapshots').eq('game_id', g.id).eq('model_version', MODEL_VERSION).maybeSingle()
+      const prevGame = await db.from('lamp_goal_games').select('snapshots').eq('game_id', g.id).eq('model_version', V.goal).maybeSingle()
       const gm = await writeGame(db, g.id, {
-        game_id: g.id, model_version: MODEL_VERSION, game_date: night.day.date, season: g.season, game_type: g.gameType, start_utc: g.startUtc,
+        game_id: g.id, model_version: V.goal, game_date: night.day.date, season: g.season, game_type: g.gameType, start_utc: g.startUtc,
         away: g.away.abbrev, home: g.home.abbrev, snapshots: (prevGame.data?.snapshots || 0) + 1,
         lineup_known: Boolean(night.lineups[g.id]), locked_at: lockedAt, state: g.rawState,
         // The net, pregame: null until a starter source exists (lib/nhl/goalies.js).
         starters: night.starters?.byGame?.[g.id] || null, starters_source: night.starters?.source || null,
-      }, 'upsert')
+      }, 'upsert', V.goal)
       if (gm.error) console.error(`[lamp tick] games ${g.id}: ${gm.error.message}`)
       out.locked.push({ game: g.id, matchup: `${g.away.abbrev}@${g.home.abbrev}`, rows: rows.length, called: rows.filter((r) => r.status === 'called').map((r) => r.name),
         sogCalled: sogRows.filter((r) => r.status === 'called').map((r) => r.name), shadow: shadowLocked, lineupKnown: Boolean(night.lineups[g.id]), minutesToDrop: Math.round((start - Date.now()) / 60000) })
@@ -153,32 +156,33 @@ export async function GET(request) {
   }
 
   // ── GRADE ─────────────────────────────────────────────────────────────
-  const pending = await db.from('lamp_goal_games').select('game_id, game_date').eq('model_version', MODEL_VERSION).is('graded_at', null).in('game_date', [date, dayBefore(date)])
+  const pending = await db.from('lamp_goal_games').select('game_id, game_date, model_version').in('model_version', VERSIONS.goal).is('graded_at', null).in('game_date', [date, dayBefore(date)])
   if (pending.error) { console.error(`[lamp tick] pending: ${pending.error.message}`); out.skipped.push({ why: `pending: ${pending.error.message}` }) }
   const feedByDate = {}
   for (const p of pending.data || []) {
+    const Vp = versionsFor(p.game_date)   // graded under the version it was locked under
     try {
       if (!feedByDate[p.game_date]) feedByDate[p.game_date] = (p.game_date === date && night) ? night.day : reduceScoreDay(await scoreFor(p.game_date))
       const g = feedByDate[p.game_date].games.find((x) => x.id === Number(p.game_id))
       if (!g) { out.skipped.push({ game: p.game_id, why: 'not on the feed for its date' }); continue }
       if (g.scheduleState !== 'OK') {
-        await db.from('lamp_goal_games').update({ state: g.scheduleState, graded_at: new Date().toISOString() }).eq('game_id', p.game_id).eq('model_version', MODEL_VERSION)
+        await db.from('lamp_goal_games').update({ state: g.scheduleState, graded_at: new Date().toISOString() }).eq('game_id', p.game_id).eq('model_version', Vp.goal)
         out.graded.push({ game: p.game_id, closed: g.scheduleState }); continue
       }
-      if (g.state !== 'final') { await db.from('lamp_goal_games').update({ state: g.rawState }).eq('game_id', p.game_id).eq('model_version', MODEL_VERSION); continue }
+      if (g.state !== 'final') { await db.from('lamp_goal_games').update({ state: g.rawState }).eq('game_id', p.game_id).eq('model_version', Vp.goal); continue }
       const box = await nhlGet(`/gamecenter/${p.game_id}/boxscore`, TTL.game)
       if (!box?.playerByGameStats) { out.skipped.push({ game: p.game_id, why: 'final but no playerByGameStats yet' }); continue }
       // The net, postgame — archived for the v2 goalie leg; a failed play-by-play read costs only the starters, never the grade.
       const pbp = await nhlGet(`/gamecenter/${p.game_id}/play-by-play`, TTL.game).catch((e) => { console.error(`[lamp tick] pbp ${p.game_id}: ${e?.message}`); return null })
       const startersActual = pbp ? startersFromPlayByPlay(pbp) : null
       const goalies = goaliesFromBoxscore(box)
-      const have = await db.from('lamp_goal_log').select('*').eq('game_id', p.game_id).eq('model_version', MODEL_VERSION)
+      const have = await db.from('lamp_goal_log').select('*').eq('game_id', p.game_id).eq('model_version', Vp.goal)
       if (have.error) throw new Error(have.error.message)
       const gradedAt = new Date().toISOString()
       const graded = gradeRows((have.data || []).map((r) => ({ ...r, playerId: r.player_id, status: r.status, rank: r.rank_in_game })), box.playerByGameStats)
       const up = await db.from('lamp_goal_log').upsert(graded.map(({ playerId, rank, ...r }) => ({ ...r, dressed: r.dressed, goals: r.goals, hit: r.hit, graded_at: gradedAt })), { onConflict: 'game_id,player_id,model_version' })
       if (up.error) throw new Error(up.error.message)
-      const gu = await writeGame(db, p.game_id, { state: g.rawState, graded_at: gradedAt, starters_actual: startersActual, goalies }, 'update')
+      const gu = await writeGame(db, p.game_id, { state: g.rawState, graded_at: gradedAt, starters_actual: startersActual, goalies }, 'update', Vp.goal)
       if (gu.error) throw new Error(gu.error.message)
       // THE SHOT ARCHIVE (lamp research step 3): the play-by-play already read
       // for the net, written to lamp_shots. Its own failure, logged; never the grade's.
@@ -190,7 +194,7 @@ export async function GET(request) {
       // dressed = void. Scoring columns untouched; its own failure, logged.
       let sogGraded = null
       try {
-        const sh = await db.from('lamp_prop_log').select('*').eq('game_id', p.game_id).eq('market', SOG).eq('model_version', SOG_VERSION).is('graded_at', null)
+        const sh = await db.from('lamp_prop_log').select('*').eq('game_id', p.game_id).eq('market', SOG).eq('model_version', Vp.sog).is('graded_at', null)
         if (sh.error) throw new Error(sh.error.message)
         if (sh.data?.length) {
           const gs = gradeSogRows(sh.data, box.playerByGameStats)
@@ -204,7 +208,7 @@ export async function GET(request) {
       const shadowGraded = {}
       for (const m of SHADOW) {
         try {
-          const sh = await db.from('lamp_prop_log').select('*').eq('game_id', p.game_id).eq('market', m.market).eq('model_version', m.version).is('graded_at', null)
+          const sh = await db.from('lamp_prop_log').select('*').eq('game_id', p.game_id).eq('market', m.market).eq('model_version', Vp[m.key]).is('graded_at', null)
           if (sh.error) throw new Error(sh.error.message)
           if (!sh.data?.length) continue
           const gs = m.grade(sh.data, box.playerByGameStats)
@@ -231,13 +235,13 @@ export async function GET(request) {
   for (const d of [date, dayBefore(date)]) {
     try {
       const [games, left, done] = await Promise.all([
-        db.from('lamp_goal_games').select('game_id', { count: 'exact', head: true }).eq('model_version', MODEL_VERSION).eq('game_date', d),
-        db.from('lamp_goal_games').select('game_id', { count: 'exact', head: true }).eq('model_version', MODEL_VERSION).eq('game_date', d).is('graded_at', null),
+        db.from('lamp_goal_games').select('game_id', { count: 'exact', head: true }).eq('model_version', versionsFor(d).goal).eq('game_date', d),
+        db.from('lamp_goal_games').select('game_id', { count: 'exact', head: true }).eq('model_version', versionsFor(d).goal).eq('game_date', d).is('graded_at', null),
         db.from('numerology_numbers').select('value', { count: 'exact', head: true }).eq('sport', 'nhl').eq('day', d),
       ])
       if (games.error || left.error || !games.count || left.count || done.count) continue
       const num = await readNumerology(d)
-      const logRows = await db.from('lamp_goal_log').select('player_id, dressed, hit').eq('game_date', d).eq('model_version', MODEL_VERSION)
+      const logRows = await db.from('lamp_goal_log').select('player_id, dressed, hit').eq('game_date', d).eq('model_version', versionsFor(d).goal)
       if (logRows.error) throw new Error(logRows.error.message)
       const dressed = new Set((logRows.data || []).filter((r) => r.dressed).map((r) => String(r.player_id)))
       const hits = new Set((logRows.data || []).filter((r) => r.hit).map((r) => String(r.player_id)))
@@ -252,8 +256,8 @@ export async function GET(request) {
   for (const d of [date, dayBefore(date)]) {
     try {
       const [games, left] = await Promise.all([
-        db.from('lamp_goal_games').select('game_id', { count: 'exact', head: true }).eq('model_version', MODEL_VERSION).eq('game_date', d),
-        db.from('lamp_goal_games').select('game_id', { count: 'exact', head: true }).eq('model_version', MODEL_VERSION).eq('game_date', d).is('graded_at', null),
+        db.from('lamp_goal_games').select('game_id', { count: 'exact', head: true }).eq('model_version', versionsFor(d).goal).eq('game_date', d),
+        db.from('lamp_goal_games').select('game_id', { count: 'exact', head: true }).eq('model_version', versionsFor(d).goal).eq('game_date', d).is('graded_at', null),
       ])
       if (games.error || left.error || !games.count || left.count) continue
       out.hardest = { ...(out.hardest || {}), [d]: await postHardestOnce(db, d) }
