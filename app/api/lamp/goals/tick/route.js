@@ -86,7 +86,12 @@ export async function GET(request) {
   if (kindOn('nhlgoal') && !(await isMaintenanceMode())) {
     // The CALLED goal carries its card (MLB-PARITY plan C1), like a homer or a
     // touchdown. A card that fails to render or upload never costs the post.
-    if (hasX()) poster = {
+    // Built when X OR a Discord channel is configured (2026-10-02): #lamp-nhl used to
+    // stay silent whenever X was off. With X off the goal goes to Discord only and
+    // the row is marked 'skipped' -- the sentinel xBudget already ignores -- so it
+    // is never posted twice and never counted as an X post.
+    const discordHooks = feedHooks('nhl')
+    if (hasX() || discordHooks) poster = {
       post: async (text, row) => {
         let mediaId = null
         let png = null
@@ -94,18 +99,18 @@ export async function GET(request) {
           try {
             const img = await goalCard(row, { site: SITE_HOST })
             const buf = Buffer.from(await img.arrayBuffer())
-            if (buf.length) { png = buf; mediaId = await uploadImageToX(buf) }
+            if (buf.length) { png = buf; mediaId = hasX() ? await uploadImageToX(buf) : null }
           } catch (e) { console.error(`[lamp goals] card failed for ${row.name}: ${e?.message || e}`) }
         }
         // #lamp-nhl (DISCORD_NHL_WEBHOOKS, falling back like the other feeds). Only
         // CALLED goals reach this poster, so the channel never hears a random goal.
         // Best effort: a Discord problem never costs the X post or the claim.
-        const hooks = feedHooks('nhl')
-        if (hooks) await postToDiscord(text, png ? { png } : {}, hooks).catch((e) => console.error(`[lamp goals] discord: ${e?.message || e}`))
+        if (discordHooks) await postToDiscord(text, png ? { png } : {}, discordHooks).catch((e) => console.error(`[lamp goals] discord: ${e?.message || e}`))
+        if (!hasX()) return { ok: true, id: 'skipped' }
         return postToX(text, { kind: 'nhlgoal', ...(mediaId ? { mediaId } : {}) })
       },
     }
-    else console.error(`[lamp goals] nhlgoal is on but X is not configured: ${xProblem()}`)
+    else console.error(`[lamp goals] nhlgoal is on but neither X nor a Discord channel is configured: ${xProblem()}`)
   }
   try {
     const out = await tickGoals({ games, store: supabaseStore(db), poster, modelVersion: MODEL_VERSION })

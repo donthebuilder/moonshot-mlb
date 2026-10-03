@@ -38,8 +38,13 @@ import { reduceScoreDay } from '../../../../../lib/nhl/reduce'
 import { hasVapid, vapidDetails, vapidProblem } from '../../../../../lib/dash/vapid'
 import { claimBoardWindow, fetchBoard } from '../../../../../lib/dash/board'
 import { byeStarterEventsFrom, franchiseEventsFrom, lineupGapEventsFrom, starterScoreEventsFrom } from '../../../../../lib/dash/franchise'
-import { audienceFrom, boardInfoFrom, laneOf, lineupUpdatesFrom, mlbEventsFrom, nflEventsFrom, nflFollowMisses, nhlEventsFrom, pregameEventsFrom, priorityOf, wants } from '../../../../../lib/dash/pushRules'
+import { audienceFrom, boardInfoFrom, laneOf, lineupUpdatesFrom, mlbEventsFrom, nflEventsFrom, followNameKey, nflFollowMisses, nhlEventsFrom, pregameEventsFrom, priorityOf, wants } from '../../../../../lib/dash/pushRules'
 import { fanOutToDiscord } from '../../../../../lib/dash/discordAlerts'
+import { fetchNfl, nflGameCallsPaths, nflPicksLooksReal, nflPicksPaths, nflSlateLooksReal, nflSlatePaths } from '../../../../../lib/nfl/dataSource'
+import { tdPool } from '../../../../../lib/nfl/tdPool'
+import { onBotFor } from '../../../../../lib/nfl/tdFeed'
+import { tdCallStatus } from '../../../../../lib/callStatus'
+import { NFL_MEMBERS_N } from '../../../../../lib/dash/membersPost'
 import { isMaintenanceMode, isRedZoneAlertsEnabled } from '../../../../../lib/edgeConfig'
 import { readUserState } from '../../../../../lib/dash/stateCache'
 import { adminClient } from '../../../../../lib/supabase/admin'
@@ -198,7 +203,38 @@ async function nflEvents(audience) {
     missLogged.add(k)
     console.warn(`[push] NFL follow "${m.key}" (${m.team}) has no line in game ${m.game_id}, 4th quarter -- inactive, or a name that does not join; a TD would not alert`)
   }
-  return nflEventsFrom(snap, today(), audience)
+  return nflEventsFrom(snap, today(), audience, await tuddyBoardFor(snap))
+}
+
+// THE TUDDY BOARD, for the room's red zone (2026-10-02). Read only when a game
+// is actually in the red zone, then kept ten minutes per warm instance, so the
+// minute-by-minute tick does not re-read the slate. Same pool the Sunday members
+// board posts (lib/nfl/tdPool) and the same CALLED / ON THE BOARD word
+// (lib/callStatus): Map<followNameKey(name), { name, rank, of, status }>.
+// Any failure returns null, which means "no board event", never a guessed one.
+let _boardCache = { at: 0, map: null }
+async function tuddyBoardFor(snap) {
+  const hot = (snap?.games || []).some((g) => g?.state === 'in' && g?.redZone === true && g?.possession)
+  if (!hot) return null
+  if (Date.now() - _boardCache.at < 10 * 60 * 1000) return _boardCache.map
+  try {
+    const [data, picks, gameCalls] = await Promise.all([
+      fetchNfl(nflSlatePaths(), nflSlateLooksReal).catch(() => null),
+      fetchNfl(nflPicksPaths(), nflPicksLooksReal).catch(() => null),
+      fetchNfl(nflGameCallsPaths()).catch(() => null),
+    ])
+    const pool = data ? tdPool(data) : null
+    if (!pool?.rows?.length) { console.warn('[push] TUDDY board unavailable -- no board red-zone events this sweep'); _boardCache = { at: Date.now() - 8 * 60 * 1000, map: null }; return null }
+    const map = new Map()
+    pool.rows.slice(0, NFL_MEMBERS_N).forEach((p, i) => {
+      const g = (data.games || []).find((x) => x.home === p.team || x.away === p.team)
+      const status = tdCallStatus({ on_bot: onBotFor(picks?.card || null, p.player_id, { gameCalls, gameId: g?.game_id ?? null }), td_board: { rank: i + 1, of: pool.rows.length } })
+      if (status === 'off') return
+      map.set(followNameKey(p.name), { name: p.name, rank: i + 1, of: pool.rows.length, status })
+    })
+    _boardCache = { at: Date.now(), map }
+    return map
+  } catch (e) { console.error(`[push] TUDDY board read failed: ${e?.message || e}`); return null }
 }
 
 // LAMP GOALS (2026-09-28). app/api/lamp/goals/tick writes lamp_goal_feed;
@@ -592,7 +628,7 @@ async function sweep(db, subs, stateByUser, audience, { full }) {
     // list and the team on every rostered player, and must not be able to
     // take the empty-slot alert down with it.
     ...(full ? await byeStarterEventsFrom(db) : []),
-  ].filter((e) => redZoneEnabled || e.category !== 'nflred')
+  ].filter((e) => redZoneEnabled || (e.category !== 'nflred' && e.category !== 'nflboardred'))
 
   // ONE FACT, ONE ALERT. A board man missing from the posted card is
   // `scratched` (P0). mlbEventsFrom already skips his `dropout` when it has
