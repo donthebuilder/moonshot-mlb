@@ -18,6 +18,7 @@ import MobileFold, { useIsPhone } from '../../MobileFold'
 import { NflBoardList, BoardHead, DrawerPills, AngleRow, angleDefs, useNflDrawerFilters } from '../NflBoardExtras'
 import { matchupTag } from '../../../lib/nfl/dvpSignal'
 import DashChip, { useDashLines, DASH_OF } from '../DashChip'
+import MarketStat from '../MarketStat'
 
 // Same soft cap Touchdowns.js uses, so the two boards cut at the same depth.
 const SOFT_CAP = 60
@@ -330,7 +331,7 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
           player's own espn_id, team-colored monogram when there isn't one --
           never invented). */}
       {view === 'cards' && <div style={{
-        display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(212px, 1fr))', gap: 8,
+        display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 268px), 1fr))', gap: 10,   // 212 -> 268 (10-03): five across cut every name
       }}>
         {capped.map((p, i) => {
           const s = p.scores[market]
@@ -410,6 +411,7 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
                   already publishes. Renders nothing on a market/player pair
                   with no component clearing reasonFor()'s own bar, same as
                   Touchdowns -- an absent line is honest, not a bug. */}
+              <MarketStat player={p} market={market} color={g.color} C={C} />
               {why && <div style={{ fontSize: TYPE.micro, color: C.text2, lineHeight: 1.35 }}>{why.text}</div>}
               {chips && chips.length > 0 && (
                 <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>

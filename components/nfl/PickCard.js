@@ -4,6 +4,7 @@ import NflFace from './NflFace'
 import MatchupBadge from './MatchupBadge'
 import { reasonFor, topStatChips } from './ScoreAnatomy'
 import { injuryTag, injuryTitle, injuryColor } from '../../lib/nfl/injury'
+import MarketStat from './MarketStat'
 
 // ── THE PICK CARD (2026-09-25) ───────────────────────────────────────────────
 //
@@ -178,6 +179,9 @@ export default function PickCard({
         </div>
         {right}
       </div>
+
+      {/* the market's own number, dominant (components/nfl/MarketStat.js, 10-03) */}
+      <MarketStat player={p} market={market} color={g.color} C={C} />
 
       {/* the sentence -- the component carrying the score, with the number behind it */}
       {(why || fact) && (
