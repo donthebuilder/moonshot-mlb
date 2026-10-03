@@ -37,6 +37,7 @@ import Slate from './tabs/Slate'
 import Game from './tabs/Game'
 import Standings from './tabs/Standings'
 import Schedule from './tabs/Schedule'
+import Matchups from './tabs/Matchups'
 import Teams from './tabs/Teams'
 import Team from './tabs/Team'
 import Players from './tabs/Players'
@@ -47,7 +48,7 @@ import Results from './tabs/Results'
 import Guide from './tabs/Guide'
 
 // Pages that show one day and keep it in the address (`date=`).
-const DATED_TABS = new Set(['home', 'scores', 'board', 'fullboard', 'games', 'schedule'])
+const DATED_TABS = new Set(['home', 'scores', 'board', 'fullboard', 'games', 'schedule', 'matchups'])
 const MARKETS = new Set(['pts', 'reb', 'ast', '3pm', 'pra', 'first'])
 const ROUTE = {
   sport: 'nba', nav: NBA_NAV, datedTabs: DATED_TABS,
@@ -106,6 +107,7 @@ export default function BucketsDashboard() {
             {tab === 'games' && <Slate date={date} setDate={setDate} market={market} {...nav} />}
             {tab === 'game' && <Game id={gameId} {...nav} backLabel={backLabel('scores')} onBack={() => goBack('scores')} />}
             {tab === 'schedule' && <Schedule date={date} setDate={setDate} onOpenGame={openGame} onOpenTeam={openTeam} />}
+            {tab === 'matchups' && <Matchups date={date} setDate={setDate} onOpenTeam={openTeam} onOpenGame={openGame} />}
             {tab === 'standings' && <Standings onOpenTeam={openTeam} />}
             {tab === 'teams' && <Teams onOpenTeam={openTeam} />}
             {tab === 'team' && <Team abbrev={teamKey} {...nav} backLabel={backLabel('teams')} onBack={() => goBack('teams')} />}
