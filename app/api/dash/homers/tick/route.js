@@ -1447,9 +1447,14 @@ export async function GET(request) {
           { texts: stories.map((s) => s?.text).filter(Boolean) })
       })
     }
-    if (etHoursSinceNoon() >= CALL_OF_NIGHT_HOUR) {
+    // HELD FOR THE LOCK AND READ OFF THE WHOLE SLATE (2026-10-03). It read
+    // pregameRows() -- only men whose lineup was already posted -- from 9am, so
+    // at 7:10 on a day with one early game it ranked a handful of hitters and
+    // printed "EDGE: 0.8 SD clear of the next name on the board" about a board
+    // it had mostly not looked at. Same rows and same lock as the Called Shots.
+    if (etHoursSinceNoon() >= CALL_OF_NIGHT_HOUR && pregameLockReady) {
       await safeStat('callofnight', async () => {
-        const call = callOfTheNightPick(pregameRows(), odds, day)
+        const call = callOfTheNightPick(callRows(), odds, day)
         await claimAndPostStat(db, day, 'callofnight', CALL_OF_NIGHT_HOUR,
           callOfTheNightText(call, { day, ...TAIL }),
           call ? {
