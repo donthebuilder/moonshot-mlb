@@ -140,6 +140,10 @@
     {
       "path": "/api/facts/tick",
       "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/buckets/tick",
+      "schedule": "*/10 15-23,0-6 * * *"
     }
   ]
 }
