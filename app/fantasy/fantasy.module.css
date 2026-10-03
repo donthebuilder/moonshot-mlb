@@ -7294,7 +7294,18 @@ tactile controls on touchscreens and clear feedback during navigation. */ .app b
   .commishMove { grid-template-columns: 1fr; }
 }
 .bestLineupForm { margin-left: auto; }
-.bestLineupForm button { white-space: nowrap; }
+.bestLineupForm button {
+  /* R10 (2026-10-03): it was never styled -- a browser-default white button in the room */
+  white-space: nowrap; min-height: 36px; padding: 0 14px; border-radius: 8px; cursor: pointer;
+  border: 1px solid color-mix(in srgb, var(--fx-gold) 55%, var(--fx-panel));
+  background: color-mix(in srgb, var(--fx-gold) 14%, var(--fx-panel)); color: var(--fx-gold);
+  font: 800 11px/1 monospace; letter-spacing: .04em;
+}
+.bestLineupForm button:disabled { opacity: .6; cursor: default; }
+/* a thumb's target on a touch screen (CLAUDE.md: 44 x 44) -- desktop rows stay as they are */
+@media (pointer: coarse) {
+  .bestLineupForm button, .slotMove { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; }
+}
 
 /* THE BRACKET (2026-09-24). Semifinals, then the title game, as cards in a
    grid that stacks on a phone. Tokens only: it has to read in both themes. */

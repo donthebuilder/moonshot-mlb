@@ -102,8 +102,8 @@ function InlineSwitch({ onNavigate }) {
         .netBar :global(a:not(.netHome)){display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 8px;border:1px solid color-mix(in srgb,var(--product) 32%,transparent);border-radius:8px;background:color-mix(in srgb,var(--product) 6%,transparent);color:inherit;opacity:.74;text-decoration:none;white-space:nowrap}
         .netBar :global(a:not(.netHome):hover){border-color:var(--product);opacity:1}
         .netBar :global(a.here){border-color:var(--product);background:color-mix(in srgb,var(--product) 15%,transparent);opacity:1}
-        .netBar :global(a i){font:900 9px/1 ui-monospace,SFMono-Regular,Menlo,monospace;font-style:normal;color:var(--product)}
-        .netBar :global(a b){font:900 9px/1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.1em}
+        .netBar :global(a i){font:900 10px/1 ui-monospace,SFMono-Regular,Menlo,monospace;font-style:normal;color:var(--product)}
+        .netBar :global(a b){font:900 10px/1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.1em}
         /* On a phone the row keeps the coloured letters and drops the words --
            three names plus a league name will not share 390px, and the letters
            are the part that is already colour-coded per product. */

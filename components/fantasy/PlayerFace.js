@@ -44,7 +44,7 @@ export default function PlayerFace({ player, size = 34 }) {
         background: `linear-gradient(160deg,${primary}dd 0 62%,${secondary}dd 63% 100%)`,
         boxShadow: `inset 0 1px 0 rgba(255,255,255,.12),0 4px 12px ${primary}33`,
         color: '#fff', textShadow: '0 1px 3px #000',
-        font: `900 ${Math.max(7, Math.round(size * 0.26))}px/1 monospace`,
+        font: `900 ${Math.max(10, Math.round(size * 0.26))}px/1 monospace`,
         letterSpacing: '-.04em', overflow: 'hidden',
       }}
     >

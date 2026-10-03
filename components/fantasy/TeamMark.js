@@ -23,7 +23,7 @@ export default function TeamMark({ team, size = 26 }) {
         background: `color-mix(in srgb, ${color} 20%, #141210)`,
         border: `1px solid color-mix(in srgb, ${color} 55%, #2a2724)`,
         color,
-        font: `900 ${Math.max(8, Math.round(size * (monogram.length > 2 ? 0.3 : 0.38)))}px/1 monospace`,
+        font: `900 ${Math.max(10, Math.round(size * (monogram.length > 2 ? 0.3 : 0.38)))}px/1 monospace`,
         letterSpacing: monogram.length > 1 ? '.02em' : '0',
         verticalAlign: 'middle',
       }}
