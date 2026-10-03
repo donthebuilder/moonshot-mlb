@@ -213,7 +213,8 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel }) {
         <section aria-label="Where he shoots from">
           <Kicker>WHERE HE SHOOTS FROM</Kicker>
           {/* the building: tonight's game's when he plays tonight, else his club's own */}
-          <ShotPanel sel={{ player: p.id }} who="He" height={480} venue={arenaOf(spot?.g?.game?.home?.abbrev || p.team)?.name} />
+          <ShotPanel sel={{ player: p.id }} who="He" height={480} venue={arenaOf(spot?.g?.game?.home?.abbrev || p.team)?.name}
+            opp={spot?.g?.game ? (spot.g.game.home?.abbrev === p.team ? spot.g.game.away?.abbrev : spot.g.game.home?.abbrev) || null : null} />
         </section>
       )}
 

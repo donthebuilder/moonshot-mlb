@@ -163,8 +163,9 @@ export default function Rink({ map, slot, gridSpec, height = 300, shots = null, 
           <rect key={`hit-${r}-${c}`} x={sx(gridSpec.x0 + c * cw)} y={r * ch} width={cw} height={ch} fill="transparent" style={{ cursor: 'pointer' }}
             onClick={() => onPickCell({ ...cell, r, c })} />
         ) : null))}
-        {/* the slot prints its own share, inside its box (1d) */}
-        {slotPct != null && view !== 'goalie' && (
+        {/* the slot prints its own share, inside its box (1d) -- not on HEAT,
+            where the zone numbers own that box (the readout carries the share) */}
+        {slotPct != null && view !== 'goalie' && view !== 'heat' && (
           <text x={sx(slot.x0) + 1.2} y={sy(slot.y) + 4.2} fill={RINK.blue} fontSize="3.6" fontWeight="900" fontFamily={NUM_FONT} pointerEvents="none">SLOT {slotPct}%</text>
         )}
         {/* the lines: blue line, goal line, the circles; faceoff dots as thin rings */}
@@ -188,6 +189,15 @@ export default function Rink({ map, slot, gridSpec, height = 300, shots = null, 
             </g>
           )
         })}
+        {/* DOTS + HEAT TOGETHER (2026-10-03, Donovan: "the dots and the heat map
+            can work in unison"): on HEAT the shots stay on the ice, quieter and
+            not tappable (the zones are what you tap there), so the colour says
+            how well he shoots from a zone and the pucks say where each one came from. */}
+        {view === 'heat' && (
+          <g opacity={0.55} pointerEvents="none">
+            {drawn.map((shot, i) => <Mark key={`h${i}`} shot={shot} cx={sx(shot[0])} cy={sy(shot[1])} sel={false} hard={false} />)}
+          </g>
+        )}
         {/* WHERE THEY MATCH (lib/nhl/zones matchZones): a zone the goalie is weak in AND the
             shooter shoots from -- a bold lamp-red outline over the pucks, his share on its label */}
         {view === 'goalie' && goalieRead && (

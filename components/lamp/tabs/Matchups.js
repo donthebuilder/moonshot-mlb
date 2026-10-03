@@ -117,7 +117,7 @@ function Detail({ row, league, onOpenPlayer, onOpenTeam = null }) {
 
       <div>
         <Kicker>WHERE {row.opp} SHOOTS FROM</Kicker>
-        <ShotPanel sel={{ team: row.opp }} who={row.opp} height={440} venue={arenaOf(row.home ? row.def : row.opp)?.name} />
+        <ShotPanel sel={{ team: row.opp }} who={row.opp} height={440} venue={arenaOf(row.home ? row.def : row.opp)?.name} opp={row.def} />
       </div>
     </section>
   )

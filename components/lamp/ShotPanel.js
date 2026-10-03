@@ -68,7 +68,7 @@ const ZONES = [
 const clock = (t) => (t == null ? '' : `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`)
 const RES_WORD = { goal: 'Goal', sog: 'On net, saved', miss: 'Missed the net', block: 'Blocked' }
 
-export default function ShotPanel({ sel, who = 'He', height = 300, venue = null }) {
+export default function ShotPanel({ sel, who = 'He', height = 300, venue = null, opp = null }) {
   const { data, error, loading } = useLampShots(sel)
   const [win, setWin] = useState('last10')
   const [res, setRes] = useState('ALL')
@@ -97,7 +97,12 @@ export default function ShotPanel({ sel, who = 'He', height = 300, venue = null 
   const { data: gList } = useLampGoalies(data?.season, shooterView)
   const goalies = gList?.goalies || []
   const [goalieId, setGoalieId] = useState('')
-  const defaultGoalie = goalies.find((g) => g.team && g.team !== (sel?.team || '')) || goalies[0] || null
+  // TONIGHT'S NET FIRST (2026-10-03, Donovan: goalie vs player / team should
+  // start where it matters): with tonight's opponent known (`opp`), his club's
+  // busiest goalie by shots faced -- the likeliest starter, since the league
+  // publishes no starter ahead of time; else the busiest from another club.
+  const oppGoalie = opp ? goalies.find((g) => g.team === opp) || null : null
+  const defaultGoalie = oppGoalie || goalies.find((g) => g.team && g.team !== (sel?.team || '')) || goalies[0] || null
   const gId = goalieId || defaultGoalie?.id || ''
   const goalie = goalies.find((g) => g.id === gId) || null
   const { data: gz } = useLampGoalieZones(shooterView ? gId : null, data?.season)
@@ -355,7 +360,7 @@ export default function ShotPanel({ sel, who = 'He', height = 300, venue = null 
                   {ZONES.map((z, i) => <span key={z.key}>{i ? ' · ' : ''}<b style={{ color: C.text2 }}>{z.label}</b> {z.def}</span>)}.
                 </div>
                 {goalieRead && <div style={{ marginBottom: 6 }}>
-                  VS GOALIE: the goalie&apos;s {data.seasonLabel} regular season under {who === 'He' ? 'his' : 'their'} pucks. Each named zone is shaded by the goals he let in per shot on goal from there against the league&apos;s rate from the same zone: red, he lets in more; blue, fewer; no tint, within 1.5 points of the league; hatched, under 15 shots (thin). Tonight&apos;s starter isn&apos;t published by the league, so the busiest goalie from another club opens and the picker changes it. Where in the net a shot went (glove, blocker, five-hole) isn&apos;t in the public feed, so no net map is drawn.
+                  VS GOALIE: the goalie&apos;s {data.seasonLabel} regular season under {who === 'He' ? 'his' : 'their'} pucks. Each named zone is shaded by the goals he let in per shot on goal from there against the league&apos;s rate from the same zone: red, he lets in more; blue, fewer; no tint, within 1.5 points of the league; hatched, under 15 shots (thin). Tonight&apos;s starter isn&apos;t published by the league, so {opp ? <>tonight&apos;s opponent&apos;s busiest goalie ({opp}) opens</> : 'the busiest goalie from another club opens'} and the picker changes it. Where in the net a shot went (glove, blocker, five-hole) isn&apos;t in the public feed, so no net map is drawn.
                 </div>}
                 <div>
                   HEAT splits the attacking end into a 5 × 5 grid and colours each zone by {who === 'He' ? 'his' : 'their'} shooting percentage from it (goals per shot on goal; full colour at {Math.round(HEAT_FULL * 100)}%), with the shots taken from there under it; a zone with fewer than {HEAT_MIN_SOG} shots on goal shows its count only.
