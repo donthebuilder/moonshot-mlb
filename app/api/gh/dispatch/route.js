@@ -1,7 +1,7 @@
 // GET /api/gh/dispatch -- Vercel cron, every 10 minutes. Starts any watched
 // bot workflow whose scheduled slot GitHub dropped (lib/gh/dispatch.js).
 // Cron-secret only; ?dry=1 reports what it would start without starting it.
-import { cronAuthorized } from '../../../../lib/nhl/db'
+import { cronAuthorized } from '../../../../lib/supabase/admin'
 import { dispatchDropped } from '../../../../lib/gh/dispatch'
 
 export const dynamic = 'force-dynamic'

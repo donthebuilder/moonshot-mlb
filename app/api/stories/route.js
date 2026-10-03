@@ -9,7 +9,7 @@
 // APIs and the published files, so the answer is cached: 5 minutes at the
 // CDN (one build serves every visitor) and in this instance.
 import { loadStoriesPage, STORY_SPORTS } from '../../../lib/stories'
-import { adminClient } from '../../../lib/nhl/db'
+import { adminClient } from '../../../lib/supabase/admin'
 import { validDate } from '../../../lib/nhl/api'
 import { isHiddenSport } from '../../../lib/routes'
 import { bucketsGuard } from '../../../lib/nba/gate'

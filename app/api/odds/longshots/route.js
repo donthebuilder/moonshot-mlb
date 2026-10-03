@@ -2,7 +2,7 @@
 // Long-priced players beside our model (lib/odds/longshots.js). Default date:
 // the first date with a priced game still to start. Read-only; the key never
 // leaves the server (prices come from our own odds_snap rows).
-import { adminClient } from '../../../../lib/nhl/db'
+import { adminClient } from '../../../../lib/supabase/admin'
 import { validDate } from '../../../../lib/nhl/api'
 import { readLongshots } from '../../../../lib/odds/longshots'
 

@@ -4,7 +4,7 @@
 // (lib/callStatus.js), the same as /called -- not re-derived here. The week's
 // games come from ESPN's week scoreboard (nfl_td_feed's game_id is ESPN's
 // event id); QB touchdowns stay out, as on /called (lib/recordWindow inPool).
-import { adminClient } from '../../../../lib/nhl/db'
+import { adminClient } from '../../../../lib/supabase/admin'
 import { readNflEvents } from '../../../../lib/record/nfl'
 import { inPool } from '../../../../lib/recordWindow'
 

@@ -5,7 +5,7 @@
 //   MLB  the last 3 slate days (a late final or a resumed game lands)
 //   NFL  the season's weekly file (one download; nflverse updates it daily)
 //   NHL  the current season (one report call + the season summary)
-import { adminClient, cronAuthorized } from '../../../../lib/nhl/db'
+import { adminClient, cronAuthorized } from '../../../../lib/supabase/admin'
 import { whichSeason } from '../../../../lib/nhl/whichSeason'
 import { buildMlb, buildNfl, buildNhl, storeMulti } from '../../../../lib/multi/build'
 

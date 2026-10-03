@@ -7,7 +7,7 @@
 // nights (the plan's rule); before that it reports how many it has.
 // Numerology never feeds a score, a board or a rank -- this is the check on
 // whether any of it is more than chance.
-import { adminClient } from '../../../../lib/nhl/db'
+import { adminClient } from '../../../../lib/supabase/admin'
 import { laneTable, MIN_NIGHTS } from '../../../../lib/numerology/laneTable'
 import { SPORT_KEYS } from '../../../../lib/routes'
 

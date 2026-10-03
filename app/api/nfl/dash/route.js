@@ -3,7 +3,7 @@
 // book's line); before a game locks, a PREVIEW from the newest book lines by
 // the same function (lib/dashLock.js dashRows), never stored, flagged
 // provisional. Hidden until its SQL runs: no dash_lines table = available:false.
-import { adminClient } from '../../../../lib/nhl/db'
+import { adminClient } from '../../../../lib/supabase/admin'
 import { dashRows } from '../../../../lib/dashLock'
 import { DASH_MODEL } from '../../../../lib/dashLine'
 import { NFL_DATA_BASE } from '../../../../lib/nfl/dataSource'

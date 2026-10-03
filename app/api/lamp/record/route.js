@@ -11,7 +11,7 @@ import { VERSIONS, V3_FROM } from '../../../../lib/nhl/versions'
 // one track record across the versions (each night was called by the one it locked under)
 const MODEL_VERSION = VERSIONS.goal.join(' -> ')
 import { readNhlNights, readNhlRecords, isMissingTable } from '../../../../lib/record/nhl'
-import { adminClient } from '../../../../lib/nhl/db'
+import { adminClient } from '../../../../lib/supabase/admin'
 import { ok, delayed } from '../../../../lib/nhl/respond'
 
 export const dynamic = 'force-dynamic'

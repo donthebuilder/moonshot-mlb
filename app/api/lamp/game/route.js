@@ -9,7 +9,7 @@
 import { landingFor, rightRailFor, boxscoreFor, GAME_ID_RE, TTL } from '../../../../lib/nhl/api'
 import { reduceGameDetail, idPenalties } from '../../../../lib/nhl/reduce'
 import { ok, bad, delayed } from '../../../../lib/nhl/respond'
-import { adminClient } from '../../../../lib/nhl/db'
+import { adminClient } from '../../../../lib/supabase/admin'
 import { goalLabels, labelGoals, FEED_START } from '../../../../lib/nhl/goalFeed'
 
 export const dynamic = 'force-dynamic'

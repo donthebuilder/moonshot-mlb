@@ -8,7 +8,7 @@ import { easternToday } from '../../../../lib/data'
 import { scoreFor, validDate, TTL } from '../../../../lib/nhl/api'
 import { reduceScoreDay } from '../../../../lib/nhl/reduce'
 import { ok, bad, delayed } from '../../../../lib/nhl/respond'
-import { adminClient } from '../../../../lib/nhl/db'
+import { adminClient } from '../../../../lib/supabase/admin'
 import { goalLabels, labelGoals, FEED_START } from '../../../../lib/nhl/goalFeed'
 
 export const dynamic = 'force-dynamic'

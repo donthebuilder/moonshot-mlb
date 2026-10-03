@@ -5,7 +5,7 @@
 // values above chance; TRENDING = the same over the last 7 nights (21 days
 // for football -- a few game days), summed. A value needs 2+ events to be
 // called hot. Pattern watching; never a score. Empty lists until nights exist.
-import { adminClient } from '../../../../lib/nhl/db'
+import { adminClient } from '../../../../lib/supabase/admin'
 import { SPORT_KEYS } from '../../../../lib/routes'
 import { hottest, numbersNight, KIND_LABEL } from '../../../../lib/numerology/hotNumbers'
 import { ELIGIBLE } from '../../../../lib/numerology/record'

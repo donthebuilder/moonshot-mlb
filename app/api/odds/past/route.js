@@ -1,7 +1,7 @@
 // GET /api/odds/past?date=YYYY-MM-DD -- one past MLB date's pregame prices
 // in the bot's odds_<date>.json shape (lib/odds/pastPrices.js), for True Price.
 // Only dates before today (ET): a slate still being played is never archived.
-import { adminClient } from '../../../../lib/nhl/db'
+import { adminClient } from '../../../../lib/supabase/admin'
 import { validDate } from '../../../../lib/nhl/api'
 import { easternToday } from '../../../../lib/data'
 import { mlbArchive } from '../../../../lib/odds/pastPrices'

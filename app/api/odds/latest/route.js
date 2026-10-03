@@ -4,7 +4,7 @@
 // rolls at midnight Phoenix (today.yml) -- so a 1am-ET page still gets the
 // night it is showing, not tomorrow's. The bot's own file stays
 // as the fallback in oddsPaths().
-import { adminClient } from '../../../../lib/nhl/db'
+import { adminClient } from '../../../../lib/supabase/admin'
 import { validDate } from '../../../../lib/nhl/api'
 import { latestOdds, leanOdds, ODDS_SPORTS } from '../../../../lib/odds/latest'
 

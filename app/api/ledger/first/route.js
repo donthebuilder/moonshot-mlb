@@ -3,7 +3,7 @@
 // status, plus the season line (how many first scorers the board had) and the
 // season's most frequent first scorers. lib/ledger/firstScorers.js; read from
 // the event tables, nothing stored, no prediction. Cached five minutes.
-import { adminClient } from '../../../../lib/nhl/db'
+import { adminClient } from '../../../../lib/supabase/admin'
 import { SPORT_KEYS } from '../../../../lib/routes'
 import { easternToday } from '../../../../lib/data'
 import { readFirstScorers } from '../../../../lib/ledger/firstScorers'

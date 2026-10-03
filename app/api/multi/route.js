@@ -1,7 +1,7 @@
 // GET /api/multi?sport=mlb|nfl|nhl[&player=ID[&season=YYYY]] -- the 2+ Club (lib/multi/read.js):
 // the season table, recent 2+ games, header numbers, NFL QBs; with &player=,
 // one player's 2+ games (his player page line). Read-only, CDN-cached.
-import { adminClient } from '../../../lib/nhl/db'
+import { adminClient } from '../../../lib/supabase/admin'
 import { readMulti, readPlayerMulti } from '../../../lib/multi/read'
 
 export const dynamic = 'force-dynamic'

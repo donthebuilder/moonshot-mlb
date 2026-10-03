@@ -22,7 +22,7 @@
 import { easternDate, easternToday, nextDay } from '../../../../lib/data'
 import { validDate } from '../../../../lib/nhl/api'
 import { whichSeason } from '../../../../lib/nhl/whichSeason'
-import { cronAuthorized, adminClient } from '../../../../lib/nhl/db'
+import { cronAuthorized, adminClient } from '../../../../lib/supabase/admin'
 import { hasKey, monthUsage, eventsBetween, eventsById } from '../../../../lib/odds/sgo'
 import { playerJoin } from '../../../../lib/odds/playerJoin'
 import { LEAGUES, MARKETS, snapRows, startsAt, gameDate } from '../../../../lib/odds/snap'
