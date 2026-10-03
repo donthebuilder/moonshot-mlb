@@ -10,6 +10,9 @@ import { boardRows, boardColumns, faceOf } from '../boardTable'
 import { sortGames } from '../GameList'
 import BucketsProjected from '../BucketsProjected'
 import BucketsWeakSpots from '../BucketsWeakSpots'
+import SlateCard from '../../slate/SlateCard'
+import Rail from '../../Rail'
+import { BucketsCards } from '../BucketsCard'
 import { EmptyState, DelayedBanner, Loading, SourceLine, Pills, NavBtn, DayPager, RimDot, fmtDay, fmtTip, readHashParam, writeHashParam } from '../ui'
 
 // 📋 THE SLATE -- tonight one game at a time (LAMP's Slate): pick a game, see
@@ -45,17 +48,29 @@ export default function Slate({ date, setDate, market = 'pts', onOpenPlayer, onO
           <BucketsWeakSpots rows={pts.data?.rows || []} games={games} onOpenPlayer={onOpenPlayer} />
         </div>
       )}
+      {/* THE STRIP ON THE SHARED GAME CARD (2026-10-03, Donovan: "the cards for
+          the games pages ... used wherever we use those type of games pages"):
+          components/slate/SlateCard, as MOONSHOT, TUDDY and LAMP's slates --
+          the dial is the game's best BUCKETS score on this market, 🔒 locked
+          before tip / ◻ still a preview, tip time / live / final. */}
       {view === 'games' && games.length > 0 && (
-        <div role="tablist" aria-label="Games" style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4 }}>
-          {games.map((x) => {
-            const on = g?.id === x.id
-            return (
-              <button key={x.id} type="button" role="tab" aria-selected={on} onClick={() => choose(x.id)} style={{ flex: 'none', minHeight: 44, padding: '0 12px', borderRadius: 12, cursor: 'pointer', border: `1px solid ${on ? C.purple : C.border2}`, background: on ? `${C.purple}1a` : C.bg2, color: on ? C.text : C.text2, display: 'inline-flex', alignItems: 'center', gap: 8, font: `800 11px/1 ${NUM_FONT}` }}>
-                <MatchLogos sport="nba" away={x.away.abbrev} home={x.home.abbrev} px={18} />
-                <span>{x.state === 'live' ? <><RimDot size={6} />{x.detail}</> : x.state === 'final' ? `${x.away.score}-${x.home.score} F` : fmtTip(x.start)}</span>
-              </button>
-            )
-          })}
+        <div>
+          <Rail itemMin={264} gap={8} wheelScroll={false}>
+            {games.map((x) => {
+              const xs = (data?.rows || []).filter((r) => r.gameId === x.id && Number.isFinite(Number(r.score)))
+              const best = xs.length ? Math.max(...xs.map((r) => Number(r.score))) : null
+              const locked = xs.length > 0 && xs.every((r) => r.locked !== false)
+              const st = x.state
+              return <SlateCard key={x.id} sport="nba" accent={C.purple} on={g?.id === x.id} onSelect={choose} card={{
+                id: x.id, title: <MatchLogos sport="nba" away={x.away.abbrev} home={x.home.abbrev} px={20} gap={5} />, past: st === 'final',
+                heat: best != null ? best / 100 : 0, tooltip: `${x.away.abbrev} @ ${x.home.abbrev}`,
+                dial: { value: best, pct: best, title: `The best ${NBA_MARKETS[m].label} score in this game: ${best != null ? Math.round(best) : '—'} of 100.` },
+                lead: <span title={locked ? 'The board locked before tip' : 'A preview until the board locks'}>{locked ? '🔒' : '◻'}</span>,
+                status: st === 'live' ? { kind: 'live', text: x.detail || 'LIVE' } : st === 'final' ? { kind: 'final', text: `${x.away.score}-${x.home.score} F` } : { kind: 'time', text: fmtTip(x.start) },
+              }} />
+            })}
+          </Rail>
+          <div style={{ marginTop: 7, fontSize: 11, color: C.text3 }}>Tip-off order. The dial is the game&apos;s best BUCKETS score on this market; 🔒 locked before tip, ◻ still a preview.</div>
         </div>
       )}
       {view === 'games' && g && (<>
@@ -65,15 +80,8 @@ export default function Slate({ date, setDate, market = 'pts', onOpenPlayer, onO
           <span>{g.venue}</span>
           <NavBtn onClick={() => onOpenGame?.(g.id)}>Open game →</NavBtn>
         </div>
-        {calls.length > 0 && (
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {calls.map((r) => (
-              <button key={r._id} type="button" onClick={() => onOpenPlayer?.(r.playerId)} style={{ minHeight: 44, padding: '0 12px', borderRadius: 12, cursor: 'pointer', border: `1px solid ${C.purple}`, background: `${C.purple}14`, color: C.text, font: `800 12px/1 ${NUM_FONT}`, display: 'inline-flex', gap: 6, alignItems: 'center' }}>
-                <span style={{ color: C.purple, fontSize: 10 }}>{r.role || 'CALLED'}</span>{r.name}<span style={{ color: C.text3 }}>{r.team} · {r.score}</span>
-              </button>
-            ))}
-          </div>
-        )}
+        {/* the game's calls as the prop cards (components/buckets/BucketsCard) */}
+        {calls.length > 0 && <BucketsCards market={m} onOpen={onOpenPlayer} rows={[...calls].sort((a, b) => b.score - a.score)} />}
         {rows.length > 0
           ? <BucketsTable rows={rows} columns={boardColumns(m, { onOpenTeam, onOpenGame, withGame: false })} statusOf={(r) => r.status}
               onRowClick={(r) => onOpenPlayer?.((r?._raw ?? r).playerId)} faceOf={faceOf} dimRow={(r) => r.status === 'off'}
