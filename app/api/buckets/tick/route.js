@@ -10,6 +10,8 @@ import { buildNbaNight } from '../../../../lib/nba/board'
 import { NBA_MARKETS, gradeNba } from '../../../../lib/nba/model'
 import { scoreboardFor, reduceScoreboard, summaryFor, reduceBox, reduceShots, firstBaskets } from '../../../../lib/nba/api'
 import { easternToday, shiftDay } from '../../../../lib/data'
+import { storiesTick } from '../../../../lib/stories/record'
+
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -92,5 +94,8 @@ export async function GET(request) {
     await db.from('buckets_games').update({ graded_at: gradedAt, state: 'final' }).eq('game_id', p.game_id)
     out.graded.push({ game: p.game_id, rows: ups.length, shots: shots.length })
   }
+  // STORYLINES (2026-10-03, LAMP's pattern): freeze at tip, grade after the
+  // final, the night's base rate -- lib/stories/record.js. Never throws.
+  out.stories = await storiesTick(db, 'nba')
   return Response.json(out, { headers: { 'Cache-Control': 'no-store' } })
 }

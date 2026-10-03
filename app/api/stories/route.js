@@ -11,6 +11,8 @@
 import { loadStoriesPage, STORY_SPORTS } from '../../../lib/stories'
 import { adminClient } from '../../../lib/nhl/db'
 import { validDate } from '../../../lib/nhl/api'
+import { isHiddenSport } from '../../../lib/routes'
+import { bucketsGuard } from '../../../lib/nba/gate'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -21,10 +23,12 @@ export async function GET(request) {
   const q = new URL(request.url).searchParams
   const sport = String(q.get('sport') || '').toLowerCase()
   if (!STORY_SPORTS[sport]) return Response.json({ error: `sport must be one of ${Object.keys(STORY_SPORTS).join(', ')}` }, { status: 400 })
+  // a hidden product's stories answer only to those who may see it (BUCKETS: lib/nba/gate.js)
+  if (isHiddenSport(sport)) { const no = await bucketsGuard(); if (no) return no }
   const date = validDate(q.get('date')) ? q.get('date') : null
   const key = `${sport}|${date || ''}`
   const hit = _memo.get(key)
-  const headers = { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=900' }
+  const headers = { 'Cache-Control': isHiddenSport(sport) ? 'private, max-age=60' : 'public, s-maxage=300, stale-while-revalidate=900' }
   if (hit && Date.now() - hit.at < TTL_MS) return Response.json(hit.body, { headers })
   try {
     // Started games show what was frozen at their start, graded once final (lib/stories/record.js).
