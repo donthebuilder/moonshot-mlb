@@ -37,7 +37,8 @@ export async function GET(request) {
   const sb = reduceScoreboard(await scoreboardFor(date).catch(() => null))
   const yday = reduceScoreboard(await scoreboardFor(shiftDay(date, -1)).catch(() => null))
   if (!sb.length && !yday.length) return Response.json({ ...out, skipped: 'no NBA games today or yesterday' })
-  const ready = await db.from('buckets_log').select('game_id', { head: true, count: 'exact' }).limit(1)
+  // a REAL read: a head-only count on a missing table answers 204 with no error (probed 10-02)
+  const ready = await db.from('buckets_log').select('game_id').limit(1)
   if (ready.error) return Response.json({ skipped: 'buckets tables not created yet (RUN-IN-SUPABASE-2026-10-03-QUEUE.sql part 3)' })
 
   // ── LOCK ──
