@@ -55,6 +55,7 @@ import PlayerCompare from './PlayerCompare'
 import ContactSection from './ContactSection'
 import { reasonContext, boardReasonFor, reasonLines } from '../lib/mlb/boardReason'
 import WhyLines from './WhyLines'
+import BotOnHim from './BotOnHim'
 
 // 🧱 "How far is HIS wall tonight" (audit #7, 2026-08-08). fieldInfo hydrate
 // verified live; percentile computed from the same payload. Switch hitters
@@ -930,6 +931,8 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
                   belongs. */}
               {/* Your own words, this device only — the read you had on him
                   three days ago that no stat column remembers. */}
+              {/* THE BOT ON HIM: each role the bot gave him, on the clean pregame record */}
+              <BotOnHim pid={pid} />
               <PlayerNotes playerId={pid} />
               {/* 🔢 His numbers (numerology step 7): flavour, last, folded on a phone. */}
               <HisNumbers name={nameOf(p)} jersey={jersey} birthDate={birthDate} next={hrSoFar != null ? hrSoFar + 1 : null} nextWord="HR" date={etToday()} theme={C} accent={C.orange} numFont={NUM_FONT} />
