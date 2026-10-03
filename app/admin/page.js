@@ -20,7 +20,8 @@ import { adminClient } from '../../lib/supabase/admin'
 import { MEMBERS_KINDS } from '../../lib/dash/membersPost'
 import { monthUsage } from '../../lib/odds/sgo'
 import { monthPlan, SOFT_CAP } from '../../lib/odds/budget'
-import { LEAGUES } from '../../lib/odds/snap'
+import { activeLeagues } from '../../lib/odds/snap'
+import { bucketsPublic } from '../../lib/nba/gate'
 import { autopostState, FACTS_CONFIG } from '../../lib/facts/engine'
 import { AutopostSwitch, DeleteFactPost } from '../../components/admin/FactsControls'
 import { readShadows, readVsBook } from '../../lib/shadowRecord'
@@ -142,7 +143,7 @@ export default async function AdminPage() {
   // THE ODDS MONTH (lib/odds/budget.js): what SGO says we've spent, and the planner's call
   const [usage, plan] = await Promise.all([
     monthUsage().catch((e) => ({ error: e?.message })),
-    monthPlan(easternToday().slice(0, 7), LEAGUES).catch((e) => ({ error: e?.message })),
+    monthPlan(easternToday().slice(0, 7), activeLeagues(bucketsPublic())).catch((e) => ({ error: e?.message })),
   ])
   // THE FACT ENGINE (lib/facts/engine.js): the switch, today's spend, the last posts
   const fdb = adminClient()
