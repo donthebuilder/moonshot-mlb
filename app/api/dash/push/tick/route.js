@@ -38,7 +38,7 @@ import { reduceScoreDay } from '../../../../../lib/nhl/reduce'
 import { hasVapid, vapidDetails, vapidProblem } from '../../../../../lib/dash/vapid'
 import { claimBoardWindow, fetchBoard } from '../../../../../lib/dash/board'
 import { byeStarterEventsFrom, franchiseEventsFrom, lineupGapEventsFrom, starterScoreEventsFrom } from '../../../../../lib/dash/franchise'
-import { audienceFrom, boardInfoFrom, deviceWantsSport, laneOf, lineupUpdatesFrom, mlbEventsFrom, nflEventsFrom, followNameKey, nflFollowMisses, nhlEventsFrom, pregameEventsFrom, priorityOf, wants } from '../../../../../lib/dash/pushRules'
+import { audienceFrom, boardInfoFrom, deviceWantsSport, laneOf, lineupUpdatesFrom, mlbEventsFrom, nflEventsFrom, followNameKey, nflFollowMisses, nhlEventsFrom, nbaEventsFrom, pregameEventsFrom, priorityOf, wants } from '../../../../../lib/dash/pushRules'
 import { fanOutToDiscord } from '../../../../../lib/dash/discordAlerts'
 import { fetchNfl, nflGameCallsPaths, nflPicksLooksReal, nflPicksPaths, nflSlateLooksReal, nflSlatePaths } from '../../../../../lib/nfl/dataSource'
 import { tdPool } from '../../../../../lib/nfl/tdPool'
@@ -48,6 +48,7 @@ import { NFL_MEMBERS_N } from '../../../../../lib/dash/membersPost'
 import { isMaintenanceMode, isRedZoneAlertsEnabled } from '../../../../../lib/edgeConfig'
 import { readUserState } from '../../../../../lib/dash/stateCache'
 import { adminClient } from '../../../../../lib/supabase/admin'
+import { bucketsPublic } from '../../../../../lib/nba/gate'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -255,6 +256,25 @@ async function nhlEvents(db, audience, stateByUser) {
   const { data: context } = await db.from('lamp_goal_feed').select('game_id, player_id, goal_n, period, time_in_period, overturned_at')
     .in('game_id', [...new Set(unswept.map((r) => r.game_id))]).is('overturned_at', null)
   return { events: nhlEventsFrom(unswept, audience, context?.length ? context : unswept), unswept }
+}
+// BUCKETS 30 PIECES (2026-10-03). app/api/buckets/moments writes buckets_feed;
+// this reads the rows nobody has swept (today's and yesterday's game dates).
+// No query while BUCKETS is closed, nor unless somebody follows an NBA player
+// or has nbacalled on.
+async function nbaEvents(db, audience, stateByUser) {
+  if (!bucketsPublic()) return { events: [], unswept: [] }
+  const anyCalled = Object.values(stateByUser || {}).some((s) => s?.dash_alerts_v1?.events?.nbacalled === true)
+  if (!audience?.nba?.size && !anyCalled) return { events: [], unswept: [] }
+  const { data: unswept, error } = await db.from('buckets_feed').select('*')
+    .in('game_date', [today(), dayBeforeEt(today())]).eq('push_sent', false).limit(60)
+  if (error) { console.error(`[push] buckets_feed: ${error.message}`); return { events: [], unswept: [] } }
+  return { events: nbaEventsFrom(unswept || [], audience), unswept: unswept || [] }
+}
+async function markSweptNba(db, rows) {
+  for (const r of rows || []) {
+    const { error } = await db.from('buckets_feed').update({ push_sent: true }).match({ game_id: r.game_id, player_id: r.player_id, kind: r.kind })
+    if (error) { console.error(`[push] buckets_feed push_sent: ${error.message}`); return }
+  }
 }
 async function markSwept(db, rows) {
   for (const r of rows || []) {
@@ -611,10 +631,12 @@ async function sweep(db, subs, stateByUser, audience, { full }) {
   const nothing = { sent: 0, held: 0, events: 0, fresh: 0, dead: [], discord: 0 }
   const redZoneEnabled = await isRedZoneAlertsEnabled()
   const nhl = await nhlEvents(db, audience, stateByUser)
+  const nba = await nbaEvents(db, audience, stateByUser)
   const produced = [
     ...(await mlbEvents(db, audience)),
     ...(await nflEvents(audience)),
     ...nhl.events,
+    ...nba.events,
     // Every sweep, not gated behind `full` -- see starterScoreEventsFrom's own
     // comment for why a Franchise touchdown needs the same speed as TUDDY's.
     // It reads the in-process snapshot nflEvents() just warmed above, so this
@@ -645,7 +667,7 @@ async function sweep(db, subs, stateByUser, audience, { full }) {
   const events = scratchedIds.size
     ? produced.filter((e) => !(e.category === 'dropout' && scratchedIds.has(String(e.playerId))))
     : produced
-  if (!events.length) { await markSwept(db, nhl.unswept); return nothing }
+  if (!events.length) { await markSwept(db, nhl.unswept); await markSweptNba(db, nba.unswept); return nothing }
 
   // Insert-and-see-what-stuck: only rows this run actually created are new.
   // Doing it as one insert with ignoreDuplicates makes the check atomic — two
@@ -666,6 +688,7 @@ async function sweep(db, subs, stateByUser, audience, { full }) {
   // The goals' events are claimed (dash_push_seen now remembers them), so the
   // rows are done: the next sweep skips them without a second read.
   await markSwept(db, nhl.unswept)
+  await markSweptNba(db, nba.unswept)
 
   const fresh = new Set((claimed || []).map((r) => r.event_key))
   const toSend = events.filter((e) => fresh.has(e.key))
