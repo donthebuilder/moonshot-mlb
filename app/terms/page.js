@@ -6,6 +6,7 @@
 // approved them 2026-10-01). The contact address is the one he gave.
 import AuthPageHeader from '../../components/AuthPageHeader'
 import styles from '../(front)/dash.module.css'
+import { contactEmail } from '../../lib/siteContact'
 
 export const metadata = {
   title: 'Terms · DASH Network',
@@ -15,8 +16,7 @@ export const metadata = {
 export default function TermsPage() {
   // Donovan, 2026-10-01: donto123@gmail.com until there is a DASH address.
   // NEXT_PUBLIC_CONTACT_EMAIL overrides it without a code change.
-  const email = String(process.env.NEXT_PUBLIC_CONTACT_EMAIL || 'donto123@gmail.com').trim()
-  const contact = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null
+  const contact = contactEmail()
   return (
     <main className={styles.page}>
       <AuthPageHeader />

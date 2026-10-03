@@ -36,6 +36,7 @@ import ErrorBoundary from './ErrorBoundary'
 import dynamic from 'next/dynamic'
 import { useLiveRefresh } from '../lib/liveRefresh'
 import RefreshStamp from './RefreshStamp'
+import DashFooter from './DashFooter'
 
 // ── ONE TAB'S CODE AT A TIME (2026-09-27) ────────────────────────────────
 // Every tab used to be a static import, so a cold MOONSHOT link downloaded
@@ -1002,15 +1003,7 @@ export default function Dashboard({ palettePass = 0 }) {
         )}
         {/* THE DISCLAIMER (2026-08-08, Donovan: "make sure we know it's all
             not financial advice, just stats") — every tab, every visit. */}
-        <div style={{
-          fontSize: 9, color: C.text3, textAlign: 'center', lineHeight: 1.6,
-          padding: '18px 12px 10px', borderTop: `1px solid ${C.border}`, marginTop: 18,
-        }}>
-          MOONSHOT is stats and analysis for entertainment — measured data, graded in public.
-          It is <b style={{ color: C.text2 }}>not financial, betting, or investment advice</b>, and
-          nothing here is a recommendation to wager. If you bet, that&apos;s your decision and your
-          responsibility — play responsibly.
-        </div>
+        <DashFooter sport="mlb" theme={C} onGuide={() => setTab('guide')} />
       </main>
       </TodayContext.Provider>
       {/* ⌘K / "/" from anywhere → jump to any player's modal. */}

@@ -54,9 +54,6 @@ export default function Standings({ onOpenTeam }) {
           ))}
         </section>
       ))}
-      <div style={{ color: C.text3, fontSize: 10, fontFamily: NUM_FONT, lineHeight: 1.5 }}>
-        Source: the public NFL standings feed, read in your browser, refreshed every ten minutes. Order and records as published.
-      </div>
     </div>
   )
 }

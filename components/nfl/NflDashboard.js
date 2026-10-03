@@ -57,6 +57,7 @@ import { StaleNote } from '../StaleBanner'
 import dynamic from 'next/dynamic'
 import { useLiveRefresh } from '../../lib/liveRefresh'
 import RefreshStamp from '../RefreshStamp'
+import DashFooter from '../DashFooter'
 const OddsBoard = dynamic(() => import('../tabs/OddsBoard'))
 
 // The key set now lives in lib/routes.js alongside MOONSHOT's, with the
@@ -439,6 +440,7 @@ export default function NflDashboard({ palettePass = 0 }) {
                 The old section view stays as Home's compact strip (tabs/Storylines.js compact). */}
             {tab === 'storylines' && <StorylinesPage sport="nfl" eyebrow="TUDDY · STORYLINES" theme={C} numFont={NUM_FONT} accent={C.green} onOpenGame={(id) => { leaveTarget('game', id); setTab('games') }} onOpenPlayer={(id) => { const p = (data?.players || []).find((x) => String(x.player_id) === String(id)); if (p) openPlayer(p, 'TD') }} />}
           </ErrorBoundary>
+          <DashFooter sport="nfl" theme={C} onGuide={() => setTab('guide')} />
           </TeamNav.Provider>
           </SportTheme>
         </>

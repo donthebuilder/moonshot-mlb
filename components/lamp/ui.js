@@ -151,9 +151,11 @@ export function Pills({ value, onChange, options, ariaLabel }) {
   )
 }
 
-/** The one-line data-origin note every page carries at its foot. */
-export function SourceLine({ children }) {
-  return <div style={{ marginTop: 12, color: C.text3, fontSize: 10, lineHeight: 1.5, fontFamily: NUM_FONT }}>{children}</div>
+/** RETIRED 2026-10-03 (Donovan: no API names at the foot of every page) --
+ *  renders nothing; the DASH footer (components/DashFooter.js) closes the page
+ *  and each product's Guide says how its numbers are built. */
+export function SourceLine() {
+  return null
 }
 
 // ── hash helpers ────────────────────────────────────────────────────────────

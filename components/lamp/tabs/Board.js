@@ -248,7 +248,7 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
         </div>
       )}
       {data && market === 'GOAL' && <GoalWatch flat={flat} onOpenPlayer={onOpenPlayer} />}
-      {data?.season?.stale && <StaleSeasonNote label={data.season.label} opens={data.season.opens} what="legs" />}
+      {data?.season?.stale && <StaleSeasonNote label={data.season.label} opens={data.season.opens} what="per-game stats" />}
       <DelayedBanner error={error} what="the board" />
       {loading && !data ? <Loading what="tonight’s board" /> : null}
       {data && !data.dbReady && <div style={{ color: C.amber, fontSize: 11 }}>The record is not connected on this deployment — boards will preview but nothing locks. (Supabase env missing.)</div>}

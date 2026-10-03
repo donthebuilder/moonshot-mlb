@@ -53,6 +53,7 @@ import Leaders from './tabs/Leaders'
 import ShotMap from './tabs/ShotMap'
 import Results from './tabs/Results'
 import Guide from './tabs/Guide'
+import DashFooter from '../DashFooter'
 
 // Pages that show one day and keep it in the address (`date=`).
 const DATED_TABS = new Set(['home', 'scores', 'board', 'fullboard', 'games', 'schedule', 'matchups', 'hot', 'ledger', 'storylines', 'odds'])
@@ -132,6 +133,7 @@ export default function BucketsDashboard() {
             {tab === 'results' && <Results {...nav} />}
             {tab === 'guide' && <Guide onNavigate={setTab} />}
           </ErrorBoundary>
+          <DashFooter sport="nba" theme={C} onGuide={() => setTab('guide')} />
           </TeamNav.Provider>
           </SportTheme>
         </>)}

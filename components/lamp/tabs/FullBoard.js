@@ -63,7 +63,7 @@ export default function FullBoard({ onOpenPlayer, onOpenTeam, date = null, setDa
         <NavBtn onClick={() => setDate(shiftDay(shown, 1))} disabled={loading}>Next day ›</NavBtn>
         <span style={{ color: C.text3, font: `800 8px/1 ${NUM_FONT}`, letterSpacing: '.1em' }}>{data?.modelVersion?.toUpperCase()}</span>
       </div>
-      {data?.season?.stale && <StaleSeasonNote label={data.season.label} opens={data.season.opens} what="legs" />}
+      {data?.season?.stale && <StaleSeasonNote label={data.season.label} opens={data.season.opens} what="per-game stats" />}
       <DelayedBanner error={error} what="the board" />
       {loading && !data ? <Loading what="tonight’s board" /> : null}
       {data && games.length === 0 && <EmptyState title="NO GAMES TODAY" note="Nothing to rank. The schedule has the week." />}

@@ -49,6 +49,7 @@ import FullBoard from './tabs/FullBoard'
 import Results from './tabs/Results'
 import dynamic from 'next/dynamic'
 import RefreshStamp from '../RefreshStamp'
+import DashFooter from '../DashFooter'
 const LampOdds = dynamic(() => import('./LampOdds'))
 
 // 🏒 THE LAMP SHELL. Thin on purpose, the same shape as NflDashboard and
@@ -170,6 +171,7 @@ export default function LampDashboard({ palettePass = 0 }) {
             {tab === 'fullboard' && <FullBoard onOpenPlayer={openPlayer} onOpenTeam={openTeam} date={date} setDate={setDate} />}
             {tab === 'results' && <Results onOpenPlayer={openPlayer} />}
           </ErrorBoundary>
+          <DashFooter sport="nhl" theme={C} onGuide={() => setTab('guide')} />
           </TeamNav.Provider>
           </SportTheme>
         </>

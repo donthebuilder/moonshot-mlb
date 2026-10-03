@@ -119,7 +119,7 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
         <NavBtn onClick={() => setDate(shiftDay(shown, 1))} disabled={loading}>Next day ›</NavBtn>
         {shown ? <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 11 }}>{fmtDay(shown)}</span> : null}
       </div>
-      {data?.season?.stale && <StaleSeasonNote label={data.season.label} opens={data.season.opens} what="legs" />}
+      {data?.season?.stale && <StaleSeasonNote label={data.season.label} opens={data.season.opens} what="per-game stats" />}
       {allGames.length > 0 && (
         <>
           <BoardTopBar query={query} setQuery={setQuery} placeholder="Search skater or team…"
