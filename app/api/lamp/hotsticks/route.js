@@ -12,10 +12,12 @@ import { ok, delayed } from '../../../../lib/nhl/respond'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
+export async function GET(req) {
   try {
     const date = easternToday()
-    const [hs, day] = await Promise.all([readHotSticks(), scoreFor(date).then(reduceScoreDay).catch(() => null)])
+    // ?need=20: LAMP Power's whole-season floor (only 0 or 20 accepted, so the cache stays two entries).
+    const needGp = new URL(req.url).searchParams.get('need') === '20' ? 20 : 0
+    const [hs, day] = await Promise.all([readHotSticks({ needGp }), scoreFor(date).then(reduceScoreDay).catch(() => null)])
     const tonight = {}
     for (const g of day?.games || []) {
       if (g.scheduleState !== 'OK') continue

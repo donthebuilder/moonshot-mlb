@@ -36,7 +36,7 @@ const pctFmt = (v) => (Number.isFinite(v) ? `${v.toFixed(1)}%` : '—')
 const signFmt = (v) => (Number.isFinite(v) ? `${v > 0 ? '+' : ''}${v.toFixed(2)}` : '—')
 
 export default function Power({ onOpenPlayer }) {
-  const { data, error, loading } = useLampHotSticks()
+  const { data, error, loading } = useLampHotSticks({ needGp: MIN_GP })
   const [view, setView] = useState('volume')
   const rows = useMemo(() => (data?.rows || []).map((r) => ({ ...r, shooting: shotsOf(r) >= MIN_SHOTS ? (100 * r.seasonG) / shotsOf(r) : null })), [data])
 
@@ -95,6 +95,9 @@ export default function Power({ onOpenPlayer }) {
         )
       })()}
 
+      {rows.length > 0 && !board.length && (
+        <EmptyState title="NOT ENOUGH GAMES YET" note={`Nobody in ${data?.seasonLabel || 'this season'} qualifies for ${lens.label} yet (${lens.k === 'finishing' ? `${MIN_SHOTS}+ shots` : `${MIN_GP}+ games`}). Try another lens.`} />
+      )}
       {rows.length > 0 && (
         <>
           <LensRow theme={C} lenses={LENSES} value={view} onChange={setView}
