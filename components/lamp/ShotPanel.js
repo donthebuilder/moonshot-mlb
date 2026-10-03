@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
-import Rink, { VS_MIN, VS_FULL } from './Rink'
+import Rink, { VS_MIN, VS_FULL, HEAT_MIN_SOG, HEAT_FULL } from './Rink'
 import HowToRead from '../charts/HowToRead'
 import dynamic from 'next/dynamic'
 import { webglOk } from '../../lib/webglOk'
@@ -22,7 +22,9 @@ import { ChipGroup, ChartCard, ChartLegend, ChartEmpty, StatStrip, viewBtn } fro
 // attempts / on net / goals, and the slot share with the slot defined in
 // words beside it. A player with no shots on file gets a sentence, not an
 // empty rink. Data: /api/lamp/shots (aggregates, cached a day).
-const WINDOWS = [{ key: 'all', text: 'SEASON' }, { key: 'last10', text: 'LAST 10' }]
+// 2026-10-03, Donovan: "it should just open up to last 10 games ... at least
+// be able to do last five" -- LAST 5 / LAST 10 / SEASON, opening on LAST 10.
+const WINDOWS = [{ key: 'last5', text: 'LAST 5' }, { key: 'last10', text: 'LAST 10' }, { key: 'all', text: 'SEASON' }]
 const pct = (v) => (v == null ? '—' : `${Math.round(v * 100)}%`)
 const share = (n, d) => `${Math.round((100 * n) / d)}%`
 
@@ -68,7 +70,7 @@ const RES_WORD = { goal: 'Goal', sog: 'On net, saved', miss: 'Missed the net', b
 
 export default function ShotPanel({ sel, who = 'He', height = 300, venue = null }) {
   const { data, error, loading } = useLampShots(sel)
-  const [win, setWin] = useState('all')
+  const [win, setWin] = useState('last10')
   const [res, setRes] = useState('ALL')
   const [type, setType] = useState('ALL')
   const [str, setStr] = useState('ALL')
@@ -76,11 +78,11 @@ export default function ShotPanel({ sel, who = 'He', height = 300, venue = null 
   const [picked, setPicked] = useState(null)
   const [help, setHelp] = useState(false)
   const [view, setView] = useState('dots')   // DOTS / HEAT, held here so the legend reads what is drawn
-  const [arena, setArena] = useState(false)  // 🏟 the 3D arena, open beside the 2D
+  const [arena, setArena] = useState(false)  // 2D (false) or 3D (true), one chart in one place
   const [gl, setGl] = useState(false)
   const [hardOnly, setHardOnly] = useState(false)   // ⚡ HARDEST 10 (BATCH-3D-V2 1g)
   useEffect(() => { setGl(webglOk()) }, [])
-  const m = data?.[win]
+  const m = data?.[win] || data?.last10 || data?.all   // an older cached answer has no last5
   const recent = m?.recent || []
   // NHL EDGE shot speed for this map's season (lib/nhl/shotSpeed.js): his
   // average + top, and his ten hardest matched to the drawn shots
@@ -201,9 +203,19 @@ export default function ShotPanel({ sel, who = 'He', height = 300, venue = null 
               as SprayField's lane bars (share + goals, like LF/CF/RF + HR),
               the colour key in one line, the numbers, and the fine print
               behind "how to read this". */}
-          {/* THE ARENA (BATCH-NHL-3D): the same filtered shots, in the building.
-              Opens above the card; the 2D rink and its readout stay, so a
-              tapped puck fills the same detail card. */}
+          {/* 2D / 3D, ONE CHART (2026-10-03, Donovan: "if you wanna toggle over
+              to 3-D it's as simple as pressing a button"): the same filtered
+              shots drawn flat or in the building, in the same place; the
+              readout and its tap-a-shot card stay under either. */}
+          {gl && (
+            <div role="group" aria-label="Chart view" style={{ display: 'flex', gap: 6 }}>
+              {[['2D', false], ['3D', true]].map(([label, on]) => (
+                <button key={label} type="button" aria-pressed={arena === on} onClick={() => setArena(on)}
+                  title={on ? 'The same shots, in the arena, in 3D' : 'The flat rink'}
+                  style={{ ...viewBtn(arena === on, C.ice, C, NUM_FONT), minWidth: 52, minHeight: 36 }}>{label}</button>
+              ))}
+            </div>
+          )}
           {arena && gl && (
             <RinkArena shots={view === 'dots' || view === 'goalie' ? shots : NO_SHOTS} goalieRead={view === 'goalie' ? goalieRead : null} onPickZone={(z) => setPicked({ zone: z })} map={m} league={data.league} slot={data.slot} gridSpec={data.gridSpec} view={view}
               speed={speed} hardest={hardest} stats={stats} dockChips={dockChips} onClearAll={clearAll} totalShots={recent.length} slotPct={slotStat?.v ? parseInt(slotStat.v, 10) : null}
@@ -211,18 +223,11 @@ export default function ShotPanel({ sel, who = 'He', height = 300, venue = null 
               onPick={(sh) => setPicked(sh)} onPickCell={(cell) => setPicked({ cell })} />
           )}
           <ChartCard theme={C}>
-            <Rink map={m} slot={data.slot} gridSpec={data.gridSpec} height={height} shots={shots} view={view} onView={setView} league={data.league}
+            {!(arena && gl) && <Rink map={m} slot={data.slot} gridSpec={data.gridSpec} height={height} shots={shots} view={view} onView={setView} league={data.league}
               speed={speed} hardest={hardest} slotPct={slotStat?.v ? parseInt(slotStat.v, 10) : null}
               goalieRead={goalieRead} pickedZone={picked?.zone || null} onPickZone={(z) => setPicked({ zone: z })}
-              extraView={gl ? (
-                <button type="button" onClick={() => setArena((v) => !v)} aria-pressed={arena}
-                  title={arena ? 'Close the 3D arena' : 'The same shots, in the arena, in 3D'}
-                  style={viewBtn(arena, C.ice, C, NUM_FONT)}>
-                  🏟 ARENA
-                </button>
-              ) : null}
               onPick={(sh) => setPicked(sh === picked ? null : sh)} picked={picked}
-              onPickCell={(cell) => setPicked({ cell })} />
+              onPickCell={(cell) => setPicked({ cell })} />}
             <div style={{ flex: 1, minWidth: 180 }}>
               <div aria-live="polite" style={{ minHeight: 54, fontFamily: NUM_FONT, fontSize: 10.5, lineHeight: 1.7, color: C.text2 }}>
                 {!picked ? (
@@ -310,7 +315,7 @@ export default function ShotPanel({ sel, who = 'He', height = 300, venue = null 
                   { key: 'less', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, background: `${C.ice}aa` }} />, label: 'fewer' },
                   { key: 'blank', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, border: `1px solid ${C.border2}` }} />, label: `blank = under ${VS_MIN} attempts` }]
                 : view === 'heat'
-                ? [{ key: 'heat', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, background: `${C.ice}88` }} />, label: 'shaded by attempts per zone' },
+                ? [{ key: 'heat', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, background: `${C.ice}88` }} />, label: 'shooting % per zone · shots under it' },
                   { key: 'slot', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 1, background: `${C.ice}24` }} />, label: 'the slot' },
                   { key: 'arcs', mark: <b aria-hidden="true">◌</b>, label: '20 / 40 / 60 ft from the net' }]
                 : [{ key: 'goal', mark: <b aria-hidden="true" style={{ color: C.lamp }}>●</b>, label: 'goal' },
@@ -353,8 +358,8 @@ export default function ShotPanel({ sel, who = 'He', height = 300, venue = null 
                   VS GOALIE: the goalie&apos;s {data.seasonLabel} regular season under {who === 'He' ? 'his' : 'their'} pucks. Each named zone is shaded by the goals he let in per shot on goal from there against the league&apos;s rate from the same zone: red, he lets in more; blue, fewer; no tint, within 1.5 points of the league; hatched, under 15 shots (thin). Tonight&apos;s starter isn&apos;t published by the league, so the busiest goalie from another club opens and the picker changes it. Where in the net a shot went (glove, blocker, five-hole) isn&apos;t in the public feed, so no net map is drawn.
                 </div>}
                 <div>
-                  HEAT splits the attacking end into a 5 × 5 grid and shades each zone by its share of the attempts.
-                  {data.league ? <> VS LEAGUE puts the same grid against every regular-season attempt in the league that season ({data.league.attempts.toLocaleString()} of them): each zone&apos;s number is {who === 'He' ? 'his' : 'their'} share there minus the league&apos;s, in points, from {win === 'all' ? 'the season' : 'the last ten games'} against the league&apos;s season; under {VS_MIN} attempts a zone is left blank, and the colour is full at {Math.round(VS_FULL * 100)} points. The league&apos;s slot share is cut the same way as {who === 'He' ? 'his' : 'theirs'}.</> : null} 🏟 ARENA draws the same shots in 3D; its lines run from the shot to the net along the ice and are not tracked puck paths.
+                  HEAT splits the attacking end into a 5 × 5 grid and colours each zone by {who === 'He' ? 'his' : 'their'} shooting percentage from it (goals per shot on goal; full colour at {Math.round(HEAT_FULL * 100)}%), with the shots taken from there under it; a zone with fewer than {HEAT_MIN_SOG} shots on goal shows its count only.
+                  {data.league ? <> VS LEAGUE puts the same grid against every regular-season attempt in the league that season ({data.league.attempts.toLocaleString()} of them): each zone&apos;s number is {who === 'He' ? 'his' : 'their'} share there minus the league&apos;s, in points, from {win === 'all' ? 'the season' : win === 'last5' ? 'the last five games' : 'the last ten games'} against the league&apos;s season; under {VS_MIN} attempts a zone is left blank, and the colour is full at {Math.round(VS_FULL * 100)} points. The league&apos;s slot share is cut the same way as {who === 'He' ? 'his' : 'theirs'}.</> : null} 3D draws the same shots in the arena; its lines run from the shot to the net along the ice and are not tracked puck paths.
                 </div>
               </HowToRead>
             </div>

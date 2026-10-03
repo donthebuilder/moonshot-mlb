@@ -46,6 +46,8 @@ export function vsCells(grid, league) {
 }
 /** The heat tile's opacity: never under 35%, so a cold zone still reads (1d). */
 export const heatAlpha = (t) => 0.35 + 0.5 * t
+export const HEAT_MIN_SOG = 4      // under this many on net a zone shows its count, not a %
+export const HEAT_FULL = 0.25      // shooting % that takes the full heat colour
 
 /** A shot's colour, by result (Donovan 10-02: "just like mlb has different
  *  colors for different events"). Shared with the 3D arena. */
@@ -75,7 +77,6 @@ export default function Rink({ map, slot, gridSpec, height = 300, shots = null, 
   const setView = onView || setViewOwn
   const drawn = shots || map?.recent || []
   if (!map) return null
-  const max = Math.max(1, ...map.grid.flat().map((c) => c.att))
   const cw = (gridSpec.x1 - gridSpec.x0) / gridSpec.cols; const ch = (gridSpec.y1 - gridSpec.y0) / gridSpec.rows
   const vs = view === 'vs' ? vsCells(map.grid, league) : null
   const matches = view === 'goalie' && goalieRead ? matchZones(goalieRead, shots || []) : []
@@ -96,14 +97,28 @@ export default function Rink({ map, slot, gridSpec, height = 300, shots = null, 
           {[20, 40, 60].map((r) => (
             <circle key={r} cx={sx(89)} cy={sy(0)} r={r} fill="none" stroke={RINK.iceLine} strokeWidth="0.3" strokeDasharray="1.2 1.4" />
           ))}
-          {view === 'heat' && map.grid.map((row, r) => row.map((cell, c) => cell.att ? (
-            <g key={`${r}-${c}`}>
-              <rect x={sx(gridSpec.x0 + c * cw)} y={r * ch} width={cw} height={ch} fill={rampAt(cell.att / max)} opacity={heatAlpha(cell.att / max)}>
-                <title>{`${cell.att} attempts · ${cell.sog} on net · ${cell.g} goals`}</title>
-              </rect>
-              <text x={sx(gridSpec.x0 + c * cw + cw / 2)} y={r * ch + ch / 2 + 1.6} fill={RINK.puck} fontSize="4.4" fontWeight="900" fontFamily={NUM_FONT} textAnchor="middle" pointerEvents="none">{cell.att}</text>
-            </g>
-          ) : null))}
+          {/* HEAT = ACCURACY (2026-10-03, Donovan: "percentages instead of
+              attempts ... the heat map show the accuracy"): each zone is
+              coloured by his shooting % from it (goals per shot on goal, full
+              colour at 25%), the % printed large and the shot count under it.
+              Under 4 shots on goal a zone makes no % claim: a faint outline
+              and its count only. */}
+          {view === 'heat' && map.grid.map((row, r) => row.map((cell, c) => {
+            if (!cell.att) return null
+            const thin = cell.sog < HEAT_MIN_SOG
+            const shp = thin ? null : cell.g / cell.sog
+            const x = sx(gridSpec.x0 + c * cw), y = r * ch
+            return (
+              <g key={`${r}-${c}`}>
+                <rect x={x} y={y} width={cw} height={ch} fill={thin ? 'none' : rampAt(Math.min(1, shp / HEAT_FULL))} opacity={thin ? 1 : heatAlpha(Math.min(1, shp / HEAT_FULL))}
+                  stroke={thin ? RINK.iceLine : 'none'} strokeWidth={thin ? 0.3 : 0} strokeDasharray={thin ? '1 1' : undefined}>
+                  <title>{`${cell.att} shots · ${cell.sog} on net · ${cell.g} goals${thin ? ' · too few on net for a %' : ` · ${Math.round(shp * 100)}% shooting`}`}</title>
+                </rect>
+                {!thin && <text x={x + cw / 2} y={y + ch / 2 + 0.6} fill={RINK.puck} fontSize="4.6" fontWeight="900" fontFamily={NUM_FONT} textAnchor="middle" pointerEvents="none">{Math.round(shp * 100)}%</text>}
+                <text x={x + cw / 2} y={y + ch / 2 + (thin ? 1.4 : 4.6)} fill={RINK.puck} opacity={thin ? 0.55 : 0.75} fontSize="2.8" fontWeight="700" fontFamily={NUM_FONT} textAnchor="middle" pointerEvents="none">{cell.att} sh</text>
+              </g>
+            )
+          }))}
         </g>
         {/* VS GOALIE (BATCH-3D-V2 1h): HIS map under the shooter's pucks --
             each named zone by goals against per shot on goal there vs the
@@ -126,8 +141,8 @@ export default function Rink({ map, slot, gridSpec, height = 300, shots = null, 
             })}
           </g>
         )}
-        {/* in VS GOALIE the zone labels sit on the centre line, so the ft labels step aside */}
-        {view !== 'goalie' && [20, 40, 60].map((r) => (
+        {/* in VS GOALIE and HEAT the zone numbers sit on the centre line, so the ft labels step aside */}
+        {view !== 'goalie' && view !== 'heat' && [20, 40, 60].map((r) => (
           <text key={`t${r}`} x={sx(89 - r)} y={sy(0) - 1} fill={RINK.missInk} fontSize="3" fontFamily={NUM_FONT} textAnchor="middle">{r} ft</text>
         ))}
         {vs && vs.map((row, r) => row.map((v, c) => v.att >= vsMin ? (

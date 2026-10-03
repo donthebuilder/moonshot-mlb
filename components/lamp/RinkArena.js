@@ -34,7 +34,7 @@ import HoverReadout, { placeTip } from '../charts/stadium/HoverReadout'
 import { createHoverFlight } from '../charts/stadium/hoverFlight'
 import { labelSprite } from '../../lib/three/sprites'
 import { ChartLegend, ChartEmpty } from '../charts'
-import { vsCells, vsAlpha, VS_MIN, heatAlpha, shotInk } from './Rink'
+import { vsCells, vsAlpha, VS_MIN, heatAlpha, shotInk, HEAT_MIN_SOG, HEAT_FULL } from './Rink'
 import { measuredMph } from '../../lib/nhl/shotPath'
 import { GOALIE_ZONES, ZONE_SHAPES, tintAlpha } from '../../lib/nhl/zones'
 
@@ -193,21 +193,23 @@ export default function RinkArena({ shots = [], map = null, league = null, slot 
         group.add(m); pickables.push(m)
       }))
     } else if (view === 'heat' && map?.grid && gridSpec) {
-      // the HEAT view: the 2D's 5x5 cells as tiles on the ice, same ramp
-      const max = Math.max(1, ...map.grid.flat().map((c) => c.att))
+      // the HEAT view: the 2D's 5x5 cells as tiles on the ice -- the 2D's own
+      // rule (10-03): coloured by shooting %, thin zones (< HEAT_MIN_SOG on
+      // net) left as a faint tile with their count
       const cw = (gridSpec.x1 - gridSpec.x0) / gridSpec.cols, ch = (gridSpec.y1 - gridSpec.y0) / gridSpec.rows
       map.grid.forEach((row, r) => row.forEach((cell, c) => {
         if (!cell.att) return
-        const t = cell.att / max
+        const thin = cell.sog < HEAT_MIN_SOG
+        const t = thin ? 0 : Math.min(1, cell.g / cell.sog / HEAT_FULL)
         const m = new THREE.Mesh(new THREE.PlaneGeometry(cw - 0.4, ch - 0.4),
-          new THREE.MeshBasicMaterial({ color: new THREE.Color(rampAt(t)), transparent: true, opacity: heatAlpha(t), depthWrite: false }))
+          new THREE.MeshBasicMaterial({ color: new THREE.Color(rampAt(t)), transparent: true, opacity: thin ? 0.12 : heatAlpha(t), depthWrite: false }))
         m.rotation.x = -Math.PI / 2
         const cx = gridSpec.x0 + (c + 0.5) * cw, cy = gridSpec.y1 - (r + 0.5) * ch
         m.position.copy(rinkPoint(cx, cy, 0.06))
         m.userData.cell = { ...cell, r, c }
         group.add(m); pickables.push(m)
         // the count on the ice, the way the ballpark prints its wall numbers (1d)
-        const lab = labelSprite(String(cell.att), RINK.puck)
+        const lab = labelSprite(thin ? `${cell.att} sh` : `${Math.round((100 * cell.g) / cell.sog)}%`, RINK.puck)
         lab.position.copy(rinkPoint(cx, cy, 2.2)); lab.scale.multiplyScalar(0.62)
         group.add(lab)
       }))
@@ -449,7 +451,7 @@ export default function RinkArena({ shots = [], map = null, league = null, slot 
       <ChartLegend theme={C} items={view === 'vs'
         ? [{ key: 'vs', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, background: `${C.lamp}aa` }} />, label: 'more than the league / blue fewer, as on the rink above' }]
         : view === 'heat'
-        ? [{ key: 'heat', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, background: `${C.ice}88` }} />, label: 'shaded by attempts per zone, as on the rink above' }]
+        ? [{ key: 'heat', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, background: `${C.ice}88` }} />, label: 'shooting % per zone, as on the flat rink' }]
         : [{ key: 'goal', mark: <b aria-hidden="true" style={{ color: C.lamp }}>●</b>, label: 'goal' },
           { key: 'sog', mark: <b aria-hidden="true" style={{ color: RINK.puck, WebkitTextStroke: `0.6px ${RINK.puckRim}` }}>●</b>, label: 'on net (saved)' },
           { key: 'miss', mark: <b aria-hidden="true">✕</b>, label: 'missed' },
