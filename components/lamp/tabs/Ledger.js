@@ -94,8 +94,8 @@ export default function Ledger({ date = null, onOpenPlayer, onOpenTeam = null, o
         <NextUpBox title="🔮 Called, still to come" color={C.ice}
           rows={pending.map((r) => ({ key: r.key, when: r._g.game.state === 'live' ? 'now' : 'later', name: r.name, chips: [`#${r.rank} ${r._g.game.away.abbrev}@${r._g.game.home.abbrev}`, `LAMP ${Math.round(r.score ?? 0)}`], title: `Called #${r.rank} in his game`, onClick: open(r.playerId) }))}
           about="The skaters the board called, whose game isn't final and who haven't scored. ⚡ live, ⏳ still to come. The call was locked before puck drop and is graded after the final." />
-        <ScorerChips accent={C.ice} preview={12} cards={scorers.map((r) => ({
-          key: `${r._g.game.id}|${r.playerId}`, icon: '🚨', name: r.name, times: Number(r.goals), milestone: r.status === 'called', numHot: r.status === 'called',
+        <ScorerChips sport="nhl" accent={C.ice} preview={12} cards={scorers.map((r) => ({
+          key: `${r._g.game.id}|${r.playerId}`, icon: '🚨', team: r.team, name: r.name, times: Number(r.goals), milestone: r.status === 'called', numHot: r.status === 'called',
           num: r.status === 'called' ? 'CALLED' : r.status === 'board' ? `#${r.rank}` : 'off the board', spot: r.pos || null, onClick: open(r.playerId),
           title: `${r.name} (${r.team}) — ${r.goals} goal${Number(r.goals) === 1 ? '' : 's'} tonight · ${r.status === 'called' ? 'CALLED' : r.status === 'board' ? `on the board, #${r.rank} in his game` : 'not on the board'}.`,
           badges: [],

@@ -3,6 +3,7 @@ import { useState } from 'react'
 import Tap from '../Tap'
 import { C, NUM_FONT } from '../../lib/theme'
 import { alpha } from '../../lib/scales'
+import TeamMark from '../TeamMark'
 
 // THE LEDGER'S BLOCKS, ONCE (2026-09-28, parity plan 00Q step 3). MOONSHOT's
 // Homer ledger (components/HomerLedger.js) lifted out block by block, style
@@ -237,7 +238,10 @@ export function NextUpBox({ title, rows = [], about, color = C.cyan }) {
 }
 
 /** cards: [{ key, icon, name, times, num, numHot, spot, badges: [{ k, label, color, title }], milestone, title, onClick }] */
-export function ScorerChips({ cards = [], accent = C.orange, preview = null }) {
+// 2026-10-03 (Donovan: "the lamp ledger ... look old and outdated"): with
+// `sport` and a card's `team`, the chip leads with his club's logo in place of
+// the emoji; type up a step (name 12.5, figure 11) and 40px tall to tap.
+export function ScorerChips({ cards = [], accent = C.orange, preview = null, sport = null }) {
   const [open, setOpen] = useState(false)
   if (!cards.length) return null
   const shown = preview && !open ? cards.slice(0, preview) : cards
@@ -247,18 +251,18 @@ export function ScorerChips({ cards = [], accent = C.orange, preview = null }) {
         <button key={c.key} onClick={c.onClick || undefined}
           title={c.title}
           style={{
-            display: 'flex', gap: 6, alignItems: 'baseline', cursor: c.onClick ? 'pointer' : 'default',
+            display: 'flex', gap: 7, alignItems: 'center', cursor: c.onClick ? 'pointer' : 'default',
             border: `1px solid ${c.milestone ? alpha(accent, 0.6) : C.border}`,
             background: c.milestone ? alpha(accent, 0.10) : C.bg2,
-            borderRadius: 8, padding: '4px 10px',
+            borderRadius: 10, padding: '6px 11px', minHeight: 40,
           }}>
-          <span style={{ fontSize: 10 }}>{c.icon}</span>
-          <span style={{ fontSize: 11, fontWeight: 800, color: C.text }}>{c.name}</span>
-          {c.times > 1 && <span style={{ fontSize: 9, fontFamily: NUM_FONT, color: accent, fontWeight: 900 }}>×{c.times}</span>}
-          <span style={{ fontSize: 9.5, fontFamily: NUM_FONT, color: c.numHot ? accent : C.text3, fontWeight: c.numHot ? 900 : 600 }}>
+          {sport && c.team ? <TeamMark sport={sport} abbr={c.team} variant="logo" px={18} /> : <span style={{ fontSize: 12 }}>{c.icon}</span>}
+          <span style={{ fontSize: 12.5, fontWeight: 800, color: C.text }}>{c.name}</span>
+          {c.times > 1 && <span style={{ fontSize: 11, fontFamily: NUM_FONT, color: accent, fontWeight: 900 }}>×{c.times}</span>}
+          <span style={{ fontSize: 11, fontFamily: NUM_FONT, color: c.numHot ? accent : C.text3, fontWeight: c.numHot ? 900 : 600 }}>
             {c.num}
           </span>
-          {c.spot && <span style={{ fontSize: 8.5, fontFamily: NUM_FONT, color: C.text3 }}>{c.spot}</span>}
+          {c.spot && <span style={{ fontSize: 11, fontFamily: NUM_FONT, color: C.text3 }}>{c.spot}</span>}
           {(c.badges || []).map((b) => (
             <span key={b.k} title={b.title}
               style={{

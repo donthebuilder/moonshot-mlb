@@ -123,10 +123,10 @@ export default function Ledger({ data, picks, results, matchup, onPlayerClick, o
         <NextUpBox title="🔮 Fits the week's pattern, hasn't scored yet"
           rows={nextUp.map((x) => ({ key: x.key, when: x.when, name: x.name, chips: x.chips, title: `${x.chips.join(' · ')}. TD score ${x.td.toFixed(0)}.`, onClick: open(x.p) }))}
           about="Players who haven't scored this week, whose game isn't over, standing on a numerology lane that matches their game day — jersey, birthday or name number against the date. ⚡ means his game is live, ⏳ still to come. Ranked by how many lanes, then TD score. A watch, not a prediction — nothing here is graded, scored, or fed to a pick." />
-        <ScorerChips accent={C.green} preview={12} cards={scorers.map((s) => {
+        <ScorerChips sport="nfl" accent={C.green} preview={12} cards={scorers.map((s) => {
           const r = roundSet.get(s.id); const after = Number.isFinite(Number(s.p?.season_td)) ? Number(s.p.season_td) + s.td : null
           return {
-            key: s.id, icon: '🏈', name: s.name, times: s.td, milestone: Boolean(r), numHot: Boolean(r),
+            key: s.id, icon: '🏈', team: s.p?.team || null, name: s.name, times: s.td, milestone: Boolean(r), numHot: Boolean(r),
             num: after != null ? `${ord(after)} TD` : '—', spot: s.p?.position || null, onClick: open(s.p),
             title: `${s.name}${s.p?.team ? ` (${s.p.team})` : ''}${after != null ? ` — his ${ord(after)} touchdown of the season` : ''}${s.td > 1 ? ` (${s.td} this week)` : ''}.`,
             badges: lineSet.has(s.id) ? [{ k: 'al', label: lineSet.get(s.id).chips.length > 1 ? `${lineSet.get(s.id).chips.length} ALIGNS` : 'ALIGNS', color: C.green, title: lineSet.get(s.id).chips.join(' · ') }] : [],

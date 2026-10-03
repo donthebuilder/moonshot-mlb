@@ -1698,8 +1698,8 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
       )}
 
       {/* every homer tonight, numbered -- ScorerChips (components/ledger/LedgerBlocks.js) */}
-      <ScorerChips accent={C.orange} cards={cards.map((c) => ({
-        key: c.pid, icon: '💥', name: c.name, times: c.hr, milestone: c.milestone, numHot: c.milestone,
+      <ScorerChips sport="mlb" accent={C.orange} cards={cards.map((c) => ({
+        key: c.pid, icon: '💥', team: c.team || null, name: c.name, times: c.hr, milestone: c.milestone, numHot: c.milestone,
         num: c.nth != null ? `${ord(c.nth)}${c.exact ? '' : '≈'}` : '—',
         spot: c.spot ? `#${c.spot}` : null,
         onClick: c.p ? () => onPlayerClick?.(c.p) : null,
