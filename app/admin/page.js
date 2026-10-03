@@ -24,7 +24,7 @@ import { activeLeagues } from '../../lib/odds/snap'
 import { bucketsPublic } from '../../lib/nba/gate'
 import { autopostState, FACTS_CONFIG } from '../../lib/facts/engine'
 import { AutopostSwitch, DeleteFactPost } from '../../components/admin/FactsControls'
-import { readShadows, readVsBook } from '../../lib/shadowRecord'
+import { readShadows, readVsBook, readValueNhl } from '../../lib/shadowRecord'
 import { VERSIONS as NHL_VERSIONS } from '../../lib/nhl/versions'
 
 export const dynamic = 'force-dynamic'
@@ -121,6 +121,15 @@ const cachedShadows = unstable_cache(async () => { const db = service(); return 
 // LAMP SHOTS 3+ (public) against the book's lock line (M3)
 const cachedVsBook = unstable_cache(async () => { const db = service(); return db ? readVsBook(db, { table: 'lamp_prop_log', market: 'SOG', oddsMarket: 'sog', sport: 'nhl', versions: NHL_VERSIONS.sog, bar: 3 }) : null }, ['admin-vsbook-v1'], { revalidate: 600 })
 
+// THE VALUE CALL (M4, shadow): LAMP's live board and the goalpos shadow, each
+// against the lock price -- the picks list stays on the server
+const cachedValue = unstable_cache(async () => {
+  const db = service(); if (!db) return null
+  const v = await readValueNhl(db)
+  const lean = ({ picks, ...t }) => t
+  return { ...v, live: lean(v.live), goalpos: lean(v.goalpos) }
+}, ['admin-value-v1'], { revalidate: 600 })
+
 function Line({ k, v, src }) {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: '2px 12px', padding: '10px 0', borderTop: '1px solid var(--line)' }}>
@@ -153,6 +162,7 @@ export default async function AdminPage() {
   ]) : [{ on: false, why: 'no database', missing: true }, { data: [], error: null }]
   const shadows = await cachedShadows().catch((e) => [{ key: 'x', label: 'Shadow models', error: e?.message }])
   const vsBook = await cachedVsBook().catch((e) => ({ error: e?.message }))
+  const value = await cachedValue().catch((e) => ({ error: e?.message }))
   const pct = (l) => (l?.n ? `${l.pct}% ±${l.pm} (${l.hit}/${l.n})` : 'no graded calls yet')
   const today = easternToday()
   const fToday = (frows.data || []).filter((r) => r.day === today)
@@ -255,6 +265,14 @@ export default async function AdminPage() {
           <Line k="  … beat the book's line" v={pct(vsBook.beat)} src="his shots on goal above the book's own lock line -- chalk that only clears a soft bar shows up here" />
           <Line k="  … the book's no-vig chance (at 2.5)" v={vsBook.bookP != null ? `${vsBook.bookP}% (${vsBook.bookPn})` : '—'} src="mean implied probability of the over, from the fair price, where the line was our bar" />
         </> : <Line k="LAMP SHOTS 3+ calls" v="no graded calls with a lock line yet" src="odds_lines nhl sog at lock, joined to lamp_prop_log SOG called rows" />}
+        {value?.error ? <Line k="LAMP goal · value call" v="—" src={`unavailable: ${value.error}`} /> : value ? [['live', 'live board (lamp-goal)'], ['goalpos', 'goalpos shadow (ice time within position)']].map(([k, label]) => {
+          const t = value[k]
+          const edge = (l) => (l?.n ? `${l.pct}% vs ${l.implied}% · ROI ${l.roiMed > 0 ? '+' : ''}${l.roiMed}%` : 'no graded calls yet')
+          return <div key={k}>
+            <Line k={`LAMP goal · value call · ${label}`} v={edge(t.value)} src={`${value.version}: per game, the board/called skater the model ranks ${value.rule.minGap}+ above the book's lock price (${value.rule.minPriced}+ priced) · ${t.value.n ? `${t.value.hit}/${t.value.n} ±${t.value.pm}, ${t.dCalls} of ${t.withCall} calls defencemen, ` : ''}${t.games} priced games · hit rate vs the median book's implied chance (vig in) · flat 1u ROI at the median book${t.value.n ? ` (best book ${t.value.roiBest > 0 ? '+' : ''}${t.value.roiBest}%)` : ''}`} />
+            <Line k="  … its CALLED picks, same games" v={edge(t.called)} src={`the chalk the value call is meant to fix${t.called.n ? ` · ${t.called.hit}/${t.called.n} ±${t.called.pm}` : ''}`} />
+          </div>
+        }) : null}
         <Line k="MLB · HR pick shadow (M0)" v="bot repo" src="python3 bots/eval_shadow_picks.py --fetch (hr_pick_top_score #1 vs the real HR pick, from por_rows)" />
 
         <h2 className={start.kicker} style={{ marginTop: 18 }}>Waitlist</h2>
