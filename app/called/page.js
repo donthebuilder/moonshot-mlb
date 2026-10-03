@@ -28,7 +28,7 @@ import { slateNight } from '../../lib/slateNight'
 import { matchupWord, oddsWord, roleWord } from '../../lib/dash/homerFeed'
 import { tdCallWord, tdPlayWord, matchRoster } from '../../lib/nfl/tdFeed'
 import { nflSlatePaths } from '../../lib/nfl/dataSource'
-import { BRAND, SPORT_KEYS, sportKey, appHref, playerHref } from '../../lib/routes'
+import { BRAND, SPORT_KEYS, sportKey, appHref, playerHref, isHiddenSport } from '../../lib/routes'
 import { nhlCaptureFrom, readNhlRecords } from '../../lib/record/nhl'
 import { readMlbEvents } from '../../lib/record/mlb'
 import { readNflEvents } from '../../lib/record/nfl'
@@ -64,12 +64,14 @@ import { adminClient } from '../../lib/supabase/admin'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
+// a sport /called has no page for -- or a hidden one (BUCKETS before it opens) -- is MOONSHOT, as an unknown one always was
+const calledKey = (raw) => { const k = sportKey(String(raw || '').toLowerCase()); return SPORTS[k] && !isHiddenSport(k) ? k : 'mlb' }
 
 // 2026-09-24 (SEO): the title said MOONSHOT on the football page too, and
 // the root canonical pointed both sports at '/'. One entry per sport now.
 export async function generateMetadata({ searchParams }) {
   const params = (await searchParams) || {}
-  return SPORTS[sportKey(String(params.sport || '').toLowerCase())].meta
+  return SPORTS[calledKey(params.sport)].meta
 }
 // the newest ten game days: lib/recordWindow.js (0g D4), shared with /start + the front door
 const DAYS = windowFor('mlb').gameDays
@@ -414,7 +416,7 @@ const glyph = (n) => (n.called ? '🤖' : n.onBoard ? '⚪' : '💥')
 export default async function CalledPage({ searchParams }) {
   const members = membersUrl()
   const params = (await searchParams) || {}
-  const key = sportKey(String(params.sport || '').toLowerCase())
+  const key = calledKey(params.sport)
   const { sport, today, rows, outRows = [], picks, picksDay = null, calledIds, history, byDay, configured } = await load(key)
   const card = sport.cardRecord ? await cardPlain(sport.key).catch((e) => { console.error(`[called] card record: ${e?.message}`); return null }) : null
   const BOARD = sport.board

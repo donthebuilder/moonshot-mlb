@@ -45,6 +45,8 @@ const URL_OF = {
   mlb: ({ id, size }) => (id ? mlbUrl(id, size * 2) : null),
   nfl: ({ espnId, size }) => (espnId ? nflHeadshot(String(espnId), size, size) : null),
   nhl: () => null, // LAMP always passes the feed's own mug as `photo`
+  // BUCKETS: ESPN's headshot CDN by athlete id (the same file the athlete card names)
+  nba: ({ id }) => (id ? `https://a.espncdn.com/i/headshots/nba/players/full/${encodeURIComponent(id)}.png` : null),
 }
 // A product whose card face already exists keeps it (TUDDY's club tile).
 const CARD_OF = {

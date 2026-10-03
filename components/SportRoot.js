@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { useSport } from '../lib/sport'
+import { useSport, setSport } from '../lib/sport'
+import { useCanSee } from '../lib/useVisibleSports'
 import { themeFromUrl } from '../lib/themes'
 import { applyTheme, C } from '../lib/theme'
 import dynamic from 'next/dynamic'
@@ -72,8 +73,10 @@ function Shell() {
 const Dashboard = dynamic(() => import('./Dashboard'), { ssr: false, loading: () => <Shell /> })
 const NflDashboard = dynamic(() => import('./nfl/NflDashboard'), { ssr: false, loading: () => <Shell /> })
 const LampDashboard = dynamic(() => import('./lamp/LampDashboard'), { ssr: false, loading: () => <Shell /> })
+// BUCKETS' chunk is fetched only for a visitor its access route lets in (below)
+const BucketsDashboard = dynamic(() => import('./buckets/BucketsDashboard'), { ssr: false, loading: () => <Shell /> })
 
-const SHELLS = { nfl: NflDashboard, nhl: LampDashboard }
+const SHELLS = { nfl: NflDashboard, nhl: LampDashboard, nba: BucketsDashboard }
 
 export default function SportRoot() {
   const sport = useSport()
@@ -90,7 +93,12 @@ export default function SportRoot() {
   // the repaint pass, which is what makes the re-render observable, while the
   // component instance and its DOM survive.
   // Three shells, one switch (2026-09-25: LAMP). MOONSHOT stays the default.
-  if (!ready) return <Shell />
+  // A HIDDEN PRODUCT (lib/routes BRAND.hidden: BUCKETS until it opens) renders
+  // only once its access route says yes; anyone else is sent to MOONSHOT, as
+  // an unknown sport always was. While it asks: the Shell, never a flash.
+  const allowed = useCanSee(sport)
+  useEffect(() => { if (allowed === false) setSport('mlb') }, [allowed])
+  if (!ready || !allowed) return <Shell />
   // The account ask (funnel step 3) and the explain panel (tap-to-explain
   // ticker pills), once for all three products.
   const nudge = <><AccountNudge sport={sport} /><ExplainToast sport={sport} /></>

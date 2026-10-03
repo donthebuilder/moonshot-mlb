@@ -27,12 +27,14 @@ const pages = PAGES.length ? PAGES : DEFAULT_PAGES
 const RAW = 'https://raw.githubusercontent.com/donthebuilder/MLB-HR-DASHBOARD-STREAMLIT/data/public/data/current'
 
 const j = async (u) => { try { const r = await fetch(u); return r.ok ? r.json() : null } catch { return null } }
-const [mlb, nfl, nhl] = await Promise.all([j(`${RAW}/today_slim.json`), j(`${RAW}/nfl_week.json`), j(`${BASE}/api/lamp/players`)])
+// BUCKETS' directory answers only while it is open to this server (BUCKETS_PUBLIC=on locally); closed, it adds nothing
+const [mlb, nfl, nhl, nba] = await Promise.all([j(`${RAW}/today_slim.json`), j(`${RAW}/nfl_week.json`), j(`${BASE}/api/lamp/players`), j(`${BASE}/api/buckets/players`)])
 const names = new Set(); const teams = new Set()
 for (const r of (Array.isArray(mlb) ? mlb : mlb?.players || [])) { if (r?.name) names.add(r.name); if (r?.team) teams.add(r.team); if (r?.pitcher_name) names.add(r.pitcher_name) }
 for (const p of nfl?.players || []) { if (p?.name && p.position !== 'DEF') names.add(p.name); if (p?.team) teams.add(p.team) }
 for (const p of nhl?.players || []) { if (p?.name) names.add(p.name); if (p?.team) teams.add(p.team) }
-console.log(`known: ${names.size} players, ${teams.size} team codes (MLB slate, NFL week, NHL rosters)`)
+for (const p of nba?.players || []) { if (p?.name) names.add(p.name); if (p?.team) teams.add(p.team) }
+console.log(`known: ${names.size} players, ${teams.size} team codes (MLB slate, NFL week, NHL rosters${nba ? ', NBA directory' : ''})`)
 
 const browser = await chromium.launch({ executablePath: '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser' })
 let bad = 0
@@ -44,7 +46,7 @@ for (const path of pages) {
     await page.waitForTimeout(9000)
     const res = await page.evaluate(({ names, teams }) => {
       const N = new Set(names); const T = new Set(teams)
-      const GAME = /^([A-Z]{2,3})\s*[@v]\s*([A-Z]{2,3})$/
+      const GAME = /^([A-Z]{2,4})\s*[@v]\s*([A-Z]{2,4})$/
       const kind = (t) => (N.has(t) ? 'player' : T.has(t) ? 'team' : (GAME.test(t) && T.has(t.match(GAME)[1]) && T.has(t.match(GAME)[2])) ? 'game' : null)
       const tappable = (el) => {
         if (el.closest('a,button,[role=button],[role=link],summary,[onclick],select,option,label')) return true

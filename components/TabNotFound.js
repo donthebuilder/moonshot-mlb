@@ -21,7 +21,7 @@ export default function TabNotFound({ asked, sport = 'mlb', onNavigate, doors = 
   // 2026-09-25: three products, so "the other side" is two doors, not one.
   const here = sportKey(sport)
   const others = Object.keys(BRAND).filter((k) => k !== here)
-  const glyph = { mlb: '\u26BE', nfl: '\u{1F3C8}', nhl: '\u{1F3D2}' }
+  const glyph = { mlb: '\u26BE', nfl: '\u{1F3C8}', nhl: '\u{1F3D2}', nba: '\u{1F3C0}' }
   return (
     <div style={{
       border: `1px solid ${C.border}`, borderRadius: 16, background: C.bg2,

@@ -21,24 +21,32 @@ const miss = (sport, keys, where) => {
 miss('mlb', Object.keys(R.MLB_NAV), 'MLB_NAV')
 miss('nfl', Object.keys(R.NFL_NAV), 'NFL_NAV')
 miss('nhl', Object.keys(R.NHL_NAV), 'NHL_NAV')
+miss('nba', Object.keys(R.NBA_NAV), 'NBA_NAV')
 miss('mlb', R.MLB_MORE_GROUPS.flatMap((g) => g[1]), 'MLB_MORE_GROUPS')
 miss('nfl', R.NFL_MORE_GROUPS.flatMap((g) => g[1]), 'NFL_MORE_GROUPS')
 miss('nhl', R.NHL_MORE_GROUPS.flatMap((g) => g[1]), 'NHL_MORE_GROUPS')
+miss('nba', R.NBA_MORE_GROUPS.flatMap((g) => g[1]), 'NBA_MORE_GROUPS')
 for (const [k, v] of Object.entries(R.MLB_ALIASES)) if (!R.MLB_TABS.includes(v)) { console.log(`FAIL MLB_ALIASES ${k} -> '${v}' not in MLB_TABS`); bad += 1 }
 for (const [k, v] of Object.entries(R.NFL_ALIASES)) if (!R.NFL_TABS.includes(v)) { console.log(`FAIL NFL_ALIASES ${k} -> '${v}' not in NFL_TABS`); bad += 1 }
 for (const [k, v] of Object.entries(R.NHL_ALIASES)) if (!R.NHL_TABS.includes(v)) { console.log(`FAIL NHL_ALIASES ${k} -> '${v}' not in NHL_TABS`); bad += 1 }
+for (const [k, v] of Object.entries(R.NBA_ALIASES)) if (!R.NBA_TABS.includes(v)) { console.log(`FAIL NBA_ALIASES ${k} -> '${v}' not in NBA_TABS`); bad += 1 }
 // A sport the registry does not know must still answer MOONSHOT, never throw.
 if (R.resolveTab('xfl', 'home').tab !== 'home') { console.log('FAIL unknown sport did not fall back to MOONSHOT'); bad += 1 }
 if (R.pageTitle('nhl', 'scores') !== 'NHL scores · LAMP') { console.log(`FAIL pageTitle nhl: ${R.pageTitle('nhl', 'scores')}`); bad += 1 }
 // §36: every page's title leads with search words and fits a results line.
-for (const [sport, nav] of [['mlb', R.MLB_NAV], ['nfl', R.NFL_NAV], ['nhl', R.NHL_NAV]]) {
+for (const [sport, nav] of [['mlb', R.MLB_NAV], ['nfl', R.NFL_NAV], ['nhl', R.NHL_NAV], ['nba', R.NBA_NAV]]) {
   for (const tab of Object.keys(nav)) {
     const t = R.pageTitle(sport, tab)
     if (!t || t.length > 60) { console.log(`FAIL pageTitle ${sport}/${tab}: "${t}" (${t.length} chars, max 60)`); bad += 1 }
   }
 }
 // The one sport list is the registry's own keys, and every one is branded.
-if (R.SPORT_KEYS.join() !== Object.keys(R.BRAND).join()) { console.log(`FAIL SPORT_KEYS ${R.SPORT_KEYS} vs BRAND ${Object.keys(R.BRAND)}`); bad += 1 }
+// every renderable sport is branded, and the PUBLIC list is exactly the unhidden ones
+if (R.ALL_SPORT_KEYS.join() !== Object.keys(R.BRAND).join()) { console.log(`FAIL ALL_SPORT_KEYS ${R.ALL_SPORT_KEYS} vs BRAND ${Object.keys(R.BRAND)}`); bad += 1 }
+const publicKeys = Object.keys(R.BRAND).filter((k) => !R.BRAND[k].hidden)
+if (R.SPORT_KEYS.join() !== publicKeys.join()) { console.log(`FAIL SPORT_KEYS ${R.SPORT_KEYS} vs the unhidden BRAND keys ${publicKeys}`); bad += 1 }
+// a hidden product stays off the public list (BUCKETS until BUCKETS_PUBLIC=on)
+if (R.SPORT_KEYS.includes('nba') || !R.isSport('nba') || !R.isHiddenSport('nba')) { console.log('FAIL BUCKETS must be routable but off the public sport list'); bad += 1 }
 if (!R.isSport('nhl') || R.isSport('xfl') || R.isSport(null) || R.isSport('toString')) { console.log('FAIL isSport answers wrong'); bad += 1 }
 
 // ── NO NEW HAND-WRITTEN SPORT TERNARIES (Batch 1, 2026-09-25) ──────────────
@@ -54,8 +62,8 @@ const TERNARY_BASELINE = {
   'components/nfl/NflHeader.js': 3,
   'components/ScoreRail.js': 1, // MOONSHOT keeps its pre-merge storage key
 }
-const TERNARY = /\b[\w.]*sport\w*(?:\.key)?\s*[!=]==?\s*['"](?:mlb|nfl|nhl)['"]\s*\?/gi
-const SKIP = (f) => /fantasy|franchise/i.test(f) || f === 'lib/routes.js' || f === 'lib/nhl/routes.js'
+const TERNARY = /\b[\w.]*sport\w*(?:\.key)?\s*[!=]==?\s*['"](?:mlb|nfl|nhl|nba)['"]\s*\?/gi
+const SKIP = (f) => /fantasy|franchise/i.test(f) || f === 'lib/routes.js' || f === 'lib/nhl/routes.js' || f === 'lib/nba/routes.js'
 const walk = (d) => readdirSync(d).flatMap((f) => {
   const p = join(d, f)
   return statSync(p).isDirectory() ? walk(p) : p.endsWith('.js') ? [p] : []

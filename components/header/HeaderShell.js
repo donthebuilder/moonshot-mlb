@@ -3,6 +3,8 @@ import { useEffect, useRef } from 'react'
 import { C as MLB_C } from '../../lib/theme'
 import { C as NFL_C } from '../../lib/nfl/theme'
 import { C as NHL_C } from '../../lib/nhl/theme'
+import { C as NBA_C } from '../../lib/nba/theme'
+import { useVisibleSports } from '../../lib/useVisibleSports'
 import { BRAND } from '../../lib/routes'
 import { setSport } from '../../lib/sport'
 
@@ -19,7 +21,7 @@ import { setSport } from '../../lib/sport'
 // The other products' pills are read off the registry (lib/routes BRAND), each
 // in its OWN brand colour on every header -- MOONSHOT orange, TUDDY jade,
 // LAMP ice -- so a product looks the same wherever it is named.
-const PILL = { mlb: () => MLB_C.orange, nfl: () => NFL_C.green, nhl: () => NHL_C.ice }
+const PILL = { mlb: () => MLB_C.orange, nfl: () => NFL_C.green, nhl: () => NHL_C.ice, nba: () => NBA_C.purple }
 
 function hexToRgba(hex, a) {
   const h = String(hex || '').replace('#', '')
@@ -53,7 +55,8 @@ export default function HeaderShell({ sport, theme = MLB_C, wordmark, onHome, ho
     return () => { if (ro) ro.disconnect() }
   }, [])
   const name = BRAND[sport]?.name || ''
-  const others = Object.keys(BRAND).filter((k) => k !== sport)
+  // the products this visitor may see (a hidden one only once it says yes)
+  const others = useVisibleSports().filter((k) => k !== sport)
 
   return (
     <header ref={hdrRef} className={['hdr-one-bar', headerClass].filter(Boolean).join(' ')} style={{

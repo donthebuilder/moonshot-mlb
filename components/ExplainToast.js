@@ -5,12 +5,13 @@ import { dockClearCss } from '../lib/dockClear'
 import { C as MLB_C } from '../lib/theme'
 import { C as NFL_C } from '../lib/nfl/theme'
 import { C as NHL_C } from '../lib/nhl/theme'
+import { C as NBA_C } from '../lib/nba/theme'
 
 // THE EXPLAIN PANEL (2026-09-27). One per app shell (SportRoot). A tap on a
 // ticker pill that explains itself (lib/explain.js) shows its words here --
 // fixed above the phone's bottom nav, where a moving strip can't carry it
 // off. Tap it (or Escape) to close; it also leaves on its own after 10s.
-const THEMES = { mlb: MLB_C, nfl: NFL_C, nhl: NHL_C }
+const THEMES = { mlb: MLB_C, nfl: NFL_C, nhl: NHL_C, nba: NBA_C }
 
 export default function ExplainToast({ sport = 'mlb' }) {
   const [msg, setMsg] = useState(null)

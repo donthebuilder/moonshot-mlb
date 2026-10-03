@@ -1,5 +1,6 @@
 'use client'
 import { SPORT_ACCENT } from '../lib/sportAccent'
+import { useVisibleSports } from '../lib/useVisibleSports'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { setSport, useSport } from '../lib/sport'
@@ -26,6 +27,8 @@ const PRODUCTS = [
   { key: 'nfl', name: 'TUDDY', meta: 'NFL', href: '/app#sport=nfl&tab=home', color: SPORT_ACCENT.nfl },  // jade, its theme's own (R2a; was #22c55e)
   // 2026-09-25: LAMP, the NHL product. Ice, so it reads apart from orange and jade.
   { key: 'nhl', name: 'LAMP', meta: 'NHL', href: '/app#sport=nhl&tab=home', color: SPORT_ACCENT.nhl },
+  // 2026-10-02: BUCKETS, the NBA product -- shown only to a visitor who may see it (lib/useVisibleSports.js)
+  { key: 'nba', name: 'BUCKETS', meta: 'NBA', href: '/app#sport=nba&tab=home', color: SPORT_ACCENT.nba, hidden: true },
   { key: 'fantasy', name: 'FRANCHISE', meta: 'FANTASY', href: '/fantasy', color: '#ff633e' },
 ]
 
@@ -46,12 +49,19 @@ const PRODUCTS = [
 // It REPLACES the back link rather than joining it: FRANCHISE is already one
 // of the three tiles and it already points at /fantasy, so the row does the
 // back link's whole job and two more besides. One control, one row, no stack.
+// a hidden product (BUCKETS before it opens) only for a visitor who may see it
+function useProducts() {
+  const seen = useVisibleSports()
+  return PRODUCTS.filter((p) => !p.hidden || seen.includes(p.key))
+}
+
 export default function NetworkSwitch({ onNavigate, variant }) {
   if (variant === 'inline') return <InlineSwitch onNavigate={onNavigate} />
   return <StackedSwitch onNavigate={onNavigate} />
 }
 
 function InlineSwitch({ onNavigate }) {
+  const products = useProducts()
   const pathname = usePathname()
   const sport = useSport()
   const current = pathname.startsWith('/fantasy') ? 'fantasy' : (pathname === '/' ? null : sport)
@@ -62,7 +72,7 @@ function InlineSwitch({ onNavigate }) {
   return (
     <nav aria-label="DASH Network" className="netBar">
       <a className="netHome" href="/" aria-label="DASH Network home">⌂</a>
-      {PRODUCTS.map((product) => (
+      {products.map((product) => (
         <Link
           key={product.key}
           href={product.href}
@@ -105,6 +115,7 @@ function InlineSwitch({ onNavigate }) {
 }
 
 function StackedSwitch({ onNavigate }) {
+  const products = useProducts()
   const pathname = usePathname()
   const sport = useSport()
   const current = pathname.startsWith('/fantasy') ? 'fantasy' : (pathname === '/' ? null : sport)
@@ -121,7 +132,7 @@ function StackedSwitch({ onNavigate }) {
         <a href="/" aria-label="DASH Network home">⌂ DASH HOME</a>
       </div>
       <div className="networkSwitchRow">
-        {PRODUCTS.map((product) => (
+        {products.map((product) => (
           <Link
             key={product.key}
             href={product.href}
@@ -141,7 +152,7 @@ function StackedSwitch({ onNavigate }) {
         .networkSwitchHead{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:8px}
         .networkSwitchHead small{color:#f97316;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:8px;font-weight:900;letter-spacing:.14em}
         .networkSwitchHead a{color:#ffffff7a;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:8px;font-weight:800;text-decoration:none}
-        .networkSwitchRow{display:grid;grid-template-columns:repeat(${PRODUCTS.length},minmax(0,1fr));gap:6px}
+        .networkSwitchRow{display:grid;grid-template-columns:repeat(${products.length},minmax(0,1fr));gap:6px}
         .networkSwitchRow :global(a){display:flex;flex-direction:column;align-items:center;gap:3px;min-height:62px;padding:8px 4px;border:1px solid color-mix(in srgb,var(--product) 34%,#ffffff1a);border-radius:10px;background:color-mix(in srgb,var(--product) 7%,transparent);color:#e9e6e0;text-align:center;text-decoration:none}
         .networkSwitchRow :global(a.here){border-color:var(--product);background:color-mix(in srgb,var(--product) 16%,transparent)}
         .networkSwitchRow :global(a i){display:grid;place-items:center;width:22px;height:22px;border:1px solid color-mix(in srgb,var(--product) 50%,#333);border-radius:7px;color:var(--product);font:900 10px/1 ui-monospace,SFMono-Regular,Menlo,monospace;font-style:normal}

@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { teamColor, teamName, isKnownTeam, mlbTeamLogo } from '../lib/mlbTeams'
 import { nflTeamLogo } from '../lib/nfl/nflAssets'
 import { nhlLogo } from '../lib/nhl/teams'
+import { nbaLogo } from '../lib/nba/teams'
 import { nflTones, NFL_TEAM_TONES } from '../lib/nfl/teamColors'
 import { readableInk } from '../lib/teamInk'
 import { TeamMark as LampTeamMark } from './lamp/ui'
@@ -38,10 +39,13 @@ const CLUBS = {
 // the club's own logo (the league's / ESPN's CDN, lazy) with the code as its
 // title and accessible name, no bordered chip. A logo that fails to load (an
 // unknown code, the CDN down) falls back to the chip below -- never a blank.
+// the chip for a sport without CLUBS colours (LAMP's mark, logo then code)
+const CHIP_OF = { nhl: (code, size) => <LampTeamMark abbrev={code} size={size === 'md' ? 20 : 16} /> }
 const LOGO_OF = {
   mlb: (code, px) => mlbTeamLogo(code, px * 2),
   nfl: (code, px) => nflTeamLogo(code, px),
   nhl: (code) => nhlLogo(code, true),
+  nba: (code) => nbaLogo(code, true),
 }
 
 export default function TeamMark({ sport = 'mlb', abbr, size = 'sm', dim = false, style, variant = 'chip', px = 18 }) {
@@ -63,7 +67,8 @@ export default function TeamMark({ sport = 'mlb', abbr, size = 'sm', dim = false
       <span title={code} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: px, height: px, padding: '0 3px', borderRadius: 4, border: '1px solid rgba(255,255,255,.14)', fontFamily: NUM_FONT, fontSize: Math.max(8, px * 0.5), fontWeight: 900, flexShrink: 0, opacity: dim ? 0.55 : 1, ...style }}>{code}</span>
     )
   }
-  if (!CLUBS[key]) return <LampTeamMark abbrev={code} size={size === 'md' ? 20 : 16} />
+  // a sport with no club-colour chip: LAMP's own logo-plus-code, else (BUCKETS) its logo
+  if (!CLUBS[key]) return CHIP_OF[key] ? CHIP_OF[key](code, size) : <TeamMark sport={key} abbr={code} variant="logo" px={size === 'md' ? 20 : 16} dim={dim} style={style} />
   const { col, ink, known, name } = CLUBS[key](code)
   const big = size === 'md'
   return (
@@ -102,7 +107,7 @@ export function MatchLogos({ sport = 'mlb', away, home, px = 16, sep = '@', gap 
  *  ticker pills, the projected rows and the rest (Donovan 10-02, logos site-wide). */
 export function asLogos(sport, value, { px = 14, rank = true } = {}) {
   if (!sport || typeof value !== 'string') return value
-  const g = value.match(/^(\d+\.\s+)?([A-Z]{2,3})\s?@\s?([A-Z]{2,3})$/)
+  const g = value.match(/^(\d+\.\s+)?([A-Z]{2,4})\s?@\s?([A-Z]{2,4})$/)
   if (g) {
     return (
       <span title={value} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, verticalAlign: 'middle' }}>
@@ -112,7 +117,7 @@ export function asLogos(sport, value, { px = 14, rank = true } = {}) {
     )
   }
   // a score line, "IND 21 – 17 CHI": logo, score, logo
-  const sc = value.match(/^([A-Z]{2,3}) (\d+) [–-] (\d+) ([A-Z]{2,3})$/)
+  const sc = value.match(/^([A-Z]{2,4}) (\d+) [–-] (\d+) ([A-Z]{2,4})$/)
   if (sc) {
     return (
       <span title={value} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, verticalAlign: 'middle' }}>
@@ -120,6 +125,6 @@ export function asLogos(sport, value, { px = 14, rank = true } = {}) {
       </span>
     )
   }
-  if (/^[A-Z]{2,3}$/.test(value)) return <TeamMark sport={sport} abbr={value} variant="logo" px={px} />
+  if (/^[A-Z]{2,4}$/.test(value)) return <TeamMark sport={sport} abbr={value} variant="logo" px={px} />
   return rank ? value : value.replace(/^\d+\.\s+/, '')
 }

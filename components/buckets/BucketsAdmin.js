@@ -10,6 +10,7 @@ import DenseTable from '../DenseTable'
 import CallStatusBadge from '../CallStatusBadge'
 import ShotChart from './ShotChart'
 import dynamic from 'next/dynamic'
+import { LEG_LABEL, fmtLeg } from '../../lib/nba/legs'
 
 // the 3D court loads only when opened (next/dynamic, as the other 3D views)
 const CourtArena = dynamic(() => import('./CourtArena'), { ssr: false })
@@ -17,8 +18,6 @@ const CourtArena = dynamic(() => import('./CourtArena'), { ssr: false })
 const ACCENT = C.purple
 // BUCKETS has no glossary yet: an empty one, so the table doesn't borrow MOONSHOT's baseball terms
 const BUCKETS_GLOSSARY = {}
-const LEG_LABEL = { ptsPg: 'PTS/G', rebPg: 'REB/G', astPg: 'AST/G', minPg: 'MIN', fgaPg: 'FGA/G', ftaPg: 'FTA/G', tpmPg: '3PM/G', tpaPg: '3PA/G', tpPct: '3P%', praPg: 'PRA/G', fgaShare: 'SHOT SHARE', oppPts: 'OPP PTS', oppReb: 'OPP REB', oppAst: 'OPP AST', oppTpm: 'OPP 3PM' }
-const fmtLeg = (k, v) => (v == null ? '—' : k === 'tpPct' || k === 'fgaShare' ? `${(v * 100).toFixed(1)}%` : v.toFixed(1))
 const chip = (on) => ({ minHeight: 44, padding: '0 14px', borderRadius: 999, border: `1px solid ${on ? ACCENT : C.border2}`, background: on ? `${ACCENT}22` : 'transparent', color: on ? ACCENT : C.text2, fontWeight: 800, fontSize: 12, fontFamily: NUM_FONT, cursor: 'pointer', whiteSpace: 'nowrap' })
 const linkBtn = { ...chip(false), display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }
 const day = (d) => new Date(`${d}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' })

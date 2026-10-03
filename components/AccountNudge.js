@@ -6,6 +6,7 @@ import { dockClearCss } from '../lib/dockClear'
 import { C as MLB_C } from '../lib/theme'
 import { C as NFL_C } from '../lib/nfl/theme'
 import { C as NHL_C } from '../lib/nhl/theme'
+import { C as NBA_C } from '../lib/nba/theme'
 
 // THE ACCOUNT ASK, AT THE MOMENT IT'S USEFUL (funnel step 3, 2026-09-26).
 // Mounted once in the app shell (SportRoot). Signed out only -- signed in, or
@@ -24,6 +25,7 @@ const LOOK = {
   mlb: { theme: MLB_C, accent: 'orange' },
   nfl: { theme: NFL_C, accent: 'green' },
   nhl: { theme: NHL_C, accent: 'ice' },
+  nba: { theme: NBA_C, accent: 'purple' },
 }
 const COPY = {
   follow: { title: 'Save your players', body: 'Starred on this device. A free account keeps your players on every device and can tell you when they do something.' },

@@ -6,7 +6,8 @@
 //   node scripts/check-mobile.mjs                       local build, 390x844
 //   node scripts/check-mobile.mjs --base https://dashnetwork.vercel.app
 //   node scripts/check-mobile.mjs --all                 + 360x780, 430x932, 844x390
-//   node scripts/check-mobile.mjs --only nfl            one product (mlb|nfl|nhl|public)
+//   node scripts/check-mobile.mjs --only nfl            one product (mlb|nfl|nhl|nba|public)
+//   (nba only while BUCKETS is open to the server checked: /api/buckets/access)
 //   node scripts/check-mobile.mjs --pages "/app#sport=nfl&tab=redzone,/called?sport=mlb"
 //   --browser /path/to/chrome                           default: Chrome, then Brave
 //
@@ -34,7 +35,7 @@ import './_esm-resolve.mjs'
 
 const req = createRequire(`${process.cwd()}/package.json`)
 const { chromium } = req('playwright-core')
-const { MLB_TABS, NFL_TABS, NHL_TABS, appHref, playerHref } = await import('../lib/routes.js')
+const { MLB_TABS, NFL_TABS, NHL_TABS, NBA_TABS, appHref, playerHref } = await import('../lib/routes.js')
 
 const arg = (k, d = null) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d }
 const has = (k) => process.argv.includes(k)
@@ -73,6 +74,14 @@ async function routes() {
     add('nhl', playerHref('nhl', g.rows[0].playerId))
     add('nhl', `/app#sport=nhl&tab=team&team=${g.game.home.abbrev}`)
     add('nhl', `/app#sport=nhl&tab=game&game=${g.game.id}`)
+  }
+  // BUCKETS: hidden until it opens, so only when this server says it is open
+  if ((await getJson(`${BASE}/api/buckets/access`))?.open) {
+    for (const t of NBA_TABS) add('nba', appHref('nba', t))
+    const lead = (await getJson(`${BASE}/api/buckets/leaders`))?.categories?.[0]?.leaders?.[0]
+    if (lead) { add('nba', playerHref('nba', lead.id)); add('nba', `/app#sport=nba&tab=team&team=${lead.team}`) }
+    const log = lead ? (await getJson(`${BASE}/api/buckets/player?id=${lead.id}`))?.log?.[0] : null
+    if (log) add('nba', `/app#sport=nba&tab=game&game=${log.id}`)
   }
   return list
 }
