@@ -11,6 +11,8 @@ import FiltersDrawer, { DrawerSection, drawerChip } from '../../FiltersDrawer'
 import { TIME_WINDOWS, inWindow } from '../../BoardFilters'
 import RangeDual from '../../RangeDual'
 import GoalWatch from '../GoalWatch'
+import GoalCompare from '../GoalCompare'
+import MobileFold from '../../MobileFold'
 import HowToRead from '../../HowToRead'
 import { LampCards, PctBars } from '../LampCard'
 import { alpha } from '../../../lib/scales'
@@ -269,6 +271,15 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
           ? <GameBoard key={g.game.id} g={g} market={market} layout={layout} keep={filtering ? keepIds : null} onOpenPlayer={onOpenPlayer} onOpenGame={onOpenGame} onOpenTeam={onOpenTeam} />
           : null))}
       {view === 'game' && filtering && flat.length > 0 && !kept.length && <EmptyState title="NOTHING MATCHES" note="Clear a filter above." />}
+      {/* ⚖️ COMPARE TWO (2026-10-03): MOONSHOT's compare, below the board and
+          folded on a phone, the way MOONSHOT's Props and TUDDY's Boards place it. */}
+      {market === 'GOAL' && flat.length > 1 && (
+        <div style={{ marginTop: 14 }}>
+          <MobileFold title="⚖️ Compare two skaters" summary="side by side, with a verdict" accent={C.ice}>
+            <GoalCompare rows={flat.map(({ r }) => r)} onOpenPlayer={onOpenPlayer} />
+          </MobileFold>
+        </div>
+      )}
       <SourceLine>Legs: NHL club-stats/{'{team}'}/{'{season}'}/2 (this season and last); population: roster/{'{team}'}/current, narrowed to the posted lineup when the league has one; grade: gamecenter/{'{id}'}/boxscore. Locked rows live in {M.log} and are never rewritten.</SourceLine>
     </div>
   )
