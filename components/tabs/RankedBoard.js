@@ -341,7 +341,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
             { key: 'rank', answers: 'mlb-rank', label: '#', heat: false, w: 34, mono: true, dim: true,
               title: 'His rank on this board — the thing the cards never showed' },
             { key: 'name',   label: 'Player', heat: false, w: 150, bold: true, sticky: true },
-            { key: 'team',   label: 'Tm', heat: false, w: 34, mono: true, dim: true },
+            { key: 'team',   label: 'Tm', heat: false, w: 34, mono: true, dim: true, teamMark: 'mlb' },   // his team is the logo (10-03)
             // Only present when a matchup actually repeats tonight.
             ...(dh.size ? [{ key: 'g', label: 'G', heat: false, w: 28, mono: true, dim: true,
               fmt: (v) => (v ? `G${v}` : '—'),

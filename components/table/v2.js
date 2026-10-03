@@ -35,10 +35,31 @@ import { InfoDot, ExplainBanner, explainFor, explainFrom } from '../Explain'
 import { ANSWERS } from '../../lib/scoreAnswers'
 import { cellMark, SPOT_MARK } from '../../lib/spotlight'
 import { rampColor } from '../Heatmap'
-import { seqColor, divTone, SEQ_AUTO, DIV_FIELD, DIV_UP, DIV_DOWN, fieldLabel, medianOf, seqGlyph, rgbOf } from '../../lib/scales'
+import { seqColor, divTone, SEQ_AUTO, DIV_FIELD, DIV_UP, DIV_DOWN, fieldLabel, medianOf, seqGlyph, rgbOf, catColor } from '../../lib/scales'
+
+// ROLE CHIPS IN COLOUR AGAIN (2026-10-03, Donovan: "the roles need the
+// colors back"): the chip wears the role's hue from the one role palette
+// (lib/scales CAT.role, what the MLB cards use); a role it doesn't know stays
+// a neutral chip, as before.
+const ROLE_TOKEN = /\b(TOP15|TOP|HRR|HR|HIT|CONTACT|BASES|WATCH)\b/
+export function roleHue(v, C) {
+  const m = ROLE_TOKEN.exec(String(v || '').toUpperCase())
+  const col = m ? catColor('role', m[1]) : null
+  return col && col !== C.text3 ? col : null
+}
 
 const SORT_ALPHA = 0.35
 const TIE_ALPHA = SORT_ALPHA * 0.45
+// STANDOUTS AT REST (2026-10-03, Donovan picked it: "extremes only, every
+// column"). Replaces 10-01's "nothing coloured until you sort": in every
+// stat column the top ~20% carry a wash in the PRODUCT's accent (MOONSHOT
+// orange, TUDDY green, LAMP ice, BUCKETS purple), stronger toward the
+// column's best, figure bold; the bottom ~20% recede (darker cell, dimmer
+// ink). No red/green. The sorted column keeps its full ramp. `invert`
+// columns (lower is better) flip; heatMode 'none' tables stay plain.
+const STANDOUT_SHARE = 0.2
+const STANDOUT_ALPHA = [0.14, 0.34]   // from the band's edge to the column's best
+const RECEDE_ALPHA = 0.55             // the bottom band: C.bg at this alpha over the row
 const isBlank = (v) => v === null || v === undefined || v === '' || v === '—'
 const numOf = (v) => (isBlank(v) ? NaN : Number(v))
 
@@ -136,6 +157,13 @@ export function v2Css(C, ac, NUM_FONT) {
     /* on a mouse, the ⓘ's tap padding must not swallow a click meant to sort */
     @media (pointer: fine) { .dtv2 .h-row th .explain-dot { padding: 2px 3px !important; margin: -2px -1px -2px 2px !important; } }
     .dtv2 .h-row th > span { line-height: 0; }
+    /* DESKTOP FIT (2026-10-03, Donovan: "columns on desktop need to be sized
+       right"): a header label may wrap to two lines at its spaces, so a
+       column is as wide as its numbers, not its longest label; 10px, bottom-
+       aligned so the figures line up. Phones keep their own rules below. */
+    @media (min-width: 641px) {
+      .dtv2 .h-row th { white-space: normal; font-size: 10px; line-height: 1.15; height: auto; padding: 5px 7px 4px; vertical-align: bottom; overflow-wrap: normal; word-break: keep-all; }
+    }
     .dtv2 td { height: 36px; padding: 0 7px; border-bottom: 1px solid ${C.border}; white-space: nowrap; }
     .dtv2 td.num { font: 500 11.5px/1 ${NUM_FONT}; color: ${C.text2}; text-align: right; }
     .dtv2 td.num b { font-weight: 700; }
@@ -198,7 +226,7 @@ export function v2Css(C, ac, NUM_FONT) {
 export function renderV2(ctx) {
   const {
     C, NUM_FONT, ac, columns: rawColumns, view, sorted, sort, setSort, toggle, ranges, fields, lit,
-    ramp, rowEdge, faceOf, onRowClick, dimRow, pick, rowPid, pickColorOf, firstMatch,
+    heatMode = 'full', ramp, rowEdge, faceOf, onRowClick, dimRow, pick, rowPid, pickColorOf, firstMatch,
     explain, setExplain, dict, scoreTerms, caveat, accent, maxHeight, caption,
     truncated, maxRows, extra, setExtra, exportCsv, railRef, statusOf, title, initialStack, firstTextKey,
     capOpen, setCapOpen, bare, footRows, tight, noGroups, onOpenTeam = null,
@@ -248,6 +276,32 @@ export function renderV2(ctx) {
       numericText.set(c.key, vs.length > 0 && nums.length / vs.length >= 0.6 ? [Math.min(...nums), Math.max(...nums)] : null)
     }
     return !!numericText.get(c.key)
+  }
+  // the standout bands, per stat column, over the rows on screen
+  const bands = {}
+  if (heatMode !== 'none') {
+    for (const c of columns) {
+      if (!eligible(c) || c.standout === false || c.scale === 'div' || logoOf(c) || isRank(c) || c.bar) continue
+      const nums = sorted.map((r) => numOf(r[c.key])).filter(Number.isFinite).sort((a, b) => a - b)
+      if (nums.length < 6 || new Set(nums).size < 4) continue
+      const at = (q) => nums[Math.min(nums.length - 1, Math.max(0, Math.floor(q * (nums.length - 1))))]
+      const lo = at(STANDOUT_SHARE), hi = at(1 - STANDOUT_SHARE)
+      if (hi <= lo) continue
+      bands[c.key] = { lo, hi, min: nums[0], max: nums[nums.length - 1], invert: c.invert === true }
+    }
+  }
+  /** 'top' with a strength 0..1, 'low', or null -- the column's own direction */
+  const standout = (c, num) => {
+    const b = bands[c.key]
+    if (!b || !Number.isFinite(num)) return null
+    const good = b.invert ? num <= b.lo : num >= b.hi
+    const bad = b.invert ? num >= b.hi : num <= b.lo
+    if (good) {
+      const edge = b.invert ? b.lo : b.hi, best = b.invert ? b.min : b.max
+      const t = best === edge ? 1 : Math.max(0, Math.min(1, (num - edge) / (best - edge)))
+      return { kind: 'top', t }
+    }
+    return bad ? { kind: 'low' } : null
   }
   const medians = {}
   for (const k of [s0, s1]) {
@@ -312,7 +366,7 @@ export function renderV2(ctx) {
               className={cls(c, [on ? 'on' : '', isRank(c) ? 'rank' : '', c === nameC ? 'name' : '', c.action ? 'act' : '', /\s/.test(String(c.label || '').trim()) && String(c.label).length > 9 ? 'long' : ''].filter(Boolean).join(' '))}
               onClick={c._status ? undefined : (e) => toggle(c.key, e.shiftKey)}
               title={`${c.title || c.label}\n\nClick to sort. Shift-click to add as a tiebreaker under the current sort.`}
-              style={{ ...(pinStyle(c, true) || {}), textAlign: (c.heat === false && !isNumericText(c)) || c.action ? 'left' : 'right', width: logoOf(c) ? 30 : c.w, minWidth: logoOf(c) ? 30 : c.w }}>
+              style={{ ...(pinStyle(c, true) || {}), textAlign: (c.heat === false && !isNumericText(c)) || c.action ? 'left' : 'right', width: logoOf(c) ? 34 : c.w, minWidth: logoOf(c) ? 34 : (c === rankC || c === nameC ? c.w : undefined) }}>
               {String(c.label || '').trim() ? c.label : <span className="sr-only">{c.title || c.key || 'Column'}</span>}
               {plain && (
                 <span style={{ opacity: explain?.key === c.key ? 1 : 0.55 }}>
@@ -391,7 +445,7 @@ export function renderV2(ctx) {
                   )
                 }
                 if (logoOf(c) && v && v !== '—') {
-                  const mark = <TeamMark sport={logoOf(c)} abbr={v} variant="logo" px={14} />
+                  const mark = <TeamMark sport={logoOf(c)} abbr={v} variant="logo" px={18} />   // 14 -> 18 (10-03: "logos need to be bigger")
                   // the column's own link, else the product's team door (lib/teamNav)
                   const open = go || (onOpenTeam && /^[A-Z]{2,4}$/.test(String(v)) ? () => onOpenTeam(String(v)) : null)
                   return <td key={c.key} className={cls(c, 'txt')} title={String(v)} style={{ ...pin, ...(bgTint || {}) }}>{open ? <Tap onClick={open}>{mark}</Tap> : mark}</td>
@@ -451,7 +505,10 @@ export function renderV2(ctx) {
                   <td key={c.key} title={textTitle} className={cls(c, c.mono || isNumericText(c) ? 'num' : 'txt')}
                     style={{ ...pin, textAlign: isNumericText(c) ? 'right' : 'left', maxWidth: c.w, ...(tBg ? { background: `linear-gradient(${tBg}, ${tBg}), ${C.bg2}` } : bgTint || {}) }}>
                     {role && !isBlank(v)
-                      ? <span style={{ border: `1px solid ${C.border2}`, borderRadius: 5, padding: '2px 6px', fontSize: 10.5 }}>{go ? <Tap onClick={go}>{content}</Tap> : content}</span>
+                      ? (() => {
+                          const hue = roleHue(v, C)
+                          return <span style={{ border: `1px solid ${hue ? withAlpha(hue, 0.55) : C.border2}`, background: hue ? withAlpha(hue, 0.12) : 'transparent', color: hue || undefined, fontWeight: hue ? 800 : undefined, borderRadius: 5, padding: '2px 6px', fontSize: 11 }}>{go ? <Tap onClick={go}>{content}</Tap> : content}</span>
+                        })()
                       : go ? <Tap onClick={go}>{content}</Tap> : content}
                     {tArrow && <span className="arrow" style={{ color: tArrow === DIV_UP ? (C.cream || C.text) : C.text3 }}>{tArrow}</span>}
                   </td>
@@ -462,9 +519,19 @@ export function renderV2(ctx) {
               const num = numOf(v)
               const gone = typeof c.blankWhen === 'function' && c.blankWhen(num, r)
               const isSort = c.key === s0, isTie = c.key === s1
-              const bg = !gone && (isSort || isTie) ? gradeOf(c, num, isSort ? SORT_ALPHA : TIE_ALPHA) : null
+              let bg = !gone && (isSort || isTie) ? gradeOf(c, num, isSort ? SORT_ALPHA : TIE_ALPHA) : null
               let arrow = ''
               let ink = C.text2, weight = 500
+              if (!bg && !gone) {
+                const so = standout(c, num)
+                if (so?.kind === 'top') {
+                  bg = withAlpha(ac, STANDOUT_ALPHA[0] + (STANDOUT_ALPHA[1] - STANDOUT_ALPHA[0]) * so.t)
+                  ink = C.text; weight = 700
+                } else if (so?.kind === 'low') {
+                  bg = withAlpha(C.bg, RECEDE_ALPHA)
+                  ink = C.text3
+                }
+              }
               const fld = c.anchor === DIV_FIELD ? fields[c.key] : null
               const divOK = c.scale === 'div' && (c.anchor !== DIV_FIELD || !!fld)
               if (divOK && !gone && (lit(c, num) || isSort)) {
@@ -496,7 +563,7 @@ export function renderV2(ctx) {
               return (
                 <td key={c.key} className={cls(c, 'num')}
                   title={`${c.label}: ${titleNum}${zero ? ` · against ${zero}` : ''}`}
-                  style={{ ...(bg ? { background: `linear-gradient(${bg}, ${bg}), ${C.bg2}` } : bgTint || {}), color: ink, fontWeight: weight, minWidth: c.w || 40 }}>
+                  style={{ ...(bg ? { background: `linear-gradient(${bg}, ${bg}), ${C.bg2}` } : bgTint || {}), color: ink, fontWeight: weight, minWidth: c.w ? Math.min(c.w, 64) : 36 }}>
                   {barEl}{shown}
                   {arrow && <span className="arrow" style={{ color: arrow === DIV_UP ? (C.cream || C.text) : C.text3 }}>{arrow}</span>}
                 </td>

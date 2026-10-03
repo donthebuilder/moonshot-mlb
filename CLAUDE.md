@@ -52,8 +52,11 @@ reads, via its `data` branch.
   STATUS_WORD and render through components/CallStatusBadge.js.
 - FRANCHISE's components stay in FRANCHISE: nothing outside app/fantasy
   imports components/fantasy/ (check-routes fails on it).
-- Tables (DenseTable skin v2, 2026-10-01): no cell washes at rest -- only
-  the column you sort by is graded. No new fonts: hierarchy comes from
+- Tables (DenseTable skin v2): standouts at rest (Donovan, 2026-10-03) --
+  in each stat column the top ~20% glow in the product's accent and the
+  bottom ~20% recede; the column you sort by carries the full ramp; no
+  red/green. Role chips wear the role palette (lib/scales CAT.role). His
+  team is the logo; the opponent is quiet text. No new fonts: hierarchy comes from
   weight and size in the system sans and NUM_FONT. Every table's columns
   carry a `group`, in order.
 - The 3D views (stadium / zone / arena) are loaded with `next/dynamic`, so a

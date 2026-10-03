@@ -736,8 +736,11 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
           { key: 'arm',     label: 'Arm',     heat: false, w: 34, mono: true, dim: true },
           { key: 'pitch',   label: 'Pitch',   heat: false, w: 84, dim: true },
           { key: 'ev',      label: 'EV',      w: 48, dp: 1 },
-          { key: 'la',      label: 'Angle',   w: 48, dp: 0,
-            title: 'Launch angle. Not ramped on its own — high is not good on its own, 70° is a popup.' },
+          // high is not good on its own (70 is a popup): no standout heat; the
+          // 8-32 sweet spot reads bold in the accent instead
+          { key: 'la',      label: 'Angle',   w: 48, dp: 0, standout: false,
+            tone: (n) => (Number.isFinite(n) && n >= 8 && n <= 32 ? { color: C.orange, weight: 700 } : null),
+            title: 'Launch angle. 8-32 degrees (bold) is the sweet spot for damage; high on its own is a popup.' },
           { key: 'dist',    label: 'Dist',    w: 48, dp: 0 },
           { key: 'velo',    label: 'Velo',    w: 48, dp: 1, invert: true,
             title: 'Pitch velocity. Inverted: a ball crushed off a slower pitch is the less impressive one.' },
@@ -757,7 +760,7 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
         ]}
         initialSort={null}
         maxHeight={460}
-        caption="Every column is shaded against its own range within this window, so changing the window changes the shading — that's the point, it shows what's hot relative to what you asked for. Angle is shaded like any other column but read it carefully: high launch angle is a popup, not a good outcome. BRL / HH / HR are the bot's own flags. A K row is a strikeout, not a batted ball — EV/Angle/Dist/Side/Lane are blank on purpose; Pitch/Arm/Velo are still his last pitch faced."
+        caption="Heat marks the standouts in each column against this window: the top fifth glows, the bottom fifth recedes, so changing the window changes the heat. Angle has no heat (a high angle is a popup); the 8-32 degree sweet spot is bold instead. BRL / HH / HR are the bot's own flags. A K row is a strikeout, not a batted ball — EV/Angle/Dist/Side/Lane are blank on purpose; Pitch/Arm/Velo are still his last pitch faced."
       />
     </div>
   )

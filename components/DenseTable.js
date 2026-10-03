@@ -399,7 +399,7 @@ export default function DenseTable({
     const ac = accent || (sportTheme.themed ? sportTheme.accent : null) || C.orange
     return renderV2({
       C, NUM_FONT, ac, columns, view, sorted, sort, setSort, toggle, ranges, fields, lit,
-      ramp, rowEdge, faceOf, onRowClick, dimRow, pick, rowPid, pickColorOf, firstMatch,
+      heatMode, ramp, rowEdge, faceOf, onRowClick, dimRow, pick, rowPid, pickColorOf, firstMatch,
       explain, setExplain, dict, scoreTerms, caveat, accent, maxHeight, caption,
       truncated, maxRows, extra, setExtra, exportCsv, railRef, statusOf, title, initialStack, firstTextKey,
       capOpen, setCapOpen, bare, footRows, tight, noGroups, onOpenTeam: teamNav,
