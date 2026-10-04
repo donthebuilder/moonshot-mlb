@@ -5,11 +5,9 @@ import { C, NUM_FONT, TYPE, gradeFor } from '../../lib/nfl/theme'
 import { softRole, softLine } from '../../lib/nfl/dvpSignal'
 import { useHashFilter } from '../../lib/filterHash'
 import { useIsPhone } from '../MobileFold'
-import Rail from '../Rail'
 import Tap from '../Tap'
 import GameSwitcher from '../GameSwitcher'
-import SlateCard from '../slate/SlateCard'
-import { GameFilterRail, StripFold, GamePanelPills, PanelAnchor, GameFrame, GameHeaderLine, PrevNextGame } from '../slate/SlateParts'
+import { GameFilterRail, SlateStrip, GamePanelPills, PanelAnchor, GameFrame, GameHeaderLine, PrevNextGame } from '../slate/SlateParts'
 import { SubLabel, FactTiles } from '../matchup/MatchupParts'
 import { Zones, defenseTiles, offenseTiles, factsNote, PassGame } from './tabs/Matchups'
 import { Card as TdCard, tdPool } from './tabs/Touchdowns'
@@ -142,16 +140,9 @@ export default function NflSlate({ data, picks, matchup, odds = null, initialGam
   return (
     <div>
       <GameFilterRail value={gfilter} onChange={setGfilter} counts={counts} />
-      <StripFold isPhone={isPhone} count={games.length} rememberKey="tuddy_games_fold_v1" accent={C.green}
-        summary={g ? <>reading <MatchLogos sport="nfl" away={g.away} home={g.home} px={14} gap={3} /></> : 'tap to pick one'}>
-        <div style={{ marginBottom: 16 }}>
-          <style>{'@keyframes gsLivePulse{0%,100%{opacity:1}50%{opacity:.3}}'}</style>
-          <Rail itemMin={264} gap={8} wheelScroll={false}>
-            {cards.map((c) => <SlateCard key={c.id} card={c} on={c.id === activeId} accent={C.green} onSelect={select} sport="nfl" />)}
-          </Rail>
-          <div style={{ marginTop: 7, fontSize: 9.5, color: C.text3 }}>Kickoff order. The dial is expected touchdowns in the game; 🌋 the most this week, 🔥 hot, 🧊 cold.</div>
-        </div>
-      </StripFold>
+      <SlateStrip sport="nfl" isPhone={isPhone} rememberKey="tuddy_games_fold_v1" accent={C.green} theme={C}
+        open={g ? { away: g.away, home: g.home } : null} cards={cards} activeId={activeId} onSelect={select}
+        legend="Kickoff order. The dial is expected touchdowns in the game; 🌋 the most this week, 🔥 hot, 🧊 cold." />
       <GameSwitcher sport="nfl" games={switcherGames} activeGame={activeId} onSelect={select} live={switcherLive} accent={C.green} stickyTop="0px" />
 
       {g && (() => {

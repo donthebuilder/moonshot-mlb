@@ -5,6 +5,8 @@ import { btnStyle } from '../ui'
 import { FilterPill } from '../Filters'
 import MobileFold from '../MobileFold'
 import { MatchLogos } from '../TeamMark'
+import Rail from '../Rail'
+import SlateCard from './SlateCard'
 
 // THE SLATE, ONCE (2026-09-28). MOONSHOT's Slate (components/tabs/Games.js)
 // pieces lifted out unchanged so TUDDY's and LAMP's Slates are built FROM them
@@ -61,6 +63,25 @@ export function GameFilterRail({ value, onChange, counts, opts = BASE_GAME_FILTE
 
 // The strip folds at every width and remembers being closed: it is a
 // selector you use once, then read one game for several screens.
+/** THE SLATE STRIP (R9 #10, 2026-10-04): the fold holding the rail of game
+ *  cards and the one-line legend under it -- TUDDY's and LAMP's slates
+ *  assembled it by hand, line for line. MOONSHOT's own strip (tabs/Games.js)
+ *  builds its cards in GameStrip and keeps doing so. */
+export function SlateStrip({ sport, isPhone, rememberKey, accent, theme, open = null, cards, activeId, onSelect, legend }) {
+  return (
+    <StripFold isPhone={isPhone} count={cards.length} rememberKey={rememberKey} accent={accent}
+      summary={open ? <>reading <MatchLogos sport={sport} away={open.away} home={open.home} px={14} gap={3} /></> : 'tap to pick one'}>
+      <div style={{ marginBottom: 16 }}>
+        <style>{'@keyframes gsLivePulse{0%,100%{opacity:1}50%{opacity:.3}}'}</style>
+        <Rail itemMin={264} gap={8} wheelScroll={false}>
+          {cards.map((c) => <SlateCard key={c.id} card={c} on={c.id === activeId} accent={accent} onSelect={onSelect} sport={sport} />)}
+        </Rail>
+        <div style={{ marginTop: 7, fontSize: 9.5, color: theme.text3 }}>{legend}</div>
+      </div>
+    </StripFold>
+  )
+}
+
 export function StripFold({ isPhone, count, summary, rememberKey = 'moonshot_games_fold_v1', accent = C.orange, children }) {
   return (
     <MobileFold

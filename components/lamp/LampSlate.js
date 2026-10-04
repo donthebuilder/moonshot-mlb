@@ -5,11 +5,9 @@ import { useLampBoard } from '../../lib/nhl/useLamp'
 import { useHashFilter } from '../../lib/filterHash'
 import { useIsPhone } from '../MobileFold'
 import PageHeader from '../PageHeader'
-import Rail from '../Rail'
 import Tap from '../Tap'
 import GameSwitcher from '../GameSwitcher'
-import SlateCard from '../slate/SlateCard'
-import { ViewPills, GameFilterRail, StripFold, GamePanelPills, PanelAnchor, GameFrame, GameHeaderLine, PrevNextGame } from '../slate/SlateParts'
+import { ViewPills, GameFilterRail, SlateStrip, GamePanelPills, PanelAnchor, GameFrame, GameHeaderLine, PrevNextGame } from '../slate/SlateParts'
 import { SubLabel, FactTiles } from '../matchup/MatchupParts'
 import { GameBoard, NavBtn, AllGamesTable, spotOf, pct1, ppVsPk, restWord } from './tabs/Board'
 import LampProjected from './LampProjected'
@@ -146,16 +144,9 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
       {view === 'games' && all.length > 0 && (
         <>
           <GameFilterRail value={gfilter} onChange={setGfilter} counts={counts} />
-          <StripFold isPhone={isPhone} count={games.length} rememberKey="lamp_games_fold_v1" accent={C.ice}
-            summary={g ? <>reading <MatchLogos sport="nhl" away={g.game.away.abbrev} home={g.game.home.abbrev} px={14} gap={3} /></> : 'tap to pick one'}>
-            <div style={{ marginBottom: 16 }}>
-              <style>{'@keyframes gsLivePulse{0%,100%{opacity:1}50%{opacity:.3}}'}</style>
-              <Rail itemMin={264} gap={8} wheelScroll={false}>
-                {cards.map((c) => <SlateCard key={c.id} card={c} on={c.id === activeId} accent={C.ice} onSelect={select} sport="nhl" />)}
-              </Rail>
-              <div style={{ marginTop: 7, fontSize: 9.5, color: C.text3 }}>Puck-drop order. The dial is the game&apos;s best LAMP score; 🔒 locked before puck drop, ◻ still a preview.</div>
-            </div>
-          </StripFold>
+          <SlateStrip sport="nhl" isPhone={isPhone} rememberKey="lamp_games_fold_v1" accent={C.ice} theme={C}
+            open={g ? { away: g.game.away.abbrev, home: g.game.home.abbrev } : null} cards={cards} activeId={activeId} onSelect={select}
+            legend={<>Puck-drop order. The dial is the game&apos;s best LAMP score; 🔒 locked before puck drop, ◻ still a preview.</>} />
           <GameSwitcher sport="nhl" games={switcherGames} activeGame={activeId} onSelect={select} live={switcherLive} accent={C.ice} stickyTop="0px" />
         </>
       )}
