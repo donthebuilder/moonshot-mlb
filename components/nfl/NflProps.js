@@ -5,6 +5,7 @@ import TeamMark from '../TeamMark'
 import { faceUrl } from '../PlayerFace'
 import { C, NUM_FONT } from '../../lib/nfl/theme'
 import { quoteFor } from '../../lib/nfl/oddsMatch'
+import { impliedPct, payoutWords } from '../../lib/odds'
 import { kickoffFor } from '../../lib/nfl/kickoff'
 import { boardReason } from '../../lib/nfl/boardReason'
 import { baselineFor } from '../../lib/nfl/tdPool'
@@ -71,6 +72,9 @@ function nflAdapter({ players, card, markets, odds, games }) {
       const chips = []
       if (slot?.rank) chips.push({ t: `#${slot.rank} on the card`, warn: false })
       if (r.questionable) chips.push({ t: '⚠ questionable', warn: true })
+      // the best book's price on this bar, what it pays, what it assumes (2026-10-04
+      // user review, build 1). No fair price / room until TUDDY passes a calibration gate.
+      if (q) { const px = q.best_over ?? q.over; chips.push({ t: `${payoutWords(px)} · ${q.best_book || 'best book'} · needs ${impliedPct(px)}%`, warn: false }) }
       if (r.coverage_mismatch_tag && chips.length < 2) chips.push({ t: r.coverage_mismatch_tag, warn: false })
       return {
         photo: faceUrl({ sport: 'nfl', espnId: r.espn_id, size: 96 }),
@@ -85,7 +89,7 @@ function nflAdapter({ players, card, markets, odds, games }) {
           <TeamMark sport="nfl" abbr={r.opp} variant="logo" px={16} />
           <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>· {r.position}</span>
         </span>,
-        metaRight: q ? (Number(q.over) > 0 ? `+${q.over}` : String(q.over)) : null,
+        metaRight: q ? (() => { const px = Number(q.best_over ?? q.over); return px > 0 ? `+${px}` : String(px) })() : null,
         line: w?.text || null,
         facts: null,
         chips: chips.slice(0, 2),
@@ -93,7 +97,7 @@ function nflAdapter({ players, card, markets, odds, games }) {
       }
     },
     priced: (r, k) => Boolean(quote(r, k === 'NONE' ? 'TD' : k)),
-    priceNum: (r, k) => { const q = quote(r, k === 'NONE' ? 'TD' : k); return q ? Number(q.over) : null },
+    priceNum: (r, k) => { const q = quote(r, k === 'NONE' ? 'TD' : k); return q ? Number(q.best_over ?? q.over) : null },
     startsAt: (r) => kickoffFor(games, r) ?? NaN,
     gameOf: (r) => (r?.team && r?.opp ? { key: [r.team, r.opp].sort().join('-'), label: [r.team, r.opp].sort().join(' · ') } : null),
     precisionKey: 'tuddy_precision_v1',

@@ -246,10 +246,8 @@ export default function PropCards({
         {' — the verdict first, tap one for the full read.'}
         {dropped > 0 && (
           <>
-            {' '}<b style={{ color: C.text2 }}>Precision is on</b> — the top{' '}
-            {precision === 1 ? 'pick' : `${precision}`} in each market, with{' '}
-            <b style={{ color: C.text2 }}>{dropped}</b> further {unit}{dropped === 1 ? '' : 's'} cut.
-            {' '}Nothing is deleted — switch to <b style={{ color: C.text2 }}>All</b> for the whole card.
+            {' '}Showing the <b style={{ color: C.text2 }}>top {precision}</b> per market;{' '}
+            <b style={{ color: C.text2 }}>{dropped}</b> more {unit}{dropped === 1 ? '' : 's'} under <b style={{ color: C.text2 }}>All</b>.
           </>
         )}
       </div>
