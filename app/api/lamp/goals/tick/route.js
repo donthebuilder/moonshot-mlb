@@ -19,6 +19,7 @@
 //     still standing 3 min after confirmation; preseason never posts
 // The push is not here: app/api/dash/push/tick reads the confirmed rows
 // (lib/dash/pushRules.js nhlEventsFrom), same split as the homer feed.
+import { playerHref } from '../../../../../lib/routes'
 import { easternToday, dayBefore, etHour } from '../../../../../lib/data'
 import { scoreFor, validDate } from '../../../../../lib/nhl/api'
 import { reduceScoreDay } from '../../../../../lib/nhl/reduce'
@@ -106,7 +107,8 @@ export async function GET(request) {
         // #lamp-nhl (DISCORD_NHL_WEBHOOKS, falling back like the other feeds). Only
         // CALLED goals reach this poster, so the channel never hears a random goal.
         // Best effort: a Discord problem never costs the X post or the claim.
-        if (discordHooks) await postToDiscord(text, png ? { png } : {}, discordHooks).catch((e) => console.error(`[lamp goals] discord: ${e?.message || e}`))
+        // a card linked to the scorer on LAMP, in LAMP's colour (2026-10-04)
+        if (discordHooks) await postToDiscord(text, { ...(png ? { png } : {}), sport: 'nhl', link: row.player_id ? playerHref('nhl', row.player_id) : null }, discordHooks).catch((e) => console.error(`[lamp goals] discord: ${e?.message || e}`))
         if (!hasX()) return { ok: true, id: 'skipped' }
         return postToX(text, { kind: 'nhlgoal', ...(mediaId ? { mediaId } : {}) })
       },

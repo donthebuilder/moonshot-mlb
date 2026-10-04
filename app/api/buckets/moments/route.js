@@ -11,6 +11,7 @@
 //     otherwise (#bucket channel, else the sport fallback). A claim sentinel
 //     on x_post_id ('posting') stops two racing ticks double-posting;
 //   · the push sweep is app/api/dash/push/tick (lib/dash/pushRules nbaEventsFrom).
+import { playerHref } from '../../../../lib/routes'
 import { cronAuthorized, adminClient } from '../../../../lib/supabase/admin'
 import { bucketsPublic } from '../../../../lib/nba/gate'
 import { scoreboardFor, reduceScoreboard, summaryFor, reduceBox } from '../../../../lib/nba/api'
@@ -73,7 +74,8 @@ export async function GET(request) {
       const text = momentText(r, { site: SITE })
       const hooks = feedHooksFor('nba', r.status)
       let discord = false
-      if (hooks) discord = await postToDiscord(text, {}, hooks).then(() => true).catch((e) => { console.error(`[buckets moments] discord: ${e?.message || e}`); return false })
+      // a card linked to him on BUCKETS, in BUCKETS' colour (2026-10-04)
+      if (hooks) discord = await postToDiscord(text, { sport: 'nba', link: r.player_id ? playerHref('nba', r.player_id) : null }, hooks).then(() => true).catch((e) => { console.error(`[buckets moments] discord: ${e?.message || e}`); return false })
       let id = 'skipped'
       if (r.status === 'called' && hasX()) {
         const x = await postToX(text, { kind: 'nba30' }).catch((e) => ({ ok: false, error: e?.message }))

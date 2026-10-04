@@ -28,6 +28,7 @@
 // instance: the FULL board (the slimmed sender copy drops the stats the card
 // prints), the odds file, and the pair-history summary.
 
+import { playerHref } from '../../../../../lib/routes'
 import { gameCalls, gameCallText } from '../../../../../lib/dash/gameCall'
 import { xDailyAllows } from '../../../../../lib/dash/xBudget'
 import { isRested } from '../../../../../lib/dash/xRest'
@@ -2325,7 +2326,8 @@ export async function GET(request) {
     let stopTick = false
 
     if (DISCORD_ON && !row.discord_sent) {
-      const r = await postToDiscord(text, { imageUrl: cardUrl(row) })
+      // a card linked to him on MOONSHOT, in MOONSHOT's colour (2026-10-04)
+      const r = await postToDiscord(text, { imageUrl: cardUrl(row), sport: 'mlb', link: row.player_id ? playerHref('mlb', row.player_id) : null })
       if (r.ok) { patch.discord_sent = true; totals.discord += 1 }
     }
     // CALLED only by default (lib/dash/xEvents, postseason plan step 1); the

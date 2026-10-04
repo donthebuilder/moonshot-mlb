@@ -49,6 +49,7 @@
 // kind_check incident already taught this codebase to expect and log
 // loudly rather than silently eat.
 
+import { playerHref } from '../../../../../lib/routes'
 import { xDailyAllows } from '../../../../../lib/dash/xBudget'
 import { isRested } from '../../../../../lib/dash/xRest'
 import { tdCallStatus } from '../../../../../lib/callStatus'
@@ -374,7 +375,8 @@ async function runTouchdownTick(db, day) {
         // The football channel only hears about men on the TUDDY board (CALLED /
         // ON THE BOARD); the bare homer feed still gets every touchdown.
         const tdStatus = tdCallStatus({ on_bot: ev.onBot, td_board: ev.tdBoard })
-        const d = await postToDiscord(text, { png }, feedHooksFor('nfl', tdStatus))
+        // a card linked to the scorer on TUDDY, in TUDDY's colour (2026-10-04)
+        const d = await postToDiscord(text, { png, sport: 'nfl', link: row.gsis_id ? playerHref('nfl', row.gsis_id) : null }, feedHooksFor('nfl', tdStatus))
         if (d.ok) { patch.discord_sent = true; totals.discord += 1 }
       }
       // CALLED touchdowns only get their own X post (lib/dash/xEvents,
