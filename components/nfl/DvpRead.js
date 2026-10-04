@@ -2,7 +2,7 @@
 import NflTable from './NflTable'
 import { useState } from 'react'
 import { C, NUM_FONT } from '../../lib/nfl/theme'
-import { softCells, plainRole, blockSeason, STARTER_ROLES, SOFT_THIN_GAMES } from '../../lib/nfl/dvpSignal'
+import { softCells, plainRole, blockSeason, STARTER_ROLES, SOFT_THIN_GAMES, multipleWords, earlyNote } from '../../lib/nfl/dvpSignal'
 import SourceSeason from './SourceSeason'
 import { ordinal } from '../../lib/format'
 
@@ -58,7 +58,7 @@ function roleSentence(matchup, def, role, pos) {
     const i = series.findIndex((v) => Number.isFinite(v))
     if (i >= 0 && series[i] !== tdR) drift = `, ${series[i] > tdR ? 'up' : 'down'} from ${ordinal(series[i])} in week ${tr.weeks[i]}`
   }
-  return { role, text: `${def} allow ${parts.join(' and ')} to ${plural(plainRole(role))}${Number.isFinite(g) ? ` (${g} game${g === 1 ? '' : 's'}${g < SOFT_THIN_GAMES ? ', thin' : ''})` : ''}${drift}.` }
+  return { role, text: `${def} allow ${parts.join(' and ')} to ${plural(plainRole(role))}${Number.isFinite(g) ? ` (${g < SOFT_THIN_GAMES ? 'early: ' : ''}${g} game${g === 1 ? '' : 's'})` : ''}${drift}.` }
 }
 
 export default function DvpRead({ matchup, def, position, role = null, slateSeason = null, playerName = 'he' }) {
@@ -92,7 +92,7 @@ export default function DvpRead({ matchup, def, position, role = null, slateSeas
           {doors.map((d) => (
             <li key={`${d.role}-${d.stat}`} style={{ marginBottom: 4 }}>
               <b style={{ color: d.role === role ? C.cyan : C.text }}>{plural(d.plain)}</b>{d.role === role ? ` (${playerName}'s role)` : ''}: {fmtVal(d.value)} {d.label}{['recyd_g', 'rshyd_g'].includes(d.stat) ? ' a game' : Number.isFinite(d.games) ? ` in ${d.games} games` : ''}
-              {d.multiple ? `, ${Math.round(d.multiple * 10) / 10}x the league average` : ''}{Number.isFinite(d.rank) ? ` (${most(d.rank)})` : ''}{d.thin ? ', thin sample' : ''}.
+              {multipleWords(d) ? `, ${multipleWords(d)}` : ''}{Number.isFinite(d.rank) ? ` (${most(d.rank)})` : ''}{earlyNote(d)}.
             </li>
           ))}
         </ol>

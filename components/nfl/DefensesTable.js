@@ -2,7 +2,7 @@
 import TeamMark from '../TeamMark'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../lib/nfl/theme'
-import { softRole, stingyRole, fitsSoft, STARTER_ROLES, SOFT_THIN_GAMES } from '../../lib/nfl/dvpSignal'
+import { softRole, stingyRole, fitsSoft, STARTER_ROLES, SOFT_THIN_GAMES, multipleWords, earlyNote, MULTIPLE_CAP } from '../../lib/nfl/dvpSignal'
 import NflTable from './NflTable'
 import NflFace from './NflFace'
 import Tap from '../Tap'
@@ -20,7 +20,8 @@ import Tap from '../Tap'
 // face; nobody in that role -> nothing, never a guess.
 const PREVIEW = 8
 const one = (n) => (Number.isFinite(n) ? Math.round(n * 10) / 10 : null)
-const spot = (d) => (d ? `${d.role} · ${d.label}${d.multiple === 0 ? ' · none' : d.multiple ? ` ${one(d.multiple)}x` : ''}${Number.isFinite(d.games) ? ` · ${d.games} g${d.games < SOFT_THIN_GAMES ? ' · thin' : ''}` : ''}` : null)
+// '· early: 2 games' in words, and no multiplier on a thin cell (2026-10-04 user review)
+const spot = (d) => (d ? `${d.role} · ${d.label}${d.multiple === 0 ? ' · none' : !d.thin && d.multiple ? ` ${d.multiple >= MULTIPLE_CAP ? `${MULTIPLE_CAP}x+` : `${one(d.multiple)}x`}` : ''}${Number.isFinite(d.games) ? (d.games < SOFT_THIN_GAMES ? ` · early: ${d.games} ${d.games === 1 ? 'game' : 'games'}` : ` · ${d.games} games`) : ''}` : null)
 
 export default function DefensesTable({ matchup, data, win = 'season', active, onPick, onPlayerClick = null }) {
   const [all, setAll] = useState(false)
@@ -49,7 +50,7 @@ export default function DefensesTable({ matchup, data, win = 'season', active, o
         _id: def, def, opp: opp || '—',
         edge: soft ? one(soft.z) : null,
         soft: soft?.standout ? spot(soft) : 'no standout',
-        _plain: soft?.standout ? `the ${soft.plain} (${soft.label}${soft.multiple ? ` ${one(soft.multiple)}x the league` : ''})` : null,
+        _plain: soft?.standout ? `the ${soft.plain} (${soft.label}${multipleWords(soft, { short: true }) ? ` ${multipleWords(soft, { short: true })}` : ''}${earlyNote(soft)})` : null,
         fits: fits ? fits.name : null, _fits: fits,
         tough: tough?.standout ? spot(tough) : '—',
         _standout: Boolean(soft?.standout),
