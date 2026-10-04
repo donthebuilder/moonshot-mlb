@@ -124,7 +124,7 @@ export default function Results({ onOpenPlayer }) {
             { key: 'day', label: 'Night', w: 96, heat: false, bold: true, sticky: true },
             { key: 'games', label: 'GM', w: 38, heat: false, mono: true, dim: true },
             { key: 'scorers', label: 'Scorers', w: 56, heat: false, mono: true },
-            { key: 'scorersCalled', label: 'Called', w: 52, heat: false, mono: true, title: 'Scorers the goal board called in their game (one per team)' },
+            { key: 'scorersCalled', label: 'Called', w: 52, heat: false, mono: true, title: 'Scorers who were CALLED in their game: the goal board (one per team) or SHOTS 3+' },
             { key: 'calledPct', label: 'Called %', w: 62, dp: 0, title: 'Share of that night’s scorers the board called' },
             { key: 'scorersOnBoard', label: 'On board', w: 60, heat: false, mono: true },
             { key: 'scorersOff', label: 'Off', w: 40, heat: false, mono: true, dim: true },

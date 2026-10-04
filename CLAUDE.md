@@ -30,6 +30,12 @@ reads, via its `data` branch.
 - The labels CALLED / ON THE BOARD / NOT ON THE BOARD come from one place
   per sport: `lib/callStatus.js` (MLB, NFL) and `lib/nhl/goalModel.js`
   `scoreNight` (NHL). Never re-derive them in a component.
+  A SCORER is CALLED when any public market called him in that game (the
+  0c rule, Donovan 2026-10-01, confirmed 2026-10-04: "called just like hit
+  picks are"): NHL's goal board or SHOTS 3+ (`lib/record/nhl.js`
+  `markAnyMarketCalls`), BUCKETS likewise (`lib/record/nba.js`). That is
+  deliberate, not a bug. A model's own hit rate still counts only its own
+  calls.
 - Sports are listed in ONE place: the registry in `lib/routes.js`
   (TABLE / BRAND / sportKey). Don't write a new `sport === 'nfl' ? … : …`
   ternary. `node scripts/check-routes.mjs` must stay green.

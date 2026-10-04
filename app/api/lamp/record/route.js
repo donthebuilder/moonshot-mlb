@@ -10,7 +10,7 @@ import { addCounts, coverage, coverageFromCounts } from '../../../../lib/nhl/goa
 import { VERSIONS, V3_FROM } from '../../../../lib/nhl/versions'
 // one track record across the versions (each night was called by the one it locked under)
 const MODEL_VERSION = VERSIONS.goal.join(' -> ')
-import { readNhlNights, readNhlRecords, isMissingTable } from '../../../../lib/record/nhl'
+import { readNhlNights, readNhlRecords, isMissingTable, markAnyMarketCalls } from '../../../../lib/record/nhl'
 import { adminClient } from '../../../../lib/supabase/admin'
 import { ok, delayed } from '../../../../lib/nhl/respond'
 
@@ -50,9 +50,28 @@ export async function GET(request) {
     if (!counted.error) {
       const { rows, error } = await readNhlRecords(db, { since, includePre, graded: true, calledOrHit: true })
       if (error) throw new Error(error.message)
+      // ONE CALLED, EVERY PAGE (2026-10-04, Donovan: SHOTS 3+ calls "are
+      // called just like hit picks are"). /called, /start and the ledger count
+      // a scorer CALLED when any public LAMP market called him (the 0c rule,
+      // lib/record/nhl.js); this page counted the goal board only, so the same
+      // night read 8 here and 16 there. Scorers a SHOTS 3+ call caught move
+      // from ON THE BOARD / NOT ON IT to CALLED. The goal board's own called
+      // hit rate (calledN / calledHits) is unchanged -- it is that model's.
+      await markAnyMarketCalls(db, rows.filter((r) => r.hit))
       const byNight = groupByNight(rows)
-      const nights = counted.nights.map(({ date, counts }) => ({ date, games: counts.games, ...coverageFromCounts(counts), ...lists(byNight.get(date) || []) }))
-      const total = counted.nights.length ? coverageFromCounts(counted.nights.reduce((a, n) => addCounts(a, n.counts), null)) : null
+      const moved = (counts, rs) => {
+        const c = { ...counts }
+        for (const r of rs) {
+          if (!r.hit || !r.called_by) continue
+          c.scorers_called = (Number(c.scorers_called) || 0) + 1
+          const from = r.goal_status === 'board' ? 'scorers_board' : 'scorers_off'
+          c[from] = Math.max(0, (Number(c[from]) || 0) - 1)
+        }
+        return c
+      }
+      const adj = counted.nights.map((n) => ({ ...n, counts: moved(n.counts, byNight.get(n.date) || []) }))
+      const nights = adj.map(({ date, counts }) => ({ date, games: counts.games, ...coverageFromCounts(counts), ...lists(byNight.get(date) || []) }))
+      const total = adj.length ? coverageFromCounts(adj.reduce((a, n) => addCounts(a, n.counts), null)) : null
       return done(nights, total)
     }
     // The view not created yet (its migration not run): the old full read,
@@ -89,7 +108,7 @@ function groupByNight(rows) {
 // counted path reads.
 function lists(rs) {
   return {
-    called: rs.filter((r) => r.status === 'called' && r.dressed).sort((a, b) => a.game_id - b.game_id || a.rank - b.rank).map((r) => ({ playerId: r.player_id, name: r.name, team: r.team, opp: r.opp, rank: r.rank, score: r.score, goals: r.goals, hit: r.hit })),
+    called: rs.filter((r) => r.status === 'called' && r.dressed).sort((a, b) => a.game_id - b.game_id || a.rank - b.rank).map((r) => ({ playerId: r.player_id, name: r.name, team: r.team, opp: r.opp, rank: r.rank, score: r.score, goals: r.goals, hit: r.hit, calledBy: r.called_by || null })),
     // `scorersOff` is coverage()'s COUNT; the list is `offScorers` (a clash the render harness caught).
     offScorers: rs.filter((r) => r.hit && r.status !== 'called').map((r) => ({ playerId: r.player_id, name: r.name, team: r.team, opp: r.opp, rank: r.rank, status: r.status, goals: r.goals })),
   }
