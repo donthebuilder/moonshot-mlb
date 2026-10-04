@@ -91,7 +91,7 @@ export function NflBoardList({ players, market, weights, odds, phone, onPlayerCl
     const q = odds ? quoteFor(odds, p, market) : null
     return {
       _id: p.player_id, _p: p, rank: i + 1, name: p.name, pos: p.position,
-      matchup: `${p.team}${p.opp ? ` v ${p.opp}` : ''}`,
+      team: p.team || null, opp: p.opp || null,
       score: Math.round(p.scores[market]), grade: gradeFor(p.scores[market]).label,
       price: q && q.over != null && q.matches !== false ? Number(q.over) : null,
       _dash: dmk && dash ? dash.by.get(`${p.player_id}|${dmk}`) || null : null,
@@ -109,7 +109,11 @@ export function NflBoardList({ players, market, weights, odds, phone, onPlayerCl
         {/* Wraps to a second line rather than "Amon-Ra St. B…" on a phone. */}
         <span style={{ whiteSpace: 'normal', lineHeight: 1.15, minWidth: 0 }}>{v}</span>
       </span>) },
-    ...(phone ? [] : [{ key: 'pos', label: 'Pos', w: 40, heat: false }, { key: 'matchup', label: 'Game', w: 80, heat: false }]),
+    // On a phone these fold into the sub-line under his name (v2 `fold`), not
+    // vanish: the phone board showed no team or opponent at all (audit X12).
+    { key: 'pos', label: 'Pos', w: 40, heat: false, fold: true },
+    // logos, his club then the opponent (audit 04 NFL2: 'Game' was text)
+    { key: 'team', label: 'Tm', w: 34, heat: false, teamMark: 'nfl', fold: true }, { key: 'opp', label: 'Opp', w: 34, heat: false, teamMark: 'nfl', fold: true },
     { key: 'score', label: 'Score', w: 52, primary: true, scale: 'seq', domain: [0, 100], art: SCORE_ART[market] || null, answers: market === 'TD' ? 'nfl-td' : null },
     ...(phone ? [] : [{ key: 'grade', label: 'Grade', w: 56, heat: false }]),
     ...top.map((k) => ({ key: k, label: LABELS[k] || k, w: phone ? 74 : 86, scale: 'seq', domain: [0, 100] })),
