@@ -340,7 +340,11 @@ rows={tiers}
             const [icon, label] = sl ? meta(sl.pick_type) : ['', '']
             return {
               _key: `${h?.player_id ?? h?.name}-${i}`,
-              _raw: sl || null,
+              // a homer we didn't pick still carries his id: hand it over so the
+              // card opens as his (MOONSHOT's api_only archive card, as Quick search
+              // and the Watchlist open one; p= in the address), not a blank
+              // stub (route audit B2)
+              _raw: sl || (h?.player_id ? { api_only: true, player_id: String(h.player_id), name: h.name, team: h.team || '', bats: '?' } : null),
               name: clean(h?.name, '—'),
               team: clean(h?.team, ''),
               onSheet: sl ? 1 : 0,

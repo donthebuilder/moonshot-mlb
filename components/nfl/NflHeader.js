@@ -427,13 +427,13 @@ export default function NflHeader({ tab, setTab, data, meta, matchup, weekMode =
             <Tile label="Pool" value={rows.length} color={C.text2}
               title="Players this slate scored — the pool every board on TUDDY is drawn from" />
             <Tile label="Top TD" value={topTd?.scores?.TD ? Math.round(topTd.scores.TD) : '—'} color={C.green}
-              title={topTd?.name ? `${topTd.name} — the highest anytime-touchdown score on the slate` : 'No scored players yet'} />
+              title={topTd?.name ? `${topTd.name} — the highest anytime-touchdown score on the slate` : 'No scored players yet'} onClick={topTd?.name ? () => onPlayerClick?.(topTd) : undefined} /* opens him, like THE BOT'S #1 (route audit B5) */ />
             <Tile label="Best game" value={bestGame ? bestGame.label : '—'} color={C.cyan}
               title={bestGame ? `${bestGame.label} — ${bestGame.total.toFixed(1)} expected touchdowns between the two, the most on the slate` : 'No games scored yet'} />
             <Tile label="Top rusher" value={topRush?.scores?.RUSH_YDS ? Math.round(topRush.scores.RUSH_YDS) : '—'} color={C.orange}
-              title={topRush?.name ? `${topRush.name} — ${Number(topRush.stats?.RUYD || 0).toFixed(1)} rush yds/game season average` : 'No scored players yet'} />
+              title={topRush?.name ? `${topRush.name} — ${Number(topRush.stats?.RUYD || 0).toFixed(1)} rush yds/game season average` : 'No scored players yet'} onClick={topRush?.name ? () => onPlayerClick?.(topRush) : undefined} /* opens him, like THE BOT'S #1 (route audit B5) */ />
             <Tile label="Top receiver" value={topRec?.scores?.REC_YDS ? Math.round(topRec.scores.REC_YDS) : '—'} color={C.purple}
-              title={topRec?.name ? `${topRec.name} — ${Number(topRec.stats?.RECYD || 0).toFixed(1)} rec yds/game season average` : 'No scored players yet'} />
+              title={topRec?.name ? `${topRec.name} — ${Number(topRec.stats?.RECYD || 0).toFixed(1)} rec yds/game season average` : 'No scored players yet'} onClick={topRec?.name ? () => onPlayerClick?.(topRec) : undefined} /* opens him, like THE BOT'S #1 (route audit B5) */ />
 
             {/* Finals, then the games not under way yet -- MOONSHOT's last two
                 slots, in its order. */}
