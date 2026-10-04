@@ -55,7 +55,7 @@ export default function ShotMap({ onOpenPlayer, onOpenTeam }) {
       {mode === 'player' && !who && <EmptyState title="PICK A PLAYER" note="Choose a player above for every shot he took on file." />}
       {data && sel && !shots.length && <EmptyState title="NO SHOTS ON FILE" note="Nothing in the play-by-play store for this pick yet." />}
       {shots.length > 0 && <ShotChart shots={shots} filters={['result', 'type']} title={`Shot map, ${mode === 'team' ? team : pname || ''}`}
-        source="Source: ESPN play-by-play, every field-goal attempt on file (buckets_shots, backfilled from last season and kept by the nightly tick)." />}
+        source="Every field-goal attempt on file, from ESPN play-by-play (this season and last)." />}
       {shots.length > 0 && (
         <div>
           <NavBtn onClick={() => setThree((v) => !v)} strong={three}>{three ? 'Close the 3D court' : '🏀 3D court'}</NavBtn>

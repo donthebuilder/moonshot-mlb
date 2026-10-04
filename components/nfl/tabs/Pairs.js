@@ -428,7 +428,7 @@ export default function Pairs({ data, results, onPlayerClick, setTab = null }) {
           onRowClick={onPlayerClick ? openRow : undefined}
           initialSort="weaker"
           maxHeight={420}
-          caption="Sorted by weaker leg, worst-case first — that's the number that decides whether a pair clears. Leg 1 and Leg 2 are both NFL's mean-47/sd-11 scale (see lib/nfl/theme.js), so unlike MLB's pair board these ARE comparable across different pairings. Graded reuses nfl_results.json's last run only — it is overwritten every grading pass, not a season total — and a TD leg reads ungraded rather than missed when a player scored exactly zero, because nfl_results.py drops falsy values before they reach this page (see the Accountability tab for the full explanation)."
+          caption="Sorted by the weaker leg, worst first: that leg decides whether a pair clears. Both legs are on the same scale, so any two pairs compare directly. Grades are from the latest graded week only."
         />
       ) : (
         <div style={{ fontSize: TYPE.body, color: C.text3, padding: '10px 0' }}>

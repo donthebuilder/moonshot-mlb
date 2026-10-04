@@ -30,8 +30,8 @@ export default function NflTable(props) {
       {...props}
       // v2-only identity tags (logos, the phone fold); classic ignores them
       columns={columns}
-      // DenseTable's default caption says "each row opens that hitter" (MOONSHOT).
-      caption={props.caption || 'Ranked board. Column headers sort; each row opens that player.'}
+      // DenseTable's default caption is sport-neutral now (2026-10-04).
+      caption={props.caption}
       dict={NFL_GLOSSARY}
       scoreTerms={NFL_SCORE_TERMS}
       caveat={NFL_RANK_NOT_PERCENT}

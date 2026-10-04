@@ -501,7 +501,7 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
         initialSort="score"
         heatMode="sorted"
         maxHeight={280}
-        caption="Every homer already hit tonight, next to where this board had the hitter — and the line the arm was carrying into it. The pitcher columns are drawn against league marks, so ▲ means he was already worse than average at that and ▼ means he was better. Two columns from the ask are not here, and both on purpose: there is no last-three-starts K/9 in the payload (L3 covers ERA, WHIP and HR/9 only), and HR luck ships zero-filled for every starter tonight — it appears the day it carries a reading. Inventing either from the season figure would be a number that looks measured and is not."
+        caption="Every homer already hit tonight, next to where the board had the hitter and the line the pitcher brought into it. Pitcher columns are against league marks: ▲ he was already worse than average at that, ▼ better."
       />
     </Tracker>
   )

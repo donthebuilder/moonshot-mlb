@@ -492,7 +492,7 @@ export default function DenseTable({
               for sighted readers is announced here too, so a screen-reader
               user knows which board they have landed on before the first cell. */}
           <caption className="sr-only">
-            {caption || 'Ranked board. Column headers sort; each row opens that hitter.'}
+            {caption || (onRowClick ? 'Column headers sort; tap a row to open him.' : 'Column headers sort.') /* the default said 'Ranked board' on game logs and season tables too (audit H8/S3) */}
           </caption>
           <thead style={{ position: 'sticky', top: 0, zIndex: 3 }}>
             <tr>

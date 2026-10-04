@@ -94,7 +94,7 @@ export default function Player({ id, onBack, backLabel = 'Players', onOpenTeam, 
         <section>
           <Kicker>EVERY SHOT ON FILE · {shots.length} ATTEMPTS{data.shotsFrom ? ` SINCE ${fmtDay(data.shotsFrom).toUpperCase()}` : ''}</Kicker>
           <ShotChart shots={shots} filters={['result', 'type']} title={`${card.name}, every field-goal attempt on file`}
-            source="Source: ESPN play-by-play, every field-goal attempt on file for him (buckets_shots); free throws and end-of-quarter heaves out." />
+            source="Every field-goal attempt on file for him, from ESPN play-by-play; free throws and end-of-quarter heaves left out." />
         </section>
       )}
       {log.length > 0 && (

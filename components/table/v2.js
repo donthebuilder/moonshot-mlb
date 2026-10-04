@@ -643,7 +643,7 @@ export function renderV2(ctx) {
               .dtv2 .kb-rail:focus-visible { box-shadow: inset 0 0 0 1.5px ${withAlpha(ac, 0.5)}; }
             `}</style>
             <table>
-              <caption className="sr-only">{caption || 'Ranked board. Column headers sort; each row opens that hitter.'}</caption>
+              <caption className="sr-only">{caption || (onRowClick ? 'Column headers sort; tap a row to open him.' : 'Column headers sort.')}</caption>
               {head}
               {body}
               {foot}

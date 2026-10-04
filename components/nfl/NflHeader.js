@@ -476,7 +476,7 @@ export default function NflHeader({ tab, setTab, data, meta, matchup, weekMode =
             fontWeight: 800, lineHeight: 1.45,
           }}
         >
-          ⚠ NFL data is {ageLabel} old · last built {meta?.built_at_human || data?.built_at_human || builtAt}. Verify the slate before using picks or odds.
+          ⚠ Last updated {meta?.built_at_human || data?.built_at_human || builtAt} ({ageLabel} ago). Lineups and odds may have moved since.
         </div>
       )}
 
