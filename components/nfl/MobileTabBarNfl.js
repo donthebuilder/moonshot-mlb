@@ -29,7 +29,8 @@ import { NFL_NAV, NFL_MORE_GROUPS } from '../../lib/routes'
 // is gone -- the bar never changes shape mid-day on either product.
 // 2026-09-26: LAMP's shape (see NflHeader.js) -- the first four of its rail,
 // same as LAMP's phone bar; everything else is one tap into the sheet.
-const MAIN_KEYS = ['picks', 'boards', 'live', 'games']   // MOONSHOT's four (2026-09-28)
+// One bar everywhere (2026-10-04, Donovan): This week · Props · Rankings · Live.
+const MAIN_KEYS = ['home', 'picks', 'research', 'live']
 const mainFor = (keys) => keys.map((k) => [k, NFL_NAV[k].icon, NFL_NAV[k].label])
 const MAIN = mainFor(MAIN_KEYS)
 

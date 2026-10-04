@@ -31,7 +31,9 @@ import { MLB_NAV, MLB_MORE_GROUPS } from '../lib/routes'
 // Labels and blurbs are read from lib/routes.js rather than written here.
 // This file used to spell them out, Header.js spelled them out differently,
 // and routes.js had a third set; `board` was "Boards" here and "Charts" there.
-const MAIN_KEYS = ['props', 'board', 'scoreboard', 'games']
+// ONE BAR, EVERY PRODUCT (2026-10-04, Donovan): Tonight · Props · Rankings · Live.
+// Boards and the Slate are in More (Research / Games).
+const MAIN_KEYS = ['home', 'props', 'fullboard', 'scoreboard']
 const MAIN = MAIN_KEYS.map((k) => [k, MLB_NAV[k].icon, MLB_NAV[k].label])
 
 // 2026-08-30, Donovan: "the results need to be organized better...to

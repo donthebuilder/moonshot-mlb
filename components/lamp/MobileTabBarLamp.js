@@ -12,7 +12,8 @@ import { NHL_NAV, NHL_MORE_GROUPS } from '../../lib/nhl/routes'
 // moved to the sheet, the same slot it holds on MOONSHOT's bar.
 // Props · Boards · Live · Slate, the words MOONSHOT's and TUDDY's bars use (2026-10-02;
 // Shots is the board's SHOTS chip, and still in More)
-const MAIN_KEYS = ['board', 'fullboard', 'scores', 'games']
+// One bar everywhere (2026-10-04, Donovan): Tonight · Props · Rankings · Live.
+const MAIN_KEYS = ['home', 'board', 'fullboard', 'scores']
 const MAIN = MAIN_KEYS.map((k) => [k, NHL_NAV[k].icon, NHL_NAV[k].label])
 
 const MORE = [
