@@ -383,14 +383,14 @@ export default function NflHeader({ tab, setTab, data, meta, matchup, weekMode =
                 in it. The tiles themselves are the shared TickerPill. */}
             <Tile label="Games" value={games} color={C.blue} title="Games on this slate" />
             <Tile
-              label="Proj TD"
+              label="Expected TDs"   // plain words (2026-10-04 user review #20: was "Proj TD")
               value={projTd ? projTd.toFixed(1) : '—'}
               color={C.green}
               title={`Expected touchdowns across the ${rows.length} players scored on this slate — the sum of each man's xTD.${
                 isPre ? ' Preseason caveat: xTD is last season\'s per-game rate at full usage, and starters play two series. Read it as the ceiling, not the projection.' : ''}`}
             />
-            <Tile label="A-grade" value={aGrade} color={C.cyan}
-                  title="Players clearing A- (62) in at least one market" />
+            <Tile label="Strong picks" value={aGrade} color={C.cyan}
+                  title="Players scoring 62+ (an A- grade) in at least one market" />
 
             {/* LIVE FIRST, FROM ESPN + MLB, NOT FROM THE SLATE PAYLOAD
                 (2026-09-06; both sports 2026-09-17). One tile per game, a
@@ -424,7 +424,7 @@ export default function NflHeader({ tab, setTab, data, meta, matchup, weekMode =
 
             {/* MOONSHOT's `weak` slot: the leftover context that is worth
                 carrying but is nobody's headline. */}
-            <Tile label="Pool" value={rows.length} color={C.text2}
+            <Tile label="Players rated" value={rows.length} color={C.text2}
               title="Players this slate scored — the pool every board on TUDDY is drawn from" />
             <Tile label="Top TD" value={topTd?.scores?.TD ? Math.round(topTd.scores.TD) : '—'} color={C.green}
               title={topTd?.name ? `${topTd.name} — the highest anytime-touchdown score on the slate` : 'No scored players yet'} onClick={topTd?.name ? () => onPlayerClick?.(topTd) : undefined} /* opens him, like THE BOT'S #1 (route audit B5) */ />
