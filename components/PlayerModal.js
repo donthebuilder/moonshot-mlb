@@ -895,7 +895,8 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
                 </div>
                 <div>
                   <div style={{ fontSize: 10, color: C.text3, fontWeight: 800, textTransform: 'uppercase', letterSpacing: .5, padding: '10px 0 4px' }}>Opposing Pitcher</div>
-                  <Row label="Name"   value={clean(p?.pitcher_name, '—')} mono={false} />
+                  {/* the pitcher's name opens his file, as the header's does (clickable rule) */}
+                  <Row label="Name"   value={p?.pitcher_name && p?.pitcher_id ? <a href={`#sport=mlb&tab=pitchers&pitcher=${p.pitcher_id}`} style={META_LINK} title="Open the pitcher's file">{p.pitcher_name}</a> : clean(p?.pitcher_name, '—')} mono={false} />
                   <Row label="Throws" value={clean(p?.pitcher_throws, '—')} />
                   <Row label="HR/9"   value={sc(p?.pitcher_hr9)} />
                   <Row label="BB/9"   value={sc(p?.pitcher_bb9)}

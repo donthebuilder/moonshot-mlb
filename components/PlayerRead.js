@@ -1,4 +1,5 @@
 'use client'
+import { playerHref } from '../lib/routes'
 import { C, NUM_FONT } from '../lib/theme'
 import { hr9Color } from '../lib/hr9'
 import { n, clean, txt } from '../lib/player'
@@ -232,7 +233,9 @@ export default function PlayerRead({ p, odds }) {
         <B col={steal >= 60 ? C.orange : steal <= 35 ? '#38bdf8' : C.text}>{steal.toFixed(0)}</B> steal
         spot tonight — {txt(p?.steal_risk_note)}
         {catcher && catcherRate != null && <>
-          {' '}·{' '}<B col={catcherRate <= 0.16 ? C.orange : catcherRate >= 0.28 ? '#38bdf8' : C.text}>{catcher}</B> is
+          {' '}·{' '}<B col={catcherRate <= 0.16 ? C.orange : catcherRate >= 0.28 ? '#38bdf8' : C.text}>{p?.opp_catcher_id
+            ? <a href={playerHref('mlb', p.opp_catcher_id)} style={{ color: 'inherit', textDecoration: 'underline', textDecorationColor: 'rgba(255,255,255,.25)', textUnderlineOffset: 2 }} title="Open the catcher's card">{catcher}</a>
+            : catcher}</B> is
           catching{p?.opp_catcher_source === 'roster' ? <span style={{ color: C.text3 }}> (lineup not posted — likeliest man)</span> : null}
         </>}.
         {stealStatus === 'thin' && <span style={{ color: C.text3 }}>

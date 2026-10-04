@@ -103,6 +103,9 @@ export default function PlayerBoardFrame({
     <div className="playerboard" style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 280px) minmax(0, 1fr)', gap: 14, alignItems: 'start' }}>
       {showList && (
       <div className="playerboard-side" style={{ position: 'sticky', top: 12 }}>
+        {/* on a phone the list is the only pane until a player is picked -- the
+            notice (e.g. NO SUCH PLAYER) has to show here too (audit J6) */}
+        {!showDetail && notice}
         {sideTop}
         <input
           style={{ ...inputStyle(), width: '100%', marginBottom: 6 }}
