@@ -226,7 +226,8 @@ const TABS = [
 // here is indistinguishable from one added from a card.
 const BETS = ['HR', 'Hit', 'HRR', 'TB']
 
-const META_LINK = { color: 'inherit', textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: 2 }
+// 44px tap target around inline text, the text itself unmoved (phone rule)
+const META_LINK = { color: 'inherit', textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: 2, display: 'inline-block', padding: '17px 13px', margin: '-17px -13px' }
 
 export default function PlayerModal({ player, slate = null, slateMode, initialTab = '', onClose, inline = false, onAdd, onWatch, watched = false, peers = [], onNavigate = null, odds = null, pairSummary = null, onOpenPairHistory = null }) {
   // Inline mode is not an overlay -- it renders in the page, and pinning the
