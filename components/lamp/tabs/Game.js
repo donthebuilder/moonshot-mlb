@@ -2,7 +2,7 @@
 import { useTeamNav } from '../../../lib/teamNav'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import { useLampGame } from '../../../lib/nhl/useLamp'
-import { nhlLogo } from '../../../lib/nhl/teams'
+import { nhlLogo, nhlTeam } from '../../../lib/nhl/teams'
 import { strengthTag } from '../ScoreTable'
 import LampTable from '../LampTable'
 import Tap from '../../Tap'
@@ -221,7 +221,7 @@ function Side({ team, lead, align }) {
       <img src={team.logo || nhlLogo(team.abbrev)} alt="" width={44} height={44} style={{ width: 44, height: 44, flex: 'none', objectFit: 'contain' }} />
       <div style={{ textAlign: align, minWidth: 0 }}>
         <div style={{ font: `900 15px/1 ${NUM_FONT}`, color: lead ? C.text : C.text2, letterSpacing: '.04em' }}>{teamNav ? <Tap onClick={() => teamNav(team.abbrev)}>{team.abbrev}</Tap> : team.abbrev}</div>
-        <div style={{ marginTop: 4, color: C.text3, fontSize: 11, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{team.place ? `${team.place} ${team.name}` : team.name}</div>
+        <div style={{ marginTop: 4, color: C.text3, fontSize: 11, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{/* the league's placeName for the NY clubs is 'NY Islanders' -> 'NY Islanders Islanders' (audit 05 #15) */}{nhlTeam(team.abbrev)?.name || (team.place && !String(team.place).endsWith(team.name) ? `${team.place} ${team.name}` : team.place || team.name)}</div>
         {team.record && <div style={{ marginTop: 3, color: C.text3, font: `800 9px/1 ${NUM_FONT}` }}>{team.record}</div>}
       </div>
     </div>
