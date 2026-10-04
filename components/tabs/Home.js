@@ -857,7 +857,7 @@ export default function Home({
         /* A finished slate isn't "Today" after midnight ET (stranger F5). */
         /* The postseason round names the day (DAY-AWARE-OPENERS-PLAN): the
            schedule's own gameType for THIS slate's date, never guessed. */
-        eyebrow={`${slateInPast ? (slateDate === etShift(-1) ? 'Last night' : 'Final') : (dateLabel || (mode === 'today' ? 'Today' : 'Tomorrow'))}${!slateInPast && nextMlb?.round && nextMlb.date === slateDate ? ` · ${nextMlb.round}` : ''}${slateDate ? ` · ${slateDate}` : ''}`}
+        eyebrow={`${slateInPast ? (slateDate === etShift(-1) ? 'Last night' : 'Final') : (mode === 'tomorrow' && slateDate === etShift(0) ? 'Tonight' /* the 'Tmrw' slate after midnight is tonight (2026-10-04 day rule) */ : (dateLabel || (mode === 'today' ? 'Today' : 'Tomorrow')))}${!slateInPast && nextMlb?.round && nextMlb.date === slateDate ? ` · ${nextMlb.round}` : ''}${slateDate ? ` · ${slateDate}` : ''}`}
         live={isLive}
         /* THE FACT FIRST, THE VOICE SECOND (2026-08-29): the headline is the
            state of the night -- how many games, how many live, whether it has

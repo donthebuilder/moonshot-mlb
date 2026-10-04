@@ -261,7 +261,7 @@ function MlbSettings() {
 
 // ── main ──────────────────────────────────────────────────────────────────────
 
-export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDate = '', results, players = [], games = [], runMeta = null, onPlayerClick = null }) {
+export default function Header({ tab, setTab, mode, setMode, lastNight = false, dateLabel, slateDate = '', results, players = [], games = [], runMeta = null, onPlayerClick = null }) {
   const go = (next) => setTab(next)
   // THE FRAME IS SHARED NOW (2026-09-29): components/header/HeaderShell.js
   // draws the bar, the mark, the wordmark, the other products' pills and the
@@ -277,8 +277,9 @@ export default function Header({ tab, setTab, mode, setMode, dateLabel, slateDat
           value={mode}
           onChange={setMode}
           options={[
-            { key: 'today', text: 'Today', color: DAY_COLORS.today },
-            { key: 'tomorrow', text: 'Tmrw', color: DAY_COLORS.tomorrow },
+            // after the last game of a slate past ET midnight: 'Last night | Tonight' (Dashboard lastNight)
+            { key: 'today', text: lastNight ? 'Last night' : 'Today', color: DAY_COLORS.today },
+            { key: 'tomorrow', text: lastNight ? 'Tonight' : 'Tmrw', color: DAY_COLORS.tomorrow },
           ]}
         />
         <SignUpPill onWatchlist={() => go('you')} />

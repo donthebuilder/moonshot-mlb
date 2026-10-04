@@ -508,7 +508,7 @@ export default function Dashboard({ palettePass = 0 }) {
     for (const k of FILTER_KEYS) { const v = readHashKey(k); if (v) h.set(k, v) }
     const pid2 = modalPlayer ? String(modalPlayer?.player_id ?? modalPlayer?.id ?? '') : missingPlayer
     if (pid2) h.set('p', pid2)
-    if (mode === 'tomorrow') h.set('day', 'tmrw')
+    if (mode === 'tomorrow' && !autoDayRef.current) h.set('day', 'tmrw')
     // The Games / Pitchers / Players tabs own game= / pitcher= / player= (they write them); this
     // writer rebuilds the hash from scratch, so it carries them on their tab.
     const live = hashParams()
@@ -723,6 +723,35 @@ export default function Dashboard({ palettePass = 0 }) {
   // The live layer keeps the games of the slate on screen -- last night's
   // until the morning run publishes today's (lib/liveSlate setLiveSlateDay).
   useEffect(() => { setLiveSlateDay(mode === 'today' ? slateDate : '') }, [mode, slateDate])
+  // THE DAY ROLLS WHEN THE LAST GAME ENDS (2026-10-04, Donovan: "sure, but
+  // people still want to see the slate from before"). After ET midnight the
+  // published 'today' is last night's slate until the morning run; once every
+  // one of its games is final, MOONSHOT opens on the new day (the Tmrw payload,
+  // which IS tonight) and the toggle reads 'Last night | Tonight', so last
+  // night is one tap away. Only once per visit, never over a day= link, and the
+  // automatic switch writes no day= (a morning refresh opens on Today as normal).
+  const [lastNight, setLastNight] = useState(false)
+  const autoTriedRef = useRef(false)
+  const autoDayRef = useRef(false)
+  useEffect(() => {
+    if (mode !== 'today' || !slateDate) return undefined
+    let et = ''
+    try { et = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date()) } catch { return undefined }
+    if (slateDate >= et) { setLastNight(false); return undefined }
+    let alive = true
+    // MLB's own schedule for that date: one small read, only in this window
+    // (the shared live snapshot can be mid-flight for the new day).
+    fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${slateDate}&fields=dates,games,status,abstractGameState`)
+      .then((r) => (r.ok ? r.json() : null)).then((j) => {
+      if (!alive) return
+      const games = (j?.dates || []).flatMap((d) => d.games || [])
+      if (!games.length || !games.every((g) => g?.status?.abstractGameState === 'Final')) return
+      setLastNight(true)
+      if (!autoTriedRef.current && !hashParams().get('day')) { autoTriedRef.current = true; autoDayRef.current = true; setMode('tomorrow') }
+    }).catch(() => {})
+    return () => { alive = false }
+  }, [mode, slateDate])
+  const pickDay = (m) => { autoTriedRef.current = true; autoDayRef.current = false; setMode(m) }
   // THE TODAY LINE's day (2026-09-28): the slate's games, the slate's own date.
   // The grouped slate carries start times, not states: a start in the past is
   // 'started' (under way or final), never guessed as one of the two.
@@ -838,7 +867,7 @@ export default function Dashboard({ palettePass = 0 }) {
           It is sr-only because the visual design already answers "where am I"
           through the tab row; the document never did. */}
       <SkipLink />
-      <Header tab={tab} setTab={setTab} dateLabel={dateLabel} slateDate={slateDate} mode={mode} setMode={setMode} results={resultsForSlate} players={allPlayers} games={headerGames} runMeta={runMeta} onPlayerClick={setModalPlayer} />
+      <Header tab={tab} setTab={setTab} dateLabel={dateLabel} slateDate={slateDate} mode={mode} setMode={pickDay} lastNight={lastNight} results={resultsForSlate} players={allPlayers} games={headerGames} runMeta={runMeta} onPlayerClick={setModalPlayer} />
       <TodayContext.Provider value={mlbToday}>
       <main id="board-main" className="dashboard-main" style={{ maxWidth: 1300, margin: '0 auto', padding: '0 14px 28px' }}>
         <h1 className="sr-only">{pageTitle('mlb', missingTab ? 'home' : tab)}</h1>
