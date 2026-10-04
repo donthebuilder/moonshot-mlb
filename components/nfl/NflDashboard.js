@@ -186,9 +186,13 @@ export default function NflDashboard({ palettePass = 0 }) {
     try {
       const live = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''))
       const snap = initialHashParams()
-      const p = live.get('p') || snap.get('p')
+      // Only a `p=` that came WITH sport=nfl, and only an NFL id (00-0039139):
+      // the page-load snapshot of a MOONSHOT card (#sport=mlb&p=808959) used
+      // to ride into a switch to TUDDY and open players&player=808959
+      // (2026-10-04 scenario test F27).
+      const p = live.get('p') || (snap.get('sport') === 'nfl' ? snap.get('p') : null)
       const isNfl = (live.get('sport') || snap.get('sport')) === 'nfl'
-      if (isNfl && p && !live.get('player')) {
+      if (isNfl && p && /^\d{2}-\d{7}$/.test(p) && !live.get('player')) {
         live.set('sport', 'nfl'); live.set('tab', 'players'); live.set('player', p); live.delete('p')
         window.history.replaceState(null, '', `#${live.toString()}`)
       }
