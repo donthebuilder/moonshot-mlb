@@ -1,5 +1,5 @@
 'use client'
-import { createContext, useContext, useEffect, useRef, useState } from 'react'
+import { createContext, useContext, useEffect, useRef } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { STATE, alpha } from '../lib/scales'
 
@@ -165,30 +165,6 @@ export function FilterSearch({ value, onChange, placeholder = 'Search…', width
   )
 }
 
-// ── min/max pair for a numeric column ───────────────────────────────────────
-export function RangeFilter({ label, min, max, onMin, onMax, step = 1 }) {
-  const on = useOn()
-  const box = (v, on, ph) => (
-    <input
-      type="number" value={v ?? ''} step={step} placeholder={ph}
-      onChange={(e) => on(e.target.value === '' ? null : Number(e.target.value))}
-      style={{
-        width: 54, padding: '3px 6px', fontSize: 10, borderRadius: 7, fontFamily: NUM_FONT,
-        border: `1px solid ${v != null ? on.borderColor : C.border}`,
-        background: 'transparent', color: C.text, outline: 'none',
-      }}
-    />
-  )
-  return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-      {label && <FilterLabel>{label}</FilterLabel>}
-      {box(min, onMin, 'min')}
-      <span style={{ fontSize: 9, color: C.text3 }}>–</span>
-      {box(max, onMax, 'max')}
-    </span>
-  )
-}
-
 // ── what's active, and the way back out ─────────────────────────────────────
 // filters: [{ key, label, onClear }]. Two variants:
 //   chips (default) — removable chips, for 2+ active filters
@@ -234,20 +210,6 @@ export function ActiveFilters({ filters, shown, total, variant = 'chips', onClea
   )
 }
 
-// ── collapsible panel for the heavy filter sets (Boards) ────────────────────
-export function FilterPanel({ open, onClose, children, width = 300 }) {
-  const ref = useOutsideClose(onClose, open)
-  if (!open) return null
-  return (
-    <div ref={ref} style={{
-      position: 'absolute', zIndex: 40, top: '100%', left: 0, marginTop: 6, width, maxWidth: '92vw',
-      background: C.bg2, border: `1px solid ${C.border2}`, borderRadius: 12,
-      padding: 12, display: 'flex', flexDirection: 'column', gap: 10,
-      boxShadow: '0 12px 30px rgba(0,0,0,.35)',
-    }}>{children}</div>
-  )
-}
-
 // ── the row that hosts a filter set: trigger + active chips + slot ──────────
 export function FilterBar({ children }) {
   return (
@@ -278,7 +240,6 @@ export function useOutsideClose(onClose, active = true) {
   }, [onClose, active])
   return ref
 }
-
 
 // ── THE ANGLE ROW, ALL THREE PRODUCTS (2026-09-27, board filters plan) ─────
 // MOONSHOT's one-tap Angle chips as one component: each product passes its

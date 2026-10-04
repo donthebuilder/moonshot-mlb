@@ -71,21 +71,3 @@ export default function OddsLine({ quote, edge, compact = false }) {
   )
 }
 
-/** The whole category board for one player — used in the modal. */
-export function OddsRow({ quotes }) {
-  const rows = Object.entries(quotes || {}).filter(([, q]) => q)
-  if (!rows.length) return null
-  return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-      {rows.map(([cat, { quote, edge }]) => (
-        <span key={cat} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-          <span style={{
-            fontFamily: NUM_FONT, fontSize: 8.5, fontWeight: 900, color: C.text3,
-            letterSpacing: '.06em',
-          }}>{cat}</span>
-          <OddsLine quote={quote} edge={edge} compact />
-        </span>
-      ))}
-    </div>
-  )
-}
