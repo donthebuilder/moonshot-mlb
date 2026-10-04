@@ -19,6 +19,11 @@ check(first(called) === '🤖 CALLED IT', 'MLB CALLED opens 🤖 CALLED IT')
 check(first(board) === '💥 TEST SLUGGER GOES DEEP.' && !board.includes('CALLED IT') && board.includes('#260 on the Moonshot board'), 'MLB ON THE BOARD: 💥 header, #N proof line, no CALLED IT')
 check(first(off) === '💥 TEST SLUGGER GOES DEEP.' && !off.includes('CALLED IT') && off.includes('Not on the Moonshot board.'), 'MLB NOT ON THE BOARD: 💥 header, no CALLED IT')
 
+// 2026-10-04 (Donovan: CALLED IT only when earned): a HIT pick's homer names its market
+const hitCalled = postText(hr({ role: 'HIT', board_rank: 12, hr_score: 60 }))
+check(first(hitCalled) === '🤖 CALLED IT · HIT PICK' && !hitCalled.includes('The call is in.'), 'MLB HIT-pick homer: header names the market, no "The call is in."')
+check(called.includes('The call is in.'), 'MLB TOP-pick homer keeps "The call is in."')
+
 const td = (o) => ({ scorerName: 'Test Runner', team: 'TST', opponent: 'OPP', day: '2026-09-27', ...o })
 const tc = tdPostText(td({ onBot: { rank: 2, grade: 'A' } }))
 const tb = tdPostText(td({ tdBoard: { rank: 14, of: 300 } }))
