@@ -438,7 +438,11 @@ function bundle(events) {
   const list = [...best.values(), ...kept].sort((a, b) => priorityOf(a) - priorityOf(b))
 
   const head = list[0]
-  if (list.length === 1) return { title: head.title, body: head.body, tag: head.key, url: head.url }
+  // WHO ON LINE 1 (2026-10-04, ops audit). Most titles are a category --
+  // '⚾ ON DECK', '🏈 TOUCHDOWN', '⚠️ SCRATCH' -- with the man on line 2, which
+  // a lock screen often cuts. A single note's title carries its short name
+  // ('⚾ ON DECK · Tatis') unless the title already names him.
+  if (list.length === 1) return { title: withWho(head), body: head.body, tag: head.key, url: head.url }
   const groups = new Set(list.map((e) => e.group).filter(Boolean))
   const verb = groups.size === 1 ? [...groups][0] : ''
   const parts = list.map((e) => e.short || e.body)
@@ -450,6 +454,18 @@ function bundle(events) {
     tag: `bundle:${head.key}`,
     url: head.url,
   }
+}
+
+function withWho(e) {
+  const title = String(e?.title || '')
+  const short = String(e?.short || '').trim()
+  if (!short) return title
+  const first = short.split(/[\s(]/)[0].toLowerCase()
+  if (!first || title.toLowerCase().includes(first)) return title
+  // words the title already says don't repeat ('ON DECK · Tatis', not '… Tatis on deck')
+  const said = new Set(title.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean))
+  const who = short.split(' ').filter((w) => !said.has(w.toLowerCase())).join(' ')
+  return `${title} \u00b7 ${who || short}`
 }
 
 // ── HOW FAST AN EVENT CAN REACH YOU ────────────────────────────────────────
