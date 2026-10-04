@@ -17,7 +17,7 @@
 // touching the scoring columns. A postponed game is closed with state PPD
 // and its rows stay void. Failures are logged loudly and skipped; the next
 // tick tries again. Nothing here ever invents a row.
-import { easternToday, dayBefore } from '../../../../lib/data'
+import { easternToday, dayBefore, shiftDay } from '../../../../lib/data'
 import { scoreFor, nhlGet, validDate, TTL } from '../../../../lib/nhl/api'
 import { reduceScoreDay } from '../../../../lib/nhl/reduce'
 import { buildNight, toLogRow } from '../../../../lib/nhl/goalBoard'
@@ -161,7 +161,7 @@ export async function GET(request) {
   }
 
   // ── GRADE ─────────────────────────────────────────────────────────────
-  const pending = await db.from('lamp_goal_games').select('game_id, game_date, model_version').in('model_version', VERSIONS.goal).is('graded_at', null).in('game_date', [date, dayBefore(date)])
+  const pending = await db.from('lamp_goal_games').select('game_id, game_date, model_version').in('model_version', VERSIONS.goal).is('graded_at', null).gte('game_date', shiftDay(date, -6)).lte('game_date', date) /* a week, not two days: a missed day stayed ungraded (2026-10-04) */
   if (pending.error) { console.error(`[lamp tick] pending: ${pending.error.message}`); out.skipped.push({ why: `pending: ${pending.error.message}` }) }
   const feedByDate = {}
   for (const p of pending.data || []) {

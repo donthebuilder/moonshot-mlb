@@ -69,11 +69,21 @@ export async function GET(request) {
   }
 
   // ── GRADE (today and yesterday: a late final grades the next morning) ──
-  const pending = await db.from('buckets_games').select('game_id, game_date').is('graded_at', null).in('game_date', [date, shiftDay(date, -1)])
+  // The last WEEK, not two days (2026-10-04 ops audit): a tick that missed two
+  // days left those games ungraded for good.
+  const pending = await db.from('buckets_games').select('game_id, game_date').is('graded_at', null).gte('game_date', shiftDay(date, -6)).lte('game_date', date)
   for (const p of pending.data || []) {
     // Straight from the source: a cached summary could predate the final stats (LAMP's BUF@CHI, audit F1).
     const s = await nbaGet(`/summary?event=${p.game_id}`, 0).catch(() => null)
-    const final = s?.header?.competitions?.[0]?.status?.type?.completed === true
+    const stType = s?.header?.competitions?.[0]?.status?.type || {}
+    // A postponed / canceled game is closed, not left pending forever (its rows
+    // keep hit null: no game, no grade) -- LAMP's tick does the same.
+    if (/POSTPONED|CANCELED|CANCELLED/.test(String(stType.name || ''))) {
+      await db.from('buckets_games').update({ state: String(stType.name).toLowerCase(), graded_at: new Date().toISOString() }).eq('game_id', p.game_id)
+      out.skipped.push({ game: p.game_id, why: `closed: ${stType.name}` })
+      continue
+    }
+    const final = stType.completed === true
     if (!final) continue
     const box = new Map(reduceBox(s).map((b) => [b.id, b]))
     const firsts = firstBaskets(s)
