@@ -223,7 +223,7 @@ export default async function AdminPage() {
         <Line k="#lamp-nhl" v={process.env.DISCORD_NHL_WEBHOOKS ? 'wired' : (process.env.DISCORD_MLB_WEBHOOKS ? 'not wired (hockey posts fall back to #moonshot-mlb)' : 'not wired')} src="DISCORD_NHL_WEBHOOKS -- CALLED goals" />
         <Line k="#buckets-nba" v={process.env.DISCORD_NBA_WEBHOOKS ? 'wired' : (process.env.DISCORD_MLB_WEBHOOKS ? 'not wired (basketball posts fall back to #moonshot-mlb)' : 'not wired')} src="DISCORD_NBA_WEBHOOKS -- 30 PIECE moments, once BUCKETS opens (BUCKETS_PUBLIC)" />
         <Line k="#called-it" v={process.env.DISCORD_RECEIPTS_WEBHOOK ? 'wired' : 'not wired'} src="DISCORD_RECEIPTS_WEBHOOK -- the night's recap, the week, the month" />
-        <Line k="Live room" v={process.env.DISCORD_LIVE_WEBHOOKS ? 'wired' : 'falls back to #moonshot-mlb'} src="DISCORD_LIVE_WEBHOOKS -- followed-hitter homers, slams, board-hit slate homers (MLB only)" />
+        <Line k="Live room" v={process.env.DISCORD_LIVE_WEBHOOKS ? 'wired' : 'off (no fallback -- the homer feed already posts every homer)'} src="DISCORD_LIVE_WEBHOOKS -- bases-loaded at-bats and board-hit homers, only to a channel the homer feed doesn't post to (MLB only)" />
         <Line k="Last members post" v={c.membersLast ? `${c.membersLast.day}` : 'none yet'} src={c.membersLast ? `${c.membersLast.kind}${c.membersLast.discord_sent ? ' · sent to Discord' : ' · claimed, not sent'}` : 'homer_feed_posts, kinds *_members_board / *_members_grade'} />
 
         <h2 className={start.kicker} style={{ marginTop: 18 }}>Odds</h2>

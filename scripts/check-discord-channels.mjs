@@ -43,8 +43,16 @@ eq('same URL in two vars posts once', (() => { process.env.DISCORD_NFL_WEBHOOKS 
 // rooms (push mirror): football touchdowns are the feed's, not the room's
 process.env.DISCORD_NFL_WEBHOOKS = 'NFL'; process.env.DISCORD_LIVE_WEBHOOKS = 'MLB'
 process.env.DISCORD_ALERTS_WEBHOOKS = ''
-eq('room: mlb homer -> MLB', webhooksForEvent({ category: 'homer', sport: 'mlb' }), ['MLB'])
-eq('room: board-hit slate -> MLB', webhooksForEvent({ category: 'slate', sport: 'mlb', boardHit: true }), ['MLB'])
+// 2026-10-04 ops audit: one path per moment. LIVE pointing at the MLB room
+// (or unset) adds nothing -- the homer feed already posted there.
+eq('room: followed homer -> nowhere (the feed owns homers)', webhooksForEvent({ category: 'homer', sport: 'mlb' }), [])
+eq('room: board-hit slate, LIVE = the MLB room -> nowhere (no double post)', webhooksForEvent({ category: 'slate', sport: 'mlb', boardHit: true }), [])
+eq('room: boardup is phone-only (follow-list copy)', webhooksForEvent({ category: 'boardup', sport: 'mlb' }), [])
+eq('room: lastcall is phone-only', webhooksForEvent({ category: 'lastcall', sport: 'mlb' }), [])
+eq('room: scratch still reaches the board room', webhooksForEvent({ category: 'scratched', sport: 'mlb' }), ['MLB'])
+eq('room: board-hit slate, its own LIVE channel -> LIVE', (() => { process.env.DISCORD_LIVE_WEBHOOKS = 'LIVE'; return webhooksForEvent({ category: 'slate', sport: 'mlb', boardHit: true }) })(), ['LIVE'])
+eq('room: board-hit slate, LIVE unset -> nowhere (no fallback)', (() => { delete process.env.DISCORD_LIVE_WEBHOOKS; return webhooksForEvent({ category: 'slate', sport: 'mlb', boardHit: true }) })(), [])
+process.env.DISCORD_LIVE_WEBHOOKS = 'MLB'
 eq('room: off-board slate -> nowhere', webhooksForEvent({ category: 'slate', sport: 'mlb', boardHit: false }), [])
 eq('room: nfl touchdown -> nowhere (the feed owns it)', webhooksForEvent({ category: 'nfltd', sport: 'nfl' }), [])
 eq('room: followed-only red zone stays on phones', webhooksForEvent({ category: 'nflred', sport: 'nfl' }), [])
