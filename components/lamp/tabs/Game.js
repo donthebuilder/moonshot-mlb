@@ -151,6 +151,44 @@ export default function Game({ id, onBack, onOpenPlayer = null, onOpenTeam = nul
         </section>
       )}
 
+      {/* ── the box (2026-10-04, audit 05 #10: goalie lines and the skater box
+          were missing, though the route already read the boxscore) ── */}
+      {g.box && (g.box.away.goalies.length + g.box.home.goalies.length) > 0 && (
+        <section aria-label="Goalies">
+          <Kicker>GOALIES</Kicker>
+          <LampTable bare noGroups tight heatMode="sorted" maxHeight={9999} maxRows={99} caption="Each goalie who played"
+            rows={[...g.box.away.goalies, ...g.box.home.goalies].map((x) => ({ ...x, _key: `g-${x.id}`, svWord: x.sa != null ? `${x.saves ?? '—'}/${x.sa}` : '—' }))}
+            columns={[
+              { key: 'name', label: 'Goalie', heat: false, sticky: true, w: 150, link: (x) => (x.id && onOpenPlayer ? () => onOpenPlayer(x.id) : null) },
+              { key: 'team', label: 'Team', heat: false, w: 44, teamMark: 'nhl' },
+              { key: 'svWord', label: 'Saves', heat: false, numeric: false, mono: true, w: 64 },
+              { key: 'svPct', label: 'SV%', w: 56, fmt: (v) => (Number.isFinite(v) ? v.toFixed(3).replace(/^0/, '') : '—') },
+              { key: 'ga', label: 'GA', w: 40, dp: 0 },
+              { key: 'toi', label: 'TOI', heat: false, numeric: false, mono: true, w: 56 },
+              { key: 'decision', label: 'Dec', heat: false, numeric: false, w: 44, fmt: (v) => v || '—' },
+            ]} />
+        </section>
+      )}
+      {g.box && ['away', 'home'].map((sd) => g.box[sd].skaters.length > 0 && (
+        <section key={sd} aria-label={`${g.box[sd].abbrev} skaters`}>
+          <Kicker>{g.box[sd].abbrev} SKATERS</Kicker>
+          <LampTable bare noGroups tight heatMode="sorted" maxHeight={9999} maxRows={8} caption={`${g.box[sd].abbrev}'s skaters in this game`}
+            rows={[...g.box[sd].skaters].sort((a, b) => (b.pts ?? 0) - (a.pts ?? 0) || (b.sog ?? 0) - (a.sog ?? 0)).map((x) => ({ ...x, _key: `s-${x.id}` }))}
+            columns={[
+              { key: 'name', label: 'Skater', heat: false, sticky: true, w: 140, link: (x) => (x.id && onOpenPlayer ? () => onOpenPlayer(x.id) : null) },
+              { key: 'pos', label: 'Pos', heat: false, w: 36 },
+              { key: 'g', label: 'G', w: 34, dp: 0 },
+              { key: 'a', label: 'A', w: 34, dp: 0 },
+              { key: 'pts', label: 'PTS', w: 40, dp: 0 },
+              { key: 'sog', label: 'SOG', w: 40, dp: 0 },
+              { key: 'plusMinus', label: '+/-', w: 40, dp: 0 },
+              { key: 'toi', label: 'TOI', heat: false, numeric: false, mono: true, w: 56 },
+              { key: 'hits', label: 'HIT', w: 38, dp: 0 },
+              { key: 'blk', label: 'BLK', w: 38, dp: 0 },
+            ]} />
+        </section>
+      ))}
+
       {/* ── penalties ── */}
       {g.penalties.length > 0 && (
         <section aria-label="Penalties">
