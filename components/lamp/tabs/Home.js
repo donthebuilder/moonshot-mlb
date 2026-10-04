@@ -9,7 +9,7 @@ import StorylinesStrip from '../../StorylinesStrip'
 import LampHeadline from '../LampHeadline'
 import LongshotsPreview from '../../LongshotsPreview'
 import HeroStat from '../../HeroStat'
-import { C, NUM_FONT } from '../../../lib/nhl/theme'
+import { C, NUM_FONT, TYPE } from '../../../lib/nhl/theme'
 import LampYourPlayers from '../LampYourPlayers'
 import { useLampStandings, useLampBoard, useLampLeaders, useLampRecord, useLampHotSticks } from '../../../lib/nhl/useLamp'
 import { buildLampHeadlines } from '../../../lib/nhl/headlines'
@@ -227,4 +227,4 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
   )
 }
 
-const link = { background: 'transparent', border: 'none', cursor: 'pointer', color: C.ice, font: `800 10px/1 ${NUM_FONT}`, letterSpacing: '.04em', padding: 0 }
+const link = { background: 'transparent', border: 'none', cursor: 'pointer', color: C.ice, font: `800 ${TYPE.micro}px/1 ${NUM_FONT}`, letterSpacing: '.04em', padding: 0 }

@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { STATUS_WORD } from '../../lib/callStatus'
 import CallStatusBadge from '../CallStatusBadge'
 import Tap from '../Tap'
-import { C, NUM_FONT } from '../../lib/nhl/theme'
+import { C, NUM_FONT, TYPE } from '../../lib/nhl/theme'
 import { nhlLogo } from '../../lib/nhl/teams'
 // Formats live in lib/nhl/format.js (no 'use client') so the crawlable
 // server pages print numbers the same way; re-exported here for the tabs.
@@ -128,7 +128,7 @@ export function Loading({ what = 'the feed' }) {
 
 /** The mono kicker every section title on LAMP uses. */
 export function Kicker({ children, tone = C.ice }) {
-  return <div style={{ color: tone, font: `900 8px/1 ${NUM_FONT}`, letterSpacing: '.14em', marginBottom: 6 }}>{children}</div>
+  return <div style={{ color: tone, font: `900 ${TYPE.label}px/1 ${NUM_FONT}`, letterSpacing: '.14em', marginBottom: 6 }}>{children}</div>
 }
 
 /** One row of pills (view switches, date pagers). */
