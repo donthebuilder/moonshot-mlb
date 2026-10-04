@@ -51,8 +51,7 @@ const MAIN = MAIN_KEYS.map((k) => [k, MLB_NAV[k].icon, MLB_NAV[k].label])
 // everything. Picks leads the pages because on a slate night it is what the
 // sheet gets opened for.
 const MORE = [
-  ['@Tonight', ''],
-  ['home', MLB_NAV.home.label, MLB_NAV.home.blurb],
+  // Tonight is on the bar (2026-10-04); More starts with the groups.
   // `bot` (Picks) is no longer a separate stop: it is the lower half of Props (10-03)
   ...MLB_MORE_GROUPS.flatMap(([group, keys]) => [
     [`@${group}`, ''],

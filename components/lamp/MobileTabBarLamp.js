@@ -17,8 +17,7 @@ const MAIN_KEYS = ['home', 'board', 'fullboard', 'scores']
 const MAIN = MAIN_KEYS.map((k) => [k, NHL_NAV[k].icon, NHL_NAV[k].label])
 
 const MORE = [
-  ['@Tonight', ''],
-  ['home', NHL_NAV.home.label, NHL_NAV.home.blurb],
+  // Tonight is on the bar (2026-10-04); More starts with the groups.
   ...NHL_MORE_GROUPS.flatMap(([group, keys]) => [
     [`@${group}`, ''],
     ...keys.map((k) => [k, NHL_NAV[k].label, NHL_NAV[k].blurb]),

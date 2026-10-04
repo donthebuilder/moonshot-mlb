@@ -10,8 +10,7 @@ import { NBA_NAV, NBA_MORE_GROUPS } from '../../lib/nba/routes'
 const MAIN_KEYS = ['home', 'board', 'fullboard', 'scores']
 const MAIN = MAIN_KEYS.map((k) => [k, NBA_NAV[k].icon, NBA_NAV[k].label])
 const MORE = [
-  ['@Tonight', ''],
-  ['home', NBA_NAV.home.label, NBA_NAV.home.blurb],
+  // Tonight is on the bar (2026-10-04); More starts with the groups.
   ...NBA_MORE_GROUPS.flatMap(([group, keys]) => [[`@${group}`, ''], ...keys.map((k) => [k, NBA_NAV[k].label, NBA_NAV[k].blurb])]),
 ]
 
