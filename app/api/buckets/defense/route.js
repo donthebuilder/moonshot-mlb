@@ -8,12 +8,13 @@ import { nbaSeason, seasonLabel } from '../../../../lib/nba/season'
 import { scoreboardFor, reduceScoreboard } from '../../../../lib/nba/api'
 import { nbaTeam } from '../../../../lib/nba/teams'
 import { ok, bad, bucketsRoute } from '../../../../lib/nba/respond'
-import { easternToday } from '../../../../lib/data'
+import { slateNight } from '../../../../lib/slateNight'
 
 export const dynamic = 'force-dynamic'
 const KEYS = ['oppPts', 'oppReb', 'oppAst', 'oppTpm', 'oppFgPct']
 export const GET = bucketsRoute('defense', async (q) => {
-  const date = q.get('date') || easternToday()
+  // the slate still being played, not the ET calendar day (2026-10-04 day rule; LAMP 3bde1ca)
+  const date = q.get('date') || await slateNight('nba')
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return bad('date must be YYYY-MM-DD')
   const sn = await nbaSeason()
   const [s, board] = await Promise.all([seasonStats(sn.read), scoreboardFor(date)])
