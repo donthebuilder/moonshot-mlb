@@ -8,7 +8,7 @@ import { designationOf, hitterRoleTitle, hitterLaneLabel, hitterLaneTitle, laneR
 import { gameNumbers, doubleheaderNote } from '../../lib/doubleheader'
 import { PanelTitle, Empty, btnStyle, WhatThis } from '../ui'
 import DenseTable from '../DenseTable'
-import { callStatus } from '../../lib/callStatus'
+import { callStatus, boardOfRows } from '../../lib/callStatus'
 import BoardFilters, { useBoardFilter } from '../BoardFilters'
 import OffBoardStrip from '../OffBoardStrip'
 import HomerLedger from '../HomerLedger'
@@ -142,6 +142,8 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
   // fact about tonight's schedule, and it must not switch off because the
   // aligned-only toggle happened to hide one half of the doubleheader.
   const dh = useMemo(() => gameNumbers(players), [players])
+  // the board's size the bot published (lib/callStatus boardOfRows), not this list's length
+  const boardOf = useMemo(() => boardOfRows(players) || players.length, [players])
   // Percentiles only mean anything against the rows in view — see laneRanker.
   const laneOf = useMemo(() => laneRanker(players), [players])
   const dhNote = useMemo(() => doubleheaderNote(players), [players])
@@ -682,7 +684,7 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
         heatMode="sorted"
         // the v2 skin's status stamp: the one rule (lib/callStatus), the
         // bot's designation + this board's rank of the whole slate
-        statusOf={(r) => callStatus({ role: r._raw?.game_pick_role, board_rank: r.rank, board_of: players.length })}
+        statusOf={(r) => callStatus({ role: r._raw?.game_pick_role, board_rank: r.rank, board_of: boardOf })}
         maxHeight={640}
         // Every single one, in order (2026-09-25): no cap on this table. It
         // is the one place the whole board can be read #1 to #N; a "show 200
