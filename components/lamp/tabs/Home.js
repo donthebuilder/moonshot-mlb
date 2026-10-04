@@ -101,10 +101,10 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
       >
         {games.length > 0 && (
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            <HeroStat theme={C} numFont={NUM_FONT} label="GAMES" value={games.length} title="Games on the day (/api/lamp/scores)." />
-            {firstDrop && <HeroStat theme={C} numFont={NUM_FONT} label="FIRST PUCK DROP" value={fmtPuckDrop(firstDrop)} sub={zoneAbbrev()} title="Earliest startUtc on the day (/api/lamp/scores)." />}
-            {boardGames.length > 0 && <HeroStat theme={C} numFont={NUM_FONT} label="LOCKED" value={`${lockedN}/${boardGames.length}`} col={allLocked ? C.teal : C.text} title="Games whose board has locked before puck drop (/api/lamp/board games[].locked)." />}
-            {graded && <HeroStat theme={C} numFont={NUM_FONT} label="GRADED" value={graded.value} sub={graded.sub} col={C.lamp} title="Called skaters who dressed and scored, over those who dressed (/api/lamp/record total calledHits/calledN)." />}
+            <HeroStat theme={C} numFont={NUM_FONT} label="GAMES" value={games.length} title="Games on the day." />
+            {firstDrop && <HeroStat theme={C} numFont={NUM_FONT} label="FIRST PUCK DROP" value={fmtPuckDrop(firstDrop)} sub={zoneAbbrev()} title="The first puck drop of the day." />}
+            {boardGames.length > 0 && <HeroStat theme={C} numFont={NUM_FONT} label="LOCKED" value={`${lockedN}/${boardGames.length}`} col={allLocked ? C.teal : C.text} title="Games whose board has locked before puck drop." />}
+            {graded && <HeroStat theme={C} numFont={NUM_FONT} label="GRADED" value={graded.value} sub={graded.sub} col={C.lamp} title="Called skaters who dressed and scored, over those who dressed." />}
           </div>
         )}
         {/* THE CRAWL: the latest graded night in one sentence, its real

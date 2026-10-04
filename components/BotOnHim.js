@@ -40,7 +40,7 @@ export default function BotOnHim({ pid }) {
     { key: 'g', label: 'G', group: 'All games', w: 34, heat: false, numeric: true, title: 'Games in that role, voids and 0-PA games out' },
     { key: 'hr', label: 'HR games', group: 'All games', w: 74, heat: false, title: 'Games he homered in (home runs in brackets)' },
     { key: 'hit', label: 'Hit games', group: 'All games', w: 52, heat: false, numeric: true },
-    { key: 'did', label: 'Did the job', group: 'All games', w: 60, heat: false, title: "Cleared that role's bar (lib/pickJob.js)" },
+    { key: 'did', label: 'Did the job', group: 'All games', w: 60, heat: false, title: "Cleared that role's bar" },
     { key: 'vsL', label: 'vs LHP', group: 'HR games by split', w: 52, heat: false, title: 'HR games / games against a left-handed starter' },
     { key: 'vsR', label: 'vs RHP', group: 'HR games by split', w: 52, heat: false },
     { key: 'home', label: 'Home', group: 'HR games by split', w: 48, heat: false },

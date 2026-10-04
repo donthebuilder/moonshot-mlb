@@ -23,12 +23,12 @@ export default function BucketsTicker({ date = null, scores, liveScores, onOpenP
     const out = []
     const on = date ? ` · ${fmtDay(date).toUpperCase()}` : ''
     const top = (board.data?.rows || []).filter((r) => r.score != null).sort((a, b) => (a.nightRank ?? 9999) - (b.nightRank ?? 9999))[0]
-    if (top) out.push({ k: 'top', icon: '🎯', label: `${top.locked ? "PTS BOARD'S #1" : "PTS BOARD'S #1 · PREVIEW"}${on}`, value: `${top.name} ${top.score}`, color: C.purple, title: 'Highest score on the night’s points board (/api/buckets/board). PREVIEW until his game locks — a preview is not a call.', onClick: () => onOpenPlayer?.(top.playerId) })
+    if (top) out.push({ k: 'top', icon: '🎯', label: `${top.locked ? "PTS BOARD'S #1" : "PTS BOARD'S #1 · PREVIEW"}${on}`, value: `${top.name} ${top.score}`, color: C.purple, title: 'Highest score on the night’s points board. PREVIEW until his game locks — a preview is not a call.', onClick: () => onOpenPlayer?.(top.playerId) })
     const pl = leaders.data?.categories?.find((c) => c.key === 'pts')?.leaders?.[0]
-    if (pl) out.push({ k: 'ppg', icon: '🏀', label: `SCORING LEADER${leaders.data.seasonLabel ? ` · ${leaders.data.seasonLabel}` : ''}`, value: `${pl.name} ${pl.value}`, color: C.text, title: 'League points-per-game leader (/api/buckets/leaders).', onClick: () => onOpenPlayer?.(pl.id) })
+    if (pl) out.push({ k: 'ppg', icon: '🏀', label: `SCORING LEADER${leaders.data.seasonLabel ? ` · ${leaders.data.seasonLabel}` : ''}`, value: `${pl.name} ${pl.value}`, color: C.text, title: 'League points-per-game leader.', onClick: () => onOpenPlayer?.(pl.id) })
     const day = scores?.data
     if (day?.games) {
-      out.push({ k: 'games', label: `GAMES${on}`, value: String(day.games.length), color: C.text2, title: 'Games on the day (/api/buckets/scores).' })
+      out.push({ k: 'games', label: `GAMES${on}`, value: String(day.games.length), color: C.text2, title: 'Games on the day.' })
       if (day.live) out.push({ k: 'live', label: 'LIVE', value: String(day.live), color: C.rim, live: true, title: 'Games in progress.' })
     }
     for (const g of liveScores?.data?.games || []) {

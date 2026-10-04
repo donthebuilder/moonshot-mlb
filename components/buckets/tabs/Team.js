@@ -73,7 +73,7 @@ export default function Team({ abbrev, onBack, backLabel = 'Teams', onOpenPlayer
         <section>
           <Kicker>WHERE {known.abbrev} SHOOTS FROM · {shots.length} ATTEMPTS ON FILE</Kicker>
           <ShotChart shots={shots} filters={['result', 'type']} title={`${known.nick}, every field-goal attempt on file`}
-            source="Source: ESPN play-by-play, every field-goal attempt on file for the club (buckets_shots)." />
+            source="Every field-goal attempt on file for the club, from ESPN play-by-play." />
         </section>
       )}
       <SourceLine>Source: ESPN roster, injuries, schedule and season stats (/api/buckets/team); defence /api/buckets/defense; shots /api/buckets/shots.</SourceLine>

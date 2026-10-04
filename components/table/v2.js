@@ -28,6 +28,7 @@
 // Plain functions, no hooks: DenseTable owns the state and calls renderV2.
 import TeamMark from '../TeamMark'
 import Tap from '../Tap'
+import { STATUS_WORD } from '../../lib/callStatus'
 import PlayerFace from '../PlayerFace'
 import CallStatusBadge from '../CallStatusBadge'
 import { ShowMoreButton } from '../ListPreview'
@@ -244,7 +245,7 @@ export function renderV2(ctx) {
     const g = nm?._g || null
     let at = ordered.indexOf(nm)
     ordered.forEach((c, i) => { if (g && c._g?.key === g.key) at = i })
-    const col = { key: '_status', label: 'Status', heat: false, _status: true, _g: g, w: 118, title: 'CALLED / ON THE BOARD / NOT ON THE BOARD, from the one status rule (lib/callStatus).' }
+    const col = { key: '_status', label: 'Status', heat: false, _status: true, _g: g, w: 118, title: `${STATUS_WORD.called}: the bot\u2019s pick. ${STATUS_WORD.board}: inside the board, not picked. ${STATUS_WORD.off}: outside the board.` }
     return [...ordered.slice(0, at + 1), col, ...ordered.slice(at + 1)]
   })()
   // the # column: tagged, or the plain '#' text column every board uses

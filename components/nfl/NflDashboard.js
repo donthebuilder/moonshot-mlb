@@ -115,9 +115,6 @@ const NFL_TAB_KEEP = { player: new Set(['players']), team: new Set(['players', '
 
 export default function NflDashboard({ palettePass = 0 }) {
   const [tab, setTabRaw] = useState('home')
-  // A club tapped on Standings, handed to the players directory once.
-  const [portalTeam, setPortalTeam] = useState(null)
-  useEffect(() => { if (tab !== 'players') setPortalTeam(null) }, [tab])
   // The Board hub names its own market/view (BoardHub onTitle); every other
   // page is the registry's title. One hook, so the two never fight.
   const [hubTitle, setHubTitle] = useState(null)
@@ -417,7 +414,7 @@ export default function NflDashboard({ palettePass = 0 }) {
           <ErrorBoundary resetKey={tab} label={`the ${tab} tab`}>
             {tab === 'home' && <Home data={slate} picks={picks} results={nflResults} matchup={matchup} logs={logs} onPlayerClick={openPlayer} setTab={setTab} />}
             {/* MOONSHOT's Players page (2026-09-30): list + the card inline. */}
-            {tab === 'players' && <NflPlayers data={data} logs={logs} matchup={matchup} picks={picks} results={nflResults} initialTeam={portalTeam} odds={odds} />}
+            {tab === 'players' && <NflPlayers data={data} logs={logs} matchup={matchup} picks={picks} results={nflResults} odds={odds} />}
             {tab === 'watchlist' && <Watchlist data={slate} matchup={matchup} logs={logs} onPlayerClick={openPlayer} />}
             {tab === 'games' && <Games data={slate} picks={picks} matchup={matchup} logs={logs} results={nflResults} odds={odds} onPlayerClick={openPlayer} onOpenTeam={openTeamPage} />}
             {/* One Board page (2026-09-26, option (b)): touchdowns / boards /

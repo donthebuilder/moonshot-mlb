@@ -44,7 +44,7 @@ export default function LampTicker({ date = null, scores, liveScores, onOpenPlay
     if (top) {
       out.push({
         k: 'top', icon: '🎯', label: `${top.stamp === 'preview' ? "THE BOARD'S #1 · PREVIEW" : "THE BOARD'S #1"}${on}`, value: `${top.name} ${top.score}`,
-        color: C.ice, title: 'Highest score on the night’s board (/api/lamp/board, rankNight). PREVIEW until his game locks — a preview is not a call.',
+        color: C.ice, title: 'Highest score on the night’s board. PREVIEW until his game locks — a preview is not a call.',
         onClick: () => onOpenPlayer?.(top.playerId),
       })
     }
@@ -52,19 +52,19 @@ export default function LampTicker({ date = null, scores, liveScores, onOpenPlay
     if (gl) {
       out.push({
         k: 'goals', icon: '🚨', label: `GOALS LEADER${leaders.data.seasonLabel ? ` · ${leaders.data.seasonLabel}` : ''}`, value: `${gl.name} ${gl.value}`,
-        color: C.text, title: 'League goals leader, regular season (/api/lamp/leaders skaters.goals[0]).',
+        color: C.text, title: 'League goals leader, regular season.',
         onClick: () => onOpenPlayer?.(gl.id),
       })
     }
     const day = scores?.data
     if (day?.games) {
-      out.push({ k: 'games', label: `GAMES${on}`, value: String(day.games.length), color: C.text2, title: 'Games on the day (/api/lamp/scores games).' })
-      if (day.live) out.push({ k: 'live', label: 'LIVE', value: String(day.live), color: C.lamp, live: true, title: 'Games in progress (/api/lamp/scores live).' })
-      if (day.final) out.push({ k: 'final', label: 'FINAL', value: String(day.final), color: C.text2, title: 'Games finished (/api/lamp/scores final).' })
+      out.push({ k: 'games', label: `GAMES${on}`, value: String(day.games.length), color: C.text2, title: 'Games on the day.' })
+      if (day.live) out.push({ k: 'live', label: 'LIVE', value: String(day.live), color: C.lamp, live: true, title: 'Games in progress.' })
+      if (day.final) out.push({ k: 'final', label: 'FINAL', value: String(day.final), color: C.text2, title: 'Games finished.' })
     }
     const locks = games.map((g) => g.lockedAt).filter(Boolean).sort()
-    if (locks.length) out.push({ k: 'built', label: 'LOCKED', value: hm(locks[locks.length - 1]), color: C.teal, title: `Newest lock on the board (/api/lamp/board games[].lockedAt): ${locks.length} of ${games.length} games locked.` })
-    else if (board.data?.fetchedAt && games.length) out.push({ k: 'built', label: 'PREVIEW AS OF', value: hm(board.data.fetchedAt), color: C.amber, title: 'No game has locked yet — the board is a preview as of this read (/api/lamp/board fetchedAt).' })
+    if (locks.length) out.push({ k: 'built', label: 'LOCKED', value: hm(locks[locks.length - 1]), color: C.teal, title: `Newest lock on the board: ${locks.length} of ${games.length} games locked.` })
+    else if (board.data?.fetchedAt && games.length) out.push({ k: 'built', label: 'PREVIEW AS OF', value: hm(board.data.fetchedAt), color: C.amber, title: 'No game has locked yet — the board is a preview as of this read.' })
 
     for (const g of liveScores?.data?.games || []) {
       const a = g.away?.abbrev; const h = g.home?.abbrev

@@ -1664,7 +1664,7 @@ rows={(() => {
             title: 'Lineup confirmed' },
           // ── numbers from here down, uninterrupted ──
           { key: 'overall', label: 'Overall', w: 58, dp: 0,
-            title: 'A SECOND LENS, not the headline. Blended attackability: HR/9 30%, attack 25%, zone damage 20%, weak side 15%, minus swinging-strike 10%, weighted 70% season / 30% recent form. The cards above rank on the LEAK SCORE instead (lib/armLeak) — eight published fields ranked against tonight\'s other starters, including the park and tonight\'s contact quality, which this column has no view of. Both unvalidated: none of these inputs has reached the graded archive.' },
+            title: 'A SECOND LENS, not the headline. Blended attackability: HR/9 30%, attack 25%, zone damage 20%, weak side 15%, minus swinging-strike 10%, weighted 70% season / 30% recent form. The cards above rank on the LEAK SCORE instead — eight published fields ranked against tonight\'s other starters, including the park and tonight\'s contact quality, which this column has no view of. Both unvalidated: none of these inputs has reached the graded archive.' },
           { key: 'hr9',    label: 'HR/9', w: 46, dp: 2 },
           { key: 'xallowed', label: 'xHR', w: 48, dp: 1,
             title: 'Expected homers allowed from the contact he\'s actually given up — the bot\'s league (EV, LA) table, no park or weather. Compare with his real HR total.' },
