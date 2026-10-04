@@ -29,6 +29,7 @@
 // prints), the odds file, and the pair-history summary.
 
 import { playerHref } from '../../../../../lib/routes'
+import { storyThreadsOn, postStoryResults } from '../../../../../lib/dash/storyThread'
 import { gameCalls, gameCallText } from '../../../../../lib/dash/gameCall'
 import { xDailyAllows } from '../../../../../lib/dash/xBudget'
 import { isRested } from '../../../../../lib/dash/xRest'
@@ -1926,6 +1927,15 @@ export async function GET(request) {
           }
           await db.from('homer_feed_posts').update(patch).match({ day, kind })
         }
+      }
+
+      // STORY THREADS, THE RESULT (RUN ORDER 3b, 2026-10-04): each call post
+      // above gets one reply after its final -- CALLED IT or MISSED, graded by
+      // pickCleared. OFF until STORY_THREADS=on (lib/dash/storyThread.js).
+      if (storyThreadsOn() && hasX()) {
+        const st = await postStoryResults(db, [day, shiftDay(day, -1)], { postToX, xAllows: (d) => xDailyAllows(db, d, 1) })
+          .catch((e) => { console.error(`[homers] story results: ${e?.message || e}`); return null })
+        if (st?.replied) console.log(`[homers] story results: ${st.replied} replied`)
       }
 
       // THE CALLED SHOTS, HELD FOR THE LOCK WINDOW (2026-09-15). The
