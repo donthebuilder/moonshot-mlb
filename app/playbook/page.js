@@ -4,7 +4,7 @@
 import start from '../start/start.module.css'
 import styles from './playbook.module.css'
 import { PLAYBOOKS, SPORT_MARKETS, CORE_LINE, STEPS } from '../../lib/playbook'
-import { appHref, BRAND } from '../../lib/routes'
+import { appHref, BRAND, SPORT_KEYS } from '../../lib/routes'
 
 export const metadata = {
   title: 'How to research a pick · DASH Playbook',
@@ -23,7 +23,8 @@ export default function PlaybookIndex() {
           <div><small>DASH NETWORK</small><strong>PLAYBOOK</strong></div>
         </a>
         <nav className={start.nav}>
-          <a className={start.navOff} href={appHref('mlb')}>Open the board</a>
+          {/* every sport is below, so the header goes to the front door, not MOONSHOT's board (0g D6 rest) */}
+          <a className={start.navOff} href="/">Open DASH</a>
         </nav>
       </header>
       <section className={start.hero}>
@@ -45,7 +46,7 @@ export default function PlaybookIndex() {
       ))}
       <footer className={start.foot}>
         <span>DASH shows the data and the model&apos;s reads. It is information, not advice; the decision is yours.</span>
-        <span><a href="/called">The public record</a>{' · '}<a href={appHref('mlb')}>MOONSHOT</a>{' · '}<a href={appHref('nfl')}>TUDDY</a>{' · '}<a href={appHref('nhl')}>LAMP</a></span>
+        <span><a href="/called">The public record</a>{SPORT_KEYS.map((k) => <span key={k}>{' · '}<a href={appHref(k)}>{BRAND[k].name}</a></span>)}</span>
       </footer>
     </main>
   )
