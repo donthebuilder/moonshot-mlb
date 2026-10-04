@@ -7,7 +7,7 @@ import { SportTheme } from '../../SportTheme'
 import { FilterSelect } from '../../Filters'
 import PlayerBoardFrame from '../../players/PlayerBoardFrame'
 import NflPlayerModal from '../NflPlayerModal'
-import { useRosterExtras } from './StatPortal'
+import { useRosterExtras } from '../../../lib/nfl/useRosterExtras'
 
 // 🏈 PLAYERS, MOONSHOT'S PAGE (2026-09-30, Donovan: "the mlb players page is
 // the base i like that, use those components"). The Players tab is
