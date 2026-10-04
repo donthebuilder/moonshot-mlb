@@ -55,6 +55,7 @@ import Results from './tabs/Results'
 import Guide from './tabs/Guide'
 import DashFooter from '../DashFooter'
 import PlayerPeek from '../PlayerPeek'
+import SkipLink from '../SkipLink'
 
 // Pages that show one day and keep it in the address (`date=`).
 const DATED_TABS = new Set(['home', 'scores', 'board', 'fullboard', 'games', 'schedule', 'matchups', 'hot', 'ledger', 'storylines', 'odds'])
@@ -89,7 +90,7 @@ export default function BucketsDashboard() {
   return (
     <AccentProvider value={C.purple}>
       <MobileCSS />
-      <a className="skip-link" href="#board-main">Skip to the board</a>
+      <SkipLink />
       <BucketsHeader setTab={setTab} live={live} date={date} setDate={setDate} scores={shown} liveScores={today} onOpenPlayer={peekPlayer} onOpenGame={openGame} />
       <TodayContext.Provider value={nbaToday}>
       <main id="board-main" className="dashboard-main" style={{ maxWidth: 1300, margin: '0 auto', padding: '14px 14px 40px', background: C.bg, color: C.text }}>

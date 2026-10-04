@@ -58,6 +58,7 @@ import dynamic from 'next/dynamic'
 import { useLiveRefresh } from '../../lib/liveRefresh'
 import RefreshStamp from '../RefreshStamp'
 import DashFooter from '../DashFooter'
+import SkipLink from '../SkipLink'
 const OddsBoard = dynamic(() => import('../tabs/OddsBoard'))
 
 // The key set now lives in lib/routes.js alongside MOONSHOT's, with the
@@ -374,7 +375,7 @@ export default function NflDashboard({ palettePass = 0 }) {
     <AccentProvider value={C.green}>
       <MobileCSS />
       {/* See the note in components/Dashboard.js -- same gap, same fix. */}
-      <a className="skip-link" href="#board-main">Skip to the board</a>
+      <SkipLink />
       <NflHeader tab={tab} setTab={setTab} data={data} meta={meta} matchup={matchup} weekMode={weekMode} setWeekMode={setWeekMode} onPlayerClick={openPlayer} />
       <TodayContext.Provider value={nflToday}>
       <main id="board-main" className="dashboard-main"

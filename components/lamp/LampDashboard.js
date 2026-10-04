@@ -51,6 +51,7 @@ import dynamic from 'next/dynamic'
 import RefreshStamp from '../RefreshStamp'
 import DashFooter from '../DashFooter'
 import PlayerPeek from '../PlayerPeek'
+import SkipLink from '../SkipLink'
 const LampOdds = dynamic(() => import('./LampOdds'))
 
 // 🏒 THE LAMP SHELL. Thin on purpose, the same shape as NflDashboard and
@@ -109,7 +110,7 @@ export default function LampDashboard({ palettePass = 0 }) {
   return (
     <AccentProvider value={C.ice}>
       <MobileCSS />
-      <a className="skip-link" href="#board-main">Skip to the board</a>
+      <SkipLink />
       <LampHeader tab={tab} setTab={setTab} live={live} date={date} setDate={setDate} scores={shown} liveScores={today} onOpenPlayer={peekPlayer} onOpenGame={openGame} />
       <TodayContext.Provider value={nhlToday}>
       <main id="board-main" className="dashboard-main" style={{ maxWidth: 1300, margin: '0 auto', padding: '14px 14px 40px', background: C.bg, color: C.text }}>

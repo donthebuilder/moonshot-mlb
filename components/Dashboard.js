@@ -37,6 +37,7 @@ import dynamic from 'next/dynamic'
 import { useLiveRefresh } from '../lib/liveRefresh'
 import RefreshStamp from './RefreshStamp'
 import DashFooter from './DashFooter'
+import SkipLink from './SkipLink'
 
 // ── ONE TAB'S CODE AT A TIME (2026-09-27) ────────────────────────────────
 // Every tab used to be a static import, so a cold MOONSHOT link downloaded
@@ -829,7 +830,7 @@ export default function Dashboard({ palettePass = 0 }) {
           first focus stop, and one h1 that names the page you are actually on.
           It is sr-only because the visual design already answers "where am I"
           through the tab row; the document never did. */}
-      <a className="skip-link" href="#board-main">Skip to the board</a>
+      <SkipLink />
       <Header tab={tab} setTab={setTab} dateLabel={dateLabel} slateDate={slateDate} mode={mode} setMode={setMode} results={resultsForSlate} players={allPlayers} games={headerGames} runMeta={runMeta} onPlayerClick={setModalPlayer} />
       <TodayContext.Provider value={mlbToday}>
       <main id="board-main" className="dashboard-main" style={{ maxWidth: 1300, margin: '0 auto', padding: '0 14px 28px' }}>
