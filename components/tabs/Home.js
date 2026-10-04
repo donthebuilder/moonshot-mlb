@@ -218,6 +218,8 @@ const HOME_VIEWS = [
   { key: 'fullboard', label: 'Rankings' },
 ]
 const HOME_VIEW_KEYS = new Set(HOME_VIEWS.map((v) => v.key))
+// view -> the tab key Dashboard.js mounts it under
+const VIEW_TAB = { tonight: 'home', live: 'atplate', board: 'scoreboard', boxes: 'boxes', fullboard: 'fullboard' }
 const BARE_BUTTON = {
   border: 'none', background: 'transparent', padding: 0,
   color: 'inherit', font: 'inherit', textAlign: 'left',
@@ -282,9 +284,15 @@ export default function Home({
       if (saved && HOME_VIEW_KEYS.has(saved)) setView(saved)
     } catch { /* no storage: open on Tonight */ }
   }, [initial])
+  // EACH VIEW IS AN ADDRESS (2026-10-04, audit 02 #1): the pills only set
+  // state, so the URL kept saying the tab you came in on and Back left /app
+  // altogether. Every view already has its own tab key (Dashboard.js mounts
+  // this component under each), so a pill navigates there.
   const pickView = (k) => {
     setView(k)
     try { localStorage.setItem('home_view', k) } catch { /* not remembered, still shown */ }
+    const tabFor = VIEW_TAB[k]
+    if (onNavigate && tabFor && VIEW_TAB[initial] !== tabFor) onNavigate(tabFor)
   }
 
   // ── "New here?" — SHOWN ON THE FIRST VISIT, NOT EVERY VISIT (2026-08-16) ──
