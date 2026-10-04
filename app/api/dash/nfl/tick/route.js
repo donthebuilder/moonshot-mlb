@@ -611,10 +611,12 @@ async function runWeeklyContentTick(db, day) {
           .match({ day: yday, kind: 'nfl_board' }).maybeSingle()
         const boardPicks = prior?.payload?.picks || []
         if (!boardPicks.length) { out[sl.kind] = 'no-board-to-grade'; continue }
-        const { data: tds } = await db.from('nfl_td_feed').select('scorer_name').eq('day', yday)
-        const scorers = new Set((tds || []).map((r) => String(r.scorer_name || '').toLowerCase()).filter(Boolean))
+        // By gsis_id (bot audit 10-03 #7: name-only matching missed Jr. / III
+        // spellings); a TD that never joined the slate falls back to its name.
+        const { data: tds } = await db.from('nfl_td_feed').select('scorer_name, gsis_id').eq('day', yday)
+        const scorers = { ids: new Set((tds || []).map((r) => String(r.gsis_id || '')).filter(Boolean)), names: new Set((tds || []).filter((r) => !r.gsis_id).map((r) => String(r.scorer_name || '').toLowerCase()).filter(Boolean)) }
         text = nflBoardResultsText(boardPicks, scorers, data, tailFor('nfl_results'))
-        payload = { picks: boardPicks, scorers: [...scorers], graded_day: yday }
+        payload = { picks: boardPicks, scorers: [...scorers.ids, ...scorers.names], graded_day: yday }
       }
       if (!text) { out[sl.kind] = 'nothing-to-say-yet'; continue }
       if (!(await claimSlot(db, day, sl.kind))) { out[sl.kind] = 'already-posted-or-claim-failed'; continue }
