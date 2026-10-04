@@ -178,7 +178,11 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
             rows={boardGames.map((g) => ({ _key: g.game.id, g, game: `${g.game.away.abbrev}@${g.game.home.abbrev}`, stamp: g.graded ? 'GRADED' : g.locked ? 'LOCKED' : g.setting ? 'SETTING' : 'PREVIEW' }))}
             columns={[
               { key: 'game', label: 'Game', heat: false, sticky: true, w: 90, link: (r) => (onOpenGame ? () => onOpenGame(r.g.game.id) : null), fmt: (_, r) => <MatchLogos sport="nhl" away={r.g.game.away.abbrev} home={r.g.game.home.abbrev} px={16} gap={3} /> },
-              { key: 'called', label: 'Called', heat: false, numeric: false, w: 260, fmt: (_, r) => (
+              { key: 'called',
+                // A PREVIEW game's names aren't calls yet (scenario test F10:
+                // "CALLED" beside "not a call yet"). Locked/graded -> Called.
+                label: boardGames.every((g) => g.locked || g.graded) ? 'Called' : boardGames.some((g) => g.locked || g.graded) ? 'Called · preview = projected' : 'Projected',
+                heat: false, numeric: false, w: 260, fmt: (_, r) => (
                 <span style={{ fontSize: 11.5, lineHeight: 1.4, whiteSpace: 'normal' }}>
                   {r.g.rows.filter((x) => x.status === 'called').map((x, i) => (
                     <span key={x.playerId}>{i ? ' · ' : ''}{onOpenPlayer ? <Tap onClick={() => onOpenPlayer(x.playerId)}><span style={{ color: x.hit ? C.lamp : C.text }}>{x.name}</span></Tap> : <span style={{ color: x.hit ? C.lamp : C.text }}>{x.name}</span>} <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 10 }}>{x.score}</span></span>
