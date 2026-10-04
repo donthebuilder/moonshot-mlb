@@ -14,7 +14,7 @@ import { fetchJSON, normalizeData, groupGames, slateLooksReal, slateDateFromRows
 import { stampSave, unstampSave, seedFromOldLedger } from '../lib/watchNights'
 import { slatePaths, resultsPaths, runMetaPaths, pairBuilderPaths, pairSummaryPaths, backtestPaths, evalReportPaths, oddsPaths, gradedResultsUrl, setSlateMode } from '../lib/dataSource'
 import { nameOf, teamOf, oppOf, clean, playerId, obj } from '../lib/player'
-import { fetchLiveSlate } from '../lib/liveSlate'
+import { fetchLiveSlate, setLiveSlateDay } from '../lib/liveSlate'
 import { Empty } from './ui'
 import Header from './Header'
 import MiniWire from './MiniWire'
@@ -716,6 +716,9 @@ export default function Dashboard({ palettePass = 0 }) {
   // back to the newest game_time means the banner can still tell you which
   // night you're actually looking at.
   const slateDate = clean(obj(data).date || obj(data).slate_date, '') || slateDateFromRows(data)
+  // The live layer keeps the games of the slate on screen -- last night's
+  // until the morning run publishes today's (lib/liveSlate setLiveSlateDay).
+  useEffect(() => { setLiveSlateDay(mode === 'today' ? slateDate : '') }, [mode, slateDate])
   // THE TODAY LINE's day (2026-09-28): the slate's games, the slate's own date.
   // The grouped slate carries start times, not states: a start in the past is
   // 'started' (under way or final), never guessed as one of the two.
