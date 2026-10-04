@@ -269,7 +269,7 @@ export default function MiniWire({
       // The page API is unreliable on Android and dies when the phone freezes
       // the tab — which is precisely the case these alerts exist for.
       items.filter((t) => alertWanted(prefs, t, hidden)).slice(0, 3).forEach((t) => {
-        notify({ title: `${t.icon} MOONSHOT`, body: t.text, tag: t.key, silent: t.pri > 0.5, url: toastUrl(t) })
+        notify({ title: `${t.icon} ${t.text}`, body: 'MOONSHOT', tag: t.osTag || t.key, silent: t.pri > 0.5, url: toastUrl(t) }) // the news is line 1 on a lock screen
       })
     }
     // Dwell. HALVED 2026-09-03 ("they stay on the screen a little bit too
@@ -312,7 +312,13 @@ export default function MiniWire({
             // `kind` rides along now — the alert settings (lib/dash/alerts.js)
             // switch categories on and off by kind, and priority alone can't
             // tell a cleared bar from a strikeout script.
-            out.push({ key, icon, text, p, pri, kind })
+            // A homer's OS notification wears the server push's own tag
+            // (lib/dash/pushRules: mlb:<game date>:<id>:hr:<n>), so a phone
+            // with push on keeps ONE notification for it, not two (2026-10-04
+            // ops audit: two lock-screen alerts per followed homer).
+            const gd = kind === 'hr' ? (s.games || []).find((x) => Number(x.pk) === Number(now.pk))?.gameDate : null
+            const osTag = gd ? `mlb:${gd}:${id}:hr:${now.hr}` : null
+            out.push({ key, icon, text, p, pri, kind, osTag })
           }
           if (now.hr > was.hr) {
             const hrKey = `${id}:hr:${now.hr}${now.d2}${now.d3}${now.k}${now.tb}`

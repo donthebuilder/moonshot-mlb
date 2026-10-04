@@ -106,7 +106,7 @@ export default function NflWire({ data, onPlayerClick }) {
       if (prefs.on && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
         const hidden = typeof document !== 'undefined' && document.hidden
         items.filter((t) => alertWanted(prefs, t, hidden)).slice(0, 3).forEach((t) => {
-          notify({ title: `${t.icon} DASH · Tuddy`, body: t.text, tag: t.key, url: '/app#sport=nfl&tab=watchlist' })
+          notify({ title: `${t.icon} ${t.text}`, body: 'TUDDY', tag: t.key, url: '/app#sport=nfl&tab=watchlist' }) // the news is line 1 on a lock screen
         })
       }
       items.forEach((t) => setTimeout(() => {
