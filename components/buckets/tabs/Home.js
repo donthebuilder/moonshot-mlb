@@ -65,7 +65,7 @@ export default function Home({ today, date, setTab, onOpenPlayer, onOpenGame, on
 
       <BucketsHeadline theme={C} numFont={NUM_FONT} boards={{ pts: pts.data, reb: reb.data, ast: ast.data }} onOpenPlayer={onOpenPlayer} />
       {(pts.data?.rows || []).length > 0 && <BucketWatch rows={pts.data.rows} date={pts.data.date} onOpenPlayer={onOpenPlayer} />}
-      <StorylinesStrip sport="nba" theme={C} numFont={NUM_FONT} accent={C.purple} max={5} onOpenTeam={onOpenTeam} onSeeAll={() => setTab?.('storylines')} onOpenPlayer={(id) => onOpenPlayer?.(String(id))} />
+      <StorylinesStrip sport="nba" theme={C} numFont={NUM_FONT} accent={C.purple} max={3} onOpenTeam={onOpenTeam} onSeeAll={() => setTab?.('storylines')} onOpenPlayer={(id) => onOpenPlayer?.(String(id))} />
 
       <section aria-label="Tonight's games">
         <Kicker>THE GAMES{day?.date ? ` · ${fmtDay(day.date)}` : ''}</Kicker>

@@ -443,7 +443,7 @@ export default function Home({ data, picks, results, matchup, logs, onPlayerClic
       {/* 2026-09-27 (BATCH-STORYLINES-PAGE step 4): the story engine's rarest six
           on games still to come, then the by-game Storylines tab. Was the whole
           Storylines view embedded here (2,759px at 390). */}
-      <StorylinesStrip sport="nfl" theme={C} numFont={NUM_FONT} accent={C.green} max={6} onSeeAll={() => setTab('storylines')}
+      <StorylinesStrip sport="nfl" theme={C} numFont={NUM_FONT} accent={C.green} max={3} onSeeAll={() => setTab('storylines')}
         onOpenPlayer={(id) => { const p = (data?.players || []).find((x) => String(x.player_id) === String(id)); if (p) onPlayerClick?.(p, 'TD') }} />
 
       {/* ⭐ YOUR PLAYERS (2026-09-16, parity pass) -- replaces the old

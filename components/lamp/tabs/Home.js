@@ -140,7 +140,7 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
           five (History Watch's claims lead as the rarest), then the Storylines tab. */}
       {/* ⭐ YOUR PLAYERS (2026-10-03): MOONSHOT's section, fed by the scores and board read above. */}
       <LampYourPlayers games={games} board={board.data} onOpenPlayer={onOpenPlayer} />
-      <StorylinesStrip sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} max={5} onOpenTeam={onOpenTeam} onSeeAll={() => setTab?.('storylines')} onOpenPlayer={(id) => onOpenPlayer?.(Number(id))} />
+      <StorylinesStrip sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} max={3} onOpenTeam={onOpenTeam} onSeeAll={() => setTab?.('storylines')} onOpenPlayer={(id) => onOpenPlayer?.(Number(id))} />
       <LongshotsPreview sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} onSeeAll={() => setTab?.('longshots')} onOpenPlayer={(id) => onOpenPlayer?.(id)} />
 
       <section aria-label="Tonight's games">
