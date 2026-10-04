@@ -151,6 +151,13 @@ export default async function DashHome({ searchParams }) {
       {/* Old /#sport=…&tab=… links land here now. This sends them on to the
           board with the hash intact — see the component for why it cannot be
           done on the server. */}
+      {/* BEFORE ANYTHING LOADS (2026-10-04 perf audit): an old /#sport=… link
+          used to download the whole front door, hydrate, and only then
+          location.replace() to /app -- the JS, the icon, analytics and the
+          state call twice (~240 KB, ~450 ms more on a phone). This runs as the
+          HTML is parsed; LegacyHashRedirect still covers a same-page hashchange.
+          Same rule: only a hash carrying sport or tab is a board link. */}
+      <script dangerouslySetInnerHTML={{ __html: "(function(){try{var r=location.hash.slice(1);if(!r)return;var p=new URLSearchParams(r);if(p.get('sport')||p.get('tab'))location.replace('/app#'+r)}catch(e){}})()" }} />
       <LegacyHashRedirect />
       <header className={styles.bar}>
         {/* A link, not a div. On the network's other surfaces the mark went
