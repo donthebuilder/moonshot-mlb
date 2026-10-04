@@ -5,7 +5,7 @@ import NflTable from '../NflTable'
 import PageHeader from '../../PageHeader'
 import { ActiveFilters, FilterBar, FilterSearch, FilterSelect } from '../../Filters'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
-import NflFace from '../NflFace'
+import PlayerFace from '../../PlayerFace'
 import { Para, Num, ConvictionClause, PowerLead, LensRow } from '../../power/PowerParts'
 import { convictionOf, percentileOf, standingPhrase } from '../../../lib/whyPick'
 import { btnStyle } from '../../ui'
@@ -122,7 +122,7 @@ function BigPlayWatch({ data, onPlayerClick }) {
         <button key={p.player_id} type="button" onClick={() => onPlayerClick?.(p, 'REC_YDS')}
           style={{ display: 'grid', gridTemplateColumns: '18px auto 1fr auto', alignItems: 'center', gap: 8, width: '100%', minHeight: 44, padding: '4px 2px', border: 0, borderTop: i ? `1px solid ${C.border}` : 0, background: 'transparent', color: C.text, textAlign: 'left', cursor: 'pointer' }}>
           <span style={{ fontFamily: NUM_FONT, fontSize: 11, color: C.text3 }}>{i + 1}</span>
-          <NflFace player={p} size={28} />
+          <PlayerFace sport="nfl" espnId={p?.espn_id} team={p?.team} name={p?.name} size={28} />
           <span style={{ minWidth: 0 }}>
             <span style={{ display: 'block', fontSize: 13, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</span>
             <span style={{ display: 'block', fontSize: 11, color: C.text3, fontFamily: NUM_FONT }}>{p.position} · {p.team}{p.opp ? ` vs ${p.opp}` : ''}</span>

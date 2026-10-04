@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../lib/nfl/theme'
 import { softRole, stingyRole, fitsSoft, STARTER_ROLES, SOFT_THIN_GAMES, multipleWords, earlyNote, MULTIPLE_CAP } from '../../lib/nfl/dvpSignal'
 import NflTable from './NflTable'
-import NflFace from './NflFace'
+import PlayerFace from '../PlayerFace'
 import Tap from '../Tap'
 
 // THE DEFENSES TO ATTACK THIS WEEK (2026-09-27, matchups plan, REVISED:
@@ -65,7 +65,7 @@ export default function DefensesTable({ matchup, data, win = 'season', active, o
     { key: 'edge', label: 'Edge', w: 54, primary: true, scale: 'seq', domain: [1, 3], fmt: (v) => (v == null ? '—' : `+${v.toFixed(1)}`) },
     { key: 'soft', label: 'Softest spot', w: 190, heat: false, fmt: (v, r) => <span style={{ color: r._standout ? C.cyan : C.text3, fontWeight: r._standout ? 800 : 500 }}>{v}</span> },
     { key: 'fits', label: 'Who fits it', w: 170, heat: false, fmt: (v, r) => (r._fits
-      ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><NflFace player={r._fits} size={22} />{v}<span style={{ color: C.text3, fontSize: 10 }}>{r._fits.position}</span></span>
+      ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><PlayerFace sport="nfl" espnId={r._fits?.espn_id} team={r._fits?.team} name={r._fits?.name} size={22} />{v}<span style={{ color: C.text3, fontSize: 10 }}>{r._fits.position}</span></span>
       : <span style={{ color: C.text3 }}>—</span>) },
     { key: 'tough', label: 'Toughest spot', w: 170, heat: false, fmt: (v) => <span style={{ color: C.text3 }}>{v}</span> },
   ]

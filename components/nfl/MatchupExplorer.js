@@ -4,7 +4,7 @@ import { C, NUM_FONT, TYPE } from '../../lib/nfl/theme'
 import { alpha } from '../../lib/scales'
 import { ChipGroup } from '../charts'
 import NflTable from './NflTable'
-import NflFace from './NflFace'
+import PlayerFace from '../PlayerFace'
 import FootballField from './FootballField'
 import { LANES, LANE_WORD } from '../../lib/nfl/fieldModel'
 
@@ -89,7 +89,7 @@ function Coverage({ matchup, byId, onPlayerClick, season }) {
               display: 'flex', alignItems: 'center', gap: 9, padding: '8px 10px', textAlign: 'left', cursor: 'pointer',
               border: `1px solid ${alpha(C.cyan, 0.4)}`, borderRadius: 11, background: alpha(C.cyan, 0.06), color: 'inherit',
             }}>
-              <NflFace player={r._raw} size={34} />
+              <PlayerFace sport="nfl" espnId={r._raw?.espn_id} team={r._raw?.team} name={r._raw?.name} size={34} />
               <span style={{ minWidth: 0 }}>
                 <b style={{ display: 'block', fontSize: TYPE.name, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</b>
                 <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, color: C.text3 }}>

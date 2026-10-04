@@ -1,5 +1,5 @@
 'use client'
-import NflFace from './NflFace'
+import PlayerFace from '../PlayerFace'
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/nfl/theme'
 import HeadlineStrip from '../HeadlineStrip'
@@ -52,7 +52,7 @@ export default function NflHeadlineStrip({ players, games, markets, matchup, log
   const byId = (id) => (players || []).find((x) => String(x?.player_id) === String(id))
   return (
     <>
-      <HeadlineStrip sport="nfl" cards={cards} onOpen={open} theme={C} numFont={NUM_FONT} accent={C.green} speed={30} faceOf={(c) => (c.p ? <NflFace player={c.p} size={22} /> : null)} />
+      <HeadlineStrip sport="nfl" cards={cards} onOpen={open} theme={C} numFont={NUM_FONT} accent={C.green} speed={30} faceOf={(c) => (c.p ? <PlayerFace sport="nfl" espnId={c.p?.espn_id} team={c.p?.team} name={c.p?.name} size={22} /> : null)} />
       <HistoryWatch sport="nfl" unit="TD" reach="within reach this week" step="next" theme={C} numFont={NUM_FONT} onPlayerClick={(p) => { const row = byId(p.player_id); if (row) onPlayerClick?.(row, 'TD') }} />
       <LongshotsPreview sport="nfl" theme={C} numFont={NUM_FONT} accent={C.green} onSeeAll={() => setTab?.('longshots')}
         onOpenPlayer={(id) => { const row = byId(id); if (row) onPlayerClick?.(row, 'TD') }} />

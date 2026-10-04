@@ -9,7 +9,7 @@ import { kickoffFor } from '../../../lib/nfl/kickoff'
 import OddsLine from '../../OddsLine'
 import OddsStatus from '../../OddsStatus'
 import MatchupBadge from '../MatchupBadge'
-import NflFace from '../NflFace'
+import PlayerFace from '../../PlayerFace'
 import { baselineFor, topStatChips } from '../ScoreAnatomy'
 import { Card as UiCard } from '../../ui'
 import StatStrip from '../../StatStrip'
@@ -112,7 +112,7 @@ export function Card({ p, rank, matchup, odds, onPlayerClick, weights, base, poo
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 7 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: 1 }}>
           <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.label, color: rank <= 3 ? C.green : C.text3, minWidth: 14 }}>{rank}</span>
-          <NflFace player={p} size={32} />
+          <PlayerFace sport="nfl" espnId={p?.espn_id} team={p?.team} name={p?.name} size={32} />
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3, color: C.text }}>
               {highConf && <span title="The bot's own high-confidence TD flag" style={{ fontSize: 14, lineHeight: 1, flexShrink: 0 }}>⭐</span>}

@@ -1,7 +1,7 @@
 'use client'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../lib/nfl/theme'
-import NflFace from './NflFace'
+import PlayerFace from '../PlayerFace'
 import { dueByTheNumbers } from '../../lib/nfl/storylines'
 import { surname } from '../../lib/nfl/statLabels'
 
@@ -94,7 +94,7 @@ export default function RedZoneField({ data, matchup, onPlayerClick }) {
         return (
           <div key={p.player_id} style={{ display: 'grid', gridTemplateColumns: 'minmax(96px, 30%) 1fr', gap: 8, alignItems: 'center', padding: '5px 0', borderTop: `1px solid ${C.border}` }}>
             <button type="button" onClick={() => onPlayerClick?.(p, 'TD')} aria-label={`${p.name}, ${p.position} -- open his card`} title={p.name} style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0, minHeight: 44, padding: 0, border: 0, background: 'transparent', color: C.text, textAlign: 'left', cursor: 'pointer' }}>
-              <NflFace player={p} size={28} />
+              <PlayerFace sport="nfl" espnId={p?.espn_id} team={p?.team} name={p?.name} size={28} />
               <span style={{ minWidth: 0 }}>
                 {/* The surname on the lane (the full name is in the notes and the
                     button's label): at 390 the full names were cut to "Jahmyr ...". */}
@@ -192,7 +192,7 @@ export function RedZoneStrip({ rows, kicker = null, rulerLabel = null, onPlayerC
             <Name {...(Name === 'button' ? { type: 'button', onClick: () => onPlayerClick(r.player, 'TD'), 'aria-label': `${r.name} -- open his card` } : Name === 'a' ? { href: r.href, 'aria-label': `${r.name} -- open his file` } : {})}
               title={r.name}
               style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, minHeight: 44, padding: 0, border: 0, background: 'transparent', color: C.text, textAlign: 'left', cursor: Name === 'span' ? 'default' : 'pointer', textDecoration: 'none' }}>
-              {r.player ? <NflFace player={r.player} size={phone ? 22 : 26} /> : null}
+              {r.player ? <PlayerFace sport="nfl" espnId={r.player?.espn_id} team={r.player?.team} name={r.player?.name} size={phone ? 22 : 26} /> : null}
               <span style={{ fontSize: 12, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{laneName(r.name)}</span>
             </Name>
             <div style={{ position: 'relative', height: lane, borderRadius: 4, background: `linear-gradient(90deg, ${C.turf1}, ${C.turf2})` }}>

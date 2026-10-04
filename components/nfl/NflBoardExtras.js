@@ -5,7 +5,7 @@ import { C, NUM_FONT, gradeFor } from '../../lib/nfl/theme'
 import { LABELS } from '../../lib/nfl/scoreLabels'
 import { quoteFor } from '../../lib/nfl/oddsMatch'
 import NflTable from './NflTable'
-import NflFace from './NflFace'
+import PlayerFace from '../PlayerFace'
 import { Segmented, FilterPill, AngleRow as SharedAngleRow } from '../Filters'
 import { alpha } from '../../lib/scales'
 import RangeDual from '../RangeDual'
@@ -105,7 +105,7 @@ export function NflBoardList({ players, market, weights, odds, phone, onPlayerCl
     { key: 'rank', label: '#', w: 30, heat: false },
     { key: 'name', label: 'Player', w: phone ? 158 : 170, heat: false, sticky: true, fmt: (v, r) => (
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-        <NflFace player={r._p} size={22} />
+        <PlayerFace sport="nfl" espnId={r._p?.espn_id} team={r._p?.team} name={r._p?.name} size={22} />
         {/* Wraps to a second line rather than "Amon-Ra St. B…" on a phone. */}
         <span style={{ whiteSpace: 'normal', lineHeight: 1.15, minWidth: 0 }}>{v}</span>
       </span>) },

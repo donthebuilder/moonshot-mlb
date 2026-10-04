@@ -6,7 +6,7 @@ import { quoteFor } from '../../../lib/nfl/oddsMatch'
 import { kickoffFor } from '../../../lib/nfl/kickoff'
 import OddsLine from '../../OddsLine'
 import OddsStatus from '../../OddsStatus'
-import NflFace from '../NflFace'
+import PlayerFace from '../../PlayerFace'
 import MatchupBadge from '../MatchupBadge'
 import NflExplain from '../NflExplain'
 import { ActiveFilters, FilterBar, FilterPill, PillRow } from '../../Filters'
@@ -364,7 +364,7 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
                 <span style={{
                   fontFamily: NUM_FONT, fontSize: TYPE.label, color: C.text3, minWidth: 13,
                 }}>{i + 1}</span>
-                <NflFace player={p} size={38} />
+                <PlayerFace sport="nfl" espnId={p?.espn_id} team={p?.team} name={p?.name} size={38} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div className="nfl-board-name" style={{
                     fontSize: TYPE.name, fontWeight: 700, color: C.text,

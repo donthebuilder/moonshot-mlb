@@ -1,6 +1,6 @@
 'use client'
 import { C, NUM_FONT, TYPE, gradeFor } from '../../lib/nfl/theme'
-import NflFace from './NflFace'
+import PlayerFace from '../PlayerFace'
 import MatchupBadge from './MatchupBadge'
 import { reasonFor, topStatChips } from './ScoreAnatomy'
 import { injuryTag, injuryTitle, injuryColor } from '../../lib/nfl/injury'
@@ -159,7 +159,7 @@ export default function PickCard({
       {/* header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.label, fontWeight: 900, color: C.text3, minWidth: 14 }}>{rung?.rank}</span>
-        <NflFace player={p} size={38} />
+        <PlayerFace sport="nfl" espnId={p?.espn_id} team={p?.team} name={p?.name} size={38} />
         <button onClick={onOpen} style={{
           flex: 1, minWidth: 0, textAlign: 'left', background: 'transparent', border: 'none', padding: 0, cursor: 'pointer',
         }}>

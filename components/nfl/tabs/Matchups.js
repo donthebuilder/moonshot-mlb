@@ -1,6 +1,6 @@
 'use client'
 import TeamMark from '../../TeamMark'
-import NflFace from '../NflFace'
+import PlayerFace from '../../PlayerFace'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../../lib/nfl/theme'
 import { btnStyle } from '../../ui'
@@ -283,7 +283,7 @@ export function PassGame({ matchup, data, off, def, onPlayerClick = null }) {
             const r = rowOf(t.player_id)
             const name = r?.name || t.name
             return <Row key={t.player_id}
-              face={<NflFace player={r || { name, team: off }} size={30} />}
+              face={<PlayerFace sport="nfl" espnId={r?.espn_id} team={r?.team || off} name={r?.name || name} size={30} />}
               name={r && onPlayerClick ? <Tap onClick={() => onPlayerClick(r)}>{name}</Tap> : name}
               meta={<>{t.position || '—'} · {t.share}% tgt{t.adot != null ? ` · ${t.adot} aDOT` : ''} · {t.yds} yds · {t.td} TD</>} />
           })}
@@ -292,7 +292,7 @@ export function PassGame({ matchup, data, off, def, onPlayerClick = null }) {
           <SubLabel {...P}>{def} DEFENSE · CORNERS ON THE DEPTH CHART{yr(pg.corner_season)}</SubLabel>
           {cb.map((c) => (
             <Row key={c.slot}
-              face={<NflFace player={{ espn_id: c.espn_id, name: c.name, team: def }} size={30} />}
+              face={<PlayerFace sport="nfl" espnId={c.espn_id} team={def} name={c.name} size={30} />}
               name={<>{c.name} <span style={{ color: C.text3, fontWeight: 700, fontSize: 11 }}>{SLOT_WORD[c.slot] || c.slot}</span></>}
               meta={c.games ? <>{c.pd} PD · {c.int} INT</> : <>no games yet</>} />
           ))}
@@ -366,7 +366,7 @@ export default function Matchups({ matchup, data, onPlayerClick = null, onOpenTe
 
   const whoColumns = [
     { key: 'name', label: 'Player', w: 150, heat: false, sticky: true, fmt: (v, r) => (
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><NflFace player={r} size={22} />{/* wraps rather than clipping, the board's rule (NflBoardExtras) */}<b style={{ whiteSpace: 'normal', lineHeight: 1.15, minWidth: 0 }}>{v}</b></span>) },
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><PlayerFace sport="nfl" espnId={r?.espn_id} team={r?.team} name={r?.name} size={22} />{/* wraps rather than clipping, the board's rule (NflBoardExtras) */}<b style={{ whiteSpace: 'normal', lineHeight: 1.15, minWidth: 0 }}>{v}</b></span>) },
     { key: 'position', label: 'Pos', w: 40, heat: false },
     { key: 'team', label: 'Team', w: 48, heat: false },
     { key: 'role', label: 'Role', w: 56, heat: false, fmt: (v) => v || '—' },
