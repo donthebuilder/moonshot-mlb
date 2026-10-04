@@ -84,6 +84,7 @@ import { nbaCaptureFrom, readNbaRecords } from '../../lib/record/nba'
 import styles from './start.module.css'
 import { membersUrl, MEMBERS_LINE } from '../../lib/members'
 import { adminClient } from '../../lib/supabase/admin'
+import ExplainToast from '../../components/ExplainToast'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -566,6 +567,9 @@ export default async function StartPage({ searchParams }) {
 
   return (
     <main className={styles.page}>
+      {/* The pick cards' WHY buttons fire the dash-explain event; only the app
+          mounted its listener, so on /start they did nothing (route audit B4). */}
+      <ExplainToast sport={sportKey} />
       <header className={styles.bar}>
         <a className={styles.brand} href="/" aria-label="DASH Network home">
           <img src="/icon-192.png" alt="" width="30" height="30" />
