@@ -22,6 +22,11 @@ import { matchupTag, TAG_TITLE } from '../../lib/nfl/dvpSignal'
 // matchup.dvp -- because PASS_YDS has no role for a DVP table to rank.
 // matchupTag() branches on that internally; this component doesn't need to
 // know which source answered.
+// PLAIN WORDS (2026-10-04 user review #9: a tester read TARGET as 'target
+// share'). The tag still keys as TARGET / AVOID everywhere in the logic; only
+// the word on the badge says what it means.
+export const TAG_WORD = { TARGET: 'SOFT D', AVOID: 'TOUGH D' }
+
 export default function MatchupBadge({ matchup, player, market }) {
   const t = matchupTag(matchup, player, market)
   if (!t || t.tag === 'EVEN') return null
@@ -39,6 +44,6 @@ export default function MatchupBadge({ matchup, player, market }) {
         border: `1px solid ${color}55`, background: `${color}18`, borderRadius: 4,
         padding: '1px 4px', flexShrink: 0,
       }}
-    >{t.tag}</span>
+    >{TAG_WORD[t.tag] || t.tag}</span>
   )
 }

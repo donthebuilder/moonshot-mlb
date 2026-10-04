@@ -975,7 +975,8 @@ key={market}
                 title: 'His rate minus the break-even. Positive means the book is paying more than his season says it should. Blank off the standard line — there the book is pricing a different bet. The second line is the 95% interval on that edge, from his own season counts: a ● means the whole 95% band sits on one side of the price, so his SAMPLE is not the reason to doubt the sign. Park, weather, the arm and one book being one opinion are all still outside it.',
                 fmt: (v, r) => (v == null ? '—' : (
                   <span style={{ display: 'inline-block', lineHeight: 1.15, fontFamily: NUM_FONT }}>
-                    <b style={{ color: v >= 3 ? '#4ade80' : v <= -3 ? '#f87171' : C.text2 }}>
+                    {/* no green past +900 (2026-10-04 user review #8): the lottery band is the one the site won't stand behind */}
+                    <b style={{ color: v >= 3 && !(Number(r?.over) >= 901) ? '#4ade80' : v <= -3 ? '#f87171' : C.text2 }}>
                       {v > 0 ? '+' : ''}{v.toFixed(1)}
                     </b>
                     {r?.edgeClears ? (

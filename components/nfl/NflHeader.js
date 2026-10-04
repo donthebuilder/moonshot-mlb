@@ -401,7 +401,7 @@ export default function NflHeader({ tab, setTab, data, meta, matchup, weekMode =
                 color={i.col} live onClick={() => openTile(i)}
                 title={i.title || (i.sport === 'mlb'
                   ? (i.kind === 'leader' ? `Leading this game's stat line on MOONSHOT — tap to switch` : 'Live on MOONSHOT — tap to switch to MOONSHOT')
-                  : (i.kind === 'leader' ? `Leading this game's stat line` : 'Live now — open TUDDY’s Live tab'))} />
+                  : (i.kind === 'leader' ? `Leading this game's stat line` : 'Live now — open this game'))} />
             ))}
 
             {/* THE STORY-BITES (2026-09-16), in MOONSHOT's own slot: after the

@@ -28,7 +28,8 @@ export default function LongshotsPreview({ sport, theme: C, numFont, accent, onO
           style={{ display: 'flex', width: '100%', alignItems: 'baseline', gap: 8, textAlign: 'left', padding: '6px 0', background: 'transparent', border: 'none', borderTop: `1px solid ${C.border}`, color: C.text, cursor: 'pointer', font: 'inherit', fontSize: 12, lineHeight: 1.4, minHeight: 0 }}>
           <b style={{ flex: '1 1 auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</b>
           <span style={{ color: C.text3, fontSize: 10.5, fontFamily: numFont, flexShrink: 0 }}>{r.team}{r.opp ? ` vs ${r.opp}` : ''}</span>
-          <b style={{ color: accent, fontFamily: numFont, flexShrink: 0 }}>{plus(r.median)}</b>
+          {/* a real book's price, not the median of books (2026-10-04 user review #17) */}
+          <b style={{ color: accent, fontFamily: numFont, flexShrink: 0 }} title={r.bestBook ? `best price, ${r.bestBook}` : undefined}>{plus(r.best ?? r.median)}</b>
           <span style={{ color: C.text3, fontSize: 10.5, fontFamily: numFont, flexShrink: 0 }}>score {Math.round(r.score)}</span>
         </button>
       ))}

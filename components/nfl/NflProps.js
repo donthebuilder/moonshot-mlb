@@ -95,6 +95,7 @@ function nflAdapter({ players, card, markets, odds, games }) {
     priced: (r, k) => Boolean(quote(r, k === 'NONE' ? 'TD' : k)),
     priceNum: (r, k) => { const q = quote(r, k === 'NONE' ? 'TD' : k); return q ? Number(q.over) : null },
     startsAt: (r) => kickoffFor(games, r) ?? NaN,
+    gameOf: (r) => (r?.team && r?.opp ? { key: [r.team, r.opp].sort().join('-'), label: [r.team, r.opp].sort().join(' · ') } : null),
     precisionKey: 'tuddy_precision_v1',
     sortTimeLabel: 'Kickoff',
     picksTitle: "everyone on this week's card",

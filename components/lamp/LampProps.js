@@ -71,6 +71,7 @@ function lampAdapter(season) {
     priced: () => false,
     priceNum: () => null,
     startsAt: (r) => Date.parse(r.startUtc || ''),
+    gameOf: (r) => (r?.gameId ? { key: String(r.gameId), label: r.home ? `${r.opp}@${r.team}` : `${r.team}@${r.opp}` } : null),
     precisionKey: 'lamp_precision_v1',
     sortTimeLabel: 'Puck drop',
     picksTitle: 'every skater called tonight, on goals or shots',

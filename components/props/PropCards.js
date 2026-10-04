@@ -26,6 +26,7 @@ import { FilterPill } from '../Filters'
 //     priced(r, k) -> bool        the book quotes THIS market's own bar
 //     priceNum(r, k) -> number|null
 //     startsAt(r) -> ms|NaN
+//     gameOf(r) -> { key, label }|null   which game (the same-game note on Picks)
 //     precisionKey                localStorage key for the remembered cut
 //     sortTimeLabel               'First pitch' / 'Kickoff' / 'Puck drop' / 'Tip'
 //     everyoneLabel, picksTitle, unit ('badge' / 'call')
@@ -34,9 +35,9 @@ import { FilterPill } from '../Filters'
 const SOFT_CAP = 60
 const PRECISION = [
   { key: 0, label: 'All', title: 'Every call published tonight.' },
-  { key: 1, label: '🎯 1 each', title: 'The single best pick in each market.' },
-  { key: 2, label: '2 each', title: 'The top two in each market.' },
-  { key: 3, label: '3 each', title: 'The top three in each market.' },
+  { key: 1, label: 'Top 1', title: 'The single best pick in each market.' },
+  { key: 2, label: 'Top 2', title: 'The top two in each market.' },
+  { key: 3, label: 'Top 3', title: 'The top three in each market.' },
 ]
 
 function GroupHead({ label, color, count, C, NUM_FONT }) {
@@ -102,10 +103,16 @@ export default function PropCards({
   const [all, setAll] = useState(false)
   const [precision, setPrecision] = useState(1)
   const [onlyPriced, setOnlyPriced] = useState(false)
-  const [onlyUpcoming, setOnlyUpcoming] = useState(false)
+  // NOT STARTED BY DEFAULT (2026-10-04 user review #16: finished games sat
+  // beside tonight's). null = automatic: on while any game is still to come,
+  // off once everything is under way or final, so the default never empties
+  // the page. A tap sets it for good.
+  const [upcomingPick, setOnlyUpcoming] = useState(null)
   const [onlyWatched, setOnlyWatched] = useState(false)
   const [sortBy, setSortBy] = useState('score')
-  const now = useMemo(() => Date.now(), [rawRows, onlyUpcoming]) // eslint-disable-line react-hooks/exhaustive-deps
+  const now = useMemo(() => Date.now(), [rawRows, upcomingPick]) // eslint-disable-line react-hooks/exhaustive-deps
+  const anyUpcoming = useMemo(() => (rawRows || []).some((r) => { const t = a.startsAt(r); return Number.isFinite(t) && t > now }), [rawRows, a, now])
+  const onlyUpcoming = upcomingPick ?? anyUpcoming
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(a.precisionKey)
@@ -162,6 +169,21 @@ export default function PropCards({
   }, [rows, market, onlyPriced, onlyUpcoming, onlyWatched, watchIds, now, sortBy, a])
 
   const shown = useMemo(() => (precision > 0 ? groups.map((g) => ({ key: g.key, rows: g.rows.slice(0, precision) })) : groups), [groups, precision])
+  // SAME GAME, ONE BET (2026-10-04 user review #12: three Utah skaters read as
+  // three chances). Among tonight's picks (the filters apply, the Top-N cut
+  // doesn't), the games holding two or more
+  // different players. Needs the adapter's gameOf(row) -> { key, label }.
+  const sameGame = useMemo(() => {
+    if (market !== 'picks' || !a.gameOf) return []
+    const by = new Map()
+    for (const g of groups) for (const r of g.rows) {
+      const gm = a.gameOf(r)
+      if (!gm?.key) continue
+      if (!by.has(gm.key)) by.set(gm.key, { label: gm.label, ids: new Set() })
+      by.get(gm.key).ids.add(a.idOf(r))
+    }
+    return [...by.values()].filter((x) => x.ids.size >= 2).sort((x, y) => y.ids.size - x.ids.size)
+  }, [groups, market, a])
   const total = useMemo(() => shown.reduce((s, g) => s + g.rows.length, 0), [shown])
   const dropped = useMemo(() => groups.reduce((s, g) => s + g.rows.length, 0) - total, [groups, total])
   const capped = useMemo(() => {
@@ -213,7 +235,7 @@ export default function PropCards({
         ))}
       </div>
       <div className="chip-row" style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center', marginTop: 8 }}>
-        <span style={kicker}>Precision</span>
+        <span style={kicker}>Per market</span>
         {PRECISION.map((o) => (
           <FilterPill key={o.key} active={precision === o.key} onClick={() => pickPrecision(o.key)} title={T.precision[o.key] || o.title}>{o.label}</FilterPill>
         ))}
@@ -232,6 +254,13 @@ export default function PropCards({
         )}
       </div>
 
+      {sameGame.length > 0 && (
+        <div style={{ fontSize: TYPE.body, color: C.text2, margin: '4px 0 6px', lineHeight: 1.5 }}>
+          <b style={{ color: C.text }}>⚠ Same game:</b>{' '}
+          {sameGame.slice(0, 3).map((x) => `${x.label} ×${x.ids.size}`).join(' · ')}{sameGame.length > 3 ? ` · +${sameGame.length - 3} more` : ''}
+          {' — picks in one game rise or fall together. Count them as one bet, not several.'}
+        </div>
+      )}
       {total === 0 ? (
         <div style={{ fontSize: TYPE.body, color: C.text3, marginTop: 10 }}>
           Nothing matches.{' '}

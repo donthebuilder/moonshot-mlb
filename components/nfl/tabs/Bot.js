@@ -57,7 +57,7 @@ const MARKET_STATS = {
   DEF_TD: [],
 }
 const MIN_GAMES = 5
-const READ_WORD = { value: ['room', 'green'], fair: ['fair', 'text2'], priced_out: ['priced out', 'red'] }
+const READ_WORD = { value: ['room', 'green'], fair: ['fair', 'text2'], priced_out: ['priced out', 'red'], lottery: ['+901 · no read', 'text3'] }
 
 function Shortlist({ data, picks, logs, odds, market, setMarket, onPlayerClick, week = 'this' }) {
   const [view, setView] = useState('profile')
@@ -85,7 +85,8 @@ function Shortlist({ data, picks, logs, odds, market, setMarket, onPlayerClick, 
         priceTxt: !q ? 'no price posted' : `${fmtOdds(q.over)}${onLine ? '' : ` ≠ o${q.line}`}`,
         assume: onLine ? (q.implied ?? impliedPct(q.over)) : null,
         room: e ? e.diff : null,
-        read: e ? e.verdict : null,
+        // no green past +900 (2026-10-04 user review #8; MOONSHOT's lottery band)
+        read: e ? (e.verdict === 'value' && Number(q.over) >= 901 ? 'lottery' : e.verdict) : null,
       }
       for (const k of MARKET_STATS[market] || []) {
         const c = cols.find((x) => x.key === k)

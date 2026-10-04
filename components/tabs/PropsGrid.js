@@ -213,6 +213,7 @@ function mlbAdapter(odds) {
       return q && q.over != null && q.matches !== false ? Number(q.over) : null
     },
     startsAt: (r) => Date.parse(r?.game_time || ''),
+    gameOf: (r) => (r?.game_pk ? { key: String(r.game_pk), label: [r.team, r.opponent].filter(Boolean).join(' · ') } : null),
     precisionKey: 'moonshot_precision_v1',
     sortTimeLabel: 'First pitch',
     picksTitle: 'every bat wearing a badge tonight',

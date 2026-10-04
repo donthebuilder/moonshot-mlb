@@ -72,6 +72,7 @@ function bucketsAdapter(startOf) {
     priced: () => false,
     priceNum: () => null,
     startsAt: (r) => startOf.get(String(r.gameId)) ?? NaN,
+    gameOf: (r) => (r?.gameId ? { key: String(r.gameId), label: r.home ? `${r.opp}@${r.team}` : `${r.team}@${r.opp}` } : null),
     precisionKey: 'buckets_precision_v1',
     sortTimeLabel: 'Tip-off',
     picksTitle: 'everyone called tonight, in any market',

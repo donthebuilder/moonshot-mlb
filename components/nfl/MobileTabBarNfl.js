@@ -1,7 +1,7 @@
 'use client'
 import MobileTabBar from '../MobileTabBar'
 import { C } from '../../lib/nfl/theme'
-import { NFL_NAV, NFL_MORE_GROUPS } from '../../lib/routes'
+import { NFL_NAV, NFL_MORE_GROUPS, BAR_KEYS } from '../../lib/routes'
 
 // C3's NFL half: "if it feels right, NFL copies it" (dash-network-master-
 // plan-2026-08-28.md). MOONSHOT's mobile bar shape is 4 essential destinations
@@ -30,7 +30,7 @@ import { NFL_NAV, NFL_MORE_GROUPS } from '../../lib/routes'
 // 2026-09-26: LAMP's shape (see NflHeader.js) -- the first four of its rail,
 // same as LAMP's phone bar; everything else is one tap into the sheet.
 // One bar everywhere (2026-10-04, Donovan): This week · Props · Rankings · Live.
-const MAIN_KEYS = ['home', 'picks', 'research', 'live']
+const MAIN_KEYS = BAR_KEYS.nfl   // lib/routes.js, the one list
 const mainFor = (keys) => keys.map((k) => [k, NFL_NAV[k].icon, NFL_NAV[k].label])
 const MAIN = mainFor(MAIN_KEYS)
 

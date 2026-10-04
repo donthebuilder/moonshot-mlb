@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { C, NUM_FONT } from '../lib/theme'
 import NetworkSwitch from './NetworkSwitch'
-import { MLB_NAV, MLB_MORE_GROUPS } from '../lib/routes'
+import { MLB_NAV, MLB_MORE_GROUPS, BAR_KEYS } from '../lib/routes'
 
 // 2026-08-30, Donovan: "i want slate as a selection on the navigator at the
 // bottom... slate replaces picks on the bar." Picks (bot) moves into the More
@@ -33,7 +33,7 @@ import { MLB_NAV, MLB_MORE_GROUPS } from '../lib/routes'
 // and routes.js had a third set; `board` was "Boards" here and "Charts" there.
 // ONE BAR, EVERY PRODUCT (2026-10-04, Donovan): Tonight · Props · Rankings · Live.
 // Boards and the Slate are in More (Research / Games).
-const MAIN_KEYS = ['home', 'props', 'fullboard', 'scoreboard']
+const MAIN_KEYS = BAR_KEYS.mlb   // lib/routes.js, the one list
 const MAIN = MAIN_KEYS.map((k) => [k, MLB_NAV[k].icon, MLB_NAV[k].label])
 
 // 2026-08-30, Donovan: "the results need to be organized better...to

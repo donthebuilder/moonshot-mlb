@@ -103,7 +103,12 @@ export default function Guide({ onNavigate, data }) {
       </Section>
 
       <Section title="What each page is for" emoji="🧭">
-        <Term tab="touchdowns" go={go} icon="🏈" term={NFL_NAV.touchdowns.label} def="the front door — this week's anytime-touchdown board, opened with names and a plain-English reason instead of a table of percentiles." />
+        {/* THE BAR FIRST, under its real names (2026-10-04 user review #10: the
+            Guide opened on a 'front door' that is no longer one, and listed
+            Boards twice -- touchdowns and boards are the same page). */}
+        <Term tab="home" go={go} icon="🏠" term={NFL_NAV.home.label} def="the front door — this week's slate, the calls, and what to watch first." />
+        <Term tab="picks" go={go} icon="🎯" term={NFL_NAV.picks.label} def="every call as a card, one market at a time, with the price when a book is on the same bar." />
+        <Term tab="research" go={go} icon="📈" term={NFL_NAV.research.label} def="the whole ranked board as a table — every player, every market, sortable." />
         <Term tab="boards" go={go} icon="📊" term="Boards" def="every market at once — touchdowns, receiving, rushing, passing, receptions, carries and kicking — each card carrying the one line that explains its own number." />
         <Term tab="storylines" go={go} icon="📰" term="Storylines" def="milestones, streaks, and calls the model saw but filed under the wrong market — read as sentences. Revenge games and injury-driven role changes aren't built yet." />
         <Term tab="games" go={go} icon="📋" term={NFL_NAV.games.label} def="every game, with drive state, weather, defense fatigue and the designated calls grouped by matchup." />

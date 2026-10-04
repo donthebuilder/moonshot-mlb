@@ -7,7 +7,7 @@ import { hrScore } from '../lib/player'
 import { roleBadge } from '../lib/roleBadge'
 import { hitterArchetype, marketFamily, primaryRole } from '../lib/verdict'
 import { catColor } from '../lib/scales'
-import { quoteFor, fmtOdds, impliedPct, hrPerGame, fairOdds } from '../lib/odds'
+import { quoteFor, fmtOdds, impliedPct, hrPerGame, fairOdds, priceBand } from '../lib/odds'
 import DenseTable from './DenseTable'
 import { boardRow, boardRowContext, withBoardColumns } from '../lib/boardColumns'
 import { categoryColumns, categoryValues } from '../lib/categoryColumns'
@@ -48,6 +48,7 @@ const READ = () => ({
   short: { word: 'needs better odds', tone: '#f87171', rank: 2 },
   wrongline: { word: 'book’s on 2+', tone: '#FCD34D', rank: 1 },
   norate: { word: 'priced, no rate', tone: C.text3, rank: 1 },
+  lottery: { word: '+901 or longer · no read', tone: C.text3, rank: 3 },
   none: { word: 'no price posted', tone: C.text3, rank: 0 },
 })
 
@@ -139,6 +140,11 @@ export default function Shortlist({ players = [], odds = null, onPlayerClick, on
         if (priced && q.matches === false) read = 'wrongline'
         else if (room != null) {
           read = room >= 5 ? 'value' : room >= 2 ? 'look' : room <= -4 ? 'short' : 'fair'
+          // NO GREEN PAST +900 (2026-10-04 user review #8): the lottery band is
+          // the one the site will not put its name on (lib/odds PRICE_BANDS),
+          // and the +901-and-up band lost money in our own data; a few points
+          // of 'room' on ten games can't carry it.
+          if ((read === 'value' || read === 'look') && priceBand(q.over)?.key === 'lottery') read = 'lottery'
         } else if (priced) {
           // A price with no rate beside it is NOT "no price posted" — it's a
           // row the site declines to judge. The fixture caught this reading

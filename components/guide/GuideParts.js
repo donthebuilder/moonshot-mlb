@@ -1,4 +1,6 @@
 'use client'
+import { useSport } from '../../lib/sport'
+import { onBar } from '../../lib/routes'
 import { useState } from 'react'
 import { TYPE } from '../../lib/theme'
 import { alpha } from '../../lib/scales'
@@ -58,7 +60,11 @@ export function Note({ children, color = null }) {
 // mostly restatements, so the definition has to do the whole job now.
 export function Term({ icon, term, def, tab, go }) {
   const { C, accent } = useSportTheme()
+  const sport = useSport()
   const clickable = !!(tab && go)
+  // WHERE IT LIVES (2026-10-04 user review #10: the Guide named pages that
+  // aren't on the bottom bar, with nothing saying they're under More).
+  const where = tab ? (onBar(sport, tab) ? 'on the bar' : 'under More') : null
   return (
     <div
       onClick={clickable ? () => go(tab) : undefined}
@@ -72,6 +78,7 @@ export function Term({ icon, term, def, tab, go }) {
       <div style={{ flex: 1, minWidth: 0 }}>
         <span style={{ fontSize: TYPE.name, fontWeight: 800, color: clickable ? accent : C.text }}>{term}</span>
         {clickable && <span style={{ color: accent, fontSize: 11, fontWeight: 900 }}> →</span>}
+        {where && <span style={{ marginLeft: 6, fontSize: 11, fontWeight: 700, color: C.text3, whiteSpace: 'nowrap' }}>· {where}</span>}
         <span style={{ fontSize: TYPE.body, color: C.text2, lineHeight: 1.55 }}> — {def}</span>
       </div>
     </div>

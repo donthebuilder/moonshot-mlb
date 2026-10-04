@@ -307,7 +307,11 @@ export default function Guide({ onNavigate }) {
           from the Slate / The record / Picks the nav actually says). */}
       <Section title="What each tab is for" emoji="🧭">
         <Term tab="home" go={onNavigate} icon="🏠" term={tabName('mlb', 'home')} def="tonight in four numbers, the headline game, and the way in." />
-        <Term tab="scoreboard" go={onNavigate} icon="📊" term={tabName('mlb', 'scoreboard')} def="every hitter, every column, sortable. The wide view — start here." />
+        {/* the bar, in its order and under its real names (2026-10-04 user
+            review #10: 'scoreboard' is Live now, not the wide table) */}
+        <Term tab="props" go={onNavigate} icon="🎯" term={tabName('mlb', 'props')} def="every call as a card, one market at a time, with the price and the read when a book is on the same bar." />
+        <Term tab="fullboard" go={onNavigate} icon="📊" term={tabName('mlb', 'fullboard')} def="every hitter the model rated tonight, #1 to the bottom, every column, sortable. The wide view." />
+        <Term tab="scoreboard" go={onNavigate} icon="📡" term={tabName('mlb', 'scoreboard')} def="scores, the wire, and what is happening right now." />
         <Term tab="atplate" go={onNavigate} icon="🎤" term="At the Plate" def="the hitter batting right now — the count, every pitch of the at-bat, and where his contact is going. Only alive during games." />
         <Term tab="games" go={onNavigate} icon="⚾" term={tabName('mlb', 'games')} def="one matchup at a time: the arm, the park, the lineup." />
         <Term tab="board" go={onNavigate} icon="🏆" term="HR Board" def="ranked purely by home-run score." />
