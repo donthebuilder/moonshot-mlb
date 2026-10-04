@@ -56,6 +56,7 @@ import Guide from './tabs/Guide'
 import DashFooter from '../DashFooter'
 import PlayerPeek from '../PlayerPeek'
 import SkipLink from '../SkipLink'
+import BucketsProps from './BucketsProps'
 
 // Pages that show one day and keep it in the address (`date=`).
 const DATED_TABS = new Set(['home', 'scores', 'board', 'fullboard', 'games', 'schedule', 'matchups', 'hot', 'ledger', 'storylines', 'odds'])
@@ -114,6 +115,9 @@ export default function BucketsDashboard() {
           <TeamNav.Provider value={openTeam}>
           <ErrorBoundary resetKey={`${tab}:${gameId || ''}:${teamKey || ''}:${playerId || ''}`} label={`the ${tab} tab`}>
             {tab === 'home' && <Home today={shown} date={date} setTab={setTab} {...nav} />}
+            {/* Props is MOONSHOT's page now (2026-10-04): the cards, then the board under them */}
+            {tab === 'board' && <BucketsProps date={date} onOpenPlayer={peekPlayer} />}
+            {tab === 'board' && <div style={{ marginTop: 26, paddingTop: 18, borderTop: `1px solid ${C.border}`, font: `900 11px/1 ${NUM_FONT}`, letterSpacing: '.16em', color: C.purple, marginBottom: 10 }}>THE BOARD · EVERY PLAYER, EVERY NUMBER</div>}
             {tab === 'board' && <Board date={date} setDate={setDate} market={market} {...nav} />}
             {tab === 'fullboard' && <FullBoard date={date} setDate={setDate} {...nav} />}
             {tab === 'scores' && <Scores date={date} setDate={setDate} onOpenGame={openGame} />}
