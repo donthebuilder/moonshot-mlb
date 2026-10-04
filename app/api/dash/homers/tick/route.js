@@ -39,8 +39,8 @@ import { callStatus } from '../../../../../lib/callStatus'
 import { mlbWatch, historyWatchText, reachedLine } from '../../../../../lib/history/watch'
 import { fetchLiveSlate, liveSlateStatus } from '../../../../../lib/liveSlate'
 import { fetchBoardFull, fetchRunMeta } from '../../../../../lib/dash/board'
-import { oddsPaths, pairSummaryPaths } from '../../../../../lib/dataSource'
-import { accountabilityText, boardIndexFrom, moonshotBoardRanking, moonshotBoardText, boardRolePicks, boardRoleResultsText, boardRoleText, botPollText, boxLinesForDate, captureFrom, communityPickText, roleWord, homersFrom, hooksFor, longshotPick, longshotText, monthlyText, numerologyMoment, numerologyText, pairsToWatch, pairsToWatchText, partnerFor, postText, pregameCalled, pregamePicks, pregameText, topStreakFrom, weeklyText } from '../../../../../lib/dash/homerFeed'
+import { dataUrl, oddsPaths, pairSummaryPaths } from '../../../../../lib/dataSource'
+import { primaryRole, accountabilityText, boardIndexFrom, moonshotBoardRanking, moonshotBoardText, boardRolePicks, boardRoleResultsText, boardRoleText, botPollText, boxLinesForDate, captureFrom, communityPickText, roleWord, homersFrom, hooksFor, longshotPick, longshotText, monthlyText, numerologyMoment, numerologyText, pairsToWatch, pairsToWatchText, partnerFor, postText, pregameCalled, pregamePicks, pregameText, topStreakFrom, weeklyText } from '../../../../../lib/dash/homerFeed'
 import { homerCard, mlbhrCard, hotStretchCard, longshotCard, numerologyCard, pairsCard, pregameCard, recapCard, statCard } from '../../../../../lib/dash/homerCard'
 import {
   backToBackPicks, backToBackText, bestAirPicks, bestAirText, callOfTheNightPick, callOfTheNightText,
@@ -437,6 +437,48 @@ async function boardIndex(day) {
   return index
 }
 const boardRows = () => _cache.board.rows || []
+
+// THE LOCKED BOARD, NOT THE LIVE ONE (2026-10-04, record audit B). A homer's
+// role / on_board / hr_score / board_rank came from the published board at the
+// moment of the homer -- a board the bot rebuilds through the day -- so 448 of
+// 552 checked homer_feed rows carried an in-game rank or score, and 22 changed
+// CALLED / ON THE BOARD. The prediction of record (por_rows_<date>.jsonl, one
+// row per rated hitter, written at each game's lock) is what was called; a
+// homer in a locked game takes its values from there. A game with no lock row
+// yet keeps the live board's values and says so (stats.board_source 'live').
+const _lock = { day: '', at: 0, idx: null }
+async function lockIndex(day) {
+  if (_lock.idx && _lock.day === day && Date.now() - _lock.at < 2 * 60 * 1000) return _lock.idx
+  const txt = await fetch(dataUrl(`current/por_rows_${day}.jsonl`), { cache: 'no-store' }).then((r) => (r.ok ? r.text() : '')).catch(() => '')
+  const rows = String(txt).split('\n').filter(Boolean).map((l) => { try { return JSON.parse(l) } catch { return null } }).filter(Boolean)
+  const byKey = new Map(); const games = new Set(); let of = 0
+  for (const r of rows) {
+    byKey.set(`${r.game_pk}|${r.player_id}`, r)
+    games.add(String(r.game_pk))
+    of = Math.max(of, Number(r?.scores?.board_rank) || 0)
+  }
+  const idx = { byKey, games, of: of || null }
+  _lock.day = day; _lock.at = Date.now(); _lock.idx = idx
+  return idx
+}
+function withLockedBoard(homers, lock) {
+  if (!lock?.games?.size) return homers.map((h) => (h.on_board ? { ...h, stats: { ...(h.stats || {}), board_source: 'live' } } : h))
+  return homers.map((h) => {
+    if (!lock.games.has(String(h.game_pk))) return h.on_board ? { ...h, stats: { ...(h.stats || {}), board_source: 'live' } } : h
+    const r = lock.byKey.get(`${h.game_pk}|${h.player_id}`)
+    if (!r) return { ...h, role: null, on_board: false, hr_score: null, board_rank: null, stats: null, _roles: '' }
+    const hr = Number(r?.scores?.hr); const rank = Number(r?.scores?.board_rank)
+    return {
+      ...h,
+      role: primaryRole({ game_pick_role: r.game_pick_role }),
+      on_board: true,
+      hr_score: Number.isFinite(hr) ? hr : null,
+      board_rank: Number.isFinite(rank) && rank > 0 ? rank : null,
+      stats: { ...(h.stats || {}), board_of: lock.of ?? h.stats?.board_of ?? null, board_source: 'lock', lock_run: r.run_id || null },
+      _roles: String(r.game_pick_role || ''),
+    }
+  })
+}
 
 // 2026-09-10 (Donovan: "this should be posted first thing when the new
 // slate is posted"). Used to wait for a lineup to post, or for the
@@ -2067,7 +2109,7 @@ export async function GET(request) {
   })
   }
 
-  const homers = homersFrom(snap, day, board, odds)
+  const homers = withLockedBoard(homersFrom(snap, day, board, odds), await lockIndex(day))
   const totals = { day, seen: homers.length, fresh: 0, discord: 0, x: 0, xFailed: 0, board: board.size, mode: MODE, backfill }
 
   // ── 1. claim the new ones ────────────────────────────────────────────────
