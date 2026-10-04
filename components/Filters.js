@@ -1,4 +1,5 @@
 'use client'
+import { useSportTheme } from './SportTheme'
 import { createContext, useContext, useEffect, useRef } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { STATE, alpha } from '../lib/scales'
@@ -41,9 +42,18 @@ import { STATE, alpha } from '../lib/scales'
 // <AccentProvider value={C.green}>; unwrapped (MOONSHOT) stays STATE.on().
 const AccentCtx = createContext(null)
 export const AccentProvider = AccentCtx.Provider
-export function useAccent() { return useContext(AccentCtx) || STATE.on().color }
-function useOn() {
+// R7 (2026-10-04): one source for the product's colour -- an explicit
+// AccentProvider wins, else the product's SportTheme (components/SportTheme),
+// else MOONSHOT's STATE.on(). A page inside TUDDY's / LAMP's theme but outside
+// the accent wrapper no longer falls back to MOONSHOT orange.
+function useProductAccent() {
   const a = useContext(AccentCtx)
+  const t = useSportTheme()
+  return a || (t?.themed ? t.accent : null)
+}
+export function useAccent() { return useProductAccent() || STATE.on().color }
+function useOn() {
+  const a = useProductAccent()
   return a ? { borderColor: a, color: a, fontWeight: 800 } : STATE.on()
 }
 

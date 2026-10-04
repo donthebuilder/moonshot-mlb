@@ -9,7 +9,7 @@ import { nhlLogo } from '../../lib/nhl/teams'
 // server pages print numbers the same way; re-exported here for the tabs.
 import { fmtDay } from '../../lib/nhl/format'
 import { hashParams, writeHash } from '../../lib/urlState'
-import { StaleNote } from '../StaleBanner'
+import { StaleNote, DelayedBanner as SharedDelayedBanner } from '../StaleBanner'
 import { Empty } from '../ui'
 export { fmtDay, fmtPct3, fmt2, fmtSec, plusMinus } from '../../lib/nhl/format'
 
@@ -110,12 +110,8 @@ export function EmptyState({ title, note = null, tone = C.text3, children = null
 }
 
 /** LIVE DATA DELAYED — the feed failed; the page keeps whatever it last had. */
-export function DelayedBanner({ error, what = 'the league feed' }) {
-  if (!error) return null
-  // MOONSHOT's banner (components/StaleBanner.js StaleNote, R7) in LAMP's theme
-  return <StaleNote role="alert" tone={C.amber} theme={C} numFont={NUM_FONT} title="LIVE DATA DELAYED"
-    body={<>We’re waiting on {what}. Anything below is the last copy we had.</>} />
-}
+// the shared banner (components/StaleBanner.js), in LAMP's theme -- one wording everywhere (R7)
+export const DelayedBanner = (props) => <SharedDelayedBanner theme={C} numFont={NUM_FONT} {...props} />
 
 /** A quiet loading line. */
 export function Loading({ what = 'the feed' }) {

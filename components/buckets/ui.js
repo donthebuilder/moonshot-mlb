@@ -7,7 +7,7 @@
 import { STATUS_WORD } from '../../lib/callStatus'
 import CallStatusBadge from '../CallStatusBadge'
 import { C, NUM_FONT } from '../../lib/nba/theme'
-import { StaleNote } from '../StaleBanner'
+import { StaleNote, DelayedBanner as SharedDelayedBanner } from '../StaleBanner'
 import { Empty } from '../ui'
 export { shiftDay } from '../../lib/data'
 export { readParam as readHashParam, writeParam as writeHashParam } from '../../lib/useShellRoute'
@@ -58,10 +58,8 @@ export function EmptyState({ title, note = null, tone = C.text3, children = null
   return <Empty title={title} note={note} tone={tone} theme={C} numFont={NUM_FONT}>{children}</Empty>
 }
 /** LIVE DATA DELAYED -- the feed failed; the page keeps whatever it last had. */
-export function DelayedBanner({ error, what = 'the league feed' }) {
-  if (!error) return null
-  return <StaleNote role="alert" tone={C.amber} theme={C} numFont={NUM_FONT} title="LIVE DATA DELAYED" body={<>We’re waiting on {what}. Anything below is the last copy we had.</>} />
-}
+// the shared banner (components/StaleBanner.js), in BUCKETS's theme -- one wording everywhere (R7)
+export const DelayedBanner = (props) => <SharedDelayedBanner theme={C} numFont={NUM_FONT} {...props} />
 /** Last season's numbers, said so: the new season's are not in yet. */
 export function LastSeasonNote({ label, what = 'numbers' }) {
   if (!label) return null
