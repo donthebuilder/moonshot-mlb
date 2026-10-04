@@ -1,0 +1,66 @@
+'use client'
+// THE SLIP (2026-10-04, Donovan's user review #4: "no stake, no '$X wins $Y',
+// no total at risk ... bet slip: stake, win amount, chance, total at risk,
+// same-game warning"). Picks added from the props cards ('+ slip'), kept in
+// this browser only. Two readings of the same picks:
+//   SINGLES  the stake on each: what each wins, the total at risk
+//   PARLAY   one stake on all of them: what it pays, and the chance the BOOKS'
+//            prices put on every leg landing (their implied %, multiplied --
+//            the site's own probability isn't printed until it's calibrated)
+// Same-game legs are flagged: they rise or fall together, so the parlay's
+// multiplied chance overstates how independent they are. Math, not advice.
+import { useState } from 'react'
+import { TYPE } from '../../lib/theme'
+import { fmtOdds, impliedPct, profitOn } from '../../lib/odds'
+
+const decimal = (am) => { const v = Number(am); return v > 0 ? 1 + v / 100 : 1 + 100 / -v }
+const money = (v) => `$${v >= 1000 ? Math.round(v).toLocaleString() : v.toFixed(2).replace(/\.00$/, '')}`
+
+export default function BetSlip({ legs, onRemove, onClear, C, NUM_FONT, accent }) {
+  const [stake, setStake] = useState(10)
+  if (!legs.length) return null
+  const s = Number.isFinite(Number(stake)) && Number(stake) > 0 ? Number(stake) : 0
+  const singlesWin = legs.reduce((t, l) => t + (profitOn(l.price, s) || 0), 0)
+  const parlayDec = legs.reduce((t, l) => t * decimal(l.price), 1)
+  const parlayChance = legs.reduce((t, l) => t * ((impliedPct(l.price) || 0) / 100), 1)
+  const games = new Map()
+  for (const l of legs) if (l.game?.key) games.set(l.game.key, { label: l.game.label, n: (games.get(l.game.key)?.n || 0) + 1 })
+  const shared = [...games.values()].filter((g) => g.n >= 2)
+  const box = { border: `1px solid ${C.border}`, borderRadius: 12, background: C.bg2, padding: '10px 12px', margin: '6px 0 12px' }
+  return (
+    <section aria-label="Your slip" style={box}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <b style={{ fontSize: 12.5, color: C.text }}>🧾 Your slip · {legs.length} {legs.length === 1 ? 'pick' : 'picks'}</b>
+        <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: C.text2, marginLeft: 'auto' }}>
+          stake $
+          <input type="number" inputMode="decimal" min="0" step="1" value={stake} onChange={(e) => setStake(e.target.value)}
+            aria-label="Stake per bet, in dollars"
+            style={{ width: 64, minHeight: 44, fontSize: 16, fontFamily: NUM_FONT, background: C.bg, color: C.text, border: `1px solid ${C.border}`, borderRadius: 8, padding: '0 8px' }} />
+        </label>
+        <button type="button" onClick={onClear} style={{ minHeight: 44, padding: '0 10px', border: `1px solid ${C.border}`, background: 'transparent', color: C.text3, borderRadius: 8, fontSize: 12, cursor: 'pointer' }}>Clear</button>
+      </div>
+      <div style={{ marginTop: 6 }}>
+        {legs.map((l) => (
+          <div key={l.key} style={{ display: 'flex', alignItems: 'center', gap: 8, borderTop: `1px solid ${C.border}`, minHeight: 44, fontSize: 12.5 }}>
+            <b style={{ color: C.text, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.name}</b>
+            <span style={{ color: C.text3, fontFamily: NUM_FONT, whiteSpace: 'nowrap' }}>{l.market}</span>
+            <span style={{ marginLeft: 'auto', fontFamily: NUM_FONT, color: C.text, whiteSpace: 'nowrap' }}>{fmtOdds(l.price)}</span>
+            <span style={{ fontFamily: NUM_FONT, color: C.text3, whiteSpace: 'nowrap' }}>{s ? `wins ${money(profitOn(l.price, s))}` : ''}</span>
+            <button type="button" onClick={() => onRemove(l.key)} aria-label={`Remove ${l.name} from the slip`}
+              style={{ minHeight: 44, minWidth: 44, border: 'none', background: 'transparent', color: C.text3, fontSize: 16, cursor: 'pointer' }}>×</button>
+          </div>
+        ))}
+      </div>
+      <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 8, fontSize: 12.5, lineHeight: 1.6, color: C.text2 }}>
+        <div><b style={{ color: C.text }}>As singles:</b> {money(s * legs.length)} at risk · {money(singlesWin)} profit if every one hits</div>
+        {legs.length >= 2 && (
+          <div><b style={{ color: C.text }}>As one parlay:</b> {money(s)} wins {money(s * (parlayDec - 1))} · the books' prices put all {legs.length} landing at {(100 * parlayChance) < 1 ? '<1' : (100 * parlayChance).toFixed(1)}%</div>
+        )}
+        {shared.length > 0 && (
+          <div style={{ color: C.text }}>⚠ Same game: {shared.map((g) => `${g.label} ×${g.n}`).join(' · ')} — these rise or fall together; the parlay chance above treats them as separate.</div>
+        )}
+        <div style={{ marginTop: 4, fontSize: TYPE.micro || 11, color: C.text3 }}>Prices are the best book's, as shown on the cards. Math, not advice. 21+ where legal; play within limits.</div>
+      </div>
+    </section>
+  )
+}

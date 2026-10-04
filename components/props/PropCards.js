@@ -4,6 +4,7 @@ import { C as MLB_C, NUM_FONT as MLB_NUM, TYPE } from '../../lib/theme'
 import VerdictHero, { PeriodTiles } from '../VerdictHero'
 import MobileFold from '../MobileFold'
 import { FilterPill } from '../Filters'
+import BetSlip from './BetSlip'
 
 // ══ PROP CARDS, EVERY PRODUCT (2026-10-04) ══════════════════════════════════
 // Donovan: "make sure the props pages look like the mlb one". This is
@@ -54,7 +55,7 @@ function GroupHead({ label, color, count, C, NUM_FONT }) {
   )
 }
 
-function Card({ a, r, k, onOpen, onWatch, watched, C, NUM_FONT, accent, accentWash }) {
+function Card({ a, r, k, onOpen, onWatch, watched, onSlip = null, inSlip = false, C, NUM_FONT, accent, accentWash }) {
   const p = a.card(r, k)
   return (
     <div onClick={onOpen ? () => onOpen(r) : undefined}
@@ -76,17 +77,34 @@ function Card({ a, r, k, onOpen, onWatch, watched, C, NUM_FONT, accent, accentWa
         facts={p.facts}
         chips={p.chips}
         footer={p.tiles ? <PeriodTiles tiles={p.tiles} /> : null}
-        right={onWatch && (
-          <button
-            onClick={(e) => { e.stopPropagation(); onWatch(r) }}
-            title={watched ? 'Remove from watchlist' : 'Add to watchlist'}
-            style={{
-              flexShrink: 0, background: watched ? accentWash : 'transparent',
-              border: `1px solid ${watched ? accent : C.border}`,
-              color: watched ? accent : C.text3,
-              borderRadius: 7, padding: '6px 10px', fontSize: 13, lineHeight: 1, cursor: 'pointer',
-            }}
-          >{watched ? '★' : '☆'}</button>
+        right={(onWatch || onSlip) && (
+          <span style={{ display: 'inline-flex', gap: 6, flexShrink: 0 }}>
+            {/* + SLIP (2026-10-04, user review #4): only on a card with a price on its own bar */}
+            {onSlip && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onSlip(r, k) }}
+                title={inSlip ? 'Remove from your slip' : 'Add to your slip'}
+                style={{
+                  flexShrink: 0, background: inSlip ? accentWash : 'transparent',
+                  border: `1px solid ${inSlip ? accent : C.border}`,
+                  color: inSlip ? accent : C.text3,
+                  borderRadius: 7, padding: '6px 8px', fontSize: 11, fontWeight: 800, lineHeight: 1, cursor: 'pointer', whiteSpace: 'nowrap',
+                }}
+              >{inSlip ? '✓ slip' : '+ slip'}</button>
+            )}
+            {onWatch && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onWatch(r) }}
+                title={watched ? 'Remove from watchlist' : 'Add to watchlist'}
+                style={{
+                  flexShrink: 0, background: watched ? accentWash : 'transparent',
+                  border: `1px solid ${watched ? accent : C.border}`,
+                  color: watched ? accent : C.text3,
+                  borderRadius: 7, padding: '6px 10px', fontSize: 13, lineHeight: 1, cursor: 'pointer',
+                }}
+              >{watched ? '★' : '☆'}</button>
+            )}
+          </span>
         )}
       />
     </div>
@@ -110,6 +128,21 @@ export default function PropCards({
   const [upcomingPick, setOnlyUpcoming] = useState(null)
   const [onlyWatched, setOnlyWatched] = useState(false)
   const [sortBy, setSortBy] = useState('score')
+  // THE SLIP: legs kept in this browser for a day (components/props/BetSlip.js)
+  const slipKey = `${a.precisionKey}_slip_v1`
+  const [slip, setSlip] = useState([])
+  useEffect(() => {
+    try { const v = JSON.parse(window.localStorage.getItem(slipKey) || '[]'); setSlip(Array.isArray(v) ? v.filter((l) => Date.now() - (l.at || 0) < 864e5) : []) } catch { /* private mode */ }
+  }, [slipKey])
+  const saveSlip = (next) => { setSlip(next); try { window.localStorage.setItem(slipKey, JSON.stringify(next)) } catch { /* private mode */ } }
+  const slipKeyOf = (r, k) => `${a.keyOf(r)}|${k}`
+  const toggleSlip = (r, k) => {
+    const key = slipKeyOf(r, k)
+    if (slip.some((l) => l.key === key)) return saveSlip(slip.filter((l) => l.key !== key))
+    const price = a.priceNum(r, k)
+    if (price == null) return
+    saveSlip([...slip, { key, name: a.card(r, k).title, market: a.pillLabel(k), price, game: a.gameOf ? a.gameOf(r) : null, at: Date.now() }])
+  }
   const now = useMemo(() => Date.now(), [rawRows, upcomingPick]) // eslint-disable-line react-hooks/exhaustive-deps
   const anyUpcoming = useMemo(() => (rawRows || []).some((r) => { const t = a.startsAt(r); return Number.isFinite(t) && t > now }), [rawRows, a, now])
   const onlyUpcoming = upcomingPick ?? anyUpcoming
@@ -252,6 +285,7 @@ export default function PropCards({
         )}
       </div>
 
+      <BetSlip legs={slip} onRemove={(key) => saveSlip(slip.filter((l) => l.key !== key))} onClear={() => saveSlip([])} C={C} NUM_FONT={NUM_FONT} accent={accent} />
       {sameGame.length > 0 && (
         <div style={{ fontSize: TYPE.body, color: C.text2, margin: '4px 0 6px', lineHeight: 1.5 }}>
           <b style={{ color: C.text }}>⚠ Same game:</b>{' '}
@@ -273,7 +307,9 @@ export default function PropCards({
               <GroupHead label={a.groupLabel(g.key)} color={a.color(g.key)} count={g.rows.length} C={C} NUM_FONT={NUM_FONT} />
               <div style={{ display: 'grid', gap: 11, gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 330px), 1fr))' }}>
                 {g.rows.map((r) => (
-                  <Card key={a.keyOf(r)} a={a} r={r} k={g.key} onOpen={onOpen} onWatch={onWatch} watched={watchIds?.has(a.idOf(r))} C={C} NUM_FONT={NUM_FONT} accent={accent} accentWash={accentWash} />
+                  <Card key={a.keyOf(r)} a={a} r={r} k={g.key} onOpen={onOpen} onWatch={onWatch} watched={watchIds?.has(a.idOf(r))}
+                    onSlip={g.key !== 'NONE' && a.priceNum(r, g.key) != null ? toggleSlip : null} inSlip={slip.some((l) => l.key === slipKeyOf(r, g.key))}
+                    C={C} NUM_FONT={NUM_FONT} accent={accent} accentWash={accentWash} />
                 ))}
               </div>
             </div>
