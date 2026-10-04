@@ -465,7 +465,7 @@ function Versus({
             {bot ? nameOf(bot) : 'no pick'}
           </button>
           <span style={{ display: 'flex', alignItems: 'baseline', gap: 7, minWidth: 0 }}>
-            {bot && <span style={{ fontSize: 9.5, fontFamily: NUM_FONT, color: C.text3 }}>{teamOf(bot)}</span>}
+            {bot && <TeamCode team={teamOf(bot)} />}
             {botScore != null && (
               <b style={{ fontSize: 13, fontFamily: NUM_FONT, color: cat.color }}>{botScore}</b>
             )}
@@ -483,7 +483,7 @@ function Versus({
             <>
               <button onClick={onMine} style={{ ...nameStyle(false), cursor: 'pointer' }}>{mine.name}</button>
               <span style={{ display: 'flex', alignItems: 'baseline', gap: 7, minWidth: 0 }}>
-                {mine.team && <span style={{ fontSize: 9.5, fontFamily: NUM_FONT, color: C.text3 }}>{mine.team}</span>}
+                {mine.team && <TeamCode team={mine.team} />}
                 {mineScore != null && (
                   <b style={{ fontSize: 13, fontFamily: NUM_FONT, color: cat.color }}>{mineScore}</b>
                 )}
@@ -641,6 +641,13 @@ function SwapBoard({ cat, s, mine, odds, full, onToggleFull, onChoose, onClose }
     </div>
   )
 }
+
+// A team code opens Rankings filtered to that club (MOONSHOT has no team page;
+// fteam= is the board's own filter). 44px tap area, layout unchanged.
+const TeamCode = ({ team }) => (team
+  ? <a href={`#sport=mlb&tab=fullboard&fteam=${encodeURIComponent(team)}`} title={`${team} on the board`}
+      style={{ fontSize: 9.5, fontFamily: NUM_FONT, color: C.text3, display: 'inline-block', padding: '17px 13px', margin: '-17px -13px' }}>{team}</a>
+  : null)
 
 export default function MyPicks({ players = [], results, odds, slateDate, onPlayerClick }) {
   const [picks, setPicks] = useState({})
