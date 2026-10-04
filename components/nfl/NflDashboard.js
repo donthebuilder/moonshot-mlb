@@ -17,6 +17,7 @@ import { C, NUM_FONT } from '../../lib/nfl/theme'
 import { AccentProvider } from '../Filters'
 import { fetchNfl, nflSlatePaths, nflMetaPaths, nflMatchupPaths, nflLogPaths, nflPicksPaths, nflResultsPaths, nflOddsPaths, nflOddsStatusPaths, nflSlateLooksReal, nflMatchupLooksReal, nflPicksLooksReal, nflOddsLooksReal } from '../../lib/nfl/dataSource'
 import { initialHashParams, setSport } from '../../lib/sport'
+import { tabSwitchHash } from '../../lib/useShellRoute'
 import { useNflLive } from '../../lib/nfl/useNflLive'
 import { withLive } from '../../lib/nfl/liveMerge'
 import NflHeader from './NflHeader'
@@ -108,6 +109,8 @@ function NflStaleBanner({ meta, data, loading }) {
   )
 }
 
+const NFL_TAB_KEEP = { player: new Set(['players']), team: new Set(['players']), game: new Set(['games']) }
+
 export default function NflDashboard({ palettePass = 0 }) {
   const [tab, setTabRaw] = useState('home')
   // A club tapped on Standings, handed to the players directory once.
@@ -166,16 +169,12 @@ export default function NflDashboard({ palettePass = 0 }) {
     if (!NFL_TABS.has(next)) return
     setMissingTab('')
     setTabRaw(next)
-    const hash = hashParams()
-    const was = hash.get('tab')
-    hash.set('sport', 'nfl')
-    hash.set('tab', next)
-    if (next !== 'players') { hash.delete('player'); hash.delete('team') }
-    if (next !== 'games') hash.delete('game')   // the Slate's open game (NflSlate)
+    // the address rule is lib/useShellRoute.js tabSwitchHash (R7): the Players
+    // file keeps player/team, the Slate keeps its open game; a new tab drops the card
+    const { hash, changed } = tabSwitchHash(hashParams().toString(), { sport: 'nfl', next, keep: NFL_TAB_KEEP, clearOnChange: ['card', 'cm'] })
     // A card belongs to the page it was opened on: a real tab change drops
     // it; resolving the address you arrived on (same tab) keeps it.
-    if (was && was !== next) { hash.delete('card'); hash.delete('cm') }
-    writeHash(hash, { push: push && Boolean(was) && was !== next })
+    writeHash(hash, { push: push && changed })
   }
 
   // Deep links: #sport=nfl&tab=boards is a real address, same contract the
