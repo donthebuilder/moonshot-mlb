@@ -1,7 +1,7 @@
 'use client'
 import { useMemo } from 'react'
 import DenseTable from '../DenseTable'
-import { C } from '../../lib/nfl/theme'
+import { C, rampAt } from '../../lib/nfl/theme'
 import { NFL_GLOSSARY, NFL_SCORE_TERMS, NFL_RANK_NOT_PERCENT } from '../../lib/nfl/glossary'
 import { tagIdentity } from '../../lib/tableTags'
 
@@ -36,6 +36,8 @@ export default function NflTable(props) {
       scoreTerms={NFL_SCORE_TERMS}
       caveat={NFL_RANK_NOT_PERCENT}
       accent={C.green}
+      // TUDDY's own ramp for the sorted column, not MOONSHOT's orange (2026-10-04 audit 04 A1)
+      ramp={props.ramp ?? rampAt}
     />
   )
 }
