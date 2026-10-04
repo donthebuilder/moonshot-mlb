@@ -43,7 +43,9 @@ function lampAdapter(season) {
         ? [{ k: 'SHOTS / GP', v: f2(legs.shotsPg) }, { k: 'ICE TIME', v: Number.isFinite(legs.toi) ? fmtSec(legs.toi) : '—' }, { k: 'OPP SA %ILE', v: ord(pct.oppSaPg) }]
         : [{ k: 'SHOTS / GP', v: f2(legs.shotsPg) }, { k: 'GOALS / GP', v: f2(legs.goalsPg) }, { k: 'ICE TIME', v: Number.isFinite(legs.toi) ? fmtSec(legs.toi) : '—' }]
       const chips = []
-      if (x.preview) chips.push({ t: '⏳ preview — not locked yet', warn: true })
+      // the result, once graded: goals for GOAL, shots (value) for SHOTS 3+
+      if (x.hit === true || x.hit === false) chips.push({ t: k === 'SOG' ? `${x.hit ? '✅' : '❌'} ${x.value ?? '—'} shots` : `${x.hit ? '✅' : '❌'} ${x.goals ?? 0} goal${Number(x.goals) === 1 ? '' : 's'}`, warn: !x.hit })
+      else if (x.preview) chips.push({ t: '⏳ preview — not locked yet', warn: true })
       if (x.context?.b2b) chips.push({ t: 'back-to-back', warn: false })
       if (Number(x.ppg) > 0 && chips.length < 2) chips.push({ t: `${x.ppg} PP goal${Number(x.ppg) === 1 ? '' : 's'}`, warn: false })
       return {
