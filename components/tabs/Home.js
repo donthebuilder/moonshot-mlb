@@ -400,11 +400,10 @@ export default function Home({
     return () => { alive = false }
   }, [slateInPast])
 
-  // First pitch: the earliest game that hasn't started yet, else the earliest.
-  // Ticks once a second for the countdown chip; cheap, one integer of state.
-  const [tick, setTick] = useState(0)
-  useEffect(() => { const id = setInterval(() => setTick((t) => t + 1), 1000); return () => clearInterval(id) }, [])
-  const np = useMemo(() => nextPitch(games), [games, tick]) // eslint-disable-line react-hooks/exhaustive-deps
+  // The countdown chip ticks inside NextPitchStat (below), not here: a
+  // once-a-second state in this component re-rendered the whole tab -- Home
+  // and Live alike -- every second (perf audit 2026-10-04: ~2 s of scripting
+  // per 30 s idle on a throttled phone).
   const live = useLiveScores()
   const firstPitch = useMemo(() => {
     const now = Date.now()
@@ -900,15 +899,7 @@ export default function Home({
                 once everything has started it says so and names the last one. */}
             {/* THE DONE SLATE KEEPS ITS FACTS, NOT ITS PREGAME ONES (2026-09-28):
                 "ALL UNDER WAY" and BEST AIR are about a night that's over. */}
-            {slateInPast ? null : np ? (
-              np.kind === 'next'
-                ? <Stat label="NEXT PITCH" value={fmtCountdown(np.ms)} sub={`${np.label} · ${np.at.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}${np.remaining > 1 ? ` · ${np.remaining} still to start` : ''}`} col={C.yellow}
-                    title="Time until the next game on the slate starts, your local clock. Counts down live." />
-                : <Stat label="ALL UNDER WAY" value={np.at.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} sub={`last first pitch · ${np.label}`} col={C.green}
-                    title="Every game on the slate has started. This was the last first pitch." />
-            ) : (
-              <Stat label="FIRST PITCH" value="not published" col={C.text3} title="No game times on the slate yet." />
-            )}
+            {slateInPast ? null : <NextPitchStat games={games} />}
             {/* A DONE SLATE SAYS WHAT HAPPENED (DAY-AWARE-OPENERS-PLAN): the
                 night's real homer count, the projection beside it. No count on
                 the graded file -> the projection chip below, as before. */}
@@ -1730,4 +1721,23 @@ export default function Home({
       </>}
     </div>
   )
+}
+
+// NEXT PITCH, ITS OWN CLOCK (2026-10-04). First pitch: the earliest game that
+// hasn't started yet, else the last one. Ticks once a second only while a
+// game is still to start; once all are under way it checks once a minute.
+function NextPitchStat({ games }) {
+  const [, setTick] = useState(0)
+  const np = nextPitch(games)
+  const counting = np?.kind === 'next'
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), counting ? 1000 : 60000)
+    return () => clearInterval(id)
+  }, [counting])
+  if (!np) return <Stat label="FIRST PITCH" value="not published" col={C.text3} title="No game times on the slate yet." />
+  return np.kind === 'next'
+    ? <Stat label="NEXT PITCH" value={fmtCountdown(np.ms)} sub={`${np.label} · ${np.at.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}${np.remaining > 1 ? ` · ${np.remaining} still to start` : ''}`} col={C.yellow}
+        title="Time until the next game on the slate starts, your local clock. Counts down live." />
+    : <Stat label="ALL UNDER WAY" value={np.at.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} sub={`last first pitch · ${np.label}`} col={C.green}
+        title="Every game on the slate has started. This was the last first pitch." />
 }
