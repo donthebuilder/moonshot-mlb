@@ -499,6 +499,10 @@ export default function Dashboard({ palettePass = 0 }) {
     // not-found panel along with the typo it was about.
     if (missingTab) h.set('tab', missingTab)
     else if (tab !== 'home') h.set('tab', tab)
+    // A card opened on HOME names the tab too (2026-10-04, route audit B7): a
+    // p-only hash is the notification shape ("open him over whatever page is
+    // showing"), so Back onto one from Guide kept Guide under Home's card.
+    else if (modalPlayer || missingPlayer) h.set('tab', 'home')
     // The board filters belong to the whole product, not one tab: carried
     // across every tab change this writer makes (lib/filterHash).
     for (const k of FILTER_KEYS) { const v = readHashKey(k); if (v) h.set(k, v) }
