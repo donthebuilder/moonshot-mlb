@@ -27,7 +27,20 @@ export async function GET(request) {
     const db = adminClient()
     if (!db) return ok({ modelVersion: MODEL_VERSION, nights: [], total: null, dbReady: false }, 60)
     const since = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10)
-    const done = (nights, total) => ok({ modelVersion: MODEL_VERSION, versionFrom: { [VERSIONS.goal[1]]: V3_FROM }, since, days, includePre, nights, total, dbReady: true, fetchedAt: new Date().toISOString() }, 300)
+    // THE SHOTS 3+ RECORD (2026-10-04, audit 05 #5). lamp/tick grades the SOG
+    // calls into lamp_prop_log and nothing read them back -- the headline said
+    // "not graded yet" forever. Called rows with a grade (hit true/false;
+    // a void stays null and is not counted), same window and preseason rule.
+    let sog = null
+    try {
+      let q = db.from('lamp_prop_log').select('hit').eq('market', 'SOG').eq('status', 'called').in('model_version', VERSIONS.sog)
+        .not('graded_at', 'is', null).not('hit', 'is', null).gte('game_date', since)
+      if (!includePre) q = q.neq('game_type', 1)
+      const r = await q
+      if (r.error) throw new Error(r.error.message)
+      sog = { calledN: r.data.length, calledHits: r.data.filter((x) => x.hit === true).length }
+    } catch (e) { console.error(`[lamp record] sog: ${e?.message || e}`) }
+    const done = (nights, total) => ok({ modelVersion: MODEL_VERSION, versionFrom: { [VERSIONS.goal[1]]: V3_FROM }, since, days, includePre, nights, total, sog, dbReady: true, fetchedAt: new Date().toISOString() }, 300)
 
     // COUNTED IN POSTGRES (2026-09-26). The per-night numbers come from the
     // lamp_goal_nights view -- one row a night -- and only the rows the two

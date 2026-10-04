@@ -48,7 +48,7 @@ export default function LampHeadline({ theme: C, numFont, goalBoard, sogBoard, r
     key: l.key, label: l.label, icon: l.icon, color: C[l.colorKey], blurb: l.blurb,
     record: l.key === 'GOAL'
       ? (record?.calledN ? `${record.calledHits}/${record.calledN} called scored` : 'not graded yet')
-      : 'not graded yet',
+      : (record?.sog?.calledN ? `${record.sog.calledHits}/${record.sog.calledN} called hit 3+` : 'not graded yet'),
     empty: 'Waiting for tonight’s board.',
     picks: topCalled(boards[l.key]).map((r, i) => ({
       key: String(r.playerId), raw: r, name: r.name,

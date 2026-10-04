@@ -130,7 +130,7 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
       {/* TONIGHT'S CALLS (BATCH-HEADLINE-PICKS step 3): GOAL and SHOTS, each
           model's called skaters -- MOONSHOT's The Four layout -- then
           Around the League below, the same order MOONSHOT uses. */}
-      <LampHeadline theme={C} numFont={NUM_FONT} goalBoard={board.data} sogBoard={sogBoard.data} record={regT} onOpenPlayer={onOpenPlayer} />
+      <LampHeadline theme={C} numFont={NUM_FONT} goalBoard={board.data} sogBoard={sogBoard.data} record={regT ? { ...regT, sog: reg.data?.sog } : null} onOpenPlayer={onOpenPlayer} />
       {/* FACES ON THE CARDS (2026-09-29, queue batch 5): MOONSHOT's and TUDDY's
           strips pass faceOf; LAMP's didn't. The shared PlayerFace, table
           variant -- LAMP's circle, and it hides itself if a mug 404s. */}
