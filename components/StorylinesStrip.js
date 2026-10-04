@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import StoryRow, { StoryParts, BoardBadge } from './StoryRow'
 import TeamMark from './TeamMark'
+import { gameHref } from '../lib/routes'
 
 // 📰 THE HOME PAGE'S STORYLINES (BATCH-STORYLINES-PAGE step 4, 2026-09-27;
 // grouped into GAMES WORTH WATCHING 2026-10-04, see below).
@@ -51,12 +52,14 @@ export default function StorylinesStrip({ sport, theme: C, numFont, accent, max 
         const s = list[0]
         return (
           <div key={id} style={{ borderTop: `1px solid ${C.border}`, padding: '7px 0 4px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', fontFamily: numFont, fontSize: 12 }}>
+            {/* the game is a link to that game (the clickable rule), 44px tall */}
+            <a href={gameHref(sport, id)} aria-label={`Open ${g.away && g.home ? `${g.away} at ${g.home}` : 'this game'}`} style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', minHeight: 44, fontFamily: numFont, fontSize: 12, color: 'inherit', textDecoration: 'none' }}>
               {g.away ? <TeamMark sport={sport} abbr={g.away} variant="logo" px={16} /> : null}
               <b style={{ color: C.text }}>{g.away && g.home ? `${g.away} @ ${g.home}` : s.team}</b>
               {g.home ? <TeamMark sport={sport} abbr={g.home} variant="logo" px={16} /> : null}
               <span style={{ color: C.text3 }}>{[when(g.start), `${list.length} ${list.length === 1 ? 'story' : 'stories'}`].filter(Boolean).join(' · ')}</span>
-            </div>
+              <span style={{ marginLeft: 'auto', color: accent, fontWeight: 800 }}>›</span>
+            </a>
             <StoryRow icon={s.icon} theme={C} title={`Source: ${s.source}`} onClick={storyClick(s)} style={{ fontSize: 12 }}>
               <StoryParts parts={s.parts} theme={C} numFont={numFont} />{s.board ? <> · <BoardBadge b={s.board} theme={C} numFont={numFont} accent={accent} /></> : null}
             </StoryRow>
