@@ -1493,8 +1493,11 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
           remembered close means it stays shut the next night too.
           The title and the chevron toggle. The count and the note do not. */}
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 2 }}>
-        <span onClick={research ? undefined : toggle}
-          style={{ fontSize: 12.5, fontWeight: 900, cursor: research ? 'default' : 'pointer' }}>
+        {/* On its own tab (standalone) there is nothing to fold -- the toggle only
+            flipped ms_ledger_open and collapsed Home's ledger next visit
+            (route audit B3). Title inert, chevron gone, there and in research. */}
+        <span onClick={research || standalone ? undefined : toggle}
+          style={{ fontSize: 12.5, fontWeight: 900, cursor: research || standalone ? 'default' : 'pointer' }}>
           🧾 Homer ledger{research ? ' — research' : ''}
         </span>
         <span style={{ fontSize: 10, color: C.orange, fontFamily: NUM_FONT, fontWeight: 800 }}>
@@ -1521,7 +1524,7 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
           : <span onClick={toggle} style={{ fontSize: 9, color: C.orange, cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted' }}>
               hidden — tap to show all {total}
             </span>}
-        <span onClick={toggle} style={{ cursor: 'pointer' }}><Chevron /></span>
+        {!(research || standalone) && <span onClick={toggle} style={{ cursor: 'pointer' }}><Chevron /></span>}
       </div>
       <NightPicker />
 
