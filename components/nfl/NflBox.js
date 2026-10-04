@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../lib/nfl/theme'
 import { fetchNfl, nflFantasyStatsPaths, nflFantasyStatsLooksReal } from '../../lib/nfl/dataSource'
+import { fetchNflLive, lineFor } from '../../lib/nfl/liveSlate'
 import NflTable from './NflTable'
 
 // 📋 BOX SCORES (now the open half of the Games page) — TUDDY'S SIDE OF PATH TO VICTORY B10m.
@@ -167,6 +168,7 @@ export function NflBox({ game, byTeam, defense, onPlayerClick, watchlist }) {
  *  for it. stats: undefined = not asked / loading, null = unreachable. */
 export function useNflBoxFeed(data, want) {
   const [stats, setStats] = useState(undefined)
+  const [live, setLive] = useState(null)
   // A ref, not state: flipping state here re-ran the effect, and its cleanup
   // dropped the fetch it had just started.
   const asked = useRef(false)
@@ -178,6 +180,12 @@ export function useNflBoxFeed(data, want) {
     fetchNfl(nflFantasyStatsPaths(), nflFantasyStatsLooksReal)
       .then((j) => { if (alive.current) setStats(j || null) })
       .catch(() => { if (alive.current) setStats(null) })
+    // THE LIVE FEED AS A FALLBACK (2026-10-04 game-day check): the bot's box
+    // feed is a GitHub schedule, and GitHub dropped most of its runs, so a game
+    // in progress read 'No box in this feed yet' into the 3rd quarter. ESPN's
+    // live box (lib/nfl/liveSlate, the Live tab's source) fills any team the
+    // feed doesn't have yet.
+    fetchNflLive().then((snap) => { if (alive.current) setLive(snap || null) }).catch(() => {})
   }, [want])
 
   // gsis id -> the full slate player record, so a row click hands
@@ -189,8 +197,7 @@ export function useNflBoxFeed(data, want) {
       if (pid) roster.set(pid, p)
     }
     const map = new Map()
-    if (!stats?.players) return map
-    for (const [pid, line] of Object.entries(stats.players)) {
+    for (const [pid, line] of Object.entries(stats?.players || {})) {
       const player = roster.get(pid)
       const team = player?.team
       if (!team) continue
@@ -198,8 +205,22 @@ export function useNflBoxFeed(data, want) {
       arr.push({ id: pid, name: player?.name || pid, team, ...line, _raw: player || { player_id: pid, name: pid, team } })
       map.set(team, arr)
     }
+    // a team the feed doesn't have yet: its players' live lines, under the
+    // feed's own column names (live has no FG-by-distance or INT -- left blank)
+    if (live?.lines?.size) {
+      for (const p of data?.players || []) {
+        if (!p?.team || map.has(p.team) && !map.get(p.team)._live) continue
+        const l = lineFor(live, p)
+        if (!l) continue
+        const arr = map.get(p.team) || Object.assign([], { _live: true })
+        arr.push({ id: String(p.player_id), name: p.name, team: p.team,
+          passing_yards: l.passing_yards, passing_touchdowns: l.passing_tds, rushing_yards: l.rushing_yards, rushing_touchdowns: l.rushing_tds,
+          receptions: l.receptions, receiving_yards: l.receiving_yards, receiving_touchdowns: l.receiving_tds, extra_points: l.pat_made, interceptions: null, _raw: p })
+        map.set(p.team, arr)
+      }
+    }
     return map
-  }, [stats, data])
+  }, [stats, data, live])
 
   return { stats, byTeam }
 }

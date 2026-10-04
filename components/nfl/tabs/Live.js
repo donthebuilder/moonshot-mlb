@@ -313,7 +313,7 @@ export default function Live({ data, picks, live, matchup = null, logs = null, r
         <ol className="tl-plays">
           {plays.slice(0, 40).map((p, i) => (
             <li key={`${p.game_id}:${i}`} className={p.mine ? 'is-mine' : ''}>
-              <span>{p.team}</span><em>Q{p.quarter ?? '?'} {p.clock || ''}</em><b>{p.type}</b><p>{p.text}</p>
+              <span>{p.team ? <a href={`#sport=nfl&tab=players&team=${encodeURIComponent(p.team)}`} style={{ color: 'inherit', display: 'inline-block', padding: '17px 13px', margin: '-17px -13px' }} title={`${p.team}'s players`}>{p.team}</a> : null}</span><em>Q{p.quarter ?? '?'} {p.clock || ''}</em><b>{p.type}</b><p>{p.text}</p>
             </li>
           ))}
         </ol>
