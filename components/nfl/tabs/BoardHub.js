@@ -130,7 +130,9 @@ export default function BoardHub({ slate, data, logs, matchup, odds, oddsStatus,
           read apart by shape. Was a bordered box with a sentence in it. */}
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', paddingTop: 4, paddingBottom: 7, marginBottom: 10, borderBottom: `1px solid ${C.border}` }}>
         {VIEWS.slice().reverse().map((v) => (
-          <button key={v.key} type="button" onClick={() => setView(v.key)} title={v.title} style={{
+          // 'Called' is Props now (2026-10-04, Donovan: merge TUDDY's Called view into
+          // Props): the pill takes you there; an old #view=called link still renders here.
+          <button key={v.key} type="button" onClick={() => (v.key === 'called' ? (window.location.hash = '#sport=nfl&tab=picks') : setView(v.key))} title={v.key === 'called' ? "The bot's calls for every market, on Props" : v.title} style={{
             padding: '7px 16px', minHeight: 36, borderRadius: 999, cursor: 'pointer', fontSize: TYPE.body, fontWeight: 900, fontFamily: NUM_FONT,
             whiteSpace: 'nowrap', letterSpacing: '.02em',
             border: `1px solid ${view === v.key ? C.green : C.border}`,
