@@ -60,7 +60,7 @@ export async function GET(request) {
   if (!['mlb', 'nfl', 'nhl'].includes(sport)) return Response.json({ error: 'sport must be mlb, nfl or nhl' }, { status: 400 })
   const today = easternToday()
   try {
-    const calls = await unstable_cache(() => build(sport, today), ['record-calls-v2', sport, today], { revalidate: 1800 })()
+    const calls = await unstable_cache(() => build(sport, today), ['record-calls-v3', sport, today], { revalidate: 1800 })()
     return Response.json({ sport, calls, builtAt: new Date().toISOString() }, { headers: { 'Cache-Control': 'public, s-maxage=600, stale-while-revalidate=1800' } })
   } catch (e) {
     console.error(`[record/calls] ${sport}: ${e?.message || e}`)
