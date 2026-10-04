@@ -25,6 +25,12 @@ const WORDS = {
     pick: 'The bot calls one skater per team, two in every game. Tap a name to see why.',
     track: 'Every call is graded after the game, hit or miss.',
   },
+  // BUCKETS fell back to MOONSHOT's words ("every hitter… first pitch"), 2026-10-04 audit.
+  nba: {
+    look: 'Every player on tonight’s board, ranked before tip-off.',
+    pick: 'The bot calls the top player on each team, in every market. Tap a name to see why.',
+    track: 'Every call is graded after the game, hit or miss.',
+  },
 }
 
 const tint = (c, pct) => `color-mix(in srgb, ${c} ${pct}%, transparent)`

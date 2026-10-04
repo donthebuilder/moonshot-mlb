@@ -17,7 +17,7 @@ export default function Standings({ onOpenTeam }) {
     { key: 'abbrev', label: 'Team', group: 'Team', w: 120, heat: false, sticky: true, bold: true, fmt: (v, r) => <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>{r.name}{r.clinch ? <span style={{ fontSize: 10, color: C.purple }}>{r.clinch}</span> : null}</span>, link: (r) => (onOpenTeam ? () => onOpenTeam(r.abbrev) : null) },
     { key: 'w', label: 'W', group: 'Record', w: 36, mono: true },
     { key: 'l', label: 'L', group: 'Record', w: 36, mono: true },
-    { key: 'pct', label: 'PCT', group: 'Record', w: 48, mono: true, primary: true },
+    { key: 'pct', label: 'PCT', group: 'Record', w: 48, mono: true, primary: true, fmt: (v) => (Number.isFinite(v) ? v.toFixed(3).replace(/^0/, '') : '—') /* was rounded to 1/0 */ },
     { key: 'gb', label: 'GB', group: 'Record', w: 40, heat: false, mono: true },
     { key: 'home', label: 'Home', group: 'Splits', w: 52, heat: false, mono: true },
     { key: 'road', label: 'Road', group: 'Splits', w: 52, heat: false, mono: true },
