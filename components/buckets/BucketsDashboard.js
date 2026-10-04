@@ -30,29 +30,33 @@ import MobileTabBarBuckets from './MobileTabBarBuckets'
 import { NBA_TEXTS } from './tabExplainerTexts'
 import { readHashParam } from './ui'
 import Home from './tabs/Home'
-import Board from './tabs/Board'
-import FullBoard from './tabs/FullBoard'
-import Scores from './tabs/Scores'
-import Slate from './tabs/Slate'
-import Game from './tabs/Game'
-import Standings from './tabs/Standings'
-import Schedule from './tabs/Schedule'
-import Matchups from './tabs/Matchups'
-import Hot from './tabs/Hot'
-import Ledger from './tabs/Ledger'
-import Watchlist from './tabs/Watchlist'
-import StorylinesPage from '../StorylinesPage'
 import dynamic from 'next/dynamic'
+// ONE TAB'S CODE AT A TIME (2026-10-04, JS split): Home paints first; every
+// other tab is fetched the first time it opens, then cached -- MOONSHOT's
+// Dashboard pattern. A tab you never open costs nothing.
+import TabLoading from '../TabLoading'
+const Board = dynamic(() => import('./tabs/Board'), { loading: TabLoading })
+const FullBoard = dynamic(() => import('./tabs/FullBoard'), { loading: TabLoading })
+const Scores = dynamic(() => import('./tabs/Scores'), { loading: TabLoading })
+const Slate = dynamic(() => import('./tabs/Slate'), { loading: TabLoading })
+const Game = dynamic(() => import('./tabs/Game'), { loading: TabLoading })
+const Standings = dynamic(() => import('./tabs/Standings'), { loading: TabLoading })
+const Schedule = dynamic(() => import('./tabs/Schedule'), { loading: TabLoading })
+const Matchups = dynamic(() => import('./tabs/Matchups'), { loading: TabLoading })
+const Hot = dynamic(() => import('./tabs/Hot'), { loading: TabLoading })
+const Ledger = dynamic(() => import('./tabs/Ledger'), { loading: TabLoading })
+const Watchlist = dynamic(() => import('./tabs/Watchlist'), { loading: TabLoading })
+const StorylinesPage = dynamic(() => import('../StorylinesPage'), { loading: TabLoading })
+const Teams = dynamic(() => import('./tabs/Teams'), { loading: TabLoading })
+const Team = dynamic(() => import('./tabs/Team'), { loading: TabLoading })
+const Players = dynamic(() => import('./tabs/Players'), { loading: TabLoading })
+const Player = dynamic(() => import('./tabs/Player'), { loading: TabLoading })
+const Leaders = dynamic(() => import('./tabs/Leaders'), { loading: TabLoading })
+const ShotMap = dynamic(() => import('./tabs/ShotMap'), { loading: TabLoading })
+const Results = dynamic(() => import('./tabs/Results'), { loading: TabLoading })
+const Guide = dynamic(() => import('./tabs/Guide'), { loading: TabLoading })
 const BucketsOdds = dynamic(() => import('./BucketsOdds'))
 import { useBucketsSaves } from '../../lib/nba/useBucketsSaves'
-import Teams from './tabs/Teams'
-import Team from './tabs/Team'
-import Players from './tabs/Players'
-import Player from './tabs/Player'
-import Leaders from './tabs/Leaders'
-import ShotMap from './tabs/ShotMap'
-import Results from './tabs/Results'
-import Guide from './tabs/Guide'
 import DashFooter from '../DashFooter'
 import PlayerPeek from '../PlayerPeek'
 import SkipLink from '../SkipLink'

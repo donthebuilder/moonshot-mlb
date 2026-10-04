@@ -28,33 +28,37 @@ import TabExplainer from '../TabExplainer'
 import { NFL_TEXTS } from './tabExplainerTexts'
 
 import Home from './tabs/Home'
-import Watchlist from './tabs/Watchlist'
-import Games from './tabs/Games'
-import Bot from './tabs/Bot'
-import NflPlayers from './tabs/NflPlayers'
-import BoardHub from './tabs/BoardHub'
-import Ledger from './tabs/Ledger'
-import Research from './tabs/Research'
-import Matchups from './tabs/Matchups'
-import Explosive from './tabs/Explosive'
-import RedZone from './tabs/RedZone'
-import Longshots from '../Longshots'
-import StorylinesPage from '../StorylinesPage'
 import NflTable from './NflTable'
-import Numerology from './tabs/Numerology'
-import Accountability from './tabs/Accountability'
-import TuddyLedger from './tabs/TuddyLedger'
-import Scores from './tabs/Scores'
-import Standings from './tabs/Standings'
-import Pairs from './tabs/Pairs'
-import Guide from './tabs/Guide'
-import Live from './tabs/Live'
-import Streaks from './tabs/Streaks'
-import Leaders from './tabs/Leaders'
-import Storylines from './tabs/Storylines'
 import { liveOdds } from '../../lib/oddsFreshness'
 import { StaleNote } from '../StaleBanner'
 import dynamic from 'next/dynamic'
+// ONE TAB'S CODE AT A TIME (2026-10-04, JS split): Home paints first; every
+// other tab is fetched the first time it opens, then cached -- MOONSHOT's
+// Dashboard pattern. A tab you never open costs nothing.
+import TabLoading from '../TabLoading'
+const Watchlist = dynamic(() => import('./tabs/Watchlist'), { loading: TabLoading })
+const Games = dynamic(() => import('./tabs/Games'), { loading: TabLoading })
+const Bot = dynamic(() => import('./tabs/Bot'), { loading: TabLoading })
+const NflPlayers = dynamic(() => import('./tabs/NflPlayers'), { loading: TabLoading })
+const BoardHub = dynamic(() => import('./tabs/BoardHub'), { loading: TabLoading })
+const Ledger = dynamic(() => import('./tabs/Ledger'), { loading: TabLoading })
+const Research = dynamic(() => import('./tabs/Research'), { loading: TabLoading })
+const Matchups = dynamic(() => import('./tabs/Matchups'), { loading: TabLoading })
+const Explosive = dynamic(() => import('./tabs/Explosive'), { loading: TabLoading })
+const RedZone = dynamic(() => import('./tabs/RedZone'), { loading: TabLoading })
+const Longshots = dynamic(() => import('../Longshots'), { loading: TabLoading })
+const StorylinesPage = dynamic(() => import('../StorylinesPage'), { loading: TabLoading })
+const Numerology = dynamic(() => import('./tabs/Numerology'), { loading: TabLoading })
+const Accountability = dynamic(() => import('./tabs/Accountability'), { loading: TabLoading })
+const TuddyLedger = dynamic(() => import('./tabs/TuddyLedger'), { loading: TabLoading })
+const Scores = dynamic(() => import('./tabs/Scores'), { loading: TabLoading })
+const Standings = dynamic(() => import('./tabs/Standings'), { loading: TabLoading })
+const Pairs = dynamic(() => import('./tabs/Pairs'), { loading: TabLoading })
+const Guide = dynamic(() => import('./tabs/Guide'), { loading: TabLoading })
+const Live = dynamic(() => import('./tabs/Live'), { loading: TabLoading })
+const Streaks = dynamic(() => import('./tabs/Streaks'), { loading: TabLoading })
+const Leaders = dynamic(() => import('./tabs/Leaders'), { loading: TabLoading })
+const Storylines = dynamic(() => import('./tabs/Storylines'), { loading: TabLoading })
 import { useLiveRefresh } from '../../lib/liveRefresh'
 import RefreshStamp from '../RefreshStamp'
 import DashFooter from '../DashFooter'
