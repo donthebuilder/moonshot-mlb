@@ -140,7 +140,9 @@ export default function Ledger({
               {night.rows.length ? (
                 <DenseTable
                   rows={night.rows}
-                  columns={nightColumns}
+                  // 'Was on' only where a row carries it -- LAMP's ledger never sets it,
+                  // so the column was a dash on every row (audit 05 #9)
+                  columns={night.rows.some((r) => Number.isFinite(r.wasOn)) ? nightColumns : nightColumns.filter((c) => c.key !== 'wasOn')}
                   heatMode="none"
                   maxRows={100}
                   caption={`Every ${eventLabelLong.toLowerCase()} on the board that ${periodWord}, tagged called / on board / not on board.`}
