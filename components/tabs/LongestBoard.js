@@ -30,6 +30,7 @@ import { seqChip, divChip, SEQ_AUTO, SCORE } from '../../lib/scales'
 // values). Every weather cell rendered 0 and the park+air adjustment was
 // silently inert — "Adjusted" and "Raw" were the same ranking with different
 // labels. Each read now falls back across the published spellings.
+const indoor = (p) => /dome|closed/i.test(String(p?.roof || ''))
 const wTemp = (p) => n(p?.weather_temp_f, n(p?.temp_f, 0))
 const wWind = (p) => n(p?.weather_wind_mph, n(p?.wind_mph, 0))
 
@@ -179,8 +180,11 @@ export default function LongestBoard({ players = [], results = null, onWatch, wa
       raw,
       adj: raw * k,
       parkD: n(p?.park_dist_factor, 1),
-      temp: wTemp(p),
-      wind: wWind(p),
+      // Indoors (dome / closed roof) or not reported is '—', not 0° and 0 mph
+      // (2026-10-04 data trace: Tropicana read 0 across TEMP / WIND / HUMID /
+      // FEELS / RAIN). A real calm wind outdoors still reads 0.
+      temp: indoor(p) ? null : (wTemp(p) || null),
+      wind: indoor(p) || (p?.weather_wind_mph == null && p?.wind_mph == null) ? null : wWind(p),
       maxEV: maxEV(p),
       avgEV: avgEV(p),
       la: launchAngle(p),
@@ -195,9 +199,9 @@ export default function LongestBoard({ players = [], results = null, onWatch, wa
       ihr: n(p?.recent_ideal_hr_contact, 0) * 100,
       pull: n(p?.pitcher_pullair_allowed_pct, 0) * (n(p?.pitcher_pullair_allowed_pct, 0) <= 1 ? 100 : 1),
       hrEff: n(p?.weather_hr_effect_pct, n(p?.hr_weather_effect_pct, null)),
-      humid: n(p?.weather_humidity, n(p?.humidity_pct, null)),
-      feels: n(p?.weather_feels_like_f, n(p?.feels_like_f, null)),
-      rain: n(p?.weather_precip_chance, n(p?.precip_chance, 0)) * 100,
+      humid: indoor(p) ? null : n(p?.weather_humidity, n(p?.humidity_pct, null)),
+      feels: indoor(p) ? null : n(p?.weather_feels_like_f, n(p?.feels_like_f, null)),
+      rain: indoor(p) ? null : (() => { const r = n(p?.weather_precip_chance, n(p?.precip_chance, null)); return r == null ? null : r * 100 })(),
       parkAll: n(p?.park_factor, null),
       parkBrl: n(p?.park_barrel_factor, null),
       watched: watchIds?.has(playerId(p)) ? 1 : 0,
