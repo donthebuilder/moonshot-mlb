@@ -3,7 +3,7 @@
 // Tonight's goal board as the record has it — lib/nhl/boardRead.js does
 // the reading (locked rows, else a live PREVIEW flagged as such); this is
 // the HTTP face of it, cached a minute at the edge.
-import { easternToday } from '../../../../lib/data'
+import { slateNight } from '../../../../lib/slateNight'
 import { validDate } from '../../../../lib/nhl/api'
 import { readBoard, BOARD_MARKETS } from '../../../../lib/nhl/boardRead'
 import { ok, bad, delayed } from '../../../../lib/nhl/respond'
@@ -13,7 +13,7 @@ export const maxDuration = 60
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url)
-  const date = searchParams.get('date') || easternToday()
+  const date = searchParams.get('date') || await slateNight('nhl')
   if (!validDate(date)) return bad('date must be a real YYYY-MM-DD day')
   // ?market=SOG (LAMP v2); GOAL when absent, so every old link reads as before.
   const market = String(searchParams.get('market') || 'GOAL').toUpperCase()

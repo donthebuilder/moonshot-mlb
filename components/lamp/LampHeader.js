@@ -47,7 +47,7 @@ export default function LampHeader({ tab, setTab, live = 0, date = null, setDate
             Today / Tmrw move the shell's one day (LampDashboard); a day paged
             to in a tab shows here as its date with neither lit. */}
         <DateMode
-          label={fmtDay(date || today)}
+          label={fmtDay(date || scores?.data?.date || today) /* the slate the server is showing (lib/slateNight) */}
           value={!date ? 'today' : date === tomorrow ? 'tomorrow' : ''}
           onChange={(k) => setDate(k === 'tomorrow' ? tomorrow : null)}
           options={[{ key: 'today', text: 'Today', color: C.ice }, { key: 'tomorrow', text: 'Tmrw', color: C.teal }]}

@@ -4,7 +4,7 @@
 // previousStartDate / nextStartDate come back for paging), plus the season's
 // boundary dates so the UI can say PRESEASON / REGULAR SEASON from the feed
 // rather than from a calendar guess. No date = today in ET.
-import { easternToday } from '../../../../lib/data'
+import { slateNight } from '../../../../lib/slateNight'
 import { scheduleFor, validDate, TTL } from '../../../../lib/nhl/api'
 import { reduceScheduleWeek } from '../../../../lib/nhl/reduce'
 import { ok, bad, delayed } from '../../../../lib/nhl/respond'
@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url)
-  const date = searchParams.get('date') || easternToday()
+  const date = searchParams.get('date') || await slateNight('nhl')
   if (!validDate(date)) return bad('date must be a real YYYY-MM-DD day')
   try {
     const raw = await scheduleFor(date)

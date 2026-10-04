@@ -4,7 +4,8 @@
 // report (api.nhle.com/stats skater/penalties), every skater, plus tonight's
 // opponent for each club playing. Measured, not modelled. The current season
 // once it has a game in it (lib/nhl/whichSeason), or last season on request.
-import { easternToday } from '../../../../lib/data'
+import { easternDate } from '../../../../lib/data'
+import { slateNight } from '../../../../lib/slateNight'
 import { scoreFor, nhlStatsGet } from '../../../../lib/nhl/api'
 import { reduceScoreDay } from '../../../../lib/nhl/reduce'
 import { whichSeason } from '../../../../lib/nhl/whichSeason'
@@ -20,7 +21,7 @@ export async function GET(request) {
     const last = new URL(request.url).searchParams.get('season') === 'last'
     const sn = await whichSeason()
     const season = last ? previousSeasonId(sn.current || sn.id) : sn.id
-    const date = easternToday()
+    const date = await slateNight('nhl')
     const [rep, day] = await Promise.all([
       nhlStatsGet(`/skater/penalties?limit=-1&cayenneExp=${encodeURIComponent(`seasonId=${season} and gameTypeId=2`)}`, 3600),
       scoreFor(date).then(reduceScoreDay).catch(() => null),
@@ -41,7 +42,7 @@ export async function GET(request) {
         tonight: tonight[team] || null,
       }
     }).filter((p) => p.gp > 0)
-    return ok({ season, label: seasonLabel(season), last, date, players, source: 'api.nhle.com/stats skater/penalties (regular season)', fetchedAt: new Date().toISOString() }, 1800)
+    return ok({ season, label: seasonLabel(season), last, date, players, source: 'api.nhle.com/stats skater/penalties (regular season)', fetchedAt: new Date().toISOString() }, date === easternDate(Date.now()) ? 1800 : 300 /* a late slate rolls over soon */)
   } catch (e) {
     return delayed('penalties', e)
   }

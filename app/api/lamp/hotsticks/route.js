@@ -4,7 +4,8 @@
 // rate (lib/nhl/hotSticks.js), plus tonight's opponent for each club
 // playing. Measured, not modelled. Last season's final weeks, labelled
 // stale, until the new season has a game in it.
-import { easternToday } from '../../../../lib/data'
+import { easternDate } from '../../../../lib/data'
+import { slateNight } from '../../../../lib/slateNight'
 import { scoreFor } from '../../../../lib/nhl/api'
 import { reduceScoreDay } from '../../../../lib/nhl/reduce'
 import { readHotSticks } from '../../../../lib/nhl/hotSticks'
@@ -14,7 +15,7 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(req) {
   try {
-    const date = easternToday()
+    const date = await slateNight('nhl')
     // ?need=20: LAMP Power's whole-season floor (only 0 or 20 accepted, so the cache stays two entries).
     const needGp = new URL(req.url).searchParams.get('need') === '20' ? 20 : 0
     const [hs, day] = await Promise.all([readHotSticks({ needGp }), scoreFor(date).then(reduceScoreDay).catch(() => null)])
@@ -24,7 +25,7 @@ export async function GET(req) {
       tonight[g.away.abbrev] = { opp: g.home.abbrev, home: false, gameId: g.id }
       tonight[g.home.abbrev] = { opp: g.away.abbrev, home: true, gameId: g.id }
     }
-    return ok({ ...hs, date, tonight, fetchedAt: new Date().toISOString() }, 1800)
+    return ok({ ...hs, date, tonight, fetchedAt: new Date().toISOString() }, date === easternDate(Date.now()) ? 1800 : 300 /* a late slate rolls over soon */)
   } catch (e) {
     return delayed('hot sticks', e)
   }
