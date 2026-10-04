@@ -111,7 +111,7 @@ function Moment({ m, C, NUM_FONT, accent, Face }) {
  *   later: [{ key, label, value, sub }]   (CHALK vs VALUE, the DASH line) -- drawn only when present
  * }
  */
-export default function RecordPage({ record, Table, Face = PlayerFace, receipts = null, receiptsLabel = 'Every graded pick, in full', top = null }) {
+export default function RecordPage({ record, Table, Face = PlayerFace, receipts = null, receiptsLabel = 'Every graded pick, in full', top = null, calls = null }) {
   const { C, NUM_FONT, accent } = useSportTheme()
   const [win, setWin] = useState('l10')
   const [allCalled, setAllCalled] = useState(false)
@@ -223,6 +223,9 @@ export default function RecordPage({ record, Table, Face = PlayerFace, receipts 
           {later.map((x) => <div key={x.key} style={{ fontSize: 12, color: C.text2 }}><b style={{ color: C.text }}>{x.label}</b> <span style={{ fontFamily: NUM_FONT }}>{x.value}</span>{x.sub ? <span style={{ color: C.text3 }}> · {x.sub}</span> : null}</div>)}
         </Section>
       ) : null}
+
+      {/* EVERY CALL, ITS PRICE, ITS RESULT (2026-10-04, components/record/CallHistory.js) */}
+      {calls}
 
       {/* RECEIPTS */}
       {receipts ? (
