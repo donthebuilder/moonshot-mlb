@@ -51,6 +51,7 @@ import dynamic from 'next/dynamic'
 import RefreshStamp from '../RefreshStamp'
 import DashFooter from '../DashFooter'
 import PlayerPeek from '../PlayerPeek'
+import LampProps from './LampProps'
 import SkipLink from '../SkipLink'
 const LampOdds = dynamic(() => import('./LampOdds'))
 
@@ -166,6 +167,9 @@ export default function LampDashboard({ palettePass = 0 }) {
             {tab === 'shotmap' && <ShotMap onOpenPlayer={peekPlayer} />}
             {tab === 'lampledger' && <LampLedger onOpenPlayer={peekPlayer} onOpenTeam={openTeam} />}
             {tab === 'numerology' && <Numerology date={date} onOpenPlayer={peekPlayer} />}
+            {/* Props is MOONSHOT's page now (2026-10-04): the cards, then the full board under them */}
+            {tab === 'board' && <LampProps date={date} onOpenPlayer={peekPlayer} />}
+            {tab === 'board' && <div style={{ marginTop: 26, paddingTop: 18, borderTop: `1px solid ${C.border}`, font: `900 11px/1 ${NUM_FONT}`, letterSpacing: '.16em', color: C.ice, marginBottom: 10 }}>THE BOARD · EVERY SKATER, EVERY NUMBER</div>}
             {(tab === 'board' || tab === 'shots') && <Board onOpenPlayer={peekPlayer} onOpenGame={openGame} onOpenTeam={openTeam} date={date} setDate={setDate}
               market={tab === 'shots' ? 'SOG' : (['PTS', 'AST'].includes(String(readHashParam('m') || '').toUpperCase()) ? String(readHashParam('m')).toUpperCase() : 'GOAL')}
               onMarket={(m) => setTab(m === 'SOG' ? 'shots' : 'board')} />}

@@ -53,12 +53,13 @@ function GroupHead({ label, color, count, C, NUM_FONT }) {
   )
 }
 
-function Card({ a, r, k, onOpen, onWatch, watched, C, accent, accentWash }) {
+function Card({ a, r, k, onOpen, onWatch, watched, C, NUM_FONT, accent, accentWash }) {
   const p = a.card(r, k)
   return (
     <div onClick={onOpen ? () => onOpen(r) : undefined}
       style={{ cursor: onOpen ? 'pointer' : 'default', minWidth: 0 }}>
       <VerdictHero
+        theme={C} numFont={NUM_FONT}
         lead="face"
         photo={p.photo}
         col={a.color(k)}
@@ -245,7 +246,7 @@ export default function PropCards({
               <GroupHead label={a.groupLabel(g.key)} color={a.color(g.key)} count={g.rows.length} C={C} NUM_FONT={NUM_FONT} />
               <div style={{ display: 'grid', gap: 11, gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 330px), 1fr))' }}>
                 {g.rows.map((r) => (
-                  <Card key={a.keyOf(r)} a={a} r={r} k={g.key} onOpen={onOpen} onWatch={onWatch} watched={watchIds?.has(a.idOf(r))} C={C} accent={accent} accentWash={accentWash} />
+                  <Card key={a.keyOf(r)} a={a} r={r} k={g.key} onOpen={onOpen} onWatch={onWatch} watched={watchIds?.has(a.idOf(r))} C={C} NUM_FONT={NUM_FONT} accent={accent} accentWash={accentWash} />
                 ))}
               </div>
             </div>
