@@ -505,7 +505,9 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
               market={spec?.label || market}
               meta={<>
                 {player.jersey_number ? `#${player.jersey_number} · ` : ''}
-                {player.position} · {player.team}{player.opp ? ` vs ${player.opp}` : ''}
+                {/* the clubs are links to their players (2026-10-04, route audit B6: Player -> Team) */}
+                {player.position} · {player.team ? <a href={`#sport=nfl&tab=players&team=${player.team}`} style={{ color: 'inherit', textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: 2 }} title={`${player.team}'s players`}>{player.team}</a> : null}
+                {player.opp ? <>{' vs '}<a href={`#sport=nfl&tab=players&team=${player.opp}`} style={{ color: 'inherit', textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: 2 }} title={`${player.opp}'s players`}>{player.opp}</a></> : null}
                 {ageOf(player.birth_date) ? ` · age ${ageOf(player.birth_date)}` : ''}
                 {tag && <span title={injuryTitle(tag)} style={{ color: injuryColor(tag, C), fontWeight: 900 }}>{' · '}{tag}</span>}
                 {player.low_sample && <span style={{ color: C.text3 }}> · low sample</span>}
