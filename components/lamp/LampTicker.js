@@ -1,7 +1,8 @@
 'use client'
-import { useMemo, useRef } from 'react'
+import { useMemo } from 'react'
 import TickerPill from '../TickerPill'
-import { useAutoScroll, useLiveScores } from '../../lib/headlines'
+import { useLiveScores } from '../../lib/headlines'
+import Ticker from '../Ticker'
 import { useLampBoard, useLampLeaders } from '../../lib/nhl/useLamp'
 import { rankNight } from '../../lib/nhl/goalModel'
 import { setSport } from '../../lib/sport'
@@ -32,8 +33,6 @@ export default function LampTicker({ date = null, scores, liveScores, onOpenPlay
   const board = useLampBoard(date)
   const leaders = useLampLeaders()
   const others = useLiveScores({ nfl: true, nhl: false })
-  const trackRef = useRef(null)
-  useAutoScroll(trackRef, { speed: 55 })
 
   const items = useMemo(() => {
     const out = []
@@ -87,13 +86,8 @@ export default function LampTicker({ date = null, scores, liveScores, onOpenPlay
     <TickerPill sport={it.sport || 'nhl'} label={it.label} value={it.value} icon={it.icon} color={it.color} live={it.live} title={it.title} echo={echo} onClick={it.onClick} theme={C} numFont={NUM_FONT} />
   )
   return (
-    <div className="hdr-scorebug lamp-ticker" ref={trackRef}
-      style={{ overflowX: 'auto', overflowY: 'hidden', scrollbarWidth: 'none', lineHeight: 1, maxWidth: '100%',
-        WebkitMaskImage: 'linear-gradient(90deg, transparent, black 10px, black calc(100% - 22px), transparent)', maskImage: 'linear-gradient(90deg, transparent, black 10px, black calc(100% - 22px), transparent)' }}>
-      <div className="hdr-ticker-track" style={{ display: 'flex', width: 'max-content' }}>
-        {items.map((it) => <Pill key={it.k} it={it} />)}
-        {items.map((it) => <Pill key={`${it.k}-echo`} it={it} echo />)}
-      </div>
-    </div>
+    // the shell is components/Ticker.js (R9 #4)
+    <Ticker className="hdr-scorebug lamp-ticker" items={items}
+      render={(it, echo) => <Pill key={echo ? `${it.k}-echo` : it.k} it={it} echo={echo || undefined} />} />
   )
 }

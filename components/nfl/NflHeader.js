@@ -1,5 +1,5 @@
 'use client'
-import { Children, cloneElement, isValidElement, useEffect, useMemo, useRef, useState } from 'react'
+import { Children, cloneElement, isValidElement, useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT, GRADIENT } from '../../lib/nfl/theme'
 import { setSport } from '../../lib/sport'
 // LAMP's ice for the third pill -- a token import, not a literal (hex budget).
@@ -29,9 +29,10 @@ import HeaderShell from '../header/HeaderShell'
 // this was throwing away MLB scores it had already paid for the network
 // call to fetch, for no reason. Removed. Both sports now ride the same
 // strip, same as MOONSHOT's header always has -- see `liveItems` below.
-import { useLiveScores, useAutoScroll, scoreOrder } from '../../lib/headlines'
+import { useLiveScores, scoreOrder } from '../../lib/headlines'
 import DateMode from '../DateMode'
 import TickerPill from '../TickerPill'
+import Ticker from '../Ticker'
 // Real, icon-tagged NFL story-bites -- see lib/nfl/headlines.js's own
 // header comment. NFL equivalent of buildHeadlines() above.
 import { buildNflHeadlines } from '../../lib/nfl/headlines'
@@ -76,36 +77,16 @@ const NFL_JOBS = () => [
 // hook's own built-in behavior (same as Scorebug) -- no separate pause
 // button, because MOONSHOT's ticker doesn't have one either.
 function TickerStrip({ children }) {
-  const trackRef = useRef(null)
-  useAutoScroll(trackRef, { speed: 55 })
-  // ONLY REAL ELEMENTS GET CLONED (2026-09-18).
-  //
-  // The whole TUDDY side was a white screen: React error #130, "element type
-  // is invalid ... got: undefined", thrown before anything rendered. The
-  // cause is here. Children.toArray drops null/undefined/booleans but KEEPS
-  // strings, and one child of this strip is `{freshLabel && <Tile .../>}` --
-  // freshLabel is '' until the slate payload lands, so on the very first
-  // render the array holds an empty STRING. cloneElement('') reads `.type`
-  // off a string, gets undefined, and hands React an element with no type.
-  // Filtering to real elements is the fix that holds for every future tile,
-  // not just this one.
+  // ONLY REAL ELEMENTS GET CLONED (2026-09-18): Children.toArray keeps an empty
+  // STRING child (`{freshLabel && <Tile/>}` before the payload lands), and
+  // cloneElement('') hands React an element with no type -- the white-screen
+  // React #130. Filtering to real elements holds for every future tile.
   const items = Children.toArray(children).filter(isValidElement)
+  // the shell is components/Ticker.js (R9 #4); TUDDY's classes and flex basis unchanged
   return (
-    <div
-      ref={trackRef}
-      className="nfl-ticker-shell"
-      style={{
-        flex: '1 1 320px', minWidth: 0, overflowX: 'auto', overflowY: 'hidden',
-        scrollbarWidth: 'none', lineHeight: 1, maxWidth: '100%',
-        WebkitMaskImage: 'linear-gradient(90deg, transparent, #000 10px, #000 calc(100% - 22px), transparent)',
-        maskImage: 'linear-gradient(90deg, transparent, #000 10px, #000 calc(100% - 22px), transparent)',
-      }}
-    >
-      <div className="nfl-tiles-set nfl-ticker-track" style={{ width: 'max-content' }}>
-        {items}
-        {items.map((el, i) => cloneElement(el, { key: `echo-${i}`, 'aria-hidden': true }))}
-      </div>
-    </div>
+    <Ticker className="nfl-ticker-shell" style={{ flex: '1 1 320px', minWidth: 0 }}
+      trackClassName="nfl-tiles-set nfl-ticker-track" items={items}
+      render={(el, echo, i) => (echo ? cloneElement(el, { key: `echo-${i}`, 'aria-hidden': true }) : el)} />
   )
 }
 

@@ -1,6 +1,6 @@
 'use client'
 import { explain } from '../lib/explain'
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { C, NUM_FONT, GRADIENT, DAY_COLORS } from '../lib/theme'
 import { logUrl } from '../lib/dataSource'
 import { setSport } from '../lib/sport'
@@ -11,8 +11,9 @@ import ThemeModeButton from './ThemeModeButton'
 import QuietButton from './QuietButton'
 import { slateProjHr } from './ProjectedOutput'
 import { easternToday } from '../lib/data'
-import { buildHeadlines, useLiveScores, useAutoScroll, scoreOrder } from '../lib/headlines'
+import { buildHeadlines, useLiveScores, scoreOrder } from '../lib/headlines'
 import TickerPill from './TickerPill'
+import Ticker from './Ticker'
 import DateMode from './DateMode'
 import SettingsSheet, { SheetLabel, SheetRow } from './SettingsSheet'
 import SignUpPill from './SignUpPill'
@@ -132,8 +133,6 @@ function Scorebug({ players, results, games, mode, slateDate, runMeta, onPlayerC
   const modelHr = useMemo(() => slateProjHr(players), [players])
   const projection = useProjection(mode)
   const live = useLiveScores()
-  const trackRef = useRef(null)
-  useAutoScroll(trackRef, { speed: 55 })
   const isLive = live.items.some((i) => i.live) || (stats?.actual ?? 0) > 0
   const heads = useMemo(() => buildHeadlines({ players, results, isLive, headline: null, airRanked: [] }), [players, results, isLive])
   if (!stats) return <span style={{ fontSize:9.5, color:C.text3, fontFamily:NUM_FONT }}>loading the slate…</span>
@@ -227,14 +226,9 @@ function Scorebug({ players, results, games, mode, slateDate, runMeta, onPlayerC
   // JS-driven strips; left alone on the ~16 other purely-manual-scroll
   // surfaces across the site, where it isn't in the way of anything.
   return (
-    <div className="hdr-scorebug" ref={trackRef}
-      style={{ overflowX:'auto', overflowY:'hidden', scrollbarWidth:'none', lineHeight:1, marginTop:5, maxWidth:'100%',
-        WebkitMaskImage:'linear-gradient(90deg, transparent, #000 10px, #000 calc(100% - 22px), transparent)', maskImage:'linear-gradient(90deg, transparent, #000 10px, #000 calc(100% - 22px), transparent)' }}>
-      <div className="hdr-ticker-track" style={{ display:'flex', width:'max-content' }}>
-        {items.map((it) => <Pill key={it.k} it={it} />)}
-        {items.map((it) => <Pill key={`${it.k}-echo`} it={it} echo />)}
-      </div>
-    </div>
+    // the shell is components/Ticker.js (R9 #4); MOONSHOT's class and margin unchanged
+    <Ticker className="hdr-scorebug" style={{ marginTop: 5 }} items={items}
+      render={(it, echo) => <Pill key={echo ? `${it.k}-echo` : it.k} it={it} echo={echo || undefined} />} />
   )
 }
 
