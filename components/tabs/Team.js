@@ -75,8 +75,15 @@ export default function Team({ players = [], onPlayerClick, onOpenGame }) {
   useEffect(() => {
     if (!code) return
     const h = hashParams()
-    if (h.get('team') !== code) { h.set('team', code); writeHash(h, { push: false }) }
+    if (h.get('team') !== code) { const had = h.get('team'); h.set('team', code); writeHash(h, { push: Boolean(had) }) }   // club to club pushes, so Back walks back
   }, [code])
+  // The address can change under a page that stays mounted -- a club tapped on a
+  // player card opened here, or Back from one club to the last (TUDDY's rule, 10-04).
+  useEffect(() => {
+    const on = () => { const t = teamKey(hashParams().get('team') || ''); if (t) setCode(t) }
+    window.addEventListener('hashchange', on); window.addEventListener('popstate', on)
+    return () => { window.removeEventListener('hashchange', on); window.removeEventListener('popstate', on) }
+  }, [])
   const { data, error } = useClubSchedule(code)
   const rows = useMemo(() => players.filter((p) => teamKey(p?.team) === code)
     .map((p) => ({ ...p, role: p.game_pick_role || '', _id: `${p.player_id}-${p.game_pk}` }))   // role: the table's coloured role chip

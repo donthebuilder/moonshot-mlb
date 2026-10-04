@@ -206,7 +206,7 @@ function FaceCircle({ photo, size }) {
 
 export default function VerdictHero({
   col, score, max, dialTitle, dp,
-  title, badge, badgeQuiet, meta, metaRight, market, line, line2, facts, right,
+  title, badge, badgeQuiet, meta, meta2, metaRight, market, line, line2, facts, right,
   chips, footer, style, lead = 'dial', photo = null, theme = null, numFont = null,
 }) {
   const sport = useSportTheme()
@@ -269,10 +269,13 @@ export default function VerdictHero({
             </span>
           </div>
           {meta && (
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, minWidth: 0, ...(meta2 ? { lineHeight: '20px' } : null) }}>
               <span style={{
                 flex: 1, minWidth: 0, fontSize: 10, color: C.text3, fontFamily: NUM_FONT,
-                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap', textOverflow: 'ellipsis',
+                // a two-line head clips sideways only, so a link's padded tap area
+                // isn't cut to the 10px text height (meta2, 2026-10-04)
+                ...(meta2 ? { overflowX: 'clip', overflowY: 'visible', paddingLeft: 17, marginLeft: -17 } : { overflow: 'hidden' }),   // 17px: the first link's left pad
               }}>{meta}</span>
               {/* SUBTLE, as asked: "odds are cool make subtle". The book's own
                   number, dimmed, at the end of the line the matchup is already
@@ -283,6 +286,14 @@ export default function VerdictHero({
                 }}>{metaRight}</span>
               )}
             </div>
+          )}
+          {/* `meta2`: a second matchup line (MOONSHOT's card, 2026-10-04: clubs + game
+              on the first, lineup / hand / pitcher on this one, so neither clips) */}
+          {meta && meta2 && (
+            <div style={{
+              fontSize: 10, lineHeight: '20px', color: C.text3, fontFamily: NUM_FONT, minWidth: 0,
+              whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflowX: 'clip', overflowY: 'visible',
+            }}>{meta2}</div>
           )}
           {/* When the plate already carries the market, printing it again
               under the name is the same word twice, four inches apart. */}

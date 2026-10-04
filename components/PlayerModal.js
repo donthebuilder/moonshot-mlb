@@ -1,5 +1,6 @@
 'use client'
 import { mlbFaceStrict } from './PlayerFace'
+import { teamKey, teamName } from '../lib/mlbTeams'
 import { useEffect, useMemo, useState } from 'react'
 
 import useScrollLock from '../lib/useScrollLock'
@@ -228,6 +229,25 @@ const BETS = ['HR', 'Hit', 'HRR', 'TB']
 
 // 44px tap target around inline text, the text itself unmoved (phone rule)
 const META_LINK = { color: 'inherit', textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: 2, display: 'inline-block', padding: '17px 13px', margin: '-17px -13px' }
+// THE TWO-LINE HEAD (2026-10-04, Donovan): line 1 the clubs + the game, line 2
+// lineup / hand / pitcher -- on one line the pitcher clipped at 390 and a game
+// link at its end never showed. The lines are 20px apart, so each link's target
+// is its line (20px tall) and ~44px wide; taller ones would overlap the other line.
+// position: relative lifts the padded target over the plain text beside it (" vs ", " (L)"),
+// which otherwise paints on top and takes the tap
+const ROW_LINK = { ...META_LINK, position: 'relative', lineHeight: '10px', padding: '5px 13px', margin: '-5px -13px' }
+// a club code is ~18-26px and " vs " ~24px: 9px + 12px across the gap keeps the two
+// clubs apart; the first club's outer side has room for 17px (VerdictHero meta2 pad)
+const CLUB_LINK = { ...ROW_LINK, padding: '5px 9px 5px 12px', margin: '-5px -9px -5px -12px' }
+const FIRST_CLUB_LINK = { ...ROW_LINK, padding: '5px 9px 5px 17px', margin: '-5px -9px -5px -17px' }
+// 'Game ›' is ~37px of text after " · " (~14px): a short left pad clears the club before it
+const GAME_LINK = { ...ROW_LINK, padding: '5px 13px 5px 5px', margin: '-5px -13px -5px -5px' }
+// The club opens its team page (2026-10-04, Donovan: the card is the phone's way
+// to a team -- the board's 11px logos are too small to tap). Not a club -> text.
+function clubLink(code, style = CLUB_LINK) {
+  const k = teamKey(code)
+  return k ? <a href={`#sport=mlb&tab=team&team=${k}`} style={style} title={`${teamName(k)} team page`}>{code}</a> : code
+}
 
 export default function PlayerModal({ player, slate = null, slateMode, initialTab = '', onClose, inline = false, onAdd, onWatch, watched = false, peers = [], onNavigate = null, odds = null, pairSummary = null, onOpenPairHistory = null }) {
   // Inline mode is not an overlay -- it renders in the page, and pinning the
@@ -620,14 +640,18 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
             badge={apiOnly ? 'LIVE API' : heroRole === 'NONE' ? 'NO BADGE' : heroRole === 'WATCH' ? '👀 WATCH' : heroRole}
             badgeQuiet={apiOnly || heroRole === 'NONE' || heroRole === 'WATCH'}
             meta={apiOnly
-              ? `${clean(p?.team, '—')}${p?.position ? ` · ${p.position}` : ''} · ${clean(p?.bats, '?')}HB · ${p?.status_word || "not on tonight's slate"}${p?.season_line?.pa ? ` · ${String(p.season_line.avg?.toFixed?.(3) ?? '—').replace(/^0/, '')} / ${p.season_line.hr} HR / ${p.season_line.rbi} RBI in ${p.season_line.pa} PA` : ''}`
+              ? <>{clubLink(clean(p?.team, '—'), META_LINK)}{`${p?.position ? ` · ${p.position}` : ''} · ${clean(p?.bats, '?')}HB · ${p?.status_word || "not on tonight's slate"}${p?.season_line?.pa ? ` · ${String(p.season_line.avg?.toFixed?.(3) ?? '—').replace(/^0/, '')} / ${p.season_line.hr} HR / ${p.season_line.rbi} RBI in ${p.season_line.pa} PA` : ''}`}</>
               // The game and the arm are links (2026-10-04, route audit B6): Player ->
               // Game opens his game on the Slate, Player -> pitcher opens the
-              // pitcher's file -- the addresses those tabs already read.
+              // pitcher's file -- the addresses those tabs already read. The two
+              // clubs open their team pages; the game is 'Game ›' (two-line head above).
               : <>
-                  {p?.game_pk ? <a href={`#sport=mlb&tab=games&game=${p.game_pk}`} style={META_LINK} title="Open his game on the Slate">{teamOf(p)} vs {oppOf(p)}</a> : `${teamOf(p)} vs ${oppOf(p)}`}
-                  {` · #${clean(p?.lineup_spot, '?')} · ${clean(p?.handedness || p?.bats, '?')}HB`}
-                  {p?.pitcher_name ? <>{' · vs '}{p?.pitcher_id ? <a href={`#sport=mlb&tab=pitchers&pitcher=${p.pitcher_id}`} style={META_LINK} title="Open the pitcher's file">{p.pitcher_name}</a> : p.pitcher_name}{` (${clean(p?.pitcher_throws, '?')})${p?.pitcher_projected ? ' ≈' : ''}`}</> : null}
+                  {clubLink(teamOf(p), FIRST_CLUB_LINK)}{' vs '}{clubLink(oppOf(p))}
+                  {p?.game_pk ? <>{' · '}<a href={`#sport=mlb&tab=games&game=${p.game_pk}`} style={GAME_LINK} title="Open his game on the Slate">Game ›</a></> : null}
+                </>}
+            meta2={apiOnly ? null : <>
+                  {`#${clean(p?.lineup_spot, '?')} · ${clean(p?.handedness || p?.bats, '?')}HB`}
+                  {p?.pitcher_name ? <>{' · vs '}{p?.pitcher_id ? <a href={`#sport=mlb&tab=pitchers&pitcher=${p.pitcher_id}`} style={ROW_LINK} title="Open the pitcher's file">{p.pitcher_name}</a> : p.pitcher_name}{` (${clean(p?.pitcher_throws, '?')})${p?.pitcher_projected ? ' ≈' : ''}`}</> : null}
                 </>}
             metaRight={heroPrice}
             market={apiOnly ? (p?.roster ? 'on the roster, not the slate' : 'live API only') : verdictFor(heroRole).market}

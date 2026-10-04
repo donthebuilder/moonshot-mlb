@@ -35,6 +35,9 @@ import SplitDumbbell from './SplitDumbbell'
 import { playerHref } from '../../lib/routes'
 import { gameVenue } from '../../lib/nfl/venueOf'
 import DashChip, { useDashLines, DASH_OF } from './DashChip'
+// 44px tap around a club code, text in place; 9px a side so the two clubs
+// either side of " vs " don't share a target (10-04).
+const CLUB_LINK = { color: 'inherit', textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: 2, display: 'inline-block', padding: '17px 9px', margin: '-17px -9px' }
 
 // Why this player scores what he scores — see components/nfl/ScoreAnatomy.js.
 // Since 2026-10-01 (0e b) that is one line: the board card's WHY sentence
@@ -505,9 +508,9 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
               market={spec?.label || market}
               meta={<>
                 {player.jersey_number ? `#${player.jersey_number} · ` : ''}
-                {/* the clubs are links to their players (2026-10-04, route audit B6: Player -> Team) */}
-                {player.position} · {player.team ? <a href={`#sport=nfl&tab=players&team=${player.team}`} style={{ color: 'inherit', textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: 2, display: 'inline-block', padding: '17px 13px', margin: '-17px -13px' /* 44px tap, text in place */ }} title={`${player.team}'s players`}>{player.team}</a> : null}
-                {player.opp ? <>{' vs '}<a href={`#sport=nfl&tab=players&team=${player.opp}`} style={{ color: 'inherit', textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: 2, display: 'inline-block', padding: '17px 13px', margin: '-17px -13px' }} title={`${player.opp}'s players`}>{player.opp}</a></> : null}
+                {/* the clubs open their team pages (route audit B6; team page since 10-03 -- was their players list) */}
+                {player.position} · {player.team ? <a href={`#sport=nfl&tab=team&team=${player.team}`} style={CLUB_LINK} title={`${player.team} team page`}>{player.team}</a> : null}
+                {player.opp ? <>{' vs '}<a href={`#sport=nfl&tab=team&team=${player.opp}`} style={CLUB_LINK} title={`${player.opp} team page`}>{player.opp}</a></> : null}
                 {ageOf(player.birth_date) ? ` · age ${ageOf(player.birth_date)}` : ''}
                 {tag && <span title={injuryTitle(tag)} style={{ color: injuryColor(tag, C), fontWeight: 900 }}>{' · '}{tag}</span>}
                 {player.low_sample && <span style={{ color: C.text3 }}> · low sample</span>}
