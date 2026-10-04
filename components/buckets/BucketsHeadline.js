@@ -43,7 +43,7 @@ export default function BucketsHeadline({ theme: C, numFont, boards, onOpenPlaye
   return (
     <HeadlinePicks sport="nba" theme={C} numFont={numFont}
       title="🏀 Tonight's calls"
-      subtitle="the called players on each board, top three by score. Scores rank tonight's pool, 0–100 — not probabilities."
+      subtitle="the called players on each board: the top scorer on each team, while he is on the board. Scores rank tonight's pool, 0–100 — not probabilities."
       lanes={lanes} collapsePhone
       onPick={(pick) => pick.raw?.playerId && onOpenPlayer?.(String(pick.raw.playerId))} />
   )

@@ -64,7 +64,7 @@ export default function Results({ onOpenPlayer }) {
 
       <WhatThis maxWidth={760}>
         {{
-          night: 'one graded night — the three calls per game, who scored, and the scorers the board had lower or not at all.',
+          night: 'one graded night — the calls in each game (one per team), who scored, and the scorers the board had lower or not at all.',
           season: 'every graded night in the window, one row each: of the skaters who scored, how many were called and how many were on the board. Tap a night to open it.',
           bands: 'is the rank separating outcomes — every dressed skater, banded by his rank in his own game, against the rate of all of them.',
         }[mode]}
@@ -124,7 +124,7 @@ export default function Results({ onOpenPlayer }) {
             { key: 'day', label: 'Night', w: 96, heat: false, bold: true, sticky: true },
             { key: 'games', label: 'GM', w: 38, heat: false, mono: true, dim: true },
             { key: 'scorers', label: 'Scorers', w: 56, heat: false, mono: true },
-            { key: 'scorersCalled', label: 'Called', w: 52, heat: false, mono: true, title: 'Scorers who were one of the three calls in their game' },
+            { key: 'scorersCalled', label: 'Called', w: 52, heat: false, mono: true, title: 'Scorers the goal board called in their game (one per team)' },
             { key: 'calledPct', label: 'Called %', w: 62, dp: 0, title: 'Share of that night’s scorers the board called' },
             { key: 'scorersOnBoard', label: 'On board', w: 60, heat: false, mono: true },
             { key: 'scorersOff', label: 'Off', w: 40, heat: false, mono: true, dim: true },
