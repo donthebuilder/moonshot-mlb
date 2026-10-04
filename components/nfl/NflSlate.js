@@ -10,8 +10,8 @@ import Tap from '../Tap'
 import GameSwitcher from '../GameSwitcher'
 import SlateCard from '../slate/SlateCard'
 import { GameFilterRail, StripFold, GamePanelPills, PanelAnchor, GameFrame, GameHeaderLine, PrevNextGame } from '../slate/SlateParts'
-import { SubLabel, FactLines } from '../matchup/MatchupParts'
-import { Zones, defenseFacts, offenseFacts, PassGame } from './tabs/Matchups'
+import { SubLabel, FactTiles } from '../matchup/MatchupParts'
+import { Zones, defenseTiles, offenseTiles, factsNote, PassGame } from './tabs/Matchups'
 import { Card as TdCard, tdPool } from './tabs/Touchdowns'
 import NflTable from './NflTable'
 import GameCalls, { useGameCalls } from './GameCalls'
@@ -52,11 +52,6 @@ const kickText = (g) => {
   return new Date(at).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit' })
 }
 const airText = (g) => (g.indoors ? 'indoors' : Number.isFinite(g.weather_temp_f) ? `${Math.round(g.weather_temp_f)}°F${g.weather_condition ? ` ${String(g.weather_condition).toLowerCase()}` : ''}` : null)
-const restText = (g, link = (t) => t) => {
-  const one = (t, d, sw) => (d == null ? null : <span key={t}>{link(t)} {d} day{d === 1 ? '' : 's'}{sw ? ' (short week)' : ''}</span>)
-  const parts = [one(g.away, g.away_rest_days, g.away_short_week), one(g.home, g.home_rest_days, g.home_short_week)].filter(Boolean)
-  return parts.length ? <>{parts.flatMap((x, i) => (i ? [' · ', x] : [x]))} since their last game.</> : null
-}
 
 /** The bot's headline calls that land in this game: [{ market, call, block }]. */
 function callsIn(picks, g) {
@@ -188,10 +183,10 @@ export default function NflSlate({ data, picks, matchup, odds = null, initialGam
                   badges={{ picks: calls.length ? String(calls.length) : '' }} />
 
                 <PanelAnchor id="read" gamePk={g.game_id}>
-                  <FactLines theme={C} lines={[
-                    ['Where', g.venue || airText(g) ? <>{g.venue || 'venue not published'}{airText(g) ? ` · ${airText(g)}` : ''}.</> : null],
-                    ['Rest', restText(g, teamLink)],
-                    ['Expected TDs', `${(xtdByGame[g.game_id] || 0).toFixed(1)} between the two teams (the sum of each scored player's xTD).`],
+                  <FactTiles theme={C} numFont={NUM_FONT} min={104} tiles={[
+                    { k: g.indoors ? 'INDOORS' : 'WEATHER', v: airText(g) && !g.indoors ? airText(g).replace(/°F/, '°') : g.indoors ? 'dome' : null, sub: g.venue || null },
+                    { k: 'DAYS REST', v: g.away_rest_days != null && g.home_rest_days != null ? `${g.away_rest_days} · ${g.home_rest_days}` : null, sub: `${g.away}${g.away_short_week ? ' (short)' : ''} · ${g.home}${g.home_short_week ? ' (short)' : ''}` },
+                    { k: 'EXPECTED TDS', v: (xtdByGame[g.game_id] || 0).toFixed(1), sub: 'both teams' },
                   ]} />
                   {story && (
                     <p style={{ margin: '0 0 12px', fontSize: 12.5, lineHeight: 1.5, color: C.text2 }}>
@@ -209,7 +204,10 @@ export default function NflSlate({ data, picks, matchup, odds = null, initialGam
                           <p style={{ margin: '0 0 8px', fontSize: 12.5, lineHeight: 1.5, color: C.text2 }}>
                             {soft?.standout ? <><b style={{ color: C.text }}>{teamLink(def)}</b> {softLine(soft)}.</> : <><b style={{ color: C.text }}>{teamLink(def)}</b> has no standout weakness this week.</>}
                           </p>
-                          <FactLines theme={C} lines={[...offenseFacts(matchup, off, data?.season, def), ...defenseFacts(matchup, def, undefined, data?.season)]} />
+                          <SubLabel theme={C} numFont={NUM_FONT}>{off} OFFENSE</SubLabel>
+                          <FactTiles theme={C} numFont={NUM_FONT} tiles={offenseTiles(matchup, off)} />
+                          <SubLabel theme={C} numFont={NUM_FONT}>{def} DEFENSE</SubLabel>
+                          <FactTiles theme={C} numFont={NUM_FONT} tiles={defenseTiles(matchup, def)} note={factsNote(matchup, off, def, data?.season)} />
                           <PassGame matchup={matchup} data={data} off={off} def={def} onPlayerClick={onPlayerClick} />
                           {side.length > 0 && <SubLabel theme={C} numFont={NUM_FONT}>TOP TD LOOKS</SubLabel>}
                           <div style={{ display: 'grid', gap: 4 }}>

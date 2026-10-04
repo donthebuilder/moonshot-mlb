@@ -64,6 +64,33 @@ export function FactLines({ lines = [], theme = MLB_C }) {
 }
 
 /**
+ * FACT TILES (2026-10-04, Donovan on the Slate game card: "all these words give
+ * me anxiety ... clean it up visually"). The same fact FactLines prints as a
+ * sentence, as a tile: a short label, the number big, its rank small under it
+ * -- MOONSHOT's PeriodTiles look (components/VerdictHero.js), wrapping. The
+ * season / sample caveat is said ONCE, in `note`, not on every line.
+ * tiles: [{ k, v, sub?, tone? }] -- a tile with no v is dropped.
+ */
+export function FactTiles({ tiles = [], note = null, theme = MLB_C, numFont = MLB_NUM, min = 92 }) {
+  const shown = tiles.filter((t) => t && t.v != null && t.v !== '' && t.v !== false)
+  if (!shown.length) return null
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <div style={{ display: 'grid', gap: 6, gridTemplateColumns: `repeat(auto-fill, minmax(${min}px, 1fr))` }}>
+        {shown.map((t) => (
+          <div key={t.k} style={{ padding: '7px 8px 6px', borderRadius: 12, border: `1px solid ${theme.border}`, background: theme.glass, minWidth: 0 }}>
+            <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.08em', color: theme.text3, fontFamily: numFont, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.k}</div>
+            <div style={{ fontSize: 16, fontWeight: 900, fontFamily: numFont, color: t.tone || theme.text, lineHeight: 1.25, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.v}</div>
+            {t.sub ? <div style={{ fontSize: 11, color: theme.text3, fontFamily: numFont, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.sub}</div> : null}
+          </div>
+        ))}
+      </div>
+      {note ? <div style={{ marginTop: 5, fontSize: 11, color: theme.text3 }}>{note}</div> : null}
+    </div>
+  )
+}
+
+/**
  * cells: [{ key, big, small, heat (0-1, or null = no colour), title }], in row order.
  * rowLabels / colLabels are optional axis words (MOONSHOT's zones need none).
  */

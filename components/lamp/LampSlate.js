@@ -10,7 +10,7 @@ import Tap from '../Tap'
 import GameSwitcher from '../GameSwitcher'
 import SlateCard from '../slate/SlateCard'
 import { ViewPills, GameFilterRail, StripFold, GamePanelPills, PanelAnchor, GameFrame, GameHeaderLine, PrevNextGame } from '../slate/SlateParts'
-import { SubLabel, FactLines } from '../matchup/MatchupParts'
+import { SubLabel, FactTiles } from '../matchup/MatchupParts'
 import { GameBoard, NavBtn, AllGamesTable, spotOf, pct1, ppVsPk, restWord } from './tabs/Board'
 import LampProjected from './LampProjected'
 import LampWeakSpots from './LampWeakSpots'
@@ -165,7 +165,6 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
         const away = g.game.away.abbrev; const home = g.game.home.abbrev
         const called = g.rows.filter((r) => r.status === 'called').sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99))
         const gaOf = (team) => g.rows.find((r) => r.team === team)?.context?.oppGaPg ?? null   // what THIS team's opponent allows
-        const restLine = (t) => { const sp = spotOf(g, t, true); return sp?.b2b ? <span key={t}>{teamLink(t)} on the second night of a back-to-back</span> : sp?.rest != null ? <span key={t}>{teamLink(t)} {sp.rest} day{sp.rest === 1 ? '' : 's'} of rest</span> : null }
         return (
           <div id="lamp-slate-game" style={{ scrollMarginTop: 'calc(var(--hdr-h, 0px) + var(--gsw-h, 0px) + 8px)', marginBottom: 20 }}>
             <GameFrame accent={C.ice} past={st === 'final'}>
@@ -183,12 +182,12 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
                   badges={{ calls: called.length ? String(called.length) : '' }} />
 
                 <PanelAnchor id="read" gamePk={g.game.id}>
-                  <FactLines theme={C} lines={[
-                    ['The board', g.graded ? 'graded.' : g.locked ? `locked at ${new Date(g.lockedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}, before puck drop.` : 'a preview until it locks before puck drop — not a call yet.'],
-                    ['Lineups', g.lineupKnown ? 'posted — dressed skaters only.' : 'not posted yet — the full roster is scored.'],
-                    ['Rest', (() => { const r = [restLine(away), restLine(home)].filter(Boolean); return r.length ? r.flatMap((x, i) => (i ? [' · ', x] : [x])) : null })()],
-                    ['In net', g.net || null],
-                  ]} />
+                  {/* tiles, not sentences (2026-10-04, Donovan: "all these words give me anxiety") */}
+                  <FactTiles theme={C} numFont={NUM_FONT} min={104} tiles={[
+                    { k: 'THE BOARD', v: g.graded ? 'Graded' : g.locked ? 'Locked' : 'Preview', sub: g.graded ? null : g.locked ? new Date(g.lockedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : 'not a call yet', tone: g.locked && !g.graded ? C.ice : undefined },
+                    { k: 'LINEUPS', v: g.lineupKnown ? 'Posted' : 'Not yet', sub: g.lineupKnown ? 'dressed only' : 'full roster scored' },
+                    { k: 'DAYS REST', v: [away, home].map((t) => { const sp = spotOf(g, t, true); return sp?.b2b ? 'B2B' : sp?.rest ?? '—' }).join(' · '), sub: `${away} · ${home}` },
+                  ]} note={g.net ? `In net: ${g.net}` : null} />
                   <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', marginBottom: 6 }}>
                     {[[away, home], [home, away]].map(([att, def]) => {
                       const us = spotOf(g, att, true); const them = spotOf(g, def, true)
@@ -197,9 +196,10 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
                       return (
                         <div key={att} style={{ border: `1px solid ${C.border}`, borderRadius: 12, padding: '11px 13px', minWidth: 0 }}>
                           <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 6 }}>{teamLink(att)} attack <span style={{ color: C.text3, fontWeight: 600, fontFamily: NUM_FONT, fontSize: 11 }}>vs {teamLink(def)} defense</span></div>
-                          <FactLines theme={C} lines={[
-                            ['Goals allowed', ga != null ? <>{teamLink(def)} allow {ga.toFixed(2)} a game.</> : null],
-                            ['Power play', pct1(us?.ppPct) && pct1(them?.pkPct) ? <>{teamLink(att)} score on {pct1(us.ppPct)}% of power plays; {teamLink(def)} kill {pct1(them.pkPct)}%.</> : null],
+                          <FactTiles theme={C} numFont={NUM_FONT} tiles={[
+                            { k: `${def} ALLOW`, v: ga != null ? ga.toFixed(2) : null, sub: 'goals a game' },
+                            { k: `${att} PP`, v: pct1(us?.ppPct) ? `${pct1(us.ppPct)}%` : null, sub: 'power play' },
+                            { k: `${def} PK`, v: pct1(them?.pkPct) ? `${pct1(them.pkPct)}%` : null, sub: 'penalty kill' },
                           ]} />
                           {side.length > 0 && <SubLabel theme={C} numFont={NUM_FONT}>TOP OF THE BOARD</SubLabel>}
                           <div style={{ display: 'grid', gap: 4 }}>

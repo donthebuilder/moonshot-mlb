@@ -13,12 +13,12 @@ import NflTable from '../NflTable'
 import SourceSeason from '../SourceSeason'
 import SeasonToggle from '../../SeasonToggle'
 import useDvpSeason from '../../../lib/nfl/useDvpSeason'
-import { MatchupTitle, SubLabel, BarList, FactLines } from '../../matchup/MatchupParts'
+import { MatchupTitle, SubLabel, BarList, FactLines, FactTiles } from '../../matchup/MatchupParts'
 import FootballField from '../FootballField'
 import MatchupExplorer from '../MatchupExplorer'
 import { ViewRow } from '../../results/ResultsParts'
 import { SportTheme } from '../../SportTheme'
-import { softRole, softLine, passRushThreat, blockSeason, PASS_RUSH_AVOID, STARTER_ROLES } from '../../../lib/nfl/dvpSignal'
+import { softRole, softLine, passRushThreat, PASS_RUSH_AVOID, STARTER_ROLES } from '../../../lib/nfl/dvpSignal'
 import TheField from '../TheField'
 import { ordinal } from '../../../lib/format'
 import { gameVenue } from '../../../lib/nfl/venueOf'
@@ -177,48 +177,69 @@ function ByPosition({ matchup, team, win, setWin, slateSeason }) {
   )
 }
 
-// ONE DEFENSE IN PLAIN LINES (2026-09-28): Coverage / Big plays / Pass rush /
-// Up front. The Matchups detail and the Slate's read both print these.
-// THIS SEASON'S TENDENCIES (2026-09-28): FTN charting, weekly, published by
-// the bot as matchup.tendencies (bots/nfl/nfl_tendencies.py) with its own
-// season, a games count per team, league figures and a rank (1 = the most).
-// Every line says its season and how many games it is over, because three
-// weeks in "over 2 games" is the honest size of it.
-const tendNote = (t, games, slate) => (
-  <span style={{ color: C.text3 }}> · {t.season}{slate && t.season < slate ? ' season' : ''}, {games} {games === 1 ? 'game' : 'games'}</span>
-)
-const ofN = (rank, side) => (rank ? ` (${ordinal(rank)} of ${Object.keys(side || {}).length})` : '')
-
-// UNDER PRESSURE (2026-09-28): this week's QB (the one with the most dropbacks
-// in his team's latest game), from matchup.qb_pressure (bots/nfl/
-// nfl_qb_pressure.py): PFR's pressure rate, ranked among starters, and FTN's
-// yards a dropback blitzed vs not -- only when both sides have 10+ dropbacks.
-// Beside it, how often the defence he faces blitzes (tendencies).
-function pressureLine(matchup, team, def, slate) {
+// THE SAME FACTS AS TILES (2026-10-04, Donovan: "all these words give me
+// anxiety"). offenseFacts / defenseFacts as sentences said each number's rank,
+// season and game count inline, on every line. Here: one label, the number,
+// its rank -- and the season / sample once, in factsNote. Same fields, nothing
+// new computed. The blitz rate lives once, on the defence.
+const rk = (n, side) => (n ? `${ordinal(n)} of ${Object.keys(side || {}).length}` : null)
+export function offenseTiles(matchup, team) {
+  const out = []
   const q = matchup?.qb_pressure
   const id = q?.starter?.[team]
   const p = id ? q.qbs?.[id] : null
-  if (!p || p.pressure_pct == null) return null
-  const rk = q.rank?.[id]
-  const split = p.blitz?.n >= 10 && p.no_blitz?.n >= 10
-  const d = def ? matchup?.tendencies?.defense?.[def] : null
-  const dr = def ? matchup?.tendencies?.rank?.defense?.[def]?.blitz_pct : null
-  return <>{p.name} is pressured on {p.pressure_pct}% of dropbacks{rk ? ` (${ordinal(rk)}-most of ${q.ranked})` : ''}{split ? <>; {p.blitz.ypd} yds a dropback when blitzed, {p.no_blitz.ypd} when not</> : null}{d?.blitz_pct != null ? <>. {def} blitz on {d.blitz_pct}% of dropbacks{dr ? ` (${ordinal(dr)})` : ''}</> : null}<span style={{ color: C.text3 }}> · {q.season}{slate && q.season < slate ? ' season' : ''}, {p.games} {p.games === 1 ? 'game' : 'games'}</span>.</>
-}
-
-/** The offense's own shape this season, one line: formation, motion, play-action. */
-export function offenseFacts(matchup, team, slateSeason = null, def = null) {
+  if (p?.pressure_pct != null) {
+    const r = q.rank?.[id]
+    out.push({ k: 'QB PRESSURED', v: `${p.pressure_pct}%`, sub: r ? `${ordinal(r)}-most` : p.name })
+    if (p.blitz?.n >= 10 && p.no_blitz?.n >= 10) out.push({ k: 'VS BLITZ', v: `${p.blitz.ypd} yds`, sub: `${p.no_blitz.ypd} when not` })
+  }
   const t = matchup?.tendencies
   const o = t?.offense?.[team]
-  const pressure = ['Under pressure', pressureLine(matchup, team, def, Number(slateSeason) || null)]
-  if (!o) return [pressure]
-  const r = t.rank?.offense?.[team] || {}
-  const gun = o.shotgun_pct != null && o.under_center_pct != null && o.shotgun_pct >= o.under_center_pct
-  const lead = gun ? ['shotgun', o.shotgun_pct, r.shotgun_pct] : ['under center', o.under_center_pct, r.under_center_pct]
-  return [
-    pressure,
-    ['Lines up', lead[1] != null ? <>{lead[0]} on {lead[1]}% of snaps{ofN(lead[2], t.offense)}, motion on {o.motion_pct}%{o.play_action_pct != null ? <>, play-action on {o.play_action_pct}% of dropbacks{ofN(r.play_action_pct, t.offense)}</> : null}{tendNote(t, o.games, Number(slateSeason) || null)}.</> : null],
-  ]
+  if (o) {
+    const r = t.rank?.offense?.[team] || {}
+    const gun = o.shotgun_pct != null && o.under_center_pct != null && o.shotgun_pct >= o.under_center_pct
+    if (gun ? o.shotgun_pct != null : o.under_center_pct != null) out.push({ k: gun ? 'SHOTGUN' : 'UNDER CENTER', v: `${gun ? o.shotgun_pct : o.under_center_pct}%`, sub: rk(gun ? r.shotgun_pct : r.under_center_pct, t.offense) })
+    if (o.motion_pct != null) out.push({ k: 'MOTION', v: `${o.motion_pct}%` })
+    if (o.play_action_pct != null) out.push({ k: 'PLAY-ACTION', v: `${o.play_action_pct}%`, sub: rk(r.play_action_pct, t.offense) })
+  }
+  return out
+}
+export function defenseTiles(matchup, team, rushThreat = passRushThreat(matchup, team)) {
+  const out = []
+  const cov = matchup?.coverage_team?.[team]
+  const dominant = cov && cov.zone_pct != null && cov.man_pct != null ? (cov.zone_pct >= cov.man_pct ? 'zone' : 'man') : null
+  if (dominant) {
+    const v = cov[`${dominant}_pct`]
+    const covRank = 1 + Object.values(matchup.coverage_team || {}).map((x) => x?.[`${dominant}_pct`]).filter((x) => typeof x === 'number' && x > v).length
+    out.push({ k: dominant === 'zone' ? 'ZONE' : 'MAN', v: `${v}%`, sub: `${ordinal(covRank)}-most` })
+  }
+  const exp = matchup?.def_explosive?.[team]
+  if (exp) {
+    out.push({ k: '20+ PASSES', v: String(exp.pass_20), sub: 'allowed' })
+    out.push({ k: 'DEEP TDS', v: String(exp.deep_td), sub: `${exp.deep_cmp}/${exp.deep_att} caught` })
+  }
+  const dis = matchup?.disruption_team?.[team]
+  if (dis?.pressure?.created_pct != null) out.push({ k: 'PRESSURE', v: `${dis.pressure.created_pct}%`, sub: 'of dropbacks' })
+  const t = matchup?.tendencies
+  const d = t?.defense?.[team]
+  if (d) {
+    const r = t.rank?.defense?.[team] || {}
+    if (d.blitz_pct != null) out.push({ k: 'BLITZ', v: `${d.blitz_pct}%`, sub: rk(r.blitz_pct, t.defense) })
+    if (d.box_avg != null) out.push({ k: 'IN THE BOX', v: String(d.box_avg), sub: d.box8_pct != null ? `8+ on ${d.box8_pct}%` : null })
+  }
+  if (rushThreat && rushThreat.percentile >= PASS_RUSH_AVOID) out.push({ k: 'EDGE THREAT', v: rushThreat.name, sub: `${ordinal(Math.round(rushThreat.percentile))} pct · ${rushThreat.position}`, tone: C.red })
+  return out
+}
+/** The one caveat line under the tiles: which seasons, over how many games. */
+export function factsNote(matchup, off, def, slateSeason) {
+  const slate = Number(slateSeason) || null
+  const t = matchup?.tendencies
+  const g = Math.min(...[t?.offense?.[off]?.games, t?.defense?.[def]?.games].filter((x) => Number.isFinite(x)))
+  const parts = []
+  if (t?.season && Number.isFinite(g)) parts.push(`${t.season}, ${g} ${g === 1 ? 'game' : 'games'}`)
+  const chart = Number(matchup?.chart_season)
+  if (slate && chart && chart < slate) parts.push(`coverage + pressure: ${chart} season`)
+  return parts.length ? parts.join(' · ') : null
 }
 
 // THEIR TOP TARGETS · THE CORNERS (2026-09-28, Donovan: "the top receivers
@@ -264,7 +285,7 @@ export function PassGame({ matchup, data, off, def, onPlayerClick = null }) {
             return <Row key={t.player_id}
               face={<NflFace player={r || { name, team: off }} size={30} />}
               name={r && onPlayerClick ? <Tap onClick={() => onPlayerClick(r)}>{name}</Tap> : name}
-              meta={<>{t.position || '—'} · {t.share}% of targets · {t.adot != null ? `${t.adot} air yds a target` : '—'} · {t.yds} yds, {t.td} TD in {t.games} {t.games === 1 ? 'game' : 'games'}</>} />
+              meta={<>{t.position || '—'} · {t.share}% tgt{t.adot != null ? ` · ${t.adot} aDOT` : ''} · {t.yds} yds · {t.td} TD</>} />
           })}
         </div>
         <div>
@@ -273,44 +294,18 @@ export function PassGame({ matchup, data, off, def, onPlayerClick = null }) {
             <Row key={c.slot}
               face={<NflFace player={{ espn_id: c.espn_id, name: c.name, team: def }} size={30} />}
               name={<>{c.name} <span style={{ color: C.text3, fontWeight: 700, fontSize: 11 }}>{SLOT_WORD[c.slot] || c.slot}</span></>}
-              meta={c.games ? <>{c.pd} passes defended · {c.int} INT in {c.games} {c.games === 1 ? 'game' : 'games'}</> : <>no games yet this season</>} />
+              meta={c.games ? <>{c.pd} PD · {c.int} INT</> : <>no games yet</>} />
           ))}
         </div>
       </div>
       {wr1?.recyd_g != null && Number.isFinite(wr1.recyd_g_rank) ? (
         <p style={{ margin: '8px 0 0', fontSize: 12, lineHeight: 1.5, color: C.text2 }}>
-          As a team, {def} allow {wr1.recyd_g} receiving yards a game to WR1s, the {ordinal(wr1.recyd_g_rank)}-most in the league. Not who covers whom: no free source says that.
+          {def} allow {wr1.recyd_g} rec yds a game to WR1s ({ordinal(wr1.recyd_g_rank)}-most). Team number, not who covers whom.
         </p>
       ) : null}
     </div>
     </MobileFold>
   )
-}
-
-export function defenseFacts(matchup, team, rushThreat = passRushThreat(matchup, team), slateSeason = null) {
-  // A line from an older season than the slate says so (charting is last
-  // season's all year; pass_rush can be at the flip). Same year = no note.
-  const slate = Number(slateSeason) || null
-  const older = (yr) => (slate && yr && yr < slate ? <span style={{ color: C.text3 }}> ({yr} season)</span> : null)
-  const cov = matchup?.coverage_team?.[team]
-  const dominant = cov && cov.zone_pct != null && cov.man_pct != null ? (cov.zone_pct >= cov.man_pct ? 'zone' : 'man') : null
-  const domPct = dominant ? cov[`${dominant}_pct`] : null
-  const covRank = dominant ? 1 + Object.values(matchup.coverage_team || {}).map((t) => t?.[`${dominant}_pct`]).filter((v) => typeof v === 'number' && v > domPct).length : null
-  const exp = matchup?.def_explosive?.[team]
-  const dis = matchup?.disruption_team?.[team]
-  return [
-    ['Coverage', dominant ? <>{dominant} on {domPct}% of snaps{covRank ? ` (${ordinal(covRank)}-most in the league)` : ''}{older(Number(matchup?.chart_season))}.</> : null],
-    ['Big plays', exp ? <>{exp.pass_20} passes of 20+ yards allowed, {exp.deep_td} touchdowns on throws of 20+ air yards ({exp.deep_cmp} of {exp.deep_att} completed).</> : null],
-    ['Pass rush', dis?.pressure?.created_pct != null ? <>pressure on {dis.pressure.created_pct}% of {dis.pressure.created_plays || 'their'} pass plays faced{older(Number(matchup?.chart_season))}.</> : null],
-    ['Front', (() => {
-      const t = matchup?.tendencies
-      const d = t?.defense?.[team]
-      if (!d || d.box_avg == null) return null
-      const r = t.rank?.defense?.[team] || {}
-      return <>{d.box_avg} in the box on average, 8+ on {d.box8_pct}% of runs faced{d.blitz_pct != null ? <>; blitz on {d.blitz_pct}% of dropbacks{ofN(r.blitz_pct, t.defense)}</> : null}{tendNote(t, d.games, slate)}.</>
-    })()],
-    ['Up front', rushThreat && rushThreat.percentile >= PASS_RUSH_AVOID ? <><b style={{ color: C.red }}>{rushThreat.name}</b> ({rushThreat.position}) is {ordinal(Math.round(rushThreat.percentile))}-percentile at turning pressure into sacks{older(blockSeason(matchup, 'pass_rush'))}.</> : null],
-  ]
 }
 
 export default function Matchups({ matchup, data, onPlayerClick = null, onOpenTeam = null }) {
@@ -365,7 +360,7 @@ export default function Matchups({ matchup, data, onPlayerClick = null, onOpenTe
     ? Object.entries(cov.shells || {}).sort((a, b) => b[1] - a[1]).slice(0, 6)
         .map(([k, v]) => ({ key: k, label: SHELL_WORD[k] || k, pct: v, text: `${v}%` }))
     : []
-  const facts = defenseFacts(matchup, active, rushThreat, data?.season)
+  const tiles = defenseTiles(matchup, active, rushThreat)
   // logo-only (Donovan 10-02, logos site-wide); the code rides the logo's title / alt
   const teamLink = (t) => <Tap onClick={onOpenTeam && (() => onOpenTeam(t))} title={t}><span style={{ display: 'inline-flex', alignItems: 'center' }}><TeamMark sport="nfl" abbr={t} variant="logo" px={18} /></span></Tap>
 
@@ -419,7 +414,7 @@ export default function Matchups({ matchup, data, onPlayerClick = null, onOpenTe
             <BarList {...P} items={shells} accent={C.cyan} labelWidth={64} />
           </div>
         )}
-        <FactLines theme={C} lines={facts} />
+        <FactTiles theme={C} numFont={NUM_FONT} tiles={tiles} note={factsNote(matchup, null, active, data?.season)} />
         {opp ? <PassGame matchup={matchup} data={data} off={opp} def={active} onPlayerClick={onPlayerClick} /> : null}
         {/* THE FIELD, TEAM mode (0e c F6): ONE picture of where this defence
             gets beaten -- the offence facing it, every target, over the ink,
