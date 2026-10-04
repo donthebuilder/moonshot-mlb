@@ -282,7 +282,10 @@ export function renderV2(ctx) {
   if (heatMode !== 'none') {
     for (const c of columns) {
       if (!eligible(c) || c.standout === false || c.scale === 'div' || logoOf(c) || isRank(c) || c.bar) continue
-      const nums = sorted.map((r) => numOf(r[c.key])).filter(Number.isFinite).sort((a, b) => a - b)
+      // `view`, not `sorted` (2026-10-04 audit 04 A2): on a capped preview the
+      // bands came from every row, so the 12 shown -- the best by score --
+      // all cleared the top band and every cell lit.
+      const nums = (view || sorted).map((r) => numOf(r[c.key])).filter(Number.isFinite).sort((a, b) => a - b)
       if (nums.length < 6 || new Set(nums).size < 4) continue
       const at = (q) => nums[Math.min(nums.length - 1, Math.max(0, Math.floor(q * (nums.length - 1))))]
       const lo = at(STANDOUT_SHARE), hi = at(1 - STANDOUT_SHARE)
