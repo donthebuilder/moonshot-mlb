@@ -151,7 +151,8 @@ export default function BucketsDashboard() {
         </>)}
       </main>
       </TodayContext.Provider>
-      <MobileTabBarBuckets tab={tab} setTab={setTab} />
+      {/* no tab lit on NO SUCH TAB (audit 14 B7b) */}
+      <MobileTabBarBuckets tab={missingTab ? null : tab} setTab={setTab} />
     </AccentProvider>
   )
 }

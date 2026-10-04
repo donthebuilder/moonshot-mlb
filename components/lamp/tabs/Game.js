@@ -23,8 +23,10 @@ import { EmptyState, DelayedBanner, Loading, SourceLine, Kicker, GameTypeChip, L
 // with the ice-map component, not before). Nothing here is a placeholder.
 export default function Game({ id, onBack, onOpenPlayer = null, onOpenTeam = null, onOpenGame = null, backLabel = 'Scores' }) {
   const { data: g, error, loading } = useLampGame(id)
-  if (!/^\d{10}$/.test(String(id || ''))) {
-    return <EmptyState title="NO GAME PICKED" note="Open a game from Scores or the Schedule."><BackBtn onBack={onBack} label={backLabel} /></EmptyState>
+  // none given vs a bad one (audit 14 N2: a mistyped id read 'NO GAME PICKED')
+  if (!id) return <EmptyState title="NO GAME PICKED" note="Open a game from Scores or the Schedule."><BackBtn onBack={onBack} label={backLabel} /></EmptyState>
+  if (!/^\d{10}$/.test(String(id))) {
+    return <EmptyState title="NO SUCH GAME" note={`“${String(id).slice(0, 20)}” isn’t an NHL game id. Open one from Scores or the Schedule.`}><BackBtn onBack={onBack} label={backLabel} /></EmptyState>
   }
   if (loading && !g) return <Loading what="the game" />
   if (!g) {

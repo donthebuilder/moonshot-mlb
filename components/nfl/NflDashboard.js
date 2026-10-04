@@ -460,7 +460,8 @@ export default function NflDashboard({ palettePass = 0 }) {
         )}
       </main>
       </TodayContext.Provider>
-      <MobileTabBarNfl tab={tab} setTab={setTab} />
+      {/* no tab lit on NO SUCH TAB (audit 14 B7b) */}
+      <MobileTabBarNfl tab={missingTab ? null : tab} setTab={setTab} />
       {/* The live wire. Renders nothing until something actually happens to
           one of your names, and polls nothing unless a game is in progress or
           about to start — see components/nfl/NflWire.js. */}

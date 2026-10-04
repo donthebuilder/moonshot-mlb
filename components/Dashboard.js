@@ -1056,7 +1056,8 @@ export default function Dashboard({ palettePass = 0 }) {
       </TodayContext.Provider>
       {/* ⌘K / "/" from anywhere → jump to any player's modal. */}
       <QuickSearch players={allPlayers} onPick={setModalPlayer} />
-      <MobileTabBar tab={tab} setTab={setTab} />
+      {/* no tab lit on NO SUCH TAB (audit 14 B7b) */}
+      <MobileTabBar tab={missingTab ? null : tab} setTab={setTab} />
       <Slip slip={slip} setSlip={setSlip} />
       {/* slateMode is passed EXPLICITLY, not left to the module-level default
           in dataSource.js. That default is set by an effect, so flipping
