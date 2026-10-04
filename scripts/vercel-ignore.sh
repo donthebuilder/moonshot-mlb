@@ -35,7 +35,9 @@ if [ -z "$CHANGED" ]; then
   exit 1
 fi
 
-SHIPPING=$(echo "$CHANGED" | grep -Ev '^(docs/|scripts/|supabase/|\.claude[^/]*/|ARCHIVE/)|\.md$')
+# 2026-10-04: also the working folders that never ship (claude/, nfl-lab/, mobile-report/)
+# and loose root files (*.sql, *.sh, *.txt) -- build minutes were 62% of this cycle's bill.
+SHIPPING=$(echo "$CHANGED" | grep -Ev '^(docs/|scripts/|supabase/|\.claude[^/]*/|ARCHIVE/|claude/|nfl-lab/|mobile-report/)|\.md$|^[^/]+\.(sql|sh|txt)$')
 if [ -z "$SHIPPING" ]; then
   echo "ignore: only docs/scripts/migrations/notes changed since $PREV -- skipping"
   exit 0
