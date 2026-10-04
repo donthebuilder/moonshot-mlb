@@ -5,7 +5,8 @@ import PageHeader from '../../PageHeader'
 import TeamMark from '../../TeamMark'
 import Tap from '../../Tap'
 import { C, NUM_FONT } from '../../../lib/nba/theme'
-import { useBucketsGame } from '../../../lib/nba/useBuckets'
+import { useBucketsGame, useBucketsBoard } from '../../../lib/nba/useBuckets'
+import { NBA_MARKETS } from '../../../lib/nba/model'
 import { GAME_ID_RE } from '../../../lib/nba/ids'
 import BucketsTable from '../BucketsTable'
 import ShotChart from '../ShotChart'
@@ -50,6 +51,7 @@ export default function Game({ id, onBack, backLabel = 'Live', onOpenPlayer, onO
           {fp && fp.player_id !== fb?.player_id && <div><Kicker>FIRST POINTS</Kicker><PlayLine play={fp} name={names[fp.player_id]} onOpenPlayer={onOpenPlayer} /></div>}
         </div>
       )}
+      <GameCalls id={id} date={gameDay(data.date)} onOpenPlayer={onOpenPlayer} />
       {[away, home].map((t) => <BoxTable key={t.id} team={t} box={(data.box || []).filter((p) => p.team === t.abbrev)} onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} />)}
       {(data.shots || []).length > 0 ? (
         <section>
@@ -91,6 +93,41 @@ function LineScore({ teams, periods, qLabel, done, onOpenTeam }) {
         </tr>
       ))}</tbody>
     </table>
+  )
+}
+
+// THE CALLS IN THIS GAME (2026-10-04, audit: the game page never said who the
+// bot called in it). The same /api/buckets/board rows Props reads -- status from
+// the model's own scoreNight, never re-derived -- kept to this game and to
+// CALLED, with the result once graded. Nothing called, nothing shown.
+const CALL_MARKETS = ['pts', 'reb', 'ast', '3pm', 'pra', 'first']
+function GameCalls({ id, date, onOpenPlayer }) {
+  const boards = {
+    pts: useBucketsBoard(date || null, 'pts'), reb: useBucketsBoard(date || null, 'reb'), ast: useBucketsBoard(date || null, 'ast'),
+    '3pm': useBucketsBoard(date || null, '3pm'), pra: useBucketsBoard(date || null, 'pra'), first: useBucketsBoard(date || null, 'first'),
+  }
+  const rows = CALL_MARKETS.flatMap((m) => (boards[m].data?.rows || [])
+    .filter((r) => String(r.gameId) === String(id) && r.status === 'called')
+    .map((r) => ({
+      ...r, _id: `${m}-${r.playerId}`,
+      // the market rides in the result cell, so every row says what was called
+      result: `${NBA_MARKETS[m]?.label || m} · ${r.hit === true || r.hit === false
+        ? (m === 'first' ? (r.hit ? '✅ scored first' : '❌ not first') : `${r.hit ? '✅' : '❌'} ${r.actual ?? '—'}`)
+        : r.voidReason ? `➖ void · ${r.voidReason}` : r.locked ? 'locked' : 'preview'}`,
+    })))
+  if (!date || !rows.length) return null
+  const cols = [
+    { key: 'name', label: 'Player', group: 'Call', w: 150, heat: false, bold: true, sticky: true },
+    { key: 'score', label: 'Score', group: 'Call', w: 50, mono: true, primary: true },
+    { key: 'result', label: 'Call · result', group: 'Result', w: 180, heat: false },
+  ]
+  return (
+    <section aria-label="Calls in this game">
+      <Kicker tone={C.purple}>CALLED IN THIS GAME · {rows.length}</Kicker>
+      <BucketsTable rows={rows} columns={cols} onRowClick={(r) => onOpenPlayer?.((r?._raw ?? r).playerId)} faceOf={(r) => ({ sport: 'nba', id: r.playerId, name: r.name })}
+        heatMode="sorted" maxHeight={9999} maxRows={6} initialSort={null}
+        caption="Every BUCKETS call in this game, with the result once it is graded. Each row opens that player." />
+    </section>
   )
 }
 
