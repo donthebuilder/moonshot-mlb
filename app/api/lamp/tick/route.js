@@ -175,10 +175,22 @@ export async function GET(request) {
         out.graded.push({ game: p.game_id, closed: g.scheduleState }); continue
       }
       if (g.state !== 'final') { await db.from('lamp_goal_games').update({ state: g.rawState }).eq('game_id', p.game_id).eq('model_version', Vp.goal); continue }
-      const box = await nhlGet(`/gamecenter/${p.game_id}/boxscore`, TTL.game)
+      // FRESH, AND FINAL (2026-10-04 audit F1). These read through the Data
+      // Cache (TTL.game), so BUF@CHI 2026020022 was graded off a mid-game
+      // boxscore -- 3 of its 7 goals, a CALLED scorer logged a miss -- and a
+      // graded game is never retried. Grading reads the league directly and
+      // grades only a boxscore that is itself over and agrees with the final
+      // score; otherwise it waits for the next tick.
+      const box = await nhlGet(`/gamecenter/${p.game_id}/boxscore`, 0)
       if (!box?.playerByGameStats) { out.skipped.push({ game: p.game_id, why: 'final but no playerByGameStats yet' }); continue }
+      const boxOver = ['OFF', 'FINAL'].includes(String(box.gameState || '').toUpperCase())
+      const boxAgrees = Number(box.homeTeam?.score) === Number(g.home?.score) && Number(box.awayTeam?.score) === Number(g.away?.score)
+      if (!boxOver || !boxAgrees) {
+        console.warn(`[lamp tick] ${p.game_id}: boxscore not final yet (state ${box.gameState}, ${box.awayTeam?.score}-${box.homeTeam?.score} vs feed ${g.away?.score}-${g.home?.score}) -- grading waits`)
+        out.skipped.push({ game: p.game_id, why: 'boxscore not final yet' }); continue
+      }
       // The net, postgame — archived for the v2 goalie leg; a failed play-by-play read costs only the starters, never the grade.
-      const pbp = await nhlGet(`/gamecenter/${p.game_id}/play-by-play`, TTL.game).catch((e) => { console.error(`[lamp tick] pbp ${p.game_id}: ${e?.message}`); return null })
+      const pbp = await nhlGet(`/gamecenter/${p.game_id}/play-by-play`, 0).catch((e) => { console.error(`[lamp tick] pbp ${p.game_id}: ${e?.message}`); return null })
       const startersActual = pbp ? startersFromPlayByPlay(pbp) : null
       const goalies = goaliesFromBoxscore(box)
       const have = await db.from('lamp_goal_log').select('*').eq('game_id', p.game_id).eq('model_version', Vp.goal)

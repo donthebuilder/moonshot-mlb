@@ -8,7 +8,7 @@
 import { adminClient, cronAuthorized } from '../../../../lib/supabase/admin'
 import { buildNbaNight } from '../../../../lib/nba/board'
 import { NBA_MARKETS, NBA_SHADOWS, gradeNba } from '../../../../lib/nba/model'
-import { scoreboardFor, reduceScoreboard, summaryFor, reduceBox, reduceShots, firstBaskets } from '../../../../lib/nba/api'
+import { scoreboardFor, reduceScoreboard, nbaGet, reduceBox, reduceShots, firstBaskets } from '../../../../lib/nba/api'
 import { easternToday, shiftDay } from '../../../../lib/data'
 import { storiesTick } from '../../../../lib/stories/record'
 
@@ -71,7 +71,8 @@ export async function GET(request) {
   // ── GRADE (today and yesterday: a late final grades the next morning) ──
   const pending = await db.from('buckets_games').select('game_id, game_date').is('graded_at', null).in('game_date', [date, shiftDay(date, -1)])
   for (const p of pending.data || []) {
-    const s = await summaryFor(p.game_id, true).catch(() => null)
+    // Straight from the source: a cached summary could predate the final stats (LAMP's BUF@CHI, audit F1).
+    const s = await nbaGet(`/summary?event=${p.game_id}`, 0).catch(() => null)
     const final = s?.header?.competitions?.[0]?.status?.type?.completed === true
     if (!final) continue
     const box = new Map(reduceBox(s).map((b) => [b.id, b]))
