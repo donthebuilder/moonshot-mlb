@@ -230,7 +230,31 @@ async function nflEvents(audience) {
     missLogged.add(k)
     console.warn(`[push] NFL follow "${m.key}" (${m.team}) has no line in game ${m.game_id}, 4th quarter -- inactive, or a name that does not join; a TD would not alert`)
   }
-  return nflEventsFrom(snap, today(), audience, await tuddyBoardFor(snap))
+  const [board, ids] = await Promise.all([tuddyBoardFor(snap), tuddyIdsFor(snap)])
+  return nflEventsFrom(snap, today(), audience, board, ids)
+}
+
+// WHERE A TUDDY ALERT OPENS (2026-10-04, ops audit). Every NFL push opened the
+// Watchlist, a touchdown included, because the live box lines (ESPN) carry no
+// nflverse id. The slate does: Map<followNameKey(name), player_id>, read only
+// while a game is live and kept 30 minutes per warm instance. A name two
+// players share maps to nobody (the alert falls back to the Watchlist), never
+// to a guess.
+let _idCache = { at: 0, map: null }
+async function tuddyIdsFor(snap) {
+  if (!(snap?.games || []).some((g) => g?.state === 'in')) return null
+  if (_idCache.map && Date.now() - _idCache.at < 30 * 60 * 1000) return _idCache.map
+  try {
+    const data = await fetchNfl(nflSlatePaths(), nflSlateLooksReal)
+    const map = new Map()
+    for (const pl of data?.players || []) {
+      if (!pl?.player_id || !pl?.name) continue
+      const k = followNameKey(pl.name)
+      map.set(k, map.has(k) && map.get(k) !== pl.player_id ? null : pl.player_id)
+    }
+    _idCache = { at: Date.now(), map }
+    return map
+  } catch (e) { console.error(`[push] TUDDY id map failed: ${e?.message || e}`); return null }
 }
 
 // THE TUDDY BOARD, for the room's red zone (2026-10-02). Read only when a game

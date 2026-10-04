@@ -41,5 +41,18 @@ const misses = nflFollowMisses(snap, audience)
 check(misses.length === 1 && misses[0].key === 'marvin harrison' && misses[0].game_id === 'G2', `4th quarter, followed, no line -> one miss (${JSON.stringify(misses)})`)
 check(!nflFollowMisses({ ...snap, games: snap.games.map((g) => ({ ...g, period: 2 })) }, audience).length, 'before the 4th quarter -> no miss (a quiet first half is normal)')
 
+
+// ── where a TD alert opens (2026-10-04): his card when the slate knows his id ──
+{
+  const tdSnap = { games: [{ game_id: 'G9', state: 'in', home: 'AAA', away: 'BBB', period: 2 }], lines: new Map([['x', { game_id: 'G9', name: 'Test Scorer', team: 'AAA', receiving_tds: 1, receptions: 2, receiving_yards: 30 }]]) }
+  const aud = { nfl: new Set([followNameKey('Test Scorer')]) }
+  const withId = nflEventsFrom(tdSnap, '2026-10-04', aud, null, new Map([[followNameKey('Test Scorer'), '00-0000001']])).find((e) => e.category === 'nfltd')
+  check(withId?.url === '/app#sport=nfl&tab=players&player=00-0000001', `TD with a known id opens his card (${withId?.url})`)
+  const noId = nflEventsFrom(tdSnap, '2026-10-04', aud, null, null).find((e) => e.category === 'nfltd')
+  check(noId?.url === '/app#sport=nfl&tab=watchlist', `TD with no id map opens the Watchlist (${noId?.url})`)
+  const shared = nflEventsFrom(tdSnap, '2026-10-04', aud, null, new Map([[followNameKey('Test Scorer'), null]])).find((e) => e.category === 'nfltd')
+  check(shared?.url === '/app#sport=nfl&tab=watchlist', 'a name two players share opens the Watchlist, not a guess')
+}
+
 console.log(failed ? `\n${failed} FAILED` : '\nall green')
 process.exit(failed ? 1 : 0)
