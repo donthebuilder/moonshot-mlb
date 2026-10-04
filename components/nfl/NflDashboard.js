@@ -59,6 +59,7 @@ import { useLiveRefresh } from '../../lib/liveRefresh'
 import RefreshStamp from '../RefreshStamp'
 import DashFooter from '../DashFooter'
 import SkipLink from '../SkipLink'
+import NflProps from './NflProps'
 const OddsBoard = dynamic(() => import('../tabs/OddsBoard'))
 
 // The key set now lives in lib/routes.js alongside MOONSHOT's, with the
@@ -417,6 +418,9 @@ export default function NflDashboard({ palettePass = 0 }) {
             {/* PICKS IS THE BOT PAGE (2026-09-29, MOONSHOT's Bot frame; components/nfl/tabs/Bot.js).
                 The hub keeps Board and Called for the boards; its Called view no
                 longer jumps to 'picks', it stays where it was opened. */}
+            {/* Props is MOONSHOT's page now (2026-10-04): the cards, then the bot's sheet under them */}
+            {tab === 'picks' && <NflProps data={slate} picks={picks} odds={odds} onPlayerClick={openPlayer} />}
+            {tab === 'picks' && <div style={{ marginTop: 26, paddingTop: 18, borderTop: `1px solid ${C.border}`, font: `900 11px/1 ${NUM_FONT}`, letterSpacing: '.16em', color: C.green, marginBottom: 10 }}>THE PICKS · THE SHORTLIST, THE CARD AND NEXT WEEK</div>}
             {tab === 'picks' && <Bot data={slate} picks={picks} results={nflResults} logs={logs} matchup={matchup} odds={odds}
               oddsStatus={oddsRaw?.source === 'sportsgameodds' && !oddsRaw?.empty ? null : oddsStatus} onPlayerClick={openPlayer} />}
             {(tab === 'touchdowns' || tab === 'boards') && (
