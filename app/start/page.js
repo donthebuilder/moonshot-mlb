@@ -671,7 +671,7 @@ export default async function StartPage({ searchParams }) {
       {members ? (
         <p className={styles.alt} style={{ marginTop: 6 }}>
           {MEMBERS_LINE}{' '}
-          <a href={members} target="_blank" rel="noopener noreferrer">Join →</a>
+          <a href="/members">What&apos;s in it</a>{' · '}<a href={members} target="_blank" rel="noopener noreferrer">Join →</a>
         </p>
       ) : null}
 

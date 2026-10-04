@@ -437,6 +437,7 @@ async function boardIndex(day) {
   return index
 }
 const boardRows = () => _cache.board.rows || []
+const FREE_PREGAME_N = 5
 
 // THE LOCKED BOARD, NOT THE LIVE ONE (2026-10-04, record audit B). A homer's
 // role / on_board / hr_score / board_rank came from the published board at the
@@ -1955,7 +1956,11 @@ export async function GET(request) {
       if (!pregameLockReady) {
         if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: 'waiting-for-lock-window', statErrors, discordErrors: discordFailuresSnapshot() })
       } else {
-        picks = pregamePicks(callRows(), odds, day)
+        // FREE IS THE TOP FIVE (Donovan, 2026-10-04: 'free post stops at top 5').
+        // The ten -- and the per-game calls -- are the founding members' post
+        // (lib/dash/membersPost.js, MLB_MEMBERS_N). The payload is the list
+        // posted, so the public card image shows five too.
+        picks = pregamePicks(callRows(), odds, day, FREE_PREGAME_N)
         // Every roled name on tonight's board, for the receipt quote only --
         // see pregameCalled() in homerFeed.js. Not used by any post text.
         const called = pregameCalled(callRows())

@@ -724,7 +724,7 @@ export default async function CalledPage({ searchParams }) {
         {members ? (
           <p>
             {MEMBERS_LINE}{' '}
-            <a href={members} target="_blank" rel="noopener noreferrer">Join →</a>
+            <a href="/members">What&apos;s in it</a>{' · '}<a href={members} target="_blank" rel="noopener noreferrer">Join →</a>
           </p>
         ) : null}
       </section>

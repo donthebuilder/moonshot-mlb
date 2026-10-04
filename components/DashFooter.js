@@ -21,6 +21,7 @@ export default function DashFooter({ sport, theme: C, onGuide = null }) {
         {onGuide ? sep : null}
         <a href={`/called?sport=${sport}`} style={{ ...link, padding: '6px 2px' }}>The record</a>
         {sep}
+        <a href="/members" style={{ ...link, padding: '6px 2px' }}>Members</a>{sep}
         <a href="/terms" style={{ ...link, padding: '6px 2px' }}>Terms</a>
         {email ? <>{sep}<a href={`mailto:${email}`} style={{ ...link, padding: '6px 2px' }}>Contact</a></> : null}
       </nav>
