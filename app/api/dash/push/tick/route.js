@@ -799,9 +799,15 @@ async function sweep(db, subs, stateByUser, audience, { full }) {
 
     for (const { note, events: batch } of notes) {
       try {
+        // EXPIRY + URGENCY (2026-10-04, ops audit). No TTL meant the push
+        // service's default (~4 weeks): a phone offline through an inning got
+        // "ON DECK" hours later. The urgent lane (score, home run, goal,
+        // scratch) keeps 30 min and goes out high-urgency; everything else is worthless after 15.
+        const hot = (batch || []).some((e) => laneOf(e) === 'urgent')
         await webpush.sendNotification(
           { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
           JSON.stringify(note),
+          { TTL: hot ? 1800 : 900, urgency: hot ? 'high' : 'normal' },
         )
         sent += 1
         for (const e of batch) outcomes.push({ event: e, outcome: batch.length === 1 ? 'sent' : 'bundled' })
