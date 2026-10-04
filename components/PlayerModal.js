@@ -226,6 +226,8 @@ const TABS = [
 // here is indistinguishable from one added from a card.
 const BETS = ['HR', 'Hit', 'HRR', 'TB']
 
+const META_LINK = { color: 'inherit', textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: 2 }
+
 export default function PlayerModal({ player, slate = null, slateMode, initialTab = '', onClose, inline = false, onAdd, onWatch, watched = false, peers = [], onNavigate = null, odds = null, pairSummary = null, onOpenPairHistory = null }) {
   // Inline mode is not an overlay -- it renders in the page, and pinning the
   // body under it would freeze the very thing the reader is scrolling.
@@ -618,7 +620,14 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
             badgeQuiet={apiOnly || heroRole === 'NONE' || heroRole === 'WATCH'}
             meta={apiOnly
               ? `${clean(p?.team, '—')}${p?.position ? ` · ${p.position}` : ''} · ${clean(p?.bats, '?')}HB · ${p?.status_word || "not on tonight's slate"}${p?.season_line?.pa ? ` · ${String(p.season_line.avg?.toFixed?.(3) ?? '—').replace(/^0/, '')} / ${p.season_line.hr} HR / ${p.season_line.rbi} RBI in ${p.season_line.pa} PA` : ''}`
-              : `${teamOf(p)} vs ${oppOf(p)} · #${clean(p?.lineup_spot, '?')} · ${clean(p?.handedness || p?.bats, '?')}HB${p?.pitcher_name ? ` · vs ${p.pitcher_name} (${clean(p?.pitcher_throws, '?')})${p?.pitcher_projected ? ' ≈' : ''}` : ''}`}
+              // The game and the arm are links (2026-10-04, route audit B6): Player ->
+              // Game opens his game on the Slate, Player -> pitcher opens the
+              // pitcher's file -- the addresses those tabs already read.
+              : <>
+                  {p?.game_pk ? <a href={`#sport=mlb&tab=games&game=${p.game_pk}`} style={META_LINK} title="Open his game on the Slate">{teamOf(p)} vs {oppOf(p)}</a> : `${teamOf(p)} vs ${oppOf(p)}`}
+                  {` · #${clean(p?.lineup_spot, '?')} · ${clean(p?.handedness || p?.bats, '?')}HB`}
+                  {p?.pitcher_name ? <>{' · vs '}{p?.pitcher_id ? <a href={`#sport=mlb&tab=pitchers&pitcher=${p.pitcher_id}`} style={META_LINK} title="Open the pitcher's file">{p.pitcher_name}</a> : p.pitcher_name}{` (${clean(p?.pitcher_throws, '?')})${p?.pitcher_projected ? ' ≈' : ''}`}</> : null}
+                </>}
             metaRight={heroPrice}
             market={apiOnly ? (p?.roster ? 'on the roster, not the slate' : 'live API only') : verdictFor(heroRole).market}
             line={apiOnly
