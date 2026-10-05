@@ -7,7 +7,7 @@ import TonightsNumbers from './numerology/TonightsNumbers'
 import AlignmentsView from './numerology/AlignmentsView'
 import {
   usePeople, slateAlignments, AXIS_META, alignedWith,
-  readAlignArchive, shiftDateKey, dateDigitRoot,
+  shiftDateKey, dateDigitRoot,
 } from '../lib/alignments'
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -28,6 +28,21 @@ import {
 // the ticket is measured.
 
 
+function useActualNight(date, live) {
+  const [night, setNight] = useState(null)
+  useEffect(() => {
+    let alive = true
+    const read = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
+      fetch(`/api/numerology/night?sport=mlb&date=${date}`).then((r) => (r.ok ? r.json() : null)).then((j) => { if (alive && j && !j.error) setNight(j) }).catch(() => {})
+    }
+    read()
+    const id = live ? setInterval(read, 180_000) : null
+    return () => { alive = false; if (id) clearInterval(id) }
+  }, [date, live])
+  return night
+}
+
 export default function Alignments({ players = [], watchIds = null, slateDate = '', onPlayerClick, onBuildAround }) {
   const { people, loaded } = usePeople(players)
 
@@ -47,13 +62,13 @@ export default function Alignments({ players = [], watchIds = null, slateDate = 
   const todayKey = slateDate || easternToday()
   const yesterdayKey = shiftDateKey(todayKey, -1)
   const tomorrowKey = shiftDateKey(todayKey, 1)
-  const [archiveTick, setArchiveTick] = useState(0)
-  useEffect(() => {
-    const id = setInterval(() => setArchiveTick((t) => t + 1), 60_000)
-    return () => clearInterval(id)
-  }, [])
-  const yesterdayArchive = useMemo(() => readAlignArchive(yesterdayKey), [yesterdayKey, archiveTick])
-  const todayArchive = useMemo(() => readAlignArchive(todayKey), [todayKey, archiveTick])
+  // WHAT ACTUALLY HAPPENED, FROM THE SERVER (2026-10-04, Donovan: "shows what is but
+  // not what actual is"). Was this browser's copy of HomerLedger's archive -- empty
+  // for anyone who hadn't had the HR Ledger open, and silent until three homers
+  // shared a root. Now /api/numerology/night (homer_feed -> lib/numerology/actualNight)
+  // for everyone, from the first homer. Tonight refreshes every 3 min while visible.
+  const yesterdayArchive = useActualNight(yesterdayKey, false)
+  const todayArchive = useActualNight(todayKey, true)
   const tomorrowRoot = useMemo(() => dateDigitRoot(tomorrowKey), [tomorrowKey])
   // ── TONIGHT'S NUMBER, AND WHO CARRIES IT (2026-08-31) ─────────────────────
   // Donovan: "you mus give us preditcution using the numeroly reductions."

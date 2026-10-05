@@ -289,7 +289,9 @@ export function SpotBars({ title, bars = [], foot, accent = C.orange }) {
       <div style={{ display: 'flex', gap: 4, alignItems: 'flex-end', height: 46 }}>
         {bars.map((b) => (
           <div key={b.key} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }} title={b.title}>
-            <span style={{ fontSize: 11, fontFamily: NUM_FONT, color: b.value ? C.text2 : C.text3, fontWeight: 800 }}>{b.value || ''}</span>
+            {/* a zero says 0 (dimmed), never blank: a blank collapsed its row and the numbers slid
+                one label left -- TUDDY's 'QB 20, RB 20, WR 8' was QB 0, RB 20, WR 20, TE 8 (10-04) */}
+            <span style={{ fontSize: 11, fontFamily: NUM_FONT, color: b.value ? C.text2 : C.text3, fontWeight: 800, opacity: b.value ? 1 : 0.6 }}>{b.value || 0}</span>
             <div style={{
               width: '100%', height: `${Math.max(3, (26 * b.value) / max)}px`, borderRadius: 3,
               background: b.value === max && b.value > 0 ? accent : b.value ? alpha(accent, 0.45) : 'rgba(255,255,255,.06)',

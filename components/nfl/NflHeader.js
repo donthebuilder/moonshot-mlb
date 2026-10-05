@@ -362,7 +362,7 @@ export default function NflHeader({ tab, setTab, data, meta, matchup, weekMode =
                 then the remaining context, then the finals and the games not
                 started. This strip is that sequence, with football's numbers
                 in it. The tiles themselves are the shared TickerPill. */}
-            <Tile label="Games" value={games} color={C.blue} title="Games on this slate" />
+            <Tile label="Games · week" value={games} color={C.blue} title="Every game this week (Thursday to Monday) -- the line under the page title counts today's" />   {/* 10-04: "16" here vs "14 games" today read as a contradiction */}
             <Tile
               label="Expected TDs"   // plain words (2026-10-04 user review #20: was "Proj TD")
               value={projTd ? projTd.toFixed(1) : '—'}

@@ -1,5 +1,6 @@
 'use client'
 import Tap from '../Tap'
+import { usePreview, ShowMoreButton } from '../ListPreview'
 import { useState } from 'react'
 import { usePickLight } from '../../lib/pickLight'
 import { C as MLB_C, NUM_FONT as MLB_NUM } from '../../lib/theme'
@@ -16,6 +17,46 @@ import { C as MLB_C, NUM_FONT as MLB_NUM } from '../../lib/theme'
 //
 // The data comes in built: model (lib/numerology/align.js alignModel), tonight
 // (alignedWithBy), the sport's AXIS_META and scoreOf. Nothing is fetched here.
+
+// ONE NIGHT'S HOMER HITTERS AND THEIR NUMBERS (2026-10-04): lib/numerology/actualNight's
+// shape. Each number reduced to its root; lit in the root's colour where it meets the
+// day's number. Three hitters, then 'show more'. A name opens his card (p=, on or off
+// the slate).
+function NightBox({ title, night, empty, C, NUM_FONT }) {
+  const { shown, open, restN, toggle } = usePreview(night?.hitters || [], 3)
+  const dr = night?.dateRoot
+  return (
+    <div style={{ flex: '1 1 260px', minWidth: 0 }}>
+      <div style={{ fontSize: 11, color: C.text3, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase' }}>{title}</div>
+      {!night ? <div style={{ fontSize: 12, color: C.text3, marginTop: 2 }}>…</div>
+        : !night.hitters.length ? <div style={{ fontSize: 12, color: C.text3, marginTop: 2, lineHeight: 1.5 }}>{empty}</div>
+          : (<>
+            <div style={{ fontSize: 12, color: C.text2, lineHeight: 1.5, marginTop: 2 }}>
+              {night.date} reduces to <b style={{ color: ROOT_COLORS[dr], fontFamily: NUM_FONT }}>{dr}</b>:{' '}
+              <b>{night.matched}</b> of {night.hitters.length} homer hitter{night.hitters.length === 1 ? '' : 's'} carr{night.matched === 1 ? 'ies' : 'y'} it
+              {night.homers > night.hitters.length ? ` (${night.homers} homers)` : ''}.
+            </div>
+            {shown.map((h) => (
+              <div key={h.player_id} style={{ marginTop: 6, minWidth: 0 }}>
+                <a href={`#sport=mlb&p=${h.player_id}`} style={{ color: C.text, fontWeight: 800, fontSize: 12, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', minHeight: 44 }}>
+                  {h.name}{h.team ? <span style={{ color: C.text3, fontWeight: 600, marginLeft: 5, fontFamily: NUM_FONT, fontSize: 11 }}>{h.team}</span> : null}{h.hr > 1 ? <span style={{ color: C.orange, marginLeft: 5, fontFamily: NUM_FONT, fontSize: 11 }}>×{h.hr}</span> : null}
+                </a>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                  {h.axes.length ? h.axes.map((x) => (
+                    <span key={x.k} title={x.match ? `meets ${night.date}'s ${dr}` : undefined} style={{
+                      fontFamily: NUM_FONT, fontSize: 11, padding: '2px 6px', borderRadius: 6,
+                      border: `1px solid ${x.match ? ROOT_COLORS[x.root] : C.border}`, color: x.match ? C.text : C.text2,
+                      background: x.match ? `${ROOT_COLORS[x.root]}22` : 'transparent', fontWeight: x.match ? 800 : 600,
+                    }}>{x.label} → {x.root}</span>
+                  )) : <span style={{ fontSize: 11, color: C.text3 }}>no numbers on file</span>}
+                </div>
+              </div>
+            ))}
+            <ShowMoreButton open={open} restN={restN} toggle={toggle} itemWord="hitters" />
+          </>)}
+    </div>
+  )
+}
 
 export const ROOT_COLORS = ['', '#f97316', '#f59e0b', '#22d3ee', '#4ade80', '#a78bfa', '#f87171', '#60a5fa', '#FCD34D', '#c084fc']
 
@@ -249,9 +290,9 @@ export default function AlignmentsView({
           date (2026-08-18). Everything above this is the PREGAME slate,
           projecting who might align before a single ball has flown. This is
           the only place on the page looking at what actually happened —
-          yesterday and tonight-so-far both come from HomerLedger's real
-          graded homers, archived by date (see lib/alignments.js). Per-browser
-          storage, said plainly rather than implied. */}
+          yesterday and tonight-so-far: every homer hitter with his own numbers,
+          lit where they meet that day's number (/api/numerology/night, from the
+          homers themselves since 2026-10-04 -- it used to be one browser's copy). */}
       {days && (
       <div style={{
         border: `1px solid ${C.border}`, borderRadius: 10, background: C.bg2,
@@ -261,40 +302,8 @@ export default function AlignmentsView({
           📅 Yesterday · Today · Tomorrow
         </div>
         <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-          <div style={{ flex: '1 1 220px', minWidth: 0 }}>
-            <div style={{ fontSize: 9, color: C.text3, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase' }}>Yesterday, actually</div>
-            {yesterdayArchive?.topRoot ? (
-              <div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.6, marginTop: 2 }}>
-                Root <b style={{ color: ROOT_COLORS[yesterdayArchive.topRoot.root], fontFamily: NUM_FONT, fontSize: 13 }}>{yesterdayArchive.topRoot.root}</b> hit
-                the most — {yesterdayArchive.topRoot.names.slice(0, 6).join(', ')}
-                {yesterdayArchive.topRoot.names.length > 6 && ` +${yesterdayArchive.topRoot.names.length - 6} more`}.
-                {yesterdayArchive.aligned?.length > 0 && (
-                  <> {yesterdayArchive.aligned.length} hitter{yesterdayArchive.aligned.length === 1 ? '' : 's'} aligned two ways or more.</>
-                )}
-              </div>
-            ) : (
-              <div style={{ fontSize: 10, color: C.text3, marginTop: 2, lineHeight: 1.5 }}>
-                No archive from yesterday on this browser — either nothing cleared the bar, or this browser
-                wasn&apos;t open for it. It fills in on its own once a night runs with this tab open.
-              </div>
-            )}
-          </div>
-          <div style={{ flex: '1 1 220px', minWidth: 0 }}>
-            <div style={{ fontSize: 9, color: C.text3, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase' }}>Tonight, so far</div>
-            {todayArchive?.topRoot ? (
-              <div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.6, marginTop: 2 }}>
-                Root <b style={{ color: ROOT_COLORS[todayArchive.topRoot.root], fontFamily: NUM_FONT, fontSize: 13 }}>{todayArchive.topRoot.root}</b> leads
-                so far — {todayArchive.topRoot.names.slice(0, 6).join(', ')}
-                {todayArchive.topRoot.names.length > 6 && ` +${todayArchive.topRoot.names.length - 6} more`}.
-                {' '}(off {todayArchive.total} homer{todayArchive.total === 1 ? '' : 's'} — the HR Ledger has the live count.)
-              </div>
-            ) : (
-              <div style={{ fontSize: 10, color: C.text3, marginTop: 2, lineHeight: 1.5 }}>
-                Nothing&apos;s landed yet tonight — this fills in the moment the first ball leaves the yard
-                (the HR Ledger, in Pairs &amp; Pools, tracks it live).
-              </div>
-            )}
-          </div>
+          <NightBox title="Yesterday, actually" night={yesterdayArchive} empty="No homers on file for yesterday." C={C} NUM_FONT={NUM_FONT} />
+          <NightBox title="Tonight, so far" night={todayArchive} empty="Nothing's landed yet tonight -- the first homer fills this in." C={C} NUM_FONT={NUM_FONT} />
           <div style={{ flex: '1 1 220px', minWidth: 0 }}>
             <div style={{ fontSize: 9, color: C.text3, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase' }}>Tomorrow&apos;s date</div>
             <div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.6, marginTop: 2 }}>

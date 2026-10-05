@@ -88,7 +88,11 @@ export default function Ledger({ data, picks, results, matchup, onPlayerClick, o
   const POS = ['QB', 'RB', 'WR', 'TE']
   const byPos = POS.map((pos) => scorers.filter((s) => s.p?.position === pos).reduce((n, s) => n + s.td, 0))
   const totalTd = scorers.reduce((n, s) => n + s.td, 0)
-  const topPos = POS[byPos.indexOf(Math.max(...byPos))]
+  // every position at the top, not the first one indexOf finds (10-04: 'RBs lead with
+  // 20' hid the WRs' 20)
+  const topN = Math.max(...byPos)
+  const leaders = POS.filter((_, i) => byPos[i] === topN).map((p) => `${p}s`)
+  const leadWords = leaders.length > 1 ? `${leaders.slice(0, -1).join(', ')} and ${leaders[leaders.length - 1]}` : leaders[0]
   const lineSet = new Map(lines.map((l) => [l.id, l]))
   const roundSet = new Map(rounds.map((r) => [r.id, r]))
   const open = (p) => (p ? () => onPlayerClick?.(p) : null)
@@ -133,7 +137,7 @@ export default function Ledger({ data, picks, results, matchup, onPlayerClick, o
           }
         })} />
         <SpotBars accent={C.green} title="Touchdowns by position" bars={POS.map((pos, i) => ({ key: pos, label: pos, value: byPos[i], title: `${byPos[i]} touchdown${byPos[i] === 1 ? '' : 's'} this week by ${pos}s` }))}
-          foot={totalTd ? <>{byPos.reduce((a, b) => a + b, 0)} of {totalTd} touchdowns by a QB, RB, WR or TE. {Math.max(...byPos) >= 3 && <>The <b style={{ color: C.text2 }}>{topPos}s</b> lead the week with {Math.max(...byPos)}.</>} One week is a picture, not a finding — texture, never a signal to chase.</> : null} />
+          foot={totalTd ? <>{byPos.reduce((a, b) => a + b, 0)} of {totalTd} touchdowns by a QB, RB, WR or TE. {topN >= 3 && <>The <b style={{ color: C.text2 }}>{leadWords}</b> lead the week with {topN}{leaders.length > 1 ? ' each' : ''}.</>} One week is a picture, not a finding — texture, never a signal to chase.</> : null} />
       </LedgerFrame>
       <FirstScorers sport="nfl" {...P} onOpenGame={onOpenGame} onOpenPlayer={(id) => { const p = byId.get(String(id)); if (p) onPlayerClick?.(p) }} />
     </div>
