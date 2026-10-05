@@ -1,6 +1,7 @@
 import './globals.css'
 import { Analytics } from '@vercel/analytics/next'
 import DashSync from '../components/DashSync'
+import StyledJsxRegistry from './registry'
 
 // C1 rebrand sweep (dash-network-master-plan-2026-08-28.md): title, footer,
 // and share cards were already DASH-branded; OG/Twitter card metadata never
@@ -79,7 +80,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body>
-        {children}
+        <StyledJsxRegistry>{children}</StyledJsxRegistry>
         <Analytics />
         <DashSync />
       </body>

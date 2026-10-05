@@ -23,7 +23,7 @@ export default function FranchiseTabBar({ leagueId, isCommissioner }) {
   const search = useSearchParams()
   const tab = franchiseKeyOf(leagueId, pathname, search?.toString())
   const main = FRANCHISE_BAR.map((k) => [k, FRANCHISE_NAV[k].icon, FRANCHISE_NAV[k].label])
-  const more = [...FRANCHISE_MORE, ...(isCommissioner ? ['settings'] : [])].map((k) => [k, FRANCHISE_NAV[k].label, FRANCHISE_NAV[k].blurb])
+  const more = [...FRANCHISE_MORE, ...(isCommissioner ? ['settings'] : [])].map((k) => [k, FRANCHISE_NAV[k].label, FRANCHISE_NAV[k].icon])   // tiles: icon + name (10-05)
   return (
     <MobileTabBar
       tab={tab}
@@ -36,7 +36,7 @@ export default function FranchiseTabBar({ leagueId, isCommissioner }) {
       network={false}
       desktop={false}
       title="Everything in this league"
-      lede="Every page in this league and what each one is for."
+      lede="Every page in this league."
     />
   )
 }
