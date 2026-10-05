@@ -1,0 +1,70 @@
+{
+  "built_at": "2026-10-05T02:17:32.177Z",
+  "method": "Each game's calls = each side's highest-scored CALLED player; eligible = both sides have one. Featured = rule 2 (sum of the two scores) or the TOP call alone, with rule 4 (no club featured in the last 2 days when another game is within 5). Rule 3's start-time tiebreak is not applied: the archives carry no start time. Hit rate is per call, voids out.",
+  "mlb": {
+    "source": "por_rows_<date>.jsonl from 2026-09-09 (earlier nights were never archived), graded off statsapi final boxes",
+    "nights": 23,
+    "from": "2026-09-09",
+    "to": "2026-10-04",
+    "sum": {
+      "featuredGames": 23,
+      "featured": {
+        "hits": 5,
+        "n": 46,
+        "rate": 10.9
+      },
+      "all": {
+        "hits": 71,
+        "n": 455,
+        "rate": 15.6
+      }
+    },
+    "top": {
+      "featuredGames": 23,
+      "featured": {
+        "hits": 13,
+        "n": 45,
+        "rate": 28.9
+      },
+      "all": {
+        "hits": 71,
+        "n": 455,
+        "rate": 15.6
+      }
+    },
+    "keep": "top"
+  },
+  "nhl": {
+    "source": "/api/lamp/record nights (LAMP graded called skaters)",
+    "nights": 6,
+    "from": "2026-09-29",
+    "to": "2026-10-04",
+    "sum": {
+      "featuredGames": 6,
+      "featured": {
+        "hits": 3,
+        "n": 12,
+        "rate": 25
+      },
+      "all": {
+        "hits": 23,
+        "n": 66,
+        "rate": 34.8
+      }
+    },
+    "top": {
+      "featuredGames": 6,
+      "featured": {
+        "hits": 4,
+        "n": 12,
+        "rate": 33.3
+      },
+      "all": {
+        "hits": 23,
+        "n": 66,
+        "rate": 34.8
+      }
+    },
+    "keep": "neither"
+  }
+}

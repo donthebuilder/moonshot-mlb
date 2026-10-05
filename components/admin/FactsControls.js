@@ -11,13 +11,14 @@ async function send(body) {
   return r.ok ? null : (j.error || `HTTP ${r.status}`)
 }
 
-export function AutopostSwitch({ on, missing }) {
+// `flag`: 'facts' (the fact engine) or 'writeups' (BATCH-GAME-WRITEUP) -- same switch, same route
+export function AutopostSwitch({ on, missing, flag = 'facts' }) {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState(null)
   if (missing) return <span style={{ color: C.text3, fontSize: 13 }}>off until the SQL runs</span>
   const flip = async () => {
     setBusy(true); setErr(null)
-    const e = await send({ action: 'autopost', value: on ? 'off' : 'on' })
+    const e = await send({ action: 'autopost', flag, value: on ? 'off' : 'on' })
     if (e) { setErr(e); setBusy(false) } else window.location.reload()
   }
   return (

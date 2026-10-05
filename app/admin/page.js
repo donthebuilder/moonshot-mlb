@@ -26,6 +26,9 @@ import { autopostState, FACTS_CONFIG } from '../../lib/facts/engine'
 import { AutopostSwitch, DeleteFactPost } from '../../components/admin/FactsControls'
 import { readShadows, readVsBook, readValueNhl, readValueNfl, readValueMlb } from '../../lib/shadowRecord'
 import { VERSIONS as NHL_VERSIONS } from '../../lib/nhl/versions'
+import { getFromX } from '../../lib/dash/xPost'
+import { writeupsAutopost } from '../../lib/writeups/post'
+import featuredBacktest from '../../lib/writeups/featuredBacktest.json'
 
 export const dynamic = 'force-dynamic'
 // The title is computed, not static: a static one rides the 404's payload
@@ -117,6 +120,12 @@ async function readCounts() {
 
 const cachedCounts = unstable_cache(readCounts, ['admin-counts-v1'], { revalidate: 60 })
 // the shadow models' graded lines (lib/shadowRecord.js), 10 min: they change once a night
+// THE X ACCOUNT'S TIER (BATCH-GAME-WRITEUP: "check once whether our X tier allows long
+// posts through the API"): X's own answer, read-only, once a day.
+const cachedXTier = unstable_cache(async () => {
+  const r = await getFromX('/2/users/me', { 'user.fields': 'subscription_type' })
+  return r.ok ? { type: r.json?.data?.subscription_type ?? null, user: r.json?.data?.username ?? null } : { error: r.error || `HTTP ${r.status}` }
+}, ['admin-xtier-v1'], { revalidate: 86400 })
 const cachedShadows = unstable_cache(async () => { const db = service(); return db ? readShadows(db) : [] }, ['admin-shadows-v1'], { revalidate: 600 })
 // LAMP SHOTS 3+ (public) against the book's lock line (M3)
 const cachedVsBook = unstable_cache(async () => { const db = service(); return db ? readVsBook(db, { table: 'lamp_prop_log', market: 'SOG', oddsMarket: 'sog', sport: 'nhl', versions: NHL_VERSIONS.sog, bar: 3 }) : null }, ['admin-vsbook-v1'], { revalidate: 600 })
@@ -165,6 +174,12 @@ export default async function AdminPage() {
   const value = await cachedValue().catch((e) => ({ error: e?.message }))
   const pct = (l) => (l?.n ? `${l.pct}% ±${l.pm} (${l.hit}/${l.n})` : 'no graded calls yet')
   const today = easternToday()
+  // THE GAME WRITE-UPS (lib/writeups): the switch, the last few days' posts, the tier, the backtest
+  const [wstate, wrows, xTier] = fdb ? await Promise.all([
+    writeupsAutopost(fdb).catch((e) => ({ on: false, why: e?.message, missing: true })),
+    fdb.from('homer_feed_posts').select('day, kind, x_post_id, discord_sent, payload').like('kind', 'writeup_%').order('day', { ascending: false }).limit(30),
+    cachedXTier().catch((e) => ({ error: e?.message })),
+  ]) : [{ on: false, why: 'no database', missing: true }, { data: [], error: null }, { error: 'no database' }]
   const fToday = (frows.data || []).filter((r) => r.day === today)
   const tokensToday = fToday.reduce((a, r) => a + (r.tokens_in || 0) + (r.tokens_out || 0), 0)
   return (
@@ -248,6 +263,31 @@ export default async function AdminPage() {
             {r.status === 'posted' && r.x_post_id ? <div style={{ marginTop: 6 }}><a href={`https://x.com/i/web/status/${r.x_post_id}`} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', marginRight: 12 }}>on X →</a><DeleteFactPost id={r.id} /></div> : null}
           </div>
         ))}
+
+        <h2 className={start.kicker} style={{ marginTop: 18 }}>Game write-ups</h2>
+        <Line k="Auto-post" v={<AutopostSwitch flag="writeups" on={wstate.on} missing={Boolean(wstate.missing)} />} src={`${wstate.why} · OFF = dry: written here, posted nowhere`} />
+        <Line k="X long posts" v={xTier.error ? 'unknown' : xTier.type ? `${xTier.type}${/premium/i.test(xTier.type) ? ' (long posts allowed)' : ' (280 characters)'}` : 'no subscription_type returned'}
+          src={xTier.error ? `GET /2/users/me failed: ${xTier.error}` : `X's own answer for @${xTier.user || '?'} (GET /2/users/me subscription_type, once a day) · X_TEXT_LIMIT ${process.env.X_TEXT_LIMIT || 'unset (280)'}`} />
+        {wrows.error ? <p>Write-ups unavailable: {wrows.error.message}</p> : (wrows.data || []).length === 0 ? <p style={{ opacity: 0.7 }}>None yet -- each NFL game is written 75-60 min before kickoff.</p> : (wrows.data || []).map((r) => {
+          const p = r.payload || {}
+          const where = p.mode === 'skipped' ? `SKIPPED: ${p.reason}` : p.mode === 'dry' ? `DRY (${p.featured ? `would go to X: ${p.featured}` : 'site + Discord only'})`
+            : `LIVE · Discord ${r.discord_sent ? 'yes' : 'no'}${p.featured ? ` · X ${/^\d+$/.test(String(r.x_post_id || '')) ? r.x_post_id : (p.x_why || 'not sent')}` : ''}${(p.no_shot || []).length ? ` · no card for ${p.no_shot.join(', ')}` : ''}`
+          return (
+            <div key={`${r.day}-${r.kind}`} style={{ borderTop: '1px solid rgba(127,127,127,.25)', padding: '10px 0', fontSize: 13, lineHeight: 1.5 }}>
+              <div><b>{where}</b> · {r.day} · {r.kind}</div>
+              {p.text_full ? <details><summary style={{ cursor: 'pointer', minHeight: 44 }}>the write-up ({p.x_is_long ? 'long X post' : 'short X post'})</summary><div style={{ whiteSpace: 'pre-wrap', margin: '4px 0' }}>{p.text_full}</div>{p.featured ? <div style={{ whiteSpace: 'pre-wrap', margin: '8px 0', opacity: 0.8 }}>{`X:\n${p.text_x}`}</div> : null}</details> : null}
+              {/^\d+$/.test(String(r.x_post_id || '')) ? <a href={`https://x.com/i/web/status/${r.x_post_id}`} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit' }}>on X →</a> : null}
+            </div>
+          )
+        })}
+        <h2 className={start.kicker} style={{ marginTop: 18 }}>Featured-game rule, backtested (MLB / NHL)</h2>
+        <p style={{ opacity: 0.75, fontSize: 13 }}>{featuredBacktest.method} Built {String(featuredBacktest.built_at).slice(0, 10)} by scripts/writeups/featured-backtest.mjs. MLB / NHL write-ups don't post yet.</p>
+        {['mlb', 'nhl'].map((k) => { const b = featuredBacktest[k]; const r = (x) => `${x.hits}/${x.n} = ${x.rate ?? '—'}%`; return (
+          <div key={k}>
+            <Line k={`${k.toUpperCase()} · rule 2 (sum)`} v={`${r(b.sum.featured)} vs all ${r(b.sum.all)}`} src={`${b.nights} nights, ${b.from} .. ${b.to} · ${b.source}`} />
+            <Line k={`${k.toUpperCase()} · TOP call only`} v={`${r(b.top.featured)} vs all ${r(b.top.all)}`} src={`kept: ${b.keep === 'neither' ? 'neither beats the slate yet -- no featured rule' : b.keep === 'top' ? 'TOP only' : 'rule 2 (sum)'}`} />
+          </div>
+        ) })}
 
         {/* SHADOW MODELS (BATCH-MODEL-V2 "PROVE IT"): logged-only, never public;
             a shadow goes live only as a new version when its range clears the live one */}

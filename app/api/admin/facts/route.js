@@ -15,8 +15,10 @@ export async function POST(request) {
   if (!user || !isAdminEmail(user.email)) return Response.json({ error: 'not found' }, { status: 404 })
   const db = adminClient()
   const body = await request.json().catch(() => ({}))
-  if (body.action === 'autopost' && ['on', 'off'].includes(body.value)) {
-    const r = await db.from('dash_flags').upsert([{ key: 'facts_autopost', value: body.value, updated_at: new Date().toISOString(), updated_by: user.email }], { onConflict: 'key' })
+  // the switches in dash_flags this route may flip (the write-ups' joined 2026-10-04)
+  const FLAGS = { facts: 'facts_autopost', writeups: 'writeups_autopost' }
+  if (body.action === 'autopost' && ['on', 'off'].includes(body.value) && FLAGS[body.flag || 'facts']) {
+    const r = await db.from('dash_flags').upsert([{ key: FLAGS[body.flag || 'facts'], value: body.value, updated_at: new Date().toISOString(), updated_by: user.email }], { onConflict: 'key' })
     return r.error ? Response.json({ error: r.error.message }, { status: 500 }) : Response.json({ ok: true, value: body.value })
   }
   if (body.action === 'delete' && body.id) {
