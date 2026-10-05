@@ -1496,9 +1496,11 @@
   }
   .roomStats {
     margin-top: 18px;
+    /* five tiles in one row clipped at 390 ('PROJECTE', '156.' -- 10-05): three to a row */
+    flex-wrap: wrap;
   }
   .roomStats span {
-    flex: 1;
+    flex: 1 1 calc((100% - 14px) / 3);
     min-width: 0;
   }
   .commishBar {
