@@ -18,7 +18,12 @@ export async function GET(request) {
   const db = adminClient()
   if (!db) return Response.json({ available: false }, { status: 503 })
   const type = q.get('pre') === '1' ? 1 : week > 18 ? 3 : 2
-  const sb = await fetch(`https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=${season}&seasontype=${type}&week=${type === 3 ? week - 18 : week}`, { next: { revalidate: 3600 } }).then((r) => (r.ok ? r.json() : null)).catch(() => null)
+  // ESPN files the playoffs under seasontype 3 with its own numbering: 19-21 are its weeks 1-3, the Super Bowl (22) is its week 5 (week 4 is the Pro Bowl). Same map as the bot's nfl_espn.POST_WEEKS.
+  const espnWeek = type === 3 ? (week === 22 ? 5 : week - 18) : week
+  // site.web.api.espn.com, not site.api.espn.com: the latter 403s from Vercel's egress (lib/nfl/liveSlate.js documents it)
+  const sb = await fetch(`https://site.web.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=${season}&seasontype=${type}&week=${espnWeek}`, { next: { revalidate: 3600 } }).then((r) => (r.ok ? r.json() : null)).catch(() => null)
+  // A FAILED FETCH IS NOT "NO GAMES": say so, and do not let the CDN keep it for ten minutes.
+  if (!sb) return Response.json({ available: false, season, week, scorers: [], note: 'schedule unavailable -- try again' }, { status: 503, headers: { 'Cache-Control': 'no-store' } })
   const games = (sb?.events || []).map((e) => ({ id: String(e.id), day: String(e.date || '').slice(0, 10) }))
   if (!games.length) return Response.json({ available: true, season, week, scorers: [], note: 'no games found for that week' }, { headers: { 'Cache-Control': 'public, s-maxage=600' } })
   const ids = new Set(games.map((g) => g.id))

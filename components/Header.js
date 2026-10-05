@@ -142,14 +142,15 @@ function Scorebug({ players, results, games, mode, slateDate, runMeta, onPlayerC
     : easternToday()
   const staleSlate = !!slateDate && slateDate < expectedDate
   const proj = modelHr != null ? modelHr.toFixed(1) : projection ? ((projection.low + projection.high) / 2).toFixed(1) : null
-  const captured = stats.actual != null && stats.actual > 0
+  // onSheet can be null while actual > 0 (only total_hrs_on_slate published): no "null/7"
+  const captured = stats.actual != null && stats.actual > 0 && stats.onSheet != null
   const pct = captured ? (100 * (stats.onSheet || 0)) / stats.actual : null
   const capCol = pct == null ? '#38bdf8' : pct >= 70 ? '#4ade80' : pct >= 50 ? '#f59e0b' : '#f87171'
 
   const items = []
   items.push({ k: 'games', label: 'games', value: stats.gameCount, nav: 'games', title: 'Games on this slate' })
   if (proj != null) items.push({ explain: true, k: 'proj', label: 'Expected HRs', value: proj, color: '#f97316', nav: 'board', title: `${modelHr != null ? `The site's model projects ${modelHr.toFixed(1)} home runs across this slate. ` : ''}${projection ? `The bot's sheet says ${projection.low}–${projection.high}, power grade ${projection.grade || 'n/a'}.` : ''}` })
-  items.push({ explain: true, k: 'cap', label: 'HRs on board', value: captured ? `${stats.onSheet}/${stats.actual}` : 'no HR yet', color: capCol, live: true, nav: 'results', title: captured ? `${stats.onSheet} of the slate's ${stats.actual} home runs were on the board before first pitch (${pct.toFixed(0)}%), off the live slate.` : 'How many of tonight\'s home runs the board had before first pitch — fills in when the first one lands.' })
+  items.push({ explain: true, k: 'cap', label: 'HRs on board', value: captured ? `${stats.onSheet}/${stats.actual}` : stats.actual > 0 ? `${stats.actual} HR` : 'no HR yet', color: capCol, live: true, nav: 'results', title: captured ? `${stats.onSheet} of the slate's ${stats.actual} home runs were on the board before first pitch (${pct.toFixed(0)}%), off the live slate.` : 'How many of tonight\'s home runs the board had before first pitch — fills in when the first one lands.' })
   // live scores ride between the facts and the headlines: live first, finals after
   const scores = scoreOrder(live.items, 'mlb')
   for (const i of scores.live) items.push({ k: i.k, hash: i.hash, label: i.sub || 'live', value: i.text, icon: i.icon, color: i.col, live: true, sport: i.sport, nav: 'scoreboard', title: i.kind === 'leader' ? `Leading tonight's line for this game` : (i.sport === 'nfl' ? 'Live on TUDDY — tap to switch' : 'Live — tap for the Live page') })

@@ -25,7 +25,7 @@ export default function CallStatusBadge({ status, accent = null, size = 9, short
   }
   if (variant === 'text') {
     const t = status === 'called' ? ac : status === 'board' ? C.text2 : C.text3
-    return <span style={{ color: t, fontFamily: NUM_FONT, fontSize: 11, fontWeight: 800, ...style }}>{STATUS_WORD[status]}{status !== 'off' && Number.isFinite(Number(score)) ? ` ${Math.round(score)}` : ''}</span>
+    return <span style={{ color: t, fontFamily: NUM_FONT, fontSize: 11, fontWeight: 800, ...style }}>{STATUS_WORD[status]}{status !== 'off' && score != null && Number.isFinite(Number(score)) ? ` ${Math.round(score)}` : ''}</span>
   }
   const word = short && status === 'board' ? 'BOARD' : short && status === 'off' ? 'OFF' : STATUS_WORD[status]
   const tone = status === 'called' ? ac : status === 'board' ? C.text2 : C.text3

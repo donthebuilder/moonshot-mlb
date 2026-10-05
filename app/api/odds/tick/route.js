@@ -178,7 +178,9 @@ export async function GET(request) {
         if (!dry) {
           try { await insertRows(db, r.rows) } catch (e) { out.skipped.push({ event: ev.eventID, snap, why: e?.message }); continue }
           const col = snap === 'lock' ? 'lock_at' : 'close_at'
-          await db.from('odds_events').update({ [col]: takenAt, starts_at: startsAt(ev) }).eq('event_id', ev.eventID)
+          // an unchecked failure left lock_at / close_at null, so the event stayed due and was re-pulled (quota) every tick
+          const stamp = await db.from('odds_events').update({ [col]: takenAt, starts_at: startsAt(ev) }).eq('event_id', ev.eventID)
+          if (stamp.error) out.skipped.push({ event: ev.eventID, snap, why: `stamp: ${stamp.error.message}` })
         }
         // EVERY MARKET WE SCORE, AT LOCK (lib/odds/lines.js): same object, no
         // extra cost. Its own failure, logged; never the snapshot's.

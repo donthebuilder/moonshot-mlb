@@ -89,6 +89,14 @@ export async function GET(request) {
     const box = new Map(reduceBox(s).map((b) => [b.id, b]))
     const firsts = firstBaskets(s)
     const rows = await db.from('buckets_log').select('*').eq('game_id', p.game_id).is('graded_at', null)
+    // A FAILED READ OR A BOX THAT HASN'T ARRIVED IS NOT A GRADE (2026-10-05 scan).
+    // rows.error was never looked at: a failed buckets_log read gave ups = [] and
+    // the game was stamped graded with nothing in it. And ESPN marks a game
+    // completed before boxscore.players is filled in -- reduceBox returned [] and
+    // every row graded "did not play", then graded_at made it permanent. Wait for
+    // the next tick instead; a graded game is never retried.
+    if (rows.error) { out.skipped.push({ game: p.game_id, why: `rows: ${rows.error.message}` }); continue }
+    if ((rows.data || []).length && box.size === 0) { out.skipped.push({ game: p.game_id, why: 'final but no box score players yet' }); continue }
     const gradedAt = new Date().toISOString()
     const ups = (rows.data || []).map((r) => {
       const base = r.market === 'first_fg' || r.market === 'first_pts' ? 'first' : r.market
@@ -105,12 +113,14 @@ export async function GET(request) {
     const shots = reduceShots(s, p.game_id).map((x) => ({ ...x, game_date: p.game_date, team_id: x.team_id || null }))
     if (shots.length) {
       const sw = await db.from('buckets_shots').upsert(shots.map(({ game_id, event_id, game_date, player_id, team_id, x, y, shot_type, made, points, three, distance, period, clock }) => ({ game_id, event_id, game_date, player_id, team_id, x, y, shot_type, made, points, three, distance, period, clock })), { onConflict: 'game_id,event_id' })
-      if (sw.error) out.skipped.push({ game: p.game_id, why: `shots: ${sw.error.message}` })
+      // a failed shots write must not close the game: buckets_shots is written once, at grade time
+      if (sw.error) { out.skipped.push({ game: p.game_id, why: `shots: ${sw.error.message}` }); continue }
     }
     // the first basket, on file for the Ledger's First scorers (lib/nba/firstFeed; never posts)
     const ff = await writeFirstFeed(db, { gameId: p.game_id, gameDate: p.game_date, seasonType: p.season_type, summary: s })
     if (ff) out.skipped.push({ game: p.game_id, why: `first basket: ${ff}` })
-    await db.from('buckets_games').update({ graded_at: gradedAt, state: 'final' }).eq('game_id', p.game_id)
+    const closed = await db.from('buckets_games').update({ graded_at: gradedAt, state: 'final' }).eq('game_id', p.game_id)
+    if (closed.error) { out.skipped.push({ game: p.game_id, why: `close: ${closed.error.message}` }); continue }
     out.graded.push({ game: p.game_id, rows: ups.length, shots: shots.length })
   }
   // FIRST BASKETS, CATCH-UP (2026-10-05): a game graded before the first basket was kept

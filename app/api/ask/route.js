@@ -23,6 +23,7 @@
 // a fabricated line.
 
 import { fetchBoardFull, fetchRunMeta } from '../../../lib/dash/board'
+import { callStatus, STATUS_WORD, boardOfRows } from '../../../lib/callStatus'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -79,15 +80,33 @@ function match(rows, q) {
 
 const ROLE_WORD = { TOP: 'TOP pick', HR: 'HR pick', HRR: 'HRR pick', HIT: 'HIT pick', CONTACT: 'CONTACT pick', TB: 'TB pick', WATCH: 'WATCH' }
 
-function answerFor(r, meta) {
+// A rated man's place on the night's board: distinct hitters, best HR Score
+// first. The board rows carry no stored rank, and the label's top-third cut
+// (lib/callStatus.js) needs one.
+function rankBoard(rows) {
+  const best = new Map()
+  for (const r of rows) {
+    const id = txt(r.player_id); const sc = num(r.hr_score)
+    if (!id || sc == null) continue
+    if (!best.has(id) || sc > best.get(id)) best.set(id, sc)
+  }
+  const order = [...best.entries()].sort((a, b) => b[1] - a[1])
+  return { rank: new Map(order.map(([id], i) => [id, i + 1])), of: boardOfRows(rows) }
+}
+
+function answerFor(r, meta, board) {
   const role = txt(r.game_pick_role).toUpperCase()
-  const called = Boolean(role)
+  // The label comes from callStatus, never re-derived here: a WATCH / TOP15
+  // role is ON THE BOARD, not CALLED, and a rated man outside the top third is
+  // NOT ON THE BOARD.
+  const status = callStatus({ role, board_rank: board?.rank.get(txt(r.player_id)), board_of: board?.of, on_board: num(r.hr_score) != null })
+  const called = status === 'called'
   const name = txt(r.name)
   const team = txt(r.team)
   const opp = txt(r.opponent)
   const arm = txt(r.pitcher_name)
   const hr = one(r.hr_score)
-  const state = called ? `CALLED — ${ROLE_WORD[role.split('/')[0]] || role}` : 'ON THE BOARD — no call'
+  const state = called ? `${STATUS_WORD.called} — ${ROLE_WORD[role.split('/')[0]] || role}` : `${STATUS_WORD[status]} — no call`
 
   // Supporting evidence, in the order a person would actually want it. Every
   // line is dropped when its field is missing rather than printed as a dash.
@@ -127,6 +146,7 @@ export async function GET(request) {
   if (q.length < 2) return Response.json({ q, slate_date: meta?.slate_date || null, hits: [] })
 
   const hits = match(rows, q)
+  const ranked = rankBoard(rows)
   if (!hits.length) {
     // The honest answer, and a genuinely good post in its own right -- the
     // third state the whole product is built on.
@@ -145,6 +165,6 @@ export async function GET(request) {
   return Response.json({
     q,
     slate_date: meta?.slate_date || null,
-    hits: hits.map((r) => answerFor(r, meta)).filter(Boolean),
+    hits: hits.map((r) => answerFor(r, meta, ranked)).filter(Boolean),
   })
 }

@@ -21,7 +21,16 @@ export default function Controls({ query, setQuery, team, setTeam, game = '', se
   // THE GAME BESIDE THE TEAM (2026-09-27, Donovan: "there need to be a filter
   // by game not just by team"). The Filters drawer had one; the bar every tab
   // shares did not. One option per game_pk, the drawer's own labels.
-  const games = useMemo(() => gamesOf(players).map((g) => ({ key: g.pk, label: g.label })), [players])
+  // A FILTER THE SLATE NO LONGER HAS STAYS VISIBLE (2026-10-05 scan). A shared
+  // #fteam=NYY link, or flipping Today -> Tomorrow when that club is off, kept
+  // filtering the board to zero rows while the select showed "All teams" (its
+  // value matched no option) -- an empty board with no visible reason. The held
+  // value now stays in the list, named, so it can be seen and cleared.
+  const games = useMemo(() => {
+    const list = gamesOf(players).map((g) => ({ key: g.pk, label: g.label }))
+    if (game && !list.some((g) => String(g.key) === String(game))) list.unshift({ key: game, label: 'Game not on this slate' })
+    return list
+  }, [players, game])
 
   const teams = useMemo(() => {
     const s = new Set()
@@ -29,8 +38,9 @@ export default function Controls({ query, setQuery, team, setTeam, game = '', se
       const t = teamOf(p)
       if (t) s.add(t)
     })
+    if (team) s.add(team)
     return Array.from(s).sort()
-  }, [players])
+  }, [players, team])
 
   // "/" focuses search from anywhere (ignored while typing in any field)
   useEffect(() => {

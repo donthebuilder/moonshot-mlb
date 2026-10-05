@@ -1,6 +1,7 @@
 'use client'
 import { C as MLB_C, NUM_FONT } from '../lib/theme'
 import { BRAND, sportKey } from '../lib/routes'
+import { useVisibleSports } from '../lib/useVisibleSports'
 
 // THE IN-APP 404 (2026-09-02, findings 2/3/15/16).
 //
@@ -20,7 +21,10 @@ export default function TabNotFound({ asked, sport = 'mlb', onNavigate, doors = 
   const C = palette || MLB_C
   // 2026-09-25: three products, so "the other side" is two doors, not one.
   const here = sportKey(sport)
-  const others = Object.keys(BRAND).filter((k) => k !== here)
+  // Only the products THIS visitor may see: BUCKETS is hidden until its access
+  // route says yes, and Object.keys(BRAND) put its door on every mistyped tab.
+  const visible = useVisibleSports()
+  const others = visible.filter((k) => k !== here && BRAND[k])
   const glyph = { mlb: '\u26BE', nfl: '\u{1F3C8}', nhl: '\u{1F3D2}', nba: '\u{1F3C0}' }
   return (
     <div style={{
