@@ -31,6 +31,7 @@ import GameScoreboard, { fmtKick } from '../GameScoreboard'
 import NflHeadlineStrip from '../NflHeadlineStrip'
 import Storylines from './Storylines'
 import Fold from '../../Fold'
+import { withNflFullSet } from '../../../lib/nfl/boardColumns'
 import TeamMark, { MatchLogos } from '../../TeamMark'
 
 const MARKET_SHORT = { TD: 'TD', REC_YDS: 'REC YDS', REC: 'REC', RUSH_YDS: 'RUSH YDS', RUSH_ATT: 'CARRIES', PASS_YDS: 'PASS YDS', KICK_PTS: 'KICK PTS' }
@@ -187,18 +188,18 @@ export default function Live({ data, picks, live, matchup = null, logs = null, r
   }, [players, boardMarket, boardTeam, boardQuery, boardWatched, boardWatch, gameByTeam, live, bars])
 
   const boardColumns = useMemo(() => ([
-    { key: 'watched', label: '☆', action: true, w: 28, mark: '★', markOff: '☆',
+    { key: 'watched', group: 'Player', label: '☆', action: true, w: 28, mark: '★', markOff: '☆',
       titleOn: 'Remove from watchlist', titleOff: 'Add to watchlist',
       onAction: (row) => boardWatch.toggle(row) },
-    { key: 'name', label: 'Player', w: 150, heat: false, sticky: true },
-    { key: 'pos', label: 'POS', w: 40, heat: false },
-    { key: 'team', label: 'TM', w: 40, heat: false },
-    { key: 'opp', label: 'OPP', w: 46, heat: false },
-    { key: 'score', label: 'SCORE', w: 56, dp: 0 },
-    { key: 'live', label: 'LIVE', w: 52, dp: 1, heat: false,
+    { key: 'name', group: 'Player', label: 'Player', w: 150, heat: false, sticky: true },
+    { key: 'pos', group: 'Player', label: 'POS', w: 40, heat: false },
+    { key: 'team', group: 'Player', label: 'TM', w: 40, heat: false },
+    { key: 'opp', group: 'Player', label: 'OPP', w: 46, heat: false },
+    { key: 'score', group: 'Live', label: 'SCORE', w: 56, dp: 0 },
+    { key: 'live', group: 'Live', label: 'LIVE', w: 52, dp: 1, heat: false,
       fmt: (v) => (v === null || v === undefined ? '—' : Number(v).toFixed(Number.isInteger(Number(v)) ? 0 : 1)) },
-    { key: 'bar', label: 'BAR', w: 46, dp: 1, heat: false, fmt: (v) => (v === null ? '—' : v) },
-    { key: 'status', label: 'STATUS', w: 96, heat: false },
+    { key: 'bar', group: 'Live', label: 'BAR', w: 46, dp: 1, heat: false, fmt: (v) => (v === null ? '—' : v) },
+    { key: 'status', group: 'Live', label: 'STATUS', w: 96, heat: false },
   ]), [boardWatch])
 
   const plays = useMemo(() => {
@@ -365,8 +366,7 @@ export default function Live({ data, picks, live, matchup = null, logs = null, r
         </div>
         {boardRows.length > 0 ? (
           <NflTable
-            rows={boardRows}
-            columns={boardColumns}
+            {...withNflFullSet(boardRows, boardColumns, { skip: [`sc_${boardMarket}`] })}
             initialSort="score"
             maxHeight={620}
             maxRows={300}

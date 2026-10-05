@@ -77,6 +77,8 @@ const SOFT_CAP = 60
 // lib/nfl/tdPool.js (Members M3): the board's pool, server-safe; re-exported here
 import { tdPool } from '../../../lib/nfl/tdPool'
 export { tdPool }
+import { useNowTick } from '../../../lib/useNowTick'
+import { explain } from '../../../lib/explain'
 
 // Exported (2026-09-28) for the Slate's Picks section -- the same card, not a copy.
 // MOONSHOT'S CARD FRAME (2026-09-29, parity plan E; components/PlayerCard.js
@@ -116,14 +118,14 @@ export function Card({ p, rank, matchup, odds, onPlayerClick, weights, base, poo
           <PlayerFace sport="nfl" espnId={p?.espn_id} team={p?.team} name={p?.name} size={32} />
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3, color: C.text }}>
-              {highConf && <span title="The bot's own high-confidence TD flag" style={{ fontSize: 14, lineHeight: 1, flexShrink: 0 }}>⭐</span>}
-              {aligned.aligned && <span title={`${aligned.hits} of 3 real signals lining up (matchup / red-zone finisher / rising snaps)`} style={{ fontSize: 14, lineHeight: 1, flexShrink: 0 }}>🧩</span>}
+              {highConf && <TapNote label="High confidence" text="The bot's own high-confidence TD flag." style={{ fontSize: 14, lineHeight: 1, flexShrink: 0 }}>⭐</TapNote>}
+              {aligned.aligned && <TapNote label="Aligned" text={`${aligned.hits} of 3 real signals lining up (matchup / red-zone finisher / rising snaps)`} style={{ fontSize: 14, lineHeight: 1, flexShrink: 0 }}>🧩</TapNote>}
               <CardName name={p.name} />
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap', fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
               <span>{p.position} · {p.team} vs {p.opp}</span>
               <MatchupBadge matchup={matchup} player={p} market={MARKET} />
-              {tag && <span title={injuryTitle(tag)} style={{ color: injuryColor(tag, C), fontWeight: 900 }}>{tag}</span>}
+              {tag && <TapNote label={tag} text={injuryTitle(tag)} style={{ color: injuryColor(tag, C), fontWeight: 900 }}>{tag}</TapNote>}
             </div>
           </div>
         </div>
@@ -151,6 +153,13 @@ export function Card({ p, rank, matchup, odds, onPlayerClick, weights, base, poo
   )
 }
 
+// A glyph that explains itself on hover AND on tap (lib/explain.js): the title
+// alone never showed on a phone. The tap does not open the card under it.
+function TapNote({ label, text, style, children }) {
+  const say = (e) => { e.stopPropagation(); explain(label, text) }
+  return <span role="button" tabIndex={0} title={text} onClick={say} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); say(e) } }} style={{ ...style, cursor: 'help' }}>{children}</span>
+}
+
 export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsStatus, logs = null, top = null, results = null, liveSnap = null, statusOf = null }) {
   const watchlist = useNflWatchlist(data)
   // Search, team and game come from the hub's top bar (2026-09-27).
@@ -166,9 +175,11 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
   const [view, setView] = useState('list')
   const [angle, setAngle] = useState(null)   // board filters plan, TUDDY 2
   const phone = useIsPhone()
-  const now = useMemo(() => Date.now(), [data, onlyUpcoming])
+  const now = useNowTick()   // moves: a board left open past kickoff drops that game from Not kicked off
 
   const { rows, weights, base, games } = useMemo(() => tdPool(data), [data])
+  // his place on THIS WEEK'S board, not on the filtered list: the pool is in board order
+  const rankOf = useMemo(() => new Map(rows.map((p, i) => [String(p.player_id), i + 1])), [rows])
 
   const positionOptions = useMemo(() => {
     const counts = {}
@@ -322,10 +333,10 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
       ) : (
         <>
           {view === 'list'
-            ? <NflBoardList players={capped} market={MARKET} weights={weights} odds={odds} phone={phone} onPlayerClick={openFromBoard} statusOf={statusOf} />
+            ? <NflBoardList players={capped} market={MARKET} rankOf={rankOf} weights={weights} odds={odds} phone={phone} onPlayerClick={openFromBoard} statusOf={statusOf} />
             : <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))' }}>
                 {capped.map((p, i) => (
-                  <Card key={p.player_id} p={p} rank={i + 1} matchup={matchup} odds={odds}
+                  <Card key={p.player_id} p={p} rank={rankOf.get(String(p.player_id)) ?? i + 1} matchup={matchup} odds={odds}
                         onPlayerClick={openFromBoard} weights={weights} base={base} pool={rows} watchlist={watchlist} />
                 ))}
               </div>}

@@ -13,6 +13,7 @@ import { discordParts } from '../../../lib/discordText'
 import PageHeader from '../../PageHeader'
 import TuddyRecentAlerts from '../TuddyRecentAlerts'
 import StorylineStrip from '../../TextRail'
+import { withNflFullSet } from '../../../lib/nfl/boardColumns'
 import WatchRecord from '../../watch/WatchRecord'
 import { storiesByPlayer } from '../../../lib/nfl/playerStories'
 
@@ -174,7 +175,7 @@ export default function Watchlist({ data, matchup, logs, onPlayerClick }) {
         down a column. Move is the part cards cannot do well: a signed delta
         against the score the board showed when you saved him. */}
     {view === 'table' && Boolean(rows.length) && <NflTable
-      rows={rows.map((r) => ({
+      {...withNflFullSet(rows.map((r) => ({
         player_id: r.pin.player_id,
         name: r.pin.name || r.pin.player_id,
         position: r.pin.position || '—',
@@ -186,24 +187,24 @@ export default function Watchlist({ data, matchup, logs, onPlayerClick }) {
         since: Number.isFinite(r.move?.from) ? r.move.from : null,
         ago: r.ago || '—',
         _player: r.player,
+        _raw: r.player,   // the full column set reads his week-file row (null for a stale pin)
         _market: r.best,
-      }))}
-      columns={[
-        { key: 'name', label: 'Player', heat: false, w: 150, bold: true, sticky: true },
-        { key: 'position', label: 'Pos', heat: false, w: 36, mono: true, dim: true },
-        { key: 'team', label: 'Tm', heat: false, w: 36, mono: true, dim: true },
-        { key: 'opp', label: 'Opp', heat: false, w: 56, mono: true, dim: true },
-        { key: 'best', label: 'Market', heat: false, w: 68, mono: true, dim: true,
+      })), [
+        { key: 'name', group: 'Player', label: 'Player', heat: false, w: 150, bold: true, sticky: true },
+        { key: 'position', group: 'Player', label: 'Pos', heat: false, w: 36, mono: true, dim: true },
+        { key: 'team', group: 'Player', label: 'Tm', heat: false, w: 36, mono: true, dim: true },
+        { key: 'opp', group: 'Player', label: 'Opp', heat: false, w: 56, mono: true, dim: true },
+        { key: 'best', group: 'His best market', label: 'Market', heat: false, w: 68, mono: true, dim: true,
           title: 'His highest-scoring market on this slate — the one the card leads with.' },
-        { key: 'score', label: 'Score', w: 50, dp: 0,
+        { key: 'score', group: 'His best market', label: 'Score', w: 50, dp: 0,
           title: "The model's score for that market right now." },
-        { key: 'since', label: 'Saved at', w: 56, dp: 0, heat: false, dim: true,
+        { key: 'since', group: 'Your pin', label: 'Saved at', w: 56, dp: 0, heat: false, dim: true,
           title: 'What the board said for the market he was pinned for, at the moment you pinned him. Blank for pins made before the watchlist started recording it — nothing is back-filled.' },
-        { key: 'moved', label: 'Move', w: 52, dp: 1,
+        { key: 'moved', group: 'Your pin', label: 'Move', w: 52, dp: 1,
           title: 'Score now minus score when saved, on the market he was pinned for. Compared on that market and not on his current best, so a man whose best market changed does not show a move he never made.' },
-        { key: 'ago', label: 'Pinned', heat: false, w: 64, mono: true, dim: true,
+        { key: 'ago', group: 'Your pin', label: 'Pinned', heat: false, w: 64, mono: true, dim: true,
           title: 'How long he has been on your list.' },
-      ]}
+      ])}
       onRowClick={onPlayerClick ? (row) => { if (row?._player) onPlayerClick(row._player, row._market || 'TD') } : undefined}
       caption="Your saved players. Move is measured against the score showing when you saved him, on that same market — pins made before the watchlist recorded a snapshot leave Saved at and Move blank rather than guessing one."
     />}

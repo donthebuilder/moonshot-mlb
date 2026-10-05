@@ -19,6 +19,7 @@ import { NflBoardList, BoardHead, DrawerPills, AngleRow, angleDefs, useNflDrawer
 import { matchupTag } from '../../../lib/nfl/dvpSignal'
 import DashChip, { useDashLines, DASH_OF } from '../DashChip'
 import MarketStat from '../MarketStat'
+import { useNowTick } from '../../../lib/useNowTick'
 
 // Same soft cap Touchdowns.js uses, so the two boards cut at the same depth.
 const SOFT_CAP = 60
@@ -153,7 +154,7 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
 
   // Recomputed when the slate changes or the toggle flips, not per render --
   // same rule Touchdowns.js's own `now` follows.
-  const now = useMemo(() => Date.now(), [data, onlyUpcoming])
+  const now = useNowTick()
 
   const spec = useMemo(
     () => (data?.markets || []).find((m) => m.key === market),
@@ -221,6 +222,8 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
   }, [bandFiltered, drawer, angle, angles, data, market, showLow, query, team, position, sortBy, odds,
       onlyPriced, onlyUpcoming, onlyWatched, watchlist, now])
 
+  // his place on this market's board (low samples are left off it), not on the filtered list
+  const rankOf = useMemo(() => new Map(eligible.filter((p) => !p.low_sample).sort((a, b) => b.scores[market] - a.scores[market]).map((p, i) => [String(p.player_id), i + 1])), [eligible, market])
   const capped = all ? rows : rows.slice(0, SOFT_CAP)
   const hidden = rows.length - capped.length
 
@@ -321,7 +324,7 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
       {hidden > 0 || rows.length ? null : (
         <div style={{ fontSize: TYPE.body, color: C.text3, margin: '4px 0 10px' }}>Nothing matches. Clear the search, team, game or a filter above.</div>
       )}
-      {view === 'list' && <NflBoardList players={capped} market={market} weights={spec?.weights} odds={odds} phone={phone} onPlayerClick={onPlayerClick} />}
+      {view === 'list' && <NflBoardList players={capped} market={market} rankOf={rankOf} weights={spec?.weights} odds={odds} phone={phone} onPlayerClick={onPlayerClick} />}
 
       {/* CARD BOARD (2026-09-15, Donovan: "the props card board is okay we
           just need the pictures on there ... a table flip wouldn't be bad,
@@ -364,7 +367,7 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{
                   fontFamily: NUM_FONT, fontSize: TYPE.label, color: C.text3, minWidth: 13,
-                }}>{i + 1}</span>
+                }}>{rankOf.get(String(p.player_id)) ?? '—'}</span>
                 <PlayerFace sport="nfl" espnId={p?.espn_id} team={p?.team} name={p?.name} size={38} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div className="nfl-board-name" style={{
