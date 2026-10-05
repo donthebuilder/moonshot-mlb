@@ -24,11 +24,33 @@ import { CardName, ScoreBadge, ExplainStrip } from '../card/CardParts'
 
 // The three legs as small bars, the percentiles behind the score (r.pct).
 // Shared with the table's LEGS column (tabs/Board.js).
+// Each market's three percentile legs (r.pct keys) and the words for them.
+const LEG_DEFS = {
+  GOAL: [['S', 'shotsPg', 'shots', 'Shots'], ['G', 'goalsPg', 'goals', 'Goals'], ['T', 'toi', 'ice time', 'Ice time']],
+  SOG: [['S', 'shotsPg', 'shots', 'Shots'], ['T', 'toi', 'ice time', 'Ice time'], ['O', 'oppSaPg', 'opponent shots allowed', 'Opp SA']],
+  PTS: [['P', 'ptsPg', 'points', 'Points'], ['T', 'toi', 'ice time', 'Ice time'], ['O', 'oppGaPg', 'opponent goals allowed', 'Opp GA']],
+  AST: [['A', 'astPg', 'assists', 'Assists'], ['T', 'toi', 'ice time', 'Ice time'], ['O', 'oppGaPg', 'opponent goals allowed', 'Opp GA']],
+}
+// a leg is drawn only when it is a real number (a missing one never reaches the DOM as NaN)
+const legsOf = (pct, market) => (pct ? (LEG_DEFS[market] || LEG_DEFS.GOAL).filter(([, key]) => Number.isFinite(pct[key])).map(([k, key, word, label]) => [k, pct[key], word, label]) : [])
+// The count a graded row shows, per market: goals on the GOAL board, the
+// market's own count (row.value) on SHOTS / POINTS / ASSISTS. null = not read.
+export const countOf = (row, market) => {
+  const n = market === 'GOAL' ? row.goals : row.value
+  return Number.isFinite(n) ? n : null
+}
+const COUNT_UNIT = { SOG: 'SOG', PTS: 'PTS', AST: 'AST' }
+const unitOf = (market, n) => COUNT_UNIT[market] || (n === 1 ? 'GOAL' : 'GOALS')
+const SCORE_NOTE = {
+  GOAL: 'The goal board score: the mean of three percentile ranks among tonight’s scored skaters -- shots, goals and ice time per game over his last 82 NHL games. A ranking, not a percentage.',
+  SOG: 'The SHOTS 3+ board score: the mean of three percentile ranks among tonight’s scored skaters -- his shots and ice time per game, and how many shots his opponent allows. A ranking, not a percentage.',
+  PTS: 'The POINTS 1+ board score (a test): the mean of three percentile ranks among tonight’s scored skaters -- his points and ice time per game, and how many goals his opponent allows. A ranking, not a percentage.',
+  AST: 'The ASSISTS 1+ board score (a test): the mean of three percentile ranks among tonight’s scored skaters -- his assists and ice time per game, and how many goals his opponent allows. A ranking, not a percentage.',
+}
 export function PctBars({ r, market = 'GOAL', wide = false }) {
   if (!r.pct) return null
-  const legs = market === 'SOG'
-    ? [['S', r.pct.shotsPg, 'shots'], ['T', r.pct.toi, 'ice time'], ['O', r.pct.oppSaPg, 'opponent shots allowed']].filter(([, v]) => v != null)
-    : [['S', r.pct.shotsPg, 'shots'], ['G', r.pct.goalsPg, 'goals'], ['T', r.pct.toi, 'ice time']]
+  const legs = legsOf(r.pct, market)
+  if (!legs.length) return null
   return (
     <span title={r.why} style={{ display: 'inline-flex', gap: wide ? 10 : 5, alignItems: 'center' }}>
       {legs.map(([k, v, word]) => (
@@ -43,6 +65,7 @@ export function PctBars({ r, market = 'GOAL', wide = false }) {
   )
 }
 
+const fin = (v, dp) => (Number.isFinite(v) ? v.toFixed(dp) : null)
 const Fact = ({ k, v }) => (v == null || v === '' ? null : (
   <span style={{ display: 'inline-flex', gap: 4, alignItems: 'baseline', whiteSpace: 'nowrap' }}>
     <span style={{ color: C.text3, font: `800 9px/1 ${NUM_FONT}`, letterSpacing: '.06em' }}>{k}</span>
@@ -69,13 +92,10 @@ export function LampCard({ r, g, rank, market = 'GOAL', facts = {}, onOpen }) {
   const opp = g.game.home.abbrev === r.team ? g.game.away.abbrev : g.game.home.abbrev
   const sog = market === 'SOG'
   const graded = g.graded
-  const n = sog ? r.value : r.goals
+  const n = countOf(r, market)
   const tone = called ? C.ice : C.text2
-  const legs = !r.pct ? [] : (sog
-    ? [['s', 'Shots', r.pct.shotsPg], ['t', 'Ice time', r.pct.toi], ['o', 'Opp SA', r.pct.oppSaPg]]
-    : [['s', 'Shots', r.pct.shotsPg], ['g', 'Goals', r.pct.goalsPg], ['t', 'Ice time', r.pct.toi]])
-    .filter(([, , v]) => v != null)
-    .map(([id, label, v]) => ({ id, label, text: `${Math.round(v)}`, color: chipColor(v, 0, 100), title: `${label}: ${Math.round(v)}th percentile among tonight's scored skaters` }))
+  const legs = legsOf(r.pct, market)
+    .map(([k, v, , label]) => ({ id: k.toLowerCase(), label, text: `${Math.round(v)}`, color: chipColor(v, 0, 100), title: `${label}: ${Math.round(v)}th percentile among tonight's scored skaters` }))
   return (
     <SportTheme theme={C} accent={C.ice} numFont={NUM_FONT}>
     <Card color={`${tone}55`} onClick={() => onOpen?.(r.playerId)} style={{ opacity: graded && r.dressed === false ? 0.55 : 1 }}>
@@ -93,11 +113,9 @@ export function LampCard({ r, g, rank, market = 'GOAL', facts = {}, onOpen }) {
         <ScoreBadge label="LAMP" score={Math.round(r.score ?? 0)} sub={STATUS[r.status]} color={tone}
           open={openScore} onToggle={() => setOpenScore((v) => !v)} />
       </div>
-      <ExplainStrip notes={[openScore && (sog
-        ? 'The SHOTS 3+ board score: the mean of three percentile ranks among tonight’s scored skaters -- his shots and ice time per game, and how many shots his opponent allows. A ranking, not a percentage.'
-        : 'The goal board score: the mean of three percentile ranks among tonight’s scored skaters -- shots, goals and ice time per game over his last 82 NHL games. A ranking, not a percentage.')]} />
+      <ExplainStrip notes={[openScore && (SCORE_NOTE[market] || SCORE_NOTE.GOAL)]} />
       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 8 }}>
-        {called ? <Chip color={C.ice}>CALLED</Chip> : <Chip color={C.text3}>{STATUS[r.status]}</Chip>}
+        {called ? <Chip color={C.ice}>{STATUS.called}</Chip> : <Chip color={C.text3}>{STATUS[r.status]}</Chip>}
         {facts.ppvpk && <Chip color={C.teal}>PP v PK {facts.ppvpk}</Chip>}
         {facts.rest && <Chip color={C.text2}>REST {facts.rest}</Chip>}
       </div>
@@ -106,10 +124,11 @@ export function LampCard({ r, g, rank, market = 'GOAL', facts = {}, onOpen }) {
       {r.why && !legs.length && <div style={{ fontSize: TYPE.micro, color: C.text2, lineHeight: 1.4, marginBottom: 7 }}>{r.why}</div>}
       {legs.length > 0 && <StatStrip stats={legs} style={{ marginBottom: 7 }} />}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'baseline', marginBottom: 8 }}>
-        <Fact k="S/GP" v={r.legs && Number.isFinite(r.legs.shotsPg) ? r.legs.shotsPg.toFixed(2) : null} />
-        {!sog && <Fact k="G/GP" v={r.legs && Number.isFinite(r.legs.goalsPg) ? r.legs.goalsPg.toFixed(2) : null} />}
-        <Fact k="TOI" v={r.legs && Number.isFinite(r.legs.toi) ? fmtSec(r.legs.toi) : null} />
-        {sog && <Fact k="OPP SA/60" v={r.legs && Number.isFinite(r.legs.oppSaPg) ? r.legs.oppSaPg.toFixed(1) : null} />}
+        {market === 'PTS' ? <Fact k="P/GP" v={fin(r.legs?.ptsPg, 2)} /> : market === 'AST' ? <Fact k="A/GP" v={fin(r.legs?.astPg, 2)} /> : <Fact k="S/GP" v={fin(r.legs?.shotsPg, 2)} />}
+        {market === 'GOAL' && <Fact k="G/GP" v={fin(r.legs?.goalsPg, 2)} />}
+        <Fact k="TOI" v={Number.isFinite(r.legs?.toi) ? fmtSec(r.legs.toi) : null} />
+        {sog && <Fact k="OPP SA/60" v={fin(r.legs?.oppSaPg, 1)} />}
+        {(market === 'PTS' || market === 'AST') && <Fact k="OPP GA/GP" v={fin(r.legs?.oppGaPg, 2)} />}
         <Fact k="PP G" v={r.ppg ?? null} />
       </div>
       <div style={{ display: 'flex', gap: 6, alignItems: 'center' }} onClick={(e) => e.stopPropagation()}>
@@ -117,7 +136,7 @@ export function LampCard({ r, g, rank, market = 'GOAL', facts = {}, onOpen }) {
         <StarMemory sport="nhl" id={String(r.playerId)} />
         {graded && (
           <span style={{ marginLeft: 'auto', font: `900 12px/1 ${NUM_FONT}`, color: r.hit ? C.lamp : C.text3 }}>
-            {r.dressed === false ? 'VOID' : <>{r.hit && <LampDot />}{n ?? 0} {sog ? 'SOG' : (n === 1 ? 'GOAL' : 'GOALS')}</>}
+            {r.dressed === false ? 'VOID' : n == null ? '\u2014' : <>{r.hit && <LampDot />}{n} {unitOf(market, n)}</>}
           </span>
         )}
       </div>

@@ -79,7 +79,7 @@ const LampOdds = dynamic(() => import('./LampOdds'))
 // the header, and that one request is shared with Home through the CDN.
 // Pages that show one day and keep it in the address (`date=`). One list,
 // read by setTab (which clears it elsewhere) and goBack (which restores it).
-const DATED_TABS = new Set(['home', 'scores', 'schedule', 'board', 'boards', 'shots', 'games', 'fullboard', 'numerology', 'matchups', 'ledger'])
+const DATED_TABS = new Set(['home', 'scores', 'schedule', 'board', 'boards', 'shots', 'games', 'fullboard', 'numerology', 'matchups', 'ledger', 'storylines'])
 
 // LAMP's routing config for the shared shell router (lib/useShellRoute.js --
 // moved out of this file unchanged, 2026-10-02, so BUCKETS runs on the same code).
@@ -99,12 +99,14 @@ const ROUTE = {
 export default function LampDashboard({ palettePass = 0 }) {
   // Followed skaters, remembered night by night for "Your nights, graded".
   useLampSaves()
-  const { tab, setTab, gameId, teamKey, playerId, missingTab, date, setDate, badDate, setBadDate, openGame, openTeam, openPlayer, backLabel, goBack, peekId, peekPlayer, closePeek } = useShellRoute(ROUTE)
+  // Today's live count for the header lamp. Same route Home reads; the CDN
+  // serves the second call. Its date is the server's night (lib/slateNight):
+  // the shell's "today" follows it, not the ET wall clock.
+  const today = useLampScores(null)
+  const night = today.data?.date || null
+  const { tab, setTab, gameId, teamKey, playerId, missingTab, date, setDate, badDate, setBadDate, openGame, openTeam, openPlayer, backLabel, goBack, peekId, peekPlayer, closePeek } = useShellRoute({ ...ROUTE, night })
   usePageTitle(`${pageTitle('nhl', tab)} · DASH Network`)
 
-  // Today's live count for the header lamp. Same route Home reads; the CDN
-  // serves the second call.
-  const today = useLampScores(null)
   const live = today.data?.live || 0
   // The picked day's scores, fetched only when a day other than today is
   // picked; Home and the ticker read whichever is showing.
@@ -121,7 +123,7 @@ export default function LampDashboard({ palettePass = 0 }) {
     <AccentProvider value={C.ice}>
       <MobileCSS />
       <SkipLink />
-      <LampHeader tab={tab} setTab={setTab} live={live} date={date} setDate={setDate} scores={shown} liveScores={today} onOpenPlayer={peekPlayer} onOpenGame={openGame} />
+      <LampHeader tab={tab} setTab={setTab} live={live} date={date} setDate={setDate} scores={shown} liveScores={today} night={night} onOpenPlayer={peekPlayer} onOpenGame={openGame} />
       <TodayContext.Provider value={nhlToday}>
       <main id="board-main" className="dashboard-main" style={{ maxWidth: 1300, margin: '0 auto', padding: '14px 14px 40px', background: C.bg, color: C.text }}>
         <h1 className="sr-only">{pageTitle('nhl', missingTab ? 'home' : tab)}</h1>

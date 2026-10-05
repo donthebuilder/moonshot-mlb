@@ -15,6 +15,7 @@ import LampWeakSpots from './LampWeakSpots'
 import NhlWriteupBlock from './NhlWriteupBlock'
 import BoardTopBar from '../BoardTopBar'
 import { LampCards } from './LampCard'
+import { STATUS_WORD } from '../../lib/callStatus'
 import { EmptyState, DelayedBanner, Loading, StaleSeasonNote, fmtPuckDrop, zoneAbbrev, shiftDay, fmtDay } from './ui'
 import TeamMark, { MatchLogos } from '../TeamMark'
 
@@ -96,7 +97,7 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
       score: st !== 'upcoming' ? { away: g.game.away.abbrev, home: g.game.home.abbrev, awayScore: g.game.away.score, homeScore: g.game.home.score, live: st === 'live' } : null,
       chips: called.map((r) => ({
         key: String(r.playerId), tag: 'CALL', color: C.ice, name: r.name, score: Math.round(r.score ?? 0),
-        title: `CALLED — #${r.rank} in this game${g.graded ? (r.hit ? ', scored' : ', did not score') : ''}`,
+        title: `${STATUS_WORD.called} — #${r.rank} in this game${g.graded ? (r.hit ? ', scored' : ', did not score') : ''}`,
         onClick: (e) => { e.stopPropagation(); onOpenPlayer?.(r.playerId) },
       })),
     }
@@ -122,8 +123,8 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
       {allGames.length > 0 && (
         <>
           <BoardTopBar query={query} setQuery={setQuery} placeholder="Search skater or team…"
-            team={fteam} setTeam={setFteam} teams={[...new Set(allGames.flatMap((g) => [g.game.away.abbrev, g.game.home.abbrev]))].sort()} teamLabel="🏒 All teams"
-            game={fgame} setGame={setFgame} games={allGames.map((g) => ({ key: String(g.game.id), label: `${g.game.away.abbrev} @ ${g.game.home.abbrev}` }))} gameLabel="All games" />
+            team={fteam} setTeam={setFteam} teams={[...new Set([...allGames.flatMap((g) => [g.game.away.abbrev, g.game.home.abbrev]), ...(fteam && data ? [fteam] : [])])].sort()} teamLabel="🏒 All teams"
+            game={fgame} setGame={setFgame} games={[...(fgame && data && !allGames.some((g) => String(g.game.id) === fgame) ? [{ key: fgame, label: 'Game not on this slate' }] : []), ...allGames.map((g) => ({ key: String(g.game.id), label: `${g.game.away.abbrev} @ ${g.game.home.abbrev}` }))]} gameLabel="All games" />
           <div style={{ height: 10 }} />
           <ViewPills views={[['table', '📊 Table'], ['games', '🏟 Games']]} view={view} setView={setView} accent={C.ice} />
         </>
@@ -201,7 +202,7 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
                               <button key={r.playerId} onClick={() => onOpenPlayer?.(r.playerId)} style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 44, padding: '6px 9px', borderRadius: 10, border: `1px solid ${r.status === 'called' ? C.ice : C.border}`, background: C.glass, color: C.text, cursor: 'pointer', textAlign: 'left' }}>
                                 <b style={{ fontFamily: NUM_FONT, color: r.status === 'called' ? C.ice : C.text2, minWidth: 26 }}>{Math.round(r.score ?? 0)}</b>
                                 <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</span>
-                                <span style={{ fontFamily: NUM_FONT, fontSize: 10.5, color: r.status === 'called' ? C.ice : C.text3 }}>{r.status === 'called' ? 'CALLED' : r.pos}</span>
+                                <span style={{ fontFamily: NUM_FONT, fontSize: 10.5, color: r.status === 'called' ? C.ice : C.text3 }}>{r.status === 'called' ? STATUS_WORD.called : r.pos}</span>
                               </button>
                             ))}
                           </div>
@@ -216,7 +217,7 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
                 </PanelAnchor>
 
                 <PanelAnchor id="calls" gamePk={g.game.id} style={{ marginTop: 14 }}>
-                  <SubLabel theme={C} numFont={NUM_FONT}>THE TWO CALLED IN THIS GAME · ONE PER TEAM</SubLabel>
+                  <SubLabel theme={C} numFont={NUM_FONT}>THE TWO {STATUS_WORD.called} IN THIS GAME · ONE PER TEAM</SubLabel>
                   {called.length
                     ? <LampCards market="GOAL" onOpen={onOpenPlayer} items={called.map((r) => ({ key: String(r.playerId), r, g, rank: r.rank, facts: { ppvpk: ppVsPk(spotOf(g, r.team, true), spotOf(g, r.team, false)), rest: restWord(spotOf(g, r.team, true)) } }))} />
                     : <p style={{ margin: 0, fontSize: 12.5, color: C.text3 }}>No skater in this game has enough NHL games on file to call.</p>}

@@ -1,4 +1,5 @@
 'use client'
+import { STATUS_WORD } from '../../lib/callStatus'
 import { useTeamNav } from '../../lib/teamNav'
 import { useMemo } from 'react'
 import { C, NUM_FONT } from '../../lib/nhl/theme'
@@ -50,13 +51,13 @@ export default function LampWeakSpots({ items = [], games = [], onOpenPlayer }) 
         const called = softD ? facing.filter(({ r }) => r.status === 'called' && !pp.some((x) => x.r.playerId === r.playerId)) : []
         const rows = [
           ...pp.map(({ r }) => ({
-            key: `pp-${r.playerId}`, spot: 'PP', name: r.name, side: r.pos, flag: r.status === 'called' ? 'CALLED' : null, edge: true,
+            key: `pp-${r.playerId}`, spot: 'PP', name: r.name, side: r.pos, flag: r.status === 'called' ? STATUS_WORD.called : null, edge: true,
             value: Math.round(r.score ?? 0), extra: `${r.ppg} PPG`,
             why: `${r.ppg} power-play goal${Number(r.ppg) === 1 ? '' : 's'} on the season; ${def} kill ${pct1(pk)}% — tonight's weakest third.`,
             onClick: () => onOpenPlayer?.(r.playerId),
           })),
           ...called.map(({ r }) => ({
-            key: `d-${r.playerId}`, spot: `#${r.rank}`, name: r.name, side: r.pos, flag: 'CALLED', edge: false,
+            key: `d-${r.playerId}`, spot: `#${r.rank}`, name: r.name, side: r.pos, flag: STATUS_WORD.called, edge: false,
             value: Math.round(r.score ?? 0), extra: null,
             why: `${def} allow ${ga.toFixed(2)} goals a game — tonight's top third.`,
             onClick: () => onOpenPlayer?.(r.playerId),

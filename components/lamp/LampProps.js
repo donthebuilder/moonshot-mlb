@@ -1,4 +1,5 @@
 'use client'
+import { STATUS_WORD } from '../../lib/callStatus'
 import { useMemo } from 'react'
 import PropCards from '../props/PropCards'
 import TeamMark from '../TeamMark'
@@ -68,7 +69,7 @@ function lampAdapter(season, odds) {
         dialTitle: `${WORD[k]} score — LAMP's number for this market, 0-100 within tonight's pool`,
         market: BAR[k],
         title: r.name,
-        badge: k === 'NONE' ? (x.status === 'board' ? 'ON BOARD' : 'NOT CALLED') : (x.status === 'called' ? 'CALLED' : 'ON BOARD'),
+        badge: k === 'NONE' ? (x.status === 'board' ? 'ON BOARD' : 'NOT CALLED') : (x.status === 'called' ? STATUS_WORD.called : 'ON BOARD'),
         badgeQuiet: x.status !== 'called',
         meta: <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, minWidth: 0, maxWidth: '100%' }}>
           <TeamMark sport="nhl" abbr={r.team} variant="logo" px={16} />
