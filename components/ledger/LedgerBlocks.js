@@ -192,6 +192,7 @@ export function LookOutBox({ title, tag, rows = [], foot, accent = C.orange }) {
 }
 
 /** rows: [{ key, when ('now' | 'later'), name, onClick, title, chips: [string], more }] */
+/** rows: [{ key, when: 'now'|'later', name, chips: [string | { label, onClick }], title, onClick }] */
 export function NextUpBox({ title, rows = [], about, color = C.cyan }) {
   if (!rows.length) return null
   return (
@@ -212,12 +213,17 @@ export function NextUpBox({ title, rows = [], about, color = C.cyan }) {
               title={x.title}
               style={{ fontSize: 11, color: C.text, cursor: x.onClick ? 'pointer' : 'default', flexShrink: 0 }}
             >{x.name}</b>
-            {x.chips.slice(0, 4).map((c) => (
-              <span key={c} style={{
-                fontSize: 11, fontFamily: NUM_FONT, padding: '1px 5px', whiteSpace: 'nowrap',
-                borderRadius: 5, border: `1px solid ${color}44`, color,
-              }}>{c}</span>
-            ))}
+            {/* a chip is its text, or { label, onClick } when it names something that opens (BUCKETS' game, 10-05) */}
+            {x.chips.slice(0, 4).map((c) => {
+              const label = typeof c === 'string' ? c : c.label
+              const go = typeof c === 'string' ? null : c.onClick || null
+              return (
+                <span key={label} onClick={go || undefined} role={go ? 'link' : undefined} style={{
+                  fontSize: 11, fontFamily: NUM_FONT, padding: '1px 5px', whiteSpace: 'nowrap',
+                  borderRadius: 5, border: `1px solid ${color}44`, color, ...(go ? { cursor: 'pointer' } : null),
+                }}>{label}</span>
+              )
+            })}
             {x.chips.length > 4 && (
               <span style={{ fontSize: 11, color: C.text3, fontFamily: NUM_FONT }}
                 title={x.title}>+{x.chips.length - 4}</span>

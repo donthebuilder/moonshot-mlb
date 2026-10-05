@@ -43,7 +43,7 @@ export const GET = bucketsRoute('ledger', async (q) => {
         const v = val(k, b)
         if (v == null || v < NBA_MARKETS[k].bar) continue
         const t = tag.get(`${g.id}|${b.id}|${k}`)
-        rows.push({ gameId: g.id, state: g.state, detail: g.detail, playerId: b.id, name: b.name, team: b.team, opp: b.team === g.home.abbrev ? g.away.abbrev : g.home.abbrev,
+        rows.push({ gameId: g.id, state: g.state, detail: g.detail, playerId: b.id, name: b.name, team: b.team, pos: b.pos || null, opp: b.team === g.home.abbrev ? g.away.abbrev : g.home.abbrev,
           market: k, value: v, status: locked.has(g.id) ? (t?.status || 'off') : null, role: t?.role || null })
       }
     }
