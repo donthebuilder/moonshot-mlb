@@ -6,6 +6,7 @@ import { useBucketsRecord } from '../../../lib/nba/useBuckets'
 import { NBA_MARKETS } from '../../../lib/nba/legs'
 import BucketsTable from '../BucketsTable'
 import RecordPage from '../../record/RecordPage'
+import CallHistory from '../../record/CallHistory'
 import { nbaRecordModel } from '../../../lib/record/page'
 import { DelayedBanner, Loading, SourceLine, EmptyState, Pills, Kicker, fmtDay } from '../ui'
 
@@ -56,7 +57,7 @@ export default function Results({ onOpenPlayer, onOpenTeam }) {
       {data && data.dbReady === false && <EmptyState title="NOT RECORDING YET" note="The BUCKETS log isn’t reachable right now." />}
       {data?.dbReady && !nights.length && <EmptyState title="NOTHING GRADED YET" note={pre ? 'The first locked night grades after its last final.' : 'No regular-season night is graded yet. “With preseason” shows the preseason nights.'} />}
       {nights.length > 0 && (
-        <RecordPage record={record} Table={BucketsTable} receiptsLabel="every market, every call that hit" receipts={(<>
+        <RecordPage record={record} Table={BucketsTable} calls={<CallHistory sport="nba" Table={BucketsTable} onOpenPlayer={onOpenPlayer} title="Every call, its price, its result" />} receiptsLabel="every market, every call that hit" receipts={(<>
           {sumRows.length > 0 && <BucketsTable rows={sumRows} columns={sumCols} heatMode="none" maxHeight={9999} maxRows={sumRows.length} caption="Calls and hits per market, every graded night in the window." />}
           {hits.length > 0 && (
             <section>

@@ -1,4 +1,4 @@
-// GET /api/record/calls?sport=mlb|nfl|nhl -- every graded call this season with
+// GET /api/record/calls?sport=mlb|nfl|nhl|nba -- every graded call this season with
 // its price at lock and its result (2026-10-04, Donovan's user review build 2:
 // "every call, price, result ... downloadable. Verify 14/13").
 //
@@ -9,19 +9,22 @@
 //        not the home run, so it isn't listed against that price)
 //   NFL  the week's TD calls
 //   NHL  CALLED skaters on the goal board
+//   NBA  every market's CALLED players (buckets_log, regular season + playoffs); only a
+//        first-basket call carries a price -- the one NBA market priced at lock. Gated.
 // Cached 30 minutes per sport and ET day: one build serves every viewer.
 import { unstable_cache } from 'next/cache'
 import { adminClient } from '../../../../lib/supabase/admin'
 import { pricedPicks } from '../../../../lib/odds/gradedPicks'
 import { easternToday } from '../../../../lib/data'
+import { bucketsGuard, bucketsPublic } from '../../../../lib/nba/gate'
 
 export const dynamic = 'force-dynamic'
 
 const DATA = 'https://raw.githubusercontent.com/donthebuilder/MLB-HR-DASHBOARD-STREAMLIT/data/public/data/current'
-const SINCE = { mlb: '2026-09-01', nhl: '2026-09-29' }
+const SINCE = { mlb: '2026-09-01', nhl: '2026-09-29', nba: '2026-09-01' }
 // which calls are listed, and the call word when a row has no role -- per sport, as data
-const LISTED = { mlb: (p) => p.hrCall, nfl: (p) => p.status === 'called', nhl: (p) => p.status === 'called' }
-const CALL_WORD = { mlb: 'HR', nfl: 'TD', nhl: 'GOAL' }
+const LISTED = { mlb: (p) => p.hrCall, nfl: (p) => p.status === 'called', nhl: (p) => p.status === 'called', nba: (p) => p.status === 'called' }
+const CALL_WORD = { mlb: 'HR', nfl: 'TD', nhl: 'GOAL', nba: 'CALL' }
 
 async function build(sport, today) {
   const db = adminClient()
@@ -57,11 +60,14 @@ async function build(sport, today) {
 
 export async function GET(request) {
   const sport = new URL(request.url).searchParams.get('sport') || 'mlb'
-  if (!['mlb', 'nfl', 'nhl'].includes(sport)) return Response.json({ error: 'sport must be mlb, nfl or nhl' }, { status: 400 })
+  if (!['mlb', 'nfl', 'nhl', 'nba'].includes(sport)) return Response.json({ error: 'sport must be mlb, nfl, nhl or nba' }, { status: 400 })
+  // BUCKETS behind its own gate (admin-only until BUCKETS_PUBLIC=on), never on the shared CDN while gated
+  const gated = sport === 'nba' && !bucketsPublic()
+  if (sport === 'nba') { const no = await bucketsGuard(); if (no) return no }
   const today = easternToday()
   try {
     const calls = await unstable_cache(() => build(sport, today), ['record-calls-v3', sport, today], { revalidate: 1800 })()
-    return Response.json({ sport, calls, builtAt: new Date().toISOString() }, { headers: { 'Cache-Control': 'public, s-maxage=600, stale-while-revalidate=1800' } })
+    return Response.json({ sport, calls, builtAt: new Date().toISOString() }, { headers: { 'Cache-Control': gated ? 'private, max-age=60' : 'public, s-maxage=600, stale-while-revalidate=1800' } })
   } catch (e) {
     console.error(`[record/calls] ${sport}: ${e?.message || e}`)
     return Response.json({ error: 'the call history is delayed' }, { status: 502 })
