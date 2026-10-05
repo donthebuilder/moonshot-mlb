@@ -1,63 +1,226 @@
 {
-  "built_at": "2026-10-05T19:45:02.658Z",
-  "method": "Last season: every 2025-26 regular-season night replayed as of that night -- the live model (legsFor + scoreMarket 'pts') on games before it only, pooled with 2024-25 as the board pools; population = who played 10+ minutes. Preseason: buckets_log points rows, starters who played 20+ minutes. Hit = 25+ points. Rules fixed before measuring: hiconf = score 85+; aligned = opponent allows points in the night's top third AND shots (fgaPg) 75th percentile+; weak = on the board AND his opponent ranks top 10 of 30 in points allowed to his position (G/F/C).",
+  "built_at": "2026-10-05T20:03:14.990Z",
+  "method": "Last season: every 2025-26 regular-season night replayed as of that night -- the live model (legsFor + scoreMarket per market) on games before it only, pooled with 2024-25 as the board pools; population = who played 10+ minutes; first basket from each game's starters and first made field goal (ESPN summaries). Preseason: buckets_log rows, starters who played 20+ minutes. Rules fixed before measuring: hiconf = score 85+; aligned = opponent allows the market's stat in the night's top third AND his volume leg 75th percentile+; weak = on the board AND his opponent top 10 of 30 in that stat allowed to his position (G/F/C). An angle has an edge when it beats the market's board rows (30+ rows).",
   "lastSeason": {
     "season": "2025-26",
     "nights": 168,
     "games": 1237,
-    "hiconf": {
-      "hits": 690,
-      "n": 1504,
-      "rate": 45.9
-    },
-    "aligned": {
-      "hits": 606,
-      "n": 1959,
-      "rate": 30.9
-    },
-    "weak": {
-      "hits": 589,
-      "n": 2607,
-      "rate": 22.6
-    },
-    "all": {
-      "hits": 2070,
-      "n": 22313,
-      "rate": 9.3
-    },
-    "board": {
-      "hits": 1775,
-      "n": 7502,
-      "rate": 23.7
-    },
-    "hiconfBoard": {
-      "hits": 690,
-      "n": 1504,
-      "rate": 45.9
+    "markets": {
+      "pts": {
+        "all": {
+          "hits": 2070,
+          "n": 22313,
+          "rate": 9.3
+        },
+        "board": {
+          "hits": 1775,
+          "n": 7502,
+          "rate": 23.7
+        },
+        "called": {
+          "hits": 1058,
+          "n": 2380,
+          "rate": 44.5
+        },
+        "hiconf": {
+          "hits": 690,
+          "n": 1504,
+          "rate": 45.9,
+          "verdict": "edge"
+        },
+        "aligned": {
+          "hits": 606,
+          "n": 1959,
+          "rate": 30.9,
+          "verdict": "edge"
+        },
+        "weak": {
+          "hits": 589,
+          "n": 2607,
+          "rate": 22.6,
+          "verdict": "no edge"
+        }
+      },
+      "reb": {
+        "all": {
+          "hits": 1876,
+          "n": 22313,
+          "rate": 8.4
+        },
+        "board": {
+          "hits": 1253,
+          "n": 7499,
+          "rate": 16.7
+        },
+        "called": {
+          "hits": 706,
+          "n": 2216,
+          "rate": 31.9
+        },
+        "hiconf": {
+          "hits": 278,
+          "n": 808,
+          "rate": 34.4,
+          "verdict": "edge"
+        },
+        "aligned": {
+          "hits": 557,
+          "n": 1968,
+          "rate": 28.3,
+          "verdict": "edge"
+        },
+        "weak": {
+          "hits": 458,
+          "n": 3088,
+          "rate": 14.8,
+          "verdict": "no edge"
+        }
+      },
+      "ast": {
+        "all": {
+          "hits": 1390,
+          "n": 22313,
+          "rate": 6.2
+        },
+        "board": {
+          "hits": 1101,
+          "n": 7503,
+          "rate": 14.7
+        },
+        "called": {
+          "hits": 643,
+          "n": 2334,
+          "rate": 27.5
+        },
+        "hiconf": {
+          "hits": 350,
+          "n": 1161,
+          "rate": 30.1,
+          "verdict": "edge"
+        },
+        "aligned": {
+          "hits": 445,
+          "n": 1965,
+          "rate": 22.6,
+          "verdict": "edge"
+        },
+        "weak": {
+          "hits": 404,
+          "n": 2825,
+          "rate": 14.3,
+          "verdict": "no edge"
+        }
+      },
+      "3pm": {
+        "all": {
+          "hits": 2292,
+          "n": 22313,
+          "rate": 10.3
+        },
+        "board": {
+          "hits": 1622,
+          "n": 7502,
+          "rate": 21.6
+        },
+        "called": {
+          "hits": 703,
+          "n": 2374,
+          "rate": 29.6
+        },
+        "hiconf": {
+          "hits": 249,
+          "n": 706,
+          "rate": 35.3,
+          "verdict": "edge"
+        },
+        "aligned": {
+          "hits": 537,
+          "n": 1974,
+          "rate": 27.2,
+          "verdict": "edge"
+        },
+        "weak": {
+          "hits": 617,
+          "n": 2869,
+          "rate": 21.5,
+          "verdict": "no edge"
+        }
+      },
+      "pra": {
+        "all": {
+          "hits": 2426,
+          "n": 22313,
+          "rate": 10.9
+        },
+        "board": {
+          "hits": 2048,
+          "n": 7500,
+          "rate": 27.3
+        },
+        "called": {
+          "hits": 1200,
+          "n": 2361,
+          "rate": 50.8
+        },
+        "hiconf": {
+          "hits": 691,
+          "n": 1333,
+          "rate": 51.8,
+          "verdict": "edge"
+        },
+        "aligned": {
+          "hits": 701,
+          "n": 1959,
+          "rate": 35.8,
+          "verdict": "edge"
+        },
+        "weak": {
+          "hits": 699,
+          "n": 2722,
+          "rate": 25.7,
+          "verdict": "no edge"
+        }
+      },
+      "first": {
+        "all": {
+          "hits": 1221,
+          "n": 12140,
+          "rate": 10.1
+        },
+        "board": {
+          "hits": 507,
+          "n": 4133,
+          "rate": 12.3
+        },
+        "called": {
+          "hits": 276,
+          "n": 2170,
+          "rate": 12.7
+        },
+        "hiconf": {
+          "hits": 214,
+          "n": 1656,
+          "rate": 12.9,
+          "verdict": "edge"
+        },
+        "aligned": {
+          "hits": 155,
+          "n": 1085,
+          "rate": 14.3,
+          "verdict": "edge"
+        },
+        "weak": {
+          "hits": 172,
+          "n": 1304,
+          "rate": 13.2,
+          "verdict": "edge"
+        }
+      }
     }
   },
   "preseason": {
-    "nights": 0,
     "rows": 0,
-    "all": {
-      "hits": 0,
-      "n": 0,
-      "rate": null
-    },
-    "hiconf": {
-      "hits": 0,
-      "n": 0,
-      "rate": null
-    },
-    "aligned": {
-      "hits": 0,
-      "n": 0,
-      "rate": null
-    },
-    "weak": {
-      "hits": 0,
-      "n": 0,
-      "rate": null
-    }
+    "nights": 0,
+    "markets": {}
   }
 }

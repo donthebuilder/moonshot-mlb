@@ -34,9 +34,9 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
   const D = NBA_MARKETS[m]
   const shown = data?.date || date
   const all = boardRows(data, { calledOnly })
-  // ANGLES (2026-10-05): measured on 2025-26 (lib/nba/angles.js), the PTS market only
+  // ANGLES (2026-10-05): measured on 2025-26, every market (lib/nba/angles.js); only the ones with an edge
   const [angle, setAngle] = useState(null)
-  const angles = useMemo(() => (m === 'pts' ? bucketsAngles(all) : []), [all, m])
+  const angles = useMemo(() => bucketsAngles(all, m), [all, m])
   const angleDef = angle ? angles.find((a) => a.key === angle) : null
   const rows = angleDef ? all.filter(angleDef.test) : all
   const scored = rows.filter((r) => r.score != null)
