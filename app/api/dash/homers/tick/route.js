@@ -28,6 +28,7 @@
 // instance: the FULL board (the slimmed sender copy drops the stats the card
 // prints), the odds file, and the pair-history summary.
 
+import { mlbQuotes } from '../../../../../lib/dash/quoteFor'
 import { playerHref } from '../../../../../lib/routes'
 import { storyThreadsOn, postStoryResults } from '../../../../../lib/dash/storyThread'
 import { gameCalls, gameCallText } from '../../../../../lib/dash/gameCall'
@@ -2298,14 +2299,6 @@ export async function GET(request) {
   // reads ran every minute, all evening, for a quote nobody needed).
   const quoting = (pending || []).length > 0
   const { data: pre } = quoting ? await db.from('homer_feed_posts').select('x_post_id,payload').match({ day, kind: 'pregame' }).maybeSingle() : { data: null }
-  // `called` is every roled name on the board; `picks` is only the ten that
-  // fit the tweet. Fall back to picks so a pregame row written before this
-  // shipped (no `called` key) still quotes for its ten.
-  const preIds = new Set(
-    (pre?.payload?.called || []).length
-      ? (pre.payload.called).map((id) => String(id))
-      : ((pre?.payload?.picks) || []).map((p) => String(p.player_id))
-  )
   // Only a CALLED homer (lib/callStatus.js) quotes the morning's post, and
   // only when that post actually went out (2026-09-26): an ON THE BOARD or
   // NOT ON THE BOARD homer posts standalone, and a held Called Shots means
@@ -2314,10 +2307,8 @@ export async function GET(request) {
   // the hitter a per-game post named quotes THAT post ("✅ Called at 5:10 PM ET");
   // otherwise the morning's call, as before.
   const { data: gamePosts } = quoting ? await db.from('homer_feed_posts').select('kind,x_post_id,payload').eq('day', day).like('kind', 'call_%') : { data: [] }
-  const gameCall = new Map((gamePosts || []).filter((g) => g.x_post_id && g.payload?.player_id).map((g) => [`${g.payload.game_pk}:${g.payload.player_id}`, g]))
-  const gameCallFor = (row) => (callStatus(row) === 'called' ? gameCall.get(`${row.game_pk}:${row.player_id}`) || null : null)
-  const quoteFor = (row) => gameCallFor(row)?.x_post_id || (pre?.x_post_id && preIds.has(String(row.player_id)) && callStatus(row) === 'called' ? pre.x_post_id : null)
-  const calledAtLine = (row) => { const g = gameCallFor(row); const t = Date.parse(g?.payload?.posted_at || ''); return Number.isFinite(t) ? `✅ Called at ${new Date(t).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' })} ET` : '' }
+  // the decision itself lives in lib/dash/quoteFor.js (2026-10-04), shared with the NFL receipts
+  const { quoteFor, calledAtLine } = mlbQuotes({ pre, gamePosts, callStatus })
   for (const row of pending || []) {
     const live = byKey.get(`${row.player_id}:${row.hr_n}`)
     const ev = { ...row, _roles: live?._roles || row.role || '' }

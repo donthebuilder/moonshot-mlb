@@ -93,6 +93,7 @@ import { feedHooks, feedHooksFor } from '../../../../../lib/dash/discordChannels
 import { postMembers, membersWebhook, MEMBERS_KINDS, nflMembersBoard, nflMembersGrade } from '../../../../../lib/dash/membersPost'
 import { readNflEvents } from '../../../../../lib/record/nfl'
 import { runNflWriteups } from '../../../../../lib/writeups/post'
+import { nflWriteupQuotes } from '../../../../../lib/dash/quoteFor'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -361,6 +362,12 @@ async function runTouchdownTick(db, day) {
       .limit(12)
 
     const xOn = hasX()
+    // THE RECEIPT (BATCH-GAME-WRITEUP): a CALLED touchdown by a man named in a
+    // featured game write-up quotes it. Read only when something is waiting.
+    const { data: writeupPosts } = (pending || []).length
+      ? await db.from('homer_feed_posts').select('kind,x_post_id,payload').in('day', [...new Set((pending || []).map((r) => r.day))]).like('kind', 'writeup_nfl_%')
+      : { data: [] }
+    const receiptFor = nflWriteupQuotes(writeupPosts)
     for (const row of pending || []) {
       const ev = eventFromRow(row)
       // REACHED (milestones plan section 5): a touchdown landing on a
@@ -400,8 +407,9 @@ async function runTouchdownTick(db, day) {
         if (claimError) console.error(`[nfl-tick] td claim failed for ${row.game_id}/${row.td_n}: ${claimError.message}`)
         if (claim?.length) {
           const mediaId = png ? await uploadImageToX(png) : null
+          const receipt = receiptFor(row, tdCalled)
           // kind: 'td' for the Threads mirror only — see the MLB tick's note.
-          const r = await postToX(text, { mediaId, kind: 'td', link: { playerId: row.gsis_id } })
+          const r = await postToX(receipt ? `${receipt.line}\n\n${text}` : text, { mediaId, quoteId: receipt?.id || null, kind: 'td', link: { playerId: row.gsis_id } })
           if (r.ok && r.id) {
             patch.x_post_id = r.id
             totals.x += 1
