@@ -11,6 +11,10 @@ import { NBA_MARKETS } from '../../../../lib/nba/model'
 import { adminClient } from '../../../../lib/supabase/admin'
 import { ok, bad, bucketsRoute } from '../../../../lib/nba/respond'
 import { easternToday } from '../../../../lib/data'
+import { ptsBefore, roundCrossed, PTS_MARK } from '../../../../lib/nba/seasonPts'
+import { seasonStats } from '../../../../lib/nba/stats'
+import { nbaSeason } from '../../../../lib/nba/season'
+import { slateNight } from '../../../../lib/slateNight'
 
 export const dynamic = 'force-dynamic'
 const MK = ['pts', 'reb', 'ast', '3pm', 'pra']
@@ -48,6 +52,31 @@ export const GET = bucketsRoute('ledger', async (q) => {
       }
     }
   })
+  // ROUND NUMBER (parity, 10-05): a PTS clearer in a regular-season game whose season points
+  // crossed a multiple of PTS_MARK tonight -- entering total from his game log (exact on any night)
+  const round = []
+  await Promise.all(rows.filter((r) => r.market === 'pts').map(async (r) => {
+    const g = on.find((x) => x.id === r.gameId)
+    if (g?.seasonType !== 2) return
+    const before = await ptsBefore(r.playerId, g.seasonYear, date)
+    const mark = roundCrossed(before, r.value)
+    if (mark) round.push({ playerId: r.playerId, name: r.name, team: r.team, gameId: r.gameId, before, tonight: r.value, mark })
+  }))
+  // WHO NEEDS WHAT: on the current night only, the league's season totals (ESPN byathlete)
+  // within one PTS-bar night of the next mark -- the page lists the ones whose game hasn't tipped.
+  let nearMark = null, nearWhy = null
+  try {
+    const sn = await nbaSeason()
+    if (date !== await slateNight('nba')) nearWhy = 'past'
+    else if (sn.stale) nearWhy = 'stale'
+    else {
+      nearMark = {}
+      for (const a of (await seasonStats(sn.cur)).athletes.values()) {
+        const t = Number(a.ptsTot)
+        if (Number.isFinite(t) && t > 0 && PTS_MARK - (t % PTS_MARK) <= NBA_MARKETS.pts.bar) nearMark[a.id] = t
+      }
+    }
+  } catch { nearWhy = 'failed' }
   const capture = Object.fromEntries(MK.map((k) => { const r = rows.filter((x) => x.market === k && x.status); return [k, { total: r.length, called: r.filter((x) => x.status === 'called').length, board: r.filter((x) => x.status === 'board').length, off: r.filter((x) => x.status === 'off').length }] }))
-  return ok({ date, games, live: games.filter((g) => g.state === 'live').length, lockedGames: [...locked], rows, capture, fetchedAt: new Date().toISOString() }, games.some((g) => g.state === 'live') ? 30 : 300)
+  return ok({ date, games, live: games.filter((g) => g.state === 'live').length, lockedGames: [...locked], rows, round, nearMark, nearWhy, mark: PTS_MARK, capture, fetchedAt: new Date().toISOString() }, games.some((g) => g.state === 'live') ? 30 : 300)
 })
