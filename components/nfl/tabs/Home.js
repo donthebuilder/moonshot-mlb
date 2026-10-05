@@ -41,6 +41,7 @@ import { easternToday, easternDate } from '../../../lib/data'
 import { boardReason } from '../../../lib/nfl/boardReason'
 import { baselineFor } from '../ScoreAnatomy'
 import { regradeNotes } from '../../../lib/nfl/regrades'
+import NflTonight from '../../tonight/NflTonight'
 
 const SIX = [
   ['TD', 'ATD', 'Touchdown'],
@@ -262,7 +263,7 @@ function MiniBoard({ market, title, players, onPlayerClick, onBoards }) {
   )
 }
 
-export default function Home({ data, picks, results, matchup, logs, onPlayerClick, setTab }) {
+export default function Home({ data, picks, results, matchup, logs, onPlayerClick, setTab, liveSnap = null }) {
   const openBoard = boardOpener(setTab)
   // THE RECORD, ON THE FRONT PAGE (2026-09-05). MOONSHOT's Home leads with
   // "graded x% over N nights"; TUDDY's had a player-pool count in that slot,
@@ -394,6 +395,9 @@ export default function Home({ data, picks, results, matchup, logs, onPlayerClic
           {/* No TOP TD chip: the headline strip right below leads with the bot's #1. */}
         </div>
       </DayHero>
+
+      {/* TONIGHT (2026-10-04): who went, who lines up, who's still to go (components/tonight/NflTonight.js) */}
+      <NflTonight data={data} picks={picks} results={results} liveSnap={liveSnap} onPlayerClick={onPlayerClick} setTab={setTab} />
 
       {/* THE PEOPLE, ONE TAP IN (2026-09-26, stranger test: players sat
           behind More). One line; the page's name comes from the registry. */}

@@ -8,9 +8,8 @@ import TonightsNumbers from '../../numerology/TonightsNumbers'
 import LaneTable from '../../numerology/LaneTable'
 import HotNumbers from '../../numerology/HotNumbers'
 import AlignmentsView from '../../numerology/AlignmentsView'
-import { alignModel, alignedWithBy } from '../../../lib/numerology/align'
-import { nameParts } from '../../../lib/namePatterns'
 import { useIsPhone } from '../../MobileFold'
+import { lampAlignModel, lampTonight, lampScoreOf } from '../../../lib/nhl/alignRows'
 
 // 🔮 NUMEROLOGY (lamp research step 5, 2026-09-26) — the slot MOONSHOT's
 // Alignments and TUDDY's Numerology fill, hockey edition. FOR FUN: numbers
@@ -45,23 +44,16 @@ const WORDS = {
   namesNote: 'Shared surnames (2+) and first names (3+; a pair of common first names is arithmetic).',
 }
 
-const scoreOf = (a) => (Number.isFinite(a.score) ? a.score : null)
+const scoreOf = lampScoreOf
 
 export default function Numerology({ date = null, onOpenPlayer }) {
   const { data, error, loading } = useLampNumerology(date)
   const { data: board } = useLampBoardOnce(data?.date || date)
   const phone = useIsPhone()
 
-  const model = useMemo(() => {
-    const scores = new Map()
-    for (const g of board?.games || []) for (const r of g.rows || []) if (Number.isFinite(r.score)) scores.set(Number(r.playerId), r.score)
-    const rows = (data?.all || []).map((r) => ({
-      pid: r.id, name: r.name, team: r.team, p: r, jersey: r.jersey, birthDate: r.birthDate,
-      axes: r.roots || {}, parts: nameParts(r.name), score: scores.has(Number(r.id)) ? scores.get(Number(r.id)) : null,
-    }))
-    return alignModel(rows, scoreOf)
-  }, [data, board])
-  const tonight = useMemo(() => (data?.dateRoot ? alignedWithBy(data.dateRoot, model.rows, scoreOf) : null), [data, model])
+  // the rows + tonight's carriers live in lib/nhl/alignRows.js (shared with Home's TONIGHT strip)
+  const model = useMemo(() => lampAlignModel(data, board), [data, board])
+  const tonight = useMemo(() => lampTonight(data, model), [data, model])
 
   const head = (
     <>

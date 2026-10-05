@@ -43,6 +43,7 @@ import HeroStat from '../HeroStat'
 import { mlbNextGames, nextLine } from '../../lib/mlbNext'
 import { CLEAN_PICKS, CLEAN_SOURCE } from '../../lib/cleanRecord'
 import { onLiveRefresh } from '../../lib/liveRefresh'
+import MlbTonight from '../tonight/MlbTonight'
 
 // An Eastern calendar day n days from today (YYYY-MM-DD), on etToday's clock.
 const etShift = (n) => { const d = new Date(`${etToday()}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10) }
@@ -971,6 +972,9 @@ export default function Home({
           </div>
         )}
       </DayHero>
+
+      {/* TONIGHT (2026-10-04): who went, who lines up, who's still to go (components/tonight/MlbTonight.js) */}
+      <MlbTonight players={players} results={results} slateDate={slateDate} onPlayerClick={onPlayerClick} onNavigate={onNavigate} />
 
       {/* ONE RAIL, BOTH SPORTS (round 10, 2026-09-17) -- Donovan chose merging
           both sports into this one rail over keeping two visually-identical-

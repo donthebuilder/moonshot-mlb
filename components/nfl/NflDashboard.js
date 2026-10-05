@@ -412,7 +412,7 @@ export default function NflDashboard({ palettePass = 0 }) {
           {isLiveTab('nfl', tab) && <RefreshStamp live={nflLive} style={{ marginBottom: 8 }} />}
           <TeamNav.Provider value={openTeamPage}>
           <ErrorBoundary resetKey={tab} label={`the ${tab} tab`}>
-            {tab === 'home' && <Home data={slate} picks={picks} results={nflResults} matchup={matchup} logs={logs} onPlayerClick={openPlayer} setTab={setTab} />}
+            {tab === 'home' && <Home data={slate} picks={picks} results={nflResults} matchup={matchup} logs={logs} onPlayerClick={openPlayer} setTab={setTab} liveSnap={liveSnap} />}
             {/* MOONSHOT's Players page (2026-09-30): list + the card inline. */}
             {tab === 'players' && <NflPlayers data={data} logs={logs} matchup={matchup} picks={picks} results={nflResults} odds={odds} />}
             {tab === 'watchlist' && <Watchlist data={slate} matchup={matchup} logs={logs} onPlayerClick={openPlayer} />}

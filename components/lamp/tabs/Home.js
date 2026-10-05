@@ -21,6 +21,7 @@ import { TeamMark, EmptyState, DelayedBanner, Loading, SourceLine, Kicker, GameT
 import { NHL_NAV } from '../../../lib/nhl/routes'
 import HotNumbers from '../../numerology/HotNumbers'
 import { MatchLogos } from '../../TeamMark'
+import NhlTonight from '../../tonight/NhlTonight'
 
 // 🏒 TONIGHT — LAMP's front page. Three things and no more (spec §6: the
 // home page is not a data wall): tonight's games, where the league stands,
@@ -117,6 +118,9 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
           </p>
         ) : null}
       </DayHero>
+
+      {/* TONIGHT (2026-10-04): who went, who lines up, who's still to go (components/tonight/NhlTonight.js) */}
+      <NhlTonight today={day} board={board.data} date={date} onOpenPlayer={onOpenPlayer} setTab={setTab} />
 
       {/* THE PEOPLE, ONE TAP IN (2026-09-26, stranger test: "where are the
           players?" was the one question still slow -- they sat behind More).

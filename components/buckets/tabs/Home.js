@@ -12,6 +12,7 @@ import BucketsTable from '../BucketsTable'
 import BucketsHeadline from '../BucketsHeadline'
 import BucketWatch from '../BucketWatch'
 import { EmptyState, DelayedBanner, Loading, Kicker, NavBtn, LastSeasonNote, fmtDay, fmtTip } from '../ui'
+import NbaTonight from '../../tonight/NbaTonight'
 
 // 🌙 TONIGHT -- the NBA night in one page, rebuilt 2026-10-03 on the shared
 // opener (Donovan: "the nba home seems to be missing a lot of components"):
@@ -30,7 +31,9 @@ export default function Home({ today, date, setTab, onOpenPlayer, onOpenGame, on
   const top = (leaders.data?.categories || []).map((c) => ({ ...c.leaders?.[0], cat: c.label, _id: c.key })).filter((r) => r.id)
 
   const boardGames = pts.data?.games || []
-  const lockedN = boardGames.filter((g) => g.locked).length
+  // the locked games are the board's own list (lib/nba/boardRead lockedGames); the games
+  // carry no `locked` field, so this read 0 every night until 10-04
+  const lockedN = (pts.data?.lockedGames || []).length
   const allLocked = boardGames.length > 0 && lockedN === boardGames.length
   const firstTip = games.map((g) => g.start).filter(Boolean).sort()[0] || null
   const heroGames = games.map((g) => ({ away: g.away?.abbrev, home: g.home?.abbrev, start: Date.parse(g.start || ''), state: g.state === 'live' ? 'live' : g.state === 'final' ? 'final' : 'pre' }))
@@ -54,6 +57,8 @@ export default function Home({ today, date, setTab, onOpenPlayer, onOpenGame, on
           </div>
         )}
       </DayHero>
+      {/* TONIGHT (2026-10-04): who cleared, who's still to go (components/tonight/NbaTonight.js; no NBA numerology yet) */}
+      <NbaTonight board={pts.data} date={date} onOpenPlayer={onOpenPlayer} setTab={setTab} />
       <DelayedBanner error={today?.error} what="the league’s score feed" />
       {!day && today?.loading ? <Loading what="tonight" /> : null}
 
