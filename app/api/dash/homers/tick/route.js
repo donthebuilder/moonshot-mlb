@@ -70,7 +70,7 @@ import { storiesTick } from '../../../../../lib/stories/record'
 import { mlbNumerologyWrite, mlbNumerologyGrade } from '../../../../../lib/numerology/mlbWriter'
 import { postMlbListOnce } from '../../../../../lib/lists/post'
 import { adminClient } from '../../../../../lib/supabase/admin'
-import { claimSlot as sharedClaimSlot, bytesOf as sharedBytesOf, knownTaken } from '../../../../../lib/dash/postClaim'
+import { claimSlot as sharedClaimSlot, bytesOf as sharedBytesOf, knownTaken, markTaken } from '../../../../../lib/dash/postClaim'
 import { ordinal } from '../../../../../lib/format'
 import { feedHooks, withReceipts } from '../../../../../lib/dash/discordChannels'
 import { postMembers, membersWebhook, MEMBERS_KINDS, mlbMembersBoard, mlbMembersGrade } from '../../../../../lib/dash/membersPost'
@@ -275,8 +275,17 @@ const P1_STAT_KINDS = new Set(['weekly', 'monthly', 'board', 'callofnight', 'acc
 // `renderCard` (2026-09-18): a post whose card is its OWN design rather than
 // the generic statCard passes a thunk here and leaves cardSpec null. Optional
 // and additive -- every existing call site keeps the statCard path.
+// NOTHING TO SAY, REMEMBERED 10 MIN (2026-10-05, egress round 3): a slot whose text came
+// out empty claims nothing, so knownTaken never set and its exclude read (storylineSeenTexts,
+// hotStretchSeenIds...) ran again every minute all evening. The picks only change as
+// lineups confirm; ask again in 10 minutes.
+const _emptyAt = new Map()
+const EMPTY_RETRY_MS = 10 * 60e3
+const triedEmpty = (day, kind) => Date.now() - (_emptyAt.get(`${day}|${kind}`) || 0) < EMPTY_RETRY_MS
+
 async function claimAndPostStat(db, day, kind, hourGate, text, cardSpec, payload = {}, renderCard = null) {
   if (isRetired(kind)) return false
+  if (!text && etHoursSinceNoon() >= hourGate) { if (_emptyAt.size > 500) _emptyAt.clear(); _emptyAt.set(`${day}|${kind}`, Date.now()) }
   if (!text || etHoursSinceNoon() < hourGate) return false
   if (!(await claimSlot(db, day, kind))) return false
   const card = TEXT_ONLY_KINDS.has(kind) ? null : cardSpec
@@ -1612,7 +1621,7 @@ export async function GET(request) {
     }
     if (etHoursSinceNoon() >= HOT_WEEK_HOUR) {
       await safeStat('hot_week', async () => {
-        if (knownTaken(day, 'hot_week')) return   // egress: posted already, skip the exclude read
+        if (knownTaken(day, 'hot_week') || triedEmpty(day, 'hot_week')) return   // egress: posted already (or nothing to say <10 min ago), skip the exclude read
         const exclude = await hotStretchSeenIds(db, day)
         const { pick, window: win } = await hotStretchPicks(pregameRows(), day, { window: 'week', exclude })
         await claimAndPostStat(db, day, 'hot_week', HOT_WEEK_HOUR,
@@ -1643,8 +1652,10 @@ export async function GET(request) {
         // claim said the slot was long taken. Asked first now; and a watch
         // that found nothing waits WATCH_RETRY_MS on this instance (it only
         // changes as lineups confirm).
+        // knownTaken first (egress round 3): the slot read ran every minute after the post went out
+        if (knownTaken(day, 'history_watch') || Date.now() - (_watchTried.get(day) || 0) < WATCH_RETRY_MS) return
         const { data: taken } = await db.from('homer_feed_posts').select('day').match({ day, kind: 'history_watch' }).maybeSingle()
-        if (taken || Date.now() - (_watchTried.get(day) || 0) < WATCH_RETRY_MS) return
+        if (taken) { markTaken(day, 'history_watch'); return }
         const items = await mlbWatch(pregameRows(), Number(day.slice(0, 4)), { day })
         if (!historyWatchText(items)) _watchTried.set(day, Date.now())
         await claimAndPostStat(db, day, 'history_watch', MILESTONE_AM_HOUR,
@@ -1697,7 +1708,7 @@ export async function GET(request) {
     // does not pad with a repeat to hit a count.
     if (etHoursSinceNoon() >= STORYLINE_WATCH_1_HOUR) {
       await safeStat('storyline_watch_1', async () => {
-        if (knownTaken(day, 'storyline_watch_1')) return   // egress: posted already, skip the exclude read
+        if (knownTaken(day, 'storyline_watch_1') || triedEmpty(day, 'storyline_watch_1')) return   // egress: posted already (or nothing to say <10 min ago), skip the exclude read
         const seen = await storylineSeenTexts(db, day)
         // 2026-09-15 (Donovan: "some of these I just wanted tweets and no
         // card... a decent list of names"). No card -- storylineWatchPicks
@@ -1713,7 +1724,7 @@ export async function GET(request) {
     }
     if (etHoursSinceNoon() >= STORYLINE_WATCH_2_HOUR && !isRetired('storyline_watch_2')) {
       await safeStat('storyline_watch_2', async () => {
-        if (knownTaken(day, 'storyline_watch_2')) return   // egress: posted already, skip the exclude read
+        if (knownTaken(day, 'storyline_watch_2') || triedEmpty(day, 'storyline_watch_2')) return   // egress: posted already (or nothing to say <10 min ago), skip the exclude read
         const seen = await storylineSeenTexts(db, day)
         // text-only now, see storyline_watch_1 above
         const picks = await storylineWatchPicks(pregameRows(), day, { exclude: seen })
@@ -1725,7 +1736,7 @@ export async function GET(request) {
     }
     if (etHoursSinceNoon() >= STORYLINE_WATCH_3_HOUR && !isRetired('storyline_watch_3')) {
       await safeStat('storyline_watch_3', async () => {
-        if (knownTaken(day, 'storyline_watch_3')) return   // egress: posted already, skip the exclude read
+        if (knownTaken(day, 'storyline_watch_3') || triedEmpty(day, 'storyline_watch_3')) return   // egress: posted already (or nothing to say <10 min ago), skip the exclude read
         const seen = await storylineSeenTexts(db, day)
         // text-only now, see storyline_watch_1 above
         const picks = await storylineWatchPicks(pregameRows(), day, { exclude: seen })
@@ -1737,7 +1748,7 @@ export async function GET(request) {
     }
     if (etHoursSinceNoon() >= STORYLINE_WATCH_4_HOUR && !isRetired('storyline_watch_4')) {
       await safeStat('storyline_watch_4', async () => {
-        if (knownTaken(day, 'storyline_watch_4')) return   // egress: posted already, skip the exclude read
+        if (knownTaken(day, 'storyline_watch_4') || triedEmpty(day, 'storyline_watch_4')) return   // egress: posted already (or nothing to say <10 min ago), skip the exclude read
         const seen = await storylineSeenTexts(db, day)
         // text-only now, see storyline_watch_1 above
         const picks = await storylineWatchPicks(pregameRows(), day, { exclude: seen })
@@ -2110,7 +2121,7 @@ export async function GET(request) {
   await safeStat('matchuphistory_late', async () => {
     // egress (2026-10-03): the exclude read ran every minute before the claim,
     // all evening; nothing to do before the hour or once the slot is taken
-    if (etHoursSinceNoon() < MATCHUP_LATE_HOUR || knownTaken(day, 'matchup_hr_late')) return
+    if (etHoursSinceNoon() < MATCHUP_LATE_HOUR || knownTaken(day, 'matchup_hr_late') || triedEmpty(day, 'matchup_hr_late')) return
     const seen = await matchupHistorySeenIds(db, day)
     const lines = await vsPitcherCareerLines(midRows(), { exclude: seen })
     const hrPicks = hrVsStarterPicks(lines)  // text-only now, see the day wave above
