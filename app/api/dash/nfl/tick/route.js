@@ -92,6 +92,7 @@ import { claimSlot as sharedClaimSlot, bytesOf as sharedBytesOf } from '../../..
 import { feedHooks, feedHooksFor } from '../../../../../lib/dash/discordChannels'
 import { postMembers, membersWebhook, MEMBERS_KINDS, nflMembersBoard, nflMembersGrade } from '../../../../../lib/dash/membersPost'
 import { readNflEvents } from '../../../../../lib/record/nfl'
+import { runNflWriteups } from '../../../../../lib/writeups/post'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -831,7 +832,12 @@ export async function GET(request) {
   // 📰 STORYLINES (BATCH-STORYLINES-PAGE step 3): freeze each game's stories in
   // the 15 minutes before kickoff, grade them once final. Never throws.
   const storylines = await storiesTick(db, 'nfl')
+  // 📝 THE GAME WRITE-UPS (BATCH-GAME-WRITEUP): each game 75-60 min before kickoff;
+  // dry (to /admin only) until writeups_autopost is on. ?writeups=print shows them, writes nothing.
+  const wq = new URL(request.url).searchParams.get('writeups')
+  const writeups = await runNflWriteups(db, { getWeek: weekFile, dry: wq === 'print' ? 'print' : null, now: wq === 'print' && Number(new URL(request.url).searchParams.get('at')) ? Number(new URL(request.url).searchParams.get('at')) : Date.now() })
+    .catch((e) => `error: ${e?.message}`)
 
   const threads = threadsSnapshot()
-  return Response.json({ day, td, milestone, weekly, longshots, multiClub, lists, members, numerology, storylines, ...(threads.length ? { threads } : {}) })
+  return Response.json({ day, td, milestone, weekly, longshots, multiClub, lists, members, numerology, storylines, writeups, ...(threads.length ? { threads } : {}) })
 }
