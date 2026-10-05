@@ -13,7 +13,6 @@ import { ReadFrame, Line } from '../PlayerRead'
 export function nflReadBullets(player, market, rows = [], matchup = null) {
   const scored = Object.entries(player.scores || {}).filter(([, value]) => Number.isFinite(value)).sort((a, b) => b[1] - a[1])
   const [bestMarket, bestScore] = scored[0] || []
-  const lastFive = rows.slice(-5)
   const role = matchup?.dvp_roles?.[player.player_id] || matchup?.roles?.[player.player_id]
   const defense = matchup?.dvp?.season?.[player.opp]?.[role]
   // ── #21: THE DESK MIXED EVIDENCE FOR AND AGAINST, UNMARKED ───────────────
@@ -75,7 +74,6 @@ export function nflReadBullets(player, market, rows = [], matchup = null) {
               : 'middle of the league, neither way'
       }.`,
     },
-    lastFive.length && { tone: 'note', text: `${lastFive.length} recent published games are available for the ${(MARKETS.find(([k]) => k === market) || [])[1] || market} trend.` },
   ].filter(Boolean)
   return bullets
 }

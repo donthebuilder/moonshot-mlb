@@ -13,6 +13,7 @@ import { Zones, defenseTiles, offenseTiles, factsNote, PassGame } from './tabs/M
 import { Card as TdCard, tdPool } from './tabs/Touchdowns'
 import NflTable from './NflTable'
 import GameCalls, { useGameCalls } from './GameCalls'
+import WriteupBlock from './WriteupBlock'
 import { useNflWatchlist } from '../../lib/nfl/watchlist'
 
 // TUDDY'S SLATE (2026-09-28). Donovan: "there's no breakdown page like the
@@ -60,7 +61,7 @@ function callsIn(picks, g) {
   }).filter(Boolean)
 }
 
-export default function NflSlate({ data, picks, matchup, odds = null, initialGame = null, games: shownGames, tableColumns, tableRowsFor, storyForGame, onPlayerClick, onOpenTeam = null }) {
+export default function NflSlate({ data, picks, matchup, logs = null, odds = null, initialGame = null, games: shownGames, tableColumns, tableRowsFor, storyForGame, onPlayerClick, onOpenTeam = null }) {
   const allGames = data?.games || []
   const players = data?.players || []
   const isPhone = useIsPhone()
@@ -174,6 +175,8 @@ export default function NflSlate({ data, picks, matchup, odds = null, initialGam
                   badges={{ picks: calls.length ? String(calls.length) : '' }} />
 
                 <PanelAnchor id="read" gamePk={g.game_id}>
+                  {/* THE CALL: the game's write-up, the same one Discord and X get (BATCH-GAME-WRITEUP) */}
+                  <WriteupBlock game={g} gameCalls={gameCalls} week={data} matchup={matchup} logs={logs} odds={odds} onPlayerClick={onPlayerClick} />
                   <FactTiles theme={C} numFont={NUM_FONT} min={104} tiles={[
                     { k: g.indoors ? 'INDOORS' : 'WEATHER', v: airText(g) && !g.indoors ? airText(g).replace(/°F/, '°') : g.indoors ? 'dome' : null, sub: g.venue || null },
                     { k: 'DAYS REST', v: g.away_rest_days != null && g.home_rest_days != null ? `${g.away_rest_days} · ${g.home_rest_days}` : null, sub: `${g.away}${g.away_short_week ? ' (short)' : ''} · ${g.home}${g.home_short_week ? ' (short)' : ''}` },

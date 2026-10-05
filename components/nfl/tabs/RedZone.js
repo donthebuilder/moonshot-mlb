@@ -15,7 +15,8 @@ import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 //   stats.RZ   red-zone touches per game          (research_columns' own words)
 //   stats.GL   goal-line touches per game (inside-10 targets, inside-5 carries)
 //   stats.xTD  expected TDs per game from field position
-//   stats.TD   actual TDs per game;  stats.TDoE  expected minus actual
+//   stats.TD   actual TDs per game;  DUE = xTD - TD, computed here (2026-10-04: the bot's
+//   TDoE flipped to actual minus expected, its name's meaning; this column keeps 'due')
 //   scores.TD  the TD model's score this week (the same number the Board shows)
 //
 // TEAM SHARE is the one derived column: his RZ per game divided by the sum of
@@ -43,7 +44,7 @@ const buildColumns = (watchlist) => [
   { key: 'gl', label: 'GL/G', w: 46, dp: 1, title: 'Goal-line touches per game: inside-10 targets, inside-5 carries' },
   { key: 'xtd', label: 'xTD/G', w: 52, dp: 2, title: 'Expected touchdowns per game from field position' },
   { key: 'td', label: 'TD/G', w: 46, dp: 2, title: 'Actual touchdowns per game' },
-  { key: 'tdoe', label: 'TDoE', w: 48, dp: 2, title: 'Expected minus actual -- positive means he is due' },
+  { key: 'tdoe', label: 'DUE', w: 48, dp: 2, title: 'Expected minus actual TDs a game (xTD - TD) -- positive means his chances have outrun his touchdowns' },
   { key: 'score', label: 'TD SCORE', w: 64, dp: 0, title: "This week's TD model score (the Board's number)" },
 ]
 
@@ -70,7 +71,7 @@ export default function RedZone({ data, matchup = null, onPlayerClick }) {
       gl: num(p.stats.GL),
       xtd: num(p.stats.xTD),
       td: num(p.stats.TD),
-      tdoe: num(p.stats.TDoE),
+      tdoe: num(p.stats.xTD) != null && num(p.stats.TD) != null ? Number((num(p.stats.xTD) - num(p.stats.TD)).toFixed(2)) : null,   // sign-proof: from xTD and TD, not TDoE
       score: num(p.scores?.TD),
       watched: watchlist.isPinned(p.player_id) ? 1 : 0,
       _raw: p,

@@ -282,7 +282,7 @@ export default function Games({ data, picks, matchup, logs, results, odds = null
       </>)}
 
       {view === 'games' && (
-        <NflSlate data={data} picks={picks} matchup={matchup} odds={odds} games={sorted} initialGame={openGame || handed}
+        <NflSlate data={data} picks={picks} matchup={matchup} logs={logs} odds={odds} games={sorted} initialGame={openGame || handed}
           tableColumns={TABLE_COLUMNS} tableRowsFor={rowsFor} storyForGame={storyForGame}
           onPlayerClick={onPlayerClick} onOpenTeam={onOpenTeam} />
       )}
