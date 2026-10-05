@@ -592,7 +592,7 @@ async function runWeeklyContentTick(db, day) {
           card = () => spotlightCard(pick, { site: SITE_HOST, windowLabel, statement, context })
         }
       } else if (sl.kind === 'nfl_board') {
-        const picks = nflBoardPicks(data)
+        const picks = nflBoardPicks(data, undefined, { now: Date.now(), day })
         text = nflBoardText(picks, data, tailFor('nfl_board'))
         // The FULL pick objects go in the payload, not a slimmed copy: Monday's
         // nfl_results reads this row back to grade it, and a grade run off a
@@ -600,7 +600,7 @@ async function runWeeklyContentTick(db, day) {
         // Frozen at post time, same rule the MLB pregame payload follows.
         payload = { picks }
       } else if (sl.kind === 'nfl_botpoll') {
-        const picks = nflBotPollPicks(data)
+        const picks = nflBotPollPicks(data, undefined, { now: Date.now(), day })
         text = nflBotPollText(picks, data, TAIL)
         pollOptions = nflBotPollOptions(picks)
         // X refuses a poll with fewer than two options -- post it as plain

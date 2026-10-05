@@ -15,7 +15,12 @@ export function useDashLines() {
     if (CACHE) return undefined
     let live = true
     fetch('/api/nfl/dash').then((r) => (r.ok ? r.json() : null)).then((b) => {
-      CACHE = b?.available ? { by: new Map((b.rows || []).map((r) => [`${r.player_id}|${r.market}`, r])) } : { by: new Map(), off: true }
+      if (b?.available) {
+        // one row per player|market: the API now carries each game's own date, so the newest game wins
+        const by = new Map()
+        for (const r of b.rows || []) { const k = `${r.player_id}|${r.market}`; const cur = by.get(k); if (!cur || String(r.game_date || '') >= String(cur.game_date || '')) by.set(k, r) }
+        CACHE = { by }
+      } else CACHE = { by: new Map(), off: true }
       if (live) setD(CACHE)
     }).catch(() => {})
     return () => { live = false }
