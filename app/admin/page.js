@@ -29,6 +29,7 @@ import { VERSIONS as NHL_VERSIONS } from '../../lib/nhl/versions'
 import { getFromX } from '../../lib/dash/xPost'
 import { writeupsAutopost } from '../../lib/writeups/post'
 import featuredBacktest from '../../lib/writeups/featuredBacktest.json'
+import { PARITY, SPORT_NAMES, isYes, naReason } from '../../lib/parity'
 
 export const dynamic = 'force-dynamic'
 // The title is computed, not static: a static one rides the 404's payload
@@ -288,6 +289,33 @@ export default async function AdminPage() {
             <Line k={`${k.toUpperCase()} · TOP call only`} v={`${r(b.top.featured)} vs all ${r(b.top.all)}`} src={`kept: ${b.keep === 'neither' ? 'neither beats the slate yet -- no featured rule' : b.keep === 'top' ? 'TOP only' : 'rule 2 (sum)'}`} />
           </div>
         ) })}
+
+        {/* PARITY (BATCH-ONE-SITE step 2): what each sport's pages carry, from lib/parity.js;
+            scripts/check-parity.mjs holds the code to it in the push gate. A gap's reason is
+            written out under the grid (not on hover). */}
+        <h2 className={start.kicker} style={{ marginTop: 18 }}>Parity: what every sport has</h2>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ borderCollapse: 'collapse', fontSize: 12, width: '100%' }}>
+            <thead><tr>
+              <th style={{ textAlign: 'left', padding: '4px 6px 4px 0', opacity: 0.75 }}>feature</th>
+              {Object.values(SPORT_NAMES).map((n) => <th key={n} style={{ padding: '4px 4px', opacity: 0.75, fontSize: 10.5 }}>{n}</th>)}
+            </tr></thead>
+            <tbody>
+              {PARITY.map((r) => (
+                <tr key={r.key} style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                  <td style={{ padding: '5px 6px 5px 0' }}>{r.page} · {r.label}</td>
+                  {Object.keys(SPORT_NAMES).map((k) => <td key={k} style={{ textAlign: 'center', padding: '5px 4px', opacity: isYes(r.sports[k]) ? 1 : 0.55 }}>{isYes(r.sports[k]) ? '✓' : 'n/a'}</td>)}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p style={{ opacity: 0.75, fontSize: 12, margin: '8px 0 2px' }}>The gaps, and why:</p>
+        <ul style={{ fontSize: 12, opacity: 0.75, margin: 0, paddingLeft: 18 }}>
+          {PARITY.flatMap((r) => Object.keys(SPORT_NAMES).filter((k) => !isYes(r.sports[k])).map((k) => (
+            <li key={`${r.key}.${k}`}>{SPORT_NAMES[k]} · {r.label}: {naReason(r.sports[k])}</li>
+          )))}
+        </ul>
 
         {/* SHADOW MODELS (BATCH-MODEL-V2 "PROVE IT"): logged-only, never public;
             a shadow goes live only as a new version when its range clears the live one */}

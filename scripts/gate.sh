@@ -5,7 +5,7 @@
 #   scripts/gate.sh "/app#sport=nfl&tab=games,/admin"        # the pages you changed
 #   scripts/gate.sh --base https://dashnetwork.vercel.app "..." # after the deploy, against prod
 #
-# Local: npm run build, check-routes, check-scales, then `next start` on :3108 and
+# Local: npm run build, check-routes, check-parity, check-scales, then `next start` on :3108 and
 # check-mobile --all + check-clickable on the pages. Reports go to a temp folder
 # (never the repo's mobile-report/). Exit 0 = green.
 set -euo pipefail
@@ -20,6 +20,7 @@ echo "gate: reports in $OUT"
 if [ -z "$BASE" ]; then
   echo "--- build";  npm run build > "$OUT/build.log" 2>&1 || { tail -30 "$OUT/build.log"; echo "GATE FAIL: build"; exit 1; }
   echo "--- routes"; node scripts/check-routes.mjs || { echo "GATE FAIL: check-routes"; exit 1; }
+  echo "--- parity"; node scripts/check-parity.mjs > "$OUT/parity.log" 2>&1 || { grep -E "^FAIL|^parity" "$OUT/parity.log"; echo "GATE FAIL: check-parity"; exit 1; }
   echo "--- scales"; node scripts/check-scales.mjs > "$OUT/scales.log" 2>&1 || { tail -20 "$OUT/scales.log"; echo "GATE FAIL: check-scales"; exit 1; }
   npx next start -p 3108 > "$OUT/server.log" 2>&1 &
   SERVER=$!
