@@ -1,5 +1,6 @@
 import { nflTones } from '../../lib/nfl/teamColors'
-import { defenseTeamOf, nflHeadshot, nflTeamLogo } from '../../lib/nfl/nflAssets'
+import NflFace from '../nfl/NflFace'
+import { defenseTeamOf, nflTeamLogo } from '../../lib/nfl/nflAssets'
 import { headshotIdFor } from '../../lib/nfl/headshotIds'
 
 // A player's face, with his club on it.
@@ -15,6 +16,9 @@ import { headshotIdFor } from '../../lib/nfl/headshotIds'
 //   2. the ESPN headshot, if this man's GSIS id bridges to an ESPN id;
 //   3. a small club logo badge in the corner, so the row still says which team
 //      even when the face fills the tile.
+// R10 STEP 3 (2026-10-05): ONE FACE. A man's face is TUDDY's NflFace -- the round cutout, no box
+// (Donovan 10-04: "same PlayerFace component everywhere"); this file is only the resolver, so
+// the 72 KB GSIS->ESPN map still never reaches the browser.
 // A defence row (`DEF-<TEAM>`) has no person, so it renders the club logo big
 // and skips the badge.
 //
@@ -25,46 +29,22 @@ import { headshotIdFor } from '../../lib/nfl/headshotIds'
 // images themselves (~7 KB a face, ~2 KB a logo, both lazy).
 export default function PlayerFace({ player, size = 34 }) {
   const team = String(player?.team || 'FA').toUpperCase()
-  const [primary, secondary] = nflTones(team)
   const defenseTeam = defenseTeamOf(player?.source_player_id)
-  const headshotId = defenseTeam ? null : headshotIdFor(player?.source_player_id)
-  const face = headshotId ? nflHeadshot(headshotId, size, size) : null
-  const logo = nflTeamLogo(defenseTeam || team, size)
-  const badge = Math.round(size * 0.46)
-
+  if (!defenseTeam) {
+    return <NflFace player={{ espn_id: headshotIdFor(player?.source_player_id), team, name: player?.name }} size={size} />
+  }
+  // a defence has no person: its club logo, on the same round disc a face sits on
+  const [primary] = nflTones(defenseTeam)
+  const logo = nflTeamLogo(defenseTeam, size)
   return (
     <span
       aria-label={player?.name ? `${player.name}, ${team}` : team}
       title={player?.name || team}
-      style={{
-        position: 'relative', display: 'inline-grid', placeItems: 'center', flex: '0 0 auto',
-        width: size, height: size,
-        borderRadius: Math.max(7, Math.round(size * 0.26)),
-        border: `1px solid ${secondary}55`,
-        background: `linear-gradient(160deg,${primary}dd 0 62%,${secondary}dd 63% 100%)`,
-        boxShadow: `inset 0 1px 0 rgba(255,255,255,.12),0 4px 12px ${primary}33`,
-        color: '#fff', textShadow: '0 1px 3px #000',
-        font: `900 ${Math.max(10, Math.round(size * 0.26))}px/1 monospace`,
-        letterSpacing: '-.04em', overflow: 'hidden',
-      }}
+      style={{ position: 'relative', display: 'inline-grid', placeItems: 'center', flex: '0 0 auto', width: size, height: size, borderRadius: '50%', background: `${primary}40`, overflow: 'hidden' }}
     >
-      {team.slice(0, 3)}
-      {defenseTeam
-        ? logo && <img alt="" src={logo} loading="lazy" decoding="async"
-            width={Math.round(size * 0.78)} height={Math.round(size * 0.78)}
-            style={{ position: 'absolute', inset: 0, margin: 'auto', objectFit: 'contain',
-                     filter: 'drop-shadow(0 1px 2px rgba(0,0,0,.55))' }}/>
-        : <>
-            {face && <img alt="" src={face} loading="lazy" decoding="async"
-              width={size} height={size}
-              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%',
-                       objectFit: 'cover', objectPosition: 'top center' }}/>}
-            {logo && <img alt="" src={logo} loading="lazy" decoding="async"
-              width={badge} height={badge}
-              style={{ position: 'absolute', right: -1, bottom: -1, width: badge, height: badge,
-                       objectFit: 'contain',
-                       filter: 'drop-shadow(0 0 2px rgba(0,0,0,.9)) drop-shadow(0 1px 2px rgba(0,0,0,.7))' }}/>}
-          </>}
+      {logo && <img alt="" src={logo} loading="lazy" decoding="async"
+        width={Math.round(size * 0.78)} height={Math.round(size * 0.78)}
+        style={{ objectFit: 'contain', filter: 'drop-shadow(0 1px 2px rgba(0,0,0,.55))' }} />}
     </span>
   )
 }
