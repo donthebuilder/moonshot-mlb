@@ -24,7 +24,7 @@ import { buildNight, toLogRow } from '../../../../lib/nhl/goalBoard'
 import { gradeRows } from '../../../../lib/nhl/goalModel'
 import { VERSIONS, versionsFor } from '../../../../lib/nhl/versions'
 import { cronAuthorized, adminClient } from '../../../../lib/supabase/admin'
-import { LOCK_WINDOW_MS } from '../../../../lib/nhl/boardRead'
+import { LOCK_WINDOW_MS, readBoard } from '../../../../lib/nhl/boardRead'
 import { startersFromPlayByPlay, goaliesFromBoxscore } from '../../../../lib/nhl/goalies'
 import { shotsFromPlayByPlay, writeShots } from '../../../../lib/nhl/shots'
 import { postLongshotsOnce } from '../../../../lib/dash/longshotsPost'
@@ -39,6 +39,7 @@ import { fromNhl } from '../../../../lib/numerology/adapters'
 import { storiesTick } from '../../../../lib/stories/record'
 import { postNhlListOnce } from '../../../../lib/lists/post'
 import { postHardestOnce } from '../../../../lib/nhl/hardestShot'
+import { runNhlWriteups } from '../../../../lib/writeups/post'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -301,6 +302,13 @@ export async function GET(request) {
   // in every game (lib/lists/post.js). Today's date only.
   if (date === easternToday() && etHour >= 12) {
     out.lists = await postNhlListOnce(db, date).catch((e) => `error: ${e?.message}`)
+  }
+  // THE WRITE-UPS (2026-10-05): each game 75-60 min before puck drop; dry while the switch is off
+  // (lib/writeups/post.js runNhlWriteups). ?writeups=print prints and writes nothing.
+  if (night) {
+    const wq = searchParams.get('writeups')
+    out.writeups = await runNhlWriteups(db, { date: night.day.date, games: night.games, dry: wq === 'print' ? 'print' : null, readBoard,
+      now: wq === 'print' && Number(searchParams.get('at')) ? Number(searchParams.get('at')) : Date.now() }).catch((e) => `error: ${e?.message}`)
   }
   out.ms = Date.now() - t0
   console.log(`[lamp tick] ${date} locked ${out.locked.length} graded ${out.graded.length} skipped ${out.skipped.length} in ${out.ms}ms`)

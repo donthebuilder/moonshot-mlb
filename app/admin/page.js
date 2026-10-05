@@ -282,7 +282,7 @@ export default async function AdminPage() {
           )
         })}
         <h2 className={start.kicker} style={{ marginTop: 18 }}>Featured-game rule, backtested (MLB / NHL)</h2>
-        <p style={{ opacity: 0.75, fontSize: 13 }}>{featuredBacktest.method} Built {String(featuredBacktest.built_at).slice(0, 10)} by scripts/writeups/featured-backtest.mjs. MLB / NHL write-ups don't post yet.</p>
+        <p style={{ opacity: 0.75, fontSize: 13 }}>{featuredBacktest.method} Built {String(featuredBacktest.built_at).slice(0, 10)} by scripts/writeups/featured-backtest.mjs. MLB's write-up is the per-game CALL post, long (lib/writeups/mlb.js). NHL write-ups follow the writeups_autopost switch; the featured game is the most expected goals (Donovan, 10-05), whatever the sum / TOP rows say.</p>
         {['mlb', 'nhl'].map((k) => { const b = featuredBacktest[k]; const r = (x) => `${x.hits}/${x.n} = ${x.rate ?? '—'}%`; return (
           <div key={k}>
             <Line k={`${k.toUpperCase()} · rule 2 (sum)`} v={`${r(b.sum.featured)} vs all ${r(b.sum.all)}`} src={`${b.nights} nights, ${b.from} .. ${b.to} · ${b.source}`} />

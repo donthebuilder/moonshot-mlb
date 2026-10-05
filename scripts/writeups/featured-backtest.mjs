@@ -18,6 +18,7 @@ await import('../_esm-resolve.mjs')
 const fs = await import('node:fs')
 const { callStatus } = await import('../../lib/callStatus.js')
 const { dailyFeatured } = await import('../../lib/writeups/featured.js')
+const { nhlExpectedGoals } = await import('../../lib/writeups/nhl.js')
 
 const POR = 'https://raw.githubusercontent.com/donthebuilder/MLB-HR-DASHBOARD-STREAMLIT/data/public/data/current'
 const SITE = 'https://dashnetwork.vercel.app'
@@ -97,17 +98,37 @@ const nhlNights = (nhl?.nights || []).slice().reverse().map((n) => {
   return { date: n.date, games: [...byGame.entries()].map(([gid, m]) => ({ game_id: gid, teams: [...m.keys()], calls: [...m.values()] })) }
 })
 
-function judge(nights) {
+// NHL's own rules (2026-10-05, Donovan: "highest expected goals or the most ranked players"):
+// each night's goal board gives every game its expected goals (the board's goal chances as
+// Poisson rates, summed) and its players in the night's top 20. Nights whose board carries no
+// goal chance (before 10-01) are left out of these two -- said in `xgNights`.
+for (const night of nhlNights) {
+  const b = await fetch(`${SITE}/api/lamp/board?date=${night.date}&m=GOAL`).then((r) => r.json()).catch(() => null)
+  const rows = (b?.games || []).flatMap((g) => g.rows || [])
+  if (!rows.some((r) => r.context?.goalGameProbability != null)) continue
+  const top = new Set(rows.filter((r) => (r.context?.nightRank ?? 999) <= 20).map((r) => String(r.playerId)))
+  night.xgReady = true
+  for (const g of night.games) {
+    const bg = (b.games || []).find((x) => [x.game.away.abbrev, x.game.home.abbrev].sort().join('@') === g.game_id)
+    g.xg = bg ? nhlExpectedGoals(bg.rows) : 0
+    g.ranked = bg ? bg.rows.filter((r) => top.has(String(r.playerId))).length : 0
+  }
+}
+
+function judge(nights, extra = []) {
   const sum = run(nights, 'sum'), top = run(nights, 'top')
   const beats = (x) => x.featured.rate != null && x.all.rate != null && x.featured.rate > x.all.rate
   const keep = beats(sum) ? 'sum' : beats(top) ? 'top' : 'neither'
-  return { nights: nights.length, from: nights[0]?.date || null, to: nights[nights.length - 1]?.date || null, sum, top, keep }
+  const more = {}
+  const xn = nights.filter((n) => n.xgReady)
+  for (const k of extra) more[k] = { ...run(xn, k), nights: xn.length }
+  return { nights: nights.length, from: nights[0]?.date || null, to: nights[nights.length - 1]?.date || null, sum, top, ...more, keep, ...(extra.length ? { xgNights: xn.length, live: 'xg' } : {}) }
 }
 const out = {
   built_at: new Date().toISOString(),
   method: "Each game's calls = each side's highest-scored CALLED player; eligible = both sides have one. Featured = rule 2 (sum of the two scores) or the TOP call alone, with rule 4 (no club featured in the last 2 days when another game is within 5). Rule 3's start-time tiebreak is not applied: the archives carry no start time. Hit rate is per call, voids out.",
   mlb: { source: `por_rows_<date>.jsonl from ${FIRST_MLB} (earlier nights were never archived), graded off statsapi final boxes`, ...judge(mlbNights) },
-  nhl: { source: '/api/lamp/record nights (LAMP graded called skaters)', ...judge(nhlNights) },
+  nhl: { source: '/api/lamp/record nights (LAMP graded called skaters); xg / ranked off each night\'s /api/lamp/board', ...judge(nhlNights, ['xg', 'ranked']) },
 }
 fs.writeFileSync(new URL('../../lib/writeups/featuredBacktest.json', import.meta.url), `${JSON.stringify(out, null, 2)}\n`)
 for (const s of ['mlb', 'nhl']) {
@@ -115,5 +136,6 @@ for (const s of ['mlb', 'nhl']) {
   console.log(`${s.toUpperCase()} ${r.nights} nights (${r.from} .. ${r.to})`)
   console.log(`  rule 2 (sum): featured ${r.sum.featured.hits}/${r.sum.featured.n} = ${r.sum.featured.rate}%  vs all ${r.sum.all.hits}/${r.sum.all.n} = ${r.sum.all.rate}%`)
   console.log(`  TOP only:     featured ${r.top.featured.hits}/${r.top.featured.n} = ${r.top.featured.rate}%  vs all ${r.top.all.hits}/${r.top.all.n} = ${r.top.all.rate}%`)
-  console.log(`  keep: ${r.keep}`)
+  for (const k of ['xg', 'ranked']) if (r[k]) console.log(`  ${k.padEnd(12)} featured ${r[k].featured.hits}/${r[k].featured.n} = ${r[k].featured.rate}%  vs all ${r[k].all.hits}/${r[k].all.n} = ${r[k].all.rate}%  (${r[k].nights} nights)`)
+  console.log(`  keep: ${r.keep}${r.live ? ` · posting uses: ${r.live}` : ''}`)
 }

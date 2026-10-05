@@ -12,6 +12,7 @@ import { SubLabel, FactTiles } from '../matchup/MatchupParts'
 import { GameBoard, NavBtn, AllGamesTable, spotOf, pct1, ppVsPk, restWord } from './tabs/Board'
 import LampProjected from './LampProjected'
 import LampWeakSpots from './LampWeakSpots'
+import NhlWriteupBlock from './NhlWriteupBlock'
 import BoardTopBar from '../BoardTopBar'
 import { LampCards } from './LampCard'
 import { EmptyState, DelayedBanner, Loading, StaleSeasonNote, fmtPuckDrop, zoneAbbrev, shiftDay, fmtDay } from './ui'
@@ -173,6 +174,8 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
                   badges={{ calls: called.length ? String(called.length) : '' }} />
 
                 <PanelAnchor id="read" gamePk={g.game.id}>
+                  {/* THE CALL (2026-10-05): the game's write-up, from this same board game */}
+                  <NhlWriteupBlock game={g} onOpenPlayer={onOpenPlayer} />
                   {/* tiles, not sentences (2026-10-04, Donovan: "all these words give me anxiety") */}
                   <FactTiles theme={C} numFont={NUM_FONT} min={104} tiles={[
                     { k: 'THE BOARD', v: g.graded ? 'Graded' : g.locked ? 'Locked' : 'Preview', sub: g.graded ? null : g.locked ? new Date(g.lockedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : 'not a call yet', tone: g.locked && !g.graded ? C.ice : undefined },

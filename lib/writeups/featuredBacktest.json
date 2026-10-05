@@ -1,5 +1,5 @@
 {
-  "built_at": "2026-10-05T02:17:32.177Z",
+  "built_at": "2026-10-05T19:39:01.402Z",
   "method": "Each game's calls = each side's highest-scored CALLED player; eligible = both sides have one. Featured = rule 2 (sum of the two scores) or the TOP call alone, with rule 4 (no club featured in the last 2 days when another game is within 5). Rule 3's start-time tiebreak is not applied: the archives carry no start time. Hit rate is per call, voids out.",
   "mlb": {
     "source": "por_rows_<date>.jsonl from 2026-09-09 (earlier nights were never archived), graded off statsapi final boxes",
@@ -15,8 +15,8 @@
       },
       "all": {
         "hits": 71,
-        "n": 455,
-        "rate": 15.6
+        "n": 457,
+        "rate": 15.5
       }
     },
     "top": {
@@ -28,14 +28,14 @@
       },
       "all": {
         "hits": 71,
-        "n": 455,
-        "rate": 15.6
+        "n": 457,
+        "rate": 15.5
       }
     },
     "keep": "top"
   },
   "nhl": {
-    "source": "/api/lamp/record nights (LAMP graded called skaters)",
+    "source": "/api/lamp/record nights (LAMP graded called skaters); xg / ranked off each night's /api/lamp/board",
     "nights": 6,
     "from": "2026-09-29",
     "to": "2026-10-04",
@@ -48,23 +48,53 @@
       },
       "all": {
         "hits": 23,
-        "n": 66,
-        "rate": 34.8
+        "n": 72,
+        "rate": 31.9
       }
     },
     "top": {
       "featuredGames": 6,
       "featured": {
-        "hits": 4,
+        "hits": 3,
         "n": 12,
-        "rate": 33.3
+        "rate": 25
       },
       "all": {
         "hits": 23,
-        "n": 66,
-        "rate": 34.8
+        "n": 72,
+        "rate": 31.9
       }
     },
-    "keep": "neither"
+    "xg": {
+      "featuredGames": 4,
+      "featured": {
+        "hits": 4,
+        "n": 8,
+        "rate": 50
+      },
+      "all": {
+        "hits": 22,
+        "n": 62,
+        "rate": 35.5
+      },
+      "nights": 4
+    },
+    "ranked": {
+      "featuredGames": 4,
+      "featured": {
+        "hits": 5,
+        "n": 8,
+        "rate": 62.5
+      },
+      "all": {
+        "hits": 22,
+        "n": 62,
+        "rate": 35.5
+      },
+      "nights": 4
+    },
+    "keep": "neither",
+    "xgNights": 4,
+    "live": "xg"
   }
 }
