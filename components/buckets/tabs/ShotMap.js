@@ -1,5 +1,5 @@
 'use client'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import PageHeader from '../../PageHeader'
 import { C, NUM_FONT } from '../../../lib/nba/theme'
 import { NBA_TEAMS } from '../../../lib/nba/teams'
@@ -15,10 +15,22 @@ import { DelayedBanner, Loading, SourceLine, EmptyState, Pills, NavBtn, readHash
 // 🎯 SHOT MAP -- where a club or a player shoots from: every field-goal
 // attempt on file (buckets_shots, the play-by-play backfill), by zone. The
 // pick rides the address (team= / player=), so a link opens the same map.
+// a hash that names no real club / player is not a pick: the select would show one thing and the map another
+const teamOf = (v) => { const t = String(v || '').toUpperCase(); return NBA_TEAMS.some((x) => x[0] === t) ? t : null }
+const playerOf = (v) => (/^\d{2,10}$/.test(String(v || '')) ? String(v) : '')
 export default function ShotMap({ onOpenPlayer, onOpenTeam }) {
-  const [mode, setMode] = useState(() => (readHashParam('player') ? 'player' : 'team'))
-  const [team, setTeam] = useState(() => readHashParam('team') || 'BOS')
-  const [who, setWho] = useState(() => readHashParam('player') || '')
+  const [mode, setMode] = useState(() => (playerOf(readHashParam('player')) ? 'player' : 'team'))
+  const [team, setTeam] = useState(() => teamOf(readHashParam('team')) || 'BOS')
+  const [who, setWho] = useState(() => playerOf(readHashParam('player')))
+  // a back/forward or a pasted link changes the address under the page: follow it
+  useEffect(() => {
+    const sync = () => {
+      const p = playerOf(readHashParam('player')); const t = teamOf(readHashParam('team'))
+      if (p) { setWho(p); setMode('player') } else if (t) { setTeam(t); setMode('team') }
+    }
+    window.addEventListener('hashchange', sync); window.addEventListener('popstate', sync)
+    return () => { window.removeEventListener('hashchange', sync); window.removeEventListener('popstate', sync) }
+  }, [])
   const [three, setThree] = useState(false)
   const players = useBucketsPlayers()
   const sel = mode === 'team' ? { team } : who ? { player: who } : null
@@ -45,6 +57,7 @@ export default function ShotMap({ onOpenPlayer, onOpenTeam }) {
         <label style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', fontSize: 11, fontWeight: 800, color: C.text3, fontFamily: NUM_FONT }}>PLAYER
           <select value={who} onChange={(e) => { setWho(e.target.value); set('player', e.target.value) }} style={selStyle}>
             <option value="">Pick a player</option>
+            {who && !plist.some((p) => p.id === who) ? <option value={who}>{players.data ? `Player ${who}` : 'Loading…'}</option> : null}
             {plist.map((p) => <option key={p.id} value={p.id}>{p.name} · {p.team}</option>)}
           </select>
           {who ? <NavBtn onClick={() => onOpenPlayer?.(who)}>Open his file →</NavBtn> : null}

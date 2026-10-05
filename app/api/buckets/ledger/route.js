@@ -10,7 +10,6 @@ import { scoreboardFor, reduceScoreboard, summaryFor, reduceBox } from '../../..
 import { NBA_MARKETS } from '../../../../lib/nba/model'
 import { adminClient } from '../../../../lib/supabase/admin'
 import { ok, bad, bucketsRoute } from '../../../../lib/nba/respond'
-import { easternToday } from '../../../../lib/data'
 import { ptsBefore, roundCrossed, PTS_MARK } from '../../../../lib/nba/seasonPts'
 import { seasonStats } from '../../../../lib/nba/stats'
 import { nbaSeason } from '../../../../lib/nba/season'
@@ -22,13 +21,13 @@ const VERSIONS = MK.map((k) => NBA_MARKETS[k].version)
 const val = (k, b) => (k === 'pra' ? (b.pts == null ? null : (b.pts || 0) + (b.reb || 0) + (b.ast || 0)) : k === '3pm' ? b.tpm : b[k])
 
 export const GET = bucketsRoute('ledger', async (q) => {
-  const date = q.get('date') || easternToday()
+  const date = q.get('date') || await slateNight('nba')
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return bad('date must be YYYY-MM-DD')
   const games = reduceScoreboard(await scoreboardFor(date))
   const on = games.filter((g) => g.state !== 'pre')
   const boxes = await Promise.all(on.map((g) => summaryFor(g.id, g.state === 'final').then(reduceBox).catch(() => null)))
   // locked statuses: called / board rows only (everything else locked is NOT ON THE BOARD)
-  const tag = new Map(); const locked = new Set()
+  const tag = new Map(); const locked = new Set(); const callsMade = Object.fromEntries(MK.map((k) => [k, 0]))
   const db = adminClient()
   if (db && on.length) {
     const ids = on.map((g) => g.id)
@@ -38,6 +37,8 @@ export const GET = bucketsRoute('ledger', async (q) => {
     ])
     for (const r of st.data || []) tag.set(`${r.game_id}|${r.player_id}|${r.market}`, { status: r.status, role: r.role })
     for (const r of lk.data || []) locked.add(String(r.game_id))
+    // the calls actually written (not an assumed two a game): CALLED rows of the locked games, per market
+    for (const r of st.data || []) if (r.status === 'called' && locked.has(String(r.game_id)) && r.market in callsMade) callsMade[r.market] += 1
   }
   const rows = []
   on.forEach((g, i) => {
@@ -78,5 +79,5 @@ export const GET = bucketsRoute('ledger', async (q) => {
     }
   } catch { nearWhy = 'failed' }
   const capture = Object.fromEntries(MK.map((k) => { const r = rows.filter((x) => x.market === k && x.status); return [k, { total: r.length, called: r.filter((x) => x.status === 'called').length, board: r.filter((x) => x.status === 'board').length, off: r.filter((x) => x.status === 'off').length }] }))
-  return ok({ date, games, live: games.filter((g) => g.state === 'live').length, lockedGames: [...locked], rows, round, nearMark, nearWhy, mark: PTS_MARK, capture, fetchedAt: new Date().toISOString() }, games.some((g) => g.state === 'live') ? 30 : 300)
+  return ok({ date, games, live: games.filter((g) => g.state === 'live').length, lockedGames: [...locked], callsMade, rows, round, nearMark, nearWhy, mark: PTS_MARK, capture, fetchedAt: new Date().toISOString() }, games.some((g) => g.state === 'live') ? 30 : 300)
 })

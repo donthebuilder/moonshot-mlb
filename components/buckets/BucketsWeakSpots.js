@@ -1,6 +1,7 @@
 'use client'
 import { useMemo } from 'react'
 import { useTeamNav } from '../../lib/teamNav'
+import { STATUS_WORD } from '../../lib/callStatus'
 import { C, NUM_FONT } from '../../lib/nba/theme'
 import { WeakSpotGrid } from '../slate/WeakSpotCard'
 import { SubLabel } from '../matchup/MatchupParts'
@@ -30,7 +31,7 @@ export default function BucketsWeakSpots({ rows = [], games = [], onOpenPlayer }
           key: `${g.id}-${def}`, title: `${def} defense`, onTitle: openTeam ? () => openTeam(def) : undefined, meta: `vs ${att}`,
           stat: { text: `${pa.toFixed(1)} PTS allowed`, hot: true, vs: "tonight's top third" },
           lead: `Gives up points: ${pa.toFixed(1)} a game, in the top third of tonight's clubs.`,
-          rows: picked.map((r) => ({ key: `${r.playerId}`, spot: r.pos || '—', name: r.name, side: r.team, flag: r.status === 'called' ? 'CALLED' : null, edge: r.status === 'called',
+          rows: picked.map((r) => ({ key: `${r.playerId}`, spot: r.pos || '—', name: r.name, side: r.team, flag: r.status === 'called' ? STATUS_WORD.called : null, edge: r.status === 'called',
             value: Math.round(r.score ?? 0), extra: r.legs?.ptsPg != null ? `${r.legs.ptsPg.toFixed(1)} PPG` : null,
             why: `${r.legs?.ptsPg?.toFixed(1) ?? '—'} points a game facing a defence that allows ${pa.toFixed(1)}.`, onClick: () => onOpenPlayer?.(r.playerId) })),
           _best: Math.max(...picked.map((r) => r.score ?? 0)),

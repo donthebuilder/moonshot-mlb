@@ -3,7 +3,7 @@ import { useMemo } from 'react'
 import { C, NUM_FONT } from '../../lib/nba/theme'
 import WatchBox from '../WatchBox'
 import MobileFold from '../MobileFold'
-import { useBucketsHot, useBucketsScores } from '../../lib/nba/useBuckets'
+import { useBucketsHot, useBucketsScoresOn } from '../../lib/nba/useBuckets'
 import { shiftDay } from './ui'
 
 // ── BUCKET WATCH -- MOONSHOT's B2B WATCH box (components/WatchBox.js), LAMP's
@@ -20,7 +20,7 @@ const CAP = 10
 
 export default function BucketWatch({ rows = [], date = null, onOpenPlayer }) {
   const hot = useBucketsHot(date)
-  const yday = useBucketsScores(shiftDay(date || new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' }), -1))
+  const yday = useBucketsScoresOn((date || hot.data?.date) ? shiftDay(date || hot.data.date, -1) : null)
   const lists = useMemo(() => {
     const on = rows.filter((r) => r.score != null && r.status !== 'off')
     const byScore = (a, b) => (b.score ?? 0) - (a.score ?? 0)

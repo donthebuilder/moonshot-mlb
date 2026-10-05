@@ -50,6 +50,9 @@ export async function GET(request) {
   if (due.length) {
     const night = await buildNbaNight(date).catch((e) => { out.skipped.push({ why: `build: ${e?.message}` }); return null })
     for (const g of night ? due : []) {
+      // an unread injury report or an empty roster is a hole in the snapshot, not a snapshot: wait for the next tick
+      const gap = night.injuriesOk === false ? 'injury report unread' : night.gaps?.find((x) => x.gameId === g.id)?.why
+      if (gap) { out.skipped.push({ game: g.id, why: `not locked: ${gap}` }); continue }
       const lockedAt = new Date().toISOString()
       if (Date.parse(lockedAt) >= Date.parse(g.start)) { out.skipped.push({ game: g.id, why: 'tip during build' }); continue }
       const rows = []
@@ -62,6 +65,14 @@ export async function GET(request) {
       }
       const up = await db.from('buckets_log').upsert(rows, { onConflict: 'game_id,player_id,market,model_version' })
       if (up.error) { out.skipped.push({ game: g.id, why: `upsert: ${up.error.message}` }); continue }
+      // PRUNE (LAMP's rule, lamp tick): this run's snapshot replaces the earlier pre-tip ones, so a player
+      // who dropped off the candidates (a late OUT) does not stay behind as a stale call. Only this game's,
+      // only older than this write, never a graded row.
+      for (const key of new Set(rows.map((x) => `${x.market}|${x.model_version}`))) {
+        const [mk, ver] = key.split('|')
+        const del = await db.from('buckets_log').delete().eq('game_id', g.id).eq('market', mk).eq('model_version', ver).lt('locked_at', lockedAt).is('graded_at', null)
+        if (del.error) console.error(`[buckets tick] prune ${g.id} ${mk}: ${del.error.message}`)
+      }
       const gm = await db.from('buckets_games').select('snapshots').eq('game_id', g.id).eq('model_version', NBA_MARKETS.pts.version).maybeSingle()
       await db.from('buckets_games').upsert([{ game_id: g.id, model_version: NBA_MARKETS.pts.version, game_date: date, season: night.season, season_type: g.seasonType,
         start_utc: g.start, away: g.away.abbrev, home: g.home.abbrev, snapshots: (gm.data?.snapshots || 0) + 1, lineup_known: night.lineupsKnown.includes(g.id), locked_at: lockedAt, state: g.state }], { onConflict: 'game_id,model_version' })

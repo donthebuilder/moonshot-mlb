@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import PageHeader from '../../PageHeader'
 import { MatchLogos } from '../../TeamMark'
 import { C, NUM_FONT } from '../../../lib/nba/theme'
@@ -28,6 +28,12 @@ export default function Slate({ date, setDate, market = 'pts', onOpenPlayer, onO
   const games = sortGames(data?.games || [])
   const [pick, setPick] = useState(() => readHashParam('game'))
   const g = games.find((x) => x.id === pick) || games[0] || null
+  // a back/forward or a pasted link changes the address under the page: follow it
+  useEffect(() => {
+    const sync = () => setPick(readHashParam('game'))
+    window.addEventListener('hashchange', sync); window.addEventListener('popstate', sync)
+    return () => { window.removeEventListener('hashchange', sync); window.removeEventListener('popstate', sync) }
+  }, [])
   const choose = (id) => { setPick(id); writeHashParam('game', id) }
   const rows = g ? boardRows(data, { gameId: g.id }) : []
   const calls = rows.filter((r) => r.status === 'called')
