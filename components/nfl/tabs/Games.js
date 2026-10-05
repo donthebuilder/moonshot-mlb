@@ -1,6 +1,6 @@
 'use client'
 import { takeTarget } from '../../../lib/openTarget'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../../lib/nfl/theme'
 import { alignedSignals } from '../../../lib/nfl/dvpSignal'
 import MatchupBadge from '../MatchupBadge'
@@ -75,6 +75,28 @@ export default function Games({ data, picks, matchup, logs, results, odds = null
   const [fteam, setFteam] = useHashFilter('fteam')
   const [fgame, setFgame] = useHashFilter('fgame')
   const [openGame, setOpenGame] = useState(null)
+  // A HANDED GAME OPENS (2026-10-05 scan). A game tapped on another tab, or named in the
+  // address, was filtered out by a held #fteam= / #fgame= and the Slate quietly opened the
+  // lead game instead. Naming a game drops the filter that hides it (the filter is a view
+  // of the week, the game is where you asked to go). Filters the user sets afterwards write
+  // with replaceState and fire no event, so they are never undone here.
+  const gamesRef = useRef(games)
+  gamesRef.current = games
+  const reveal = useCallback((id) => {
+    if (!id) return
+    const g = gamesRef.current.find((x) => String(x.game_id) === String(id))
+    if (!g) return
+    const ft = readHashKey('fteam'), fg = readHashKey('fgame')
+    if ((fg && `${g.away}@${g.home}` !== fg) || (ft && g.away !== ft && g.home !== ft)) { setFgame(''); setFteam('') }
+  }, [setFgame, setFteam])
+  useEffect(() => { reveal(handed) }, [])   // eslint-disable-line react-hooks/exhaustive-deps
+  // The address changing under a mounted page (Back, a pasted #game=) is a hand-off too.
+  const seenGame = useRef(readHashKey('game'))
+  useEffect(() => {
+    const on = () => { const k = readHashKey('game'); if (k !== seenGame.current) { seenGame.current = k; reveal(k) } }
+    window.addEventListener('hashchange', on); window.addEventListener('popstate', on)
+    return () => { window.removeEventListener('hashchange', on); window.removeEventListener('popstate', on) }
+  }, [reveal])
   // Cards first, like MOONSHOT's Slate (Donovan 2026-09-28); Table one tap away.
   const [view, setView] = useState('games')
   const watchlist = useNflWatchlist(data)
@@ -269,7 +291,7 @@ export default function Games({ data, picks, matchup, logs, results, odds = null
       )}
       {/* PROJECTED OUTPUT, MOONSHOT's Slate Table view's own panel (00Q step 1). */}
       <NflProjected data={data} matchup={matchup} logs={logs} players={players.filter(inView)} games={sorted} watchlist={watchlist}
-        onOpenGame={(id) => { setOpenGame(String(id)); setView('games') }} onOpenTeam={onOpenTeam} />
+        onOpenGame={(id) => { reveal(id); setOpenGame(String(id)); setView('games') }} onOpenTeam={onOpenTeam} />
       {/* WEAK SPOTS, MOONSHOT's "★ Weak spots" cards (00Q step 2). */}
       <NflWeakSpots matchup={matchup} players={players.filter(inView)} games={sorted} onPlayerClick={onPlayerClick} onOpenTeam={onOpenTeam} />
 

@@ -6,6 +6,7 @@ import RedZoneField from '../RedZoneField'
 import RedZoneDots, { hasPlays } from '../RedZoneDots'
 import PageHeader from '../../PageHeader'
 import { ActiveFilters, FilterBar, FilterSearch, FilterSelect } from '../../Filters'
+import { withNflFullSet } from '../../../lib/nfl/boardColumns'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 
 // 🎯 RED ZONE (2026-09-27, Donovan: "yes all that").
@@ -32,20 +33,20 @@ import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 // tables' season, not the player rows'.)
 
 const buildColumns = (watchlist) => [
-  { key: 'watched', label: '☆', action: true, w: 28, mark: '★', markOff: '☆',
+  { key: 'watched', group: 'Player', label: '☆', action: true, w: 28, mark: '★', markOff: '☆',
     titleOn: 'Remove from watchlist', titleOff: 'Add to watchlist',
     onAction: (row) => watchlist.toggle(row) },
-  { key: 'name', label: 'Player', heat: false, sticky: true, bold: true, w: 148 },
-  { key: 'team', label: 'Team', heat: false, w: 46 },
-  { key: 'position', label: 'Pos', heat: false, w: 40 },
-  { key: 'opp', label: 'Opp', heat: false, w: 46 },
-  { key: 'rz', label: 'RZ/G', w: 48, dp: 1, title: 'Red-zone touches per game' },
-  { key: 'share', label: 'TM SHARE', w: 66, dp: 0, title: 'His share of the red-zone touches of every player the bot tracks on his team (%)' },
-  { key: 'gl', label: 'GL/G', w: 46, dp: 1, title: 'Goal-line touches per game: inside-10 targets, inside-5 carries' },
-  { key: 'xtd', label: 'xTD/G', w: 52, dp: 2, title: 'Expected touchdowns per game from field position' },
-  { key: 'td', label: 'TD/G', w: 46, dp: 2, title: 'Actual touchdowns per game' },
-  { key: 'tdoe', label: 'DUE', w: 48, dp: 2, title: 'Expected minus actual TDs a game (xTD - TD) -- positive means his chances have outrun his touchdowns' },
-  { key: 'score', label: 'TD SCORE', w: 64, dp: 0, title: "This week's TD model score (the Board's number)" },
+  { key: 'name', group: 'Player', label: 'Player', heat: false, sticky: true, bold: true, w: 148 },
+  { key: 'team', group: 'Player', label: 'Team', heat: false, w: 46 },
+  { key: 'position', group: 'Player', label: 'Pos', heat: false, w: 40 },
+  { key: 'opp', group: 'Player', label: 'Opp', heat: false, w: 46 },
+  { key: 'rz', group: 'Red zone', label: 'RZ/G', w: 48, dp: 1, title: 'Red-zone touches per game' },
+  { key: 'share', group: 'Red zone', label: 'TM SHARE', w: 66, dp: 0, title: 'His share of the red-zone touches of every player the bot tracks on his team (%)' },
+  { key: 'gl', group: 'Red zone', label: 'GL/G', w: 46, dp: 1, title: 'Goal-line touches per game: inside-10 targets, inside-5 carries' },
+  { key: 'xtd', group: 'Scoring chances', label: 'xTD/G', w: 52, dp: 2, title: 'Expected touchdowns per game from field position' },
+  { key: 'td', group: 'Scoring chances', label: 'TD/G', w: 46, dp: 2, title: 'Actual touchdowns per game' },
+  { key: 'tdoe', group: 'Scoring chances', label: 'DUE', w: 48, dp: 2, title: 'Expected minus actual TDs a game (xTD - TD) -- positive means his chances have outrun his touchdowns' },
+  { key: 'score', group: 'The model', label: 'TD SCORE', w: 64, dp: 0, title: "This week's TD model score (the Board's number)" },
 ]
 
 const num = (v) => (Number.isFinite(Number(v)) && v !== null && v !== '' ? Number(v) : null)
@@ -145,8 +146,7 @@ export default function RedZone({ data, matchup = null, onPlayerClick }) {
       </div>
 
       <NflTable
-        rows={filtered}
-        columns={buildColumns(watchlist)}
+        {...withNflFullSet(filtered, buildColumns(watchlist), { skip: ['sc_TD', 'st_RZ', 'st_GL', 'st_xTD', 'st_TD', 'st_TDoE'] })}
         initialSort="rz"
         faceOf={(r) => (r._raw?.espn_id ? { sport: 'nfl', espnId: String(r._raw.espn_id), name: r._raw.name } : null)}
         onRowClick={onPlayerClick ? (r) => onPlayerClick(r?._raw ?? r, 'TD') : null}

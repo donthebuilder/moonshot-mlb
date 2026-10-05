@@ -5,6 +5,7 @@ import { SportTheme } from '../SportTheme'
 import { easternToday, easternDate } from '../../lib/data'
 import { TodayContext } from '../TodayContext'
 import { hashParams, writeHash, closeOpened } from '../../lib/urlState'
+import { announceFilters } from '../../lib/filterHash'
 import { listenForWorkerOpen } from '../../lib/workerOpen'
 import { resolveColdTab } from '../../lib/shellRoute'
 import { leaveTarget } from '../../lib/openTarget'
@@ -159,7 +160,10 @@ export default function NflDashboard({ palettePass = 0 }) {
     hash.set('sport', 'nfl')
     if (next === 'next') hash.set('week', 'next'); else hash.delete('week')
     hash.delete('card'); hash.delete('cm')
+    // a game filter is one week's game (AWY@HOM differs week to week): it does not carry over
+    hash.delete('fgame'); hash.delete('game')
     writeHash(hash, { push: true })
+    announceFilters()
   }
 
   const [missingTab, setMissingTab] = useState('')
@@ -167,7 +171,20 @@ export default function NflDashboard({ palettePass = 0 }) {
   // entry so Back returns to the last one; the mount-time resolve of the
   // address you arrived on replaces (it is the same page, not a new one).
   // a tapped club opens its team page (10-03; was the Players list filtered to it)
-  const openTeamPage = (abbr) => { if (!abbr) return; leaveTarget('team', String(abbr).toUpperCase()); setTab('team') }
+  // The address names the club too (team=), so the tap and the link agree: a stale hand-off
+  // can no longer beat a link pasted later, and a tap made ON the team page (which does not
+  // remount) reaches it through leaveTarget's event.
+  const openTeamPage = (abbr) => {
+    if (!abbr) return
+    const code = String(abbr).toUpperCase()
+    if (tab !== 'team') setTab('team')
+    const hash = hashParams()
+    hash.set('sport', 'nfl'); hash.set('tab', 'team')
+    const had = hash.get('team')
+    hash.set('team', code)
+    writeHash(hash, { push: tab === 'team' && had !== code })
+    leaveTarget('team', code)
+  }
   const setTab = (next, { push = true } = {}) => {
     if (!NFL_TABS.has(next)) return
     setMissingTab('')
@@ -445,7 +462,7 @@ export default function NflDashboard({ palettePass = 0 }) {
             {tab === 'tuddyledger' && <TuddyLedger data={data} results={nflResults} onPlayerClick={openPlayer} />}
             {tab === 'ledger' && <Ledger data={slate} picks={picks} results={nflResults} matchup={matchup} liveSnap={liveSnap} onPlayerClick={openPlayer} onOpenTeam={openTeamPage} onOpenGame={(id) => { leaveTarget('game', id); setTab('games') }} />}
             {tab === 'scores' && <Scores data={slate} onPlayerClick={openPlayer} onOpenGame={(id) => { leaveTarget('game', id); setTab('games') }} />}
-            {tab === 'team' && <NflTeam data={data} onOpenPlayer={openPlayer} onOpenGame={(id) => { leaveTarget('game', id); setTab('games') }} />}
+            {tab === 'team' && <NflTeam data={slate} picks={picks} onOpenPlayer={openPlayer} onOpenGame={(id) => { leaveTarget('game', id); setTab('games') }} />}
             {tab === 'standings' && <Standings onOpenTeam={openTeamPage} />}
             {tab === 'pairs' && <Pairs data={data} results={nflResults} onPlayerClick={openPlayer} setTab={setTab} />}
             {tab === 'guide' && <Guide onNavigate={setTab} data={data} />}

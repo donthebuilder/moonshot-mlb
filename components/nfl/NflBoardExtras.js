@@ -83,7 +83,7 @@ export function nflGameOptions(games) {
 // The ⓘ picture per market (components/ScoreArt.js); TD only so far.
 const SCORE_ART = { TD: 'nfl-td' }
 
-export function NflBoardList({ players, market, weights, odds, phone, onPlayerClick, statusOf = null }) {
+export function NflBoardList({ players, market, weights, odds, phone, onPlayerClick, statusOf = null, rankOf = null }) {
   // our line beside the book's (TEST, BATCH-DASH-LINE): only where one exists for this market
   const dash = useDashLines()
   const dmk = DASH_OF[market]
@@ -91,7 +91,8 @@ export function NflBoardList({ players, market, weights, odds, phone, onPlayerCl
   const rows = players.map((p, i) => {
     const q = odds ? quoteFor(odds, p, market) : null
     return {
-      _id: p.player_id, _p: p, rank: i + 1, name: p.name, pos: p.position,
+      _id: p.player_id, _p: p, rank: rankOf ? (rankOf.get(String(p.player_id)) ?? null) : i + 1,   // the stored board place, not the place in this filtered list
+      name: p.name, pos: p.position,
       team: p.team || null, opp: p.opp || null,
       score: Math.round(p.scores[market]), grade: gradeFor(p.scores[market]).label,
       price: q && q.over != null && q.matches !== false ? Number(q.over) : null,
@@ -259,7 +260,8 @@ export function useNflDrawerFilters(pool, games, market, ext = null) {
   }
   const scored = range[0] > 0 || range[1] < 100
   const chips = [
-    game !== 'all' && !ext ? { key: 'game', label: gameOptions.find((o) => o.key === game)?.label || game, onClear: () => setGame('all') } : null,
+    // with the top bar's own select (ext) the chip appears only when that select has lost the game: a way to clear it
+    game !== 'all' && (!ext || !gameOptions.some((o) => o.key === game)) ? { key: 'game', label: gameOptions.find((o) => o.key === game)?.label || game, onClear: () => setGame('all') } : null,
     win !== 'all' ? { key: 'win', label: WINDOWS.find(([k]) => k === win)?.[1] || win, onClear: () => setWin('all') } : null,
     scored ? { key: 'score', label: `Score ${range[0]}–${range[1]}`, onClear: () => setRange([0, 100]) } : null,
   ].filter(Boolean)

@@ -8,6 +8,7 @@ import {
 } from '../../../lib/tuddyLedger'
 import { labelOf, weekKey } from '../../../lib/nfl/resultsArchive'
 import { C as NFL_C } from '../../../lib/nfl/theme'
+import { STATUS_WORD } from '../../../lib/callStatus'
 import { useLiveRefresh } from '../../../lib/liveRefresh'
 
 // 📒 THE TUDDY LEDGER — NFL'S SIDE OF PATH TO VICTORY B10a.
@@ -92,7 +93,7 @@ export default function TuddyLedger({ data, results, onPlayerClick = null }) {
         const offMissing = s.weeksCount - s.offWeeksCovered
         setSeasonMessage(
           `${s.weeksCount} of ${through} weeks loaded`
-          + (offMissing > 0 ? ` (NOT ON BOARD unavailable for ${offMissing} of them)` : '')
+          + (offMissing > 0 ? ` (${STATUS_WORD.off} unavailable for ${offMissing} of them)` : '')
           + '.',
         )
       }

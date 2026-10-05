@@ -20,6 +20,10 @@ export function TopSelect({ value, onChange, options, allLabel, ariaLabel, accen
   const ctx = useAccent()
   const accent = accentProp || ctx
   const on = !!value
+  // A HELD VALUE THE SLATE NO LONGER HAS STAYS IN THE LIST, NAMED (components/Controls.js,
+  // 2026-10-05): a shared #fteam=/#fgame= link, or a flip to Next week, kept filtering to
+  // zero rows while the select read "All". Now it can be seen and cleared.
+  const opts = on && !options.some((o) => String(o.key) === String(value)) ? [{ key: value, label: `${value} \u00b7 not on this slate` }, ...options] : options
   return (
     <div style={{ position: 'relative', minWidth: 0 }}>
       <select
@@ -39,7 +43,7 @@ export function TopSelect({ value, onChange, options, allLabel, ariaLabel, accen
         }}
       >
         <option value="">{allLabel}</option>
-        {options.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+        {opts.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
       </select>
       <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 10, color: on ? accent : C.text3, pointerEvents: 'none' }}>▾</span>
     </div>

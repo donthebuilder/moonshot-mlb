@@ -37,11 +37,12 @@ const readHash = () => { try { return new URLSearchParams(window.location.hash.s
 
 // HOW TO READ THIS, TUDDY's words (components/HowToRead.js draws them; the
 // same component MOONSHOT's HR board uses). Describes the page; no hit rates.
+// The two status words come from lib/callStatus STATUS_WORD, never typed here.
 const HOW_NOTES = [
   { title: 'Board rank', text: 'His place on this week\u2019s touchdown board, #1 first, ranked by the model\u2019s touchdown score.' },
   { title: 'The player', text: 'Tap a name to open his card, with the full picture behind the score.' },
   { title: 'TD score', text: 'How good this week looks for him to score a touchdown, 0\u2013100. It\u2019s a ranking, not a percent: the week\u2019s #1 always sits near 80.' },
-  { title: 'The bot\u2019s call', text: 'CALLED means he\u2019s one of the bot\u2019s five touchdown picks this week. ON THE BOARD means he\u2019s in the top third of the board.' },
+  { title: 'The bot\u2019s call', text: `${STATUS_WORD.called} means he\u2019s one of the bot\u2019s five touchdown picks this week. ${STATUS_WORD.board} means he\u2019s in the top third of the board.` },
   { title: 'Game', text: 'His opponent and kickoff. The picks lock at kickoff, and nothing changes after.' },
 ]
 const HOW_STEPS = [
@@ -65,11 +66,20 @@ export default function BoardHub({ slate, data, logs, matchup, odds, oddsStatus,
   const [query, setQuery] = useState('')
   const [team, setTeam] = useHashFilter('fteam')
   const [game, setGame] = useHashFilter('fgame')
+  // m= / view= are read on mount AND when the address changes under the mounted hub (Back,
+  // a pasted link). The write below is a replaceState that fires no event, and it only
+  // runs when market / view change, so the two cannot chase each other.
   useEffect(() => {
-    const h = readHash()
-    if (MARKETS.some(([k]) => k === h.get('m'))) setMarket(h.get('m'))
-    if (VIEWS.some((v) => v.key === h.get('view'))) setView(h.get('view'))
-  }, [])
+    const sync = () => {
+      const h = readHash()
+      const m = h.get('m'), v = h.get('view')
+      if (MARKETS.some(([k]) => k === m)) setMarket(m)
+      if (VIEWS.some((x) => x.key === v)) { setViewRaw(v); onView?.(v) }
+    }
+    sync()
+    window.addEventListener('hashchange', sync); window.addEventListener('popstate', sync)
+    return () => { window.removeEventListener('hashchange', sync); window.removeEventListener('popstate', sync) }
+  }, [])   // eslint-disable-line react-hooks/exhaustive-deps
   // Leaving the page takes its m= / view= with it.
   useEffect(() => () => {
     try { const h = readHash(); h.delete('m'); h.delete('view'); window.history.replaceState(null, '', `#${h.toString()}`) } catch { /* ignore */ }
@@ -120,7 +130,7 @@ export default function BoardHub({ slate, data, logs, matchup, odds, oddsStatus,
       eyebrow: 'Live from this week\u2019s board',
       score: { label: 'TD', value: p.scores.TD, dp: 0 },
       pick: CALL_WORDS[status] ? `${CALL_WORDS[status]}${rung?.rank ? ` \u00b7 #${rung.rank}` : ''}` : null,
-      pickNone: 'not called',
+      pickNone: STATUS_WORD.off,
       fifth: { label: 'Game', value: [p.opp ? `${g?.home === p.team ? 'vs' : '@'} ${p.opp}` : null, g?.detail].filter(Boolean).join(' \u00b7 ') || 'TBD' },
     }
   }, [slate, picks, tdStatus])
