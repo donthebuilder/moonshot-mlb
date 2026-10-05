@@ -26,6 +26,7 @@ import LiveAtBats from '../LiveAtBats'
 import Explain from '../Explain'
 import OffBot from '../OffBot'
 import GameDeepDive from '../GameDeepDive'
+import MlbWriteupBlock from '../MlbWriteupBlock'
 import GameSimPanel from '../GameSimPanel'
 import LineupSlotMatchup from '../LineupSlotMatchup'
 import PairTray from '../PairTray'
@@ -1641,6 +1642,8 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                             the pills scroll to their section instead of
                             swapping content. One click opens the whole game. */}
                         <div id={`gp-read-${g.game_pk}`} />
+                        {/* THE CALL (2026-10-05): the per-game post's write-up, from the same rows */}
+                        <MlbWriteupBlock rows={g.players} onPlayerClick={onPlayerClick} />
                         <GameDeepDive game={g} allPlayers={players} slateDate={slateDate} results={results} odds={odds} onPlayerClick={onPlayerClick} section="read" />
 
                         {/* THE LINEUPS, WHERE HE ASKED FOR THEM. Same component

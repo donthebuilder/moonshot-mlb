@@ -32,6 +32,9 @@ import { mlbQuotes } from '../../../../../lib/dash/quoteFor'
 import { playerHref } from '../../../../../lib/routes'
 import { storyThreadsOn, postStoryResults } from '../../../../../lib/dash/storyThread'
 import { gameCalls, gameCallText } from '../../../../../lib/dash/gameCall'
+import { buildMlbWriteup } from '../../../../../lib/writeups/mlb'
+import { renderWriteup } from '../../../../../lib/writeups/text'
+import { postLimit } from '../../../../../lib/dash/postLimit'
 import { xDailyAllows } from '../../../../../lib/dash/xBudget'
 import { isRested } from '../../../../../lib/dash/xRest'
 import { xEventsCalledOnly } from '../../../../../lib/dash/xEvents'
@@ -1919,18 +1922,30 @@ export async function GET(request) {
       // confirmed and before first pitch, with the one number that makes the
       // case and the one reason it could fail (lib/dash/gameCall). P1 under
       // the daily cap. A CALLED homer by that hitter quotes this post.
+      // THE WRITE-UP (2026-10-05, Donovan "same person ... just a longer post"): the same
+      // headliner, long (lib/writeups/mlb.js + the fact checker): Discord gets both sides,
+      // X the longest version that fits the account's limit. A write-up that fails the
+      // checker posts the old CALL text instead -- never an unchecked long post.
       if (perGameOn(day)) {
         const nowMs = Date.now()
-        for (const call of gameCalls(callRows())) {
+        const slate = callRows()
+        for (const call of gameCalls(slate)) {
           const t = Date.parse(call.time || '')
           if (!call.confirmed || !Number.isFinite(t) || nowMs >= t || nowMs < t - PER_GAME_LEAD_MS) continue
           const kind = `call_${call.game_pk}`
           if (!(await claimSlot(db, day, kind))) continue
           const tl = tailFor('pregame', { playerId: call.row.player_id })
-          const text = gameCallText(call, { tail: [tl.site, tl.handle].filter(Boolean).join(' ') })
-          const patch = { payload: { player_id: String(call.row.player_id), name: String(call.row.name || ""), game_pk: call.game_pk, role: call.role, bar: call.bar, posted_at: new Date().toISOString() } }
+          const tail = [tl.site, tl.handle].filter(Boolean).join(' ')
+          const old = gameCallText(call, { tail })
+          const w = buildMlbWriteup(slate.filter((r) => String(r?.game_pk) === String(call.game_pk)))
+          const rw = w && String(w.players[0]?.player_id) === String(call.row.player_id) ? renderWriteup(w, { xLimit: postLimit() - (tail ? tail.length + 1 : 0) - 30 /* postToX's funnel link */ }) : null
+          const useW = Boolean(rw?.ok)
+          const text = useW ? `${rw.x}${tail ? `\n${tail}` : ''}` : old
+          const discordText = useW ? `${rw.full}${tail ? `\n${tail}` : ''}` : old
+          const patch = { payload: { player_id: String(call.row.player_id), name: String(call.row.name || ""), game_pk: call.game_pk, role: call.role, bar: call.bar, posted_at: new Date().toISOString(),
+            writeup: useW ? { x_is_long: rw.xIsLong, players: w.players.map((p) => p.player_id) } : { off: rw ? rw.why : 'no write-up for this game' } } }
           await db.from('homer_feed_posts').update({ payload: patch.payload }).match({ day, kind })
-          const d = await postToDiscord(text, {}, FEED_WEBHOOKS())
+          const d = await postToDiscord(discordText, {}, FEED_WEBHOOKS())
           if (d.ok) patch.discord_sent = true
           if (hasX() && await xDailyAllows(db, day, 1)) {
             const r = await postToX(text, { kind: 'pregame', link: { playerId: call.row.player_id } })
