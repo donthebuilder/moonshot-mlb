@@ -11,6 +11,7 @@ import { hrShapeMeta, hrLine } from '../lib/hrShape'
 import { fetchLiveSlate } from '../lib/liveSlate'
 import { easternToday } from '../lib/data'
 import { WhatThis } from './ui'
+import LedgerBody from './ledger/LedgerBody'
 import { LedgerFrame, RoundLine, WatchStrip, AlignBox, LookOutBox, NextUpBox, ScorerChips, SpotBars } from './ledger/LedgerBlocks'
 import { pitcherTags } from '../lib/pitcherTags'
 import { pregameLedger } from '../lib/pregameLedger'
@@ -1118,15 +1119,15 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
       {/* Everything below the header folds. The count stays visible closed, so
           a shut ledger still tells you how many have landed. */}
       {openNow && (
-      <>
-      <WhatThis maxWidth={640}>
+      // the sections in the shared ledger order (components/ledger/LedgerBody, BATCH-ONE-SITE
+      // step 1) -- the same blocks, props and order as before, so the page is unchanged
+      <LedgerBody sections={{
+        intro: (<WhatThis maxWidth={640}>
         which homer of the season each one was, and where in the order tonight&apos;s power is coming from.
-      </WhatThis>
-
-      <RoundLine label={pastNight ? `Round number on ${night}:` : 'Round number tonight:'}
-        items={milestones.map((c) => ({ key: c.pid, name: c.name, num: ord(c.roundNum ?? c.nth), onClick: c.p ? () => onPlayerClick?.(c.p) : null }))} />
-
-      {/* ── DID TONIGHT'S HOMERS HIT THE PREGAME WATCHLIST? (2026-08-17) ─────
+      </WhatThis>),
+        round: (<RoundLine label={pastNight ? `Round number on ${night}:` : 'Round number tonight:'}
+        items={milestones.map((c) => ({ key: c.pid, name: c.name, num: ord(c.roundNum ?? c.nth), onClick: c.p ? () => onPlayerClick?.(c.p) : null }))} />),
+        /* ── DID TONIGHT'S HOMERS HIT THE PREGAME WATCHLIST? (2026-08-17) ─────
           Donovan: "home rundegler sshould also knwo todals numeroldy and see if
           any player algin with them ass well."
           The pregame panel names who is one homer from a round number, whose
@@ -1135,8 +1136,8 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
           its own predictions against what actually happened. It does now.
           This is a HIT/MISS on a list stated in advance, which makes it the one
           numerology claim on the site that is falsifiable. It says the miss
-          count too, because a watchlist that only reports its hits is a horoscope. */}
-      {(() => {
+          count too, because a watchlist that only reports its hits is a horoscope. */
+        watch: ((() => {
         if (pastNight) return null
         const pre = pregameLedger(players)
         if (!pre) return null
@@ -1176,18 +1177,16 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
               ))}
           </WatchStrip>
         )
-      })()}
-
-      {/* 🧲 ALIGNING WITH THE NIGHT — the lead, because it's the question.
-          Everything below this is the raw material; this is the answer. */}
-      <AlignBox
+      })()),
+        /* 🧲 ALIGNING WITH THE NIGHT — the lead, because it's the question.
+          Everything below this is the raw material; this is the answer. */
+        align: (<AlignBox
         title={`🧲 ${pastNight ? `Aligning on ${night}` : 'Aligning with tonight'}`}
         sub={`${aligned.length} homer${aligned.length === 1 ? '' : 's'} lining up with ${pastNight ? `${night}'s` : "tonight's"} numbers`}
         chips={aligned.map((c) => ({ key: `al${c.pid}`, name: c.name, tags: c.tags, onClick: c.p ? () => onPlayerClick?.(c.p) : null }))}
         foot="Overlap, not evidence. ~25 homers spread over fifty numbers, nine lineup spots, jersey numbers and birthdays will line up by arithmetic alone — this is the trend made visible while it forms, never a reason to chase one."
-      />
-
-      {/* ── 🔤 NAME ECHOES (2026-08-16) ───────────────────────────────────
+      />),
+        /* ── 🔤 NAME ECHOES (2026-08-16) ───────────────────────────────────
           Donovan: "all track common names or names that vibe together like
           bobby witt tommy white 2 sylablas or like bryce and brice... maybe
           all the j names are going... austin riley riley greene or pete
@@ -1204,23 +1203,21 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
           lib/namePatterns.js, which measured its own false-positive rate
           against 300 synthetic nights rather than assuming one.
 
-          Renders nothing when nothing clears. That is the normal state. */}
-      {!pastNight && <LookOut players={players} onPlayerClick={onPlayerClick} onOpenPitcher={onNavigate ? (pid) => { leaveTarget('pitcher', pid); onNavigate('pitchers') } : null} />}
-
-      {/* The name-echo test needs the POPULATION it drew from, and on an
+          Renders nothing when nothing clears. That is the normal state. */
+        lookout: (!pastNight && <LookOut players={players} onPlayerClick={onPlayerClick} onOpenPitcher={onNavigate ? (pid) => { leaveTarget('pitcher', pid); onNavigate('pitchers') } : null} />),
+        /* The name-echo test needs the POPULATION it drew from, and on an
           archived night the population on file is tonight's slate — a
           different set of men. Rating August 22's names against August 24's
           board would be a null model of the wrong universe, so the test sits
-          out rather than reporting a number nobody can defend. */}
-      {!pastNight && <NamePatterns homers={model.cards} population={players} />}
-
-      {/* 🔮 WHO LINES UP NEXT — the forward half of the alignment strip.
+          out rather than reporting a number nobody can defend. */
+        names: (!pastNight && <NamePatterns homers={model.cards} population={players} />),
+        /* 🔮 WHO LINES UP NEXT — the forward half of the alignment strip.
           "i need the ledger to have some prediction of players that align as
           well." Same three numbers the night is landing on, asked forward:
           who has NOT homered yet and is standing on one of them. Each chip
           carries its reasons in the tooltip and the strongest one inline.
-          Pattern-watching, counted and disclosed — never fed to a score. */}
-      {!pastNight && nextUp.length > 0 && (() => {
+          Pattern-watching, counted and disclosed — never fed to a score. */
+        nextUp: (!pastNight && nextUp.length > 0 && (() => {
         // ── NOW, LATER, OR NOT AT ALL (2026-08-23) ────────────────────────
         // Donovan: "who's a J that looks good tonight that can go later or
         // now." A watch list that keeps naming men whose game ended two hours
@@ -1245,11 +1242,10 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
               title: `${x.why.join('. ')}. Bot HR score ${x.hrScore.toFixed(0)}.`, onClick: onPlayerClick ? () => onPlayerClick(x.p) : null }))}
             about="Hitters not in the ledger who sit on whatever tonight is landing on — the leading root, a repeated number, the hot lineup spot, a jersey, a birth day, a life path, the name echo running tonight, or a straight match with somebody who already went: the same first name, the same surname, a name one letter apart, an odd syllable shape they share, or the same number on the back. ↔ is a match with that man. ⚡ means his game is live, ⏳ means first pitch is still ahead. Ranked by how many of those he sits on, then by HR score. A watch, not a prediction — nothing here is graded, scored, or fed to a pick." />
         )
-      })()}
-
-      {/* 🔢 THE REPEATS — the number pattern, which is the whole reason this
-          panel exists. Same-number clusters first, then the digit root. */}
-      {(repeats.length > 0 || topRoot) && (
+      })()),
+        /* 🔢 THE REPEATS — the number pattern, which is the whole reason this
+          panel exists. Same-number clusters first, then the digit root. */
+        pattern: ((repeats.length > 0 || topRoot) && (
         <div style={{
           background: 'rgba(167,139,250,.07)', border: '1px solid rgba(167,139,250,.3)',
           borderRadius: 10, padding: '7px 11px', marginBottom: 9,
@@ -1285,10 +1281,9 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
             alone. Digit root = add the digits until one is left (17 → 8). Fun to track, never a reason to bet.
           </div>
         </div>
-      )}
-
-      {/* every homer tonight, numbered -- ScorerChips (components/ledger/LedgerBlocks.js) */}
-      <ScorerChips sport="mlb" accent={C.orange} cards={cards.map((c) => ({
+      )),
+        /* every homer tonight, numbered -- ScorerChips (components/ledger/LedgerBlocks.js) */
+        scorers: (<ScorerChips sport="mlb" accent={C.orange} cards={cards.map((c) => ({
         key: c.pid, icon: '💥', team: c.team || null, name: c.name, times: c.hr, milestone: c.milestone, numHot: c.milestone,
         num: c.nth != null ? `${ord(c.nth)}${c.exact ? '' : '≈'}` : '—',
         spot: c.spot ? `#${c.spot}` : null,
@@ -1306,10 +1301,9 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
           // The ways he lines up with the night's numbers, said as a word.
           ...(c.tags?.length > 0 ? [{ k: 'al', label: c.tags.length > 1 ? `${c.tags.length} ALIGNS` : 'ALIGNS', color: C.orange, title: `${c.tags.map((t) => t.label).join(' · ')} — ${c.tags.map((t) => t.why).join(' ')}` }] : []),
         ],
-      }))} />
-
-      {/* where in the order tonight's power came from */}
-      {placed > 0 && (
+      }))} />),
+        /* where in the order tonight's power came from */
+        spots: (placed > 0 && (
         <SpotBars title="Homers by lineup spot" accent={C.orange}
           bars={spots.slice(1).map((v, i) => ({ key: i, label: i + 1, value: v, title: `${v} homer${v === 1 ? '' : 's'} tonight from the ${ord(i + 1)} spot, out of ${placed} placed` }))}
           foot={<>
@@ -1318,8 +1312,8 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
             {' '}A full slate is ~25 homers across nine spots, so a tall bar is a picture of one night,
             not a finding about baseball — read it as texture, never as a signal to chase.
           </>} />
-      )}
-      </>
+      )),
+      }} />
       )}
     </LedgerFrame>
   )
