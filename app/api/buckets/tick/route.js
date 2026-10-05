@@ -11,6 +11,7 @@ import { NBA_MARKETS, NBA_SHADOWS, gradeNba } from '../../../../lib/nba/model'
 import { scoreboardFor, reduceScoreboard, nbaGet, reduceBox, reduceShots, firstBaskets } from '../../../../lib/nba/api'
 import { easternToday, shiftDay } from '../../../../lib/data'
 import { storiesTick } from '../../../../lib/stories/record'
+import { writeFirstFeed, FIRST_KIND } from '../../../../lib/nba/firstFeed'
 
 
 export const dynamic = 'force-dynamic'
@@ -71,7 +72,7 @@ export async function GET(request) {
   // ── GRADE (today and yesterday: a late final grades the next morning) ──
   // The last WEEK, not two days (2026-10-04 ops audit): a tick that missed two
   // days left those games ungraded for good.
-  const pending = await db.from('buckets_games').select('game_id, game_date').is('graded_at', null).gte('game_date', shiftDay(date, -6)).lte('game_date', date)
+  const pending = await db.from('buckets_games').select('game_id, game_date, season_type').is('graded_at', null).gte('game_date', shiftDay(date, -6)).lte('game_date', date)
   for (const p of pending.data || []) {
     // Straight from the source: a cached summary could predate the final stats (LAMP's BUF@CHI, audit F1).
     const s = await nbaGet(`/summary?event=${p.game_id}`, 0).catch(() => null)
@@ -106,8 +107,25 @@ export async function GET(request) {
       const sw = await db.from('buckets_shots').upsert(shots.map(({ game_id, event_id, game_date, player_id, team_id, x, y, shot_type, made, points, three, distance, period, clock }) => ({ game_id, event_id, game_date, player_id, team_id, x, y, shot_type, made, points, three, distance, period, clock })), { onConflict: 'game_id,event_id' })
       if (sw.error) out.skipped.push({ game: p.game_id, why: `shots: ${sw.error.message}` })
     }
+    // the first basket, on file for the Ledger's First scorers (lib/nba/firstFeed; never posts)
+    const ff = await writeFirstFeed(db, { gameId: p.game_id, gameDate: p.game_date, seasonType: p.season_type, summary: s })
+    if (ff) out.skipped.push({ game: p.game_id, why: `first basket: ${ff}` })
     await db.from('buckets_games').update({ graded_at: gradedAt, state: 'final' }).eq('game_id', p.game_id)
     out.graded.push({ game: p.game_id, rows: ups.length, shots: shots.length })
+  }
+  // FIRST BASKETS, CATCH-UP (2026-10-05): a game graded before the first basket was kept
+  // (or whose write failed) gets it here -- the last two weeks, a few games a tick.
+  const done = await db.from('buckets_games').select('game_id, game_date, season_type').not('graded_at', 'is', null).eq('state', 'final').gte('game_date', shiftDay(date, -14)).lte('game_date', date)
+  const ids = (done.data || []).map((g) => g.game_id)
+  if (ids.length) {
+    const have = await db.from('buckets_feed').select('game_id').eq('kind', FIRST_KIND).in('game_id', ids)
+    const got = new Set((have.data || []).map((r) => String(r.game_id)))
+    out.firstCatchUp = []
+    for (const g of [...new Map((done.data || []).filter((x) => !got.has(String(x.game_id))).map((x) => [x.game_id, x])).values()].slice(0, 4)) {
+      const s = await nbaGet(`/summary?event=${g.game_id}`, 3600).catch(() => null)
+      const ff = s ? await writeFirstFeed(db, { gameId: g.game_id, gameDate: g.game_date, seasonType: g.season_type, summary: s }) : 'summary unread'
+      out.firstCatchUp.push({ game: g.game_id, ...(ff ? { why: ff } : {}) })
+    }
   }
   // STORYLINES (2026-10-03, LAMP's pattern): freeze at tip, grade after the
   // final, the night's base rate -- lib/stories/record.js. Never throws.

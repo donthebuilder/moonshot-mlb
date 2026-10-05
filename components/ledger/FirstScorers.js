@@ -13,6 +13,7 @@ const WORD = {
   mlb: { event: 'homer', first: 'first homer', title: 'FIRST HOMER OF EACH GAME', note: 'The first home run, not the first run.' },
   nfl: { event: 'TD', first: 'first touchdown', title: 'FIRST TOUCHDOWN OF EACH GAME', note: null },
   nhl: { event: 'goal', first: 'first goal', title: 'FIRST GOAL OF EACH GAME', note: null },
+  nba: { event: 'basket', first: 'first basket', title: 'FIRST BASKET OF EACH GAME', note: 'The first made field goal -- the shot the first-basket board is graded on.' },
 }
 // lib/callStatus.js, the one set of words (R2)
 
