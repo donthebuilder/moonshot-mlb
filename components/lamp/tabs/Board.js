@@ -468,8 +468,17 @@ export function lampAngles(flat, market) {
   const seen = new Map()
   for (const x of flat) seen.set(`${x.g.game.id}|${x.r.team}`, pkOf(x))
   const pkCut = cut([...seen.values()], 1 / 3)
+  // ALIGNED + HIGH CONFIDENCE (BATCH-ONE-SITE step 3, 2026-10-05): MOONSHOT's two angles, built
+  // on fields fixed before puck drop. Measured on LAMP's first four graded nights (10-01..10-04,
+  // goal board, 1,115 skaters, base 15.5%): soft opponent + shots in the top quarter 29/87 =
+  // 33%; score 85+ 32/84 = 38%. The cuts were picked on those same nights, so every angle says
+  // TEST until ~100 graded calls. Weak spot can't be measured off a past board yet: `ppg` is
+  // read from today's reports, so on a past night it already counts that night's goals.
+  const shotsPct = (r) => Number(r.pct?.shotsPg)
   return [
-    { key: 'weak', label: '★ Weak spot', title: 'Power-play goals this season, against a penalty kill in tonight\u2019s weakest third.', test: (x) => Number(x.r.ppg) > 0 && Number.isFinite(pkOf(x)) && pkOf(x) <= pkCut },
+    { key: 'aligned', label: '◆ Aligned · TEST', title: 'His opponent is soft (tonight\u2019s top third) and his shots per game are in tonight\u2019s top quarter. TEST: 29 of 87 scored on the first four graded nights (base 15.5%).', test: (x) => Number.isFinite(soft(x.r)) && soft(x.r) >= softCut && shotsPct(x.r) >= 75 },
+    { key: 'hiconf', label: '🔒 High confidence · TEST', title: 'Board score 85 or higher. TEST: 32 of 84 scored on the first four graded nights (base 15.5%).', test: ({ r }) => Number(r.score) >= 85 },
+    { key: 'weak', label: '★ Weak spot · TEST', title: 'Power-play goals this season, against a penalty kill in tonight\u2019s weakest third. TEST: not yet measured (the season\u2019s power-play goals are read from today\u2019s reports).', test: (x) => Number(x.r.ppg) > 0 && Number.isFinite(pkOf(x)) && pkOf(x) <= pkCut },
     { key: 'pp', label: 'Power play', title: 'Power-play goals this season (the reports\u2019 season).', test: ({ r }) => Number(r.ppg) > 0 },
     { key: 'soft', label: 'Soft opponent', title: market === 'SOG' ? 'His opponent allows shots per 60 in tonight\u2019s top third.' : 'His opponent allows goals per game in tonight\u2019s top third.', test: ({ r }) => Number.isFinite(soft(r)) && soft(r) >= softCut },
     { key: 'rested', label: 'Rested edge', title: 'Tonight\u2019s opponent is on the second night of a back-to-back.', test: ({ r, g }) => Boolean(spotOf(g, r.team, false)?.b2b) },
