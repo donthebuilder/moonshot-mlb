@@ -11,8 +11,9 @@
 //   board     each week's LAST run before its Sunday 1 PM ET window (a Thursday game read from it
 //             had kicked off already; its components barely move inside a week -- said)
 //   hiconf    the bot's own high_confidence_td_flag: nfl_signal_log, weeks 3-4 only (TD)
-//   weak / soft / aligned: they read the week's matchup file (roles, DvP, red zone, snaps), which
-//             is not archived week by week -- NOT measurable from published data (said in the file)
+//   weak / soft / aligned: they read the week's matchup file (roles, DvP, red zone, snaps). The bot
+//             keeps one per week from 2026-10-05 (nfl_matchup_week_<season>_wNN.json -- the first is week 6 --, frozen before the
+//             first Sunday kickoff); a week without one can't measure them, and the file says so
 // THE ANGLES are components/nfl/NflBoardExtras.js angleDefs (copied: that file is React):
 //   rz f_rz_opp >= 75 · gl RB and f_gl_opp >= 75 · total implied_total >= 70 ·
 //   last a TD in his last game before the week · two a TD in each of his last two · due rz + no TD in two
@@ -20,6 +21,7 @@
 // 225, KICK_PTS 6). A player absent from the week's lines didn't play: void.
 await import('../_esm-resolve.mjs')
 const fs = await import('node:fs')
+const { weakSpotRoles, alignedSignals, matchupTag } = await import('../../lib/nfl/dvpSignal.js')
 const path = await import('node:path')
 
 const arg = (k) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : null }
@@ -86,7 +88,15 @@ for (let wk = 1; wk <= 18; wk += 1) {
     const at = Date.parse(rows[0]?.generated_at || '')
     if (Number.isFinite(at) && at < cutoff(wk) && (!sig || at > sig.at)) sig = { at, by: new Map(rows.slice(1).map((r) => [String(r.player_id), r])) }
   }
-  weeks.push({ week: wk, run: best.file, signal: Boolean(sig) })
+  // the week's pregame matchup, when the bot kept it (weak / soft / aligned)
+  const mu = JSON.parse(await text(`${RAW}/nfl_matchup_week_2026_w${String(wk).padStart(2, '0')}.json`, `mu_${wk}.json`) || 'null')
+  const softBy = new Map()
+  const MATCHUP_ANGLES = mu ? {
+    weak: (p) => { const role = mu.roles?.[p.player_id]; if (!role || !p.opp) return false; if (!softBy.has(p.opp)) softBy.set(p.opp, weakSpotRoles(mu, p.opp)); return softBy.get(p.opp).some((d) => d.role === role) },
+    soft: (p, m) => { const t = matchupTag(mu, p, ['TD', 'REC_YDS', 'REC', 'RUSH_YDS', 'RUSH_ATT', 'PASS_YDS'].includes(m) ? m : 'TD'); return Boolean(t && Number.isFinite(t.rank) && t.rank <= 8) },
+    aligned: (p) => Boolean(alignedSignals(mu, p)?.aligned),
+  } : null
+  weeks.push({ week: wk, run: best.file, signal: Boolean(sig), matchup: Boolean(mu) })
   const bars = res.bars || {}
   for (const p of best.rows) {
     const m = p.market
@@ -96,19 +106,22 @@ for (let wk = 1; wk <= 18; wk += 1) {
     const hit = (num(line[m]) ?? 0) >= bars[m]
     add(m, 'board', hit)
     for (const [k, test] of Object.entries(ANGLES)) if (test(p, wk)) add(m, k, hit)
+    if (MATCHUP_ANGLES) { add(m, 'matchup_base', hit); for (const [k, test] of Object.entries(MATCHUP_ANGLES)) if (test(p, m)) add(m, k, hit) }
     if (m === 'TD' && sig) { add(m, 'hiconf_base', hit); if (sig.by.get(String(p.player_id))?.high_confidence_td_flag === true) add(m, 'hiconf', hit) }
   }
 }
 const rate = ([h, n]) => ({ hits: h, n, rate: n ? Math.round(1000 * h / n) / 10 : null })
 const markets = Object.fromEntries(Object.entries(T).map(([m, a]) => [m, Object.fromEntries(Object.entries(a).map(([k, v]) => [k, rate(v)]))]))
-for (const a of Object.values(markets)) for (const k of [...Object.keys(ANGLES), 'hiconf']) {
-  const base = k === 'hiconf' ? a.hiconf_base : a.board
+for (const a of Object.values(markets)) for (const k of [...Object.keys(ANGLES), 'hiconf', 'weak', 'soft', 'aligned']) {
+  const base = k === 'hiconf' ? a.hiconf_base : ['weak', 'soft', 'aligned'].includes(k) ? a.matchup_base : a.board
   if (a[k] && base) a[k].verdict = a[k].n >= 30 && a[k].rate > base.rate ? 'edge' : a[k].n < 30 ? 'too few' : 'no edge'
 }
 const out = {
   built_at: new Date().toISOString(),
   method: "2026 weeks with a pregame board and results: each week's last prediction-log run before its Sunday 1 PM ET window (components barely move inside a week), every player on each market's board, graded off nfl_results lines at the file's bars (absent = didn't play, void). hiconf = the bot's high_confidence_td_flag from nfl_signal_log (weeks 3-4 only). weak / soft / aligned read the weekly matchup file, which is not archived week by week: not measurable. No 2025 board rows exist on the data branch, so last season can't be replayed. An angle has an edge when it beats that market's board (30+ rows).",
-  weeks, notMeasurable: { weak: 'matchup roles / DvP not archived weekly', soft: 'DvP not archived weekly', aligned: 'matchup tag / red zone / snaps not archived weekly' },
+  weeks,
+  // until a week with the bot's matchup snapshot has graded (the bot keeps them from 2026-10-05)
+  notMeasurable: weeks.some((w) => w.matchup) ? {} : { weak: 'matchup roles / DvP of past weeks, kept by the bot only from week 6 on', soft: 'DvP of past weeks, kept by the bot only from week 6 on', aligned: 'matchup tag / red zone / snaps of past weeks, kept by the bot only from week 6 on' },
   markets,
 }
 fs.writeFileSync(new URL('../../lib/nfl/angleBacktest.json', import.meta.url), `${JSON.stringify(out, null, 2)}\n`)

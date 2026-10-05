@@ -1,32 +1,36 @@
 {
-  "built_at": "2026-10-05T20:11:30.524Z",
+  "built_at": "2026-10-05T20:57:18.736Z",
   "method": "2026 weeks with a pregame board and results: each week's last prediction-log run before its Sunday 1 PM ET window (components barely move inside a week), every player on each market's board, graded off nfl_results lines at the file's bars (absent = didn't play, void). hiconf = the bot's high_confidence_td_flag from nfl_signal_log (weeks 3-4 only). weak / soft / aligned read the weekly matchup file, which is not archived week by week: not measurable. No 2025 board rows exist on the data branch, so last season can't be replayed. An angle has an edge when it beats that market's board (30+ rows).",
   "weeks": [
     {
       "week": 1,
       "run": "nfl_prediction_log_2026-wk01.005552Z.gha-34663222156.jsonl",
-      "signal": false
+      "signal": false,
+      "matchup": false
     },
     {
       "week": 2,
       "run": "nfl_prediction_log_2026-wk02.073302Z.gha-35497156442.jsonl",
-      "signal": false
+      "signal": false,
+      "matchup": false
     },
     {
       "week": 3,
       "run": "nfl_prediction_log_2026-wk03.082055Z.gha-36305895530.jsonl",
-      "signal": true
+      "signal": true,
+      "matchup": false
     },
     {
       "week": 4,
       "run": "nfl_prediction_log_2026-wk04.154543Z.gha-37214151864.jsonl",
-      "signal": true
+      "signal": true,
+      "matchup": false
     }
   ],
   "notMeasurable": {
-    "weak": "matchup roles / DvP not archived weekly",
-    "soft": "DvP not archived weekly",
-    "aligned": "matchup tag / red zone / snaps not archived weekly"
+    "weak": "matchup roles / DvP of past weeks, kept by the bot only from week 6 on",
+    "soft": "DvP of past weeks, kept by the bot only from week 6 on",
+    "aligned": "matchup tag / red zone / snaps of past weeks, kept by the bot only from week 6 on"
   },
   "markets": {
     "TD": {
