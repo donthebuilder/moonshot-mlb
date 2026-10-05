@@ -14,7 +14,7 @@ import GoalWatch from '../GoalWatch'
 import GoalCompare from '../GoalCompare'
 import MobileFold from '../../MobileFold'
 import HowToRead from '../../HowToRead'
-import { LampCards, PctBars } from '../LampCard'
+import { LampCards, PctBars, countOf } from '../LampCard'
 import { alpha } from '../../../lib/scales'
 import { useLampBoard } from '../../../lib/nhl/useLamp'
 import { TeamMark, EmptyState, DelayedBanner, Loading, SourceLine, Kicker, GameTypeChip, LampDot, StaleSeasonNote, fmtDay, fmtPuckDrop, fmtSec, zoneAbbrev, shiftDay, STATUS, CalledChip, readHashParam, writeHashParam } from '../ui'
@@ -150,13 +150,16 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
   const keepIds = new Set(kept.map(({ r, g }) => `${g.game.id}|${r.playerId}`))
   const drawerOn = scoreMin > 0 || scoreMax < 100 || bands.length > 0 || gameSel.length > 0 || timeWindow !== 'all' || minPpg > 0
   const filtering = Boolean(team) || pos !== 'all' || Boolean(gameF) || calledOnly || Boolean(needle) || Boolean(angle) || drawerOn
-  const teams = [...new Set(flat.map(({ r }) => r.team))].sort()
+  // A filter the day no longer has stays in the select, named (the Controls.js pattern, 2026-10-05):
+  // a stale #fteam / #fgame matched nothing while the select read "All".
+  const teams = [...new Set([...flat.map(({ r }) => r.team), ...(team && data ? [team] : [])])].sort()
   const chips = [
     angle ? { key: 'angle', label: angles.find((a) => a.key === angle)?.label || angle, onClear: () => setAngle(null) } : null,
     pos !== 'all' ? { key: 'pos', label: pos === 'D' ? 'Defence' : 'Forwards', onClear: () => setPos('all') } : null,
     calledOnly ? { key: 'called', label: 'Called only', onClear: () => setCalledOnly(false) } : null,
   ].filter(Boolean)
   const gameOptions = games.filter((g) => !g.noMarketLock).map((g) => ({ key: String(g.game.id), label: `${g.game.away.abbrev} @ ${g.game.home.abbrev}` }))
+  if (gameF && data && !gameOptions.some((o) => o.key === gameF)) gameOptions.unshift({ key: gameF, label: 'Game not on this slate' })
   const bandDefs = BAND_DEFS[market] || BAND_DEFS.GOAL
   const toggleBand = (k) => setBands((bs) => (bs.some((b) => b.key === k) ? bs.filter((b) => b.key !== k) : [...bs, { key: k, min: 50, max: 100 }]))
   const setBand = (k, min, max) => setBands((bs) => bs.map((b) => (b.key === k ? { ...b, min, max } : b)))
@@ -348,7 +351,7 @@ function columnsFor(g, onOpenTeam, market = 'GOAL') {
   return [
     { key: 'rank', label: '#', heat: false, mono: true, w: 28,
       fmt: (v, r) => (r.status === 'called'
-        ? <span title="CALLED" style={{ display: 'inline-block', minWidth: 16, textAlign: 'center', background: C.ice, color: C.bg, font: `900 10px/16px ${NUM_FONT}`, borderRadius: 4 }}>{v}</span>
+        ? <span title={STATUS.called} style={{ display: 'inline-block', minWidth: 16, textAlign: 'center', background: C.ice, color: C.bg, font: `900 10px/16px ${NUM_FONT}`, borderRadius: 4 }}>{v}</span>
         : v) },
     { key: 'name', label: 'PLAYER', heat: false, sticky: true, bold: true, w: 170,
       fmt: (v, r) => <>{v}<span style={{ color: C.text3, font: `800 9px/1 ${NUM_FONT}`, marginLeft: 6 }}>{r.pos}</span></> },
@@ -369,8 +372,8 @@ function columnsFor(g, onOpenTeam, market = 'GOAL') {
       const row = r._row
       if (graded) {
         if (row.dressed === false) return <span style={{ color: C.text3, font: `800 9px/1 ${NUM_FONT}` }}>VOID</span>
-        const n = sog ? row.value : row.goals
-        return <>{row.status === 'called' ? <CalledChip /> : null}<span style={{ color: row.hit ? C.lamp : C.text3, font: `900 12px/1 ${NUM_FONT}` }}>{row.hit && <LampDot />}{n ?? 0}</span></>
+        const n = countOf(row, market)
+        return <>{row.status === 'called' ? <CalledChip /> : null}<span style={{ color: row.hit ? C.lamp : C.text3, font: `900 12px/1 ${NUM_FONT}` }}>{n == null ? '\u2014' : <>{row.hit && <LampDot />}{n}</>}</span></>
       }
       return row.status === 'called' ? <CalledChip /> : <span style={{ color: C.text3, font: `800 8px/1 ${NUM_FONT}`, letterSpacing: '.1em' }}>{STATUS[row.status]}</span>
     } },
@@ -439,7 +442,7 @@ export function GameBoard({ g, onOpenPlayer, onOpenGame, onOpenTeam, market = 'G
           </button>
           {showOff && (
             <div style={{ marginTop: 6, color: C.text3, fontSize: 11, lineHeight: 1.6 }}>
-              {off.map((r) => <div key={r.playerId}><b style={{ color: C.text2 }}>{r.name}</b> {r.team} · {r.reason}{g.graded && r.hit ? <span style={{ color: C.lamp, fontFamily: NUM_FONT, marginLeft: 6 }}>scored {r.goals}</span> : null}</div>)}
+              {off.map((r) => <div key={r.playerId}><b style={{ color: C.text2 }}>{r.name}</b> {r.team} · {r.reason}{g.graded && r.hit ? <span style={{ color: C.lamp, fontFamily: NUM_FONT, marginLeft: 6 }}>scored{countOf(r, market) != null ? ` ${countOf(r, market)}` : ''}</span> : null}</div>)}
             </div>
           )}
         </div>

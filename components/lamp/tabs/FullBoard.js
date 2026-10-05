@@ -23,7 +23,7 @@ import { nhlFullRows, nhlFullColumns } from '../../../lib/nhl/boardColumns'
 // Every row carries its game's stamp. A PREVIEW is not a call; a LOCKED
 // score was frozen at that game's lock, so one night can mix snapshots.
 const STAMP = { graded: 'GRADED', locked: 'LOCKED', setting: 'SETTING', preview: 'PREVIEW' }
-const STAMP_TONE = { graded: C.cream, locked: C.teal, preview: C.amber }
+const STAMP_TONE = { graded: C.cream, locked: C.teal, setting: C.ice, preview: C.amber }
 
 // The day is the LAMP shell's (LampDashboard, 2026-09-26): one date for the
 // header's Today/Tmrw, every dated tab and the address -- this tab's day
@@ -102,7 +102,7 @@ export default function FullBoard({ onOpenPlayer, onOpenTeam, date = null, setDa
                 fmt: (v, r) => (
                   <span style={{ whiteSpace: 'nowrap' }}>
                     {r.graded
-                      ? (r.dressed === false ? <span style={{ color: C.text3, font: `800 9px/1 ${NUM_FONT}` }}>VOID</span> : <span style={{ color: r.hit === true ? C.lamp : C.text3, font: `900 12px/1 ${NUM_FONT}` }}>{r.hit === true && <LampDot />}{r.goals ?? 0}</span>)
+                      ? (r.dressed === false ? <span style={{ color: C.text3, font: `800 9px/1 ${NUM_FONT}` }}>VOID</span> : <span style={{ color: r.hit === true ? C.lamp : C.text3, font: `900 12px/1 ${NUM_FONT}` }}>{Number.isFinite(r.goals) ? <>{r.hit === true && <LampDot />}{r.goals}</> : '\u2014'}</span>)
                       : <span style={{ color: r.status === 'called' ? C.ice : C.text3, font: `800 8px/1 ${NUM_FONT}`, letterSpacing: '.1em' }}>{STATUS[r.status]}</span>}
                     <span style={{ color: STAMP_TONE[r.stamp], font: `800 7px/1 ${NUM_FONT}`, letterSpacing: '.12em', marginLeft: 5 }}>{STAMP[r.stamp]}</span>
                   </span>

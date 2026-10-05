@@ -29,8 +29,8 @@ import { SportTheme } from '../SportTheme'
 // The board leads the rail, the way MOONSHOT's Props and TUDDY's Touchdowns
 // lead theirs (2026-09-25, batch 3).
 
-export default function LampHeader({ tab, setTab, live = 0, date = null, setDate = () => {}, scores = null, liveScores = null, onOpenPlayer, onOpenGame }) {
-  const today = etToday()
+export default function LampHeader({ tab, setTab, live = 0, date = null, setDate = () => {}, scores = null, liveScores = null, night = null, onOpenPlayer, onOpenGame }) {
+  const today = night || etToday()   // the server's night (lib/slateNight), the wall-clock day until it answers
   const tomorrow = shiftDay(today, 1)
   const go = (next) => setTab(next)
 
