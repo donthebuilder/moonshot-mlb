@@ -2,6 +2,8 @@
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/nfl/theme'
 import HitRate from './HitRate'
+import ValueBars from '../ValueBars'
+import { alpha } from '../../lib/scales'
 
 // 🎯 THE PROPS GRID, FOOTBALL EDITION.
 //
@@ -43,6 +45,7 @@ export default function PropsGrid({ log, market: initialMarket, defaultBar, scor
   const [mkt, setMkt] = useState(initialMarket || 'REC')
   const [lines, setLines] = useState({})          // per-market line override
   const [sort, setSort] = useState(null)          // {w, dir} or null
+  const [pin, setPin] = useState(null)            // the pinned bar's game
 
   // Only markets this player actually plays.
   //
@@ -202,6 +205,35 @@ export default function PropsGrid({ log, market: initialMarket, defaultBar, scor
           ))}
         </div>
       )}
+
+      {/* THE BARS (2026-10-05, Donovan: "not showing all the bars like on mlb"): MOONSHOT's value
+          chart (components/ValueBars) for the active market and line, over the window the matrix is
+          sorted by (L10 until a header is tapped) -- one bar a game, oldest left, warm over the line,
+          the dashed rule his average, the streak band under it. Tap a bar for that game's line. */}
+      {(() => {
+        const span = WINDOWS[sort?.w ?? 1]
+        const seg = (log || []).slice(-span[1])
+        const thr = lineFor(active) + 0.5
+        const games = seg.map((g, i) => ({ key: `${g.s}-${g.w}-${i}`, val: Number(g[active[2]]) || 0,
+          title: `${g.w != null ? `wk ${g.w}` : ''}${g.s ? ` '${String(g.s).slice(-2)}` : ''}${g.opp ? ` ${g.opp}` : ''} — ${Number(g[active[2]]) || 0} ${active[1].toLowerCase()}`, g }))
+        const p = games.find((x) => x.key === pin)
+        if (!games.length) return null
+        return (
+          <div style={{ marginTop: 12 }}>
+            <div style={{ fontSize: 11, color: C.text3, fontFamily: NUM_FONT, marginBottom: 6 }}>
+              {thr}+ {active[1]} · {span[0] === 'All' ? `all ${games.length}` : `last ${games.length}`} games, newest right
+            </div>
+            <ValueBars games={games} thr={thr} numFont={NUM_FONT} avgColor={alpha(C.green, 0.6)} selected={pin} onSelect={setPin} />
+            {p && (
+              <div style={{ marginTop: 7, padding: '6px 10px', borderRadius: 8, fontSize: 11, fontFamily: NUM_FONT, color: C.text2, background: 'rgba(255,255,255,.04)', border: `1px solid ${C.border}`, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'baseline' }}>
+                <b style={{ color: C.text }}>{p.title.split(' — ')[0]}</b>
+                {MARKETS.filter(([, , k]) => Number(p.g[k]) > 0).map(([key, label, k]) => <span key={key}>{Number(p.g[k])} {label.toLowerCase()}</span>)}
+                <button onClick={() => setPin(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: C.text3, cursor: 'pointer', fontSize: 11, minHeight: 32 }}>✕</button>
+              </div>
+            )}
+          </div>
+        )
+      })()}
 
       {/* the read — HitRate's one sentence, following the matrix. The KEY
           carries the LINE as well as the market: HitRate seeds its line from

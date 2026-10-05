@@ -3,8 +3,9 @@ import React, { useEffect, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { thresholdRates, lastSeasonRates, staffQuality, teamAbbrs, starterHands, streakRuns, MARKETS } from '../lib/gamelogs'
 import StreakRibbon, { StreakLine } from './StreakRibbon'
+import ValueBars from './ValueBars'
 import { gridQuote, fairOdds, fmtOdds } from '../lib/odds'
-import { alpha, verdictInk, verdictWash } from '../lib/scales'
+import { verdictInk, verdictWash } from '../lib/scales'
 
 // PROP GRID v5 — PATTERNS, not furniture.
 //
@@ -374,41 +375,7 @@ export default function ThresholdGrid({ playerId, odds }) {
   patterns.sort((a, b) => b.strength - a.strength)
   const topPatterns = patterns.slice(0, 4)
 
-  // chart scaffolding
-  const avgVal = filteredLog.length ? filteredLog.reduce((a, g) => a + valFor(g), 0) / filteredLog.length : null
-  const maxVal = Math.max(thr + 1, ...filteredLog.map(valFor), 1)
-  const unit = 42 / maxVal
-  const showNums = filteredLog.length <= 28
-  // ── THE STREAK, ENCODED IN THE CHART (2026-08-23) ─────────────────────────
-  // Donovan: "id like to see combo of those if that makes since that bar chart
-  // with the streaks encoded in it."
-  //
-  // The bars already say cleared-or-not one game at a time; what they cannot
-  // say is that four of them were consecutive. This is that, as a band welded
-  // under the bars: each run becomes one continuous segment spanning its
-  // games, warm for clears and cool for misses, with the length printed on
-  // runs of three or more. Same twenty games, same order, one more dimension.
-  //
-  // Chart order is OLDEST-LEFT (the map below reverses filteredLog), so the
-  // runs are computed on the reversed array too — computing them newest-first
-  // and drawing them oldest-left would mirror every segment onto the wrong
-  // games, which is the kind of bug that looks completely fine.
-  const chartLog = [...filteredLog].reverse()
-  const runMark = (() => {
-    const out = new Array(chartLog.length).fill(null)
-    let i = 0
-    while (i < chartLog.length) {
-      const ok = clears(chartLog[i])
-      let j = i
-      while (j < chartLog.length && clears(chartLog[j]) === ok) j++
-      const len = j - i
-      for (let k = i; k < j; k++) {
-        out[k] = { ok, len, first: k === i, last: k === j - 1, mid: k === i + ((len - 1) >> 1) }
-      }
-      i = j
-    }
-    return out
-  })()
+  // the chart (bars, line, average, streak band) is components/ValueBars.js (2026-10-05, shared with TUDDY)
 
   const chip = (on) => ({
     padding: '2px 10px', borderRadius: 999, cursor: 'pointer', fontSize: 9.5,
@@ -726,79 +693,15 @@ export default function ThresholdGrid({ playerId, odds }) {
           )}
 
           {filteredLog.length > 0 && (
-            <div style={{ position: 'relative' }}>
-              <div style={{
-                position: 'absolute', left: 0, right: 0,
-                bottom: 10 + Math.min(46, (thr - 0.5) * unit), height: 1,
-                background: 'rgba(255,255,255,.35)', pointerEvents: 'none', zIndex: 2,
-              }} title={`the ${thr - 0.5} line`} />
-              {avgVal != null && (
-                <div style={{
-                  position: 'absolute', left: 0, right: 0,
-                  bottom: 10 + Math.min(46, avgVal * unit), height: 0,
-                  borderTop: '1px dashed rgba(249,115,22,.6)', pointerEvents: 'none', zIndex: 2,
-                }} title={`his average: ${avgVal.toFixed(1)} per game in view`} />
-              )}
-              <div style={{ display: 'flex', gap: 4, alignItems: 'flex-end' }}>
-                {chartLog.map((g, gi) => {
-                  const val = valFor(g)
-                  const ok = val >= thr
-                  const q = staff?.[g.oppId]
-                  const ab2 = abbrs?.[g.oppId] || g.opp
-                  const oppCol = q ? `rgba(249,115,22,${(0.18 + q.soft * 0.72).toFixed(2)})` : 'rgba(255,255,255,.08)'
-                  const oppNote = q ? ` · ${ab2} staff: OPS-against ${q.ops.toFixed(3)}, #${q.rank}/30 toughest` : ''
-                  const isSel = selGame === `${g.date}${gi}`
-                  const hgt = Math.max(5, Math.min(48, 5 + val * unit))
-                  return (
-                    <div key={gi} title={`${g.date} ${g.home ? 'vs' : '@'} ${ab2} — ${val} (${g.h}H ${g.tb}TB ${g.hr}HR)${oppNote}`}
-                      onClick={() => setSelGame(isSel ? null : `${g.date}${gi}`)}
-                      style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', cursor: 'pointer' }}>
-                      {showNums && val > 0 && (
-                        <div style={{ fontFamily: NUM_FONT, fontSize: 9, fontWeight: 800, color: ok ? verdictInk(true).color : verdictInk(false).color, textAlign: 'center', marginBottom: 1 }}>{val}</div>
-                      )}
-                      <div style={{
-                        height: hgt, borderRadius: '3px 3px 1px 1px',
-                        background: ok
-                          ? `linear-gradient(180deg, ${verdictWash(true, 0.85)}, ${verdictInk(true).color})`
-                          : val > 0 ? 'linear-gradient(180deg, rgba(248,113,113,.6), rgba(248,113,113,.35))' : 'rgba(248,113,113,.22)',
-                        boxShadow: isSel ? '0 0 0 1.5px #fff' : ok && val >= thr + 1 ? '0 0 9px rgba(74,222,128,.45)' : 'none',
-                      }} />
-                      <div style={{ height: 4, borderRadius: 2, marginTop: 3, background: isSel ? '#fff' : oppCol }} />
-                      {/* THE RUN BAND — one continuous segment per streak,
-                          bridged across the flex gap so a run of four reads as
-                          one bar and not four. The numeral sits on the middle
-                          game of runs of three or more; shorter runs are their
-                          own label. */}
-                      {(() => {
-                        const rm = runMark[gi]
-                        if (!rm) return null
-                        const rc = rm.ok ? verdictInk(true).color : verdictInk(false).color
-                        return (
-                          <div style={{ position: 'relative', height: 9, marginTop: 2 }}>
-                            <div style={{
-                              position: 'absolute', top: 0, bottom: 0,
-                              left: rm.first ? 0 : -4, right: rm.last ? 0 : -4,
-                              background: alpha(rc, rm.ok ? 0.16 + 0.1 * Math.min(4, rm.len) : 0.14),
-                              borderTop: `1.5px solid ${alpha(rc, rm.ok ? 0.85 : 0.5)}`,
-                              borderLeft: rm.first ? `1px solid ${alpha(rc, 0.5)}` : 'none',
-                              borderRight: rm.last ? `1px solid ${alpha(rc, 0.5)}` : 'none',
-                              borderRadius: `${rm.first ? 3 : 0}px ${rm.last ? 3 : 0}px ${rm.last ? 3 : 0}px ${rm.first ? 3 : 0}px`,
-                            }} />
-                            {rm.mid && rm.len >= 3 && (
-                              <span style={{
-                                position: 'absolute', inset: 0, display: 'grid', placeItems: 'center',
-                                fontFamily: NUM_FONT, fontSize: 7.5, fontWeight: 900, lineHeight: 1,
-                                color: rc, pointerEvents: 'none',
-                              }}>{rm.len}</span>
-                            )}
-                          </div>
-                        )
-                      })()}
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
+            <ValueBars numFont={NUM_FONT} thr={thr} selected={selGame} onSelect={setSelGame}
+              games={[...filteredLog].reverse().map((g, gi) => {
+                const val = valFor(g)
+                const q = staff?.[g.oppId]
+                const ab2 = abbrs?.[g.oppId] || g.opp
+                const oppNote = q ? ` · ${ab2} staff: OPS-against ${q.ops.toFixed(3)}, #${q.rank}/30 toughest` : ''
+                return { key: `${g.date}${gi}`, val, title: `${g.date} ${g.home ? 'vs' : '@'} ${ab2} — ${val} (${g.h}H ${g.tb}TB ${g.hr}HR)${oppNote}`,
+                  strip: q ? `rgba(249,115,22,${(0.18 + q.soft * 0.72).toFixed(2)})` : null }
+              })} />
           )}
 
           {selGame && (() => {
