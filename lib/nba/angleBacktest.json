@@ -1,0 +1,63 @@
+{
+  "built_at": "2026-10-05T19:45:02.658Z",
+  "method": "Last season: every 2025-26 regular-season night replayed as of that night -- the live model (legsFor + scoreMarket 'pts') on games before it only, pooled with 2024-25 as the board pools; population = who played 10+ minutes. Preseason: buckets_log points rows, starters who played 20+ minutes. Hit = 25+ points. Rules fixed before measuring: hiconf = score 85+; aligned = opponent allows points in the night's top third AND shots (fgaPg) 75th percentile+; weak = on the board AND his opponent ranks top 10 of 30 in points allowed to his position (G/F/C).",
+  "lastSeason": {
+    "season": "2025-26",
+    "nights": 168,
+    "games": 1237,
+    "hiconf": {
+      "hits": 690,
+      "n": 1504,
+      "rate": 45.9
+    },
+    "aligned": {
+      "hits": 606,
+      "n": 1959,
+      "rate": 30.9
+    },
+    "weak": {
+      "hits": 589,
+      "n": 2607,
+      "rate": 22.6
+    },
+    "all": {
+      "hits": 2070,
+      "n": 22313,
+      "rate": 9.3
+    },
+    "board": {
+      "hits": 1775,
+      "n": 7502,
+      "rate": 23.7
+    },
+    "hiconfBoard": {
+      "hits": 690,
+      "n": 1504,
+      "rate": 45.9
+    }
+  },
+  "preseason": {
+    "nights": 0,
+    "rows": 0,
+    "all": {
+      "hits": 0,
+      "n": 0,
+      "rate": null
+    },
+    "hiconf": {
+      "hits": 0,
+      "n": 0,
+      "rate": null
+    },
+    "aligned": {
+      "hits": 0,
+      "n": 0,
+      "rate": null
+    },
+    "weak": {
+      "hits": 0,
+      "n": 0,
+      "rate": null
+    }
+  }
+}

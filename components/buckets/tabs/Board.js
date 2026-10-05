@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import PageHeader from '../../PageHeader'
 import HowToRead from '../../HowToRead'
 import { C, NUM_FONT } from '../../../lib/nba/theme'
@@ -8,6 +8,8 @@ import { NBA_MARKETS, MARKET_OPTIONS } from '../../../lib/nba/legs'
 import BucketsTable from '../BucketsTable'
 import { boardRows, boardColumns, faceOf } from '../boardTable'
 import BucketWatch from '../BucketWatch'
+import { AngleRow } from '../../Filters'
+import { bucketsAngles } from '../../../lib/nba/angles'
 import { BucketsCards } from '../BucketsCard'
 import { EmptyState, DelayedBanner, Loading, SourceLine, Pills, NavBtn, DayPager, fmtDay, writeHashParam } from '../ui'
 
@@ -31,7 +33,12 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
   const { data, error, loading } = useBucketsBoard(date, m)
   const D = NBA_MARKETS[m]
   const shown = data?.date || date
-  const rows = boardRows(data, { calledOnly })
+  const all = boardRows(data, { calledOnly })
+  // ANGLES (2026-10-05): measured on 2025-26 (lib/nba/angles.js), the PTS market only
+  const [angle, setAngle] = useState(null)
+  const angles = useMemo(() => (m === 'pts' ? bucketsAngles(all) : []), [all, m])
+  const angleDef = angle ? angles.find((a) => a.key === angle) : null
+  const rows = angleDef ? all.filter(angleDef.test) : all
   const scored = rows.filter((r) => r.score != null)
   const noStarters = D.startersOnly && data && !scored.length
   const games = data?.games || []
@@ -47,6 +54,8 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
       <DayPager shown={shown} date={date} setDate={setDate} disabled={loading}>
         <NavBtn onClick={() => setCalledOnly((v) => !v)} strong={calledOnly} ariaLabel="Called only">{calledOnly ? '✓ Called only' : 'Called only'}</NavBtn>
       </DayPager>
+      {angles.length > 0 && <AngleRow defs={angles} pool={all} value={angleDef ? angle : null} onChange={setAngle} accent={C.purple} hideEmpty />}
+      {angleDef && <p style={{ margin: 0, fontSize: 12, color: C.text3, lineHeight: 1.5 }}>{angleDef.title}</p>}
       <Pills ariaLabel="Layout" value={layout} onChange={setLayout} options={[{ key: 'cards', text: 'CARDS' }, { key: 'table', text: 'TABLE' }]} />
       <HowToRead id="buckets-board" accent={C.purple} notes={HOW_NOTES} />
       <DelayedBanner error={error} what="the board" />
