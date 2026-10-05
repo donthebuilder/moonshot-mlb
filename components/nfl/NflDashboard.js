@@ -443,7 +443,7 @@ export default function NflDashboard({ palettePass = 0 }) {
             {tab === 'numerology' && <Numerology data={data} onPlayerClick={openPlayer} />}
             {tab === 'accountability' && <Accountability data={data} results={nflResults} onPlayerClick={openPlayer} />}
             {tab === 'tuddyledger' && <TuddyLedger data={data} results={nflResults} onPlayerClick={openPlayer} />}
-            {tab === 'ledger' && <Ledger data={slate} picks={picks} results={nflResults} matchup={matchup} onPlayerClick={openPlayer} onOpenTeam={openTeamPage} onOpenGame={(id) => { leaveTarget('game', id); setTab('games') }} />}
+            {tab === 'ledger' && <Ledger data={slate} picks={picks} results={nflResults} matchup={matchup} liveSnap={liveSnap} onPlayerClick={openPlayer} onOpenTeam={openTeamPage} onOpenGame={(id) => { leaveTarget('game', id); setTab('games') }} />}
             {tab === 'scores' && <Scores data={slate} onPlayerClick={openPlayer} onOpenGame={(id) => { leaveTarget('game', id); setTab('games') }} />}
             {tab === 'team' && <NflTeam data={data} onOpenPlayer={openPlayer} onOpenGame={(id) => { leaveTarget('game', id); setTab('games') }} />}
             {tab === 'standings' && <Standings onOpenTeam={openTeamPage} />}
