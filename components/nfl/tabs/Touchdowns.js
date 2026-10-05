@@ -1,4 +1,5 @@
 'use client'
+import { angleRecord } from '../../../lib/nfl/angleBasis'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT, gradeFor, TYPE, rampAt } from '../../../lib/nfl/theme'
 import { boardReason } from '../../../lib/nfl/boardReason'
@@ -187,8 +188,8 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
   // their own; they are one-tap angles like the rest, so they lead the Angle
   // row now -- one row of chips where there were two (2026-09-27).
   const angles = useMemo(() => [
-    { key: 'highconf', label: '⭐ High confidence', title: "The bot's own high-confidence TD flag.", test: (p) => Boolean(p.high_confidence_td_flag) },
-    { key: 'aligned', label: '🧩 Aligned', title: '2 or more of 3 real signals lining up: matchup, red-zone finisher, rising snap share.', test: (p) => alignedSignals(matchup, p).aligned },
+    { key: 'highconf', label: '⭐ High confidence', title: `The bot's own high-confidence TD flag. ${angleRecord('TD', 'hiconf') || ''}`.trim(), test: (p) => Boolean(p.high_confidence_td_flag) },
+    { key: 'aligned', label: '🧩 Aligned', title: `2 or more of 3 real signals lining up: matchup, red-zone finisher, rising snap share. ${angleRecord('TD', 'aligned') || ''}`.trim(), test: (p) => alignedSignals(matchup, p).aligned },
     ...angleDefs({ matchup, logs, market: MARKET, matchupTag, week: data ? { season: data.season, week: data.week } : null }),
   ], [matchup, logs, data?.season, data?.week])
   const drawer = useNflDrawerFilters(rows, data?.games, MARKET, { game: top?.game || '' })   // TUDDY 3 + 4
@@ -286,6 +287,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
   return (
     <div>
       <AngleRow defs={angles} pool={bandFiltered} value={angle} onChange={(k) => { setAngle(k); setAll(false) }} />
+      {angle && angles.find((x) => x.key === angle) && <p style={{ margin: 0, fontSize: 12, color: C.text3, lineHeight: 1.5 }}>{angles.find((x) => x.key === angle).title}</p>}
 
       {/* TD WATCH (board filters plan, TUDDY 5): MOONSHOT's B2B Watch slot. */}
       <div style={{ marginTop: 8 }}>

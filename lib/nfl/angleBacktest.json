@@ -1,0 +1,201 @@
+{
+  "built_at": "2026-10-05T20:11:30.524Z",
+  "method": "2026 weeks with a pregame board and results: each week's last prediction-log run before its Sunday 1 PM ET window (components barely move inside a week), every player on each market's board, graded off nfl_results lines at the file's bars (absent = didn't play, void). hiconf = the bot's high_confidence_td_flag from nfl_signal_log (weeks 3-4 only). weak / soft / aligned read the weekly matchup file, which is not archived week by week: not measurable. No 2025 board rows exist on the data branch, so last season can't be replayed. An angle has an edge when it beats that market's board (30+ rows).",
+  "weeks": [
+    {
+      "week": 1,
+      "run": "nfl_prediction_log_2026-wk01.005552Z.gha-34663222156.jsonl",
+      "signal": false
+    },
+    {
+      "week": 2,
+      "run": "nfl_prediction_log_2026-wk02.073302Z.gha-35497156442.jsonl",
+      "signal": false
+    },
+    {
+      "week": 3,
+      "run": "nfl_prediction_log_2026-wk03.082055Z.gha-36305895530.jsonl",
+      "signal": true
+    },
+    {
+      "week": 4,
+      "run": "nfl_prediction_log_2026-wk04.154543Z.gha-37214151864.jsonl",
+      "signal": true
+    }
+  ],
+  "notMeasurable": {
+    "weak": "matchup roles / DvP not archived weekly",
+    "soft": "DvP not archived weekly",
+    "aligned": "matchup tag / red zone / snaps not archived weekly"
+  },
+  "markets": {
+    "TD": {
+      "board": {
+        "hits": 216,
+        "n": 1037,
+        "rate": 20.8
+      },
+      "rz": {
+        "hits": 95,
+        "n": 275,
+        "rate": 34.5,
+        "verdict": "edge"
+      },
+      "gl": {
+        "hits": 50,
+        "n": 136,
+        "rate": 36.8,
+        "verdict": "edge"
+      },
+      "total": {
+        "hits": 89,
+        "n": 330,
+        "rate": 27,
+        "verdict": "edge"
+      },
+      "last": {
+        "hits": 62,
+        "n": 176,
+        "rate": 35.2,
+        "verdict": "edge"
+      },
+      "two": {
+        "hits": 19,
+        "n": 54,
+        "rate": 35.2,
+        "verdict": "edge"
+      },
+      "due": {
+        "hits": 28,
+        "n": 107,
+        "rate": 26.2,
+        "verdict": "edge"
+      },
+      "hiconf_base": {
+        "hits": 115,
+        "n": 511,
+        "rate": 22.5
+      },
+      "hiconf": {
+        "hits": 2,
+        "n": 2,
+        "rate": 100,
+        "verdict": "too few"
+      }
+    },
+    "REC_YDS": {
+      "board": {
+        "hits": 253,
+        "n": 1037,
+        "rate": 24.4
+      },
+      "total": {
+        "hits": 95,
+        "n": 330,
+        "rate": 28.8,
+        "verdict": "edge"
+      },
+      "last": {
+        "hits": 69,
+        "n": 176,
+        "rate": 39.2,
+        "verdict": "edge"
+      },
+      "two": {
+        "hits": 22,
+        "n": 54,
+        "rate": 40.7,
+        "verdict": "edge"
+      }
+    },
+    "REC": {
+      "board": {
+        "hits": 246,
+        "n": 1037,
+        "rate": 23.7
+      },
+      "last": {
+        "hits": 71,
+        "n": 176,
+        "rate": 40.3,
+        "verdict": "edge"
+      },
+      "two": {
+        "hits": 26,
+        "n": 54,
+        "rate": 48.1,
+        "verdict": "edge"
+      }
+    },
+    "RUSH_YDS": {
+      "board": {
+        "hits": 92,
+        "n": 421,
+        "rate": 21.9
+      },
+      "last": {
+        "hits": 34,
+        "n": 77,
+        "rate": 44.2,
+        "verdict": "edge"
+      },
+      "two": {
+        "hits": 19,
+        "n": 29,
+        "rate": 65.5,
+        "verdict": "too few"
+      }
+    },
+    "RUSH_ATT": {
+      "board": {
+        "hits": 99,
+        "n": 296,
+        "rate": 33.4
+      },
+      "last": {
+        "hits": 41,
+        "n": 57,
+        "rate": 71.9,
+        "verdict": "edge"
+      },
+      "two": {
+        "hits": 22,
+        "n": 24,
+        "rate": 91.7,
+        "verdict": "too few"
+      }
+    },
+    "PASS_YDS": {
+      "board": {
+        "hits": 55,
+        "n": 125,
+        "rate": 44
+      },
+      "last": {
+        "hits": 10,
+        "n": 20,
+        "rate": 50,
+        "verdict": "too few"
+      },
+      "two": {
+        "hits": 3,
+        "n": 5,
+        "rate": 60,
+        "verdict": "too few"
+      }
+    },
+    "KICK_PTS": {
+      "board": {
+        "hits": 77,
+        "n": 106,
+        "rate": 72.6
+      },
+      "total": {
+        "hits": 22,
+        "n": 33,
+        "rate": 66.7,
+        "verdict": "no edge"
+      }
+    }
+  }
+}

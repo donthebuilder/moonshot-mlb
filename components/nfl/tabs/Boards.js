@@ -298,6 +298,7 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
       {!hideMarketPicker && <PillRow label="Market" value={market} options={marketOptions} onChange={setMarket} />}
 
       <AngleRow defs={angles} pool={bandFiltered} value={angle} onChange={(k) => { setAngle(k); setAll(false) }} />
+      {angle && angles.find((x) => x.key === angle) && <p style={{ margin: 0, fontSize: 12, color: C.text3, lineHeight: 1.5 }}>{angles.find((x) => x.key === angle).title}</p>}
 
       <div style={{ marginTop: 8 }}>
         <FilterBar>

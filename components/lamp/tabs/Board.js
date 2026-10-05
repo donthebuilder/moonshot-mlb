@@ -20,6 +20,7 @@ import { useLampBoard } from '../../../lib/nhl/useLamp'
 import { TeamMark, EmptyState, DelayedBanner, Loading, SourceLine, Kicker, GameTypeChip, LampDot, StaleSeasonNote, fmtDay, fmtPuckDrop, fmtSec, zoneAbbrev, shiftDay, STATUS, CalledChip, readHashParam, writeHashParam } from '../ui'
 import { withNhlFullSet } from '../../../lib/nhl/boardColumns'
 import { MatchLogos } from '../../TeamMark'
+import LAMP_BT from '../../../lib/nhl/angleBacktest.json'
 
 // 🏒 THE LAMP GOAL BOARD (lamp-goal-v1) — the product's first signal page.
 // Per game: every scored skater ranked, the top skater on each TEAM CALLED, the rest ON
@@ -198,6 +199,7 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
       {data && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <AngleRow defs={angles} pool={flat} value={angle} onChange={setAngle} accent={C.ice} className="lamp-angle-row" hideEmpty />
+          {angle && angles.find((a) => a.key === angle) && <p style={{ margin: 0, fontSize: 12, color: C.text3, lineHeight: 1.5 }}>{angles.find((a) => a.key === angle).title}</p>}
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             <Segmented label="Pos" value={pos} onChange={setPos} options={[{ key: 'all', label: 'All' }, { key: 'F', label: 'Forwards' }, { key: 'D', label: 'Defence' }]} />
             <FilterPill active={calledOnly} onClick={() => setCalledOnly((v) => !v)} title="Only the called skaters.">Called only</FilterPill>
@@ -468,22 +470,23 @@ export function lampAngles(flat, market) {
   const seen = new Map()
   for (const x of flat) seen.set(`${x.g.game.id}|${x.r.team}`, pkOf(x))
   const pkCut = cut([...seen.values()], 1 / 3)
-  // ALIGNED + HIGH CONFIDENCE (BATCH-ONE-SITE step 3, 2026-10-05): MOONSHOT's two angles, built
-  // on fields fixed before puck drop. Measured on LAMP's first four graded nights (10-01..10-04,
-  // goal board, 1,115 skaters, base 15.5%): soft opponent + shots in the top quarter 29/87 =
-  // 33%; score 85+ 32/84 = 38%. The cuts were picked on those same nights, so every angle says
-  // TEST until ~100 graded calls. Weak spot can't be measured off a past board yet: `ppg` is
-  // read from today's reports, so on a past night it already counts that night's goals.
+  // MEASURED (2026-10-05, Donovan: "needs to be ran for all sports and all props"): every rule below
+  // replayed over the whole 2025-26 season as of each night (scripts/nhl/angle-backtest.mjs ->
+  // lib/nhl/angleBacktest.json). A market shows only the angles that beat its own board rows; the
+  // words quote the file. (Replaced the 10-01..10-04 TEST numbers.)
   const shotsPct = (r) => Number(r.pct?.shotsPg)
-  return [
-    { key: 'aligned', label: '◆ Aligned · TEST', title: 'His opponent is soft (tonight\u2019s top third) and his shots per game are in tonight\u2019s top quarter. TEST: 29 of 87 scored on the first four graded nights (base 15.5%).', test: (x) => Number.isFinite(soft(x.r)) && soft(x.r) >= softCut && shotsPct(x.r) >= 75 },
-    { key: 'hiconf', label: '🔒 High confidence · TEST', title: 'Board score 85 or higher. TEST: 32 of 84 scored on the first four graded nights (base 15.5%).', test: ({ r }) => Number(r.score) >= 85 },
-    { key: 'weak', label: '★ Weak spot · TEST', title: 'Power-play goals this season, against a penalty kill in tonight\u2019s weakest third. TEST: not yet measured (the season\u2019s power-play goals are read from today\u2019s reports).', test: (x) => Number(x.r.ppg) > 0 && Number.isFinite(pkOf(x)) && pkOf(x) <= pkCut },
-    { key: 'pp', label: 'Power play', title: 'Power-play goals this season (the reports\u2019 season).', test: ({ r }) => Number(r.ppg) > 0 },
-    { key: 'soft', label: 'Soft opponent', title: market === 'SOG' ? 'His opponent allows shots per 60 in tonight\u2019s top third.' : 'His opponent allows goals per game in tonight\u2019s top third.', test: ({ r }) => Number.isFinite(soft(r)) && soft(r) >= softCut },
-    { key: 'rested', label: 'Rested edge', title: 'Tonight\u2019s opponent is on the second night of a back-to-back.', test: ({ r, g }) => Boolean(spotOf(g, r.team, false)?.b2b) },
-    { key: 'mins', label: 'Big minutes', title: 'Ice time per game in tonight\u2019s top quarter.', test: ({ r }) => Number.isFinite(r.legs?.toi) && r.legs.toi >= toiCut },
+  const M = LAMP_BT.lastSeason.markets?.[market] || {}
+  const said = (k) => (M[k] ? ` ${LAMP_BT.lastSeason.season} replayed night by night: ${M[k].hits.toLocaleString()} of ${M[k].n.toLocaleString()} (${M[k].rate}%); the board's rows ${M.board.rate}%.` : '')
+  const defs = [
+    { key: 'aligned', label: '◆ Aligned', title: `His opponent is soft (tonight\u2019s top third) and his shots per game are in tonight\u2019s top quarter.${said('aligned')}`, test: (x) => Number.isFinite(soft(x.r)) && soft(x.r) >= softCut && shotsPct(x.r) >= 75 },
+    { key: 'hiconf', label: '🔒 High confidence', title: `Board score 85 or higher.${said('hiconf')}`, test: ({ r }) => Number(r.score) >= 85 },
+    { key: 'weak', label: '★ Weak spot', title: `Power-play goals this season, against a penalty kill in tonight\u2019s weakest third.${said('weak')}`, test: (x) => Number(x.r.ppg) > 0 && Number.isFinite(pkOf(x)) && pkOf(x) <= pkCut },
+    { key: 'pp', label: 'Power play', title: `Power-play goals this season.${said('pp')}`, test: ({ r }) => Number(r.ppg) > 0 },
+    { key: 'soft', label: 'Soft opponent', title: `${market === 'SOG' ? 'His opponent allows shots per 60 in tonight\u2019s top third.' : 'His opponent allows goals per game in tonight\u2019s top third.'}${said('soft')}`, test: ({ r }) => Number.isFinite(soft(r)) && soft(r) >= softCut },
+    { key: 'rested', label: 'Rested edge', title: `Tonight\u2019s opponent is on the second night of a back-to-back.${said('rested')}`, test: ({ r, g }) => Boolean(spotOf(g, r.team, false)?.b2b) },
+    { key: 'mins', label: 'Big minutes', title: `Ice time per game in tonight\u2019s top quarter.${said('mins')}`, test: ({ r }) => Number.isFinite(r.legs?.toi) && r.legs.toi >= toiCut },
   ]
+  return defs.filter((d) => M[d.key]?.verdict === 'edge')
 }
 
 // ALL GAMES (board filters plan, LAMP 1): every scored skater tonight, one

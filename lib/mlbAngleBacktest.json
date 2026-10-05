@@ -1,0 +1,272 @@
+{
+  "built_at": "2026-10-05T20:09:46.906Z",
+  "method": "Every board hitter (prediction_log slot_snapshot, the last run before his game's first pitch) graded off outcome_log (latest final revision; no plate appearance = void). due / confirmed from slate_<D>_slim.json (the day's last snapshot; from 09-21) against that snapshot's hitters. Angles = components/BoardFilters.js CATEGORIES. An angle has an edge when it beats the same market's board (30+ rows). The full board with angle fields is only archived from 2026-09-12; earlier graded files hold picks only and are written after the games.",
+  "span": {
+    "from": "2026-09-12",
+    "to": "2026-10-05",
+    "nights": 22,
+    "slateNights": 13
+  },
+  "markets": {
+    "HR": {
+      "all": {
+        "hits": 457,
+        "n": 3888,
+        "rate": 11.8
+      },
+      "hot": {
+        "hits": 233,
+        "n": 1640,
+        "rate": 14.2,
+        "verdict": "edge"
+      },
+      "edge": {
+        "hits": 184,
+        "n": 1246,
+        "rate": 14.8,
+        "verdict": "edge"
+      },
+      "softarm": {
+        "hits": 145,
+        "n": 1044,
+        "rate": 13.9,
+        "verdict": "edge"
+      },
+      "weak": {
+        "hits": 110,
+        "n": 773,
+        "rate": 14.2,
+        "verdict": "edge"
+      },
+      "hiconf": {
+        "hits": 18,
+        "n": 92,
+        "rate": 19.6,
+        "verdict": "edge"
+      },
+      "aligned": {
+        "hits": 37,
+        "n": 200,
+        "rate": 18.5,
+        "verdict": "edge"
+      },
+      "due_base": {
+        "hits": 178,
+        "n": 1530,
+        "rate": 11.6
+      },
+      "confirmed_base": {
+        "hits": 178,
+        "n": 1530,
+        "rate": 11.6
+      },
+      "confirmed": {
+        "hits": 177,
+        "n": 1515,
+        "rate": 11.7,
+        "verdict": "edge"
+      },
+      "due": {
+        "hits": 6,
+        "n": 59,
+        "rate": 10.2,
+        "verdict": "no edge"
+      }
+    },
+    "HIT": {
+      "all": {
+        "hits": 2367,
+        "n": 3888,
+        "rate": 60.9
+      },
+      "hot": {
+        "hits": 1040,
+        "n": 1640,
+        "rate": 63.4,
+        "verdict": "edge"
+      },
+      "edge": {
+        "hits": 774,
+        "n": 1246,
+        "rate": 62.1,
+        "verdict": "edge"
+      },
+      "softarm": {
+        "hits": 644,
+        "n": 1044,
+        "rate": 61.7,
+        "verdict": "edge"
+      },
+      "weak": {
+        "hits": 492,
+        "n": 773,
+        "rate": 63.6,
+        "verdict": "edge"
+      },
+      "hiconf": {
+        "hits": 56,
+        "n": 92,
+        "rate": 60.9,
+        "verdict": "no edge"
+      },
+      "aligned": {
+        "hits": 126,
+        "n": 200,
+        "rate": 63,
+        "verdict": "edge"
+      },
+      "due_base": {
+        "hits": 929,
+        "n": 1530,
+        "rate": 60.7
+      },
+      "confirmed_base": {
+        "hits": 929,
+        "n": 1530,
+        "rate": 60.7
+      },
+      "confirmed": {
+        "hits": 919,
+        "n": 1515,
+        "rate": 60.7,
+        "verdict": "no edge"
+      },
+      "due": {
+        "hits": 32,
+        "n": 59,
+        "rate": 54.2,
+        "verdict": "no edge"
+      }
+    },
+    "HRR": {
+      "all": {
+        "hits": 1799,
+        "n": 3888,
+        "rate": 46.3
+      },
+      "hot": {
+        "hits": 799,
+        "n": 1640,
+        "rate": 48.7,
+        "verdict": "edge"
+      },
+      "edge": {
+        "hits": 607,
+        "n": 1246,
+        "rate": 48.7,
+        "verdict": "edge"
+      },
+      "softarm": {
+        "hits": 498,
+        "n": 1044,
+        "rate": 47.7,
+        "verdict": "edge"
+      },
+      "weak": {
+        "hits": 393,
+        "n": 773,
+        "rate": 50.8,
+        "verdict": "edge"
+      },
+      "hiconf": {
+        "hits": 47,
+        "n": 92,
+        "rate": 51.1,
+        "verdict": "edge"
+      },
+      "aligned": {
+        "hits": 101,
+        "n": 200,
+        "rate": 50.5,
+        "verdict": "edge"
+      },
+      "due_base": {
+        "hits": 701,
+        "n": 1530,
+        "rate": 45.8
+      },
+      "confirmed_base": {
+        "hits": 701,
+        "n": 1530,
+        "rate": 45.8
+      },
+      "confirmed": {
+        "hits": 694,
+        "n": 1515,
+        "rate": 45.8,
+        "verdict": "no edge"
+      },
+      "due": {
+        "hits": 26,
+        "n": 59,
+        "rate": 44.1,
+        "verdict": "no edge"
+      }
+    },
+    "TB": {
+      "all": {
+        "hits": 1366,
+        "n": 3888,
+        "rate": 35.1
+      },
+      "hot": {
+        "hits": 610,
+        "n": 1640,
+        "rate": 37.2,
+        "verdict": "edge"
+      },
+      "edge": {
+        "hits": 470,
+        "n": 1246,
+        "rate": 37.7,
+        "verdict": "edge"
+      },
+      "softarm": {
+        "hits": 397,
+        "n": 1044,
+        "rate": 38,
+        "verdict": "edge"
+      },
+      "weak": {
+        "hits": 292,
+        "n": 773,
+        "rate": 37.8,
+        "verdict": "edge"
+      },
+      "hiconf": {
+        "hits": 37,
+        "n": 92,
+        "rate": 40.2,
+        "verdict": "edge"
+      },
+      "aligned": {
+        "hits": 82,
+        "n": 200,
+        "rate": 41,
+        "verdict": "edge"
+      },
+      "due_base": {
+        "hits": 532,
+        "n": 1530,
+        "rate": 34.8
+      },
+      "confirmed_base": {
+        "hits": 532,
+        "n": 1530,
+        "rate": 34.8
+      },
+      "confirmed": {
+        "hits": 528,
+        "n": 1515,
+        "rate": 34.9,
+        "verdict": "edge"
+      },
+      "due": {
+        "hits": 20,
+        "n": 59,
+        "rate": 33.9,
+        "verdict": "no edge"
+      }
+    }
+  }
+}

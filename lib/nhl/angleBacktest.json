@@ -1,0 +1,294 @@
+{
+  "built_at": "2026-10-05T20:07:23.526Z",
+  "method": "2025-26 regular season replayed as of each night from the NHL stats per-game reports: every dressed skater scored by the live pure models (GOAL, SOG 3+, PTS 1+, AST 1+, the goal-position shadow) on games before the night pooled with 2024-25 as the board pools; opponent GA/G, SA/60 and PK% as of the night. Angles = components/lamp/tabs/Board.js lampAngles' rules over the board's own population (status not off). An angle has an edge when it beats that market's board rows (30+ rows). PTS / AST rows carry no shots leg, so aligned can't fire there.",
+  "lastSeason": {
+    "season": "2025-26",
+    "nights": 167,
+    "skaterGames": 47230,
+    "markets": {
+      "GOAL": {
+        "all": {
+          "hits": 7038,
+          "n": 45748,
+          "rate": 15.4
+        },
+        "board": {
+          "hits": 3862,
+          "n": 15308,
+          "rate": 25.2
+        },
+        "called": {
+          "hits": 902,
+          "n": 2624,
+          "rate": 34.4
+        },
+        "hiconf": {
+          "hits": 1332,
+          "n": 3803,
+          "rate": 35,
+          "verdict": "edge"
+        },
+        "mins": {
+          "hits": 740,
+          "n": 4023,
+          "rate": 18.4,
+          "verdict": "no edge"
+        },
+        "soft": {
+          "hits": 1483,
+          "n": 5825,
+          "rate": 25.5,
+          "verdict": "edge"
+        },
+        "rested": {
+          "hits": 660,
+          "n": 2493,
+          "rate": 26.5,
+          "verdict": "edge"
+        },
+        "aligned": {
+          "hits": 1151,
+          "n": 4189,
+          "rate": 27.5,
+          "verdict": "edge"
+        },
+        "pp": {
+          "hits": 3173,
+          "n": 11858,
+          "rate": 26.8,
+          "verdict": "edge"
+        },
+        "weak": {
+          "hits": 1126,
+          "n": 4242,
+          "rate": 26.5,
+          "verdict": "edge"
+        }
+      },
+      "SOG": {
+        "all": {
+          "hits": 10106,
+          "n": 45748,
+          "rate": 22.1
+        },
+        "board": {
+          "hits": 10106,
+          "n": 45748,
+          "rate": 22.1
+        },
+        "called": {
+          "hits": 1888,
+          "n": 3936,
+          "rate": 48
+        },
+        "aligned": {
+          "hits": 2008,
+          "n": 4300,
+          "rate": 46.7,
+          "verdict": "edge"
+        },
+        "soft": {
+          "hits": 4054,
+          "n": 16837,
+          "rate": 24.1,
+          "verdict": "edge"
+        },
+        "mins": {
+          "hits": 3481,
+          "n": 11623,
+          "rate": 29.9,
+          "verdict": "edge"
+        },
+        "hiconf": {
+          "hits": 750,
+          "n": 1456,
+          "rate": 51.5,
+          "verdict": "edge"
+        },
+        "rested": {
+          "hits": 1706,
+          "n": 7512,
+          "rate": 22.7,
+          "verdict": "edge"
+        },
+        "pp": {
+          "hits": 6231,
+          "n": 18619,
+          "rate": 33.5,
+          "verdict": "edge"
+        },
+        "weak": {
+          "hits": 2252,
+          "n": 6625,
+          "rate": 34,
+          "verdict": "edge"
+        }
+      },
+      "PTS": {
+        "all": {
+          "hits": 16087,
+          "n": 45748,
+          "rate": 35.2
+        },
+        "board": {
+          "hits": 16087,
+          "n": 45748,
+          "rate": 35.2
+        },
+        "called": {
+          "hits": 2392,
+          "n": 3936,
+          "rate": 60.8
+        },
+        "hiconf": {
+          "hits": 933,
+          "n": 1480,
+          "rate": 63,
+          "verdict": "edge"
+        },
+        "mins": {
+          "hits": 5142,
+          "n": 11623,
+          "rate": 44.2,
+          "verdict": "edge"
+        },
+        "soft": {
+          "hits": 6077,
+          "n": 16993,
+          "rate": 35.8,
+          "verdict": "edge"
+        },
+        "rested": {
+          "hits": 2657,
+          "n": 7512,
+          "rate": 35.4,
+          "verdict": "edge"
+        },
+        "pp": {
+          "hits": 8871,
+          "n": 18619,
+          "rate": 47.6,
+          "verdict": "edge"
+        },
+        "weak": {
+          "hits": 3134,
+          "n": 6625,
+          "rate": 47.3,
+          "verdict": "edge"
+        }
+      },
+      "AST": {
+        "all": {
+          "hits": 11170,
+          "n": 45748,
+          "rate": 24.4
+        },
+        "board": {
+          "hits": 11170,
+          "n": 45748,
+          "rate": 24.4
+        },
+        "called": {
+          "hits": 1761,
+          "n": 3936,
+          "rate": 44.7
+        },
+        "hiconf": {
+          "hits": 802,
+          "n": 1706,
+          "rate": 47,
+          "verdict": "edge"
+        },
+        "mins": {
+          "hits": 3971,
+          "n": 11623,
+          "rate": 34.2,
+          "verdict": "edge"
+        },
+        "soft": {
+          "hits": 4205,
+          "n": 16993,
+          "rate": 24.7,
+          "verdict": "edge"
+        },
+        "rested": {
+          "hits": 1877,
+          "n": 7512,
+          "rate": 25,
+          "verdict": "edge"
+        },
+        "pp": {
+          "hits": 6091,
+          "n": 18619,
+          "rate": 32.7,
+          "verdict": "edge"
+        },
+        "weak": {
+          "hits": 2162,
+          "n": 6625,
+          "rate": 32.6,
+          "verdict": "edge"
+        }
+      },
+      "GOALPOS": {
+        "all": {
+          "hits": 7038,
+          "n": 45748,
+          "rate": 15.4
+        },
+        "board": {
+          "hits": 3958,
+          "n": 15308,
+          "rate": 25.9
+        },
+        "called": {
+          "hits": 907,
+          "n": 2624,
+          "rate": 34.6
+        },
+        "hiconf": {
+          "hits": 1807,
+          "n": 5396,
+          "rate": 33.5,
+          "verdict": "edge"
+        },
+        "mins": {
+          "hits": 903,
+          "n": 4023,
+          "rate": 22.4,
+          "verdict": "no edge"
+        },
+        "aligned": {
+          "hits": 1150,
+          "n": 4135,
+          "rate": 27.8,
+          "verdict": "edge"
+        },
+        "soft": {
+          "hits": 1516,
+          "n": 5806,
+          "rate": 26.1,
+          "verdict": "edge"
+        },
+        "rested": {
+          "hits": 679,
+          "n": 2500,
+          "rate": 27.2,
+          "verdict": "edge"
+        },
+        "pp": {
+          "hits": 3250,
+          "n": 12149,
+          "rate": 26.8,
+          "verdict": "edge"
+        },
+        "weak": {
+          "hits": 1156,
+          "n": 4348,
+          "rate": 26.6,
+          "verdict": "edge"
+        }
+      }
+    }
+  }
+}

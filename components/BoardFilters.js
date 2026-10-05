@@ -6,6 +6,20 @@ import { isAligned } from '../lib/scoring'
 import { STATE, alpha } from '../lib/scales'
 import RangeDual from './RangeDual'
 import FiltersDrawer from './FiltersDrawer'
+import MLB_BT from '../lib/mlbAngleBacktest.json'
+
+// MEASURED (2026-10-05, Donovan: "needs to be ran for all sports and all props"): each category on
+// every bar the calls are graded on, from scripts/mlb/angle-backtest.mjs over the archived pregame
+// board (lib/mlbAngleBacktest.json). The words quote the file; nothing is typed.
+const BT_WORD = { HR: 'HR', HIT: 'hit', HRR: 'HRR 2+', TB: 'TB 2+' }
+function measuredLine(key) {
+  const parts = Object.entries(MLB_BT.markets || {}).map(([m, a]) => {
+    const x = a[key]
+    const base = key === 'due' || key === 'confirmed' ? a[`${key}_base`] : a.all
+    return x && base ? `${BT_WORD[m] || m} ${x.rate}% v ${base.rate}%${x.verdict === 'edge' ? '' : ' (no edge)'}` : null
+  }).filter(Boolean)
+  return parts.length ? `${MLB_BT.span.from.slice(5)}..${MLB_BT.span.to.slice(5)} (${MLB_BT.span.nights} nights): ${parts.join(' · ')}` : null
+}
 
 // Shared filter bar for the ranked boards.
 //
@@ -481,7 +495,7 @@ export default function BoardFilters({ state, total, shown }) {
         <div style={lbl()}>Categories</div>
         <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center', marginTop: 3 }}>
           {CATEGORIES.map((c) => (
-            <button key={c.key} onClick={() => toggleCat(c.key)} style={chip(cats.includes(c.key))}>{c.label}</button>
+            <button key={c.key} onClick={() => toggleCat(c.key)} title={measuredLine(c.key) || undefined} style={chip(cats.includes(c.key))}>{c.label}</button>
           ))}
           {cats.length > 1 && (
             <button onClick={() => setCatMode((m) => (m === 'any' ? 'all' : 'any'))}
@@ -491,6 +505,8 @@ export default function BoardFilters({ state, total, shown }) {
             </button>
           )}
         </div>
+        {/* the picked categories' measured record, as words (works on tap, not only hover) */}
+        {cats.map((k) => { const l = measuredLine(k); const c = CATEGORIES.find((x) => x.key === k); return l && c ? <div key={k} style={{ fontSize: 11, color: C.text3, marginTop: 4, lineHeight: 1.45 }}>{c.label}: {l}</div> : null })}
       </div>
 
       <div>

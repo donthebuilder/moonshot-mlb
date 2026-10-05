@@ -1,4 +1,5 @@
 'use client'
+import { angleRecord, angleEarns } from '../../lib/nfl/angleBasis'
 import { weakSpotRoles } from '../../lib/nfl/dvpSignal'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT, gradeFor } from '../../lib/nfl/theme'
@@ -169,7 +170,13 @@ export function tdRun(logs, id, before = null) {
   if (!tds.length) return null
   return { last: tds[0] > 0, two: tds.length === 2 ? tds[0] > 0 && tds[1] > 0 : null, dry2: tds.length === 2 ? tds[0] === 0 && tds[1] === 0 : null }
 }
-export function angleDefs({ matchup, logs, market, matchupTag, week = null }) {
+// MEASURED (2026-10-05): each angle's record on this market (lib/nfl/angleBasis.js); one that lost to
+// the board on this market is left off.
+export function angleDefs(args) {
+  const m = args.market || 'TD'
+  return angleDefsRaw(args).filter((d) => angleEarns(m, d.key)).map((d) => { const r = angleRecord(m, d.key); return r ? { ...d, title: `${d.title} ${r}` } : d })
+}
+function angleDefsRaw({ matchup, logs, market, matchupTag, week = null }) {
   const stat = ['TD', 'REC_YDS', 'REC', 'RUSH_YDS', 'RUSH_ATT', 'PASS_YDS'].includes(market) ? market : 'TD'
   // WEAK SPOT (2026-09-28, parity 00Q step 2): he holds a role his opponent is
   // clearly soft against (softRoles, z >= 1) -- MOONSHOT's weak-spot flag.
