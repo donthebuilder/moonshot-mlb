@@ -68,7 +68,7 @@ export default function Player({ id, onBack, backLabel = 'Players', onOpenTeam, 
     { key: 'marketLabel', label: 'Market', group: 'Night', w: 100, heat: false, mono: true },
     { key: 'score', label: 'Score', group: 'Call', w: 50, mono: true, primary: true },
     { key: 'status', label: 'Status', group: 'Call', w: 120, heat: false, statusCol: true, fmt: (v, r) => <span style={{ display: 'inline-flex', gap: 4, alignItems: 'center' }}><CallStatusBadge status={v} accent={C.purple} />{r.role ? <b style={{ fontSize: 10, color: C.purple }}>{r.role}</b> : null}</span> },
-    { key: 'actual', label: 'Result', group: 'Call', w: 60, heat: false, mono: true, fmt: (v, r) => (v == null ? '—' : <span style={{ color: r.hit ? C.rim : C.text2, fontWeight: 900 }}>{r.hit ? <RimDot size={6} /> : null}{v}</span>) },
+    { key: 'actual', label: 'Result', group: 'Call', w: 60, heat: false, mono: true, fmt: (v, r) => (r.void_reason ? <span style={{ fontSize: 10, color: C.text3 }}>VOID</span> : v == null ? '—' : <span style={{ color: r.hit ? C.rim : C.text2, fontWeight: 900 }}>{r.hit ? <RimDot size={6} /> : null}{r.market === 'first_fg' || r.market === 'first_pts' ? (r.hit ? 'YES' : 'NO') : v}</span>) },
   ]
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>

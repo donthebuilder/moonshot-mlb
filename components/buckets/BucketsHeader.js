@@ -14,14 +14,15 @@ import { fmtDay, shiftDay } from './ui'
 // moving ticker, the rail. The BUCKETS wordmark is this product's home; the
 // pills name the other products this visitor may see.
 export default function BucketsHeader({ setTab, live = 0, date = null, setDate = () => {}, scores = null, liveScores = null, onOpenPlayer, onOpenGame }) {
-  const today = etToday()
+  // the slate the server calls tonight (lib/slateNight): at 12:30 AM ET with a game still on, still yesterday
+  const today = liveScores?.data?.date || etToday()
   const tomorrow = shiftDay(today, 1)
   return (
     <HeaderShell sport="nba" theme={C} wordmark={GRADIENT}
       onHome={() => setTab('home')} homeTitle="BUCKETS home — tonight in one page"
       glow={`${C.purple}55`} dot={live > 0 ? { color: C.rim, pulse: false } : null}
       meta={<>
-        <DateMode label={fmtDay(date || today)} value={!date ? 'today' : date === tomorrow ? 'tomorrow' : ''}
+        <DateMode label={fmtDay(date || scores?.data?.date || today)} value={!date ? 'today' : date === tomorrow ? 'tomorrow' : ''}
           onChange={(k) => setDate(k === 'tomorrow' ? tomorrow : null)}
           options={[{ key: 'today', text: 'Today', color: C.purple }, { key: 'tomorrow', text: 'Tmrw', color: C.teal }]}
           theme={C} numFont={NUM_FONT} />

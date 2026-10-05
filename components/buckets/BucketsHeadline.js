@@ -7,8 +7,8 @@ import HeadlinePicks from '../headline/HeadlinePicks'
 // HeadlinePicks.js), one box per BUCKETS board: PTS 25+, REB 10+, AST 8+.
 // Each box: the night's top 3 CALLED players by that board's score
 // (/api/buckets/board rows with status 'called'). A row from a game not yet
-// locked is the live preview and says so, in capitals. No record line until
-// the board has a graded regular-season night -- said, never a number.
+// locked is the live preview and says so, in capitals. No record line: it
+// stays absent until the board has a graded regular-season night to show.
 const f1 = (v) => (Number.isFinite(Number(v)) ? Number(v).toFixed(1) : null)
 
 const LANES = [
@@ -25,7 +25,6 @@ function topCalled(board) {
 export default function BucketsHeadline({ theme: C, numFont, boards, onOpenPlayer }) {
   const lanes = LANES.map((l) => ({
     key: l.key, label: l.label, icon: l.icon, color: C[l.colorKey] || C.purple, blurb: l.blurb,
-    record: 'not graded yet',
     empty: 'Waiting for tonight’s board.',
     picks: topCalled(boards?.[l.key]).map((r, i) => {
       const preview = r.locked === false

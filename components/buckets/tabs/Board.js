@@ -65,7 +65,8 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
       {D.highVariance && scored.length > 0 && <p style={{ margin: 0, fontSize: 12, color: C.text3 }}>A high-variance lane: the ten starters only, ranked mostly on shot share.</p>}
       {previewN > 0 && rows.length > 0 && !noStarters && (
         <div style={{ color: C.amber, font: `800 12px/1.5 ${NUM_FONT}`, letterSpacing: '.08em' }}>
-          {previewN === rows.length ? 'EVERY GAME IS STILL PREVIEW — NOT A CALL YET' : `${previewN} OF ${rows.length} ROWS ARE PREVIEW — NOT A CALL YET`}
+          {previewN === rows.length && games.length > 0 && games.every((g) => g.state === 'final') ? 'THIS NIGHT NEVER LOCKED — THE ROWS ARE A PREVIEW, NOT CALLS'
+            : previewN === rows.length ? 'EVERY GAME IS STILL PREVIEW — NOT A CALL YET' : `${previewN} OF ${rows.length} ROWS ARE PREVIEW — NOT A CALL YET`}
           {games.some((g) => g.seasonType === 1) ? ' · PRESEASON' : ''}
         </div>
       )}

@@ -9,6 +9,8 @@ import { adminClient } from '../../../../lib/supabase/admin'
 import { ok, bad, bucketsRoute } from '../../../../lib/nba/respond'
 import { LIVE_VERSIONS } from '../../../../lib/nba/model'
 
+const real = (log) => log.filter((g) => g.seasonType === 2 || g.seasonType === 3)
+
 export const dynamic = 'force-dynamic'
 // Supabase answers at most 1,000 rows a read: page through (Doncic 2025-26 has 1,460)
 async function shotsOf(db, id) {
@@ -28,11 +30,12 @@ export const GET = bucketsRoute('player', async (q) => {
   const db = adminClient()
   const [card, logCur, logPrev, sCur, sPrev, shots, calls] = await Promise.all([
     athleteFor(id).then(reduceAthlete),
-    gamelogFor(id, sn.cur).then(reduceGamelog).catch(() => []),
-    gamelogFor(id, sn.prev).then(reduceGamelog).catch(() => []),
+    // regular season + playoffs only, as lib/nba/hot.js reads: preseason games are not his "last games"
+    gamelogFor(id, sn.cur).then(reduceGamelog).then(real).catch(() => []),
+    gamelogFor(id, sn.prev).then(reduceGamelog).then(real).catch(() => []),
     seasonStats(sn.cur), seasonStats(sn.prev),
     db ? shotsOf(db, id) : { data: [] },
-    db ? db.from('buckets_log').select('game_date, market, status, role, score, hit, actual, opp').in('model_version', LIVE_VERSIONS).eq('player_id', id).order('game_date', { ascending: false }).limit(200) : { data: [] },
+    db ? db.from('buckets_log').select('game_date, market, status, role, score, hit, actual, opp, void_reason').in('model_version', LIVE_VERSIONS).eq('player_id', id).order('game_date', { ascending: false }).limit(200) : { data: [] },
   ])
   // his club's next game (any season type), for "his games against them"
   const club = nbaTeam(card?.team)

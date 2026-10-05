@@ -13,10 +13,18 @@ export const GET = bucketsRoute('shots', async (q) => {
   const player = q.get('player')
   if (!team && !/^\d{2,10}$/.test(player || '')) return bad('team=CODE or player=id')
   const season = /^\d{4}$/.test(q.get('season') || '') ? Number(q.get('season')) : null
+  // preseason is not a record (excluded unless ?pre=1): its game ids come out of buckets_games
+  let skip = []
+  if (q.get('pre') !== '1') {
+    const pre = await db.from('buckets_games').select('game_id').eq('season_type', 1)
+    if (pre.error) return bad(pre.error.message)
+    skip = [...new Set((pre.data || []).map((r) => String(r.game_id)))].filter((x) => /^\d+$/.test(x))
+  }
   // a fresh query per page, in a total order, so pages neither repeat nor skip
   const page = (from) => {
     let qy = db.from('buckets_shots').select('x, y, made, three')
     qy = team ? qy.eq('team_id', team.id) : qy.eq('player_id', player)
+    if (skip.length) qy = qy.not('game_id', 'in', `(${skip.join(',')})`)
     if (season) qy = qy.gte('game_date', `${season - 1}-09-01`).lt('game_date', `${season}-09-01`)
     return qy.order('game_id').order('event_id').range(from, from + 999)
   }

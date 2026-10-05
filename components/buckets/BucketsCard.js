@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { STATUS_WORD as STATUS } from '../../lib/callStatus'
 import { C, NUM_FONT } from '../../lib/nba/theme'
 import { TYPE } from '../../lib/theme'
 import { NBA_MARKETS } from '../../lib/nba/model'
@@ -23,7 +24,6 @@ import TeamMark from '../TeamMark'
 // the card's dominant figure -- Donovan: "make the important number dominant".
 const LEG_WORD = { ptsPg: 'Points', rebPg: 'Rebounds', astPg: 'Assists', minPg: 'Minutes', fgaPg: 'Shots', ftaPg: 'Free throws', tpmPg: 'Threes', tpaPg: '3PA', tpPct: '3P%', praPg: 'PRA', fgaShare: 'Shot share', oppPts: 'Opp PTS', oppReb: 'Opp REB', oppAst: 'Opp AST', oppTpm: 'Opp 3PM' }
 const MAIN = { pts: ['ptsPg', 'PTS/G'], reb: ['rebPg', 'REB/G'], ast: ['astPg', 'AST/G'], '3pm': ['tpmPg', '3PM/G'], pra: ['praPg', 'PRA/G'], first: ['fgaShare', 'SHOT SHARE'] }
-const STATUS = { called: 'CALLED', board: 'ON THE BOARD', off: 'NOT ON THE BOARD' }
 
 export function BucketsCard({ r, rank, market = 'pts', onOpen }) {
   const [openScore, setOpenScore] = useState(false)
@@ -60,7 +60,7 @@ export function BucketsCard({ r, rank, market = 'pts', onOpen }) {
           {Number.isFinite(min) && market !== 'first' && <span style={{ marginLeft: 'auto', font: `700 11px/1 ${NUM_FONT}`, color: C.text2 }}>{min.toFixed(1)} MIN/G</span>}
         </div>
         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 8 }}>
-          {called ? <Chip color={C.purple}>CALLED{r.role ? ` · ${r.role}` : ''}</Chip> : <Chip color={C.text3}>{STATUS[r.status] || 'RANKED'}</Chip>}
+          {called ? <Chip color={C.purple}>{STATUS.called}{r.role ? ` · ${r.role}` : ''}</Chip> : <Chip color={C.text3}>{STATUS[r.status] || 'RANKED'}</Chip>}
           {preview && <Chip color={C.amber}>PREVIEW</Chip>}
           {r.injury && <Chip color={C.amber}>{String(r.injury).toUpperCase()}</Chip>}
         </div>
