@@ -13,7 +13,8 @@ import {
 } from '../../lib/leaders'
 import { tone, alpha } from '../../lib/scales'
 import { hr9Color } from '../../lib/hr9'
-import { leaveTarget } from '../../lib/openTarget'
+import { useTeamNav } from '../../lib/teamNav'
+import { isKnownTeam } from '../../lib/mlbTeams'
 
 // League Leaders — SEASON STATS ONLY.
 //
@@ -178,11 +179,11 @@ function HistRow({ i, name, team, main, note, onClick, title, onTeam }) {
         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0,
       }}>
         {name}{onClick ? ' 🤖' : ''}
-        {/* THE CLUB OPENS ITS GAME TONIGHT (2026-09-29, check-clickable: 20
-            dead team codes). MOONSHOT has no team page; a club on tonight's
-            slate opens its game, a club off tonight has nowhere to go. */}
+        {/* THE CLUB OPENS ITS TEAM PAGE (2026-10-04; was its game tonight, from
+            09-29 when MOONSHOT had no team page -- a club off tonight's slate went
+            nowhere: check-clickable found 16 dead codes). */}
         {team ? <> {onTeam?.(team)
-          ? <button type="button" onClick={(e) => { e.stopPropagation(); onTeam(team)() }} title={`Open ${team}'s game tonight`}
+          ? <button type="button" onClick={(e) => { e.stopPropagation(); onTeam(team)() }} title={`${team} team page`}
               style={{ padding: 0, border: 'none', background: 'none', cursor: 'pointer', verticalAlign: 'middle' }}>
               <MlbTeamMark abbr={team} style={{ height: 16, verticalAlign: 'middle' }} />
             </button>
@@ -309,16 +310,9 @@ export default function Leaders({ players = [], onPlayerClick, onNavigate }) {
 
   // Clicking a historical name only opens a card if he is playing tonight —
   // otherwise there is no slate row behind him and the click would do nothing.
-  // Club -> tonight's game_pk, for the historical rows' team chips.
-  const gameByTeam = useMemo(() => {
-    const m = new Map()
-    players.forEach((p) => { const t = teamOf(p); if (t && p?.game_pk && !m.has(t)) m.set(t, p.game_pk) })
-    return m
-  }, [players])
-  const openTeam = (team) => {
-    const pk = gameByTeam.get(team)
-    return pk && onNavigate ? () => { leaveTarget('game', pk); onNavigate('games') } : undefined
-  }
+  // the historical rows' team chips open the club's page (lib/teamNav: Dashboard's team door)
+  const teamNav = useTeamNav()
+  const openTeam = (team) => (teamNav && isKnownTeam(team) ? () => teamNav(team) : undefined)
   const openIfOnSlate = (pid) => {
     const p = slateById.get(Number(pid))
     return p && onPlayerClick ? () => onPlayerClick(p) : undefined
