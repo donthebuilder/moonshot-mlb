@@ -25,7 +25,7 @@ import { nflHeadshot, nflTeamLogo } from '../../lib/nfl/nflAssets'
 // the 200-300 KB raw asset.
 export default function NflFace({ player, size = 40 }) {
   const team = String(player?.team || 'FA').toUpperCase()
-  const [primary, secondary] = nflTones(team)
+  const [primary] = nflTones(team)
   const face = player?.espn_id ? nflHeadshot(String(player.espn_id), size, size) : null
   const logo = nflTeamLogo(team, Math.round(size * 0.44))
   const badge = Math.round(size * 0.44)
@@ -37,10 +37,11 @@ export default function NflFace({ player, size = 40 }) {
       style={{
         position: 'relative', display: 'inline-grid', placeItems: 'center', flex: '0 0 auto',
         width: size, height: size,
-        borderRadius: Math.max(7, Math.round(size * 0.26)),
-        border: `1px solid ${secondary}55`,
-        background: `linear-gradient(160deg,${primary}dd 0 62%,${secondary}dd 63% 100%)`,
-        boxShadow: `inset 0 1px 0 rgba(255,255,255,.12)`,
+        // ROUND CUTOUT, NO FRAME (BATCH-ONE-SITE step 4, Donovan 10-04: the square club tile
+        // "reads old and rusty"): a circle, no border, no two-tone box -- the club colour is only
+        // a faint disc behind the monogram for a man with no photo.
+        borderRadius: '50%',
+        background: `${primary}40`,
         color: '#fff', textShadow: '0 1px 3px #000',
         font: `900 ${Math.max(7, Math.round(size * 0.26))}px/1 monospace`,
         letterSpacing: '-.04em', overflow: 'hidden',

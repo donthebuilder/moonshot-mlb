@@ -72,7 +72,7 @@ function TeamBody({ t, error, onOpenPlayer, onOpenGame, onBack, backLabel }) {
       <DelayedBanner error={error} what="the league’s club feeds" />
       <PageHeader
         eyebrow={`LAMP · TEAM · ${t.team.conference === 'E' ? 'EASTERN' : 'WESTERN'} · ${t.team.division.toUpperCase()}`}
-        title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}><img src={nhlLogo(t.team.abbrev)} alt="" width={40} height={40} style={{ width: 40, height: 40, objectFit: 'contain' }} />{t.team.name}</span>}
+        title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}><img src={nhlLogo(t.team.abbrev)} alt="" width={56} height={56} style={{ width: 56, height: 56, objectFit: 'contain' }} />{t.team.name}</span>}
         note={s ? `${t.standingSeason}${t.standingStale ? ' final' : ''}: ${rec(s)}, ${s.pts} points, ${ordinal(s.divRank)} in the ${s.divName}, ${ordinal(s.confRank)} in the ${s.confName === 'Eastern' ? 'East' : 'West'}. Goals ${s.gf} for, ${s.ga} against (${plusMinus(s.diff)}). Last ten ${s.l10.w}-${s.l10.l}-${s.l10.otl}${s.streak ? `, ${s.streak}` : ''}. Home ${s.home.w}-${s.home.l}-${s.home.otl}, road ${s.road.w}-${s.road.l}-${s.road.otl}.` : 'No standings row for this club yet.'}
         theme={C} numFont={NUM_FONT} accent={C.ice}
         stats={s ? [{ value: rec(s), label: t.standingStale ? `${t.standingSeason} FINAL` : 'RECORD', tone: t.standingStale ? C.amber : C.text2 }, { value: s.pts, label: 'PTS', tone: C.text }, { value: plusMinus(s.diff), label: 'DIFF', tone: s.diff >= 0 ? C.teal : C.text3 }] : null}
@@ -150,7 +150,7 @@ function GameSheet({ games, onOpen, caption }) {
       columns={[
         { key: 't', label: 'Date', heat: false, numeric: false, sticky: true, w: 90, fmt: (_, g) => (
           <span style={{ fontFamily: NUM_FONT, fontSize: 10.5, color: C.text3, whiteSpace: 'nowrap' }}>{fmtDay(g.date)}{g.gameType === 1 ? <span style={{ marginLeft: 6, color: C.amber, fontSize: 8, letterSpacing: '.08em' }}>PRE</span> : null}</span>) },
-        { key: 'opp', label: 'Opponent', heat: false, w: 130, fmt: (_, g) => <span style={{ display: 'inline-flex', alignItems: 'center' }}><span style={{ color: C.text3, font: `800 9px/1 ${NUM_FONT}`, marginRight: 6 }}>{g.home ? 'VS' : '@'}</span><TeamMark abbrev={g.opponent.abbrev} size={16} /></span> },
+        { key: 'opp', label: 'Opponent', heat: false, fold: false, w: 130, fmt: (_, g) => <span style={{ display: 'inline-flex', alignItems: 'center' }}><span style={{ color: C.text3, font: `800 9px/1 ${NUM_FONT}`, marginRight: 6 }}>{g.home ? 'VS' : '@'}</span><TeamMark abbrev={g.opponent.abbrev} size={24} /></span> },
         { key: 'result', label: 'Result', heat: false, numeric: false, w: 130, fmt: (_, g) => {
           const live = g.state === 'live'; const done = g.state === 'final'
           const status = g.statusLine || fmtPuckDrop(g.startUtc)

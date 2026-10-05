@@ -46,7 +46,7 @@ export default function Team({ abbrev, onBack, backLabel = 'Teams', onOpenPlayer
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <BackBtn onBack={onBack} label={backLabel} />
-      <PageHeader eyebrow={`BUCKETS · ${known.conf === 'E' ? 'EAST' : 'WEST'} · ${known.div.toUpperCase()}`} title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}><TeamMark sport="nba" abbr={known.abbrev} variant="logo" px={32} />{known.place} {known.nick}</span>}
+      <PageHeader eyebrow={`BUCKETS · ${known.conf === 'E' ? 'EAST' : 'WEST'} · ${known.div.toUpperCase()}`} title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}><TeamMark sport="nba" abbr={known.abbrev} variant="logo" px={56} />{known.place} {known.nick}</span>}
         theme={C} numFont={NUM_FONT} accent={C.purple} showToday={false}
         note={st ? `${data.seasonLabel}: ${st.w}-${st.l}, seed ${st.seed} in the ${known.conf === 'E' ? 'East' : 'West'}${st.streak && st.streak !== '-' ? ` · ${st.streak}` : ''}` : null}
         stats={st ? [{ value: `${st.w}-${st.l}`, label: 'RECORD', tone: C.text }, { value: st.seed, label: 'SEED', tone: C.purple }, { value: st.diff, label: 'DIFF', tone: C.text2 }] : null} />

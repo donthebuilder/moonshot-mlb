@@ -423,7 +423,7 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
             // logos) on each side of the matchup, where the card said plain
             // "PHI @ ATL". Falls back to the text when a code is missing.
             id: c.pk, title: c.away && c.home
-              ? <MatchLogos sport="mlb" away={c.away} home={c.home} px={20} gap={5} />
+              ? <MatchLogos sport="mlb" away={c.away} home={c.home} px={26} gap={5} />
               : c.matchup,
             past: c.past, heat: c.heat,
             tooltip: [c.matchup, c.armsFull && `⚾ ${c.armsFull}`, c.topBat && `🔝 ${c.topBat}`].filter(Boolean).join('\n'),

@@ -58,7 +58,7 @@ function GameLine({ g, onOpen }) {
   return (
     <button type="button" onClick={() => onOpen?.(g)} style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', minHeight: 44, padding: '6px 10px', border: 0, borderBottom: `1px solid ${C.border}`, background: 'transparent', color: C.text, cursor: onOpen ? 'pointer' : 'default', textAlign: 'left' }}>
       <span style={{ font: `700 11px/1 ${NUM_FONT}`, color: C.text3, minWidth: 92 }}>{done ? g.date : when(g.start)}</span>
-      <MatchLogos sport="mlb" away={g.away} home={g.home} px={20} gap={6} />
+      <MatchLogos sport="mlb" away={g.away} home={g.home} px={24} gap={6} />
       <span style={{ marginLeft: 'auto', font: `800 12px/1 ${NUM_FONT}`, color: res === 'W' ? C.green : res === 'L' ? C.text3 : C.text2 }}>
         {done ? `${res} ${g.us}-${g.them}` : g.state === 'Live' ? `LIVE ${g.us ?? 0}-${g.them ?? 0}` : g.detail}
       </span>
@@ -103,7 +103,7 @@ export default function Team({ players = [], onPlayerClick, onOpenGame }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
       <PageHeader eyebrow="MOONSHOT · TEAM" theme={C} numFont={NUM_FONT} accent={C.orange}
-        title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 12 }}><img src={mlbTeamLogo(code, 96)} alt="" width={44} height={44} style={{ width: 44, height: 44, objectFit: 'contain' }} />{teamName(code)}</span>}
+        title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 12 }}><img src={mlbTeamLogo(code, 112)} alt="" width={56} height={56} style={{ width: 56, height: 56, objectFit: 'contain' }} />{teamName(code)}</span>}
         note={rec ? `${SEASON} regular season record from MLB's schedule.` : 'The club, its hitters on tonight’s board, its last and next games.'}
         stats={rec ? [{ value: `${rec.wins}-${rec.losses}`, label: 'RECORD', tone: C.text }, { value: rows.length, label: 'ON THE BOARD', tone: C.orange }] : [{ value: rows.length, label: 'ON THE BOARD', tone: C.orange }]} />
       {error ? <p style={{ margin: 0, color: C.amber, fontSize: 12 }}>MLB&apos;s schedule feed is delayed -- the board below is still current.</p> : null}

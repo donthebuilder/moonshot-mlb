@@ -28,7 +28,7 @@ function BucketsGameRow({ g, open, onToggle, onOpenGame, extra }) {
       sub={g.seasonType && g.seasonType !== 2 ? <div style={{ fontFamily: NUM_FONT, fontSize: 10, color: C.text3, marginTop: 2 }}>{SEASON_TYPE[g.seasonType]}</div> : null}
       sides={[['away', g.away], ['home', g.home]].map(([key, t]) => ({
         key, label: t.name || t.abbrev, score: scored ? (t.score ?? 0) : null,
-        mark: <TeamMark sport="nba" abbr={t.abbrev} variant="logo" px={22} dim={Boolean(winner) && winner !== key} />,
+        mark: <TeamMark sport="nba" abbr={t.abbrev} variant="logo" px={28} dim={Boolean(winner) && winner !== key} />,
       }))}>
       <div style={{ paddingTop: 6, display: 'flex', flexDirection: 'column', gap: 6 }}>
         {g.venue ? <div style={{ fontSize: 12, color: C.text3 }}>{g.venue}</div> : null}

@@ -39,6 +39,7 @@ import RefreshStamp from './RefreshStamp'
 import DashFooter from './DashFooter'
 import SkipLink from './SkipLink'
 import { TeamNav } from '../lib/teamNav'
+import { useTabView } from '../lib/tabView'
 
 // ── ONE TAB'S CODE AT A TIME (2026-09-27) ────────────────────────────────
 // Every tab used to be a static import, so a cold MOONSHOT link downloaded
@@ -103,6 +104,7 @@ export default function Dashboard({ palettePass = 0 }) {
   // Home is the front door now (2026-08-08) — deep links below still land
   // wherever their hash says.
   const [tab, setTabRaw] = useState('home')
+  useTabView('mlb', tab)
   // 2026-09-24 (SEO/NAV-12): the tab title in the browser tab and history.
   // Every page of both products read as the site name before this.
   // lib/usePageTitle.js holds it against Next's own static <title> write.

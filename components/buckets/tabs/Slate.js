@@ -62,7 +62,7 @@ export default function Slate({ date, setDate, market = 'pts', onOpenPlayer, onO
               const locked = xs.length > 0 && xs.every((r) => r.locked !== false)
               const st = x.state
               return <SlateCard key={x.id} sport="nba" accent={C.purple} on={g?.id === x.id} onSelect={choose} card={{
-                id: x.id, title: <MatchLogos sport="nba" away={x.away.abbrev} home={x.home.abbrev} px={20} gap={5} />, past: st === 'final',
+                id: x.id, title: <MatchLogos sport="nba" away={x.away.abbrev} home={x.home.abbrev} px={26} gap={5} />, past: st === 'final',
                 heat: best != null ? best / 100 : 0, tooltip: `${x.away.abbrev} @ ${x.home.abbrev}`,
                 dial: { value: best, pct: best, title: `The best ${NBA_MARKETS[m].label} score in this game: ${best != null ? Math.round(best) : '—'} of 100.` },
                 lead: <span title={locked ? 'The board locked before tip' : 'A preview until the board locks'}>{locked ? '🔒' : '◻'}</span>,

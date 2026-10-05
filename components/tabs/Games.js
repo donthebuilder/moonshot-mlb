@@ -1124,7 +1124,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                   padding: '9px 14px', background: C.bg3, borderBottom: `1px solid ${C.border}`,
                   cursor: 'pointer',
                 }}>
-                  <MatchLogos sport="mlb" away={g.away} home={g.home} px={20} gap={5} />
+                  <MatchLogos sport="mlb" away={g.away} home={g.home} px={26} gap={5} />
                   {/* ── THE SCORE, WHILE IT IS HAPPENING (2026-08-10) ──────
                       liveSlate has carried homeScore/awayScore/inning/half
                       since the wire was built; this card just never asked for
@@ -1431,7 +1431,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                     >
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', minWidth: 0 }}>
                         <span style={{ fontSize: TYPE.title, fontWeight: 900, fontFamily: NUM_FONT, letterSpacing: '-.02em', color: past ? C.text3 : C.text }}>
-                          {past ? '✓ ' : ''}<MatchLogos sport="mlb" away={g.away} home={g.home} px={22} gap={6} />
+                          {past ? '✓ ' : ''}<MatchLogos sport="mlb" away={g.away} home={g.home} px={26} gap={6} />
                         </span>
                         {/* GLOSSARY-ON-TAP (2026-09-06). Donovan found this
                             badge "confusing, not broken" -- it had zero

@@ -94,7 +94,7 @@ function LampGameRow({ g, open, onToggle, onOpenGame }) {
       sub={scored && g.away.sog != null ? <div style={{ fontFamily: NUM_FONT, fontSize: 8.5, color: C.text3, marginTop: 2 }}>SOG {g.away.sog}–{g.home.sog ?? '–'}</div> : null}
       sides={[['away', g.away], ['home', g.home]].map(([key, t]) => ({
         key, label: t.name || t.abbrev, score: scored ? (t.score ?? 0) : null,
-        mark: <TeamMark sport="nhl" abbr={t.abbrev} variant="logo" px={22} dim={Boolean(winner) && winner !== key} />,
+        mark: <TeamMark sport="nhl" abbr={t.abbrev} variant="logo" px={28} dim={Boolean(winner) && winner !== key} />,
       }))}>
       <div style={{ paddingTop: 6 }}>
         {g.goals?.length ? <GoalLines goals={g.goals} /> : <div style={{ fontSize: 11, color: C.text3, padding: '8px 0' }}>{scored ? 'No goals yet.' : 'Hasn’t dropped the puck yet.'}</div>}

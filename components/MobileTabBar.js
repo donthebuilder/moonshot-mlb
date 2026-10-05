@@ -55,7 +55,7 @@ const MORE = [
   // `bot` (Picks) is no longer a separate stop: it is the lower half of Props (10-03)
   ...MLB_MORE_GROUPS.flatMap(([group, keys]) => [
     [`@${group}`, ''],
-    ...keys.map((k) => [k, MLB_NAV[k].label, MLB_NAV[k].blurb]),
+    ...keys.map((k) => [k, MLB_NAV[k].label, MLB_NAV[k].icon]),
   ]),
 ]
 
@@ -93,7 +93,7 @@ const SEEN_KEY = 'moonshot_more_seen_v1'
 // bar to phones where a product has its own desktop rail, and `accentText`
 // lets a theme-aware colour (a CSS var) paint the active words while
 // `accent` stays the hex the tints are mixed from.
-export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, brand = 'MOONSHOT', accent = null, hrefOf = null, network = true, title = 'Everything on this site', lede = 'Every page, what each one is for, and the way across to the other two sites.', desktop = true, accentText = null }) {
+export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, brand = 'MOONSHOT', accent = null, hrefOf = null, network = true, title = 'Everything on this site', lede = 'Every page, and the way across to the other sites.', desktop = true, accentText = null }) {
   // EACH PRODUCT ITS OWN ACCENT (0g C1, 2026-10-01). The active tab, its
   // underline, the More dot and the active More row were MOONSHOT orange on
   // TUDDY's and LAMP's bars. `accent` (TUDDY jade, LAMP ice) replaces them;
@@ -227,18 +227,21 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
               the sheet because on a phone the switcher is the hardest thing
               to find. Leaving the sport is a link, not a tab, so it sits
               outside the grid of tabs below. */}
-          {network && <NetworkSwitch onNavigate={() => setOpen(false)} />}
-          {more.map(([key, label, detail]) => (
+          {network && <div className="mobileMoreWide"><NetworkSwitch onNavigate={() => setOpen(false)} /></div>}
+          {/* TILES, NOT PARAGRAPHS (BATCH-ONE-SITE step 4, 2026-10-05; tested with an older, sports-first
+              reader: "big words, few small ones"): each page is its icon and its name, two to a row --
+              the one-line blurbs are gone from here (they stay in search and the Guide). */}
+          {more.map(([key, label, icon]) => (
             key.startsWith('@') ? (
               <div key={key} className="mobileMoreGroup">{key.slice(1)}</div>
             ) : (
               hrefOf ? (
                 <a key={key} href={hrefOf(key)} tabIndex={open ? undefined : -1} onClick={(e) => follow(e, key)} className={`mobileMoreRow${tab === key ? ' active' : ''}`} aria-current={tab === key ? 'page' : undefined} aria-busy={pending === key || undefined}>
-                  <span>{label}</span><small>{detail}</small><em aria-hidden="true">›</em>
+                  <i aria-hidden="true">{icon}</i><span>{label}</span>
                 </a>
               ) : (
                 <button key={key} tabIndex={open ? undefined : -1} onClick={() => go(key)} className={`mobileMoreRow${tab === key ? ' active' : ''}`} aria-current={tab === key ? 'page' : undefined}>
-                  <span>{label}</span><small>{detail}</small><em aria-hidden="true">›</em>
+                  <i aria-hidden="true">{icon}</i><span>{label}</span>
                 </button>
               )
             )
@@ -292,16 +295,16 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
         .mobileMoreHead button{width:44px;height:44px;border:1px solid ${C.border};border-radius:11px;background:${C.bg};color:${C.text2};cursor:pointer;font-size:22px}
         .mobileMoreLede{margin:0 3px 10px;color:${C.text3};font-size:12px;line-height:1.5}
         .mobileMoreDot{position:absolute;top:6px;right:calc(50% - 17px);width:7px;height:7px;border-radius:50%;background:${AC};box-shadow:0 0 0 2px ${C.bg2}}
-        .mobileMoreList{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;margin:0 -14px;padding:0 14px calc(96px + env(safe-area-inset-bottom))}
-        .mobileMoreGroup{margin:16px 3px 4px;font-family:${NUM_FONT};font-size:9px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:${C.text3}}
-        .mobileMoreRow{display:grid;grid-template-columns:1fr auto;align-items:center;column-gap:10px;width:100%;min-height:48px;padding:8px 10px;border:0;border-bottom:1px solid ${C.border};border-radius:0;background:transparent;color:${C.text2};text-align:left;cursor:pointer}
-        .mobileMoreRow span{font-size:13px;font-weight:800;color:${C.text}}
-        .mobileMoreRow small{grid-column:1;margin-top:2px;color:${C.text3};font-size:11px;line-height:1.3}
-        .mobileMoreRow em{grid-column:2;grid-row:1/span 2;color:${C.text3};font-style:normal;font-size:18px}
+        .mobileMoreList{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;margin:0 -14px;padding:0 14px calc(96px + env(safe-area-inset-bottom));display:grid;grid-template-columns:1fr 1fr;gap:8px;align-content:start}
+        .mobileMoreWide{grid-column:1/-1;min-width:0}
+        .mobileMoreGroup{grid-column:1/-1;margin:10px 3px 0;font-family:${NUM_FONT};font-size:9px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:${C.text3}}
+        .mobileMoreRow{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:6px;min-width:0;min-height:72px;padding:10px 12px;border:1px solid ${C.border};border-radius:12px;background:${C.bg};color:${C.text2};text-align:left;cursor:pointer}
+        .mobileMoreRow i{font-style:normal;font-family:system-ui;font-size:22px;line-height:1}
+        .mobileMoreRow span{font-size:15px;font-weight:800;line-height:1.2;color:${C.text};overflow-wrap:anywhere}
         a.mobileMoreRow{text-decoration:none}
-        .mobileMoreRow:hover{background:${C.bg}}
-        .mobileMoreRow.active{border-radius:10px;border-bottom-color:transparent;background:${AC}14}
-        .mobileMoreRow.active span,.mobileMoreRow.active em{color:${accent || C.orange}}
+        .mobileMoreRow:hover{border-color:${C.border2}}
+        .mobileMoreRow.active{border-color:${AC}66;background:${AC}14}
+        .mobileMoreRow.active span{color:${accent || C.orange}}
         @media(min-width:761px){.mobileMoreList{padding-bottom:76px}}
         /* ── THE BAR, ON DESKTOP TOO (2026-08-29) ──────────────────────────
            Donovan picked it from three mocked options: "the nav going

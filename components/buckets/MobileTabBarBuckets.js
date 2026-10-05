@@ -12,7 +12,7 @@ const MAIN_KEYS = BAR_KEYS.nba   // lib/routes.js, the one list
 const MAIN = MAIN_KEYS.map((k) => [k, NBA_NAV[k].icon, NBA_NAV[k].label])
 const MORE = [
   // Tonight is on the bar (2026-10-04); More starts with the groups.
-  ...NBA_MORE_GROUPS.flatMap(([group, keys]) => [[`@${group}`, ''], ...keys.map((k) => [k, NBA_NAV[k].label, NBA_NAV[k].blurb])]),
+  ...NBA_MORE_GROUPS.flatMap(([group, keys]) => [[`@${group}`, ''], ...keys.map((k) => [k, NBA_NAV[k].label, NBA_NAV[k].icon])]),
 ]
 
 export default function MobileTabBarBuckets({ tab, setTab }) {

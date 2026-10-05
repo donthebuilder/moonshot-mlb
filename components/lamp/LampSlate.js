@@ -85,7 +85,7 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
     const called = g.rows.filter((r) => r.status === 'called').sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99))
     const b2b = [g.game.away.abbrev, g.game.home.abbrev].filter((t) => spotOf(g, t, true)?.b2b)
     return {
-      id: String(g.game.id), title: <MatchLogos sport="nhl" away={g.game.away.abbrev} home={g.game.home.abbrev} px={20} gap={5} />, past: st === 'final', heat,
+      id: String(g.game.id), title: <MatchLogos sport="nhl" away={g.game.away.abbrev} home={g.game.home.abbrev} px={26} gap={5} />, past: st === 'final', heat,
       tooltip: `${g.game.away.abbrev} @ ${g.game.home.abbrev}`,
       dial: { value: best || null, pct: best, title: `The best LAMP score in this game: ${best ? best.toFixed(0) : '—'} of 100.` },
       band: topId === g.game.id && games.length > 1 ? { icon: '🌋', word: 'MAIN EVENT' } : heat >= 0.62 ? { icon: '🔥', word: '' } : heat < 0.3 && games.length > 2 ? { icon: '🧊', word: '' } : null,

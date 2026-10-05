@@ -116,7 +116,7 @@ export default function NflSlate({ data, picks, matchup, logs = null, odds = nul
         .map((p) => ({ market: 'TD', name: p.name, score: p.scores.TD, pid: p.player_id }))
     const live = g.state === 'in'
     return {
-      id: String(g.game_id), title: <MatchLogos sport="nfl" away={g.away} home={g.home} px={20} gap={5} />, past: Boolean(g.completed), heat,
+      id: String(g.game_id), title: <MatchLogos sport="nfl" away={g.away} home={g.home} px={26} gap={5} />, past: Boolean(g.completed), heat,
       tooltip: `${g.away} @ ${g.home}${g.venue ? ` · ${g.venue}` : ''}`,
       dial: { value: x, dp: 1, pct: 100 * heat, title: `${x.toFixed(1)} expected touchdowns between the two teams — the sum of each scored player's xTD. The ring fills against this week's range.` },
       band: top && g.game_id === top.game_id ? { icon: '🌋', word: 'MAIN EVENT' } : heat >= 0.62 ? { icon: '🔥', word: '' } : heat < 0.3 ? { icon: '🧊', word: '' } : null,

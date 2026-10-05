@@ -141,7 +141,7 @@ export default function GameSwitcher({ games = [], activeGame, onSelect, live = 
       >
         <span style={{ fontSize: 12, fontWeight: 900, fontFamily: NUM_FONT, whiteSpace: 'nowrap', letterSpacing: '-.01em', color: on ? accent : C.text }}>
           {/* logos (Donovan 10-02); the codes ride the chip's title */}
-          <MatchLogos sport={sport} away={g.away} home={g.home} px={16} gap={3} />
+          <MatchLogos sport={sport} away={g.away} home={g.home} px={22} gap={3} />
         </span>
         <span style={{ fontSize: 11, fontFamily: NUM_FONT, fontWeight: 700, whiteSpace: 'nowrap', color: on ? C.text2 : C.text3 }}>{subOf(g)}</span>
       </button>

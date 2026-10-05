@@ -52,7 +52,7 @@ export default function Team({ data, onOpenPlayer, onOpenGame }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
       <PageHeader eyebrow="TUDDY · TEAM" theme={C} numFont={NUM_FONT} accent={C.green}
-        title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 12 }}><TeamMark sport="nfl" abbr={code} variant="logo" px={44} />{NAME[code]}</span>}
+        title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 12 }}><TeamMark sport="nfl" abbr={code} variant="logo" px={56} />{NAME[code]}</span>}
         note={div ? `${div.name}${place ? ` · ${place}${['', 'st', 'nd', 'rd'][place] || 'th'}` : ''}${me?.strk ? ` · streak ${me.strk}` : ''}` : 'The club, this week, its players on the board, its defence.'}
         stats={[rec && { value: rec, label: 'RECORD', tone: C.text }, me?.pf != null && { value: `${me.pf}-${me.pa}`, label: 'PF-PA', tone: C.text2 }, { value: rows.length, label: 'ON THE BOARD', tone: C.green }].filter(Boolean)} />
 

@@ -66,6 +66,7 @@ import DashFooter from '../DashFooter'
 import SkipLink from '../SkipLink'
 import NflProps from './NflProps'
 import NflTeam from './tabs/Team'
+import { useTabView } from '../../lib/tabView'
 const OddsBoard = dynamic(() => import('../tabs/OddsBoard'))
 
 // The key set now lives in lib/routes.js alongside MOONSHOT's, with the
@@ -115,6 +116,7 @@ const NFL_TAB_KEEP = { player: new Set(['players']), team: new Set(['players', '
 
 export default function NflDashboard({ palettePass = 0 }) {
   const [tab, setTabRaw] = useState('home')
+  useTabView('nfl', tab)
   // The Board hub names its own market/view (BoardHub onTitle); every other
   // page is the registry's title. One hook, so the two never fight.
   const [hubTitle, setHubTitle] = useState(null)
