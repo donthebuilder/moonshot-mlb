@@ -19,7 +19,7 @@ import { asLogos } from './TeamMark'
 //     and pulsing live, hollow ring when       the label, so every non-live
 //     not — so labels line up down the rail    tile's text starts further left
 //   value clipped at 150px with an ellipsis  value uncapped, long names push
-//                                              the tile wide
+//     (uncapped too since 10-05)                 the tile wide
 //   always a <button>                        a <div> unless given onClick
 //
 // This is MOONSHOT's shape, because MOONSHOT is the reference product. The
@@ -64,8 +64,9 @@ export default function TickerPill({
           {icon ? `${icon} ` : ''}{label}
         </span>
         <span style={{
-          fontFamily: NF, fontSize: 11, fontWeight: 900, color: color || T.text,
-          letterSpacing: '-.01em', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis',
+          // no width cap (2026-10-05): the strip scrolls sideways, so a long value ("2TD · 67 rec yd ·
+          // 80 rush yd") widens its pill instead of being cut to an ellipsis (check-mobile CLIPPED)
+          fontFamily: NF, fontSize: 11, fontWeight: 900, color: color || T.text, letterSpacing: '-.01em',
         }}>
           {asLogos(sport, value, { px: 14 })}
         </span>
