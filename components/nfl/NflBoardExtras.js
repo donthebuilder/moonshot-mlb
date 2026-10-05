@@ -82,7 +82,7 @@ export function nflGameOptions(games) {
 // The ⓘ picture per market (components/ScoreArt.js); TD only so far.
 const SCORE_ART = { TD: 'nfl-td' }
 
-export function NflBoardList({ players, market, weights, odds, phone, onPlayerClick }) {
+export function NflBoardList({ players, market, weights, odds, phone, onPlayerClick, statusOf = null }) {
   // our line beside the book's (TEST, BATCH-DASH-LINE): only where one exists for this market
   const dash = useDashLines()
   const dmk = DASH_OF[market]
@@ -131,6 +131,8 @@ export function NflBoardList({ players, market, weights, odds, phone, onPlayerCl
     <style>{`@media (max-width: 860px){.nfl-board-list .dense-sticky{max-width:150px!important;min-width:132px!important}}`}</style>
     <NflTable rows={rows} columns={allColumns} heatMode="primary" maxRows={rows.length} maxHeight={9999}
       dimRow={(r) => r._p?.low_sample} onRowClick={(r) => (r._p?.position === 'DEF' ? null : onPlayerClick?.(r._p, market))}
+      // the TD board's Status column: CALLED / ON THE BOARD / NOT ON THE BOARD (lib/nfl/tdStatus)
+      statusOf={statusOf ? (r) => statusOf(r._p) : null}
       caption={phone
         ? 'Score and the two heaviest parts of it, as percentiles in this week’s pool. Tap a row for the full card.'
         : 'Score, grade, and the three heaviest parts of the score as percentiles in this week’s pool. Click a header to sort; shift-click adds a tiebreaker.'} />

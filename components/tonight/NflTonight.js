@@ -10,7 +10,7 @@ import { tonightNfl } from '../../lib/tonight'
 import { tdPool } from '../../lib/nfl/tdPool'
 import { tdsIn, lineFor } from '../../lib/nfl/liveSlate'
 import { slateAlignments, alignedWith, dateDigitRoot } from '../../lib/nfl/alignments'
-import { onBotFor } from '../../lib/nfl/tdFeed'
+import { tdStatusFor } from '../../lib/nfl/tdStatus'
 import { useGameCalls } from '../nfl/GameCalls'
 import { easternToday, easternDate } from '../../lib/data'
 
@@ -31,14 +31,10 @@ export default function NflTonight({ data, picks, results, liveSnap, onPlayerCli
     const todayPlayers = (data?.players || []).filter((p) => stateOfTeam.has(p.team))
     const root = dateDigitRoot(todayET)
     const aligned = alignedWith(root, slateAlignments(todayPlayers).rows)?.byBotScore || []
-    // onBotFor counts a game call once it locks at kickoff; before kickoff the game's
-    // current calls ARE the calls (they lock unchanged), so they stand here as locked
-    const standing = gameCalls?.games ? { ...gameCalls, games: gameCalls.games.map((g) => ({ ...g, locked: true })) } : null
-    const gameOf = new Map()
-    for (const g of games) { gameOf.set(g.home, g.game_id); gameOf.set(g.away, g.game_id) }
+    // CALLED = the TD ladder, then his game's call (lib/nfl/tdStatus, shared with the TD board)
+    const { onBotOf } = tdStatusFor({ picksCard: picks?.card, gameCalls, games: data?.games, board: pool.rows })
     return tonightNfl({
-      rows: pool.rows, today: (p) => stateOfTeam.has(p.team),
-      onBotOf: (p) => onBotFor(picks?.card, p.player_id, { gameCalls: standing, gameId: gameOf.get(p.team) }),
+      rows: pool.rows, today: (p) => stateOfTeam.has(p.team), onBotOf,
       tdsOf: (p) => Math.max(Number(graded?.[p.player_id]?.TD) || 0, tdsIn(lineFor(liveSnap, p)) || 0),
       stateOf: (p) => stateOfTeam.get(p.team) || 'pre', aligned, root,
     })

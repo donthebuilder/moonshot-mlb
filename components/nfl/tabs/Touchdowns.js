@@ -150,7 +150,7 @@ export function Card({ p, rank, matchup, odds, onPlayerClick, weights, base, poo
   )
 }
 
-export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsStatus, logs = null, top = null, results = null, liveSnap = null }) {
+export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsStatus, logs = null, top = null, results = null, liveSnap = null, statusOf = null }) {
   const watchlist = useNflWatchlist(data)
   // Search, team and game come from the hub's top bar (2026-09-27).
   const query = top?.query || ''
@@ -320,7 +320,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
       ) : (
         <>
           {view === 'list'
-            ? <NflBoardList players={capped} market={MARKET} weights={weights} odds={odds} phone={phone} onPlayerClick={openFromBoard} />
+            ? <NflBoardList players={capped} market={MARKET} weights={weights} odds={odds} phone={phone} onPlayerClick={openFromBoard} statusOf={statusOf} />
             : <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))' }}>
                 {capped.map((p, i) => (
                   <Card key={p.player_id} p={p} rank={i + 1} matchup={matchup} odds={odds}

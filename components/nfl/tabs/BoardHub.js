@@ -8,9 +8,11 @@ import BoardTopBar from '../../BoardTopBar'
 import { nflGameOptions } from '../NflBoardExtras'
 import Touchdowns, { tdPool } from './Touchdowns'
 import HowToRead from '../../HowToRead'
-import { tdCallStatus, STATUS_WORD } from '../../../lib/callStatus'
+import { STATUS_WORD } from '../../../lib/callStatus'
 import Boards from './Boards'
 import Picks from './Picks'
+import { tdStatusFor } from '../../../lib/nfl/tdStatus'
+import { useGameCalls } from '../GameCalls'
 
 // 🃏 THE BOARD, ONE PAGE (2026-09-26, Donovan picked option (b) in
 // .claude-notes/TUDDY-FOUR-PAGES.md). Board (the TD list) and Boards (the
@@ -101,12 +103,16 @@ export default function BoardHub({ slate, data, logs, matchup, odds, oddsStatus,
   // TD board (tdPool, the board's own order). Its label comes from
   // tdCallStatus -- on the bot's card (picks.card.TD) = CALLED, top third =
   // ON THE BOARD -- never re-derived here.
+  // ONE CALL RULE (10-05): the TD ladder, then the game's call -- the board's Status
+  // column, this example row and Home's TONIGHT strip all read lib/nfl/tdStatus
+  const gameCalls = useGameCalls()
+  const tdStatus = useMemo(() => tdStatusFor({ picksCard: picks?.card, gameCalls, games: slate?.games, board: tdPool(slate).rows }), [picks, gameCalls, slate])
   const howRow = useMemo(() => {
     const rows = tdPool(slate).rows
     const p = rows[0]
     if (!p) return null
     const rung = (picks?.card?.TD?.rungs || []).find((r) => String(r.player_id) === String(p.player_id)) || null
-    const status = tdCallStatus({ on_bot: rung, td_board: { rank: 1, of: rows.length } })
+    const status = tdStatus.statusOf(p)   // the ladder, then his game's call (lib/nfl/tdStatus, 10-05)
     const g = (slate?.games || []).find((x) => x.home === p.team || x.away === p.team)
     return {
       sport: 'nfl', espnId: p.espn_id, team: p.team, opp: null, name: p.name, rank: 1,  // the Game mark says vs / @
@@ -117,7 +123,7 @@ export default function BoardHub({ slate, data, logs, matchup, odds, oddsStatus,
       pickNone: 'not called',
       fifth: { label: 'Game', value: [p.opp ? `${g?.home === p.team ? 'vs' : '@'} ${p.opp}` : null, g?.detail].filter(Boolean).join(' \u00b7 ') || 'TBD' },
     }
-  }, [slate, picks])
+  }, [slate, picks, tdStatus])
   return (
     <div>
       {(
@@ -152,7 +158,7 @@ export default function BoardHub({ slate, data, logs, matchup, odds, oddsStatus,
       {view === 'called'
         ? <Picks picks={picks} results={results} data={data} matchup={matchup} onPlayerClick={onPlayerClick} odds={odds} oddsStatus={oddsStatus} logs={logs} market={market} hideMarketPicker top={top} />
         : market === 'TD'
-          ? <Touchdowns data={slate} matchup={matchup} odds={odds} onPlayerClick={onPlayerClick} oddsStatus={oddsStatus} logs={logs} top={top} results={results} liveSnap={liveSnap} />
+          ? <Touchdowns data={slate} matchup={matchup} odds={odds} onPlayerClick={onPlayerClick} oddsStatus={oddsStatus} logs={logs} top={top} results={results} liveSnap={liveSnap} statusOf={tdStatus.statusOf} />
           : <Boards data={data} logs={logs} matchup={matchup} onPlayerClick={onPlayerClick} odds={odds} oddsStatus={oddsStatus} market={market} hideMarketPicker top={top} />}
     </div>
   )
