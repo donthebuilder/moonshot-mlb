@@ -45,6 +45,7 @@ const Schedule = dynamic(() => import('./tabs/Schedule'), { loading: TabLoading 
 const Matchups = dynamic(() => import('./tabs/Matchups'), { loading: TabLoading })
 const Hot = dynamic(() => import('./tabs/Hot'), { loading: TabLoading })
 const Ledger = dynamic(() => import('./tabs/Ledger'), { loading: TabLoading })
+const Numerology = dynamic(() => import('./tabs/Numerology'), { loading: TabLoading })
 const Watchlist = dynamic(() => import('./tabs/Watchlist'), { loading: TabLoading })
 const StorylinesPage = dynamic(() => import('../StorylinesPage'), { loading: TabLoading })
 const Teams = dynamic(() => import('./tabs/Teams'), { loading: TabLoading })
@@ -63,7 +64,7 @@ import SkipLink from '../SkipLink'
 import BucketsProps from './BucketsProps'
 
 // Pages that show one day and keep it in the address (`date=`).
-const DATED_TABS = new Set(['home', 'scores', 'board', 'fullboard', 'games', 'schedule', 'matchups', 'hot', 'ledger', 'storylines', 'odds'])
+const DATED_TABS = new Set(['home', 'scores', 'board', 'fullboard', 'games', 'schedule', 'matchups', 'hot', 'ledger', 'storylines', 'odds', 'numerology'])
 const MARKETS = new Set(['pts', 'reb', 'ast', '3pm', 'pra', 'first'])
 const ROUTE = {
   sport: 'nba', nav: NBA_NAV, datedTabs: DATED_TABS,
@@ -132,6 +133,7 @@ export default function BucketsDashboard() {
             {tab === 'storylines' && <StorylinesPage sport="nba" eyebrow="BUCKETS · STORYLINES" theme={C} numFont={NUM_FONT} accent={C.purple} onOpenPlayer={peekPlayer} onOpenGame={openGame} date={date} />}
             {tab === 'watchlist' && <Watchlist onOpenPlayer={peekPlayer} />}
             {tab === 'ledger' && <Ledger date={date} setDate={setDate} {...nav} />}
+            {tab === 'numerology' && <Numerology date={date} onOpenPlayer={peekPlayer} />}
             {tab === 'hot' && <Hot date={date} setDate={setDate} {...nav} />}
             {tab === 'matchups' && <Matchups date={date} setDate={setDate} onOpenTeam={openTeam} onOpenGame={openGame} />}
             {tab === 'standings' && <Standings onOpenTeam={openTeam} />}
