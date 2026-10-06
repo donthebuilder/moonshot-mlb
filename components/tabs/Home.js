@@ -44,6 +44,7 @@ import { mlbNextGames, nextLine } from '../../lib/mlbNext'
 import { CLEAN_PICKS, CLEAN_SOURCE } from '../../lib/cleanRecord'
 import { onLiveRefresh } from '../../lib/liveRefresh'
 import MlbTonight from '../tonight/MlbTonight'
+import { TeamTap } from '../EntityTap'
 
 // An Eastern calendar day n days from today (YYYY-MM-DD), on etToday's clock.
 const etShift = (n) => { const d = new Date(`${etToday()}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10) }
@@ -1173,7 +1174,7 @@ export default function Home({
                   background: 'none', border: 'none', padding: '3px 1px', cursor: 'pointer',
                   fontSize: TYPE.body, fontWeight: 800, color: '#f87171', textDecoration: 'underline', textDecorationColor: 'rgba(248,113,113,.35)',
                 }}>{nameOf(p)}</button>
-                <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}> {teamOf(p)}</span>
+                <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}> <TeamTap abbr={teamOf(p)} /></span>
               </span>
             ))
             return (

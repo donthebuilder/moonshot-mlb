@@ -434,7 +434,9 @@ export function renderV2(ctx) {
               if (c.heat === false) {
                 const isName = c === nameC
                 const textTitle = c.titleKey ? (r?.[c.titleKey] || undefined) : undefined
-                const go = c.link ? c.link(r._raw ?? r) : null
+                // an opponent / team CODE in a text cell is a club link too (the product's team
+                // door); "his team is the logo, the opponent is quiet text" -- quiet, not dead
+                const go = c.link ? c.link(r._raw ?? r) : (!isName && (c.key === 'opp' || c.key === 'team') && onOpenTeam && /^[A-Z]{2,4}$/.test(String(v)) ? () => onOpenTeam(String(v)) : null)
                 if (isRank(c)) {
                   return (
                     <td key={c.key} className={cls(c, 'rank')} style={{ ...pin, ...(called ? { color: ac } : {}), ...(bgTint || {}) }}>
@@ -470,13 +472,22 @@ export function renderV2(ctx) {
                     // a called row has no room for the opponent at 122px (plan: rough edge)
                     if (logoOf(fc)) {
                       // logos only (Donovan 10-02: "just do logos simple"); the code rides the logo's title / alt
-                      if (!(called && !firstTeam)) sub.push(<span key={fc.key} data-vs={firstTeam ? undefined : 1} style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>{firstTeam ? null : 'v '}<TeamMark sport={logoOf(fc)} abbr={fv} variant="logo" px={11} /></span>)
+                      // the logo is a link like its own column's: the column's link, else the
+                      // product's team door (a tap on the sub-line logo used to fall through to the row's player card)
+                      if (!(called && !firstTeam)) {
+                        const mk = <TeamMark sport={logoOf(fc)} abbr={fv} variant="logo" px={11} />
+                        const goTeam = fc.link ? fc.link(r._raw ?? r) : (onOpenTeam && /^[A-Z]{2,4}$/.test(String(fv)) ? () => onOpenTeam(String(fv)) : null)
+                        sub.push(<span key={fc.key} data-vs={firstTeam ? undefined : 1} style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>{firstTeam ? null : 'v '}{goTeam ? <Tap onClick={goTeam}>{mk}</Tap> : mk}</span>)
+                      }
                       firstTeam = false
                     } else if (fc.key !== 'role' && !fc._status) {
                       // a short folded value (POS "RB", a G2) rides the sub-line; a long one
                       // (a role sentence) stays on the desktop column only
                       const txt = String(fc.fmt ? fc.fmt(fv, r) : fv)
-                      if (txt.length <= 6) sub.push(<span key={fc.key}>{txt}</span>)
+                      if (txt.length <= 6) {
+                        const goT = (fc.key === 'opp' || fc.key === 'team') && onOpenTeam && /^[A-Z]{2,4}$/.test(txt) ? () => onOpenTeam(txt) : null
+                        sub.push(<span key={fc.key}>{goT ? <Tap onClick={goT}>{txt}</Tap> : txt}</span>)
+                      }
                     }
                   }
                   if (watched) sub.push(<span key="w" style={{ color: ac }}>★</span>)

@@ -26,6 +26,7 @@ import PitcherSpots from '../PitcherSpots'
 import PitcherProfile from '../PitcherProfile'
 import PitcherModal from '../PitcherModal'
 import { takeTarget } from '../../lib/openTarget'
+import { GameTap } from '../EntityTap'
 
 // Rates arrive as 0–1 fractions; show them as percentages so a 0.38 fly-ball
 // rate reads as 38.0 next to the ERA and WHIP columns instead of as 0.
@@ -803,7 +804,7 @@ function PitcherCard({ pitcher, isOpen, onToggle, onPlayerClick, onOpenPitcher }
           )}
           {hasWeak && <Chip color={C.yellow}>⭐ {pitcher.weak_spot_count} weak spot{pitcher.weak_spot_count > 1 ? 's' : ''}</Chip>}
           <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>
-            {pitcher.team} vs {pitcher.opponent_team} · {localTime(pitcher.game_time)}
+            <GameTap pk={pitcher.game_pk}>{pitcher.team} vs {pitcher.opponent_team}</GameTap> · {localTime(pitcher.game_time)}
             {pitcher.venue_name ? ` · ${pitcher.venue_name}` : ''}
             {' · '}{pitcher.lineup_confirmed ? 'Confirmed' : 'Projected'}
           </span>
@@ -1038,7 +1039,7 @@ export default function Pitchers({ players, onPlayerClick }) {
                     whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                   }}>{p.pitcher_name}</div>
                   <div style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>
-                    {p.pitcher_throws}HP · {p.team} vs {p.opponent_team} · {localTime(p.game_time)}
+                    {p.pitcher_throws}HP · <GameTap pk={p.game_pk}>{p.team} vs {p.opponent_team}</GameTap> · {localTime(p.game_time)}
                   </div>
                 </div>
               </div>

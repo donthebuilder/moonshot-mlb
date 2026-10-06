@@ -1,6 +1,7 @@
 'use client'
 import { C as MLB_C, NUM_FONT as MLB_NUM } from '../../lib/theme'
 import { alpha } from '../../lib/scales'
+import Tap from '../Tap'
 
 // THE POWER PAGE'S FRAME, SHARED (2026-09-29, Donovan: "did we ever do the
 // player powers for all the sports?"). Lifted out of MOONSHOT's
@@ -37,7 +38,7 @@ export function ConvictionClause({ conv, field, theme = MLB_C, numFont = MLB_NUM
 }
 
 /** The lead card: kicker, the name (tap for his card), then the argument. */
-export function PowerLead({ color, kicker, name, meta, onName, children, theme = MLB_C, numFont = MLB_NUM }) {
+export function PowerLead({ color, kicker, name, meta, onName, onMeta = null, children, theme = MLB_C, numFont = MLB_NUM }) {
   const C = theme
   return (
     <section style={{
@@ -54,7 +55,7 @@ export function PowerLead({ color, kicker, name, meta, onName, children, theme =
       </div>
       <h2 style={{ margin: '0 0 8px', fontSize: 27, fontWeight: 900, letterSpacing: '-.02em', lineHeight: 1.1 }}>
         <span onClick={onName} style={{ cursor: onName ? 'pointer' : 'default' }}>{name}</span>
-        <span style={{ fontSize: 13, fontWeight: 700, color: C.text3, fontFamily: numFont }}> {meta}</span>
+        <span style={{ fontSize: 13, fontWeight: 700, color: C.text3, fontFamily: numFont }}> {onMeta ? <Tap onClick={onMeta}>{meta}</Tap> : meta}</span>
       </h2>
       {children}
     </section>

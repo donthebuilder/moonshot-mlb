@@ -10,6 +10,7 @@ import { primaryRole } from '../../lib/verdict'
 import { BattingBox, PitchingBox, LineScore } from '../BoxTable'
 import GameRow from '../GameRow'
 import { onLiveRefresh } from '../../lib/liveRefresh'
+import { takeTarget } from '../../lib/openTarget'
 
 // 📋 BOXES — every game, live or finished, with the whole box under it.
 //
@@ -196,7 +197,11 @@ function GameCard({ g, open, onToggle, watchIds, onPlayerClick, stake }) {
 // render — the picks and watchlist counts, which are the useful half, come
 // off the slate and need nothing fetched.
 export default function Boxes({ watchIds, onPlayerClick, players = [], results = null }) {
-  const [day, setDay] = useState(() => slateDay(0))
+  // A game handed over from another page (the team page's Last five / Next up:
+  // a game that is not on tonight's slate has no lineup page, but it has a box)
+  // opens on ITS date with its box already open. Taken once, on mount.
+  const [handed] = useState(() => (typeof window === 'undefined' ? null : { day: takeTarget('boxday'), pk: takeTarget('boxgame') }))
+  const [day, setDay] = useState(() => (handed?.day && /^\d{4}-\d{2}-\d{2}$/.test(handed.day) ? handed.day : slateDay(0)))
   const [games, setGames] = useState(undefined)
   // A SET, not a single pk (2026-08-31). One-open-at-a-time meant comparing
   // two games was a close, a scroll and a re-open, and the box you closed had
@@ -209,10 +214,10 @@ export default function Boxes({ watchIds, onPlayerClick, players = [], results =
   useEffect(() => {
     let alive = true
     setGames(undefined)
-    setOpen(new Set())
+    setOpen(new Set(handed?.pk && day === handed.day ? [Number(handed.pk)] : []))
     scheduleFor(day).then((g) => { if (alive) setGames(g || null) }).catch(() => { if (alive) setGames(null) })
     return () => { alive = false }
-  }, [day])
+  }, [day, handed])
 
   // Re-poll the SCHEDULE (scores and states, one request) while anything is
   // live. The box under an open card has its own faster timer.

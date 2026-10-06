@@ -4,6 +4,7 @@ import { C, TYPE } from '../../lib/theme'
 import { groupPitchers } from '../../lib/data'
 import { PanelTitle, Empty, inputStyle } from '../ui'
 import PitcherHeatMap from '../PitcherHeatMap'
+import { GameTap, PitcherTap } from '../EntityTap'
 
 // PITCHER MAP (2026-09-21) — the picker around components/PitcherHeatMap.js.
 // Same starter list every Pitchers.js chip already reads (lib/data.js's
@@ -68,10 +69,10 @@ export default function PitcherMap({ players = [] }) {
       {selected && (
         <>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
-            <span style={{ fontSize: TYPE.name, fontWeight: 800 }}>{selected.pitcher_name}</span>
+            <span style={{ fontSize: TYPE.name, fontWeight: 800 }}><PitcherTap id={selected.pitcher_id}>{selected.pitcher_name}</PitcherTap></span>
             <span style={{ fontSize: TYPE.body, color: C.text3 }}>
               {selected.pitcher_throws !== '?' ? `Throws ${selected.pitcher_throws} · ` : ''}
-              {selected.team} vs {selected.opponent_team}
+              <GameTap pk={selected.game_pk}>{selected.team} vs {selected.opponent_team}</GameTap>
             </span>
           </div>
           <PitcherHeatMap pitcherId={selected.pitcher_id} pitcherName={selected.pitcher_name} />

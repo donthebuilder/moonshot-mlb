@@ -15,6 +15,8 @@ import FenceBoard from '../FenceBoard'
 import ShapeBoard from '../ShapeBoard'
 import { alpha } from '../../lib/scales'
 import { Para, Num, ConvictionClause, PowerLead, LensRow } from '../power/PowerParts'
+import { PitcherTap } from '../EntityTap'
+import { useGameNav } from '../../lib/teamNav'
 
 // 🚀 POWER — one lead, one board, three lenses (rebuilt 2026-08-15).
 //
@@ -167,6 +169,7 @@ function AirClause({ p }) {
 // claim; the strength of the ranking belongs in the sentence either way.
 
 export default function PowerTab({ players, slateDate = '', results = null, onWatch, watchIds, onPlayerClick, initial = 'longest' }) {
+  const openGame = useGameNav()   // the lead's matchup line opens its game (10-05 nav audit)
   const [view, setView] = useState(initial === 'due' ? 'power3' : initial)
   // Park click → filter the Farthest board to that game (2026-08-07). Clicking
   // a park from the Parks lens now also RETURNS you to the board, which is the
@@ -263,7 +266,8 @@ export default function PowerTab({ players, slateDate = '', results = null, onWa
           // 2026-08-24, "looks off/cluttered" against a purple callout with no
           // card edge of its own. See components/VerdictHero.js.
           <PowerLead color={h.color} kicker={h.kicker} name={nameOf(p)} meta={`${teamOf(p)} vs ${oppOf(p)}`}
-            onName={onPlayerClick ? () => onPlayerClick(p) : undefined}>
+            onName={onPlayerClick ? () => onPlayerClick(p) : undefined}
+            onMeta={openGame && p?.game_pk ? () => openGame(p.game_pk) : undefined}>
 
             {/* THE ARGUMENT. Every number is a published field spoken inside a
                 sentence — no tile, no meter, and deliberately no percentage on
@@ -310,7 +314,7 @@ export default function PowerTab({ players, slateDate = '', results = null, onWa
             {/* THE BUILDING — the park read, attached to the name it matters
                 for. This is where the ranked park board used to live. */}
             <Para>
-              {arm ? <>He draws <b style={{ color: C.text2 }}>{arm}</b></> : <>He is in the lineup</>}
+              {arm ? <>He draws <PitcherTap id={p?.pitcher_id}><b style={{ color: C.text2 }}>{arm}</b></PitcherTap></> : <>He is in the lineup</>}
               {hr9 > 0 && <>, who is giving up <Num color={hr9Color(hr9, C.text2)}>{hr9.toFixed(2)}</Num> home runs per nine</>}
               {spot > 0 && <>, and he hits {spot}{ord(spot)}</>}.
               {' '}He does it in <b style={{ color: C.text2 }}>{clean(p?.venue_name, 'a park the slate has not named')}</b>

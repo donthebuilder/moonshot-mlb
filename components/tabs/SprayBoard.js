@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../lib/theme'
 import { nameOf, teamOf, oppOf, clean, hrScore } from '../../lib/player'
 import { PanelTitle, Empty, inputStyle } from '../ui'
+import Tap from '../Tap'
+import { GameTap } from '../EntityTap'
 import SprayField from '../SprayField'
 import HRPitchProfile from '../HRPitchProfile'
 import { rampColor, inkFor } from '../Heatmap'
@@ -133,9 +135,9 @@ export default function SprayBoard({ players = [], slateMode, onPlayerClick }) {
           <div style={{
             display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 8,
           }}>
-            <span style={{ fontSize: TYPE.name, fontWeight: 800 }}>{nameOf(selected)}</span>
+            <span style={{ fontSize: TYPE.name, fontWeight: 800 }}><Tap onClick={onPlayerClick ? () => onPlayerClick(selected) : null}>{nameOf(selected)}</Tap></span>
             <span style={{ fontSize: TYPE.body, color: C.text3, fontFamily: NUM_FONT }}>
-              {teamOf(selected)} vs {oppOf(selected)} · {clean(selected?.pitcher_name, 'TBD')} ·
+              <GameTap pk={selected?.game_pk}>{teamOf(selected)} vs {oppOf(selected)}</GameTap> · {clean(selected?.pitcher_name, 'TBD')} ·
               {' '}HR {hrScore(selected).toFixed(1)}
             </span>
             <button

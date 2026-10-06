@@ -7,6 +7,7 @@ import { nameOf, teamOf, oppOf, clean, n, playerId } from '../lib/player'
 import { isoAdjustedHr, isoMultiplier } from '../lib/scoring_additions'
 import { whyPick, standingPhrase, convictionOf, outClearedBy } from '../lib/whyPick'
 import { Empty } from './ui'
+import { GameTap } from './EntityTap'
 
 // 📝 THE READ — tonight in sentences, and the one number the site stopped using.
 //
@@ -448,7 +449,7 @@ export default function TheRead({ players = [], onPlayerClick, odds = null }) {
             </div>
             <h2 style={{ margin: '0 0 8px', fontSize: 27, fontWeight: 900, letterSpacing: '-.02em', lineHeight: 1.1 }}>
               <span onClick={() => onPlayerClick?.(p)} style={{ cursor: onPlayerClick ? 'pointer' : 'default' }}>{nameOf(p)}</span>
-              <span style={{ fontSize: 13, fontWeight: 700, color: C.text3, fontFamily: NUM_FONT }}> {teamOf(p)} vs {oppOf(p)}</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: C.text3, fontFamily: NUM_FONT }}> <GameTap pk={p?.game_pk}>{teamOf(p)} vs {oppOf(p)}</GameTap></span>
             </h2>
             <Para>
               He draws {clean(p?.pitcher_name, 'a TBD arm')}

@@ -3,6 +3,7 @@ import { C, NUM_FONT, TYPE } from '../../lib/theme'
 import { STATE, alpha } from '../../lib/scales'
 import Sparkline, { GameStrip } from '../Sparkline'
 import { useSportTheme } from '../SportTheme'
+import { TeamTap } from '../EntityTap'
 
 // MOONSHOT'S RUN PIECES, SHARED (2026-09-29, queue batch 9/11). Lifted out of
 // components/tabs/Runs.js unchanged so TUDDY's Streaks is drawn by the same
@@ -163,7 +164,7 @@ export function RunBoardRow({ r, name, team, label, open, onToggle, onOpenCard, 
           }}>{r.run > 0 ? `${r.run}▲` : `${-r.run}▼`}</span>
         <span style={{ fontSize: TYPE.name, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, minWidth: 0 }}>
           {name}
-          <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, color: C.text3, marginLeft: 5 }}>{team}</span>
+          <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, color: C.text3, marginLeft: 5 }}><TeamTap abbr={team}>{team}</TeamTap></span>
         </span>
         <Sparkline strip={r.strip} run={r.run} size={6} max={15} />
         <span title={r.l15 ? `${r.l15.ok} of his last ${r.l15.n} games cleared ${label}` : ''}
