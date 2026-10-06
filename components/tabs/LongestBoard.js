@@ -412,7 +412,7 @@ export default function LongestBoard({ players = [], results = null, onWatch, wa
                   return (
                     <div
                       key={r._key}
-                      onClick={() => onPlayerClick?.(r)}
+                      onClick={() => onPlayerClick?.(r._raw ?? r)}
                       title={`${r.name} — adjusted ${r.adj.toFixed(1)}, raw ${r.raw.toFixed(1)}, carry ×${(r.raw > 0 ? r.adj / r.raw : 1).toFixed(3)} at ${r.venue || 'TBD'}`}
                       style={{
                         display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer',

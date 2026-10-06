@@ -38,7 +38,7 @@ import { useLiveRefresh } from '../lib/liveRefresh'
 import RefreshStamp from './RefreshStamp'
 import DashFooter from './DashFooter'
 import SkipLink from './SkipLink'
-import { TeamNav } from '../lib/teamNav'
+import { TeamNav, GameNav, PitcherNav } from '../lib/teamNav'
 import { useTabView } from '../lib/tabView'
 
 // ── ONE TAB'S CODE AT A TIME (2026-09-27) ────────────────────────────────
@@ -109,6 +109,8 @@ export default function Dashboard({ palettePass = 0 }) {
   // Every page of both products read as the site name before this.
   // lib/usePageTitle.js holds it against Next's own static <title> write.
   usePageTitle(`${pageTitle('mlb', tab)} \u00b7 DASH Network`)
+  const openGameNav = (pk) => { if (!pk) return; leaveTarget('game', pk); setTab('games') }
+  const openPitcherNav = (pid) => { if (!pid) return; leaveTarget('pitcher', pid); setTab('pitchers') }
   const openTeam = (abbr) => { if (!abbr) return; leaveTarget('team', String(abbr).toUpperCase()); setTab('team') }
   const setTab = (next) => {
     if (next !== 'pairs') setFocusPlayerId(null)
@@ -138,7 +140,13 @@ export default function Dashboard({ palettePass = 0 }) {
   const [game, setGame] = useHashFilter('fgame')
   const [slip, setSlip] = useState([])
   const [watch, setWatch] = useState([])
-  const [modalPlayer, setModalPlayer] = useState(null)
+  const [modalPlayer, setModalPlayerRaw] = useState(null)
+  // A table row is often a DERIVED object that carries the slate record as `_raw`
+  // (and no player_id of its own). The card opened on it as an "off list" stub
+  // with no id, so the address never got p= (nav audit 10-05: Longest's ladder).
+  // Every opener goes through here, so the card always opens on the slate record.
+  const setModalPlayer = (p) => setModalPlayerRaw(
+    p && typeof p === 'object' && p.player_id == null && p.id == null && p._raw && typeof p._raw === 'object' ? p._raw : p)
 
   // DEEP LINKS (2026-08-08, wishlist #3). #tab=power&p=660271 is now a real
   // address: tab restores immediately, the player modal opens as soon as the
@@ -520,6 +528,7 @@ export default function Dashboard({ palettePass = 0 }) {
     if (tab === 'games' && live.get('game')) h.set('game', live.get('game'))
     if (tab === 'pitchers' && live.get('pitcher')) h.set('pitcher', live.get('pitcher'))
     if (tab === 'player' && live.get('player')) h.set('player', live.get('player'))   // PlayerBoard's pick (2026-09-29)
+    if (tab === 'props' && live.get('sheet')) h.set('sheet', live.get('sheet'))       // the phone pick sheet (10-05)
     if (tab === 'team' && live.get('team')) h.set('team', live.get('team'))           // the team page's club (10-03)
     // PUSH WHAT YOU OPENED (2026-09-27, audit 00A root fix 1; lib/urlState).
     // A new tab or a newly opened card adds a history entry, so Back returns
@@ -944,6 +953,8 @@ export default function Dashboard({ palettePass = 0 }) {
                 whole app to a white screen. Now it is one panel. */}
             {/* a team logo tapped in any table opens the club's page (lib/teamNav, 10-03) */}
             <TeamNav.Provider value={openTeam}>
+            <GameNav.Provider value={openGameNav}>
+            <PitcherNav.Provider value={openPitcherNav}>
             <ErrorBoundary resetKey={tab} label={`the ${tab} tab`}>
             {/* resultsForSlate, NOT results (2026-08-09 audit). Home's pulse line
                 counts "balls already left a yard tonight" straight out of the
@@ -1053,8 +1064,10 @@ export default function Dashboard({ palettePass = 0 }) {
             {tab === 'spray'       && <SprayBoard players={players} slateMode={mode} onPlayerClick={setModalPlayer} />}
             {tab === 'pitchermap'  && <PitcherMap players={players} />}
             {tab === 'guide'       && <Guide onNavigate={setTab} />}
-            {tab === 'team'        && <Team players={allPlayers} onPlayerClick={setModalPlayer} onOpenGame={() => setTab('games')} />}
+            {tab === 'team'        && <Team players={allPlayers} onPlayerClick={setModalPlayer} onOpenGame={() => setTab('games')} onOpenBox={() => setTab('boxes')} />}
             </ErrorBoundary>
+            </PitcherNav.Provider>
+            </GameNav.Provider>
             </TeamNav.Provider>
           </div>
         </>

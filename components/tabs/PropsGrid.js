@@ -1,5 +1,6 @@
 'use client'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { hashParams, writeHash, closeOpened } from '../../lib/urlState'
 import { C } from '../../lib/theme'
 import { nameOf, teamOf, oppOf, txt, playerId, mlbId, PLATE_BAR } from '../../lib/player'
 import { quoteFor, fmtOdds } from '../../lib/odds'
@@ -227,7 +228,32 @@ export default function PropsGrid({ players = [], odds = null, onPlayerClick, on
   // screen); on anything wider the player modal opens directly.
   const isPhone = useIsPhone(760)
   const [sheet, setSheet] = useState(null)
-  const openCard = (p) => { if (isPhone) setSheet(p); else onPlayerClick?.(p) }
+  // THE PHONE SHEET IS AN ADDRESS (2026-10-05, nav audit: "player opened but the
+  // URL does not carry his ID"). The sheet is a card, so it rides the hash as
+  // sheet=<player_id>: opening it PUSHES an entry (Back closes the sheet and
+  // stays on Props), a refresh or a shared link opens the same sheet. The
+  // Dashboard's hash writer carries `sheet` on this tab (it rebuilds the hash).
+  const sid = (p) => String(p?.player_id ?? p?.id ?? '')
+  const writeSheet = (id, push) => { const h = hashParams(); if (id) h.set('sheet', id); else h.delete('sheet'); writeHash(h, { push, state: push ? { propsSheet: 1 } : null }) }
+  const openCard = (p) => {
+    if (!isPhone) { onPlayerClick?.(p); return }
+    setSheet(p)
+    if (sid(p)) writeSheet(sid(p), true)
+  }
+  const closeSheet = () => closeOpened('propsSheet', () => { setSheet(null); writeSheet('', false) })
+  // the address -> the sheet: on load (once the board has landed), on Back / Forward
+  useEffect(() => {
+    if (!isPhone) return undefined
+    const read = () => {
+      const id = hashParams().get('sheet')
+      if (!id) { setSheet(null); return }
+      const found = (players || []).find((x) => sid(x) === id)
+      if (found) setSheet((cur) => (cur && sid(cur) === id ? cur : found))
+    }
+    read()
+    window.addEventListener('hashchange', read)
+    return () => window.removeEventListener('hashchange', read)
+  }, [isPhone, players])
   const a = useMemo(() => mlbAdapter(odds), [odds])
   return (
     <>
@@ -238,8 +264,8 @@ export default function PropsGrid({ players = [], odds = null, onPlayerClick, on
         <PropsSheet
           player={sheet}
           odds={odds}
-          onClose={() => setSheet(null)}
-          onFullResearch={(p) => { setSheet(null); onPlayerClick?.(p) }}
+          onClose={closeSheet}
+          onFullResearch={(p) => { setSheet(null); writeSheet('', false); onPlayerClick?.(p) }}
           onWatch={onWatch}
           watched={watchIds?.has(playerId(sheet))}
         />
