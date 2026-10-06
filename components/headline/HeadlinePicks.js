@@ -4,6 +4,7 @@ import { WhatThis } from '../ui'
 import { explain } from '../../lib/explain'
 import { useIsPhone } from '../MobileFold'
 import { asLogos } from '../TeamMark'
+import { TeamTap } from '../EntityTap'
 import { TYPE } from '../../lib/theme'
 
 // THE HEADLINE PICKS, ONE LAYOUT FOR EVERY PRODUCT (2026-09-27,
@@ -194,7 +195,7 @@ export default function HeadlinePicks({ theme, numFont, title, subtitle, record 
                           {p.result && <Mark r={p.result} C={C} size={11} />}
                           <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0, alignSelf: 'center' }}>
                             {/* a club code draws as its logo (Donovan 10-02, logos site-wide) */}
-                            {asLogos(sport, p.team, { px: 12 })}
+                            <TeamTap abbr={p.team}>{asLogos(sport, p.team, { px: 12 })}</TeamTap>
                           </span>
                           {p.micro && (
                             <span style={{

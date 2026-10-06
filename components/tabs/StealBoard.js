@@ -5,6 +5,7 @@ import { n, nameOf, teamOf, oppOf, txt } from '../../lib/player'
 import { alpha, verdictInk, verdictWash } from '../../lib/scales'
 import { FilterPill } from '../Filters'
 import { fmtOdds, impliedPct, normName } from '../../lib/odds'
+import { GameTap } from '../EntityTap'
 
 // ══ THE STEAL BOARD ═════════════════════════════════════════════════════════
 //
@@ -287,7 +288,7 @@ export default function StealBoard({ players = [], odds = null, onPlayerClick })
                 <Cell w={148} mono={false} color={C.text}>
                   <b style={{ fontWeight: 800 }}>{nameOf(p)}</b>
                 </Cell>
-                <Cell w={86} color={C.text3}>{teamOf(p)} vs {oppOf(p)}</Cell>
+                <Cell w={86} color={C.text3}><GameTap pk={p?.game_pk}>{teamOf(p)} vs {oppOf(p)}</GameTap></Cell>
                 {/* THE SPOT — the model, and it says when it declined. A row
                     the bot refused to score prints an em-dash and the tooltip
                     gives the reason; it never prints 0.0, which would rank a

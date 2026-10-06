@@ -5,6 +5,7 @@ import { hr9Color } from '../lib/hr9'
 import { oddsPaths } from '../lib/dataSource'
 import { quoteFor, fmtOdds, impliedPct, oddsLooksReal } from '../lib/odds'
 import { nameOf, teamOf, oppOf, clean } from '../lib/player'
+import { GameTap } from './EntityTap'
 import { whyPick, standingPhrase, convictionOf, heroCall, outClearedBy } from '../lib/whyPick'
 
 // 📰 THE READ, ON THE PORCH — the lead only, and the same lead.
@@ -186,7 +187,7 @@ export default function ReadTeaser({ players = [], odds: oddsProp = null, onNavi
 
       <div style={{ fontSize: 19, fontWeight: 900, letterSpacing: '-.02em', lineHeight: 1.2, marginBottom: 6 }}>
         <span onClick={() => onPlayerClick?.(p)} style={{ cursor: onPlayerClick ? 'pointer' : 'default' }}>{nameOf(p)}</span>
-        <span style={{ fontSize: 11.5, fontWeight: 700, color: C.text3, fontFamily: NUM_FONT }}> {teamOf(p)} vs {oppOf(p)}</span>
+        <span style={{ fontSize: 11.5, fontWeight: 700, color: C.text3, fontFamily: NUM_FONT }}> <GameTap pk={p?.game_pk}>{teamOf(p)} vs {oppOf(p)}</GameTap></span>
       </div>
 
       {/* THE ARGUMENT, IN ONE LINE. Same three facts The Read's hero opens on
