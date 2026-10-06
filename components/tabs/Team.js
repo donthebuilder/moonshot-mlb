@@ -66,7 +66,7 @@ function GameLine({ g, onOpen }) {
   )
 }
 
-export default function Team({ players = [], onPlayerClick, onOpenGame }) {
+export default function Team({ players = [], onPlayerClick, onOpenGame, onOpenBox }) {
   const [code, setCode] = useState(null)
   useEffect(() => {
     const t = teamKey(takeTarget('team') || '')
@@ -98,7 +98,14 @@ export default function Team({ players = [], onPlayerClick, onOpenGame }) {
   const last5 = played.slice(-5).reverse()
   const next5 = ahead.slice(0, 5)
   const live = games.find((g) => g.state === 'Live') || null
-  const openGame = (g) => { leaveTarget('game', g.pk); onOpenGame?.(g.pk) }
+  // Tonight's slate has a page per game (Games). A game that is not on it -- last
+  // week's, or next week's -- has no lineup page; its destination is the Box
+  // scores page on THAT date with the game open (it used to open Games on an
+  // empty focus). Falls back to Games when the shell has no box door.
+  const openGame = (g) => {
+    if (onOpenBox && !players.some((p) => String(p?.game_pk) === String(g.pk))) { leaveTarget('boxday', g.date); leaveTarget('boxgame', g.pk); onOpenBox(); return }
+    leaveTarget('game', g.pk); onOpenGame?.(g.pk)
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>

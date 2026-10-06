@@ -1035,6 +1035,11 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
               padding: '6px 12px', fontSize: TYPE.body, fontWeight: 700, color: C.text3,
             }}>← All lineups</button>
           )}
+          {lineupFocus && !games.some((g) => String(g.game_pk) === String(lineupFocus)) && (
+            <div style={{ flex: '1 1 100%', fontSize: TYPE.body, color: C.text3, lineHeight: 1.5 }}>
+              That game isn&apos;t on tonight&apos;s slate, so it has no lineup page here. Past and future games open in Box scores (the team page&apos;s Last five and Next up do).
+            </div>
+          )}
           {(lineupFocus ? games.filter((g) => String(g.game_pk) === String(lineupFocus)) : games).map((g) => {
             const byTeam = {}
             ;(g.players || []).forEach((p) => {
