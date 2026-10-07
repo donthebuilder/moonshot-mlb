@@ -28,7 +28,7 @@ import { slateNight } from '../../lib/slateNight'
 import { matchupWord, oddsWord, roleWord } from '../../lib/dash/homerFeed'
 import { tdCallWord, tdPlayWord, matchRoster } from '../../lib/nfl/tdFeed'
 import { nflSlatePaths } from '../../lib/nfl/dataSource'
-import { BRAND, SPORT_KEYS, sportKey, appHref, playerHref, isHiddenSport } from '../../lib/routes'
+import { BRAND, SPORT_KEYS, sportKey, appHref, playerHref, teamHref, isHiddenSport } from '../../lib/routes'
 import { nhlCaptureFrom, readNhlRecords } from '../../lib/record/nhl'
 import { nbaCaptureFrom, readNbaRecords, NBA_EVENT_BAR } from '../../lib/record/nba'
 import { readMlbEvents } from '../../lib/record/mlb'
@@ -761,13 +761,19 @@ function Bar({ sport, board }) {
 // One name in the calls panel. `outcome` is set only where the sport grades
 // the call itself (LAMP: no goal / did not dress); otherwise it is pending
 // until the name shows up among the scorers.
+// a club code as a link to its page in the app (the code stays plain where the product has no such page)
+function clubLink(sport, code) {
+  const href = code ? teamHref(sport.key, code) : null
+  return href ? <a className="tap-link" href={href} style={{ color: 'inherit', textDecoration: 'none', display: 'inline-block', padding: '15px 8px', margin: '-15px -8px' }}>{code}</a> : (code || '')
+}
+
 function Pick({ p, i, sport, calledIds }) {
   const hit = calledIds.has(String(p.player_id))
   return (
     <li className={hit ? styles.callHit : ''}>
       <span className={styles.callN}>{i + 1}</span>
       <a className={styles.name} href={sport.playerHref(p.player_id)}>{p.name}</a>
-      <span className={styles.meta}>{p.team || ''}{p.opponent || p.opp ? ` vs ${p.opponent || p.opp}` : ''}{p.odds_over && p.odds_book ? ` · ${p.odds_over > 0 ? '+' : ''}${p.odds_over} ${p.odds_book}` : ''}</span>
+      <span className={styles.meta}>{clubLink(sport, p.team)}{p.opponent || p.opp ? <>{' vs '}{clubLink(sport, p.opponent || p.opp)}</> : ''}{p.odds_over && p.odds_book ? ` · ${p.odds_over > 0 ? '+' : ''}${p.odds_over} ${p.odds_book}` : ''}</span>
       <span className={styles.call}>{hit ? `🤖 ${sport.verb}` : p.outcome || 'pending'}</span>
     </li>
   )

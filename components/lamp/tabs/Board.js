@@ -267,7 +267,7 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
       {view === 'all' && flat.length > 0 && (
         kept.length ? (layout === 'cards'
           ? <LampCards market={market} onOpen={onOpenPlayer} items={[...kept].sort((a, b) => (b.r.score ?? 0) - (a.r.score ?? 0)).map(({ r, g }, i) => ({ key: `${g.game.id}|${r.playerId}`, r, g, rank: i + 1, facts: factsOf(g, r) }))} />
-          : <AllGamesTable kept={kept} market={market} onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} />)
+          : <AllGamesTable kept={kept} market={market} onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} onOpenGame={onOpenGame} />)
           : <EmptyState title="NOTHING MATCHES" note="Clear a filter above." />
       )}
       {view === 'game' && games.map((g) => (g.noMarketLock
@@ -494,7 +494,7 @@ export function lampAngles(flat, market) {
 
 // ALL GAMES (board filters plan, LAMP 1): every scored skater tonight, one
 // table, ranked by score; the game is a column. Sort any header.
-export function AllGamesTable({ kept, market, onOpenPlayer, onOpenTeam }) {
+export function AllGamesTable({ kept, market, onOpenPlayer, onOpenTeam, onOpenGame }) {
   const sog = market === 'SOG'
   const rows = [...kept].sort((a, b) => (b.r.score ?? 0) - (a.r.score ?? 0)).map(({ r, g }, i) => ({
     id: r.playerId, rank: i + 1, name: r.name, pos: r.pos, team: r.team, game: `${g.game.away.abbrev}@${g.game.home.abbrev}`,
@@ -505,7 +505,8 @@ export function AllGamesTable({ kept, market, onOpenPlayer, onOpenTeam }) {
     { key: 'rank', label: '#', heat: false, mono: true, w: 30 },
     { key: 'name', label: 'PLAYER', heat: false, sticky: true, bold: true, w: 160, fmt: (v, r) => <>{v}<span style={{ color: C.text3, font: `800 9px/1 ${NUM_FONT}`, marginLeft: 6 }}>{r.pos}</span></> },
     { key: 'team', label: 'TM', heat: false, mono: true, w: 40, fmt: (v) => <button type="button" onClick={(e) => { e.stopPropagation(); onOpenTeam?.(v) }} style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', color: C.text2, font: `800 10.5px/1 ${NUM_FONT}` }}>{v}</button> },
-    { key: 'game', label: 'GAME', heat: false, mono: true, w: 70 },
+    // the matchup opens that game (the address says game=<id>), not the row's player card
+    { key: 'game', label: 'GAME', heat: false, mono: true, w: 70, link: (r) => (onOpenGame && r._g?.game?.id ? () => onOpenGame(r._g.game.id) : null) },
     { key: 'score', label: 'SCORE', primary: true, scale: 'seq', domain: [0, 100], w: 50, explain: SCORE_TITLE[market], art: SCORE_ART[market] || null, answers: market === 'GOAL' ? 'nhl-goal' : null },
     ...rateCols(market),
     { key: 'toi', label: 'TOI', primary: true, w: 48, fmt: (v) => (Number.isFinite(v) ? fmtSec(v) : '—') },

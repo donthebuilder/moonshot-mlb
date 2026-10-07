@@ -5,6 +5,7 @@ import { injuryTag, injuryTitle, injuryColor } from '../../../lib/nfl/injury'
 import PageHeader from '../../PageHeader'
 import LeaderTile from '../../LeaderTile'
 import NflTeamMark from '../NflTeamMark'
+import { TeamTap } from '../../EntityTap'
 import NflTable from '../NflTable'
 import { SportTheme } from '../../SportTheme'
 import { LeadersIntro, LeadersFilterBar, LeadersLead } from '../../leaders/LeadersParts'
@@ -95,7 +96,7 @@ function meta(top) {
   const tag = injuryTag(top._raw)
   return (
     <>
-      <NflTeamMark abbr={top._raw.team} style={{ verticalAlign: 'middle' }} /> · {top._raw.position}
+      <TeamTap abbr={top._raw.team}><NflTeamMark abbr={top._raw.team} style={{ verticalAlign: 'middle' }} /></TeamTap> · {top._raw.position}
       {tag && <b title={injuryTitle(tag)} style={{ color: injuryColor(tag, C), marginLeft: 5 }}>{tag}</b>}
     </>
   )

@@ -221,6 +221,14 @@ export function v2Css(C, ac, NUM_FONT) {
   `
 }
 
+// A CLUB CODE IN A TEXT CELL (nav audit 10-06): an opponent / team column's code
+// ("UTA", LAMP's "@BUF") is a club link; the code is what the door gets, never the "@".
+const teamCodeOf = (key, v) => {
+  if (!/^(opp|team)/i.test(String(key))) return null
+  const m = /^@?\s*([A-Z]{2,4})$/.exec(String(v ?? '').trim())
+  return m ? m[1] : null
+}
+
 /**
  * renderV2(ctx): the v2 sheet. ctx carries DenseTable's own state and props.
  */
@@ -436,7 +444,7 @@ export function renderV2(ctx) {
                 const textTitle = c.titleKey ? (r?.[c.titleKey] || undefined) : undefined
                 // an opponent / team CODE in a text cell is a club link too (the product's team
                 // door); "his team is the logo, the opponent is quiet text" -- quiet, not dead
-                const go = c.link ? c.link(r._raw ?? r) : (!isName && (c.key === 'opp' || c.key === 'team') && onOpenTeam && /^[A-Z]{2,4}$/.test(String(v)) ? () => onOpenTeam(String(v)) : null)
+                const go = c.link ? c.link(r._raw ?? r) : (!isName && onOpenTeam && teamCodeOf(c.key, v) ? () => onOpenTeam(teamCodeOf(c.key, v)) : null)
                 if (isRank(c)) {
                   return (
                     <td key={c.key} className={cls(c, 'rank')} style={{ ...pin, ...(called ? { color: ac } : {}), ...(bgTint || {}) }}>
@@ -485,7 +493,7 @@ export function renderV2(ctx) {
                       // (a role sentence) stays on the desktop column only
                       const txt = String(fc.fmt ? fc.fmt(fv, r) : fv)
                       if (txt.length <= 6) {
-                        const goT = (fc.key === 'opp' || fc.key === 'team') && onOpenTeam && /^[A-Z]{2,4}$/.test(txt) ? () => onOpenTeam(txt) : null
+                        const goT = onOpenTeam && teamCodeOf(fc.key, txt) ? () => onOpenTeam(teamCodeOf(fc.key, txt)) : null
                         sub.push(<span key={fc.key}>{goT ? <Tap onClick={goT}>{txt}</Tap> : txt}</span>)
                       }
                     }

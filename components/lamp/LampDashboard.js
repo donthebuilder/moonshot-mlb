@@ -1,5 +1,5 @@
 'use client'
-import { TeamNav } from '../../lib/teamNav'
+import { TeamNav, GameNav } from '../../lib/teamNav'
 import HighlightBar from '../HighlightBar'
 import { SportTheme } from '../SportTheme'
 import { TodayContext } from '../TodayContext'
@@ -152,6 +152,7 @@ export default function LampDashboard({ palettePass = 0 }) {
           {/* the ↻ on the live pages: nothing refreshes on a timer (lib/liveRefresh.js) */}
           {isLiveTab('nhl', tab) && <RefreshStamp live={live > 0} style={{ marginBottom: 8 }} />}
           <TeamNav.Provider value={openTeam}>
+          <GameNav.Provider value={openGame}>
           <ErrorBoundary resetKey={`${tab}:${gameId || ''}:${teamKey || ''}:${playerId || ''}`} label={`the ${tab} tab`}>
             {tab === 'home' && <Home today={shown} date={date} onOpenGame={openGame} onOpenPlayer={peekPlayer} onOpenTeam={openTeam} setTab={setTab} />}
             {tab === 'scores' && <Scores onOpenGame={openGame} date={date} setDate={setDate} />}
@@ -196,6 +197,7 @@ export default function LampDashboard({ palettePass = 0 }) {
           <DashFooter sport="nhl" theme={C} onGuide={() => setTab('guide')} />
           {/* a tapped player opens his card over the page (Donovan 10-03); Full page = the player tab */}
           <PlayerPeek id={peekId} Page={Player} theme={C} accent={C.ice} onClose={closePeek} onFullPage={openPlayer} onOpenTeam={openTeam} onOpenGame={openGame} />
+          </GameNav.Provider>
           </TeamNav.Provider>
           </SportTheme>
         </>
