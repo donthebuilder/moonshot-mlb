@@ -18,4 +18,8 @@ t('no date = every game as before', asOf(null).last === '2026-10-07' && asOf(nul
 const goal = (d, i) => Number(asOf(d)?.spark?.[i]?.[0]) > 0
 t('as of 10-06: scored last game and the one before -> "goal in 2+ straight"', goal('2026-10-06', 0) && goal('2026-10-06', 1))
 t('as of 10-07: last game (10-06) was a blank -> neither list', !goal('2026-10-07', 0))
+// the route bounds form only when ?date= is given; every other caller stays on "now"
+import { readFileSync } from 'node:fs'
+const route = readFileSync(new URL('../app/api/lamp/hotsticks/route.js', import.meta.url), 'utf8')
+t('route: no ?date= -> readHotSticks gets no date (asOf null)', /asOf = [^\n]*: null/.test(route) && route.includes('date: asOf'))
 process.exit(bad ? 1 : 0)
