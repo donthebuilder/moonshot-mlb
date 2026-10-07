@@ -155,9 +155,10 @@ export function Card({ p, rank, matchup, odds, onPlayerClick, weights, base, poo
 
 // A glyph that explains itself on hover AND on tap (lib/explain.js): the title
 // alone never showed on a phone. The tap does not open the card under it.
+// padded out to a 32px+ box (the glyph is ~18x14) with equal negative margin, so the card header does not reflow
 function TapNote({ label, text, style, children }) {
   const say = (e) => { e.stopPropagation(); explain(label, text) }
-  return <span role="button" tabIndex={0} title={text} onClick={say} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); say(e) } }} style={{ ...style, cursor: 'help' }}>{children}</span>
+  return <span role="button" tabIndex={0} title={text} onClick={say} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); say(e) } }} style={{ ...style, cursor: 'help', display: 'inline-block', padding: 9, margin: -9 }}>{children}</span>
 }
 
 export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsStatus, logs = null, top = null, results = null, liveSnap = null, statusOf = null }) {

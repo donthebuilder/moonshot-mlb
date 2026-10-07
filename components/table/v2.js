@@ -157,6 +157,8 @@ export function v2Css(C, ac, NUM_FONT) {
     .dtv2 .h-row th .explain-dot { vertical-align: middle; line-height: 1; }
     /* on a mouse, the ⓘ's tap padding must not swallow a click meant to sort */
     @media (pointer: fine) { .dtv2 .h-row th .explain-dot { padding: 2px 3px !important; margin: -2px -1px -2px 2px !important; } }
+    /* on touch, the ⓘ's tap padding must exist wherever a v2 table renders: MobileCSS only mounts in the app shell, so on /called and /start the ⓘ was a bare 10x11 (check-mobile, landscape). Same box as MobileCSS's, negative margins keep the label where it was. */
+    @media (pointer: coarse) { .dtv2 .h-row th .explain-dot { display: inline-block; padding: 11px 11px; margin: -11px -9px -11px -2px; } }
     .dtv2 .h-row th > span { line-height: 0; }
     /* DESKTOP FIT (2026-10-03, Donovan: "columns on desktop need to be sized
        right"): a header label may wrap to two lines at its spaces, so a
