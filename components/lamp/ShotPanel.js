@@ -84,7 +84,7 @@ function restrictTo(m, dates, spec) {
   const slotN = net.filter((sh) => sh[0] >= 69 && sh[0] <= 89 && Math.abs(sh[1]) <= 22).length
   return {
     ...m, recent, grid, games: new Set(recent.map((sh) => sh[8])).size, attempts: recent.length, sog: net.length, goals: recent.filter((sh) => sh[2] === 'goal').length,
-    misses: recent.filter((sh) => sh[2] === 'miss').length, blocked: recent.filter((sh) => sh[2] === 'block').length,
+    misses: recent.filter((sh) => sh[2] === 'miss').length, blocked: recent.filter((sh) => sh[2] === 'block').length, xg: null,   // a restricted window has no xG: the server sums it, the tuples here do not carry the shot's zone
     slotShare: net.length ? slotN / net.length : null, byStrength: { pp: recent.filter((sh) => sh[4] === 'pp').length }, types: null, distSog: null, distGoal: null, missWhy: null,
   }
 }
@@ -281,7 +281,7 @@ export default function ShotPanel({ sel, who = 'He', height = 300, venue = null,
                     </>}
                   </>
                 })() : picked.cell?.vs ? <><b style={{ color: C.text }}>{Math.round(picked.cell.vs.mine * 100)}%</b> of {who === 'He' ? 'his' : 'their'} attempts are in that zone · the league <b style={{ color: C.text }}>{Math.round(picked.cell.vs.lg * 100)}%</b> · {picked.cell.att} attempts, {picked.cell.g} goal{picked.cell.g === 1 ? '' : 's'}</>
-                : picked.cell ? <>{picked.cell.att} attempts in that zone · {picked.cell.sog} on net · <b style={{ color: C.lamp }}>{picked.cell.g} goal{picked.cell.g === 1 ? '' : 's'}</b></>
+                : picked.cell ? <>{picked.cell.att} attempts in that zone · {picked.cell.sog} on net · <b style={{ color: C.lamp }}>{picked.cell.g} goal{picked.cell.g === 1 ? '' : 's'}</b>{picked.cell.xg != null ? <> · xG <b style={{ color: C.ice }}>{picked.cell.xg.toFixed(1)}</b></> : null}</>
                   : <>
                     <div style={{ color: picked[2] === 'goal' ? C.lamp : C.text, fontWeight: 800, fontSize: 11 }}>{(RES_WORD[picked[2]] || picked[2] || '').toUpperCase()}</div>
                     <div>{picked[3] ? `${picked[3]} · ` : ''}{distOf(picked)} ft{picked[4] ? ` · ${picked[4].toUpperCase()}` : ''}</div>
@@ -344,6 +344,7 @@ export default function ShotPanel({ sel, who = 'He', height = 300, venue = null,
                   ['attempts', m.attempts, C.text],
                   ['on net', m.sog, C.text],
                   ['goals', m.goals, C.lamp],
+                  ...(m.xg ? [['xG', m.xg.total.toFixed(1), C.ice]] : []),
                   ['missed', m.misses, C.text2],
                   ['blocked', m.blocked, C.text2],
                   ['on the PP', m.byStrength?.pp || 0, C.text2],
@@ -366,6 +367,9 @@ export default function ShotPanel({ sel, who = 'He', height = 300, venue = null,
                 <div style={{ marginBottom: 6 }}>
                   {ZONES.map((z, i) => <span key={z.key}>{i ? ' · ' : ''}<b style={{ color: C.text2 }}>{z.label}</b> {z.def}</span>)}.
                 </div>
+                {m.xg && <div style={{ marginBottom: 6 }}>
+                  xG ({m.xg.version}): each shot on net is scored from where it was taken, its type and the strength, by a model fitted on 2025-26 games before February and tested on the games after; the number is those scores added up over {m.xg.sog} shots on net ({m.xg.goals} {m.xg.goals === 1 ? 'was a goal' : 'were goals'}). Tap a zone for its share. Empty-net shots are left out, and a rebound or a rush is not known to it.
+                </div>}
                 {goalieRead && <div style={{ marginBottom: 6 }}>
                   VS GOALIE: the goalie&apos;s {data.seasonLabel} regular season under {who === 'He' ? 'his' : 'their'} pucks. Each named zone is shaded by the goals he let in per shot on goal from there against the league&apos;s rate from the same zone: red, he lets in more; blue, fewer; no tint, within 1.5 points of the league; hatched, under 15 shots (thin). Tonight&apos;s starter isn&apos;t published by the league, so {opp ? <>tonight&apos;s opponent&apos;s busiest goalie ({opp}) opens</> : 'the busiest goalie from another club opens'} and the picker changes it. Where in the net a shot went (glove, blocker, five-hole) isn&apos;t in the public feed, so no net map is drawn.
                 </div>}
