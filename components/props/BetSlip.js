@@ -17,7 +17,7 @@ import HelpTip from '../HelpTip'
 const decimal = (am) => { const v = Number(am); return v > 0 ? 1 + v / 100 : 1 + 100 / -v }
 /** "8 of these picks are in the DET · ARI game, so they move together." (one sentence for the slip and the cards). */
 export function sameGameLine(list) {
-  const top = list[0]
+  const top = [...list].sort((a, b) => b.n - a.n)[0]
   const more = list.length > 1 ? ` (and ${list.length - 1} more ${list.length === 2 ? 'game' : 'games'})` : ''
   return `${top.n} of these picks are in the ${top.label} game${more}, so they move together.`
 }
