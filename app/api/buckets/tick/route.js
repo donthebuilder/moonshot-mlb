@@ -111,9 +111,8 @@ export async function GET(request) {
     const gradedAt = new Date().toISOString()
     const ups = (rows.data || []).map((r) => {
       const base = r.market === 'first_fg' || r.market === 'first_pts' ? 'first' : r.market
-      const gr = r.market === 'first_pts'
-        ? (() => { const g0 = gradeNba('first', { playerId: r.player_id }, box.get(r.player_id), firsts); const fp = firsts.firstPoints?.player_id; return g0.void_reason ? g0 : { ...g0, actual: fp === r.player_id ? 1 : 0, hit: fp === r.player_id } })()
-        : gradeNba(base, { playerId: r.player_id }, box.get(r.player_id), firsts)
+      // first_fg / first_pts grade by who scored (lib/nba/model.js), whatever his minutes
+      const gr = gradeNba(base, { playerId: r.player_id, firstKey: r.market === 'first_pts' ? 'firstPoints' : 'firstFieldGoal' }, box.get(r.player_id), firsts)
       return { ...r, played: gr.played, minutes: gr.minutes ?? null, actual: gr.actual, hit: gr.hit, void_reason: gr.void_reason, graded_at: gradedAt }
     })
     if (ups.length) {
