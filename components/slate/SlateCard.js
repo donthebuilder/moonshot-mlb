@@ -21,7 +21,11 @@ import TeamMark from '../TeamMark'
 //   score: { away, home, awayScore, homeScore, live } | null,
 //   chips: [{ key, tag, color, name, score, title, onClick, leg, style }],
 // }
+// card.large (LAMP, 2026-10-06, Donovan: "you can't read that"): the meta line and
+// the chips at 12px (the tag 11) and a 62px dial; absent, every size below is
+// exactly what it was, so MOONSHOT's and TUDDY's strips are unchanged.
 export default function SlateCard({ card: c, on = false, accent = C.orange, onSelect, target = null, sport = 'mlb' }) {
+  const L = Boolean(c.large)
   const ink = verdictInk(c.heat >= 0.55 ? true : c.heat <= 0.25 ? false : null)
   const col = on ? accent : ink.color
   const wash = alpha(col, 0.05 + 0.11 * c.heat)
@@ -46,11 +50,11 @@ export default function SlateCard({ card: c, on = false, accent = C.orange, onSe
       }} />
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 11, minWidth: 0 }}>
-        <Dial value={c.dial.value} pct={c.dial.pct} col={col} size={52} dp={c.dial.dp || 0} title={c.dial.title} />
+        <Dial value={c.dial.value} pct={c.dial.pct} col={col} size={L ? 60 : 52} dp={c.dial.dp || 0} title={c.dial.title} />
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
             <span style={{
-              fontFamily: NUM_FONT, fontSize: 15.5, fontWeight: 900, letterSpacing: '-.02em',
+              fontFamily: NUM_FONT, fontSize: L ? 20 : 15.5, fontWeight: 900, letterSpacing: '-.02em',
               color: C.text, minWidth: 0, flex: '1 1 auto',
               whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
               textDecoration: c.past ? 'line-through' : 'none',
@@ -62,7 +66,7 @@ export default function SlateCard({ card: c, on = false, accent = C.orange, onSe
           {/* the meta line */}
           <div style={{
             display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap',
-            fontSize: 9.5, fontFamily: NUM_FONT, fontWeight: 600, color: C.text3,
+            fontSize: L ? 12 : 9.5, fontFamily: NUM_FONT, fontWeight: 600, color: C.text3,
           }}>
             {c.lead}
             {c.status?.kind === 'live' ? (
@@ -80,7 +84,7 @@ export default function SlateCard({ card: c, on = false, accent = C.orange, onSe
             )}
             {c.extra}
             {c.band?.word && (
-              <span style={{ fontSize: 8.5, fontWeight: 900, color: accent, letterSpacing: '.1em', whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: L ? 11 : 8.5, fontWeight: 900, color: accent, letterSpacing: '.1em', whiteSpace: 'nowrap' }}>
                 {c.band.word}
               </span>
             )}
@@ -113,17 +117,18 @@ export default function SlateCard({ card: c, on = false, accent = C.orange, onSe
               title={k.title}
               onClick={k.onClick}
               style={{
-                display: 'flex', gap: 7, alignItems: 'baseline', minWidth: 0,
-                fontSize: 9.5, fontFamily: NUM_FONT, fontWeight: 600, color: C.text2,
+                display: 'flex', gap: 7, alignItems: L ? 'center' : 'baseline', minWidth: 0,
+                fontSize: L ? 12 : 9.5, fontFamily: NUM_FONT, fontWeight: 600, color: C.text2,
+                minHeight: L ? 32 : undefined,
                 cursor: k.onClick ? 'pointer' : 'inherit',
                 border: `1px solid ${k.leg ? k.color : C.border}`,
                 background: k.leg ? alpha(k.color, 0.19) : C.glass,
                 boxShadow: k.leg ? `0 0 10px ${alpha(k.color, 0.33)}` : 'none',
-                borderRadius: 10, padding: '4px 8px',
+                borderRadius: 10, padding: L ? '6px 10px' : '4px 8px',
                 ...(k.leg ? {} : (k.style || {})),
               }}>
               {k.leg && <span style={{ fontSize: 8 }}>🔗</span>}
-              <b style={{ color: k.color, fontSize: 8, letterSpacing: '.06em', flexShrink: 0 }}>{k.tag}</b>
+              <b style={{ color: k.color, fontSize: L ? 11 : 8, letterSpacing: '.06em', flexShrink: 0 }}>{k.tag}</b>
               <span style={{ overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', minWidth: 0, flex: '1 1 auto' }}>{k.name}</span>
               <b style={{ color: k.leg ? k.color : C.text, flexShrink: 0 }}>{k.score}</b>
             </span>

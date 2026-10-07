@@ -21,10 +21,12 @@ export default function ProjectedView({
   by, setBy, byOptions = ['game', 'team'],
   note = null, rows = [], primary, adj = null, unit, columns = [], pillCols = null,
   sortCol, sortDir, onSort, podiumTip = null, barsTitle = null, barsFoot = null, footnote = null,
-  onOpenGame = null, onOpenTeam = null, accent = C.orange, tick = C.amber, palette = null, sport = null,
+  onOpenGame = null, onOpenTeam = null, accent = C.orange, tick = C.amber, palette = null, sport = null, large = false,
 }) {
+  // large (LAMP, 2026-10-06): every word 12px or more, logos 22px. Absent: the sizes below, as they were.
+  const z = (n) => (large ? Math.max(12, Math.round(n + 3)) : n)
   // LOGOS (Donovan 10-02): a game or club label drawn as logos (components/TeamMark asLogos)
-  const showLabel = (label, { rank = true } = {}) => asLogos(sport, String(label || ''), { px: 14, rank })
+  const showLabel = (label, { rank = true } = {}) => asLogos(sport, String(label || ''), { px: large ? 22 : 14, rank })
   if (!rows.length) return null
   const total = rows.reduce((a, r) => a + (r.values[primary] || 0), 0)
   const podium = rows.slice(0, 3)
@@ -41,8 +43,8 @@ export default function ProjectedView({
       border: `1px solid ${C.border}`, borderRadius: 13, padding: '12px 14px',
     }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, marginBottom: 8, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 12.5, fontWeight: 900 }}>{title}</span>
-        <span style={{ fontSize: 9.5, color: C.text3 }}>{tagline}</span>
+        <span style={{ fontSize: z(12.5), fontWeight: 900 }}>{title}</span>
+        <span style={{ fontSize: z(9.5), color: C.text3 }}>{tagline}</span>
       {/* click-to-filter — every number below recomputes over what's left */}
       <div className="chip-row" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginBottom: 8 }}>
         {lenses.map((l) => {
@@ -55,7 +57,7 @@ export default function ProjectedView({
                 return nx
               })}
               style={{
-                padding: '4px 11px', fontSize: 10.5, fontWeight: 700, cursor: 'pointer',
+                padding: '4px 11px', fontSize: z(10.5), fontWeight: 700, cursor: 'pointer',
                 borderRadius: 999, whiteSpace: 'nowrap',
                 border: `1px solid ${on ? accent : C.border}`,
                 background: on ? alpha(accent, 0.14) : 'transparent',
@@ -67,9 +69,9 @@ export default function ProjectedView({
           <>
             <button onClick={() => setActive(new Set())} style={{
               background: 'none', border: 'none', color: C.text3, cursor: 'pointer',
-              fontSize: 9.5, textDecoration: 'underline', textDecorationStyle: 'dotted',
+              fontSize: z(9.5), textDecoration: 'underline', textDecorationStyle: 'dotted',
             }}>clear</button>
-            <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
+            <span style={{ fontSize: z(9.5), color: C.text3, fontFamily: NUM_FONT }}>
               projecting {shownCount} of {totalCount} {noun}
             </span>
           </>
@@ -81,7 +83,7 @@ export default function ProjectedView({
               key={k}
               onClick={() => setBy(k)}
               style={{
-                padding: '3px 10px', fontSize: 10.5, fontWeight: 700, borderRadius: 6, cursor: 'pointer',
+                padding: '3px 10px', fontSize: z(10.5), fontWeight: 700, borderRadius: 6, cursor: 'pointer',
                 border: `1px solid ${by === k ? accent : C.border}`,
                 background: by === k ? alpha(accent, 0.12) : 'transparent',
                 color: by === k ? accent : C.text3,
@@ -91,7 +93,7 @@ export default function ProjectedView({
         </div>
       </div>
 
-      {note && <div style={{ fontSize: 9, color: C.text3, lineHeight: 1.5, margin: '0 0 8px' }}>{note}</div>}
+      {note && <div style={{ fontSize: z(9), color: C.text3, lineHeight: 1.5, margin: '0 0 8px' }}>{note}</div>}
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'stretch', marginBottom: 10 }}>
         {podium.map((r, i) => (
@@ -102,22 +104,22 @@ export default function ProjectedView({
               border: `1px solid ${i === 0 ? `${accent}55` : C.border}`,
               borderRadius: 10, padding: '6px 11px',
             }}>
-            <div style={{ fontSize: 8.5, color: C.text3, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase' }}>
+            <div style={{ fontSize: z(8.5), color: C.text3, fontWeight: 800, letterSpacing: '.08em', textTransform: 'uppercase' }}>
               #{i + 1} by {primary.toLowerCase()}
             </div>
-            <div style={{ fontSize: 12, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <div style={{ fontSize: z(12), fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               <Tap onClick={openOf(r)} title={r.label}>{showLabel(r.label, { rank: false })}</Tap>
             </div>
-            <div style={{ fontSize: 14, fontWeight: 900, color: i === 0 ? accent : C.text2, fontFamily: NUM_FONT }}>
+            <div style={{ fontSize: z(14), fontWeight: 900, color: i === 0 ? accent : C.text2, fontFamily: NUM_FONT }}>
               {r.values[primary].toFixed(1)} {unit}
               {adj && Number.isFinite(r.values[adj]) && (
-                <span style={{ fontSize: 9.5, color: C.text3, fontWeight: 700 }}> · adj {r.values[adj].toFixed(1)}</span>
+                <span style={{ fontSize: z(9.5), color: C.text3, fontWeight: 700 }}> · adj {r.values[adj].toFixed(1)}</span>
               )}
             </div>
           </div>
         ))}
         <div style={{
-          flex: '0 1 auto', alignSelf: 'center', fontSize: 9.5, color: C.text3, padding: '0 6px',
+          flex: '0 1 auto', alignSelf: 'center', fontSize: z(9.5), color: C.text3, padding: '0 6px',
         }}>
           slate projects <b style={{ color: C.text2 }}>{total.toFixed(1)} {unit}</b><br />
           across {rows.length} {by === 'game' ? (rows.length === 1 ? 'game' : 'games') : (rows.length === 1 ? 'team' : 'teams')}
@@ -132,7 +134,7 @@ export default function ProjectedView({
         }, 0.0001)
         return (
           <div style={{ marginBottom: 14 }}>
-            <div style={{ fontSize: 9, color: C.text3, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 6 }}>
+            <div style={{ fontSize: z(9), color: C.text3, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 6 }}>
               {barsTitle || `${primary} by ${by}`}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -144,7 +146,7 @@ export default function ProjectedView({
                 return (
                   <div key={r.label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{
-                      width: 150, flexShrink: 0, fontSize: 10, color: C.text2, fontWeight: 700,
+                      width: 150, flexShrink: 0, fontSize: z(10), color: C.text2, fontWeight: 700,
                       whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                     }} title={r.label}><Tap onClick={openOf(r)} title={r.label}>{showLabel(r.label)}</Tap></span>
                     <span style={{ flex: 1, position: 'relative', height: 13, background: 'rgba(255,255,255,.04)', borderRadius: 4, overflow: 'visible', minWidth: 0 }}>
@@ -159,7 +161,7 @@ export default function ProjectedView({
                         }} />
                       )}
                     </span>
-                    <span style={{ width: 84, flexShrink: 0, fontFamily: NUM_FONT, fontSize: 10.5, fontWeight: 800, color: C.text, textAlign: 'right' }}>
+                    <span style={{ width: 84, flexShrink: 0, fontFamily: NUM_FONT, fontSize: z(10.5), fontWeight: 800, color: C.text, textAlign: 'right' }}>
                       {val.toFixed(1)}
                       {adjPct != null && <span style={{ color: tick, fontWeight: 700 }}> · {av.toFixed(1)}</span>}
                     </span>
@@ -167,7 +169,7 @@ export default function ProjectedView({
                 )
               })}
             </div>
-            {barsFoot && <div style={{ fontSize: 9, color: C.text3, marginTop: 5 }}>{barsFoot}</div>}
+            {barsFoot && <div style={{ fontSize: z(9), color: C.text3, marginTop: 5 }}>{barsFoot}</div>}
           </div>
         )
       })()}
@@ -210,7 +212,7 @@ export default function ProjectedView({
                     ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '2px 7px', borderRadius: 6, fontWeight: 800, fontFamily: NUM_FONT, background: pal.bg[g.cls], color: pal.color[g.cls] }}>{text} {g.arrow}</span>
                     : <span style={{ fontWeight: 600, fontFamily: NUM_FONT, color: C.text2 }}>{text}</span> } })),
               ]} />
-            {footnote && <div style={{ fontSize: 9, color: C.text3, lineHeight: 1.5, marginTop: 8 }}>{footnote}</div>}
+            {footnote && <div style={{ fontSize: z(9), color: C.text3, lineHeight: 1.5, marginTop: 8 }}>{footnote}</div>}
           </div>
         )
       })()}

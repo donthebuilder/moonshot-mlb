@@ -72,7 +72,7 @@ export default function LampProjected({ items = [], games = [], stale = false, o
       barsTitle={<>Proj goals by {by} — tonight&apos;s goals, top to bottom</>}
       barsFoot={<>Bar length is Proj goals — same numbers as the table below, ordered top to bottom.</>}
       footnote={<>Every column is a sum over the skaters in view, so a filter above moves all of them. A pill (▲ ▼) means that {by} sits clearly above or below tonight&apos;s own average, not a hard threshold.</>}
-      onOpenGame={onOpenGame} onOpenTeam={onOpenTeam} accent={C.ice}
+      onOpenGame={onOpenGame} onOpenTeam={onOpenTeam} accent={C.ice} large
     />
   )
 }

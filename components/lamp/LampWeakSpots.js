@@ -52,14 +52,14 @@ export default function LampWeakSpots({ items = [], games = [], onOpenPlayer }) 
         const rows = [
           ...pp.map(({ r }) => ({
             key: `pp-${r.playerId}`, spot: 'PP', name: r.name, side: r.pos, flag: r.status === 'called' ? STATUS_WORD.called : null, edge: true,
-            value: Math.round(r.score ?? 0), extra: `${r.ppg} PPG`,
-            why: `${r.ppg} power-play goal${Number(r.ppg) === 1 ? '' : 's'} on the season; ${def} kill ${pct1(pk)}% — tonight's weakest third.`,
+            value: Math.round(r.score ?? 0), extra: 'score',
+            why: `${r.ppg} power-play goal${Number(r.ppg) === 1 ? '' : 's'} this season`,
             onClick: () => onOpenPlayer?.(r.playerId),
           })),
           ...called.map(({ r }) => ({
             key: `d-${r.playerId}`, spot: `#${r.rank}`, name: r.name, side: r.pos, flag: STATUS_WORD.called, edge: false,
-            value: Math.round(r.score ?? 0), extra: null,
-            why: `${def} allow ${ga.toFixed(2)} goals a game — tonight's top third.`,
+            value: Math.round(r.score ?? 0), extra: 'score',
+            why: `${def} allow ${ga.toFixed(2)} goals a game`,
             onClick: () => onOpenPlayer?.(r.playerId),
           })),
         ]
@@ -69,8 +69,8 @@ export default function LampWeakSpots({ items = [], games = [], onOpenPlayer }) 
           title: `${def} defense`,
           onTitle: openTeam ? () => openTeam(def) : undefined,
           meta: `vs ${att}`,
-          stat: softPk ? { text: `PK ${pct1(pk)}%`, hot: true, vs: "tonight's weakest third" } : { text: `${ga.toFixed(2)} GA/GP`, hot: true, vs: "tonight's top third" },
-          lead: softPk && softD ? 'A soft penalty kill and leaky five-on-five.' : softPk ? `A soft penalty kill; ${pp.length} ${att} skater${pp.length === 1 ? '' : 's'} with power-play goals face it.` : 'Leaky: goals allowed in tonight’s top third.',
+          stat: softPk ? { label: 'Penalty kill', value: `${pct1(pk)}%`, hot: true } : { label: 'Goals allowed a game', value: ga.toFixed(2), hot: true },
+          lead: softPk && softD ? `One of the weakest penalty kills tonight, and they give up a lot of goals.` : softPk ? `One of the weakest penalty kills tonight. ${pp.length} ${att} skater${pp.length === 1 ? '' : 's'} with power-play goals face${pp.length === 1 ? 's' : ''} it.` : 'They give up more goals than most teams playing tonight.',
           rows,
           _best: Math.max(...rows.map((x) => Number(x.value) || 0)),
         })
@@ -82,11 +82,11 @@ export default function LampWeakSpots({ items = [], games = [], onOpenPlayer }) 
   if (!cards.length) return null
   return (
     <div style={{ marginBottom: 20 }}>
-      <SubLabel theme={C} numFont={NUM_FONT}>★ WEAK SPOTS · {cards.length} DEFENSE{cards.length === 1 ? '' : 'S'} SOFT TONIGHT, AND WHO FACES THEM</SubLabel>
-      <p style={{ margin: '0 0 8px', fontSize: 11.5, lineHeight: 1.5, color: C.text3 }}>
-        Measured over the clubs playing tonight: a penalty kill in the weakest third meets skaters with power-play goals; goals allowed in the top third meets the called skaters. The number on the right is his LAMP score.
+      <SubLabel theme={C} numFont={NUM_FONT}>★ WEAK SPOTS · {cards.length} SOFT DEFENSE{cards.length === 1 ? '' : 'S'} TONIGHT</SubLabel>
+      <p style={{ margin: '0 0 8px', fontSize: 13, lineHeight: 1.5, color: C.text3 }}>
+        Teams with a weak penalty kill or a leaky defense tonight, and the skaters who face them. The number on the right of each skater is his LAMP score.
       </p>
-      <WeakSpotGrid cards={cards} accent={C.ice} tagColor={C.teal || C.ice} />
+      <WeakSpotGrid cards={cards} accent={C.ice} tagColor={C.teal || C.ice} large />
     </div>
   )
 }
