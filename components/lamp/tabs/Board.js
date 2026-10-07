@@ -188,6 +188,8 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
   })
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {/* THE WATCH BOX LEADS THE PAGE (2026-10-07, Donovan: back-to-back / watch box "to the top"): MOONSHOT's B2B Watch sits first */}
+      {data && market === 'GOAL' && <GoalWatch flat={flat} onOpenPlayer={onOpenPlayer} date={shown} />}
       {phone ? (<>
         {/* PHONE (2026-10-06): one compact row, the table next. Everything else is behind Filters. */}
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -372,8 +374,6 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
           ? <GameBoard key={g.game.id} g={g} market={market} layout={layout} keep={filtering ? keepIds : null} onOpenPlayer={onOpenPlayer} onOpenGame={onOpenGame} onOpenTeam={onOpenTeam} />
           : null))}
       {view === 'game' && filtering && flat.length > 0 && !kept.length && <EmptyState title="NOTHING MATCHES" note="Clear a filter above." />}
-      {/* Goal Watch sits under the table now (2026-10-06): the board comes first on Rankings */}
-      {data && market === 'GOAL' && <GoalWatch flat={flat} onOpenPlayer={onOpenPlayer} date={shown} />}
       {/* ⚖️ COMPARE TWO (2026-10-03): MOONSHOT's compare, below the board and
           folded on a phone, the way MOONSHOT's Props and TUDDY's Boards place it. */}
       {market === 'GOAL' && flat.length > 1 && (

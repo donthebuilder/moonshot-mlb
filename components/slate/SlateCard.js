@@ -50,7 +50,7 @@ export default function SlateCard({ card: c, on = false, accent = C.orange, onSe
       }} />
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 11, minWidth: 0 }}>
-        <Dial value={c.dial.value} pct={c.dial.pct} col={col} size={L ? 60 : 52} dp={c.dial.dp || 0} title={c.dial.title} />
+        <Dial value={c.dial.value} pct={c.dial.pct} col={c.dial.col || col} size={L ? 60 : 52} dp={c.dial.dp || 0} title={c.dial.title} />
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
             <span style={{

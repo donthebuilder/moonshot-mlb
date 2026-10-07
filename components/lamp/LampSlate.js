@@ -1,6 +1,7 @@
 'use client'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/nhl/theme'
+import { heatOf as heatIn, heatTier, dialInk } from '../../lib/nhl/slateHeat'
 import { useLampBoard } from '../../lib/nhl/useLamp'
 import { useHashFilter } from '../../lib/filterHash'
 import { useIsPhone } from '../MobileFold'
@@ -99,7 +100,7 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
   const bestOf = (g) => xgOf(g)
   const bests = games.map(bestOf)
   const lo = Math.min(...bests, Infinity); const hi = Math.max(...bests, 0)
-  const heatOf = (v) => (hi > lo ? (v - lo) / (hi - lo) : 0)
+  const heatOf = (v) => heatIn(v, lo, hi)
   const topId = games.reduce((a, g) => (bestOf(g) > (a ? bestOf(a) : -1) ? g : a), null)?.game.id
   const timeOf = (g) => `${fmtPuckDrop(g.game.startUtc)} ${zoneAbbrev()}`
 
@@ -112,8 +113,8 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
       large: true,
       id: String(g.game.id), title: <CardTitle g={g} st={st} />, past: st === 'final', heat,
       tooltip: `${g.game.away.abbrev} @ ${g.game.home.abbrev}`,
-      dial: { value: best || null, dp: 1, pct: 100 * heat, title: `${best ? best.toFixed(1) : '—'} ${XG_WORDS} in this game: each skater's goals a game from the board, added up. The ring fills against tonight's range.` },
-      band: topId === g.game.id && games.length > 1 ? { icon: '🌋', word: 'MAIN EVENT' } : heat >= 0.62 ? { icon: '🔥', word: '' } : heat < 0.3 && games.length > 2 ? { icon: '🧊', word: '' } : null,
+      dial: { value: best || null, dp: 1, pct: 100 * heat, col: dialInk(heat, C), title: `${best ? best.toFixed(1) : '—'} ${XG_WORDS} in this game: each skater's goals a game from the board, added up. The ring fills against tonight's range.` },
+      band: topId === g.game.id && games.length > 1 ? { icon: '🌋', word: 'MAIN EVENT' } : heatTier(heat) === 'hot' ? { icon: '🔥', word: '' } : heatTier(heat) === 'cold' && games.length > 2 ? { icon: '🧊', word: '' } : null,
       lead: <span title={g.locked ? 'The board locked before puck drop' : g.setting ? 'Setting: the calls can still change until puck drop' : 'A preview until the board locks'}>{g.locked ? '🔒' : '◻'}</span>,
       status: st === 'live' ? { kind: 'live', text: g.game.statusLine || 'LIVE' } : st === 'final' ? { kind: 'final', text: 'FINAL' } : { kind: 'time', text: timeOf(g) },
       extra: <span>{XG_WORDS}</span>,
