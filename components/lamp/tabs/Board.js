@@ -19,6 +19,7 @@ import { alpha } from '../../../lib/scales'
 import { useLampBoard } from '../../../lib/nhl/useLamp'
 import { TeamMark, EmptyState, DelayedBanner, Loading, SourceLine, Kicker, GameTypeChip, LampDot, StaleSeasonNote, fmtDay, fmtPuckDrop, fmtSec, zoneAbbrev, shiftDay, STATUS, CalledChip, readHashParam, writeHashParam } from '../ui'
 import { withNhlFullSet } from '../../../lib/nhl/boardColumns'
+import { useWhySheet, whyColumn } from '../../WhySheet'
 import { MatchLogos } from '../../TeamMark'
 import LAMP_BT from '../../../lib/nhl/angleBacktest.json'
 
@@ -254,15 +255,18 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
           </FiltersDrawer>
         </div>
       )}
-      {data && market === 'GOAL' && <GoalWatch flat={flat} onOpenPlayer={onOpenPlayer} date={shown} />}
       {data?.season?.stale && <StaleSeasonNote label={data.season.label} opens={data.season.opens} what="per-game stats" />}
       <DelayedBanner error={error} what="the board" />
       {loading && !data ? <Loading what="tonight’s board" /> : null}
-      {data && !data.dbReady && <div style={{ color: C.amber, fontSize: 11 }}>The record is not connected on this deployment — boards will preview but nothing locks. (Supabase env missing.)</div>}
+      {data && !data.dbReady && <div style={{ color: C.amber, fontSize: 11 }}>The saved record is not available right now. Boards still preview, but nothing locks.</div>}
       <PageHeader eyebrow={M.eyebrow} title={shown ? fmtDay(shown) : 'Tonight'}
-        note={M.note}
+        note={`Who we rank tonight, and why. Tap Why on a row for the numbers behind it.${/TEST/.test(M.eyebrow) ? ' A TEST: no record is printed until 30 graded nights.' : ''}`}
         theme={C} numFont={NUM_FONT} accent={C.ice}
         stats={data ? [{ value: games.length, label: 'GAMES', tone: C.text2 }, { value: `${lockedN}/${games.length}`, label: 'LOCKED', tone: lockedN === games.length && games.length ? C.teal : C.text2 }, { value: calledN, label: 'CALLED', tone: C.ice }] : null} />
+      {view === 'all' && flat.length > 0 && (() => { const pv = kept.filter(({ g }) => !g.graded && !g.locked && !g.setting).length; return pv > 0 ? (
+        <div style={{ color: C.amber, font: `800 12px/1.5 ${NUM_FONT}`, letterSpacing: '.06em' }}>
+          {pv === kept.length ? 'EVERY GAME IS STILL PREVIEW — NOT A CALL YET' : `${pv} OF ${kept.length} ROWS ARE PREVIEW — NOT A CALL YET`}
+        </div>) : null })()}
       {data && games.length === 0 && <EmptyState title="NO GAMES ON THIS DATE" note="No NHL games, so nothing to call. The filters above work on any night with games; the schedule has the week." />}
       {view === 'all' && flat.length > 0 && (
         kept.length ? (layout === 'cards'
@@ -276,6 +280,8 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
           ? <GameBoard key={g.game.id} g={g} market={market} layout={layout} keep={filtering ? keepIds : null} onOpenPlayer={onOpenPlayer} onOpenGame={onOpenGame} onOpenTeam={onOpenTeam} />
           : null))}
       {view === 'game' && filtering && flat.length > 0 && !kept.length && <EmptyState title="NOTHING MATCHES" note="Clear a filter above." />}
+      {/* Goal Watch sits under the table now (2026-10-06): the board comes first on Rankings */}
+      {data && market === 'GOAL' && <GoalWatch flat={flat} onOpenPlayer={onOpenPlayer} date={shown} />}
       {/* ⚖️ COMPARE TWO (2026-10-03): MOONSHOT's compare, below the board and
           folded on a phone, the way MOONSHOT's Props and TUDDY's Boards place it. */}
       {market === 'GOAL' && flat.length > 1 && (
@@ -285,7 +291,7 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
           </MobileFold>
         </div>
       )}
-      <SourceLine>Legs: NHL club-stats/{'{team}'}/{'{season}'}/2 (this season and last); population: roster/{'{team}'}/current, narrowed to the posted lineup when the league has one; grade: gamecenter/{'{id}'}/boxscore. Locked rows live in {M.log} and are never rewritten.</SourceLine>
+      <SourceLine>Where this comes from: the NHL’s own player and team stats (this season and last), the posted lineups, and the final box scores for grading. A locked row is never rewritten.</SourceLine>
     </div>
   )
 }
@@ -317,12 +323,12 @@ const factsOf = (g, r) => ({ ppvpk: ppVsPk(spotOf(g, r.team, true), spotOf(g, r.
 // LAMP v2 (2026-09-27): the board reads one market at a time. GOAL is the
 // original; SOG is lamp-sog-v1 (3+ shots on goal). Same table, same words.
 const MARKETS = [
-  { key: 'GOAL', label: 'GOAL', eyebrow: 'LAMP · GOAL BOARD', note: 'One called per team in every game, locked before puck drop, graded after. Score = mean of three percentile ranks tonight: shots, goals, ice time per game over his last 82 NHL games.', result: 'GOALS', log: 'lamp_goal_log' },
-  { key: 'SOG', label: 'SHOTS 3+', eyebrow: 'LAMP · SHOTS BOARD', note: 'Three called per game for 3+ shots on goal, locked before puck drop, graded after. Score = mean of three percentile ranks tonight: shots per game over his last 82, ice time, and how many shots his opponent allows per 60.', result: 'SOG', log: 'lamp_prop_log' },
+  { key: 'GOAL', label: 'GOAL', eyebrow: 'LAMP · RANKINGS · GOAL', note: 'Who we rank tonight, and why. One called per team in every game, locked before puck drop, graded after. Score = mean of three percentile ranks tonight: shots, goals, ice time per game over his last 82 NHL games.', result: 'GOALS', log: 'lamp_goal_log' },
+  { key: 'SOG', label: 'SHOTS 3+', eyebrow: 'LAMP · RANKINGS · SHOTS', note: 'Who we rank tonight, and why. Three called per game for 3+ shots on goal, locked before puck drop, graded after. Score = mean of three percentile ranks tonight: shots per game over his last 82, ice time, and how many shots his opponent allows per 60.', result: 'SOG', log: 'lamp_prop_log' },
   // POINTS and ASSISTS (2026-10-02, Donovan: "the new markets"): locked and graded every night since
   // 10-01 (lamp-pts / lamp-ast), shown as a TEST until each has 30 graded nights (the record rule)
-  { key: 'PTS', label: 'POINTS 1+ · TEST', eyebrow: 'LAMP · POINTS BOARD · TEST', note: 'A TEST: three called per game for 1+ point, locked before puck drop, graded after; no record is printed until 30 graded nights. Score = mean of three percentile ranks tonight: points per game over his last 82, ice time, and how many goals his opponent allows.', result: 'PTS', log: 'lamp_prop_log' },
-  { key: 'AST', label: 'ASSISTS 1+ · TEST', eyebrow: 'LAMP · ASSISTS BOARD · TEST', note: 'A TEST: three called per game for 1+ assist, locked before puck drop, graded after; no record is printed until 30 graded nights. Score = mean of three percentile ranks tonight: assists per game over his last 82, ice time, and how many goals his opponent allows.', result: 'AST', log: 'lamp_prop_log' },
+  { key: 'PTS', label: 'POINTS 1+ · TEST', eyebrow: 'LAMP · RANKINGS · POINTS · TEST', note: 'Who we rank tonight, and why. A TEST: three called per game for 1+ point, locked before puck drop, graded after; no record is printed until 30 graded nights. Score = mean of three percentile ranks tonight: points per game over his last 82, ice time, and how many goals his opponent allows.', result: 'PTS', log: 'lamp_prop_log' },
+  { key: 'AST', label: 'ASSISTS 1+ · TEST', eyebrow: 'LAMP · RANKINGS · ASSISTS · TEST', note: 'Who we rank tonight, and why. A TEST: three called per game for 1+ assist, locked before puck drop, graded after; no record is printed until 30 graded nights. Score = mean of three percentile ranks tonight: assists per game over his last 82, ice time, and how many goals his opponent allows.', result: 'AST', log: 'lamp_prop_log' },
 ]
 // The SCORE header's ⓘ, per market (it had none, so no explanation and no
 // picture). The legs are the models' own: lib/nhl/goalModel.js and
@@ -494,30 +500,91 @@ export function lampAngles(flat, market) {
 
 // ALL GAMES (board filters plan, LAMP 1): every scored skater tonight, one
 // table, ranked by score; the game is a column. Sort any header.
+// MERGED WITH RANKINGS (2026-10-06, Donovan: "the rankings and the boards should be
+// the same thing"): this is now also the old Rankings table -- his rank in his own
+// game (CALLED is the top skater on his team there), the stamp of his game's lock
+// (a PREVIEW is not a call), the goals he scored once graded, and a WHY on every row.
+const STAMP = { graded: 'GRADED', locked: 'LOCKED', setting: 'SETTING', preview: 'PREVIEW' }
+const stampOf = (g) => (g?.graded ? 'graded' : g?.locked ? 'locked' : g?.setting ? 'setting' : 'preview')
+const STAMP_TONE = { graded: C.cream, locked: C.teal, setting: C.ice, preview: C.amber }
+const LEG_FMT = { shotsPg: (v) => v.toFixed(1), goalsPg: (v) => v.toFixed(2), toi: (v) => fmtSec(v), oppSaPg: (v) => v.toFixed(1), ptsPg: (v) => v.toFixed(2), astPg: (v) => v.toFixed(2), oppGaPg: (v) => v.toFixed(2) }
+const ordW = (p) => { const n = Math.round(p); const r = n % 100; return `${n}${r >= 11 && r <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th'}` }
+const GROUPS = { call: { key: 'call', label: 'Call', order: 0 }, signal: { key: 'signal', label: 'The signal', order: 1 }, shooter: { key: 'shooter', label: 'The shooter', order: 2 } }
+
+const LEG_WORDS = { shotsPg: 'shots per game', goalsPg: 'goals per game', toi: 'ice time', oppSaPg: 'shots his opponent allows', ptsPg: 'points per game', astPg: 'assists per game', oppGaPg: 'goals his opponent allows' }
+/** One plain sentence: his strongest part of the score, and where it ranks tonight. `short` is the table's line. */
+export function plainWhy(r, market) {
+  const defs = BAND_DEFS[market] || BAND_DEFS.GOAL
+  const placed = defs.map((d) => ({ d, p: Number(r.pct?.[d.key]) })).filter((x) => Number.isFinite(x.p)).sort((a, b) => b.p - a.p)
+  if (!placed.length) return { lead: r.reason || null, short: r.reason || '', watch: null }
+  const top = placed[0]; const low = placed[placed.length - 1]
+  const w = LEG_WORDS[top.d.key] || top.d.label.toLowerCase()
+  return { lead: `His best part is ${w}: ${ordW(top.p)} percentile among tonight’s skaters.`, short: `Best part: ${w}, ${ordW(top.p)} percentile.`,
+    watch: low !== top && low.p <= 25 ? `${LEG_WORDS[low.d.key] || low.d.label.toLowerCase()}, ${ordW(low.p)} percentile.` : null }
+}
+/** The sheet's item for one row: the board's own sentence, its numbers, and where to look next. */
+export function whyItemFor(r, market, rank) {
+  const defs = BAND_DEFS[market] || BAND_DEFS.GOAL
+  const parts = defs.map((d) => {
+    const v = r.legs?.[d.key]; const p = r.pct?.[d.key]
+    if (!Number.isFinite(Number(v)) && !Number.isFinite(Number(p))) return null
+    const f = LEG_FMT[d.key]
+    return { label: d.label, text: `${Number.isFinite(Number(v)) && f ? f(Number(v)) : '—'}${Number.isFinite(Number(p)) ? ` · ${ordW(p)} percentile` : ''}`, pct: Number.isFinite(Number(p)) ? Number(p) : null }
+  }).filter(Boolean)
+  const id = r.playerId
+  return {
+    name: r.name, rank,
+    lead: plainWhy(r, market).lead,
+    watch: plainWhy(r, market).watch,
+    parts,
+    links: [
+      { label: 'His page: season, last five, game log', href: `#sport=nhl&tab=player&player=${id}` },
+      { label: 'Where he shoots from', href: `#sport=nhl&tab=shotmap&player=${id}` },
+      { label: 'Who is hot: last 5 and 10 games', href: '#sport=nhl&tab=hotsticks' },
+      { label: 'Tonight’s defences, ranked', href: '#sport=nhl&tab=matchups' },
+    ],
+  }
+}
+
 export function AllGamesTable({ kept, market, onOpenPlayer, onOpenTeam, onOpenGame }) {
-  const sog = market === 'SOG'
+  const { open, sheet } = useWhySheet({ theme: C, accent: C.ice, numFont: NUM_FONT })
   const rows = [...kept].sort((a, b) => (b.r.score ?? 0) - (a.r.score ?? 0)).map(({ r, g }, i) => ({
     id: r.playerId, rank: i + 1, name: r.name, pos: r.pos, team: r.team, game: `${g.game.away.abbrev}@${g.game.home.abbrev}`,
-    score: r.score, ...rateVals(r, market), toi: r.legs ? r.legs.toi : null,
+    score: r.score, ...rateVals(r, market), toi: r.legs ? r.legs.toi : null, gameRank: r.rank,
     osa: r.legs ? r.legs.oppSaPg ?? null : null, status: r.status, _row: r, _g: g,
   }))
   const columns = [
-    { key: 'rank', label: '#', heat: false, mono: true, w: 30 },
-    { key: 'name', label: 'PLAYER', heat: false, sticky: true, bold: true, w: 160, fmt: (v, r) => <>{v}<span style={{ color: C.text3, font: `800 9px/1 ${NUM_FONT}`, marginLeft: 6 }}>{r.pos}</span></> },
-    { key: 'team', label: 'TM', heat: false, mono: true, w: 40, fmt: (v) => <button type="button" onClick={(e) => { e.stopPropagation(); onOpenTeam?.(v) }} style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', color: C.text2, font: `800 10.5px/1 ${NUM_FONT}` }}>{v}</button> },
+    { key: 'rank', label: '#', heat: false, mono: true, w: 30, group: GROUPS.call, title: 'His place on tonight’s board for this market, all games together.' },
+    { key: 'name', label: 'PLAYER', heat: false, sticky: true, bold: true, w: 160, group: GROUPS.call, fmt: (v, r) => <>{v}<span style={{ color: C.text3, font: `800 9px/1 ${NUM_FONT}`, marginLeft: 6 }}>{r.pos}</span></> },
+    { key: 'team', label: 'TM', heat: false, mono: true, w: 40, group: GROUPS.call, fmt: (v) => <button type="button" onClick={(e) => { e.stopPropagation(); onOpenTeam?.(v) }} style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', color: C.text2, font: `800 10.5px/1 ${NUM_FONT}` }}>{v}</button> },
     // the matchup opens that game (the address says game=<id>), not the row's player card
-    { key: 'game', label: 'GAME', heat: false, mono: true, w: 70, link: (r) => (onOpenGame && r._g?.game?.id ? () => onOpenGame(r._g.game.id) : null) },
-    { key: 'score', label: 'SCORE', primary: true, scale: 'seq', domain: [0, 100], w: 50, explain: SCORE_TITLE[market], art: SCORE_ART[market] || null, answers: market === 'GOAL' ? 'nhl-goal' : null },
-    ...rateCols(market),
-    { key: 'toi', label: 'TOI', primary: true, w: 48, fmt: (v) => (Number.isFinite(v) ? fmtSec(v) : '—') },
-    { answers: 'called', key: 'status', label: 'STATUS', heat: false, w: 90, fmt: (v) => (v === 'called' ? <CalledChip /> : <span style={{ color: C.text3, font: `800 8px/1 ${NUM_FONT}`, letterSpacing: '.1em' }}>{STATUS[v]}</span>) },
+    { key: 'game', label: 'GAME', heat: false, mono: true, w: 70, group: GROUPS.call, link: (r) => (onOpenGame && r._g?.game?.id ? () => onOpenGame(r._g.game.id) : null) },
+    { answers: 'called', key: 'status', label: 'STATUS', heat: false, w: 118, group: GROUPS.call, statusCol: true, fmt: (v, r) => {
+      const row = r._row
+      return (
+        <span style={{ whiteSpace: 'nowrap' }}>
+          {r._g?.graded
+            ? (row.dressed === false ? <span style={{ color: C.text3, font: `800 9px/1 ${NUM_FONT}` }}>VOID</span>
+              : <><CalledChip />{' '}<span style={{ color: row.hit === true ? C.lamp : C.text3, font: `900 12px/1 ${NUM_FONT}` }}>{countOf(row, market) == null ? '\u2014' : <>{row.hit === true && <LampDot />}{countOf(row, market)}</>}</span></>)
+            : (v === 'called' ? <CalledChip /> : <span style={{ color: C.text3, font: `800 8px/1 ${NUM_FONT}`, letterSpacing: '.1em' }}>{STATUS[v]}</span>)}
+          <span style={{ color: STAMP_TONE[stampOf(r._g)], font: `800 8px/1 ${NUM_FONT}`, letterSpacing: '.1em', marginLeft: 5 }}>{STAMP[stampOf(r._g)]}</span>
+        </span>
+      )
+    } },
+    { key: 'score', label: 'SCORE', primary: true, scale: 'seq', domain: [0, 100], w: 50, group: GROUPS.signal, explain: SCORE_TITLE[market], art: SCORE_ART[market] || null, answers: market === 'GOAL' ? 'nhl-goal' : null },
+    whyColumn({ textOf: (r) => plainWhy(r._row, market).short, itemOf: (r) => whyItemFor(r._row, market, r.rank), open, theme: C, numFont: NUM_FONT, group: GROUPS.signal, w: 165 }),
+    { key: 'gameRank', label: 'GAME #', heat: false, mono: true, w: 52, group: GROUPS.signal, title: 'His rank in his own game. CALLED is the top-scored skater on each team (three in a game on the shots, points and assists boards).' },
+    ...rateCols(market).map((c) => ({ ...c, group: GROUPS.shooter })),
+    { key: 'toi', label: 'TOI', primary: true, w: 48, group: GROUPS.shooter, fmt: (v) => (Number.isFinite(v) ? fmtSec(v) : '—') },
   ]
-  return (
-    <LampTable {...withNhlFullSet(rows, columns)} heatMode="primary"
+  return (<>
+    <LampTable {...withNhlFullSet(rows, columns)} heatMode="primary" statusOf={(r) => r.status}
       rowEdge={(r) => (r.status === 'called' ? C.ice : null)}
       faceOf={(r) => ({ sport: 'nhl', photo: nhlMug(r._g.game.season, r._row?.team, r._row?.playerId), name: r._row?.name })}
+      dimRow={(r) => r._g?.graded && r._row?.dressed === false}
       maxRows={12 /* 0g E3: tonight's top twelve by score, the rest behind "show N more" */} maxHeight={9999} onRowClick={(r) => onOpenPlayer?.(r.id)} />
-  )
+    {sheet}
+  </>)
 }
 
 export function NavBtn({ children, onClick, disabled, strong = false, ...rest }) {

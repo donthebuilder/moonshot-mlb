@@ -136,6 +136,8 @@ export default function BoardHub({ slate, data, logs, matchup, odds, oddsStatus,
   }, [slate, picks, tdStatus])
   return (
     <div>
+      {/* ONE PAGE (2026-10-06): the old Boards and Rankings pages are this page. Who is ranked, why, and what to check next. */}
+      <p style={{ margin: '0 0 10px', fontSize: TYPE.body, lineHeight: 1.45, color: C.text2 }}>Who we rank this week, and why. Tap the Why on any row for the numbers behind it.</p>
       {(
         <BoardTopBar query={query} setQuery={setQuery} placeholder="Search player or team…"
           team={team} setTeam={setTeam} teams={teams} teamLabel="🏈 All teams"

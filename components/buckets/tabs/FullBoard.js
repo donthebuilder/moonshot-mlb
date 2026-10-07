@@ -16,7 +16,8 @@ import { EmptyState, DelayedBanner, Loading, SourceLine, DayPager, fmtDay, fmtTi
 // /api/buckets/board the Props page makes (cached at the server, 5 min).
 const KEYS = Object.keys(NBA_MARKETS)
 
-export default function FullBoard({ date, setDate, onOpenPlayer, onOpenTeam, onOpenGame }) {
+// `embedded`: drawn inside the Rankings page (Board.js, the ALL MARKETS pill), which owns the header and the day.
+export default function FullBoard({ date, setDate, onOpenPlayer, onOpenTeam, onOpenGame, embedded = false }) {
   const pts = useBucketsBoard(date, 'pts'), reb = useBucketsBoard(date, 'reb'), ast = useBucketsBoard(date, 'ast')
   const tpm = useBucketsBoard(date, '3pm'), pra = useBucketsBoard(date, 'pra'), first = useBucketsBoard(date, 'first')
   const boards = { pts, reb, ast, '3pm': tpm, pra, first }
@@ -53,10 +54,10 @@ export default function FullBoard({ date, setDate, onOpenPlayer, onOpenTeam, onO
   const loading = KEYS.some((k) => boards[k].loading) && !data
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <PageHeader eyebrow="BUCKETS · BOARDS" title={shown ? fmtDay(shown) : 'Tonight'} theme={C} numFont={NUM_FONT} accent={C.purple}
-        note="Every player the model rated that day, every market side by side. CALLED is one per team in a game, per market; a PREVIEW is not a call until its game locks."
-        stats={data ? [{ value: rows.length, label: 'PLAYERS', tone: C.text2 }, { value: calledN, label: 'CALLS', tone: C.purple }, { value: games.length, label: 'GAMES', tone: C.text2 }] : null} />
-      <DayPager shown={shown} date={date} setDate={setDate} />
+      {!embedded && <PageHeader eyebrow="BUCKETS · RANKINGS" title={shown ? fmtDay(shown) : 'Tonight'} theme={C} numFont={NUM_FONT} accent={C.purple}
+        note="Who we rank tonight, and why. Every player the model rated that day, every market side by side. CALLED is one per team in a game, per market; a PREVIEW is not a call until its game locks."
+        stats={data ? [{ value: rows.length, label: 'PLAYERS', tone: C.text2 }, { value: calledN, label: 'CALLS', tone: C.purple }, { value: games.length, label: 'GAMES', tone: C.text2 }] : null} />}
+      {!embedded && <DayPager shown={shown} date={date} setDate={setDate} />}
       <DelayedBanner error={pts.error} what="the board" />
       {loading ? <Loading what="every market’s board" /> : null}
       {data && !games.length && <EmptyState title="NO GAMES THAT DAY" note="Nothing to rank. Page a day." />}
@@ -65,7 +66,7 @@ export default function FullBoard({ date, setDate, onOpenPlayer, onOpenTeam, onO
           initialSort={{ key: 's_pts', dir: 'desc' }} heatMode="sorted" maxHeight={620} maxRows={Math.max(rows.length, 1)}
           caption="Every rated player, every market. Column headers sort; each row opens that player; the team and opponent open the club." />
       )}
-      <SourceLine>The six boards of /api/buckets/board (lib/nba/model.js, one version per market). First basket scores starters only, once the pre-tip box score lists them.</SourceLine>
+      <SourceLine>Every market side by side. First basket scores the starters only, once the pre-tip box score lists them.</SourceLine>
     </div>
   )
 }

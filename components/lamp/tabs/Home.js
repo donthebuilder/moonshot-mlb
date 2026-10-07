@@ -177,7 +177,7 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
       <section aria-label="Tonight's board">
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
           <Kicker>THE BOARD · ONE CALLED PER TEAM</Kicker>
-          <button type="button" onClick={() => setTab?.('boards')} style={link}>Full board ›</button>
+          <button type="button" onClick={() => setTab?.('fullboard')} style={link}>Full board ›</button>
         </div>
         {board.loading && !board.data ? <Loading what="the board" /> : null}
         {board.data && boardGames.length === 0 && <EmptyState title="NO BOARD TONIGHT" note="No games, so nothing to call." />}

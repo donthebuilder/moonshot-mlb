@@ -5,7 +5,7 @@ import ShotPanel from '../ShotPanel'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import { NHL_TEAMS } from '../../../lib/nhl/teams'
 import { useLampPlayers } from '../../../lib/nhl/useLamp'
-import { SourceLine } from '../ui'
+import { SourceLine, readHashParam } from '../ui'
 import { arenaOf } from '../../../lib/nhl/arenas'
 
 // 🏒 SHOT MAP (lamp research step 3, 2026-09-26) — More → League. Pick a
@@ -15,7 +15,8 @@ import { arenaOf } from '../../../lib/nhl/arenas'
 const TEAMS = NHL_TEAMS.map(([abbrev, , place, nick]) => ({ abbrev, name: `${place} ${nick}` })).sort((a, b) => a.name.localeCompare(b.name))
 
 export default function ShotMap({ onOpenPlayer }) {
-  const [sel, setSel] = useState({ team: TEAMS[0].abbrev })
+  // #player=<id> opens his own map (the Rankings page's "Where he shoots from")
+  const [sel, setSel] = useState(() => { const id = String(readHashParam('player') || ''); return /^\d{7}$/.test(id) ? { player: id } : { team: TEAMS[0].abbrev } })
   const [q, setQ] = useState('')
   const players = useLampPlayers()
   const hits = useMemo(() => {

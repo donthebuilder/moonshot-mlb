@@ -3,7 +3,7 @@
 export const NBA_TEXTS = {
   home: { what: 'BUCKETS reads the NBA night: one player called per team in every game for each market (points, rebounds, assists, threes, PRA, first basket), locked before tip, graded after the final, in public. This page is tonight in one screen. Tap a game for its whole board.' },
   board: { what: 'The night’s board for one market. The CALLED rows are one per team in a game; ON THE BOARD is the top third. The score is a rank among tonight’s players on the legs shown beside it -- nothing hidden, nothing priced. A PREVIEW row is not a call until its game locks.' },
-  fullboard: { what: 'Every player the model rated tonight, every market side by side, #1 to the bottom. Tap a row for his file.' },
+  fullboard: { what: 'Who we rank tonight, and why. Every player the model rated, one market at a time or all of them side by side, #1 to the bottom. Tap the Why on a row for the reason and the numbers behind it. Tap a name for his file.' },
   scores: { what: 'Every game on one day: score, quarter and clock. Tap a game for its box score and every shot on the floor.' },
   games: { what: 'Tonight one game at a time: the matchup, then that game’s calls and board for the market you pick.' },
   game: { what: 'One game top to bottom: the line score, both box scores, every field-goal attempt where it was taken, and who scored first.' },

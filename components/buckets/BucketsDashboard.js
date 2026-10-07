@@ -36,7 +36,6 @@ import dynamic from 'next/dynamic'
 // Dashboard pattern. A tab you never open costs nothing.
 import TabLoading from '../TabLoading'
 const Board = dynamic(() => import('./tabs/Board'), { loading: TabLoading })
-const FullBoard = dynamic(() => import('./tabs/FullBoard'), { loading: TabLoading })
 const Scores = dynamic(() => import('./tabs/Scores'), { loading: TabLoading })
 const Slate = dynamic(() => import('./tabs/Slate'), { loading: TabLoading })
 const Game = dynamic(() => import('./tabs/Game'), { loading: TabLoading })
@@ -70,7 +69,7 @@ const ROUTE = {
   sport: 'nba', nav: NBA_NAV, datedTabs: DATED_TABS,
   ids: { game: GAME_ID_RE, team: TEAM_RE, player: PLAYER_ID_RE },
   // the shot map's pick rides team= / player= too
-  keep: { game: ['games'], m: ['board', 'games'], player: ['players', 'shotmap'], team: ['shotmap'] },
+  keep: { game: ['games'], m: ['board', 'games', 'fullboard'], player: ['players', 'shotmap'], team: ['shotmap'] },
 }
 
 export default function BucketsDashboard() {
@@ -122,9 +121,9 @@ export default function BucketsDashboard() {
             {tab === 'home' && <Home today={shown} date={date} setTab={setTab} {...nav} />}
             {/* Props is MOONSHOT's page now (2026-10-04): the cards, then the board under them */}
             {tab === 'board' && <BucketsProps date={date} onOpenPlayer={peekPlayer} />}
-            {tab === 'board' && <div style={{ marginTop: 26, paddingTop: 18, borderTop: `1px solid ${C.border}`, font: `900 11px/1 ${NUM_FONT}`, letterSpacing: '.16em', color: C.purple, marginBottom: 10 }}>THE BOARD · EVERY PLAYER, EVERY NUMBER</div>}
-            {tab === 'board' && <Board date={date} setDate={setDate} market={market} {...nav} />}
-            {tab === 'fullboard' && <FullBoard date={date} setDate={setDate} {...nav} />}
+            {/* Props is the cards; the table of every player is Rankings (one page, 2026-10-06) */}
+            {tab === 'board' && <button type="button" onClick={() => setTab('fullboard')} style={{ display: 'block', minHeight: 44, marginTop: 14, padding: '0 4px', border: 0, background: 'transparent', color: C.purple, font: `800 12px/1 ${NUM_FONT}`, cursor: 'pointer' }}>Every player, every number, and why: {NBA_NAV.fullboard.label} ›</button>}
+            {tab === 'fullboard' && <Board date={date} setDate={setDate} market={market} {...nav} />}
             {tab === 'scores' && <Scores date={date} setDate={setDate} onOpenGame={openGame} />}
             {tab === 'games' && <Slate date={date} setDate={setDate} market={market} {...nav} />}
             {tab === 'game' && <Game id={gameId} {...nav} backLabel={backLabel('scores')} onBack={() => goBack('scores')} />}

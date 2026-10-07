@@ -245,7 +245,7 @@ function Angles({ players, matchup }) {
 function boardOpener(setTab) {
   return (market) => {
     try { const h = new URLSearchParams(window.location.hash.slice(1)); h.set('m', market); h.set('view', 'board'); window.history.replaceState(null, '', `#${h.toString()}`) } catch { /* ignore */ }
-    setTab?.('touchdowns')
+    setTab?.('research')
   }
 }
 
@@ -368,7 +368,7 @@ export default function Home({ data, picks, results, matchup, logs, onPlayerClic
   // Touchdowns as TUDDY's actual "the board" -- the tab that leads the rail
   // the same way MOONSHOT's HR board does -- not the demoted Boards tab.
   const TUDDY_DOORS = [
-    { tab: 'touchdowns', icon: '\u{1F3C8}', title: 'The Touchdown Board', color: C.green,
+    { tab: 'research', icon: '\u{1F3C8}', title: 'The Touchdown Board', color: C.green,
       body: 'Every player on the slate, ranked by anytime-TD score, live once kickoffs land -- the same board Home draws its calls from.' },
     { tab: 'games', icon: '\u{1F3DF}️', title: 'Game by game', color: C.cyan,
       body: "Tonight matchup by matchup: the script, the matchup pressure, and each side's own touchdown board." },
