@@ -188,8 +188,8 @@ export default function HeadlinePicks({ theme, numFont, title, subtitle, record 
                             color: `${f.color}99`, flexShrink: 0,
                           }}>{idx + 2}</span>
                           <span style={{
-                            fontSize: 11, fontWeight: 700, color: C.text2, minWidth: 0,
-                            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                            fontSize: 11, fontWeight: 700, color: C.text2, minWidth: 0, lineHeight: 1.2,
+                            overflowWrap: 'anywhere',   // a name with room never ends in "…": it wraps onto a second line
                           }}>{p.name}</span>
                           {p.flag && <span style={{ fontSize: TYPE.micro }}>{p.flag.icon}</span>}
                           {p.result && <Mark r={p.result} C={C} size={11} />}
