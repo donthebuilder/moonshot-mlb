@@ -10,18 +10,21 @@ import NflPlayerModal from '../NflPlayerModal'
 import { useRosterExtras } from '../../../lib/nfl/useRosterExtras'
 
 // 🏈 PLAYERS, MOONSHOT'S PAGE (2026-09-30, Donovan: "the mlb players page is
-// the base i like that, use those components"). The Players tab is
-// MOONSHOT's PlayerBoard (components/players/PlayerBoardFrame.js): search,
-// question chips, the ranked list with a score chip, and the player's CARD
-// inline on the right -- the same card the boards open (NflPlayerModal,
-// built on MOONSHOT's CardShell / VerdictHero / StatStrip / the Read). The
-// "TUDDY player file" was a second, hand-built design of the same person;
-// now the page and the card are one thing, like MLB.
+// the base i like that, use those components"; header refreshed 2026-10-06).
+// The Players tab is MOONSHOT's PlayerBoard layout (components/players/
+// PlayerBoardFrame.js, shared with LAMP): search, question chips + 🎲, the ranked
+// list with a score chip, and the player's CARD inline on the right -- the same
+// card the boards open (NflPlayerModal, on MOONSHOT's CardShell / VerdictHero /
+// StatStrip / the Read), rendered `inline`. The old hand-built "TUDDY player file"
+// is gone; page and card are one thing, like MLB.
 //
-// Kept from the old page: every rostered player (the week's scored rows
-// first, team defenses next, the rest of the 53-man rosters last), the
-// team filter in the address (team=, from Standings / Games / Matchups),
-// and the NO SUCH PLAYER notice for a link that matches nobody.
+// The list: every rostered player (the week's scored rows first, team defenses
+// next, then the rest of the rosters from nfl_roster.json via useRosterExtras,
+// unscored and said so on the card), the team filter in the address (team=, from
+// Standings / Games / Matchups), and the pick in the address (player=, owned by
+// the frame).
+// A `player=` nobody in the list has: the NO SUCH PLAYER notice below, and NO card
+// -- the frame no longer falls back to the first row for an unknown id (2026-10-06).
 
 const bestOf = (p) => {
   let best = null
