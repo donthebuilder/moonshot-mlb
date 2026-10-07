@@ -2,17 +2,16 @@
 import TeamMark, { MatchLogos } from '../TeamMark'
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE, gradeFor } from '../../lib/nfl/theme'
-import { softRole, softLine } from '../../lib/nfl/dvpSignal'
 import { useHashFilter } from '../../lib/filterHash'
 import { useIsPhone } from '../MobileFold'
 import Tap from '../Tap'
 import GameSwitcher from '../GameSwitcher'
-import { GameFilterRail, SlateStrip, GamePanelPills, PanelAnchor, GameFrame, GameHeaderLine, PrevNextGame } from '../slate/SlateParts'
-import { SubLabel, FactTiles } from '../matchup/MatchupParts'
-import { Zones, defenseTiles, offenseTiles, factsNote, PassGame } from './tabs/Matchups'
+import { GameFilterRail, SlateStrip, GamePanelPills, PanelAnchor, GameFrame, PrevNextGame } from '../slate/SlateParts'
+import GameOffDef, { Kicker } from './GameOffDef'
+import { GameHeader, KeyPlayers, MatchupScoreboard, ImportantStats } from './GameSections'
 import { Card as TdCard, tdPool } from './tabs/Touchdowns'
 import NflTable from './NflTable'
-import GameCalls, { useGameCalls } from './GameCalls'
+import { useGameCalls } from './GameCalls'
 import WriteupBlock from './WriteupBlock'
 import { useNflWatchlist } from '../../lib/nfl/watchlist'
 
@@ -35,12 +34,12 @@ import { useNflWatchlist } from '../../lib/nfl/watchlist'
 
 const HEADLINE_MARKETS = ['TD', 'REC_YDS', 'RUSH_YDS', 'REC', 'PASS_YDS', 'KICK_PTS']
 const MARKET_TAG = { TD: 'TD', REC_YDS: 'REC YDS', RUSH_YDS: 'RUSH YDS', REC: 'REC', PASS_YDS: 'PASS YDS', KICK_PTS: 'KICK' }
-const PANELS = [['read', 'The read'], ['players', 'Players'], ['matchup', 'Matchup'], ['picks', 'Picks']]
+const PANELS = [['field', 'The field'], ['players', 'Players'], ['matchup', 'Matchup'], ['research', 'Research']]
 const SUBS = {
-  read: 'where it is played, rest, and each offense against the other defense.',
-  players: 'both rosters as the TD table — every scored player, sortable.',
-  matchup: 'where each defense gets beaten, zone by zone.',
-  picks: "the bot's calls in this game, then its top touchdown cards.",
+  field: 'where this offense attacks, where the other defense is weak, and where they meet.',
+  players: "who gets the ball, who they face, and the model's calls.",
+  matchup: 'the numbers that decide a game, side by side.',
+  research: 'every scored player in the game, and the top touchdown looks.',
 }
 
 const stateOf = (g) => (g.state === 'in' ? 'live' : g.completed ? 'final' : 'upcoming')
@@ -49,6 +48,13 @@ const kickText = (g) => {
   if (!Number.isFinite(at)) return 'TBD'
   if (at < Date.now() && !g.completed && g.state !== 'in') return 'kickoff passed · not tracked'
   return new Date(at).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit' })
+}
+// the header's kickoff: the viewer's own time zone, named once
+const kickWhen = (g) => {
+  const at = g.kickoff ? Date.parse(g.kickoff) : NaN
+  if (!Number.isFinite(at)) return 'TBD'
+  if (at < Date.now() && !g.completed && g.state !== 'in') return 'kickoff passed · not tracked'
+  return new Date(at).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' })
 }
 const airText = (g) => (g.indoors ? 'indoors' : Number.isFinite(g.weather_temp_f) ? `${Math.round(g.weather_temp_f)}°F${g.weather_condition ? ` ${String(g.weather_condition).toLowerCase()}` : ''}` : null)
 
@@ -71,7 +77,8 @@ export default function NflSlate({ data, picks, matchup, logs = null, odds = nul
   const playersById = useMemo(() => Object.fromEntries(players.map((p) => [String(p.player_id), p])), [players])
 
   const [gfilter, setGfilter] = useState('all')
-  const [panel, setPanel] = useState('read')
+  const [panel, setPanel] = useState('field')
+  const [cardsOpen, setCardsOpen] = useState(false)
   const [hashGame, setHashGame] = useHashFilter('game')
   // A game handed over from another tab (Storylines, the Ledger) opens here.
   useEffect(() => { if (initialGame) setHashGame(String(initialGame)) }, [initialGame])   // eslint-disable-line react-hooks/exhaustive-deps
@@ -135,130 +142,77 @@ export default function NflSlate({ data, picks, matchup, logs = null, odds = nul
   const switcherGames = games.map((g) => ({ game_pk: String(g.game_id), away: g.away, home: g.home, game_time: g.kickoff }))
   const switcherLive = Object.fromEntries(games.filter((g) => g.state === 'in' || g.completed).map((g) => [String(g.game_id), { away_score: g.away_score, home_score: g.home_score }]))
   const g = games.find((x) => String(x.game_id) === activeId) || null
-  // logo-only (Donovan 10-02); the code rides the logo's title / alt and the tap's label
-  const teamLink = (t) => <Tap onClick={onOpenTeam && (() => onOpenTeam(t))} title={t}><span style={{ display: 'inline-flex', alignItems: 'center' }}><TeamMark sport="nfl" abbr={t} variant="logo" px={18} /></span></Tap>
 
   return (
     <div>
       <GameFilterRail value={gfilter} onChange={setGfilter} counts={counts} />
       <SlateStrip sport="nfl" isPhone={isPhone} rememberKey="tuddy_games_fold_v1" accent={C.green} theme={C}
         open={g ? { away: g.away, home: g.home } : null} cards={cards} activeId={activeId} onSelect={select}
-        legend="Kickoff order. The dial is expected touchdowns in the game; 🌋 the most this week, 🔥 hot, 🧊 cold." />
+        legend="Ring = expected touchdowns." />
       <GameSwitcher sport="nfl" games={switcherGames} activeGame={activeId} onSelect={select} live={switcherLive} accent={C.green} stickyTop="0px" />
 
       {g && (() => {
-        const live = g.state === 'in'
-        const calls = callsIn(picks, g)
         const inGame = (p) => p.team === g.away || p.team === g.home
         const topTd = pool.rows.filter(inGame).slice(0, 4)
         const story = storyForGame?.(g)
         const rows = tableRowsFor(new Set([g.away, g.home]))
+        // a one-game table: the kickoff on every row said nothing (Game column dropped);
+        // the club code rides its logo
+        const cols = tableColumns.filter((c) => c.key !== 'state').map((c) => (c.key === 'team' || c.key === 'opp' ? { ...c, code: true } : c))
+        const x = xtdByGame[g.game_id] || 0
         return (
           <div id="tuddy-slate-game" style={{ scrollMarginTop: 'calc(var(--hdr-h, 0px) + var(--gsw-h, 0px) + 8px)', marginBottom: 20 }}>
             <GameFrame accent={C.green} past={Boolean(g.completed)}>
-              <div style={{ padding: '11px 14px 10px' }}>
-                <GameHeaderLine away={teamLink(g.away)} home={teamLink(g.home)} past={Boolean(g.completed)}>
-                  <span style={{ fontSize: TYPE.micro, fontFamily: NUM_FONT, color: live ? C.green : C.text3, fontWeight: 800 }}>
-                    {live ? (g.detail || 'LIVE') : g.completed ? 'FINAL' : kickText(g)}
-                  </span>
-                  {(live || g.completed) && <span style={{ fontFamily: NUM_FONT, fontSize: 14, fontWeight: 900, color: live ? C.green : C.text2 }}>{teamLink(g.away)} {g.away_score ?? 0}–{g.home_score ?? 0} {teamLink(g.home)}</span>}
-                </GameHeaderLine>
-                {live && (g.down_distance || g.possession) && (
-                  <div style={{ marginTop: 4, color: g.red_zone ? C.yellow : C.green, fontSize: TYPE.micro, fontWeight: 800, fontFamily: NUM_FONT }}>
-                    {g.possession ? `${g.possession} ball` : ''}{g.possession && g.down_distance ? ' · ' : ''}{g.down_distance || ''}{g.red_zone ? ' · RED ZONE' : ''}
-                  </div>
-                )}
-                <GameCalls calls={gameCalls} game={g} playersById={playersById} weights={pool.weights} base={pool.base} onPlayerClick={onPlayerClick} />
+              {/* 1. THE GAME, ONCE: the one place the matchup, the kickoff and the dial are said */}
+              <div style={{ padding: '12px 14px 12px' }}>
+                <GameHeader game={g} when={kickWhen(g)} air={airText(g)} xtd={x} heat={heatOf(x)} past={Boolean(g.completed)} onOpenTeam={onOpenTeam} />
               </div>
               <div style={{ borderTop: `1px solid ${C.border}`, padding: '12px 14px 14px', background: 'rgba(0,0,0,.15)' }}>
-                <GamePanelPills panels={PANELS} subs={SUBS} panel={panel} setPanel={setPanel} gamePk={g.game_id} isPhone={isPhone} accent={C.green} stickyTop="var(--gsw-h, 0px)"
-                  badges={{ picks: calls.length ? String(calls.length) : '' }} />
+                <GamePanelPills panels={PANELS} subs={SUBS} panel={panel} setPanel={setPanel} gamePk={g.game_id} isPhone={isPhone} accent={C.green} stickyTop="var(--gsw-h, 0px)" />
 
-                <PanelAnchor id="read" gamePk={g.game_id}>
-                  {/* THE CALL: the game's write-up, the same one Discord and X get (BATCH-GAME-WRITEUP) */}
-                  <WriteupBlock game={g} gameCalls={gameCalls} week={data} matchup={matchup} logs={logs} odds={odds} onPlayerClick={onPlayerClick} />
-                  <FactTiles theme={C} numFont={NUM_FONT} min={104} tiles={[
-                    { k: g.indoors ? 'INDOORS' : 'WEATHER', v: airText(g) && !g.indoors ? airText(g).replace(/°F/, '°') : g.indoors ? 'dome' : null, sub: g.venue || null },
-                    { k: 'DAYS REST', v: g.away_rest_days != null && g.home_rest_days != null ? `${g.away_rest_days} · ${g.home_rest_days}` : null, sub: `${g.away}${g.away_short_week ? ' (short)' : ''} · ${g.home}${g.home_short_week ? ' (short)' : ''}` },
-                    { k: 'EXPECTED TDS', v: (xtdByGame[g.game_id] || 0).toFixed(1), sub: 'both teams' },
-                  ]} />
+                {/* 2. OFFENSE vs DEFENSE: where it attacks, where it is weak, where they meet */}
+                <PanelAnchor id="field" gamePk={g.game_id}>
+                  <GameOffDef key={g.game_id} matchup={matchup} players={players} game={g} />
+                </PanelAnchor>
+
+                {/* 3. KEY PLAYERS, then the calls (one block) */}
+                <PanelAnchor id="players" gamePk={g.game_id} style={{ marginTop: 6 }}>
+                  <KeyPlayers matchup={matchup} data={data} game={g} onPlayerClick={onPlayerClick} onOpenTeam={onOpenTeam} />
                   {story && (
-                    <p style={{ margin: '0 0 12px', fontSize: 12.5, lineHeight: 1.5, color: C.text2 }}>
-                      <b style={{ color: story.kind === 'model' ? C.orange : C.green, fontFamily: NUM_FONT, fontSize: 10, letterSpacing: '.08em' }}>{story.kind === 'model' ? 'MODEL NARRATIVE' : 'MILESTONE'} </b>
+                    <p style={{ margin: '0 0 14px', fontSize: 13, lineHeight: 1.5, color: C.text2 }}>
+                      <b style={{ color: story.kind === 'model' ? C.orange : C.green, fontFamily: NUM_FONT, fontSize: 12, letterSpacing: '.08em' }}>{story.kind === 'model' ? 'MODEL NARRATIVE' : 'MILESTONE'} </b>
                       <Tap onClick={() => onPlayerClick?.(story.player, story.market)}>{story.text}</Tap>
                     </p>
                   )}
-                  <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', marginBottom: 6 }}>
-                    {[[g.away, g.home], [g.home, g.away]].map(([off, def]) => {
-                      const soft = softRole(matchup, def)
-                      const side = pool.rows.filter((p) => p.team === off).slice(0, 3)
-                      return (
-                        <div key={off} style={{ border: `1px solid ${C.border}`, borderRadius: 12, padding: '11px 13px', minWidth: 0 }}>
-                          <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 6 }}>{teamLink(off)} offense <span style={{ color: C.text3, fontWeight: 600, fontFamily: NUM_FONT, fontSize: 11 }}>vs {teamLink(def)} defense</span></div>
-                          <p style={{ margin: '0 0 8px', fontSize: 12.5, lineHeight: 1.5, color: C.text2 }}>
-                            {soft?.standout ? <><b style={{ color: C.text }}>{teamLink(def)}</b> {softLine(soft)}.</> : <><b style={{ color: C.text }}>{teamLink(def)}</b> has no standout weakness this week.</>}
-                          </p>
-                          <SubLabel theme={C} numFont={NUM_FONT}>{off} OFFENSE</SubLabel>
-                          <FactTiles theme={C} numFont={NUM_FONT} tiles={offenseTiles(matchup, off)} />
-                          <SubLabel theme={C} numFont={NUM_FONT}>{def} DEFENSE</SubLabel>
-                          <FactTiles theme={C} numFont={NUM_FONT} tiles={defenseTiles(matchup, def)} note={factsNote(matchup, off, def, data?.season)} />
-                          <PassGame matchup={matchup} data={data} off={off} def={def} onPlayerClick={onPlayerClick} />
-                          {side.length > 0 && <SubLabel theme={C} numFont={NUM_FONT}>TOP TD LOOKS</SubLabel>}
-                          <div style={{ display: 'grid', gap: 4 }}>
-                            {side.map((p) => (
-                              <button key={p.player_id} onClick={() => onPlayerClick?.(p, 'TD')} style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 44, padding: '6px 9px', borderRadius: 10, border: `1px solid ${C.border}`, background: C.glass, color: C.text, cursor: 'pointer', textAlign: 'left' }}>
-                                <b style={{ fontFamily: NUM_FONT, color: gradeFor(p.scores?.TD).color, minWidth: 26 }}>{Math.round(p.scores?.TD ?? 0)}</b>
-                                <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
-                                <span style={{ fontFamily: NUM_FONT, fontSize: 10.5, color: C.text3 }}>{p.position}</span>
-                              </button>
-                            ))}
-                          </div>
+                  <WriteupBlock game={g} gameCalls={gameCalls} week={data} matchup={matchup} logs={logs} odds={odds} onPlayerClick={onPlayerClick} onOpenTeam={onOpenTeam} />
+                </PanelAnchor>
+
+                {/* 4. THE MATCHUP, then the important stats */}
+                <PanelAnchor id="matchup" gamePk={g.game_id}>
+                  <MatchupScoreboard matchup={matchup} data={data} game={g} />
+                  <ImportantStats matchup={matchup} data={data} game={g} />
+                </PanelAnchor>
+
+                {/* 5. THE DETAILED RESEARCH */}
+                <PanelAnchor id="research" gamePk={g.game_id}>
+                  <Kicker>ALL PLAYERS IN THE GAME, BY TD SCORE</Kicker>
+                  <NflTable rows={rows} columns={cols} onRowClick={(r) => onPlayerClick?.(r?._raw ?? r)} maxRows={8} maxHeight={9999} />
+                  {topTd.length > 0 && (
+                    <div style={{ marginTop: 12 }}>
+                      <button type="button" onClick={() => setCardsOpen((v) => !v)} aria-expanded={cardsOpen}
+                        style={{ minHeight: 44, padding: '0 2px', border: 0, background: 'transparent', color: C.green, font: `800 13px/1 ${NUM_FONT}`, cursor: 'pointer' }}>
+                        {cardsOpen ? 'Hide top touchdown cards ▴' : 'Top touchdown cards ▾'}
+                      </button>
+                      {cardsOpen && (
+                        <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))' }}>
+                          {topTd.map((p, i) => (
+                            <TdCard key={p.player_id} p={p} rank={i + 1} matchup={matchup} odds={odds} onPlayerClick={onPlayerClick}
+                              weights={pool.weights} base={pool.base} pool={pool.rows} watchlist={watchlist} />
+                          ))}
                         </div>
-                      )
-                    })}
-                  </div>
-                </PanelAnchor>
-
-                <PanelAnchor id="players" gamePk={g.game_id} style={{ marginTop: 14 }}>
-                  <SubLabel theme={C} numFont={NUM_FONT}>PLAYERS · BOTH ROSTERS, BY TD SCORE</SubLabel>
-                  <NflTable rows={rows} columns={tableColumns} onRowClick={(r) => onPlayerClick?.(r?._raw ?? r)} maxRows={12} maxHeight={9999} />
-                </PanelAnchor>
-
-                <PanelAnchor id="matchup" gamePk={g.game_id} style={{ marginTop: 14 }}>
-                  <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))' }}>
-                    {[g.home, g.away].map((def) => (
-                      <div key={def} style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 6 }}>{teamLink(def)} defense <span style={{ color: C.text3, fontWeight: 600, fontFamily: NUM_FONT, fontSize: 11 }}>facing {teamLink(def === g.home ? g.away : g.home)}</span></div>
-                        <Zones field={matchup?.field} team={def} />
-                      </div>
-                    ))}
-                  </div>
-                </PanelAnchor>
-
-                <PanelAnchor id="picks" gamePk={g.game_id} style={{ marginTop: 14 }}>
-                  <SubLabel theme={C} numFont={NUM_FONT}>THE BOT&apos;S CALLS IN THIS GAME</SubLabel>
-                  {calls.length ? (
-                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
-                      {calls.map(({ market, call, block }) => {
-                        const p = playersById[String(call.player_id)]
-                        const gr = gradeFor(call.score)
-                        return (
-                          <button key={market} onClick={() => p && onPlayerClick?.(p, market)} style={{ display: 'flex', alignItems: 'center', gap: 7, minHeight: 44, padding: '6px 10px', borderRadius: 10, border: `1px solid ${C.border}`, background: C.glass, color: C.text, cursor: p ? 'pointer' : 'default', textAlign: 'left' }}>
-                            <b style={{ color: gr.color, fontFamily: NUM_FONT, fontSize: 10.5 }}>{MARKET_TAG[market]}</b>
-                            <span style={{ fontSize: 12.5, fontWeight: 700 }}>{call.name}</span>
-                            <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 10.5 }}>bar {block.bar}</span>
-                          </button>
-                        )
-                      })}
+                      )}
                     </div>
-                  ) : <p style={{ margin: '0 0 12px', fontSize: 12.5, color: C.text3 }}>No headline call lands in this game.</p>}
-                  {topTd.length > 0 && <SubLabel theme={C} numFont={NUM_FONT}>TOP TOUCHDOWN CARDS</SubLabel>}
-                  <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))' }}>
-                    {topTd.map((p, i) => (
-                      <TdCard key={p.player_id} p={p} rank={i + 1} matchup={matchup} odds={odds} onPlayerClick={onPlayerClick}
-                        weights={pool.weights} base={pool.base} pool={pool.rows} watchlist={watchlist} />
-                    ))}
-                  </div>
+                  )}
                 </PanelAnchor>
               </div>
             </GameFrame>

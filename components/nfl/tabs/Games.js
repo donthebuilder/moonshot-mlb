@@ -263,7 +263,6 @@ export default function Games({ data, picks, matchup, logs, results, odds = null
       <PageHeader
         eyebrow="TUDDY · SLATE"
         title="Slate"
-        note="Every game this week. Table ranks every scored player; Games opens one game at a time — its read, both rosters, where each defense gets beaten, and the calls."
         theme={C}
         numFont={NUM_FONT}
         accent={C.cyan}
