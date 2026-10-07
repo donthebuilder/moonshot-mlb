@@ -42,10 +42,10 @@ export default function LampHeader({ tab, setTab, live = 0, date = null, setDate
     <HeaderShell sport="nhl" theme={C} wordmark={GRADIENT}
       onHome={() => go('home')} homeTitle="LAMP home — tonight in one page"
       glow={`${C.ice}55`} dot={live > 0 ? { color: C.lamp, pulse: false } : null}
-      meta={<>
-        {/* date · account · settings -- MOONSHOT's cluster, in LAMP's colours.
-            Today / Tmrw move the shell's one day (LampDashboard); a day paged
-            to in a tab shows here as its date with neither lit. */}
+      // date · account · settings -- MOONSHOT's cluster, in LAMP's colours.
+      // Today / Tmrw move the shell's one day (LampDashboard); a day paged
+      // to in a tab shows here as its date with neither lit.
+      date={
         <DateMode
           label={fmtDay(date || scores?.data?.date || today) /* the slate the server is showing (lib/slateNight) */}
           value={!date ? 'today' : date === tomorrow ? 'tomorrow' : ''}
@@ -53,7 +53,9 @@ export default function LampHeader({ tab, setTab, live = 0, date = null, setDate
           options={[{ key: 'today', text: 'Today', color: C.ice }, { key: 'tomorrow', text: 'Tmrw', color: C.teal }]}
           theme={C} numFont={NUM_FONT}
         />
-        <SignUpPill accent={C.ice} />
+      }
+      account={<SignUpPill accent={C.ice} />}
+      settings={
         <SettingsSheet theme={C} accent={C.ice} title="View settings — quiet mode, alerts" hint="Quiet mode and alerts. Stick on this device.">
           <SheetLabel theme={C}>View</SheetLabel>
           <SheetRow><QuietButton /></SheetRow>
@@ -61,7 +63,7 @@ export default function LampHeader({ tab, setTab, live = 0, date = null, setDate
           <SheetLabel theme={C}>Alerts</SheetLabel>
           <SheetRow><SportTheme theme={C} accent={C.ice} numFont={NUM_FONT}><AlertBell what="goals for the skaters you follow" /></SportTheme></SheetRow>
         </SettingsSheet>
-      </>}>
+      }>
       {/* ── row 2: the moving header (as MOONSHOT's) ── */}
       <LampTicker date={date} scores={scores} liveScores={liveScores} onOpenPlayer={onOpenPlayer} onOpenGame={onOpenGame} />
     </HeaderShell>

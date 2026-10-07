@@ -1,13 +1,12 @@
 'use client'
 import { useMemo } from 'react'
 import TickerPill from '../TickerPill'
-import { useLiveScores } from '../../lib/headlines'
 import Ticker from '../Ticker'
 import { useLampBoard, useLampLeaders } from '../../lib/nhl/useLamp'
 import { rankNight } from '../../lib/nhl/goalModel'
-import { setSport } from '../../lib/sport'
 import { C, NUM_FONT } from '../../lib/nhl/theme'
 import { fmtDay } from './ui'
+import { localTime } from '../../lib/localTime'
 
 // 🏒 LAMP'S MOVING HEADER (2026-09-26, shell-parity step 1). The row MOONSHOT
 // and TUDDY carry above their rails, in MOONSHOT's order -- player bites,
@@ -22,17 +21,15 @@ import { fmtDay } from './ui'
 //   BUILT            /api/lamp/board   -> newest games[].lockedAt, else
 //                    fetchedAt, labelled which one it is
 //   scores           /api/lamp/scores  -> games[] (state, abbrevs, score,
-//                    periodLabel, clock, startUtc); MLB and NFL from
-//                    useLiveScores (the feed the other two tickers read)
+//                    periodLabel, clock, startUtc). Hockey only: the other sports'
+//                    scores are behind the product switcher (2026-10-06)
 //
-// Taps: a skater opens his page, an NHL score its game, another sport's
-// score switches product (setSport, same as the other two headers).
-const hm = (iso) => { try { return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) } catch { return '' } }
+// Taps: a skater opens his page, an NHL score its game.
+const hm = (iso) => localTime(iso)   // the viewer's zone, labelled (lib/localTime.js)
 
 export default function LampTicker({ date = null, scores, liveScores, onOpenPlayer, onOpenGame }) {
   const board = useLampBoard(date)
   const leaders = useLampLeaders()
-  const others = useLiveScores({ nfl: true, nhl: false })
 
   const items = useMemo(() => {
     const out = []
@@ -74,12 +71,8 @@ export default function LampTicker({ date = null, scores, liveScores, onOpenPlay
       else if (g.state === 'final') out.push({ k: `nhl-${g.id}`, icon: '🏒', label: 'F', value: score, color: C.text3, onClick: () => onOpenGame?.(g.id) })
       else if (g.state === 'pre' && g.startUtc) out.push({ k: `nhl-${g.id}`, icon: '🏒', label: hm(g.startUtc), value: `${a} @ ${h}`, color: C.text3, onClick: () => onOpenGame?.(g.id) })
     }
-    for (const i of others.items) {
-      if (i.kind !== 'score') continue
-      out.push({ k: i.k, icon: i.icon, label: i.sub || (i.live ? 'live' : i.pregame ? 'soon' : 'F'), value: i.text, sport: i.sport, color: i.live ? C.teal : C.text3, live: i.live, onClick: () => setSport(i.sport) })
-    }
     return out
-  }, [date, board.data, leaders.data, scores?.data, liveScores?.data, others.items, onOpenPlayer, onOpenGame])
+  }, [date, board.data, leaders.data, scores?.data, liveScores?.data, onOpenPlayer, onOpenGame])
 
   // Until the first pill exists the row keeps its 32px, so the header does not grow
   // by 40px (row + gap) when the feeds answer and push the whole page down

@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { C as MLB_C, NUM_FONT as MLB_NUM } from '../lib/theme'
+import { localTime } from '../lib/localTime'
 
 // ── THE DATE SWITCH, ONE CONTROL FOR BOTH PRODUCTS (2026-09-18) ────────────
 // Donovan, with both headers side by side: "there should be zero difference,
@@ -34,10 +35,10 @@ export default function DateMode({
   // overnight doesn't claim it is still yesterday.
   const [time, setTime] = useState('')
   useEffect(() => {
-    // In ET, and says so (audit 00A S3): the label beside it is the slate's
-    // ET date, and a local clock under it read "Mon, Sep 28 · 09:53 PM" at
-    // 9:53 PM Sunday in California -- two time zones on one badge.
-    const tick = () => setTime(`${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'America/New_York' })} ET`)
+    // The viewer's own zone, labelled once ("9:53 PM MST", lib/localTime.js).
+    // It was ET (audit 00A S3) while every kickoff in the strip was local --
+    // two zones on one screen (audit X11, 2026-10-06).
+    const tick = () => setTime(localTime(new Date()))
     tick()
     const id = setInterval(tick, 30000)
     return () => clearInterval(id)

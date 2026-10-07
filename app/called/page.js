@@ -29,6 +29,7 @@ import { matchupWord, oddsWord, roleWord } from '../../lib/dash/homerFeed'
 import { tdCallWord, tdPlayWord, matchRoster } from '../../lib/nfl/tdFeed'
 import { nflSlatePaths } from '../../lib/nfl/dataSource'
 import { BRAND, SPORT_KEYS, sportKey, appHref, playerHref, teamHref, isHiddenSport } from '../../lib/routes'
+import PublicHeader from '../../components/header/PublicHeader'
 import { nhlCaptureFrom, readNhlRecords } from '../../lib/record/nhl'
 import { nbaCaptureFrom, readNbaRecords, NBA_EVENT_BAR } from '../../lib/record/nba'
 import { readMlbEvents } from '../../lib/record/mlb'
@@ -755,20 +756,7 @@ export default async function CalledPage({ searchParams }) {
 // in the registry (lib/routes.js), no JS -- the same approach the night
 // anchors in the strip use. A sport added there shows up here on its own.
 function Bar({ sport, board }) {
-  return (
-    <header className={styles.bar}>
-      <a className={styles.brand} href="/" aria-label="DASH Network home">
-        <img src="/icon-192.png" alt="" width="30" height="30" />
-        <div><small>DASH NETWORK · {sport.product}</small><strong>CALLED IT</strong></div>
-      </a>
-      <nav className={styles.nav}>
-        {SPORT_KEYS.map((k) => (
-          <a key={k} className={k === sport.key ? styles.navOn : styles.navOff} href={`/called?sport=${k}`}>{BRAND[k].league}</a>
-        ))}
-        <a className={styles.navCta} href={board}>Open the board</a>
-      </nav>
-    </header>
-  )
+  return <PublicHeader sport={sport.key} base="/called" title={`${sport.product} · CALLED IT`} cta={{ href: board, label: 'Open the board' }} />
 }
 
 // One name in the calls panel. `outcome` is set only where the sport grades

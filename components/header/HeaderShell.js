@@ -7,6 +7,7 @@ import { C as NBA_C } from '../../lib/nba/theme'
 import { useVisibleSports } from '../../lib/useVisibleSports'
 import { BRAND } from '../../lib/routes'
 import { setSport } from '../../lib/sport'
+import SportSwitch from './SportSwitch'
 
 // ONE HEADER FRAME, THREE PRODUCTS (2026-09-29, parity plan G; Donovan: "all
 // pages take from MLB components"). MOONSHOT's header (components/Header.js)
@@ -35,10 +36,12 @@ function hexToRgba(hex, a) {
  * onHome / homeTitle: the wordmark button. glow: the mark's box-shadow colour.
  * dot: { color, pulse } for the mark's status dot, or null for none.
  * league: an optional small tag after the wordmark (LAMP's "NHL").
- * meta: row 1's right side. children: row 2 (the ticker). headerClass: extra
- * class on <header> (TUDDY's hdr-slate-on).
+ * date / account / settings: row 1's right side -- the day switch, the account
+ * pill, the gear -- each in its own slot so the phone layout can place them
+ * (2026-10-06). meta: anything else for that side. children: row 2 (the ticker).
+ * headerClass: extra class on <header> (TUDDY's hdr-slate-on).
  */
-export default function HeaderShell({ sport, theme = MLB_C, wordmark, onHome, homeTitle, glow, dot = null, league = null, meta, children, headerClass }) {
+export default function HeaderShell({ sport, theme = MLB_C, wordmark, onHome, homeTitle, glow, dot = null, league = null, date = null, account = null, settings = null, meta = null, children, headerClass }) {
   const C = theme
   const hdrRef = useRef(null)
   // ── THE HEADER PUBLISHES ITS OWN HEIGHT (2026-08-16) ───────────────────
@@ -77,14 +80,14 @@ export default function HeaderShell({ sport, theme = MLB_C, wordmark, onHome, ho
             {/* THE MARK IS THE WAY HOME (2026-08-31): the square mark goes to the
                 DASH front door; the wordmark is this product's own home button. */}
             <a href="/" title="DASH Network home — MOONSHOT · TUDDY · LAMP · FRANCHISE" aria-label="DASH Network home"
-              style={{ display: 'flex', textDecoration: 'none', borderRadius: 10, flexShrink: 0 }}>
+              className="hdr-mark-link" style={{ display: 'flex', textDecoration: 'none', borderRadius: 10, flexShrink: 0 }}>
               <div className="hdr-mark" style={{ position: 'relative', width: 46, height: 46, borderRadius: 12, boxShadow: `0 0 20px ${glow}` }}>
                 <img src="/icon-192.png" alt="" width={46} height={46} style={{ display: 'block', width: '100%', height: '100%', borderRadius: 12 }} />
                 {dot && <div style={{ position: 'absolute', top: -2, right: -2, width: 8, height: 8, borderRadius: '50%', background: dot.color, border: `2px solid ${C.bg}`, animation: dot.pulse ? 'pulse 2s infinite' : undefined }} />}
               </div>
             </a>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div className="hdr-word" style={{ minWidth: 0 }}>
+              <div className="hdr-word-row" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <button type="button" onClick={onHome} title={homeTitle} aria-label={`${name} home`}
                   style={{
                     padding: 0, border: 'none', background: 'transparent', cursor: 'pointer',
@@ -120,12 +123,18 @@ export default function HeaderShell({ sport, theme = MLB_C, wordmark, onHome, ho
 
           {/* ── date · mode · account · settings ──────────────────────── */}
           <div className="hdr-meta" style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+            {date && <div className="hdr-date">{date}</div>}
+            {account && <div className="hdr-acct">{account}</div>}
+            {settings && <div className="hdr-gear">{settings}</div>}
             {meta}
           </div>
         </div>
 
+        {/* THE PHONE'S PRODUCT SWITCH (2026-10-06): shown under 760px only (CSS below) */}
+        <SportSwitch sport={sport} onHome={onHome} />
+
         {/* ── row 2: THE MOVING HEADER, ABOVE EVERYTHING ELSE (2026-09-06) ── */}
-        {children}
+        <div className="hdr-ticker-slot">{children}</div>
 
         {/* TOP RAIL REMOVED (2026-09-28, Donovan: "remove the top line nav site wide... keep the bottom nav"). The dock (MobileTabBar) is the one navigation on every screen; its More is the side drawer. */}
       </div>
@@ -141,22 +150,48 @@ export default function HeaderShell({ sport, theme = MLB_C, wordmark, onHome, ho
         @media (max-width: 700px) {
           .simple-more-grid { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
         }
-        /* Under the bottom bar's breakpoint (760px, components/MobileTabBar.js):
-           the ticker stays as the one line of context; the account pill and ⚙
-           stay; the date badge drops to keep the row on one line. */
+        /* The slots are layout-neutral on a desktop (display: contents), so the
+           bar is exactly the two rows it always was; the phone places them. */
+        .hdr-date, .hdr-acct, .hdr-gear, .hdr-ticker-slot { display: contents; }
+        .hdr-ticker-slot:empty { display: none; }
+        .hdr-switch { display: none; }
+        /* ── THE PHONE HEADER (2026-10-06, audit X1-X3) ──────────────────────
+           Under the bottom bar's breakpoint (760px, components/MobileTabBar.js)
+           the bar is two short rows:
+             [mark] [MOONSHOT | TUDDY | LAMP switcher] [gear]
+             [Today | Tmrw] [the product's own ticker ...........]
+           It was a centred brand row, a Today/Sign up/gear row and the ticker:
+           149px at 390 on MOONSHOT. Every control is 44px; the account pill
+           moved into More (components/MobileTabBar.js); the other sports'
+           scores left the ticker for the switcher's live dots. */
         @media (max-width: 760px) {
-          .hdr-bar { gap: 6px !important; padding-bottom: 6px !important; }
-          .hdr-row1 { flex-wrap: wrap !important; gap: 6px !important; }
+          /* a wrapping flex row, not a grid: a grid's first column would be as wide
+             as the day switch and push the product switcher off the line above */
+          header.hdr-one-bar > .hdr-bar {
+            display: flex !important; flex-direction: row !important; flex-wrap: wrap; align-items: center;
+            padding: 4px 12px 5px !important; column-gap: 8px !important; row-gap: 4px !important;
+          }
+          header.hdr-one-bar > .hdr-bar::after { content: ''; order: 4; flex: 0 0 100%; height: 0; }
+          .hdr-row1, .hdr-brand, .hdr-meta, .hdr-word, .hdr-word-row { display: contents !important; }
+          .hdr-mark-link { order: 1; flex: none; padding: 2px; }
           .hdr-mark { width: 40px !important; height: 40px !important; }
           .hdr-mark img { width: 40px !important; height: 40px !important; }
-          .hdr-brand { flex-basis: 100% !important; }
-          /* Centred, both rows (Donovan: "the MOONSHOT button should be
-             centre on the page; header and the button under it seem off"). */
-          .hdr-brand { flex: 1 1 100%; justify-content: center; text-align: center; }
-          .hdr-brand > div > div:first-child { justify-content: center; }
+          .hdr-word-row > button, .hdr-word-row > span { display: none !important; }
+          .hdr-switch { order: 2; flex: 1 1 0; display: flex; align-items: stretch; min-width: 0; border: 1px solid ${C.border}; border-radius: 999px; background: ${C.glass}; }
+          .hdr-sw { position: relative; flex: 1 1 auto; min-width: 0; min-height: 44px; padding: 0 6px; border: 0; border-radius: 999px; background: transparent; color: ${C.text2}; font-size: 11px; font-weight: 900; letter-spacing: .05em; white-space: nowrap; cursor: pointer; }
+          .hdr-sw.on { background: var(--sw); color: ${C.bg}; }
+          .hdr-sw-live { position: absolute; top: 9px; right: 4px; width: 6px; height: 6px; border-radius: 50%; background: var(--sw); animation: pulse 2s infinite; }
+          .hdr-gear { display: block; order: 3; flex: none; }
+          .hdr-gear > div > button[aria-haspopup] { width: 44px !important; height: 44px !important; font-size: 18px !important; }
+          .hdr-acct { display: none; }
+          .hdr-date { display: block; order: 5; flex: none; }
+          .hdr-date .date-badge { display: none !important; }
+          .hdr-date .date-mode-switch > div:last-child { padding: 0 !important; gap: 0 !important; }
+          .hdr-date .date-mode-switch button { min-height: 44px; padding: 0 12px !important; font-size: 12px !important; }
+          .hdr-ticker-slot { display: block; order: 6; flex: 1 1 0; min-width: 0; }
+          .hdr-ticker-slot > * { margin-top: 0 !important; }
+          .hdr-ticker-slot .hdr-ticker-track > * { height: 36px !important; }
           .hdr-scorebug { width: 100%; }
-          .hdr-meta { padding-bottom: 8px; margin-left: auto !important; margin-right: auto !important; width: auto; justify-content: center; gap: 12px; }
-          .hdr-meta .date-badge { display: none !important; }
         }
       `}</style>
     </header>
