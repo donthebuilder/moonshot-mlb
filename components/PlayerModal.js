@@ -39,6 +39,7 @@ import SprayField from './SprayField'
 import { fetchLiveGame, parseLiveGame } from '../lib/livePitches'
 import MatchupPitcher from './MatchupPitcher'
 import PlayerSplits from './PlayerSplits'
+import MlbGameLog from './MlbGameLog'
 import SituationalSplits from './SituationalSplits'
 import PlayerNotes from './PlayerNotes'
 import HisNumbers from './HisNumbers'
@@ -212,6 +213,8 @@ function Row({ label, value, mono = true, term, explain, title }) {
 const TABS = [
   { key: 'overview', label: 'Overview' },
   { key: 'splits',   label: '📅 Splits' },
+  // GAME LOG (2026-10-07): the plain game-by-game table, after Splits so nothing before it moves
+  { key: 'log',      label: '📋 Game log' },
   { key: 'ev',       label: '⚡ EV Log' },
   { key: 'pitch',    label: '🎯 Pitch' },
   { key: 'spray',    label: '🗺 Spray' },
@@ -409,7 +412,7 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
       return
     }
     lastViewRef.current = initialTab
-    const allowed = (player?.api_only ? ['overview', 'splits', 'ev', 'spray'] : TABS.map((t) => t.key))
+    const allowed = (player?.api_only ? ['overview', 'splits', 'log', 'ev', 'spray'] : TABS.map((t) => t.key))
     if (allowed.includes(initialTab)) setTab(initialTab)
     else onViewChange?.('')
   }, [player, initialTab])   // eslint-disable-line react-hooks/exhaustive-deps
@@ -521,7 +524,7 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
   // detail file — see the caveat right below, no longer suppressed for
   // apiOnly either, now that a real fetch is actually attempted.
   const apiOnly = !!p?.api_only
-  const visibleTabs = apiOnly ? TABS.filter((t) => ['overview', 'splits', 'ev', 'spray'].includes(t.key)) : TABS
+  const visibleTabs = apiOnly ? TABS.filter((t) => ['overview', 'splits', 'log', 'ev', 'spray'].includes(t.key)) : TABS
 
   const role = compactRole(p)
   const rc = roleColor(role, C)
@@ -569,7 +572,7 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
   // phone-width column on a desktop screen.
   const modalWidth = tab === 'overview' ? 580
     : tab === 'spray' ? 780
-    : tab === 'pitcher' || tab === 'pitch' || tab === 'splits' || tab === 'ev' ? 1100
+    : tab === 'pitcher' || tab === 'pitch' || tab === 'splits' || tab === 'log' || tab === 'ev' ? 1100
     : 900
 
   return (
@@ -997,7 +1000,10 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
           {/* the arm he's facing */}
           {tab === 'pitcher' && <MatchupPitcher player={p} slateMode={slateMode} />}
 
-          {/* simple, closed-form projected line + hit-count chart */}
+          {/* his game-by-game line, one row a game (the live game log the props grid already reads) */}
+          {tab === 'log' && <MlbGameLog pid={pid} />}
+
+          {/* simple, closed-form projected line: expected counts, no printed chances */}
           {tab === 'sim' && <BatterSim player={p} name={nameOf(p)} />}
 
           {/* what this batter does to each pitch type */}

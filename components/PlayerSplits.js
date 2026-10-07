@@ -5,6 +5,10 @@ import { n, clean, obj } from '../lib/player'
 import { fetchShared, splitsUrl } from '../lib/dataSource'
 import DenseTable from './DenseTable'
 import ComboFilterBar from './ComboFilterBar'
+import { lastSeasonRates, seasonYear } from '../lib/gamelogs'
+import {
+  WINDOWS, defaultWindow, countsFromStat, combineLive, gameFromFlat, tablesFromGames,
+} from '../lib/splitWindow'
 
 // Situational splits — day/night, home/away, day of week, win/loss.
 //
@@ -119,13 +123,16 @@ function aggregateGames(rows) {
     a.pa += n(r.pa, 0); a.ab += n(r.ab, 0); a.h += n(r.h, 0); a.hr += n(r.hr, 0)
     a.xbh += n(r['2b'], 0) + n(r['3b'], 0) + n(r.hr, 0)
     a.bb += n(r.bb, 0); a.k += n(r.k, 0); a.rbi += n(r.rbi, 0); a.tb += n(r.tb, 0)
+    // hit-by-pitch / sac-fly: only the rows rebuilt from the game log carry them (the bot's
+    // per-game rows never did), and an absent field is zero, so the bot rows' OBP is unchanged
+    a.hbp += n(r.hbp, 0); a.sf += n(r.sf, 0)
     return a
-  }, { pa: 0, ab: 0, h: 0, hr: 0, xbh: 0, bb: 0, k: 0, rbi: 0, tb: 0 })
+  }, { pa: 0, ab: 0, h: 0, hr: 0, xbh: 0, bb: 0, k: 0, rbi: 0, tb: 0, hbp: 0, sf: 0 })
   return {
     _key: 'combo', split: 'Combo', g: rows.length, pa: acc.pa, hr: acc.hr,
     xbh: acc.xbh, rbi: acc.rbi, bb: acc.bb,
     avg: acc.ab ? acc.h / acc.ab : 0,
-    obp: (acc.ab + acc.bb) ? (acc.h + acc.bb) / (acc.ab + acc.bb) : 0,
+    obp: (acc.ab + acc.bb + acc.hbp + acc.sf) ? (acc.h + acc.bb + acc.hbp) / (acc.ab + acc.bb + acc.hbp + acc.sf) : 0,
     slg: acc.ab ? acc.tb / acc.ab : 0,
     ops: acc.ab ? (acc.h / acc.ab) + (acc.tb / acc.ab) : 0,
     iso: acc.ab ? (acc.tb - acc.h) / acc.ab : 0,
@@ -135,7 +142,7 @@ function aggregateGames(rows) {
   }
 }
 
-function ComboFilter({ games, cols }) {
+function ComboFilter({ games, cols, scopeWord = 'this season', dnOk = true }) {
   const [dow, setDow] = useState('')
   const [ha, setHa] = useState('')
   const [res, setRes] = useState('')
@@ -146,12 +153,12 @@ function ComboFilter({ games, cols }) {
       (!dow || g.dow === dow) &&
       (!ha || (ha === 'home' ? g.home === true : g.home === false)) &&
       (!res || (res === 'win' ? g.win === true : g.win === false)) &&
-      (!dn || g.dn === dn)
+      (!dn || !dnOk || g.dn === dn)
     ))
     return aggregateGames(matches)
-  }, [games, dow, ha, res, dn])
+  }, [games, dow, ha, res, dn, dnOk])
 
-  const anyOn = dow || ha || res || dn
+  const anyOn = dow || ha || res || (dnOk && dn)
 
   return (
     <div>
@@ -160,7 +167,9 @@ function ComboFilter({ games, cols }) {
           { key: 'dow', placeholder: 'Any day', options: DOW.map((d) => ({ v: d, label: d })) },
           { key: 'ha', placeholder: 'Home/Away', options: [{ v: 'home', label: 'Home' }, { v: 'away', label: 'Away' }] },
           { key: 'res', placeholder: 'Win/Loss', options: [{ v: 'win', label: 'Win' }, { v: 'loss', label: 'Loss' }] },
-          { key: 'dn', placeholder: 'Day/Night', options: [{ v: 'Day', label: 'Day game' }, { v: 'Night', label: 'Night game' }] },
+          // day/night is offered for THIS SEASON only: the game log's dayNight field is the one the bot
+          // stopped trusting (see lib/splitWindow.js), so no other window rebuilds it
+          ...(dnOk ? [{ key: 'dn', placeholder: 'Day/Night', options: [{ v: 'Day', label: 'Day game' }, { v: 'Night', label: 'Night game' }] }] : []),
         ]}
         values={{ dow, ha, res, dn }}
         onChange={(k, v) => ({ dow: setDow, ha: setHa, res: setRes, dn: setDn })[k](v)}
@@ -174,7 +183,7 @@ function ComboFilter({ games, cols }) {
         </div>
       ) : result.g === 0 ? (
         <div style={{ fontSize: 10.5, color: C.text3, padding: '4px 0' }}>
-          No games matched that combination this season.
+          No games matched that combination {scopeWord === 'this season' ? 'this season' : `in ${scopeWord}`}.
         </div>
       ) : (
         <>
@@ -201,6 +210,32 @@ const MISSING_COLS = [
   { key: 'bb', label: 'BB', w: 38 }, { key: 'bbPct', label: 'BB%', w: 50, dp: 1 },
   { key: 'kPct', label: 'K%', w: 46, dp: 1, invert: true },
 ]
+
+// THIS SEASON | LAST SEASON | LAST 2 SEASONS (2026-10-07): the same three words and
+// the same big-button row as TUDDY's (components/nfl/SeasonToggle.js) and LAMP's
+// Splits tab, in MOONSHOT's own colours. It is only drawn when last season is
+// really on offer (lastAvailable); the years it stands for sit under the row so
+// nothing is a guess.
+function SeasonPills({ value, onChange, years }) {
+  return (
+    <div style={{ margin: '0 0 12px' }}>
+      <div role="group" aria-label="Season" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {WINDOWS.map((o) => {
+          const on = o.key === value
+          return (
+            <button key={o.key} type="button" aria-pressed={on} onClick={() => onChange(o.key)} style={{
+              minHeight: 44, padding: '0 11px', borderRadius: 10, cursor: 'pointer', fontFamily: NUM_FONT,
+              fontSize: 11.5, fontWeight: 800, letterSpacing: '.04em', whiteSpace: 'nowrap', flex: '1 1 auto',
+              border: `1px solid ${on ? C.orange : C.border}`, background: on ? `${C.orange}22` : 'transparent',
+              color: on ? C.orange : C.text2,
+            }}>{o.label}</button>
+          )
+        })}
+      </div>
+      <div style={{ fontFamily: NUM_FONT, fontSize: 11, color: C.text3, marginTop: 6 }}>{years} games</div>
+    </div>
+  )
+}
 
 // Pill-row picker, shared by every split on this tab regardless of source —
 // takes whichever group list is currently available so the same component
@@ -230,6 +265,36 @@ function GroupPicker({ groups, active, onPick }) {
   )
 }
 
+// statSplits JSON -> the live rows the tables draw. ONE season's rows keep the league's own rate strings
+// (as this tab always has); `counts` rides along so two seasons can be SUMMED and the rates recomputed.
+function parseSitRows(j) {
+  return (j?.stats?.[0]?.splits || []).map((sp) => {
+    const st = sp?.stat || {}
+    const code = sp?.split?.code || ''
+    const pa = n(st.plateAppearances, 0)
+    const hr = n(st.homeRuns, 0)
+    const label = SIT_LABELS[code] || sp?.split?.description || code
+    return {
+      _key: code || label,
+      code,
+      split: label,
+      g: n(st.gamesPlayed, 0), pa,
+      h: n(st.hits, 0), hr,
+      xbh: n(st.doubles, 0) + n(st.triples, 0) + hr,
+      rbi: n(st.rbi, 0),
+      bb: n(st.baseOnBalls, 0),
+      avg: parseFloat(st.avg) || 0, obp: parseFloat(st.obp) || 0,
+      slg: parseFloat(st.slg) || 0, ops: parseFloat(st.ops) || 0,
+      iso: (parseFloat(st.slg) || 0) - (parseFloat(st.avg) || 0),
+      hrPa: pa ? (100 * hr) / pa : 0,
+      kPct: pa ? (100 * n(st.strikeOuts, 0)) / pa : 0,
+      bbPct: pa ? (100 * n(st.baseOnBalls, 0)) / pa : 0,
+      counts: countsFromStat(st),
+    }
+  })
+}
+const sitUrl = (pid, yr) => `https://statsapi.mlb.com/api/v1/people/${pid}/stats?stats=statSplits&group=hitting&season=${yr}&sitCodes=${LIVE_SIT_CODES.join(',')}&fields=stats,splits,split,code,description,stat,avg,obp,slg,ops,homeRuns,plateAppearances,gamesPlayed,strikeOuts,hits,atBats,doubles,triples,rbi,baseOnBalls,totalBases,hitByPitch,sacFlies`
+
 export default function PlayerSplits({ player, slateMode }) {
   const [data, setData] = useState(null)
   const [state, setState] = useState('idle')
@@ -249,37 +314,35 @@ export default function PlayerSplits({ player, slateMode }) {
     if (!pid) return
     let alive = true
     setLr(null)
-    const yr = new Date().getFullYear()
-    fetch(`https://statsapi.mlb.com/api/v1/people/${pid}/stats?stats=statSplits&group=hitting&season=${yr}&sitCodes=${LIVE_SIT_CODES.join(',')}&fields=stats,splits,split,code,description,stat,avg,obp,slg,ops,homeRuns,plateAppearances,gamesPlayed,strikeOuts,hits,atBats,doubles,triples,rbi,baseOnBalls`)
+    const yr = seasonYear()
+    fetch(sitUrl(pid, yr))
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => {
         if (!alive) return
-        const rows = (j?.stats?.[0]?.splits || []).map((sp) => {
-          const st = sp?.stat || {}
-          const code = sp?.split?.code || ''
-          const pa = n(st.plateAppearances, 0)
-          const hr = n(st.homeRuns, 0)
-          const label = SIT_LABELS[code] || sp?.split?.description || code
-          return {
-            _key: code || label,
-            code,
-            split: label,
-            g: n(st.gamesPlayed, 0), pa,
-            h: n(st.hits, 0), hr,
-            xbh: n(st.doubles, 0) + n(st.triples, 0) + hr,
-            rbi: n(st.rbi, 0),
-            bb: n(st.baseOnBalls, 0),
-            avg: parseFloat(st.avg) || 0, obp: parseFloat(st.obp) || 0,
-            slg: parseFloat(st.slg) || 0, ops: parseFloat(st.ops) || 0,
-            iso: (parseFloat(st.slg) || 0) - (parseFloat(st.avg) || 0),
-            hrPa: pa ? (100 * hr) / pa : 0,
-            kPct: pa ? (100 * n(st.strikeOuts, 0)) / pa : 0,
-            bbPct: pa ? (100 * n(st.baseOnBalls, 0)) / pa : 0,
-          }
-        })
+        const rows = parseSitRows(j)
         if (rows.length) setLr(rows)
       })
       .catch(() => {})
+    return () => { alive = false }
+  }, [pid])
+
+  // LAST SEASON (2026-10-07): the league's own statSplits for the season before, plus that season's game
+  // log (already fetched by the props grid -- lib/gamelogs.js lastSeasonRates caches it) for the tables the
+  // bot's file answers for this season. null = not in yet, false = he has nothing from last season.
+  const [lrLast, setLrLast] = useState(null)
+  const [lastGames, setLastGames] = useState(null)
+  const [pick, setPick] = useState(null)
+  useEffect(() => {
+    setPick(null); setLrLast(null); setLastGames(null)
+    if (!pid) return undefined
+    let alive = true
+    fetch(sitUrl(pid, seasonYear() - 1))
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (alive) { const rows = parseSitRows(j); setLrLast(rows.length ? rows : false) } })
+      .catch(() => { if (alive) setLrLast(false) })
+    lastSeasonRates(pid)
+      .then((d) => { if (alive) setLastGames(d?._games?.length ? d._games : false) })
+      .catch(() => { if (alive) setLastGames(false) })
     return () => { alive = false }
   }, [pid])
 
@@ -337,12 +400,44 @@ export default function PlayerSplits({ player, slateMode }) {
     }
   }).filter(Boolean), [data])
 
+  // ── THE SEASON WINDOW (2026-10-07) ──────────────────────────────────────────
+  // THIS SEASON | LAST SEASON | LAST 2 SEASONS, offered only when last season is really there
+  // (the league has splits or a game log for him from it). THIS SEASON is the default for a
+  // hitter with a normal sample; with fewer than THIN_SEASON_PA (100) PA this season the tab
+  // opens on LAST 2 SEASONS instead, so an April sample isn't read alone (lib/splitWindow.js
+  // defaultWindow). A tap always wins over the default.
+  const thisYr = seasonYear()
+  const lastAvailable = Boolean((lrLast && lrLast.length) || (lastGames && lastGames.length))
+  const thisPa = n(player?.season_pa, null)
+  const win = lastAvailable ? (pick || defaultWindow({ thisPa, lastAvailable })) : 'this'
+  const lastRaw = useMemo(() => (lastGames ? lastGames.map(gameFromFlat) : []), [lastGames])
+  // this season's per-game rows, only if the bot's file really is THIS season's (it falls back a season early on)
+  const thisGames = Array.isArray(data?.games) && Number(data?.season) === thisYr ? data.games : null
+  const comboGames = win === 'this' ? (Array.isArray(data?.games) ? data.games : null)
+    : win === 'last' ? lastRaw
+    : thisGames ? [...thisGames, ...lastRaw] : null
+  const fileTables = useMemo(() => {
+    if (win === 'this') return tables
+    if (!comboGames) return []
+    const t = tablesFromGames(comboGames)
+    return GROUPS.filter((g) => t[g.key]).map((g) => ({ ...g, rows: t[g.key] }))
+  }, [win, tables, comboGames])  // eslint-disable-line react-hooks/exhaustive-deps
+  // the live situational rows for the window: one season as the league states it, two seasons summed and re-rated
+  const lrW = win === 'this' ? lr
+    : win === 'last' ? (lrLast || null)
+    : (lr && lrLast ? combineLive([lr, lrLast]) : null)
+  const liveGone = win !== 'this' && lrLast === false
+  const winWord = win === 'this' ? 'this season' : win === 'last' ? 'last season' : 'the last two seasons'
+  const winTag = win === 'this' ? 'season' : win === 'last' ? `${thisYr - 1} season` : `${thisYr - 1} + ${thisYr}`
+  const years = win === 'this' ? `${thisYr}` : win === 'last' ? `${thisYr - 1}` : `${thisYr - 1} + ${thisYr}`
+  const toggle = lastAvailable ? <SeasonPills value={win} onChange={setPick} years={years} /> : null
+
   // Only offer a pill if it actually leads somewhere — a bot-file group with
   // no published table, or the whole live block before it's loaded, would
   // otherwise be a dead click.
   const availableGroups = useMemo(
-    () => PICKER_GROUPS.filter((g) => (g.source === 'file' ? tables.some((t) => t.key === g.key) : !!lr)),
-    [tables, lr],
+    () => PICKER_GROUPS.filter((g) => (g.source === 'file' ? fileTables.some((t) => t.key === g.key) : !!lrW)),
+    [fileTables, lrW],
   )
   // First real pick if the remembered one isn't available (yet) — bot file
   // still loading, this hitter has no file at all, or the live block hasn't
@@ -351,24 +446,25 @@ export default function PlayerSplits({ player, slateMode }) {
     ? activeGroup
     : availableGroups[0]?.key || null
 
-  const activeFileTable = tables.find((t) => t.key === effectiveGroup) || null
+  const activeFileTable = fileTables.find((t) => t.key === effectiveGroup) || null
   // Rows for the active group, IF it's a live-league one — null (not a
   // fallback to some other group) when the pick is a bot-file group instead,
   // so the two sources never get crossed under one label.
   const activeLiveRows = useMemo(() => {
-    if (!lr) return null
+    if (!lrW) return null
     const group = LIVE_SIT_GROUPS.find((g) => g.key === effectiveGroup)
     if (!group) return null
-    const rows = group.codes.map((c) => lr.find((r) => r.code === c)).filter(Boolean)
+    const rows = group.codes.map((c) => lrW.find((r) => r.code === c)).filter(Boolean)
     return { group, rows }
-  }, [lr, effectiveGroup])
+  }, [lrW, effectiveGroup])
 
   if (!pid) return null
-  if (state === 'loading') return <div style={{ fontSize: 11, color: C.text3, padding: '10px 0' }}>Loading splits…</div>
-  if (state === 'missing' || state === 'error' || !tables.length) {
+  if (state === 'loading' && win !== 'last') return <div style={{ fontSize: 11, color: C.text3, padding: '10px 0' }}>Loading splits…</div>
+  if (win === 'this' && (state === 'missing' || state === 'error' || !tables.length)) {
     return (
       <div>
-      {lr && (
+      {toggle}
+      {lrW && (
         <div style={{ marginBottom: 14 }}>
           <div style={{ fontSize: 12, fontWeight: 800, marginBottom: 4 }}>Situational splits <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT, fontWeight: 400 }}>season · live from the league</span></div>
           <GroupPicker groups={availableGroups} active={effectiveGroup} onPick={setActiveGroup} />
@@ -388,7 +484,7 @@ export default function PlayerSplits({ player, slateMode }) {
     )
   }
 
-  const thin = tables.some((t) => t.rows.some((r) => r.pa < THIN_PA))
+  const thin = fileTables.some((t) => t.rows.some((r) => r.pa < THIN_PA))
   const cols = [
     { key: 'split', label: 'Split', heat: false, w: 78, bold: true, sticky: true },
     { key: 'g',     label: 'G',   w: 38 },
@@ -414,10 +510,10 @@ export default function PlayerSplits({ player, slateMode }) {
   // the page as tiles — the relevant side lit, the other side dim for
   // contrast, RISP along for the ride. Same live-API rows as the picker below.
   const tonightArm = String(player?.pitcher_throws || '').toUpperCase().slice(0, 1)
-  const lrTiles = lr && (() => {
-    const vsL = lr.find((r) => r.code === 'vl')
-    const vsR = lr.find((r) => r.code === 'vr')
-    const risp = lr.find((r) => r.code === 'risp')
+  const lrTiles = lrW && (() => {
+    const vsL = lrW.find((r) => r.code === 'vl')
+    const vsR = lrW.find((r) => r.code === 'vr')
+    const risp = lrW.find((r) => r.code === 'risp')
     const tiles = [
       vsL && { label: 'vs LHP', r: vsL, hot: tonightArm === 'L' },
       vsR && { label: 'vs RHP', r: vsR, hot: tonightArm === 'R' },
@@ -454,9 +550,12 @@ export default function PlayerSplits({ player, slateMode }) {
 
   return (
     <div>
+      {toggle}
       {lrTiles}
       <div style={{ fontSize: 10.5, color: C.text3, marginBottom: 10, lineHeight: 1.6, maxWidth: 760 }}>
-        {clean(data?.name, '')} · {n(data?.games_logged, 0)} games logged · {clean(data?.season, '')} season.
+        {win === 'this'
+          ? <>{clean(data?.name, '')} · {n(data?.games_logged, 0)} games logged · {clean(data?.season, '')} season.</>
+          : <>{clean(data?.name || player?.name || player?.player_name, '')} · {winTag}{comboGames ? ` · ${comboGames.length} games` : ''}.</>}
         {' '}Every column is shaded against its own range <b style={{ color: C.text2 }}>within each table</b>,
         so a bright cell means high for this hitter across that one split — never across splits or
         against the league. K% is inverted; everything else reads bright-is-better for the bat.
@@ -489,15 +588,22 @@ export default function PlayerSplits({ player, slateMode }) {
           }}
         />
 
-        {tables.map((t) => {
+        {win !== 'this' && !fileTables.length && (
+          <div style={{ fontSize: 10.5, color: C.text3, padding: '8px 0', lineHeight: 1.6 }}>
+            {win === 'both' && !thisGames
+              ? 'Home / Away, Win / Loss, Day of week and the combine filter need this season\u2019s per-game rows, which aren\u2019t published for him yet \u2014 not shown for the last two seasons. The league\u2019s own situational tables below are.'
+              : 'He has no games from last season to build Home / Away, Win / Loss or Day of week from.'}
+          </div>
+        )}
+        {fileTables.map((t) => {
           const thinnest = Math.min(...t.rows.map((r) => r.pa))
           const g = GROUPS.find((g2) => g2.key === t.key)
           return (
             <div key={t.key} id={`split-${t.key}`} style={{ marginTop: 12, scrollMarginTop: 60 }}>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, marginBottom: 4 }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, marginBottom: 4, flexWrap: win === 'this' ? undefined : 'wrap' }}>
                 <span style={{ fontSize: 11.5, fontWeight: 900 }}>{g?.label || t.key}</span>
                 <span style={{ fontSize: 9.5, color: thinnest < THIN_PA ? C.orange : C.text3, fontFamily: NUM_FONT }}>
-                  season · bot file · {t.rows.length} rows · thinnest {thinnest} PA
+                  {win === 'this' ? 'season · bot file' : `${winTag} · game log`} · {t.rows.length} rows · thinnest {thinnest} PA
                 </span>
               </div>
               <DenseTable
@@ -517,22 +623,27 @@ export default function PlayerSplits({ player, slateMode }) {
           )
         })}
 
-        {lr && LIVE_SIT_GROUPS.map((group) => {
-          const rows = group.codes.map((c) => lr.find((r) => r.code === c)).filter(Boolean)
+        {lrW && LIVE_SIT_GROUPS.map((group) => {
+          const rows = group.codes.map((c) => lrW.find((r) => r.code === c)).filter(Boolean)
           if (!rows.length) return null
           return (
             <div key={group.key} id={`split-${group.key}`} style={{ marginTop: 12, scrollMarginTop: 60 }}>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, marginBottom: 4 }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, marginBottom: 4, flexWrap: win === 'this' ? undefined : 'wrap' }}>
                 <span style={{ fontSize: 11.5, fontWeight: 900 }}>{group.label}</span>
-                <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>season · live from the league</span>
+                <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>{`${winTag} · live from the league${win === 'both' ? ' · summed, rates recomputed' : ''}`}</span>
               </div>
               <DenseTable rows={rows} columns={cols} initialSort={null} maxHeight={300} caption={group.caption} />
             </div>
           )
         })}
-        {!lr && (
+        {!lrW && !liveGone && (
           <div style={{ fontSize: 10, color: C.text3, padding: '8px 0', fontFamily: NUM_FONT }}>
             live-league situations (platoon, RISP, outs, count, runners) load in a moment…
+          </div>
+        )}
+        {!lrW && liveGone && (
+          <div style={{ fontSize: 10.5, color: C.text3, padding: '8px 0', lineHeight: 1.6 }}>
+            The league has no situational splits for him from last season, so platoon, RISP, outs, count and runners aren&apos;t shown for {winWord}.
           </div>
         )}
       </div>
@@ -543,20 +654,29 @@ export default function PlayerSplits({ player, slateMode }) {
           on ComboFilter above for why day-of-week/home-away/result/day-
           night specifically CAN be intersected, and RISP/outs/count/
           runners-on still can't. */}
-      {Array.isArray(data?.games) && (
+      {(win === 'this' ? Array.isArray(data?.games) : true) && (
         <div style={{ marginBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 4 }}>
             <span style={{ fontSize: 12, fontWeight: 800 }}>🔀 Combine filters</span>
             <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
-              day of week + home/away + result + day-night, all at once
+              {win === 'this' ? 'day of week + home/away + result + day-night, all at once' : 'day of week + home/away + result, all at once'}
             </span>
           </div>
-          {!data.games.length ? (
+          {!comboGames ? (
             <div style={{ fontSize: 10.5, color: C.text3, padding: '6px 0' }}>
-              This hitter&apos;s file doesn&apos;t carry per-game rows yet — publishes on the next slate this runs for.
+              This season&apos;s per-game rows aren&apos;t published for him yet, so there is nothing to combine for {winWord}.
+            </div>
+          ) : !comboGames.length ? (
+            <div style={{ fontSize: 10.5, color: C.text3, padding: '6px 0' }}>
+              {win === 'this'
+                ? 'This hitter\u2019s file doesn\u2019t carry per-game rows yet \u2014 publishes on the next slate this runs for.'
+                : 'He has no games in this window to combine.'}
             </div>
           ) : (
-            <ComboFilter games={data.games} cols={cols} />
+            <ComboFilter key={win} games={comboGames} cols={cols} scopeWord={win === 'this' ? 'this season' : winWord} dnOk={win === 'this'} />
+          )}
+          {win !== 'this' && comboGames?.length > 0 && (
+            <div style={{ fontSize: 9.5, color: C.text3, marginTop: 4 }}>Day / night isn&apos;t offered here: the game log&apos;s day-night field isn&apos;t reliable, so that filter is this-season only.</div>
           )}
         </div>
       )}
