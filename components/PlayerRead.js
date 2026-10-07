@@ -28,13 +28,13 @@ import { quoteFor, fmtOdds, fairOdds, hrPerGame, impliedPct } from '../lib/odds'
 
 // Exported (2026-09-30) so TUDDY's and LAMP's cards write their sentences in
 // MOONSHOT's Read (components/nfl/NflPlayerRead.js).
-export function Line({ icon, children }) {
+export function Line({ icon, children, fs = 11 }) {
   return (
     <div style={{
-      display: 'flex', gap: 8, alignItems: 'baseline', fontSize: 11,
+      display: 'flex', gap: 8, alignItems: 'baseline', fontSize: fs,
       lineHeight: 1.55, padding: '3px 0', color: C.text2,
     }}>
-      <span style={{ flexShrink: 0 }}>{icon}</span>
+      {icon ? <span style={{ flexShrink: 0 }}>{icon}</span> : null}
       <span style={{ minWidth: 0 }}>{children}</span>
     </div>
   )
@@ -122,7 +122,7 @@ export default function PlayerRead({ p, odds }) {
   const lines = []
 
   lines.push(
-    <Line key="call" icon="🤖">
+    <Line key="call" fs={12}>
       {skipHr ? (
         <>The bot tags him <b style={{ color: C.text }}>Skip HR</b> — no homer case tonight, and his
           other scores don&apos;t make one elsewhere either{Number.isFinite(spot) && spot >= 1 && spot <= 9 && <>. He hits <B>{ORD[spot]}</B></>}.</>
@@ -137,23 +137,23 @@ export default function PlayerRead({ p, odds }) {
 
   if (hasContact) {
     lines.push(
-      <Line key="contact" icon={hotBat ? '🔨' : coldBat ? '🧊' : '⚾'}>
+      <Line key="contact" fs={12}>
         <b style={{ color: C.text }}>The bat:</b>{' '}
         {Number.isFinite(dMax) && dMax > 0 && <>his best recent ball went <B col={dMax >= 390 ? C.orange : C.text}>{Math.round(dMax)} ft</B>{Number.isFinite(eMax) && eMax > 0 && <> at <B>{eMax.toFixed(0)} mph</B></>}{(Number.isFinite(brl) || Number.isFinite(hh)) && <>, </>}</>}
-        {Number.isFinite(brl) && <>barreling <B col={brl >= 0.12 ? C.orange : brl <= 0.04 ? '#38bdf8' : C.text}>{Math.round(brl * 100)}%</B></>}
+        {Number.isFinite(brl) && <>barreling <B col={brl >= 0.12 ? C.orange : brl <= 0.04 ? C.text2 : C.text}>{Math.round(brl * 100)}%</B></>}
         {Number.isFinite(brl) && Number.isFinite(hh) && <> with </>}
         {Number.isFinite(hh) && <><B col={hh >= 0.45 ? C.orange : C.text}>{Math.round(hh * 100)}%</B> hard contact</>}
         {' '}in his recent window
-        {hotBat ? <> — <b style={{ color: C.orange }}>the contact is live</b></> : coldBat ? <> — <b style={{ color: '#38bdf8' }}>quiet bat lately</b></> : null}.
+        {hotBat ? <> — <b style={{ color: C.orange }}>the contact is live</b></> : coldBat ? <> — <b style={{ color: C.text2 }}>quiet bat lately</b></> : null}.
       </Line>
     )
   }
 
   if (arm && arm !== '—') {
     lines.push(
-      <Line key="arm" icon="🥎">
+      <Line key="arm" fs={12}>
         <b style={{ color: C.text }}>The arm:</b> {arm}
-        {throwsH && throwsH !== '—' && <> ({throwsH}HP{p?.pitcher_projected ? <span title="No probable announced — rotation projection, not an official listing" style={{ color: C.yellow }}> ≈</span> : null})</>}
+        {throwsH && throwsH !== '—' && <> ({throwsH}HP{p?.pitcher_projected ? <span title="No probable announced — rotation projection, not an official listing" style={{ color: C.text3 }}> ≈</span> : null})</>}
         {Number.isFinite(hr9) && <> gives up <B col={hr9Col}>{hr9.toFixed(2)} HR/9</B></>}
         {Number.isFinite(whip) && <>{Number.isFinite(hr9) ? ' on' : ' carries'} a <B>{whip.toFixed(2)}</B> WHIP</>}
         {weakSide && <>
@@ -192,11 +192,11 @@ export default function PlayerRead({ p, odds }) {
   const mbStatus = String(p?.meatball_fit_status || '')
   if (mbNote && mbStatus && mbStatus !== 'missing') {
     lines.push(
-      <Line key="meatball" icon="🍝">
+      <Line key="meatball" fs={12}>
         <b style={{ color: C.text }}>The mistake:</b> he leaves{' '}
         <B col={mbEdge >= 1 ? C.orange : C.text}>{mbNote}</B>
         {mbFit != null && mbFit > 0 && <>
-          {' '}— a <B col={mbFit >= 65 ? C.orange : mbFit <= 35 ? '#38bdf8' : C.text}>{mbFit.toFixed(0)}</B> on
+          {' '}— a <B col={mbFit >= 65 ? C.orange : mbFit <= 35 ? C.text2 : C.text}>{mbFit.toFixed(0)}</B> on
           the bot&apos;s mistake-fit column, which crosses that with what this bat does to one
         </>}.
         {/* NO trailing "not enough pitches to split him" clause here. The bot's
@@ -228,12 +228,12 @@ export default function PlayerRead({ p, odds }) {
   const catcherRate = n(p?.opp_catcher_cs_rate, null)
   if (steal != null && steal > 0 && stealStatus && stealStatus !== 'no_runner' && stealStatus !== 'missing') {
     lines.push(
-      <Line key="steal" icon="🏃">
+      <Line key="steal" fs={12}>
         <b style={{ color: C.text }}>The run:</b> a{' '}
-        <B col={steal >= 60 ? C.orange : steal <= 35 ? '#38bdf8' : C.text}>{steal.toFixed(0)}</B> steal
+        <B col={steal >= 60 ? C.orange : steal <= 35 ? C.text2 : C.text}>{steal.toFixed(0)}</B> steal
         spot tonight — {txt(p?.steal_risk_note)}
         {catcher && catcherRate != null && <>
-          {' '}·{' '}<B col={catcherRate <= 0.16 ? C.orange : catcherRate >= 0.28 ? '#38bdf8' : C.text}>{p?.opp_catcher_id
+          {' '}·{' '}<B col={catcherRate <= 0.16 ? C.orange : catcherRate >= 0.28 ? C.text2 : C.text}>{p?.opp_catcher_id
             ? <a href={playerHref('mlb', p.opp_catcher_id)} style={{ color: 'inherit', textDecoration: 'underline', textDecorationColor: 'rgba(255,255,255,.25)', textUnderlineOffset: 2 }} title="Open the catcher's card">{catcher}</a>
             : catcher}</B> is
           catching{p?.opp_catcher_source === 'roster' ? <span style={{ color: C.text3 }}> (lineup not posted — likeliest man)</span> : null}
@@ -248,24 +248,24 @@ export default function PlayerRead({ p, odds }) {
   if (Number.isFinite(since)) {
     if (since === 0) {
       lines.push(
-        <Line key="pow" icon="💥">
+        <Line key="pow" fs={12}>
           <b style={{ color: C.text }}>The power:</b> he went yard <b style={{ color: C.orange }}>his last game</b>
           {n(p?.season_hr, 0) > 0 && <> — <B>{n(p?.season_hr, 0)}</B> on the season</>}.
         </Line>
       )
     } else if (since >= 2 && closeScore >= 2) {
       lines.push(
-        <Line key="pow" icon="🧱">
-          <b style={{ color: C.text }}>The power:</b> <B col={since >= 10 ? '#f87171' : since >= 5 ? C.orange : C.text}>{since} games</B> since a homer,
+        <Line key="pow" fs={12}>
+          <b style={{ color: C.text }}>The power:</b> <B col={since >= 10 ? C.orange : since >= 5 ? C.orange : C.text}>{since} games</B> since a homer,
           but one was close — the contact above is homer-shaped
-          {walls > 0 && <>, with <B col="#FCD34D">{walls} wall-scraper{walls > 1 ? 's' : ''}</B> in his recent hard contact</>}.
+          {walls > 0 && <>, with <B col={C.orange}>{walls} wall-scraper{walls > 1 ? 's' : ''}</B> in his recent hard contact</>}.
           Drought, not decline.
         </Line>
       )
     } else if (since >= 4) {
       lines.push(
-        <Line key="pow" icon="🍩">
-          <b style={{ color: C.text }}>The power:</b> <B col={since >= 10 ? '#f87171' : C.orange}>{since} games</B> since a homer,
+        <Line key="pow" fs={12}>
+          <b style={{ color: C.text }}>The power:</b> <B col={since >= 10 ? C.orange : C.orange}>{since} games</B> since a homer,
           and the recent contact does not argue bad luck — nothing in his window reached the wall. That is a slump reading, not a due reading.
         </Line>
       )
@@ -274,14 +274,14 @@ export default function PlayerRead({ p, odds }) {
 
   if (q && q.matches) {
     lines.push(
-      <Line key="price" icon="💰">
+      <Line key="price" fs={12}>
         <b style={{ color: C.text }}>The price:</b> the book has his {cat === 'CONTACT' ? '2+ TB' : `${cat} ${cat === 'HRR' ? '2+' : '1+'}`} at{' '}
         <B>{fmtOdds(q.over)}</B>, which needs <B>{need != null ? `${need.toFixed(0)}%` : '—'}</B>
         {diff != null && fair != null ? (
           diff >= 3
-            ? <> — his own rate says <B>{rate.toFixed(0)}%</B> (fair {fmtOdds(fair)}), so <b style={{ color: '#4ade80' }}>the book is paying more than his season says it should</b>.</>
+            ? <> — his own rate says <B>{rate.toFixed(0)}%</B> (fair {fmtOdds(fair)}), so <b style={{ color: C.orange }}>the book is paying more than his season says it should</b>.</>
             : diff <= -3
-              ? <> — his own rate says only <B>{rate.toFixed(0)}%</B> (fair {fmtOdds(fair)}), so <b style={{ color: '#f87171' }}>the price is asking more than his season delivers</b>.</>
+              ? <> — his own rate says only <B>{rate.toFixed(0)}%</B> (fair {fmtOdds(fair)}), so <b style={{ color: C.text }}>the price is asking more than his season delivers</b>.</>
               : <> — right about where his own <B>{rate.toFixed(0)}%</B> rate prices it.</>
         ) : (
           <> to break even. No verdict on this market — the slate publishes a score for it, not a rate, and a score is not a probability.</>
@@ -292,22 +292,22 @@ export default function PlayerRead({ p, odds }) {
 
   if (note && note !== '—') {
     lines.push(
-      <Line key="note" icon="💬">
+      <Line key="note" fs={12}>
         <b style={{ color: C.text }}>Bot&apos;s note:</b> {note}
       </Line>
     )
   }
 
-  return <ReadFrame>{lines}</ReadFrame>
+  return <ReadFrame calm sub="tonight in sentences">{lines}</ReadFrame>
 }
 
 /** The Read's head and body: "🧭 The read" and its promise, then the lines. */
-export function ReadFrame({ sub = 'tonight in sentences — every number below backs one of these', children }) {
+export function ReadFrame({ sub = 'tonight in sentences — every number below backs one of these', children, calm = false }) {
   return (
     <div style={{ marginBottom: 13 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, marginBottom: 4, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 11.5, fontWeight: 900 }}>🧭 The read</span>
-        <span style={{ fontSize: 9, color: C.text3 }}>{sub}</span>
+        <span style={{ fontSize: calm ? 12 : 11.5, fontWeight: calm ? 800 : 900 }}>{calm ? 'The read' : '🧭 The read'}</span>
+        <span style={{ fontSize: calm ? 11 : 9, color: C.text3 }}>{sub}</span>
       </div>
       {children}
     </div>

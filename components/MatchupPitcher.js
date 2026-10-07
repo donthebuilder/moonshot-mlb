@@ -281,6 +281,9 @@ export default function MatchupPitcher({ player, slateMode }) {
   // often want that when you're deciding which half of a lineup to attack.
   // 'auto' follows the hitter; L/R force it; 'all' is his overall usage.
   const [handView, setHandView] = useState('auto')
+  // a new hitter (or arm) on the card goes back to 'follow the hitter' (2026-10-07: the never-fixed auto-toggle)
+  const handKey = `${player?.player_id || player?.id || ''}|${pitcherId || ''}`
+  useEffect(() => { setHandView('auto') }, [handKey])
 
   // ── THE FULL SPLIT BOARD, LIVE (2026-08-29) ─────────────────────────────
   // Donovan: "the splits for the pitcher — where are ALL of them. not just

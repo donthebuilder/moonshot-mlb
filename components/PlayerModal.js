@@ -52,6 +52,7 @@ import PlayerRead from './PlayerRead'
 import HomerShape from './HomerShape'
 import { downloadPlayerCard } from './shareCard'
 import BvP from './BvP'
+import FirstPitchSplit from './FirstPitchSplit'
 import { venueRecord } from '../lib/venueHr'
 import { pullWallFor } from '../lib/walls'
 import PlayerCompare from './PlayerCompare'
@@ -63,6 +64,10 @@ import BotOnHim from './BotOnHim'
 // 🧱 "How far is HIS wall tonight" (audit #7, 2026-08-08). fieldInfo hydrate
 // verified live; percentile computed from the same payload. Switch hitters
 // get their shorter side. Context row — never a score input.
+// A label and its value; when the value is longer than the room it drops under the label and
+// wraps -- never an ellipsis (Donovan 2026-10-07: "tonight's park" could not be read in full).
+const ROW_BOX = { display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', columnGap: 10, rowGap: 1, padding: '7px 0', borderBottom: `1px solid ${C.border}`, minWidth: 0 }
+
 function PullWallRow({ bats, venueName }) {
   const [w, setW] = useState(undefined)
   useEffect(() => {
@@ -77,7 +82,7 @@ function PullWallRow({ bats, venueName }) {
   const col = w.linePct != null && w.linePct <= 20 ? C.orange
     : w.linePct != null && w.linePct >= 80 ? '#38bdf8' : C.text
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: `1px solid ${C.border}` }}>
+    <div style={ROW_BOX}>
       {/* CLEANED (2026-08-08, Donovan): no emoji, one line — the full
           sentence lives behind a tap.
           TAP-TO-EXPLAIN (2026-08-21, Phase 2): this used to be a bare
@@ -85,10 +90,10 @@ function PullWallRow({ bats, venueName }) {
           Explain.js's own rationale. Same Explain component Row already
           uses everywhere else in this modal, just with an explicit text=
           since this line isn't in the glossary. */}
-      <span style={{ fontSize: 11, color: C.text3, whiteSpace: 'nowrap' }}>
+      <span style={{ fontSize: 12, color: C.text3, whiteSpace: 'nowrap' }}>
         <Explain label="Pull-side wall" text={`His pull side (${w.side}) at ${venueName}: ${w.line} ft down the line${w.gap ? `, ${w.gap} ft to the gap` : ''}. Percentile is vs all 30 parks' same-side line from the league's own fieldInfo — ${w.linePct}% of parks are shorter. Context, not a score input.`} />
       </span>
-      <span style={{ fontSize: 12, fontFamily: NUM_FONT, fontWeight: 600, whiteSpace: 'nowrap', color: col, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+      <span style={{ fontSize: 12, fontFamily: NUM_FONT, fontWeight: 600, textAlign: 'right', color: col, minWidth: 0 }}>
         {w.side} {w.line}′{w.gap ? `/${w.gap}′` : ''}{w.word ? ` · ${w.word}` : ''}
       </span>
     </div>
@@ -128,12 +133,12 @@ function VenueHrRow({ pid, venueName, gamePk }) {
     : { t: '· his usual pace', col: C.text3 }
   const hot = vs != null ? vs >= 1.25 : rec.hr >= 2
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, padding: '7px 0', borderBottom: `1px solid ${C.border}` }}>
+    <div style={ROW_BOX}>
       {/* TAP-TO-EXPLAIN (2026-08-21, Phase 2) — see PullWallRow above. */}
-      <span style={{ fontSize: 11, color: C.text3, whiteSpace: 'nowrap' }}>
+      <span style={{ fontSize: 12, color: C.text3, whiteSpace: 'nowrap' }}>
         <Explain label="At tonight's park" text={`${venueName}, ${rec.seasons}: ${rec.hr} HR in ${rec.games} games here vs ${rec.hrAll} in ${rec.gamesAll} everywhere — same two seasons of game logs, so the comparison is apples to apples. Rules of thumb: 1 HR per 4 games = elite pace, 1 per 5–6 = real power, 1 per 8+ = average. Under 8 games here the vs-himself read is hidden — small samples lie.`} />
       </span>
-      <span style={{ fontSize: 12, fontFamily: NUM_FONT, fontWeight: 600, whiteSpace: 'nowrap', color: hot ? C.orange : C.text, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+      <span style={{ fontSize: 12, fontFamily: NUM_FONT, fontWeight: 600, textAlign: 'right', color: hot ? C.orange : C.text, minWidth: 0 }}>
         {rec.hr} HR / {rec.games} gm{rec.games !== 1 ? 's' : ''}
         {per != null && rec.hr > 0 && <span style={{ color: C.text3, fontWeight: 500 }}> · 1 per {per.toFixed(1)}</span>}
         {vsWord && <span style={{ color: vsWord.col, fontSize: 10.5 }}> {vsWord.t}</span>}
@@ -161,12 +166,12 @@ function OppDefenseRow({ opp }) {
   if (!d) return null
   const col = d.pct >= 80 ? C.orange : d.pct <= 20 ? '#38bdf8' : C.text
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: `1px solid ${C.border}` }}>
+    <div style={ROW_BOX}>
       {/* TAP-TO-EXPLAIN (2026-08-21, Phase 2) — see PullWallRow above. */}
-      <span style={{ fontSize: 11, color: C.text3, whiteSpace: 'nowrap' }}>
+      <span style={{ fontSize: 12, color: C.text3, whiteSpace: 'nowrap' }}>
         <Explain label="Opp defense" text={`${opp}'s BABIP-against: how often a ball in play against them becomes a hit, from the league's season totals. Percentile vs all 30 teams — high = leaky defense, good news for HIT/TB props. Context only; not folded into any score.`} />
       </span>
-      <span style={{ fontSize: 12, fontFamily: NUM_FONT, fontWeight: 600, whiteSpace: 'nowrap', color: col, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+      <span style={{ fontSize: 12, fontFamily: NUM_FONT, fontWeight: 600, textAlign: 'right', color: col, minWidth: 0 }}>
         .{String(Math.round(d.babip * 1000)).padStart(3, '0')} BABIP · {d.word}
       </span>
     </div>
@@ -185,17 +190,17 @@ function OppDefenseRow({ opp }) {
 // grows the sentence underneath itself. `explain` overrides for a one-off.
 function Row({ label, value, mono = true, term, explain, title }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, padding: '7px 0', borderBottom: `1px solid ${C.border}`, minWidth: 0 }}>
+    <div style={ROW_BOX}>
       {/* nowrap stays: the explanation itself re-enables normal wrapping
           inside its own box, so a long sentence can't stretch the row. */}
-      <span title={title} style={{ fontSize: 11, color: C.text3, whiteSpace: 'nowrap', flexShrink: 0, minWidth: 0 }}>
+      <span title={title} style={{ fontSize: 12, color: C.text3, whiteSpace: 'nowrap', flexShrink: 0, minWidth: 0 }}>
         <Explain label={label} term={term} text={explain} />
       </span>
       <span
         title={typeof value === 'string' || typeof value === 'number' ? String(value) : undefined}
         style={{
           fontSize: 12, color: C.text, fontFamily: mono ? NUM_FONT : 'inherit', fontWeight: 600,
-          minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'right',
+          minWidth: 0, textAlign: 'right',
         }}>{value}</span>
     </div>
   )
@@ -213,9 +218,15 @@ function Row({ label, value, mono = true, term, explain, title }) {
 // The api-only subset below is the tabs that run entirely on live pulls.
 const TABS = [
   { key: 'overview', label: 'Overview' },
+  // THE READ, ITS OWN PILL (2026-10-07): the sentences, his homer shape and the cold case
+  { key: 'read',     label: 'The Read' },
   { key: 'splits',   label: '📅 Splits' },
   // GAME LOG (2026-10-07): the plain game-by-game table, after Splits so nothing before it moves
   { key: 'log',      label: '📋 Game log' },
+  // NUMBERS, ITS OWN PILL (2026-10-07), not folded into EV Log: the EV Log is one ball a row (window,
+  // filters, zone map); the numbers are season / arm / model rows, a different question. Folding them in
+  // would have put 30 label:value rows under a filtered ball table.
+  { key: 'numbers',  label: '🔢 Numbers' },
   { key: 'ev',       label: '⚡ EV Log' },
   { key: 'pitch',    label: '🎯 Pitch' },
   { key: 'spray',    label: '🗺 Spray' },
@@ -413,7 +424,7 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
       return
     }
     lastViewRef.current = initialTab
-    const allowed = (player?.api_only ? ['overview', 'splits', 'log', 'ev', 'spray'] : TABS.map((t) => t.key))
+    const allowed = (player?.api_only ? ['overview', 'read', 'splits', 'log', 'ev', 'spray'] : TABS.map((t) => t.key))
     if (allowed.includes(initialTab)) setTab(initialTab)
     else onViewChange?.('')
   }, [player, initialTab])   // eslint-disable-line react-hooks/exhaustive-deps
@@ -525,7 +536,7 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
   // detail file — see the caveat right below, no longer suppressed for
   // apiOnly either, now that a real fetch is actually attempted.
   const apiOnly = !!p?.api_only
-  const visibleTabs = apiOnly ? TABS.filter((t) => ['overview', 'splits', 'log', 'ev', 'spray'].includes(t.key)) : TABS
+  const visibleTabs = apiOnly ? TABS.filter((t) => ['overview', 'read', 'splits', 'log', 'ev', 'spray'].includes(t.key)) : TABS
 
   const role = compactRole(p)
   const rc = roleColor(role, C)
@@ -571,7 +582,7 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
   // Overview widened 480 → 580 (2026-08-06): the props hero earns the room —
   // six window tiles, a value chart and three filter rows were living in a
   // phone-width column on a desktop screen.
-  const modalWidth = tab === 'overview' ? 580
+  const modalWidth = tab === 'overview' || tab === 'read' ? 580
     : tab === 'spray' ? 780
     : tab === 'pitcher' || tab === 'pitch' || tab === 'splits' || tab === 'log' || tab === 'ev' ? 1100
     : 900
@@ -855,108 +866,19 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
                   the case against → the numbers. Shape is a characterisation,
                   not evidence, so it rides with the story; see the note where
                   it used to live, further down this tab. */}
-              {!apiOnly && <PlayerRead p={p} odds={odds} />}
-              {!apiOnly && <OddsTimeline quote={heroQuote} marketLabel={heroRole === 'WATCH' ? 'HR' : heroRole} />}
-              {/* 💥 Two things that are easy to get wrong here, both checked:
-                  (1) the prop is `p`, the slate row MERGED with the detail
-                  file — batted_ball_log only exists in the detail file, so
-                  handing this the bare `player` row would render nothing for
-                  every hitter, silently and forever; (2) it is deliberately
-                  NOT wrapped in `!apiOnly`, matching where it sat before. An
-                  off-slate hitter has no bot log and the component's own guard
-                  returns null for him, so the gate would be decoration today —
-                  and a lie the day EV Log's live-Statcast fallback grows into
-                  a log this panel could read. */}
-              <HomerShape player={p} />
+              {/* PROPS FIRST (2026-10-07, Donovan): the card opens on his props, then the head-to-head
+                  and his first pitch against tonight's arm. Both render nothing when there is no data. */}
               <ThresholdGrid playerId={pid} odds={odds} />
-              {/* 🍩 The other half of the read. Everything above this argues
-                  for him; this is the only panel that argues against. */}
-              <ColdCase playerId={pid} player={player} />
+              {!apiOnly && <BvP batterId={pid} pitcherId={p?.pitcher_id} pitcherName={p?.pitcher_name} player={p} />}
+              {!apiOnly && <FirstPitchSplit batterId={pid} pitcherId={p?.pitcher_id} pitcherName={p?.pitcher_name} />}
+              {!apiOnly && <OddsTimeline quote={heroQuote} marketLabel={heroRole === 'WATCH' ? 'HR' : heroRole} />}
               {apiOnly && (
                 <div style={{ fontSize: 10.5, color: C.text3, lineHeight: 1.6, margin: '4px 0 12px', borderLeft: `2px solid ${C.orange}`, paddingLeft: 10 }}>
                   He&apos;s not in tonight&apos;s bot run, so there are no model scores or batted-ball
-                  detail here — but the props record above, the Splits tab (situational, live), and
+                  detail here — but the props record above, The Read tab (his cold case), the Splits tab (situational, live), and
                   the EV Log&apos;s strike-zone map all pull straight from the league API and work
                   for any player in baseball.
                 </div>
-              )}
-              {!apiOnly && (
-              <div style={{ marginTop: 13, paddingTop: 11, borderTop: `1px dashed ${C.border2}`, marginBottom: 14 }}>
-              {/* Same anchored-section shape as the cold case, so the page
-                  reads as chapters instead of one unbroken wall. */}
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, marginBottom: 2, flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 11.5, fontWeight: 900 }}>🔢 The numbers</span>
-                <span style={{ fontSize: 9, color: C.text3 }}>the evidence behind the read — hover any label for what it means</span>
-              </div>
-              {/* 🧱 CONTACT (2026-09-27, blast columns plan): Blast Report's
-                  windows and filters over his batted balls, counts beside
-                  rates. Replaces the Batted Ball and Recent Distance blocks. */}
-              <ContactSection p={p} />
-              {/* auto-fit so the two columns become one on a phone instead of
-                  squeezing every value row into ellipsis territory */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: '0 24px' }}>
-                <div>
-                  <div style={{ fontSize: 10, color: C.text3, fontWeight: 800, textTransform: 'uppercase', letterSpacing: .5, padding: '10px 0 4px' }}>Model Scores</div>
-                  <Row label="HR Score"  value={hrScore(p).toFixed(1)} />
-                  <Row label="HRR Score" value={prodScore(p).toFixed(1)} />
-                  <Row label="Hit Score" value={hitScore(p).toFixed(1)} />
-                  <Row label="TB Score"  value={tbScore(p).toFixed(1)} />
-                  <Row label="Pitch Mix" value={pitchMixScore(p).toFixed(1)} />
-                  <VenueHrRow pid={pid} venueName={clean(p?.venue_name, '')} gamePk={p?.game_pk} />
-                  <OppDefenseRow opp={clean(p?.opponent || p?.opp, '')} />
-                  <PullWallRow bats={clean(p?.bats || p?.handedness, '')} venueName={clean(p?.venue_name, '')} />
-                  {/* moved here from "Recent Distance" (2026-09-27) when the
-                      Contact section took over the batted-ball numbers */}
-                  <Row label="Ideal HR %" value={ihrVal(p) ? (ihrVal(p) * 100).toFixed(1) + '%' : '—'} />
-                </div>
-                <div>
-                  <div style={{ fontSize: 10, color: C.text3, fontWeight: 800, textTransform: 'uppercase', letterSpacing: .5, padding: '10px 0 4px' }}>Season</div>
-                  {/* live fallback fills these for non-slate players */}
-                  <Row label="AVG"    value={clean(p?.season_avg ?? liveSeason?.avg, '—')} />
-                  {/* explicit: a bare "HR" in the Season block is his home-run
-                      COUNT, not the HR score the glossary would hand it. */}
-                  <Row label="HR"     value={clean(p?.season_hr ?? liveSeason?.hr, '—')}
-                    explain="Home runs he has actually hit this season." />
-                  <Row label="PA"     value={clean(p?.season_pa || p?.pa || liveSeason?.pa, '—')} />
-                  {liveSeason && p?.season_avg == null && (
-                    <Row label="OPS"  value={clean(liveSeason.ops, '—')} />
-                  )}
-                  <Row label="K Rate" value={pct(p?.season_k_rate)} />
-                  <Row label="BB Rate" value={pct(p?.season_bb_rate)}
-                    explain="How often a plate appearance ends in a walk, this season." />
-                  {b > 0 && <Row label="BABIP" value={b.toFixed(3)} />}
-                </div>
-                <div>
-                  <div style={{ fontSize: 10, color: C.text3, fontWeight: 800, textTransform: 'uppercase', letterSpacing: .5, padding: '10px 0 4px' }}>Splits</div>
-                  {avgVsRHP(p) > 0 && <Row label="vs RHP" value={avgVsRHP(p).toFixed(3)} />}
-                  {avgVsLHP(p) > 0 && <Row label="vs LHP" value={avgVsLHP(p).toFixed(3)} />}
-                  <Row label="L5 Hits" value={n(p?.last5_hits, 0)} />
-                  <Row label="L5 HR"   value={n(p?.last5_hr, 0)} />
-                  <Row label="L5 XBH"  value={n(p?.last5_xbh, 0)} />
-                </div>
-                <div>
-                  <div style={{ fontSize: 10, color: C.text3, fontWeight: 800, textTransform: 'uppercase', letterSpacing: .5, padding: '10px 0 4px' }}>Opposing Pitcher</div>
-                  {/* the pitcher's name opens his file, as the header's does (clickable rule) */}
-                  <Row label="Name"   value={p?.pitcher_name && p?.pitcher_id ? <a href={`#sport=mlb&tab=pitchers&pitcher=${p.pitcher_id}`} style={META_LINK} title="Open the pitcher's file">{p.pitcher_name}</a> : clean(p?.pitcher_name, '—')} mono={false} />
-                  <Row label="Throws" value={clean(p?.pitcher_throws, '—')} />
-                  <Row label="HR/9"   value={sc(p?.pitcher_hr9)} />
-                  <Row label="BB/9"   value={sc(p?.pitcher_bb9)}
-                    explain="Walks this pitcher allows per nine innings, season-long — not specific to tonight's matchup. Higher is better for the hitter." />
-                  <Row label="WHIP"   value={sc(p?.pitcher_whip)} />
-                  <Row label="BB%"    value={pct(p?.pitcher_bb_pct)}
-                    explain="His walk rate against every batter he's faced this season — not specific to tonight's matchup." />
-                  {weakSide && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: `1px solid ${C.border}` }}>
-                      <span style={{ fontSize: 11, color: C.text3 }}>Weak Side</span>
-                      <span style={{ fontSize: 12, fontWeight: 700, fontFamily: NUM_FONT, color: matchesWeak ? C.orange : C.text }}>
-                        {weakLabel}{matchesWeak ? ' ✓' : ''}
-                      </span>
-                    </div>
-                  )}
-                  {pb > 0 && <Row label="P-BABIP" value={pb.toFixed(3)} />}
-                </div>
-              </div>
-              </div>
               )}
               {/* ── 💥 HIS HOMER SHAPE USED TO END THE TAB, RIGHT HERE ────
                   MOVED UP 2026-08-16 (Donovan: "i need hr shape moved up on
@@ -989,6 +911,95 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
               <InTheLedger sport="mlb" id={pid} name={nameOf(p)} jersey={jersey} birthDate={birthDate} next={hrSoFar != null ? hrSoFar + 1 : null} date={etToday()} />
               {/* 🔢 His numbers (numerology step 7): flavour, last, folded on a phone. */}
               <HisNumbers name={nameOf(p)} jersey={jersey} birthDate={birthDate} next={hrSoFar != null ? hrSoFar + 1 : null} nextWord="HR" date={etToday()} theme={C} accent={C.orange} numFont={NUM_FONT} />
+            </>
+          )}
+
+          {/* the numbers behind the read: contact windows, then model / season / splits / arm rows */}
+          {tab === 'numbers' && !apiOnly && (
+              <div style={{ marginBottom: 14 }}>
+              {/* Same anchored-section shape as the cold case, so the page
+                  reads as chapters instead of one unbroken wall. */}
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, marginBottom: 2, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 12, fontWeight: 800 }}>The numbers</span>
+                <span style={{ fontSize: 11, color: C.text3 }}>the evidence behind the read — tap any label for what it means</span>
+              </div>
+              {/* 🧱 CONTACT (2026-09-27, blast columns plan): Blast Report's
+                  windows and filters over his batted balls, counts beside
+                  rates. Replaces the Batted Ball and Recent Distance blocks. */}
+              <ContactSection p={p} />
+              {/* auto-fit so the two columns become one on a phone instead of
+                  squeezing every value row into ellipsis territory */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: '0 24px' }}>
+                <div>
+                  <div style={{ fontSize: 11, color: C.text3, fontWeight: 800, textTransform: 'uppercase', letterSpacing: .5, padding: '10px 0 4px' }}>Model Scores</div>
+                  <Row label="HR Score"  value={hrScore(p).toFixed(1)} />
+                  <Row label="HRR Score" value={prodScore(p).toFixed(1)} />
+                  <Row label="Hit Score" value={hitScore(p).toFixed(1)} />
+                  <Row label="TB Score"  value={tbScore(p).toFixed(1)} />
+                  <Row label="Pitch Mix" value={pitchMixScore(p).toFixed(1)} />
+                  <VenueHrRow pid={pid} venueName={clean(p?.venue_name, '')} gamePk={p?.game_pk} />
+                  <OppDefenseRow opp={clean(p?.opponent || p?.opp, '')} />
+                  <PullWallRow bats={clean(p?.bats || p?.handedness, '')} venueName={clean(p?.venue_name, '')} />
+                  {/* moved here from "Recent Distance" (2026-09-27) when the
+                      Contact section took over the batted-ball numbers */}
+                  <Row label="Ideal HR %" value={ihrVal(p) ? (ihrVal(p) * 100).toFixed(1) + '%' : '—'} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: C.text3, fontWeight: 800, textTransform: 'uppercase', letterSpacing: .5, padding: '10px 0 4px' }}>Season</div>
+                  {/* live fallback fills these for non-slate players */}
+                  <Row label="AVG"    value={clean(p?.season_avg ?? liveSeason?.avg, '—')} />
+                  {/* explicit: a bare "HR" in the Season block is his home-run
+                      COUNT, not the HR score the glossary would hand it. */}
+                  <Row label="HR"     value={clean(p?.season_hr ?? liveSeason?.hr, '—')}
+                    explain="Home runs he has actually hit this season." />
+                  <Row label="PA"     value={clean(p?.season_pa || p?.pa || liveSeason?.pa, '—')} />
+                  {liveSeason && p?.season_avg == null && (
+                    <Row label="OPS"  value={clean(liveSeason.ops, '—')} />
+                  )}
+                  <Row label="K Rate" value={pct(p?.season_k_rate)} />
+                  <Row label="BB Rate" value={pct(p?.season_bb_rate)}
+                    explain="How often a plate appearance ends in a walk, this season." />
+                  {b > 0 && <Row label="BABIP" value={b.toFixed(3)} />}
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: C.text3, fontWeight: 800, textTransform: 'uppercase', letterSpacing: .5, padding: '10px 0 4px' }}>Splits</div>
+                  {avgVsRHP(p) > 0 && <Row label="vs RHP" value={avgVsRHP(p).toFixed(3)} />}
+                  {avgVsLHP(p) > 0 && <Row label="vs LHP" value={avgVsLHP(p).toFixed(3)} />}
+                  <Row label="L5 Hits" value={n(p?.last5_hits, 0)} />
+                  <Row label="L5 HR"   value={n(p?.last5_hr, 0)} />
+                  <Row label="L5 XBH"  value={n(p?.last5_xbh, 0)} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: C.text3, fontWeight: 800, textTransform: 'uppercase', letterSpacing: .5, padding: '10px 0 4px' }}>Opposing Pitcher</div>
+                  {/* the pitcher's name opens his file, as the header's does (clickable rule) */}
+                  <Row label="Name"   value={p?.pitcher_name && p?.pitcher_id ? <a href={`#sport=mlb&tab=pitchers&pitcher=${p.pitcher_id}`} style={META_LINK} title="Open the pitcher's file">{p.pitcher_name}</a> : clean(p?.pitcher_name, '—')} mono={false} />
+                  <Row label="Throws" value={clean(p?.pitcher_throws, '—')} />
+                  <Row label="HR/9"   value={sc(p?.pitcher_hr9)} />
+                  <Row label="BB/9"   value={sc(p?.pitcher_bb9)}
+                    explain="Walks this pitcher allows per nine innings, season-long — not specific to tonight's matchup. Higher is better for the hitter." />
+                  <Row label="WHIP"   value={sc(p?.pitcher_whip)} />
+                  <Row label="BB%"    value={pct(p?.pitcher_bb_pct)}
+                    explain="His walk rate against every batter he's faced this season — not specific to tonight's matchup." />
+                  {weakSide && (
+                    <div style={ROW_BOX}>
+                      <span style={{ fontSize: 11, color: C.text3 }}>Weak Side</span>
+                      <span style={{ fontSize: 12, fontWeight: 700, fontFamily: NUM_FONT, color: matchesWeak ? C.orange : C.text }}>
+                        {weakLabel}{matchesWeak ? ' ✓' : ''}
+                      </span>
+                    </div>
+                  )}
+                  {pb > 0 && <Row label="P-BABIP" value={pb.toFixed(3)} />}
+                </div>
+              </div>
+              </div>
+          )}
+
+          {/* THE READ (2026-10-07): the sentences, his homer shape, the cold case -- one accent */}
+          {tab === 'read' && (
+            <>
+              {!apiOnly && <PlayerRead p={p} odds={odds} />}
+              <HomerShape player={p} />
+              <ColdCase playerId={pid} player={player} />
             </>
           )}
 
@@ -1052,10 +1063,7 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
               an outside source. Context only — none of it moves a score. */}
           {tab === 'splits' && (
             <>
-              {/* The head-to-head leads the tab — it's the split everyone
-                  asks for first, so it goes first, wearing its sample-size
-                  caveat instead of hiding. */}
-              <BvP batterId={pid} pitcherId={p?.pitcher_id} pitcherName={p?.pitcher_name} player={p} />
+              {/* The head-to-head and the first-pitch split moved to the Overview, under his props (2026-10-07). */}
               {!apiOnly && <PlayerSplits player={p} slateMode={slateMode} />}
               <SituationalSplits playerId={pid} kind="batter" />
             </>

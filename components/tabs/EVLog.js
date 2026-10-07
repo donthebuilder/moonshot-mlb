@@ -6,6 +6,7 @@ import { clean } from '../../lib/player'
 import DenseTable from '../DenseTable'
 import ZoneMap from '../ZoneMap'
 import { liveBattedBalls } from '../../lib/livegame'
+import { hardHitLine, evDefaults } from '../../lib/mlb/evView'
 
 // ⚡ TONIGHT, LIVE (2026-08-06) — his batted balls from the game in progress
 // (or just finished), straight off the MLB live feed. The bot's log below is
@@ -327,10 +328,7 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
   // reset, which re-rendered, which fired another. Keying off the player ID
   // means one reset per actual player change and none for render churn.
   const pidKey = player?.player_id || player?.id || null
-  useEffect(() => {
-    const a = String(player?.pitcher_throws || '').toUpperCase().slice(0, 1)
-    setArmFilter(a === 'L' || a === 'R' ? a : 'ALL')
-  }, [pidKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  // (the arm reset moved below the other filters' state, so one effect resets them all)
   const [batterHand, setBatterHand] = useState('ALL')
   // Pitch selection defaults to tonight's starter's arsenal, matched to the
   // side this hitter bats from — the same behaviour the Spray tab has. The
@@ -338,6 +336,16 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
   // tonight", and a flat ALL buries that under every pitch he's faced all year.
   const [pitchSel, setPitchSel] = useState(null)   // null = all
   const [resFilter, setRes] = useState('ALL')
+  // ONE RESET PER MAN (2026-10-07, the never-fixed toggle): walking to the next hitter, or the starter's
+  // hand arriving late, used to reset the arm filter only -- the previous man's pitch selection, bats
+  // filter and result filter stayed on, and the mix default (applied once) never re-applied. All four
+  // go back to the defaults for the new man, and the mix gets its one application again.
+  const mixApplied = useRef(null)
+  useEffect(() => {
+    setArmFilter(evDefaults(player).arm)
+    setBatterHand('ALL'); setRes('ALL'); setPitchSel(null)
+    mixApplied.current = null
+  }, [pidKey, tonightArm]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const botLog = player?.batted_ball_log || player?.spray_chart || []
 
@@ -393,14 +401,13 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
   // exactly the state the All Pitches button sets. Click All, effect snaps it
   // back to the mix, button appears dead / the table flickers. The default is
   // now applied ONCE per player, and null stays null after that.
-  const mixApplied = useRef(null)
   useEffect(() => {
     if (mixApplied.current === pidKey) return
     if (tonightMix.length) {
       setPitchSel(new Set(tonightMix))
       mixApplied.current = pidKey
     }
-  }, [tonightMix, pidKey])
+  }, [tonightMix, pidKey, tonightArm])
 
   // Usage % per pitch code from the published mix strings — feeds both the
   // "P top 3" toggle and the zone map's per-pitch strip (2026-08-08).
@@ -721,6 +728,16 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
       {/* WINDOW AVERAGES (2026-08-08, "show the avgs of each category at
           the top"): computed from EXACTLY the rows below — change the
           window or a filter and these move with it. */}
+      {rows.length > 0 && rows.length !== windowed.length && (() => {
+        const w = hardHitLine(windowed.map(toLogRow))
+        const f = hardHitLine(rows)
+        return w.bbe > 0 ? (
+          <div style={{ fontSize: 11, color: C.text2, fontFamily: NUM_FONT, marginBottom: 6, lineHeight: 1.5 }}>
+            Hard hit, the whole window: <b style={{ color: C.text }}>{w.hard} of {w.bbe}</b>{w.pct != null ? ` (${w.pct.toFixed(0)}%)` : ''}
+            {f.bbe > 0 && <span style={{ color: C.text3 }}> · with the filters on: {f.hard} of {f.bbe} ({f.pct.toFixed(0)}%)</span>}
+          </div>
+        ) : null
+      })()}
       {rows.length > 0 && <ContactStrip rows={rows} />}
 
       {/* The exit-velo-against-launch-angle scatter lived here and is gone

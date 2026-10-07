@@ -89,17 +89,9 @@ export default function BvP({ batterId, pitcherId, pitcherName, player }) {
   }, [batterId, pitcherId])
 
   if (!pitcherId) return null
-  if (data === undefined) {
-    return <div style={{ fontSize: 10, color: C.text3, padding: '6px 0', fontFamily: NUM_FONT }}>Checking the head-to-head…</div>
-  }
-  if (!data?.total) {
-    return (
-      <div style={{ fontSize: 10, color: C.text3, padding: '4px 0 8px', fontFamily: NUM_FONT }}>
-        ⚔ No head-to-head history vs {pitcherName || 'tonight’s starter'} — they’ve never met. That’s
-        an answer too: every read on this page is profile, not memory.
-      </div>
-    )
-  }
+  // No data, show nothing (Donovan 2026-10-07): while it loads, and when they have never met,
+  // there is no box at all -- a header and an apology are scroll for no information.
+  if (data === undefined || !data?.total) return null
 
   const t = data.total
   const pa = num(t.plateAppearances)

@@ -617,6 +617,7 @@ export default function PitcherModal({ pitcher, slateMode, onClose, onPlayerClic
                     pitcherName={name}
                     pitcherThrows={throws}
                     onPlayerClick={onPlayerClick}
+                    lead
                   />
                   {/* ── THE FULL TABLE, THE SAME ONE (2026-08-17) ────────────
                       Donovan: "the full table of players should be shown in
