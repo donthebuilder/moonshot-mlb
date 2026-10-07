@@ -114,7 +114,7 @@ export function EmptyState({ title, note = null, tone = C.text3, children = null
 export const DelayedBanner = (props) => <SharedDelayedBanner theme={C} numFont={NUM_FONT} {...props} />
 
 /** A quiet loading line. */
-export function Loading({ what = 'the feed' }) {
+export function Loading({ what = 'it' }) {
   return (
     <div style={{ border: `1px dashed ${C.border2}`, borderRadius: 12, padding: 24, textAlign: 'center', color: C.text3, fontSize: 12 }}>
       Reading {what}…
@@ -128,7 +128,7 @@ export function Kicker({ children, tone = C.ice }) {
 }
 
 /** One row of pills (view switches, date pagers). */
-export function Pills({ value, onChange, options, ariaLabel }) {
+export function Pills({ value, onChange, options, ariaLabel, tall = false }) {
   return (
     <div role="group" aria-label={ariaLabel} style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
       {options.map((o) => {
@@ -136,9 +136,9 @@ export function Pills({ value, onChange, options, ariaLabel }) {
         return (
           <button key={o.key} type="button" onClick={() => onChange(o.key)} aria-pressed={on} disabled={o.disabled}
             title={o.title} style={{
-              height: 26, padding: '0 10px', borderRadius: 999, cursor: o.disabled ? 'default' : 'pointer',
+              height: tall ? 44 : 26, padding: tall ? '0 10px' : '0 10px', borderRadius: 999, cursor: o.disabled ? 'default' : 'pointer',
               border: `1px solid ${on ? C.ice : C.border2}`, background: on ? `${C.ice}1a` : 'transparent',
-              color: on ? C.ice : C.text2, font: `800 9.5px/1 ${NUM_FONT}`, letterSpacing: '.06em',
+              color: on ? C.ice : C.text2, font: `800 ${tall ? 11 : 9.5}px/1 ${NUM_FONT}`, letterSpacing: '.06em',
               opacity: o.disabled ? .45 : 1,
             }}>{o.text}</button>
         )
@@ -221,7 +221,7 @@ export function StaleSeasonNote({ label, opens, what = 'numbers' }) {
   return (
     <div role="status" style={{ padding: '8px 12px', borderRadius: 10, border: `1px solid ${C.amber}`, background: 'rgba(251,191,36,.08)', color: C.text2, fontSize: 11.5, lineHeight: 1.5 }}>
       <b style={{ color: C.amber, fontFamily: NUM_FONT, letterSpacing: '.06em' }}>{label} {what.toUpperCase()}</b>
-      {' · '}The league has not started the new season’s tables yet{opens ? ` — they open ${fmtDay(opens)}` : ''}. Until then these are last season’s.
+      {' · '}The new season’s tables have not started yet{opens ? ` — they open ${fmtDay(opens)}` : ''}. Until then these are last season’s.
     </div>
   )
 }

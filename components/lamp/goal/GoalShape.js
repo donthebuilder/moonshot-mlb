@@ -15,9 +15,9 @@ import { goalShape, SHAPE_MIN_GOALS } from '../../../lib/nhl/goalLog'
 // with the goalie he meets is the shot map's own VS GOALIE line, above.
 export default function GoalShape({ playerId }) {
   const { data, loading } = useLampShots({ player: playerId })
-  if (loading && !data) return <div style={{ color: C.text3, fontSize: 12 }}>Reading the shot archive…</div>
+  if (loading && !data) return <div style={{ color: C.text3, fontSize: 12 }}>Reading his shots…</div>
   const gs = goalShape(data?.all, data?.all?.recent, ZONES)
-  if (!gs) return <div style={{ color: C.text3, fontSize: 12, lineHeight: 1.5 }}>{data ? `No goals in the shot archive for him in ${data.seasonLabel || 'this season'} yet.` : 'The shot archive has nothing for him yet.'}</div>
+  if (!gs) return <div style={{ color: C.text3, fontSize: 12, lineHeight: 1.5 }}>{data ? `No goals on the shot map for him in ${data.seasonLabel || 'this season'} yet.` : 'The shot map has nothing for him yet.'}</div>
   const chip = (key, label, count, share, def) => (
     <span key={key} title={def || `${label}: ${count} goals`} style={{ display: 'inline-flex', gap: 5, alignItems: 'baseline', border: `1px solid ${alpha(C.ice, 0.35)}`, background: alpha(C.ice, 0.08), borderRadius: 999, padding: '3px 10px' }}>
       <span style={{ color: C.ice, font: `800 12px/1 ${NUM_FONT}`, letterSpacing: '.04em', textTransform: 'uppercase' }}>{label}</span>

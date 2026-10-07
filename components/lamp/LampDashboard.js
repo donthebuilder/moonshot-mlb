@@ -104,7 +104,7 @@ export default function LampDashboard({ palettePass = 0 }) {
   // the shell's "today" follows it, not the ET wall clock.
   const today = useLampScores(null)
   const night = today.data?.date || null
-  const { tab, setTab, gameId, teamKey, playerId, missingTab, date, setDate, badDate, setBadDate, openGame, openTeam, openPlayer, backLabel, goBack, peekId, peekPlayer, closePeek } = useShellRoute({ ...ROUTE, night })
+  const { tab, setTab, gameId, teamKey, playerId, missingTab, date, setDate, badDate, setBadDate, openGame, openTeam, openPlayer, backLabel, goBack, peekId, peekPlayer, closePeek, stepPlayer } = useShellRoute({ ...ROUTE, night })
   usePageTitle(`${pageTitle('nhl', tab)} · DASH Network`)
 
   const live = today.data?.live || 0
@@ -164,7 +164,7 @@ export default function LampDashboard({ palettePass = 0 }) {
             {tab === 'team' && <Team abbrev={teamKey} onOpenPlayer={peekPlayer} onOpenGame={openGame} backLabel={backLabel('teams')} onBack={() => goBack('teams')} />}
             {tab === 'players' && <Players onOpenTeam={openTeam} onOpenGame={openGame} />}
             {tab === 'goalies' && <Players goaliesOnly onOpenTeam={openTeam} onOpenGame={openGame} />}
-            {tab === 'player' && <Player id={playerId} onOpenTeam={openTeam} onOpenGame={openGame} backLabel={backLabel('players')} onBack={() => goBack('players')} />}
+            {tab === 'player' && <Player id={playerId} onStep={stepPlayer} onOpenTeam={openTeam} onOpenGame={openGame} backLabel={backLabel('players')} onBack={() => goBack('players')} />}
             {tab === 'leaders' && <Leaders onOpenPlayer={peekPlayer} onOpenTeam={openTeam} />}
             {tab === 'specialteams' && <SpecialTeams onOpenTeam={openTeam} onOpenPlayer={peekPlayer} />}
             {tab === 'matchups' && <Matchups date={date} onOpenPlayer={peekPlayer} onOpenTeam={openTeam} />}
@@ -197,7 +197,7 @@ export default function LampDashboard({ palettePass = 0 }) {
           </ErrorBoundary>
           <DashFooter sport="nhl" theme={C} onGuide={() => setTab('guide')} />
           {/* a tapped player opens his card over the page (Donovan 10-03); Full page = the player tab */}
-          <PlayerPeek id={peekId} Page={Player} theme={C} accent={C.ice} onClose={closePeek} onFullPage={openPlayer} onOpenTeam={openTeam} onOpenGame={openGame} />
+          <PlayerPeek id={peekId} Page={Player} theme={C} accent={C.ice} onClose={closePeek} onFullPage={openPlayer} onOpenTeam={openTeam} onOpenGame={openGame} onStep={stepPlayer} />
           </GameNav.Provider>
           </TeamNav.Provider>
           </SportTheme>

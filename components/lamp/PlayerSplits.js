@@ -123,8 +123,8 @@ function Combo({ games }) {
   )
 }
 
-export default function PlayerSplits({ id, goalie = false, onOpenTeam = null }) {
-  const { data, error, loading } = useLampSplits(id, !goalie)
+export default function PlayerSplits({ id, goalie = false, onOpenTeam = null, season = 'this' }) {
+  const { data, error, loading } = useLampSplits(id, !goalie, season)
   const [active, setActive] = useState(null)
   const games = data?.games || []
   const sections = useMemo(() => SPLIT_GROUPS.map((g) => {
@@ -137,40 +137,38 @@ export default function PlayerSplits({ id, goalie = false, onOpenTeam = null }) 
   const label = data?.seasonLabel || ''
   const hasPost = games.some((x) => x.type === 3)
   const pills = [...sections.map((s) => ({ key: s.g.key, label: s.g.label })), ...(strength.length ? [{ key: 'strength', label: 'EV / PP / SH' }] : []), ...(games.length ? [{ key: 'combo', label: 'Combine' }] : [])]
-  const jump = (k) => {
-    setActive(k)
-    try { document.getElementById(`lsplit-${k}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }) } catch { /* no DOM */ }
-  }
+  // ONE SPLIT ON SCREEN (2026-10-06, the player card's tabs): a pill shows its own table, so the tab is one screen, not seven stacked.
+  const shownKey = pills.some((x) => x.key === active) ? active : pills[0]?.key
+  const jump = (k) => setActive(k)
   return (
     <section aria-label="Splits" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 14, minWidth: 0 }}>
       <div>
-        <Kicker>SPLITS · {label}{hasPost ? ' REGULAR SEASON + PLAYOFFS' : ' REGULAR SEASON'}{games.length ? ` · ${games.length} GAMES` : ''}</Kicker>
-        <DelayedBanner error={error} what="the league’s game log" />
+        <Kicker>{label}{hasPost ? ' · REGULAR SEASON + PLAYOFFS' : ' · REGULAR SEASON'}{games.length ? ` · ${games.length} GAMES` : ''}</Kicker>
+        <DelayedBanner error={error} what="his game log" />
         {loading && !data && <Loading what="his splits" />}
       </div>
-      {data && !games.length && <EmptyState title="NO SPLITS YET" note={`The league has no ${label || 'current-season'} games for him yet.`} />}
+      {data && !games.length && <EmptyState title="NO SPLITS YET" note={`No ${label || 'current-season'} games for him yet. Try another season above.`} />}
       {games.length > 0 && (
         <>
           <div role="group" aria-label="Jump to a split" style={{ display: 'flex', gap: 6, overflowX: 'auto', margin: '0 -2px', padding: '0 2px', WebkitOverflowScrolling: 'touch' }}>
-            {pills.map((p) => <button key={p.key} type="button" aria-pressed={active === p.key} onClick={() => jump(p.key)} style={pillStyle(active === p.key)}>{p.label}</button>)}
+            {pills.map((p) => <button key={p.key} type="button" aria-pressed={shownKey === p.key} onClick={() => jump(p.key)} style={pillStyle(shownKey === p.key)}>{p.label}</button>)}
           </div>
           <div style={{ fontSize: 12, color: C.text3, lineHeight: 1.6, maxWidth: 760 }}>
-            One sheet, every split: the pills jump, nothing hides. Every row prints its games (GP) and is flagged <b style={{ color: C.amber }}>THIN</b> under {THIN_GP}.
-            Columns are shaded within each table, so a bright cell means high for him across that one split.
+            Pick a split. Every row shows its games (GP) and is flagged <b style={{ color: C.amber }}>THIN</b> under {THIN_GP}: a few games prove little.
           </div>
-          {sections.map(({ g, rows }) => (
+          {sections.filter(({ g }) => g.key === shownKey).map(({ g, rows }) => (
             <Section key={g.key} id={g.key} title={g.label} caption={g.caption}
               meta={`${rows.length} row${rows.length === 1 ? '' : 's'} · thinnest ${Math.min(...rows.map((r) => r.gp))} GP`}
               rows={rows} columns={g.key === 'opp' && onOpenTeam ? COLS.map((c) => (c.key === 'split' ? { ...c, fmt: (v) => <Tap onClick={() => onOpenTeam(v)} title={`Open ${v}`} style={{ minWidth: 44, display: 'inline-block', fontWeight: 800 }}>{v}</Tap> } : c)) : COLS} itemWord={g.key === 'opp' ? 'opponents' : g.key === 'venue' ? 'rinks' : 'rows'} />
           ))}
-          {strength.length > 0 && (
+          {strength.length > 0 && shownKey === 'strength' && (
             <Section id="strength" title="Goals by strength" meta={`${strength[0].gp} GP · EV = G − PP − SH`} rows={strength} columns={STRENGTH_COLS} preview={3}
               caption="Even-strength goals are his goals minus power-play minus short-handed goals: the game log has no even-strength column, so this is that subtraction." />
           )}
-          <Combo games={games} />
+          {shownKey === 'combo' && <Combo games={games} />}
           <div style={{ fontSize: 12, color: C.text3, lineHeight: 1.6 }}>
             Situational splits are the most over-read numbers in a season. Nothing here is opponent- or rink-adjusted, so a home/road or by-rink gap partly measures the opponents and buildings, not him.
-            The game log carries no overtime or day/night flag, so there is no split for either.
+            The game log has no overtime or day/night flag, so there is no split for either.
           </div>
         </>
       )}
