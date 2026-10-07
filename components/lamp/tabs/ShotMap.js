@@ -29,7 +29,7 @@ export default function ShotMap({ onOpenPlayer }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <PageHeader eyebrow="LAMP · SHOT MAP" title="Shot map"
-        note="Where a club or a skater shoots from: every regular-season attempt the league logged, drawn on one attacking half. Goals in lamp red; the shaded box is the slot."
+        note="Where shots come from. Red = goal."
         theme={C} numFont={NUM_FONT} accent={C.ice} />
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-start' }}>
         <label style={{ display: 'flex', flexDirection: 'column', gap: 4, color: C.text3, font: `800 8px/1 ${NUM_FONT}`, letterSpacing: '.1em' }}>

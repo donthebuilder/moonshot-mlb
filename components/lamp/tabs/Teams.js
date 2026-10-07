@@ -19,10 +19,10 @@ export default function Teams({ onOpenTeam }) {
   const divs = ORDER.filter((d) => rows.some((r) => r.divName === d))
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <PageHeader eyebrow="LAMP · TEAMS" title="The 32 clubs" note="By division, with the record beside each. Tap a club for its roster, schedule and season lines." theme={C} numFont={NUM_FONT} accent={C.ice}
+      <PageHeader eyebrow="LAMP · TEAMS" title="The 32 clubs" note="By division, with each record." theme={C} numFont={NUM_FONT} accent={C.ice}
         stats={data ? [{ value: rows.length, label: 'CLUBS', tone: C.text2 }, data.seasonLabel ? { value: data.seasonLabel, label: data.stale ? 'FINAL' : 'SEASON', tone: data.stale ? C.amber : C.text2 } : null] : null} />
       {data?.stale && <StaleSeasonNote label={data.seasonLabel} opens={data.current?.standingsStart} what="records" />}
-      <DelayedBanner error={error} what="the league’s standings feed" />
+      <DelayedBanner error={error} what="the standings" />
       {loading && !data ? <Loading what="the clubs" /> : null}
       {!loading && data && rows.length === 0 && <EmptyState title="SEASON NOT STARTED" note="No standings table yet; the clubs page reads its records from it." />}
       {divs.map((d) => (

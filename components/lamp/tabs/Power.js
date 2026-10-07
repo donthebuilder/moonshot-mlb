@@ -29,7 +29,7 @@ const LENSES = [
     ok: (r) => r.seasonGp >= MIN_GP, v: (r) => r.seasonSogPg },
   { k: 'heating', label: 'Heating up', tag: 'who is shooting more than his season', color: C.teal || C.cyan,
     ok: (r) => r.gp5 >= 4 && r.seasonGp >= MIN_GP && Number.isFinite(r.sogDelta), v: (r) => r.sogDelta },
-  { k: 'finishing', label: 'Finishing', tag: 'who turns shots into goals', color: C.lamp,
+  { k: 'finishing', label: 'Finishing', tag: 'who turns shots into goals', color: C.ice,
     ok: (r) => shotsOf(r) >= MIN_SHOTS, v: (r) => (100 * r.seasonG) / shotsOf(r) },
 ]
 const pctFmt = (v) => (Number.isFinite(v) ? `${v.toFixed(1)}%` : '—')
@@ -69,11 +69,11 @@ export default function Power({ onOpenPlayer }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <PageHeader eyebrow="LAMP · POWER" title="Who shoots, who's heating up, who finishes"
-        note="One lead, one board, three lenses -- MOONSHOT's power page, for shooters. Every number is the league's own skater summary; nothing here is a LAMP score."
+      <PageHeader eyebrow="LAMP · POWER" title="Who shoots, heats up, finishes"
+        note="Shooters, three ways. League stats, not a LAMP score."
         theme={C} numFont={NUM_FONT} accent={C.ice} />
       {data?.stale && <StaleSeasonNote label={data.seasonLabel} what="power" />}
-      <DelayedBanner error={error} what="the skater feed" />
+      <DelayedBanner error={error} what="the shooters" />
       {loading && !data ? <Loading what="the shooters" /> : null}
       {data && !rows.length ? <EmptyState title="NO GAMES YET" note="No skater has games in the window yet." /> : null}
 

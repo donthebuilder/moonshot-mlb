@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import { alpha } from '../../../lib/scales'
+import { Pills } from '../ui'
 import { rollingSeries } from '../../../lib/nhl/goalLog'
 
 // 📈 ROLLING FORM. MOONSHOT's RollingForm is the site's pick backtest, not a
@@ -31,12 +32,11 @@ export default function GoalForm({ rows }) {
   const last = full[full.length - 1]
   const barW = Math.max(2, ((W - PAD.l - PAD.r) / series.length) * 0.6)
   const ticks = [0, maxY / 2, maxY].map((v) => Math.round(v * 10) / 10)
-  const chip = (on) => ({ minHeight: 44, minWidth: 44, padding: '0 12px', cursor: 'pointer', borderRadius: 8, border: `1px solid ${on ? C.ice : C.border}`, background: on ? alpha(C.ice, 0.18) : 'transparent', color: on ? C.ice : C.text3, font: `900 12px/1 ${NUM_FONT}` })
   return (
     <div>
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
-        {STATS.map(([k, label]) => <button key={k} type="button" aria-pressed={stat === k} onClick={() => setStat(k)} style={chip(stat === k)}>{label}</button>)}
-        {WINS.map((w) => <button key={w} type="button" aria-pressed={win === w} onClick={() => setWin(w)} style={chip(win === w)}>{w}-game</button>)}
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 6 }}>
+        <Pills ariaLabel="Stat" value={stat} onChange={setStat} options={STATS.map(([k, label]) => ({ key: k, text: label }))} />
+        <Pills ariaLabel="Window" value={win} onChange={setWin} options={WINS.map((w) => ({ key: w, text: `${w}-game` }))} />
       </div>
       <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`His trailing ${win}-game ${word} per game, now ${last.v.toFixed(2)}`} style={{ width: '100%', height: 'auto', display: 'block' }}>
         {ticks.map((t) => (

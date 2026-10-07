@@ -11,6 +11,7 @@ import AlignmentsView from '../../numerology/AlignmentsView'
 import { useIsPhone } from '../../MobileFold'
 import { lampAlignModel, lampTonight, lampScoreOf } from '../../../lib/nhl/alignRows'
 import { fromNhl } from '../../../lib/numerology/adapters'
+import Hint from '../Hint'
 
 // 🔮 NUMEROLOGY (lamp research step 5, 2026-09-26) — the slot MOONSHOT's
 // Alignments and TUDDY's Numerology fill, hockey edition. FOR FUN: numbers
@@ -61,7 +62,7 @@ export default function Numerology({ date = null, onOpenPlayer }) {
   const head = (
     <>
       <PageHeader eyebrow="LAMP · NUMEROLOGY" title={data ? `${fmtDay(data.date)} · the night's number is ${data.dateRoot}` : 'Numerology'}
-        note="For fun: numbers that line up, not a prediction. Every digit of the date, added until one is left, against each dressed skater's jersey, birth day and life path. Not graded, and never part of the score."
+        note={<>For fun, not a prediction. <Hint label="How it works" text="Every digit of the date is added until one is left, then set against each dressed skater’s jersey, birth day and life path. It is not graded and never part of any score." /></>}
         theme={C} numFont={NUM_FONT} accent={C.ice}
         stats={data ? [{ value: data.skaters, label: 'DRESSED', tone: C.text2 }, { value: data.aligned.length, label: 'LINED UP', tone: C.ice }, { value: `${data.alignedHits} v ${data.expectedHits}`, label: 'HITS V CHANCE', tone: C.text2 }] : null} />
       {data?.date ? <div style={{ margin: '14px 0 10px' }}><TonightsNumbers date={data.date} theme={C} numFont={NUM_FONT} accent={C.ice} /></div> : null}

@@ -156,7 +156,7 @@ export default function Leaders({ onOpenPlayer }) {
       <div>
         <PageHeader
           title="League Leaders"
-          sub={`${stats.data?.seasonLabel || leaders.data?.seasonLabel || 'Regular season'} lines, straight from the league — no model scores on this page`}
+          sub={`${stats.data?.seasonLabel || leaders.data?.seasonLabel || 'Regular season'} lines, straight from the league`}
           right={stats.data ? (
             <span title={`${goalies ? 'Goalies' : 'Skaters'} the table is showing, out of everyone with a regular-season line.`}
               style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>{rows.length} of {all.length} {view}</span>
@@ -172,7 +172,7 @@ export default function Leaders({ onOpenPlayer }) {
         </LeadersIntro>
 
         {stale && <StaleSeasonNote label={stats.data?.seasonLabel || leaders.data?.seasonLabel} opens={leaders.data?.opens} what="leaders" />}
-        <DelayedBanner error={stats.error} what="the league’s season stats" />
+        <DelayedBanner error={stats.error} what="the season stats" />
         {stats.loading && !stats.data ? <Loading what="every season line" /> : null}
 
         {stats.data && (
@@ -203,8 +203,8 @@ export default function Leaders({ onOpenPlayer }) {
         <LeadersSection
           title={`🏒 League-wide top 10s — ${goalies ? 'goaltending' : 'scoring'}`}
           tint={alpha(C.ice, 0.04)}
-          lead={<>whole league, live from the league&apos;s leaders feed. Tap a name to open his file.</>}>
-          <DelayedBanner error={leaders.error} what="the league’s leaders feed" />
+          lead={<>whole league, live. Tap a name to open his file.</>}>
+          <DelayedBanner error={leaders.error} what="the leaders" />
           {leaders.loading && !leaders.data ? <Loading what="the leaders" /> : null}
           <div className="bot-picks-grid" style={{
             display: 'grid', gap: 8,

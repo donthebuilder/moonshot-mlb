@@ -2,7 +2,6 @@
 import StatStrip from '../../StatStrip'
 import StreakRibbon, { StreakLine } from '../../StreakRibbon'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
-import { verdictInk } from '../../../lib/scales'
 import { marketOf, runRead, ribbonOf, daysBetween } from '../../../lib/nhl/goalLog'
 
 // 🔥 HIS RUN (MOONSHOT lib/runs.js readRun + components/runs/RunParts.js; TUDDY's
@@ -15,11 +14,11 @@ export default function GoalRun({ rows, bar, line, today }) {
   const rd = runRead(rows, mk.stat, line)
   if (!rd) return null
   const word = mk.key === 'g' ? (line === 1 ? 'goal' : `${line}+ goals`) : `${line}+ ${mk.label.toLowerCase()}`
-  const warm = verdictInk(true).color; const cool = verdictInk(false).color
+  const warm = C.ice; const cool = C.text2   // one accent: at the bar lights, without it is grey
   const hot = rd.run > 0
   const stale = today && rows[0]?.date ? daysBetween(rows[0].date, today) : null
   const stats = [
-    { id: 'now', label: hot ? 'RUN' : `SINCE LAST ${mk.key === 'g' && line === 1 ? 'GOAL' : 'BAR'}`, text: hot ? `${rd.run}` : rd.never ? `${rd.n}+` : `${-rd.run}`, color: hot ? warm : cool, title: hot ? `${rd.run} straight games with ${word}.` : rd.never ? `No ${word} in any of the ${rd.n} games on file.` : `${-rd.run} straight games without ${word}.` },
+    { id: 'now', label: hot ? 'RUN' : `SINCE LAST ${mk.key === 'g' && line === 1 ? 'GOAL' : 'BAR'}`, text: hot ? `${rd.run}` : rd.never ? `${rd.n}+` : `${-rd.run}`, color: hot ? warm : null, title: hot ? `${rd.run} straight games with ${word}.` : rd.never ? `No ${word} in any of the ${rd.n} games on file.` : `${-rd.run} straight games without ${word}.` },
     { id: 'best', label: 'LONGEST RUN', text: rd.bestHit ? `${rd.bestHit}` : '—', title: `His longest run of games with ${word} in the ${rd.n} games on file.` },
     { id: 'cold', label: 'LONGEST DROUGHT', text: rd.bestMiss ? `${rd.bestMiss}` : '—', title: `His longest run of games without ${word} in the ${rd.n} games on file.` },
   ]
@@ -39,8 +38,8 @@ export default function GoalRun({ rows, bar, line, today }) {
         {stale != null && stale >= 10 ? <> His last game on file was {stale} days ago, and a run counts games he played, not days.</> : null}
       </div>
       <div style={{ marginTop: 8 }}>
-        <StreakRibbon streak={ribbonOf(rows, mk.stat, line)} label={word} max={40} height={14} />
-        <div style={{ marginTop: 6 }}><StreakLine streak={ribbonOf(rows, mk.stat, line)} label={word} /></div>
+        <StreakRibbon streak={ribbonOf(rows, mk.stat, line)} label={word} max={40} height={14} ink={{ warm, cool: C.text3 }} />
+        <div style={{ marginTop: 6 }}><StreakLine streak={ribbonOf(rows, mk.stat, line)} label={word} ink={{ warm, cool: C.text3 }} /></div>
       </div>
     </div>
   )
