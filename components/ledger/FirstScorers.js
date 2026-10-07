@@ -31,7 +31,7 @@ export default function FirstScorers({ sport, C, numFont, accent, day = null, em
   return (
     <LedgerSection C={C} numFont={numFont} accent={accent} title={`🥇 ${w.title}`}
       blurb={`who scored first, when, and whether the board had him${w.note ? ` · ${w.note}` : ''}`}
-      rows={(data?.games || []).map((g) => ({ ...g, key: `${g.day}|${g.gameId}` }))}
+      rows={(data?.games || []).map((g, i) => ({ ...g, key: `${g.day}|${g.gameId}|${i}` }))}
       empty={err ? 'First scorers are delayed.' : !data ? 'Loading…' : emptyWhy || `No ${w.event} on file in the last few days.`}
       render={(g) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 40, fontSize: 12, flexWrap: 'wrap' }}>
