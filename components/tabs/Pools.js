@@ -109,10 +109,10 @@ export default function Pools({ players = [], results, pairBuilder, onPlayerClic
     <div>
       <PanelTitle
         title="Pools"
-        sub="The old-recipe three-man pools · two homers is a hit"
+        sub="Three-man pools. Two homers is a hit."
       />
 
-      {!rows.length && <Empty text="The old-recipe three-man pools aren't published for this slate yet." />}
+      {!rows.length && <Empty text="No three-man pools tonight." />}
 
       {rows.length > 0 && (
         <>
@@ -121,7 +121,7 @@ export default function Pools({ players = [], results, pairBuilder, onPlayerClic
               {gradedN ? `${hitN} of ${rows.length}` : rows.length}
             </span>
             <span style={{ fontSize: 13, fontWeight: 800, color: C.text }}>
-              {gradedN ? `old-recipe pools have two homers` : `old-recipe pools of three tonight`}
+              {gradedN ? `pools have two homers` : `pools of three tonight`}
             </span>
             <span style={{ fontSize: 12, color: C.text3, lineHeight: 1.5 }}>
               {anyLocked ? 'Locked at first pitch.' : 'Rosters can still change until first pitch; a pool that changed is marked.'}

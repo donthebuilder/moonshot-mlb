@@ -540,12 +540,12 @@ export default function Leaders({ players = [], onPlayerClick, onNavigate }) {
         display: 'grid', gap: 8, marginBottom: 12,
         gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
       }}>
-        <LeaderTile label="AVG" rows={top3('avg')} fmt={(r) => r.avg.toFixed(3)} color={C.purple} onPlayerClick={onPlayerClick} />
+        <LeaderTile label="AVG" rows={top3('avg')} fmt={(r) => r.avg.toFixed(3)} color={C.orange} onPlayerClick={onPlayerClick} />
         <LeaderTile label="OPS" rows={top3('ops')} fmt={(r) => r.ops.toFixed(3)} color={C.orange} onPlayerClick={onPlayerClick} />
-        <LeaderTile label="Home runs" rows={top3('hr')} fmt={(r) => r.hr} color={C.red} onPlayerClick={onPlayerClick} />
-        <LeaderTile label="RBI" rows={top3('rbi')} fmt={(r) => r.rbi} color={C.cyan} onPlayerClick={onPlayerClick} />
-        <LeaderTile label="ISO" rows={top3('iso')} fmt={(r) => r.iso.toFixed(3)} color={C.green} onPlayerClick={onPlayerClick} />
-        <LeaderTile label="PA per HR · min 5 HR" rows={eff3} fmt={(r) => r.paHR.toFixed(1)} color={C.amber} onPlayerClick={onPlayerClick} />
+        <LeaderTile label="Home runs" rows={top3('hr')} fmt={(r) => r.hr} color={C.orange} onPlayerClick={onPlayerClick} />
+        <LeaderTile label="RBI" rows={top3('rbi')} fmt={(r) => r.rbi} color={C.orange} onPlayerClick={onPlayerClick} />
+        <LeaderTile label="ISO" rows={top3('iso')} fmt={(r) => r.iso.toFixed(3)} color={C.orange} onPlayerClick={onPlayerClick} />
+        <LeaderTile label="PA per HR · min 5 HR" rows={eff3} fmt={(r) => r.paHR.toFixed(1)} color={C.orange} onPlayerClick={onPlayerClick} />
       </div>
 
       {/* League-wide boards, live. The slate payload publishes no stolen-base

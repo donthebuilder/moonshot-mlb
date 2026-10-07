@@ -819,9 +819,9 @@ function PitcherCard({ pitcher, isOpen, onToggle, onPlayerClick, onOpenPitcher }
             }}
           >Open card</button>
           <div style={{ minWidth: 130 }}>
-            <StatBar label="ERA" value={pitcher.pitcher_era} max={6} color={C.cyan} />
+            <StatBar label="ERA" value={pitcher.pitcher_era} max={6} color={C.orange} />
             <StatBar label="HR/9" value={pitcher.pitcher_hr9} max={3} color={C.orange} />
-            <StatBar label="WHIP" value={pitcher.pitcher_whip} max={2} color={C.purple} />
+            <StatBar label="WHIP" value={pitcher.pitcher_whip} max={2} color={C.orange} />
           </div>
         </div>
       </div>
@@ -972,11 +972,11 @@ export default function Pitchers({ players, onPlayerClick }) {
     <div>
       <PanelTitle
         title="Pitchers"
-        sub={`${pitchers.length} starters ranked by leak score — who to attack, with which bats, what he has been doing lately, who follows him and the air he throws in`}
+        sub={`${pitchers.length} starters, most attackable first.`}
         right={
           <button
             onClick={() => tableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-            style={btnStyle(C.cyan, false)}
+            style={btnStyle(C.orange, false)}
           >↓ Full starter table</button>
         }
       />
@@ -1131,7 +1131,7 @@ export default function Pitchers({ players, onPlayerClick }) {
               title="Who gets him"
               note={weakSide
                 ? `weakest to ${weakSide === 'LHB' ? 'left' : 'right'}-handed bats`
-                : 'no side split published'}>
+                : 'no side split yet'}>
               <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', minWidth: 0 }}>
                 {bats.map((b) => (
                   <button key={b.player_id ?? b.name} onClick={() => onPlayerClick?.(b.raw)}
@@ -1822,7 +1822,7 @@ rows={(() => {
       {/* The column-group buttons already carry their own labels; a paragraph
           re-describing each one was words for words' sake. One sentence. */}
       <div style={{ fontSize: TYPE.micro, color: C.text3, marginTop: 10, lineHeight: 1.5 }}>
-        Click any starter for his full card. A dash means the field has not published — never a zero.
+        Click any starter for his full card. A dash means no data, never a zero.
       </div>
 
       {modalPitcher && (

@@ -134,7 +134,7 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
   // Each Games-page mode wears its own accent (2026-08-08): ember for the
   // default read, cyan for Bot Output, green for Lineups — the strip tells
   // you which lens you're in before you read a single card.
-  const accent = botView ? C.cyan : mode === 'lineups' ? C.green : C.orange
+  const accent = C.orange
   // 2026-08-13, Donovan (screenshot feedback): "packed with too much text" +
   // "the legend paragraph at the bottom" -- this used to always render as a
   // 7-sentence paragraph under every grid. Nothing in it was wrong, there
@@ -513,7 +513,7 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
             · ✓✓/✓◻ per-team lineup posted or projected. Every card carries the same three chips —
             <strong style={{ color: C.yellow }}> TOP</strong>,
             <strong style={{ color: C.orange }}> HR</strong> and
-            <strong style={{ color: C.purple }}> ALT</strong> (MOONSHOT&apos;s secondary HR lane, hover for
+            <strong style={{ color: C.purple }}> ALT</strong> (MOONSHOT&apos;s secondary HR lane, tap for
             the reason) — name and score, so the either/or is one glance. A chip only appears when the
             MOONSHOT actually published that lane, and never names the same hitter twice on one card.
             {onPairPick ? ' Tap any chip to add him as a pair leg; 🔗 marks the legs you already have.' : ''}

@@ -1485,7 +1485,7 @@ export default function SprayField({
           {tonight.side ? ` to ${tonight.side === 'lhb' ? 'left' : 'right'}-handed bats` : ''}
           {tonight.side
             ? ', from his split mix.'
-            : ' — no side split published for him, so this is his overall usage.'}
+            : ' — no side split for him yet, so this is his overall usage.'}
           {' '}They start selected, so what you see first is the balls he put in play against
           pitches he&apos;ll see tonight.
         </div>

@@ -736,9 +736,9 @@ export default function Home({
   const DOORS = [
     { tab: 'scoreboard', icon: '📊', title: 'The Scoreboard', color: C.orange,
       body: 'Every hitter tonight, every column.' },
-    { tab: 'games', icon: '⚾', title: 'Game by game', color: C.cyan,
+    { tab: 'games', icon: '⚾', title: 'Game by game', color: C.orange,
       body: 'Game by game: the arm, the park, the lineup, the picks.' },
-    { tab: 'results', icon: '✅', title: 'The receipts', color: C.green,
+    { tab: 'results', icon: '✅', title: 'The receipts', color: C.orange,
       body: 'Every pick graded, wins and losses alike.' },
   ]
 
@@ -905,7 +905,7 @@ export default function Home({
           <div className="hero-stats" style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
             <Stat label="GAMES" value={games.length}
               sub={slateInPast ? 'final' : `${confirmedGames} confirmed`}
-              col={C.blue}
+              col={C.text}
               title="Games on tonight's slate, and how many have lineups the league has posted. Confirmed picks homer at a meaningfully higher clip than unconfirmed ones." />
             {/* NEXT PITCH, COUNTING DOWN (2026-09-06). "First pitch was 1:10 PM"
                 is a fact about the afternoon; what a viewer wants at 7pm is
@@ -1752,8 +1752,8 @@ function NextPitchStat({ games }) {
   }, [counting])
   if (!np) return <Stat label="FIRST PITCH" value="not published" col={C.text3} title="No game times on the slate yet." />
   return np.kind === 'next'
-    ? <Stat label="NEXT PITCH" value={fmtCountdown(np.ms)} sub={`${np.label} · ${localTime(np.at)}${np.remaining > 1 ? ` · ${np.remaining} still to start` : ''}`} col={C.yellow}
+    ? <Stat label="NEXT PITCH" value={fmtCountdown(np.ms)} sub={`${np.label} · ${localTime(np.at)}${np.remaining > 1 ? ` · ${np.remaining} still to start` : ''}`} col={C.orange}
         title="Time until the next game on the slate starts, your local clock. Counts down live." />
-    : <Stat label="ALL UNDER WAY" value={localTime(np.at)} sub={`last first pitch · ${np.label}`} col={C.green}
+    : <Stat label="ALL UNDER WAY" value={localTime(np.at)} sub={`last first pitch · ${np.label}`} col={C.text}
         title="Every game on the slate has started. This was the last first pitch." />
 }

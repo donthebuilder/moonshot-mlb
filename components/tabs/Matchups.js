@@ -66,7 +66,7 @@ function ZoneOverlap({ lineupIds, pitcherName }) {
 
   if (state.loading) return <div style={{ fontSize: 12, color: C.text3, marginBottom: 12 }}>Loading the zones…</div>
   const cells = state.cells || []
-  if (!cells.some((c) => c.xslg != null) || !cells.some((c) => c.his != null)) return <div style={{ fontSize: 12, color: C.text3, marginBottom: 12 }}>No zone files for this matchup yet.</div>
+  if (!cells.some((c) => c.xslg != null) || !cells.some((c) => c.his != null)) return <div style={{ fontSize: 12, color: C.text3, marginBottom: 12 }}>No zone data for this matchup yet.</div>
   const slgs = cells.map((c) => c.xslg).filter(Number.isFinite)
   const lo = Math.min(...slgs); const hi = Math.max(...slgs)
   const heat = (v) => (v == null || hi === lo ? 0 : (v - lo) / (hi - lo))
@@ -173,7 +173,7 @@ export default function Matchups({ players = [], onPlayerClick, onNavigate = nul
     return (
       <div>
         <PageHeader eyebrow="MOONSHOT · MATCHUPS" title="The arms to attack tonight" theme={C} numFont={NUM_FONT} accent={C.orange}
-          note="Tonight's starters, ranked by how well the lineup in front of them fits their pitch mix." />
+          note="Starters ranked by how well the lineup fits their pitch mix." />
         <div style={{ border: `1px dashed ${C.border2}`, borderRadius: 12, padding: 24, textAlign: 'center', color: C.text3, fontSize: TYPE.body }}>No starters on tonight&apos;s slate yet.</div>
       </div>
     )
@@ -181,7 +181,7 @@ export default function Matchups({ players = [], onPlayerClick, onNavigate = nul
   return (
     <div>
       <PageHeader eyebrow="MOONSHOT · MATCHUPS" title="The arms to attack tonight" theme={C} numFont={NUM_FONT} accent={C.orange}
-        note="Tonight's starters, ranked by how well the lineup in front of them fits their pitch mix. Tap a starter for the matchup." />
+        note="Starters ranked by how well the lineup fits their pitch mix." />
       <p style={{ margin: '0 0 8px', fontSize: 12.5, lineHeight: 1.5, color: C.text2 }}>
         Softest: <Tap onClick={openPitcher && lead.g.pitcher_id ? () => openPitcher(lead.g.pitcher_id) : null}><b style={{ color: C.text }}>{lead.pitcher}</b></Tap> ({lead.team}), facing a {lead.vs} lineup that fits his mix at {lead.fit}{lead.best ? <> — <Tap onClick={onPlayerClick ? () => onPlayerClick(lead.best) : null}><b style={{ color: C.text }}>{lead.bestTxt}</b></Tap> leads it{lead.best.pitch_mix_note ? ` (${lead.best.pitch_mix_note})` : ''}</> : null}.
       </p>
@@ -189,12 +189,12 @@ export default function Matchups({ players = [], onPlayerClick, onNavigate = nul
         rowEdge={(r) => (r._id === active?._id ? C.orange : null)}
         onRowClick={(r) => { setPick(r._id); if (typeof document !== 'undefined') requestAnimationFrame(() => document.getElementById('ms-matchup-detail')?.scrollIntoView({ behavior: 'smooth', block: 'start' })) }} />
       <p style={{ margin: '6px 0 14px', fontSize: 11, lineHeight: 1.5, color: C.text3 }}>
-        Lineup fit = the average of MOONSHOT&apos;s pitch-mix score (0–100: how each hitter&apos;s damage lines up with this starter&apos;s pitches) over the hitters he faces on the slate. Attack is the Pitchers page&apos;s own number, for reference.
+        Lineup fit: how well each hitter&apos;s damage lines up with this starter&apos;s pitches (0–100), averaged over the lineup. Attack is the Pitchers page&apos;s own number.
       </p>
 
       {active && (
         <section id="ms-matchup-detail" aria-label={`${active.pitcher} matchup`} style={{ scrollMarginTop: 80 }}>
-          <MatchupTitle logo={{ sport: 'mlb', abbr: active.team }} name={active.pitcher} meta={`${active.team} vs ${active.vs} · tap another row above to switch`} />
+          <MatchupTitle logo={{ sport: 'mlb', abbr: active.team }} name={active.pitcher} meta={`${active.team} vs ${active.vs}`} />
           <PitchesTable active={active} onPlayerClick={onPlayerClick} />
           <FactLines lines={[
             ['Handedness', `a ${active.throws}HP against ${Object.entries(active.bats).filter(([h]) => h !== '?').map(([h, c]) => `${c} ${h === 'S' ? 'switch' : h === 'L' ? 'left' : 'right'}`).join(', ') || 'an unknown lineup'}-handed hitter${active.hitters === 1 ? '' : 's'}.`],

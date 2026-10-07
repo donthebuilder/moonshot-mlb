@@ -1,4 +1,5 @@
 'use client'
+import HelpTip from '../HelpTip'
 import Tap from '../Tap'
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../lib/theme'
@@ -556,16 +557,8 @@ function Head({ stamp, n, span }) {
         )}
       </div>
       <div style={{ fontSize: TYPE.body, color: C.text2, lineHeight: 1.6, maxWidth: 780, marginBottom: 9 }}>
-        Everyone on tonight&apos;s card, sorted by how many games running they&apos;ve cleared the bar you
-        pick. <b style={{ color: C.text }}>Cold</b> flips it to the drought board — nine misses in a row
-        is a position too. The strip is his last games, newest on the right, and the active run is the
-        bright end of it. Narrow it to one <b style={{ color: C.text }}>team</b> or one{' '}
-        <b style={{ color: C.text }}>game</b> with the pickers below, and every card, count and ranking
-        on the page recomputes to that slice.{' '}
-        <span style={{ color: C.text3 }}>
-          Pattern watching, not evidence — a run is a record of games already played, and the line under
-          each card says how often a hitter of his own rate puts one together.
-        </span>
+        Hitters ranked by games running cleared at the bar you pick. <b style={{ color: C.text }}>Cold</b> flips it to droughts.
+        <HelpTip label="About streaks" text="Everyone on tonight's card, sorted by how many games running they have cleared the bar you pick. The strip is his last games, newest on the right, and the active run is the bright end of it. Narrow it to one team or one game and every card, count and ranking recomputes to that slice. Pattern watching, not evidence: a run is a record of games already played, and the line under each card says how often a hitter of his own rate puts one together." />
       </div>
     </>
   )

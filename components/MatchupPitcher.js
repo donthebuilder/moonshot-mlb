@@ -835,7 +835,7 @@ export default function MatchupPitcher({ player, slateMode }) {
             label="Arsenal"
             sub={liveSource
               ? `${side === 'overall' ? 'overall usage' : `his mix ${side}`} · 🔴 live Statcast pull — not MOONSHOT's file`
-              : side === 'overall' ? 'overall usage — no side split published' : `his mix ${side}, the side this hitter bats from`}
+              : side === 'overall' ? 'overall usage — no side split yet' : `his mix ${side}, the side this hitter bats from`}
             subColor={liveSource || side !== 'overall' ? C.orange : C.text3}
           />
           {/* The readable layer first. When this batter's own per-pitch

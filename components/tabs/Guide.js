@@ -62,7 +62,7 @@ const STEPS = [
     n: 3,
     tab: 'fullboard',
     title: 'Tap a name to open his card',
-    body: 'The card says why he is up there: the arm he faces, his recent contact, where he does damage in the zone. Every number on it has a tooltip — hover anything you don’t recognise instead of coming back here.',
+    body: 'The card says why he is up there: the arm he faces, his recent contact, where he does damage in the zone. Tap any number you don’t recognise instead of coming back here.',
   },
   {
     n: 4,
@@ -73,7 +73,7 @@ const STEPS = [
     n: 5,
     tab: 'results',
     title: 'The next morning, open Results',
-    body: 'Every pick graded against the job it was picked for, wins and losses alike. That is the tab that tells you how much to trust everything above it. Nothing on this site is worth anything without it.',
+    body: 'Every pick graded against the job it was picked for, wins and losses alike. That is the tab that tells you how much to trust everything above it.',
   },
 ]
 
@@ -136,9 +136,7 @@ export default function Guide({ onNavigate }) {
     <div style={{ maxWidth: 760, margin: '0 auto' }}>
 
       <GuideTitle>
-          This site predicts which hitters are most likely to go deep tonight, and then grades
-          itself on it the next morning. You don&apos;t need to know a single advanced stat to use
-          it — follow the five steps below in order.
+          Follow the five steps below, in order. No advanced stats needed.
       </GuideTitle>
       <PlaybookLink market="hr" label="How to research a home run" />
       {/* LOOK -> PICK -> TRACK (2026-10-01): the same three drawings as /start. */}
@@ -166,7 +164,7 @@ export default function Guide({ onNavigate }) {
       <StartHere steps={STEPS} heading="Five steps, in order" onNavigate={onNavigate} footer={<>
           That&apos;s the whole path. Everything below is reference — open a section only when a
           symbol or a stat on screen doesn&apos;t make sense, and remember that almost everything on
-          this site explains itself if you hover it.
+          this site explains itself if you tap it.
       </>} />
 
       <ColorKey />
@@ -277,7 +275,7 @@ export default function Guide({ onNavigate }) {
             it below the no-flag base rate, the only flag on the board doing
             that. Named here, honestly, and pointed at the live grade rather
             than quoting a number this page cannot keep current. */}
-        <Term icon="🔄" term="Alt look" def="a second, smaller-sample angle on the same hitter — MOONSHOT's own sheet files these under ALT LOOKS and marks the sample as thin. Treat it as a curiosity rather than a reason: of every flag on the board this is the one Signals has graded worst, and it has been under the no-flag base rate. Results → Signals has the current number." />
+        <Term icon="🔄" term="Alt look" def="a second, smaller-sample angle on the same hitter — MOONSHOT files these under ALT LOOKS and marks the sample as thin. Treat it as a curiosity rather than a reason: of every flag on the board this is the one Signals has graded worst, and it has been under the no-flag base rate. Results → Signals has the current number." />
         <Term icon="≈" term="Projected pitcher" def="the starter isn't announced — this is whoever's rotation turn it is, not an official listing." />
       </Section>
 

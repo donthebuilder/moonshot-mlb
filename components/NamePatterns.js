@@ -108,11 +108,11 @@ export default function NamePatterns({ homers = [], population = [], sport = 'ml
 
   return (
     <div style={{
-      background: `${C.cyan}0f`, border: `1px solid ${C.cyan}44`,
+      background: C.bg2, border: `1px solid ${C.border}`,
       borderRadius: 10, padding: '8px 11px', marginBottom: 9,
     }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 5 }}>
-        <span style={{ fontSize: 11, fontWeight: 900, color: C.cyan }}>🔤 Name echoes</span>
+        <span style={{ fontSize: 11, fontWeight: 900, color: C.text }}>🔤 Name echoes</span>
         <span style={{ fontSize: 11, color: C.text3 }}>
           across the <span style={{ fontFamily: NUM_FONT, color: C.text2 }}>{denom}</span> {W.who}
         </span>
@@ -127,8 +127,8 @@ export default function NamePatterns({ homers = [], population = [], sport = 'ml
               kind of echo it is has to survive being read in greyscale. */}
           <span style={{
             flex: '0 0 auto', fontSize: 11, fontWeight: 900, fontFamily: NUM_FONT,
-            letterSpacing: '.04em', textTransform: 'uppercase', color: C.cyan,
-            border: `1px solid ${C.cyan}55`, borderRadius: 4, padding: '2px 5px', marginTop: 1,
+            letterSpacing: '.04em', textTransform: 'uppercase', color: C.text2,
+            border: `1px solid ${C.border2}`, borderRadius: 4, padding: '2px 5px', marginTop: 1,
           }}>{e.label}</span>
           <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: 11, fontWeight: 800, color: C.text, lineHeight: 1.45 }}

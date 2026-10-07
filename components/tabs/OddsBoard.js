@@ -546,7 +546,7 @@ export default function OddsBoard({ players = [], odds: oddsProp, onPlayerClick,
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
           <h2 style={{ fontSize: TYPE.title, fontWeight: 900, margin: 0 }}>💵 The odds</h2>
           <span style={{ fontSize: TYPE.micro, color: C.red, fontFamily: NUM_FONT }}>
-            ● board pulled {night?.when || 'a while ago'} · EXPIRED
+            ● last updated {night?.when || 'a while ago'} · EXPIRED
           </span>
         </div>
         <OddsStatus status={status} />
@@ -732,7 +732,7 @@ export default function OddsBoard({ players = [], odds: oddsProp, onPlayerClick,
         {night?.when && (
           <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
             <span style={{ width: 6, height: 6, borderRadius: 999, background: C.green, animation: 'oddsDot 2.2s ease-in-out infinite' }} />
-            board pulled {night.when}
+            updated {night.when}
           </span>
         )}
       </div>
@@ -898,7 +898,7 @@ export default function OddsBoard({ players = [], odds: oddsProp, onPlayerClick,
               it says the quiet part out loud instead of filling the gap with a
               green chip. */}
           <div style={{ marginTop: 22, animation: 'oddsIn .4s .2s ease both' }}>
-            <Kicker color={C.blue}>everywhere else, a price and no verdict</Kicker>
+            <Kicker color={C.text3}>everywhere else, a price and no verdict</Kicker>
             <Para>
               {['batter_hits', 'batter_hits_runs_rbis', 'batter_total_bases']
                 .map((k) => night.topScore[k]).filter(Boolean).length > 0 ? (
@@ -992,7 +992,7 @@ export default function OddsBoard({ players = [], odds: oddsProp, onPlayerClick,
           return (
             <button key={k} onClick={() => setNeed(k)} disabled={!cnt && k !== 'any'}
               title={k === 'any' ? 'Every line the books posted' : `Only the ${k}+ bet — the book's ${Number(k) - 0.5} line`}
-              style={{ ...pill(need === k, C.blue), opacity: cnt || k === 'any' ? 1 : 0.35 }}>
+              style={{ ...pill(need === k, C.orange), opacity: cnt || k === 'any' ? 1 : 0.35 }}>
               {k === 'any' ? 'Any line' : `${k}+`}
               <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, marginLeft: 4, opacity: 0.75 }}>{cnt}</span>
             </button>
@@ -1010,7 +1010,7 @@ export default function OddsBoard({ players = [], odds: oddsProp, onPlayerClick,
             Over fair <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro }}>{overFairCount}</span>
           </button>
         )}
-        <button onClick={() => setHideFrozen((v) => !v)} style={pill(hideFrozen, C.cyan)}
+        <button onClick={() => setHideFrozen((v) => !v)} style={pill(hideFrozen, C.orange)}
           title="Hide frozen quotes — games already under way. What's left is still bettable.">
           ⏱ Still bettable
         </button>

@@ -129,7 +129,7 @@ export default function SeasonRecord({ season, busy = false, msg = '', onPull, o
   return (
     <div>
       {/* ── THE RECORD, IN ONE LINE ──────────────────────────────────────── */}
-      <div style={panel(C.orange)}>
+      <div style={panel(C.border)}>
         <Head
           icon="🧾" title="Season record"
           note={season
@@ -140,10 +140,10 @@ export default function SeasonRecord({ season, busy = false, msg = '', onPull, o
           <>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(104px, 1fr))', gap: 7 }}>
               <Tile label="Home runs" value={season.total} color={C.orange} sub={`${season.perNight} a night`} />
-              <Tile label="On the board" value={season.capturePct != null ? `${season.capturePct}%` : '—'} color={C.cyan} sub={`${season.onSheet} of ${season.total}`} />
-              <Tile label="Badged (call)" value={season.badged} color={C.green} sub="TOP/HR/HIT/HRR/CONTACT, on the night" />
+              <Tile label="On the board" value={season.capturePct != null ? `${season.capturePct}%` : '—'} color={C.text} sub={`${season.onSheet} of ${season.total}`} />
+              <Tile label="Badged (call)" value={season.badged} color={C.text} sub="TOP/HR/HIT/HRR/CONTACT, on the night" />
               <Tile
-                label="Longest" value={season.longest ? `${season.longest.ft} ft` : '—'} color={C.purple}
+                label="Longest" value={season.longest ? `${season.longest.ft} ft` : '—'} color={C.text}
                 sub={season.longest ? `${season.longest.name} · ${shortDate(season.longest.date)}` : ''}
               />
             </div>
@@ -178,7 +178,7 @@ export default function SeasonRecord({ season, busy = false, msg = '', onPull, o
       {season && (
         <>
           {/* ── THE NIGHTS ──────────────────────────────────────────────── */}
-          <div style={panel(C.cyan)}>
+          <div style={panel(C.border)}>
             <Head icon="🌙" title="The nights" note="newest first · tap one" />
             {(allNights ? season.nights : season.nights.slice(0, NIGHTS_FOLD)).map((n) => {
               const isOpen = openNight === n.date
@@ -224,14 +224,14 @@ export default function SeasonRecord({ season, busy = false, msg = '', onPull, o
               )
             })}
             {season.nights.length > NIGHTS_FOLD && (
-              <button onClick={() => setAllNights((v) => !v)} style={{ ...btnStyle(C.cyan, false), marginTop: 9 }}>
+              <button onClick={() => setAllNights((v) => !v)} style={{ ...btnStyle(C.orange, false), marginTop: 9 }}>
                 {allNights ? 'Fewer nights' : `All ${season.nights.length} nights`}
               </button>
             )}
           </div>
 
           {/* ── THE HITTERS ─────────────────────────────────────────────── */}
-          <div style={panel(C.green)}>
+          <div style={panel(C.border)}>
             <Head icon="💣" title="The hitters" note={`${season.hitters.length} men have gone deep in this window`} />
             <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center', marginBottom: 8 }}>
               {[['hr', 'Most homers'], ['recent', 'Most recent'], ['badged', 'Most badged'], ['far', 'Farthest'], ['name', 'Name']].map(([k, label]) => (

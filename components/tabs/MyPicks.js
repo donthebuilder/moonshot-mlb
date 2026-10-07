@@ -1067,9 +1067,7 @@ export default function MyPicks({ players = [], results, odds, slateDate, onPlay
           </>
         ) : (
           <div style={{ fontSize: 12, color: C.text3, lineHeight: 1.75, marginTop: 10 }}>
-            Nothing riding tonight — every slot below is still MOONSHOT&apos;s. Take one name off
-            its board and tonight starts counting toward the head-to-head; leave them all and
-            the night passes without asking you a question.
+            Nothing riding tonight. Take a name off MOONSHOT&apos;s board to start the head-to-head.
           </div>
         )}
       </div>
@@ -1445,9 +1443,8 @@ export default function MyPicks({ players = [], results, odds, slateDate, onPlay
           </>
         ) : (
           <div style={{ fontSize: 12, color: C.text3, marginTop: 10, lineHeight: 1.75 }}>
-            Nothing graded yet. Take a name off its board below — once that game finishes,
-            your pick and MOONSHOT&apos;s get scored against the same bar and the head-to-head
-            starts here.
+            Nothing graded yet. Once a game you picked in finishes, your pick and MOONSHOT&apos;s
+            are scored against the same bar.
           </div>
         )}
 
@@ -1508,7 +1505,7 @@ export default function MyPicks({ players = [], results, odds, slateDate, onPlay
           need to be there"). Five lines of rules above the rail is five lines
           of card nobody can see on a phone. */}
       <div style={{ fontSize: 11.5, color: C.text3, marginBottom: 4, lineHeight: 1.7 }}>
-        Four slots a game, the same four MOONSHOT fills. Pick a game, take whoever you want.
+        Four slots a game. Pick a game, take whoever you want.
       </div>
       <WhatThis label="how a slot is graded">
         Whoever holds the slot is graded on <b style={{ color: C.text2 }}>that slot&apos;s</b> bar,

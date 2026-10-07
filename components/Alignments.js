@@ -1,4 +1,5 @@
 'use client'
+import HelpTip from './HelpTip'
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { nameOf, teamOf, mlbId, playerId } from '../lib/player'
@@ -121,19 +122,11 @@ export default function Alignments({ players = [], watchIds = null, slateDate = 
               alignments, the lanes -- and one paragraph that says what all three are. */}
           <PageHeader
             title="🔮 Numerology"
-            sub={`${rows.length} hitters · seven axes, one reduction · ${loaded ? 'birthdays + positions loaded' : 'loading birthdays + positions…'}`}
+            sub="For fun: numbers that line up. Not part of any score."
           />
           <div style={{ fontSize: 12, color: C.text2, lineHeight: 1.65, maxWidth: 860, marginBottom: 10 }}>
-            <b style={{ color: C.text }}>One page, three parts.</b> Tonight&apos;s numbers: the slate&apos;s own date reduced to one digit.
-            Alignments: who carries it, and the clubs every hitter falls into. Lanes: which lanes have run hot so far, with tonight&apos;s
-            players on them. Every number a hitter carries — the <b style={{ color: C.text2 }}>homers he is sitting on</b>, his{' '}
-            <b style={{ color: C.text2 }}>next homer</b>, his{' '}
-            <b style={{ color: C.text2 }}>jersey</b>, his <b style={{ color: C.text2 }}>birth day</b>, his{' '}
-            <b style={{ color: C.text2 }}>life path</b>, where he <b style={{ color: C.text2 }}>bats</b> and where he{' '}
-            <b style={{ color: C.text2 }}>fields</b> — reduced the same way: add the digits until one is left (17 → 8).
-            {' '}Pattern watching, not evidence: ~{rows.length} hitters over nine roots put ~{Math.round(expected)} memberships
-            in every club by arithmetic alone, so read the <b style={{ color: C.text2 }}>×</b> against that share, not the raw count.
-            Fun to track, never a reason to bet — nothing here feeds any score. Check names as you go and hand them to the builder.
+            Tonight&apos;s numbers, who carries them, and the lanes that run hot.
+            <HelpTip label="How the numbers work" text={`Every number a hitter carries (the homers he is sitting on, his next homer, his jersey, his birth day, his life path, where he bats and where he fields) is reduced the same way: add the digits until one is left (17 → 8). Pattern watching, not evidence: ~${rows.length} hitters over nine roots put ~${Math.round(expected)} memberships in every club by arithmetic alone, so read the × against that share, not the raw count. Fun to track, never a reason to bet. Nothing here feeds any score.${loaded ? '' : ' Birthdays and positions are still loading.'}`} />
           </div>
           {/* PART ONE: TONIGHT'S NUMBERS (numerology v2): the slate's own date. */}
           <div style={{ marginBottom: 10 }}><TonightsNumbers date={todayKey} theme={C} numFont={NUM_FONT} accent={C.orange} /></div>

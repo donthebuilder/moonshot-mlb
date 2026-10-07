@@ -37,13 +37,13 @@ const STEPS = [
   // being rendered here a second time — so the sentence was pointing at
   // nothing. Copy that names a section has to move when the section does.
   { n: 1, title: 'Tonight’s picks', color: C.orange, link: 'bot', linkWord: MLB_NAV.bot?.label || 'Picks',
-    body: 'is The Four — MOONSHOT’s best bat per category, three deep. If you only have a minute, that is the whole site.' },
-  { n: 2, title: 'Rank the slate', color: C.amber, link: 'fullboard', linkWord: MLB_NAV.fullboard?.label || 'Rankings',
-    body: 'ranks every hitter tonight and says why, one market at a time. A brighter cell is stronger for the hitter, scaled to tonight and nothing else. Click any name for his full breakdown.' },
-  { n: 3, title: 'Check the matchup', color: C.cyan, link: 'games', linkWord: MLB_NAV.games?.label || 'Slate',
-    body: 'opens each game in place — its read, its lineups, the head-to-head and its picks — and Pitchers ranks every starter by how attackable he is.' },
-  { n: 4, title: 'See what worked', color: C.green, link: 'results', linkWord: MLB_NAV.results?.label || 'The record',
-    body: 'grades every pick against its own job, night by night, and its Track record view shows who actually delivers when MOONSHOT names him.' },
+    body: 'is The Four: MOONSHOT’s best bat per category.' },
+  { n: 2, title: 'Rank the slate', color: C.orange, link: 'fullboard', linkWord: MLB_NAV.fullboard?.label || 'Rankings',
+    body: 'ranks every hitter tonight, one market at a time. Tap a name for his card.' },
+  { n: 3, title: 'Check the matchup', color: C.orange, link: 'games', linkWord: MLB_NAV.games?.label || 'Slate',
+    body: 'opens each game; Pitchers ranks every starter.' },
+  { n: 4, title: 'See what worked', color: C.orange, link: 'results', linkWord: MLB_NAV.results?.label || 'The record',
+    body: 'grades every pick, wins and losses alike.' },
 ]
 
 const LEGEND = [
@@ -96,7 +96,7 @@ export default function StartHere({ onNavigate }) {
     }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 }}>
         <span style={{ fontSize: 13, fontWeight: 900 }}>How to read this site</span>
-        <span style={{ fontSize: 10, color: C.text3 }}>four steps, in the order that works</span>
+        <span style={{ fontSize: 10, color: C.text3 }}>four steps</span>
         <button
           onClick={dismiss}
           style={{
@@ -160,7 +160,7 @@ export default function StartHere({ onNavigate }) {
           </span>
         ))}
         <span style={{ fontSize: 9.5, color: C.text3 }}>
-          Hover any number for what it means · full glossary lives in <b style={{ color: C.text2 }}>How this works</b>
+          Tap any number for what it means · full glossary lives in <b style={{ color: C.text2 }}>How this works</b>
         </span>
       </div>
     </div>

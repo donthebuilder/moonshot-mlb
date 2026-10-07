@@ -1,4 +1,5 @@
 'use client'
+import HelpTip from '../HelpTip'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { n, nameOf, teamOf, oppOf } from '../../lib/player'
@@ -88,8 +89,8 @@ export function gapPriceFor(odds, p, market) {
 // on 16.8% of graded player-nights against a triple's 1.2%, so a board that
 // opens on triples opens on the market you will bet least often.
 const MARKETS = [
-  ['d2', 'Doubles', '__p2', C.blue],
-  ['t3', 'Triples', '__p3', C.purple],
+  ['d2', 'Doubles', '__p2', C.orange],
+  ['t3', 'Triples', '__p3', C.orange],
 ]
 
 // ── A DENSE TABLE (2026-10-07, Donovan: "gap boards: not dense, redo as a dense table") ──
@@ -181,9 +182,9 @@ export default function GapBoard({ players = [], odds = null, onPlayerClick }) {
         <button onClick={() => setRealOnly((v) => !v)} style={{
           padding: '5px 11px', minHeight: 44, borderRadius: 999, cursor: 'pointer',
           fontSize: 10, fontWeight: 800, fontFamily: NUM_FONT,
-          border: `1px solid ${realOnly ? C.cyan : C.border}`,
-          background: realOnly ? 'rgba(34,211,238,.12)' : 'transparent',
-          color: realOnly ? C.cyan : C.text3,
+          border: `1px solid ${realOnly ? C.orange : C.border}`,
+          background: realOnly ? 'rgba(249,115,22,.12)' : 'transparent',
+          color: realOnly ? C.orange : C.text3,
         }}>{realOnly ? `Real gap bats (${hidden} hidden)` : 'Everyone'}</button>
         <span style={{ fontSize: 10, color: C.text3, marginLeft: 4 }}>
           {market === 'd2'
@@ -194,13 +195,9 @@ export default function GapBoard({ players = [], odds = null, onPlayerClick }) {
 
       {/* A board with no score, beside boards that have one, reads as a board whose score has not loaded
           unless it says otherwise in words. */}
-      <div style={{ borderLeft: `3px solid ${accent}`, padding: '1px 0 1px 10px', marginBottom: 10, fontSize: 10.5, color: C.text2, lineHeight: 1.55, maxWidth: 760 }}>
-        <b style={{ color: C.text }}>No score on this board, on purpose.</b>{' '}
-        A doubles model built from these fields was tested against 2,297 graded
-        player-nights: its top decile hit <b>0.76x</b> the base rate — worse
-        than random, which lands between 0.78x and 1.25x. The events are there;
-        the signal is not. Every column is a count or a rate MOONSHOT published.
-        {!anyPrice && ' Prices are absent from tonight’s odds file for both markets.'}
+      <div style={{ padding: '1px 0 1px 0', marginBottom: 10, fontSize: 10.5, color: C.text2, lineHeight: 1.55, maxWidth: 760 }}>
+        <b style={{ color: C.text }}>No score on this board, on purpose.</b>
+        <HelpTip label="Why no score" text={`A doubles model built from these fields was tested against 2,297 graded player-nights: its top decile hit 0.76x the base rate, worse than random, which lands between 0.78x and 1.25x. The events are there; the signal is not. Every column is a count or a rate.${!anyPrice ? ' There are no prices for either market tonight.' : ''}`} />
       </div>
 
       <DenseTable
@@ -211,7 +208,7 @@ export default function GapBoard({ players = [], odds = null, onPlayerClick }) {
         initialSort={market}
         maxHeight={560}
         maxRows={Math.max(rows.length, 1)}
-        caption="Ranked by the market you picked. Gaps is outfield geometry, not a park factor — the slate publishes none for extra-base hits. Legs is stolen-base attempt rate standing in for sprint speed, which is not published either. Arm is the opposing starter's line-drive rate and ISO against. Tap a row for his full card."
+        caption="Ranked by the market you picked. Gaps is outfield geometry, not a park factor; there is none for extra-base hits. Legs is stolen-base attempt rate standing in for sprint speed, which isn’t measured here. Arm is the opposing starter's line-drive rate and ISO against. Tap a row for his full card."
       />
     </div>
   )

@@ -1678,9 +1678,9 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                             style={{
                               marginLeft: 'auto', padding: '3px 10px', borderRadius: 999, cursor: 'pointer',
                               fontSize: TYPE.micro, fontWeight: 800, fontFamily: NUM_FONT,
-                              border: `1px solid ${barsOn ? C.cyan : C.border}`,
-                              background: barsOn ? 'rgba(34,211,238,.14)' : 'transparent',
-                              color: barsOn ? C.cyan : C.text3,
+                              border: `1px solid ${barsOn ? C.orange : C.border}`,
+                              background: barsOn ? 'rgba(249,115,22,.14)' : 'transparent',
+                              color: barsOn ? C.orange : C.text3,
                             }}
                           >📊 {barsOn ? 'Bars on' : 'Bars'}</button>
                         </div>

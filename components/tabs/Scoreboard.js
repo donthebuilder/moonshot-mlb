@@ -629,12 +629,13 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
           on 2026-09-03 (see the note further down), and this sentence never
           got updated to match. Fixed 2026-09-13 while trimming this page's
           helper text: Pulse is what actually leads both orders now. */}
-      <WhatThis label="slate context" maxWidth={760}>
-        {airRead.carrying.length > 0 && <>The air is carrying in {airRead.carrying.length} of {airRead.games} games. </>}
-        {airRead.dead.length > 0 && <>It is playing dead in {airRead.dead.length} of {airRead.games}. </>}
-        {laneRec.total > 0 && <>Homers so far — picks {laneRec.hit.picks} of {laneRec.total}, board {laneRec.hit.board} of {laneRec.total}, rated {laneRec.hit.rated} of {laneRec.total}. </>}
-        {liveNow ? 'Live action leads below.' : 'Pulse leads; the sortable full board follows.'}
-      </WhatThis>
+      {(airRead.carrying.length > 0 || airRead.dead.length > 0 || laneRec.total > 0) && (
+        <WhatThis label="slate context" maxWidth={760}>
+          {airRead.carrying.length > 0 && <>The air is carrying in {airRead.carrying.length} of {airRead.games} games. </>}
+          {airRead.dead.length > 0 && <>It is playing dead in {airRead.dead.length} of {airRead.games}. </>}
+          {laneRec.total > 0 && <>Homers so far — picks {laneRec.hit.picks} of {laneRec.total}, board {laneRec.hit.board} of {laneRec.total}, rated {laneRec.hit.rated} of {laneRec.total}.</>}
+        </WhatThis>
+      )}
 
       {order}
 
@@ -643,10 +644,7 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
           open on "who to look at first tonight," a leftover clause with
           nothing before it. */}
       <WhatThis>
-        Every hitter on the slate, #1 to the bottom, in board order — <b style={{ color: C.text2 }}>you
-        can use the order without reading a single column</b>. Sort any other header for a
-        different question — Hit for contact plays, Park for launch pads, K risk for
-        strikeouts. Tap the ⓘ next to a column name for what it means.
+        Every hitter tonight, best first. Tap a header to sort; tap the ⓘ for what a column means.
       </WhatThis>
 
       {/* Why a name is on this board twice, answered before it is asked.
@@ -682,7 +680,7 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
         // is the one place the whole board can be read #1 to #N; a "show 200
         // more" door on it defeated the point. ~270 rows renders fine.
         maxRows={Math.max(rows.length, 1)}
-        caption={"Every stat here sorts — click a header, shift-click to add a tiebreaker. Columns run in groups: the model scores, then the season line, then the split against the hand tonight's starter throws, then statcast, then the arm itself. Colour follows what you sort by, plus HR, which stays lit as the through-line. Where a column is drawn against a league mark, ▲ means above it and ▼ below, and a number sitting on league reads blank because that is not a finding — hover any header for the mark it uses. P ERA, P WHIP, P HH%, P FB%, P Brl%, P EV and P PullAir% run warm-is-good-for-the-bat; P K/9 and P SwStr% run the other way, because missing bats is what stops a homer. Blank cells are unpublished, not zero."}
+        caption={"Every stat here sorts — tap a header, or shift-click to add a tiebreaker. Columns run in groups: the model scores, then the season line, then the split against the hand tonight's starter throws, then statcast, then the arm itself. Colour follows what you sort by, plus HR, which stays lit as the through-line. Where a column is drawn against a league mark, ▲ means above it and ▼ below, and a number sitting on league reads blank because that is not a finding — tap any header for the mark it uses. P ERA, P WHIP, P HH%, P FB%, P Brl%, P EV and P PullAir% run warm-is-good-for-the-bat; P K/9 and P SwStr% run the other way, because missing bats is what stops a homer. Blank cells are missing data, not zero."}
       />
     </div>
   )

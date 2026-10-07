@@ -1,4 +1,5 @@
 'use client'
+import HelpTip from '../HelpTip'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { n, nameOf, teamOf, oppOf, txt } from '../../lib/player'
@@ -221,11 +222,8 @@ export default function StealBoard({ players = [], odds = null, onPlayerClick })
   return (
     <div>
       <div style={{ fontSize: 11, color: C.text3, lineHeight: 1.65, marginBottom: 8, maxWidth: 760 }}>
-        Every runner on tonight&apos;s slate. <b style={{ color: C.text2 }}>Spot</b> is MOONSHOT&apos;s
-        steal-spot score for this man against tonight&apos;s arm and catcher, scaled by how often he
-        reaches base. Everything else is a raw count or a published rate, unmodelled.{' '}
-        <b style={{ color: C.text2 }}>1+ SB</b> is the book&apos;s number
-        {priced ? <> — <b style={{ color: C.text2 }}>{priced}</b> of these runners are priced tonight</> : ' — none priced yet tonight'}.
+        Every runner tonight, best steal spot first.
+        <HelpTip label="About Spot" text={`Spot is MOONSHOT's steal-spot score for this runner against tonight's arm and catcher, scaled by how often he reaches base. Everything else is a raw count or a rate, unmodelled. 1+ SB is the book's number${priced ? `; ${priced} of these runners are priced tonight` : '; none are priced yet tonight'}.`} />
       </div>
 
       {feed && (
@@ -233,11 +231,9 @@ export default function StealBoard({ players = [], odds = null, onPlayerClick })
           <b style={{ color: C.orange, fontFamily: NUM_FONT, fontSize: 10 }}>⚠ NO ARM DATA TONIGHT</b>
           <div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.6, marginTop: 4 }}>
             Not one of the <b style={{ color: C.text2 }}>{feed.catchers}</b> catchers on this slate has a
-            published caught-stealing rate, pop time or arm strength
-            {feed.status ? <> — every row reads <code style={{ fontFamily: NUM_FONT }}>{feed.status}</code></> : null}.
-            That is the whole league at once, so read it as the feed not landing rather than as a slate
-            full of unmeasured backups. <b style={{ color: C.text2 }}>Half of the Spot score is missing</b>{' '}
-            on every row below.
+            caught-stealing rate, pop time or arm strength yet. That is the whole league at once, so read
+            it as the numbers not having landed rather than as a slate full of unmeasured backups.{' '}
+            <b style={{ color: C.text2 }}>Half of the Spot score is missing</b> on every row below.
           </div>
         </div>
       )}
@@ -256,7 +252,7 @@ export default function StealBoard({ players = [], odds = null, onPlayerClick })
         initialSort="risk"
         maxHeight={560}
         maxRows={Math.max(rows.length, 1)}
-        caption="Ranked by MOONSHOT's steal-spot score. Success is read against the 75% break-even — under it the attempt costs more than it wins. A blank Spot is a refusal, not a zero. Counts are MOONSHOT's published season fields, graded nightly against the box score. Tap a row for his full card."
+        caption="Ranked by MOONSHOT's steal-spot score. Success is read against the 75% break-even — under it the attempt costs more than it wins. A blank Spot is a refusal, not a zero. Counts are season totals, checked nightly against the box score. Tap a row for his full card."
       />
     </div>
   )

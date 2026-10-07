@@ -499,7 +499,7 @@ export default function PitcherModal({ pitcher, slateMode, onClose, onPlayerClic
             </div>
             <div style={{ fontSize: 8.5, color: C.text3 }}>
               <b style={{ color: C.orange }}>orange</b> = good for the bats facing him ·{' '}
-              <b style={{ color: C.blue }}>blue</b> = his strength — hover any tile for what it means
+              <b style={{ color: C.blue }}>blue</b> = his strength — tap any tile for what it means
             </div>
           </ModalBand>
 

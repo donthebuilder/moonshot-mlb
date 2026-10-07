@@ -49,7 +49,7 @@ export default function StealLooksStrip({ players = [], odds = null, onPlayerCli
   return (
     <div style={{
       border: `1px solid ${C.border}`, borderRadius: 14, padding: '11px 14px 10px', marginBottom: 12,
-      background: `linear-gradient(155deg, ${C.bg2}, ${alpha(C.cyan, 0.04)})`,
+      background: C.bg2,
     }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
         <span style={{ fontSize: 12, fontWeight: 900 }}>🏃 Steal looks tonight</span>
@@ -59,7 +59,7 @@ export default function StealLooksStrip({ players = [], odds = null, onPlayerCli
         {onNavigate && (
           <span onClick={() => onNavigate('steals')}
             title="Every runner on the slate, sortable, with prices"
-            style={{ marginLeft: 'auto', fontSize: 9.5, color: C.cyan, cursor: 'pointer', fontFamily: NUM_FONT, textDecoration: 'underline', textDecorationStyle: 'dotted' }}>
+            style={{ marginLeft: 'auto', fontSize: 9.5, color: C.orange, cursor: 'pointer', fontFamily: NUM_FONT, textDecoration: 'underline', textDecorationStyle: 'dotted' }}>
             steal board →
           </span>
         )}
@@ -76,12 +76,12 @@ export default function StealLooksStrip({ players = [], odds = null, onPlayerCli
               title={txt(p.steal_risk_note) || ''}
               style={{
                 textAlign: 'left', cursor: onPlayerClick ? 'pointer' : 'default', minWidth: 0,
-                border: `1px solid ${alpha(C.cyan, i === 0 ? 0.5 : 0.25)}`, background: alpha(C.cyan, i === 0 ? 0.09 : 0.04),
+                border: `1px solid ${i === 0 ? C.border2 : C.border}`, background: 'transparent',
                 borderRadius: 10, padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 3,
               }}>
               <span style={{ display: 'flex', alignItems: 'baseline', gap: 6, minWidth: 0 }}>
                 <b style={{ fontSize: 11.5, minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', color: C.text }}>{nameOf(p)}</b>
-                <span style={{ marginLeft: 'auto', fontFamily: NUM_FONT, fontWeight: 900, fontSize: 13, color: risk >= 60 ? verdictInk(true).color : C.cyan, flexShrink: 0 }}
+                <span style={{ marginLeft: 'auto', fontFamily: NUM_FONT, fontWeight: 900, fontSize: 13, color: risk >= 60 ? verdictInk(true).color : C.text, flexShrink: 0 }}
                   title="MOONSHOT's steal-spot score, 0–100">{risk.toFixed(0)}</span>
               </span>
               <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>

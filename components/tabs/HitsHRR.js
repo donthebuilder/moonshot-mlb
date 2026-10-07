@@ -135,19 +135,19 @@ const ANSWER_FALLBACK = 'every ranked board in one place, each with its record s
 // (lib/boardOrder.js). A saved or shared view=top lands here.
 const MARKET_LENSES = [
   { key: 'hr',      label: 'The Board', color: C.orange },
-  { key: 'hit',     label: 'Hits',    color: C.purple },
-  { key: 'hrr',     label: 'HRR',     color: C.cyan },
-  { key: 'contact', label: 'Contact', color: C.blue },
+  { key: 'hit',     label: 'Hits',    color: C.orange },
+  { key: 'hrr',     label: 'HRR',     color: C.orange },
+  { key: 'contact', label: 'Contact', color: C.orange },
 ]
 const ANGLE_LENSES = [
-  { key: 'weakspot',    label: 'Weak Spot',    color: C.yellow },
-  { key: 'aligned',     label: 'Aligned',      color: C.purple },
+  { key: 'weakspot',    label: 'Weak Spot',    color: C.orange },
+  { key: 'aligned',     label: 'Aligned',      color: C.orange },
   { key: 'matchupedge', label: 'Matchup Edge', color: C.orange },
   // 🧊 AFTER A BLANK (2026-08-15) -- Donovan: "show all the players who blanked
   // in their last game ... on a chart, have a column with price [and hit] rate
   // for hits and 1 HRR." A lens rather than a tab: it is a board, it ranks, and
   // it belongs beside the other eight.
-  { key: 'blank',       label: 'After a Blank', color: C.cyan },
+  { key: 'blank',       label: 'After a Blank', color: C.orange },
 ]
 const LENS_TITLE = (o) => `${o.label} — ${ANSWERS[o.key] || ''}`
 
@@ -161,37 +161,37 @@ const LENS_TITLE = (o) => `${o.label} — ${ANSWERS[o.key] || ''}`
 // module-level literal keeps the palette it was imported with. See #23.
 const PROOF = (rec) => ({
   top: {
-    color: C.yellow,
+    color: C.orange,
     head: 'MOONSHOT’s overall ranking',
-    body: 'top_board_score_v2 blends every lane into one number; the TOP pick is MOONSHOT’s single favorite play per game. Since a TOP designation is "best in his game", his 🤖 lights here only when he IS tonight’s TOP pick.',
+    body: 'The overall score blends every lane into one number; the TOP pick is MOONSHOT’s single favorite play per game. Since a TOP designation is "best in his game", his 🤖 lights here only when he IS tonight’s TOP pick.',
   },
   hr: {
     color: C.orange,
     head: 'The Board — one order, everywhere on the site',
-    body: 'Every hitter tonight, ranked once: the HR score, his season home run count and his season exit velocity, each turned into a rank within tonight\u2019s slate and averaged. This is the same order as the full board (#tab=fullboard), the homer alerts\u2019 "#N on the board" and the MOONSHOT BOARD post. The old Top lens (top_board_score_v2) is folded into it \u2014 two boards with one name was the confusion.',
+    body: 'Every hitter tonight, ranked once: the HR score, his season home run count and his season exit velocity, each turned into a rank within tonight\u2019s slate and averaged. It is the same order everywhere on the site.',
   },
   hit: {
-    color: C.purple,
+    color: C.orange,
     head: 'Hit calls against the base rate, on the locked record',
-    body: `HIT picks are graded on getting at least one hit. ${rec?.picks?.HIT ? `On the ${rec.source} (${lockedCallsLine(rec, rec.picks.HIT.n)}) they got one ${pickRate(rec.picks.HIT)}, against ${rec.picks.HIT.base?.toFixed(1)}% for every hitter on the board.` : 'The locked record is loading.'} The "When picked" column below is each hitter’s own delivery record in this exact category, from the post-game graded files.`,
+    body: `HIT picks are graded on getting at least one hit. ${rec?.picks?.HIT ? `On the ${rec.source} (${lockedCallsLine(rec, rec.picks.HIT.n)}) they got one ${pickRate(rec.picks.HIT)}, against ${rec.picks.HIT.base?.toFixed(1)}% for every hitter on the board.` : 'The locked record is loading.'} The "When picked" column below is each hitter’s own delivery record in this exact category, from graded results.`,
   },
   hrr: {
-    color: C.cyan,
+    color: C.orange,
     head: '2+ hits, runs and RBI',
     body: `HRR picks are graded on clearing 2+ H+R+RBI.${rec?.picks?.HRR ? ` On the ${rec.source}: ${pickRate(rec.picks.HRR)}, against ${rec.picks.HRR.base?.toFixed(1)}% for every hitter on the board.` : ''}`,
   },
   contact: {
-    color: C.blue,
+    color: C.orange,
     head: 'Two singles clear it — which is why the power scores are wrong here',
-    body: `TWO BASES IS THE ODD BAR ON THIS SITE, and it is the key to reading this board: it can be cleared without any power at all. A double does it, and so do two singles. Sluggers strike out; the men who pile up bases two at a time are contact hitters. So a total-bases play is a frequency bet wearing a power bet’s clothes, and the power boards are the wrong place to shop for it. The graded files record no walks, so a pick who walked twice is scored a failure. ${rec?.picks?.CONTACT ? `On the ${rec.source}, CONTACT picks cleared 2+ bases ${pickRate(rec.picks.CONTACT)}, against ${rec.picks.CONTACT.base?.toFixed(1)}% for every hitter on the board.` : ''}`,
+    body: `TWO BASES IS THE ODD BAR ON THIS SITE, and it is the key to reading this board: it can be cleared without any power at all. A double does it, and so do two singles. Sluggers strike out; the men who pile up bases two at a time are contact hitters. So a total-bases play is a frequency bet wearing a power bet’s clothes, and the power boards are the wrong place to shop for it. Walks aren’t counted, so a pick who walked twice is scored a failure. ${rec?.picks?.CONTACT ? `On the ${rec.source}, CONTACT picks cleared 2+ bases ${pickRate(rec.picks.CONTACT)}, against ${rec.picks.CONTACT.base?.toFixed(1)}% for every hitter on the board.` : ''}`,
   },
   weakspot: {
-    color: C.yellow,
+    color: C.orange,
     head: 'Weak spot: the starter has been hit in this slot',
     body: 'A weak spot means tonight’s starter has given up real damage to this lineup slot.',
   },
   aligned: {
-    color: C.purple,
+    color: C.orange,
     head: 'Aligned: weak spot, pitch match and power at once',
     body: 'Aligned means a stack: weak spot ⭐ AND pitch match 🎯 AND ISO ≥ .18. None of the three has been measured on the clean pregame record yet.',
   },
@@ -314,7 +314,7 @@ function AlignedSignalsSection({ players, onAdd, onWatch, watchIds, onPlayerClic
           for the same reason -- a category where every name is carried by one
           column is a category worth distrusting. */}
       <SectionHead
-        color={C.purple} icon="🧩" title="Aligned Signals"
+        color={C.orange} icon="🧩" title="Aligned Signals"
         count={aligned.length}
       >
         Weak-spot lineup matchup, pitch-type match, and real recent contact quality all line up.
@@ -353,7 +353,7 @@ function MatchupEdgeSection({ players, onAdd, onWatch, watchIds, onPlayerClick }
           for the same reason -- a category where every name is carried by one
           column is a category worth distrusting. */}
       <SectionHead
-        color={C.cyan} icon="🎯" title="Matchup Edge"
+        color={C.orange} icon="🎯" title="Matchup Edge"
         count={edge.length}
       >
         Documented batter-vs-pitch exploit.
@@ -429,7 +429,7 @@ function B2BStrip({ list, verified, loading, cashed, onPlayerClick }) {
       note="last-game homer proven · no hit-rate claim"
       rows={[
         { key: 'b2b', label: '🔁 back-to-back — played the very next game', items: b2bItems(strict, cashed, onPlayerClick) },
-        { key: 'off', label: '🌙 returning from a day off', accent: C.blue || C.orange, items: b2bItems(dayOff, cashed, onPlayerClick) },
+        { key: 'off', label: '🌙 returning from a day off', accent: C.orange, items: b2bItems(dayOff, cashed, onPlayerClick) },
       ]}
     />
   )

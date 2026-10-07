@@ -29,8 +29,8 @@ export default function ComboLinks({ here }) {
         <a key={k} href={`#tab=${k}`} title={title}
           onClick={(e) => { e.preventDefault(); const h = hashParams(); h.set('tab', k); window.location.hash = h.toString() }}
           style={{
-          fontSize: 9.5, fontWeight: 800, color: C.cyan, textDecoration: 'none',
-          border: `1px solid ${C.cyan}44`, borderRadius: 999, padding: '2px 9px', background: `${C.cyan}0d`,
+          fontSize: 9.5, fontWeight: 800, color: C.orange, textDecoration: 'none',
+          border: `1px solid ${C.border2}`, borderRadius: 999, padding: '2px 9px', background: 'transparent',
         }}>{label} →</a>
       ))}
     </div>

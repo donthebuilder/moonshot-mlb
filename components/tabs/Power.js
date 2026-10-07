@@ -127,12 +127,12 @@ const LEAD_MIN_PA = 150
 // site-wide (Donovan). Only the top-level nav tabs in lib/theme.js carry emoji.
 const LENSES = [
   { k: 'longest', label: 'Farthest', tag: 'who hits it the farthest', color: C.orange },
-  { k: 'power3', label: 'Power-3', tag: 'who hits it hardest, all season', color: C.purple },
-  { k: 'parks', label: 'Parks', tag: 'where the air is helping', color: C.cyan },
+  { k: 'power3', label: 'Power-3', tag: 'who hits it hardest, all season', color: C.orange },
+  { k: 'parks', label: 'Parks', tag: 'where the air is helping', color: C.orange },
   // The tag says "hits" and not "will hit" because this lens describes homers
   // already struck; the other three project tonight. One word, and it is the
   // difference between a description and a claim.
-  { k: 'shape', label: 'Shape', tag: 'what kind of homer he hits', color: C.purple },
+  { k: 'shape', label: 'Shape', tag: 'what kind of homer he hits', color: C.orange },
 ]
 
 const ord = (i) => (i % 10 === 1 && i % 100 !== 11 ? 'st' : i % 10 === 2 && i % 100 !== 12 ? 'nd' : i % 10 === 3 && i % 100 !== 13 ? 'rd' : 'th')
@@ -227,7 +227,7 @@ export default function PowerTab({ players, slateDate = '', results = null, onWa
     }
     if (strongest) {
       cands.push({
-        kind: 'power3', p: strongest, color: C.purple, lens: 'power3',
+        kind: 'power3', p: strongest, color: C.orange, lens: 'power3',
         kicker: 'The season-power read of the night',
         conv: convictionOf(strongest, p3Pool, p3Of),
         pct: percentileOf(p3Of(strongest), p3Pool.map(p3Of)),
@@ -368,8 +368,8 @@ export default function PowerTab({ players, slateDate = '', results = null, onWa
                   style={{ color: C.text2, cursor: onPlayerClick ? 'pointer' : 'default' }}
                 >{nameOf(lead.other.p)}</b>
                 {lead.other.kind === 'power3'
-                  ? <> is the strongest season-power bat on the slate — Power-3 <Num color={C.purple}>{p3Of(lead.other.p).toFixed(0)}</Num>,{' '}
-                      <Num color={C.purple}>{n(lead.other.p?.season_avg_ev, 0).toFixed(1)}</Num> average EV all year</>
+                  ? <> is the strongest season-power bat on the slate — Power-3 <Num color={C.orange}>{p3Of(lead.other.p).toFixed(0)}</Num>,{' '}
+                      <Num color={C.orange}>{n(lead.other.p?.season_avg_ev, 0).toFixed(1)}</Num> average EV all year</>
                   : <> is the farthest-ball projection on the slate at <Num color={C.orange}>{distOf(lead.other.p).toFixed(0)}</Num></>}
                 .{' '}
                 <button

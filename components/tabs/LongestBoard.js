@@ -1,4 +1,5 @@
 'use client'
+import HelpTip from '../HelpTip'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import {
@@ -238,8 +239,7 @@ export default function LongestBoard({ players = [], results = null, onWatch, wa
       )}
 
       <div style={{
-        fontSize: 10.5, color: C.text3, lineHeight: 1.6, margin: '6px 0 12px',
-        borderLeft: `2px solid ${C.orange}`, paddingLeft: 10, maxWidth: 700,
+        fontSize: 10.5, color: C.text3, lineHeight: 1.6, margin: '6px 0 12px', maxWidth: 700,
       }}>
         {!showTitle && (
           <>
@@ -248,17 +248,7 @@ export default function LongestBoard({ players = [], results = null, onWatch, wa
             probability board</b>.{' '}
           </>
         )}
-        Different question from the HR tab, and it regularly disagrees with it.{' '}
-        <b style={{ color: C.text2 }}>Adjusted</b> multiplies the raw score by the park&apos;s distance
-        factor and a small temperature term — warm air carries, which is physics rather than a model
-        opinion. It&apos;s kept gentle on purpose: MOONSHOT already folds park into the raw score, and
-        double-counting it would just rank Coors first every night.{' '}
-        {/* The two clauses the page's old "What this answers" block carried.
-            That block sat above the board repeating what the board already
-            said, so it's gone and its content lives here, on the board it was
-            describing. Condense the form, keep every fact. */}
-        Use it for longest-homer markets, and for spotting warning-track power that a friendly park
-        turns into a homer.
+        <HelpTip label="About Adjusted" text="This is a different question from the HR board, and it regularly disagrees with it. Adjusted multiplies the raw score by the park's distance factor and a small temperature term; warm air carries, which is physics rather than a model opinion. It is kept gentle on purpose, because MOONSHOT already folds park into the raw score and double-counting it would rank Coors first every night. Use it for longest-homer markets, and for spotting warning-track power that a friendly park turns into a homer." />
       </div>
 
       {/* 🚀 LONGEST TRACKER — tonight's actual bombs by distance, live off
