@@ -25,10 +25,10 @@ export default function DashFooter({ sport, theme: C, onGuide = null }) {
         <a href="/terms" style={{ ...link, padding: '6px 2px' }}>Terms</a>
         {email ? <>{sep}<a href={`mailto:${email}`} style={{ ...link, padding: '6px 2px' }}>Contact</a></> : null}
       </nav>
-      <div style={{ maxWidth: 640, margin: '0 auto' }}>
-        {name} is stats and analysis for entertainment — measured data, graded in public.
-        It is <b style={{ color: C.text2 }}>not financial, betting, or investment advice</b>, and nothing here is a
-        recommendation to wager. If you bet, that&apos;s your decision and your responsibility — play responsibly.
+      {/* ONE LINE + THE FULL TEXT (2026-10-07 text sweep): the three-sentence disclaimer lives on /terms#disclaimer */}
+      <div style={{ maxWidth: 640, margin: '0 auto', display: 'flex', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', columnGap: 6 }}>
+        <span>Stats for entertainment, not betting or financial advice. Play responsibly.</span>
+        <a href="/terms#disclaimer" style={{ ...link, display: 'inline-flex', alignItems: 'center', minHeight: 44, padding: '0 4px' }}>Full text</a>
       </div>
     </footer>
   )

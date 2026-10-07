@@ -124,15 +124,16 @@ export default function TabExplainer({ tab, texts = TEXTS, storageKey = 'tab_exp
   // (LAMP / MOONSHOT layout shift, 2026-10-06).
   useLayoutEffect(() => {
     if (!info) return
-    // Auto-open on the FIRST visit to each tab, pill afterward.
+    // ONCE PER VISITOR, PER PRODUCT (2026-10-07 text sweep, audit X4): the box opens on the first tab a
+    // visitor ever lands on under this storageKey, and every other tab (and every visit after) is the
+    // small pill. It used to open once per TAB, so a new visitor met a 120-160px banner on every page.
     try {
       const seen = JSON.parse(localStorage.getItem(storageKey) || '{}')
+      const first = Object.keys(seen).length === 0
+      setOpen(first)
       if (!seen[tab]) {
-        setOpen(true)
         seen[tab] = 1
         localStorage.setItem(storageKey, JSON.stringify(seen))
-      } else {
-        setOpen(false)
       }
     } catch { setOpen(false) }
   }, [tab])
