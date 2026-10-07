@@ -1,6 +1,7 @@
 'use client'
 import CallStatusBadge from './CallStatusBadge'
 import { useSportTheme } from './SportTheme'
+import { TeamTap } from './EntityTap'
 
 // ONE ROW FOR EVERY STORYLINES LINE (HISTORY WATCH 2 step 1, 2026-09-27).
 // Donovan: "why are they two different text?" -- MOONSHOT's Storylines drew
@@ -42,7 +43,8 @@ export function StoryParts({ parts, theme: C, numFont }) {
   const { accent, themed } = useSportTheme()
   const num = themed ? accent : C.orange
   return (parts || []).map((x, j) => (x.t === 'name'
-    ? <b key={j} style={{ color: C.text }}>{x.v}</b>
+    // a club code inside a story ("faces IND") is a link to the club through the product's team door (nav audit 10-06)
+    ? <b key={j} style={{ color: C.text }}><TeamTap abbr={x.v}>{x.v}</TeamTap></b>
     : x.t === 'num' ? <b key={j} style={{ fontFamily: numFont, color: num }}>{x.v}</b> : <span key={j}>{x.v}</span>))
 }
 

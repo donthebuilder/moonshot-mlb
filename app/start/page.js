@@ -78,7 +78,7 @@ import { nhlCaptureFrom, readNhlRecords } from '../../lib/record/nhl'
 import { readMlbEvents } from '../../lib/record/mlb'
 import { readNflEvents } from '../../lib/record/nfl'
 import { eventCapture } from '../../lib/record/shape'
-import { appHref, playerHref, SPORT_KEYS, BRAND, isHiddenSport } from '../../lib/routes'
+import { appHref, playerHref, teamHref, SPORT_KEYS, BRAND, isHiddenSport } from '../../lib/routes'
 import { readNbaBoard } from '../../lib/nba/boardRead'
 import { nbaCaptureFrom, readNbaRecords } from '../../lib/record/nba'
 import styles from './start.module.css'
@@ -166,7 +166,9 @@ const START_TTL = 120
 /** A bite with only what the markup reads. `p` (the full row) never crosses. */
 // `pid` (2026-09-27, CLICK-EVERYTHING-PLAN): the player's id rides along so his name links
 // to his card in the app -- the id only, never the row.
-const biteText = (b) => ({ k: b.k, icon: b.icon, tag: b.tag, name: b.name, why: b.why, stat: b.stat, col: b.col, pid: b.p?.player_id ?? b.p?.id ?? null, gameId: b.gameId ?? null })
+const biteText = (b) => ({ k: b.k, icon: b.icon, tag: b.tag, name: b.name, why: b.why, stat: b.stat, col: b.col, pid: b.p?.player_id ?? b.p?.id ?? null, gameId: b.gameId ?? null,
+  // his club and the opponent, so a "DET vs CAR" in the line is two links (codes only, never the row)
+  clubs: [b.p?.team, b.p?.opp ?? b.p?.opponent].filter((c) => typeof c === 'string' && /^[A-Z]{2,4}$/.test(c)) })
 
 const SPORTS = {
   mlb: {
@@ -528,6 +530,15 @@ const loadRecord = unstable_cache(computeRecord, ['start-record-v3'], { revalida
 // LampDashboard's deep link; the others land on their Games tab).
 const GAME_TAB = { mlb: 'games', nfl: 'games', nhl: 'game', nba: 'game' }
 
+// the club codes inside a line of text become links to their pages (where the product has them)
+function WithClubs({ text, clubs = [], sport }) {
+  const set = [...new Set(clubs)].filter((c) => teamHref(sport, c))
+  if (!set.length) return text
+  return String(text).split(new RegExp(`\\b(${set.join('|')})\\b`)).map((x, i) => (set.includes(x)
+    ? <a key={i} className="tap-link" href={teamHref(sport, x)} style={{ color: 'inherit', textDecoration: 'none', display: 'inline-block', padding: '15px 8px', margin: '-15px -8px' }}>{x}</a>
+    : x))
+}
+
 function Bite({ b, sport = 'mlb' }) {
   return (
     <li className={styles.bite}>
@@ -539,7 +550,7 @@ function Bite({ b, sport = 'mlb' }) {
         : b.gameId != null
           ? <a className={`${styles.biteName} tap-link`} href={`${appHref(sport, GAME_TAB[sport] || 'games')}&game=${encodeURIComponent(String(b.gameId))}`} style={{ color: 'inherit', textDecoration: 'none' }}>{b.name}</a>
           : <span className={styles.biteName}>{b.name}</span>}
-      <span className={styles.biteWhy}>{b.why}</span>
+      <span className={styles.biteWhy}><WithClubs text={b.why} clubs={b.clubs} sport={sport} /></span>
       <span className={styles.biteStat}>{b.stat}</span>
     </li>
   )

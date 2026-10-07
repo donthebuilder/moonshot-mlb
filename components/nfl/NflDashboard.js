@@ -1,5 +1,5 @@
 'use client'
-import { TeamNav } from '../../lib/teamNav'
+import { TeamNav, GameNav } from '../../lib/teamNav'
 import HighlightBar from '../HighlightBar'
 import { SportTheme } from '../SportTheme'
 import { easternToday, easternDate } from '../../lib/data'
@@ -196,6 +196,8 @@ export default function NflDashboard({ palettePass = 0 }) {
     writeHash(hash, { push: tab === 'team' && had !== code })
     leaveTarget('team', code)
   }
+  // a game (by its id) opens on the Games tab, which writes game=<id> into the address
+  const openGameNav = (id) => { if (!id) return; leaveTarget('game', id); setTab('games') }
   const setTab = (next, { push = true } = {}) => {
     if (!NFL_TABS.has(next)) return
     setMissingTab('')
@@ -457,6 +459,7 @@ export default function NflDashboard({ palettePass = 0 }) {
           {/* the ↻ on the live pages: nothing refreshes on a timer (lib/liveRefresh.js) */}
           {isLiveTab('nfl', tab) && <RefreshStamp live={nflLive} style={{ marginBottom: 8 }} />}
           <TeamNav.Provider value={openTeamPage}>
+          <GameNav.Provider value={openGameNav}>
           <ErrorBoundary resetKey={tab} label={`the ${tab} tab`}>
             {tab === 'home' && <Home data={slate} picks={picks} results={nflResults} matchup={matchup} logs={logs} onPlayerClick={openPlayer} setTab={setTab} liveSnap={liveSnap} />}
             {/* MOONSHOT's Players page (2026-09-30): list + the card inline. */}
@@ -501,6 +504,7 @@ export default function NflDashboard({ palettePass = 0 }) {
             {tab === 'storylines' && <StorylinesPage sport="nfl" eyebrow="TUDDY · STORYLINES" theme={C} numFont={NUM_FONT} accent={C.green} onOpenGame={(id) => { leaveTarget('game', id); setTab('games') }} onOpenPlayer={(id) => { const p = (data?.players || []).find((x) => String(x.player_id) === String(id)); if (p) openPlayer(p, 'TD') }} />}
           </ErrorBoundary>
           <DashFooter sport="nfl" theme={C} onGuide={() => setTab('guide')} />
+          </GameNav.Provider>
           </TeamNav.Provider>
           </SportTheme>
         </>

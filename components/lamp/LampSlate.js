@@ -135,7 +135,7 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
             onOpenGame={(id) => { setHashGame(String(id)); setView('games') }} />
           {/* WEAK SPOTS, MOONSHOT's "★ Weak spots" cards (00Q step 2). */}
           <LampWeakSpots items={items} games={all} onOpenPlayer={onOpenPlayer} />
-          <AllGamesTable kept={items} market="GOAL" onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} />
+          <AllGamesTable kept={items} market="GOAL" onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} onOpenGame={onOpenGame} />
         </>
       )}
       <DelayedBanner error={error} what="the slate" />
