@@ -228,7 +228,7 @@ export function defenseTiles(matchup, team, rushThreat = passRushThreat(matchup,
     if (d.blitz_pct != null) out.push({ k: 'BLITZ', v: `${d.blitz_pct}%`, sub: rk(r.blitz_pct, t.defense) })
     if (d.box_avg != null) out.push({ k: 'IN THE BOX', v: String(d.box_avg), sub: d.box8_pct != null ? `8+ on ${d.box8_pct}%` : null })
   }
-  if (rushThreat && rushThreat.percentile >= PASS_RUSH_AVOID) out.push({ k: 'EDGE THREAT', v: rushThreat.name, sub: `${ordinal(Math.round(rushThreat.percentile))} pct · ${rushThreat.position}`, tone: C.text3 })
+  if (rushThreat && rushThreat.percentile >= PASS_RUSH_AVOID) out.push({ k: 'EDGE THREAT', v: String(rushThreat.name || '').replace(/^(\S)\S*\s+(.+)$/, '$1. $2'), sub: `${rushThreat.position} · ${ordinal(Math.round(rushThreat.percentile))}`, tone: C.text3 })
   return out
 }
 /** The one caveat line under the tiles: which seasons, over how many games. */
@@ -275,7 +275,7 @@ export function PassGame({ matchup, data, off, def, onPlayerClick = null }) {
   // MobileFold); on a desktop it renders exactly as before.
   const top = tg[0] ? (rowOf(tg[0].player_id)?.name || tg[0].name) : null
   return (
-    <MobileFold title="Top targets · corners" summary={`${off}${top ? ` · ${top}` : ''} vs ${def}'s corners`} count={tg.length + cb.length} accent={C.green}>
+    <MobileFold title="Top targets · corners" summary={top ? `${top} vs ${def}'s corners` : `${off} vs ${def}'s corners`} count={tg.length + cb.length} accent={C.green}>
     <div style={{ marginBottom: 12 }}>
       <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))' }}>
         <div>

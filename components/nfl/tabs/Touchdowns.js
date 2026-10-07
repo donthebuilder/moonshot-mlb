@@ -363,7 +363,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
       {/* ⚖️ COMPARE TWO (2026-09-16): below the board now -- a tool you reach
           for after reading the list, not chrome in front of it. */}
       <div style={{ marginTop: 14 }}>
-        <MobileFold title="⚖️ Compare two players" summary="side by side, stat for stat" accent={C.green}>
+        <MobileFold title="⚖️ Compare two players" summary="side by side" accent={C.green}>
           <TdCompare rows={rows} matchup={matchup} odds={odds} onPlayerClick={onPlayerClick} />
         </MobileFold>
       </div>

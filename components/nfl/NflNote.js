@@ -14,7 +14,7 @@ export default function NflNote({ tab, style, why: whyOverride }) {
       {t.sub}
       {t.why && (
         <button type="button" aria-label="More about this page" onClick={() => explain('About this page', t.why)}
-          style={{ background: 'none', border: 'none', color: C.text2, cursor: 'pointer', font: 'inherit', fontWeight: 700, padding: '12px 8px', margin: '-12px -4px', minHeight: 0, minWidth: 0 }}>(?)</button>
+          style={{ background: 'none', border: 'none', color: C.text2, cursor: 'pointer', font: 'inherit', fontWeight: 700, padding: '14px 14px', margin: '-14px -10px', minHeight: 0, minWidth: 0 }}>(?)</button>
       )}
     </span>
   )
@@ -25,6 +25,6 @@ export function QMark({ label = 'More', text }) {
   if (!text) return null
   return (
     <button type="button" aria-label={label} onClick={() => explain(label, text)}
-      style={{ background: 'none', border: 'none', color: C.text2, cursor: 'pointer', font: 'inherit', fontWeight: 700, padding: '12px 8px', margin: '-12px -4px', minHeight: 0, minWidth: 0 }}>(?)</button>
+      style={{ background: 'none', border: 'none', color: C.text2, cursor: 'pointer', font: 'inherit', fontWeight: 700, padding: '14px 14px', margin: '-14px -10px', minHeight: 0, minWidth: 0 }}>(?)</button>
   )
 }

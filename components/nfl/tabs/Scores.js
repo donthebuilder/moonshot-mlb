@@ -133,7 +133,7 @@ export default function Scores({ data, onPlayerClick, onOpenGame = null }) {
               theme={C} numFont={NUM_FONT} accent={C.green} openBg={`color-mix(in srgb, ${C.green} 3%, transparent)`}
               winner={winner} status={statusOf(g)}
               sides={[['away', g.away, g.away_name, g.away_score], ['home', g.home, g.home_name, g.home_score]].map(([key, abbr, name, score]) => ({
-                key, label: name || clubName.get(abbr) || abbr, score: started ? (score ?? 0) : null,
+                key, label: String(name || clubName.get(abbr) || abbr).split(' ').slice(-1)[0], score: started ? (score ?? 0) : null,
                 mark: <TeamMark sport="nfl" abbr={abbr} variant="logo" px={28} dim={Boolean(winner) && winner !== key} />,
               }))}
             >
