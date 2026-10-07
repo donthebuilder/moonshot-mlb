@@ -164,7 +164,7 @@ export default function Rink({ map, slot, gridSpec, height = 300, shots = null, 
               <g key={`${r}-${c}`}>
                 <rect x={x} y={y} width={cw} height={ch} fill={thin ? 'none' : RD.zone} opacity={thin ? 1 : 0.2 + 0.7 * Math.min(1, shp / HEAT_FULL)}
                   stroke={thin ? alpha(RD.line, 0.3) : 'none'} strokeWidth={thin ? 0.3 : 0} strokeDasharray={thin ? '1 1' : undefined}>
-                  <title>{`${cell.att} shots · ${cell.sog} on net · ${cell.g} goals${thin ? ' · too few on net for a %' : ` · ${Math.round(shp * 100)}% shooting`}`}</title>
+                  <title>{`${cell.att} shots · ${cell.sog} on net · ${cell.g} goals${cell.xg != null ? ` · xG ${cell.xg.toFixed(1)}` : ''}${thin ? ' · too few on net for a %' : ` · ${Math.round(shp * 100)}% shooting`}`}</title>
                 </rect>
                 {!thin && <text x={x + cw / 2} y={y + ch / 2 + 0.6} fill={C.text} style={HALO} fontSize="4.6" fontWeight="900" fontFamily={NUM_FONT} textAnchor="middle" pointerEvents="none">{Math.round(shp * 100)}%</text>}
                 <text x={x + cw / 2} y={y + ch / 2 + (thin ? 1.4 : 4.6)} fill={C.text2} style={HALO} fontSize="2.8" fontWeight="700" fontFamily={NUM_FONT} textAnchor="middle" pointerEvents="none">{cell.att} sh</text>
