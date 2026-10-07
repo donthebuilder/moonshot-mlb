@@ -263,7 +263,7 @@ function SplitsControl({ src, pitcherId }) {
       </div>
       {footer && <div style={{ fontSize: 8.5, color: C.text3, marginTop: 4 }}>{footer}</div>}
       <div style={{ fontSize: 8.5, color: C.text3, marginTop: 2 }}>
-        warm = good news for the bat · cool = his wall · a split MOONSHOT hasn&apos;t published isn&apos;t offered
+        warm = good news for the bat · cool = his wall · a split with no data isn&apos;t offered
       </div>
     </div>
   )
@@ -360,7 +360,7 @@ export default function PitcherModal({ pitcher, slateMode, onClose, onPlayerClic
     if (brlAllowed != null) bits.push(`${(brlAllowed * 100).toFixed(0)}% barrels`)
     if (fbAllowed != null) bits.push(`${(fbAllowed * 100).toFixed(0)}% fly balls`)
     if (weakSide) bits.push(`weakest vs ${weakSide}`)
-    if (!bits.length) return 'No season line published for this arm yet — the panels below are pulled live.'
+    if (!bits.length) return 'No season line for this arm yet — the panels below are pulled live.'
     const lead = attack == null ? ''
       : attack >= 30 ? 'A live window for the bats — '
       : attack <= 12 ? 'A hard arm to attack — '
@@ -600,7 +600,7 @@ export default function PitcherModal({ pitcher, slateMode, onClose, onPlayerClic
                   <MatchupPitcher player={anchor} slateMode={slateMode} />
                 </>
               )
-              : <div style={{ fontSize: 11.5, color: C.text3 }}>No opposing lineup published yet, so there&apos;s nothing to build his profile from.</div>
+              : <div style={{ fontSize: 11.5, color: C.text3 }}>No opposing lineup yet, so there&apos;s nothing to build his profile from.</div>
           )}
 
           {tab === 'lineup' && (
@@ -634,7 +634,7 @@ export default function PitcherModal({ pitcher, slateMode, onClose, onPlayerClic
                   <PitcherSpots pitcher={pitcher} onPlayerClick={onPlayerClick} />
                 </>
               )
-              : <div style={{ fontSize: 11.5, color: C.text3 }}>No lineup published for this game yet.</div>
+              : <div style={{ fontSize: 11.5, color: C.text3 }}>No lineup for this game yet.</div>
           )}
 
           {tab === 'profile' && (

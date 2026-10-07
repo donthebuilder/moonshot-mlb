@@ -126,8 +126,8 @@ export default function PitcherProfile({ pitcher }) {
       <Block title="Command" note={cmdHasAny ? 'his rates, one row' : null}>
         {cmdHasAny ? (
           <DenseTable rows={[{ key: 'cmd', ...cmd }]} columns={cmdCols} initialSort={null} maxHeight={9999} bare
-            caption="Command rates are published per pitcher. Meatball% is the one that helps the bats; the rest are his weapons." />
-        ) : <div style={{ fontSize: 12, color: C.text3 }}>Nothing published yet.</div>}
+            caption="Command rates for this pitcher. Meatball% is the one that helps the bats; the rest are his weapons." />
+        ) : <div style={{ fontSize: 12, color: C.text3 }}>Nothing yet.</div>}
       </Block>
 
       <Block title="Platoon" note={weakSide ? `MOONSHOT calls ${weakSide} his weak side` : null}>
@@ -136,7 +136,7 @@ export default function PitcherProfile({ pitcher }) {
             rows={[{ key: 'L', side: 'vs LHB', ...L }, { key: 'R', side: 'vs RHB', ...R }]}
             columns={platCols} initialSort={null} maxHeight={9999} bare
             caption="One row a side of the plate. HR/9 and WHIP: higher is worse for him, so the worse side glows." />
-        ) : <div style={{ fontSize: 12, color: C.text3 }}>No platoon split published yet.</div>}
+        ) : <div style={{ fontSize: 12, color: C.text3 }}>No platoon split yet.</div>}
       </Block>
 
       {usage.length > 0 && (

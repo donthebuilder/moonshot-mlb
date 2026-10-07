@@ -179,7 +179,7 @@ export default function FenceBoard({ onPlayerClick, players = [] }) {
             <b style={{ color: C.text2, fontFamily: NUM_FONT }}>{pool}</b> riders with tracked
             contact tonight; the chip is shaded against the strongest rider on screen, not against 100.{' '}
             Distances are Statcast landing measurements, pull is Savant&apos;s own pull-air flag, wall
-            dimensions are the league&apos;s fieldInfo, wind is MOONSHOT&apos;s published label. &quot;At the
+            dimensions are the league&apos;s fieldInfo, wind is MOONSHOT&apos;s label. &quot;At the
             wall&quot; = pulled 320–374 ft — outs in most parks, homers over a short porch.
             <b style={{ color: tone('yellow') }}> Robbed</b> = those wall balls recorded as OUTS (homers
             somewhere else). <b style={{ color: tone('purple') }}>Oppo</b> = 375+ the other way — all-fields

@@ -76,8 +76,8 @@ export default function ContactSection({ p }) {
     <div style={{ marginTop: 6 }}>
       <div style={{ fontSize: 10, color: C.text3, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.5, padding: '10px 0 2px' }}>Contact</div>
       <div style={{ fontFamily: NUM_FONT, fontSize: 11, color: C.text2 }}>
-        <b style={{ color: C.text }}>{s.bbe} BBE</b> · {win === 'all' ? `in the file (${range})` : `${wLabel.toLowerCase()} (${range})`}
-        {w.cut && <span style={{ color: C.text3 }} title="The card holds his most recent 120 or so batted balls, so this window starts where the file does."> · file starts {fmtDay(w.fileFrom)}</span>}
+        <b style={{ color: C.text }}>{s.bbe} BBE</b> · {win === 'all' ? `all tracked (${range})` : `${wLabel.toLowerCase()} (${range})`}
+        {w.cut && <span style={{ color: C.text3 }} title="The card holds his most recent 120 or so batted balls, so this window starts where the tracking does."> · tracked from {fmtDay(w.fileFrom)}</span>}
         {filtered && <span style={{ color: C.orange }}> · filtered</span>}
         {dim && <span style={{ color: C.text3 }} title="Fewer than 10 batted balls: every rate here swings on one swing."> · small sample</span>}
       </div>

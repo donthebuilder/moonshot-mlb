@@ -1203,7 +1203,7 @@ export default function SprayField({
       )}
       {!liveOnly && hits.length === 0 && liveN > 0 && (
         <div style={{ fontSize: 10.5, color: C.text3, marginBottom: 6, lineHeight: 1.5 }}>
-          No tracked batted balls on file for this hitter — the field below is
+          No tracked batted balls for this hitter yet — the field below is
           tonight&apos;s live contact only.
         </div>
       )}
@@ -2102,7 +2102,7 @@ export default function SprayField({
             <div style={{ fontSize: 9.5, color: C.text3, marginTop: 5, lineHeight: 1.6 }}>
               <b style={{ color: C.green }}>● Tonight:</b>{' '}
               {liveOnly || liveOn ? <>
-                {liveN} tracked ball{liveN === 1 ? '' : 's'} in play from the live feed
+                {liveN} tracked ball{liveN === 1 ? '' : 's'} in play, live
                 {liveOnly
                   ? ', and nothing else — this chart carries no season sample. The wall is this park’s real dimensions and the arcs are fixed feet, so a dot’s position is where the ball was actually fielded'
                   : ', ringed in white on the same field'}.

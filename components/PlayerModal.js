@@ -836,14 +836,14 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
                 own data, and it was the most common thing it said. */}
             {tab !== 'overview' && detailState === 'error' && (
               <span style={{ fontSize: 10, color: C.orange, fontFamily: NUM_FONT }}>
-                Couldn’t load his file just now — the data host didn’t answer. Reopen the card to retry.
+                Couldn’t load his data just now. Reopen the card to retry.
               </span>
             )}
             {tab !== 'overview' && detailState === 'missing' && (
               <span style={{ fontSize: 10, color: C.orange, fontFamily: NUM_FONT }}>
                 {apiOnly
                   ? 'Not archived yet — this player isn’t on tonight’s slate and the off-slate archive hasn’t reached him'
-                  : 'No detail file published for this hitter'}
+                  : 'No detail for this hitter yet'}
               </span>
             )}
           </div>

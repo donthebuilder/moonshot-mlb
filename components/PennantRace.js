@@ -174,7 +174,7 @@ export default function PennantRace() {
 
   if (state === 'loading') return <div style={{ fontSize: 11, color: C.text3, padding: '6px 2px' }}>Simulating…</div>
   if (state === 'empty' || !data) {
-    return <Empty text="No playoff odds published yet — MOONSHOT writes this on its next run." />
+    return <Empty text="No playoff odds yet. They fill in with the next update." />
   }
 
   const shown = teamsSorted.filter((t) => t.make_playoffs > 0.005 || t.locked === 'in').slice(0, 16)
@@ -228,7 +228,7 @@ export default function PennantRace() {
           ? <b style={{ color: C.green }}>The field is locked — all twelve spots are clinched. Odds below are the bracket only. </b>
           : live
             ? `Standings are live (${liveAt ? localTime(liveAt) : 'now'}); ${clinchedN} of 12 spots clinched. `
-            : 'Standings are from MOONSHOT\u2019s last run — live feed unreachable right now. '}
+            : 'Standings are from the last update — live standings unreachable right now. '}
         {leftOut > 0 ? `${leftOut} teams with no realistic path are not listed. ` : ''}
         {data.method}
         {data.note ? ` ${data.note}` : ''}

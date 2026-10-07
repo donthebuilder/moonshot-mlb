@@ -85,7 +85,7 @@ export default function Longshots({ sport, eyebrow, theme: C, numFont, accent, T
       {!error && !data && <div style={{ color: C.text3, fontSize: 12 }}>Loading prices…</div>}
       {data && !rows.length && (
         <div style={{ padding: 22, border: `1px dashed ${C.border2 || C.border}`, borderRadius: 12, textAlign: 'center', color: C.text3, fontSize: 12.5 }}>
-          {data.reason === 'no prices yet' ? 'No prices yet for the next games. They are read on game days.' : data.reason === 'model not published for this date' ? 'Prices are in, but the model has not published this date yet.' : 'Nobody priced that long has a model score today.'}
+          {data.reason === 'no prices yet' ? 'No prices yet for the next games. They post on game days.' : data.reason === 'model not published for this date' ? 'Prices are in, but this date isn’t scored yet.' : 'Nobody priced that long has a model score today.'}
         </div>
       )}
       {rows.length > 0 && (

@@ -392,7 +392,7 @@ export default function PropsSheet({ player, odds = null, onClose, onFullResearc
           <div style={{ fontSize: 11.5, color: C.text3, marginTop: 16 }}>Reading his game log…</div>
         ) : !data ? (
           <div style={{ fontSize: 11.5, color: C.text3, marginTop: 16, lineHeight: 1.6 }}>
-            No game log published for him this season yet, so there is no hit rate to show.
+            No game log for him this season yet, so there is no hit rate to show.
             Everything above is tonight&apos;s slate; the full research page has his model numbers.
           </div>
         ) : (

@@ -702,7 +702,7 @@ export default function MatchupPitcher({ player, slateMode }) {
             >
               <Stat label="HR/9" value={hr9 == null ? '—' : hr9.toFixed(2)}
                 tone={hr9Color(hr9)}
-                note={hr9 == null ? 'not published' : hr9Word(hr9)}
+                note={hr9 == null ? 'no data' : hr9Word(hr9)}
                 meter={hr9} meterKey="hr9" />
               <Stat label={effHand ? `HR/9 vs ${effHand}HB` : 'HR/9 overall'}
                 value={sideHr9 == null ? '—' : sideHr9.toFixed(2)}
@@ -762,7 +762,7 @@ export default function MatchupPitcher({ player, slateMode }) {
                 meter={pmixV} meterKey="pmix" />
               <Stat label="Weak side" value={weakSide || '—'}
                 tone={matchesWeak ? C.orange : C.text}
-                note={matchesWeak ? `${bats}HB — that's this hitter` : weakSide ? 'not this hitter' : 'none published'}
+                note={matchesWeak ? `${bats}HB — that's this hitter` : weakSide ? 'not this hitter' : 'none'}
                 title="The batting side he's published as vulnerable to. Categorical, so there's nothing to meter — it either matches this hitter or it doesn't." />
               <Stat label="BABIP against" value={babip == null ? '—' : babip.toFixed(3)}
                 tone={babip != null && babip < 0.270 ? C.orange : C.text}
@@ -816,15 +816,15 @@ export default function MatchupPitcher({ player, slateMode }) {
         </div>
       )}
 
-      {state === 'loading' && <div style={{ fontSize: 11, color: C.text3 }}>Loading his detail file…</div>}
+      {state === 'loading' && <div style={{ fontSize: 11, color: C.text3 }}>Loading his detail…</div>}
       {(state === 'missing' || state === 'error') && (
         <div style={{ fontSize: 11, color: C.text3, padding: '8px 0' }}>
           {liveArs
-            ? <>No detail file published for this starter — the arsenal below is a <b style={{ color: C.orange }}>live Statcast pull</b> of
-              his {liveArs.pitches} pitches this season, not MOONSHOT&apos;s file. Usage and whiff rates are computed on their true
-              denominators; xwOBA/K% need plate-appearance accounting this export doesn&apos;t carry and show as dashes.
-              The lineup-damage tables still need MOONSHOT&apos;s file.</>
-            : <>No detail file published for this starter, so the arsenal and lineup-damage tables below are
+            ? <>No detail for this starter yet — the arsenal below is a <b style={{ color: C.orange }}>live Statcast pull</b> of
+              his {liveArs.pitches} pitches this season. Usage and whiff rates are computed on their true
+              denominators; xwOBA and K% need plate-appearance counts we don&apos;t have here and show as dashes.
+              The lineup-damage tables need his full detail.</>
+            : <>No detail for this starter yet, so the arsenal and lineup-damage tables below are
               unavailable{liveArs === null ? ' (live Statcast pull unavailable too)' : ''}. The season numbers above come off the slate row and are unaffected.</>}
         </div>
       )}
@@ -834,7 +834,7 @@ export default function MatchupPitcher({ player, slateMode }) {
           <SectionTitle
             label="Arsenal"
             sub={liveSource
-              ? `${side === 'overall' ? 'overall usage' : `his mix ${side}`} · 🔴 live Statcast pull — not MOONSHOT's file`
+              ? `${side === 'overall' ? 'overall usage' : `his mix ${side}`} · 🔴 live Statcast pull`
               : side === 'overall' ? 'overall usage — no side split yet' : `his mix ${side}, the side this hitter bats from`}
             subColor={liveSource || side !== 'overall' ? C.orange : C.text3}
           />

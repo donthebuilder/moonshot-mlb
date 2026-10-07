@@ -321,7 +321,7 @@ function SidePanel({ team, rows, odds, onPlayerClick }) {
     if (brl != null) bits.push(`${(brl * 100).toFixed(0)}% barrels`)
     if (fb != null) bits.push(`${(fb * 100).toFixed(0)}% fly balls`)
     if (weakSide) bits.push(`weakest vs ${weakSide}`)
-    if (!bits.length) return 'No season line published for this arm yet.'
+    if (!bits.length) return 'No season line for this arm yet.'
     const lead = attack == null ? ''
       : attack >= 30 ? 'A live window for the bats — '
       : attack <= 12 ? 'A hard arm to attack — '

@@ -125,7 +125,7 @@ export default function OddsTimeline({ quote, compact = false, marketLabel = 'pr
         ))}
       </svg>
       <div style={{ color: C.text3, fontSize: 9.5, lineHeight: 1.45 }}>
-        Vertical movement is break-even probability, not cents. {changedLine ? 'A break marks a changed betting line—a new bet, not one continuous price.' : 'Dots are published snapshots; no price is interpolated between them.'}
+        Vertical movement is break-even probability, not cents. {changedLine ? 'A break marks a changed betting line—a new bet, not one continuous price.' : 'Dots are snapshots; no price is guessed between them.'}
       </div>
     </section>
   )

@@ -988,8 +988,8 @@ export default function Dashboard({ palettePass = 0 }) {
           // failed to answer -- the network, not the bot. That is a different
           // sentence from an empty payload, and rule 25 says name it.
           <Empty text={data === null
-            ? 'LIVE DATA DELAYED \u2014 we could not reach the board feed. Check your connection, or try the refresh button; the site retries on its own.'
-            : 'No players found. The slate may not be built yet \u2014 check back after the next scheduled run.'} />
+            ? 'LIVE DATA DELAYED \u2014 we could not reach the board. Check your connection or tap refresh; the site retries on its own.'
+            : 'No players found. Tonight\u2019s slate may not be up yet \u2014 check back soon.'} />
         ) : (<>
           {/* ✨ who you highlighted (lib/pickLight.js) -- only while someone is */}
           <HighlightBar sport="mlb" onOpen={(id) => { const p = allPlayers.find((x) => String(x?.player_id ?? x?.id) === String(id)); if (p) setModalPlayer(p) }} />

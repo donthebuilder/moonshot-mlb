@@ -698,7 +698,7 @@ function ArmStat({ label, value, sub, tone, tip }) {
       <span style={{
         display: 'block', fontSize: TYPE.label, fontWeight: 800, letterSpacing: '.09em',
         color: C.text3, fontFamily: NUM_FONT, textTransform: 'uppercase',
-        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+        whiteSpace: 'normal', lineHeight: 1.25,
       }}>{label}</span>
       <span style={{
         display: 'block', fontSize: TYPE.name, fontWeight: 900, fontFamily: NUM_FONT,
@@ -715,7 +715,7 @@ function ArmStat({ label, value, sub, tone, tip }) {
 function ArmBand({ title, note, children }) {
   return (
     <div style={{ marginTop: 8 }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 4 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: '0 6px', marginBottom: 4, flexWrap: 'wrap' }}>
         <span style={{
           fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.11em', color: C.text3,
           fontFamily: NUM_FONT, textTransform: 'uppercase', flexShrink: 0,
@@ -723,7 +723,6 @@ function ArmBand({ title, note, children }) {
         {note && (
           <span style={{
             fontSize: TYPE.micro, color: C.text3, minWidth: 0,
-            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
           }}>{note}</span>
         )}
       </div>

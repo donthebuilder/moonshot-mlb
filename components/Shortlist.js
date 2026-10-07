@@ -363,7 +363,7 @@ export default function Shortlist({ players = [], odds = null, onPlayerClick, on
         <ShortlistPills options={[['profile', 'Strongest profiles'], ['fit', 'Best odds fits']]} value={view} onChange={setView} />
         {view === 'fit' && !anyPriced && (
           <span style={{ fontSize: 9.5, color: C.text3, alignSelf: 'center' }}>
-            no board published yet — every row reads &ldquo;no price posted&rdquo; until the odds run lands
+            no prices yet — every row reads &ldquo;no price posted&rdquo; until odds arrive
           </span>
         )}
       </div>

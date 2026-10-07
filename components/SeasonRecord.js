@@ -81,10 +81,10 @@ function RoleChip({ r }) {
       <span title={r.role ? `Wore ${r.role} — a non-HR badge` : 'On the board, no badge'} style={{
         fontSize: 8.5, fontWeight: 800, letterSpacing: '.04em', padding: '1.5px 7px', borderRadius: 999,
         border: `1px solid ${C.border2}`, color: C.text2,
-      }}>{r.role || 'on sheet'}</span>
+      }}>{r.role || 'on board'}</span>
     )
   }
-  return <span title="Not on that night's sheet at all" style={{ fontSize: 8.5, color: C.text3 }}>not on sheet</span>
+  return <span title="Not on that night's board at all" style={{ fontSize: 8.5, color: C.text3 }}>not on board</span>
 }
 
 const NIGHTS_FOLD = 14
@@ -197,7 +197,7 @@ export default function SeasonRecord({ season, busy = false, msg = '', onPull, o
                     </span>
                     <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, minWidth: 0, flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
                       title={`${n.onSheet} of ${n.total} were on the board · ${n.badged} badged (TOP/HR/HIT/HRR/CONTACT)${n.multi ? ` · ${n.multi} multi-homer night${n.multi === 1 ? '' : 's'}` : ''}`}>
-                      sheet {n.capturePct != null ? `${Math.round(n.capturePct)}%` : '—'} · {n.badged} badged
+                      board {n.capturePct != null ? `${Math.round(n.capturePct)}%` : '—'} · {n.badged} badged
                       {n.longest ? ` · ${n.longest.ft} ft ${n.longest.name.split(' ').slice(-1)[0]}` : ''}
                     </span>
                     <span style={{ fontSize: 10, color: C.text3 }}>{isOpen ? '▲' : '▼'}</span>
@@ -214,7 +214,7 @@ export default function SeasonRecord({ season, busy = false, msg = '', onPull, o
                           { key: 'ev', label: 'EV', w: 44, dp: 1, title: 'Hardest of the night, mph off the bat', fmt: (v) => (v ? Number(v).toFixed(1) : '—') },
                           { key: 'spot', label: 'Spot', w: 38, dp: 0, title: 'Lineup spot that night', fmt: (v) => v || '—', tone: () => ({ color: C.text3 }) },
                           { key: 'hrScore', label: 'Score', w: 46, title: "MOONSHOT's HR score for him that night, where the board had him", fmt: (v) => (v != null ? Math.round(v) : '—') },
-                          { key: 'sheet', label: 'Sheet', heat: false, numeric: false, w: 90, fmt: (_, r) => <RoleChip r={r} /> },
+                          { key: 'sheet', label: 'Board', heat: false, numeric: false, w: 90, fmt: (_, r) => <RoleChip r={r} /> },
                           { key: 'seasonHrSlate', label: 'Was on', w: 50, title: 'Season total the slate carried for him that night — not added to', fmt: (v) => (v != null ? v : '—'), tone: () => ({ color: C.text3 }) },
                         ]}
                         heatMode="sorted" maxHeight={9999} maxRows={60} caption={`Every homer on ${shortDate(n.date)}`} />

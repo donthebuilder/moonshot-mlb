@@ -122,12 +122,8 @@ export default function Alignments({ players = [], watchIds = null, slateDate = 
               alignments, the lanes -- and one paragraph that says what all three are. */}
           <PageHeader
             title="🔮 Numerology"
-            sub="For fun: numbers that line up. Not part of any score."
+            sub={<>For fun: numbers that line up. Not part of any score. <HelpTip label="How the numbers work" text={`Every number a hitter carries (the homers he is sitting on, his next homer, his jersey, his birth day, his life path, where he bats and where he fields) is reduced the same way: add the digits until one is left (17 → 8). Pattern watching, not evidence: ~${rows.length} hitters over nine roots put ~${Math.round(expected)} memberships in every club by arithmetic alone, so read the × against that share, not the raw count. Fun to track, never a reason to bet. Nothing here feeds any score.${loaded ? '' : ' Birthdays and positions are still loading.'}`} /></>}
           />
-          <div style={{ fontSize: 12, color: C.text2, lineHeight: 1.65, maxWidth: 860, marginBottom: 10 }}>
-            Tonight&apos;s numbers, who carries them, and the lanes that run hot.
-            <HelpTip label="How the numbers work" text={`Every number a hitter carries (the homers he is sitting on, his next homer, his jersey, his birth day, his life path, where he bats and where he fields) is reduced the same way: add the digits until one is left (17 → 8). Pattern watching, not evidence: ~${rows.length} hitters over nine roots put ~${Math.round(expected)} memberships in every club by arithmetic alone, so read the × against that share, not the raw count. Fun to track, never a reason to bet. Nothing here feeds any score.${loaded ? '' : ' Birthdays and positions are still loading.'}`} />
-          </div>
           {/* PART ONE: TONIGHT'S NUMBERS (numerology v2): the slate's own date. */}
           <div style={{ marginBottom: 10 }}><TonightsNumbers date={todayKey} theme={C} numFont={NUM_FONT} accent={C.orange} /></div>
         </>

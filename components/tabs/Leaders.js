@@ -433,7 +433,7 @@ export default function Leaders({ players = [], onPlayerClick, onNavigate }) {
 
             <HistBoard
               title="🎯 Cleared his bar most often"
-              lead={`Designated picks graded on their own bar — HR and TOP need a homer, HIT a hit, HRR 2+ hits+runs+RBI, CONTACT 2+ total bases. Ranked only at ${HIST_MIN_PICKS}+ judged picks across ${HIST_MIN_NIGHTS}+ separate nights, because one hitter can hold five designations in a single game and they all grade off the same swing. Voids are in neither number.`}
+              lead={<>Picks graded on their own bar.<HelpTip label="About this board" text={`HR and TOP need a homer, HIT a hit, HRR 2+ hits+runs+RBI, CONTACT 2+ total bases. Ranked only at ${HIST_MIN_PICKS}+ judged picks across ${HIST_MIN_NIGHTS}+ separate nights, because one hitter can hold five designations in a single game and they all grade off the same swing. Voids are in neither number.`} /></>}
               rows={hist.rate}
               empty={`Nobody has ${HIST_MIN_PICKS} judged picks over ${HIST_MIN_NIGHTS} nights in a window this short — extend it below rather than reading a 3-for-4 as a rate.`}
               renderRow={(p, i) => (
@@ -446,7 +446,7 @@ export default function Leaders({ players = [], onPlayerClick, onNavigate }) {
 
             <HistBoard
               title="🤖 Picked most often"
-              lead="How often MOONSHOT has designated him in this window. Nights first, then slots — one hitter can hold two categories on the same night, and that is two picks but one night."
+              lead={<>Most often picked in this window.<HelpTip label="About this board" text="Nights first, then slots: one hitter can hold two categories on the same night, and that is two picks but one night." /></>}
               rows={hist.designated}
               empty="No designations in the window."
               renderRow={(p, i) => (

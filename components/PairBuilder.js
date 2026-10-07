@@ -433,7 +433,7 @@ export default function PairBuilder({ summary, players = [], onPlayerClick, init
   if (!anchors.length) {
     return (
       <div style={{ fontSize: 11.5, color: C.text3, padding: '10px 0' }}>
-        No hitters published for this slate yet, so there&apos;s nothing to build from.
+        No hitters on tonight&apos;s slate yet, so there&apos;s nothing to build from.
       </div>
     )
   }
@@ -510,7 +510,7 @@ export default function PairBuilder({ summary, players = [], onPlayerClick, init
           shared history moves it.
           {' '}It changes <b style={{ color: C.text }}>nothing else</b>: the history columns keep
           counting co-<i>homer</i> days regardless of market, because co-HR days are the only pair
-          history MOONSHOT publishes — shown for reference now, not folded into anyone&apos;s fit.
+          history we keep — shown for reference, not folded into anyone&apos;s fit.
         </div>
       </div>
 
