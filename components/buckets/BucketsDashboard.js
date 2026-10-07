@@ -28,6 +28,7 @@ import TabExplainer from '../TabExplainer'
 import RefreshStamp from '../RefreshStamp'
 import BucketsHeader from './BucketsHeader'
 import MobileTabBarBuckets from './MobileTabBarBuckets'
+import QuickSearch from '../QuickSearch'
 import { NBA_TEXTS } from './tabExplainerTexts'
 import { readHashParam } from './ui'
 import Home from './tabs/Home'
@@ -157,6 +158,8 @@ export default function BucketsDashboard() {
       </main>
       </TodayContext.Provider>
       {/* no tab lit on NO SUCH TAB (audit 14 B7b) */}
+      {/* ONE SEARCH, EVERY PRODUCT (2026-10-07): players, clubs and games; Ctrl/Cmd-K, "/" or the header's search button */}
+      <QuickSearch sport="nba" />
       <MobileTabBarBuckets tab={missingTab ? null : tab} setTab={setTab} />
     </AccentProvider>
   )

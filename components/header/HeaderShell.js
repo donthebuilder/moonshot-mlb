@@ -8,6 +8,7 @@ import { useVisibleSports } from '../../lib/useVisibleSports'
 import { BRAND } from '../../lib/routes'
 import { setSport } from '../../lib/sport'
 import SportSwitch from './SportSwitch'
+import SearchButton from './SearchButton'
 
 // ONE HEADER FRAME, THREE PRODUCTS (2026-09-29, parity plan G; Donovan: "all
 // pages take from MLB components"). MOONSHOT's header (components/Header.js)
@@ -123,6 +124,7 @@ export default function HeaderShell({ sport, theme = MLB_C, wordmark, onHome, ho
 
           {/* ── date · mode · account · settings ──────────────────────── */}
           <div className="hdr-meta" style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+            <SearchButton theme={C} />
             {date && <div className="hdr-date">{date}</div>}
             {account && <div className="hdr-acct">{account}</div>}
             {settings && <div className="hdr-gear">{settings}</div>}
@@ -181,6 +183,8 @@ export default function HeaderShell({ sport, theme = MLB_C, wordmark, onHome, ho
           .hdr-sw { position: relative; flex: 1 1 auto; min-width: 0; min-height: 44px; padding: 0 6px; border: 0; border-radius: 999px; background: transparent; color: ${C.text2}; font-size: 11px; font-weight: 900; letter-spacing: .05em; white-space: nowrap; cursor: pointer; }
           .hdr-sw.on { background: var(--sw); color: ${C.bg}; }
           .hdr-sw-live { position: absolute; top: 9px; right: 4px; width: 6px; height: 6px; border-radius: 50%; background: var(--sw); animation: pulse 2s infinite; }
+          /* row 2 (before the day switch): row 1's switch has no room for a 44px button at 360 with four products */
+          .hdr-search { order: 5; }
           .hdr-gear { display: block; order: 3; flex: none; }
           .hdr-gear > div > button[aria-haspopup] { width: 44px !important; height: 44px !important; font-size: 18px !important; }
           .hdr-acct { display: none; }

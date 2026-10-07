@@ -27,6 +27,7 @@ import NflHeader from './NflHeader'
 import NflPlayerModal from './NflPlayerModal'
 import MobileCSS from '../MobileCSS'
 import MobileTabBarNfl from './MobileTabBarNfl'
+import QuickSearch from '../QuickSearch'
 import NflWire from './NflWire'
 import TabExplainer from '../TabExplainer'
 import { NFL_TEXTS } from './tabExplainerTexts'
@@ -524,6 +525,8 @@ export default function NflDashboard({ palettePass = 0 }) {
       </main>
       </TodayContext.Provider>
       {/* no tab lit on NO SUCH TAB (audit 14 B7b) */}
+      {/* ONE SEARCH, EVERY PRODUCT (2026-10-07): players, clubs and games; Ctrl/Cmd-K, "/" or the header's search button */}
+      <QuickSearch sport="nfl" />
       <MobileTabBarNfl tab={missingTab ? null : tab} setTab={setTab} />
       {/* The live wire. Renders nothing until something actually happens to
           one of your names, and polls nothing unless a game is in progress or
