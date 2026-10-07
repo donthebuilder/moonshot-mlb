@@ -20,7 +20,7 @@ import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 import { ActiveFilters, FilterBar, FilterPill } from '../../Filters'
 import NflBoardFilters, { useNflBoardFilter } from '../NflBoardFilters'
 import MobileFold, { useIsPhone } from '../../MobileFold'
-import { NflBoardList, BoardHead, DrawerPills, AngleRow, angleDefs, useNflDrawerFilters, TdWatch } from '../NflBoardExtras'
+import { NflBoardList, BoardHead, ViewSwitch, DrawerPills, AngleRow, angleDefs, useNflDrawerFilters, TdWatch } from '../NflBoardExtras'
 import TdCompare from '../TdCompare'
 
 // TOUCHDOWNS — the front door.
@@ -161,7 +161,7 @@ function TapNote({ label, text, style, children }) {
   return <span role="button" tabIndex={0} title={text} onClick={say} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); say(e) } }} style={{ ...style, cursor: 'help', display: 'inline-block', padding: 9, margin: -9 }}>{children}</span>
 }
 
-export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsStatus, logs = null, top = null, results = null, liveSnap = null, statusOf = null }) {
+export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsStatus, logs = null, top = null, results = null, liveSnap = null, statusOf = null, showOpts = true }) {
   const watchlist = useNflWatchlist(data)
   // Search, team and game come from the hub's top bar (2026-09-27).
   const query = top?.query || ''
@@ -298,13 +298,9 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
 
   return (
     <div>
+      {showOpts && (<>
       <AngleRow defs={angles} pool={bandFiltered} value={angle} onChange={(k) => { setAngle(k); setAll(false) }} />
       {angle && angles.find((x) => x.key === angle) && <p style={{ margin: 0, fontSize: 12, color: C.text3, lineHeight: 1.5 }}>{angles.find((x) => x.key === angle).title}</p>}
-
-      {/* TD WATCH (board filters plan, TUDDY 5): MOONSHOT's B2B Watch slot. */}
-      <div style={{ marginTop: 8 }}>
-        <TdWatch players={rows} games={data?.games} logs={logs} results={results} liveSnap={liveSnap} week={data ? { season: data.season, week: data.week } : null} onPlayerClick={onPlayerClick} />
-      </div>
 
       <div style={{ marginTop: 8 }}>
         <FilterBar>
@@ -321,8 +317,17 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
         <div style={{ marginTop: 8 }}><OddsStatus status={oddsStatus} /></div>
       )}
 
-      <BoardHead title="Anytime TD" count={capped.length} view={view} setView={setView}
-        sub={`Every scored player across ${games} game${games === 1 ? '' : 's'}, ranked by the model’s own touchdown score. Tap a name for his card.`} />
+      {phone && <div style={{ marginTop: 8 }}><ViewSwitch value={view} onChange={setView} /></div>}
+      </>)}
+      {!phone && (<>
+      {/* (on a phone it sits under the table) TD WATCH (board filters plan, TUDDY 5): MOONSHOT's B2B Watch slot. */}
+      <div style={{ marginTop: 8 }}>
+        <TdWatch players={rows} games={data?.games} logs={logs} results={results} liveSnap={liveSnap} week={data ? { season: data.season, week: data.week } : null} onPlayerClick={onPlayerClick} />
+      </div>
+
+      </>)}
+      {!phone && (<BoardHead title="Anytime TD" count={capped.length} view={view} setView={setView}
+        sub={`Every scored player across ${games} game${games === 1 ? '' : 's'}, ranked by the model’s own touchdown score. Tap a name for his card.`} />)}
 
       {filtered.length === 0 ? (
         <div style={{ fontSize: TYPE.body, color: C.text3, marginTop: 10 }}>
@@ -334,7 +339,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
       ) : (
         <>
           {view === 'list'
-            ? <NflBoardList players={capped} market={MARKET} rankOf={rankOf} weights={weights} odds={odds} phone={phone} onPlayerClick={openFromBoard} statusOf={statusOf} />
+            ? <NflBoardList players={capped} market={MARKET} rankOf={rankOf} weights={weights} odds={odds} phone={phone} onPlayerClick={openFromBoard} statusOf={statusOf} base={base} pool={rows} watchlist={watchlist} />
             : <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))' }}>
                 {capped.map((p, i) => (
                   <Card key={p.player_id} p={p} rank={rankOf.get(String(p.player_id)) ?? i + 1} matchup={matchup} odds={odds}
@@ -347,6 +352,12 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
             </div>
           )}
         </>
+      )}
+
+      {phone && (
+        <div style={{ marginTop: 14 }}>
+          <TdWatch players={rows} games={data?.games} logs={logs} results={results} liveSnap={liveSnap} week={data ? { season: data.season, week: data.week } : null} onPlayerClick={onPlayerClick} />
+        </div>
       )}
 
       {/* ⚖️ COMPARE TWO (2026-09-16): below the board now -- a tool you reach

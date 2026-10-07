@@ -44,7 +44,6 @@ const Bot = dynamic(() => import('./tabs/Bot'), { loading: TabLoading })
 const NflPlayers = dynamic(() => import('./tabs/NflPlayers'), { loading: TabLoading })
 const BoardHub = dynamic(() => import('./tabs/BoardHub'), { loading: TabLoading })
 const Ledger = dynamic(() => import('./tabs/Ledger'), { loading: TabLoading })
-const Research = dynamic(() => import('./tabs/Research'), { loading: TabLoading })
 const Matchups = dynamic(() => import('./tabs/Matchups'), { loading: TabLoading })
 const Explosive = dynamic(() => import('./tabs/Explosive'), { loading: TabLoading })
 const RedZone = dynamic(() => import('./tabs/RedZone'), { loading: TabLoading })
@@ -117,7 +116,7 @@ function NflStaleBanner({ meta, data, loading }) {
 // (Overview writes nothing; view=field is the Field tab, where the field picture is). The Board
 // hub (boards / touchdowns) owns view= on its own page, so a card opened over the
 // hub keeps its tab out of the address rather than fight it for the key.
-const HUB_TABS = new Set(['boards', 'touchdowns'])
+const HUB_TABS = new Set(['research'])
 const CARD_VIEWS = new Set(['field', 'matchup', 'splits', 'gamelog'])
 const cardViewOf = (h) => {
   if (HUB_TABS.has(h.get('tab'))) return ''
@@ -132,7 +131,7 @@ export default function NflDashboard({ palettePass = 0 }) {
   // The Board hub names its own market/view (BoardHub onTitle); every other
   // page is the registry's title. One hook, so the two never fight.
   const [hubTitle, setHubTitle] = useState(null)
-  const onHub = tab === 'touchdowns' || tab === 'boards'
+  const onHub = tab === 'research'
   usePageTitle(`${(onHub && hubTitle) || pageTitle('nfl', tab)} \u00b7 DASH Network`)
   const [data, setData] = useState(null)
   const [meta, setMeta] = useState(null)
@@ -442,7 +441,7 @@ export default function NflDashboard({ palettePass = 0 }) {
             sport="nfl"
             palette={C}
             onNavigate={setTab}
-            doors={[['home', '🏠 HOME'], ['live', '🏈 LIVE'], ['picks', '🎯 PICKS'], ['boards', '📊 BOARDS'], ['accountability', '🧾 RESULTS'], ['guide', '📖 GUIDE']]}
+            doors={[['home', '🏠 HOME'], ['live', '🏈 LIVE'], ['picks', '🎯 PICKS'], ['research', '📊 RANKINGS'], ['accountability', '🧾 RESULTS'], ['guide', '📖 GUIDE']]}
           />
         ) : loading ? (
           <div style={{
@@ -476,11 +475,10 @@ export default function NflDashboard({ palettePass = 0 }) {
             {tab === 'picks' && <div style={{ marginTop: 26, paddingTop: 18, borderTop: `1px solid ${C.border}`, font: `900 11px/1 ${NUM_FONT}`, letterSpacing: '.16em', color: C.green, marginBottom: 10 }}>THE PICKS · THE SHORTLIST, THE CARD AND NEXT WEEK</div>}
             {tab === 'picks' && <Bot data={slate} picks={picks} results={nflResults} logs={logs} matchup={matchup} odds={odds}
               oddsStatus={oddsRaw?.source === 'sportsgameodds' && !oddsRaw?.empty ? null : oddsStatus} onPlayerClick={openPlayer} />}
-            {(tab === 'touchdowns' || tab === 'boards') && (
+            {tab === 'research' && (
               <BoardHub onTitle={setHubTitle} onView={() => {}} slate={slate} data={data} logs={logs} matchup={matchup} odds={odds} oddsStatus={oddsRaw?.source === 'sportsgameodds' && !oddsRaw?.empty ? null : oddsStatus}
                 picks={picks} results={nflResults} liveSnap={liveSnap} onPlayerClick={openPlayer} initialView="board" />
             )}
-            {tab === 'research' && <Research data={data} onPlayerClick={openPlayer} />}
             {tab === 'matchups' && <Matchups matchup={matchup} data={data} onPlayerClick={openPlayer} onOpenTeam={openTeamPage} />}
             {tab === 'explosive' && <Explosive matchup={matchup} data={data} onPlayerClick={openPlayer} />}
             {tab === 'redzone' && <RedZone data={data} matchup={matchup} onPlayerClick={openPlayer} />}

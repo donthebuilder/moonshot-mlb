@@ -6,7 +6,7 @@ const cases = [
   // [sport, live hash, snapshot tab, expected tab, why]
   ['nfl', '#sport=nfl&tab=leaders', 'home', 'leaders', 'live hash names TUDDY: it answers'],
   ['nfl', '#sport=nhl&tab=schedule', 'games', 'games', 'live hash is another sport: snapshot'],
-  ['nfl', '#sport=nfl&tab=nosuchtab', 'boards', 'boards', 'live tab unknown, snapshot known: snapshot'],
+  ['nfl', '#sport=nfl&tab=nosuchtab', 'research', 'research', 'live tab unknown, snapshot known: snapshot'],
   ['nhl', '#sport=nhl&tab=standings', 'home', 'standings', 'LAMP live hash answers'],
   ['nhl', '', 'leaders', 'leaders', 'no live hash: snapshot'],
 ]

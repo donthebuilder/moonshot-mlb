@@ -15,7 +15,7 @@ import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 import { baselineFor, topStatChips } from '../ScoreAnatomy'
 import NflBoardFilters, { useNflBoardFilter } from '../NflBoardFilters'
 import MobileFold, { useIsPhone } from '../../MobileFold'
-import { NflBoardList, BoardHead, DrawerPills, AngleRow, angleDefs, useNflDrawerFilters } from '../NflBoardExtras'
+import { NflBoardList, BoardHead, ViewSwitch, DrawerPills, AngleRow, angleDefs, useNflDrawerFilters } from '../NflBoardExtras'
 import { matchupTag } from '../../../lib/nfl/dvpSignal'
 import DashChip, { useDashLines, DASH_OF } from '../DashChip'
 import MarketStat from '../MarketStat'
@@ -300,6 +300,7 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
     <div>
       {!hideMarketPicker && <PillRow label="Market" value={market} options={marketOptions} onChange={setMarket} />}
 
+      {showOpts && (<>
       <AngleRow defs={angles} pool={bandFiltered} value={angle} onChange={(k) => { setAngle(k); setAll(false) }} />
       {angle && angles.find((x) => x.key === angle) && <p style={{ margin: 0, fontSize: 12, color: C.text3, lineHeight: 1.5 }}>{angles.find((x) => x.key === angle).title}</p>}
 
@@ -319,12 +320,14 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
         <div style={{ marginTop: 8 }}><OddsStatus status={oddsStatus} /></div>
       )}
 
-      <BoardHead title={spec?.label || (MARKETS.find(([k]) => k === market) || [])[1] || market} count={capped.length} view={view} setView={setView}
-        sub={`Ranked by the model’s own score for this market${spec?.bar ? ` · bar ${spec.bar}` : ''}${spec?.v1 ? ' · v1, not yet a backtested model' : ''}. Tap a name for his card.`} />
+      {phone && <div style={{ marginTop: 8 }}><ViewSwitch value={view} onChange={setView} /></div>}
+      </>)}
+      {!phone && (<BoardHead title={spec?.label || (MARKETS.find(([k]) => k === market) || [])[1] || market} count={capped.length} view={view} setView={setView}
+        sub={`Ranked by the model’s own score for this market${spec?.bar ? ` · bar ${spec.bar}` : ''}${spec?.v1 ? ' · v1, not yet a backtested model' : ''}. Tap a name for his card.`} />)}
       {hidden > 0 || rows.length ? null : (
         <div style={{ fontSize: TYPE.body, color: C.text3, margin: '4px 0 10px' }}>Nothing matches. Clear the search, team, game or a filter above.</div>
       )}
-      {view === 'list' && <NflBoardList players={capped} market={market} rankOf={rankOf} weights={spec?.weights} odds={odds} phone={phone} onPlayerClick={onPlayerClick} />}
+      {view === 'list' && <NflBoardList players={capped} market={market} rankOf={rankOf} weights={spec?.weights} odds={odds} phone={phone} onPlayerClick={onPlayerClick} base={base} pool={eligible} watchlist={watchlist} />}
 
       {/* CARD BOARD (2026-09-15, Donovan: "the props card board is okay we
           just need the pictures on there ... a table flip wouldn't be bad,

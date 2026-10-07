@@ -50,7 +50,6 @@ const LampLedger = dynamic(() => import('./tabs/LampLedger'), { loading: TabLoad
 const Numerology = dynamic(() => import('./tabs/Numerology'), { loading: TabLoading })
 const Leaders = dynamic(() => import('./tabs/Leaders'), { loading: TabLoading })
 const Board = dynamic(() => import('./tabs/Board'), { loading: TabLoading })
-const FullBoard = dynamic(() => import('./tabs/FullBoard'), { loading: TabLoading })
 const Results = dynamic(() => import('./tabs/Results'), { loading: TabLoading })
 import RefreshStamp from '../RefreshStamp'
 import DashFooter from '../DashFooter'
@@ -79,20 +78,20 @@ const LampOdds = dynamic(() => import('./LampOdds'))
 // the header, and that one request is shared with Home through the CDN.
 // Pages that show one day and keep it in the address (`date=`). One list,
 // read by setTab (which clears it elsewhere) and goBack (which restores it).
-const DATED_TABS = new Set(['home', 'scores', 'schedule', 'board', 'boards', 'shots', 'games', 'fullboard', 'numerology', 'matchups', 'ledger', 'storylines'])
+const DATED_TABS = new Set(['home', 'scores', 'schedule', 'board', 'shots', 'games', 'fullboard', 'numerology', 'matchups', 'ledger', 'storylines'])
 
 // LAMP's routing config for the shared shell router (lib/useShellRoute.js --
 // moved out of this file unchanged, 2026-10-02, so BUCKETS runs on the same code).
 const ROUTE = {
   sport: 'nhl', nav: NHL_NAV, datedTabs: DATED_TABS,
   ids: { game: /^\d{10}$/, team: /^[A-Z]{3}$/, player: /^\d{7}$/ },
-  keep: { game: ['games'], m: ['boards', 'shots'], player: ['players', 'goalies'] },
+  keep: { game: ['games'], m: ['fullboard', 'shots'], player: ['players', 'goalies', 'shotmap'] },
   // #tab=board&m=sog predates the Shots slot (2026-09-28): it opens there. #tab=board&m=pts|ast|goal
   // predates Boards (2026-10-05: Props is cards only): those open the table they meant.
   rewrite: (r, get) => {
     const m = String(get('m') || '').toLowerCase()
     if (r.tab !== 'board' || !m) return r
-    return m === 'sog' ? { ...r, tab: 'shots' } : ['pts', 'ast', 'goal'].includes(m) ? { ...r, tab: 'boards' } : r
+    return m === 'sog' ? { ...r, tab: 'shots' } : ['pts', 'ast', 'goal'].includes(m) ? { ...r, tab: 'fullboard' } : r
   },
 }
 
@@ -183,16 +182,17 @@ export default function LampDashboard({ palettePass = 0 }) {
                 broken" -- it was the cards, then the whole table under them). The table is Boards. */}
             {tab === 'board' && (
               <LampProps date={date} onOpenPlayer={peekPlayer}>
-                <button type="button" onClick={() => setTab('boards')} style={{ display: 'block', minHeight: 44, marginTop: 14, padding: '0 4px', border: 0, background: 'transparent', color: C.ice, font: `800 12px/1 ${NUM_FONT}`, cursor: 'pointer' }}>
-                  Every skater, every number: {NHL_NAV.boards.label} ›
+                <button type="button" onClick={() => setTab('fullboard')} style={{ display: 'block', minHeight: 44, marginTop: 14, padding: '0 4px', border: 0, background: 'transparent', color: C.ice, font: `800 12px/1 ${NUM_FONT}`, cursor: 'pointer' }}>
+                  Every skater, every number: {NHL_NAV.fullboard.label}, and why ›
                 </button>
               </LampProps>
             )}
-            {(tab === 'boards' || tab === 'shots') && <Board onOpenPlayer={peekPlayer} onOpenGame={openGame} onOpenTeam={openTeam} date={date} setDate={setDate}
-              market={tab === 'shots' ? 'SOG' : (['PTS', 'AST'].includes(String(readHashParam('m') || '').toUpperCase()) ? String(readHashParam('m')).toUpperCase() : 'GOAL')}
-              onMarket={(m) => setTab(m === 'SOG' ? 'shots' : 'boards')} />}
+            {/* ONE RANKINGS PAGE (2026-10-06): the board, its table of every skater and the old
+                Rankings page are the same page. #tab=boards / #tab=shots still open it. */}
+            {(tab === 'fullboard' || tab === 'shots') && <Board onOpenPlayer={peekPlayer} onOpenGame={openGame} onOpenTeam={openTeam} date={date} setDate={setDate}
+              market={tab === 'shots' ? 'SOG' : null}
+              onMarket={tab === 'shots' ? () => setTab('fullboard') : null} />}
             {tab === 'games' && <LampSlate onOpenPlayer={peekPlayer} onOpenGame={openGame} onOpenTeam={openTeam} date={date} setDate={setDate} />}
-            {tab === 'fullboard' && <FullBoard onOpenPlayer={peekPlayer} onOpenTeam={openTeam} date={date} setDate={setDate} />}
             {tab === 'results' && <Results onOpenPlayer={peekPlayer} />}
           </ErrorBoundary>
           <DashFooter sport="nhl" theme={C} onGuide={() => setTab('guide')} />

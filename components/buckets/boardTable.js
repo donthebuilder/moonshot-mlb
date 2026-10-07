@@ -21,7 +21,7 @@ export function boardRows(data, { calledOnly = false, gameId = null } = {}) {
 }
 
 /** The columns for one market. `withGame` adds the game column (off on the one-game Slate). */
-export function boardColumns(market, { onOpenTeam, onOpenGame, withGame = true } = {}) {
+export function boardColumns(market, { onOpenTeam, onOpenGame, withGame = true, whyCol = null } = {}) {
   const D = NBA_MARKETS[market] || NBA_MARKETS.pts
   return [
     { key: 'nightRank', label: '#', group: 'Player', w: 36, heat: false, mono: true, dim: true, title: 'His rank on the night’s board for this market' },
@@ -30,6 +30,7 @@ export function boardColumns(market, { onOpenTeam, onOpenGame, withGame = true }
     { key: 'team', label: 'Tm', group: 'Player', w: 52, heat: false, mono: true, teamMark: 'nba', link: (r) => (onOpenTeam ? () => onOpenTeam(r.team) : null) },
     { key: 'oppTxt', label: 'Opp', group: 'Player', w: 52, heat: false, mono: true, dim: true, link: (r) => (onOpenTeam ? () => onOpenTeam(r.opp) : null) },
     { key: 'score', label: 'Score', group: 'Call', w: 54, dp: 0, primary: true, scale: 'seq', domain: [0, 100], title: 'The market’s 0-100 score: a rank among tonight’s players, not a probability' },
+    ...(whyCol ? [{ ...whyCol, group: 'Call' }] : []),
     { key: 'status', label: 'Status', group: 'Call', w: 156, heat: false, statusCol: true, fmt: (v, r) => (
       <span style={{ display: 'inline-flex', gap: 4, alignItems: 'center', whiteSpace: 'nowrap' }}>
         <CallStatusBadge status={v} accent={C.purple} />
@@ -44,7 +45,7 @@ export function boardColumns(market, { onOpenTeam, onOpenGame, withGame = true }
     ...(withGame ? [{ key: 'tip', label: 'Game', group: 'Game', w: 84, heat: false, mono: true, dim: true,
       link: (r) => (onOpenGame ? () => onOpenGame(r.gameId) : null),
       fmt: (v, r) => (r.gameState === 'live' ? <span style={{ color: C.rim }}><RimDot size={6} />LIVE</span> : r.gameState === 'final' ? 'FINAL' : v ? fmtTip(v) : '—') }] : []),
-    { key: 'why', label: 'Why', group: 'Game', w: 300, heat: false, fmt: (v, r) => <span style={{ fontSize: 11, color: C.text3, whiteSpace: 'nowrap' }}>{r.status === 'off' && r.reason ? r.reason : v || ''}{r.injury ? ` · ${r.injury}` : ''}</span> },
+    ...(whyCol ? [] : [{ key: 'why', label: 'Why', group: 'Game', w: 300, heat: false, fmt: (v, r) => <span style={{ fontSize: 11, color: C.text3, whiteSpace: 'nowrap' }}>{r.status === 'off' && r.reason ? r.reason : v || ''}{r.injury ? ` · ${r.injury}` : ''}</span> }]),
   ]
 }
 export const faceOf = (r) => ({ sport: 'nba', id: r.playerId, name: r.name })

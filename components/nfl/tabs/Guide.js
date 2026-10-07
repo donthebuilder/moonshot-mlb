@@ -34,7 +34,7 @@ export default function Guide({ onNavigate, data }) {
 
       <StartHere heading="Three taps, in order" onNavigate={onNavigate} steps={[
         { n: 1, tab: 'home', title: 'Read the slate', body: 'Home shows the live ledger, The Six, lookout spots and the strongest boards.' },
-        { n: 2, tab: 'touchdowns', title: 'See who scores', body: `${NFL_NAV.touchdowns.label} opens with names and a sentence, not a table -- the fastest read on this week's board.` },
+        { n: 2, tab: 'research', title: 'See who scores, and why', body: `${NFL_NAV.research.label} ranks every player, and each row says why in one line -- tap it for the numbers behind it.` },
         { n: 3, tab: 'picks', title: 'Read the calls', body: 'Picks holds the designated calls. A call is graded; a high Boards rank is not automatically a call.' },
       ]} footer={<>
         That&apos;s the whole path. Everything below is reference — open a section only when a
