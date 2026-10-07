@@ -235,8 +235,13 @@ function livePos(f) {
   const fx = clampf(f.fx, FX_LO, FX_HI)
   const fz = clampf(f.fz, FZ_LO, FZ_HI)
   return {
-    left: `calc(${ZG.pad}px + ${(fx * 100).toFixed(2)}% - ${(fx * ZG.pad * 2).toFixed(2)}px)`,
-    top: `calc(${ZG.pad}px + ${(fz * 100).toFixed(2)}% - ${(fz * ZG.pad * 2).toFixed(2)}px)`,
+    // clamp() keeps the dot inside the frame: the ring is a fraction of the
+    // zone (0.26 of the width), so on a phone-wide grid it is deeper than the
+    // 48px pad and a pitch off the plate used to land past the grid and the
+    // card -- the At-the-plate tab bled sideways. 8px = half the dot, so at
+    // the 250px desktop width the pinned positions are unchanged.
+    left: `clamp(8px, calc(${ZG.pad}px + ${(fx * 100).toFixed(2)}% - ${(fx * ZG.pad * 2).toFixed(2)}px), calc(100% - 8px))`,
+    top: `clamp(8px, calc(${ZG.pad}px + ${(fz * 100).toFixed(2)}% - ${(fz * ZG.pad * 2).toFixed(2)}px), calc(100% - 8px))`,
     pinned: fx !== f.fx || fz !== f.fz,
   }
 }
