@@ -22,7 +22,7 @@ import { C as MLB_C, NUM_FONT as MLB_NUM } from '../../lib/theme'
 // shape. Each number reduced to its root; lit in the root's colour where it meets the
 // day's number. Three hitters, then 'show more'. A name opens his card (p=, on or off
 // the slate).
-function NightBox({ title, night, empty, C, NUM_FONT }) {
+function NightBox({ title, night, empty, C, NUM_FONT, accent }) {
   const { shown, open, restN, toggle } = usePreview(night?.hitters || [], 3)
   const dr = night?.dateRoot
   return (
@@ -32,21 +32,21 @@ function NightBox({ title, night, empty, C, NUM_FONT }) {
         : !night.hitters.length ? <div style={{ fontSize: 12, color: C.text3, marginTop: 2, lineHeight: 1.5 }}>{empty}</div>
           : (<>
             <div style={{ fontSize: 12, color: C.text2, lineHeight: 1.5, marginTop: 2 }}>
-              {night.date} reduces to <b style={{ color: ROOT_COLORS[dr], fontFamily: NUM_FONT }}>{dr}</b>:{' '}
+              {night.date} reduces to <b style={{ color: accent, fontFamily: NUM_FONT }}>{dr}</b>:{' '}
               <b>{night.matched}</b> of {night.hitters.length} homer hitter{night.hitters.length === 1 ? '' : 's'} carr{night.matched === 1 ? 'ies' : 'y'} it
               {night.homers > night.hitters.length ? ` (${night.homers} homers)` : ''}.
             </div>
             {shown.map((h) => (
               <div key={h.player_id} style={{ marginTop: 6, minWidth: 0 }}>
                 <a href={`#sport=mlb&p=${h.player_id}`} style={{ color: C.text, fontWeight: 800, fontSize: 12, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', minHeight: 44 }}>
-                  {h.name}{h.team ? <span style={{ color: C.text3, fontWeight: 600, marginLeft: 5, fontFamily: NUM_FONT, fontSize: 11 }}>{h.team}</span> : null}{h.hr > 1 ? <span style={{ color: C.orange, marginLeft: 5, fontFamily: NUM_FONT, fontSize: 11 }}>×{h.hr}</span> : null}
+                  {h.name}{h.team ? <span style={{ color: C.text3, fontWeight: 600, marginLeft: 5, fontFamily: NUM_FONT, fontSize: 11 }}>{h.team}</span> : null}{h.hr > 1 ? <span style={{ color: accent, marginLeft: 5, fontFamily: NUM_FONT, fontSize: 11 }}>×{h.hr}</span> : null}
                 </a>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                   {h.axes.length ? h.axes.map((x) => (
                     <span key={x.k} title={x.match ? `meets ${night.date}'s ${dr}` : undefined} style={{
                       fontFamily: NUM_FONT, fontSize: 11, padding: '2px 6px', borderRadius: 6,
-                      border: `1px solid ${x.match ? ROOT_COLORS[x.root] : C.border}`, color: x.match ? C.text : C.text2,
-                      background: x.match ? `${ROOT_COLORS[x.root]}22` : 'transparent', fontWeight: x.match ? 800 : 600,
+                      border: `1px solid ${x.match ? accent : C.border}`, color: x.match ? C.text : C.text2,
+                      background: x.match ? `${accent}22` : 'transparent', fontWeight: x.match ? 800 : 600,
                     }}>{x.label} → {x.root}</span>
                   )) : <span style={{ fontSize: 11, color: C.text3 }}>no numbers on file</span>}
                 </div>
@@ -57,8 +57,6 @@ function NightBox({ title, night, empty, C, NUM_FONT }) {
     </div>
   )
 }
-
-export const ROOT_COLORS = ['', '#f97316', '#f59e0b', '#22d3ee', '#4ade80', '#a78bfa', '#f87171', '#60a5fa', '#FCD34D', '#c084fc']
 
 export const MLB_WORDS = {
   person: 'hitter', persons: 'hitters', night: 'tonight', NIGHT: 'TONIGHT', unit: 'night',
@@ -142,11 +140,11 @@ export default function AlignmentsView({
           homer, and nothing here feeds any score. */}
       {tonight && tonight.total > 0 && (
         <div style={{
-          border: `1px solid ${ROOT_COLORS[todayRoot]}55`, borderRadius: 11,
-          background: `${ROOT_COLORS[todayRoot]}0d`, padding: '9px 12px', marginBottom: 10,
+          border: `1px solid ${accent}55`, borderRadius: 11,
+          background: `${accent}0d`, padding: '9px 12px', marginBottom: 10,
         }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 11, fontWeight: 900, color: ROOT_COLORS[todayRoot] }}>
+            <span style={{ fontSize: 11, fontWeight: 900, color: accent }}>
               🔮 {W.NIGHT}&apos;S NUMBER IS {todayRoot}
             </span>
             <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
@@ -168,7 +166,7 @@ export default function AlignmentsView({
             Expect about <b style={{ color: C.text2, fontFamily: NUM_FONT }}>{Math.round(tonight.expectedTwoPlus)}</b>{' '}
             of those by arithmetic alone on a slate this size, so{' '}
             {tonight.twoPlus > tonight.expectedTwoPlus * 1.25
-              ? <>{W.night} is running <b style={{ color: ROOT_COLORS[todayRoot] }}>above</b> its share</>
+              ? <>{W.night} is running <b style={{ color: accent }}>above</b> its share</>
               : tonight.twoPlus < tonight.expectedTwoPlus * 0.8
                 ? <>{W.night} is running <b style={{ color: C.text2 }}>below</b> its share</>
                 : <>{W.night} is <b style={{ color: C.text2 }}>about normal</b></>}
@@ -211,7 +209,7 @@ export default function AlignmentsView({
             Expect about <b style={{ color: C.text2, fontFamily: NUM_FONT }}>{Math.round(tonight.expectedTwoPlus)}</b>{' '}
             of those by arithmetic alone on a slate this size, so{' '}
             {tonight.twoPlus > tonight.expectedTwoPlus * 1.25
-              ? <>{W.night} is running <b style={{ color: ROOT_COLORS[todayRoot] }}>above</b> its share</>
+              ? <>{W.night} is running <b style={{ color: accent }}>above</b> its share</>
               : tonight.twoPlus < tonight.expectedTwoPlus * 0.8
                 ? <>{W.night} is running <b style={{ color: C.text2 }}>below</b> its share</>
                 : <>{W.night} is <b style={{ color: C.text2 }}>about normal</b></>}
@@ -257,8 +255,8 @@ export default function AlignmentsView({
                 title={`${keys.map((k) => AXIS_META[k].why(a)).join(' · ')} — all reducing to ${todayRoot}.${Number.isFinite(scoreOf(a)) && W.scoreShort ? ` Bot ${W.scoreShort} ${scoreOf(a).toFixed(0)}.` : ''} ${clickWord(a.pid)}.`}
                 style={{
                   padding: '3px 10px', borderRadius: 999, cursor: 'pointer', fontSize: 10.5, fontWeight: 700, ...CHIP,
-                  border: `1px solid ${picked.has(a.pid) ? C.orange : `${ROOT_COLORS[todayRoot]}55`}`,
-                  background: picked.has(a.pid) ? 'rgba(249,115,22,.14)' : 'transparent', color: C.text2,
+                  border: `1px solid ${picked.has(a.pid) ? accent : `${accent}55`}`,
+                  background: picked.has(a.pid) ? `${accent}24` : 'transparent', color: C.text2,
                 }}>
                 {a.name}
                 {/* The bot's score, on the chip rather than buried in a
@@ -268,7 +266,7 @@ export default function AlignmentsView({
                   title={`The bot's 0-100 ${W.scoreShort}. This list is sorted by it.`}>
                   {' '}{scoreOf(a).toFixed(0)}
                 </span>}
-                <span style={{ color: ROOT_COLORS[todayRoot], fontFamily: NUM_FONT, fontSize: 9, fontWeight: 900 }}>
+                <span style={{ color: C.text2, fontFamily: NUM_FONT, fontSize: 9, fontWeight: 900 }}>
                   {' '}{strength}×
                 </span>
                 <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 9 }}>
@@ -302,12 +300,12 @@ export default function AlignmentsView({
           📅 Yesterday · Today · Tomorrow
         </div>
         <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-          <NightBox title="Yesterday, actually" night={yesterdayArchive} empty="No homers on file for yesterday." C={C} NUM_FONT={NUM_FONT} />
-          <NightBox title="Tonight, so far" night={todayArchive} empty="Nothing's landed yet tonight -- the first homer fills this in." C={C} NUM_FONT={NUM_FONT} />
+          <NightBox title="Yesterday, actually" night={yesterdayArchive} empty="No homers on file for yesterday." C={C} NUM_FONT={NUM_FONT} accent={accent} />
+          <NightBox title="Tonight, so far" night={todayArchive} empty="Nothing's landed yet tonight -- the first homer fills this in." C={C} NUM_FONT={NUM_FONT} accent={accent} />
           <div style={{ flex: '1 1 220px', minWidth: 0 }}>
             <div style={{ fontSize: 9, color: C.text3, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase' }}>Tomorrow&apos;s date</div>
             <div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.6, marginTop: 2 }}>
-              {tomorrowKey} reduces to root <b style={{ color: ROOT_COLORS[tomorrowRoot], fontFamily: NUM_FONT, fontSize: 13 }}>{tomorrowRoot}</b>.
+              {tomorrowKey} reduces to root <b style={{ color: C.text, fontFamily: NUM_FONT, fontSize: 13 }}>{tomorrowRoot}</b>.
               A hitter&apos;s jersey, birthday and life path don&apos;t change day to day, so anyone whose own
               numbers land on {tomorrowRoot} is worth a glance once tomorrow&apos;s slate loads — see your
               watchlist below.
@@ -324,8 +322,8 @@ export default function AlignmentsView({
           tonight's slate — an empty watchlist has nothing to cross-check. */}
       {hasWatch && (
         <div style={{
-          border: `1px solid ${watchedRows.some((w) => w.any) ? C.orange + '77' : C.border}`,
-          background: watchedRows.some((w) => w.any) ? 'rgba(249,115,22,.06)' : C.bg2,
+          border: `1px solid ${watchedRows.some((w) => w.any) ? accent + '77' : C.border}`,
+          background: watchedRows.some((w) => w.any) ? `${accent}0f` : C.bg2,
           borderRadius: 10, padding: '9px 13px', marginBottom: 10,
         }}>
           <div style={{ fontSize: 10.5, fontWeight: 800, color: C.text2, marginBottom: 4 }}>
@@ -338,8 +336,8 @@ export default function AlignmentsView({
           ) : (
             <>
               <div style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.55, marginBottom: 6 }}>
-                {W.watchLegend || <>Checked against his own jersey / birthday / life-path roots — <b style={{ color: C.orange }}>Y</b> = matches
-                yesterday&apos;s leading root, <b style={{ color: C.orange }}>T</b> = today&apos;s so far, <b style={{ color: C.orange }}>+1</b> = tomorrow&apos;s date.</>}
+                {W.watchLegend || <>Checked against his own jersey / birthday / life-path roots — <b style={{ color: accent }}>Y</b> = matches
+                yesterday&apos;s leading root, <b style={{ color: accent }}>T</b> = today&apos;s so far, <b style={{ color: accent }}>+1</b> = tomorrow&apos;s date.</>}
               </div>
               <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
                 {watchedRows.map(({ a, hitsYesterday, hitsToday, hitsTomorrow, any }) => (
@@ -347,13 +345,13 @@ export default function AlignmentsView({
                     title={clickWord(a.pid, true)}
                     style={{
                       padding: '3px 10px', borderRadius: 999, cursor: 'pointer', fontSize: 10.5, fontWeight: 700, ...CHIP,
-                      border: `1px solid ${picked.has(a.pid) ? C.orange : any ? C.orange + '55' : C.border}`,
-                      background: picked.has(a.pid) ? 'rgba(249,115,22,.14)' : 'transparent', color: C.text2,
+                      border: `1px solid ${picked.has(a.pid) ? accent : any ? accent + '55' : C.border}`,
+                      background: picked.has(a.pid) ? `${accent}24` : 'transparent', color: C.text2,
                     }}>
                     {a.name}
-                    {hitsYesterday && <span style={{ color: C.orange, fontFamily: NUM_FONT, fontSize: 9, marginLeft: 5 }}>Y</span>}
-                    {hitsToday && <span style={{ color: C.orange, fontFamily: NUM_FONT, fontSize: 9, marginLeft: 3 }}>T</span>}
-                    {hitsTomorrow && <span style={{ color: C.orange, fontFamily: NUM_FONT, fontSize: 9, marginLeft: 3 }}>+1</span>}
+                    {hitsYesterday && <span style={{ color: accent, fontFamily: NUM_FONT, fontSize: 9, marginLeft: 5 }}>Y</span>}
+                    {hitsToday && <span style={{ color: accent, fontFamily: NUM_FONT, fontSize: 9, marginLeft: 3 }}>T</span>}
+                    {hitsTomorrow && <span style={{ color: accent, fontFamily: NUM_FONT, fontSize: 9, marginLeft: 3 }}>+1</span>}
                     {!any && <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 9, marginLeft: 5 }}>·</span>}
                   </button>
                 ))}
@@ -371,14 +369,14 @@ export default function AlignmentsView({
           return (
             <button key={c.root} onClick={() => setOpenRoot(on ? null : c.root)} style={{
               padding: '5px 12px', borderRadius: 9, cursor: 'pointer',
-              border: `1px solid ${on ? ROOT_COLORS[c.root] : C.border}`,
-              background: on ? `${ROOT_COLORS[c.root]}18` : C.bg2,
+              border: `1px solid ${on ? accent : C.border}`,
+              background: on ? `${accent}18` : C.bg2,
               color: C.text2, fontFamily: NUM_FONT, fontSize: 10.5, fontWeight: 800,
             }}
               title={`Root ${c.root}: ${c.count} memberships across all ${W.axesWord} axes, against ~${Math.round(expected)} expected by arithmetic. ${x >= 1.25 ? `Running above its share ${W.night}.` : x <= 0.8 ? 'Running below its share.' : 'About its arithmetic share.'}`}>
-              <span style={{ color: ROOT_COLORS[c.root], fontSize: 13 }}>{c.root}</span>
+              <span style={{ color: C.text, fontSize: 13 }}>{c.root}</span>
               {' '}{c.count}
-              <span style={{ color: x >= 1.25 ? ROOT_COLORS[c.root] : C.text3, fontSize: 9 }}> {x.toFixed(2)}×</span>
+              <span style={{ color: x >= 1.25 ? accent : C.text3, fontSize: 9 }}> {x.toFixed(2)}×</span>
             </button>
           )
         })}
@@ -387,8 +385,8 @@ export default function AlignmentsView({
         const c = clubs.find((k) => k.root === openRoot)
         const members = [...c.members].sort((a, b) => (b.axisKeys.length - a.axisKeys.length) || ((scoreOf(b.a) || 0) - (scoreOf(a.a) || 0)))
         return (
-          <div style={{ border: `1px solid ${ROOT_COLORS[openRoot]}44`, background: `${ROOT_COLORS[openRoot]}0a`, borderRadius: 10, padding: '8px 11px', marginBottom: 10 }}>
-            <div style={{ fontSize: 10.5, fontWeight: 800, color: ROOT_COLORS[openRoot], marginBottom: 5 }}>
+          <div style={{ border: `1px solid ${accent}44`, background: `${accent}0a`, borderRadius: 10, padding: '8px 11px', marginBottom: 10 }}>
+            <div style={{ fontSize: 10.5, fontWeight: 800, color: accent, marginBottom: 5 }}>
               THE {openRoot} CLUB · {members.length} {W.persons}
             </div>
             <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
@@ -397,8 +395,8 @@ export default function AlignmentsView({
                   title={`${axisKeys.map((k) => AXIS_META[k].why(a)).join(' · ')}${W.scoreShort && Number.isFinite(scoreOf(a)) ? ` · bot ${W.scoreShort} ${scoreOf(a).toFixed(0)}` : ''} · ${clickWord(a.pid, true)}`}
                   style={{
                     padding: '3px 10px', borderRadius: 999, cursor: 'pointer', fontSize: 10.5, fontWeight: 700, ...CHIP,
-                    border: `1px solid ${picked.has(a.pid) ? C.orange : C.border}`,
-                    background: picked.has(a.pid) ? 'rgba(249,115,22,.14)' : 'transparent', color: C.text2,
+                    border: `1px solid ${picked.has(a.pid) ? accent : C.border}`,
+                    background: picked.has(a.pid) ? `${accent}24` : 'transparent', color: C.text2,
                   }}>
                   {a.name}
                   {/* Raw number → root, not just the axis name. "season HR
@@ -420,7 +418,7 @@ export default function AlignmentsView({
       {/* ── FULL BRAIDS — his own numbers agree with each other ──────────── */}
       {braids.length > 0 && (
         <div style={{ border: `1px solid rgba(192,132,252,.3)`, background: 'rgba(192,132,252,.06)', borderRadius: 10, padding: '8px 11px', marginBottom: 10 }}>
-          <div style={{ fontSize: 10.5, fontWeight: 800, color: '#c084fc', marginBottom: 2 }}>
+          <div style={{ fontSize: 10.5, fontWeight: 800, color: accent, marginBottom: 2 }}>
             🧬 FULL BRAIDS · {braids.length} {W.persons} whose own numbers agree
           </div>
           <div style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.6, marginBottom: 6 }}>
@@ -432,11 +430,11 @@ export default function AlignmentsView({
                 title={`Root ${root}: ${keys.map((k) => AXIS_META[k].why(a)).join(' · ')}${W.scoreShort && Number.isFinite(scoreOf(a)) ? ` · ${W.scoreShort} ${scoreOf(a).toFixed(0)}` : ''} · ${clickWord(a.pid, true)}`}
                 style={{
                   padding: '3px 10px', borderRadius: 999, cursor: 'pointer', fontSize: 10.5, fontWeight: 700, ...CHIP,
-                  border: `1px solid ${picked.has(a.pid) ? C.orange : strength >= 3 ? '#c084fc' : C.border}`,
-                  background: picked.has(a.pid) ? 'rgba(249,115,22,.14)' : 'transparent', color: C.text2,
+                  border: `1px solid ${picked.has(a.pid) ? accent : strength >= 3 ? accent : C.border}`,
+                  background: picked.has(a.pid) ? `${accent}24` : 'transparent', color: C.text2,
                 }}>
                 {a.name}
-                <span style={{ color: ROOT_COLORS[root], fontFamily: NUM_FONT, fontSize: 9.5, fontWeight: 900 }}> {root}</span>
+                <span style={{ color: C.text, fontFamily: NUM_FONT, fontSize: 9.5, fontWeight: 900 }}> {root}</span>
                 <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 9 }}>×{strength}</span>
               </button>
             ))}
@@ -462,7 +460,7 @@ export default function AlignmentsView({
                   <span key={a.pid}>
                     {i > 0 && ' · '}
                     <span onClick={() => toggle(a.pid)}
-                      style={{ cursor: 'pointer', fontWeight: 700, color: picked.has(a.pid) ? C.orange : C.text }}
+                      style={{ cursor: 'pointer', fontWeight: 700, color: picked.has(a.pid) ? accent : C.text }}
                       title={clickWord(a.pid, true)}>
                       {a.name}
                     </span>

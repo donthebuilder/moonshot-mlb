@@ -12,8 +12,15 @@
 import { useState } from 'react'
 import { TYPE } from '../../lib/theme'
 import { fmtOdds, impliedPct, profitOn } from '../../lib/odds'
+import HelpTip from '../HelpTip'
 
 const decimal = (am) => { const v = Number(am); return v > 0 ? 1 + v / 100 : 1 + 100 / -v }
+/** "8 of these picks are in the DET · ARI game, so they move together." (one sentence for the slip and the cards). */
+export function sameGameLine(list) {
+  const bits = list.slice(0, 3).map((g) => `${g.n} of these picks are in the ${g.label} game`)
+  const more = list.length > 3 ? ` (+${list.length - 3} more games)` : ''
+  return `${bits.join('; ')}${more}, so they move together.`
+}
 const money = (v) => `$${v >= 1000 ? Math.round(v).toLocaleString() : v.toFixed(2).replace(/\.00$/, '')}`
 
 export default function BetSlip({ legs, onRemove, onClear, C, NUM_FONT, accent }) {
@@ -57,7 +64,7 @@ export default function BetSlip({ legs, onRemove, onClear, C, NUM_FONT, accent }
           <div><b style={{ color: C.text }}>As one parlay:</b> {money(s)} wins {money(s * (parlayDec - 1))} · the books' prices put all {legs.length} landing at {(100 * parlayChance) < 1 ? '<1' : (100 * parlayChance).toFixed(1)}%</div>
         )}
         {shared.length > 0 && (
-          <div style={{ color: C.text }}>⚠ Same game: {shared.map((g) => `${g.label} ×${g.n}`).join(' · ')} — these rise or fall together; the parlay chance above treats them as separate.</div>
+          <div style={{ color: C.text }}>{sameGameLine(shared)}<HelpTip label="Same game" color={C.text3} text="Picks from one game rise or fall together, so count them as one bet. The parlay chance above treats every pick as separate, so it overstates these." /></div>
         )}
         <div style={{ marginTop: 4, fontSize: TYPE.micro || 11, color: C.text3 }}>Prices are the best book's, as shown on the cards. Math, not advice. 21+ where legal; play within limits.</div>
       </div>

@@ -4,7 +4,8 @@ import { C as MLB_C, NUM_FONT as MLB_NUM, TYPE } from '../../lib/theme'
 import VerdictHero, { PeriodTiles } from '../VerdictHero'
 import MobileFold from '../MobileFold'
 import { FilterPill } from '../Filters'
-import BetSlip from './BetSlip'
+import BetSlip, { sameGameLine } from './BetSlip'
+import HelpTip from '../HelpTip'
 
 // ══ PROP CARDS, EVERY PRODUCT (2026-10-04) ══════════════════════════════════
 // Donovan: "make sure the props pages look like the mlb one". This is
@@ -238,7 +239,6 @@ export default function PropCards({
     { key: 'everyone', label: a.everyoneLabel || 'Everyone', count: counts.everyone },
   ]
   const kicker = { fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.1em', color: C.text3, textTransform: 'uppercase', fontFamily: NUM_FONT, flexShrink: 0 }
-  const unit = a.unit || 'badge'
   // the product's own words where it has them (MOONSHOT keeps its originals)
   const T = { priced: "Cards where the book has posted a number on this pick's OWN bar.", upcoming: 'Games that have not started yet.', watched: 'Only names on your watchlist.', sortScore: "Each market's own score -- cards only rank against cards measured the same way.", sortPrice: 'Longest price first, within each market block. An unpriced card sinks.', sortTime: 'Earliest start first, within each market block.', empty: 'No board published yet, or the market filter left nobody. Clear it above.', precision: {}, ...(a.copy || {}) }
 
@@ -276,11 +276,9 @@ export default function PropCards({
 
       <div style={{ fontSize: TYPE.body, color: C.text3, margin: '8px 0 4px', lineHeight: 1.55 }}>
         {hidden > 0 ? `showing ${total - hidden} of ${total}` : `${total} card${total === 1 ? '' : 's'}`}
-        {' — the verdict first, tap one for the full read.'}
         {dropped > 0 && (
           <>
-            {' '}Showing the <b style={{ color: C.text2 }}>top {precision}</b> per market;{' '}
-            <b style={{ color: C.text2 }}>{dropped}</b> more {unit}{dropped === 1 ? '' : 's'} under <b style={{ color: C.text2 }}>All</b>.
+            {' · '}top <b style={{ color: C.text2 }}>{precision}</b> per market, <b style={{ color: C.text2 }}>{dropped}</b> more under <b style={{ color: C.text2 }}>All</b>
           </>
         )}
       </div>
@@ -288,9 +286,8 @@ export default function PropCards({
       <BetSlip legs={slip} onRemove={(key) => saveSlip(slip.filter((l) => l.key !== key))} onClear={() => saveSlip([])} C={C} NUM_FONT={NUM_FONT} accent={accent} />
       {sameGame.length > 0 && (
         <div style={{ fontSize: TYPE.body, color: C.text2, margin: '4px 0 6px', lineHeight: 1.5 }}>
-          <b style={{ color: C.text }}>⚠ Same game:</b>{' '}
-          {sameGame.slice(0, 3).map((x) => `${x.label} ×${x.ids.size}`).join(' · ')}{sameGame.length > 3 ? ` · +${sameGame.length - 3} more` : ''}
-          {' — picks in one game rise or fall together. Count them as one bet, not several.'}
+          {sameGameLine(sameGame.map((x) => ({ label: x.label, n: x.ids.size })))}
+          <HelpTip label="Same game" color={C.text3} text="Picks from one game rise or fall together, so count them as one bet, not several." />
         </div>
       )}
       {total === 0 ? (

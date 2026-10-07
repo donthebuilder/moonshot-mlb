@@ -117,7 +117,18 @@ export default function PageHeader({
         <h2 style={{ fontSize: 24, margin: '0 0 3px', fontWeight: 900, letterSpacing: '-.03em', lineHeight: 1.15 }}>
           {title}
         </h2>
-        {todayText && <div style={{ fontSize: 11, color: T.text3, fontFamily: NF, letterSpacing: '.02em', marginBottom: sub || note ? 2 : 0 }}>{todayText}</div>}
+        {todayText && (() => {
+          // The weekday + date lead in the product's accent; the facts stay grey.
+          const cut = todayText.indexOf(' · ')
+          const dated = cut > 0 ? todayText.slice(0, cut) : ''
+          const rest = cut > 0 ? todayText.slice(cut) : todayText
+          return (
+            <div style={{ fontSize: 11, color: T.text3, fontFamily: NF, letterSpacing: '.02em', marginBottom: sub || note ? 2 : 0 }}>
+              {dated && <b style={{ color: ac, fontWeight: 900, fontSize: 12, letterSpacing: '.08em' }}>{dated}</b>}
+              {rest}
+            </div>
+          )
+        })()}
         {sub && <div style={{ fontSize: 11, color: T.text3, fontFamily: NF }}>{sub}</div>}
         {note && (
           <div style={{ marginTop: sub ? 3 : 0, maxWidth: 640, fontSize: 11, lineHeight: 1.45, color: T.text3 }}>
