@@ -37,6 +37,7 @@ import { eventCapture } from '../../lib/record/shape'
 import { readNflCardRecord, edgeParts } from '../../lib/nfl/cardRecord'
 import { regradeNote } from '../../lib/nfl/regrades'
 import styles from './called.module.css'
+import CalibrationTable from '../../components/record/CalibrationTable'
 import { membersUrl, MEMBERS_LINE } from '../../lib/members'
 import { shiftDay } from '../../lib/data'
 import { adminClient } from '../../lib/supabase/admin'
@@ -110,6 +111,7 @@ const SPORTS = {
     fills: 'This page fills in within a minute of each one.',
     foot: "CALLED IT is MOONSHOT's home run record — every home run, graded in public. Data from MLB's public feeds.",
     lead: 'called', onWhat: 'the bot', capture: eventCapture, window: DAYS, unit: ['night', 'nights'],
+    tierRecord: true,   // the calls graded by tier, with their lock times (components/record/CalibrationTable.js)
     rule: 'CALLED = a TOP, HR, HIT, HRR or CONTACT pick in his game. ON THE BOARD = the top third of that night\u2019s board (nights before Sep 17: anyone the board rated).',
     cta: ['See who the bot likes tonight', 'The headline picks and the full board, in the app — no account needed'],
     callsHead: 'Tonight\u2019s calls', callsPill: 'posted before first pitch',
@@ -711,6 +713,14 @@ export default async function CalledPage({ searchParams }) {
             {outRows.map((r) => <Row key={r._n.key} n={r._n} dim />)}
           </ul>
           <p className={styles.tableNote}>{sport.outsideNote} — these are not counted in the day&apos;s coverage above.</p>
+        </section>
+      ) : null}
+
+      {sport.tierRecord ? (
+        // THE CALLS, GRADED BY TIER (2026-10-06): n, cleared, rate and the lock time per tier,
+        // from the locked pregame record -- one table, read by the in-app record too.
+        <section id="tiers" className={styles.panel}>
+          <CalibrationTable />
         </section>
       ) : null}
 

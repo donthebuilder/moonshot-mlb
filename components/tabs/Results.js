@@ -1,5 +1,6 @@
 'use client'
 import CallHistory from '../record/CallHistory'
+import CalibrationTable from '../record/CalibrationTable'
 import MoneyAnswer from '../MoneyAnswer'
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import Tap from '../Tap'
@@ -709,6 +710,8 @@ const RECORD_NAME = tabName('mlb', 'results')
 export default function Results({ results, liveResults = null, slateDate = '', backtest, evalReport = null, players = [], onPlayerClick }) {
   // every HR call this season, its lock price and result (2026-10-04, user review build 2)
   const callHistory = <CallHistory sport="mlb" Table={DenseTable} onOpenPlayer={(id) => { const p = (players || []).find((x) => String(x.player_id) === String(id)); if (p) onPlayerClick?.(p) }} title="Every home-run call, its price, its result" />
+  // each tier's calls, hits and rate with its lock time (2026-10-06, lib/calibration)
+  const callHistoryWithTiers = <><CalibrationTable Table={DenseTable} />{callHistory}</>
   // THREE QUESTIONS, NOT SEVEN PILLS. `mode` is the question; each mode keeps
   // its own last-opened view, so switching to All season and back does not
   // dump you out of the sub-view you were reading. The seven keys are
@@ -1012,7 +1015,7 @@ export default function Results({ results, liveResults = null, slateDate = '', b
     return (
       <div>
         <PanelTitle title={RECORD_NAME} sub="Nightly grading" />
-        <RecordPage record={recordModel} Table={DenseTable} calls={callHistory} receiptsLabel="every night, every pick" receipts={(
+        <RecordPage record={recordModel} Table={DenseTable} calls={callHistoryWithTiers} receiptsLabel="every night, every pick" receipts={(
           <>
             {receiptsHead}
             <Empty text={
@@ -1032,7 +1035,7 @@ export default function Results({ results, liveResults = null, slateDate = '', b
         title={RECORD_NAME}
         sub={`${gradedDays.length} graded nights in the archive`}
       />
-      <RecordPage record={recordModel} Table={DenseTable} calls={callHistory} receiptsLabel="every night, every pick, the season's audits" receipts={(<>
+      <RecordPage record={recordModel} Table={DenseTable} calls={callHistoryWithTiers} receiptsLabel="every night, every pick, the season's audits" receipts={(<>
       {receiptsHead}
 
       {/* ── #34: THE MONEY ANSWER, ON THE PAGE THAT ASKS THE QUESTION ──────
