@@ -59,7 +59,9 @@ export function barSentence(read, bar, label = '', head = '') {
   return `${head}: cleared ${read.hits} of ${games}${margin}${range}.`
 }
 
-export default function AgainstTheBar({ log, statKey, bar, span = 5, label = '', head = '' }) {
+// `big` (PropsGrid, 2026-10-07): the sentence as the HEADLINE over the broadcast bars, and no games list under it
+// (the bars carry every game's number, opponent and week)
+export default function AgainstTheBar({ log, statKey, bar, span = 5, label = '', head = '', big = false }) {
   const read = useMemo(() => barRead(log, statKey, bar, span), [log, statKey, bar, span])
 
   if (!read) {
@@ -70,6 +72,9 @@ export default function AgainstTheBar({ log, statKey, bar, span = 5, label = '',
     )
   }
 
+  if (big) {
+    return <div style={{ fontSize: 17, color: C.text, lineHeight: 1.4, fontWeight: 800 }}>{barSentence(read, bar, label, head)}</div>
+  }
   const newest = [...read.games].reverse()
   const lastSeason = newest[0]?.s
   return (

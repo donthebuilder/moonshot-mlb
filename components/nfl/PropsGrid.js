@@ -1,6 +1,6 @@
 'use client'
 import { useMemo, useState } from 'react'
-import { C, NUM_FONT } from '../../lib/nfl/theme'
+import { C, NUM_FONT, BARS } from '../../lib/nfl/theme'
 import HitRate from './HitRate'
 import ValueBars from '../ValueBars'
 import { alpha } from '../../lib/scales'
@@ -37,9 +37,14 @@ const MARKETS = [
 ]
 const WINDOWS = [['L5', 5], ['L10', 10], ['L20', 20], ['All', 9999]]
 
-const rateCol = (pct) => (pct >= 60 ? C.green : pct >= 45 ? C.yellow : pct >= 25 ? C.orange : C.red)
-const cellBg = (pct) => (pct == null ? 'transparent'
-  : pct >= 60 ? `${C.green}36` : pct >= 45 ? `${C.yellow}2c` : pct >= 25 ? 'rgba(249,115,22,.12)' : `${C.red}20`)
+// THE RATE CELLS (2026-10-07, the visual audit: red / green semantics are banned). ONE accent, TUDDY's:
+// the more of his games over the line, the brighter the cell, white number on it (dark enough under it
+// to read at 4.5:1). A window on under four games is a flat grey slab that makes no claim. Every cell
+// prints its sample, `4/5`, so the size of the sample is never a colour.
+const THIN = 4
+const cellBg = (c) => (c == null ? 'transparent' : c.n < THIN ? BARS.thin : alpha(C.green, 0.06 + 0.4 * (c.pct / 100)))
+// the look the bars wear (lib/nfl/theme BARS + the page's inks)
+const LOOK = { clear: BARS.clear, miss: BARS.miss, missInk: BARS.missInk, rule: BARS.rule, ink: C.text, ink2: C.text2, bg: C.bg }
 
 export default function PropsGrid({ log, market: initialMarket, defaultBar, scores }) {
   const [mkt, setMkt] = useState(initialMarket || 'REC')
@@ -113,18 +118,18 @@ export default function PropsGrid({ log, market: initialMarket, defaultBar, scor
     : rows
 
   const th = {
-    fontFamily: NUM_FONT, fontSize: 11, fontWeight: 800, letterSpacing: '.07em',
-    color: C.text3, padding: '0 4px 4px', textTransform: 'uppercase', cursor: 'pointer',
+    fontFamily: NUM_FONT, fontSize: 12, fontWeight: 800, letterSpacing: '.07em',
+    color: C.text2, padding: '0 4px 6px', textTransform: 'uppercase', cursor: 'pointer',
     whiteSpace: 'nowrap', textAlign: 'center', userSelect: 'none',
   }
 
   return (
     <div style={{ marginTop: 16 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 10, fontWeight: 900, color: C.text3, letterSpacing: '.1em' }}>
+        <span style={{ fontSize: 12, fontWeight: 900, color: C.text2, letterSpacing: '.1em' }}>
           🎯 PROPS — EVERY MARKET, EVERY WINDOW
         </span>
-        <span style={{ fontSize: 12, color: C.text3 }}>
+        <span style={{ fontSize: 12, color: C.text2 }}>
           tap a row to open it · tap L5, L10 or L20 to rank by it
         </span>
       </div>
@@ -138,7 +143,7 @@ export default function PropsGrid({ log, market: initialMarket, defaultBar, scor
               {WINDOWS.map(([w], wi) => (
                 <th key={w} style={{
                   ...th,
-                  color: sort?.w === wi ? C.green : C.text3,
+                  color: sort?.w === wi ? C.green : C.text2,
                   borderBottom: sort?.w === wi ? `2px solid ${C.green}` : '2px solid transparent',
                 }}
                   onClick={() => setSort(sort?.w === wi && sort.dir === 'desc' ? { w: wi, dir: 'asc' } : { w: wi, dir: 'desc' })}
@@ -155,7 +160,7 @@ export default function PropsGrid({ log, market: initialMarket, defaultBar, scor
               return (
                 <tr key={r.key} style={{ cursor: 'pointer' }} onClick={() => setMkt(r.key)}>
                   <td style={{
-                    fontSize: 13, fontWeight: on ? 900 : 700, whiteSpace: 'nowrap',
+                    fontSize: 15, fontWeight: on ? 900 : 700, whiteSpace: 'nowrap',
                     color: on ? C.green : C.text, padding: '3px 6px',
                     borderLeft: `3px solid ${on ? C.green : 'transparent'}`, borderRadius: 4,
                   }}>
@@ -163,21 +168,23 @@ export default function PropsGrid({ log, market: initialMarket, defaultBar, scor
                   </td>
                   {r.cells.map((c, ci) => (
                     <td key={ci}
-                      title={c ? `${c.ok} of ${c.n} over ${r.line}` : 'no games in this window'}
+                      title={c ? `${c.ok} of ${c.n} over ${r.line}${c.n < THIN ? ' (too few games to lean on)' : ''}` : 'no games in this window'}
                       style={{
-                        textAlign: 'center', fontSize: 14, fontWeight: 800, padding: '6px 6px',
-                        borderRadius: 6, background: cellBg(c?.pct),
-                        color: c ? rateCol(c.pct) : C.text3,
-                        // A window with under 4 games asserts less.
-                        opacity: c && c.n < 4 ? 0.55 : 1,
-                        outline: on ? `1px solid ${C.green}56` : 'none',
+                        textAlign: 'center', padding: '5px 4px', borderRadius: 8, background: cellBg(c),
+                        color: c ? (c.n < THIN ? C.text2 : C.text) : C.text3, lineHeight: 1.05,
+                        outline: on ? `1px solid ${alpha(C.green, 0.4)}` : 'none',
                       }}>
-                      {c ? c.pct.toFixed(0) : '—'}
+                      {c ? (
+                        <>
+                          <div style={{ fontSize: 17, fontWeight: 900 }}>{c.pct.toFixed(0)}</div>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: C.text2, marginTop: 2 }}>{c.ok}/{c.n}</div>
+                        </>
+                      ) : '—'}
                     </td>
                   ))}
                   <td style={{
-                    textAlign: 'center', fontSize: 12, fontWeight: 900, padding: '3px 4px',
-                    color: r.stk > 0 ? C.green : r.stk < 0 ? C.red : C.text3,
+                    textAlign: 'center', fontSize: 13, fontWeight: 900, padding: '3px 4px',
+                    color: r.stk > 0 ? C.green : C.text2,
                   }}>
                     {r.stk > 0 ? `W${r.stk}` : r.stk < 0 ? `L${-r.stk}` : '—'}
                   </td>
@@ -188,21 +195,24 @@ export default function PropsGrid({ log, market: initialMarket, defaultBar, scor
         </table>
       </div>
 
-      {/* the active market's line chips re-grade the matrix row AND the chart */}
+      {/* the active market's line chips re-grade the matrix row AND the chart: 44px pills */}
       {active[3].length > 1 && (
-        <div style={{ display: 'flex', gap: 4, alignItems: 'center', margin: '7px 0 0' }}>
-          <span style={{ fontSize: 11, color: C.text3, fontWeight: 800, letterSpacing: '.08em', fontFamily: NUM_FONT }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', margin: '10px 0 0', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 12, color: C.text2, fontWeight: 800, letterSpacing: '.08em', fontFamily: NUM_FONT }}>
             {active[1].toUpperCase()} LINE
           </span>
-          {active[3].map((l) => (
-            <button key={l} onClick={() => setLines((s) => ({ ...s, [active[0]]: l }))} style={{
-              fontFamily: NUM_FONT, fontSize: 12, fontWeight: 900, cursor: 'pointer',
-              minHeight: 44, minWidth: 44, padding: '2px 10px', borderRadius: 8,
-              border: `1px solid ${lineFor(active) === l ? C.green : C.border}`,
-              background: lineFor(active) === l ? `${C.green}30` : 'transparent',
-              color: lineFor(active) === l ? C.green : C.text3,
-            }}>{l + 0.5}+</button>
-          ))}
+          {active[3].map((l) => {
+            const on = lineFor(active) === l
+            return (
+              <button key={l} onClick={() => setLines((s) => ({ ...s, [active[0]]: l }))} aria-pressed={on} style={{
+                fontFamily: NUM_FONT, fontSize: 16, fontWeight: 900, cursor: 'pointer',
+                minHeight: 44, minWidth: 56, padding: '0 16px', borderRadius: 999,
+                border: `2px solid ${on ? C.green : C.border2}`,
+                background: on ? C.green : 'transparent',
+                color: on ? C.bg : C.text,
+              }}>{l + 0.5}+</button>
+            )
+          })}
         </div>
       )}
 
@@ -214,39 +224,33 @@ export default function PropsGrid({ log, market: initialMarket, defaultBar, scor
         const span = WINDOWS[sort?.w ?? 1]
         const seg = (log || []).slice(-span[1])
         const thr = lineFor(active) + 0.5
-        const games = seg.map((g, i) => ({ key: `${g.s}-${g.w}-${i}`, val: Number(g[active[2]]) || 0,
+        const games = seg.map((g, i) => ({ key: `${g.s}-${g.w}-${i}`, val: Number(g[active[2]]) || 0, opp: g.opp || null, week: g.w ?? null, season: g.s ?? null,
           title: `${g.w != null ? `wk ${g.w}` : ''}${g.s ? ` '${String(g.s).slice(-2)}` : ''}${g.opp ? ` ${g.opp}` : ''} — ${Number(g[active[2]]) || 0} ${active[1].toLowerCase()}`, g }))
         const p = games.find((x) => x.key === pin)
         if (!games.length) return null
         return (
-          <div style={{ marginTop: 12 }}>
-            <div style={{ fontSize: 11, color: C.text3, fontFamily: NUM_FONT, marginBottom: 6 }}>
-              {thr}+ {active[1]} · {span[0] === 'All' ? `all ${games.length}` : `last ${games.length}`} games, newest right
+          <div style={{ marginTop: 14 }}>
+            {/* the headline: HitRate's one sentence, over the games it was counted from (same window) */}
+            <HitRate key={`${active[0]}-${lineFor(active)}-${span[1]}`} log={log} market={active[0]} defaultBar={thr} label={active[1]} span={span[1]} big />
+            <div style={{ fontSize: 12, color: C.text2, fontFamily: NUM_FONT, margin: '12px 0 8px' }}>
+              {span[0] === 'All' ? `All ${games.length}` : `Last ${games.length}`} games · newest on the right
             </div>
-            <ValueBars games={games} thr={thr} numFont={NUM_FONT} avgColor={alpha(C.green, 0.6)} selected={pin} onSelect={setPin} />
+            <ValueBars variant="broadcast" look={LOOK} sport="nfl" games={games} thr={thr} numFont={NUM_FONT} selected={pin} onSelect={setPin} />
             {p && (
-              <div style={{ marginTop: 7, padding: '6px 10px', borderRadius: 8, fontSize: 11, fontFamily: NUM_FONT, color: C.text2, background: 'rgba(255,255,255,.04)', border: `1px solid ${C.border}`, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'baseline' }}>
+              <div style={{ marginTop: 8, padding: '8px 12px', borderRadius: 10, fontSize: 13, fontFamily: NUM_FONT, color: C.text2, background: 'rgba(255,255,255,.04)', border: `1px solid ${C.border}`, display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
                 <b style={{ color: C.text }}>{p.title.split(' — ')[0]}</b>
                 {MARKETS.filter(([, , k]) => Number(p.g[k]) > 0).map(([key, label, k]) => <span key={key}>{Number(p.g[k])} {label.toLowerCase()}</span>)}
-                <button onClick={() => setPin(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: C.text3, cursor: 'pointer', fontSize: 11, minHeight: 32 }}>✕</button>
+                <button onClick={() => setPin(null)} aria-label="Unpin this game" style={{ marginLeft: 'auto', background: 'none', border: 'none', color: C.text2, cursor: 'pointer', fontSize: 14, minHeight: 44, minWidth: 44 }}>✕</button>
               </div>
             )}
           </div>
         )
       })()}
 
-      {/* the read — HitRate's one sentence, following the matrix. The KEY
-          carries the LINE as well as the market: HitRate seeds its line from
-          defaultBar in useState only, so without the line in the key a chip
-          click re-graded the matrix row while the sentence kept answering the
-          OLD line — two chip rows, one screen, two different answers (the
-          audit's find). Remounting on either change keeps them in step. */}
-      <HitRate key={`${active[0]}-${lineFor(active)}`} log={log} market={active[0]} defaultBar={lineFor(active) + 0.5} label={active[1]} />
-
-      <div style={{ fontSize: 12, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
-        % of his games over the line. Move a line chip and every number re-counts. Dim cells sit on fewer than
-        four games. STK is signed: <b style={{ color: C.green }}>W4</b> is four straight overs,{' '}
-        <b style={{ color: C.red }}>L4</b> four straight unders — a cold run is information too.
+      <div style={{ fontSize: 12, color: C.text2, marginTop: 10, lineHeight: 1.5 }}>
+        % of his games over the line, with the games it was counted from under it. Move a line chip and every number
+        re-counts. Grey cells sit on fewer than four games. <b style={{ color: C.green }}>W4</b> is four straight overs;
+        a cold run just shows as <b style={{ color: C.text }}>L4</b>.
       </div>
     </div>
   )

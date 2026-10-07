@@ -7,15 +7,15 @@ import { webglOk } from '../../lib/webglOk'
 // 🏟 the arena rides in on demand -- three.js is ~600KB (BATCH-NHL-3D)
 const RinkArena = dynamic(() => import('./RinkArena'), { ssr: false })
 const NO_SHOTS = []   // one empty list, so the HEAT arena isn't rebuilt every render
-import { C, NUM_FONT, RINK } from '../../lib/nhl/theme'
+import { C, NUM_FONT, RINK, RINK_DARK as RD } from '../../lib/nhl/theme'
 import { useLampShots, useLampShotSpeed, useLampGoalies, useLampGoalieZones } from '../../lib/nhl/useLamp'
 import { goalieZoneRead, overlapSentence, matchZones, MATCH_SHARE, ZONE_LABEL } from '../../lib/nhl/zones'
 import { shotLine } from '../../lib/nhl/shotStats'
 import { hardestIndex, measuredMph } from '../../lib/nhl/shotPath'
 import { DelayedBanner, Loading, Pills } from './ui'
 import { FactLines } from '../matchup/MatchupParts'
-import { chipColor } from '../Heatmap'
-import { ChipGroup, ChartCard, ChartLegend, ChartEmpty, StatStrip, viewBtn } from '../charts'
+import { alpha } from '../../lib/scales'
+import { ChipGroup, ChartCard, ChartLegend, ChartEmpty, StatStrip, viewBtn, chipBtn } from '../charts'
 
 // 🏒 WHERE HE SHOOTS FROM (lamp research step 3). The rink plus the numbers
 // it is drawn from, for one player or one club: season or last 10 games,
@@ -65,6 +65,7 @@ export const ZONES = [
   { key: 'point', label: 'Point', def: 'the blue line to the top of the circles', test: ([x]) => x < 54 },
   { key: 'below', label: 'Below', def: 'behind the goal line', test: ([x]) => x > 89 },
 ]
+const TALL = { minHeight: 44, padding: '0 12px', fontSize: 12, borderRadius: 999 }
 const clock = (t) => (t == null ? '' : `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`)
 const RES_WORD = { goal: 'Goal', sog: 'On net, saved', miss: 'Missed the net', block: 'Blocked' }
 
@@ -90,7 +91,7 @@ function restrictTo(m, dates, spec) {
 
 // season: 'this' | 'last' | 'both' asks the shot map for that season (null = the page's own default);
 // onlyDates: a Set of game days the drawn shots are limited to; startWin / startView: what it opens on.
-export default function ShotPanel({ sel, who = 'He', height = 300, venue = null, opp = null, season = null, onlyDates = null, startWin = 'last10', startView = 'dots', compact = false }) {
+export default function ShotPanel({ sel, who = 'He', height = 300, venue = null, opp = null, season = null, onlyDates = null, startWin = 'last10', startView = 'zones', compact = false }) {
   const { data, error, loading } = useLampShots(sel, season)
   const [win, setWin] = useState(onlyDates ? 'all' : startWin)
   const [res, setRes] = useState('ALL')
@@ -103,6 +104,7 @@ export default function ShotPanel({ sel, who = 'He', height = 300, venue = null,
   useEffect(() => { setView(startView) }, [startView])   // the VS control flips this panel in place, never remounts it   // DOTS / HEAT, held here so the legend reads what is drawn
   const [arena, setArena] = useState(false)  // 2D (false) or 3D (true), one chart in one place
   const [gl, setGl] = useState(false)
+  const [more, setMore] = useState(false)
   const [hardOnly, setHardOnly] = useState(false)   // ⚡ HARDEST 10 (BATCH-3D-V2 1g)
   useEffect(() => { setGl(webglOk()) }, [])
   const m0 = data?.[onlyDates ? 'all' : win] || data?.last10 || data?.all   // an older cached answer has no last5
@@ -146,9 +148,10 @@ export default function ShotPanel({ sel, who = 'He', height = 300, venue = null,
   const zoneItems = ZONES.map((z) => {
     const inZ = shots.filter(z.test)
     const g = inZ.filter((sh) => sh[2] === 'goal').length
-    return { key: z.key, label: z.label, g, pct: shots.length ? (100 * inZ.length) / shots.length : 0,
+    return { key: z.key, label: z.label, g, n: inZ.length, total: shots.length, pct: shots.length ? (100 * inZ.length) / shots.length : 0,
       text: `${inZ.length}${g ? ` · ${g}G` : ''}`, def: z.def }
   })
+  const moreOn = type !== 'ALL' || str !== 'ALL' || per !== 'ALL' || hardOnly
   const filtered = res !== 'ALL' || type !== 'ALL' || str !== 'ALL' || per !== 'ALL' || hardOnly
   const clearAll = () => { setRes('ALL'); setType('ALL'); setStr('ALL'); setPer('ALL'); setHardOnly(false); setPicked(null) }
   // THE NUMBERS ON SCREEN (1c): one line off the filtered list, the same in the
@@ -169,6 +172,31 @@ export default function ShotPanel({ sel, who = 'He', height = 300, venue = null,
     ...(hardOnly ? [['hard', '⚡ HARDEST 10', () => setHardOnly(false)]] : []),
   ]
   const chipProps = { theme: C, numFont: NUM_FONT }
+  // the one line over the chart: the window, the shots, the goals, and the slot's share of them
+  const goalsShown = shots.filter((sh) => sh[2] === 'goal').length
+  const slotZ = zoneItems.find((z) => z.key === 'slot')
+  const winWords = onlyDates ? 'In these games' : win === 'last5' ? 'Last 5 games' : win === 'last10' ? 'Last 10 games' : 'The season'
+  const summary = `${winWords}: ${shots.length} ${filtered ? 'shots in view' : 'shots'}, ${goalsShown} ${goalsShown === 1 ? 'goal' : 'goals'}${slotZ && shots.length ? `. ${Math.round(slotZ.pct)}% came from the slot.` : '.'}`
+  const viewToggle = gl ? (
+    <div role="group" aria-label="Chart view" style={{ display: 'inline-flex', gap: 6 }}>
+      {[['2D', false], ['3D', true]].map(([label, on]) => (
+        <button key={label} type="button" aria-pressed={arena === on} onClick={() => setArena(on)}
+          title={on ? 'The same shots, in the arena, in 3D' : 'The flat rink'}
+          style={{ ...viewBtn(arena === on, C.ice, C, NUM_FONT), font: `800 12px/1 ${NUM_FONT}`, minWidth: 52, minHeight: 44 }}>{label}</button>
+      ))}
+    </div>
+  ) : null
+  const mk = (node, label, key) => ({ key, mark: node, label })
+  const legendNode = view === 'goalie' || view === 'vs' || view === 'heat' ? null : (
+    <ChartLegend theme={C} style={{ fontSize: 12, gap: '6px 16px', color: C.text2 }} items={view === 'zones'
+      ? [mk(<i aria-hidden="true" style={{ width: 16, height: 12, borderRadius: 3, background: `linear-gradient(90deg, ${alpha(C.ice, 0.25)}, ${alpha(C.ice, 0.95)})` }} />, 'brighter = more of the shots', 'z'),
+        mk(<svg aria-hidden="true" width="16" height="16" viewBox="-4 -4 8 8"><circle r="3.6" fill={C.lamp} stroke={C.text} strokeWidth="0.7" /></svg>, 'goal', 'g')]
+      : [mk(<svg aria-hidden="true" width="16" height="16" viewBox="-4 -4 8 8"><circle r="3.6" fill={C.lamp} stroke={C.text} strokeWidth="0.7" /></svg>, 'goal', 'g'),
+        mk(<svg aria-hidden="true" width="16" height="16" viewBox="-4 -4 8 8"><circle r="2.2" fill={C.ice} /></svg>, 'on net', 's'),
+        mk(<svg aria-hidden="true" width="16" height="16" viewBox="-4 -4 8 8"><circle r="2.2" fill="none" stroke={RD.miss} strokeWidth="0.9" /></svg>, 'missed', 'm'),
+        mk(<svg aria-hidden="true" width="16" height="16" viewBox="-4 -4 8 8"><path d="M-2,-2 L2,2 M2,-2 L-2,2" stroke={RD.block} strokeWidth="1.1" strokeLinecap="round" /></svg>, 'blocked', 'b'),
+        ...(hardN ? [mk(<svg aria-hidden="true" width="16" height="16" viewBox="-4 -4 8 8"><circle r="3.4" fill="none" stroke={C.text} strokeWidth="0.7" /></svg>, 'one of his 10 hardest', 'h')] : [])]} />
+  )
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       <DelayedBanner error={error} what="the shot map" />
@@ -180,36 +208,12 @@ export default function ShotPanel({ sel, who = 'He', height = 300, venue = null,
       ) : null}
       {data?.season && m ? (
         <>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            {!onlyDates && <Pills tall ariaLabel="Shot window" value={win} onChange={setWin} options={WINDOWS} />}
-            <span style={{ color: C.text3, font: `800 9px/1 ${NUM_FONT}`, letterSpacing: '.08em' }}>{data.seasonLabel} REGULAR SEASON{data.stale && !season ? ' · LAST SEASON' : ''} · {m.games} GAMES{data.stale && data.currentGames > 0 ? ` · ${data.currentLabel}: ${data.currentGames} OF ${data.minGames} IN` : ''}</span>
-          </div>
-          {recent.length > 0 && recent[0].length > 3 && (
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-              <ChipGroup {...chipProps} first label="Result" value={res} onChange={(k) => { setRes(k); setPicked(null) }} color={C.lamp}
-                options={RES.map(([k, label]) => ({ k, label, n: countIn('res', (sh) => sh[2] === k), title: k === 'ALL' ? 'Every drawn attempt' : `Only ${label.toLowerCase()} attempts` }))} />
-              {!compact && <><ChipGroup {...chipProps} label="Type" value={type} onChange={(k) => { setType(k); setPicked(null) }} color={C.ice}
-                options={[['ALL', 'All'], ...types.map((t) => [t, t])].map(([k, label]) => ({ k, label, n: countIn('type', (sh) => sh[3] === k), title: k === 'ALL' ? 'Every shot type' : `Only ${label} shots (a block has no type)` }))} />
-              <ChipGroup {...chipProps} label="Strength" value={str} onChange={(k) => { setStr(k); setPicked(null) }} color={C.teal || C.ice}
-                options={STR.map(([k, label]) => ({ k, label, n: countIn('str', (sh) => sh[4] === k), title: k === 'ALL' ? 'Every strength' : `Only ${label === 'PP' ? 'power-play' : label === 'SH' ? 'shorthanded' : 'even-strength'} attempts` }))} />
-              <ChipGroup {...chipProps} label="Period" value={per} onChange={(k) => { setPer(k); setPicked(null) }} color={C.cream || C.ice}
-                options={PER.map(([k, label]) => ({ k, label, n: countIn('per', (sh) => perOf(sh) === k), title: k === 'ALL' ? 'Every period' : `Only the ${label} ${k === 'OT' ? '(overtime)' : 'period'}` }))} />
-              {hardN > 0 && (
-                <button type="button" onClick={() => { setHardOnly((v) => !v); setPicked(null) }} aria-pressed={hardOnly}
-                  title={`His ten hardest shots this season (measured) -- ${hardN} of them are on this map`}
-                  style={{ minHeight: 32, padding: '0 10px', borderRadius: 999, cursor: 'pointer', font: `800 10px/1 ${NUM_FONT}`,
-                    border: `1px solid ${hardOnly ? C.ice : C.border2}`, background: hardOnly ? `${C.ice}1f` : 'transparent', color: hardOnly ? C.ice : C.text2 }}>
-                  ⚡ HARDEST 10 <span style={{ color: C.text3 }}>{hardN}</span>
-                </button>
-              )}
-              </>}
-              {filtered && <button type="button" onClick={clearAll}
-                style={{ background: 'transparent', border: 'none', color: C.text3, font: `700 10px/1 ${NUM_FONT}`, cursor: 'pointer', textDecoration: 'underline dotted', minHeight: 0 }}>clear</button>}
+          {/* THE ONE-LINE SUMMARY, above the chart (2026-10-07: the chart leads the tab, not five rows of chips) */}
+          {recent.length > 0 && (
+            <div style={{ fontSize: 16, fontWeight: 800, color: C.text, lineHeight: 1.35 }}>
+              {summary}
             </div>
           )}
-          {/* THE NUMBERS, ON SCREEN (BATCH-3D-V2 1c): the filtered list's line,
-              above the rink so it never disappears when the arena toggles */}
-          <StatStrip stats={stats} theme={C} numFont={NUM_FONT} label="The shown shots, in numbers" />
           {view === 'goalie' && goalieRead && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {(sel?.name || goalie) && <div style={{ fontSize: 15, fontWeight: 800, color: C.text, lineHeight: 1.3 }}>{sel?.name || (who === 'He' ? 'He' : 'They')} <span style={{ color: C.ice, fontFamily: NUM_FONT, letterSpacing: '.1em', fontSize: 12 }}>VS</span> {goalie?.name || 'a goalie'}{goalie?.team ? <span style={{ color: C.text3, fontWeight: 600, fontSize: 13 }}> · {goalie.team}</span> : null}</div>}
@@ -240,28 +244,25 @@ export default function ShotPanel({ sel, who = 'He', height = 300, venue = null,
               to 3-D it's as simple as pressing a button"): the same filtered
               shots drawn flat or in the building, in the same place; the
               readout and its tap-a-shot card stay under either. */}
-          {gl && (
-            <div role="group" aria-label="Chart view" style={{ display: 'flex', gap: 6 }}>
-              {[['2D', false], ['3D', true]].map(([label, on]) => (
-                <button key={label} type="button" aria-pressed={arena === on} onClick={() => setArena(on)}
-                  title={on ? 'The same shots, in the arena, in 3D' : 'The flat rink'}
-                  style={{ ...viewBtn(arena === on, C.ice, C, NUM_FONT), minWidth: 52, minHeight: 36 }}>{label}</button>
-              ))}
-            </div>
-          )}
           {arena && gl && (
-            <RinkArena shots={view === 'dots' || view === 'goalie' ? shots : NO_SHOTS} goalieRead={view === 'goalie' ? goalieRead : null} onPickZone={(z) => setPicked({ zone: z })} map={m} league={data.league} slot={data.slot} gridSpec={data.gridSpec} view={view}
+            <RinkArena shots={view === 'zones' || view === 'dots' || view === 'goalie' ? shots : NO_SHOTS} goalieRead={view === 'goalie' ? goalieRead : null} onPickZone={(z) => setPicked({ zone: z })} map={m} league={data.league} slot={data.slot} gridSpec={data.gridSpec} view={view === 'zones' ? 'dots' : view}
               speed={speed} hardest={hardest} stats={stats} dockChips={dockChips} onClearAll={clearAll} totalShots={recent.length} slotPct={slotStat?.v ? parseInt(slotStat.v, 10) : null}
               title={sel?.name || sel?.team || sel?.against || ''} subtitle={`${shots.length} of the last ${recent.length} attempts`} venue={venue}
               onPick={(sh) => setPicked(sh)} onPickCell={(cell) => setPicked({ cell })} />
           )}
+          {/* 2D / 3D, one chart (2026-10-03): the flat rink and the arena share the chart's place; the toggle rides with the view buttons */}
+          {arena && gl && viewToggle}
           <ChartCard theme={C}>
-            {!(arena && gl) && <Rink map={m} slot={data.slot} gridSpec={data.gridSpec} height={height} shots={shots} view={view} onView={setView} league={data.league}
+            <div style={{ flex: '1 1 300px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {!(arena && gl) && <Rink map={m} slot={data.slot} gridSpec={data.gridSpec} height={height} shots={shots} view={view} onView={setView} league={data.league} zones={zoneItems} extraView={viewToggle}
               speed={speed} hardest={hardest} slotPct={slotStat?.v ? parseInt(slotStat.v, 10) : null}
               goalieRead={goalieRead} pickedZone={picked?.zone || null} onPickZone={(z) => setPicked({ zone: z })}
               onPick={(sh) => setPicked(sh === picked ? null : sh)} picked={picked}
               onPickCell={(cell) => setPicked({ cell })} />}
-            <div style={{ flex: 1, minWidth: 180 }}>
+            {/* THE LEGEND, directly under the rink: four marks, told apart by shape and by brightness */}
+            {!(arena && gl) && legendNode}
+            </div>
+            <div style={{ flex: '1 1 180px', minWidth: 180 }}>
               <div aria-live="polite" style={{ minHeight: 54, fontFamily: NUM_FONT, fontSize: 10.5, lineHeight: 1.7, color: C.text2 }}>
                 {!picked ? (
                   <div style={{ fontSize: 10, color: C.text3, lineHeight: 1.6 }}>
@@ -309,7 +310,7 @@ export default function ShotPanel({ sel, who = 'He', height = 300, venue = null,
                         style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', color: 'inherit' }}>
                         <span style={{ width: 70, color: z.match ? C.lamp : C.text3, fontFamily: NUM_FONT, fontWeight: z.match ? 800 : 400 }}>{z.label}</span>
                         <div style={{ flex: 1, height: 11, background: C.bg3, borderRadius: 2, outline: z.match ? `1px dashed ${C.lamp}` : 'none', outlineOffset: 1 }}>
-                          <div style={{ width: `${Math.max(2, pct)}%`, height: '100%', background: chipColor(pct, 0, 45), borderRadius: 2 }} />
+                          <div style={{ width: `${Math.max(2, pct)}%`, height: '100%', background: alpha(C.ice, 0.75), borderRadius: 2 }} />
                         </div>
                         <span style={{ fontFamily: NUM_FONT, color: C.text2, minWidth: 96, textAlign: 'right' }}>
                           {pct}% <span style={{ color: z.r.thin ? C.text3 : z.r.tint === 'worse' ? C.lamp : z.r.tint === 'better' ? RINK.blue : C.text3 }}>{z.r.thin ? 'thin' : `${(z.r.rate * 100).toFixed(1)}%`}</span>
@@ -320,21 +321,6 @@ export default function ShotPanel({ sel, who = 'He', height = 300, venue = null,
                   })}
                 </div>
               )}
-              {view !== 'goalie' && shots.length > 0 && recent[0]?.length > 3 && (
-                <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  {zoneItems.map((z) => (
-                    <div key={z.key} title={`${z.label}: ${z.def}`} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10 }}>
-                      <span style={{ width: 58, color: C.text3, fontFamily: NUM_FONT }}>{z.label}</span>
-                      <div style={{ flex: 1, height: 11, background: C.bg3, borderRadius: 2 }}>
-                        <div style={{ width: `${Math.max(2, z.pct)}%`, height: '100%', background: chipColor(z.pct, 0, 45), borderRadius: 2 }} />
-                      </div>
-                      <span style={{ fontFamily: NUM_FONT, color: C.text2, minWidth: 52, textAlign: 'right' }}>
-                        {z.pct.toFixed(0)}%{z.g > 0 && <span style={{ color: C.lamp }}> {z.g}G</span>}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
               {/* ONE LEGEND, FROM WHAT IS DRAWN (BATCH-2D-CORE flag 2): the
                   two hand-written keys (under the rink and here) became this. */}
               <ChartLegend theme={C} style={{ marginTop: 8 }} items={view === 'goalie' && goalieRead
@@ -342,22 +328,15 @@ export default function ShotPanel({ sel, who = 'He', height = 300, venue = null,
                   { key: 'better', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, background: `${RINK.blue}aa` }} />, label: 'fewer' },
                   { key: 'thin', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, border: `1px solid ${C.border2}` }} />, label: 'thin' },
                   { key: 'match', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, border: `1.5px dashed ${C.lamp}` }} />, label: `MATCH = he's weak there and ${who === 'He' ? 'he takes' : 'they take'} ${Math.round(MATCH_SHARE * 100)}%+ of the shots from it` },
-                  { key: 'bar', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, background: chipColor(30, 0, 45) }} />, label: `bar = ${who === 'He' ? 'his' : 'their'} share of the shots` }]
+                  { key: 'bar', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, background: alpha(C.ice, 0.75) }} />, label: `bar = ${who === 'He' ? 'his' : 'their'} share of the shots` }]
                 : view === 'vs'
                 ? [{ key: 'more', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, background: `${C.lamp}aa` }} />, label: `more of ${who === 'He' ? 'his' : 'their'} attempts here than the league's (points)` },
                   { key: 'less', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, background: `${C.ice}aa` }} />, label: 'fewer' },
                   { key: 'blank', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, border: `1px solid ${C.border2}` }} />, label: `blank = under ${VS_MIN} attempts` }]
                 : view === 'heat'
                 ? [{ key: 'heat', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, background: `${C.ice}88` }} />, label: 'shooting % per zone · shots under it' },
-                  { key: 'slot', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 1, background: `${C.ice}24` }} />, label: 'the slot' },
                   { key: 'arcs', mark: <b aria-hidden="true">◌</b>, label: '20 / 40 / 60 ft from the net' }]
-                : [{ key: 'goal', mark: <b aria-hidden="true" style={{ color: C.lamp }}>●</b>, label: 'goal' },
-                  { key: 'sog', mark: <b aria-hidden="true" style={{ color: RINK.puck, WebkitTextStroke: `0.6px ${RINK.puckRim}` }}>●</b>, label: 'on net (saved)' },
-                  { key: 'miss', mark: <b aria-hidden="true">✕</b>, label: 'missed' },
-                  { key: 'block', mark: <b aria-hidden="true">╱</b>, label: 'blocked' },
-                  ...(hardN ? [{ key: 'hard', mark: <b aria-hidden="true" style={{ color: C.ice }}>◎</b>, label: 'one of his 10 hardest (measured)' }] : []),
-                  { key: 'slot', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 1, background: `${C.ice}24` }} />, label: 'the slot' },
-                  { key: 'arcs', mark: <b aria-hidden="true">◌</b>, label: '20 / 40 / 60 ft from the net' }]} />
+                : []} />
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 8, fontFamily: NUM_FONT }}>
                 {[
                   ['slot share', pct(m.slotShare), C.ice],
@@ -369,7 +348,7 @@ export default function ShotPanel({ sel, who = 'He', height = 300, venue = null,
                   ['blocked', m.blocked, C.text2],
                   ['on the PP', m.byStrength?.pp || 0, C.text2],
                 ].map(([k, v, tone]) => (
-                  <span key={k} style={{ fontSize: 10, color: C.text3 }}><b style={{ color: tone, fontSize: 12.5, fontWeight: 900 }}>{v}</b> {k}</span>
+                  <span key={k} style={{ fontSize: 12, color: C.text2 }}><b style={{ color: tone, fontSize: 14, fontWeight: 900 }}>{v}</b> {k}</span>
                 ))}
               </div>
               {/* components/charts/HowToRead (2D TOP TIER 1): SprayField's panel,
@@ -397,6 +376,42 @@ export default function ShotPanel({ sel, who = 'He', height = 300, venue = null,
               </HowToRead>
             </div>
           </ChartCard>
+          {/* THE CONTROLS, under the chart: the window and the result stay in sight (44px), type / strength /
+              period / hardest sit behind MORE */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              {!onlyDates && <Pills tall ariaLabel="Shot window" value={win} onChange={setWin} options={WINDOWS} />}
+              <span style={{ color: C.text2, font: `800 11px/1.3 ${NUM_FONT}`, letterSpacing: '.06em' }}>{data.seasonLabel} REGULAR SEASON{data.stale && !season ? ' · LAST SEASON' : ''} · {m.games} GAMES{data.stale && data.currentGames > 0 ? ` · ${data.currentLabel}: ${data.currentGames} OF ${data.minGames} IN` : ''}</span>
+            </div>
+            {recent.length > 0 && recent[0].length > 3 && (
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                <ChipGroup {...chipProps} first label="Show" chipStyle={TALL} value={res} onChange={(k) => { setRes(k); setPicked(null) }} color={C.ice}
+                  options={RES.map(([k, label]) => ({ k, label, n: countIn('res', (sh) => sh[2] === k), title: k === 'ALL' ? 'Every drawn attempt' : `Only ${label.toLowerCase()} attempts` }))} />
+                <button type="button" onClick={() => setMore((v) => !v)} aria-expanded={more}
+                  style={{ ...TALL, ...chipBtn(more || moreOn, C.ice, C, NUM_FONT), ...TALL }}>More {more ? '▴' : '▾'}{moreOn ? ' •' : ''}</button>
+                {filtered && <button type="button" onClick={clearAll} style={{ ...TALL, background: 'transparent', border: 'none', color: C.text2, cursor: 'pointer', textDecoration: 'underline' }}>clear</button>}
+              </div>
+            )}
+            {more && recent.length > 0 && recent[0].length > 3 && (
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                <ChipGroup {...chipProps} first label="Type" chipStyle={TALL} value={type} onChange={(k) => { setType(k); setPicked(null) }} color={C.ice}
+                  options={[['ALL', 'All'], ...types.map((t) => [t, t])].map(([k, label]) => ({ k, label, n: countIn('type', (sh) => sh[3] === k), title: k === 'ALL' ? 'Every shot type' : `Only ${label} shots (a block has no type)` }))} />
+                <ChipGroup {...chipProps} label="Strength" chipStyle={TALL} value={str} onChange={(k) => { setStr(k); setPicked(null) }} color={C.teal || C.ice}
+                  options={STR.map(([k, label]) => ({ k, label, n: countIn('str', (sh) => sh[4] === k), title: k === 'ALL' ? 'Every strength' : `Only ${label === 'PP' ? 'power-play' : label === 'SH' ? 'shorthanded' : 'even-strength'} attempts` }))} />
+                <ChipGroup {...chipProps} label="Period" chipStyle={TALL} value={per} onChange={(k) => { setPer(k); setPicked(null) }} color={C.cream || C.ice}
+                  options={PER.map(([k, label]) => ({ k, label, n: countIn('per', (sh) => perOf(sh) === k), title: k === 'ALL' ? 'Every period' : `Only the ${label} ${k === 'OT' ? '(overtime)' : 'period'}` }))} />
+                {hardN > 0 && (
+                  <button type="button" onClick={() => { setHardOnly((v) => !v); setPicked(null) }} aria-pressed={hardOnly}
+                    title={`His ten hardest shots this season (measured) -- ${hardN} of them are on this map`}
+                    style={{ minHeight: 44, padding: '0 12px', borderRadius: 999, cursor: 'pointer', font: `800 12px/1 ${NUM_FONT}`,
+                      border: `1px solid ${hardOnly ? C.ice : C.border2}`, background: hardOnly ? `${C.ice}1f` : 'transparent', color: hardOnly ? C.ice : C.text2 }}>
+                    ⚡ HARDEST 10 <span style={{ color: C.text2 }}>{hardN}</span>
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+          <StatStrip stats={stats} theme={C} numFont={NUM_FONT} label="The shown shots, in numbers" />
           {!onlyDates && !compact && <FactLines theme={C} lines={depthLines(m, who, Boolean(sel?.against))} />}
         </>
       ) : null}
