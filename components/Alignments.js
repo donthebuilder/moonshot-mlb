@@ -25,10 +25,9 @@ import {
 // fielding position, plus the name families — with the ledger's own honesty
 // copy carried over word for word where it applies.
 //
-// AND IT FEEDS THE BUILDER. Every hitter here can be checked, and the button
-// hands the checked names to the Builder view as anchors — the alignment is
-// the reason you noticed him; the ticket is still built by the group engine
-// under all its normal rules. The two claims never blur: alignment is watched,
+// AND IT FEEDS THE BET SLIP (the Builder is deleted, 2026-10-07). Every hitter here can be checked, and the button
+// puts the checked names on the slip on Props (those with a price) — the alignment is
+// the reason you noticed him; the slip's pair notes use the measured rules. The two claims never blur: alignment is watched,
 // the ticket is measured.
 
 

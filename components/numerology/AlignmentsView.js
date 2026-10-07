@@ -473,7 +473,7 @@ export default function AlignmentsView({
       )}
 
       {builder && (<>
-      {/* ── HAND-OFF TO THE BUILDER ──────────────────────────────────────── */}
+      {/* ── HAND-OFF TO THE BET SLIP (2026-10-07; the Parlay Builder is deleted) ──────────────────────────────────────── */}
       <div style={{
         position: 'sticky', bottom: 8, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap',
         border: `1px solid ${pickedRows.length ? C.orange : C.border}`, borderRadius: 10,
@@ -496,12 +496,12 @@ export default function AlignmentsView({
             background: pickedRows.length ? 'rgba(249,115,22,.14)' : 'transparent',
             color: pickedRows.length ? C.orange : C.text3,
           }}>
-          🧱 Build a ticket around {pickedRows.length ? `these ${pickedRows.length}` : 'them'} →
+          ➕ Add {pickedRows.length ? `these ${pickedRows.length}` : 'them'} to my slip →
         </button>
       </div>
       <div style={{ fontSize: 9, color: C.text3, marginTop: 5, lineHeight: 1.55 }}>
-        The alignment is why you noticed him; the ticket is still built by the group engine under its normal
-        measured rules. The two claims never mix — a braid is watched, a ticket is graded.
+        The alignment is why you noticed him; the slip only adds the ones with a price posted, and the slip&apos;s
+        pair notes use the measured rules. The two claims never mix — a braid is watched, a ticket is graded.
       </div>
       </>)}
       {children}

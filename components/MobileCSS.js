@@ -351,13 +351,6 @@ export default function MobileCSS() {
           -webkit-overflow-scrolling: touch; scrollbar-width: none;
         }
         .chip-row::-webkit-scrollbar { display: none; }
-        /* THE BUILDER'S NAME PICKER (2026-08-23). The collapsed height is a
-           whole number of rows on both sizes already (68px — three desktop
-           rows, two phone rows), so only the EXPANDED height needs a phone
-           value: 188px is eight desktop rows but five and a fifth phone ones.
-           212 is six whole ones. */
-        .anchor-chips.tall { max-height: 212px !important; }
-        .anchor-chips::-webkit-scrollbar { display: none; }
       }
 
       /* ── THE GAME SWITCHER (2026-08-23) ───────────────────────────────────

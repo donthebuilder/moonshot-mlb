@@ -1,14 +1,12 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { btnStyle } from '../ui'
 import Pairs from './Pairs'
 import Pools from './Pools'
 import PairHistory from './PairHistory'
-import Builder from '../Builder'
 import ComboLinks from '../ComboLinks'
 import { queueLedgerView, ledgerHash } from '../../lib/ledger/views'
-import { takeBuilderSeed } from '../../lib/builderSeed'
 
 // 🎟 COMBOS — Pairs, Pools and their history under one roof (2026-08-16).
 //
@@ -44,7 +42,7 @@ import { takeBuilderSeed } from '../../lib/builderSeed'
 // breath." Not a strip bolted onto Pairs — its own view, same tier as the
 // other three, because it's the whole slate's numerology in one place and
 // deserves the room. Its "Build a ticket around these →" button hands
-// checked names to the Builder view below (see seedPins/onSeedConsumed).
+// checked names to the bet slip on Props (lib/slipSeed.js; the Builder view is deleted).
 // ── AND THE LEDGER GETS ITS OWN (2026-08-24) ────────────────────────────────
 // Donovan: "what if [we take the] homer ledger and make it its own page in
 // Alignments — do that, and make it damn near its own research tool."
@@ -66,9 +64,9 @@ const VIEWS = [
   // the panel is tonight, and this is the archive tool built around it on
   // 2026-08-24 -- past nights, harvest, season record, search. Named for what
   // it actually is, so the two stop competing.
-  // 2026-10-07: the Ledger lab is The Ledger's Archive now (#tab=ledger&lv=archive); this pill still opens it.
-  ['ledger', 'Ledger lab'],
-  ['builder', 'Builder'],
+  // 2026-10-07: the Ledger lab is DELETED as a page (its body is The Ledger's Archive, #tab=ledger&lv=archive) and
+  // so is the Builder (its pair hints, measured rules and suggested partners are on the bet slip, on Props).
+  // Pairs & Pools | Numerology | History is what is left.
   ['history', 'History'],
 ]
 
@@ -130,15 +128,6 @@ export default function Combos({
     return VIEWS.some(([k]) => k === want) ? want : 'pairs'
   })
 
-  // Alignments hands checked names here, then this jumps to the Builder view
-  // with them pre-pinned. Cleared once Builder has consumed it so the SAME
-  // pick set can be sent again later without going stale.
-  const [seedPins, setSeedPins] = useState(null)
-  // names checked on the Numerology page arrive here once (lib/builderSeed.js), pinned in the Builder
-  useEffect(() => {
-    const rows = takeBuilderSeed()
-    if (rows) { setSeedPins(rows); setView('builder') }
-  }, [])
   // The Ledger lab moved to The Ledger > Archive: this pill (and the line under Pairs) go there.
   const openArchive = () => {
     queueLedgerView('archive')
@@ -152,7 +141,7 @@ export default function Combos({
     <div>
       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 12 }}>
         {VIEWS.map(([k, label]) => (
-          <button key={k} onClick={() => (k === 'ledger' ? openArchive() : k === 'align' ? openNumerology() : setView(k))} style={btnStyle(C.orange, view === k)}>
+          <button key={k} onClick={() => (k === 'align' ? openNumerology() : setView(k))} style={btnStyle(C.orange, view === k)}>
             {label}
           </button>
         ))}
@@ -190,12 +179,11 @@ export default function Combos({
           drift. */}
       {view === 'pairs' && <StaleBuilderNote pairBuilder={pairBuilder} slateDate={slateDate} />}
       {view === 'pairs' && <ComboLinks here="pairs" />}
-      {view === 'builder' && <ComboLinks here="builder" />}
       {view === 'pairs' && (
         <>
           {/* The Homer Ledger moved to its own tab (2026-09-27, ledger plan
               step 3: "hidden under Parlays, nobody looks for it there").
-              Parlays keeps pairs, pools and the builder; one line points at it. */}
+              Parlays keeps pairs, pools and their history; one line points at it. */}
           {onNavigate && (
             <button type="button" onClick={() => onNavigate('ledger')}
               style={{ display: 'block', margin: '0 0 6px', minHeight: 44, padding: '0', border: 0, background: 'transparent', cursor: 'pointer', font: `800 11px/1.5 ${NUM_FONT}`, color: C.orange }}>
@@ -246,18 +234,6 @@ export default function Combos({
           VIEWS above for why it moved out into a pill of its own, and
           components/tabs/LedgerLab.js for what "research tool" turned out to
           mean: the night, and then the corpus of nights behind it. */}
-      {view === 'builder' && (
-        <Builder
-          players={players}
-          allPlayers={allPlayers}
-          pairHistorySummary={pairSummary}
-          odds={odds}
-          slateDate={slateDate}
-          onPlayerClick={onPlayerClick}
-          seedPins={seedPins}
-          onSeedConsumed={() => setSeedPins(null)}
-        />
-      )}
       {view === 'history' && (
         <PairHistory summary={pairSummary} players={allPlayers} onPlayerClick={onPlayerClick} />
       )}

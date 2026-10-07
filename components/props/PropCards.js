@@ -6,6 +6,7 @@ import MobileFold from '../MobileFold'
 import { FilterPill } from '../Filters'
 import BetSlip, { sameGameLine } from './BetSlip'
 import HelpTip from '../HelpTip'
+import { takeSlipSeed } from '../../lib/slipSeed'
 
 // ══ PROP CARDS, EVERY PRODUCT (2026-10-04) ══════════════════════════════════
 // Donovan: "make sure the props pages look like the mlb one". This is
@@ -137,6 +138,38 @@ export default function PropCards({
   }, [slipKey])
   const saveSlip = (next) => { setSlip(next); try { window.localStorage.setItem(slipKey, JSON.stringify(next)) } catch { /* private mode */ } }
   const slipKeyOf = (r, k) => `${a.keyOf(r)}|${k}`
+  // PAIRING HELP ON THE SLIP (the deleted Parlay Builder's useful parts, lib/slipPairs.js): only a product whose
+  // adapter has the rules (MOONSHOT) gets the pair notes and the suggested partners; the rest are unchanged.
+  const rowOfKey = useMemo(() => new Map((rawRows || []).map((r) => [String(a.keyOf(r)), r])), [rawRows, a])
+  const slipLegs = useMemo(() => slip.map((l) => { const [rk, k] = String(l.key).split('|'); return { key: l.key, k, r: rowOfKey.get(rk) } }), [slip, rowOfKey])
+  const pairNotes = useMemo(() => (a.slipNotes && slip.length >= 2 ? a.slipNotes(slipLegs) : []), [a, slip.length, slipLegs])
+  const partnerPicks = useMemo(() => (a.slipPartners && slip.length ? a.slipPartners(slipLegs, rawRows, Date.now()) : []), [a, slip.length, slipLegs, rawRows])
+  // Names checked on the Numerology page arrive once (lib/slipSeed.js): each goes on the slip in the first
+  // market it is priced in. Read from storage, not from `slip`, because the stored slip loads in an effect.
+  const [seedNote, setSeedNote] = useState('')
+  useEffect(() => {
+    if (!a.acceptsSeed || !rawRows?.length) return
+    const seed = takeSlipSeed()
+    if (!seed) return
+    let cur = []
+    try { const v = JSON.parse(window.localStorage.getItem(slipKey) || '[]'); cur = Array.isArray(v) ? v.filter((l) => Date.now() - (l.at || 0) < 864e5) : [] } catch { /* private mode */ }
+    const byId = new Map(rawRows.map((r) => [String(a.idOf(r)), r]))
+    let added = 0
+    const next = [...cur]
+    for (const sr of seed) {
+      const r = byId.get(String(a.idOf(sr))) || rawRows.find((x) => String(a.keyOf(x)) === String(a.keyOf(sr)))
+      if (!r) continue
+      const k = (a.rolesOf(r) || []).find((m) => a.priceNum(r, m) != null)
+      if (!k) continue
+      const key = `${a.keyOf(r)}|${k}`
+      if (next.some((l) => l.key === key)) continue
+      next.push({ key, name: a.card(r, k).title, market: a.pillLabel(k), price: a.priceNum(r, k), game: a.gameOf ? a.gameOf(r) : null, at: Date.now() })
+      added += 1
+    }
+    setSlip(next)
+    try { window.localStorage.setItem(slipKey, JSON.stringify(next)) } catch { /* private mode */ }
+    setSeedNote(`${added} of the ${seed.length} names you checked ${added === 1 ? 'is' : 'are'} on your slip${added < seed.length ? `; the other ${seed.length - added} have no price posted yet` : ''}.`)
+  }, [a, rawRows, slipKey])   // eslint-disable-line react-hooks/exhaustive-deps
   const toggleSlip = (r, k) => {
     const key = slipKeyOf(r, k)
     if (slip.some((l) => l.key === key)) return saveSlip(slip.filter((l) => l.key !== key))
@@ -283,7 +316,8 @@ export default function PropCards({
         )}
       </div>
 
-      <BetSlip legs={slip} onRemove={(key) => saveSlip(slip.filter((l) => l.key !== key))} onClear={() => saveSlip([])} C={C} NUM_FONT={NUM_FONT} accent={accent} />
+      {seedNote && <div role="status" style={{ fontSize: TYPE.body, color: C.text2, margin: '4px 0 6px', lineHeight: 1.5 }}>{seedNote}</div>}
+      <BetSlip pairNotes={pairNotes} partners={partnerPicks} onAdd={(p) => toggleSlip(p.r, p.k)} legs={slip} onRemove={(key) => saveSlip(slip.filter((l) => l.key !== key))} onClear={() => saveSlip([])} C={C} NUM_FONT={NUM_FONT} accent={accent} />
       {sameGame.length > 0 && (
         <div style={{ fontSize: TYPE.body, color: C.text2, margin: '4px 0 6px', lineHeight: 1.5 }}>
           {sameGameLine(sameGame.map((x) => ({ label: x.label, n: x.ids.size })))}

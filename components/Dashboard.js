@@ -9,7 +9,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { resolveTab, pageTitle, isSport, isLiveTab } from '../lib/routes'
 import { canonLedgerHash, queueLedgerView, carryLedgerView } from '../lib/ledger/views'
-import { queueBuilderSeed } from '../lib/builderSeed'
+import { queueSlipSeed } from '../lib/slipSeed'
 import LedgerShell from './pages/LedgerShell'
 import { usePageTitle } from '../lib/usePageTitle'
 import TabNotFound from './TabNotFound'
@@ -63,7 +63,6 @@ const RankedBoard = dynamic(() => import('./tabs/RankedBoard'), { loading: TabLo
 const PairHistory = dynamic(() => import('./tabs/PairHistory'), { loading: TabLoading })
 const SprayBoard = dynamic(() => import('./tabs/SprayBoard'), { loading: TabLoading })
 const PowerTab = dynamic(() => import('./tabs/Power'), { loading: TabLoading })
-const Derby = dynamic(() => import('./tabs/Derby'), { loading: TabLoading })
 const Backtest = dynamic(() => import('./tabs/Backtest'), { loading: TabLoading })
 const PlayerBoard = dynamic(() => import('./tabs/PlayerBoard'), { loading: TabLoading })
 const HitsHRR = dynamic(() => import('./tabs/HitsHRR'), { loading: TabLoading })
@@ -1028,7 +1027,7 @@ export default function Dashboard({ palettePass = 0 }) {
                 `picks` links land here too, so no bookmark breaks. */}
             {(tab === 'props' || tab === 'bot') && (
               <>
-                <PropsGrid players={players} odds={odds} onPlayerClick={setModalPlayer} onWatch={toggleWatch} watchIds={watchIds} />
+                <PropsGrid players={players} odds={odds} pairSummary={pairSummary} onPlayerClick={setModalPlayer} onWatch={toggleWatch} watchIds={watchIds} />
                 <section aria-label="The picks behind the cards" style={{ marginTop: 26, paddingTop: 18, borderTop: `1px solid ${C.border}` }}>
                   <Bot players={allPlayers} onPlayerClick={setModalPlayer} onGoPairs={goToPairsFor} odds={odds} onWatch={toggleWatch} watchIds={watchIds} />
                 </section>
@@ -1084,7 +1083,7 @@ export default function Dashboard({ palettePass = 0 }) {
             {tab === 'due'         && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} onNavigate={setTab} initialView="power" powerInitial="due" />}
             {/* 2026-10-07: Numerology is its own page now (Alignments, the date's numbers and the lanes),
                 no longer a view inside Parlays; #tab=align is its old key. */}
-            {tab === 'numerology'  && <Alignments players={allPlayers} watchIds={watchIds} slateDate={slateDate} onPlayerClick={setModalPlayer} onBuildAround={(rows) => { queueBuilderSeed(rows); setTab('combos') }} />}
+            {tab === 'numerology'  && <Alignments players={allPlayers} watchIds={watchIds} slateDate={slateDate} onPlayerClick={setModalPlayer} onBuildAround={(rows) => { queueSlipSeed(rows); setTab('props') }} />}
             {/* 🧾 #tab=ledger — the Homer Ledger's own page inside Combos
                 (2026-08-24). Same host, own view; the Home panel's
                 "research →" link points here. */}
@@ -1100,13 +1099,11 @@ export default function Dashboard({ palettePass = 0 }) {
             }} />}
             {tab === 'pairs'       && <Combos odds={odds} slateDate={slateDate} players={players} allPlayers={allPlayers} pairBuilder={pairBuilder} pairSummary={pairSummary} results={resultsForSlate} watchIds={watchIds} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} initial="pairs" />}
             {tab === 'pools'       && <Combos odds={odds} slateDate={slateDate} players={players} allPlayers={allPlayers} pairBuilder={pairBuilder} pairSummary={pairSummary} results={resultsForSlate} watchIds={watchIds} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} initial="pools" />}
-            {tab === 'builder'     && <Combos odds={odds} slateDate={slateDate} players={players} allPlayers={allPlayers} pairBuilder={pairBuilder} pairSummary={pairSummary} results={resultsForSlate} watchIds={watchIds} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} initial="builder" />}
             {tab === 'pairhist'    && <Combos odds={odds} slateDate={slateDate} players={players} allPlayers={allPlayers} pairBuilder={pairBuilder} pairSummary={pairSummary} results={resultsForSlate} watchIds={watchIds} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} initial="history" />}
             {tab === 'mypicks'     && <You players={allPlayers} watchItems={watchLive} pairSummary={pairSummary} results={resultsForSlate} odds={odds} slateDate={slateDate} mode={mode} onWatch={toggleWatch} onAdd={addSlip} onPlayerClick={setModalPlayer} initial="picks" />}
             {tab === 'watch'       && <You players={allPlayers} watchItems={watchLive} pairSummary={pairSummary} results={resultsForSlate} odds={odds} slateDate={slateDate} mode={mode} onWatch={toggleWatch} onAdd={addSlip} onPlayerClick={setModalPlayer} initial="watch" />}
             {tab === 'leaders'     && <Leaders players={players} onPlayerClick={setModalPlayer} onNavigate={setTab} />}
             {tab === 'player'      && <PlayerBoard players={players} slate={allPlayers} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} odds={odds} />}
-            {tab === 'derby'       && <Derby players={players} results={resultsForSlate} slateDate={slateDate} onPlayerClick={setModalPlayer} />}
             {tab === 'runs'        && <Runs players={allPlayers} onPlayerClick={setModalPlayer} onOpenPitcher={(pid) => { leaveTarget('pitcher', pid); setTab('pitchers') }} />}
             {tab === 'spray'       && <SprayBoard players={players} slateMode={mode} onPlayerClick={setModalPlayer} />}
             {tab === 'guide'       && <Guide onNavigate={setTab} />}

@@ -4,7 +4,7 @@ import { hashParams } from '../lib/urlState'
 
 // ══ THE THREE COMBO SURFACES, LINKED (2026-09-01) ════════════════════════════
 //
-// Pairs (the bot's picks), the Builder (yours, around an anchor) and the
+// Pairs (the bot's picks), the Builder (deleted 2026-10-07; its parts are on the bet slip) and the
 // Watchlist's "Pairs within your list" (yours, among saved men) grew in three
 // sessions and never pointed at each other. Donovan, asked whether to unify
 // them: "keep three, cross-link, trim Pairs' prose." So: one row, drawn on
@@ -12,7 +12,6 @@ import { hashParams } from '../lib/urlState'
 // listens for them — no prop threading through four components.
 const ALL = [
   ['pairs', '🔗 MOONSHOT pairs', 'MOONSHOT’s own pairs and pools, ranked on the record'],
-  ['builder', '🧰 Builder', 'build a pair or pool around any hitter'],
   ['watch', '⭐ Your list', 'every two-man combo among the hitters you saved'],
 ]
 

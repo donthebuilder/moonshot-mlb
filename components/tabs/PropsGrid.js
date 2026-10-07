@@ -14,6 +14,7 @@ import MlbTeamMark from '../MlbTeamMark'
 import PropsSheet from '../PropsSheet'
 import { useIsPhone } from '../MobileFold'
 import PropCards from '../props/PropCards'
+import { pairNotes, partners as slipPartners, isHrLeg } from '../../lib/slipPairs'
 
 // ══ PROPS GRID — THE MOBILE PILOT PAGE ══════════════════════════════════════
 // built 2026-08-23 · REDRAWN 2026-08-23 (Donovan: "make the props page better
@@ -169,7 +170,11 @@ const MLB_COPY = {
   },
 }
 
-function mlbAdapter(odds) {
+function mlbAdapter(odds, pairSummary = null) {
+  const priceNum = (r, k) => {
+    const q = quoteFor(odds, r, PRICE_ROLE[k] || 'HR')
+    return q && q.over != null && q.matches !== false ? Number(q.over) : null
+  }
   return {
     markets: GROUP_ORDER,
     pillLabel: (k) => (k === 'WATCH' ? '👀 Watch' : k),
@@ -215,6 +220,16 @@ function mlbAdapter(odds) {
     },
     startsAt: (r) => Date.parse(r?.game_time || ''),
     gameOf: (r) => (r?.game_pk ? { key: String(r.game_pk), label: [r.team, r.opponent].filter(Boolean).join(' · ') } : null),
+    // WHAT HELPS PEOPLE PAIR PLAYERS, ON THE SLIP (the Parlay Builder's useful parts, lib/slipPairs.js)
+    slipNotes: (legs) => pairNotes(legs, pairSummary),
+    slipPartners: (legs, rows, now) => slipPartners(legs, rows, {
+      canAdd: (r) => {
+        const t = Date.parse(r?.game_time || '')
+        if (Number.isFinite(t) && t <= now) return null          // under way or final: not actionable
+        return rolesOf(r).find((k) => isHrLeg(k) && priceNum(r, k) != null) || null
+      },
+    }),
+    acceptsSeed: true,                       // names checked on Numerology land on the slip (lib/slipSeed.js)
     precisionKey: 'moonshot_precision_v1',
     sortTimeLabel: 'First pitch',
     picksTitle: 'every bat wearing a badge tonight',
@@ -223,7 +238,7 @@ function mlbAdapter(odds) {
   }
 }
 
-export default function PropsGrid({ players = [], odds = null, onPlayerClick, onWatch, watchIds }) {
+export default function PropsGrid({ players = [], odds = null, pairSummary = null, onPlayerClick, onWatch, watchIds }) {
   // On a phone a tapped card opens components/PropsSheet.js (one player, whole
   // screen); on anything wider the player modal opens directly.
   const isPhone = useIsPhone(760)
@@ -254,7 +269,7 @@ export default function PropsGrid({ players = [], odds = null, onPlayerClick, on
     window.addEventListener('hashchange', read)
     return () => window.removeEventListener('hashchange', read)
   }, [isPhone, players])
-  const a = useMemo(() => mlbAdapter(odds), [odds])
+  const a = useMemo(() => mlbAdapter(odds, pairSummary), [odds, pairSummary])
   return (
     <>
       <PropCards a={a} rows={players} onOpen={openCard} onWatch={onWatch} watchIds={watchIds}

@@ -952,8 +952,8 @@ rows={[...filteredOnSlate].sort(byGameThenTeam).map((p, i) => {
           list-vs-slate, not list-vs-list. Exactly backwards for a watchlist.
           This is the right shape: every two-man combination FROM the saved
           names, scored on tonight plus whatever co-HR history the pair has.
-          For a hitter's partners beyond the list, the full builder lives on
-          Pools. */}
+          For a hitter's partners beyond the list, add him to the slip on Props
+          (its pair notes and suggested partners). */}
       {items.length >= 2 && (
         <WatchlistPairs items={items} pairSummary={pairSummary} onPlayerClick={onPlayerClick} />
       )}

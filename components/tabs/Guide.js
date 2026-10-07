@@ -317,7 +317,7 @@ export default function Guide({ onNavigate }) {
         <Term tab="due" go={onNavigate} icon="⚡" term="Power-3" def="who hits it hardest and farthest all season — HR per ball in play, average EV and max EV, ranked on tonight's slate and averaged. Replaced the Due board: drought predicts nothing." />
         <Term tab="fullboard" go={onNavigate} icon="💎" term="Hits & HRR" def="contact and extra-base plays instead of power." />
         <Term tab="pairs" go={onNavigate} icon="🔗" term="Pairs" def="two-man home-run combinations — who's live tonight and what MOONSHOT recommends." />
-        <Term tab="pools" go={onNavigate} icon="🏊" term="Pools" def="MOONSHOT's three- and four-man group tickets, plus the Pair Builder for making your own pair." />
+        <Term tab="pools" go={onNavigate} icon="🏊" term="Pools" def="MOONSHOT's three- and four-man group tickets, and your slip on Props shows how any two home-run legs have paired." />
         <Term tab="pairhist" go={onNavigate} icon="🧬" term="Pair History" def="which two hitters have gone deep on the same day all season." />
         <Term tab="spray" go={onNavigate} icon="🗺️" term={tabName('mlb', 'spray')} def="where a hitter's batted balls actually land." />
         <Term tab="pitchers" go={onNavigate} icon="🎯" term="Pitchers" def="tonight's arms ranked by how much they leak." />

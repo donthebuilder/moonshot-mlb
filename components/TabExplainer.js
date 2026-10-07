@@ -16,7 +16,7 @@ const TEXTS = {
   // kept — alias routes still land on them and the explainer follows the
   // route key, so a #tab=scoreboard visitor still gets the right paragraph.
   combos: {
-    what: 'Parlays, all in one place. Pairs and Pools are the bot\u2019s own published combinations; History is how past ones actually graded. The ticket builder underneath lets you build your own from the five pick groups, with each leg\u2019s bar and measured rate stated \u2014 and it never multiplies two legs into one percentage, because same-game legs share a park, an arm and a game state.',
+    what: 'Parlays, all in one place. Pairs and Pools are the bot\u2019s own published combinations; History is how past ones actually graded. To build your own, add picks to your slip on Props: it shows how each pair of home-run legs has measured in the archive and suggests partners, and states measured rates only, never a forecast of its own.',
   },
   you: {
     what: 'Your side of the site. My Picks is the game \u2014 you against the bot, same slots, same bars, graded overnight, with a running record of where your judgement actually beats it. Watchlist is your saved hitters with their record while you\u2019ve watched them. Both live on this device only \u2014 export from either panel to back them up.',
@@ -60,7 +60,7 @@ const TEXTS = {
     what: 'Two-man home run tickets: both hitters need to go deep for the pair to cash. The bot builds these from tonight’s strongest combinations, and the history columns show how often each duo has connected before. Long odds by nature — that’s the shape of the bet, not a flaw.',
   },
   pools: {
-    what: 'Group tickets: 3, 4, or 6 hitters where EVERY member must homer to cash. During games each pool grades live — 💥 marks who’s already gone deep. Most pools die unfinished on purpose; the payoff shape is lottery-like. The pair builder below lets you construct your own two-man around any anchor.',
+    what: 'Group tickets: 3, 4, or 6 hitters where EVERY member must homer to cash. During games each pool grades live — 💥 marks who’s already gone deep. Most pools die unfinished on purpose; the payoff shape is lottery-like. To make your own two-man, add picks to your slip on Props.',
   },
   bot: {
     // 2026-08-12: this used to invite a comparison against the Boards tab
@@ -99,7 +99,7 @@ const TEXTS = {
     what: 'Your saved hitters. Watch anyone anywhere on the site and they collect here, with live “went deep / got a hit” tiles during games. Paste a list of names into the cross-reference box and the site matches them against tonight’s slate with full stats — built for checking someone else’s card against the bot’s.',
   },
   pairhist: {
-    what: 'The season-long memory of which two hitters have homered on the SAME night before, and how often. Feeds the pair builder — a duo that’s connected five times is a different bet than one that never has.',
+    what: 'The season-long memory of which two hitters have homered on the SAME night before, and how often. Feeds the pair notes on your slip — a duo that’s connected five times is a different bet than one that never has.',
   },
   ledger: {
     what: 'The Ledger is the site’s receipts, in four tabs. Tonight: the night in names and numbers. Called: every home run sorted CALLED, ON THE BOARD or NOT ON THE BOARD. Record: every graded night, wins and losses alike. Archive: past nights and the whole season. Picks lock at first pitch, so none of it can be quietly rewritten.',

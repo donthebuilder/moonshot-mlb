@@ -23,7 +23,7 @@ export function sameGameLine(list) {
 }
 const money = (v) => `$${v >= 1000 ? Math.round(v).toLocaleString() : v.toFixed(2).replace(/\.00$/, '')}`
 
-export default function BetSlip({ legs, onRemove, onClear, C, NUM_FONT, accent }) {
+export default function BetSlip({ legs, onRemove, onClear, pairNotes = [], partners = [], onAdd = null, C, NUM_FONT, accent }) {
   const [stake, setStake] = useState(10)
   if (!legs.length) return null
   const s = Number.isFinite(Number(stake)) && Number(stake) > 0 ? Number(stake) : 0
@@ -65,6 +65,32 @@ export default function BetSlip({ legs, onRemove, onClear, C, NUM_FONT, accent }
         )}
         {shared.length > 0 && (
           <div style={{ color: C.text }}>{sameGameLine(shared)}<HelpTip label="Same game" color={C.text3} text="Picks from one game rise or fall together, so count them as one bet. The parlay chance above treats every pick as separate, so it overstates these." /></div>
+        )}
+        {/* PAIRING HELP (2026-10-07: what the deleted Parlay Builder had that helps people pair players; lib/slipPairs.js).
+            Measured rates and real history only, for home-run legs; a product without the rules passes nothing. */}
+        {pairNotes.length > 0 && (
+          <div style={{ marginTop: 6 }}>
+            <b style={{ color: C.text }}>How these pair</b>
+            {pairNotes.map((p) => (
+              <div key={p.id} style={{ marginTop: 3, color: C.text2 }}>
+                <b style={{ color: C.text }}>{p.a} + {p.b}.</b> {p.text}
+              </div>
+            ))}
+          </div>
+        )}
+        {partners.length > 0 && onAdd && (
+          <div style={{ marginTop: 6 }}>
+            <b style={{ color: C.text }}>Pairs well with</b>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
+              {partners.map((p) => (
+                <button key={p.r.player_id ?? p.name} type="button" onClick={() => onAdd(p)}
+                  aria-label={`Add ${p.name} to the slip: ${p.why}, ${p.rate.toFixed(1)} percent of such pairs both homered`}
+                  style={{ minHeight: 44, padding: '0 12px', border: `1px solid ${accent}`, background: 'transparent', color: accent, borderRadius: 8, fontSize: 12.5, cursor: 'pointer', textAlign: 'left' }}>
+                  + {p.name} <span style={{ color: C.text3, fontFamily: NUM_FONT }}>{p.why} · {p.rate.toFixed(1)}%</span>
+                </button>
+              ))}
+            </div>
+          </div>
         )}
         <div style={{ marginTop: 4, fontSize: TYPE.micro || 11, color: C.text3 }}>Prices are the best book's, as shown on the cards. Math, not advice. 21+ where legal; play within limits.</div>
       </div>
