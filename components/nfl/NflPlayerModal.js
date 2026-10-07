@@ -16,21 +16,19 @@ import HisNumbers from '../HisNumbers'
 import InTheLedger from '../ledger/InTheLedger'
 import { etToday } from '../../lib/freshness'
 import { VerdictStamp, PutOnCard } from './CardActions'
-import TheField from './TheField'
+import NflCardMatchup from './NflCardMatchup'
+import NflSplitsTable, { splitRows } from './NflSplitsTable'
 import VerdictHero from '../VerdictHero'
 import { faceUrl } from '../PlayerFace'
-import SourceSeason from './SourceSeason'
 import NflExplain from './NflExplain'
 import { statLabel, statFmt } from '../../lib/nfl/statLabels'
 import { quoteFor, fmtOdds } from '../../lib/nfl/oddsMatch'
-import DvpRead from './DvpRead'
 import { downloadNflPickCard } from './shareCard'
 import { useNflWatchlist } from '../../lib/nfl/watchlist'
 import StarMemory from '../watch/StarMemory'
 import MultiLine from '../ledger/MultiLine'
 import { injuryTag, injuryTitle, injuryColor } from '../../lib/nfl/injury'
 import NflPlayerRead from './NflPlayerRead'
-import SplitDumbbell from './SplitDumbbell'
 import NflGameCombo from './NflGameCombo'
 import NflGameLog from './NflGameLog'
 import SeasonToggle from './SeasonToggle'
@@ -96,134 +94,26 @@ function SplitsForMarket({ player, market, data }) {
   const sp = player?.splits
   if (!sp || !Object.keys(sp).length) return null
   const entry = SPLIT_STAT[market]
-  // Kickers have no play-level split: nflverse attributes a field goal to the
-  // kicker but the situational buckets here are built off receiver/rusher/
-  // passer roles. Rather than render an empty grid, say nothing.
+  // Kickers have no play-level split (the buckets are built off receiver / rusher / passer roles).
   if (!entry) return null
   const [statKey, unit] = entry
-
-  const pairs = (data?.pairs || []).filter(([a, b]) => sp[a] || sp[b])
-  if (!pairs.length) return null
-
-  // 2026-09-13: six two-column rows became six dumbbells. Same numbers, but
-  // the GAP is now a length instead of a subtraction the reader has to do.
-  // One dumbbell per situational pair, each on its own scale — a TD rate and
-  // a yardage rate never shared an axis and drawing them as if they did would
-  // flatten every rate row to nothing.
-  const rows = pairs.map(([a, b]) => ({
-    key: `${a}-${b}`,
-    label: `${SPLIT_SHORT[a] || data?.labels?.[a] || a} / ${SPLIT_SHORT[b] || data?.labels?.[b] || b}`,
-    // Games behind the thinner side; a pair with one side missing is thin by definition.
-    thin: !(sp[a]?.g >= THIN_G && sp[b]?.g >= THIN_G),
-    thinTitle: `Thin sample: ${sp[a]?.g ?? 0} and ${sp[b]?.g ?? 0} games (under ${THIN_G} on a side).`,
-    a: Number.isFinite(sp[a]?.[statKey]) ? Number(sp[a][statKey]) : null,
-    b: Number.isFinite(sp[b]?.[statKey]) ? Number(sp[b][statKey]) : null,
-    ga: sp[a]?.g,
-    gb: sp[b]?.g,
-  }))
-
-  return (
-    <>
-      <div style={{
-        fontSize: 11, fontWeight: 900, color: C.text3, letterSpacing: '.1em',
-        margin: '16px 0 7px',
-      }}>SPLITS — {unit}</div>
-      <SplitDumbbell
-        rows={rows}
-        note={`Per-game ${unit}. Filled is the first side of each label, hollow the second, each pair on its own scale. The number on the right is the gap — it lights past 15%, because a smaller one on this sample is noise.`}
-      />
-    </>
-  )
+  // 2026-10-07: the dumbbell chart became a dense table (NflSplitsTable) -- the same pairs, one row each.
+  return <NflSplitsTable rows={splitRows(player, statKey, data)} unit={unit} />
 }
 
-
-// ── coverage + explosive ──────────────────────────────────────────────────────
-
-function Mini({ label, children, accent }) {
-  return (
-    <div style={{
-      flex: '1 1 210px', background: 'rgba(255,255,255,.03)',
-      border: `1px solid ${C.border}`, borderLeft: `2px solid ${accent}`,
-      borderRadius: 8, padding: '8px 10px',
-    }}>
-      <div style={{
-        fontSize: 11, fontWeight: 900, color: C.text3, letterSpacing: '.09em',
-        marginBottom: 5,
-      }}>{label}</div>
-      {children}
-    </div>
-  )
+// WHY A PLAYER HAS NO SPLITS (2026-10-07, Donovan: "says not yet available for him"). The bot
+// (bots/nfl/nfl_splits.py splits_for) publishes a bucket only with >= 3 games IN it, from the
+// season the slate's context comes from, and the site draws a pair only when BOTH sides exist.
+// So a short season, or a player with 1-2 games this year, has none -- say which, from the log.
+export function splitsWhy(player, fullLog, slateSeason) {
+  const season = Number(slateSeason) || null
+  const mine = season ? (fullLog || []).filter((g) => Number(g?.s) === season).length : null
+  const prior = season ? (fullLog || []).filter((g) => Number(g?.s) === season - 1).length : 0
+  if (mine != null && mine < 3) return `He has ${mine} game${mine === 1 ? '' : 's'} on file in ${season}. A split needs 3 games on each side of a pair, so none is published yet${prior ? ` (his ${prior} games from ${season - 1} are on the Games tab)` : ''}.`
+  if (mine != null) return `He has ${mine} games in ${season}. A split is published only when each side of a pair has 3 games, and ${mine} games cannot fill both (home / away, indoors / outdoors and the rest). Pairs appear as the season fills in.`
+  return 'No splits are published for him: a split needs 3 games on each side of a pair.'
 }
 
-function KV({ k, v, hi }) {
-  return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 2 }}>
-      <span style={{ fontSize: 12, color: C.text3 }}>{k}</span>
-      <span style={{
-        fontFamily: NUM_FONT, fontSize: 13, fontWeight: 800, color: hi ? C.green : C.text,
-      }}>{v}</span>
-    </div>
-  )
-}
-
-function CoverageAndExplosive({ player, matchup, slate = null }) {
-  const cov = matchup?.coverage_player?.[player?.player_id]
-  const exp = matchup?.player_explosive?.[player?.player_id]
-  const oppCov = matchup?.coverage_team?.[player?.opp]
-  if (!cov && !exp) return null
-
-  // Which side he's better against, and by how much — the reason to show the
-  // split at all rather than two columns of numbers.
-  let edge = null
-  if (cov?.man && cov?.zone) {
-    const d = cov.zone.ypt - cov.man.ypt
-    if (Math.abs(d) >= 1.0) edge = d > 0 ? 'zone' : 'man'
-  }
-
-  return (
-    <>
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 8,
-        fontSize: 11, fontWeight: 900, color: C.text3, letterSpacing: '.1em',
-        margin: '16px 0 7px',
-      }}><span>COVERAGE &amp; EXPLOSIVE</span><SourceSeason matchup={matchup} kind="charting" slateSeason={slate?.season} /></div>
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-        {cov?.man && (
-          <Mini label="VS MAN" accent={edge === 'man' ? C.green : C.border2}>
-            <KV k="Targets" v={cov.man.tgts} />
-            <KV k="Yds / target" v={cov.man.ypt} hi={edge === 'man'} />
-            <KV k="Catch %" v={`${cov.man.catch_pct}%`} />
-            <KV k="TD" v={cov.man.td} />
-          </Mini>
-        )}
-        {cov?.zone && (
-          <Mini label="VS ZONE" accent={edge === 'zone' ? C.green : C.border2}>
-            <KV k="Targets" v={cov.zone.tgts} />
-            <KV k="Yds / target" v={cov.zone.ypt} hi={edge === 'zone'} />
-            <KV k="Catch %" v={`${cov.zone.catch_pct}%`} />
-            <KV k="TD" v={cov.zone.td} />
-          </Mini>
-        )}
-        {exp && (
-          <Mini label="EXPLOSIVE" accent={C.purple}>
-            <KV k="10+ / 20+" v={`${exp.rec_10} / ${exp.rec_20}`} />
-            <KV k="30+ / 40+" v={`${exp.rec_30} / ${exp.rec_40}`} />
-            <KV k="Longest" v={exp.lng} />
-            <KV k="Air yards" v={exp.air} />
-          </Mini>
-        )}
-      </div>
-      {edge && oppCov && (
-        <div style={{ fontSize: 12, color: C.text2, marginTop: 7, lineHeight: 1.6 }}>
-          Better vs <b style={{ color: C.green }}>{edge}</b> · {player.opp} plays{' '}
-          <b style={{ color: C.cyan }}>
-            {edge === 'zone' ? `${oppCov.zone_pct}% zone` : `${oppCov.man_pct}% man`}
-          </b>
-        </div>
-      )}
-    </>
-  )
-}
 
 // ── THE FILE (2026-09-21) ───────────────────────────────────────────────────
 //
@@ -359,24 +249,6 @@ function Head({ children }) {
   )
 }
 
-// THE FIELD (2026-10-01, 0e c): one football picture on the Matchup tab --
-// components/nfl/TheField.js. It replaced three drawings of the same
-// defence (FieldChart, TouchMap, and MatchupSection's MatchupMap), the
-// isPassCatcher() rule that gave a 1-target, 1-carry back a passing field,
-// and the thin-sample paragraph, which is TheField's own lead line now.
-
-// ...and the same defence read the orthodox way. The map says where the field
-// is soft; this says whether it's soft to somebody in HIS chair. A defence can
-// leak deep right all day and still smother the WR3 who runs those routes.
-// 0e d (2026-10-01): the BY DEPTH ROLE grid and the DRIFT chart went; the
-// read is sentences per role, the ranked Doors, and the table one tap down
-// (components/nfl/DvpRead.js).
-function DvpSection({ player, matchup, slate = null }) {
-  if (!player?.opp) return null
-  return <DvpRead matchup={matchup} def={player.opp} position={player.position}
-    role={matchup?.roles?.[player.player_id] || null} slateSeason={slate?.season} playerName={player.name} />
-}
-
 // 📸 SHARE (2026-08-24) — the pregame half of the NFL share-card pair. Builds
 // the compact `pick` shape components/nfl/shareCard.js draws from out of
 // whatever the modal already has in scope: no re-fetch, no season lookup,
@@ -428,7 +300,6 @@ function pickFromPlayer(player, market, spec) {
 // answer, which is the whole of what a tab is.
 const TABS = [
   { key: 'overview', label: 'Overview' },
-  { key: 'field', label: 'Field' },
   { key: 'matchup', label: 'Matchup' },
   { key: 'splits', label: 'Splits' },
   { key: 'gamelog', label: 'Games' },
@@ -478,10 +349,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
   // MOONSHOT's initialTab, same contract, so a deep link can land on the
   // tab that matters instead of the top of the card every time.
   useEffect(() => {
-    // A shared Field link (#...&view=field&win=, TheField.js) opens
-    // the card on the Field tab, where the Field is.
-    const fieldLink = typeof window !== 'undefined' && /(?:^#|&)view=field(?:&|$)/.test(window.location.hash)
-    setTab(TABS.some((t) => t.key === initialTab) ? initialTab : fieldLink ? 'field' : 'overview')
+    setTab(TABS.some((t) => t.key === initialTab) ? initialTab : 'overview')
   }, [player?.player_id, initialTab])
   useEffect(() => { setSeason('') }, [player?.player_id])
   // THIS SEASON | LAST SEASON | LAST 2: only what the log holds (lib/nfl/seasonWindow.js).
@@ -645,27 +513,18 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
         )}
       </>}
 
-      {/* FIELD: his touches drawn on the field -- targets, routes, the red zone */}
-      {tab === 'field' && (player.team
-        ? <TheField key={player.player_id} team={player.team} player={player} defTeam={player.opp} defWeek={slate?.week} venue={gameVenue(slate?.games, player.team, player.opp)}
-            matchup={matchup} players={slate?.players} hashSync={inline} />
-        : <div style={{ fontSize: 13, color: C.text3 }}>No field picture for him: no club on the board.</div>)}
-
       {/* MATCHUP: the defence he faces, and how it covers */}
-      {tab === 'matchup' && <>
-        <DvpSection player={player} matchup={matchup} slate={slate} />
-        <CoverageAndExplosive player={player} matchup={matchup} slate={slate} />
-        {!matchup?.dvp && !matchup?.coverage_player?.[player.player_id] && <div style={{ fontSize: 13, color: C.text3 }}>Not available yet: no defence read for this game.</div>}
-      </>}
+      {tab === 'matchup' && <NflCardMatchup player={player} matchup={matchup} slate={slate} />}
 
       {/* SPLITS: the pairs, then the combine filters and this stadium */}
       {tab === 'splits' && <>
         <SplitsForMarket player={player} market={market} data={splitMeta} />
         {player?.splits && Object.keys(player.splits).length > 0 && SPLIT_STAT[market] && seasonOpts.length > 0 && (
-          <div style={{ fontSize: 12, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>The pairs above are his season splits as published. The season buttons set the filters below.</div>
+          <div style={{ fontSize: 12, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>The table above is his season splits as published. The season buttons set the filters below.</div>
         )}
         <NflGameCombo log={slog} venue={gameVenue(slate?.games, player.team, player.opp)} />
-        {!(player?.splits && Object.keys(player.splits).length) && !hasContext(slog) && <div style={{ fontSize: 13, color: C.text3 }}>Not available yet: no splits for him.</div>}
+        {!(player?.splits && Object.keys(player.splits).length) && !hasContext(slog) && <div style={{ fontSize: 13, color: C.text3, lineHeight: 1.5 }}>{splitsWhy(player, fullLog, slate?.season)}</div>}
+        {player?.splits && Object.keys(player.splits).length > 0 && SPLIT_STAT[market] && splitRows(player, SPLIT_STAT[market][0], splitMeta).length === 0 && <div style={{ fontSize: 13, color: C.text3, lineHeight: 1.5 }}>{splitsWhy(player, fullLog, slate?.season)} Only one side of each pair is published for him.</div>}
       </>}
 
       {/* GAME LOG: the facts, then every game */}

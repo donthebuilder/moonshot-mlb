@@ -18,6 +18,7 @@ import { fetchNfl, nflGameCallsTotalsPaths } from '../../lib/nfl/dataSource'
 import CallStatusBadge from '../CallStatusBadge'
 import PlayerFace from '../PlayerFace'
 import Tap from '../Tap'
+import { DepthSections } from './DepthWriteup'
 import TeamMark from '../TeamMark'
 import { gradeFor } from '../../lib/nfl/theme'
 
@@ -89,6 +90,7 @@ export default function WriteupBlock({ game, gameCalls, week, matchup, logs, odd
             </ul>
             {open && p.watch.length > 0 && (<><Kicker>WATCH OUT</Kicker>
               <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, lineHeight: 1.5, color: C.text2 }}>{p.watch.map((l) => <li key={l.t} title={l.src}>{l.t}</li>)}</ul></>)}
+            {open && <DepthSections sections={p.depth} />}
             {open && p.price && <div style={{ marginTop: 4, fontSize: 13, color: C.text2, fontFamily: NUM_FONT }}>Price {p.price.odds > 0 ? `+${p.price.odds}` : p.price.odds}{p.price.book ? ` at ${p.price.book}` : ''}{p.price.implied != null ? ` (implies ${p.price.implied}%)` : ''}</div>}
           </div>
         )

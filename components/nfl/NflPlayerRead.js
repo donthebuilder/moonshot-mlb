@@ -1,6 +1,7 @@
 'use client'
 import { C, MARKETS, gradeFor } from '../../lib/nfl/theme'
 import { ReadFrame, Line } from '../PlayerRead'
+import DepthWriteup from './DepthWriteup'
 
 // 🧭 TUDDY'S READ (2026-09-30, Donovan: "the mlb players page is the base ...
 // use those components to make the other sports' player modal better"). The
@@ -92,6 +93,7 @@ export default function NflPlayerRead({ player, market, rows, matchup }) {
           <span style={{ color: b.tone === 'note' ? C.text2 : TONE()[b.tone] }}>{b.text}</span>
         </Line>
       ))}
+      <DepthWriteup player={player} matchup={matchup} />
     </ReadFrame>
   )
 }
