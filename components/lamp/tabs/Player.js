@@ -16,6 +16,7 @@ import HisNumbers from '../../HisNumbers'
 import InTheLedger from '../../ledger/InTheLedger'
 import { etToday } from '../../../lib/freshness'
 import { useLampPlayer, useLampBoardOnce, useLampSplits } from '../../../lib/nhl/useLamp'
+import { playerHref } from '../../../lib/routes'
 import SharedSeasonToggle from '../../nfl/SeasonToggle'
 import { SportTheme } from '../../SportTheme'
 import StatStrip, { HitRateBoxes } from '../../StatStrip'
@@ -235,7 +236,7 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
           </div>
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ fontSize: 18, fontWeight: 800, lineHeight: 1.2, color: C.text }}>
-              {p.number != null && <span style={{ color: C.text3, fontFamily: NUM_FONT }}>#{p.number} </span>}{p.name}
+              {p.number != null && <span style={{ color: C.text3, fontFamily: NUM_FONT }}>#{p.number} </span>}<a href={playerHref('nhl', p.id)} style={{ color: 'inherit', textDecoration: 'none' }}>{p.name}</a>
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '2px 8px', fontSize: 12, color: C.text2, marginTop: 2 }}>
               {p.team && (
@@ -286,7 +287,6 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
         <>
           {/* ONE HEADER (2026-10-07, Donovan: "the player shows twice"): the sticky header above is the player's
               face, name, club and the board's word. The big hero that repeated them is gone; its one line stays. */}
-          <h2 className="sr-only">{p.name}</h2>
           {whyLine && <div style={{ color: C.text2, fontSize: 13, lineHeight: 1.45 }}>{whyLine}</div>}
           {w && <WhyLines theme={C} numFont={NUM_FONT} accent={C.ice} why={[w.why]} watch={w.watch} explain={w.explain} />}
           <section aria-label="Season line">
