@@ -32,6 +32,8 @@ import { injuryTag, injuryTitle, injuryColor } from '../../lib/nfl/injury'
 import ScoreAnatomy from './ScoreAnatomy'
 import NflPlayerRead from './NflPlayerRead'
 import SplitDumbbell from './SplitDumbbell'
+import NflGameCombo from './NflGameCombo'
+import { THIN_G } from '../../lib/nfl/gameSplits'
 import { playerHref } from '../../lib/routes'
 import { gameVenue } from '../../lib/nfl/venueOf'
 import DashChip, { useDashLines, DASH_OF } from './DashChip'
@@ -79,6 +81,11 @@ const SPLIT_STAT = {
 // was the naming: two components called Splits, doing different jobs, in a
 // codebase where a future pass would reasonably assume one was a stale copy.
 // Named for the axis each one fixes now, so that mistake cannot be made.
+// Short names for the 2026-10-06 pairs (weekday / rest / result) so a pair's two
+// sides fit the dumbbell's label column; every other key keeps the bot's label.
+// Old payloads simply never ask for these.
+const SPLIT_SHORT = { thu: 'Thu', sun: 'Sun', mon: 'Mon', short: 'Short wk', rested: 'Rested', win: 'Win', loss: 'Loss' }
+
 function SplitsForMarket({ player, market, data }) {
   const sp = player?.splits
   if (!sp || !Object.keys(sp).length) return null
@@ -99,7 +106,10 @@ function SplitsForMarket({ player, market, data }) {
   // flatten every rate row to nothing.
   const rows = pairs.map(([a, b]) => ({
     key: `${a}-${b}`,
-    label: `${data?.labels?.[a] || a} / ${data?.labels?.[b] || b}`,
+    label: `${SPLIT_SHORT[a] || data?.labels?.[a] || a} / ${SPLIT_SHORT[b] || data?.labels?.[b] || b}`,
+    // Games behind the thinner side; a pair with one side missing is thin by definition.
+    thin: !(sp[a]?.g >= THIN_G && sp[b]?.g >= THIN_G),
+    thinTitle: `Thin sample: ${sp[a]?.g ?? 0} and ${sp[b]?.g ?? 0} games (under ${THIN_G} on a side).`,
     a: Number.isFinite(sp[a]?.[statKey]) ? Number(sp[a][statKey]) : null,
     b: Number.isFinite(sp[b]?.[statKey]) ? Number(sp[b][statKey]) : null,
     ga: sp[a]?.g,
@@ -717,6 +727,8 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
         )}
 
         {tab === 'splits' && <SplitsForMarket player={player} market={market} data={splitMeta} />}
+        {/* MOONSHOT's combine filters, per game: renders nothing until the bot's log carries the per-game context. */}
+        {tab === 'splits' && <NflGameCombo log={logs?.logs?.[player.player_id]?.log} venue={gameVenue(slate?.games, player.team, player.opp)} />}
 
         {/* Same per-device note store as MOONSHOT's card; ids can't collide.
             Stays on Overview, where MOONSHOT keeps its own. */}
