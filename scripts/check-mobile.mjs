@@ -9,6 +9,7 @@
 //   node scripts/check-mobile.mjs --only nfl            one product (mlb|nfl|nhl|nba|public)
 //   (nba only while BUCKETS is open to the server checked: /api/buckets/access)
 //   node scripts/check-mobile.mjs --pages "/app#sport=nfl&tab=redzone,/called?sport=mlb"
+//   --search "bos"                                      open the header search and type this first (the box is what gets checked)
 //   --browser /path/to/chrome                           default: Chrome, then Brave
 //
 // ROUTES come from the registry (lib/routes.js MLB_TABS / NFL_TABS /
@@ -38,6 +39,7 @@ const { chromium } = req('playwright-core')
 const { MLB_TABS, NFL_TABS, NHL_TABS, NBA_TABS, appHref, playerHref } = await import('../lib/routes.js')
 
 const arg = (k, d = null) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d }
+const SEARCH = arg('--search')
 const has = (k) => process.argv.includes(k)
 const BASE = (arg('--base') || 'http://localhost:3000').replace(/\/$/, '')
 const ONLY = arg('--only')
@@ -195,6 +197,12 @@ await Promise.all(Array.from({ length: CONCURRENCY }, async () => {
       await page.goto(`${BASE}${j.path}`, { waitUntil: 'domcontentloaded', timeout: 30000 })
       await page.waitForLoadState('networkidle', { timeout: 9000 }).catch(() => {})
       await page.waitForTimeout(1200)
+      if (SEARCH) {
+        await page.click('.hdr-search', { timeout: 8000 })
+        await page.waitForSelector('.qs-in', { timeout: 5000 })
+        await page.keyboard.type(SEARCH, { delay: 15 })
+        await page.waitForTimeout(3500)
+      }
       const f = await page.evaluate(inPage)
       res.firstRowY = f.firstRowY
       if (f.pageBleed) res.errors.push('BLEED page scrolls sideways')
