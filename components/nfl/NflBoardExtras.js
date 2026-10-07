@@ -19,6 +19,7 @@ import { boardReason } from '../../lib/nfl/boardReason'
 import { baselineFor, topStatChips } from './ScoreAnatomy'
 import { injuryTag } from '../../lib/nfl/injury'
 import { useWhySheet, whyColumn } from '../WhySheet'
+import CallStatusBadge from '../CallStatusBadge'
 
 // TUDDY BOARD EXTRAS (2026-09-27, board filters plan): the pieces MOONSHOT's
 // board has that TUDDY's two boards (Touchdowns.js for TD, Boards.js for the
@@ -155,7 +156,9 @@ export function NflBoardList({ players, market, weights, odds, phone, onPlayerCl
     { key: 'team', label: 'Tm', w: 34, heat: false, teamMark: 'nfl', fold: true }, { key: 'opp', label: 'Opp', w: 34, heat: false, teamMark: 'nfl', fold: true },
     { key: 'score', label: 'Score', w: 52, primary: true, scale: 'seq', domain: [0, 100], art: SCORE_ART[market] || null, answers: market === 'TD' ? 'nfl-td' : null },
     ...(phone ? [] : [{ key: 'grade', label: 'Grade', w: 56, heat: false }]),
-    whyColumn({ textOf: (r) => whyOf(r._p)?.text || '', itemOf: whyItem, open: openWhy, theme: C, numFont: NUM_FONT, w: phone ? 210 : 260 }),
+    whyColumn({ textOf: (r) => whyOf(r._p)?.text || '', itemOf: whyItem, open: openWhy, theme: C, numFont: NUM_FONT, w: phone ? 124 : 260 }),
+    // Status right after Why (2026-10-06): short on a phone, so Why shows without a swipe
+    ...(statusOf ? [{ key: 'status', label: 'Status', heat: false, statusCol: true, w: phone ? 64 : 118, fmt: (v, r) => <CallStatusBadge status={statusOf(r._p)} accent={C.green} short={phone} /> }] : []),
     ...top.map((k) => ({ key: k, label: LABELS[k] || k, w: phone ? 74 : 86, scale: 'seq', domain: [0, 100] })),
     ...(phone || !odds ? [] : [{ key: 'price', label: 'Price', w: 60, heat: false, fmt: (v) => (v == null ? '—' : v > 0 ? `+${v}` : String(v)) }]),
     // DASH: our median for the stat, coloured by its lean against the book's line (a TEST)

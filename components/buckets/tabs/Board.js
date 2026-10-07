@@ -2,6 +2,7 @@
 import { useMemo, useState } from 'react'
 import PageHeader from '../../PageHeader'
 import HowToRead from '../../HowToRead'
+import { useIsPhone } from '../../MobileFold'
 import { C, NUM_FONT } from '../../../lib/nba/theme'
 import { useBucketsBoard } from '../../../lib/nba/useBuckets'
 import { NBA_MARKETS, MARKET_OPTIONS, LEG_LABEL, fmtLeg } from '../../../lib/nba/legs'
@@ -63,6 +64,8 @@ function whyItemFor(r, market, rank) {
 }
 
 export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onOpenTeam, onOpenGame }) {
+  const phone = useIsPhone()
+  const [opts, setOpts] = useState(false)
   const { open: openWhy, sheet: whySheet } = useWhySheet({ theme: C, accent: C.purple, numFont: NUM_FONT })
   const [m, setM] = useState(() => (String(readHashParam('m') || '').toLowerCase() === ALL ? ALL : market))
   const mk = m === ALL ? 'pts' : m
@@ -86,6 +89,25 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
   const pick = (k) => { setM(k); setAngle(null); writeHashParam('m', k === 'pts' ? null : k) }
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {phone ? (<>
+        {/* PHONE (2026-10-06): one line, one control row, then the table; the rest is behind Filters. */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'space-between' }}>
+          <div style={{ minWidth: 0, fontSize: 13, lineHeight: 1.3, color: C.text2 }}>Who we rank tonight, and why.</div>
+          <HowToRead id="buckets-board" accent={C.purple} notes={HOW_NOTES} />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button type="button" onClick={() => setOpts((v) => !v)} aria-expanded={opts} style={{ flex: '0 0 auto', minHeight: 44, padding: '0 14px', borderRadius: 999, cursor: 'pointer', font: `800 11px/1 ${NUM_FONT}`, letterSpacing: '.06em', whiteSpace: 'nowrap', border: `1px solid ${opts || calledOnly || angle ? C.purple : C.border2}`, background: opts ? `${C.purple}1f` : 'transparent', color: opts ? C.purple : C.text2 }}>▤ FILTERS{calledOnly || angle ? ' ·' : ''}</button>
+          <div style={{ flex: 1, minWidth: 0, overflowX: 'auto', scrollbarWidth: 'none' }}><div style={{ width: 'max-content' }}><Pills ariaLabel="Market" value={m} onChange={pick} options={MARKET_PILLS} nowrap /></div></div>
+        </div>
+        {opts && (<>
+      <DayPager shown={shown} date={date} setDate={setDate} disabled={loading}>
+        <NavBtn onClick={() => setCalledOnly((v) => !v)} strong={calledOnly} ariaLabel="Called only">{calledOnly ? '✓ Called only' : 'Called only'}</NavBtn>
+      </DayPager>
+      {m !== ALL && angles.length > 0 && <AngleRow defs={angles} pool={all} value={angleDef ? angle : null} onChange={setAngle} accent={C.purple} hideEmpty />}
+      {m !== ALL && angleDef && <p style={{ margin: 0, fontSize: 12, color: C.text3, lineHeight: 1.5 }}>{angleDef.title}</p>}
+      {m !== ALL && <Pills ariaLabel="Layout" value={layout} onChange={setLayout} options={[{ key: 'table', text: 'TABLE' }, { key: 'cards', text: 'CARDS' }]} />}
+        </>)}
+      </>) : (<>
       <PageHeader eyebrow={`BUCKETS · RANKINGS · ${m === ALL ? 'ALL MARKETS' : D.label}`} title={shown ? fmtDay(shown) : 'Tonight'} theme={C} numFont={NUM_FONT} accent={C.purple}
         note="Who we rank tonight, and why. Every player playing that day, ranked for one market. One call per team in each game; calls lock before tip and grade after the final."
         stats={data ? [{ value: games.length, label: 'GAMES', tone: C.text2 }, { value: called, label: 'CALLED', tone: C.purple }, { value: data.lockedGames?.length || 0, label: 'LOCKED', tone: C.text2 }] : null} />
@@ -94,10 +116,11 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
         <NavBtn onClick={() => setCalledOnly((v) => !v)} strong={calledOnly} ariaLabel="Called only">{calledOnly ? '✓ Called only' : 'Called only'}</NavBtn>
       </DayPager>
       <HowToRead id="buckets-board" accent={C.purple} notes={HOW_NOTES} />
-      {m === ALL ? <FullBoard embedded date={date} setDate={setDate} onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} onOpenGame={onOpenGame} /> : (<>
-      {angles.length > 0 && <AngleRow defs={angles} pool={all} value={angleDef ? angle : null} onChange={setAngle} accent={C.purple} hideEmpty />}
-      {angleDef && <p style={{ margin: 0, fontSize: 12, color: C.text3, lineHeight: 1.5 }}>{angleDef.title}</p>}
+      {m !== ALL && angles.length > 0 && <AngleRow defs={angles} pool={all} value={angleDef ? angle : null} onChange={setAngle} accent={C.purple} hideEmpty />}
+      {m !== ALL && angleDef && <p style={{ margin: 0, fontSize: 12, color: C.text3, lineHeight: 1.5 }}>{angleDef.title}</p>}
       {m !== ALL && <Pills ariaLabel="Layout" value={layout} onChange={setLayout} options={[{ key: 'table', text: 'TABLE' }, { key: 'cards', text: 'CARDS' }]} />}
+      </>)}
+      {m === ALL ? <FullBoard embedded date={date} setDate={setDate} onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} onOpenGame={onOpenGame} /> : (<>
       <DelayedBanner error={error} what="the board" />
       {loading && !data ? <Loading what="the board" /> : null}
       {data && !games.length && <EmptyState title="NO GAMES THAT DAY" note="Nothing to rank. Page a day, or the Slate has what’s next." />}
@@ -110,7 +133,6 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
           {games.some((g) => g.seasonType === 1) ? ' · PRESEASON' : ''}
         </div>
       )}
-      {mk === 'pts' && m !== ALL && (data?.rows || []).length > 0 && <BucketWatch rows={data.rows} date={data.date} onOpenPlayer={onOpenPlayer} />}
       {rows.length > 0 && !noStarters && layout === 'cards' && (
         <BucketsCards market={mk} onOpen={onOpenPlayer} rows={[...rows].filter((r) => Number.isFinite(Number(r.score))).sort((a, b) => b.score - a.score)} />
       )}
@@ -121,6 +143,8 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
           initialSort={{ key: 'nightRank', dir: 'asc' }} heatMode="sorted" maxHeight={620} maxRows={Math.max(rows.length, 1)}
           caption="Every player tonight for this market, #1 to the bottom. Column headers sort; each row opens that player; the team and opponent open the club; the game column opens the game." />
       )}
+      {/* Bucket Watch sits under the table (2026-10-06): the board comes first */}
+      {mk === 'pts' && m !== ALL && (data?.rows || []).length > 0 && <BucketWatch rows={data.rows} date={data.date} onOpenPlayer={onOpenPlayer} />}
       </>)}
       {whySheet}
       <SourceLine>Where this comes from: the league’s rosters, injury reports and season stats. A locked row is written before tip and never changed after it.</SourceLine>

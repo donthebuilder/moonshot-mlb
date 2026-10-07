@@ -12,7 +12,7 @@ import { TIME_WINDOWS, inWindow } from '../../BoardFilters'
 import RangeDual from '../../RangeDual'
 import GoalWatch from '../GoalWatch'
 import GoalCompare from '../GoalCompare'
-import MobileFold from '../../MobileFold'
+import MobileFold, { useIsPhone } from '../../MobileFold'
 import HowToRead from '../../HowToRead'
 import { LampCards, PctBars, countOf } from '../LampCard'
 import { alpha } from '../../../lib/scales'
@@ -84,6 +84,8 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
   // row cut both views. Every test reads a field the row already carries.
   // Opens on ALL GAMES (2026-09-29, Donovan: "boards nhl need to open to all
   // games"); By game is one tap away.
+  const phone = useIsPhone()
+  const [opts, setOpts] = useState(false)
   const [view, setView] = useState('all')
   const [q, setQ] = useState('')
   const [team, setTeam] = useHashFilter('fteam')
@@ -184,6 +186,85 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
   })
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {phone ? (<>
+        {/* PHONE (2026-10-06): one compact row, the table next. Everything else is behind Filters. */}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button type="button" onClick={() => setOpts((v) => !v)} aria-expanded={opts} style={{ ...pill(opts || filtering), flex: '0 0 auto', minHeight: 44, display: 'inline-flex', alignItems: 'center', gap: 6 }}>▤ Filters{chips.length + drawerChips.length + (team ? 1 : 0) + (gameF ? 1 : 0) + (needle ? 1 : 0) > 0 ? ` · ${chips.length + drawerChips.length + (team ? 1 : 0) + (gameF ? 1 : 0) + (needle ? 1 : 0)}` : ''}</button>
+          <div role="group" aria-label="Market" style={{ display: 'flex', gap: 6, overflowX: 'auto', flex: 1, minWidth: 0, scrollbarWidth: 'none' }}>
+            {MARKETS.map((m) => <button key={m.key} type="button" onClick={() => setMarket(m.key)} aria-pressed={m.key === market} style={{ ...pill(m.key === market), minHeight: 44 }}>{m.label}</button>)}
+          </div>
+        </div>
+        {opts && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '10px 0', borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}` }}>
+      <BoardTopBar query={q} setQuery={setQ} placeholder="Search skater or team…"
+        team={team} setTeam={setTeam} teams={teams} teamLabel="🏒 All teams"
+        game={gameF} setGame={setGameF} games={gameOptions} gameLabel="All games" />
+        {data && <span><Segmented value={view} onChange={setView}
+          options={[{ key: 'game', label: 'By game', title: 'Each game, its two calls (one per team) on top' }, { key: 'all', label: 'All games', title: 'Every scored skater tonight, one ranked table' }]} /></span>}
+      <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+        <NavBtn onClick={() => setDate(shiftDay(shown, -1))} disabled={loading}>‹ Previous day</NavBtn>
+        <NavBtn onClick={() => setDate(null)} disabled={loading || !date} strong>Tonight</NavBtn>
+        <NavBtn onClick={() => setDate(shiftDay(shown, 1))} disabled={loading}>Next day ›</NavBtn>
+        <span style={{ color: C.text3, font: `800 8px/1 ${NUM_FONT}`, letterSpacing: '.1em' }}>{data?.modelVersion?.toUpperCase()}</span>
+      </div>
+      {data && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <AngleRow defs={angles} pool={flat} value={angle} onChange={setAngle} accent={C.ice} className="lamp-angle-row" hideEmpty />
+          {angle && angles.find((a) => a.key === angle) && <p style={{ margin: 0, fontSize: 12, color: C.text3, lineHeight: 1.5 }}>{angles.find((a) => a.key === angle).title}</p>}
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <Segmented label="Pos" value={pos} onChange={setPos} options={[{ key: 'all', label: 'All' }, { key: 'F', label: 'Forwards' }, { key: 'D', label: 'Defence' }]} />
+            <FilterPill active={calledOnly} onClick={() => setCalledOnly((v) => !v)} title="Only the called skaters.">Called only</FilterPill>
+            {/* HOW TO READ THIS (2026-10-01): beside the List / Cards switch,
+                which already takes a line of its own on a phone. GOAL only. */}
+            <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 10, fontSize: 12 }}>
+              
+            <Segmented value={layout} onChange={setLayout}
+              options={[{ key: 'list', label: '☰ List', title: 'One sortable table per game' }, { key: 'cards', label: '▦ Cards', title: 'The card board' }]} />
+            </span>
+          </div>
+          <FiltersDrawer
+            active={chips.length + drawerChips.length > 0} activeCount={drawerChips.length}
+            activeFilters={[...chips, ...drawerChips].map((c) => ({ key: c.key, label: c.label, onRemove: c.onClear }))}
+            reset={clearAll} shown={kept.length} total={flat.length} accent={C.ice} accentInk={C.bg}
+            poolTitle="Skaters on tonight's board that clear the filters. Stacks with the team and game above."
+            emptyNote="Nothing clears every filter at once. Loosen one."
+          >
+            <DrawerSection label={`Score · ${M.label || market}`}>
+              <div style={{ fontSize: 12, fontFamily: NUM_FONT, color: C.text, marginTop: 2 }}>{scoreMin}–{scoreMax}</div>
+              <RangeDual min={0} max={100} step={1} low={scoreMin} high={scoreMax} onLow={setScoreMin} onHigh={setScoreMax} label="Score" />
+            </DrawerSection>
+            <DrawerSection label="Bands · what this score is made of" hint="Percentiles among tonight's skaters, 0-100. Several at once must all clear.">
+              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 5 }}>
+                {bandDefs.map((d) => <button key={d.key} type="button" onClick={() => toggleBand(d.key)} style={drawerChip(bands.some((b) => b.key === d.key))}>{d.label}</button>)}
+              </div>
+              {bands.map((b) => (
+                <div key={b.key} style={{ marginTop: 9 }}>
+                  <div style={{ fontSize: 12, color: C.ice, fontWeight: 800, fontFamily: NUM_FONT }}>{bandDefs.find((d) => d.key === b.key)?.label} {b.min}–{b.max}</div>
+                  <RangeDual min={0} max={100} step={1} low={b.min} high={b.max} onLow={(v) => setBand(b.key, Math.min(v, b.max), b.max)} onHigh={(v) => setBand(b.key, b.min, Math.max(v, b.min))} label={b.key} />
+                </div>
+              ))}
+            </DrawerSection>
+            {gameOptions.length > 1 && (
+              <DrawerSection label="Game" hint="Several at once. Stacks with the game picker above -- that one runs first.">
+                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 3 }}>
+                  {gameOptions.map((o) => <button key={o.key} type="button" onClick={() => setGameSel((s) => (s.includes(o.key) ? s.filter((x) => x !== o.key) : [...s, o.key]))} style={drawerChip(gameSel.includes(o.key))}>{o.label}</button>)}
+                </div>
+              </DrawerSection>
+            )}
+            <DrawerSection label="Puck drop">
+              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 3 }}>
+                {TIME_WINDOWS.map((w) => <button key={w.key} type="button" onClick={() => setTimeWindow(w.key)} style={drawerChip(timeWindow === w.key)}>{w.label}</button>)}
+              </div>
+            </DrawerSection>
+            <DrawerSection label={`Min power-play goals ${minPpg || '—'}`}>
+              <input type="range" min={0} max={20} step={1} value={minPpg} onChange={(e) => setMinPpg(Number(e.target.value))} style={{ width: '100%', accentColor: C.ice }} aria-label="Minimum power-play goals" />
+            </DrawerSection>
+          </FiltersDrawer>
+        </div>
+      )}
+          </div>
+        )}
+      </>) : (<>
       <BoardTopBar query={q} setQuery={setQ} placeholder="Search skater or team…"
         team={team} setTeam={setTeam} teams={teams} teamLabel="🏒 All teams"
         game={gameF} setGame={setGameF} games={gameOptions} gameLabel="All games" />
@@ -255,14 +336,22 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
           </FiltersDrawer>
         </div>
       )}
+      </>)}
       {data?.season?.stale && <StaleSeasonNote label={data.season.label} opens={data.season.opens} what="per-game stats" />}
       <DelayedBanner error={error} what="the board" />
       {loading && !data ? <Loading what="tonight’s board" /> : null}
       {data && !data.dbReady && <div style={{ color: C.amber, fontSize: 11 }}>The saved record is not available right now. Boards still preview, but nothing locks.</div>}
+      {phone ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'space-between' }}>
+          <div style={{ minWidth: 0, color: C.text2, fontSize: 13, lineHeight: 1.3 }}>Who we rank tonight, and why.{/TEST/.test(M.eyebrow) ? ' A TEST.' : ''}</div>
+          {howRow && <HowToRead id="nhl-goal-board" accent={C.ice} row={howRow} notes={HOW_NOTES} steps={HOW_STEPS} />}
+        </div>
+      ) : (
       <PageHeader eyebrow={M.eyebrow} title={shown ? fmtDay(shown) : 'Tonight'}
         note={`Who we rank tonight, and why. Tap Why on a row for the numbers behind it.${/TEST/.test(M.eyebrow) ? ' A TEST: no record is printed until 30 graded nights.' : ''}`}
         theme={C} numFont={NUM_FONT} accent={C.ice}
         stats={data ? [{ value: games.length, label: 'GAMES', tone: C.text2 }, { value: `${lockedN}/${games.length}`, label: 'LOCKED', tone: lockedN === games.length && games.length ? C.teal : C.text2 }, { value: calledN, label: 'CALLED', tone: C.ice }] : null} />
+      )}
       {view === 'all' && flat.length > 0 && (() => { const pv = kept.filter(({ g }) => !g.graded && !g.locked && !g.setting).length; return pv > 0 ? (
         <div style={{ color: C.amber, font: `800 12px/1.5 ${NUM_FONT}`, letterSpacing: '.06em' }}>
           {pv === kept.length ? 'EVERY GAME IS STILL PREVIEW — NOT A CALL YET' : `${pv} OF ${kept.length} ROWS ARE PREVIEW — NOT A CALL YET`}

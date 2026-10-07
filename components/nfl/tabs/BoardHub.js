@@ -13,6 +13,7 @@ import Boards from './Boards'
 import Picks from './Picks'
 import { tdStatusFor } from '../../../lib/nfl/tdStatus'
 import { useGameCalls } from '../GameCalls'
+import { useIsPhone } from '../../MobileFold'
 
 // 🃏 THE BOARD, ONE PAGE (2026-09-26, Donovan picked option (b) in
 // .claude-notes/TUDDY-FOUR-PAGES.md). Board (the TD list) and Boards (the
@@ -53,6 +54,8 @@ const HOW_STEPS = [
 const CALL_WORDS = { called: STATUS_WORD.called, board: STATUS_WORD.board }   // lib/callStatus.js (R2)
 
 export default function BoardHub({ slate, data, logs, matchup, odds, oddsStatus, picks, results, liveSnap = null, onPlayerClick, initialView = 'board', onTitle = null, onView = null }) {
+  const phone = useIsPhone()
+  const [opts, setOpts] = useState(false)
   const [market, setMarket] = useState('TD')
   const [view, setViewRaw] = useState(initialView)
   // THE BAR'S TWO SLOTS (2026-09-28, nav like MOONSHOT's): Props opens CALLED,
@@ -137,6 +140,22 @@ export default function BoardHub({ slate, data, logs, matchup, odds, oddsStatus,
   return (
     <div>
       {/* ONE PAGE (2026-10-06): the old Boards and Rankings pages are this page. Who is ranked, why, and what to check next. */}
+      {phone ? (<>
+        {/* PHONE (2026-10-06): the table first. One line, one control row; the rest is behind Filters. */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'space-between', marginBottom: 8 }}>
+          <div style={{ minWidth: 0, fontSize: 13, lineHeight: 1.3, color: C.text2 }}>Who we rank this week, and why.</div>
+          {view === 'board' && market === 'TD' && howRow && <HowToRead id="nfl-td-board" accent={C.green} row={howRow} notes={HOW_NOTES} steps={HOW_STEPS} />}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+          <button type="button" onClick={() => setOpts((v) => !v)} aria-expanded={opts} style={{ flex: '0 0 auto', minHeight: 44, padding: '0 14px', borderRadius: 999, cursor: 'pointer', fontSize: TYPE.body, fontWeight: 900, fontFamily: NUM_FONT, whiteSpace: 'nowrap', border: `1px solid ${opts || query || team !== 'all' && team || game ? C.green : C.border}`, background: opts ? alpha(C.green, 0.14) : 'transparent', color: opts ? C.green : C.text3 }}>▤ Filters{(query || (team && team !== 'all') || game) ? ' ·' : ''}</button>
+          <div style={{ flex: 1, minWidth: 0 }}><PillRow value={market} options={marketOptions} onChange={setMarket} /></div>
+        </div>
+        {opts && (
+          <BoardTopBar query={query} setQuery={setQuery} placeholder="Search player or team…"
+            team={team} setTeam={setTeam} teams={teams} teamLabel="🏈 All teams"
+            game={game} setGame={setGame} games={games} gameLabel="All games" />
+        )}
+      </>) : (<>
       <p style={{ margin: '0 0 10px', fontSize: TYPE.body, lineHeight: 1.45, color: C.text2 }}>Who we rank this week, and why. Tap the Why on any row for the numbers behind it.</p>
       {(
         <BoardTopBar query={query} setQuery={setQuery} placeholder="Search player or team…"
@@ -167,11 +186,12 @@ export default function BoardHub({ slate, data, logs, matchup, odds, oddsStatus,
         )}
       </div>
       <PillRow label="Market" value={market} options={marketOptions} onChange={setMarket} />
+      </>)}
       {view === 'called'
         ? <Picks picks={picks} results={results} data={data} matchup={matchup} onPlayerClick={onPlayerClick} odds={odds} oddsStatus={oddsStatus} logs={logs} market={market} hideMarketPicker top={top} />
         : market === 'TD'
-          ? <Touchdowns data={slate} matchup={matchup} odds={odds} onPlayerClick={onPlayerClick} oddsStatus={oddsStatus} logs={logs} top={top} results={results} liveSnap={liveSnap} statusOf={tdStatus.statusOf} />
-          : <Boards data={data} logs={logs} matchup={matchup} onPlayerClick={onPlayerClick} odds={odds} oddsStatus={oddsStatus} market={market} hideMarketPicker top={top} />}
+          ? <Touchdowns data={slate} matchup={matchup} odds={odds} onPlayerClick={onPlayerClick} oddsStatus={oddsStatus} logs={logs} top={top} results={results} liveSnap={liveSnap} statusOf={tdStatus.statusOf} showOpts={!phone || opts} />
+          : <Boards data={data} logs={logs} matchup={matchup} onPlayerClick={onPlayerClick} odds={odds} oddsStatus={oddsStatus} market={market} hideMarketPicker top={top} showOpts={!phone || opts} />}
     </div>
   )
 }
