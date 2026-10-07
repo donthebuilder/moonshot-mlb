@@ -112,7 +112,10 @@ export default function Dashboard({ palettePass = 0 }) {
   const openGameNav = (pk) => { if (!pk) return; leaveTarget('game', pk); setTab('games') }
   const openPitcherNav = (pid) => { if (!pid) return; leaveTarget('pitcher', pid); setTab('pitchers') }
   const openTeam = (abbr) => { if (!abbr) return; leaveTarget('team', String(abbr).toUpperCase()); setTab('team') }
-  const setTab = (next) => {
+  const setTab = (rawNext) => {
+    // an old key (board, boards, hitshrr) opens the page it became (lib/routes.js MLB_ALIASES)
+    const asked = resolveTab('mlb', rawNext)
+    const next = asked.status === 'alias' ? asked.tab : rawNext
     if (next !== 'pairs') setFocusPlayerId(null)
     setModalView({ pid: '', view: '' })
     // Changing tab closes the player card. #33: `#tab=odds&p=686948` rendered
@@ -173,6 +176,12 @@ export default function Dashboard({ palettePass = 0 }) {
   // somebody else twenty minutes ago. Pairing the view with an id makes it
   // expire on its own the moment you move off the man it was about.
   const [modalView, setModalView] = useState({ pid: '', view: '' })
+  // a card opened ON a tab (EV Log, Splits, Spray...) from a row's Why sheet: one history entry, the view in the address
+  const openCardAt = (p, view) => {
+    const id = String(p?.player_id ?? p?.id ?? '')
+    if (id && view) setModalView({ pid: id, view })
+    setModalPlayer(p)
+  }
   // A card closed (or a tab left) drops its view; one still waiting for its
   // slate row keeps it (pendingViewRef).
   useEffect(() => {
@@ -944,7 +953,7 @@ export default function Dashboard({ palettePass = 0 }) {
             kicker="NO SUCH SPORT"
             message={<>DASH has no <b style={{ color: C.text2, fontFamily: NUM_FONT }}>{missingSport}</b> -- it runs MOONSHOT (MLB), TUDDY (NFL) and LAMP (NHL). This is MOONSHOT.</>}
             onNavigate={setTab}
-            doors={[['home', '🏠 HOME'], ['board', '📊 BOARDS']]}
+            doors={[['home', '🏠 HOME'], ['fullboard', '📊 RANKINGS']]}
           />
         )}
         {missingPlayer && !missingTab && (
@@ -953,7 +962,7 @@ export default function Dashboard({ palettePass = 0 }) {
             kicker="NO SUCH PLAYER"
             message={<>No MLB player has the id <b style={{ color: C.text2, fontFamily: NUM_FONT }}>{missingPlayer}</b>. The link may be old or cut short -- tonight&apos;s board and the search above have everyone.</>}
             onNavigate={(t) => { setMissingPlayer(''); setTab(t) }}
-            doors={[['home', '🏠 HOME'], ['board', '📊 BOARDS'], ['bot', '🎯 PICKS']]}
+            doors={[['home', '🏠 HOME'], ['fullboard', '📊 RANKINGS'], ['bot', '🎯 PICKS']]}
           />
         )}
         {missingTab ? (
@@ -961,7 +970,7 @@ export default function Dashboard({ palettePass = 0 }) {
             asked={missingTab}
             sport="mlb"
             onNavigate={setTab}
-            doors={[['home', '🏠 HOME'], ['board', '📊 BOARDS'], ['bot', '🎯 PICKS'], ['results', '🧾 THE RECORD'], ['guide', '📖 HOW THIS WORKS']]}
+            doors={[['home', '🏠 HOME'], ['fullboard', '📊 RANKINGS'], ['bot', '🎯 PICKS'], ['results', '🧾 THE RECORD'], ['guide', '📖 HOW THIS WORKS']]}
           />
         ) : loading && !SLATE_FREE.has(tab) ? (
           <Empty text="Loading slate data…" />
@@ -998,7 +1007,6 @@ export default function Dashboard({ palettePass = 0 }) {
                 standalone component where that is the safer render. Nothing
                 was deleted; see lib/theme.js for the map. */}
             {tab === 'home'        && <Home players={allPlayers} filteredPlayers={players} results={resultsForSlate} backtest={backtest} mode={mode} slateDate={slateDate} dateLabel={dateLabel} odds={odds} onWatch={toggleWatch} watchIds={watchIds} onNavigate={setTab} onPlayerClick={setModalPlayer} />}
-            {tab === 'board'       && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} onNavigate={setTab} />}
             {tab === 'games'       && <Games players={players} allPlayers={allPlayers} slateDate={slateDate} slateMode={mode} pairHistorySummary={pairSummary} results={resultsForSlate} odds={odds} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
             {tab === 'pitchers'    && <Pitchers players={players} onPlayerClick={setModalPlayer} />}
             {tab === 'matchups'    && <Matchups players={players} onPlayerClick={setModalPlayer} onNavigate={setTab} />}
@@ -1043,7 +1051,8 @@ export default function Dashboard({ palettePass = 0 }) {
             {/* 2026-09-25: the full board, #1 to #N, on its own page. */}
             {tab === 'storylines'  && <StorylinesPage sport="mlb" eyebrow="MOONSHOT · STORYLINES" theme={C} numFont={NUM_FONT} accent={C.orange} onOpenGame={(pk) => { leaveTarget('game', pk); setTab('games') }} searchBox={false} keepIds={players.length < allPlayers.length ? new Set(players.map((p) => String(p?.player_id ?? p?.id))) : null} onOpenPlayer={(id) => { const p = allPlayers.find((x) => String(x?.player_id ?? x?.id) === String(id)); if (p) setModalPlayer(p) }} />}
             {tab === 'longshots'   && <Longshots sport="mlb" eyebrow="MOONSHOT · LONGSHOTS" theme={C} numFont={NUM_FONT} accent={C.orange} onOpenPitcher={(pid) => { leaveTarget('pitcher', pid); setTab('pitchers') }} onOpenPlayer={(id) => { const p = allPlayers.find((x) => String(x?.player_id ?? x?.id) === String(id)); if (p) setModalPlayer(p) }} />}
-            {tab === 'fullboard'   && <Home players={allPlayers} filteredPlayers={players} results={resultsForSlate} backtest={backtest} mode={mode} slateDate={slateDate} dateLabel={dateLabel} odds={odds} onWatch={toggleWatch} watchIds={watchIds} onNavigate={setTab} onPlayerClick={setModalPlayer} initial="fullboard" />}
+            {/* ONE RANKINGS PAGE (2026-10-06): the Boards page and Rankings are this page. #tab=board / boards / hitshrr are aliases (lib/routes.js). */}
+            {tab === 'fullboard'   && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} onOpenCard={openCardAt} slateDate={slateDate} onNavigate={setTab} />}
             {/* #tab=power and #tab=patterns were NEVER WIRED (found 2026-08-17
                 by an audit that opened each route and looked for the feature's
                 own text, rather than only asking whether the page threw).
@@ -1067,7 +1076,6 @@ export default function Dashboard({ palettePass = 0 }) {
             {tab === 'patterns'    && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} onNavigate={setTab} initialView="patterns" />}
             {tab === 'longest'     && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} onNavigate={setTab} initialView="power" powerInitial="longest" />}
             {tab === 'due'         && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} onNavigate={setTab} initialView="power" powerInitial="due" />}
-            {tab === 'hitshrr'     && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} onNavigate={setTab} />}
             {/* 2026-08-24: the Alignments view gets its own route, so the Home
                 ledger's "research →" can land on it directly. Same component
                 and props as every other Combos alias. */}

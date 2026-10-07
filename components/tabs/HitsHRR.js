@@ -13,7 +13,8 @@ import PowerTab from './Power'
 import BlankBoard from '../BlankBoard'
 import PlayerCard from '../PlayerCard'
 import { usePreview, ShowMoreButton } from '../ListPreview'
-import MobileFold from '../MobileFold'
+import MobileFold, { useIsPhone } from '../MobileFold'
+import { DrawerSection, drawerLabel } from '../FiltersDrawer'
 import HowToRead from '../HowToRead'
 import { hrRank } from '../../lib/scoring'
 // HitterHeat (the heat-painted 'top 15 profile' tables) left this page 2026-09-06 -- Donovan:
@@ -390,7 +391,7 @@ function MatchupEdgeSection({ players, onAdd, onWatch, watchIds, onPlayerClick }
 // decision as Steals, same reason (Donovan: "unsure about the use of
 // more tabs, we have to get that under control"). Doubles and triples
 // are one board: same swing, same park geometry, same audience.
-const GROUPS = [['boards', 'Boards'], ['power', 'Power'], ['patterns', 'Patterns'], ['steals', 'Steals'], ['gap', 'Gap']]
+const GROUPS = [['boards', 'Rankings'], ['power', 'Power'], ['patterns', 'Patterns'], ['steals', 'Steals'], ['gap', 'Gap']]
 
 // 🌙 DAY-OFF SPLIT (2026-08-30, Donovan: "i also like to track day offs like
 // instead of back back games the me[i]ss the back to back and go a 'day off'
@@ -443,11 +444,17 @@ function B2BStrip({ list, verified, loading, cashed, onPlayerClick }) {
  *   · powerInitial — forwarded as PowerTab's own `initial` prop, so #tab=due
  *                    can still open Overdue specifically. Power's default.
  */
-export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, onWatch, watchIds, onPlayerClick, slateDate = null, results = null, initialView = 'boards', powerInitial = 'longest', onNavigate = null }) {
+export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, onWatch, watchIds, onPlayerClick, onOpenCard = null, slateDate = null, results = null, initialView = 'boards', powerInitial = 'longest', onNavigate = null }) {
   const [bview, setBview] = useState(() => (GROUPS.some(([k]) => k === initialView) ? initialView : 'boards'))
   const [view, setView] = useState('hr')
   const viewKey = view === 'top' ? 'hr' : view
   const [proofOpen, setProofOpen] = useState(false)
+  // ONE RANKINGS PAGE (2026-10-06): mounted on the Boards group (Dashboard's `fullboard`), this is Rankings.
+  // The same component still hosts Power / Patterns / Steals / Gap under their own tab keys.
+  const rankings = initialView === 'boards'
+  const phone = useIsPhone()
+  const phoneRank = rankings && phone
+  const [layout, setLayout] = useState('list')   // Rankings' List / Cards switch (the page owns it, the table reads it)
   // Scoped to whichever lens is open (view), so the Score slider in
   // BoardFilters reads hr_score on the HR board, hit_score on Hits, etc.,
   // rather than guessing. Lifted here (not left inside RankedBoard) so the
@@ -490,6 +497,64 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
     }
   }, [allPlayers, players, viewKey])
 
+  const b2bFold = (
+    <MobileFold title="🔁 B2B Watch" summary={b2b.list?.length ? `${b2b.list.length} encore chase${b2b.list.length === 1 ? '' : 's'}` : 'no back-to-back setups tonight'} count={b2b.list?.length || null} accent={C.orange} rememberKey="fold_b2b_v1">
+      <B2BStrip
+        list={b2b.list}
+        verified={b2b.verified}
+        loading={setupHomers === undefined}
+        cashed={b2bCashed}
+        onPlayerClick={onPlayerClick}
+      />
+    </MobileFold>
+  )
+  // HOW TO READ THIS: tonight's #1 row taken apart. A small button on a phone, a pill in the sentence on a desktop.
+  const howBtn = viewKey === 'hr' && howRow
+    ? <HowToRead id="mlb-hr-board" accent={C.orange} row={howRow} notes={HOW_NOTES} steps={HOW_STEPS} />
+    : null
+  // PHONE: the market chips are one scrolling row beside the one Filters button; everything else
+  // (angles, List / Cards, what this board answers) is the top of that button's panel.
+  const chip44 = (on, accent) => ({
+    flex: '0 0 auto', minHeight: 44, padding: '0 14px', borderRadius: 999, cursor: 'pointer',
+    fontSize: 12, fontWeight: 800, fontFamily: NUM_FONT, whiteSpace: 'nowrap',
+    border: `1px solid ${on ? accent : C.border}`, background: on ? `${accent}22` : 'transparent', color: on ? accent : C.text3,
+  })
+  const phoneBeside = (
+    <div role="group" aria-label="Market" style={{ display: 'flex', gap: 6, overflowX: 'auto', flex: 1, minWidth: 0, scrollbarWidth: 'none' }}>
+      {MARKET_LENSES.map((o) => (
+        <button key={o.key} type="button" onClick={() => setView(o.key)} aria-pressed={o.key === view} title={LENS_TITLE(o)} style={chip44(o.key === view, o.color)}>{o.label}</button>
+      ))}
+    </div>
+  )
+  const phoneLead = (
+    <>
+      <DrawerSection label="View">
+        <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+          {[['list', '☰ List'], ['cards', '▦ Cards']].map(([k, l]) => (
+            <button key={k} type="button" onClick={() => setLayout(k)} aria-pressed={layout === k} style={chip44(layout === k, C.orange)}>{l}</button>
+          ))}
+        </div>
+      </DrawerSection>
+      <DrawerSection label="Angle" hint="A different way to find a name on tonight's board.">
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
+          {ANGLE_LENSES.map((o) => (
+            <button key={o.key} type="button" onClick={() => setView(o.key)} aria-pressed={o.key === view} title={LENS_TITLE(o)} style={chip44(o.key === view, o.color)}>{o.label}</button>
+          ))}
+        </div>
+      </DrawerSection>
+      <DrawerSection label="About this board">
+        <div style={{ fontSize: 12, color: C.text2, lineHeight: 1.55, marginTop: 4 }}>
+          {(ANSWERS[viewKey] || ANSWER_FALLBACK).replace(/^./, (c) => c.toUpperCase())}
+          {pr && (<>
+            {' '}
+            <button type="button" onClick={() => setProofOpen((v) => !v)} style={{ background: 'transparent', border: 'none', padding: 0, minHeight: 44, font: 'inherit', cursor: 'pointer', color: pr.color, fontWeight: 800, textAlign: 'left' }}>{pr.head} {proofOpen ? '▴' : '▾'}</button>
+          </>)}
+        </div>
+        {pr && proofOpen && <div style={{ fontSize: 12, color: C.text2, lineHeight: 1.6, borderLeft: `2px solid ${pr.color}66`, paddingLeft: 11 }}>{pr.body}</div>}
+      </DrawerSection>
+    </>
+  )
+
   return (
     <div>
       {/* ── THE ONLY HEADER ──────────────────────────────────────────────
@@ -501,7 +566,7 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
           Charts, and only the main nav/header should ever do that. It was
           already forced non-sticky on phones (see the class below, still
           carried by MobileCSS); now it's plain in-flow on desktop too. */}
-      <div className="board-pill-row" style={{
+      {!rankings && <div className="board-pill-row" style={{
         background: C.bg,
         paddingTop: 4, paddingBottom: 7, marginBottom: 10,
         borderBottom: `1px solid ${C.border}`,
@@ -512,7 +577,7 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
             "which tool am I in" and "which board within it" are told apart by
             shape before anyone reads a word. */}
         {GROUPS.map(([k, label]) => (
-          <button key={k} onClick={() => setBview(k)} style={{
+          <button key={k} onClick={() => (k === 'boards' && onNavigate ? onNavigate('fullboard') : setBview(k))} style={{
             padding: '7px 16px', borderRadius: 999, cursor: 'pointer', fontSize: TYPE.body,
             fontWeight: 900, fontFamily: NUM_FONT, whiteSpace: 'nowrap',
             letterSpacing: '.02em',
@@ -527,14 +592,17 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
             reads as the page throwing you somewhere. Slate is a top-level tab
             now and Boxes is one tap from Home, so nothing became unreachable —
             this row just stopped teleporting people. */}
-      </div>
+      </div>}
 
       {/* ── THE SECOND TIER, NAMED (2026-09-03) ───────────────────────────
           The nine lenses used to run on after the four group pills above,
           separated by a one-pixel divider and nothing else. See
           components/LensRow.js for why that divider could never do the job it
           was being asked to do. */}
-      {boards && (
+      {phoneRank && boards && (
+        <BoardFilters state={state} total={players.length} shown={filtered.length} compact beside={phoneBeside} lead={phoneLead} />
+      )}
+      {boards && !phoneRank && (
         // ── ONE ROW, NOT TWO (2026-09-14, MOONSHOT batch 3) ────────────────
         // Donovan, off the brand audit: "three rows of filter pills ... one
         // filter row." Market and Angle stay two named groups — that split is
@@ -563,15 +631,7 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
           of chrome before the first ranked row, and this strip was 200px of
           it -- three card rows and two paragraphs above the board the tab is
           named for. Folded to one line on a phone; desktop unchanged. */}
-      <MobileFold title="🔁 B2B Watch" summary={b2b.list?.length ? `${b2b.list.length} encore chase${b2b.list.length === 1 ? '' : 's'}` : 'no back-to-back setups tonight'} count={b2b.list?.length || null} accent={C.orange} rememberKey="fold_b2b_v1">
-        <B2BStrip
-          list={b2b.list}
-          verified={b2b.verified}
-          loading={setupHomers === undefined}
-          cashed={b2bCashed}
-          onPlayerClick={onPlayerClick}
-        />
-      </MobileFold>
+      {!phoneRank && b2bFold}
 
       {bview === 'gap' ? (
         <GapBoard players={players} odds={odds} onPlayerClick={onPlayerClick} />
@@ -599,11 +659,20 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
         />
       ) : (
         <>
+          {phoneRank && (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'space-between', margin: '0 0 8px' }}>
+                {/* WHO WE RANK, ONE LINE (2026-10-06): the subtitle every sport's Rankings page carries. */}
+                <div style={{ minWidth: 0, color: C.text2, fontSize: 13, lineHeight: 1.3 }}>Who we rank tonight, and why.</div>
+                {howBtn}
+              </div>
+            </>
+          )}
           {/* ONE SENTENCE, TWO OLD BLOCKS. The market this board is for, then
               the archive's verdict on it as a tap-to-open clause. The full
               measured paragraph is behind the headline that names it — read
               the claim, open the receipts. */}
-          <div className="quiet-note" style={{ fontSize: TYPE.body, color: C.text2, lineHeight: 1.65, maxWidth: 840, marginBottom: pr && proofOpen ? 7 : 12 }}>
+          {!phoneRank && <div className="quiet-note" style={{ fontSize: TYPE.body, color: C.text2, lineHeight: 1.65, maxWidth: 840, marginBottom: pr && proofOpen ? 7 : 12 }}>
             {/* The sentence folds; the proof button does NOT (2026-08-23).
                 Hiding "✓ 68% over 27 nights ▾" behind a fold would bury the
                 one clause on this page that is a measured record and an
@@ -620,9 +689,7 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
                 sentence, so it costs no line of its own. */}
             <LensAnswer maxWidth={840}>
               {ANSWERS[viewKey] || ANSWER_FALLBACK}
-              {viewKey === 'hr' && howRow && (
-                <HowToRead id="mlb-hr-board" accent={C.orange} row={howRow} notes={HOW_NOTES} steps={HOW_STEPS} />
-              )}
+              {howBtn}
             </LensAnswer>
             {pr && (
               <>
@@ -637,8 +704,8 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
                 >{pr.head} {proofOpen ? '▴' : '▾'}</button>
               </>
             )}
-          </div>
-          {pr && proofOpen && (
+          </div>}
+          {!phoneRank && pr && proofOpen && (
             <div style={{
               fontSize: TYPE.label, color: C.text2, lineHeight: 1.6, maxWidth: 780,
               borderLeft: `2px solid ${pr.color}66`, paddingLeft: 11, marginBottom: 12,
@@ -648,7 +715,7 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
           {/* The three signal sections get the filter bar here. The hrr/hit/contact
               views delegate to RankedBoard, which carries its own — showing two
               filter bars stacked would be worse than either. */}
-          {['weakspot', 'aligned', 'matchupedge'].includes(view) && (
+          {!phoneRank && ['weakspot', 'aligned', 'matchupedge'].includes(view) && (
             <BoardFilters state={state} total={players.length} shown={filtered.length} />
           )}
 
@@ -660,8 +727,10 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
             ? <AlignedSignalsSection players={filtered} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} />
             : view === 'matchupedge'
             ? <MatchupEdgeSection players={filtered} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} />
-            : <RankedBoard players={players} type={viewKey} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} onOpenPitcher={onNavigate ? (pid) => { leaveTarget('pitcher', pid); onNavigate('pitchers') } : null} slateDate={slateDate} filterState={filterState} setupHomers={setupHomers} />
+            : <RankedBoard players={players} type={viewKey} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} onOpenPitcher={onNavigate ? (pid) => { leaveTarget('pitcher', pid); onNavigate('pitchers') } : null} slateDate={slateDate} filterState={filterState} setupHomers={setupHomers}
+                onOpenCard={onOpenCard} rankings={rankings} compact={phoneRank} slate={allPlayers.length ? allPlayers : players} viewMode={layout} onViewMode={setLayout} />
           }
+          {phoneRank && b2bFold}
         </>
       )}
     </div>

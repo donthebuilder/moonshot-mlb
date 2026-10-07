@@ -60,7 +60,7 @@ const STEPS = [
   },
   {
     n: 3,
-    tab: 'board',
+    tab: 'fullboard',
     title: 'Tap a name to open his card',
     body: 'The card says why he is up there: the arm he faces, his recent contact, where he does damage in the zone. Every number on it has a tooltip — hover anything you don’t recognise instead of coming back here.',
   },
@@ -143,7 +143,7 @@ export default function Guide({ onNavigate }) {
       <PlaybookLink market="hr" label="How to research a home run" />
       {/* LOOK -> PICK -> TRACK (2026-10-01): the same three drawings as /start. */}
       <div style={{ margin: '14px 0 18px' }}>
-        <HowItWorks sport="mlb" hrefs={{ look: appHref('mlb', 'board'), pick: appHref('mlb', 'board'), track: '/called?sport=mlb' }}
+        <HowItWorks sport="mlb" hrefs={{ look: appHref('mlb', 'fullboard'), pick: appHref('mlb', 'fullboard'), track: '/called?sport=mlb' }}
           colors={{ accent: C.orange, ink: C.text, dim: C.text2, line: C.border, bg: C.bg }} />
       </div>
 
@@ -310,14 +310,14 @@ export default function Guide({ onNavigate }) {
         {/* the bar, in its order and under its real names (2026-10-04 user
             review #10: 'scoreboard' is Live now, not the wide table) */}
         <Term tab="props" go={onNavigate} icon="🎯" term={tabName('mlb', 'props')} def="every call as a card, one market at a time, with the price and the read when a book is on the same bar." />
-        <Term tab="fullboard" go={onNavigate} icon="📊" term={tabName('mlb', 'fullboard')} def="every hitter the model rated tonight, #1 to the bottom, every column, sortable. The wide view." />
+        <Term tab="fullboard" go={onNavigate} icon="📊" term={tabName('mlb', 'fullboard')} def="who we rank tonight, and why: every hitter, #1 to the bottom, every column, sortable, with a Why on each row. One market at a time: the Board, Hits, HRR, Contact." />
         <Term tab="scoreboard" go={onNavigate} icon="📡" term={tabName('mlb', 'scoreboard')} def="scores, the wire, and what is happening right now." />
         <Term tab="atplate" go={onNavigate} icon="🎤" term="At the Plate" def="the hitter batting right now — the count, every pitch of the at-bat, and where his contact is going. Only alive during games." />
         <Term tab="games" go={onNavigate} icon="⚾" term={tabName('mlb', 'games')} def="one matchup at a time: the arm, the park, the lineup." />
-        <Term tab="board" go={onNavigate} icon="🏆" term="HR Board" def="ranked purely by home-run score." />
+        <Term tab="fullboard" go={onNavigate} icon="🏆" term="The Board" def="every hitter in one order: the HR score, season home runs and season exit velocity, averaged." />
         <Term tab="longest" go={onNavigate} icon="🚀" term="Longest" def="who hits the farthest ball, not who is likeliest to homer. It disagrees with the HR board on purpose." />
         <Term tab="due" go={onNavigate} icon="⚡" term="Power-3" def="who hits it hardest and farthest all season — HR per ball in play, average EV and max EV, ranked on tonight's slate and averaged. Replaced the Due board: drought predicts nothing." />
-        <Term tab="board" go={onNavigate} icon="💎" term="Hits & HRR" def="contact and extra-base plays instead of power." />
+        <Term tab="fullboard" go={onNavigate} icon="💎" term="Hits & HRR" def="contact and extra-base plays instead of power." />
         <Term tab="pairs" go={onNavigate} icon="🔗" term="Pairs" def="two-man home-run combinations — who's live tonight and what the bot recommends." />
         <Term tab="pools" go={onNavigate} icon="🏊" term="Pools" def="the bot's three- and four-man group tickets, plus the Pair Builder for making your own pair." />
         <Term tab="pairhist" go={onNavigate} icon="🧬" term="Pair History" def="which two hitters have gone deep on the same day all season." />

@@ -215,11 +215,13 @@ const HOME_VIEWS = [
   { key: 'live', label: 'At the plate' },
   { key: 'board', label: 'Scores' },
   { key: 'boxes', label: 'Box scores' },
-  // 2026-09-25: the full board on a page of its own (#tab=fullboard). Same
-  // Scoreboard component in boardOnly mode -- see its header.
+  // 2026-10-06: Rankings is its own page now (#tab=fullboard, components/tabs/HitsHRR.js; the old
+  // Boards page is merged into it). The pill stays so the other views still reach it, but it goes
+  // there: it is not a view of Home any more, so it is not in HOME_VIEW_KEYS (a remembered
+  // `home_view` of 'fullboard' must not open a blank Home).
   { key: 'fullboard', label: 'Rankings' },
 ]
-const HOME_VIEW_KEYS = new Set(HOME_VIEWS.map((v) => v.key))
+const HOME_VIEW_KEYS = new Set(HOME_VIEWS.filter((v) => v.key !== 'fullboard').map((v) => v.key))
 // view -> the tab key Dashboard.js mounts it under
 const VIEW_TAB = { tonight: 'home', live: 'atplate', board: 'scoreboard', boxes: 'boxes', fullboard: 'fullboard' }
 const BARE_BUTTON = {
@@ -291,6 +293,7 @@ export default function Home({
   // altogether. Every view already has its own tab key (Dashboard.js mounts
   // this component under each), so a pill navigates there.
   const pickView = (k) => {
+    if (k === 'fullboard') { onNavigate?.('fullboard'); return }   // the Rankings page, not a view of this one
     setView(k)
     try { localStorage.setItem('home_view', k) } catch { /* not remembered, still shown */ }
     const tabFor = VIEW_TAB[k]
@@ -787,15 +790,6 @@ export default function Home({
       )}
       {view === 'boxes' && (
         <Boxes players={players} watchIds={watchIds} onPlayerClick={onPlayerClick} />
-      )}
-      {view === 'fullboard' && (
-        <Scoreboard
-          boardOnly
-          players={filteredPlayers ?? players} mode={mode} slateDate={slateDate}
-          results={results} backtest={backtest} odds={odds}
-          onWatch={onWatch} watchIds={watchIds}
-          onPlayerClick={onPlayerClick} onNavigate={onNavigate}
-        />
       )}
 
       {view === 'tonight' && <>
@@ -1300,7 +1294,7 @@ export default function Home({
         <Fold id="top10" title="📊 Tonight's top 10s" meta="HR plays · hit plays, with the arm each bat attacks">
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
           {[
-            { title: '💣 Top 10 — HR plays', col: '#FB923C', score: hrScore, door: 'board' },
+            { title: '💣 Top 10 — HR plays', col: '#FB923C', score: hrScore, door: 'fullboard' },
             { title: '🎯 Top 10 — Hit plays', col: '#60A5FA', score: hitScore, door: 'hitshrr' },
           ].map(({ title, col, score, door }) => {
             const rows = [...players].sort((a, b) => score(b) - score(a)).slice(0, 10)

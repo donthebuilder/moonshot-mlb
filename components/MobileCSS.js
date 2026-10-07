@@ -301,8 +301,8 @@ export default function MobileCSS() {
         /* Bot picks: one card per row, which is the readable form on a phone. */
         .bot-picks-grid { grid-template-columns: 1fr !important; }
 
-        /* Filter bars stack instead of cramming five controls onto one line. */
-        .board-filters > div:first-child { flex-direction: column !important; align-items: stretch !important; gap: 9px !important; }
+        /* Filter bars stack instead of cramming five controls onto one line. (The compact one, 2026-10-06, is the Rankings page's single row: Filters + the market chips.) */
+        .board-filters:not(.board-filters-compact) > div:first-child { flex-direction: column !important; align-items: stretch !important; gap: 9px !important; }
       }
 
       /* ── 2026-08-05 pass: everything added since the last mobile sweep.
