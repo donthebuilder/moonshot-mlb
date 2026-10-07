@@ -41,7 +41,7 @@ export function SeasonTypeChip({ type }) {
   const label = SEASON_TYPE[type]
   if (!label) return null
   const pre = type === 1
-  return <span style={{ display: 'inline-block', padding: '4px 8px', borderRadius: 6, border: `1px solid ${pre ? C.amber : C.border2}`, color: pre ? C.amber : C.text3, font: `800 10px/1 ${NUM_FONT}`, letterSpacing: '.1em' }}>{label}</span>
+  return <span style={{ display: 'inline-block', padding: '4px 8px', borderRadius: 6, border: `1px solid ${C.border2}`, color: pre ? C.text2 : C.text3, font: `800 10px/1 ${NUM_FONT}`, letterSpacing: '.1em' }}>{label}</span>
 }
 
 /** The live dot: rim orange, live games only -- never decoration. */
@@ -64,7 +64,8 @@ export const DelayedBanner = (props) => <SharedDelayedBanner theme={C} numFont={
 /** Last season's numbers, said so: the new season's are not in yet. */
 export function LastSeasonNote({ label, what = 'numbers' }) {
   if (!label) return null
-  return <StaleNote tone={C.text3} theme={C} numFont={NUM_FONT} title={`${label} ${what.toUpperCase()}`} body={<>The new season has no regular-season games yet, so these are last season’s ({label}) — they switch over on their own once it starts.</>} />
+  return <StaleNote tone={C.text3} theme={C} numFont={NUM_FONT} title={`${label} ${what.toUpperCase()}`} meta="last season’s"
+    why={`The new season has no regular-season games yet, so these are last season’s (${label}). They switch over on their own once it starts.`} />
 }
 export function Loading({ what = 'the feed' }) {
   return <div style={{ border: `1px dashed ${C.border2}`, borderRadius: 12, padding: 24, textAlign: 'center', color: C.text3, fontSize: 12 }}>Reading {what}…</div>

@@ -174,7 +174,7 @@ export function StaleNote({ tone, icon = '⚠️', title, meta = null, body = nu
         <span style={{ fontSize: 12, fontWeight: 900, color: tone }}>{title}</span>
         {meta ? <span style={{ fontSize: 9.5, color: theme.text3, fontFamily: numFont }}>{meta}</span> : null}
         {why ? <button type="button" onClick={() => explain(title, why)} aria-label={`What does “${title}” mean?`}
-          style={{ marginLeft: 'auto', alignSelf: 'center', minWidth: 44, minHeight: 44, margin: '-12px -8px -12px auto', background: 'none', border: 0, color: theme.text2, font: `800 12px/1 ${numFont}`, cursor: 'pointer' }}>(?)</button> : null}
+          style={{ alignSelf: 'center', minWidth: 44, minHeight: 44, margin: '-12px -8px -12px auto', background: 'none', border: 0, color: theme.text2, font: `800 12px/1 ${numFont}`, cursor: 'pointer' }}>(?)</button> : null}
       </div>
       {!compact && !why && body ? <div style={{ fontSize: 10.5, color: theme.text2, lineHeight: 1.6, marginTop: 5, maxWidth: 720 }}>{body}</div> : null}
     </div>
