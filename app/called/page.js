@@ -108,18 +108,18 @@ const SPORTS = {
   mlb: {
     key: 'mlb', label: 'MLB', product: 'MOONSHOT', event: 'home runs', eventOne: 'home run',
     verb: 'went deep', table: 'homer_feed', board: appHref('mlb'),
-    legend: '🤖 on the bot before the ball left  ·  ⚪ on the board, no call  ·  💥 not on the board',
+    legend: '🤖 called before the ball left  ·  ⚪ on the board, no call  ·  💥 not on the board',
     frozen: 'Tags are frozen when the home run is first seen and never re-graded.',
     empty: 'No home runs yet tonight',
     fills: 'This page fills in within a minute of each one.',
     foot: "CALLED IT is MOONSHOT's home run record — every home run, graded in public. Data from MLB's public feeds.",
-    lead: 'called', onWhat: 'the bot', capture: eventCapture, window: DAYS, unit: ['night', 'nights'],
+    lead: 'called', onWhat: 'CALLED', capture: eventCapture, window: DAYS, unit: ['night', 'nights'],
     tierRecord: true,   // the calls graded by tier, with their lock times (components/record/CalibrationTable.js)
     rule: CALL_RULES.mlb.rule,
-    cta: ['See who the bot likes tonight', 'The headline picks and the full board, in the app — no account needed'],
+    cta: ['See tonight\u2019s calls', 'The headline picks and the full board, in the app — no account needed'],
     callsHead: 'Tonight\u2019s calls', callsPill: 'posted before first pitch',
     eventsHead: 'Tonight\u2019s home runs',
-    close: ['Tomorrow\u2019s calls are already on the board.', 'The bot publishes its picks every morning. The 🤖 you see here is what it said before first pitch.', 'Save your watchlist, picks and alerts when your guys go deep'],
+    close: ['Tomorrow\u2019s calls are already on the board.', 'Picks are posted every morning. The 🤖 you see here is what was posted before first pitch.', 'Save your watchlist, picks and alerts when your guys go deep'],
     playerHref: (id) => playerHref('mlb', id),
     meta: {
       // §36: search words first, product second (Batch 6).
@@ -132,17 +132,17 @@ const SPORTS = {
     tierRecord: true,
     key: 'nfl', label: 'NFL', product: 'TUDDY', event: 'touchdowns', eventOne: 'touchdown',
     verb: 'found the end zone', table: 'nfl_td_feed', board: appHref('nfl'),
-    legend: '🤖 on the bot before the snap  ·  ⚪ on the board (top third of the TD board), no call  ·  💥 not on the board',
+    legend: '🤖 called before the snap  ·  ⚪ on the board (top third of the TD board), no call  ·  💥 not on the board',
     frozen: 'Tags are frozen when the touchdown is first seen and never re-graded.',
     empty: 'No touchdowns yet today',
     fills: 'This page fills in within a minute of each one.',
     foot: "CALLED IT is TUDDY's touchdown record — every touchdown, graded in public. Data from public NFL feeds.",
     lead: 'board', onWhat: 'the board', capture: eventCapture, window: windowFor('nfl').fetchDays, unit: ['game day', 'game days'],
     rule: CALL_RULES.nfl.rule,
-    cta: ['See who the bot likes this week', 'This week\u2019s reads and the full board, in the app — no account needed'],
+    cta: ['See this week\u2019s calls', 'This week\u2019s reads and the full board, in the app — no account needed'],
     callsHead: 'This week\u2019s calls', callsPill: 'posted before kickoff',
     eventsHead: 'Today\u2019s touchdowns',
-    close: ['This week\u2019s calls are already on the board.', 'The bot publishes its touchdown board before kickoff. The 🤖 you see here is what it said before the snap.', 'Save your watchlist, picks and alerts when your guys score'],
+    close: ['This week\u2019s calls are already on the board.', 'The touchdown board is posted before kickoff. The 🤖 you see here is what was posted before the snap.', 'Save your watchlist, picks and alerts when your guys score'],
     playerHref: (id) => playerHref('nfl', id),
     // THE CARD (TUDDY depth step 1): the weekly 5 x 7 card's graded record,
     // beside the touchdown record. A sport without a card simply has none.
@@ -590,9 +590,12 @@ export default async function CalledPage({ searchParams }) {
           <span>{sport.cta[1]}</span>
         </a>
         <p className={styles.whatIs}><a href={START}>What is this? →</a></p>
-        <p className={styles.rule}>
-          {sport.legend}. {sport.frozen}
-        </p>
+        {/* HOW THIS IS COUNTED (2026-10-07 text sweep): the emoji key and the tag-freezing note, one tap away
+            instead of a second paragraph on every visit (VISUAL-AUDIT-1006 section 2). A <details>, so it works on a phone. */}
+        <details className={styles.howCounted}>
+          <summary>How this is counted (?)</summary>
+          <p className={styles.rule}>{sport.legend}. {sport.frozen}{CALL_RULES[sport.key]?.note ? ` ${CALL_RULES[sport.key].note}` : ''}</p>
+        </details>
         {/* THE LEDGER'S FOUR WORDS (2026-10-07): the same sub-tabs the in-app Ledger has, jumping to this page's own
             sections -- Tonight (the calls), Called (every event, tagged), Record (the graded tiers), Archive (the nights). */}
         <nav className={styles.ledgerNav} aria-label="The Ledger, by section">
@@ -692,13 +695,16 @@ export default async function CalledPage({ searchParams }) {
               </tbody>
             </table>
           </div>
+          <details className={styles.howCounted}>
+          <summary>How this table is counted (?)</summary>
           <p className={styles.tableNote}>
             Cleared = the call reached the bar in its game. Void = no game line or an ineligible position, never a miss.
-            {card.backtest ? ` Back-test: the card against a pick made on recent form alone, same depth, ${card.backtest.picks} picks per market (${card.backtest.seasons.join(', ')}). Trust words are the bot's: holds, leans, thin, sinks, fails.` : ''}
+            {card.backtest ? ` Back-test: the card against a pick made on recent form alone, same depth, ${card.backtest.picks} picks per market (${card.backtest.seasons.join(', ')}). Trust words: holds, leans, thin, sinks, fails.` : ''}
             {card.live ? ` Week ${card.live.week} is in progress: ${card.live.graded ? `${card.live.graded} of its calls are graded so far, and ` : 'none of its calls are graded yet; '}they count as they land.` : ''}
             {card.weeks.map((w) => regradeNote(card.season, w)).filter(Boolean).map((t) => ` ${t}`).join('')}
             {' '}Regular season only. <a href={ledgerAppHref('nfl', 'record')}>Every rung, week by week →</a>
           </p>
+          </details>
         </section>
       ) : null}
 

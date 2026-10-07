@@ -221,7 +221,7 @@ const SPORTS = {
     boardPhrase: 'were on the board before they happened',
     pending: 'Every touchdown is tagged against the board the moment it lands, and the public record is filling in — the board rank has been on the record since September 20.',
     callsHead: 'What the model noticed this week',
-    callsSub: 'The reads off this week’s touchdown board — the signals, not a bet slip.',
+    callsSub: 'This week’s touchdown reads. Signals, not a bet slip.',
     unit: 'game day',
   },
   // 2026-09-25. Hockey's record is its own table (lamp_goal_log, graded rows,
@@ -250,7 +250,7 @@ const SPORTS = {
     // final, against the board as it locked.
     pending: 'Every goal scorer is graded after the final against the board as it locked before puck drop. Preseason nights are graded but not quoted here — the first regular-season night is September 29.',
     callsHead: 'Tonight’s board — one called per team',
-    callsSub: 'Shots, goals and ice time per game over his last 82, ranked against tonight’s skaters. PREVIEW until a game’s lock; the lock is the call.',
+    callsSub: 'Ranked for tonight’s skaters. A PREVIEW is not a call until its game locks.',
     unit: 'night',
   },  // BUCKETS (2026-10-03): ready for the day it opens (BRAND.nba.hidden off).
   // The receipt is 25-point games, /called's event: CALLED in any market.
@@ -265,7 +265,7 @@ const SPORTS = {
     eventOne: '25-point game',
     lead: 'Who gets buckets tonight',
     recordLink: 'See every one, night by night.',
-    promise: 'BUCKETS calls one player per team in every game, for points, rebounds, assists, threes, PRA and the first basket, locks them before tip, then grades itself in public.',
+    promise: 'BUCKETS calls one player per team in every game, locks them before tip, then grades itself in public.',
     metaTitle: 'NBA player prop picks tonight · BUCKETS',
     canonical: '/start?sport=nba',
     metaDescription: 'Who gets buckets tonight: BUCKETS calls one NBA player per team in every game, locks them before tip, and grades them in public.',
@@ -274,7 +274,7 @@ const SPORTS = {
     boardPhrase: 'were on the board',
     pending: 'Every 25-point game is graded after the final against the board as it locked before tip. Preseason nights are graded but not quoted here — the regular season opens October 20.',
     callsHead: 'Tonight’s points board — one called per team',
-    callsSub: 'Points, minutes, shots and free throws a game, pooled from this season and last, ranked against tonight’s players. PREVIEW until a game’s lock; the lock is the call.',
+    callsSub: 'Ranked for tonight’s players. A PREVIEW is not a call until its game locks.',
     unit: 'night',
   },
 }
