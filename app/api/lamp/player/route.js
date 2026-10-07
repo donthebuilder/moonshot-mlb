@@ -10,6 +10,7 @@ import { playerLanding, playerGameLog, PLAYER_ID_RE, TTL2 } from '../../../../li
 import { reducePlayer, reduceGameLog } from '../../../../lib/nhl/reduce'
 import { ok, bad, delayed } from '../../../../lib/nhl/respond'
 import { whichSeason } from '../../../../lib/nhl/whichSeason'
+import { previousSeasonId } from '../../../../lib/nhl/season'
 
 export const dynamic = 'force-dynamic'
 
@@ -29,9 +30,19 @@ export async function GET(request) {
       const raw = await playerGameLog(id, player.featured.season, 2).catch((e) => { console.error(`[lamp] game-log ${id}: ${e?.message}`); return null })
       if (raw) log = reduceGameLog(raw, player.goalie)
     }
+    // THE SEASON BEFORE (2026-10-06, goal tracking): his record at one building
+    // needs more than one season of games, as MOONSHOT's venueRecord reads two.
+    // One extra league call, skaters only, cached like the rest, and a failure
+    // is an absent `logPrev`, never an error. Regular season.
+    let logPrev = null
+    if (!player.goalie && player.featured.season) {
+      const prevSeason = previousSeasonId(player.featured.season)
+      const raw = await playerGameLog(id, prevSeason, 2).catch(() => null)
+      if (raw?.gameLog?.length) logPrev = reduceGameLog(raw, false)
+    }
     // `current` / `opens` let the page say "this is last season's line" the
     // same way Standings does; the feed's featuredStats never says so itself.
-    return ok({ ...player, log, current: season.current, opens: season.opens, fetchedAt: new Date().toISOString() }, TTL2.player)
+    return ok({ ...player, log, logPrev, current: season.current, opens: season.opens, fetchedAt: new Date().toISOString() }, TTL2.player)
   } catch (e) {
     return delayed(`player ${id}`, e)
   }
