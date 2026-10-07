@@ -10,6 +10,7 @@ import { Para, Num, ConvictionClause, PowerLead, LensRow } from '../../power/Pow
 import { convictionOf, percentileOf, standingPhrase } from '../../../lib/whyPick'
 import { btnStyle } from '../../ui'
 import { withNflFullSet } from '../../../lib/nfl/boardColumns'
+import LongestTds from '../LongestTds'
 
 // 🚀 EXPLOSIVE — TUDDY'S SIDE OF PATH TO VICTORY B10(l), THE POWER BOARD.
 //
@@ -56,6 +57,8 @@ const LEAD_MIN_TGT = 15
 const LENSES = [
   { k: 'player', label: 'Players', tag: 'who turns a target into a chunk play', color: C.green },
   { k: 'defense', label: 'Defense allowed', tag: 'which defense gives up the chunk play', color: C.cyan },
+  // 2026-10-06: MOONSHOT's Longest board, as TUDDY's record of the longest touchdowns (components/nfl/LongestTds.js)
+  { k: 'longest', label: 'Longest TDs', tag: 'the longest scores of the season, from the TD feed', color: C.yellow },
 ]
 
 const BUCKET_COLS = [
@@ -227,6 +230,7 @@ export default function Explosive({ matchup, data, onPlayerClick }) {
 
   return (
     <div>
+      {lens !== 'longest' && (
       <PageHeader
         eyebrow="TUDDY · EXPLOSIVE"
         title={lens === 'player' ? 'Who turns a target into a chunk play' : 'Who gives up the chunk play'}
@@ -235,12 +239,13 @@ export default function Explosive({ matchup, data, onPlayerClick }) {
         numFont={NUM_FONT}
         accent={lens === 'player' ? C.green : C.cyan}
       />
+      )}
       {/* MOONSHOT'S POWER FRAME (2026-09-29, Donovan: "did we ever do the
           player powers for all the sports?"): one lead -- the receiver who
           turns targets into chunk plays most, argued with his own numbers and
           how far clear of the field he stands -- then one board behind a
           lens row (components/power/PowerParts.js, MOONSHOT's Power look). */}
-      {lead && (
+      {lens !== 'longest' && lead && (
         <PowerLead theme={C} numFont={NUM_FONT} color={C.green} kicker="The chunk-play read of the week"
           name={lead.row.name} meta={`${lead.row.team}${lead.row.opp ? ` vs ${lead.row.opp}` : ''} · ${lead.row.position}`}
           onName={onPlayerClick ? () => onPlayerClick(lead.row._raw, 'REC_YDS') : undefined}>
@@ -259,6 +264,17 @@ export default function Explosive({ matchup, data, onPlayerClick }) {
       <LensRow theme={C} lenses={LENSES} value={lens} onChange={setLens}
         btn={(color, on) => ({ ...btnStyle(color, on), border: `1px solid ${on ? `${color}99` : C.border}`, color: on ? color : C.text2 })} />
 
+      {lens === 'longest' ? (
+        <>
+          <div style={{ marginBottom: 11 }}>
+            <FilterBar>
+              <FilterSearch value={query} onChange={setQuery} placeholder="Search scorer or team…" width={190} />
+            </FilterBar>
+          </div>
+          <LongestTds data={data} season={data?.season} query={query} onPlayerClick={onPlayerClick} />
+        </>
+      ) : (
+        <>
       <div style={{
         display: 'flex', flexDirection: 'column', gap: 9, marginBottom: 11,
         padding: '10px 12px', border: `1px solid ${C.border}`, borderRadius: 12,
@@ -307,6 +323,8 @@ export default function Explosive({ matchup, data, onPlayerClick }) {
         Receiving only — rushing has no chunk-play split published yet, so this board doesn't guess at one.
         Minimum 8 targets on the season to keep a name off this list on a single fluke catch.
       </div>
+        </>
+      )}
     </div>
   )
 }
