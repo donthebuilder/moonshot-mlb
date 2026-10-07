@@ -13,6 +13,7 @@ import RangeDual from '../../RangeDual'
 import GoalWatch from '../GoalWatch'
 import GoalCompare from '../GoalCompare'
 import MobileFold, { useIsPhone } from '../../MobileFold'
+import LedgerChip from '../../LedgerChip'
 import HowToRead from '../../HowToRead'
 import { LampCards, PctBars, countOf } from '../LampCard'
 import { alpha } from '../../../lib/scales'
@@ -190,6 +191,7 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
         {/* PHONE (2026-10-06): one compact row, the table next. Everything else is behind Filters. */}
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <button type="button" onClick={() => setOpts((v) => !v)} aria-expanded={opts} style={{ ...pill(opts || filtering), flex: '0 0 auto', minHeight: 44, display: 'inline-flex', alignItems: 'center', gap: 6 }}>▤ Filters{chips.length + drawerChips.length + (team ? 1 : 0) + (gameF ? 1 : 0) + (needle ? 1 : 0) > 0 ? ` · ${chips.length + drawerChips.length + (team ? 1 : 0) + (gameF ? 1 : 0) + (needle ? 1 : 0)}` : ''}</button>
+          <LedgerChip sport="nhl" />
           <div role="group" aria-label="Market" style={{ display: 'flex', gap: 6, overflowX: 'auto', flex: 1, minWidth: 0, scrollbarWidth: 'none' }}>
             {MARKETS.map((m) => <button key={m.key} type="button" onClick={() => setMarket(m.key)} aria-pressed={m.key === market} style={{ ...pill(m.key === market), minHeight: 44 }}>{m.label}</button>)}
           </div>
@@ -222,7 +224,7 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
               options={[{ key: 'list', label: '☰ List', title: 'One sortable table per game' }, { key: 'cards', label: '▦ Cards', title: 'The card board' }]} />
             </span>
           </div>
-          <FiltersDrawer
+          <FiltersDrawer ledger="nhl"
             active={chips.length + drawerChips.length > 0} activeCount={drawerChips.length}
             activeFilters={[...chips, ...drawerChips].map((c) => ({ key: c.key, label: c.label, onRemove: c.onClear }))}
             reset={clearAll} shown={kept.length} total={flat.length} accent={C.ice} accentInk={C.bg}
@@ -296,7 +298,7 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
               options={[{ key: 'list', label: '☰ List', title: 'One sortable table per game' }, { key: 'cards', label: '▦ Cards', title: 'The card board' }]} />
             </span>
           </div>
-          <FiltersDrawer
+          <FiltersDrawer ledger="nhl"
             active={chips.length + drawerChips.length > 0} activeCount={drawerChips.length}
             activeFilters={[...chips, ...drawerChips].map((c) => ({ key: c.key, label: c.label, onRemove: c.onClear }))}
             reset={clearAll} shown={kept.length} total={flat.length} accent={C.ice} accentInk={C.bg}

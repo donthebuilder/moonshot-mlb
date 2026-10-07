@@ -1,4 +1,5 @@
 'use client'
+import GameLedgerLine from '../../ledger/GameLedgerLine'
 import { useTeamNav } from '../../../lib/teamNav'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import { useLampGame } from '../../../lib/nhl/useLamp'
@@ -73,6 +74,7 @@ export default function Game({ id, onBack, onOpenPlayer = null, onOpenTeam = nul
         </div>
         <div style={{ marginTop: 8, color: C.text3, fontSize: 11 }}>{g.venue}{g.venueLocation ? `, ${g.venueLocation}` : ''}{g.neutralSite ? ' · neutral site' : ''}</div>
       </header>
+      <GameLedgerLine sport="nhl" gameId={g.id} day={g.date} />
 
       {/* ── by period ── */}
       {(g.linescore?.length || g.shotsByPeriod?.length) ? (

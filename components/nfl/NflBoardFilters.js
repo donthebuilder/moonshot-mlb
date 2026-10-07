@@ -220,7 +220,7 @@ export function useNflBoardFilter(players, market) {
 
 const lbl = () => ({ fontSize: 10, color: C.text2, textTransform: 'uppercase', letterSpacing: '.07em', fontWeight: 800 })
 
-export default function NflBoardFilters({ state, total, shown, extra = null, extraCount = 0, extraReset = null }) {
+export default function NflBoardFilters({ state, total, shown, extra = null, extraCount = 0, extraReset = null, ledger = null }) {
   const { bands, bandOptions, toggleBand, setBandRange, quick, quickOn, applyQuick, reset: resetBands, active: bandsActive, activeCount: bandCount } = state
   // `extra` (board filters plan, TUDDY 3 + 4): the game picker, time window and
   // score range, drawn at the top of this same drawer (NflBoardExtras).
@@ -241,7 +241,7 @@ export default function NflBoardFilters({ state, total, shown, extra = null, ext
   return (
     <FiltersDrawer
       active={active} activeCount={activeCount} activeFilters={activeFilters} reset={reset}
-      shown={shown ?? 0} total={total ?? 0} accent={C.green} accentInk={C.bg}
+      shown={shown ?? 0} total={total ?? 0} accent={C.green} accentInk={C.bg} ledger={ledger}
       poolTitle="Players on this week's board that clear the filters. The board's own badge counts the rows it ranks."
       emptyNote="Nothing clears every band at once. Loosen one."
     >

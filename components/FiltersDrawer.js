@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { STATE, alpha } from '../lib/scales'
+import LedgerChip from './LedgerChip'
 
 // ══ THE BOARD FILTERS DRAWER, ONE FOR ALL THREE PRODUCTS (2026-09-28) ═══════
 // Donovan: "on the boards we can toggle teams, games, multi filters, all type
@@ -72,6 +73,9 @@ export default function FiltersDrawer({
   // market chips) in the same row; `lead` is what the panel says before the filter sections.
   // Every other caller leaves all three alone and draws exactly what it drew before.
   compact = false, beside = null, lead = null,
+  // THE LEDGER CHIP (2026-10-07): a sport key puts "Ledger 7/18" in this row, beside the trigger (the Rankings pages
+  // pass it; every other board leaves it off). It lives in the row that is already here, so no page gets taller.
+  ledger = null,
 }) {
   const [open, setOpen] = useState(false)
   const wrap = useOutsideClose(open, setOpen)
@@ -149,6 +153,8 @@ export default function FiltersDrawer({
             </div>
           )}
         </div>
+
+        {ledger && (compact ? <LedgerChip sport={ledger} /> : <span className="ledger-chip-wide" style={{ display: 'inline-flex' }}><LedgerChip sport={ledger} /></span>)}
 
         {compact && beside}
 

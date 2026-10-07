@@ -42,6 +42,7 @@ import PlayerSplits from './PlayerSplits'
 import SituationalSplits from './SituationalSplits'
 import PlayerNotes from './PlayerNotes'
 import HisNumbers from './HisNumbers'
+import InTheLedger from './ledger/InTheLedger'
 import { etToday } from '../lib/freshness'
 import { BatterSim } from './GameSimulator'
 import ThresholdGrid from './ThresholdGrid'
@@ -982,6 +983,7 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
               {/* THE BOT ON HIM: each role the bot gave him, on the clean pregame record */}
               <BotOnHim pid={pid} />
               <PlayerNotes playerId={pid} />
+              <InTheLedger sport="mlb" id={pid} name={nameOf(p)} jersey={jersey} birthDate={birthDate} next={hrSoFar != null ? hrSoFar + 1 : null} date={etToday()} />
               {/* 🔢 His numbers (numerology step 7): flavour, last, folded on a phone. */}
               <HisNumbers name={nameOf(p)} jersey={jersey} birthDate={birthDate} next={hrSoFar != null ? hrSoFar + 1 : null} nextWord="HR" date={etToday()} theme={C} accent={C.orange} numFont={NUM_FONT} />
             </>

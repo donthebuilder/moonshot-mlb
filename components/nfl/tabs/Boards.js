@@ -306,7 +306,7 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
 
       <div style={{ marginTop: 8 }}>
         <FilterBar>
-          <NflBoardFilters state={bandState} total={marketPool.length} shown={rows.length} extra={drawerExtra} extraCount={drawerExtraCount} extraReset={extraReset} />
+          <NflBoardFilters ledger="nfl" state={bandState} total={marketPool.length} shown={rows.length} extra={drawerExtra} extraCount={drawerExtraCount} extraReset={extraReset} />
         </FilterBar>
       </div>
 

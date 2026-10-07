@@ -33,7 +33,7 @@ export default function MlbTonight({ players = [], results = null, slateDate = '
   }, [players, results, snap, aligned, root])
   const byId = useMemo(() => new Map(players.map((p) => [String(p.player_id ?? p.id), p])), [players])
   return (
-    <TonightStrip data={data}
+    <TonightStrip sport="mlb" data={data}
       onOpen={(id) => { const p = byId.get(String(id)); if (p) onPlayerClick?.(p); else if (typeof window !== 'undefined') window.location.hash = `sport=mlb&p=${id}` }}
       onLedger={onNavigate ? () => onNavigate('ledger') : null} />
   )

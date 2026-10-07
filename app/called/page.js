@@ -29,6 +29,7 @@ import { matchupWord, oddsWord, roleWord } from '../../lib/dash/homerFeed'
 import { tdCallWord, tdPlayWord, matchRoster } from '../../lib/nfl/tdFeed'
 import { nflSlatePaths } from '../../lib/nfl/dataSource'
 import { BRAND, SPORT_KEYS, sportKey, appHref, playerHref, teamHref, isHiddenSport } from '../../lib/routes'
+import { ledgerAppHref, ledgerWord } from '../../lib/ledger/views'
 import PublicHeader from '../../components/header/PublicHeader'
 import { nhlCaptureFrom, readNhlRecords } from '../../lib/record/nhl'
 import { nbaCaptureFrom, readNbaRecords, NBA_EVENT_BAR } from '../../lib/record/nba'
@@ -122,7 +123,7 @@ const SPORTS = {
     playerHref: (id) => playerHref('mlb', id),
     meta: {
       // §36: search words first, product second (Batch 6).
-      title: 'MLB home run picks, graded in public · CALLED IT · MOONSHOT',
+      title: 'The Ledger: MLB home run picks, graded · MOONSHOT',
       description: 'Every MLB home run tonight, tagged with whether MOONSHOT had the hitter on its board before first pitch. Ten-night capture rate, graded in public.',
       alternates: { canonical: '/called' },
     },
@@ -154,7 +155,7 @@ const SPORTS = {
     outsideNote: CALL_RULES.nfl.outside,
     outsideHead: 'QB touchdowns · outside the pool',
     meta: {
-      title: 'NFL touchdown picks, graded in public · CALLED IT · TUDDY',
+      title: 'The Ledger: NFL touchdown picks, graded · TUDDY',
       description: 'Every NFL touchdown, tagged with whether TUDDY had the scorer on its board before kickoff. Board coverage by game day, graded in public.',
       alternates: { canonical: '/called?sport=nfl' },
     },
@@ -181,7 +182,7 @@ const SPORTS = {
     close: ['Tomorrow\u2019s calls lock before puck drop.', 'LAMP locks one skater per team before the puck drops. The 🤖 you see here is what it said before the game.', 'Save your watchlist, picks and alerts when your guys score'],
     playerHref: (id) => playerHref('nhl', id),
     meta: {
-      title: 'NHL goal picks, graded in public · CALLED IT · LAMP',
+      title: 'The Ledger: NHL goal picks, graded · LAMP',
       description: 'Every NHL goal scorer, tagged with whether LAMP called him before puck drop. Three calls per game, locked and graded in public.',
       alternates: { canonical: '/called?sport=nhl' },
     },
@@ -208,7 +209,7 @@ const SPORTS = {
     close: ['Tomorrow\u2019s calls lock before tip.', 'BUCKETS locks one player per team before the ball goes up. The 🤖 you see here is what it said before the game.', 'Save your watchlist, picks and alerts'],
     playerHref: (id) => playerHref('nba', id),
     meta: {
-      title: 'NBA picks, graded in public · CALLED IT · BUCKETS',
+      title: 'The Ledger: NBA picks, graded · BUCKETS',
       description: 'Every 25-point game in the NBA, tagged with whether BUCKETS called him before tip. One call per team per game, locked and graded in public.',
       alternates: { canonical: '/called?sport=nba' },
     },
@@ -592,10 +593,19 @@ export default async function CalledPage({ searchParams }) {
         <p className={styles.rule}>
           {sport.legend}. {sport.frozen}
         </p>
+        {/* THE LEDGER'S FOUR WORDS (2026-10-07): the same sub-tabs the in-app Ledger has, jumping to this page's own
+            sections -- Tonight (the calls), Called (every event, tagged), Record (the graded tiers), Archive (the nights). */}
+        <nav className={styles.ledgerNav} aria-label="The Ledger, by section">
+          <a href="#calls">{ledgerWord(sport.key, 'tonight')}</a>
+          <a href="#tonight">{ledgerWord(sport.key, 'called')}</a>
+          <a href="#tiers">{ledgerWord(sport.key, 'record')}</a>
+          <a href="#nights">{ledgerWord(sport.key, 'archive')}</a>
+        </nav>
+        <p className={styles.whatIs}><a href={ledgerAppHref(sport.key)}>The same Ledger, in the app, with every table →</a></p>
       </section>
 
       {picks.length ? (
-        <section className={styles.panel}>
+        <section id="calls" className={styles.panel}>
           <h2 className={styles.h2}>{sport.callsHead} <span className={styles.pill}>{sport.callsPill}{picksDay && picksDay !== today ? ` · ${shortDay(picksDay)}` : ''}</span></h2>
           <ol className={styles.calls}>
             {picks.slice(0, PREVIEW).map((p, i) => <Pick key={p.player_id || i} p={p} i={i} sport={sport} calledIds={calledIds} />)}
@@ -613,7 +623,7 @@ export default async function CalledPage({ searchParams }) {
         </section>
       ) : null}
 
-      <section className={styles.panel}>
+      <section id="nights" className={styles.panel}>
         <h2 className={styles.h2}>{`Last ${history.length} ${unit}`} {spanPct != null ? <span className={styles.pill}>{byBoard ? `${span.onBoard} / ${span.total} on the board · ${spanBoardPct}% · ${span.called} called` : `${span.called} / ${span.total} called · ${spanPct}% · ${span.onBoard} on the board`}{` · counts ${graded.length} of these ${history.length} ${unit[1]}${graded.length === history.length ? '' : ' (the rest: no event recorded, preseason or postseason)'}`}</span> : preOnly ? <span className={styles.pill}>preseason — not counted</span> : null}</h2>
         {postNights.length ? (
           <p className={styles.sub}>
@@ -687,7 +697,7 @@ export default async function CalledPage({ searchParams }) {
             {card.backtest ? ` Back-test: the card against a pick made on recent form alone, same depth, ${card.backtest.picks} picks per market (${card.backtest.seasons.join(', ')}). Trust words are the bot's: holds, leans, thin, sinks, fails.` : ''}
             {card.live ? ` Week ${card.live.week} is in progress: ${card.live.graded ? `${card.live.graded} of its calls are graded so far, and ` : 'none of its calls are graded yet; '}they count as they land.` : ''}
             {card.weeks.map((w) => regradeNote(card.season, w)).filter(Boolean).map((t) => ` ${t}`).join('')}
-            {' '}Regular season only. <a href={`${appHref('nfl', 'accountability')}`}>Every rung, week by week →</a>
+            {' '}Regular season only. <a href={ledgerAppHref('nfl', 'record')}>Every rung, week by week →</a>
           </p>
         </section>
       ) : null}
@@ -767,7 +777,7 @@ export default async function CalledPage({ searchParams }) {
 // in the registry (lib/routes.js), no JS -- the same approach the night
 // anchors in the strip use. A sport added there shows up here on its own.
 function Bar({ sport, board }) {
-  return <PublicHeader sport={sport.key} base="/called" title={`${sport.product} · CALLED IT`} cta={{ href: board, label: 'Open the board' }} />
+  return <PublicHeader sport={sport.key} base="/called" title={`${sport.product} · THE LEDGER`} cta={{ href: board, label: 'Open the board' }} />
 }
 
 // One name in the calls panel. `outcome` is set only where the sport grades

@@ -13,6 +13,7 @@ import PropsGrid from './PropsGrid'
 import { STAT_KEY } from './HitRate'
 import PlayerNotes from '../PlayerNotes'
 import HisNumbers from '../HisNumbers'
+import InTheLedger from '../ledger/InTheLedger'
 import { etToday } from '../../lib/freshness'
 import { VerdictStamp, PutOnCard } from './CardActions'
 import TheField from './TheField'
@@ -635,6 +636,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
         })()}
         <PutOnCard player={player} market={market} picks={picks} slate={slate} />
         <PlayerNotes playerId={player.player_id} accent={C.green} />
+        {player.position !== 'DEF' && <InTheLedger sport="nfl" id={player.player_id} name={player.name} jersey={player.jersey_number} birthDate={player.birth_date} next={Number.isFinite(player?.season_td) ? player.season_td + 1 : null} date={etToday()} />}
         {player.position !== 'DEF' && <HisNumbers name={player.name} jersey={player.jersey_number} birthDate={player.birth_date} next={Number.isFinite(player?.season_td) ? player.season_td + 1 : null} nextWord="TD" date={etToday()} theme={C} accent={C.green} numFont={NUM_FONT} />}
         {player.carryover && (
           <div style={{ marginTop: 14, fontSize: 12, color: C.text2, lineHeight: 1.6, background: `${C.purple}20`, border: `1px solid ${C.purple}4d`, borderRadius: 9, padding: '8px 10px' }}>
