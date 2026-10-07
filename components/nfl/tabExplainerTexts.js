@@ -3,7 +3,6 @@
 export const NFL_TEXTS = {
   // 2026-09-26 (stranger test F12): the product first, then the page.
   home: { what: 'TUDDY predicts who scores a touchdown this week. It rates every NFL skill player before kickoff, the bot makes its touchdown calls before the game, and every call is graded in public after it. This page is the week in one screen: the slate, the record so far, the headline calls, power rankings and the top boards. Tap a name for his card.' },
-  games: { what: 'Every game this week, MOONSHOT’s Slate for football. Table ranks every scored player; Games is one card per game (the dial is expected touchdowns) and opens one game at a time: where it’s played, each offense against the other defense, both rosters, where each defense gets beaten, and the calls.' },
   picks: { what: 'The bot’s week. Shortlist: everyone the model scored for a market, ranked, with his card slot, the market’s stats and his last-ten clear rate against the price. The card: the bot’s calls and yours against them, graded against the same bars. Next week: the same list once the bot builds it.' },
   live: { what: 'Sunday’s page. Every rung on the card against its bar while the game is on — cleared, live, or missed — plus your pinned names’ lines and the scoring plays as they land. Wakes twenty minutes before kickoff.' },
   streaks: { what: 'Who is hot, or cold, at a line you choose — consecutive games on the same side of it, last 30, no model in the way. Low-volume names only appear with a reason printed next to them.' },

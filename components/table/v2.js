@@ -380,7 +380,7 @@ export function renderV2(ctx) {
               className={cls(c, [on ? 'on' : '', isRank(c) ? 'rank' : '', c === nameC ? 'name' : '', c.action ? 'act' : '', /\s/.test(String(c.label || '').trim()) && String(c.label).length > 9 ? 'long' : ''].filter(Boolean).join(' '))}
               onClick={c._status ? undefined : (e) => toggle(c.key, e.shiftKey)}
               title={`${c.title || c.label}\n\nClick to sort. Shift-click to add as a tiebreaker under the current sort.`}
-              style={{ ...(pinStyle(c, true) || {}), textAlign: (c.heat === false && !isNumericText(c)) || c.action ? 'left' : 'right', width: logoOf(c) ? 34 : c.w, minWidth: logoOf(c) ? 34 : (c === rankC || c === nameC ? c.w : undefined) }}>
+              style={{ ...(pinStyle(c, true) || {}), textAlign: (c.heat === false && !isNumericText(c)) || c.action ? 'left' : 'right', width: logoOf(c) ? (c.code ? 58 : 34) : c.w, minWidth: logoOf(c) ? (c.code ? 58 : 34) : (c === rankC || c === nameC ? c.w : undefined) }}>
               {String(c.label || '').trim() ? c.label : <span className="sr-only">{c.title || c.key || 'Column'}</span>}
               {plain && (
                 <span style={{ opacity: explain?.key === c.key ? 1 : 0.55 }}>
@@ -462,9 +462,11 @@ export function renderV2(ctx) {
                 }
                 if (logoOf(c) && v && v !== '—') {
                   const mark = <TeamMark sport={logoOf(c)} abbr={v} variant="logo" px={18} />   // 14 -> 18 (10-03: "logos need to be bigger")
+                  // `code` (fix5-nflgame, 10-06): a one-game table names the club beside its logo
+                  const markCode = c.code ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>{mark}<span style={{ fontSize: 12, fontWeight: 700, color: 'inherit' }}>{String(v)}</span></span> : mark
                   // the column's own link, else the product's team door (lib/teamNav)
                   const open = go || (onOpenTeam && /^[A-Z]{2,4}$/.test(String(v)) ? () => onOpenTeam(String(v)) : null)
-                  return <td key={c.key} className={cls(c, 'txt')} title={String(v)} style={{ ...pin, ...(bgTint || {}) }}>{open ? <Tap onClick={open}>{mark}</Tap> : mark}</td>
+                  return <td key={c.key} className={cls(c, 'txt')} title={String(v)} style={{ ...pin, ...(bgTint || {}) }}>{open ? <Tap onClick={open}>{markCode}</Tap> : markCode}</td>
                 }
                 const content = c.fmt ? c.fmt(v, r) : (v ?? '—')
                 if (isName) {
@@ -485,7 +487,7 @@ export function renderV2(ctx) {
                       // the logo is a link like its own column's: the column's link, else the
                       // product's team door (a tap on the sub-line logo used to fall through to the row's player card)
                       if (!(called && !firstTeam)) {
-                        const mk = <TeamMark sport={logoOf(fc)} abbr={fv} variant="logo" px={11} />
+                        const mk = fc.code ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><TeamMark sport={logoOf(fc)} abbr={fv} variant="logo" px={11} />{String(fv)}</span> : <TeamMark sport={logoOf(fc)} abbr={fv} variant="logo" px={11} />
                         const goTeam = fc.link ? fc.link(r._raw ?? r) : (onOpenTeam && /^[A-Z]{2,4}$/.test(String(fv)) ? () => onOpenTeam(String(fv)) : null)
                         sub.push(<span key={fc.key} data-vs={firstTeam ? undefined : 1} style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>{firstTeam ? null : 'v '}{goTeam ? <Tap onClick={goTeam}>{mk}</Tap> : mk}</span>)
                       }
