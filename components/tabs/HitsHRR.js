@@ -21,7 +21,8 @@ import { hrRank } from '../../lib/scoring'
 import { hrScore, mlbId, nameOf, playerId, teamOf } from '../../lib/player'
 import { useSetupHomers, useBackToBack } from '../../lib/b2b'
 import { dedupeGraded } from '../../lib/graded'
-import { CLEAN_SOURCE, CLEAN_PICKS } from '../../lib/cleanRecord'
+import { useLockedRecord } from '../../lib/useLockedRecord'
+import { pickRate, lockedCallsLine } from '../../lib/record/lockedRecord'
 
 // Which BoardFilters score-slider a view means by "Score" — mirrors the keys
 // BoardFilters.js's own SCORE_FOR_TYPE understands. weakspot/aligned/
@@ -147,15 +148,15 @@ const ANGLE_LENSES = [
 ]
 const LENS_TITLE = (o) => `${o.label} — ${ANSWERS[o.key] || ''}`
 
-// THE PROOF. Once "the categories the archive says actually work" (HIT 64.5%,
-// hrr_score "best-calibrated"): measured on post-game graded files. On the
-// clean pregame record (lib/cleanRecord.js, 10-01) HIT 64.5% sits on a 64.0%
-// base and CONTACT 32.4% under a 39.0% one, so neither beats its base and the
-// heads now say so; HRR has no clean measure and claims nothing (queue 0d).
+// THE PROOF. Once "the categories the archive says actually work": measured on
+// post-game graded files. The numbers now come from the LOCKED record (the
+// calibration reader, lib/record/lockedRecord.js; 2026-10-06 -- the hard-coded
+// Sep 9-30 rates counted nights stamped after first pitch). Each head states the
+// bar and the base; the body prints the live rate with its n and window.
 // The head is a line you can read at a glance; the body is one tap behind it.
 // Called, not frozen: C is mutated after mount (applyTheme, lib/theme.js), so a
 // module-level literal keeps the palette it was imported with. See #23.
-const PROOF = () => ({
+const PROOF = (rec) => ({
   top: {
     color: C.yellow,
     head: 'The bot’s overall ranking',
@@ -168,18 +169,18 @@ const PROOF = () => ({
   },
   hit: {
     color: C.purple,
-    head: 'Hit calls have matched the base rate, not beaten it',
-    body: `HIT picks are graded on getting at least one hit. On the ${CLEAN_SOURCE} they got one ${CLEAN_PICKS.HIT.pct}% of the time (n=${CLEAN_PICKS.HIT.n}), against ${CLEAN_PICKS.HIT.base.toFixed(1)}% for every hitter on the board: the base rate, not an edge. The "When picked" column below is each hitter’s own delivery record in this exact category, from the post-game graded files.`,
+    head: 'Hit calls against the base rate, on the locked record',
+    body: `HIT picks are graded on getting at least one hit. ${rec?.picks?.HIT ? `On the ${rec.source} (${lockedCallsLine(rec, rec.picks.HIT.n)}) they got one ${pickRate(rec.picks.HIT)}, against ${rec.picks.HIT.base?.toFixed(1)}% for every hitter on the board.` : 'The locked record is loading.'} The "When picked" column below is each hitter’s own delivery record in this exact category, from the post-game graded files.`,
   },
   hrr: {
     color: C.cyan,
     head: '2+ hits, runs and RBI',
-    body: 'HRR picks are graded on clearing 2+ H+R+RBI. The clean pregame record has no measure of this bar yet, so no rate is printed here.',
+    body: `HRR picks are graded on clearing 2+ H+R+RBI.${rec?.picks?.HRR ? ` On the ${rec.source}: ${pickRate(rec.picks.HRR)}, against ${rec.picks.HRR.base?.toFixed(1)}% for every hitter on the board.` : ''}`,
   },
   contact: {
     color: C.blue,
     head: 'Two singles clear it — which is why the power scores are wrong here',
-    body: `TWO BASES IS THE ODD BAR ON THIS SITE, and it is the key to reading this board: it can be cleared without any power at all. A double does it, and so do two singles. Sluggers strike out; the men who pile up bases two at a time are contact hitters. So a total-bases play is a frequency bet wearing a power bet’s clothes, and the power boards are the wrong place to shop for it. The graded files record no walks, so a pick who walked twice is scored a failure. On the ${CLEAN_SOURCE}, CONTACT picks cleared 2+ bases ${CLEAN_PICKS.CONTACT.pct}% of the time (n=${CLEAN_PICKS.CONTACT.n}), below the ${CLEAN_PICKS.CONTACT.base.toFixed(1)}% every hitter on the board managed.`,
+    body: `TWO BASES IS THE ODD BAR ON THIS SITE, and it is the key to reading this board: it can be cleared without any power at all. A double does it, and so do two singles. Sluggers strike out; the men who pile up bases two at a time are contact hitters. So a total-bases play is a frequency bet wearing a power bet’s clothes, and the power boards are the wrong place to shop for it. The graded files record no walks, so a pick who walked twice is scored a failure. ${rec?.picks?.CONTACT ? `On the ${rec.source}, CONTACT picks cleared 2+ bases ${pickRate(rec.picks.CONTACT)}, against ${rec.picks.CONTACT.base?.toFixed(1)}% for every hitter on the board.` : ''}`,
   },
   weakspot: {
     color: C.yellow,
@@ -470,7 +471,8 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
   }, [results, slateDate])
 
   const boards = bview === 'boards'
-  const pr = PROOF()[viewKey]
+  const lockedRec = useLockedRecord()
+  const pr = PROOF(lockedRec)[viewKey]
   // The row the "How to read this" picture draws: tonight's real #1 on the
   // board (lib/scoring hrRank, the same order the # column prints).
   const howRow = useMemo(() => {

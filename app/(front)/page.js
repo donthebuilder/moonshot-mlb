@@ -135,7 +135,8 @@ export default async function DashHome({ searchParams }) {
     const ks = (nfl?.kickoffs || []).map((k) => Date.parse(k)).filter(Number.isFinite).sort((a, b) => a - b)
     const now = Date.now()
     // the same ET-date reader liveProduct uses (0g D8: one clock for "is football on")
-    const todayEt = easternDate(now)
+    // the NFL slate's own date (lib/slateNight.js via the pulse), not the ET wall clock
+    const todayEt = pulse.nights?.nfl || easternDate(now)
     const on = ks.some((t) => easternDate(t) === todayEt || (t <= now && now - t < 4 * 3600e3))
     if (on || !ks.length) return null
     const next = ks.find((t) => t > now)
@@ -301,7 +302,9 @@ export default async function DashHome({ searchParams }) {
           was the one thing the front door was withholding, and it has been in
           backtest_summary.json all along. (2026-10-01: that file adds up the
           post-game graded archive, so the rows now come from the clean pregame
-          record, lib/cleanRecord.js, via lib/dash/pulse.js recordFrom.)
+          record, lib/record/lockedRecord.js, via lib/dash/pulse.js recordFrom --
+          2026-10-06: the locked record the calibration table reads, not the
+          hard-coded Sep 9-30 rates.)
 
           EACH ROW ON ITS OWN BAR. An HR call is graded on homers, a HIT call
           on getting a hit, an HRR call on 2+ H+R+RBI, a CONTACT call on 2+
@@ -324,6 +327,7 @@ export default async function DashHome({ searchParams }) {
             <h2>Graded in public means this.</h2>
           </div>
           {record?.rows?.length ? <p className={styles.recordQ}><b className={styles.mlbInk}>MOONSHOT</b> · did each call clear the bar it was made for? · <Link href="/called?sport=mlb">the record&nbsp;→</Link></p> : null}
+          {record?.rows?.length ? <p className={styles.recordLine}>Locked record: {record.callsLine} · regular season, {record.window}.</p> : null}
           <div className={styles.recordRows}>
             {(record?.rows || []).map((r) => {
               // wilson() returns [lo, hi] ALREADY IN PERCENT, not a
@@ -373,11 +377,12 @@ export default async function DashHome({ searchParams }) {
           <details className={styles.recordFold}>
             <summary>How this is counted</summary>
             <p className={styles.stamp}>
-              MOONSHOT: the {record?.source || 'clean pregame record'}: the calls as they stood at first pitch,
-              graded on what happened, measured Oct 1. &quot;Every hitter&quot; is the rate for everyone on the board
-              on the same bar, which is the number a call has to beat. Each row is scored on the bar that call was
-              made for, so the four are four different questions and are never ranked against each other. The
-              H+R+RBI call has no clean measure yet, so it is not shown. TUDDY leads with board coverage because its ladder names five
+              MOONSHOT: the {record?.source || 'locked record'}: only calls whose board row was stamped before first
+              pitch, graded on what happened (nights stamped after first pitch{record?.lateNights?.length ? ` -- ${record.lateNights.map((d) => d.slice(5).replace('-', '/')).join(', ')} --` : ''} are not counted),
+              the same numbers as the tier table on the record page. &quot;Every hitter&quot; is the rate for everyone on
+              the board on the same bar, which is the number a call has to beat. Each row is scored on the bar that call
+              was made for, so the rows are different questions and are never ranked against each other; a call type
+              with under 30 graded calls is left off until it has them. TUDDY leads with board coverage because its ladder names five
               players a week against two dozen touchdowns; LAMP counts goal scorers against the three it calls in
               each game, regular season only. Every night behind these numbers is on the{' '}
               <Link href="/app#sport=mlb&tab=results">Results page</Link> and each product&apos;s record page, one row at a time.

@@ -41,7 +41,8 @@ import { mlbSlateState } from '../../lib/mlbSlateState'
 import HeadlineStrip from '../HeadlineStrip'
 import HeroStat from '../HeroStat'
 import { mlbNextGames, nextLine } from '../../lib/mlbNext'
-import { CLEAN_PICKS, CLEAN_SOURCE } from '../../lib/cleanRecord'
+import { useLockedRecord } from '../../lib/useLockedRecord'
+import { lockedCallsLine } from '../../lib/record/lockedRecord'
 import { onLiveRefresh } from '../../lib/liveRefresh'
 import MlbTonight from '../tonight/MlbTonight'
 import { TeamTap } from '../EntityTap'
@@ -577,7 +578,10 @@ export default function Home({
   // (62.6% on 10-01), which adds up the post-game graded archive (re-run scores
   // and picks). 2026-10-01 (queue 0d): the clean pregame record instead, with
   // the base beside it, because on clean data the HIT call matches its base.
-  const record = CLEAN_PICKS.HIT
+  // 2026-10-06 (ledger audit P0-2): the LOCKED record -- the same reader the tier table
+  // on the Record page uses -- not the hard-coded Sep 9-30 rate. null while it loads.
+  const lockedRec = useLockedRecord()
+  const record = lockedRec?.picks?.HIT?.enough ? lockedRec.picks.HIT : null
 
   // ── the rotating pulse line ──
   const confirmed = useMemo(() => players.filter((p) => p?.lineup_confirmed === true).length, [players])
@@ -678,13 +682,13 @@ export default function Home({
     if (picks > 0) out.push(`🎯 The bot designated ${picks} picks on this slate — The Four, just above, is the headline cut.`)
     if (confirmed > 0 && players.length > 0) out.push(`✓ ${confirmed} of ${players.length} hitters are in confirmed lineups — the rest can still change before first pitch.`)
     if (proj?.grade) out.push(`💣 The bot calls tonight's power grade "${proj.grade}" — the range is in the line above.`)
-    out.push(`📈 Every pick gets graded in public. On the ${CLEAN_SOURCE}, hit calls got a hit ${record.pct}% of the time against ${record.base.toFixed(1)}% for every hitter (n=${record.n}).`)
+    if (record) out.push(`📈 Every pick gets graded in public. On the ${lockedRec.source}, hit calls got a hit ${record.pct.toFixed(1)}% of the time against ${record.base.toFixed(1)}% for every hitter (n=${record.n}).`)
     // SCORES IN THE CRAWL (2026-09-06): every live game, then every final,
     // interleaved so the strip reads like a scoreboard crawl and not a list.
     const scores = live.items.filter((i) => i.live).concat(live.items.filter((i) => !i.live && !i.pregame))
     scores.forEach((i, idx) => { out.splice(Math.min(out.length, 1 + idx * 2), 0, `${i.icon} ${i.text}${i.sub ? ` · ${i.sub}` : ''}`) })
     return out
-  }, [isLive, homersSoFar, laneRec, picks, weakStars, confirmed, players, proj, record, airRanked, firstPitch, headline, games, live.items, theCall])
+  }, [isLive, homersSoFar, laneRec, picks, weakStars, confirmed, players, proj, record, lockedRec, airRanked, firstPitch, headline, games, live.items, theCall])
   const pulse = useRotating(lines, 4200)
 
   const empty = !players.length
@@ -935,8 +939,10 @@ export default function Home({
                 col={airRanked[0].edge > 0 ? C.orange : C.text3}
                 title={`${airLine(airRanked[0]) || ''}${airTitle(airRanked[0]) ? `\n${airTitle(airRanked[0])}` : ''}\nPark HR factor plus the published weather effect, as a percentage swing on the rate — not a chance of anything.${airRanked[0].edge > 0 ? '' : ' Nothing on tonight\'s slate is playing above neutral; that is the finding, not a missing section.'}`} />
             )}
-            <Stat label="HIT CALLS" value={`${record.pct.toFixed(1)}%`} sub={`vs ${record.base.toFixed(1)}% base · n=${record.n}`} col={C.text}
-              title={`Hit calls that got a hit, on the ${CLEAN_SOURCE}, against ${record.base.toFixed(1)}% for every hitter on the board. Level with the base rate, not an edge.`} />
+            {record ? (
+              <Stat label="HIT CALLS" value={`${record.pct.toFixed(1)}%`} sub={`vs ${record.base.toFixed(1)}% base · n=${record.n}`} col={C.text}
+                title={`Locked record: ${lockedCallsLine(lockedRec, record.n)} (${lockedRec.window}). Hit calls that got a hit against ${record.base.toFixed(1)}% for every hitter on the board.`} />
+            ) : null}
           </div>
         )}
 
