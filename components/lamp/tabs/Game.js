@@ -34,7 +34,7 @@ export default function Game({ id, onBack, onOpenPlayer = null, onOpenTeam = nul
     // A 400/404 from the route is an answer, not a delay: there is no such game.
     const notAGame = error?.status === 400 || error?.status === 404
     return (
-      <EmptyState title={notAGame ? 'NO SUCH GAME' : 'LIVE DATA DELAYED'} note={notAGame ? 'That is not a game id the league knows. Open one from Scores or the Schedule.' : 'We’re waiting on the league’s game feed.'} tone={notAGame ? C.text3 : C.amber}>
+      <EmptyState title={notAGame ? 'NO SUCH GAME' : 'LIVE DATA DELAYED'} note={notAGame ? 'That is not a game id the league knows. Open one from Scores or the Schedule.' : 'We’re waiting on this game’s numbers.'} tone={notAGame ? C.text3 : C.amber}>
         <BackBtn onBack={onBack} label={backLabel} />
       </EmptyState>
     )
@@ -50,7 +50,7 @@ export default function Game({ id, onBack, onOpenPlayer = null, onOpenTeam = nul
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <BackBtn onBack={onBack} label={backLabel} />
-      <DelayedBanner error={error} what="the league’s game feed" />
+      <DelayedBanner error={error} what="this game" />
 
       {/* ── header ── */}
       <header style={{ borderBottom: `1px solid ${C.border2}`, paddingBottom: 12 }}>
@@ -103,7 +103,7 @@ export default function Game({ id, onBack, onOpenPlayer = null, onOpenTeam = nul
 
       {/* ── goals ── */}
       <section aria-label="Goals">
-        <Kicker tone={C.lamp}>GOALS · {g.goals.length}</Kicker>
+        <Kicker>GOALS · {g.goals.length}</Kicker>
         {g.goals.length === 0
           ? <EmptyState title={scored ? 'NO GOALS YET' : 'PUCK NOT DROPPED'} note={scored ? 'Nobody has lit the lamp.' : `Puck drop ${fmtPuckDrop(g.startUtc)} ${zoneAbbrev()}.`} />
           : (

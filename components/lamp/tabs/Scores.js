@@ -8,6 +8,7 @@ import GameRow from '../../GameRow'
 import TeamMark from '../../TeamMark'
 import { EmptyState, DelayedBanner, Loading, SourceLine, GameTypeChip, LampDot, fmtDay, shiftDay, zoneAbbrev, fmtPuckDrop } from '../ui'
 import { localTime } from '../../../lib/localTime'
+import Hint from '../Hint'
 
 // 🏒 SCORES — every game on one NHL day. The plain page: score, period,
 // clock, shots, who scored. Nothing ranked, nothing modelled. Tap a row for
@@ -34,7 +35,7 @@ export default function Scores({ onOpenGame, date = null, setDate = () => {} }) 
       <PageHeader
         eyebrow="LAMP · SCORES"
         title={shown ? fmtDay(shown) : 'Tonight'}
-        note={`Every game that day — score, period and clock, shots on goal, and who scored. Times are in your zone (${zoneAbbrev()}); the day is the league’s Eastern calendar day.`}
+        note={<>Every game that day, in your time zone ({zoneAbbrev()}). <Hint label="The day" text="Each day is the league’s Eastern calendar day, so a late West Coast game counts on the day it was scheduled, and times are shown in your own zone." /></>}
         theme={C} numFont={NUM_FONT} accent={C.ice}
         stats={day ? [
           { value: day.live, label: 'LIVE', tone: day.live ? C.lamp : C.text3 },
@@ -53,7 +54,7 @@ export default function Scores({ onOpenGame, date = null, setDate = () => {} }) 
         {day?.season && <span style={{ color: C.text3, font: `800 8px/1 ${NUM_FONT}`, letterSpacing: '.1em' }}>{String(day.season).slice(0, 4)}-{String(day.season).slice(6, 8)} SEASON</span>}
       </div>
 
-      <DelayedBanner error={error} what="the league’s score feed" />
+      <DelayedBanner error={error} what="the scores" />
       {loading && !day ? <Loading what="tonight’s scores" /> : null}
       {!loading && !error && day && games.length === 0 && (
         <EmptyState title="NO GAMES TODAY" note={`The league has nothing scheduled for ${fmtDay(shown)}. ${day.next ? `The next game day is ${fmtDay(day.next)}.` : ''}`} />
@@ -62,7 +63,7 @@ export default function Scores({ onOpenGame, date = null, setDate = () => {} }) 
           goals and shots, the game page one tap further -- the row MOONSHOT's
           Boxes and TUDDY's Scores use (components/GameRow.js). */}
       {games.length > 0 && <div>{sortGames(games).map((g) => <LampGameRow key={g.id} g={g} open={open.has(g.id)} onToggle={toggle} onOpenGame={onOpenGame} />)}</div>}
-      {!day && error && <EmptyState title="LIVE DATA DELAYED" note="We’re waiting on the league’s score feed. Try again in a moment." tone={C.amber} />}
+      {!day && error && <EmptyState title="LIVE DATA DELAYED" note="We’re waiting on the scores. Try again in a moment." tone={C.amber} />}
 
       <SourceLine>
         Source: NHL (api-web.nhle.com) score/{'{date}'}, read server-side by /api/lamp/scores, refreshed every 15 s at the edge and every 30 s on this page while a game is live.

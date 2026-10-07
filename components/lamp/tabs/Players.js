@@ -54,7 +54,7 @@ export default function Players({ goaliesOnly = false, onOpenTeam, onOpenGame })
   if (loading && !data) return <Loading what="every roster" />
   return (
     <SportTheme theme={C} accent={C.ice} numFont={NUM_FONT}>
-      <DelayedBanner error={error} what="the league’s roster feeds" />
+      <DelayedBanner error={error} what="the rosters" />
       {data?.missing?.length ? <div style={{ color: C.text3, fontSize: 11, marginBottom: 6 }}>Roster not answering for: {data.missing.join(', ')}. Everyone else is here.</div> : null}
       <PlayerBoardFrame
         rows={rows}

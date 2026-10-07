@@ -37,9 +37,9 @@ import TeamMark from '../TeamMark'
 
 const PANELS = [['read', 'The read'], ['board', 'Every player'], ['calls', 'The calls']]
 const SUBS = {
-  read: 'how many goals to expect, and how each team’s power play, penalty kill and defense compare.',
-  board: 'every skater in this game, both teams, with all their numbers. Scroll the table sideways for more.',
-  calls: 'the two skaters called for this game, one per team.',
+  read: 'goals to expect, power play and penalty kill.',
+  board: 'every skater in this game. Scroll the table sideways for more.',
+  calls: 'one skater called per team.',
 }
 // The words Donovan asked for. The number is each skater's goals a game from the board, added up: a measured
 // rate projection, NOT a probability and not a shot-quality model; the dial's tooltip says how it is built.
@@ -136,7 +136,7 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
   return (
     <div>
       <PageHeader eyebrow="LAMP · SLATE" title="Slate" theme={C} numFont={NUM_FONT} accent={C.ice}
-        note="Every game tonight. Open one for how many goals to expect, every player's numbers and the two calls." />
+        note="Tonight’s games, puck drop first." />
       <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
         <NavBtn onClick={() => setDate(shiftDay(shown, -1))} disabled={loading}>‹ Previous day</NavBtn>
         <NavBtn onClick={() => setDate(null)} disabled={loading || !date} strong>Tonight</NavBtn>
@@ -172,7 +172,7 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
           <GameFilterRail value={gfilter} onChange={setGfilter} counts={counts} />
           <SlateStrip sport="nhl" isPhone={isPhone} rememberKey="lamp_games_fold_v1" accent={C.ice} theme={C}
             open={g ? { away: g.game.away.abbrev, home: g.game.home.abbrev } : null} cards={cards} activeId={activeId} onSelect={select}
-            legend={<>Puck-drop order. The dial is {XG_WORDS} in the game; 🔒 the calls are locked, ◻ still a preview.</>} />
+            legend={<>Ring = {XG_WORDS}. 🔒 locked, ◻ preview.</>} />
           <GameSwitcher sport="nhl" games={switcherGames} activeGame={activeId} onSelect={select} live={switcherLive} accent={C.ice} stickyTop="0px" />
         </>
       )}

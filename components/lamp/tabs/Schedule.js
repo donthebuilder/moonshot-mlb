@@ -30,7 +30,7 @@ export default function Schedule({ onOpenGame, date = null, setDate = () => {} }
       <PageHeader
         eyebrow="LAMP · SCHEDULE"
         title={first && last ? `${fmtDay(first)} – ${fmtDay(last)}` : 'This week'}
-        note={`The league week, day by day. Puck-drop times are in your zone (${zoneAbbrev()}). Games already played show the score.`}
+        note={`The week, day by day. Times in your zone (${zoneAbbrev()}).`}
         theme={C} numFont={NUM_FONT} accent={C.ice}
         stats={week ? [{ value: total, label: 'GAMES', tone: C.text2 }, { value: days.length, label: 'DAYS', tone: C.text2 }] : null}
       />
@@ -45,7 +45,7 @@ export default function Schedule({ onOpenGame, date = null, setDate = () => {} }
         )}
       </div>
 
-      <DelayedBanner error={error} what="the league’s schedule feed" />
+      <DelayedBanner error={error} what="the schedule" />
       {loading && !week ? <Loading what="the schedule" /> : null}
       {!loading && week && days.length === 0 && (
         <EmptyState title="NO GAMES THIS WEEK" note="The league has nothing scheduled in this week. Page forward for the next one." />

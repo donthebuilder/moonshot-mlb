@@ -72,7 +72,7 @@ export default function GoalGrid({ rows, bar, setBar, lines, setLines, seasonLab
           {pinRow && (
             <div style={{ marginTop: 7, padding: '6px 10px', borderRadius: 8, font: `600 12px/1.5 ${NUM_FONT}`, color: C.text2, background: alpha(C.ice, 0.06), border: `1px solid ${C.border}`, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
               <b style={{ color: C.text }}>{pinRow.date} {pinRow.home ? 'vs' : '@'} {pinRow.opp}</b>
-              <span>{pinRow.g} G</span><span>{pinRow.a} A</span><span>{pinRow.shots} shots</span>{pinRow.toi ? <span>{pinRow.toi} TOI</span> : null}
+              <span>{pinRow.g} G</span><span>{pinRow.a} A</span><span>{pinRow.shots} {pinRow.shots === 1 ? 'shot' : 'shots'}</span>{pinRow.toi ? <span>{pinRow.toi} TOI</span> : null}
               <button type="button" onClick={() => setPin(null)} aria-label="Unpin the game" style={{ marginLeft: 'auto', minHeight: 44, minWidth: 44, background: 'none', border: 'none', color: C.text3, cursor: 'pointer', font: 'inherit' }}>✕</button>
             </div>
           )}

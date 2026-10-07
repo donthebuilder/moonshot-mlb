@@ -1,4 +1,5 @@
 'use client'
+import Hint from '../Hint'
 import CallHistory from '../../record/CallHistory'
 import CalibrationTable from '../../record/CalibrationTable'
 import { useMemo, useState } from 'react'
@@ -66,9 +67,9 @@ export default function Results({ onOpenPlayer }) {
 
       <WhatThis maxWidth={760}>
         {{
-          night: 'one graded night — the calls in each game (one per team), who scored, and the scorers the board had lower or not at all.',
-          season: 'every graded night in the window, one row each: of the skaters who scored, how many were called and how many were on the board. Tap a night to open it.',
-          bands: 'is the rank separating outcomes — every dressed skater, banded by his rank in his own game, against the rate of all of them.',
+          night: 'one graded night: the calls, who scored, and who we had lower.',
+          season: 'every graded night, one row each. Tap a night to open it.',
+          bands: 'does his rank in his own game separate who scores?',
         }[mode]}
       </WhatThis>
 
@@ -176,7 +177,7 @@ export default function Results({ onOpenPlayer }) {
                   : <b style={{ fontFamily: NUM_FONT }}>{pct(r.ok, r.n)}</b>) },
               ]} />
             <div style={{ fontSize: 10.5, color: C.text3, marginTop: 6, fontFamily: NUM_FONT }}>
-              <b style={{ color: claims ? C.teal : C.text3 }}>{claims ? 'SEPARATES' : 'NO CLAIM'}</b> · z {z.toFixed(2)} top band vs 16+ · a grey rate has a number and no claim
+              <b style={{ color: claims ? C.ice : C.text3 }}>{claims ? 'SEPARATES' : 'NO CLAIM'}</b> · top band vs 16+, z {z.toFixed(2)} <Hint label="No claim" text="A grey rate has a number and no claim: the gap to every dressed skater is inside the noise. SEPARATES means the top band clearly beats the bottom one." />
             </div>
           </section>
         )

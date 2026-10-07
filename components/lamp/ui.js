@@ -216,7 +216,7 @@ export function PlayerMark({ headshot, name, number = null, size = 22, onClick =
 /** "This is last season's line" — the amber sentence, one place. */
 export function StaleSeasonNote({ label, opens, what = 'numbers' }) {
   return (
-    <div role="status" style={{ padding: '8px 12px', borderRadius: 10, border: `1px solid ${C.amber}`, background: 'rgba(251,191,36,.08)', color: C.text2, fontSize: 11.5, lineHeight: 1.5 }}>
+    <div role="status" style={{ padding: '8px 12px', borderRadius: 10, border: `1px solid ${C.amber}`, background: C.bg2, color: C.text2, fontSize: 11.5, lineHeight: 1.5 }}>
       <b style={{ color: C.amber, fontFamily: NUM_FONT, letterSpacing: '.06em' }}>{label} {what.toUpperCase()}</b>
       {' · '}The new season’s tables have not started yet{opens ? ` — they open ${fmtDay(opens)}` : ''}. Until then these are last season’s.
     </div>

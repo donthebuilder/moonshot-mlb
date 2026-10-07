@@ -136,7 +136,7 @@ export function LampCard({ r, g, rank, market = 'GOAL', facts = {}, onOpen }) {
         <FollowButton sport="nhl" id={String(r.playerId)} name={r.name} team={r.team} position={r.pos} />
         <StarMemory sport="nhl" id={String(r.playerId)} />
         {graded && (
-          <span style={{ marginLeft: 'auto', font: `900 12px/1 ${NUM_FONT}`, color: r.hit ? C.lamp : C.text3 }}>
+          <span style={{ marginLeft: 'auto', font: `900 12px/1 ${NUM_FONT}`, color: r.hit ? C.ice : C.text3 }}>
             {r.dressed === false ? 'VOID' : n == null ? '\u2014' : <>{r.hit && <LampDot />}{n} {unitOf(market, n)}</>}
           </span>
         )}

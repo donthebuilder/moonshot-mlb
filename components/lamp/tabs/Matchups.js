@@ -150,8 +150,8 @@ export default function Matchups({ date = null, onOpenPlayer, onOpenTeam = null 
   ]
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <PageHeader eyebrow="LAMP · MATCHUPS" title="The defences to attack tonight"
-        note="Every club playing tonight, ranked by goals allowed per game. Tap a row for its power play against penalty kill, the net, rest, who fits, where it allows shots and where the other club shoots from."
+      <PageHeader eyebrow="LAMP · MATCHUPS" title="Defences to attack tonight"
+        note="Ranked by goals allowed a game. Tap a row for more."
         theme={C} numFont={NUM_FONT} accent={C.ice} />
       <DelayedBanner error={error} what="tonight's matchups" />
       {loading && !data ? <Loading what="tonight's matchups" /> : null}
