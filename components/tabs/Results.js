@@ -535,26 +535,15 @@ function PitcherWeaknessDigest({ slots, players = [] }) {
 function PairsResults({ pairPoolResults }) {
   const pick = usePick()
   const pairs = pairPoolResults?.all_pairs || []
-  const pools = pairPoolResults?.graded_pools || []
+  // OLD-RECIPE three-man pools only (owner decision 2026-10-07). graded_pools
+  // (current 3/4/6-man) stays in the file for the record and is not drawn.
+  const pools = pairPoolResults?.pool3_legacy || []
   if (!pairs.length && !pools.length) return null
 
   const clearedPairs = pairs.filter(p => p.cleared)
-  // ⚠️ REGRESSION CAUGHT IN THE REPO SCAN (2026-08-09). The bot retired the
-  // 6-man pool today and publishes two 3-mans in its place. This filter only
-  // knew about 4-MAN and 6-MAN, so from tonight onwards the Results tab would
-  // have rendered an EMPTY "6-MAN POOLS" heading and dropped every 3-man pool
-  // on the floor — no error, no warning, just a section of the results page
-  // quietly missing half its content.
-  //
-  // Worth naming the class: a label-matching filter is a contract between two
-  // repos, and nothing enforces it. Both spellings are matched now, and the
-  // heading is derived from what actually came back rather than hard-coded.
-  const pool4 = pools.filter(p => (p.label || '').startsWith('4-MAN'))
-  const poolSmall = pools.filter(p => (p.label || '').startsWith('3-MAN'))
-  const pool6 = pools.filter(p => (p.label || '').startsWith('6-MAN'))
-  // Anything the bot starts publishing under a label nobody anticipated still
-  // renders, rather than vanishing.
-  const poolOther = pools.filter(p => !/^(3|4|6)-MAN/.test(p.label || ''))
+  // (2026-10-07: the 3/4/6-MAN label filters that lived here are gone with the
+  // pools they filtered; the one list is the bot's pool3_legacy.)
+  const poolSmall = pools
 
   return (
     <Card style={{ padding: 0, marginBottom: 10, overflow: 'hidden' }}>
@@ -588,10 +577,7 @@ function PairsResults({ pairPoolResults }) {
 
       {/* pool summary */}
       {[
-        { label: '3-MAN POOLS', list: poolSmall },
-        { label: '4-MAN POOLS', list: pool4 },
-        { label: '6-MAN POOLS (retired)', list: pool6 },
-        { label: 'OTHER POOLS', list: poolOther },
+        { label: 'OLD-RECIPE 3-MAN POOLS', list: poolSmall },
       ].map(({ label, list }) => (
         list.length > 0 && (
           <div key={label} style={{ padding: '10px 14px', borderBottom: `1px solid ${C.border}` }}>
@@ -605,7 +591,7 @@ function PairsResults({ pairPoolResults }) {
                 const hits = si(pool.hr_count)
                 const hitRatio = hits / bar
                 const col = hits >= bar ? C.green : hits > 0 ? C.yellow : C.text3
-                const letter = (pool.label || '').replace(/^[346]-MAN HR POOL /, '')
+                const letter = (pool.label || '').replace(/^OLD-RECIPE 3-MAN\s+Pool\s+/i, '')
                 const homered = new Set((pool.homer_names || []).map((x) => String(x || '').toLowerCase()))
                 const members = Array.isArray(pool.players) ? pool.players : []
                 return (

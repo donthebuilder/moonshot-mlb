@@ -988,15 +988,10 @@ function LiveHRPairs({ results, pairBuilder, players=[], pairHistorySummary, onP
   const botHits = useMemo(() => exactBotPairs.filter(pair => pair.players.every(p => homerKeys.has(playerKey(p)))), [exactBotPairs, homerKeys])
 
   const botPools = useMemo(() => {
-    const all = [
-      ...(pairBuilder?.recommended_3mans || []),
-      ...(pairBuilder?.pools_4man || []),
-      // pools_3man (2026-08-12): the retired 6-man's actual replacement key
-      // -- was arriving under pools_6man until the bot-side fix shipped.
-      // pools_6man kept below for any older cached payload still on it.
-      ...(pairBuilder?.pools_3man || []),
-      ...(pairBuilder?.pools_6man || []),
-    ]
+    // OLD-RECIPE three-man pools only (owner decision 2026-10-07): the
+    // current-recipe 3-man, 4-man, retired 6-man and six-man legacy parents are
+    // not shown anywhere (their keys stay in the file for the record).
+    const all = [...(pairBuilder?.pools_3man_legacy || [])]
     return all.map((pool,index) => {
       const members = dedupePlayers(pool.players || [])
       const hits = members.filter(p => homerKeys.has(playerKey(p)))
@@ -1537,6 +1532,9 @@ function HistorySection({ data, q, players=[] }) {
 import PairMe from '../PairMe'
 import PartnerWatch from '../PartnerWatch'
 import PairBoard from '../PairBoard'
+import PairBlock from '../PairBlock'
+import { bestPairs } from '../../lib/pairRank'
+import { SPORT_ACCENT } from '../../lib/sportAccent'
 import Rail from '../Rail'
 import {
   buildPairs,
@@ -2401,9 +2399,20 @@ export default function Pairs({ players=[], pairBuilder, pairHistorySummary, res
   // game landed at 1.05× the independence expectation across 58 nights, which
   // is to say it landed at chance.
   const evPairs = useMemo(() => buildPairs(players, { limit: 6 }), [players])
+  const topFive = useMemo(() => bestPairs(pairBuilder?.recommended_pairs, { limit: 5 }), [pairBuilder])
+  const resolvePair = useMemo(() => {
+    const byId = new Map(players.map((p) => [String(p?.player_id ?? p?.id), p]))
+    return (mb) => byId.get(String(mb?.player_id ?? '')) || null
+  }, [players])
 
   return (
     <div>
+      {/* FIVE BEST PAIRS (2026-10-07): tonight's recommended pairs, ranked by
+          the pair's own score -- the generator is untouched. PairBlock is the
+          reusable block (NHL goals / NFL touchdowns pass their own pairs). */}
+      <PairBlock pairs={topFive} accent={SPORT_ACCENT.mlb} sport="mlb" onPlayerClick={onPlayerClick} resolve={resolvePair}
+        labels={{ title: 'Five best pairs', sub: 'tonight, by the bot’s own pair score', scoreHead: 'Pair score' }} />
+
       {evPairs.length > 0 && (
         <div style={{ marginBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 3, flexWrap: 'wrap' }}>

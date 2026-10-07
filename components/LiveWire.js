@@ -153,7 +153,7 @@ export default function LiveWire({ players = [], results, watchIds, mode = 'toda
       }
     }
   })
-  ;(results?.pair_pool_results?.graded_pools || []).forEach((pl) => {
+  ;(results?.pair_pool_results?.pool3_legacy || []).forEach((pl) => {
     const hit = Number(pl.hr_count) || 0, tot = Number(pl.total_count) || 0
     if (!tot) return
     const anyLive = (pl.players || []).some((mb) => lineOf(mb)?.state === 'Live')
