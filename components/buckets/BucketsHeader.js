@@ -21,17 +21,19 @@ export default function BucketsHeader({ setTab, live = 0, date = null, setDate =
     <HeaderShell sport="nba" theme={C} wordmark={GRADIENT}
       onHome={() => setTab('home')} homeTitle="BUCKETS home — tonight in one page"
       glow={`${C.purple}55`} dot={live > 0 ? { color: C.rim, pulse: false } : null}
-      meta={<>
+      date={
         <DateMode label={fmtDay(date || scores?.data?.date || today)} value={!date ? 'today' : date === tomorrow ? 'tomorrow' : ''}
           onChange={(k) => setDate(k === 'tomorrow' ? tomorrow : null)}
           options={[{ key: 'today', text: 'Today', color: C.purple }, { key: 'tomorrow', text: 'Tmrw', color: C.teal }]}
           theme={C} numFont={NUM_FONT} />
-        <SignUpPill accent={C.purple} />
+      }
+      account={<SignUpPill accent={C.purple} />}
+      settings={
         <SettingsSheet theme={C} accent={C.purple} title="View settings — quiet mode" hint="Quiet mode. Sticks on this device.">
           <SheetLabel theme={C}>View</SheetLabel>
           <SheetRow><QuietButton /></SheetRow>
         </SettingsSheet>
-      </>}>
+      }>
       <BucketsTicker date={date} scores={scores} liveScores={liveScores} onOpenPlayer={onOpenPlayer} onOpenGame={onOpenGame} />
     </HeaderShell>
   )

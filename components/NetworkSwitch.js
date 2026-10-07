@@ -124,21 +124,21 @@ function StackedSwitch({ onNavigate }) {
           >
             <i>{product.name.slice(0, 1)}</i>
             <b>{product.name}</b>
-            <small>{current === product.key ? 'YOU ARE HERE' : product.meta}</small>
+            <small>{current === product.key ? 'HERE' : product.meta}</small>
           </Link>
         ))}
       </div>
       <style jsx>{`
         .networkSwitch{grid-column:1/-1;padding:9px 10px;border:1px solid #ffffff1c;border-radius:11px;background:#ffffff08}
         .networkSwitchHead{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:8px}
-        .networkSwitchHead small{color:#f97316;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:8px;font-weight:900;letter-spacing:.14em}
-        .networkSwitchHead a{color:#ffffff7a;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:8px;font-weight:800;text-decoration:none}
-        .networkSwitchRow{display:grid;grid-template-columns:repeat(${products.length},minmax(0,1fr));gap:6px}
-        .networkSwitchRow :global(a){display:flex;flex-direction:column;align-items:center;gap:3px;min-height:62px;padding:8px 4px;border:1px solid color-mix(in srgb,var(--product) 34%,#ffffff1a);border-radius:10px;background:color-mix(in srgb,var(--product) 7%,transparent);color:#e9e6e0;text-align:center;text-decoration:none}
+        .networkSwitchHead small{color:#f97316;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px;font-weight:900;letter-spacing:.14em}
+        .networkSwitchHead a{display:inline-flex;align-items:center;min-height:44px;margin:-10px 0;color:#ffffffb0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px;font-weight:800;text-decoration:none}
+        .networkSwitchRow{display:grid;grid-template-columns:repeat(${products.length > 4 ? 3 : products.length},minmax(0,1fr));gap:6px}
+        .networkSwitchRow :global(a){display:flex;flex-direction:column;align-items:center;gap:3px;min-height:56px;padding:6px 4px;border:1px solid color-mix(in srgb,var(--product) 34%,#ffffff1a);border-radius:10px;background:color-mix(in srgb,var(--product) 7%,transparent);color:#e9e6e0;text-align:center;text-decoration:none}
         .networkSwitchRow :global(a.here){border-color:var(--product);background:color-mix(in srgb,var(--product) 16%,transparent)}
         .networkSwitchRow :global(a i){display:grid;place-items:center;width:22px;height:22px;border:1px solid color-mix(in srgb,var(--product) 50%,#333);border-radius:7px;color:var(--product);font:900 10px/1 ui-monospace,SFMono-Regular,Menlo,monospace;font-style:normal}
-        .networkSwitchRow :global(a b){font-size:9.5px;font-weight:900;letter-spacing:.02em}
-        .networkSwitchRow :global(a small){color:#ffffff66;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:7px;font-weight:800;letter-spacing:.08em}
+        .networkSwitchRow :global(a b){font-size:10.5px;font-weight:900;letter-spacing:0}
+        .networkSwitchRow :global(a small){color:#ffffff99;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px;font-weight:800;letter-spacing:.08em}
         .networkSwitchRow :global(a.here small){color:var(--product)}
       `}</style>
     </div>

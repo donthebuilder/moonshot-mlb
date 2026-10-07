@@ -56,10 +56,15 @@ export default function Controls({ query, setQuery, team, setTeam, game = '', se
   }, [])
 
   const filtering = !!team
+  // PHONE: ONE 'FIND / FILTER' ROW (2026-10-06, audit X3). Search and a Filter button
+  // sit on one line; team, game and the highlights open under it. A filter in force
+  // lights the button and says how many, so it cannot hide behind the fold.
+  const [filterOpen, setFilterOpen] = useState(false)
+  const activeFilters = (team ? 1 : 0) + (game ? 1 : 0)
 
   return (
     <div
-      className="dash-controls"
+      className={`dash-controls${filterOpen ? ' open' : ''}`}
       style={{
         display: 'grid',
         gridTemplateColumns: setGame ? '1fr 170px 170px auto' : '1fr 170px auto',
@@ -131,6 +136,19 @@ export default function Controls({ query, setQuery, team, setTeam, game = '', se
         )}
       </div>
 
+      <button type="button" className="dash-find-btn" onClick={() => setFilterOpen((v) => !v)} aria-expanded={filterOpen}
+        aria-label={activeFilters ? `Filter: ${activeFilters} active` : 'Filter by team or game'}
+        style={{
+          alignItems: 'center', gap: 6, minHeight: 44, minWidth: 44, padding: '0 14px', borderRadius: 999, cursor: 'pointer',
+          fontSize: 12, fontWeight: 800, fontFamily: NUM_FONT,
+          border: `1px solid ${activeFilters || filterOpen ? 'rgba(249,115,22,.55)' : C.border2}`,
+          background: activeFilters || filterOpen ? 'rgba(249,115,22,.14)' : C.bg3,
+          color: activeFilters || filterOpen ? C.orange : C.text2,
+        }}>
+        <span aria-hidden="true">⚙</span>Filter{activeFilters ? ` · ${activeFilters}` : ''}
+      </button>
+
+      <div className="dash-controls-more">
       {/* team dropdown */}
       <div style={{ position: 'relative', minWidth: 0 }}>
         <select
@@ -180,6 +198,21 @@ export default function Controls({ query, setQuery, team, setTeam, game = '', se
       {/* ✨ third cell — was wrongly nested inside the select's wrapper, where
           it rendered squashed under the dropdown. Own column now. */}
       <SpotlightControl players={players} />
+      </div>
+      <style>{`
+        .dash-find-btn { display: none; }
+        .dash-controls-more { display: contents; }
+        @media (max-width: 760px) {
+          .dash-controls.dash-controls { display: flex !important; flex-wrap: wrap; gap: 8px !important; margin: 10px 0 !important; }
+          .dash-controls.dash-controls > :first-child { flex: 1 1 0; min-width: 0; }
+          .dash-controls .moon-search { min-height: 44px; }
+          .dash-controls .dash-find-btn { display: inline-flex; flex: none; }
+          .dash-controls .dash-controls-more { display: none; flex: 1 1 100%; flex-wrap: wrap; gap: 8px; }
+          .dash-controls.open .dash-controls-more { display: flex; }
+          .dash-controls .dash-controls-more > * { flex: 1 1 120px; }
+          .dash-controls .dash-controls-more .moon-select { min-height: 44px; }
+        }
+      `}</style>
     </div>
   )
 }

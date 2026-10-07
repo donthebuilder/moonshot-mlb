@@ -18,18 +18,7 @@
   min-height: 100vh;
 }
 
-.bar {
-  position: sticky; top: 0; z-index: 40;
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  padding: 12px 0; background: #0b0a0a; border-bottom: 1px solid var(--line);
-}
-.brand { display: flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; }
-.brand img { border-radius: 8px; }
-.brand small { display: block; font-size: 10px; letter-spacing: 0.18em; color: var(--mlb); }
-.brand strong { display: block; font-size: 15px; letter-spacing: 0.06em; }
-.nav { display: flex; gap: 14px; font-size: 13px; }
-.nav a { color: var(--dim); text-decoration: none; }
-.nav a:hover { color: var(--ink); }
+/* the header is components/header/PublicHeader.js (2026-10-06) */
 
 .hero { padding: 34px 0 18px; }
 .kicker { margin: 0 0 6px; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--dim); }
@@ -95,14 +84,7 @@
 .cta:hover { filter: brightness(1.07); }
 .whatIs { margin: 10px 0 0; font-size: 13px; }
 .whatIs a { color: var(--dim); text-decoration: underline dotted; text-underline-offset: 2px; }
-.navCta { color: var(--mlb) !important; border: 1px solid var(--mlb); border-radius: 999px; padding: 6px 12px; }
 
-/* THE SPORT SWITCH (2026-09-20). Two links, no JS. The selected one is a
-   solid pill so it reads as a state rather than a second button to press —
-   at a glance the page has to say WHICH record you are looking at, because
-   the layout is identical for both. */
-.navOn { color: var(--bg) !important; background: var(--ink); border-radius: 999px; padding: 6px 11px; font-weight: 800; letter-spacing: 0.4px; }
-.navOff { border: 1px solid var(--line); border-radius: 999px; padding: 6px 11px; font-weight: 700; letter-spacing: 0.4px; }
 .more { margin-top: 8px; }
 .more summary { cursor: pointer; font-size: 13px; color: var(--mlb); padding: 8px 0; list-style: none; }
 .more summary::-webkit-details-marker { display: none; }
@@ -137,20 +119,6 @@
 .nightStat { color: var(--dim); font-variant-numeric: tabular-nums; font-size: 12px; white-space: nowrap; }
 .night .list { padding-bottom: 10px; }
 #tonight:target, .night:target { scroll-margin-top: 70px; }
-
-/* Last in the file on purpose: it has to win over .navOn / .navOff / .navCta
-   above, which are declared after the first phone block. */
-@media (max-width: 480px) {
-  /* THREE SPORTS IN THE SWITCH (Batch 1, 2026-09-25). Measured at 390px:
-     with MLB · NFL · NHL the bar ran 1px past the screen, "Get the calls"
-     broke onto two lines and the brand wrapped, 103px tall (83 with two
-     sports). Tighter pills, a one-line CTA and no app icon on a phone
-     bring it to 64px on one line; the wordmark still links home. */
-  .nav { gap: 6px; font-size: 12px; }
-  .navOn, .navOff { padding: 6px 8px; }
-  .navCta { padding: 6px 8px; white-space: nowrap; }
-  .brand img { display: none; }
-}
 
 /* THE CARD (TUDDY depth step 1): a table that scrolls in its own box on a
    phone, first column sticky -- the DenseTable rule. */

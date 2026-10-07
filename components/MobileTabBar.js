@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { C, NUM_FONT } from '../lib/theme'
 import NetworkSwitch from './NetworkSwitch'
+import MoreAccount from './header/MoreAccount'
 import { MLB_NAV, MLB_MORE_GROUPS, BAR_KEYS } from '../lib/routes'
 
 // 2026-08-30, Donovan: "i want slate as a selection on the navigator at the
@@ -93,7 +94,19 @@ const SEEN_KEY = 'moonshot_more_seen_v1'
 // bar to phones where a product has its own desktop rail, and `accentText`
 // lets a theme-aware colour (a CSS var) paint the active words while
 // `accent` stays the hex the tints are mixed from.
-export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, brand = 'MOONSHOT', accent = null, hrefOf = null, network = true, title = 'Everything on this site', lede = 'Every page, and the way across to the other sites.', desktop = true, accentText = null }) {
+// ── THE DRAWER'S WORDS AND ICONS (2026-10-06, audit X8) ───────────────────
+// The same word wears the same icon on every sport: NFL's and BUCKETS'
+// Matchups were a shield where MOONSHOT's and LAMP's are a compass, BUCKETS'
+// Ledger a notebook where the others are a receipt, LAMP's Boards a chart
+// going up where the others are bars. Applied where the drawer draws a tile
+// only -- no tab is renamed or re-keyed (lib/routes.js stays the one table).
+const DRAWER_ICON = { matchups: '🧭', players: '👤', 'player board': '👤', ledger: '🧾', boards: '📊', standings: '📊' }
+const iconFor = (label, icon) => DRAWER_ICON[String(label || '').toLowerCase()] || icon
+
+// The drawer's title and lede ("Everything on this site / Every page, and the
+// way across to the other sites") are gone (2026-10-06): the page list is its
+// own heading. A caller that wants a title (FRANCHISE's league room) passes one.
+export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, brand = 'MOONSHOT', accent = null, hrefOf = null, network = true, title = null, lede = null, desktop = true, accentText = null }) {
   // EACH PRODUCT ITS OWN ACCENT (0g C1, 2026-10-01). The active tab, its
   // underline, the More dot and the active More row were MOONSHOT orange on
   // TUDDY's and LAMP's bars. `accent` (TUDDY jade, LAMP ice) replaces them;
@@ -216,8 +229,8 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
         onTouchStart={swipeStart}
         onTouchEnd={swipeEnd}
       >
-        <div className="mobileMoreHead"><div><small>{brand} · THE MAP</small><strong>{title}</strong></div><button tabIndex={open ? undefined : -1} onClick={() => setOpen(false)} aria-label="Close More menu">×</button></div>
-        <p className="mobileMoreLede">{lede}</p>
+        <div className="mobileMoreHead"><div><small>{brand} · THE MAP</small>{title && <strong>{title}</strong>}</div><button tabIndex={open ? undefined : -1} onClick={() => setOpen(false)} aria-label="Close More menu">×</button></div>
+        {lede && <p className="mobileMoreLede">{lede}</p>}
         <div className="mobileMoreList">
           {/* THE NETWORK SWITCH LIVES HERE NOW (2026-08-29). Donovan: "remove
               the little floating ico, its redundant now — just make it so we
@@ -227,6 +240,7 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
               the sheet because on a phone the switcher is the hardest thing
               to find. Leaving the sport is a link, not a tab, so it sits
               outside the grid of tabs below. */}
+          {network && <div className="mobileMoreWide mobileMoreAcct"><MoreAccount accent={AC} theme={C} onNavigate={() => setOpen(false)} /></div>}
           {network && <div className="mobileMoreWide"><NetworkSwitch onNavigate={() => setOpen(false)} /></div>}
           {/* TILES, NOT PARAGRAPHS (BATCH-ONE-SITE step 4, 2026-10-05; tested with an older, sports-first
               reader: "big words, few small ones"): each page is its icon and its name, two to a row --
@@ -237,11 +251,11 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
             ) : (
               hrefOf ? (
                 <a key={key} href={hrefOf(key)} tabIndex={open ? undefined : -1} onClick={(e) => follow(e, key)} className={`mobileMoreRow${tab === key ? ' active' : ''}`} aria-current={tab === key ? 'page' : undefined} aria-busy={pending === key || undefined}>
-                  <i aria-hidden="true">{icon}</i><span>{label}</span>
+                  <i aria-hidden="true">{iconFor(label, icon)}</i><span>{label}</span>
                 </a>
               ) : (
                 <button key={key} tabIndex={open ? undefined : -1} onClick={() => go(key)} className={`mobileMoreRow${tab === key ? ' active' : ''}`} aria-current={tab === key ? 'page' : undefined}>
-                  <i aria-hidden="true">{icon}</i><span>{label}</span>
+                  <i aria-hidden="true">{iconFor(label, icon)}</i><span>{label}</span>
                 </button>
               )
             )
@@ -289,18 +303,20 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
         .mobileMore{position:fixed;z-index:385;top:0;right:0;bottom:0;display:flex;flex-direction:column;width:min(380px,86vw);padding:calc(14px + env(safe-area-inset-top)) 14px 0;border-left:1px solid ${C.border2};background:${C.bg2};box-shadow:-25px 0 80px #000d;transform:translateX(100%);visibility:hidden;transition:transform .22s ease,visibility 0s linear .22s;overscroll-behavior:contain}
         .mobileMore.open{transform:none;visibility:visible;transition:transform .22s ease}
         @media(prefers-reduced-motion:reduce){.mobileMore,.mobileMore.open{transition:none}}
-        .mobileMoreHead{display:flex;align-items:center;justify-content:space-between;padding:2px 3px 11px}
-        .mobileMoreHead small{display:block;color:${AC};font-family:${NUM_FONT};font-size:8px;font-weight:900;letter-spacing:.14em}
+        .mobileMoreHead{display:flex;align-items:center;justify-content:space-between;padding:0 3px 8px}
+        .mobileMoreHead small{display:block;color:${AC};font-family:${NUM_FONT};font-size:11px;font-weight:900;letter-spacing:.14em}
         .mobileMoreHead strong{display:block;margin-top:3px;font-size:18px;color:${C.text}}
         .mobileMoreHead button{width:44px;height:44px;border:1px solid ${C.border};border-radius:11px;background:${C.bg};color:${C.text2};cursor:pointer;font-size:22px}
         .mobileMoreLede{margin:0 3px 10px;color:${C.text3};font-size:12px;line-height:1.5}
         .mobileMoreDot{position:absolute;top:6px;right:calc(50% - 17px);width:7px;height:7px;border-radius:50%;background:${AC};box-shadow:0 0 0 2px ${C.bg2}}
-        .mobileMoreList{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;margin:0 -14px;padding:0 14px calc(96px + env(safe-area-inset-bottom));display:grid;grid-template-columns:1fr 1fr;gap:8px;align-content:start}
+        .mobileMoreList{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;margin:0 -14px;padding:0 14px calc(62px + max(9px,env(safe-area-inset-bottom)) + 18px);display:grid;grid-template-columns:1fr 1fr;gap:8px;align-content:start}
         .mobileMoreWide{grid-column:1/-1;min-width:0}
-        .mobileMoreGroup{grid-column:1/-1;margin:10px 3px 0;font-family:${NUM_FONT};font-size:9px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:${C.text3}}
-        .mobileMoreRow{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:6px;min-width:0;min-height:72px;padding:10px 12px;border:1px solid ${C.border};border-radius:12px;background:${C.bg};color:${C.text2};text-align:left;cursor:pointer}
-        .mobileMoreRow i{font-style:normal;font-family:system-ui;font-size:22px;line-height:1}
-        .mobileMoreRow span{font-size:15px;font-weight:800;line-height:1.2;color:${C.text};overflow-wrap:anywhere}
+        .mobileMoreAcct{display:none}
+        @media(max-width:760px){.mobileMoreAcct{display:block}}
+        .mobileMoreGroup{grid-column:1/-1;margin:8px 3px 0;font-family:${NUM_FONT};font-size:11px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:${C.text3}}
+        .mobileMoreRow{display:flex;flex-direction:row;align-items:center;justify-content:flex-start;gap:8px;min-width:0;min-height:56px;padding:6px 10px;border:1px solid ${C.border};border-radius:12px;background:${C.bg};color:${C.text2};text-align:left;cursor:pointer}
+        .mobileMoreRow i{flex:none;width:22px;text-align:center;font-style:normal;font-family:system-ui;font-size:21px;line-height:1}
+        .mobileMoreRow span{font-size:15px;font-weight:800;line-height:1.15;color:${C.text};overflow-wrap:break-word;min-width:0}
         a.mobileMoreRow{text-decoration:none}
         .mobileMoreRow:hover{border-color:${C.border2}}
         .mobileMoreRow.active{border-color:${AC}66;background:${AC}14}

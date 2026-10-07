@@ -32,6 +32,7 @@ import HeaderShell from '../header/HeaderShell'
 import { useLiveScores, scoreOrder } from '../../lib/headlines'
 import DateMode from '../DateMode'
 import TickerPill from '../TickerPill'
+import { localDayTime } from '../../lib/localTime'
 import Ticker from '../Ticker'
 // Real, icon-tagged NFL story-bites -- see lib/nfl/headlines.js's own
 // header comment. NFL equivalent of buildHeadlines() above.
@@ -199,7 +200,8 @@ export default function NflHeader({ tab, setTab, data, meta, matchup, weekMode =
   // -- this is the actual live ESPN/MLB poll, so during a real Sunday these
   // two sources can (correctly) disagree about which games are "live" right
   // now.
-  const liveItems = useLiveScores().items
+  // ONE SPORT PER TICKER (2026-10-06): TUDDY's strip carries football only; the others sit behind the switcher
+  const liveItems = useLiveScores({ mlb: false, nhl: false }).items
   const scores = scoreOrder(liveItems, 'nfl')
 
   // REAL HEADLINE STORY-BITES (2026-09-16). Same idea as MOONSHOT's
@@ -266,7 +268,7 @@ export default function NflHeader({ tab, setTab, data, meta, matchup, weekMode =
   useEffect(() => {
     const t = Date.parse(nextKick?.kickoff || '')
     setKickLabel(Number.isFinite(t)
-      ? new Date(t).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })
+      ? localDayTime(t)   // the viewer's zone, labelled once (lib/localTime.js)
       : '—')
   }, [nextKick?.kickoff])
 
@@ -307,9 +309,9 @@ export default function NflHeader({ tab, setTab, data, meta, matchup, weekMode =
       onHome={() => go('home')} homeTitle="TUDDY home — this week in one page"
       glow={`${C.green}75`} dot={live > 0 ? { color: C.cyan, pulse: true } : null}
       headerClass={tab === 'home' ? undefined : 'hdr-slate-on'}
-      meta={<>
-        {/* THIS WEEK / NEXT WEEK (2026-09-18): MOONSHOT's own control, from the
-            shared components/DateMode.js, worded for football. */}
+      // THIS WEEK / NEXT WEEK (2026-09-18): MOONSHOT's own control, from the
+      // shared components/DateMode.js, worded for football.
+      date={
         <DateMode
           label={data?.label || (weekMode === 'next' ? 'Next week' : 'This week')}
           value={weekMode}
@@ -321,10 +323,10 @@ export default function NflHeader({ tab, setTab, data, meta, matchup, weekMode =
           theme={C}
           numFont={NUM_FONT}
         />
-        {/* THE ACCOUNT IS OPTIONAL NOW (2026-09-06) — see proxy.js. */}
-        <SignUpPill accent={C.green} />
-        <NflSettingsSheet />
-      </>}>
+      }
+      // THE ACCOUNT IS OPTIONAL NOW (2026-09-06) — see proxy.js.
+      account={<SignUpPill accent={C.green} />}
+      settings={<NflSettingsSheet />}>
       {/* ── row 2: THE MOVING TICKER, ABOVE THE TABS (2026-09-06) ────────
           Same move MOONSHOT's header made the same day: the strip gets a
           full-width row of its own instead of splitting space with the

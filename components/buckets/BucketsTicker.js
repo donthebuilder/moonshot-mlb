@@ -1,11 +1,11 @@
 'use client'
 import { useMemo, useRef } from 'react'
 import TickerPill from '../TickerPill'
-import { useAutoScroll, useLiveScores } from '../../lib/headlines'
+import { useAutoScroll } from '../../lib/headlines'
 import { useBucketsBoard, useBucketsLeaders } from '../../lib/nba/useBuckets'
-import { setSport } from '../../lib/sport'
 import { C, NUM_FONT } from '../../lib/nba/theme'
-import { fmtDay, fmtTip } from './ui'
+import { fmtDay } from './ui'
+import { localTime } from '../../lib/localTime'
 
 // 🏀 BUCKETS' MOVING HEADER -- LampTicker's shape (MOONSHOT's order: player
 // bites, the slate, then the scores) on the same TickerPill and auto-scroll.
@@ -15,7 +15,6 @@ import { fmtDay, fmtTip } from './ui'
 export default function BucketsTicker({ date = null, scores, liveScores, onOpenPlayer, onOpenGame }) {
   const board = useBucketsBoard(date)
   const leaders = useBucketsLeaders()
-  const others = useLiveScores({ nfl: true, nhl: true })
   const trackRef = useRef(null)
   useAutoScroll(trackRef, { speed: 55 })
 
@@ -37,14 +36,10 @@ export default function BucketsTicker({ date = null, scores, liveScores, onOpenP
       const score = `${a} ${g.away.score ?? 0} – ${g.home.score ?? 0} ${h}`
       if (g.state === 'live') out.push({ k: `nba-${g.id}`, icon: '🏀', label: g.detail || 'live', value: score, color: C.rim, live: true, onClick: () => onOpenGame?.(g.id) })
       else if (g.state === 'final') out.push({ k: `nba-${g.id}`, icon: '🏀', label: 'F', value: score, color: C.text3, onClick: () => onOpenGame?.(g.id) })
-      else if (g.start) out.push({ k: `nba-${g.id}`, icon: '🏀', label: fmtTip(g.start), value: `${a} @ ${h}`, color: C.text3, onClick: () => onOpenGame?.(g.id) })
-    }
-    for (const i of others.items) {
-      if (i.kind !== 'score') continue
-      out.push({ k: i.k, icon: i.icon, label: i.sub || (i.live ? 'live' : i.pregame ? 'soon' : 'F'), value: i.text, sport: i.sport, color: i.live ? C.teal : C.text3, live: i.live, onClick: () => setSport(i.sport) })
+      else if (g.start) out.push({ k: `nba-${g.id}`, icon: '🏀', label: localTime(g.start), value: `${a} @ ${h}`, color: C.text3, onClick: () => onOpenGame?.(g.id) })
     }
     return out
-  }, [date, board.data, leaders.data, scores?.data, liveScores?.data, others.items, onOpenPlayer, onOpenGame])
+  }, [date, board.data, leaders.data, scores?.data, liveScores?.data, onOpenPlayer, onOpenGame])
 
   if (!items.length) return null
   const Pill = ({ it, echo }) => <TickerPill sport={it.sport || 'nba'} label={it.label} value={it.value} icon={it.icon} color={it.color} live={it.live} title={it.title} echo={echo} onClick={it.onClick} theme={C} numFont={NUM_FONT} />

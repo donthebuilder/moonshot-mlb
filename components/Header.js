@@ -141,7 +141,9 @@ function Scorebug({ players, results, games, mode, slateDate, runMeta, onPlayerC
   }, [results, feedNight])
   const modelHr = useMemo(() => slateProjHr(players), [players])
   const projection = useProjection(mode)
-  const live = useLiveScores()
+  // ONE SPORT PER TICKER (2026-10-06): MOONSHOT's strip carries MOONSHOT's games only; the other
+  // sports' live lines are behind the switcher (components/header/SportSwitch.js)
+  const live = useLiveScores({ nfl: false, nhl: false })
   const isLive = live.items.some((i) => i.live) || (stats?.actual ?? 0) > 0
   const heads = useMemo(() => buildHeadlines({ players, results, isLive, headline: null, airRanked: [] }), [players, results, isLive])
   if (!stats) return <span style={{ fontSize:9.5, color:C.text3, fontFamily:NUM_FONT }}>loading the slate…</span>
@@ -279,7 +281,7 @@ export default function Header({ tab, setTab, mode, setMode, lastNight = false, 
       wordmark={GRADIENT}
       onHome={() => go('home')} homeTitle="MOONSHOT home — tonight in one page"
       glow="rgba(249,115,22,0.35)" dot={{ color: C.green, pulse: true }}
-      meta={<>
+      date={
         <DateMode
           label={dateLabel || 'Loading…'}
           value={mode}
@@ -290,9 +292,9 @@ export default function Header({ tab, setTab, mode, setMode, lastNight = false, 
             { key: 'tomorrow', text: lastNight ? 'Tonight' : 'Tmrw', color: DAY_COLORS.tomorrow },
           ]}
         />
-        <SignUpPill onWatchlist={() => go('you')} />
-        <MlbSettings />
-      </>}>
+      }
+      account={<SignUpPill onWatchlist={() => go('you')} />}
+      settings={<MlbSettings />}>
       {/* ── row 2: THE MOVING HEADER, ABOVE THE TABS (2026-09-06) ─────────
           Donovan: "the moving header needs to be above [the tabs], with
           the stat i want." A full-width row of its own, so the leader pills

@@ -79,6 +79,7 @@ import { readMlbEvents } from '../../lib/record/mlb'
 import { readNflEvents } from '../../lib/record/nfl'
 import { eventCapture } from '../../lib/record/shape'
 import { appHref, playerHref, teamHref, SPORT_KEYS, BRAND, isHiddenSport } from '../../lib/routes'
+import PublicHeader from '../../components/header/PublicHeader'
 import { readNbaBoard } from '../../lib/nba/boardRead'
 import { nbaCaptureFrom, readNbaRecords } from '../../lib/record/nba'
 import styles from './start.module.css'
@@ -581,16 +582,7 @@ export default async function StartPage({ searchParams }) {
       {/* The pick cards' WHY buttons fire the dash-explain event; only the app
           mounted its listener, so on /start they did nothing (route audit B4). */}
       <ExplainToast sport={sportKey} />
-      <header className={styles.bar}>
-        <a className={styles.brand} href="/" aria-label="DASH Network home">
-          <img src="/icon-192.png" alt="" width="30" height="30" />
-          <div><small>DASH NETWORK</small><strong>{sport.product}</strong></div>
-        </a>
-        <nav className={styles.nav}>
-          {/* one link per sport, off the registry (0g D6) */}
-          {SPORT_KEYS.map((k) => <a key={k} className={sportKey === k ? styles.navOn : styles.navOff} href={`/start?sport=${k}`}>{BRAND[k].icon} {BRAND[k].league}</a>)}
-        </nav>
-      </header>
+      <PublicHeader sport={sportKey} base="/start" title={sport.product} />
 
       <section className={styles.hero}>
         <p className={styles.kicker}>Finding the moments before they happen</p>
