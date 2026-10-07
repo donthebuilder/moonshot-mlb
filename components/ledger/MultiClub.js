@@ -98,8 +98,8 @@ export default function MultiClub({ sport, accent, onPlayerClick }) {
       )}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 7, marginBottom: 11 }}>
         <Tile label={`2+ ${w} games`} value={data.header.games} color={accent} sub={data.seasonLabel} />
-        <Tile label="On our board" value={data.header.onBoard} color={C.cyan} sub={data.header.before ? `${data.header.before} before record` : ''} />
-        <Tile label="Called" value={data.header.called} color={C.green} />
+        <Tile label="On our board" value={data.header.onBoard} color={C.text2} sub={data.header.before ? `${data.header.before} before record` : ''} />
+        <Tile label="Called" value={data.header.called} color={accent} />
       </div>
 
       {sport === 'nfl' && (

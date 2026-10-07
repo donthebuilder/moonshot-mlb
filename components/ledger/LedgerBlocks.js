@@ -75,8 +75,8 @@ export function RoundLine({ label, items = [], accent = C.orange }) {
   )
 }
 
-/** The violet strip: hits/watched + a sentence + the entries that landed. */
-export function WatchStrip({ label, hits, watched, sentence, children, color = C.violet }) {
+/** The watchlist strip, in the product's accent: hits/watched + a sentence + the entries that landed. */
+export function WatchStrip({ label, hits, watched, sentence, children, color = C.orange }) {
   if (!watched) return null
   return (
     <div style={{
@@ -193,7 +193,7 @@ export function LookOutBox({ title, tag, rows = [], foot, accent = C.orange }) {
 
 /** rows: [{ key, when ('now' | 'later'), name, onClick, title, chips: [string], more }] */
 /** rows: [{ key, when: 'now'|'later', name, chips: [string | { label, onClick }], title, onClick }] */
-export function NextUpBox({ title, rows = [], about, color = C.cyan }) {
+export function NextUpBox({ title, rows = [], about, color = C.orange }) {
   if (!rows.length) return null
   return (
     <div style={{

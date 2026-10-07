@@ -18,6 +18,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useSportTheme } from '../SportTheme'
 import ErrorBoundary from '../ErrorBoundary'
+import HelpTip from '../HelpTip'
 import {
   LEDGER_VIEWS, ledgerWord, ledgerBlurb, cleanView, tabOfView,
   readLedgerView, writeLedgerView, takeLedgerView, peekLedgerView,
@@ -72,6 +73,7 @@ export default function LedgerShell({ sport, bodies = {} }) {
     <div data-ledger-shell={sport}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, margin: '0 2px 6px', font: `900 11px/1 ${NUM_FONT}`, letterSpacing: '.14em', color: C.text3 }}>
         <span aria-hidden="true">{'\u{1F4D2}'}</span><span>THE LEDGER</span>
+        <HelpTip label={ledgerWord(sport, active)} color={C.text3} text={ledgerBlurb(sport, active)} />
       </div>
       <div role="tablist" aria-label="The Ledger" style={{ display: 'grid', gridTemplateColumns: `repeat(${shown.length}, minmax(0, 1fr))`, gap: 6 }}>
         {shown.map((v) => (
@@ -81,7 +83,7 @@ export default function LedgerShell({ sport, bodies = {} }) {
           </button>
         ))}
       </div>
-      <p style={{ margin: '8px 2px 12px', fontSize: 12, lineHeight: 1.45, color: C.text3 }}>{ledgerBlurb(sport, active)}</p>
+      <div style={{ height: 12 }} />
       {active === 'record' && bodies.bands && (
         <div role="tablist" aria-label="The record" style={{ display: 'flex', gap: 6, margin: '0 0 12px' }}>
           {[['record', 'The record'], ['bands', 'Score bands']].map(([k, label]) => (

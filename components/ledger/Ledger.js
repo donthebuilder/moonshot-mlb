@@ -142,8 +142,8 @@ export default function Ledger({
             <>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(96px, 1fr))', gap: 7, marginBottom: 11 }}>
                 <Tile label={`${eventLabelLong}s`} value={night.totals.total} color={accent} sub={night.totals.men != null && night.totals.men !== night.totals.total ? `${night.totals.men} ${scorerWord}` : ''} />
-                <Tile label="Called" value={night.totals.called} color={C.green} />
-                <Tile label="On board" value={night.totals.board} color={C.cyan} />
+                <Tile label="Called" value={night.totals.called} color={accent} />
+                <Tile label="On board" value={night.totals.board} color={C.text2} />
                 <Tile label="Not on board" value={night.totals.off} color={C.text3} />
               </div>
               {night.games && night.games.final < night.games.total ? (
@@ -187,8 +187,8 @@ export default function Ledger({
             {season ? (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(104px, 1fr))', gap: 7 }}>
                 <Tile label={`${eventLabelLong}s`} value={season.totalEvents} color={accent} sub={season.perNight != null ? `${season.perNight}/${periodWord}` : ''} />
-                <Tile label="Called" value={season.called} color={C.green} sub={season.totalEvents ? `${Math.round((1000 * season.called) / season.totalEvents) / 10}%` : ''} />
-                <Tile label="On board" value={season.board} color={C.cyan} />
+                <Tile label="Called" value={season.called} color={accent} sub={season.totalEvents ? `${Math.round((1000 * season.called) / season.totalEvents) / 10}%` : ''} />
+                <Tile label="On board" value={season.board} color={C.text2} />
                 <Tile label="Not on board" value={season.off} color={C.text3} />
                 {baseRate && (
                   <Tile
@@ -224,7 +224,7 @@ export default function Ledger({
           </div>
 
           {season && (
-            <div style={panel(C.green)}>
+            <div style={panel(accent)}>
               <div style={{ fontSize: 12.5, fontWeight: 900, marginBottom: 8 }}>Per-player history</div>
               {hitterRows.length ? (
                 <DenseTable

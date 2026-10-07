@@ -1,5 +1,7 @@
 'use client'
 import { C, NUM_FONT } from '../../lib/theme'
+import { alpha } from '../../lib/scales'
+import CallStatusBadge from '../CallStatusBadge'
 
 // The Ledger's small shared pieces (moved out of Ledger.js 2026-09-27 so the
 // 2+ Club view, components/ledger/MultiClub.js, draws the same chip, tile
@@ -7,13 +9,14 @@ import { C, NUM_FONT } from '../../lib/theme'
 // graded record for -- BEFORE OUR RECORD, never a guessed label.
 
 export const STATUS_META = {
-  called: { label: 'CALLED', color: C.green },
-  board: { label: 'ON BOARD', color: C.cyan },
+  called: { label: 'CALLED', color: C.orange },
+  board: { label: 'ON BOARD', color: C.text2 },
   off: { label: 'NOT ON BOARD', color: C.text3 },
   pre: { label: 'BEFORE OUR RECORD', color: C.text3 },
 }
 
 export function StatusChip({ status, title }) {
+  if (status === 'called' || status === 'board' || status === 'off') return <CallStatusBadge status={status} title={title} />
   const m = STATUS_META[status] || STATUS_META.off
   return (
     <span title={title} style={{
@@ -28,7 +31,7 @@ export function StatusChip({ status, title }) {
 
 export function Tile({ label, value, color, sub }) {
   return (
-    <div style={{ background: `${color}0d`, border: `1px solid ${color}33`, borderRadius: 9, padding: '8px 10px', minWidth: 0 }}>
+    <div style={{ background: alpha(color, 0.05), border: `1px solid ${alpha(color, 0.2)}`, borderRadius: 9, padding: '8px 10px', minWidth: 0 }}>
       <div style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em', fontWeight: 800 }}>{label}</div>
       <div style={{ fontSize: 19, fontFamily: NUM_FONT, fontWeight: 900, color, marginTop: 1, whiteSpace: 'nowrap' }}>{value}</div>
       {sub && <div style={{ fontSize: 9, color: C.text3, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</div>}
