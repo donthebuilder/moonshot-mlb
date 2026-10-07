@@ -12,8 +12,9 @@ import Tap from './Tap'
  * @param theme    { C, NUM_FONT, TYPE, accent }
  * @param words    { status(w), meta(p), numbers(p) } -> strings
  * @param onOpen   (p) => void, opens the player
+ * @param depth    optional { player(p) => node, game: node } the sport's deeper sections, drawn only while the full write-up is open
  */
-export default function GameWriteupBlock({ w, theme, words, onOpen }) {
+export default function GameWriteupBlock({ w, theme, words, onOpen, depth = null }) {
   const { C, NUM_FONT, TYPE, accent: ACCENT } = theme
   const [open, setOpen] = useState(false)
   if (!w || !w.players.length) return null
@@ -42,10 +43,12 @@ export default function GameWriteupBlock({ w, theme, words, onOpen }) {
           </ul>
           {open && p.watch.length > 0 && (<><Kicker>WATCH OUT</Kicker>
             <ul style={{ margin: 0, paddingLeft: 16, fontSize: TYPE.body, lineHeight: 1.5, color: C.text2 }}>{p.watch.map((l) => <li key={l.t} title={l.src}>{l.t}</li>)}</ul></>)}
+          {open && depth?.player && depth.player(p)}
         </div>
       ))}
       {open && (<>
         {w.game.length > 0 && (<><Kicker>THE GAME</Kicker>{w.game.map((l) => <div key={l.t} title={l.src} style={{ fontSize: TYPE.body, color: C.text2 }}>{l.t}</div>)}</>)}
+        {depth?.game}
         <Kicker>BOTTOM LINE</Kicker>
         {w.bottom.map((l) => <div key={l.t} style={{ fontSize: TYPE.body, color: C.text2 }}>{l.t}</div>)}
         <div style={{ marginTop: 8, fontSize: TYPE.micro, color: C.text3 }}>{w.footer}</div>

@@ -5,6 +5,7 @@ import { useMemo } from 'react'
 import { C, NUM_FONT, TYPE } from '../../lib/nhl/theme'
 import { buildNhlWriteup } from '../../lib/writeups/nhl'
 import GameWriteupBlock from '../GameWriteupBlock'
+import { PlayerDepth, GameDepth } from './NhlDepth'
 
 const THEME = { C, NUM_FONT, TYPE, accent: C.ice }
 const WORDS = {
@@ -15,5 +16,10 @@ const WORDS = {
 
 export default function NhlWriteupBlock({ game, onOpenPlayer }) {
   const w = useMemo(() => buildNhlWriteup(game), [game])
-  return <GameWriteupBlock w={w} theme={THEME} words={WORDS} onOpen={onOpenPlayer ? (p) => onOpenPlayer(p.player_id) : null} />
+  // THE FULL WRITE-UP's depth (lib/writeups/nhl.js nhlDepth / nhlGameDepth): drawn, and its inputs fetched, only once it is opened
+  const depth = useMemo(() => ({
+    player: (p) => { const row = (game.rows || []).find((r) => String(r.playerId) === String(p.player_id)); return row ? <PlayerDepth key={p.player_id} row={row} game={game} scope="game" /> : null },
+    game: <GameDepth game={game} />,
+  }), [game])
+  return <GameWriteupBlock w={w} theme={THEME} words={WORDS} depth={depth} onOpen={onOpenPlayer ? (p) => onOpenPlayer(p.player_id) : null} />
 }

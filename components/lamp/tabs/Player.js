@@ -28,6 +28,7 @@ import { goalWhy } from '../../../lib/nhl/goalWhy'
 import { arenaOf } from '../../../lib/nhl/arenas'
 import PlayerSplits from '../PlayerSplits'
 import GoalTracking from '../GoalTracking'
+import { PlayerDepthToggle } from '../NhlDepth'
 
 // 🏒 PLAYER — one man's file, at a stable address (#sport=nhl&tab=player&
 // player=<id>). A skater and a goalie share the route and NOT the page:
@@ -289,6 +290,7 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
               face, name, club and the board's word. The big hero that repeated them is gone; its one line stays. */}
           {whyLine && <div style={{ color: C.text2, fontSize: 13, lineHeight: 1.45 }}>{whyLine}</div>}
           {w && <WhyLines theme={C} numFont={NUM_FONT} accent={C.ice} why={[w.why]} watch={w.watch} explain={w.explain} />}
+          {w && row && spot?.g && <PlayerDepthToggle row={row} game={spot.g} />}
           <section aria-label="Season line">
             <Kicker>{goalie ? 'RECORD' : 'THE LINE'} · {f.seasonLabel}{stale ? ' (LAST SEASON)' : ''}</Kicker>
             {stale && <div style={{ marginBottom: 10 }}><StaleSeasonNote label={f.seasonLabel} opens={p.opens} what="line" /></div>}
