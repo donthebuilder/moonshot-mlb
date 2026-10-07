@@ -10,7 +10,7 @@ const THEME = { C, NUM_FONT, TYPE, accent: C.ice }
 const WORDS = {
   status: (w) => `${w.when}${w.locked ? ' · the board is set' : ' · a preview until the lock'}`,
   meta: (p) => `${p.team} ${p.position} · ${p.role}`,
-  numbers: (p) => [p.score != null ? `LAMP score ${p.score}` : null, p.rank != null && p.of ? `#${p.rank} of ${p.of} tonight` : null, p.chance != null ? `goal chance ${p.chance}%` : null].filter(Boolean).join(' · '),
+  numbers: (p) => [p.score != null ? `LAMP score ${p.score}` : null, p.rank != null && p.of ? `#${p.rank} of ${p.of} tonight${p.band ? ` (${p.band.word})` : ''}` : null].filter(Boolean).join(' · '),
 }
 
 export default function NhlWriteupBlock({ game, onOpenPlayer }) {

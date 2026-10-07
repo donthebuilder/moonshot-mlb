@@ -126,6 +126,8 @@ on the pages you changed. It must be green.
   (against `npx next start` or `--base https://dashnetwork.vercel.app`);
   no ERROR lines. And `node scripts/check-clickable.mjs --pages "<the pages
   you changed>"`: every player name, team and game is a link (0 not tappable).
+- Push gate also: `node --import ./scripts/_esm-resolve.mjs scripts/check-no-printed-probability.mjs`
+  (NHL/NBA never print a model probability; a score is a rank, not a chance).
 - No temporary or debug routes left in `app/api/`. They deploy publicly.
 - SQL: write the migration file and hand it to Donovan. He runs it in the
   Supabase SQL editor. The SQL runs BEFORE the code that needs it ships.
