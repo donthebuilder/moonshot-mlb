@@ -254,7 +254,7 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
           </FiltersDrawer>
         </div>
       )}
-      {data && market === 'GOAL' && <GoalWatch flat={flat} onOpenPlayer={onOpenPlayer} />}
+      {data && market === 'GOAL' && <GoalWatch flat={flat} onOpenPlayer={onOpenPlayer} date={shown} />}
       {data?.season?.stale && <StaleSeasonNote label={data.season.label} opens={data.season.opens} what="per-game stats" />}
       <DelayedBanner error={error} what="the board" />
       {loading && !data ? <Loading what="tonight’s board" /> : null}

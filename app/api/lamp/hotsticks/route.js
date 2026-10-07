@@ -15,10 +15,13 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(req) {
   try {
-    const date = await slateNight('nhl')
+    // ?date=YYYY-MM-DD: the board's night (form is read from games strictly before it).
+    // None = the slate's own night, not the wall clock.
+    const q = new URL(req.url).searchParams.get('date')
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(q || '') ? q : await slateNight('nhl')
     // ?need=20: LAMP Power's whole-season floor (only 0 or 20 accepted, so the cache stays two entries).
     const needGp = new URL(req.url).searchParams.get('need') === '20' ? 20 : 0
-    const [hs, day] = await Promise.all([readHotSticks({ needGp }), scoreFor(date).then(reduceScoreDay).catch(() => null)])
+    const [hs, day] = await Promise.all([readHotSticks({ needGp, date }), scoreFor(date).then(reduceScoreDay).catch(() => null)])
     const tonight = {}
     for (const g of day?.games || []) {
       if (g.scheduleState !== 'OK') continue

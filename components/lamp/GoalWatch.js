@@ -34,8 +34,9 @@ export function goalWatchLists(flat, hot) {
   return { two, last, b2b }
 }
 
-export default function GoalWatch({ flat = [], onOpenPlayer }) {
-  const { data: hot, loading } = useLampHotSticks()
+export default function GoalWatch({ flat = [], onOpenPlayer, date = null }) {
+  // form as of the board's own night: games strictly before it (2026-10-06)
+  const { data: hot, loading } = useLampHotSticks({ date })
   const { two, last, b2b } = useMemo(() => goalWatchLists(flat, hot), [flat, hot])
   if (!flat.length) return null
   const items = (list, hitText = '✓ SCORED AGAIN') => list.slice(0, CAP).map(({ r, g }) => ({
