@@ -28,7 +28,7 @@ export function CardName({ name }) {
 
 /** THE SCORE, DEMOTED (2026-08-09): a badge beside the stats that earned it,
  *  with the product's word over it and the grade under it. Tap opens `open`. */
-export function ScoreBadge({ label = 'BOT', score, sub, color, open, onToggle }) {
+export function ScoreBadge({ label = 'SCORE', score, sub, color, open, onToggle }) {
   const { C, NUM_FONT } = useSportTheme()
   return (
     <div

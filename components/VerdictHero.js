@@ -263,7 +263,7 @@ export default function VerdictHero({
             }}>{title}</span>
             <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
               {badgeLeads
-                ? <ScoreChip value={score} col={col} title={dialTitle || 'The bot’s score for this market'} />
+                ? <ScoreChip value={score} col={col} title={dialTitle || 'Our score for this market'} />
                 : badge && <VerdictBadge label={badge} col={col} quiet={badgeQuiet} />}
               {right}
             </span>

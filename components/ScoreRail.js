@@ -249,7 +249,7 @@ export default function ScoreRail({
             {live.length ? `${live.length} live · ` : ''}{games.filter((g) => g.final).length} final
             {pn > 0 && <> · picks <b style={{ color: pok ? C.green : C.text3 }}>{pok}/{pn}</b> cleared</>}
             {open
-              ? <> · the x/y beside each game&apos;s state is the bot&apos;s picks in that game</>
+              ? <> · the x/y beside each game&apos;s state is our picks in that game</>
               : <> · {games.length} game{games.length === 1 ? '' : 's'}</>}
           </span>
           <span style={{ fontSize: 9, color: C.orange, fontFamily: NUM_FONT, fontWeight: 800 }}>

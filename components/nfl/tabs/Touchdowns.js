@@ -129,7 +129,7 @@ export function Card({ p, rank, matchup, odds, onPlayerClick, weights, base, poo
             </div>
           </div>
         </div>
-        <ScoreBadge label="BOT" score={Number.isFinite(score) ? Math.round(score) : '—'} sub={g.label} color={g.color}
+        <ScoreBadge label="TUDDY" score={Number.isFinite(score) ? Math.round(score) : '—'} sub={g.label} color={g.color}
           open={openScore} onToggle={() => setOpenScore((v) => !v)} />
       </div>
       <ExplainStrip notes={[openScore && 'The anytime-TD score, 0–100 — a rank against the whole league, not a percentage. The row below is the components doing the most work in it.']} />

@@ -97,7 +97,7 @@ export const GLOSSARY = {
   'pmatch': 'How well his swing matches the exact pitches tonight’s starter throws. Higher ranks better.',
   'pmix': 'Same idea as PMatch, scored across the starter’s whole pitch mix. Higher ranks better.',
   'pitch mix': 'How well his swing matches the pitches tonight’s starter actually throws. Higher ranks better.',
-  'score': 'The bot’s rating for this board’s question — an ordering of tonight’s hitters. Higher ranks better.',
+  'score': 'Our rating for this board’s question — an ordering of tonight’s hitters. Higher ranks better.',
   'fit': 'How well this hitter fits what the board is looking for tonight. Higher ranks better.',
   'leak': 'Ranks tonight’s starters on how likely they are to give up a homer, against each other rather than the league. Higher means easier to take deep.',
   'leak score': 'Ranks tonight’s starters on how likely they are to give up a homer, against each other rather than the league. Higher means easier to take deep.',
@@ -151,7 +151,7 @@ export const GLOSSARY = {
   'xwoba': 'Expected wOBA — what his contact quality alone says he should be producing, before luck and defense. Higher is better.',
   'woba': 'Weighted on-base average — one number for total offensive value, weighting a homer above a single. Higher is better.',
   'n': 'Sample size — how many events this rate is built on. A rate on fewer than about 20 is a hint, not a finding.',
-  'when picked': 'His record the other times the bot designated him in this category. A rate at 3 or more picks; a raw fraction under that.',
+  'when picked': 'His record the other times we picked him in this category. A rate at 3 or more picks; a raw fraction under that.',
 
   // ── contact quality ───────────────────────────────────────────────────
   'barrel %': 'How often he hits the ball at the perfect speed AND angle — the combination that turns into homers. Higher is better.',
@@ -202,7 +202,7 @@ export const GLOSSARY = {
   // checks the column's key ('playable') against this glossary for every
   // table on the site, so nothing in PairHistory.js itself needs to change.
   'playable': '2 means both hitters in this pair are on tonight’s slate. 1 means only one is; 0 means neither is playing tonight.',
-  'role': 'Which category the bot designated him in tonight — its HR pick, hit pick, and so on.',
+  'role': 'Which category we picked him in tonight — HR pick, hit pick, and so on.',
 
   // ── season / recent form ──────────────────────────────────────────────
   'avg': 'Batting average — hits divided by at-bats. .250 is about average, .300 is very good.',

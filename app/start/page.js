@@ -682,8 +682,7 @@ export default async function StartPage({ searchParams }) {
 
       <footer className={styles.foot}>
         <span>
-          Every number here is published by the model before the game and graded after it. Nothing on
-          this page is back-dated.
+          Every number here was set before the game and graded after it. Nothing is back-dated.
         </span>
         <span>
           <a href={sport.recordHref}>The public record</a>

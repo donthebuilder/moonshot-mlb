@@ -118,7 +118,7 @@ export function downloadShareCard(items = [], { title = 'MY WATCHLIST' } = {}) {
   g.fillStyle = '#f97316'; g.font = `900 12px ${MONO}`
   g.fillText('🌙 MOONSHOT · ' + title, 84 + wmW + 10, 37)
   g.fillStyle = '#a1a1aa'; g.font = `600 11px ${MONO}`
-  g.fillText(`${new Date().toLocaleDateString()} · ${items.length} hitters · HR score, the bot's own ranking`, 82, 58)
+  g.fillText(`${new Date().toLocaleDateString()} · ${items.length} hitters · HR score, MOONSHOT's own ranking`, 82, 58)
 
   // date chip, right side
   g.font = `800 11px ${MONO}`
@@ -210,7 +210,7 @@ export function downloadShareCard(items = [], { title = 'MY WATCHLIST' } = {}) {
   const fy = H - footH / 2
   g.fillStyle = '#52525b'; g.font = `600 10px ${MONO}`
   const more = items.length > 12 ? `+ ${items.length - 12} more on the list · ` : ''
-  g.fillText(`${more}🤖 = the bot's designated pick tonight`, 24, fy)
+  g.fillText(`${more}🤖 = MOONSHOT's pick tonight`, 24, fy)
   g.fillStyle = '#a1a1aa'; g.font = `800 10px ${MONO}`
   g.textAlign = 'right'
   g.fillText('DASH NETWORK · MOONSHOT', W - 24, fy)
@@ -362,7 +362,7 @@ export function downloadPlayerCard(p, { jersey = null } = {}) {
     g.fillText(`best play ${String(bet).toUpperCase()}`, cx + 2, y1 + 91)
   } else {
     g.fillStyle = '#71717a'; g.font = `700 10px ${MONO}`
-    g.fillText('no homer case tonight — the bot passes', cx + 2, y1 + 91)
+    g.fillText('no homer case tonight — MOONSHOT passes', cx + 2, y1 + 91)
   }
 
   // ── the scores ────────────────────────────────────────────────────────
@@ -481,7 +481,7 @@ export function downloadPlayerCard(p, { jersey = null } = {}) {
   const url = 'DASH NETWORK · MOONSHOT'
   const urlW = g.measureText(url).width
   g.fillStyle = '#52525b'; g.font = `600 9.5px ${MONO}`
-  g.fillText(ellipsize(g, "scores are the bot's own 0–100 rankings, not probabilities", W - 24 - urlW - 42), 24, fy2)
+  g.fillText(ellipsize(g, "scores are MOONSHOT's own 0–100 rankings, not probabilities", W - 24 - urlW - 42), 24, fy2)
   g.fillStyle = '#a1a1aa'; g.font = `800 10px ${MONO}`
   g.textAlign = 'right'; g.fillText(url, W - 22, fy2); g.textAlign = 'left'
   g.fillStyle = '#f97316'; g.fillRect(0, H - 3, W, 3)
@@ -606,7 +606,7 @@ export function downloadBoardCard(ranked = [], { title = 'THE BOARD', sub = '', 
     g.textAlign = 'right'; g.fillText(s.toFixed(0), W - 24, mid); g.textAlign = 'left'
   })
 
-  posterFooter(g, W, H, `🤖 = the bot's designated pick tonight · scores are this board's own ${type.toUpperCase()} ranking`)
+  posterFooter(g, W, H, `🤖 = MOONSHOT's pick tonight · scores are this board's own ${type.toUpperCase()} ranking`)
   savePoster(c, `board-${slug(type)}_${todayStamp()}.png`)
 }
 
@@ -675,7 +675,7 @@ export function downloadGameCard(gm = {}, { onlyPicks = true } = {}) {
     }
   })
 
-  posterFooter(g, W, H, "🤖 = the bot's designated pick · ✅ = graded, live")
+  posterFooter(g, W, H, "🤖 = MOONSHOT's pick · ✅ = graded, live")
   savePoster(c, `game-${slug(away)}-${slug(home)}_${todayStamp()}.png`)
 }
 
@@ -781,7 +781,7 @@ export function downloadPoolsCard(pools = [], { title = "TONIGHT'S POOLS", grade
 
   posterFooter(g, W, H, graded
     ? "💥 = homered · needs the pool's own bar to clear, not everyone"
-    : "the bot's group tickets for tonight — grading appears live once games start")
+    : "MOONSHOT's group tickets for tonight — grading appears live once games start")
   savePoster(c, `pools_${todayStamp()}.png`)
 }
 

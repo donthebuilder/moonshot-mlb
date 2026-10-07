@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import DenseTable from '../DenseTable'
 import { usePreview, ShowMoreButton } from '../ListPreview'
+import HelpTip from '../HelpTip'
 import { C as MLB_C, NUM_FONT } from '../../lib/theme'
 import { alpha } from '../../lib/scales'
 import { easternDate } from '../../lib/data'
@@ -91,7 +92,7 @@ export default function WatchRecord({ sport = 'mlb', pricesPath = null, theme = 
   if (!nights.length) {
     return (
       <div style={{ border: `1px solid ${C.border}`, borderRadius: 12, padding: '9px 13px', marginBottom: 12, fontSize: 11.5, color: C.text3 }}>
-        <b style={{ color: C.text2 }}>⭐ Your nights, graded</b> — starts counting the first night a saved {S.noun} plays. Every name you star is remembered for that night, and graded from his own game log once it&apos;s over.
+        <b style={{ color: C.text2 }}>⭐ Your nights, graded</b> — counts from the first night a saved {S.noun} plays.<HelpTip label="Your nights" color={C.text3} text="Every name you star is remembered for that night, and graded from his own game log once it's over." />
       </div>
     )
   }
