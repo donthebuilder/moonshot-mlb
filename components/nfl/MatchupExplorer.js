@@ -163,7 +163,7 @@ function Coverage({ matchup, byId, onPlayerClick, season }) {
           />
         </div>
       )}
-      <div style={{ fontSize: 9.5, color: C.text3, marginTop: 8 }}>Receivers are charted by man vs zone only — no per-receiver split by each shell is published.</div>
+      <div style={{ fontSize: 9.5, color: C.text3, marginTop: 8 }}>Receivers are charted by man vs zone only — there is no per-receiver split by shell.</div>
     </div>
   )
 }
@@ -279,7 +279,7 @@ function Holes({ matchup, byId, onPlayerClick, season }) {
           caption={`Who can't stop it: every defense that faced ${MIN_DEF_CAR}+ carries through ${HOLE_SHORT[hole]}, leakiest first. Tap one to put its holes on the field.`}
         />
       </div>
-      <div style={{ fontSize: TYPE.label, color: C.text3, marginTop: 8 }}>By hole only — the run type (inside zone, power, counter) is not in the published data.</div>
+      <div style={{ fontSize: TYPE.label, color: C.text3, marginTop: 8 }}>By hole only — the run type (inside zone, power, counter) is not in the data.</div>
     </div>
   )
 }

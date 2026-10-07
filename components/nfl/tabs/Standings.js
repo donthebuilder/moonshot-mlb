@@ -35,7 +35,7 @@ export default function Standings({ onOpenTeam }) {
       />
       {error ? (
         <div role="status" style={{ padding: '10px 14px', borderRadius: 10, border: `1px solid ${C.green || C.border2}`, color: C.text2, fontSize: 12 }}>
-          <b style={{ fontFamily: NUM_FONT }}>LIVE DATA DELAYED</b> · The standings feed didn’t answer. Try again in a minute.
+          <b style={{ fontFamily: NUM_FONT }}>LIVE DATA DELAYED</b> · Standings didn’t load. Try again in a minute.
         </div>
       ) : null}
       {!data && !error ? <div style={{ color: C.text3, fontSize: 11, fontFamily: NUM_FONT }}>Loading the standings…</div> : null}
@@ -50,7 +50,7 @@ export default function Standings({ onOpenTeam }) {
                   feed's own order until you sort. The team is TUDDY's text
                   mark, not a logo (Donovan, this page: "no logos"). */}
               <NflTable rows={div.teams.map((t) => ({ ...t, _key: t.abbr, nick: t.nickname }))} columns={STAND_COLS(onOpenTeam)}
-                heatMode="sorted" maxHeight={9999} maxRows={40} bare caption={`${div.name}: the feed's order. Every column sorts.`} />
+                heatMode="sorted" maxHeight={9999} maxRows={40} bare caption={`${div.name}: league order. Every column sorts.`} />
             </div>
           ))}
         </section>

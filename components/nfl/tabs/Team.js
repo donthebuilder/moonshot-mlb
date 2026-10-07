@@ -102,7 +102,7 @@ export default function Team({ data, picks = null, onOpenPlayer, onOpenGame }) {
           <NflTable {...withNflFullSet(rows, TEAM_COLUMNS, { skip: ['sc_TD', 'sc_REC_YDS', 'sc_REC', 'sc_RUSH_YDS', 'sc_RUSH_ATT', 'sc_PASS_YDS', 'st_xTD', 'st_RZ'] })} statusOf={(r) => status.statusOf(r._raw ?? r)} onRowClick={(r) => onOpenPlayer?.(r._raw ?? r, 'TD')} faceOf={(r) => ({ sport: 'nfl', id: r.player_id, espnId: r.espn_id, name: r.name })}
             initialSort={{ key: 'td', dir: 'desc' }} maxHeight={9999} maxRows={rows.length}
             caption="His club's players this week, every market's score and the full stat set. Each row opens the player." />
-        ) : <Empty title="NO PLAYERS THIS WEEK" note="A bye week, or the week file hasn't scored this club yet." />}
+        ) : <Empty title="NO PLAYERS THIS WEEK" note="A bye week, or this club isn't scored yet." />}
       </section>
 
       {def && (
@@ -123,7 +123,7 @@ export default function Team({ data, picks = null, onOpenPlayer, onOpenGame }) {
         <section>
           <Kick>{div.name.toUpperCase()}</Kick>
           <NflTable rows={div.teams.map((t, i) => ({ ...t, _id: t.abbr, rank: i + 1, team: t.abbr, rec: `${t.w}-${t.l}${t.t ? `-${t.t}` : ''}` }))} onRowClick={(r) => { const a = (r._raw ?? r).abbr; if (a !== code) setCode(a) }}
-            maxHeight={9999} maxRows={4} noGroups caption="The division as the league publishes it. Each row opens that club."
+            maxHeight={9999} maxRows={4} noGroups caption="The division, in league order. Each row opens that club."
             columns={[
               { key: 'rank', label: '#', heat: false, rankCol: true, w: 34 },
               { key: 'team', label: 'Club', heat: false, w: 34, mono: true, teamMark: 'nfl' },

@@ -17,7 +17,6 @@ import BandTable, { bandClaim } from '../../bands/BandTable'
 import RecordPage from '../../record/RecordPage'
 import { nflRecordModel } from '../../../lib/record/page'
 import { localStamp } from '../../../lib/localTime'
-import NflNote from '../NflNote'
 
 // DID THE PICKS DO THEIR OWN JOB? — the NFL sibling of MLB's PickScorecard +
 // ScoreAudit (components/PickScorecard.js, components/ScoreAudit.js).
@@ -150,7 +149,6 @@ function ReceiptHero({ results, when }) {
       <PageHeader
         eyebrow="TUDDY · THE RECEIPT ROOM"
         title="Every call. Every bar. No hiding."
-        note={<NflNote tab="accountability" />}
         theme={C}
         numFont={NUM_FONT}
         accent={C.green}

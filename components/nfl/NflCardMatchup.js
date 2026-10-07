@@ -48,7 +48,7 @@ export default function NflCardMatchup({ player, matchup, slate }) {
   if (de && num(de.pass_20) != null) exRows.push({ _key: 'opp', who: `${opp} allow`, p10: de.pass_10, p20: de.pass_20, p30: de.pass_30, p40: de.pass_40, lng: null, n: null })
 
   if (!roleRows.length && !covRows.length && !shells.length && !exRows.length) {
-    return <div style={{ fontSize: 13, color: C.text3 }}>Not available yet: nothing published on {opp}&apos;s defense for his role.</div>
+    return <div style={{ fontSize: 13, color: C.text3 }}>Not available yet: nothing available on {opp}&apos;s defense for his role.</div>
   }
   const g = roleRows[0]?.g
   return (

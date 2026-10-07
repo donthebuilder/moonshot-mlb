@@ -247,7 +247,7 @@ export default function Leaders({ data, onPlayerClick }) {
             onRowClick={onPlayerClick}
             initialSort={sortKey}
             maxHeight={620}
-            caption={`Per-game rates over the trailing window the slate publishes, players on bye excluded. Sample: Full hides the rows the payload flags low-sample, because a rate on one or two games belongs to nobody. A category needs ${MIN_QUALIFIED} players with a number to get a tile and a column; one the payload doesn't carry is left out rather than shown empty.`}
+            caption={`Per-game rates over the trailing window, players on bye excluded. Sample: Full hides the rows flagged low-sample, because a rate on one or two games belongs to nobody. A category needs ${MIN_QUALIFIED} players with a number to get a tile and a column; one we don't carry is left out rather than shown empty.`}
           />
         )}
       </div>

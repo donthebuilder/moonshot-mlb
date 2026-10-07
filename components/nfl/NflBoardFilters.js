@@ -269,7 +269,7 @@ export default function NflBoardFilters({ state, total, shown, extra = null, ext
         </div>
         {!bandOptions.length && (
           <p style={{ margin: '6px 0 0', color: C.text3, fontSize: TYPE.micro, lineHeight: 1.5 }}>
-            This board has not published its score components yet, so there is nothing to band on.
+            This board has no score parts yet, so there is nothing to band on.
           </p>
         )}
         {bands.map((b) => {

@@ -421,7 +421,7 @@ export default function FieldArena({ dots = [], cells = [], spot = null, rz = []
         { key: 'heat', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, background: `${C.green}88` }} />, label: 'a zone that gives up more than normal' },
       ]} />
       <div style={{ fontSize: 10, color: C.text3, marginTop: 4, lineHeight: 1.5, fontFamily: NUM_FONT }}>
-        The turf is the field below, the same ink and numbers. A target sits at its air yards in its lane; its exact spot across the lane isn&apos;t in the feed, so it keeps the field&apos;s fixed scatter, and the lines (off unless you turn them on) are not ball flights. Red-zone touches sit at their yard line on the rail past the sideline. The same {dots.length} target{dots.length === 1 ? '' : 's'} · drag to orbit · tap a dot for the play
+        The turf is the field below, the same ink and numbers. A target sits at its air yards in its lane; its exact spot across the lane isn&apos;t in the data, so it keeps the field&apos;s fixed scatter, and the lines (off unless you turn them on) are not ball flights. Red-zone touches sit at their yard line on the rail past the sideline. The same {dots.length} target{dots.length === 1 ? '' : 's'} · drag to orbit · tap a dot for the play
       </div>
     </div>
   )

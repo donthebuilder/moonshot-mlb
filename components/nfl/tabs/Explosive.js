@@ -59,7 +59,7 @@ const LENSES = [
   { k: 'player', label: 'Players', tag: 'who turns a target into a chunk play', color: C.green },
   { k: 'defense', label: 'Defense allowed', tag: 'which defense gives up the chunk play', color: C.green },
   // 2026-10-06: MOONSHOT's Longest board, as TUDDY's record of the longest touchdowns (components/nfl/LongestTds.js)
-  { k: 'longest', label: 'Longest TDs', tag: 'the longest scores of the season, from the TD feed', color: C.green },
+  { k: 'longest', label: 'Longest TDs', tag: 'the longest scores of the season', color: C.green },
 ]
 
 const BUCKET_COLS = [
@@ -321,7 +321,7 @@ export default function Explosive({ matchup, data, onPlayerClick }) {
       {lens === 'player' && <div style={{ marginTop: 12 }}><BigPlayWatch data={data} onPlayerClick={onPlayerClick} /></div>}
 
       <div style={{ marginTop: 10, padding: '10px 13px', border: `1px dashed ${C.border2}`, borderRadius: 10, color: C.text3, fontSize: TYPE.micro, lineHeight: 1.6 }}>
-        Receiving only — rushing has no chunk-play split published yet, so this board doesn't guess at one.
+        Receiving only — rushing has no chunk-play split yet, so this board doesn't guess at one.
         Minimum 8 targets on the season to keep a name off this list on a single fluke catch.
       </div>
         </>

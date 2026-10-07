@@ -167,14 +167,14 @@ export function NflBoardList({ players, market, weights, odds, phone, onPlayerCl
     ...top.map((k) => ({ key: k, label: LABELS[k] || k, w: phone ? 74 : 86, scale: 'seq', domain: [0, 100] })),
     ...(phone || !odds ? [] : [{ key: 'price', label: 'Price', w: 60, heat: false, fmt: (v) => (v == null ? '—' : v > 0 ? `+${v}` : String(v)) }]),
     ...(phone || !odds || !rows.some((r) => r.moveNum != null) ? [] : [{ key: 'moveNum', label: 'Line moved', w: 112, dp: 1,
-      title: 'Where the price opened against our latest read, in break-even points (▲ shortened, ▼ drifted). The chip shows opening → now. Blank when the feed carried no opening price: nothing is guessed.',
+      title: 'Where the price opened against our latest read, in break-even points (▲ shortened, ▼ drifted). The chip shows opening → now. Blank when no opening price was recorded: nothing is guessed.',
       fmt: (v, r) => (r._q ? <LineMoveChip quote={r._q} theme={C} numFont={NUM_FONT} compact /> : '—') }]),
     // DASH: our median for the stat, coloured by its lean against the book's line (a TEST)
     { key: 'hiConf', label: 'A+', flag: true, mark: '\u2605', w: 30, group: MARK_GROUP, title: 'High-confidence TD flag: a TD score of 78 or better, the A+ band.' },
     { key: 'quest', label: 'Q', flag: true, mark: 'Q', w: 28, group: MARK_GROUP, title: 'Listed on the injury report.' },
     { key: 'lowS', label: 'Thin', flag: true, mark: '\u25CB', w: 34, group: MARK_GROUP, title: 'Few games behind this score. Dimmed rows are these.' },
     { key: 'matchup', label: 'Matchup', heat: false, w: 64, dim: true, group: MARK_GROUP, title: 'The coverage read: TARGET when the defense he faces leaks to his role, AVOID when it does not.' },
-    ...(dmk && dash && !dash.off ? [{ key: 'dash', label: 'DASH · TEST', w: phone ? 108 : 118, heat: false, numeric: true,
+    ...(dmk && dash && !dash.off ? [{ key: 'dash', label: 'OUR LINE', w: phone ? 108 : 118, heat: false, numeric: true,
       title: 'Our median for this stat, beside the book\u2019s line. Bright = above it (OVER), dim = below (UNDER), grey = within half a unit. A preview until the game locks, then frozen. Nothing is called from it.',
       fmt: (v, r) => (r._dash ? <DashChip row={r._dash} compact /> : '—') }] : []),
   ]
@@ -394,13 +394,13 @@ export function TdWatch({ players, games, logs = null, results = null, liveSnap 
     <WatchBox logoSport="nfl"
       icon="🔁" title="TD WATCH" accent={C.green} theme={C} numFont={NUM_FONT} ariaLabel="TD watch"
       status={total ? `${total} scored last time out` : 'nobody on a scoring run this week'}
-      note="facts from the week file · no hit-rate claim"
+      note="facts from this week's data · no hit-rate claim"
       rows={[
         { key: 'two', label: label('🔥 TD in 2+ straight', two), items: items(two) },
         { key: 'last', label: label('✅ scored last week', scored), items: items(scored) },
         { key: 'bye', label: label('🛌 back from a bye', bye), accent: C.text2, items: items(bye) },
       ]}
-      footer="Every row is a fact from the week file and the game logs, not a pick. No hit rate is claimed for any of them: TUDDY's graded weeks are too few to measure one. A card turns green when he scores again this week."
+      footer="Every row is a fact from this week's data and the game logs, not a pick. No hit rate is claimed for any of them: TUDDY's graded weeks are too few to measure one. A card turns green when he scores again this week."
     />
     </MobileFold>
   )

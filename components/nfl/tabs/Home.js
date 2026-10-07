@@ -186,7 +186,7 @@ function TouchdownLedger({ results, playersById, onPlayerClick }) {
   return (
     <section className="tuddy-panel">
       <SectionTitle eyebrow="BUILDS AS GAMES PLAY" title="Touchdown ledger" />
-      <div className="tuddy-ledger-total"><strong>{total}</strong><span>touchdowns recorded<br/>in the latest graded feed</span></div>
+      <div className="tuddy-ledger-total"><strong>{total}</strong><span>touchdowns recorded<br/>in the latest graded week</span></div>
       <div className="tuddy-ledger-list">
         {/* A NAME IS A LINK (0g A1, 2026-10-01): his card when he is on this
             week's slate, else his player page. */}

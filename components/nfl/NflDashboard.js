@@ -109,7 +109,7 @@ function NflStaleBanner({ meta, data, loading }) {
     <StaleNote tone={loud ? C.green : C.text3} icon={loud ? '⚠️' : '🕐'} theme={C} numFont={NUM_FONT}
       title={preseason ? 'PRESEASON BOARD' : 'BOARD DATA DELAYED'}
       body={<>{preseason
-        ? `This is a preseason build from ${when}, not this week\u2019s slate. The football pipeline has not published a regular-season board yet.`
+        ? `This is a preseason build from ${when}, not this week\u2019s slate. The regular-season board is not out yet.`
         : `The last football build landed ${days >= 1 ? `${days} day${days === 1 ? '' : 's'}` : `${Math.round(ageH)}h`} ago (${when}). Everything on TUDDY is from that run until the next one lands.`}</>} />
   )
 }

@@ -93,7 +93,7 @@ export default function TeamPower({ players = [], statSeason, onPlayerClick }) {
                     <em>{p.proj.toFixed(1)}</em>
                   </button>
                 ))}
-                {r.missing > 0 && <p>{r.missing} starting slot{r.missing === 1 ? '' : 's'} not in the feed for {r.team} — the total is understated by that much.</p>}
+                {r.missing > 0 && <p>{r.missing} starting slot{r.missing === 1 ? '' : 's'} not on the list for {r.team} — the total is understated by that much.</p>}
               </div>
             )}
           </div>

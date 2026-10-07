@@ -69,7 +69,7 @@ export function nflReadBullets(player, market, rows = [], matchup = null) {
     role && defense && {
       tone: dvpTone,
       text: `${player.opp} ranks #${Number.isFinite(dvpRank) ? dvpRank : '—'} of 32 in TDs allowed to the ${role} role — ${
-        !Number.isFinite(dvpRank) ? 'rank not published'
+        !Number.isFinite(dvpRank) ? 'rank not available'
           : dvpRank <= 12 ? 'a soft spot, and a reason for the call'
             : dvpRank >= 21 ? 'a hard spot, and a reason against it'
               : 'middle of the league, neither way'

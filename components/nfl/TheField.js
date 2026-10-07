@@ -451,7 +451,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   // Zero targets and zero carries: nothing to draw, no section.
   if (pid && !dv.view) return null
   if (!isRun && file.state === 'loading') return <section ref={wrap}>{head}<ChartEmpty theme={C}>Loading every target…</ChartEmpty></section>
-  if (!isRun && (file.state === 'error' || file.state === 'none')) return <section ref={wrap}>{head}<ChartEmpty theme={C}>Couldn&apos;t load {team}&apos;s plays file (nfl_field_{team}.json), so there are no dots to draw yet.</ChartEmpty></section>
+  if (!isRun && (file.state === 'error' || file.state === 'none')) return <section ref={wrap}>{head}<ChartEmpty theme={C}>Couldn&apos;t load {team}&apos;s plays, so there are no dots to draw yet.</ChartEmpty></section>
   if (!isRun && !mine.length && !routesOn) return <section ref={wrap}>{head}<ChartEmpty theme={C}>{asPlayer ? `No targets for ${player?.name || 'him'} in ${body?.season || 'this'} season's play-by-play yet.` : `No targets for ${team} yet.`}</ChartEmpty></section>
 
   // ── the chips ────────────────────────────────────────────────────────────

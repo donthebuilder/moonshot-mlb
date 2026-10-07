@@ -194,7 +194,7 @@ export function downloadNflPickCard(pick = {}) {
   }
 
   posterFooter(g, W, H, graded
-    ? 'graded against the market’s own published bar — see Accountability for the full card'
+    ? 'graded against the market’s own bar — see Accountability for the full card'
     : 'not a probability — a 0–100 ranking for this market')
   savePoster(c, `${graded ? 'result' : 'pick'}-${slug(pick.market)}-${slug(pick.name)}_${todayStamp()}.png`)
 }

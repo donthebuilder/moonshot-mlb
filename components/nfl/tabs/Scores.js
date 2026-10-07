@@ -73,13 +73,13 @@ export default function Scores({ data, onPlayerClick, onOpenGame = null }) {
   // applies when the feed is on that same week (Sunday itself).
   const boxFor = (g) => {
     if (stats === undefined) return <div style={{ fontSize: 10.5, color: C.text3, fontFamily: NUM_FONT, padding: '10px 0' }}>Loading the box…</div>
-    if (stats === null) return <div style={{ fontSize: 10.5, color: C.green, padding: '10px 0' }}>Couldn&apos;t reach the box score feed.</div>
+    if (stats === null) return <div style={{ fontSize: 10.5, color: C.green, padding: '10px 0' }}>Couldn&apos;t load the box scores.</div>
     const sameWeek = showingFeed || feedWeek === slateWeek
     if (!sameWeek) {
       return (
         <div style={{ fontSize: 11, color: C.text3, padding: '10px 0', lineHeight: 1.6 }}>
           {g.state === 'pre' ? "Hasn't kicked off yet. " : ''}
-          The box feed is on Week {feedWeek ?? '—'} — this game&apos;s box shows here once it kicks off.
+          Box scores are on Week {feedWeek ?? '—'} — this game&apos;s box shows here once it kicks off.
         </div>
       )
     }
@@ -119,7 +119,7 @@ export default function Scores({ data, onPlayerClick, onOpenGame = null }) {
         {week === 'feed' && stats === undefined ? (
           <Empty text="Loading that week's games…" />
         ) : week === 'feed' && stats === null ? (
-          <Empty text="LIVE DATA DELAYED — couldn't reach the box score feed." />
+          <Empty text="LIVE DATA DELAYED — couldn't load the box scores." />
         ) : !games.length ? (
           <Empty text="No games on the slate yet." />
         ) : games.map((g) => {

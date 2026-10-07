@@ -110,9 +110,9 @@ export function splitsWhy(player, fullLog, slateSeason) {
   const season = Number(slateSeason) || null
   const mine = season ? (fullLog || []).filter((g) => Number(g?.s) === season).length : null
   const prior = season ? (fullLog || []).filter((g) => Number(g?.s) === season - 1).length : 0
-  if (mine != null && mine < 3) return `He has ${mine} game${mine === 1 ? '' : 's'} on file in ${season}. A split needs 3 games on each side of a pair, so none is published yet${prior ? ` (his ${prior} games from ${season - 1} are on the Games tab)` : ''}.`
-  if (mine != null) return `He has ${mine} games in ${season}. A split is published only when each side of a pair has 3 games, and ${mine} games cannot fill both (home / away, indoors / outdoors and the rest). Pairs appear as the season fills in.`
-  return 'No splits are published for him: a split needs 3 games on each side of a pair.'
+  if (mine != null && mine < 3) return `He has ${mine} game${mine === 1 ? '' : 's'} on file in ${season}. A split needs 3 games on each side of a pair, so none is available yet${prior ? ` (his ${prior} games from ${season - 1} are on the Games tab)` : ''}.`
+  if (mine != null) return `He has ${mine} games in ${season}. A split shows only when each side of a pair has 3 games, and ${mine} games cannot fill both (home / away, indoors / outdoors and the rest). Pairs appear as the season fills in.`
+  return 'No splits are available for him: a split needs 3 games on each side of a pair.'
 }
 
 
@@ -473,9 +473,6 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
           </div>
         )
       })()}
-      {dash && DASH_OF[market] && dash.by.get(`${player.player_id}|${DASH_OF[market]}`) && (
-        <div style={{ margin: '2px 0 6px' }}><DashChip row={dash.by.get(`${player.player_id}|${DASH_OF[market]}`)} /></div>
-      )}
       {/* WHY? -- one tap opens every reason in full */}
       <WhyLines theme={C} numFont={NUM_FONT} accent={C.green} why={whyLines} watch={against?.text || null}
         explain={{ label: `Why ${player.name}?`, text: whyExplain }} />
@@ -522,7 +519,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
       {tab === 'splits' && <>
         <SplitsForMarket player={player} market={market} data={splitMeta} />
         {player?.splits && Object.keys(player.splits).length > 0 && SPLIT_STAT[market] && seasonOpts.length > 0 && (
-          <div style={{ fontSize: 12, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>The table above is his season splits as published. The season buttons set the filters below.</div>
+          <div style={{ fontSize: 12, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>The table above is his season splits. The season buttons set the filters below.</div>
         )}
         <NflGameCombo log={slog} venue={gameVenue(slate?.games, player.team, player.opp)} />
         {!(player?.splits && Object.keys(player.splits).length) && !hasContext(slog) && <div style={{ fontSize: 13, color: C.text3, lineHeight: 1.5 }}>{splitsWhy(player, fullLog, slate?.season)}</div>}
