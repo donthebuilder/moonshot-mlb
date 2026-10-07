@@ -88,7 +88,7 @@ export default function NflPlayers({ data, logs, matchup, picks, results, odds =
   const missing = wanted && all.length && !all.some((p) => String(p.player_id) === String(wanted))
   const notice = missing ? (
     <div role="status" style={{ margin: '0 0 10px', padding: '10px 12px', border: `1px solid ${C.border}`, borderLeft: `3px solid ${C.yellow}`, borderRadius: 10, background: C.bg2, fontSize: 12, color: C.text2, lineHeight: 1.5 }}>
-      <b style={{ color: C.text, letterSpacing: '.06em', fontSize: 10 }}>NO SUCH PLAYER</b> -- <b style={{ color: C.text, fontFamily: NUM_FONT }}>{String(wanted).slice(0, 24)}</b> isn&apos;t in this week&apos;s file. Pick anyone from the list.
+      <b style={{ color: C.text, letterSpacing: '.06em', fontSize: 10 }}>NO SUCH PLAYER</b> — <b style={{ color: C.text, fontFamily: NUM_FONT }}>{String(wanted).slice(0, 24)}</b> isn&apos;t in this week&apos;s file. Pick anyone from the list.
     </div>
   ) : null
 

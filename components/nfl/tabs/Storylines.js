@@ -1,4 +1,5 @@
 'use client'
+import NflNote from '../NflNote'
 import { etToday } from '../../../lib/freshness'
 // 📰 STORYLINES (2026-09-12, updated same day; reformatted + expanded
 // 2026-09-16, round 6) — Phase 3, four angles now, in MOONSHOT's own compact
@@ -125,7 +126,7 @@ export default function Storylines({ data, logs, results, onPlayerClick, setTab,
   const nothingAtAll = !markets.length && !modelCards.length && !rivalries.length && !bdays.length
     && !b2b.length && !due.length && !revenge.length && !rzm.length
   if (nothingAtAll) {
-    return <div className="sl-empty">No game logs published yet — the bot ships nfl_logs.json on its first run of the season, and storylines read the same file Streaks does.</div>
+    return <div className="sl-empty">No game logs yet. Stories appear once the season starts.</div>
   }
 
   const counts = [
@@ -144,7 +145,7 @@ export default function Storylines({ data, logs, results, onPlayerClick, setTab,
       {!compact && <PageHeader
         eyebrow="TUDDY · STORYLINES"
         title="What the numbers are already saying"
-        note={<>Not a leaderboard — a sentence. Every line below is a real, live fact off this week&apos;s logs and grading — read as a story instead of a row in a table.{counts && <div className="sl-counts">{counts}</div>}</>}
+        note={<><NflNote tab="storylines" />{counts && <div className="sl-counts">{counts}</div>}</>}
         theme={C}
         numFont={NUM_FONT}
         accent={C.green}
@@ -175,7 +176,7 @@ export default function Storylines({ data, logs, results, onPlayerClick, setTab,
           <div className="sl-section-head">SCORED LAST TIME OUT{b2bRate ? <span className="sl-head-rate"> · this season a man who scored last week scores again {rateTxt(b2bRate)}</span> : null}</div>
           {b2b.map((r) => (
             <Row key={`b2b-${r.player.player_id}`} icon={"\u{1F501}"} onClick={() => onPlayerClick?.(r.player, 'TD')}
-                 title="He scored a touchdown in his most recent game and the model has him on this week's TD board. The rate on the header is this season's back-to-back rate off the game log -- history, not a forecast.">
+                 title="He scored a touchdown in his most recent game and the model has him on this week's TD board. The rate on the header is this season's back-to-back rate off the game log — history, not a forecast.">
               <Name>{r.player.name}</Name> scored last time out — back on the board this week · <Num>{r.seasonTd}</Num> TD this season
               <span className="sl-row-meta"> · {r.player.team} {r.player.position} vs {r.player.opp || '—'}</span><Td n={r.td} />
             </Row>

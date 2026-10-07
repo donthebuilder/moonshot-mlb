@@ -1,5 +1,6 @@
 'use client'
 
+import NflNote from '../NflNote'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT, gradeFor } from '../../../lib/nfl/theme'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
@@ -28,7 +29,7 @@ import { storiesByPlayer } from '../../../lib/nfl/playerStories'
 //     reasonsFor) — usage rising, or the bot rating him this week.
 // Both were built for other tabs and read straight off data already fetched
 // at the dashboard level (matchup, logs) — no new fetch, just new props.
-const REASON_WORD = { rising: 'usage rising', bot: 'bot likes him', finisher: 'finishes in the red zone' }
+const REASON_WORD = { rising: 'usage rising', bot: 'TUDDY rates him', finisher: 'finishes in the red zone' }
 
 // ── MOVEMENT SINCE YOU SAVED HIM (2026-09-21) ───────────────────────────────
 // Compared ON THE MARKET HE WAS PINNED FOR, not on his current best. If a man
@@ -145,7 +146,7 @@ export default function Watchlist({ data, matchup, logs, onPlayerClick }) {
   return <div className="nfl-watch"><PageHeader
       eyebrow="YOUR TUDDY BOARD"
       title="Watchlist"
-      note={<>Save a player from any card, then work one game at a time. Pins are rebuilt from the fresh slate row, including the game id.{liveGames.length > 0 && <div className="nfl-watch-live"><span className="tuddy-live-dot-sm" aria-hidden="true" />{liveGames.length} pinned game{liveGames.length === 1 ? '' : 's'} live right now</div>}</>}
+      note={<><NflNote tab="watchlist" />{liveGames.length > 0 && <div className="nfl-watch-live"><span className="tuddy-live-dot-sm" aria-hidden="true" />{liveGames.length} pinned game{liveGames.length === 1 ? '' : 's'} live right now</div>}</>}
       theme={C}
       numFont={NUM_FONT}
       accent={C.green}
@@ -197,7 +198,7 @@ export default function Watchlist({ data, matchup, logs, onPlayerClick }) {
         { key: 'best', group: 'His best market', label: 'Market', heat: false, w: 68, mono: true, dim: true,
           title: 'His highest-scoring market on this slate — the one the card leads with.' },
         { key: 'score', group: 'His best market', label: 'Score', w: 50, dp: 0,
-          title: "The model's score for that market right now." },
+          title: "The score for that market right now." },
         { key: 'since', group: 'Your pin', label: 'Saved at', w: 56, dp: 0, heat: false, dim: true,
           title: 'What the board said for the market he was pinned for, at the moment you pinned him. Blank for pins made before the watchlist started recording it — nothing is back-filled.' },
         { key: 'moved', group: 'Your pin', label: 'Move', w: 52, dp: 1,

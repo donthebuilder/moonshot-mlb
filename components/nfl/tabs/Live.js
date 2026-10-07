@@ -244,7 +244,7 @@ export default function Live({ data, picks, live, matchup = null, logs = null, r
     <>
       <section>
         <div className="tl-title"><div><small>THE CARD</small><h2>Every rung, against its bar</h2></div>{setTab && <button onClick={() => setTab('picks')}>Picks →</button>}</div>
-        {!card.length && <div className="tl-empty">The bot hasn't published a card for this week.</div>}
+        {!card.length && <div className="tl-empty">There is no card for this week yet.</div>}
         <div className="tl-blocks">
           {card.map((block) => (
             <div key={block.key} className="tl-block">
@@ -325,16 +325,16 @@ export default function Live({ data, picks, live, matchup = null, logs = null, r
     ? [secScores, secPlays, secCard, secYours]
     // Pre-game, an empty wire is scroll for nothing; it joins once a play lands.
     : [secHeadline, secScores, secCard, secYours, secStory, secSched, ...(plays.length ? [secPlays] : [])]
-  const sub = `${players.length} players on the board${anyLive ? ' · live — the scores and the plays lead' : allDone ? ' · the week is in' : next ? ` · next kickoff ${fmtKick(next.t)}` : ''}`
+  const sub = `${players.length} players on the board${anyLive ? ' · live' : allDone ? ' · the week is in' : next ? ` · next kickoff ${fmtKick(next.t)}` : ''}`
 
   return (
     <div className="tl">
       <PanelTitle title="Live" sub={sub} theme={C} numFont={NUM_FONT} />
       <WhatThis maxWidth={760}>
         {rungTotal > 0 && <>The card: <b style={{ color: C.green }}>{tally.hit} cleared</b>, {tally.live} live, {tally.miss} missed of {rungTotal} rungs. </>}
-        {anyLive ? 'Every rung against the bar the bot promised, from the league feed every 30 seconds. Live action leads below.'
+        {anyLive ? 'Every rung against its bar, refreshed every 30 seconds. Live action leads below.'
           : allDone ? 'Every game is final; the graded record is on The record.'
-            : 'The plan leads; the sortable full board follows. The scoreboard wakes up twenty minutes before kickoff.'}
+            : 'The scoreboard wakes up twenty minutes before kickoff.'}
       </WhatThis>
       {order.map((sec, i) => <div key={i}>{sec}</div>)}
       <WhatThis>
@@ -394,7 +394,7 @@ export default function Live({ data, picks, live, matchup = null, logs = null, r
       .tl-block header b{font-size:12px}.tl-block header small{color:${C.text3};font:800 9px/1 ${NUM_FONT}}
       .tl-rung{display:grid;grid-template-columns:18px 1fr 64px 60px 78px 30px;align-items:center;gap:8px;width:100%;padding:7px 11px;border:0;border-bottom:1px solid ${C.border};background:transparent;color:inherit;text-align:left;cursor:pointer}
       .tl-rung:last-child{border-bottom:0}.tl-rung:disabled{cursor:default;opacity:.7}
-      .tl-rung.is-hit{background:rgba(0,245,173,.06)}.tl-rung.is-miss{background:rgba(248,113,113,.05)}
+      .tl-rung.is-hit{background:rgba(0,245,173,.06)}.tl-rung.is-miss{background:transparent}
       .tl-rung-rank{color:${C.text3};font:900 10px/1 ${NUM_FONT}}
       .tl-rung-who b{display:block;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tl-rung-who small{display:block;margin-top:2px;color:${C.text3};font:700 8px/1 ${NUM_FONT}}
       .tl-rung-num{font:900 15px/1 ${NUM_FONT};text-align:right}.tl-rung-num small{margin-left:3px;font-size:9px;color:${C.text3};font-weight:700}

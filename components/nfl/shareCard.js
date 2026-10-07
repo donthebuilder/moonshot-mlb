@@ -51,7 +51,7 @@ const MARKET_COLOR = () => ({
 const { posterHeader, posterFooter, newPoster } = makePoster({
   bg: C.bg,
   glowA: ['rgba(0,245,173,0.16)', 'rgba(0,245,173,0)'],
-  glowB: ['rgba(53,205,255,0.12)', 'rgba(53,205,255,0)'],
+  glowB: ['rgba(0,245,173,0.12)', 'rgba(0,245,173,0)'],
   tile: [C.green, C.green], tileInk: C.bg, tileWord: 'TD',
   text: C.text, accent: C.green, dim: C.text3, faint: C.text3,
   rule: C.border, product: '🏈 TUDDY', footer: 'DASH NETWORK · TUDDY',
@@ -123,7 +123,7 @@ export function downloadNflPickCard(pick = {}) {
   const y0 = HEAD_H
   // ghost watermark — the pregame score, or a check/cross once it's graded
   g.fillStyle = graded
-    ? (pick.hit === true ? 'rgba(0,245,173,0.10)' : pick.hit === false ? 'rgba(248,113,113,0.10)' : 'rgba(139,139,149,0.10)')
+    ? (pick.hit === true ? 'rgba(0,245,173,0.10)' : pick.hit === false ? 'rgba(139,139,149,0.10)' : 'rgba(139,139,149,0.10)')
     : 'rgba(0,245,173,0.09)'
   g.font = `900 108px ${MONO}`
   const ghost = graded ? (pick.hit === true ? '✓' : pick.hit === false ? '✗' : '–') : (Number.isFinite(pick.score) ? Math.round(pick.score).toString() : '—')
@@ -195,6 +195,6 @@ export function downloadNflPickCard(pick = {}) {
 
   posterFooter(g, W, H, graded
     ? 'graded against the market’s own published bar — see Accountability for the full card'
-    : 'not a probability — the bot’s own 0–100 ranking for this market')
+    : 'not a probability — a 0–100 ranking for this market')
   savePoster(c, `${graded ? 'result' : 'pick'}-${slug(pick.market)}-${slug(pick.name)}_${todayStamp()}.png`)
 }

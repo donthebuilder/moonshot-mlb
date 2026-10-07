@@ -1,4 +1,5 @@
 'use client'
+import NflNote, { QMark } from '../NflNote'
 import TeamMark from '../../TeamMark'
 import PlayerFace from '../../PlayerFace'
 import { useMemo, useState } from 'react'
@@ -45,7 +46,7 @@ const LANE_TILE = { 'left|end': 'L END', 'left|tackle': 'L TKL', 'left|guard': '
 const cap = (x) => (x ? x[0].toUpperCase() + x.slice(1) : x)
 const P = { theme: C, numFont: NUM_FONT }
 
-// WHAT HAPPENS IN EACH LANE (2026-09-28): the bot counts, per defence and
+// WHAT HAPPENS IN EACH LANE (2026-09-28): the bot counts, per defense and
 // league-wide, carries stopped for 0 or less (stf) and runs of 10+ (x10) --
 // bots/nfl/nfl_field.py. A lane is only named when it has LANE_MIN carries and
 // sits LANE_GAP points off the league's rate there; otherwise no line, because
@@ -96,8 +97,8 @@ export function Zones({ field, team }) {
           arrows at the line (run), the leakiest one ringed. */}
       <p style={{ margin: '0 0 8px', fontSize: 12.5, lineHeight: 1.5, color: C.text2 }}>
         {spot
-          ? <><b style={{ color: C.text }}>{cap(where(spot.z))}</b>: {team} give up <b style={{ color: C.green }}>{fmtPct(spot.leak)}</b> yards a {unit} against a normal defence there, and {Math.round(spot.share)}% of all the yards they allow come from it{spot.tdN ? <> — <b style={{ color: C.text }}>{spot.tdN} TD{spot.tdN === 1 ? '' : 's'}</b></> : null}.</>
-          : <>No zone stands out: nowhere do {team} give up clearly more than a normal defence.</>}
+          ? <><b style={{ color: C.text }}>{cap(where(spot.z))}</b>: {team} give up <b style={{ color: C.green }}>{fmtPct(spot.leak)}</b> yards a {unit} against a normal defense there, and {Math.round(spot.share)}% of all the yards they allow come from it{spot.tdN ? <> — <b style={{ color: C.text }}>{spot.tdN} TD{spot.tdN === 1 ? '' : 's'}</b></> : null}.</>
+          : <>No zone stands out: nowhere do {team} give up clearly more than a normal defense.</>}
       </p>
       <FootballField mode={pass ? 'pass' : 'rush'} maxWidth={pass ? 380 : 460} pickedKey={spot?.z ?? null}
         cells={Object.fromEntries(order.map((z) => {
@@ -113,7 +114,7 @@ export function Zones({ field, team }) {
           }]
         }))} />
       <div style={{ fontSize: 10, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
-        <b style={{ color: C.green }}>orange</b> = they give up more there than a normal defence · the number is yards per {unit} vs normal{pass ? ', with touchdowns allowed under it' : ''} · ringed = the softest spot · — = too few plays
+        <b style={{ color: C.green }}>orange</b> = they give up more there than a normal defense · the number is yards per {unit} vs normal{pass ? ', with touchdowns allowed under it' : ''} · ringed = the softest spot · — = too few plays
       </div>
       {!pass && (() => {
         const o = laneOutcomes(field, team)
@@ -167,7 +168,7 @@ function ByPosition({ matchup, team, win, setWin, slateSeason }) {
       {rows.length ? (
         <NflTable rows={rows} columns={columns} heatMode="full" maxHeight={9999} />
       ) : (
-        <div style={{ fontSize: 12, color: C.text3 }}>{dvpSeason.state === 'loading' ? `Loading ${dvpSeason.showing} defence…` : `No ${dvpSeason.showing || ''} defence data for ${team} in this window.`}</div>
+        <div style={{ fontSize: 12, color: C.text3 }}>{dvpSeason.state === 'loading' ? `Loading ${dvpSeason.showing} defense…` : `No ${dvpSeason.showing || ''} defense data for ${team} in this window.`}</div>
       )}
       <div style={{ marginTop: 5, fontSize: 11, color: C.text3, lineHeight: 1.5 }}>
         Each cell: what {team} allow that role, and its rank of 32 (#1 allows the most). More orange = softer.
@@ -181,7 +182,7 @@ function ByPosition({ matchup, team, win, setWin, slateSeason }) {
 // anxiety"). offenseFacts / defenseFacts as sentences said each number's rank,
 // season and game count inline, on every line. Here: one label, the number,
 // its rank -- and the season / sample once, in factsNote. Same fields, nothing
-// new computed. The blitz rate lives once, on the defence.
+// new computed. The blitz rate lives once, on the defense.
 const rk = (n, side) => (n ? `${ordinal(n)} of ${Object.keys(side || {}).length}` : null)
 export function offenseTiles(matchup, team) {
   const out = []
@@ -244,10 +245,10 @@ export function factsNote(matchup, off, def, slateSeason) {
 
 // THEIR TOP TARGETS · THE CORNERS (2026-09-28, Donovan: "the top receivers
 // with the top corners when we're looking at a matchup"). matchup.pass_game
-// (bots/nfl/nfl_pass_game.py): an offense's top 3 by targets, a defence's
+// (bots/nfl/nfl_pass_game.py): an offense's top 3 by targets, a defense's
 // rank-1 LCB / RCB / NB from the depth chart. Side by side and NEVER paired:
 // no free source says who covered whom. The one line that connects them is a
-// TEAM number from DvP -- what this defence allows WR1s -- and says so.
+// TEAM number from DvP -- what this defense allows WR1s -- and says so.
 const SLOT_WORD = { LCB: 'LCB', RCB: 'RCB', NB: 'Slot' }
 export function PassGame({ matchup, data, off, def, onPlayerClick = null }) {
   const pg = matchup?.pass_game
@@ -294,13 +295,13 @@ export function PassGame({ matchup, data, off, def, onPlayerClick = null }) {
             <Row key={c.slot}
               face={<PlayerFace sport="nfl" espnId={c.espn_id} team={def} name={c.name} size={30} />}
               name={<>{c.name} <span style={{ color: C.text3, fontWeight: 700, fontSize: 11 }}>{SLOT_WORD[c.slot] || c.slot}</span></>}
-              meta={c.games ? <>{c.pd} PD · {c.int} INT</> : <>no games yet</>} />
+              meta={c.games ? <>{c.pd} PD · {c.int} INT</> : null} />
           ))}
         </div>
       </div>
       {wr1?.recyd_g != null && Number.isFinite(wr1.recyd_g_rank) ? (
         <p style={{ margin: '8px 0 0', fontSize: 12, lineHeight: 1.5, color: C.text2 }}>
-          {def} allow {wr1.recyd_g} rec yds a game to WR1s ({ordinal(wr1.recyd_g_rank)}-most). Team number, not who covers whom.
+          {def} allow {wr1.recyd_g} rec yds a game to WR1s ({ordinal(wr1.recyd_g_rank)}-most). <QMark label="Team number" text="This is a team number, not who covers whom." />
         </p>
       ) : null}
     </div>
@@ -333,7 +334,7 @@ export default function Matchups({ matchup, data, onPlayerClick = null, onOpenTe
   const active = team || softest || slate[0]?.[0] || rest[0]
   const opp = useMemo(() => { const g = slate.find((pr) => pr.includes(active)); return g ? g.find((t) => t !== active) : null }, [slate, active])
 
-  // Who's actually going at this defence on this card, best score first
+  // Who's actually going at this defense on this card, best score first
   // (QBs included via field.qb_pass, 2026-09-21).
   const facing = useMemo(() => (data?.players || [])
     .filter((p) => p.opp === active
@@ -354,7 +355,7 @@ export default function Matchups({ matchup, data, onPlayerClick = null, onOpenTe
     )
   }
 
-  // HOW THEY COVER: the shell mix is MOONSHOT's pitch mix for a defence.
+  // HOW THEY COVER: the shell mix is MOONSHOT's pitch mix for a defense.
   const cov = matchup?.coverage_team?.[active]
   const shells = cov && cov.shell_n >= 50
     ? Object.entries(cov.shells || {}).sort((a, b) => b[1] - a[1]).slice(0, 6)
@@ -385,7 +386,7 @@ export default function Matchups({ matchup, data, onPlayerClick = null, onOpenTe
       <PageHeader
         eyebrow="TUDDY · MATCHUPS"
         title="Matchups"
-        note="The defenses to attack this week. Tap one for where it gets beaten, what it allows each position, and who on the slate is walking into it."
+        note={<NflNote tab="matchups" />}
         theme={C}
         numFont={NUM_FONT}
         accent={C.green}
@@ -416,11 +417,11 @@ export default function Matchups({ matchup, data, onPlayerClick = null, onOpenTe
         )}
         <FactTiles theme={C} numFont={NUM_FONT} tiles={tiles} note={factsNote(matchup, null, active, data?.season)} />
         {opp ? <PassGame matchup={matchup} data={data} off={opp} def={active} onPlayerClick={onPlayerClick} /> : null}
-        {/* THE FIELD, TEAM mode (0e c F6): ONE picture of where this defence
+        {/* THE FIELD, TEAM mode (0e c F6): ONE picture of where this defense
             gets beaten -- the offence facing it, every target, over the ink,
             the run gaps a tap away. It replaced the FootballField heat map
-            (Zones) and a second, folded FieldChart of the same defence. A
-            defence with no game on the slate has no offence to draw, so it
+            (Zones) and a second, folded FieldChart of the same defense. A
+            defense with no game on the slate has no offence to draw, so it
             keeps the zone read. */}
         {opp ? <>
           <TheField key={`${opp}-${active}`} team={opp} defTeam={active} defWeek={data?.week} matchup={matchup} venue={gameVenue(data?.games, opp, active)}

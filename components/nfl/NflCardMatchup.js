@@ -13,7 +13,7 @@ import { ordinal } from '../../lib/format'
 // tables, nothing else. One accent (the product's jade); his own row edged, the
 // rest quiet. Real numbers only from nfl_matchup.json; a thin sample is flagged
 // "early" and a missing block is left out, never dashed in.
-//   1. THE DEFENCE BY ROLE   his group's chairs: touchdowns and yards allowed, ranks of 32
+//   1. THE DEFENSE BY ROLE   his group's chairs: touchdowns and yards allowed, ranks of 32
 //   2. HOW HE DOES VS EACH COVERAGE   man / zone: his targets and yards next to how much the club plays it
 //   3. THEIR SHELLS          the club's coverage mix
 //   4. EXPLOSIVE             his 10+/20+/30+/40+ next to what the club has allowed
@@ -48,7 +48,7 @@ export default function NflCardMatchup({ player, matchup, slate }) {
   if (de && num(de.pass_20) != null) exRows.push({ _key: 'opp', who: `${opp} allow`, p10: de.pass_10, p20: de.pass_20, p30: de.pass_30, p40: de.pass_40, lng: null, n: null })
 
   if (!roleRows.length && !covRows.length && !shells.length && !exRows.length) {
-    return <div style={{ fontSize: 13, color: C.text3 }}>Not available yet: nothing published on {opp}&apos;s defence for his role.</div>
+    return <div style={{ fontSize: 13, color: C.text3 }}>Not available yet: nothing published on {opp}&apos;s defense for his role.</div>
   }
   const g = roleRows[0]?.g
   return (
@@ -56,7 +56,7 @@ export default function NflCardMatchup({ player, matchup, slate }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
         <TeamMark sport="nfl" abbr={opp} variant="logo" px={28} />
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 16, fontWeight: 900 }}>{opp} defence</div>
+          <div style={{ fontSize: 16, fontWeight: 900 }}>{opp} defense</div>
           <div style={{ fontSize: 12, color: C.text3 }}>{role ? `${player.name} is their ${role} to face` : `facing ${player.position}s`}{Number.isFinite(g) ? ` · ${g} game${g === 1 ? '' : 's'}${g < 4 ? ', early' : ''}` : ''}</div>
         </div>
       </div>

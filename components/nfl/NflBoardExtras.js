@@ -175,7 +175,7 @@ export function NflBoardList({ players, market, weights, odds, phone, onPlayerCl
     { key: 'lowS', label: 'Thin', flag: true, mark: '\u25CB', w: 34, group: MARK_GROUP, title: 'Few games behind this score. Dimmed rows are these.' },
     { key: 'matchup', label: 'Matchup', heat: false, w: 64, dim: true, group: MARK_GROUP, title: 'The coverage read: TARGET when the defense he faces leaks to his role, AVOID when it does not.' },
     ...(dmk && dash && !dash.off ? [{ key: 'dash', label: 'DASH · TEST', w: phone ? 108 : 118, heat: false, numeric: true,
-      title: 'Our median for this stat (dash-line-v1), beside the book\u2019s line. Green = above it (OVER), red = below (UNDER), grey = within half a unit. A preview until the game locks, then frozen. A TEST: nothing is called from it.',
+      title: 'Our median for this stat, beside the book\u2019s line. Bright = above it (OVER), dim = below (UNDER), grey = within half a unit. A preview until the game locks, then frozen. Nothing is called from it.',
       fmt: (v, r) => (r._dash ? <DashChip row={r._dash} compact /> : '—') }] : []),
   ]
   if (!rows.length) return null

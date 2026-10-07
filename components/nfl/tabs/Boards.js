@@ -283,12 +283,12 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
         <FilterPill active={onlyUpcoming} onClick={() => { setOnlyUpcoming(!onlyUpcoming); setAll(false) }} title="His game has not kicked off yet.">⏱ Not kicked off</FilterPill>
         <FilterPill active={onlyWatched} onClick={() => { setOnlyWatched(!onlyWatched); setAll(false) }} title="Only names on your watchlist.">★ Watchlist</FilterPill>
         <FilterPill active={showLow} onClick={() => { setShowLow(!showLow); setAll(false) }} count={lowCount || undefined}
-          title="Include players the model scored off a thin sample. They render dimmed, and they are out by default.">🔬 Low sample</FilterPill>
+          title="Include players scored off a thin sample. They render dimmed, and they are out by default.">🔬 Low sample</FilterPill>
       </DrawerPills>
       <DrawerPills label="Sort">
         {[['score', 'Score'], ['price', 'Longest price'], ['kickoff', 'Earliest kickoff']].map(([k, label]) => (
           <FilterPill key={k} active={sortBy === k} onClick={() => setSortBy(k)}
-            title={k === 'score' ? "The model's own score for this market — the board's default." : k === 'price' ? 'Longest price first. An unpriced card sinks rather than sorting as if it were even money.' : 'Earliest kickoff first.'}>{label}</FilterPill>
+            title={k === 'score' ? "The score for this market — the board's default." : k === 'price' ? 'Longest price first. An unpriced card sinks rather than sorting as if it were even money.' : 'Earliest kickoff first.'}>{label}</FilterPill>
         ))}
       </DrawerPills>
       {drawer.section}

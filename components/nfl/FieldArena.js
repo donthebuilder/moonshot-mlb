@@ -255,7 +255,7 @@ export default function FieldArena({ dots = [], cells = [], spot = null, rz = []
         const ht = 4 + (36 * n) / max
         // slim, so the turf and the discs read around it
         const box = new THREE.Mesh(new THREE.BoxGeometry(Math.min(14, (y1 - y0) * YD * 0.45), ht, LANE_W * 0.32),
-          // the 2D's heat: red = the defence gives up more there, blue = holds up, dim = normal or thin
+          // the 2D's heat: red = the defense gives up more there, blue = holds up, dim = normal or thin
           new THREE.MeshBasicMaterial({ color: new THREE.Color(h >= 0.12 ? C.green : cl >= 0.12 ? C.text2 : C.text3), transparent: true, opacity: h >= 0.12 || cl >= 0.12 ? 0.45 : 0.2, depthWrite: false }))
         box.position.copy(at((LANES3.indexOf(L) + 0.5) / 3, (y0 + y1) / 2, ht / 2))
         group.add(box)

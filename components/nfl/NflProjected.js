@@ -23,7 +23,7 @@ export default function NflProjected({ data, matchup, logs, players: pool = [], 
   const [sortDir, setSortDir] = useState('desc')
   const week = data ? { season: data.season, week: data.week } : null
   const lenses = useMemo(() => [
-    { key: 'highconf', label: '⭐ High confidence', tip: "The bot's own high-confidence TD flag.", hit: (p) => Boolean(p.high_confidence_td_flag) },
+    { key: 'highconf', label: '⭐ High confidence', tip: "TUDDY's high-confidence TD flag.", hit: (p) => Boolean(p.high_confidence_td_flag) },
     ...angleDefs({ matchup, logs, market: 'TD', matchupTag, week }).map((a) => ({ key: a.key, label: a.label, tip: a.title, hit: a.test })),
     { key: 'watch', label: '⭐ My watchlist', tip: 'Only players on your watchlist.', hit: (p) => Boolean(watchlist?.isPinned(p.player_id)) },
   ], [matchup, logs, week?.season, week?.week, watchlist])   // eslint-disable-line react-hooks/exhaustive-deps
@@ -63,7 +63,7 @@ export default function NflProjected({ data, matchup, logs, players: pool = [], 
       lenses={lenses} active={active} setActive={setActive} shownCount={players.length} totalCount={total} noun="players" sport="nfl"
       by={by} setBy={setBy}
       note={<>
-        <b style={{ color: C.text2 }}>xTD</b> — each player&apos;s expected touchdowns a game from the model, summed over
+        <b style={{ color: C.text2 }}>xTD</b> — each player&apos;s expected touchdowns a game, summed over
         everyone scored on this slate (the dial on the Slate&apos;s game cards). Rec, Rec yds and Rush yds are the same
         players&apos; per-game averages, summed{data?.preseason ? '. Preseason: last season’s rates at full usage — read it as the ceiling' : ''}.
       </>}

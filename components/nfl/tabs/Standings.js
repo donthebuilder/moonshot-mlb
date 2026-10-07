@@ -1,4 +1,5 @@
 'use client'
+import NflNote from '../NflNote'
 import { useEffect, useState } from 'react'
 import PageHeader from '../../PageHeader'
 import TeamMark from '../../TeamMark'
@@ -28,7 +29,7 @@ export default function Standings({ onOpenTeam }) {
       <PageHeader
         eyebrow="TUDDY · STANDINGS"
         title="NFL standings"
-        note="Every division, in the order the feed publishes it: record, points for and against, home and road, division and conference records, streak. Nothing here is a TUDDY score."
+        note={<NflNote tab="standings" />}
         theme={C} numFont={NUM_FONT} accent={C.green}
         stats={data ? [{ value: teams.length, label: 'TEAMS', tone: C.text2 }, { value: (data.conferences || []).reduce((n, c) => n + c.divisions.length, 0), label: 'DIVISIONS', tone: C.text2 }] : null}
       />

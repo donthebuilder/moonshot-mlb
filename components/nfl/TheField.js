@@ -25,7 +25,7 @@ import { LANES3, acrossOf, dotRadiusPx } from '../../lib/nfl/fieldPlace'
 // both"). This is FieldChart.js's bones -- the plays file, the real-yards
 // geometry, the windows, the hash link, the tap-a-target card, the red-zone
 // strip -- with MatchupMap's ideas poured in: the answer as a sentence
-// first, the defence as halftone ink, THE SPOT hand-circled, the numbers one
+// first, the defense as halftone ink, THE SPOT hand-circled, the numbers one
 // tap down. MatchupMap.js and TouchMap.js went with this (F5).
 //
 // THE CHAIN. nflverse pbp + FTN charting -> bots/nfl/nfl_field.py ->
@@ -125,7 +125,7 @@ function useFieldFile(team) {
 // coverage (bots/nfl nfl_field.route_bundle -> nfl_routes_<TEAM>.json, _who,
 // _def). Participation is once a year, so this is LAST season all season and
 // the page says so. The 10 KB who-index loads with the field (it decides
-// whether the chip shows); the team file(s) and the defence file only when the
+// whether the chip shows); the team file(s) and the defense file only when the
 // chip is picked. A player who moved mid-season gets every team he played for.
 const RFILES = new Map()
 const getJSON = (name) => {
@@ -217,7 +217,7 @@ function writeHash(win, { share = true, dots = true, res = 'ALL', dn = 'ALL', ty
 /**
  * team       the offence (its nfl_field_{TEAM}.json)
  * player     the slate row (PLAYER mode); null = TEAM only
- * defTeam    the defence he plays next; defWeek its week number
+ * defTeam    the defense he plays next; defWeek its week number
  * matchup    nfl_matchup.json (field.* for the ink, roles/dvp for the ROLE line)
  * players    slate rows, for names in TEAM mode
  * hashSync   read/write view=field&win= on the URL (the player card)
@@ -230,12 +230,12 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   // A QB is never targeted, so his picture is his offence's targets.
   const [mode, setMode] = useState(initialMode || (pid && !isQB ? 'PLAYER' : 'TEAM'))
   const [win, setWin] = useState(fromHash?.win || 'SZN')
-  // THE LAYERS (Donovan 10-02, "like the shot thing in NHL"): the defence's
+  // THE LAYERS (Donovan 10-02, "like the shot thing in NHL"): the defense's
   // heat always under; the targets (dots) and each zone's share on top, each
   // its own chip. THE FILTERS cut the dots, the shares, the numbers and the 3D;
-  // the heat stays the season defence.
+  // the heat stays the season defense.
   // THE VIEW (2026-10-02, the Rink's toggle): DOTS = the targets over the
-  // defence; ZONES = each zone's share printed big, no dots. dots=0 in the link = ZONES.
+  // defense; ZONES = each zone's share printed big, no dots. dots=0 in the link = ZONES.
   const [fv, setFv] = useState(fromHash?.dots === false ? 'zones' : 'dots')
   const dotsOn = fv === 'dots', shareOn = fv === 'zones'
   const [res, setRes] = useState(fromHash?.res || 'ALL')
@@ -325,8 +325,8 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   // The ink of a target, one rule for the 2D dots and the 3D stadium.
   const inkOf = (p) => { if (asPlayer) return C.cream; const whoI = topWho.indexOf(p.pid); return whoI >= 0 ? WHO_INK[whoI] : C.text3 }
 
-  // ── the defence, through the one model ──────────────────────────────────
-  // under last season's routes, last season's defence (nfl_routes_def.json's own grids)
+  // ── the defense, through the one model ──────────────────────────────────
+  // under last season's routes, last season's defense (nfl_routes_def.json's own grids)
   const defField = useMemo(() => (routesOn ? { def_pass: rf.def?.def_pass || {}, league_pass: rf.def?.league_pass || {} } : field), [routesOn, rf.def, field])
   const defModel = useMemo(() => fieldModel({ field: defField, defTeam, mode: 'def', pass: true }), [defField, defTeam])
   // A QB's spot is his own throws (field.qb_pass), the season grid.
@@ -343,7 +343,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   }, [drawn, defModel])
   const byZ = useMemo(() => Object.fromEntries(cells.map((c) => [c.z, c])), [cells])
 
-  // THE SPOT, HONEST (plan item 4): a real hole (12+ defence attempts, a
+  // THE SPOT, HONEST (plan item 4): a real hole (12+ defense attempts, a
   // positive leak), 4%+ of the work, and at least five of the plays behind it.
   const spot = useMemo(() => {
     if (qbModel && mode === 'TEAM' && isQB) return qbModel.spot ? { ...byZ[qbModel.spot.z], share: qbModel.spot.share, n: qbModel.spot.mine?.att || 0 } : null
@@ -361,7 +361,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   // The picture follows where his work is (lib/nfl/fieldModel.js
   // fieldView: targets -- a QB's throws -- vs carries, the season grids); a
   // toggle only for a pass-catching back. With no player (the Matchups
-  // tab's TEAM read) both sides of the defence are a tap apart.
+  // tab's TEAM read) both sides of the defense are a tap apart.
   const tgN = pid ? mapAttempts(isQB ? field?.qb_pass?.[pid] : field?.player_pass?.[pid]) : 0
   const caN = pid ? mapAttempts(field?.player_rush?.[pid]) : 0
   const dv = pid ? fieldView({ tg: tgN, ca: caN }) : { view: 'pass', toggle: Boolean(field?.def_rush?.[defTeam]) }
@@ -382,7 +382,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   const holes = cells.filter((c) => c.leak != null && c.leak > 0 && c.att >= SPOT_MIN_DEF_ATT)
   const lines = []
   if (thinSample) lines.push(<>Built on {plural(n, unit)}: a hint, not a tendency.</>)
-  if (!defTeam) lines.push(<>No opponent this week, so no defence to read: {whose} targets only.</>)
+  if (!defTeam) lines.push(<>No opponent this week, so no defense to read: {whose} targets only.</>)
   else if (!defModel) lines.push(<>No passing map for {TL(defTeam)} yet, so the field has no ink.</>)
   else if (n >= SPOT_MIN_MINE) {
     if (spot) {
@@ -393,7 +393,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
       lines.push(<>Nothing lines up. Every hole {TL(defTeam)} leave is one {who} {asPlayer || usingQb ? "doesn't" : "don't"} {usingQb ? 'throw into' : asPlayer ? 'work' : 'throw into'}.</>)
     }
   }
-  // LAST SEASON'S ROUTES: the route this defence leaked most on (15+ targets
+  // LAST SEASON'S ROUTES: the route this defense leaked most on (15+ targets
   // against, yards a target over the league's), and man vs zone
   if (routesOn && defTeam && rf.def) {
     const mineR = rf.def.def_route?.[defTeam] || {}, lgR = rf.def.league_route || {}
@@ -414,7 +414,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
     const runHoles = (runDef?.cells || []).filter((c) => Number.isFinite(c.leak) && c.leak > 0 && c.att >= SPOT_MIN_DEF_ATT)
     const gap = (z) => LANE_WORD[z].replace(/^runs /, '')
     if (pid && rn < FALLBACK_MIN_ATT) lines.push(<>Built on {plural(rn, 'carry').replace('carrys', 'carries')}: a hint, not a tendency.</>)
-    if (!defTeam) lines.push(<>No opponent this week, so no defence to read.</>)
+    if (!defTeam) lines.push(<>No opponent this week, so no defense to read.</>)
     else if (!runDef) lines.push(<>No running map for {TL(defTeam)} yet, so the line has no ink.</>)
     else if (!pid || rn >= SPOT_MIN_MINE) {
       if (runSpot && pid) {
@@ -549,7 +549,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   }
   { const g = turfLayers(`p${uid}`, 0, 0, W, H); defs.push(...g.defs); parts.push(...g.over) }
 
-  // THE HEAT (10-02, the NHL VS GOALIE way): each zone by the defence's
+  // THE HEAT (10-02, the NHL VS GOALIE way): each zone by the defense's
   // yards a target there vs the league's -- red where they give up more, blue
   // where they hold up, no tint near normal (heatOf / coolOf, lib/nfl/fieldModel),
   // hatched where too few plays against them to say (thin).
@@ -588,7 +588,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   // per-zone numbers (plan item 5): the leak where the sample holds, "thin"
   // elsewhere; the spot's number rides its ring.
   const labels = []
-  // the defence's number per zone lives in the zone bars and the table now (2026-10-02,
+  // the defense's number per zone lives in the zone bars and the table now (2026-10-02,
   // the MOONSHOT frame): the field carries only turf, the red / blue layer, the spot and the plays
   for (const B of BANDS) {
     labels.push(<text key={`bl${B.key}`} x={x0 - u(6)} y={(Y(B.lo) + Y(B.hi)) / 2} dy=".35em" textAnchor="end" fontFamily={NUM_FONT} fontWeight={800} fontSize={u(labelPx)} fill={C.text3}>{B.label}</text>)
@@ -740,7 +740,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
       </g>)
     }
     runPicture = (
-      <svg viewBox={`0 0 ${W} ${RH}`} role="img" aria-label={`${defTeam || 'The defence'}: rushing yards allowed by gap vs a normal defence${pid ? `, with ${player?.name}'s carries` : ''}`}
+      <svg viewBox={`0 0 ${W} ${RH}`} role="img" aria-label={`${defTeam || 'The defense'}: rushing yards allowed by gap vs a normal defense${pid ? `, with ${player?.name}'s carries` : ''}`}
         style={{ display: 'block', width: '100%', height: 'auto', borderRadius: 8 }}>
         <defs>{rdefs}</defs>
         {rparts}{rlabels}
@@ -772,7 +772,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   )
   const howTo = isRun ? (
     <div style={{ fontSize: 11, lineHeight: 1.5, color: C.text3, marginTop: 6 }}>
-      {runDef ? <>Ink: where {TL(defTeam)} get beaten on the ground, gap by gap, vs a normal defence. Thin = too few carries to say. </> : null}
+      {runDef ? <>Ink: where {TL(defTeam)} get beaten on the ground, gap by gap, vs a normal defense. Thin = too few carries to say. </> : null}
       Carries by gap are from the season grid; the dots in the strip are {pid ? 'his' : 'their'} touches inside the 20.
     </div>
   ) : (
@@ -787,7 +787,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
           </div>
         )}
         <div>
-          The window chips (season / last 5 / last 3 / last week) and the Result / Down / Type filters cut the dots, the zone shares and the numbers; the red / blue layer is always the season. DOTS shows every target over the defence; ZONES prints each zone's share instead. 🏟 STADIUM draws the same targets in 3D, each zone&apos;s share rising as a column in the layer&apos;s colour; its lines are not ball flights.
+          The window chips (season / last 5 / last 3 / last week) and the Result / Down / Type filters cut the dots, the zone shares and the numbers; the red / blue layer is always the season. DOTS shows every target over the defense; ZONES prints each zone's share instead. 🏟 STADIUM draws the same targets in 3D, each zone&apos;s share rising as a column in the layer&apos;s colour; its lines are not ball flights.
         </div>
       </HowToRead>
   )
@@ -823,7 +823,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
     }).filter(Boolean)
     : DEPTHS.flatMap((d) => SIDES.map((s) => byZ[`${s}|${d}`])).filter(Boolean)
       .map((c) => ({ ...c, where: cap(phrase(c.z)), right: `${c.n} of ${drawn.length}` }))
-  // last season's defence by route and by coverage (nfl_routes_def.json)
+  // last season's defense by route and by coverage (nfl_routes_def.json)
   const routeRows = routesOn && defTeam && rf.def ? [
     ...ROUTES.map((k) => ({ k, label: cap(ROUTE_WORD[k]), v: rf.def.def_route?.[defTeam]?.[k], l: rf.def.league_route?.[k] })),
     ...COVS.map((k) => ({ k: `cv${k}`, label: `vs ${COV_WORD[k] ? COV_WORD[k].toLowerCase() : k}`, v: rf.def.def_cov?.[defTeam]?.[k], l: rf.def.league_cov?.[k] })),
@@ -923,12 +923,12 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
       )}
     </div>
   )
-  // THE ZONE BARS (SprayField's lane bars): the busiest zones, share + count, the defence's leak beside it
+  // THE ZONE BARS (SprayField's lane bars): the busiest zones, share + count, the defense's leak beside it
   const zoneBars = isRun ? null : cells.filter((c) => c.n).sort((a, b) => b.n - a.n).slice(0, 6)
   const bars = zoneBars && zoneBars.length ? (
     <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 4 }}>
       {zoneBars.map((c) => (
-        <div key={c.k} title={`${cap(phrase(c.z))}: ${c.n} of ${drawn.length} targets${c.leak != null ? `; ${defTeam} ${fmtPct(c.leak)} vs a normal defence` : ''}`} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10 }}>
+        <div key={c.k} title={`${cap(phrase(c.z))}: ${c.n} of ${drawn.length} targets${c.leak != null ? `; ${defTeam} ${fmtPct(c.leak)} vs a normal defense` : ''}`} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10 }}>
           <span style={{ width: 58, color: C.text3, fontFamily: NUM_FONT }}>{c.L} {c.B.label}</span>
           <div style={{ flex: 1, height: 11, background: C.bg3, borderRadius: 2 }}>
             <div style={{ width: `${Math.max(2, c.share)}%`, height: '100%', background: chipColor(c.share, 0, 45), borderRadius: 2 }} />
@@ -972,7 +972,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
         <div ref={fieldBox} style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-start', minWidth: 0, maxWidth: 520, ...(phone ? { width: '100%' } : { flex: '1 1 320px' }) }}>
           {!isRun && (
             <ViewToggle theme={C} numFont={NUM_FONT} accent={C.green} value={fv} onChange={(k) => { setFv(k); setPick(null) }} label="Field view"
-              views={[{ k: 'dots', label: 'DOTS', title: 'Every target over the defence; tap one for the play' }, { k: 'zones', label: 'ZONES', title: 'Each zone\u2019s share of the targets' }]}
+              views={[{ k: 'dots', label: 'DOTS', title: 'Every target over the defense; tap one for the play' }, { k: 'zones', label: 'ZONES', title: 'Each zone\u2019s share of the targets' }]}
               extra={gl ? <button type="button" onClick={() => setStadium((v) => !v)} aria-pressed={stadium} title={stadium ? 'Close the 3D stadium' : 'The same targets, in the stadium, in 3D'} style={viewBtn(stadium, C.green, C, NUM_FONT)}>🏟 STADIUM</button> : null} />
           )}
           <div style={{ width: '100%' }}>{isRun ? runPicture : picture}</div>

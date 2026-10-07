@@ -388,7 +388,7 @@ export default function Picks({ picks, results, data, matchup, onPlayerClick, od
                 <Stat label="Your full card" value="—"
                       sub="no card yet — swap a pick below to start one" />
               )}
-              <Stat label="Bot's full card" value={pctTxt(totals.cardBotPct)}
+              <Stat label="TUDDY's full card" value={pctTxt(totals.cardBotPct)}
                     sub={`${totals.cardBotWon}/${totals.cardBotN}`} />
               <Stat label="Overrides" value={totals.overrides} sub="all time" />
             </div>

@@ -444,7 +444,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
         .filter(([k]) => Number.isFinite(player.scores?.[k]))
         .map(([k, label]) => {
           const sc = player.scores[k]
-          return { id: k, label: MARKET_SHORT[k] || label, text: String(Math.round(sc)), color: gradeFor(sc).color, title: `${label}: ${Math.round(sc)} (score, a ranking -- not a percentage)` }
+          return { id: k, label: MARKET_SHORT[k] || label, text: String(Math.round(sc)), color: gradeFor(sc).color, title: `${label}: ${Math.round(sc)} (score, a ranking — not a percentage)` }
         })} />
       {(() => {
         const r = ratesFor(player, markets, fullLog).find((x) => x.key === market)
@@ -469,7 +469,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
             {q.implied != null && <span>needs {q.implied}%</span>}
             {q.books ? <span style={{ color: C.text3 }}>{q.books} book{q.books === 1 ? '' : 's'}</span> : null}
             {q.matches !== false && <LineMoveChip quote={q} theme={C} numFont={NUM_FONT} />}
-            {!q.matches && <span style={{ color: C.yellow }}>different line from the model&apos;s bar</span>}
+            {!q.matches && <span style={{ color: C.yellow }}>a different line from the bar</span>}
           </div>
         )
       })()}
@@ -515,7 +515,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
         )}
       </>}
 
-      {/* MATCHUP: the defence he faces, and how it covers */}
+      {/* MATCHUP: the defense he faces, and how it covers */}
       {tab === 'matchup' && <NflCardMatchup player={player} matchup={matchup} slate={slate} />}
 
       {/* SPLITS: the pairs, then the combine filters and this stadium */}

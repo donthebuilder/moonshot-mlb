@@ -17,13 +17,13 @@ import { SHELL_SHAPE } from './CoverageShellField'
 //
 //   COVERAGE  pick Man or Zone. Left: the receivers doing the most against
 //             it league-wide (yards a target, TDs, catch rate, 10+ targets).
-//             Right: every defence's coverage mix drawn as one bar (Cover 0 /
+//             Right: every defense's coverage mix drawn as one bar (Cover 0 /
 //             1 / 2 / 3 / 4 / 6 shares), sortable by the shell you pick. Top:
 //             this week's fits -- a receiver who is good against it whose
 //             opponent plays it a lot.
 //   HOLES     the field with the league's seven holes as arrows (length =
 //             yards a carry). Tap a hole: the backs who do most through it
-//             (8+ carries) and the defences that leak most there.
+//             (8+ carries) and the defenses that leak most there.
 //
 // Honest limits, said once, small: the charting splits receivers by man vs
 // zone, not by each shell (no per-receiver "vs Cover 3" is published), and
@@ -123,7 +123,7 @@ function Coverage({ matchup, byId, onPlayerClick, season }) {
         </div>
       </div>
 
-      {/* WHO PLAYS IT MOST: the defences, ranked, in a table (the bars it replaced were the same numbers) */}
+      {/* WHO PLAYS IT MOST: the defenses, ranked, in a table (the bars it replaced were the same numbers) */}
       <div style={{ marginTop: 14 }}>
         <NflTable
           key={`defs-${shell}`}
@@ -170,7 +170,7 @@ function Coverage({ matchup, byId, onPlayerClick, season }) {
 
 function Holes({ matchup, byId, onPlayerClick, season }) {
   const [hole, setHole] = useState('middle|middle')
-  const [defTeam, setDefTeam] = useState(null)   // a defence picked from the table: the field shows ITS holes
+  const [defTeam, setDefTeam] = useState(null)   // a defense picked from the table: the field shows ITS holes
   const f = matchup?.field || {}
   const lg = f.league_rush || {}
   const dl = defTeam ? f.def_rush?.[defTeam] || {} : null

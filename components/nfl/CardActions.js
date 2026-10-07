@@ -29,10 +29,10 @@ export function VerdictStamp({ player, results, bars }) {
   if (!rows.length) return null
   const hits = rows.filter((r) => r.hit).length
   return (
-    <div style={{ margin: '10px 0 2px', padding: '9px 11px', borderRadius: 10, border: `1px solid ${hits ? 'rgba(0,245,173,.4)' : 'rgba(248,113,113,.35)'}`, background: hits ? 'rgba(0,245,173,.06)' : 'rgba(248,113,113,.05)' }}>
+    <div style={{ margin: '10px 0 2px', padding: '9px 11px', borderRadius: 10, border: `1px solid ${C.border2}`, background: 'transparent' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
-        <span style={{ font: `900 8.5px/1 ${NUM_FONT}`, letterSpacing: '.1em', color: hits ? C.green : C.text3 }}>GRADED · {results.mode === 'week' ? `WEEK ${results.week}` : 'PRESEASON'}</span>
-        <span style={{ font: `800 9px/1 ${NUM_FONT}`, color: C.text3 }}>{hits}/{rows.length} bars cleared{results.graded_at_human ? ` · ${localStamp(results.graded_at_human)}` : ''}</span>
+        <span style={{ font: `900 8.5px/1 ${NUM_FONT}`, letterSpacing: '.1em', color: hits ? C.green : C.text3 }}>{results.mode === 'week' ? `WEEK ${results.week}` : 'PRESEASON'}</span>
+        <span style={{ font: `800 9px/1 ${NUM_FONT}`, color: C.text3 }}>{hits} of {rows.length} cleared</span>
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
         {rows.map((r) => (
@@ -90,7 +90,7 @@ export function PutOnCard({ player, market, picks, slate }) {
               title={isBot ? `${player.name} is TUDDY's call here` : over ? `Your override: ${over.name} over ${rung.name}` : `TUDDY: ${rung.name} (${Math.round(rung.score)})`}
               style={{ padding: '6px 4px', borderRadius: 8, cursor: locked || isBot ? 'default' : 'pointer', textAlign: 'center', color: 'inherit',
                 border: `1px solid ${isMe ? C.text : isBot ? C.green + '88' : over ? C.yellow + '66' : C.border}`,
-                background: isMe ? 'rgba(53,205,255,.1)' : isBot ? 'rgba(0,245,173,.08)' : 'transparent', opacity: locked ? .6 : 1 }}>
+                background: isMe ? 'rgba(255,255,255,.06)' : isBot ? 'rgba(0,245,173,.08)' : 'transparent', opacity: locked ? .6 : 1 }}>
               <div style={{ font: `900 12px/1 ${NUM_FONT}`, color: isMe ? C.text : isBot ? C.green : C.text2 }}>{rung.rank}</div>
               <div style={{ marginTop: 4, fontSize: 8, color: isMe || isBot ? C.text : C.text3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{isMe ? 'YOU' : isBot ? 'BOT' : surname(holder)}</div>
             </button>

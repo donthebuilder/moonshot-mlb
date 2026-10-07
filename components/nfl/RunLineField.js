@@ -6,7 +6,7 @@ import { LANES } from '../../lib/nfl/fieldModel'
 // THE RUN HOLES, ON A FIELD OF REAL POSITIONS (2026-10-07, Donovan: "should look
 // like actual players ... offensive line gaps A/B/C/D, TE, edge"). The offence is
 // drawn at the line of scrimmage as it lines up -- tight end, tackle, guard, centre,
-// guard, tackle, tight end -- with the quarterback and back behind, and the defence's
+// guard, tackle, tight end -- with the quarterback and back behind, and the defense's
 // front faint across from them. Each of the seven holes the data charts sits over
 // the man it is named for (nflverse charts a run by the lineman it went over: "end"
 // = outside the tackle, by the tight end; "tackle"; "guard"; "middle" = the centre).
@@ -50,7 +50,7 @@ export default function RunLineField({ cells = {}, pickedKey = null, onPick = nu
       </g>
       <rect x="0.5" y="0.5" width={W - 1} height={H - 1} rx="10" fill="none" stroke={C.border2} />
 
-      {/* the defence's front, faint: four down linemen over the gaps, three linebackers behind them */}
+      {/* the defense's front, faint: four down linemen over the gaps, three linebackers behind them */}
       {[X0 + STEP * 1, X0 + STEP * 2.5, X0 + STEP * 3.5, X0 + STEP * 5].map((x) => <text key={`d${x}`} x={x} y={LOS - 14} textAnchor="middle" fontSize="15" fontWeight="900" fill={C.text} opacity="0.22">✕</text>)}
       {[X0 + STEP * 1.5, X0 + STEP * 3, X0 + STEP * 4.5].map((x) => <text key={`l${x}`} x={x} y={LOS - 36} textAnchor="middle" fontSize="15" fontWeight="900" fill={C.text} opacity="0.16">✕</text>)}
 

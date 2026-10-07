@@ -5,9 +5,10 @@ import { NFL_SUBS } from './tabExplainerTexts'
 
 // A page's one subtitle (12 words at most) with a "(?)" when there is more to say. The (?) works
 // on tap (lib/explain.js): the longer answer shows in the app's one explain panel.
-export default function NflNote({ tab, style }) {
-  const t = NFL_SUBS[tab]
-  if (!t) return null
+export default function NflNote({ tab, style, why: whyOverride }) {
+  const t0 = NFL_SUBS[tab]
+  if (!t0) return null
+  const t = whyOverride ? { ...t0, why: whyOverride } : t0
   return (
     <span style={style}>
       {t.sub}

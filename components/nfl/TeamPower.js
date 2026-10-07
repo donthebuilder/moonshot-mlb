@@ -17,7 +17,7 @@ import { RAMP } from '../../lib/nfl/theme'
 // best QB, two RBs, three WRs and one TE by projected points, summed. That is
 // a ranking of how much a team's skill players produce — the number a lineup
 // decision cares about — and it is stated as such rather than dressed up as a
-// win-probability model it is not. There is no defence term because the feed
+// win-probability model it is not. There is no defense term because the feed
 // publishes no defensive stat line yet (see nflFeed.js's D/ST note).
 //
 // The stats behind it are per-game and, until the regular season publishes,

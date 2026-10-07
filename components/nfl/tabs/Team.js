@@ -19,7 +19,7 @@ import { STATUS_WORD } from '../../../lib/callStatus'
 // stats just like the same way you would do a player"). A tapped club used to
 // open the Players portal filtered to it; now it opens this page, on LAMP's
 // team-page shape: the club and its record, this week's game, its players on
-// this week's board (every market's score), its defence per game, and its
+// this week's board (every market's score), its defense per game, and its
 // division. Data: the week file TUDDY already loads (nfl_week.json players /
 // games / team_defense) and the public standings feed the Standings tab reads.
 const NAME = Object.fromEntries(NFL_TEAMS)
@@ -64,7 +64,7 @@ export default function Team({ data, picks = null, onOpenPlayer, onOpenGame }) {
   const rows = useMemo(() => (data?.players || []).filter((p) => p.team === code && !p.on_bye)
     .map((p) => ({ ...p, _raw: p, _id: p.player_id, td: p.scores?.TD ?? null, recyds: p.scores?.REC_YDS ?? null, rec: p.scores?.REC ?? null, rushyds: p.scores?.RUSH_YDS ?? null, rushatt: p.scores?.RUSH_ATT ?? null, passyds: p.scores?.PASS_YDS ?? null, xtd: p.stats?.xTD ?? null, rz: p.stats?.RZ ?? null }))
     .sort((a, b) => (b.td ?? -1) - (a.td ?? -1)), [data, code])
-  if (!code) return <Empty title="NO CLUB PICKED" note="Tap a club's logo anywhere on TUDDY -- a board, a game, standings -- to open its page." />
+  if (!code) return <Empty title="NO CLUB PICKED" note="Tap a club's logo anywhere on TUDDY — a board, a game, standings — to open its page." />
   if (!NAME[code]) return <Empty title="NO SUCH CLUB" note={`"${code}" isn't one of the 32 NFL clubs.`} />
 
   const div = (st?.conferences || []).flatMap((c) => c.divisions).find((d) => d.teams.some((t) => t.abbr === code)) || null
@@ -80,7 +80,7 @@ export default function Team({ data, picks = null, onOpenPlayer, onOpenGame }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
       <PageHeader eyebrow="TUDDY · TEAM" theme={C} numFont={NUM_FONT} accent={C.green}
         title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 12 }}><TeamMark sport="nfl" abbr={code} variant="logo" px={56} />{NAME[code]}</span>}
-        note={div ? `${div.name}${place ? ` · ${place}${['', 'st', 'nd', 'rd'][place] || 'th'}` : ''}${me?.strk ? ` · streak ${me.strk}` : ''}` : 'The club, this week, its players on the board, its defence.'}
+        note={div ? `${div.name}${place ? ` · ${place}${['', 'st', 'nd', 'rd'][place] || 'th'}` : ''}${me?.strk ? ` · streak ${me.strk}` : ''}` : 'The club, this week, its players on the board, its defense.'}
         stats={[rec && { value: rec, label: 'RECORD', tone: C.text }, me?.pf != null && { value: `${me.pf}-${me.pa}`, label: 'PF-PA', tone: C.text2 }, called > 0 && { value: called, label: STATUS_WORD.called, tone: C.green }, { value: onBoard, label: STATUS_WORD.board, tone: C.green }].filter(Boolean)} />
 
       {game && (
@@ -107,7 +107,7 @@ export default function Team({ data, picks = null, onOpenPlayer, onOpenGame }) {
 
       {def && (
         <section>
-          <Kick>DEFENCE · PER GAME · {def.g} GAMES</Kick>
+          <Kick>DEFENSE · PER GAME · {def.g} GAMES</Kick>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {[['POINTS ALLOWED', n(def.points_allowed)], ['SACKS', n(def.def_sacks)], ['INTERCEPTIONS', n(def.def_interceptions)], ['FUMBLES RECOVERED', n(def.def_fumble_recoveries)], ['DEF TDs', n(def.def_touchdowns)]].map(([k, v]) => (
               <div key={k} style={{ padding: '10px 14px', borderRadius: 12, border: `1px solid ${C.border2}`, background: C.bg2 }}>

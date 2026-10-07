@@ -34,7 +34,7 @@ export default function Guide({ onNavigate, data }) {
 
       <StartHere heading="Three taps, in order" onNavigate={onNavigate} steps={[
         { n: 1, tab: 'home', title: 'Read the slate', body: 'Home shows the live ledger, The Six, lookout spots and the strongest boards.' },
-        { n: 2, tab: 'research', title: 'See who scores, and why', body: `${NFL_NAV.research.label} ranks every player, and each row says why in one line -- tap it for the numbers behind it.` },
+        { n: 2, tab: 'research', title: 'See who scores, and why', body: `${NFL_NAV.research.label} ranks every player, and each row says why in one line — tap it for the numbers behind it.` },
         { n: 3, tab: 'picks', title: 'Read the calls', body: 'Picks holds the designated calls. A call is graded; a high Boards rank is not automatically a call.' },
       ]} footer={<>
         That&apos;s the whole path. Everything below is reference — open a section only when a
@@ -75,7 +75,7 @@ export default function Guide({ onNavigate, data }) {
           when Defense/ST TD became the eighth. That one is a TEAM market, flagged
           v1 in the payload -- the rule below is about individual defenders. */}
       <Section title={`The ${MARKETS.length} markets`} emoji="🏈">
-        <P>These, and only these. No individual defensive-player props, ever — that lane rewards injuries. Defense/ST TD is a team market, marked v1: ranked, not yet backtested like the others.</P>
+        <P>These, and only these. No individual defensive-player props, ever — that lane rewards injuries. Defense/ST TD is a team market: ranked, but not yet tested like the others.</P>
         {MARKETS.map(([k, label, note]) => <Stat key={k} stat={label} def={note} />)}
       </Section>
 
@@ -97,7 +97,7 @@ export default function Guide({ onNavigate, data }) {
       </Section>
 
       <Section title="Badges on a row" emoji="🏷️">
-        <Term icon={<b style={{ color: C.yellow, fontFamily: NUM_FONT }}>Q</b>} term="Questionable" def="listed Questionable. He isn't dropped, but his opportunity inputs are damped 9% (the bot's QUESTIONABLE_DAMP, 0.91). Out and Doubtful never appear at all." />
+        <Term icon={<b style={{ color: C.yellow, fontFamily: NUM_FONT }}>Q</b>} term="Questionable" def="listed Questionable. He isn't dropped, but his opportunity inputs are scaled down 9%. Out and Doubtful never appear at all." />
         <Term icon={<b style={{ color: C.text2, fontFamily: NUM_FONT }}>CO</b>} term="Carryover" def={`no current-season form exists yet, so every number on him is${statSeason ? ` ${statSeason}` : ' last season'}'s per-game baseline. All of preseason is like this, and so is most of Weeks 1 and 2 — the badge clears player by player as each man banks two games of his own.`} />
         <Term icon={<span style={{ color: C.text3 }}>◌</span>} term="Dimmed" def="low sample. A rate built on four touches has no business sitting at the same visual weight as one built on two hundred." />
       </Section>
@@ -120,11 +120,11 @@ export default function Guide({ onNavigate, data }) {
         <Term tab="standings" go={go} icon="📊" term={NFL_NAV.standings.label} def="every division: record, points for and against, home and road, division and conference records, streak. Measured, not modeled." />
         <Term tab="leaders" go={go} icon="🏅" term="Leaders" def="who is first in each stat category, already sorted side by side — measured, with the model's scores as columns at the end of the table." />
         <Term tab="live" go={go} icon="📡" term="Live" def="every rung on the card against its bar, on the league feed, while the game is on. Cleared, live, or missed — plus the scoring plays as they land." />
-        <Term tab="scores" go={go} icon="🏟️" term={NFL_NAV.scores.label} def="every game, one row each: kickoff or score. Tap a game for its box -- passing, rushing, receiving and kicking lines, plus each team's defense." />
+        <Term tab="scores" go={go} icon="🏟️" term={NFL_NAV.scores.label} def="every game, one row each: kickoff or score. Tap a game for its box — passing, rushing, receiving and kicking lines, plus each team's defense." />
         <Term tab="streaks" go={go} icon="🔥" term="Streaks" def="who is hot or cold at a line you pick, last 30 games, no model in the way. Hot is the play; cold is the fade." />
         <Term tab="ledger" go={go} icon="📒" term={NFL_NAV.ledger.label} def="one page, four tabs. This week: the week in names and numbers, the card's touchdown calls and how many scored, round numbers, name echoes. Called: every touchdown sorted into called, on the board, or not on the board. Record: public receipts for completed calls, including misses. Archive: past weeks and the whole season." />
         <Term tab="report" go={go} icon="📝" term="Report Card" def="backtests each model against a simple trailing-average baseline." />
-        <Term tab="explosive" go={go} icon="🚀" term="Explosive" def="who turns a normal target into a chunk play, and which defence keeps allowing one. Measured off real play-by-play, no model score." />
+        <Term tab="explosive" go={go} icon="🚀" term="Explosive" def="who turns a normal target into a chunk play, and which defense keeps allowing one. Measured off real play-by-play, no model score." />
         <Term tab="numerology" go={go} icon="🔮" term="Numerology" def="jersey, birthday, life path, reduced to one digit. Pattern watching, disclosed as exactly that — it feeds no score, board or call." />
       </Section>
 
@@ -147,8 +147,8 @@ export default function Guide({ onNavigate, data }) {
             ones were dropped.
           </P>
           <Note color={C.yellow}>
-            The bot is being tuned through preseason and into the early weeks. It should be
-            fully formed by late season — same arc the baseball side took.
+            TUDDY is still being tuned through preseason and the early weeks. It should be
+            settled by late season.
           </Note>
         </Section>
       ) : (
@@ -165,7 +165,7 @@ export default function Guide({ onNavigate, data }) {
           </P>
           <Note color={C.yellow}>
             The badge clears a player at a time. By Week 3 most of the board is this
-            season&apos;s own form, and the defence-vs-position tables switch over with it.
+            season&apos;s own form, and the defense-vs-position tables switch over with it.
           </Note>
         </Section>
       )}

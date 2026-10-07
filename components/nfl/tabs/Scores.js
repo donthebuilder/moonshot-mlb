@@ -16,6 +16,7 @@
 //
 // COST: the feed is fetched only when you open a game or pick its week, never
 // on arrival (lib: useNflBoxFeed in components/nfl/NflBox.js).
+import NflNote from '../NflNote'
 import { useMemo, useState } from 'react'
 import PageHeader from '../../PageHeader'
 import GameRow from '../../GameRow'
@@ -103,7 +104,7 @@ export default function Scores({ data, onPlayerClick, onOpenGame = null }) {
       <PageHeader
         eyebrow="TUDDY · SCORES"
         title="Every game"
-        note={`Tap a game for its box. The deeper read is on ${NFL_NAV.games.label}.`}
+        note={<NflNote tab="scores" />}
         theme={C}
         numFont={NUM_FONT}
         accent={C.green}

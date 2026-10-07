@@ -28,4 +28,4 @@ export const NFL_SUBS = {
   storylines: { sub: 'Real facts from this week, read as stories.', why: 'Each line is a live fact off this week’s logs and grading, written as a sentence instead of a table row.' },
 }
 // Pages whose own header carries the note; the dashboard adds the line for every other tab.
-export const NFL_OWN_HEADER = new Set(['research', 'games', 'matchups', 'scores', 'standings', 'team', 'watchlist', 'streaks', 'leaders', 'explosive', 'redzone', 'numerology', 'storylines', 'live'])
+export const NFL_OWN_HEADER = new Set(['research', 'games', 'matchups', 'scores', 'standings', 'team', 'watchlist', 'streaks', 'leaders', 'explosive', 'redzone', 'numerology', 'storylines'])
