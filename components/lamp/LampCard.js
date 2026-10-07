@@ -68,8 +68,8 @@ export function PctBars({ r, market = 'GOAL', wide = false }) {
 const fin = (v, dp) => (Number.isFinite(v) ? v.toFixed(dp) : null)
 const Fact = ({ k, v }) => (v == null || v === '' ? null : (
   <span style={{ display: 'inline-flex', gap: 4, alignItems: 'baseline', whiteSpace: 'nowrap' }}>
-    <span style={{ color: C.text3, font: `800 9px/1 ${NUM_FONT}`, letterSpacing: '.06em' }}>{k}</span>
-    <b style={{ color: C.text2, font: `800 11px/1 ${NUM_FONT}` }}>{v}</b>
+    <span style={{ color: C.text3, font: `700 12px/1.2 ${NUM_FONT}` }}>{k}</span>
+    <b style={{ color: C.text, font: `800 14px/1.2 ${NUM_FONT}` }}>{v}</b>
   </span>
 ))
 
@@ -107,7 +107,7 @@ export function LampCard({ r, g, rank, market = 'GOAL', facts = {}, onOpen }) {
           <PlayerFace sport="nhl" variant="tile" photo={nhlMug(g.game.season, r.team, r.playerId)} team={null} name="" size={32} theme={C} />
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3, color: C.text }}><CardName name={r.name} /></div>
-            <div style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>{r.pos} · {r.team} vs {opp}</div>
+            <div style={{ fontSize: 12, color: C.text3, fontFamily: NUM_FONT }}>{r.pos} · {r.team} vs {opp}</div>
           </div>
         </div>
         <ScoreBadge label="LAMP" score={Math.round(r.score ?? 0)} sub={STATUS[r.status]} color={tone}
@@ -116,20 +116,21 @@ export function LampCard({ r, g, rank, market = 'GOAL', facts = {}, onOpen }) {
       <ExplainStrip notes={[openScore && (SCORE_NOTE[market] || SCORE_NOTE.GOAL)]} />
       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 8 }}>
         {called ? <Chip color={C.ice}>{STATUS.called}</Chip> : <Chip color={C.text3}>{STATUS[r.status]}</Chip>}
-        {facts.ppvpk && <Chip color={C.teal}>PP v PK {facts.ppvpk}</Chip>}
-        {facts.rest && <Chip color={C.text2}>REST {facts.rest}</Chip>}
       </div>
       {/* The why line is the three percentiles in words; the strip below prints
           them, so it only shows when there is no strip (a reason he's off the board). */}
       {r.why && !legs.length && <div style={{ fontSize: TYPE.micro, color: C.text2, lineHeight: 1.4, marginBottom: 7 }}>{r.why}</div>}
       {legs.length > 0 && <StatStrip stats={legs} style={{ marginBottom: 7 }} />}
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'baseline', marginBottom: 8 }}>
-        {market === 'PTS' ? <Fact k="P/GP" v={fin(r.legs?.ptsPg, 2)} /> : market === 'AST' ? <Fact k="A/GP" v={fin(r.legs?.astPg, 2)} /> : <Fact k="S/GP" v={fin(r.legs?.shotsPg, 2)} />}
-        {market === 'GOAL' && <Fact k="G/GP" v={fin(r.legs?.goalsPg, 2)} />}
-        <Fact k="TOI" v={Number.isFinite(r.legs?.toi) ? fmtSec(r.legs.toi) : null} />
+      <div style={{ display: 'flex', gap: '6px 14px', flexWrap: 'wrap', alignItems: 'baseline', marginBottom: 10 }}>
+        {market === 'PTS' ? <Fact k="Points/game" v={fin(r.legs?.ptsPg, 2)} /> : market === 'AST' ? <Fact k="Assists/game" v={fin(r.legs?.astPg, 2)} /> : <Fact k="Shots/game" v={fin(r.legs?.shotsPg, 2)} />}
+        {market === 'GOAL' && <Fact k="Goals/game" v={fin(r.legs?.goalsPg, 2)} />}
+        <Fact k="Ice time" v={Number.isFinite(r.legs?.toi) ? fmtSec(r.legs.toi) : null} />
         {sog && <Fact k="OPP SA/60" v={fin(r.legs?.oppSaPg, 1)} />}
         {(market === 'PTS' || market === 'AST') && <Fact k="OPP GA/GP" v={fin(r.legs?.oppGaPg, 2)} />}
-        <Fact k="PP G" v={r.ppg ?? null} />
+        <Fact k="PP goals" v={r.ppg ?? null} />
+        {facts.pp && <Fact k="Power play" v={`${facts.pp}%`} />}
+        {facts.pk && <Fact k="Their penalty kill" v={`${facts.pk}%`} />}
+        {facts.rest && <Fact k="Rest" v={facts.rest} />}
       </div>
       <div style={{ display: 'flex', gap: 6, alignItems: 'center' }} onClick={(e) => e.stopPropagation()}>
         <FollowButton sport="nhl" id={String(r.playerId)} name={r.name} team={r.team} position={r.pos} />

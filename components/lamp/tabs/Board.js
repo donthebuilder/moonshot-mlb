@@ -310,7 +310,7 @@ export const spotOf = (g, team, mine) => {
 export const pct1 = (v) => (v == null ? null : (v * 100).toFixed(1))
 export const ppVsPk = (us, them) => (pct1(us?.ppPct) && pct1(them?.pkPct) ? `${pct1(us.ppPct)} v ${pct1(them.pkPct)}` : null)
 export const restWord = (s) => (s?.b2b ? 'B2B' : s?.rest != null ? `${s.rest}d` : null)
-const factsOf = (g, r) => ({ ppvpk: ppVsPk(spotOf(g, r.team, true), spotOf(g, r.team, false)), rest: restWord(spotOf(g, r.team, true)) })
+const factsOf = (g, r) => ({ pp: pct1(spotOf(g, r.team, true)?.ppPct), pk: pct1(spotOf(g, r.team, false)?.pkPct), rest: restWord(spotOf(g, r.team, true)) })
 
 // The LEGS bars are PctBars (../LampCard), shared with the Cards view.
 
@@ -380,8 +380,73 @@ function columnsFor(g, onOpenTeam, market = 'GOAL') {
   ]
 }
 
+// ═══ THE DASH SLATE TABLE, LAMP'S DEFINITION (2026-10-06) ═══════════════════
+// One game, every skater, one table. The next sport copies these rules and
+// swaps its own columns; the skin (components/table/v2.js) supplies the rest.
+//   WHO IS IN IT   everyone on the board for the game, both clubs, in ONE
+//                  table. No "show more" on a game's players: a long table
+//                  scrolls inside its own box (maxHeight 480), like MOONSHOT's.
+//                  Preview caps belong to the LIST of games, not to a game.
+//   ORDER          what you scan first sits leftmost: rank, player (sticky),
+//                  the score, then the result once the game is graded, then
+//                  the rates (goals, shots, ice time), then power-play goals,
+//                  then (before the game is graded) the status word, then the full set (withNhlFullSet): percentiles, sample,
+//                  season line, form, matchup. Columns that are the same for
+//                  every skater of a club (power play against penalty kill,
+//                  rest) are NOT columns: they are the club's boxes above.
+//   GROUPS         every column carries a group, in order: Call, Per game,
+//                  PP, then the full set's.
+//   WIDTH          a figure column is as wide as its figure: 44-56px; the
+//                  name 170px; the status word 96px. No column is wider than
+//                  its longest value, no empty space, nothing squeezed to "…".
+//   TEXT AND ROW   the skin's: figures 11.5px (10px on a phone <= 430px, the
+//                  phone-table exception), names 12.5px (11px phone), rows
+//                  36px (32px phone). A figure never goes below 10px.
+//   LOGOS          the club logo only in the club column (it tells you which
+//                  side), folded under the name on a phone. Never beside a
+//                  figure, never repeated in a header the card already shows.
+//   HEAT           the skin's standouts at rest: in each stat column the top
+//                  fifth glows in the product's accent, the bottom fifth
+//                  recedes; the sorted column carries the whole ramp. No
+//                  red or green.
+//   SORT           the board's own rank by default; any header re-sorts, a
+//                  second tap reverses, shift-tap adds a tiebreak.
+//   STICKY         rank and name stay put while the figures scroll sideways.
+//   PHONE          the table scrolls inside its own box, never the page; the
+//                  club and position fold under the name. Tapping a row opens
+//                  the skater.
+function lampSlateColumns(g, market = 'GOAL', onOpenTeam) {
+  const graded = g.graded
+  const G = { call: { key: 'call', label: 'Call', order: 1 }, rate: { key: 'rate', label: 'Per game', order: 2 }, st: { key: 'st', label: 'PP', order: 3 } }
+  const result = graded
+    ? [{ answers: 'called', key: 'result', label: marketOf(market).result, heat: false, w: 78, group: G.call, fmt: (v, r) => {
+        const row = r._row
+        if (row.dressed === false) return <span style={{ color: C.text3, font: `800 11px/1 ${NUM_FONT}` }}>VOID</span>
+        const n = countOf(row, market)
+        return <>{row.status === 'called' ? <CalledChip /> : null}<span style={{ color: row.hit ? C.lamp : C.text3, font: `900 13px/1 ${NUM_FONT}` }}>{n == null ? '\u2014' : <>{row.hit && <LampDot />}{n}</>}</span></>
+      } }]
+    : [{ answers: 'called', key: 'result', label: 'STATUS', heat: false, w: 104, group: G.call, fmt: (v, r) => (r._row.status === 'called' ? <CalledChip /> : <span style={{ color: C.text3, font: `800 11px/1 ${NUM_FONT}`, letterSpacing: '.04em' }}>{STATUS[r._row.status]}</span>) }]
+  return [
+    { key: 'rank', label: '#', heat: false, mono: true, w: 30, group: G.call,
+      fmt: (v, r) => (r.status === 'called'
+        ? <span title={STATUS.called} style={{ display: 'inline-block', minWidth: 18, textAlign: 'center', background: C.ice, color: C.bg, font: `900 11px/18px ${NUM_FONT}`, borderRadius: 4 }}>{v}</span>
+        : v) },
+    { key: 'name', label: 'PLAYER', heat: false, sticky: true, bold: true, w: 170, group: G.call },
+    { key: 'pos', label: 'POS', heat: false, mono: true, w: 44, group: G.call },
+    { key: 'team', label: 'TEAM', heat: false, mono: true, w: 52, fold: false, group: G.call, fmt: (v) => v },
+    { key: 'score', label: 'SCORE', primary: true, scale: 'seq', domain: [0, 100], w: 56, group: G.call, explain: SCORE_TITLE[market], art: SCORE_ART[market] || null, answers: market === 'GOAL' ? 'nhl-goal' : null },
+    ...(graded ? result : []),
+    ...(RATE_COLS[market] || RATE_COLS.GOAL).map(({ key, label, dp, w }) => ({ key, label, primary: true, dp, w: Math.max(w, 56), group: G.rate })),
+    { key: 'toi', label: 'TOI', primary: true, w: 56, group: G.rate, fmt: (v) => (Number.isFinite(v) ? fmtSec(v) : '—') },
+    { key: 'ppg', label: 'PP G', primary: true, w: 52, group: G.st, explain: 'Power-play goals this season.' },
+    ...(graded ? [] : result),
+  ]
+}
+
 // Exported (2026-09-28) for LAMP's Slate -- the same game board, not a copy.
-export function GameBoard({ g, onOpenPlayer, onOpenGame, onOpenTeam, market = 'GOAL', keep = null, layout = 'list' }) {
+// slate (2026-10-06): the Slate's game -- the whole table, no header strip of its own
+// (the Slate's game header says who plays), no row cap; see lampSlateColumns above.
+export function GameBoard({ g, onOpenPlayer, onOpenGame, onOpenTeam, market = 'GOAL', keep = null, layout = 'list', slate = false }) {
   const game = g.game
   const scored = g.rows.filter((r) => r.status !== 'off' && (!keep || keep.has(`${game.id}|${r.playerId}`)))
   const off = g.rows.filter((r) => r.status === 'off')
@@ -401,6 +466,7 @@ export function GameBoard({ g, onOpenPlayer, onOpenGame, onOpenTeam, market = 'G
   }))
   return (
     <section aria-label={`${game.away.abbrev} at ${game.home.abbrev}`} style={{ border: `1px solid ${C.border2}`, borderRadius: 12, background: C.bg2, padding: '8px 10px 10px' }}>
+      {!slate && (
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 6 }}>
         <button type="button" onClick={() => onOpenGame?.(game.id)} style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', color: C.text, font: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
           {/* logos only (Donovan 10-02); the codes ride the logos' title / alt */}
@@ -412,10 +478,11 @@ export function GameBoard({ g, onOpenPlayer, onOpenGame, onOpenTeam, market = 'G
         <span style={{ color: live ? C.lamp : done ? C.text2 : C.text2, font: `800 10.5px/1 ${NUM_FONT}` }}>{game.statusLine || `${fmtPuckDrop(game.startUtc)} ${zoneAbbrev()}`}</span>
         <GameTypeChip label={game.gameTypeLabel} />
       </div>
-      <div style={{ color: C.text3, fontSize: 10.5, lineHeight: 1.5, marginBottom: 8, fontFamily: NUM_FONT }}>
+      )}
+      <div style={{ color: C.text3, fontSize: slate ? 12 : 10.5, lineHeight: 1.5, marginBottom: 8, fontFamily: NUM_FONT }}>
         {/* The stamp leads this line rather than wrapping the header onto a
             second one at 390px. */}
-        <span style={{ color: C.bg, background: stampTone, font: `900 8px/1 ${NUM_FONT}`, letterSpacing: '.14em', borderRadius: 5, padding: '3px 6px', marginRight: 7, verticalAlign: '1px' }}>{stamp}</span>
+        <span style={{ color: C.bg, background: stampTone, font: `900 ${slate ? 11 : 8}px/1 ${NUM_FONT}`, letterSpacing: '.14em', borderRadius: 5, padding: '3px 6px', marginRight: 7, verticalAlign: '1px' }}>{stamp}</span>
         {/* SHORT (2026-10-04, Donovan: "all these words give me anxiety"): the
             stamp, when it locked, lineups, and once graded who was in net. Rest
             and opponent GA/GP were repeats of the table's own columns; the
@@ -426,22 +493,22 @@ export function GameBoard({ g, onOpenPlayer, onOpenGame, onOpenTeam, market = 'G
         {g.net ? ` · in net: ${g.net}` : ''}
       </div>
       {scored.length === 0 ? <EmptyState title="NOBODY SCORED YET" note="No skater on either roster has ten NHL games on file." /> : layout === 'cards' ? (
-        <LampCards market={market} onOpen={onOpenPlayer} items={rows.map((x) => ({ key: x.id, r: x._row, g, rank: x.rank, facts: { ppvpk: x.ppvpk, rest: x.rest } }))} />
+        <LampCards market={market} onOpen={onOpenPlayer} items={rows.map((x) => ({ key: x.id, r: x._row, g, rank: x.rank, facts: { pp: pct1(spotOf(g, x.team, true)?.ppPct), pk: pct1(spotOf(g, x.team, false)?.pkPct), rest: x.rest } }))} />
       ) : (
-        <LampTable {...withNhlFullSet(rows, columnsFor(g, onOpenTeam, market))} heatMode="primary"
+        <LampTable {...withNhlFullSet(rows, slate ? lampSlateColumns(g, market, onOpenTeam) : columnsFor(g, onOpenTeam, market))} heatMode="primary"
           rowEdge={(r) => (r.status === 'called' ? C.ice : null)}
           faceOf={(r) => ({ sport: 'nhl', photo: nhlMug(game.season, r._row?.team, r._row?.playerId), name: r._row?.name })}
           dimRow={(r) => g.graded && r._row.dressed === false}
-          maxRows={PREVIEW_ROWS} maxHeight={9999}
+          maxRows={slate ? 200 : PREVIEW_ROWS} maxHeight={slate ? 480 : 9999}
           onRowClick={(r) => onOpenPlayer?.(r.id)} />
       )}
       {off.length > 0 && (
         <div style={{ marginTop: 8 }}>
-          <button type="button" onClick={() => setShowOff((v) => !v)} aria-expanded={showOff} style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', color: C.text3, font: `800 9px/1 ${NUM_FONT}`, letterSpacing: '.1em' }}>
+          <button type="button" onClick={() => setShowOff((v) => !v)} aria-expanded={showOff} style={{ background: 'transparent', border: 'none', padding: slate ? '14px 0' : 0, minHeight: slate ? 44 : undefined, cursor: 'pointer', color: C.text3, font: `800 ${slate ? 12 : 9}px/1 ${NUM_FONT}`, letterSpacing: '.1em' }}>
             NOT ON THE BOARD · {off.length} {showOff ? '▴' : '▾'}
           </button>
           {showOff && (
-            <div style={{ marginTop: 6, color: C.text3, fontSize: 11, lineHeight: 1.6 }}>
+            <div style={{ marginTop: 6, color: C.text3, fontSize: slate ? 12 : 11, lineHeight: 1.6 }}>
               {off.map((r) => <div key={r.playerId}><b style={{ color: C.text2 }}>{r.name}</b> {r.team} · {r.reason}{g.graded && r.hit ? <span style={{ color: C.lamp, fontFamily: NUM_FONT, marginLeft: 6 }}>scored{countOf(r, market) != null ? ` ${countOf(r, market)}` : ''}</span> : null}</div>)}
             </div>
           )}

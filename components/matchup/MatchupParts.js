@@ -71,21 +71,31 @@ export function FactLines({ lines = [], theme = MLB_C }) {
  * season / sample caveat is said ONCE, in `note`, not on every line.
  * tiles: [{ k, v, sub?, tone? }] -- a tile with no v is dropped.
  */
-export function FactTiles({ tiles = [], note = null, theme = MLB_C, numFont = MLB_NUM, min = 92 }) {
+// big (LAMP, 2026-10-06, Donovan: "you can't read that"): 12px label and note, a
+// 22px figure, room to wrap -- nothing clipped to "…". Absent, the tile is as it was.
+export function FactTiles({ tiles = [], note = null, theme = MLB_C, numFont = MLB_NUM, min = 92, big = false }) {
   const shown = tiles.filter((t) => t && t.v != null && t.v !== '' && t.v !== false)
   if (!shown.length) return null
   return (
     <div style={{ marginBottom: 12 }}>
-      <div style={{ display: 'grid', gap: 6, gridTemplateColumns: `repeat(auto-fill, minmax(${min}px, 1fr))` }}>
+      <div style={{ display: 'grid', gap: big ? 8 : 6, gridTemplateColumns: `repeat(auto-fill, minmax(${min}px, 1fr))` }}>
         {shown.map((t) => (
+          big ? (
+            <div key={t.k} style={{ padding: '10px 10px', borderRadius: 12, border: `1px solid ${theme.border}`, background: theme.glass, minWidth: 0 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: theme.text2, fontFamily: numFont, lineHeight: 1.3 }}>{t.k}</div>
+              <div style={{ fontSize: 22, fontWeight: 900, fontFamily: numFont, color: t.tone || theme.text, lineHeight: 1.2, marginTop: 3 }}>{t.v}</div>
+              {t.sub ? <div style={{ fontSize: 12, color: theme.text3, fontFamily: numFont, lineHeight: 1.3, marginTop: 2 }}>{t.sub}</div> : null}
+            </div>
+          ) : (
           <div key={t.k} style={{ padding: '7px 8px 6px', borderRadius: 12, border: `1px solid ${theme.border}`, background: theme.glass, minWidth: 0 }}>
             <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.08em', color: theme.text3, fontFamily: numFont, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.k}</div>
             <div style={{ fontSize: 16, fontWeight: 900, fontFamily: numFont, color: t.tone || theme.text, lineHeight: 1.25, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.v}</div>
             {t.sub ? <div style={{ fontSize: 11, color: theme.text3, fontFamily: numFont, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.sub}</div> : null}
           </div>
+          )
         ))}
       </div>
-      {note ? <div style={{ marginTop: 5, fontSize: 11, color: theme.text3 }}>{note}</div> : null}
+      {note ? <div style={{ marginTop: 5, fontSize: big ? 12 : 11, color: theme.text3 }}>{note}</div> : null}
     </div>
   )
 }
