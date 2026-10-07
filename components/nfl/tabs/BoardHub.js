@@ -151,7 +151,7 @@ export default function BoardHub({ slate, data, logs, matchup, odds, oddsStatus,
           <div style={{ flex: 1, minWidth: 0 }}><PillRow value={market} options={marketOptions} onChange={setMarket} /></div>
         </div>
         {opts && (
-          <BoardTopBar query={query} setQuery={setQuery} placeholder="Search player or team…"
+          <BoardTopBar inDrawer query={query} setQuery={setQuery} placeholder="Search player or team…"
             team={team} setTeam={setTeam} teams={teams} teamLabel="🏈 All teams"
             game={game} setGame={setGame} games={games} gameLabel="All games" />
         )}

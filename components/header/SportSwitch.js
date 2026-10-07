@@ -17,6 +17,9 @@ import { setSport } from '../../lib/sport'
 //
 // The current segment is the product's home button (what the wordmark was).
 //
+// BUCKETS never lights this dot: it has no live feed in the ticker (useLiveScores carries mlb,
+// nfl and nhl only), so liveBy.nba stays empty. That is deliberate (2026-10-07, audit X3):
+// no new polling for a dot. Leave it unlit.
 // A small dot on another product's segment says that product has a game on
 // right now ("live elsewhere"). That is where the other sports' scores went
 // when each ticker stopped carrying them (lib/headlines.js ownSport). It
