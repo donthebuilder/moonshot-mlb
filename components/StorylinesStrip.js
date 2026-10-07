@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import StoryRow, { StoryParts, BoardBadge } from './StoryRow'
 import TeamMark from './TeamMark'
 import { gameHref } from '../lib/routes'
+import { localDayTime } from '../lib/localTime'
 
 // 📰 THE HOME PAGE'S STORYLINES (BATCH-STORYLINES-PAGE step 4, 2026-09-27;
 // grouped into GAMES WORTH WATCHING 2026-10-04, see below).
@@ -27,7 +28,7 @@ export default function StorylinesStrip({ sport, theme: C, numFont, accent, max 
   // GAMES WORTH WATCHING (2026-10-04, Donovan's user review: "lead the casual
   // home with a Storylines 'games worth watching' card ... stories are about
   // players, not a plain why-watch-this-game line"). The same stories, grouped
-  // by game: the matchup in names, its start in ET, how many stories, and the
+  // by game: the matchup in names, its start in the viewer's zone, how many stories, and the
   // rarest one as the reason to watch. Most-storied games first.
   const byGame = new Map()
   for (const st of pool) { if (!byGame.has(st.game_id)) byGame.set(st.game_id, []); byGame.get(st.game_id).push(st) }   // pool is rarest first
@@ -35,7 +36,7 @@ export default function StorylinesStrip({ sport, theme: C, numFont, accent, max 
   const rows = [...byGame.entries()].map(([id, list]) => ({ id, g: gameOf.get(id) || {}, list }))
     .sort((a, b) => b.list.length - a.list.length || String(a.g.start || '').localeCompare(String(b.g.start || '')))
   const top = rows.slice(0, max)
-  const when = (iso) => { const t = Date.parse(iso || ''); return Number.isFinite(t) ? new Date(t).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' }) + ' ET' : '' }
+  const when = (iso) => { const t = Date.parse(iso || ''); return Number.isFinite(t) ? localDayTime(t) : '' }
   const storyClick = (s) => (String(s.player_id).startsWith('team:') ? (onOpenTeam ? () => onOpenTeam(s.team) : null) : onOpenPlayer && s.board ? () => onOpenPlayer(s.player_id, s) : null)
   return (
     <section aria-label="Games worth watching" style={{ margin: '6px 0 12px', padding: '10px 12px', border: `1px solid ${C.border}`, borderRadius: 12, background: C.bg2 }}>

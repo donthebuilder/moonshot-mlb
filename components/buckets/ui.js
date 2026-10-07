@@ -9,6 +9,7 @@ import CallStatusBadge from '../CallStatusBadge'
 import { C, NUM_FONT } from '../../lib/nba/theme'
 import { StaleNote, DelayedBanner as SharedDelayedBanner } from '../StaleBanner'
 import { Empty } from '../ui'
+import { localTime } from '../../lib/localTime'
 export { shiftDay } from '../../lib/data'
 export { readParam as readHashParam, writeParam as writeHashParam } from '../../lib/useShellRoute'
 
@@ -25,7 +26,7 @@ export function fmtDay(ymd) {
 }
 /** "7:00 PM" in the viewer's own zone, from the feed's tip time. */
 export function fmtTip(iso) {
-  try { return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) } catch { return 'TBD' }
+  try { return localTime(iso, { zone: false }) || 'TBD' } catch { return 'TBD' }
 }
 /** The viewer's zone, short ("EDT"), for the one place a page says "times in your zone". */
 export function zoneAbbrev() {

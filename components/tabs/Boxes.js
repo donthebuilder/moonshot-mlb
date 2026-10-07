@@ -11,6 +11,7 @@ import { BattingBox, PitchingBox, LineScore } from '../BoxTable'
 import GameRow from '../GameRow'
 import { onLiveRefresh } from '../../lib/liveRefresh'
 import { takeTarget } from '../../lib/openTarget'
+import { localTime } from '../../lib/localTime'
 
 // 📋 BOXES — every game, live or finished, with the whole box under it.
 //
@@ -48,7 +49,7 @@ function statusLine(g) {
     return { text: `${half}${g.inning ?? ''} · ${g.outs} out`, tone: '#4ade80' }
   }
   if (g.final) return { text: 'Final', tone: C.text3 }
-  const t = g.startTime ? new Date(g.startTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : ''
+  const t = g.startTime ? localTime(g.startTime, { zone: false }) : ''
   return { text: t || 'Scheduled', tone: C.text3 }
 }
 

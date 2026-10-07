@@ -27,6 +27,7 @@ import PitcherProfile from '../PitcherProfile'
 import PitcherModal from '../PitcherModal'
 import { takeTarget } from '../../lib/openTarget'
 import { GameTap } from '../EntityTap'
+import { localTime as sharedLocalTime } from '../../lib/localTime'
 
 // Rates arrive as 0–1 fractions; show them as percentages so a 0.38 fly-ball
 // rate reads as 38.0 next to the ERA and WHIP columns instead of as 0.
@@ -600,7 +601,7 @@ function BullpenBoard({ pitchers, onTeamClick }) {
 function localTime(gameTime) {
   if (!gameTime) return '—'
   const d = new Date(gameTime)
-  return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', timeZoneName: 'short' })
+  return sharedLocalTime(d, { zone: false })
 }
 
 // Same plain-stat-bar look used by Games.js's bot-view player rows, scaled

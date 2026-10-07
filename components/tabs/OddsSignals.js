@@ -9,6 +9,7 @@ import { MoveSpread } from '../OddsChart'
 import DenseTable from '../DenseTable'
 import OddsTimeline from '../OddsTimeline'
 import { btnStyle } from '../ui'
+import { localTime } from '../../lib/localTime'
 
 const LARGE_MOVE_PP = 3
 const WATCH_MOVE_PP = 1.5
@@ -20,7 +21,7 @@ const timeText = (value) => {
   if (!value) return '—'
   const d = new Date(value)
   if (!Number.isFinite(d.getTime())) return '—'
-  return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+  return localTime(d, { zone: false })
 }
 
 // Per sport (lib/odds/adapters.js, 2026-10-02): the price gaps need a real

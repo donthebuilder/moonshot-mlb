@@ -14,6 +14,7 @@ import NflTable from './NflTable'
 import { useGameCalls } from './GameCalls'
 import WriteupBlock from './WriteupBlock'
 import { useNflWatchlist } from '../../lib/nfl/watchlist'
+import { localDayTime } from '../../lib/localTime'
 
 // TUDDY'S SLATE (2026-09-28). Donovan: "there's no breakdown page like the
 // slate page for mlb ... I should be able to see each game and get a good
@@ -47,14 +48,14 @@ const kickText = (g) => {
   const at = g.kickoff ? Date.parse(g.kickoff) : NaN
   if (!Number.isFinite(at)) return 'TBD'
   if (at < Date.now() && !g.completed && g.state !== 'in') return 'kickoff passed · not tracked'
-  return new Date(at).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit' })
+  return localDayTime(at, { zone: false })
 }
 // the header's kickoff: the viewer's own time zone, named once
 const kickWhen = (g) => {
   const at = g.kickoff ? Date.parse(g.kickoff) : NaN
   if (!Number.isFinite(at)) return 'TBD'
   if (at < Date.now() && !g.completed && g.state !== 'in') return 'kickoff passed · not tracked'
-  return new Date(at).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' })
+  return localDayTime(at)
 }
 const airText = (g) => (g.indoors ? 'indoors' : Number.isFinite(g.weather_temp_f) ? `${Math.round(g.weather_temp_f)}°F${g.weather_condition ? ` ${String(g.weather_condition).toLowerCase()}` : ''}` : null)
 

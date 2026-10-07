@@ -22,6 +22,7 @@ import { withNhlFullSet } from '../../../lib/nhl/boardColumns'
 import { useWhySheet, whyColumn } from '../../WhySheet'
 import { MatchLogos } from '../../TeamMark'
 import LAMP_BT from '../../../lib/nhl/angleBacktest.json'
+import { localTime } from '../../../lib/localTime'
 
 // 🏒 THE LAMP GOAL BOARD (lamp-goal-v1) — the product's first signal page.
 // Per game: every scored skater ranked, the top skater on each TEAM CALLED, the rest ON
@@ -196,7 +197,7 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
         </div>
         {opts && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '10px 0', borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}` }}>
-      <BoardTopBar query={q} setQuery={setQ} placeholder="Search skater or team…"
+      <BoardTopBar inDrawer query={q} setQuery={setQ} placeholder="Search skater or team…"
         team={team} setTeam={setTeam} teams={teams} teamLabel="🏒 All teams"
         game={gameF} setGame={setGameF} games={gameOptions} gameLabel="All games" />
         {data && <span><Segmented value={view} onChange={setView}
@@ -582,8 +583,8 @@ export function GameBoard({ g, onOpenPlayer, onOpenGame, onOpenTeam, market = 'G
             stamp, when it locked, lineups, and once graded who was in net. Rest
             and opponent GA/GP were repeats of the table's own columns; the
             snapshot count told a reader nothing. */}
-        {g.locked ? `Locked ${new Date(g.lockedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`
-          : g.setting ? `Updated ${new Date(g.lockedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} · final at puck drop` : `Locks from ${new Date(g.locksAtUtc).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`}
+        {g.locked ? `Locked ${localTime(g.lockedAt, { zone: false })}`
+          : g.setting ? `Updated ${localTime(g.lockedAt, { zone: false })} · final at puck drop` : `Locks from ${localTime(g.locksAtUtc, { zone: false })}`}
         {' · '}{g.lineupKnown ? 'lineups in' : 'no lineups yet'}{ctx.b2b ? ' · back-to-back' : ''}
         {g.net ? ` · in net: ${g.net}` : ''}
       </div>

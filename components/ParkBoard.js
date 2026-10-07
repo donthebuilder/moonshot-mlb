@@ -10,6 +10,7 @@ import { divChip, seqChip, SEQ_AUTO } from '../lib/scales'
 import { projectPool, projectionPublished } from '../lib/projection'
 import MobileFold from './MobileFold'
 import { onLiveRefresh } from '../lib/liveRefresh'
+import { localTime } from '../lib/localTime'
 
 // WEATHER-PAGE MODE (2026-08-07, Donovan): one schedule call turns the park
 // board into tonight's weather desk — live game status (delayed / postponed /
@@ -44,7 +45,7 @@ function useGameStatus(slateDate) {
 const timeText = (t) => {
   if (!t) return ''
   const d = new Date(t)
-  return Number.isNaN(d.getTime()) ? '' : d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+  return Number.isNaN(d.getTime()) ? '' : localTime(d, { zone: false })
 }
 
 // "Luis García Jr." must not render as "Jr." — keep the suffix attached.

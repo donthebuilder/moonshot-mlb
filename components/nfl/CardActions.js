@@ -16,6 +16,7 @@ import { useEffect, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/nfl/theme'
 import { slateKey, slotKey, isLocked, getPicks, savePick, clearPick } from '../../lib/nfl/myPicks'
 import { surname } from '../../lib/nfl/statLabels'
+import { localStamp } from '../../lib/localTime'
 
 const short = (m) => String(m || '').replace('_', ' ')
 
@@ -31,7 +32,7 @@ export function VerdictStamp({ player, results, bars }) {
     <div style={{ margin: '10px 0 2px', padding: '9px 11px', borderRadius: 10, border: `1px solid ${hits ? 'rgba(0,245,173,.4)' : 'rgba(248,113,113,.35)'}`, background: hits ? 'rgba(0,245,173,.06)' : 'rgba(248,113,113,.05)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
         <span style={{ font: `900 8.5px/1 ${NUM_FONT}`, letterSpacing: '.1em', color: hits ? C.green : C.red }}>GRADED · {results.mode === 'week' ? `WEEK ${results.week}` : 'PRESEASON'}</span>
-        <span style={{ font: `800 9px/1 ${NUM_FONT}`, color: C.text3 }}>{hits}/{rows.length} bars cleared{results.graded_at_human ? ` · ${results.graded_at_human}` : ''}</span>
+        <span style={{ font: `800 9px/1 ${NUM_FONT}`, color: C.text3 }}>{hits}/{rows.length} bars cleared{results.graded_at_human ? ` · ${localStamp(results.graded_at_human)}` : ''}</span>
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
         {rows.map((r) => (

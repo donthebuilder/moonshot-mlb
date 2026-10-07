@@ -32,7 +32,7 @@ import HeaderShell from '../header/HeaderShell'
 import { useLiveScores, scoreOrder } from '../../lib/headlines'
 import DateMode from '../DateMode'
 import TickerPill from '../TickerPill'
-import { localDayTime } from '../../lib/localTime'
+import { localDayTime, localStamp } from '../../lib/localTime'
 import Ticker from '../Ticker'
 // Real, icon-tagged NFL story-bites -- see lib/nfl/headlines.js's own
 // header comment. NFL equivalent of buildHeadlines() above.
@@ -402,7 +402,7 @@ export default function NflHeader({ tab, setTab, data, meta, matchup, weekMode =
               title={live > 0 ? 'Games in progress' : (nextKick ? `Next kickoff: ${nextKick.away} @ ${nextKick.home}` : 'Nothing scheduled')} />
             {freshLabel ? (
               <Tile label="Built" value={freshLabel} color={freshCol} live
-                title={`When the NFL pipeline last published: ${meta?.built_at_human || data?.built_at_human || builtAt}. Everything on TUDDY — the slate, the picks, the lines check and the grading — comes out of that one run.`} />
+                title={`When the NFL pipeline last published: ${localStamp(meta?.built_at_human || data?.built_at_human || builtAt)}. Everything on TUDDY — the slate, the picks, the lines check and the grading — comes out of that one run.`} />
             ) : null}
 
             {/* MOONSHOT's `weak` slot: the leftover context that is worth
@@ -459,7 +459,7 @@ export default function NflHeader({ tab, setTab, data, meta, matchup, weekMode =
             fontWeight: 800, lineHeight: 1.45,
           }}
         >
-          ⚠ Last updated {meta?.built_at_human || data?.built_at_human || builtAt} ({ageLabel} ago). Lineups and odds may have moved since.
+          ⚠ Last updated {localStamp(meta?.built_at_human || data?.built_at_human || builtAt)} ({ageLabel} ago). Lineups and odds may have moved since.
         </div>
       )}
 

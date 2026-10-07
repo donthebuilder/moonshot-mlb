@@ -6,6 +6,7 @@ import { mlbId } from '../lib/player'
 import { pickCleared } from '../lib/liveSlate'
 import MlbTeamMark from './MlbTeamMark'
 import { onLiveRefresh } from '../lib/liveRefresh'
+import { localTime } from '../lib/localTime'
 
 // 🛰 THE RAIL — every game on the slate, at a glance, with your side of it.
 //
@@ -146,7 +147,7 @@ export function defaultMlbState(g) {
     : g.suspended ? 'SUSP'
       : g.live ? `${/top/i.test(g.inningState) ? '▲' : '▼'}${g.inning ?? ''}`
         : g.final ? 'F'
-          : g.startTime ? new Date(g.startTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : ''
+          : g.startTime ? localTime(g.startTime, { zone: false }) : ''
 }
 
 export default function ScoreRail({

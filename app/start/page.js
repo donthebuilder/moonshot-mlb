@@ -57,6 +57,7 @@
 //
 // NO JS FOR THE SPORT SWITCH — two plain links, same as /called's own switch
 // and its night anchors.
+import LocalAt from '../../components/LocalAt'
 import { windowFor, lastGameDays, inPool } from '../../lib/recordWindow'
 import { unstable_cache } from 'next/cache'
 import { postseasonOn } from '../../lib/dash/seasonGuard'
@@ -167,7 +168,7 @@ const START_TTL = 120
 /** A bite with only what the markup reads. `p` (the full row) never crosses. */
 // `pid` (2026-09-27, CLICK-EVERYTHING-PLAN): the player's id rides along so his name links
 // to his card in the app -- the id only, never the row.
-const biteText = (b) => ({ k: b.k, icon: b.icon, tag: b.tag, name: b.name, why: b.why, stat: b.stat, col: b.col, pid: b.p?.player_id ?? b.p?.id ?? null, gameId: b.gameId ?? null,
+const biteText = (b) => ({ k: b.k, icon: b.icon, tag: b.tag, name: b.name, why: b.why, stat: b.stat, statAt: b.statAt ?? null, col: b.col, pid: b.p?.player_id ?? b.p?.id ?? null, gameId: b.gameId ?? null,
   // his club and the opponent, so a "DET vs CAR" in the line is two links (codes only, never the row)
   clubs: [b.p?.team, b.p?.opp ?? b.p?.opponent].filter((c) => typeof c === 'string' && /^[A-Z]{2,4}$/.test(c)) })
 
@@ -458,9 +459,10 @@ const bucketsBite = (g) => ({
   col: g.locked ? 'var(--nba)' : 'var(--dim)',
   name: `${g.away} @ ${g.home}`,
   why: g.called.length ? g.called.map((c) => `${c.name} ${c.score}${c.hit ? ' 🏀' : c.void ? ' (void)' : ''}`).join(' · ') : 'nobody rated yet — fewer than ten NBA games on file across both rosters',
-  stat: g.state === 'final' ? 'FINAL' : g.state === 'live' ? 'LIVE' : etClock(g.start),
+  stat: g.state === 'final' ? 'FINAL' : g.state === 'live' ? 'LIVE' : etClock(g.start), statAt: g.state === 'pre' || !['final', 'live'].includes(g.state) ? g.start : null,
 })
 
+// The text is ET (server HTML + first paint, cached); <LocalAt> shows it in the viewer's zone once mounted (2026-10-07).
 const etClock = (iso) => `${new Date(iso).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' })} ET`
 
 /** A game on the hockey board as one bite: stamp · matchup · the three · the clock. */
@@ -472,7 +474,7 @@ const lampBite = (g) => ({
   why: g.called.length
     ? g.called.map((c) => `${c.name} ${c.score}${g.graded ? (c.hit ? ' 🚨' : c.dressed === false ? ' (void)' : '') : ''}`).join(' · ')
     : 'nobody scored yet — fewer than ten NHL games on file across both rosters',
-  stat: g.state === 'final' ? 'FINAL' : g.state === 'live' ? 'LIVE' : etClock(g.startUtc),
+  stat: g.state === 'final' ? 'FINAL' : g.state === 'live' ? 'LIVE' : etClock(g.startUtc), statAt: g.state === 'pre' || !['final', 'live'].includes(g.state) ? g.startUtc : null,
 })
 
 async function computeCalls(sportKey) {
@@ -552,7 +554,7 @@ function Bite({ b, sport = 'mlb' }) {
           ? <a className={`${styles.biteName} tap-link`} href={`${appHref(sport, GAME_TAB[sport] || 'games')}&game=${encodeURIComponent(String(b.gameId))}`} style={{ color: 'inherit', textDecoration: 'none' }}>{b.name}</a>
           : <span className={styles.biteName}>{b.name}</span>}
       <span className={styles.biteWhy}><WithClubs text={b.why} clubs={b.clubs} sport={sport} /></span>
-      <span className={styles.biteStat}>{b.stat}</span>
+      <span className={styles.biteStat}>{b.statAt ? <LocalAt iso={b.statAt} fallback={b.stat} /> : b.stat}</span>
     </li>
   )
 }

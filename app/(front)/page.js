@@ -30,6 +30,7 @@
 // with a placeholder. A front door that invents a number to look alive is
 // worse than one that admits it's early.
 
+import LocalAt from '../../components/LocalAt'
 import Link from 'next/link'
 
 import AlertsPanel from '../../components/AlertsPanel'
@@ -74,9 +75,9 @@ function timeUntil(iso) {
   return `in ${Math.round(hours / 24)}d`
 }
 
-// Hockey's clock reads in ET on purpose: this renders on the server (UTC on
-// Vercel) and the front door has no viewer time zone; ET is the league's
-// calendar and the one the Board page's day is cut on.
+// Hockey's clock text starts in ET: this renders on the server (UTC on Vercel), which has no
+// viewer time zone; <LocalAt> then shows the viewer's zone. ET is the league's calendar and
+// the one the Board page's day is cut on.
 // "Tue 9/29" for a league calendar day (the date string is already ET).
 const dayWord = (ymd) => (ymd ? new Date(`${ymd}T12:00:00Z`).toLocaleDateString('en-US', { timeZone: 'UTC', weekday: 'short', month: 'numeric', day: 'numeric' }).replace(',', '') : null)
 // Why LAMP's panel has no number (Part A3): the season opener while it's
@@ -91,7 +92,11 @@ function lampWhy(nhl) {
 // "12 of 34 were on the board at lock" (Part A1): homer_feed's labels, the
 // same reader /called uses. No share when the locked read is missing.
 const lockedLine = (l) => (l && l.total ? `${l.onBoard} of ${l.total} were on the board at lock` : null)
-const etClock = (iso) => (iso ? `${new Date(iso).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' })} ET` : null)
+// (2026-10-07, audit X11) The front door renders on the server, where there is no viewer zone:
+// the ET text is the server HTML and the first paint; <LocalAt> redraws the same instant in the
+// viewer's zone once mounted. The day KEYS above stay on the league's ET date.
+const etText = (iso) => `${new Date(iso).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' })} ET`
+const etClock = (iso) => (iso ? <LocalAt iso={iso} fallback={etText(iso)} /> : null)
 
 async function account() {
   if (!hasSupabaseConfig()) return { configured: false, user: null, leagues: [], teams: [] }
@@ -140,7 +145,7 @@ export default async function DashHome({ searchParams }) {
     const on = ks.some((t) => easternDate(t) === todayEt || (t <= now && now - t < 4 * 3600e3))
     if (on || !ks.length) return null
     const next = ks.find((t) => t > now)
-    return next ? `next game ${new Date(next).toLocaleString('en-US', { timeZone: 'America/New_York', weekday: 'short', hour: 'numeric', minute: '2-digit' })} ET` : 'no game left this week'
+    return next ? <>next game <LocalAt iso={next} day fallback={`${new Date(next).toLocaleString('en-US', { timeZone: 'America/New_York', weekday: 'short', hour: 'numeric', minute: '2-digit' })} ET`} /></> : 'no game left this week'
   })()
   // The sign-up fold opens by itself when someone is mid-flow: a failed
   // attempt, a confirm-your-email return, or the welcome after sign-up.
@@ -281,8 +286,8 @@ export default async function DashHome({ searchParams }) {
             <Link href={appHref('nhl')} className={`${styles.productCol} ${styles.nhl}`} aria-label="LAMP, tonight's hockey">
               <span className={styles.productColHead}>LAMP · NHL</span>
               <span className={styles.productColTiles}>
-                <Tile label="GAMES" value={nhl.games} sub={nhl.live ? `${nhl.live} live` : nhl.final ? `${nhl.final} final` : `first puck ${etClock(nhl.firstStart)}`} accent="nhl" />
-                <Tile label="LOCKED" value={`${nhl.lockedGames}/${nhl.games}`} sub={nhl.lockedGames ? 'games with a locked call' : `locks from ${etClock(nhl.locksFromUtc)}`} accent="nhl" />
+                <Tile label="GAMES" value={nhl.games} sub={nhl.live ? `${nhl.live} live` : nhl.final ? `${nhl.final} final` : <>first puck {etClock(nhl.firstStart)}</>} accent="nhl" />
+                <Tile label="LOCKED" value={`${nhl.lockedGames}/${nhl.games}`} sub={nhl.lockedGames ? 'games with a locked call' : <>locks from {etClock(nhl.locksFromUtc)}</>} accent="nhl" />
               </span>
             </Link>
           )}
@@ -430,7 +435,7 @@ export default async function DashHome({ searchParams }) {
             nfl?.games ? (
               <dl><div><dt>Games</dt><dd>{nfl.games}</dd></div><div><dt>Players rated</dt><dd>{nfl?.players ?? 0}</dd></div></dl>
             ) : (
-              <p className={styles.muted}>{nflOff ? `No board this week yet · ${nflOff}.` : 'This week’s board posts once the slate is set.'}</p>
+              <p className={styles.muted}>{nflOff ? <>No board this week yet · {nflOff}.</> : 'This week’s board posts once the slate is set.'}</p>
             )
           )}
           <footer>

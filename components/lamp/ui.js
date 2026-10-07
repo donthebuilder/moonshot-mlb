@@ -11,6 +11,7 @@ import { fmtDay } from '../../lib/nhl/format'
 import { hashParams, writeHash } from '../../lib/urlState'
 import { StaleNote, DelayedBanner as SharedDelayedBanner } from '../StaleBanner'
 import { Empty } from '../ui'
+import { localTime } from '../../lib/localTime'
 export { fmtDay, fmtPct3, fmt2, fmtSec, plusMinus } from '../../lib/nhl/format'
 
 // The handful of small pieces every LAMP page shares. Kept in one file so a
@@ -37,7 +38,7 @@ export function GoalLabel({ label }) {
 /** "7:00 PM" in the viewer's own zone. The feed's startTimeUTC is the input. */
 export function fmtPuckDrop(utc) {
   try {
-    return new Date(utc).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+    return localTime(utc, { zone: false }) || 'TBD'
   } catch { return 'TBD' }
 }
 

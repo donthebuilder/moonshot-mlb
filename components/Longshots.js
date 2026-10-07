@@ -5,6 +5,7 @@ import PageHeader from './PageHeader'
 import DenseTable from './DenseTable'
 import { sportKey } from '../lib/routes'
 import { PillRow } from './Filters'
+import { localTime } from '../lib/localTime'
 
 // 🎯 LONGSHOTS (2026-09-27), one page on all three products. Players the
 // books price long (median book at or past the sport's line) beside our own
@@ -25,7 +26,7 @@ function fmtStat(v, c) {
   if (c.kind === 'pct') return `${(Number(v) * 100).toFixed(c.dp ?? 1)}`
   return Number(v).toFixed(c.dp ?? 0)
 }
-const clock = (iso) => (iso ? new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '')
+const clock = (iso) => (iso ? localTime(iso, { zone: false }) : '')
 
 export default function Longshots({ sport, eyebrow, theme: C, numFont, accent, Table = DenseTable, onOpenPlayer, onOpenPitcher = null }) {
   const [data, setData] = useState(null)

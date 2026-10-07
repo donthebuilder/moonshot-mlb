@@ -387,7 +387,7 @@ export default function Home({ data, picks, results, matchup, logs, onPlayerClic
       >
         <div className="hero-stats" style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           <HeroStat label="GAMES TODAY" value={todays.length} sub={todayLive ? `${todayLive} live` : todays.length && todayFinal === todays.length ? 'final' : !todays.length && nextDay ? `next ${nextDay.date.slice(5).replace('-', '/')}` : null} col={C.cyan} theme={C} numFont={NUM_FONT}
-            title="Games kicking off today (ET), and how many are live or final." />
+            title="Games kicking off today, and how many are live or final." />
           {dl.count?.ms > 0 && (
             <HeroStat label={dl.count.label} value={fmtCountdown(dl.count.ms)} col={C.yellow} theme={C} numFont={NUM_FONT}
               title="Time until the next kickoff on the schedule." />

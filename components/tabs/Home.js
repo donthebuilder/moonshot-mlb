@@ -46,6 +46,7 @@ import { lockedCallsLine } from '../../lib/record/lockedRecord'
 import { onLiveRefresh } from '../../lib/liveRefresh'
 import MlbTonight from '../tonight/MlbTonight'
 import { TeamTap } from '../EntityTap'
+import { localTime } from '../../lib/localTime'
 
 // An Eastern calendar day n days from today (YYYY-MM-DD), on etToday's clock.
 const etShift = (n) => { const d = new Date(`${etToday()}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10) }
@@ -652,7 +653,7 @@ export default function Home({
 
     // WHEN — a time, and whether the night has started.
     if (firstPitch) {
-      const t = firstPitch.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+      const t = localTime(firstPitch)
       out.push(isLive
         ? `🕐 First pitch was ${t} — ${nLive} of ${games.length} game${games.length === 1 ? '' : 's'} under way.`
         : `🕐 First pitch is ${t} — ${games.length} game${games.length === 1 ? '' : 's'} on the slate.`)
@@ -1749,8 +1750,8 @@ function NextPitchStat({ games }) {
   }, [counting])
   if (!np) return <Stat label="FIRST PITCH" value="not published" col={C.text3} title="No game times on the slate yet." />
   return np.kind === 'next'
-    ? <Stat label="NEXT PITCH" value={fmtCountdown(np.ms)} sub={`${np.label} · ${np.at.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}${np.remaining > 1 ? ` · ${np.remaining} still to start` : ''}`} col={C.yellow}
+    ? <Stat label="NEXT PITCH" value={fmtCountdown(np.ms)} sub={`${np.label} · ${localTime(np.at)}${np.remaining > 1 ? ` · ${np.remaining} still to start` : ''}`} col={C.yellow}
         title="Time until the next game on the slate starts, your local clock. Counts down live." />
-    : <Stat label="ALL UNDER WAY" value={np.at.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} sub={`last first pitch · ${np.label}`} col={C.green}
+    : <Stat label="ALL UNDER WAY" value={localTime(np.at)} sub={`last first pitch · ${np.label}`} col={C.green}
         title="Every game on the slate has started. This was the last first pitch." />
 }

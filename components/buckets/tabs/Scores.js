@@ -4,6 +4,7 @@ import { C, NUM_FONT } from '../../../lib/nba/theme'
 import { useBucketsScores } from '../../../lib/nba/useBuckets'
 import GameList from '../GameList'
 import { EmptyState, DelayedBanner, Loading, SourceLine, DayPager, SeasonTypeChip, fmtDay, zoneAbbrev } from '../ui'
+import { localTime } from '../../../lib/localTime'
 
 // 📡 LIVE -- every game on one NBA day: score, quarter, clock. Nothing ranked,
 // nothing modelled. The day is the league's Eastern calendar day; times print
@@ -25,7 +26,7 @@ export default function Scores({ date, setDate, onOpenGame }) {
       {loading && !data ? <Loading what="the scores" /> : null}
       {data && !games.length && <EmptyState title="NO GAMES THAT DAY" note={`The league has nothing scheduled for ${fmtDay(shown)}. Page a day, or open a club’s schedule.`} />}
       {games.length > 0 && <GameList games={games} onOpenGame={onOpenGame} />}
-      <SourceLine>Source: ESPN’s NBA scoreboard, read server-side by /api/buckets/scores.{data?.fetchedAt ? ` Last read ${new Date(data.fetchedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}.` : ''}</SourceLine>
+      <SourceLine>Source: ESPN’s NBA scoreboard, read server-side by /api/buckets/scores.{data?.fetchedAt ? ` Last read ${localTime(data.fetchedAt, { zone: false })}.` : ''}</SourceLine>
     </div>
   )
 }

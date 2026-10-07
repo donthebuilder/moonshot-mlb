@@ -16,6 +16,7 @@ import NflSignalAudit from '../NflSignalAudit'
 import BandTable, { bandClaim } from '../../bands/BandTable'
 import RecordPage from '../../record/RecordPage'
 import { nflRecordModel } from '../../../lib/record/page'
+import { localStamp } from '../../../lib/localTime'
 
 // DID THE PICKS DO THEIR OWN JOB? — the NFL sibling of MLB's PickScorecard +
 // ScoreAudit (components/PickScorecard.js, components/ScoreAudit.js).
@@ -568,7 +569,7 @@ function weekRows(archive, keys, currentKey) {
       week: labelOf(k) + (k === currentKey ? ' · latest' : ''),
       n: t.n, hit: t.hit, pct: t.pct,
       markets: Object.values(p?.totals || {}).filter((x) => (x.n || 0) > 0).length,
-      graded: p?.graded_at_human || '—',
+      graded: p?.graded_at_human ? localStamp(p.graded_at_human) : '—',
     }
   })
 }
@@ -672,7 +673,7 @@ export default function Accountability({ data, results: latest, onPlayerClick })
       }}>
         {picked && picked !== currentKey ? 'Showing' : 'Last graded'}: <b style={{ color: C.text2 }}>{when}</b>
         {results.exhibition && <> · <b style={{ color: C.yellow }}>preseason counts</b>, starters play two series</>}
-        {results.graded_at_human && <> · graded {results.graded_at_human}</>}.
+        {results.graded_at_human && <> · graded {localStamp(results.graded_at_human)}</>}.
         {regradeNote(results.season, results.week, results.mode) && <> {regradeNote(results.season, results.week, results.mode)}</>} This is the
         bot&apos;s own record on its own published card — not anyone&apos;s personal calls. For
         your record against the bot, see the Picks tab.

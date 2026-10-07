@@ -17,6 +17,7 @@ import {
   gradeSlate, recordNight, ledgerTotals, readLedger, nightVerdict,
   sliceRows, strongest, exportStore, importStore, clearAll,
 } from '../../lib/myPicks'
+import { localTime } from '../../lib/localTime'
 
 // 🎫 MY PICKS — put your guy in the bot's slot, get graded on it.
 //
@@ -93,7 +94,7 @@ const shortDate = (d) => {
 const clockOf = (v) => {
   const t = v ? new Date(v) : null
   return t && Number.isFinite(t.getTime())
-    ? t.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+    ? localTime(t, { zone: false })
     : null
 }
 
@@ -359,7 +360,7 @@ function GameRail({ games = [], active, onSelect, stateOf = {}, now }) {
           const locked = isLocked(g.game_time, now)
           const t = g.game_time ? new Date(g.game_time) : null
           const clock = locked ? '🔒' : (t
-            ? t.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).replace(/\s?[AP]M$/i, '')
+            ? localTime(t, { zone: false }).replace(/\s?[AP]M$/i, '')
             : 'TBD')
           const lead = st && st.contested ? st.w - st.l : null
           return (

@@ -1,6 +1,7 @@
 'use client'
 import { C as MLB_C, NUM_FONT as MLB_NUM } from '../lib/theme'
 import { fmtOdds, impliedPct } from '../lib/odds'
+import { localTime } from '../lib/localTime'
 
 const finite = (value) => value == null || value === ''
   ? null
@@ -59,7 +60,7 @@ const timeLabel = (point, index) => {
   if (point.checkpoint) return point.checkpoint
   if (point.at) {
     const date = new Date(point.at)
-    if (Number.isFinite(date.getTime())) return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    if (Number.isFinite(date.getTime())) return localTime(date, { zone: false })
   }
   return index === 0 ? 'Open' : `#${index + 1}`
 }

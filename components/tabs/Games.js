@@ -38,6 +38,7 @@ import { downloadGameCard } from '../shareCard'
 import ProjectedOutput from '../ProjectedOutput'
 import TeamMark, { MatchLogos } from '../TeamMark'
 import { requestLiveRefresh, useLiveRefresh } from '../../lib/liveRefresh'
+import { localTime as sharedLocalTime } from '../../lib/localTime'
 
 // A game card's pick chip, stat-first.
 //
@@ -138,7 +139,7 @@ function timeSlot(gameTime) {
 function localTime(gameTime) {
   if (!gameTime) return '—'
   const d = new Date(gameTime)
-  return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', timeZoneName: 'short' })
+  return sharedLocalTime(d, { zone: false })
 }
 
 function isPast(gameTime) {

@@ -7,6 +7,7 @@ import { sortGames, GoalLines } from '../ScoreTable'
 import GameRow from '../../GameRow'
 import TeamMark from '../../TeamMark'
 import { EmptyState, DelayedBanner, Loading, SourceLine, GameTypeChip, LampDot, fmtDay, shiftDay, zoneAbbrev, fmtPuckDrop } from '../ui'
+import { localTime } from '../../../lib/localTime'
 
 // 🏒 SCORES — every game on one NHL day. The plain page: score, period,
 // clock, shots, who scored. Nothing ranked, nothing modelled. Tap a row for
@@ -65,7 +66,7 @@ export default function Scores({ onOpenGame, date = null, setDate = () => {} }) 
 
       <SourceLine>
         Source: NHL (api-web.nhle.com) score/{'{date}'}, read server-side by /api/lamp/scores, refreshed every 15 s at the edge and every 30 s on this page while a game is live.
-        {data?.fetchedAt ? ` Last read ${new Date(data.fetchedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}.` : ''}
+        {data?.fetchedAt ? ` Last read ${localTime(data.fetchedAt, { zone: false })}.` : ''}
       </SourceLine>
     </div>
   )

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { fetchJSON } from '../lib/data'
 import { oddsStatusPaths } from '../lib/dataSource'
+import { localStamp } from '../lib/localTime'
 
 // 📡 WHY THERE ARE NO ODDS — or why the ones you're looking at are that old.
 //
@@ -146,7 +147,7 @@ export default function OddsStatus({ status, always = false }) {
         </b>{' '}
         {friendly?.text || 'Live betting lines are unavailable right now. Everything else on this board is unaffected.'}
         <span style={{ color: C.text3 }}>
-          {status.checked_at_human ? ` · checked ${status.checked_at_human}` : ''}
+          {status.checked_at_human ? ` · checked ${localStamp(status.checked_at_human)}` : ''}
           {Number.isFinite(Number(status.players)) && Number(status.players) > 0 ? ` · ${status.players} players priced` : ''}
         </span>
       </span>

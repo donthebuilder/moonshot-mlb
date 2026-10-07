@@ -30,6 +30,7 @@ import { Empty } from './ui'
 import DenseTable from './DenseTable'
 import TeamMark from './TeamMark'
 import { onLiveRefresh } from '../lib/liveRefresh'
+import { localTime } from '../lib/localTime'
 
 
 // ── THE LIVE RACE, NOT LAST NIGHT'S ─────────────────────────────────────────
@@ -226,7 +227,7 @@ export default function PennantRace() {
         {fieldLocked
           ? <b style={{ color: C.green }}>The field is locked — all twelve spots are clinched. Odds below are the bracket only. </b>
           : live
-            ? `Standings are live (${liveAt ? liveAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : 'now'}); ${clinchedN} of 12 spots clinched. `
+            ? `Standings are live (${liveAt ? localTime(liveAt) : 'now'}); ${clinchedN} of 12 spots clinched. `
             : 'Standings are from the bot\u2019s last run — live feed unreachable right now. '}
         {leftOut > 0 ? `${leftOut} teams with no realistic path are not listed. ` : ''}
         {data.method}

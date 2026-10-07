@@ -5,6 +5,7 @@ import Tap from './Tap'
 import { useEffect, useMemo, useState } from 'react'
 import PageHeader from './PageHeader'
 import StoryRow, { StoryParts, BoardBadge } from './StoryRow'
+import { localDayTime } from '../lib/localTime'
 
 // 📰 STORYLINES, BY GAME (BATCH-STORYLINES-PAGE step 2, 2026-09-27). One page,
 // all three products (theme / number font / accent come in as props). Reads
@@ -36,7 +37,7 @@ const ORDER = { pre: 0, unknown: 0, live: 1, final: 2 }
 const timeOf = (iso) => {
   const ms = Date.parse(iso || '')
   if (!Number.isFinite(ms)) return ''
-  return `${new Date(ms).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' })} ET`
+  return localDayTime(ms)
 }
 
 // `searchBox` false + `keepIds` (a Set of player ids, or null for everyone):

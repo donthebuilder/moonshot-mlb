@@ -20,6 +20,7 @@ import { useSportTheme } from '../SportTheme'
 import { useLiveFetch } from '../../lib/useLiveFetch'
 import { TYPE } from '../../lib/theme'
 import { playerHref, gameHref } from '../../lib/routes'
+import { localTime } from '../../lib/localTime'
 
 const DATA_FOLDER = 'https://github.com/donthebuilder/MLB-HR-DASHBOARD-STREAMLIT/tree/data/public/data/current'
 const SEASONS = [{ key: 'regular', label: 'Regular season' }, { key: 'post', label: 'Postseason' }]
@@ -27,7 +28,7 @@ const PREVIEW = 10
 
 const nf = (n) => Number(n).toLocaleString('en-US')
 const mins = (m) => (m == null ? '—' : m >= 120 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`)
-const etTime = (ms) => (ms == null ? '—' : new Date(ms).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' }))
+const etTime = (ms) => (ms == null ? '—' : localTime(ms, { zone: false }))
 const short = (d) => String(d || '').slice(5).replace('-', '/')
 const lineText = (l) => `${l.hits} H · ${l.runs} R · ${l.rbi} RBI · ${l.tb} TB${l.hr ? ` · ${l.hr} HR` : ''}`
 
@@ -50,7 +51,7 @@ function Calls({ tier, season, callsUrl, Table, C, NUM_FONT, accent }) {
           { key: 'opp', label: 'Opp', group: 'Call', heat: false, w: 44, fmt: (v) => <span style={{ color: C.text3 }}>{v || '—'}</span> },
           { key: 'result', label: 'Result', group: 'Result', heat: false, w: 78, fmt: (v) => <b style={{ color: v === 'CLEARED' ? accent : C.text3, fontFamily: NUM_FONT }}>{v}</b> },
           { key: 'line', label: 'Line', group: 'Result', heat: false, numeric: false, w: 190, fmt: (v) => lineText(v) },
-          { key: 'lockAt', label: 'Locked (ET)', group: 'Lock', heat: false, w: 84, mono: true, fmt: (v) => etTime(v) },
+          { key: 'lockAt', label: 'Locked', group: 'Lock', heat: false, w: 84, mono: true, fmt: (v) => etTime(v) },
           { key: 'firstPitch', label: 'First pitch', group: 'Lock', heat: false, w: 84, mono: true, fmt: (v) => etTime(v) },
           { key: 'leadMin', label: 'Before', group: 'Lock', heat: false, w: 74, mono: true, fmt: (v) => mins(v) },
         ]} />

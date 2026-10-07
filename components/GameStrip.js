@@ -10,6 +10,7 @@ import { nn, hrScore, prodScore, median as med } from '../lib/player'
 import MobileFold from './MobileFold'
 import Rail from './Rail'
 import { MatchLogos } from './TeamMark'
+import { localTime } from '../lib/localTime'
 
 // Game selector strip — the PropFinder pattern.
 //
@@ -112,7 +113,7 @@ function timeText(t) {
   if (!t) return 'TBD'
   const d = new Date(t)
   if (Number.isNaN(d.getTime())) return 'TBD'
-  return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+  return localTime(d, { zone: false })
 }
 
 const isPast = (t) => !!t && new Date(t) < new Date(Date.now() - 3 * 60 * 60 * 1000)

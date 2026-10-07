@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
+import { localTime, etWallInstant } from '../lib/localTime'
 
 // ⚠️ IS THIS TONIGHT'S SLATE? (2026-08-09)
 //
@@ -133,7 +134,7 @@ export default function StaleBanner({ slateDate = '', mode = 'today', loading = 
       meta={`showing ${slateDate} · ${behind} day${behind === 1 ? '' : 's'} behind`}
       body={early ? (
         <>
-          The daily build normally lands around <b>1am ET</b> and it hasn’t yet, so everything below is
+          The daily build normally lands around <b>{localTime(etWallInstant(1)) || '1am ET'}</b> and it hasn’t yet, so everything below is
           still <b style={{ color: col }}>{slateDate}</b>. Nothing here is wrong — it’s just the previous
           night. It’ll swap over on its own once the bot publishes.
         </>

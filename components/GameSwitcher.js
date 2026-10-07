@@ -4,6 +4,7 @@ import { C, NUM_FONT } from '../lib/theme'
 import { alpha } from '../lib/scales'
 import { useIsPhone } from './MobileFold'
 import { MatchLogos } from './TeamMark'
+import { localTime } from '../lib/localTime'
 
 // ══ THE GAME SWITCHER ═════════════════════════════════════════════════════
 //
@@ -55,7 +56,7 @@ const timeText = (t) => {
   if (!t) return 'TBD'
   const d = new Date(t)
   if (Number.isNaN(d.getTime())) return 'TBD'
-  return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).replace(/\s?[AP]M$/i, '')
+  return localTime(d, { zone: false }).replace(/\s?[AP]M$/i, '')
 }
 
 export default function GameSwitcher({ games = [], activeGame, onSelect, live = null, accent = C.orange, stickyTop = 'var(--hdr-h, 96px)', sport = 'mlb' }) {

@@ -14,6 +14,7 @@ import TruePrice from './TruePrice'
 import OddsDiscrepancies from './OddsDiscrepancies'
 import OddsSignals from './OddsSignals'
 import { btnStyle } from '../ui'
+import { localStamp } from '../../lib/localTime'
 
 // 💵 THE ODDS PAGE (2026-08-15, Donovan: "we need to see the line the book has
 // them for, esp if it's at like 1.5 or like a plus-money look for the hit.
@@ -310,7 +311,7 @@ export default function OddsBoard({ players = [], odds: oddsProp, onPlayerClick,
       books: [...bookNames], shop,
       rated: hr.length, widest, longshot, fade, passed,
       topScore, longest,
-      when: clean(odds?.fetched_at_human, ''),
+      when: localStamp(clean(odds?.fetched_at_human, '')),
     }
   }, [players, odds])
 

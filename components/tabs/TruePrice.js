@@ -14,6 +14,7 @@ import { wilson, wilsonLower } from '../../lib/interval'
 import { benjaminiHochberg, expectedFalseAlarms } from '../../lib/fdr'
 import { RoiErrorBars, GapFunnel, GapIntervals } from '../OddsChart'
 import DenseTable, { moreBtn } from '../DenseTable'
+import { localStamp } from '../../lib/localTime'
 
 // 🏷 TRUE PRICE
 //
@@ -375,7 +376,7 @@ export default function TruePrice({ onPlayerClick, players = [], odds = null }) 
   const marketsPresent = MARKET_ORDER.filter((m) => rows.some((r) => r.market === m))
 
   return (
-    <Shell days={hist.days} settled={hist.settled_props} stamp={hist.generated_at_human}>
+    <Shell days={hist.days} settled={hist.settled_props} stamp={localStamp(hist.generated_at_human)}>
       <div style={{ marginBottom: 10 }}><OddsStatus status={oddsStatus} /></div>
 
       {/* ── THE READ, BEFORE ANYTHING ELSE ──────────────────────────────────
