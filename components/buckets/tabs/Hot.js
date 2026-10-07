@@ -4,7 +4,7 @@ import PageHeader from '../../PageHeader'
 import { C, NUM_FONT } from '../../../lib/nba/theme'
 import { useBucketsHot } from '../../../lib/nba/useBuckets'
 import BucketsTable from '../BucketsTable'
-import { EmptyState, DelayedBanner, Loading, SourceLine, Pills, DayPager, LastSeasonNote, fmtDay } from '../ui'
+import { EmptyState, DelayedBanner, Loading, SourceLine, Pills, DayPager, LastSeasonNote, Why, fmtDay } from '../ui'
 
 // 🔥 HOT HANDS -- LAMP's Hot sticks, basketball's: every rotation player in
 // the day's games, his last 5 and last 10 beside his season, from his own
@@ -41,14 +41,14 @@ export default function Hot({ date, setDate, onOpenPlayer, onOpenTeam }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <PageHeader eyebrow="BUCKETS · HOT HANDS" title={data?.date ? fmtDay(data.date) : 'Tonight'} theme={C} numFont={NUM_FONT} accent={C.purple}
-        note="Every rotation player in the day’s games: his last 5 and last 10 beside his season. ± is last 5 minus season. Measured, not modelled."
+        note={<>Last 5 and last 10 games beside the season. <Why label="Hot streaks" text="Every rotation player in the day’s games: his last 5 and last 10 beside his season. ± is last 5 minus season. Measured from game logs, not projected." /></>}
         stats={data ? [{ value: rows.length, label: 'PLAYERS', tone: C.text2 }, { value: rows.filter((r) => (r.pts_d || 0) >= 3).length, label: '+3 PTS', tone: C.purple }] : null} />
       <DayPager shown={data?.date || date} date={date} setDate={setDate} disabled={loading} />
       <Pills ariaLabel="Stat" value={k} onChange={setK} options={STATS.map(([key, text]) => ({ key, text }))} />
       {data?.stale && <LastSeasonNote label={data.seasonLabel} what="game logs" />}
       <DelayedBanner error={error} what="the players’ game logs" />
       {loading && !data ? <Loading what="every rotation player’s game log" /> : null}
-      {data && !data.games.length && <EmptyState title="NO GAMES THAT DAY" note="Hot hands follows the day’s games. Page a day." />}
+      {data && !data.games.length && <EmptyState title="NO GAMES THAT DAY" note="Hot streaks follows the day’s games. Try another day." />}
       {rows.length > 0 && (
         <BucketsTable rows={rows} columns={columns} onRowClick={(r) => onOpenPlayer?.((r?._raw ?? r).playerId)} faceOf={(r) => ({ sport: 'nba', id: r.playerId, name: r.name })}
           initialSort={{ key: `${k}_d`, dir: 'desc' }} heatMode="sorted" maxHeight={620} maxRows={rows.length}

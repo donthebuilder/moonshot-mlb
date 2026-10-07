@@ -63,7 +63,7 @@ export default function HotSticks({ onOpenPlayer }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <PageHeader eyebrow="LAMP · HOT STICKS" title="Who is shooting more than usual"
-        note="Every skater's last 5 and last 10 games beside his season rate. Shots come before goals: a man putting pucks on net without scoring shows up here first. Sort any column."
+        note="Last 5 and last 10 games beside his season rate."
         theme={C} numFont={NUM_FONT} accent={C.ice}
         stats={data ? [{ value: rows.length, label: 'SKATERS', tone: C.text2 }, ...(data.stale ? [] : [{ value: playing, label: 'PLAYING TONIGHT', tone: C.ice }])] : null} />
       {data?.stale && <StaleSeasonNote label={data.seasonLabel} what="hot sticks" />}

@@ -6,9 +6,9 @@ import { softCells, plainRole, blockSeason, STARTER_ROLES, SOFT_THIN_GAMES, mult
 import SourceSeason from './SourceSeason'
 import { ordinal } from '../../lib/format'
 
-// THE DEFENCE, BY HIS ROLE, IN WORDS (2026-10-01, 0e d).
+// THE DEFENSE, BY HIS ROLE, IN WORDS (2026-10-01, 0e d).
 //
-// Donovan on the card's DEFENCE VS RB -- BY DEPTH ROLE grid (orange
+// Donovan on the card's DEFENSE VS RB -- BY DEPTH ROLE grid (orange
 // two-number cells: the value over its rank) and the DRIFT rank-by-week line
 // chart under it: "I actually hate these." Both were analyst instruments that
 // needed a key and sat in front of the answer. In their place:
@@ -18,7 +18,7 @@ import { ordinal } from '../../lib/format'
 //      stood at the start of it:
 //        "PIT allow the 16th-most touchdowns to lead running backs (2 games),
 //         up from 27th in week 4."
-//   2. THE DOORS: the ranked list of the cells this defence leaks a standout
+//   2. THE DOORS: the ranked list of the cells this defense leaks a standout
 //      amount on, for his group (softCells: the same z the site's "softest
 //      spot" uses).
 //   3. the full table, only behind a tap: one number per cell (the rank), no
@@ -76,22 +76,22 @@ export default function DvpRead({ matchup, def, position, role = null, slateSeas
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', margin: '18px 0 8px' }}>
-        <span style={{ fontSize: 10, fontWeight: 900, color: C.text3, letterSpacing: '.1em' }}>{def} DEFENCE VS {position}</span>
+        <span style={{ fontSize: 10, fontWeight: 900, color: C.text3, letterSpacing: '.1em' }}>{def} DEFENSE VS {position}</span>
         <SourceSeason matchup={matchup} kind="stats" slateSeason={slateSeason} />
       </div>
       {lines.map((l) => (
         <p key={l.role} style={{ margin: '0 0 6px', fontSize: 13, lineHeight: 1.5, color: l.role === role ? C.text : C.text2 }}>
-          {l.role === role && <b style={{ color: C.cyan, fontFamily: NUM_FONT, fontSize: 11, letterSpacing: '.06em' }}>HIS ROLE · </b>}{l.text}
+          {l.role === role && <b style={{ color: C.green, fontFamily: NUM_FONT, fontSize: 11, letterSpacing: '.06em' }}>HIS ROLE · </b>}{l.text}
         </p>
       ))}
-      {!role && <p style={{ margin: '0 0 6px', fontSize: 12, color: C.text3 }}>His depth role publishes with the next bot run.</p>}
+      {!role && <p style={{ margin: '0 0 6px', fontSize: 12, color: C.text3 }}>His depth role appears with the next update.</p>}
 
       <div style={{ fontSize: 10, fontWeight: 900, color: C.text3, letterSpacing: '.1em', margin: '12px 0 6px' }}>THE DOORS · WHERE {def} LEAK MOST TO {position}S</div>
       {doors.length ? (
         <ol style={{ margin: 0, paddingLeft: 22, fontSize: 13, lineHeight: 1.5, color: C.text2 }}>
           {doors.map((d) => (
             <li key={`${d.role}-${d.stat}`} style={{ marginBottom: 4 }}>
-              <b style={{ color: d.role === role ? C.cyan : C.text }}>{plural(d.plain)}</b>{d.role === role ? ` (${playerName}'s role)` : ''}: {fmtVal(d.value)} {d.label}{['recyd_g', 'rshyd_g'].includes(d.stat) ? ' a game' : Number.isFinite(d.games) ? ` in ${d.games} games` : ''}
+              <b style={{ color: d.role === role ? C.green : C.text }}>{plural(d.plain)}</b>{d.role === role ? ` (${playerName}'s role)` : ''}: {fmtVal(d.value)} {d.label}{['recyd_g', 'rshyd_g'].includes(d.stat) ? ' a game' : Number.isFinite(d.games) ? ` in ${d.games} games` : ''}
               {multipleWords(d) ? `, ${multipleWords(d)}` : ''}{Number.isFinite(d.rank) ? ` (${most(d.rank)})` : ''}{earlyNote(d)}.
             </li>
           ))}
@@ -113,11 +113,11 @@ export default function DvpRead({ matchup, def, position, role = null, slateSeas
               Matchups by-position sheet uses; his role is edged in cyan. */}
           <NflTable bare noGroups tight heatMode="sorted" maxHeight={9999} maxRows={40} caption={`${def}: rank of 32 for what it allows each role`}
             rows={rows.map((r) => ({ _key: r, role: r, ...Object.fromEntries(stats.map((st) => [st, Number.isFinite(blob[r]?.[`${st}_rank`]) ? blob[r][`${st}_rank`] : null])), _vals: blob[r] || {} }))}
-            rowEdge={(x) => (x.role === role ? C.cyan : null)}
+            rowEdge={(x) => (x.role === role ? C.green : null)}
             columns={[
-              { key: 'role', label: 'Role', heat: false, sticky: true, w: 70, fmt: (v) => <b style={{ color: v === role ? C.cyan : C.text }}>{v}</b> },
+              { key: 'role', label: 'Role', heat: false, sticky: true, w: 70, fmt: (v) => <b style={{ color: v === role ? C.green : C.text }}>{v}</b> },
               ...stats.map((st) => ({ key: st, label: labels[st] || st, w: 56, scale: 'seq', domain: [1, 32], invert: true, dp: 0,
-                fmt: (rk, x) => <span title={Number.isFinite(rk) ? `${x._vals[st]} -- ${ordinal(rk)} of 32` : 'not a stat this role records'}>{Number.isFinite(rk) ? rk : '—'}</span> })),
+                fmt: (rk, x) => <span title={Number.isFinite(rk) ? `${x._vals[st]} — ${ordinal(rk)} of 32` : 'not a stat this role records'}>{Number.isFinite(rk) ? rk : '—'}</span> })),
             ]} />
           <div style={{ fontSize: 11, color: C.text3, marginTop: 5, lineHeight: 1.5 }}>Each cell is {def}&apos;s rank of 32 for what it allows that role: 1 allows the most. {matchup?.season} season.</div>
         </div>

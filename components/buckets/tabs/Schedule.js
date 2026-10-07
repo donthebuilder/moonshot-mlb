@@ -24,7 +24,7 @@ export default function Schedule({ date, setDate, onOpenGame, onOpenTeam }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <PageHeader eyebrow="BUCKETS · SCHEDULE" title={first && last ? `${fmtDay(first)} – ${fmtDay(last)}` : 'This week'} theme={C} numFont={NUM_FONT} accent={C.purple}
-        note={`Seven days from the day you’re on. Tip times are in your zone (${zoneAbbrev()}); finals show the score.`}
+        note={`The next seven days. Times in your zone (${zoneAbbrev()}).`}
         stats={data ? [{ value: total, label: 'GAMES', tone: C.text2 }, { value: days.length, label: 'DAYS', tone: C.text2 }] : null} />
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         <NavBtn onClick={() => setDate(data?.prevStart)} disabled={loading || !data}>‹ Prev week</NavBtn>
@@ -33,7 +33,7 @@ export default function Schedule({ date, setDate, onOpenGame, onOpenTeam }) {
       </div>
       <DelayedBanner error={error} what="the league schedule" />
       {loading && !data ? <Loading what="the week" /> : null}
-      {data && !days.length && <EmptyState title="NO GAMES THIS WEEK" note="Nothing on the league calendar for these seven days. Page a week." />}
+      {data && !days.length && <EmptyState title="NO GAMES THIS WEEK" note="No games these seven days. Try another week." />}
       {days.map((d) => (
         <section key={d.date}>
           <Kicker>{fmtDay(d.date).toUpperCase()} · {d.games.length} GAME{d.games.length === 1 ? '' : 'S'}</Kicker>

@@ -188,6 +188,8 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
   })
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {/* THE WATCH BOX LEADS THE PAGE (2026-10-07, Donovan: back-to-back / watch box "to the top"): MOONSHOT's B2B Watch sits first */}
+      {data && market === 'GOAL' && <GoalWatch flat={flat} onOpenPlayer={onOpenPlayer} date={shown} />}
       {phone ? (<>
         {/* PHONE (2026-10-06): one compact row, the table next. Everything else is behind Filters. */}
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -208,8 +210,7 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
         <NavBtn onClick={() => setDate(shiftDay(shown, -1))} disabled={loading}>‹ Previous day</NavBtn>
         <NavBtn onClick={() => setDate(null)} disabled={loading || !date} strong>Tonight</NavBtn>
         <NavBtn onClick={() => setDate(shiftDay(shown, 1))} disabled={loading}>Next day ›</NavBtn>
-        <span style={{ color: C.text3, font: `800 8px/1 ${NUM_FONT}`, letterSpacing: '.1em' }}>{data?.modelVersion?.toUpperCase()}</span>
-      </div>
+              </div>
       {data && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <AngleRow defs={angles} pool={flat} value={angle} onChange={setAngle} accent={C.ice} className="lamp-angle-row" hideEmpty />
@@ -282,8 +283,7 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
         <NavBtn onClick={() => setDate(shiftDay(shown, -1))} disabled={loading}>‹ Previous day</NavBtn>
         <NavBtn onClick={() => setDate(null)} disabled={loading || !date} strong>Tonight</NavBtn>
         <NavBtn onClick={() => setDate(shiftDay(shown, 1))} disabled={loading}>Next day ›</NavBtn>
-        <span style={{ color: C.text3, font: `800 8px/1 ${NUM_FONT}`, letterSpacing: '.1em' }}>{data?.modelVersion?.toUpperCase()}</span>
-      </div>
+              </div>
       {data && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <AngleRow defs={angles} pool={flat} value={angle} onChange={setAngle} accent={C.ice} className="lamp-angle-row" hideEmpty />
@@ -346,12 +346,12 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
       {data && !data.dbReady && <div style={{ color: C.amber, fontSize: 11 }}>The saved record is not available right now. Boards still preview, but nothing locks.</div>}
       {phone ? (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'space-between' }}>
-          <div style={{ minWidth: 0, color: C.text2, fontSize: 13, lineHeight: 1.3 }}>Who we rank tonight, and why.{/TEST/.test(M.eyebrow) ? ' A TEST.' : ''}</div>
+          <div style={{ minWidth: 0, color: C.text2, fontSize: 13, lineHeight: 1.3 }}>Every skater tonight, #1 down.{/TEST/.test(M.eyebrow) ? ' A test.' : ''}</div>
           {howRow && <HowToRead id="nhl-goal-board" accent={C.ice} row={howRow} notes={HOW_NOTES} steps={HOW_STEPS} />}
         </div>
       ) : (
       <PageHeader eyebrow={M.eyebrow} title={shown ? fmtDay(shown) : 'Tonight'}
-        note={`Who we rank tonight, and why. Tap Why on a row for the numbers behind it.${/TEST/.test(M.eyebrow) ? ' A TEST: no record is printed until 30 graded nights.' : ''}`}
+        note={`Every skater tonight, #1 down.${/TEST/.test(M.eyebrow) ? ' A test: no record until 30 graded nights.' : ''}`}
         theme={C} numFont={NUM_FONT} accent={C.ice}
         stats={data ? [{ value: games.length, label: 'GAMES', tone: C.text2 }, { value: `${lockedN}/${games.length}`, label: 'LOCKED', tone: lockedN === games.length && games.length ? C.teal : C.text2 }, { value: calledN, label: 'CALLED', tone: C.ice }] : null} />
       )}
@@ -359,7 +359,7 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
         <div style={{ color: C.amber, font: `800 12px/1.5 ${NUM_FONT}`, letterSpacing: '.06em' }}>
           {pv === kept.length ? 'EVERY GAME IS STILL PREVIEW — NOT A CALL YET' : `${pv} OF ${kept.length} ROWS ARE PREVIEW — NOT A CALL YET`}
         </div>) : null })()}
-      {data && games.length === 0 && <EmptyState title="NO GAMES ON THIS DATE" note="No NHL games, so nothing to call. The filters above work on any night with games; the schedule has the week." />}
+      {data && games.length === 0 && <EmptyState title="NO GAMES ON THIS DATE" note="No NHL games on this date." />}
       {view === 'all' && flat.length > 0 && (
         kept.length ? (layout === 'cards'
           ? <LampCards market={market} onOpen={onOpenPlayer} items={[...kept].sort((a, b) => (b.r.score ?? 0) - (a.r.score ?? 0)).map(({ r, g }, i) => ({ key: `${g.game.id}|${r.playerId}`, r, g, rank: i + 1, facts: factsOf(g, r) }))} />
@@ -367,13 +367,11 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
           : <EmptyState title="NOTHING MATCHES" note="Clear a filter above." />
       )}
       {view === 'game' && games.map((g) => (g.noMarketLock
-        ? (filtering ? null : <EmptyState key={g.game.id} title={`${g.game.away.abbrev} @ ${g.game.home.abbrev} · NO ${M.label} LOCK`} note={`This game locked before the ${M.label} board existed, so there is no call for it. Nothing is previewed after a lock.`} />)
+        ? (filtering ? null : <EmptyState key={g.game.id} title={`${g.game.away.abbrev} @ ${g.game.home.abbrev} · NO ${M.label} LOCK`} note={`No call: it locked before the ${M.label} board existed.`} />)
         : (!filtering || g.rows.some((r) => keepIds.has(`${g.game.id}|${r.playerId}`)))
           ? <GameBoard key={g.game.id} g={g} market={market} layout={layout} keep={filtering ? keepIds : null} onOpenPlayer={onOpenPlayer} onOpenGame={onOpenGame} onOpenTeam={onOpenTeam} />
           : null))}
       {view === 'game' && filtering && flat.length > 0 && !kept.length && <EmptyState title="NOTHING MATCHES" note="Clear a filter above." />}
-      {/* Goal Watch sits under the table now (2026-10-06): the board comes first on Rankings */}
-      {data && market === 'GOAL' && <GoalWatch flat={flat} onOpenPlayer={onOpenPlayer} date={shown} />}
       {/* ⚖️ COMPARE TWO (2026-10-03): MOONSHOT's compare, below the board and
           folded on a phone, the way MOONSHOT's Props and TUDDY's Boards place it. */}
       {market === 'GOAL' && flat.length > 1 && (
@@ -471,7 +469,7 @@ function columnsFor(g, onOpenTeam, market = 'GOAL') {
       if (graded) {
         if (row.dressed === false) return <span style={{ color: C.text3, font: `800 9px/1 ${NUM_FONT}` }}>VOID</span>
         const n = countOf(row, market)
-        return <>{row.status === 'called' ? <CalledChip /> : null}<span style={{ color: row.hit ? C.lamp : C.text3, font: `900 12px/1 ${NUM_FONT}` }}>{n == null ? '\u2014' : <>{row.hit && <LampDot />}{n}</>}</span></>
+        return <>{row.status === 'called' ? <CalledChip /> : null}<span style={{ color: row.hit ? C.ice : C.text3, font: `900 12px/1 ${NUM_FONT}` }}>{n == null ? '\u2014' : <>{row.hit && <LampDot />}{n}</>}</span></>
       }
       return row.status === 'called' ? <CalledChip /> : <span style={{ color: C.text3, font: `800 8px/1 ${NUM_FONT}`, letterSpacing: '.1em' }}>{STATUS[row.status]}</span>
     } },
@@ -521,7 +519,7 @@ function lampSlateColumns(g, market = 'GOAL', onOpenTeam) {
         const row = r._row
         if (row.dressed === false) return <span style={{ color: C.text3, font: `800 11px/1 ${NUM_FONT}` }}>VOID</span>
         const n = countOf(row, market)
-        return <>{row.status === 'called' ? <CalledChip /> : null}<span style={{ color: row.hit ? C.lamp : C.text3, font: `900 13px/1 ${NUM_FONT}` }}>{n == null ? '\u2014' : <>{row.hit && <LampDot />}{n}</>}</span></>
+        return <>{row.status === 'called' ? <CalledChip /> : null}<span style={{ color: row.hit ? C.ice : C.text3, font: `900 13px/1 ${NUM_FONT}` }}>{n == null ? '\u2014' : <>{row.hit && <LampDot />}{n}</>}</span></>
       } }]
     : [{ answers: 'called', key: 'result', label: 'STATUS', heat: false, w: 104, group: G.call, fmt: (v, r) => (r._row.status === 'called' ? <CalledChip /> : <span style={{ color: C.text3, font: `800 11px/1 ${NUM_FONT}`, letterSpacing: '.04em' }}>{STATUS[r._row.status]}</span>) }]
   return [
@@ -607,7 +605,7 @@ export function GameBoard({ g, onOpenPlayer, onOpenGame, onOpenTeam, market = 'G
           </button>
           {showOff && (
             <div style={{ marginTop: 6, color: C.text3, fontSize: slate ? 12 : 11, lineHeight: 1.6 }}>
-              {off.map((r) => <div key={r.playerId}><b style={{ color: C.text2 }}>{r.name}</b> {r.team} · {r.reason}{g.graded && r.hit ? <span style={{ color: C.lamp, fontFamily: NUM_FONT, marginLeft: 6 }}>scored{countOf(r, market) != null ? ` ${countOf(r, market)}` : ''}</span> : null}</div>)}
+              {off.map((r) => <div key={r.playerId}><b style={{ color: C.text2 }}>{r.name}</b> {r.team} · {r.reason}{g.graded && r.hit ? <span style={{ color: C.ice, fontFamily: NUM_FONT, marginLeft: 6 }}>scored{countOf(r, market) != null ? ` ${countOf(r, market)}` : ''}</span> : null}</div>)}
             </div>
           )}
         </div>
@@ -724,7 +722,7 @@ export function AllGamesTable({ kept, market, onOpenPlayer, onOpenTeam, onOpenGa
         <span style={{ whiteSpace: 'nowrap' }}>
           {r._g?.graded
             ? (row.dressed === false ? <span style={{ color: C.text3, font: `800 9px/1 ${NUM_FONT}` }}>VOID</span>
-              : <><CalledChip />{' '}<span style={{ color: row.hit === true ? C.lamp : C.text3, font: `900 12px/1 ${NUM_FONT}` }}>{countOf(row, market) == null ? '\u2014' : <>{row.hit === true && <LampDot />}{countOf(row, market)}</>}</span></>)
+              : <><CalledChip />{' '}<span style={{ color: row.hit === true ? C.ice : C.text3, font: `900 12px/1 ${NUM_FONT}` }}>{countOf(row, market) == null ? '\u2014' : <>{row.hit === true && <LampDot />}{countOf(row, market)}</>}</span></>)
             : (v === 'called' ? <CalledChip /> : <span style={{ color: C.text3, font: `800 8px/1 ${NUM_FONT}`, letterSpacing: '.1em' }}>{STATUS[v]}</span>)}
           <span style={{ color: STAMP_TONE[stampOf(r._g)], font: `800 8px/1 ${NUM_FONT}`, letterSpacing: '.1em', marginLeft: 5 }}>{STAMP[stampOf(r._g)]}</span>
         </span>

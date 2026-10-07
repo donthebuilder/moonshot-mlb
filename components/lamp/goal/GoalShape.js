@@ -2,7 +2,7 @@
 import { useLampShots } from '../../../lib/nhl/useLamp'
 import { ZONES } from '../ShotPanel'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
-import { alpha } from '../../../lib/scales'
+import LampTable from '../LampTable'
 import { goalShape, SHAPE_MIN_GOALS } from '../../../lib/nhl/goalLog'
 
 // 💥 HIS GOAL SHAPE (MOONSHOT components/HomerShape.js + lib/hrShape.js
@@ -18,12 +18,15 @@ export default function GoalShape({ playerId }) {
   if (loading && !data) return <div style={{ color: C.text3, fontSize: 12 }}>Reading his shots…</div>
   const gs = goalShape(data?.all, data?.all?.recent, ZONES)
   if (!gs) return <div style={{ color: C.text3, fontSize: 12, lineHeight: 1.5 }}>{data ? `No goals on the shot map for him in ${data.seasonLabel || 'this season'} yet.` : 'The shot map has nothing for him yet.'}</div>
-  const chip = (key, label, count, share, def) => (
-    <span key={key} title={def || `${label}: ${count} goals`} style={{ display: 'inline-flex', gap: 5, alignItems: 'baseline', border: `1px solid ${alpha(C.ice, 0.35)}`, background: alpha(C.ice, 0.08), borderRadius: 999, padding: '3px 10px' }}>
-      <span style={{ color: C.ice, font: `800 12px/1 ${NUM_FONT}`, letterSpacing: '.04em', textTransform: 'uppercase' }}>{label}</span>
-      <b style={{ color: C.text, font: `800 12px/1 ${NUM_FONT}` }}>{count}</b>
-      {share != null && !gs.thin ? <span style={{ color: C.text3, font: `600 12px/1 ${NUM_FONT}` }}>{Math.round(share * 100)}%</span> : null}
-    </span>
+  // dense tables, not pills (2026-10-07: no bubbles in the player view)
+  const table = (rows, label, total, thin) => (
+    <LampTable bare noGroups tight heatMode="sorted" maxHeight={9999} maxRows={8} caption={label}
+      rows={rows.map((x) => ({ _key: x.key, label: x.label, goals: x.goals, share: total ? Math.round((100 * x.goals) / total) : null }))}
+      columns={[
+        { key: 'label', label, heat: false, sticky: true, w: 120, numeric: false, fmt: (v) => <b>{v}</b> },
+        { key: 'goals', label: 'G', w: 40, dp: 0 },
+        ...(thin ? [] : [{ key: 'share', label: '%', w: 44, dp: 0 }]),
+      ]} />
   )
   const st = gs.strength
   return (
@@ -35,13 +38,13 @@ export default function GoalShape({ playerId }) {
       {gs.byType.length > 0 && (
         <div>
           <div style={{ color: C.text3, font: `800 10px/1 ${NUM_FONT}`, letterSpacing: '.08em', marginBottom: 4 }}>BY SHOT TYPE · {gs.typed} OF {gs.n} CLASSIFIED</div>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{gs.byType.map((t) => chip(t.key, t.key, t.goals, gs.typed ? t.goals / gs.typed : null, `${t.goals} goals on ${t.att} unblocked ${t.key} attempts`))}</div>
+          {table(gs.byType.map((t) => ({ key: t.key, label: t.key, goals: t.goals })), 'Type', gs.typed, gs.thin)}
         </div>
       )}
       {gs.zoneRows.length > 0 && (
         <div>
           <div style={{ color: C.text3, font: `800 10px/1 ${NUM_FONT}`, letterSpacing: '.08em', marginBottom: 4 }}>BY ZONE · {gs.zoneN} GOALS IN HIS MOST RECENT ATTEMPTS (UP TO 200)</div>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{gs.zoneRows.map((z) => chip(z.key, z.label, z.goals, gs.zoneN ? z.goals / gs.zoneN : null, z.def))}</div>
+          {table(gs.zoneRows.map((z) => ({ key: z.key, label: z.label, goals: z.goals })), 'Zone', gs.zoneN, gs.thin)}
         </div>
       )}
       <div style={{ color: C.text2, fontSize: 12, lineHeight: 1.55 }}>

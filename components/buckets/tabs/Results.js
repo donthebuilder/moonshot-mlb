@@ -9,7 +9,7 @@ import RecordPage from '../../record/RecordPage'
 import CallHistory from '../../record/CallHistory'
 import CalibrationTable from '../../record/CalibrationTable'
 import { nbaRecordModel } from '../../../lib/record/page'
-import { DelayedBanner, Loading, SourceLine, EmptyState, Pills, Kicker, fmtDay } from '../ui'
+import { DelayedBanner, Loading, SourceLine, EmptyState, Pills, Kicker, Why, fmtDay } from '../ui'
 
 // 🧾 THE RECORD -- MOONSHOT's / TUDDY's / LAMP's one record page
 // (components/record/RecordPage.js) with BUCKETS' numbers (lib/record/page.js
@@ -50,12 +50,12 @@ export default function Results({ onOpenPlayer, onOpenTeam }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <PageHeader eyebrow="BUCKETS · THE RECORD" title="Every graded night" theme={C} numFont={NUM_FONT} accent={C.purple}
-        note="Each call is locked before tip and graded after the final. A player who didn’t play is void, not a miss."
+        note={<>Every call is locked before tip and graded after the final. <Why label="Void" text="A player who didn’t play is void, not a miss." /></>}
         stats={data ? [{ value: nights.length, label: 'NIGHTS', tone: C.text2 }, { value: Object.values(tot).reduce((n, v) => n + v.n, 0), label: 'CALLS', tone: C.purple }] : null} />
       <Pills ariaLabel="Which games" value={pre ? 'pre' : 'reg'} onChange={(k) => setPre(k === 'pre')} options={[{ key: 'reg', text: 'Regular season' }, { key: 'pre', text: 'With preseason' }]} />
       <DelayedBanner error={error} what="the record" />
       {loading && !data ? <Loading what="the record" /> : null}
-      {data && data.dbReady === false && <EmptyState title="NOT RECORDING YET" note="The BUCKETS log isn’t reachable right now." />}
+      {data && data.dbReady === false && <EmptyState title="RECORD UNAVAILABLE" note="The record can’t be reached right now." />}
       {data?.dbReady && !nights.length && <EmptyState title="NOTHING GRADED YET" note={pre ? 'The first locked night grades after its last final.' : 'No regular-season night is graded yet. “With preseason” shows the preseason nights.'} />}
       {nights.length > 0 && (
         <RecordPage record={record} Table={BucketsTable} calls={<><CalibrationTable sport="nba" Table={BucketsTable} /><CallHistory sport="nba" Table={BucketsTable} onOpenPlayer={onOpenPlayer} title="Every call, its price, its result" /></>} receiptsLabel="every market, every call that hit" receipts={(<>

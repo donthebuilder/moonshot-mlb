@@ -40,7 +40,7 @@ const MARKET_TAG = { TD: 'TD', REC_YDS: 'REC YDS', RUSH_YDS: 'RUSH YDS', REC: 'R
 const PANELS = [['field', 'The field'], ['players', 'Players'], ['matchup', 'Matchup'], ['research', 'Research']]
 const SUBS = {
   field: 'where this offense attacks, where the other defense is weak, and where they meet.',
-  players: "who gets the ball, who they face, and the model's calls.",
+  players: 'who gets the ball, who they face, and the calls.',
   matchup: 'the numbers that decide a game, side by side.',
   research: 'every scored player in the game, and the top touchdown looks.',
 }
@@ -136,7 +136,7 @@ export default function NflSlate({ data, picks, matchup, logs = null, odds = nul
       chips: chipsFrom.map((k) => ({
         key: `${k.market}-${k.pid}`, tag: MARKET_TAG[k.market] || k.market, color: gradeFor(k.score).color,
         name: k.name, score: Math.round(k.score ?? 0),
-        title: calls.length ? `The bot's ${MARKET_TAG[k.market] || k.market} call in this game` : "Top TD score in this game (no headline call lands here)",
+        title: calls.length ? `TUDDY's ${MARKET_TAG[k.market] || k.market} call in this game` : "Top TD score in this game (no headline call lands here)",
         onClick: (e) => { e.stopPropagation(); const p = playersById[String(k.pid)]; if (p) onPlayerClick?.(p, k.market) },
       })),
     }
@@ -183,7 +183,7 @@ export default function NflSlate({ data, picks, matchup, logs = null, odds = nul
                   <KeyPlayers matchup={matchup} data={data} game={g} onPlayerClick={onPlayerClick} onOpenTeam={onOpenTeam} />
                   {story && (
                     <p style={{ margin: '0 0 14px', fontSize: 13, lineHeight: 1.5, color: C.text2 }}>
-                      <b style={{ color: story.kind === 'model' ? C.orange : C.green, fontFamily: NUM_FONT, fontSize: 12, letterSpacing: '.08em' }}>{story.kind === 'model' ? 'MODEL NARRATIVE' : 'MILESTONE'} </b>
+                      <b style={{ color: C.green, fontFamily: NUM_FONT, fontSize: 12, letterSpacing: '.08em' }}>{story.kind === 'model' ? 'THE CALL' : 'MILESTONE'} </b>
                       <Tap onClick={() => onPlayerClick?.(story.player, story.market)}>{story.text}</Tap>
                     </p>
                   )}

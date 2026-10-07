@@ -24,7 +24,7 @@ export default function Leaders({ onOpenPlayer, onOpenTeam }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <PageHeader eyebrow="BUCKETS · LEADERS" title={data?.seasonLabel ? `${data.seasonLabel} leaders` : 'Leaders'} theme={C} numFont={NUM_FONT} accent={C.purple}
-        note={`Per game, regular season, at least ${data?.minGames || 20} games played. Straight from the league’s stats.`} />
+        note={`Per game, regular season, ${data?.minGames || 20}+ games played.`} />
       {data?.stale && <LastSeasonNote label={data.seasonLabel} what="leaders" />}
       {cats.length > 0 && <Pills ariaLabel="Category" value={cat?.key} onChange={setK} options={cats.map((c) => ({ key: c.key, text: c.label }))} />}
       <DelayedBanner error={error} what="the league’s stats" />

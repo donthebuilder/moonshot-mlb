@@ -45,7 +45,7 @@ export default function BucketsWeakSpots({ rows = [], games = [], onOpenPlayer }
     <div style={{ marginBottom: 20 }}>
       <SubLabel theme={C} numFont={NUM_FONT}>★ WEAK SPOTS · {cards.length} DEFENSE{cards.length === 1 ? '' : 'S'} SOFT TONIGHT, AND WHO FACES THEM</SubLabel>
       <p style={{ margin: '0 0 8px', fontSize: 12, lineHeight: 1.5, color: C.text3 }}>Measured over the clubs playing tonight: points allowed in the top third meets the called players and the best scorers facing it. The number on the right is his BUCKETS points score.</p>
-      <WeakSpotGrid cards={cards} accent={C.purple} tagColor={C.teal} />
+      <WeakSpotGrid cards={cards} accent={C.purple} tagColor={C.purple} />
     </div>
   )
 }

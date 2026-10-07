@@ -104,8 +104,8 @@ export default function BucketsDashboard() {
         <h1 className="sr-only">{pageTitle('nba', missingTab ? 'home' : tab)}</h1>
         {!missingTab && <TabExplainer tab={tab} texts={NBA_TEXTS} storageKey="tab_explained_nba" accent={C.purple} />}
         {badDate && !missingTab && (
-          <div role="status" style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '4px 0 10px', padding: '8px 12px', border: `1px solid ${C.border}`, borderLeft: `3px solid ${C.amber}`, borderRadius: 10, background: C.bg2, fontSize: 12, color: C.text2 }}>
-            <span style={{ flex: 1 }}><b style={{ color: C.text, fontFamily: NUM_FONT }}>{badDate}</b> isn&apos;t a real date, so that day is unavailable -- showing tonight instead.</span>
+          <div role="status" style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '4px 0 10px', padding: '8px 12px', border: `1px solid ${C.border}`, borderLeft: `3px solid ${C.border2}`, borderRadius: 10, background: C.bg2, fontSize: 12, color: C.text2 }}>
+            <span style={{ flex: 1 }}><b style={{ color: C.text, fontFamily: NUM_FONT }}>{badDate}</b> isn&apos;t a real date, so that day is unavailable. Showing tonight instead.</span>
             <button type="button" onClick={() => setBadDate('')} aria-label="Dismiss" style={{ minWidth: 44, minHeight: 44, background: 'transparent', border: 'none', color: C.text3, cursor: 'pointer', fontSize: 14 }}>✕</button>
           </div>
         )}

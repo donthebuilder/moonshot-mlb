@@ -57,7 +57,7 @@ export function nflReadBullets(player, market, rows = [], matchup = null) {
     ? Number(player.games_since_last_td) : null
   const bullets = [
     bestMarket && { tone: 'for', text: `${(MARKETS.find(([k]) => k === bestMarket) || [])[1] || bestMarket} is his best market at ${Math.round(bestScore)} (${gradeFor(bestScore).label}).` },
-    rv && { tone: 'note', text: `Wins most on ${rv.best_route.toLowerCase()} routes when targeted -- ${rv.best_yds_per_tgt} yards per target, his best of any route type with enough sample in ${matchup?.chart_season || 'the charting season'}.` },
+    rv && { tone: 'note', text: `Wins most on ${rv.best_route.toLowerCase()} routes when targeted — ${rv.best_yds_per_tgt} yards per target, his best of any route type with enough sample in ${matchup?.chart_season || 'the charting season'}.` },
     sinceTd != null && {
       tone: 'note',
       text: sinceTd === 0
@@ -69,7 +69,7 @@ export function nflReadBullets(player, market, rows = [], matchup = null) {
     role && defense && {
       tone: dvpTone,
       text: `${player.opp} ranks #${Number.isFinite(dvpRank) ? dvpRank : '—'} of 32 in TDs allowed to the ${role} role — ${
-        !Number.isFinite(dvpRank) ? 'rank not published'
+        !Number.isFinite(dvpRank) ? 'rank not available'
           : dvpRank <= 12 ? 'a soft spot, and a reason for the call'
             : dvpRank >= 21 ? 'a hard spot, and a reason against it'
               : 'middle of the league, neither way'
@@ -79,8 +79,8 @@ export function nflReadBullets(player, market, rows = [], matchup = null) {
   return bullets
 }
 
-const ICON = { for: '🟢', against: '🔴', note: '·' }
-const TONE = () => ({ for: C.green, against: C.red, note: C.text2 })
+const ICON = { for: '+', against: '−', note: '·' }   // 10-07 colour diet: no green and red dots
+const TONE = () => ({ for: C.green, against: C.text3, note: C.text2 })
 
 export default function NflPlayerRead({ player, market, rows, matchup }) {
   if (!player) return null

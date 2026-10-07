@@ -3,7 +3,7 @@ import PageHeader from '../../PageHeader'
 import { C, NUM_FONT } from '../../../lib/nba/theme'
 import { useBucketsScores } from '../../../lib/nba/useBuckets'
 import GameList from '../GameList'
-import { EmptyState, DelayedBanner, Loading, SourceLine, DayPager, SeasonTypeChip, fmtDay, zoneAbbrev } from '../ui'
+import { EmptyState, DelayedBanner, Loading, SourceLine, DayPager, SeasonTypeChip, Why, fmtDay, zoneAbbrev } from '../ui'
 import { localTime } from '../../../lib/localTime'
 
 // 📡 LIVE -- every game on one NBA day: score, quarter, clock. Nothing ranked,
@@ -17,14 +17,14 @@ export default function Scores({ date, setDate, onOpenGame }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <PageHeader eyebrow="BUCKETS · LIVE" title={shown ? fmtDay(shown) : 'Tonight'} theme={C} numFont={NUM_FONT} accent={C.purple}
-        note={`Every game that day — score, quarter and clock. Times are in your zone (${zoneAbbrev()}); the day is the league’s Eastern calendar day.`}
+        note={<>Every game that day: score, quarter and clock. <Why label="Live" text={`Times are in your zone (${zoneAbbrev()}). The day is the league’s Eastern calendar day.`} /></>}
         stats={data ? [{ value: data.live, label: 'LIVE', tone: data.live ? C.rim : C.text3 }, { value: final, label: 'FINAL', tone: C.text2 }, { value: games.length, label: 'GAMES', tone: C.text2 }] : null} />
       <DayPager shown={shown} date={date} setDate={setDate} disabled={loading} todayWord="Today">
         {[...new Set(games.map((g) => g.seasonType))].map((t) => <SeasonTypeChip key={t} type={t} />)}
       </DayPager>
-      <DelayedBanner error={error} what="the league’s score feed" />
+      <DelayedBanner error={error} what="the league’s scores" />
       {loading && !data ? <Loading what="the scores" /> : null}
-      {data && !games.length && <EmptyState title="NO GAMES THAT DAY" note={`The league has nothing scheduled for ${fmtDay(shown)}. Page a day, or open a club’s schedule.`} />}
+      {data && !games.length && <EmptyState title="NO GAMES THAT DAY" note={`Nothing scheduled for ${fmtDay(shown)}. Try another day, or open a club’s schedule.`} />}
       {games.length > 0 && <GameList games={games} onOpenGame={onOpenGame} />}
       <SourceLine>Source: ESPN’s NBA scoreboard, read server-side by /api/buckets/scores.{data?.fetchedAt ? ` Last read ${localTime(data.fetchedAt, { zone: false })}.` : ''}</SourceLine>
     </div>

@@ -72,7 +72,7 @@ export default function Player({ id, onBack, backLabel = 'Players', onOpenTeam, 
   if (!id) return <EmptyState title="NO PLAYER PICKED" note="Open a player from Players, a board or a box score."><BackBtn onBack={onBack} label={backLabel} /></EmptyState>
   if (!ok) return <EmptyState title="NO SUCH PLAYER" note={`“${String(id).slice(0, 20)}” isn’t an NBA player id.`}><BackBtn onBack={onBack} label={backLabel} /></EmptyState>
   if (loading && !data) return <div style={{ display: 'grid', gap: 10 }}><BackBtn onBack={onBack} label={backLabel} /><Loading what="his file" /></div>
-  if (!data?.card) return <div style={{ display: 'grid', gap: 10 }}><BackBtn onBack={onBack} label={backLabel} />{error && error.status !== 404 && error.status !== 400 ? <DelayedBanner error={error} what="the player feed" /> : <EmptyState title="NO SUCH PLAYER" note="The league has no NBA player with that id -- the link may be old or cut short." />}</div>
+  if (!data?.card) return <div style={{ display: 'grid', gap: 10 }}><BackBtn onBack={onBack} label={backLabel} />{error && error.status !== 404 && error.status !== 400 ? <DelayedBanner error={error} what="player data" /> : <EmptyState title="NO SUCH PLAYER" note="The league has no NBA player with that id — the link may be old or cut short." />}</div>
   return <PlayerBody key={data.card.id} data={data} error={error} onOpenTeam={onOpenTeam} onOpenGame={onOpenGame} onBack={onBack} backLabel={backLabel} onStep={onStep} peek={peek} />
 }
 
@@ -136,7 +136,7 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
     return { ...raw, _id: `${g.s}-${g.id}`, day: g.date, oppTxt: `${g.home ? '' : '@'}${g.opp}`, res: `${raw.result || ''} ${raw.score || ''}`.trim(), fg: `${raw.fgm}-${raw.fga}`, tp: `${raw.tpm}-${raw.tpa}`, ft: `${raw.ftm}-${raw.fta}`, rest: g.rest }
   })
   const logCols = [
-    { key: 'day', label: 'Date', group: 'Game', w: 84, heat: false, sticky: true, fmt: (v, r) => <>{fmtDay(v)}{r.seasonType === 3 ? <span style={{ marginLeft: 6, color: C.amber, fontSize: 9, letterSpacing: '.1em' }}>PLAYOFF</span> : null}</> },
+    { key: 'day', label: 'Date', group: 'Game', w: 84, heat: false, sticky: true, fmt: (v, r) => <>{fmtDay(v)}{r.seasonType === 3 ? <span style={{ marginLeft: 6, color: C.text3, fontSize: 10, letterSpacing: '.1em' }}>PLAYOFF</span> : null}</> },
     { key: 'oppTxt', label: 'Opp', group: 'Game', w: 56, heat: false, mono: true, link: (r) => (onOpenTeam && r.opp ? () => onOpenTeam(r.opp) : null) },
     { key: 'res', label: 'Result', group: 'Game', w: 82, heat: false, mono: true, link: (r) => (onOpenGame ? () => onOpenGame(r.id) : null) },
     { key: 'min', label: 'MIN', group: 'Line', w: 40, mono: true },
@@ -178,7 +178,7 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
     <SportTheme theme={C} accent={C.purple} numFont={NUM_FONT}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {onBack && <BackBtn onBack={onBack} label={backLabel} />}
-        <DelayedBanner error={error} what="the player feed" />
+        <DelayedBanner error={error} what="player data" />
         {onStep && peers.length > 1 && (
           <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
             <Navigator peers={peers} cur={cur} noun="player" onNavigate={(p) => onStep(p.id)} />

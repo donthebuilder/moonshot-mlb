@@ -4,6 +4,7 @@
 // around the bot's bar), and every slate player with a log ranks by
 // consecutive games on the same side of that number. Hot at the top, or flip
 // to Coldest for the fade board.
+import NflNote from '../NflNote'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE, gradeFor } from '../../../lib/nfl/theme'
 import { streakMarkets, streakBoard, barChoices, seriesFor } from '../../../lib/nfl/streaks'
@@ -15,7 +16,7 @@ import { SportTheme } from '../../SportTheme'
 import { readRun } from '../../../lib/runs'
 import { useIsPhone } from '../../MobileFold'
 
-const REASON_WORD = { rising: 'usage rising', bot: 'bot likes him' }
+const REASON_WORD = { rising: 'usage rising', bot: 'TUDDY rates him' }
 const REASON_TITLE = (r) => `Below the volume floor (${r.usage.recent.toFixed(1)} a game over his last 8, floor ${r.usage.floor}) but on the board because: ${r.reasons.map((x) => REASON_WORD[x]).join(', ')}.`
 const LABEL = { TD: 'Anytime TD', REC_YDS: 'Receiving yards', REC: 'Receptions', RUSH_YDS: 'Rushing yards', RUSH_ATT: 'Carries', PASS_YDS: 'Passing yards', KICK_PTS: 'Kicking points' }
 
@@ -86,7 +87,7 @@ export default function Streaks({ data, logs, onPlayerClick }) {
       .filter((v) => Number.isFinite(v) && v !== 0)
   }, [logs, data, market, line, pos])
 
-  if (!markets.length) return <div className="ts-empty">No game logs published yet — the bot ships nfl_logs.json on its first run of the season.</div>
+  if (!markets.length) return <div className="ts-empty">No game logs yet. They appear once the season starts.</div>
 
   return (
     <SportTheme theme={C} accent={C.green} numFont={NUM_FONT}>
@@ -94,7 +95,7 @@ export default function Streaks({ data, logs, onPlayerClick }) {
       <PageHeader
         eyebrow="TUDDY · STREAKS"
         title={side === 'over' ? 'Who is hot' : 'Who is cold'}
-        note={<>Consecutive games on the same side of a number <b>you</b> pick, last 30 games, no model in the way. Hot is the play; cold is the fade — or the bounce, if you believe in those. Low-volume names only make the board with a reason printed next to them: usage rising, or the bot rating him this week.</>}
+        note={<NflNote tab="streaks" />}
         theme={C}
         numFont={NUM_FONT}
         accent={C.green}
@@ -124,8 +125,8 @@ export default function Streaks({ data, logs, onPlayerClick }) {
           <span style={{ fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.1em', color: C.text3, textTransform: 'uppercase', fontFamily: NUM_FONT, flexShrink: 0 }}><NflExplain label="Line" /></span>
           {chips.map((c) => (
             <FilterPill key={c} active={c === line} onClick={() => setBar(c)}
-              title={c === market.bar ? "The bot's own bar for this market." : `Your own line: ${c}.`}>
-              {c}{c === market.bar ? ' · bot' : ''}
+              title={c === market.bar ? "TUDDY's bar for this market." : `Your own line: ${c}.`}>
+              {c}{c === market.bar ? ' · bar' : ''}
             </FilterPill>
           ))}
         </div>
@@ -158,9 +159,9 @@ export default function Streaks({ data, logs, onPlayerClick }) {
                     kicker={<>{x.player.team}{x.player.opp ? ` vs ${x.player.opp}` : ''} · {x.player.position} · {label}</>}
                     onClick={() => onPlayerClick?.(x.player, market.key)}>
                     <div style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, color: C.text3, marginTop: 3 }}>
-                      {Number.isFinite(score) ? <>bot <b style={{ color: g.color }}>{Math.round(score)}</b> this week</> : 'not scored this week'}
+                      {Number.isFinite(score) ? <>score <b style={{ color: g.color }}>{Math.round(score)}</b> this week</> : 'not scored this week'}
                       {x.questionable && <b title="Listed questionable on the slate" style={{ color: C.yellow, marginLeft: 6 }}>Q</b>}
-                      {why(x) && <span title={REASON_TITLE(x)} style={{ color: C.cyan, marginLeft: 6 }}>{why(x)}</span>}
+                      {why(x) && <span title={REASON_TITLE(x)} style={{ color: C.green, marginLeft: 6 }}>{why(x)}</span>}
                     </div>
                   </RunLeaderCard>
                 )
@@ -170,7 +171,7 @@ export default function Streaks({ data, logs, onPlayerClick }) {
               <div style={{ display: 'grid', gap: 4, gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 330px), 1fr))' }}>
                 {shown.map((x) => (
                   <RunBoardRow key={x.player.player_id} r={x.run} name={x.player.name} label={label}
-                    team={<>{x.player.team} · {x.player.position}{x.questionable ? ' · Q' : ''}{why(x) ? <span title={REASON_TITLE(x)} style={{ color: C.cyan }}> · {why(x)}</span> : null}</>}
+                    team={<>{x.player.team} · {x.player.position}{x.questionable ? ' · Q' : ''}{why(x) ? <span title={REASON_TITLE(x)} style={{ color: C.green }}> · {why(x)}</span> : null}</>}
                     open={openRow === x.player.player_id}
                     onToggle={() => setOpenRow(openRow === x.player.player_id ? null : x.player.player_id)}
                     onOpenCard={() => onPlayerClick?.(x.player, market.key)} />

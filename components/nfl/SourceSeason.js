@@ -17,7 +17,7 @@ import { blockSeason } from '../../lib/nfl/dvpSignal'
 //
 //   STATS (DvP, field, splits)  play-by-play, published nightly all season.
 //       nfl_features.stats_season_for() serves LAST season until three weeks
-//       of this one are played, because a week-1 defence-vs-position table
+//       of this one are played, because a week-1 defense-vs-position table
 //       does not exist yet. It flips on its own around week 4. Waiting.
 //
 //   CHARTING (coverage, routes, pressure)  participation, published ONCE A
@@ -41,8 +41,8 @@ export default function SourceSeason({ matchup, kind = 'charting', slateSeason =
   if (kind === 'stats' && slate && year === slate) return null
   const stale = slate ? year < slate : kind === 'charting'
   const title = kind === 'charting'
-    ? `Coverage, routes and pressure come from play charting, published once a year after the postseason. ${year} is the newest that exists \u2014 the ${year + 1} file lands around February ${year + 2}. Real numbers, last season's defence.`
-    : `Defence-vs-position is built from play-by-play, which publishes all season. This season's own table opens once three weeks have been played; until then the honest answer is ${year}.`
+    ? `Coverage, routes and pressure come from play charting, released once a year after the postseason. ${year} is the newest there is \u2014 the ${year + 1} data arrives around February ${year + 2}. Real numbers, last season's defense.`
+    : `Defense-vs-position is built from play-by-play, which updates all season. This season's own table opens once three weeks have been played; until then the honest answer is ${year}.`
   return (
     <span
       title={title}

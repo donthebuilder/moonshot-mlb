@@ -44,7 +44,7 @@ import FiltersDrawer, { DrawerSection } from '../FiltersDrawer'
 // and assuming it was wrong. Swept against the live payload: 25 of the 26
 // published component keys run a full 0–100 spread, and `def_touchdowns_rate`
 // (DEF_TD) does not. Its entire live range is 0.0 to 0.5, with exactly two
-// distinct values across 32 defences. It passes a naive "is it inside 0–100"
+// distinct values across 32 defenses. It passes a naive "is it inside 0–100"
 // check, which is why the first version of this file called every component a
 // percentile and shipped a DEF_TD preset that matched ZERO players — a 0–100
 // slider with step 1 cannot move over a 0–0.5 field, the same trap MOONSHOT
@@ -269,7 +269,7 @@ export default function NflBoardFilters({ state, total, shown, extra = null, ext
         </div>
         {!bandOptions.length && (
           <p style={{ margin: '6px 0 0', color: C.text3, fontSize: TYPE.micro, lineHeight: 1.5 }}>
-            This board has not published its score components yet, so there is nothing to band on.
+            This board has no score parts yet, so there is nothing to band on.
           </p>
         )}
         {bands.map((b) => {

@@ -67,7 +67,7 @@ export default function AgainstTheBar({ log, statKey, bar, span = 5, label = '',
   if (!read) {
     return (
       <div style={{ fontSize: 12, color: C.text3, padding: '6px 0' }}>
-        No published games for this market yet.
+        No games for this market yet.
       </div>
     )
   }

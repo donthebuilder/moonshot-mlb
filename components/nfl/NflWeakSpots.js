@@ -71,7 +71,7 @@ export default function NflWeakSpots({ matchup, players = [], games = [], onPlay
       <p style={{ margin: '0 0 8px', fontSize: 11.5, lineHeight: 1.5, color: C.text3 }}>
         A soft role is a starter&apos;s role (QB, RB1, WR1-3, TE1) this defense gives up clearly more touchdowns or red-zone chances to than the league&apos;s average (a standard deviation or more — the Matchups page&apos;s measure). The number on the right is his TD score and how many times the league average they allow.
       </p>
-      <WeakSpotGrid cards={cards} accent={C.green} tagColor={C.cyan} />
+      <WeakSpotGrid cards={cards} accent={C.green} tagColor={C.green} />
     </div>
   )
 }

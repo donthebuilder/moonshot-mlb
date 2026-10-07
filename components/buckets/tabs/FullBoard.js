@@ -7,7 +7,7 @@ import { useBucketsBoard, useBucketsExpected } from '../../../lib/nba/useBuckets
 import { NBA_MARKETS } from '../../../lib/nba/legs'
 import BucketsTable from '../BucketsTable'
 import { faceOf, XPTS_TITLE } from '../boardTable'
-import { EmptyState, DelayedBanner, Loading, SourceLine, DayPager, fmtDay, fmtTip } from '../ui'
+import { EmptyState, DelayedBanner, Loading, SourceLine, DayPager, Why, fmtDay, fmtTip } from '../ui'
 
 // 📋 BOARDS -- every player the model rated that night, every market side by
 // side (MOONSHOT's fullboard, LAMP's Rankings). One row a player; each market
@@ -59,12 +59,12 @@ export default function FullBoard({ date, setDate, onOpenPlayer, onOpenTeam, onO
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {!embedded && <PageHeader eyebrow="BUCKETS · RANKINGS" title={shown ? fmtDay(shown) : 'Tonight'} theme={C} numFont={NUM_FONT} accent={C.purple}
-        note="Who we rank tonight, and why. Every player the model rated that day, every market side by side. CALLED is one per team in a game, per market; a PREVIEW is not a call until its game locks."
+        note={<>Every player tonight, every market side by side. <Why label="Rankings" text="Every player rated that day, every market side by side. CALLED is one per team in a game, per market. A PREVIEW is not a call until its game locks." /></>}
         stats={data ? [{ value: rows.length, label: 'PLAYERS', tone: C.text2 }, { value: calledN, label: 'CALLS', tone: C.purple }, { value: games.length, label: 'GAMES', tone: C.text2 }] : null} />}
       {!embedded && <DayPager shown={shown} date={date} setDate={setDate} />}
       <DelayedBanner error={pts.error} what="the board" />
       {loading ? <Loading what="every market’s board" /> : null}
-      {data && !games.length && <EmptyState title="NO GAMES THAT DAY" note="Nothing to rank. Page a day." />}
+      {data && !games.length && <EmptyState title="NO GAMES THAT DAY" note="Nothing to rank. Try another day." />}
       {rows.length > 0 && (
         <BucketsTable rows={rows} columns={columns} onRowClick={(r) => onOpenPlayer?.((r?._raw ?? r).playerId)} faceOf={faceOf}
           initialSort={{ key: 's_pts', dir: 'desc' }} heatMode="sorted" maxHeight={620} maxRows={Math.max(rows.length, 1)}

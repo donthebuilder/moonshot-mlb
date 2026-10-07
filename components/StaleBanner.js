@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { localTime, etWallInstant } from '../lib/localTime'
+import { explain } from '../lib/explain'
 
 // ⚠️ IS THIS TONIGHT'S SLATE? (2026-08-09)
 //
@@ -74,22 +75,21 @@ export default function StaleBanner({ slateDate = '', mode = 'today', loading = 
   if (truncated) {
     return (
       <div style={{
-        background: 'linear-gradient(155deg, rgba(248,113,113,.14), rgba(248,113,113,.05))',
-        border: '1px solid rgba(248,113,113,.55)', borderRadius: 12,
+        background: `linear-gradient(155deg, ${C.red}24, ${C.red}0d)`,
+        border: `1px solid ${C.red}8c`, borderRadius: 12,
         padding: '10px 14px', marginBottom: 12,
       }}>
         <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap' }}>
           <span style={{ fontSize: 13 }}>⚠️</span>
-          <span style={{ fontSize: 12, fontWeight: 900, color: '#f87171' }}>The published slate is incomplete</span>
+          <span style={{ fontSize: 12, fontWeight: 900, color: C.red }}>Tonight’s slate is incomplete</span>
           <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
             {games} game{games === 1 ? '' : 's'}{slateDate ? ` · dated ${slateDate}` : ' · no date published'}
           </span>
         </div>
         {!compact && <div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.6, marginTop: 5, maxWidth: 720 }}>
-          The bot published a slate file too small to be a real night of baseball, so most hitters are
-          missing from every board. <b>Anything that says the model had no opinion on a player is wrong —
-          it means he isn&apos;t in the file, not that he wasn&apos;t picked.</b> The site is read-only and
-          can&apos;t rebuild it; the next successful bot run replaces it.
+          Tonight&apos;s slate came through too small to be a real night of baseball, so most hitters are
+          missing from every board. <b>A &quot;not rated&quot; label here means he is missing from the slate,
+          not that he was passed over.</b> It fixes itself on the next update.
         </div>}
       </div>
     )
@@ -124,7 +124,7 @@ export default function StaleBanner({ slateDate = '', mode = 'today', loading = 
     }
   }
   const early = false
-  const col = '#f87171'
+  const col = C.red
 
   return (
     <StaleNote tone={col} icon={early ? '🕐' : '⚠️'} compact={compact}
@@ -136,14 +136,13 @@ export default function StaleBanner({ slateDate = '', mode = 'today', loading = 
         <>
           The daily build normally lands around <b>{localTime(etWallInstant(1)) || '1am ET'}</b> and it hasn’t yet, so everything below is
           still <b style={{ color: col }}>{slateDate}</b>. Nothing here is wrong — it’s just the previous
-          night. It’ll swap over on its own once the bot publishes.
+          night. It’ll swap over on its own once tonight’s slate is up.
         </>
       ) : (
         <>
-          The bot hasn’t published a newer slate, so every board, pick and score below belongs to{' '}
+          A newer slate isn’t up yet, so every board, pick and score below belongs to{' '}
           <b style={{ color: col }}>{slateDate}</b> — games that have already been played.{' '}
-          <b>Don’t read these as tonight’s picks.</b> This usually means the scheduled run failed;
-          the site is read-only and can’t fix it from here.
+          <b>Don’t read these as tonight’s picks.</b>
         </>
       )} />
   )
@@ -155,13 +154,15 @@ export default function StaleBanner({ slateDate = '', mode = 'today', loading = 
 // The markup is exactly what StaleBanner drew; MOONSHOT's banner is unchanged.
 /** LIVE DATA DELAYED -- one banner for every product's feed outage (R7, 2026-10-04;
  *  was a copy each in lamp/ui.js and buckets/ui.js). Renders nothing without an error. */
-export function DelayedBanner({ error, what = 'the league feed', theme = C, numFont = NUM_FONT }) {
+export function DelayedBanner({ error, what = 'the league’s data', theme = C, numFont = NUM_FONT }) {
   if (!error) return null
   return <StaleNote role="alert" tone={theme.amber || theme.orange} theme={theme} numFont={numFont} title="LIVE DATA DELAYED"
     body={<>We’re waiting on {what}. Anything below is the last copy we had.</>} />
 }
 
-export function StaleNote({ tone, icon = '⚠️', title, meta = null, body = null, compact = false, theme = C, numFont = NUM_FONT, role = 'status' }) {
+// `why` (2026-10-07 text sweep): a caveat that carries meaning but shouldn't be a paragraph on every visit. The note
+// stays one line (icon, title, meta) and a 44px (?) says the rest on tap, through the shared explain panel.
+export function StaleNote({ tone, icon = '⚠️', title, meta = null, body = null, why = null, compact = false, theme = C, numFont = NUM_FONT, role = 'status' }) {
   return (
     <div role={role} style={{
       background: `linear-gradient(155deg, ${tone}14, ${tone}05)`,
@@ -172,8 +173,10 @@ export function StaleNote({ tone, icon = '⚠️', title, meta = null, body = nu
         <span style={{ fontSize: 13 }}>{icon}</span>
         <span style={{ fontSize: 12, fontWeight: 900, color: tone }}>{title}</span>
         {meta ? <span style={{ fontSize: 9.5, color: theme.text3, fontFamily: numFont }}>{meta}</span> : null}
+        {why ? <button type="button" onClick={() => explain(title, why)} aria-label={`What does “${title}” mean?`}
+          style={{ alignSelf: 'center', minWidth: 44, minHeight: 44, margin: '-12px -8px -12px auto', background: 'none', border: 0, color: theme.text2, font: `800 12px/1 ${numFont}`, cursor: 'pointer' }}>(?)</button> : null}
       </div>
-      {!compact && body ? <div style={{ fontSize: 10.5, color: theme.text2, lineHeight: 1.6, marginTop: 5, maxWidth: 720 }}>{body}</div> : null}
+      {!compact && !why && body ? <div style={{ fontSize: 10.5, color: theme.text2, lineHeight: 1.6, marginTop: 5, maxWidth: 720 }}>{body}</div> : null}
     </div>
   )
 }

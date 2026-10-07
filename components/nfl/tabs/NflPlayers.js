@@ -78,7 +78,7 @@ export default function NflPlayers({ data, logs, matchup, picks, results, odds =
   }, [all])
 
   const asks = [
-    { key: 'card', label: '🤖 On the card', test: (p) => onCard.has(String(p.player_id)), why: 'On one of the bot’s market ladders this week' },
+    { key: 'card', label: '🤖 On the card', test: (p) => onCard.has(String(p.player_id)), why: 'On one of TUDDY’s market cards this week' },
     ...['QB', 'RB', 'WR', 'TE'].map((pos) => ({ key: pos, label: pos, test: (p) => p.position === pos, why: `${pos}s only` })),
     { key: 'q', label: '🩹 Questionable', test: (p) => Boolean(p.questionable), why: 'Listed questionable this week' },
   ]
@@ -88,11 +88,11 @@ export default function NflPlayers({ data, logs, matchup, picks, results, odds =
   const missing = wanted && all.length && !all.some((p) => String(p.player_id) === String(wanted))
   const notice = missing ? (
     <div role="status" style={{ margin: '0 0 10px', padding: '10px 12px', border: `1px solid ${C.border}`, borderLeft: `3px solid ${C.yellow}`, borderRadius: 10, background: C.bg2, fontSize: 12, color: C.text2, lineHeight: 1.5 }}>
-      <b style={{ color: C.text, letterSpacing: '.06em', fontSize: 10 }}>NO SUCH PLAYER</b> -- <b style={{ color: C.text, fontFamily: NUM_FONT }}>{String(wanted).slice(0, 24)}</b> isn&apos;t in this week&apos;s file. Pick anyone from the list.
+      <b style={{ color: C.text, letterSpacing: '.06em', fontSize: 10 }}>NO SUCH PLAYER</b> — <b style={{ color: C.text, fontFamily: NUM_FONT }}>{String(wanted).slice(0, 24)}</b> isn&apos;t on this week&apos;s list. Pick anyone from the list.
     </div>
   ) : null
 
-  if (!all.length) return <div style={{ padding: 20, color: C.text3, fontSize: 12, textAlign: 'center' }}>The player directory publishes with the NFL slate.</div>
+  if (!all.length) return <div style={{ padding: 20, color: C.text3, fontSize: 12, textAlign: 'center' }}>Players appear once the week is loaded.</div>
 
   return (
     <SportTheme theme={C} accent={C.green} numFont={NUM_FONT}>
@@ -103,7 +103,7 @@ export default function NflPlayers({ data, logs, matchup, picks, results, odds =
         nameOf={(p) => p.name}
         searchText={(p) => `${p.name} ${p.team} ${p.opp || ''} ${p.position}`}
         badgesOf={(p) => (<>
-          {onCard.has(String(p.player_id)) && <span title={`On the bot’s card: ${onCard.get(String(p.player_id))}`} style={{ fontSize: 9, marginLeft: 4 }}>🤖</span>}
+          {onCard.has(String(p.player_id)) && <span title={`On TUDDY’s card: ${onCard.get(String(p.player_id))}`} style={{ fontSize: 9, marginLeft: 4 }}>🤖</span>}
           {p.questionable && <span title="Questionable" style={{ fontSize: 9, marginLeft: 3, color: C.yellow, fontWeight: 900 }}>Q</span>}
         </>)}
         metaOf={(p) => (p.roster_only

@@ -42,7 +42,7 @@ export default function Team({ abbrev, onOpenPlayer, onOpenGame, onBack, backLab
   if (loading && !t) return <Loading what="the club" />
   if (!t) {
     const notAClub = error?.status === 400 || error?.status === 404
-    return <EmptyState title={notAClub ? 'NO SUCH CLUB' : 'LIVE DATA DELAYED'} note={notAClub ? 'That is not one of the 32 NHL clubs.' : 'We’re waiting on the league’s club feeds.'} tone={notAClub ? C.text3 : C.amber}><BackBtn onBack={onBack} label={backLabel} /></EmptyState>
+    return <EmptyState title={notAClub ? 'NO SUCH CLUB' : 'LIVE DATA DELAYED'} note={notAClub ? 'That is not one of the 32 NHL clubs.' : 'We’re waiting on this club’s numbers.'} tone={notAClub ? C.text3 : C.amber}><BackBtn onBack={onBack} label={backLabel} /></EmptyState>
   }
   return <TeamBody t={t} error={error} onOpenPlayer={onOpenPlayer} onOpenGame={onOpenGame} onBack={onBack} backLabel={backLabel} />
 }
@@ -69,7 +69,7 @@ function TeamBody({ t, error, onOpenPlayer, onOpenGame, onBack, backLabel }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <BackBtn onBack={onBack} label={backLabel} />
-      <DelayedBanner error={error} what="the league’s club feeds" />
+      <DelayedBanner error={error} what="this club" />
       <PageHeader
         eyebrow={`LAMP · TEAM · ${t.team.conference === 'E' ? 'EASTERN' : 'WESTERN'} · ${t.team.division.toUpperCase()}`}
         title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}><img src={nhlLogo(t.team.abbrev)} alt="" width={56} height={56} style={{ width: 56, height: 56, objectFit: 'contain' }} />{t.team.name}</span>}

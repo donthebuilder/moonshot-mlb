@@ -30,7 +30,7 @@ export default function Standings({ onOpenTeam }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <PageHeader eyebrow="BUCKETS · STANDINGS" title={data?.seasonLabel ? `${data.seasonLabel} standings` : 'Standings'} theme={C} numFont={NUM_FONT} accent={C.purple}
-        note={data?.stale ? `This season hasn’t started, so this is ${data.seasonLabel}’s final table.` : 'Both conferences, seeded in the league’s own order.'} />
+        note={data?.stale ? `The season hasn’t started: this is ${data.seasonLabel}’s final table.` : 'Both conferences, seeded.'} />
       {data?.other ? <Pills ariaLabel="Season" value={String(data.season)} onChange={(k) => setSeason(Number(k))} options={[{ key: String(data.season), text: data.seasonLabel }, { key: String(data.other), text: data.otherLabel }].sort((a, b) => b.key.localeCompare(a.key))} /> : null}
       <DelayedBanner error={error} what="the standings" />
       {loading && !data ? <Loading what="the standings" /> : null}

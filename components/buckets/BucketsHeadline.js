@@ -31,7 +31,7 @@ export default function BucketsHeadline({ theme: C, numFont, boards, onOpenPlaye
       const where = `${r.team} ${r.home ? 'vs' : '@'} ${r.opp}${f1(r.minPg) ? ` · ${f1(r.minPg)} MIN/g` : ''}`
       return {
         key: String(r.playerId), raw: r, name: r.name, score: Math.round(r.score),
-        flag: preview ? { icon: '⏳', title: 'PREVIEW -- not a call until its game locks' } : null,
+        flag: preview ? { icon: '⏳', title: 'PREVIEW — not a call until its game locks' } : null,
         lines: i === 0 ? [l.stat(r) || '', `${where}${preview ? ' · PREVIEW' : ''}`] : [],
         team: i === 0 ? null : r.team,
         micro: i === 0 ? null : `${l.stat(r) || ''}${preview ? ' · preview' : ''}`,

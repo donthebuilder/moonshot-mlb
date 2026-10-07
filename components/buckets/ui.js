@@ -10,6 +10,7 @@ import { C, NUM_FONT } from '../../lib/nba/theme'
 import { StaleNote, DelayedBanner as SharedDelayedBanner } from '../StaleBanner'
 import { Empty } from '../ui'
 import { localTime } from '../../lib/localTime'
+import { explain } from '../../lib/explain'
 export { shiftDay } from '../../lib/data'
 export { readParam as readHashParam, writeParam as writeHashParam } from '../../lib/useShellRoute'
 
@@ -41,7 +42,7 @@ export function SeasonTypeChip({ type }) {
   const label = SEASON_TYPE[type]
   if (!label) return null
   const pre = type === 1
-  return <span style={{ display: 'inline-block', padding: '4px 8px', borderRadius: 6, border: `1px solid ${pre ? C.amber : C.border2}`, color: pre ? C.amber : C.text3, font: `800 10px/1 ${NUM_FONT}`, letterSpacing: '.1em' }}>{label}</span>
+  return <span style={{ display: 'inline-block', padding: '4px 8px', borderRadius: 6, border: `1px solid ${C.border2}`, color: pre ? C.text2 : C.text3, font: `800 10px/1 ${NUM_FONT}`, letterSpacing: '.1em' }}>{label}</span>
 }
 
 /** The live dot: rim orange, live games only -- never decoration. */
@@ -64,10 +65,17 @@ export const DelayedBanner = (props) => <SharedDelayedBanner theme={C} numFont={
 /** Last season's numbers, said so: the new season's are not in yet. */
 export function LastSeasonNote({ label, what = 'numbers' }) {
   if (!label) return null
-  return <StaleNote tone={C.text3} theme={C} numFont={NUM_FONT} title={`${label} ${what.toUpperCase()}`} body={<>The new season has no regular-season games yet, so these are last season’s ({label}) — they switch over on their own once it starts.</>} />
+  return <StaleNote tone={C.text3} theme={C} numFont={NUM_FONT} title={`${label} ${what.toUpperCase()}`} meta="last season’s"
+    why={`The new season has no regular-season games yet, so these are last season’s (${label}). They switch over on their own once it starts.`} />
 }
-export function Loading({ what = 'the feed' }) {
+export function Loading({ what = 'the data' }) {
   return <div style={{ border: `1px dashed ${C.border2}`, borderRadius: 12, padding: 24, textAlign: 'center', color: C.text3, fontSize: 12 }}>Reading {what}…</div>
+}
+/** A 44px "(?)" that says a caveat on tap, through the shared explain panel (lib/explain.js) -- the words are kept,
+ *  they just stop being a paragraph on every visit (2026-10-07 text sweep). */
+export function Why({ label, text }) {
+  return <button type="button" onClick={() => explain(label, text)} aria-label={`What does “${label}” mean?`}
+    style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: 44, minHeight: 44, margin: '-14px -6px', verticalAlign: 'middle', background: 'none', border: 0, color: C.text2, font: `800 12px/1 ${NUM_FONT}`, cursor: 'pointer' }}>(?)</button>
 }
 /** The mono kicker every section title on BUCKETS uses. */
 export function Kicker({ children, tone = C.purple }) {

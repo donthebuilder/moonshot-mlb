@@ -218,9 +218,7 @@ export default async function DashHome({ searchParams }) {
         <p className={styles.eyebrow}><span>●</span> ONE NETWORK. FOUR WAYS TO PLAY.</p>
         <h1>{displayName ? <>Welcome back, {displayName}.</> : <>Every call, <em>graded in public.</em></>}</h1>
         <p className={styles.heroCopy}>
-          MOONSHOT reads tonight&apos;s baseball. TUDDY reads the football week. LAMP reads
-          tonight&apos;s hockey. FRANCHISE runs your league. Same scoring language, same receipts,
-          one account.
+          Baseball, football and hockey picks, checked in public after every game.
         </p>
         {/* THE WORDS, BEFORE THE NUMBERS (2026-09-26, stranger test F1/F7).
             A first-timer met "board", "call" and "the bot" in every tile below
@@ -232,9 +230,9 @@ export default async function DashHome({ searchParams }) {
         {(() => {
           const words = (
             <dl className={styles.words}>
-              <div><dt>The board</dt><dd>every player the model rated before the game, ranked.</dd></div>
-              <div><dt>A call</dt><dd>a player the model &mdash; the bot &mdash; designated before the game: MOONSHOT&apos;s HR, HIT, HRR and CONTACT picks, TUDDY&apos;s touchdown picks, LAMP&apos;s top skater on each team.</dd></div>
-              <div><dt>Graded</dt><dd>after the game, every call is checked against the bar it was made for, in public, wins and misses alike.</dd></div>
+              <div><dt>The board</dt><dd>every player rated before the game, ranked.</dd></div>
+              <div><dt>A call</dt><dd>a pick we lock before the game.</dd></div>
+              <div><dt>Graded</dt><dd>after the game, every call is checked in public, wins and misses alike.</dd></div>
             </dl>
           )
           return me.user ? <details className={styles.wordsFold}><summary>What the words mean</summary>{words}</details> : words
@@ -262,7 +260,7 @@ export default async function DashHome({ searchParams }) {
         </div>
         {ledgerLines.length ? (
           <ul className={styles.ledgerLines} aria-label="The Ledger tonight, by sport">
-            {ledgerLines.map((l) => <li key={l.k}><Link href={`/called?sport=${l.k}`}><b>{BRAND[l.k].name}</b> {l.line}</Link></li>)}
+            {ledgerLines.map((l) => <li key={l.k}><Link href={`/called?sport=${l.k}`}><b>{BRAND[l.k].name}</b> <span>{l.line}</span></Link></li>)}
           </ul>
         ) : null}
       </section>
@@ -312,9 +310,7 @@ export default async function DashHome({ searchParams }) {
           )}
         </div>
         <p className={styles.stamp}>
-          Live from the published payloads, cached two minutes.{mlb?.label ? ` MLB: ${mlb.label}.` : ''}
-          {nfl?.label ? ` NFL: ${nfl.label}.` : ''}
-          {nhl?.label ? ` NHL: ${nhl.label}.` : ''}
+          Updated every 2 minutes.
         </p>
       </section>
 
@@ -402,7 +398,7 @@ export default async function DashHome({ searchParams }) {
             <summary>How this is counted</summary>
             <p className={styles.stamp}>
               MOONSHOT: the {record?.source || 'locked record'}: only calls whose board row was stamped before first
-              pitch, graded on what happened (nights stamped after first pitch{record?.lateNights?.length ? ` -- ${record.lateNights.map((d) => d.slice(5).replace('-', '/')).join(', ')} --` : ''} are not counted),
+              pitch, graded on what happened (nights stamped after first pitch{record?.lateNights?.length ? ` — ${record.lateNights.map((d) => d.slice(5).replace('-', '/')).join(', ')} --` : ''} are not counted),
               the same numbers as the tier table on the record page. &quot;Every hitter&quot; is the rate for everyone on
               the board on the same bar, which is the number a call has to beat. Each row is scored on the bar that call
               was made for, so the rows are different questions and are never ranked against each other; a call type
@@ -419,7 +415,7 @@ export default async function DashHome({ searchParams }) {
         <article className={`${styles.product} ${styles.mlb}`}>
           <header><i>M</i><div><strong>MOONSHOT</strong><small>MLB</small></div></header>
           <h3>Tonight&apos;s board, graded by morning.</h3>
-          <p>Four call categories — HR, HIT, HRR, CONTACT — plus the full ranked board, the pairs, and every receipt the next morning.</p>
+          <p>HR, HIT, HRR and CONTACT calls, the full ranked board, and every receipt the next morning.</p>
           {/* THE SAME SHAPE AS TUDDY'S (front door E, 2026-09-27): tonight's HR
               calls as a list, top five by score, a homer marked -- was three
               numbers the tiles above already show. */}
@@ -468,7 +464,7 @@ export default async function DashHome({ searchParams }) {
         <article className={`${styles.product} ${styles.nhl}`}>
           <header><i>L</i><div><strong>LAMP</strong><small>NHL</small></div></header>
           <h3>One called per team, every game, locked before puck drop.</h3>
-          <p>{nhl?.label ? `${nhl.label} — ` : ''}the goal board: shots, goals and ice time per game over his last 82, ranked against tonight&apos;s skaters, graded off the boxscore.</p>
+          <p>Shots, goals and ice time per game, ranked for tonight&apos;s skaters and graded after the game.</p>
           {nhl?.calls?.length ? (
             // The #1 called in each LOCKED game. Once graded, the lamp on a scorer.
             <ul className={styles.six}>

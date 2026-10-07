@@ -61,7 +61,7 @@ export default function NflSignalAudit() {
   )
 
   if (state === 'loading') return note('Auditing the archive…')
-  if (state === 'missing') return note('The signal audit has not been published yet — it is written on the next bot run after grading.')
+  if (state === 'missing') return note('The signal audit is not out yet. It updates after games are graded.')
   if (state === 'error') return note(<><b style={{ color: C.text2 }}>AUDIT DELAYED</b><br />We couldn’t load the latest signal audit. The rest of this tab is unaffected.</>)
 
   const weeks = doc.graded_weeks || []
@@ -97,10 +97,10 @@ export default function NflSignalAudit() {
                   {r.invert ? (
                     <>
                       {' '}· <b>{r.rate >= r.base ? '+' : '−'}{Math.abs(r.rate - r.base).toFixed(1)}pp raw</b>
-                      {' '}· <b style={{ color: r.lift >= 0 ? C.green : C.red }}>claim {r.lift >= 0 ? 'met' : 'missed'}</b>
+                      {' '}· <b style={{ color: r.lift >= 0 ? C.green : C.text3 }}>claim {r.lift >= 0 ? 'met' : 'missed'}</b>
                     </>
                   ) : (
-                    <>{' '}· <b style={{ color: r.lift >= 0 ? C.green : C.red }}>{r.lift >= 0 ? '+' : ''}{r.lift.toFixed(1)}pts</b></>
+                    <>{' '}· <b style={{ color: r.lift >= 0 ? C.green : C.text3 }}>{r.lift >= 0 ? '+' : ''}{r.lift.toFixed(1)}pts</b></>
                   )}
                   <span style={{ color: C.text3 }}> · {r.td} of {r.n} scored</span>
                 </span>
@@ -118,7 +118,7 @@ export default function NflSignalAudit() {
       <div style={{ fontSize: TYPE.micro, color: C.text3, marginTop: 10, lineHeight: 1.6, maxWidth: 760 }}>
         Touchdowns are the yardstick for every row: rushing + receiving, for RB/WR/TE who played.
         No history is backfilled — a flag has to be the one that stood before the game, so the newer
-        flags start counting from the day the bot began recording them.
+        flags start counting from the day TUDDY began recording them.
         {doc.generated_at && <> Audit updated {day(doc.generated_at)}.</>}
       </div>
     </div>

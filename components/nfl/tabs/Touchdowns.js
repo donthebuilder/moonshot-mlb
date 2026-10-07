@@ -101,7 +101,7 @@ export function Card({ p, rank, matchup, odds, onPlayerClick, weights, base, poo
   const stats = (topStatChips(comps, weights, 3) || []).map((c) => {
     const pct = Number(comps[c.key])
     const label = c.t.replace(/ \d+p$/, '')
-    return { id: c.key, label, text: Number.isFinite(pct) ? `${Math.round(pct)}` : '—', color: rampAt(Number.isFinite(pct) ? pct / 100 : 0), title: `${label}: ${Number.isFinite(pct) ? Math.round(pct) : '—'}th percentile in the league -- one of the components doing the most work in this score` }
+    return { id: c.key, label, text: Number.isFinite(pct) ? `${Math.round(pct)}` : '—', color: rampAt(Number.isFinite(pct) ? pct / 100 : 0), title: `${label}: ${Number.isFinite(pct) ? Math.round(pct) : '—'}th percentile in the league — one of the components doing the most work in this score` }
   })
   const tag = injuryTag(p)
   const pinned = watchlist.isPinned(p.player_id)
@@ -118,7 +118,7 @@ export function Card({ p, rank, matchup, odds, onPlayerClick, weights, base, poo
           <PlayerFace sport="nfl" espnId={p?.espn_id} team={p?.team} name={p?.name} size={32} />
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3, color: C.text }}>
-              {highConf && <TapNote label="High confidence" text="The bot's own high-confidence TD flag." style={{ fontSize: 14, lineHeight: 1, flexShrink: 0 }}>⭐</TapNote>}
+              {highConf && <TapNote label="High confidence" text="TUDDY's high-confidence TD flag." style={{ fontSize: 14, lineHeight: 1, flexShrink: 0 }}>⭐</TapNote>}
               {aligned.aligned && <TapNote label="Aligned" text={`${aligned.hits} of 3 real signals lining up (matchup / red-zone finisher / rising snaps)`} style={{ fontSize: 14, lineHeight: 1, flexShrink: 0 }}>🧩</TapNote>}
               <CardName name={p.name} />
             </div>
@@ -132,7 +132,7 @@ export function Card({ p, rank, matchup, odds, onPlayerClick, weights, base, poo
         <ScoreBadge label="BOT" score={Number.isFinite(score) ? Math.round(score) : '—'} sub={g.label} color={g.color}
           open={openScore} onToggle={() => setOpenScore((v) => !v)} />
       </div>
-      <ExplainStrip notes={[openScore && 'The bot’s anytime-TD score, 0–100 — a rank against the whole league, not a percentage. The row below is the components doing the most work in it.']} />
+      <ExplainStrip notes={[openScore && 'The anytime-TD score, 0–100 — a rank against the whole league, not a percentage. The row below is the components doing the most work in it.']} />
       {why && <div style={{ fontSize: TYPE.micro, color: C.text2, lineHeight: 1.4, marginBottom: 7 }}>{why.text}</div>}
       {stats.length > 0 && <StatStrip stats={stats} wrap style={{ marginBottom: 8 }} />}
       <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
@@ -200,7 +200,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
   // their own; they are one-tap angles like the rest, so they lead the Angle
   // row now -- one row of chips where there were two (2026-09-27).
   const angles = useMemo(() => [
-    { key: 'highconf', label: '⭐ High confidence', title: `The bot's own high-confidence TD flag. ${angleRecord('TD', 'hiconf') || ''}`.trim(), test: (p) => Boolean(p.high_confidence_td_flag) },
+    { key: 'highconf', label: '⭐ High confidence', title: `TUDDY's high-confidence TD flag. ${angleRecord('TD', 'hiconf') || ''}`.trim(), test: (p) => Boolean(p.high_confidence_td_flag) },
     { key: 'aligned', label: '🧩 Aligned', title: `2 or more of 3 real signals lining up: matchup, red-zone finisher, rising snap share. ${angleRecord('TD', 'aligned') || ''}`.trim(), test: (p) => alignedSignals(matchup, p).aligned },
     ...angleDefs({ matchup, logs, market: MARKET, matchupTag, week: data ? { season: data.season, week: data.week } : null }),
   ], [matchup, logs, data?.season, data?.week])
@@ -288,7 +288,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
       <DrawerPills label="Sort">
         {[['score', 'Score'], ['price', 'Longest price'], ['kickoff', 'Earliest kickoff']].map(([k, label]) => (
           <FilterPill key={k} active={sortBy === k} onClick={() => setSortBy(k)}
-            title={k === 'score' ? "The model's own touchdown score — the page's default." : k === 'price' ? 'Longest anytime-TD price first. An unpriced card sinks rather than sorting as if it were even money.' : 'Earliest kickoff first.'}>{label}</FilterPill>
+            title={k === 'score' ? "The touchdown score — the page's default." : k === 'price' ? 'Longest anytime-TD price first. An unpriced card sinks rather than sorting as if it were even money.' : 'Earliest kickoff first.'}>{label}</FilterPill>
         ))}
       </DrawerPills>
       {drawer.section}
@@ -327,7 +327,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
 
       </>)}
       {!phone && (<BoardHead title="Anytime TD" count={capped.length} view={view} setView={setView}
-        sub={`Every scored player across ${games} game${games === 1 ? '' : 's'}, ranked by the model’s own touchdown score. Tap a name for his card.`} />)}
+        sub={null} />)}
 
       {filtered.length === 0 ? (
         <div style={{ fontSize: TYPE.body, color: C.text3, marginTop: 10 }}>
@@ -363,13 +363,13 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
       {/* ⚖️ COMPARE TWO (2026-09-16): below the board now -- a tool you reach
           for after reading the list, not chrome in front of it. */}
       <div style={{ marginTop: 14 }}>
-        <MobileFold title="⚖️ Compare two players" summary="side by side, stat for stat" accent={C.green}>
+        <MobileFold title="⚖️ Compare two players" summary="side by side" accent={C.green}>
           <TdCompare rows={rows} matchup={matchup} odds={odds} onPlayerClick={onPlayerClick} />
         </MobileFold>
       </div>
 
       <p style={{ margin: '13px 0 0', maxWidth: 620, fontSize: 11, lineHeight: 1.55, color: C.text3 }}>
-        Ranked by the model&apos;s own touchdown score. The score is a league ranking on a 0–100 scale, not a
+        Ranked by touchdown score. The score is a league ranking on a 0–100 scale, not a
         probability. Tap a row for his card: the parts that built the score, the matchup and the price.
       </p>
     </div>

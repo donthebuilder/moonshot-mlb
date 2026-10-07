@@ -16,7 +16,7 @@ export default function Teams({ onOpenTeam }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <PageHeader eyebrow="BUCKETS · TEAMS" title="The 30 clubs" theme={C} numFont={NUM_FONT} accent={C.purple}
-        note={data?.seasonLabel ? `By division, with ${data.seasonLabel} records. Tap a club for its roster, schedule and season lines.` : 'By division. Tap a club for its roster, schedule and season lines.'} />
+        note={data?.seasonLabel ? `By division, with ${data.seasonLabel} records. Tap a club.` : 'By division. Tap a club.'} />
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 }}>
         {divs.map((d) => {
           const [conf, div] = d.split('|')

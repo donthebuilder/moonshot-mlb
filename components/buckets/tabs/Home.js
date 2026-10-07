@@ -52,14 +52,14 @@ export default function Home({ today, date, setTab, onOpenPlayer, onOpenGame, on
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             <HeroStat theme={C} numFont={NUM_FONT} label="GAMES" value={games.length} />
             {firstTip && <HeroStat theme={C} numFont={NUM_FONT} label="FIRST TIP" value={fmtTip(firstTip)} />}
-            {boardGames.length > 0 && <HeroStat theme={C} numFont={NUM_FONT} label="LOCKED" value={`${lockedN}/${boardGames.length}`} col={allLocked ? C.teal : C.text} />}
+            {boardGames.length > 0 && <HeroStat theme={C} numFont={NUM_FONT} label="LOCKED" value={`${lockedN}/${boardGames.length}`} col={C.text} />}
             {day?.live ? <HeroStat theme={C} numFont={NUM_FONT} label="LIVE" value={day.live} col={C.rim} /> : null}
           </div>
         )}
       </DayHero>
       {/* TONIGHT (2026-10-04): who cleared, who's still to go (components/tonight/NbaTonight.js; no NBA numerology yet) */}
       <NbaTonight board={pts.data} date={date} onOpenPlayer={onOpenPlayer} setTab={setTab} />
-      <DelayedBanner error={today?.error} what="the league’s score feed" />
+      <DelayedBanner error={today?.error} what="the league’s scores" />
       {!day && today?.loading ? <Loading what="tonight" /> : null}
 
       <nav aria-label="Players, teams and leaders" style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: -6 }}>

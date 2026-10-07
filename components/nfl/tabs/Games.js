@@ -1,4 +1,5 @@
 'use client'
+import NflNote from '../NflNote'
 import { takeTarget } from '../../../lib/openTarget'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../../lib/nfl/theme'
@@ -158,7 +159,7 @@ export default function Games({ data, picks, matchup, logs, results, odds = null
         border: `1px dashed ${C.border2}`, borderRadius: 12, padding: 28,
         textAlign: 'center', color: C.text3, fontSize: TYPE.body,
       }}>
-        No games on this slate yet. The bot posts the week when the schedule lands.
+        No games yet. The week appears when the schedule is out.
       </div>
     )
   }
@@ -248,12 +249,12 @@ export default function Games({ data, picks, matchup, logs, results, odds = null
           role="status"
           style={{
             marginBottom: 11, padding: '10px 14px', borderRadius: 12,
-            border: `1px solid ${C.yellow}5c`, background: `${C.yellow}20`,
+            border: `1px solid ${C.border2}`, background: C.bg2,
             color: C.text2, fontSize: TYPE.body, lineHeight: 1.5,
           }}
         >
-          <b style={{ color: C.yellow }}>This wave is over.</b> Last kickoff was {waveEnded}
-          — everything below is kept for reference, not live, until the next slate replaces it.
+          <b style={{ color: C.text }}>This week is over.</b> The last kickoff was {waveEnded}.
+          What is below is kept for reference until the next slate.
         </div>
       )}
       {/* The shared page header, not a hand-rolled hero (2026-09-18). Same
@@ -265,7 +266,8 @@ export default function Games({ data, picks, matchup, logs, results, odds = null
         title="Slate"
         theme={C}
         numFont={NUM_FONT}
-        accent={C.cyan}
+        accent={C.green}
+        note={<NflNote tab="games" />}
         stats={[
           { value: games.length, label: 'GAMES', tone: C.green },
           { value: liveCount, label: 'LIVE', tone: C.green, dot: liveCount > 0 },

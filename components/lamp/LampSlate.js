@@ -1,6 +1,7 @@
 'use client'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/nhl/theme'
+import { heatOf as heatIn, heatTier, dialInk } from '../../lib/nhl/slateHeat'
 import { useLampBoard } from '../../lib/nhl/useLamp'
 import { useHashFilter } from '../../lib/filterHash'
 import { useIsPhone } from '../MobileFold'
@@ -36,9 +37,9 @@ import TeamMark from '../TeamMark'
 
 const PANELS = [['read', 'The read'], ['board', 'Every player'], ['calls', 'The calls']]
 const SUBS = {
-  read: 'how many goals to expect, and how each team’s power play, penalty kill and defense compare.',
-  board: 'every skater in this game, both teams, with all their numbers. Scroll the table sideways for more.',
-  calls: 'the two skaters called for this game, one per team.',
+  read: 'goals to expect, power play and penalty kill.',
+  board: 'every skater in this game. Scroll the table sideways for more.',
+  calls: 'one skater called per team.',
 }
 // The words Donovan asked for. The number is each skater's goals a game from the board, added up: a measured
 // rate projection, NOT a probability and not a shot-quality model; the dial's tooltip says how it is built.
@@ -99,7 +100,7 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
   const bestOf = (g) => xgOf(g)
   const bests = games.map(bestOf)
   const lo = Math.min(...bests, Infinity); const hi = Math.max(...bests, 0)
-  const heatOf = (v) => (hi > lo ? (v - lo) / (hi - lo) : 0)
+  const heatOf = (v) => heatIn(v, lo, hi)
   const topId = games.reduce((a, g) => (bestOf(g) > (a ? bestOf(a) : -1) ? g : a), null)?.game.id
   const timeOf = (g) => `${fmtPuckDrop(g.game.startUtc)} ${zoneAbbrev()}`
 
@@ -112,8 +113,8 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
       large: true,
       id: String(g.game.id), title: <CardTitle g={g} st={st} />, past: st === 'final', heat,
       tooltip: `${g.game.away.abbrev} @ ${g.game.home.abbrev}`,
-      dial: { value: best || null, dp: 1, pct: 100 * heat, title: `${best ? best.toFixed(1) : '—'} ${XG_WORDS} in this game: each skater's goals a game from the board, added up. The ring fills against tonight's range.` },
-      band: topId === g.game.id && games.length > 1 ? { icon: '🌋', word: 'MAIN EVENT' } : heat >= 0.62 ? { icon: '🔥', word: '' } : heat < 0.3 && games.length > 2 ? { icon: '🧊', word: '' } : null,
+      dial: { value: best || null, dp: 1, pct: 100 * heat, col: dialInk(heat, C), title: `${best ? best.toFixed(1) : '—'} ${XG_WORDS} in this game: each skater's goals a game from the board, added up. The ring fills against tonight's range.` },
+      band: topId === g.game.id && games.length > 1 ? { icon: '🌋', word: 'MAIN EVENT' } : heatTier(heat) === 'hot' ? { icon: '🔥', word: '' } : heatTier(heat) === 'cold' && games.length > 2 ? { icon: '🧊', word: '' } : null,
       lead: <span title={g.locked ? 'The board locked before puck drop' : g.setting ? 'Setting: the calls can still change until puck drop' : 'A preview until the board locks'}>{g.locked ? '🔒' : '◻'}</span>,
       status: st === 'live' ? { kind: 'live', text: g.game.statusLine || 'LIVE' } : st === 'final' ? { kind: 'final', text: 'FINAL' } : { kind: 'time', text: timeOf(g) },
       extra: <span>{XG_WORDS}</span>,
@@ -135,7 +136,7 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
   return (
     <div>
       <PageHeader eyebrow="LAMP · SLATE" title="Slate" theme={C} numFont={NUM_FONT} accent={C.ice}
-        note="Every game tonight. Open one for how many goals to expect, every player's numbers and the two calls." />
+        note="Tonight’s games, puck drop first." />
       <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
         <NavBtn onClick={() => setDate(shiftDay(shown, -1))} disabled={loading}>‹ Previous day</NavBtn>
         <NavBtn onClick={() => setDate(null)} disabled={loading || !date} strong>Tonight</NavBtn>
@@ -171,7 +172,7 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
           <GameFilterRail value={gfilter} onChange={setGfilter} counts={counts} />
           <SlateStrip sport="nhl" isPhone={isPhone} rememberKey="lamp_games_fold_v1" accent={C.ice} theme={C}
             open={g ? { away: g.game.away.abbrev, home: g.game.home.abbrev } : null} cards={cards} activeId={activeId} onSelect={select}
-            legend={<>Puck-drop order. The dial is {XG_WORDS} in the game; 🔒 the calls are locked, ◻ still a preview.</>} />
+            legend={<>Ring = {XG_WORDS}. 🔒 locked, ◻ preview.</>} />
           <GameSwitcher sport="nhl" games={switcherGames} activeGame={activeId} onSelect={select} live={switcherLive} accent={C.ice} stickyTop="0px" />
         </>
       )}

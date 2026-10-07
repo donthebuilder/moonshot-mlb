@@ -25,7 +25,7 @@ ok('Monday night, one game: matchup and kickoff time', () => {
 ok('no games: says so and names the next day, one-game next', () => {
   const d = dayLine([], { sport: 'nfl', date: '2026-10-06', now: noonET, next: { date: '2026-10-08', games: [g('SFT', 'LAT', '20:15', 'pre', '2026-10-08')] }, tz: TZ })
   assert.equal(d.lead, 'No football today.')
-  assert.equal(d.accent, 'Next: Thursday: SFT at LAT, 8:15 PM EDT.')
+  assert.equal(d.accent, 'Next: Thursday, SFT at LAT, 8:15 PM EDT.')
   assert.equal(d.count.label, 'NEXT KICKOFF')
 })
 ok('no games, several next: "Next: Thursday, 6 games."', () => {
@@ -53,7 +53,7 @@ ok('postponed is counted, not called live', () => {
   assert.equal(t.postponed, 1); assert.equal(t.final, 1)
 })
 ok('the today line for inner pages', () => {
-  assert.equal(todayLine([g('KCT', 'BLT', '20:15', 'pre', '2026-09-28')], { sport: 'nfl', date: '2026-09-28', tz: TZ }), 'MON, SEP 28 · 1 game (KCT at BLT 8:15 PM EDT)')
+  assert.equal(todayLine([g('KCT', 'BLT', '20:15', 'pre', '2026-09-28')], { sport: 'nfl', date: '2026-09-28', now: Date.parse('2026-09-28T12:00:00-04:00'), tz: TZ }), 'MON, SEP 28 · 1 game (KCT at BLT 8:15 PM EDT)')
   assert.equal(todayLine([], { sport: 'mlb', date: '2026-09-28', next: { date: '2026-09-29', games: [g('A', 'B', '13:08', 'pre', '2026-09-29')] }, tz: TZ }), 'MON, SEP 28 · no games · next Tuesday')
   assert.equal(todayLine([], { sport: 'nhl', date: '2026-09-28', next: { date: '2026-09-29' }, tz: TZ }), 'MON, SEP 28 · no games · next Tuesday')
 })

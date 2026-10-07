@@ -78,8 +78,8 @@ export default function FootballField({ mode = 'pass', cells = {}, onPick = null
         <rect x="1" y="1" width={W - 2} height={PB.ez[1] - 1} rx="7" fill={CHALK_SOFT} />
         <text x={W / 2} y={16} fill={C.text3} fontSize="8" fontFamily={NUM_FONT} fontWeight="800" textAnchor="middle" letterSpacing="2">{endZoneLabel}</text>
         <Chalk from={LOS_P} to={PB.deep[0]} step={20} labels={[[PB.short[0], '10'], [PB.mid[0], '20'], [PB.deep[0] + 40, '30']]} />
-        <line x1="0" x2={W} y1={LOS_P} y2={LOS_P} stroke={C.cyan} strokeOpacity="0.7" strokeWidth="1.5" />
-        <text x={W - 6} y={LOS_P - 3} fill={C.cyan} fontSize="7.5" fontFamily={NUM_FONT} fontWeight="800" textAnchor="end">LINE</text>
+        <line x1="0" x2={W} y1={LOS_P} y2={LOS_P} stroke={C.green} strokeOpacity="0.7" strokeWidth="1.5" />
+        <text x={W - 6} y={LOS_P - 3} fill={C.green} fontSize="7.5" fontFamily={NUM_FONT} fontWeight="800" textAnchor="end">LINE</text>
         {DEPTHS.flatMap((d) => SIDES.map((s) => {
           const key = `${s}|${d}`
           const c = cells[key] || {}
@@ -107,7 +107,7 @@ export default function FootballField({ mode = 'pass', cells = {}, onPick = null
         <Turf id={`t${uid}`} h={RUSH_H} />
         {/* chalk for the look only: an arrow's length is its heat, not yards */}
         <Chalk from={LOS_R} to={20} step={30} />
-        <line x1="0" x2={W} y1={LOS_R} y2={LOS_R} stroke={C.cyan} strokeOpacity="0.7" strokeWidth="1.5" />
+        <line x1="0" x2={W} y1={LOS_R} y2={LOS_R} stroke={C.green} strokeOpacity="0.7" strokeWidth="1.5" />
         {/* the five linemen, the ball between the guards */}
         {[0.33, 0.42, 0.5, 0.58, 0.67].map((f) => (
           <rect key={f} x={W * f - 6} y={LOS_R + 3} width="12" height="9" rx="2" fill="none" stroke={C.text3} strokeWidth="1" />

@@ -17,13 +17,13 @@ import { SHELL_SHAPE } from './CoverageShellField'
 //
 //   COVERAGE  pick Man or Zone. Left: the receivers doing the most against
 //             it league-wide (yards a target, TDs, catch rate, 10+ targets).
-//             Right: every defence's coverage mix drawn as one bar (Cover 0 /
+//             Right: every defense's coverage mix drawn as one bar (Cover 0 /
 //             1 / 2 / 3 / 4 / 6 shares), sortable by the shell you pick. Top:
 //             this week's fits -- a receiver who is good against it whose
 //             opponent plays it a lot.
 //   HOLES     the field with the league's seven holes as arrows (length =
 //             yards a carry). Tap a hole: the backs who do most through it
-//             (8+ carries) and the defences that leak most there.
+//             (8+ carries) and the defenses that leak most there.
 //
 // Honest limits, said once, small: the charting splits receivers by man vs
 // zone, not by each shell (no per-receiver "vs Cover 3" is published), and
@@ -33,7 +33,8 @@ import { SHELL_SHAPE } from './CoverageShellField'
 
 const HOLE_SHORT = { 'left|end': 'L END', 'left|tackle': 'L TKL', 'left|guard': 'L GRD', 'middle|middle': 'MID', 'right|guard': 'R GRD', 'right|tackle': 'R TKL', 'right|end': 'R END' }
 const SHELLS = [['C0', 'Cover 0'], ['C1', 'Cover 1'], ['C2', 'Cover 2'], ['C3', 'Cover 3'], ['C4', 'Cover 4'], ['C6', 'Cover 6']]
-const SHELL_COL = () => ({ C0: C.red, C1: C.orange, C2: C.yellow, C3: C.cyan, C4: C.green, C6: C.purple })
+// 10-07 colour diet: every coverage shell wears the one accent; the bar's label says which it is.
+const SHELL_COL = () => ({ C0: C.green, C1: C.green, C2: C.green, C3: C.green, C4: C.green, C6: C.green })
 const MIN_TGT = 10
 const MIN_CAR = 5
 const MIN_DEF_CAR = 8
@@ -80,7 +81,7 @@ function Coverage({ matchup, byId, onPlayerClick, season }) {
   return (
     <div>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
-        <ChipGroup theme={C} numFont={NUM_FONT} first label="Coverage" value={fam} onChange={setFam} color={C.cyan}
+        <ChipGroup theme={C} numFont={NUM_FONT} first label="Coverage" value={fam} onChange={setFam} color={C.green}
           options={[{ k: 'man', label: 'Man', n: Object.values(matchup?.coverage_player || {}).filter((v) => v?.man?.tgts >= MIN_TGT).length, title: 'Receivers against man coverage' },
             { k: 'zone', label: 'Zone', n: Object.values(matchup?.coverage_player || {}).filter((v) => v?.zone?.tgts >= MIN_TGT).length, title: 'Receivers against zone coverage' }]} />
         <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>{season} charting · {MIN_TGT}+ targets</span>
@@ -122,7 +123,7 @@ function Coverage({ matchup, byId, onPlayerClick, season }) {
         </div>
       </div>
 
-      {/* WHO PLAYS IT MOST: the defences, ranked, in a table (the bars it replaced were the same numbers) */}
+      {/* WHO PLAYS IT MOST: the defenses, ranked, in a table (the bars it replaced were the same numbers) */}
       <div style={{ marginTop: 14 }}>
         <NflTable
           key={`defs-${shell}`}
@@ -162,14 +163,14 @@ function Coverage({ matchup, byId, onPlayerClick, season }) {
           />
         </div>
       )}
-      <div style={{ fontSize: 9.5, color: C.text3, marginTop: 8 }}>Receivers are charted by man vs zone only — no per-receiver split by each shell is published.</div>
+      <div style={{ fontSize: 9.5, color: C.text3, marginTop: 8 }}>Receivers are charted by man vs zone only — there is no per-receiver split by shell.</div>
     </div>
   )
 }
 
 function Holes({ matchup, byId, onPlayerClick, season }) {
   const [hole, setHole] = useState('middle|middle')
-  const [defTeam, setDefTeam] = useState(null)   // a defence picked from the table: the field shows ITS holes
+  const [defTeam, setDefTeam] = useState(null)   // a defense picked from the table: the field shows ITS holes
   const f = matchup?.field || {}
   const lg = f.league_rush || {}
   const dl = defTeam ? f.def_rush?.[defTeam] || {} : null
@@ -211,7 +212,7 @@ function Holes({ matchup, byId, onPlayerClick, season }) {
           <NflTable
             rows={holeRows}
             columns={[
-              { key: 'hole', group: 'Hole', label: 'Hole', w: 70, heat: false, sticky: true, bold: true, fmt: (v, r) => <span style={{ color: r.z === hole ? C.cyan : undefined }}>{v}</span> },
+              { key: 'hole', group: 'Hole', label: 'Hole', w: 70, heat: false, sticky: true, bold: true, fmt: (v, r) => <span style={{ color: r.z === hole ? C.green : undefined }}>{v}</span> },
               { key: 'att', group: 'League', label: 'Car', w: 46, dp: 0 },
               { key: 'ypc', group: 'League', label: 'Yds/car', w: 56, dp: 1, primary: true },
               { key: 'stuff', group: 'League', label: 'Stuff%', w: 52, dp: 0, invert: true, title: 'Carries stopped for 0 or less' },
@@ -220,7 +221,7 @@ function Holes({ matchup, byId, onPlayerClick, season }) {
               ...(dl ? [{ key: 'dYpc', group: defTeam, label: 'Yds/car', w: 56, dp: 1, title: `${defTeam} allow, through this hole` }] : []),
             ]}
             onRowClick={(r) => setHole(r.z)}
-            rowEdge={(r) => (r.z === hole ? C.cyan : null)}
+            rowEdge={(r) => (r.z === hole ? C.green : null)}
             initialSort={null}
             maxHeight={9999}
             maxRows={7}
@@ -232,7 +233,7 @@ function Holes({ matchup, byId, onPlayerClick, season }) {
             <b style={{ color: C.text }}>{defTeam ? `${defTeam} defense allow` : 'League, yards a carry'}</b>
             {defTeam && <button type="button" onClick={() => setDefTeam(null)} style={{ minHeight: 44, padding: '0 12px', borderRadius: 999, border: `1px solid ${C.border2}`, background: 'transparent', color: C.text2, cursor: 'pointer', fontFamily: NUM_FONT, fontWeight: 800 }}>Show the league ✕</button>}
           </div>
-          <RunLineField cells={cells} pickedKey={hole} onPick={setHole} hue={C.cyan} label={`${defTeam || 'League'} yards a carry through each hole`} />
+          <RunLineField cells={cells} pickedKey={hole} onPick={setHole} hue={C.green} label={`${defTeam || 'League'} yards a carry through each hole`} />
           <div style={{ fontSize: TYPE.label, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
             Offense lined up as they stand; the bar over each man is yards a carry through his hole, the carries above the number. Dashed = too few carries to call it (under {minAtt}). Tap a defense in the table below to see its holes. {season} season.
           </div>
@@ -271,14 +272,14 @@ function Holes({ matchup, byId, onPlayerClick, season }) {
             { key: 'td', group: 'Faced here', label: 'TD', w: 36, dp: 0 },
           ]}
           onRowClick={(r) => setDefTeam(r.team)}
-          rowEdge={(r) => (r.team === defTeam ? C.cyan : null)}
+          rowEdge={(r) => (r.team === defTeam ? C.green : null)}
           initialSort={{ key: 'ypc', dir: 'desc' }}
           maxHeight={420}
           maxRows={12}
           caption={`Who can't stop it: every defense that faced ${MIN_DEF_CAR}+ carries through ${HOLE_SHORT[hole]}, leakiest first. Tap one to put its holes on the field.`}
         />
       </div>
-      <div style={{ fontSize: TYPE.label, color: C.text3, marginTop: 8 }}>By hole only — the run type (inside zone, power, counter) is not in the published data.</div>
+      <div style={{ fontSize: TYPE.label, color: C.text3, marginTop: 8 }}>By hole only — the run type (inside zone, power, counter) is not in the data.</div>
     </div>
   )
 }

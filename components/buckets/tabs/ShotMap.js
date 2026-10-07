@@ -43,7 +43,7 @@ export default function ShotMap({ onOpenPlayer, onOpenTeam }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <PageHeader eyebrow="BUCKETS · SHOT MAP" title={mode === 'team' ? `${team} shots` : pname ? `${pname}’s shots` : 'Shot map'} theme={C} numFont={NUM_FONT} accent={C.purple}
-        note="Every field-goal attempt on file, made and missed, with each zone’s makes over attempts."
+        note="Where shots come from, made and missed, zone by zone."
         stats={data ? [{ value: shots.length, label: 'ATTEMPTS', tone: C.text2 }] : null} />
       <Pills ariaLabel="Whose shots" value={mode} onChange={(k) => { setMode(k); if (k === 'team') { set('player', null); set('team', team) } else { set('team', null); if (who) set('player', who) } }} options={[{ key: 'team', text: 'A club' }, { key: 'player', text: 'A player' }]} />
       {mode === 'team' ? (
@@ -63,10 +63,10 @@ export default function ShotMap({ onOpenPlayer, onOpenTeam }) {
           {who ? <NavBtn onClick={() => onOpenPlayer?.(who)}>Open his file →</NavBtn> : null}
         </label>
       )}
-      <DelayedBanner error={error} what="the shot store" />
+      <DelayedBanner error={error} what="shot data" />
       {loading && !data ? <Loading what="the shots" /> : null}
       {mode === 'player' && !who && <EmptyState title="PICK A PLAYER" note="Choose a player above for every shot he took on file." />}
-      {data && sel && !shots.length && <EmptyState title="NO SHOTS ON FILE" note="Nothing in the play-by-play store for this pick yet." />}
+      {data && sel && !shots.length && <EmptyState title="NO SHOTS ON FILE" note="No shots recorded for this pick yet." />}
       {shots.length > 0 && <ShotChart shots={shots} filters={['result', 'type']} title={`Shot map, ${mode === 'team' ? team : pname || ''}`}
         source="Every field-goal attempt on file, from ESPN play-by-play (this season and last)." />}
       {shots.length > 0 && (

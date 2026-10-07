@@ -41,13 +41,13 @@ export default function SpecialTeams({ onOpenTeam, onOpenPlayer = null }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <PageHeader eyebrow="LAMP · SPECIAL TEAMS" title={data?.seasonLabel ? `${data.seasonLabel} special teams` : 'Special teams'}
-        note="Power play and penalty kill for all 32 clubs, from the league's own team reports. Clubs playing tonight carry a stripe and their opponent. Sort any column."
+        note="Power play and penalty kill, all 32 clubs. Tonight’s teams are marked."
         theme={C} numFont={NUM_FONT} accent={C.ice}
         stats={data ? [{ value: rows.length, label: 'TEAMS', tone: C.text2 }, { value: playing, label: 'PLAYING TONIGHT', tone: C.ice }] : null} />
       {data?.stale && <StaleSeasonNote label={data.seasonLabel} what="special teams" />}
       <DelayedBanner error={error} what="special teams" />
       {loading && !data ? <Loading what="special teams" /> : null}
-      {data && !rows.length ? <EmptyState title="NO REPORT YET" note="The league's special-teams report returned no clubs." /> : null}
+      {data && !rows.length ? <EmptyState title="NOTHING YET" note="No special-teams numbers for any club yet." /> : null}
       {rows.length > 0 && (
         <LampTable rows={rows} columns={COLUMNS} heatMode="primary" initialSort="ppPct" maxRows={12 /* 0g E3: 32 clubs, preview then "show N more" */} maxHeight={9999}
           rowEdge={(r) => (r._playing ? C.ice : null)} onRowClick={(r) => onOpenTeam?.(r.abbrev)} />

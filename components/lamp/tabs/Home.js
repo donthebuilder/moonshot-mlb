@@ -106,7 +106,7 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
             <HeroStat theme={C} numFont={NUM_FONT} label="GAMES" value={games.length} title="Games on the day." />
             {firstDrop && <HeroStat theme={C} numFont={NUM_FONT} label="FIRST PUCK DROP" value={fmtPuckDrop(firstDrop)} sub={zoneAbbrev()} title="The first puck drop of the day." />}
             {boardGames.length > 0 && <HeroStat theme={C} numFont={NUM_FONT} label="LOCKED" value={`${lockedN}/${boardGames.length}`} col={allLocked ? C.teal : C.text} title="Games whose board has locked before puck drop." />}
-            {graded && <HeroStat theme={C} numFont={NUM_FONT} label="GRADED" value={graded.value} sub={graded.sub} col={C.lamp} title="Called skaters who dressed and scored, over those who dressed." />}
+            {graded && <HeroStat theme={C} numFont={NUM_FONT} label="GRADED" value={graded.value} sub={graded.sub} col={C.text} title="Called skaters who dressed and scored, over those who dressed." />}
           </div>
         )}
         {/* THE CRAWL: the latest graded night in one sentence, its real
@@ -161,7 +161,7 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
           </div>
           <button type="button" onClick={() => setTab?.('scores')} style={link}>All scores ›</button>
         </div>
-        <DelayedBanner error={scores.error} what="the league’s score feed" />
+        <DelayedBanner error={scores.error} what="the scores" />
         {scores.loading && !day ? <Loading what="tonight’s games" /> : null}
         {day && games.length === 0 && !scores.error && (
           <EmptyState title="NO GAMES TODAY" note={day.next ? `The next game day is ${fmtDay(day.next)}. The schedule has the whole week.` : 'Nothing on the league schedule today.'} />
@@ -195,7 +195,7 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
                 heat: false, numeric: false, w: 260, fmt: (_, r) => (
                 <span style={{ fontSize: 11.5, lineHeight: 1.4, whiteSpace: 'normal' }}>
                   {r.g.rows.filter((x) => x.status === 'called').map((x, i) => (
-                    <span key={x.playerId}>{i ? ' · ' : ''}{onOpenPlayer ? <Tap onClick={() => onOpenPlayer(x.playerId)}><span style={{ color: x.hit ? C.lamp : C.text }}>{x.name}</span></Tap> : <span style={{ color: x.hit ? C.lamp : C.text }}>{x.name}</span>} <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 10 }}>{x.score}</span></span>
+                    <span key={x.playerId}>{i ? ' · ' : ''}{onOpenPlayer ? <Tap onClick={() => onOpenPlayer(x.playerId)}><span style={{ color: x.hit ? C.ice : C.text }}>{x.name}</span></Tap> : <span style={{ color: x.hit ? C.ice : C.text }}>{x.name}</span>} <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 10 }}>{x.score}</span></span>
                   ))}
                 </span>) },
               { key: 'stamp', label: 'State', heat: false, w: 70, fmt: (v, r) => <span style={{ color: r.g.graded ? C.cream : r.g.locked ? C.teal : C.amber, font: `900 8px/1 ${NUM_FONT}`, letterSpacing: '.12em' }}>{v}</span> },
@@ -229,13 +229,6 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
         )}
       </section>
 
-      <section aria-label="What this is">
-        <Kicker tone={C.cream}>THIS DESK</Kicker>
-        <p style={{ margin: 0, color: C.text2, fontSize: 12.5, lineHeight: 1.6, maxWidth: 640 }}>
-          LAMP is the NHL side of DASH Network: the game itself — scores, schedule, standings, every goal, every player and club, the leaders — and one signal, the goal board: one skater called per team, locked before puck drop, graded after, the record public. Nothing is priced.{' '}
-          <button type="button" onClick={() => setTab?.('guide')} style={{ ...link, display: 'inline', padding: 0 }}>How this works ›</button>
-        </p>
-      </section>
       <SourceLine>Scores: NHL score/{'{date}'} via /api/lamp/scores. Standings: NHL standings/now via /api/lamp/standings.</SourceLine>
       </>}
     </div>

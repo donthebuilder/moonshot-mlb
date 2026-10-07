@@ -51,7 +51,7 @@ function rungStatus(game, line, market, bar) {
   return over ? { state: 'hit', word: 'CLEARED' } : { state: 'live', word: 'live' }
 }
 
-const STATE_COLOR = () => ({ hit: C.green, miss: C.red, live: C.cyan, void: C.text3, pre: C.text3 })
+const STATE_COLOR = () => ({ hit: C.green, miss: C.text3, live: C.text, void: C.text3, pre: C.text3 })
 
 function RungRow({ rung, player, game, line, market, bar, onPlayerClick }) {
   const st = rungStatus(game, line, market, bar)
@@ -244,7 +244,7 @@ export default function Live({ data, picks, live, matchup = null, logs = null, r
     <>
       <section>
         <div className="tl-title"><div><small>THE CARD</small><h2>Every rung, against its bar</h2></div>{setTab && <button onClick={() => setTab('picks')}>Picks →</button>}</div>
-        {!card.length && <div className="tl-empty">The bot hasn't published a card for this week.</div>}
+        {!card.length && <div className="tl-empty">There is no card for this week yet.</div>}
         <div className="tl-blocks">
           {card.map((block) => (
             <div key={block.key} className="tl-block">
@@ -325,16 +325,16 @@ export default function Live({ data, picks, live, matchup = null, logs = null, r
     ? [secScores, secPlays, secCard, secYours]
     // Pre-game, an empty wire is scroll for nothing; it joins once a play lands.
     : [secHeadline, secScores, secCard, secYours, secStory, secSched, ...(plays.length ? [secPlays] : [])]
-  const sub = `${players.length} players on the board${anyLive ? ' · live — the scores and the plays lead' : allDone ? ' · the week is in' : next ? ` · next kickoff ${fmtKick(next.t)}` : ''}`
+  const sub = `${players.length} players on the board${anyLive ? ' · live' : allDone ? ' · the week is in' : next ? ` · next kickoff ${fmtKick(next.t)}` : ''}`
 
   return (
     <div className="tl">
       <PanelTitle title="Live" sub={sub} theme={C} numFont={NUM_FONT} />
       <WhatThis maxWidth={760}>
         {rungTotal > 0 && <>The card: <b style={{ color: C.green }}>{tally.hit} cleared</b>, {tally.live} live, {tally.miss} missed of {rungTotal} rungs. </>}
-        {anyLive ? 'Every rung against the bar the bot promised, from the league feed every 30 seconds. Live action leads below.'
+        {anyLive ? 'Every rung against its bar, refreshed every 30 seconds. Live action leads below.'
           : allDone ? 'Every game is final; the graded record is on The record.'
-            : 'The plan leads; the sortable full board follows. The scoreboard wakes up twenty minutes before kickoff.'}
+            : 'The scoreboard wakes up twenty minutes before kickoff.'}
       </WhatThis>
       {order.map((sec, i) => <div key={i}>{sec}</div>)}
       <WhatThis>
@@ -384,7 +384,7 @@ export default function Live({ data, picks, live, matchup = null, logs = null, r
       .tl{display:flex;flex-direction:column;gap:14px}
             .tl-title{display:flex;align-items:flex-end;justify-content:space-between;margin:4px 2px 8px}
       .tl-crawl{display:flex;align-items:center;gap:10px;overflow-x:auto;scrollbar-width:none;padding:7px 10px;border:1px solid ${C.border};border-radius:10px;background:${C.bg2};font:700 10.5px/1 ${NUM_FONT};color:${C.text2};white-space:nowrap}
-      .tl-crawl-tag{padding:3px 7px;border-radius:5px;background:${C.cyan};color:${C.bg};font:900 8.5px/1 ${NUM_FONT};letter-spacing:.1em;flex-shrink:0}
+      .tl-crawl-tag{padding:3px 7px;border-radius:5px;background:${C.green};color:${C.bg};font:900 8.5px/1 ${NUM_FONT};letter-spacing:.1em;flex-shrink:0}
       .tl-crawl-item{flex-shrink:0}.tl-crawl-item b{color:${C.text}}.tl-crawl-next{color:${C.text3}}
       .tl-title small{color:${C.green};font:900 8px/1 ${NUM_FONT};letter-spacing:.12em}.tl-title h2{margin:5px 0 0;font-size:17px;letter-spacing:-.02em}
       .tl-title button{border:1px solid ${C.border};border-radius:8px;background:transparent;color:${C.text2};padding:6px 10px;font:800 9px/1 ${NUM_FONT};cursor:pointer}
@@ -394,7 +394,7 @@ export default function Live({ data, picks, live, matchup = null, logs = null, r
       .tl-block header b{font-size:12px}.tl-block header small{color:${C.text3};font:800 9px/1 ${NUM_FONT}}
       .tl-rung{display:grid;grid-template-columns:18px 1fr 64px 60px 78px 30px;align-items:center;gap:8px;width:100%;padding:7px 11px;border:0;border-bottom:1px solid ${C.border};background:transparent;color:inherit;text-align:left;cursor:pointer}
       .tl-rung:last-child{border-bottom:0}.tl-rung:disabled{cursor:default;opacity:.7}
-      .tl-rung.is-hit{background:rgba(0,245,173,.06)}.tl-rung.is-miss{background:rgba(248,113,113,.05)}
+      .tl-rung.is-hit{background:rgba(0,245,173,.06)}.tl-rung.is-miss{background:transparent}
       .tl-rung-rank{color:${C.text3};font:900 10px/1 ${NUM_FONT}}
       .tl-rung-who b{display:block;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tl-rung-who small{display:block;margin-top:2px;color:${C.text3};font:700 8px/1 ${NUM_FONT}}
       .tl-rung-num{font:900 15px/1 ${NUM_FONT};text-align:right}.tl-rung-num small{margin-left:3px;font-size:9px;color:${C.text3};font-weight:700}
@@ -409,7 +409,7 @@ export default function Live({ data, picks, live, matchup = null, logs = null, r
       .tl-plays{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px}
       .tl-plays li{display:grid;grid-template-columns:38px 62px 70px 1fr;gap:8px;align-items:baseline;padding:8px 11px;border:1px solid ${C.border};border-radius:10px;background:${C.bg2};font-family:${NUM_FONT}}
       .tl-plays li.is-mine{border-color:rgba(0,245,173,.45);background:rgba(0,245,173,.06)}
-      .tl-plays span{font-weight:900;font-size:10px;color:${C.green}}.tl-plays em{font-style:normal;font-size:9px;color:${C.text3}}.tl-plays b{font-size:9px;color:${C.cyan}}.tl-plays p{margin:0;font-family:inherit;font-size:11px;color:${C.text2};line-height:1.35}
+      .tl-plays span{font-weight:900;font-size:10px;color:${C.green}}.tl-plays em{font-style:normal;font-size:9px;color:${C.text3}}.tl-plays b{font-size:9px;color:${C.green}}.tl-plays p{margin:0;font-family:inherit;font-size:11px;color:${C.text2};line-height:1.35}
       .tl-empty{padding:22px;border:1px dashed ${C.border2};border-radius:12px;text-align:center;color:${C.text3};font-size:10.5px}
       @media(max-width:640px){.tl-rung{grid-template-columns:16px 1fr 56px 44px 30px;}.tl-rung-word{display:none}.tl-plays li{grid-template-columns:34px 54px 1fr;}.tl-plays b{display:none}}
       `}</style>

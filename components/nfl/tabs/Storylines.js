@@ -1,4 +1,5 @@
 'use client'
+import NflNote from '../NflNote'
 import { etToday } from '../../../lib/freshness'
 // 📰 STORYLINES (2026-09-12, updated same day; reformatted + expanded
 // 2026-09-16, round 6) — Phase 3, four angles now, in MOONSHOT's own compact
@@ -76,7 +77,7 @@ function Row({ icon, onClick, title, children }) {
     </Tag>
   )
 }
-const Num = ({ children }) => <b style={{ fontFamily: NUM_FONT, color: C.orange }}>{children}</b>
+const Num = ({ children }) => <b style={{ fontFamily: NUM_FONT, color: C.green }}>{children}</b>
 const Name = ({ children }) => <b style={{ color: C.text }}>{children}</b>
 // Every line ends in the man's TD score (2026-09-25) -- MOONSHOT's "· bot 66"
 // -- so a storyline ties back to the board it came from.
@@ -125,7 +126,7 @@ export default function Storylines({ data, logs, results, onPlayerClick, setTab,
   const nothingAtAll = !markets.length && !modelCards.length && !rivalries.length && !bdays.length
     && !b2b.length && !due.length && !revenge.length && !rzm.length
   if (nothingAtAll) {
-    return <div className="sl-empty">No game logs published yet — the bot ships nfl_logs.json on its first run of the season, and storylines read the same file Streaks does.</div>
+    return <div className="sl-empty">No game logs yet. Stories appear once the season starts.</div>
   }
 
   const counts = [
@@ -144,7 +145,7 @@ export default function Storylines({ data, logs, results, onPlayerClick, setTab,
       {!compact && <PageHeader
         eyebrow="TUDDY · STORYLINES"
         title="What the numbers are already saying"
-        note={<>Not a leaderboard — a sentence. Every line below is a real, live fact off this week&apos;s logs and grading — read as a story instead of a row in a table.{counts && <div className="sl-counts">{counts}</div>}</>}
+        note={<><NflNote tab="storylines" />{counts && <div className="sl-counts">{counts}</div>}</>}
         theme={C}
         numFont={NUM_FONT}
         accent={C.green}
@@ -175,7 +176,7 @@ export default function Storylines({ data, logs, results, onPlayerClick, setTab,
           <div className="sl-section-head">SCORED LAST TIME OUT{b2bRate ? <span className="sl-head-rate"> · this season a man who scored last week scores again {rateTxt(b2bRate)}</span> : null}</div>
           {b2b.map((r) => (
             <Row key={`b2b-${r.player.player_id}`} icon={"\u{1F501}"} onClick={() => onPlayerClick?.(r.player, 'TD')}
-                 title="He scored a touchdown in his most recent game and the model has him on this week's TD board. The rate on the header is this season's back-to-back rate off the game log -- history, not a forecast.">
+                 title="He scored a touchdown in his most recent game and the model has him on this week's TD board. The rate on the header is this season's back-to-back rate off the game log — history, not a forecast.">
               <Name>{r.player.name}</Name> scored last time out — back on the board this week · <Num>{r.seasonTd}</Num> TD this season
               <span className="sl-row-meta"> · {r.player.team} {r.player.position} vs {r.player.opp || '—'}</span><Td n={r.td} />
             </Row>
@@ -310,8 +311,8 @@ export default function Storylines({ data, logs, results, onPlayerClick, setTab,
       .sl-row-text{min-width:0}
       .sl-row-meta{color:${C.text3};font-family:${NUM_FONT};font-size:9.5px}
 
-      .sl-more{align-self:flex-start;padding:9px 14px;border:1px solid ${C.border};border-radius:9px;background:${C.bg};color:${C.cyan};font:800 10px/1 ${NUM_FONT};cursor:pointer}
-      .sl-more:hover{border-color:${C.cyan}}
+      .sl-more{align-self:flex-start;padding:9px 14px;border:1px solid ${C.border};border-radius:9px;background:${C.bg};color:${C.green};font:800 10px/1 ${NUM_FONT};cursor:pointer}
+      .sl-more:hover{border-color:${C.green}}
 
       .sl-note{padding:14px 16px;border:1px dashed ${C.border2};border-radius:12px;color:${C.text3};font-size:10.5px;line-height:1.6}
       .sl-note b{color:${C.text2}}

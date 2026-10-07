@@ -93,7 +93,7 @@ export default function RedZoneField({ data, matchup, onPlayerClick }) {
         const gl = n(p.stats.GL)
         return (
           <div key={p.player_id} style={{ display: 'grid', gridTemplateColumns: 'minmax(96px, 30%) 1fr', gap: 8, alignItems: 'center', padding: '5px 0', borderTop: `1px solid ${C.border}` }}>
-            <button type="button" onClick={() => onPlayerClick?.(p, 'TD')} aria-label={`${p.name}, ${p.position} -- open his card`} title={p.name} style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0, minHeight: 44, padding: 0, border: 0, background: 'transparent', color: C.text, textAlign: 'left', cursor: 'pointer' }}>
+            <button type="button" onClick={() => onPlayerClick?.(p, 'TD')} aria-label={`${p.name}, ${p.position} — open his card`} title={p.name} style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0, minHeight: 44, padding: 0, border: 0, background: 'transparent', color: C.text, textAlign: 'left', cursor: 'pointer' }}>
               <PlayerFace sport="nfl" espnId={p?.espn_id} team={p?.team} name={p?.name} size={28} />
               <span style={{ minWidth: 0 }}>
                 {/* The surname on the lane (the full name is in the notes and the
@@ -107,7 +107,7 @@ export default function RedZoneField({ data, matchup, onPlayerClick }) {
               <div aria-hidden="true" style={{ position: 'absolute', top: 0, bottom: 0, left: GOAL, right: 0, background: `${C.green}14`, borderRadius: '0 4px 4px 0' }} />
               {line(20, 'l20')}{line(10, 'l10')}{line(5, 'l5')}{line(0, 'lg', true)}
               {/* red-zone opportunities, from the 20 */}
-              <div title={`${one(rz)} red-zone opportunities a game`} style={{ position: 'absolute', top: 6, height: 8, left: at(20), width: `${(rz / maxRz) * (20 / YARDS) * 100}%`, background: C.amber, borderRadius: 3 }} />
+              <div title={`${one(rz)} red-zone opportunities a game`} style={{ position: 'absolute', top: 6, height: 8, left: at(20), width: `${(rz / maxRz) * (20 / YARDS) * 100}%`, background: C.green, borderRadius: 3 }} />
               {/* goal-line opportunities, from the 10 */}
               {gl ? <div title={`${one(gl)} goal-line opportunities a game`} style={{ position: 'absolute', top: 20, height: 8, left: at(10), width: `${(gl / maxGl) * (10 / YARDS) * 100}%`, background: C.green, borderRadius: 3 }} /> : null}
               <span style={{ position: 'absolute', right: 4, top: 1, fontFamily: NUM_FONT, fontSize: 11, color: C.text, fontWeight: 800 }}>{one(rz)}</span>
@@ -124,7 +124,7 @@ export default function RedZoneField({ data, matchup, onPlayerClick }) {
         </button>
       ) : null}
       <div style={{ marginTop: 8, fontSize: 11, color: C.text3 }}>
-        <i aria-hidden="true" style={{ display: 'inline-block', width: 10, height: 6, background: C.amber, borderRadius: 2, marginRight: 4 }} />red zone{' '}
+        <i aria-hidden="true" style={{ display: 'inline-block', width: 10, height: 6, background: C.green, borderRadius: 2, marginRight: 4 }} />red zone{' '}
         <i aria-hidden="true" style={{ display: 'inline-block', width: 10, height: 6, background: C.green, borderRadius: 2, margin: '0 4px 0 8px' }} />goal line · opportunities a game
       </div>
       {(() => {
@@ -177,7 +177,7 @@ export function RedZoneStrip({ rows, kicker = null, rulerLabel = null, onPlayerC
         <span style={{ fontFamily: NUM_FONT, fontSize: 10.5, fontWeight: 800, letterSpacing: '.08em', lineHeight: '14px' }}>{rulerLabel}</span>
         <div style={{ position: 'relative', height: 14, fontFamily: NUM_FONT, fontSize: 11, color: C.text3, fontWeight: 800 }}>
           {[[20, '20'], [15, '15'], [10, '10'], [5, '5'], [0, 'GOAL']].map(([y, t]) => (
-            <span key={t} style={{ position: 'absolute', left: atStrip(y), transform: y === 20 ? 'none' : y === 0 ? 'translateX(-100%)' : 'translateX(-50%)', color: y === 0 ? C.orange : C.text3 }}>{t}</span>
+            <span key={t} style={{ position: 'absolute', left: atStrip(y), transform: y === 20 ? 'none' : y === 0 ? 'translateX(-100%)' : 'translateX(-50%)', color: y === 0 ? C.green : C.text3 }}>{t}</span>
           ))}
         </div>
         <span />
@@ -189,7 +189,7 @@ export function RedZoneStrip({ rows, kicker = null, rulerLabel = null, onPlayerC
         const Name = onPlayerClick && r.player && r.clickable !== false ? 'button' : r.href ? 'a' : 'span'
         return (
           <div key={r.key} style={{ display: 'grid', gridTemplateColumns: nameCol, gap: 8, alignItems: 'center', borderTop: `1px solid ${C.border}` }}>
-            <Name {...(Name === 'button' ? { type: 'button', onClick: () => onPlayerClick(r.player, 'TD'), 'aria-label': `${r.name} -- open his card` } : Name === 'a' ? { href: r.href, 'aria-label': `${r.name} -- open his file` } : {})}
+            <Name {...(Name === 'button' ? { type: 'button', onClick: () => onPlayerClick(r.player, 'TD'), 'aria-label': `${r.name} — open his card` } : Name === 'a' ? { href: r.href, 'aria-label': `${r.name} — open his file` } : {})}
               title={r.name}
               style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, minHeight: 44, padding: 0, border: 0, background: 'transparent', color: C.text, textAlign: 'left', cursor: Name === 'span' ? 'default' : 'pointer', textDecoration: 'none' }}>
               {r.player ? <PlayerFace sport="nfl" espnId={r.player?.espn_id} team={r.player?.team} name={r.player?.name} size={phone ? 22 : 26} /> : null}
@@ -197,10 +197,10 @@ export function RedZoneStrip({ rows, kicker = null, rulerLabel = null, onPlayerC
             </Name>
             <div style={{ position: 'relative', height: lane, borderRadius: 4, background: `linear-gradient(90deg, ${C.turf1}, ${C.turf2})` }}>
               {[15, 10, 5].map((y) => <div key={y} aria-hidden="true" style={{ position: 'absolute', top: 0, bottom: 0, left: atStrip(y), borderLeft: `1px dashed ${C.border2}` }} />)}
-              <div aria-hidden="true" style={{ position: 'absolute', top: 0, bottom: 0, right: 0, width: 4, background: C.orange, opacity: 0.55, borderRadius: '0 4px 4px 0' }} />
+              <div aria-hidden="true" style={{ position: 'absolute', top: 0, bottom: 0, right: 0, width: 4, background: C.green, opacity: 0.55, borderRadius: '0 4px 4px 0' }} />
               {r.touches.map((t, i) => {
-                const fill = t.res === 'td' ? C.orange : t.res === 'catch' ? C.cream : t.res === 'carry' ? C.amber : 'transparent'
-                const stroke = t.res === 'td' ? C.orange : t.res === 'carry' ? C.amber : t.res === 'catch' ? C.cream : C.text2
+                const fill = t.res === 'td' ? C.green : t.res === 'catch' ? C.cream : t.res === 'carry' ? C.green : 'transparent'
+                const stroke = t.res === 'td' ? C.green : t.res === 'carry' ? C.green : t.res === 'catch' ? C.cream : C.text2
                 return (
                   <i key={i} aria-hidden="true" title={`${t.d} yards out · ${t.kind === 'rush' ? 'carry' : 'target'} · ${t.res === 'td' ? 'touchdown' : t.res}`}
                     style={{
@@ -208,13 +208,13 @@ export function RedZoneStrip({ rows, kicker = null, rulerLabel = null, onPlayerC
                       top: `calc(50% + ${(seeded((t.seed ?? i) + 7) * (lane - dot - 6)).toFixed(1)}px)`,
                       width: dot, height: dot, marginLeft: -dot / 2, marginTop: -dot / 2,
                       borderRadius: t.kind === 'rush' ? 2 : '50%', background: fill, border: `1.5px solid ${stroke}`,
-                      boxSizing: 'border-box', boxShadow: t.res === 'td' ? `0 0 8px ${C.orange}` : 'none',
+                      boxSizing: 'border-box', boxShadow: t.res === 'td' ? `0 0 8px ${C.green}` : 'none',
                     }} />
                 )
               })}
             </div>
             <span style={{ fontFamily: NUM_FONT, fontSize: 12, fontWeight: 800, color: C.text2, textAlign: 'right', whiteSpace: 'nowrap' }}>
-              {r.touches.length}<span style={{ color: C.text3 }}> · </span><span style={{ color: td ? C.orange : C.text3 }}>{td} TD</span>
+              {r.touches.length}<span style={{ color: C.text3 }}> · </span><span style={{ color: td ? C.green : C.text3 }}>{td} TD</span>
             </span>
           </div>
         )

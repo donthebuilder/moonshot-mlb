@@ -106,7 +106,7 @@ export default function GameOffDef({ matchup, players, game }) {
       {sentence.detail && <p style={{ margin: '0 0 10px', fontSize: 14, lineHeight: 1.45, color: C.text2 }}>{sentence.detail}</p>}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, alignItems: 'flex-start' }}>
         <div style={{ flex: '1 1 300px', minWidth: 0, maxWidth: 440 }}>
-          <BroadcastField mode={pass ? 'pass' : 'rush'} maxWidth={440} hue={mode === 'defend' ? C.cyan : C.green} core={mode === 'overlap'}
+          <BroadcastField mode={pass ? 'pass' : 'rush'} maxWidth={440} hue={mode === 'defend' ? C.text2 : C.green} core={mode === 'overlap'}
             offTeam={off} ringKey={pickedKey ?? null} cells={cells} label={`${off} offense against ${def} defense`} />
         </div>
         <div style={{ flex: '1 1 240px', minWidth: 0 }}>

@@ -55,15 +55,15 @@ export default function GoalWatch({ flat = [], onOpenPlayer, date = null }) {
     <WatchBox logoSport="nhl"
       icon="🔁" title="GOAL WATCH" accent={C.ice} theme={C} numFont={NUM_FONT} ariaLabel="Goal watch"
       status={loading && !hot ? 'checking last games…' : waiting ? 'goal rows fill once this season has games' : total ? `${total} scored last time out` : 'nobody on the board scored last time out'}
-      note="facts from the league's game rows · no hit-rate claim"
+      note="facts, not picks"
       rows={[
         { key: 'two', label: label('🔥 goal in 2+ straight', two), items: items(two) },
         { key: 'last', label: label('🚨 scored last game', last), items: items(last) },
         { key: 'b2b', label: label('🔁 2nd night of a back-to-back', b2b), accent: C.blue, items: items(b2b, '✓ SCORED TONIGHT') },
       ]}
       footer={waiting
-        ? `The goal rows read each skater's last games. Until the new season gives him three, they stay empty rather than call ${hot?.seasonLabel ? `${hot.seasonLabel}'s` : 'last season’s'} final games his "last game". The back-to-back row is tonight's schedule.`
-        : 'Every row is a fact from the league’s game rows and tonight’s schedule, not a pick. No hit rate is claimed: LAMP has no graded archive to measure one yet. A card turns green when he scores again tonight.'}
+        ? 'Goal rows fill once a skater has three games this season. The back-to-back row is tonight\u2019s schedule.'
+        : 'Facts, not picks. A card turns green when he scores again tonight.'}
     />
     </MobileFold>
   )

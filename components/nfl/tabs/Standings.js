@@ -1,4 +1,5 @@
 'use client'
+import NflNote from '../NflNote'
 import { useEffect, useState } from 'react'
 import PageHeader from '../../PageHeader'
 import TeamMark from '../../TeamMark'
@@ -28,13 +29,13 @@ export default function Standings({ onOpenTeam }) {
       <PageHeader
         eyebrow="TUDDY · STANDINGS"
         title="NFL standings"
-        note="Every division, in the order the feed publishes it: record, points for and against, home and road, division and conference records, streak. Nothing here is a TUDDY score."
-        theme={C} numFont={NUM_FONT} accent={C.cyan}
+        note={<NflNote tab="standings" />}
+        theme={C} numFont={NUM_FONT} accent={C.green}
         stats={data ? [{ value: teams.length, label: 'TEAMS', tone: C.text2 }, { value: (data.conferences || []).reduce((n, c) => n + c.divisions.length, 0), label: 'DIVISIONS', tone: C.text2 }] : null}
       />
       {error ? (
-        <div role="status" style={{ padding: '10px 14px', borderRadius: 10, border: `1px solid ${C.amber || C.border2}`, color: C.text2, fontSize: 12 }}>
-          <b style={{ fontFamily: NUM_FONT }}>LIVE DATA DELAYED</b> · The standings feed didn’t answer. Try again in a minute.
+        <div role="status" style={{ padding: '10px 14px', borderRadius: 10, border: `1px solid ${C.green || C.border2}`, color: C.text2, fontSize: 12 }}>
+          <b style={{ fontFamily: NUM_FONT }}>LIVE DATA DELAYED</b> · Standings didn’t load. Try again in a minute.
         </div>
       ) : null}
       {!data && !error ? <div style={{ color: C.text3, fontSize: 11, fontFamily: NUM_FONT }}>Loading the standings…</div> : null}
@@ -49,7 +50,7 @@ export default function Standings({ onOpenTeam }) {
                   feed's own order until you sort. The team is TUDDY's text
                   mark, not a logo (Donovan, this page: "no logos"). */}
               <NflTable rows={div.teams.map((t) => ({ ...t, _key: t.abbr, nick: t.nickname }))} columns={STAND_COLS(onOpenTeam)}
-                heatMode="sorted" maxHeight={9999} maxRows={40} bare caption={`${div.name}: the feed's order. Every column sorts.`} />
+                heatMode="sorted" maxHeight={9999} maxRows={40} bare caption={`${div.name}: league order. Every column sorts.`} />
             </div>
           ))}
         </section>

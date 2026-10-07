@@ -27,13 +27,13 @@ export function useDashLines() {
   }, [])
   return d
 }
-const INK = { over: C.green, under: C.red, none: C.text3 }
+const INK = { over: C.green, under: C.text3, none: C.text3 }
 export default function DashChip({ row, compact = false }) {
   if (!row) return null
-  if (row.dash_line == null) return compact ? null : <span title={row.reason || ''} style={{ fontFamily: NUM_FONT, fontSize: 10, color: C.text3 }}>DASH — {row.reason}</span>
+  if (row.dash_line == null) return compact ? null : <span title={row.reason || ''} style={{ fontFamily: NUM_FONT, fontSize: 10, color: C.text3 }}>OUR LINE — {row.reason}</span>
   const word = row.lean === 'over' ? 'OVER' : row.lean === 'under' ? 'UNDER' : 'NO LEAN'
-  const tip = `Our median ${row.dash_line.toFixed(1)} vs the book ${row.book_line?.toFixed(1)}: ${word}. ${row.provisional ? 'A preview; it freezes at the lock, about an hour before kickoff' : 'Frozen at the lock beside the book\u2019s line'}${row.reason ? ` -- ${row.reason}` : ''}. A TEST: not a call.`
-  // in a table cell: the number and its arrow (the TEST tag and the rest ride the header / title)
+  const tip = `Our median ${row.dash_line.toFixed(1)} vs the book ${row.book_line?.toFixed(1)}: ${word}. ${row.provisional ? 'A preview; it freezes at the lock, about an hour before kickoff' : 'Frozen at the lock beside the book\u2019s line'}${row.reason ? ` · ${row.reason}` : ''}. Not a call.`
+  // in a table cell: the number and its arrow (the rest rides the header / title)
   if (compact) {
     return (
       <span title={tip} style={{ fontFamily: NUM_FONT, fontSize: 11, fontWeight: 800, color: INK[row.lean] || C.text3, whiteSpace: 'nowrap' }}>
@@ -43,10 +43,9 @@ export default function DashChip({ row, compact = false }) {
     )
   }
   return (
-    <span title={`Our median for this stat (${row.provisional ? 'a preview; it freezes at the lock, about an hour before kickoff' : 'frozen at the lock beside the book’s line'})${row.reason ? ` -- ${row.reason}` : ''}. A TEST: not a call.`}
+    <span title={`Our median for this stat (${row.provisional ? 'a preview; it freezes at the lock, about an hour before kickoff' : 'frozen at the lock beside the book’s line'})${row.reason ? ` · ${row.reason}` : ''}. Not a call.`}
       style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontFamily: NUM_FONT, fontSize: compact ? 10 : 11, fontWeight: 800, color: INK[row.lean] || C.text3, whiteSpace: 'nowrap' }}>
-      <span style={{ fontSize: 8, fontWeight: 900, letterSpacing: '.08em', color: C.text3, border: `1px solid ${C.border2}`, borderRadius: 4, padding: '1px 3px' }}>TEST</span>
-      DASH {row.dash_line.toFixed(1)}{compact ? null : <> · BOOK {row.book_line?.toFixed(1)}</>} · {word}{row.provisional ? <span style={{ color: C.text3, fontWeight: 600 }}> · preview</span> : null}
+      OUR LINE {row.dash_line.toFixed(1)}{compact ? null : <> · BOOK {row.book_line?.toFixed(1)}</>} · {word}{row.provisional ? <span style={{ color: C.text3, fontWeight: 600 }}> · preview</span> : null}
     </span>
   )
 }

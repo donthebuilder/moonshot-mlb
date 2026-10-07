@@ -147,7 +147,7 @@ export default function CourtArena({ shots = [], names = {}, title = 'Shot chart
     }
   }, [shots, full]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!ok) return <ChartEmpty theme={C}>This device can&apos;t draw WebGL, so the 3D court isn&apos;t available here -- the shot chart above is the same shots.</ChartEmpty>
+  if (!ok) return <ChartEmpty theme={C}>This device can&apos;t draw WebGL, so the 3D court isn&apos;t available here — the shot chart above is the same shots.</ChartEmpty>
 
   const made = shots.filter((x) => x.made).length
   const threes = shots.filter((x) => x.three), threesIn = threes.filter((x) => x.made).length

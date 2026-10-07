@@ -1,4 +1,5 @@
 'use client'
+import NflNote from '../NflNote'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../../lib/nfl/theme'
 import NflTable from '../NflTable'
@@ -41,12 +42,12 @@ const buildColumns = (watchlist) => [
   { key: 'position', group: 'Player', label: 'Pos', heat: false, w: 40 },
   { key: 'opp', group: 'Player', label: 'Opp', heat: false, w: 46 },
   { key: 'rz', group: 'Red zone', label: 'RZ/G', w: 48, dp: 1, title: 'Red-zone touches per game' },
-  { key: 'share', group: 'Red zone', label: 'TM SHARE', w: 66, dp: 0, title: 'His share of the red-zone touches of every player the bot tracks on his team (%)' },
+  { key: 'share', group: 'Red zone', label: 'TM SHARE', w: 66, dp: 0, title: 'His share of the red-zone touches of every player tracked on his team (%)' },
   { key: 'gl', group: 'Red zone', label: 'GL/G', w: 46, dp: 1, title: 'Goal-line touches per game: inside-10 targets, inside-5 carries' },
   { key: 'xtd', group: 'Scoring chances', label: 'xTD/G', w: 52, dp: 2, title: 'Expected touchdowns per game from field position' },
   { key: 'td', group: 'Scoring chances', label: 'TD/G', w: 46, dp: 2, title: 'Actual touchdowns per game' },
-  { key: 'tdoe', group: 'Scoring chances', label: 'DUE', w: 48, dp: 2, title: 'Expected minus actual TDs a game (xTD - TD) -- positive means his chances have outrun his touchdowns' },
-  { key: 'score', group: 'The model', label: 'TD SCORE', w: 64, dp: 0, title: "This week's TD model score (the Board's number)" },
+  { key: 'tdoe', group: 'Scoring chances', label: 'DUE', w: 48, dp: 2, title: 'Expected minus actual TDs a game (xTD - TD) — positive means his chances have outrun his touchdowns' },
+  { key: 'score', group: 'The score', label: 'TD SCORE', w: 64, dp: 0, title: "This week's TD score (the Board's number)" },
 ]
 
 const num = (v) => (Number.isFinite(Number(v)) && v !== null && v !== '' ? Number(v) : null)
@@ -101,7 +102,7 @@ export default function RedZone({ data, matchup = null, onPlayerClick }) {
   if (!rows.length) {
     return (
       <div style={{ padding: 26, border: `1px dashed ${C.border2}`, borderRadius: 12, textAlign: 'center', color: C.text3, fontSize: TYPE.body }}>
-        Waiting on the bot's next publish -- red-zone usage ships with nfl_week.json.
+        Red-zone usage is not out yet. It appears with the next update.
       </div>
     )
   }
@@ -111,7 +112,7 @@ export default function RedZone({ data, matchup = null, onPlayerClick }) {
       <PageHeader
         eyebrow="TUDDY · RED ZONE"
         title="Who gets the ball near the end zone"
-        note={<>Red-zone and goal-line touches per game this season, with this week&apos;s opponent. Touches close to the line are where touchdowns come from.</>}
+        note={<NflNote tab="redzone" />}
         theme={C}
         numFont={NUM_FONT}
         accent={C.green}
@@ -155,9 +156,9 @@ export default function RedZone({ data, matchup = null, onPlayerClick }) {
       />
 
       <div style={{ marginTop: 10, padding: '10px 13px', border: `1px dashed ${C.border2}`, borderRadius: 10, color: C.text3, fontSize: TYPE.micro, lineHeight: 1.6 }}>
-        TM SHARE counts only the players the bot tracks on his team, so it is his share of those
+        TM SHARE counts only the players tracked on his team, so it is his share of those
         players&apos; red-zone touches, not of every snap inside the 20. Players on bye are left out.
-        Dimmed rows: too few games this season, so the numbers are last season&apos;s per-game rate or a small sample.
+        Dimmed rows: too few games this season, so the numbers are last season&apos;s rate or a small sample.
       </div>
     </div>
   )

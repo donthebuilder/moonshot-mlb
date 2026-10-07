@@ -37,7 +37,7 @@ export default function LampYourPlayers({ games = [], board = null, onOpenPlayer
         role: b?.status === 'called' ? STATUS.called : Number.isFinite(b?.score) ? `G ${Math.round(b.score)}` : '',
         matchup: `${team || ''}${opp ? ` vs ${opp}` : ''}`.trim(),
         lineNode: goals + assists
-          ? <span style={{ fontSize: 11.5, fontWeight: 700, color: C.text, fontFamily: NUM_FONT, whiteSpace: 'nowrap' }}>{goals > 0 && <b style={{ color: C.lamp }}>{goals} G</b>}{goals > 0 && assists > 0 ? ' · ' : ''}{assists > 0 && `${assists} A`}</span>
+          ? <span style={{ fontSize: 11.5, fontWeight: 700, color: C.text, fontFamily: NUM_FONT, whiteSpace: 'nowrap' }}>{goals > 0 && <b style={{ color: C.ice }}>{goals} G</b>}{goals > 0 && assists > 0 ? ' · ' : ''}{assists > 0 && `${assists} A`}</span>
           : <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, whiteSpace: 'nowrap' }}>{status === 'off' ? 'not playing tonight' : status === 'pre' ? 'puck not dropped' : 'no points'}</span>,
         clock: status === 'live' ? (g.statusLine || 'live') : status === 'final' ? 'final' : status === 'pre' ? fmtPuckDrop(g.startUtc) : '',
       }

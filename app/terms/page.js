@@ -24,6 +24,7 @@ export default function TermsPage() {
         <h1 style={{ margin: '0 0 14px', fontSize: 26, lineHeight: 1.2 }}>Terms</h1>
         <p>DASH Network shows sports data and a model&apos;s reads. It is information, not advice; nothing here is a guarantee of any result.</p>
         <p>You must be 21 or older where sports betting is legal, and responsible for your own decisions and the laws where you live.</p>
+        <p id="disclaimer">DASH Network is stats and analysis for entertainment: measured data, graded in public. It is <b>not financial, betting, or investment advice</b>, and nothing here is a recommendation to wager. If you bet, that&apos;s your decision and your responsibility. Play responsibly.</p>
         <p>Membership is month to month; cancel any time in Whop; no refunds for a month already started.</p>
         <p>Every call is graded in public, hits and misses.</p>
         {contact ? <p>Questions: <a href={`mailto:${contact}`}>{contact}</a></p> : null}

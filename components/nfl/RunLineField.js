@@ -6,7 +6,7 @@ import { LANES } from '../../lib/nfl/fieldModel'
 // THE RUN HOLES, ON A FIELD OF REAL POSITIONS (2026-10-07, Donovan: "should look
 // like actual players ... offensive line gaps A/B/C/D, TE, edge"). The offence is
 // drawn at the line of scrimmage as it lines up -- tight end, tackle, guard, centre,
-// guard, tackle, tight end -- with the quarterback and back behind, and the defence's
+// guard, tackle, tight end -- with the quarterback and back behind, and the defense's
 // front faint across from them. Each of the seven holes the data charts sits over
 // the man it is named for (nflverse charts a run by the lineman it went over: "end"
 // = outside the tackle, by the tight end; "tackle"; "guard"; "middle" = the centre).
@@ -28,7 +28,7 @@ const OUT = { paintOrder: 'stroke', stroke: C.bg, strokeWidth: 3.5, strokeLinejo
 const xOf = (key) => X0 + STEP * COL[key]
 const GAPS = [['D', X0 - STEP / 2 + 4], ['C', X0 + STEP / 2], ['B', X0 + STEP * 1.5], ['A', X0 + STEP * 2.5], ['A', X0 + STEP * 3.5], ['B', X0 + STEP * 4.5], ['C', X0 + STEP * 5.5], ['D', X0 + STEP * 6.5 + STEP / 2 - 4]]
 
-export default function RunLineField({ cells = {}, pickedKey = null, onPick = null, hue = C.cyan, label = 'Run holes on the field' }) {
+export default function RunLineField({ cells = {}, pickedKey = null, onPick = null, hue = C.green, label = 'Run holes on the field' }) {
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, '')
   const maxLen = LOS - 62
   const top = Math.max(6, ...LANES.map((k) => (cells[k]?.thin ? 0 : Number(cells[k]?.yards) || 0)))
@@ -50,7 +50,7 @@ export default function RunLineField({ cells = {}, pickedKey = null, onPick = nu
       </g>
       <rect x="0.5" y="0.5" width={W - 1} height={H - 1} rx="10" fill="none" stroke={C.border2} />
 
-      {/* the defence's front, faint: four down linemen over the gaps, three linebackers behind them */}
+      {/* the defense's front, faint: four down linemen over the gaps, three linebackers behind them */}
       {[X0 + STEP * 1, X0 + STEP * 2.5, X0 + STEP * 3.5, X0 + STEP * 5].map((x) => <text key={`d${x}`} x={x} y={LOS - 14} textAnchor="middle" fontSize="15" fontWeight="900" fill={C.text} opacity="0.22">✕</text>)}
       {[X0 + STEP * 1.5, X0 + STEP * 3, X0 + STEP * 4.5].map((x) => <text key={`l${x}`} x={x} y={LOS - 36} textAnchor="middle" fontSize="15" fontWeight="900" fill={C.text} opacity="0.16">✕</text>)}
 
@@ -66,7 +66,7 @@ export default function RunLineField({ cells = {}, pickedKey = null, onPick = nu
               ? <rect x={x - 11} y={LOS - len - 10} width="22" height={len} rx="5" fill="none" stroke={C.text} strokeOpacity="0.35" strokeDasharray="3 3" />
               : <rect x={x - 11} y={LOS - len - 10} width="22" height={len} rx="5" fill={`url(#b${uid})`} stroke={on ? C.text : 'none'} strokeWidth="2" style={on ? { filter: `drop-shadow(0 0 5px ${hue})` } : null} />}
             <text x={x} y={LOS - len - 16} textAnchor="middle" fontSize={on ? 20 : 17} fontWeight="900" fontFamily={NUM_FONT} fill={C.text} style={OUT}>{c.thin ? '—' : c.big ?? '—'}</text>
-            {c.sub && <text x={x} y={LOS - len - 36} textAnchor="middle" fontSize="10" fontWeight="800" fontFamily={NUM_FONT} fill={c.thin ? C.orange : C.text2} style={OUT}>{c.sub}</text>}
+            {c.sub && <text x={x} y={LOS - len - 36} textAnchor="middle" fontSize="10" fontWeight="800" fontFamily={NUM_FONT} fill={c.thin ? C.green : C.text2} style={OUT}>{c.sub}</text>}
           </g>
         )
       })}

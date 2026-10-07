@@ -133,9 +133,8 @@ a.brand { text-decoration: none; color: inherit; }
 .tile small { display: block; color: var(--dim); font: 800 7.5px/1 monospace; letter-spacing: .1em; }
 .tile strong { display: block; margin: 9px 0 5px; font: 900 30px/1 monospace; }
 .tile span { display: block; min-height: 12px; color: var(--dim); font-size: 10px; }
-.tile.mlb strong { color: var(--mlb); }
-.tile.nfl strong { color: var(--nfl); }
-.tile.nhl strong { color: var(--nhl); }
+/* COLOUR DIET (2026-10-07): the product's accent is its card's border and head; the numbers are plain ink */
+.tile.mlb strong, .tile.nfl strong, .tile.nhl strong { color: var(--ink); }
 /* Front door C (2026-09-27): one column per product, in its colour, the whole
    column a link; nothing on tonight = one line. Phone: a product per row,
    tiles two across. */

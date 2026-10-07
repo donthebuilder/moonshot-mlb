@@ -30,7 +30,7 @@ export const TAG_WORD = { TARGET: 'SOFT D', AVOID: 'TOUGH D' }
 export default function MatchupBadge({ matchup, player, market }) {
   const t = matchupTag(matchup, player, market)
   if (!t || t.tag === 'EVEN') return null
-  const color = t.tag === 'TARGET' ? C.green : C.red
+  const color = t.tag === 'TARGET' ? C.green : C.text3
   // t.title is a fully-composed override for a tag not sourced from the DVP
   // role/rank table (2026-09-13's PASS_YDS/pass-rush branch, which has no
   // "role" or "#rank of 32" to report) -- every other tag still falls back
