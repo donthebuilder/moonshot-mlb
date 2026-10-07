@@ -5,6 +5,7 @@ import { btnStyle, WhatThis } from '../ui'
 import DenseTable from '../DenseTable'
 import { StatusChip, Tile, panel, prettyDate } from './parts'
 import MultiClub from './MultiClub'
+import RecordNote from '../record/RecordNote'
 
 // ═══ THE CALLED LEDGER — ONE SHARED COMPONENT, ANY SPORT ═══════════════════
 //
@@ -63,6 +64,12 @@ export default function Ledger({
   multiSport = null,
   // A team code opens its club (LAMP's team page). Omit it and the column is plain text, as before.
   onTeamClick = null,
+  // WHAT CALLED MEANS (2026-10-06, ledger audit P2): the sport key turns on the shared note
+  // (components/record/RecordNote.js); `noteExtra` is this tab's own caveat (window, denominator).
+  noteSport = null,
+  noteExtra = null,
+  // the word for the people behind a count of events ("scorers" for touchdowns, "hitters" for homers)
+  scorerWord = 'players',
 }) {
   const [viewState, setViewState] = useState('night')
   const view = viewProp || viewState
@@ -116,6 +123,8 @@ export default function Ledger({
         ))}
       </div>
 
+      {noteSport && <RecordNote sport={noteSport} extra={noteExtra} style={{ marginTop: 0 }} />}
+
       {view === 'multi' && multiSport && <MultiClub sport={multiSport} accent={accent} onPlayerClick={onPlayerClick} />}
 
       {view === 'night' && (
@@ -132,11 +141,14 @@ export default function Ledger({
           {!nightLoading && night && (
             <>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(96px, 1fr))', gap: 7, marginBottom: 11 }}>
-                <Tile label={`${eventLabelLong}s`} value={night.totals.total} color={accent} />
+                <Tile label={`${eventLabelLong}s`} value={night.totals.total} color={accent} sub={night.totals.men != null && night.totals.men !== night.totals.total ? `${night.totals.men} ${scorerWord}` : ''} />
                 <Tile label="Called" value={night.totals.called} color={C.green} />
                 <Tile label="On board" value={night.totals.board} color={C.cyan} />
                 <Tile label="Not on board" value={night.totals.off} color={C.text3} />
               </div>
+              {night.games && night.games.final < night.games.total ? (
+                <div style={{ fontSize: 12, color: C.text3, margin: '-4px 0 8px' }}>{night.games.final} of {night.games.total} games final: the counts above are still moving.</div>
+              ) : null}
               {night.rows.length ? (
                 <DenseTable
                   rows={night.rows}

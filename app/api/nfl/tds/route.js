@@ -35,8 +35,12 @@ export async function GET(request) {
   const by = new Map()
   for (const e of events.filter((x) => ids.has(String(x.game_id))).filter(inPool('nfl'))) {
     const k = e.player_id || `${e.team}:${e.name}`
-    const cur = by.get(k) || { player_id: e.player_id, name: e.name, team: e.team, opp: e.opp, position: e.payload?.position || null, tds: 0, status: e.status }
+    const cur = by.get(k) || { player_id: e.player_id, name: e.name, team: e.team, opp: e.opp, position: e.payload?.position || null, tds: 0, status: e.status, byStatus: { called: 0, board: 0, off: 0 } }
     cur.tds += 1
+    // each touchdown keeps the status frozen at ITS moment (/called counts per touchdown: a man
+    // CALLED on his first and ON THE BOARD on his second is one of each -- counting the best
+    // status for both made the record 21 called to /called's 20 for week 4). `status` is his best, for the chip.
+    cur.byStatus[e.status] += 1
     if (RANK[e.status] > RANK[cur.status]) cur.status = e.status
     by.set(k, cur)
   }
