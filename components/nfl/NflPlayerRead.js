@@ -55,7 +55,7 @@ export function nflReadBullets(player, market, rows = [], matchup = null) {
   const sinceTd = Number.isFinite(Number(player?.games_since_last_td))
     ? Number(player.games_since_last_td) : null
   const bullets = [
-    bestMarket && { tone: 'for', text: `${(MARKETS.find(([k]) => k === bestMarket) || [])[1] || bestMarket} is his strongest DASH lane at ${Math.round(bestScore)} (${gradeFor(bestScore).label}).` },
+    bestMarket && { tone: 'for', text: `${(MARKETS.find(([k]) => k === bestMarket) || [])[1] || bestMarket} is his best market at ${Math.round(bestScore)} (${gradeFor(bestScore).label}).` },
     rv && { tone: 'note', text: `Wins most on ${rv.best_route.toLowerCase()} routes when targeted -- ${rv.best_yds_per_tgt} yards per target, his best of any route type with enough sample in ${matchup?.chart_season || 'the charting season'}.` },
     sinceTd != null && {
       tone: 'note',
@@ -86,7 +86,7 @@ export default function NflPlayerRead({ player, market, rows, matchup }) {
   const bullets = nflReadBullets(player, market, rows || [], matchup)
   if (!bullets.length) return null
   return (
-    <ReadFrame sub="this week in sentences — every number below backs one of these">
+    <ReadFrame sub="this week in sentences">
       {bullets.map((b) => (
         <Line key={b.text} icon={ICON[b.tone] || '·'}>
           <span style={{ color: b.tone === 'note' ? C.text2 : TONE()[b.tone] }}>{b.text}</span>

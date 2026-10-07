@@ -113,7 +113,7 @@ export default function PropsGrid({ log, market: initialMarket, defaultBar, scor
     : rows
 
   const th = {
-    fontFamily: NUM_FONT, fontSize: 8.5, fontWeight: 800, letterSpacing: '.07em',
+    fontFamily: NUM_FONT, fontSize: 11, fontWeight: 800, letterSpacing: '.07em',
     color: C.text3, padding: '0 4px 4px', textTransform: 'uppercase', cursor: 'pointer',
     whiteSpace: 'nowrap', textAlign: 'center', userSelect: 'none',
   }
@@ -124,8 +124,8 @@ export default function PropsGrid({ log, market: initialMarket, defaultBar, scor
         <span style={{ fontSize: 10, fontWeight: 900, color: C.text3, letterSpacing: '.1em' }}>
           🎯 PROPS — EVERY MARKET, EVERY WINDOW
         </span>
-        <span style={{ fontSize: 9, color: C.text3 }}>
-          click a row to read it · a column header to rank by that window · a chip to move the line
+        <span style={{ fontSize: 12, color: C.text3 }}>
+          tap a row to open it · tap L5, L10 or L20 to rank by it
         </span>
       </div>
 
@@ -155,7 +155,7 @@ export default function PropsGrid({ log, market: initialMarket, defaultBar, scor
               return (
                 <tr key={r.key} style={{ cursor: 'pointer' }} onClick={() => setMkt(r.key)}>
                   <td style={{
-                    fontSize: 11, fontWeight: on ? 900 : 700, whiteSpace: 'nowrap',
+                    fontSize: 13, fontWeight: on ? 900 : 700, whiteSpace: 'nowrap',
                     color: on ? C.green : C.text, padding: '3px 6px',
                     borderLeft: `3px solid ${on ? C.green : 'transparent'}`, borderRadius: 4,
                   }}>
@@ -165,7 +165,7 @@ export default function PropsGrid({ log, market: initialMarket, defaultBar, scor
                     <td key={ci}
                       title={c ? `${c.ok} of ${c.n} over ${r.line}` : 'no games in this window'}
                       style={{
-                        textAlign: 'center', fontSize: 12, fontWeight: 800, padding: '3px 5px',
+                        textAlign: 'center', fontSize: 14, fontWeight: 800, padding: '6px 6px',
                         borderRadius: 6, background: cellBg(c?.pct),
                         color: c ? rateCol(c.pct) : C.text3,
                         // A window with under 4 games asserts less.
@@ -176,7 +176,7 @@ export default function PropsGrid({ log, market: initialMarket, defaultBar, scor
                     </td>
                   ))}
                   <td style={{
-                    textAlign: 'center', fontSize: 11, fontWeight: 900, padding: '3px 4px',
+                    textAlign: 'center', fontSize: 12, fontWeight: 900, padding: '3px 4px',
                     color: r.stk > 0 ? C.green : r.stk < 0 ? C.red : C.text3,
                   }}>
                     {r.stk > 0 ? `W${r.stk}` : r.stk < 0 ? `L${-r.stk}` : '—'}
@@ -191,13 +191,13 @@ export default function PropsGrid({ log, market: initialMarket, defaultBar, scor
       {/* the active market's line chips re-grade the matrix row AND the chart */}
       {active[3].length > 1 && (
         <div style={{ display: 'flex', gap: 4, alignItems: 'center', margin: '7px 0 0' }}>
-          <span style={{ fontSize: 8, color: C.text3, fontWeight: 800, letterSpacing: '.08em', fontFamily: NUM_FONT }}>
+          <span style={{ fontSize: 11, color: C.text3, fontWeight: 800, letterSpacing: '.08em', fontFamily: NUM_FONT }}>
             {active[1].toUpperCase()} LINE
           </span>
           {active[3].map((l) => (
             <button key={l} onClick={() => setLines((s) => ({ ...s, [active[0]]: l }))} style={{
-              fontFamily: NUM_FONT, fontSize: 9.5, fontWeight: 900, cursor: 'pointer',
-              padding: '2px 8px', borderRadius: 6,
+              fontFamily: NUM_FONT, fontSize: 12, fontWeight: 900, cursor: 'pointer',
+              minHeight: 44, minWidth: 44, padding: '2px 10px', borderRadius: 8,
               border: `1px solid ${lineFor(active) === l ? C.green : C.border}`,
               background: lineFor(active) === l ? `${C.green}30` : 'transparent',
               color: lineFor(active) === l ? C.green : C.text3,
@@ -243,9 +243,8 @@ export default function PropsGrid({ log, market: initialMarket, defaultBar, scor
           audit's find). Remounting on either change keeps them in step. */}
       <HitRate key={`${active[0]}-${lineFor(active)}`} log={log} market={active[0]} defaultBar={lineFor(active) + 0.5} label={active[1]} />
 
-      <div style={{ fontSize: 8.5, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
-        % of games over the line, from his own log — re-graded in the browser when you move a chip,
-        which is why the bot ships raw games instead of frozen rates. Dim cells sit on fewer than
+      <div style={{ fontSize: 12, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
+        % of his games over the line. Move a line chip and every number re-counts. Dim cells sit on fewer than
         four games. STK is signed: <b style={{ color: C.green }}>W4</b> is four straight overs,{' '}
         <b style={{ color: C.red }}>L4</b> four straight unders — a cold run is information too.
       </div>
