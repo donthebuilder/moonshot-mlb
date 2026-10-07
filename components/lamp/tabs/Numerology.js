@@ -10,6 +10,7 @@ import HotNumbers from '../../numerology/HotNumbers'
 import AlignmentsView from '../../numerology/AlignmentsView'
 import { useIsPhone } from '../../MobileFold'
 import { lampAlignModel, lampTonight, lampScoreOf } from '../../../lib/nhl/alignRows'
+import { fromNhl } from '../../../lib/numerology/adapters'
 
 // 🔮 NUMEROLOGY (lamp research step 5, 2026-09-26) — the slot MOONSHOT's
 // Alignments and TUDDY's Numerology fill, hockey edition. FOR FUN: numbers
@@ -54,6 +55,8 @@ export default function Numerology({ date = null, onOpenPlayer }) {
   // the rows + tonight's carriers live in lib/nhl/alignRows.js (shared with Home's TONIGHT strip)
   const model = useMemo(() => lampAlignModel(data, board), [data, board])
   const tonight = useMemo(() => lampTonight(data, model), [data, model])
+  // TONIGHT'S PLAYERS ON THE LANES (2026-10-07): tonight's dressed skaters, in the lanes' adapter shape
+  const laneTonight = useMemo(() => (data?.date ? { date: data.date, items: (data.all || []).map((r) => ({ id: r.id, name: r.name, team: r.team, a: fromNhl(r) })) } : null), [data])
 
   const head = (
     <>
@@ -78,7 +81,7 @@ export default function Numerology({ date = null, onOpenPlayer }) {
     <>
       <SourceLine>Jersey: gamecenter/{'{id}'}/play-by-play rosterSpots (the posted lineup). Birth date: roster/{'{team}'}/current. Score: tonight&apos;s goal board. Date: the game day.</SourceLine>
       {/* WHICH LANES RUN HOT (numerology v2 step 6), at the bottom. */}
-      <LaneTable sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} />
+      <LaneTable sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} tonight={laneTonight} />
     </>
   )
 

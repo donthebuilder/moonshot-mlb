@@ -9,6 +9,7 @@ import { etToday } from '../../../lib/freshness'
 import TonightsNumbers from '../../numerology/TonightsNumbers'
 import { easternDate } from '../../../lib/data'
 import LaneTable from '../../numerology/LaneTable'
+import { fromNfl } from '../../../lib/numerology/adapters'
 import HotNumbers from '../../numerology/HotNumbers'
 import { FilterSearch } from '../../Filters'
 import { useIsPhone } from '../../MobileFold'
@@ -94,6 +95,13 @@ export default function Numerology({ data, onPlayerClick }) {
     return rows.filter((a) => String(a.name || '').toLowerCase().includes(q)).slice(0, SEARCH_MAX + 1)
   }, [rows, query])
   const zeroTdCount = useMemo(() => rows.filter((a) => a.seasonTd === 0).length, [rows])
+  // TONIGHT'S PLAYERS ON THE LANES (2026-10-07): the men whose club plays on the next game day, in the lanes' adapter shape
+  const laneTonight = useMemo(() => {
+    if (!nextGameDay) return null
+    const playing = new Set()
+    for (const g of data?.games || []) if (easternDate(Date.parse(g?.kickoff || '')) === nextGameDay) { playing.add(g.home); playing.add(g.away) }
+    return { date: nextGameDay, items: players.filter((p) => playing.has(p.team)).map((p) => ({ id: p.player_id, name: p.name, team: p.team, a: fromNfl({ ...p, opp: p.opp }), score: p.scores?.TD })) }
+  }, [data, players, nextGameDay])
   const expected = totalMemberships / 9
   // Tomorrow's date, reduced, on the Eastern game-day clock (see header).
   const tomorrowRoot = dateDigitRoot(shiftDateKey(etToday(), 1))
@@ -186,7 +194,7 @@ export default function Numerology({ data, onPlayerClick }) {
         games already played.
       </div>
       {/* WHICH LANES RUN HOT (numerology v2 step 6), at the bottom. */}
-      <LaneTable sport="nfl" theme={C} numFont={NUM_FONT} accent={C.green} />
+      <LaneTable sport="nfl" theme={C} numFont={NUM_FONT} accent={C.green} tonight={laneTonight} />
     </AlignmentsView>
   )
 }
