@@ -777,7 +777,7 @@ function Bar({ sport, board }) {
 // a club code as a link to its page in the app (the code stays plain where the product has no such page)
 function clubLink(sport, code) {
   const href = code ? teamHref(sport.key, code) : null
-  return href ? <a className="tap-link" href={href} style={{ color: 'inherit', textDecoration: 'none', display: 'inline-block', padding: '15px 8px', margin: '-15px -8px' }}>{code}</a> : (code || '')
+  return href ? <a className="tap-link" href={href} style={{ color: 'inherit', textDecoration: 'none', display: 'inline-block', padding: '4px 10px', margin: '-4px -10px' }}>{code}</a> : (code || '')
 }
 
 function Pick({ p, i, sport, calledIds }) {

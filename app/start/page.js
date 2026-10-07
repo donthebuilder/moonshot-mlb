@@ -535,7 +535,7 @@ function WithClubs({ text, clubs = [], sport }) {
   const set = [...new Set(clubs)].filter((c) => teamHref(sport, c))
   if (!set.length) return text
   return String(text).split(new RegExp(`\\b(${set.join('|')})\\b`)).map((x, i) => (set.includes(x)
-    ? <a key={i} className="tap-link" href={teamHref(sport, x)} style={{ color: 'inherit', textDecoration: 'none', display: 'inline-block', padding: '15px 8px', margin: '-15px -8px' }}>{x}</a>
+    ? <a key={i} className="tap-link" href={teamHref(sport, x)} style={{ color: 'inherit', textDecoration: 'none', display: 'inline-block', padding: '4px 10px', margin: '-4px -10px' }}>{x}</a>
     : x))
 }
 
