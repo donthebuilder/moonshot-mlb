@@ -79,7 +79,7 @@ export function nflReadBullets(player, market, rows = [], matchup = null) {
   return bullets
 }
 
-const ICON = { for: '🟢', against: '🔴', note: '·' }
+const ICON = { for: '+', against: '−', note: '·' }   // 10-07 colour diet: no green and red dots
 const TONE = () => ({ for: C.green, against: C.text3, note: C.text2 })
 
 export default function NflPlayerRead({ player, market, rows, matchup }) {
