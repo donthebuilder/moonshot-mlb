@@ -1,5 +1,6 @@
 'use client'
 import CallHistory from '../../record/CallHistory'
+import CalibrationTable from '../../record/CalibrationTable'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import { useLampRecord } from '../../../lib/nhl/useLamp'
@@ -60,7 +61,7 @@ export default function Results({ onOpenPlayer }) {
         numFont={NUM_FONT}
       />
 
-      <RecordPage record={record} Table={LampTable} calls={<CallHistory sport="nhl" Table={LampTable} onOpenPlayer={onOpenPlayer} title="Every goal call, its price, its result" />} receiptsLabel="every night, every call, the bands" receipts={(<>
+      <RecordPage record={record} Table={LampTable} calls={<><CalibrationTable sport="nhl" Table={LampTable} /><CallHistory sport="nhl" Table={LampTable} onOpenPlayer={onOpenPlayer} title="Every goal call, its price, its result" /></>} receiptsLabel="every night, every call, the bands" receipts={(<>
       <ModeBar modes={MODES} mode={mode} setMode={setMode} />
 
       <WhatThis maxWidth={760}>
