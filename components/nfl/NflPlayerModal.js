@@ -29,6 +29,7 @@ import StarMemory from '../watch/StarMemory'
 import MultiLine from '../ledger/MultiLine'
 import { injuryTag, injuryTitle, injuryColor } from '../../lib/nfl/injury'
 import NflPlayerRead from './NflPlayerRead'
+import LineMoveChip from '../LineMoveChip'
 import NflGameCombo from './NflGameCombo'
 import NflGameLog from './NflGameLog'
 import SeasonToggle from './SeasonToggle'
@@ -467,6 +468,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
             {q.best_over != null && q.best_over !== q.over && <span>best <b style={{ color: C.green }}>{fmtOdds(q.best_over)}</b>{q.best_book ? ` ${q.best_book}` : ''}</span>}
             {q.implied != null && <span>needs {q.implied}%</span>}
             {q.books ? <span style={{ color: C.text3 }}>{q.books} book{q.books === 1 ? '' : 's'}</span> : null}
+            {q.matches !== false && <LineMoveChip quote={q} theme={C} numFont={NUM_FONT} />}
             {!q.matches && <span style={{ color: C.yellow }}>different line from the model&apos;s bar</span>}
           </div>
         )

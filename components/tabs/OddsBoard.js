@@ -4,17 +4,21 @@ import { C as MLB_C, NUM_FONT as MLB_NUM, TYPE } from '../../lib/theme'
 import { nameOf, teamOf, oppOf, n, clean } from '../../lib/player'
 import { fmtOdds, impliedPct, fairOdds, edgeOf, priceBand, priceTaken } from '../../lib/odds'
 import { oddsAdapter } from '../../lib/odds/adapters'
+import { SPORT_ACCENT } from '../../lib/sportAccent'
 import { verdictInk } from '../../lib/scales'
 import { edgeBand } from '../../lib/hrRateBand'
 import { CalibrationScatter } from '../OddsChart'
 import DenseTable from '../DenseTable'
 import OddsStatus, { useOddsStatus, siteHasPrices } from '../OddsStatus'
 import { oddsAgeHours, oddsExpired } from '../../lib/oddsFreshness'
-import TruePrice from './TruePrice'
 import OddsDiscrepancies from './OddsDiscrepancies'
-import OddsSignals from './OddsSignals'
+import OddsTimeline from '../OddsTimeline'
 import { btnStyle } from '../ui'
 import { localStamp } from '../../lib/localTime'
+import { bookSpread, shortBook } from '../../lib/odds/shop'
+import { fetchJSON } from '../../lib/data'
+import { oddsHistoryPaths } from '../../lib/dataSource'
+import { historyIndex, historyLooksReal } from '../../lib/oddsHistory'
 
 // 💵 THE ODDS PAGE (2026-08-15, Donovan: "we need to see the line the book has
 // them for, esp if it's at like 1.5 or like a plus-money look for the hit.
@@ -115,39 +119,38 @@ const CALL_EDGE = 5
 // a quote the page won't headline is still a quote the page must show.
 const LEAD_MAX_NEED = 40
 
+// MOVED: the line itself changed, or the price shortened / drifted at least this many break-even points
+// from the opening one (Moves & gaps' own "watch" threshold). OVER FAIR: the best price sits at least
+// this far past the market's own no-vig price (its "over fair" count).
+const MOVED_PP = 1.5
+const OVER_FAIR_PP = 2
+const isMoved = (r) => r.lineChanged || (Number.isFinite(r.moveOpen) && Math.abs(r.moveOpen) >= MOVED_PP)
+
 const one = (v) => (Number.isFinite(v) ? (Math.round(10 * v) / 10).toFixed(1) : '—')
 
-// ── 2026-08-16, TRUE PRICE MOVES IN ─────────────────────────────────────────
+// ── 2026-10-07, TRUE PRICE AND MOVES & GAPS ARE GONE (Donovan's call) ───────
 //
-// The tab consolidation gave True Price ONE home, and it is this page: both
-// views answer "what does the book charge" — tonight's board is the live
-// quote, True Price is the same quote's season-long archive — while Results
-// answers "was the bot right". It had been living twice, as its own top-level
-// tab AND as a third mode inside Results, which meant two routes to the same
-// table and neither next to the live prices it exists to sanity-check.
-//
-// Same pill idiom as Bot.js's VIEWS row. `initialView` exists so the old
-// #tab=trueprice deep link can open this tab already switched — optional,
-// defaulting to the board, so the current Dashboard mount renders unchanged
-// until routing is rewired.
-const PAGE_VIEWS_ALL = [
-  // "Tonight's board" was a lie whenever the fetch was old (see the
-  // freshness gate below) — the label now claims nothing about when.
+// Two pages left this one and what was worth keeping moved INTO the board:
+//   Moves & gaps  its movement (OPEN, FROM OPEN, the trend line) and its market gap
+//                 (the best price against the market's own no-vig FAIR price) are columns
+//                 here now, with a "Moved" lens; its HR model gap was this board's EDGE all along.
+//   True Price    its per-player receipt at the line on screen (priced nights, how often he cleared
+//                 it, what he has been offered, what it cost when he cashed) is the HISTORY group
+//                 (MLB: bots/odds_history.py). Its two error-bar charts and its false-discovery
+//                 lead did not survive: he dislikes them, and the board does not need them.
+// What is left is two views: the board, and the Line shop (where the books disagree). The old
+// #tab=trueprice and the "moves" / "gaps" words are aliases of this tab (lib/routes.js).
+const PAGE_VIEWS = [
   ['board', '💵 Odds board'],
-  // A11 (2026-09-13, Donovan): "surface it higher in nav." True Price
-  // already carries Model Score and Streak beside its own rate
-  // (7217318) but sat last of four pills, behind two sub-views most
-  // readers never open. Order only — nothing about the page changed.
-  ['trueprice', '🏷 True Price'],
-  ['signals', '⚡ Moves & gaps'],
   ['shop', '🛒 Line shop'],
 ]
 
 // One page for every sport (2026-10-02, Donovan: "for all sports, like a
 // component"): MOONSHOT mounts it as before; TUDDY and LAMP pass their sport,
 // theme and table, and their own player rows (the week's / the night's board).
-// `odds` undefined = fetch the sport's own payload; Moves and Line shop always
-// fetch the detail (each quote's trail and its books, /api/odds/latest?detail=1).
+// The board and the Line shop both read the detail payload (each quote's trail, its books and the
+// market's fair price, /api/odds/latest?detail=1); the lean one the dashboard already holds paints
+// first, so the page is never empty while it loads.
 const DETAIL = new Map()
 function useOddsPayload(sport, want) {
   const [body, setBody] = useState(() => DETAIL.get(sport) || null)
@@ -171,14 +174,11 @@ export default function OddsBoard({ players = [], odds: oddsProp, onPlayerClick,
   const MK = Object.fromEntries(MARKETS.map((m) => [m.key, m]))
   const HAS_SCORE = { has: (mk) => A.hasScore(mk) }
   const scoreFor = (p, mk) => A.scoreFor(p, mk)
-  // every sport has gaps now: the market's (book vs fair), and MOONSHOT's model gaps on top
-  const PAGE_VIEWS = PAGE_VIEWS_ALL.filter(([k]) => k !== 'trueprice' || A.trueprice)
-  const [view, setView] = useState(
-    initialView === 'trueprice' ? 'trueprice' : initialView === 'signals' ? 'signals' : initialView === 'shop' ? 'shop' : 'board'
-  )
+  // the old True Price / Moves & gaps views open the board (lib/routes.js aliases)
+  const [view, setView] = useState(initialView === 'shop' ? 'shop' : 'board')
   const [market, setMarket] = useState(MARKETS[0].key)
-  const detail = useOddsPayload(sport, oddsProp === undefined || view === 'signals' || view === 'shop')
-  const odds = (view === 'signals' || view === 'shop' || oddsProp === undefined ? detail : null) || oddsProp || null
+  const detail = useOddsPayload(sport, true)
+  const odds = detail || oddsProp || null
   const [plusOnly, setPlusOnly] = useState(false)
   const [offStd, setOffStd] = useState(false)
   const [need, setNeed] = useState('any')   // 1+ / 2+ / 3+
@@ -186,6 +186,18 @@ export default function OddsBoard({ players = [], odds: oddsProp, onPlayerClick,
   // every other board has that this one didn't.
   const [q, setQ] = useState('')
   const [hideFrozen, setHideFrozen] = useState(false)
+  const [movedOnly, setMovedOnly] = useState(false)
+  const [overFairOnly, setOverFairOnly] = useState(false)
+  // THE HISTORY GROUP (salvaged from True Price): each player's settled nights at the line on screen.
+  // MLB only (the archive is bots/odds_history.py's); fetched once on open, never blocks the board.
+  const [hist, setHist] = useState(null)
+  useEffect(() => {
+    if (!A.trueprice) return undefined
+    let alive = true
+    fetchJSON(oddsHistoryPaths(), historyLooksReal).then((j) => { if (alive) setHist(j || null) }).catch(() => {})
+    return () => { alive = false }
+  }, [A.trueprice])
+  const histIdx = useMemo(() => historyIndex(hist), [hist])
 
   // The bot's odds_status.json describes the bot's providers (dead since
   // 09-14). When the prices on screen are our own feed's, it is not their
@@ -388,10 +400,35 @@ export default function OddsBoard({ players = [], odds: oddsProp, onPlayerClick,
         moveOpen: q.movement?.from_open_pp != null && Number.isFinite(Number(q.movement.from_open_pp))
           ? Number(q.movement.from_open_pp) : null,
         lineChanged: !!q.movement?.line_changed,
+        // ── MOVES & GAPS, MOVED IN (2026-10-07) ─────────────────────────────
+        // OPEN is the feed's opening price (movement.opening_over); a changed line is a
+        // different bet, so it shows the old bar and no price. TREND is our own reads of the
+        // quote (list / lock / close, minutes apart), drawn only with two or more.
+        open: q.movement?.opening_over != null && Number.isFinite(Number(q.movement.opening_over)) ? Number(q.movement.opening_over) : null,
+        openLine: q.movement?.opening_line != null && Number.isFinite(Number(q.movement.opening_line)) ? Number(q.movement.opening_line) : null,
+        reads: Array.isArray(q.movement?.history) ? q.movement.history.length : 0,
+        _quote: q,
+        // FAIR is the market's own no-vig price (the feed's fair line, built from every book);
+        // VS FAIR is how many break-even points the BEST price sits past it. A fact about prices,
+        // no model, so every sport has it. Blank when the feed carried no fair price.
+        fairMkt: Number.isFinite(Number(q.fair_over)) && Number(q.fair_over) !== 0 ? Number(q.fair_over) : null,
+        vsFair: (() => {
+          const f = Number(q.fair_over), b = Number(q.best_over ?? q.over)
+          const fn = Number.isFinite(f) && f ? impliedPct(f) : null, bn = Number.isFinite(b) && b ? impliedPct(b) : null
+          return fn != null && bn != null ? Math.round(10 * (fn - bn)) / 10 : null
+        })(),
+        // WHERE THE BOOKS DISAGREE: break-even points between the best and worst price at the same line
+        // (lib/odds/shop.js, the Line shop's own number). Needs the per-book prices (detail payload).
+        spread: bookSpread(q).spread,
+        // HISTORY (MLB): his settled nights at THIS market and line (lib/oddsHistory.js historyIndex)
+        ...(() => {
+          const h = A.trueprice && Number.isFinite(line) ? histIdx.get(`${p?.player_id ?? p?.id}|${market}|${line}`) : null
+          return { hN: h ? h.n : null, hRate: h?.rate ?? null, hWent: h?.avgPrice ?? null, hCash: h?.cashPrice ?? null }
+        })(),
       })
     })
     return out
-  }, [players, odds, market, live.std])
+  }, [players, odds, market, live.std, histIdx])
 
   const shown = useMemo(() => {
     let r = rows
@@ -403,16 +440,20 @@ export default function OddsBoard({ players = [], odds: oddsProp, onPlayerClick,
     // is how people misread every prop board there is. Filter in his units.
     if (need !== 'any') r = r.filter((x) => Number.isFinite(x.line) && Math.round(x.line + 0.5) === Number(need))
     if (hideFrozen) r = r.filter((x) => !x.frozen)
+    if (movedOnly) r = r.filter(isMoved)
+    if (overFairOnly) r = r.filter((x) => x.vsFair != null && x.vsFair >= OVER_FAIR_PP)
     const needle = q.trim().toLowerCase()
     if (needle) r = r.filter((x) => String(x.player).toLowerCase().includes(needle) || String(x.tm).toLowerCase() === needle || String(x.opp).toLowerCase() === needle)
     return r
-  }, [rows, plusOnly, offStd, live.std, need, hideFrozen, q])
+  }, [rows, plusOnly, offStd, live.std, need, hideFrozen, movedOnly, overFairOnly, q])
 
+  const movedCount = rows.filter(isMoved).length
+  const overFairCount = rows.filter((x) => x.vsFair != null && x.vsFair >= OVER_FAIR_PP).length
   const offCount = rows.filter((x) => Number.isFinite(x.line) && Math.abs(x.line - live.std) > 1e-9).length
   const plusCount = rows.filter((x) => x.over > 0).length
 
   const pill = (on, col = C.orange) => ({
-    padding: '5px 12px', fontSize: TYPE.body, fontWeight: 700, cursor: 'pointer', borderRadius: 999,
+    padding: '8px 12px', fontSize: TYPE.body, fontWeight: 700, cursor: 'pointer', borderRadius: 999,
     border: `1px solid ${on ? col : C.border}`,
     background: on ? `${col}22` : 'transparent',
     color: on ? col : C.text3, whiteSpace: 'nowrap',
@@ -426,6 +467,8 @@ export default function OddsBoard({ players = [], odds: oddsProp, onPlayerClick,
     setPlusOnly(Boolean(opts.plus))
     setOffStd(Boolean(opts.off))
     setNeed(opts.need || 'any')
+    setMovedOnly(false)
+    setOverFairOnly(false)
   }
 
   const Name = ({ p, size = 15 }) => (
@@ -491,27 +534,12 @@ export default function OddsBoard({ players = [], odds: oddsProp, onPlayerClick,
     </div>
   )
 
-  // TruePrice fetches its own season-scale payload on open and wears its own
-  // header, so this branch mounts it whole and adds nothing but the way back.
-  // Sits after every hook above — a conditional return before a hook is the
-  // blank-page class of bug the Results tab already hit once with this exact
-  // component.
-  if (view === 'trueprice') {
-    return (
-      <div>
-        {viewBar}
-        <TruePrice onPlayerClick={onPlayerClick} players={players} odds={odds} />
-      </div>
-    )
-  }
-
   // ── EXPIRED BOARD ───────────────────────────────────────────────────────
-  // Covers the quote board AND signals (both read the stale payload); True
-  // Price is untouched because it fetches season-scale data of its own.
+  // Covers the quote board and the Line shop (both read the stale payload).
   // Nothing is deleted — the board comes back the moment a fresh fetch
   // publishes. Until then, showing the pull date and the reason beats
   // showing a dead market as if it were live.
-  if (boardExpired && view !== 'trueprice') {
+  if (boardExpired) {
     return (
       <div>
         {viewBar}
@@ -535,19 +563,7 @@ export default function OddsBoard({ players = [], odds: oddsProp, onPlayerClick,
           describes a market that no longer exists, so it is not shown next to
           today&apos;s players. The board returns automatically with the next
           successful odds fetch.
-          <span style={{ display: 'block', marginTop: 8, color: C.text3, fontSize: TYPE.micro }}>
-            True Price still works — it reads season-scale history, not live quotes.
-          </span>
         </div>
-      </div>
-    )
-  }
-
-  if (view === 'signals') {
-    return (
-      <div>
-        {viewBar}
-        <OddsSignals players={players} odds={odds} onPlayerClick={onPlayerClick} sport={sport} theme={theme} numFont={numFont} Table={Table} />
       </div>
     )
   }
@@ -560,6 +576,150 @@ export default function OddsBoard({ players = [], odds: oddsProp, onPlayerClick,
       </div>
     )
   }
+
+  // ── THE BOARD'S COLUMNS, IN GROUPS (DenseTable skin v2: standouts at rest, the logo chips) ──────────
+  // Player · Price (the line, what it pays, who pays it best) · Move (where it opened, how far it went)
+  // · Market (the no-vig fair price, where the books disagree) · Model (the site's own number) · His nights
+  // (MLB: his settled nights at this line). A group with nothing in it for this market is not drawn.
+  const has = (k) => rows.some((r) => r[k] != null)
+  const ACCENT = SPORT_ACCENT[A.sport] || C.orange
+  const mvText = (v) => `${v > 0 ? '\u25B2' : '\u25BC'}${Math.abs(v).toFixed(1)}`
+  const boardColumns = [
+    { key: 'player', label: A.words.noun, heat: false, w: 152, bold: true, sticky: true, group: 'Player' },
+    { key: 'tm', label: 'TM', heat: false, w: 34, mono: true, dim: true, teamMark: A.sport },
+    { key: 'opp', label: 'vs', heat: false, w: 34, mono: true, dim: true, teamMark: A.sport },
+    {
+      key: 'line', label: 'LINE', w: 52, heat: false, dp: 1, group: 'Price',
+      title: `The bar the book set. Standard for ${live.label} is ${live.std} — anything else is a different bet than the boards assume.`,
+      fmt: (v) => (Number.isFinite(v) ? (
+        <b style={{
+          fontFamily: NUM_FONT,
+          color: Math.abs(v - live.std) > 1e-9 ? C.yellow : C.text,
+        }}>{Math.abs(v - live.std) > 1e-9 ? '≠ ' : ''}{v}</b>
+      ) : '—'),
+    },
+    {
+      key: 'over', label: 'PRICE', w: 62, heat: false, group: 'Price',
+      title: 'The over at the typical (median) price across the books. Green is plus money. BEST is the book paying the most.',
+      fmt: (v) => <b style={{ fontFamily: NUM_FONT, color: v > 0 ? C.green : C.text }}>{fmtOdds(v)}</b>,
+    },
+    {
+      key: 'best', label: 'BEST', w: 66, heat: false, group: 'Price',
+      title: 'The best price any book is offering at this line, and which book. Lit in the accent when it beats the typical price: that is the shop to bet it at.',
+      fmt: (v, r) => {
+        if (!Number.isFinite(v)) return '—'
+        const better = Number.isFinite(r?.over) && v > r.over
+        return (
+          <span style={{ display: 'inline-block', lineHeight: 1.15, fontFamily: NUM_FONT }}>
+            <b style={{ color: better ? ACCENT : C.text2 }}>{fmtOdds(v)}</b>
+            {r?.bestBook ? <span style={{ display: 'block', fontSize: TYPE.micro, color: better ? ACCENT : C.text3 }}>{shortBook(r.bestBook)}</span> : null}
+          </span>
+        )
+      },
+    },
+    {
+      key: 'need', label: 'NEED %', w: 56, dp: 1, invert: true, group: 'Price',
+      title: 'What that price has to hit to break even.',
+    },
+    ...(has('open') || movedCount ? [
+      {
+        key: 'open', label: 'OPEN', w: 62, heat: false, group: 'Move',
+        title: "Where the market opened (the feed's opening price). When the book has since changed the line, the opening bar shows instead: that is a different bet, not a price move.",
+        fmt: (v, r) => (r?.lineChanged
+          ? (r.openLine != null ? <span style={{ fontFamily: NUM_FONT, color: C.yellow }}>@ {r.openLine}</span> : '—')
+          : v == null ? '—' : <span style={{ fontFamily: NUM_FONT, color: C.text2 }}>{fmtOdds(v)}</span>),
+      },
+      {
+        key: 'moveOpen', label: 'MOVE', w: 58, dp: 1, group: 'Move',
+        title: 'How far the price has gone since it opened, in break-even points. ▲ shortened (the book likes it more now), ▼ drifted. A changed line is a new bet and carries no price move.',
+        fmt: (v, r) => (r?.lineChanged
+          ? <b style={{ fontFamily: NUM_FONT, color: C.yellow }}>≠ LINE</b>
+          : v == null ? '—' : <b style={{ fontFamily: NUM_FONT }}>{mvText(v)}</b>),
+      },
+      ...(rows.some((r) => r.reads >= 2) ? [{
+        key: '_quote', label: 'TREND', w: 100, heat: false, group: 'Move',
+        title: "Our own reads of this price (the morning list, the lock, the close), oldest to newest. Drawn only with two or more.",
+        fmt: (v, r) => (r?.reads >= 2 ? <OddsTimeline quote={r._quote} compact marketLabel={live.label} theme={theme} numFont={numFont} /> : '—'),
+      }] : []),
+    ] : []),
+    ...(has('fairMkt') ? [{
+      key: 'fairMkt', label: 'FAIR', w: 56, heat: false, group: 'Market',
+      title: "The market's own no-vig price for this bet (our odds provider's fair line, built from every book). Not the site's model.",
+      fmt: (v) => (v == null ? '—' : <span style={{ fontFamily: NUM_FONT, color: C.text2 }}>{fmtOdds(v)}</span>),
+    }, {
+      key: 'vsFair', label: 'VS FAIR', w: 60, dp: 1, group: 'Market',
+      title: "Break-even points the BEST price sits past the market's fair price. Positive = a book pays more than the market as a whole says the bet is worth. A fact about prices, not a model call; one book can be slow to move.",
+      fmt: (v) => (v == null ? '—' : <b style={{ fontFamily: NUM_FONT }}>{v > 0 ? '+' : ''}{one(v)}</b>),
+    }] : []),
+    ...(has('spread') ? [{
+      key: 'spread', label: 'SPREAD', w: 60, dp: 1, group: 'Market',
+      title: 'Where the books disagree: break-even points between the best and the worst price at the same line. The Line shop has every book side by side.',
+      fmt: (v) => (v == null ? '—' : <b style={{ fontFamily: NUM_FONT }}>{one(v)}</b>),
+    }] : []),
+    { key: 'books', label: 'BKS', w: 40, heat: false, dim: true, group: 'Market',
+      title: 'How many of your books quoted it. One book is one opinion.' },
+    ...(HAS_SCORE.has(market) ? [{
+      key: 'score', label: `${live.label} score`, w: 62, dp: 1, group: 'Model',
+      title: "The bot's 0-100 confidence on THIS market. Not a probability — never compare it to NEED.",
+    }] : []),
+    ...(A.priceBands && market === A.rateMarket ? [
+      { key: 'band', label: 'BAND', w: 50, heat: false, group: 'Model',
+        title: 'The price bands, home runs only: PLAY is +401 to +900, SHORT is +151 to +400, PASS is +901 and up (never named in the read above). The returns these bands were set on did not hold up when re-measured (Oct 1), so no edge is claimed while they are re-measured on the locked pregame prices. Changes no score.',
+        fmt: (v) => (v == null ? '—' : (
+          <b style={{ fontFamily: NUM_FONT, fontSize: TYPE.label, letterSpacing: '.06em',
+                      color: v === 'PLAY' ? C.green : v === 'PASS' ? C.red : C.yellow }}>{v}</b>
+        )) },
+    ] : []),
+    ...(market === A.rateMarket ? [
+      { key: 'rate', label: 'HIS RATE %', w: 78, dp: 1, group: 'Model',
+        title: `His own per-game homer probability, from hr_per_pa and his lineup spot. The one real rate the slate publishes — and blank on any row where the book has moved off the ${live.std} bar, because that price is for two homers and this rate is for one. The small range under it is the 95% Wilson interval on his season homer counts, pushed through the same per-game conversion: it is how much resolution the number actually has.`,
+        fmt: (v, r) => (v == null ? '—' : (
+          <span style={{ display: 'inline-block', lineHeight: 1.15 }}>
+            <b style={{ fontFamily: NUM_FONT }}>{v.toFixed(1)}</b>
+            {r?.rateLo != null && (
+              <span style={{ display: 'block', fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>
+                {r.rateLo.toFixed(1)}–{r.rateHi.toFixed(1)}
+              </span>
+            )}
+          </span>
+        )) },
+      { key: 'fair', label: 'HIS FAIR', w: 58, heat: false, group: 'Model',
+        title: 'What his own rate says the price should be (the market’s own fair price is FAIR, under Market).',
+        fmt: (v) => (v == null ? '—' : <span style={{ fontFamily: NUM_FONT, color: C.text3 }}>{fmtOdds(v)}</span>) },
+      { key: 'edge', label: 'EDGE', w: 76, dp: 1, group: 'Model',
+        title: 'His rate minus the break-even. Positive means the book is paying more than his season says it should. Blank off the standard line — there the book is pricing a different bet. The second line is the 95% interval on that edge, from his own season counts: a ● means the whole 95% band sits on one side of the price, so his SAMPLE is not the reason to doubt the sign. Park, weather, the arm and one book being one opinion are all still outside it.',
+        fmt: (v, r) => (v == null ? '—' : (
+          <span style={{ display: 'inline-block', lineHeight: 1.15, fontFamily: NUM_FONT }}>
+            {/* no green past +900 (2026-10-04 user review #8): the lottery band is the one the site won't stand behind */}
+            <b style={{ color: v >= 3 && !(Number(r?.over) >= 901) ? C.green : v <= -3 ? C.red : C.text2 }}>
+              {v > 0 ? '+' : ''}{v.toFixed(1)}
+            </b>
+            {r?.edgeClears ? (
+              <span title="The whole 95% band on his season rate sits on one side of this price." style={{ fontSize: 8, marginLeft: 3, color: verdictInk(v > 0).color }}>●</span>
+            ) : null}
+            {r?.edgeLo != null && (
+              <span style={{ display: 'block', fontSize: TYPE.micro, color: C.text3 }}>
+                {r.edgeLo > 0 ? '+' : ''}{r.edgeLo.toFixed(1)}…{r.edgeHi > 0 ? '+' : ''}{r.edgeHi.toFixed(1)}
+              </span>
+            )}
+          </span>
+        )) },
+    ] : []),
+    ...(has('hN') ? [
+      { key: 'hN', label: 'NIGHTS', w: 52, dp: 0, heat: false, dim: true, group: 'His nights',
+        title: 'Settled nights he was priced at exactly this line, from the odds archive. A night he never batted in is void, not a miss.' },
+      { key: 'hRate', label: 'CLEARED %', w: 70, dp: 1, group: 'His nights',
+        title: 'How often he cleared this exact line on those nights.' },
+      { key: 'hWent', label: 'WENT AT', w: 62, heat: false, group: 'His nights',
+        title: 'What the books have actually been offering him at this line, averaged as probability and converted back. Compare it with the price on the left.',
+        fmt: (v) => (v == null ? '—' : <span style={{ fontFamily: NUM_FONT, color: C.text2 }}>{fmtOdds(v)}</span>) },
+      { key: 'hCash', label: 'CASHED AT', w: 70, heat: false, group: 'His nights',
+        title: 'The average price on the nights he did clear it. Blank until he has.',
+        fmt: (v) => (v == null ? '—' : <span style={{ fontFamily: NUM_FONT, color: C.text2 }}>{fmtOdds(v)}</span>) },
+    ] : []),
+    { key: 'frozen', label: '❄', w: 32, flag: true, mark: '❄', group: 'Market',
+      title: "Frozen — his game has started, so this is the last price taken BEFORE first pitch, not the live in-game number. A live price already knows he grounded out twice; comparing it to a pregame hit rate would be nonsense." },
+  ]
 
   return (
     <div>
@@ -598,7 +758,7 @@ export default function OddsBoard({ players = [], odds: oddsProp, onPlayerClick,
         <details style={{ margin: '12px 0 18px' }}>
           <summary style={{
             cursor: 'pointer', fontSize: TYPE.body, color: C.text3, lineHeight: 1.6,
-            listStyle: 'revert',
+            listStyle: 'revert', display: 'block',
           }}>
             <b style={{ color: C.text2 }}>{night.priced} prices</b> across {night.markets} market
             {night.markets === 1 ? '' : 's'}, {night.plus} paying plus money
@@ -750,7 +910,7 @@ export default function OddsBoard({ players = [], odds: oddsProp, onPlayerClick,
                       return (
                         <span key={k}>
                           <Link color={t.m.color} onClick={jump(k)}>{t.m.label}</Link>{' '}
-                          <b style={{ color: C.text }} onClick={() => onPlayerClick?.(t.p)}>{nameOf(t.p)}</b>{' '}
+                          <b style={{ color: C.text, cursor: onPlayerClick ? 'pointer' : 'default' }} onClick={() => onPlayerClick?.(t.p)}>{nameOf(t.p)}</b>{' '}
                           at <Num color={t.over > 0 ? C.green : C.text2}>{fmtOdds(t.over)}</Num>{' '}
                           <span style={{ color: C.text3 }}>(score {one(t.score)}, needs {one(t.need)}%)</span>
                           {k === 'batter_total_bases' ? '. ' : '; '}
@@ -789,24 +949,9 @@ export default function OddsBoard({ players = [], odds: oddsProp, onPlayerClick,
           {`${A.words.pulled} — with the number the book is actually offering`}
         </span>
       </div>
-      <div style={{ fontSize: TYPE.label, color: C.text2, lineHeight: 1.6, maxWidth: 760, marginBottom: 10 }}>
-        {A.rateMarket ? <>
-        <b style={{ color: C.text }}>LINE is the bar the book set.</b> Everywhere else this site
-        assumes the standard one ({live.label} at {live.std}); when a book moves it — a hit line at
-        1.5, bases at 2.5 — a rate measured against the standard bar is answering a different
-        question. <b style={{ color: C.text }}>NEED</b> is what the price has to hit to break even.
-        On home runs only, and only on the standard {MK[A.rateMarket].std} bar,
-        the slate publishes a real per-game rate, so <b style={{ color: C.text }}>EDGE</b> is
-        his rate minus that break-even; every other market shows the score beside the price and
-        leaves the judgement to you.
-        </> : <>
-        <b style={{ color: C.text }}>LINE is the bar the book set</b> ({live.label}&apos;s standard is {live.std}); a different
-        line is a different bet. <b style={{ color: C.text }}>NEED</b> is what the price has to hit to break even.
-        No market here has a published per-game rate, so there is no edge column: where the site has a score
-        it sits beside the price, never subtracted from it, and the judgement is yours.
-        </>}
-      </div>
-
+      {/* THE HOW-TO-READ PARAGRAPH IS GONE (2026-10-07, Donovan: delete text nobody reads): LINE, NEED, EDGE and
+          every other column explain themselves from the (i) on their header, which works on a tap, and the
+          caption under the table says the one thing a header cannot. */}
       {/* market picker */}
       <div className="chip-row" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', margin: '10px 0 8px' }}>
         {MARKETS.map((m) => {
@@ -832,11 +977,11 @@ export default function OddsBoard({ players = [], odds: oddsProp, onPlayerClick,
 
       {/* the two lenses he asked for by name */}
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
-        <button onClick={() => setPlusOnly((v) => !v)} style={pill(plusOnly, '#4ade80')}
+        <button onClick={() => setPlusOnly((v) => !v)} style={pill(plusOnly, C.green)}
           title="Only quotes paying plus money — the book says unlikely. If your board disagrees, this is where the value is.">
           ＋ Plus money only <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro }}>{plusCount}</span>
         </button>
-        <button onClick={() => setOffStd((v) => !v)} style={pill(offStd, '#FCD34D')}
+        <button onClick={() => setOffStd((v) => !v)} style={pill(offStd, C.yellow)}
           title={`Only quotes where the book moved OFF the standard ${live.std} bar — the ones where a normal hit-rate column is answering the wrong question.`}>
           ≠ Off the standard line <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro }}>{offCount}</span>
         </button>
@@ -847,12 +992,24 @@ export default function OddsBoard({ players = [], odds: oddsProp, onPlayerClick,
           return (
             <button key={k} onClick={() => setNeed(k)} disabled={!cnt && k !== 'any'}
               title={k === 'any' ? 'Every line the books posted' : `Only the ${k}+ bet — the book's ${Number(k) - 0.5} line`}
-              style={{ ...pill(need === k, '#60a5fa'), opacity: cnt || k === 'any' ? 1 : 0.35 }}>
+              style={{ ...pill(need === k, C.blue), opacity: cnt || k === 'any' ? 1 : 0.35 }}>
               {k === 'any' ? 'Any line' : `${k}+`}
               <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, marginLeft: 4, opacity: 0.75 }}>{cnt}</span>
             </button>
           )
         })}
+        {movedCount > 0 && (
+          <button onClick={() => setMovedOnly((v) => !v)} style={pill(movedOnly, C.orange)}
+            title={`Only quotes that moved: the line itself changed, or the price shortened or drifted ${MOVED_PP} break-even points or more since it opened.`}>
+            ▲▼ Moved <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro }}>{movedCount}</span>
+          </button>
+        )}
+        {overFairCount > 0 && (
+          <button onClick={() => setOverFairOnly((v) => !v)} style={pill(overFairOnly, C.green)}
+            title={`Only quotes where the best price sits ${OVER_FAIR_PP} break-even points or more past the market's own no-vig fair price.`}>
+            Over fair <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro }}>{overFairCount}</span>
+          </button>
+        )}
         <button onClick={() => setHideFrozen((v) => !v)} style={pill(hideFrozen, C.cyan)}
           title="Hide frozen quotes — games already under way. What's left is still bettable.">
           ⏱ Still bettable
@@ -907,95 +1064,7 @@ export default function OddsBoard({ players = [], odds: oddsProp, onPlayerClick,
           heatMode="sorted"
 key={market}
           rows={shown}
-          columns={[
-            { key: 'player', label: A.words.noun, heat: false, w: 152, bold: true, sticky: true },
-            { key: 'tm', label: 'TM', heat: false, w: 34, mono: true, dim: true, teamMark: A.sport },
-            { key: 'opp', label: 'vs', heat: false, w: 34, mono: true, dim: true, teamMark: A.sport },
-            {
-              key: 'line', label: 'LINE', w: 52, heat: false, dp: 1,
-              title: `The bar the book set. Standard for ${live.label} is ${live.std} — anything else is a different bet than the boards assume.`,
-              fmt: (v) => (Number.isFinite(v) ? (
-                <b style={{
-                  fontFamily: NUM_FONT,
-                  color: Math.abs(v - live.std) > 1e-9 ? '#FCD34D' : C.text,
-                }}>{Math.abs(v - live.std) > 1e-9 ? '≠ ' : ''}{v}</b>
-              ) : '—'),
-            },
-            {
-              key: 'over', label: 'PRICE', w: 76, heat: false,
-              title: 'The over, as the book prices it. Green is plus money. The arrow is real intraday movement since the line opened — ▲ shortened (the book likes it more now), ▼ drifted, ⟲ the line itself changed. Same numbers as ⚡ Moves & gaps, just here without a tab switch.',
-              fmt: (v, r) => (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                  <b style={{ fontFamily: NUM_FONT, color: v > 0 ? '#4ade80' : C.text }}>{fmtOdds(v)}</b>
-                  {r?.lineChanged ? (
-                    <span style={{ fontFamily: NUM_FONT, fontSize: 9.5, fontWeight: 900, color: '#60a5fa' }}>⟲</span>
-                  ) : Number.isFinite(r?.moveOpen) && Math.abs(r.moveOpen) >= 1.5 ? (
-                    <span style={{
-                      fontFamily: NUM_FONT, fontSize: TYPE.micro, fontWeight: 900,
-                      color: r.moveOpen >= 3 ? '#4ade80' : r.moveOpen <= -3 ? '#f87171' : C.text3,
-                    }}>
-                      {r.moveOpen > 0 ? '▲' : '▼'}{Math.abs(r.moveOpen).toFixed(1)}
-                    </span>
-                  ) : null}
-                </span>
-              ),
-            },
-            ...(A.priceBands && market === A.rateMarket ? [
-              { key: 'band', label: 'BAND', w: 50, heat: false,
-                title: 'The price bands, home runs only: PLAY is +401 to +900, SHORT is +151 to +400, PASS is +901 and up (never named in the read above). The returns these bands were set on did not hold up when re-measured (Oct 1), so no edge is claimed while they are re-measured on the locked pregame prices. Changes no score.',
-                fmt: (v) => (v == null ? '—' : (
-                  <b style={{ fontFamily: NUM_FONT, fontSize: TYPE.label, letterSpacing: '.06em',
-                              color: v === 'PLAY' ? C.green : v === 'PASS' ? C.red : C.yellow }}>{v}</b>
-                )) },
-            ] : []),
-            {
-              key: 'need', label: 'NEED %', w: 56, dp: 1, invert: true,
-              title: 'What that price has to hit to break even.',
-            },
-            ...(HAS_SCORE.has(market) ? [{
-              key: 'score', label: `${live.label} score`, w: 62, dp: 1,
-              title: "The bot's 0-100 confidence on THIS market. Not a probability — never compare it to NEED.",
-            }] : []),
-            ...(market === A.rateMarket ? [
-              { key: 'rate', label: 'HIS RATE %', w: 78, dp: 1,
-                title: `His own per-game homer probability, from hr_per_pa and his lineup spot. The one real rate the slate publishes — and blank on any row where the book has moved off the ${live.std} bar, because that price is for two homers and this rate is for one. The small range under it is the 95% Wilson interval on his season homer counts, pushed through the same per-game conversion: it is how much resolution the number actually has.`,
-                fmt: (v, r) => (v == null ? '—' : (
-                  <span style={{ display: 'inline-block', lineHeight: 1.15 }}>
-                    <b style={{ fontFamily: NUM_FONT }}>{v.toFixed(1)}</b>
-                    {r?.rateLo != null && (
-                      <span style={{ display: 'block', fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>
-                        {r.rateLo.toFixed(1)}–{r.rateHi.toFixed(1)}
-                      </span>
-                    )}
-                  </span>
-                )) },
-              { key: 'fair', label: 'FAIR', w: 52, heat: false,
-                title: 'What his own rate says the price should be.',
-                fmt: (v) => (v == null ? '—' : <span style={{ fontFamily: NUM_FONT, color: C.text3 }}>{fmtOdds(v)}</span>) },
-              { key: 'edge', label: 'EDGE', w: 76, dp: 1,
-                title: 'His rate minus the break-even. Positive means the book is paying more than his season says it should. Blank off the standard line — there the book is pricing a different bet. The second line is the 95% interval on that edge, from his own season counts: a ● means the whole 95% band sits on one side of the price, so his SAMPLE is not the reason to doubt the sign. Park, weather, the arm and one book being one opinion are all still outside it.',
-                fmt: (v, r) => (v == null ? '—' : (
-                  <span style={{ display: 'inline-block', lineHeight: 1.15, fontFamily: NUM_FONT }}>
-                    {/* no green past +900 (2026-10-04 user review #8): the lottery band is the one the site won't stand behind */}
-                    <b style={{ color: v >= 3 && !(Number(r?.over) >= 901) ? '#4ade80' : v <= -3 ? '#f87171' : C.text2 }}>
-                      {v > 0 ? '+' : ''}{v.toFixed(1)}
-                    </b>
-                    {r?.edgeClears ? (
-                      <span title="The whole 95% band on his season rate sits on one side of this price." style={{ fontSize: 8, marginLeft: 3, color: verdictInk(v > 0).color }}>●</span>
-                    ) : null}
-                    {r?.edgeLo != null && (
-                      <span style={{ display: 'block', fontSize: TYPE.micro, color: C.text3 }}>
-                        {r.edgeLo > 0 ? '+' : ''}{r.edgeLo.toFixed(1)}…{r.edgeHi > 0 ? '+' : ''}{r.edgeHi.toFixed(1)}
-                      </span>
-                    )}
-                  </span>
-                )) },
-            ] : []),
-            { key: 'frozen', label: '❄', w: 32, flag: true, mark: '❄',
-              title: "Frozen — his game has started, so this is the last price taken BEFORE first pitch, not the live in-game number. A live price already knows he grounded out twice; comparing it to a pregame hit rate would be nonsense." },
-            { key: 'books', label: 'BKS', w: 40, heat: false, dim: true,
-              title: 'How many of your books quoted it. One book is one opinion.' },
-          ]}
+          columns={boardColumns}
           onRowClick={onPlayerClick}
           // THIN SEASON, DIMMED — never hidden (2026-08-15). A homer rate built
           // on forty plate appearances rendered at full weight is how a 4-for-40

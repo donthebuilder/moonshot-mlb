@@ -26,14 +26,12 @@ import { C as MLB_C, NUM_FONT as MLB_NUM } from '../../lib/theme'
 import { oddsAdapter } from '../../lib/odds/adapters'
 import { nameOf, teamOf, oppOf, n, clean } from '../../lib/player'
 import { fmtOdds, impliedPct } from '../../lib/odds'
+import { shortBook, bookSpread } from '../../lib/odds/shop'
+import { SPORT_ACCENT } from '../../lib/sportAccent'
 import DenseTable from '../DenseTable'
 import { btnStyle } from '../ui'
 
 // the markets are the sport's (lib/odds/adapters.js); MOONSHOT's eight batter markets are the MLB one
-
-// our feed's book keys are lowercase (draftkings, fanduel ...); the bot's were display names
-const shortBook = (b) => ({ DraftKings: 'DK', Fanatics: 'FAN', FanDuel: 'FD', BetMGM: 'MGM', Caesars: 'CZR',
-  draftkings: 'DK', fanatics: 'FAN', fanduel: 'FD', betmgm: 'MGM', caesars: 'CZR', espnbet: 'ESPN', bovada: 'BOV' }[b] || String(b || '').slice(0, 4).toUpperCase())
 
 /** One row per (player, market) that at least one book quotes. Pure. */
 export function shopRows(players, odds, A = oddsAdapter('mlb')) {
@@ -47,18 +45,12 @@ export function shopRows(players, odds, A = oddsAdapter('mlb')) {
     MARKETS.forEach(([mk, label, std]) => {
       const q = quotes[mk]
       if (!q) return
-      const books = q.by_book && typeof q.by_book === 'object' ? Object.entries(q.by_book) : []
+      const sp = bookSpread(q)
+      const books = sp.books
       if (books.length) hasByBook = true
       const line = n(q.line, NaN)
-      // Price spread: at the consensus line only, in break-even points.
-      const atLine = books.filter(([, b]) => Number.isFinite(n(b.line, NaN)) && Math.abs(n(b.line) - line) < 1e-9 && Number.isFinite(n(b.over, NaN)))
-      const needs = atLine.map(([bk, b]) => ({ bk, over: n(b.over), need: impliedPct(n(b.over)) }))
-      const bestQ = needs.length ? needs.reduce((a, b) => (b.over > a.over ? b : a)) : null
-      const worstQ = needs.length ? needs.reduce((a, b) => (b.over < a.over ? b : a)) : null
-      const spread = bestQ && worstQ && needs.length > 1 ? Math.round(10 * (worstQ.need - bestQ.need)) / 10 : null
-      // Line split: books posting different bars.
-      const lines = [...new Set(books.map(([, b]) => n(b.line, NaN)).filter(Number.isFinite))]
-      const split = lines.length > 1
+      // Price spread: at the consensus line only, in break-even points (lib/odds/shop.js).
+      const { best: bestQ, worst: worstQ, atLine: needs, spread, lines, split } = sp
       // Hold at the consensus line, from the consensus over/under.
       const oNeed = impliedPct(n(q.over, NaN)), uNeed = impliedPct(n(q.under, NaN))
       const hold = oNeed != null && uNeed != null ? Math.round(10 * (oNeed + uNeed - 100)) / 10 : null
@@ -79,6 +71,11 @@ export function shopRows(players, odds, A = oddsAdapter('mlb')) {
         perBook, spread, split, splitText: split ? books.map(([bk, b]) => `${shortBook(bk)} ${b.line}`).join(' / ') : '',
         best: Number.isFinite(bestOver) ? bestOver : null, bestBook: bestQ ? shortBook(bestQ.bk) : shortBook(clean(q.best_book, '')),
         worst: worstQ ? worstQ.over : null, worstBook: worstQ ? shortBook(worstQ.bk) : '',
+        // LINE MOVES, where we hold history (the feed's opening price against our latest read; lib/odds/lineMove.js)
+        moveOpen: q.movement?.from_open_pp != null && Number.isFinite(Number(q.movement.from_open_pp)) ? Number(q.movement.from_open_pp) : null,
+        lineChanged: Boolean(q.movement?.line_changed),
+        openOver: q.movement?.opening_over != null && Number.isFinite(Number(q.movement.opening_over)) ? Number(q.movement.opening_over) : null,
+        fairOver: Number.isFinite(Number(q.fair_over)) && Number(q.fair_over) !== 0 ? Number(q.fair_over) : null,
         hold, rate, edge, edgeWorst, cost: edge != null && edgeWorst != null ? Math.round(10 * (edge - edgeWorst)) / 10 : null, frozen: Boolean(q.frozen),
       })
     })
@@ -113,9 +110,11 @@ export default function OddsDiscrepancies({ players = [], odds = null, onPlayerC
     price: rows.filter((x) => x.spread > 0).length,
     line: rows.filter((x) => x.split).length,
     widest: [...rows].sort((a, b) => (b.spread ?? -1) - (a.spread ?? -1))[0] || null,
+    moved: rows.filter((x) => x.lineChanged || (x.moveOpen != null && Math.abs(x.moveOpen) >= 1.5)).length,
   }), [rows])
+  const ACCENT = SPORT_ACCENT[A.sport] || C.orange
 
-  const chip = (on) => ({ ...btnStyle(C.orange, on), padding: '4px 10px', fontSize: 10 })
+  const chip = (on) => ({ ...btnStyle(C.orange, on), padding: '6px 12px', fontSize: 12 })
 
   return (
     <div>
@@ -126,15 +125,15 @@ export default function OddsDiscrepancies({ players = [], odds = null, onPlayerC
         </div>
         {hasByBook && counts.widest?.spread > 0 && (
           <div style={{ fontSize: 10.5, color: C.text2, fontFamily: NUM_FONT }}>
-            <b style={{ color: C.orange }}>{counts.price}</b> price gaps · <b style={{ color: '#FCD34D' }}>{counts.line}</b> line splits · widest{' '}
+            <b style={{ color: C.orange }}>{counts.price}</b> price gaps · <b style={{ color: C.yellow }}>{counts.line}</b> line splits{counts.moved ? <> · <b style={{ color: C.text }}>{counts.moved}</b> moved since open</> : null} · widest{' '}
             <b style={{ color: C.text }}>{counts.widest.player}</b> {counts.widest.market} {fmtOdds(counts.widest.worst)}→{fmtOdds(counts.widest.best)} ({counts.widest.spread}pp)
           </div>
         )}
       </div>
 
       {!hasByBook && (
-        <div style={{ margin: '0 0 10px', padding: '9px 12px', borderRadius: 10, border: `1px solid ${C.border}`, borderLeft: `3px solid #FCD34D`, background: C.bg2, fontSize: 10.5, color: C.text2, lineHeight: 1.55 }}>
-          <b style={{ color: '#FCD34D' }}>Per-book prices aren’t in this payload yet.</b> The bot starts publishing each book’s own quote on its next run after the 2026-09-05 update lands; until then this page can only show the consensus line, the best price and which book posted it. Spreads, splits and holds fill in on their own once it lands.
+        <div style={{ margin: '0 0 10px', padding: '9px 12px', borderRadius: 10, border: `1px solid ${C.border}`, borderLeft: `3px solid ${C.yellow}`, background: C.bg2, fontSize: 12, color: C.text2, lineHeight: 1.55 }}>
+          <b style={{ color: C.yellow }}>No per-book prices for this slate.</b> Each book’s own number is kept for the yes/no prop (home run, touchdown, goal); the other markets are the feed’s consensus line, so for them this page shows the best price and which book posted it. Spreads, splits and holds fill in where the books were read.
         </div>
       )}
 
@@ -158,13 +157,14 @@ export default function OddsDiscrepancies({ players = [], odds = null, onPlayerC
           heatMode="sorted"
           rows={shown}
           columns={[
-            { key: 'player', label: A.words.noun, heat: false, w: 148, bold: true, sticky: true },
+            { key: 'player', label: A.words.noun, heat: false, w: 148, bold: true, sticky: true, group: 'Player' },
             { key: 'tm', label: 'TM', heat: false, w: 34, mono: true, dim: true, teamMark: A.sport },
-            { key: 'market', label: 'Prop', heat: false, w: 64, mono: true },
+            { key: 'opp', label: 'vs', heat: false, w: 34, mono: true, dim: true, teamMark: A.sport },
+            { key: 'market', label: 'Prop', heat: false, w: 64, mono: true, group: 'Bet' },
             { key: 'line', label: 'LINE', heat: false, w: 46, dp: 1, title: 'The consensus bar. Yellow ≠ means off the standard number.',
-              fmt: (v, r) => (v == null ? '—' : <b style={{ fontFamily: NUM_FONT, color: r?.offStd ? '#FCD34D' : C.text }}>{r?.offStd ? '≠ ' : ''}{v}</b>) },
+              fmt: (v, r) => (v == null ? '—' : <b style={{ fontFamily: NUM_FONT, color: r?.offStd ? C.yellow : C.text }}>{r?.offStd ? '≠ ' : ''}{v}</b>) },
             ...bookCols.map((bk) => ({
-              key: `bk_${bk}`, label: bk, w: 62, heat: false, title: `${bk}'s own over price, at ${bk}'s own line`,
+              key: `bk_${bk}`, label: bk, w: 62, heat: false, group: 'Each book', title: `${bk}'s own over price, at ${bk}'s own line`,
               fmt: (_, r) => {
                 const b = r?.perBook?.[bk]
                 if (!b || !Number.isFinite(b.over)) return <span style={{ color: C.text3 }}>—</span>
@@ -172,26 +172,44 @@ export default function OddsDiscrepancies({ players = [], odds = null, onPlayerC
                 const off = Number.isFinite(b.line) && r.line != null && Math.abs(b.line - r.line) > 1e-9
                 return (
                   <span style={{ display: 'inline-block', lineHeight: 1.15, fontFamily: NUM_FONT }}>
-                    <b style={{ color: isBest ? C.green : b.over > 0 ? C.text : C.text2 }}>{fmtOdds(b.over)}</b>
-                    {off && <span style={{ display: 'block', fontSize: 8, color: '#FCD34D' }}>@ {b.line}</span>}
+                    <b style={{ color: isBest ? ACCENT : b.over > 0 ? C.text : C.text2 }}>{fmtOdds(b.over)}</b>
+                    {off && <span style={{ display: 'block', fontSize: 10, color: C.yellow }}>@ {b.line}</span>}
                   </span>
                 )
               },
             })),
-            { key: 'spread', label: 'SPREAD', w: 64, dp: 1, title: 'Break-even points between the best and worst price at the same line. Bigger = more left on the table at the wrong book.',
-              fmt: (v, r) => (v == null ? <span style={{ color: C.text3 }}>—</span> : <span style={{ fontFamily: NUM_FONT }}><b style={{ color: v >= 3 ? C.green : v >= 1 ? C.text : C.text3 }}>{v.toFixed(1)}</b>{r?.bestBook ? <span style={{ fontSize: 8, color: C.text3, marginLeft: 3 }}>{r.bestBook}</span> : null}</span>) },
-            { key: 'splitText', label: 'SPLIT', w: 92, heat: false, title: 'The books are on different bars — two different bets, not one price.',
-              fmt: (v) => (v ? <b style={{ fontFamily: NUM_FONT, fontSize: 9.5, color: '#FCD34D' }}>{v}</b> : <span style={{ color: C.text3 }}>—</span>) },
-            { key: 'hold', label: 'HOLD', w: 52, dp: 1, invert: true, title: "The book's margin on the over/under pair at the consensus line. Thin = the book is sure; fat = it is guessing.",
-              fmt: (v) => (v == null ? <span style={{ color: C.text3 }}>—</span> : <span style={{ fontFamily: NUM_FONT, color: v <= 4 ? C.green : v >= 8 ? C.red : C.text2 }}>{v.toFixed(1)}%</span>) },
-            { key: 'edge', label: 'EDGE', w: 72, dp: 1, title: 'HR only: his season homer rate minus the break-even at the BEST price. The small number under it is the same edge at the WORST book — the gap between them is what betting at the wrong shop costs you.',
+            { key: 'best', label: 'BEST', w: 66, heat: false, group: 'Where they disagree',
+              title: 'The best price at the consensus line, and the book that has it. Lit in the accent when another book is paying less.',
+              fmt: (v, r) => (v == null ? <span style={{ color: C.text3 }}>—</span> : (
+                <span style={{ display: 'inline-block', lineHeight: 1.15, fontFamily: NUM_FONT }}>
+                  <b style={{ color: r?.spread > 0 ? ACCENT : C.text2 }}>{fmtOdds(v)}</b>
+                  {r?.bestBook ? <span style={{ display: 'block', fontSize: 10, color: r?.spread > 0 ? ACCENT : C.text3 }}>{r.bestBook}</span> : null}
+                </span>
+              )) },
+            { key: 'spread', label: 'SPREAD', w: 58, dp: 1, group: 'Where they disagree', title: 'Break-even points between the best and worst price at the same line. Bigger = more left on the table at the wrong book.',
+              fmt: (v) => (v == null ? <span style={{ color: C.text3 }}>—</span> : <b style={{ fontFamily: NUM_FONT }}>{v.toFixed(1)}</b>) },
+            { key: 'splitText', label: 'SPLIT', w: 92, heat: false, group: 'Where they disagree', title: 'The books are on different bars — two different bets, not one price.',
+              fmt: (v) => (v ? <b style={{ fontFamily: NUM_FONT, fontSize: 11, color: C.yellow }}>{v}</b> : <span style={{ color: C.text3 }}>—</span>) },
+            ...(rows.some((r) => r.openOver != null || r.lineChanged) ? [
+              { key: 'openOver', label: 'OPEN', w: 58, heat: false, group: 'Move', title: "The feed's opening price for this bet.",
+                fmt: (v, r) => (r?.lineChanged ? <b style={{ fontFamily: NUM_FONT, color: C.yellow }}>≠ line</b> : v == null ? <span style={{ color: C.text3 }}>—</span> : <span style={{ fontFamily: NUM_FONT, color: C.text2 }}>{fmtOdds(v)}</span>) },
+              { key: 'moveOpen', label: 'MOVE', w: 56, dp: 1, group: 'Move', title: 'Break-even points the price has moved since it opened. ▲ shortened, ▼ drifted. A changed line is a new bet and carries no price move.',
+                fmt: (v, r) => (r?.lineChanged || v == null ? <span style={{ color: C.text3 }}>—</span> : <b style={{ fontFamily: NUM_FONT }}>{v > 0 ? '\u25B2' : '\u25BC'}{Math.abs(v).toFixed(1)}</b>) },
+            ] : []),
+            ...(rows.some((r) => r.fairOver != null) ? [
+              { key: 'fairOver', label: 'FAIR', w: 56, heat: false, group: 'Margin', title: "The market's own no-vig price for this bet.",
+                fmt: (v) => (v == null ? <span style={{ color: C.text3 }}>—</span> : <span style={{ fontFamily: NUM_FONT, color: C.text2 }}>{fmtOdds(v)}</span>) },
+            ] : []),
+            { key: 'hold', label: 'HOLD', w: 52, dp: 1, invert: true, group: 'Margin', title: "The book's margin on the over/under pair at the consensus line. Thin = the book is sure; fat = it is guessing.",
+              fmt: (v) => (v == null ? <span style={{ color: C.text3 }}>—</span> : <span style={{ fontFamily: NUM_FONT }}>{v.toFixed(1)}%</span>) },
+            { key: 'edge', label: 'EDGE', w: 72, dp: 1, group: 'Model', title: 'HR only: his season homer rate minus the break-even at the BEST price. The small number under it is the same edge at the WORST book — the gap between them is what betting at the wrong shop costs you.',
               fmt: (v, r) => (v == null ? <span style={{ color: C.text3 }}>—</span> : (
                 <span style={{ display: 'inline-block', lineHeight: 1.15, fontFamily: NUM_FONT }}>
                   <b style={{ color: v >= 3 ? C.green : v <= -3 ? C.red : C.text2 }}>{v > 0 ? '+' : ''}{v.toFixed(1)}</b>
-                  {r?.edgeWorst != null && <span style={{ display: 'block', fontSize: 8, color: r.edgeWorst >= 3 ? C.green : r.edgeWorst <= -3 ? C.red : C.text3 }}>{r.edgeWorst > 0 ? '+' : ''}{r.edgeWorst.toFixed(1)} @ {r.worstBook}</span>}
+                  {r?.edgeWorst != null && <span style={{ display: 'block', fontSize: 10, color: r.edgeWorst >= 3 ? C.green : r.edgeWorst <= -3 ? C.red : C.text3 }}>{r.edgeWorst > 0 ? '+' : ''}{r.edgeWorst.toFixed(1)} @ {r.worstBook}</span>}
                 </span>
               )) },
-            { key: 'cost', label: 'COST', w: 52, dp: 1, title: 'Edge at the best book minus edge at the worst — the points you give up by betting this at the wrong shop. HR only.',
+            { key: 'cost', label: 'COST', w: 52, dp: 1, group: 'Model', title: 'Edge at the best book minus edge at the worst — the points you give up by betting this at the wrong shop. HR only.',
               fmt: (v) => (v == null ? <span style={{ color: C.text3 }}>—</span> : <b style={{ fontFamily: NUM_FONT, color: v >= 3 ? C.red : C.text2 }}>{v.toFixed(1)}</b>) },
             { key: 'frozen', label: '❄', w: 30, flag: true, mark: '❄', title: 'Pregame price, frozen at first pitch.' },
           ]}
