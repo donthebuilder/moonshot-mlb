@@ -143,7 +143,7 @@ export default function TabExplainer({ tab, texts = TEXTS, storageKey = 'tab_exp
   if (!open) {
     return (
       <button className="tab-explainer" onClick={() => setOpen(true)} style={{
-        fontSize: 9.5, fontWeight: 700, color: C.text3, cursor: 'pointer',
+        fontSize: 12, fontWeight: 700, color: C.text3, cursor: 'pointer',
         background: 'transparent', border: `1px dashed ${C.border2}`, borderRadius: 999,
         padding: '2px 10px', marginBottom: 8,
       }}>❓ what am I looking at</button>
