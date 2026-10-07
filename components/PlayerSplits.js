@@ -4,6 +4,7 @@ import { C, NUM_FONT } from '../lib/theme'
 import { n, clean, obj } from '../lib/player'
 import { fetchShared, splitsUrl } from '../lib/dataSource'
 import DenseTable from './DenseTable'
+import ComboFilterBar from './ComboFilterBar'
 
 // Situational splits — day/night, home/away, day of week, win/loss.
 //
@@ -109,22 +110,6 @@ const PICKER_GROUPS = [
 // join in — those live in the league's PA-level splits, not this file.
 const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
-function Sel({ value, onChange, options, placeholder }) {
-  return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      style={{
-        fontSize: 10.5, fontWeight: 600, padding: '4px 8px', borderRadius: 6,
-        background: C.bg2, border: `1px solid ${C.border}`,
-        color: value ? C.text : C.text3, cursor: 'pointer',
-      }}>
-      <option value="">{placeholder}</option>
-      {options.map((o) => <option key={o.v} value={o.v}>{o.label}</option>)}
-    </select>
-  )
-}
-
 // One raw row in, one aggregated line out — mirrors player_splits.py's own
 // finish()/add() shape so a combo line reads exactly like every other row
 // on this tab, just computed in the browser instead of the bot.
@@ -170,24 +155,18 @@ function ComboFilter({ games, cols }) {
 
   return (
     <div>
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginBottom: 8 }}>
-        <Sel value={dow} onChange={setDow} placeholder="Any day"
-          options={DOW.map((d) => ({ v: d, label: d }))} />
-        <Sel value={ha} onChange={setHa} placeholder="Home/Away"
-          options={[{ v: 'home', label: 'Home' }, { v: 'away', label: 'Away' }]} />
-        <Sel value={res} onChange={setRes} placeholder="Win/Loss"
-          options={[{ v: 'win', label: 'Win' }, { v: 'loss', label: 'Loss' }]} />
-        <Sel value={dn} onChange={setDn} placeholder="Day/Night"
-          options={[{ v: 'Day', label: 'Day game' }, { v: 'Night', label: 'Night game' }]} />
-        {anyOn && (
-          <button
-            onClick={() => { setDow(''); setHa(''); setRes(''); setDn('') }}
-            style={{ fontSize: 10, fontWeight: 700, color: C.text3, background: 'none',
-              border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
-            clear
-          </button>
-        )}
-      </div>
+      <ComboFilterBar
+        fields={[
+          { key: 'dow', placeholder: 'Any day', options: DOW.map((d) => ({ v: d, label: d })) },
+          { key: 'ha', placeholder: 'Home/Away', options: [{ v: 'home', label: 'Home' }, { v: 'away', label: 'Away' }] },
+          { key: 'res', placeholder: 'Win/Loss', options: [{ v: 'win', label: 'Win' }, { v: 'loss', label: 'Loss' }] },
+          { key: 'dn', placeholder: 'Day/Night', options: [{ v: 'Day', label: 'Day game' }, { v: 'Night', label: 'Night game' }] },
+        ]}
+        values={{ dow, ha, res, dn }}
+        onChange={(k, v) => ({ dow: setDow, ha: setHa, res: setRes, dn: setDn })[k](v)}
+        anyOn={anyOn}
+        onClear={() => { setDow(''); setHa(''); setRes(''); setDn('') }}
+      />
 
       {!anyOn ? (
         <div style={{ fontSize: 10.5, color: C.text3, padding: '4px 0' }}>
