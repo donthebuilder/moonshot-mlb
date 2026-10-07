@@ -34,7 +34,7 @@ import { toPtsRow, gradePtsRows, MARKET as PTS } from '../../../../lib/nhl/ptsMo
 import { toAstRow, gradeAstRows, MARKET as AST } from '../../../../lib/nhl/astModel'
 import { MARKET as GOALPOS, toGoalPosRow, gradeGoalPosRows } from '../../../../lib/nhl/goalPosModel'
 import { readNumerology } from '../../../../lib/nhl/numerology'
-import { writeNight as writeNumerology, gradeNight as gradeNumerology, refreshLaneNights, writeNumbersNight } from '../../../../lib/numerology/record'
+import { writeNight as writeNumerology, gradeNight as gradeNumerology, boxResults, refreshLaneNights, writeNumbersNight } from '../../../../lib/numerology/record'
 import { fromNhl } from '../../../../lib/numerology/adapters'
 import { storiesTick } from '../../../../lib/stories/record'
 import { postNhlListOnce } from '../../../../lib/lists/post'
@@ -236,8 +236,13 @@ export async function GET(request) {
         } catch (e) { console.error(`[lamp tick] ${m.market} grade ${p.game_id}: ${e?.message}`) }
       }
       // Numerology grade for this game's skaters: played = dressed, hit = scored.
+      // EVERY logged skater, not only the board's rows (2026-10-06, ledger audit P0-3): numerology logs each
+      // dressed skater of the game, and a night's lane summary completes only when all of them are graded.
       try {
-        const results = new Map(graded.map((r) => [String(r.playerId), { played: r.dressed, hit: Boolean(r.dressed && r.goals >= 1) }]))
+        const logged = await db.from('numerology_log').select('player_id').eq('sport', 'nhl').eq('day', p.game_date).eq('lane', '_eligible').in('team', [g.away.abbrev, g.home.abbrev]).is('graded_at', null)
+        if (logged.error) throw new Error(logged.error.message)
+        const results = boxResults(box.playerByGameStats, (logged.data || []).map((r) => String(r.player_id)))
+        for (const r of graded) results.set(String(r.playerId), { played: r.dressed, hit: Boolean(r.dressed && r.goals >= 1) })   // the board's rows keep their own grade
         if (await gradeNumerology(db, 'nhl', p.game_date, results)) await refreshLaneNights(db, 'nhl', p.game_date)
       } catch (e) { console.error(`[lamp tick] numerology grade ${p.game_id}: ${e?.message}`) }
       const scorers = graded.filter((r) => r.hit)

@@ -23,13 +23,16 @@ export default function LaneTable({ sport, theme: C, numFont, accent }) {
   const box = { padding: '11px 12px', border: `1px solid ${C.border}`, borderRadius: 12, background: C.bg2 }
   const head = <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.1em', color: accent, fontFamily: numFont, marginBottom: 6 }}>WHICH LANES RUN HOT</div>
   if (!shown.length) {
-    const nearest = (data.lanes || []).reduce((m, l) => Math.min(m, l.needs), data.minNights)
     return (
       <section aria-label="Which lanes run hot" style={box}>
         {head}
         <div style={{ fontSize: 12, lineHeight: 1.5, color: C.text2 }}>
-          {data.nights ? `${data.nights} graded night${data.nights === 1 ? '' : 's'} recorded.` : 'Recording starts with the next slate.'}{' '}
-          Each lane&apos;s row appears once it has {data.minNights} graded nights{data.nights ? ` (the first in about ${nearest} more)` : ''}: its matched players&apos; hit rate against everyone who could have matched. Until then there is nothing honest to show.
+          {data.nights
+            ? `${data.nights} graded night${data.nights === 1 ? '' : 's'} recorded${data.recorded > data.nights ? `, ${data.recorded - data.nights} more being graded` : ''}.`
+            : data.recorded
+              ? `${data.recorded} night${data.recorded === 1 ? '' : 's'} recorded so far; a night counts once every game on it is graded.`
+              : 'Nothing recorded yet: each night is logged before the game starts and graded after the final.'}{' '}
+          Each lane&apos;s row appears once it has {data.minNights} graded nights{data.nights || data.recorded ? ` (about ${Math.max(0, data.minNights - (data.nights || 0))} more nights)` : ''}: its matched players&apos; hit rate against everyone who could have matched. Until then there is nothing honest to show.
         </div>
       </section>
     )
