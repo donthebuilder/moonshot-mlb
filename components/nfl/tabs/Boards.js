@@ -63,7 +63,7 @@ function recentForm(logs, playerId, market, bar) {
 function FormBadge({ form, color }) {
   if (!form) return <span style={{ color: C.text3, fontSize: TYPE.micro }}>No form</span>
   const direction = form.delta > 0.05 ? '▲' : form.delta < -0.05 ? '▼' : '—'
-  const directionColor = form.delta > 0.05 ? C.green : form.delta < -0.05 ? C.red : C.text3
+  const directionColor = form.delta > 0.05 ? C.green : form.delta < -0.05 ? C.text3 : C.text3
   const trend = form.delta > 0.05 ? 'trending up' : form.delta < -0.05 ? 'cooling off' : 'steady'
   const hot = form.hits >= form.points.length / 2
 
@@ -323,7 +323,7 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
       {phone && <div style={{ marginTop: 8 }}><ViewSwitch value={view} onChange={setView} /></div>}
       </>)}
       {!phone && (<BoardHead title={spec?.label || (MARKETS.find(([k]) => k === market) || [])[1] || market} count={capped.length} view={view} setView={setView}
-        sub={`Ranked by the model’s own score for this market${spec?.bar ? ` · bar ${spec.bar}` : ''}${spec?.v1 ? ' · v1, not yet a backtested model' : ''}. Tap a name for his card.`} />)}
+        sub={spec?.v1 ? 'A new market, ranked on each team\u2019s recent rate, not yet tested like the others.' : null} />)}
       {hidden > 0 || rows.length ? null : (
         <div style={{ fontSize: TYPE.body, color: C.text3, margin: '4px 0 10px' }}>Nothing matches. Clear the search, team, game or a filter above.</div>
       )}
@@ -459,7 +459,7 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
                   {p.carryover && (
                     <span
                       title="Built from last season's per-game baseline -- no current-season form yet."
-                      style={{ fontSize: TYPE.label, fontWeight: 900, color: C.purple }}
+                      style={{ fontSize: TYPE.label, fontWeight: 900, color: C.text2 }}
                     >CO</span>
                   )}
                 </div>
@@ -511,8 +511,8 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
           <b style={{ color: C.green, fontFamily: NUM_FONT }}>{spec.bar}</b> ·{' '}
           {spec.positions.join(' / ')}
           {spec.dropped?.length > 0 && (
-            <div style={{ color: C.yellow, marginTop: 3, fontSize: TYPE.micro }}>
-              no lines this slate · weight redistributed
+            <div style={{ color: C.text2, marginTop: 3, fontSize: TYPE.micro }}>
+              No lines this week, so the other inputs count for more
             </div>
           )}
           {/* v1 (2026-09-21): this market has no weighted, backtested model
@@ -521,12 +521,12 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
               rather than let an 8th pill quietly imply the same rigor as
               the other seven. */}
           {spec.v1 && (
-            <div style={{ color: C.purple, marginTop: 3, fontSize: TYPE.micro }}>
-              v1 · ranked on each team's own real recent rate, not yet a weighted, backtested model like the other markets
+            <div style={{ color: C.text2, marginTop: 3, fontSize: TYPE.micro }}>
+              A new market: ranked on each team's own recent rate, not yet tested like the other markets
             </div>
           )}
           <div style={{ color: C.text3, marginTop: 3, fontSize: TYPE.micro }}>
-            Form line = last 8 games · dotted line = market bar · arrow compares recent half with prior half
+            Form line = last 8 games. Dotted line = the bar. Arrow = recent half against the half before.
           </div>
           {/* The single most common misread of the board (08-29 review): an 81
               looks like an 81% chance. Say what it is where it first appears. */}

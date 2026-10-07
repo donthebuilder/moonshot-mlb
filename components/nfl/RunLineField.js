@@ -28,7 +28,7 @@ const OUT = { paintOrder: 'stroke', stroke: C.bg, strokeWidth: 3.5, strokeLinejo
 const xOf = (key) => X0 + STEP * COL[key]
 const GAPS = [['D', X0 - STEP / 2 + 4], ['C', X0 + STEP / 2], ['B', X0 + STEP * 1.5], ['A', X0 + STEP * 2.5], ['A', X0 + STEP * 3.5], ['B', X0 + STEP * 4.5], ['C', X0 + STEP * 5.5], ['D', X0 + STEP * 6.5 + STEP / 2 - 4]]
 
-export default function RunLineField({ cells = {}, pickedKey = null, onPick = null, hue = C.cyan, label = 'Run holes on the field' }) {
+export default function RunLineField({ cells = {}, pickedKey = null, onPick = null, hue = C.green, label = 'Run holes on the field' }) {
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, '')
   const maxLen = LOS - 62
   const top = Math.max(6, ...LANES.map((k) => (cells[k]?.thin ? 0 : Number(cells[k]?.yards) || 0)))
@@ -66,7 +66,7 @@ export default function RunLineField({ cells = {}, pickedKey = null, onPick = nu
               ? <rect x={x - 11} y={LOS - len - 10} width="22" height={len} rx="5" fill="none" stroke={C.text} strokeOpacity="0.35" strokeDasharray="3 3" />
               : <rect x={x - 11} y={LOS - len - 10} width="22" height={len} rx="5" fill={`url(#b${uid})`} stroke={on ? C.text : 'none'} strokeWidth="2" style={on ? { filter: `drop-shadow(0 0 5px ${hue})` } : null} />}
             <text x={x} y={LOS - len - 16} textAnchor="middle" fontSize={on ? 20 : 17} fontWeight="900" fontFamily={NUM_FONT} fill={C.text} style={OUT}>{c.thin ? '—' : c.big ?? '—'}</text>
-            {c.sub && <text x={x} y={LOS - len - 36} textAnchor="middle" fontSize="10" fontWeight="800" fontFamily={NUM_FONT} fill={c.thin ? C.orange : C.text2} style={OUT}>{c.sub}</text>}
+            {c.sub && <text x={x} y={LOS - len - 36} textAnchor="middle" fontSize="10" fontWeight="800" fontFamily={NUM_FONT} fill={c.thin ? C.green : C.text2} style={OUT}>{c.sub}</text>}
           </g>
         )
       })}

@@ -27,7 +27,7 @@ export function useDashLines() {
   }, [])
   return d
 }
-const INK = { over: C.green, under: C.red, none: C.text3 }
+const INK = { over: C.green, under: C.text3, none: C.text3 }
 export default function DashChip({ row, compact = false }) {
   if (!row) return null
   if (row.dash_line == null) return compact ? null : <span title={row.reason || ''} style={{ fontFamily: NUM_FONT, fontSize: 10, color: C.text3 }}>DASH — {row.reason}</span>

@@ -327,7 +327,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
 
       </>)}
       {!phone && (<BoardHead title="Anytime TD" count={capped.length} view={view} setView={setView}
-        sub={`Every scored player across ${games} game${games === 1 ? '' : 's'}, ranked by the model’s own touchdown score. Tap a name for his card.`} />)}
+        sub={null} />)}
 
       {filtered.length === 0 ? (
         <div style={{ fontSize: TYPE.body, color: C.text3, marginTop: 10 }}>

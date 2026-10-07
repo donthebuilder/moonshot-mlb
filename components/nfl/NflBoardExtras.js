@@ -54,7 +54,7 @@ export function BoardHead({ title, count, sub, view, setView }) {
         </div>
         <ViewSwitch value={view} onChange={setView} />
       </div>
-      <div style={{ height: 2, marginBottom: 10, borderRadius: 1, background: `linear-gradient(90deg, ${C.green}, ${alpha(C.cyan, 0.5)} 45%, transparent)` }} />
+      <div style={{ height: 2, marginBottom: 10, borderRadius: 1, background: `linear-gradient(90deg, ${C.green}, ${alpha(C.green, 0.25)} 45%, transparent)` }} />
     </>
   )
 }
@@ -172,7 +172,7 @@ export function NflBoardList({ players, market, weights, odds, phone, onPlayerCl
     // DASH: our median for the stat, coloured by its lean against the book's line (a TEST)
     { key: 'hiConf', label: 'A+', flag: true, mark: '\u2605', w: 30, group: MARK_GROUP, title: 'High-confidence TD flag: a TD score of 78 or better, the A+ band.' },
     { key: 'quest', label: 'Q', flag: true, mark: 'Q', w: 28, group: MARK_GROUP, title: 'Listed on the injury report.' },
-    { key: 'lowS', label: 'Thin', flag: true, mark: '\u25CB', w: 34, group: MARK_GROUP, title: 'Low sample: the model scored him off too few games. Dimmed rows are these.' },
+    { key: 'lowS', label: 'Thin', flag: true, mark: '\u25CB', w: 34, group: MARK_GROUP, title: 'Few games behind this score. Dimmed rows are these.' },
     { key: 'matchup', label: 'Matchup', heat: false, w: 64, dim: true, group: MARK_GROUP, title: 'The coverage read: TARGET when the defense he faces leaks to his role, AVOID when it does not.' },
     ...(dmk && dash && !dash.off ? [{ key: 'dash', label: 'DASH · TEST', w: phone ? 108 : 118, heat: false, numeric: true,
       title: 'Our median for this stat (dash-line-v1), beside the book\u2019s line. Green = above it (OVER), red = below (UNDER), grey = within half a unit. A preview until the game locks, then frozen. A TEST: nothing is called from it.',
@@ -398,7 +398,7 @@ export function TdWatch({ players, games, logs = null, results = null, liveSnap 
       rows={[
         { key: 'two', label: label('🔥 TD in 2+ straight', two), items: items(two) },
         { key: 'last', label: label('✅ scored last week', scored), items: items(scored) },
-        { key: 'bye', label: label('🛌 back from a bye', bye), accent: C.blue, items: items(bye) },
+        { key: 'bye', label: label('🛌 back from a bye', bye), accent: C.text2, items: items(bye) },
       ]}
       footer="Every row is a fact from the week file and the game logs, not a pick. No hit rate is claimed for any of them: TUDDY's graded weeks are too few to measure one. A card turns green when he scores again this week."
     />

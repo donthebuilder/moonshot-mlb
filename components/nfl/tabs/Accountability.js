@@ -90,14 +90,10 @@ const MARKET_LABEL = Object.fromEntries(MARKETS.map(([k, label]) => [k, label]))
 // no leftovers and nothing reused.
 // Called, not frozen: C is mutated after mount (applyTheme, lib/theme.js), so a
 // module-level literal keeps the palette it was imported with. See #23.
+// 2026-10-07 colour diet: one accent for every market (the label names it).
 const MARKET_COLOR = () => ({
-  TD: C.green,
-  REC_YDS: C.cyan,
-  REC: C.lime,
-  RUSH_YDS: C.blue,
-  RUSH_ATT: C.purple,
-  PASS_YDS: C.orange,
-  KICK_PTS: C.yellow,
+  TD: C.green, REC_YDS: C.green, REC: C.green, RUSH_YDS: C.green,
+  RUSH_ATT: C.green, PASS_YDS: C.green, KICK_PTS: C.green,
 })
 
 // What each market's OUTCOME expression actually is, in nfl_scoring.py's own
@@ -406,7 +402,7 @@ function ScoreBands({ data, results }) {
           key: r.key, label: r.label, color: r.color,
           sub: `bar ${r.bar ?? '—'}${r.state === 'measured' ? ` · base ${r.base.toFixed(1)}%` : ''}`,
           base: r.base ?? 0, bands: r.state === 'measured' ? r.bands : [], claims: !!r.claims,
-          verdict: status(r), verdictTone: r.state === 'measured' && r.claims ? (r.works ? C.green : C.red) : C.text3,
+          verdict: status(r), verdictTone: r.state === 'measured' && r.claims ? (r.works ? C.green : C.text3) : C.text3,
         }))} />
 
       {notes.map((r) => (
@@ -463,7 +459,7 @@ function SeasonStrip({ archive, keys, loading, picked, onPick, currentKey, mode 
           {markets.map(([k, label, t]) => (
             <div key={k} style={{ borderTopColor: col[k] }}>
               <small>{label}</small>
-              <b style={{ color: t.pct >= 55 ? C.green : t.pct < 45 ? C.red : C.text }}>{t.pct == null ? '—' : `${t.pct}%`}</b>
+              <b style={{ color: t.pct >= 55 ? C.green : t.pct < 45 ? C.text3 : C.text }}>{t.pct == null ? '—' : `${t.pct}%`}</b>
               <span>{t.hit}/{t.n}{t.void ? ` · ${t.void} void` : ''}</span>
             </div>
           ))}
@@ -714,7 +710,7 @@ export default function Accountability({ data, results: latest, onPlayerClick })
                 fmt: (v, r) => {
                   if (r.void) return <span style={{ color: C.text3 }}>no result</span>
                   return (
-                    <span style={{ color: r.hit ? C.green : C.red, fontWeight: 800 }}>
+                    <span style={{ color: r.hit ? C.green : C.text3, fontWeight: 800 }}>
                       {r.hit ? 'HIT' : 'MISS'}
                     </span>
                   )
@@ -827,7 +823,7 @@ export default function Accountability({ data, results: latest, onPlayerClick })
         .receiptKpis strong.leader{font-size:15px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
         .receiptKpis small{display:block;margin-top:5px;font-size:8.5px;color:${C.text3}}
         .receiptMeter{height:4px;margin-top:8px;border-radius:99px;background:${C.border};overflow:hidden}
-        .receiptMeter i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,${C.green},${C.lime})}
+        .receiptMeter i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,${C.green},${C.green})}
         .receiptMarkets{position:relative;display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-top:8px}
         .receiptMarkets>div{padding:7px 8px;border-radius:8px;background:${C.bg}b8;border:1px solid ${C.border}}
         .receiptMarkets span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:${NUM_FONT};font-size:8px;font-weight:900}

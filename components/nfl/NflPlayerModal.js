@@ -509,8 +509,8 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
         {player.position !== 'DEF' && <InTheLedger sport="nfl" id={player.player_id} name={player.name} jersey={player.jersey_number} birthDate={player.birth_date} next={Number.isFinite(player?.season_td) ? player.season_td + 1 : null} date={etToday()} />}
         {player.position !== 'DEF' && <HisNumbers name={player.name} jersey={player.jersey_number} birthDate={player.birth_date} next={Number.isFinite(player?.season_td) ? player.season_td + 1 : null} nextWord="TD" date={etToday()} theme={C} accent={C.green} numFont={NUM_FONT} />}
         {player.carryover && (
-          <div style={{ marginTop: 14, fontSize: 12, color: C.text2, lineHeight: 1.6, background: `${C.purple}20`, border: `1px solid ${C.purple}4d`, borderRadius: 9, padding: '8px 10px' }}>
-            <b style={{ color: C.purple }}>Carryover</b> — last season&apos;s per-game baseline.
+          <div style={{ marginTop: 14, fontSize: 12, color: C.text2, lineHeight: 1.6, background: `${C.text2}20`, border: `1px solid ${C.text2}4d`, borderRadius: 9, padding: '8px 10px' }}>
+            <b style={{ color: C.text2 }}>Carryover</b> — last season&apos;s per-game baseline.
           </div>
         )}
       </>}

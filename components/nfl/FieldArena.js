@@ -217,7 +217,7 @@ export default function FieldArena({ dots = [], cells = [], spot = null, rz = []
       const td = p.res === 'td', caught = p.res === 'catch' || td
       const r = (p.rPx || 5) * ftPerPx
       const pos = at(acrossOf(p), p.air, 0.14 + (n % 7) * 0.004)
-      const ink = new THREE.Color(td ? C.orange : p.ink)
+      const ink = new THREE.Color(td ? C.green : p.ink)
       const mark = new THREE.Group(); mark.position.copy(pos)
       const flat = (geo, mat) => { const m = new THREE.Mesh(geo, mat); m.rotation.x = -Math.PI / 2; mark.add(m); return m }
       if (caught) flat(disc, new THREE.MeshBasicMaterial({ color: ink, toneMapped: false, transparent: true, opacity: 0.92 }))
@@ -256,7 +256,7 @@ export default function FieldArena({ dots = [], cells = [], spot = null, rz = []
         // slim, so the turf and the discs read around it
         const box = new THREE.Mesh(new THREE.BoxGeometry(Math.min(14, (y1 - y0) * YD * 0.45), ht, LANE_W * 0.32),
           // the 2D's heat: red = the defence gives up more there, blue = holds up, dim = normal or thin
-          new THREE.MeshBasicMaterial({ color: new THREE.Color(h >= 0.12 ? C.red : cl >= 0.12 ? C.blue : C.text3), transparent: true, opacity: h >= 0.12 || cl >= 0.12 ? 0.45 : 0.2, depthWrite: false }))
+          new THREE.MeshBasicMaterial({ color: new THREE.Color(h >= 0.12 ? C.green : cl >= 0.12 ? C.text2 : C.text3), transparent: true, opacity: h >= 0.12 || cl >= 0.12 ? 0.45 : 0.2, depthWrite: false }))
         box.position.copy(at((LANES3.indexOf(L) + 0.5) / 3, (y0 + y1) / 2, ht / 2))
         group.add(box)
         const lab = labelSprite(`${Math.round((100 * n) / total)}%`, C.text); lab.position.copy(at((LANES3.indexOf(L) + 0.5) / 3, (y0 + y1) / 2, ht + 5)); lab.scale.multiplyScalar(0.9); lab.userData.declutter = true; group.add(lab)
@@ -265,11 +265,11 @@ export default function FieldArena({ dots = [], cells = [], spot = null, rz = []
     // the red zone: each touch at its yard line on a rail past the near sideline
     const GOAL_YD = 65, RAIL_Z = FIELD_W / 2 + 7
     {
-      const rail = new THREE.Mesh(new THREE.PlaneGeometry(20 * YD, 6), new THREE.MeshBasicMaterial({ color: new THREE.Color(C.orange), transparent: true, opacity: 0.16, depthWrite: false }))
+      const rail = new THREE.Mesh(new THREE.PlaneGeometry(20 * YD, 6), new THREE.MeshBasicMaterial({ color: new THREE.Color(C.green), transparent: true, opacity: 0.16, depthWrite: false }))
       rail.rotation.x = -Math.PI / 2; rail.position.set((GOAL_YD - 10) * YD, 0.1, RAIL_Z); group.add(rail)
       for (const t of rz) {
         const d = Math.max(0, Math.min(20, Number(t.d) || 0))
-        const ink = { td: C.orange, catch: C.cream, carry: C.amber }[t.res]
+        const ink = { td: C.green, catch: C.cream, carry: C.green }[t.res]
         const m = new THREE.Mesh(ink ? disc : ring, new THREE.MeshBasicMaterial({ color: new THREE.Color(ink || C.text2), side: THREE.DoubleSide }))
         m.rotation.x = -Math.PI / 2; m.scale.setScalar(1.6); m.position.set((GOAL_YD - d) * YD, 0.18, RAIL_Z)
         group.add(m)
@@ -319,7 +319,7 @@ export default function FieldArena({ dots = [], cells = [], spot = null, rz = []
       }
       return { pick, x: e.clientX - rc.left, y: e.clientY - rc.top, w: rc.width }
     }
-    const tip = (pick, x, y, w) => placeTip(tipRef.current, pick ? `<b style="color:${pick.userData.play.res === 'td' ? C.orange : C.text}">${pick.userData.play.label || ''}</b>` : null, x, y, w)
+    const tip = (pick, x, y, w) => placeTip(tipRef.current, pick ? `<b style="color:${pick.userData.play.res === 'td' ? C.green : C.text}">${pick.userData.play.label || ''}</b>` : null, x, y, w)
     let driving = false
     const coarse = isCoarse()
     const onMove = (e) => { if (coarse || driving) return; const { pick, x, y, w } = markAt(e); tip(pick, x, y, w); renderer.domElement.style.cursor = pick ? 'pointer' : '' }
@@ -400,7 +400,7 @@ export default function FieldArena({ dots = [], cells = [], spot = null, rz = []
   const chips = (
     <>
       <button type="button" style={chipBtn(lines, C.green)} aria-pressed={lines} onClick={() => setLines((v) => !v)} title="Flat lines from the line of scrimmage to each target">— lines</button>
-      <button type="button" style={chipBtn(zones, C.orange)} aria-pressed={zones} onClick={() => setZones((v) => !v)} title="Each zone's targets as a column: height = the count there">▥ zones</button>
+      <button type="button" style={chipBtn(zones, C.green)} aria-pressed={zones} onClick={() => setZones((v) => !v)} title="Each zone's targets as a column: height = the count there">▥ zones</button>
       <button type="button" style={chipBtn(orbit, C.cream)} aria-pressed={orbit} onClick={() => setOrbit((v) => !v)} title="Turn slowly round the field until you grab it">⟳ orbit</button>
     </>
   )
@@ -415,10 +415,10 @@ export default function FieldArena({ dots = [], cells = [], spot = null, rz = []
       {/* THE BUILDING (Donovan 10-02, "just show whatever building they are at"): its name, nothing modelled */}
       {venue ? <div style={{ fontFamily: NUM_FONT, fontSize: 11, fontWeight: 800, letterSpacing: '.06em', color: C.text2, marginBottom: 4 }}>🏟 {venue}</div> : null}
       <ChartLegend theme={C} items={[
-        { key: 'td', mark: <b aria-hidden="true" style={{ color: C.orange }}>●</b>, label: 'touchdown' },
+        { key: 'td', mark: <b aria-hidden="true" style={{ color: C.green }}>●</b>, label: 'touchdown' },
         { key: 'catch', mark: <b aria-hidden="true" style={{ color: C.cream }}>●</b>, label: 'catch' },
         { key: 'inc', mark: <b aria-hidden="true">○</b>, label: 'incomplete / picked' },
-        { key: 'heat', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, background: `${C.orange}88` }} />, label: 'a zone that gives up more than normal' },
+        { key: 'heat', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, background: `${C.green}88` }} />, label: 'a zone that gives up more than normal' },
       ]} />
       <div style={{ fontSize: 10, color: C.text3, marginTop: 4, lineHeight: 1.5, fontFamily: NUM_FONT }}>
         The turf is the field below, the same ink and numbers. A target sits at its air yards in its lane; its exact spot across the lane isn&apos;t in the feed, so it keeps the field&apos;s fixed scatter, and the lines (off unless you turn them on) are not ball flights. Red-zone touches sit at their yard line on the rail past the sideline. The same {dots.length} target{dots.length === 1 ? '' : 's'} · drag to orbit · tap a dot for the play

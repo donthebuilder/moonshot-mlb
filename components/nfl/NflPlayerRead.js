@@ -80,7 +80,7 @@ export function nflReadBullets(player, market, rows = [], matchup = null) {
 }
 
 const ICON = { for: '🟢', against: '🔴', note: '·' }
-const TONE = () => ({ for: C.green, against: C.red, note: C.text2 })
+const TONE = () => ({ for: C.green, against: C.text3, note: C.text2 })
 
 export default function NflPlayerRead({ player, market, rows, matchup }) {
   if (!player) return null

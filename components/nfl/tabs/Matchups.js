@@ -77,8 +77,8 @@ export function Zones({ field, team }) {
   const rushable = Boolean(field?.def_rush?.[team])
   const toggle = rushable ? (
     <div style={{ display: 'flex', gap: 5, marginBottom: 8 }}>
-      <button onClick={() => setPass(true)} style={btnStyle(C.cyan, pass)}>Passing</button>
-      <button onClick={() => setPass(false)} style={btnStyle(C.cyan, !pass)}>Running</button>
+      <button onClick={() => setPass(true)} style={btnStyle(C.green, pass)}>Passing</button>
+      <button onClick={() => setPass(false)} style={btnStyle(C.green, !pass)}>Running</button>
     </div>
   ) : null
   if (!model) return <div style={{ marginBottom: 12 }}><SubLabel {...P}>WHERE THEY GET BEATEN</SubLabel>{toggle}<div style={{ fontSize: 12, color: C.text3 }}>No {pass ? 'passing' : 'running'} map for {team} yet.</div></div>
@@ -96,7 +96,7 @@ export function Zones({ field, team }) {
           arrows at the line (run), the leakiest one ringed. */}
       <p style={{ margin: '0 0 8px', fontSize: 12.5, lineHeight: 1.5, color: C.text2 }}>
         {spot
-          ? <><b style={{ color: C.text }}>{cap(where(spot.z))}</b>: {team} give up <b style={{ color: C.orange }}>{fmtPct(spot.leak)}</b> yards a {unit} against a normal defence there, and {Math.round(spot.share)}% of all the yards they allow come from it{spot.tdN ? <> — <b style={{ color: C.text }}>{spot.tdN} TD{spot.tdN === 1 ? '' : 's'}</b></> : null}.</>
+          ? <><b style={{ color: C.text }}>{cap(where(spot.z))}</b>: {team} give up <b style={{ color: C.green }}>{fmtPct(spot.leak)}</b> yards a {unit} against a normal defence there, and {Math.round(spot.share)}% of all the yards they allow come from it{spot.tdN ? <> — <b style={{ color: C.text }}>{spot.tdN} TD{spot.tdN === 1 ? '' : 's'}</b></> : null}.</>
           : <>No zone stands out: nowhere do {team} give up clearly more than a normal defence.</>}
       </p>
       <FootballField mode={pass ? 'pass' : 'rush'} maxWidth={pass ? 380 : 460} pickedKey={spot?.z ?? null}
@@ -113,7 +113,7 @@ export function Zones({ field, team }) {
           }]
         }))} />
       <div style={{ fontSize: 10, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
-        <b style={{ color: C.orange }}>orange</b> = they give up more there than a normal defence · the number is yards per {unit} vs normal{pass ? ', with touchdowns allowed under it' : ''} · ringed = the softest spot · — = too few plays
+        <b style={{ color: C.green }}>orange</b> = they give up more there than a normal defence · the number is yards per {unit} vs normal{pass ? ', with touchdowns allowed under it' : ''} · ringed = the softest spot · — = too few plays
       </div>
       {!pass && (() => {
         const o = laneOutcomes(field, team)
@@ -160,7 +160,7 @@ function ByPosition({ matchup, team, win, setWin, slateSeason }) {
       </SubLabel>
       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 8 }}>
         {WINDOWS.filter(([k]) => data?.dvp?.[k]).map(([k, label]) => (
-          <button key={k} onClick={() => setWin(k)} style={btnStyle(C.cyan, k === win)}>{label}</button>
+          <button key={k} onClick={() => setWin(k)} style={btnStyle(C.green, k === win)}>{label}</button>
         ))}
         {dvpSeason.hasToggle && <SeasonToggle seasons={[dvpSeason.current, dvpSeason.alt]} slateSeason={slateSeason} value={dvpSeason.showing} onPick={dvpSeason.pick} loading={dvpSeason.state === 'loading' ? dvpSeason.showing : null} />}
       </div>
@@ -171,7 +171,7 @@ function ByPosition({ matchup, team, win, setWin, slateSeason }) {
       )}
       <div style={{ marginTop: 5, fontSize: 11, color: C.text3, lineHeight: 1.5 }}>
         Each cell: what {team} allow that role, and its rank of 32 (#1 allows the most). More orange = softer.
-        {best?.standout ? <> Softest: <b style={{ color: C.orange }}>{best.role}</b> in <b style={{ color: C.orange }}>{best.label}</b>.</> : null}
+        {best?.standout ? <> Softest: <b style={{ color: C.green }}>{best.role}</b> in <b style={{ color: C.green }}>{best.label}</b>.</> : null}
       </div>
     </div>
   )
@@ -227,7 +227,7 @@ export function defenseTiles(matchup, team, rushThreat = passRushThreat(matchup,
     if (d.blitz_pct != null) out.push({ k: 'BLITZ', v: `${d.blitz_pct}%`, sub: rk(r.blitz_pct, t.defense) })
     if (d.box_avg != null) out.push({ k: 'IN THE BOX', v: String(d.box_avg), sub: d.box8_pct != null ? `8+ on ${d.box8_pct}%` : null })
   }
-  if (rushThreat && rushThreat.percentile >= PASS_RUSH_AVOID) out.push({ k: 'EDGE THREAT', v: rushThreat.name, sub: `${ordinal(Math.round(rushThreat.percentile))} pct · ${rushThreat.position}`, tone: C.red })
+  if (rushThreat && rushThreat.percentile >= PASS_RUSH_AVOID) out.push({ k: 'EDGE THREAT', v: rushThreat.name, sub: `${ordinal(Math.round(rushThreat.percentile))} pct · ${rushThreat.position}`, tone: C.text3 })
   return out
 }
 /** The one caveat line under the tiles: which seasons, over how many games. */
@@ -274,7 +274,7 @@ export function PassGame({ matchup, data, off, def, onPlayerClick = null }) {
   // MobileFold); on a desktop it renders exactly as before.
   const top = tg[0] ? (rowOf(tg[0].player_id)?.name || tg[0].name) : null
   return (
-    <MobileFold title="Top targets · corners" summary={`${off}${top ? ` · ${top}` : ''} vs ${def}'s corners`} count={tg.length + cb.length} accent={C.cyan}>
+    <MobileFold title="Top targets · corners" summary={`${off}${top ? ` · ${top}` : ''} vs ${def}'s corners`} count={tg.length + cb.length} accent={C.green}>
     <div style={{ marginBottom: 12 }}>
       <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))' }}>
         <div>
@@ -376,7 +376,7 @@ export default function Matchups({ matchup, data, onPlayerClick = null, onOpenTe
       if (!d?.opp_lean) return <span style={{ color: C.text3 }}>—</span>
       const other = d.opp_lean === 'zone' ? 'man' : d.opp_lean === 'man' ? 'zone' : 'the rest'
       const tag = r.coverage_mismatch_tag
-      return <span>{tag ? <b style={{ color: tag === 'TARGET' ? C.green : C.red }}>{tag} </b> : null}{d.leaned_ypt} yds a target vs {d.opp_lean}, {d.other_ypt} vs {other}</span>
+      return <span>{tag ? <b style={{ color: tag === 'TARGET' ? C.green : C.text3 }}>{tag} </b> : null}{d.leaned_ypt} yds a target vs {d.opp_lean}, {d.other_ypt} vs {other}</span>
     } },
   ]
 
@@ -388,9 +388,9 @@ export default function Matchups({ matchup, data, onPlayerClick = null, onOpenTe
         note="The defenses to attack this week. Tap one for where it gets beaten, what it allows each position, and who on the slate is walking into it."
         theme={C}
         numFont={NUM_FONT}
-        accent={C.cyan}
+        accent={C.green}
       />
-      <SportTheme theme={C} accent={C.cyan} numFont={NUM_FONT}>
+      <SportTheme theme={C} accent={C.green} numFont={NUM_FONT}>
         <ViewRow value={view} onChange={setView}
           views={[['week', '🛡 This week'], ['coverage', '🎯 Coverage explorer'], ['holes', '🏃 Run holes']]} />
       </SportTheme>
@@ -411,7 +411,7 @@ export default function Matchups({ matchup, data, onPlayerClick = null, onOpenTe
             <SubLabel {...P} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               <span>HOW THEY COVER · share of {cov.shell_n} charted snaps</span><SourceSeason matchup={matchup} kind="charting" slateSeason={data?.season} />
             </SubLabel>
-            <BarList {...P} items={shells} accent={C.cyan} labelWidth={64} />
+            <BarList {...P} items={shells} accent={C.green} labelWidth={64} />
           </div>
         )}
         <FactTiles theme={C} numFont={NUM_FONT} tiles={tiles} note={factsNote(matchup, null, active, data?.season)} />

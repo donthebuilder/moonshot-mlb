@@ -78,7 +78,7 @@ export default function NflPlayers({ data, logs, matchup, picks, results, odds =
   }, [all])
 
   const asks = [
-    { key: 'card', label: '🤖 On the card', test: (p) => onCard.has(String(p.player_id)), why: 'On one of the bot’s market ladders this week' },
+    { key: 'card', label: '🤖 On the card', test: (p) => onCard.has(String(p.player_id)), why: 'On one of TUDDY’s market cards this week' },
     ...['QB', 'RB', 'WR', 'TE'].map((pos) => ({ key: pos, label: pos, test: (p) => p.position === pos, why: `${pos}s only` })),
     { key: 'q', label: '🩹 Questionable', test: (p) => Boolean(p.questionable), why: 'Listed questionable this week' },
   ]
@@ -103,7 +103,7 @@ export default function NflPlayers({ data, logs, matchup, picks, results, odds =
         nameOf={(p) => p.name}
         searchText={(p) => `${p.name} ${p.team} ${p.opp || ''} ${p.position}`}
         badgesOf={(p) => (<>
-          {onCard.has(String(p.player_id)) && <span title={`On the bot’s card: ${onCard.get(String(p.player_id))}`} style={{ fontSize: 9, marginLeft: 4 }}>🤖</span>}
+          {onCard.has(String(p.player_id)) && <span title={`On TUDDY’s card: ${onCard.get(String(p.player_id))}`} style={{ fontSize: 9, marginLeft: 4 }}>🤖</span>}
           {p.questionable && <span title="Questionable" style={{ fontSize: 9, marginLeft: 3, color: C.yellow, fontWeight: 900 }}>Q</span>}
         </>)}
         metaOf={(p) => (p.roster_only

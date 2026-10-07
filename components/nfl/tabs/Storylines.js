@@ -76,7 +76,7 @@ function Row({ icon, onClick, title, children }) {
     </Tag>
   )
 }
-const Num = ({ children }) => <b style={{ fontFamily: NUM_FONT, color: C.orange }}>{children}</b>
+const Num = ({ children }) => <b style={{ fontFamily: NUM_FONT, color: C.green }}>{children}</b>
 const Name = ({ children }) => <b style={{ color: C.text }}>{children}</b>
 // Every line ends in the man's TD score (2026-09-25) -- MOONSHOT's "· bot 66"
 // -- so a storyline ties back to the board it came from.
@@ -310,8 +310,8 @@ export default function Storylines({ data, logs, results, onPlayerClick, setTab,
       .sl-row-text{min-width:0}
       .sl-row-meta{color:${C.text3};font-family:${NUM_FONT};font-size:9.5px}
 
-      .sl-more{align-self:flex-start;padding:9px 14px;border:1px solid ${C.border};border-radius:9px;background:${C.bg};color:${C.cyan};font:800 10px/1 ${NUM_FONT};cursor:pointer}
-      .sl-more:hover{border-color:${C.cyan}}
+      .sl-more{align-self:flex-start;padding:9px 14px;border:1px solid ${C.border};border-radius:9px;background:${C.bg};color:${C.green};font:800 10px/1 ${NUM_FONT};cursor:pointer}
+      .sl-more:hover{border-color:${C.green}}
 
       .sl-note{padding:14px 16px;border:1px dashed ${C.border2};border-radius:12px;color:${C.text3};font-size:10.5px;line-height:1.6}
       .sl-note b{color:${C.text2}}

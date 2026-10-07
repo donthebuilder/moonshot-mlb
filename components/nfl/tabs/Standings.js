@@ -29,11 +29,11 @@ export default function Standings({ onOpenTeam }) {
         eyebrow="TUDDY · STANDINGS"
         title="NFL standings"
         note="Every division, in the order the feed publishes it: record, points for and against, home and road, division and conference records, streak. Nothing here is a TUDDY score."
-        theme={C} numFont={NUM_FONT} accent={C.cyan}
+        theme={C} numFont={NUM_FONT} accent={C.green}
         stats={data ? [{ value: teams.length, label: 'TEAMS', tone: C.text2 }, { value: (data.conferences || []).reduce((n, c) => n + c.divisions.length, 0), label: 'DIVISIONS', tone: C.text2 }] : null}
       />
       {error ? (
-        <div role="status" style={{ padding: '10px 14px', borderRadius: 10, border: `1px solid ${C.amber || C.border2}`, color: C.text2, fontSize: 12 }}>
+        <div role="status" style={{ padding: '10px 14px', borderRadius: 10, border: `1px solid ${C.green || C.border2}`, color: C.text2, fontSize: 12 }}>
           <b style={{ fontFamily: NUM_FONT }}>LIVE DATA DELAYED</b> · The standings feed didn’t answer. Try again in a minute.
         </div>
       ) : null}

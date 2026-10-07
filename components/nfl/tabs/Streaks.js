@@ -160,7 +160,7 @@ export default function Streaks({ data, logs, onPlayerClick }) {
                     <div style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, color: C.text3, marginTop: 3 }}>
                       {Number.isFinite(score) ? <>bot <b style={{ color: g.color }}>{Math.round(score)}</b> this week</> : 'not scored this week'}
                       {x.questionable && <b title="Listed questionable on the slate" style={{ color: C.yellow, marginLeft: 6 }}>Q</b>}
-                      {why(x) && <span title={REASON_TITLE(x)} style={{ color: C.cyan, marginLeft: 6 }}>{why(x)}</span>}
+                      {why(x) && <span title={REASON_TITLE(x)} style={{ color: C.green, marginLeft: 6 }}>{why(x)}</span>}
                     </div>
                   </RunLeaderCard>
                 )
@@ -170,7 +170,7 @@ export default function Streaks({ data, logs, onPlayerClick }) {
               <div style={{ display: 'grid', gap: 4, gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 330px), 1fr))' }}>
                 {shown.map((x) => (
                   <RunBoardRow key={x.player.player_id} r={x.run} name={x.player.name} label={label}
-                    team={<>{x.player.team} · {x.player.position}{x.questionable ? ' · Q' : ''}{why(x) ? <span title={REASON_TITLE(x)} style={{ color: C.cyan }}> · {why(x)}</span> : null}</>}
+                    team={<>{x.player.team} · {x.player.position}{x.questionable ? ' · Q' : ''}{why(x) ? <span title={REASON_TITLE(x)} style={{ color: C.green }}> · {why(x)}</span> : null}</>}
                     open={openRow === x.player.player_id}
                     onToggle={() => setOpenRow(openRow === x.player.player_id ? null : x.player.player_id)}
                     onOpenCard={() => onPlayerClick?.(x.player, market.key)} />

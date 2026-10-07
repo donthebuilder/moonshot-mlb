@@ -36,20 +36,20 @@ import { ChartCard } from '../../charts'
 // module-level literal keeps the palette it was imported with. See #23.
 const TRUST = () => ({
   holds: { label: 'holds up', color: C.green },
-  leans: { label: 'leans good', color: C.lime },
+  leans: { label: 'leans good', color: C.green },
   thin: { label: 'too thin to call', color: C.text3 },
-  sinks: { label: 'leans bad', color: C.orange },
-  fails: { label: 'fails', color: C.red },
+  sinks: { label: 'leans bad', color: C.green },
+  fails: { label: 'fails', color: C.text3 },
 })
 
 // Called, not frozen: C is mutated after mount (applyTheme, lib/theme.js), so a
 // module-level literal keeps the palette it was imported with. See #23.
-const CONV_COLOR = () => ({ lean: C.text3, strong: C.cyan, lock: C.purple })
+const CONV_COLOR = () => ({ lean: C.text3, strong: C.text2, lock: C.green })
 
 const pctTxt = (v) => (v == null ? '—' : `${v.toFixed(1)}%`)
 
 function Pill({ tone, children, title }) {
-  const col = tone === 'won' ? C.green : tone === 'lost' ? C.red : C.text3
+  const col = tone === 'won' ? C.green : tone === 'lost' ? C.text3 : C.text3
   return (
     <span title={title} style={{
       fontFamily: NUM_FONT, fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.05em',
@@ -105,12 +105,12 @@ function SlateStrip({ bump }) {
           const v = slateVerdict(r)
           return (
             <span key={r.key || i}
-              title={`${r.key} — you ${r.mw ?? 0}, bot ${r.bw ?? 0} on ${r.n ?? 0} contested (${r.w ?? 0}–${r.l ?? 0}–${r.t ?? 0})`}
+              title={`${r.key} — you ${r.mw ?? 0}, TUDDY ${r.bw ?? 0} on ${r.n ?? 0} contested (${r.w ?? 0}–${r.l ?? 0}–${r.t ?? 0})`}
               style={{
                 width: 7, height: 7, borderRadius: 1.5,
-                background: v > 0 ? C.green : v < 0 ? `${C.red}cc` : 'rgba(255,255,255,.14)',
+                background: v > 0 ? C.green : v < 0 ? `${C.text3}cc` : 'rgba(255,255,255,.14)',
                 boxShadow: i >= rows.length - streak && last !== 0 && v === last
-                  ? `0 0 4px ${last > 0 ? `${C.green}99` : `${C.red}88`}` : 'none',
+                  ? `0 0 4px ${last > 0 ? `${C.green}99` : `${C.text3}88`}` : 'none',
               }} />
           )
         })}
@@ -302,7 +302,7 @@ export default function Picks({ picks, results, data, matchup, onPlayerClick, od
       <PageHeader
         eyebrow="TUDDY · PICKS"
         title="The calls for this week"
-        note="The model's own card, market by market, read back with the reason attached. A call is graded; a high board rank on its own is not a call."
+        note="Each market's card, with the reason attached."
         theme={C}
         numFont={NUM_FONT}
         accent={C.green}
@@ -310,11 +310,11 @@ export default function Picks({ picks, results, data, matchup, onPlayerClick, od
       {/* ── the record ─────────────────────────────────────────────────── */}
       <div style={{
         background: C.bg2, border: `1px solid ${C.border}`,
-        borderLeft: `3px solid ${C.cyan}`, borderRadius: 12,
+        borderLeft: `3px solid ${C.green}`, borderRadius: 12,
         padding: '13px 15px', marginBottom: 14,
       }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: TYPE.title, fontWeight: 900 }}>🎫 Your record vs the bot</span>
+          <span style={{ fontSize: TYPE.title, fontWeight: 900 }}>🎫 Your record vs TUDDY</span>
           <span style={{ fontSize: TYPE.micro, color: C.text3 }}>
             {totals.slates} slate{totals.slates === 1 ? '' : 's'}
             {totals.exhibition > 0 && ` · ${totals.exhibition} preseason`} · this device only
@@ -333,18 +333,18 @@ export default function Picks({ picks, results, data, matchup, onPlayerClick, od
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 11 }}>
                 <Stat label="Head to head" big value={`${totals.w}–${totals.l}–${totals.t}`}
                       sub={`${totals.n} rung${totals.n === 1 ? '' : 's'} contested`}
-                      color={totals.w > totals.l ? C.green : totals.w < totals.l ? C.red : C.text} />
+                      color={totals.w > totals.l ? C.green : totals.w < totals.l ? C.text3 : C.text} />
                 <Stat label="You" value={pctTxt(totals.minePct)}
                       sub={`${totals.mineWon}/${totals.n} · could be ${range(totals.mineWon, totals.n)}`}
                       color={C.green} />
                 <Stat label="Bot, same rungs" value={pctTxt(totals.botPct)}
                       sub={`${totals.botWon}/${totals.n} · could be ${range(totals.botWon, totals.n)}`}
-                      color={C.purple} />
+                      color={C.text2} />
                 {edge != null && (
                   <Stat label="Your edge"
                         value={`${edge > 0 ? '+' : ''}${edge.toFixed(1)}pp`}
                         sub={edgeReal ? 'the two ranges do not overlap' : 'inside the noise so far'}
-                        color={!edgeReal ? C.text3 : edge > 0 ? C.green : C.red} />
+                        color={!edgeReal ? C.text3 : edge > 0 ? C.green : C.text3} />
                 )}
               </div>
             )}
@@ -369,7 +369,7 @@ export default function Picks({ picks, results, data, matchup, onPlayerClick, od
                   return (
                     <Stat key={k} label={label}
                           value={c.n ? `${c.w}–${c.l}–${c.t}` : '—'}
-                          sub={c.n ? `you ${pctTxt(c.minePct)} · bot ${pctTxt(c.botPct)}` : 'none yet'}
+                          sub={c.n ? `you ${pctTxt(c.minePct)} · TUDDY ${pctTxt(c.botPct)}` : 'none yet'}
                           color={CONV_COLOR()[k]} />
                   )
                 })}
@@ -414,12 +414,12 @@ export default function Picks({ picks, results, data, matchup, onPlayerClick, od
               if (st.len >= 2) {
                 return (
                   <div style={{
-                    fontSize: TYPE.body, color: st.dir > 0 ? C.green : C.red,
+                    fontSize: TYPE.body, color: st.dir > 0 ? C.green : C.text3,
                     marginTop: 8, lineHeight: 1.6,
                   }}>
                     {st.dir > 0
                       ? <>🔥 <b>{st.len}</b> slate{st.len === 1 ? '' : 's'} running you have taken the head-to-head</>
-                      : <>🧊 The bot has taken it <b>{st.len}</b> slate{st.len === 1 ? '' : 's'} running</>}
+                      : <>🧊 TUDDY has taken it <b>{st.len}</b> slate{st.len === 1 ? '' : 's'} running</>}
                     {' '}(longest on this record: <b style={{ color: C.text2 }}>{st.bestWin || 0}</b> yours,{' '}
                     <b style={{ color: C.text2 }}>{st.bestLoss || 0}</b> its). A run that happened —
                     it says nothing about next week.
@@ -430,7 +430,7 @@ export default function Picks({ picks, results, data, matchup, onPlayerClick, od
                 return (
                   <div style={{ fontSize: TYPE.micro, color: C.text3, marginTop: 8, lineHeight: 1.6 }}>
                     📆 Longest runs on this record: <b style={{ color: C.text2 }}>{st.bestWin || 0}</b> slates
-                    over the bot, <b style={{ color: C.text2 }}>{st.bestLoss || 0}</b> under it. Slates you
+                    over TUDDY, <b style={{ color: C.text2 }}>{st.bestLoss || 0}</b> under it. Slates you
                     contested nothing break a run rather than extend it.
                   </div>
                 )
@@ -440,19 +440,19 @@ export default function Picks({ picks, results, data, matchup, onPlayerClick, od
           </>
         ) : (
           <div style={{ fontSize: TYPE.body, color: C.text3, marginTop: 9, lineHeight: 1.6 }}>
-            Nothing graded yet — take a rung off the bot below, tag how sure you are, and once
+            Nothing graded yet — take a rung off TUDDY\u2019s card below, tag how sure you are, and once
             the games finish both picks get scored against the same bar.
           </div>
         )}
 
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 11 }}>
-          <button onClick={doExport} style={btnStyle(C.cyan, false)}>Export record</button>
-          <button onClick={() => fileRef.current?.click()} style={btnStyle(C.cyan, false)}>Import</button>
+          <button onClick={doExport} style={btnStyle(C.green, false)}>Export record</button>
+          <button onClick={() => fileRef.current?.click()} style={btnStyle(C.green, false)}>Import</button>
           <button onClick={() => {
             if (window.confirm('Delete every NFL pick and the whole record on this device?')) {
               clearAll(); setMine({}); setBump((b) => b + 1); setMsg('Cleared.')
             }
-          }} style={{ ...btnStyle(C.red, false), color: C.red }}>Clear all</button>
+          }} style={{ ...btnStyle(C.text3, false), color: C.text3 }}>Clear all</button>
           <input ref={fileRef} type="file" accept="application/json,.json"
                  onChange={doImport} style={{ display: 'none' }} />
           {msg && <span style={{ fontSize: TYPE.body, color: C.text3, alignSelf: 'center' }}>{msg}</span>}
@@ -589,7 +589,7 @@ export default function Picks({ picks, results, data, matchup, onPlayerClick, od
                           {row && outcome(row.botOut, row.botVal)}
                           {!locked && (
                             <button onClick={() => setOpenSlot(picking ? null : sk)} style={{
-                              ...btnStyle(C.cyan, open), fontSize: TYPE.label, padding: '5px 8px',
+                              ...btnStyle(C.green, open), fontSize: TYPE.label, padding: '5px 8px',
                             }}>{my ? 'change' : 'take it'}</button>
                           )}
                           {locked && !my && (
@@ -653,7 +653,7 @@ export default function Picks({ picks, results, data, matchup, onPlayerClick, od
                             cursor: 'pointer', maxWidth: 330, width: '100%',
                           }}
                         >
-                          <option value="">— leave the bot&apos;s pick —</option>
+                          <option value="">— leave TUDDY&apos;s pick —</option>
                           {(eligible[market] || []).map((p) => (
                             <option key={p.player_id} value={p.player_id}>
                               {p.name} · {p.position} {p.team} · {Math.round(p.scores[market])}

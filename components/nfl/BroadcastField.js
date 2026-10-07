@@ -147,7 +147,7 @@ export default function BroadcastField({ mode = 'pass', cells = {}, hue = C.gree
             </g>
           )
         })}
-        <line x1="0" x2={W} y1={LOS} y2={LOS} stroke={C.text} strokeWidth="3.2" style={{ filter: `drop-shadow(0 0 4px ${C.cyan})` }} />
+        <line x1="0" x2={W} y1={LOS} y2={LOS} stroke={C.text} strokeWidth="3.2" style={{ filter: `drop-shadow(0 0 4px ${C.green})` }} />
                 {['LEFT', 'MIDDLE', 'RIGHT'].map((t, i) => <text key={t} x={W / 6 + (i * W) / 3} y={PASS_H + 18} textAnchor="middle" fontSize="11" fontWeight="800" fontFamily={NUM_FONT} fill={C.text2} letterSpacing="1.5">{t}</text>)}
       </svg>
     )
@@ -174,7 +174,7 @@ export default function BroadcastField({ mode = 'pass', cells = {}, hue = C.gree
           return <Arrow key={`a${key}`} id={uid} col={hue} w={4 + 9 * (c.w || 0)} d={`M${150 + (x - 150) * 0.35},${R_LOS + 10} Q${x - bend},${R_LOS - len * 0.45} ${x},${R_LOS - len}`} />
         })}
       </g>
-      <line x1="0" x2={W} y1={R_LOS} y2={R_LOS} stroke={C.text} strokeWidth="3.2" style={{ filter: `drop-shadow(0 0 4px ${C.cyan})` }} />
+      <line x1="0" x2={W} y1={R_LOS} y2={R_LOS} stroke={C.text} strokeWidth="3.2" style={{ filter: `drop-shadow(0 0 4px ${C.green})` }} />
       {LANES.map((key) => {
         const c = cells[key] || {}
         const x = GAP_X[key], len = c.heat == null ? 24 : 40 + (maxLen - 40) * c.heat

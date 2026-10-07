@@ -183,7 +183,7 @@ export default function NflSlate({ data, picks, matchup, logs = null, odds = nul
                   <KeyPlayers matchup={matchup} data={data} game={g} onPlayerClick={onPlayerClick} onOpenTeam={onOpenTeam} />
                   {story && (
                     <p style={{ margin: '0 0 14px', fontSize: 13, lineHeight: 1.5, color: C.text2 }}>
-                      <b style={{ color: story.kind === 'model' ? C.orange : C.green, fontFamily: NUM_FONT, fontSize: 12, letterSpacing: '.08em' }}>{story.kind === 'model' ? 'MODEL NARRATIVE' : 'MILESTONE'} </b>
+                      <b style={{ color: story.kind === 'model' ? C.green : C.green, fontFamily: NUM_FONT, fontSize: 12, letterSpacing: '.08em' }}>{story.kind === 'model' ? 'MODEL NARRATIVE' : 'MILESTONE'} </b>
                       <Tap onClick={() => onPlayerClick?.(story.player, story.market)}>{story.text}</Tap>
                     </p>
                   )}

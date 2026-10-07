@@ -98,7 +98,7 @@ export default function Guide({ onNavigate, data }) {
 
       <Section title="Badges on a row" emoji="🏷️">
         <Term icon={<b style={{ color: C.yellow, fontFamily: NUM_FONT }}>Q</b>} term="Questionable" def="listed Questionable. He isn't dropped, but his opportunity inputs are damped 9% (the bot's QUESTIONABLE_DAMP, 0.91). Out and Doubtful never appear at all." />
-        <Term icon={<b style={{ color: C.purple, fontFamily: NUM_FONT }}>CO</b>} term="Carryover" def={`no current-season form exists yet, so every number on him is${statSeason ? ` ${statSeason}` : ' last season'}'s per-game baseline. All of preseason is like this, and so is most of Weeks 1 and 2 — the badge clears player by player as each man banks two games of his own.`} />
+        <Term icon={<b style={{ color: C.text2, fontFamily: NUM_FONT }}>CO</b>} term="Carryover" def={`no current-season form exists yet, so every number on him is${statSeason ? ` ${statSeason}` : ' last season'}'s per-game baseline. All of preseason is like this, and so is most of Weeks 1 and 2 — the badge clears player by player as each man banks two games of his own.`} />
         <Term icon={<span style={{ color: C.text3 }}>◌</span>} term="Dimmed" def="low sample. A rate built on four touches has no business sitting at the same visual weight as one built on two hundred." />
       </Section>
 

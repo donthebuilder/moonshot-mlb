@@ -63,7 +63,7 @@ const WORDS = {
   scoreName: <>bot&apos;s TD score</>, scoreShort: 'TD score',
   scoreRecord: 'the model this site grades every week',
   carrying: <>Carrying the game day&apos;s number, highest TD score first</>,
-  watchLegend: <>Checked against his own jersey / birthday / life-path roots -- <b style={{ color: C.orange }}>+1</b> means
+  watchLegend: <>Checked against his own jersey / birthday / life-path roots -- <b style={{ color: C.green }}>+1</b> means
     tomorrow&apos;s date reduces to a root his own numbers touch. No yesterday / today check: those read a live
     results archive MOONSHOT has and TUDDY doesn&apos;t, at its weekly cadence.</>,
   braidNote: 'Two or more of his own numbers on one root. The rarest read here, and still arithmetic.',

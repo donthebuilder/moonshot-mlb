@@ -82,7 +82,7 @@ const BANDS = [
 ]
 const bandOf = (air) => (air < 0 ? 'behind' : air < 10 ? 'short' : air < 20 ? 'mid' : 'deep')
 const WINS = [['SZN', 'SZN', 99], ['L5', 'L5', 5], ['L3', 'L3', 3], ['WK', 'LAST WK', 1]]
-const WHO_INK = [C.cream, C.ice, C.teal, C.amber]
+const WHO_INK = [C.cream, C.text2, C.text3, C.green]   // 10-07 colour diet: whites and greys, one accent
 const DISPLAY = "'Barlow Condensed','Roboto Condensed','Helvetica Neue','Arial Narrow',-apple-system,BlinkMacSystemFont,sans-serif"
 const PHONE_AT = 760
 const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s)
@@ -386,7 +386,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   else if (!defModel) lines.push(<>No passing map for {TL(defTeam)} yet, so the field has no ink.</>)
   else if (n >= SPOT_MIN_MINE) {
     if (spot) {
-      lines.push(<><b style={{ color: C.orange, fontFamily: NUM_FONT, letterSpacing: '.04em' }}>THE SPOT</b>: {phrase(spot.z)}. {TL(defTeam)} give up <b style={{ color: C.text }}>{fmtPct(spot.leak)}</b> there, and <b style={{ color: C.text }}>{spot.n} of {whose} {n}</b> {unit}s went there.</>)
+      lines.push(<><b style={{ color: C.green, fontFamily: NUM_FONT, letterSpacing: '.04em' }}>THE SPOT</b>: {phrase(spot.z)}. {TL(defTeam)} give up <b style={{ color: C.text }}>{fmtPct(spot.leak)}</b> there, and <b style={{ color: C.text }}>{spot.n} of {whose} {n}</b> {unit}s went there.</>)
     } else if (!holes.length) {
       lines.push(<>{TL(defTeam)} have no zone that leaks on enough plays to call it.</>)
     } else {
@@ -400,7 +400,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
     const worst = Object.entries(mineR).filter(([k, v]) => v.tgt >= ROUTE_MIN_TGT && lgR[k]?.ypt != null)
       .map(([k, v]) => ({ k, v, d: v.ypt - lgR[k].ypt })).sort((a, b) => b.d - a.d)[0]
     if (worst && worst.d > 0) {
-      lines.push(<>In {rf.season}, {TL(defTeam)} gave up <b style={{ color: C.red }}>{worst.v.ypt.toFixed(1)}</b> yds a target on <b style={{ color: C.text }}>{ROUTE_WORD[worst.k]}</b> routes (league {lgR[worst.k].ypt.toFixed(1)}), {worst.v.tgt} targets.</>)
+      lines.push(<>In {rf.season}, {TL(defTeam)} gave up <b style={{ color: C.green }}>{worst.v.ypt.toFixed(1)}</b> yds a target on <b style={{ color: C.text }}>{ROUTE_WORD[worst.k]}</b> routes (league {lgR[worst.k].ypt.toFixed(1)}), {worst.v.tgt} targets.</>)
     }
     const cv = rf.def.def_cov?.[defTeam] || {}, lgC = rf.def.league_cov || {}
     if (cv.M && cv.Z) {
@@ -418,9 +418,9 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
     else if (!runDef) lines.push(<>No running map for {TL(defTeam)} yet, so the line has no ink.</>)
     else if (!pid || rn >= SPOT_MIN_MINE) {
       if (runSpot && pid) {
-        lines.push(<><b style={{ color: C.orange, fontFamily: NUM_FONT, letterSpacing: '.04em' }}>THE SPOT</b>: {gap(runSpot.z)}. {TL(defTeam)} give up <b style={{ color: C.text }}>{fmtPct(runSpot.leak)}</b> a carry there, and <b style={{ color: C.text }}>{runSpot.mine?.att || 0} of his {rn}</b> carries went there.</>)
+        lines.push(<><b style={{ color: C.green, fontFamily: NUM_FONT, letterSpacing: '.04em' }}>THE SPOT</b>: {gap(runSpot.z)}. {TL(defTeam)} give up <b style={{ color: C.text }}>{fmtPct(runSpot.leak)}</b> a carry there, and <b style={{ color: C.text }}>{runSpot.mine?.att || 0} of his {rn}</b> carries went there.</>)
       } else if (runSpot) {
-        lines.push(<><b style={{ color: C.orange, fontFamily: NUM_FONT, letterSpacing: '.04em' }}>THE WEAK SPOT</b>: {gap(runSpot.z)}. {TL(defTeam)} give up <b style={{ color: C.text }}>{fmtPct(runSpot.leak)}</b> a carry there, {Math.round(runSpot.share)}% of all the rushing yards they allow.</>)
+        lines.push(<><b style={{ color: C.green, fontFamily: NUM_FONT, letterSpacing: '.04em' }}>THE WEAK SPOT</b>: {gap(runSpot.z)}. {TL(defTeam)} give up <b style={{ color: C.text }}>{fmtPct(runSpot.leak)}</b> a carry there, {Math.round(runSpot.share)}% of all the rushing yards they allow.</>)
       } else if (!runHoles.length) {
         lines.push(<>{TL(defTeam)} have no gap that leaks on enough carries to call it.</>)
       } else {
@@ -465,18 +465,18 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
           options={[{ k: '26', label: String(file.body?.season || 'NOW'), n: null, title: 'This season\u2019s targets' }, { k: 'r25', label: `${rf.season} ROUTES`, n: null, title: `Last season\u2019s targets with the route he ran and the coverage (charted once a year, after the playoffs)` }]} />
       )}
       {dv.toggle && (
-        <ChipGroup first={!(rf.available && !isRun)} label="Play" theme={C} numFont={NUM_FONT} color={C.amber} value={isRun ? 'rush' : 'pass'} onChange={setViewPick} chipStyle={chipH}
+        <ChipGroup first={!(rf.available && !isRun)} label="Play" theme={C} numFont={NUM_FONT} color={C.green} value={isRun ? 'rush' : 'pass'} onChange={setViewPick} chipStyle={chipH}
           options={[{ k: 'pass', label: 'PASSING', n: pid ? tgN : null, title: pid ? `${isQB ? 'His throws' : 'His targets'}, where they went` : 'Where they get beaten through the air' }, { k: 'rush', label: 'RUNNING', n: pid ? caN : null, title: pid ? 'His carries, gap by gap' : 'Where they get beaten on the ground' }]} />
       )}
       {pid && !isQB && !isRun && (
         <ChipGroup label="Whose" theme={C} numFont={NUM_FONT} color={C.green} value={mode} onChange={setMode} chipStyle={chipH}
           options={[{ k: 'PLAYER', label: 'PLAYER', n: null, title: `${player?.name}'s targets` }, { k: 'TEAM', label: 'TEAM', n: null, title: `Every target ${team} threw` }]} />
       )}
-      <ChipGroup first={!dv.toggle && !(rf.available && !isRun) && !(pid && !isQB && !isRun)} label="Window" theme={C} numFont={NUM_FONT} color={C.cyan} value={win} onChange={setWin} chipStyle={chipH}
+      <ChipGroup first={!dv.toggle && !(rf.available && !isRun) && !(pid && !isQB && !isRun)} label="Window" theme={C} numFont={NUM_FONT} color={C.green} value={win} onChange={setWin} chipStyle={chipH}
         options={WINS.map(([k, label, nn]) => ({ k, label, n: k === 'SZN' || isRun ? null : inWin(k).length, title: k === 'SZN' ? 'The whole season' : `The last ${nn === 1 ? 'game' : `${nn} games`} ${asPlayer ? 'he was targeted in' : `${team} played`}` }))} />
       {phone && !isRun && (
         <button type="button" onClick={() => setFiltersOpen((v) => !v)} aria-expanded={filtersOpen}
-          style={{ ...chipBtn(filtersOpen || fOn, C.orange, C, NUM_FONT), marginLeft: 6 }}>
+          style={{ ...chipBtn(filtersOpen || fOn, C.green, C, NUM_FONT), marginLeft: 6 }}>
           {filtersOpen ? '▾' : '▸'} FILTERS{nOn ? <span style={{ opacity: 0.65 }}> {nOn} on</span> : null}
         </button>
       )}
@@ -489,12 +489,12 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   const clearAll = () => { setRes('ALL'); setDn('ALL'); setTy('ALL'); setRtF('ALL'); setCvF('ALL'); setPick(null) }
   const filterRow = isRun || (phone && !filtersOpen) ? null : (
     <div className="field-filters" style={rowStyle}>
-      <ChipGroup first label="Result" theme={C} numFont={NUM_FONT} color={C.orange} value={res} onChange={setRes} chipStyle={chipH}
+      <ChipGroup first label="Result" theme={C} numFont={NUM_FONT} color={C.green} value={res} onChange={setRes} chipStyle={chipH}
         options={[['ALL', 'All', () => true, 'Every target'], ['catch', 'Catch', (p) => p.res === 'catch', 'Only catches (not touchdowns)'], ['td', 'TD', (p) => p.res === 'td', 'Only touchdowns'], ['inc', 'No catch', (p) => p.res === 'inc' || p.res === 'int', 'Incomplete or intercepted']]
           .map(([k, label, f, title]) => ({ k, label, n: cnt('res', f), title }))} />
-      <ChipGroup label="Down" theme={C} numFont={NUM_FONT} color={C.cyan} value={dn} onChange={setDn} chipStyle={chipH}
+      <ChipGroup label="Down" theme={C} numFont={NUM_FONT} color={C.green} value={dn} onChange={setDn} chipStyle={chipH}
         options={[['ALL', 'All'], ['1', '1st'], ['2', '2nd'], ['3', '3rd'], ['4', '4th']].map(([k, label]) => ({ k, label, n: cnt('dn', (p) => k === 'ALL' || String(p.dn) === k), title: k === 'ALL' ? 'Every down' : `Only ${label} down` }))} />
-      <ChipGroup label="Type" theme={C} numFont={NUM_FONT} color={C.amber} value={ty} onChange={setTy} chipStyle={chipH}
+      <ChipGroup label="Type" theme={C} numFont={NUM_FONT} color={C.green} value={ty} onChange={setTy} chipStyle={chipH}
         options={[['ALL', 'All', () => true], ['pa', 'Play action', (p) => Boolean(p.pa)], ['sc', 'Screen', (p) => Boolean(p.sc)]].map(([k, label, f]) => ({ k, label, n: cnt('ty', f), title: k === 'ALL' ? 'Every pass' : `Only ${label.toLowerCase()} passes` }))} />
       {routesOn && !phone && (
         <ChipGroup label="Route" theme={C} numFont={NUM_FONT} color={C.green} value={rtF} onChange={setRtF} chipStyle={chipH}
@@ -502,7 +502,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
             ...ROUTES.map((k) => ({ k, label: ROUTE_WORD[k].toUpperCase(), n: cnt('rt', (p) => p.rt === k), title: `Only ${ROUTE_WORD[k]} routes` })).filter((o) => o.n || o.k === rtF)]} />
       )}
       {routesOn && !phone && (
-        <ChipGroup label="Coverage" theme={C} numFont={NUM_FONT} color={C.blue} value={cvF} onChange={setCvF} chipStyle={chipH}
+        <ChipGroup label="Coverage" theme={C} numFont={NUM_FONT} color={C.green} value={cvF} onChange={setCvF} chipStyle={chipH}
           options={[{ k: 'ALL', label: 'All', n: cnt('cv', () => true), title: 'Every coverage' },
             ...COVS.map((k) => ({ k, label: COV_WORD[k] || k, n: cnt('cv', (p) => (k === 'M' || k === 'Z' ? p.mz === k : p.cv === k)), title: COV_WORD[k] ? `Only vs ${COV_WORD[k].toLowerCase()}` : `Only vs ${k} (the shell is charted on some snaps only)` })).filter((o) => o.n || o.k === cvF)]} />
       )}
@@ -561,8 +561,8 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
     const box = { x: bx + ins, y: by + ins, width: lw - 2 * ins, height: bh - 2 * ins, rx: u(2) }
     if (c.leak == null) { if (defModel) parts.push(<rect key={`t${c.k}`} {...box} fill={`url(#thin${uid})`} />); continue }
     const h = heatOf(c.leak), cl = coolOf(c.leak)
-    if (h >= 0.12) parts.push(<rect key={`h${c.k}`} {...box} fill={C.red} fillOpacity={(0.12 + h * 0.38).toFixed(3)} />)
-    else if (cl >= 0.12) parts.push(<rect key={`h${c.k}`} {...box} fill={C.blue} fillOpacity={(0.1 + cl * 0.32).toFixed(3)} />)
+    if (h >= 0.12) parts.push(<rect key={`h${c.k}`} {...box} fill={C.green} fillOpacity={(0.12 + h * 0.38).toFixed(3)} />)
+    else if (cl >= 0.12) parts.push(<rect key={`h${c.k}`} {...box} fill={C.text3} fillOpacity={(0.1 + cl * 0.32).toFixed(3)} />)
   }
   for (const bxl of [cx0, cx0 + lw, cx0 + 2 * lw, cx1]) {
     parts.push(<line key={`lb${bxl}`} x1={bxl} y1={yTop} x2={bxl} y2={yBot} stroke={C.cream} strokeOpacity={bxl === cx0 || bxl === cx1 ? 0.22 : 0.07} vectorEffect="non-scaling-stroke" strokeWidth={1} />)
@@ -619,7 +619,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   if (spot) {
     const li = LANES3.indexOf(spot.L)
     labels.push(<g key="spot" aria-hidden="true">
-      <rect x={cx0 + li * lw + u(1.5)} y={Y(spot.B.hi) + u(1.5)} width={lw - u(3)} height={Y(spot.B.lo) - Y(spot.B.hi) - u(3)} rx={u(3)} fill="none" stroke={C.orange} strokeWidth={2} vectorEffect="non-scaling-stroke" />
+      <rect x={cx0 + li * lw + u(1.5)} y={Y(spot.B.hi) + u(1.5)} width={lw - u(3)} height={Y(spot.B.lo) - Y(spot.B.hi) - u(3)} rx={u(3)} fill="none" stroke={C.green} strokeWidth={2} vectorEffect="non-scaling-stroke" />
     </g>)
   }
 
@@ -634,7 +634,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
     const ink = inkOf(p)
     const td = p.res === 'td'
     const caught = p.res === 'catch' || td
-    const fill = td ? C.orange : caught ? ink : 'none'
+    const fill = td ? C.green : caught ? ink : 'none'
     // a touchdown keeps a cream edge so it never melts into the orange ink
     const stroke = on ? C.ice : td ? C.cream : ink
     const label = `${td ? 'Touchdown' : p.res === 'catch' ? 'Catch' : p.res === 'int' ? 'Intercepted' : 'Incomplete'}, ${p.air} air yards, ${LANE_WORD3[p.lane]} lane, week ${p.wk}${asPlayer ? '' : `, ${nameOf(p.pid)}`}`
@@ -642,7 +642,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
       <g key={`d${p.i}`} role="button" tabIndex={0} aria-label={label} aria-pressed={on}
         onClick={() => setPick(on ? null : p.i)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setPick(on ? null : p.i) } }}
         style={{ cursor: 'pointer', outline: 'none' }}>
-        {td && <circle cx={cx} cy={cy} r={r + 5 * dotScale} fill={C.orange} opacity={0.3} filter={`url(#glow${uid})`} />}
+        {td && <circle cx={cx} cy={cy} r={r + 5 * dotScale} fill={C.green} opacity={0.3} filter={`url(#glow${uid})`} />}
         <circle cx={cx} cy={cy} r={on ? r + 2.5 * dotScale : r} fill={fill} fillOpacity={td ? 1 : 0.9}
           stroke={stroke} strokeWidth={on ? 2 : 1.3} vectorEffect="non-scaling-stroke" />
         <circle cx={cx} cy={cy} r={u(22)} fill="transparent" />
@@ -658,7 +658,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
     if (!pts) return null
     const td = p.res === 'td'
     return <polyline key={`r${p.i}`} points={pts.map(([uu, a]) => `${(cx0 + uu * (cx1 - cx0)).toFixed(1)},${Y(a).toFixed(1)}`).join(' ')} fill="none"
-      stroke={td ? C.orange : inkOf(p)} strokeOpacity={pick === p.i ? 1 : td ? Math.min(0.85, routeAlpha * 1.6) : routeAlpha} strokeWidth={pick === p.i ? 2.6 : 1.7} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" pointerEvents="none" />
+      stroke={td ? C.green : inkOf(p)} strokeOpacity={pick === p.i ? 1 : td ? Math.min(0.85, routeAlpha * 1.6) : routeAlpha} strokeWidth={pick === p.i ? 2.6 : 1.7} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" pointerEvents="none" />
   }) : null
   const subjName = asPlayer ? player.name : `${team} offence`
   // the 3D stadium's targets: the same plays, size and ink as the dots
@@ -699,12 +699,12 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
       const h = heatOf(c?.leak), cl = coolOf(c?.leak)
       if (h >= 0.12) {
         const pitch = u(10 - h * 4.5), r = u(1.1 + h * 1.7)
-        rdefs.push(<pattern key={`rp${i}`} id={`rink${uid}${i}`} width={pitch} height={pitch} patternUnits="userSpaceOnUse"><circle cx={pitch / 2} cy={pitch / 2} r={r} fill={C.orange} fillOpacity={(0.42 + h * 0.4).toFixed(2)} /></pattern>)
-        rparts.push(<rect key={`rg${i}`} x={gx + ins} y={bTop} width={gw - 2 * ins} height={bBot - bTop} rx={u(3)} fill={C.orange} opacity={(0.04 + h * 0.1).toFixed(3)} />)
+        rdefs.push(<pattern key={`rp${i}`} id={`rink${uid}${i}`} width={pitch} height={pitch} patternUnits="userSpaceOnUse"><circle cx={pitch / 2} cy={pitch / 2} r={r} fill={C.green} fillOpacity={(0.42 + h * 0.4).toFixed(2)} /></pattern>)
+        rparts.push(<rect key={`rg${i}`} x={gx + ins} y={bTop} width={gw - 2 * ins} height={bBot - bTop} rx={u(3)} fill={C.green} opacity={(0.04 + h * 0.1).toFixed(3)} />)
         rparts.push(<rect key={`rf${i}`} x={gx + ins} y={bTop} width={gw - 2 * ins} height={bBot - bTop} rx={u(3)} fill={`url(#rink${uid}${i})`} />)
       } else if (cl >= 0.12) {
         const pitch = u(9 - cl * 3), r = u(0.8 + cl * 0.9)
-        rdefs.push(<pattern key={`rp${i}`} id={`rink${uid}${i}`} width={pitch} height={pitch} patternUnits="userSpaceOnUse"><circle cx={pitch / 2} cy={pitch / 2} r={r} fill={C.cyan} fillOpacity={(0.22 + cl * 0.3).toFixed(2)} /></pattern>)
+        rdefs.push(<pattern key={`rp${i}`} id={`rink${uid}${i}`} width={pitch} height={pitch} patternUnits="userSpaceOnUse"><circle cx={pitch / 2} cy={pitch / 2} r={r} fill={C.green} fillOpacity={(0.22 + cl * 0.3).toFixed(2)} /></pattern>)
         rparts.push(<rect key={`rf${i}`} x={gx + ins} y={bTop} width={gw - 2 * ins} height={bBot - bTop} rx={u(3)} fill={`url(#rink${uid}${i})`} />)
       } else {
         rparts.push(<rect key={`rf${i}`} x={gx + ins} y={bTop} width={gw - 2 * ins} height={bBot - bTop} rx={u(3)} fill={C.cream} opacity={0.03} />)
@@ -712,7 +712,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
       if (i > 0) rparts.push(<line key={`gb${i}`} x1={gx} y1={bTop} x2={gx} y2={bBot} stroke={C.cream} strokeOpacity={0.12} vectorEffect="non-scaling-stroke" strokeWidth={1} />)
       if (!(runSpot && runSpot.z === z)) {
         rlabels.push(<text key={`rl${i}`} x={gx + gw / 2} y={YR(1.7)} textAnchor="middle" fontFamily={NUM_FONT} fontWeight={800} fontSize={u(11)}
-          fill={!Number.isFinite(c?.leak) ? C.text3 : c.leak > 0 ? C.orange : C.cyan} {...KO}>{Number.isFinite(c?.leak) ? fmtPct(c.leak) : 'thin'}</text>)
+          fill={!Number.isFinite(c?.leak) ? C.text3 : c.leak > 0 ? C.green : C.text3} {...KO}>{Number.isFinite(c?.leak) ? fmtPct(c.leak) : 'thin'}</text>)
       }
       rlabels.push(<text key={`rn${i}`} x={gx + gw / 2} y={YR(-5.4)} textAnchor="middle" fontFamily={NUM_FONT} fontWeight={800} fontSize={u(phone ? 10 : 11)} letterSpacing={u(0.3)} fill={C.text3}>{LANE_SHORT[z]}</text>)
     })
@@ -735,7 +735,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
       rlabels.push(<g key="rspot" aria-hidden="true">
         <circle cx={cxs} cy={cys} r={rr} fill="none" stroke={C.text} strokeWidth={2} strokeOpacity={0.95} vectorEffect="non-scaling-stroke" />
         <circle cx={cxs + rr * 0.06} cy={cys - rr * 0.05} r={rr * 1.06} fill="none" stroke={C.text} strokeWidth={1.1} strokeOpacity={0.5} vectorEffect="non-scaling-stroke" />
-        <rect x={tx} y={ty} width={tagW} height={tagH} rx={u(3)} fill={C.orange} />
+        <rect x={tx} y={ty} width={tagW} height={tagH} rx={u(3)} fill={C.green} />
         <text x={tx + tagW / 2} y={ty + tagH / 2} dy=".35em" textAnchor="middle" fontFamily={NUM_FONT} fontWeight={900} fontSize={u(tagPx)} letterSpacing={u(0.4)} fill={C.bg}>{tagTxt}</text>
       </g>)
     }
@@ -797,7 +797,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   const yds = P.reduce((s, p) => s + (p.gain || 0), 0)
   const airs = P.filter((p) => p.air != null)
   const stats = [
-    ['TGT', P.length, C.text], ['REC', ct.length, C.text], ['YDS', yds, C.text], ['TD', tds, C.orange],
+    ['TGT', P.length, C.text], ['REC', ct.length, C.text], ['YDS', yds, C.text], ['TD', tds, C.green],
     ['AIR', airs.length ? one(airs.reduce((s, p) => s + p.air, 0) / airs.length) : '—', C.text2],
     ['YAC', ct.length ? one(ct.reduce((s, p) => s + (p.yac || 0), 0) / ct.length) : '—', C.text2],
   ]
@@ -806,7 +806,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
     const att = mapAttempts(runSrc)
     const ry = Object.values(runSrc).reduce((a, z) => a + (Number(z?.yds) || 0), 0)
     const rt = Object.values(runSrc).reduce((a, z) => a + (Number(z?.td) || 0), 0)
-    stats.splice(0, stats.length, ['CARRIES', att, C.text], ['YDS', ry, C.text], ['TD', rt, C.orange], ['YPC', att ? one(ry / att) : '—', C.text2])
+    stats.splice(0, stats.length, ['CARRIES', att, C.text], ['YDS', ry, C.text], ['TD', rt, C.green], ['YPC', att ? one(ry / att) : '—', C.text2])
   }
   // components/charts StatStrip (ShotPanel's line), above the card
   const statBlock = isRun && !runSrc ? null : (
@@ -845,7 +845,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
                 {c.where}
                 {c.tdLine ? <span style={{ display: 'block', fontSize: 11, color: C.text3 }}>{c.tdLine}</span> : null}
               </span>
-              <span style={{ fontFamily: NUM_FONT, fontSize: 12, fontWeight: 900, textAlign: 'right', color: c.leak == null ? C.text3 : c.leak > 0 ? (isRun ? C.orange : C.red) : (isRun ? C.cyan : C.blue) }}>{c.leak == null ? 'thin' : fmtPct(c.leak)}</span>
+              <span style={{ fontFamily: NUM_FONT, fontSize: 12, fontWeight: 900, textAlign: 'right', color: c.leak == null ? C.text3 : c.leak > 0 ? C.green : C.text3 }}>{c.leak == null ? 'thin' : fmtPct(c.leak)}</span>
               <span style={{ fontFamily: NUM_FONT, fontSize: 11, color: C.text3, textAlign: 'right' }}>{c.right}</span>
             </div>
           ))}
@@ -860,7 +860,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
               {routeRows.map((r) => (
                 <div key={r.k} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 48px 58px', gap: 8, alignItems: 'baseline', padding: '5px 11px' }}>
                   <span style={{ fontSize: 12, color: C.text2 }}>{r.label}</span>
-                  <span style={{ fontFamily: NUM_FONT, fontSize: 12, fontWeight: 900, textAlign: 'right', color: r.d == null || Math.abs(r.d) < 0.5 ? C.text2 : r.d > 0 ? C.red : C.blue }}>{r.ypt.toFixed(1)}</span>
+                  <span style={{ fontFamily: NUM_FONT, fontSize: 12, fontWeight: 900, textAlign: 'right', color: r.d == null || Math.abs(r.d) < 0.5 ? C.text2 : r.d > 0 ? C.green : C.text3 }}>{r.ypt.toFixed(1)}</span>
                   <span style={{ fontFamily: NUM_FONT, fontSize: 11, color: C.text3, textAlign: 'right' }}>lg {r.lg != null ? r.lg.toFixed(1) : '—'} · {r.tgt}</span>
                 </div>
               ))}
@@ -884,14 +884,14 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   const stripRows = stripIds.map((id) => ({ key: id, name: nameOf(id), href: playerHref('nfl', id), player: byPid.get(String(id)) || { name: nameOf(id), team }, clickable: byPid.has(String(id)), touches: rzBy.get(id) || [] }))
   const stripKicker = (
     <div style={{ fontFamily: NUM_FONT, fontSize: 12, fontWeight: 800, letterSpacing: '.06em', color: C.text3, margin: '10px 0 4px' }}>
-      <span style={{ color: C.orange }}>RED ZONE</span> · every touch inside the 20{phone ? '' : ', by distance to the goal line'}
+      <span style={{ color: C.green }}>RED ZONE</span> · every touch inside the 20{phone ? '' : ', by distance to the goal line'}
     </div>
   )
   const strip = file.state !== 'ready'
     ? <>{stripKicker}<ChartEmpty theme={C} style={{ padding: '2px 0' }}>{file.state === 'loading' ? 'Loading the red-zone touches…' : `No plays file for ${team} yet, so no red-zone touches to draw.`}</ChartEmpty></>
     : stripRows.some((r) => r.touches.length)
     ? <RedZoneStrip rows={stripRows} kicker={phone ? null : stripKicker} phone={phone} onPlayerClick={onPlayerClick}
-        rulerLabel={phone ? <span style={{ color: C.orange }}>RED ZONE</span> : null} />
+        rulerLabel={phone ? <span style={{ color: C.green }}>RED ZONE</span> : null} />
     : <>{stripKicker}<ChartEmpty theme={C} style={{ padding: '2px 0' }}>No red-zone touches{asPlayer ? ' for him' : ''} in this window.</ChartEmpty></>
 
   // ── the tapped target ─────────────────────────────────────────────────────
@@ -912,7 +912,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
   const card = (
     <div aria-live="polite" style={{ minHeight: phone && !cardLines ? 0 : 54, fontFamily: NUM_FONT, fontSize: 10.5, lineHeight: 1.7, color: C.text2 }}>
       {cardLines ? <>
-        <div style={{ color: cardLines.td ? C.orange : C.text, fontWeight: 800, fontSize: 11 }}>{cardLines.head1}{cardLines.yardsBit}{cardLines.who ? <> · <a href={playerHref('nfl', picked.pid)} style={{ ...linkStyle, color: C.text }}>{cardLines.who}</a></> : null}</div>
+        <div style={{ color: cardLines.td ? C.green : C.text, fontWeight: 800, fontSize: 11 }}>{cardLines.head1}{cardLines.yardsBit}{cardLines.who ? <> · <a href={playerHref('nfl', picked.pid)} style={{ ...linkStyle, color: C.text }}>{cardLines.who}</a></> : null}</div>
         <div>{cardLines.l2}</div>
         {cardLines.l4 && <div style={{ color: C.text2 }}>{cardLines.l4}</div>}
         {cardLines.l3 && <div style={{ color: C.text3 }}>{cardLines.l3}</div>}
@@ -934,7 +934,7 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
             <div style={{ width: `${Math.max(2, c.share)}%`, height: '100%', background: chipColor(c.share, 0, 45), borderRadius: 2 }} />
           </div>
           <span style={{ fontFamily: NUM_FONT, color: C.text2, minWidth: 74, textAlign: 'right' }}>
-            {Math.round(c.share)}% <span style={{ color: C.text3 }}>{c.n}</span>{c.leak != null && <span style={{ color: c.leak > 0 ? C.red : C.blue }}> {fmtPct(c.leak)}</span>}
+            {Math.round(c.share)}% <span style={{ color: C.text3 }}>{c.n}</span>{c.leak != null && <span style={{ color: c.leak > 0 ? C.green : C.text3 }}> {fmtPct(c.leak)}</span>}
           </span>
         </div>
       ))}
@@ -947,10 +947,10 @@ export default function TheField({ team, player = null, defTeam, defWeek = null,
       ...(dotsOn && asPlayer ? [{ key: 'catch', mark: <b aria-hidden="true" style={{ color: C.cream }}>●</b>, label: 'catch' }, { key: 'inc', mark: <b aria-hidden="true" style={{ color: C.cream }}>○</b>, label: 'no catch' }] : []),
       ...(dotsOn && !asPlayer ? topWho.map((w, i) => ({ key: w, mark: <b aria-hidden="true" style={{ color: WHO_INK[i] }}>●</b>,
         label: <a href={playerHref('nfl', w)} onClick={onPlayerClick && byPid.get(String(w)) ? (e) => { e.preventDefault(); onPlayerClick(byPid.get(String(w))) } : undefined} style={{ ...linkStyle, color: C.text2 }}>{nameOf(w)}</a> })) : []),
-      ...(dotsOn ? [{ key: 'td', mark: <b aria-hidden="true" style={{ color: C.orange }}>●</b>, label: 'touchdown' }] : []),
+      ...(dotsOn ? [{ key: 'td', mark: <b aria-hidden="true" style={{ color: C.green }}>●</b>, label: 'touchdown' }] : []),
       ...(routesOn && dotsOn ? [{ key: 'rt', mark: <b aria-hidden="true">╱</b>, label: 'route shape' }] : []),
-      ...(defModel ? [{ key: 'red', mark: sw(`${C.red}88`), label: `${defTeam} give up more` }, { key: 'blue', mark: sw(`${C.blue}88`), label: 'hold up' }, { key: 'thin', mark: sw('transparent', { border: `1px dashed ${C.border2}` }), label: 'thin' }] : []),
-      ...(spot ? [{ key: 'spot', mark: sw('transparent', { border: `1.5px solid ${C.orange}` }), label: 'the spot' }] : []),
+      ...(defModel ? [{ key: 'red', mark: sw(`${C.green}88`), label: `${defTeam} give up more` }, { key: 'blue', mark: sw(`${C.text3}88`), label: 'hold up' }, { key: 'thin', mark: sw('transparent', { border: `1px dashed ${C.border2}` }), label: 'thin' }] : []),
+      ...(spot ? [{ key: 'spot', mark: sw('transparent', { border: `1.5px solid ${C.green}` }), label: 'the spot' }] : []),
     ]} />
   )
   const emptyWin = !P.length ? <ChartEmpty theme={C} style={{ padding: '4px 0 0' }}>{routesOn && !mine.length ? `No ${rf.season} targets for ${asPlayer ? player?.name || 'him' : team}.` : 'No targets in this window. Try SZN.'}</ChartEmpty> : null

@@ -1,4 +1,5 @@
 'use client'
+import NflNote from '../NflNote'
 import LedgerChip from '../../LedgerChip'
 import { useHashFilter } from '../../../lib/filterHash'
 import { useEffect, useMemo, useState } from 'react'
@@ -32,8 +33,8 @@ import { useIsPhone } from '../../MobileFold'
 // different shape of thing. Old links still land: #tab=boards opens BOARD,
 // #tab=picks opens CALLED. Market and view ride in the hash (m=, view=).
 const VIEWS = [
-  { key: 'called', label: 'Called', title: "The bot's calls for this market, graded" },
-  { key: 'board', label: 'Board', title: 'Everyone the model scored, ranked' },
+  { key: 'called', label: 'Called', title: "TUDDY's calls for this market, graded" },
+  { key: 'board', label: 'Board', title: 'Everyone scored for this market, ranked' },
 ]
 const readHash = () => { try { return new URLSearchParams(window.location.hash.slice(1)) } catch { return new URLSearchParams() } }
 
@@ -41,10 +42,10 @@ const readHash = () => { try { return new URLSearchParams(window.location.hash.s
 // same component MOONSHOT's HR board uses). Describes the page; no hit rates.
 // The two status words come from lib/callStatus STATUS_WORD, never typed here.
 const HOW_NOTES = [
-  { title: 'Board rank', text: 'His place on this week\u2019s touchdown board, #1 first, ranked by the model\u2019s touchdown score.' },
+  { title: 'Board rank', text: 'His place on this week\u2019s touchdown board, #1 first, ranked by touchdown score.' },
   { title: 'The player', text: 'Tap a name to open his card, with the full picture behind the score.' },
   { title: 'TD score', text: 'How good this week looks for him to score a touchdown, 0\u2013100. It\u2019s a ranking, not a percent: the week\u2019s #1 always sits near 80.' },
-  { title: 'The bot\u2019s call', text: `${STATUS_WORD.called} means he\u2019s one of the bot\u2019s five touchdown picks this week. ${STATUS_WORD.board} means he\u2019s in the top third of the board.` },
+  { title: 'The call', text: `${STATUS_WORD.called} means he\u2019s one of TUDDY\u2019s five touchdown picks this week. ${STATUS_WORD.board} means he\u2019s in the top third of the board.` },
   { title: 'Game', text: 'His opponent and kickoff. The picks lock at kickoff, and nothing changes after.' },
 ]
 const HOW_STEPS = [
@@ -144,7 +145,7 @@ export default function BoardHub({ slate, data, logs, matchup, odds, oddsStatus,
       {phone ? (<>
         {/* PHONE (2026-10-06): the table first. One line, one control row; the rest is behind Filters. */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'space-between', marginBottom: 8 }}>
-          <div style={{ minWidth: 0, fontSize: 13, lineHeight: 1.3, color: C.text2 }}>Who we rank this week, and why.</div>
+          <div style={{ minWidth: 0, fontSize: 13, lineHeight: 1.3, color: C.text2 }}><NflNote tab="research" /></div>
           {view === 'board' && market === 'TD' && howRow && <HowToRead id="nfl-td-board" accent={C.green} row={howRow} notes={HOW_NOTES} steps={HOW_STEPS} />}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
@@ -158,7 +159,7 @@ export default function BoardHub({ slate, data, logs, matchup, odds, oddsStatus,
             game={game} setGame={setGame} games={games} gameLabel="All games" />
         )}
       </>) : (<>
-      <p style={{ margin: '0 0 10px', fontSize: TYPE.body, lineHeight: 1.45, color: C.text2 }}>Who we rank this week, and why. Tap the Why on any row for the numbers behind it.</p>
+      <p style={{ margin: '0 0 10px', fontSize: TYPE.body, lineHeight: 1.45, color: C.text2 }}><NflNote tab="research" /></p>
       {(
         <BoardTopBar query={query} setQuery={setQuery} placeholder="Search player or team…"
           team={team} setTeam={setTeam} teams={teams} teamLabel="🏈 All teams"
@@ -171,7 +172,7 @@ export default function BoardHub({ slate, data, logs, matchup, odds, oddsStatus,
         {VIEWS.slice().reverse().map((v) => (
           // 'Called' is Props now (2026-10-04, Donovan: merge TUDDY's Called view into
           // Props): the pill takes you there; an old #view=called link still renders here.
-          <button key={v.key} type="button" onClick={() => (v.key === 'called' ? (window.location.hash = '#sport=nfl&tab=picks') : setView(v.key))} title={v.key === 'called' ? "The bot's calls for every market, on Props" : v.title} style={{
+          <button key={v.key} type="button" onClick={() => (v.key === 'called' ? (window.location.hash = '#sport=nfl&tab=picks') : setView(v.key))} title={v.key === 'called' ? "TUDDY's calls for every market, on Props" : v.title} style={{
             padding: '7px 16px', minHeight: 36, borderRadius: 999, cursor: 'pointer', fontSize: TYPE.body, fontWeight: 900, fontFamily: NUM_FONT,
             whiteSpace: 'nowrap', letterSpacing: '.02em',
             border: `1px solid ${view === v.key ? C.green : C.border}`,

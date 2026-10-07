@@ -110,10 +110,10 @@ function Shortlist({ data, picks, logs, odds, market, setMarket, onPlayerClick, 
     { key: 'opp', label: 'Opp', heat: false, w: 38, mono: true, dim: true },
     { key: 'pos', label: 'Pos', heat: false, w: 34, mono: true, dim: true },
     { key: 'pick', label: 'Card', heat: false, w: 64, mono: true,
-      title: `His rung on the bot's ${label} card this week (#1 first) and its grade. Blank: not on the card.`,
+      title: `His place on the ${label} card this week (#1 first) and its grade. Blank: not on the card.`,
       fmt: (v) => (v ? <span style={{ color: C.green, fontWeight: 800 }}>{v}</span> : <span style={{ color: C.text3 }}>—</span>) },
     { key: 'score', label: 'Score', w: 56, dp: 1, primary: true,
-      title: `The model's 0-100 ${label} score. A rank against this week's field, not a probability.` },
+      title: `The 0-100 ${label} score. A rank against this week's field, not a probability.` },
     ...(MARKET_STATS[market] || []).map((k) => {
       const c = cols.find((x) => x.key === k)
       return { key: `s_${k}`, label: c?.label || k, w: 52, dp: c?.dp ?? 1, title: c?.desc }
@@ -138,7 +138,7 @@ function Shortlist({ data, picks, logs, odds, market, setMarket, onPlayerClick, 
         options={MARKETS.map(([k, l]) => ({ key: k, label: l, count: (data?.players || []).filter((p) => !p.on_bye && Number.isFinite(Number(p.scores?.[k]))).length }))} />
       {!ranked.length ? (
         <div style={{ fontSize: TYPE.body, color: C.text3, padding: '12px 2px' }}>
-          {week === 'next' ? 'Next week’s board isn’t built yet — the bot builds it on its weekly run.' : `Nobody is scored for ${label} this week yet.`}
+          {week === 'next' ? 'Next week’s board isn’t built yet.' : `Nobody is scored for ${label} this week yet.`}
         </div>
       ) : (
         <>
@@ -147,7 +147,7 @@ function Shortlist({ data, picks, logs, odds, market, setMarket, onPlayerClick, 
           </div>
           {blk?.rungs?.length > 0 && (
             <div style={{ fontSize: 9.5, color: C.text3, margin: '0 0 8px', lineHeight: 1.5 }}>
-              The bot put <b style={{ color: C.text2 }}>{blk.rungs.length}</b> of {ranked.length} on its {label} card
+              <b style={{ color: C.text2 }}>{blk.rungs.length}</b> of {ranked.length} are on the {label} card
               {week === 'next' ? ' for next week' : ' this week'}{blk.bar != null ? ` — each needs ${blk.bar}+` : ''}.
             </div>
           )}
@@ -155,7 +155,7 @@ function Shortlist({ data, picks, logs, odds, market, setMarket, onPlayerClick, 
             <ShortlistPills options={[['profile', 'Strongest profiles'], ['fit', 'Best odds fits']]} value={view} onChange={setView} />
             {view === 'fit' && !anyPriced && (
               <span style={{ fontSize: 9.5, color: C.text3, alignSelf: 'center' }}>
-                no {label} prices posted yet — every row reads &ldquo;no price posted&rdquo; until the odds run lands
+                no {label} prices posted yet
               </span>
             )}
           </div>
@@ -168,7 +168,7 @@ function Shortlist({ data, picks, logs, odds, market, setMarket, onPlayerClick, 
             maxHeight={560}
             maxRows={Math.max(rows.length, 1)}
             dimRow={(r) => r._raw?.low_sample}
-            caption={`Strongest profiles is the model's ${label} ranking; Best odds fits re-sorts by Room. Room and Read only speak where a real rate (his L10 clear-rate, ${MIN_GAMES}+ games) meets a price on the same line as the bar — the 0-100 score never touches the odds. Dimmed rows are low-sample.`}
+            caption={`Strongest profiles is the ${label} ranking; Best odds fits re-sorts by Room. Room and Read only speak where a real rate (his L10 clear-rate, ${MIN_GAMES}+ games) meets a price on the same line as the bar — the 0-100 score never touches the odds. Dimmed rows are low-sample.`}
           />
         </>
       )}
@@ -210,8 +210,7 @@ export default function Bot({ data, picks, results, logs, matchup, odds, oddsSta
     <SportTheme theme={C} accent={C.green} numFont={NUM_FONT}>
       <div>
         <PanelTitle
-          title="The Bot"
-          sub="This week ranked, the card it called, and next week once it's built"
+          title="The shortlist"
           right={<PillRow value={view} options={VIEWS.map((v) => ({ key: v.key, label: v.label }))} onChange={setView} />}
           theme={C}
           numFont={NUM_FONT}

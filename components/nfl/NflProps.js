@@ -36,7 +36,8 @@ const TILES = {
 }
 
 function nflAdapter({ players, card, markets, odds, games }) {
-  const colors = { TD: C.green, REC_YDS: C.cyan, RUSH_YDS: C.blue, REC: C.lime, PASS_YDS: C.orange, KICK_PTS: C.yellow, RUSH_ATT: C.teal || C.cyan, NONE: C.text3 }
+  // 2026-10-07 colour diet: one accent for every market; 'not on the card' is grey.
+  const colors = { TD: C.green, REC_YDS: C.green, RUSH_YDS: C.green, REC: C.green, PASS_YDS: C.green, KICK_PTS: C.green, RUSH_ATT: C.green, NONE: C.text3 }
   // who is on each market's card, and at which bar
   const onCard = new Map()
   for (const [mk, blk] of Object.entries(card || {})) for (const r of blk?.rungs || []) {
@@ -78,7 +79,7 @@ function nflAdapter({ players, card, markets, odds, games }) {
       if (r.coverage_mismatch_tag && chips.length < 2) chips.push({ t: r.coverage_mismatch_tag, warn: false })
       return {
         photo: faceUrl({ sport: 'nfl', espnId: r.espn_id, size: 96 }),
-        dialTitle: `${LONG[mk]} score — the bot's number for this market`,
+        dialTitle: `${LONG[mk]} score for this market`,
         market: card?.[mk]?.bar != null ? `${card[mk].bar}+ ${SHORT[mk].toLowerCase()}` : LONG[mk],
         title: r.name,
         badge: slot ? 'CALLED' : 'NOT CALLED',

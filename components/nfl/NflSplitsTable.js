@@ -35,7 +35,7 @@ export default function NflSplitsTable({ rows, unit }) {
         caption={`Per game. Each pair is first side / second side. "Thin" = under ${THIN_G} games on a side.`}
         rows={rows}
         columns={[
-          { key: 'pair', group: 'Split', label: 'Pair', w: 150, heat: false, sticky: true, bold: true, fmt: (v, r) => <span>{v}{r.thin ? <span title={`Under ${THIN_G} games on a side`} style={{ color: C.orange, fontWeight: 900 }}> thin</span> : null}</span> },
+          { key: 'pair', group: 'Split', label: 'Pair', w: 150, heat: false, sticky: true, bold: true, fmt: (v, r) => <span>{v}{r.thin ? <span title={`Under ${THIN_G} games on a side`} style={{ color: C.green, fontWeight: 900 }}> thin</span> : null}</span> },
           { key: 'a', group: 'Side 1', label: unit, w: 54, dp: 2 },
           { key: 'ga', group: 'Side 1', label: 'G', w: 32, dp: 0 },
           { key: 'b', group: 'Side 2', label: unit, w: 54, dp: 2 },

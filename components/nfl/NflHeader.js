@@ -3,7 +3,6 @@ import { Children, cloneElement, isValidElement, useEffect, useMemo, useState } 
 import { C, NUM_FONT, GRADIENT } from '../../lib/nfl/theme'
 import { setSport } from '../../lib/sport'
 // LAMP's ice for the third pill -- a token import, not a literal (hex budget).
-import PaletteButton from '../PaletteButton'
 import SettingsSheet, { SheetLabel, SheetRow } from '../SettingsSheet'
 import ThemeModeButton from '../ThemeModeButton'
 import AlertBell from './AlertBell'
@@ -38,18 +37,7 @@ import Ticker from '../Ticker'
 // header comment. NFL equivalent of buildHeadlines() above.
 import { buildNflHeadlines } from '../../lib/nfl/headlines'
 
-// The colour key, in football's words. PaletteButton used to render MOONSHOT's
-// four pick jobs (Home run / Base hit / Runs + RBI / Total bases) on this
-// header. Same seven accents Accountability.js assigns per market.
-const NFL_JOBS = () => [
-  { key: 'TD', label: 'Anytime TD', color: C.green },
-  { key: 'REC YDS', label: 'Receiving yards', color: C.cyan },
-  { key: 'REC', label: 'Receptions', color: C.lime },
-  { key: 'RUSH YDS', label: 'Rushing yards', color: C.blue },
-  { key: 'CARRIES', label: 'Rush attempts', color: C.purple },
-  { key: 'PASS YDS', label: 'Passing yards', color: C.orange },
-  { key: 'KICK', label: 'Kicking points', color: C.yellow },
-]
+// (2026-10-07 colour diet: the seven-colour market key is gone -- every market wears the one accent.)
 
 // Order matches the mobile bottom bar (MobileTabBarNfl.js: Home · Boards ·
 // Games · Picks) and MOONSHOT's own bar shape — the 2026-08-29 review caught
@@ -141,11 +129,10 @@ function Tile({ label, value, color, title, live = false, onClick, sport = 'nfl'
 // copy); TUDDY passes its own theme, its green, and its own switches.
 function NflSettingsSheet() {
   return (
-    <SettingsSheet theme={C} accent={C.green} openAlpha={31 / 255} title="View settings — palette, light/dark"
-      hint="Palette · light/dark · alerts. Sticks on this device.">
+    <SettingsSheet theme={C} accent={C.green} openAlpha={31 / 255} title="View settings — light/dark, alerts"
+      hint="Light/dark · alerts. Sticks on this device.">
       <SheetLabel theme={C}>View</SheetLabel>
       <SheetRow>
-        <PaletteButton jobs={NFL_JOBS()} accent={C.green} />
         <ThemeModeButton />
       </SheetRow>
       {/* ALERTS MOVED IN HERE (2026-09-18). It sat loose in the header
@@ -297,7 +284,7 @@ export default function NflHeader({ tab, setTab, data, meta, matchup, weekMode =
     : ageHours < 1 ? `${Math.max(1, Math.round(ageHours * 60))}m ago`
       : ageHours < 48 ? `${Math.round(ageHours)}h ago`
         : `${Math.floor(ageHours / 24)}d ago`
-  const freshCol = ageHours >= 24 ? C.orange : ageHours >= 8 ? C.yellow : C.text3
+  const freshCol = ageHours >= 24 ? C.green : ageHours >= 8 ? C.yellow : C.text3
 
 
   // THE FRAME IS MOONSHOT'S (2026-09-29): components/header/HeaderShell.js --
@@ -307,7 +294,7 @@ export default function NflHeader({ tab, setTab, data, meta, matchup, weekMode =
   return (
     <HeaderShell sport="nfl" theme={C} wordmark={GRADIENT}
       onHome={() => go('home')} homeTitle="TUDDY home — this week in one page"
-      glow={`${C.green}75`} dot={live > 0 ? { color: C.cyan, pulse: true } : null}
+      glow={`${C.green}75`} dot={live > 0 ? { color: C.green, pulse: true } : null}
       headerClass={tab === 'home' ? undefined : 'hdr-slate-on'}
       // THIS WEEK / NEXT WEEK (2026-09-18): MOONSHOT's own control, from the
       // shared components/DateMode.js, worded for football.
@@ -318,7 +305,7 @@ export default function NflHeader({ tab, setTab, data, meta, matchup, weekMode =
           onChange={setWeekMode}
           options={[
             { key: 'this', text: 'This week', color: C.green },
-            { key: 'next', text: 'Next week', color: C.cyan },
+            { key: 'next', text: 'Next week', color: C.green },
           ]}
           theme={C}
           numFont={NUM_FONT}
@@ -364,7 +351,7 @@ export default function NflHeader({ tab, setTab, data, meta, matchup, weekMode =
                 then the remaining context, then the finals and the games not
                 started. This strip is that sequence, with football's numbers
                 in it. The tiles themselves are the shared TickerPill. */}
-            <Tile label="Games · week" value={games} color={C.blue} title="Every game this week (Thursday to Monday) -- the line under the page title counts today's" />   {/* 10-04: "16" here vs "14 games" today read as a contradiction */}
+            <Tile label="Games · week" value={games} color={C.text2} title="Every game this week (Thursday to Monday) -- the line under the page title counts today's" />   {/* 10-04: "16" here vs "14 games" today read as a contradiction */}
             <Tile
               label="Expected TDs"   // plain words (2026-10-04 user review #20: was "Proj TD")
               value={projTd ? projTd.toFixed(1) : '—'}
@@ -372,7 +359,7 @@ export default function NflHeader({ tab, setTab, data, meta, matchup, weekMode =
               title={`Expected touchdowns across the ${rows.length} players scored on this slate — the sum of each man's xTD.${
                 isPre ? ' Preseason caveat: xTD is last season\'s per-game rate at full usage, and starters play two series. Read it as the ceiling, not the projection.' : ''}`}
             />
-            <Tile label="Strong picks" value={aGrade} color={C.cyan}
+            <Tile label="Strong picks" value={aGrade} color={C.green}
                   title="Players scoring 62+ (an A- grade) in at least one market" />
 
             {/* LIVE FIRST, FROM ESPN + MLB, NOT FROM THE SLATE PAYLOAD
@@ -402,7 +389,7 @@ export default function NflHeader({ tab, setTab, data, meta, matchup, weekMode =
               title={live > 0 ? 'Games in progress' : (nextKick ? `Next kickoff: ${nextKick.away} @ ${nextKick.home}` : 'Nothing scheduled')} />
             {freshLabel ? (
               <Tile label="Built" value={freshLabel} color={freshCol} live
-                title={`When the NFL pipeline last published: ${localStamp(meta?.built_at_human || data?.built_at_human || builtAt)}. Everything on TUDDY — the slate, the picks, the lines check and the grading — comes out of that one run.`} />
+                title={`When TUDDY's data last refreshed: ${localStamp(meta?.built_at_human || data?.built_at_human || builtAt)}. The slate, the picks and the grading all come from that one update.`} />
             ) : null}
 
             {/* MOONSHOT's `weak` slot: the leftover context that is worth
@@ -411,11 +398,11 @@ export default function NflHeader({ tab, setTab, data, meta, matchup, weekMode =
               title="Players this slate scored — the pool every board on TUDDY is drawn from" />
             <Tile label="Top TD" value={topTd?.scores?.TD ? Math.round(topTd.scores.TD) : '—'} color={C.green}
               title={topTd?.name ? `${topTd.name} — the highest anytime-touchdown score on the slate` : 'No scored players yet'} onClick={topTd?.name ? () => onPlayerClick?.(topTd) : undefined} /* opens him, like THE BOT'S #1 (route audit B5) */ />
-            <Tile label="Best game" value={bestGame ? bestGame.label : '—'} color={C.cyan}
+            <Tile label="Best game" value={bestGame ? bestGame.label : '—'} color={C.green}
               title={bestGame ? `${bestGame.label} — ${bestGame.total.toFixed(1)} expected touchdowns between the two, the most on the slate` : 'No games scored yet'} />
-            <Tile label="Top rusher" value={topRush?.scores?.RUSH_YDS ? Math.round(topRush.scores.RUSH_YDS) : '—'} color={C.orange}
+            <Tile label="Top rusher" value={topRush?.scores?.RUSH_YDS ? Math.round(topRush.scores.RUSH_YDS) : '—'} color={C.green}
               title={topRush?.name ? `${topRush.name} — ${Number(topRush.stats?.RUYD || 0).toFixed(1)} rush yds/game season average` : 'No scored players yet'} onClick={topRush?.name ? () => onPlayerClick?.(topRush) : undefined} /* opens him, like THE BOT'S #1 (route audit B5) */ />
-            <Tile label="Top receiver" value={topRec?.scores?.REC_YDS ? Math.round(topRec.scores.REC_YDS) : '—'} color={C.purple}
+            <Tile label="Top receiver" value={topRec?.scores?.REC_YDS ? Math.round(topRec.scores.REC_YDS) : '—'} color={C.text2}
               title={topRec?.name ? `${topRec.name} — ${Number(topRec.stats?.RECYD || 0).toFixed(1)} rec yds/game season average` : 'No scored players yet'} onClick={topRec?.name ? () => onPlayerClick?.(topRec) : undefined} /* opens him, like THE BOT'S #1 (route audit B5) */ />
 
             {/* Finals, then the games not under way yet -- MOONSHOT's last two

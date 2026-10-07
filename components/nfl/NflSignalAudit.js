@@ -97,10 +97,10 @@ export default function NflSignalAudit() {
                   {r.invert ? (
                     <>
                       {' '}· <b>{r.rate >= r.base ? '+' : '−'}{Math.abs(r.rate - r.base).toFixed(1)}pp raw</b>
-                      {' '}· <b style={{ color: r.lift >= 0 ? C.green : C.red }}>claim {r.lift >= 0 ? 'met' : 'missed'}</b>
+                      {' '}· <b style={{ color: r.lift >= 0 ? C.green : C.text3 }}>claim {r.lift >= 0 ? 'met' : 'missed'}</b>
                     </>
                   ) : (
-                    <>{' '}· <b style={{ color: r.lift >= 0 ? C.green : C.red }}>{r.lift >= 0 ? '+' : ''}{r.lift.toFixed(1)}pts</b></>
+                    <>{' '}· <b style={{ color: r.lift >= 0 ? C.green : C.text3 }}>{r.lift >= 0 ? '+' : ''}{r.lift.toFixed(1)}pts</b></>
                   )}
                   <span style={{ color: C.text3 }}> · {r.td} of {r.n} scored</span>
                 </span>

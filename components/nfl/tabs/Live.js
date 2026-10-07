@@ -51,7 +51,7 @@ function rungStatus(game, line, market, bar) {
   return over ? { state: 'hit', word: 'CLEARED' } : { state: 'live', word: 'live' }
 }
 
-const STATE_COLOR = () => ({ hit: C.green, miss: C.red, live: C.cyan, void: C.text3, pre: C.text3 })
+const STATE_COLOR = () => ({ hit: C.green, miss: C.text3, live: C.text, void: C.text3, pre: C.text3 })
 
 function RungRow({ rung, player, game, line, market, bar, onPlayerClick }) {
   const st = rungStatus(game, line, market, bar)
@@ -384,7 +384,7 @@ export default function Live({ data, picks, live, matchup = null, logs = null, r
       .tl{display:flex;flex-direction:column;gap:14px}
             .tl-title{display:flex;align-items:flex-end;justify-content:space-between;margin:4px 2px 8px}
       .tl-crawl{display:flex;align-items:center;gap:10px;overflow-x:auto;scrollbar-width:none;padding:7px 10px;border:1px solid ${C.border};border-radius:10px;background:${C.bg2};font:700 10.5px/1 ${NUM_FONT};color:${C.text2};white-space:nowrap}
-      .tl-crawl-tag{padding:3px 7px;border-radius:5px;background:${C.cyan};color:${C.bg};font:900 8.5px/1 ${NUM_FONT};letter-spacing:.1em;flex-shrink:0}
+      .tl-crawl-tag{padding:3px 7px;border-radius:5px;background:${C.green};color:${C.bg};font:900 8.5px/1 ${NUM_FONT};letter-spacing:.1em;flex-shrink:0}
       .tl-crawl-item{flex-shrink:0}.tl-crawl-item b{color:${C.text}}.tl-crawl-next{color:${C.text3}}
       .tl-title small{color:${C.green};font:900 8px/1 ${NUM_FONT};letter-spacing:.12em}.tl-title h2{margin:5px 0 0;font-size:17px;letter-spacing:-.02em}
       .tl-title button{border:1px solid ${C.border};border-radius:8px;background:transparent;color:${C.text2};padding:6px 10px;font:800 9px/1 ${NUM_FONT};cursor:pointer}
@@ -409,7 +409,7 @@ export default function Live({ data, picks, live, matchup = null, logs = null, r
       .tl-plays{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px}
       .tl-plays li{display:grid;grid-template-columns:38px 62px 70px 1fr;gap:8px;align-items:baseline;padding:8px 11px;border:1px solid ${C.border};border-radius:10px;background:${C.bg2};font-family:${NUM_FONT}}
       .tl-plays li.is-mine{border-color:rgba(0,245,173,.45);background:rgba(0,245,173,.06)}
-      .tl-plays span{font-weight:900;font-size:10px;color:${C.green}}.tl-plays em{font-style:normal;font-size:9px;color:${C.text3}}.tl-plays b{font-size:9px;color:${C.cyan}}.tl-plays p{margin:0;font-family:inherit;font-size:11px;color:${C.text2};line-height:1.35}
+      .tl-plays span{font-weight:900;font-size:10px;color:${C.green}}.tl-plays em{font-style:normal;font-size:9px;color:${C.text3}}.tl-plays b{font-size:9px;color:${C.green}}.tl-plays p{margin:0;font-family:inherit;font-size:11px;color:${C.text2};line-height:1.35}
       .tl-empty{padding:22px;border:1px dashed ${C.border2};border-radius:12px;text-align:center;color:${C.text3};font-size:10.5px}
       @media(max-width:640px){.tl-rung{grid-template-columns:16px 1fr 56px 44px 30px;}.tl-rung-word{display:none}.tl-plays li{grid-template-columns:34px 54px 1fr;}.tl-plays b{display:none}}
       `}</style>

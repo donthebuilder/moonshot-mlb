@@ -56,9 +56,9 @@ import LongestTds from '../LongestTds'
 const LEAD_MIN_TGT = 15
 const LENSES = [
   { k: 'player', label: 'Players', tag: 'who turns a target into a chunk play', color: C.green },
-  { k: 'defense', label: 'Defense allowed', tag: 'which defense gives up the chunk play', color: C.cyan },
+  { k: 'defense', label: 'Defense allowed', tag: 'which defense gives up the chunk play', color: C.green },
   // 2026-10-06: MOONSHOT's Longest board, as TUDDY's record of the longest touchdowns (components/nfl/LongestTds.js)
-  { k: 'longest', label: 'Longest TDs', tag: 'the longest scores of the season, from the TD feed', color: C.yellow },
+  { k: 'longest', label: 'Longest TDs', tag: 'the longest scores of the season, from the TD feed', color: C.green },
 ]
 
 const BUCKET_COLS = [
@@ -237,7 +237,7 @@ export default function Explosive({ matchup, data, onPlayerClick }) {
         note={<>Every 10/20/30/40-yard reception, real, off {matchup?.season || 'the'} play-by-play{' — '}{lens === 'player' ? 'a receiver’s own ceiling, not his average game.' : 'which defense turns a normal target into a big one.'}</>}
         theme={C}
         numFont={NUM_FONT}
-        accent={lens === 'player' ? C.green : C.cyan}
+        accent={lens === 'player' ? C.green : C.green}
       />
       )}
       {/* MOONSHOT'S POWER FRAME (2026-09-29, Donovan: "did we ever do the

@@ -62,7 +62,7 @@ export default function SplitDumbbell({ rows, leftLabel, rightLabel, note }) {
                 {r.label}
                 {/* THIN SAMPLE (2026-10-06, MOONSHOT's THIN_PA twin): a side with
                     only a few games behind it is a curiosity. Set by the caller. */}
-                {r.thin && <span title={r.thinTitle || 'Thin sample'} style={{ display: 'block', color: C.orange, fontWeight: 900 }}>thin</span>}
+                {r.thin && <span title={r.thinTitle || 'Thin sample'} style={{ display: 'block', color: C.green, fontWeight: 900 }}>thin</span>}
               </span>
 
               <div style={{ position: 'relative', height: 15 }}>

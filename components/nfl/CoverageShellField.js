@@ -27,7 +27,7 @@ export const SHELL_SHAPE = {
   C6: { deep: [[40, 80], [120, 80], [240, 160]], under: [[40, 164], [280, 164], [100, 144], [190, 144]], man: [], word: 'Quarters on one side, a half on the other.' },
 }
 
-export default function CoverageShellField({ shell = 'C3', hue = C.cyan, big = '', sub = '' }) {
+export default function CoverageShellField({ shell = 'C3', hue = C.green, big = '', sub = '' }) {
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, '')
   const s = SHELL_SHAPE[shell]
   if (!s) return null

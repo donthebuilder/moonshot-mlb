@@ -110,7 +110,7 @@ export default function NflYourPlayers({ players = [], onPlayerClick = null }) {
 
   return (
     <YourPlayersView sport="nfl" rows={rows} onPlayerClick={onPlayerClick ? (p) => onPlayerClick(p, 'TD') : null}
-      theme={C} numFont={NUM_FONT} accent={C.green} liveInk={C.cyan} keys={KEYS.nfl}
+      theme={C} numFont={NUM_FONT} accent={C.green} liveInk={C.green} keys={KEYS.nfl}
       eventWord={(k) => `${k} TD${k > 1 ? 's' : ''} this week`} hiddenEventWord={(k) => `${k} with a TD`}
       emptyNote={<>Star a player anywhere on the board and he lands here, with this week&apos;s
           line beside him.</>} />
