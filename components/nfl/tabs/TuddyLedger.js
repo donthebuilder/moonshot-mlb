@@ -118,6 +118,8 @@ export default function TuddyLedger({ data, results, onPlayerClick = null }) {
       eventLabel="TD"
       eventLabelLong="Touchdown"
       multiSport="nfl"
+      noteSport="nfl"
+      scorerWord="scorers"
       // Ledger.js's own accent defaults to MLB's orange (it imports lib/theme.js,
       // not lib/nfl/theme.js) -- TD is jade on every other NFL page
       // (Accountability.js's MARKET_COLOR), so this is the one prop that has

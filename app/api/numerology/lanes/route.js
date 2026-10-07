@@ -27,5 +27,8 @@ export async function GET(request) {
     if (!data || data.length < 1000) break
   }
   const nights = new Set(rows.filter((r) => r.graded_at).map((r) => r.day)).size
-  return Response.json({ sport, nights, minNights: MIN_NIGHTS, lanes: laneTable(rows), configured: true }, { headers: { 'Cache-Control': 's-maxage=600, stale-while-revalidate=3600' } })
+  // RECORDED vs GRADED (2026-10-06, ledger audit P0-3): `nights` counts completed (every logged player graded)
+  // nights; `recorded` also counts nights still in progress, so the page can say what is true.
+  const recorded = new Set(rows.map((r) => r.day)).size
+  return Response.json({ sport, nights, recorded, minNights: MIN_NIGHTS, lanes: laneTable(rows), configured: true }, { headers: { 'Cache-Control': 's-maxage=600, stale-while-revalidate=3600' } })
 }

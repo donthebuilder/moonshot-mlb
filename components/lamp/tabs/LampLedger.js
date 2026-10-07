@@ -38,6 +38,8 @@ export default function LampLedger({ onOpenPlayer, onOpenTeam }) {
       eventLabel="G"
       eventLabelLong="Goal scorer"
       multiSport="nhl"
+      noteSport="nhl"
+      scorerWord="scorers"
       accent={C.ice}
       baseRate={null}
       periodWord="night"

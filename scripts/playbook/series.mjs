@@ -4,7 +4,7 @@
 // link, with REAL numbers from the same payloads the site reads:
 //   tonight's board  data branch current/today_slim.json (lib/mlb/boardReason.js
 //                    for every "why" number, so a post can't disagree with the card)
-//   the record       lib/cleanRecord.js (the clean pregame record, 0d); four-record only for its date
+//   the record       /api/calibration (the locked record, lib/record/lockedRecord.js)
 //   yesterday        current/graded_results_<date>.json (the night's homers,
 //                    labelled by lib/callStatus.js's one rule)
 // A number that isn't there prints "NO DATA: <field>" instead of the post.
@@ -14,9 +14,9 @@
 //   node scripts/playbook/series.mjs --part 1     one part
 //   node scripts/playbook/series.mjs --part 1 --player "Alvarez"   that hitter
 import '../_esm-resolve.mjs'
-import { CLEAN_PICKS, CLEAN_SOURCE } from '../../lib/cleanRecord.js'
 const { reasonContext, boardReasonFor } = await import('../../lib/mlb/boardReason.js')
 const { callStatus } = await import('../../lib/callStatus.js')
+const { lockedRecordFrom } = await import('../../lib/record/lockedRecord.js')
 const { nameOf, teamOf, oppOf, hrScore, hitScore, prodScore, tbScore } = await import('../../lib/player.js')
 
 const DATA = 'https://raw.githubusercontent.com/donthebuilder/MLB-HR-DASHBOARD-STREAMLIT/data/public/data/current'
@@ -26,7 +26,11 @@ const getJson = async (url) => { try { const r = await fetch(url); return r.ok ?
 
 const board = await getJson(`${DATA}/today_slim.json`)
 const rows = Array.isArray(board) ? board : (board?.players || [])
-const through = (await getJson(`${SITE}/api/dash/four-record`))?.through || null
+// 2026-10-06 (ledger audit P0-2): the LOCKED record, read from the site's own calibration table
+// (/api/calibration) -- the lib/cleanRecord.js constants are gone. `through` = the last locked, graded night.
+const cal = await getJson(`${SITE}/api/calibration?sport=mlb`)
+const LOCKED = lockedRecordFrom(cal)
+const through = [cal?.regular?.to, cal?.post?.to].filter(Boolean).sort().pop() || null
 const graded = through ? await getJson(`${DATA}/graded_results_${through}.json`) : null
 const ctx = rows.length ? reasonContext(rows) : null
 
@@ -40,11 +44,9 @@ const pick = (fallback) => {
   return need(fallback, "tonight's board")
 }
 const why = (p) => boardReasonFor(p, ctx)
-// 0d (2026-10-01): the record lines read the CLEAN pregame record
-// (lib/cleanRecord.js), not /api/dash/four-record -- that endpoint ranks by
-// re-run scores off the post-game archive. HRR has no clean measure, so its
-// post carries no record line.
-const recLine = (k, word) => { const r = need(CLEAN_PICKS[k], `cleanRecord.${k}`); return `${word} calls ${r.ok} of ${r.n} (${r.pct}%) vs ${r.base}% for every hitter, ${CLEAN_SOURCE}` }
+// 2026-10-06: the record lines read the LOCKED record (calls stamped before first pitch),
+// with its window and n -- the same numbers as the Record page's tier table.
+const recLine = (k, word) => { need(LOCKED, 'locked record'); const r = need(LOCKED.picks[k], `locked.${k}`); need(r.enough || null, `${k} calls under ${LOCKED.minN} graded`); return `${word} calls ${r.ok} of ${r.n} (${r.pct}%) vs ${r.base}% for every hitter, ${LOCKED.source}` }
 const vs = (p) => `${teamOf(p)} vs ${oppOf(p) || need(p.opponent, 'opponent')}`
 const f1 = (v) => Number(v).toFixed(1)
 const avg = (v) => Number(v).toFixed(3).replace(/^0/, '')
@@ -168,9 +170,10 @@ const PARTS = {
 }
 
 function pinned() {
-  const hr = need(CLEAN_PICKS.HR, 'cleanRecord.HR'), hit = need(CLEAN_PICKS.HIT, 'cleanRecord.HIT')
+  need(LOCKED, 'locked record')
+  const hr = need(LOCKED.picks.HR, 'locked.HR'), hit = need(LOCKED.picks.HIT, 'locked.HIT')
   return post('CALLED IT is DASH’s public record: every pick posted before first pitch, graded after, hits and misses.', [
-    `${CLEAN_SOURCE}: HR calls ${hr.ok} of ${hr.n}, hit calls ${hit.ok} of ${hit.n}.`,
+    `${LOCKED.source}: HR calls ${hr.ok} of ${hr.n}, hit calls ${hit.ok} of ${hit.n}.`,
     'How to research a pick yourself: dashnetwork.vercel.app/playbook',
   ], [], '')
 }

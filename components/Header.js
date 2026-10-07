@@ -11,6 +11,8 @@ import ThemeModeButton from './ThemeModeButton'
 import QuietButton from './QuietButton'
 import { slateProjHr } from './ProjectedOutput'
 import { easternToday } from '../lib/data'
+import { digestGradedNight } from '../lib/ledgerArchive'
+import { useMlbStatusNight } from '../lib/useMlbStatus'
 import { buildHeadlines, useLiveScores, scoreOrder } from '../lib/headlines'
 import TickerPill from './TickerPill'
 import Ticker from './Ticker'
@@ -130,6 +132,13 @@ function Scorebug({ players, results, games, mode, slateDate, runMeta, onPlayerC
   // tap: a hitter opens his modal, a score opens Live, an NFL score switches
   // to TUDDY. Pauses under the pointer. lib/headlines.js is the one source.
   const stats = useMemo(() => computeSlateStats(players, results, games), [players, results, games])
+  const feedNight = useMlbStatusNight(results?.date || null)
+  const homerStatuses = useMemo(() => {
+    const d = results ? digestGradedNight(results, feedNight) : null
+    if (!d?.hasCapture || !feedNight) return null
+    const hrs = (st) => d.all.filter((r) => r.status === st).reduce((a, r) => a + r.hr, 0)
+    return { called: hrs('called'), board: hrs('board'), off: hrs('off') }
+  }, [results, feedNight])
   const modelHr = useMemo(() => slateProjHr(players), [players])
   const projection = useProjection(mode)
   const live = useLiveScores()
@@ -143,14 +152,18 @@ function Scorebug({ players, results, games, mode, slateDate, runMeta, onPlayerC
   const staleSlate = !!slateDate && slateDate < expectedDate
   const proj = modelHr != null ? modelHr.toFixed(1) : projection ? ((projection.low + projection.high) / 2).toFixed(1) : null
   // onSheet can be null while actual > 0 (only total_hrs_on_slate published): no "null/7"
-  const captured = stats.actual != null && stats.actual > 0 && stats.onSheet != null
-  const pct = captured ? (100 * (stats.onSheet || 0)) / stats.actual : null
+  // ON THE BOARD is ONE definition (2026-10-06, ledger audit P0-1): lib/callStatus.js via the statuses
+  // /called prints (the top third of the night's board, or a call), not "anyone the sheet had".
+  // Falls back to the sheet's own count only until the statuses arrive.
+  const onBoardHrs = homerStatuses ? homerStatuses.called + homerStatuses.board : stats.onSheet
+  const captured = stats.actual != null && stats.actual > 0 && onBoardHrs != null
+  const pct = captured ? (100 * (onBoardHrs || 0)) / stats.actual : null
   const capCol = pct == null ? '#38bdf8' : pct >= 70 ? '#4ade80' : pct >= 50 ? '#f59e0b' : '#f87171'
 
   const items = []
   items.push({ k: 'games', label: 'games', value: stats.gameCount, nav: 'games', title: 'Games on this slate' })
   if (proj != null) items.push({ explain: true, k: 'proj', label: 'Expected HRs', value: proj, color: '#f97316', nav: 'board', title: `${modelHr != null ? `The site's model projects ${modelHr.toFixed(1)} home runs across this slate. ` : ''}${projection ? `The bot's sheet says ${projection.low}–${projection.high}, power grade ${projection.grade || 'n/a'}.` : ''}` })
-  items.push({ explain: true, k: 'cap', label: 'HRs on board', value: captured ? `${stats.onSheet}/${stats.actual}` : stats.actual > 0 ? `${stats.actual} HR` : 'no HR yet', color: capCol, live: true, nav: 'results', title: captured ? `${stats.onSheet} of the slate's ${stats.actual} home runs were on the board before first pitch (${pct.toFixed(0)}%), off the live slate.` : 'How many of tonight\'s home runs the board had before first pitch — fills in when the first one lands.' })
+  items.push({ explain: true, k: 'cap', label: 'HRs on board', value: captured ? `${onBoardHrs}/${stats.actual}` : stats.actual > 0 ? `${stats.actual} HR` : 'no HR yet', color: capCol, live: true, nav: 'results', title: captured ? `${onBoardHrs} of the slate's ${stats.actual} home runs so far were CALLED or ON THE BOARD (the top third of that night's board) before first pitch (${pct.toFixed(0)}%) -- the same count as the Called page. Fewer games are in while the slate is live.` : 'How many of tonight\'s home runs the board had before first pitch — fills in when the first one lands.' })
   // live scores ride between the facts and the headlines: live first, finals after
   const scores = scoreOrder(live.items, 'mlb')
   for (const i of scores.live) items.push({ k: i.k, hash: i.hash, label: i.sub || 'live', value: i.text, icon: i.icon, color: i.col, live: true, sport: i.sport, nav: 'scoreboard', title: i.kind === 'leader' ? `Leading tonight's line for this game` : (i.sport === 'nfl' ? 'Live on TUDDY — tap to switch' : 'Live — tap for the Live page') })

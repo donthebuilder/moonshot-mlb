@@ -41,6 +41,7 @@ import CalibrationSection from '../../components/record/CalibrationSection'
 import { membersUrl, MEMBERS_LINE } from '../../lib/members'
 import { shiftDay } from '../../lib/data'
 import { adminClient } from '../../lib/supabase/admin'
+import { CALL_RULES } from '../../lib/record/callRules'
 
 // 2026-09-20 — FOOTBALL MOVED IN, IT DIDN'T GET ITS OWN HOUSE. Donovan:
 // "can you not just build it on the same side of the site." Right call, and
@@ -112,7 +113,7 @@ const SPORTS = {
     foot: "CALLED IT is MOONSHOT's home run record — every home run, graded in public. Data from MLB's public feeds.",
     lead: 'called', onWhat: 'the bot', capture: eventCapture, window: DAYS, unit: ['night', 'nights'],
     tierRecord: true,   // the calls graded by tier, with their lock times (components/record/CalibrationTable.js)
-    rule: 'CALLED = a TOP, HR, HIT, HRR or CONTACT pick in his game. ON THE BOARD = the top third of that night\u2019s board (nights before Sep 17: anyone the board rated).',
+    rule: CALL_RULES.mlb.rule,
     cta: ['See who the bot likes tonight', 'The headline picks and the full board, in the app — no account needed'],
     callsHead: 'Tonight\u2019s calls', callsPill: 'posted before first pitch',
     eventsHead: 'Tonight\u2019s home runs',
@@ -135,7 +136,7 @@ const SPORTS = {
     fills: 'This page fills in within a minute of each one.',
     foot: "CALLED IT is TUDDY's touchdown record — every touchdown, graded in public. Data from public NFL feeds.",
     lead: 'board', onWhat: 'the board', capture: eventCapture, window: windowFor('nfl').fetchDays, unit: ['game day', 'game days'],
-    rule: 'CALLED = a pick in any TUDDY market that week, or his game\u2019s TD call. ON THE BOARD = the top third of the week\u2019s TD board.',
+    rule: CALL_RULES.nfl.rule,
     cta: ['See who the bot likes this week', 'This week\u2019s reads and the full board, in the app — no account needed'],
     callsHead: 'This week\u2019s calls', callsPill: 'posted before kickoff',
     eventsHead: 'Today\u2019s touchdowns',
@@ -149,7 +150,7 @@ const SPORTS = {
     // QB touchdown was always NOT ON THE BOARD -- counted as a miss the model
     // never had the chance to make. Counted separately now, and said plainly.
     outsidePool: OUTSIDE_POOL.nfl,   // lib/recordWindow.js -- shared with /start and the front door
-    outsideNote: 'TD calls cover RB / WR / TE. QB touchdowns are outside the pool',
+    outsideNote: CALL_RULES.nfl.outside,
     outsideHead: 'QB touchdowns · outside the pool',
     meta: {
       title: 'NFL touchdown picks, graded in public · CALLED IT · TUDDY',
@@ -172,7 +173,7 @@ const SPORTS = {
     fills: 'Each game fills in once its final is graded.',
     foot: "CALLED IT is LAMP's goal record — every goal scorer, graded in public. Data from the NHL's public feeds.",
     lead: 'called', onWhat: 'CALLED', capture: nhlCaptureFrom, window: windowFor('nhl').fetchDays, unit: ['game night', 'game nights'],
-    rule: 'CALLED = one of the calls in his game: the goal board (the top skater on each team, from Oct 1) or SHOTS 3+. ON THE BOARD = the top third of tonight\u2019s board.',
+    rule: CALL_RULES.nhl.rule,
     cta: ['See tonight\u2019s goal board', 'One called per team in every game, and the full board, in the app — no account needed'],
     callsHead: 'Tonight\u2019s calls', callsPill: 'locked before puck drop',
     eventsHead: 'Tonight\u2019s goal scorers',
@@ -199,7 +200,7 @@ const SPORTS = {
     fills: 'Each game fills in once its final is graded.',
     foot: "CALLED IT is BUCKETS' record — every 25-point game, graded in public. Data from ESPN's public NBA feeds.",
     lead: 'called', onWhat: 'CALLED', capture: nbaCaptureFrom, window: windowFor('nba').fetchDays, unit: ['game night', 'game nights'],
-    rule: 'CALLED = one of the calls in his game, in any BUCKETS market (the top player on each team per market). ON THE BOARD = the top third of the night\u2019s points board.',
+    rule: CALL_RULES.nba.rule,
     cta: ['See tonight\u2019s board', 'One called per team in every game, every market, in the app — no account needed'],
     callsHead: 'Tonight\u2019s points calls', callsPill: 'locked before tip',
     eventsHead: 'Tonight\u2019s 25-point games',
@@ -400,15 +401,25 @@ async function load(key) {
 // ten-DAY strip would be seven empty columns. The NFL window is widened to
 // four weeks (SPORTS.nfl.window) and then reduced to the last ten days that
 // actually had a touchdown — same ten bars, each one a real game day.
-async function loadNfl(sport, db, today) {
-  const since = shiftDay(today, -(sport.window - 1))
+async function loadNfl(sport, db, slateDay) {
+  const since = shiftDay(slateDay, -(sport.window - 1))
   const [{ events }, slate] = await Promise.all([
-    readNflEvents(db, { since, until: today }),
+    readNflEvents(db, { since, until: slateDay }),
     // This week's slate (~70 KB, Data Cache 10 min), only for the passer links.
     fetch(nflSlatePaths()[0], { next: { revalidate: 600 } }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
   ])
   const outside = sport.outsidePool || (() => false)
   const all = events.map((e) => ({ ...e, day: e.game_date, _n: normNfl(e, slate) }))
+  // THE WEEK IN PROGRESS (2026-10-06, ledger audit P1-8): football is not nightly. On a Tuesday or
+  // Wednesday "today" has no touchdown -- the page said "No touchdowns yet today" with the week's
+  // games a day or two old. The slate night is the latest game day of the last six when the calendar
+  // day has none (the week, not the clock), so the hero, the calls and the night lists show the
+  // game day the week is on. Nothing is stored or re-labelled.
+  let today = slateDay
+  if (!all.some((r) => r.day === slateDay)) {
+    const latest = [...new Set(all.map((r) => r.day))].filter((d) => d < slateDay && d >= shiftDay(slateDay, -6)).sort().pop()
+    if (latest) today = latest
+  }
   const rows = all.filter((r) => r.day === today && !outside(r))
   const outRows = all.filter((r) => r.day === today && outside(r))
   const byDay = new Map()
@@ -602,7 +613,7 @@ export default async function CalledPage({ searchParams }) {
       ) : null}
 
       <section className={styles.panel}>
-        <h2 className={styles.h2}>{`Last ${history.length} ${unit}`} {spanPct != null ? <span className={styles.pill}>{byBoard ? `${span.onBoard} / ${span.total} on the board · ${spanBoardPct}% · ${span.called} called` : `${span.called} / ${span.total} called · ${spanPct}% · ${span.onBoard} on the board`}</span> : preOnly ? <span className={styles.pill}>preseason — not counted</span> : null}</h2>
+        <h2 className={styles.h2}>{`Last ${history.length} ${unit}`} {spanPct != null ? <span className={styles.pill}>{byBoard ? `${span.onBoard} / ${span.total} on the board · ${spanBoardPct}% · ${span.called} called` : `${span.called} / ${span.total} called · ${spanPct}% · ${span.onBoard} on the board`}{` · counts ${graded.length} of these ${history.length} ${unit[1]}${graded.length === history.length ? '' : ' (the rest: no event recorded, preseason or postseason)'}`}</span> : preOnly ? <span className={styles.pill}>preseason — not counted</span> : null}</h2>
         {postNights.length ? (
           <p className={styles.sub}>
             <b>POSTSEASON</b> · {postSpan.called} / {postSpan.total} called{postSpan.total ? ` · ${Math.round((100 * postSpan.called) / postSpan.total)}%` : ''} · {postSpan.onBoard} on the board · {postNights.length} {postNights.length === 1 ? 'night' : 'nights'}, counted on their own{spanPct != null ? ' (the line above is the regular season)' : ''}

@@ -33,7 +33,9 @@ import { easternToday } from '../../lib/data'
 // lane, A9's Hits/HRR lanes). WATCH is explicitly "not a call" per A1; TOP15
 // is a ranking band, not a designated pick. A hitter under either of those,
 // or on the sheet with no badge at all, shows as ON BOARD, not CALLED. See
-// lib/ledgerArchive.js's fetchGradedNight for the one place this is decided.
+// lib/callStatus.js for the one place this is decided (2026-10-06: it was "on the sheet"
+// here and the top third of the board on /called; both read lib/callStatus.js now, with the
+// homer_feed statuses from /api/mlb/call-status -- lib/record/mlbStatus.js).
 
 const dayStr = (d) => d.toISOString().slice(0, 10)
 const shiftDate = (date, deltaDays) => {
@@ -128,7 +130,9 @@ export default function CalledLedger({ slateDate = '', onPlayerClick = null }) {
       onNextDate={() => setDate((d) => shiftDate(d, 1))}
       onToday={() => setDate(today)}
       canGoNext={date < today}
-      night={night ? { totals: nightTotals(night), rows: nightToRows(night) } : null}
+      night={night ? { totals: nightTotals(night), rows: nightToRows(night), games: night.games } : null}
+      noteSport="mlb"
+      scorerWord="hitters"
       nightLoading={nightLoading}
       nightNote={nightNote}
       season={season ? {
@@ -136,9 +140,10 @@ export default function CalledLedger({ slateDate = '', onPlayerClick = null }) {
         to: season.to,
         nightsCount: season.count,
         totalEvents: season.total,
-        called: season.badged,
-        board: season.onSheet - season.badged,
-        off: season.total - season.onSheet,
+        // home runs by status, from the same lib/callStatus.js words /called prints (one definition)
+        called: season.called,
+        board: season.board,
+        off: season.off,
         perNight: season.perNight,
       } : null}
       hitterRows={season ? seasonHitterRows(season) : []}

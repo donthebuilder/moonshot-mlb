@@ -2,7 +2,8 @@
 import DenseTable from './DenseTable'
 import { C, NUM_FONT, TYPE } from '../lib/theme'
 import { alpha } from '../lib/scales'
-import { CLEAN_SOURCE, CLEAN_NIGHTS, CLEAN_HITTER_GAMES, CLEAN_HR_BASE, CLEAN_HR_BANDS, CLEAN_HRW_BANDS } from '../lib/cleanRecord'
+import { useLockedRecord } from '../lib/useLockedRecord'
+import { lockedCallsLine } from '../lib/record/lockedRecord'
 
 // 📊 WHAT A SCORE IS WORTH — the band table, on screen.
 //
@@ -60,11 +61,10 @@ function mlbTint(lift, claims) {
 
 // ── 2026-10-01: BACK, FROM THE CLEAN RECORD ─────────────────────────────────
 //
-// The bands return measured on the locked pregame record (lib/cleanRecord.js,
-// 21 nights, Sep 9-30), two scores only, exactly as measured: a band prints
-// its count where the measure recorded one and its rate alone where it did
-// not. Colour is the lift against the 11.5% base, the same ramp as before.
-function BandList({ title, bands }) {
+// The bands are counted from the locked pregame record by the calibration
+// reader (2026-10-06): two scores, every band with its count. Colour is the
+// lift against the board's own home-run base, the same ramp as before.
+function BandList({ title, bands, base }) {
   // THE SHARED SHEET (2026-10-01, BATCH-TABLE-SKIN-V2 4b): the band and what
   // it homered at, tinted against the base as before.
   return (
@@ -74,29 +74,41 @@ function BandList({ title, bands }) {
         rows={bands.map((b) => ({ ...b, _key: b.band }))}
         columns={[
           { key: 'band', label: 'Band', heat: false, sticky: true, w: 80, fmt: (v) => <b>{v}</b> },
-          { key: 'pct', label: 'Homered', heat: false, numeric: false, w: 120, fmt: (v, b) => {
-            const { bg, fg } = bandTint(v - CLEAN_HR_BASE, true)
-            return <span style={{ background: bg, padding: '2px 6px', borderRadius: 4, whiteSpace: 'nowrap' }}><b style={{ color: fg }}>{Number(v).toFixed(1)}%</b>{b.ok != null ? <span style={{ color: C.text3, fontSize: 11 }}> {b.ok}/{b.n.toLocaleString('en-US')}</span> : null}</span> } },
+          { key: 'rate', label: 'Homered', heat: false, numeric: false, w: 120, fmt: (v, b) => {
+            // under the minimum a band prints its count and no rate (lib/calibration MIN_N)
+            if (v == null || b.n < 30) return <span style={{ color: C.text3, fontSize: 11 }}>{b.hits}/{b.n.toLocaleString('en-US')} · too few</span>
+            const { bg, fg } = bandTint(v - base, true)
+            return <span style={{ background: bg, padding: '2px 6px', borderRadius: 4, whiteSpace: 'nowrap' }}><b style={{ color: fg }}>{Number(v).toFixed(1)}%</b><span style={{ color: C.text3, fontSize: 11 }}> {b.hits}/{b.n.toLocaleString('en-US')}</span></span> } },
         ]} />
     </div>
   )
 }
 
 export default function ScoreBands() {
+  // 2026-10-06 (ledger audit P0-2): the bands are counted from the LOCKED record -- the same
+  // reader as the tier table (lib/calibration), board rows stamped before first pitch --
+  // not the hard-coded Sep 9-30 measurement that included nights stamped after first pitch.
+  const rec = useLockedRecord()
+  const bands = rec?.bands
+  const base = rec?.board?.hrRate
+  if (!rec || !bands || base == null) {
+    return <p style={{ margin: 0, fontSize: 12, lineHeight: 1.72, color: C.text3, maxWidth: 800 }}>Reading the locked record…</p>
+  }
   return (
     <div>
       <p style={{ margin: '0 0 12px', fontSize: 12, lineHeight: 1.72, color: C.text2, maxWidth: 800 }}>
-        <b style={{ color: C.text }}>What a score has been worth</b>, on the {CLEAN_SOURCE}: the board
-        as it stood at first pitch, {CLEAN_HITTER_GAMES.toLocaleString('en-US')} hitter-games, an{' '}
-        {CLEAN_HR_BASE}% home-run base. The older bands were measured on post-game files and are gone.
+        <b style={{ color: C.text }}>What a score has been worth</b>, on the {rec.source}: the board
+        as it stood at first pitch, {rec.board.n.toLocaleString('en-US')} hitter-games, a{' '}
+        {base.toFixed(1)}% home-run base. Only board rows stamped before first pitch count
+        ({lockedCallsLine(rec, rec.board.n).replace('calls', 'hitter-games')}).
       </p>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '14px 32px', alignItems: 'flex-start' }}>
-        <BandList title="HR SCORE" bands={CLEAN_HR_BANDS} />
-        <BandList title="HRW" bands={CLEAN_HRW_BANDS} />
+        <BandList title="HR SCORE" bands={bands.hr} base={base} />
+        <BandList title="HRW" bands={bands.hrw} base={base} />
       </div>
       <p style={{ margin: '12px 0 0', fontSize: 12, lineHeight: 1.6, color: C.text3, maxWidth: 800 }}>
-        {CLEAN_NIGHTS} nights is a small sample, and the middle bands carry no count in the measure, so read
-        them as direction. HRW&apos;s middle bands do not step down in order. A score is a ranking, not a chance.
+        {rec.nights} nights is a small sample: read the bands as direction, and a band under 30 hitter-games shows its
+        count and no rate. A score is a ranking, not a chance.
       </p>
     </div>
   )

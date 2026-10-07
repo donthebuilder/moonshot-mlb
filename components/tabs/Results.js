@@ -24,7 +24,9 @@ import ReportCard from '../ReportCard'
 import PlayerPickRecord from '../PlayerPickRecord'
 import PLSimulator from '../PLSimulator'
 import DenseTable from '../DenseTable'
-import { CLEAN_PICK_LINE } from '../../lib/cleanRecord'
+import { useLockedRecord } from '../../lib/useLockedRecord'
+import { useMlbStatusNight } from '../../lib/useMlbStatus'
+import { lockedPickLine } from '../../lib/record/lockedRecord'
 import RecordPage from '../record/RecordPage'
 import { mlbRecordModel } from '../../lib/record/page'
 
@@ -190,13 +192,14 @@ function Purpose({ children }) {
 // after the games (season counts include that night's homer; scores and picks
 // are a later re-run -- claude/HR-MODEL-FINDINGS-2026-10-01.md §1). ADDENDUM
 // §35: every number names its source and date, so these views say theirs and
-// print the clean pick record beside it (lib/cleanRecord.js).
+// print the locked pick record beside it (lib/record/lockedRecord.js, 2026-10-06).
 function ArchiveSource() {
+  const rec = useLockedRecord()
   return (
     <p style={{ margin: '0 0 10px', fontSize: 12, lineHeight: 1.6, color: C.text3, maxWidth: 760 }}>
       <b style={{ color: C.text2 }}>Source:</b> the post-game graded files, which carry re-run scores and
       season counts that include that night&apos;s homer, so archive-wide rates here read biased. The{' '}
-      {CLEAN_PICK_LINE}.
+      {lockedPickLine(rec)}.
     </p>
   )
 }
@@ -711,7 +714,9 @@ export default function Results({ results, liveResults = null, slateDate = '', b
   // every HR call this season, its lock price and result (2026-10-04, user review build 2)
   const callHistory = <CallHistory sport="mlb" Table={DenseTable} onOpenPlayer={(id) => { const p = (players || []).find((x) => String(x.player_id) === String(id)); if (p) onPlayerClick?.(p) }} title="Every home-run call, its price, its result" />
   // each tier's calls, hits and rate with its lock time (2026-10-06, lib/calibration)
-  const callHistoryWithTiers = <><CalibrationTable sport="mlb" Table={DenseTable} />{callHistory}</>
+  // THE LOCKED TABLE LEADS (2026-10-06, ledger audit P0-2): it is passed as `locked` so RecordPage
+  // draws it above the post-game archive's BY MARKET table; the call list stays below.
+  const lockedTiers = <CalibrationTable sport="mlb" Table={DenseTable} />
   // THREE QUESTIONS, NOT SEVEN PILLS. `mode` is the question; each mode keeps
   // its own last-opened view, so switching to All season and back does not
   // dump you out of the sub-view you were reading. The seven keys are
@@ -744,6 +749,8 @@ export default function Results({ results, liveResults = null, slateDate = '', b
   const [day, setDay] = useState('live')
   const [dayData, setDayData] = useState(null)
   const [dayState, setDayState] = useState('idle')
+  // the night on screen, labelled the way /called labels it (one definition)
+  const feedNight = useMlbStatusNight((day === 'live' ? results : dayData)?.date || null)
 
   const gradedDays = useMemo(() => {
     const per = backtest?.per_day
@@ -1001,7 +1008,7 @@ export default function Results({ results, liveResults = null, slateDate = '', b
   // which read tonight's file at all.
   // the live FILE is not the live GAME: on the live day the league's feed
   // (liveOver above) says whether the slate is over -- the archiveBar's own rule
-  const recordModel = mlbRecordModel({ night: view, backtest, live: day === 'live' ? !liveOver : null, onOpen: onPlayerClick ? (raw) => onPlayerClick(raw) : null })
+  const recordModel = mlbRecordModel({ night: view, feed: feedNight, backtest, live: day === 'live' ? !liveOver : null, onOpen: onPlayerClick ? (raw) => onPlayerClick(raw) : null })
   const emptyNight = mode === 'night' && !slots.length && !homers.length
   if (emptyNight) recordModel.last = null
   const receiptsHead = (
@@ -1015,7 +1022,7 @@ export default function Results({ results, liveResults = null, slateDate = '', b
     return (
       <div>
         <PanelTitle title={RECORD_NAME} sub="Nightly grading" />
-        <RecordPage record={recordModel} Table={DenseTable} calls={callHistoryWithTiers} receiptsLabel="every night, every pick" receipts={(
+        <RecordPage record={recordModel} Table={DenseTable} locked={lockedTiers} calls={callHistory} receiptsLabel="every night, every pick" receipts={(
           <>
             {receiptsHead}
             <Empty text={
@@ -1035,7 +1042,7 @@ export default function Results({ results, liveResults = null, slateDate = '', b
         title={RECORD_NAME}
         sub={`${gradedDays.length} graded nights in the archive`}
       />
-      <RecordPage record={recordModel} Table={DenseTable} calls={callHistoryWithTiers} receiptsLabel="every night, every pick, the season's audits" receipts={(<>
+      <RecordPage record={recordModel} Table={DenseTable} locked={lockedTiers} calls={callHistory} receiptsLabel="every night, every pick, the season's audits" receipts={(<>
       {receiptsHead}
 
       {/* ── #34: THE MONEY ANSWER, ON THE PAGE THAT ASKS THE QUESTION ──────

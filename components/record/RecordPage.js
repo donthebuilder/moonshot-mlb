@@ -19,6 +19,7 @@ import { useSportTheme } from '../SportTheme'
 import CallStatusBadge from '../CallStatusBadge'
 import { alpha } from '../../lib/scales'
 import PlayerFace from '../PlayerFace'
+import RecordNote from './RecordNote'
 
 export const RECORD_WINDOWS = [
   { key: 'l10', label: 'Last 10', take: 10 },
@@ -111,7 +112,7 @@ function Moment({ m, C, NUM_FONT, accent, Face }) {
  *   later: [{ key, label, value, sub }]   (CHALK vs VALUE, the DASH line) -- drawn only when present
  * }
  */
-export default function RecordPage({ record, Table, Face = PlayerFace, receipts = null, receiptsLabel = 'Every graded pick, in full', top = null, calls = null }) {
+export default function RecordPage({ record, Table, Face = PlayerFace, receipts = null, receiptsLabel = 'Every graded pick, in full', top = null, calls = null, locked = null }) {
   const { C, NUM_FONT, accent } = useSportTheme()
   const [win, setWin] = useState('l10')
   const [allCalled, setAllCalled] = useState(false)
@@ -160,7 +161,7 @@ export default function RecordPage({ record, Table, Face = PlayerFace, receipts 
       {last ? (
         <section aria-label={`Last ${unitWord}`} style={{ border: `1px solid ${alpha(accent, 0.4)}`, borderRadius: 14, padding: '12px 14px', background: C.bg2 }}>
           <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', marginBottom: 6 }}>
-            <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: '.1em', color: accent, fontFamily: NUM_FONT }}>{last.live ? (r.unit === 'week' ? 'THIS WEEK' : 'LIVE') : 'FINAL'}</span>
+            <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: '.1em', color: accent, fontFamily: NUM_FONT }}>{last.liveGames > 0 ? `${last.liveGames} LIVE` : last.live ? (r.unit === 'week' ? 'THIS WEEK' : 'LIVE') : 'FINAL'}</span>
             <span style={{ fontSize: 15, fontWeight: 800, color: C.text }}>{last.label}</span>
           </div>
           {last.note ? <div style={{ fontSize: 12, color: C.text3, marginBottom: 4 }}>{last.note}</div> : null}
@@ -172,7 +173,7 @@ export default function RecordPage({ record, Table, Face = PlayerFace, receipts 
           </div>
           {cap && cap.total > 0 ? (
             <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginTop: 8, fontSize: 12, color: C.text2 }}>
-              <span><b style={{ color: C.text, fontFamily: NUM_FONT }}>{cap.called + cap.board} of {cap.total}</b> {cap.word} caught{last.live ? ' so far' : ''}</span>
+              <span><b style={{ color: C.text, fontFamily: NUM_FONT }}>{cap.called + cap.board} of {cap.total}</b> {cap.word} caught{last.live || last.games?.live > 0 ? ' so far' : ''}{last.games && last.games.final < last.games.total ? ` · ${last.games.final} of ${last.games.total} games final` : ''}</span>
               <CallStatusBadge status="called" accent={accent} /><b style={{ fontFamily: NUM_FONT }}>{cap.called}</b>
               <CallStatusBadge status="board" accent={accent} /><b style={{ fontFamily: NUM_FONT }}>{cap.board}</b>
               <CallStatusBadge status="off" accent={accent} /><b style={{ fontFamily: NUM_FONT }}>{cap.off}</b>
@@ -181,8 +182,15 @@ export default function RecordPage({ record, Table, Face = PlayerFace, receipts 
         </section>
       ) : null}
 
+      {/* WHAT CALLED MEANS (2026-10-06, ledger audit P2): /called's own words, on every record tab */}
+      {r.noteSport ? <RecordNote sport={r.noteSport} /> : null}
+
+      {/* THE LOCKED RECORD FIRST (2026-10-06, ledger audit P0-2): the one headline number is the
+          lock-enforced tier table; the market table below it is the post-game archive and says so. */}
+      {locked}
+
       {/* BY MARKET */}
-      <Section C={C} NUM_FONT={NUM_FONT} title="BY MARKET"
+      <Section C={C} NUM_FONT={NUM_FONT} title={r.marketTitle || 'BY MARKET'}
         sub={`${series.length} graded ${unitWord}${series.length === 1 ? '' : 's'}${r.since ? ` since ${r.since}` : ''}${r.note ? ` · ${r.note}` : ''}.`}
         right={(
           <div role="tablist" style={{ display: 'flex', gap: 4 }}>

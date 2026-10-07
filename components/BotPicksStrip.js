@@ -219,7 +219,7 @@ export default function BotPicksStrip({ players = [], onPlayerClick, onFullCard 
   }, [graded])
   // EACH CARD'S OWN RECORD (2026-09-27, The Four like The Six): the category's
   // #1 graded on its own bar over the last 14 graded nights, computed and
-  // cached on the server (/api/dash/four-record; the nightly files are 2.4 MB
+  // cached on the server (the nightly files are 2.4 MB
   // each). Replaces the one "65% over 25 nights · Aug 23" pill, which was a
   // study snapshot a month old. Unreadable -> no record line, never a guess.
   //
@@ -227,8 +227,8 @@ export default function BotPicksStrip({ players = [], onPlayerClick, onFullCard 
   // #1 by the scores in graded_results_<date>.json, which are a post-game
   // re-run (claude/HR-MODEL-FINDINGS-2026-10-01.md §1), so "9 of 14 nights"
   // was measured on the leaky archive. The card's record returns when it can
-  // be read from the locked pick record. (/api/dash/four-record still exists:
-  // scripts/playbook/series.mjs reads it -- Donovan's call.)
+  // be read from the locked pick record. (/api/dash/four-record was removed
+  // 2026-10-06: nothing read it once series.mjs moved to /api/calibration.)
 
   if (!four.some((f) => f.picks.length)) return null
 
