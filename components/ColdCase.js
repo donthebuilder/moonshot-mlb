@@ -54,13 +54,12 @@ const se = (p, n) => (n > 0 && p != null ? 100 * Math.sqrt(Math.max((p / 100) * 
 
 // The Storylines shape: an icon, then a line you can read. A number with its
 // clause attached beats a number in a box, because every number here needs one.
-function Line({ icon, children }) {
+function Line({ children }) {
   return (
     <div style={{
-      display: 'flex', gap: 8, alignItems: 'baseline', fontSize: 11,
+      display: 'flex', gap: 8, alignItems: 'baseline', fontSize: 12,
       lineHeight: 1.55, padding: '3px 0', color: C.text2,
     }}>
-      <span style={{ flexShrink: 0 }}>{icon}</span>
       <span style={{ minWidth: 0 }}>{children}</span>
     </div>
   )
@@ -202,10 +201,10 @@ export default function ColdCase({ playerId, player, onlyLine = false }) {
   }
 
   return (
-    <div style={{ marginTop: 13, paddingTop: 11, borderTop: `1px dashed ${C.border2}` }}>
+    <div style={{ marginTop: 8, paddingTop: 10, borderTop: `1px solid ${C.border}` }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, marginBottom: 7, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 11.5, fontWeight: 900 }}>🍩 The cold case</span>
-        <span style={{ fontSize: 9, color: C.text3 }}>
+        <span style={{ fontSize: 12, fontWeight: 800 }}>The cold case</span>
+        <span style={{ fontSize: 11, color: C.text3 }}>
           the argument against him — a <b style={{ color: C.text2 }}>blank</b> is a game he batted and
           produced nothing at all: no hit, no run, no RBI
         </span>
@@ -218,28 +217,28 @@ export default function ColdCase({ playerId, player, onlyLine = false }) {
           the time, one every ~3 games" is. Same shape Storylines uses: an
           icon, then a line. */}
       <div style={{ marginBottom: 9 }}>
-        <Line icon="🍩">
+        <Line>
           <b style={{ color: C.text }}>Last blank</b>{' '}
           {read.sinceIdx === 0
-            ? <>was <b style={{ color: '#f87171' }}>his last game</b></>
+            ? <>was <b style={{ color: C.orange }}>his last game</b></>
             : <><b style={{ fontFamily: NUM_FONT, color: read.median && read.sinceIdx > read.median ? C.orange : C.text }}>{read.sinceIdx}</b> games ago</>}
           {read.last && <> — {read.last.date} {read.last.home ? 'vs' : '@'} {ab}, {read.last.h}-for-{read.last.ab}</>}
           {read.median != null && <>. He has one every <b style={{ fontFamily: NUM_FONT }}>~{read.median}</b> games</>}.
         </Line>
-        <Line icon="📉">
+        <Line>
           <b style={{ color: C.text }}>Blank rate</b>{' '}
           <b style={{ fontFamily: NUM_FONT, color: C.text }}>{fmt(read.rate)}</b> —{' '}
           {read.donuts} of his {read.n} games this season.
         </Line>
         {read.after > 0 && (
-          <Line icon="↩️">
+          <Line>
             <b style={{ color: C.text }}>After one</b> he gets a hit{' '}
-            <b style={{ fontFamily: NUM_FONT, color: !bounceReal ? C.text : bounceGap > 0 ? '#4ade80' : '#f87171' }}>{fmt(read.afterHit)}</b>{' '}
+            <b style={{ fontFamily: NUM_FONT, color: !bounceReal ? C.text : bounceGap > 0 ? C.orange : C.text }}>{fmt(read.afterHit)}</b>{' '}
             of the time ({read.after} chances), against <b style={{ fontFamily: NUM_FONT }}>{fmt(read.baseHit)}</b> normally.
           </Line>
         )}
         {read.avgAbDonut != null && (
-          <Line icon="🪑">
+          <Line>
             <b style={{ color: C.text }}>Blank at-bats</b>{' '}
             <b style={{ fontFamily: NUM_FONT }}>{read.avgAbDonut.toFixed(1)}</b>
             {read.avgAbOther != null && <> against <b style={{ fontFamily: NUM_FONT }}>{read.avgAbOther.toFixed(1)}</b> otherwise</>}
@@ -251,21 +250,20 @@ export default function ColdCase({ playerId, player, onlyLine = false }) {
       {/* THE BOUNCE, said in words, because the number alone doesn't say which
           way to act on it. */}
       <div style={{
-        fontSize: 11, color: C.text2, lineHeight: 1.6, padding: '8px 11px',
-        borderRadius: 9, background: 'rgba(255,255,255,.03)',
-        border: `1px solid ${bounceReal ? (bounceGap > 0 ? 'rgba(74,222,128,.35)' : 'rgba(248,113,113,.35)') : C.border}`,
+        fontSize: 12, color: C.text2, lineHeight: 1.55, padding: '2px 0 2px 10px',
+        borderLeft: `2px solid ${bounceReal ? C.orange : C.border2}`,
       }}>
         {read.after < 6 ? (
           <>Only <b style={{ color: C.text }}>{read.after}</b> of his blanks have a game after them in this
             log — not enough to say whether he answers one.</>
         ) : bounceReal && bounceGap > 0 ? (
-          <><b style={{ color: '#4ade80' }}>He answers a blank.</b> After a game with nothing, he gets a hit{' '}
+          <><b style={{ color: C.orange }}>He answers a blank.</b> After a game with nothing, he gets a hit{' '}
             <b style={{ color: C.text }}>{fmt(read.afterHit)}</b> of the time against{' '}
             <b style={{ color: C.text }}>{fmt(read.baseHit)}</b> normally
             {read.afterHrr != null && <> — and clears 1+ H+R+RBI <b style={{ color: C.text }}>{fmt(read.afterHrr)}</b> vs {fmt(read.baseHrr)}</>}.
             The night after a blank is his best night to back, on this sample.</>
         ) : bounceReal ? (
-          <><b style={{ color: '#f87171' }}>A blank travels with him.</b> The game after one, he gets a hit
+          <><b style={{ color: C.orange }}>A blank travels with him.</b> The game after one, he gets a hit
             only <b style={{ color: C.text }}>{fmt(read.afterHit)}</b> of the time against{' '}
             <b style={{ color: C.text }}>{fmt(read.baseHit)}</b> normally. For him a blank is the start of a
             quiet run, not the end of one — fade the bounce-back.</>
@@ -279,12 +277,12 @@ export default function ColdCase({ playerId, player, onlyLine = false }) {
 
       {read.splits.length > 0 && (
         <div style={{ marginTop: 9 }}>
-          <div style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em', fontWeight: 800, marginBottom: 5 }}>
+          <div style={{ fontSize: 11, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em', fontWeight: 800, marginBottom: 5 }}>
             Where his blanks come from
           </div>
           {read.splits.slice(0, 3).map((s2) => (
-            <Line key={s2.label} icon="🔻">
-              He blanks <b style={{ color: '#f87171', fontFamily: NUM_FONT }}>{s2.hiPct.toFixed(0)}%</b> {s2.hi} against{' '}
+            <Line key={s2.label}>
+              He blanks <b style={{ color: C.orange, fontFamily: NUM_FONT }}>{s2.hiPct.toFixed(0)}%</b> {s2.hi} against{' '}
               <b style={{ fontFamily: NUM_FONT }}>{s2.loPct.toFixed(0)}%</b> {s2.lo}
               <span style={{ color: C.text3 }}> — {s2.hiN}/{s2.loN} games, {s2.note}</span>.
             </Line>
@@ -294,7 +292,7 @@ export default function ColdCase({ playerId, player, onlyLine = false }) {
 
       {/* THE FORM TRAP — his own hot streak, priced honestly. */}
       {read.l10Hit != null && read.l10Hit >= 65 && (
-        <div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.6, marginTop: 9 }}>
+        <div style={{ fontSize: 12, color: C.text2, lineHeight: 1.55, marginTop: 9 }}>
           <b style={{ color: C.orange }}>Reading his form honestly:</b> he has a hit in{' '}
           <b style={{ color: C.text }}>{fmt(read.l10Hit)}</b> of his last ten, against{' '}
           <b style={{ color: C.text }}>{fmt(read.baseHit)}</b> across the season — so the last ten are
@@ -305,7 +303,7 @@ export default function ColdCase({ playerId, player, onlyLine = false }) {
         </div>
       )}
 
-      <div style={{ fontSize: 8.5, color: C.text3, marginTop: 8, lineHeight: 1.5 }}>
+      <div style={{ fontSize: 11, color: C.text3, marginTop: 8, lineHeight: 1.5 }}>
         His own game log this season, {read.n} games. A split only appears when the two rates are
         further apart than their own error bars allow — which is why most hitters show none. Lineup
         spot isn&apos;t in the league&apos;s game log, so &ldquo;he only blanks batting 7th&rdquo; is a

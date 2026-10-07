@@ -4,6 +4,8 @@ import { C, NUM_FONT } from '../lib/theme'
 import { n, clean, obj } from '../lib/player'
 import { fetchShared, splitsUrl } from '../lib/dataSource'
 import DenseTable from './DenseTable'
+import CopyPostButton from './CopyPostButton'
+import { splitsPostText } from '../lib/mlb/splitsPost'
 import ComboFilterBar from './ComboFilterBar'
 import { lastSeasonRates, seasonYear } from '../lib/gamelogs'
 import {
@@ -548,9 +550,20 @@ export default function PlayerSplits({ player, slateMode }) {
     )
   })()
 
+  const postName = clean(data?.name || player?.name || player?.player_name, '')
+  const sharePost = (
+    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 6 }}>
+      <CopyPostButton ready={!!lrW} build={() => splitsPostText({
+        name: postName, windowTag: winTag, tonightArm, rows: lrW || [],
+        link: typeof window !== 'undefined' ? window.location.href : '',
+      })} />
+    </div>
+  )
+
   return (
     <div>
       {toggle}
+      {sharePost}
       {lrTiles}
       <div style={{ fontSize: 10.5, color: C.text3, marginBottom: 10, lineHeight: 1.6, maxWidth: 760 }}>
         {win === 'this'

@@ -1,6 +1,7 @@
 'use client'
 import { C, NUM_FONT } from '../lib/theme'
-import { useIsPhone } from './MobileFold'
+import DenseTable from './DenseTable'
+import ParkLead from './ParkLead'
 import { n, clean, nameOf } from '../lib/player'
 
 // 🆚 TEAM vs THE STARTER — the whole lineup's history against tonight's arm.
@@ -34,119 +35,64 @@ import { n, clean, nameOf } from '../lib/player'
 //      in the tooltip — visible (it IS the folklore people want to see),
 //      never presented with the same confidence as a real sample.
 //
-// Style: the precise table language (At The Plate's contact-tonight
-// section) — micro uppercase header, hairline separators, right-aligned
-// mono numbers — per the same-day "that chart style site wide" direction.
+// REBUILT 2026-10-07 (Donovan: "feels outdated"): a DenseTable (skin v2, columns in groups, standouts at
+// rest) replaces the hand-drawn flex rows, and the block now leads with ParkLead -- does he get hurt
+// in this building -- from the park fields the slate row already carries. Same props, same data.
 
-const num3 = (v) => {
-  const x = Number(v)
-  if (!Number.isFinite(x)) return '—'
-  return x.toFixed(3).replace(/^0\./, '.')
-}
-const pct0 = (v) => {
-  const x = Number(v)
-  return Number.isFinite(x) ? `${Math.round(x * 100)}%` : '—'
-}
-
-const H = ({ children, w, grow = false, right = true }) => (
-  <span style={{
-    width: w, flex: grow ? 1 : undefined, minWidth: grow ? 0 : undefined, flexShrink: 0,
-    textAlign: right ? 'right' : 'left', fontSize: 8, color: C.text3, fontFamily: NUM_FONT,
-  }}>{children}</span>
-)
-
-export default function TeamVsStarter({ players = [], team = '', pitcherName = '', pitcherThrows = '', onPlayerClick, compact: compactProp = false }) {
-  // The compact column set on a phone (audit 00A S4): the full nine columns
-  // ran the K% column past a 320-375px screen on MOONSHOT Matchups.
-  const phone = useIsPhone(430)
-  const compact = compactProp || phone
-  const rows = [...players]
-    .filter(Boolean)
+export default function TeamVsStarter({ players = [], team = '', pitcherName = '', pitcherThrows = '', onPlayerClick, compact: compactProp = false, lead = false }) {
+  const list = [...players].filter(Boolean)
     .sort((a, b) => (n(a?.lineup_spot, 99) || 99) - (n(b?.lineup_spot, 99) || 99))
-  if (!rows.length) return null
+  if (!list.length) return null
   const hand = String(pitcherThrows || '').toUpperCase().slice(0, 1)
   const vsKeyAvg = hand === 'L' ? 'avg_vs_lhp' : 'avg_vs_rhp'
   const vsKeyIso = hand === 'L' ? 'iso_vs_lhp' : 'iso_vs_rhp'
   const vsLabel = hand ? `v${hand}HP` : 'vSide'
-
-  const cell = (w) => ({ width: w, textAlign: 'right', flexShrink: 0, fontSize: 10, fontFamily: NUM_FONT })
-
+  const dash = (met, v) => (met ? v : null)
+  const rows = list.map((p, i) => {
+    const pa = n(p?.bvp_pa, 0)
+    const ab = n(p?.bvp_ab, 0)
+    const met = pa > 0 || ab > 0
+    const vsAvg = n(p?.[vsKeyAvg], 0)
+    const vsIso = n(p?.[vsKeyIso], 0)
+    return {
+      key: p?.player_id ?? p?.id ?? i, _raw: p, _thin: met && pa < 8,
+      spot: n(p?.lineup_spot, null), name: nameOf(p), bats: clean(p?.bats, ''),
+      pa: met ? pa : null, h: dash(met, n(p?.bvp_hits, 0)), hr: dash(met, n(p?.bvp_hr, 0)),
+      avg: dash(met, n(p?.bvp_avg, null)), obp: dash(met, n(p?.bvp_obp, null)), iso: dash(met, n(p?.bvp_iso, null)),
+      woba: dash(met, n(p?.bvp_woba, null)), ops: dash(met, n(p?.bvp_ops, null)),
+      k: dash(met, p?.bvp_k_pct != null ? 100 * Number(p.bvp_k_pct) : null),
+      vsAvg: vsAvg > 0 ? vsAvg : null, vsIso: vsIso > 0 ? vsIso : null,
+    }
+  })
+  const cols = [
+    { key: 'spot', label: '#', group: 'Batter', w: 26, heat: false, dim: true, mono: true },
+    { key: 'name', label: 'Batter', group: 'Batter', w: 140, heat: false, bold: true, sticky: true },
+    { key: 'bats', label: 'B', group: 'Batter', w: 24, heat: false, dim: true, mono: true },
+    { key: 'pa', label: 'PA', group: 'This season vs him', w: 34, dp: 0, heat: false, title: 'Plate appearances against this arm this season. A dash is no meeting, never a league-average default.' },
+    { key: 'h', label: 'H', group: 'This season vs him', w: 32, dp: 0 },
+    { key: 'hr', label: 'HR', group: 'This season vs him', w: 34, dp: 0 },
+    { key: 'avg', label: 'AVG', group: 'This season vs him', w: 46, dp: 3 },
+    { key: 'obp', label: 'OBP', group: 'This season vs him', w: 46, dp: 3 },
+    { key: 'iso', label: 'ISO', group: 'This season vs him', w: 46, dp: 3 },
+    { key: 'ops', label: 'OPS', group: 'This season vs him', w: 46, dp: 3 },
+    { key: 'woba', label: 'wOBA', group: 'This season vs him', w: 48, dp: 3 },
+    { key: 'k', label: 'K%', group: 'This season vs him', w: 40, dp: 0, invert: true },
+    { key: 'vsAvg', label: `AVG ${vsLabel}`, group: `His split vs ${hand || 'this side'}HP`, w: 70, dp: 3, title: `His season average against ${hand === 'L' ? 'left' : 'right'}-handed pitching overall, not against this arm.` },
+    { key: 'vsIso', label: `ISO ${vsLabel}`, group: `His split vs ${hand || 'this side'}HP`, w: 70, dp: 3 },
+  ]
   return (
     <div style={{ marginBottom: 12 }}>
+      {lead && <ParkLead pitcherName={pitcherName} src={list[0]?.raw || list[0]} />}
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 5 }}>
-        <span style={{ fontSize: 11, fontWeight: 800 }}>
-          🆚 {team ? `${team} ` : ''}this season vs {clean(pitcherName, 'the starter')}{hand ? ` (${hand})` : ''}
+        <span style={{ fontSize: 12, fontWeight: 800 }}>
+          {team ? `${team} ` : ''}this season vs {clean(pitcherName, 'the starter')}{hand ? ` (${hand})` : ''}
         </span>
-        <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>
-          head-to-head this season + his split vs this side
-        </span>
+        <span style={{ fontSize: 11, color: C.text3, fontFamily: NUM_FONT }}>head-to-head this season, plus his split vs this side</span>
       </div>
-      <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, padding: '7px 12px' }}>
-        {/* THE COLUMNS SCROLL INSIDE THE BOX (2026-09-28): nine fixed columns
-            are ~360px before a name, so at 360 the table ran past the screen
-            (check-mobile BLEED). CLAUDE.md: wide tables scroll in their own box. */}
-        <div className="dense-scroll" style={{ overflowX: 'auto' }}>
-        <div style={{ minWidth: compact ? 0 : 440 }}>
-        <div style={{ display: 'flex', gap: 7, alignItems: 'center', paddingBottom: 3, borderBottom: `1px solid ${C.border}` }}>
-          <H w={16} right={false}>#</H>
-          <H grow right={false}>BATTER</H>
-          <H w={40}>H-AB</H>
-          <H w={24}>HR</H>
-          <H w={36}>AVG</H>
-          {!compact && <H w={36}>OBP</H>}
-          {!compact && <H w={36}>ISO</H>}
-          {!compact && <H w={40}>wOBA</H>}
-          {!compact && <H w={30}>K%</H>}
-          {compact && <H w={38}>OPS</H>}
-          <H w={40}>{vsLabel}</H>
-        </div>
-        {rows.map((p, i) => {
-          const pa = n(p?.bvp_pa, 0)
-          const ab = n(p?.bvp_ab, 0)
-          const met = pa > 0 || ab > 0
-          const thin = met && pa < 8
-          const dim = { opacity: thin ? 0.55 : 1 }
-          const hr = n(p?.bvp_hr, 0)
-          const vsAvg = n(p?.[vsKeyAvg], 0)
-          const vsIso = n(p?.[vsKeyIso], 0)
-          const tip = met
-            ? `${nameOf(p)} vs ${clean(pitcherName, 'him')}: ${n(p?.bvp_hits, 0)}-for-${ab}${hr ? `, ${hr} HR` : ''} in ${pa} PA this season${thin ? ' — tiny sample, folklore territory' : ''}. ${vsLabel} column is his season line vs ${hand === 'L' ? 'lefties' : 'righties'} overall (AVG${vsIso ? ` · ISO ${num3(vsIso)}` : ''}).`
-            : `${nameOf(p)} hasn't faced ${clean(pitcherName, 'this arm')} this season. ${vsLabel} column is his season line vs ${hand === 'L' ? 'lefties' : 'righties'} overall.`
-          return (
-            <div key={p?.player_id ?? p?.id ?? i} onClick={() => onPlayerClick?.(p)} className="tap-row" title={tip} style={{
-              display: 'flex', gap: 7, alignItems: 'center', padding: '3.5px 0',
-              cursor: 'pointer', minWidth: 0,
-              borderBottom: i < rows.length - 1 ? '1px solid rgba(255,255,255,.04)' : 'none',
-            }}>
-              <span style={{ width: 16, flexShrink: 0, fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>{n(p?.lineup_spot, null) ?? '—'}</span>
-              <span style={{
-                flex: 1, minWidth: 0, fontSize: 10.5, fontWeight: 700, color: C.text,
-                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-              }}>
-                {nameOf(p)}
-                <span style={{ fontSize: 8, color: C.text3, fontFamily: NUM_FONT }}> {clean(p?.bats, '')}</span>
-              </span>
-              <span style={{ ...cell(40), ...dim, color: met ? C.text2 : C.text3 }}>{met ? `${n(p?.bvp_hits, 0)}-${ab}` : '0-0'}</span>
-              <span style={{ ...cell(24), ...dim, color: hr > 0 ? C.orange : C.text3, fontWeight: hr > 0 ? 800 : 400 }}>{met ? hr : '—'}</span>
-              <span style={{ ...cell(36), ...dim, color: C.text2 }}>{met ? num3(p?.bvp_avg) : '—'}</span>
-              {!compact && <span style={{ ...cell(36), ...dim, color: C.text2 }}>{met ? num3(p?.bvp_obp) : '—'}</span>}
-              {!compact && <span style={{ ...cell(36), ...dim, color: C.text2 }}>{met ? num3(p?.bvp_iso) : '—'}</span>}
-              {!compact && <span style={{ ...cell(40), ...dim, color: C.text2 }}>{met ? num3(p?.bvp_woba) : '—'}</span>}
-              {!compact && <span style={{ ...cell(30), ...dim, color: C.text3 }}>{met ? pct0(p?.bvp_k_pct) : '—'}</span>}
-              {compact && <span style={{ ...cell(38), ...dim, color: C.text2 }}>{met ? num3(p?.bvp_ops) : '—'}</span>}
-              <span style={{ ...cell(40), color: vsAvg >= 0.28 ? '#4ade80' : C.text2 }}>{vsAvg > 0 ? num3(vsAvg) : '—'}</span>
-            </div>
-          )
-        })}
-        </div>
-        </div>
-        <div style={{ fontSize: 8.5, color: C.text3, marginTop: 5, lineHeight: 1.5 }}>
-          Head-to-head this season — tiny samples by nature: a dash means no meeting this season (never a
-          league-average default dressed up as history), dimmed rows are under 8 PA. The {vsLabel} column
-          is his season-long split against {hand === 'L' ? 'left' : 'right'}-handed pitching, not
-          specific to this arm. History, not a projection — tap a row for his full card.
-        </div>
-      </div>
+      <DenseTable rows={rows} columns={cols} initialSort={null} maxHeight={9999} bare
+        onRowClick={onPlayerClick ? (r) => onPlayerClick(r._raw ?? r) : null}
+        dimRow={(r) => !!r._thin}
+        caption="Head-to-head this season, tiny samples by nature: a dash means no meeting (never a league-average default dressed up as history), dimmed rows are under 8 PA. The vs-side columns are his season-long split against that hand, not this arm. History, not a projection. Tap a row for his full card." />
     </div>
   )
 }

@@ -70,38 +70,40 @@ export default function HomerShape({ player }) {
   // amber below stays a literal on purpose: it is the site's warning yellow,
   // used in ~100 other places, and C.yellow is a visibly darker orange — that
   // swap would be a restyle, and this pass was a move.
-  const formCol = inForm ? C.green : outForm ? C.red : C.text3
+  // THE READ'S TAB, CALMED (2026-10-07, Donovan: "it is loud"): one accent, no box. The five bands
+  // were five hues; they are one neutral chip now (the band's name carries it), and the form line
+  // is the accent when he is on his shape and quiet otherwise.
+  const formCol = inForm ? C.orange : outForm ? C.text : C.text3
   return (
-    <div style={{ background: C.bg3, border: `1px solid ${C.border}`, borderRadius: 10, padding: '10px 12px' }}>
+    <div style={{ borderTop: `1px solid ${C.border}`, padding: '10px 0 4px', marginBottom: 6 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
-        <span style={{ fontSize: 11, fontWeight: 800 }}>💥 His homer shape</span>
-        <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
+        <span style={{ fontSize: 12, fontWeight: 800 }}>His homer shape</span>
+        <span style={{ fontSize: 11, color: C.text3, fontFamily: NUM_FONT }}>
           {f.n} tracked HR{f.n === 1 ? '' : 's'} this season
         </span>
         {thinMix && (
           <span title="Under 4 tracked homers, one ball swings the whole mix — counts shown, no 'his type' claimed."
-            style={{ fontSize: 8.5, color: '#FCD34D', fontFamily: NUM_FONT, fontWeight: 800 }}>thin sample</span>
+            style={{ fontSize: 11, color: C.text3, fontFamily: NUM_FONT, fontWeight: 700 }}>thin sample</span>
         )}
       </div>
-      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: f.laLo != null ? 6 : 0 }}>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: f.laLo != null ? 6 : 0 }}>
         {f.mix.map((m) => (
           <span key={m.key} title={`${m.label} — ${m.blurb}`} style={{
             display: 'flex', gap: 5, alignItems: 'baseline', cursor: 'default',
-            border: `1px solid ${m.color}55`, background: `${m.color}12`,
-            borderRadius: 999, padding: '2px 9px',
+            border: `1px solid ${C.border2}`, borderRadius: 6, padding: '2px 8px',
           }}>
-            <span style={{ fontSize: 8.5, fontWeight: 900, color: m.color, fontFamily: NUM_FONT, letterSpacing: '.05em' }}>{m.short}</span>
-            <span style={{ fontSize: 10, fontWeight: 800, color: C.text, fontFamily: NUM_FONT }}>{m.count}</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: C.text2, fontFamily: NUM_FONT, letterSpacing: '.04em' }}>{m.short}</span>
+            <span style={{ fontSize: 12, fontWeight: 800, color: C.text, fontFamily: NUM_FONT }}>{m.count}</span>
             {/* A share off three homers is 33% / 33% / 33% and reads like a
                 finding. Under four, the count stands alone. */}
             {!thinMix && (
-              <span style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}>{Math.round(m.share * 100)}%</span>
+              <span style={{ fontSize: 11, color: C.text3, fontFamily: NUM_FONT }}>{Math.round(m.share * 100)}%</span>
             )}
           </span>
         ))}
       </div>
       {f.laLo != null && (
-        <div style={{ fontSize: 10, color: C.text2, fontFamily: NUM_FONT, lineHeight: 1.6 }}>
+        <div style={{ fontSize: 12, color: C.text2, fontFamily: NUM_FONT, lineHeight: 1.55 }}>
           His homers leave at <b style={{ color: C.text }}>{Math.round(f.laLo)}–{Math.round(f.laHi)}°</b>
           {f.status === 'ok' ? (
             <>
@@ -117,10 +119,8 @@ export default function HomerShape({ player }) {
           ) : null}
         </div>
       )}
-      <div style={{ fontSize: 8.5, color: C.text3, marginTop: 5, lineHeight: 1.5 }}>
-        Bands are slices of the league homer distribution (see the Homer Ledger), not physics — and
-        this reads what his contact looks like, it is not a score. Whether &quot;in his shape&quot; actually
-        predicts his homer nights is being tracked from the graded archive before it touches any number.
+      <div style={{ fontSize: 11, color: C.text3, marginTop: 4, lineHeight: 1.5 }}>
+        Bands slice the league homer distribution; this describes his contact, it is not a score.
       </div>
     </div>
   )

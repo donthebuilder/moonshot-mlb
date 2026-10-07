@@ -145,6 +145,11 @@ export default function PitchBreakdown({ player, detail = null }) {
   const [hand, setHand] = useState(initialHand)          // pitcher's numbers vs this batter side
   const [batterVs, setBatterVs] = useState(initialBatterVs) // batter's numbers vs this arm side
   const [view, setView] = useState('damage')
+  // The toggles follow the man on the card (2026-10-07, the never-fixed auto-toggle): the card can walk
+  // to the next hitter without closing, and these two kept the LAST man's side. They re-aim when he or
+  // the arm changes; a pick made on this man stays until then.
+  const autoKey = `${player?.player_id || player?.id || ''}|${initialHand}|${initialBatterVs}`
+  useEffect(() => { setHand(initialHand); setBatterVs(initialBatterVs) }, [autoKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetched only when the published profile is empty — the same pull the EV
   // Log makes, and lib/savant.js caches per player id, so opening both tabs
