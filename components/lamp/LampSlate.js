@@ -40,6 +40,10 @@ const SUBS = {
   board: 'every skater in this game, both teams, with all their numbers. Scroll the table sideways for more.',
   calls: 'the two skaters called for this game, one per team.',
 }
+// The words Donovan asked for. The number is each skater's goals a game from the board, added up: a measured
+// rate projection, NOT a probability and not a shot-quality model; the dial's tooltip says how it is built.
+const XG_WORDS = 'expected goals' // allow-probability: sum of goals-a-game rates (measured), not a probability
+const XG_LABEL = 'Expected goals' // allow-probability: same
 // EXPECTED GOALS (2026-10-06, Donovan: "do that for expected goals for hockey"):
 // the number the Table view already prints as "Proj goals" (LampProjected) --
 // each scored skater's goals a game from the board's own legs, summed. No new
@@ -108,11 +112,11 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
       large: true,
       id: String(g.game.id), title: <CardTitle g={g} st={st} />, past: st === 'final', heat,
       tooltip: `${g.game.away.abbrev} @ ${g.game.home.abbrev}`,
-      dial: { value: best || null, dp: 1, pct: 100 * heat, title: `${best ? best.toFixed(1) : '—'} expected goals in this game: each skater's goals a game from the board, added up. The ring fills against tonight's range.` },
+      dial: { value: best || null, dp: 1, pct: 100 * heat, title: `${best ? best.toFixed(1) : '—'} ${XG_WORDS} in this game: each skater's goals a game from the board, added up. The ring fills against tonight's range.` },
       band: topId === g.game.id && games.length > 1 ? { icon: '🌋', word: 'MAIN EVENT' } : heat >= 0.62 ? { icon: '🔥', word: '' } : heat < 0.3 && games.length > 2 ? { icon: '🧊', word: '' } : null,
       lead: <span title={g.locked ? 'The board locked before puck drop' : g.setting ? 'Setting: the calls can still change until puck drop' : 'A preview until the board locks'}>{g.locked ? '🔒' : '◻'}</span>,
       status: st === 'live' ? { kind: 'live', text: g.game.statusLine || 'LIVE' } : st === 'final' ? { kind: 'final', text: 'FINAL' } : { kind: 'time', text: timeOf(g) },
-      extra: <span>expected goals</span>,
+      extra: <span>{XG_WORDS}</span>,
       score: null,   // the title carries it: each club once, with its score beside it
       chips: called.map((r) => ({
         key: String(r.playerId), tag: 'CALL', color: C.ice, name: r.name, score: Math.round(r.score ?? 0),
@@ -167,7 +171,7 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
           <GameFilterRail value={gfilter} onChange={setGfilter} counts={counts} />
           <SlateStrip sport="nhl" isPhone={isPhone} rememberKey="lamp_games_fold_v1" accent={C.ice} theme={C}
             open={g ? { away: g.game.away.abbrev, home: g.game.home.abbrev } : null} cards={cards} activeId={activeId} onSelect={select}
-            legend={<>Puck-drop order. The dial is expected goals in the game; 🔒 the calls are locked, ◻ still a preview.</>} />
+            legend={<>Puck-drop order. The dial is {XG_WORDS} in the game; 🔒 the calls are locked, ◻ still a preview.</>} />
           <GameSwitcher sport="nhl" games={switcherGames} activeGame={activeId} onSelect={select} live={switcherLive} accent={C.ice} stickyTop="0px" />
         </>
       )}
@@ -219,7 +223,7 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
                             <span style={{ color: C.text3, fontSize: 13, marginLeft: 8 }}>attacking {def}{rest ? ` · rest: ${rest.toLowerCase()}` : ''}</span>
                           </div>
                           <FactTiles theme={C} numFont={NUM_FONT} big min={130} tiles={[
-                            { k: 'Expected goals', v: rows1(xgOf(g, att)) },
+                            { k: XG_LABEL, v: rows1(xgOf(g, att)) },
                             { k: 'Power play', v: pct1(us?.ppPct) ? `${pct1(us.ppPct)}%` : null },
                             { k: `${def} penalty kill`, v: pct1(them?.pkPct) ? `${pct1(them.pkPct)}%` : null },
                             { k: `${def} goals allowed`, v: ga != null ? ga.toFixed(2) : null, sub: 'a game' },
