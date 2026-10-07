@@ -20,6 +20,7 @@ import WhyLines from '../../WhyLines'
 import { goalWhy } from '../../../lib/nhl/goalWhy'
 import { arenaOf } from '../../../lib/nhl/arenas'
 import PlayerSplits from '../PlayerSplits'
+import GoalTracking from '../GoalTracking'
 
 // 🏒 PLAYER — one man's file, at a stable address (#sport=nhl&tab=player&
 // player=<id>). A skater and a goalie share the route and NOT the page:
@@ -235,6 +236,8 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel }) {
       </section>
 
       {!goalie && <PlayerSplits id={p.id} onOpenTeam={onOpenTeam} />}
+      {/* GOAL TRACKING (2026-10-06): MOONSHOT's homer-tracking pieces on his game log, below the log. */}
+      {!goalie && <GoalTracking p={p} spot={spot} row={row} board={board} />}
 
       {nhlSeasons.length > 0 && (
         <section aria-label="Season by season">

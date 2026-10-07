@@ -58,7 +58,7 @@ const perOf = (sh) => (sh[6] && sh[6] !== 'REG' ? 'OT' : sh[5] != null ? String(
 const NET_X = 89
 const distOf = (sh) => Math.round(Math.hypot(NET_X - sh[0], sh[1]))
 // Zones, in the league's feet after every shot is turned to attack the right-hand net.
-const ZONES = [
+export const ZONES = [
   { key: 'slot', label: 'Slot', def: 'between the faceoff dots and the goal line', test: ([x, y]) => x >= 69 && x <= 89 && Math.abs(y) <= 22 },
   { key: 'high', label: 'High slot', def: 'the middle, from the top of the circles to the dots', test: ([x, y]) => x >= 54 && x < 69 && Math.abs(y) <= 22 },
   { key: 'circles', label: 'Circles', def: 'outside the dots, either side', test: ([x, y]) => x >= 54 && x <= 89 && Math.abs(y) > 22 },
