@@ -16,7 +16,7 @@ import HisNumbers from '../../HisNumbers'
 import InTheLedger from '../../ledger/InTheLedger'
 import { etToday } from '../../../lib/freshness'
 import { useLampPlayer, useLampBoardOnce, useLampSplits } from '../../../lib/nhl/useLamp'
-import VerdictHero from '../../VerdictHero'
+import SharedSeasonToggle from '../../nfl/SeasonToggle'
 import { SportTheme } from '../../SportTheme'
 import StatStrip, { HitRateBoxes } from '../../StatStrip'
 import { nhlTeam } from '../../../lib/nhl/teams'
@@ -105,16 +105,19 @@ const VIEWS = [
   { key: 'goals', label: '🥅 Goals', skater: true },
   { key: 'career', label: '🏆 Career' },
 ]
-const SEASONS = [{ key: 'this', text: 'THIS SEASON' }, { key: 'last', text: 'LAST SEASON' }, { key: 'both', text: 'LAST 2 SEASONS' }]
 const readView = () => { try { const v = hashParams().get('view'); return VIEWS.some((x) => x.key === v) ? v : 'overview' } catch { return 'overview' } }
 
-function SeasonToggle({ value, onChange, labels }) {
-  return (
-    <div style={{ display: 'grid', gap: 4 }}>
-      <Pills tall ariaLabel="Which seasons" value={value} onChange={onChange} options={SEASONS} />
-      {labels && <div style={{ color: C.text3, font: `700 11px/1.3 ${NUM_FONT}`, letterSpacing: '.04em' }}>{labels}</div>}
-    </div>
-  )
+// THIS SEASON | LAST SEASON | LAST 2 SEASONS: the one shared toggle (components/nfl/SeasonToggle.js,
+// the row MOONSHOT's splits and TUDDY wear), in LAMP's theme. Offered only when last season is on file.
+function SeasonToggle({ value, onChange, p }) {
+  const a = p.featured?.seasonLabel; const b = p.logPrev?.seasonLabel
+  if (!a || !b) return null
+  const options = [
+    { key: 'this', label: 'This season', years: [a] },
+    { key: 'last', label: 'Last season', years: [b] },
+    { key: 'both', label: 'Last 2 seasons', years: [b, a] },
+  ]
+  return <SharedSeasonToggle options={options} value={value} onChange={onChange} theme={C} numFont={NUM_FONT} accent={C.ice} />
 }
 
 function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onStep, peek }) {
@@ -124,7 +127,6 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
   const row = spot?.r || null
   const opp = spot ? (spot.g.game.home.abbrev === p.team ? `vs ${spot.g.game.away.abbrev}` : `@ ${spot.g.game.home.abbrev}`) : null
   const called = row?.status === 'called'
-  const word = goalie ? 'GOALIE' : !board ? null : !spot ? 'NO GAME TONIGHT' : row ? STATUS[row.status] : STATUS.off
   const f = p.featured
   const stale = Boolean(p.current && f.season && f.season < p.current)
   const fr = f.regular
@@ -150,7 +152,7 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
 
   // ── which seasons the Splits, Shot map, VS, Game log and Goals tabs read ──
   // Under 20 games this season there is little to read: open on the last two.
-  const [season, setSeason] = useState((Number(fr?.gp) || 0) < 20 ? 'both' : 'this')
+  const [season, setSeason] = useState((Number(fr?.gp) || 0) < 20 && p.logPrev?.seasonLabel ? 'both' : 'this')
   const logThis = p.log?.rows || []
   const logLast = p.logPrev?.rows || []
   const seasonLabels = (() => {
@@ -257,7 +259,7 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
                   {row?.score != null && <b style={{ font: `900 14px/1 ${NUM_FONT}`, color: called ? C.ice : C.text }}>{Math.round(row.score)}</b>}
                 </span>
               )}
-              <button type="button" aria-expanded={whyOpen} onClick={() => setWhyOpen((v) => !v)} style={{ minHeight: 44, margin: '-10px 0', padding: '0 6px', background: 'transparent', border: 'none', color: C.ice, font: `800 12px/1 ${NUM_FONT}`, cursor: 'pointer', textDecoration: 'underline dotted' }}>Why?</button>
+              {(shown !== 'overview' || !w) && <button type="button" aria-expanded={whyOpen} onClick={() => setWhyOpen((v) => !v)} style={{ minHeight: 44, margin: '-10px 0', padding: '0 6px', background: 'transparent', border: 'none', color: C.ice, font: `800 12px/1 ${NUM_FONT}`, cursor: 'pointer', textDecoration: 'underline dotted' }}>Why?</button>}
             </>
           )}
           {gamePos && <span style={{ color: C.text3, fontSize: 12 }}>{gamePos}</span>}
@@ -276,23 +278,16 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
           </div>
         )}
         <div className="chip-row" role="tablist" aria-label="Player tabs" style={{ display: 'flex', gap: 5, flexWrap: 'nowrap', overflowX: 'auto', padding: '6px 2px 8px' }}>
-          {tabs.map((t) => <TabBtn key={t.key} tall active={shown === t.key} onClick={() => pick(t.key)}>{t.label}</TabBtn>)}
+          {tabs.map((t) => <TabBtn key={t.key} active={shown === t.key} onClick={() => pick(t.key)}>{t.label}</TabBtn>)}
         </div>
       </header>
 
       {shown === 'overview' && (
         <>
-          <header><h2 className="sr-only">{p.name}</h2>
-          <VerdictHero theme={C} numFont={NUM_FONT}
-            col={C.ice} score={row?.score ?? null} photo={p.headshot || null}
-            dialTitle={row ? 'Tonight’s goal-board score: the mean of three percentile ranks tonight -- shots, goals and ice time per game over his last 82 NHL games.' : 'Not on tonight’s goal board, so no score.'}
-            title={<>{p.number != null && <span style={{ color: C.text3, fontWeight: 700, fontFamily: NUM_FONT }}>#{p.number} </span>}{p.name}</>}
-            badge={called ? STATUS.called : null}
-            meta={[p.team, p.pos, gamePos, !p.active ? 'not active' : null].filter(Boolean).join(' · ')}
-            market={[goalie ? 'LAMP · GOALIE' : 'LAMP', !goalie && word, spot && !goalie ? (spot.g.locked ? 'LOCKED' : spot.g.setting ? 'SETTING' : 'PREVIEW') : null].filter(Boolean).join(' · ')}
-            line={whyLine}
-          />
-          </header>
+          {/* ONE HEADER (2026-10-07, Donovan: "the player shows twice"): the sticky header above is the player's
+              face, name, club and the board's word. The big hero that repeated them is gone; its one line stays. */}
+          <h2 className="sr-only">{p.name}</h2>
+          {whyLine && <div style={{ color: C.text2, fontSize: 13, lineHeight: 1.45 }}>{whyLine}</div>}
           {w && <WhyLines theme={C} numFont={NUM_FONT} accent={C.ice} why={[w.why]} watch={w.watch} explain={w.explain} />}
           <section aria-label="Season line">
             <Kicker>{goalie ? 'RECORD' : 'THE LINE'} · {f.seasonLabel}{stale ? ' (LAST SEASON)' : ''}</Kicker>
@@ -326,14 +321,14 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
 
       {shown === 'splits' && !goalie && (
         <>
-          <SeasonToggle value={season} onChange={setSeason} labels={seasonLabels} />
+          <SeasonToggle value={season} onChange={setSeason} p={p} />
           <PlayerSplits id={p.id} onOpenTeam={onOpenTeam} season={season} />
         </>
       )}
 
       {shown === 'shotmap' && !goalie && (
         <>
-          <SeasonToggle value={season} onChange={setSeason} labels={seasonLabels} />
+          <SeasonToggle value={season} onChange={setSeason} p={p} />
           <ShotPanel compact sel={{ player: p.id, name: p.name }} who="He" height={480} season={season} venue={arenaOf(spot?.g?.game?.home?.abbrev || p.team)?.name}
             opp={spot?.g?.game ? (spot.g.game.home?.abbrev === p.team ? spot.g.game.away?.abbrev : spot.g.game.home?.abbrev) || null : null} />
         </>
@@ -343,7 +338,7 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
 
       {shown === 'log' && (
         <section aria-label="Game log">
-          {!goalie && <SeasonToggle value={season} onChange={setSeason} labels={seasonLabels} />}
+          {!goalie && <SeasonToggle value={season} onChange={setSeason} p={p} />}
           <div style={{ height: 8 }} />
           <Kicker>GAME LOG · {logRows.length} GAMES</Kicker>
           {logRows.length
@@ -357,7 +352,7 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
 
       {shown === 'goals' && !goalie && (
         <>
-          <SeasonToggle value={season} onChange={setSeason} labels={seasonLabels} />
+          <SeasonToggle value={season} onChange={setSeason} p={p} />
           <GoalTracking p={p} spot={spot} row={row} board={board} season={season} />
         </>
       )}
@@ -422,8 +417,8 @@ function VsTab({ p, spot, season, setSeason, seasonLabels }) {
   const sum = useMemo(() => (vsGames.length ? aggregate(vsGames) : null), [vsGames])
   return (
     <>
-      <Pills tall ariaLabel="Versus what" value={mode} onChange={setMode} options={[{ key: 'goalie', text: 'PLAYER vs GOALIE' }, { key: 'team', text: 'PLAYER vs TEAM' }]} />
-      <SeasonToggle value={season} onChange={setSeason} labels={seasonLabels} />
+      <Pills ariaLabel="Versus what" value={mode} onChange={setMode} options={[{ key: 'goalie', text: 'Player vs goalie' }, { key: 'team', text: 'Player vs team' }]} />
+      <SeasonToggle value={season} onChange={setSeason} p={p} />
       {mode === 'team' && (
         <div style={{ display: 'grid', gap: 8 }}>
           <div style={{ fontSize: 16, fontWeight: 800, color: C.text }}>{p.name} <span style={{ color: C.ice, fontFamily: NUM_FONT, letterSpacing: '.1em', fontSize: 12 }}>VS</span> {oppTeam || 'a club'}</div>

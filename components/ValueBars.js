@@ -16,7 +16,7 @@ import BroadcastBars from './BroadcastBars'
 //   selected / onSelect   the pinned game's key
 //   variant   'broadcast' (TUDDY, 2026-10-07) hands the games to components/BroadcastBars with `look` (the
 //             product's tokens) and `sport`; anything else is MOONSHOT's chart, byte for byte as it was
-export default function ValueBars({ games = [], thr, numFont, avgColor = 'rgba(249,115,22,.6)', selected = null, onSelect = null, variant = null, look = null, sport = 'nfl' }) {
+export default function ValueBars({ games = [], thr, numFont, avgColor = 'rgba(249,115,22,.6)', selected = null, onSelect = null, variant = null, look = null, sport = 'nfl', ink = null }) {
   if (variant === 'broadcast') return <BroadcastBars games={games} thr={thr} numFont={numFont} look={look} sport={sport} selected={selected} onSelect={onSelect} />
   if (!games.length) return null
   const vals = games.map((g) => g.val)
@@ -63,14 +63,14 @@ export default function ValueBars({ games = [], thr, numFont, avgColor = 'rgba(2
               onClick={onSelect ? () => onSelect(isSel ? null : g.key) : undefined}
               style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', cursor: onSelect ? 'pointer' : 'default' }}>
               {showNums && val > 0 && (
-                <div style={{ fontFamily: numFont, fontSize: 9, fontWeight: 800, color: ok ? verdictInk(true).color : verdictInk(false).color, textAlign: 'center', marginBottom: 1 }}>{val}</div>
+                <div style={{ fontFamily: numFont, fontSize: 9, fontWeight: 800, color: ok ? (ink?.warm || verdictInk(true).color) : (ink?.cool || verdictInk(false).color), textAlign: 'center', marginBottom: 1 }}>{val}</div>
               )}
               <div style={{
                 height: hgt, borderRadius: '3px 3px 1px 1px',
                 background: ok
-                  ? `linear-gradient(180deg, ${verdictWash(true, 0.85)}, ${verdictInk(true).color})`
-                  : val > 0 ? 'linear-gradient(180deg, rgba(248,113,113,.6), rgba(248,113,113,.35))' : 'rgba(248,113,113,.22)',
-                boxShadow: isSel ? '0 0 0 1.5px #fff' : ok && val >= thr + 1 ? '0 0 9px rgba(74,222,128,.45)' : 'none',
+                  ? `linear-gradient(180deg, ${ink?.warm ? alpha(ink.warm, 0.85) : verdictWash(true, 0.85)}, ${ink?.warm || verdictInk(true).color})`
+                  : val > 0 ? (ink?.cool ? `linear-gradient(180deg, ${alpha(ink.cool, 0.5)}, ${alpha(ink.cool, 0.3)})` : 'linear-gradient(180deg, rgba(248,113,113,.6), rgba(248,113,113,.35))') : (ink?.cool ? alpha(ink.cool, 0.2) : 'rgba(248,113,113,.22)'),
+                boxShadow: isSel ? '0 0 0 1.5px #fff' : ok && val >= thr + 1 && !ink ? '0 0 9px rgba(74,222,128,.45)' : 'none',
               }} />
               <div style={{ height: 4, borderRadius: 2, marginTop: 3, background: isSel ? '#fff' : (g.strip || 'rgba(255,255,255,.08)') }} />
               {/* THE RUN BAND — one continuous segment per streak, bridged across the flex gap so a
@@ -79,7 +79,7 @@ export default function ValueBars({ games = [], thr, numFont, avgColor = 'rgba(2
               {(() => {
                 const rm = runMark[gi]
                 if (!rm) return null
-                const rc = rm.ok ? verdictInk(true).color : verdictInk(false).color
+                const rc = rm.ok ? (ink?.warm || verdictInk(true).color) : (ink?.cool || verdictInk(false).color)
                 return (
                   <div style={{ position: 'relative', height: 9, marginTop: 2 }}>
                     <div style={{

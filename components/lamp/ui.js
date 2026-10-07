@@ -11,6 +11,7 @@ import { fmtDay } from '../../lib/nhl/format'
 import { hashParams, writeHash } from '../../lib/urlState'
 import { StaleNote, DelayedBanner as SharedDelayedBanner } from '../StaleBanner'
 import { Empty } from '../ui'
+import { FilterPill } from '../Filters'
 import { localTime } from '../../lib/localTime'
 export { fmtDay, fmtPct3, fmt2, fmtSec, plusMinus } from '../../lib/nhl/format'
 
@@ -129,21 +130,16 @@ export function Kicker({ children, tone = C.ice }) {
 }
 
 /** One row of pills (view switches, date pagers). */
-export function Pills({ value, onChange, options, ariaLabel, tall = false }) {
+// THE LAMP PILL ROW IS MOONSHOT'S (2026-10-07, Donovan: the player view's buttons "do not match
+// MLB"): the one shared FilterPill (components/Filters.js) in the product's accent, on the
+// .chip-row rail that gives every pill its 44px phone tap target. `tall` is kept so old callers
+// compile; the size is the shared one now.
+export function Pills({ value, onChange, options, ariaLabel }) {
   return (
-    <div role="group" aria-label={ariaLabel} style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-      {options.map((o) => {
-        const on = o.key === value
-        return (
-          <button key={o.key} type="button" onClick={() => onChange(o.key)} aria-pressed={on} disabled={o.disabled}
-            title={o.title} style={{
-              height: tall ? 44 : 26, padding: tall ? '0 10px' : '0 10px', borderRadius: 999, cursor: o.disabled ? 'default' : 'pointer',
-              border: `1px solid ${on ? C.ice : C.border2}`, background: on ? `${C.ice}1a` : 'transparent',
-              color: on ? C.ice : C.text2, font: `800 ${tall ? 11 : 9.5}px/1 ${NUM_FONT}`, letterSpacing: '.06em',
-              opacity: o.disabled ? .45 : 1,
-            }}>{o.text}</button>
-        )
-      })}
+    <div role="group" aria-label={ariaLabel} className="chip-row" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+      {options.map((o) => (
+        <FilterPill key={o.key} active={o.key === value} onClick={() => onChange(o.key)} title={o.title} disabled={o.disabled}>{o.text}</FilterPill>
+      ))}
     </div>
   )
 }

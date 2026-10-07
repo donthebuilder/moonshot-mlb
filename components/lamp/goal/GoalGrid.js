@@ -1,9 +1,10 @@
 'use client'
 import { useState } from 'react'
 import LampTable from '../LampTable'
+import { Pills } from '../ui'
 import ValueBars from '../../ValueBars'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
-import { alpha, verdictInk, verdictWash } from '../../../lib/scales'
+import { alpha } from '../../../lib/scales'
 import { GOAL_MARKETS, WINDOWS, thresholdRow, marketOf, val } from '../../../lib/nhl/goalLog'
 
 // 🎯 THE THRESHOLD GRID, HOCKEY EDITION (MOONSHOT components/ThresholdGrid.js).
@@ -14,8 +15,9 @@ import { GOAL_MARKETS, WINDOWS, thresholdRow, marketOf, val } from '../../../lib
 // shared with MOONSHOT and TUDDY), a tap on a row picks the bar the run and the
 // cold case read, a chip moves the line. Every cell prints its fraction, and a
 // window of fewer than five games is dimmed and says so.
-const rateInk = (pct) => (pct == null ? C.text3 : pct >= 40 ? verdictInk(true).color : pct >= 25 ? C.text2 : verdictInk(false).color)
-const rateWash = (pct) => (pct == null ? 'transparent' : pct >= 60 ? verdictWash(true, 0.16) : pct >= 40 ? verdictWash(true, 0.09) : pct >= 25 ? 'transparent' : verdictWash(false, 0.08))
+// ONE accent, the rest grey (2026-10-07 colour diet): a high rate lights in LAMP's ice, a low one recedes
+const rateInk = (pct) => (pct == null ? C.text3 : pct >= 40 ? C.ice : pct >= 25 ? C.text2 : C.text3)
+const rateWash = (pct) => (pct == null ? 'transparent' : pct >= 60 ? alpha(C.ice, 0.16) : pct >= 40 ? alpha(C.ice, 0.09) : 'transparent')
 
 function Cell({ c, label, unit }) {
   if (!c) return <span style={{ color: C.text3 }}>—</span>
@@ -45,7 +47,7 @@ export default function GoalGrid({ rows, bar, setBar, lines, setLines, seasonLab
   const columns = [
     { key: 'label', label: 'Market', group: 'BAR', w: 72, heat: false, sticky: true, fmt: (v, r) => <span style={{ fontWeight: r.mkt === mk.key ? 900 : 700, color: r.mkt === mk.key ? C.ice : C.text, whiteSpace: 'nowrap' }}>{v}</span> },
     ...WINDOWS.map(([w]) => ({ key: w, label: w === 'Season' ? 'Szn' : w, group: 'HIT RATE', w: 42, heat: false, fmt: (v, r) => <Cell c={r[`_${w}`]} label={`${r.label}, ${w === 'Season' ? seasonLabel : `last ${w.slice(1)}`}`} /> })),
-    { key: 'stk', label: 'Run', group: 'RUN', w: 36, heat: false, fmt: (v) => <b style={{ font: `900 11px/1 ${NUM_FONT}`, color: v > 0 ? verdictInk(true).color : v < 0 ? verdictInk(false).color : C.text3 }} title={v > 0 ? `${v} straight games at this bar` : v < 0 ? `${-v} straight games without it` : ''}>{v > 0 ? `W${v}` : v < 0 ? `L${-v}` : '—'}</b> },
+    { key: 'stk', label: 'Run', group: 'RUN', w: 36, heat: false, fmt: (v) => <b style={{ font: `900 11px/1 ${NUM_FONT}`, color: v > 0 ? C.ice : C.text3 }} title={v > 0 ? `${v} straight games at this bar` : v < 0 ? `${-v} straight games without it` : ''}>{v > 0 ? `W${v}` : v < 0 ? `L${-v}` : '—'}</b> },
   ]
   // the chart: the active bar over his last 20 games (all of them when fewer), oldest left
   const seg = rows.slice(0, 20).reverse()
@@ -60,17 +62,13 @@ export default function GoalGrid({ rows, bar, setBar, lines, setLines, seasonLab
       {mk.lines.length > 1 && (
         <div style={{ display: 'flex', gap: 6, alignItems: 'center', margin: '8px 0 0', flexWrap: 'wrap' }}>
           <span style={{ color: C.text3, font: `800 10px/1 ${NUM_FONT}`, letterSpacing: '.08em' }}>{mk.label.toUpperCase()} BAR</span>
-          {mk.lines.map((l) => {
-            const on = l === line
-            return <button key={l} type="button" onClick={() => setLines((s) => ({ ...s, [mk.key]: l }))} aria-pressed={on}
-              style={{ minHeight: 44, minWidth: 44, cursor: 'pointer', padding: '0 12px', borderRadius: 8, border: `1px solid ${on ? C.ice : C.border}`, background: on ? alpha(C.ice, 0.18) : 'transparent', color: on ? C.ice : C.text3, font: `900 12px/1 ${NUM_FONT}` }}>{l}+</button>
-          })}
+          <Pills ariaLabel={`${mk.label} bar`} value={line} onChange={(l) => setLines((st) => ({ ...st, [mk.key]: l }))} options={mk.lines.map((l) => ({ key: l, text: `${l}+` }))} />
         </div>
       )}
       {games.length > 0 && (
         <div style={{ marginTop: 10 }}>
           <div style={{ color: C.text3, font: `600 12px/1.4 ${NUM_FONT}`, marginBottom: 6 }}>{line}+ {mk.label.toLowerCase()} · {rows.length > 20 ? 'last 20' : `all ${games.length}`} games, newest right{games.length < 20 ? ' (a short log: the season so far)' : ''}</div>
-          <ValueBars games={games} thr={line} numFont={NUM_FONT} avgColor={alpha(C.ice, 0.6)} selected={pin} onSelect={setPin} />
+          <ValueBars games={games} thr={line} numFont={NUM_FONT} avgColor={alpha(C.ice, 0.6)} ink={{ warm: C.ice, cool: C.text3 }} selected={pin} onSelect={setPin} />
           {pinRow && (
             <div style={{ marginTop: 7, padding: '6px 10px', borderRadius: 8, font: `600 12px/1.5 ${NUM_FONT}`, color: C.text2, background: alpha(C.ice, 0.06), border: `1px solid ${C.border}`, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
               <b style={{ color: C.text }}>{pinRow.date} {pinRow.home ? 'vs' : '@'} {pinRow.opp}</b>

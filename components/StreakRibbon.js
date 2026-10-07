@@ -32,10 +32,10 @@ const gameLabel = (g) => {
   return [g.date, g.opp ? `${where} ${g.opp}` : ''].filter(Boolean).join(' ')
 }
 
-export default function StreakRibbon({ streak, label = 'the bar', max = 40, height = 13, showEnds = true }) {
+export default function StreakRibbon({ streak, label = 'the bar', max = 40, height = 13, showEnds = true, ink = null }) {
   if (!streak || !streak.runs?.length) return null
-  const warm = verdictInk(true).color
-  const cool = verdictInk(false).color
+  const warm = ink?.warm || verdictInk(true).color
+  const cool = ink?.cool || verdictInk(false).color
 
   // Only as far back as `max` games, because a 140-game season at one pixel a
   // game is a texture rather than a shape. The count under it says how far
@@ -88,11 +88,11 @@ export default function StreakRibbon({ streak, label = 'the bar', max = 40, heig
 }
 
 /** The three numbers a ribbon needs beside it, as one line. */
-export function StreakLine({ streak, label = 'the bar' }) {
+export function StreakLine({ streak, label = 'the bar', ink = null }) {
   if (!streak?.current) return null
   const cur = streak.current
-  const warm = verdictInk(true).color
-  const cool = verdictInk(false).color
+  const warm = ink?.warm || verdictInk(true).color
+  const cool = ink?.cool || verdictInk(false).color
   const col = cur.ok ? warm : cool
   return (
     <div style={{
