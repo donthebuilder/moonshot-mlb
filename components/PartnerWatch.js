@@ -159,7 +159,7 @@ export default function PartnerWatch({ players = [], pairHistorySummary, onPlaye
               borderRadius: 8, padding: '4px 11px',
             }} title={`${cnt} of ${nameOf(p)}'s historical co-HR partners homered last night: ${list}. He played and didn't. Strongest of those pairs has homered on the same day ${best}× this season. Folklore-grade — pair history's predictive lift is unproven — but worth an eye tonight.`}>
               <span style={{ fontSize: 11.5, fontWeight: 800, color: C.text }}>{nameOf(p)}</span>
-              <span style={{ fontSize: 9, color: '#a78bfa', fontFamily: NUM_FONT }}>
+              <span style={{ fontSize: 9, color: C.purple, fontFamily: NUM_FONT }}>
                 {cnt > 1
                   ? `${cnt} of his partners went last night`
                   : `${surname(partners[0].name)} went · ${best}× together`}

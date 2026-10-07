@@ -42,11 +42,11 @@ import BoardFilters, { useBoardFilter } from './BoardFilters'
 // Called, not frozen: C is mutated after mount (applyTheme, lib/theme.js), so a
 // module-level literal keeps the palette it was imported with. See #23.
 const READ = () => ({
-  value: { word: 'market’s behind', tone: '#4ade80', rank: 5 },
+  value: { word: 'market’s behind', tone: C.green, rank: 5 },
   look: { word: 'worth a look', tone: '#a3e635', rank: 4 },
   fair: { word: 'fairly priced', tone: C.text3, rank: 3 },
-  short: { word: 'needs better odds', tone: '#f87171', rank: 2 },
-  wrongline: { word: 'book’s on 2+', tone: '#FCD34D', rank: 1 },
+  short: { word: 'needs better odds', tone: C.red, rank: 2 },
+  wrongline: { word: 'book’s on 2+', tone: C.amber, rank: 1 },
   norate: { word: 'priced, no rate', tone: C.text3, rank: 1 },
   lottery: { word: '+901 or longer · no read', tone: C.text3, rank: 3 },
   none: { word: 'no price posted', tone: C.text3, rank: 0 },
@@ -484,7 +484,7 @@ export default function Shortlist({ players = [], odds = null, onPlayerClick, on
               if (v == null || r.pa == null) return <span style={{ color: C.text3 }}>—</span>
               const up = hrpaMid != null && r.hrpa != null ? r.hrpa > hrpaMid : null
               const mark = up == null ? null : up ? '▲' : '▼'
-              const tone = up == null ? C.text3 : up ? '#4ade80' : '#f87171'
+              const tone = up == null ? C.text3 : up ? C.green : C.red
               return (
                 <span style={{ fontFamily: NUM_FONT }}
                   title={hrpaMid == null ? undefined

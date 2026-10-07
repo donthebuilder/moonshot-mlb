@@ -75,9 +75,9 @@ export default function PairTray({ legs = [], market = 'hr', onMarket, onRemove,
             <button key={k} onClick={() => onMarket?.(k)} style={{
               fontSize: 9, fontWeight: 800, fontFamily: NUM_FONT, cursor: 'pointer',
               borderRadius: 999, padding: '2px 9px',
-              border: `1px solid ${market === k ? '#22d3ee' : C.border}`,
+              border: `1px solid ${market === k ? C.cyan : C.border}`,
               background: market === k ? 'rgba(34,211,238,.14)' : 'transparent',
-              color: market === k ? '#22d3ee' : C.text3,
+              color: market === k ? C.cyan : C.text3,
             }}>{lb}</button>
           ))}
           <button onClick={onClear} style={{
@@ -99,7 +99,7 @@ export default function PairTray({ legs = [], market = 'hr', onMarket, onRemove,
               <span onClick={() => onPlayerClick?.(p)} style={{ fontSize: 12, fontWeight: 800, cursor: 'pointer', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {nameOf(p)}
               </span>
-              <b style={{ marginLeft: 'auto', fontSize: 13, fontFamily: NUM_FONT, color: scores[i] === weaker && legs.length === 2 ? '#FCD34D' : '#22d3ee' }}>
+              <b style={{ marginLeft: 'auto', fontSize: 13, fontFamily: NUM_FONT, color: scores[i] === weaker && legs.length === 2 ? C.amber : C.cyan }}>
                 {scores[i].toFixed(0)}
               </b>
               <button onClick={() => onRemove?.(p)} title="drop this leg" style={{
@@ -125,14 +125,14 @@ export default function PairTray({ legs = [], market = 'hr', onMarket, onRemove,
 
       {legs.length === 2 && (
         <div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.6, marginTop: 7 }}>
-          <b style={{ color: '#FCD34D' }}>Weaker leg {weaker.toFixed(0)}</b> — both have to land, so that
+          <b style={{ color: C.amber }}>Weaker leg {weaker.toFixed(0)}</b> — both have to land, so that
           side decides this pair, not the average.
           {sameGame
             ? <> <b style={{ color: C.orange }}>⚡ Same game</b> — they rise and fall together (co-HR runs
               ~12% more likely in one park, which cuts both ways). A choice, not a mistake.</>
             : <> Different games — independent legs.</>}
           {together >= 2
-            ? <> They&apos;ve homered on the same day <b style={{ color: '#22d3ee' }}>{together}×</b> this
+            ? <> They&apos;ve homered on the same day <b style={{ color: C.cyan }}>{together}×</b> this
               season{hist?.last_hit_date ? ` (last ${String(hist.last_hit_date).slice(5)})` : ''} — history,
               not a forecast: the measured lift is ~1.3× and unproven.</>
             : <> No co-HR history on file for these two — most good pairs don&apos;t have any.</>}

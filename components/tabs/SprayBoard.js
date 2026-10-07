@@ -42,11 +42,11 @@ function FenceLine({ playerId }) {
       <span style={{ fontSize: TYPE.label, fontWeight: 900 }}>🧱 Fence line</span>
       {r ? (
         <>
-          {cell(r.over_ct, 'over 375', '#4ade80', `${r.over_ct} balls measured past 375 ft in his last ${r.games} game dates (${r.bbe} tracked balls)`)}
+          {cell(r.over_ct, 'over 375', C.green, `${r.over_ct} balls measured past 375 ft in his last ${r.games} game dates (${r.bbe} tracked balls)`)}
           {cell(r.fence_ct, 'at the wall', C.orange, 'Pulled balls that died 320–374 ft — outs in most parks, homers over a short porch')}
-          {cell(r.deep_pull_ct, 'deep pull', '#22d3ee', 'Pulled 350+ ft — the swing shape that clears a pull porch')}
-          {(r.robbed_ct || 0) > 0 && cell(r.robbed_ct, 'robbed', '#f87171', 'Wall-zone balls recorded as OUTS — homers in a different park')}
-          {(r.oppo_over_ct || 0) > 0 && cell(r.oppo_over_ct, 'oppo 375+', '#a78bfa', '375+ the other way — all-fields power, not just a pull profile')}
+          {cell(r.deep_pull_ct, 'deep pull', C.cyan, 'Pulled 350+ ft — the swing shape that clears a pull porch')}
+          {(r.robbed_ct || 0) > 0 && cell(r.robbed_ct, 'robbed', C.red, 'Wall-zone balls recorded as OUTS — homers in a different park')}
+          {(r.oppo_over_ct || 0) > 0 && cell(r.oppo_over_ct, 'oppo 375+', C.purple, '375+ the other way — all-fields power, not just a pull profile')}
           {Number(r.longest) > 0 && cell(`${Number(r.longest).toFixed(0)}′`, 'longest', C.text2, 'His longest measured ball in the window')}
           <span style={{ fontSize: TYPE.micro, color: C.text3, marginLeft: 'auto', fontFamily: NUM_FONT }}>
             last {r.games} game dates · Statcast landing data

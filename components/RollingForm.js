@@ -26,7 +26,7 @@ import { C, NUM_FONT } from '../lib/theme'
 //   · the grid went darker and dashed so the data sits on top of it.
 // Nothing about the underlying numbers or the variance caption changed.
 
-const COLORS = { HR: '#f97316', TOP: '#FCD34D', HIT: '#a78bfa', HRR: '#22d3ee', CONTACT: '#4ade80' }
+const COLORS = { HR: C.orange, TOP: C.amber, HIT: C.purple, HRR: C.cyan, CONTACT: C.green }
 const CATS = Object.keys(COLORS)
 
 export default function RollingForm() {

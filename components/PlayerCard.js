@@ -32,8 +32,8 @@ function lastHrRecency(p) {
   // 0 used to render as a bare '0g' — technically true, practically invisible.
   // Homered-last-game is the single recency fact people act on (the
   // back-to-back chase), so it gets words, not a code (2026-08-07).
-  if (n === 0) return { label: '🔁 HR last gm', color: '#f87171' }
-  if (n < 60) return { label: `${n}g`, color: n <= 5 ? '#FCD34D' : '#71717a' }
+  if (n === 0) return { label: '🔁 HR last gm', color: C.red }
+  if (n < 60) return { label: `${n}g`, color: n <= 5 ? C.amber : '#71717a' }
   return { label: 'No HR', color: '#52525b' }
 }
 

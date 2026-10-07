@@ -143,7 +143,7 @@ function AirLine({ any, venue, confirmed }) {
 // Called, not frozen: C is mutated after mount (applyTheme, lib/theme.js), so a
 // module-level literal keeps the palette it was imported with. See #23.
 const PICK_META = () => ({
-  TOP: { label: 'top play', bar: '1+ HR', color: '#FCD34D' },
+  TOP: { label: 'top play', bar: '1+ HR', color: C.amber },
   HR: { label: 'home run', bar: '1+ HR', color: C.orange },
   HIT: { label: 'base hit', bar: '1+ hit', color: C.purple },
   HRR: { label: 'H+R+RBI', bar: '2+ of hits / runs / RBI', color: C.cyan },

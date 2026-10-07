@@ -550,7 +550,7 @@ export default function ThresholdGrid({ playerId, odds }) {
             <>
               <span>% of games cleared:</span>
               <b style={{ color: C.orange }}>60%+</b>
-              <b style={{ color: '#FCD34D' }}>40–59</b>
+              <b style={{ color: C.amber }}>40–59</b>
               <b style={{ color: C.orange }}>25–39</b>
               <b style={{ color: C.blue }}>under 25</b>
               <span>· hover any cell for the fraction · {new Date().getFullYear() - 1} = all last season · STK = current streak</span>

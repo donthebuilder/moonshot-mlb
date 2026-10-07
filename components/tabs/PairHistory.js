@@ -90,7 +90,7 @@ export default function PairHistory({ summary, players = [], onPlayerClick }) {
             {fresh.map((pr, i) => {
               const since = n(pr?.days_since_last_hit, null)
               const today = since === 0
-              const col = today ? '#4ade80' : since != null && since <= 3 ? C.orange : C.text3
+              const col = today ? C.green : since != null && since <= 3 ? C.orange : C.text3
               return (
                 <span key={i}
                   title={`${clean(pr?.player_1, '?')} + ${clean(pr?.player_2, '?')} — ${n(pr?.repeat_count, 0)} co-HR days this season, last ${clean(pr?.last_hit_date ?? pr?.last_same_day_hr, '—')}${pr?.same_game_flag ? ' · has same-game history' : ''}`}
@@ -250,7 +250,7 @@ export default function PairHistory({ summary, players = [], onPlayerClick }) {
         return (
           <div style={{ margin: '2px 0 14px' }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, marginBottom: 6 }}>
-              <span style={{ fontSize: 11.5, fontWeight: 800, color: '#FCD34D' }}>⚡ Both playable tonight</span>
+              <span style={{ fontSize: 11.5, fontWeight: 800, color: C.amber }}>⚡ Both playable tonight</span>
               <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>
                 proven pairings with both halves on the slate — same-game history first
               </span>
@@ -273,7 +273,7 @@ export default function PairHistory({ summary, players = [], onPlayerClick }) {
                   </div>
                   <div style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT, marginTop: 2 }}>
                     {r.teams}
-                    {r.sameGame > 0 && <b style={{ color: '#FCD34D' }}> · {r.sameGame}× same game</b>}
+                    {r.sameGame > 0 && <b style={{ color: C.amber }}> · {r.sameGame}× same game</b>}
                     {' '}· {r.sameDay}× same day
                     {r.since != null && ` · last ${r.since}d ago`}
                   </div>

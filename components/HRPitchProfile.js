@@ -280,11 +280,11 @@ export default function HRPitchProfile({ player, slateMode }) {
                   <span style={{ fontSize: 10.5, color: '#fca63a', fontFamily: NUM_FONT, width: 46, flexShrink: 0, fontWeight: 900, textAlign: 'right' }}>{Number(r.rate || 0).toFixed(1)}%</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
-                  <span style={{ fontSize: 9.5, color: '#22d3ee', fontFamily: NUM_FONT, width: 74, flexShrink: 0, fontWeight: 800, letterSpacing: '.04em' }}>SEES IT</span>
+                  <span style={{ fontSize: 9.5, color: C.cyan, fontFamily: NUM_FONT, width: 74, flexShrink: 0, fontWeight: 800, letterSpacing: '.04em' }}>SEES IT</span>
                   <div style={{ flex: 1, height: 9, background: 'rgba(255,255,255,.05)', borderRadius: 4 }}>
                     <div style={{ width: `${tonW}%`, height: '100%', borderRadius: 4, background: 'linear-gradient(90deg, rgba(34,211,238,.35), #22d3ee)', opacity: 0.85 }} />
                   </div>
-                  <span style={{ fontSize: 10.5, color: '#22d3ee', fontFamily: NUM_FONT, width: 46, flexShrink: 0, fontWeight: 900, textAlign: 'right' }}>{Number(r.tonight || 0).toFixed(0)}%</span>
+                  <span style={{ fontSize: 10.5, color: C.cyan, fontFamily: NUM_FONT, width: 46, flexShrink: 0, fontWeight: 900, textAlign: 'right' }}>{Number(r.tonight || 0).toFixed(0)}%</span>
                 </div>
               </div>
             )
@@ -292,7 +292,7 @@ export default function HRPitchProfile({ player, slateMode }) {
         })()}
         <div style={{ fontSize: 9, color: C.text3, marginTop: 8, lineHeight: 1.5 }}>
           <b style={{ color: '#fca63a' }}>HITS IT</b> = his HR rate per batted ball against that pitch ·{' '}
-          <b style={{ color: '#22d3ee' }}>SEES IT</b> = how much of tonight&apos;s starter&apos;s mix it is.
+          <b style={{ color: C.cyan }}>SEES IT</b> = how much of tonight&apos;s starter&apos;s mix it is.
           🎯 marks rows where BOTH run long — damage meeting supply. Bars are scaled within this card;
           the numbers at the end of each bar are the truth. Small sample by construction.
         </div>

@@ -105,7 +105,7 @@ export default function PairBoard({ pairBuilder, results, onPlayerClick }) {
       <b style={{ fontSize: 13, color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</b>
       <span style={{
         fontFamily: NUM_FONT, fontSize: 11, fontWeight: 900,
-        color: weak ? (score >= 15 ? C.orange : '#f87171') : C.text3,
+        color: weak ? (score >= 15 ? C.orange : C.red) : C.text3,
       }}>{score.toFixed(1)}%</span>
     </span>
   )
@@ -215,7 +215,7 @@ export default function PairBoard({ pairBuilder, results, onPlayerClick }) {
                 }}>{r.lane}</span>
                 {r.type && <span style={{ fontSize: 9, color: C.text3 }}>{r.type}</span>}
                 {r.sameGame === 1 && (
-                  <span style={{ fontSize: 8.5, fontWeight: 800, color: '#22d3ee', fontFamily: NUM_FONT }}>SAME GAME</span>
+                  <span style={{ fontSize: 8.5, fontWeight: 800, color: C.cyan, fontFamily: NUM_FONT }}>SAME GAME</span>
                 )}
                 {/* two-segment leg tracker: lit = that half homered tonight */}
                 <span title={`${r.aName}${r.aHit ? ' 💥' : ' —'} · ${r.bName}${r.bHit ? ' 💥' : ' —'}`}
@@ -223,12 +223,12 @@ export default function PairBoard({ pairBuilder, results, onPlayerClick }) {
                   {[r.aHit, r.bHit].map((hit2, k) => (
                     <span key={k} style={{
                       width: 14, height: 5, borderRadius: 3,
-                      background: hit2 ? '#4ade80' : 'rgba(255,255,255,0.10)',
+                      background: hit2 ? C.green : 'rgba(255,255,255,0.10)',
                       boxShadow: hit2 ? '0 0 6px #4ade80' : 'none',
                     }} />
                   ))}
                   {(r.aHit || r.bHit) === 1 && r.aHit + r.bHit === 2 && (
-                    <span style={{ fontSize: 8.5, fontWeight: 900, color: '#4ade80', fontFamily: NUM_FONT }}>PAIR ✓</span>
+                    <span style={{ fontSize: 8.5, fontWeight: 900, color: C.green, fontFamily: NUM_FONT }}>PAIR ✓</span>
                   )}
                 </span>
                 <span style={{ marginLeft: 'auto', fontSize: 9.5, fontFamily: NUM_FONT, color: C.text3 }}>

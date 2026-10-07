@@ -550,9 +550,9 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
                 }
 
                 cells.push(closed
-                  ? { k: 'sky', label: 'Roof', val: 'closed', col: '#a78bfa', tip: `${g.roof} — no wind, no rain, no sun. Conditions in this building are the same every night.` }
+                  ? { k: 'sky', label: 'Roof', val: 'closed', col: C.purple, tip: `${g.roof} — no wind, no rain, no sun. Conditions in this building are the same every night.` }
                   : g.rain >= 20
-                    ? { k: 'sky', label: 'Rain', val: `${Math.round(g.rain)}%`, col: g.rain >= 50 ? '#f87171' : '#7dd3fc', tip: `${Math.round(g.rain)}% chance of precipitation around first pitch, from MOONSHOT's weather pull. A delay-risk read, not a promise of one.` }
+                    ? { k: 'sky', label: 'Rain', val: `${Math.round(g.rain)}%`, col: g.rain >= 50 ? C.red : '#7dd3fc', tip: `${Math.round(g.rain)}% chance of precipitation around first pitch, from MOONSHOT's weather pull. A delay-risk read, not a promise of one.` }
                     : { k: 'sky', label: 'Sky', val: g.roof ? 'open' : 'clear', col: C.text2, tip: g.roof ? `${g.roof} — open tonight, so the weather above plays.` : 'No meaningful rain chance published for first pitch.' })
 
                 // ONE LINE, NOT FOUR BOXES (2026-08-15). Donovan, third time
@@ -645,16 +645,16 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
                 return (
                   <div style={{ display: 'flex', gap: 7, alignItems: 'baseline', marginTop: 3, fontFamily: NUM_FONT, fontSize: 8.5, flexWrap: 'wrap' }}>
                     {bad ? (
-                      <span style={{ color: '#f87171', fontWeight: 900 }}>⚠ {st.detail.toUpperCase()}</span>
+                      <span style={{ color: C.red, fontWeight: 900 }}>⚠ {st.detail.toUpperCase()}</span>
                     ) : live ? (
-                      <span style={{ color: '#4ade80', fontWeight: 800 }}>● LIVE</span>
+                      <span style={{ color: C.green, fontWeight: 800 }}>● LIVE</span>
                     ) : final ? (
                       <span style={{ color: C.text3, fontWeight: 700 }}>FINAL</span>
                     ) : (
                       g.time && <span style={{ color: C.text3 }}>⏰ {timeText(g.time)}</span>
                     )}
                     {rainy && (
-                      <span title="Rain chance from MOONSHOT's weather pull — a delay-risk read, not a forecast of one" style={{ color: g.rain >= 50 ? '#f87171' : '#7dd3fc', fontWeight: 800 }}>
+                      <span title="Rain chance from MOONSHOT's weather pull — a delay-risk read, not a forecast of one" style={{ color: g.rain >= 50 ? C.red : '#7dd3fc', fontWeight: 800 }}>
                         ☔ {Math.round(g.rain)}%{g.rain >= 50 ? ' delay risk' : ''}
                       </span>
                     )}
@@ -662,7 +662,7 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
                       <span title="Per-team lineup confirmation — ✓ posted, ◻ still projected" style={{ color: C.text3 }}>
                         {teams.map((tm, ti) => (
                           <span key={tm}>
-                            {tm} <b style={{ color: g.confByTeam[tm] ? '#4ade80' : '#FCD34D' }}>{g.confByTeam[tm] ? '✓' : '◻'}</b>
+                            {tm} <b style={{ color: g.confByTeam[tm] ? C.green : C.amber }}>{g.confByTeam[tm] ? '✓' : '◻'}</b>
                             {ti === 0 ? ' · ' : ''}
                           </span>
                         ))}

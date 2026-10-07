@@ -83,7 +83,7 @@ const MATCH_STATS = [
   { key: 'hr_rate', label: 'HR',  col: C.red },
   { key: 'ba',      label: 'BA',  col: C.green },
   { key: 'fb_rate', label: 'FLY', col: C.cyan },
-  { key: 'gb_rate', label: 'GB',  col: '#FCD34D' },
+  { key: 'gb_rate', label: 'GB',  col: C.amber },
 ]
 const topZones = (cells, key, n = 3) => [...(cells || [])]
   .filter((z) => !z.low_sample && z[key] != null && z[key] > 0)

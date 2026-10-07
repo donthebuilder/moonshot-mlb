@@ -68,11 +68,11 @@ const nameKey = (s) => String(s || '').toLowerCase().replace(/[^a-z]/g, '')
 //   "...AND has had a lot of near misses" without reading every row's shape
 //   column by eye.
 const GROUP_TAGS = [
-  { key: 'TOP',     label: 'Top',     color: '#FCD34D' },
+  { key: 'TOP',     label: 'Top',     color: C.amber },
   { key: 'HR',      label: 'HR',      color: '#FB923C' },
-  { key: 'HIT',     label: 'Hit',     color: '#60A5FA' },
-  { key: 'HRR',     label: 'HRR',     color: '#22d3ee' },
-  { key: 'CONTACT', label: 'Contact', color: '#A78BFA' },
+  { key: 'HIT',     label: 'Hit',     color: C.blue },
+  { key: 'HRR',     label: 'HRR',     color: C.cyan },
+  { key: 'CONTACT', label: 'Contact', color: C.purple },
 ]
 const groupTagsOf = (p) => String(p?.game_pick_role || '').split('/').map((s) => s.trim().toUpperCase()).filter(Boolean)
 

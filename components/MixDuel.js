@@ -75,7 +75,7 @@ export default function MixDuel({
           <span
             style={{
               marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: 13, fontWeight: 900,
-              color: dna >= 0.55 ? C.orange : dna >= 0.35 ? '#FCD34D' : C.blue,
+              color: dna >= 0.55 ? C.orange : dna >= 0.35 ? C.amber : C.blue,
             }}
             title={`Usage-weighted damage across the ${knownUse.toFixed(0)}% of the arsenal where ${batterName} has ${MIN_BBE}+ batted balls of history. Same number the old DNA strip printed.`}
           >{(100 * dna).toFixed(0)}</span>

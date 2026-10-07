@@ -25,11 +25,11 @@ import { downloadTrackRecordCard } from './shareCard'
 const LOCK_DATE = '2026-08-06'   // the pick-lock commit went live this slate
 
 const CATS = [
-  { tier: 'TOP_PICKS', label: 'LEGACY TOP', color: '#FCD34D', bar: 'HR', barLabel: 'homered' },
+  { tier: 'TOP_PICKS', label: 'LEGACY TOP', color: C.amber, bar: 'HR', barLabel: 'homered' },
   { tier: 'HR_PICKS', label: 'HR', color: '#FB923C', bar: 'HR', barLabel: 'homered' },
-  { tier: 'HIT_PICKS', label: 'HIT', color: '#60A5FA', bar: '1+ Hit', barLabel: 'got a hit' },
-  { tier: 'HRR_PICKS', label: 'HRR', color: '#22d3ee', bar: '2+ HRR', barLabel: '2+ H+R+RBI' },
-  { tier: 'CONTACT_PICKS', label: 'CONTACT', color: '#A78BFA', bar: '2+ TB', barLabel: '2+ total bases' },
+  { tier: 'HIT_PICKS', label: 'HIT', color: C.blue, bar: '1+ Hit', barLabel: 'got a hit' },
+  { tier: 'HRR_PICKS', label: 'HRR', color: C.cyan, bar: '2+ HRR', barLabel: '2+ H+R+RBI' },
+  { tier: 'CONTACT_PICKS', label: 'CONTACT', color: C.purple, bar: '2+ TB', barLabel: '2+ total bases' },
 ]
 
 // Wilson 95% interval (audit #13, 2026-08-08) MOVED TO lib/interval.js on
@@ -51,11 +51,11 @@ const poolRate = (days) => {
 const gradeOf = (rate, base) => {
   if (rate == null || !base) return { g: '—', col: C.text3 }
   const r = rate / base
-  if (r >= 1.3) return { g: 'A', col: '#4ade80' }
+  if (r >= 1.3) return { g: 'A', col: C.green }
   if (r >= 1.05) return { g: 'B', col: '#a3e635' }
-  if (r >= 0.8) return { g: 'C', col: '#FCD34D' }
+  if (r >= 0.8) return { g: 'C', col: C.amber }
   if (r >= 0.5) return { g: 'D', col: C.orange }
-  return { g: 'F', col: '#f87171' }
+  return { g: 'F', col: C.red }
 }
 
 function Spark({ days, cat, lockX }) {
@@ -177,7 +177,7 @@ export default function ReportCard({ backtest }) {
         {pctVal != null && (
           <span style={{
             fontFamily: NUM_FONT, fontSize: 19, fontWeight: 900,
-            color: pctVal >= 45 ? '#4ade80' : C.orange,
+            color: pctVal >= 45 ? C.green : C.orange,
           }}>{pctVal.toFixed(1)}%</span>
         )}
       </div>
@@ -232,7 +232,7 @@ export default function ReportCard({ backtest }) {
           />
         </div>
         <div style={{ fontSize: 10, color: C.text3, lineHeight: 1.6, marginTop: 10, paddingTop: 9, borderTop: `1px solid ${C.border}` }}>
-          The <b style={{ color: '#4ade80' }}>since-lock</b> number is the one that matters going forward:
+          The <b style={{ color: C.green }}>since-lock</b> number is the one that matters going forward:
           every pick in it froze at first pitch and could never be revised. It starts small and grows
           nightly — that&apos;s the record being built in public. The intervals are there because a
           headline rate on a young sample is a guess wearing a decimal point.
@@ -297,7 +297,7 @@ export default function ReportCard({ backtest }) {
             <span style={{ fontSize: 13, fontWeight: 900, fontFamily: NUM_FONT, color: C.text }}>
               {approx ? '≈' : ''}{ok}/{n}
             </span>
-            <span style={{ fontSize: 10, color: base >= 50 ? '#4ade80' : base >= 30 ? '#FCD34D' : C.text3, fontFamily: NUM_FONT }}>
+            <span style={{ fontSize: 10, color: base >= 50 ? C.green : base >= 30 ? C.amber : C.text3, fontFamily: NUM_FONT }}>
               {base?.toFixed(1)}%
             </span>
             {n > 0 && (
@@ -320,7 +320,7 @@ export default function ReportCard({ backtest }) {
         {model.rows.map(({ cat, base, form7, form30 }) => {
           const d7 = form7 && base != null ? form7.rate - base : null
           const arrow = (d) => d == null ? '' : d >= 3 ? ' ▲' : d <= -3 ? ' ▼' : ' ·'
-          const colOf = (d) => d == null ? C.text3 : d >= 3 ? '#4ade80' : d <= -3 ? '#f87171' : C.text2
+          const colOf = (d) => d == null ? C.text3 : d >= 3 ? C.green : d <= -3 ? C.red : C.text2
           return (
             <div key={cat.tier} style={{ background: C.bg2, border: `1px solid ${C.border}`, borderLeft: `3px solid ${cat.color}`, borderRadius: 9, padding: '7px 11px' }}>
               <div style={{ fontSize: 9, fontWeight: 900, color: cat.color, fontFamily: NUM_FONT, letterSpacing: '.06em' }}>{cat.label}</div>
@@ -338,7 +338,7 @@ export default function ReportCard({ backtest }) {
       {/* ── 3. trust curves ── */}
       <div style={{ fontSize: 11.5, fontWeight: 900, marginBottom: 2 }}>Trust curves</div>
       <div style={{ fontSize: 9.5, color: C.text3, marginBottom: 8, lineHeight: 1.5 }}>
-        Nightly own-bar rate (dots) with a 5-day rolling line. The <span style={{ color: '#4ade80' }}>dashed
+        Nightly own-bar rate (dots) with a 5-day rolling line. The <span style={{ color: C.green }}>dashed
         green rule</span> is the pick lock ({LOCK_DATE}): left of it, picks could still change mid-game and
         graded rates ran slightly flattered; right of it is locked ground truth. Dim dots = pre-lock.
       </div>

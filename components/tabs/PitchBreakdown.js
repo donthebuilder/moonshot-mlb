@@ -460,7 +460,7 @@ export default function PitchBreakdown({ player, detail = null }) {
           border: '1px solid rgba(248,113,113,.3)', background: 'rgba(248,113,113,.07)',
           fontSize: 9.5, color: C.text3, lineHeight: 1.55,
         }}>
-          <span style={{ color: '#f87171', fontWeight: 900 }}>🔴 Live Statcast pull</span>
+          <span style={{ color: C.red, fontWeight: 900 }}>🔴 Live Statcast pull</span>
           <span>
             this table is built from his
             batted balls, pulled live from Statcast. Balls in play, HR, exit velo, hard-hit% and barrel%

@@ -94,7 +94,7 @@ function BoardRow({ p, i, onPlayerClick }) {
   if (p.hidden_hr_value) flagsAll.push(['👻', 'hidden value'])
   if (isTrap) flagsAll.push(['⚠️', p.trap_reason || 'trap flag'])
   const flagTitle = flagsAll.map(([e, t]) => `${e} ${t}`).join(' · ')
-  const scoreCol = barW >= 70 ? C.orange : barW >= 55 ? '#FCD34D' : C.text2
+  const scoreCol = barW >= 70 ? C.orange : barW >= 55 ? C.amber : C.text2
   const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : null
   return (
     <div
@@ -136,7 +136,7 @@ function BoardRow({ p, i, onPlayerClick }) {
           {pills.length > 0 && <> · {pills.map((pl, pi) => (
             <span key={pi} title={pillMeta(pl).title} style={{ color: pillMeta(pl).color }}>{pl}{pi < pills.length - 1 ? ' ' : ''}</span>
           ))}</>}
-          {isTrap && p.trap_reason ? <span style={{ color: '#f87171', marginLeft: 4 }}>{p.trap_reason}</span> : null}
+          {isTrap && p.trap_reason ? <span style={{ color: C.red, marginLeft: 4 }}>{p.trap_reason}</span> : null}
         </div>
       </div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexShrink: 0 }}>
@@ -218,7 +218,7 @@ function Board({ players, onPlayerClick }) {
           {[1, 0, 2].map((idx) => {
             const p = sorted[idx]
             const first = idx === 0
-            const col = first ? '#FCD34D' : idx === 1 ? '#d4d4d8' : '#d97706'
+            const col = first ? C.amber : idx === 1 ? '#d4d4d8' : '#d97706'
             return (
               <button key={p.player_id || idx} onClick={() => onPlayerClick?.(p)} style={{
                 flex: first ? '1.25 1 0' : '1 1 0', minWidth: 0, cursor: 'pointer',
@@ -375,7 +375,7 @@ function SheetViewer({ url, label }) {
               </span>
             )}
             {brief.weak != null && (
-              <span style={{ border: '1px solid rgba(252,211,77,.45)', color: '#FCD34D', borderRadius: 999, padding: '3px 11px', fontSize: TYPE.label, fontWeight: 800, fontFamily: NUM_FONT }}>
+              <span style={{ border: '1px solid rgba(252,211,77,.45)', color: C.amber, borderRadius: 999, padding: '3px 11px', fontSize: TYPE.label, fontWeight: 800, fontFamily: NUM_FONT }}>
                 ★ {brief.weak} weak pitcher spots
               </span>
             )}
@@ -466,7 +466,7 @@ function SheetViewer({ url, label }) {
                     const isError = /\berror\b|\bfail(ed|ure)?\b|exception|traceback/i.test(line)
                     return (
                       <div key={li} style={{
-                        color: isError ? '#f87171' : undefined,
+                        color: isError ? C.red : undefined,
                         background: f && line.toLowerCase().includes(f) ? 'rgba(249,115,22,0.10)' : 'transparent',
                       }}>{line || ' '}</div>
                     )

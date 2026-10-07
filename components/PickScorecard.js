@@ -176,7 +176,7 @@ export default function PickScorecard({ slots = [], backtest = null, onPlayerCli
               {beat != null && (
                 <div style={{
                   fontSize: 9, fontFamily: NUM_FONT, marginTop: 1,
-                  color: beat >= 0 ? C.orange : '#f87171',
+                  color: beat >= 0 ? C.orange : C.red,
                 }}>
                   {beat >= 0 ? '+' : ''}{beat.toFixed(1)} vs {baseHr.toFixed(1)}% slate
                 </div>

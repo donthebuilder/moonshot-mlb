@@ -119,7 +119,7 @@ export default function LiveAtBats({
       <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
         {visRows.map((r) => {
             const { g } = r
-            const hot = r.role ? C.orange : r.watched ? '#FCD34D' : C.border
+            const hot = r.role ? C.orange : r.watched ? C.amber : C.border
             return (
               <button
                 key={g.pk}

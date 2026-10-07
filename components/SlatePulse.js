@@ -154,7 +154,7 @@ export default function SlatePulse({ players = [], slateDate = '', backtest, onP
           padding: '8px 12px', marginBottom: 8,
         }}>
           <div onClick={flipUnconf} style={{ display: 'flex', alignItems: 'baseline', gap: 7, marginBottom: unconfOpen ? 5 : 0, cursor: 'pointer' }}>
-            <span style={{ fontSize: 11, fontWeight: 800, color: '#FCD34D' }}>
+            <span style={{ fontSize: 11, fontWeight: 800, color: C.amber }}>
               ⏳ {unconfirmed.length} pick{unconfirmed.length > 1 ? 's' : ''} not lineup-confirmed {unconfOpen ? '▾' : '▸'}
             </span>
             <span style={{ fontSize: 9, color: C.text3 }}>
@@ -182,13 +182,13 @@ export default function SlatePulse({ players = [], slateDate = '', backtest, onP
                 </span>
                 <span style={{
                   fontSize: 9, fontFamily: NUM_FONT, fontWeight: 800,
-                  color: mins != null && mins < 75 ? '#f87171' : C.text3,
+                  color: mins != null && mins < 75 ? C.red : C.text3,
                 }}>{fmtCountdown(mins)}</span>
               </button>
             ))}
             {unconfirmed.length > 8 && (
               <button onClick={() => setShowAllUnconf((v) => !v)} style={{
-                fontSize: 10, fontWeight: 700, color: '#FCD34D', cursor: 'pointer',
+                fontSize: 10, fontWeight: 700, color: C.amber, cursor: 'pointer',
                 background: 'transparent', border: '1px dashed rgba(252,211,77,.4)',
                 borderRadius: 7, padding: '3px 10px', fontFamily: NUM_FONT,
               }}>
@@ -299,10 +299,10 @@ export default function SlatePulse({ players = [], slateDate = '', backtest, onP
               movedAfterMiss ? `${movedAfterMiss} move${movedAfterMiss > 1 ? 's' : ''} came right after a miss` : null,
             ].filter(Boolean).join(' · ')
             const COLS = [
-              ['held', 'HELD', '#22d3ee', held],
-              ['new', 'NEW', '#4ade80', added],
-              ['moved', 'MOVED', '#FCD34D', moved],
-              ['dropped', 'DROPPED', '#f87171', droppedAll],
+              ['held', 'HELD', C.cyan, held],
+              ['new', 'NEW', C.green, added],
+              ['moved', 'MOVED', C.amber, moved],
+              ['dropped', 'DROPPED', C.red, droppedAll],
             ].filter(([, , , list]) => list.length)
             return (
               <div style={{ marginTop: 8 }}>
@@ -332,14 +332,14 @@ export default function SlatePulse({ players = [], slateDate = '', backtest, onP
                               }}>
                               <span style={{
                                 fontSize: 10.5, fontWeight: it.demoted ? 700 : 600,
-                                color: k === 'dropped' ? (it.demoted ? '#f87171' : C.text3) : C.text2,
+                                color: k === 'dropped' ? (it.demoted ? C.red : C.text3) : C.text2,
                                 whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                               }} title={it.why || (it.demoted ? 'On tonight’s slate but stripped of the pick — a real demotion' : undefined)}>
                                 {it.label}{it.demoted ? ' ▾' : ''}{it.why ? <span style={{ fontSize: 8.5, marginLeft: 3, cursor: 'default' }}>📓</span> : null}
                               </span>
                               <span style={{
                                 marginLeft: 'auto', fontSize: 8.5, fontFamily: NUM_FONT, fontWeight: 800, flexShrink: 0,
-                                color: it.ok === true ? '#4ade80' : it.ok === false ? 'rgba(248,113,113,.75)'
+                                color: it.ok === true ? C.green : it.ok === false ? 'rgba(248,113,113,.75)'
                                   : k === 'moved' ? color : k === 'dropped' ? C.text3 : C.orange,
                               }}>{it.tag}</span>
                             </div>
@@ -358,7 +358,7 @@ export default function SlatePulse({ players = [], slateDate = '', backtest, onP
                 <div style={{ fontSize: 8.5, color: C.text3, lineHeight: 1.5, marginTop: 6 }}>
                   ✓/✗ = whether last night&apos;s pick cleared its own bar (HR homered, HIT got a hit,
                   HRR 2+ H+R+RBI, CONTACT 2+ TB); no mark = the slot never finalized.
-                  <b style={{ color: '#f87171' }}> Red names ▾ in DROPPED are real demotions</b> — on
+                  <b style={{ color: C.red }}> Red names ▾ in DROPPED are real demotions</b> — on
                   tonight&apos;s slate but stripped of the pick, and clickable; dim names just aren&apos;t
                   playing today. MOONSHOT changing its mind is information either way.
                 </div>

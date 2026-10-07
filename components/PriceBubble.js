@@ -29,8 +29,8 @@ import { quoteFor, fmtOdds, impliedPct } from '../lib/odds'
 // price says nothing about this pick. quoteFor flags it, and the bubble shows
 // the mark instead of colouring a comparison it can't make.
 
-const GOOD = '#4ade80'
-const BAD = '#f87171'
+const GOOD = C.green
+const BAD = C.red
 
 export default function PriceBubble({ odds, player, cat, rate = null, size = 'sm' }) {
   const q = quoteFor(odds, player, cat)
@@ -82,7 +82,7 @@ export default function PriceBubble({ odds, player, cat, rate = null, size = 'sm
           most, a hit line moved to 1.5, looked identical to a line moved to
           2.5. The number rides along now. */}
       {q.matches === false && Number.isFinite(Number(q.line))
-        ? <span style={{ color: '#FCD34D' }}>{Number(q.line)}{'\u00A0'}</span>
+        ? <span style={{ color: C.amber }}>{Number(q.line)}{'\u00A0'}</span>
         : null}
       {fmtOdds(q.over)}
     </span>

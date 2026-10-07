@@ -339,7 +339,7 @@ function SideRead({ team, rows, onPlayerClick }) {
               <span style={{ fontFamily: NUM_FONT, fontSize: 10.5 }} title={`${s.name}'s own numbers tonight: HR score, Hit score, season average`}>
                 <span style={{ color: C.text3 }}>{'  ·  him: '}</span>
                 <b style={{ color: C.orange }}>{n(s.p?.hr_score, 0).toFixed(0)}</b><span style={{ color: C.text3 }}> HR</span>
-                {' '}<b style={{ color: '#a78bfa' }}>{n(s.p?.hit_score, 0).toFixed(0)}</b><span style={{ color: C.text3 }}> Hit</span>
+                {' '}<b style={{ color: C.purple }}>{n(s.p?.hit_score, 0).toFixed(0)}</b><span style={{ color: C.text3 }}> Hit</span>
                 {n(s.p?.season_avg, 0) > 0 && <>{' '}<b style={{ color: C.text2 }}>{sl(n(s.p.season_avg, 0))}</b><span style={{ color: C.text3 }}> AVG</span></>}
                 {n(s.p?.last5_hits, -1) >= 0 && <span style={{ color: C.text3 }} title="Hits and homers over his last five games">{` · L5 ${n(s.p.last5_hits, 0)}H/${n(s.p.last5_hr, 0)}HR`}</span>}
               </span>
@@ -427,7 +427,7 @@ function LineupCard({ row, onPlayerClick }) {
         {row.edge ? <span style={{ color: C.orange, fontSize: 10 }} title="Bats into the pitcher's weak side">▲</span> : null}
         <span style={{ marginLeft: 'auto', display: 'flex', gap: 8, fontFamily: NUM_FONT, fontSize: 11 }}>
           <span title="HR score"><b style={{ color: C.orange }}>{fmtNum(row.hr, 1)}</b><span style={{ color: C.text3 }}> HR</span></span>
-          <span title="Hit score"><b style={{ color: '#a78bfa' }}>{fmtNum(row.hit, 1)}</b><span style={{ color: C.text3 }}> Hit</span></span>
+          <span title="Hit score"><b style={{ color: C.purple }}>{fmtNum(row.hit, 1)}</b><span style={{ color: C.text3 }}> Hit</span></span>
           <span title="HRR score"><b style={{ color: C.text2 }}>{fmtNum(row.hrr, 1)}</b><span style={{ color: C.text3 }}> HRR</span></span>
           <span title="TB score"><b style={{ color: C.text2 }}>{fmtNum(row.tb, 1)}</b><span style={{ color: C.text3 }}> TB</span></span>
         </span>

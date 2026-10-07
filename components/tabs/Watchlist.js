@@ -604,9 +604,9 @@ export default function Watchlist({ items, players = [], pairSummary, results, s
           return (
             <>
               {b(items.length, C.orange)} saved
-              {' · '}<span title={bots ? 'MOONSHOT agrees on these' : undefined}>{b(bots, '#FCD34D')} MOONSHOT pick{bots === 1 ? '' : 's'}</span>
-              {' · '}avg HR score {b(avgHr.toFixed(1), '#f97316')}
-              {' · '}{b(weak, '#FCD34D')} weak spot{weak === 1 ? '' : 's'}
+              {' · '}<span title={bots ? 'MOONSHOT agrees on these' : undefined}>{b(bots, C.amber)} MOONSHOT pick{bots === 1 ? '' : 's'}</span>
+              {' · '}avg HR score {b(avgHr.toFixed(1), C.orange)}
+              {' · '}{b(weak, C.amber)} weak spot{weak === 1 ? '' : 's'}
               {' · '}<span title="lineups locked">{b(`${conf}/${items.length}`, conf === items.length ? C.green : C.purple)} confirmed</span>.
               {N > 0 && (
                 <>
@@ -644,7 +644,7 @@ export default function Watchlist({ items, players = [], pairSummary, results, s
               const hits = Number(g.actual_hits) || 0
               const ab = Number(g.actual_ab) || 0
               const fin = Number(g.is_final) === 1
-              const col = hr ? '#4ade80' : hits > 0 ? '#a78bfa' : C.text3
+              const col = hr ? C.green : hits > 0 ? C.purple : C.text3
               return (
                 <span key={playerId(p)} onClick={() => onPlayerClick?.(p)}
                   title={fin ? 'Game final — his full line is in' : 'Game in progress — line so far'}

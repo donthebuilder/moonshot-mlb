@@ -55,13 +55,13 @@ export default function SituationalSplits({ playerId, kind = 'batter' }) {
                 <span style={{ fontSize: 11, fontFamily: NUM_FONT, fontWeight: 800 }}>
                   <span style={{
                     color: (r.worse === 'a' || r.good === 'a')
-                      ? (r.worse === 'a' ? '#f87171' : C.orange) : C.text,
+                      ? (r.worse === 'a' ? C.red : C.orange) : C.text,
                   }}>{dpFmt(r.a, r.dp)}</span>
                   <span style={{ color: C.text3, fontSize: 9, margin: '0 3px' }}>{r.aLabel}</span>
                   <span style={{ color: C.text3 }}> / </span>
                   <span style={{
                     color: (r.worse === 'b' || r.good === 'b')
-                      ? (r.worse === 'b' ? '#f87171' : C.orange) : C.text,
+                      ? (r.worse === 'b' ? C.red : C.orange) : C.text,
                   }}>{dpFmt(r.b, r.dp)}</span>
                   <span style={{ color: C.text3, fontSize: 9, margin: '0 3px' }}>{r.bLabel}</span>
                 </span>

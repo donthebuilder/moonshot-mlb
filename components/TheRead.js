@@ -106,7 +106,7 @@ const CATS = [
   { role: 'HR', label: 'the home run call', bar: 'needs to go deep', color: C.orange },
   { role: 'HIT', label: 'the base-hit call', bar: 'needs one hit', color: C.purple },
   { role: 'HRR', label: 'the runs call', bar: 'needs two of hits / runs / RBI', color: C.cyan },
-  { role: 'CONTACT', label: 'the total-bases call', bar: 'needs two total bases', color: '#4ade80' },
+  { role: 'CONTACT', label: 'the total-bases call', bar: 'needs two total bases', color: C.green },
 ]
 
 const L5 = (p) => ({
@@ -161,7 +161,7 @@ function MoveBar({ delta, max }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', height: 5, width: '100%', maxWidth: 220, background: 'rgba(255,255,255,.05)', borderRadius: 3, overflow: 'hidden' }}>
       <div style={{ width: '50%', display: 'flex', justifyContent: 'flex-end' }}>
-        {!up && <div style={{ width: `${pct * 100}%`, height: 5, background: '#f87171' }} />}
+        {!up && <div style={{ width: `${pct * 100}%`, height: 5, background: C.red }} />}
       </div>
       <div style={{ width: '50%' }}>
         {up && <div style={{ width: `${pct * 100}%`, height: 5, background: C.orange }} />}
@@ -229,7 +229,7 @@ const hr9Thin = (p) => {
 }
 const ThinNote = ({ p }) => (hr9Thin(p) ? (
   <span
-    style={{ color: '#FCD34D', fontWeight: 700 }}
+    style={{ color: C.amber, fontWeight: 700 }}
     title={`Built on ${Number(p?.pitcher_xhr_bbe) || 0} tracked batted balls, under the ${XHR_BBE_MIN} this site needs before it will publish the regressed version of this rate — which is why XHR and HR LUCK are blank for him on the Pitchers page. Read it as a small sample, not a settled rate.`}
   > (thin sample)</span>
 ) : null)
@@ -534,7 +534,7 @@ export default function TheRead({ players = [], onPlayerClick, odds = null }) {
         </Para>
 
         {[['The ISO band says the score is too LOW', read.under, C.orange],
-          ['The ISO band says the score is too HIGH', read.over, '#f87171']].map(([t, list, col]) => (
+          ['The ISO band says the score is too HIGH', read.over, C.red]].map(([t, list, col]) => (
           <div key={t} style={{ marginTop: 10 }}>
             <div style={{ fontSize: 9.5, fontFamily: NUM_FONT, color: col, marginBottom: 4, letterSpacing: '.04em' }}>{t}</div>
             {list.map((g) => (

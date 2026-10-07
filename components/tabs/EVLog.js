@@ -46,7 +46,7 @@ function TonightLive({ gamePk, batterId }) {
         const isHR = /home run/i.test(b.event)
         const isHit = /single|double|triple/i.test(b.event)
         const loud = b.ev >= 95
-        const col = isHR ? GREEN : loud ? C.orange : isHit ? '#60A5FA' : C.text3
+        const col = isHR ? GREEN : loud ? C.orange : isHit ? C.blue : C.text3
         return (
           <span key={i} title={`${b.half === 'top' ? 'T' : 'B'}${b.inning} — ${b.event} · ${b.traj}${b.dist ? ` · ${b.dist.toFixed(0)} ft` : ''}`}
             style={{
@@ -110,10 +110,10 @@ function TonightLive({ gamePk, batterId }) {
 // more cells to the stat strip meant paying for them here first. Same colours,
 // same places — just spelled once.
 const AMBER = '#fca63a'
-const CYAN = '#22d3ee'
-const VIOLET = '#a78bfa'
-const GREEN = '#4ade80'
-const RED = '#f87171'
+const CYAN = C.cyan
+const VIOLET = C.purple
+const GREEN = C.green
+const RED = C.red
 
 const PITCH_NAMES = {
   FF: '4-Seam', SI: 'Sinker', FC: 'Cutter', SL: 'Slider', CU: 'Curveball',

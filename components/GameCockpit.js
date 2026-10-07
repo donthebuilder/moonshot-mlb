@@ -27,16 +27,16 @@ const primaryRole = (p) => String(p?.game_pick_role || '').split('/')[0].trim().
 // better and more intuitive"): green = on base, red-dim = out, blue = free
 // pass. The raw feed says "grounded_into_double_play"; a human says GIDP.
 const RESULT_STYLE = [
-  [/home.?run/i,            { icon: '💥', word: 'HOMER', col: '#4ade80', bold: true }],
-  [/triple/i,               { icon: '●', word: 'triple', col: '#4ade80' }],
-  [/double(?!.?play)/i,     { icon: '●', word: 'double', col: '#4ade80' }],
-  [/single/i,               { icon: '●', word: 'single', col: '#4ade80' }],
-  [/intent.?walk/i,         { icon: '◦', word: 'IBB', col: '#60a5fa' }],
-  [/walk|hit.?by.?pitch/i,  { icon: '◦', word: 'walk', col: '#60a5fa' }],
+  [/home.?run/i,            { icon: '💥', word: 'HOMER', col: C.green, bold: true }],
+  [/triple/i,               { icon: '●', word: 'triple', col: C.green }],
+  [/double(?!.?play)/i,     { icon: '●', word: 'double', col: C.green }],
+  [/single/i,               { icon: '●', word: 'single', col: C.green }],
+  [/intent.?walk/i,         { icon: '◦', word: 'IBB', col: C.blue }],
+  [/walk|hit.?by.?pitch/i,  { icon: '◦', word: 'walk', col: C.blue }],
   [/strikeout|struck/i,     { icon: '✕', word: 'K', col: 'rgba(248,113,113,.75)' }],
   [/double.?play|gidp/i,    { icon: '✕', word: 'GIDP', col: 'rgba(248,113,113,.75)' }],
   [/sac/i,                  { icon: '·', word: 'sac', col: null }],
-  [/error/i,                { icon: '·', word: 'reached on error', col: '#FCD34D' }],
+  [/error/i,                { icon: '·', word: 'reached on error', col: C.amber }],
 ]
 const styleFor = (event) => {
   for (const [re, s] of RESULT_STYLE) if (re.test(event || '')) return s
@@ -64,8 +64,8 @@ function Bases({ off }) {
   const nameOn = (b) => off?.[b]?.fullName || ''
   const d = (filled) => ({
     width: 7, height: 7, transform: 'rotate(45deg)', borderRadius: 1.5,
-    background: filled ? '#FCD34D' : 'transparent',
-    border: `1.5px solid ${filled ? '#FCD34D' : 'rgba(255,255,255,.25)'}`,
+    background: filled ? C.amber : 'transparent',
+    border: `1.5px solid ${filled ? C.amber : 'rgba(255,255,255,.25)'}`,
   })
   const runners = [
     on('first') && ['1B', nameOn('first')],
@@ -81,7 +81,7 @@ function Bases({ off }) {
         <span style={d(on('third'))} /><span /><span style={d(on('first'))} />
       </span>
       {runners.length > 0 && (
-        <span style={{ fontSize: 7.5, color: '#FCD34D', fontFamily: NUM_FONT, whiteSpace: 'nowrap', fontWeight: 700, lineHeight: 1.2 }}>
+        <span style={{ fontSize: 7.5, color: C.amber, fontFamily: NUM_FONT, whiteSpace: 'nowrap', fontWeight: 700, lineHeight: 1.2 }}>
           {runners.map(([b, nm]) => `${b} ${nm ? lastOf(nm) : '?'}`).join(' · ')}
         </span>
       )}
@@ -136,7 +136,7 @@ export default function GameCockpit({ game, onPlayerClick }) {
       border: '1px solid rgba(74,222,128,.28)', borderRadius: 11, padding: '9px 13px', marginBottom: 10,
     }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap', marginBottom: 7 }}>
-        <span style={{ fontSize: 11.5, fontWeight: 900, color: '#4ade80' }}>🔴 Live At-Bats</span>
+        <span style={{ fontSize: 11.5, fontWeight: 900, color: C.green }}>🔴 Live At-Bats</span>
         {/* the score — somehow missing from a live game panel until now */}
         {(() => {
           const gt = data?.gameData?.teams || {}
@@ -151,7 +151,7 @@ export default function GameCockpit({ game, onPlayerClick }) {
         <span style={{ fontSize: 10.5, fontFamily: NUM_FONT, color: C.text2, display: 'flex', alignItems: 'center', gap: 7 }}>
           <span>{ls.inningState || (ls.isTopInning ? 'Top' : 'Bot')} {ls.currentInning ?? '?'}</span>
           {/* outs as dots — read at a glance, no words needed */}
-          <span title={`${ls.outs ?? 0} out${(ls.outs ?? 0) === 1 ? '' : 's'}`} style={{ letterSpacing: 2, color: '#f87171', fontSize: 9 }}>
+          <span title={`${ls.outs ?? 0} out${(ls.outs ?? 0) === 1 ? '' : 's'}`} style={{ letterSpacing: 2, color: C.red, fontSize: 9 }}>
             {'●'.repeat(Math.min(3, ls.outs ?? 0))}<span style={{ color: 'rgba(255,255,255,.2)' }}>{'●'.repeat(Math.max(0, 3 - (ls.outs ?? 0)))}</span>
           </span>
           <Bases off={ls?.offense} />
@@ -160,8 +160,8 @@ export default function GameCockpit({ game, onPlayerClick }) {
         <span style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
           <button onClick={() => setAuto((v) => !v)} style={{
             fontSize: 9, fontWeight: 700, fontFamily: NUM_FONT, cursor: 'pointer', borderRadius: 6, padding: '2px 8px',
-            border: `1px solid ${auto ? '#4ade80' : C.border}`, background: auto ? 'rgba(74,222,128,.12)' : 'transparent',
-            color: auto ? '#4ade80' : C.text3,
+            border: `1px solid ${auto ? C.green : C.border}`, background: auto ? 'rgba(74,222,128,.12)' : 'transparent',
+            color: auto ? C.green : C.text3,
           }}>{auto ? '● auto 30s' : '○ auto'}</button>
           <button onClick={pull} style={{
             fontSize: 9, fontWeight: 700, fontFamily: NUM_FONT, cursor: 'pointer', borderRadius: 6, padding: '2px 8px',
@@ -215,7 +215,7 @@ export default function GameCockpit({ game, onPlayerClick }) {
           const bid = pl?.matchup?.batter?.id
           const evN = ev ? Number(ev.launchSpeed) : null
           const distN = ev?.totalDistance ? Number(ev.totalDistance) : null
-          const onBase = st.col === '#4ade80' || st.col === '#60a5fa' || st.col === '#FCD34D'
+          const onBase = st.col === C.green || st.col === C.blue || st.col === C.amber
           return (
             <div key={i} onClick={() => clickFor(bid)} style={{
               display: 'flex', gap: 8, alignItems: 'baseline', fontSize: 10, fontFamily: NUM_FONT,
@@ -236,7 +236,7 @@ export default function GameCockpit({ game, onPlayerClick }) {
                   it MEANS something (200+ ft) — "67 ft" on a chopper was
                   noise wearing a number's clothes */}
               {ev && (
-                <span style={{ marginLeft: 'auto', flexShrink: 0, color: evN >= 100 ? '#f87171' : evN >= 95 ? C.orange : C.text3, fontWeight: evN >= 95 ? 800 : 400 }}>
+                <span style={{ marginLeft: 'auto', flexShrink: 0, color: evN >= 100 ? C.red : evN >= 95 ? C.orange : C.text3, fontWeight: evN >= 95 ? 800 : 400 }}>
                   {evN.toFixed(1)}{distN >= 200 ? ` · ${distN.toFixed(0)} ft` : ''}
                 </span>
               )}
@@ -245,8 +245,8 @@ export default function GameCockpit({ game, onPlayerClick }) {
         })}
       </div>
       <div style={{ fontSize: 8.5, color: C.text3, marginTop: 6, lineHeight: 1.45 }}>
-        Last {done.length} PAs, newest first. <span style={{ color: '#4ade80' }}>Green edge = reached base</span> ·
-        ✕ = out · exit velo when tracked (<span style={{ color: C.orange }}>orange 95+</span>, <span style={{ color: '#f87171' }}>red 100+</span>),
+        Last {done.length} PAs, newest first. <span style={{ color: C.green }}>Green edge = reached base</span> ·
+        ✕ = out · exit velo when tracked (<span style={{ color: C.orange }}>orange 95+</span>, <span style={{ color: C.red }}>red 100+</span>),
         distance only on real carry (200+ ft). ◆ = runner on. 🤖 = tonight&apos;s picks. One game, one feed, 30s refresh while open.
       </div>
     </div>

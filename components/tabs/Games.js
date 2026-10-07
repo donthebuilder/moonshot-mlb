@@ -1155,7 +1155,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                     // same exception the Results.js/Pairs.js passes
                     // documented for their own uses of this gold), left
                     // literal on purpose.
-                    const col = posted ? C.green : g.lineup_confirmed ? '#FCD34D' : C.text3
+                    const col = posted ? C.green : g.lineup_confirmed ? C.amber : C.text3
                     return (
                       <span title={posted ? 'The league has posted tonight’s card — these are the real nine.'
                         : g.lineup_confirmed ? 'MOONSHOT saw a confirmed lineup on its last run; the league hasn’t posted an update since.'
@@ -1250,12 +1250,12 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                                   bar and the number label right below it. */}
                               {!p?.off_slate && (
                                 <div style={{ width: `${Math.min(100, hs)}%`, height: '100%', borderRadius: 3,
-                                  background: hs >= 60 ? C.orange : hs >= 45 ? '#FCD34D' : 'rgba(255,255,255,.2)' }} />
+                                  background: hs >= 60 ? C.orange : hs >= 45 ? C.amber : 'rgba(255,255,255,.2)' }} />
                               )}
                             </div>
                             <span title={p?.off_slate ? 'In the lineup, but not on MOONSHOT’s slate — no model score for him tonight.' : undefined}
                               style={{ fontFamily: NUM_FONT, fontSize: TYPE.body, fontWeight: 800, width: 22, textAlign: 'right', flexShrink: 0,
-                                color: p?.off_slate ? C.text3 : hs >= 60 ? C.orange : hs >= 45 ? '#FCD34D' : C.text3 }}>
+                                color: p?.off_slate ? C.text3 : hs >= 60 ? C.orange : hs >= 45 ? C.amber : C.text3 }}>
                               {p?.off_slate ? '–' : hs.toFixed(0)}</span>
                           </div>
                         )
@@ -1554,7 +1554,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                               )}
                               {/* the same established gold accent, no C token match -- left literal */}
                               {s.stars > 0 && (
-                                <span title={`${s.stars} weak lineup spot${s.stars > 1 ? 's' : ''} this order can reach`} style={{ color: '#FCD34D', fontWeight: 800 }}>★{s.stars}</span>
+                                <span title={`${s.stars} weak lineup spot${s.stars > 1 ? 's' : ''} this order can reach`} style={{ color: C.amber, fontWeight: 800 }}>★{s.stars}</span>
                               )}
                             </span>
                           </div>

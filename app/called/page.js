@@ -31,6 +31,7 @@ import { nflSlatePaths } from '../../lib/nfl/dataSource'
 import { BRAND, SPORT_KEYS, sportKey, appHref, playerHref, teamHref, isHiddenSport } from '../../lib/routes'
 import { ledgerAppHref, ledgerWord } from '../../lib/ledger/views'
 import PublicHeader from '../../components/header/PublicHeader'
+import HelpTip from '../../components/HelpTip'
 import { nhlCaptureFrom, readNhlRecords } from '../../lib/record/nhl'
 import { nbaCaptureFrom, readNbaRecords, NBA_EVENT_BAR } from '../../lib/record/nba'
 import { readMlbEvents } from '../../lib/record/mlb'
@@ -108,18 +109,18 @@ const SPORTS = {
   mlb: {
     key: 'mlb', label: 'MLB', product: 'MOONSHOT', event: 'home runs', eventOne: 'home run',
     verb: 'went deep', table: 'homer_feed', board: appHref('mlb'),
-    legend: '🤖 on the bot before the ball left  ·  ⚪ on the board, no call  ·  💥 not on the board',
-    frozen: 'Tags are frozen when the home run is first seen and never re-graded.',
+    legend: '🤖 called before the ball left  ·  ⚪ on the board, no call  ·  💥 not on the board',
+    frozen: <HelpTip label="How this is counted" text="Tags are frozen when the home run is first seen and never re-graded." />,
     empty: 'No home runs yet tonight',
     fills: 'This page fills in within a minute of each one.',
-    foot: "CALLED IT is MOONSHOT's home run record — every home run, graded in public. Data from MLB's public feeds.",
-    lead: 'called', onWhat: 'the bot', capture: eventCapture, window: DAYS, unit: ['night', 'nights'],
+    foot: "CALLED IT is MOONSHOT's home run record — every home run, graded in public. Data from MLB.",
+    lead: 'called', onWhat: 'CALLED', capture: eventCapture, window: DAYS, unit: ['night', 'nights'],
     tierRecord: true,   // the calls graded by tier, with their lock times (components/record/CalibrationTable.js)
     rule: CALL_RULES.mlb.rule,
-    cta: ['See who the bot likes tonight', 'The headline picks and the full board, in the app — no account needed'],
+    cta: ['See who MOONSHOT likes tonight', 'The headline picks and the full board. No account needed.'],
     callsHead: 'Tonight\u2019s calls', callsPill: 'posted before first pitch',
     eventsHead: 'Tonight\u2019s home runs',
-    close: ['Tomorrow\u2019s calls are already on the board.', 'The bot publishes its picks every morning. The 🤖 you see here is what it said before first pitch.', 'Save your watchlist, picks and alerts when your guys go deep'],
+    close: ['Tomorrow\u2019s calls are already on the board.', 'MOONSHOT posts its picks every morning. The 🤖 you see here is what it said before first pitch.', 'Save your watchlist, picks and alerts when your guys go deep'],
     playerHref: (id) => playerHref('mlb', id),
     meta: {
       // §36: search words first, product second (Batch 6).

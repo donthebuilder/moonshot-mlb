@@ -116,8 +116,8 @@ export default function PLSimulator() {
   if (state === 'error') return <Empty text="The profit record could not be loaded." />
 
   const CAT_COLORS = {
-    TOTAL: '#f4f4f5', HR: '#f97316', TOP: '#FCD34D', TOP15: '#a1a1aa',
-    HIT: '#a78bfa', HRR: '#22d3ee', CONTACT: '#4ade80',
+    TOTAL: '#f4f4f5', HR: C.orange, TOP: C.amber, TOP15: '#a1a1aa',
+    HIT: C.purple, HRR: C.cyan, CONTACT: C.green,
   }
 
   // SVG line chart, no library. X = day index, Y = cumulative units.
@@ -139,7 +139,7 @@ export default function PLSimulator() {
         background: 'rgba(167,139,250,.07)', border: '1px solid rgba(167,139,250,.22)',
         borderRadius: 8, padding: '6px 10px',
       }}>
-        Tracked in units — <b style={{ color: '#a78bfa' }}>🌙 moons, 1 moon = 1 unit</b> — never dollars.
+        Tracked in units — <b style={{ color: C.purple }}>🌙 moons, 1 moon = 1 unit</b> — never dollars.
         This site doesn&apos;t do bankrolls. The prices you enter below are <i>yours</i> and exist only to
         turn a record into a break-even test; Moonshot publishes no lines and never has.
       </div>
@@ -210,10 +210,10 @@ export default function PLSimulator() {
               <div style={{ fontSize: 8.5, fontWeight: 800, color: CAT_COLORS[k], letterSpacing: '.06em' }}>
                 {cfg[k].label.toUpperCase()} · {t.wins}/{t.bets}
               </div>
-              <div style={{ fontFamily: NUM_FONT, fontSize: 13, fontWeight: 900, color: t.pl >= 0 ? '#4ade80' : '#f87171' }}>
+              <div style={{ fontFamily: NUM_FONT, fontSize: 13, fontWeight: 900, color: t.pl >= 0 ? C.green : C.red }}>
                 {moons(t.pl)}
               </div>
-              <div style={{ fontSize: 8.5, color: good ? '#4ade80' : '#f87171', fontFamily: NUM_FONT }}
+              <div style={{ fontSize: 8.5, color: good ? C.green : C.red, fontFamily: NUM_FONT }}
                 title="Win rate needed to break even at your odds, vs the rate the archive actually produced">
                 need {v.needed.toFixed(0)}% · got {v.got.toFixed(0)}%
               </div>
@@ -228,7 +228,7 @@ export default function PLSimulator() {
           </div>
           <div style={{
             fontFamily: NUM_FONT, fontSize: 15, fontWeight: 900,
-            color: sim.totals.TOTAL.pl >= 0 ? '#4ade80' : '#f87171',
+            color: sim.totals.TOTAL.pl >= 0 ? C.green : C.red,
           }}>
             {moons(sim.totals.TOTAL.pl)}
           </div>
@@ -268,7 +268,7 @@ export default function PLSimulator() {
         </svg>
       </div>
       <div style={{ fontSize: 9.5, color: C.text3, marginTop: 6, lineHeight: 1.55 }}>
-        Every value on this panel is in <b style={{ color: '#a78bfa' }}>🌙 moons</b> — 1 moon = 1 unit,
+        Every value on this panel is in <b style={{ color: C.purple }}>🌙 moons</b> — 1 moon = 1 unit,
         and the vertical axis is cumulative moons. White is the combined book.{' '}
         <b style={{ color: C.text2 }}>need vs got</b> on each tile is the
         whole verdict: the break-even rate your prices demand against the rate the archive actually

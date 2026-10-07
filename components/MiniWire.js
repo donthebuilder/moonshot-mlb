@@ -510,7 +510,7 @@ export default function MiniWire({
             borderRadius: 999, padding: '3px 11px',
           }}>
             <span style={{ fontSize: 12 }}>{notif === 'on' ? '🔔' : '🔕'}</span>
-            <span style={{ fontSize: 9.5, fontWeight: 700, fontFamily: NUM_FONT, color: notif === 'on' ? '#4ade80' : C.text3 }}>
+            <span style={{ fontSize: 9.5, fontWeight: 700, fontFamily: NUM_FONT, color: notif === 'on' ? C.green : C.text3 }}>
               {notif === 'on' ? 'notifications on' : 'turn on notifications'}
             </span>
           </button>
@@ -544,7 +544,7 @@ export default function MiniWire({
           border: '1px solid rgba(74,222,128,.22)', borderRadius: 9,
           padding: '4px 12px', marginBottom: 10, textAlign: 'left',
         }}>
-          <span className="live-pulse" style={{ fontSize: 10.5, fontWeight: 900, color: '#4ade80' }}>📡 LIVE</span>
+          <span className="live-pulse" style={{ fontSize: 10.5, fontWeight: 900, color: C.green }}>📡 LIVE</span>
           {/* ── TWO LIVE WIRES, ONE ABOVE THE OTHER (2026-09-03) ────────────
               Donovan, on the Picks tab: "you see how it shows two live wires,
               I don't like that."
@@ -564,7 +564,7 @@ export default function MiniWire({
                 they go DOWN as games finish -- a cleared count and a homer count
                 that fall during the night read as data loss to anyone watching.
                 The behaviour is right; it was never labelled. */}
-            {picks.length > 0 && <> · picks <b style={{ color: cleared ? '#4ade80' : C.text2 }}>{cleared}/{picks.length}</b> cleared</>}
+            {picks.length > 0 && <> · picks <b style={{ color: cleared ? C.green : C.text2 }}>{cleared}/{picks.length}</b> cleared</>}
             {hr > 0 && <> · <b style={{ color: C.orange }}>{hr} HR</b></>}
             {picks.length > 0 && (
               <span
@@ -573,7 +573,7 @@ export default function MiniWire({
               > · in games still live</span>
             )}
             {narrow && !wireOpen && toasts.length > 0 && (
-              <> · <b style={{ color: '#4ade80' }}>{toasts.length} new</b></>
+              <> · <b style={{ color: C.green }}>{toasts.length} new</b></>
             )}
           </span>
           )}

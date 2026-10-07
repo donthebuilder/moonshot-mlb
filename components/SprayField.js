@@ -1287,7 +1287,7 @@ export default function SprayField({
             k, label, n: k === 'ALL' ? inRange.length : inRange.filter((h) => h.side === k).length,
             title: k === 'ALL' ? 'Every direction' : `Only balls he hit to the ${k === 'oppo' ? 'opposite field' : k} side. Direction only — where it went, not how hard.`,
           }))} />
-        <ChipGroup label="Distance" value={deepPick} onChange={setDeepPick} color="#c084fc"
+        <ChipGroup label="Distance" value={deepPick} onChange={setDeepPick} color={C.violet}
           options={[['ALL', 'All'], ['375', '375+ ft'], ['400', '400+ ft'], ['pullair', 'Pull-air']].map(([k, label]) => ({
             k, label,
             n: k === 'ALL' ? inRange.length

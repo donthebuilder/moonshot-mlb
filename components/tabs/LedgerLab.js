@@ -413,7 +413,7 @@ export default function LedgerLab({
                   four same-first-name pairs out of a thousand possible pairs
                   is a very different sentence from four out of forty, and the
                   numerator alone would read as a finding. */}
-              <div style={panel('#c084fc')}>
+              <div style={panel(C.violet)}>
                 <Head icon="🪞" title="The matching game"
                       note={`${digest.echoes.length} echo${digest.echoes.length === 1 ? '' : 'es'} out of ${digest.pairs.toLocaleString()} pairs that could have been one`} />
                 {digest.echoKinds.length ? (
@@ -421,7 +421,7 @@ export default function LedgerLab({
                     {digest.echoKinds.map((k) => (
                       <div key={k.kind} style={{ marginBottom: 9 }}>
                         <div style={{ fontSize: 11.5, color: C.text2, lineHeight: 1.6 }}>
-                          <Num color="#c084fc">{k.n}</Num> × <b style={{ color: C.text }}>{k.kind}</b>
+                          <Num color={C.violet}>{k.n}</Num> × <b style={{ color: C.text }}>{k.kind}</b>
                           <span style={{ color: C.text3 }}> · on {k.nights} night{k.nights === 1 ? '' : 's'}</span>
                         </div>
                         <div style={{ fontSize: 11, color: C.text3, lineHeight: 1.75, marginTop: 2 }}>
@@ -454,7 +454,7 @@ export default function LedgerLab({
                         {digest.twinKinds.map((k) => (
                           <div key={k.kind} style={{ marginBottom: 8 }}>
                             <div style={{ fontSize: 11.5, color: C.text2, lineHeight: 1.6 }}>
-                              <Num color="#c084fc">{k.n}</Num> × <b style={{ color: C.text }}>{k.kind}</b>
+                              <Num color={C.violet}>{k.n}</Num> × <b style={{ color: C.text }}>{k.kind}</b>
                               <span style={{ color: C.text3 }}> · 1 in {k.of} · on {k.nights} night{k.nights === 1 ? '' : 's'}</span>
                             </div>
                             <div style={{ fontSize: 11, color: C.text3, lineHeight: 1.75, marginTop: 2 }}>
@@ -606,12 +606,12 @@ export default function LedgerLab({
                   about baseball. Tap a bar to search that axis rather than to
                   be told what it means. */}
               {digest.numbered > 0 && (
-                <div style={panel('#c084fc')}>
+                <div style={panel(C.violet)}>
                   <Head icon="🔢" title="The numbers"
                         note={`${digest.numbered} of ${digest.bats} homers have a shirt and a birthday on file`} />
                   <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
                     {[
-                      ['LIFE PATH', digest.lifePaths, 'lifePath', '#c084fc'],
+                      ['LIFE PATH', digest.lifePaths, 'lifePath', C.violet],
                       ['DAY NUMBER', digest.dayRoots, 'dayRoot', C.cyan],
                       ['SHIRT ROOT', digest.jerseyRoots, 'jerseyRoot', C.orange],
                     ].map(([label, board, ax, col]) => (
@@ -717,7 +717,7 @@ export default function LedgerLab({
                         }}>{r.lead.k} NIGHT · {r.lead.n}/{r.men}</span>
                       )}
                       {r.echoes > 0 && (
-                        <span style={{ fontSize: 9.5, color: '#c084fc', fontFamily: NUM_FONT }}>
+                        <span style={{ fontSize: 9.5, color: C.violet, fontFamily: NUM_FONT }}>
                           {r.echoes} echo{r.echoes === 1 ? '' : 'es'}
                         </span>
                       )}

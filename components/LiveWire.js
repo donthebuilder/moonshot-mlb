@@ -21,7 +21,7 @@ import { requestLiveRefresh, useLiveRefresh } from '../lib/liveRefresh'
 // Refresh is a button, plus an opt-in 60s auto while the tab is visible.
 // Nothing polls in the background; nothing here feeds a score.
 
-const ROLE_COLOR = { TOP: '#FCD34D', HR: '#FB923C', HIT: '#60A5FA', HRR: '#22d3ee', CONTACT: '#A78BFA' }
+const ROLE_COLOR = { TOP: C.amber, HR: '#FB923C', HIT: C.blue, HRR: C.cyan, CONTACT: C.purple }
 // Fixed, so a category is always in the same place on the board.
 const GROUP_ORDER = ['TOP', 'HR', 'HIT', 'HRR', 'CONTACT']
 const primaryRole = (p) => String(p?.game_pick_role || '').split('/')[0].trim().toUpperCase()
@@ -241,10 +241,10 @@ export default function LiveWire({ players = [], results, watchIds, mode = 'toda
   //
   // Five states now, and only ONE of them is a loss.
   const rowState = (cleared, line) => {
-    if (cleared === true) return { mark: '✓', color: '#4ade80', why: 'Cleared its own bar.' }
+    if (cleared === true) return { mark: '✓', color: C.green, why: 'Cleared its own bar.' }
     if (line.postponed) return { mark: '⊘', color: '#a1a1aa', why: `Game postponed (${line.detail}) — void, not a loss. No at-bats will be played.` }
-    if (line.suspended) return { mark: '⏸', color: '#60A5FA', why: `Game suspended (${line.detail}) — it resumes later, so this pick is still open.` }
-    if (line.delayed) return { mark: '⏸', color: '#60A5FA', why: `Game delayed (${line.detail}) — play is stopped, nothing is decided.` }
+    if (line.suspended) return { mark: '⏸', color: C.blue, why: `Game suspended (${line.detail}) — it resumes later, so this pick is still open.` }
+    if (line.delayed) return { mark: '⏸', color: C.blue, why: `Game delayed (${line.detail}) — play is stopped, nothing is decided.` }
     if (!line.settled) return { mark: '…', color: C.text3, why: 'Still working — his game is live.' }
     if (line.ab === 0) return { mark: '⊘', color: '#a1a1aa', why: 'Never got an at-bat — scratched or never came up. Void, not a miss: the archive doesn’t count these either.' }
     return { mark: '✗', color: 'rgba(248,113,113,.85)', why: 'Game over without clearing its bar. This one counts against the model.' }
@@ -284,10 +284,10 @@ export default function LiveWire({ players = [], results, watchIds, mode = 'toda
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', cursor: 'pointer' }}
         onClick={() => setOpen((v) => !v)}>
-        <span style={{ fontSize: 12, fontWeight: 900, color: '#4ade80', display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span style={{ fontSize: 12, fontWeight: 900, color: C.green, display: 'flex', alignItems: 'center', gap: 6 }}>
           {live.length > 0 && (
             <span style={{
-              width: 7, height: 7, borderRadius: '50%', background: '#4ade80',
+              width: 7, height: 7, borderRadius: '50%', background: C.green,
               boxShadow: '0 0 8px #4ade80', animation: 'wirePulse 1.6s ease-in-out infinite',
             }} />
           )}
@@ -296,8 +296,8 @@ export default function LiveWire({ players = [], results, watchIds, mode = 'toda
         <style>{'@keyframes wirePulse{0%,100%{opacity:1}50%{opacity:.35}}'}</style>
         <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
           {live.length ? `${live.length} live` : 'slate final'}
-          {graded.length > 0 && <> · <b style={{ color: '#4ade80' }}>{clearedCount}</b>/{graded.length} cleared</>}
-          {stillWorking.length > 0 && <> · <b style={{ color: '#FCD34D' }}>{stillWorking.length}</b> still hunting</>}
+          {graded.length > 0 && <> · <b style={{ color: C.green }}>{clearedCount}</b>/{graded.length} cleared</>}
+          {stillWorking.length > 0 && <> · <b style={{ color: C.amber }}>{stillWorking.length}</b> still hunting</>}
           {homers.length > 0 && <> · {homers.reduce((a, h) => a + h.l.hr, 0)} HR</>}
         </span>
         {/* 🥎 THE NIGHT'S BATS, with a yardstick. A raw hit total is a number;
@@ -310,7 +310,7 @@ export default function LiveWire({ players = [], results, watchIds, mode = 'toda
           const exp = rates ? rates.hitsPerGame * t.started : null
           const done = t.final === t.started
           const pct = exp ? (100 * t.hits) / exp : null
-          const col = pct == null ? C.text3 : pct >= 112 ? C.orange : pct <= 88 ? '#60a5fa' : C.text2
+          const col = pct == null ? C.text3 : pct >= 112 ? C.orange : pct <= 88 ? C.blue : C.text2
           return (
             <span
               title={rates
@@ -334,8 +334,8 @@ export default function LiveWire({ players = [], results, watchIds, mode = 'toda
         <span style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }} onClick={(e) => e.stopPropagation()}>
           <button onClick={() => setAuto((v) => !v)} title="Re-pull every 60s while this tab is visible" style={{
             fontSize: 9, fontWeight: 700, fontFamily: NUM_FONT, cursor: 'pointer', borderRadius: 6, padding: '2px 8px',
-            border: `1px solid ${auto ? '#4ade80' : C.border}`, background: auto ? 'rgba(74,222,128,.12)' : 'transparent',
-            color: auto ? '#4ade80' : C.text3,
+            border: `1px solid ${auto ? C.green : C.border}`, background: auto ? 'rgba(74,222,128,.12)' : 'transparent',
+            color: auto ? C.green : C.text3,
           }}>{auto ? '● auto 60s' : '○ auto'}</button>
           <button onClick={() => requestLiveRefresh('tap')} disabled={busy} style={{
             fontSize: 9, fontWeight: 700, fontFamily: NUM_FONT, cursor: 'pointer', borderRadius: 6, padding: '2px 8px',
@@ -388,7 +388,7 @@ export default function LiveWire({ players = [], results, watchIds, mode = 'toda
                     <span style={{ fontSize: 11.5, fontWeight: 800, color: C.text }}>{nameOf(ab2.p)}</span>
                     {ab2.role && <span style={{ fontSize: 8.5, fontWeight: 900, fontFamily: NUM_FONT, color: ROLE_COLOR[ab2.role] || C.orange }}>🤖 {ab2.role}</span>}
                     {ab2.watched && <span style={{ fontSize: 9 }}>★</span>}
-                    {ab2.need && <span style={{ fontSize: 9, color: '#FCD34D', fontFamily: NUM_FONT }}>{ab2.need}</span>}
+                    {ab2.need && <span style={{ fontSize: 9, color: C.amber, fontFamily: NUM_FONT }}>{ab2.need}</span>}
                     <span style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}>{ab2.ctx}</span>
                   </button>
                 ))}
@@ -428,7 +428,7 @@ export default function LiveWire({ players = [], results, watchIds, mode = 'toda
                 const isStopped = g.delayed || g.postponed || g.suspended
                 const isLive = !isStopped && g.state === 'Live'
                 const half = /top/i.test(g.half) ? '▲' : /bot/i.test(g.half) ? '▼' : ''
-                const sCol = g.postponed ? '#a1a1aa' : isStopped ? '#60A5FA' : isLive ? '#4ade80' : C.text3
+                const sCol = g.postponed ? '#a1a1aa' : isStopped ? C.blue : isLive ? C.green : C.text3
                 return (
                   <div key={g.pk}
                     title={isStopped
@@ -554,7 +554,7 @@ export default function LiveWire({ players = [], results, watchIds, mode = 'toda
                         pick isn't moving belongs beside the pick, not only in
                         the alert strip above it. */}
                     {(line.delayed || line.suspended || line.postponed) && (
-                      <span style={{ fontSize: 8.5, fontWeight: 900, fontFamily: NUM_FONT, color: line.postponed ? '#a1a1aa' : '#60A5FA', flexShrink: 0 }}>
+                      <span style={{ fontSize: 8.5, fontWeight: 900, fontFamily: NUM_FONT, color: line.postponed ? '#a1a1aa' : C.blue, flexShrink: 0 }}>
                         {line.postponed ? 'PPD' : line.suspended ? 'SUSP' : 'DELAY'}
                       </span>
                     )}
@@ -563,10 +563,10 @@ export default function LiveWire({ players = [], results, watchIds, mode = 'toda
                     {cleared === false && line.state === 'Live' && !line.delayed && needOf(role, line) && (
                       <span title={`${needOf(role, line)} — ${g?.inning ? `${g.inning}th inning` : 'game live'}`} style={{
                         fontSize: 8.5, fontWeight: 800, fontFamily: NUM_FONT, flexShrink: 0,
-                        color: (g?.inning ?? 0) >= 7 ? '#f87171' : (g?.inning ?? 0) >= 5 ? '#FCD34D' : C.text3,
+                        color: (g?.inning ?? 0) >= 7 ? C.red : (g?.inning ?? 0) >= 5 ? C.amber : C.text3,
                       }}>{needOf(role, line)}{(g?.inning ?? 0) >= 7 ? ` · ${g.inning}th` : ''}</span>
                     )}
-                    {prog && <span title="Live progress toward this pick's own bar" style={{ fontSize: 8.5, fontWeight: 900, fontFamily: NUM_FONT, color: prog.startsWith('1') ? '#FCD34D' : C.text3, flexShrink: 0 }}>{prog}</span>}
+                    {prog && <span title="Live progress toward this pick's own bar" style={{ fontSize: 8.5, fontWeight: 900, fontFamily: NUM_FONT, color: prog.startsWith('1') ? C.amber : C.text3, flexShrink: 0 }}>{prog}</span>}
                     {/* 💸 what it paid. On a live board the price is the one
                         thing that can't change under you, so it belongs beside
                         the grade rather than only pre-game. */}
@@ -592,9 +592,9 @@ export default function LiveWire({ players = [], results, watchIds, mode = 'toda
 
           <div style={{ fontSize: 8.5, color: C.text3, marginTop: 7, lineHeight: 1.5 }}>
             The model grading itself in public: each pick against ITS OWN bar (HR homers, HIT a hit,
-            HRR 2+ H+R+RBI, CONTACT 2+ TB). <b style={{ color: '#4ade80' }}>✓</b> cleared ·{' '}
+            HRR 2+ H+R+RBI, CONTACT 2+ TB). <b style={{ color: C.green }}>✓</b> cleared ·{' '}
             <b style={{ color: C.text3 }}>…</b> still working ·{' '}
-            <b style={{ color: '#60A5FA' }}>⏸</b> his game is stopped, nothing decided ·{' '}
+            <b style={{ color: C.blue }}>⏸</b> his game is stopped, nothing decided ·{' '}
             <b style={{ color: '#a1a1aa' }}>⊘</b> void — postponed, or he never got an at-bat ·{' '}
             <b style={{ color: 'rgba(248,113,113,.85)' }}>✗</b> game over without it, and this one counts
             against the model. A pick is only ✗ once his game is genuinely done. 💥 chips

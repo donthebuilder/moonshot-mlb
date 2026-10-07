@@ -138,11 +138,11 @@ export const CATEGORIES = [
   // site's Four and the bot's printed FOUR could disagree, and people noticed.
   // The rule then was "one voice per surface". There is one voice everywhere
   // now; see lib/scoring.js for why the adjustment came out.
-  { role: 'HR',      label: 'HR',      icon: null, color: '#f97316',
+  { role: 'HR',      label: 'HR',      icon: null, color: C.orange,
     blurb: 'Going deep',     score: hrScore },
-  { role: 'HIT',     label: 'HIT',     icon: null, color: '#a78bfa',
+  { role: 'HIT',     label: 'HIT',     icon: null, color: C.purple,
     blurb: 'Base-hit floor', score: hitScore },
-  { role: 'HRR',     label: 'HRR',     icon: null, color: '#22d3ee',
+  { role: 'HRR',     label: 'HRR',     icon: null, color: C.cyan,
     blurb: 'Runs + RBI',     score: prodScore },
   // ── NO LONE EMOJI (2026-08-29) ────────────────────────────────────────
   // Donovan: "the four, put the emojis associated with the categories —
@@ -152,7 +152,7 @@ export const CATEGORIES = [
   // category already has its own colour, its own label and its own blurb,
   // which is what tells them apart. The render below skips a null icon, so
   // nothing else had to change.
-  { role: 'CONTACT', label: 'CONTACT', icon: null, color: '#4ade80',
+  { role: 'CONTACT', label: 'CONTACT', icon: null, color: C.green,
     blurb: 'Total bases',    score: tbScore },
 ]
 

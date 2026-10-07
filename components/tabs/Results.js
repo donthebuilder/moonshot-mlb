@@ -101,8 +101,8 @@ const usePick = () => { const onPick = useContext(PickCtx); return onPick ? (row
 // Called, not frozen: C is mutated after mount (applyTheme, lib/theme.js), so a
 // module-level literal keeps the palette it was imported with. See #23.
 const TAG_COLORS = () => ({
-  '🏆': '#f97316', '🧨': '#f97316', '🔥': '#f97316',
-  '🏁': '#22d3ee', '💠': '#38bdf8', '⚾': C.orange, '⭐': '#facc15',
+  '🏆': C.orange, '🧨': C.orange, '🔥': C.orange,
+  '🏁': C.cyan, '💠': '#38bdf8', '⚾': C.orange, '⭐': '#facc15',
 })
 function tagColor(tag) {
   for (const [emoji, col] of Object.entries(TAG_COLORS())) {
@@ -225,7 +225,7 @@ function TrackingLegend({ slots }) {
   // a real verdict (a trap is the bad/down side), hence verdictInk(false).
   const items = [
     { emoji: '⭐', label: 'Weak pitcher spot', count: starCount, color: C.yellow },
-    { emoji: '🧩', label: 'Aligned signals',   count: puzzleCount, color: '#a78bfa' },
+    { emoji: '🧩', label: 'Aligned signals',   count: puzzleCount, color: C.purple },
     { emoji: '🎯', label: 'Pitch type match',   count: matchCount, color: '#38bdf8' },
     { emoji: '👻', label: 'Hidden HR value',    count: hiddenCount, color: '#71717a' },
     { emoji: '⚠️', label: 'Trap flag',          count: trapCount, color: verdictInk(false).color },
@@ -521,7 +521,7 @@ function PitcherWeaknessDigest({ slots, players = [] }) {
           both stay literal. */}
       <Group icon="🎯" label="CALLED IT" note="flagged weak, and he gave it up" list={buckets.called} accent={verdictInk(true).color} />
       <Group icon="💥" label="BURNED US UNFLAGGED" note="the model didn't flag him — he homered anyway" list={buckets.missedArm} accent={verdictInk(false).color} />
-      <Group icon="🧱" label="FLAG DIDN'T CASH" note="targeted as weak, held anyway" list={buckets.noCash} accent="#FCD34D" />
+      <Group icon="🧱" label="FLAG DIDN'T CASH" note="targeted as weak, held anyway" list={buckets.noCash} accent={C.amber} />
       <Group icon="😴" label="QUIET, AS EXPECTED" note="unflagged, no damage — the biggest group and the least news" list={buckets.quiet} accent="#3f3f46" collapsed />
       <div style={{ height: 8 }} />
     </Card>
@@ -643,7 +643,7 @@ function PairsResults({ pairPoolResults }) {
 
 function HRTierRecord({ report }) {
   const order = ['hr_overlay', 'power_overlay', 'premium_power']
-  const colors = { hr_overlay: '#4ade80', power_overlay: '#FCD34D', premium_power: '#f97316' }
+  const colors = { hr_overlay: C.green, power_overlay: C.amber, premium_power: C.orange }
   const pct = (value) => Number.isFinite(Number(value)) ? `${(Number(value) * 100).toFixed(1)}%` : 'collecting'
   const record = (stats) => stats?.n ? `${stats.hrs}/${stats.n} · ${pct(stats.hr_rate)}` : '0 tracked · collecting'
   const tiers = report?.tiers || {}

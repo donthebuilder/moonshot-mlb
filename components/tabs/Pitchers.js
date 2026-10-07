@@ -210,10 +210,10 @@ function penVerdict(r) {
   const strong = r.line?.quality === 'strong'
   const gassed = r.tier?.key === 'gassed'
   const worked = r.tier?.key === 'worked'
-  if (weak && gassed) return { label: 'Weak pen, gassed', col: '#f87171' }
+  if (weak && gassed) return { label: 'Weak pen, gassed', col: C.red }
   if (weak && worked) return { label: 'Weak pen, worked', col: C.orange }
   if (weak) return { label: 'Weak pen', col: C.orange }
-  if (gassed) return { label: 'Fresh grade, gassed arms', col: '#FCD34D' }
+  if (gassed) return { label: 'Fresh grade, gassed arms', col: C.amber }
   if (strong) return { label: 'Strong pen', col: C.text3 }
   return { label: 'Notable', col: C.text3 }
 }
@@ -766,7 +766,7 @@ function PitcherCard({ pitcher, isOpen, onToggle, onPlayerClick, onOpenPitcher }
   // THREE bands, so this legitimately needs a cut the two-tone line does not
   // have: TARGET is "worse than merely leaky" and keeps its own 1.5. LEAKY and
   // WALL were 1.2 and 0.85 by eye and now agree with the rest of the site.
-  const band = (hr9 >= 1.5 || pitcher.weak_spot_count >= 3) ? { icon: '🎯', word: 'TARGET', col: '#f97316' }
+  const band = (hr9 >= 1.5 || pitcher.weak_spot_count >= 3) ? { icon: '🎯', word: 'TARGET', col: C.orange }
     : (isLeaky(hr9) || pitcher.weak_spot_count >= 1) ? { icon: '🔥', word: 'LEAKY', col: '#fb923c' }
     : hr9 > 0 && isWall(hr9) ? { icon: '🔒', word: 'WALL', col: '#38bdf8' }
     : { icon: '', word: '', col: '' }
@@ -1160,7 +1160,7 @@ export default function Pitchers({ players, onPlayerClick }) {
                 {!bats.length && <span style={{ fontSize: TYPE.micro, color: C.text3 }}>no opposing bats on the slate yet</span>}
               </div>
               {n(p.weak_spot_count, 0) > 0 && (
-                <div style={{ fontSize: TYPE.micro, color: '#FCD34D', fontFamily: NUM_FONT, marginTop: 4 }}
+                <div style={{ fontSize: TYPE.micro, color: C.amber, fontFamily: NUM_FONT, marginTop: 4 }}
                   title="Lineup positions this arm has historically been beaten in, that tonight's order actually fills">
                   ★ {p.weak_spot_count} weak lineup spot{p.weak_spot_count > 1 ? 's' : ''} in tonight's order
                 </div>
@@ -1213,10 +1213,10 @@ export default function Pitchers({ players, onPlayerClick }) {
                 border: '1px solid rgba(96,165,250,.3)', borderRadius: 11, padding: '7px 11px',
               }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, minWidth: 0 }}>
-                  <span style={{ fontSize: TYPE.label, fontWeight: 900, color: '#60a5fa', letterSpacing: '.08em', fontFamily: NUM_FONT, flexShrink: 0 }}>🧊 STAY AWAY</span>
+                  <span style={{ fontSize: TYPE.label, fontWeight: 900, color: C.blue, letterSpacing: '.08em', fontFamily: NUM_FONT, flexShrink: 0 }}>🧊 STAY AWAY</span>
                   <span
                     title={leak ? `Leak score ${leak.leak}/100 against tonight's starters — the same scale the attack cards use.` : 'Season and recent-form blend.'}
-                    style={{ marginLeft: 'auto', fontSize: TYPE.body, fontWeight: 900, color: '#60a5fa', fontFamily: NUM_FONT, cursor: 'default' }}>
+                    style={{ marginLeft: 'auto', fontSize: TYPE.body, fontWeight: 900, color: C.blue, fontFamily: NUM_FONT, cursor: 'default' }}>
                     {leak ? leak.leak : ov.toFixed(0)}
                   </span>
                 </div>
@@ -1232,7 +1232,7 @@ export default function Pitchers({ players, onPlayerClick }) {
                 {/* Folded, same as the attack cards — stats are in the line
                     above, the sentences one tap behind. */}
                 <details style={{ marginTop: 3 }}>
-                  <summary style={{ cursor: 'pointer', fontSize: TYPE.micro, color: '#60a5fa', listStyle: 'revert' }}>the read</summary>
+                  <summary style={{ cursor: 'pointer', fontSize: TYPE.micro, color: C.blue, listStyle: 'revert' }}>the read</summary>
                   <Clauses lead="Lately: "
                     parts={armFormParts(rawOf(p), { luckPointer: luckPts.get(p.pitcher_name) })}
                     size={9} style={{ marginTop: 3 }} />

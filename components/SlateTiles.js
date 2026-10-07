@@ -29,8 +29,8 @@ function Tile({ label, value, delta, tone: toneKey = 'flat', dot, color, wide = 
   // Explicit colour wins. Each tile owning a hue makes the strip readable at a
   // glance and photographs better than one orange row — Games blue, Weak gold,
   // Settled green, Best game orange.
-  const col = color || (toneKey === 'up' ? '#4ade80'
-    : toneKey === 'down' ? '#f87171'
+  const col = color || (toneKey === 'up' ? C.green
+    : toneKey === 'down' ? C.red
     : toneKey === 'accent' ? C.orange
     : C.text3)
 
@@ -94,12 +94,12 @@ function TileSet({ stats, projected, capture, staleSlate }) {
           dot
         />
       )}
-      <Tile label="★ Weak" value={stats.weak} color="#FCD34D" dot />
+      <Tile label="★ Weak" value={stats.weak} color={C.amber} dot />
       <Tile
         label={staleSlate ? 'Previous lineups' : 'Lineups ✓'}
         value={`${stats.confirmedTeams}/${stats.lineupTeams}`}
         delta="teams"
-        color={staleSlate ? C.text3 : '#4ade80'}
+        color={staleSlate ? C.text3 : C.green}
         wide={staleSlate}
         dot
       />

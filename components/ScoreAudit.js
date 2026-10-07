@@ -110,7 +110,7 @@ export default function ScoreAudit({ slots = [], players = [] }) {
             {r.state === 'missing' && (
               <span style={{
                 fontSize: 9, fontWeight: 800, padding: '1px 6px', borderRadius: 4,
-                background: '#f8717122', color: '#f87171', fontFamily: NUM_FONT,
+                background: '#f8717122', color: C.red, fontFamily: NUM_FONT,
               }}>NOT AUDITABLE</span>
             )}
             {r.state === 'thin' && (
@@ -123,7 +123,7 @@ export default function ScoreAudit({ slots = [], players = [] }) {
                 fontSize: 9, fontWeight: 800, padding: '1px 6px', borderRadius: 4,
                 fontFamily: NUM_FONT,
                 background: r.works ? `${C.orange}22` : '#f8717122',
-                color: r.works ? C.orange : '#f87171',
+                color: r.works ? C.orange : C.red,
               }}>{r.works ? 'SEPARATES' : 'NO SIGNAL'} · {r.spread >= 0 ? '+' : ''}{r.spread.toFixed(1)} pts top vs bottom</span>
             )}
           </div>

@@ -449,7 +449,7 @@ export default function MatchupPitcher({ player, slateMode }) {
   const againstCount = reasons.length - forCount
   const verdict = forCount >= 2 && forCount > againstCount ? { label: 'Attackable', col: C.orange }
     : againstCount >= 2 && againstCount > forCount ? { label: 'Tough arm', col: C.text2 }
-    : { label: 'Mixed', col: '#FCD34D' }
+    : { label: 'Mixed', col: C.amber }
 
   return (
     <div>
@@ -779,7 +779,7 @@ export default function MatchupPitcher({ player, slateMode }) {
         pitcher percentiles and a fake one would be worse than no bar. Each tile&apos;s tooltip states its
         range. Raw season counts (375+ / 400+ allowed) and categorical fields (weak side) get no bar at
         all rather than one drawn against an invented ceiling. And the whole
-        <b style={{ color: '#60A5FA' }}> His weapons</b> group is deliberately plain: K%, SwStr%, Whiff%,
+        <b style={{ color: C.blue }}> His weapons</b> group is deliberately plain: K%, SwStr%, Whiff%,
         Putaway% and 1st-pitch K% are the pitcher&apos;s strengths, so shading them on a bright-is-good
         ramp would invert the meaning of every other tile on the page.
         {n(player.pitcher_babip, 0) > 0 && n(player.pitcher_babip, 0) < 0.270 && (

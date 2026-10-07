@@ -43,10 +43,10 @@ const chip = (on) => ({
 
 function statusLine(g) {
   if (g.postponed) return { text: g.detail || 'Postponed', tone: '#a1a1aa' }
-  if (g.suspended) return { text: g.detail || 'Suspended', tone: '#60A5FA' }
+  if (g.suspended) return { text: g.detail || 'Suspended', tone: C.blue }
   if (g.live) {
     const half = /top/i.test(g.inningState) ? '▲' : /bot/i.test(g.inningState) ? '▼' : ''
-    return { text: `${half}${g.inning ?? ''} · ${g.outs} out`, tone: '#4ade80' }
+    return { text: `${half}${g.inning ?? ''} · ${g.outs} out`, tone: C.green }
   }
   if (g.final) return { text: 'Final', tone: C.text3 }
   const t = g.startTime ? localTime(g.startTime, { zone: false }) : ''
@@ -76,8 +76,8 @@ function StakeStrip({ stake, compact = false }) {
   if (!stake || (!stake.picks.length && !stake.watched.length)) return null
   const bits = []
   if (stake.picks.length) bits.push({ k: 'p', txt: `${stake.picks.length} pick${stake.picks.length === 1 ? '' : 's'}`, tone: C.orange })
-  if (stake.hr) bits.push({ k: 'hr', txt: `${stake.hr} HR`, tone: '#4ade80' })
-  if (stake.graded) bits.push({ k: 'c', txt: `${stake.cleared}/${stake.graded} cleared`, tone: stake.cleared ? '#4ade80' : C.text3 })
+  if (stake.hr) bits.push({ k: 'hr', txt: `${stake.hr} HR`, tone: C.green })
+  if (stake.graded) bits.push({ k: 'c', txt: `${stake.cleared}/${stake.graded} cleared`, tone: stake.cleared ? C.green : C.text3 })
   if (stake.watched.length) bits.push({ k: 'w', txt: `★ ${stake.watched.length}`, tone: C.yellow })
   const names = [...stake.watched, ...stake.picks].slice(0, compact ? 2 : 3)
   return (

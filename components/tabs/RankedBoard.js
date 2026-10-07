@@ -517,7 +517,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
                 return (
                   <span style={{ opacity: thin ? 0.72 : 1 }}>
                     {rate.toFixed(2)}
-                    {thin && <b style={{ color: '#FCD34D', fontWeight: 900 }}> ⚠</b>}
+                    {thin && <b style={{ color: C.amber, fontWeight: 900 }}> ⚠</b>}
                   </span>
                 )
               } },

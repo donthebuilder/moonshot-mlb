@@ -3,10 +3,11 @@ import { useMemo, useState, useEffect, useRef } from 'react'
 import { C, NUM_FONT, TYPE } from '../../lib/theme'
 import { n, clean, nameOf, teamOf, oppOf } from '../../lib/player'
 import { PanelTitle, Empty } from '../ui'
+import HelpTip from '../HelpTip'
 import DenseTable from '../DenseTable'
 import MlbTeamMark from '../MlbTeamMark'
 import SharedLeaderTile from '../LeaderTile'
-import { LeadersIntro, LeadersFilterBar, LeadersLead, LeagueTopCard, LeadersSection } from '../leaders/LeadersParts'
+import { LeadersFilterBar, LeadersLead, LeagueTopCard, LeadersSection } from '../leaders/LeadersParts'
 import {
   leagueLeaders, LEADER_CATS,
   gradedHistory, HIST_FIRST, HIST_MAX, HIST_MIN_PICKS, HIST_MIN_NIGHTS,
@@ -353,22 +354,15 @@ export default function Leaders({ players = [], onPlayerClick, onNavigate }) {
 
   const historyStrip = (
     <div ref={histRef} style={{
-      background: `linear-gradient(155deg, ${C.bg2}, rgba(96,165,250,.04))`,
+      background: C.bg2,
       border: `1px solid ${C.border}`, borderRadius: 11, padding: '9px 12px', marginBottom: 12,
     }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
         <span style={{ fontSize: TYPE.title, fontWeight: 900 }}>🗓️ Historical — MOONSHOT&apos;s own graded nights</span>
-        <span style={{ fontSize: TYPE.body, color: C.text3 }}>
-          every other board on this page is tonight; this one is the archive
-        </span>
       </div>
       <div style={{ fontSize: TYPE.body, color: C.text3, lineHeight: 1.6, margin: '4px 0 7px', maxWidth: 780 }}>
-        After each slate MOONSHOT publishes a graded file — who it designated, what each designation needed, and
-        what the hitter actually did. These boards read those files back and rank them over TIME instead of over
-        tonight. <b style={{ color: C.text2 }}>Everybody in here was already a MOONSHOT pick</b>, so a rate below says
-        how a hitter does once MOONSHOT has liked him; it is not a league rate and can&apos;t be compared to one.
-        Nights where a pick never batted are <b style={{ color: C.text2 }}>void</b> — counted, shown, and kept out
-        of every denominator, because a scratch is not a loss.
+        Past graded nights, ranked over time instead of tonight.
+        <HelpTip label="About the archive" text="Everybody in these boards was already a MOONSHOT pick, so a rate says how a hitter does once MOONSHOT has liked him; it is not a league rate and can't be compared to one. Nights where a pick never batted are void: counted, shown, and kept out of every denominator, because a scratch is not a loss." />
       </div>
 
       {histState === 'idle' && (
@@ -377,8 +371,7 @@ export default function Leaders({ players = [], onPlayerClick, onNavigate }) {
             Load the last {HIST_FIRST} graded nights
           </button>
           <span style={{ fontSize: TYPE.body, color: C.text3 }}>
-            {HIST_FIRST} files, one per night, roughly a megabyte each — so they load when you reach this section
-            rather than every time this tab opens. Extends to {HIST_MAX} once they&apos;re in.
+            Loads when you ask, about a megabyte a night. Extends to {HIST_MAX} once they&apos;re in.
           </span>
         </div>
       )}
@@ -413,14 +406,12 @@ export default function Leaders({ players = [], onPlayerClick, onNavigate }) {
             {' '}found in the last {w.tried} dates, <span style={{ fontFamily: NUM_FONT }}>{w.from}</span> to{' '}
             <span style={{ fontFamily: NUM_FONT }}>{w.to}</span>
             {w.missing > 0 && (
-              <> — {w.missing} {w.missing === 1 ? 'date' : 'dates'} in that stretch published no file, which is a
-                gap in the archive and not a zero for anybody</>
+              <> — {w.missing} {w.missing === 1 ? 'date' : 'dates'} missing <HelpTip label="Missing dates" text="A date with no graded record is a gap in the archive, not a zero for anybody. A hitter with no line on a night simply isn't in that night's numbers." /></>
             )}. <span style={{ fontFamily: NUM_FONT }}>{t.players}</span> hitters appear across{' '}
             <span style={{ fontFamily: NUM_FONT }}>{t.picks}</span> designations:{' '}
-            <b style={{ fontFamily: NUM_FONT, color: C.green }}>{t.cleared}/{t.judged}</b> cleared their own bar,{' '}
+            <b style={{ fontFamily: NUM_FONT }}>{t.cleared}/{t.judged}</b> cleared their own bar,{' '}
             <span style={{ fontFamily: NUM_FONT }}>{t.voids}</span> void
             {t.pending > 0 && <>, <span style={{ fontFamily: NUM_FONT }}>{t.pending}</span> never finalised</>}.
-            A hitter with no line in a night&apos;s file simply isn&apos;t in that night&apos;s numbers.
           </div>
 
           <div className="bot-picks-grid" style={{
@@ -529,29 +520,21 @@ export default function Leaders({ players = [], onPlayerClick, onNavigate }) {
     <div>
       <PanelTitle
         title="League Leaders"
-        sub="Season stats for tonight's hitters, plus historical boards off the graded archive — no model scores on this page"
+        sub="Season stats for tonight's hitters, no model scores."
         // #66: this read as a bare "238 of 266" in the corner with nothing
         // saying what it counted.
         right={(
           <span
-            title="Hitters on tonight's slate with a published season line, out of every hitter on the slate."
+            title="Hitters on tonight's slate with a season line, out of every hitter on the slate."
             style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}
           >{rows.length} of {all.length} hitters</span>
         )}
       />
 
-      <LeadersIntro>
-        Straight season numbers — the batting line, nothing weighted or projected. Every other board
-        here ranks by the model; this one doesn&apos;t. It&apos;s the page for what a hitter has actually
-        done, rather than what MOONSHOT thinks of him tonight. The strip directly below is the same idea
-        stretched over time — the last week of graded nights, on request.
-      </LeadersIntro>
-
       {historyStrip}
 
       <LeadersLead>
-        Every leader below is <b style={{ color: C.text2 }}>on tonight&apos;s slate</b> — tiles show who
-        each one faces, plus the #2 and #3 so the tile is a lead, not a trivia answer.
+        Every leader below is <b style={{ color: C.text2 }}>on tonight&apos;s slate</b>, with who he faces and the #2 and #3.
       </LeadersLead>
       <div className="bot-picks-grid" style={{
         display: 'grid', gap: 8, marginBottom: 12,
@@ -562,7 +545,7 @@ export default function Leaders({ players = [], onPlayerClick, onNavigate }) {
         <LeaderTile label="Home runs" rows={top3('hr')} fmt={(r) => r.hr} color={C.red} onPlayerClick={onPlayerClick} />
         <LeaderTile label="RBI" rows={top3('rbi')} fmt={(r) => r.rbi} color={C.cyan} onPlayerClick={onPlayerClick} />
         <LeaderTile label="ISO" rows={top3('iso')} fmt={(r) => r.iso.toFixed(3)} color={C.green} onPlayerClick={onPlayerClick} />
-        <LeaderTile label="PA per HR · min 5 HR" rows={eff3} fmt={(r) => r.paHR.toFixed(1)} color="#FCD34D" onPlayerClick={onPlayerClick} />
+        <LeaderTile label="PA per HR · min 5 HR" rows={eff3} fmt={(r) => r.paHR.toFixed(1)} color={C.amber} onPlayerClick={onPlayerClick} />
       </div>
 
       {/* League-wide boards, live. The slate payload publishes no stolen-base
@@ -571,7 +554,7 @@ export default function Leaders({ players = [], onPlayerClick, onNavigate }) {
           🤖 = that leader IS on tonight's slate (matched by MLB person id). */}
       <LeadersSection
         title="🏃 League-wide top 10s — speed &amp; run production"
-        tint="rgba(74,222,128,.04)"
+        tint={C.bg2}
         lead={<>
           whole league, live — the only speed read here.
           🤖 = on tonight&apos;s slate (tap to open his card).
@@ -601,15 +584,14 @@ export default function Leaders({ players = [], onPlayerClick, onNavigate }) {
           score. This is the section that makes the page a tool. */}
       {collisions.length > 0 && (
         <div style={{
-          background: `linear-gradient(155deg, ${C.bg2}, rgba(249,115,22,.04))`,
+          background: C.bg2,
           border: `1px solid ${C.border}`, borderRadius: 11, padding: '8px 12px', marginBottom: 12,
         }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
             <span style={{ fontSize: TYPE.title, fontWeight: 900 }}>⚡ Season power, homer-prone arm</span>
             <span style={{ fontSize: TYPE.body, color: C.text3 }}>
-              .200+ ISO facing a starter allowing 1.30+ HR/9 tonight — two published numbers, no
-              model. Ordered by <b style={{ color: C.text2 }}>ISO × HR/9</b>, printed on each chip;
-              top {collisions.length} of {collisionPool.length} who clear both bars.
+              .200+ ISO facing a starter allowing 1.30+ HR/9 tonight, ordered by{' '}
+              <b style={{ color: C.text2 }}>ISO × HR/9</b>; top {collisions.length} of {collisionPool.length} who clear both bars.
             </span>
           </div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>

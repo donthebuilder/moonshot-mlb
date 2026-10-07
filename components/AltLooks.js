@@ -99,11 +99,11 @@ const variance = (p) => {
 // already carries a colour and a name; the pictograph was a third encoding of
 // the same fact, and the one that rendered differently on every platform.
 const GROUPS = {
-  'HOT/DUE':  { color: '#f97316', icon: null, why: 'Recent power plus overdue signal' },
-  'MATCHUP':  { color: '#22d3ee', icon: null, why: 'The arm, the split, the spot' },
-  'VARIANCE': { color: '#FCD34D', icon: null, why: 'Big power signals, thin sample — priced accordingly' },
-  'ALT':      { color: '#a78bfa', icon: null, why: 'Best of the rest by all three blends' },
-  'HIGH ACROSS CATEGORIES': { color: '#4ade80', icon: null, cross: true,
+  'HOT/DUE':  { color: C.orange, icon: null, why: 'Recent power plus overdue signal' },
+  'MATCHUP':  { color: C.cyan, icon: null, why: 'The arm, the split, the spot' },
+  'VARIANCE': { color: C.amber, icon: null, why: 'Big power signals, thin sample — priced accordingly' },
+  'ALT':      { color: C.purple, icon: null, why: 'Best of the rest by all three blends' },
+  'HIGH ACROSS CATEGORIES': { color: C.green, icon: null, cross: true,
     why: 'Strong in several categories at once — the model’s consensus names' },
   'HR UPSIDE / UNDERLISTED': { color: '#FB923C', icon: null, cross: true,
     why: 'Power signals bigger than his board rank — the sneaky HR lane' },
@@ -262,7 +262,7 @@ export default function AltLooks({ players = [], boardIds = new Set(), onPlayerC
                       <span style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT, width: 10, flexShrink: 0 }}>{i + 1}</span>
                       <span style={{ fontSize: 11.5, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{nameOf(p)}</span>
                       {p?.weak_spot_flag === true && <span style={{ fontSize: 9, flexShrink: 0 }}>⭐</span>}
-                      {thin && <span style={{ fontSize: 8, color: '#FCD34D', fontFamily: NUM_FONT, fontWeight: 800, flexShrink: 0 }}>⚠{n(p?.season_pa, 0)}PA</span>}
+                      {thin && <span style={{ fontSize: 8, color: C.amber, fontFamily: NUM_FONT, fontWeight: 800, flexShrink: 0 }}>⚠{n(p?.season_pa, 0)}PA</span>}
                       <span style={{ marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: 11, fontWeight: 900, color: g.color, flexShrink: 0 }}>{sc.toFixed(1)}</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>

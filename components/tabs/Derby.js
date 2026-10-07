@@ -210,7 +210,7 @@ export default function Derby({ players = [], results, slateDate = '', onPlayerC
         sub={`Draft ${SQUAD} under a ${CAP} cap · locks at first pitch · real homers score real feet · you vs MOONSHOT`}
         right={record && (record.w + record.l + record.t) > 0 ? (
           <span style={{ fontSize: TYPE.body, fontFamily: NUM_FONT, color: C.text2 }}>
-            season: <b style={{ color: record.w >= record.l ? '#4ade80' : '#f87171' }}>{record.w}–{record.l}{record.t ? `–${record.t}` : ''}</b>
+            season: <b style={{ color: record.w >= record.l ? C.green : C.red }}>{record.w}–{record.l}{record.t ? `–${record.t}` : ''}</b>
             {' '}· {Math.round(record.ft).toLocaleString()} ft vs {Math.round(record.botFt).toLocaleString()}
           </span>
         ) : null}
@@ -269,7 +269,7 @@ export default function Derby({ players = [], results, slateDate = '', onPlayerC
         {!locked && roster.length === SQUAD && (
           <button onClick={lockNow} style={{
             padding: '6px 16px', borderRadius: 8, cursor: 'pointer', fontSize: TYPE.body, fontWeight: 900,
-            border: '1px solid rgba(74,222,128,.6)', background: 'rgba(74,222,128,.12)', color: '#4ade80',
+            border: '1px solid rgba(74,222,128,.6)', background: 'rgba(74,222,128,.12)', color: C.green,
           }}>🔒 LOCK MY FIVE</button>
         )}
         {roster.length > 0 && (
@@ -281,17 +281,17 @@ export default function Derby({ players = [], results, slateDate = '', onPlayerC
         {sim && (
           <span style={{ fontSize: TYPE.body, fontFamily: NUM_FONT, color: C.text2 }}>
             your squad averages <b style={{ color: C.orange }}>{Math.round(sim.avg)} ft</b> and beats MOONSHOT in{' '}
-            <b style={{ color: sim.win >= 50 ? '#4ade80' : '#f87171' }}>{sim.win.toFixed(0)}%</b> of sims
+            <b style={{ color: sim.win >= 50 ? C.green : C.red }}>{sim.win.toFixed(0)}%</b> of sims
             {sim.tie >= 1 ? ` (ties ${sim.tie.toFixed(0)}%)` : ''}
           </span>
         )}
         {slateFinal && locked && !savedDay && (
           <button onClick={saveResult} style={{
             padding: '6px 14px', borderRadius: 8, cursor: 'pointer', fontSize: TYPE.body, fontWeight: 800,
-            border: '1px solid rgba(252,211,77,.5)', background: 'rgba(252,211,77,.1)', color: '#FCD34D',
+            border: '1px solid rgba(252,211,77,.5)', background: 'rgba(252,211,77,.1)', color: C.amber,
           }}>🧾 save tonight to my record</button>
         )}
-        {savedDay && <span style={{ fontSize: TYPE.micro, color: '#4ade80', fontFamily: NUM_FONT }}>✓ counted in the season record</span>}
+        {savedDay && <span style={{ fontSize: TYPE.micro, color: C.green, fontFamily: NUM_FONT }}>✓ counted in the season record</span>}
       </div>
 
       {/* the draft board */}

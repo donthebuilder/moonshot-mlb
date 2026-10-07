@@ -130,12 +130,12 @@ export default function LineupSlotMatchup({ team, lineup = [], onPlayerClick }) 
               {sd && (
                 <div style={{
                   width: `${Math.min(100, (100 * sd.ops) / opsMax)}%`, height: '100%', borderRadius: 3,
-                  background: sd.ops >= 0.8 ? '#f97316' : sd.ops >= 0.7 ? '#FCD34D' : 'rgba(255,255,255,.22)',
+                  background: sd.ops >= 0.8 ? C.orange : sd.ops >= 0.7 ? C.amber : 'rgba(255,255,255,.22)',
                 }} />
               )}
             </div>
             <span style={{ fontFamily: NUM_FONT, fontSize: 9.5, fontWeight: 800, width: 30, textAlign: 'right', flexShrink: 0,
-              color: sd ? (sd.ops >= 0.8 ? C.orange : sd.ops >= 0.7 ? '#FCD34D' : C.text3) : C.text3 }}>
+              color: sd ? (sd.ops >= 0.8 ? C.orange : sd.ops >= 0.7 ? C.amber : C.text3) : C.text3 }}>
               {sd ? sd.ops.toFixed(3).replace(/^0/, '') : '—'}
             </span>
             {/* what the BAT does vs this side */}
@@ -149,7 +149,7 @@ export default function LineupSlotMatchup({ team, lineup = [], onPlayerClick }) 
             </span>
             <span style={{
               fontFamily: NUM_FONT, fontSize: 10.5, fontWeight: 900, width: 26, textAlign: 'right', flexShrink: 0,
-              color: edge >= 70 ? C.orange : edge >= 50 ? '#FCD34D' : C.text3,
+              color: edge >= 70 ? C.orange : edge >= 50 ? C.amber : C.text3,
             }} title="Edge 0–100: slot damage (55) + his ISO vs this side (30) + side match (15)">{edge}</span>
             <span style={{ width: 20, textAlign: 'right', fontSize: 10, flexShrink: 0 }}>
               {both ? '🔥' : slotMatch ? '💥' : sideMatch ? '⭐' : ''}

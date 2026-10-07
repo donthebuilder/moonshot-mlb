@@ -935,7 +935,7 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
                   a tappable chip carrying only its own two numbers. */}
               {pre.milestones.length > 0 && (
                 <div className="ledger-chip-row">
-                  <span className="ledger-chip-label" style={{ color: '#FCD34D' }}>
+                  <span className="ledger-chip-label" style={{ color: C.amber }}>
                     One away from a round number
                     <i>{pre.milestones.length} of {pre.total} hitters · ★ = MOONSHOT designated him</i>
                   </span>
@@ -958,7 +958,7 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
               )}
               {pre.stack && (
                 <div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.65 }}>
-                  <b style={{ color: '#f97316' }}>Where the picks are batting.</b>{' '}
+                  <b style={{ color: C.orange }}>Where the picks are batting.</b>{' '}
                   The <span style={{ fontFamily: NUM_FONT }}>#{pre.stack.spot}</span> hole holds{' '}
                   <span style={{ fontFamily: NUM_FONT }}>{pre.stack.count}</span> of the{' '}
                   <span style={{ fontFamily: NUM_FONT }}>{pre.stack.placed}</span> designated
@@ -1251,12 +1251,12 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
           background: 'rgba(167,139,250,.07)', border: '1px solid rgba(167,139,250,.3)',
           borderRadius: 10, padding: '7px 11px', marginBottom: 9,
         }}>
-          <div style={{ fontSize: 10.5, fontWeight: 900, color: '#a78bfa', marginBottom: 3 }}>
+          <div style={{ fontSize: 10.5, fontWeight: 900, color: C.purple, marginBottom: 3 }}>
             🔢 The number pattern
           </div>
           {repeats.map(({ num, list }) => (
             <div key={num} style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.6 }}>
-              <b style={{ color: '#a78bfa', fontFamily: NUM_FONT }}>{list.length} hitters</b> notched their{' '}
+              <b style={{ color: C.purple, fontFamily: NUM_FONT }}>{list.length} hitters</b> notched their{' '}
               <b style={{ color: C.text, fontFamily: NUM_FONT }}>{ord(num)}</b> {nightWord} —{' '}
               {list.map((c, i) => (
                 <span key={c.pid}>
@@ -1269,7 +1269,7 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
           {topRoot && (
             <div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.6, marginTop: repeats.length ? 3 : 0 }}
               title={`Digit root: add the digits of the homer number until one digit is left (17 → 1+7 = 8). ${topRoot.list.length} of tonight's ${numbered.length} numbered homers land on ${topRoot.root}.`}>
-              <b style={{ color: '#a78bfa', fontFamily: NUM_FONT }}>{topRoot.list.length}</b> of tonight&apos;s{' '}
+              <b style={{ color: C.purple, fontFamily: NUM_FONT }}>{topRoot.list.length}</b> of tonight&apos;s{' '}
               {numbered.length} numbered homers reduce to{' '}
               <b style={{ color: C.text, fontFamily: NUM_FONT }}>{topRoot.root}</b>{' '}
               <span style={{ color: C.text3 }}>

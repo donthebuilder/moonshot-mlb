@@ -24,21 +24,8 @@ import { usePreview, ShowMoreButton } from '../ListPreview'
 // built to prevent, left as pre-existing rather than silently patched here.)
 // Called, not frozen: C is mutated after mount (applyTheme, lib/theme.js), so a
 // module-level literal keeps the palette it was imported with. See #23.
-const PAIR_TYPE_COLORS = () => ({
-  'Best HR Pair':            '#FB923C',
-  'Core HR Pair':            '#FB923C',
-  'Hot + Due Pair':          '#FCD34D',
-  'Statcast HR Pair':        '#FCD34D',
-  'Pitcher Target Pair':     C.red,
-  'Flex HR Pair':            C.cyan,
-  'Same-Game Stack Pair':    C.cyan,
-  'Variance Pair':           C.purple,
-  'Variance Power Pair':     C.purple,
-  'HRR Safer Pair':          C.green,
-})
-// The "unknown type" fallback isn't identity — it's the same quiet neutral
-// catColor() itself falls back to — so it routes through the theme token.
-function typeColor(t) { return PAIR_TYPE_COLORS()[t] || C.text3 }
+// COLOUR DIET (2026-10-07): the pair TYPE is a label, not a signal -- one neutral for all of them.
+function typeColor() { return C.text2 }
 
 const PAIR_SCOPES = [
   { key:'cross', label:'🔀 Cross Game' },
@@ -78,11 +65,11 @@ const LANE_ORDER = ['TOP30', 'A', 'B', 'C', 'D']
 // Called, not frozen: C is mutated after mount (applyTheme, lib/theme.js), so a
 // module-level literal keeps the palette it was imported with. See #23.
 const LANE_META = () => ({
-  TOP30: { short: 'TOP 30', color: '#FB923C', blurb: 'MOONSHOT’s headline board — scored on a different scale from the lettered lanes.' },
-  A:     { short: 'LANE A', color: '#FCD34D', blurb: 'Core: the safest construction it will offer.' },
-  B:     { short: 'LANE B', color: C.cyan, blurb: 'Statcast: built off contact quality rather than the board.' },
-  C:     { short: 'LANE C', color: C.purple, blurb: 'Flex: looser, leans on HRR and hit shape.' },
-  D:     { short: 'LANE D', color: C.green, blurb: 'Value power: cheaper bats with a matchup reason.' },
+  TOP30: { short: 'TOP 30', color: C.orange, blurb: 'MOONSHOT’s headline board — scored on a different scale from the lettered lanes.' },
+  A:     { short: 'LANE A', color: C.text2, blurb: 'Core: the safest construction it will offer.' },
+  B:     { short: 'LANE B', color: C.text2, blurb: 'Statcast: built off contact quality rather than the board.' },
+  C:     { short: 'LANE C', color: C.text2, blurb: 'Flex: looser, leans on HRR and hit shape.' },
+  D:     { short: 'LANE D', color: C.text2, blurb: 'Value power: cheaper bats with a matchup reason.' },
 })
 const laneMeta = (k) => LANE_META()[k] || { short: String(k || 'OTHER').toUpperCase(), color: C.text3, blurb: '' }
 
@@ -291,9 +278,7 @@ function enforceUniquePairExposure(pairs=[], maxExposure=1, limit=30) {
 // Called, not frozen: C is mutated after mount (applyTheme, lib/theme.js), so a
 // module-level literal keeps the palette it was imported with. See #23.
 const TAG_COLORS = () => ({
-  '🏆':'#FB923C','🧨':'#FB923C','🔥':C.orange,
-  '🏁':C.cyan,'💠':'#38bdf8','⚾':C.green,'⭐':'#FCD34D',
-  '🔭':'#71717a','⛔':'#ef4444','🧩':C.purple,
+  '⛔': C.red,
 })
 function tagColor(tag) {
   for (const [emoji, color] of Object.entries(TAG_COLORS())) {
@@ -513,7 +498,7 @@ function PairRow({ pair, i, dimmed=false }) {
               already themed elsewhere in it (TicketBlock, GroupTicketBuilder's
               shape buttons) via C.cyan/C.purple directly — these two literals
               were just an untokenized duplicate of that existing convention. */}
-          <span style={{ fontSize:9, color:pair.same_game ? C.cyan : C.purple, fontFamily:NUM_FONT }}>{relation}</span>
+          <span style={{ fontSize:9, color:pair.same_game ? C.orange : C.text3, fontFamily:NUM_FONT }}>{relation}</span>
           {(pair.tags || []).slice(0,3).map(tag => (
             <span key={tag} style={{ fontSize:9, padding:'1px 5px', borderRadius:4, background:`${col}18`, color:col, border:`1px solid ${col}44`, textTransform:'uppercase', letterSpacing:'0.04em', fontFamily:NUM_FONT }}>{tag}</span>
           ))}
@@ -525,7 +510,7 @@ function PairRow({ pair, i, dimmed=false }) {
             was, left alone there for the same reason: a real fix is a
             seqColor ramp with a stated domain over pair_score, which is
             separate, harder work, not a mechanical swap. */}
-        <span style={{ fontFamily:NUM_FONT, fontWeight:800, fontSize:15, flexShrink:0, color:score >= 280 ? C.orange : score >= 250 ? '#FCD34D' : C.text }}>{score || '—'}</span>
+        <span style={{ fontFamily:NUM_FONT, fontWeight:800, fontSize:15, flexShrink:0, color:score >= 280 ? C.orange : score >= 250 ? C.amber : C.text }}>{score || '—'}</span>
       </div>
       <div style={{ fontSize:14, fontWeight:800, marginBottom:2, wordBreak:'break-word' }}>{players.map(p => p.name).join(' + ')}</div>
       {pair.reason && <div style={{ fontSize:10, color:C.text3, fontFamily:NUM_FONT, marginBottom:4 }}>{pair.reason}</div>}
@@ -586,7 +571,7 @@ function BotLane({ group, tagFilter }) {
                   <span style={{ fontSize:14, fontWeight:800, wordBreak:'break-word' }}>
                     {(pair.players || []).map(p => p.name).join('  +  ')}
                   </span>
-                  <span style={{ fontSize:9.5, color: pair.same_game ? C.cyan : C.purple, fontFamily:NUM_FONT }}>
+                  <span style={{ fontSize:9.5, color: pair.same_game ? C.orange : C.text3, fontFamily:NUM_FONT }}>
                     {pair.same_game ? '⚡ same game' : '🔀 cross game'}
                   </span>
                 </div>
@@ -623,7 +608,7 @@ function BotLane({ group, tagFilter }) {
                   <span key={tag} style={{
                     fontSize:9, padding:'1px 6px', borderRadius:4, fontFamily:NUM_FONT, fontWeight:700,
                     background: tag === 'Due' ? 'rgba(252,211,77,.14)' : `${meta.color}14`,
-                    color: tag === 'Due' ? '#FCD34D' : meta.color,
+                    color: tag === 'Due' ? C.amber : meta.color,
                     border:`1px solid ${tag === 'Due' ? 'rgba(252,211,77,.3)' : `${meta.color}33`}`,
                   }}>{tag}</span>
                 ))}
@@ -699,7 +684,7 @@ function BotPairGroups({ pairBuilder, q = '' }) {
           {tagCounts.map(([tag, count]) => (
             // Same 'Due' gold literal as the tag chip above — see that comment.
             <button key={tag} onClick={() => setTagFilter(t => (t === tag ? null : tag))}
-              style={btnStyle(tag === 'Due' ? '#FCD34D' : C.orange, tagFilter === tag)}>
+              style={btnStyle(tag === 'Due' ? C.amber : C.orange, tagFilter === tag)}>
               {tag} {count}
             </button>
           ))}
@@ -803,7 +788,7 @@ function TodayPairs({ players, pairBuilder, q='', focusPlayerId, onClearFocus })
 
       <div style={{ display:'flex', gap:5, flexWrap:'wrap', marginBottom:8 }}>
         {PAIR_SCOPES.map(item => (
-          <button key={item.key} onClick={() => { setScope(item.key); setActiveType('All') }} style={btnStyle(item.key === 'same' ? C.cyan : C.orange, scope === item.key)}>
+          <button key={item.key} onClick={() => { setScope(item.key); setActiveType('All') }} style={btnStyle(C.orange, scope === item.key)}>
             {item.label}
           </button>
         ))}
@@ -1047,14 +1032,14 @@ function LiveHRPairs({ results, pairBuilder, players=[], pairHistorySummary, onP
       // registry rather than a duplicate green.
       { label: 'HR tonight', v: homers.length, color: catColor('result', 'home_run') },
       // Cross/same-game reuses this file's own established relation colours.
-      { label: 'Cross pairs', v: crossPairs.length, color: C.purple },
-      { label: 'Same-game', v: samePairs.length, color: C.cyan },
+      { label: 'Cross pairs', v: crossPairs.length, color: C.text2 },
+      { label: 'Same-game', v: samePairs.length, color: C.orange },
       { label: 'MOONSHOT pairs hit', v: combinedBotHits.length, color: combinedBotHits.length ? C.orange : C.text3,
         note: combinedBotHits.length ? 'a recommended pair fully landed' : 'none complete yet' },
       // Same gold as the 'Due' tag elsewhere in this file — left
       // literal for the same reason (see the comment on the Due tag chip in
       // BotLane): not a verdict, not a match for any existing C token.
-      { label: 'History setups', v: historyMatches.length, color: historyMatches.length ? '#FCD34D' : C.text3,
+      { label: 'History setups', v: historyMatches.length, color: historyMatches.length ? C.amber : C.text3,
         note: historyMatches.length ? 'partner still to bat' : '' },
     ]
     return (
@@ -1096,7 +1081,7 @@ function LiveHRPairs({ results, pairBuilder, players=[], pairHistorySummary, onP
   }
 
   const PairLine = ({pair, i}) => {
-    const col = pair.same_game ? C.cyan : C.purple
+    const col = pair.same_game ? C.orange : C.text3
     const label = pair.same_game ? '⚡ Same game' : '🔀 Cross game'
     const a = pair.a || pair.players?.[0]
     const b = pair.b || pair.players?.[1]
@@ -1138,7 +1123,7 @@ function LiveHRPairs({ results, pairBuilder, players=[], pairHistorySummary, onP
         <div style={{ marginBottom:14 }}>
           {/* Same 'Due'-family gold literal as elsewhere in this file — see
               the comment on BotLane's 'Due' tag chip. */}
-          <div style={{ fontSize:12, fontWeight:800, color:'#FCD34D', marginBottom:5 }}>
+          <div style={{ fontSize:12, fontWeight:800, color:C.amber, marginBottom:5 }}>
             📅 Season History Match ({historyMatches.length})
             <span style={{ fontSize:9.5, color:C.text3, fontFamily:NUM_FONT, fontWeight:400 }}> — someone who already homered has a season partner still to bat</span>
           </div>
@@ -1181,7 +1166,7 @@ function LiveHRPairs({ results, pairBuilder, players=[], pairHistorySummary, onP
 
       <div style={{ display:'flex', gap:5, flexWrap:'wrap', marginBottom:10 }}>
         {PAIR_SCOPES.map(item => (
-          <button key={item.key} onClick={() => setScope(item.key)} style={btnStyle(item.key === 'same' ? C.cyan : C.orange, scope === item.key)}>
+          <button key={item.key} onClick={() => setScope(item.key)} style={btnStyle(C.orange, scope === item.key)}>
             {item.label}
           </button>
         ))}
@@ -1339,7 +1324,7 @@ function HistoryRow({ pair, rank, isTop3, tierColor, todaysById }) {
   // 1st/2nd/3rd place, the same kind of "domain colour" the header comment in
   // lib/scales.js carves out an exception for (a field graphic), not a
   // data-driven categorical or verdict choice. Left literal on purpose.
-  const rankColor = isTop3 ? ['#FCD34D', '#D1D5DB', '#FB923C'][rank - 1] : C.text3
+  const rankColor = isTop3 ? [C.amber, '#D1D5DB', '#FB923C'][rank - 1] : C.text3
 
   return (
     <div style={{
@@ -1378,7 +1363,7 @@ function HistoryRow({ pair, rank, isTop3, tierColor, todaysById }) {
               return (
                 <span key={ref.player_id} style={{
                   fontSize: 9, padding: '1px 7px', borderRadius: 5,
-                  background: 'rgba(252,211,77,0.1)', color: '#FCD34D',
+                  background: 'rgba(252,211,77,0.1)', color: C.amber,
                   border: '1px solid rgba(252,211,77,0.25)',
                   fontFamily: NUM_FONT, fontWeight: 700,
                 }}>
@@ -1397,7 +1382,7 @@ function HistoryRow({ pair, rank, isTop3, tierColor, todaysById }) {
         }}>{season}× same-day</span>
         {/* Same-game badge: the file's own recurring relation colour (C.cyan),
             now via alpha() instead of a hand-typed rgba of its ember value. */}
-        {sameGame > 0 && <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 6, background: alpha(C.cyan, 0.12), color: C.cyan, border: `1px solid ${alpha(C.cyan, 0.25)}`, fontFamily: NUM_FONT, fontWeight: 700 }}>{sameGame}× same-game</span>}
+        {sameGame > 0 && <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 6, background: alpha(C.orange, 0.12), color: C.orange, border: `1px solid ${alpha(C.orange, 0.25)}`, fontFamily: NUM_FONT, fontWeight: 700 }}>{sameGame}× same-game</span>}
         {/* boost > 0 is a genuine positive verdict on this pairing. */}
         {boost > 0 && <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 6, background: verdictWash(true, 0.1), color: verdictInk(true).color, border: `1px solid ${alpha(verdictInk(true).color, 0.2)}`, fontFamily: NUM_FONT, fontWeight: 700 }}>+{boost}</span>}
       </div>
@@ -1838,7 +1823,7 @@ function TicketBlock({ ticket, index, odds, onPlayerClick, word }) {
         <span style={{ fontSize: 12.5, fontWeight: 900 }}>{head}</span>
         <span style={{
           fontSize: 9.5, fontFamily: NUM_FONT, fontWeight: 800,
-          color: ticket.sameGame ? C.cyan : C.purple,
+          color: ticket.sameGame ? C.orange : C.text3,
         }}>
           {ticket.sameGame ? 'same game' : `${ticket.games.length} different games`}
         </span>
@@ -1899,7 +1884,7 @@ function TicketBlock({ ticket, index, odds, onPlayerClick, word }) {
         ) : '.'}
         {ticket.sameGame ? (
           <>
-            {' '}<B color={C.cyan}>Both legs are in the same game</B>
+            {' '}<B color={C.orange}>Both legs are in the same game</B>
             {` (${gamePhrase(legs[0].player)}) — one park, one air, one starting pitcher, one game state.`}
             {' Each leg stands on its own and the two are '}
             <B color={C.text2}>not multiplied</B>
@@ -2109,7 +2094,7 @@ export function GroupTicketBuilder({
             key={style.key}
             onClick={() => applyStyle(style)}
             title={style.note}
-            style={btnStyle(style.key === 'bases_gaps' ? C.green : style.key === 'hr_moonshot' ? C.orange : C.purple, styleKey === style.key)}
+            style={btnStyle(C.orange, styleKey === style.key)}
           >{style.label}</button>
         ))}
       </div>
@@ -2156,8 +2141,8 @@ export function GroupTicketBuilder({
 
       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center', marginBottom: 8 }}>
         <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em', width: 52 }}>Shape</span>
-        <button onClick={() => { setStyleKey('custom'); setShape('spread') }} style={btnStyle(C.purple, shape === 'spread')}>Across games</button>
-        <button onClick={() => { setStyleKey('custom'); setShape('game') }} style={btnStyle(C.cyan, shape === 'game')}>All in one game</button>
+        <button onClick={() => { setStyleKey('custom'); setShape('spread') }} style={btnStyle(C.orange, shape === 'spread')}>Across games</button>
+        <button onClick={() => { setStyleKey('custom'); setShape('game') }} style={btnStyle(C.orange, shape === 'game')}>All in one game</button>
         <span style={{ fontSize: 9, color: C.text3, textTransform: 'uppercase', letterSpacing: '.07em', marginLeft: 6 }}>Legs</span>
         {[2, 3, 4].map((k) => (
           <button key={k} onClick={() => { setStyleKey('custom'); setSize(k) }} style={btnStyle(C.orange, size === k)}>
@@ -2482,7 +2467,7 @@ export default function Pairs({ players=[], pairBuilder, pairHistorySummary, res
         right={
           <div style={{ display:'flex', gap:5, flexWrap:'wrap' }}>
             {VIEWS.map(item => (
-              <button key={item.key} onClick={() => { setView(item.key); if (item.key !== 'today') onClearFocus?.() }} style={btnStyle(item.key === 'live' ? C.cyan : C.orange, view === item.key)}>
+              <button key={item.key} onClick={() => { setView(item.key); if (item.key !== 'today') onClearFocus?.() }} style={btnStyle(C.orange, view === item.key)}>
                 {item.label}
                 {item.key === 'live' && homers.length > 0 ? ` (${homers.length} HR)` : ''}
               </button>

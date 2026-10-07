@@ -400,7 +400,7 @@ rows={tiers}
                   <>
                     <b style={{ fontFamily: NUM_FONT, color: C.text }}>{rows.length}</b> homer
                     {rows.length === 1 ? '' : 's'} tonight, and the sheet had{' '}
-                    <b style={{ fontFamily: NUM_FONT, color: '#4ade80' }}>{onSheet.length} of {rows.length}</b>{' '}
+                    <b style={{ fontFamily: NUM_FONT, color: C.green }}>{onSheet.length} of {rows.length}</b>{' '}
                     ({((100 * onSheet.length) / rows.length).toFixed(0)}%) of them somewhere.{' '}
                     <b style={{ fontFamily: NUM_FONT, color: C.orange }}>{top15}</b> came from inside the
                     ranked top 15

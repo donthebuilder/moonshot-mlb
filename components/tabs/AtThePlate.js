@@ -77,7 +77,7 @@ const primaryRole = (p) => String(p?.game_pick_role || '').split('/')[0].trim().
 // sequence rather than read off a separate `count` object, so it can never
 // disagree with the pitches drawn beside it.
 
-const COUNT_COL = (b, s) => (b > s ? '#4ade80' : s > b ? '#f87171' : C.text2)
+const COUNT_COL = (b, s) => (b > s ? C.green : s > b ? C.red : C.text2)
 
 function CountDots({ balls, strikes }) {
   const dot = (on, col) => ({
@@ -91,11 +91,11 @@ function CountDots({ balls, strikes }) {
       title={`The count, walked from tonight's pitch sequence: ${balls} ball${balls === 1 ? '' : 's'}, ${strikes} strike${strikes === 1 ? '' : 's'}.`}>
       <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
         <span style={{ fontSize: TYPE.label, color: C.text3, fontFamily: NUM_FONT, letterSpacing: '.08em', width: 8 }}>B</span>
-        {[0, 1, 2].map((i) => <span key={i} style={dot(i < balls, '#4ade80')} />)}
+        {[0, 1, 2].map((i) => <span key={i} style={dot(i < balls, C.green)} />)}
       </div>
       <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
         <span style={{ fontSize: TYPE.label, color: C.text3, fontFamily: NUM_FONT, letterSpacing: '.08em', width: 8 }}>S</span>
-        {[0, 1].map((i) => <span key={i} style={dot(i < strikes, '#f87171')} />)}
+        {[0, 1].map((i) => <span key={i} style={dot(i < strikes, C.red)} />)}
       </div>
       <span style={{
         fontFamily: NUM_FONT, fontSize: TYPE.title, fontWeight: 900, letterSpacing: '-.02em',
@@ -123,7 +123,7 @@ function Sequence({ pitches }) {
             title={`Pitch ${p.seq} of the at-bat, on ${p.cnt}. ${PITCH_NAMES[p.type] || p.typeName || p.type || 'pitch'}${p.velo != null ? ` at ${p.velo.toFixed(1)} mph` : ''} — ${p.call || KIND_WORD[p.kind] || p.kind}.`}
             style={{
               minWidth: 54, cursor: 'default',
-              border: `1px solid ${missed ? '#f87171' : took ? 'rgba(255,255,255,.14)' : `${col}66`}`,
+              border: `1px solid ${missed ? C.red : took ? 'rgba(255,255,255,.14)' : `${col}66`}`,
               background: missed ? 'rgba(248,113,113,.12)' : `${col}12`,
               borderRadius: 9, padding: '4px 8px 5px', textAlign: 'center',
             }}>
@@ -138,7 +138,7 @@ function Sequence({ pitches }) {
             </div>
             <div style={{
               fontSize: TYPE.micro, lineHeight: 1.25, whiteSpace: 'nowrap',
-              color: missed ? '#f87171' : took ? '#4ade80' : C.text3,
+              color: missed ? C.red : took ? C.green : C.text3,
             }}>{KIND_WORD[p.kind] === 'swing & miss' ? 'whiff' : KIND_WORD[p.kind] || p.kind}</div>
           </div>
         )
@@ -196,14 +196,14 @@ function PitcherChips({ pitchers, viewId, onPick }) {
             style={{
               display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer',
               fontSize: TYPE.micro, fontFamily: NUM_FONT, fontWeight: 800,
-              border: `1px solid ${on ? '#4ade80' : C.border}`,
+              border: `1px solid ${on ? C.green : C.border}`,
               background: on ? 'rgba(74,222,128,.12)' : 'rgba(255,255,255,.02)',
-              color: on ? '#4ade80' : C.text2,
+              color: on ? C.green : C.text2,
               borderRadius: 999, padding: '3px 10px',
             }}>
-            {p.live && <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#4ade80', boxShadow: '0 0 5px #4ade80', flexShrink: 0 }} />}
+            {p.live && <span style={{ width: 5, height: 5, borderRadius: '50%', background: C.green, boxShadow: '0 0 5px #4ade80', flexShrink: 0 }} />}
             {String(p.name || '?').split(' ').slice(-1)[0]}
-            <span style={{ color: on ? '#4ade80' : C.text3, fontWeight: 700 }}>{p.n}p</span>
+            <span style={{ color: on ? C.green : C.text3, fontWeight: 700 }}>{p.n}p</span>
           </button>
         )
       })}
@@ -211,8 +211,8 @@ function PitcherChips({ pitchers, viewId, onPick }) {
   )
 }
 
-const ROLE_COLOR = { TOP: '#FCD34D', HR: '#FB923C', HIT: '#60A5FA', HRR: '#22d3ee', CONTACT: '#A78BFA' }
-const LIVE = '#4ade80'
+const ROLE_COLOR = { TOP: C.amber, HR: '#FB923C', HIT: C.blue, HRR: C.cyan, CONTACT: C.purple }
+const LIVE = C.green
 
 /** 🎮 THE GAMES BOARD (2026-08-14 restructure — Donovan: "i wanted the
  * games at the top. with a better selector... the just now and all that
@@ -344,7 +344,7 @@ function Timeline({ feed, g, abbrs, onPick }) {
                 {hr ? '💥 ' : ''}<b style={{ color: C.text }}>{String(m.batterName || '').split(' ').slice(-1)[0] || '—'}</b>
                 {' '}{String(m.event || '').toLowerCase()}
               </span>
-              <span style={{ width: 34, textAlign: 'right', flexShrink: 0, fontSize: TYPE.micro, fontFamily: NUM_FONT, color: m.rbi ? '#4ade80' : C.text3, fontWeight: m.rbi ? 800 : 400 }}>
+              <span style={{ width: 34, textAlign: 'right', flexShrink: 0, fontSize: TYPE.micro, fontFamily: NUM_FONT, color: m.rbi ? C.green : C.text3, fontWeight: m.rbi ? 800 : 400 }}>
                 {m.rbi ? `+${m.rbi}` : '·'}
               </span>
               <span style={{ width: 44, textAlign: 'right', flexShrink: 0, fontSize: TYPE.micro, fontFamily: NUM_FONT, color: (m.rbi || 0) > 0 || hr ? C.text : C.text3, fontWeight: (m.rbi || 0) > 0 || hr ? 800 : 400 }}>
@@ -400,8 +400,8 @@ function Situation({ outs, on1, on2, on3 }) {
             <span key={k} style={{
               position: 'absolute', ...pos, width: 7, height: 7,
               transform: 'rotate(45deg)',
-              background: name ? '#FCD34D' : 'transparent',
-              border: `1px solid ${name ? '#FCD34D' : 'rgba(255,255,255,.28)'}`,
+              background: name ? C.amber : 'transparent',
+              border: `1px solid ${name ? C.amber : 'rgba(255,255,255,.28)'}`,
               boxShadow: name ? '0 0 5px rgba(252,211,77,.4)' : 'none',
             }} />
           ))}
@@ -410,8 +410,8 @@ function Situation({ outs, on1, on2, on3 }) {
           {[0, 1].map((i) => (
             <span key={i} style={{
               width: 7, height: 7, borderRadius: '50%',
-              background: outs > i ? '#f87171' : 'transparent',
-              border: `1px solid ${outs > i ? '#f87171' : 'rgba(255,255,255,.28)'}`,
+              background: outs > i ? C.red : 'transparent',
+              border: `1px solid ${outs > i ? C.red : 'rgba(255,255,255,.28)'}`,
             }} />
           ))}
           <span style={{ fontSize: TYPE.label, color: C.text3, fontFamily: NUM_FONT, letterSpacing: '.06em', fontWeight: 800 }}>OUT</span>
@@ -419,7 +419,7 @@ function Situation({ outs, on1, on2, on3 }) {
       </span>
       {/* THE NAMES, ON SCREEN (2026-08-18) — see header note above. */}
       {runners.length > 0 && (
-        <span style={{ fontSize: TYPE.micro, color: '#FCD34D', fontFamily: NUM_FONT, whiteSpace: 'nowrap', fontWeight: 700 }}>
+        <span style={{ fontSize: TYPE.micro, color: C.amber, fontFamily: NUM_FONT, whiteSpace: 'nowrap', fontWeight: 700 }}>
           {runners.map(([b, name]) => `${b} ${lastOf(name)}`).join(' · ')}
         </span>
       )}
@@ -810,7 +810,7 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
             <div style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT, marginTop: 5, lineHeight: 1.6 }}>
               {a.p ? <>vs <b style={{ color: C.text2 }}>{clean(a.p?.pitcher_name, 'TBD')}</b>
                 {a.p?.pitcher_throws ? ` (${a.p.pitcher_throws})` : ''}
-                {n(a.p?.pitcher_hr9, 0) > 0 && <span style={{ color: n(a.p.pitcher_hr9, 0) >= 1.4 ? '#f87171' : C.text3 }}> · {n(a.p.pitcher_hr9, 0).toFixed(2)} HR/9</span>}
+                {n(a.p?.pitcher_hr9, 0) > 0 && <span style={{ color: n(a.p.pitcher_hr9, 0) >= 1.4 ? C.red : C.text3 }}> · {n(a.p.pitcher_hr9, 0).toFixed(2)} HR/9</span>}
               </> : 'Not on tonight’s slate — no board card for him.'}
               {snap.lines?.[a.pid]
                 ? <> · tonight <b style={{ color: C.text2 }}>{snap.lines[a.pid].h}-{snap.lines[a.pid].ab}</b>
@@ -1078,7 +1078,7 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
                   </span>
                   <span title={b.typeName ? `Off a ${b.typeName}${b.velo != null ? ` at ${b.velo.toFixed(0)} mph` : ''}` : undefined} style={{
                     flex: 1, minWidth: 0, fontSize: TYPE.body, fontWeight: isHr ? 900 : 600,
-                    color: isHr ? C.orange : b.xbh ? '#4ade80' : C.text2,
+                    color: isHr ? C.orange : b.xbh ? C.green : C.text2,
                     whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                   }}>
                     {isHr ? '💥 ' : ''}{String(b.event || '—').replace(/_/g, ' ')}
@@ -1094,7 +1094,7 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
                   </span>
                   <span style={{ width: 66, textAlign: 'right', flexShrink: 0, display: 'flex', gap: 3, justifyContent: 'flex-end' }}>
                     {b.hh && <span title="Hard hit — 95+ mph off the bat" style={{ fontSize: TYPE.micro, fontWeight: 900, fontFamily: NUM_FONT, color: '#fb923c', border: '1px solid #fb923c55', borderRadius: 4, padding: '0 4px' }}>HH</span>}
-                    {b.barrel && <span title="Barrel — the EV/LA combinations that historically produce .500/1.500" style={{ fontSize: TYPE.micro, fontWeight: 900, fontFamily: NUM_FONT, color: '#f87171', border: '1px solid #f8717155', borderRadius: 4, padding: '0 4px' }}>BRL</span>}
+                    {b.barrel && <span title="Barrel — the EV/LA combinations that historically produce .500/1.500" style={{ fontSize: TYPE.micro, fontWeight: 900, fontFamily: NUM_FONT, color: C.red, border: '1px solid #f8717155', borderRadius: 4, padding: '0 4px' }}>BRL</span>}
                   </span>
                 </div>
               )

@@ -107,8 +107,8 @@ export default function LuckReport({ players = [], onPlayerClick, defaultOpen = 
         </span>
         {!open && (
           <span style={{ fontSize: 10, color: C.text3 }}>
-            <b style={{ color: '#4ade80', fontFamily: NUM_FONT }}>{unlucky.length}</b> crushing without cashing,{' '}
-            <b style={{ color: '#f87171', fontFamily: NUM_FONT }}>{lucky.length}</b> cashing without crushing
+            <b style={{ color: C.green, fontFamily: NUM_FONT }}>{unlucky.length}</b> crushing without cashing,{' '}
+            <b style={{ color: C.red, fontFamily: NUM_FONT }}>{lucky.length}</b> cashing without crushing
             {mostRobbed && <> — most robbed is <b style={{ color: C.text2 }}>{nameOf(mostRobbed.p)}</b></>}
           </span>
         )}
@@ -124,12 +124,12 @@ export default function LuckReport({ players = [], onPlayerClick, defaultOpen = 
       {/* legend */}
       <div style={{ display: 'flex', gap: 14, marginBottom: 7, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 9.5, fontFamily: NUM_FONT }}>
-          <b style={{ color: '#4ade80' }}>◀ 💎 CRUSHING, NOT CASHING</b>
+          <b style={{ color: C.green }}>◀ 💎 CRUSHING, NOT CASHING</b>
           <span style={{ color: C.text3 }}> — loud contact, unpaid; the bet is with him</span>
         </span>
         <span style={{ fontSize: 9.5, fontFamily: NUM_FONT }}>
           <span style={{ color: C.text3 }}>hot box score, ordinary contact — </span>
-          <b style={{ color: '#f87171' }}>🎈 CASHING, NOT CRUSHING ▶</b>
+          <b style={{ color: C.red }}>🎈 CASHING, NOT CRUSHING ▶</b>
         </span>
       </div>
 
@@ -137,7 +137,7 @@ export default function LuckReport({ players = [], onPlayerClick, defaultOpen = 
       <div style={{ background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 11, padding: '8px 12px' }}>
         {ladder.map((x, i) => {
           const isU = x.side === 'u'
-          const color = isU ? '#4ade80' : '#f87171'
+          const color = isU ? C.green : C.red
           const w = Math.max(4, (50 * x.mag) / maxMag)
           const valTxt = x.luck != null
             ? `${x.luck > 0 ? '+' : ''}${x.luck.toFixed(2)}`

@@ -52,7 +52,7 @@ function Tile({ label, value, tone, tip }) {
       borderRadius: 8, cursor: tip ? 'inherit' : 'default',
     }}>
       <span style={{ fontSize: 7.5, fontWeight: 800, letterSpacing: '.08em', color: C.text3, fontFamily: NUM_FONT, textTransform: 'uppercase' }}>{label}</span>
-      <span style={{ fontSize: 13, fontWeight: 900, fontFamily: NUM_FONT, color: tone === 'hot' ? C.orange : tone === 'cold' ? '#60a5fa' : C.text }}>{value}</span>
+      <span style={{ fontSize: 13, fontWeight: 900, fontFamily: NUM_FONT, color: tone === 'hot' ? C.orange : tone === 'cold' ? C.blue : C.text }}>{value}</span>
     </span>
   )
 }
@@ -499,7 +499,7 @@ export default function PitcherModal({ pitcher, slateMode, onClose, onPlayerClic
             </div>
             <div style={{ fontSize: 8.5, color: C.text3 }}>
               <b style={{ color: C.orange }}>orange</b> = good for the bats facing him ·{' '}
-              <b style={{ color: '#60a5fa' }}>blue</b> = his strength — hover any tile for what it means
+              <b style={{ color: C.blue }}>blue</b> = his strength — hover any tile for what it means
             </div>
           </ModalBand>
 
