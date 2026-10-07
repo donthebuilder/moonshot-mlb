@@ -583,7 +583,7 @@ export default function Picks({ picks, results, data, matchup, onPlayerClick, od
                           {odds && (
                             <OddsLine
                               quote={quoteFor(odds, { player_id: rung.player_id, name: rung.name }, market)}
-                              compact
+                              compact move theme={C}
                             />
                           )}
                           {row && outcome(row.botOut, row.botVal)}

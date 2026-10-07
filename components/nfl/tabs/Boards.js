@@ -444,7 +444,7 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
                     renders nothing per-card when it doesn't (no line offered is
                     a normal, per-player state; the banner above is what says
                     whether the FETCH itself found anything at all). */}
-                {odds && <OddsLine quote={quoteFor(odds, p, market)} compact />}
+                {odds && <OddsLine quote={quoteFor(odds, p, market)} compact move theme={C} />}
                 {/* our line beside it (TEST, BATCH-DASH-LINE) */}
                 {dash && DASH_OF[market] && <DashChip row={dash.by.get(`${p.player_id}|${DASH_OF[market]}`)} compact />}
               </div>

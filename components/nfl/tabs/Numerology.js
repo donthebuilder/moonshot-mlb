@@ -167,6 +167,7 @@ export default function Numerology({ data, onPlayerClick }) {
       {nextGameDay ? <TonightsNumbers date={nextGameDay} theme={C} numFont={NUM_FONT} accent={C.green} label={`next game day · ${nextGameDay.slice(5).replace('-', '/')}`} /> : null}
       <HotNumbers sport="nfl" theme={C} numFont={NUM_FONT} accent={C.green} eventWord="TDs" />
       <div style={{ fontSize: TYPE.body, color: C.text2, lineHeight: 1.65, maxWidth: 860, marginBottom: 12 }}>
+        <b style={{ color: C.text }}>One page: the next game day&apos;s numbers, the hot numbers, the alignments and the lanes.</b>{' '}
         Five numbers a player carries -- the <b style={{ color: C.text }}>touchdowns he&apos;s sitting on</b>, his{' '}
         <b style={{ color: C.text }}>next touchdown</b>, <b style={{ color: C.text }}>jersey</b>,{' '}
         <b style={{ color: C.text }}>birth day</b> and <b style={{ color: C.text }}>life path</b> -- each added down to one

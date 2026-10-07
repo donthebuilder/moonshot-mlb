@@ -1,6 +1,7 @@
 'use client'
 import { C, NUM_FONT } from '../lib/theme'
 import { fmtOdds, VERDICT } from '../lib/odds'
+import LineMoveChip from './LineMoveChip'
 
 // 💰 The book's line for one pick, rendered as a comparison rather than a price.
 //
@@ -14,13 +15,16 @@ import { fmtOdds, VERDICT } from '../lib/odds'
 // module-level literal keeps the palette it was imported with. See #23.
 const TONE = () => ({ good: C.green || '#4ade80', bad: '#f87171', flat: C.text3 })
 
-export default function OddsLine({ quote, edge, compact = false }) {
+// `move` (2026-10-07, opt-in, so MOONSHOT's own lines are untouched): add the line-moved chip, the feed's
+// opening price -> our latest read (lib/odds/lineMove.js). Drawn only when the quote really moved.
+export default function OddsLine({ quote, edge, compact = false, move = false, theme = null }) {
   if (!quote) return null
   const v = edge ? VERDICT[edge.verdict] : null
   const col = v ? TONE()[v.tone] : C.text3
   const line = Number(quote.line)
 
   return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
     <span
       title={[
         `${quote.name || ''} · ${quote.market}`,
@@ -67,6 +71,8 @@ export default function OddsLine({ quote, edge, compact = false }) {
           {edge.diff > 0 ? '+' : ''}{edge.diff}
         </b>
       )}
+    </span>
+    {move && quote.matches !== false && <LineMoveChip quote={quote} theme={theme} compact />}
     </span>
   )
 }

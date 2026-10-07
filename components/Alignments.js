@@ -6,6 +6,7 @@ import { easternToday } from '../lib/data'
 import TonightsNumbers from './numerology/TonightsNumbers'
 import AlignmentsView from './numerology/AlignmentsView'
 import LaneTable from './numerology/LaneTable'
+import PageHeader from './PageHeader'
 import { fromMlb } from '../lib/numerology/adapters'
 import {
   usePeople, slateAlignments, AXIS_META, alignedWith,
@@ -115,16 +116,17 @@ export default function Alignments({ players = [], watchIds = null, slateDate = 
       children={<LaneTable sport="mlb" theme={C} numFont={NUM_FONT} accent={C.orange} tonight={laneTonight} />}
       head={(
         <>
-          {/* TONIGHT'S NUMBERS (numerology v2): the slate's own date. */}
-          <div style={{ marginBottom: 10 }}><TonightsNumbers date={todayKey} theme={C} numFont={NUM_FONT} accent={C.orange} /></div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 3 }}>
-            <span style={{ fontSize: 13, fontWeight: 900 }}>🔮 Tonight&apos;s alignments</span>
-            <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
-              {rows.length} hitters · seven axes, one reduction · {loaded ? 'birthdays + positions loaded' : 'loading birthdays + positions…'}
-            </span>
-          </div>
-          <div style={{ fontSize: 10, color: C.text3, lineHeight: 1.65, maxWidth: 860, marginBottom: 10 }}>
-            Every number a hitter carries — the <b style={{ color: C.text2 }}>homers he is sitting on</b>, his{' '}
+          {/* ONE PAGE, ONE EXPLAINER (2026-10-07, Donovan: Numerology and Alignments on one page). The page is
+              #tab=numerology; #tab=align is its old key. Three parts, top to bottom: tonight's numbers, the
+              alignments, the lanes -- and one paragraph that says what all three are. */}
+          <PageHeader
+            title="🔮 Numerology"
+            sub={`${rows.length} hitters · seven axes, one reduction · ${loaded ? 'birthdays + positions loaded' : 'loading birthdays + positions…'}`}
+          />
+          <div style={{ fontSize: 12, color: C.text2, lineHeight: 1.65, maxWidth: 860, marginBottom: 10 }}>
+            <b style={{ color: C.text }}>One page, three parts.</b> Tonight&apos;s numbers: the slate&apos;s own date reduced to one digit.
+            Alignments: who carries it, and the clubs every hitter falls into. Lanes: which lanes have run hot so far, with tonight&apos;s
+            players on them. Every number a hitter carries — the <b style={{ color: C.text2 }}>homers he is sitting on</b>, his{' '}
             <b style={{ color: C.text2 }}>next homer</b>, his{' '}
             <b style={{ color: C.text2 }}>jersey</b>, his <b style={{ color: C.text2 }}>birth day</b>, his{' '}
             <b style={{ color: C.text2 }}>life path</b>, where he <b style={{ color: C.text2 }}>bats</b> and where he{' '}
@@ -133,6 +135,8 @@ export default function Alignments({ players = [], watchIds = null, slateDate = 
             in every club by arithmetic alone, so read the <b style={{ color: C.text2 }}>×</b> against that share, not the raw count.
             Fun to track, never a reason to bet — nothing here feeds any score. Check names as you go and hand them to the builder.
           </div>
+          {/* PART ONE: TONIGHT'S NUMBERS (numerology v2): the slate's own date. */}
+          <div style={{ marginBottom: 10 }}><TonightsNumbers date={todayKey} theme={C} numFont={NUM_FONT} accent={C.orange} /></div>
         </>
       )}
     />

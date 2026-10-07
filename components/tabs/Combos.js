@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { btnStyle } from '../ui'
 import Pairs from './Pairs'
@@ -8,7 +8,7 @@ import PairHistory from './PairHistory'
 import Builder from '../Builder'
 import ComboLinks from '../ComboLinks'
 import { queueLedgerView, ledgerHash } from '../../lib/ledger/views'
-import Alignments from '../Alignments'
+import { takeBuilderSeed } from '../../lib/builderSeed'
 
 // 🎟 COMBOS — Pairs, Pools and their history under one roof (2026-08-16).
 //
@@ -59,7 +59,7 @@ import Alignments from '../Alignments'
 // 2026-08-24: text-only — secondary/sub-tab pills are emoji-free site-wide.
 const VIEWS = [
   ['pairs', 'Pairs & Pools'],
-  ['align', 'Alignments'],
+  ['align', 'Numerology'],   // 2026-10-07: opens the Numerology page (Alignments + the numbers + the lanes are one page now)
   // #12: this pill and the panel mounted on Pairs & Pools were both called
   // "Homer ledger" and both show tonight's ledger, so the pill row read as a
   // duplicate of something already on the page. They are not the same thing:
@@ -126,7 +126,7 @@ export default function Combos({
   // 'pools' is no longer a view of its own — the alias maps onto the combined
   // one rather than 404ing into the default silently.
   const [view, setView] = useState(() => {
-    const want = initial === 'pools' ? 'pairs' : initial
+    const want = initial === 'pools' || initial === 'align' ? 'pairs' : initial
     return VIEWS.some(([k]) => k === want) ? want : 'pairs'
   })
 
@@ -134,22 +134,25 @@ export default function Combos({
   // with them pre-pinned. Cleared once Builder has consumed it so the SAME
   // pick set can be sent again later without going stale.
   const [seedPins, setSeedPins] = useState(null)
+  // names checked on the Numerology page arrive here once (lib/builderSeed.js), pinned in the Builder
+  useEffect(() => {
+    const rows = takeBuilderSeed()
+    if (rows) { setSeedPins(rows); setView('builder') }
+  }, [])
   // The Ledger lab moved to The Ledger > Archive: this pill (and the line under Pairs) go there.
   const openArchive = () => {
     queueLedgerView('archive')
     if (onNavigate) onNavigate('ledger'); else if (typeof window !== 'undefined') window.location.hash = ledgerHash('mlb', 'archive')
   }
-  const handleBuildAround = (rows) => {
-    if (!rows?.length) return
-    setSeedPins(rows)
-    setView('builder')
+  const openNumerology = () => {
+    if (onNavigate) onNavigate('numerology'); else if (typeof window !== 'undefined') window.location.hash = '#sport=mlb&tab=numerology'
   }
 
   return (
     <div>
       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 12 }}>
         {VIEWS.map(([k, label]) => (
-          <button key={k} onClick={() => (k === 'ledger' ? openArchive() : setView(k))} style={btnStyle(C.orange, view === k)}>
+          <button key={k} onClick={() => (k === 'ledger' ? openArchive() : k === 'align' ? openNumerology() : setView(k))} style={btnStyle(C.orange, view === k)}>
             {label}
           </button>
         ))}
@@ -243,15 +246,6 @@ export default function Combos({
           VIEWS above for why it moved out into a pill of its own, and
           components/tabs/LedgerLab.js for what "research tool" turned out to
           mean: the night, and then the corpus of nights behind it. */}
-      {view === 'align' && (
-        <Alignments
-          players={allPlayers}
-          watchIds={watchIds}
-          slateDate={slateDate}
-          onPlayerClick={onPlayerClick}
-          onBuildAround={handleBuildAround}
-        />
-      )}
       {view === 'builder' && (
         <Builder
           players={players}

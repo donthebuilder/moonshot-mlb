@@ -5,6 +5,8 @@ import { useMemo, useState } from 'react'
 import { C, NUM_FONT, gradeFor } from '../../lib/nfl/theme'
 import { LABELS } from '../../lib/nfl/scoreLabels'
 import { quoteFor } from '../../lib/nfl/oddsMatch'
+import LineMoveChip from '../LineMoveChip'
+import { lineMove } from '../../lib/odds/lineMove'
 import NflTable from './NflTable'
 import PlayerFace from '../PlayerFace'
 import { Segmented, FilterPill, AngleRow as SharedAngleRow } from '../Filters'
@@ -106,6 +108,9 @@ export function NflBoardList({ players, market, weights, odds, phone, onPlayerCl
       team: p.team || null, opp: p.opp || null,
       score: Math.round(p.scores[market]), grade: gradeFor(p.scores[market]).label,
       price: q && q.over != null && q.matches !== false ? Number(q.over) : null,
+      // LINE MOVED (2026-10-07): the feed's opening price against our latest read (lib/odds/lineMove.js); blank when none
+      _q: q && q.matches !== false ? q : null,
+      moveNum: q && q.matches !== false ? (lineMove(q)?.pp ?? null) : null,
       _dash: dmk && dash ? dash.by.get(`${p.player_id}|${dmk}`) || null : null,
       dash: dmk && dash ? (dash.by.get(`${p.player_id}|${dmk}`)?.dash_line ?? null) : null,
       ...Object.fromEntries(top.map((k) => [k, Number.isFinite(p.components?.[market]?.[k]) ? Math.round(p.components[market][k]) : null])),
@@ -161,6 +166,9 @@ export function NflBoardList({ players, market, weights, odds, phone, onPlayerCl
     ...(statusOf ? [{ key: 'status', label: 'Status', heat: false, statusCol: true, w: phone ? 64 : 118, fmt: (v, r) => <CallStatusBadge status={statusOf(r._p)} accent={C.green} short={phone} /> }] : []),
     ...top.map((k) => ({ key: k, label: LABELS[k] || k, w: phone ? 74 : 86, scale: 'seq', domain: [0, 100] })),
     ...(phone || !odds ? [] : [{ key: 'price', label: 'Price', w: 60, heat: false, fmt: (v) => (v == null ? '—' : v > 0 ? `+${v}` : String(v)) }]),
+    ...(phone || !odds || !rows.some((r) => r.moveNum != null) ? [] : [{ key: 'moveNum', label: 'Line moved', w: 112, dp: 1,
+      title: 'Where the price opened against our latest read, in break-even points (▲ shortened, ▼ drifted). The chip shows opening → now. Blank when the feed carried no opening price: nothing is guessed.',
+      fmt: (v, r) => (r._q ? <LineMoveChip quote={r._q} theme={C} numFont={NUM_FONT} compact /> : '—') }]),
     // DASH: our median for the stat, coloured by its lean against the book's line (a TEST)
     { key: 'hiConf', label: 'A+', flag: true, mark: '\u2605', w: 30, group: MARK_GROUP, title: 'High-confidence TD flag: a TD score of 78 or better, the A+ band.' },
     { key: 'quest', label: 'Q', flag: true, mark: 'Q', w: 28, group: MARK_GROUP, title: 'Listed on the injury report.' },

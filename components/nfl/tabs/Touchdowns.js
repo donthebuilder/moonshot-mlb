@@ -136,7 +136,7 @@ export function Card({ p, rank, matchup, odds, onPlayerClick, weights, base, poo
       {why && <div style={{ fontSize: TYPE.micro, color: C.text2, lineHeight: 1.4, marginBottom: 7 }}>{why.text}</div>}
       {stats.length > 0 && <StatStrip stats={stats} wrap style={{ marginBottom: 8 }} />}
       <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-        <div style={{ flex: 1, minWidth: 0 }}>{(odds || quote) && <OddsLine quote={quote} compact />}</div>
+        <div style={{ flex: 1, minWidth: 0 }}>{(odds || quote) && <OddsLine quote={quote} compact move theme={C} />}</div>
         <button
           onClick={(e) => { e.stopPropagation(); watchlist.toggle(p) }}
           title={pinned ? 'Remove from watchlist' : 'Add to watchlist'}

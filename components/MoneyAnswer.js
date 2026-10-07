@@ -86,7 +86,7 @@ export default function MoneyAnswer({ compact = false, onNavigate = null }) {
     return (
       <button
         type="button"
-        onClick={() => onNavigate?.('trueprice')}
+        onClick={() => onNavigate?.('odds')}
         style={{
           display: 'block', width: '100%', textAlign: 'left', cursor: onNavigate ? 'pointer' : 'default',
           background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 10,

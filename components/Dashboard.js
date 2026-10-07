@@ -9,6 +9,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { resolveTab, pageTitle, isSport, isLiveTab } from '../lib/routes'
 import { canonLedgerHash, queueLedgerView, carryLedgerView } from '../lib/ledger/views'
+import { queueBuilderSeed } from '../lib/builderSeed'
 import LedgerShell from './pages/LedgerShell'
 import { usePageTitle } from '../lib/usePageTitle'
 import TabNotFound from './TabNotFound'
@@ -54,7 +55,6 @@ function TabLoading() {
   return <div aria-busy="true" style={{ minHeight: '60vh' }}><span style={{ position: 'absolute', left: -9999 }}>Loading…</span></div>
 }
 const MyPicks = dynamic(() => import('./tabs/MyPicks'), { loading: TabLoading })
-const TruePrice = dynamic(() => import('./tabs/TruePrice'), { loading: TabLoading })
 const Guide = dynamic(() => import('./tabs/Guide'), { loading: TabLoading })
 const Games = dynamic(() => import('./tabs/Games'), { loading: TabLoading })
 const Boxes = dynamic(() => import('./tabs/Boxes'), { loading: TabLoading })
@@ -70,6 +70,7 @@ const PlayerBoard = dynamic(() => import('./tabs/PlayerBoard'), { loading: TabLo
 const HitsHRR = dynamic(() => import('./tabs/HitsHRR'), { loading: TabLoading })
 const Scoreboard = dynamic(() => import('./tabs/Scoreboard'), { loading: TabLoading })
 const Combos = dynamic(() => import('./tabs/Combos'), { loading: TabLoading })
+const Alignments = dynamic(() => import('./Alignments'), { loading: TabLoading })
 const MlbLedger = dynamic(() => import('./tabs/MlbLedger'), { loading: TabLoading })
 const You = dynamic(() => import('./tabs/You'), { loading: TabLoading })
 const Pools = dynamic(() => import('./tabs/Pools'), { loading: TabLoading })
@@ -95,7 +96,7 @@ const WATCH_EVENT = 'mlb-watchlist-change'
 
 // Tabs that read no slate data and must render even when tonight's card
 // hasn't been built. See the gate below.
-const SLATE_FREE = new Set(['trueprice', 'boxes'])
+const SLATE_FREE = new Set(['boxes'])
 
 // palettePass changes once, after SportRoot has applied a non-default chrome
 // palette (see components/SportRoot.js). Nothing reads it: it exists so the
@@ -1082,10 +1083,9 @@ export default function Dashboard({ palettePass = 0 }) {
             {tab === 'patterns'    && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} onNavigate={setTab} initialView="patterns" />}
             {tab === 'longest'     && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} onNavigate={setTab} initialView="power" powerInitial="longest" />}
             {tab === 'due'         && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} slateDate={slateDate} onNavigate={setTab} initialView="power" powerInitial="due" />}
-            {/* 2026-08-24: the Alignments view gets its own route, so the Home
-                ledger's "research →" can land on it directly. Same component
-                and props as every other Combos alias. */}
-            {tab === 'align'       && <Combos odds={odds} slateDate={slateDate} players={players} allPlayers={allPlayers} pairBuilder={pairBuilder} pairSummary={pairSummary} results={resultsForSlate} watchIds={watchIds} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} initial="align" />}
+            {/* 2026-10-07: Numerology is its own page now (Alignments, the date's numbers and the lanes),
+                no longer a view inside Parlays; #tab=align is its old key. */}
+            {tab === 'numerology'  && <Alignments players={allPlayers} watchIds={watchIds} slateDate={slateDate} onPlayerClick={setModalPlayer} onBuildAround={(rows) => { queueBuilderSeed(rows); setTab('combos') }} />}
             {/* 🧾 #tab=ledger — the Homer Ledger's own page inside Combos
                 (2026-08-24). Same host, own view; the Home panel's
                 "research →" link points here. */}
@@ -1105,7 +1105,6 @@ export default function Dashboard({ palettePass = 0 }) {
             {tab === 'pairhist'    && <Combos odds={odds} slateDate={slateDate} players={players} allPlayers={allPlayers} pairBuilder={pairBuilder} pairSummary={pairSummary} results={resultsForSlate} watchIds={watchIds} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} initial="history" />}
             {tab === 'mypicks'     && <You players={allPlayers} watchItems={watchLive} pairSummary={pairSummary} results={resultsForSlate} odds={odds} slateDate={slateDate} mode={mode} onWatch={toggleWatch} onAdd={addSlip} onPlayerClick={setModalPlayer} initial="picks" />}
             {tab === 'watch'       && <You players={allPlayers} watchItems={watchLive} pairSummary={pairSummary} results={resultsForSlate} odds={odds} slateDate={slateDate} mode={mode} onWatch={toggleWatch} onAdd={addSlip} onPlayerClick={setModalPlayer} initial="watch" />}
-            {tab === 'trueprice'   && <OddsBoard players={players} odds={oddsRaw} onPlayerClick={setModalPlayer} initialView="trueprice" />}
             {tab === 'leaders'     && <Leaders players={players} onPlayerClick={setModalPlayer} onNavigate={setTab} />}
             {tab === 'player'      && <PlayerBoard players={players} slate={allPlayers} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} odds={odds} />}
             {tab === 'derby'       && <Derby players={players} results={resultsForSlate} slateDate={slateDate} onPlayerClick={setModalPlayer} />}
