@@ -4,7 +4,7 @@ import HighlightBar from '../HighlightBar'
 import { SportTheme } from '../SportTheme'
 import { easternToday, easternDate } from '../../lib/data'
 import { TodayContext } from '../TodayContext'
-import { hashParams, writeHash, closeOpened } from '../../lib/urlState'
+import { hashParams, writeHash, closeOpenedStack, cardKeep, cardViewPush } from '../../lib/urlState'
 import { announceFilters } from '../../lib/filterHash'
 import { listenForWorkerOpen } from '../../lib/workerOpen'
 import { resolveColdTab } from '../../lib/shellRoute'
@@ -113,6 +113,17 @@ function NflStaleBanner({ meta, data, loading }) {
 }
 
 // the team page keeps its club (10-03)
+// THE CARD'S TAB IS IN THE ADDRESS (2026-10-06): view=matchup|splits beside card=
+// (Overview writes nothing; an old view=field link is the Matchup tab). The Board
+// hub (boards / touchdowns) owns view= on its own page, so a card opened over the
+// hub keeps its tab out of the address rather than fight it for the key.
+const HUB_TABS = new Set(['boards', 'touchdowns'])
+const CARD_VIEWS = new Set(['matchup', 'splits'])
+const cardViewOf = (h) => {
+  if (HUB_TABS.has(h.get('tab'))) return ''
+  const v = h.get('view') === 'field' ? 'matchup' : h.get('view')
+  return CARD_VIEWS.has(v) ? v : ''
+}
 const NFL_TAB_KEEP = { player: new Set(['players']), team: new Set(['players', 'team']), game: new Set(['games']) }
 
 export default function NflDashboard({ palettePass = 0 }) {
@@ -191,7 +202,7 @@ export default function NflDashboard({ palettePass = 0 }) {
     setTabRaw(next)
     // the address rule is lib/useShellRoute.js tabSwitchHash (R7): the Players
     // file keeps player/team, the Slate keeps its open game; a new tab drops the card
-    const { hash, changed } = tabSwitchHash(hashParams().toString(), { sport: 'nfl', next, keep: NFL_TAB_KEEP, clearOnChange: ['card', 'cm'] })
+    const { hash, changed } = tabSwitchHash(hashParams().toString(), { sport: 'nfl', next, keep: NFL_TAB_KEEP, clearOnChange: ['card', 'cm', 'view'] })
     // A card belongs to the page it was opened on: a real tab change drops
     // it; resolving the address you arrived on (same tab) keeps it.
     writeHash(hash, { push: push && changed })
@@ -274,7 +285,8 @@ export default function NflDashboard({ palettePass = 0 }) {
         if (!cardId) setModal(null)
         else {
           const found = (slateRef.current?.players || []).find((x) => String(x.player_id) === cardId)
-          if (found) setModal((m) => (m && String(m.player?.player_id) === cardId ? m : { player: found, market: hash.get('cm') || 'TD' }))
+          const view = cardViewOf(hash)
+          if (found) setModal((m) => (m && String(m.player?.player_id) === cardId ? (m.view === view ? m : { ...m, view }) : { player: found, market: hash.get('cm') || 'TD', view }))
         }
       } catch { /* ignore malformed hashes */ }
     }
@@ -337,7 +349,7 @@ export default function NflDashboard({ palettePass = 0 }) {
     const cardId = h.get('card')
     if (!cardId) return
     const found = slate.players.find((x) => String(x.player_id) === cardId)
-    if (found) { cardOpenedRef.current = true; setModal({ player: found, market: h.get('cm') || 'TD' }) }
+    if (found) { cardOpenedRef.current = true; setModal({ player: found, market: h.get('cm') || 'TD', view: cardViewOf(h) }) }
   }, [slate])
 
   // THE CARD IS IN THE ADDRESS (2026-09-27, audit 00A: 80 of 82 TUDDY player
@@ -358,12 +370,27 @@ export default function NflDashboard({ palettePass = 0 }) {
     // the entry and keeps its nflCard marker, so one close leaves the card.
     const swap = Boolean(hash.get('card'))
     hash.set('sport', 'nfl'); hash.set('card', id)
+    if (!HUB_TABS.has(hash.get('tab'))) hash.delete('view')   // a new card opens on Overview
     if (market && market !== 'TD') hash.set('cm', market); else hash.delete('cm')
-    writeHash(hash, swap ? { push: false, state: window.history.state?.nflCard ? { nflCard: 1 } : null } : { push: true, state: { nflCard: 1 } })
+    writeHash(hash, swap ? { push: false, state: cardKeep('nflCard', 'nflViews') } : { push: true, state: { nflCard: 1 } })
   }
-  const closePlayer = () => closeOpened('nflCard', () => {
+  // The tab picked on the open card goes to the address; a pick is a history step
+  // (Back undoes it), and the card's markers on history.state let one close step
+  // back over all of them (lib/urlState closeOpenedStack).
+  const setCardView = (k) => {
+    const view = CARD_VIEWS.has(k) ? k : ''
+    setModal((m) => (m && (m.view || '') !== view ? { ...m, view } : m))
+    const hash = hashParams()
+    if (!hash.get('card') || HUB_TABS.has(hash.get('tab'))) return
+    if ((hash.get('view') || '') === view || (hash.get('view') === 'field' && view === 'matchup')) return
+    if (view) hash.set('view', view); else hash.delete('view')
+    writeHash(hash, { push: true, state: cardViewPush('nflCard', 'nflViews') })
+  }
+  const closePlayer = () => closeOpenedStack('nflCard', 'nflViews', () => {
     setModal(null)
-    const hash = hashParams(); hash.delete('card'); hash.delete('cm'); writeHash(hash)
+    const hash = hashParams(); hash.delete('card'); hash.delete('cm')
+    if (!HUB_TABS.has(hash.get('tab'))) hash.delete('view')
+    writeHash(hash)
   })
 
   // THE TODAY LINE's day (2026-09-28): today's games by their own ET date,
@@ -512,7 +539,9 @@ export default function NflDashboard({ palettePass = 0 }) {
         // third argument); the touchdown board does, so there the arrows walk
         // your filter. Tabs that don't still walk the whole board.
         peers={modalPeers}
-        onNavigate={(p) => setModal((m) => ({ ...(m || {}), player: p }))}
+        initialTab={modal?.view || ''}
+        onViewChange={setCardView}
+        onNavigate={(p) => { setModal((m) => ({ ...(m || {}), player: p, view: '' })); const h = hashParams(); if (h.get('view') && !HUB_TABS.has(h.get('tab'))) { h.delete('view'); writeHash(h, { push: false, state: cardKeep('nflCard', 'nflViews') }) } }}
       />
       </ErrorBoundary>
     </AccentProvider>

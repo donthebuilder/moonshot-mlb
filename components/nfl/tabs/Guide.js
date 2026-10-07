@@ -118,7 +118,7 @@ export default function Guide({ onNavigate, data }) {
         <Term tab="matchups" go={go} icon="🛡️" term="Matchups" def="defense-versus-position and matchup context without turning team context into a player pick." />
         <Term tab="pairs" go={go} icon="🔗" term="Pairs" def="related same-game combinations. Relationship labels are context, not a guarantee or independent grade." />
         <Term tab="standings" go={go} icon="📊" term={NFL_NAV.standings.label} def="every division: record, points for and against, home and road, division and conference records, streak. Measured, not modeled." />
-        <Term tab="leaders" go={go} icon="🏅" term="Leaders" def="who is first in each stat category, already sorted side by side — measured, not modeled." />
+        <Term tab="leaders" go={go} icon="🏅" term="Leaders" def="who is first in each stat category, already sorted side by side — measured, with the model's scores as columns at the end of the table." />
         <Term tab="live" go={go} icon="📡" term="Live" def="every rung on the card against its bar, on the league feed, while the game is on. Cleared, live, or missed — plus the scoring plays as they land." />
         <Term tab="scores" go={go} icon="🏟️" term={NFL_NAV.scores.label} def="every game, one row each: kickoff or score. Tap a game for its box -- passing, rushing, receiving and kicking lines, plus each team's defense." />
         <Term tab="streaks" go={go} icon="🔥" term="Streaks" def="who is hot or cold at a line you pick, last 30 games, no model in the way. Hot is the play; cold is the fade." />

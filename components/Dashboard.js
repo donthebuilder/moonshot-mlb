@@ -2,7 +2,7 @@
 import HighlightBar from './HighlightBar'
 import { TodayContext } from './TodayContext'
 import { useHashFilter, readHashKey, FILTER_KEYS } from '../lib/filterHash'
-import { hashParams, writeHash, closeOpened } from '../lib/urlState'
+import { hashParams, writeHash, cardKeep, cardViewPush, closeOpenedStack } from '../lib/urlState'
 import { leaveTarget } from '../lib/openTarget'
 import { listenForWorkerOpen } from '../lib/workerOpen'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -155,9 +155,16 @@ export default function Dashboard({ palettePass = 0 }) {
   // which is how a Discord pick post becomes a link to its receipt.
   const hashAppliedRef = useRef(false)
   // Which tab of the player card a deep link asked for (`#p=571448&view=spray`).
-  // Empty means "whatever the card opens on by itself". Set by the hash
-  // readers below, handed to PlayerModal, and never written back into the URL
-  // -- it is an instruction for the moment the card opens, not an address.
+  // Empty means "whatever the card opens on by itself" (Overview).
+  //
+  // IT IS IN THE ADDRESS NOW (Donovan, 2026-10-06; it used to be read-only,
+  // "an instruction for the moment the card opens, not an address"). The card
+  // reports the tab you pick (onViewChange), the write-back effect below puts
+  // it in the hash as `view=`, a refresh or a shared link reopens the same
+  // tab, Back steps through the views, and closing the card takes `view=` with
+  // it. Reading the address (apply / the cold reader) sets it the other way.
+  // The two cannot chase each other: the write only runs for a change here
+  // and writeHash is a no-op when the address already says it.
   //
   // IT CARRIES THE PLAYER IT WAS MEANT FOR. The card can walk to the next man
   // on the board without closing (onNavigate), which changes `player` under
@@ -166,6 +173,11 @@ export default function Dashboard({ palettePass = 0 }) {
   // somebody else twenty minutes ago. Pairing the view with an id makes it
   // expire on its own the moment you move off the man it was about.
   const [modalView, setModalView] = useState({ pid: '', view: '' })
+  // A card closed (or a tab left) drops its view; one still waiting for its
+  // slate row keeps it (pendingViewRef).
+  useEffect(() => {
+    if (!modalPlayer && !pendingPlayerRef.current) setModalView((v) => (v.pid || v.view ? { pid: '', view: '' } : v))
+  }, [modalPlayer])
   // `missing` carries the tab someone actually typed when this product has no
   // such page, so the shell can say so instead of rendering an empty div. See
   // lib/routes.js -- MOONSHOT used to answer #tab=picks with a blank screen.
@@ -229,7 +241,11 @@ export default function Dashboard({ palettePass = 0 }) {
     // write-back and the id is safely parked. Costs one read on mount.
     try {
       const p0 = new URLSearchParams(String(window.location.hash || '').replace(/^#/, '')).get('p')
-      if (p0) pendingPlayerRef.current = String(p0)
+      if (p0) {
+        pendingPlayerRef.current = String(p0)
+        // the card's view rides with its player: the write-back below rebuilds the hash
+        pendingViewRef.current = String(new URLSearchParams(String(window.location.hash || '').replace(/^#/, '')).get('view') || '')
+      }
     } catch { /* a malformed hash is not worth a crash on mount */ }
 
     const apply = () => {
@@ -268,9 +284,10 @@ export default function Dashboard({ palettePass = 0 }) {
         const found = playersRef.current.find((x) => String(x?.player_id ?? x?.id) === pid)
         hashAppliedRef.current = !!found
         if (found) setModalPlayer(found)
-        else pendingPlayerRef.current = pid
+        else { pendingPlayerRef.current = pid; pendingViewRef.current = String(h.get('view') || '') }
       } else {
         pendingPlayerRef.current = ''
+        pendingViewRef.current = ''
         setModalPlayer(null)
       }
     }
@@ -298,6 +315,7 @@ export default function Dashboard({ palettePass = 0 }) {
   // slate, and how it parks an id whose row has not been fetched yet.
   const playersRef = useRef([])
   const pendingPlayerRef = useRef('')
+  const pendingViewRef = useRef('')
 
   const [focusPlayerId, setFocusPlayerId] = useState(null)
 
@@ -451,7 +469,8 @@ export default function Dashboard({ palettePass = 0 }) {
       // `view` is read here rather than at mount because a cold open reaches
       // this effect only once the payload lands, and the hash is still intact
       // until the card actually opens.
-      const v = String(h.get('view') || '')
+      const v = String(h.get('view') || pendingViewRef.current || '')
+      pendingViewRef.current = ''
       if (v) setModalView({ pid: String(pid2), view: v })
       setModalPlayer(found)
       pendingPlayerRef.current = ''
@@ -521,6 +540,9 @@ export default function Dashboard({ palettePass = 0 }) {
     for (const k of FILTER_KEYS) { const v = readHashKey(k); if (v) h.set(k, v) }
     const pid2 = modalPlayer ? String(modalPlayer?.player_id ?? modalPlayer?.id ?? '') : missingPlayer
     if (pid2) h.set('p', pid2)
+    // The open card's tab (Overview writes nothing). Only a real card has one:
+    // a not-found id (missingPlayer) has no tabs.
+    if (modalPlayer && pid2 && modalView.pid === pid2 && modalView.view) h.set('view', modalView.view)
     if (mode === 'tomorrow' && !autoDayRef.current) h.set('day', 'tmrw')
     // The Games / Pitchers / Players tabs own game= / pitcher= / player= (they write them); this
     // writer rebuilds the hash from scratch, so it carries them on their tab.
@@ -550,8 +572,14 @@ export default function Dashboard({ palettePass = 0 }) {
     const newCard = Boolean(cardId) && !hadCard
     const swapCard = Boolean(cardId) && hadCard && cardId !== before.get('p')
     const newDay = (h.get('day') || '') !== (before.get('day') || '')
-    writeHash(h, { push: newTab || newCard || newDay, state: newCard || (swapCard && window.history.state?.dashCard) ? { dashCard: 1 } : null })
-  }, [tab, modalPlayer, missingTab, missingPlayer, mode])
+    // A tab picked inside the open card is a step of its own, so Back undoes it.
+    const newView = Boolean(cardId) && hadCard && !swapCard && (h.get('view') || '') !== (before.get('view') || '')
+    writeHash(h, {
+      push: newTab || newCard || newDay || newView,
+      // the card's markers (lib/urlState cardKeep) ride a replace and a swap
+      state: newCard ? { dashCard: 1 } : newView ? cardViewPush('dashCard', 'dashViews') : (hadCard ? cardKeep('dashCard', 'dashViews') : null),
+    })
+  }, [tab, modalPlayer, missingTab, missingPlayer, mode, modalView])
 
 
   const players = useMemo(() => {
@@ -1095,7 +1123,9 @@ export default function Dashboard({ palettePass = 0 }) {
         slate={allPlayers}
         initialTab={modalPlayer && String(modalPlayer?.player_id ?? modalPlayer?.id ?? '') === modalView.pid ? modalView.view : ''}
         slateMode={mode}
-        onClose={() => closeOpened('dashCard', () => setModalPlayer(null))}
+        onClose={() => closeOpenedStack('dashCard', 'dashViews', () => setModalPlayer(null))}
+        // the tab picked on the card goes to the address (see modalView above)
+        onViewChange={(k) => setModalView({ pid: String(modalPlayer?.player_id ?? modalPlayer?.id ?? ''), view: k === 'overview' ? '' : String(k || '') })}
         onAdd={addSlip}
         onWatch={toggleWatch}
         watched={modalPlayer ? watchIds.has(playerId(modalPlayer)) : false}
@@ -1104,7 +1134,8 @@ export default function Dashboard({ palettePass = 0 }) {
         // whatever you were actually reading. The search inside the modal
         // reaches the same list.
         peers={players}
-        onNavigate={setModalPlayer}
+        // walking to the next man keeps the tab you are on (and its view=)
+        onNavigate={(p) => { setModalView((v) => ({ pid: String(p?._raw?.player_id ?? p?.player_id ?? p?.id ?? ''), view: v.view })); setModalPlayer(p) }}
         odds={odds}
         // ⚖ PAIR HISTORY, THREADED IN (2026-08-21, Phase 5). PlayerModal had
         // no way to reach pair_history_summary at all before this — Compare
