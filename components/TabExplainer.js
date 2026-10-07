@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useLayoutEffect, useState } from 'react'
 import { C } from '../lib/theme'
 
 // ❓ WHAT AM I LOOKING AT — the answer to the most common piece of feedback
@@ -116,7 +116,10 @@ export default function TabExplainer({ tab, texts = TEXTS, storageKey = 'tab_exp
   const info = texts[tab === 'due' ? 'longest' : tab === 'hitshrr' ? 'board' : tab]
   const [open, setOpen] = useState(false)
 
-  useEffect(() => {
+  // useLayoutEffect, not useEffect: the first-visit box is decided before the
+  // first paint, so it never paints as the small pill and then grows by ~80px
+  // (LAMP / MOONSHOT layout shift, 2026-10-06).
+  useLayoutEffect(() => {
     if (!info) return
     // Auto-open on the FIRST visit to each tab, pill afterward.
     try {
