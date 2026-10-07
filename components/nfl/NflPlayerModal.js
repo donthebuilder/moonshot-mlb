@@ -450,7 +450,7 @@ const TABS = [
 
 
 
-export default function NflPlayerModal({ player, market, markets, splitMeta, logs, matchup, slate, picks, results, onClose, onFullProfile, peers = [], onNavigate = null, initialTab = '', odds = null, inline = false }) {
+export default function NflPlayerModal({ player, market, markets, splitMeta, logs, matchup, slate, picks, results, onClose, onFullProfile, peers = [], onNavigate = null, initialTab = '', onViewChange = null, odds = null, inline = false }) {
   const dash = useDashLines()   // our line beside the book's (TEST)
   // inline (2026-09-30): the Players page shows this card in its right pane,
   // the way MOONSHOT's PlayerBoard shows PlayerModal inline -- no backdrop,
@@ -607,7 +607,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
         }}>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {TABS.map((t) => (
-              <TabBtn key={t.key} active={tab === t.key} onClick={() => setTab(t.key)}>{t.label}</TabBtn>
+              <TabBtn key={t.key} active={tab === t.key} onClick={() => { setTab(t.key); onViewChange?.(t.key) }}>{t.label}</TabBtn>
             ))}
           </div>
           {onNavigate && <Navigator peers={peers} cur={player} onNavigate={onNavigate} idOf={nflIdOf} noun="player" />}

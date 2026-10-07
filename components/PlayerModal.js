@@ -1,7 +1,7 @@
 'use client'
 import { mlbFaceStrict } from './PlayerFace'
 import { teamKey, teamName } from '../lib/mlbTeams'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import useScrollLock from '../lib/useScrollLock'
 import { C, NUM_FONT } from '../lib/theme'
@@ -249,7 +249,7 @@ function clubLink(code, style = CLUB_LINK) {
   return k ? <a href={`#sport=mlb&tab=team&team=${k}`} style={style} title={`${teamName(k)} team page`}>{code}</a> : code
 }
 
-export default function PlayerModal({ player, slate = null, slateMode, initialTab = '', onClose, inline = false, onAdd, onWatch, watched = false, peers = [], onNavigate = null, odds = null, pairSummary = null, onOpenPairHistory = null }) {
+export default function PlayerModal({ player, slate = null, slateMode, initialTab = '', onViewChange = null, onClose, inline = false, onAdd, onWatch, watched = false, peers = [], onNavigate = null, odds = null, pairSummary = null, onOpenPairHistory = null }) {
   // Inline mode is not an overlay -- it renders in the page, and pinning the
   // body under it would freeze the very thing the reader is scrolling.
   useScrollLock(Boolean(player) && !inline)
@@ -395,11 +395,24 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
   // refuses a tab this player does not have rather than rendering an empty
   // panel -- an API-only man has four tabs, not nine, and Spray is one of
   // them, which is the case that matters here.
+  //
+  // THE TAB IS IN THE ADDRESS (2026-10-06, Dashboard.js modalView): the shell
+  // hands the address's view back as initialTab and hears every pick through
+  // onViewChange. initialTab going back to '' (Back, or the card closing) puts
+  // the card back on Overview; a pick the card cannot show is reported as ''.
+  const lastViewRef = useRef('')
   useEffect(() => {
-    if (!player || !initialTab) return
+    if (!player) return
+    if (!initialTab) {
+      if (lastViewRef.current) setTab('overview')
+      lastViewRef.current = ''
+      return
+    }
+    lastViewRef.current = initialTab
     const allowed = (player?.api_only ? ['overview', 'splits', 'ev', 'spray'] : TABS.map((t) => t.key))
     if (allowed.includes(initialTab)) setTab(initialTab)
-  }, [player, initialTab])
+    else onViewChange?.('')
+  }, [player, initialTab])   // eslint-disable-line react-hooks/exhaustive-deps
 
   // 🎽 JERSEY NUMBER (2026-08-13, Donovan: "add jersey numbers to the players
   // modal"). Not something the bot publishes — it's static roster info, the
@@ -791,7 +804,7 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
                 sideways-scrolling treatment the board category chips get. */}
             <div className="chip-row" style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
               {visibleTabs.map(t => (
-                <TabBtn key={t.key} active={tab === t.key} onClick={() => setTab(t.key)}>{t.label}</TabBtn>
+                <TabBtn key={t.key} active={tab === t.key} onClick={() => { setTab(t.key); onViewChange?.(t.key) }}>{t.label}</TabBtn>
               ))}
             </div>
             {/* The old fixed BBE range toggle lived here and forced EV Log into
