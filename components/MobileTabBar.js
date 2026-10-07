@@ -100,7 +100,7 @@ const SEEN_KEY = 'moonshot_more_seen_v1'
 // Ledger a notebook where the others are a receipt, LAMP's Boards a chart
 // going up where the others are bars. Applied where the drawer draws a tile
 // only -- no tab is renamed or re-keyed (lib/routes.js stays the one table).
-const DRAWER_ICON = { matchups: '🧭', players: '👤', 'player board': '👤', ledger: '🧾', boards: '📊', standings: '📊' }
+const DRAWER_ICON = { matchups: '🧭', players: '👤', 'player board': '👤', 'the ledger': '📒', boards: '📊', standings: '📊' }
 const iconFor = (label, icon) => DRAWER_ICON[String(label || '').toLowerCase()] || icon
 
 // The drawer's title and lede ("Everything on this site / Every page, and the

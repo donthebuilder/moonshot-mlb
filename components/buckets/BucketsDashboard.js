@@ -8,6 +8,7 @@
 // for the live count in the header (the same request Home makes).
 // HIDDEN until it opens: SportRoot renders this only for a visitor
 // /api/buckets/access lets in, and every /api/buckets route enforces the same.
+import LedgerShell from '../pages/LedgerShell'
 import { useMemo } from 'react'
 import { TeamNav } from '../../lib/teamNav'
 import HighlightBar from '../HighlightBar'
@@ -131,7 +132,11 @@ export default function BucketsDashboard() {
             {tab === 'odds' && <BucketsOdds date={date} onOpenPlayer={peekPlayer} />}
             {tab === 'storylines' && <StorylinesPage sport="nba" eyebrow="BUCKETS · STORYLINES" theme={C} numFont={NUM_FONT} accent={C.purple} onOpenPlayer={peekPlayer} onOpenGame={openGame} date={date} />}
             {tab === 'watchlist' && <Watchlist onOpenPlayer={peekPlayer} />}
-            {tab === 'ledger' && <Ledger date={date} setDate={setDate} {...nav} />}
+            {/* THE LEDGER (2026-10-07): Tonight | Record -- BUCKETS has no called table or archive yet (components/pages/LedgerShell) */}
+            {tab === 'ledger' && <LedgerShell sport="nba" bodies={{
+              tonight: () => <Ledger date={date} setDate={setDate} {...nav} />,
+              record: () => <Results {...nav} />,
+            }} />}
             {tab === 'numerology' && <Numerology date={date} onOpenPlayer={peekPlayer} />}
             {tab === 'hot' && <Hot date={date} setDate={setDate} {...nav} />}
             {tab === 'matchups' && <Matchups date={date} setDate={setDate} onOpenTeam={openTeam} onOpenGame={openGame} />}
@@ -142,7 +147,6 @@ export default function BucketsDashboard() {
             {tab === 'player' && <Player id={playerId} {...nav} backLabel={backLabel('players')} onBack={() => goBack('players')} />}
             {tab === 'leaders' && <Leaders {...nav} />}
             {tab === 'shotmap' && <ShotMap {...nav} />}
-            {tab === 'results' && <Results {...nav} />}
             {tab === 'guide' && <Guide onNavigate={setTab} />}
           </ErrorBoundary>
           <DashFooter sport="nba" theme={C} onGuide={() => setTab('guide')} />

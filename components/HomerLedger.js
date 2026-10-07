@@ -1,4 +1,5 @@
 'use client'
+import { queueLedgerView } from '../lib/ledger/views'
 import Tap from './Tap'
 import { leaveTarget } from '../lib/openTarget'
 import { useEffect, useMemo, useState } from 'react'
@@ -1092,7 +1093,7 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
           {total} {research && night ? `on ${night}` : 'tonight'}
         </span>
         {!research && onNavigate && (
-          <span onClick={() => onNavigate('ledger')}
+          <span onClick={() => { queueLedgerView('archive'); onNavigate('ledger') }}
             title="The full ledger with every night this browser has seen — the roots, the echoes, the matching game, all of it"
             style={{
               fontSize: 9, color: C.cyan, cursor: 'pointer', fontFamily: NUM_FONT,
@@ -1100,7 +1101,7 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
             }}>research →</span>
         )}
         {!research && onNavigate && (
-          <span onClick={() => { try { window.sessionStorage.setItem('ms_ledger_open_view', 'season') } catch { /* private mode */ } onNavigate('ledger') }}
+          <span onClick={() => { try { window.sessionStorage.setItem('ms_ledger_open_view', 'season') } catch { /* private mode */ } queueLedgerView('archive'); onNavigate('ledger') }}
             title="Every homer in the majors across the nights this device holds — by night, and by hitter"
             style={{
               fontSize: 9, color: C.orange, cursor: 'pointer', fontFamily: NUM_FONT,

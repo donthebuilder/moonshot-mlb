@@ -44,14 +44,14 @@ const shiftDate = (date, deltaDays) => {
   return dayStr(d)
 }
 
-export default function CalledLedger({ slateDate = '', onPlayerClick = null }) {
+export default function CalledLedger({ slateDate = '', onPlayerClick = null, initialView = 'night' }) {
   const today = slateDate || easternToday()
   const [date, setDate] = useState(today)
   const [night, setNight] = useState(null)
   const [nightLoading, setNightLoading] = useState(false)
   const [nightNote, setNightNote] = useState(null)
 
-  const [view, setView] = useState('night')
+  const [view, setView] = useState(initialView)   // The Ledger's Archive can open it on the season view
   const [season, setSeason] = useState(null)          // seasonRecord() shape
   const [seasonLoading, setSeasonLoading] = useState(false)
   const [seasonMessage, setSeasonMessage] = useState('')

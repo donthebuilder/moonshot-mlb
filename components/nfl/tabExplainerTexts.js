@@ -11,6 +11,7 @@ export const NFL_TEXTS = {
   watchlist: { what: 'Your starred names for this week, one game at a time. A pin lives on this device; the follow it creates outlives the slate.' },
   matchups: { what: 'Defense versus position by depth role, coverage shells, explosive plays allowed. Team-level — look any defense up from here.' },
   pairs: { what: 'Two-leg same-team combinations from the card. Relationship labels are context, not an independent grade — a season of results is needed before a real co-occurrence number exists.' },
+  ledger: { what: 'The Ledger is the site’s receipts, in four tabs. This week: the week in names and numbers. Called: every touchdown sorted CALLED, ON THE BOARD or NOT ON THE BOARD. Record: the bot’s own record on its own published card, hits, misses and voids. Archive: past weeks and the whole season.' },
   accountability: { what: 'The bot’s own record on its own published card: season to date, one row per market, and any graded week on the picker. Hits, misses, voids and the bar each market had to clear.' },
   guide: { what: 'What every page is for, in plain words.' },
 }

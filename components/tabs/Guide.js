@@ -324,7 +324,7 @@ export default function Guide({ onNavigate }) {
         <Term tab="spray" go={onNavigate} icon="🗺️" term={tabName('mlb', 'spray')} def="where a hitter's batted balls actually land." />
         <Term tab="pitchers" go={onNavigate} icon="🎯" term="Pitchers" def="tonight's arms ranked by how much they leak." />
         <Term tab="leaders" go={onNavigate} icon="🏅" term="Leaders" def="season-long league leaders." />
-        <Term tab="results" go={onNavigate} icon="✅" term={tabName('mlb', 'results')} def="the receipts — last night graded, and the season record behind it." />
+        <Term tab="ledger" go={onNavigate} icon="📒" term={tabName('mlb', 'ledger')} def="one page, four tabs. Tonight: the night in names and numbers. Called: every home run sorted CALLED, ON THE BOARD or NOT ON THE BOARD. Record: the receipts, last night graded and the season behind it. Archive: past nights, the season and a search." />
         <Term tab="watch" go={onNavigate} icon="⭐" term="Watchlist" def="names you starred, followed across every tab." />
         <Term tab="bot" go={onNavigate} icon="🤖" term={tabName('mlb', 'bot')} def="the raw model output and its own text logs, unfiltered." />
       </Section>
