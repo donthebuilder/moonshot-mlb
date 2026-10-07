@@ -31,7 +31,10 @@ const LABEL = { TD: 'Anytime TD', REC_YDS: 'Receiving yards', REC: 'Receptions',
 const PREVIEW = 12
 
 // One NFL log series -> readRun()'s rows (newest first): [date, opp, _, v].
-// Home/away is not in the NFL log, so the strip says neither (home: null).
+// Home/away comes from the log's per-game `h` (bots/nfl/nfl_gamelog.py, since
+// 2026-10-06): the strip says "vs" / "@" for a game that carries it. A neutral
+// site, or a log published before that change, has none -- home: null there,
+// so the strip says neither (readRun alone would turn "unknown" into "away").
 function runOf(series, bar) {
   const latest = series.length ? series[series.length - 1].s : null
   const rows = [...series].reverse().map((g) => [
@@ -39,7 +42,9 @@ function runOf(series, bar) {
   ])
   const r = readRun(rows, 3, bar)
   if (!r) return null
-  return { ...r, strip: r.strip.map((x) => ({ ...x, home: null })) }
+  // strip is oldest -> newest, the same order as `series`
+  const aligned = r.strip.length === series.length
+  return { ...r, strip: r.strip.map((x, i) => ({ ...x, home: aligned && series[i].h != null ? series[i].h === 1 : null })) }
 }
 
 export default function Streaks({ data, logs, onPlayerClick }) {
