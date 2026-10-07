@@ -13,6 +13,7 @@ import MultiLine from '../../ledger/MultiLine'
 import LampTable from '../LampTable'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import HisNumbers from '../../HisNumbers'
+import InTheLedger from '../../ledger/InTheLedger'
 import { etToday } from '../../../lib/freshness'
 import { useLampPlayer, useLampBoardOnce, useLampSplits } from '../../../lib/nhl/useLamp'
 import VerdictHero from '../../VerdictHero'
@@ -317,6 +318,7 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
           <div style={{ color: C.text3, fontSize: 12, lineHeight: 1.5 }}>{bio}</div>
           {!goalie && <MultiLine sport="nhl" playerId={p.id} words={{ G: 'multi-goal' }} color={C.ice} textColor={C.text2} />}
           <StarMemory sport="nhl" id={String(p.id)} />
+          {!goalie && <InTheLedger sport="nhl" id={p.id} name={p.name} jersey={p.number} birthDate={p.birthDate} next={!stale && Number.isFinite(f.regular?.g) ? f.regular.g + 1 : null} date={etToday()} />}
           {!goalie && <HisNumbers name={p.name} jersey={p.number} birthDate={p.birthDate} next={!stale && Number.isFinite(f.regular?.g) ? f.regular.g + 1 : null} career={Number.isFinite(p.career?.regular?.g) ? p.career.regular.g + 1 : null} nextWord="goal" date={etToday()} theme={C} accent={C.ice} numFont={NUM_FONT} />}
           <PlayerNotes playerId={String(p.id)} scope="nhl" accent={C.ice} />
         </>

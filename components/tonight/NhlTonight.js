@@ -21,5 +21,5 @@ export default function NhlTonight({ today, board, date = null, onOpenPlayer, se
     const t = lampTonight(num.data, lampAlignModel(num.data, board))
     return tonightNhl({ games, scorers, aligned: t?.byBotScore || [], root: num.data?.dateRoot || null })
   }, [board, today, num.data])
-  return <TonightStrip data={out} onOpen={(id) => onOpenPlayer?.(id)} onLedger={setTab ? () => setTab('ledger') : null} />
+  return <TonightStrip sport="nhl" data={out} onOpen={(id) => onOpenPlayer?.(id)} onLedger={setTab ? () => setTab('ledger') : null} />
 }

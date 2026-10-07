@@ -602,7 +602,7 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
           components/LensRow.js for why that divider could never do the job it
           was being asked to do. */}
       {phoneRank && boards && (
-        <BoardFilters state={state} total={players.length} shown={filtered.length} compact beside={phoneBeside} lead={phoneLead} />
+        <BoardFilters state={state} total={players.length} shown={filtered.length} compact beside={phoneBeside} lead={phoneLead} ledger={rankings ? 'mlb' : null} />
       )}
       {boards && !phoneRank && (
         // ── ONE ROW, NOT TWO (2026-09-14, MOONSHOT batch 3) ────────────────

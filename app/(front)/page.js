@@ -39,6 +39,7 @@ import LegacyHashRedirect from '../../components/LegacyHashRedirect'
 import SubmitButton from '../../components/SubmitButton'
 import { getNetworkPulse, liveProduct } from '../../lib/dash/pulse'
 import { appHref, BRAND, playerHref, SPORT_KEYS } from '../../lib/routes'
+import { ledgerAppHref } from '../../lib/ledger/views'
 import { easternDate } from '../../lib/data'
 import { SPORT_ACCENT } from '../../lib/sportAccent'
 import { nextLine } from '../../lib/mlbNext'
@@ -147,6 +148,15 @@ export default async function DashHome({ searchParams }) {
     const next = ks.find((t) => t > now)
     return next ? <>next game <LocalAt iso={next} day fallback={`${new Date(next).toLocaleString('en-US', { timeZone: 'America/New_York', weekday: 'short', hour: 'numeric', minute: '2-digit' })} ET`} /></> : 'no game left this week'
   })()
+  // THE LEDGER'S TONIGHT LINE, PER SPORT: only figures the cards below already print. A sport with
+  // nothing on says so in the words its own card uses, or leaves the line off. (BUCKETS: not in SPORT_KEYS
+  // until it opens, so it is never listed here.)
+  const LEDGER_LINE = {
+    mlb: mlbOff ? `no games tonight` : mlb?.started ? `${mlb.cleared ?? 0} of ${mlb.started} calls cleared` : mlb?.calls ? `${mlb.calls} calls tonight` : null,
+    nfl: nflOff || (nfl?.games ? `${nfl.games} games this week` : null),
+    nhl: nhl?.games ? `${nhl.lockedGames}/${nhl.games} games locked` : (lampWhy(nhl) ? 'no games tonight' : null),
+  }
+  const ledgerLines = SPORT_KEYS.map((k) => ({ k, line: LEDGER_LINE[k] })).filter((l) => l.line)
   // The sign-up fold opens by itself when someone is mid-flow: a failed
   // attempt, a confirm-your-email return, or the welcome after sign-up.
   const authOpen = Boolean(welcomeName || params.error || params.message || params.confirm || params.em)
@@ -243,9 +253,18 @@ export default async function DashHome({ searchParams }) {
           {me.user ? (
             <span className={styles.otherProducts}>or {SPORT_KEYS.filter((k) => k !== live).map((k, i) => <span key={k}>{i ? ' · ' : ''}<Link href={appHref(k)}>{BRAND[k].name}</Link></span>)}</span>
           ) : null}
+          {/* THE LEDGER IS A PRIMARY DOOR (2026-10-07, Donovan: "the ledger is a core product feature ... that's a big
+              thing my site has that a lot of people don't"): beside the board, wearing the same button, the public
+              all-sports Ledger every call is graded in. Each sport's tonight line is under it, from the numbers this
+              page already reads (lib/dash/pulse) -- nothing new is fetched or invented. */}
+          <Link href="/called" className={styles.ledgerBtn}>The Ledger <b>→</b><small className={styles.heroWhich}>EVERY CALL, GRADED IN PUBLIC</small></Link>
           <Link href="/start">What is this?</Link>
-          <Link href="/called">CALLED IT &middot; the public record</Link>
         </div>
+        {ledgerLines.length ? (
+          <ul className={styles.ledgerLines} aria-label="The Ledger tonight, by sport">
+            {ledgerLines.map((l) => <li key={l.k}><Link href={`/called?sport=${l.k}`}><b>{BRAND[l.k].name}</b> {l.line}</Link></li>)}
+          </ul>
+        ) : null}
       </section>
 
       <section className={styles.slate} id="tonight">
@@ -390,7 +409,7 @@ export default async function DashHome({ searchParams }) {
               with under 30 graded calls is left off until it has them. TUDDY leads with board coverage because its ladder names five
               players a week against two dozen touchdowns; LAMP counts goal scorers against the three it calls in
               each game, regular season only. Every night behind these numbers is on the{' '}
-              <Link href="/app#sport=mlb&tab=results">Results page</Link> and each product&apos;s record page, one row at a time.
+              <Link href={ledgerAppHref('mlb', 'record')}>Ledger&apos;s Record tab</Link> and each product&apos;s own, one row at a time.
             </p>
           </details>
         </section>
@@ -415,7 +434,7 @@ export default async function DashHome({ searchParams }) {
           )}
           <footer>
             <Link href="/app#sport=mlb&tab=home">Open MOONSHOT →</Link>
-            <Link href="/app#sport=mlb&tab=results">Results</Link>
+            <Link href={ledgerAppHref('mlb')}>The Ledger</Link>
             <Link href="/app#sport=mlb&tab=watch">Your watchlist</Link>
           </footer>
         </article>
@@ -441,6 +460,7 @@ export default async function DashHome({ searchParams }) {
           <footer>
             <Link href="/app#sport=nfl&tab=home">Open TUDDY →</Link>
             <Link href="/app#sport=nfl&tab=boards">Boards</Link>
+            <Link href={ledgerAppHref('nfl')}>The Ledger</Link>
             <Link href="/app#sport=nfl&tab=watchlist">Your watchlist</Link>
           </footer>
         </article>
@@ -469,7 +489,7 @@ export default async function DashHome({ searchParams }) {
           <footer>
             <Link href="/app#sport=nhl&tab=home">Open LAMP →</Link>
             <Link href="/app#sport=nhl&tab=board">Board</Link>
-            <Link href="/app#sport=nhl&tab=results">The record</Link>
+            <Link href={ledgerAppHref('nhl')}>The Ledger</Link>
             <Link href="/nhl/standings">Standings</Link>
           </footer>
         </article>

@@ -1,16 +1,17 @@
 'use client'
 // THE TONIGHT STRIP (2026-10-04, Donovan approved the shape): three rows at the
 // top of every Home -- WENT, LINING UP, STILL TO GO -- three names each and a
-// "+N" that opens the rest; the full Ledger is one tap below. The rows come from
+// "+N" that opens the rest; The Ledger is one tap away. The rows come from
 // lib/tonight.js (pure, one builder per sport); this only draws them, in the
 // product's own theme (SportTheme; MOONSHOT falls back to lib/theme).
 // STILL TO GO marks each man live (⚡) or still to start (⏳); CALLED names wear the
 // product's colour with the key ('■ CALLED') on the row's label (Donovan 10-05 chose
 // this compact form over a stamp per name) -- never on hover only.
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useSportTheme } from './SportTheme'
 import { surname } from '../lib/player'
 import { STATUS_WORD } from '../lib/callStatus'
+import { publishLedgerCount } from '../lib/ledger/chip'
 
 // a surname keeps its particle ("Amon-Ra St. Brown" -> "St. Brown", not "Brown")
 const PARTICLE = /^(st\.?|de|del|della|di|da|van|von|der|den|le|la|du|mc|o')$/i
@@ -65,17 +66,22 @@ function Row({ label, items, onOpen, C, NUM_FONT, kind, accent }) {
 /**
  * @param data    { went, lining, still } from lib/tonight.js
  * @param onOpen  (id, item) => open his card
- * @param onLedger open the sport's full Ledger
+ * @param onLedger open The Ledger
+ * @param sport    the sport key: the called-vs-scored count is published for the Ledger chip (lib/ledger/chip.js)
  */
-export default function TonightStrip({ data, onOpen, onLedger, words = {} }) {
+export default function TonightStrip({ data, onOpen, onLedger, words = {}, sport = null }) {
   const { C, NUM_FONT, accent } = useSportTheme()
+  const called = data?.called && data.called.of > 0 ? data.called : null
+  useEffect(() => { if (sport) publishLedgerCount(sport, called) }, [sport, called?.scored, called?.of])   // eslint-disable-line react-hooks/exhaustive-deps
   if (!data || !(data.went?.length || data.lining?.length || data.still?.length)) return null
   return (
     <section aria-label="Tonight" style={{ border: `1px solid ${C.border}`, borderRadius: 12, padding: '8px 12px 4px', margin: '0 0 12px', background: C.bg2, minWidth: 0 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: 30 }}>
         <span style={{ font: `900 11px/1 ${NUM_FONT}`, letterSpacing: '.12em', color: accent }}>TONIGHT</span>
+        {/* the Ledger's one line: of the men CALLED, how many have scored (the same count the Ledger chip carries) */}
+        {called && <span style={{ font: `800 11px/1 ${NUM_FONT}`, color: C.text2 }}><b style={{ color: accent }}>{called.scored}</b> of {called.of} {STATUS_WORD.called} scored</span>}
         {onLedger && (
-          <button type="button" onClick={onLedger} style={{ minHeight: 44, margin: '-7px 0', padding: '0 2px', border: 0, background: 'transparent', color: C.text2, font: `800 11px/1 ${NUM_FONT}`, cursor: 'pointer' }}>full Ledger ›</button>
+          <button type="button" onClick={onLedger} style={{ minHeight: 44, margin: '-7px 0', padding: '0 2px', border: 0, background: 'transparent', color: C.text2, font: `800 11px/1 ${NUM_FONT}`, cursor: 'pointer', whiteSpace: 'nowrap' }}>The Ledger ›</button>
         )}
       </div>
       <Row label={words.went || 'WENT'} items={data.went} onOpen={onOpen} C={C} NUM_FONT={NUM_FONT} accent={accent} kind="went" />

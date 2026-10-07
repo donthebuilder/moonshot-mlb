@@ -27,6 +27,7 @@ import Explain from '../Explain'
 import OffBot from '../OffBot'
 import GameDeepDive from '../GameDeepDive'
 import MlbWriteupBlock from '../MlbWriteupBlock'
+import GameLedgerLine from '../ledger/GameLedgerLine'
 import GameSimPanel from '../GameSimPanel'
 import LineupSlotMatchup from '../LineupSlotMatchup'
 import PairTray from '../PairTray'
@@ -1650,6 +1651,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                         <div id={`gp-read-${g.game_pk}`} />
                         {/* THE CALL (2026-10-05): the per-game post's write-up, from the same rows */}
                         <MlbWriteupBlock rows={g.players} onPlayerClick={onPlayerClick} />
+                        <GameLedgerLine sport="mlb" gameId={g.game_pk} day={slateDate} />
                         <GameDeepDive game={g} allPlayers={players} slateDate={slateDate} results={results} odds={odds} onPlayerClick={onPlayerClick} section="read" />
 
                         {/* THE LINEUPS, WHERE HE ASKED FOR THEM. Same component

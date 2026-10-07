@@ -1,4 +1,5 @@
 'use client'
+import LedgerShell from '../pages/LedgerShell'
 import { TeamNav, GameNav } from '../../lib/teamNav'
 import HighlightBar from '../HighlightBar'
 import { SportTheme } from '../SportTheme'
@@ -167,7 +168,14 @@ export default function LampDashboard({ palettePass = 0 }) {
             {tab === 'leaders' && <Leaders onOpenPlayer={peekPlayer} onOpenTeam={openTeam} />}
             {tab === 'specialteams' && <SpecialTeams onOpenTeam={openTeam} onOpenPlayer={peekPlayer} />}
             {tab === 'matchups' && <Matchups date={date} onOpenPlayer={peekPlayer} onOpenTeam={openTeam} />}
-            {tab === 'ledger' && <Ledger date={date} onOpenPlayer={peekPlayer} onOpenTeam={openTeam} onOpenGame={openGame} />}
+            {/* THE LEDGER (2026-10-07): one tab, four sub-tabs (components/pages/LedgerShell). Tonight's Ledger, the Lamp
+                Ledger and The record are its bodies; lampledger / results / record are aliases of it. */}
+            {tab === 'ledger' && <LedgerShell sport="nhl" bodies={{
+              tonight: () => <Ledger date={date} onOpenPlayer={peekPlayer} onOpenTeam={openTeam} onOpenGame={openGame} />,
+              called: () => <LampLedger onOpenPlayer={peekPlayer} onOpenTeam={openTeam} />,
+              record: () => <Results onOpenPlayer={peekPlayer} />,
+              archive: () => <LampLedger onOpenPlayer={peekPlayer} onOpenTeam={openTeam} initialView="season" />,
+            }} />}
             {tab === 'hotsticks' && <HotSticks onOpenPlayer={peekPlayer} />}
             {tab === 'power' && <Power onOpenPlayer={peekPlayer} />}
             {tab === 'watchlist' && <Watchlist onOpenPlayer={peekPlayer} />}
@@ -176,7 +184,6 @@ export default function LampDashboard({ palettePass = 0 }) {
             {tab === 'odds' && <LampOdds onOpenPlayer={peekPlayer} />}
             {tab === 'longshots' && <Longshots sport="nhl" eyebrow="LAMP · LONGSHOTS" theme={C} numFont={NUM_FONT} accent={C.ice} Table={LampTable} onOpenPlayer={peekPlayer} />}
             {tab === 'shotmap' && <ShotMap onOpenPlayer={peekPlayer} />}
-            {tab === 'lampledger' && <LampLedger onOpenPlayer={peekPlayer} onOpenTeam={openTeam} />}
             {tab === 'numerology' && <Numerology date={date} onOpenPlayer={peekPlayer} />}
             {/* Props is cards only (BATCH-ONE-SITE step 3, 2026-10-05; Donovan: "props page on NHL is
                 broken" -- it was the cards, then the whole table under them). The table is Boards. */}
@@ -193,7 +200,6 @@ export default function LampDashboard({ palettePass = 0 }) {
               market={tab === 'shots' ? 'SOG' : null}
               onMarket={tab === 'shots' ? () => setTab('fullboard') : null} />}
             {tab === 'games' && <LampSlate onOpenPlayer={peekPlayer} onOpenGame={openGame} onOpenTeam={openTeam} date={date} setDate={setDate} />}
-            {tab === 'results' && <Results onOpenPlayer={peekPlayer} />}
           </ErrorBoundary>
           <DashFooter sport="nhl" theme={C} onGuide={() => setTab('guide')} />
           {/* a tapped player opens his card over the page (Donovan 10-03); Full page = the player tab */}

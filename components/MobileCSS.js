@@ -1258,6 +1258,11 @@ export default function MobileCSS() {
       @media (max-width: 700px), (hover: none) {
         .rail-nubs { display: none !important; }
       }
+      /* The Ledger chip in a desktop Filters drawer row (components/FiltersDrawer.js): on a phone the Rankings page's
+         own control row carries it, so the drawer's copy steps aside (2026-10-07). */
+      @media (max-width: 760px) {
+        .ledger-chip-wide { display: none !important; }
+      }
     `}</style>
   )
 }

@@ -19,5 +19,5 @@ export default function NbaTonight({ board, date = null, onOpenPlayer, setTab })
     const t = bucketsTonight(num.data, bucketsAlignModel(num.data, board))
     return tonightNba({ rows: board.rows || [], games: board.games, cleared, aligned: t?.byBotScore || [], root: num.data?.dateRoot || null })
   }, [board, ledger.data, num.data])
-  return <TonightStrip data={out} words={{ went: 'PTS 25+' }} onOpen={(id) => onOpenPlayer?.(id)} onLedger={setTab ? () => setTab('ledger') : null} />
+  return <TonightStrip sport="nba" data={out} words={{ went: 'PTS 25+' }} onOpen={(id) => onOpenPlayer?.(id)} onLedger={setTab ? () => setTab('ledger') : null} />
 }

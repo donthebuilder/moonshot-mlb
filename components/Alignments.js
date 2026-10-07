@@ -1,10 +1,12 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
-import { nameOf, mlbId, playerId } from '../lib/player'
+import { nameOf, teamOf, mlbId, playerId } from '../lib/player'
 import { easternToday } from '../lib/data'
 import TonightsNumbers from './numerology/TonightsNumbers'
 import AlignmentsView from './numerology/AlignmentsView'
+import LaneTable from './numerology/LaneTable'
+import { fromMlb } from '../lib/numerology/adapters'
 import {
   usePeople, slateAlignments, AXIS_META, alignedWith,
   shiftDateKey, dateDigitRoot,
@@ -97,6 +99,11 @@ export default function Alignments({ players = [], watchIds = null, slateDate = 
   // (2026-09-29), shared with TUDDY and LAMP; this file is MOONSHOT's data:
   // its people fetch, its HomerLedger archive, its watchlist and the builder.
   const expected = totalMemberships / 9
+  // TONIGHT'S PLAYERS ON THE LANES (2026-10-07): the slate's hitters, in the lanes' adapter shape (his birth date from MLB people)
+  const laneTonight = useMemo(() => ({
+    date: todayKey,
+    items: players.map((p) => ({ id: p.player_id ?? p.id, name: nameOf(p), team: teamOf(p), a: fromMlb(p, people?.get(mlbId(p))), score: p.hr_score })),
+  }), [players, people, loaded, todayKey])   // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <AlignmentsView
       model={model} tonight={tonight} todayKey={todayKey} todayRoot={todayRoot}
@@ -105,6 +112,7 @@ export default function Alignments({ players = [], watchIds = null, slateDate = 
       days={{ yesterdayArchive, todayArchive, tomorrowKey, tomorrowRoot }}
       watchedRows={watchedRows} hasWatch={Boolean(watchIds && watchIds.size > 0)}
       builder onBuildAround={onBuildAround}
+      children={<LaneTable sport="mlb" theme={C} numFont={NUM_FONT} accent={C.orange} tonight={laneTonight} />}
       head={(
         <>
           {/* TONIGHT'S NUMBERS (numerology v2): the slate's own date. */}

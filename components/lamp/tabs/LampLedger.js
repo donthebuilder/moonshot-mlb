@@ -12,10 +12,10 @@ import { fmtDay } from '../ui'
 // re-derived), how he scored from the shot archive, a season block and each
 // scorer's history. Preseason nights are shown and labelled; the season
 // numbers are regular season only. Data: /api/lamp/ledger.
-export default function LampLedger({ onOpenPlayer, onOpenTeam }) {
+export default function LampLedger({ onOpenPlayer, onOpenTeam, initialView = 'night' }) {
   const [date, setDate] = useState(null)       // null = the latest graded night
-  const [days, setDays] = useState(null)
-  const [view, setView] = useState('night')
+  const [days, setDays] = useState(initialView === 'season' ? 30 : null)   // the Archive opens with the last 30 days loaded
+  const [view, setView] = useState(initialView)   // The Ledger's Archive opens it on the season view
   const night = useLampLedger({ date })
   const season = useLampLedger({ days, enabled: Boolean(days) })
   const nights = night.data?.nights || []

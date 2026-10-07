@@ -11,7 +11,7 @@ export const NBA_TEXTS = {
   odds: { what: 'The books’ lines on tonight’s players, every market BUCKETS calls -- the consensus, the no-vig fair line, the moves, the best book. Shown beside the board, never inside its score.' },
   storylines: { what: 'The stories in the day’s games -- a run of 25-point nights, a scoring surge, a soft defence, a back-to-back -- each frozen at tip and graded after the final.' },
   watchlist: { what: 'The players you starred. A star lasts for his next game and clears after it; every night you starred him is graded below off his own game log.' },
-  ledger: { what: 'Every player who cleared a bar that night -- PTS 25+, REB 10+, AST 8+, 3PM 4+, PRA 35+ -- live while the games are on, each tagged with how his row locked before tip.' },
+  ledger: { what: 'The Ledger, in two tabs. Tonight: every player who cleared a bar that night -- PTS 25+, REB 10+, AST 8+, 3PM 4+, PRA 35+ -- live while the games are on, each tagged with how his row locked before tip. Record: every graded night, how many of the calls hit.' },
   hot: { what: 'Every rotation player in the day’s games: his last 5 and last 10 games beside his season, for points, rebounds, assists, threes and minutes. The ± is last 5 minus season. Measured, not modelled.' },
   matchups: { what: 'Each game tonight, each side against what the other defence gives up a game, with its rank among the 30 (1 = gives up the most). Then every defence in one table. Last season’s until this one has games.' },
   standings: { what: 'Both conferences, seeded. Before opening night this is last season’s final table, and it says so.' },

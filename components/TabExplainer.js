@@ -101,6 +101,9 @@ const TEXTS = {
   pairhist: {
     what: 'The season-long memory of which two hitters have homered on the SAME night before, and how often. Feeds the pair builder — a duo that’s connected five times is a different bet than one that never has.',
   },
+  ledger: {
+    what: 'The Ledger is the site’s receipts, in four tabs. Tonight: the night in names and numbers. Called: every home run sorted CALLED, ON THE BOARD or NOT ON THE BOARD. Record: every graded night, wins and losses alike. Archive: past nights and the whole season. Picks lock at first pitch, so none of it can be quietly rewritten.',
+  },
   results: {
     what: 'The receipts. Every night the bot’s picks get graded against what actually happened, and it’s all here: nightly results, each player’s track record when picked, and the Report card — letter grades per category against their own season baselines. Picks lock at first pitch, so none of this can be quietly rewritten. This page is why you can trust the rest.',
   },

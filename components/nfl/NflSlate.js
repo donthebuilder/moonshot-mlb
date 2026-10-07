@@ -13,6 +13,8 @@ import { Card as TdCard, tdPool } from './tabs/Touchdowns'
 import NflTable from './NflTable'
 import { useGameCalls } from './GameCalls'
 import WriteupBlock from './WriteupBlock'
+import GameLedgerLine from '../ledger/GameLedgerLine'
+import { easternDate } from '../../lib/data'
 import { useNflWatchlist } from '../../lib/nfl/watchlist'
 import { localDayTime } from '../../lib/localTime'
 
@@ -186,6 +188,7 @@ export default function NflSlate({ data, picks, matchup, logs = null, odds = nul
                     </p>
                   )}
                   <WriteupBlock game={g} gameCalls={gameCalls} week={data} matchup={matchup} logs={logs} odds={odds} onPlayerClick={onPlayerClick} onOpenTeam={onOpenTeam} />
+                  <GameLedgerLine sport="nfl" gameId={g.game_id} day={g.kickoff ? easternDate(Date.parse(g.kickoff)) : null} />
                 </PanelAnchor>
 
                 {/* 4. THE MATCHUP, then the important stats */}

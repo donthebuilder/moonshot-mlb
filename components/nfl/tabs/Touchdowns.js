@@ -304,7 +304,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
 
       <div style={{ marginTop: 8 }}>
         <FilterBar>
-          <NflBoardFilters state={bandState} total={rows.length} shown={filtered.length} extra={drawerExtra} extraCount={drawerExtraCount} extraReset={extraReset} />
+          <NflBoardFilters ledger="nfl" state={bandState} total={rows.length} shown={filtered.length} extra={drawerExtra} extraCount={drawerExtraCount} extraReset={extraReset} />
         </FilterBar>
         {Boolean(tdFilterChips.length) && (
           <div style={{ marginTop: 8 }}>

@@ -8,6 +8,8 @@ import { hashParams, writeHash, closeOpenedStack, cardKeep, cardViewPush } from 
 import { announceFilters } from '../../lib/filterHash'
 import { listenForWorkerOpen } from '../../lib/workerOpen'
 import { resolveColdTab } from '../../lib/shellRoute'
+import { canonLedgerHash, queueLedgerView } from '../../lib/ledger/views'
+import LedgerShell from '../pages/LedgerShell'
 import { leaveTarget } from '../../lib/openTarget'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { resolveTab, pageTitle, NFL_TABS as NFL_TAB_KEYS, isLiveTab } from '../../lib/routes'
@@ -123,7 +125,7 @@ const cardViewOf = (h) => {
   const v = h.get('view')
   return CARD_VIEWS.has(v) ? v : ''
 }
-const NFL_TAB_KEEP = { player: new Set(['players']), team: new Set(['players', 'team']), game: new Set(['games']) }
+const NFL_TAB_KEEP = { player: new Set(['players']), team: new Set(['players', 'team']), game: new Set(['games']), lv: new Set(['ledger']) }   // lv=: The Ledger's sub-tab (lib/ledger/views.js)
 
 export default function NflDashboard({ palettePass = 0 }) {
   const [tab, setTabRaw] = useState('home')
@@ -197,7 +199,12 @@ export default function NflDashboard({ palettePass = 0 }) {
   }
   // a game (by its id) opens on the Games tab, which writes game=<id> into the address
   const openGameNav = (id) => { if (!id) return; leaveTarget('game', id); setTab('games') }
-  const setTab = (next, { push = true } = {}) => {
+  const setTab = (asked, { push = true } = {}) => {
+    // an old key (accountability, results, tuddyledger ...) opens the page it became; an old Ledger key
+    // also queues the Ledger sub-tab it meant (lib/ledger/views.js)
+    const r = resolveTab('nfl', asked)
+    if (r.status === 'alias' && r.view) queueLedgerView(r.view)
+    const next = r.status === 'alias' ? r.tab : asked
     if (!NFL_TABS.has(next)) return
     setMissingTab('')
     setTabRaw(next)
@@ -248,6 +255,7 @@ export default function NflDashboard({ palettePass = 0 }) {
     // name TUDDY, or names it with a word TUDDY cannot resolve at all while
     // the snapshot carries one it can. Same change in LampDashboard.
     // lib/shellRoute.js: the live hash answers when it names TUDDY, else the snapshot.
+    canonLedgerHash('nfl')   // #tab=tuddyledger -> #tab=ledger&lv=called, before the tab is resolved
     const r = resolveColdTab('nfl', window.location.hash, initialHashParams().get('tab'))
     // An unknown tab is NOT quietly rewritten to Home any more. Somebody who
     // shared "here are the receipts" as #sport=nfl&tab=results was sending
@@ -263,6 +271,7 @@ export default function NflDashboard({ palettePass = 0 }) {
   useEffect(() => {
     const readHash = () => {
       try {
+        canonLedgerHash('nfl')
         const hash = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''))
         const sp = hash.get('sport')
         // A hash that names the other product is a sport switch, not noise:
@@ -441,7 +450,7 @@ export default function NflDashboard({ palettePass = 0 }) {
             sport="nfl"
             palette={C}
             onNavigate={setTab}
-            doors={[['home', '🏠 HOME'], ['live', '🏈 LIVE'], ['picks', '🎯 PICKS'], ['research', '📊 RANKINGS'], ['accountability', '🧾 RESULTS'], ['guide', '📖 GUIDE']]}
+            doors={[['home', '🏠 HOME'], ['live', '🏈 LIVE'], ['picks', '🎯 PICKS'], ['research', '📊 RANKINGS'], ['ledger', '📒 THE LEDGER'], ['guide', '📖 GUIDE']]}
           />
         ) : loading ? (
           <div style={{
@@ -486,9 +495,14 @@ export default function NflDashboard({ palettePass = 0 }) {
             {tab === 'odds' && <OddsBoard sport="nfl" players={data?.players || []} theme={C} numFont={NUM_FONT} Table={NflTable} onPlayerClick={(p) => p && openPlayer(p, 'TD')} />}
             {tab === 'longshots' && <Longshots sport="nfl" eyebrow="TUDDY · LONGSHOTS" theme={C} numFont={NUM_FONT} accent={C.green} Table={NflTable} onOpenPlayer={(id) => { const p = (data?.players || []).find((x) => String(x.player_id) === String(id)); if (p) openPlayer(p, 'TD') }} />}
             {tab === 'numerology' && <Numerology data={data} onPlayerClick={openPlayer} />}
-            {tab === 'accountability' && <Accountability data={data} results={nflResults} onPlayerClick={openPlayer} />}
-            {tab === 'tuddyledger' && <TuddyLedger data={data} results={nflResults} onPlayerClick={openPlayer} />}
-            {tab === 'ledger' && <Ledger data={slate} picks={picks} results={nflResults} matchup={matchup} liveSnap={liveSnap} onPlayerClick={openPlayer} onOpenTeam={openTeamPage} onOpenGame={(id) => { leaveTarget('game', id); setTab('games') }} />}
+            {/* THE LEDGER (2026-10-07): one tab, four sub-tabs (components/pages/LedgerShell). This week's Ledger, the TD
+                Ledger and The record are its bodies; accountability / results / tuddyledger are aliases of it. */}
+            {tab === 'ledger' && <LedgerShell sport="nfl" bodies={{
+              tonight: () => <Ledger data={slate} picks={picks} results={nflResults} matchup={matchup} liveSnap={liveSnap} onPlayerClick={openPlayer} onOpenTeam={openTeamPage} onOpenGame={(id) => { leaveTarget('game', id); setTab('games') }} />,
+              called: () => <TuddyLedger data={data} results={nflResults} onPlayerClick={openPlayer} />,
+              record: () => <Accountability data={data} results={nflResults} onPlayerClick={openPlayer} />,
+              archive: () => <TuddyLedger data={data} results={nflResults} onPlayerClick={openPlayer} initialView="season" />,
+            }} />}
             {tab === 'scores' && <Scores data={slate} onPlayerClick={openPlayer} onOpenGame={(id) => { leaveTarget('game', id); setTab('games') }} />}
             {tab === 'team' && <NflTeam data={slate} picks={picks} onOpenPlayer={openPlayer} onOpenGame={(id) => { leaveTarget('game', id); setTab('games') }} />}
             {tab === 'standings' && <Standings onOpenTeam={openTeamPage} />}

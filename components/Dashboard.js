@@ -8,6 +8,8 @@ import { listenForWorkerOpen } from '../lib/workerOpen'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { resolveTab, pageTitle, isSport, isLiveTab } from '../lib/routes'
+import { canonLedgerHash, queueLedgerView, carryLedgerView } from '../lib/ledger/views'
+import LedgerShell from './pages/LedgerShell'
 import { usePageTitle } from '../lib/usePageTitle'
 import TabNotFound from './TabNotFound'
 import { fetchJSON, normalizeData, groupGames, slateLooksReal, slateDateFromRows, keepNewerSlate, easternDate, mlbScheduleSpan } from '../lib/data'
@@ -76,6 +78,7 @@ const Team = dynamic(() => import('./tabs/Team'), { loading: TabLoading })   // 
 const ScoreBands = dynamic(() => import('./ScoreBands'), { loading: TabLoading })
 const Results = dynamic(() => import('./tabs/Results'), { loading: TabLoading })
 const CalledLedger = dynamic(() => import('./tabs/CalledLedger'), { loading: TabLoading })
+const LedgerLab = dynamic(() => import('./tabs/LedgerLab'), { loading: TabLoading })   // the Ledger's Archive (was a pill in Parlays)
 const Watchlist = dynamic(() => import('./tabs/Watchlist'), { loading: TabLoading })
 const Pairs = dynamic(() => import('./tabs/Pairs'), { loading: TabLoading })
 const Bot = dynamic(() => import('./tabs/Bot'), { loading: TabLoading })
@@ -116,6 +119,8 @@ export default function Dashboard({ palettePass = 0 }) {
     // an old key (board, boards, hitshrr) opens the page it became (lib/routes.js MLB_ALIASES)
     const asked = resolveTab('mlb', rawNext)
     const next = asked.status === 'alias' ? asked.tab : rawNext
+    // an old Ledger key (results, calledledger, bands ...) opens The Ledger on its sub-tab (lib/ledger/views.js)
+    if (asked.status === 'alias' && asked.view) queueLedgerView(asked.view)
     if (next !== 'pairs') setFocusPlayerId(null)
     setModalView({ pid: '', view: '' })
     // Changing tab closes the player card. #33: `#tab=odds&p=686948` rendered
@@ -200,6 +205,7 @@ export default function Dashboard({ palettePass = 0 }) {
   const [missingSport, setMissingSport] = useState('')
   useEffect(() => { try { const s = new URLSearchParams(String(window.location.hash || '').replace(/^#/, '')).get('sport'); if (s && !isSport(s)) setMissingSport(String(s).slice(0, 20)) } catch { /* ignore */ } }, [])
   useEffect(() => {
+    canonLedgerHash('mlb')   // #tab=calledledger -> #tab=ledger&lv=called, before anything reads it
     const h = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''))
     const r = resolveTab('mlb', h.get('tab'))
     if (r.status === 'missing') setMissingTab(r.asked)
@@ -258,6 +264,7 @@ export default function Dashboard({ palettePass = 0 }) {
     } catch { /* a malformed hash is not worth a crash on mount */ }
 
     const apply = () => {
+      canonLedgerHash('mlb')
       const h = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''))
       // A hash naming ANOTHER product is a sport switch, not a tab change
       // (2026-09-25). This used to read `sp === 'mlb' || sp === 'nfl'` -- a
@@ -560,6 +567,7 @@ export default function Dashboard({ palettePass = 0 }) {
     if (tab === 'pitchers' && live.get('pitcher')) h.set('pitcher', live.get('pitcher'))
     if (tab === 'player' && live.get('player')) h.set('player', live.get('player'))   // PlayerBoard's pick (2026-09-29)
     if (tab === 'props' && live.get('sheet')) h.set('sheet', live.get('sheet'))       // the phone pick sheet (10-05)
+    carryLedgerView(h, live, tab)                                                     // The Ledger's sub-tab (lv=, lib/ledger/views.js)
     if (tab === 'team' && live.get('team')) h.set('team', live.get('team'))           // the team page's club (10-03)
     // PUSH WHAT YOU OPENED (2026-09-27, audit 00A root fix 1; lib/urlState).
     // A new tab or a newly opened card adds a history entry, so Back returns
@@ -887,7 +895,7 @@ export default function Dashboard({ palettePass = 0 }) {
   }, [slateDate, liveMatchesSlate, refreshKey])
 
   // These render from their own payloads, so an empty slate must not blank them.
-  const tabsWithoutPlayers = ['home', 'pairs', 'bot', 'results', 'guide', 'watch', 'pairhist']
+  const tabsWithoutPlayers = ['home', 'pairs', 'bot', 'ledger', 'guide', 'watch', 'pairhist']   // 'ledger': Called, Record and Archive read their own payloads
   const showEmpty = !loading && !players.length && !tabsWithoutPlayers.includes(tab)
 
   return (
@@ -970,7 +978,7 @@ export default function Dashboard({ palettePass = 0 }) {
             asked={missingTab}
             sport="mlb"
             onNavigate={setTab}
-            doors={[['home', '🏠 HOME'], ['fullboard', '📊 RANKINGS'], ['bot', '🎯 PICKS'], ['results', '🧾 THE RECORD'], ['guide', '📖 HOW THIS WORKS']]}
+            doors={[['home', '🏠 HOME'], ['fullboard', '📊 RANKINGS'], ['bot', '🎯 PICKS'], ['ledger', '📒 THE LEDGER'], ['guide', '📖 HOW THIS WORKS']]}
           />
         ) : loading && !SLATE_FREE.has(tab) ? (
           <Empty text="Loading slate data…" />
@@ -1029,8 +1037,6 @@ export default function Dashboard({ palettePass = 0 }) {
             {tab === 'combos'      && <Combos onNavigate={setTab} odds={odds} slateDate={slateDate} players={players} allPlayers={allPlayers} pairBuilder={pairBuilder} pairSummary={pairSummary} results={resultsForSlate} watchIds={watchIds} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} />}
             {tab === 'odds'        && <OddsBoard players={players} odds={oddsRaw} onPlayerClick={setModalPlayer} />}
             {tab === 'you'         && <You players={allPlayers} watchItems={watchLive} pairSummary={pairSummary} results={resultsForSlate} odds={odds} slateDate={slateDate} mode={mode} onWatch={toggleWatch} onAdd={addSlip} onPlayerClick={setModalPlayer} />}
-            {tab === 'results'     && <Results results={resultsForSlate} liveResults={results} slateDate={slateDate} backtest={backtest} evalReport={evalReport} players={players} onPlayerClick={setModalPlayer} />}
-            {tab === 'calledledger' && <CalledLedger slateDate={slateDate} onPlayerClick={setModalPlayer} />}
 
             {/* ── ALIASES — every old key keeps landing somewhere right ───── */}
             {/* 2026-09-13: AtThePlate now lives inside Home's own view system
@@ -1084,7 +1090,15 @@ export default function Dashboard({ palettePass = 0 }) {
                 (2026-08-24). Same host, own view; the Home panel's
                 "research →" link points here. */}
             {/* The Ledger, its own page (ledger plan step 3): the Homer Ledger + first scorers. */}
-            {tab === 'ledger'      && <MlbLedger players={allPlayers} slateDate={slateDate} results={resultsForSlate} onPlayerClick={setModalPlayer} onNavigate={setTab} />}
+            {/* THE LEDGER (2026-10-07): one tab, four sub-tabs (components/pages/LedgerShell). The old Ledger, Called
+                Ledger, The record, Score bands and Parlays' Ledger lab are its bodies; their old keys are aliases. */}
+            {tab === 'ledger'      && <LedgerShell sport="mlb" bodies={{
+              tonight: () => <MlbLedger players={allPlayers} slateDate={slateDate} results={resultsForSlate} onPlayerClick={setModalPlayer} onNavigate={setTab} />,
+              called: () => <CalledLedger slateDate={slateDate} onPlayerClick={setModalPlayer} />,
+              record: () => <Results results={resultsForSlate} liveResults={results} slateDate={slateDate} backtest={backtest} evalReport={evalReport} players={players} onPlayerClick={setModalPlayer} />,
+              bands: () => <ScoreBands />,
+              archive: () => <LedgerLab players={players} allPlayers={allPlayers} slateDate={slateDate} results={resultsForSlate} onPlayerClick={setModalPlayer} />,
+            }} />}
             {tab === 'pairs'       && <Combos odds={odds} slateDate={slateDate} players={players} allPlayers={allPlayers} pairBuilder={pairBuilder} pairSummary={pairSummary} results={resultsForSlate} watchIds={watchIds} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} initial="pairs" />}
             {tab === 'pools'       && <Combos odds={odds} slateDate={slateDate} players={players} allPlayers={allPlayers} pairBuilder={pairBuilder} pairSummary={pairSummary} results={resultsForSlate} watchIds={watchIds} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} initial="pools" />}
             {tab === 'builder'     && <Combos odds={odds} slateDate={slateDate} players={players} allPlayers={allPlayers} pairBuilder={pairBuilder} pairSummary={pairSummary} results={resultsForSlate} watchIds={watchIds} focusPlayerId={focusPlayerId} onClearFocus={clearFocus} onPlayerClick={setModalPlayer} initial="builder" />}
@@ -1093,7 +1107,6 @@ export default function Dashboard({ palettePass = 0 }) {
             {tab === 'watch'       && <You players={allPlayers} watchItems={watchLive} pairSummary={pairSummary} results={resultsForSlate} odds={odds} slateDate={slateDate} mode={mode} onWatch={toggleWatch} onAdd={addSlip} onPlayerClick={setModalPlayer} initial="watch" />}
             {tab === 'trueprice'   && <OddsBoard players={players} odds={oddsRaw} onPlayerClick={setModalPlayer} initialView="trueprice" />}
             {tab === 'leaders'     && <Leaders players={players} onPlayerClick={setModalPlayer} onNavigate={setTab} />}
-            {tab === 'bands'       && <ScoreBands />}
             {tab === 'player'      && <PlayerBoard players={players} slate={allPlayers} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} odds={odds} />}
             {tab === 'derby'       && <Derby players={players} results={resultsForSlate} slateDate={slateDate} onPlayerClick={setModalPlayer} />}
             {tab === 'runs'        && <Runs players={allPlayers} onPlayerClick={setModalPlayer} onOpenPitcher={(pid) => { leaveTarget('pitcher', pid); setTab('pitchers') }} />}

@@ -40,5 +40,5 @@ export default function NflTonight({ data, picks, results, liveSnap, onPlayerCli
     })
   }, [data, picks, results, liveSnap, todayET, gameCalls])
   const byId = useMemo(() => new Map((data?.players || []).map((p) => [String(p.player_id), p])), [data])
-  return <TonightStrip data={out} onOpen={(id) => { const p = byId.get(String(id)); if (p) onPlayerClick?.(p, 'TD') }} onLedger={setTab ? () => setTab('ledger') : null} />
+  return <TonightStrip sport="nfl" data={out} onOpen={(id) => { const p = byId.get(String(id)); if (p) onPlayerClick?.(p, 'TD') }} onLedger={setTab ? () => setTab('ledger') : null} />
 }

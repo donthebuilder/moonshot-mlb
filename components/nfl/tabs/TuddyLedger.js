@@ -25,7 +25,7 @@ import { useLiveRefresh } from '../../../lib/liveRefresh'
 // The three states come from lib/tuddyLedger.js -> /api/nfl/tds ->
 // tdCallStatus (2026-10-02), the same as /called and the record page.
 
-export default function TuddyLedger({ data, results, onPlayerClick = null }) {
+export default function TuddyLedger({ data, results, onPlayerClick = null, initialView = 'night' }) {
   // a team code opens its club, as on LAMP's ledger (the dashboard's TeamNav)
   const openTeam = useContext(TeamNav)
   const season = Number(data?.season || results?.season) || null
@@ -41,7 +41,7 @@ export default function TuddyLedger({ data, results, onPlayerClick = null }) {
   const [wkLoading, setWkLoading] = useState(false)
   const [wkNote, setWkNote] = useState(null)
 
-  const [view, setView] = useState('night') // Ledger's own internal key, not shown — periodWord drives the label
+  const [view, setView] = useState(initialView) // The Ledger's Archive opens it on the season view; Ledger's own internal key, not shown — periodWord drives the label
   const [seasonData, setSeasonData] = useState(null)
   const [seasonLoading, setSeasonLoading] = useState(false)
   const [seasonMessage, setSeasonMessage] = useState('')

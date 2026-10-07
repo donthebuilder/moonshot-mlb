@@ -7,7 +7,7 @@ import Pools from './Pools'
 import PairHistory from './PairHistory'
 import Builder from '../Builder'
 import ComboLinks from '../ComboLinks'
-import LedgerLab from './LedgerLab'
+import { queueLedgerView, ledgerHash } from '../../lib/ledger/views'
 import Alignments from '../Alignments'
 
 // 🎟 COMBOS — Pairs, Pools and their history under one roof (2026-08-16).
@@ -66,6 +66,7 @@ const VIEWS = [
   // the panel is tonight, and this is the archive tool built around it on
   // 2026-08-24 -- past nights, harvest, season record, search. Named for what
   // it actually is, so the two stop competing.
+  // 2026-10-07: the Ledger lab is The Ledger's Archive now (#tab=ledger&lv=archive); this pill still opens it.
   ['ledger', 'Ledger lab'],
   ['builder', 'Builder'],
   ['history', 'History'],
@@ -133,6 +134,11 @@ export default function Combos({
   // with them pre-pinned. Cleared once Builder has consumed it so the SAME
   // pick set can be sent again later without going stale.
   const [seedPins, setSeedPins] = useState(null)
+  // The Ledger lab moved to The Ledger > Archive: this pill (and the line under Pairs) go there.
+  const openArchive = () => {
+    queueLedgerView('archive')
+    if (onNavigate) onNavigate('ledger'); else if (typeof window !== 'undefined') window.location.hash = ledgerHash('mlb', 'archive')
+  }
   const handleBuildAround = (rows) => {
     if (!rows?.length) return
     setSeedPins(rows)
@@ -143,7 +149,7 @@ export default function Combos({
     <div>
       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 12 }}>
         {VIEWS.map(([k, label]) => (
-          <button key={k} onClick={() => setView(k)} style={btnStyle(C.orange, view === k)}>
+          <button key={k} onClick={() => (k === 'ledger' ? openArchive() : setView(k))} style={btnStyle(C.orange, view === k)}>
             {label}
           </button>
         ))}
@@ -190,18 +196,18 @@ export default function Combos({
           {onNavigate && (
             <button type="button" onClick={() => onNavigate('ledger')}
               style={{ display: 'block', margin: '0 0 6px', minHeight: 44, padding: '0', border: 0, background: 'transparent', cursor: 'pointer', font: `800 11px/1.5 ${NUM_FONT}`, color: C.orange }}>
-              🧾 The Homer Ledger has its own tab now → Ledger
+              📒 The Ledger: tonight, called, the record and the archive →
             </button>
           )}
           <button
             type="button"
-            onClick={() => setView('ledger')}
+            onClick={openArchive}
             style={{
               display: 'block', margin: '-4px 0 12px', padding: '5px 0', border: 0,
               background: 'transparent', cursor: 'pointer',
               font: `800 10px/1.5 ${NUM_FONT}`, color: C.orange, letterSpacing: '.04em',
             }}
-          >past nights, season record and search → Ledger lab</button>
+          >past nights, season record and search → Ledger archive</button>
         </>
       )}
 
@@ -237,15 +243,6 @@ export default function Combos({
           VIEWS above for why it moved out into a pill of its own, and
           components/tabs/LedgerLab.js for what "research tool" turned out to
           mean: the night, and then the corpus of nights behind it. */}
-      {view === 'ledger' && (
-        <LedgerLab
-          players={players}
-          allPlayers={allPlayers}
-          slateDate={slateDate}
-          results={results}
-          onPlayerClick={onPlayerClick}
-        />
-      )}
       {view === 'align' && (
         <Alignments
           players={allPlayers}
