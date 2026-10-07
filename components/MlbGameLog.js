@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { thresholdRates, teamAbbrs } from '../lib/gamelogs'
 import DenseTable from './DenseTable'
+import { TeamNav } from '../lib/teamNav'
+import { teamKey } from '../lib/mlbTeams'
 
 // GAME LOG (2026-10-07, Donovan: "give the MLB card a plain game-by-game table").
 // Every game this season, newest first, one row each: the date, who, how it
@@ -27,6 +29,11 @@ const dateLabel = (iso) => {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ''))
   return m ? `${MON[Number(m[2]) - 1]} ${Number(m[3])}` : String(iso || '—')
 }
+
+// The card sits OUTSIDE the dashboard's TeamNav provider (components/Dashboard.js wraps only the tab pages),
+// so this table brings its own team door: the same address the card's club codes already open
+// (PlayerModal clubLink): the team page, with Back returning to this tab.
+const openClub = (code) => { const k = teamKey(code); if (k) { try { window.location.hash = `sport=mlb&tab=team&team=${k}` } catch { /* no window */ } } }
 
 export default function MlbGameLog({ pid }) {
   const [data, setData] = useState(undefined)
@@ -86,6 +93,7 @@ export default function MlbGameLog({ pid }) {
           {rows.length} games · newest first · live from the league
         </span>
       </div>
+      <TeamNav.Provider value={openClub}>
       <DenseTable
         rows={rows}
         columns={cols}
@@ -94,6 +102,7 @@ export default function MlbGameLog({ pid }) {
         maxHeight={9999}
         caption="Every game he has played this season, regular season and postseason (Rd marks the postseason round). Opp is the club he faced, @ when away. Res is how his club's game ended. AVG is that one game's hits over at-bats."
       />
+      </TeamNav.Provider>
     </div>
   )
 }
