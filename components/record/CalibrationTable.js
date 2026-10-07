@@ -143,8 +143,8 @@ export default function CalibrationTable({ sport = 'mlb', Table = DenseTable, ti
         {hasLead ? `, ${block ? nf(block.late) : 0} rows stamped at or after first pitch${block?.lateNights?.length ? ` (every row on ${block.lateNights.map(short).join(', ')} was stamped after first pitch, so those nights are not in this table)` : ''}` : ''}.
         {data.noRecordNights?.length ? ` No locked board was published for ${data.noRecordNights.map(short).join(', ')}.` : ''}
         {hasLead ? (<>
-          {' '}A call&apos;s lock is MOONSHOT&apos;s own stamp on the board row, compared here with the game&apos;s scheduled first pitch; the rows are the public
-          {' '}<a href={DATA_FOLDER} style={{ color: 'inherit' }}>por_rows and outcome_log files</a>. The stamp is MOONSHOT&apos;s word: nothing outside MOONSHOT timestamps it yet.
+          {' '}A call&apos;s lock is the bot&apos;s own stamp on the board row, compared here with the game&apos;s scheduled first pitch; the rows are the public
+          {' '}<a href={DATA_FOLDER} style={{ color: 'inherit' }}>por_rows and outcome_log files</a>. The stamp is the bot&apos;s word: nothing outside the bot timestamps it yet.
           {' '}Rows read from {short(data.since)}; the regular season and the postseason are counted apart.</>)
           : ' Each row was locked before the game by the record\'s own rule; no start time is stored beside it, so no lock lead is shown. Preseason is not counted; the regular season and the playoffs are counted apart.'}
       </p>

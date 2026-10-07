@@ -254,7 +254,7 @@ export default function AlignmentsView({
           <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
             {(tonight.byBotScore || []).slice(0, chipLimit).map(({ a, keys, strength }) => (
               <button key={a.pid} onClick={() => toggle(a.pid)}
-                title={`${keys.map((k) => AXIS_META[k].why(a)).join(' · ')} — all reducing to ${todayRoot}.${Number.isFinite(scoreOf(a)) && W.scoreShort ? ` ${W.scoreShort} ${scoreOf(a).toFixed(0)}.` : ''} ${clickWord(a.pid)}.`}
+                title={`${keys.map((k) => AXIS_META[k].why(a)).join(' · ')} — all reducing to ${todayRoot}.${Number.isFinite(scoreOf(a)) && W.scoreShort ? ` Bot ${W.scoreShort} ${scoreOf(a).toFixed(0)}.` : ''} ${clickWord(a.pid)}.`}
                 style={{
                   padding: '3px 10px', borderRadius: 999, cursor: 'pointer', fontSize: 10.5, fontWeight: 700, ...CHIP,
                   border: `1px solid ${picked.has(a.pid) ? C.orange : `${ROOT_COLORS[todayRoot]}55`}`,
@@ -265,7 +265,7 @@ export default function AlignmentsView({
                     tooltip — it is what the list is ORDERED by, and a list
                     whose ordering is invisible reads as arbitrary. */}
                 {W.scoreShort && Number.isFinite(scoreOf(a)) && <span style={{ color: accent, fontFamily: NUM_FONT, fontSize: 9.5, fontWeight: 900 }}
-                  title={`MOONSHOT's 0-100 ${W.scoreShort}. This list is sorted by it.`}>
+                  title={`The bot's 0-100 ${W.scoreShort}. This list is sorted by it.`}>
                   {' '}{scoreOf(a).toFixed(0)}
                 </span>}
                 <span style={{ color: ROOT_COLORS[todayRoot], fontFamily: NUM_FONT, fontSize: 9, fontWeight: 900 }}>
@@ -303,7 +303,7 @@ export default function AlignmentsView({
         </div>
         <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
           <NightBox title="Yesterday, actually" night={yesterdayArchive} empty="No homers on file for yesterday." C={C} NUM_FONT={NUM_FONT} />
-          <NightBox title="Tonight, so far" night={todayArchive} empty="Nothing's landed yet tonight — the first homer fills this in." C={C} NUM_FONT={NUM_FONT} />
+          <NightBox title="Tonight, so far" night={todayArchive} empty="Nothing's landed yet tonight -- the first homer fills this in." C={C} NUM_FONT={NUM_FONT} />
           <div style={{ flex: '1 1 220px', minWidth: 0 }}>
             <div style={{ fontSize: 9, color: C.text3, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase' }}>Tomorrow&apos;s date</div>
             <div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.6, marginTop: 2 }}>
@@ -394,7 +394,7 @@ export default function AlignmentsView({
             <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
               {members.slice(0, 40).map(({ a, axisKeys }) => (
                 <button key={a.pid} onClick={() => toggle(a.pid)}
-                  title={`${axisKeys.map((k) => AXIS_META[k].why(a)).join(' · ')}${W.scoreShort && Number.isFinite(scoreOf(a)) ? ` · ${W.scoreShort} ${scoreOf(a).toFixed(0)}` : ''} · ${clickWord(a.pid, true)}`}
+                  title={`${axisKeys.map((k) => AXIS_META[k].why(a)).join(' · ')}${W.scoreShort && Number.isFinite(scoreOf(a)) ? ` · bot ${W.scoreShort} ${scoreOf(a).toFixed(0)}` : ''} · ${clickWord(a.pid, true)}`}
                   style={{
                     padding: '3px 10px', borderRadius: 999, cursor: 'pointer', fontSize: 10.5, fontWeight: 700, ...CHIP,
                     border: `1px solid ${picked.has(a.pid) ? C.orange : C.border}`,

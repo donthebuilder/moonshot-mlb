@@ -266,10 +266,10 @@ export default function AlertsPanel({ styles }) {
               : device.state === 'unsupported'
                 ? (hint || 'This browser can’t show alerts. On an iPhone, add the site to the Home Screen first.')
                 : device.state === 'partial'
-                  ? 'Alerts show while a tab is open. One more tap and they reach this device with the site closed — checked every minute during games.'
+                  ? 'Alerts show while a tab is open. One more tap and they reach this device with the site closed -- checked every minute during games.'
                   : pushable && !account.signedIn
                     ? 'Alerts show while a tab is open. Sign in above and they can reach this device with the site closed too.'
-                    : 'Everything picked in step 1, on this device. Checked every minute during games — not instantly, nothing here holds a live line to the league.'}
+                    : 'Everything picked in step 1, on this device. Checked every minute during games -- not instantly, nothing here holds a live line to the league.'}
           </small>
         </div>
         {device.state === 'off' || device.state === 'partial' ? (
