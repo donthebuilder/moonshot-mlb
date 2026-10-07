@@ -762,7 +762,10 @@ export default function OddsBoard({ players = [], odds: oddsProp, onPlayerClick,
           }}>
             <b style={{ color: C.text2 }}>{night.priced} prices</b> across {night.markets} market
             {night.markets === 1 ? '' : 's'}, {night.plus} paying plus money
-            {night.shop ? <> · widest shopping gap {one(night.shop.gain)} pts on {nameOf(night.shop.p)}</> : null}
+            {night.shop ? <> · widest shopping gap {one(night.shop.gain)} pts on{' '}
+              <span role="link" tabIndex={0} style={{ cursor: onPlayerClick ? 'pointer' : 'default', color: C.text2, textDecoration: onPlayerClick ? 'underline' : 'none' }}
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); onPlayerClick?.(night.shop.p) }}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); onPlayerClick?.(night.shop.p) } }}>{nameOf(night.shop.p)}</span></> : null}
             {' '}— <span style={{ color: C.orange }}>the full read</span>
           </summary>
         <div style={{ margin: '10px 0 8px', animation: 'oddsIn .35s ease both' }}>
@@ -790,7 +793,7 @@ export default function OddsBoard({ players = [], odds: oddsProp, onPlayerClick,
             )}
             {night.shop && (
               <> The widest gap between the median price and the best one available is{' '}
-                <b style={{ color: C.text }}>{nameOf(night.shop.p)}</b>&apos;s {night.shop.m.label} at{' '}
+                <b role="link" tabIndex={0} style={{ color: C.text, cursor: onPlayerClick ? 'pointer' : 'default' }} onClick={() => onPlayerClick?.(night.shop.p)} onKeyDown={(e) => { if (e.key === 'Enter') onPlayerClick?.(night.shop.p) }}>{nameOf(night.shop.p)}</b>&apos;s {night.shop.m.label} at{' '}
                 <Num color={C.text2}>{fmtOdds(night.shop.over)}</Num> against{' '}
                 <Num color={C.green}>{fmtOdds(night.shop.best)}</Num>
                 {night.shop.book ? ` at ${night.shop.book}` : ''} — {one(night.shop.gain)} points of break-even for shopping it.</>
