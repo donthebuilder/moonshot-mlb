@@ -22,6 +22,26 @@ for (const [sport, live, snap, want, why] of cases) {
   if (!ok) bad++
   console.log(`${ok ? 'ok  ' : 'FAIL'} ${sport} ${live || '(none)'} snap=${snap} -> ${got.tab} (${got.status})  ${why}`)
 }
+// THE LEDGER (2026-10-07): an old key resolves to #tab=ledger, with its sub-tab in the address
+const ledgerCases = [
+  ['mlb', '#sport=mlb&tab=calledledger', 'ledger', 'called'], ['nfl', '#sport=nfl&tab=tuddyledger', 'ledger', 'called'], ['nhl', '#sport=nhl&tab=lampledger', 'ledger', 'called'],
+  ['mlb', '#sport=mlb&tab=results', 'ledger', 'record'], ['nfl', '#sport=nfl&tab=accountability', 'ledger', 'record'], ['nhl', '#sport=nhl&tab=results', 'ledger', 'record'],
+  ['mlb', '#sport=mlb&tab=bands', 'ledger', 'bands'], ['nhl', '#sport=nhl&tab=ledger', 'ledger', undefined],
+]
+for (const [sport, live, want, view] of ledgerCases) {
+  const got = resolveColdTab(sport, live, 'home')
+  const ok = got.tab === want && got.view === view
+  if (!ok) bad++
+  console.log(`${ok ? 'ok  ' : 'FAIL'} ${sport} ${live} -> ${got.tab}${got.view ? `&lv=${got.view}` : ''}  an old Ledger key opens The Ledger on its sub-tab`)
+}
+// a tap from Home (no tab in the address) is a move: it pushes, so Back returns to Home
+const { tabSwitchHash } = await import('../lib/useShellRoute.js')
+for (const [raw, next, want, why] of [['#sport=nhl', 'ledger', true, 'Home -> The Ledger pushes'], ['#sport=nhl&tab=ledger', 'ledger', false, 'the same tab does not'], ['#sport=nhl', 'home', false, 'Home -> Home does not'], ['#sport=nhl&tab=board', 'ledger', true, 'board -> ledger pushes']]) {
+  const { changed } = tabSwitchHash(raw, { sport: 'nhl', next })
+  const ok = changed === want
+  if (!ok) bad++
+  console.log(`${ok ? 'ok  ' : 'FAIL'} tabSwitchHash ${raw} -> ${next}: changed=${changed}  ${why}`)
+}
 const miss = resolveColdTab('nfl', '#sport=nfl&tab=nosuchtab', null)
 console.log(`${miss.status === 'missing' ? 'ok  ' : 'FAIL'} unknown tab with no snapshot answers missing (asked=${miss.asked})`)
 if (miss.status !== 'missing') bad++
