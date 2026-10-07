@@ -66,9 +66,9 @@ export default function StarMemory({ sport = 'mlb', id, pricesPath = null }) {
   const b = grade && bar ? grade.bars[bar.key] : null
   const u = grade && bar ? grade.units[bar.key] : null
   return (
-    <div title="From the nights you starred him, graded off his own game log; units at that night's pregame price where one exists."
+    <div title="From the nights you watched him, graded off his own game log; units at that night's pregame price where one exists."
       style={{ fontFamily: NUM_FONT, fontSize: 11, color: C.text2, lineHeight: 1.5 }}>
-      <span style={{ color: accent }}>★</span> You starred him <b style={{ color: C.text }}>{nights.length}</b> night{nights.length === 1 ? '' : 's'} · last {when}
+      <span style={{ color: accent }}>★</span> You watched him <b style={{ color: C.text }}>{nights.length}</b> night{nights.length === 1 ? '' : 's'} · last {when}
       {b && b.n > 0 && <> · <b style={{ color: C.text }}>{bar.label} {b.k}/{b.n}</b></>}
       {u && u.n > 0 && <> · <b style={{ color: u.u >= 0 ? C.green : C.red }}>{u.u >= 0 ? '+' : ''}{u.u.toFixed(1)}u</b> <span style={{ color: C.text3 }}>({u.n} priced)</span></>}
       {grade && grade.void > 0 && <span style={{ color: C.text3 }}> · {grade.void} didn&apos;t play</span>}

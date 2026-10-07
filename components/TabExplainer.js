@@ -96,7 +96,7 @@ const TEXTS = {
     what: 'Every hitter on tonight’s slate in one sortable table. Click any column header to re-sort, shift-click to add a tiebreaker, and click a row to open that player’s full page with props history, splits, and spray charts.',
   },
   watch: {
-    what: 'Your saved hitters. Star anyone anywhere on the site and they collect here, with live “went deep / got a hit” tiles during games. Paste a list of names into the cross-reference box and the site matches them against tonight’s slate with full stats — built for checking someone else’s card against the bot’s.',
+    what: 'Your saved hitters. Watch anyone anywhere on the site and they collect here, with live “went deep / got a hit” tiles during games. Paste a list of names into the cross-reference box and the site matches them against tonight’s slate with full stats — built for checking someone else’s card against the bot’s.',
   },
   pairhist: {
     what: 'The season-long memory of which two hitters have homered on the SAME night before, and how often. Feeds the pair builder — a duo that’s connected five times is a different bet than one that never has.',

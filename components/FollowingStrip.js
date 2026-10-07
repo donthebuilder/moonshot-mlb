@@ -29,7 +29,7 @@ export default function FollowingStrip({ sport = 'mlb', onPlayerClick = null, li
       <div style={wrap()}>
         <div style={head()}><b style={title()}>★ Your players</b><span style={note()}>nobody yet</span></div>
         <p style={body()}>
-          {emptyText || <>Star a player anywhere on the board and he lands here. A star lasts the
+          {emptyText || <>Watch a player anywhere on the board and he lands here. A watch lasts the
           night; his card remembers how he did for you.</>}
         </p>
       </div>

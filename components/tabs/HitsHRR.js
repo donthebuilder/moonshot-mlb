@@ -97,7 +97,7 @@ const HOW_NOTES = [
 ]
 const HOW_STEPS = [
   { icon: '👆', text: 'Tap a row to see why he\u2019s up there.' },
-  { icon: '☆', text: 'Star him to keep him on your watchlist.' },
+  { icon: '☆', text: 'Watch him to keep him on your watchlist.' },
   { icon: '✅', text: 'After the game, every pick is graded in public.' },
 ]
 

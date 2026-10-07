@@ -36,12 +36,12 @@ export default function FollowButton({ sport = 'mlb', id, name, team, position, 
     <button
       type="button"
       onClick={() => toggle({ id, name, team, position, sport })}
-      // ONE STAR + MEMORY (2026-10-01): LAMP's only save control, now the
-      // star -- it lasts until a game he was starred for is over
+      // ONE WATCH WORD (2026-10-06): 'Watch', MOONSHOT's, on every product. ONE STAR + MEMORY (2026-10-01): LAMP's only save control, now the
+      // watch -- it lasts until a game he was starred for is over
       // (lib/nhl/useLampSaves.js), and his card remembers how he did.
       title={on
-        ? `${name || 'He'} is starred — saved to ${where}. It clears after his next game; his card keeps how he did for you.`
-        : `Star ${name || 'him'} for his next game — saved to ${where}. It clears after the game; his card keeps how he did for you.`}
+        ? `${name || 'He'} is on your watchlist — saved to ${where}. It clears after his next game; his card keeps how he did for you.`
+        : `Watch ${name || 'him'} for his next game — saved to ${where}. It clears after the game; his card keeps how he did for you.`}
       style={{
         padding: compact ? '3px 9px' : '4px 11px',
         fontSize: compact ? 10 : 11,
@@ -54,6 +54,6 @@ export default function FollowButton({ sport = 'mlb', id, name, team, position, 
         color: on ? C.cyan : C.text3,
         whiteSpace: 'nowrap',
       }}
-    >{on ? '★ Starred' : '☆ Star'}</button>
+    >{on ? '★ Watching' : '☆ Watch'}</button>
   )
 }

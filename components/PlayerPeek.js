@@ -3,10 +3,15 @@ import CardShell from './CardShell'
 
 // THE PLAYER PEEK (2026-10-03, Donovan: "I don't like that LAMP doesn't have a
 // player modal like the other sites"). A player tapped anywhere on LAMP or
-// BUCKETS opens his card OVER the page you are on, the way MOONSHOT and TUDDY
-// do -- built from what already exists, not a new card: MOONSHOT's modal frame
-// (CardShell: focus kept inside, Escape, above the bottom bar, the sport's
-// theme) around the product's own player page (`Page`, rendered in place).
+// BUCKETS opens over the page you are on, in MOONSHOT's modal FRAME (CardShell:
+// focus kept inside, Escape, above the bottom bar, the sport's theme).
+// WHAT IS INSIDE IS NOT A CARD (2026-10-06 audit): `Page` is the product's full
+// player PAGE (lamp/tabs/Player.js, buckets/tabs/Player.js -- one scroll, no pill
+// tabs, no prev/next) mounted a second time with onBack={null}, so the page and
+// the peek can never drift but the peek is only as much of a card as the page is.
+// MOONSHOT's PlayerModal and TUDDY's NflPlayerModal are real cards (tabs, the
+// navigator, view= in the address) and do not go through here; the parity grid
+// (lib/parity.js, player.*) tracks what LAMP and BUCKETS still lack.
 // The address carries `pm=<id>` (lib/useShellRoute peekPlayer), so Back closes
 // it and a shared link opens it; "Full page" is the player page proper.
 export default function PlayerPeek({ id, Page, theme: C, accent, onClose, onFullPage, onOpenTeam, onOpenGame, onStep = null }) {

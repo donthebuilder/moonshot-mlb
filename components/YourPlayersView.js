@@ -77,8 +77,8 @@ const noteOf = (C, NUM_FONT) => ({ fontSize: TYPE.micro, color: C.text3, fontFam
 export default function YourPlayersView({
   sport = 'mlb', rows, onPlayerClick = null, collapsible = true, onUnstar = null, previewN = COLLAPSED_N,
   eventWord = (n) => `${n} HR tonight`, hiddenEventWord = (n) => `${n} with a HR`,
-  emptyNote = <>Star a player anywhere on the board and he lands here, with tonight&apos;s line
-          beside him. A star lasts the night; his card remembers how he did for you.</>,
+  emptyNote = <>Watch a player anywhere on the board and he lands here, with tonight&apos;s line
+          beside him. A watch lasts the night; his card remembers how he did for you.</>,
   theme = MLB_C, numFont = MLB_NUM, accent = null, liveInk = null, keys = KEYS.mlb,
 }) {
   const C = theme

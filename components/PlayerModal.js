@@ -739,7 +739,7 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
                     background: watched ? 'rgba(249,115,22,.14)' : 'transparent',
                     color: watched ? C.orange : C.text3,
                   }}
-                >{watched ? '★ On watchlist' : '☆ Watch'}</button>
+                >{watched ? '★ Watching' : '☆ Watch'}</button>
               )}
               {onAdd && (
                 <>

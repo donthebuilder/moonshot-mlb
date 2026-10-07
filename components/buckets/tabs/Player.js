@@ -81,7 +81,7 @@ export default function Player({ id, onBack, backLabel = 'Players', onOpenTeam, 
               {card.team ? <Tap onClick={() => onOpenTeam?.(card.team)}><span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}><TeamMark sport="nba" abbr={card.team} variant="logo" px={18} />{card.team}</span></Tap> : null}
               {[card.age ? `age ${card.age}` : null, card.height, card.weight, card.status && card.status !== 'Active' ? card.status : null].filter(Boolean).join(' · ')}
             </span>} />
-          {/* Star, as on the other three products' files (lib/dash/follow.js takes nba) */}
+          {/* Watch, as on the other three products' files (lib/dash/follow.js takes nba) */}
           <div style={{ marginTop: 8, display: 'grid', gap: 6, justifyItems: 'start' }}><FollowButton sport="nba" id={String(card.id)} name={card.name} team={card.team} position={card.pos} compact /><StarMemory sport="nba" id={String(card.id)} /></div>
         </div>
       </div>
