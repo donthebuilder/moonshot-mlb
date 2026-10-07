@@ -4,9 +4,9 @@ import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 
 const ZONES = {
-  'America/Phoenix': { t: '5:15 PM MST', d: 'Wed, 5:15 PM MST', stamp: 'Oct 6, 6:51 PM MST', et1: '10:00 PM MST' },
-  'America/New_York': { t: '8:15 PM EDT', d: 'Wed, 8:15 PM EDT', stamp: 'Oct 6, 9:51 PM EDT', et1: '1:00 AM EDT' },
-  'Europe/London': { t: '1:15 AM GMT+1', d: 'Thu, 1:15 AM GMT+1', stamp: 'Oct 7, 2:51 AM GMT+1', et1: '6:00 AM GMT+1' },
+  'America/Phoenix': { t: '5:15 PM MST', d: 'Wed, 5:15 PM MST', stamp: 'Oct 6, 6:51 PM MST', odds: 'Oct 6, 9:00 PM MST', et1: '10:00 PM MST' },
+  'America/New_York': { t: '8:15 PM EDT', d: 'Wed, 8:15 PM EDT', stamp: 'Oct 6, 9:51 PM EDT', odds: 'Oct 7, 12:00 AM EDT', et1: '1:00 AM EDT' },
+  'Europe/London': { t: '1:15 AM GMT+1', d: 'Thu, 1:15 AM GMT+1', stamp: 'Oct 7, 2:51 AM GMT+1', odds: 'Oct 7, 5:00 AM GMT+1', et1: '6:00 AM GMT+1' },
 }
 const zone = process.env.CHECK_LT_ZONE
 if (!zone) {
@@ -25,6 +25,7 @@ const x = ZONES[zone]
 const got = {
   t: localTime(T), d: localDayTime(T),
   stamp: localStamp('Oct 7, 1:51 AM UTC', { now: NOW }),
+  odds: localStamp('07 Oct 2026 04:00 UTC', { now: NOW }),   // the Odds board's own form (TEST value)
   et1: localTime(etWallInstant(1, T)),
 }
 let bad = 0
