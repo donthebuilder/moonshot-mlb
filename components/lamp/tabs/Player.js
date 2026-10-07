@@ -19,6 +19,7 @@ import { STATUS, EmptyState, DelayedBanner, Loading, SourceLine, Kicker, StaleSe
 import WhyLines from '../../WhyLines'
 import { goalWhy } from '../../../lib/nhl/goalWhy'
 import { arenaOf } from '../../../lib/nhl/arenas'
+import PlayerSplits from '../PlayerSplits'
 
 // 🏒 PLAYER — one man's file, at a stable address (#sport=nhl&tab=player&
 // player=<id>). A skater and a goalie share the route and NOT the page:
@@ -227,6 +228,8 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel }) {
             </>
           : <EmptyState title="NO GAMES LOGGED" note={`The league has no ${p.log?.seasonLabel || f.seasonLabel} regular-season games for him yet.`} />}
       </section>
+
+      {!goalie && <PlayerSplits id={p.id} onOpenTeam={onOpenTeam} />}
 
       {nhlSeasons.length > 0 && (
         <section aria-label="Season by season">
