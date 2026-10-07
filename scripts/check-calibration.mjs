@@ -101,6 +101,21 @@ console.log('proof rule')
   ok(proofOf({ all: { n: 100, hits: 40 }, chosen: '2026-01-01', after: { n: 40, hits: 8 }, boardAfter: { n: 400, hits: 80 } }).state === 'testing', 'hold-out that does not beat the board is TESTING')
   ok(proofOf({ all: { n: 100, hits: 40 }, chosen: '2026-01-01', after: { n: 40, hits: 12 }, boardAfter: { n: 400, hits: 40 } }).state === 'proven', '30+ calls and 30+ hold-out calls that beat the board is PROVEN')
   ok(S.regular.tiers.every((t) => t.proof.state !== 'proven'), 'every MLB tier is TESTING or few today (no chosen date)') }
+console.log('generic shape (NHL / NFL / NBA feed it)')
+{ const { blockFrom } = await import('../lib/calibration/generic.js')
+  const rows = (n, h) => Array.from({ length: n }, (_, i) => ({ date: `2026-10-${String(1 + (i % 9)).padStart(2, '0')}`, hit: i < h }))   // TEST rows
+  const b = blockFrom('nhl', [
+    { key: 'called', label: 'CALLED', kind: 'status', status: 'called', bar: '1+ goal', graded: rows(40, 12), void: 2, board: rows(400, 60) },
+    { key: 'few', label: 'FEW', kind: 'status', status: 'board', bar: '1+ goal', graded: rows(10, 5), board: rows(400, 60) },
+    { key: 'counts', label: 'COUNTS', kind: 'status', status: 'called', bar: '3+', counts: { n: 31, hits: 20 }, graded: [], board: null },
+  ])
+  const t = (k) => b.tiers.find((x) => x.key === k)
+  ok(t('called').n === 40 && t('called').hits === 12 && t('called').rate === 30 && t('called').void === 2, 'generic tier: n, hits, rate, voids')
+  ok(t('called').lift === 15 && t('called').board.n === 400, 'lift = tier rate minus board rate (30 - 15 pts)')
+  ok(t('few').rate === null && t('few').proof.state === 'few' && t('few').n === 10, 'under 30: n printed, no rate, "few"')
+  ok(t('counts').n === 31 && t('counts').rate === 64.5 && t('counts').lift === null, 'count-only sport (NFL card): n and rate, no lift without a board')
+  ok(b.tiers.every((x) => x.proof.state !== 'proven'), 'no chosen date for any sport: nothing is PROVEN')
+  ok(b.tiers.every((x) => Number.isInteger(x.n)), 'every generic tier carries n') }
 console.log(TIERS.length === 8 ? '  ok   8 tiers (5 calls + 3 model tiers)' : '  FAIL tier count')
 if (TIERS.length !== 8) fails += 1
 console.log(fails ? `\n${fails} FAILED` : '\nALL OK')

@@ -711,7 +711,7 @@ export default function Results({ results, liveResults = null, slateDate = '', b
   // every HR call this season, its lock price and result (2026-10-04, user review build 2)
   const callHistory = <CallHistory sport="mlb" Table={DenseTable} onOpenPlayer={(id) => { const p = (players || []).find((x) => String(x.player_id) === String(id)); if (p) onPlayerClick?.(p) }} title="Every home-run call, its price, its result" />
   // each tier's calls, hits and rate with its lock time (2026-10-06, lib/calibration)
-  const callHistoryWithTiers = <><CalibrationTable Table={DenseTable} />{callHistory}</>
+  const callHistoryWithTiers = <><CalibrationTable sport="mlb" Table={DenseTable} />{callHistory}</>
   // THREE QUESTIONS, NOT SEVEN PILLS. `mode` is the question; each mode keeps
   // its own last-opened view, so switching to All season and back does not
   // dump you out of the sub-view you were reading. The seven keys are

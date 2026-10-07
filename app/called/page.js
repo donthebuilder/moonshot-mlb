@@ -37,7 +37,7 @@ import { eventCapture } from '../../lib/record/shape'
 import { readNflCardRecord, edgeParts } from '../../lib/nfl/cardRecord'
 import { regradeNote } from '../../lib/nfl/regrades'
 import styles from './called.module.css'
-import CalibrationTable from '../../components/record/CalibrationTable'
+import CalibrationSection from '../../components/record/CalibrationSection'
 import { membersUrl, MEMBERS_LINE } from '../../lib/members'
 import { shiftDay } from '../../lib/data'
 import { adminClient } from '../../lib/supabase/admin'
@@ -126,6 +126,7 @@ const SPORTS = {
     },
   },
   nfl: {
+    tierRecord: true,
     key: 'nfl', label: 'NFL', product: 'TUDDY', event: 'touchdowns', eventOne: 'touchdown',
     verb: 'found the end zone', table: 'nfl_td_feed', board: appHref('nfl'),
     legend: '🤖 on the bot before the snap  ·  ⚪ on the board (top third of the TD board), no call  ·  💥 not on the board',
@@ -162,6 +163,7 @@ const SPORTS = {
   // capture rate, and board coverage runs near 100% because nearly every
   // skater with ten NHL games is scored.
   nhl: {
+    tierRecord: true,
     key: 'nhl', label: 'NHL', product: 'LAMP', event: 'goal scorers', eventOne: 'goal',
     verb: 'lit the lamp', table: 'lamp_goal_log', board: appHref('nhl'),
     legend: '🤖 called before puck drop  ·  ⚪ on the board, no call  ·  💥 not on the board',
@@ -188,6 +190,7 @@ const SPORTS = {
   // (the points market's bar, graded every night); CALLED = a call in any
   // BUCKETS market in his game, ON THE BOARD = the points board's top third.
   nba: {
+    tierRecord: true,
     key: 'nba', label: 'NBA', product: 'BUCKETS', event: '25-point games', eventOne: '25-point game',
     verb: `scored ${NBA_EVENT_BAR}+`, table: 'buckets_log', board: appHref('nba'),
     legend: '🤖 called before tip  ·  ⚪ on the board, no call  ·  💥 not on the board',
@@ -720,7 +723,7 @@ export default async function CalledPage({ searchParams }) {
         // THE CALLS, GRADED BY TIER (2026-10-06): n, cleared, rate and the lock time per tier,
         // from the locked pregame record -- one table, read by the in-app record too.
         <section id="tiers" className={styles.panel}>
-          <CalibrationTable />
+          <CalibrationSection sport={sport.key} />
         </section>
       ) : null}
 

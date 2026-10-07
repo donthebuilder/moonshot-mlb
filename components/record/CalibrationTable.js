@@ -31,8 +31,8 @@ const etTime = (ms) => (ms == null ? '—' : new Date(ms).toLocaleTimeString('en
 const short = (d) => String(d || '').slice(5).replace('-', '/')
 const lineText = (l) => `${l.hits} H · ${l.runs} R · ${l.rbi} RBI · ${l.tb} TB${l.hr ? ` · ${l.hr} HR` : ''}`
 
-function Calls({ tier, season, Table, C, NUM_FONT, accent }) {
-  const { data, error } = useLiveFetch(`/api/mlb/calibration?tier=${tier.key}&season=${season}`)
+function Calls({ tier, season, callsUrl, Table, C, NUM_FONT, accent }) {
+  const { data, error } = useLiveFetch(`${callsUrl}?tier=${tier.key}&season=${season}`)
   const rows = useMemo(() => (data?.calls || []).map((c, i) => ({ ...c, _key: `${c.date}-${c.pk}-${c.pid}-${i}`, result: c.hit ? 'CLEARED' : 'MISSED' })), [data])
   if (error && !data) return <p style={{ fontSize: TYPE.body, color: C.text3 }}>The calls are delayed — try again in a minute.</p>
   if (!data) return <p style={{ fontSize: TYPE.body, color: C.text3 }}>Loading the {tier.label} calls…</p>
@@ -58,9 +58,9 @@ function Calls({ tier, season, Table, C, NUM_FONT, accent }) {
   )
 }
 
-export default function CalibrationTable({ Table = DenseTable, title = 'The calls, graded by tier' }) {
+export default function CalibrationTable({ sport = 'mlb', Table = DenseTable, title = 'The calls, graded by tier' }) {
   const { C, NUM_FONT, accent } = useSportTheme()
-  const { data, error } = useLiveFetch('/api/mlb/calibration')
+  const { data, error } = useLiveFetch(`/api/calibration?sport=${sport}`)
   const [season, setSeason] = useState('regular')
   const [open, setOpen] = useState(null)
   const block = data?.[season]
@@ -76,7 +76,8 @@ export default function CalibrationTable({ Table = DenseTable, title = 'The call
   if (error && !data) return <p style={{ fontSize: TYPE.body, color: C.text3 }}>The tier table is delayed — try again in a minute.</p>
   if (!data) return null
   const tierOpen = open && block?.tiers.find((t) => t.key === open)
-  const total = block ? block.tiers.filter((t) => t.kind === 'call').reduce((a, t) => a + t.n, 0) : 0
+  const hasLead = Boolean(block?.tiers.some((t) => t.lead))
+  const total = block ? block.tiers.filter((t) => t.kind !== 'model').reduce((a, t) => a + t.n, 0) : 0
   const chip = (on) => ({
     minHeight: 44, padding: '0 14px', borderRadius: 999, cursor: 'pointer', font: `800 ${TYPE.body}px/1 ${NUM_FONT}`, letterSpacing: '.04em',
     border: `1px solid ${on ? accent : C.border2}`, background: on ? `${accent}22` : 'transparent', color: on ? accent : C.text2,
@@ -92,7 +93,7 @@ export default function CalibrationTable({ Table = DenseTable, title = 'The call
       </div>
       {block?.nights ? (
         <p style={{ margin: '0 0 8px', fontSize: TYPE.body, color: C.text2, lineHeight: 1.5 }}>
-          <b style={{ color: C.text }}>{nf(total)} calls</b> over {block.nights} {block.nights === 1 ? 'night' : 'nights'} ({short(block.from)}–{short(block.to)}), each one on its own bar, each one stamped before first pitch.
+          <b style={{ color: C.text }}>{nf(total)} calls</b> over {block.nights} {block.unit || 'night'}{block.nights === 1 ? '' : 's'}{block.from ? ` (${short(block.from)}–${short(block.to)})` : block.weeks ? ` (weeks ${block.weeks[0]}–${block.weeks.at(-1)})` : ''}, each tier on its own bar{hasLead ? ', each one stamped before first pitch' : ''}.
           A rate waits for {data.minN} calls; until then the row shows its count and nothing else.
         </p>
       ) : (
@@ -103,9 +104,9 @@ export default function CalibrationTable({ Table = DenseTable, title = 'The call
           dimRow={(r) => !r.enough}
           caption="One row per tier. Cleared = reached the tier's own bar. Board = every hitter on the locked board on that same bar. Under the minimum, no rate is shown."
           columns={[
-            { key: 'label', label: 'Tier', group: 'Tier', heat: false, sticky: true, w: 132, fmt: (v, r) => (
+            { key: 'label', label: 'Tier', group: 'Tier', heat: false, sticky: true, w: 172, fmt: (v, r) => (
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                <b>{v}</b>{r.kind === 'call' ? <CallStatusBadge status="called" size={8} /> : <span style={{ color: C.text3, fontSize: TYPE.label }}>model</span>}
+                <b>{r.kind === 'status' ? '' : v}</b>{r.kind === 'call' || r.kind === 'status' ? <CallStatusBadge status={r.status || 'called'} size={8} /> : <span style={{ color: C.text3, fontSize: TYPE.label }}>model</span>}
               </span>) },
             { key: 'bar', label: 'Bar', group: 'Tier', heat: false, numeric: false, w: 96 },
             { key: 'n', label: 'Calls', group: 'Result', heat: false, w: 54, dp: 0, fmt: (v) => nf(v) },
@@ -118,11 +119,13 @@ export default function CalibrationTable({ Table = DenseTable, title = 'The call
               const { bg, fg } = bandTint(r.lift, r.enough)
               return <span style={{ background: bg, padding: '2px 6px', borderRadius: 4, whiteSpace: 'nowrap', color: fg }}>{v}</span>
             } },
-            { key: 'leadMed', label: 'Locked', group: 'Lock', heat: false, w: 88, mono: true, fmt: (v) => (v == null ? '—' : `${mins(v)} before`) },
-            { key: 'leadMin', label: 'Latest', group: 'Lock', heat: false, w: 76, mono: true, fmt: (v) => (v == null ? '—' : mins(v)) },
+            ...(hasLead ? [
+              { key: 'leadMed', label: 'Locked', group: 'Lock', heat: false, w: 88, mono: true, fmt: (v) => (v == null ? '—' : `${mins(v)} before`) },
+              { key: 'leadMin', label: 'Latest', group: 'Lock', heat: false, w: 76, mono: true, fmt: (v) => (v == null ? '—' : mins(v)) },
+            ] : []),
           ]} />
       ) : null}
-      {block?.nights ? (
+      {block?.nights && data.callsUrl ? (
         <>
           <p style={{ margin: '10px 0 6px', fontSize: TYPE.body, color: C.text2 }}>Check the calls, one tier at a time:</p>
           <div role="group" aria-label="Tier calls" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -130,17 +133,19 @@ export default function CalibrationTable({ Table = DenseTable, title = 'The call
               <button key={t.key} type="button" aria-pressed={open === t.key} onClick={() => setOpen(open === t.key ? null : t.key)} style={chip(open === t.key)}>{t.label} · {nf(t.n)}</button>
             ))}
           </div>
-          {tierOpen ? <div style={{ marginTop: 10 }}><Calls tier={tierOpen} season={season} Table={Table} C={C} NUM_FONT={NUM_FONT} accent={accent} /></div> : null}
+          {tierOpen ? <div style={{ marginTop: 10 }}><Calls tier={tierOpen} season={season} callsUrl={data.callsUrl} Table={Table} C={C} NUM_FONT={NUM_FONT} accent={accent} /></div> : null}
         </>
       ) : null}
       <p style={{ margin: '10px 0 0', fontSize: TYPE.body, color: C.text3, lineHeight: 1.6 }}>
         {'PROVEN = 30+ calls and still beating the board on games played after the tier was chosen; TESTING = anything else (no tier has a chosen date yet, so none is proven). Board = every hitter on the locked board on the same bar; Lift = the tier minus the board; Locked = how long before first pitch the row was stamped (median), Latest = the closest any call came.'}{' '}
-        Set aside, never counted as misses: {block ? nf(block.void) : 0} did not play (or the game was postponed), {block ? nf(block.pending) : 0} not final yet,
-        {' '}{block ? nf(block.late) : 0} rows stamped at or after first pitch{block?.lateNights?.length ? ` (every row on ${block.lateNights.map(short).join(', ')} was stamped after first pitch, so those nights are not in this table)` : ''}.
+        Set aside, never counted as misses: {block ? nf(block.void) : 0} did not play{hasLead ? ' (or the game was postponed)' : ''}{block?.pending ? `, ${nf(block.pending)} not final yet` : ''}
+        {hasLead ? `, ${block ? nf(block.late) : 0} rows stamped at or after first pitch${block?.lateNights?.length ? ` (every row on ${block.lateNights.map(short).join(', ')} was stamped after first pitch, so those nights are not in this table)` : ''}` : ''}.
         {data.noRecordNights?.length ? ` No locked board was published for ${data.noRecordNights.map(short).join(', ')}.` : ''}
-        {' '}A call&apos;s lock is the bot&apos;s own stamp on the board row, compared here with the game&apos;s scheduled first pitch; the rows are the public
-        {' '}<a href={DATA_FOLDER} style={{ color: 'inherit' }}>por_rows and outcome_log files</a>. The stamp is the bot&apos;s word: nothing outside the bot timestamps it yet.
-        {' '}Rows read from {short(data.since)}; the regular season and the postseason are counted apart.
+        {hasLead ? (<>
+          {' '}A call&apos;s lock is the bot&apos;s own stamp on the board row, compared here with the game&apos;s scheduled first pitch; the rows are the public
+          {' '}<a href={DATA_FOLDER} style={{ color: 'inherit' }}>por_rows and outcome_log files</a>. The stamp is the bot&apos;s word: nothing outside the bot timestamps it yet.
+          {' '}Rows read from {short(data.since)}; the regular season and the postseason are counted apart.</>)
+          : ' Each row was locked before the game by the record\'s own rule; no start time is stored beside it, so no lock lead is shown. Preseason is not counted; the regular season and the playoffs are counted apart.'}
       </p>
     </section>
   )
