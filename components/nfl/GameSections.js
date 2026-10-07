@@ -184,7 +184,7 @@ export function MatchupScoreboard({ matchup, data, game }) {
 }
 
 // ── 5. IMPORTANT STATS: rest, the weakest spot by position, then the rest of the numbers ──
-export function ImportantStats({ matchup, data, game: g }) {
+export function ImportantStats({ matchup, data, game: g, onOpenTeam = null }) {
   const [more, setMore] = useState(false)
   const rest = g.away_rest_days != null && g.home_rest_days != null
   const soft = [g.away, g.home].map((def) => [def, softRole(matchup, def)]).filter(([, s]) => s?.standout)
@@ -200,7 +200,7 @@ export function ImportantStats({ matchup, data, game: g }) {
         </div>
       )}
       {soft.map(([def, s]) => (
-        <p key={def} style={{ margin: 0, padding: '8px 0', borderTop: `1px solid ${C.border}`, fontSize: 13, lineHeight: 1.5, color: C.text2 }}><b style={{ color: C.text }}>{def}</b> {softLine(s)}.</p>
+        <p key={def} style={{ margin: 0, padding: '8px 0', borderTop: `1px solid ${C.border}`, fontSize: 13, lineHeight: 1.5, color: C.text2 }}><Tap onClick={onOpenTeam && (() => onOpenTeam(def))} title={`Open ${def}`}><b style={{ color: C.text }}>{def}</b></Tap> {softLine(s)}.</p>
       ))}
       <button type="button" onClick={() => setMore((v) => !v)} aria-expanded={more}
         style={{ minHeight: 44, padding: '0 2px', border: 0, borderTop: `1px solid ${C.border}`, width: '100%', textAlign: 'left', background: 'transparent', color: C.green, font: `800 13px/1 ${NUM_FONT}`, cursor: 'pointer' }}>

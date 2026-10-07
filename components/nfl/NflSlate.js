@@ -190,7 +190,7 @@ export default function NflSlate({ data, picks, matchup, logs = null, odds = nul
                 {/* 4. THE MATCHUP, then the important stats */}
                 <PanelAnchor id="matchup" gamePk={g.game_id}>
                   <MatchupScoreboard matchup={matchup} data={data} game={g} />
-                  <ImportantStats matchup={matchup} data={data} game={g} />
+                  <ImportantStats matchup={matchup} data={data} game={g} onOpenTeam={onOpenTeam} />
                 </PanelAnchor>
 
                 {/* 5. THE DETAILED RESEARCH */}
