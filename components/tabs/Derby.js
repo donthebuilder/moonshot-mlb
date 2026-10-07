@@ -207,7 +207,7 @@ export default function Derby({ players = [], results, slateDate = '', onPlayerC
     <div>
       <PanelTitle
         title="🏆 Derby"
-        sub={`Draft ${SQUAD} under a ${CAP} cap · locks at first pitch · real homers score real feet · you vs MOONSHOT`}
+        sub={`Draft ${SQUAD} under a ${CAP} cap. You vs MOONSHOT.`}
         right={record && (record.w + record.l + record.t) > 0 ? (
           <span style={{ fontSize: TYPE.body, fontFamily: NUM_FONT, color: C.text2 }}>
             season: <b style={{ color: record.w >= record.l ? C.green : C.red }}>{record.w}–{record.l}{record.t ? `–${record.t}` : ''}</b>

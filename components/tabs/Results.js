@@ -1006,7 +1006,7 @@ export default function Results({ results, liveResults = null, slateDate = '', b
   if (emptyNight) {
     return (
       <div>
-        <PanelTitle title={RECORD_NAME} sub="Nightly grading" />
+        <PanelTitle title={RECORD_NAME} sub="Every night, graded." />
         <RecordPage record={recordModel} Table={DenseTable} locked={lockedTiers} calls={callHistory} receiptsLabel="every night, every pick" receipts={(
           <>
             {receiptsHead}

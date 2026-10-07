@@ -233,7 +233,7 @@ export default function LongestBoard({ players = [], results = null, onWatch, wa
       {showTitle && (
         <PanelTitle
           title="🚀 Longest HR"
-          sub="Who hits the farthest ball tonight — a distance board, not a probability board"
+          sub="Who hits the farthest ball tonight."
           right={<span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>{rows.length} shown</span>}
         />
       )}
@@ -248,7 +248,7 @@ export default function LongestBoard({ players = [], results = null, onWatch, wa
             probability board</b>.{' '}
           </>
         )}
-        <HelpTip label="About Adjusted" text="This is a different question from the HR board, and it regularly disagrees with it. Adjusted multiplies the raw score by the park's distance factor and a small temperature term; warm air carries, which is physics rather than a model opinion. It is kept gentle on purpose, because MOONSHOT already folds park into the raw score and double-counting it would rank Coors first every night. Use it for longest-homer markets, and for spotting warning-track power that a friendly park turns into a homer." />
+        <HelpTip label="About Adjusted" text="A distance board, not a probability board. This is a different question from the HR board, and it regularly disagrees with it. Adjusted multiplies the raw score by the park's distance factor and a small temperature term; warm air carries, which is physics rather than a model opinion. It is kept gentle on purpose, because MOONSHOT already folds park into the raw score and double-counting it would rank Coors first every night. Use it for longest-homer markets, and for spotting warning-track power that a friendly park turns into a homer." />
       </div>
 
       {/* 🚀 LONGEST TRACKER — tonight's actual bombs by distance, live off

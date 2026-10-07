@@ -1245,8 +1245,7 @@ function Header({ auto, setAuto, refresh, count }) {
         </span>
       </div>
       <WhatThis maxWidth={760}>
-        the man hitting right now — where he does damage in the zone, where tonight&apos;s pitches have
-        actually gone, and where the ball is leaving the bat — plus who is coming up behind him.
+        Whoever is batting right now: his zone, tonight&apos;s pitches and his spray, plus who is up next.
       </WhatThis>
     </div>
   )

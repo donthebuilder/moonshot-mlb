@@ -391,8 +391,7 @@ export default function Boxes({ watchIds, onPlayerClick, players = [], results =
       {/* Trimmed 2026-09-13 (Donovan: "the litte helper text ... does not
           [h]elp"). Same info, a third the length. */}
       <div style={{ fontSize: 11, color: C.text2, lineHeight: 1.6, maxWidth: 760, marginBottom: 10 }}>
-        Every game on the date — tap to open the full box, live or final. Games with your
-        picks or watchlist names sort to the top.
+        Tap a game for its box score. Games with your names sort first.
       </div>
 
       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
