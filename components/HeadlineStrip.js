@@ -40,7 +40,7 @@ export default function HeadlineStrip({ cards = [], onOpen = null, theme = null,
       </span>
       {(() => {
         const face = faceOf?.(c)
-        const nameEl = <span style={{ fontSize: TYPE.name, fontWeight: 800, letterSpacing: '-.01em', lineHeight: 1.15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{asLogos(sport, c.name, { px: 18 })}</span>
+        const nameEl = <span style={{ fontSize: TYPE.name, fontWeight: 800, letterSpacing: '-.01em', lineHeight: 1.15, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflowWrap: 'anywhere', minWidth: 0 }}>{asLogos(sport, c.name, { px: 18 })}</span>
         return face ? <span style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>{face}{nameEl}</span> : nameEl
       })()}
       <span style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8 }}>
