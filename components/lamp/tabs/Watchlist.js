@@ -14,9 +14,9 @@ export default function Watchlist({ onOpenPlayer }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <PageHeader eyebrow="LAMP · WATCHLIST" title="Your skaters"
-        note="Star a skater from his file and he lands here for his next game; the star clears after it. Every night you starred him counts below, graded off his own game log."
+        note="Watch a skater from his file and he lands here for his next game; the watch clears after it. Every night you watched him counts below, graded off his own game log."
         theme={C} numFont={NUM_FONT} accent={C.ice} />
-      <FollowingStrip sport="nhl" accent={C.ice} emptyText="Open any skater’s file and tap ☆ Star — he lands here for his next game, and that night counts below." onPlayerClick={(row) => onOpenPlayer?.(row.id)} />
+      <FollowingStrip sport="nhl" accent={C.ice} emptyText="Open any skater’s file and tap ☆ Watch — he lands here for his next game, and that night counts below." onPlayerClick={(row) => onOpenPlayer?.(row.id)} />
       <WatchRecord sport="nhl" theme={C} accent={C.ice} onOpen={(r) => onOpenPlayer?.(r.id)} />
     </div>
   )
