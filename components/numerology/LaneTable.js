@@ -92,7 +92,7 @@ export default function LaneTable({ sport, theme: C, numFont, accent, tonight = 
             { key: 'label', label: 'Lane', heat: false, sticky: true, w: 168, fmt: (v, l) => (
               <span style={{ display: 'grid', lineHeight: 1.25, whiteSpace: 'normal', overflowWrap: 'anywhere' }}>
                 <b>{v}</b>
-                {!l.shown && <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.04em', color: C.amber || C.text3, whiteSpace: 'nowrap' }}>provisional · {l.nights} {l.nights === 1 ? 'night' : 'nights'}</span>}
+                {!l.shown && <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.02em', color: C.amber || C.text3 }}>provisional · {l.nights} {l.nights === 1 ? 'night' : 'nights'}</span>}
               </span>
             ) },
             { key: 'nights', label: 'Nights', w: 54, dp: 0 },
