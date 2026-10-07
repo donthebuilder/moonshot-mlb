@@ -1,4 +1,5 @@
 'use client'
+import HelpTip from './HelpTip'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { clean, nameOf, teamOf, oppOf, hrScore, playerId } from '../lib/player'
@@ -287,7 +288,7 @@ export default function ShapeBoard({ players = [], onWatch, watchIds, onPlayerCl
   const hasForm = shapeFormPublished(pool)
   if (!hasShape) {
     return (
-      <Empty text="Tonight's slate carries no homer-shape profiles — the bot has not published hr_shape_profile for this file. Nothing here is empty because these hitters have no shape; the numbers simply are not in the payload yet." />
+      <Empty text="No homer-shape profiles for tonight yet. These hitters have shapes; the numbers just haven’t arrived." />
     )
   }
 
@@ -298,7 +299,7 @@ export default function ShapeBoard({ players = [], onWatch, watchIds, onPlayerCl
     ...BAND_KEYS.filter((k) => tally[k]).map((k) => [k, `${HR_BANDS[k].label} ${tally[k]}`, HR_BANDS[k].color, `${HR_BANDS[k].label} — ${HR_BANDS[k].blurb}`]),
     ...(tally.tied ? [['tied', `Tied ${tally.tied}`, C.blue, 'His top two bands are level on the same number of homers. Named as tied rather than broken by a rule — a tiebreak there would be inventing a lean out of a coin flip.']] : []),
     ...(tally.thin ? [['thin', `Too thin ${tally.thin}`, C.text3, `Under ${SHAPE_MIN_N} classified homers. Counts shown, no type claimed.`]] : []),
-    ...(tally.unreliable ? [['unreliable', `Bot flagged ${tally.unreliable}`, C.red, 'hr_unreliable_shape_flag is set on these hitters. Counts shown, no type claimed at any sample size.']] : []),
+    ...(tally.unreliable ? [['unreliable', `Flagged ${tally.unreliable}`, C.red, 'MOONSHOT flagged these hitters’ shapes as unreliable. Counts shown, no type claimed at any sample size.']] : []),
     ...(tally.none ? [['none', `No tracked HR ${tally.none}`, C.text3, 'No homer of his has been classified into a band — an absence of a shape, not a shape.']] : []),
   ]
 
@@ -313,13 +314,13 @@ export default function ShapeBoard({ players = [], onWatch, watchIds, onPlayerCl
     // ── HIS TYPE ────────────────────────────────────────────────────────────
     { key: 'type', label: 'His type', heat: false, w: 128, mono: true,
       title: 'His most common homer band — or the reason there isn’t one. Sorts alphabetically, which groups the board by type.',
-      explain: `The band most of his homers fall in, claimed only at ${SHAPE_MIN_N}+ classified homers, only when his top two bands are not level, and only when the bot has not flagged his shape as unreliable. Below any of those bars the cell says WHY instead of showing a band — "too thin (2 HR)", "tied: Laser / Standard", "no tracked HR". Hover a cell for the count behind it.`,
+      explain: `The band most of his homers fall in, claimed only at ${SHAPE_MIN_N}+ classified homers, only when his top two bands are not level, and only when his shape isn’t flagged as unreliable. Below any of those bars the cell says WHY instead of showing a band — "too thin (2 HR)", "tied: Laser / Standard", "no tracked HR". Hover a cell for the count behind it.`,
       fmt: (v, r) => (
         <span title={r._typeWhy} style={{ cursor: 'default', color: r._typeColor || C.text3, fontWeight: r._typeColor ? 800 : 500 }}>{v}</span>
       ) },
     { key: 'n', label: 'n HR', w: 46, primary: true,
       title: 'Classified homers — the denominator under every share on this row',
-      explain: `How many of his homers the bot could classify into a band. It is the ONLY denominator the mix has, so it is on screen in every row: a mix off 2 homers and a mix off 27 are not the same kind of fact. On the verified slate it runs 0 to 39, median 10. It is its own count and does not always match the slate’s season_hr column — only this number divides the mix.` },
+      explain: `How many of his homers MOONSHOT could classify into a band. It is the ONLY denominator the mix has, so it is on screen in every row: a mix off 2 homers and a mix off 27 are not the same kind of fact. On the verified slate it runs 0 to 39, median 10. It is its own count and does not always match the slate’s season_hr column — only this number divides the mix.` },
     { key: 'mix', label: 'The mix', heat: false, w: 168,
       title: 'His homers by band. A proportion bar at 4+ homers; counts in words below that, because a bar off two homers draws a claim two homers cannot support.',
       explain: 'Segment width is his share of the band, the number printed inside is the count. Under the 4-homer floor there is no bar at all — just the counts, in words. Hover for every band spelled out as "6 of 14".',
@@ -343,32 +344,32 @@ export default function ShapeBoard({ players = [], onWatch, watchIds, onPlayerCl
     ...(hasForm ? [
       { key: 'match', label: 'In-form', w: 58, dp: 0, primary: true,
         title: 'Recent minus season: the share of his hard-hit contact landing inside his OWN homer launch window. Positive = drifting toward the shape his homers take. A description, not a prediction.',
-        explain: `personal_shape_match, published by the bot every night. Of his hard-hit balls (95+ mph, the exit velocity a homer basically requires), the share leaving the bat inside his own homer launch-angle window — last 8 game dates minus the season. Shown ONLY where the bot rated the reading 'ok'; the recent denominator is not published on the slate row, and 'ok' is the bot's statement that it holds at least 5 recent hard-hit balls. Beyond ±${(100 * SHAPE_FORM_EDGE).toFixed(0)} points the Read column calls it trending. NOBODY HAS GRADED whether this predicts a homer night — the bot archives it nightly so that can be tested later. Colour is direction, not quality.`,
+        explain: `Of his hard-hit balls (95+ mph, the exit velocity a homer basically requires), the share leaving the bat inside his own homer launch-angle window — last 8 game dates minus the season. Shown only where it rests on at least 5 recent hard-hit balls. Beyond ±${(100 * SHAPE_FORM_EDGE).toFixed(0)} points the Read column calls it trending. Nobody has graded whether this predicts a homer night. Colour is direction, not quality.`,
         fmt: (v) => (Number.isFinite(Number(v)) ? pp(Number(v)) : '—') },
       { key: 'read', label: 'Read', heat: false, w: 84, mono: true,
         title: 'The in-form delta in words — or the reason there isn’t one',
         explain: 'The same three words the hitter’s own card uses, from the same threshold, so a board and a card four inches apart cannot disagree about whether he is trending. "thin recent" = his window is fine but there are too few recent hard-hit balls; "thin HR" = too few classified homers to build a window; "no HR" = none at all.',
         fmt: (v, r) => (
-          <span title={r._verdict ? r._verdict.label : 'The bot did not rate this reading — no number is shown rather than a zero standing in for a missing one.'}
+          <span title={r._verdict ? r._verdict.label : 'MOONSHOT did not rate this reading — no number is shown rather than a zero standing in for a missing one.'}
             style={{ cursor: 'default', color: r._verdict?.key === 'toward' ? C.green : r._verdict?.key === 'away' ? C.red : C.text3 }}>{v}</span>
         ) },
       { key: 'recent', label: 'Rec%', w: 48, dp: 0,
         title: 'Recent share of hard-hit contact inside his own homer window — the front half of the In-form delta',
-        explain: 'The last 8 game dates. Published as a rate; its denominator is not on the slate row, which is why it is only shown where the bot rated the reading ‘ok’.' },
+        explain: 'The last 8 game dates. Published as a rate; its denominator is not on the slate row, which is why it is only shown where MOONSHOT rated the reading ‘ok’.' },
       { key: 'season', label: 'Szn%', w: 48, dp: 0,
         title: 'Season share of hard-hit contact inside his own homer window — the back half of the In-form delta',
         explain: 'Built on his whole log, so it survives a thin RECENT window: a hitter with too few recent hard-hit balls still gets this column, and gets no delta.' },
       { key: 'window', label: 'Window', heat: false, w: 66, mono: true, dim: true,
         title: 'His own homer launch-angle window — the median of his homers ±max(4°, half the IQR)',
-        explain: 'The window the In-form delta is measured against, published by the bot as la_lo/la_hi. Showing the delta without the window it is a delta against would be asking the reader to take the comparison on trust.' },
+        explain: 'The window the In-form delta is measured against. Showing the delta without the window it is a delta against would be asking the reader to take the comparison on trust.' },
     ] : []),
     // ── AND WHAT THE BOT THINKS OF HIM TONIGHT ──────────────────────────────
     { key: 'hr', label: 'HR scr', w: 50, dp: 1,
-      title: 'Tonight’s HR score — the bot’s ranking, which contains none of this board’s numbers',
-      explain: 'Here so shape can be read NEXT TO what the bot thinks, not folded into it. No shape number feeds any score on this site; the two columns are independent opinions and the point of putting them side by side is that you can see where they disagree.' },
+      title: 'Tonight’s HR score — MOONSHOT’s ranking, which contains none of this board’s numbers',
+      explain: 'Here so shape can be read NEXT TO what MOONSHOT thinks, not folded into it. No shape number feeds any score on this site; the two columns are independent opinions and the point of putting them side by side is that you can see where they disagree.' },
     { key: 'unrel', label: '⚑', flag: true, mark: '⚑', w: 32,
-      title: 'The bot set hr_unreliable_shape_flag on this hitter — counts shown, no type claimed',
-      explain: 'A bot-side judgement this repo cannot re-derive. On the verified slate all 9 flagged hitters are low-launch ground-ball bats with a handful of homers. It is an independent veto, not a duplicate of the sample floor: 5 of the 9 clear the 4-homer bar and 3 of those would otherwise carry a live form reading.' },
+      title: 'MOONSHOT flagged this hitter’s shape as unreliable — counts shown, no type claimed',
+      explain: 'A MOONSHOT-side judgement that cannot be re-derived here. On the verified slate all 9 flagged hitters are low-launch ground-ball bats with a handful of homers. It is an independent veto, not a duplicate of the sample floor: 5 of the 9 clear the 4-homer bar and 3 of those would otherwise carry a live form reading.' },
   ], { onWatch, dhOn: false })
 
   return (
@@ -381,30 +382,9 @@ export default function ShapeBoard({ players = [], onWatch, watchIds, onPlayerCl
         />
       )}
 
-      <div style={{
-        fontSize: 10.5, color: C.text3, lineHeight: 1.6, margin: '6px 0 10px',
-        borderLeft: `2px solid ${C.purple}`, paddingLeft: 10, maxWidth: 720,
-      }}>
-        {!showTitle && (
-          <>
-            <b style={{ color: C.text2, fontFamily: NUM_FONT }}>{rows.length} shown.</b>{' '}
-            What <b style={{ color: C.text2 }}>kind</b> of homer each hitter hits —{' '}
-            <b style={{ color: C.text2 }}>described, not predicted</b>.{' '}
-          </>
-        )}
-        His homers sorted into the five bands, so two hitters can be compared instead of read one
-        card at a time. <b style={{ color: C.text2 }}>{claimed}</b> of{' '}
-        <b style={{ color: C.text2 }}>{all.length}</b> hitters have enough classified homers for a
-        type to be claimed at all; the rest keep their row and their counts and are told apart by
-        reason, not by a dash.{' '}
-        {hasForm
-          ? <>The in-form delta is live on <b style={{ color: C.text2 }}>{readable}</b> of them.{' '}</>
-          : <><b style={{ color: C.text2 }}>The form columns are absent tonight</b> — this slate carries
-            profiles but no readable personal_shape_* values, so they are dropped rather than filled
-            with zeros.{' '}</>}
-        <b style={{ color: C.text2 }}>Nothing here is a prediction.</b> Whether being in his own shape
-        makes a homer more likely tonight has never been graded — the bot archives the number nightly
-        so it can be, and until then this board describes contact and feeds no score.
+      <div style={{ fontSize: 11, color: C.text3, lineHeight: 1.6, margin: '6px 0 10px', maxWidth: 720 }}>
+        What kind of homer each hitter hits — described, not predicted.
+        <HelpTip label="About shape" text={`His homers are sorted into five bands so two hitters can be compared. ${claimed} of ${all.length} hitters have enough classified homers for a type to be claimed; the rest keep their row and their counts. ${hasForm ? `The in-form delta is live on ${readable} of them.` : 'The form columns are absent tonight.'} Nothing here is a prediction: whether being in his own shape makes a homer more likely has never been graded, and no shape number feeds any score.`} />
       </div>
 
       {/* TONIGHT'S POOLED MIX — legend and baseline in one strip. The Lean
@@ -434,7 +414,7 @@ export default function ShapeBoard({ players = [], onWatch, watchIds, onPlayerCl
             style={{ accentColor: C.purple, width: 18, height: 18 }} />
           only {SHAPE_MIN_N}+ classified homers
         </label>
-        <label title="Drop everyone whose in-form delta the bot did not rate readable."
+        <label title="Drop everyone whose in-form delta MOONSHOT did not rate readable."
           style={{ fontSize: 10, color: C.text3, display: 'inline-flex', gap: 5, alignItems: 'center', cursor: 'pointer', minHeight: 44 }}>
           <input type="checkbox" checked={formOnly} onChange={(e) => setFormOnly(e.target.checked)}
             style={{ accentColor: C.purple, width: 18, height: 18 }} />
@@ -470,7 +450,7 @@ export default function ShapeBoard({ players = [], onWatch, watchIds, onPlayerCl
           // which the Type cell already says in words. Dimming him would file
           // "two things at once" under "not enough data".
           dimRow={(r) => r.n < SHAPE_MIN_N || !!r.unrel}
-          caption={`Every hitter on tonight's slate by the KIND of homer he hits — the five bands from the Homer Ledger, counted off the bot's published hr_shape_profile. This board describes contact and predicts nothing: no shape number feeds any score here, and whether being "in his shape" makes a homer more likely tonight has never been graded. Sample rules, applied everywhere: a type is claimed only at ${SHAPE_MIN_N}+ classified homers, only when the top two bands are not level, and only when the bot has not flagged the hitter — dimmed rows are the ones that fail one of those, and they keep every count they have. n is the only denominator the mix has and is never off screen; shares never appear without it. The in-form delta shows only where the bot rated the reading 'ok', because the count of recent hard-hit balls behind it is not published on the slate row and 'ok' is the bot's statement that there are at least 5 — the 31 rows publishing a flat 0.0 are a serialiser writing null, not hitters sitting level with themselves. Lean is the answer to plurality being useless here: 168 of the 222 hitters over the floor are plurality-standard because standard is 46% of all homers, so Lean asks which band he is furthest over tonight's pooled baseline on instead. The bands themselves are percentile slices of one continuous distribution — wall-scraper under ${HR_CUTS.shortFt}ft, no-doubter ${HR_CUTS.longFt}ft+, laser under ${HR_CUTS.flatDeg}°, moonshot ${HR_CUTS.steepDeg}°+ — not physical categories.`}
+          caption={`Every hitter tonight by the kind of homer he hits. This board describes contact and predicts nothing: no shape number feeds any score here, and whether being "in his shape" makes a homer more likely tonight has never been graded. Sample rules, applied everywhere: a type is claimed only at ${SHAPE_MIN_N}+ classified homers, only when the top two bands are not level, and only when the hitter isn’t flagged — dimmed rows are the ones that fail one of those, and they keep every count they have. n is the only denominator the mix has and is never off screen; shares never appear without it. The in-form delta shows only where at least 5 recent hard-hit balls stand behind it; a flat 0.0 is a missing number, not a hitter sitting level with himself. Lean is the answer to plurality being useless here: 168 of the 222 hitters over the floor are plurality-standard because standard is 46% of all homers, so Lean asks which band he is furthest over tonight's pooled baseline on instead. The bands themselves are percentile slices of one continuous distribution — wall-scraper under ${HR_CUTS.shortFt}ft, no-doubter ${HR_CUTS.longFt}ft+, laser under ${HR_CUTS.flatDeg}°, moonshot ${HR_CUTS.steepDeg}°+ — not physical categories.`}
         />
       )}
     </div>

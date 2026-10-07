@@ -42,7 +42,7 @@ function typeColor(t) { return PAIR_TYPE_COLORS()[t] || C.text3 }
 
 const PAIR_SCOPES = [
   { key:'cross', label:'🔀 Cross Game' },
-  { key:'bot',   label:'🤖 Bot Picks' },
+  { key:'bot',   label:'🤖 MOONSHOT Picks' },
   { key:'same',  label:'⚡ Same Game' },
 ]
 
@@ -78,7 +78,7 @@ const LANE_ORDER = ['TOP30', 'A', 'B', 'C', 'D']
 // Called, not frozen: C is mutated after mount (applyTheme, lib/theme.js), so a
 // module-level literal keeps the palette it was imported with. See #23.
 const LANE_META = () => ({
-  TOP30: { short: 'TOP 30', color: '#FB923C', blurb: 'The bot’s headline board — scored on a different scale from the lettered lanes.' },
+  TOP30: { short: 'TOP 30', color: '#FB923C', blurb: 'MOONSHOT’s headline board — scored on a different scale from the lettered lanes.' },
   A:     { short: 'LANE A', color: '#FCD34D', blurb: 'Core: the safest construction it will offer.' },
   B:     { short: 'LANE B', color: C.cyan, blurb: 'Statcast: built off contact quality rather than the board.' },
   C:     { short: 'LANE C', color: C.purple, blurb: 'Flex: looser, leans on HRR and hit shape.' },
@@ -627,7 +627,7 @@ function BotLane({ group, tagFilter }) {
                     border:`1px solid ${tag === 'Due' ? 'rgba(252,211,77,.3)' : `${meta.color}33`}`,
                   }}>{tag}</span>
                 ))}
-                {due && <span style={{ fontSize:9, color:C.text3, fontFamily:NUM_FONT }}>— bot flagged this one as due</span>}
+                {due && <span style={{ fontSize:9, color:C.text3, fontFamily:NUM_FONT }}>— flagged as due</span>}
               </div>
 
               {pair.reason && (
@@ -694,7 +694,7 @@ function BotPairGroups({ pairBuilder, q = '' }) {
 
       {tagCounts.length > 0 && (
         <div style={{ display:'flex', gap:5, flexWrap:'wrap', alignItems:'center', marginBottom:10 }}>
-          <span style={{ fontSize:9, color:C.text3, textTransform:'uppercase', letterSpacing:'.07em' }}>Bot tags</span>
+          <span style={{ fontSize:9, color:C.text3, textTransform:'uppercase', letterSpacing:'.07em' }}>Tags</span>
           <button onClick={() => setTagFilter(null)} style={btnStyle(C.orange, !tagFilter)}>All</button>
           {tagCounts.map(([tag, count]) => (
             // Same 'Due' gold literal as the tag chip above — see that comment.
@@ -709,12 +709,12 @@ function BotPairGroups({ pairBuilder, q = '' }) {
       {searched.map(g => <BotLane key={g.lane} group={g} tagFilter={tagFilter} />)}
 
       <div style={{ fontSize:9.5, color:C.text3, lineHeight:1.6, marginTop:4 }}>
-        Lanes, types, tags, risk and reasons are the bot&apos;s own fields — nothing on this view is
+        Lanes, types, tags, risk and reasons are MOONSHOT&apos;s own fields — nothing on this view is
         recomputed. Scores are <b style={{ color:C.text2 }}>not comparable between lanes</b>: TOP 30
         runs around 100 and the lettered lanes around 12–16, so each lane is ranked and shaded
         against its own range only.
         {' '}A player can appear in more than one lane, and does — those repeats are kept rather than
-        deduplicated away, because the bot put them there on purpose.
+        deduplicated away, because MOONSHOT put them there on purpose.
         {' '}There is no <i>Top 15</i> or <i>Top 40</i> grouping here because the builder no longer
         publishes those labels; <b style={{ color:C.text2 }}>Due</b> is a per-pair tag, so it&apos;s
         filterable above rather than promoted to a heading it doesn&apos;t have.
@@ -795,7 +795,7 @@ function TodayPairs({ players, pairBuilder, q='', focusPlayerId, onClearFocus })
         }}>
           <span style={{ fontSize: 11, color: C.text2 }}>
             Showing pair{filtered.length === 1 ? '' : 's'} for the player you clicked
-            {focusedPairs && focusedPairs.length === 0 ? ' — no bot pair found for them' : ''}
+            {focusedPairs && focusedPairs.length === 0 ? ' — no MOONSHOT pair found for them' : ''}
           </span>
           <button onClick={onClearFocus} style={btnStyle(C.orange, false)}>Show all pairs</button>
         </div>
@@ -811,7 +811,7 @@ function TodayPairs({ players, pairBuilder, q='', focusPlayerId, onClearFocus })
 
       <div style={{ fontSize:10, color:C.text3, fontFamily:NUM_FONT, marginBottom:10 }}>
         {scope === 'cross' && 'Cross-game variants are shown first. Every player appears once.'}
-        {scope === 'bot' && 'Exact pair-builder output, grouped by the bot’s own lanes. Nothing dropped.'}
+        {scope === 'bot' && 'Exact pair-builder output, grouped by MOONSHOT’s own lanes. Nothing dropped.'}
         {scope === 'same' && 'Same-game stack variants, cleaned to one appearance per player.'}
       </div>
 
@@ -829,7 +829,7 @@ function TodayPairs({ players, pairBuilder, q='', focusPlayerId, onClearFocus })
           <b style={{ color: C.text2, fontFamily: NUM_FONT }}>{Math.min(PAIR_POOL_SIZE, poolInfo.eligible)}</b>{' '}
           bats by <b style={{ color: C.text2 }}>{PAIR_POOL_KEY}</b>, out of{' '}
           <b style={{ color: C.text2, fontFamily: NUM_FONT }}>{poolInfo.eligible}</b> who clear the
-          entry bar (HR 45+, or HRW 55+, or HRR 58+, and not a bot avoid) from{' '}
+          entry bar (HR 45+, or HRW 55+, or HRR 58+, and not an AVOID) from{' '}
           <b style={{ color: C.text2, fontFamily: NUM_FONT }}>{poolInfo.considered}</b> on the slate.
           {poolInfo.cutAt != null && <>
             {' '}The cut line tonight is{' '}
@@ -946,7 +946,7 @@ function findLiveHistoryMatches(homers, pairHistorySummary, todaysPlayers) {
     const candidates = historyIndex.get(hid) || []
     for (const { partnerId, partnerName, pair } of candidates) {
       const partnerOnSlate = todaysById.get(partnerId)
-      if (!partnerOnSlate) continue // partner not playing today -- skip, per "keep it simple"
+      if (!partnerOnSlate) continue // partner not playing today — skip, per "keep it simple"
       matches.push({
         homer,
         partner: partnerOnSlate,
@@ -1028,8 +1028,8 @@ function LiveHRPairs({ results, pairBuilder, players=[], pairHistorySummary, onP
           <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 3 }}>No home runs yet tonight</div>
           <div style={{ fontSize: 10.5, color: C.text3, lineHeight: 1.6, maxWidth: 440, margin: '0 auto' }}>
             The moment two hitters have gone deep, this view starts building live pairs from them,
-            checks them against the bot&apos;s recommended pairs and pools, and flags any season-history
-            partner still waiting to bat. It updates as the bot&apos;s results file refreshes — no
+            checks them against MOONSHOT&apos;s recommended pairs and pools, and flags any season-history
+            partner still waiting to bat. It updates as MOONSHOT&apos;s results file refreshes — no
             reload needed beyond switching tabs.
           </div>
         </div>
@@ -1049,7 +1049,7 @@ function LiveHRPairs({ results, pairBuilder, players=[], pairHistorySummary, onP
       // Cross/same-game reuses this file's own established relation colours.
       { label: 'Cross pairs', v: crossPairs.length, color: C.purple },
       { label: 'Same-game', v: samePairs.length, color: C.cyan },
-      { label: 'Bot pairs hit', v: combinedBotHits.length, color: combinedBotHits.length ? C.orange : C.text3,
+      { label: 'MOONSHOT pairs hit', v: combinedBotHits.length, color: combinedBotHits.length ? C.orange : C.text3,
         note: combinedBotHits.length ? 'a recommended pair fully landed' : 'none complete yet' },
       // Same gold as the 'Due' tag elsewhere in this file — left
       // literal for the same reason (see the comment on the Due tag chip in
@@ -1190,18 +1190,18 @@ function LiveHRPairs({ results, pairBuilder, players=[], pairHistorySummary, onP
       {scope === 'bot' ? (
         <div>
           <div style={{ fontSize:13, fontWeight:800, marginBottom:6, paddingBottom:6, borderBottom:`1px solid ${C.border}` }}>
-            🤖 Bot Pair Hits <span style={{ fontSize:10, color:C.text3, fontFamily:NUM_FONT, fontWeight:400 }}>({botHits.length} exact · {variantHits.length} variant)</span>
+            🤖 MOONSHOT Pair Hits <span style={{ fontSize:10, color:C.text3, fontFamily:NUM_FONT, fontWeight:400 }}>({botHits.length} exact · {variantHits.length} variant)</span>
           </div>
           {combinedBotHits.length ? (
             <div style={{ background:C.bg2, border:`1px solid ${C.border}`, borderRadius:10, overflow:'hidden', marginBottom:12 }}>
               {combinedBotHits.map((pair,i) => <PairLine key={pair.pair_key || i} pair={pair} i={i} />)}
             </div>
-          ) : <Empty text="No complete bot pair has hit yet." />}
+          ) : <Empty text="No complete MOONSHOT pair has hit yet." />}
 
           <div style={{ fontSize:13, fontWeight:800, margin:'12px 0 6px', paddingBottom:6, borderBottom:`1px solid ${C.border}` }}>
-            🏊 Bot Pool Progress <span style={{ fontSize:10, color:C.text3, fontFamily:NUM_FONT, fontWeight:400 }}>({botPools.length})</span>
+            🏊 MOONSHOT Pool Progress <span style={{ fontSize:10, color:C.text3, fontFamily:NUM_FONT, fontWeight:400 }}>({botPools.length})</span>
           </div>
-          {!botPools.length ? <Empty text="No bot pool has two HR scorers yet." /> : (
+          {!botPools.length ? <Empty text="No MOONSHOT pool has two HR scorers yet." /> : (
             <div style={{ background:C.bg2, border:`1px solid ${C.border}`, borderRadius:10, overflow:'hidden' }}>
               {botPools.map((pool,i) => (
                 <div key={pool.key} style={{ padding:'9px 14px', borderTop:i ? `1px solid ${C.border}` : 'none' }}>
@@ -1256,11 +1256,11 @@ function LiveHRPairs({ results, pairBuilder, players=[], pairHistorySummary, onP
                 { key:'bhr',  label:'HR',      w:46, dp:1 },
                 { key:'bhrw', label:'HRW',     w:46, dp:0 },
                 { key:'score', label:'Pair',   w:52, dp:0,
-                  title:'Both HR scores plus a quarter of each HRW — this site’s construction, not the bot’s' },
+                  title:'Both HR scores plus a quarter of each HRW — this site’s construction, not MOONSHOT’s' },
               ]}
               initialSort="score"
               maxHeight={400}
-              caption="Both of these hitters have already homered tonight. Every player appears once — the highest-scoring pair he belongs to wins him. Pair is this page's own combination score, not a bot field."
+              caption="Both of these hitters have already homered tonight. Every player appears once — the highest-scoring pair he belongs to wins him. Pair is this page's own combination score, not a MOONSHOT field."
             />
           )}
         </div>
@@ -1736,7 +1736,7 @@ function LegSentence({ leg, odds, reserved = false }) {
       {' — '}{gamePhrase(p)}
       {spot ? `, batting ${spot}` : ''}
       {arm ? ` against ${arm}` : ''}
-      {' — is the bot’s '}<B color={col}>{leg.group}</B>{' pick in that game and needs '}
+      {' — is MOONSHOT’s '}<B color={col}>{leg.group}</B>{' pick in that game and needs '}
       <B color={col}>{leg.bar}</B>{'.'}
 
       {/* THE TOP CAVEAT. A TOP pick is a very good bat being asked a very hard
@@ -1751,7 +1751,7 @@ function LegSentence({ leg, odds, reserved = false }) {
 
       {leg.alsoGroups.length > 0 && (
         <>
-          {' He is also the bot’s '}
+          {' He is also MOONSHOT’s '}
           <B color={C.text2}>{leg.alsoGroups.join(' and ')}</B>
           {' pick in that game, so he counts once here, on the hardest bar he holds — a home run'}
           {' is already one hit, four total bases and three of hits+runs+RBI, so betting both bars'}
@@ -2077,7 +2077,7 @@ export function GroupTicketBuilder({
             🧱 {(pinnedIds?.length || pinnedId) ? `Build around ${pinnedName || 'your hitters'}` : 'Build from the groups'}
           </span>
           <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
-            two or more of the bot’s five designations, crossed
+            two or more of MOONSHOT’s five designations, crossed
           </span>
         </div>
       )}
@@ -2095,7 +2095,7 @@ export function GroupTicketBuilder({
           per-leg bars below state their own rate either way, so nothing a
           number MEANS goes with it. */}
       <div className="quiet-note" style={{ fontSize: 10.5, color: C.text3, lineHeight: 1.7, marginBottom: 9, maxWidth: 860 }}>
-        The bot designates exactly one hitter per group per game, so a combination of groups is a
+        MOONSHOT designates exactly one hitter per group per game, so a combination of groups is a
         real object: pick two and you are choosing between one candidate per game on each side.
         {' '}Each bar is what it is regardless of whose name is on it, which is why every leg below
         states its own bar first.
@@ -2411,7 +2411,7 @@ export default function Pairs({ players=[], pairBuilder, pairHistorySummary, res
           the pair's own score -- the generator is untouched. PairBlock is the
           reusable block (NHL goals / NFL touchdowns pass their own pairs). */}
       <PairBlock pairs={topFive} accent={SPORT_ACCENT.mlb} sport="mlb" onPlayerClick={onPlayerClick} resolve={resolvePair}
-        labels={{ title: 'Five best pairs', sub: 'tonight, by the bot’s own pair score', scoreHead: 'Pair score' }} />
+        labels={{ title: 'Five best pairs', sub: 'tonight, by MOONSHOT’s own pair score', scoreHead: 'Pair score' }} />
 
       {evPairs.length > 0 && (
         <div style={{ marginBottom: 16 }}>
@@ -2478,7 +2478,7 @@ export default function Pairs({ players=[], pairBuilder, pairHistorySummary, res
       <PairMe players={players} pairHistorySummary={pairHistorySummary} onPlayerClick={onPlayerClick} />
       <PanelTitle
         title="Pairs"
-        sub="The bot's pairs tonight, and which of them are landing live"
+        sub="MOONSHOT's pairs tonight, and which of them are landing live"
         right={
           <div style={{ display:'flex', gap:5, flexWrap:'wrap' }}>
             {VIEWS.map(item => (

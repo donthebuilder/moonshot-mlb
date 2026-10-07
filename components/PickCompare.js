@@ -35,7 +35,7 @@ export const SIGNALS = [
   ['pace', 'Due + HR-prone arm', 'real expected-HR gap on a real sample, against an arm allowing homers right now', (p) => Boolean(p?.hr_pace_flag)],
   ['air', 'Air / park', 'wind helping, or a park at 1.05+ for homers', (p) => (n(p?.weather_wind_boost, 0) > 0.02) || (n(p?.park_hr_factor, 0) >= 1.05)],
   ['form', 'Recent homer', 'went deep in his last five', (p) => n(p?.last5_hr, 0) >= 1],
-  ['power', 'Power tell', 'the bot’s own power-watch or high-confidence flag', (p) => Boolean(p?.power_watch_flag) || Boolean(p?.high_confidence_hr_flag)],
+  ['power', 'Power tell', 'MOONSHOT’s own power-watch or high-confidence flag', (p) => Boolean(p?.power_watch_flag) || Boolean(p?.high_confidence_hr_flag)],
 ]
 
 const pct = (v, dp = 1) => (v == null ? '—' : `${(100 * v).toFixed(dp)}%`)
@@ -96,7 +96,7 @@ export default function PickCompare({ players = [], odds = null, onPlayerClick }
       verdictFor={(a, b, qa, qb) => verdictFor(a, b, qa, qb)} footer={footer} onPlayerClick={onPlayerClick}
       title="⚖️ Compare two picks" sub="the things that differ between two homer picks, side by side, and a verdict that says why"
       placeholders={['first hitter…', 'second hitter…']}
-      signalsTitle="The seven signals the bot's shadow lane counts nightly. A checklist until that record says convergence predicts."
+      signalsTitle="The seven signals MOONSHOT's shadow lane counts nightly. A checklist until that record says convergence predicts."
       accent={C.orange} accentBg={alpha(C.orange, 0.08)} bgTint={alpha(C.orange, 0.04)} winInk={verdictInk(true).color}
       gridClass="pc-grid" />
   )

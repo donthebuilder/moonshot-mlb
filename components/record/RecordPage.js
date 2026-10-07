@@ -142,7 +142,7 @@ export default function RecordPage({ record, Table, Face = PlayerFace, receipts 
     // BEAT THE LINE (M3, 2026-10-03): only when the record carries book lines
     // (TUDDY's card does); clearing our bar and beating the book's are two claims.
     ...(rows.some((x) => x.lineN > 0) ? [{ key: 'vsline', label: 'Beat line', group: 'Record', w: 64, heat: false, numeric: true,
-      title: "Of the graded calls with the book's line on file at lock, the share whose result beat that line -- a harder test than clearing our own bar.",
+      title: "Of the graded calls with the book's line on file at lock, the share whose result beat that line — a harder test than clearing our own bar.",
       fmt: (v, row) => (row.lineN ? <span style={{ display: 'grid', lineHeight: 1.15 }}><span>{v}%</span><span style={{ fontSize: 10, color: C.text3 }}>{row.lineHit}/{row.lineN}</span></span> : '—') }] : []),
     { key: 'dots', label: 'Last 10', group: 'Form', w: 84, heat: false, sortable: false,
       fmt: (v, row) => <Dots units={series} mk={row._key} C={C} accent={accent} unitWord={unitWord} /> },

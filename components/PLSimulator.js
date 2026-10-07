@@ -113,7 +113,7 @@ export default function PLSimulator() {
   }, [data, cfg, stake])
 
   if (state === 'loading') return <Empty text="Loading the pick archive…" />
-  if (state === 'error') return <Empty text="pick_pl.json could not be loaded." />
+  if (state === 'error') return <Empty text="The profit record could not be loaded." />
 
   const CAT_COLORS = {
     TOTAL: '#f4f4f5', HR: '#f97316', TOP: '#FCD34D', TOP15: '#a1a1aa',
@@ -158,7 +158,7 @@ export default function PLSimulator() {
         Every graded pick over {data.meta.days} days ({data.meta.from} → {data.meta.to}), staked flat at
         the prices below. <b style={{ color: C.text2 }}>Put in the real ones</b> — the whole
         answer swings on them, and the defaults are only round numbers. This is the cost of following
-        the bot blindly: no shopping, no skipping bad spots.
+        MOONSHOT blindly: no shopping, no skipping bad spots.
       </div>
 
       {/* odds inputs */}

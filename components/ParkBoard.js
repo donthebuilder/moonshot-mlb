@@ -392,7 +392,7 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
             <div
               key={g.pk}
               onClick={() => onVenueClick?.(isActive ? '' : g.venue)}
-              title={`Park ${g.parkHR > 0 ? `×${g.parkHR.toFixed(2)}` : '—'} + ${g.wxFromBot ? "the bot's weather HR effect" : 'wind/temp heuristic (bot weather effect not published for this game)'} = ${g.edge > 0 ? '+' : ''}${g.edge.toFixed(0)}% vs neutral. Ranks this board, scores nothing.`}
+              title={`Park ${g.parkHR > 0 ? `×${g.parkHR.toFixed(2)}` : '—'} + ${g.wxFromBot ? "MOONSHOT's weather HR effect" : 'wind/temp estimate (no weather effect for this game)'} = ${g.edge > 0 ? '+' : ''}${g.edge.toFixed(0)}% vs neutral. Ranks this board, scores nothing.`}
               style={{
                 cursor: 'pointer', position: 'relative', overflow: 'hidden', minWidth: 0,
                 // maxWidth (2026-08-15, Donovan's screenshot): an orphan card on the
@@ -530,7 +530,7 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
                     col: closed ? C.text3 : out ? '#fb923c' : wIn ? '#38bdf8' : C.text2,
                     tip: closed
                       ? `${Math.round(g.wind)} mph ${g.windLabel || 'outside'} — but the roof is ${g.roof.toLowerCase()}, so it doesn't reach the field.`
-                      : `${Math.round(g.wind)} mph, ${g.windLabel || 'direction not published'}.${out ? ' Blowing out — the biggest single weather factor there is for home runs.' : wIn ? ' Blowing in — knocks down balls that would otherwise carry.' : ' Crosswind: it pushes balls sideways more than it helps or hurts distance.'}${g.windBoost != null ? ` The bot scores this wind at ${g.windBoost > 0 ? '+' : ''}${(g.windBoost * 100).toFixed(0)}%.` : ''}`,
+                      : `${Math.round(g.wind)} mph, ${g.windLabel || 'direction not published'}.${out ? ' Blowing out — the biggest single weather factor there is for home runs.' : wIn ? ' Blowing in — knocks down balls that would otherwise carry.' : ' Crosswind: it pushes balls sideways more than it helps or hurts distance.'}${g.windBoost != null ? ` MOONSHOT scores this wind at ${g.windBoost > 0 ? '+' : ''}${(g.windBoost * 100).toFixed(0)}%.` : ''}`,
                   })
                 }
 
@@ -552,7 +552,7 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
                 cells.push(closed
                   ? { k: 'sky', label: 'Roof', val: 'closed', col: '#a78bfa', tip: `${g.roof} — no wind, no rain, no sun. Conditions in this building are the same every night.` }
                   : g.rain >= 20
-                    ? { k: 'sky', label: 'Rain', val: `${Math.round(g.rain)}%`, col: g.rain >= 50 ? '#f87171' : '#7dd3fc', tip: `${Math.round(g.rain)}% chance of precipitation around first pitch, from the bot's weather pull. A delay-risk read, not a promise of one.` }
+                    ? { k: 'sky', label: 'Rain', val: `${Math.round(g.rain)}%`, col: g.rain >= 50 ? '#f87171' : '#7dd3fc', tip: `${Math.round(g.rain)}% chance of precipitation around first pitch, from MOONSHOT's weather pull. A delay-risk read, not a promise of one.` }
                     : { k: 'sky', label: 'Sky', val: g.roof ? 'open' : 'clear', col: C.text2, tip: g.roof ? `${g.roof} — open tonight, so the weather above plays.` : 'No meaningful rain chance published for first pitch.' })
 
                 // ONE LINE, NOT FOUR BOXES (2026-08-15). Donovan, third time
@@ -607,7 +607,7 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
                 const pctTxt = `${above ? '+' : '−'}${Math.abs((g.parkHR - 1) * 100).toFixed(0)}%`
                 return (
                   <div
-                    title={`Park HR factor ×${g.parkHR.toFixed(2)} — this building ${above ? 'adds' : 'removes'} about ${pctTxt.replace(/[+−]/, '')} of home-run rate versus a neutral park, before any weather. The bot's own park number. Track runs ${LO}–${HI} (a fixed display range covering every park published, not a percentile); the pale tick is neutral 1.00.`}
+                    title={`Park HR factor ×${g.parkHR.toFixed(2)} — this building ${above ? 'adds' : 'removes'} about ${pctTxt.replace(/[+−]/, '')} of home-run rate versus a neutral park, before any weather. MOONSHOT's own park number. Track runs ${LO}–${HI} (a fixed display range covering every park published, not a percentile); the pale tick is neutral 1.00.`}
                     style={{ marginTop: 4, cursor: 'default' }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -654,7 +654,7 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
                       g.time && <span style={{ color: C.text3 }}>⏰ {timeText(g.time)}</span>
                     )}
                     {rainy && (
-                      <span title="Rain chance from the bot's weather pull — a delay-risk read, not a forecast of one" style={{ color: g.rain >= 50 ? '#f87171' : '#7dd3fc', fontWeight: 800 }}>
+                      <span title="Rain chance from MOONSHOT's weather pull — a delay-risk read, not a forecast of one" style={{ color: g.rain >= 50 ? '#f87171' : '#7dd3fc', fontWeight: 800 }}>
                         ☔ {Math.round(g.rain)}%{g.rain >= 50 ? ' delay risk' : ''}
                       </span>
                     )}

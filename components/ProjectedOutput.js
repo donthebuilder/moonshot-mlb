@@ -292,13 +292,13 @@ const LENSES = [
   // Three more, same shape as the five above -- a boolean over the same
   // per-hitter fields the model already reads, nothing new fetched.
   { key: 'cold', label: '🧊 Due (cold)', hit: (p) => n(p?.last5_hr, 0) === 0 && n(p?.games_since_last_hr, 0) >= 5,
-    tip: "The mirror of Hot bats -- no homer in the last five games and it's been 5+ games since the last one. A drought, not a projection." },
+    tip: "The mirror of Hot bats — no homer in the last five games and it's been 5+ games since the last one. A drought, not a projection." },
   { key: 'weather', label: '🌬 Weather boost', hit: (p) => {
       const wpct = n(p?.weather_hr_effect_pct, NaN)
       if (p?.weather_has_data && Number.isFinite(wpct)) return wpct >= 3
       return /out/i.test(clean(p?.wind_direction_label ?? p?.weather_wind_direction_label, ''))
     },
-    tip: 'Only games where the published weather read is adding homers -- wind blowing out or a +3% or better effect.' },
+    tip: 'Only games where the published weather read is adding homers — wind blowing out or a +3% or better effect.' },
   { key: 'watch', label: '⭐ My watchlist', hit: () => false,
     tip: 'Only hitters on your watchlist.' },
 ]
@@ -477,7 +477,7 @@ export default function ProjectedOutput({ games = [], players: allPlayers = [], 
       lenses={LENSES} active={lenses} setActive={setLenses} shownCount={players.length} totalCount={allPlayers.length} noun="hitters" sport="mlb"
       by={by} setBy={setBy}
       note={<>
-        <b style={{ color: C.text2 }}>model v2</b> — each hitter&apos;s HR probability blends his
+        How the projection is built: each hitter&apos;s HR chance blends his
         score-band rate 50/50 with his season-ISO band rate, weighted by expected PA from his
         lineup slot (÷4.2 avg, ×0.9 if the lineup is unconfirmed), with a +10% form bump per
         last-5 HR capped at +30%.

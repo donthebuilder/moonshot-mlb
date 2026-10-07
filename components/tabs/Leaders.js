@@ -357,16 +357,16 @@ export default function Leaders({ players = [], onPlayerClick, onNavigate }) {
       border: `1px solid ${C.border}`, borderRadius: 11, padding: '9px 12px', marginBottom: 12,
     }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: TYPE.title, fontWeight: 900 }}>🗓️ Historical — the bot&apos;s own graded nights</span>
+        <span style={{ fontSize: TYPE.title, fontWeight: 900 }}>🗓️ Historical — MOONSHOT&apos;s own graded nights</span>
         <span style={{ fontSize: TYPE.body, color: C.text3 }}>
           every other board on this page is tonight; this one is the archive
         </span>
       </div>
       <div style={{ fontSize: TYPE.body, color: C.text3, lineHeight: 1.6, margin: '4px 0 7px', maxWidth: 780 }}>
-        After each slate the bot publishes a graded file — who it designated, what each designation needed, and
+        After each slate MOONSHOT publishes a graded file — who it designated, what each designation needed, and
         what the hitter actually did. These boards read those files back and rank them over TIME instead of over
-        tonight. <b style={{ color: C.text2 }}>Everybody in here was already a bot pick</b>, so a rate below says
-        how a hitter does once the bot has liked him; it is not a league rate and can&apos;t be compared to one.
+        tonight. <b style={{ color: C.text2 }}>Everybody in here was already a MOONSHOT pick</b>, so a rate below says
+        how a hitter does once MOONSHOT has liked him; it is not a league rate and can&apos;t be compared to one.
         Nights where a pick never batted are <b style={{ color: C.text2 }}>void</b> — counted, shown, and kept out
         of every denominator, because a scratch is not a loss.
       </div>
@@ -393,8 +393,8 @@ export default function Leaders({ players = [], onPlayerClick, onNavigate }) {
       {histState === 'error' && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap' }}>
           <span style={{ fontSize: TYPE.body, color: C.text3 }}>
-            Not one of the last {histN} dates came back. The published branch only keeps a rolling window of graded
-            days, so an old date genuinely may not exist — but nothing is shown rather than boards built on no nights.
+            None of the last {histN} dates came back. Only a rolling window of graded days is kept,
+            so an old date may not exist — nothing is shown rather than boards built on no nights.
           </span>
           <button style={histBtn} onClick={() => loadHistory(histN)}>Try again</button>
         </div>
@@ -429,7 +429,7 @@ export default function Leaders({ players = [], onPlayerClick, onNavigate }) {
           }}>
             <HistBoard
               title="💣 Most home runs"
-              lead={`Across the ${w.loaded} nights above. A count, not a rate — the line underneath is how many of those nights he was on the sheet at all.`}
+              lead={`Across the ${w.loaded} nights above. A count, not a rate — the line underneath is how many of those nights he was on the board at all.`}
               rows={hist.homers}
               empty="No homers in the window, which would be a first — check the dates."
               renderRow={(p, i) => (
@@ -450,12 +450,12 @@ export default function Leaders({ players = [], onPlayerClick, onNavigate }) {
                   main={`${Math.round((100 * p.cleared) / p.judged)}%`}
                   note={`${p.cleared}/${p.judged} in ${p.pickNights}n${p.voids ? ` · ${p.voids} void` : ''}`}
                   onClick={openIfOnSlate(p.pid)} onTeam={openTeam}
-                  title={`${p.name} cleared ${p.cleared} of ${p.judged} judged picks across ${p.pickNights} nights${p.voids ? `, plus ${p.voids} void (tracked, never batted — out of the denominator)` : ''}. Conditional on the bot having designated him in the first place: this is his rate once picked, not a league rate.`} />
+                  title={`${p.name} cleared ${p.cleared} of ${p.judged} judged picks across ${p.pickNights} nights${p.voids ? `, plus ${p.voids} void (tracked, never batted — out of the denominator)` : ''}. Conditional on MOONSHOT having designated him in the first place: this is his rate once picked, not a league rate.`} />
               )} />
 
             <HistBoard
               title="🤖 Picked most often"
-              lead="How often the bot has designated him in this window. Nights first, then slots — one hitter can hold two categories on the same night, and that is two picks but one night."
+              lead="How often MOONSHOT has designated him in this window. Nights first, then slots — one hitter can hold two categories on the same night, and that is two picks but one night."
               rows={hist.designated}
               empty="No designations in the window."
               renderRow={(p, i) => (
@@ -463,7 +463,7 @@ export default function Leaders({ players = [], onPlayerClick, onNavigate }) {
                   main={`${p.pickNights} ${p.pickNights === 1 ? 'night' : 'nights'}`}
                   note={`${p.picks} slots · ${p.cleared}/${p.judged}`}
                   onClick={openIfOnSlate(p.pid)} onTeam={openTeam}
-                  title={`${p.name} was designated on ${p.pickNights} of the ${w.loaded} graded nights, ${p.picks} pick slots in total, clearing ${p.cleared} of ${p.judged} judged. Volume, not endorsement — the bot picks the same names often.`} />
+                  title={`${p.name} was designated on ${p.pickNights} of the ${w.loaded} graded nights, ${p.picks} pick slots in total, clearing ${p.cleared} of ${p.judged} judged. Volume, not endorsement — MOONSHOT picks the same names often.`} />
               )} />
 
             <HistBoard
@@ -486,8 +486,7 @@ export default function Leaders({ players = [], onPlayerClick, onNavigate }) {
                 Extend to {HIST_MAX} nights
               </button>
               <span style={{ fontSize: TYPE.body, color: C.text3 }}>
-                {HIST_MAX - histN} more files — the {histN} already here are cached and won&apos;t be fetched again.
-                A longer window is the only honest way to make the rate board mean more.
+                {HIST_MAX - histN} more nights available. A longer window is the only honest way to make the rate board mean more.
               </span>
             </div>
           )}
@@ -503,7 +502,7 @@ export default function Leaders({ players = [], onPlayerClick, onNavigate }) {
     return (
       <div>
         {historyStrip}
-        <Empty text="No players on this slate yet — tonight's boards fill in when the bot publishes." />
+        <Empty text="No players on this slate yet — tonight's boards fill in when MOONSHOT publishes." />
       </div>
     )
   }
@@ -544,7 +543,7 @@ export default function Leaders({ players = [], onPlayerClick, onNavigate }) {
       <LeadersIntro>
         Straight season numbers — the batting line, nothing weighted or projected. Every other board
         here ranks by the model; this one doesn&apos;t. It&apos;s the page for what a hitter has actually
-        done, rather than what the bot thinks of him tonight. The strip directly below is the same idea
+        done, rather than what MOONSHOT thinks of him tonight. The strip directly below is the same idea
         stretched over time — the last week of graded nights, on request.
       </LeadersIntro>
 
@@ -574,15 +573,14 @@ export default function Leaders({ players = [], onPlayerClick, onNavigate }) {
         title="🏃 League-wide top 10s — speed &amp; run production"
         tint="rgba(74,222,128,.04)"
         lead={<>
-          whole league, live from the MLB StatsAPI — the slate publishes no stolen bases, so this
-          board is the only speed read here. 🤖 = on tonight&apos;s slate (click to open his card).
+          whole league, live — the only speed read here.
+          🤖 = on tonight&apos;s slate (tap to open his card).
         </>}>
         {league === undefined ? (
           <div style={{ fontSize: TYPE.body, color: C.text3, padding: '4px 0' }}>Fetching live league leaders…</div>
         ) : league === null ? (
           <div style={{ fontSize: TYPE.body, color: C.text3, padding: '4px 0' }}>
-            The live MLB StatsAPI leaders call didn&apos;t come back — nothing cached, so no numbers
-            rather than stale ones. Reload to retry.
+            The live leaders didn&apos;t load, so there are no numbers rather than stale ones. Reload to retry.
           </div>
         ) : (
           <div className="bot-picks-grid" style={{
@@ -664,7 +662,7 @@ key={lens}
           faceOf={(r) => (r._raw?.player_id ? { sport: 'mlb', id: String(r._raw.player_id), name: r.name } : null)}
           initialSort={lens}
           maxHeight={620}
-          caption={`Season stats, unmodelled. Minimum PA is set to ${minPA} because rate stats on a small sample are noise — a .400 average on 30 plate appearances belongs to nobody. K% and PA/HR are inverted so bright still means good for the hitter; every other column reads high-is-good. TB is the one derived number: the payload has no season hits or at-bats, so it's SLG × (PA × (1 − BB%)), which ignores hit-by-pitch and sacrifices and runs slightly light. Rank by it, don't quote it.`}
+          caption={`Season stats, straight from the box score. Minimum ${minPA} PA, because rates on a small sample are noise. K% and PA/HR are flipped so bright is always good for the hitter. TB is worked out as SLG × (PA × (1 − BB%)), so it runs slightly light: rank by it, don't quote it.`}
         />
       )}
     </div>

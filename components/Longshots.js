@@ -53,9 +53,9 @@ export default function Longshots({ sport, eyebrow, theme: C, numFont, accent, T
     // of the books' implied chances turned back into odds -- '+1649', a number
     // no book posts. The price shown is now a real one (the best book's), its
     // book beside it; the median keeps its own, labelled column.
-    { key: 'best', label: 'PRICE', w: 58, heat: false, fmt: plus, title: 'The longest price any book is offering, at our newest snapshot -- the BOOK column says which' },
+    { key: 'best', label: 'PRICE', w: 58, heat: false, fmt: plus, title: 'The longest price any book is offering, at our newest snapshot — the BOOK column says which' },
     { key: 'score', label: 'SCORE', w: 54, primary: true, dp: 0, title: 'Our model\u2019s score for this market (0\u2013100), as the product publishes it' },
-    { key: 'median', label: 'MID BOOK', w: 64, heat: false, fmt: plus, title: 'The middle of the books, worked out from their implied chances -- a reference, not a price any book posts' },
+    { key: 'median', label: 'MID BOOK', w: 64, heat: false, fmt: plus, title: 'The middle of the books, worked out from their implied chances — a reference, not a price any book posts' },
     { key: 'team', label: 'Team', w: 46, heat: false, teamMark: sportKey(sport) },
     { key: 'opp', label: 'Opp', w: 46, heat: false, teamMark: sportKey(sport) },
     { key: 'statusWord', label: 'Call', w: 104, heat: false },

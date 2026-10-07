@@ -232,7 +232,7 @@ function Row({ r, marketLabel, onPlayerClick }) {
           ? <span title={`His rate over all ${r.baseN} batted games — ${r.baseCount} of ${r.baseN}. The after-a-blank column beside it is the same bar in the same games' worth of chances.`}>
             {Math.round(r.baseRate)}%<span style={{ opacity: .6 }}> of {r.baseN}</span>
           </span>
-          : <span title="The bot has not published the all-games baseline yet">—</span>}
+          : <span title="The all-games baseline isn’t in yet">—</span>}
       </span>
       <span style={{ fontSize: 10.5, fontFamily: NUM_FONT, color: C.text2 }}>
         {r.fair != null
@@ -267,8 +267,8 @@ export default function BlankBoard({ players = [], odds = null, onPlayerClick })
   // is a claim and a false one.
   if (!published) {
     return (
-      <Empty text={'The bot has not published last-game lines yet. This board reads last_game_* / after_blank_* off the slate — '
-        + 'they arrive with the next run of the bot that carries compute_blank_profile.'} />
+      <Empty text={'Last-game lines aren’t in for tonight yet — '
+        + 'they arrive with the next update.'} />
     )
   }
   if (!rows.length) return <Empty text="Nobody on tonight's slate went hitless in his last game." />
@@ -361,9 +361,8 @@ export default function BlankBoard({ players = [], odds = null, onPlayerClick })
       )}
       {!hasControl && (
         <p style={{ margin: '0 0 14px', fontSize: 10.5, lineHeight: 1.6, color: C.text3, maxWidth: 760 }}>
-          The against-themselves comparison needs <code style={{ fontFamily: NUM_FONT }}>overall_*</code> and{' '}
-          <code style={{ fontFamily: NUM_FONT }}>after_hit_*</code>, which arrive with the next run of the bot that
-          carries them. Until then this board can say whether these hitters are mispriced, but not whether the blank
+          The against-themselves comparison needs each hitter&apos;s overall and after-a-hit numbers, which arrive with
+          the next update. Until then this board can say whether these hitters are mispriced, but not whether the blank
           itself predicts anything.
         </p>
       )}

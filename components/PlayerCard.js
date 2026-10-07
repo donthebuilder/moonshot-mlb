@@ -224,7 +224,7 @@ export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, on
             handle on. It is still here, still the bot's verdict, but it now
             sits as a badge beside the stats that earned it. Nothing was
             removed; the reading order changed. */}
-        <ScoreBadge label="BOT" score={score.toFixed(0)} sub={grade} color={color}
+        <ScoreBadge label="MOONSHOT" score={score.toFixed(0)} sub={grade} color={color}
           open={openScore} onToggle={() => setOpenScore((v) => !v)} />
       </div>
 
@@ -233,7 +233,7 @@ export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, on
       <ExplainStrip notes={[
         openEmoji && emojiTitle,
         openWeak && <>⭐ {weakSpotReason}</>,
-        openScore && <>The bot&apos;s {type.toUpperCase()} score, 0–100 — its verdict, not a stat. The row below is where it comes from.</>,
+        openScore && <>MOONSHOT&apos;s {type.toUpperCase()} score, 0–100 — its verdict, not a stat. The row below is where it comes from.</>,
       ]} />
 
       {/* ONE chip row (2026-08-06). Designated pick cards were wearing every
@@ -253,7 +253,7 @@ export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, on
         )}
         {gamePickLabel ? (
           <>
-            <Chip color={C.yellow}>★ Bot&apos;s {gamePickLabel}</Chip>
+            <Chip color={C.yellow}>★ MOONSHOT&apos;s {gamePickLabel}</Chip>
             {aligned && <Chip color={C.purple}>🧩 Aligned</Chip>}
             {recency && <Chip color={recency.color}>{recency.label}</Chip>}
             {pills.slice(0, 2).map((x, i) => <Chip key={i} color={x.color}>{x.label}</Chip>)}
@@ -269,7 +269,7 @@ export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, on
               // alignment. One glyph per tier, never stacked — which is the real
               // fix to the old problem, where a single card could carry a role
               // emoji, an HRW-zone emoji, a lock AND a target.
-              return rt ? <RoleTag label={rt.label} color={rt.color} glyph={rt.glyph} title={`Bot conviction tier: ${rt.label}`} /> : null
+              return rt ? <RoleTag label={rt.label} color={rt.color} glyph={rt.glyph} title={`Conviction tier: ${rt.label}`} /> : null
             })()}
             {showRoleChip && <Chip color={color}>{role}</Chip>}
             {showBetChip && !gamePickLabel && bet !== role && <Chip color={C.text2}>{bet}</Chip>}

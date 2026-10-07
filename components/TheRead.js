@@ -387,7 +387,7 @@ export default function TheRead({ players = [], onPlayerClick, odds = null }) {
       <div style={{ fontSize: 11, color: C.text3, lineHeight: 1.65, marginBottom: 12, maxWidth: 720 }}>
         <b style={{ color: C.text2 }}>What this is:</b> tonight read back to you in sentences instead of
         ranked in a table, plus the one measurement the site deliberately does not rank on. Every clause
-        is assembled from the bot&apos;s own published fields, so anything here traces to a column.
+        is assembled from MOONSHOT&apos;s own published fields, so anything here traces to a column.
       </div>
 
       {/* THE SHAPE OF TONIGHT — was four tiles above a paragraph that said
@@ -397,7 +397,7 @@ export default function TheRead({ players = [], onPlayerClick, odds = null }) {
         {' '}and <b style={{ color: C.text2 }}>{read.picks}</b> designated pick{read.picks === 1 ? '' : 's'} across the four categories.
         {read.helping && <> The friendliest air is <b style={{ color: C.text2 }}>{read.helping.teams}</b> at <b style={{ color: read.helping.eff > 0 ? C.green : C.text3 }}>{read.helping.eff > 0 ? '+' : ''}{read.helping.eff}%</b> — {read.helping.label.toLowerCase()}.</>}
         {read.hurting && read.hurting.teams !== read.helping?.teams && <> The one working against the hitters is <b style={{ color: C.text2 }}>{read.hurting.teams}</b> — {read.hurting.label.toLowerCase()}.</>}
-        {top && <> And the ISO archive disagrees with the bot hardest about <Name p={top.p} />, whom it marks <b style={{ color: C.orange }}>{top.delta > 0 ? '+' : ''}{top.delta.toFixed(0)}</b> from his published score.</>}
+        {top && <> And the ISO archive disagrees with MOONSHOT hardest about <Name p={top.p} />, whom it marks <b style={{ color: C.orange }}>{top.delta > 0 ? '+' : ''}{top.delta.toFixed(0)}</b> from his published score.</>}
       </Para>
 
       {/* ── THE CALL OF THE NIGHT ────────────────────────────────────────────
@@ -480,7 +480,7 @@ export default function TheRead({ players = [], onPlayerClick, odds = null }) {
             )}
             <PriceClause p={p} cat={hero} odds={odds} />
             {weak && <Para><span style={{ color: C.orange }}>The hole:</span> {weak}</Para>}
-            {risk && <Para dim><span style={{ color: C.text3 }}>The bot&apos;s own caveat:</span> {risk}.</Para>}
+            {risk && <Para dim><span style={{ color: C.text3 }}>MOONSHOT&apos;s own caveat:</span> {risk}.</Para>}
           </section>
         )
       })()}
@@ -530,7 +530,7 @@ export default function TheRead({ players = [], onPlayerClick, odds = null }) {
           carries ISO through season_power, so applying the band on top double-counts it, and it
           corrupted the projection bands, which were measured against the raw score. So this is a second
           opinion shown next to the first, rather than a correction folded in silently. Where the two
-          disagree hardest is where the bot and the archive genuinely see a different hitter.
+          disagree hardest is where MOONSHOT and the archive genuinely see a different hitter.
         </Para>
 
         {[['The ISO band says the score is too LOW', read.under, C.orange],
@@ -563,7 +563,7 @@ export default function TheRead({ players = [], onPlayerClick, odds = null }) {
         <Section n="3" title="What it is steering clear of" note="scored well, flagged anyway">
           <Para dim>
             Hitters who scored high enough to be in the conversation and were not designated, with the
-            bot&apos;s own stated reason. A picks page that never shows its rejections is telling you half
+            MOONSHOT&apos;s own stated reason. A picks page that never shows its rejections is telling you half
             of what it did.
           </Para>
           {read.traps.map((p) => (

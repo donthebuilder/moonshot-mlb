@@ -231,7 +231,7 @@ export default function Shortlist({ players = [], odds = null, onPlayerClick, on
           _typeColor: archColor,
           _typeTitle: `${arch.label} — ${arch.why}`
             + `\nRead in his ${fam === 'HR' ? 'home-run' : fam === 'HIT' ? '1+ hit' : fam === 'HRR' ? 'H+R+RBI' : 'total-bases'} lane.`
-            + (tier.known ? `\nThe bot's conviction tier on the bat: ${tier.label}.` : ''),
+            + (tier.known ? `\nMOONSHOT's conviction tier on the bat: ${tier.label}.` : ''),
           _tier: tier.known ? tier.label : '',
           pick: pick.join('/'),
           _pickParts: pick,
@@ -348,7 +348,7 @@ export default function Shortlist({ players = [], odds = null, onPlayerClick, on
           list above ranks the first; this counts the second. */}
       {designated.picked > 0 && (
         <div style={{ fontSize: 9.5, color: C.text3, margin: '0 0 8px', lineHeight: 1.5 }}>
-          The bot designated <b style={{ color: C.text2 }}>{designated.picked}</b> of{' '}
+          MOONSHOT designated <b style={{ color: C.text2 }}>{designated.picked}</b> of{' '}
           {designated.total} hitters tonight
           {designated.parts.length ? ' — ' : ''}
           {designated.parts.map(([role, n], i) => (
@@ -424,7 +424,7 @@ export default function Shortlist({ players = [], odds = null, onPlayerClick, on
           // "Matchup Hunter" are real values and a clipped archetype is
           // worse than no archetype.
           { key: 'type', label: 'Type', heat: false, w: 118,
-            title: 'What KIND of hitter he is, read in his own designated market’s lane — Moonshooter, Laser, Matchup Hunter, Pull-Side Threat, Heater, Hit Machine, Multi-Hit Threat, Contact King. Hover a row for the reason and for the bot’s conviction tier on the bat.',
+            title: 'What KIND of hitter he is, read in his own designated market’s lane — Moonshooter, Laser, Matchup Hunter, Pull-Side Threat, Heater, Hit Machine, Multi-Hit Threat, Contact King. Hover a row for the reason and for MOONSHOT’s conviction tier on the bat.',
             fmt: (v, r) => (!v ? <span style={{ color: C.text3 }}>—</span> : (
               <span title={r._typeTitle} style={{
                 fontFamily: NUM_FONT, fontSize: 8.5, fontWeight: 900, letterSpacing: '.03em',
@@ -433,7 +433,7 @@ export default function Shortlist({ players = [], odds = null, onPlayerClick, on
               }}>{v}</span>
             )) },
           { key: 'pick', label: 'Pick', heat: false, w: 124,
-            title: 'The slot(s) the bot designated him in for his own game — TOP, HR, HRR, HIT, CONTACT, WATCH. A hitter can carry more than one and all of them are shown. Blank means he was not designated in that game, which on a full slate is most of the board.',
+            title: 'The slot(s) MOONSHOT designated him in for his own game — TOP, HR, HRR, HIT, CONTACT, WATCH. A hitter can carry more than one and all of them are shown. Blank means he was not designated in that game, which on a full slate is most of the board.',
             fmt: (v, r) => (!r._pickParts?.length ? <span style={{ color: C.text3 }}>—</span> : (
               <span style={{ display: 'inline-flex', gap: 3, flexWrap: 'nowrap' }}>
                 {r._pickParts.map((part) => (
@@ -464,7 +464,7 @@ export default function Shortlist({ players = [], odds = null, onPlayerClick, on
           // `assume` are probabilities and still print plain, unpainted, so
           // the two kinds of number never share a treatment.
           { key: 'score', label: 'HR score', w: 64, dp: 1, scale: 'div', anchor: DIV_FIELD, domain: [0, 100], primary: true,
-            title: 'The bot’s 0-100 HR score — the profile. Not a probability. Drawn against the middle of THE ROWS ON SCREEN: ▲ above it, ▼ below. Showing more rows moves that middle, which is the honest behaviour — the comparison is to the field you are actually looking at.' },
+            title: 'MOONSHOT’s 0-100 HR score — the profile. Not a probability. Drawn against the middle of THE ROWS ON SCREEN: ▲ above it, ▼ below. Showing more rows moves that middle, which is the honest behaviour — the comparison is to the field you are actually looking at.' },
           { key: 'rate', label: 'His rate', w: 58, heat: false, mono: true, fmt: (v) => (v == null ? '—' : `${v.toFixed(1)}%`),
             title: 'His real per-game 1+ HR probability: hr_per_pa through his lineup spot’s plate appearances. This IS a probability, which is why it’s the only column the price gets compared to — and why it is not painted on the same scale as the score.' },
           // ── THE SWAPPABLE MIDDLE (2026-08-31) ─────────────────────
@@ -538,7 +538,7 @@ export default function Shortlist({ players = [], odds = null, onPlayerClick, on
               title: 'Extra-base hits in the locked last five. It catches the bat that is driving the ball without the homers having landed yet.',
               fmt: (v) => (v == null ? '—' : v) },
             { key: 'multi', label: 'Multi-hit', w: 62, dp: 1,
-              title: 'The bot’s 0-100 multi-hit score. A score, not a probability — drawn against the middle of the rows on screen, like the HR score is.',
+              title: 'MOONSHOT’s 0-100 multi-hit score. A score, not a probability — drawn against the middle of the rows on screen, like the HR score is.',
               scale: 'div', anchor: DIV_FIELD, domain: [0, 100] },
             { key: 'damage', label: 'Damage', w: 60, dp: 1,
               title: 'Damage-conversion score: how much of his hard contact actually turns into extra bases rather than loud outs.',
@@ -565,7 +565,7 @@ export default function Shortlist({ players = [], odds = null, onPlayerClick, on
             fmt: (v, r) => <b style={{ color: READ()[r.read].tone, fontWeight: 800, fontSize: 10 }}>{r.readTxt}</b>,
             title: 'The verdict, gated: it only speaks when a real rate met a real price on the same line.' },
         ], { onWatch, dhOn: false })}
-        caption="The profile view is the bot's ranking; Best odds fits re-sorts by ROOM, which is their whole second table in one click. His rate is a real per-game probability (hr_per_pa × his lineup spot's trips), so the comparison against the price is honest — the HR score never touches the odds math. Rows with no price stay ranked by profile; on most slates that's most rows, and saying so beats pretending."
+        caption="Profile is MOONSHOT's ranking; Best odds fits re-ranks by room against the price. His rate is his own per-game chance of a homer, from his season rate and lineup spot, so it can be set against a price; the HR score never enters that math. Rows with no price stay in profile order, which on most slates is most rows."
       />
       </>
       )}

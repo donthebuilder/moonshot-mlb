@@ -65,7 +65,7 @@ export default function LineupSlotMatchup({ team, lineup = [], onPlayerClick }) 
       )}
       {slots === null && (
         <div style={{ fontSize: 9.5, color: C.text3, padding: '4px 0' }}>
-          The API has no per-slot sample for this arm — side matches still shown below.
+          No per-slot sample for this arm yet — side matches are below.
         </div>
       )}
 

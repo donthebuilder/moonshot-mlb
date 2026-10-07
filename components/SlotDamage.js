@@ -88,7 +88,7 @@ export default function SlotDamage({ pitcher }) {
         })}
       </div>
       <div style={{ fontSize: 8.5, color: C.text3, marginTop: 4, lineHeight: 1.5 }}>
-        Live from the MLB StatsAPI. Bars run against league OPS-against ({LG_OPS_AGAINST.toFixed(3)}), marked on the axis —
+        Bars run against league OPS-against ({LG_OPS_AGAINST.toFixed(3)}), marked on the axis —
         warm ▲ means this slot has hurt him more than league, cool ▼ less, and a bar close to the
         line means neither. Slots on under 40 at-bats are dimmed rather than hidden: the number is
         real, the sample is thin. The name beside each bar is who bats there tonight, so a warm bar

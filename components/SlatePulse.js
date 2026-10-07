@@ -360,7 +360,7 @@ export default function SlatePulse({ players = [], slateDate = '', backtest, onP
                   HRR 2+ H+R+RBI, CONTACT 2+ TB); no mark = the slot never finalized.
                   <b style={{ color: '#f87171' }}> Red names ▾ in DROPPED are real demotions</b> — on
                   tonight&apos;s slate but stripped of the pick, and clickable; dim names just aren&apos;t
-                  playing today. The bot changing its mind is information either way.
+                  playing today. MOONSHOT changing its mind is information either way.
                 </div>
               </div>
             )

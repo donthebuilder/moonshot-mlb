@@ -78,7 +78,7 @@ const EXPORT_COLUMNS = [
   { key: 'team',     label: 'Team',            get: (p) => teamOf(p) },
   { key: 'opp',      label: 'Opponent',        get: (p) => oppOf(p) },
   { key: 'role',     label: 'Role',            get: (p) => tierRole(p) },
-  { key: 'botpick',  label: 'Bot Pick',        get: (p) => botPickOf(p) || 'No' },
+  { key: 'botpick',  label: 'MOONSHOT Pick',        get: (p) => botPickOf(p) || 'No' },
   { key: 'hr',       label: 'HR Score',        get: (p) => hrScore(p).toFixed(1) },
   { key: 'hrr',      label: 'HRR Score',       get: (p) => prodScore(p).toFixed(1) },
   { key: 'hit',      label: 'Hit Score',       get: (p) => hitScore(p).toFixed(1) },
@@ -160,7 +160,7 @@ function discordLines(items) {
 function buildDiscordParts(items) {
   const stamp = new Date().toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' })
   const anyPick = items.some((p) => botPickOf(p))
-  return discordParts(`**MOONSHOT watchlist · ${stamp}**`, discordLines(items), anyPick ? '⭐ = bot pick' : '')
+  return discordParts(`**MOONSHOT watchlist · ${stamp}**`, discordLines(items), anyPick ? '⭐ = MOONSHOT pick' : '')
 }
 
 async function copyTextList(items, onDone, part = 0) {
@@ -253,7 +253,7 @@ function CrossReference({ players, onPlayerClick, onWatch, watchedIds }) {
             <span style={{ fontSize: 10.5, color: C.text3 }}>
               {found.length} of {parsed.length} matched to tonight&apos;s slate
               {found.length > 0 && (
-                <> · <b style={{ color: C.orange }}>{found.filter((r) => botPickOf(r.hit)).length}</b> also a bot pick</>
+                <> · <b style={{ color: C.orange }}>{found.filter((r) => botPickOf(r.hit)).length}</b> also a MOONSHOT pick</>
               )}
             </span>
             {/* THE BULK SAVE. Pasting a list and having the site do nothing
@@ -330,9 +330,9 @@ rows={parsed.map((r, i) => {
               { key: 'opp',   label: 'Opp',  heat: false, w: 34, mono: true, dim: true },
               { key: 'facing', label: 'Facing', heat: false, w: 118, dim: true },
               { key: 'isPick', label: '🤖',  flag: true, mark: '●', w: 32,
-                title: 'The bot designated this hitter as one of tonight’s picks' },
+                title: 'MOONSHOT designated this hitter as one of tonight’s picks' },
               { key: 'botpick', label: 'Pick', heat: false, w: 58, mono: true,
-                title: 'Which category the bot picked him for — HR, TOP, HIT, HRR, CONTACT. Dash = on the slate but not designated.' },
+                title: 'Which category MOONSHOT picked him for — HR, TOP, HIT, HRR, CONTACT. Dash = on the slate but not designated.' },
               { key: 'weak',  label: '★',    flag: true, mark: '★', w: 30,
                 title: 'Weak lineup spot against tonight’s starter' },
               { key: 'l5',    label: 'L5',   heat: false, w: 76, mono: true, dim: true,
@@ -340,7 +340,7 @@ rows={parsed.map((r, i) => {
               { key: 'hr',    label: 'HR',   w: 44, dp: 1, ...SCORE,
                 title: 'HR score' },
               { key: 'hrw',   label: 'HRW',  w: 46, dp: 0, ...SCORE,
-                title: 'HR Watch — the bot’s heat/recency read, 0–100' },
+                title: 'HR Watch — MOONSHOT’s heat/recency read, 0–100' },
               { key: 'dc',    label: 'DC',   w: 42, dp: 0,
                 title: 'Damage conversion — how often his hard contact becomes damage' },
               { key: 'iso',   label: 'ISO',  w: 44, dp: 0,
@@ -358,7 +358,7 @@ rows={parsed.map((r, i) => {
             ]}
             onRowClick={(r) => r && onPlayerClick?.(r)}
             maxHeight={340}
-            caption="Star a row to save him to the watchlist without leaving the box. 🤖 + Pick = the bot designated him tonight and for what. Every numeric column heats against this pasted list only, so bright means best of YOUR names, not best of the slate. Rows with no match either aren't playing tonight or came through with a spelling the slate doesn't use."
+            caption="Star a row to save him to the watchlist without leaving the box. 🤖 + Pick = MOONSHOT designated him tonight and for what. Every numeric column heats against this pasted list only, so bright means best of YOUR names, not best of the slate. Rows with no match either aren't playing tonight or came through with a spelling the slate doesn't use."
           />
         </>
       )}
@@ -478,7 +478,7 @@ export default function Watchlist({ items, players = [], pairSummary, results, s
         <PanelTitle title="Watchlist" sub="Tap the ☆ on any player card to save them here. Saved on this device only." />
         <CrossReference players={players} onPlayerClick={onPlayerClick} onWatch={onWatch} watchedIds={new Set(items.map(playerId))} />
         <Empty text={stale
-          ? "No players loaded yet — tonight's slate hasn't published, so there's nothing to star. This isn't a broken watchlist; it clears up once the bot's nightly build lands."
+          ? "No players loaded yet — tonight's slate isn't up yet, so there's nothing to star. This isn't a broken watchlist; it clears up once the slate posts."
           : 'No saved players yet.'} />
         {/* Your record is history, not tonight's list: it shows on a night you
             haven't starred anyone yet too (the list clears when the slate rolls). */}
@@ -511,7 +511,7 @@ export default function Watchlist({ items, players = [], pairSummary, results, s
             </button>
             <button
               onClick={() => downloadShareCard(items)}
-              title="Render the list as a PNG image for posting — top 12 by HR score, with bot-pick tags"
+              title="Render the list as a PNG image for posting — top 12 by HR score, with MOONSHOT pick tags"
               style={{
                 fontSize: 11, fontWeight: 700, padding: '7px 11px', borderRadius: 8,
                 border: `1px solid ${C.border2}`,
@@ -604,18 +604,18 @@ export default function Watchlist({ items, players = [], pairSummary, results, s
           return (
             <>
               {b(items.length, C.orange)} saved
-              {' · '}<span title={bots ? 'the bot agrees on these' : undefined}>{b(bots, '#FCD34D')} bot pick{bots === 1 ? '' : 's'}</span>
+              {' · '}<span title={bots ? 'MOONSHOT agrees on these' : undefined}>{b(bots, '#FCD34D')} MOONSHOT pick{bots === 1 ? '' : 's'}</span>
               {' · '}avg HR score {b(avgHr.toFixed(1), '#f97316')}
               {' · '}{b(weak, '#FCD34D')} weak spot{weak === 1 ? '' : 's'}
               {' · '}<span title="lineups locked">{b(`${conf}/${items.length}`, conf === items.length ? C.green : C.purple)} confirmed</span>.
               {N > 0 && (
                 <>
-                  {' '}Tonight — <span title="Saved hitters who homered tonight. The bot's HR and TOP bar.">went deep {b(`${hrs}/${N}`, hrs ? C.green : C.text3)}</span>
-                  {', '}<span title="One hit or more — the bot's HIT bar, of those graded so far.">got a hit {b(`${cnt((g) => Number(g.actual_hits) > 0)}/${N}`, half(cnt((g) => Number(g.actual_hits) > 0)))}</span>
+                  {' '}Tonight — <span title="Saved hitters who homered tonight. MOONSHOT's HR and TOP bar.">went deep {b(`${hrs}/${N}`, hrs ? C.green : C.text3)}</span>
+                  {', '}<span title="One hit or more — MOONSHOT's HIT bar, of those graded so far.">got a hit {b(`${cnt((g) => Number(g.actual_hits) > 0)}/${N}`, half(cnt((g) => Number(g.actual_hits) > 0)))}</span>
                   {', '}<span title="Two hits or more. One hit and three hits are not the same night.">multi-hit {b(`${cnt((g) => Number(g.actual_hits || 0) >= 2)}/${N}`, half(cnt((g) => Number(g.actual_hits || 0) >= 2)))}</span>
                   {', '}<span title="A double, a triple or a homer. A double is not a homer and is not nothing.">XBH {b(`${cnt((g) => xbh(g) > 0)}/${N}`, half(cnt((g) => xbh(g) > 0)))}</span>
-                  {', '}<span title="The bot's HRR bar, scored exactly as pickCleared() scores it.">H+R+RBI 2+ {b(`${cnt((g) => combo(g) >= 2)}/${N}`, half(cnt((g) => combo(g) >= 2)))}</span>
-                  {', and '}<span title="The bot's CONTACT bar: two or more total bases.">2+ bases {b(`${cnt((g) => Number(g.actual_tb || 0) >= 2)}/${N}`, half(cnt((g) => Number(g.actual_tb || 0) >= 2)))}</span>
+                  {', '}<span title="MOONSHOT's HRR bar, scored exactly as pickCleared() scores it.">H+R+RBI 2+ {b(`${cnt((g) => combo(g) >= 2)}/${N}`, half(cnt((g) => combo(g) >= 2)))}</span>
+                  {', and '}<span title="MOONSHOT's CONTACT bar: two or more total bases.">2+ bases {b(`${cnt((g) => Number(g.actual_tb || 0) >= 2)}/${N}`, half(cnt((g) => Number(g.actual_tb || 0) >= 2)))}</span>
                   {' — '}<span title="Raw hits across every saved hitter tonight — a count, not a rate, so it has no denominator to be honest about.">{b(graded.reduce((a, g) => a + (Number(g.actual_hits) || 0), 0), C.orange)} hits total</span>.
                 </>
               )}
@@ -775,15 +775,15 @@ rows={[...filteredOnSlate].sort(byGameThenTeam).map((p, i) => {
                   title: 'Lineup spot' },
                 { key: 'facing', label: 'Facing', heat: false, w: 118, dim: true },
                 { key: 'isPick', label: '🤖',  flag: true, mark: '●', w: 32,
-                  title: 'The bot designated this hitter as one of tonight’s picks' },
+                  title: 'MOONSHOT designated this hitter as one of tonight’s picks' },
                 { key: 'botpick', label: 'Pick', heat: false, w: 58, mono: true,
-                  title: 'Which category the bot picked him for — HR, TOP, HIT, HRR, CONTACT. Dash = on the slate but not designated.' },
+                  title: 'Which category MOONSHOT picked him for — HR, TOP, HIT, HRR, CONTACT. Dash = on the slate but not designated.' },
                 { key: 'track', label: 'Track record', w: 96, mono: true,
                   fmt: (v, row) => row.track_t,
-                  title: `His overall did-the-job rate across every category the bot has ever picked him for — HR pick homering, HIT pick getting a hit, and so on, combined. From the same 39-day archive as the Results tab's full pick record. A percentage shows at ${MIN_TRACK_PICKS}+ picks; below that it stays a raw fraction, because 1/1 is not 100%. Dash = never a bot pick.` },
+                  title: `His overall did-the-job rate across every category MOONSHOT has ever picked him for — HR pick homering, HIT pick getting a hit, and so on, combined. From the same 39-day archive as the Results tab's full pick record. A percentage shows at ${MIN_TRACK_PICKS}+ picks; below that it stays a raw fraction, because 1/1 is not 100%. Dash = never a MOONSHOT pick.` },
                 { key: 'mine', label: 'Your nights', w: 96, mono: true, heat: false,
                   fmt: (v, row) => row.mine_t,
-                  title: 'How he has done on the nights he was on YOUR watchlist and this page was open — homers · hits / starts. Different question from Track record next door, which is every night the BOT picked him. Counts, not a rate: this sample is nights you happened to be here. Dash = no recorded night with him saved.',
+                  title: 'How he has done on the nights he was on YOUR watchlist and this page was open — homers · hits / starts. Different question from Track record next door, which is every night MOONSHOT picked him. Counts, not a rate: this sample is nights you happened to be here. Dash = no recorded night with him saved.',
                   explain: 'Your own record with this hitter: homers and hits over the starts he made while saved to your watchlist, counted only on nights this page was open to see them. A night he was saved but never batted is void, not a miss, and is left out of the starts. It stays a raw count on purpose — the denominator here is your browsing habits as much as his season.' },
                 { key: 'weak',  label: '⭐',    flag: true, mark: '★', w: 30,
                   title: 'Weak lineup spot against tonight’s starter' },
@@ -802,7 +802,7 @@ rows={[...filteredOnSlate].sort(byGameThenTeam).map((p, i) => {
                   title: 'Games since his last home run. Information, not a signal — this site doesn’t score a hitter as "due."' },
                 { key: 'hr',    label: 'HR',   w: 44, dp: 1, ...SCORE, title: 'HR score' },
                 { key: 'hrw',   label: 'HRW',  w: 46, dp: 0, ...SCORE,
-                  title: 'HR Watch — the bot’s heat/recency read, 0–100' },
+                  title: 'HR Watch — MOONSHOT’s heat/recency read, 0–100' },
                 { key: 'dc',    label: 'DC',   w: 42, dp: 0,
                   title: 'Damage conversion — how often his hard contact becomes damage' },
                 { key: 'iso',   label: 'ISO',  w: 44, dp: 0,
@@ -824,14 +824,14 @@ rows={[...filteredOnSlate].sort(byGameThenTeam).map((p, i) => {
                 { key: 'vsHand', label: 'vs Hand', w: 50, dp: 3,
                   title: "His own average against the hand tonight's starter throws (avg_vs_lhp or avg_vs_rhp). Falls back to season AVG when that split or the pitcher's hand is missing." },
                 { key: 'rbiScore', label: 'RBI', w: 44, dp: 1,
-                  title: 'A composite RBI-production read: season RBI rate, lineup spot, tonight\'s matchup average, and recent RBI form. Not a bot field, not calibrated — a transparent blend, same caveat as K risk.' },
+                  title: 'A composite RBI-production read: season RBI rate, lineup spot, tonight\'s matchup average, and recent RBI form. Not a MOONSHOT score, not calibrated — a transparent blend, same caveat as K risk.' },
                 { key: 'runScore', label: 'Run', w: 44, dp: 1,
-                  title: 'A composite run-production read: season run rate, lineup spot, season OBP, and recent run form. Not a bot field, not calibrated — a transparent blend, same caveat as K risk.' },
+                  title: 'A composite run-production read: season run rate, lineup spot, season OBP, and recent run form. Not a MOONSHOT score, not calibrated — a transparent blend, same caveat as K risk.' },
               ], { onWatch: null, dhOn: false })}
               onRowClick={(r) => r && onPlayerClick?.(r)}
               initialSort={null}
               maxHeight={380}
-              caption="Your saved hitters, side by side — every column heats against THE FILTERED LIST only, so bright means best of what's currently shown, not best of the slate. Narrow the filter and the colours re-scale to the survivors. ★ un-saves without leaving the table. Two record columns sit next to each other on purpose: Track record is every night the BOT picked him, Your nights is every night HE WAS ON YOUR LIST and this page was open — the second is a small sample by construction and stays a raw count for that reason."
+              caption="Your saved hitters, side by side — every column heats against THE FILTERED LIST only, so bright means best of what's currently shown, not best of the slate. Narrow the filter and the colours re-scale to the survivors. ★ un-saves without leaving the table. Two record columns sit next to each other on purpose: Track record is every night MOONSHOT picked him, Your nights is every night HE WAS ON YOUR LIST and this page was open — the second is a small sample by construction and stays a raw count for that reason."
             />
             )}
           </div>
@@ -848,7 +848,7 @@ rows={[...filteredOnSlate].sort(byGameThenTeam).map((p, i) => {
           <div style={{ margin: '2px 0 10px' }}>
             <div style={{ fontSize: 10.5, color: C.text3, marginBottom: 6 }}>
               <b style={{ color: C.orange }}>{agreed.length}</b> of your {items.length} saved are
-              also bot picks tonight:
+              also MOONSHOT picks tonight:
             </div>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {agreed.map((p) => (
@@ -894,7 +894,7 @@ rows={[...filteredOnSlate].sort(byGameThenTeam).map((p, i) => {
                   "three of four saves are sitting out" is a different evening
                   from "three of twenty". */}
               <b style={{ fontFamily: NUM_FONT, color: C.text2 }}>{off.length}</b> of your{' '}
-              <b style={{ fontFamily: NUM_FONT, color: C.text2 }}>{items.length}</b> saves — the bot
+              <b style={{ fontFamily: NUM_FONT, color: C.text2 }}>{items.length}</b> saves — MOONSHOT
               didn&apos;t score them tonight; click for the live-season read
             </span>
             {off.map((p) => {
@@ -902,7 +902,7 @@ rows={[...filteredOnSlate].sort(byGameThenTeam).map((p, i) => {
               const mine = mineOf(p)
               return (
                 <button key={playerId(p)} onClick={() => onPlayerClick?.(p)}
-                  title={`${nameOf(p)} — no bot row tonight. Opens his modal, which falls back to live Statcast/StatsAPI.${track !== '—' ? ` Track record: ${track}.` : ''}${mine ? ` On your list: ${mineText(mine)} across ${mine.nights} recorded night${mine.nights === 1 ? '' : 's'}.` : ''}`}
+                  title={`${nameOf(p)} — not on tonight’s slate. Opens his card, which pulls his numbers live.${track !== '—' ? ` Track record: ${track}.` : ''}${mine ? ` On your list: ${mineText(mine)} across ${mine.nights} recorded night${mine.nights === 1 ? '' : 's'}.` : ''}`}
                   style={{
                     fontSize: 10.5, fontWeight: 700, cursor: 'pointer', color: C.text2,
                     border: `1px solid ${C.border2}`, background: 'rgba(255,255,255,.03)',

@@ -37,18 +37,18 @@ const STEPS = [
   // being rendered here a second time — so the sentence was pointing at
   // nothing. Copy that names a section has to move when the section does.
   { n: 1, title: 'Tonight’s picks', color: C.orange, link: 'bot', linkWord: MLB_NAV.bot?.label || 'Picks',
-    body: 'is The Four — the bot’s best bat per category, three deep. If you only have a minute, that is the whole site.' },
+    body: 'is The Four — MOONSHOT’s best bat per category, three deep. If you only have a minute, that is the whole site.' },
   { n: 2, title: 'Rank the slate', color: C.amber, link: 'fullboard', linkWord: MLB_NAV.fullboard?.label || 'Rankings',
     body: 'ranks every hitter tonight and says why, one market at a time. A brighter cell is stronger for the hitter, scaled to tonight and nothing else. Click any name for his full breakdown.' },
   { n: 3, title: 'Check the matchup', color: C.cyan, link: 'games', linkWord: MLB_NAV.games?.label || 'Slate',
     body: 'opens each game in place — its read, its lineups, the head-to-head and its picks — and Pitchers ranks every starter by how attackable he is.' },
   { n: 4, title: 'See what worked', color: C.green, link: 'results', linkWord: MLB_NAV.results?.label || 'The record',
-    body: 'grades every pick against its own job, night by night, and its Track record view shows who actually delivers when the bot names him.' },
+    body: 'grades every pick against its own job, night by night, and its Track record view shows who actually delivers when MOONSHOT names him.' },
 ]
 
 const LEGEND = [
   { sym: '★', label: 'weak lineup spot vs tonight’s arm' },
-  { sym: '🤖', label: 'a designated bot pick' },
+  { sym: '🤖', label: 'a designated MOONSHOT pick' },
   { sym: '🧩', label: 'aligned signals' },
   { sym: 'AVOID', label: 'model expects no HR (score capped)' },
   { sym: '·', label: 'no data — not a zero' },

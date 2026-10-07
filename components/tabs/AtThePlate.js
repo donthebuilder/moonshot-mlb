@@ -800,7 +800,7 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
                 </span>
               )}
               {a.p && (
-                <span title="The bot's HR score for him tonight" style={{ fontSize: TYPE.micro, fontFamily: NUM_FONT, color: C.text3, cursor: 'default' }}>
+                <span title="MOONSHOT's HR score for him tonight" style={{ fontSize: TYPE.micro, fontFamily: NUM_FONT, color: C.text3, cursor: 'default' }}>
                   board <b style={{ color: C.orange }}>{hrScore(a.p).toFixed(0)}</b>
                 </span>
               )}
@@ -811,7 +811,7 @@ export default function AtThePlate({ players = [], watchIds, mode = 'today', sla
               {a.p ? <>vs <b style={{ color: C.text2 }}>{clean(a.p?.pitcher_name, 'TBD')}</b>
                 {a.p?.pitcher_throws ? ` (${a.p.pitcher_throws})` : ''}
                 {n(a.p?.pitcher_hr9, 0) > 0 && <span style={{ color: n(a.p.pitcher_hr9, 0) >= 1.4 ? '#f87171' : C.text3 }}> · {n(a.p.pitcher_hr9, 0).toFixed(2)} HR/9</span>}
-              </> : 'Not on tonight’s published slate — no board card for him.'}
+              </> : 'Not on tonight’s slate — no board card for him.'}
               {snap.lines?.[a.pid]
                 ? <> · tonight <b style={{ color: C.text2 }}>{snap.lines[a.pid].h}-{snap.lines[a.pid].ab}</b>
                   {snap.lines[a.pid].hr ? <b style={{ color: C.orange }}> {snap.lines[a.pid].hr} HR</b> : ''}

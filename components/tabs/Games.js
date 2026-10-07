@@ -10,7 +10,7 @@ import { groupGames } from '../../lib/data'
 import { dateText, playerId, mlbId, hrScore } from '../../lib/player'
 import { boardOrder } from '../../lib/boardOrder'
 import { hr9Color, hr9Fill, hr9Pct, hr9Title } from '../../lib/hr9'
-import { PanelTitle, Empty, btnStyle, WhatThis } from '../ui'
+import { PanelTitle, Empty, btnStyle } from '../ui'
 import PlayerCard from '../PlayerCard'
 import GameStrip from '../GameStrip'
 import GameLineup from '../GameLineup'
@@ -82,7 +82,7 @@ function StatChip({ p, cat, col, score, onClick, label, odds = null }) {
             there is a real rate to judge the number against. */}
         <PriceBubble odds={odds} player={p} cat={cat}
           rate={cat === 'HR' || cat === 'TOP' ? hrPerGame(p) : null} />
-        <span title="The bot's score for this category" style={{ marginLeft: 'auto', fontSize: TYPE.micro, fontWeight: 700, color: `${col}cc`, fontFamily: NUM_FONT, flexShrink: 0 }}>
+        <span title="MOONSHOT's score for this category" style={{ marginLeft: 'auto', fontSize: TYPE.micro, fontWeight: 700, color: `${col}cc`, fontFamily: NUM_FONT, flexShrink: 0 }}>
           {score.toFixed(0)}
         </span>
       </span>
@@ -408,7 +408,7 @@ function ArmBubble({ s }) {
             ))}
             {s.weakSide === 'L' || s.weakSide === 'R' ? (
               <div style={{ fontSize: TYPE.micro, color: C.text3, lineHeight: 1.5, marginTop: 6 }}>
-                The bot has him weakest to{' '}
+                MOONSHOT has him weakest to{' '}
                 <b style={{ color: C.orange }}>{s.weakSide === 'L' ? 'left' : 'right'}-handed</b> bats.
               </div>
             ) : null}
@@ -781,18 +781,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
           the hour. Park-factor work goes in ParkBoard. */}
       <PanelTitle
         title="Slate"
-        sub={/* ON A PHONE, THE COUNT AND NOTHING ELSE (2026-08-23). Donovan:
-          "everyhing on the games for moble needs to be fixed." Between the tab
-          bar and the first game card sat this sentence, the mode row, another
-          five-line paragraph and the sort row — three screens of prose
-          describing controls that are right there. The words are not wrong,
-          and they stay on desktop where they cost nothing. */
-          isPhone
-          ? `${games.length} games · first-pitch order`
-          : `${games.length} games · ${slots.length} time slots · ${
-            mode === 'lineups' ? 'every batting order at once — click a game bubble for slot-by-slot depth'
-            : 'the slate as game cards in first-pitch order — sort them any way below, tap one and switch between its read, its lineups, the head-to-head and the picks in place'
-          }`}
+        sub={mode === 'lineups' ? 'Every batting order, both teams.' : 'Tonight’s games, first pitch first.'}
         right={modeRow}
       />
 
@@ -804,18 +793,6 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
           copy of the page's own explanation, on tap, not two on every visit. */}
       {/* FOLDED EVERYWHERE NOW (2026-08-23) — it was hidden on a phone and
           three lines tall on a desktop; same words, one tap, both places. */}
-      {!isPhone && <WhatThis maxWidth={700}>
-        {mode === 'lineups'
-          ? 'who is actually batting where tonight — every confirmed order, 1 through 9, both teams facing each other. Use it when you want to check a hitter’s lineup spot before you back him.'
-          // 2026-08-16: this used to say "bigger, brighter cards are the
-          // matchups where the board stacks highest". The quiet-style pass
-          // retired heat-sizing and heat-tinting — the cards are one size on
-          // a flat surface now, and the heat is carried by the band glyph and
-          // the #rank. A page describing an affordance it no longer has is
-          // worse than one describing none, so this says what is actually
-          // true of the grid you are looking at.
-          : 'which game to spend your attention on. Each card leads with its matchup; the band glyph (🌋 / 🔥 / 🧊) and the #rank beside it are where the board stacks highest. Tap one to open it in place, then flip between its four sections — the read, the lineups with what the starter does to each spot, the head-to-head, the picks — instead of scrolling past three to reach the fourth.'}
-      </WhatThis>}
 
       {/* Sort control (2026-08-12) — not shown in Lineups mode, where the strip
           is a jump bar, not the thing you're reading. Time is the default and
@@ -994,11 +971,11 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                 {postedN}/{inPlay.length} posted
               </span>
               {!out.length && !moved.length && (
-                <span style={{ fontSize: TYPE.micro, color: C.text3 }}>every posted card matches the bot&apos;s order</span>
+                <span style={{ fontSize: TYPE.micro, color: C.text3 }}>every posted card matches MOONSHOT&apos;s order</span>
               )}
               {out.slice(0, 6).map(({ ...p }) => (
                 <button key={`o${playerId(p)}`} onClick={() => { setLineupFocus(p?.game_pk || null); onPlayerClick?.(p) }}
-                  title={`Not in tonight's posted lineup — the bot had him at #${p?.lineup_spot ?? '?'}`}
+                  title={`Not in tonight's posted lineup — MOONSHOT had him at #${p?.lineup_spot ?? '?'}`}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer',
                     padding: '5px 10px', borderRadius: 999, fontSize: TYPE.micro, fontWeight: 700,
@@ -1011,7 +988,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
               ))}
               {moved.slice(0, 6).map(({ p, slot }) => (
                 <button key={`m${playerId(p)}`} onClick={() => { setLineupFocus(p?.game_pk || null); onPlayerClick?.(p) }}
-                  title={`Batting ${slot} tonight — the bot had him at #${p?.lineup_spot}`}
+                  title={`Batting ${slot} tonight — MOONSHOT had him at #${p?.lineup_spot}`}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer',
                     padding: '5px 10px', borderRadius: 999, fontSize: TYPE.micro, fontWeight: 700,
@@ -1181,10 +1158,10 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                     const col = posted ? C.green : g.lineup_confirmed ? '#FCD34D' : C.text3
                     return (
                       <span title={posted ? 'The league has posted tonight’s card — these are the real nine.'
-                        : g.lineup_confirmed ? 'The bot saw a confirmed lineup on its last run; the league hasn’t posted an update since.'
-                        : 'No card posted yet — this order is the bot’s projection.'}
+                        : g.lineup_confirmed ? 'MOONSHOT saw a confirmed lineup on its last run; the league hasn’t posted an update since.'
+                        : 'No card posted yet — this order is MOONSHOT’s projection.'}
                         style={{ fontSize: TYPE.micro, color: col, fontFamily: NUM_FONT, fontWeight: 700 }}>
-                        {posted ? '✓ lineup posted' : g.lineup_confirmed ? '✓ confirmed (bot)' : '◻ projected'}
+                        {posted ? '✓ lineup posted' : g.lineup_confirmed ? '✓ confirmed' : '◻ projected'}
                       </span>
                     )
                   })()}
@@ -1223,7 +1200,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                         return (
                           <div key={playerId(p)} onClick={() => { if (!p?.off_slate) onPlayerClick?.(p) }}
                             title={lu.scratched ? 'Not in tonight’s posted lineup'
-                              : lu.moved ? `Batting ${lu.slot} tonight — the bot had him at ${p?.lineup_spot}`
+                              : lu.moved ? `Batting ${lu.slot} tonight — MOONSHOT had him at ${p?.lineup_spot}`
                               : undefined}
                             style={{ display: 'flex', gap: 6, alignItems: 'center', padding: '2.5px 0', cursor: 'pointer', minWidth: 0,
                               opacity: lu.scratched ? 0.45 : 1 }}>
@@ -1276,7 +1253,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                                   background: hs >= 60 ? C.orange : hs >= 45 ? '#FCD34D' : 'rgba(255,255,255,.2)' }} />
                               )}
                             </div>
-                            <span title={p?.off_slate ? 'In the lineup, but not on the bot’s slate — no model score for him tonight.' : undefined}
+                            <span title={p?.off_slate ? 'In the lineup, but not on MOONSHOT’s slate — no model score for him tonight.' : undefined}
                               style={{ fontFamily: NUM_FONT, fontSize: TYPE.body, fontWeight: 800, width: 22, textAlign: 'right', flexShrink: 0,
                                 color: p?.off_slate ? C.text3 : hs >= 60 ? C.orange : hs >= 45 ? '#FCD34D' : C.text3 }}>
                               {p?.off_slate ? '–' : hs.toFixed(0)}</span>
@@ -1453,8 +1430,8 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                           <Explain
                             label={g.lineup_confirmed ? '✓ lineups in' : '◻ projected'}
                             text={g.lineup_confirmed
-                              ? 'The bot saw the real, confirmed starting lineup on its last run \u2014 not a guess.'
-                              : "The real batting order hasn't posted yet, so this is the bot's best projection. It can still change before first pitch."}
+                              ? 'MOONSHOT saw the real, confirmed starting lineup on its last run \u2014 not a guess.'
+                              : "The real batting order hasn't posted yet, so this is MOONSHOT's best projection. It can still change before first pitch."}
                           />
                         </span>
                         <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>{localTime(g.game_time)}</span>
@@ -1683,7 +1660,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                         {(<>
                         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, margin: '12px 0 8px', flexWrap: 'wrap' }}>
                           <span style={{ fontSize: TYPE.name, fontWeight: 800 }}>
-                            {isDesignated ? '🎯 This game’s bot picks' : 'Top by HR score'}
+                            {isDesignated ? '🎯 This game’s MOONSHOT picks' : 'Top by HR score'}
                           </span>
                           <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>
                             {isDesignated
@@ -1697,7 +1674,7 @@ export default function Games({ players, allPlayers = [], slateDate = '', pairHi
                               the picks themselves, not a page-wide mode. */}
                           <button
                             onClick={(e) => { e.stopPropagation(); setBarsOn((v) => !v) }}
-                            title={barsOn ? 'Back to the normal pick cards' : "See the bot's five category bars per card"}
+                            title={barsOn ? 'Back to the normal pick cards' : "See MOONSHOT's five category bars per card"}
                             style={{
                               marginLeft: 'auto', padding: '3px 10px', borderRadius: 999, cursor: 'pointer',
                               fontSize: TYPE.micro, fontWeight: 800, fontFamily: NUM_FONT,
@@ -1940,7 +1917,7 @@ const PANEL_SUB = {
   // hunting for a click that no longer exists.
   lineups: 'both batting orders 1 through 9 as the full stat table — every column sortable, with the spot read (what this arm has done to each slot, in words) one pill over.',
   h2h: 'what these hitters have done against tonight’s starter this season, both sides.',
-  picks: 'the bot’s designated slots for this game as full cards — score bars, pills, add to slip.',
+  picks: 'MOONSHOT’s designated slots for this game as full cards — score bars, pills, add to slip.',
 }
 // ── THE LIVE STAMP (2026-09-01) ───────────────────────────────────────────────
 // "updated 12s ago" is the whole component. It is the difference between a
@@ -1961,12 +1938,12 @@ function LiveStamp({ meta, anyLive, onRefresh }) {
         style={{ color: bad ? C.red : C.text2, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
       >
         {meta.offDay && !anyLive
-          ? 'no MLB games today · the board below is the published slate'
+          ? 'no MLB games today'
           : meta.stale
-          ? (meta.at ? `Can’t reach MLB’s live feed — showing the snapshot from ${ageText}` : 'Can’t reach MLB’s live feed right now — scores below are from the published board')
-          : anyLive ? `live · updated ${ageText}` : `no game live · lineups checked ${ageText}`}
+          ? (meta.at ? `Can’t reach MLB right now — showing the last update, ${ageText}` : 'Can’t reach MLB right now — scores below may be out of date')
+          : anyLive ? `live · updated ${ageText}` : `no game live · updated ${ageText}`}
       </span>
-      <button onClick={onRefresh} disabled={meta.pulling} title="Pull the league feed again now" style={{
+      <button onClick={onRefresh} disabled={meta.pulling} title="Refresh now" style={{
         marginLeft: 'auto', flexShrink: 0, cursor: meta.pulling ? 'default' : 'pointer', fontFamily: NUM_FONT, fontSize: TYPE.micro, fontWeight: 800,
         padding: '5px 12px', borderRadius: 999, border: `1px solid ${bad ? C.red : C.border}`,
         background: 'transparent', color: bad ? C.red : C.text2, opacity: meta.pulling ? 0.6 : 1,

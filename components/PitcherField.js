@@ -120,8 +120,8 @@ export default function PitcherField({ pitcher, height = 260 }) {
         Shading = share of his allowed damage headed to each third, from XBH by batter hand
         ({model.xbhR} by RHB → LF, {model.xbhL} by LHB → RF) × {(100 * model.pull).toFixed(0)}% pulled-air
         allowed; brightness scales with his {(100 * model.hard).toFixed(0)}% hard-hit rate.
-        {' '}Fly-ball rate {(100 * model.fb).toFixed(0)}%. The payload publishes no landing coordinates
-        for pitchers — if it ever does, this becomes a real spray chart.
+        {' '}Fly-ball rate {(100 * model.fb).toFixed(0)}%. There is no landing data for
+        pitchers, so this shows his batted-ball mix, not a real spray chart.
       </div>
     </div>
   )

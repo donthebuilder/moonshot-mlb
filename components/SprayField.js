@@ -884,8 +884,7 @@ export default function SprayField({
   if (!hits.length && !liveN) {
     return (
       <ChartEmpty theme={C}>
-        No tracked batted balls for this hitter — nothing in the bot&apos;s cache, and the live
-        Statcast pull came back empty too. That is every source this chart has.
+        No tracked batted balls for this hitter yet.
       </ChartEmpty>
     )
   }
@@ -1254,9 +1253,8 @@ export default function SprayField({
         }}>
           <span style={{ color: C.red, fontWeight: 900 }}>🔴 Live Statcast pull</span>
           <span>
-            he isn&apos;t in the bot&apos;s cache for this slate, so these {hits.length} batted balls came
-            straight from Savant just now — same season, same balls, different pipe. Barrel,
-            hard-hit and pull use Savant&apos;s own definitions.
+            these {hits.length} batted balls were pulled live from Statcast — same season, same balls.
+            Barrel, hard-hit and pull use Statcast&apos;s own definitions.
           </span>
         </div>
       )}
@@ -1297,7 +1295,7 @@ export default function SprayField({
                 : k === '400' ? inRange.filter((h) => h.far400).length
                   : inRange.filter((h) => h.pullAir).length,
             title: k === 'ALL' ? 'Every batted ball in the window'
-              : k === 'pullair' ? 'Pulled AND in the air — the batted-ball shape that actually leaves buildings. The bot\u2019s own flag.'
+              : k === 'pullair' ? 'Pulled AND in the air — the batted-ball shape that actually leaves buildings. MOONSHOT\u2019s own flag.'
                 : `Balls that travelled ${k}+ feet — the same tiers the pitcher panel reports as distance given up.`,
           }))} />
       </div>
@@ -2155,8 +2153,8 @@ export default function SprayField({
                   but their counts aren't, so the counts paragraph is dropped */}
               {!liveOnly && (
               <div style={{ marginBottom: 5 }}>
-                Lanes are the bot&apos;s own <code>lane</code> field, so the counts match the rest of
-                the site. Read the labels loosely: the bot cuts lanes as vertical bands centred
+                Lanes are MOONSHOT&apos;s own <code>lane</code> field, so the counts match the rest of
+                the site. Read the labels loosely: MOONSHOT cuts lanes as vertical bands centred
                 about 30 ft right of home plate, so its <b style={{ color: C.text2 }}>CF</b> runs from
                 just left of straightaway centre out to right-centre, and <b style={{ color: C.text2 }}>LF</b>{' '}
                 covers everything past 88 ft to the pull side of a righty. The dashed lines show
@@ -2167,7 +2165,7 @@ export default function SprayField({
                 <div style={{ marginBottom: 5 }}>
                   Wind direction is <b style={{ color: C.text2 }}>park-relative, not a compass bearing</b>:
                   the feed gives a compass degree, but each park faces a different way and that
-                  orientation isn&apos;t published, so the arrow shows out / in / across from the bot&apos;s
+                  orientation isn&apos;t published, so the arrow shows out / in / across from MOONSHOT&apos;s
                   own label rather than inventing a heading. A crosswind isn&apos;t told left or right
                   either, so it&apos;s drawn on the axis without picking a side.
                 </div>
@@ -2176,8 +2174,8 @@ export default function SprayField({
                 <b style={{ color: C.text2 }}>{knownPark ? venue : 'Generic park'}</b>
                 {knownPark
                   ? `${dimSource === 'table'
-                      ? ' — wall drawn from the curated dimensions table (the bot publishes dims too, but they were verified wrong at the corners — Camden 384 where the line is 333, Daikin missing the Crawford Boxes — so the table wins)'
-                      : ' — wall from the bot’s published dims; this venue isn’t in the curated table, so treat the corners as approximate'}.`
+                      ? ' — wall drawn from the curated dimensions table (MOONSHOT publishes dims too, but they were verified wrong at the corners — Camden 384 where the line is 333, Daikin missing the Crawford Boxes — so the table wins)'
+                      : ' — wall from MOONSHOT’s published dims; this venue isn’t in the curated table, so treat the corners as approximate'}.`
                   : ' — no dimensions on file for this venue, so a standard outline is drawn.'}
                 {' '}Position is where the ball was fielded, not how far it carried — a 30 ft
                 chopper that a shortstop takes at 130 ft belongs at 130 ft; carry is in the hover.

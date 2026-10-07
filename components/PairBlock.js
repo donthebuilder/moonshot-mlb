@@ -61,7 +61,7 @@ export default function PairBlock({ pairs = [], accent = SPORT_ACCENT.mlb, sport
         columns={[
           { key: 'rank', label: '#', group: 'Pair', heat: false, w: 30, rankCol: true },
           { key: 'a', label: 'Pair', group: 'Pair', heat: false, sticky: true, w: 176, fmt: pairCell },
-          { key: 'score', label: L.scoreHead, group: 'Rank', w: 60, dp: 1, title: 'The bot’s own pair score. Rank only; not a probability.' },
+          { key: 'score', label: L.scoreHead, group: 'Rank', w: 60, dp: 1, title: 'MOONSHOT’s own pair score. Rank only; not a probability.' },
           { key: 'risk', label: 'Risk', group: 'Rank', heat: false, w: 64, dim: true },
         ]}
       />

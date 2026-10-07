@@ -72,7 +72,7 @@ export default function ParkTable({ players = [], activeVenue = '', onVenueClick
     { key: 'edge', label: 'Edge', w: 58, dp: 0, primary: true, bar: 'primary', domain: [-15, 15], fmt: (v) => signed(v), group: G_EDGE,
       title: 'The park’s HR factor and tonight’s weather, added: how much more (or less) the ball carries here tonight.' },
     { key: 'parkTerm', label: 'Park', w: 52, dp: 0, fmt: (v) => signed(v), group: G_EDGE, title: 'The building alone: (park HR factor − 1) × 100.' },
-    { key: 'wxTerm', label: 'Weather', w: 58, dp: 0, fmt: (v) => signed(v), group: G_EDGE, title: 'Tonight’s weather alone: the bot’s own weather HR effect, or a wind and temperature read when it did not publish one.' },
+    { key: 'wxTerm', label: 'Weather', w: 58, dp: 0, fmt: (v) => signed(v), group: G_EDGE, title: 'Tonight’s weather alone: MOONSHOT’s own weather HR effect, or a wind and temperature read when it did not publish one.' },
     { key: 'temp', label: 'Temp', w: 48, dp: 0, fmt: (v) => (v == null ? '—' : `${Math.round(v)}°`), group: G_AIR, title: 'Temperature at first pitch (°F). Warm air carries the ball.' },
     { key: 'wind', label: 'Wind', w: 74, dp: 0, group: G_AIR,
       fmt: (v, r) => (v == null ? '—' : `${Math.abs(Math.round(v))} mph${r.windLabel ? ` ${String(r.windLabel).toLowerCase()}` : (v > 0 ? ' out' : ' in')}`),

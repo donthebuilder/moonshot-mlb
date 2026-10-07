@@ -403,7 +403,7 @@ export default function Runs({ players = [], onPlayerClick, onOpenPitcher = null
     { key: 'l15', group: RUN_GROUP, label: 'L15', w: 46, dp: 0, fmt: (v) => (v == null ? '\u2014' : `${Number(v).toFixed(0)}%`), title: 'Share of his last 15 games that cleared the bar' },
     { key: 'l30', group: RUN_GROUP, label: 'L30', w: 46, dp: 0, fmt: (v) => (v == null ? '\u2014' : `${Number(v).toFixed(0)}%`), title: 'Share of his last 30 games that cleared the bar' },
     { key: 'stretch', group: RUN_GROUP, label: '1 in', w: 52, dp: 0, fmt: (v) => (v == null ? '\u2014' : `1 in ${v}`),
-      title: 'At his own rate, a run this long comes up about once every N stretches. A small N is ordinary; a big N is an unusual stretch -- and still only a stretch, not a forecast.' },
+      title: 'At his own rate, a run this long comes up about once every N stretches. A small N is ordinary; a big N is an unusual stretch — and still only a stretch, not a forecast.' },
     { key: 'donutLast', group: DONUT_GROUP, label: 'Last donut', w: 62, dp: 0, fmt: (v) => (v == null ? '\u2014' : v === 0 ? 'last gm' : `${v}g`), title: 'Games since his last donut: a game with no hit, no run and no RBI.' },
     { key: 'donutN', group: DONUT_GROUP, label: 'Donuts', w: 50, dp: 0, invert: true, title: 'Donut games (no hit, no run, no RBI) in this window.' },
     { key: 'donutHit', group: DONUT_GROUP, label: 'To a hit', w: 56, dp: 1, invert: true, title: 'After a donut: games, on average, until he recorded a hit.' },

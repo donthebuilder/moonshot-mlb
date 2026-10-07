@@ -104,12 +104,12 @@ export default function ContactSection({ p }) {
         <Tile label="Pull-air" count={s.pullAir} rate={s.rate('pullAir')} dim={dim} title="In the air to his pull side" />
         <Tile label="Avg / max EV" value={s.avgEv == null ? '—' : `${s.avgEv.toFixed(1)} / ${s.maxEv.toFixed(1)}`} dim={dim} title="Exit velocity, mph" />
         <Tile label="Launch angle" value={s.avgLa == null ? '—' : `${s.avgLa.toFixed(1)}°`} dim={dim} />
-        <Tile label="Bat spd · L25 PA" value={Number.isFinite(bat) ? `${bat.toFixed(1)} mph` : '—'} title="The bot's average bat speed over his last 25 plate appearances -- its own window, not the one picked above." />
+        <Tile label="Bat spd · L25 PA" value={Number.isFinite(bat) ? `${bat.toFixed(1)} mph` : '—'} title="MOONSHOT's average bat speed over his last 25 plate appearances — its own window, not the one picked above." />
       </div>
       {d && (
         <div style={{ fontFamily: NUM_FONT, fontSize: 11, color: C.text2, marginTop: 7, lineHeight: 1.5 }}
-          title="From the bot's per-pitch-type summary, each pitch type weighted by the pitches he saw of it. Zone and chase are per pitch; whiff is per swing, SwStr per pitch.">
-          <b style={{ color: C.text3, fontSize: 9, letterSpacing: '.05em' }}>PLATE DISCIPLINE · {d.pitches} PITCHES IN THE BOT'S PITCH SUMMARY</b><br />
+          title="From MOONSHOT's per-pitch-type summary, each pitch type weighted by the pitches he saw of it. Zone and chase are per pitch; whiff is per swing, SwStr per pitch.">
+          <b style={{ color: C.text3, fontSize: 9, letterSpacing: '.05em' }}>PLATE DISCIPLINE · {d.pitches} PITCHES IN MOONSHOT'S PITCH SUMMARY</b><br />
           Zone {pct(d.zone)} · Chase {pct(d.chase)} · Whiff {pct(d.whiff)} · SwStr {pct(d.swstr)}
         </div>
       )}

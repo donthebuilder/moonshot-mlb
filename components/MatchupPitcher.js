@@ -534,9 +534,9 @@ export default function MatchupPitcher({ player, slateMode }) {
           ...air,
           ...(wxHr != null && wxHr !== 0 ? [{
             key: 'wxhr',
-            text: `the bot puts the air at ${wxHr > 0 ? '+' : ''}${wxHr}% on home runs`,
+            text: `MOONSHOT puts the air at ${wxHr > 0 ? '+' : ''}${wxHr}% on home runs`,
             tone: wxHr > 0 ? 'hot' : 'cold',
-            title: 'weather_hr_effect_pct — the bot\'s published summary of tonight\'s conditions as a percentage swing on the home-run RATE at this park. Not a chance of anything.',
+            title: 'MOONSHOT\'s summary of tonight\'s conditions as a percentage swing on the home-run RATE at this park. Not a chance of anything.',
           }] : []),
         ]
         // This hitter's OWN fit against those relievers, which is a different
@@ -566,7 +566,7 @@ export default function MatchupPitcher({ player, slateMode }) {
                   key: 'vspen',
                   text: `his batter-versus-bullpen score is ${vsPen.toFixed(0)}`,
                   tone: vsPen >= 60 ? 'hot' : 'plain',
-                  title: 'batter_vs_bullpen_score — the bot\'s combined rating of this hitter against this bullpen. A 0-100 score that sits low across most of the slate (median around 10), so read a 60 as high rather than as middling.',
+                  title: 'MOONSHOT\'s combined rating of this hitter against this bullpen. A 0-100 score that sits low across most of the slate (median around 10), so read a 60 as high rather than as middling.',
                 }] : []),
               ]}
             />
@@ -666,7 +666,7 @@ export default function MatchupPitcher({ player, slateMode }) {
             </div>
             <div style={{ fontSize: 8.5, color: C.text3, marginTop: 4 }}>
               {b.bf != null ? `${b.bf} batters faced · ` : ''}warm = good for the bat ·
-              live from MLB StatsAPI — context only, not in any score
+              context only, not part of any score
             </div>
           </div>
         )
@@ -821,9 +821,9 @@ export default function MatchupPitcher({ player, slateMode }) {
         <div style={{ fontSize: 11, color: C.text3, padding: '8px 0' }}>
           {liveArs
             ? <>No detail file published for this starter — the arsenal below is a <b style={{ color: C.orange }}>live Statcast pull</b> of
-              his {liveArs.pitches} pitches this season, not the bot&apos;s file. Usage and whiff rates are computed on their true
+              his {liveArs.pitches} pitches this season, not MOONSHOT&apos;s file. Usage and whiff rates are computed on their true
               denominators; xwOBA/K% need plate-appearance accounting this export doesn&apos;t carry and show as dashes.
-              The lineup-damage tables still need the bot&apos;s file.</>
+              The lineup-damage tables still need MOONSHOT&apos;s file.</>
             : <>No detail file published for this starter, so the arsenal and lineup-damage tables below are
               unavailable{liveArs === null ? ' (live Statcast pull unavailable too)' : ''}. The season numbers above come off the slate row and are unaffected.</>}
         </div>
@@ -834,7 +834,7 @@ export default function MatchupPitcher({ player, slateMode }) {
           <SectionTitle
             label="Arsenal"
             sub={liveSource
-              ? `${side === 'overall' ? 'overall usage' : `his mix ${side}`} · 🔴 live Statcast pull — not the bot's file`
+              ? `${side === 'overall' ? 'overall usage' : `his mix ${side}`} · 🔴 live Statcast pull — not MOONSHOT's file`
               : side === 'overall' ? 'overall usage — no side split published' : `his mix ${side}, the side this hitter bats from`}
             subColor={liveSource || side !== 'overall' ? C.orange : C.text3}
           />

@@ -106,8 +106,8 @@ export default function PitcherProfile({ pitcher }) {
     { key: 'swstr', label: 'SwStr%', group: 'Weapons', w: 60, dp: 1, title: 'Swings and misses per pitch.' },
     { key: 'putaway', label: 'Putaway%', group: 'Weapons', w: 70, dp: 1, title: 'Two-strike counts he finishes.' },
     { key: 'fps', label: '1st-pitch K%', group: 'Weapons', w: 82, dp: 1, title: 'First-pitch strike rate: how often he gets ahead.' },
-    { key: 'spot', label: 'Spot', group: 'Scores', w: 44, dp: 0, title: 'The bot\u2019s spot-damage score for him.' },
-    { key: 'zone', label: 'Zone', group: 'Scores', w: 44, dp: 0, title: 'The bot\u2019s zone-damage score for him.' },
+    { key: 'spot', label: 'Spot', group: 'Scores', w: 44, dp: 0, title: 'MOONSHOT\u2019s spot-damage score for him.' },
+    { key: 'zone', label: 'Zone', group: 'Scores', w: 44, dp: 0, title: 'MOONSHOT\u2019s zone-damage score for him.' },
   ]
   const platCols = [
     { key: 'side', label: 'Bats', group: 'Side', w: 56, heat: false, sticky: true, bold: true },
@@ -130,7 +130,7 @@ export default function PitcherProfile({ pitcher }) {
         ) : <div style={{ fontSize: 12, color: C.text3 }}>Nothing published yet.</div>}
       </Block>
 
-      <Block title="Platoon" note={weakSide ? `the bot calls ${weakSide} his weak side` : null}>
+      <Block title="Platoon" note={weakSide ? `MOONSHOT calls ${weakSide} his weak side` : null}>
         {platHasAny ? (
           <DenseTable
             rows={[{ key: 'L', side: 'vs LHB', ...L }, { key: 'R', side: 'vs RHB', ...R }]}

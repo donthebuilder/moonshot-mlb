@@ -191,7 +191,7 @@ function Board({ players, onPlayerClick }) {
         fontSize: TYPE.micro, color: C.text3, lineHeight: 1.55, margin: '2px 0 10px',
         borderLeft: `2px solid ${C.orange}`, paddingLeft: 10, maxWidth: 640,
       }}>
-        The bot&apos;s own ranking (top_board_score_v2), <b style={{ color: C.text2 }}>unadjusted</b> —
+        MOONSHOT&apos;s own ranking (top_board_score_v2), <b style={{ color: C.text2 }}>unadjusted</b> —
         unlike the HR Board, no ISO multiplier touches this. Where the two boards disagree, the gap
         IS the site&apos;s adjustment, visible.
       </div>
@@ -339,7 +339,7 @@ function SheetViewer({ url, label }) {
     setTimeout(() => refs.current[i]?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 40)
   }
 
-  if (loading) return <div style={{ padding: '20px 4px', fontSize: TYPE.body, color: C.text3 }}>Loading the sheet…</div>
+  if (loading) return <div style={{ padding: '20px 4px', fontSize: TYPE.body, color: C.text3 }}>Loading the report…</div>
   if (!text) return <Empty text={`No ${label.toLowerCase()} published yet.`} />
 
   return (
@@ -354,7 +354,7 @@ function SheetViewer({ url, label }) {
       }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 14 }}>🤖</span>
-          <span style={{ fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.12em', fontFamily: NUM_FONT }}>THE BOT&apos;S DAILY BRIEFING</span>
+          <span style={{ fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.12em', fontFamily: NUM_FONT }}>MOONSHOT&apos;S DAILY BRIEFING</span>
           <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>{label}</span>
         </div>
         {(brief?.lo != null || brief?.grade || brief?.profiles != null || brief?.weak != null) && (
@@ -382,8 +382,7 @@ function SheetViewer({ url, label }) {
           </div>
         )}
         <div style={{ fontSize: TYPE.micro, color: C.text3, marginTop: 7, lineHeight: 1.5 }}>
-          The numbers above are parsed from the sheet itself; everything below is the bot&apos;s own
-          words, split into its own sections. Search opens whatever it finds.
+          Everything below is MOONSHOT&apos;s own words, in sections. Search opens whatever it finds.
         </div>
       </div>
 
@@ -391,7 +390,7 @@ function SheetViewer({ url, label }) {
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 8 }}>
         <input
           type="search"
-          placeholder="Search the whole sheet…"
+          placeholder="Search the report…"
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
           style={{
@@ -514,7 +513,7 @@ function SheetViewer({ url, label }) {
 // 2026-08-24: text-only — secondary/sub-tab pills are emoji-free site-wide.
 const VIEWS = [
   { key: 'short',    label: 'Shortlist' },
-  { key: 'sheet',    label: 'Today’s Sheet' },
+  { key: 'sheet',    label: 'Full report' },
   { key: 'tomorrow', label: 'Tomorrow' },
   { key: 'read',     label: 'The Read' },
 ]
@@ -525,8 +524,7 @@ export default function Bot({ players = [], onPlayerClick, onGoPairs, odds = nul
   return (
     <div>
       <PanelTitle
-        title="The Bot"
-        sub="Tonight read back in sentences · its sheet, in its own sections"
+        title="Picks"
         right={
           // UNIVERSAL FILTER (2026-08-23): the VIEWS row rode on btnStyle
           // with ember passed by hand — a view switch is STATE and draws in
@@ -541,8 +539,8 @@ export default function Bot({ players = [], onPlayerClick, onGoPairs, odds = nul
 
       {view === 'read'     && <TheRead players={players} onPlayerClick={onPlayerClick} odds={odds} />}
       {view === 'short'    && <Shortlist players={players} odds={odds} onPlayerClick={onPlayerClick} onWatch={onWatch} watchIds={watchIds} />}
-      {view === 'sheet'    && <SheetViewer url={logUrl('today')} label="Today's sheet" />}
-      {view === 'tomorrow' && <SheetViewer url={logUrl('tomorrow')} label="Tomorrow's sheet" />}
+      {view === 'sheet'    && <SheetViewer url={logUrl('today')} label="Today's report" />}
+      {view === 'tomorrow' && <SheetViewer url={logUrl('tomorrow')} label="Tomorrow's report" />}
     </div>
   )
 }

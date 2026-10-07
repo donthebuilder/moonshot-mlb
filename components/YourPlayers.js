@@ -198,6 +198,7 @@ export default function YourPlayers({ players = [], onPlayerClick = null, watchI
 
   return (
     <YourPlayersView sport="mlb" rows={drawn} onPlayerClick={onPlayerClick} collapsible={collapsible}
-      onUnstar={onUnstar} previewN={previewN} keys={KEYS.mlb} />
+      onUnstar={onUnstar} previewN={previewN} keys={KEYS.mlb}
+      emptyNote={<>Watch a player anywhere and he lands here.</>} />
   )
 }

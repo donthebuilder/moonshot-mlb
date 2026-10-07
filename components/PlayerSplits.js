@@ -73,7 +73,7 @@ const LIVE_SIT_GROUPS = [
   { key: 'count', label: 'Count', codes: ['ac', 'bc', 'ec', '2s', 'fc'],
     caption: 'Ahead/behind/even in the count, with a 2-strikes cut and a full-count cut layered in. Full count especially is a real minority of his plate appearances — check PA before reading much into it.' },
   { key: 'daynight', label: 'Day / Night', codes: ['d', 'n'],
-    caption: 'Live from the league, replacing the bot-file version of this split — see the note in this file’s header for why.' },
+    caption: 'Live from the league.' },
   { key: 'runners', label: 'Runners on base', codes: ['r0', 'r1', 'r2', 'r3', 'r12', 'r13', 'r23', 'r123', 'ron', 'ron2'],
     caption: 'Exact base-out state. Bases loaded and the two-runner combos are genuinely rare situations for any one hitter — read the PA column first, these rows will often be the thinnest on the whole tab.' },
 ]
@@ -616,7 +616,7 @@ export default function PlayerSplits({ player, slateMode }) {
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, marginBottom: 4, flexWrap: win === 'this' ? undefined : 'wrap' }}>
                 <span style={{ fontSize: 11.5, fontWeight: 900 }}>{g?.label || t.key}</span>
                 <span style={{ fontSize: 9.5, color: thinnest < THIN_PA ? C.orange : C.text3, fontFamily: NUM_FONT }}>
-                  {win === 'this' ? 'season · bot file' : `${winTag} · game log`} · {t.rows.length} rows · thinnest {thinnest} PA
+                  {win === 'this' ? 'season' : `${winTag} · game log`} · {t.rows.length} rows · thinnest {thinnest} PA
                 </span>
               </div>
               <DenseTable
@@ -626,7 +626,7 @@ export default function PlayerSplits({ player, slateMode }) {
                 maxHeight={300}
                 caption={
                   t.key === 'day_of_week'
-                    ? 'Seven ways to cut one season. Every row here is a few dozen plate appearances, which is not enough to separate any hitter from himself — a 130-point gap between two weekdays is two or three hits. This table is here because the bot publishes it, not because it should move a decision.'
+                    ? 'Seven ways to cut one season. Every row here is a few dozen plate appearances, which is not enough to separate any hitter from himself — a 130-point gap between two weekdays is two or three hits. This table is here for completeness, not because it should move a decision.'
                     : thinnest < THIN_PA
                       ? `The smallest row here is ${thinnest} plate appearances. Under about 100, batting average moves 30 points on three hits, so treat the gap between these rows as noise unless it is very large.`
                       : 'Both rows clear 100 plate appearances, which is enough to be worth a look — though a season split is still one season, and the gap you see is usually smaller next year.'

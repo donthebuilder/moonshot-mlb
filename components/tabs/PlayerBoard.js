@@ -16,8 +16,8 @@ import PlayerBoardFrame from '../players/PlayerBoardFrame'
 // exactly one question — who's top by HR score. Each chip is a question you'd
 // otherwise dig for, using only fields already on the slate row.
 const ASKS = [
-  { key: 'bot',  label: '🤖 Bot picks', test: (p) => String(p?.game_pick_role || '').trim() !== '',
-    why: 'Hitters the bot designated for one of tonight’s five pick slots' },
+  { key: 'bot',  label: '🤖 MOONSHOT picks', test: (p) => String(p?.game_pick_role || '').trim() !== '',
+    why: 'Hitters MOONSHOT designated for one of tonight’s five pick slots' },
   { key: 'weak', label: '⭐ Weak spots', test: (p) => p?.weak_spot_flag === true,
     why: 'Batting in a lineup spot this starter has been beaten in' },
   { key: 'hot',  label: 'Hot L5', test: (p) => n(p?.last5_hits, 0) >= 6 || n(p?.last5_hr, 0) >= 2,
@@ -43,7 +43,7 @@ export default function PlayerBoard({ players, slate = null, onAdd, onWatch, wat
       nameOf={nameOf}
       searchText={(p) => `${nameOf(p)} ${teamOf(p)} ${oppOf(p)}`}
       badgesOf={(p) => (<>
-        {String(p?.game_pick_role || '').trim() && <span title="Bot pick tonight" style={{ fontSize: 9, marginLeft: 4 }}>🤖</span>}
+        {String(p?.game_pick_role || '').trim() && <span title="MOONSHOT pick tonight" style={{ fontSize: 9, marginLeft: 4 }}>🤖</span>}
         {p?.weak_spot_flag && <span title="Weak lineup spot vs this starter" style={{ fontSize: 9, marginLeft: 2 }}>⭐</span>}
       </>)}
       metaOf={(p) => <>{teamOf(p)} vs {oppOf(p)} · #{clean(p?.lineup_spot, '?')} · {clean(p?.pitcher_name, 'TBD')}</>}

@@ -77,7 +77,7 @@ export default function OffBot({ players = [], onPlayerClick }) {
   return (
     <div style={{ margin: '10px 0 14px' }}>
       <button onClick={toggle}
-        title="Hitters in posted lineups the bot didn't score — every one opens live via the API."
+        title="Hitters in posted lineups we didn't score. Tap one to open his card."
         style={{
         display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left',
         background: open ? C.bg2 : 'rgba(255,255,255,.02)', cursor: 'pointer',
@@ -88,11 +88,11 @@ export default function OffBot({ players = [], onPlayerClick }) {
             sentence is the button's tooltip and it is repeated in full inside
             the panel when it opens, so nothing is lost by not shouting it at
             somebody who has not asked. */}
-        <span style={{ fontSize: 11.5, fontWeight: 800, color: C.text, whiteSpace: 'nowrap' }}>🕳 Off the bot</span>
+        <span style={{ fontSize: 11.5, fontWeight: 800, color: C.text, whiteSpace: 'nowrap' }}>🕳 Not rated</span>
         <span style={{
           fontSize: 9.5, color: C.text3, overflow: 'hidden',
           textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0,
-        }}>in tonight&apos;s lineups, never scored</span>
+        }}>in tonight&apos;s lineups, not scored</span>
         <span style={{ marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: 10, color: C.text3 }}>
           {state === 'done' ? `${rows.length} found` : ''} {open ? '▾' : '▸'}
         </span>
@@ -113,7 +113,7 @@ export default function OffBot({ players = [], onPlayerClick }) {
           )}
           {state === 'none' && (
             <span style={{ fontSize: 10.5, color: C.text3 }}>
-              Every hitter in tonight&apos;s posted lineups is already on the bot&apos;s slate — no blind spots right now.
+              Every hitter in tonight&apos;s posted lineups is already on MOONSHOT&apos;s slate — no blind spots right now.
             </span>
           )}
           {state === 'done' && (
@@ -141,7 +141,7 @@ export default function OffBot({ players = [], onPlayerClick }) {
                 {shown.map((r) => (
                   <button key={r.id}
                     onClick={() => onPlayerClick?.({ api_only: true, player_id: r.id, name: r.name, team: r.team, bats: '?' })}
-                    title={`#${r.spot} for ${r.team} vs ${r.opp} — open live API profile`}
+                    title={`#${r.spot} for ${r.team} vs ${r.opp} — open his card`}
                     style={{
                       display: 'flex', gap: 6, alignItems: 'baseline', cursor: 'pointer',
                       border: `1px solid ${C.border}`, borderRadius: 8, padding: '4px 10px',
@@ -155,9 +155,8 @@ export default function OffBot({ players = [], onPlayerClick }) {
                 )
               })()}
               <div style={{ fontSize: 9, color: C.text3, marginTop: 7, lineHeight: 1.5 }}>
-                In a posted lineup tonight, not in the bot&apos;s run — no model scores exist for these
-                hitters, so what opens is the live-API profile: props record, situational splits, zone map.
-                Refreshes each time you re-open the panel after a reload.
+                In a posted lineup tonight but not scored, so there is no MOONSHOT score for these
+                hitters. His card opens with live numbers: props record, splits and zone map.
               </div>
             </>
           )}

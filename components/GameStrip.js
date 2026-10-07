@@ -447,9 +447,9 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
               }}>{c.wx.text}</span>
             ) : null,
             score: c.liveG ? { away: awayAbbr, home: homeAbbr, awayScore: c.liveG.awayScore, homeScore: c.liveG.homeScore, live: c.liveG.state === 'Live' } : null,
-            chips: [['TOP', c.topPick, C.yellow, "The bot's TOP pick in this game"],
-              ['HR', c.hrPick, C.orange, "The bot's HR pick in this game"],
-              ['ALT', c.altPick, C.purple, c.altWhy || "The bot's secondary HR look in this game"],
+            chips: [['TOP', c.topPick, C.yellow, "MOONSHOT's TOP pick in this game"],
+              ['HR', c.hrPick, C.orange, "MOONSHOT's HR pick in this game"],
+              ['ALT', c.altPick, C.purple, c.altWhy || "MOONSHOT's secondary HR look in this game"],
             ].filter(([, pk2]) => pk2).map(([tag, pk2, cc, tip]) => ({
               key: tag, tag, color: cc, name: pk2.name, score: pk2.score,
               title: [pairing ? `${tag} — ${tip} — tap to add him as a pair leg` : `${tag} — ${tip}${onPlayerClick ? ' — tap for his card' : ''}`, spotTitle(pk2.p)].filter(Boolean).join('\n'),
@@ -490,8 +490,8 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
               : sortBy === 'air' ? 'Sorted by park factor plus tonight\u2019s weather — the friendliest building first'
               : sortBy === 'set' ? 'Sorted by how much of each lineup is confirmed — the settled games first'
               : sortBy === 'whip' ? "Sorted by the leakier starter's WHIP, worst first"
-              : sortBy === 'lowk' ? "Sorted by the softest starter's K/9, lowest first — the arms that have to let you put it in play. Games with no published K/9 sort last rather than reading as zero."
-              : 'First-pitch order'}. Heat reads as 🌋/🔥/🧊 and the #rank.
+              : sortBy === 'lowk' ? "Sorted by the softest starter's K/9, lowest first. Games without one sort last."
+              : 'First-pitch order'}.
           </span>
           <button onClick={() => setLegendOpen((v) => !v)} style={{
             fontSize: 9, fontWeight: 700, color: C.text3, cursor: 'pointer',
@@ -513,9 +513,9 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
             · ✓✓/✓◻ per-team lineup posted or projected. Every card carries the same three chips —
             <strong style={{ color: C.yellow }}> TOP</strong>,
             <strong style={{ color: C.orange }}> HR</strong> and
-            <strong style={{ color: C.purple }}> ALT</strong> (the bot&apos;s secondary HR lane, hover for
+            <strong style={{ color: C.purple }}> ALT</strong> (MOONSHOT&apos;s secondary HR lane, hover for
             the reason) — name and score, so the either/or is one glance. A chip only appears when the
-            bot actually published that lane, and never names the same hitter twice on one card.
+            MOONSHOT actually published that lane, and never names the same hitter twice on one card.
             {onPairPick ? ' Tap any chip to add him as a pair leg; 🔗 marks the legs you already have.' : ''}
             {' '}Click a card to open the full deep-dive below the grid; click it again to close.
           </div>

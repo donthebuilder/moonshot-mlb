@@ -411,7 +411,7 @@ export default function MiniWire({
             firedRef.current.add(key)
             out.push({
               key, icon: '🚫', p, pri: 0.2,
-              text: `${nameOf(p)} (${who}) is not in tonight's lineup · bot had him #${p?.lineup_spot ?? '?'}`,
+              text: `${nameOf(p)} (${who}) is not in tonight's lineup · MOONSHOT had him #${p?.lineup_spot ?? '?'}`,
             })
           } else if (lu.moved) {
             const key = `${id}:slot:${lu.slot}`
@@ -419,7 +419,7 @@ export default function MiniWire({
             firedRef.current.add(key)
             out.push({
               key, icon: '↕', p, pri: 1.4,
-              text: `${nameOf(p)} (${who}) is batting #${lu.slot} tonight · bot had #${p?.lineup_spot}`,
+              text: `${nameOf(p)} (${who}) is batting #${lu.slot} tonight · MOONSHOT had #${p?.lineup_spot}`,
             })
           }
         })

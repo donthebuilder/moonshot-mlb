@@ -107,7 +107,7 @@ function PitchesTable({ active, onPlayerClick }) {
     { key: 'rank', label: '#', w: 30, heat: false, rankCol: true },
     { key: 'pitch', label: 'His pitch', w: 120, heat: false, sticky: true, group: PM_GROUP, fmt: (v, r) => <span><b>{v}</b> <span style={{ color: C.text3, fontSize: 10 }}>{r.code}</span></span> },
     { key: 'use', label: 'Thrown', w: 100, dp: 0, bar: 'primary', barW: 56, domain: [0, 70], group: PM_GROUP, fmt: (v) => `${Math.round(v)}%`, title: 'Share of his pitches that are this one' },
-    { key: 'crush', label: `Crush it (of ${nine})`, w: 100, dp: 0, bar: 'secondary', barW: 56, domain: [0, Math.max(nine, 1)], group: PM_GROUP, title: 'Hitters in tonight\u2019s lineup whose damage lines up with this pitch (the bot\u2019s pitch-mix note)' },
+    { key: 'crush', label: `Crush it (of ${nine})`, w: 100, dp: 0, bar: 'secondary', barW: 56, domain: [0, Math.max(nine, 1)], group: PM_GROUP, title: 'Hitters in tonight\u2019s lineup whose damage lines up with this pitch (MOONSHOT\u2019s pitch-mix note)' },
     { key: 'who', label: 'Who', w: 260, heat: false, numeric: false, group: PM_GROUP,
       fmt: (v, r) => (r.who.length
         ? <span style={{ display: 'inline-flex', gap: 6, whiteSpace: 'nowrap' }}>{r.who.slice(0, 4).map((h, i) => (
@@ -189,7 +189,7 @@ export default function Matchups({ players = [], onPlayerClick, onNavigate = nul
         rowEdge={(r) => (r._id === active?._id ? C.orange : null)}
         onRowClick={(r) => { setPick(r._id); if (typeof document !== 'undefined') requestAnimationFrame(() => document.getElementById('ms-matchup-detail')?.scrollIntoView({ behavior: 'smooth', block: 'start' })) }} />
       <p style={{ margin: '6px 0 14px', fontSize: 11, lineHeight: 1.5, color: C.text3 }}>
-        Lineup fit = the average of the bot&apos;s pitch-mix score (0–100: how each hitter&apos;s damage lines up with this starter&apos;s pitches) over the hitters he faces on the slate. Attack is the Pitchers page&apos;s own number, for reference.
+        Lineup fit = the average of MOONSHOT&apos;s pitch-mix score (0–100: how each hitter&apos;s damage lines up with this starter&apos;s pitches) over the hitters he faces on the slate. Attack is the Pitchers page&apos;s own number, for reference.
       </p>
 
       {active && (

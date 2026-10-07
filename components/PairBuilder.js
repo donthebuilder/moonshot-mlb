@@ -98,11 +98,11 @@ const groupTagsOf = (p) => String(p?.game_pick_role || '').split('/').map((s) =>
 // readings of the same field.
 const SHAPE_TAGS = [
   { key: 'moonshot', bucket: 'moonshot', band: 'moonshot', label: '💣 Moonshot',
-    title: `Recent contact includes a moonshot. ${HR_BANDS.moonshot.blurb} — hr_shape_profile.moonshot` },
+    title: `Recent contact includes a moonshot. ${HR_BANDS.moonshot.blurb}` },
   { key: 'nodoubt', bucket: 'no_doubter', band: 'no-doubter', label: '🚀 No-doubter',
     title: `Recent contact includes a no-doubter. ${HR_BANDS['no-doubter'].blurb} — hr_shape_profile.no_doubter` },
   { key: 'laser', bucket: 'laser', band: 'laser', label: '⚡ Laser',
-    title: `Recent contact includes a laser. ${HR_BANDS.laser.blurb} — hr_shape_profile.laser` },
+    title: `Recent contact includes a laser. ${HR_BANDS.laser.blurb}` },
   { key: 'wall', bucket: 'wall_scraper', band: 'wall-scraper', label: '🧱 Wall scraper',
     title: `Recent contact includes a wall-scraper — a real near miss. ${HR_BANDS['wall-scraper'].blurb} — hr_shape_profile.wall_scraper` },
 ]
@@ -510,7 +510,7 @@ export default function PairBuilder({ summary, players = [], onPlayerClick, init
           shared history moves it.
           {' '}It changes <b style={{ color: C.text }}>nothing else</b>: the history columns keep
           counting co-<i>homer</i> days regardless of market, because co-HR days are the only pair
-          history the bot publishes — shown for reference now, not folded into anyone&apos;s fit.
+          history MOONSHOT publishes — shown for reference now, not folded into anyone&apos;s fit.
         </div>
       </div>
 
@@ -644,7 +644,7 @@ export default function PairBuilder({ summary, players = [], onPlayerClick, init
           const on = groupFilter === t.key
           return (
             <button key={t.key} onClick={() => setGroupFilter(on ? null : t.key)}
-              title={`Only partners the bot designated tonight's ${t.label} pick`}
+              title={`Only partners MOONSHOT designated tonight's ${t.label} pick`}
               style={{
                 padding: '3px 9px', borderRadius: 6, cursor: 'pointer', fontSize: 10, fontWeight: 700,
                 fontFamily: NUM_FONT,
@@ -871,7 +871,7 @@ rows={partners.map((p) => ({
                 title: 'Lineup spot tonight' },
               { key: 'pitcher',  label: 'Facing',  heat: false, w: 124, dim: true },
               { key: 'isPick',   label: '🤖',      flag: true, mark: '●', w: 32,
-                title: 'One of the bot’s designated picks tonight' },
+                title: 'One of MOONSHOT’s designated picks tonight' },
               { key: 'weak',     label: '★',       flag: true, mark: '★', w: 30,
                 title: 'Weak lineup spot against tonight’s starter' },
               ...(histOnly ? [] : [
@@ -918,7 +918,7 @@ rows={partners.map((p) => ({
             onRowClick={onPlayerClick}
             initialSort={multi ? 'matched' : 'fit'}
             maxHeight={400}
-            caption={`${histOnly ? '' : 'Every hitter on tonight’s slate is listed — 🤝 marks the ones who share a co-homer history with your selection. Shown for reference, not folded into Fit (2026-08-28: measured, not predictive). '}"Last together" is how long since these two last homered on the same day — "12d ago" is a live pairing, "60d ago" is a memory; it's inverted so recent reads bright. Same gm and Same day are both raw counts now, not ranking inputs — Boost and the bot's raw pair score came off the board earlier for the same reason, as their own reference columns.${mkt.key !== 'hr' ? ` On the ${mkt.label} market, tonight's score is on your market but the history columns still count co-HOMER days — that's the only pair history the bot publishes.` : ''}${multi ? ' With multiple anchors, Same gm / Same day sum across matched anchors and Last together is the most recent.' : ''}`}
+            caption={`${histOnly ? '' : 'Every hitter on tonight’s slate is listed — 🤝 marks the ones who share a co-homer history with your selection. Shown for reference, not folded into Fit (2026-08-28: measured, not predictive). '}"Last together" is how long since these two last homered on the same day — "12d ago" is a live pairing, "60d ago" is a memory; it's inverted so recent reads bright. Same gm and Same day are both raw counts now, not ranking inputs — Boost and MOONSHOT's raw pair score came off the board earlier for the same reason, as their own reference columns.${mkt.key !== 'hr' ? ` On the ${mkt.label} market, tonight's score is on your market but the history columns still count co-HOMER days — that's the only pair history MOONSHOT publishes.` : ''}${multi ? ' With multiple anchors, Same gm / Same day sum across matched anchors and Last together is the most recent.' : ''}`}
           />
         </>
       )}

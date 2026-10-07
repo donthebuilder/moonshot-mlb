@@ -166,7 +166,7 @@ function NightStrip({ bump }) {
           const v = nightVerdict(r)
           return (
             <span key={r.date || i}
-              title={`${r.date} — you ${r.mw ?? 0}, bot ${r.bw ?? 0} on ${r.n ?? 0} contested (${r.w ?? 0}–${r.l ?? 0}–${r.t ?? 0})`}
+              title={`${r.date} — you ${r.mw ?? 0}, MOONSHOT ${r.bw ?? 0} on ${r.n ?? 0} contested (${r.w ?? 0}–${r.l ?? 0}–${r.t ?? 0})`}
               style={{
                 width: 7, height: 7, borderRadius: 1.5,
                 background: v > 0 ? C.green : v < 0 ? `${C.red}cc` : 'rgba(255,255,255,.14)',
@@ -200,7 +200,7 @@ function outcomePill(out, pending) {
   if (out === null) return <Pill tone="void" title="Tracked, but never batted — void, not a miss. Dropped from both sides.">VOID</Pill>
   if (pending) return null
   return (
-    <Pill tone="void" title="The graded file has no line for him — he isn't one of the ~90 candidates the bot tracks, so there's nothing to score him against.">
+    <Pill tone="void" title="The graded file has no line for him — he isn't one of the ~90 candidates MOONSHOT tracks, so there's nothing to score him against.">
       UNTRACKED
     </Pill>
   )
@@ -461,7 +461,7 @@ function Versus({
       <div style={{ display: 'flex', gap: 7 }}>
         {/* ── THE BOT ── */}
         <span style={col(botWon)}>
-          <span style={{ ...head, color: C.text3 }}>The bot</span>
+          <span style={{ ...head, color: C.text3 }}>MOONSHOT</span>
           <button onClick={onBot} disabled={!bot} style={{ ...nameStyle(Boolean(mine)), cursor: bot ? 'pointer' : 'default' }}>
             {bot ? nameOf(bot) : 'no pick'}
           </button>
@@ -496,7 +496,7 @@ function Versus({
             </>
           ) : (
             <span style={{ fontSize: 11.5, color: C.text3, lineHeight: 1.5 }}>
-              {locked ? 'You left it with the bot.' : 'Empty — this slot is still its pick.'}
+              {locked ? 'You left it with MOONSHOT.' : 'Empty — this slot is still its pick.'}
             </span>
           )}
         </span>
@@ -508,7 +508,7 @@ function Versus({
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         {decided ? (
           <Pill tone={youWon ? 'won' : botWon ? 'lost' : 'void'}>
-            {youWon ? 'YOU WIN' : botWon ? 'BOT WINS' : 'PUSH'}
+            {youWon ? 'YOU WIN' : botWon ? 'MOONSHOT WINS' : 'PUSH'}
           </Pill>
         ) : (
           <span style={{ fontSize: 10, color: C.text3 }}>
@@ -908,7 +908,7 @@ export default function MyPicks({ players = [], results, odds, slateDate, onPlay
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 13.5, fontWeight: 900 }}>🎮 Tonight</span>
           <span style={{ fontSize: 10.5, color: C.text3 }}>
-            {slateDate ? shortDate(slateDate) : 'today'} · you versus the bot, one slot at a time
+            {slateDate ? shortDate(slateDate) : 'today'} · you versus MOONSHOT, one slot at a time
           </span>
         </div>
 
@@ -940,7 +940,7 @@ export default function MyPicks({ players = [], results, odds, slateDate, onPlay
                 <div style={{
                   fontSize: 10, fontWeight: 800, letterSpacing: '.12em',
                   textTransform: 'uppercase', color: C.text3, marginBottom: 3,
-                }}>The bot</div>
+                }}>MOONSHOT</div>
                 <div style={{
                   fontFamily: NUM_FONT, fontSize: 42, fontWeight: 900, lineHeight: 1,
                   letterSpacing: '-.03em',
@@ -960,7 +960,7 @@ export default function MyPicks({ players = [], results, odds, slateDate, onPlay
                   ? <>Tonight is yours, <Num color={C.green}>{tonight.w}–{tonight.l}</Num> on{' '}
                     <Num>{tonight.contested}</Num> contested slot{tonight.contested === 1 ? '' : 's'}.</>
                   : tonightLead < 0
-                    ? <>The bot took tonight, <Num color={C.red}>{tonight.l}–{tonight.w}</Num> on{' '}
+                    ? <>MOONSHOT took tonight, <Num color={C.red}>{tonight.l}–{tonight.w}</Num> on{' '}
                       <Num>{tonight.contested}</Num> contested slot{tonight.contested === 1 ? '' : 's'}.</>
                     : <>Tonight is a draw over <Num>{tonight.contested}</Num> contested slot
                       {tonight.contested === 1 ? '' : 's'} — nobody moved.</>
@@ -969,7 +969,7 @@ export default function MyPicks({ players = [], results, odds, slateDate, onPlay
                   <Num>{tonight.contested}</Num> slot{tonight.contested === 1 ? ' has' : 's have'} settled
                   {tonight.pending > 0 && <>, <Num>{tonight.pending}</Num> still to report</>}.{' '}
                   {tonightLead > 0 ? 'You are ahead so far tonight.'
-                    : tonightLead < 0 ? 'The bot is ahead so far tonight.'
+                    : tonightLead < 0 ? 'MOONSHOT is ahead so far tonight.'
                       : 'Level so far tonight.'}
                 </>
               ) : (
@@ -1051,7 +1051,7 @@ export default function MyPicks({ players = [], results, odds, slateDate, onPlay
                       {r.contested && (
                         <Pill tone={r.mineOut && !r.botOut ? 'won' : !r.mineOut && r.botOut ? 'lost' : 'void'}>
                           {r.mineOut && !r.botOut ? 'YOU WIN'
-                            : !r.mineOut && r.botOut ? 'BOT WINS' : 'PUSH'}
+                            : !r.mineOut && r.botOut ? 'MOONSHOT WINS' : 'PUSH'}
                         </Pill>
                       )}
                       {!r.contested && pending && (
@@ -1067,7 +1067,7 @@ export default function MyPicks({ players = [], results, odds, slateDate, onPlay
           </>
         ) : (
           <div style={{ fontSize: 12, color: C.text3, lineHeight: 1.75, marginTop: 10 }}>
-            Nothing riding tonight — every slot below is still the bot&apos;s. Take one name off
+            Nothing riding tonight — every slot below is still MOONSHOT&apos;s. Take one name off
             its board and tonight starts counting toward the head-to-head; leave them all and
             the night passes without asking you a question.
           </div>
@@ -1077,7 +1077,7 @@ export default function MyPicks({ players = [], results, odds, slateDate, onPlay
       {/* ── the record ─────────────────────────────────────────────────── */}
       <div style={panel(C.orange)}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 13.5, fontWeight: 900 }}>🎫 Your record vs the bot</span>
+          <span style={{ fontSize: 13.5, fontWeight: 900 }}>🎫 Your record vs MOONSHOT</span>
           <span style={{ fontSize: 10.5, color: C.text3 }}>
             {totals.nights} night{totals.nights === 1 ? '' : 's'} · saved on this device only
           </span>
@@ -1132,7 +1132,7 @@ export default function MyPicks({ players = [], results, odds, slateDate, onPlay
                     <span style={{
                       fontSize: 10, fontWeight: 800, color: C.text3,
                       letterSpacing: '.12em', textTransform: 'uppercase',
-                    }}>the bot</span>
+                    }}>MOONSHOT</span>
                     <span style={{ fontSize: 10.5, color: C.text3 }}>
                       wins – losses – pushes, contested slots only
                     </span>
@@ -1141,7 +1141,7 @@ export default function MyPicks({ players = [], results, odds, slateDate, onPlay
                   <div style={{ fontSize: 12, color: C.text2, marginTop: 10, lineHeight: 1.75 }}>
                     <Num>{totals.n}</Num> contested slot{totals.n === 1 ? '' : 's'} over{' '}
                     <Num>{totals.nights}</Num> night{totals.nights === 1 ? '' : 's'} — every call where you
-                    put a different name in the bot&apos;s seat and both names ended up judgeable.
+                    put a different name in MOONSHOT&apos;s seat and both names ended up judgeable.
                     You cleared the bar on <Num color={C.green}>{totals.mineWon}/{totals.n}</Num>{' '}
                     ({pctTxt(totals.minePct)}); it cleared the same slots on{' '}
                     <Num color={C.purple}>{totals.botWon}/{totals.n}</Num> ({pctTxt(totals.botPct)})
@@ -1149,7 +1149,7 @@ export default function MyPicks({ players = [], results, odds, slateDate, onPlay
                       <> — <Num color={edge > 0 ? C.green : edge < 0 ? C.red : C.text3}>
                         {edge > 0 ? '+' : ''}{edge.toFixed(1)}pp
                       </Num>{' '}
-                      {edge > 0 ? 'your way' : edge < 0 ? 'the bot’s way' : 'dead level'}</>
+                      {edge > 0 ? 'your way' : edge < 0 ? 'MOONSHOT’s way' : 'dead level'}</>
                     )}.
                   </div>
 
@@ -1169,7 +1169,7 @@ export default function MyPicks({ players = [], results, odds, slateDate, onPlay
                         <>You are ahead of it, <Num color={C.green}>{totals.w}–{totals.l}</Num> on decided
                           slots. Real, and still a read rather than a finding at this size.</>
                       ) : lead < 0 ? (
-                        <>The bot is ahead, <Num color={C.red}>{totals.l}–{totals.w}</Num> on decided slots.
+                        <>MOONSHOT is ahead, <Num color={C.red}>{totals.l}–{totals.w}</Num> on decided slots.
                           Worth sitting with, not yet worth changing your process over.</>
                       ) : (
                         <>Dead level at <Num>{totals.w}–{totals.l}</Num> on decided slots.</>
@@ -1182,7 +1182,7 @@ export default function MyPicks({ players = [], results, odds, slateDate, onPlay
                           over <Num>{totals.n}</Num> contested slots. On the calls you actually argued, you
                           have been the better of the two.</>
                       ) : lead < 0 ? (
-                        <>Past the bar and behind: the bot is <Num color={C.red}>{totals.l}–{totals.w}–{totals.t}</Num>{' '}
+                        <>Past the bar and behind: MOONSHOT is <Num color={C.red}>{totals.l}–{totals.w}–{totals.t}</Num>{' '}
                           over <Num>{totals.n}</Num> contested slots. Overriding it has cost more slots than
                           it has won.</>
                       ) : (
@@ -1211,14 +1211,14 @@ export default function MyPicks({ players = [], results, odds, slateDate, onPlay
                       {st.dir > 0 ? (
                         <><Num color={C.green}>{st.len}</Num> nights running you have taken the head-to-head</>
                       ) : (
-                        <>The bot has taken it <Num color={C.red}>{st.len}</Num> nights running</>
+                        <>MOONSHOT has taken it <Num color={C.red}>{st.len}</Num> nights running</>
                       )}
                       {' '}(longest on this record: <Num>{st.bestWin || 0}</Num> yours,{' '}
                       <Num>{st.bestLoss || 0}</Num> its). A run that happened — it says nothing about tonight.
                     </Line>
                   ) : (st.bestWin >= 2 || st.bestLoss >= 2) ? (
                     <Line icon="📆" dim>
-                      Longest runs on this record: <Num>{st.bestWin || 0}</Num> nights over the bot,{' '}
+                      Longest runs on this record: <Num>{st.bestWin || 0}</Num> nights over MOONSHOT,{' '}
                       <Num>{st.bestLoss || 0}</Num> under it. Nights you contested nothing break a run
                       rather than extend it.
                     </Line>
@@ -1245,10 +1245,10 @@ export default function MyPicks({ players = [], results, odds, slateDate, onPlay
                       {tell.kind === 'why' && (tell.lead > 0
                         ? <>The swaps you made on <b style={{ color: C.text }}>{WHY_LABEL[tell.k] || tell.k}</b> go{' '}
                           <Num color={C.green}>{tell.w}–{tell.l}</Num> over <Num>{tell.n}</Num> contested slots.
-                          That is the term to look at first — the bot may be carrying it light.</>
+                          That is the term to look at first — MOONSHOT may be carrying it light.</>
                         : <>The swaps you made on <b style={{ color: C.text }}>{WHY_LABEL[tell.k] || tell.k}</b> go{' '}
                           <Num color={C.red}>{tell.l}–{tell.w}</Num> over <Num>{tell.n}</Num> contested slots.
-                          The bot already has that one about right.</>)}
+                          MOONSHOT already has that one about right.</>)}
                       {tell.kind === 'depth' && (tell.lead > 0
                         ? <>Names you took <b style={{ color: C.text }}>{DEPTH_PHRASE[tell.k] || tell.k}</b> go{' '}
                           <Num color={C.green}>{tell.w}–{tell.l}</Num> over <Num>{tell.n}</Num> contested slots.
@@ -1293,7 +1293,7 @@ export default function MyPicks({ players = [], results, odds, slateDate, onPlay
                         tail={(r) => (
                           <>
                             {r.n >= 8 && r.l - r.w >= 3 && (
-                              <span style={{ color: C.red }}> · the bot owns this one — worth leaving its pick alone</span>
+                              <span style={{ color: C.red }}> · MOONSHOT owns this one — worth leaving its pick alone</span>
                             )}
                             {r.n >= 8 && r.w - r.l >= 3 && (
                               <span style={{ color: C.green }}> · this is your category</span>
@@ -1313,7 +1313,7 @@ export default function MyPicks({ players = [], results, odds, slateDate, onPlay
                     <div style={{ marginTop: 10 }}>
                       <Line icon="🧩">
                         By the reason you gave — <Num>{totals.whyN}</Num> of your <Num>{totals.n}</Num>{' '}
-                        contested slots carry one. Each is a term the bot already scores, so a lopsided
+                        contested slots carry one. Each is a term MOONSHOT already scores, so a lopsided
                         one is a place to look at its weights:
                       </Line>
                       <Slice
@@ -1329,7 +1329,7 @@ export default function MyPicks({ players = [], results, odds, slateDate, onPlay
                     <Line icon="🧩" dim>
                       No reasons logged yet. Tagging a swap with why you made it — matchup, form,
                       park, spot, price, gut — is optional and never touches grading, but it is the
-                      only thing that can tell you WHICH of the bot&apos;s terms you are out-guessing.
+                      only thing that can tell you WHICH of MOONSHOT&apos;s terms you are out-guessing.
                     </Line>
                   )}
 
@@ -1404,15 +1404,15 @@ export default function MyPicks({ players = [], results, odds, slateDate, onPlay
               return (
                 <Line icon="🎚">
                   {gap >= 10 ? (
-                    <>Your tiers mean something: <b style={{ color: C.green }}>{hi.k}s</b> beat the bot on{' '}
+                    <>Your tiers mean something: <b style={{ color: C.green }}>{hi.k}s</b> beat MOONSHOT on{' '}
                       <Num color={C.green}>{hi.w}/{hi.n}</Num> against{' '}
                       <Num>{lo.w}/{lo.n}</Num> for your {lo.k}s — trust the feeling.</>
                   ) : gap <= -10 ? (
                     <>Uncomfortable but real: your <b style={{ color: C.red }}>{hi.k}s</b> do worse than your{' '}
                       {lo.k}s (<Num color={C.red}>{hi.w}/{hi.n}</Num> against <Num>{lo.w}/{lo.n}</Num>).
-                      The stronger you feel, the more the bot is right.</>
+                      The stronger you feel, the more MOONSHOT is right.</>
                   ) : (
-                    <>Your {hi.k}s and {lo.k}s beat the bot at about the same rate
+                    <>Your {hi.k}s and {lo.k}s beat MOONSHOT at about the same rate
                       (<Num>{hi.w}/{hi.n}</Num> against <Num>{lo.w}/{lo.n}</Num>) — so far the tier is
                       decoration, which is worth knowing before you size a bet on one.</>
                   )}
@@ -1424,7 +1424,7 @@ export default function MyPicks({ players = [], results, odds, slateDate, onPlay
                 carried — your rate, the bot's, and the all-time override
                 count — each still printed with its denominator. */}
             <Line icon="🗂">
-              Your full card, meaning the bot&apos;s slate with your swaps applied, sits at{' '}
+              Your full card, meaning MOONSHOT&apos;s slate with your swaps applied, sits at{' '}
               <Num>{pctTxt(totals.cardMinePct)}</Num> (<Num>{totals.cardMineWon}/{totals.cardMineN}</Num>{' '}
               slots) against its untouched <Num>{pctTxt(totals.cardBotPct)}</Num>{' '}
               (<Num>{totals.cardBotWon}/{totals.cardBotN}</Num>). <Num>{totals.overrides}</Num> override
@@ -1434,7 +1434,7 @@ export default function MyPicks({ players = [], results, odds, slateDate, onPlay
             <div style={{ fontSize: 11, color: C.text3, marginTop: 14, lineHeight: 1.75 }}>
               <b style={{ color: C.text2 }}>Head to head</b> is the number that means something —
               same game, same category, same bar, only the name changed. The full-card rates
-              are mostly the bot&apos;s own picks on both sides, so they drift together whoever&apos;s
+              are mostly MOONSHOT&apos;s own picks on both sides, so they drift together whoever&apos;s
               right. Void legs (never batted) are dropped from both sides, not counted as misses.
               {totals.n > 0 && totals.n < 25 && (
                 <> <b style={{ color: C.yellow }}>Still thin</b> — {totals.n} contested slot
@@ -1446,7 +1446,7 @@ export default function MyPicks({ players = [], results, odds, slateDate, onPlay
         ) : (
           <div style={{ fontSize: 12, color: C.text3, marginTop: 10, lineHeight: 1.75 }}>
             Nothing graded yet. Take a name off its board below — once that game finishes,
-            your pick and the bot&apos;s get scored against the same bar and the head-to-head
+            your pick and MOONSHOT&apos;s get scored against the same bar and the head-to-head
             starts here.
           </div>
         )}
@@ -1508,13 +1508,13 @@ export default function MyPicks({ players = [], results, odds, slateDate, onPlay
           need to be there"). Five lines of rules above the rail is five lines
           of card nobody can see on a phone. */}
       <div style={{ fontSize: 11.5, color: C.text3, marginBottom: 4, lineHeight: 1.7 }}>
-        Four slots a game, the same four the bot fills. Pick a game, take whoever you want.
+        Four slots a game, the same four MOONSHOT fills. Pick a game, take whoever you want.
       </div>
       <WhatThis label="how a slot is graded">
         Whoever holds the slot is graded on <b style={{ color: C.text2 }}>that slot&apos;s</b> bar,
         not his own — a name you swap into the HR slot has to homer. Slots freeze at first pitch.
         Deep-bench names can come back <b style={{ color: C.text2 }}>untracked</b>: the graded file
-        only carries the ~90 candidates the bot watches, so there is nothing to score the rest
+        only carries the ~90 candidates MOONSHOT watches, so there is nothing to score the rest
         against.
       </WhatThis>
 
@@ -1572,9 +1572,9 @@ export default function MyPicks({ players = [], results, odds, slateDate, onPlay
                   col={cat.color}
                   score={holder ? cat.score(holder) : null}
                   // The name opens his card (a name is a link; nav audit 09-29).
-                  title={holder && holderName ? <Tap onClick={() => onPlayerClick?.(holder)}>{holderName}</Tap> : (holderName || 'no bot pick')}
+                  title={holder && holderName ? <Tap onClick={() => onPlayerClick?.(holder)}>{holderName}</Tap> : (holderName || 'no MOONSHOT pick')}
                   dialTitle={`${cat.label} score for whoever holds this slot`}
-                  badge={mine ? 'YOURS' : 'THE BOT'}
+                  badge={mine ? 'YOURS' : 'MOONSHOT'}
                   badgeQuiet={!mine}
                   meta={`${active.away} @ ${active.home}${arm ? ` · ${arm}${hand ? ` (${hand})` : ''}` : ''}`}
                   /* NO PRICE UP HERE. The book's number is printed on BOTH
@@ -1585,7 +1585,7 @@ export default function MyPicks({ players = [], results, odds, slateDate, onPlay
                   right={row ? outcomePill(mine ? row.mineOut : row.botOut, pending) : null}
                   line={
                     locked && !mine
-                      ? <>Frozen with the bot&apos;s own pick — you let this slot ride.</>
+                      ? <>Frozen with MOONSHOT&apos;s own pick — you let this slot ride.</>
                       : mine
                         ? <>You took <b style={{ color: C.text }}>{mine.name}</b> off its board
                           {mine.rank ? <> at <Num color={cat.color}>#{mine.rank}</Num>
@@ -1594,7 +1594,7 @@ export default function MyPicks({ players = [], results, odds, slateDate, onPlay
                             ? <>level with</>
                             : <><Num color={gap > 0 ? C.green : C.red}>{gap > 0 ? '+' : ''}{gap}</Num> against</>}{' '}
                             the name you gave up</>}.</>
-                        : <>Still the bot&apos;s slot. Take a name off its board and this one starts
+                        : <>Still MOONSHOT&apos;s slot. Take a name off its board and this one starts
                           counting toward the head-to-head.</>
                   }
                   footer={

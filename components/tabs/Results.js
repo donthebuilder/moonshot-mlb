@@ -466,9 +466,8 @@ function PitcherWeaknessDigest({ slots, players = [] }) {
     return (
       <Card style={{ padding: '12px 14px', marginBottom: 10 }}>
         <div style={{ fontSize: TYPE.body, color: C.text3, lineHeight: 1.6 }}>
-          No starter could be matched to tonight&apos;s graded picks. The results payload doesn&apos;t
-          carry pitcher names, so this panel joins each graded slot to the slate by player_id — which
-          means it needs the slate loaded. If the Games board has data and this is still empty, the
+          No starter could be matched to tonight&apos;s graded picks. Results don&apos;t carry pitcher
+          names, so this panel needs the slate loaded to find them. If the Games board has data and this is still empty, the
           graded players aren&apos;t on the current slate, which happens when results are showing a
           previous day.
         </div>
@@ -1059,9 +1058,9 @@ export default function Results({ results, liveResults = null, slateDate = '', b
         {{
           overview: 'how the night went — did the picks do the jobs they were picked for, who delivered, and what got away.',
           pitcher: 'did the arms we called weak actually give it up — and which arm burned us without a flag.',
-          pairs: 'how the bot’s pairs and pools graded out.',
+          pairs: 'how MOONSHOT’s pairs and pools graded out.',
           card: 'is the model any good, all season — letter grades, records and trust curves. Always the last complete night; the night picker in This night does not move it.',
-          record: 'which players the bot has been right about over every graded day. Spans the whole archive.',
+          record: 'which players MOONSHOT has been right about over every graded day. Spans the whole archive.',
           signals: 'is each badge on this site worth anything — every flag graded against the archive.',
           pl: 'what the archive would have returned at flat stakes, in moons (1 moon = 1 unit, never dollars).',
         }[subTab]}

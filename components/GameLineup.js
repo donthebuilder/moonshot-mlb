@@ -283,7 +283,7 @@ function SideRead({ team, rows, onPlayerClick }) {
             ))}
             .
           </>
-        ) : 'No spot in this order is one the bot flags him as beaten in.'}
+        ) : 'No spot in this order is one MOONSHOT flags him as beaten in.'}
       </p>
 
       {/* One hitter, one line, in batting order. */}
@@ -333,10 +333,10 @@ function SideRead({ team, rows, onPlayerClick }) {
                 {s.pa != null && <span style={{ color: C.text3 }} title="Plate appearances this arm has faced in this slot">{' · '}{s.pa} PA</span>}
                 {s.slg != null && <span title="Slugging this arm has allowed to this slot">{' · '}<b style={{ color: C.text2 }}>{sl(s.slg)}</b><span style={{ color: C.text3 }}> SLG ag</span></span>}
                 {s.hrRate != null && <span title="How often a PA in this slot has left the yard against him">{' · '}<b style={{ color: C.text2 }}>{s.hrRate.toFixed(1)}%</b><span style={{ color: C.text3 }}> HR</span></span>}
-                {tail.length > 0 && <span style={{ color: C.text3 }} title="The rest of the bot's published line for this spot">{' · '}{tail.join(' · ')}</span>}
+                {tail.length > 0 && <span style={{ color: C.text3 }} title="The rest of MOONSHOT's published line for this spot">{' · '}{tail.join(' · ')}</span>}
               </span>
               {/* the batter's half — his own numbers, in the same breath */}
-              <span style={{ fontFamily: NUM_FONT, fontSize: 10.5 }} title={`${s.name}'s own numbers tonight: bot HR score, bot Hit score, season average`}>
+              <span style={{ fontFamily: NUM_FONT, fontSize: 10.5 }} title={`${s.name}'s own numbers tonight: HR score, Hit score, season average`}>
                 <span style={{ color: C.text3 }}>{'  ·  him: '}</span>
                 <b style={{ color: C.orange }}>{n(s.p?.hr_score, 0).toFixed(0)}</b><span style={{ color: C.text3 }}> HR</span>
                 {' '}<b style={{ color: '#a78bfa' }}>{n(s.p?.hit_score, 0).toFixed(0)}</b><span style={{ color: C.text3 }}> Hit</span>
@@ -359,10 +359,10 @@ function SideRead({ team, rows, onPlayerClick }) {
                 <span style={{ color: C.yellow }}> ★ {s.weakReason}</span>
               )}
               {s.weak && !s.weakReason && (
-                <span style={{ color: C.yellow }}> ★ The bot flags this as a spot he has been beaten in, without publishing the line behind it.</span>
+                <span style={{ color: C.yellow }}> ★ MOONSHOT flags this as a spot he has been beaten in, without publishing the line behind it.</span>
               )}
               {!s.weak && s.weakReason && (
-                <span style={{ color: C.text3 }} title="Published for this spot, but under the bot's weak-spot bar — so it is not starred">
+                <span style={{ color: C.text3 }} title="Published for this spot, but under MOONSHOT's weak-spot bar — so it is not starred">
                   {' '}{s.weakReason} <span style={{ fontStyle: 'italic' }}>(under the weak-spot bar)</span>
                 </span>
               )}

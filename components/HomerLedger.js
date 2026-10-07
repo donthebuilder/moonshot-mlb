@@ -226,7 +226,7 @@ function LookOut({ players, onPlayerClick = null, onOpenPitcher = null }) {
           })),
         },
       ]}
-      foot="Pool load arrives when the bot publishes pool membership."
+      foot="Pool load arrives when MOONSHOT publishes pool membership."
     />
   )
 }
@@ -816,7 +816,7 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
         <NightPicker />
         {nights.length === 0 && (
           <div style={{ fontSize: 10.5, color: C.text3, marginTop: 6, lineHeight: 1.6 }}>
-            No nights archived on this device yet. The Archive view can pull them off the branch.
+            No nights saved on this device yet. The Archive view can load them.
           </div>
         )}
       </div>
@@ -907,15 +907,15 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
           // nothing else — every strip below this describes tonight's board.
           pastNight ? (
             <div style={{ fontSize: 10.5, color: C.text3, marginTop: 5, lineHeight: 1.6 }}>
-              The graded file for {night} has no home runs in it. Either nothing left the yard
-              among the names the sheet was watching, or the night was written before any game
+              No home runs are recorded for {night}. Either nothing left the yard
+              among the hitters on the board, or the night was saved before any game
               finished.
             </div>
           ) : null
         ) : !pre ? (
           <div style={{ fontSize: 10, color: C.text3, marginTop: 4, lineHeight: 1.6 }}>
             When one goes, this is where it shows up: who hit it, what number home
-            run it was for him, which lineup spot it came from, whether the bot had
+            run it was for him, which lineup spot it came from, whether MOONSHOT had
             him, and the shape of the swing.
           </div>
         ) : (
@@ -937,7 +937,7 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
                 <div className="ledger-chip-row">
                   <span className="ledger-chip-label" style={{ color: '#FCD34D' }}>
                     One away from a round number
-                    <i>{pre.milestones.length} of {pre.total} hitters · ★ = the bot designated him</i>
+                    <i>{pre.milestones.length} of {pre.total} hitters · ★ = MOONSHOT designated him</i>
                   </span>
                   <div className="ledger-chips">
                     {pre.milestones.slice(0, 4).map((m) => (
@@ -1240,7 +1240,7 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
         return (
           <NextUpBox title="🔮 Fits tonight's pattern, hasn't gone yet"
             rows={upcoming.map((x) => ({ key: x.pid, when: x.when, name: x.name, chips: x.chips,
-              title: `${x.why.join('. ')}. Bot HR score ${x.hrScore.toFixed(0)}.`, onClick: onPlayerClick ? () => onPlayerClick(x.p) : null }))}
+              title: `${x.why.join('. ')}. HR score ${x.hrScore.toFixed(0)}.`, onClick: onPlayerClick ? () => onPlayerClick(x.p) : null }))}
             about="Hitters not in the ledger who sit on whatever tonight is landing on — the leading root, a repeated number, the hot lineup spot, a jersey, a birth day, a life path, the name echo running tonight, or a straight match with somebody who already went: the same first name, the same surname, a name one letter apart, an odd syllable shape they share, or the same number on the back. ↔ is a match with that man. ⚡ means his game is live, ⏳ means first pitch is still ahead. Ranked by how many of those he sits on, then by HR score. A watch, not a prediction — nothing here is graded, scored, or fed to a pick." />
         )
       })()),

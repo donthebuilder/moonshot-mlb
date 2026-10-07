@@ -239,7 +239,7 @@ export default function PlayerPickRecord({ players = [], backtest, onPlayerClick
   }, [data, minPicks, only, todayOnly, todayPicks])
 
   if (state === 'loading') return <Empty text="Loading the pick archive…" />
-  if (state === 'error') return <Empty text="pick_matrix.json could not be loaded." />
+  if (state === 'error') return <Empty text="The pick record could not be loaded." />
 
   const m = data.meta
 
@@ -255,13 +255,12 @@ export default function PlayerPickRecord({ players = [], backtest, onPlayerClick
         <b style={{ color: C.text2, fontFamily: NUM_FONT }}>{m.picks.toLocaleString()} picks</b> ·{' '}
         <b style={{ color: C.text2, fontFamily: NUM_FONT }}>{m.players} players</b> ·{' '}
         <span style={{ fontFamily: NUM_FONT }}>{m.days} graded days, {m.from} to {m.to}</span>.
-        A snapshot of the full local archive, six times what the live branch carries — nine days
+        A snapshot of the whole archive — nine days
         isn&apos;t enough to say anything about one player.
         {!streakReady && (
           <>
-            {' '}<b style={{ color: C.text2 }}>No Streak column right now:</b> a streak is a sequence and
-            this snapshot holds totals, so it is read off the live graded branch — which has no graded
-            nights loaded at the moment.
+            {' '}<b style={{ color: C.text2 }}>No Streak column right now:</b> a streak needs night-by-night
+            results, and none are loaded right now.
           </>
         )}
       </div>
@@ -305,7 +304,7 @@ export default function PlayerPickRecord({ players = [], backtest, onPlayerClick
           // than rendered as a wall of dashes, and the caption below says why.
           ...(streakReady ? [{ key: 'streak', label: 'Streak', heat: false, w: 52, mono: true,
             fmt: (v) => (v == null ? '—' : v > 0 ? `W${v}` : `L${-v}`),
-            title: 'Consecutive most-recent PICKS delivered (W) or missed (L), from the live graded branch — the bot-side streak, not his batting streak.' }] : []),
+            title: 'Consecutive most-recent PICKS delivered (W) or missed (L), from the graded nights — a streak of MOONSHOT picks, not his batting streak.' }] : []),
           { key: 'last', label: 'Last', heat: false, w: 44, mono: true, dim: true,
             title: 'Most recent day he was picked' },
           { key: 'picks', label: 'Picks', w: 46,

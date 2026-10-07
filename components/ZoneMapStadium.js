@@ -1048,7 +1048,7 @@ export default function ZoneMapStadium({ pitches = [], pzp = null, zoneStats = n
             card, so Matchup has nothing to shade — the grid is drawn empty on
             purpose, numbered so you can still see which box is which.</>
           : hasMatchup
-          ? <>Matchup reads the bot&apos;s own per-zone profile, scaled to the loudest cell
+          ? <>Matchup reads MOONSHOT&apos;s own per-zone profile, scaled to the loudest cell
             on this grid:{' '}
             <b style={{ color: C.orange }}>orange ▲</b> where the hitter&apos;s damage outruns
             the arm&apos;s usage,{' '}<b style={{ color: C.blue }}>blue ▼</b> where the arm gets

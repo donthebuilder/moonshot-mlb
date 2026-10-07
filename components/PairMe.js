@@ -72,7 +72,7 @@ export default function PairMe({ players = [], pairHistorySummary, onPlayerClick
         else if (h?.count === 1) reasons.push('co-homered once this season')
         if (score >= 60) reasons.push(`strong board tonight (${score.toFixed(0)})`)
         else if (score >= 45) reasons.push(`live board tonight (${score.toFixed(0)})`)
-        if (String(p?.game_pick_role || '').trim()) reasons.push(`bot's ${String(p.game_pick_role).split('/')[0]} pick`)
+        if (String(p?.game_pick_role || '').trim()) reasons.push(`MOONSHOT's ${String(p.game_pick_role).split('/')[0]} pick`)
         if (sameGame) reasons.push('⚠ same game — you win big together or lose together')
         if (!reasons.length) reasons.push('pure tonight play — no history, board carries it')
         return { p, blend, score, terms, h, sameGame, reasons }

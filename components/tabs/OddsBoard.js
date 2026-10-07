@@ -660,7 +660,7 @@ export default function OddsBoard({ players = [], odds: oddsProp, onPlayerClick,
       title: 'How many of your books quoted it. One book is one opinion.' },
     ...(HAS_SCORE.has(market) ? [{
       key: 'score', label: `${live.label} score`, w: 62, dp: 1, group: 'Model',
-      title: "The bot's 0-100 confidence on THIS market. Not a probability — never compare it to NEED.",
+      title: "MOONSHOT's 0-100 confidence on THIS market. Not a probability — never compare it to NEED.",
     }] : []),
     ...(A.priceBands && market === A.rateMarket ? [
       { key: 'band', label: 'BAND', w: 50, heat: false, group: 'Model',

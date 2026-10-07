@@ -147,7 +147,7 @@ export default function GapBoard({ players = [], odds = null, onPlayerClick }) {
   const priceCell = (qk) => (v, r) => {
     const q = r[qk]
     if (!q) return '—'
-    if (!q.matches) return <span style={{ fontSize: 9 }} title={`${q.book || 'book'} -- line ${q.line}, not 0.5`}>@{q.line}</span>
+    if (!q.matches) return <span style={{ fontSize: 9 }} title={`${q.book || 'book'} — line ${q.line}, not 0.5`}>@{q.line}</span>
     return <span title={`${q.book || 'book'}${q.move != null ? ` · ${q.move > 0 ? '+' : ''}${q.move.toFixed(1)}pp from open` : ''}`}><b>{fmtOdds(q.over)}</b></span>
   }
   const columns = useMemo(() => placeAfter(withBoardColumns([
@@ -155,11 +155,11 @@ export default function GapBoard({ players = [], odds = null, onPlayerClick }) {
     { key: 'd2', group: GAP_GROUP, label: '2B', w: 40, dp: 0, title: 'Doubles on the season.' },
     { key: 'd2r', group: GAP_GROUP, label: '2B/600', w: 56, dp: 1, title: `Doubles per 600 plate appearances. Blank under ${TRIPLES_MIN_PA} PA, the same floor the triples rate uses.` },
     { key: 't3', group: GAP_GROUP, label: '3B', w: 40, dp: 0, title: 'Triples on the season.' },
-    { key: 't3r', group: GAP_GROUP, label: '3B/600', w: 56, dp: 1, title: `Triples per 600 plate appearances. Blank under ${TRIPLES_MIN_PA} PA -- at 80 trips one extra triple moves this by eight, which is wider than the whole column.` },
+    { key: 't3r', group: GAP_GROUP, label: '3B/600', w: 56, dp: 1, title: `Triples per 600 plate appearances. Blank under ${TRIPLES_MIN_PA} PA — at 80 trips one extra triple moves this by eight, which is wider than the whole column.` },
     { key: 'xbh', group: GAP_GROUP, label: 'XBH', w: 44, dp: 0, title: 'Doubles + triples + homers.' },
     { key: 'ld', group: GAP_GROUP, label: 'LD%', w: 46, dp: 0, fmt: (v) => (v == null ? '—' : `${Number(v).toFixed(0)}%`), title: 'Line-drive rate over his recent window. A triple is a ball on a line, not in the air.' },
-    { key: 'legs', group: GAP_GROUP, label: 'Legs', w: 48, dp: 0, fmt: (v) => (v == null ? '—' : `${Number(v).toFixed(0)}%`), title: 'Stolen-base attempt rate -- a PROXY for speed. Sprint speed is not published on the slate.' },
-    { key: 'gap', group: GAP_PARK, label: 'Gaps', w: 48, dp: 0, fmt: (v) => (v == null ? '—' : `+${Number(v).toFixed(0)}`), title: 'Outfield geometry: (LCF+RCF)/2 minus (LF+RF)/2, in feet. Deeper gaps against shorter corners is where a triple lives. A proxy -- the slate publishes no park triples factor.' },
+    { key: 'legs', group: GAP_GROUP, label: 'Legs', w: 48, dp: 0, fmt: (v) => (v == null ? '—' : `${Number(v).toFixed(0)}%`), title: 'Stolen-base attempt rate — a PROXY for speed. Sprint speed is not published on the slate.' },
+    { key: 'gap', group: GAP_PARK, label: 'Gaps', w: 48, dp: 0, fmt: (v) => (v == null ? '—' : `+${Number(v).toFixed(0)}`), title: 'Outfield geometry: (LCF+RCF)/2 minus (LF+RF)/2, in feet. Deeper gaps against shorter corners is where a triple lives. A proxy — the slate publishes no park triples factor.' },
     { key: 'armLd', group: GAP_PARK, label: 'Arm LD%', w: 56, dp: 0, fmt: (v) => (v == null ? '—' : `${Number(v).toFixed(0)}%`), title: 'The opposing starter’s line-drive rate allowed.' },
     { key: 'armIso', group: GAP_PARK, label: 'Arm ISO', w: 56, dp: 3, fmt: (v) => (v == null ? '—' : `.${String(Math.round(Number(v) * 1000)).padStart(3, '0')}`), title: 'The opposing starter’s ISO against.' },
     { key: 'p2', group: GAP_PRICE, label: '2B ¢', w: 60, standout: false, fmt: priceCell('q2'), title: 'Over 0.5 doubles.' },
@@ -188,7 +188,7 @@ export default function GapBoard({ players = [], odds = null, onPlayerClick }) {
         <span style={{ fontSize: 10, color: C.text3, marginLeft: 4 }}>
           {market === 'd2'
             ? 'A double lands on 16.8% of graded player-nights.'
-            : 'A triple lands on 1.2% -- fourteen times rarer.'}
+            : 'A triple lands on 1.2% — fourteen times rarer.'}
         </span>
       </div>
 
@@ -197,9 +197,9 @@ export default function GapBoard({ players = [], odds = null, onPlayerClick }) {
       <div style={{ borderLeft: `3px solid ${accent}`, padding: '1px 0 1px 10px', marginBottom: 10, fontSize: 10.5, color: C.text2, lineHeight: 1.55, maxWidth: 760 }}>
         <b style={{ color: C.text }}>No score on this board, on purpose.</b>{' '}
         A doubles model built from these fields was tested against 2,297 graded
-        player-nights: its top decile hit <b>0.76x</b> the base rate -- worse
+        player-nights: its top decile hit <b>0.76x</b> the base rate — worse
         than random, which lands between 0.78x and 1.25x. The events are there;
-        the signal is not. Every column is a count or a rate the bot published.
+        the signal is not. Every column is a count or a rate MOONSHOT published.
         {!anyPrice && ' Prices are absent from tonight’s odds file for both markets.'}
       </div>
 
@@ -211,7 +211,7 @@ export default function GapBoard({ players = [], odds = null, onPlayerClick }) {
         initialSort={market}
         maxHeight={560}
         maxRows={Math.max(rows.length, 1)}
-        caption="Ranked by the market you picked. Gaps is outfield geometry, not a park factor -- the slate publishes none for extra-base hits. Legs is stolen-base attempt rate standing in for sprint speed, which is not published either. Arm is the opposing starter's line-drive rate and ISO against. Tap a row for his full card."
+        caption="Ranked by the market you picked. Gaps is outfield geometry, not a park factor — the slate publishes none for extra-base hits. Legs is stolen-base attempt rate standing in for sprint speed, which is not published either. Arm is the opposing starter's line-drive rate and ISO against. Tap a row for his full card."
       />
     </div>
   )

@@ -207,7 +207,7 @@ export default function Derby({ players = [], results, slateDate = '', onPlayerC
     <div>
       <PanelTitle
         title="🏆 Derby"
-        sub={`Draft ${SQUAD} under a ${CAP} cap · locks at first pitch · real homers score real feet · you vs the bot`}
+        sub={`Draft ${SQUAD} under a ${CAP} cap · locks at first pitch · real homers score real feet · you vs MOONSHOT`}
         right={record && (record.w + record.l + record.t) > 0 ? (
           <span style={{ fontSize: TYPE.body, fontFamily: NUM_FONT, color: C.text2 }}>
             season: <b style={{ color: record.w >= record.l ? '#4ade80' : '#f87171' }}>{record.w}–{record.l}{record.t ? `–${record.t}` : ''}</b>
@@ -219,7 +219,7 @@ export default function Derby({ players = [], results, slateDate = '', onPlayerC
       {/* scoreboard — you vs the bot, live feet */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
         {[{ label: 'YOU', squad: roster, r: mine, col: C.orange },
-          { label: 'THE BOT', squad: botSquad, r: bots, col: tone('cyan') }].map(({ label, squad, r, col }) => (
+          { label: 'MOONSHOT', squad: botSquad, r: bots, col: tone('cyan') }].map(({ label, squad, r, col }) => (
           <div key={label} style={{
             flex: '1 1 260px', minWidth: 0, background: C.bg2,
             border: `1px solid ${mine.ft !== bots.ft && ((label === 'YOU') === (mine.ft > bots.ft)) ? col : C.border}`,
@@ -231,8 +231,8 @@ export default function Derby({ players = [], results, slateDate = '', onPlayerC
                   IS that score (floored at 20), so the order is already on
                   screen; what was missing was the rule that used it. */}
               <span
-                title={label === 'THE BOT'
-                  ? `The bot drafts greedily: highest HR score first, taking any hitter it can still afford, until it has ${SQUAD} or the ${CAP} cap runs out. The number on each chip is his cost — his HR score, floored at 20 — so the order you see is the order it picked in.`
+                title={label === 'MOONSHOT'
+                  ? `MOONSHOT drafts greedily: highest HR score first, taking any hitter it can still afford, until it has ${SQUAD} or the ${CAP} cap runs out. The number on each chip is his cost — his HR score, floored at 20 — so the order you see is the order it picked in.`
                   : `Your squad. Same ${CAP} cap, same costs; a hitter costs his HR score, floored at 20.`}
                 style={{ fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.09em', color: col, fontFamily: NUM_FONT, cursor: 'default' }}
               >{label}</span>
@@ -280,7 +280,7 @@ export default function Derby({ players = [], results, slateDate = '', onPlayerC
         )}
         {sim && (
           <span style={{ fontSize: TYPE.body, fontFamily: NUM_FONT, color: C.text2 }}>
-            your squad averages <b style={{ color: C.orange }}>{Math.round(sim.avg)} ft</b> and beats the bot in{' '}
+            your squad averages <b style={{ color: C.orange }}>{Math.round(sim.avg)} ft</b> and beats MOONSHOT in{' '}
             <b style={{ color: sim.win >= 50 ? '#4ade80' : '#f87171' }}>{sim.win.toFixed(0)}%</b> of sims
             {sim.tie >= 1 ? ` (ties ${sim.tie.toFixed(0)}%)` : ''}
           </span>
@@ -315,7 +315,7 @@ export default function Derby({ players = [], results, slateDate = '', onPlayerC
 
       <div style={{ fontSize: TYPE.micro, color: C.text3, marginTop: 14, lineHeight: 1.65, maxWidth: 760 }}>
         The rules, honestly: your squad locks at first pitch whether you hit LOCK or not — after that,
-        no edits, same as the bot lives with. Every real homer by your five scores its actual statcast
+        no edits, same as MOONSHOT lives with. Every real homer by your five scores its actual statcast
         distance (a ~ marks a bomb whose distance hasn&apos;t been measured yet — held at 400 until it
         is). The simulator uses the same calibrated band rates the projections page runs on, so it&apos;s
         exactly as good as the calibration and no better. Records live on THIS device only — no

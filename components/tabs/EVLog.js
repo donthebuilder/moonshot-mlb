@@ -278,7 +278,7 @@ export function ContactStrip({ rows, suffix = 'shown below' }) {
           ['AVG ON CONTACT', ba, slash, CYAN,
             `Batting average over this window — ${contactNote}, sacrifices left out of the denominator. Strikeouts now count as outs (${kCount} of them); walks and hit-by-pitches still don't become a row here, so it's close to his real average but not quite it.`],
           ['ISO ON CONTACT', iso, slash, VIOLET,
-            `Isolated power (slugging minus average) over the same ${abs} at-bats, strikeouts included as outs. Not his season ISO, for the same reason as AVG ON CONTACT: no walks/HBP in this payload.`],
+            `Isolated power (slugging minus average) over the same ${abs} at-bats, strikeouts included as outs. Not his season ISO, for the same reason as AVG ON CONTACT: walks and hit-by-pitches aren’t counted here.`],
           ['HR', hr, (v) => `${v}`, GREEN],
           // Direction and real distance, from the flags spray_cache already
           // writes. PULL / OPPO are the batted-ball direction split; 375+ and
@@ -502,8 +502,8 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
       <div>
         <ZoneMap playerId={pid} bats={String(player?.bats || '').toUpperCase().slice(0, 1)} />
         {liveLog === null
-          ? <Empty text="No bot file for him — pulling his season live from Statcast…" />
-          : <Empty text="No batted-ball data — not in the bot's cache, and the live Statcast pull came back empty." />}
+          ? <Empty text="No saved data for him — pulling his season live from Statcast…" />
+          : <Empty text="No batted-ball data for him yet." />}
       </div>
     )
   }
@@ -552,9 +552,8 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
           fontSize: 9.5, color: C.text3, background: C.bg2, border: `1px solid ${C.border}`,
           borderRadius: 8, padding: '5px 11px', marginBottom: 8, lineHeight: 1.5,
         }}>
-          🔴 <b style={{ color: C.text2 }}>Live Statcast pull</b> — he&apos;s not in the bot&apos;s cache, so this
-          log came straight from Savant just now ({log.length} batted balls, this season). Same data,
-          different pipe; barrel/hard-hit/pull computed by Savant&apos;s own definitions.
+          🔴 <b style={{ color: C.text2 }}>Live Statcast pull</b> — this log was pulled live ({log.length} batted balls, this season).
+          Barrel, hard-hit and pull use Statcast&apos;s own definitions.
         </div>
       )}
       <ZoneMap playerId={pid} bats={String(player?.bats || '').toUpperCase().slice(0, 1)} pitchInfo={pitchInfo} />
@@ -765,7 +764,7 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
           { key: 'hard',    label: 'HH',      flag: true, mark: '●', w: 32 },
           { key: 'hr',      label: 'HR',      flag: true, mark: '★', w: 32 },
           { key: 'xbh',     label: 'XBH',     flag: true, mark: '●', w: 34,
-            explain: 'Extra-base hit — the bot\u2019s own flag on this batted ball.' },
+            explain: 'Extra-base hit — MOONSHOT\u2019s own flag on this batted ball.' },
           { key: 'k',       label: 'K',       flag: true, mark: '✕', w: 28,
             title: 'Strikeout — the pitch that ended the at-bat, not a batted ball. EV/Angle/Dist/Side/Lane are blank because none exists; Pitch/Arm/Velo are still his last pitch faced.' },
           { key: 'side',    label: 'Side',    heat: false, w: 64, dim: true,
@@ -777,7 +776,7 @@ export default function EVLog({ player, bbeRange: bbeRangeProp }) {
         ]}
         initialSort={null}
         maxHeight={460}
-        caption="Heat marks the standouts in each column against this window: the top fifth glows, the bottom fifth recedes, so changing the window changes the heat. Angle has no heat (a high angle is a popup); the 8-32 degree sweet spot is bold instead. BRL / HH / HR are the bot's own flags. A K row is a strikeout, not a batted ball — EV/Angle/Dist/Side/Lane are blank on purpose; Pitch/Arm/Velo are still his last pitch faced."
+        caption="Heat marks the standouts in each column against this window: the top fifth glows, the bottom fifth recedes, so changing the window changes the heat. Angle has no heat (a high angle is a popup); the 8-32 degree sweet spot is bold instead. BRL / HH / HR are MOONSHOT's own flags. A K row is a strikeout, not a batted ball — EV/Angle/Dist/Side/Lane are blank on purpose; Pitch/Arm/Velo are still his last pitch faced."
       />
     </div>
   )

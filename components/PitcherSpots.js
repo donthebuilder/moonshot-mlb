@@ -68,11 +68,11 @@ const COLUMNS = [
   { key: 'spot', group: 'Spot',    label: 'Spot',   heat: false, w: 40, mono: true, bold: true, sticky: true },
   { key: 'batter', group: 'Spot',  label: 'Batter', heat: false, w: 146, bold: true },
   { key: 'bats', group: 'Spot',    label: 'B',      heat: false, w: 22, mono: true, dim: true },
-  { key: 'label', group: 'Bot call',   label: 'Bot call', heat: false, w: 96, dim: true },
-  { key: 'verdict', group: 'Bot call', label: 'Verdict', heat: false, w: 168,
+  { key: 'label', group: 'MOONSHOT call',   label: 'MOONSHOT call', heat: false, w: 96, dim: true },
+  { key: 'verdict', group: 'MOONSHOT call', label: 'Verdict', heat: false, w: 168,
     fmt: (v, r) => v,
   },
-  { key: 'weak', group: 'Bot call',    label: '★',      flag: true, mark: '★', w: 30 },
+  { key: 'weak', group: 'MOONSHOT call',    label: '★',      flag: true, mark: '★', w: 30 },
   // 2026-08-12: "Damage" here was matching the GLOSSARY entry written for a
   // HITTER's own damage-conversion rate ("when HE hits it hard..."). This is
   // the opposite side of the ball — how much damage HITTERS have done TO
@@ -201,7 +201,7 @@ export default function PitcherSpots({ pitcher, onPlayerClick }) {
         dimRow={(r) => r.pa < 10}
         maxHeight={9999}
         bare
-        caption="Lineup slot by damage, in batting order: click Damage to rank. Verdict thresholds are the bot's own: under 10 PA is NOT ENOUGH DATA regardless of how the damage reads, because a three-PA fluke is the easiest way to talk yourself into a bad spot. SLG ag and ISO ag are drawn against what league pitching allows; vs own is against his other eight spots."
+        caption="Lineup slot by damage, in batting order: click Damage to rank. Verdict thresholds are MOONSHOT's own: under 10 PA is NOT ENOUGH DATA regardless of how the damage reads, because a three-PA fluke is the easiest way to talk yourself into a bad spot. SLG ag and ISO ag are drawn against what league pitching allows; vs own is against his other eight spots."
       />
     </div>
   )

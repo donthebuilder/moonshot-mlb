@@ -38,7 +38,7 @@ export default function SituationalSplits({ playerId, kind = 'batter' }) {
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, marginBottom: 6 }}>
         <span style={{ fontSize: 11.5, fontWeight: 800 }}>Situational</span>
         <span style={{ fontSize: 8.5, color: C.text3, fontFamily: NUM_FONT }}>
-          live from MLB StatsAPI · context only — not in any score, not yet validated
+          context only — not part of any score, not yet validated
         </span>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>

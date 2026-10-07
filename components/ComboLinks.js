@@ -11,7 +11,7 @@ import { hashParams } from '../lib/urlState'
 // all three, naming the other two. Hash routes, because Dashboard already
 // listens for them — no prop threading through four components.
 const ALL = [
-  ['pairs', '🔗 Bot pairs', 'the bot’s own pairs and pools, ranked on the record'],
+  ['pairs', '🔗 MOONSHOT pairs', 'MOONSHOT’s own pairs and pools, ranked on the record'],
   ['builder', '🧰 Builder', 'build a pair or pool around any hitter'],
   ['watch', '⭐ Your list', 'every two-man combo among the hitters you saved'],
 ]

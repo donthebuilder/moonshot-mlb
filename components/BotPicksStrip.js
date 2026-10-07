@@ -89,14 +89,14 @@ function statLine(p, role) {
     const h = g('last5_hits')
     if (h != null) push(`L5 ${h}H`)
     push(iso3(g('last5_avg')))
-    push(iso3(g('season_avg')) && `${iso3(g('season_avg'))} szn`)
+    push(iso3(g('season_avg')) && `${iso3(g('season_avg'))} season`)
   } else if (role === 'HRR') {
     const r = g('last5_runs')
     const rbi = g('last5_rbi')
     if (r != null || rbi != null) push(`L5 ${r ?? 0}R/${rbi ?? 0}RBI`)
     const sr = g('season_runs')
     const srbi = g('season_rbi')
-    if (sr != null && srbi != null) push(`${sr}R/${srbi}RBI szn`)
+    if (sr != null && srbi != null) push(`${sr}R/${srbi}RBI season`)
   } else {
     const h = g('last5_hits')
     const x = g('last5_xbh')
@@ -284,7 +284,7 @@ export default function BotPicksStrip({ players = [], onPlayerClick, onFullCard 
     <HeadlinePicks sport="mlb"
       theme={C} numFont={NUM_FONT}
       title="🎯 The Four"
-      subtitle={<>four categories, three deep — the bot&apos;s headline picks</>}
+      subtitle={<>four categories, three deep — MOONSHOT&apos;s headline picks</>}
       lanes={lanes}
       // No orphan (was 3 + CONTACT alone at 900): 4 across from 1100px, 2 x 2
       // below, one column on a phone. NOT collapsed to the #1s on a phone like

@@ -12,7 +12,7 @@
 const WORDS = {
   mlb: {
     look: 'Every hitter on the slate, ranked before first pitch.',
-    pick: 'The bot makes its calls in every game. Tap a name to see why.',
+    pick: 'MOONSHOT makes its calls in every game. Tap a name to see why.',
     track: 'Every call is graded after the game, hit or miss.',
   },
   nfl: {

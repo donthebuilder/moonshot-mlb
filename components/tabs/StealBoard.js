@@ -188,23 +188,23 @@ export default function StealBoard({ players = [], odds = null, onPlayerClick })
     { key: 'opp', label: 'Vs', heat: false, w: 40, mono: true, dim: true, link: (p) => (openGame && p?.game_pk ? () => openGame(p.game_pk) : null) },
     { key: 'risk', group: STEAL_GROUP, label: 'Spot', w: 56, dp: 0, domain: [0, 100], bar: 'primary', primary: true,
       fmt: (v, r) => (v == null ? '—' : <>{Number(v).toFixed(0)}{r.thin ? <span style={{ opacity: 0.55 }}>*</span> : null}</>),
-      title: 'The bot’s steal-spot score for THIS runner against THIS arm and THIS catcher tonight. Zero points in any other model; archived unscored so it earns its way in or gets deleted. A * means half the matchup is unmeasured. A dash is a refusal, not a zero.' },
+      title: 'MOONSHOT’s steal-spot score for THIS runner against THIS arm and THIS catcher tonight. Zero points in any other model; archived unscored so it earns its way in or gets deleted. A * means half the matchup is unmeasured. A dash is a refusal, not a zero.' },
     { key: 'sb', group: STEAL_GROUP, label: 'SB', w: 42, dp: 0, title: 'Stolen bases this season' },
     { key: 'cs', group: STEAL_GROUP, label: 'CS', w: 42, dp: 0, invert: true, title: 'Caught stealing this season' },
     { key: 'succ', group: STEAL_GROUP, label: 'Succ%', w: 56, dp: 0, fmt: (v) => (v == null ? '—' : `${Number(v).toFixed(0)}%`),
-      title: `Stolen bases divided by attempts. Blank under five attempts -- a 2-for-2 is not a rate. Break-even for a steal is about ${BREAK_EVEN}%.` },
+      title: `Stolen bases divided by attempts. Blank under five attempts — a 2-for-2 is not a rate. Break-even for a steal is about ${BREAK_EVEN}%.` },
     { key: 'att', group: STEAL_GROUP, label: 'Att%', w: 52, dp: 0, fmt: (v) => (v == null ? '—' : `${Number(v).toFixed(0)}%`),
-      title: 'The bot’s season attempt rate -- how often he goes, not how often he makes it' },
+      title: 'MOONSHOT’s season attempt rate — how often he goes, not how often he makes it' },
     { key: 'catcher', group: STEAL_GROUP, label: 'Catcher', heat: false, w: 104,
-      fmt: (v, r) => (v ? <span title={`${v}${r.cSrc === 'roster' ? ' (lineup not posted -- likeliest catcher)' : ''}`}>{r.cSrc === 'roster' ? <span style={{ color: C.text3 }}>{'˜'}</span> : null}{shortCatcher(v)}</span> : '—'),
+      fmt: (v, r) => (v ? <span title={`${v}${r.cSrc === 'roster' ? ' (lineup not posted — likeliest catcher)' : ''}`}>{r.cSrc === 'roster' ? <span style={{ color: C.text3 }}>{'˜'}</span> : null}{shortCatcher(v)}</span> : '—'),
       title: 'Who is catching tonight. A ˜ before the name means the lineup was not posted and he is the likeliest man back there.' },
     { key: 'cRate', group: STEAL_GROUP, label: 'C CS%', w: 56, dp: 0, invert: true, fmt: (v) => (v == null ? '—' : `${Number(v).toFixed(0)}%`),
-      title: 'Share of steal attempts the catcher throws out. Blank under 10 attempts -- a backup at 1-of-2 is not a 50% thrower. Lower is softer for a runner.' },
+      title: 'Share of steal attempts the catcher throws out. Blank under 10 attempts — a backup at 1-of-2 is not a 50% thrower. Lower is softer for a runner.' },
     { key: 'price', group: MARKET_GROUP, label: '1+ SB', w: 78, standout: false,
       fmt: (v, r) => {
         const q = r.priceQ
         if (!q) return '—'
-        if (!q.matches) return <span style={{ fontSize: 9 }} title={`book is at ${q.line}, not 0.5 -- a different bet`}>@{q.line}</span>
+        if (!q.matches) return <span style={{ fontSize: 9 }} title={`book is at ${q.line}, not 0.5 — a different bet`}>@{q.line}</span>
         return <span title={`${fmtOdds(q.over)} on 1+ SB${q.book ? ` · ${q.book}` : ''} · needs ${q.implied}% to break even`}><b>{fmtOdds(q.over)}</b>{q.implied != null ? <span style={{ fontSize: 9, color: C.text3, marginLeft: 4 }}>{Math.round(q.implied)}%</span> : null}</span>
       },
       title: 'The book’s price on 1+ stolen base tonight (the over on 0.5), and the break-even rate it implies. Blank when he isn’t listed.' },
@@ -213,9 +213,7 @@ export default function StealBoard({ players = [], odds = null, onPlayerClick })
   if (!total) {
     return (
       <div style={{ fontSize: 11.5, color: C.text3, lineHeight: 1.6 }}>
-        No stolen-base fields on tonight&apos;s slate yet. They arrive with the bot&apos;s
-        SB v1 fields (season_sb, season_cs, season_sb_attempt_rate); until a slate
-        publishes them there is nothing here to rank.
+        No stolen-base numbers for tonight yet. There is nothing here to rank until they arrive.
       </div>
     )
   }
@@ -223,11 +221,11 @@ export default function StealBoard({ players = [], odds = null, onPlayerClick })
   return (
     <div>
       <div style={{ fontSize: 11, color: C.text3, lineHeight: 1.65, marginBottom: 8, maxWidth: 760 }}>
-        Every runner on tonight&apos;s slate. <b style={{ color: C.text2 }}>Spot</b> is the bot&apos;s
+        Every runner on tonight&apos;s slate. <b style={{ color: C.text2 }}>Spot</b> is MOONSHOT&apos;s
         steal-spot score for this man against tonight&apos;s arm and catcher, scaled by how often he
         reaches base. Everything else is a raw count or a published rate, unmodelled.{' '}
         <b style={{ color: C.text2 }}>1+ SB</b> is the book&apos;s number
-        {priced ? <> -- <b style={{ color: C.text2 }}>{priced}</b> of these runners are priced tonight</> : ' -- none priced yet tonight'}.
+        {priced ? <> — <b style={{ color: C.text2 }}>{priced}</b> of these runners are priced tonight</> : ' — none priced yet tonight'}.
       </div>
 
       {feed && (
@@ -258,7 +256,7 @@ export default function StealBoard({ players = [], odds = null, onPlayerClick })
         initialSort="risk"
         maxHeight={560}
         maxRows={Math.max(rows.length, 1)}
-        caption="Ranked by the bot's steal-spot score. Success is read against the 75% break-even -- under it the attempt costs more than it wins. A blank Spot is a refusal, not a zero. Counts are the bot's published season fields, graded nightly against the box score. Tap a row for his full card."
+        caption="Ranked by MOONSHOT's steal-spot score. Success is read against the 75% break-even — under it the attempt costs more than it wins. A blank Spot is a refusal, not a zero. Counts are MOONSHOT's published season fields, graded nightly against the box score. Tap a row for his full card."
       />
     </div>
   )

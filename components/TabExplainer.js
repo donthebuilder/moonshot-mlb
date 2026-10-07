@@ -25,7 +25,7 @@ const TEXTS = {
     // 2026-09-26 (stranger test F12): the first thing a first-timer reads
     // says what MOONSHOT does, then what this page holds -- it used to
     // describe the page's layout ("the front porch") and never the product.
-    what: 'MOONSHOT predicts which hitters are most likely to homer tonight. It rates every hitter on the slate before first pitch, the bot makes its calls (HR, HIT, HRR and CONTACT picks) before the game, and every call is graded in public the next morning. This page is tonight in one screen: the games, the bot’s projected homer range, its base-hit record, then the top boards. Tap any name for why he’s up there.',
+    what: 'Every hitter rated before first pitch. Calls are graded in public.',
   },
   scoreboard: {
     // ── REWRITTEN 2026-08-18 alongside the Rundown/Slate rename ─────────────

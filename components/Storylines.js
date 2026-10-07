@@ -778,7 +778,7 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
                 further back than that. */}
             <b style={{ color: C.text }}>{nameOf(x)}</b> homered{' '}
             <b style={{ color: '#f87171' }}>{whenText}</b> — {claim}
-            <span style={{ fontFamily: NUM_FONT, color: C.text3 }}> · {num(x?.season_hr, 0)} HR szn{num(x?.hr_score, 0) ? ` · bot ${num(x.hr_score, 0).toFixed(0)}` : ''}</span>
+            <span style={{ fontFamily: NUM_FONT, color: C.text3 }}> · {num(x?.season_hr, 0)} HR this season{num(x?.hr_score, 0) ? ` · score ${num(x.hr_score, 0).toFixed(0)}` : ''}</span>
             {b2bVerified && hrToday(x) && <Cashed>HOMERED AGAIN TODAY</Cashed>}
           </Row>
         )

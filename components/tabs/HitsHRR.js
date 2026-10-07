@@ -96,7 +96,7 @@ const HOW_NOTES = [
   { title: 'Board rank', text: 'His place on tonight\u2019s board, #1 first. It blends his HR score, his season home runs and how hard he hits the ball.' },
   { title: 'The player', text: 'Tap any row to open his card: why he\u2019s up there, and what\u2019s working against him.' },
   { title: 'HR score', text: 'How good tonight looks for him to go deep, 0\u2013100. It\u2019s a ranking, not a percent: a 78 sits above a 62, it isn\u2019t a 78% chance.' },
-  { title: 'The bot\u2019s pick', text: 'The bot makes two calls in every game: TOP, its single best play, and HR, its home-run pick. In the table, the \ud83e\udd16 dot marks the HR pick and the Pick column says TOP.' },
+  { title: 'MOONSHOT\u2019s pick', text: 'MOONSHOT makes two calls in every game: TOP, its single best play, and HR, its home-run pick. In the table, the \ud83e\udd16 dot marks the HR pick and the Pick column says TOP.' },
   { title: 'Facing', text: 'Tonight\u2019s starting pitcher. Tap his name to open him.' },
 ]
 const HOW_STEPS = [
@@ -162,8 +162,8 @@ const LENS_TITLE = (o) => `${o.label} — ${ANSWERS[o.key] || ''}`
 const PROOF = (rec) => ({
   top: {
     color: C.yellow,
-    head: 'The bot’s overall ranking',
-    body: 'top_board_score_v2 blends every lane into one number; the TOP pick is the bot’s single favorite play per game. Since a TOP designation is "best in his game", his 🤖 lights here only when he IS tonight’s TOP pick.',
+    head: 'MOONSHOT’s overall ranking',
+    body: 'top_board_score_v2 blends every lane into one number; the TOP pick is MOONSHOT’s single favorite play per game. Since a TOP designation is "best in his game", his 🤖 lights here only when he IS tonight’s TOP pick.',
   },
   hr: {
     color: C.orange,

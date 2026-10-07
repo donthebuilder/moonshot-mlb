@@ -147,8 +147,8 @@ export default function Pools({ players = [], results, pairBuilder, onPlayerClic
               { key: 'hrText', label: 'HR', group: 'Result', heat: false, w: 56, mono: true, title: 'Homers so far out of the pool’s players. Two is a hit.',
                 fmt: (v, r) => (v < 0 ? '—' : <b style={{ color: r.hr >= r.need ? C.green : r.hr > 0 ? C.orange : 'inherit' }}>{r.hr}/{r.total}</b>) },
               { key: 'barLabel', label: 'Bar', group: 'Result', heat: false, w: 90, dim: true, fmt: (v) => v || 'need 2' },
-              { key: 'score', label: 'Pool score', group: 'Bot read', w: 70, dp: 1, title: 'The bot’s own pool score. A rank, not a probability.' },
-              { key: 'risk', label: 'Risk', group: 'Bot read', heat: false, w: 64, dim: true },
+              { key: 'score', label: 'Pool score', group: 'MOONSHOT read', w: 70, dp: 1, title: 'MOONSHOT’s own pool score. A rank, not a probability.' },
+              { key: 'risk', label: 'Risk', group: 'MOONSHOT read', heat: false, w: 64, dim: true },
             ]}
           />
 
@@ -188,7 +188,7 @@ export default function Pools({ players = [], results, pairBuilder, onPlayerClic
               ))}
             </div>
             <div style={{ fontSize: 12, color: C.text3, marginTop: 6, lineHeight: 1.55 }}>
-              {LEGACY_LABEL.toLowerCase()} pools: eight pools of three, each half of one of the bot&apos;s older six-man tickets. A pool hits with at least two homers; a player who did not play is void, not a miss.
+              {LEGACY_LABEL.toLowerCase()} pools: eight pools of three, each half of one of MOONSHOT&apos;s older six-man tickets. A pool hits with at least two homers; a player who did not play is void, not a miss.
             </div>
           </div>
         </>

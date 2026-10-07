@@ -205,7 +205,7 @@ export default function Backtest({ backtest }) {
   })).filter((x) => x.points.length > 0), [tiers, dayKeys, perDay])
 
   if (!tiers.length) {
-    return <Empty text="No backtest published yet — backtest_summary.json hasn't been written." />
+    return <Empty text="No backtest yet." />
   }
 
   return (
@@ -247,7 +247,7 @@ export default function Backtest({ backtest }) {
         )
         return (
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '2px 0 12px' }}>
-            <Tile label="Bot overall base hit" value={`${acc.toFixed(1)}%`} sub="every pick, every graded day" col={C.blue} />
+            <Tile label="MOONSHOT overall base hit" value={`${acc.toFixed(1)}%`} sub="every pick, every graded day" col={C.blue} />
             {bestLane && <Tile label="Best lane (did its job)" value={`${bestLane.v.toFixed(0)}%`} sub={bestLane.k} col={C.green} />}
             <Tile label="Graded days" value={days} sub="the sample behind everything here" col={C.orange} />
           </div>
@@ -266,10 +266,8 @@ export default function Backtest({ backtest }) {
         the two disagree badly, trust pooled and treat the tier as unproven.
         {basis === 'pooled_metrics' && !pooledAvailable && (
           <div style={{ marginTop: 6, color: C.orange }}>
-            Only the <b>HR</b> column is available pooled. <code>backtest_report.py</code> writes
-            <code> pooled_metrics</code> as an empty object for every tier, so the other columns
-            can&apos;t be pooled from this payload — HR is recomputed here from the
-            total HR count over the total pool size, which is a genuine pooled rate. The blanks are
+            Only the <b>HR</b> column can be pooled. The other columns can&apos;t be, so HR is
+            recomputed from the total HR count over the total pool size, which is a genuine pooled rate. The blanks are
             unmeasured, not zero. Day average has all six.
           </div>
         )}

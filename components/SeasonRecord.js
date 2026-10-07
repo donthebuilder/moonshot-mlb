@@ -78,7 +78,7 @@ function RoleChip({ r }) {
   }
   if (r.onSheet) {
     return (
-      <span title={r.role ? `Wore ${r.role} — a non-HR badge` : 'On the sheet, no badge'} style={{
+      <span title={r.role ? `Wore ${r.role} — a non-HR badge` : 'On the board, no badge'} style={{
         fontSize: 8.5, fontWeight: 800, letterSpacing: '.04em', padding: '1.5px 7px', borderRadius: 999,
         border: `1px solid ${C.border2}`, color: C.text2,
       }}>{r.role || 'on sheet'}</span>
@@ -140,7 +140,7 @@ export default function SeasonRecord({ season, busy = false, msg = '', onPull, o
           <>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(104px, 1fr))', gap: 7 }}>
               <Tile label="Home runs" value={season.total} color={C.orange} sub={`${season.perNight} a night`} />
-              <Tile label="On the sheet" value={season.capturePct != null ? `${season.capturePct}%` : '—'} color={C.cyan} sub={`${season.onSheet} of ${season.total}`} />
+              <Tile label="On the board" value={season.capturePct != null ? `${season.capturePct}%` : '—'} color={C.cyan} sub={`${season.onSheet} of ${season.total}`} />
               <Tile label="Badged (call)" value={season.badged} color={C.green} sub="TOP/HR/HIT/HRR/CONTACT, on the night" />
               <Tile
                 label="Longest" value={season.longest ? `${season.longest.ft} ft` : '—'} color={C.purple}
@@ -149,14 +149,14 @@ export default function SeasonRecord({ season, busy = false, msg = '', onPull, o
             </div>
             <div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.7, marginTop: 9 }}>
               Every home run hit in the majors on the nights this device holds — not only the
-              sheet&apos;s hitters — with the sheet&apos;s coverage printed beside it. Tap a night
+              board&apos;s hitters — with the board&apos;s coverage printed beside it. Tap a night
               for who went deep; the hitters below are the same homers added up by name.
             </div>
           </>
         ) : (
           <div style={{ fontSize: 12, color: C.text3, lineHeight: 1.75 }}>
-            Pull the last few weeks off the branch and this fills in — every night comes off the
-            same graded file The record page reads, so the two agree.
+            Load the last few weeks and this fills in — every night comes from the
+            same results The record page reads, so the two agree.
           </div>
         )}
         <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginTop: 11, alignItems: 'center' }}>
@@ -168,7 +168,7 @@ export default function SeasonRecord({ season, busy = false, msg = '', onPull, o
           {msg && <span style={{ fontSize: 10, color: C.text3 }}>{msg}</span>}
         </div>
         <WhatThis label="what the record is and is not" maxWidth={680}>
-          The branch keeps about 150 graded nights, so the record can reach back that far but
+          About 150 graded nights are kept, so the record can reach back that far but
           no further. &ldquo;Was on N&rdquo; is the season total the slate carried for him the
           night he homered — it is not added to, and it can trail the league by a day. Nothing
           here scores anything or changes a pick.
@@ -196,7 +196,7 @@ export default function SeasonRecord({ season, busy = false, msg = '', onPull, o
                       {n.total} HR
                     </span>
                     <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, minWidth: 0, flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
-                      title={`${n.onSheet} of ${n.total} were on the sheet · ${n.badged} badged (TOP/HR/HIT/HRR/CONTACT)${n.multi ? ` · ${n.multi} multi-homer night${n.multi === 1 ? '' : 's'}` : ''}`}>
+                      title={`${n.onSheet} of ${n.total} were on the board · ${n.badged} badged (TOP/HR/HIT/HRR/CONTACT)${n.multi ? ` · ${n.multi} multi-homer night${n.multi === 1 ? '' : 's'}` : ''}`}>
                       sheet {n.capturePct != null ? `${Math.round(n.capturePct)}%` : '—'} · {n.badged} badged
                       {n.longest ? ` · ${n.longest.ft} ft ${n.longest.name.split(' ').slice(-1)[0]}` : ''}
                     </span>
@@ -212,8 +212,8 @@ export default function SeasonRecord({ season, busy = false, msg = '', onPull, o
                           { key: 'hr', label: 'HR', w: 36, dp: 0, tone: (x) => ({ color: x >= 2 ? C.orange : C.text, weight: 900 }) },
                           { key: 'ft', label: 'Ft', w: 40, dp: 0, title: 'Longest of the night, feet', fmt: (v) => v || '—' },
                           { key: 'ev', label: 'EV', w: 44, dp: 1, title: 'Hardest of the night, mph off the bat', fmt: (v) => (v ? Number(v).toFixed(1) : '—') },
-                          { key: 'spot', label: 'Spot', w: 38, dp: 0, title: 'Lineup spot on the sheet', fmt: (v) => v || '—', tone: () => ({ color: C.text3 }) },
-                          { key: 'hrScore', label: 'Score', w: 46, title: "The bot's HR score for him that night, where the sheet had him", fmt: (v) => (v != null ? Math.round(v) : '—') },
+                          { key: 'spot', label: 'Spot', w: 38, dp: 0, title: 'Lineup spot that night', fmt: (v) => v || '—', tone: () => ({ color: C.text3 }) },
+                          { key: 'hrScore', label: 'Score', w: 46, title: "MOONSHOT's HR score for him that night, where the board had him", fmt: (v) => (v != null ? Math.round(v) : '—') },
                           { key: 'sheet', label: 'Sheet', heat: false, numeric: false, w: 90, fmt: (_, r) => <RoleChip r={r} /> },
                           { key: 'seasonHrSlate', label: 'Was on', w: 50, title: 'Season total the slate carried for him that night — not added to', fmt: (v) => (v != null ? v : '—'), tone: () => ({ color: C.text3 }) },
                         ]}
@@ -256,9 +256,9 @@ export default function SeasonRecord({ season, busy = false, msg = '', onPull, o
                 { key: 'hr', label: 'HR', w: 36, dp: 0, primary: true, tone: () => ({ color: C.orange, weight: 900 }), title: 'Home runs across the nights held' },
                 { key: 'nights', label: 'Nights', w: 50, title: 'Nights he went deep',
                   fmt: (v, h) => <span title={h.multi ? `${h.multi} multi-homer night${h.multi === 1 ? '' : 's'}` : ''}>{v}{h.multi ? <span style={{ color: C.orange, fontSize: 8.5, marginLeft: 3 }}>×{h.multi}</span> : null}</span> },
-                { key: 'badgedNights', label: 'Badged', w: 52, dp: 0, tone: (x) => ({ color: x ? C.green : C.text3, weight: 800 }), title: 'Nights he went deep wearing a call badge -- TOP, HR, HIT, HRR or CONTACT' },
-                { key: 'sheetNights', label: 'On sheet', w: 58, dp: 0, title: 'Nights he went deep while on the sheet at all (badged or not)' },
-                { key: 'avgScore', label: 'Avg score', w: 62, fmt: (v) => v ?? '—', title: "Average of the bot's HR score on his homer nights, where the sheet had him" },
+                { key: 'badgedNights', label: 'Badged', w: 52, dp: 0, tone: (x) => ({ color: x ? C.green : C.text3, weight: 800 }), title: 'Nights he went deep wearing a call badge — TOP, HR, HIT, HRR or CONTACT' },
+                { key: 'sheetNights', label: 'On board', w: 58, dp: 0, title: 'Nights he went deep while on the board at all (badged or not)' },
+                { key: 'avgScore', label: 'Avg score', w: 62, fmt: (v) => v ?? '—', title: "Average of MOONSHOT's HR score on his homer nights, where the board had him" },
                 { key: 'far', label: 'Longest', w: 56, fmt: (v, h) => <span title={h.longest ? shortDate(h.longest.date) : ''}>{v ?? '—'}</span>, title: 'His longest in the window, feet' },
                 { key: 'ev', label: 'Max EV', w: 52, fmt: (v) => (v ? Number(v).toFixed(1) : '—'), title: 'Hardest, mph' },
                 { key: 'last', label: 'Last', heat: false, numeric: false, w: 52, fmt: (v) => shortDate(v), title: 'Most recent homer night' },

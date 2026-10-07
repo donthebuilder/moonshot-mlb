@@ -55,7 +55,7 @@ const PROFILE_INPUTS = [
 ]
 
 const TITLES = {
-  top: ['Top Board', 'The bot’s overall #1s — ranked by its own top_board_score_v2, the number the Top-30 sheet sorts by, untouched by site adjustments'],
+  top: ['Top Board', 'MOONSHOT’s overall #1s — ranked by its own top_board_score_v2, the number the Top-30 sheet sorts by, untouched by site adjustments'],
   hr:  ['The Board',         'Every hitter tonight, #1 down — the HR score, season homers and season exit velocity averaged, because on the pregame record that order finds more homers than the score alone. The same order as the full board, the alerts and the tweet.'],
   hrr: ['HRR Board',         'Top runs + RBI picks'],
   hit: ['Hits Board',        'Top base-hit picks'],
@@ -450,7 +450,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
             // (audit 00A P0: "Kyle Freeland" opened Murakami).
             { key: 'facing', group: BOARD_GROUPS.arm, label: 'Facing', heat: false, w: 116, dim: true, link: (p) => (onOpenPitcher && p?.pitcher_id ? () => onOpenPitcher(p.pitcher_id) : null) },
             { key: 'isPick', group: BOARD_GROUPS.marks, answers: 'called', label: '🤖', flag: true, mark: '●', w: 30,
-              title: `The bot's designated ${{ top: 'TOP', hr: 'HR', hit: 'HIT', hrr: 'HRR', tb: 'CONTACT', contact: 'CONTACT' }[type] || ''} pick tonight — THIS category's pick specifically, not any pick. A hitter picked in a different category shows in the Pick column instead.` },
+              title: `MOONSHOT's designated ${{ top: 'TOP', hr: 'HR', hit: 'HIT', hrr: 'HRR', tb: 'CONTACT', contact: 'CONTACT' }[type] || ''} pick tonight — THIS category's pick specifically, not any pick. A hitter picked in a different category shows in the Pick column instead.` },
             { key: 'otherPick', group: BOARD_GROUPS.signal, label: 'Pick', heat: false, w: 46, mono: true, dim: true,
               title: 'Picked tonight, but in a DIFFERENT category than this board — informational, not an endorsement here' },
             { key: 'b2b', group: BOARD_GROUPS.marks, label: '🔁', flag: true, mark: '↻', w: 28,
@@ -478,18 +478,18 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
             // into it.
             { key: 'adj', group: BOARD_GROUPS.signal, answers: type === 'hr' ? 'mlb-hr' : null, label: type === 'hr' ? 'HR score' : 'Score', w: 56, dp: 1, ...SCORE, primary: true, art: type === 'hr' ? 'mlb-hr' : null,  // components/ScoreArt.js
               title: type === 'hr'
-                ? 'The bot’s own HR score — the number this board is ranked by. Read the ISO column beside it — a big score on thin power is the trap to watch for.'
+                ? 'MOONSHOT’s own HR score — the number this board is ranked by. Read the ISO column beside it — a big score on thin power is the trap to watch for.'
                 : 'The score this board is ranked by' },
             ...(type !== 'hr' ? [
               { key: 'hrRaw', group: BOARD_GROUPS.signal, label: 'HR sc', w: 48, dp: 1, ...SCORE,
-                title: 'The bot’s HR score, for context on every board — this column never ranks here, but a high number means the power lane is live for him tonight too' },
+                title: 'MOONSHOT’s HR score, for context on every board — this column never ranks here, but a high number means the power lane is live for him tonight too' },
             ] : []),
             ...(type === 'hr' ? [
               { key: 'iso', group: BOARD_GROUPS.season, label: 'ISO', w: 42, dp: 0, primary: true,
                 title: 'Season ISO ×100 — slugging minus batting average, so it measures extra-base pop with the singles stripped out. Read it WITH the score, not instead of it.' },
             ] : []),
             { key: 'rec', group: BOARD_GROUPS.signal,    label: 'When picked', heat: false, w: 82, mono: true,
-              title: `His archive record when the bot designated him in this category — a rate at 3+ picks, a raw fraction under that.` },
+              title: `His archive record when MOONSHOT designated him in this category — a rate at 3+ picks, a raw fraction under that.` },
             { key: 'bestOther', group: BOARD_GROUPS.scores, label: 'Best other', heat: false, w: 66, mono: true, dim: true,
               title: 'His strongest OTHER category tonight — if this number dwarfs his score here, he might be the wrong kind of bet' },
             { key: 'hrw', answers: 'mlb-hrw', label: 'HRW', w: 44, dp: 0, ...SCORE, primary: true },
@@ -529,7 +529,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
           // the v2 skin's status stamp: the one rule (lib/callStatus), the bot's designation + his board place
           {...(whyOn ? { statusOf: (r) => callStatus({ role: r._raw?.game_pick_role, board_rank: r.rank, board_of: boardOf }), maxRows: Math.max(ranked.length, 1) } : null)}
           maxHeight={rankings ? 640 : 520}
-          caption={`Ranked by ${type === 'hr' ? 'the bot’s own HR score, with ISO beside it — the archive says a big score on thin power is the board’s most common trap' : 'the category score'}. "When picked" is the archive speaking: what he actually did the other times the bot designated him here. Click any header to re-sort; the # column always gets you back to the board's own order.`}
+          caption={`Ranked by ${type === 'hr' ? 'MOONSHOT’s own HR score, with ISO beside it — the archive says a big score on thin power is the board’s most common trap' : 'the category score'}. "When picked" is the archive speaking: what he actually did the other times MOONSHOT designated him here. Click any header to re-sort; the # column always gets you back to the board's own order.`}
         />
       )}
 
@@ -590,7 +590,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
           },
         }))}
         inputs={PROFILE_INPUTS}
-        scoreLabel={type === 'hr' ? 'the bot’s HR score' : `the board’s ${title.replace(' Board', '')} score`}
+        scoreLabel={type === 'hr' ? 'MOONSHOT’s HR score' : `the board’s ${title.replace(' Board', '')} score`}
         title={type === 'hr'
           ? 'Top 15 by HR score — what separates them'
           : `Top 15 by ${title.replace(' Board', '')} — what separates them`}

@@ -164,7 +164,7 @@ const MLB_COPY = {
   sortTime: 'Earliest first pitch first, within each market block.',
   empty: 'No slate published yet, or the market filter left nobody. Clear it above.',
   precision: {
-    0: 'Every badge the bot published tonight.',
+    0: 'Every badge MOONSHOT published tonight.',
     1: 'The single best pick in each market — the same board as The Four on Live.',
   },
 }
@@ -187,7 +187,7 @@ function mlbAdapter(odds) {
       const hand = txt(r?.pitcher_throws).trim()
       return {
         photo: mlbFaceStrict(mlbId(r), 96),
-        dialTitle: `${role === 'NONE' ? 'Overall' : role} score — the bot's number for this market`,
+        dialTitle: `${role === 'NONE' ? 'Overall' : role} score — MOONSHOT's number for this market`,
         market: PLATE_BAR[role] || v.market,
         title: nameOf(r),
         badge: role === 'WATCH' ? 'WATCH' : role === 'NONE' ? 'NONE' : role,

@@ -109,7 +109,7 @@ function ZoneMatchStrip({ zp, pzp }) {
           color: r.zs.length ? r.col : C.text3, background: r.zs.length ? r.col + '14' : 'transparent',
         }}>
           <b>{r.label}</b>{' '}
-          {r.pending ? 'lands with tonight’s cache'
+          {r.pending ? 'lands with tonight’s data'
             : r.zs.length ? r.zs.map((z) => ZONE_NAME[z]).join(' · ')
             : 'no match'}
         </span>
@@ -899,7 +899,7 @@ export default function ZoneMap({
           ))}
         </div>
         <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT, marginLeft: 'auto' }}>
-          {isMatch || isArm ? `bot zone cache · ~${zp?.lookback || 120}d` : 'live API · season · MLB grading'}
+          {isMatch || isArm ? `last ${zp?.lookback || 120} days` : 'this season'}
         </span>
       </div>
 
@@ -1329,7 +1329,7 @@ export default function ZoneMap({
                   <L>xSLG {fmt3(b.xslg)} · xwOBA {fmt3(b.xwoba)}</L>
                   {shape
                     ? <L>GB {fmtPct(b.gb_rate)} · FLY {fmtPct(b.fb_rate)}</L>
-                    : <L dim>gb/fly land with tonight&apos;s cache</L>}
+                    : <L dim>gb/fly land with tonight&apos;s data</L>}
                   {pzp && use[zn] != null && (
                     <L>starter: {fmtPct(use[zn])} here{pd[zn]?.xslg != null ? ` · bleeds ${fmt3(pd[zn].xslg)}` : ''}</L>
                   )}

@@ -47,9 +47,9 @@ export default function BotOnHim({ pid }) {
     { key: 'away', label: 'Away', group: 'HR games by split', w: 48, heat: false },
   ]
   return (
-    <section style={{ marginTop: 14 }} aria-label="The bot on him">
+    <section style={{ marginTop: 14 }} aria-label="MOONSHOT on him">
       <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', marginBottom: 6 }}>
-        <span style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.1em', color: C.text2, fontFamily: NUM_FONT }}>THE BOT ON HIM</span>
+        <span style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.1em', color: C.text2, fontFamily: NUM_FONT }}>MOONSHOT ON HIM</span>
         <span style={{ fontSize: 12, color: C.text3 }}>{d.player.games} games on the clean pregame record, {day(d.since)}–{day(d.through)}</span>
       </div>
       {d.badges.length ? (
@@ -62,7 +62,7 @@ export default function BotOnHim({ pid }) {
         </div>
       ) : null}
       <DenseTable rows={rows} columns={columns} heatMode="none" maxRows={rows.length} maxHeight={9999}
-        caption="Each role the bot has given him, judged on that role's job. Small samples: a lead, not a fact." />
+        caption="Each role MOONSHOT has given him, judged on that role's job. Small samples: a lead, not a fact." />
     </section>
   )
 }

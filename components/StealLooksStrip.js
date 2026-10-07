@@ -82,7 +82,7 @@ export default function StealLooksStrip({ players = [], odds = null, onPlayerCli
               <span style={{ display: 'flex', alignItems: 'baseline', gap: 6, minWidth: 0 }}>
                 <b style={{ fontSize: 11.5, minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', color: C.text }}>{nameOf(p)}</b>
                 <span style={{ marginLeft: 'auto', fontFamily: NUM_FONT, fontWeight: 900, fontSize: 13, color: risk >= 60 ? verdictInk(true).color : C.cyan, flexShrink: 0 }}
-                  title="The bot's steal-spot score, 0–100">{risk.toFixed(0)}</span>
+                  title="MOONSHOT's steal-spot score, 0–100">{risk.toFixed(0)}</span>
               </span>
               <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {teamOf(p)} vs {oppOf(p)}{cName ? ` · C ${cName.split(' ').slice(-1)[0]}` : ''}

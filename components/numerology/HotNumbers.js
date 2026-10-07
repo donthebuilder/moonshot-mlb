@@ -29,7 +29,7 @@ export default function HotNumbers({ sport, date, theme: C, numFont, accent, com
   if (compact) {
     if (!u) return null
     return (
-      <button type="button" onClick={onOpen || undefined} aria-label="Tonight's numbers -- open the Numerology page"
+      <button type="button" onClick={onOpen || undefined} aria-label="Tonight's numbers — open the Numerology page"
         style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', minHeight: 44, padding: '6px 12px', border: `1px solid ${C.border}`, borderRadius: 10, background: C.bg2, color: C.text2, fontFamily: numFont, fontSize: 12, textAlign: 'left', cursor: onOpen ? 'pointer' : 'default', overflow: 'hidden', whiteSpace: 'nowrap' }}>
         <b style={{ color: accent, fontSize: 11, letterSpacing: '.08em' }}>NUMBERS</b>
         <span>UD <b style={{ color: C.text }}>{u.day.value}</b></span>

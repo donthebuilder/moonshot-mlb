@@ -102,7 +102,7 @@ export default function LuckReport({ players = [], onPlayerClick, defaultOpen = 
         <span style={{ fontSize: 13, fontWeight: 900 }}>⚖ Luck report {open ? '▾' : '▸'}</span>
         <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
           {calibrated
-            ? 'actual homers vs expected-from-contact (bot xHR machine, season)'
+            ? 'actual homers vs expected-from-contact (MOONSHOT xHR, season)'
             : 'how the ball leaves the bat vs what the box score paid — slate percentiles, L10 window'}
         </span>
         {!open && (
@@ -117,7 +117,7 @@ export default function LuckReport({ players = [], onPlayerClick, defaultOpen = 
       <>
       <div style={{ fontSize: 9.5, color: C.text3, marginBottom: 10, lineHeight: 1.5 }}>
         {calibrated
-          ? 'Calibrated: the number on each card is HRs above or below what his contact quality should have produced, from the league (EV, LA) table the bot builds off its own statcast data. Minimum 50 tracked balls and a ±1.5 HR gap to make a list.'
+          ? 'Calibrated: the number on each card is HRs above or below what his contact quality should have produced, from the league (EV, LA) table MOONSHOT builds off its own statcast data. Minimum 50 tracked balls and a ±1.5 HR gap to make a list.'
           : 'Not a projection — a regression pointer built only from published fields. Gates: 100+ season PA, 10+ tracked batted balls, and a 20-point gap before anyone makes a list. When a hitter shows on neither list, his results match his contact — which is most hitters, most of the time.'}
       </div>
 

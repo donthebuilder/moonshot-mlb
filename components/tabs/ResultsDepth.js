@@ -445,7 +445,7 @@ rows={rows}
                 initialSort="ft"
                 maxHeight={360}
                 caption={
-                  `Sorted with our picks first, then by board rank. A homer with no rank was on the sheet in some tier but outside the ranked board; 'not picked' means we missed him entirely. `
+                  `Sorted with our picks first, then by board rank. A homer with no rank was in some tier but outside the ranked board; 'not picked' means we missed him entirely. `
                   + `Hit / HRR / TB are the board's other three lanes for the same man — ${laneCovered} of ${onSheet.length} picked homer-hitters carry at least one of them in the graded file`
                   + (laneCovered === 0
                     ? '; tonight none do, so those three columns are all dashes rather than zeros.'
@@ -511,7 +511,7 @@ rows={everyPick}
           onRowClick={onPlayerClick}
           initialSort="score"
           maxHeight={520}
-          caption={`${everyPick.length} of ${slots.length} picks shown. Job is the bot's own designed-outcome grade, not an HR check.`}
+          caption={`${everyPick.length} of ${slots.length} picks shown. Job is MOONSHOT's own designed-outcome grade, not an HR check.`}
         />
       </Section>
     </div>

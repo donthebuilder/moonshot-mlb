@@ -607,7 +607,7 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
                   API-only player has no card to print. */}
               {!apiOnly && (
                 <button onClick={() => downloadPlayerCard(p, { jersey })}
-                  title="Download his card as a PNG for posting — the bot's call, his scores, the bat vs the arm, and his homer signature"
+                  title="Download his card as a PNG for posting — MOONSHOT's call, his scores, the bat vs the arm, and his homer signature"
                   aria-label="Download player card as image"
                   style={{
                     background: 'transparent', border: `1px solid ${C.border2}`, color: C.text2,
@@ -665,7 +665,7 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
               )}
               {nameOf(p)}
             </>}
-            badge={apiOnly ? 'LIVE API' : heroRole === 'NONE' ? 'NO BADGE' : heroRole === 'WATCH' ? '👀 WATCH' : heroRole}
+            badge={apiOnly ? 'LIVE' : heroRole === 'NONE' ? 'NO BADGE' : heroRole === 'WATCH' ? '👀 WATCH' : heroRole}
             badgeQuiet={apiOnly || heroRole === 'NONE' || heroRole === 'WATCH'}
             meta={apiOnly
               ? <>{clubLink(clean(p?.team, '—'), META_LINK)}{`${p?.position ? ` · ${p.position}` : ''} · ${clean(p?.bats, '?')}HB · ${p?.status_word || "not on tonight's slate"}${p?.season_line?.pa ? ` · ${String(p.season_line.avg?.toFixed?.(3) ?? '—').replace(/^0/, '')} / ${p.season_line.hr} HR / ${p.season_line.rbi} RBI in ${p.season_line.pa} PA` : ''}`}</>
@@ -682,11 +682,11 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
                   {p?.pitcher_name ? <>{' · vs '}{p?.pitcher_id ? <a href={`#sport=mlb&tab=pitchers&pitcher=${p.pitcher_id}`} style={ROW_LINK} title="Open the pitcher's file">{p.pitcher_name}</a> : p.pitcher_name}{` (${clean(p?.pitcher_throws, '?')})${p?.pitcher_projected ? ' ≈' : ''}`}</> : null}
                 </>}
             metaRight={heroPrice}
-            market={apiOnly ? (p?.roster ? 'on the roster, not the slate' : 'live API only') : verdictFor(heroRole).market}
+            market={apiOnly ? (p?.roster ? 'on the roster, not the slate' : 'live data only') : verdictFor(heroRole).market}
             line={apiOnly
               ? (p?.roster
-                ? 'On a club\u2019s roster but not in tonight\u2019s lineup, so the bot did not rate him \u2014 the season line above is real, and every panel below is pulled live. No model score, on purpose.'
-                : 'Found through the league-wide search, not on the bot slate \u2014 every panel here is pulled live, and none of it carries a model score.')
+                ? 'On a club\u2019s roster but not in tonight\u2019s lineup, so MOONSHOT did not rate him \u2014 the season line above is real, and every panel below is pulled live. No model score, on purpose.'
+                : 'Found through the league-wide search, not on MOONSHOT’s slate \u2014 every panel here is pulled live, and none of it carries a model score.')
               : sentenceFor(p, heroRole)}
             chips={apiOnly ? null : chipsFor(p, heroRole)}
             right={!inline && (
@@ -729,7 +729,7 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
               fontSize: 10.5, color: C.text3, padding: '5px 10px', marginBottom: 10,
               border: `1px dashed ${C.border}`, borderRadius: 7, display: 'inline-block',
             }}>
-              Watch/slip unavailable — pulled live from the league, not from tonight's published slate yet.
+              Watch and slip aren’t available — he isn’t on tonight’s slate.
             </div>
           )}
           {/* YOUR EYE FOR HIM (2026-10-01, one star + memory): on every card,
@@ -776,7 +776,7 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
                   <span style={{ fontSize: 9, color: C.text3 }}>
                     {/* "pick: Avoid for HR" is not a pick — a Skip HR reads as
                         the pass it is (flow-and-clean pass, 2026-08-15). */}
-                    bot&apos;s pick: <b style={{ color: C.text2 }}>{/skip/i.test(role) ? 'pass tonight' : bestBet(p, 'hr')}</b>
+                    MOONSHOT&apos;s pick: <b style={{ color: C.text2 }}>{/skip/i.test(role) ? 'pass tonight' : bestBet(p, 'hr')}</b>
                   </span>
                 </>
               )}
@@ -874,9 +874,9 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
               {!apiOnly && <OddsTimeline quote={heroQuote} marketLabel={heroRole === 'WATCH' ? 'HR' : heroRole} />}
               {apiOnly && (
                 <div style={{ fontSize: 10.5, color: C.text3, lineHeight: 1.6, margin: '4px 0 12px', borderLeft: `2px solid ${C.orange}`, paddingLeft: 10 }}>
-                  He&apos;s not in tonight&apos;s bot run, so there are no model scores or batted-ball
+                  He&apos;s not in tonight&apos;s slate, so there are no model scores or batted-ball
                   detail here — but the props record above, The Read tab (his cold case), the Splits tab (situational, live), and
-                  the EV Log&apos;s strike-zone map all pull straight from the league API and work
+                  the EV Log&apos;s strike-zone map all pull live data and work
                   for any player in baseball.
                 </div>
               )}

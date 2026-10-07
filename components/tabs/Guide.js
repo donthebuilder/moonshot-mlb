@@ -48,7 +48,7 @@ const STEPS = [
     // 2026-09-26 (Batch 5): Home no longer shows exactly four -- the count
     // was a stale claim. Name what is there instead of counting it.
     title: `Tap the MOONSHOT wordmark for ${tabName('mlb', 'home')} and read the tiles at the top`,
-    body: 'Games tonight, when the last game starts, the bot’s projected homer range, the best park for homers, and the hit calls’ clean record beside the base rate. Thirty seconds tells you whether tonight is a big slate.',
+    body: 'Games tonight, when the last game starts, MOONSHOT’s projected homer range, the best park for homers, and the hit calls’ clean record beside the base rate. Thirty seconds tells you whether tonight is a big slate.',
   },
   {
     n: 2,
@@ -246,7 +246,7 @@ export default function Guide({ onNavigate }) {
 
         <Note color={C.text3}>
           These describe what a hitter is good for in general. A separate,
-          per-game set of badges — TOP, HR, HIT, HRR, CONTACT, seen on the Bot
+          per-game set of badges — TOP, HR, HIT, HRR, CONTACT, seen on the Picks
           tab and the pick strips — marks the single best name per market in
           that specific game, and a player now holds more than one when he's
           the top choice in two markets at once.
@@ -277,7 +277,7 @@ export default function Guide({ onNavigate }) {
             it below the no-flag base rate, the only flag on the board doing
             that. Named here, honestly, and pointed at the live grade rather
             than quoting a number this page cannot keep current. */}
-        <Term icon="🔄" term="Alt look" def="a second, smaller-sample angle on the same hitter — the bot's own sheet files these under ALT LOOKS and marks the sample as thin. Treat it as a curiosity rather than a reason: of every flag on the board this is the one Signals has graded worst, and it has been under the no-flag base rate. Results → Signals has the current number." />
+        <Term icon="🔄" term="Alt look" def="a second, smaller-sample angle on the same hitter — MOONSHOT's own sheet files these under ALT LOOKS and marks the sample as thin. Treat it as a curiosity rather than a reason: of every flag on the board this is the one Signals has graded worst, and it has been under the no-flag base rate. Results → Signals has the current number." />
         <Term icon="≈" term="Projected pitcher" def="the starter isn't announced — this is whoever's rotation turn it is, not an official listing." />
       </Section>
 
@@ -318,8 +318,8 @@ export default function Guide({ onNavigate }) {
         <Term tab="longest" go={onNavigate} icon="🚀" term="Longest" def="who hits the farthest ball, not who is likeliest to homer. It disagrees with the HR board on purpose." />
         <Term tab="due" go={onNavigate} icon="⚡" term="Power-3" def="who hits it hardest and farthest all season — HR per ball in play, average EV and max EV, ranked on tonight's slate and averaged. Replaced the Due board: drought predicts nothing." />
         <Term tab="fullboard" go={onNavigate} icon="💎" term="Hits & HRR" def="contact and extra-base plays instead of power." />
-        <Term tab="pairs" go={onNavigate} icon="🔗" term="Pairs" def="two-man home-run combinations — who's live tonight and what the bot recommends." />
-        <Term tab="pools" go={onNavigate} icon="🏊" term="Pools" def="the bot's three- and four-man group tickets, plus the Pair Builder for making your own pair." />
+        <Term tab="pairs" go={onNavigate} icon="🔗" term="Pairs" def="two-man home-run combinations — who's live tonight and what MOONSHOT recommends." />
+        <Term tab="pools" go={onNavigate} icon="🏊" term="Pools" def="MOONSHOT's three- and four-man group tickets, plus the Pair Builder for making your own pair." />
         <Term tab="pairhist" go={onNavigate} icon="🧬" term="Pair History" def="which two hitters have gone deep on the same day all season." />
         <Term tab="spray" go={onNavigate} icon="🗺️" term={tabName('mlb', 'spray')} def="where a hitter's batted balls actually land." />
         <Term tab="pitchers" go={onNavigate} icon="🎯" term="Pitchers" def="tonight's arms ranked by how much they leak." />

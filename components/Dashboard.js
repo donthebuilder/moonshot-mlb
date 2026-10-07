@@ -960,7 +960,7 @@ export default function Dashboard({ palettePass = 0 }) {
           <TabNotFound
             sport="mlb"
             kicker="NO SUCH SPORT"
-            message={<>DASH has no <b style={{ color: C.text2, fontFamily: NUM_FONT }}>{missingSport}</b> -- it runs MOONSHOT (MLB), TUDDY (NFL) and LAMP (NHL). This is MOONSHOT.</>}
+            message={<>DASH has no <b style={{ color: C.text2, fontFamily: NUM_FONT }}>{missingSport}</b> — it runs MOONSHOT (MLB), TUDDY (NFL) and LAMP (NHL). This is MOONSHOT.</>}
             onNavigate={setTab}
             doors={[['home', '🏠 HOME'], ['fullboard', '📊 RANKINGS']]}
           />
@@ -969,7 +969,7 @@ export default function Dashboard({ palettePass = 0 }) {
           <TabNotFound
             sport="mlb"
             kicker="NO SUCH PLAYER"
-            message={<>No MLB player has the id <b style={{ color: C.text2, fontFamily: NUM_FONT }}>{missingPlayer}</b>. The link may be old or cut short -- tonight&apos;s board and the search above have everyone.</>}
+            message={<>No MLB player has the id <b style={{ color: C.text2, fontFamily: NUM_FONT }}>{missingPlayer}</b>. The link may be old or cut short — tonight&apos;s board and the search above have everyone.</>}
             onNavigate={(t) => { setMissingPlayer(''); setTab(t) }}
             doors={[['home', '🏠 HOME'], ['fullboard', '📊 RANKINGS'], ['bot', '🎯 PICKS']]}
           />
@@ -1030,7 +1030,6 @@ export default function Dashboard({ palettePass = 0 }) {
               <>
                 <PropsGrid players={players} odds={odds} onPlayerClick={setModalPlayer} onWatch={toggleWatch} watchIds={watchIds} />
                 <section aria-label="The picks behind the cards" style={{ marginTop: 26, paddingTop: 18, borderTop: `1px solid ${C.border}` }}>
-                  <div style={{ font: `900 11px/1 ${NUM_FONT}`, letterSpacing: '.16em', color: C.orange, marginBottom: 10 }}>THE PICKS · THE SHORTLIST, THE SHEET AND THE READ</div>
                   <Bot players={allPlayers} onPlayerClick={setModalPlayer} onGoPairs={goToPairsFor} odds={odds} onWatch={toggleWatch} watchIds={watchIds} />
                 </section>
               </>

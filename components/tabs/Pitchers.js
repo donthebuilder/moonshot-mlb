@@ -130,9 +130,9 @@ function AirLine({ row, venue, lead, size = TYPE.micro, style }) {
     ...parts,
     ...(hrEff != null && hrEff !== 0 ? [{
       key: 'wxhr',
-      text: `the bot puts the air at ${hrEff > 0 ? '+' : ''}${hrEff}% on home runs`,
+      text: `MOONSHOT puts the air at ${hrEff > 0 ? '+' : ''}${hrEff}% on home runs`,
       tone: hrEff > 0 ? 'hot' : 'cold',
-      title: 'weather_hr_effect_pct — the bot\'s published summary of tonight\'s conditions as a percentage swing on home runs at this park. A published field, not derived here.',
+      title: 'weather_hr_effect_pct — MOONSHOT\'s published summary of tonight\'s conditions as a percentage swing on home runs at this park. A published field, not derived here.',
     }] : []),
   ]
   if (!all.length) return null
@@ -351,7 +351,7 @@ function BullpenBoard({ pitchers, onTeamClick }) {
                   ? (anyFatigue ? "Heaviest reliever workload yesterday first. Pens with nothing logged sink — no data isn't the same claim as fresh."
                     : 'No reliever workload logged for yesterday, so there is nothing to sort by')
                   : k === 'attack'
-                    ? (anyAttack ? "The bot's own bullpen_attack_score, most attackable first. A different question from HR/9 — it reads the pen against the bats it has to face — so it gets its own sort instead of being blended into one number."
+                    ? (anyAttack ? "MOONSHOT's own bullpen_attack_score, most attackable first. A different question from HR/9 — it reads the pen against the bats it has to face — so it gets its own sort instead of being blended into one number."
                       : 'No bullpen attack score published on tonight\'s slate')
                     : 'Season reliever-only HR/9, leakiest first'}
                 style={{
@@ -386,8 +386,8 @@ function BullpenBoard({ pitchers, onTeamClick }) {
           // row draws plus the ones it has no width for — attack score, pitch
           // fit, and which arms carried yesterday.
           const apiLine = r.st?.hr9 != null
-            ? `${r.ab} relievers this season (StatsAPI, relievers only): ${r.st.hr} HR in ${r.st.ip} IP — HR/9 ${r.st.hr9.toFixed(2)}.`
-            : `No StatsAPI reliever split loaded for ${r.ab}; the pen numbers on this row are the slate's own.`
+            ? `${r.ab} relievers this season: ${r.st.hr} HR in ${r.st.ip} IP — HR/9 ${r.st.hr9.toFixed(2)}.`
+            : `No reliever split yet for ${r.ab}; the pen numbers on this row are the season's.`
           const slateLine = r.line
             ? ` Published pen line: ${penLineParts(r.line, { attackRange, fitAvg: r.line.fitAvg, fitN: r.line.fitN, liveHr9: r.st?.hr9 }).map((x) => x.text).join(', ')}.`
             : ''
@@ -455,7 +455,7 @@ function BullpenBoard({ pitchers, onTeamClick }) {
               {anyAttack && (
                 <span
                   title={r.line?.attack != null
-                    ? `Bullpen attack score ${r.line.attack.toFixed(0)} — the bot's 0-100 rating of how attackable this pen is against the bats it faces tonight, on a slate spread of ${attackRange ? `${attackRange[0].toFixed(0)}–${attackRange[1].toFixed(0)}` : 'n/a'}. A score, not a chance of anything. This is the number the Attack sort uses.`
+                    ? `Bullpen attack score ${r.line.attack.toFixed(0)} — MOONSHOT's 0-100 rating of how attackable this pen is against the bats it faces tonight, on a slate spread of ${attackRange ? `${attackRange[0].toFixed(0)}–${attackRange[1].toFixed(0)}` : 'n/a'}. A score, not a chance of anything. This is the number the Attack sort uses.`
                     : `No bullpen attack score published for ${r.ab} tonight — a blank, not a zero, so the Attack sort puts it last.`}
                   style={{
                     fontFamily: NUM_FONT, fontSize: TYPE.micro, width: 44, flexShrink: 0, cursor: 'default',
@@ -585,11 +585,10 @@ function BullpenBoard({ pitchers, onTeamClick }) {
         <details style={{ display: 'inline', marginLeft: 6 }}>
           <summary style={{ display: 'inline', cursor: 'pointer', color: C.orange }}>the fine print</summary>
           {' '}<b style={{ color: C.text2 }}>vs</b> is who those relievers pitch to tonight.
-          HR/9 is season reliever-only (sitCode rp); the HR / IP beside it is what the rate is built from.
+          HR/9 counts relievers only, for the season; the HR / IP beside it is what the rate is built from.
           <b style={{ color: C.text2 }}> &ldquo;no log&rdquo;</b> means nothing was recorded yesterday — not the
-          same as rested, so never sorted as if it were. The bar&apos;s rate is the live StatsAPI reliever-only
-          split and is the only HR rate on this board; grade, ERA and WHIP come from the slate&apos;s published
-          pen line, and bullpen_hr9 keeps its labelled column in the full starter table. The attack score is a
+          same as rested, so never sorted as if it were. The bar&apos;s rate is the live reliever-only
+          split and is the only HR rate on this board; grade, ERA and WHIP come from the season pen line. The attack score is a
           0-100 rating against tonight&apos;s real spread — a score, not a chance of anything. Context lane:
           this ranks nothing else on the site.
         </details>
@@ -1062,7 +1061,7 @@ export default function Pitchers({ players, onPlayerClick }) {
                   value={Number.isFinite(l3) && l3n > 0 ? l3.toFixed(2) : '—'}
                   sub={Number.isFinite(l3) && l3n > 0 && hr9 ? (l3 > hr9 ? 'worse' : 'better') : null}
                   tone={Number.isFinite(l3) && l3n > 0 && hr9 ? (l3 > hr9 ? 'hot' : 'cold') : null}
-                  tip={l3n ? `HR/9 over his last ${l3n} starts, against a season ${hr9.toFixed(2)}. Blank means the bot has not logged enough recent starts.` : 'No recent starts logged for him yet.'} />
+                  tip={l3n ? `HR/9 over his last ${l3n} starts, against a season ${hr9.toFixed(2)}. Blank means MOONSHOT has not logged enough recent starts.` : 'No recent starts logged for him yet.'} />
                 <ArmStat label="Barrels" value={Number.isFinite(brl) ? `${(brl * 100).toFixed(1)}%` : '—'}
                   tone={Number.isFinite(brl) ? (brl >= 0.09 ? 'hot' : brl <= 0.055 ? 'cold' : null) : null}
                   tip="Share of batted balls against him hit at a home-run launch angle and speed. The contact-quality half of the leak." />
@@ -1106,7 +1105,7 @@ export default function Pitchers({ players, onPlayerClick }) {
                       label="Thrown out"
                       value={rg.csRate == null ? '—' : pc(rg.csRate)}
                       sub={rg.csWhy || (rg.cs != null && rg.attempts ? `${rg.cs} of ${rg.attempts}` : null)}
-                      tip="Caught-stealing rate on those attempts. This is the PAIR'S number and not his alone — the catcher throws it, which is why the catcher is named at the top of this band. The bot refuses to compute it under five attempts." />
+                      tip="Caught-stealing rate on those attempts. This is the PAIR'S number and not his alone — the catcher throws it, which is why the catcher is named at the top of this band. MOONSHOT refuses to compute it under five attempts." />
                     <ArmStat
                       label="WP/9"
                       value={rg.wp9 == null ? '—' : rg.wp9.toFixed(2)}
@@ -1116,7 +1115,7 @@ export default function Pitchers({ players, onPlayerClick }) {
                       label="Pickoffs"
                       value={rg.pickRate == null ? '—' : pc(rg.pickRate, 1)}
                       sub={rg.pickWhy || (rg.pickoffs != null ? `${rg.pickoffs} all season` : null)}
-                      tip="Share of the baserunners he allows that he picks off. The bot refuses to compute it under twenty baserunners." />
+                      tip="Share of the baserunners he allows that he picks off. MOONSHOT refuses to compute it under twenty baserunners." />
                   </div>
                   {runningGameLine(rg) && (
                     <div style={{ fontSize: TYPE.micro, color: C.text3, lineHeight: 1.5, marginTop: 5 }}>
@@ -1344,7 +1343,7 @@ export default function Pitchers({ players, onPlayerClick }) {
               <summary style={{ display: 'inline', cursor: 'pointer', color: C.orange }}>the fine print</summary>
               {' '}Hover the park clause for the raw <b style={{ color: C.text2 }}>park HR factor</b>. A closed
               roof takes the weather out of the game, which is why it is said even though it moves nothing by
-              itself. The <b style={{ color: C.text2 }}>+% on home runs</b> is the bot&apos;s own published
+              itself. The <b style={{ color: C.text2 }}>+% on home runs</b> is MOONSHOT&apos;s own published
               weather effect — a swing on the HR rate, not anybody&apos;s chance of hitting one. Games with no
               weather published get no line instead of a plausible-looking default.
             </details>
@@ -1359,7 +1358,7 @@ export default function Pitchers({ players, onPlayerClick }) {
             chip recipe on the site — radius 7, ember's orange in an rgba
             literal. Same control as the modal's tabs now. */}
         <FilterLabel>Columns</FilterLabel>
-        {[['core', 'Core'], ['recent', 'Recent form'], ['cmd', 'Command'], ['bot', 'Bot scores'], ['bb', 'Batted ball'], ['pen', 'His pen'], ['air', 'The air'], ['all', 'Everything']].map(([k, label]) => (
+        {[['core', 'Core'], ['recent', 'Recent form'], ['cmd', 'Command'], ['bot', 'MOONSHOT scores'], ['bb', 'Batted ball'], ['pen', 'His pen'], ['air', 'The air'], ['all', 'Everything']].map(([k, label]) => (
           <FilterPill key={k} active={colGroup === k} onClick={() => setColGroup(k)}>{label}</FilterPill>
         ))}
         {/* the space-saving dropdowns (2026-08-14) — see the state block */}
@@ -1644,8 +1643,8 @@ rows={(() => {
           // The three new text columns sit with the other text, per the layout
           // rule below: nothing textual is allowed to interrupt a run of digits.
           { key: 'penQual', label: 'Pen', heat: false, w: 54, mono: true, dim: true,
-            title: 'The bot\'s one-word grade on the bullpen behind THIS starter (bullpen_quality) — strong, average or weak. Who finishes the game he starts.',
-            explain: 'The bot’s grade on the bullpen that comes in behind this starter — strong, average or weak. It says nothing about the starter himself; it is who you get in the seventh.' },
+            title: 'MOONSHOT\'s one-word grade on the bullpen behind THIS starter (bullpen_quality) — strong, average or weak. Who finishes the game he starts.',
+            explain: 'MOONSHOT’s grade on the bullpen that comes in behind this starter — strong, average or weak. It says nothing about the starter himself; it is who you get in the seventh.' },
           { key: 'venue',  label: 'Park', heat: false, w: 128, dim: true,
             title: 'The building he is throwing in tonight' },
           { key: 'roof',   label: 'Roof', heat: false, w: 56, mono: true, dim: true,
@@ -1657,11 +1656,11 @@ rows={(() => {
           // a lot of width, and the emoji made every row look busy. As dots
           // they scan instantly and sort like the booleans they are.
           { key: 'gbTrap', label: 'GB',  flag: true, mark: '●', w: 30,
-            title: 'Bot tag: ground-ball / trap profile' },
+            title: 'Ground-ball / trap profile' },
           { key: 'hardCon', label: 'HRD', flag: true, mark: '●', w: 32,
-            title: 'Bot tag: gives up hard contact' },
+            title: 'Gives up hard contact' },
           { key: 'lowK',   label: 'LoK', flag: true, mark: '●', w: 32,
-            title: 'Bot’s low-strikeout flag — fires on 98 of 268, so it’s common' },
+            title: 'MOONSHOT’s low-strikeout flag — fires on 98 of 268, so it’s common' },
           { key: 'conf',   label: 'LU',  flag: true, mark: '●', w: 28,
             title: 'Lineup confirmed' },
           // ── numbers from here down, uninterrupted ──
@@ -1669,7 +1668,7 @@ rows={(() => {
             title: 'A SECOND LENS, not the headline. Blended attackability: HR/9 30%, attack 25%, zone damage 20%, weak side 15%, minus swinging-strike 10%, weighted 70% season / 30% recent form. The cards above rank on the LEAK SCORE instead — eight published fields ranked against tonight\'s other starters, including the park and tonight\'s contact quality, which this column has no view of. Both unvalidated: none of these inputs has reached the graded archive.' },
           { key: 'hr9',    label: 'HR/9', w: 46, dp: 2 },
           { key: 'xallowed', label: 'xHR', w: 48, dp: 1,
-            title: 'Expected homers allowed from the contact he\'s actually given up — the bot\'s league (EV, LA) table, no park or weather. Compare with his real HR total.' },
+            title: 'Expected homers allowed from the contact he\'s actually given up — MOONSHOT\'s league (EV, LA) table, no park or weather. Compare with his real HR total.' },
           { key: 'xluck', label: 'HR luck', w: 54, dp: 1, invert: true,
             title: 'Actual HRs allowed minus expected-from-contact. NEGATIVE = fewer homers than his contact deserved — the "lucky" arm, and the regression bet says target him. Positive = he\'s paid more than the contact warranted. Calibrated (docket #20), replaces the old percentile pointer.' },
           { key: 'luck',   label: 'HR luck', w: 54, dp: 0,
@@ -1677,9 +1676,9 @@ rows={(() => {
           { key: 'era',    label: 'ERA', w: 44, dp: 2 },
           { key: 'whip',   label: 'WHIP', w: 46, dp: 2 },
           { key: 'ip',     label: 'IP', w: 46, dp: 1,
-            title: 'Innings pitched this season — the sample every rate on this row is measured over. Blank until the bot publishes it.' },
+            title: 'Innings pitched this season — the sample every rate on this row is measured over. Blank until MOONSHOT publishes it.' },
           { key: 'bf',     label: 'BF', w: 46, dp: 0,
-            title: 'Batters faced — the denominator under K% and BB%. Blank until the bot publishes it.' },
+            title: 'Batters faced — the denominator under K% and BB%. Blank until MOONSHOT publishes it.' },
           { key: 'hr',     label: 'HR', w: 40, dp: 0,
             title: 'Home runs he has allowed this season — the count, not the rate. Read it beside HR/9: the same 1.44 is twenty-six homers over a full season or five over four starts, and the two are different arms.' },
           { key: 'k9',     label: 'K/9', w: 44, dp: 1, invert: true,
@@ -1693,7 +1692,7 @@ rows={(() => {
           { key: 'l3n',    label: 'L3 GS', w: 44,
             title: 'How many recent starts the L3 numbers actually found. Under 3 and they are thinner than they look.' },
           { key: 'attack', label: 'Attack', w: 52, dp: 0,
-            title: 'The bot’s attack score. Range on tonight’s slate is 0–54, median 19 — so 30+ is genuinely high, not middling.' },
+            title: 'MOONSHOT’s attack score. Range on tonight’s slate is 0–54, median 19 — so 30+ is genuinely high, not middling.' },
           { key: 'wsScore', label: 'Weak side', w: 58, dp: 0,
             title: 'How exploitable his platoon split is. 0–90 on tonight’s slate.',
             // 2026-08-12: label collided with the GLOSSARY's 'weak side' entry
@@ -1708,7 +1707,7 @@ rows={(() => {
           { key: 'spots',  label: '★ Spots', w: 52,
             title: 'Weak lineup spots he faces tonight' },
           { key: 'runOn',  label: 'Run on', w: 52,
-            title: 'Stolen-base attempts against him this season — how often runners actually go. A count and not a rate: a caught-stealing percentage off three attempts is noise, which is why the bot refuses to publish one, and sorting on it would float every small sample to the top. The full picture — thrown out, wild pitches, pickoffs and the catcher behind him — is in the What he gives away band on his card.' },
+            title: 'Stolen-base attempts against him this season — how often runners actually go. A count and not a rate: a caught-stealing percentage off three attempts is noise, which is why MOONSHOT refuses to publish one, and sorting on it would float every small sample to the top. The full picture — thrown out, wild pitches, pickoffs and the catcher behind him — is in the What he gives away band on his card.' },
 
           // Batted ball allowed. Grouped at the end so the bot-score block
           // above stays one uninterrupted run of numbers.
@@ -1717,7 +1716,7 @@ rows={(() => {
           { key: 'gb',     label: 'GB%', w: 46, fmt: PCT, invert: true,
             title: 'Ground-ball rate allowed, season. The batted ball that never leaves the yard — high is BAD for a homer pick, so the heat runs the other way.' },
           { key: 'ld',     label: 'LD%', w: 46, fmt: PCT,
-            title: 'Line-drive rate allowed, season. Hits, not homers — the walks/hits side of the sheet cares about this one.' },
+            title: 'Line-drive rate allowed, season. Hits, not homers — this one is about hits and walks.' },
           { key: 'popup',  label: 'Pop%', w: 46, fmt: PCT, invert: true,
             title: 'Pop-up rate allowed, season. Free outs — an arm that induces them is a harder target.' },
           { key: 'fbSc',   label: 'FB% sc', w: 54, fmt: PCT,
@@ -1766,9 +1765,9 @@ rows={(() => {
           { key: 'penWhip', label: 'Pen WHIP', w: 64, dp: 2,
             title: 'Season WHIP of that same bullpen — traffic in the late innings.' },
           { key: 'penHr9', label: 'Pen HR/9', w: 62, dp: 2,
-            title: 'Home runs per nine allowed by that bullpen. This is the slate\'s published number; the Bullpen board above also shows a live StatsAPI reliever-only split, and the two are separate pulls rather than one blended figure.' },
+            title: 'Home runs per nine allowed by that bullpen. The Bullpen board above also shows a live reliever-only split; the two are separate numbers, not one blend.' },
           { key: 'penAtk', label: 'Pen atk', w: 58, dp: 0,
-            title: 'bullpen_attack_score — how attackable the bot rates that pen, 0-100. A SCORE, not a chance of anything, and it does not use the whole scale: tonight it runs roughly 15–79.' },
+            title: 'bullpen_attack_score — how attackable MOONSHOT rates that pen, 0-100. A SCORE, not a chance of anything, and it does not use the whole scale: tonight it runs roughly 15–79.' },
           { key: 'penFit', label: 'Pen fit', w: 56, dp: 0,
             title: 'Average published bullpen_pitch_fit across the lineup that will actually bat against this pen — how well those swings match what the relievers throw. The mean of a published per-hitter field, not a model.' },
 
@@ -1783,14 +1782,14 @@ rows={(() => {
           { key: 'parkHr', label: 'Park HR', w: 60, dp: 2,
             title: 'The park\'s home-run factor as a multiplier against a neutral park. Above 1.00 helps the hitter.' },
           { key: 'wxHr',   label: 'Wx HR%', w: 58, dp: 0, fmt: (v) => (v == null || !Number.isFinite(Number(v)) ? '—' : `${Number(v) > 0 ? '+' : ''}${Number(v).toFixed(0)}%`),
-            title: 'weather_hr_effect_pct — the bot\'s published swing on the home-run RATE from tonight\'s conditions at this park. A percentage change to a rate, not anybody\'s chance of hitting one.' },
+            title: 'weather_hr_effect_pct — MOONSHOT\'s published swing on the home-run RATE from tonight\'s conditions at this park. A percentage change to a rate, not anybody\'s chance of hitting one.' },
         ]
           // THE GROUP ROW (2026-10-01, BATCH-TABLE-SKIN-V2; the v2 skin only):
           // the starter's own columns, then the view's columns under the view's
           // own name from the picker above; Core splits into his read, his
           // line and the marks. "Everything" groups each column by the first
           // view it belongs to, so the whole wall reads as the views in order.
-          const VIEW_LABEL = { recent: 'Recent form', cmd: 'Command', bot: 'Bot scores', bb: 'Batted ball', pen: 'His pen', air: 'The air' }
+          const VIEW_LABEL = { recent: 'Recent form', cmd: 'Command', bot: 'MOONSHOT scores', bb: 'Batted ball', pen: 'His pen', air: 'The air' }
           const WHO = new Set(['name', 't', 'tm', 'vs', 'weakSide', 'trend'])
           const CORE = { read: ['gbTrap', 'hardCon', 'lowK', 'conf', 'overall'], line: ['hr9', 'hr', 'ip', 'xallowed', 'xluck', 'luck', 'era', 'whip', 'kpct'], marks: ['spots', 'runOn'] }
           const G = { who: { key: 'who', label: 'Starter', order: 0 }, read: { key: 'read', label: 'His read', order: 1 }, line: { key: 'line', label: 'His line', order: 2 }, marks: { key: 'marks', label: 'Marks', order: 3 } }
@@ -1811,7 +1810,7 @@ rows={(() => {
         onRowClick={(p) => setModalPitcher(p)}
         initialSort="hr9"
         maxHeight={420}
-        caption="Every starter on the slate, now including the bot's own pitcher scoring — Attack, Weak side, Zone damage and Spot damage, none of which appeared anywhere on this board before. Read Attack against its real range: it runs 0–54 tonight with a median of 19, so a 35 is a strong signal even though it looks low on a 100-point instinct. Bright is good for the hitter throughout, so K/9 is inverted — a high strikeout rate is his strength, not yours. L3 columns are the last three starts and are thin on purpose: three outings is a handful of innings, so read them as a direction rather than a rate, and check L3 GS before trusting them. Click a header to sort, shift-click to add a tiebreaker, a row to open the starter. The batted-ball block at the right is what he actually gives up: fly balls, hard contact, barrels, pulled air and extra-base hits. Ground-ball, line-drive and popup rate now compute for real off that same batted-ball pull (2026-08-12, they used to publish flat 0) — not broken out as their own columns yet, so this block stays fly-ball-led for now. Overall now blends 70% season with 30% last-three-starts wherever L3 HR/9 exists, so a starter who has been getting hit lately no longer reads like his April self. Three column groups are new (2026-08-15): COMMAND is how he beats hitters — meatball rate, first-pitch strikes, putaway, whiff and swinging strikes — and every one of those except Meat% is INVERTED, because they are his weapons and this table is bright-is-good-for-the-bat throughout. HIS PEN is not about him at all: it is the relievers who finish the game he starts, read off the slate's own published bullpen line, and it is the other six innings of the same bet. THE AIR is the park and the weather he throws into, the same fields the hitter boards have always read and this page never did — a 1.10 HR/9 in Oracle Park and a 1.10 in Coors used to sit here looking identical. Velo Δ is measured against the arm's OWN baseline rather than the league's and is blank, not zero, for the arms whose velocity status reads missing."
+        caption="Every starter on the slate, now including MOONSHOT's own pitcher scoring — Attack, Weak side, Zone damage and Spot damage, none of which appeared anywhere on this board before. Read Attack against its real range: it runs 0–54 tonight with a median of 19, so a 35 is a strong signal even though it looks low on a 100-point instinct. Bright is good for the hitter throughout, so K/9 is inverted — a high strikeout rate is his strength, not yours. L3 columns are the last three starts and are thin on purpose: three outings is a handful of innings, so read them as a direction rather than a rate, and check L3 GS before trusting them. Click a header to sort, shift-click to add a tiebreaker, a row to open the starter. The batted-ball block at the right is what he actually gives up: fly balls, hard contact, barrels, pulled air and extra-base hits. Ground-ball, line-drive and popup rate now compute for real off that same batted-ball pull (2026-08-12, they used to publish flat 0) — not broken out as their own columns yet, so this block stays fly-ball-led for now. Overall now blends 70% season with 30% last-three-starts wherever L3 HR/9 exists, so a starter who has been getting hit lately no longer reads like his April self. Three column groups are new (2026-08-15): COMMAND is how he beats hitters — meatball rate, first-pitch strikes, putaway, whiff and swinging strikes — and every one of those except Meat% is INVERTED, because they are his weapons and this table is bright-is-good-for-the-bat throughout. HIS PEN is not about him at all: it is the relievers who finish the game he starts, read off the slate's own published bullpen line, and it is the other six innings of the same bet. THE AIR is the park and the weather he throws into, the same fields the hitter boards have always read and this page never did — a 1.10 HR/9 in Oracle Park and a 1.10 in Coors used to sit here looking identical. Velo Δ is measured against the arm's OWN baseline rather than the league's and is blank, not zero, for the arms whose velocity status reads missing."
       />
 
       {/* The per-pitcher accordion card list that lived here is GONE

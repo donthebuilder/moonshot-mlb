@@ -60,7 +60,7 @@ const buildColumns = (onWatch) => [
     title: 'Homers in his last five games' },
   { key: 'hr',      label: 'HR scr',  w: 48, dp: 1, ...SCORE },
   { key: 'hrw',     label: 'HRW',     w: 46, dp: 0, ...SCORE,
-    title: 'The bot’s HR window score' },
+    title: 'MOONSHOT’s HR window score' },
   { key: 'barrel',  label: 'Brl%',    w: 44, dp: 1,
     title: 'Recent barrel rate' },
   { key: 'matchup', label: 'vs',      heat: false, w: 120, dim: true,
@@ -143,7 +143,7 @@ function RecentBombers({ all = [], onPlayerClick }) {
             { key: 'opp',     label: 'Opp', heat: false, w: 34, mono: true, dim: true },
             { key: 'matchup', label: 'Facing', heat: false, w: 118, dim: true },
             { key: 'isPick',  label: '🤖', flag: true, mark: '●', w: 32,
-              title: 'One of the bot’s designated picks tonight' },
+              title: 'One of MOONSHOT’s designated picks tonight' },
             { key: 'p3flag',  label: '⚡', flag: true, mark: '⚡', w: 30, title: 'Power-3 top ten tonight' },
             { key: 'drought', label: 'Last HR', heat: false, w: 58, mono: true,
               fmt: (v) => (Number(v) === 0 ? 'last gm' : `${v}g ago`),
@@ -241,7 +241,7 @@ export default function Power3Board({ players = [], onWatch, watchIds, onPlayerC
       </div>
 
       {!published ? (
-        <Empty text="Power-3 is not on this slate yet — it arrives with the first slate the bot publishes after the 2026-09-06 ship." />
+        <Empty text="Power-3 is not on this slate yet — it arrives with the first slate MOONSHOT publishes after the 2026-09-06 ship." />
       ) : (
         <>
           <div style={{ fontSize: 11.5, color: C.text2, lineHeight: 1.7, marginBottom: 12, maxWidth: 680 }}>

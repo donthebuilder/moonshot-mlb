@@ -126,7 +126,7 @@ const buildColumns = (onWatch) => [
   // sequential ramp with `invert` doing the work a diverging scale should do —
   // inversion is a diverging idea wearing a sequential coat.
   { key: 'hrEff',   label: 'Wx HR%',  w: 52, dp: 0, scale: 'div', anchor: 0, ceiling: 12, anchorLabel: '0% (neutral air)',
-    title: 'The bot’s own estimate of how much tonight’s weather moves home runs at this park. Drawn against a neutral night: ▲ air is adding homers, ▼ taking them away.' },
+    title: 'MOONSHOT’s own estimate of how much tonight’s weather moves home runs at this park. Drawn against a neutral night: ▲ air is adding homers, ▼ taking them away.' },
   { key: 'humid',   label: 'Humid%',  w: 50, dp: 0,
     title: 'Humid air is less dense, so the ball carries slightly further — the opposite of what most people assume' },
   { key: 'feels',   label: 'Feels',   w: 46, dp: 0,
@@ -251,7 +251,7 @@ export default function LongestBoard({ players = [], results = null, onWatch, wa
         Different question from the HR tab, and it regularly disagrees with it.{' '}
         <b style={{ color: C.text2 }}>Adjusted</b> multiplies the raw score by the park&apos;s distance
         factor and a small temperature term — warm air carries, which is physics rather than a model
-        opinion. It&apos;s kept gentle on purpose: the bot already folds park into the raw score, and
+        opinion. It&apos;s kept gentle on purpose: MOONSHOT already folds park into the raw score, and
         double-counting it would just rank Coors first every night.{' '}
         {/* The two clauses the page's old "What this answers" block carried.
             That block sat above the board repeating what the board already

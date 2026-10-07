@@ -124,10 +124,10 @@ export default function PlayerRead({ p, odds }) {
   lines.push(
     <Line key="call" fs={12}>
       {skipHr ? (
-        <>The bot tags him <b style={{ color: C.text }}>Skip HR</b> — no homer case tonight, and his
+        <>MOONSHOT tags him <b style={{ color: C.text }}>Skip HR</b> — no homer case tonight, and his
           other scores don&apos;t make one elsewhere either{Number.isFinite(spot) && spot >= 1 && spot <= 9 && <>. He hits <B>{ORD[spot]}</B></>}.</>
       ) : (
-        <>The bot tags him <b style={{ color: C.text }}>{role}</b>, grade <B col={gradeCol}>{grade}</B> on
+        <>MOONSHOT tags him <b style={{ color: C.text }}>{role}</b>, grade <B col={gradeCol}>{grade}</B> on
           that market — best play <b style={{ color: C.text }}>{bet}</b>
           {Number.isFinite(spot) && spot >= 1 && spot <= 9 && <>, hitting <B>{ORD[spot]}</B></>}.</>
       )}
@@ -197,7 +197,7 @@ export default function PlayerRead({ p, odds }) {
         <B col={mbEdge >= 1 ? C.orange : C.text}>{mbNote}</B>
         {mbFit != null && mbFit > 0 && <>
           {' '}— a <B col={mbFit >= 65 ? C.orange : mbFit <= 35 ? C.text2 : C.text}>{mbFit.toFixed(0)}</B> on
-          the bot&apos;s mistake-fit column, which crosses that with what this bat does to one
+          MOONSHOT&apos;s mistake-fit column, which crosses that with what this bat does to one
         </>}.
         {/* NO trailing "not enough pitches to split him" clause here. The bot's
             own note already ends with exactly that sentence on a no_side_split
@@ -293,7 +293,7 @@ export default function PlayerRead({ p, odds }) {
   if (note && note !== '—') {
     lines.push(
       <Line key="note" fs={12}>
-        <b style={{ color: C.text }}>Bot&apos;s note:</b> {note}
+        <b style={{ color: C.text }}>MOONSHOT&apos;s note:</b> {note}
       </Line>
     )
   }

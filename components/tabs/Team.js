@@ -88,7 +88,7 @@ export default function Team({ players = [], onPlayerClick, onOpenGame, onOpenBo
   const rows = useMemo(() => players.filter((p) => teamKey(p?.team) === code)
     .map((p) => ({ ...p, role: p.game_pick_role || '', _id: `${p.player_id}-${p.game_pk}` }))   // role: the table's coloured role chip
     .sort((a, b) => (num(a.board_rank) ?? 999) - (num(b.board_rank) ?? 999)), [players, code])
-  if (!code) return <Empty title="NO CLUB PICKED" note="Tap a club's logo anywhere on MOONSHOT -- a board, a game, a player's card -- to open its page." />
+  if (!code) return <Empty title="NO CLUB PICKED" note="Tap a club's logo anywhere on MOONSHOT — a board, a game, a player's card — to open its page." />
   if (!isKnownTeam(code)) return <Empty title="NO SUCH CLUB" note={`"${code}" isn't one of the 30 MLB clubs.`} />
 
   const games = data?.games || []
@@ -113,7 +113,7 @@ export default function Team({ players = [], onPlayerClick, onOpenGame, onOpenBo
         title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 12 }}><img src={mlbTeamLogo(code, 112)} alt="" width={56} height={56} style={{ width: 56, height: 56, objectFit: 'contain' }} />{teamName(code)}</span>}
         note={rec ? `${SEASON} regular season record from MLB's schedule.` : 'The club, its hitters on tonight’s board, its last and next games.'}
         stats={rec ? [{ value: `${rec.wins}-${rec.losses}`, label: 'RECORD', tone: C.text }, { value: rows.length, label: 'ON THE BOARD', tone: C.orange }] : [{ value: rows.length, label: 'ON THE BOARD', tone: C.orange }]} />
-      {error ? <p style={{ margin: 0, color: C.amber, fontSize: 12 }}>MLB&apos;s schedule feed is delayed -- the board below is still current.</p> : null}
+      {error ? <p style={{ margin: 0, color: C.amber, fontSize: 12 }}>MLB&apos;s schedule feed is delayed — the board below is still current.</p> : null}
 
       <section>
         <Kick>TONIGHT ON THE BOARD · {rows.length}</Kick>
@@ -133,7 +133,7 @@ export default function Team({ players = [], onPlayerClick, onOpenGame, onOpenBo
               { key: 'last10_hr', label: 'L10 HR', w: 52, dp: 0, group: 'Form' },
               { key: 'pitcher_name', label: 'Facing', heat: false, w: 130, group: 'Tonight' },
             ]} />
-        ) : <Empty title="NOT ON TONIGHT'S BOARD" note="No hitter from this club is on tonight's slate -- an off day, or the lineup isn't posted yet." />}
+        ) : <Empty title="NOT ON TONIGHT'S BOARD" note="No hitter from this club is on tonight's slate — an off day, or the lineup isn't posted yet." />}
       </section>
 
       {live ? <section><Kick tone={C.green}>LIVE NOW</Kick><GameLine g={live} onOpen={openGame} /></section> : null}

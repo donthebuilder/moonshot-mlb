@@ -90,7 +90,7 @@ export default function OffBoardStrip({ players = [], onPlayerClick }) {
       background: 'rgba(255,255,255,.02)', marginBottom: 12,
     }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 12, fontWeight: 900, color: C.text }}>◇ Playing, not on the bot</span>
+        <span style={{ fontSize: 12, fontWeight: 900, color: C.text }}>◇ Playing, not on MOONSHOT</span>
         <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
           {rows.length} untagged bats in tonight&apos;s lineups score {MIN_SCORE}+ · the categories are capped, so this is overflow, not a verdict
         </span>

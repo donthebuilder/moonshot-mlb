@@ -181,7 +181,7 @@ export default function ReadTeaser({ players = [], odds: oddsProp = null, onNavi
           📰 The call of the night
         </span>
         <span style={{ fontSize: 9.5, color: C.text3 }}>
-          {hero.label} · {hero.bar} — the bot&rsquo;s strongest name in the market this site is built on
+          {hero.label} · {hero.bar} — MOONSHOT&rsquo;s strongest name in the market this site is built on
         </span>
       </div>
 
@@ -258,7 +258,7 @@ export default function ReadTeaser({ players = [], odds: oddsProp = null, onNavi
       <div style={{ fontSize: 10.5, color: C.text3, lineHeight: 1.6, marginTop: 7 }}>
         This is the opening of tonight&apos;s read. The rest — the other three calls with their prices,
         the ISO lens the site deliberately does not rank on, and the names it is steering clear of —
-        is on the Bot page.{' '}
+        is on the Picks page.{' '}
         <span onClick={() => onNavigate?.('bot')} style={{ color: hero.color, cursor: 'pointer', fontWeight: 800 }}>
           Read the whole thing →
         </span>

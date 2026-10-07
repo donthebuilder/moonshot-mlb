@@ -598,7 +598,7 @@ export default function LiveWire({ players = [], results, watchIds, mode = 'toda
             <b style={{ color: '#a1a1aa' }}>⊘</b> void — postponed, or he never got an at-bat ·{' '}
             <b style={{ color: 'rgba(248,113,113,.85)' }}>✗</b> game over without it, and this one counts
             against the model. A pick is only ✗ once his game is genuinely done. 💥 chips
-            are every slate homer tonight, orange when the bot had him. Boxscore truth, refreshed when
+            are every slate homer tonight, orange when MOONSHOT had him. Boxscore truth, refreshed when
             you ask{auto ? ' (auto every 60s while visible)' : ''} — no background polling.
           </div>
         </div>

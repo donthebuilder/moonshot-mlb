@@ -167,10 +167,10 @@ export default function PairBoard({ pairBuilder, results, onPlayerClick }) {
           { key: 'pair',     label: 'Pair',     heat: false, w: 230, bold: true, sticky: true },
           { key: 'teams',    label: 'Teams',    heat: false, w: 74, mono: true, dim: true },
           { key: 'lane',     label: 'Lane',     heat: false, w: 92, mono: true,
-            title: 'The bot’s own lane_key. Scores are only comparable inside a lane.' },
+            title: 'MOONSHOT’s own lane. Scores are only comparable inside a lane.' },
           { key: 'sameGame', label: 'Same gm',  flag: true, mark: '●', w: 46 },
           { key: 'score',    label: 'Score',    heat: false, w: 56, mono: true,
-            title: 'The bot’s common pair quality score.',
+            title: 'MOONSHOT’s common pair quality score.',
             fmt: (v) => (Number.isFinite(Number(v)) ? Number(v).toFixed(Number(v) < 30 ? 2 : 1) : '—') },
           { key: 'bothEst',  label: 'Both est', w: 58, dp: 1, title: 'Independent season HR/PA screening estimate; not a calibrated model forecast.' },
           { key: 'weakEst',  label: 'Weak est', w: 58, dp: 1, title: 'Lower of the two individual season estimates.' },
@@ -186,7 +186,7 @@ export default function PairBoard({ pairBuilder, results, onPlayerClick }) {
         onRowClick={onPlayerClick}
         initialSort={null}
         maxHeight={420}
-        caption="Sorted by lane, then by the bot's common pair score. Both est multiplies the two small-sample-shrunk season HR/PA estimates under independence; it is a screening estimate, not a calibrated forecast. Click a row to open the stronger hitter."
+        caption="Sorted by lane, then by MOONSHOT's common pair score. Both est multiplies the two small-sample-shrunk season HR/PA estimates under independence; it is a screening estimate, not a calibrated forecast. Click a row to open the stronger hitter."
       />
 
       {/* THE BOT'S REASONING, in prose. The reason/tags/risk fields were
@@ -247,7 +247,7 @@ export default function PairBoard({ pairBuilder, results, onPlayerClick }) {
           ))}
         </div>
         <div style={{ fontSize: 9.5, color: C.text3, marginTop: 6, lineHeight: 1.55 }}>
-          Every line is the bot&apos;s own <code>reason</code>, <code>tags</code> and <code>risk</code> for
+          Every line is MOONSHOT&apos;s own <code>reason</code>, <code>tags</code> and <code>risk</code> for
           that pair, printed instead of truncated. The number to check before anything else is the
           weaker side — both hitters have to land, so the pair is never better than its worse half.
         </div>

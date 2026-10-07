@@ -58,7 +58,7 @@ export default function ComebackBoard() {
 
   if (state === 'loading') return <div style={{ fontSize: 11, color: C.text3, padding: '6px 2px' }}>Reading line scores…</div>
   if (state === 'empty' || !data) {
-    return <Empty text="No comeback board published yet — the bot writes this on its next run." />
+    return <Empty text="No comeback board published yet — MOONSHOT writes this on its next run." />
   }
 
   const rows = [...(data?.teams || [])].sort((a, b) => (Number(b[sort]) || 0) - (Number(a[sort]) || 0)).slice(0, 12)

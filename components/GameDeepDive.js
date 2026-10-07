@@ -367,7 +367,7 @@ function SidePanel({ team, rows, odds, onPlayerClick }) {
         <span style={{ fontSize: 10.5, color: C.text2, fontFamily: NUM_FONT, minWidth: 0 }}>
           vs {name}{throws ? ` (${throws}HP)` : ''}
           {projected && (
-            <span title="No probable announced — this is the bot's rotation projection (the arm whose turn it is), not an official listing"
+            <span title="No probable announced — this is MOONSHOT's rotation projection (the arm whose turn it is), not an official listing"
               style={{ color: C.yellow }}> ≈ projected</span>
           )}
         </span>
@@ -410,7 +410,7 @@ function SidePanel({ team, rows, odds, onPlayerClick }) {
         {/* The tooltip said "the league line is 1.25 — warm is over it" while
             the tone went warm at 1.40. Its own sentence and its own threshold
             disagreed. Both come from lib/hr9.js now. */}
-        <ArmStat label="HR/9 szn" value={hr9 != null && hr9 > 0 ? hr9.toFixed(2) : '—'}
+        <ArmStat label="HR/9 season" value={hr9 != null && hr9 > 0 ? hr9.toFixed(2) : '—'}
           tone={hr9Tone(hr9)}
           title={hr9Title(hr9)} />
       </div>
@@ -453,7 +453,7 @@ function SidePanel({ team, rows, odds, onPlayerClick }) {
       ) : (
         <div>
           <div style={{ fontSize: 10, color: C.text3, marginBottom: 5 }}>
-            The bot designated nobody on this side. Its two best scores:
+            MOONSHOT designated nobody on this side. Its two best scores:
           </div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {fallback.map((p) => (

@@ -187,8 +187,8 @@ function SplitsControl({ src, pitcherId }) {
     ['behind', 'Behind', 'when behind in the count — the blowup count state'],
   ]
   const LIVE_ONLY = [
-    ['pi000', 'P 1–75', 'his first 75 pitches — live from MLB StatsAPI'],
-    ['pi760', 'P 76+', 'pitch 76 on — the fatigue window, the API\'s stand-in for times through the order'],
+    ['pi000', 'P 1–75', 'his first 75 pitches'],
+    ['pi760', 'P 76+', 'pitch 76 on — the fatigue window, a stand-in for times through the order'],
     ['i01', '1st inn', 'the first inning — some arms bleed before they settle'],
   ]
   const options = [
@@ -252,7 +252,7 @@ function SplitsControl({ src, pitcherId }) {
       { label: 'IP', value: b.ip, fmt: (v) => v.toFixed(1), anchor: 0, ceiling: 1e9, tip: 'innings in this split (the denominator)' },
     ]
     const sample = dim.thin ? `${b.bf ?? 0} batters faced — ${dim.title}` : `${b.bf} batters faced`
-    footer = fromBot ? sample : `${sample} · live from MLB StatsAPI — context only, not in any score`
+    footer = fromBot ? sample : `${sample} · context only, not part of any score`
   }
 
   return (
@@ -263,7 +263,7 @@ function SplitsControl({ src, pitcherId }) {
       </div>
       {footer && <div style={{ fontSize: 8.5, color: C.text3, marginTop: 4 }}>{footer}</div>}
       <div style={{ fontSize: 8.5, color: C.text3, marginTop: 2 }}>
-        warm = good news for the bat · cool = his wall · a split the bot hasn&apos;t published isn&apos;t offered
+        warm = good news for the bat · cool = his wall · a split MOONSHOT hasn&apos;t published isn&apos;t offered
       </div>
     </div>
   )
@@ -482,10 +482,10 @@ export default function PitcherModal({ pitcher, slateMode, onClose, onPlayerClic
           <PitcherTags
             row={tagRow}
             extraChips={[
-              weakSide ? { label: `Weak vs ${weakSide}`, why: 'the bot’s own split read' } : null,
-              clean(src('pitcher_attack_tag'), '') !== '—' && clean(src('pitcher_attack_tag'), '') ? { label: clean(src('pitcher_attack_tag')), why: 'the bot’s coarse attack bucket — three buckets, not independent of the measured tags' } : null,
-              src('pitcher_low_k_flag') ? { label: 'Low K', why: 'the bot’s low-strikeout flag' } : null,
-              src('weak_pitcher_flag') ? { label: 'Weak arm', why: 'the bot’s weak-pitcher flag — fired on 37 of 59 measured arms, informative but not independent' } : null,
+              weakSide ? { label: `Weak vs ${weakSide}`, why: 'MOONSHOT’s own split read' } : null,
+              clean(src('pitcher_attack_tag'), '') !== '—' && clean(src('pitcher_attack_tag'), '') ? { label: clean(src('pitcher_attack_tag')), why: 'MOONSHOT’s coarse attack bucket — three buckets, not independent of the other tags' } : null,
+              src('pitcher_low_k_flag') ? { label: 'Low K', why: 'MOONSHOT’s low-strikeout flag' } : null,
+              src('weak_pitcher_flag') ? { label: 'Weak arm', why: 'MOONSHOT’s weak-pitcher flag — fired on 37 of 59 measured arms, informative but not independent' } : null,
             ]}
           />
 

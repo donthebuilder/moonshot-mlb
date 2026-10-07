@@ -123,9 +123,7 @@ export default function PickScorecard({ slots = [], backtest = null, onPlayerCli
   if (!rows.length) {
     return (
       <div style={{ fontSize: 11, color: C.text3, lineHeight: 1.6, padding: '14px 2px' }}>
-        No pick roles on this day&apos;s graded file. This view needs
-        <code style={{ color: C.text2 }}> game_pick_role</code>, which is stamped on 641 of the 648
-        slots in the archive — a day without it can&apos;t be graded by category.
+        No pick roles were recorded for this day, so it can&apos;t be graded by category.
       </div>
     )
   }
@@ -196,7 +194,7 @@ export default function PickScorecard({ slots = [], backtest = null, onPlayerCli
           { key: 'name', label: 'Player', heat: false, w: 150, bold: true, sticky: true },
           { key: 'team', label: 'Tm',     heat: false, w: 34, mono: true, dim: true },
           { key: 'role', label: 'Pick',   heat: false, w: 62, mono: true, dim: true,
-            title: 'Which category the bot designated him for' },
+            title: 'Which category MOONSHOT designated him for' },
           { key: 'job',  label: 'Needed', heat: false, w: 104, dim: true },
           { key: 'catRec', label: 'As this pick', heat: false, w: 78, mono: true,
             title: 'His record when picked in THIS category, across every graded day. Shown as a fraction, not a percentage — on a nine-day archive the sample matters as much as the result.' },
@@ -211,7 +209,7 @@ export default function PickScorecard({ slots = [], backtest = null, onPlayerCli
         onRowClick={onPlayerClick}
         initialSort="did"
         maxHeight={420}
-        caption="A pick who never came to the plate reads “never batted” and is left out of the counts above — void is not a miss. A ✓ means this hitter did the thing his own category was for — a HIT pick that singled counts, even though he didn't homer. Grading every category against home runs is the mistake this table exists to avoid. 'As this pick' is his record the other times the bot has picked him in this same category, across every graded day; it's a fraction rather than a percentage because on a nine-day archive the sample size is half the information. Sort by Pick to compare within a category, or open Track record for the full per-player table."
+        caption="A pick who never came to the plate reads “never batted” and is left out of the counts above — void is not a miss. A ✓ means this hitter did the thing his own category was for — a HIT pick that singled counts, even though he didn't homer. Grading every category against home runs is the mistake this table exists to avoid. 'As this pick' is his record the other times MOONSHOT has picked him in this same category, across every graded day; it's a fraction rather than a percentage because on a nine-day archive the sample size is half the information. Sort by Pick to compare within a category, or open Track record for the full per-player table."
       />
 
       <div style={{ fontSize: 9.5, color: C.text3, marginTop: 6, lineHeight: 1.6 }}>

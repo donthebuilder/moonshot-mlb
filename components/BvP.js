@@ -127,7 +127,7 @@ export default function BvP({ batterId, pitcherId, pitcherName, player }) {
     }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
         <span style={{ fontSize: 12, fontWeight: 800 }}>⚔ vs {pitcherName || 'tonight’s starter'}</span>
-        <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>career head-to-head · live API</span>
+        <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>career vs this pitcher</span>
       </div>
 
       <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'flex-end' }}>

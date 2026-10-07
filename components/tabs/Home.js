@@ -117,6 +117,11 @@ const etShift = (n) => { const d = new Date(`${etToday()}T12:00:00Z`); d.setUTCD
 // THE EDITION (2026-09-06). "Burning the midnight oil" is gone -- Donovan:
 // "the messaging is trash". The hero reads like the top of a broadcast now:
 // which edition of the show this is, then the rundown. Same hour buckets.
+// The slate's own date (YYYY-MM-DD), as weekday + day. Parsed as a calendar date, never the wall clock.
+const slateDayLabel = (iso) => {
+  try { return new Date(`${iso}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' }).toUpperCase() } catch { return String(iso) }
+}
+
 const greeting = (h) => {
   if (h >= 5 && h < 12) return ['MORNING EDITION', '☀️']
   if (h >= 12 && h < 17) return ['AFTERNOON EDITION', '⚾']
@@ -683,9 +688,9 @@ export default function Home({
     // WHY — the count kept, but now it says what the star MEANS rather than
     // how many there are.
     if (weakStars > 0) out.push(`★ ${weakStars} hitters draw a lineup spot tonight's starter has already been beaten in — that is what a star means on every board.`)
-    if (picks > 0) out.push(`🎯 The bot designated ${picks} picks on this slate — The Four, just above, is the headline cut.`)
+    if (picks > 0) out.push(`🎯 MOONSHOT designated ${picks} picks on this slate — The Four, just above, is the headline cut.`)
     if (confirmed > 0 && players.length > 0) out.push(`✓ ${confirmed} of ${players.length} hitters are in confirmed lineups — the rest can still change before first pitch.`)
-    if (proj?.grade) out.push(`💣 The bot calls tonight's power grade "${proj.grade}" — the range is in the line above.`)
+    if (proj?.grade) out.push(`💣 MOONSHOT calls tonight's power grade "${proj.grade}" — the range is in the line above.`)
     if (record) out.push(`📈 Every pick gets graded in public. On the ${lockedRec.source}, hit calls got a hit ${record.pct.toFixed(1)}% of the time against ${record.base.toFixed(1)}% for every hitter (n=${record.n}).`)
     // SCORES IN THE CRAWL (2026-09-06): every live game, then every final,
     // interleaved so the strip reads like a scoreboard crawl and not a list.
@@ -723,18 +728,18 @@ export default function Home({
   // becomes furniture. Nothing here is data — it's three sentences and three
   // tab jumps, so it renders on an empty slate too.
   const START = [
-    { tab: 'scoreboard', n: 1, title: 'See who the model likes', body: 'Scoreboard, top of the list. You don’t need to read a single column to use the order.' },
-    { tab: 'games', n: 2, title: 'Look at one game', body: 'Games — the arm, the park, the lineup, and the pick for that matchup.' },
-    { tab: 'results', n: 3, title: 'Check if it’s been right', body: 'Results grades every pick against its own job, every night. Read this before trusting anything above it.' },
+    { tab: 'scoreboard', n: 1, title: 'See who the model likes', body: 'The top of the list. You don’t need to read a column to use the order.' },
+    { tab: 'games', n: 2, title: 'Look at one game', body: 'The arm, the park, the lineup and the pick for that game.' },
+    { tab: 'results', n: 3, title: 'Check if it’s been right', body: 'Every pick is graded against its own job, every night.' },
   ]
 
   const DOORS = [
     { tab: 'scoreboard', icon: '📊', title: 'The Scoreboard', color: C.orange,
-      body: 'Every hitter on the slate, every column, live once first pitch lands. The Four — the bot’s headline picks, the same card as on Home — sit right on top.' },
+      body: 'Every hitter tonight, every column.' },
     { tab: 'games', icon: '⚾', title: 'Game by game', color: C.cyan,
-      body: 'Tonight matchup by matchup: the arm, the park, the lineup, and the designated picks for each game.' },
+      body: 'Game by game: the arm, the park, the lineup, the picks.' },
     { tab: 'results', icon: '✅', title: 'The receipts', color: C.green,
-      body: 'Every pick graded against its own job, every night, wins and losses alike. This is why the record above is quotable.' },
+      body: 'Every pick graded, wins and losses alike.' },
   ]
 
   return (
@@ -858,7 +863,7 @@ export default function Home({
         /* A finished slate isn't "Today" after midnight ET (stranger F5). */
         /* The postseason round names the day (DAY-AWARE-OPENERS-PLAN): the
            schedule's own gameType for THIS slate's date, never guessed. */
-        eyebrow={`${slateInPast ? (slateDate === etShift(-1) ? 'Last night' : 'Final') : (mode === 'tomorrow' && slateDate === etShift(0) ? 'Tonight' /* the 'Tmrw' slate after midnight is tonight (2026-10-04 day rule) */ : (dateLabel || (mode === 'today' ? 'Today' : 'Tomorrow')))}${!slateInPast && nextMlb?.round && nextMlb.date === slateDate ? ` · ${nextMlb.round}` : ''}${slateDate ? ` · ${slateDate}` : ''}`}
+        eyebrow={<>{`${slateInPast ? (slateDate === etShift(-1) ? 'Last night' : 'Final') : (mode === 'tomorrow' && slateDate === etShift(0) ? 'Tonight' /* the 'Tmrw' slate after midnight is tonight (2026-10-04 day rule) */ : (dateLabel || (mode === 'today' ? 'Today' : 'Tomorrow')))}${!slateInPast && nextMlb?.round && nextMlb.date === slateDate ? ` · ${nextMlb.round}` : ''}`}{slateDate ? <>{' · '}<span style={{ color: C.orange, fontWeight: 900, fontSize: TYPE.body, letterSpacing: '.08em' }}>{slateDayLabel(slateDate)}</span></> : null}</>}
         live={isLive}
         /* THE FACT FIRST, THE VOICE SECOND (2026-08-29): the headline is the
            state of the night -- how many games, how many live, whether it has
@@ -869,11 +874,11 @@ export default function Home({
           : slateInPast
             ? <>That slate is done.</>
             : <><span style={{ fontFamily: NUM_FONT }}>{games.length}</span>{games.length === 1 ? ' game' : ' games'} tonight{isLive && liveGames > 0 && (<>, <span style={{ fontFamily: NUM_FONT }}>{liveGames}</span> live</>)}.</>}
-        accentText={empty ? null : slateInPast ? (gradesPending ? 'Final grades post in the morning.' : 'Every pick is graded.') : (isLive ? 'Grading as they land.' : 'The sheet is ready.')}
+        accentText={empty ? null : slateInPast ? (gradesPending ? 'Final grades post in the morning.' : 'Every pick is graded.') : (isLive ? 'Grading as they land.' : null)}
         dayText={slateInPast && nextLine(nextMlb, etToday()) ? `No games tonight · ${nextLine(nextMlb, etToday())}.` : null}
         /* A done slate is the morning after, whatever the clock says (2026-09-28). */
         chip={slateInPast ? `🧾 MORNING AFTER` : `${icon} ${hello}`}
-        sub={empty ? 'board posts when tonight’s card is final' : isLive ? 'grading live · every pick in public' : slateInPast ? (gradesPending ? 'final · grades post in the morning' : 'final · every pick graded') : 'the sheet is set · every pick graded in public'}
+        sub={empty ? 'board posts when tonight’s card is final' : isLive ? 'grading live' : slateInPast ? (gradesPending ? 'final · grades post in the morning' : 'final · every pick graded') : null}
       >
         {/* TONIGHT IN ONE SENTENCE (2026-08-15, "make the home page better").
             The old body was the same mission statement every single day —
@@ -914,20 +919,20 @@ export default function Home({
                 the graded file -> the projection chip below, as before. */}
             {slateInPast && slateHrs > 0 ? (
               <Stat label="HOMERS" value={slateHrs}
-                sub={modelHr != null ? `proj ${modelHr.toFixed(1)}${proj ? ` · bot ${proj.low}–${proj.high}` : ''}` : proj ? `bot ${proj.low}–${proj.high}` : null}
+                sub={modelHr != null ? `proj ${modelHr.toFixed(1)}${proj ? ` · range ${proj.low}–${proj.high}` : ''}` : proj ? `range ${proj.low}–${proj.high}` : null}
                 col={C.orange}
-                title="Home runs hit on this slate, from the graded results. The second line is what the model and the bot's sheet projected before first pitch." />
+                title="Home runs hit on this slate, from the graded results. The second line is what the model and MOONSHOT's sheet projected before first pitch." />
             ) : modelHr != null ? (
               <Stat label="PROJ HR" value={modelHr.toFixed(1)}
-                sub={proj ? `bot ${proj.low}–${proj.high}${proj.grade ? ` · ${proj.grade}` : ''}` : null}
+                sub={proj ? `range ${proj.low}–${proj.high}${proj.grade ? ` · ${proj.grade}` : ''}` : null}
                 col={C.orange}
-                title="The site's model, summed over every hitter on the slate. The second figure is the range on the bot's own published sheet — a second opinion, not the site's number." />
+                title="The site's model, summed over every hitter on the slate. The second figure is the range on MOONSHOT's own published sheet — a second opinion, not the site's number." />
             ) : proj ? (
-              <Stat label="PROJ HR (BOT)" value={`${proj.low}–${proj.high}`} sub={proj.grade || null} col={C.orange}
-                title="From the bot's published sheet. The site's own model figure isn't available for this slate." />
+              <Stat label="PROJ HR" value={`${proj.low}–${proj.high}`} sub={proj.grade || null} col={C.orange}
+                title="From MOONSHOT's published sheet. The site's own model figure isn't available for this slate." />
             ) : (
               <Stat label="PROJ HR" value="not published yet" col={C.text3}
-                title="Neither the site's model nor the bot's sheet has a homer projection for this slate yet." />
+                title="Neither the site's model nor MOONSHOT's sheet has a homer projection for this slate yet." />
             )}
             {!slateInPast && airRanked[0] && (
               <Stat label="BEST AIR" value={`${airRanked[0].venue} ${airRanked[0].edge > 0 ? '+' : ''}${airRanked[0].edge.toFixed(0)}%`}
@@ -950,7 +955,7 @@ export default function Home({
             rotating line survives as the crawl underneath. */}
         {empty ? (
           <div style={{ fontSize: TYPE.body, color: C.text2, lineHeight: 1.75, maxWidth: 720 }}>
-            No hitters on the board yet — the bot builds the slate on its morning run. Everything below fills in on its own once the sheet lands.
+            No hitters on the board yet. Everything below fills in once tonight’s slate posts.
           </div>
         ) : (
           <Headlines players={players} headline={headline} results={results} isLive={isLive} airRanked={airRanked} odds={odds} onPlayerClick={onPlayerClick} onNavigate={onNavigate} />
@@ -1644,7 +1649,7 @@ export default function Home({
              It is the lead ONLY. The other three calls, the ISO lens and the
              traps stay on the Bot page, so Home keeps its shape and The Read
              keeps its length. Nothing that was on this page moved or left. ── */}
-      <Fold id="read" title="📰 The Read" meta="the bot's single best call tonight">
+      <Fold id="read" title="📰 The Read" meta="MOONSHOT's single best call tonight">
         <ReadTeaser players={players} onNavigate={onNavigate} onPlayerClick={onPlayerClick} />
       </Fold>
 
@@ -1673,7 +1678,7 @@ export default function Home({
       {/* The moneyline log is folded like the other two and titled like what it
           is. It says "disagrees", not "picks", because the simulation says the
           model has no demonstrated edge — only a record being built in public. */}
-      <Fold id="moneyline" title="💰 Where the model disagrees" meta="game lines vs the bot — logged and graded, not tipped">
+      <Fold id="moneyline" title="💰 Where the model disagrees" meta="game lines vs MOONSHOT — logged and graded, not tipped">
         {/* MoneylineBoard was mounted here until 2026-09-06 -- Donovan: "if easy just remove". The
             model and its log live on (bots/moneyline_bot.py, moneyline_board.json); only the panel is gone. */}
       </Fold>
@@ -1691,7 +1696,7 @@ export default function Home({
             <span style={{ minWidth: 0 }}>
               <b style={{ color: '#60a5fa' }}>Your night</b> — you have{' '}
               <b style={{ color: C.text, fontFamily: NUM_FONT }}>{mine.length}</b> call{mine.length === 1 ? '' : 's'} riding
-              against the bot on this slate:{' '}
+              against MOONSHOT on this slate:{' '}
               {mine.slice(0, 3).map((m, i) => (
                 <span key={i}>
                   {i > 0 && ', '}
@@ -1721,16 +1726,13 @@ export default function Home({
         }}>
           <div style={{ fontSize: TYPE.name, fontWeight: 800, marginBottom: 5 }}>Nothing on the board yet</div>
           <div style={{ fontSize: TYPE.body, color: C.text2, lineHeight: 1.65, maxWidth: 620 }}>
-            The bot builds tonight&apos;s slate on its morning run. Once it publishes, this page fills
-            in with the headline game, the top angles, and the HR and hit leaderboards. Until then,
-            the doors below still work, and the record has every graded night behind it.
+            Tonight&apos;s slate posts in the morning. Until then, the pages below still work, and the record has every graded night behind it.
           </div>
         </div>
       )}
 
       <div style={{ fontSize: TYPE.micro, color: C.text3, marginTop: 12, lineHeight: 1.5 }}>
-        Everything here comes from tonight&apos;s slate file, the live feed, or the bot&apos;s own sheet,
-        and never a guess. Hover any number for what it is and where it&apos;s from.
+        Every number is real, never a guess. Tap any number for what it is.
       </div>
       </>}
     </div>

@@ -221,9 +221,8 @@ export default function AltLooks({ players = [], boardIds = new Set(), onPlayerC
         </span>
       </div>
       <div style={{ fontSize: 9.5, color: C.text3, marginBottom: 9, lineHeight: 1.5 }}>
-        The bot&apos;s own section from the breakdown sheet, rebuilt with its formulas: hitters who
-        didn&apos;t make the board and aren&apos;t a game pick, but clear one of three bars. Use as
-        quality variance, not primary plays — the bot&apos;s words. One per game per group.
+        Hitters who didn&apos;t make the board and aren&apos;t a game pick, but clear one of three bars.
+        Quality variance, not primary plays. One per game per group.
       </div>
 
       {/* LANES (2026-08-07): one grid, each group a colored column — the six

@@ -164,8 +164,8 @@ function Scorebug({ players, results, games, mode, slateDate, runMeta, onPlayerC
 
   const items = []
   items.push({ k: 'games', label: 'games', value: stats.gameCount, nav: 'games', title: 'Games on this slate' })
-  if (proj != null) items.push({ explain: true, k: 'proj', label: 'Expected HRs', value: proj, color: '#f97316', nav: 'board', title: `${modelHr != null ? `The site's model projects ${modelHr.toFixed(1)} home runs across this slate. ` : ''}${projection ? `The bot's sheet says ${projection.low}–${projection.high}, power grade ${projection.grade || 'n/a'}.` : ''}` })
-  items.push({ explain: true, k: 'cap', label: 'HRs on board', value: captured ? `${onBoardHrs}/${stats.actual}` : stats.actual > 0 ? `${stats.actual} HR` : 'no HR yet', color: capCol, live: true, nav: 'calledledger', title: captured ? `${onBoardHrs} of the slate's ${stats.actual} home runs so far were CALLED or ON THE BOARD (the top third of that night's board) before first pitch (${pct.toFixed(0)}%) -- the same count as the Called page. Fewer games are in while the slate is live.` : 'How many of tonight\'s home runs the board had before first pitch — fills in when the first one lands.' })
+  if (proj != null) items.push({ explain: true, k: 'proj', label: 'Expected HRs', value: proj, color: '#f97316', nav: 'board', title: `${modelHr != null ? `The site's model projects ${modelHr.toFixed(1)} home runs across this slate. ` : ''}${projection ? `MOONSHOT's sheet says ${projection.low}–${projection.high}, power grade ${projection.grade || 'n/a'}.` : ''}` })
+  items.push({ explain: true, k: 'cap', label: 'HRs on board', value: captured ? `${onBoardHrs}/${stats.actual}` : stats.actual > 0 ? `${stats.actual} HR` : 'no HR yet', color: capCol, live: true, nav: 'calledledger', title: captured ? `${onBoardHrs} of the slate's ${stats.actual} home runs so far were CALLED or ON THE BOARD (the top third of that night's board) before first pitch (${pct.toFixed(0)}%) — the same count as the Called page. Fewer games are in while the slate is live.` : 'How many of tonight\'s home runs the board had before first pitch — fills in when the first one lands.' })
   // live scores ride between the facts and the headlines: live first, finals after
   const scores = scoreOrder(live.items, 'mlb')
   for (const i of scores.live) items.push({ k: i.k, hash: i.hash, label: i.sub || 'live', value: i.text, icon: i.icon, color: i.col, live: true, sport: i.sport, nav: 'scoreboard', title: i.kind === 'leader' ? `Leading tonight's line for this game` : (i.sport === 'nfl' ? 'Live on TUDDY — tap to switch' : 'Live — tap for the Live page') })
@@ -186,7 +186,7 @@ function Scorebug({ players, results, games, mode, slateDate, runMeta, onPlayerC
       const ageMin = Math.max(0, Math.round((Date.now() - builtMs) / 60000))
       const ageText = ageMin < 1 ? 'just now' : ageMin < 60 ? `${ageMin}m ago` : `${Math.floor(ageMin / 60)}h ${ageMin % 60}m ago`
       const builtStale = ageMin > 180
-      items.push({ explain: true, k: 'built', label: 'built', value: ageText, color: builtStale ? '#f87171' : C.text3, title: `Board last built ${new Date(builtMs).toLocaleString([], { hour: 'numeric', minute: '2-digit', month: 'short', day: 'numeric' })}${builtStale ? ' -- over 3h old' : ''}` })
+      items.push({ explain: true, k: 'built', label: 'built', value: ageText, color: builtStale ? '#f87171' : C.text3, title: `Board last built ${new Date(builtMs).toLocaleString([], { hour: 'numeric', minute: '2-digit', month: 'short', day: 'numeric' })}${builtStale ? ' — over 3h old' : ''}` })
     }
   }
   items.push({ explain: true, k: 'weak', label: 'weak', value: `★${stats.weak}`, color: '#FCD34D', nav: 'board', title: 'Weak-spot matchups on the slate' })

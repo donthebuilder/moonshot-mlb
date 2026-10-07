@@ -462,12 +462,12 @@ export default function PitchBreakdown({ player, detail = null }) {
         }}>
           <span style={{ color: '#f87171', fontWeight: 900 }}>🔴 Live Statcast pull</span>
           <span>
-            he isn&apos;t in the bot&apos;s cache for this slate, so this table is built from his
-            batted balls straight off Savant. Balls in play, HR, exit velo, hard-hit% and barrel%
+            this table is built from his
+            batted balls, pulled live from Statcast. Balls in play, HR, exit velo, hard-hit% and barrel%
             are all real counts over those balls.{' '}
             <b style={{ color: C.text2 }}>BA, xwOBA, whiff%, K% and usage% are blank on purpose</b> —
             they need plate appearances or every pitch thrown, and a batted-ball export has neither.
-            They will fill in when the bot publishes this hitter&apos;s profile.
+            They will fill in when MOONSHOT publishes this hitter&apos;s profile.
           </span>
         </div>
       )}

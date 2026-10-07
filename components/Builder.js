@@ -205,7 +205,7 @@ export default function Builder({
         <span className="chip-row" style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
           {[
             ['both', 'Both', 'The ticket table and the partner history together — the default, because they answer different questions about the same build.'],
-            ['tickets', '🎟 Tickets', 'Crossed designations only: pick two or more of the bot’s five groups and get the tickets they make.'],
+            ['tickets', '🎟 Tickets', 'Crossed designations only: pick two or more of MOONSHOT’s five groups and get the tickets they make.'],
             ['partners', '🤝 Partners', 'Same-game history only: every hitter on the slate ranked by how they have done alongside your anchors. Works for ANY hitter, designated or not.'],
           ].map(([k, label, tip]) => (
             <button key={k} onClick={() => pickView(k)} title={tip} style={{
@@ -234,7 +234,7 @@ export default function Builder({
           )}
           {/* Who the search offers. Two honest pools, stated. */}
           <span style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
-            {[['picks', 'Bot picks'], ['anyone', 'Anyone on the slate']].map(([k, label]) => (
+            {[['picks', 'MOONSHOT picks'], ['anyone', 'Anyone on the slate']].map(([k, label]) => (
               <button key={k} onClick={() => setPoolMode(k)} style={{
                 padding: '3px 10px', borderRadius: 999, cursor: 'pointer', fontSize: 9.5,
                 fontWeight: 800, fontFamily: NUM_FONT,
@@ -265,7 +265,7 @@ export default function Builder({
                 {clean(pins[0]?.opponent_team, '') ? ` vs ${clean(pins[0].opponent_team, '')}` : ''}
                 {clean(pins[0]?.pitcher_name, '') ? ` · ${clean(pins[0].pitcher_name, '')}` : ''}
                 {mkt.score(pins[0]) ? ` · ${mkt.short} ${mkt.score(pins[0]).toFixed(1)}` : ''}
-                {clean(pins[0]?.game_pick_role, '') ? ` · ${clean(pins[0].game_pick_role, '')}` : ' · not a bot pick'}
+                {clean(pins[0]?.game_pick_role, '') ? ` · ${clean(pins[0].game_pick_role, '')}` : ' · not a MOONSHOT pick'}
               </div>
             </div>
             <button onClick={() => dropPin(pins[0])} title={`Remove ${nameOf(pins[0])}`} style={{
@@ -292,7 +292,7 @@ export default function Builder({
                   style={{ fontSize: 11.5, cursor: onPlayerClick ? 'pointer' : 'default' }}
                 >{nameOf(p)}</b>
                 <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>
-                  {teamOf(p)}{clean(p?.game_pick_role, '') ? ` · ${clean(p.game_pick_role, '')}` : ' · not a bot pick'}
+                  {teamOf(p)}{clean(p?.game_pick_role, '') ? ` · ${clean(p.game_pick_role, '')}` : ' · not a MOONSHOT pick'}
                 </span>
                 <button onClick={() => dropPin(p)} title={`Remove ${nameOf(p)}`} style={{
                   border: 'none', background: 'transparent', color: C.text3, cursor: 'pointer',
@@ -337,7 +337,7 @@ export default function Builder({
                   <button
                     key={playerId(p2)}
                     onClick={() => (on ? dropPin(p2) : addPin(p2))}
-                    title={`${nameOf(p2)} — ${teamOf(p2)}${role ? ` · ${role}` : ' · not a bot pick'} · ${mkt.short} ${mkt.score(p2).toFixed(0)}. ${on ? 'Click to remove.' : 'Click to build around him.'}`}
+                    title={`${nameOf(p2)} — ${teamOf(p2)}${role ? ` · ${role}` : ' · not a MOONSHOT pick'} · ${mkt.short} ${mkt.score(p2).toFixed(0)}. ${on ? 'Click to remove.' : 'Click to build around him.'}`}
                     style={{
                       padding: '3px 8px', borderRadius: 6, cursor: 'pointer',
                       fontSize: 10.5, fontWeight: 700, whiteSpace: 'nowrap',
@@ -352,7 +352,7 @@ export default function Builder({
                       {mkt.score(p2).toFixed(0)}
                     </span>
                     {!role && (
-                      <span title="Not one of the bot's designations — he can anchor the partner view but cannot hold a leg in a group ticket"
+                      <span title="Not one of MOONSHOT's designations — he can anchor the partner view but cannot hold a leg in a group ticket"
                         style={{ color: C.text3, marginLeft: 4, fontSize: 9 }}>·</span>
                     )}
                   </button>
@@ -370,7 +370,7 @@ export default function Builder({
               <span style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.5 }}>
                 Sorted by tonight&apos;s <b style={{ color: C.text2 }}>{mkt.label}</b> score
                 {market === 'hr' ? '' : ' — the market picked in the partner panel below'}.
-                {poolMode === 'anyone' && <> A <b style={{ color: C.text2 }}>·</b> means he is not one of the bot&apos;s designations — he can anchor the partner view but cannot hold a group leg.</>}
+                {poolMode === 'anyone' && <> A <b style={{ color: C.text2 }}>·</b> means he is not one of MOONSHOT&apos;s designations — he can anchor the partner view but cannot hold a group leg.</>}
               </span>
             </div>
           </>
@@ -414,8 +414,8 @@ export default function Builder({
         {freePins.length > 0 && (
           <div style={{ fontSize: 10, color: C.text3, marginTop: 6, lineHeight: 1.6 }}>
             {freePins.map(nameOf).join(', ')} {freePins.length === 1 ? 'is' : 'are'} not among the
-            bot&apos;s designations, so {freePins.length === 1 ? 'he' : 'they'} can&apos;t hold a leg in a
-            group ticket — group tickets are built out of the bot&apos;s own picks. {freePins.length === 1 ? 'He is' : 'They are'} loaded
+            MOONSHOT&apos;s designations, so {freePins.length === 1 ? 'he' : 'they'} can&apos;t hold a leg in a
+            group ticket — group tickets are built out of MOONSHOT&apos;s own picks. {freePins.length === 1 ? 'He is' : 'They are'} loaded
             into <b style={{ color: C.text2 }}>Who has history with them</b> below instead.
           </div>
         )}
