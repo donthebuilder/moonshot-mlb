@@ -36,10 +36,16 @@ export default function PlayerBoardFrame({
   const [query, setQuery] = useState('')
   const [selectedId, setSelectedIdRaw] = useState(null)
   const [ask, setAsk] = useState(null)
+  // A `player=` in the address that nobody in `rows` has (a link to a man who isn't in this list). The page used
+  // to fall back to the FIRST row on desktop, so a link to nobody opened somebody else's card (audit 2026-10-06:
+  // NFL #sport=nfl&tab=players&player=00-0033873 showed NO SUCH PLAYER over Brock Bowers). While it is set and
+  // unmatched, no card opens; the notice the sport passes says why. Cleared the moment anyone is picked.
+  const [wantRaw, setWantRaw] = useState(() => (typeof window === 'undefined' ? null : hashParams().get('player')))
 
   // THE PICK IS IN THE ADDRESS (2026-09-29, nav audit): `player=<id>`.
   const setSelectedId = (id) => {
     setSelectedIdRaw(id)
+    setWantRaw(null)
     const h = hashParams()
     const row = id ? rows.find((p) => idOf(p) === id) : null
     if (row) h.set('player', String(urlIdOf(row))); else h.delete('player')
@@ -49,6 +55,7 @@ export default function PlayerBoardFrame({
     if (selectedId || !rows.length) return
     const want = hashParams().get('player')
     const row = want ? rows.find((p) => String(urlIdOf(p)) === String(want)) : null
+    setWantRaw(want)
     if (row) setSelectedIdRaw(idOf(row))
   }, [rows]) // eslint-disable-line react-hooks/exhaustive-deps
   // BACK CLOSES THE FILE (0g B1, 2026-10-01). A pick pushes player= onto the
@@ -59,6 +66,7 @@ export default function PlayerBoardFrame({
     const sync = () => {
       const want = hashParams().get('player')
       const row = want ? rows.find((p) => String(urlIdOf(p)) === String(want)) : null
+      setWantRaw(want)
       setSelectedIdRaw(row ? idOf(row) : null)
     }
     window.addEventListener('hashchange', sync)
@@ -94,7 +102,8 @@ export default function PlayerBoardFrame({
   const shownScores = matches.map((p) => Number(scoreOf(p)) || 0)
   const sLo = Math.min(...shownScores, 0)
   const sHi = Math.max(...shownScores, 1)
-  const selected = phone ? picked : (picked || matches[0] || null)
+  const unknownWanted = Boolean(wantRaw) && !rows.some((p) => String(urlIdOf(p)) === String(wantRaw))
+  const selected = phone ? picked : (picked || (unknownWanted ? null : matches[0]) || null)
   const showList = !phone || !selected
   const showDetail = !phone || !!selected
   const tint = (a) => (themed ? alpha(accent, a) : `rgba(249,115,22,${String(a).replace(/^0/, '')})`)
@@ -105,7 +114,7 @@ export default function PlayerBoardFrame({
       <div className="playerboard-side" style={{ position: 'sticky', top: 12 }}>
         {/* on a phone the list is the only pane until a player is picked -- the
             notice (e.g. NO SUCH PLAYER) has to show here too (audit J6) */}
-        {!showDetail && notice}
+        {!showDetail && (notice || (unknownWanted ? <div role="status" style={{ margin: '0 0 10px', fontSize: 12, color: C.text2 }}><b style={{ color: C.text }}>NO SUCH {noun.toUpperCase()}</b> -- {String(wantRaw).slice(0, 24)} isn&apos;t in this list.</div> : null))}
         {sideTop}
         <input
           style={{ ...inputStyle(), width: '100%', marginBottom: 6 }}
@@ -188,7 +197,11 @@ export default function PlayerBoardFrame({
 
       {showDetail && (
       <div>
-        {notice}
+        {notice || (unknownWanted ? (
+          <div role="status" style={{ margin: '0 0 10px', padding: '10px 12px', border: `1px solid ${C.border}`, borderLeft: `3px solid ${C.yellow}`, borderRadius: 10, background: C.bg2, fontSize: 12, color: C.text2, lineHeight: 1.5 }}>
+            <b style={{ color: C.text, letterSpacing: '.06em', fontSize: 10 }}>NO SUCH {noun.toUpperCase()}</b> -- <b style={{ color: C.text, fontFamily: NUM_FONT }}>{String(wantRaw).slice(0, 24)}</b> isn&apos;t in this list. Pick anyone from it.
+          </div>
+        ) : null)}
         {phone && selected && (
           <button onClick={() => setSelectedId(null)} className="tap-row" style={{
             display: 'flex', alignItems: 'center', gap: 7, marginBottom: 10,
