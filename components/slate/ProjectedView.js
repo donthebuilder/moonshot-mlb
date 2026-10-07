@@ -32,8 +32,8 @@ export default function ProjectedView({
   const podium = rows.slice(0, 3)
   const openOf = (r) => (by === 'game' ? (onOpenGame && r._pk != null ? () => onOpenGame(r._pk) : null) : (onOpenTeam && r._team ? () => onOpenTeam(r._team) : null))
   const pal = palette || {
-    color: { hot: accent, warm: accent, cool: C.blue, cold: C.blue },
-    bg: { hot: alpha(accent, 0.15), warm: alpha(accent, 0.08), cool: alpha(C.blue, 0.12), cold: alpha(C.blue, 0.08) },
+    color: { hot: accent, warm: accent, cool: C.text2, cold: C.text3 },
+    bg: { hot: alpha(accent, 0.15), warm: alpha(accent, 0.08), cool: alpha(C.text3, 0.12), cold: alpha(C.text3, 0.08) },
   }
   const pills = pillCols || new Set([primary, ...(adj ? [adj] : [])])
 

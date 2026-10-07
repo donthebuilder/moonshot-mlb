@@ -164,7 +164,7 @@ export default function Results({ onOpenPlayer }) {
                 const p = b.n ? (100 * b.ok) / b.n : null
                 const ci = wilson(b.ok, b.n)
                 const resolved = !!ci && !(ci[0] <= base && base <= ci[1])
-                return { _key: b.label, ...b, rate: p, ci, resolved, tint: bandTint(p == null ? null : p - base, claims && resolved, C) }
+                return { _key: b.label, ...b, rate: p, ci, resolved, tint: bandTint(p == null ? null : p - base, claims && resolved, C, C.ice) }
               })}
               footRows={[{ label: 'all dressed', n: T.dressed, ok: T.scorers, rate: T.dressed ? (100 * T.scorers) / T.dressed : null }]}
               columns={[

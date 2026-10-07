@@ -42,7 +42,7 @@ export default function BucketsTicker({ date = null, scores, liveScores, onOpenP
   }, [date, board.data, leaders.data, scores?.data, liveScores?.data, onOpenPlayer, onOpenGame])
 
   if (!items.length) return null
-  const Pill = ({ it, echo }) => <TickerPill sport={it.sport || 'nba'} label={it.label} value={it.value} icon={it.icon} color={it.color} live={it.live} title={it.title} echo={echo} onClick={it.onClick} theme={C} numFont={NUM_FONT} />
+  const Pill = ({ it, echo }) => <TickerPill sport={it.sport || 'nba'} label={it.label} value={it.value} icon={it.icon} accent={C.purple} color={it.color} live={it.live} title={it.title} echo={echo} onClick={it.onClick} theme={C} numFont={NUM_FONT} />
   return (
     <div className="hdr-scorebug buckets-ticker" ref={trackRef}
       style={{ overflowX: 'auto', overflowY: 'hidden', scrollbarWidth: 'none', lineHeight: 1, maxWidth: '100%',

@@ -26,21 +26,23 @@ import { lockedCallsLine } from '../lib/record/lockedRecord'
 // ── COLOUR ENCODES LIFT, NOT RATE ───────────────────────────────────────────
 //
 // What matters is the DEVIATION from an outcome's own base rate, so the ramp
-// is diverging and centred on the base, per column. Cyan above, red below, and
+// is diverging and centred on the base, per column. Accent above, grey below, and
 // the number is always printed — colour is the second telling, never the only
 // one. A cell with no claim is drawn flat.
 
 // The same tint for another sport's theme (2026-09-29, parity: TUDDY's score
 // bands are this table now). MOONSHOT (no theme) gets exactly the strings it
 // always did; a sport theme gets its own cyan and red at the same alphas.
-export function bandTint(lift, claims, T = null) {
+export function bandTint(lift, claims, T = null, accent = null) {
   const K = T || C
   if (!claims || lift == null) return { bg: 'transparent', fg: K.text3 }
   const t0 = Math.max(-1, Math.min(1, lift / 10))
   if (Math.abs(t0) < 0.08) return { bg: 'transparent', fg: K.text2 }
   if (T) {
     const a0 = Math.abs(t0)
-    return { bg: alpha(t0 > 0 ? K.cyan : K.red, 0.07 + 0.3 * a0), fg: t0 > 0 ? K.cyan : K.red }
+    // ONE ACCENT (2026-10-07 sweep): a lift above the base glows in the product's accent, one below recedes to grey.
+    const ac = accent || K.orange || K.green || K.ice
+    return { bg: alpha(t0 > 0 ? ac : K.text3, 0.07 + 0.3 * a0), fg: t0 > 0 ? ac : K.text3 }
   }
   return mlbTint(lift, claims)
 }
@@ -52,10 +54,10 @@ function mlbTint(lift, claims) {
   const t = Math.max(-1, Math.min(1, lift / 10))
   const a = Math.abs(t)
   if (a < 0.08) return { bg: 'transparent', fg: C.text2 }
-  const hue = t > 0 ? '34,211,238' : '248,113,113'
+  // ONE ACCENT (2026-10-07 sweep): above the base glows in the accent, below recedes to grey.
   return {
-    bg: `rgba(${hue},${(0.07 + 0.3 * a).toFixed(3)})`,
-    fg: t > 0 ? C.cyan : C.red,
+    bg: alpha(t > 0 ? C.orange : C.text3, 0.07 + 0.3 * a),
+    fg: t > 0 ? C.orange : C.text3,
   }
 }
 

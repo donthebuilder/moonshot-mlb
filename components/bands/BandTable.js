@@ -43,7 +43,7 @@ export default function BandTable({ rows, columns, theme, numFont = MLB_NUM, fir
     const p = (100 * b.ok) / b.n
     const ci = wilson(b.ok, b.n)
     const resolved = !!ci && !(ci[0] <= r.base && r.base <= ci[1])
-    return { b, p, ci, resolved, tint: bandTint(p - r.base, r.claims && resolved, C) }
+    return { b, p, ci, resolved, tint: bandTint(p - r.base, r.claims && resolved, C, accent) }
   }
   return (
     <DenseTable bare noGroups tight heatMode="sorted" maxHeight={9999} maxRows={Math.max(rows.length, 1)} accent={accent}

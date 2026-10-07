@@ -33,17 +33,19 @@ export default function TickerPill({
   label,
   value,
   icon = null,
-  color = null,
+  color: color0 = null,
   live = false,
   title = null,
   onClick = null,
   echo = false,
   theme = null,
   numFont = null,
+  accent = null,  // set: ONE-ACCENT mode -- any colour that is not a grey ink draws in this accent (2026-10-07 sweep)
   sport = null,   // set: a value that is a game or a club draws as logos (components/TeamMark asLogos)
 }) {
   const T = theme || MLB_C
   const NF = numFont || MLB_NUM
+  const color = accent && color0 && ![T.text, T.text2, T.text3].includes(color0) ? accent : color0
   const col = color || T.text3
   const box = {
     display: 'inline-grid', gridTemplateColumns: '8px auto', alignItems: 'center', columnGap: 6,

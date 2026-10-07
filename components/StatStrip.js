@@ -1,6 +1,6 @@
 'use client'
 import { useSportTheme } from './SportTheme'
-import { statLineFor, hrRateBoxes, useSlateScale, toneFor, toneTitle, TONE_COLOR, marketKey } from '../lib/statline'
+import { statLineFor, hrRateBoxes, useSlateScale, toneFor, toneTitle, marketKey } from '../lib/statline'
 
 // 📊 The stat row that now leads every card. See lib/statline.js for why.
 //
@@ -10,8 +10,8 @@ import { statLineFor, hrRateBoxes, useSlateScale, toneFor, toneTitle, TONE_COLOR
 //   1. LABEL ABOVE, NUMBER BELOW. Not "Barrel 24.3%" on one line — the eye
 //      scans a column of numbers far faster than it parses label-value pairs,
 //      and the label only has to be read once.
-//   2. COLOUR IS THE WHOLE POINT. Green helps this bat tonight, red doesn't,
-//      grey is middling. Ranked against tonight's slate, never against an
+//   2. COLOUR IS THE WHOLE POINT. The accent helps this bat tonight, dim grey
+//      doesn't, grey is middling. Ranked against tonight's slate, never against an
 //      invented league baseline. Every chip's tooltip says so.
 //   3. NOTHING RENDERS EMPTY. A stat with no published value is dropped, not
 //      dashed. Four dashes in a row is worse than three stats.
@@ -23,7 +23,9 @@ import { statLineFor, hrRateBoxes, useSlateScale, toneFor, toneTitle, TONE_COLOR
 // wrap: labels may take two lines instead of an ellipsis (other sports' longer
 // component names -- "Implied team total"); MOONSHOT never sets it.
 export default function StatStrip({ p, type = 'hr', count = 4, size = 'md', style, stats: given, wrap = false }) {
-  const { C, NUM_FONT } = useSportTheme()
+  const { C, NUM_FONT, accent } = useSportTheme()
+  // ONE ACCENT (2026-10-07 sweep): helps tonight = the product's accent, hurts tonight = grey (never red/green).
+  const toneInk = { good: accent, mid: C.text2, poor: C.text3 }
   const scale = useSlateScale()
   const stats = given || statLineFor(p, type, count)
   if (!stats.length) return null
@@ -43,7 +45,7 @@ export default function StatStrip({ p, type = 'hr', count = 4, size = 'md', styl
         // Caller's stats: its colour, or neutral when it gives none (a line
         // that isn't ranked against anything stays grey, rule 2 above).
         const tone = given ? (s.color ? 'set' : null) : toneFor(scale, s)
-        const col = s.color || (tone ? TONE_COLOR[tone] : C.text2)
+        const col = s.color || (tone ? toneInk[tone] : C.text2)
         return (
           <div
             key={s.id}

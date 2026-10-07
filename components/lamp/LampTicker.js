@@ -79,7 +79,7 @@ export default function LampTicker({ date = null, scores, liveScores, onOpenPlay
   // (LAMP layout shift, 2026-10-06). Nothing to say once every feed has answered.
   if (!items.length) return (board.loading || leaders.loading) ? <div aria-hidden="true" className="hdr-scorebug lamp-ticker" style={{ height: 32 }} /> : null
   const Pill = ({ it, echo }) => (
-    <TickerPill sport={it.sport || 'nhl'} label={it.label} value={it.value} icon={it.icon} color={it.color} live={it.live} title={it.title} echo={echo} onClick={it.onClick} theme={C} numFont={NUM_FONT} />
+    <TickerPill sport={it.sport || 'nhl'} label={it.label} value={it.value} icon={it.icon} accent={C.ice} color={it.color} live={it.live} title={it.title} echo={echo} onClick={it.onClick} theme={C} numFont={NUM_FONT} />
   )
   return (
     // the shell is components/Ticker.js (R9 #4)

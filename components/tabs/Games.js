@@ -34,7 +34,7 @@ import PairTray from '../PairTray'
 import MobileFold, { useIsPhone } from '../MobileFold'
 import GameSwitcher from '../GameSwitcher'
 import { ViewPills, GameFilterRail, BASE_GAME_FILTERS, StripFold, GamePanelPills, PrevNextGame } from '../slate/SlateParts'
-import { statLineFor, useSlateScale, toneFor, toneTitle, TONE_COLOR } from '../../lib/statline'
+import { statLineFor, useSlateScale, toneFor, toneTitle } from '../../lib/statline'
 import { downloadGameCard } from '../shareCard'
 import ProjectedOutput from '../ProjectedOutput'
 import TeamMark, { MatchLogos } from '../TeamMark'
@@ -52,7 +52,7 @@ function StatChip({ p, cat, col, score, onClick, label, odds = null }) {
   const scale = useSlateScale()
   const lead = statLineFor(p, cat, 1)[0] || null
   const tone = lead ? toneFor(scale, lead) : null
-  const statCol = lead ? (tone ? TONE_COLOR[tone] : C.text2) : C.text3
+  const statCol = lead ? (tone === 'good' ? C.orange : tone === 'poor' ? C.text3 : C.text2) : C.text3
   return (
     <button onClick={onClick} title={lead ? toneTitle(tone, scale, lead) : undefined} style={{
       display: 'flex', flexDirection: 'column', gap: 2, cursor: 'pointer', minWidth: 0,
