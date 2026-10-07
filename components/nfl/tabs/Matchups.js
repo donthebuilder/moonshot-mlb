@@ -275,7 +275,7 @@ export function PassGame({ matchup, data, off, def, onPlayerClick = null }) {
   // MobileFold); on a desktop it renders exactly as before.
   const top = tg[0] ? (rowOf(tg[0].player_id)?.name || tg[0].name) : null
   return (
-    <MobileFold title="Top targets · corners" summary={top ? `${top} vs ${def}'s corners` : `${off} vs ${def}'s corners`} count={tg.length + cb.length} accent={C.green}>
+    <MobileFold title="Top targets · corners" summary={`${off} vs ${def}'s corners`} count={tg.length + cb.length} accent={C.green}>
     <div style={{ marginBottom: 12 }}>
       <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))' }}>
         <div>
