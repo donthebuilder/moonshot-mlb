@@ -12,7 +12,7 @@ import BoardFilters, { useBoardFilter } from '../BoardFilters'
 import { xpaFor, XPA_TITLE } from '../../lib/xpa'
 import AltLooks from '../AltLooks'
 import DenseTable from '../DenseTable'
-import { boardRow, boardRowContext, withBoardColumns } from '../../lib/boardColumns'
+import { boardRow, boardRowContext, withBoardColumns, BOARD_GROUPS, applyColumnView, columnViewKey, COLUMN_VIEWS } from '../../lib/boardColumns'
 import { heatModeFromUrl } from '../../lib/heatMode'
 import { uniqueByPerson, gameNumbers, gameNumOf, doubleheaderNote } from '../../lib/doubleheader'
 import { SCORE } from '../../lib/scales'
@@ -85,6 +85,15 @@ const CAT_OMIT = {
   default: ['hrw', 'pHR9', 'hrsc'],
   hr: ['hrw', 'pHR9', 'hrsc', 'iso'],
 }
+// RANKINGS (2026-10-07): the category set repeated nine columns the board's own groups already carry
+// (L5 AVG, L10 AVG, Szn AVG, Pwr-3, HR L5 / L10, Park, Since HR ...), the same number twice under the same
+// label. On Rankings the board's copy wins and the set keeps only what the board lacks. The rest of the
+// set's columns land in the board's groups instead of one lump called "This board".
+const CAT_DUPES = ['p3', 'hrL5', 'hrL10', 'a5', 'a10', 'aSzn', 'obp', 'iso', 'slg', 'k', 'spot', 'brl', 'ev', 'park', 'since', 'h5', 'pWHIP']
+const CAT_GROUP = {
+  hrBBE: 'season', maxEV: 'statcast', hard: 'statcast', aArm: 'hand', h10: 'form', xbh5: 'form', xbh10: 'form',
+  rbi5: 'form', r5: 'form', pK: 'arm', hrsc: 'scores',
+}
 
 // RANKINGS (2026-10-06, the Boards + Rankings merge). `rankings` is this board dressed as the one
 // Rankings page: its own title and subtitle, every hitter on The Board lens (no 60-row cut), the
@@ -107,7 +116,7 @@ const pctAmong = (vals, v) => {
   return Math.round((100 * (lt + (eq + 1) / 2)) / vals.length)
 }
 
-export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watchIds, onPlayerClick, onOpenPitcher = null, limit = 60, slateDate = null, filterState = null, setupHomers, onOpenCard = null, rankings = false, compact = false, slate = null, viewMode: viewProp = null, onViewMode = null }) {
+export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watchIds, onPlayerClick, onOpenPitcher = null, limit = 60, slateDate = null, filterState = null, setupHomers, onOpenCard = null, rankings = false, compact = false, colsView = 'all', onColsView = null, slate = null, viewMode: viewProp = null, onViewMode = null }) {
   // 🔁 PROVEN, NOT INFERRED. This column read `games_since_last_hr === 0`
   // directly, which lib/b2b.js exists to stop: the field means "he homered in
   // his most recent game", and on a slate rebuilt after the 12:05 window that
@@ -141,6 +150,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
   const [ownView, setOwnView] = useState('list')
   const viewMode = viewProp ?? ownView
   const setViewMode = onViewMode ?? setOwnView
+  const catOmit = [...(CAT_OMIT[type] || CAT_OMIT.default), ...(rankings ? CAT_DUPES : [])]
   const whyOn = rankings && type === 'hr'
   // WHY: the sentence the player card already prints (lib/mlb/boardReason.js), ranked against the whole slate
   const whyPool = slate || players
@@ -270,7 +280,24 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
           </div>
           <div style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT, marginTop: 2 }}>{rankings ? `Who we rank tonight, and why.${type === 'hr' ? '' : ` ${title}: ${sub}.`}` : sub}</div>
         </div>
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+          {/* COLUMNS (2026-10-07): the same board laid out the way he reads it; rides the address as cols= */}
+          {rankings && onColsView && viewMode === 'list' && (
+            <div role="group" aria-label="Columns" style={{ display: 'inline-flex', gap: 4, alignItems: 'center', marginRight: 6 }}>
+              <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>Columns</span>
+              {COLUMN_VIEWS.map((v) => {
+                const on = columnViewKey(colsView) === v.key
+                return (
+                  <button key={v.key} type="button" onClick={() => onColsView(v.key)} aria-pressed={on} title={v.title} style={{
+                    padding: '4px 11px', fontSize: TYPE.label, fontWeight: 700, borderRadius: 7, cursor: 'pointer',
+                    border: `1px solid ${on ? C.orange : C.border}`,
+                    background: on ? 'rgba(249,115,22,.12)' : 'transparent',
+                    color: on ? C.orange : C.text3,
+                  }}>{v.label}</button>
+                )
+              })}
+            </div>
+          )}
           {/* 📸 SHARE (2026-08-23) — this board as a PNG, zero backend, same
               canvas mechanism as the Watchlist/Player share cards. */}
           {ranked.length > 0 && (
@@ -388,10 +415,10 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
               hr9Bbe: Number.isFinite(Number(p?.pitcher_xhr_bbe)) ? Number(p.pitcher_xhr_bbe) : null,
               // THE CATEGORY'S OWN STAT SET (2026-09-06) -- lib/categoryColumns.js.
               // Same keys, same order, on every table that shows this category.
-              ...categoryValues(p, type, { omit: CAT_OMIT[type] || CAT_OMIT.default }),
+              ...categoryValues(p, type, { omit: catOmit }),
             }
           })}
-          columns={withBoardColumns([
+          columns={applyColumnView(withBoardColumns([
             // ── THE WATCH COLUMN (2026-09-18) ──────────────────────────────
             // Donovan: "watch list button in general is not working." It was
             // not broken — on THIS board, the one he actually reads, it did
@@ -417,28 +444,28 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
               title: 'Which game of a doubleheader. G1 is the earlier first pitch. A hitter whose team plays twice appears once per game and both rows are real — his board rank is the same in both.' }] : []),
             ...(whyOn ? [{ ...whyColumn({
               textOf: (r) => (r._why?.why?.[0] ? `${r._why.why[0].text}.` : r._why?.watch ? `Against him: ${r._why.watch.text}.` : ''),
-              itemOf: whyItem, open: openWhy, theme: C, numFont: NUM_FONT, w: compact ? 200 : 230, group: WHY_GROUP,
+              itemOf: whyItem, open: openWhy, theme: C, numFont: NUM_FONT, w: compact ? 168 : 230, group: WHY_GROUP, tidy: true,
             }), fold: false }] : []),
             // The pitcher opens the PITCHER, not the hitter whose row he's in
             // (audit 00A P0: "Kyle Freeland" opened Murakami).
-            { key: 'facing', label: 'Facing', heat: false, w: 116, dim: true, link: (p) => (onOpenPitcher && p?.pitcher_id ? () => onOpenPitcher(p.pitcher_id) : null) },
-            { key: 'isPick', answers: 'called', label: '🤖', flag: true, mark: '●', w: 30,
+            { key: 'facing', group: BOARD_GROUPS.arm, label: 'Facing', heat: false, w: 116, dim: true, link: (p) => (onOpenPitcher && p?.pitcher_id ? () => onOpenPitcher(p.pitcher_id) : null) },
+            { key: 'isPick', group: BOARD_GROUPS.marks, answers: 'called', label: '🤖', flag: true, mark: '●', w: 30,
               title: `The bot's designated ${{ top: 'TOP', hr: 'HR', hit: 'HIT', hrr: 'HRR', tb: 'CONTACT', contact: 'CONTACT' }[type] || ''} pick tonight — THIS category's pick specifically, not any pick. A hitter picked in a different category shows in the Pick column instead.` },
-            { key: 'otherPick', label: 'Pick', heat: false, w: 46, mono: true, dim: true,
+            { key: 'otherPick', group: BOARD_GROUPS.signal, label: 'Pick', heat: false, w: 46, mono: true, dim: true,
               title: 'Picked tonight, but in a DIFFERENT category than this board — informational, not an endorsement here' },
-            { key: 'b2b', label: '🔁', flag: true, mark: '↻', w: 28,
+            { key: 'b2b', group: BOARD_GROUPS.marks, label: '🔁', flag: true, mark: '↻', w: 28,
               title: 'Homered on the night that would set this up, PROVEN from that day\u2019s graded file — not inferred from a slate field that means \u201chis most recent game\u201d and can mean today. A heads-up, not a signal: B2Bs are folklore-grade, the score columns are the evidence.' },
             { key: 'weak',   label: '★', flag: true, mark: '★', w: 28,
               title: ['hr', 'hrr'].includes(type)
                 ? 'Weak spot — a home-run flag: tonight’s starter has given up real damage to this lineup slot'
                 : 'Weak spot — a home-run flag. Shown for context on this board; it was not measured on this category\'s outcome.' },
-            { key: 'multiHit', label: '2️⃣', flag: true, mark: '2️⃣', w: 30,
+            { key: 'multiHit', group: BOARD_GROUPS.marks, label: '2️⃣', flag: true, mark: '2️⃣', w: 30,
               title: 'Multi-hit look — real contact skill (average, BABIP, K-rate, recent hit volume), lineup spot for actual at-bat volume, and a pitcher who\'s been hit hard this year (WHIP, AVG/OBP/BABIP allowed). New as of 2026-08-13 — unlike ★ weak spot, this hasn\'t been graded against the archive yet, so read it as a reasoned first cut, not a proven one.' },
             { key: 'aligned', label: '🧩', flag: true, mark: '◆', w: 28,
               title: ['hr', 'hrr'].includes(type)
                 ? 'Aligned — weak spot + pitch match + ISO ≥ .18'
                 : 'Aligned — the home-run stack. Context here, not proof: it was measured on homers, not this category.' },
-            { key: 'edgeF', label: '🎯', flag: true, mark: '●', w: 28,
+            { key: 'edgeF', group: BOARD_GROUPS.marks, label: '🎯', flag: true, mark: '●', w: 28,
               title: ['hr', 'hrr'].includes(type)
                 ? 'Pitch match — his damage pitches overlap tonight\'s arsenal'
                 : 'Pitch match — a home-run flag. Context on this board, not category proof.' },
@@ -449,25 +476,25 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
             // is. ISO keeps its own column: the audit's finding is real and
             // now it's VISIBLE next to the score instead of folded silently
             // into it.
-            { key: 'adj', answers: type === 'hr' ? 'mlb-hr' : null, label: type === 'hr' ? 'HR score' : 'Score', w: 56, dp: 1, ...SCORE, primary: true, art: type === 'hr' ? 'mlb-hr' : null,  // components/ScoreArt.js
+            { key: 'adj', group: BOARD_GROUPS.signal, answers: type === 'hr' ? 'mlb-hr' : null, label: type === 'hr' ? 'HR score' : 'Score', w: 56, dp: 1, ...SCORE, primary: true, art: type === 'hr' ? 'mlb-hr' : null,  // components/ScoreArt.js
               title: type === 'hr'
                 ? 'The bot’s own HR score — the number this board is ranked by. Read the ISO column beside it — a big score on thin power is the trap to watch for.'
                 : 'The score this board is ranked by' },
             ...(type !== 'hr' ? [
-              { key: 'hrRaw', label: 'HR sc', w: 48, dp: 1, ...SCORE,
+              { key: 'hrRaw', group: BOARD_GROUPS.signal, label: 'HR sc', w: 48, dp: 1, ...SCORE,
                 title: 'The bot’s HR score, for context on every board — this column never ranks here, but a high number means the power lane is live for him tonight too' },
             ] : []),
             ...(type === 'hr' ? [
-              { key: 'iso', label: 'ISO', w: 42, dp: 0, primary: true,
+              { key: 'iso', group: BOARD_GROUPS.season, label: 'ISO', w: 42, dp: 0, primary: true,
                 title: 'Season ISO ×100 — slugging minus batting average, so it measures extra-base pop with the singles stripped out. Read it WITH the score, not instead of it.' },
             ] : []),
-            { key: 'rec',    label: 'When picked', heat: false, w: 82, mono: true,
+            { key: 'rec', group: BOARD_GROUPS.signal,    label: 'When picked', heat: false, w: 82, mono: true,
               title: `His archive record when the bot designated him in this category — a rate at 3+ picks, a raw fraction under that.` },
-            { key: 'bestOther', label: 'Best other', heat: false, w: 66, mono: true, dim: true,
+            { key: 'bestOther', group: BOARD_GROUPS.scores, label: 'Best other', heat: false, w: 66, mono: true, dim: true,
               title: 'His strongest OTHER category tonight — if this number dwarfs his score here, he might be the wrong kind of bet' },
             { key: 'hrw', answers: 'mlb-hrw', label: 'HRW', w: 44, dp: 0, ...SCORE, primary: true },
-            { key: 'xpa',    label: 'xPA', w: 44, dp: 2, title: XPA_TITLE },
-            { key: 'l5',     label: 'L5', heat: false, w: 58, mono: true, dim: true },
+            { key: 'xpa', group: BOARD_GROUPS.season,    label: 'xPA', w: 44, dp: 2, title: XPA_TITLE },
+            { key: 'l5', group: BOARD_GROUPS.form,     label: 'L5', heat: false, w: 58, mono: true, dim: true },
             // ── #45: THE OUTLIER THAT FED THE NIGHT'S LEAD CALL ─────────
             // This column read 6.00 for one matchup while its neighbours sat
             // at 0.87, 1.10, 1.42, 1.47, 1.56 -- a visible outlier, unflagged,
@@ -478,7 +505,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
             // rate. The raw number stays -- it is real -- and now says it is
             // thin, which is the convention TUDDY already has and MOONSHOT
             // did not.
-            { key: 'hr9',    label: 'P HR/9', w: 58, dp: 2,
+            { key: 'hr9', group: BOARD_GROUPS.arm,    label: 'P HR/9', w: 58, dp: 2,
               title: 'The starter\u2019s home runs allowed per nine. A ⚠ means it is built on fewer than 50 tracked batted balls — thin enough that the regressed version is withheld on the Pitchers page.',
               fmt: (v, r) => {
                 const rate = Number(v)
@@ -494,10 +521,11 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
                   </span>
                 )
               } },
-            ...categoryColumns(type, { omit: CAT_OMIT[type] || CAT_OMIT.default }),
-          ], { onWatch, dhOn: dh.size > 0 })}
+            ...categoryColumns(type, { omit: catOmit }).map((c) => (rankings && CAT_GROUP[c.key.replace(/^cat_/, '')] ? { ...c, group: BOARD_GROUPS[CAT_GROUP[c.key.replace(/^cat_/, '')]] } : c)),
+          ], { onWatch, dhOn: dh.size > 0 }), colsView)}
           onRowClick={onPlayerClick}
           initialSort={whyOn ? { key: 'rank', dir: 'asc' } : type === 'hr' ? 'raw' : null}
+          sortUrlKey={rankings ? 'sort' : null}
           // the v2 skin's status stamp: the one rule (lib/callStatus), the bot's designation + his board place
           {...(whyOn ? { statusOf: (r) => callStatus({ role: r._raw?.game_pick_role, board_rank: r.rank, board_of: boardOf }), maxRows: Math.max(ranked.length, 1) } : null)}
           maxHeight={rankings ? 640 : 520}

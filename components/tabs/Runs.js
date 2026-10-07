@@ -1,12 +1,16 @@
 'use client'
 import Tap from '../Tap'
-import { Fragment, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../lib/theme'
 import { STATE, alpha } from '../../lib/scales'
 import { fetchJSON, groupGames } from '../../lib/data'
 import { clean, teamOf } from '../../lib/player'
 import { Empty } from '../ui'
-import { RunHistogram, RunLeaderCard, RunBoardRow, runChip as chip, runPct as pct } from '../runs/RunParts'
+import { RunHistogram, runChip as chip, runOdds } from '../runs/RunParts'
+import Sparkline from '../Sparkline'
+import DenseTable from '../DenseTable'
+import { boardRow, boardRowContext, withBoardColumns, placeAfter, BOARD_GROUPS } from '../../lib/boardColumns'
+import { useGameNav } from '../../lib/teamNav'
 // H and HRR are the game-log column indices donutStats reads. They were NOT in
 // this import when DonutLine first shipped — the build compiled clean, and the
 // ReferenceError at render killed the ENTIRE Patterns page. Caught by the
@@ -68,8 +72,9 @@ import { runsPaths, runsLookReal, readRun, marketOf, barLabel, MARKETS, H, HRR }
 // UNIVERSAL FILTER RECIPE (2026-08-23): tint through the theme accent via
 // STATE/alpha, not a baked ember rgba — see components/Filters.js.
 
+const RUN_GROUP = { key: 'run', label: 'The run', order: 1 }
+const DONUT_GROUP = { key: 'donut', label: 'The donut line', order: 1.3 }
 const SPLITS = [['all', 'All games'], ['D', 'Day'], ['N', 'Night'], ['H', 'Home'], ['A', 'Road']]
-const ORDERS = [['run', 'Run length'], ['team', 'Team'], ['game', 'Game']]
 
 /** A dropdown that looks like the header's team filter, at board scale. */
 function Picker({ label, value, onChange, options, title }) {
@@ -251,7 +256,6 @@ export default function Runs({ players = [], onPlayerClick, onOpenPitcher = null
   const [q, setQ] = useState('')
   const [team, setTeam] = useState('')
   const [game, setGame] = useState('')
-  const [order, setOrder] = useState('run')
   // 2026-08-24: "Breaks Allowed" — reuses the same 0/1/2/3 idiom as the
   // other streak board's tolerance control (the gold streaks board), wired
   // into Patterns specifically since it only ever lived on that other
@@ -350,36 +354,62 @@ export default function Runs({ players = [], onPlayerClick, onOpenPitcher = null
     .filter((x) => !team || String(x.p.team) === team)
     .filter((x) => !gameTeams || gameTeams.has(String(x.p.team))), [base, team, gameTeams])
 
-  // The board list, re-ordered. The featured cards below deliberately do NOT
-  // use this — they are "the longest runs in what you're looking at", and
-  // sorting them alphabetically would turn the page's answer into a roster.
-  const ordered = useMemo(() => {
-    if (order === 'run') return rows
-    const idx = (t) => byTeam.get(String(t))?.i ?? 999
-    return [...rows].sort((a, b) => {
-      if (order === 'team') {
-        const c = String(a.p.team || '').localeCompare(String(b.p.team || ''))
-        if (c) return c
-      } else {
-        const c = idx(a.p.team) - idx(b.p.team)
-        if (c) return c
-        const t = String(a.p.team || '').localeCompare(String(b.p.team || ''))
-        if (t) return t
-      }
-      return dir === 'hot' ? b.r.run - a.r.run : a.r.run - b.r.run
-    })
-  }, [rows, order, dir, byTeam])
+  const openGame = useGameNav()
+  const bctx = useMemo(() => boardRowContext(players || []), [players])
 
-  const groupOf = (x) => {
-    if (!x || order === 'run') return null
-    if (order === 'team') return String(x.p.team || '—')
-    return byTeam.get(String(x.p.team))?.label || 'Not on tonight’s card'
-  }
-  const groupCounts = useMemo(() => {
-    const m = new Map()
-    if (order !== 'run') ordered.forEach((x) => { const k = groupOf(x); m.set(k, (m.get(k) || 0) + 1) })
-    return m
-  }, [ordered, order]) // eslint-disable-line react-hooks/exhaustive-deps
+  // THE BOARD AS ONE TABLE (2026-10-07, Donovan: "big boxes look outdated -> dense table"). The six leader
+  // cards and the grid of row cards are gone; every hitter is one row of the site's table, the header
+  // sorts (team, game, run, each window), the best fifth of every column glows. The run's strip, the
+  // "once every N stretches" arithmetic, the donut line and the matchup line are columns now.
+  const tableRows = useMemo(() => rows.map(({ p, r }, i) => {
+    const sr = slateRow(players, p)
+    const d = donutStats(p.g)
+    const hot = r.run > 0
+    const ab = Number(sr?.bvp_ab) || 0
+    return {
+      ...(sr ? boardRow(sr, i, bctx) : {}),
+      _key: `${p.player_id}`,
+      _raw: sr || p,
+      name: p.name,
+      team: p.team,
+      opp: p.opp || sr?.opponent || '',
+      run: r.run,
+      best: hot ? r.bestHit : r.bestMiss,
+      prev: hot ? r.prevBestHit : r.prevBestMiss,
+      l5: r.l5 ? r.l5.pct : null, l10: r.l10 ? r.l10.pct : null, l15: r.l15 ? r.l15.pct : null, l30: r.l30 ? r.l30.pct : null,
+      _r: r,
+      strip: r.run,
+      stretch: runOdds(Math.abs(r.run), r.l30 || r.l15),
+      donutLast: d && d.n ? d.last : null,
+      donutN: d ? d.n : null,
+      donutHit: d && d.hit?.avg != null ? Math.round(d.hit.avg * 10) / 10 : null,
+      facing: clean(sr?.pitcher_name, ''),
+      facingId: sr?.pitcher_id ?? null,
+      bvp: ab > 0 ? `${Number(sr?.bvp_hits) || 0}/${ab}` : '',
+    }
+  }), [rows, players, bctx])
+  const columns = useMemo(() => placeAfter(withBoardColumns([
+    { key: 'opp', label: 'Vs', heat: false, w: 40, mono: true, dim: true, link: (pp) => (openGame && pp?.game_pk ? () => openGame(pp.game_pk) : null) },
+    { key: 'run', group: RUN_GROUP, label: dir === 'hot' ? 'Run' : 'Drought', w: 60, dp: 0, invert: dir !== 'hot', primary: true,
+      fmt: (v) => (v == null ? '—' : v > 0 ? `+${v}` : `\u2212${-v}`),
+      title: 'Games running that he cleared the bar (+) or missed it (\u2212), counted back from his most recent game. Tap a row for his card.' },
+    { key: 'best', group: RUN_GROUP, label: 'His best', w: 56, dp: 0, title: 'His longest run of the same kind inside this window (strict, consecutive).' },
+    { key: 'prev', group: RUN_GROUP, label: 'Before', w: 52, dp: 0, title: 'The longest one he has that is NOT the one he is on.' },
+    { key: 'strip', group: RUN_GROUP, label: 'Last games', heat: false, numeric: false, w: 112,
+      fmt: (v, r) => <Sparkline strip={r._r.strip} run={r._r.run} size={6} max={15} />,
+      title: 'His last games, newest on the right; bright is the active run.' },
+    { key: 'l5', group: RUN_GROUP, label: 'L5', w: 44, dp: 0, fmt: (v) => (v == null ? '\u2014' : `${Number(v).toFixed(0)}%`), title: 'Share of his last 5 games that cleared the bar' },
+    { key: 'l10', group: RUN_GROUP, label: 'L10', w: 46, dp: 0, fmt: (v) => (v == null ? '\u2014' : `${Number(v).toFixed(0)}%`), title: 'Share of his last 10 games that cleared the bar' },
+    { key: 'l15', group: RUN_GROUP, label: 'L15', w: 46, dp: 0, fmt: (v) => (v == null ? '\u2014' : `${Number(v).toFixed(0)}%`), title: 'Share of his last 15 games that cleared the bar' },
+    { key: 'l30', group: RUN_GROUP, label: 'L30', w: 46, dp: 0, fmt: (v) => (v == null ? '\u2014' : `${Number(v).toFixed(0)}%`), title: 'Share of his last 30 games that cleared the bar' },
+    { key: 'stretch', group: RUN_GROUP, label: '1 in', w: 52, dp: 0, fmt: (v) => (v == null ? '\u2014' : `1 in ${v}`),
+      title: 'At his own rate, a run this long comes up about once every N stretches. A small N is ordinary; a big N is an unusual stretch -- and still only a stretch, not a forecast.' },
+    { key: 'donutLast', group: DONUT_GROUP, label: 'Last donut', w: 62, dp: 0, fmt: (v) => (v == null ? '\u2014' : v === 0 ? 'last gm' : `${v}g`), title: 'Games since his last donut: a game with no hit, no run and no RBI.' },
+    { key: 'donutN', group: DONUT_GROUP, label: 'Donuts', w: 50, dp: 0, invert: true, title: 'Donut games (no hit, no run, no RBI) in this window.' },
+    { key: 'donutHit', group: DONUT_GROUP, label: 'To a hit', w: 56, dp: 1, invert: true, title: 'After a donut: games, on average, until he recorded a hit.' },
+    { key: 'facing', group: BOARD_GROUPS.arm, label: 'Facing', heat: false, w: 116, dim: true, link: (pp) => (onOpenPitcher && pp?.pitcher_id ? () => onOpenPitcher(pp.pitcher_id) : null) },
+    { key: 'bvp', group: BOARD_GROUPS.arm, label: 'Off him', heat: false, w: 58, mono: true, dim: true, title: 'This season against this pitcher: hits for at-bats.' },
+  ], {}), 'opp', 'team'), [dir, openGame, onOpenPitcher])
 
   if (data === undefined) {
     return <div style={{ fontSize: TYPE.body, color: C.text3, fontFamily: NUM_FONT, padding: 18 }}>Loading the run board…</div>
@@ -444,16 +474,6 @@ export default function Runs({ players = [], onPlayerClick, onOpenPitcher = null
         <Picker label="🆚 All games" value={game} onChange={pickGame}
           title="Show both lineups in one matchup — the whole game on one board."
           options={games.map((g) => [g.key, g.label])} />
-        <span style={{ width: 8 }} />
-        <span style={{ fontSize: TYPE.label, color: C.text3, textTransform: 'uppercase', letterSpacing: '.08em', fontWeight: 800 }}>Order</span>
-        {ORDERS.map(([k, l]) => (
-          <button key={k} onClick={() => { setOrder(k); setOpen(null) }} style={chip(order === k)}
-            title={k === 'run'
-              ? 'Longest active run first — the ranking this board has always used.'
-              : `Group the board by ${k}, longest run first inside each group. The cards up top stay ranked by run.`}>
-            {l}
-          </button>
-        ))}
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="player or team"
           title="Free-text search. To slice the slate rather than hunt one name, use the team and game pickers."
           style={{
@@ -499,49 +519,17 @@ export default function Runs({ players = [], onPlayerClick, onOpenPitcher = null
               a card belongs to is the one wearing its own colour. */}
           <RunHistogram runs={rows.map(({ r }) => r.run)} label={label} />   {/* components/runs/RunParts.js */}
 
-          {/* ── the leaders, as cards ── */}
-          <div style={{
-            display: 'grid', gap: 7, marginBottom: 12,
-            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))',
-          }}>
-            {rows.slice(0, 6).map(({ p, r }) => (
-              <RunLeaderCard key={p.player_id} r={r} name={p.name} label={label}
-                kicker={<>{p.team}{p.opp ? ` vs ${p.opp}` : ''} · {label}</>}
-                onClick={() => onPlayerClick?.(slateRow(players, p))}>
-                <MatchupLine row={slateRow(players, p)} onOpenPitcher={onOpenPitcher} />
-                <DonutLine g={p.g} />
-              </RunLeaderCard>
-            ))}
-          </div>
-
-          {/* ── the full board ── */}
-          <div style={{ display: 'grid', gap: 4, gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 330px), 1fr))' }}>
-            {ordered.map((x, i) => {
-              const { p, r } = x
-              const isOpen = open === p.player_id
-              const g = groupOf(x)
-              const newGroup = g && g !== groupOf(ordered[i - 1])
-              return (
-                <Fragment key={p.player_id}>
-                  {newGroup && (
-                    /* A rule with a name on it, not a header tile. */
-                    <div style={{
-                      gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 9,
-                      padding: i === 0 ? '2px 2px 1px' : '11px 2px 1px',
-                    }}>
-                      <span style={{ fontSize: TYPE.name, fontWeight: 900, fontFamily: NUM_FONT, color: C.text2, letterSpacing: '.05em' }}>{g}</span>
-                      <span style={{ flex: 1, height: 1, background: C.border }} />
-                      <span style={{ fontSize: TYPE.micro, fontFamily: NUM_FONT, color: C.text3 }}>{groupCounts.get(g)} hitters</span>
-                    </div>
-                  )}
-                  <RunBoardRow r={r} name={p.name} team={p.team} label={label} open={isOpen}
-                    onToggle={() => setOpen(isOpen ? null : p.player_id)}
-                    onOpenCard={() => onPlayerClick?.(slateRow(players, p))}
-                    onlyWord={split === 'all' ? '' : SPLITS.find(([k]) => k === split)?.[1].toLowerCase()} />
-                </Fragment>
-              )
-            })}
-          </div>
+          <DenseTable
+            key={dir}
+            rows={tableRows}
+            columns={columns}
+            onRowClick={(row) => onPlayerClick?.(row)}
+            initialSort={dir === 'hot' ? 'run' : { key: 'run', dir: 'asc' }}
+            maxHeight={640}
+            maxRows={Math.max(tableRows.length, 1)}
+            sortUrlKey={null}
+            caption={`Every hitter on tonight's card with five games logged for ${label}, ranked by his active run. Pattern watching, not evidence: a run is a record of games already played, and the 1 in column says how often a hitter of his own rate puts one together. A donut is a game with no hit, no run and no RBI. Tap a row for his card.`}
+          />
         </>
       )}
     </div>

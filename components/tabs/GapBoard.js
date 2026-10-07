@@ -4,6 +4,9 @@ import { C, NUM_FONT } from '../../lib/theme'
 import { n, nameOf, teamOf, oppOf } from '../../lib/player'
 import { fmtOdds, impliedPct, normName } from '../../lib/odds'
 import { gapDepth, TRIPLES_MIN_PA } from '../../lib/triples'
+import DenseTable from '../DenseTable'
+import { boardRow, boardRowContext, withBoardColumns, placeAfter } from '../../lib/boardColumns'
+import { useGameNav } from '../../lib/teamNav'
 
 // ══ THE GAP BOARD — doubles and triples ═════════════════════════════════════
 //
@@ -89,218 +92,127 @@ const MARKETS = [
   ['t3', 'Triples', '__p3', C.purple],
 ]
 
-const SORTS = [
-  ['d2', 'Doubles', (p) => n(p?.season_doubles, 0)],
-  ['d2r', '2B per 600', (p) => per600(p?.season_doubles, n(p?.season_pa, 0)) ?? -1],
-  ['t3', 'Triples', (p) => n(p?.season_triples, 0)],
-  ['t3r', '3B per 600', (p) => per600(p?.season_triples, n(p?.season_pa, 0)) ?? -1],
-  ['xbh', 'Extra-base hits', (p) => xbhOf(p)],
-  ['ld', 'Line drives', (p) => n(p?.recent_ld_rate, n(p?.l25pa_ld_rate, -1))],
-  ['legs', 'Legs', (p) => n(p?.season_sb_attempt_rate, -1)],
-  ['gap', 'Deep gaps', (p) => gapDepth(p) ?? -1e4],
-  ['p3', 'Longest 3B price', (p) => { const q = p.__p3; return q && q.matches ? (q.over > 0 ? q.over : -1e6 - q.over) : -1e7 }],
-  ['p2', 'Longest 2B price', (p) => { const q = p.__p2; return q && q.matches ? (q.over > 0 ? q.over : -1e6 - q.over) : -1e7 }],
-]
-
-function Cell({ children, w, mono = true, color, title, right, bold }) {
-  return (
-    <span title={title} style={{
-      width: w, flexShrink: 0, minWidth: 0, textAlign: right ? 'right' : 'left',
-      fontFamily: mono ? NUM_FONT : undefined, fontSize: 11,
-      fontWeight: bold ? 800 : 600, color: color || C.text2,
-      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-    }}>{children}</span>
-  )
-}
-
-const HEAD = [
-  ['2B', 34, 'Doubles on the season.'],
-  ['/600', 44, `Doubles per 600 plate appearances. Blank under ${TRIPLES_MIN_PA} PA, the same floor the triples rate uses.`],
-  ['3B', 34, 'Triples on the season.'],
-  ['/600', 44, `Triples per 600 plate appearances. Blank under ${TRIPLES_MIN_PA} PA — at 80 trips one extra triple moves this by eight, which is wider than the whole column.`],
-  ['XBH', 40, 'Doubles + triples + homers.'],
-  ['LD%', 40, 'Line-drive rate over his recent window. A triple is a ball on a line, not in the air.'],
-  ['LEGS', 44, 'Stolen-base attempt rate — a PROXY for speed. Sprint speed is not published on the slate.'],
-  ['GAPS', 44, 'Outfield geometry: (LCF+RCF)/2 minus (LF+RF)/2, in feet. Deeper gaps against shorter corners is where a triple lives. A proxy — the slate publishes no park triples factor.'],
-  ['ARM', 62, 'The opposing starter: line-drive rate allowed, and ISO against.'],
-  ['2B ¢', 60, 'Over 0.5 doubles.'],
-  ['3B ¢', 60, 'Over 0.5 triples.'],
-]
+// ── A DENSE TABLE (2026-10-07, Donovan: "gap boards: not dense, redo as a dense table") ──
+// The same hitters, counts, rates and prices; the header sorts (the Sort chips are gone), the best fifth of
+// each column glows and the worst recedes, and the rest of the Rankings board's columns follow the gap
+// columns (lib/boardColumns.js). The market switch (Doubles / Triples) and the "real gap bats" toggle stay.
+const GAP_GROUP = { key: 'gap', label: 'The gap bat', order: 1 }
+const GAP_PARK = { key: 'gapark', label: 'The yard and the arm', order: 1.2 }
+const GAP_PRICE = { key: 'gapprice', label: 'The price', order: 1.4 }
 
 export default function GapBoard({ players = [], odds = null, onPlayerClick }) {
   const [market, setMarket] = useState('d2')
-  const [sort, setSort] = useState('d2')
   const [realOnly, setRealOnly] = useState(true)
   const mk = MARKETS.find(([k]) => k === market) || MARKETS[0]
   const accent = mk[3]
-  // Switching market moves the sort with it. Landing on the Triples board
-  // still ranked by doubles is the kind of quiet mismatch nobody notices and
-  // everybody misreads.
-  const pickMarket = (k) => { setMarket(k); setSort(k) }
+  const openGame = useGameNav()
+  const ctx = useMemo(() => boardRowContext(players || []), [players])
 
   const rows = useMemo(() => {
     const list = (players || [])
-      .map((p) => ({ ...p, __p2: gapPriceFor(odds, p, 'batter_doubles'), __p3: gapPriceFor(odds, p, 'batter_triples') }))
-      // "Real gap bats only" — a hitter with no extra-base hit all season is
+      // "Real gap bats only" -- a hitter with no extra-base hit all season is
       // not tonight's double, and leaving him in pads the board with names
       // that can only ever be noise. Off by one click; the count is stated.
       .filter((p) => (realOnly ? xbhOf(p) >= 10 : true))
-    const key = (SORTS.find(([k]) => k === sort) || SORTS[0])[2]
-    return list.sort((a, b) => key(b) - key(a))
-  }, [players, odds, sort, realOnly])
+    return list.map((p, i) => {
+      const pa = n(p?.season_pa, 0)
+      const gd = gapDepth(p)
+      const ld = n(p?.recent_ld_rate, n(p?.l25pa_ld_rate, null))
+      const q2 = gapPriceFor(odds, p, 'batter_doubles')
+      const q3 = gapPriceFor(odds, p, 'batter_triples')
+      return {
+        ...boardRow(p, i, ctx),
+        _key: `${p.player_id ?? p.id ?? nameOf(p)}-${p.game_pk ?? ''}`,
+        _raw: p,
+        d2: n(p?.season_doubles, 0),
+        d2r: per600(p?.season_doubles, pa),
+        t3: n(p?.season_triples, 0),
+        t3r: per600(p?.season_triples, pa),
+        xbh: xbhOf(p),
+        ld: ld == null ? null : ld * 100,
+        legs: p?.season_sb_attempt_rate == null ? null : n(p.season_sb_attempt_rate, 0) * 100,
+        gap: gd,
+        venue: p?.venue_name || '',
+        armLd: p?.pitcher_ld_rate == null ? null : n(p.pitcher_ld_rate, 0) * 100,
+        armIso: p?.pitcher_iso_against == null ? null : n(p.pitcher_iso_against, 0),
+        p2: q2 && q2.matches ? q2.over : null, q2,
+        p3: q3 && q3.matches ? q3.over : null, q3,
+        pa,
+      }
+    })
+  }, [players, odds, realOnly, ctx])
 
   const hidden = (players || []).length - rows.length
-  const anyPrice = rows.some((p) => p.__p3 || p.__p2)
+  const anyPrice = rows.some((r) => r.q2 || r.q3)
+  const priceCell = (qk) => (v, r) => {
+    const q = r[qk]
+    if (!q) return '—'
+    if (!q.matches) return <span style={{ fontSize: 9 }} title={`${q.book || 'book'} -- line ${q.line}, not 0.5`}>@{q.line}</span>
+    return <span title={`${q.book || 'book'}${q.move != null ? ` · ${q.move > 0 ? '+' : ''}${q.move.toFixed(1)}pp from open` : ''}`}><b>{fmtOdds(q.over)}</b></span>
+  }
+  const columns = useMemo(() => placeAfter(withBoardColumns([
+    { key: 'opp', label: 'Vs', heat: false, w: 40, mono: true, dim: true, link: (p) => (openGame && p?.game_pk ? () => openGame(p.game_pk) : null) },
+    { key: 'd2', group: GAP_GROUP, label: '2B', w: 40, dp: 0, title: 'Doubles on the season.' },
+    { key: 'd2r', group: GAP_GROUP, label: '2B/600', w: 56, dp: 1, title: `Doubles per 600 plate appearances. Blank under ${TRIPLES_MIN_PA} PA, the same floor the triples rate uses.` },
+    { key: 't3', group: GAP_GROUP, label: '3B', w: 40, dp: 0, title: 'Triples on the season.' },
+    { key: 't3r', group: GAP_GROUP, label: '3B/600', w: 56, dp: 1, title: `Triples per 600 plate appearances. Blank under ${TRIPLES_MIN_PA} PA -- at 80 trips one extra triple moves this by eight, which is wider than the whole column.` },
+    { key: 'xbh', group: GAP_GROUP, label: 'XBH', w: 44, dp: 0, title: 'Doubles + triples + homers.' },
+    { key: 'ld', group: GAP_GROUP, label: 'LD%', w: 46, dp: 0, fmt: (v) => (v == null ? '—' : `${Number(v).toFixed(0)}%`), title: 'Line-drive rate over his recent window. A triple is a ball on a line, not in the air.' },
+    { key: 'legs', group: GAP_GROUP, label: 'Legs', w: 48, dp: 0, fmt: (v) => (v == null ? '—' : `${Number(v).toFixed(0)}%`), title: 'Stolen-base attempt rate -- a PROXY for speed. Sprint speed is not published on the slate.' },
+    { key: 'gap', group: GAP_PARK, label: 'Gaps', w: 48, dp: 0, fmt: (v) => (v == null ? '—' : `+${Number(v).toFixed(0)}`), title: 'Outfield geometry: (LCF+RCF)/2 minus (LF+RF)/2, in feet. Deeper gaps against shorter corners is where a triple lives. A proxy -- the slate publishes no park triples factor.' },
+    { key: 'armLd', group: GAP_PARK, label: 'Arm LD%', w: 56, dp: 0, fmt: (v) => (v == null ? '—' : `${Number(v).toFixed(0)}%`), title: 'The opposing starter’s line-drive rate allowed.' },
+    { key: 'armIso', group: GAP_PARK, label: 'Arm ISO', w: 56, dp: 3, fmt: (v) => (v == null ? '—' : `.${String(Math.round(Number(v) * 1000)).padStart(3, '0')}`), title: 'The opposing starter’s ISO against.' },
+    { key: 'p2', group: GAP_PRICE, label: '2B ¢', w: 60, standout: false, fmt: priceCell('q2'), title: 'Over 0.5 doubles.' },
+    { key: 'p3', group: GAP_PRICE, label: '3B ¢', w: 60, standout: false, fmt: priceCell('q3'), title: 'Over 0.5 triples.' },
+  ], {}), 'opp', 'team'), [openGame])
 
   return (
     <div>
       <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
         {MARKETS.map(([k, label, , col]) => (
-          <button key={k} onClick={() => pickMarket(k)} style={{
-            padding: '7px 18px', borderRadius: 10, cursor: 'pointer', fontSize: 12,
+          <button key={k} onClick={() => setMarket(k)} style={{
+            padding: '7px 18px', minHeight: 44, borderRadius: 10, cursor: 'pointer', fontSize: 12,
             fontWeight: 800, fontFamily: NUM_FONT,
             border: `1px solid ${market === k ? col : C.border}`,
             background: market === k ? `${col}22` : 'transparent',
             color: market === k ? col : C.text3,
           }}>{label}</button>
         ))}
-        <span style={{ fontSize: 10, color: C.text3, marginLeft: 4 }}>
-          {market === 'd2'
-            ? 'A double lands on 16.8% of graded player-nights.'
-            : 'A triple lands on 1.2% — fourteen times rarer.'}
-        </span>
-      </div>
-
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginBottom: 8 }}>
-        {SORTS.map(([k, label]) => (
-          <button key={k} onClick={() => setSort(k)} style={{
-            padding: '5px 11px', borderRadius: 999, cursor: 'pointer', fontSize: 10,
-            fontWeight: 800, fontFamily: NUM_FONT, whiteSpace: 'nowrap',
-            border: `1px solid ${sort === k ? accent : C.border}`,
-            background: sort === k ? `${accent}22` : 'transparent',
-            color: sort === k ? accent : C.text3,
-          }}>{label}</button>
-        ))}
         <button onClick={() => setRealOnly((v) => !v)} style={{
-          marginLeft: 'auto', padding: '5px 11px', borderRadius: 999, cursor: 'pointer',
+          padding: '5px 11px', minHeight: 44, borderRadius: 999, cursor: 'pointer',
           fontSize: 10, fontWeight: 800, fontFamily: NUM_FONT,
           border: `1px solid ${realOnly ? C.cyan : C.border}`,
           background: realOnly ? 'rgba(34,211,238,.12)' : 'transparent',
           color: realOnly ? C.cyan : C.text3,
         }}>{realOnly ? `Real gap bats (${hidden} hidden)` : 'Everyone'}</button>
+        <span style={{ fontSize: 10, color: C.text3, marginLeft: 4 }}>
+          {market === 'd2'
+            ? 'A double lands on 16.8% of graded player-nights.'
+            : 'A triple lands on 1.2% -- fourteen times rarer.'}
+        </span>
       </div>
 
-      {/* The banner is not decoration. A board with no score, sitting beside
-          four boards that have one, will be read as a board whose score has
-          not loaded unless it says otherwise in words. */}
-      <div style={{
-        border: `1px solid ${C.border}`, borderLeft: `3px solid ${accent}`,
-        borderRadius: 10, padding: '8px 11px', marginBottom: 10,
-        fontSize: 10.5, color: C.text2, lineHeight: 1.55,
-      }}>
+      {/* A board with no score, beside boards that have one, reads as a board whose score has not loaded
+          unless it says otherwise in words. */}
+      <div style={{ borderLeft: `3px solid ${accent}`, padding: '1px 0 1px 10px', marginBottom: 10, fontSize: 10.5, color: C.text2, lineHeight: 1.55, maxWidth: 760 }}>
         <b style={{ color: C.text }}>No score on this board, on purpose.</b>{' '}
         A doubles model built from these fields was tested against 2,297 graded
-        player-nights: its top decile hit <b>0.76×</b> the base rate — worse
-        than random, which lands between 0.78× and 1.25×. The events are there;
-        the signal is not. Every column below is a count or a rate the bot
-        published, with its denominator beside it — for
-        {market === 'd2' ? ' doubles' : ' triples'}, and in the columns beside
-        it for the other one.
+        player-nights: its top decile hit <b>0.76x</b> the base rate -- worse
+        than random, which lands between 0.78x and 1.25x. The events are there;
+        the signal is not. Every column is a count or a rate the bot published.
         {!anyPrice && ' Prices are absent from tonight’s odds file for both markets.'}
       </div>
 
-      {/* THE WIDE TABLE SCROLLS IN ITS OWN BOX (mobile pass C, 2026-09-27):
-          the rows are ~720px of fixed columns; on a phone they ran past the
-          screen edge with no way to reach them. Batter column pinned. */}
-      <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-      <div style={{ minWidth: 'max-content' }}>
-      <div style={{
-        display: 'flex', gap: 6, padding: '0 8px 5px',
-        borderBottom: `1px solid ${C.border}`,
-      }}>
-        <span style={{ width: 150, flexShrink: 0, position: 'sticky', left: 0, zIndex: 1, background: C.bg, fontSize: 11, fontWeight: 600, color: C.text3 }}>BATTER</span>
-        {HEAD.map(([h, w, title], i) => (
-          <Cell key={`${h}${i}`} w={w} right color={C.text3} title={title}>{h}</Cell>
-        ))}
-      </div>
-
-      {rows.map((p) => {
-        const pa = n(p.season_pa, 0)
-        const r6 = per600(p.season_triples, pa)
-        const d6 = per600(p.season_doubles, pa)
-        const gd = gapDepth(p)
-        const ld = n(p.recent_ld_rate, n(p.l25pa_ld_rate, null))
-        return (
-          <div
-            key={p.player_id ?? p.id ?? nameOf(p)}
-            onClick={onPlayerClick ? () => onPlayerClick(p) : undefined}
-            style={{
-              display: 'flex', gap: 6, alignItems: 'center', padding: '5px 8px',
-              borderBottom: `1px solid ${C.border}`,
-              cursor: onPlayerClick ? 'pointer' : 'default',
-            }}>
-            <span style={{ width: 150, flexShrink: 0, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', position: 'sticky', left: 0, zIndex: 1, background: C.bg }}>
-              <span style={{ fontSize: 11.5, fontWeight: 700, color: C.text }}>{nameOf(p)}</span>
-              <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}> {teamOf(p)}/{oppOf(p)}</span>
-            </span>
-            <Cell w={34} right bold={market === 'd2'}
-              color={n(p.season_doubles, 0) ? (market === 'd2' ? C.blue : C.text2) : C.text3}>
-              {n(p.season_doubles, 0)}
-            </Cell>
-            {/* The rate is blank, not zero, under the PA floor — a blank cell
-                is a true statement and a small number is a false one. */}
-            <Cell w={44} right color={d6 == null ? C.text3 : undefined}
-              title={d6 == null ? `${pa} PA — needs ${TRIPLES_MIN_PA}` : undefined}>
-              {d6 == null ? '—' : d6.toFixed(1)}
-            </Cell>
-            <Cell w={34} right bold={market === 't3'}
-              color={n(p.season_triples, 0) ? (market === 't3' ? C.purple : C.text2) : C.text3}>
-              {n(p.season_triples, 0)}
-            </Cell>
-            <Cell w={44} right color={r6 == null ? C.text3 : undefined}
-              title={r6 == null ? `${pa} PA — needs ${TRIPLES_MIN_PA}` : undefined}>
-              {r6 == null ? '—' : r6.toFixed(1)}
-            </Cell>
-            <Cell w={40} right bold>{xbhOf(p)}</Cell>
-            <Cell w={40} right color={ld != null && ld >= 0.28 ? C.cyan : undefined}>
-              {ld == null ? '—' : `${(ld * 100).toFixed(0)}%`}
-            </Cell>
-            <Cell w={44} right>{p.season_sb_attempt_rate == null ? '—' : `${(n(p.season_sb_attempt_rate, 0) * 100).toFixed(0)}%`}</Cell>
-            <Cell w={44} right color={gd != null && gd >= 55 ? C.green : undefined}
-              title={p.venue_name || undefined}>
-              {gd == null ? '—' : `+${gd.toFixed(0)}`}
-            </Cell>
-            <Cell w={62} right color={C.text3}>
-              {p.pitcher_ld_rate == null ? '—' : `${(n(p.pitcher_ld_rate, 0) * 100).toFixed(0)}%`}
-              {p.pitcher_iso_against == null ? '' : ` .${String(Math.round(n(p.pitcher_iso_against, 0) * 1000)).padStart(3, '0')}`}
-            </Cell>
-            {['__p2', '__p3'].map((k) => {
-              const q = p[k]
-              // Only the market you are actually shopping gets the live
-              // colour. Two lit price columns side by side is two calls to
-              // action, and the board answers one question at a time.
-              const lead = k === mk[2]
-              return (
-                <Cell key={k} w={60} right bold={lead && !!q}
-                  color={!q ? C.text3 : q.matches && lead ? C.yellow : C.text3}
-                  title={q ? `${q.book || 'book'}${q.matches ? '' : ` — line ${q.line}, not 0.5`}${q.move != null ? ` · ${q.move > 0 ? '+' : ''}${q.move.toFixed(1)}pp from open` : ''}` : 'not priced'}>
-                  {!q ? '—' : q.matches ? fmtOdds(q.over) : `${q.line}`}
-                </Cell>
-              )
-            })}
-          </div>
-        )
-      })}
-      </div>
-      </div>
-
-      <div style={{ marginTop: 9, fontSize: 9.5, color: C.text3, lineHeight: 1.55 }}>
-        GAPS is outfield geometry, not a park factor — the slate publishes none
-        for extra-base hits. LEGS is stolen-base attempt rate standing in for
-        sprint speed, which is not published either. ARM is the opposing
-        starter&apos;s line-drive rate and ISO against; his raw XBH counts are on
-        the row but have no batters-faced denominator, so they are not used.
-      </div>
+      <DenseTable
+        key={market}
+        rows={rows}
+        columns={columns}
+        onRowClick={onPlayerClick}
+        initialSort={market}
+        maxHeight={560}
+        maxRows={Math.max(rows.length, 1)}
+        caption="Ranked by the market you picked. Gaps is outfield geometry, not a park factor -- the slate publishes none for extra-base hits. Legs is stolen-base attempt rate standing in for sprint speed, which is not published either. Arm is the opposing starter's line-drive rate and ISO against. Tap a row for his full card."
+      />
     </div>
   )
 }

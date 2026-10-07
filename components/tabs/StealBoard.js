@@ -2,10 +2,11 @@
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { n, nameOf, teamOf, oppOf, txt } from '../../lib/player'
-import { alpha, verdictInk, verdictWash } from '../../lib/scales'
 import { FilterPill } from '../Filters'
 import { fmtOdds, impliedPct, normName } from '../../lib/odds'
-import { GameTap } from '../EntityTap'
+import DenseTable from '../DenseTable'
+import { boardRow, boardRowContext, withBoardColumns, placeAfter } from '../../lib/boardColumns'
+import { useGameNav } from '../../lib/teamNav'
 
 // ══ THE STEAL BOARD ═════════════════════════════════════════════════════════
 //
@@ -110,49 +111,54 @@ export function sbPriceFor(odds, p) {
   return { over: q.over, implied: q.implied ?? impliedPct(q.over), line, matches: Math.abs(line - 0.5) < 1e-9, book: q.best_book || null, books: q.books || null }
 }
 
-const SORTS = [
-  // Risk leads, because it is the only column that answers "is tonight a good
-  // night to run" rather than "who runs a lot". Blanks sort last on their own
-  // (the ?? -1), same rule every other column here follows.
-  ['risk', 'Steal spot', (p) => riskOf(p) ?? -1],
-  ['sb', 'Steals', (p) => sbOf(p)],
-  ['rate', 'Attempt rate', (p) => attRate(p) ?? -1],
-  ['succ', 'Success %', (p) => succOf(p) ?? -1],
-  ['obp', 'On base', (p) => n(p?.season_obp, 0)],
-  // A weak-throwing catcher is the reason to run tonight, so ascending: the
-  // softest arm behind the plate first.
-  ['catcher', 'Weakest catcher', (p) => { const c = catcherOf(p); return c == null ? -1 : 1 - c }],
-  // Longest price first; a runner the book does not list sorts last.
-  ['price', 'Longest price', (p) => { const q = p.__sb; return q && q.matches ? (q.over > 0 ? q.over : -1e6 - q.over) : -1e7 }],
-]
-
-function Cell({ children, w, mono = true, color, title, right }) {
-  return (
-    <span title={title} style={{
-      width: w, flexShrink: 0, minWidth: 0, textAlign: right ? 'right' : 'left',
-      fontFamily: mono ? NUM_FONT : undefined, fontSize: 11, color: color || C.text2,
-      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-      cursor: title ? 'inherit' : 'inherit',
-    }}>{children}</span>
-  )
-}
+// ── A DENSE TABLE, NOT A LIST OF FLEX ROWS (2026-10-07, Donovan: "steal boards: not dense, redo as a dense table") ──
+// The same runners, the same numbers, the same prices -- drawn as the site's one table (DenseTable skin v2):
+// the sort is the header's (the old Sort chips are gone), the best fifth of every column glows, the worst
+// fifth recedes, and every other column the Rankings board carries rides along under the steal columns
+// (lib/boardColumns.js). A header with a ⓘ says what the column is; a phone folds the Call columns
+// under the name.
+const STEAL_GROUP = { key: 'steal', label: 'The steal', order: 1 }
+const MARKET_GROUP = { key: 'stealprice', label: 'The price', order: 1.4 }
+const fmtAvg3 = (v) => (v == null ? '—' : Number(v).toFixed(3).replace(/^0/, ''))
 
 export default function StealBoard({ players = [], odds = null, onPlayerClick }) {
-  const [sort, setSort] = useState('risk')
   const [runnersOnly, setRunnersOnly] = useState(true)
+  const openGame = useGameNav()
+
+  const ctx = useMemo(() => boardRowContext(players || []), [players])
 
   const rows = useMemo(() => {
     const out = (players || []).filter((p) => p && p.player_id && sbOf(p) > 0)
-      .map((p) => ({ ...p, __sb: sbPriceFor(odds, p) }))
-    const f = (SORTS.find(([k]) => k === sort) || SORTS[0])[2]
-    // A runner is a hitter with a real attempt history — five or more tries.
+    // A runner is a hitter with a real attempt history -- five or more tries.
     // Under that a 2-for-2 reads as 100% and tops the board on noise.
     const kept = runnersOnly ? out.filter((p) => sbOf(p) + csOf(p) >= 5) : out
-    return [...kept].sort((a, b) => f(b) - f(a) || String(nameOf(a)).localeCompare(String(nameOf(b))))
-  }, [players, sort, runnersOnly, odds])
+    return kept.map((p, i) => {
+      const q = sbPriceFor(odds, p)
+      const cName = txt(p?.opp_catcher_name)
+      const cRate = catcherOf(p)
+      return {
+        ...boardRow(p, i, ctx),
+        _key: `${p.player_id}-${p.game_pk}`,
+        _raw: p,
+        risk: riskOf(p),
+        thin: String(p?.steal_risk_status) === 'thin' ? 1 : 0,
+        riskNote: txt(p?.steal_risk_note) || 'not scored',
+        catcher: cName || '',
+        cSrc: String(p?.opp_catcher_source || ''),
+        cRate: cRate == null ? null : 100 * cRate,
+        cAtt: n(p?.opp_catcher_sb_attempts, 0),
+        sb: sbOf(p),
+        cs: csOf(p),
+        succ: succOf(p),
+        att: (() => { const a = attRate(p); return a == null ? null : (a > 1 ? a : a * 100) })(),
+        price: q && q.matches ? q.over : null,
+        priceQ: q,
+      }
+    })
+  }, [players, odds, runnersOnly, ctx])
 
   const total = (players || []).filter((p) => sbOf(p) > 0).length
-  const priced = rows.filter((p) => p.__sb?.matches).length
+  const priced = rows.filter((r) => r.priceQ?.matches).length
 
   // ── SAY IT WHEN THE ARM DATA DIDN'T ARRIVE (2026-08-31) ─────────────────
   //
@@ -160,16 +166,9 @@ export default function StealBoard({ players = [], odds = null, onPlayerClick })
   // refusal until 2026-08-23, when the bot went and got it. On the 2026-08-30
   // slate it is silently gone again: pop time, arm strength and
   // caught-stealing rate are null on all 251 rows, opp_catcher_sb_attempts is
-  // 0 on all 251, and every one of the 28 catchers — Rutschman, Raleigh, Kirk,
-  // Murphy, Hedges — carries status "unqualified".
-  //
-  // Those men are not unqualified. Nobody is. The Savant map came back empty
-  // wearing an "ok", and mlb_dashboard's status ladder then blames the catcher
-  // (fixed on the bot side; see savant_feeds.py). But the board was the last
-  // line of defence and it never read the status at all — it printed "no
-  // caught-stealing rate published" per row, which reads as a fact about THAT
-  // CATCHER and is how a league-wide outage passed for a quiet night for
-  // weeks.
+  // 0 on all 251, and every one of the 28 catchers carries status
+  // "unqualified". Those men are not unqualified. Nobody is. The board was the
+  // last line of defence and it never read the status at all.
   //
   // The rule this board already lives by, applied one level up: a reader who
   // cannot tell a hard matchup from an unmeasured one cannot use either.
@@ -184,6 +183,33 @@ export default function StealBoard({ players = [], odds = null, onPlayerClick })
     return { catchers: names.size, status: st }
   }, [players])
 
+  const columns = useMemo(() => placeAfter(withBoardColumns([
+    // the Vs cell opens the game, as the old Matchup cell did
+    { key: 'opp', label: 'Vs', heat: false, w: 40, mono: true, dim: true, link: (p) => (openGame && p?.game_pk ? () => openGame(p.game_pk) : null) },
+    { key: 'risk', group: STEAL_GROUP, label: 'Spot', w: 56, dp: 0, domain: [0, 100], bar: 'primary', primary: true,
+      fmt: (v, r) => (v == null ? '—' : <>{Number(v).toFixed(0)}{r.thin ? <span style={{ opacity: 0.55 }}>*</span> : null}</>),
+      title: 'The bot’s steal-spot score for THIS runner against THIS arm and THIS catcher tonight. Zero points in any other model; archived unscored so it earns its way in or gets deleted. A * means half the matchup is unmeasured. A dash is a refusal, not a zero.' },
+    { key: 'sb', group: STEAL_GROUP, label: 'SB', w: 42, dp: 0, title: 'Stolen bases this season' },
+    { key: 'cs', group: STEAL_GROUP, label: 'CS', w: 42, dp: 0, invert: true, title: 'Caught stealing this season' },
+    { key: 'succ', group: STEAL_GROUP, label: 'Succ%', w: 56, dp: 0, fmt: (v) => (v == null ? '—' : `${Number(v).toFixed(0)}%`),
+      title: `Stolen bases divided by attempts. Blank under five attempts -- a 2-for-2 is not a rate. Break-even for a steal is about ${BREAK_EVEN}%.` },
+    { key: 'att', group: STEAL_GROUP, label: 'Att%', w: 52, dp: 0, fmt: (v) => (v == null ? '—' : `${Number(v).toFixed(0)}%`),
+      title: 'The bot’s season attempt rate -- how often he goes, not how often he makes it' },
+    { key: 'catcher', group: STEAL_GROUP, label: 'Catcher', heat: false, w: 104,
+      fmt: (v, r) => (v ? <span title={`${v}${r.cSrc === 'roster' ? ' (lineup not posted -- likeliest catcher)' : ''}`}>{r.cSrc === 'roster' ? <span style={{ color: C.text3 }}>{'˜'}</span> : null}{shortCatcher(v)}</span> : '—'),
+      title: 'Who is catching tonight. A ˜ before the name means the lineup was not posted and he is the likeliest man back there.' },
+    { key: 'cRate', group: STEAL_GROUP, label: 'C CS%', w: 56, dp: 0, invert: true, fmt: (v) => (v == null ? '—' : `${Number(v).toFixed(0)}%`),
+      title: 'Share of steal attempts the catcher throws out. Blank under 10 attempts -- a backup at 1-of-2 is not a 50% thrower. Lower is softer for a runner.' },
+    { key: 'price', group: MARKET_GROUP, label: '1+ SB', w: 78, standout: false,
+      fmt: (v, r) => {
+        const q = r.priceQ
+        if (!q) return '—'
+        if (!q.matches) return <span style={{ fontSize: 9 }} title={`book is at ${q.line}, not 0.5 -- a different bet`}>@{q.line}</span>
+        return <span title={`${fmtOdds(q.over)} on 1+ SB${q.book ? ` · ${q.book}` : ''} · needs ${q.implied}% to break even`}><b>{fmtOdds(q.over)}</b>{q.implied != null ? <span style={{ fontSize: 9, color: C.text3, marginLeft: 4 }}>{Math.round(q.implied)}%</span> : null}</span>
+      },
+      title: 'The book’s price on 1+ stolen base tonight (the over on 0.5), and the break-even rate it implies. Blank when he isn’t listed.' },
+  ], {}), 'opp', 'team'), [openGame])
+
   if (!total) {
     return (
       <div style={{ fontSize: 11.5, color: C.text3, lineHeight: 1.6 }}>
@@ -196,25 +222,16 @@ export default function StealBoard({ players = [], odds = null, onPlayerClick })
 
   return (
     <div>
-      <div style={{ fontSize: 11, color: C.text3, lineHeight: 1.65, marginBottom: 10, maxWidth: 760 }}>
+      <div style={{ fontSize: 11, color: C.text3, lineHeight: 1.65, marginBottom: 8, maxWidth: 760 }}>
         Every runner on tonight&apos;s slate. <b style={{ color: C.text2 }}>Spot</b> is the bot&apos;s
-        steal-spot score for this man against tonight&apos;s arm and tonight&apos;s catcher — how
-        often he runs, how often he makes it, how easily that arm gets run on, and whether the
-        catcher can throw, all scaled by how often he reaches base, because you cannot steal
-        first. Everything to the right of it is a raw count or a published rate, unmodelled.
-        Success rate is coloured against the <b style={{ color: C.text2 }}>{BREAK_EVEN}%</b>{' '}
-        break-even — under it, the attempt costs more than it wins. A blank Spot is a refusal
-        rather than a zero: no stolen-base attempt on his record this season, so the matchup
-        belongs to somebody else. <b style={{ color: C.text2 }}>Price</b> is the book&apos;s
-        number on 1+ steal tonight, with the break-even rate it implies under it
-        {priced ? <> — <b style={{ color: C.text2 }}>{priced}</b> of these runners are priced tonight</> : ' — none priced yet tonight'}.
+        steal-spot score for this man against tonight&apos;s arm and catcher, scaled by how often he
+        reaches base. Everything else is a raw count or a published rate, unmodelled.{' '}
+        <b style={{ color: C.text2 }}>1+ SB</b> is the book&apos;s number
+        {priced ? <> -- <b style={{ color: C.text2 }}>{priced}</b> of these runners are priced tonight</> : ' -- none priced yet tonight'}.
       </div>
 
       {feed && (
-        <div style={{
-          border: `1px solid ${C.orange}59`, borderRadius: 10, padding: '8px 11px',
-          background: alpha(C.orange, 0.07), marginBottom: 10, maxWidth: 760,
-        }}>
+        <div style={{ borderLeft: `3px solid ${C.orange}`, padding: '2px 0 2px 10px', marginBottom: 10, maxWidth: 760 }}>
           <b style={{ color: C.orange, fontFamily: NUM_FONT, fontSize: 10 }}>⚠ NO ARM DATA TONIGHT</b>
           <div style={{ fontSize: 10.5, color: C.text2, lineHeight: 1.6, marginTop: 4 }}>
             Not one of the <b style={{ color: C.text2 }}>{feed.catchers}</b> catchers on this slate has a
@@ -222,157 +239,27 @@ export default function StealBoard({ players = [], odds = null, onPlayerClick })
             {feed.status ? <> — every row reads <code style={{ fontFamily: NUM_FONT }}>{feed.status}</code></> : null}.
             That is the whole league at once, so read it as the feed not landing rather than as a slate
             full of unmeasured backups. <b style={{ color: C.text2 }}>Half of the Spot score is missing</b>{' '}
-            on every row below: what is left is the runner&apos;s own history and how easily the arm gets
-            run on, with nothing about who is behind the plate.
+            on every row below.
           </div>
         </div>
       )}
 
-      <div className="chip-row" style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center', marginBottom: 4 }}>
-        <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: '.1em', color: C.text3, textTransform: 'uppercase' }}>Sort</span>
-        {SORTS.map(([k, label]) => (
-          <FilterPill key={k} active={sort === k} onClick={() => setSort(k)}>{label}</FilterPill>
-        ))}
-      </div>
-      <div className="chip-row" style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
+      <div className="chip-row" style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center', marginBottom: 8 }}>
         <FilterPill active={runnersOnly} count={rows.length}
           title="Five or more attempts this season. Under that a 2-for-2 reads as 100% and tops the board on noise."
           onClick={() => setRunnersOnly((v) => !v)}>Real runners only</FilterPill>
         <span style={{ fontSize: 9.5, color: C.text3 }}>{total} hitters with a steal tonight</span>
       </div>
 
-      <div className="dense-scroll" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-        <div style={{ minWidth: 724 }}>
-          <div style={{
-            display: 'flex', gap: 8, alignItems: 'center', padding: '5px 8px',
-            borderBottom: `1px solid ${C.border2}`,
-            fontSize: 8.5, fontWeight: 800, letterSpacing: '.09em',
-            color: C.text3, textTransform: 'uppercase', fontFamily: NUM_FONT,
-          }}>
-            <Cell w={20} right>#</Cell>
-            <Cell w={148} mono={false}>Runner</Cell>
-            <Cell w={86}>Matchup</Cell>
-            <Cell w={52} right title="The bot's steal-spot score for THIS runner against THIS arm and THIS catcher tonight. Zero points in any other model; archived unscored so it earns its way in or gets deleted. Blank means the bot refused to score him — no attempt on his record this season, so the matchup is somebody else's.">Spot</Cell>
-            <Cell w={112} mono={false} title="Who is catching, and his caught-stealing rate. Blank under 10 attempts — a backup at 1-of-2 is not a 50% thrower. A ˜ before the name means the lineup was not posted and this is the likeliest catcher rather than a confirmed one.">Catcher</Cell>
-            <Cell w={40} right title="Stolen bases this season">SB</Cell>
-            <Cell w={40} right title="Caught stealing this season">CS</Cell>
-            <Cell w={56} right title="Stolen bases divided by attempts. Blank under five attempts — a 2-for-2 is not a rate.">Succ</Cell>
-            <Cell w={56} right title="The bot's season attempt rate — how often he goes, not how often he makes it">Att</Cell>
-            <Cell w={52} right title="Season on-base percentage. The other half of a steal: he has to reach first.">OBP</Cell>
-            <Cell w={64} right title="The book's price on 1+ stolen base tonight (the over on 0.5), and the break-even rate it implies. Blank when he isn't listed; a note when the book is at a different number.">Price</Cell>
-          </div>
-
-          {rows.map((p, i) => {
-            const succ = succOf(p)
-            const risk = riskOf(p)
-            const cName = txt(p?.opp_catcher_name)
-            const cSrc = String(p?.opp_catcher_source || '')
-            const cRate = catcherOf(p)
-            const ink = succ == null ? C.text3 : verdictInk(succ >= BREAK_EVEN).color
-            const obp = n(p?.season_obp, 0)
-            const att = attRate(p)
-            return (
-              <div
-                key={`${p.player_id}-${p.game_pk}`}
-                onClick={onPlayerClick ? () => onPlayerClick(p) : undefined}
-                className="dense-click"
-                style={{
-                  display: 'flex', gap: 8, alignItems: 'center', padding: '7px 8px',
-                  borderBottom: `1px solid ${C.border}`, minWidth: 0,
-                  cursor: onPlayerClick ? 'pointer' : 'default',
-                  background: succ != null && succ >= BREAK_EVEN && sbOf(p) >= 15
-                    ? verdictWash(true, 0.06) : 'transparent',
-                }}
-              >
-                <Cell w={20} right color={C.text3}>{i + 1}</Cell>
-                <Cell w={148} mono={false} color={C.text}>
-                  <b style={{ fontWeight: 800 }}>{nameOf(p)}</b>
-                </Cell>
-                <Cell w={86} color={C.text3}><GameTap pk={p?.game_pk}>{teamOf(p)} vs {oppOf(p)}</GameTap></Cell>
-                {/* THE SPOT — the model, and it says when it declined. A row
-                    the bot refused to score prints an em-dash and the tooltip
-                    gives the reason; it never prints 0.0, which would rank a
-                    refusal beside a genuinely terrible matchup. */}
-                <Cell w={52} right
-                  color={risk == null ? C.text3
-                    : risk >= 60 ? verdictInk(true).color
-                    : risk >= 40 ? C.text : C.text3}
-                  title={txt(p?.steal_risk_note) || 'not scored'}>
-                  {risk == null ? '—' : risk.toFixed(0)}
-                  {risk != null && String(p?.steal_risk_status) === 'thin'
-                    ? <span style={{ opacity: 0.55 }}>*</span> : null}
-                </Cell>
-                {/* THE OTHER HALF OF THE STEAL. ˜ marks a catcher inferred
-                    from the roster rather than read off a posted lineup —
-                    the same fact, one confidence lower, and flattening the
-                    two would be the quiet kind of lie. */}
-                <Cell w={112} mono={false} color={C.text2}
-                  title={cName
-                    ? `${cName}${cSrc === 'roster' ? ' (lineup not posted — likeliest catcher)' : ''}`
-                      + (cRate == null
-                        ? ` · no caught-stealing rate published${n(p?.opp_catcher_sb_attempts, 0) ? ` (${n(p.opp_catcher_sb_attempts, 0)} attempts, under the 10 needed)` : ''}`
-                        : ` · throws out ${(100 * cRate).toFixed(0)}% on ${n(p?.opp_catcher_sb_attempts, 0)} attempts`)
-                    : 'the catcher for this game is not published yet'}>
-                  {cName ? (
-                    <>
-                      {cSrc === 'roster' && <span style={{ color: C.text3 }}>˜</span>}
-                      {shortCatcher(cName)}
-                      {cRate != null && (
-                        <b style={{
-                          marginLeft: 5, fontFamily: NUM_FONT,
-                          color: cRate <= 0.16 ? verdictInk(true).color
-                            : cRate >= 0.28 ? verdictInk(false).color : C.text3,
-                        }}>{(100 * cRate).toFixed(0)}%</b>
-                      )}
-                    </>
-                  ) : '—'}
-                </Cell>
-                <Cell w={40} right color={C.text}>{sbOf(p)}</Cell>
-                <Cell w={40} right color={C.text3}>{csOf(p)}</Cell>
-                <Cell w={56} right color={ink}
-                  title={succ == null ? 'under five attempts — no rate' : `${sbOf(p)} of ${sbOf(p) + csOf(p)} · break-even is ${BREAK_EVEN}%`}>
-                  {succ == null ? '—' : `${succ.toFixed(0)}%`}
-                </Cell>
-                <Cell w={56} right color={C.text2}>
-                  {att == null ? '—' : att > 1 ? att.toFixed(1) : `${(att * 100).toFixed(0)}%`}
-                </Cell>
-                <Cell w={52} right color={obp >= 0.34 ? verdictInk(true).color : C.text2}>
-                  {obp ? obp.toFixed(3).replace(/^0/, '') : '—'}
-                </Cell>
-                <Cell w={64} right color={p.__sb?.matches ? C.text : C.text3}
-                  title={!p.__sb ? 'not priced tonight'
-                    : !p.__sb.matches ? `book is at ${p.__sb.line}, not 0.5 — a different bet`
-                    : `${fmtOdds(p.__sb.over)} on 1+ SB${p.__sb.book ? ` · ${p.__sb.book}` : ''} · needs ${p.__sb.implied}% to break even`}>
-                  {!p.__sb ? '—' : !p.__sb.matches ? <span style={{ fontSize: 9 }}>@{p.__sb.line}</span> : (
-                    <>
-                      <b style={{ fontWeight: 900 }}>{fmtOdds(p.__sb.over)}</b>
-                      <span style={{ fontSize: 8.5, color: C.text3, marginLeft: 4 }}>{p.__sb.implied != null ? `${Math.round(p.__sb.implied)}%` : ''}</span>
-                    </>
-                  )}
-                </Cell>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-
-      <div style={{ fontSize: 9.5, color: C.text3, lineHeight: 1.65, marginTop: 9, maxWidth: 760 }}>
-        Counts are the bot&apos;s published season fields, graded nightly against the
-        box score (<span style={{ fontFamily: NUM_FONT }}>actual_sb</span>). Warm on-base is .340 or
-        better. <b style={{ color: C.text2 }}>Spot</b> is the bot&apos;s steal-spot score for this
-        runner against tonight&apos;s arm and tonight&apos;s catcher — it is worth zero points in
-        every other model on this site, and it is archived unscored so that in a few weeks
-        &ldquo;do high spots actually produce steals&rdquo; is answerable against
-        <span style={{ fontFamily: NUM_FONT }}> actual_sb</span> instead of asserted. A{' '}
-        <b style={{ color: C.text2 }}>*</b> means half the matchup is unmeasured (usually the
-        catcher) and the score is built on what landed. A blank Spot is a refusal, not a zero:
-        no stolen-base attempt on his record this season, so the arm and the catcher are
-        somebody else&apos;s matchup. <b style={{ color: C.text2 }}>˜</b> before a catcher&apos;s
-        name means the lineup was not posted and he is the likeliest man back there rather than
-        a confirmed one. Prices are the book&apos;s own on 1+ steal tonight, read straight off
-        the odds snapshot; the percentage under one is the rate that price needs. Tap a row for his
-        full card.
-      </div>
+      <DenseTable
+        rows={rows}
+        columns={columns}
+        onRowClick={onPlayerClick}
+        initialSort="risk"
+        maxHeight={560}
+        maxRows={Math.max(rows.length, 1)}
+        caption="Ranked by the bot's steal-spot score. Success is read against the 75% break-even -- under it the attempt costs more than it wins. A blank Spot is a refusal, not a zero. Counts are the bot's published season fields, graded nightly against the box score. Tap a row for his full card."
+      />
     </div>
   )
 }

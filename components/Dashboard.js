@@ -62,7 +62,6 @@ const Runs = dynamic(() => import('./tabs/Runs'), { loading: TabLoading })
 const RankedBoard = dynamic(() => import('./tabs/RankedBoard'), { loading: TabLoading })
 const PairHistory = dynamic(() => import('./tabs/PairHistory'), { loading: TabLoading })
 const SprayBoard = dynamic(() => import('./tabs/SprayBoard'), { loading: TabLoading })
-const PitcherMap = dynamic(() => import('./tabs/PitcherMap'), { loading: TabLoading })
 const PowerTab = dynamic(() => import('./tabs/Power'), { loading: TabLoading })
 const Derby = dynamic(() => import('./tabs/Derby'), { loading: TabLoading })
 const Backtest = dynamic(() => import('./tabs/Backtest'), { loading: TabLoading })
@@ -567,6 +566,7 @@ export default function Dashboard({ palettePass = 0 }) {
     if (tab === 'pitchers' && live.get('pitcher')) h.set('pitcher', live.get('pitcher'))
     if (tab === 'player' && live.get('player')) h.set('player', live.get('player'))   // PlayerBoard's pick (2026-09-29)
     if (tab === 'props' && live.get('sheet')) h.set('sheet', live.get('sheet'))       // the phone pick sheet (10-05)
+    if (tab === 'fullboard') { for (const k of ['cols', 'sort']) if (live.get(k)) h.set(k, live.get(k)) }   // Rankings' column view and its sort chain (10-07)
     carryLedgerView(h, live, tab)                                                     // The Ledger's sub-tab (lv=, lib/ledger/views.js)
     if (tab === 'team' && live.get('team')) h.set('team', live.get('team'))           // the team page's club (10-03)
     // PUSH WHAT YOU OPENED (2026-09-27, audit 00A root fix 1; lib/urlState).
@@ -1111,7 +1111,6 @@ export default function Dashboard({ palettePass = 0 }) {
             {tab === 'derby'       && <Derby players={players} results={resultsForSlate} slateDate={slateDate} onPlayerClick={setModalPlayer} />}
             {tab === 'runs'        && <Runs players={allPlayers} onPlayerClick={setModalPlayer} onOpenPitcher={(pid) => { leaveTarget('pitcher', pid); setTab('pitchers') }} />}
             {tab === 'spray'       && <SprayBoard players={players} slateMode={mode} onPlayerClick={setModalPlayer} />}
-            {tab === 'pitchermap'  && <PitcherMap players={players} />}
             {tab === 'guide'       && <Guide onNavigate={setTab} />}
             {tab === 'team'        && <Team players={allPlayers} onPlayerClick={setModalPlayer} onOpenGame={() => setTab('games')} onOpenBox={() => setTab('boxes')} />}
             </ErrorBoundary>

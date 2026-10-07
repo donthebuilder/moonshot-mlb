@@ -79,12 +79,24 @@ export function useWhySheet({ theme, accent, numFont }) {
 
 /** A column: the plain sentence (two lines at most) and a ›; a tap opens the sheet for that row.
  *  textOf(row) -> sentence or ''; itemOf(row) -> the sheet's item. */
-export function whyColumn({ textOf, itemOf, open, theme: C, numFont, group, w = 230 }) {
+// `tidy` (MLB, 2026-10-07): the sentence in two lines of a whole-pixel height with the › at its right edge,
+// so every row is the same whole-pixel height (a 16.2px line made fractional rows and a 1px stair-step in the
+// row rules) and the arrow no longer drops to a third line. Absent: the markup every other sport has.
+export function whyColumn({ textOf, itemOf, open, theme: C, numFont, group, w = 230, tidy = false }) {
   return {
     key: 'why', label: 'Why', w, heat: false, numeric: false, ...(group ? { group } : {}),
     title: 'Why he is ranked here, in one line. Tap it for the numbers behind it and where to look next.',
     fmt: (v, r) => {
       const t = textOf(r)
+      if (tidy) {
+        return (
+          <button type="button" onClick={(e) => { e.stopPropagation(); open(itemOf(r)) }} aria-label={`Why ${r.name || 'he'} is ranked here`}
+            style={{ display: 'flex', alignItems: 'center', gap: 4, width: w, minWidth: w, height: 44, padding: 0, border: 0, background: 'transparent', color: C.text2, fontFamily: 'inherit', fontSize: 12, fontWeight: 600, lineHeight: '16px', textAlign: 'left', cursor: 'pointer', whiteSpace: 'normal' }}>
+            <span style={{ flex: 1, minWidth: 0, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{t || 'Why? '}</span>
+            <span aria-hidden="true" style={{ color: C.text3, flex: '0 0 auto' }}>{'\u203a'}</span>
+          </button>
+        )
+      }
       return (
         <button type="button" onClick={(e) => { e.stopPropagation(); open(itemOf(r)) }} aria-label={`Why ${r.name || 'he'} is ranked here`}
           style={{ display: 'block', width: w, minWidth: w, minHeight: 44, padding: '4px 0', border: 0, background: 'transparent', color: C.text2, fontFamily: 'inherit', fontSize: 12, fontWeight: 600, lineHeight: 1.35, textAlign: 'left', cursor: 'pointer', whiteSpace: 'normal' }}>
