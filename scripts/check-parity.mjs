@@ -1,15 +1,16 @@
 // THE PARITY CHECK (BATCH-ONE-SITE step 2, 2026-10-05). lib/parity.js says what each
 // sport's pages carry; this holds the code to it. It FAILS (exit 1) when:
-//   · a sport's value is missing or isn't 'yes' / 'n/a: <reason>';
+//   · a sport's value is missing or isn't 'yes' / 'n/a: <reason>' / 'todo: <reason>';
 //   · a 'yes' isn't backed by the code (the Ledger section isn't drawn, the tab isn't
 //     registered, the component isn't mounted, the file doesn't say it);
-//   · the code has a feature the list still calls n/a (stale -- update the list).
+//   · the code has a feature the list still calls n/a or todo (stale -- update the list).
+// A 'todo: <reason>' (should have it, doesn't yet) does NOT fail; every one is printed as TODO.
 // Runs in scripts/gate.sh. Prints the grid.
 //   node scripts/check-parity.mjs
 await import('./_esm-resolve.mjs')
 const fs = await import('node:fs')
 const path = await import('node:path')
-const { PARITY, SPORT_NAMES, isYes, naReason } = await import('../lib/parity.js')
+const { PARITY, SPORT_NAMES, isYes, naReason, todoReason } = await import('../lib/parity.js')
 const R = await import('../lib/routes.js')
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..')
@@ -36,19 +37,22 @@ function backed(check, sport) {
 let fails = 0
 const fail = (msg) => { fails++; console.log(`FAIL ${msg}`) }
 const rows = []
+const todos = []
 for (const row of PARITY) {
   const cells = []
   for (const s of SPORTS) {
     const v = row.sports?.[s]
     const have = backed(row.check, s)
-    if (!isYes(v) && !naReason(v)) fail(`${row.label} · ${SPORT_NAMES[s]}: '${v ?? '(missing)'}' -- must be 'yes' or 'n/a: <reason>'`)
+    if (!isYes(v) && !naReason(v) && !todoReason(v)) fail(`${row.label} · ${SPORT_NAMES[s]}: '${v ?? '(missing)'}' -- must be 'yes', 'n/a: <reason>' or 'todo: <reason>'`)
     else if (isYes(v) && !have) fail(`${row.label} · ${SPORT_NAMES[s]}: marked yes, but the code doesn't have it`)
-    else if (!isYes(v) && have) fail(`${row.label} · ${SPORT_NAMES[s]}: the code has it now -- lib/parity.js still says n/a`)
-    cells.push(isYes(v) ? '  ✓  ' : ' n/a ')
+    else if (!isYes(v) && have) fail(`${row.label} · ${SPORT_NAMES[s]}: the code has it now -- lib/parity.js still says ${todoReason(v) ? 'todo' : 'n/a'}`)
+    if (todoReason(v)) todos.push(`TODO ${row.label} · ${SPORT_NAMES[s]}: ${todoReason(v)}`)
+    cells.push(isYes(v) ? '  ✓  ' : todoReason(v) ? ' todo' : ' n/a ')
   }
   rows.push(`${row.label.slice(0, 44).padEnd(44)} ${cells.join(' ')}`)
 }
 console.log(`${''.padEnd(44)} ${SPORTS.map((s) => SPORT_NAMES[s].slice(0, 5).padStart(5)).join(' ')}`)
 for (const r of rows) console.log(r)
+if (todos.length) { console.log(`\n${todos.length} TODO (visible gaps, not failures):`); for (const t of todos) console.log(t) }
 console.log(fails ? `\nparity: ${fails} problem(s)` : `\nparity: every sport accounted for (${PARITY.length} features x ${SPORTS.length} sports)`)
 process.exit(fails ? 1 : 0)
