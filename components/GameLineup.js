@@ -600,7 +600,7 @@ export default function GameLineup({ players, onPlayerClick }) {
             title="One line per hitter: what this arm has done to the spot he stands in">Spot read</button>
         </div>
         <span style={{ marginLeft: 'auto', fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
-          {rows.length} hitters · ★{lit('weak')} weak · ◆{lit('aligned')} aligned · ▲{lit('edge')} edge
+          {rows.length} {rows.length === 1 ? 'hitter' : 'hitters'} · ★{lit('weak')} weak · ◆{lit('aligned')} aligned · ▲{lit('edge')} edge
         </span>
       </div>
 

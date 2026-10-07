@@ -133,7 +133,7 @@ export default function PartnerWatch({ players = [], pairHistorySummary, onPlaye
 
   return (
     <div style={{
-      background: `linear-gradient(155deg, ${C.bg2}, rgba(167,139,250,.05))`,
+      background: C.bg2,
       border: '1px solid rgba(167,139,250,.3)', borderRadius: 12, padding: '9px 13px', marginBottom: 14,
     }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 2 }}>

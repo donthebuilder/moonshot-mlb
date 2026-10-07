@@ -90,7 +90,7 @@ export default function MlbGameLog({ pid }) {
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 12, fontWeight: 800 }}>Game log</span>
         <span style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
-          {rows.length} games · newest first · live from the league
+          {rows.length} {rows.length === 1 ? 'game' : 'games'} · newest first
         </span>
       </div>
       <TeamNav.Provider value={openClub}>

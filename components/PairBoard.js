@@ -153,7 +153,7 @@ export default function PairBoard({ pairBuilder, results, onPlayerClick }) {
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 7 }}>
         <span style={{ fontSize: 12, fontWeight: 800 }}>Recommended pairs</span>
         <span style={{ marginLeft: 'auto', fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
-          {rows.length} pairs · {sameGame} same-game
+          {rows.length} {rows.length === 1 ? 'pair' : 'pairs'} · {sameGame} same-game
         </span>
       </div>
 

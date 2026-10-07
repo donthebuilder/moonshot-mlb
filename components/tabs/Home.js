@@ -1085,8 +1085,8 @@ export default function Home({
       {players.length > 0 && (
         <Fold id="angles" title="📖 Tonight's angles" meta="air, parks, arms — every line from tonight's own data">
         <div style={{
-          background: `linear-gradient(155deg, rgba(252,211,77,.06), ${C.bg2} 60%)`,
-          border: '1px solid rgba(252,211,77,.25)', borderRadius: 14,
+          background: C.bg2,
+          border: `1px solid ${C.border}`, borderRadius: 14,
           padding: '13px 16px', marginBottom: 14,
         }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
@@ -1314,8 +1314,8 @@ export default function Home({
             return (
               <div key={title} style={{
                 flex: '1 1 340px', minWidth: 0,
-                background: `linear-gradient(155deg, ${C.bg2}, ${col}08)`,
-                border: `1px solid ${col}30`, borderRadius: 12, padding: '10px 13px',
+                background: C.bg2,
+                border: `1px solid ${C.border}`, borderRadius: 12, padding: '10px 13px',
               }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 7 }}>
                   <span style={{ fontSize: TYPE.name, fontWeight: 900 }}>{title}</span>
@@ -1461,8 +1461,8 @@ export default function Home({
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
             <div style={{
               flex: '1 1 300px', minWidth: 0,
-              background: `linear-gradient(155deg, ${C.bg2}, rgba(248,113,113,.05))`,
-              border: '1px solid rgba(248,113,113,.28)', borderRadius: 12, padding: '10px 13px',
+              background: C.bg2,
+              border: `1px solid ${C.border}`, borderRadius: 12, padding: '10px 13px',
             }}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
                 <span style={{ fontSize: TYPE.name, fontWeight: 900 }}>🩹 Weakest arms tonight</span>
@@ -1478,8 +1478,8 @@ export default function Home({
             {trending.length > 0 && (
               <div style={{
                 flex: '1 1 300px', minWidth: 0,
-                background: `linear-gradient(155deg, ${C.bg2}, rgba(252,211,77,.05))`,
-                border: '1px solid rgba(252,211,77,.28)', borderRadius: 12, padding: '10px 13px',
+                background: C.bg2,
+                border: `1px solid ${C.border}`, borderRadius: 12, padding: '10px 13px',
               }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
                   <span style={{ fontSize: TYPE.name, fontWeight: 900 }}>📉 Trending weak</span>
@@ -1687,8 +1687,8 @@ export default function Home({
       {mine.length > 0 && (
         <Fold id="yournight" title="🎟 Your night" meta={`${mine.length} call${mine.length === 1 ? '' : 's'} on this slate`}>
         <div style={{
-          background: `linear-gradient(155deg, rgba(96,165,250,.09), ${C.bg2} 60%)`,
-          border: '1px solid rgba(96,165,250,.3)', borderRadius: 14,
+          background: C.bg2,
+          border: `1px solid ${C.border}`, borderRadius: 14,
           padding: '11px 16px', marginBottom: 14,
         }}>
           <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', fontSize: TYPE.body, lineHeight: 1.6, color: C.text2 }}>

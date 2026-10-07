@@ -92,7 +92,7 @@ export default function TeamVsStarter({ players = [], team = '', pitcherName = '
       <DenseTable rows={rows} columns={cols} initialSort={null} maxHeight={9999} bare
         onRowClick={onPlayerClick ? (r) => onPlayerClick(r._raw ?? r) : null}
         dimRow={(r) => !!r._thin}
-        caption="Head-to-head this season, tiny samples by nature: a dash means no meeting (never a league-average default dressed up as history), dimmed rows are under 8 PA. The vs-side columns are his season-long split against that hand, not this arm. History, not a projection. Tap a row for his full card." />
+        caption="Head-to-head this season; small samples by nature. A dash means no meeting, never a league-average default dressed up as history, and dimmed rows are under 8 PA. The vs-side columns are his season-long split against that hand, not this arm. History, not a projection. Tap a row for his full card." />
     </div>
   )
 }

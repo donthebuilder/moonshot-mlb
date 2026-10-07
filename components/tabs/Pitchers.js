@@ -332,7 +332,7 @@ function BullpenBoard({ pitchers, onTeamClick }) {
 
   return (
     <div style={{
-      background: `linear-gradient(155deg, ${C.bg2}, rgba(248,113,113,.04))`,
+      background: C.bg2,
       border: `1px solid ${C.border}`, borderRadius: 11, padding: '9px 13px', marginBottom: 12,
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
@@ -1208,8 +1208,8 @@ export default function Pitchers({ players, onPlayerClick }) {
             return (
               <div key={p.pitcher_id ?? p.pitcher_name} style={{
                 flex: '1 1 220px', minWidth: 0,
-                background: 'linear-gradient(160deg, rgba(96,165,250,.08), transparent 65%)',
-                border: '1px solid rgba(96,165,250,.3)', borderRadius: 11, padding: '7px 11px',
+                background: 'transparent',
+                border: `1px solid ${C.border}`, borderRadius: 11, padding: '7px 11px',
               }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, minWidth: 0 }}>
                   <span style={{ fontSize: TYPE.label, fontWeight: 900, color: C.blue, letterSpacing: '.08em', fontFamily: NUM_FONT, flexShrink: 0 }}>🧊 STAY AWAY</span>
@@ -1278,7 +1278,7 @@ export default function Pitchers({ players, onPlayerClick }) {
           doesn't get a line rather than getting a made-up mild evening. */}
       {games.length > 0 && (
         <div style={{
-          background: `linear-gradient(155deg, ${C.bg2}, rgba(34,211,238,.04))`,
+          background: C.bg2,
           border: `1px solid ${C.border}`, borderRadius: 11, padding: '9px 13px', marginBottom: 12,
         }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 5 }}>

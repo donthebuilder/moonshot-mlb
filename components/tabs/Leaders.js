@@ -426,7 +426,7 @@ export default function Leaders({ players = [], onPlayerClick, onNavigate }) {
               renderRow={(p, i) => (
                 <HistRow key={p.pid} i={i} name={p.name} team={p.team}
                   main={`${p.hr} HR`}
-                  note={`${p.hrNights}/${p.nights} nights`}
+                  note={`${p.hrNights}/${p.nights} ${p.nights === 1 ? 'night' : 'nights'}`}
                   onClick={openIfOnSlate(p.pid)} onTeam={openTeam}
                   title={`${p.name} — ${p.hr} home runs over ${w.loaded} graded nights, on ${p.hrNights} of the ${p.nights} nights he was in the file. Deduped per night: the graded file lists a hitter once per pick category, so counting raw rows would give a man picked twice two homers for one swing.`} />
               )} />

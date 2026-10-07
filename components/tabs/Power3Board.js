@@ -1,4 +1,5 @@
 'use client'
+import HelpTip from '../HelpTip'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import {
@@ -119,7 +120,7 @@ function RecentBombers({ all = [], onPlayerClick }) {
           >{w}g</button>
         ))}
         <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
-          {rows.length} hitters
+          {rows.length} {rows.length === 1 ? 'hitter' : 'hitters'}
         </span>
       </div>
 
@@ -227,8 +228,7 @@ export default function Power3Board({ players = [], onWatch, watchIds, onPlayerC
       )}
 
       <div style={{
-        fontSize: 10.5, color: C.text3, lineHeight: 1.6, margin: '6px 0 12px',
-        borderLeft: `2px solid ${C.orange}`, paddingLeft: 10, maxWidth: 680,
+        fontSize: 10.5, color: C.text3, lineHeight: 1.6, margin: '6px 0 12px', maxWidth: 680,
       }}>
         {!showTitle && (
           <>
@@ -236,12 +236,11 @@ export default function Power3Board({ players = [], onWatch, watchIds, onPlayerC
             Who hits it hardest and farthest, all season — <b style={{ color: C.text2 }}>a season-power board, not a form board</b>.{' '}
           </>
         )}
-        Three season numbers, ranked against tonight&apos;s slate and averaged: <b style={{ color: C.text2 }}>HR per ball in play</b>,{' '}
-        <b style={{ color: C.text2 }}>average exit velocity</b>, <b style={{ color: C.text2 }}>max exit velocity</b>. The drought column is for information — it does not move the rank.
+        <HelpTip label="How Power-3 is built" text="Three season numbers, ranked against tonight's slate and averaged: HR per ball in play, average exit velocity and max exit velocity. The drought column is for information; it does not move the rank." />
       </div>
 
       {!published ? (
-        <Empty text="Power-3 is not on this slate yet — it arrives with the first slate MOONSHOT publishes after the 2026-09-06 ship." />
+        <Empty text="Power-3 isn’t on tonight’s slate yet." />
       ) : (
         <>
           <div style={{ fontSize: 11.5, color: C.text2, lineHeight: 1.7, marginBottom: 12, maxWidth: 680 }}>

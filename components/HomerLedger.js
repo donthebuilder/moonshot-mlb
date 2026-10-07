@@ -226,7 +226,7 @@ function LookOut({ players, onPlayerClick = null, onOpenPitcher = null }) {
           })),
         },
       ]}
-      foot="Pool load arrives when MOONSHOT publishes pool membership."
+      foot="Pool load arrives once tonight’s pools are set."
     />
   )
 }
@@ -1005,7 +1005,7 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
                     <div className="ledger-forfun-row">
                       <span className="ledger-forfun-label">Number meets number</span>
                       <span className="ledger-forfun-body">
-                        {pre.jerseys.length} hitters whose home run count is level with their shirt
+                        {pre.jerseys.length} {pre.jerseys.length === 1 ? 'hitter whose' : 'hitters whose'} home run count is level with {pre.jerseys.length === 1 ? 'his' : 'their'} shirt
                         or one short of it:{' '}
                         {pre.jerseys.slice(0, 3).map((j, i) => (
                           <span key={`${j.name}-${j.jersey}`}>

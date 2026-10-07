@@ -94,7 +94,7 @@ export default function PairMe({ players = [], pairHistorySummary, onPlayerClick
 
   return (
     <div style={{
-      background: `linear-gradient(155deg, ${C.bg2}, ${alpha(tone('cyan'), 0.03)})`,
+      background: C.bg2,
       border: `1px solid ${C.border}`, borderRadius: 12, padding: '11px 14px', marginBottom: 14,
     }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>

@@ -529,7 +529,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
           // the v2 skin's status stamp: the one rule (lib/callStatus), the bot's designation + his board place
           {...(whyOn ? { statusOf: (r) => callStatus({ role: r._raw?.game_pick_role, board_rank: r.rank, board_of: boardOf }), maxRows: Math.max(ranked.length, 1) } : null)}
           maxHeight={rankings ? 640 : 520}
-          caption={`Ranked by ${type === 'hr' ? 'MOONSHOT’s own HR score, with ISO beside it — the archive says a big score on thin power is the board’s most common trap' : 'the category score'}. "When picked" is the archive speaking: what he actually did the other times MOONSHOT designated him here. Click any header to re-sort; the # column always gets you back to the board's own order.`}
+          caption={`Ranked by ${type === 'hr' ? 'MOONSHOT’s HR score, with ISO beside it' : 'the category score'}. ${type === 'hr' ? 'A big score on thin power is the board’s most common trap. ' : ''}"When picked" is what he actually did the other times MOONSHOT picked him here. Tap any header to re-sort; the # column always gets you back to the board's own order.`}
         />
       )}
 

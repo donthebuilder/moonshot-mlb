@@ -149,7 +149,7 @@ export default function SlatePulse({ players = [], slateDate = '', backtest, onP
     <div style={{ marginBottom: 14 }}>
       {unconfirmed.length > 0 && (
         <div style={{
-          background: 'linear-gradient(155deg, rgba(252,211,77,.08), rgba(252,211,77,.02))',
+          background: C.bg2,
           border: '1px solid rgba(252,211,77,.3)', borderRadius: 11,
           padding: '8px 12px', marginBottom: 8,
         }}>
