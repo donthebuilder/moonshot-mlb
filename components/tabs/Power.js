@@ -10,11 +10,13 @@ import { btnStyle, Band } from '../ui'
 import LongestBoard from './LongestBoard'
 import Power3Board from './Power3Board'
 import LuckReport from '../LuckReport'
-import ParkBoard, { parkRows } from '../ParkBoard'
+import { parkRows } from '../ParkBoard'
+import ParkTable from '../ParkTable'
 import FenceBoard from '../FenceBoard'
 import ShapeBoard from '../ShapeBoard'
 import { alpha } from '../../lib/scales'
-import { Para, Num, ConvictionClause, PowerLead, LensRow } from '../power/PowerParts'
+import { Para, Num, ConvictionClause, LensRow } from '../power/PowerParts'
+import Tap from '../Tap'
 import { PitcherTap } from '../EntityTap'
 import { useGameNav } from '../../lib/teamNav'
 
@@ -168,6 +170,22 @@ function AirClause({ p }) {
 // and no way to see that the two were a coin flip. The lead is a ranking
 // claim; the strength of the ranking belongs in the sentence either way.
 
+// THE READ OF THE NIGHT, WITHOUT THE BOX (2026-10-07, Donovan: "big boxes look outdated"). The gradient card
+// with the 27px headline is a left rule and a line: the same kicker, the same name (tap for his card), the
+// same argument underneath, then the tables. PowerParts' PowerLead is still the other sports' frame.
+function LeadBlock({ color, kicker, name, meta, onName, onMeta = null, children }) {
+  return (
+    <section style={{ borderLeft: `3px solid ${color}`, padding: '0 0 0 12px', margin: '0 0 14px', maxWidth: 780 }}>
+      <div style={{ fontSize: 10, fontFamily: NUM_FONT, fontWeight: 900, letterSpacing: '.14em', textTransform: 'uppercase', color, marginBottom: 3 }}>{kicker}</div>
+      <div style={{ margin: '0 0 6px', fontSize: 16, fontWeight: 800, lineHeight: 1.25 }}>
+        <Tap onClick={onName}>{name}</Tap>
+        <span style={{ fontSize: 12, fontWeight: 700, color: C.text3, fontFamily: NUM_FONT }}> <Tap onClick={onMeta}>{meta}</Tap></span>
+      </div>
+      {children}
+    </section>
+  )
+}
+
 export default function PowerTab({ players, slateDate = '', results = null, onWatch, watchIds, onPlayerClick, initial = 'longest' }) {
   const openGame = useGameNav()   // the lead's matchup line opens its game (10-05 nav audit)
   const [view, setView] = useState(initial === 'due' ? 'power3' : initial)
@@ -265,7 +283,7 @@ export default function PowerTab({ players, slateDate = '', results = null, onWa
           // borderLeft rule that used to sit directly above the lens pills —
           // 2026-08-24, "looks off/cluttered" against a purple callout with no
           // card edge of its own. See components/VerdictHero.js.
-          <PowerLead color={h.color} kicker={h.kicker} name={nameOf(p)} meta={`${teamOf(p)} vs ${oppOf(p)}`}
+          <LeadBlock color={h.color} kicker={h.kicker} name={nameOf(p)} meta={`${teamOf(p)} vs ${oppOf(p)}`}
             onName={onPlayerClick ? () => onPlayerClick(p) : undefined}
             onMeta={openGame && p?.game_pk ? () => openGame(p.game_pk) : undefined}>
 
@@ -379,7 +397,7 @@ export default function PowerTab({ players, slateDate = '', results = null, onWa
               </Para>
             )}
             </details>
-          </PowerLead>
+          </LeadBlock>
         )
       })()}
 
@@ -404,13 +422,11 @@ export default function PowerTab({ players, slateDate = '', results = null, onWa
           showTitle={false}
         />
       ) : view === 'parks' ? (
-        <ParkBoard
+        <ParkTable
           players={players}
-          slateDate={slateDate}
           activeVenue={venueFilter}
           onVenueClick={pickVenue}
           onPlayerClick={onPlayerClick}
-          fold={false}
         />
       ) : view === 'power3' ? (
         <Power3Board players={players} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} showTitle={false} />

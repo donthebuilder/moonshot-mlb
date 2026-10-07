@@ -10,7 +10,8 @@ import { mlbFaceStrict } from '../PlayerFace'
 import { zonesUrl } from '../../lib/dataSource'
 import Tap from '../Tap'
 import { leaveTarget } from '../../lib/openTarget'
-import { MatchupTitle, BarList, FactLines, HeatTiles } from '../matchup/MatchupParts'
+import { MatchupTitle, FactLines, HeatTiles } from '../matchup/MatchupParts'
+import { PITCH_NAMES } from '../../lib/livePitches'
 
 // ⚾ MOONSHOT MATCHUPS (2026-09-27, matchups plan Part C, in the shape Donovan
 // signed off on TUDDY's): a ranked table of tonight's starters leads, a tap
@@ -22,6 +23,7 @@ import { MatchupTitle, BarList, FactLines, HeatTiles } from '../matchup/MatchupP
 // handedness are one line each. Only fields the slate publishes; nothing
 // here is a new score.
 const PREVIEW = 8
+const PM_GROUP = { key: 'pm', label: 'His mix against tonight\u2019s lineup', order: 0 }
 const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : null)
 const mixOf = (row) => (Array.isArray(row?.pitcher_pitch_type_summary) ? row.pitcher_pitch_type_summary : [])
   .map((p) => ({ code: p.pitch_code || p.pitch_type, use: num(p.usage_pct ?? p.usage) }))
@@ -82,6 +84,42 @@ function ZoneOverlap({ lineupIds, pitcherName }) {
       hotKey={hot?.zone ?? null}
       legend={<>Big number: share of all his pitches in that zone ({state.pitches} on file; {Math.round(cells.reduce((a, c) => a + (c.his || 0), 0) * 100)}% land in these nine, the rest outside the strike zone). Small: the lineup&apos;s xSLG there ({state.hitters} hitters, PA-weighted). More orange = the lineup slugs more. Catcher&apos;s view.</>}
     />
+  )
+}
+
+
+// ── HIS PITCHES AGAINST THIS LINEUP, AS ONE TABLE (2026-10-07, Donovan: "replace the small line charts") ──
+// The thin bar list is a dense table: one row per pitch in his mix, a bar for how often he throws it, a bar
+// for how many of the nine hitters the bot says crush it, and who they are (each name opens his card). The
+// count is read straight off the slate: a hitter's pitch_mix_note ("Crush FF/SL") names the pitches his
+// damage lines up with. Nothing here is a new score.
+const crushCodes = (r) => {
+  const m = /crush\s+([A-Z0-9/]+)/i.exec(String(r?.pitch_mix_note || ''))
+  return m ? m[1].toUpperCase().split('/').filter(Boolean) : []
+}
+function PitchesTable({ active, onPlayerClick }) {
+  const nine = active.raws.length
+  const rows = useMemo(() => active.mix.slice(0, 6).map((p, i) => {
+    const who = active.raws.filter((r) => crushCodes(r).includes(String(p.code).toUpperCase()))
+    return { _key: p.code, rank: i + 1, pitch: PITCH_NAMES[p.code] || p.code, code: p.code, use: p.use, crush: who.length, who }
+  }), [active])
+  const columns = useMemo(() => [
+    { key: 'rank', label: '#', w: 30, heat: false, rankCol: true },
+    { key: 'pitch', label: 'His pitch', w: 120, heat: false, sticky: true, group: PM_GROUP, fmt: (v, r) => <span><b>{v}</b> <span style={{ color: C.text3, fontSize: 10 }}>{r.code}</span></span> },
+    { key: 'use', label: 'Thrown', w: 100, dp: 0, bar: 'primary', barW: 56, domain: [0, 70], group: PM_GROUP, fmt: (v) => `${Math.round(v)}%`, title: 'Share of his pitches that are this one' },
+    { key: 'crush', label: `Crush it (of ${nine})`, w: 100, dp: 0, bar: 'secondary', barW: 56, domain: [0, Math.max(nine, 1)], group: PM_GROUP, title: 'Hitters in tonight\u2019s lineup whose damage lines up with this pitch (the bot\u2019s pitch-mix note)' },
+    { key: 'who', label: 'Who', w: 260, heat: false, numeric: false, group: PM_GROUP,
+      fmt: (v, r) => (r.who.length
+        ? <span style={{ display: 'inline-flex', gap: 6, whiteSpace: 'nowrap' }}>{r.who.slice(0, 4).map((h, i) => (
+          <span key={h?.player_id ?? i}>{i ? <span style={{ color: C.text3 }}>{'· '}</span> : null}<Tap onClick={onPlayerClick ? () => onPlayerClick(h) : null}>{h.name || h.player_name}</Tap></span>
+        ))}{r.who.length > 4 ? <span style={{ color: C.text3 }}>+{r.who.length - 4}</span> : null}</span>
+        : <span style={{ color: C.text3 }}>—</span>) },
+  ], [nine, onPlayerClick])
+  if (!rows.length) return null
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <DenseTable rows={rows} columns={columns} bare tight={false} maxRows={rows.length} maxHeight={9999} initialSort={{ key: 'rank', dir: 'asc' }} heatMode="primary" />
+    </div>
   )
 }
 
@@ -157,7 +195,7 @@ export default function Matchups({ players = [], onPlayerClick, onNavigate = nul
       {active && (
         <section id="ms-matchup-detail" aria-label={`${active.pitcher} matchup`} style={{ scrollMarginTop: 80 }}>
           <MatchupTitle logo={{ sport: 'mlb', abbr: active.team }} name={active.pitcher} meta={`${active.team} vs ${active.vs} · tap another row above to switch`} />
-          <BarList label="HIS PITCH MIX" items={active.mix.slice(0, 6).map((p) => ({ key: p.code, label: p.code, pct: p.use, text: `${Math.round(p.use)}%` }))} />
+          <PitchesTable active={active} onPlayerClick={onPlayerClick} />
           <FactLines lines={[
             ['Handedness', `a ${active.throws}HP against ${Object.entries(active.bats).filter(([h]) => h !== '?').map(([h, c]) => `${c} ${h === 'S' ? 'switch' : h === 'L' ? 'left' : 'right'}`).join(', ') || 'an unknown lineup'}-handed hitter${active.hitters === 1 ? '' : 's'}.`],
             ['Park', `${active.venue || 'tonight’s park'}, home-run factor ${active.park != null ? `${active.park.toFixed(2)}x` : 'not published'}${active.park != null ? (active.park > 1.03 ? ' (plays up)' : active.park < 0.97 ? ' (plays down)' : ' (neutral)') : ''}.`],

@@ -15,6 +15,8 @@ import PlayerCard from '../PlayerCard'
 import { usePreview, ShowMoreButton } from '../ListPreview'
 import MobileFold, { useIsPhone } from '../MobileFold'
 import { DrawerSection, drawerLabel } from '../FiltersDrawer'
+import { useHashFilter } from '../../lib/filterHash'
+import { COLUMN_VIEWS, columnViewKey } from '../../lib/boardColumns'
 import HowToRead from '../HowToRead'
 import { hrRank } from '../../lib/scoring'
 // HitterHeat (the heat-painted 'top 15 profile' tables) left this page 2026-09-06 -- Donovan:
@@ -455,6 +457,10 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
   const rankings = initialView === 'boards'
   const phone = useIsPhone()
   const phoneRank = rankings && phone
+  // the board's column layout (cols=read | lean, absent = all), kept in the address like the other view params
+  const [colsRaw, setColsRaw] = useHashFilter('cols')
+  const colsView = columnViewKey(colsRaw)
+  const setColsView = (k) => setColsRaw(k === 'all' ? '' : k)
   const [layout, setLayout] = useState('list')   // Rankings' List / Cards switch (the page owns it, the table reads it)
   // Scoped to whichever lens is open (view), so the Score slider in
   // BoardFilters reads hr_score on the HR board, hit_score on Hits, etc.,
@@ -534,6 +540,13 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
         <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
           {[['list', '☰ List'], ['cards', '▦ Cards']].map(([k, l]) => (
             <button key={k} type="button" onClick={() => setLayout(k)} aria-pressed={layout === k} style={chip44(layout === k, C.orange)}>{l}</button>
+          ))}
+        </div>
+      </DrawerSection>
+      <DrawerSection label="Columns" hint="The same board laid out the way you read it.">
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
+          {COLUMN_VIEWS.map((v) => (
+            <button key={v.key} type="button" onClick={() => setColsView(v.key)} aria-pressed={colsView === v.key} title={v.title} style={chip44(colsView === v.key, C.orange)}>{v.label}</button>
           ))}
         </div>
       </DrawerSection>
@@ -730,7 +743,7 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
             : view === 'matchupedge'
             ? <MatchupEdgeSection players={filtered} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} />
             : <RankedBoard players={players} type={viewKey} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} onOpenPitcher={onNavigate ? (pid) => { leaveTarget('pitcher', pid); onNavigate('pitchers') } : null} slateDate={slateDate} filterState={filterState} setupHomers={setupHomers}
-                onOpenCard={onOpenCard} rankings={rankings} compact={phoneRank} slate={allPlayers.length ? allPlayers : players} viewMode={layout} onViewMode={setLayout} />
+                onOpenCard={onOpenCard} rankings={rankings} compact={phoneRank} colsView={colsView} onColsView={setColsView} slate={allPlayers.length ? allPlayers : players} viewMode={layout} onViewMode={setLayout} />
           }
           {phoneRank && b2bFold}
         </>

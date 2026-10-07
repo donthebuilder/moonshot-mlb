@@ -11,6 +11,7 @@ const cases = [
   ['mlb', '#sport=mlb&tab=board', 'home', 'fullboard', 'old Boards link opens Rankings'],
   ['mlb', '#sport=mlb&tab=boards', 'home', 'fullboard', 'TUDDY\'s word for it opens Rankings'],
   ['mlb', '#sport=mlb&tab=hitshrr', 'home', 'fullboard', 'the pre-consolidation key opens Rankings'],
+  ['mlb', '#sport=mlb&tab=pitchermap', 'home', 'pitchers', 'the removed Pitcher map opens the Pitchers page'],
   ['mlb', '#sport=mlb&tab=fullboard', 'home', 'fullboard', 'Rankings opens Rankings'],
   ['nhl', '#sport=nhl&tab=standings', 'home', 'standings', 'LAMP live hash answers'],
   ['nhl', '', 'leaders', 'leaders', 'no live hash: snapshot'],

@@ -49,6 +49,9 @@ export function roleHue(v, C) {
   return col && col !== C.text3 ? col : null
 }
 
+// the one short line that explains tiers (it is also the ＋ tier button's tooltip, and it is printed on screen while a tier is being added, so a tap reads it too)
+const TIER_HELP = 'Your first column groups the rows (top, middle, bottom). Each column you add puts the rows in order inside their group.'
+const headBtn = { background: 'none', border: 'none', color: 'inherit', textDecoration: 'underline dotted', cursor: 'pointer', fontFamily: 'inherit', fontSize: 10, padding: '11px 8px', margin: '-11px -2px -11px 4px', minHeight: 0, lineHeight: 1 }
 const SORT_ALPHA = 0.35
 const TIE_ALPHA = SORT_ALPHA * 0.45
 // STANDOUTS AT REST (2026-10-03, Donovan picked it: "extremes only, every
@@ -149,6 +152,10 @@ export function v2Css(C, ac, NUM_FONT) {
     .dtv2 th, .dtv2 td { background: ${C.bg2}; }
     .dtv2 .g-row th { font: 800 10px/1 system-ui, -apple-system, sans-serif; letter-spacing: .16em; text-transform: uppercase;
       color: ${C.text3}; height: 18px; padding: 0 8px; position: relative; text-align: left; white-space: nowrap; overflow: visible; }
+    .dtv2 .g-row th > span { height: 18px; line-height: 18px; }
+    /* TIERS (2026-10-07): the number of the tier a header holds, and a rule where a tier begins */
+    .dtv2 .tier-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 13px; height: 13px; margin-left: 4px; border-radius: 7px; background: ${ac}; color: ${C.bg}; font: 800 10px/1 ${NUM_FONT}; vertical-align: middle; }
+    .dtv2 tr.tier-start td { border-top: 2px solid ${withAlpha(ac, 0.6)}; }
     .dtv2 .g-tick { display: inline-block; width: 14px; height: 2px; background: ${ac}; vertical-align: middle; margin-right: 6px; border-radius: 1px; }
     .dtv2 .h-row th { font: 700 9px/1.2 ${NUM_FONT}; letter-spacing: .06em; text-transform: uppercase; color: ${C.text3};
       height: 24px; padding: 0 7px; white-space: nowrap; cursor: pointer; user-select: none; border-bottom: 1px solid ${C.border}; }
@@ -216,7 +223,10 @@ export function v2Css(C, ac, NUM_FONT) {
       .dtv2 .h-row th button { min-height: 0 !important; }
       .dtv2 .h-row th.long { white-space: normal; line-height: 1.15; vertical-align: bottom; min-width: 0 !important; }
       .dtv2 .bar { width: 20px; margin-right: 4px; }
-      .dtv2 .sub { display: block; font: 700 8.5px/1.15 ${NUM_FONT}; color: ${C.text3}; letter-spacing: .02em; margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      /* the pieces of the sub-line (status, club, opponent) wrap onto a second line rather than ending in an \"…\" (2026-10-07: a phone's tap targets are 32px wide, so three of them never fit one 110px line) */
+      .dtv2 .sub { display: flex; flex-wrap: wrap; align-items: center; gap: 0 7px; font: 700 8.5px/1.15 ${NUM_FONT}; color: ${C.text3}; letter-spacing: .02em; margin-top: 1px; }
+      /* the dots between the pieces of the sub-line are tight (2026-10-07): spaces around them pushed the opponent off a 122px cell as an "…" */
+      .dtv2 .sub .dot { margin: 0 3px; }
       .dtv2 .long .full { display: none; }
       .dtv2 .long .short { display: inline; }
     }
@@ -241,6 +251,7 @@ export function renderV2(ctx) {
     explain, setExplain, dict, scoreTerms, caveat, accent, maxHeight, caption,
     truncated, maxRows, extra, setExtra, exportCsv, railRef, statusOf, title, initialStack, firstTextKey,
     capOpen, setCapOpen, bare, footRows, tight, noGroups, onOpenTeam = null,
+    adding = false, setAdding = () => {}, tierSig = null, phone = false,
   } = ctx
   const ordered = noGroups ? rawColumns.map((c) => ({ ...c, group: null })) : orderByGroup(rawColumns)
   // THE STATUS STAMP (plan step 4): when the caller can say each row's status,
@@ -322,6 +333,15 @@ export function renderV2(ctx) {
     const c = columns.find((x) => x.key === k)
     if (c && (eligible(c) || isNumericText(c))) medians[k] = medianOf(sorted.map((r) => numOf(r[k])))
   }
+  // A HIGHLIGHT WASH MUST COVER EVERY CELL OF ITS ROW (2026-10-07, Donovan: "the white band in the middle").
+  // A cell with its own fill (a standout, a receded cell, a sorted grade) used to REPLACE the row's highlight
+  // wash instead of sitting under it, so a highlighted row read as bands: washed in the pinned cells and the
+  // empty ones, bare across the graded ones, with a step in the row rule where the two met. The wash is a
+  // layer now: the highlight over the cell's own fill over the sheet.
+  const layers = (...cols) => {
+    const l = cols.filter(Boolean)
+    return l.length ? { background: `${l.map((x) => `linear-gradient(${x}, ${x})`).join(', ')}, ${C.bg2}` } : null
+  }
   const groupStart = new Set()
   columns.forEach((c, i) => { if (i > 0 && c._g && c._g.key !== columns[i - 1]._g?.key) groupStart.add(c.key) })
 
@@ -354,19 +374,33 @@ export function renderV2(ctx) {
     <thead style={{ position: 'sticky', top: 0, zIndex: 3 }}>
       {columns.some((c) => c._g) && (
         <tr className="g-row">
-          {columns.map((c, i) => {
-            // the label sits on the first column of its run that a phone still
-            // shows (a folded column is hidden there), so it is drawn once and
-            // never hides under a pinned cell
-            const lead = columns.find((x) => x._g?.key === c._g?.key && !folds(x))
-            const label = c._g && c === lead ? c._g.label : null
-            return (
-              <th key={c.key} className={cls(c, '')} style={{ ...(pinStyle(c, true) || {}), position: pinStyle(c, true) ? 'sticky' : 'relative', zIndex: pinStyle(c, true) ? (label ? 7 : 6) : label ? 4 : 3 }}>
-                {/* absolute: a group's label must not widen its first column */}
-                {label ? <span style={{ position: 'absolute', left: 8, top: 0, bottom: 0, display: 'flex', alignItems: 'center', whiteSpace: 'nowrap', pointerEvents: 'none' }}><span className="g-tick" />{label}</span> : null}
-              </th>
-            )
-          })}
+          {(() => {
+            // ONE CELL PER GROUP (2026-10-07, Donovan: "words half-cut"). The label used to hang off the
+            // group's first column, so a table scrolled sideways cut "MODEL SCORES" to "DEL SCORES" under
+            // the pinned name. Now a group is one cell spanning its columns and the label is sticky: it
+            // stays at the pinned edge while any part of its group is on screen. A column a phone folds
+            // away is not counted there (`phone`, DenseTable's own matchMedia at 640px).
+            const pinW = (rankC ? (phone ? 26 : (rankC.w || 40)) : 0) + (nameC ? (phone ? 122 : (nameC.w || 150)) : 0)
+            const runs = []
+            columns.forEach((c) => {
+              const key = c._g?.key ?? null
+              const last = runs[runs.length - 1]
+              if (last && last.key === key) last.cols.push(c)
+              else runs.push({ key, g: c._g || null, cols: [c] })
+            })
+            return runs.map((run, ri) => {
+              const shown = run.cols.filter((c) => !(phone && folds(c)))
+              if (!shown.length) return null
+              const pinned = run.cols.some((c) => c === rankC || c === nameC)
+              const first = run.cols[0]
+              const label = run.g ? run.g.label : null
+              return (
+                <th key={`${run.key ?? 'none'}-${ri}`} colSpan={shown.length} className={groupStart.has(first.key) ? 'g0' : ''} style={{ position: 'relative', zIndex: 4 }}>
+                  {label ? <span style={{ position: 'sticky', left: pinned ? 8 : pinW + 8, display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap', pointerEvents: 'none' }}><span className="g-tick" />{label}</span> : null}
+                </th>
+              )
+            })
+          })()}
         </tr>
       )}
       <tr className="h-row">
@@ -379,7 +413,7 @@ export function renderV2(ctx) {
             <th key={c.key} scope="col" aria-sort={on ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'}
               className={cls(c, [on ? 'on' : '', isRank(c) ? 'rank' : '', c === nameC ? 'name' : '', c.action ? 'act' : '', /\s/.test(String(c.label || '').trim()) && String(c.label).length > 9 ? 'long' : ''].filter(Boolean).join(' '))}
               onClick={c._status ? undefined : (e) => toggle(c.key, e.shiftKey)}
-              title={`${c.title || c.label}\n\nClick to sort. Shift-click to add as a tiebreaker under the current sort.`}
+              title={`${c.title || c.label}\n\nTap to sort. To sort in tiers: tap \uff0b Tiers, then tap the next column.`}
               style={{ ...(pinStyle(c, true) || {}), textAlign: (c.heat === false && !isNumericText(c)) || c.action ? 'left' : 'right', width: logoOf(c) ? (c.code ? 58 : 34) : c.w, minWidth: logoOf(c) ? (c.code ? 58 : 34) : (c === rankC || c === nameC ? c.w : undefined) }}>
               {String(c.label || '').trim() ? c.label : <span className="sr-only">{c.title || c.key || 'Column'}</span>}
               {plain && (
@@ -388,7 +422,7 @@ export function renderV2(ctx) {
                     onClick={() => setExplain((cur) => (cur?.key === c.key ? null : { key: c.key, label: c.label, text: plain, art: c.art || null, answers: c.answers || null }))} />
                 </span>
               )}
-              {on && <>{dir === 'desc' ? ' ▾' : ' ▴'}{sort.length > 1 && <sup style={{ fontSize: 7.5, marginLeft: 1, opacity: 0.85 }}>{si + 1}</sup>}</>}
+              {on && <>{dir === 'desc' ? ' ▾' : ' ▴'}{sort.length > 1 && <span className="tier-badge" title={`Tier ${si + 1} of ${sort.length}`}>{si + 1}</span>}</>}
             </th>
           )
         })}
@@ -405,10 +439,13 @@ export function renderV2(ctx) {
         const status = withStatus ? statusOf(r) : null
         const called = status === 'called'
         const watched = columns.some((c) => c.action && r[c.key])
+        // a rule where a tier begins (two or more sort keys, lib/multiSort.js)
+        const sig = tierSig ? tierSig(r) : ''
+        const tierStart = ri > 0 && sig !== '' && sig !== tierSig(view[ri - 1])
         return (
           <tr key={r._key ?? ri} onClick={onRowClick ? () => onRowClick(r._raw ?? r) : undefined}
             title={light ? `Highlight: ${light.name || 'match'}` : undefined}
-            className={onRowClick ? 'dtv2-row dtv2-click dense-row dense-click' : 'dtv2-row dense-row'}
+            className={`${onRowClick ? 'dtv2-row dtv2-click dense-row dense-click' : 'dtv2-row dense-row'}${tierStart ? ' tier-start' : ''}`}
             style={{ opacity: dimRow?.(r) ? 0.42 : 1 }}>
             {columns.map((c) => {
               const v = r[c.key]
@@ -513,7 +550,7 @@ export function renderV2(ctx) {
                       {faceOf && (() => { const f = faceOf(r); return f ? <PlayerFace {...f} variant="table" size={18} className="dense-face" style={{ margin: '-6px 5px -6px 0' }} /> : null })()}
                       {go ? <Tap onClick={go}>{nameEl}</Tap> : nameEl}
                       {sub.length > 0 && (
-                        <div className="sub">{sub.map((x, i) => <span key={i}>{i && !x.props?.['data-vs'] ? ' · ' : i ? ' ' : ''}{x}</span>)}</div>
+                        <div className="sub">{sub.map((x, i) => <span key={i}>{x}</span>)}</div>
                       )}
                     </td>
                   )
@@ -530,7 +567,7 @@ export function renderV2(ctx) {
                 }
                 return (
                   <td key={c.key} title={textTitle} className={cls(c, c.mono || isNumericText(c) ? 'num' : 'txt')}
-                    style={{ ...pin, textAlign: isNumericText(c) ? 'right' : 'left', maxWidth: c.w, ...(tBg ? { background: `linear-gradient(${tBg}, ${tBg}), ${C.bg2}` } : bgTint || {}) }}>
+                    style={{ ...pin, textAlign: isNumericText(c) ? 'right' : 'left', maxWidth: role ? undefined : c.w, ...(role ? { overflow: 'visible' } : {}), ...(layers(tint, tBg) || {}) }}>
                     {role && !isBlank(v)
                       ? (() => {
                           const hue = roleHue(v, C)
@@ -584,13 +621,13 @@ export function renderV2(ctx) {
                 const [lo, hi] = ranges[c.key] || [0, 1]
                 const [dlo, dhi] = c.domain && c.domain !== SEQ_AUTO ? c.domain : [lo, hi]
                 const f = dhi > dlo ? Math.max(0, Math.min(1, (num - dlo) / (dhi - dlo))) : 0
-                barEl = <span className="bar" aria-hidden="true"><i style={{ width: `${Math.round(f * 100)}%`, background: c.bar === 'primary' ? ac : C.text3 }} /></span>
+                barEl = <span className="bar" aria-hidden="true" style={c.barW ? { width: c.barW } : undefined}><i style={{ width: `${Math.round(f * 100)}%`, background: c.bar === 'primary' ? ac : C.text3 }} /></span>
                 ink = C.text; weight = 700
               }
               return (
                 <td key={c.key} className={cls(c, 'num')}
                   title={`${c.label}: ${titleNum}${zero ? ` · against ${zero}` : ''}`}
-                  style={{ ...(bg ? { background: `linear-gradient(${bg}, ${bg}), ${C.bg2}` } : bgTint || {}), color: ink, fontWeight: weight, minWidth: c.w ? Math.min(c.w, 64) : 36 }}>
+                  style={{ ...(layers(tint, bg) || {}), color: ink, fontWeight: weight, minWidth: c.w ? Math.min(c.w, 64) : 36 }}>
                   {barEl}{shown}
                   {arrow && <span className="arrow" style={{ color: arrow === DIV_UP ? (C.cream || C.text) : C.text3 }}>{arrow}</span>}
                 </td>
@@ -638,17 +675,27 @@ export function renderV2(ctx) {
             title, or a sort you chose (with its reset). At the opening sort the
             header's own ▴ says it, and a head would push the first row down
             (plan: first-row y no lower than classic). */}
-        {(title || !isInitial) && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '2px 12px', minHeight: 28, flexWrap: 'wrap', borderBottom: `1px solid ${C.border}` }}>
+        {(title || !isInitial || adding) && (
+        <div style={{ borderBottom: `1px solid ${C.border}` }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '2px 12px', minHeight: 28, flexWrap: 'wrap' }}>
           {title && <span style={{ font: '800 16px/1.1 system-ui, -apple-system, sans-serif', color: C.text }}>{title}</span>}
           <span style={{ fontFamily: NUM_FONT, fontSize: 10, color: C.text3 }}>{sorted.length} row{sorted.length === 1 ? '' : 's'}</span>
-          <span style={{ marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: 10, color: C.text3 }}>
+          <span style={{ marginLeft: 'auto', fontFamily: NUM_FONT, fontSize: 10, color: C.text3, display: 'inline-flex', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
             {sort.length ? <>sorted · <b style={{ color: C.text2 }}>{sortWords}</b></> : 'unsorted'}
+            {sort.length > 0 && !adding && (
+              <button type="button" onClick={() => setAdding(true)} title={TIER_HELP} aria-label={`Add a tier. ${TIER_HELP}`} style={headBtn}>{'\uff0b'} tier</button>
+            )}
             {!isInitial && (
-              <button type="button" onClick={() => setSort(initialStack())}
-                style={{ marginLeft: 8, background: 'none', border: 'none', color: C.text3, textDecoration: 'underline dotted', cursor: 'pointer', fontFamily: NUM_FONT, fontSize: 10, padding: '6px 2px', minHeight: 0 }}>reset</button>
+              <button type="button" onClick={() => { setAdding(false); setSort(initialStack()) }} title="Back to the opening order" style={headBtn}>reset</button>
             )}
           </span>
+        </div>
+        {adding && (
+          <div role="status" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 12px 6px', fontFamily: NUM_FONT, fontSize: 10, lineHeight: 1.4, color: C.text2, flexWrap: 'wrap' }}>
+            <span style={{ flex: '1 1 200px', minWidth: 0 }}><b style={{ color: ac }}>Tap a column header to add tier {sort.length + 1}.</b> {TIER_HELP}</span>
+            <button type="button" onClick={() => setAdding(false)} style={headBtn}>cancel</button>
+          </div>
+        )}
         </div>
         )}
         <div className="dense-wrap">
@@ -686,7 +733,7 @@ export function renderV2(ctx) {
               <div style={{ marginTop: 6 }}>
                 {headTxt}{rest && <>{' '}
                   <button type="button" onClick={() => setCapOpen((v) => !v)} style={{ background: 'none', border: 'none', padding: '12px 6px', margin: '-12px -6px', minHeight: 0, cursor: 'pointer', color: C.text2, fontSize: 9.5, textDecoration: 'underline dotted', textUnderlineOffset: 3, fontFamily: 'inherit' }}>{capOpen ? 'less ▴' : 'why ▸'}</button>
-                  {capOpen && <> {rest} <b style={{ color: C.text2 }}>Shift-click a header</b> to add it as a tiebreaker. Blanks always sort to the bottom.</>}
+                  {capOpen && <> {rest} <b style={{ color: C.text2 }}>To sort in tiers,</b> tap {'\uff0b'} Tiers (or shift-click a header), then tap the next column: {TIER_HELP} Blanks always sort to the bottom.</>}
                 </>}
               </div>
             )
@@ -698,6 +745,8 @@ export function renderV2(ctx) {
             <ShowMoreButton open restN={0} toggle={() => setExtra(0)} />
           )}
         </div>
+        <button type="button" onClick={() => setAdding(!adding)} title={TIER_HELP} aria-pressed={adding}
+          style={{ fontFamily: NUM_FONT, fontSize: 8.5, fontWeight: 800, cursor: 'pointer', border: `1px solid ${adding ? ac : C.border}`, background: 'transparent', color: adding ? ac : C.text3, borderRadius: 999, padding: '5px 12px', marginTop: 6, whiteSpace: 'nowrap' }}>{'\uff0b'} Tiers</button>
         <button type="button" onClick={exportCsv} title="Download this table — current sort, raw values — as a CSV cheat sheet"
           style={{ fontFamily: NUM_FONT, fontSize: 8.5, fontWeight: 800, cursor: 'pointer', border: `1px solid ${C.border}`, background: 'transparent', color: C.text3, borderRadius: 999, padding: '5px 12px', marginTop: 6 }}>⬇ CSV</button>
       </div>}

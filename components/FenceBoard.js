@@ -5,7 +5,9 @@ import { dataUrl } from '../lib/dataSource'
 
 const bust = (u) => `${u}${u.includes('?') ? '&' : '?'}t=${Date.now()}`
 import { fetchWalls, pullWallFor } from '../lib/walls'
-import { tone, alpha, seqChip } from '../lib/scales'
+import { tone, alpha } from '../lib/scales'
+import DenseTable from './DenseTable'
+import { boardRow, boardRowContext, withBoardColumns } from '../lib/boardColumns'
 
 // 🧱🚀 FENCE RIDERS (2026-08-08, Donovan: "I like people who pull in the
 // direction and have hit it out or ON THE FENCE LINE in the last 5–15
@@ -24,6 +26,9 @@ import { tone, alpha, seqChip } from '../lib/scales'
 // is the only thing most people see, the closed line now carries how many
 // riders are inside as well as who leads them: a summary that doesn't say
 // what's behind the door is a wall with a door in it.
+
+const FENCE_GROUP = { key: 'fence', label: 'The fence', order: 1 }
+const PORCH_GROUP = { key: 'porch', label: 'Tonight\u2019s wall', order: 1.3 }
 
 export default function FenceBoard({ onPlayerClick, players = [] }) {
   const [board, setBoard] = useState(null)
@@ -94,7 +99,44 @@ export default function FenceBoard({ onPlayerClick, players = [] }) {
 
   // The chip ramp is relative to the strongest rider on screen, which is the
   // honest domain for a top-ten list: there is no absolute fit of 100.
-  const topFit = rows.length ? Math.max(...rows.map((r) => r.fit), 1) : 1
+  // THE RIDERS AS ONE TABLE (2026-10-07: the card rows are a dense table; same riders, same numbers, the full
+  // Rankings column set behind them when he is on tonight's slate).
+  const bctx = useMemo(() => boardRowContext(players), [players])
+  const tableRows = useMemo(() => rows.map((r, i) => {
+    const sp = rowFor.get(String(r.player_id))
+    return {
+      ...(sp ? boardRow(sp, i, bctx) : {}),
+      _key: String(r.player_id),
+      _raw: sp || null,
+      rank: i + 1,
+      name: r.name,
+      team: r.team,
+      fit: r.fit,
+      over: r.over_ct,
+      wall: r.fence_ct,
+      deep: r.deep_pull_ct,
+      robbed: r.robbed_ct || 0,
+      oppo: r.oppo_over_ct || 0,
+      porch: r.w ? r.w.line : null,
+      porchTxt: r.w ? `${r.w.side} ${r.w.line}\u2032` : '',
+      short: r.shortPorch ? 1 : 0,
+      wind: r.windTail ? 2 : r.windHalf ? 1 : 0,
+      terms: Object.entries(r.fitTerms).filter(([, v]) => v).map(([k, v]) => `${k} ${v.toFixed(1)}`).join(' \u00b7 '),
+    }
+  }), [rows, rowFor, bctx])
+  const columns = useMemo(() => withBoardColumns([
+    { key: 'fit', group: FENCE_GROUP, label: 'Fit', w: 52, dp: 0, bar: 'primary', primary: true,
+      title: 'The number that ordered this list: deep pull x3, at the wall x1.5, over 375 x1, robbed x1.5, oppo x0.5, plus a bonus for a short porch or a wind lane tonight.' },
+    { key: 'over', group: FENCE_GROUP, label: 'Over 375', w: 58, dp: 0, title: 'Balls over 375 ft in his last 15 game dates' },
+    { key: 'wall', group: FENCE_GROUP, label: 'At wall', w: 54, dp: 0, title: 'Pulled 320-374 ft: outs in most parks, homers over a short porch' },
+    { key: 'deep', group: FENCE_GROUP, label: 'Deep pull', w: 58, dp: 0, title: 'Deep pulled balls' },
+    { key: 'robbed', group: FENCE_GROUP, label: 'Robbed', w: 54, dp: 0, title: 'Wall balls recorded as OUTS (homers somewhere else)' },
+    { key: 'oppo', group: FENCE_GROUP, label: 'Oppo', w: 48, dp: 0, title: '375+ the other way: all-fields power' },
+    { key: 'porchTxt', group: PORCH_GROUP, label: 'His porch', heat: false, w: 72, mono: true, title: 'His pull side tonight and the line in feet' },
+    { key: 'porch', group: PORCH_GROUP, label: 'Line ft', w: 54, dp: 0, invert: true, title: 'The pull-side line in feet; shorter helps' },
+    { key: 'short', group: PORCH_GROUP, label: '\ud83c\udfaf', flag: true, mark: '\ud83c\udfaf', w: 34, title: 'Bottom-25% pull wall tonight: a short porch' },
+    { key: 'wind', group: PORCH_GROUP, label: 'Wind', w: 48, dp: 0, fmt: (v) => (v === 2 ? 'TAIL' : v === 1 ? 'CF out' : '\u2014'), title: 'Tonight\u2019s wind out to his pull side (TAIL) or to center (CF out)' },
+  ], {}), [])
 
   if (!board?.rows?.length || !rows.length) return null
 
@@ -117,52 +159,16 @@ export default function FenceBoard({ onPlayerClick, players = [] }) {
 
       {open && (
         <>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 8 }}>
-            {rows.map((r, i) => (
-              <div key={r.player_id} onClick={() => { const p = rowFor.get(String(r.player_id)); if (p) onPlayerClick?.(p) }}
-                style={{
-                  display: 'flex', gap: 9, alignItems: 'baseline', flexWrap: 'wrap', cursor: 'pointer',
-                  background: r.shortPorch ? alpha(C.orange, 0.07) : C.bg2,
-                  border: `1px solid ${r.shortPorch ? alpha(C.orange, 0.4) : C.border}`,
-                  borderRadius: 9, padding: '6px 11px',
-                }}>
-                <span style={{ fontFamily: NUM_FONT, fontSize: 9, color: C.text3, width: 16 }}>{i + 1}</span>
-                {/* FIT, DRAWN. The chip takes its step off the same sequential
-                    ramp everything else does, against the top fit in this set
-                    — the ten riders are a relative field and the caption says
-                    so rather than implying a ceiling. */}
-                <span
-                  title={`Fit ${r.fit.toFixed(1)} — the number that ordered this list: ${Object.entries(r.fitTerms).filter(([, v]) => v).map(([k, v]) => `${k} ${v.toFixed(1)}`).join(' + ') || 'nothing'}. Relative to tonight's riders, not a score out of anything.`}
-                  style={{
-                    fontFamily: NUM_FONT, fontSize: 9.5, fontWeight: 900, color: C.text,
-                    background: alpha(seqChip(r.fit, [0, topFit]) || C.bg3, 0.85),
-                    borderRadius: 5, padding: '1px 5px', minWidth: 26, textAlign: 'center',
-                  }}
-                >{r.fit.toFixed(0)}</span>
-                <span style={{ fontSize: 11.5, fontWeight: 800 }}>{r.name}</span>
-                <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>{r.team}</span>
-                <span style={{ fontSize: 9.5, fontFamily: NUM_FONT, color: C.text2 }}
-                  title={`Last ${r.games} games (${r.bbe} tracked balls): ${r.over_ct} over 375ft, ${r.fence_ct} PULLED into the 320–374 wall-scraper zone, ${r.deep_pull_ct} pulled 350+, ${r.hr_ct} actual HR. Longest ${r.longest.toFixed(0)}ft. All measured Statcast landing data.`}>
-                  <b style={{ color: tone('green') }}>{r.over_ct}</b> over ·{' '}
-                  <b style={{ color: C.orange }}>{r.fence_ct}</b> at the wall ·{' '}
-                  <b style={{ color: tone('cyan') }}>{r.deep_pull_ct}</b> deep pull
-                  {(r.robbed_ct || 0) > 0 && <> · <b style={{ color: tone('yellow') }}>{r.robbed_ct}</b> robbed</>}
-                  {(r.oppo_over_ct || 0) > 0 && <> · <b style={{ color: tone('purple') }}>{r.oppo_over_ct}</b> oppo</>}
-                </span>
-                {(r.windTail || r.windHalf) && (
-                  <span title={`Tonight's wind: ${r.windLbl} — ${r.windTail ? 'blowing out to HIS pull side; the air carries his exact ball flight' : 'blowing out to center; half a tailwind for his shape'}. From the bot's published weather field.`}
-                    style={{ fontSize: 9, fontWeight: 900, fontFamily: NUM_FONT, color: r.windTail ? tone('green') : tone('yellow') }}>
-                    🌬 {r.windTail ? 'TAIL' : 'CF out'}
-                  </span>
-                )}
-                {r.w && (
-                  <span style={{ marginLeft: 'auto', fontSize: 9.5, fontFamily: NUM_FONT, fontWeight: 800, color: r.shortPorch ? C.orange : C.text3 }}
-                    title={`His pull side tonight: ${r.w.side} ${r.w.line}ft line${r.w.gap ? ` / ${r.w.gap}ft gap` : ''} — ${r.w.linePct}% of parks are shorter. ${r.shortPorch ? 'SHORT PORCH: his wall-scrapers clear this one.' : ''}`}>
-                    {r.w.side} {r.w.line}′{r.shortPorch ? ' 🎯 SHORT' : ''}
-                  </span>
-                )}
-              </div>
-            ))}
+          <div style={{ marginTop: 8 }}>
+            <DenseTable
+              rows={tableRows}
+              columns={columns}
+              onRowClick={(raw) => { if (raw && raw.player_id != null) onPlayerClick?.(raw) }}
+              initialSort="fit"
+              maxHeight={440}
+              maxRows={Math.max(tableRows.length, 1)}
+              bare
+            />
           </div>
           <div style={{ fontSize: 9, color: C.text3, marginTop: 7, lineHeight: 1.55 }}>
             <b style={{ color: C.text2 }}>Ranked by fit</b> — the number in the chip beside each

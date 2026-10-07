@@ -17,6 +17,9 @@ import { explainFor, explainFrom, InfoDot, ExplainBanner } from './Explain'
 import { useSportTheme } from './SportTheme'
 import { readSkin, renderV2 } from './table/v2'
 import { useTeamNav } from '../lib/teamNav'
+import { useIsPhone } from './MobileFold'
+import { buildSorter, nextSort, encodeSort, decodeSort } from '../lib/multiSort'
+import { readHashKey, FILTER_EVENT } from '../lib/filterHash'
 
 // ── ABSENT IS NOT ZERO (2026-08-23) ─────────────────────────────────────────
 // `Number(null)` is 0 and `Number('')` is 0, and both are finite, so every
@@ -158,6 +161,10 @@ export default function DenseTable({
   //   noGroups  v2: no group row, not even the automatic one
   tight = false,
   noGroups = false,
+  //   sortUrlKey  the sort chain rides the address under this hash key
+  //               ("sort=adj.d,a5.a"): a shared link opens the same order, a
+  //               saved view keeps it. Absent: the sort lives only in the table.
+  sortUrlKey = null,
 }) {
   const [skinAuto, setSkinAuto] = useState(null)
   useEffect(() => { if (!skinProp) setSkinAuto(readSkin()) }, [skinProp])
@@ -184,6 +191,44 @@ export default function DenseTable({
     ? [typeof initialSort === 'string' ? { key: initialSort, dir: 'desc' } : { key: initialSort.key, dir: initialSort.dir || 'desc' }]
     : [])
   const [sort, setSort] = useState(initialStack)
+  // TIERS (2026-10-07): the ＋ tier button arms ONE extra tap -- the next header
+  // tapped is added as the next tier instead of replacing the sort. Shift-click
+  // still does the same on a mouse. lib/multiSort.js says what a tier is.
+  const [adding, setAdding] = useState(false)
+  const phone = useIsPhone(640)   // v2's group row counts the columns a phone still shows
+  // the chain in the address, when the caller asked for it (read after mount, so the server render never disagrees)
+  const colSig = columns.map((c) => c.key).join('|')
+  const sortHydrated = useRef(false)
+  useEffect(() => {
+    if (!sortUrlKey) return undefined
+    const valid = new Set(colSig.split('|'))
+    const read = (fromEvent) => {
+      const fromUrl = decodeSort(readHashKey(sortUrlKey), valid)
+      if (fromUrl.length) setSort(fromUrl)
+      else if (fromEvent) setSort(initialStack())
+    }
+    read(false)
+    sortHydrated.current = true
+    const onEvt = () => read(true)
+    window.addEventListener('hashchange', onEvt)
+    window.addEventListener(FILTER_EVENT, onEvt)
+    return () => { window.removeEventListener('hashchange', onEvt); window.removeEventListener(FILTER_EVENT, onEvt) }
+    // initialStack is stable per mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sortUrlKey, colSig])
+  useEffect(() => {
+    if (!sortUrlKey || !sortHydrated.current) return
+    try {
+      const h = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''))
+      const mine = encodeSort(sort)
+      const init = encodeSort(initialStack())
+      const cur = h.get(sortUrlKey) || ''
+      if (mine === init || !mine) { if (!cur) return; h.delete(sortUrlKey) } else { if (cur === mine) return; h.set(sortUrlKey, mine) }
+      const q = h.toString()
+      window.history.replaceState(null, '', q ? `#${q}` : window.location.pathname + window.location.search)
+    } catch { /* the sort still works without the address */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sort, sortUrlKey])
   // ✨ site-wide spotlight v2 — a row whose _raw slate record matches one of
   // the user's named highlights washes in THAT light's color; when several
   // match, priority (1 = top) decides. Rows without _raw simply can't match.
@@ -317,30 +362,14 @@ export default function DenseTable({
     return c.invert ? (num <= k[0] || num >= k[1]) : (num >= k[1] || num <= k[0])
   }
 
+  // The rows in sort order. ONE key is the plain raw order it always was; two or
+  // more make TIERS (lib/multiSort.js): the first key groups, the next orders inside.
+  // Missing values sink to the bottom whichever way the column is pointing.
+  const sorter = useMemo(() => buildSorter(sort, rows, (k) => columns.find((c) => c.key === k)), [rows, sort, columns])
   const sorted = useMemo(() => {
     if (!sort.length) return rows
-    // Missing values sink to the bottom whichever way the column is pointing.
-    // Flipping to ascending on a column full of dashes used to fill the top of
-    // the table with blanks, which is never what you wanted from the click.
-    const cmpOne = (a, b, { key, dir }) => {
-      const av = a[key], bv = b[key]
-      const ab = isBlank(av), bb = isBlank(bv)
-      if (ab && bb) return 0
-      if (ab) return 1
-      if (bb) return -1
-      const mul = dir === 'desc' ? -1 : 1
-      const an = Number(av), bn = Number(bv)
-      if (Number.isFinite(an) && Number.isFinite(bn)) return (an - bn) * mul
-      return String(av).localeCompare(String(bv)) * mul
-    }
-    return [...rows].sort((a, b) => {
-      for (const s of sort) {
-        const r = cmpOne(a, b, s)
-        if (r !== 0) return r
-      }
-      return 0
-    })
-  }, [rows, sort])
+    return [...rows].sort(sorter.compare)
+  }, [rows, sort, sorter])
 
   // ── #19: A CAP WITH NO WAY PAST IT ───────────────────────────────────────
   //
@@ -380,25 +409,17 @@ export default function DenseTable({
 
   const pad = dense ? '5px 6px' : '8px 9px'
 
-  const toggle = (key, additive) => setSort((s) => {
-    const i = s.findIndex((x) => x.key === key)
-    if (!additive) {
-      // Plain click: this key alone. Flip if it was already the only key.
-      if (i === 0 && s.length === 1) return [{ key, dir: s[0].dir === 'desc' ? 'asc' : 'desc' }]
-      return [{ key, dir: 'desc' }]
-    }
-    if (i < 0) return [...s, { key, dir: 'desc' }]
-    const next = [...s]
-    if (next[i].dir === 'desc') { next[i] = { key, dir: 'asc' }; return next }
-    next.splice(i, 1)                       // third shift-click removes it
-    return next
-  })
+  const toggle = (key, additive) => {
+    const extend = additive || adding
+    setSort((s) => nextSort(s, key, extend))
+    if (adding) setAdding(false)
+  }
 
   if (skin === 'v2') {
     // the product's accent, never orange by accident (plan: R0 step 4, C2)
     const ac = accent || (sportTheme.themed ? sportTheme.accent : null) || C.orange
     return renderV2({
-      C, NUM_FONT, ac, columns, view, sorted, sort, setSort, toggle, ranges, fields, lit,
+      C, NUM_FONT, ac, columns, view, sorted, sort, setSort, toggle, adding, setAdding, tierSig: sorter.tierSig, phone, ranges, fields, lit,
       heatMode, ramp, rowEdge, faceOf, onRowClick, dimRow, pick, rowPid, pickColorOf, firstMatch,
       explain, setExplain, dict, scoreTerms, caveat, accent, maxHeight, caption,
       truncated, maxRows, extra, setExtra, exportCsv, railRef, statusOf, title, initialStack, firstTextKey,
