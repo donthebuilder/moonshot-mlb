@@ -154,7 +154,7 @@ export default function StaleBanner({ slateDate = '', mode = 'today', loading = 
 // The markup is exactly what StaleBanner drew; MOONSHOT's banner is unchanged.
 /** LIVE DATA DELAYED -- one banner for every product's feed outage (R7, 2026-10-04;
  *  was a copy each in lamp/ui.js and buckets/ui.js). Renders nothing without an error. */
-export function DelayedBanner({ error, what = 'the league feed', theme = C, numFont = NUM_FONT }) {
+export function DelayedBanner({ error, what = 'the league’s data', theme = C, numFont = NUM_FONT }) {
   if (!error) return null
   return <StaleNote role="alert" tone={theme.amber || theme.orange} theme={theme} numFont={numFont} title="LIVE DATA DELAYED"
     body={<>We’re waiting on {what}. Anything below is the last copy we had.</>} />

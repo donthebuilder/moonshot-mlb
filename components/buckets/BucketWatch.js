@@ -47,11 +47,11 @@ export default function BucketWatch({ rows = [], date = null, onOpenPlayer }) {
       summary={[two.length && `${two.length} with 25+ in 2+ straight`, last.length && `${last.length} with 25+ last game`, b2b.length && `${b2b.length} on a back-to-back`].filter(Boolean).join(' · ') || (waiting ? 'fills once this season has games' : 'nobody on a run tonight')}>
       <WatchBox logoSport="nba" icon="🔁" title="BUCKET WATCH" accent={C.purple} theme={C} numFont={NUM_FONT} ariaLabel="Bucket watch"
         status={hot.loading && !hot.data ? 'checking last games…' : waiting ? 'the 25+ rows fill once this season has games' : total ? `${total} scored 25+ last time out` : 'nobody on the board scored 25+ last time out'}
-        note="facts from each player's game log and yesterday's schedule · no hit-rate claim"
+        note="From game logs and yesterday’s schedule. Not a hit rate."
         rows={[
           { key: 'two', label: label('🔥 25+ in 2+ straight', two), items: items(two) },
           { key: 'last', label: label('🏀 25+ last game', last), items: items(last) },
-          { key: 'b2b', label: label('🔁 2nd night of a back-to-back', b2b), accent: C.blue, items: items(b2b, '✓ 25+ TONIGHT') },
+          { key: 'b2b', label: label('🔁 2nd night of a back-to-back', b2b), items: items(b2b, '✓ 25+ TONIGHT') },
         ]}
         footer={waiting
           ? `The 25+ rows read each player's last games. Until this season gives him some, they stay empty rather than call ${hot.data?.seasonLabel ? `${hot.data.seasonLabel}'s` : 'last season’s'} final games his "last game". The back-to-back row is the schedule.`

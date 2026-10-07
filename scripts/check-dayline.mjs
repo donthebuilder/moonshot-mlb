@@ -25,7 +25,7 @@ ok('Monday night, one game: matchup and kickoff time', () => {
 ok('no games: says so and names the next day, one-game next', () => {
   const d = dayLine([], { sport: 'nfl', date: '2026-10-06', now: noonET, next: { date: '2026-10-08', games: [g('SFT', 'LAT', '20:15', 'pre', '2026-10-08')] }, tz: TZ })
   assert.equal(d.lead, 'No football today.')
-  assert.equal(d.accent, 'Next: Thursday: SFT at LAT, 8:15 PM EDT.')
+  assert.equal(d.accent, 'Next: Thursday, SFT at LAT, 8:15 PM EDT.')
   assert.equal(d.count.label, 'NEXT KICKOFF')
 })
 ok('no games, several next: "Next: Thursday, 6 games."', () => {

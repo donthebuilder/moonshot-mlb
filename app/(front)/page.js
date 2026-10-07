@@ -398,7 +398,7 @@ export default async function DashHome({ searchParams }) {
             <summary>How this is counted</summary>
             <p className={styles.stamp}>
               MOONSHOT: the {record?.source || 'locked record'}: only calls whose board row was stamped before first
-              pitch, graded on what happened (nights stamped after first pitch{record?.lateNights?.length ? ` -- ${record.lateNights.map((d) => d.slice(5).replace('-', '/')).join(', ')} --` : ''} are not counted),
+              pitch, graded on what happened (nights stamped after first pitch{record?.lateNights?.length ? ` — ${record.lateNights.map((d) => d.slice(5).replace('-', '/')).join(', ')} --` : ''} are not counted),
               the same numbers as the tier table on the record page. &quot;Every hitter&quot; is the rate for everyone on
               the board on the same bar, which is the number a call has to beat. Each row is scored on the bar that call
               was made for, so the rows are different questions and are never ranked against each other; a call type

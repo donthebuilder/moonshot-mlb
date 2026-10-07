@@ -30,7 +30,7 @@ export default function Game({ id, onBack, backLabel = 'Live', onOpenPlayer, onO
   if (!id) return <EmptyState title="NO GAME PICKED" note="Open a game from Live or the Slate."><BackBtn onBack={onBack} label={backLabel} /></EmptyState>
   if (!ok) return <EmptyState title="NO SUCH GAME" note={`“${String(id).slice(0, 20)}” isn’t an NBA game id.`}><BackBtn onBack={onBack} label={backLabel} /></EmptyState>
   if (loading && !data) return <div style={{ display: 'grid', gap: 10 }}><BackBtn onBack={onBack} label={backLabel} /><Loading what="the game" /></div>
-  if (!data) return <div style={{ display: 'grid', gap: 10 }}><BackBtn onBack={onBack} label={backLabel} />{error && error.status !== 404 && error.status !== 400 ? <DelayedBanner error={error} what="the game feed" /> : <EmptyState title="NO SUCH GAME" note="The league has no NBA game under that id." />}</div>
+  if (!data) return <div style={{ display: 'grid', gap: 10 }}><BackBtn onBack={onBack} label={backLabel} />{error && error.status !== 404 && error.status !== 400 ? <DelayedBanner error={error} what="game data" /> : <EmptyState title="NO SUCH GAME" note="The league has no NBA game under that id." />}</div>
 
   const { away, home } = data
   const live = data.state === 'live', done = data.state === 'final'
@@ -44,7 +44,7 @@ export default function Game({ id, onBack, backLabel = 'Live', onOpenPlayer, onO
       <PageHeader eyebrow={`BUCKETS · GAME · ${fmtDay(gameDay(data.date)).toUpperCase()}`} title={`${away.name} at ${home.name}`} theme={C} numFont={NUM_FONT} accent={C.purple} showToday={false}
         note={<>{live ? <><RimDot />{data.detail}</> : done ? 'Final' : `Tip ${fmtTip(data.date)}`}{data.venue ? ` · ${data.venue}` : ''}</>}
       />
-      <DelayedBanner error={error} what="the game feed" />
+      <DelayedBanner error={error} what="game data" />
       {periods > 0 && <LineScore teams={[away, home]} periods={periods} qLabel={qLabel} done={done} onOpenTeam={onOpenTeam} />}
       {(fb || fp) && (
         <div style={{ fontSize: 12, color: C.text2, display: 'grid', gap: 4 }}>

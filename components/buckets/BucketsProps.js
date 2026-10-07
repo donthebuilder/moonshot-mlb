@@ -27,7 +27,7 @@ const fmt = (leg, v) => {
 }
 
 function bucketsAdapter(startOf) {
-  const color = (k) => ({ pts: C.purple, reb: C.cyan || C.blue, ast: C.green, '3pm': C.orange, pra: C.yellow || C.orange, first: C.pink || C.purple }[k] || C.text3)
+  const color = (k) => (k === 'NONE' ? C.text3 : C.purple)   // ONE accent (2026-10-07 colour diet): the market's name says which market it is
   const rowOf = (r, k) => (k === 'NONE' ? KEYS.map((m) => r[m]).find(Boolean) : r[k])
   return {
     markets: MARKETS,

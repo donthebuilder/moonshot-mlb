@@ -61,8 +61,8 @@ export function BucketsCard({ r, rank, market = 'pts', onOpen }) {
         </div>
         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 8 }}>
           {called ? <Chip color={C.purple}>{STATUS.called}{r.role ? ` · ${r.role}` : ''}</Chip> : <Chip color={C.text3}>{STATUS[r.status] || 'RANKED'}</Chip>}
-          {preview && <Chip color={C.amber}>PREVIEW</Chip>}
-          {r.injury && <Chip color={C.amber}>{String(r.injury).toUpperCase()}</Chip>}
+          {preview && <Chip color={C.text3}>PREVIEW</Chip>}
+          {r.injury && <Chip color={C.text2}>{String(r.injury).toUpperCase()}</Chip>}
         </div>
         {legs.length > 0 && <StatStrip stats={legs} style={{ marginBottom: 8 }} />}
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }} onClick={(e) => e.stopPropagation()}>

@@ -3,7 +3,7 @@ import { useMemo } from 'react'
 import PageHeader from '../../PageHeader'
 import { C, NUM_FONT } from '../../../lib/nba/theme'
 import { useBucketsNumerology, useBucketsBoard } from '../../../lib/nba/useBuckets'
-import { DelayedBanner, Loading, EmptyState, fmtDay } from '../ui'
+import { DelayedBanner, Loading, EmptyState, Why, fmtDay } from '../ui'
 import TonightsNumbers from '../../numerology/TonightsNumbers'
 import AlignmentsView from '../../numerology/AlignmentsView'
 import { useIsPhone } from '../../MobileFold'
@@ -29,7 +29,7 @@ const WORDS = {
   scoreName: <>BUCKETS points score</>, scoreShort: 'points score',
   scoreRecord: 'the number BUCKETS grades every night',
   carrying: <>Carrying tonight&apos;s number, highest points score first</>,
-  braidNote: 'Two or more of his own numbers -- jersey, birth day, life path -- on one root. The rarest read here, and still arithmetic.',
+  braidNote: 'Two or more of his own numbers — jersey, birth day, life path — on one root. The rarest read here, and still arithmetic.',
   namesNote: 'Shared surnames (2+) and first names (3+; a pair of common first names is arithmetic).',
 }
 
@@ -43,14 +43,14 @@ export default function Numerology({ date = null, onOpenPlayer }) {
   const head = (
     <>
       <PageHeader eyebrow="BUCKETS · NUMEROLOGY" title={data ? `${fmtDay(data.date)} · the night's number is ${data.dateRoot}` : 'Numerology'}
-        note="For fun: numbers that line up, not a prediction. Every digit of the date, added until one is left, against each player's jersey, birth day and life path. Not graded, and never part of the score."
+        note={<>For fun: numbers that line up. Not part of any score. <Why label="Numerology" text="Every digit of the date, added until one is left, against each player’s jersey, birth day and life path. A pattern to watch, not a prediction. It is never graded and never part of a score." /></>}
         theme={C} numFont={NUM_FONT} accent={C.purple}
         stats={data ? [{ value: data.players, label: 'PLAYERS', tone: C.text2 }, { value: data.aligned.length, label: 'LINED UP', tone: C.purple }, { value: `${data.alignedHits} v ${data.expectedHits}`, label: 'HITS V CHANCE', tone: C.text2 }] : null} />
       {data?.date ? <div style={{ margin: '14px 0 10px' }}><TonightsNumbers date={data.date} theme={C} numFont={NUM_FONT} accent={C.purple} /></div> : null}
       <DelayedBanner error={error} what="tonight’s rosters" />
       {data?.fromRoster?.length ? (
         <div style={{ color: C.text3, font: `700 11px/1.5 ${NUM_FONT}`, margin: '8px 0' }}>
-          Not tipped yet: {data.fromRoster.join(', ')} -- the whole roster until tip, then who got in.
+          Not tipped yet: {data.fromRoster.join(', ')} — the whole roster until tip, then who got in.
         </div>
       ) : null}
       <p style={{ margin: '8px 0 10px', color: C.text3, fontSize: 11, lineHeight: 1.5 }}>

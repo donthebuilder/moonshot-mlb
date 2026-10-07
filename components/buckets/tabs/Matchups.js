@@ -5,7 +5,7 @@ import { MatchLogos } from '../../TeamMark'
 import { C, NUM_FONT } from '../../../lib/nba/theme'
 import { useBucketsDefense } from '../../../lib/nba/useBuckets'
 import BucketsTable from '../BucketsTable'
-import { EmptyState, DelayedBanner, Loading, SourceLine, Kicker, DayPager, LastSeasonNote, fmtDay, fmtTip } from '../ui'
+import { EmptyState, DelayedBanner, Loading, SourceLine, Kicker, DayPager, LastSeasonNote, Why, fmtDay, fmtTip } from '../ui'
 
 // 🛡 MATCHUPS -- the defence-vs view (TUDDY's "what each defence gave up",
 // LAMP's Matchups), basketball's version: each side tonight against what the
@@ -14,7 +14,7 @@ import { EmptyState, DelayedBanner, Loading, SourceLine, Kicker, DayPager, LastS
 // league's own opponent stats (/api/buckets/defense); nothing modelled here.
 const STATS = [['oppPts', 'PTS', 1], ['oppReb', 'REB', 1], ['oppAst', 'AST', 1], ['oppTpm', '3PM', 1], ['oppFgPct', 'FG%', 3]]
 const fmt = (k, v) => (v == null ? '—' : k === 'oppFgPct' ? `${(v * 100).toFixed(1)}%` : Number(v).toFixed(1))
-const rankTone = (r) => (r == null ? C.text3 : r <= 5 ? C.rim : r >= 26 ? C.text3 : C.text2)
+const rankTone = (r) => (r == null ? C.text3 : r <= 5 ? C.purple : r >= 26 ? C.text3 : C.text2)
 
 export default function Matchups({ date, setDate, onOpenTeam, onOpenGame }) {
   const { data, error, loading } = useBucketsDefense(date)
@@ -41,14 +41,14 @@ export default function Matchups({ date, setDate, onOpenTeam, onOpenGame }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <PageHeader eyebrow="BUCKETS · MATCHUPS" title={data?.date ? fmtDay(data.date) : 'Tonight'} theme={C} numFont={NUM_FONT} accent={C.purple}
-        note="Each side against what the other defence gives up a game, with its rank among the 30 (1 = gives up the most). Measured, not modelled." />
+        note={<>Each side against what the other defence gives up. <Why label="Matchups" text="Each side against what the other defence gives up a game, with its rank among the 30 (1 = gives up the most). Measured from the league’s team stats, not projected." /></>} />
       <DayPager shown={data?.date || date} date={date} setDate={setDate} disabled={loading} />
       {data?.stale && <LastSeasonNote label={data.seasonLabel} what="defence numbers" />}
       <DelayedBanner error={error} what="the league’s team stats" />
       {loading && !data ? <Loading what="the defences" /> : null}
       <section>
         <Kicker>THAT DAY’S MATCHUPS</Kicker>
-        {data && !games.length && <EmptyState title="NO GAMES THAT DAY" note="Page a day, or read every defence below." />}
+        {data && !games.length && <EmptyState title="NO GAMES THAT DAY" note="Try another day, or read every defence below." />}
         {sides.length > 0 && (
           <>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>{games.map((g) => <span key={g.id} style={{ fontSize: 12, color: C.text3 }}><MatchLogos sport="nba" away={g.away.abbrev} home={g.home.abbrev} px={16} /></span>)}</div>

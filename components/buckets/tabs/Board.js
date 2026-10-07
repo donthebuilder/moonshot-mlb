@@ -17,7 +17,7 @@ import FiltersDrawer, { DrawerSection, drawerChip } from '../../FiltersDrawer'
 import RangeDual from '../../RangeDual'
 import { bucketsAngles } from '../../../lib/nba/angles'
 import { BucketsCards } from '../BucketsCard'
-import { EmptyState, DelayedBanner, Loading, SourceLine, Pills, NavBtn, DayPager, fmtDay, writeHashParam, readHashParam } from '../ui'
+import { EmptyState, DelayedBanner, Loading, SourceLine, Pills, NavBtn, DayPager, Why, fmtDay, writeHashParam, readHashParam } from '../ui'
 
 // 🎯 PROPS -- the BUCKETS board for one market (lib/nba/boardRead.js): every
 // player on the night's rosters ranked by the market's score, one CALLED per
@@ -176,7 +176,7 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
       {phone ? (<>
         {/* PHONE (2026-10-06): one line, one control row, then the table; the rest is behind Filters. */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'space-between' }}>
-          <div style={{ minWidth: 0, fontSize: 13, lineHeight: 1.3, color: C.text2 }}>Who we rank tonight, and why.</div>
+          <div style={{ minWidth: 0, fontSize: 13, lineHeight: 1.3, color: C.text2 }}>Every player tonight, ranked.</div>
           <HowToRead id="buckets-board" accent={C.purple} notes={HOW_NOTES} />
         </div>
         {/* FIND / FILTER, one row (MOONSHOT's Controls row): the search field and a 44px Filter button that holds team and game */}
@@ -195,7 +195,7 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
         </FiltersDrawer>
       </>) : (<>
       <PageHeader eyebrow={`BUCKETS · RANKINGS · ${m === ALL ? 'ALL MARKETS' : D.label}`} title={shown ? fmtDay(shown) : 'Tonight'} theme={C} numFont={NUM_FONT} accent={C.purple}
-        note="Who we rank tonight, and why. Every player playing that day, ranked for one market. One call per team in each game; calls lock before tip and grade after the final."
+        note={<>Every player that day, ranked for one market. <Why label="Calls" text="One call per team in each game. Calls lock before tip and are graded after the final." /></>}
         stats={data ? [{ value: games.length, label: 'GAMES', tone: C.text2 }, { value: called, label: 'CALLED', tone: C.purple }, { value: data.lockedGames?.length || 0, label: 'LOCKED', tone: C.text2 }] : null} />
       <Pills ariaLabel="Market" value={m} onChange={pick} options={MARKET_PILLS} />
       <DayPager shown={shown} date={date} setDate={setDate} disabled={loading}>
@@ -211,13 +211,13 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
       {m === ALL ? <FullBoard embedded keep={(r) => (!needle || `${r.name} ${r.team} ${r.opp}`.toLowerCase().includes(needle)) && (!team || r.team === team) && (!gameF || r.gameId === gameF) && (!gameSel.length || gameSel.includes(r.gameId))} date={date} setDate={setDate} onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} onOpenGame={onOpenGame} /> : (<>
       <DelayedBanner error={error} what="the board" />
       {loading && !data ? <Loading what="the board" /> : null}
-      {data && !games.length && <EmptyState title="NO GAMES THAT DAY" note="Nothing to rank. Page a day, or the Slate has what’s next." />}
+      {data && !games.length && <EmptyState title="NO GAMES THAT DAY" note="Nothing to rank. Try another day, or open the Slate." />}
       {noStarters && games.length > 0 && <EmptyState title="NO STARTERS LISTED YET" note="First basket is the ten starters only, scored once the pre-tip box score lists them. Check back near tip." />}
       {D.highVariance && scored.length > 0 && <p style={{ margin: 0, fontSize: 12, color: C.text3 }}>A high-variance lane: the ten starters only, ranked mostly on shot share.</p>}
       {previewN > 0 && rows.length > 0 && !noStarters && (
-        <div style={{ color: C.amber, font: `800 12px/1.5 ${NUM_FONT}`, letterSpacing: '.08em' }}>
-          {previewN === rows.length && games.length > 0 && games.every((g) => g.state === 'final') ? 'THIS NIGHT NEVER LOCKED — THE ROWS ARE A PREVIEW, NOT CALLS'
-            : previewN === rows.length ? 'EVERY GAME IS STILL PREVIEW — NOT A CALL YET' : `${previewN} OF ${rows.length} ROWS ARE PREVIEW — NOT A CALL YET`}
+        <div style={{ color: C.text2, font: `800 12px/1.5 ${NUM_FONT}`, letterSpacing: '.08em' }}>
+          {previewN === rows.length && games.length > 0 && games.every((g) => g.state === 'final') ? 'THIS NIGHT NEVER LOCKED. THESE ROWS ARE A PREVIEW, NOT CALLS'
+            : previewN === rows.length ? 'EVERY GAME IS STILL A PREVIEW, NOT A CALL YET' : `${previewN} OF ${rows.length} ROWS ARE A PREVIEW, NOT A CALL YET`}
           {games.some((g) => g.seasonType === 1) ? ' · PRESEASON' : ''}
         </div>
       )}

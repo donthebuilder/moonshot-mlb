@@ -43,12 +43,12 @@ export default function Slate({ date, setDate, market = 'pts', onOpenPlayer, onO
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <PageHeader eyebrow="BUCKETS · SLATE" title={shown ? fmtDay(shown) : 'Tonight'} theme={C} numFont={NUM_FONT} accent={C.purple}
-        note="Every game that day, one at a time: its calls and its board for the market you pick."
+        note="Every game that day, with its calls and board."
         stats={data ? [{ value: games.length, label: 'GAMES', tone: C.text2 }] : null} />
       <DayPager shown={shown} date={date} setDate={setDate} />
       <DelayedBanner error={error} what="the board" />
       {loading && !data ? <Loading what="the slate" /> : null}
-      {data && !games.length && <EmptyState title="NO GAMES THAT DAY" note="Page a day for the next slate." />}
+      {data && !games.length && <EmptyState title="NO GAMES THAT DAY" note="Try another day." />}
       {games.length > 0 && <Pills ariaLabel="View" value={view} onChange={setView} options={[{ key: 'games', text: '🏟 Games' }, { key: 'table', text: '📊 Table' }]} />}
       {view === 'table' && games.length > 0 && (
         <div>
@@ -78,7 +78,7 @@ export default function Slate({ date, setDate, market = 'pts', onOpenPlayer, onO
               }} />
             })}
           </Rail>
-          <div style={{ marginTop: 7, fontSize: 11, color: C.text3 }}>Tip-off order. The dial is the game&apos;s best BUCKETS score on this market; 🔒 locked before tip, ◻ still a preview.</div>
+          <div style={{ marginTop: 7, fontSize: 11, color: C.text3 }}>Tip-off order. Dial = best score in the game. 🔒 locked, ◻ preview.</div>
         </div>
       )}
       {view === 'games' && g && (<>

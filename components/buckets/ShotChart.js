@@ -108,7 +108,7 @@ export default function ShotChart({ shots = [], names = {}, teams = {}, title = 
         PLAYER
         <select value={who} onChange={(e) => setWho(e.target.value)} style={{ minHeight: 44, flex: '1 1 auto', maxWidth: 320, borderRadius: 10, border: `1px solid ${who === 'all' ? C.border2 : ACCENT}`, background: C.bg2, color: C.text, fontSize: 14, padding: '0 10px' }}>
           <option value="all">Everyone</option>
-          {players.map(([id, n]) => <option key={id} value={id}>{names[id] || id} · {n} shots</option>)}
+          {players.map(([id, n]) => <option key={id} value={id}>{names[id] || id} · {n} {n === 1 ? 'shot' : 'shots'}</option>)}
         </select>
       </label>}
       <StatStrip {...props} label="The shown shots, in numbers" stats={[
@@ -116,7 +116,7 @@ export default function ShotChart({ shots = [], names = {}, teams = {}, title = 
         { k: '3PA', v: threes.length }, { k: '3P%', v: pct(threes.filter((s) => s.made).length, threes.length) }, { k: 'PTS', v: pts, sub: 'from the field' },
       ]} />
       <ChartCard theme={C} accent={ACCENT}>
-        <svg viewBox="-1 -1 52 49" role="img" aria-label={`${shown.length} shots on a half court`} style={{ width: '100%', maxWidth: 560, display: 'block', margin: '0 auto' }}>
+        <svg viewBox="-1 -1 52 49" role="img" aria-label={`${shown.length} ${shown.length === 1 ? 'shot' : 'shots'} on a half court`} style={{ width: '100%', maxWidth: 560, display: 'block', margin: '0 auto' }}>
           <Court />
           {view === 'heat' && bins.map((b) => (
             <rect key={b.k} x={b.bx * BIN} y={b.by * BIN} width={BIN} height={BIN} onClick={() => setBin(b)} style={{ cursor: 'pointer' }}

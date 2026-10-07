@@ -17,18 +17,18 @@ export default function Guide({ onNavigate }) {
     <div style={{ maxWidth: 760, margin: '0 auto' }}>
       <GuideTitle title="What BUCKETS is">
         BUCKETS is the NBA desk inside DASH Network, next to MOONSHOT (MLB), TUDDY (NFL) and LAMP (NHL).
-        It reads the league’s own feed, ranks the night’s players for six markets, and grades itself on
+        It reads the league’s own stats, ranks the night’s players for six markets, and grades itself on
         every call after the final.
       </GuideTitle>
       <StartHere heading="Three steps, in order" onNavigate={onNavigate} steps={[
         { n: 1, tab: 'board', title: `Open ${NBA_NAV.board.label}`, body: 'Pick a market. One player is called per team in every game, locked before tip.' },
         { n: 2, tab: 'board', title: 'Tap a called player', body: 'His file opens: the season line, the game log, every shot on the floor, the board on him.' },
-        { n: 3, tab: 'results', title: `The next morning, open ${NBA_NAV.results.label}`, body: 'Of the calls, how many hit, per market -- the receipts for everything above.' },
+        { n: 3, tab: 'results', title: `The next morning, open ${NBA_NAV.results.label}`, body: 'Of the calls, how many hit, per market — the receipts for everything above.' },
       ]} footer={<>That&apos;s the whole path. Everything below is reference.</>} />
 
       <Section title="The three words" emoji="🔖" defaultOpen={true}>
         <P><b style={{ color: C.purple }}>CALLED</b> — the top-scored player on his team in his game, for that market (the game’s higher one is TOP, the other BUCKET). <b style={{ color: C.text }}>ON THE BOARD</b> — in the top third of the night, not called. <b style={{ color: C.text3 }}>NOT ON THE BOARD</b> — playing, but outside the top third or not scored, and the reason is printed. Same words, same meaning, on every DASH product.</P>
-        <P>A board is <b style={{ color: C.amber }}>PREVIEW</b> until its game locks before tip; a locked row is never rewritten. After the final it is graded; a player who didn’t play is void, not a miss.</P>
+        <P>A board is <b style={{ color: C.text }}>PREVIEW</b> until its game locks before tip; a locked row is never rewritten. After the final it is graded; a player who didn’t play is void, not a miss.</P>
       </Section>
 
       <Section title="The six markets" emoji="🎯">
@@ -42,12 +42,12 @@ export default function Guide({ onNavigate }) {
       </Section>
 
       <Section title="Where the numbers come from" emoji="📦">
-        <P>Every number is ESPN’s public NBA feed — scoreboard, box scores, play-by-play, rosters, injuries, standings and league stats — read on our server and cached briefly. Shot spots are the play-by-play’s own, stored once per game. Each page says at its foot what it read.</P>
+        <P>Every number comes from ESPN’s public NBA data: scoreboard, box scores, play-by-play, rosters, injuries, standings and league stats, refreshed every few minutes. Shot spots are the play-by-play’s own.</P>
         <P>The day is the league’s Eastern calendar day; the times are yours. Before the regular season the season lines, leaders and standings are last season’s, and each page says so.</P>
       </Section>
 
       <Section title="What BUCKETS does not do yet" emoji="🚧">
-        <P>No price: the board never reads a sportsbook line. No first-basket line exists in the odds feed yet, so that market is the model alone. No alerts or posts until BUCKETS opens to everyone.</P>
+        <P>No price: the board never reads a sportsbook line. No first-basket line exists yet, so that market has no price to compare. No alerts or posts until BUCKETS opens to everyone.</P>
       </Section>
     </div>
     </GuideTheme>

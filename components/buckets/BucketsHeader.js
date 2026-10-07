@@ -24,7 +24,7 @@ export default function BucketsHeader({ setTab, live = 0, date = null, setDate =
       date={
         <DateMode label={fmtDay(date || scores?.data?.date || today)} value={!date ? 'today' : date === tomorrow ? 'tomorrow' : ''}
           onChange={(k) => setDate(k === 'tomorrow' ? tomorrow : null)}
-          options={[{ key: 'today', text: 'Today', color: C.purple }, { key: 'tomorrow', text: 'Tmrw', color: C.teal }]}
+          options={[{ key: 'today', text: 'Today', color: C.purple }, { key: 'tomorrow', text: 'Tmrw', color: C.purple }]}
           theme={C} numFont={NUM_FONT} />
       }
       account={<SignUpPill accent={C.purple} />}

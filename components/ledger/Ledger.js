@@ -194,7 +194,7 @@ export default function Ledger({
                   <Tile
                     label={baseRate.label}
                     value={typeof baseRate.value === 'number' ? baseRate.value.toFixed(2) : baseRate.value}
-                    color="#c084fc"
+                    color={C.text2}
                     sub={baseRate.unit}
                   />
                 )}

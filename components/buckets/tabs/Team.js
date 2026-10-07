@@ -25,7 +25,7 @@ export default function Team({ abbrev, onBack, backLabel = 'Teams', onOpenPlayer
   const st = data?.standing
   const roster = (data?.players || []).map((p) => ({ ...p, _id: p.id, playerId: p.id, inj: (p.injuries || []).map((i) => i.status || i.type || '').filter(Boolean).join(', ') }))
   const cols = [
-    { key: 'name', label: 'Player', group: 'Player', w: 150, heat: false, bold: true, sticky: true, fmt: (v, r) => <span>{v}{r.inj ? <span style={{ color: C.amber, fontSize: 10, marginLeft: 4 }}>{r.inj}</span> : null}</span> },
+    { key: 'name', label: 'Player', group: 'Player', w: 150, heat: false, bold: true, sticky: true, fmt: (v, r) => <span>{v}{r.inj ? <span style={{ color: C.text3, fontSize: 10, marginLeft: 4 }}>{r.inj}</span> : null}</span> },
     { key: 'pos', label: 'Pos', group: 'Player', w: 36, heat: false, mono: true, dim: true },
     { key: 'jersey', label: '#', group: 'Player', w: 32, heat: false, mono: true, dim: true, rankCol: false },
     { key: 'age', label: 'Age', group: 'Player', w: 36, heat: false, mono: true, dim: true },
@@ -51,7 +51,7 @@ export default function Team({ abbrev, onBack, backLabel = 'Teams', onOpenPlayer
         note={st ? `${data.seasonLabel}: ${st.w}-${st.l}, seed ${st.seed} in the ${known.conf === 'E' ? 'East' : 'West'}${st.streak && st.streak !== '-' ? ` · ${st.streak}` : ''}` : null}
         stats={st ? [{ value: `${st.w}-${st.l}`, label: 'RECORD', tone: C.text }, { value: st.seed, label: 'SEED', tone: C.purple }, { value: st.diff, label: 'DIFF', tone: C.text2 }] : null} />
       {data?.stale && <LastSeasonNote label={data.seasonLabel} what="season lines" />}
-      <DelayedBanner error={error} what="the club feed" />
+      <DelayedBanner error={error} what="club data" />
       {loading && !data ? <Loading what="the club" /> : null}
       <TeamGlance data={data} roster={roster} def={(defense.data?.teams || []).find((t) => t.abbrev === known.abbrev)} defLabel={defense.data?.seasonLabel} onOpenPlayer={onOpenPlayer} onOpenGame={onOpenGame} />
       {roster.length > 0 && (
@@ -116,7 +116,7 @@ function TeamGlance({ data, roster, def, defLabel, onOpenPlayer, onOpenGame }) {
             {last5.map((g) => (
               <Tap key={g.id} onClick={() => onOpenGame?.(g.id)} title={`${g.home ? 'vs' : '@'} ${g.opp}`}>
                 <span style={{ ...cell, display: 'inline-flex', gap: 6, alignItems: 'center', minHeight: 44, fontFamily: NUM_FONT, fontSize: 12 }}>
-                  <b style={{ color: g.result === 'W' ? C.green : C.text3 }}>{g.result}</b>{g.home ? 'vs' : '@'} {g.opp} {g.us}-{g.them}
+                  <b style={{ color: g.result === 'W' ? C.text : C.text3 }}>{g.result}</b>{g.home ? 'vs' : '@'} {g.opp} {g.us}-{g.them}
                 </span>
               </Tap>
             ))}
@@ -131,7 +131,7 @@ function TeamGlance({ data, roster, def, defLabel, onOpenPlayer, onOpenGame }) {
               <span key={k} style={{ ...cell, display: 'grid', gap: 2 }}>
                 <span style={lab}>{label}</span>
                 <b style={{ color: C.text }}>{def[k] == null ? '—' : k === 'oppFgPct' ? `${(def[k] * 100).toFixed(1)}%` : def[k].toFixed(1)}</b>
-                <span style={{ fontSize: 10, color: def.ranks?.[k] <= 5 ? C.rim : C.text3 }}>#{def.ranks?.[k] ?? '—'}</span>
+                <span style={{ fontSize: 10, color: def.ranks?.[k] <= 5 ? C.purple : C.text3 }}>#{def.ranks?.[k] ?? '—'}</span>
               </span>
             ))}
           </div>

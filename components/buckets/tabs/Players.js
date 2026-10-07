@@ -29,7 +29,7 @@ export default function Players({ onOpenPlayer, onOpenTeam }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <PageHeader eyebrow="BUCKETS · PLAYERS" title="Every player" theme={C} numFont={NUM_FONT} accent={C.purple}
-        note="Every player on the league’s season stats. Type a name or a club code; tap a row for his file."
+        note="Every player. Type a name or club; tap a row."
         stats={data ? [{ value: data.players.length, label: 'PLAYERS', tone: C.text2 }] : null} />
       {data?.stale && <LastSeasonNote label={data.seasonLabel} what="season lines" />}
       <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 11, fontWeight: 800, letterSpacing: '.08em', color: C.text3, fontFamily: NUM_FONT }}>
@@ -39,7 +39,7 @@ export default function Players({ onOpenPlayer, onOpenTeam }) {
       </label>
       <DelayedBanner error={error} what="the league’s stats" />
       {loading && !data ? <Loading what="the players" /> : null}
-      {data && !rows.length && <EmptyState title="NOBODY BY THAT NAME" note="Try a surname, or a club code like BOS." />}
+      {data && !rows.length && <EmptyState title="NOBODY BY THAT NAME" note="Try a surname or a club like BOS." />}
       {rows.length > 0 && <BucketsTable rows={rows} columns={cols} onRowClick={(r) => onOpenPlayer?.((r?._raw ?? r).playerId)} faceOf={(r) => ({ sport: 'nba', id: r.playerId, name: r.name })}
         initialSort={{ key: 'pts', dir: 'desc' }} heatMode="sorted" maxHeight={620} maxRows={rows.length}
         caption="Every player, per game. Column headers sort; each row opens that player; the team opens the club." />}

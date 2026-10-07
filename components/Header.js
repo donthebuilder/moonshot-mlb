@@ -160,17 +160,17 @@ function Scorebug({ players, results, games, mode, slateDate, runMeta, onPlayerC
   const onBoardHrs = homerStatuses ? homerStatuses.called + homerStatuses.board : stats.onSheet
   const captured = stats.actual != null && stats.actual > 0 && onBoardHrs != null
   const pct = captured ? (100 * (onBoardHrs || 0)) / stats.actual : null
-  const capCol = pct == null ? '#38bdf8' : pct >= 70 ? '#4ade80' : pct >= 50 ? '#f59e0b' : '#f87171'
+  const capCol = C.text2   // COLOUR DIET (2026-10-07): was sky / green / amber / red by capture rate; the count says it
 
   const items = []
   items.push({ k: 'games', label: 'games', value: stats.gameCount, nav: 'games', title: 'Games on this slate' })
-  if (proj != null) items.push({ explain: true, k: 'proj', label: 'Expected HRs', value: proj, color: '#f97316', nav: 'board', title: `${modelHr != null ? `The site's model projects ${modelHr.toFixed(1)} home runs across this slate. ` : ''}${projection ? `The bot's sheet says ${projection.low}–${projection.high}, power grade ${projection.grade || 'n/a'}.` : ''}` })
+  if (proj != null) items.push({ explain: true, k: 'proj', label: 'Expected HRs', value: proj, color: C.orange, nav: 'board', title: `${modelHr != null ? `The site's model projects ${modelHr.toFixed(1)} home runs across this slate. ` : ''}${projection ? `The bot's sheet says ${projection.low}–${projection.high}, power grade ${projection.grade || 'n/a'}.` : ''}` })
   items.push({ explain: true, k: 'cap', label: 'HRs on board', value: captured ? `${onBoardHrs}/${stats.actual}` : stats.actual > 0 ? `${stats.actual} HR` : 'no HR yet', color: capCol, live: true, nav: 'calledledger', title: captured ? `${onBoardHrs} of the slate's ${stats.actual} home runs so far were CALLED or ON THE BOARD (the top third of that night's board) before first pitch (${pct.toFixed(0)}%) -- the same count as the Called page. Fewer games are in while the slate is live.` : 'How many of tonight\'s home runs the board had before first pitch — fills in when the first one lands.' })
   // live scores ride between the facts and the headlines: live first, finals after
   const scores = scoreOrder(live.items, 'mlb')
   for (const i of scores.live) items.push({ k: i.k, hash: i.hash, label: i.sub || 'live', value: i.text, icon: i.icon, color: i.col, live: true, sport: i.sport, nav: 'scoreboard', title: i.kind === 'leader' ? `Leading tonight's line for this game` : (i.sport === 'nfl' ? 'Live on TUDDY — tap to switch' : 'Live — tap for the Live page') })
   for (const h of heads) items.push({ k: `h-${h.k}`, label: h.tag, value: h.name, icon: h.icon, color: h.col, p: h.p, nav: h.nav, title: h.why })
-  items.push({ explain: true, k: 'lineups', label: staleSlate ? 'prev lineups' : 'lineups', value: `${stats.confirmedTeams}/${stats.lineupTeams}`, color: staleSlate ? C.text3 : '#4ade80', nav: 'games', title: 'Teams with a confirmed lineup' })
+  items.push({ explain: true, k: 'lineups', label: staleSlate ? 'prev lineups' : 'lineups', value: `${stats.confirmedTeams}/${stats.lineupTeams}`, color: staleSlate ? C.text3 : C.text2, nav: 'games', title: 'Teams with a confirmed lineup' })
   // FRESHNESS PILL (2026-09-11, item 21). "MLB has no lineup freshness
   // indicator anywhere" -- unlike TUDDY's built_at_human clock. The bot has
   // published current/{mode}_run_meta.json with a generated_at timestamp
@@ -186,10 +186,10 @@ function Scorebug({ players, results, games, mode, slateDate, runMeta, onPlayerC
       const ageMin = Math.max(0, Math.round((Date.now() - builtMs) / 60000))
       const ageText = ageMin < 1 ? 'just now' : ageMin < 60 ? `${ageMin}m ago` : `${Math.floor(ageMin / 60)}h ${ageMin % 60}m ago`
       const builtStale = ageMin > 180
-      items.push({ explain: true, k: 'built', label: 'built', value: ageText, color: builtStale ? '#f87171' : C.text3, title: `Board last built ${new Date(builtMs).toLocaleString([], { hour: 'numeric', minute: '2-digit', month: 'short', day: 'numeric' })}${builtStale ? ' -- over 3h old' : ''}` })
+      items.push({ explain: true, k: 'built', label: 'built', value: ageText, color: builtStale ? C.red : C.text3, title: `Board last built ${new Date(builtMs).toLocaleString([], { hour: 'numeric', minute: '2-digit', month: 'short', day: 'numeric' })}${builtStale ? ' -- over 3h old' : ''}` })
     }
   }
-  items.push({ explain: true, k: 'weak', label: 'weak', value: `★${stats.weak}`, color: '#FCD34D', nav: 'board', title: 'Weak-spot matchups on the slate' })
+  items.push({ explain: true, k: 'weak', label: 'weak', value: `★${stats.weak}`, color: C.text2, nav: 'board', title: 'Weak-spot matchups on the slate' })
   // Own finals and upcoming first, then the other sports' (scoreOrder).
   for (const i of scores.rest) {
     if (i.pregame) items.push({ k: i.k, hash: i.hash, label: i.sub || 'kickoff', value: i.text, icon: i.icon, color: C.text3, sport: i.sport, nav: 'scoreboard', title: i.title || (i.sport === 'nfl' ? 'Not underway yet — tap to switch to TUDDY' : 'Not underway yet') })

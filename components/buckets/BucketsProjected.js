@@ -1,6 +1,7 @@
 'use client'
 import { useMemo, useState } from 'react'
 import { C } from '../../lib/nba/theme'
+import { Why } from './ui'
 import ProjectedView, { sortClick, rankRows } from '../slate/ProjectedView'
 
 // BUCKETS' PROJECTED OUTPUT -- MOONSHOT's panel (components/slate/ProjectedView.js),
@@ -62,13 +63,13 @@ export default function BucketsProjected({ rows: boardRows = [], games = [], onO
   return (
     <ProjectedView lenses={lenses} active={active} setActive={setActive} shownCount={pool.length} totalCount={items.length} noun="players" sport="nba"
       by={by} setBy={setBy}
-      note={<><b style={{ color: C.text2 }}>points per game</b> — each rated player&apos;s points a game (this season and last, pooled by games), summed over each club&apos;s top minutes up to 240 (five on the floor for 48). A rate projection, not the model. Called pts is the same over the called players only; Proj FGA is their shots a game.</>}
+      note={<>Points per game, added up over each club&apos;s top players. <Why label="Projected points" text="Each rated player’s points a game (this season and last, pooled by games), summed over each club’s top minutes up to 240 (five on the floor for 48). A rate projection of a box-score count, not a probability. Called pts is the same over the called players only; Proj FGA is their shots a game." /></>}
       rows={rows} primary="Proj pts" unit="points" columns={COLS}
       sortCol={sortCol} sortDir={sortDir} onSort={sortClick(sortCol, setSortCol, setSortDir)}
       podiumTip={(r) => `${r._count} rated players · ${r.values['Proj FGA'].toFixed(1)} shots · ${r.values['Called pts'].toFixed(1)} from the called`}
       barsTitle={<>Proj points by {by} — top to bottom</>}
       barsFoot={<>Bar length is Proj pts — same numbers as the table below.</>}
-      footnote={<>Every column is a sum over the players in view, so a chip above moves all of them. A pill (▲ ▼) means that {by} sits clearly above or below tonight&apos;s own average.</>}
+      footnote={<>Every column adds up the players in view, so a chip above moves all of them. ▲ ▼ = clearly above or below tonight&apos;s average.</>}
       onOpenGame={onOpenGame} onOpenTeam={onOpenTeam} accent={C.purple} />
   )
 }

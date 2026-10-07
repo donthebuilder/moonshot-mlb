@@ -20,7 +20,7 @@ const COLS = [
   { key: 'split', label: 'Split', group: 'Split', heat: false, w: 118, bold: true, sticky: true, numeric: false },
   { key: 'gp', label: 'GP', group: 'Sample', heat: false, w: 38, title: 'Games in this row. Read this before any rate on the row.' },
   { key: 'thin', label: '', group: 'Sample', heat: false, numeric: false, w: 44, title: `THIN: under ${THIN_GP} games. A rate on this few games moves a lot on one night.`,
-    fmt: (v) => (v ? <span style={{ color: C.amber, font: `900 10px/1 ${NUM_FONT}`, letterSpacing: '.06em' }}>THIN</span> : '') },
+    fmt: (v) => (v ? <span style={{ color: C.text3, font: `900 10px/1 ${NUM_FONT}`, letterSpacing: '.06em' }}>THIN</span> : '') },
   { key: 'min', label: 'MIN', group: 'Per game', w: 44, fmt: f1 },
   { key: 'pts', label: 'PTS', group: 'Per game', w: 44, fmt: f1, bold: true },
   { key: 'reb', label: 'REB', group: 'Per game', w: 44, fmt: f1 },
@@ -98,7 +98,7 @@ function Combo({ games }) {
         <div style={{ fontSize: 12, color: C.text3, padding: '2px 0' }}>No games matched that combination in this window.</div>
       ) : (
         <>
-          <div style={{ fontSize: 12, color: line.thin ? C.amber : C.text3, fontFamily: NUM_FONT, marginBottom: 4 }}>
+          <div style={{ fontSize: 12, color: line.thin ? C.text2 : C.text3, fontFamily: NUM_FONT, marginBottom: 4 }}>
             {line.gp} game{line.gp === 1 ? '' : 's'}{line.thin ? ` · under ${THIN_GP}, read it as a curiosity, not a signal` : ''}
           </div>
           <BucketsTable rows={[line]} columns={COLS} maxHeight={9999} heatMode="none" initialSort={null} />
@@ -135,7 +135,7 @@ export default function PlayerSplits({ games = [], label = '', onOpenTeam = null
             {pills.map((p) => <button key={p.key} type="button" aria-pressed={shownKey === p.key} onClick={() => setActive(p.key)} style={pillStyle(shownKey === p.key)}>{p.label}</button>)}
           </div>
           <div style={{ fontSize: 12, color: C.text3, lineHeight: 1.6, maxWidth: 760 }}>
-            Pick a split. Every row shows its games (GP) and is flagged <b style={{ color: C.amber }}>THIN</b> under {THIN_GP}: a few games prove little.
+            Pick a split. Every row shows its games (GP) and is flagged <b style={{ color: C.text }}>THIN</b> under {THIN_GP}: a few games prove little.
           </div>
           {sections.filter(({ g }) => g.key === shownKey).map(({ g, rows }) => (
             <Section key={g.key} id={g.key} title={g.label} caption={g.caption}
