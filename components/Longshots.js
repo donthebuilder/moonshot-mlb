@@ -6,6 +6,8 @@ import DenseTable from './DenseTable'
 import { sportKey } from '../lib/routes'
 import { PillRow } from './Filters'
 import { localTime } from '../lib/localTime'
+import { bookName } from '../lib/odds/shop'
+import HelpTip from './HelpTip'
 
 // 🎯 LONGSHOTS (2026-09-27), one page on all three products. Players the
 // books price long (median book at or past the sport's line) beside our own
@@ -41,7 +43,7 @@ export default function Longshots({ sport, eyebrow, theme: C, numFont, accent, T
   const rows = useMemo(() => (data?.rows || []).map((r) => ({
     ...r, statusWord: STATUS_WORD[r.status] || '', matchup: r.opp ? `vs ${r.opp}` : '',
     ...Object.fromEntries(Object.entries(r.stats || {}).map(([k, v]) => [`s_${k}`, v])),
-    flag: r.note || '', asOf: `${r.snap || ''} ${clock(r.takenAt)}`.trim(),
+    flag: r.note || '', bestBook: bookName(r.bestBook), asOf: `${r.snap || ''} ${clock(r.takenAt)}`.trim(),
   })), [data])
   const called = rows.filter((r) => r.status === 'called').length
   const shown = scope === 'called' ? rows.filter((r) => r.status === 'called') : rows
@@ -76,9 +78,7 @@ export default function Longshots({ sport, eyebrow, theme: C, numFont, accent, T
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <PageHeader eyebrow={eyebrow} title={`Longshots${data?.market ? `: ${data.market}` : ''}`}
-        note={data?.date
-          ? `Every player the books price at +${data.longAt} or longer on ${data.date}, beside our model's score. Sorted by score. A price is what the books offer, not a pick; a score is a rank, not a chance.`
-          : 'Players the books price long, beside our model’s score.'}
+        note={<>{data?.longAt ? `Players priced +${data.longAt} or longer, beside our score.` : 'Players priced long, beside our score.'}<HelpTip label="Longshots" text="A price is what the books offer, not a pick; a score is a rank, not a chance. Sorted by score." /></>}
         theme={C} numFont={numFont} accent={accent}
         stats={data ? [{ value: rows.length, label: 'LONGSHOTS', tone: C.text2 }, { value: called, label: 'CALLED', tone: accent }, { value: data.priced, label: 'PRICED', tone: C.text3 }] : null} />
       {error && <div role="status" style={{ padding: '10px 12px', border: `1px solid ${C.border}`, borderRadius: 10, color: C.text2, fontSize: 12 }}>Odds are delayed right now. Try again in a minute.</div>}
@@ -99,7 +99,8 @@ export default function Longshots({ sport, eyebrow, theme: C, numFont, accent, T
         </>
       )}
       <div style={{ color: C.text3, fontSize: 11, lineHeight: 1.55 }}>
-        Prices: SportsGameOdds, read by this site ({data?.priced ?? 0} players priced that day; {data?.modelled ?? 0} have a model score). Snapshots are taken on game days and again before each start; lines move after them.
+        {data?.priced ?? 0} priced, {data?.modelled ?? 0} scored.
+        <HelpTip label="Prices" text="Prices come from SportsGameOdds. Snapshots are taken on game days and again before each start; lines move after each one." />
       </div>
     </div>
   )

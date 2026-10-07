@@ -54,7 +54,7 @@ export default function HeadlineStrip({ cards = [], onOpen = null, theme = null,
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
         <span style={{ fontSize: TYPE.label, fontWeight: 900, letterSpacing: '.16em', fontFamily: NUM_FONT, color: C.text3 }}>HEADLINES</span>
         <span style={{ flex: 1, height: 1, background: `linear-gradient(90deg, ${accent || C.orange}66, transparent)` }} />
-        <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>{cards.length} · tap any · swipe or let it roll</span>
+        <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>{cards.length} headlines</span>
       </div>
       {/* #97: WebkitOverflowScrolling:'touch' dropped here too -- see the
           matching note in components/Header.js. Same useAutoScroll hook,

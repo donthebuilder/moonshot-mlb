@@ -3,6 +3,7 @@ import { C, NUM_FONT, TYPE } from '../../lib/theme'
 import { STATE, alpha } from '../../lib/scales'
 import Sparkline, { GameStrip } from '../Sparkline'
 import { useSportTheme } from '../SportTheme'
+import HelpTip from '../HelpTip'
 import { TeamTap } from '../EntityTap'
 
 // MOONSHOT'S RUN PIECES, SHARED (2026-09-29, queue batch 9/11). Lifted out of
@@ -246,14 +247,12 @@ export function RunHistogram({ runs, label, noun = 'hitters', nounOne = 'hitter'
         })}
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 3 }}>
-        <span style={{ fontSize: TYPE.label, color: T.red, fontFamily: NF, letterSpacing: '.06em' }}>← DROUGHT</span>
-        <span style={{ fontSize: TYPE.label, color: T.green, fontFamily: NF, letterSpacing: '.06em' }}>RUN →</span>
+        <span style={{ fontSize: TYPE.label, color: T.text3, fontFamily: NF, letterSpacing: '.06em' }}>← DROUGHT</span>
+        <span style={{ fontSize: TYPE.label, color: T.text2, fontFamily: NF, letterSpacing: '.06em' }}>RUN →</span>
       </div>
       <div style={{ fontSize: TYPE.body, color: T.text3, marginTop: 6, lineHeight: 1.5 }}>
-        The same {runs.length} rows the board is sorted by, counted rather than listed — so a card&apos;s
-        number can be read against the field instead of against the card beside it. Most of any board
-        lives in the first two columns on each side; that is what a run board looks like when nothing
-        unusual is happening, and it is the shape to compare a long one against.
+        How the {runs.length} rows on the board are spread.
+        <HelpTip label="The spread" color={T.text3} text="The same rows the board is sorted by, counted rather than listed, so a card's number can be read against the field. Most of any board lives in the first two columns on each side; that is the shape to compare a long run against." />
       </div>
     </div>
   )

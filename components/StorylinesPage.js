@@ -4,6 +4,7 @@ import DenseTable from './DenseTable'
 import Tap from './Tap'
 import { useEffect, useMemo, useState } from 'react'
 import PageHeader from './PageHeader'
+import HelpTip from './HelpTip'
 import StoryRow, { StoryParts, BoardBadge } from './StoryRow'
 import { localDayTime } from '../lib/localTime'
 
@@ -87,7 +88,7 @@ export default function StorylinesPage({ sport, eyebrow, theme: C, numFont, acce
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <PageHeader eyebrow={eyebrow} title="Storylines" theme={C} numFont={numFont} accent={accent}
-        note={<>Tonight&apos;s games, each with what the numbers are already saying about it — rarest first, every line with the player&apos;s board status beside it. Nothing here is a score.</>} />
+        note={<>What the numbers say about each game, rarest first.<HelpTip label="Storylines" color={C.text3} text="Every line has the player's board status beside it. Nothing here is a score." /></>} />
 
       <div role="group" aria-label="Filter storylines" style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2, scrollbarWidth: 'none' }}>
         <button type="button" style={chip(calledOnly)} aria-pressed={calledOnly} onClick={() => setCalledOnly((v) => !v)}>Called only</button>
@@ -145,7 +146,7 @@ export default function StorylinesPage({ sport, eyebrow, theme: C, numFont, acce
       })}
       <section aria-label="How stories did" style={{ border: `1px solid ${C.border}`, borderRadius: 12, background: C.bg2, padding: '10px 12px' }}>
         <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.1em', color: accent, fontFamily: numFont }}>HOW STORIES DID</div>
-        <div style={{ fontSize: 12, color: C.text3, margin: '4px 0 6px' }}>Every story is frozen at the start of its game and checked after it against the player&apos;s own line. A story with no outcome of its own is graded on a productive night; &ldquo;everyone&rdquo; is the same bar for every player who played those nights. The record started {data?.summary?.length ? data.summary.reduce((a, r) => (r.since < a ? r.since : a), data.summary[0].since) : 'the day this shipped'}{data?.summary?.length ? '' : ' — no game has been graded yet'}.</div>
+        <div style={{ fontSize: 12, color: C.text3, margin: '4px 0 6px' }}>Record since {data?.summary?.length ? data.summary.reduce((a, r) => (r.since < a ? r.since : a), data.summary[0].since) : 'the first game'}{data?.summary?.length ? '' : ': no game has been graded yet'}.<HelpTip label="How stories are graded" color={C.text3} text="Every story is frozen at the start of its game and checked after it against the player's own line. A story with no outcome of its own is graded on a productive night; 'everyone' is the same bar for every player who played those nights." /></div>
         {data?.summary?.length ? (
           <div style={{ overflowX: 'auto' }}>
             {/* THE SHARED SHEET (2026-10-01, BATCH-TABLE-SKIN-V2 4b). A rate under

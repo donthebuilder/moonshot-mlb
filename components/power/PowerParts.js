@@ -62,7 +62,6 @@ export function PowerLead({ color, kicker, name, meta, onName, onMeta = null, ch
   )
 }
 
-const COUNT = { 2: 'two', 3: 'three', 4: 'four', 5: 'five' }
 
 /** One board, several lenses: the pill is the board's title, the active
  *  lens's one-line answer rides the row. lenses: [{ k, label, tag, color }]. */
@@ -77,8 +76,7 @@ export function LensRow({ lenses, value, onChange, theme = MLB_C, btn }) {
         </button>
       ))}
       <span style={{ fontSize: 10.5, color: C.text3, marginLeft: 2 }}>
-        {COUNT[lenses.length] || lenses.length} lenses on one
-        question — {lens.tag}
+        {lens.tag}
       </span>
     </div>
   )
