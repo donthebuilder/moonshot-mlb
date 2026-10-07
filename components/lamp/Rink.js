@@ -1,9 +1,10 @@
 'use client'
 import { useId, useState } from 'react'
-import { C, NUM_FONT, RINK, rampAt } from '../../lib/nhl/theme'
+import { C, NUM_FONT, RINK, RINK_DARK as RD } from '../../lib/nhl/theme'
 import { measuredMph } from '../../lib/nhl/shotPath'
 import { GOALIE_ZONES, ZONE_SHAPES, ZONE_LABEL_AT, tintAlpha, matchZones } from '../../lib/nhl/zones'
-import { ViewToggle } from '../charts'
+import { viewBtn } from '../charts'
+import { alpha } from '../../lib/scales'
 
 // 🏒 THE RINK (lamp research step 3, 2026-09-26). One attacking half seen
 // from above, net on the right, drawn in the league's own feet: blue line
@@ -53,27 +54,50 @@ export const HEAT_FULL = 0.25      // shooting % that takes the full heat colour
  *  colors for different events"). Shared with the 3D arena. */
 export const shotInk = (res) => (res === 'goal' ? C.lamp : res === 'sog' ? RINK.save : res === 'block' ? RINK.block : RINK.miss)
 
-/** One mark: a solid puck in its result's colour, a goal a size up with a glow. */
+/** One mark, on the DARK ice (2026-10-07): told apart by SHAPE and by LUMINANCE, not by hue alone --
+ *  a goal is the biggest and brightest (a lamp-red disc in a white ring, glowing), a shot on net a small
+ *  filled ice-blue dot, a miss a hollow ring, a block a small x. (The 3D arena keeps shotInk's pucks.) */
 function Mark({ shot, cx, cy, sel, hard }) {
-  const goal = shot[2] === 'goal'
-  const r = goal ? 1.35 : 0.95
+  const res = shot[2]
   return (
     <g>
-      {goal && <circle cx={cx} cy={cy} r={2.4} fill={C.lamp} opacity={0.28} />}
-      <circle cx={cx} cy={cy} r={sel ? r + 0.45 : r} fill={shotInk(shot[2])} stroke={sel ? RINK.puck : RINK.puckRim} strokeWidth={sel ? 0.45 : 0.2} />
-      {hard && <circle cx={cx} cy={cy} r={r + 0.75} fill="none" stroke={RINK.puck} strokeWidth={0.25} />}
+      {res === 'goal' && (
+        <>
+          <circle cx={cx} cy={cy} r={3.6} fill={C.lamp} opacity={0.3} />
+          <circle cx={cx} cy={cy} r={sel ? 2.4 : 1.95} fill={C.lamp} stroke={C.text} strokeWidth={0.6} />
+        </>
+      )}
+      {res === 'sog' && <circle cx={cx} cy={cy} r={sel ? 1.5 : 1.05} fill={C.ice} stroke={RD.ice} strokeWidth={0.25} />}
+      {res === 'miss' && <circle cx={cx} cy={cy} r={sel ? 1.5 : 1.05} fill="none" stroke={RD.miss} strokeWidth={0.4} />}
+      {res === 'block' && <path d={`M${cx - 0.9},${cy - 0.9} L${cx + 0.9},${cy + 0.9} M${cx + 0.9},${cy - 0.9} L${cx - 0.9},${cy + 0.9}`} stroke={RD.block} strokeWidth={0.45} strokeLinecap="round" />}
+      {sel && res !== 'goal' && <circle cx={cx} cy={cy} r={2.2} fill="none" stroke={C.text} strokeWidth={0.4} />}
+      {hard && <circle cx={cx} cy={cy} r={res === 'goal' ? 2.9 : 1.9} fill="none" stroke={C.text} strokeWidth={0.25} />}
     </g>
   )
 }
+
+// the five zones in rink feet (ShotPanel's ZONES, the same tests): [key, x0, x1, y0, y1 (y up), label spot]
+const ZONE_BOXES = {
+  point: [[25, 54, -42.5, 42.5]],
+  high: [[54, 69, -22, 22]],
+  slot: [[69, 89, -22, 22]],
+  circles: [[54, 89, 22, 42.5], [54, 89, -42.5, -22]],
+  below: [[89, 100, -42.5, 42.5]],
+}
+const ZONE_NAME = { point: 'POINT', high: 'HIGH', slot: 'SLOT', circles: 'CIRCLES', below: 'BELOW' }
+const ZONE_AT = { point: [[40, 0]], high: [[61.5, 0]], slot: [[73.5, 0]], circles: [[71.5, 32.5], [71.5, -32.5]], below: [[94.5, 25]] }
+// white text with a dark halo, readable on any glow
+const HALO = { paintOrder: 'stroke', stroke: RD.ice, strokeWidth: 0.9, strokeLinejoin: 'round' }
 
 // a zone ring -> an SVG path in rink space (holes cut with evenodd)
 const ringPath = (pts) => pts.map(([x, y], i) => `${i ? 'L' : 'M'}${sx(x).toFixed(2)},${sy(y).toFixed(2)}`).join(' ') + ' Z'
 
 export default function Rink({ map, slot, gridSpec, height = 300, shots = null, onPick = null, onPickCell = null, picked = null, view: viewProp = null, onView = null, extraView = null, league = null, vsMin = VS_MIN, speed = null, hardest = null, slotPct = null,
-  goalieRead = null, onPickZone = null, pickedZone = null }) {
+  goalieRead = null, onPickZone = null, pickedZone = null, zones = null }) {
   const clipId = `rink-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`
-  const [viewOwn, setViewOwn] = useState('dots')
-  const view = viewProp || viewOwn
+  const [viewOwn, setViewOwn] = useState(zones ? 'zones' : 'dots')
+  const view0 = viewProp || viewOwn
+  const view = view0 === 'zones' && !zones ? 'dots' : view0
   const setView = onView || setViewOwn
   const drawn = shots || map?.recent || []
   if (!map) return null
@@ -82,21 +106,49 @@ export default function Rink({ map, slot, gridSpec, height = 300, shots = null, 
   const matches = view === 'goalie' && goalieRead ? matchZones(goalieRead, shots || []) : []
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-start' }}>
-      {/* components/charts ViewToggle (lifted from here, shared with TUDDY's Field); the caller's extra view is ShotPanel's 🏟 ARENA */}
-      <ViewToggle theme={C} numFont={NUM_FONT} accent={C.ice} value={view} onChange={setView} extra={extraView}
-        views={[...(league ? ['dots', 'heat', 'vs'] : ['dots', 'heat']), ...(goalieRead ? ['goalie'] : [])].map((v) => ({ k: v, label: v === 'vs' ? 'VS LEAGUE' : v === 'goalie' ? 'VS GOALIE' : v.toUpperCase() }))} />
+      {/* THE VIEWS (2026-10-07): ZONES (the default: glowing areas with the share in each), ALL SHOTS (every
+          attempt), HEAT, VS LEAGUE, VS GOALIE; tall buttons, the caller's 2D / 3D toggle rides at the end */}
+      <div role="group" aria-label="Map view" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {[...(zones ? ['zones'] : []), 'dots', 'heat', ...(league ? ['vs'] : []), ...(goalieRead ? ['goalie'] : [])].map((v) => (
+          <button key={v} type="button" onClick={() => setView(v)} aria-pressed={view === v}
+            style={{ ...viewBtn(view === v, C.ice, C, NUM_FONT), font: `800 11px/1 ${NUM_FONT}`, minHeight: 44, padding: '0 9px' }}>
+            {v === 'vs' ? 'VS LEAGUE' : v === 'goalie' ? 'VS GOALIE' : v === 'dots' ? 'ALL SHOTS' : v.toUpperCase()}
+          </button>
+        ))}
+        {extraView}
+      </div>
       <svg viewBox={`-1 -1 ${W + 2} ${H + 2}`} role="img" aria-label={`Shot map: ${map.attempts} attempts, ${map.goals} goals`}
-        style={{ height, width: 'auto', maxWidth: '100%', display: 'block' }}>
+        style={{ width: '100%', maxWidth: Math.round((height * (W + 2)) / (H + 2)), height: 'auto', display: 'block' }}>
         {/* the sheet: ice, inside the boards */}
-        <path d={`M0,0 H${W - 28} A28,28 0 0 1 ${W},28 V${H - 28} A28,28 0 0 1 ${W - 28},${H} H0 Z`} fill={RINK.ice} stroke={RINK.cap} strokeWidth="0.8" />
-        {view !== 'goalie' && <rect x={sx(slot.x0)} y={sy(slot.y)} width={slot.x1 - slot.x0} height={slot.y * 2} fill={RINK.crease} opacity={0.22} />}
+        <path d={`M0,0 H${W - 28} A28,28 0 0 1 ${W},28 V${H - 28} A28,28 0 0 1 ${W - 28},${H} H0 Z`} fill={RD.ice} stroke={RD.boards} strokeWidth="0.9" />
         {/* DISTANCE ARCS (2026-09-30, "like the spray chart"): fixed-feet arcs
             from the net, 20 / 40 / 60 ft, clipped to the rink. */}
         <clipPath id={clipId}><path d={`M0,0 H${W - 28} A28,28 0 0 1 ${W},28 V${H - 28} A28,28 0 0 1 ${W - 28},${H} H0 Z`} /></clipPath>
         <g clipPath={`url(#${clipId})`}>
           {[20, 40, 60].map((r) => (
-            <circle key={r} cx={sx(89)} cy={sy(0)} r={r} fill="none" stroke={RINK.iceLine} strokeWidth="0.3" strokeDasharray="1.2 1.4" />
+            <circle key={r} cx={sx(89)} cy={sy(0)} r={r} fill="none" stroke={RD.line} strokeOpacity="0.22" strokeWidth="0.3" strokeDasharray="1.2 1.4" />
           ))}
+          {/* ZONES (the default view, 2026-10-07): the five named areas as glowing translucent blue; the
+              brighter it is the bigger its share of the shots shown, the share in it large and white,
+              the goals drawn over it as bold marks. (Spray-chart grammar, on dark ice.) */}
+          {view === 'zones' && zones && (() => {
+            const top = Math.max(0.0001, ...zones.map((z) => z.pct))
+            return zones.map((z) => {
+              const t = Math.min(1, z.pct / top)
+              const boxes = ZONE_BOXES[z.key] || []
+              const op = z.pct > 0 ? 0.22 + 0.62 * t : 0.06
+              return (
+                <g key={z.key}>
+                  {boxes.map(([x0, x1, y0, y1], i) => (
+                    <rect key={i} x={sx(x0)} y={sy(y1)} width={x1 - x0} height={y1 - y0} fill={RD.zone} fillOpacity={op} stroke={C.ice} strokeOpacity={0.18 + 0.5 * t} strokeWidth="0.35"
+                      style={{ filter: `drop-shadow(0 0 ${1 + 2.5 * t}px ${alpha(C.ice, 0.55 * t)})` }}>
+                      <title>{`${z.label}: ${z.n} of ${z.total} shots shown (${Math.round(z.pct)}%) · ${z.g} goal${z.g === 1 ? '' : 's'}`}</title>
+                    </rect>
+                  ))}
+                </g>
+              )
+            })
+          })()}
           {/* HEAT = ACCURACY (2026-10-03, Donovan: "percentages instead of
               attempts ... the heat map show the accuracy"): each zone is
               coloured by his shooting % from it (goals per shot on goal, full
@@ -110,12 +162,12 @@ export default function Rink({ map, slot, gridSpec, height = 300, shots = null, 
             const x = sx(gridSpec.x0 + c * cw), y = r * ch
             return (
               <g key={`${r}-${c}`}>
-                <rect x={x} y={y} width={cw} height={ch} fill={thin ? 'none' : rampAt(Math.min(1, shp / HEAT_FULL))} opacity={thin ? 1 : heatAlpha(Math.min(1, shp / HEAT_FULL))}
-                  stroke={thin ? RINK.iceLine : 'none'} strokeWidth={thin ? 0.3 : 0} strokeDasharray={thin ? '1 1' : undefined}>
+                <rect x={x} y={y} width={cw} height={ch} fill={thin ? 'none' : RD.zone} opacity={thin ? 1 : 0.2 + 0.7 * Math.min(1, shp / HEAT_FULL)}
+                  stroke={thin ? alpha(RD.line, 0.3) : 'none'} strokeWidth={thin ? 0.3 : 0} strokeDasharray={thin ? '1 1' : undefined}>
                   <title>{`${cell.att} shots · ${cell.sog} on net · ${cell.g} goals${thin ? ' · too few on net for a %' : ` · ${Math.round(shp * 100)}% shooting`}`}</title>
                 </rect>
-                {!thin && <text x={x + cw / 2} y={y + ch / 2 + 0.6} fill={RINK.puck} fontSize="4.6" fontWeight="900" fontFamily={NUM_FONT} textAnchor="middle" pointerEvents="none">{Math.round(shp * 100)}%</text>}
-                <text x={x + cw / 2} y={y + ch / 2 + (thin ? 1.4 : 4.6)} fill={RINK.puck} opacity={thin ? 0.55 : 0.75} fontSize="2.8" fontWeight="700" fontFamily={NUM_FONT} textAnchor="middle" pointerEvents="none">{cell.att} sh</text>
+                {!thin && <text x={x + cw / 2} y={y + ch / 2 + 0.6} fill={C.text} style={HALO} fontSize="4.6" fontWeight="900" fontFamily={NUM_FONT} textAnchor="middle" pointerEvents="none">{Math.round(shp * 100)}%</text>}
+                <text x={x + cw / 2} y={y + ch / 2 + (thin ? 1.4 : 4.6)} fill={C.text2} style={HALO} fontSize="2.8" fontWeight="700" fontFamily={NUM_FONT} textAnchor="middle" pointerEvents="none">{cell.att} sh</text>
               </g>
             )
           }))}
@@ -126,14 +178,14 @@ export default function Rink({ map, slot, gridSpec, height = 300, shots = null, 
             no tint = league average, hatched = thin (too few shots). */}
         {view === 'goalie' && goalieRead && (
           <g clipPath={`url(#${clipId})`}>
-            <defs><pattern id={`${clipId}-thin`} width="2" height="2" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="2" stroke={RINK.iceLine} strokeWidth="0.4" /></pattern></defs>
+            <defs><pattern id={`${clipId}-thin`} width="2" height="2" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="2" stroke={RD.line} strokeOpacity="0.4" strokeWidth="0.4" /></pattern></defs>
             {GOALIE_ZONES.map((z) => {
               const r = goalieRead[z.key]; const sh = ZONE_SHAPES[z.key]
               const d = [ringPath(sh.outer), ...sh.holes.map(ringPath)].join(' ')
-              const fill = r.thin ? `url(#${clipId}-thin)` : r.tint === 'worse' ? C.lamp : r.tint === 'better' ? RINK.blue : 'none'
+              const fill = r.thin ? `url(#${clipId}-thin)` : r.tint === 'worse' ? C.lamp : r.tint === 'better' ? RD.blueLine : 'none'
               return (
                 <path key={z.key} d={d} fillRule="evenodd" fill={fill} fillOpacity={r.thin ? 1 : r.tint ? tintAlpha(r.d) : 0}
-                  stroke={pickedZone === z.key ? RINK.puck : RINK.iceLine} strokeWidth={pickedZone === z.key ? 0.6 : 0.25}
+                  stroke={pickedZone === z.key ? C.text : RD.line} strokeOpacity={pickedZone === z.key ? 1 : 0.4} strokeWidth={pickedZone === z.key ? 0.6 : 0.25}
                   style={{ cursor: onPickZone ? 'pointer' : 'default' }} onClick={onPickZone ? () => onPickZone(z.key) : undefined}>
                   <title>{`${z.label}: ${r.thin ? 'thin' : `${r.ga} goals on ${r.sa} shots`}`}</title>
                 </path>
@@ -142,15 +194,15 @@ export default function Rink({ map, slot, gridSpec, height = 300, shots = null, 
           </g>
         )}
         {/* in VS GOALIE and HEAT the zone numbers sit on the centre line, so the ft labels step aside */}
-        {view !== 'goalie' && view !== 'heat' && [20, 40, 60].map((r) => (
-          <text key={`t${r}`} x={sx(89 - r)} y={sy(0) - 1} fill={RINK.missInk} fontSize="3" fontFamily={NUM_FONT} textAnchor="middle">{r} ft</text>
+        {view === 'dots' && [20, 40, 60].map((r) => (
+          <text key={`t${r}`} x={r === 60 ? 1.5 : sx(89 - r)} y={sy(0) - 1} fill={C.text2} style={HALO} fontSize="2.8" fontFamily={NUM_FONT} textAnchor={r === 60 ? 'start' : 'middle'}>{r} ft</text>
         ))}
         {vs && vs.map((row, r) => row.map((v, c) => v.att >= vsMin ? (
           <g key={`vs${r}-${c}`}>
-            <rect x={sx(gridSpec.x0 + c * cw)} y={r * ch} width={cw} height={ch} fill={v.d >= 0 ? C.lamp : RINK.blue} opacity={vsAlpha(v.d)}>
+            <rect x={sx(gridSpec.x0 + c * cw)} y={r * ch} width={cw} height={ch} fill={v.d >= 0 ? C.lamp : RD.blueLine} opacity={vsAlpha(v.d)}>
               <title>{`${Math.round(v.mine * 100)}% of the attempts here · the league ${Math.round(v.lg * 100)}%`}</title>
             </rect>
-            <text x={sx(gridSpec.x0 + c * cw + cw / 2)} y={r * ch + ch / 2 + 1.4} fill={RINK.puck} fontSize="4" fontWeight="800" fontFamily={NUM_FONT} textAnchor="middle" pointerEvents="none">
+            <text x={sx(gridSpec.x0 + c * cw + cw / 2)} y={r * ch + ch / 2 + 1.4} fill={C.text} style={HALO} fontSize="4" fontWeight="800" fontFamily={NUM_FONT} textAnchor="middle" pointerEvents="none">
               {vsText(v.d)}
             </text>
           </g>
@@ -163,22 +215,29 @@ export default function Rink({ map, slot, gridSpec, height = 300, shots = null, 
           <rect key={`hit-${r}-${c}`} x={sx(gridSpec.x0 + c * cw)} y={r * ch} width={cw} height={ch} fill="transparent" style={{ cursor: 'pointer' }}
             onClick={() => onPickCell({ ...cell, r, c })} />
         ) : null))}
-        {/* the slot prints its own share, inside its box (1d) -- not on HEAT,
-            where the zone numbers own that box (the readout carries the share) */}
-        {slotPct != null && view !== 'goalie' && view !== 'heat' && (
-          <text x={sx(slot.x0) + 1.2} y={sy(slot.y) + 4.2} fill={RINK.blue} fontSize="3.6" fontWeight="900" fontFamily={NUM_FONT} pointerEvents="none">SLOT {slotPct}%</text>
-        )}
         {/* the lines: blue line, goal line, the circles; faceoff dots as thin rings */}
-        <line x1="0.4" y1="0" x2="0.4" y2={H} stroke={RINK.blue} strokeWidth="1" />
-        <line x1={sx(89)} y1="3" x2={sx(89)} y2={H - 3} stroke={RINK.red} strokeWidth="0.35" />
+        <line x1="0.4" y1="0" x2="0.4" y2={H} stroke={RD.blueLine} strokeWidth="1.3" />
+        <line x1={sx(89)} y1="3" x2={sx(89)} y2={H - 3} stroke={RD.line} strokeOpacity="0.45" strokeWidth="0.35" />
         {[22, -22].map((y) => (
           <g key={y}>
-            <circle cx={sx(69)} cy={sy(y)} r="15" fill="none" stroke={RINK.red} strokeOpacity="0.55" strokeWidth="0.35" />
-            <circle cx={sx(69)} cy={sy(y)} r="1" fill="none" stroke={RINK.red} strokeOpacity="0.55" strokeWidth="0.25" />
+            <circle cx={sx(69)} cy={sy(y)} r="15" fill="none" stroke={RD.line} strokeOpacity="0.3" strokeWidth="0.35" />
+            <circle cx={sx(69)} cy={sy(y)} r="1" fill={RD.line} fillOpacity="0.5" />
           </g>
         ))}
-        <path d={`M${sx(89)},${sy(6)} A6,6 0 0 0 ${sx(89)},${sy(-6)} Z`} fill={RINK.crease} fillOpacity="0.55" stroke={RINK.red} strokeOpacity="0.6" strokeWidth="0.3" />
-        <rect x={sx(89)} y={sy(3)} width="3.3" height="6" fill="none" stroke={RINK.red} strokeWidth="0.45" />
+        <path d={`M${sx(89)},${sy(6)} A6,6 0 0 0 ${sx(89)},${sy(-6)} Z`} fill={RD.crease} fillOpacity="0.7" stroke={RD.line} strokeOpacity="0.5" strokeWidth="0.3" />
+        <rect x={sx(89)} y={sy(3)} width="3.3" height="6" fill="none" stroke={RD.line} strokeOpacity="0.6" strokeWidth="0.45" />
+        {view === 'zones' && zones && zones.map((z) => (ZONE_AT[z.key] || []).map(([lx, ly], i) => (
+          <g key={`zl${z.key}${i}`} pointerEvents="none">
+            <text x={sx(lx)} y={sy(ly) - 2.2} textAnchor="middle" fill={C.text2} style={HALO} fontSize="2.7" fontWeight="800" fontFamily={NUM_FONT} letterSpacing="0.15">{ZONE_NAME[z.key] || z.label.toUpperCase()}</text>
+            <text x={sx(lx)} y={sy(ly) + 3.2} textAnchor="middle" fill={C.text} style={HALO} fontSize="5" fontWeight="900" fontFamily={NUM_FONT}>{Math.round(z.pct)}%</text>
+          </g>
+        )))}
+        {view === 'zones' && drawn.filter((sh) => sh[2] === 'goal').map((shot, i) => (
+          <g key={`zg${i}`}>
+            <Mark shot={shot} cx={sx(shot[0])} cy={sy(shot[1])} sel={picked === shot} hard={measuredMph(hardest, shot) != null} />
+            {onPick && <circle cx={sx(shot[0])} cy={sy(shot[1])} r="3" fill="transparent" style={{ cursor: 'pointer' }} onClick={() => onPick(shot)} />}
+          </g>
+        ))}
         {(view === 'dots' || view === 'goalie') && drawn.map((shot, i) => {
           const sel = picked === shot
           const hard = measuredMph(hardest, shot) != null
@@ -214,12 +273,12 @@ export default function Rink({ map, slot, gridSpec, height = 300, shots = null, 
           const m = matches.find((x) => x.key === z.key)
           return (
             <g key={`l${z.key}`} pointerEvents="none">
-              <text x={sx(lx)} y={sy(ly)} fill={RINK.puck} stroke={RINK.ice} strokeWidth="0.9" paintOrder="stroke" strokeLinejoin="round"
+              <text x={sx(lx)} y={sy(ly)} fill={C.text} stroke={RD.ice} strokeWidth="0.9" paintOrder="stroke" strokeLinejoin="round"
                 fontSize="3" fontWeight="800" fontFamily={NUM_FONT} textAnchor="middle">
                 {r.thin ? 'thin' : `${Math.round(r.rate * 1000) / 10}%`}
               </text>
               {m?.match && (
-                <text x={sx(lx)} y={sy(ly) + 3.4} fill={C.lamp} stroke={RINK.ice} strokeWidth="0.9" paintOrder="stroke" strokeLinejoin="round"
+                <text x={sx(lx)} y={sy(ly) + 3.4} fill={C.lamp} stroke={RD.ice} strokeWidth="0.9" paintOrder="stroke" strokeLinejoin="round"
                   fontSize="2.4" fontWeight="900" fontFamily={NUM_FONT} textAnchor="middle" letterSpacing="0.1">
                   MATCH · {Math.round(m.share * 100)}%
                 </text>
