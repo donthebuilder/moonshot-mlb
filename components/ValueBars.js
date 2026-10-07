@@ -1,5 +1,6 @@
 'use client'
 import { alpha, verdictInk, verdictWash } from '../lib/scales'
+import BroadcastBars from './BroadcastBars'
 
 // THE VALUE BARS (2026-10-05, Donovan on TUDDY's player file: "the props on this page is not showing
 // all the bars like on mlb, where is that component"). Lifted out of MOONSHOT's prop grid
@@ -13,7 +14,10 @@ import { alpha, verdictInk, verdictWash } from '../lib/scales'
 //   thr       the count that clears (line + 0.5)
 //   avgColor  the average rule's colour (MOONSHOT's orange by default)
 //   selected / onSelect   the pinned game's key
-export default function ValueBars({ games = [], thr, numFont, avgColor = 'rgba(249,115,22,.6)', selected = null, onSelect = null }) {
+//   variant   'broadcast' (TUDDY, 2026-10-07) hands the games to components/BroadcastBars with `look` (the
+//             product's tokens) and `sport`; anything else is MOONSHOT's chart, byte for byte as it was
+export default function ValueBars({ games = [], thr, numFont, avgColor = 'rgba(249,115,22,.6)', selected = null, onSelect = null, variant = null, look = null, sport = 'nfl' }) {
+  if (variant === 'broadcast') return <BroadcastBars games={games} thr={thr} numFont={numFont} look={look} sport={sport} selected={selected} onSelect={onSelect} />
   if (!games.length) return null
   const vals = games.map((g) => g.val)
   const avgVal = vals.reduce((a, v) => a + v, 0) / vals.length

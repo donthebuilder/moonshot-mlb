@@ -29,7 +29,7 @@ export const STAT_KEY = {
   RUSH_ATT: 'g_car', PASS_YDS: 'g_payd', KICK_PTS: 'g_kick',
 }
 
-export default function HitRate({ log, market, defaultBar, label = '' }) {
+export default function HitRate({ log, market, defaultBar, label = '', span = 5, big = false }) {
   const presets = PRESETS[market] || [defaultBar]
   // The line comes from PropsGrid's own line chips (it remounts this on a
   // chip change); there is no second chip row here any more.
@@ -38,7 +38,7 @@ export default function HitRate({ log, market, defaultBar, label = '' }) {
   if (!log?.length || !key) return null
   return (
     <div style={{ marginTop: 12 }}>
-      <AgainstTheBar log={log} statKey={key} bar={line} span={5} head={label ? `${line + 0.5}+ ${label}` : ''} />
+      <AgainstTheBar log={log} statKey={key} bar={line} span={span} big={big} head={label ? `${line + 0.5}+ ${label}` : ''} />
     </div>
   )
 }
