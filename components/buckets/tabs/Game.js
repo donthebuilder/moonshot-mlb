@@ -8,6 +8,7 @@ import { C, NUM_FONT } from '../../../lib/nba/theme'
 import { useBucketsGame, useBucketsBoard } from '../../../lib/nba/useBuckets'
 import { NBA_MARKETS } from '../../../lib/nba/model'
 import { GAME_ID_RE } from '../../../lib/nba/ids'
+import GameLedgerLine from '../../ledger/GameLedgerLine'
 import BucketsTable from '../BucketsTable'
 import ShotChart from '../ShotChart'
 import { EmptyState, DelayedBanner, Loading, SourceLine, Kicker, BackBtn, NavBtn, RimDot, fmtTip, gameDay, fmtDay } from '../ui'
@@ -51,6 +52,7 @@ export default function Game({ id, onBack, backLabel = 'Live', onOpenPlayer, onO
           {fp && fp.player_id !== fb?.player_id && <div><Kicker>FIRST POINTS</Kicker><PlayLine play={fp} name={names[fp.player_id]} onOpenPlayer={onOpenPlayer} /></div>}
         </div>
       )}
+      <GameLedgerLine sport="nba" gameId={id} day={gameDay(data.date)} />
       <GameCalls id={id} date={gameDay(data.date)} onOpenPlayer={onOpenPlayer} />
       {[away, home].map((t) => <BoxTable key={t.id} team={t} box={(data.box || []).filter((p) => p.team === t.abbrev)} onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} />)}
       {(data.shots || []).length > 0 ? (

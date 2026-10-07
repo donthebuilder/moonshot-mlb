@@ -1,9 +1,9 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import PageHeader from '../../PageHeader'
 import { MatchLogos } from '../../TeamMark'
 import { C, NUM_FONT } from '../../../lib/nba/theme'
-import { useBucketsBoard } from '../../../lib/nba/useBuckets'
+import { useBucketsBoard, useBucketsExpected } from '../../../lib/nba/useBuckets'
 import { MARKET_OPTIONS, NBA_MARKETS } from '../../../lib/nba/legs'
 import BucketsTable from '../BucketsTable'
 import { boardRows, boardColumns, faceOf } from '../boardTable'
@@ -25,6 +25,8 @@ export default function Slate({ date, setDate, market = 'pts', onOpenPlayer, onO
   const { data, error, loading } = useBucketsBoard(date, m)
   // the table view reads the points board whatever market the games view is on (its legs are points legs)
   const pts = useBucketsBoard(date, 'pts')
+  const xp = useBucketsExpected(date)
+  const xptsBy = useMemo(() => new Map((xp.data?.rows || []).map((r) => [String(r.playerId), r])), [xp.data])
   const games = sortGames(data?.games || [])
   const [pick, setPick] = useState(() => readHashParam('game'))
   const g = games.find((x) => x.id === pick) || games[0] || null
@@ -35,7 +37,7 @@ export default function Slate({ date, setDate, market = 'pts', onOpenPlayer, onO
     return () => { window.removeEventListener('hashchange', sync); window.removeEventListener('popstate', sync) }
   }, [])
   const choose = (id) => { setPick(id); writeHashParam('game', id) }
-  const rows = g ? boardRows(data, { gameId: g.id }) : []
+  const rows = g ? boardRows(data, { gameId: g.id, xpts: xptsBy }) : []
   const calls = rows.filter((r) => r.status === 'called')
   const shown = data?.date || date
   return (
@@ -89,7 +91,7 @@ export default function Slate({ date, setDate, market = 'pts', onOpenPlayer, onO
         {/* the game's calls as the prop cards (components/buckets/BucketsCard) */}
         {calls.length > 0 && <BucketsCards market={m} onOpen={onOpenPlayer} rows={[...calls].sort((a, b) => b.score - a.score)} />}
         {rows.length > 0
-          ? <BucketsTable rows={rows} columns={boardColumns(m, { onOpenTeam, onOpenGame, withGame: false })} statusOf={(r) => r.status}
+          ? <BucketsTable rows={rows} columns={boardColumns(m, { onOpenTeam, onOpenGame, withGame: false, withXpts: true })} statusOf={(r) => r.status}
               onRowClick={(r) => onOpenPlayer?.((r?._raw ?? r).playerId)} faceOf={faceOf} dimRow={(r) => r.status === 'off'}
               initialSort={{ key: 'nightRank', dir: 'asc' }} heatMode="sorted" maxHeight={560} maxRows={Math.max(rows.length, 1)}
               caption={`This game’s board for ${NBA_MARKETS[m].label}. Each row opens that player.`} />

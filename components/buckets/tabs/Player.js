@@ -49,7 +49,8 @@ const VIEWS = [
   { key: 'shots', label: '🎯 Shots' },
   { key: 'board', label: 'The board' },
 ]
-const readView = () => { try { const v = hashParams().get('view'); return VIEWS.some((x) => x.key === v) ? v : 'overview' } catch { return 'overview' } }
+// the tab the address names (view=), else Overview
+const initialTab = () => { try { const v = hashParams().get('view'); return VIEWS.some((x) => x.key === v) ? v : 'overview' } catch { return 'overview' } }
 
 const lineCols = [
   { key: 'label', label: 'Season', group: 'Season', w: 72, heat: false, sticky: true, bold: true },
@@ -91,9 +92,9 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
   const cur = peers.find((x) => x.id === pid) || { id: pid, name: card.name, team: card.team }
 
   // ── the tab, in the address ──
-  const [view, setViewState] = useState(readView)
+  const [view, setViewState] = useState(initialTab)
   useEffect(() => {
-    const on = () => setViewState(readView())
+    const on = () => setViewState(initialTab())
     window.addEventListener('hashchange', on)
     return () => window.removeEventListener('hashchange', on)
   }, [])
@@ -344,10 +345,10 @@ function VsTab({ card, games, logRows, nextGame, row, onOpenTeam, onOpenGame, lo
     { key: 'fgPct', label: 'FG%', group: 'Shooting', w: 52, heat: false, mono: true },
   ]
   return (
-    <section aria-label="Versus a club" style={{ display: 'grid', gap: 10, minWidth: 0 }}>
+    <section aria-label="Versus a club" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 10, minWidth: 0 }}>
       <Kicker>{card.name.toUpperCase()} VS {opp || 'A CLUB'}{windowLabel ? ` · ${windowLabel}` : ''}</Kicker>
       {teams.length > 0 && (
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: C.text3, fontFamily: NUM_FONT }}>
+        <label style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8, fontSize: 13, color: C.text3, fontFamily: NUM_FONT, minWidth: 0 }}>
           <span>CLUB</span>
           <select aria-label="Club" value={opp} onChange={(e) => setPicked(e.target.value)} style={{ minHeight: 44, background: C.bg2, color: C.text, border: `1px solid ${C.border2}`, borderRadius: 8, padding: '0 8px', font: `700 13px/1 ${NUM_FONT}` }}>
             {teams.map(([t, n]) => <option key={t} value={t}>{t} · {n} {n === 1 ? 'game' : 'games'}</option>)}
