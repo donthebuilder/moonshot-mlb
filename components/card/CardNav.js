@@ -12,11 +12,12 @@ import { useSportTheme } from '../SportTheme'
 // noun: the word in the tooltips ('hitter' on MOONSHOT).
 const mlbIdOf = (x) => Number(x?.player_id ?? x?.id)
 
-export function TabBtn({ active, onClick, children }) {
+export function TabBtn({ active, onClick, children, tall = false }) {
   const { C, accent } = useSportTheme()
   return (
     <button onClick={onClick} style={{
       padding: '5px 13px', fontSize: 11, fontWeight: 700, cursor: 'pointer', borderRadius: 999,
+      ...(tall ? { minHeight: 44, fontSize: 12 } : null),
       border: `1px solid ${active ? accent : C.border}`,
       background: active ? `${accent}22` : 'transparent',
       color: active ? accent : C.text3,

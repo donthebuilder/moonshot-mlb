@@ -9,7 +9,7 @@ import CardShell from './CardShell'
 // theme) around the product's own player page (`Page`, rendered in place).
 // The address carries `pm=<id>` (lib/useShellRoute peekPlayer), so Back closes
 // it and a shared link opens it; "Full page" is the player page proper.
-export default function PlayerPeek({ id, Page, theme: C, accent, onClose, onFullPage, onOpenTeam, onOpenGame }) {
+export default function PlayerPeek({ id, Page, theme: C, accent, onClose, onFullPage, onOpenTeam, onOpenGame, onStep = null }) {
   if (!id) return null
   // a team / game opened from the card is a move: the router drops the card
   // (openDetail clears pm) and Back returns to the page with the card open
@@ -20,7 +20,7 @@ export default function PlayerPeek({ id, Page, theme: C, accent, onClose, onFull
         <button type="button" onClick={() => onFullPage(id)} style={{ ...btn, color: accent || C.text }}>Full page ›</button>
         <button type="button" onClick={onClose} aria-label="Close" style={{ ...btn, width: 44, padding: 0, fontSize: 20 }}>×</button>
       </div>
-      <Page id={id} onBack={null} onOpenTeam={onOpenTeam} onOpenGame={onOpenGame} />
+      <Page id={id} onBack={null} onOpenTeam={onOpenTeam} onOpenGame={onOpenGame} onStep={onStep} peek />
     </CardShell>
   )
 }

@@ -2,7 +2,6 @@
 import { useMemo, useState } from 'react'
 import StatStrip from '../StatStrip'
 import { C, NUM_FONT } from '../../lib/nhl/theme'
-import { Kicker } from './ui'
 import GoalGrid from './goal/GoalGrid'
 import GoalRun from './goal/GoalRun'
 import GoalColdCase from './goal/GoalColdCase'
@@ -18,14 +17,15 @@ import { marketOf, per60 } from '../../lib/nhl/goalLog'
 // shape of his goals. One mount on the player page (components/lamp/tabs/
 // Player.js); everything reads the player payload and the board the page
 // already holds (plus the shot archive read the shot map makes). Skaters only.
-export default function GoalTracking({ p, spot, row, board }) {
+export default function GoalTracking({ p, spot, row, board, season: pick = 'this' }) {
   const [bar, setBar] = useState({ mkt: 'g' })
   const [lines, setLines] = useState({})
-  const rows = useMemo(() => p.log?.rows || [], [p.log])
   const prev = p.logPrev?.rows || []
+  // the season toggle: this season's games, last season's, or both (newest first, as the log is)
+  const rows = useMemo(() => (pick === 'last' ? p.logPrev?.rows || [] : pick === 'both' ? [...(p.log?.rows || []), ...(p.logPrev?.rows || [])] : p.log?.rows || []), [p.log, p.logPrev, pick])
   const rowsAll = useMemo(() => [...rows, ...prev], [rows, prev])
-  const season = p.log?.seasonLabel || p.featured?.seasonLabel || ''
-  const stale = Boolean(p.current && p.log?.season && p.log.season < p.current)
+  const season = pick === 'last' ? p.logPrev?.seasonLabel || '' : pick === 'both' ? [p.logPrev?.seasonLabel, p.log?.seasonLabel || p.featured?.seasonLabel].filter(Boolean).join(' + ') : p.log?.seasonLabel || p.featured?.seasonLabel || ''
+  const stale = pick === 'this' && Boolean(p.current && p.log?.season && p.log.season < p.current)
   const mk = marketOf(bar.mkt)
   const line = lines[mk.key] ?? mk.first
   const rates = useMemo(() => per60(rows), [rows])
@@ -40,7 +40,8 @@ export default function GoalTracking({ p, spot, row, board }) {
     const rank = Number.isFinite(mine) ? 1 + [...byOpp.values()].filter((v) => v < mine).length : null
     return { opp, home: g ? g.home?.abbrev === p.team : null, today: board?.date || null, oppGaPg: Number.isFinite(mine) ? mine : null, oppRank: rank, oppN: byOpp.size, b2b: Boolean(row?.context?.b2b), oppRows: opp ? rowsAll.filter((r) => r.opp === opp) : null }
   }, [board, row, g, opp, p.team, rowsAll])
-  if (p.goalie || !rows.length) return null
+  if (p.goalie) return null
+  if (!rows.length) return <div style={{ color: C.text3, fontSize: 13, lineHeight: 1.5, padding: '8px 0' }}>No games to track in {season || 'this season'} yet. Try another season above.</div>
   const seasonsOn = [p.log?.seasonLabel, prev.length ? p.logPrev?.seasonLabel : null].filter(Boolean).join(' + ')
   const tag = stale ? ` (LAST SEASON)` : ''
   const stripStats = rates ? [
@@ -48,11 +49,12 @@ export default function GoalTracking({ p, spot, row, board }) {
     { id: 'sog60', label: 'S/60', text: rates.sog60.toFixed(1), title: `${rates.shots} shots in ${rates.minutes} minutes.` },
     { id: 'gps', label: 'G/SHOT', text: rates.gps != null ? rates.gps.toFixed(3).replace(/^0/, '') : '—', title: `${rates.goals} goals on ${rates.shots} shots (his shooting percentage as a fraction).` },
   ] : []
-  const sec = (label, node, key) => <section aria-label={key}><Kicker>{label}</Kicker>{node}</section>
+  // Each piece is a fold: its title is one 44px tap, its body opens under it, so the tab is a short list, not a long scroll.
+  const sec = (label, node, key, open0 = false) => <Fold key={key} label={label} aria={key} open0={open0}>{node}</Fold>
   return (
     <>
-      {sec(`THE BAR · ${season}${tag} · ${rows.length} GAMES`, <GoalGrid rows={rows} bar={bar} setBar={setBar} lines={lines} setLines={setLines} seasonLabel={season} />, 'Goal threshold grid')}
-      {sec(`HIS RUN · ${line}+ ${mk.label.toUpperCase()}`, <GoalRun rows={rows} bar={bar} line={line} today={ctx.today} />, 'His run')}
+      {sec(`THE BAR · ${season}${tag} · ${rows.length} GAMES`, <GoalGrid rows={rows} bar={bar} setBar={setBar} lines={lines} setLines={setLines} seasonLabel={season} />, 'Goal threshold grid', true)}
+      {sec(`HIS RUN · ${line}+ ${mk.label.toUpperCase()}`, <GoalRun rows={rows} bar={bar} line={line} today={ctx.today} />, 'His run', true)}
       {rates && sec(`GOALS PER 60 · ${season}${tag}`, (
         <div>
           <StatStrip stats={stripStats} />
@@ -67,5 +69,19 @@ export default function GoalTracking({ p, spot, row, board }) {
       {host && sec(`AT TONIGHT’S RINK · ${host}`, <GoalRink rows={rowsAll} host={host} team={p.team} seasons={seasonsOn} />, 'Goals at tonight’s rink')}
       {sec('HIS GOAL SHAPE', <GoalShape playerId={p.id} />, 'His goal shape')}
     </>
+  )
+}
+
+function Fold({ label, aria, open0, children }) {
+  const [open, setOpen] = useState(open0)
+  return (
+    <section aria-label={aria} style={{ borderTop: `1px solid ${C.border2}`, minWidth: 0 }}>
+      <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open}
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, width: '100%', minHeight: 44, padding: 0, background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
+        <span style={{ color: C.ice, font: `900 11px/1.3 ${NUM_FONT}`, letterSpacing: '.12em' }}>{label}</span>
+        <span aria-hidden="true" style={{ color: C.text3, fontSize: 16, minWidth: 24, textAlign: 'center' }}>{open ? '–' : '+'}</span>
+      </button>
+      {open && <div style={{ paddingBottom: 14 }}>{children}</div>}
+    </section>
   )
 }

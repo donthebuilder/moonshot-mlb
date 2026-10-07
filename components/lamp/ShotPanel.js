@@ -28,9 +28,9 @@ const WINDOWS = [{ key: 'last5', text: 'LAST 5' }, { key: 'last10', text: 'LAST 
 const pct = (v) => (v == null ? '—' : `${Math.round(v * 100)}%`)
 const share = (n, d) => `${Math.round((100 * n) / d)}%`
 
-// SHOT DEPTH (2026-09-28): what the archive already knows past the rink --
+// SHOT DEPTH (2026-09-28): what we already know past the rink --
 // the shot types (unblocked attempts; a block has no type), how far out the
-// shots on net and the goals come from, and, once the archive keeps it, why
+// shots on net and the goals come from, and, once we keep it, why
 // the misses missed. MOONSHOT's plain lines, LAMP's colours.
 function depthLines(m, who, against = false) {
   const types = Object.entries(m.types || {}).sort((a, b) => b[1].att - a[1].att)
@@ -51,7 +51,7 @@ function depthLines(m, who, against = false) {
 // window), zone bars (MatchupParts BarList) with every zone defined in words,
 // and a tap-a-shot card. Filters cut the drawn shots (the most recent 200);
 // the season numbers in the list are always the whole window.
-const RES = [['ALL', 'All'], ['goal', 'Goal'], ['sog', 'On net'], ['miss', 'Miss'], ['block', 'Blocked']]
+const RES = [['ALL', 'All shots'], ['goal', 'Goals'], ['sog', 'Saved'], ['miss', 'Missed'], ['block', 'Blocked']]
 const STR = [['ALL', 'All'], ['ev', 'Even'], ['pp', 'PP'], ['sh', 'SH']]
 const PER = [['ALL', 'All'], ['1', '1st'], ['2', '2nd'], ['3', '3rd'], ['OT', 'OT']]
 const perOf = (sh) => (sh[6] && sh[6] !== 'REG' ? 'OT' : sh[5] != null ? String(sh[5]) : null)
@@ -68,21 +68,45 @@ export const ZONES = [
 const clock = (t) => (t == null ? '' : `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`)
 const RES_WORD = { goal: 'Goal', sog: 'On net, saved', miss: 'Missed the net', block: 'Blocked' }
 
-export default function ShotPanel({ sel, who = 'He', height = 300, venue = null, opp = null }) {
-  const { data, error, loading } = useLampShots(sel)
-  const [win, setWin] = useState('last10')
+// Only the shots from these game days, with the counts the panel prints worked out again from them
+// (the VS TEAM view: his shots in the games against one club). Pure; the grid is rebuilt from the shots.
+function restrictTo(m, dates, spec) {
+  const recent = (m.recent || []).filter((sh) => sh[8] && dates.has(sh[8]))
+  const grid = Array.from({ length: spec.rows }, () => Array.from({ length: spec.cols }, () => ({ att: 0, sog: 0, g: 0 })))
+  const cw = (spec.x1 - spec.x0) / spec.cols; const ch = (spec.y1 - spec.y0) / spec.rows
+  for (const [x, y, r] of recent) {
+    if (x < spec.x0) continue
+    const c = Math.min(spec.cols - 1, Math.floor((x - spec.x0) / cw)); const rr = Math.min(spec.rows - 1, Math.max(0, Math.floor((spec.y1 - y) / ch)))
+    grid[rr][c].att += 1; if (r === 'sog' || r === 'goal') grid[rr][c].sog += 1; if (r === 'goal') grid[rr][c].g += 1
+  }
+  const net = recent.filter((sh) => sh[2] === 'sog' || sh[2] === 'goal')
+  const slotN = net.filter((sh) => sh[0] >= 69 && sh[0] <= 89 && Math.abs(sh[1]) <= 22).length
+  return {
+    ...m, recent, grid, games: new Set(recent.map((sh) => sh[8])).size, attempts: recent.length, sog: net.length, goals: recent.filter((sh) => sh[2] === 'goal').length,
+    misses: recent.filter((sh) => sh[2] === 'miss').length, blocked: recent.filter((sh) => sh[2] === 'block').length,
+    slotShare: net.length ? slotN / net.length : null, byStrength: { pp: recent.filter((sh) => sh[4] === 'pp').length }, types: null, distSog: null, distGoal: null, missWhy: null,
+  }
+}
+
+// season: 'this' | 'last' | 'both' asks the shot map for that season (null = the page's own default);
+// onlyDates: a Set of game days the drawn shots are limited to; startWin / startView: what it opens on.
+export default function ShotPanel({ sel, who = 'He', height = 300, venue = null, opp = null, season = null, onlyDates = null, startWin = 'last10', startView = 'dots', compact = false }) {
+  const { data, error, loading } = useLampShots(sel, season)
+  const [win, setWin] = useState(onlyDates ? 'all' : startWin)
   const [res, setRes] = useState('ALL')
   const [type, setType] = useState('ALL')
   const [str, setStr] = useState('ALL')
   const [per, setPer] = useState('ALL')
   const [picked, setPicked] = useState(null)
   const [help, setHelp] = useState(false)
-  const [view, setView] = useState('dots')   // DOTS / HEAT, held here so the legend reads what is drawn
+  const [view, setView] = useState(startView)
+  useEffect(() => { setView(startView) }, [startView])   // the VS control flips this panel in place, never remounts it   // DOTS / HEAT, held here so the legend reads what is drawn
   const [arena, setArena] = useState(false)  // 2D (false) or 3D (true), one chart in one place
   const [gl, setGl] = useState(false)
   const [hardOnly, setHardOnly] = useState(false)   // ⚡ HARDEST 10 (BATCH-3D-V2 1g)
   useEffect(() => { setGl(webglOk()) }, [])
-  const m = data?.[win] || data?.last10 || data?.all   // an older cached answer has no last5
+  const m0 = data?.[onlyDates ? 'all' : win] || data?.last10 || data?.all   // an older cached answer has no last5
+  const m = useMemo(() => (m0 && onlyDates ? restrictTo(m0, onlyDates, data.gridSpec) : m0), [m0, onlyDates, data?.gridSpec])
   const recent = m?.recent || []
   // NHL EDGE shot speed for this map's season (lib/nhl/shotSpeed.js): his
   // average + top, and his ten hardest matched to the drawn shots
@@ -131,8 +155,8 @@ export default function ShotPanel({ sel, who = 'He', height = 300, venue = null,
   // 3D dock; EDGE's average / top when it has him
   const stats = [
     ...shotLine(shots, data?.league, { resultOn: res !== 'ALL' }),
-    ...(speed ? [{ k: 'AVG SHOT', v: speed.avg, sub: `mph · lg ${speed.leagueAvg}`, title: `His average shot speed, NHL EDGE (league ${speed.leagueAvg} mph)` },
-      { k: 'TOP', v: speed.top, sub: 'mph', title: `His hardest shot this season, NHL EDGE (league ${speed.topLeague} mph)` }] : []),
+    ...(speed ? [{ k: 'AVG SHOT', v: speed.avg, sub: `mph · lg ${speed.leagueAvg}`, title: `His average shot speed (league ${speed.leagueAvg} mph)` },
+      { k: 'TOP', v: speed.top, sub: 'mph', title: `His hardest shot this season (league ${speed.topLeague} mph)` }] : []),
   ].map((x) => (x.goal ? { ...x, tone: C.lamp } : x))
   const slotStat = stats.find((x) => x.k === 'SLOT')
   // the 3D dock's chips: what is on, each with its own clear
@@ -151,20 +175,20 @@ export default function ShotPanel({ sel, who = 'He', height = 300, venue = null,
       {loading && !data ? <ChartEmpty theme={C}>Loading the shot map…</ChartEmpty> : null}
       {data && !data.season ? (
         <ChartEmpty theme={C}>
-          No regular-season shots on file for {sel?.team || sel?.against ? 'this club' : 'him'} yet. The archive holds 2025-26 and fills in after every graded game.
+          No regular-season shots for {sel?.team || sel?.against ? 'this club' : 'him'} in {season === 'this' ? 'this season' : season === 'last' ? 'last season' : 'these seasons'} yet. The map fills in after every game.
         </ChartEmpty>
       ) : null}
       {data?.season && m ? (
         <>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <Pills ariaLabel="Shot window" value={win} onChange={setWin} options={WINDOWS} />
-            <span style={{ color: C.text3, font: `800 9px/1 ${NUM_FONT}`, letterSpacing: '.08em' }}>{data.seasonLabel} REGULAR SEASON{data.stale ? ' · LAST SEASON' : ''} · {m.games} GAMES{data.stale && data.currentGames > 0 ? ` · ${data.currentLabel}: ${data.currentGames} OF ${data.minGames} IN` : ''}</span>
+            {!onlyDates && <Pills tall ariaLabel="Shot window" value={win} onChange={setWin} options={WINDOWS} />}
+            <span style={{ color: C.text3, font: `800 9px/1 ${NUM_FONT}`, letterSpacing: '.08em' }}>{data.seasonLabel} REGULAR SEASON{data.stale && !season ? ' · LAST SEASON' : ''} · {m.games} GAMES{data.stale && data.currentGames > 0 ? ` · ${data.currentLabel}: ${data.currentGames} OF ${data.minGames} IN` : ''}</span>
           </div>
           {recent.length > 0 && recent[0].length > 3 && (
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
               <ChipGroup {...chipProps} first label="Result" value={res} onChange={(k) => { setRes(k); setPicked(null) }} color={C.lamp}
                 options={RES.map(([k, label]) => ({ k, label, n: countIn('res', (sh) => sh[2] === k), title: k === 'ALL' ? 'Every drawn attempt' : `Only ${label.toLowerCase()} attempts` }))} />
-              <ChipGroup {...chipProps} label="Type" value={type} onChange={(k) => { setType(k); setPicked(null) }} color={C.ice}
+              {!compact && <><ChipGroup {...chipProps} label="Type" value={type} onChange={(k) => { setType(k); setPicked(null) }} color={C.ice}
                 options={[['ALL', 'All'], ...types.map((t) => [t, t])].map(([k, label]) => ({ k, label, n: countIn('type', (sh) => sh[3] === k), title: k === 'ALL' ? 'Every shot type' : `Only ${label} shots (a block has no type)` }))} />
               <ChipGroup {...chipProps} label="Strength" value={str} onChange={(k) => { setStr(k); setPicked(null) }} color={C.teal || C.ice}
                 options={STR.map(([k, label]) => ({ k, label, n: countIn('str', (sh) => sh[4] === k), title: k === 'ALL' ? 'Every strength' : `Only ${label === 'PP' ? 'power-play' : label === 'SH' ? 'shorthanded' : 'even-strength'} attempts` }))} />
@@ -172,12 +196,13 @@ export default function ShotPanel({ sel, who = 'He', height = 300, venue = null,
                 options={PER.map(([k, label]) => ({ k, label, n: countIn('per', (sh) => perOf(sh) === k), title: k === 'ALL' ? 'Every period' : `Only the ${label} ${k === 'OT' ? '(overtime)' : 'period'}` }))} />
               {hardN > 0 && (
                 <button type="button" onClick={() => { setHardOnly((v) => !v); setPicked(null) }} aria-pressed={hardOnly}
-                  title={`His ten hardest shots this season (NHL EDGE, measured) -- ${hardN} of them are on this map`}
+                  title={`His ten hardest shots this season (measured) -- ${hardN} of them are on this map`}
                   style={{ minHeight: 32, padding: '0 10px', borderRadius: 999, cursor: 'pointer', font: `800 10px/1 ${NUM_FONT}`,
                     border: `1px solid ${hardOnly ? C.ice : C.border2}`, background: hardOnly ? `${C.ice}1f` : 'transparent', color: hardOnly ? C.ice : C.text2 }}>
                   ⚡ HARDEST 10 <span style={{ color: C.text3 }}>{hardN}</span>
                 </button>
               )}
+              </>}
               {filtered && <button type="button" onClick={clearAll}
                 style={{ background: 'transparent', border: 'none', color: C.text3, font: `700 10px/1 ${NUM_FONT}`, cursor: 'pointer', textDecoration: 'underline dotted', minHeight: 0 }}>clear</button>}
             </div>
@@ -187,10 +212,11 @@ export default function ShotPanel({ sel, who = 'He', height = 300, venue = null,
           <StatStrip stats={stats} theme={C} numFont={NUM_FONT} label="The shown shots, in numbers" />
           {view === 'goalie' && goalieRead && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: C.text3, fontFamily: NUM_FONT }}>
+              {(sel?.name || goalie) && <div style={{ fontSize: 15, fontWeight: 800, color: C.text, lineHeight: 1.3 }}>{sel?.name || (who === 'He' ? 'He' : 'They')} <span style={{ color: C.ice, fontFamily: NUM_FONT, letterSpacing: '.1em', fontSize: 12 }}>VS</span> {goalie?.name || 'a goalie'}{goalie?.team ? <span style={{ color: C.text3, fontWeight: 600, fontSize: 13 }}> · {goalie.team}</span> : null}</div>}
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: C.text3, fontFamily: NUM_FONT }}>
                 <span>GOALIE</span>
                 <select value={gId} onChange={(e) => { setGoalieId(e.target.value); setPicked(null) }}
-                  style={{ minHeight: 36, background: C.bg2, color: C.text, border: `1px solid ${C.border2}`, borderRadius: 8, padding: '0 8px', font: `700 13px/1 ${NUM_FONT}`, maxWidth: '100%' }}>
+                  style={{ minHeight: 44, background: C.bg2, color: C.text, border: `1px solid ${C.border2}`, borderRadius: 8, padding: '0 8px', font: `700 13px/1 ${NUM_FONT}`, maxWidth: '100%' }}>
                   {goalies.slice(0, 80).map((g) => <option key={g.id} value={g.id}>{g.name} · {g.team} · {g.sa} SA</option>)}
                 </select>
               </label>
@@ -199,7 +225,9 @@ export default function ShotPanel({ sel, who = 'He', height = 300, venue = null,
               </div>
             </div>
           )}
-          {filtered && !shots.length && <ChartEmpty theme={C}>None of {who === 'He' ? 'his' : 'their'} last {recent.length} attempts match every filter at once.</ChartEmpty>}
+          {filtered && !shots.length && <ChartEmpty theme={C}>{res !== 'ALL' && type === 'ALL' && str === 'ALL' && per === 'ALL' && !hardOnly
+            ? `No ${LBL(RES, res).toLowerCase()} in ${who === 'He' ? 'his' : 'their'} ${recent.length ? `last ${recent.length} shots here` : 'shots here'}.`
+            : `None of ${who === 'He' ? 'his' : 'their'} last ${recent.length} attempts match every filter at once.`}</ChartEmpty>}
           {/* MOONSHOT'S SPRAY CHART LAYOUT (2026-09-30, Donovan: "shot map I
               already told you I want basically like the spray chart"). The
               chart and its readout share one framed panel (SprayField's
@@ -264,9 +292,9 @@ export default function ShotPanel({ sel, who = 'He', height = 300, venue = null,
                     {/* the speed, only what is measured (1g) */}
                     <div style={{ color: C.text3, fontSize: 10 }}>
                       {measuredMph(hardest, picked) != null
-                        ? <><b style={{ color: C.ice }}>{measuredMph(hardest, picked)} MPH</b>, measured (NHL EDGE) · one of his ten hardest</>
+                        ? <><b style={{ color: C.ice }}>{measuredMph(hardest, picked)} MPH</b>, measured · one of his ten hardest</>
                         : speed ? <>HIS AVG SHOT {speed.avg} MPH (league {speed.leagueAvg}) — not this shot&apos;s speed</>
-                          : 'No shot speed on file for him (NHL EDGE has no row) — the replay runs at a fixed pace.'}
+                          : 'No shot speed on file for him — the replay runs at a fixed pace.'}
                     </div>
                   </>}
               </div>
@@ -274,7 +302,7 @@ export default function ShotPanel({ sel, who = 'He', height = 300, venue = null,
                   goalie's rate vs the league's, MATCH where both line up (lib/nhl/zones matchZones) */}
               {view === 'goalie' && goalieRead && shots.length > 0 && (
                 <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 4 }} aria-label="Where the shooter and the goalie match">
-                  {matchZones(goalieRead, shots).filter((z) => z.n).map((z) => {
+                  {matchZones(goalieRead, shots).filter((z) => z.n && (!compact || z.match || z.share >= 0.1)).map((z) => {
                     const pct = Math.round(z.share * 100)
                     return (
                       <button key={z.key} type="button" onClick={() => setPicked({ zone: z.key })} title={`${z.label}: ${z.n} of ${who === 'He' ? 'his' : 'their'} ${shots.length} shots${z.r.thin ? '; the goalie is thin here' : `; ${goalie?.name} lets in ${(z.r.rate * 100).toFixed(1)}% (league ${(z.r.lg * 100).toFixed(1)}%)`}`}
@@ -354,7 +382,7 @@ export default function ShotPanel({ sel, who = 'He', height = 300, venue = null,
                   {' '}The dots are the last {recent.length} attempts; the numbers are the whole {win === 'all' ? 'season' : 'last ten games'}.
                 </div>
                 <div style={{ marginBottom: 6 }}>
-                  Every attempt is turned to attack the same net (the right-hand one), so the ends a team switches between periods read as one. Positions are the league feed&apos;s, in feet: goal line at 89, blue line at 25. The filter chips cut the dots, the zone bars and the arena together.
+                  Every attempt is turned to attack the same net (the right-hand one), so the ends a team switches between periods read as one. Positions are in feet: goal line at 89, blue line at 25. The filter chips cut the dots, the zone bars and the arena together.
                 </div>
                 <div style={{ marginBottom: 6 }}>
                   {ZONES.map((z, i) => <span key={z.key}>{i ? ' · ' : ''}<b style={{ color: C.text2 }}>{z.label}</b> {z.def}</span>)}.
@@ -369,7 +397,7 @@ export default function ShotPanel({ sel, who = 'He', height = 300, venue = null,
               </HowToRead>
             </div>
           </ChartCard>
-          <FactLines theme={C} lines={depthLines(m, who, Boolean(sel?.against))} />
+          {!onlyDates && !compact && <FactLines theme={C} lines={depthLines(m, who, Boolean(sel?.against))} />}
         </>
       ) : null}
     </div>
