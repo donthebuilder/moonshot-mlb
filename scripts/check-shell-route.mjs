@@ -7,6 +7,11 @@ const cases = [
   ['nfl', '#sport=nfl&tab=leaders', 'home', 'leaders', 'live hash names TUDDY: it answers'],
   ['nfl', '#sport=nhl&tab=schedule', 'games', 'games', 'live hash is another sport: snapshot'],
   ['nfl', '#sport=nfl&tab=nosuchtab', 'research', 'research', 'live tab unknown, snapshot known: snapshot'],
+  // MOONSHOT: the old Boards page is Rankings (2026-10-06); its old keys open it
+  ['mlb', '#sport=mlb&tab=board', 'home', 'fullboard', 'old Boards link opens Rankings'],
+  ['mlb', '#sport=mlb&tab=boards', 'home', 'fullboard', 'TUDDY\'s word for it opens Rankings'],
+  ['mlb', '#sport=mlb&tab=hitshrr', 'home', 'fullboard', 'the pre-consolidation key opens Rankings'],
+  ['mlb', '#sport=mlb&tab=fullboard', 'home', 'fullboard', 'Rankings opens Rankings'],
   ['nhl', '#sport=nhl&tab=standings', 'home', 'standings', 'LAMP live hash answers'],
   ['nhl', '', 'leaders', 'leaders', 'no live hash: snapshot'],
 ]

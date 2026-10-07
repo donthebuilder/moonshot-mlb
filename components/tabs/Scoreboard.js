@@ -116,14 +116,10 @@ function Tracker({ title, count, children, note, answers }) {
   )
 }
 
-// boardOnly (2026-09-25): the same component, rendering ONLY the full board
-// -- the title, the filters and the every-hitter table -- for the dedicated
-// "The Board" view (#tab=fullboard). Donovan: "there is no dedicated place to
-// look at the boards at every single one in order." The table lived at the
-// bottom of Live under eight other sections; now it also has a page where it
-// is the only thing on it. One component, one table, one column list -- not
-// a second copy that would drift.
-export default function Scoreboard({ players, mode = 'today', slateDate = '', results, backtest, onWatch, watchIds, onPlayerClick, onNavigate, odds = null, boardOnly = false }) {
+// (2026-10-06) The `boardOnly` mode this component had for #tab=fullboard (2026-09-25) is gone:
+// Rankings is its own page now (components/tabs/HitsHRR.js, the Boards and Rankings merge). This
+// is Live, and its every-hitter table is the one at the foot of it.
+export default function Scoreboard({ players, mode = 'today', slateDate = '', results, backtest, onWatch, watchIds, onPlayerClick, onNavigate, odds = null }) {
   const [alignedOnly, setAlignedOnly] = useState(false)
 
   const alignedCount = useMemo(() => players.filter(isAligned).length, [players])
@@ -601,10 +597,8 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
   return (
     <div>
       <PanelTitle
-        title={boardOnly ? 'Rankings' : 'Live'}
-        sub={boardOnly
-          ? `${rows.length} hitters, #1 to #${rows.length} — every one the model rated tonight, in order`
-          : `${rows.length} batters on the board${alignedOnly ? ' (aligned only — the filter is on)' : ''}${liveNow ? ' · live — the wire and tonight’s homers lead' : ''}`}
+        title="Live"
+        sub={`${rows.length} batters on the board${alignedOnly ? ' (aligned only — the filter is on)' : ''}${liveNow ? ' · live — the wire and tonight’s homers lead' : ''}`}
         right={
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
             {alignedCount > 0 && (
@@ -635,16 +629,14 @@ export default function Scoreboard({ players, mode = 'today', slateDate = '', re
           on 2026-09-03 (see the note further down), and this sentence never
           got updated to match. Fixed 2026-09-13 while trimming this page's
           helper text: Pulse is what actually leads both orders now. */}
-      {!boardOnly && (
-        <WhatThis label="slate context" maxWidth={760}>
-          {airRead.carrying.length > 0 && <>The air is carrying in {airRead.carrying.length} of {airRead.games} games. </>}
-          {airRead.dead.length > 0 && <>It is playing dead in {airRead.dead.length} of {airRead.games}. </>}
-          {laneRec.total > 0 && <>Homers so far — picks {laneRec.hit.picks} of {laneRec.total}, board {laneRec.hit.board} of {laneRec.total}, rated {laneRec.hit.rated} of {laneRec.total}. </>}
-          {liveNow ? 'Live action leads below.' : 'Pulse leads; the sortable full board follows.'}
-        </WhatThis>
-      )}
+      <WhatThis label="slate context" maxWidth={760}>
+        {airRead.carrying.length > 0 && <>The air is carrying in {airRead.carrying.length} of {airRead.games} games. </>}
+        {airRead.dead.length > 0 && <>It is playing dead in {airRead.dead.length} of {airRead.games}. </>}
+        {laneRec.total > 0 && <>Homers so far — picks {laneRec.hit.picks} of {laneRec.total}, board {laneRec.hit.board} of {laneRec.total}, rated {laneRec.hit.rated} of {laneRec.total}. </>}
+        {liveNow ? 'Live action leads below.' : 'Pulse leads; the sortable full board follows.'}
+      </WhatThis>
 
-      {!boardOnly && order}
+      {order}
 
       {/* Trimmed 2026-09-13 (Donovan: "the litte helper text ... does not
           [h]elp"). Also fixed a dangling fragment — this paragraph used to

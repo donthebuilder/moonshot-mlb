@@ -19,6 +19,10 @@ import { SCORE } from '../../lib/scales'
 import { categoryColumns, categoryValues } from '../../lib/categoryColumns'
 import { downloadBoardCard } from '../shareCard'
 import { usePreview, ShowMoreButton } from '../ListPreview'
+import { callStatus, boardOfRows } from '../../lib/callStatus'
+import { reasonContext, boardReasonFor } from '../../lib/mlb/boardReason'
+import { useWhySheet, whyColumn } from '../WhySheet'
+import { ordinal } from '../../lib/format'
 
 // The nine inputs the old profile grid drew as columns. They are not drawn
 // now — they are tested against the slate and surface only where a hitter is
@@ -82,7 +86,28 @@ const CAT_OMIT = {
   hr: ['hrw', 'pHR9', 'hrsc', 'iso'],
 }
 
-export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watchIds, onPlayerClick, onOpenPitcher = null, limit = 60, slateDate = null, filterState = null, setupHomers }) {
+// RANKINGS (2026-10-06, the Boards + Rankings merge). `rankings` is this board dressed as the one
+// Rankings page: its own title and subtitle, every hitter on The Board lens (no 60-row cut), the
+// CALLED / ON THE BOARD stamp, and a Why on every row with the sheet behind it. `compact` is the phone:
+// no title block (the page's one control row and subtitle sit above), no filter bar of its own, the
+// share button under the table. `viewMode` / `onViewMode` let the page own the List / Cards switch.
+const WHY_PARTS = [
+  { key: 'hr', label: 'HR score', get: (p) => hrScore(p), text: (v) => v.toFixed(1) },
+  { key: 'szn', label: 'Season home runs', get: (p) => (Number.isFinite(Number(p?.season_hr)) && p?.season_hr != null ? Number(p.season_hr) : null), text: (v) => `${Math.round(v)}` },
+  { key: 'ev', label: 'Season exit velocity', get: (p) => (Number.isFinite(Number(p?.season_avg_ev)) && Number(p?.season_avg_ev) > 0 ? Number(p.season_avg_ev) : null), text: (v) => `${v.toFixed(1)} mph` },
+]
+// The Why sits right after the name and the call. Its own group, not the Call group: the phone folds
+// every Call column into the name's sub-line, and a sentence has to stay a column you can tap.
+const WHY_GROUP = { key: 'why', label: 'Why', order: 0.5 }
+// where v sits among tonight's hitters, 0-100 (ties share their average place)
+const pctAmong = (vals, v) => {
+  if (!vals.length) return null
+  const lt = vals.filter((x) => x < v).length
+  const eq = vals.filter((x) => x === v).length
+  return Math.round((100 * (lt + (eq + 1) / 2)) / vals.length)
+}
+
+export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watchIds, onPlayerClick, onOpenPitcher = null, limit = 60, slateDate = null, filterState = null, setupHomers, onOpenCard = null, rankings = false, compact = false, slate = null, viewMode: viewProp = null, onViewMode = null }) {
   // 🔁 PROVEN, NOT INFERRED. This column read `games_since_last_hr === 0`
   // directly, which lib/b2b.js exists to stop: the field means "he homered in
   // his most recent game", and on a slate rebuilt after the 12:05 window that
@@ -113,7 +138,17 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
   // opaque — nothing on it says who's #4 vs #14, which made "where is this
   // player ranked" a real complaint. The list leads with the rank number and
   // the exact score the sort uses; cards stay one click away.
-  const [viewMode, setViewMode] = useState('list')
+  const [ownView, setOwnView] = useState('list')
+  const viewMode = viewProp ?? ownView
+  const setViewMode = onViewMode ?? setOwnView
+  const whyOn = rankings && type === 'hr'
+  // WHY: the sentence the player card already prints (lib/mlb/boardReason.js), ranked against the whole slate
+  const whyPool = slate || players
+  const rctx = useMemo(() => (whyOn ? reasonContext(whyPool) : null), [whyOn, whyPool])
+  const partVals = useMemo(() => (whyOn
+    ? Object.fromEntries(WHY_PARTS.map((c) => [c.key, whyPool.map((p) => c.get(p)).filter((v) => v != null)]))
+    : null), [whyOn, whyPool])
+  const { open: openWhy, sheet: whySheet } = useWhySheet({ theme: C, accent: C.orange, numFont: NUM_FONT })
   const [matrix, setMatrix] = useState(null)
 
   useEffect(() => {
@@ -142,12 +177,41 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
   // 2026-09-25: the HR board lists in the board order (lib/boardOrder.js --
   // the bot's board_rank), so the list reads top to bottom in the same order
   // the # column counts. The other boards still sort on their own score.
+  const rowLimit = whyOn ? Number.MAX_SAFE_INTEGER : limit   // Rankings is every hitter, #1 to the bottom
   const ranked = useMemo(
     () => (type === 'hr'
-      ? boardOrder(filtered).slice(0, limit)
-      : [...filtered].sort((a, b) => scoreFor(b, type) - scoreFor(a, type)).slice(0, limit)),
-    [filtered, type, limit],
+      ? boardOrder(filtered).slice(0, rowLimit)
+      : [...filtered].sort((a, b) => scoreFor(b, type) - scoreFor(a, type)).slice(0, rowLimit)),
+    [filtered, type, rowLimit],
   )
+  // the board's size the bot published (lib/callStatus boardOfRows), not this list's length
+  const boardOf = useMemo(() => boardOfRows(whyPool) || whyPool.length, [whyPool])
+  // the sheet for one row: his sentence, the three numbers his board place is made of, and where to look next
+  const whyItem = (r) => {
+    const p = r._raw
+    const w = r._why || { why: [], watch: null }
+    const id = mlbId(p)
+    const parts = WHY_PARTS.map((c) => {
+      const v = c.get(p)
+      const pct = v == null ? null : pctAmong(partVals[c.key], v)
+      return v == null ? null : { label: c.label, text: `${c.text(v)}${pct != null ? ` \u00b7 ${ordinal(pct)} percentile` : ''}`, pct }
+    }).filter(Boolean)
+    // the card on one of its tabs (the address then says p= and view=; Back closes the card)
+    const card = (view, label) => ({ label, onClick: () => (onOpenCard ? onOpenCard(p, view) : onPlayerClick?.(p)) })
+    return {
+      name: nameOf(p), rank: r.rank,
+      lead: `${w.why.length ? `${w.why.map((x) => x.text).join('. ')}. ` : ''}His place on the board is the average of his rank in these three.`,
+      watch: w.watch ? `${w.watch.text}.` : null,
+      parts,
+      links: id ? [
+        { label: 'His card: every number behind the score', onClick: () => onPlayerClick?.(p) },
+        card('splits', 'Splits: head-to-head and situations'),
+        card('ev', 'EV Log: how hard he has been hitting it'),
+        card('spray', 'Spray: where he puts the ball'),
+        card('pitcher', 'The arm he faces tonight'),
+      ] : [{ label: 'His card: every number behind the score', onClick: () => onPlayerClick?.(p) }],
+    }
+  }
 
   // Cards view is opt-in (list is the default, see above) but still a real
   // wall once chosen -- up to `limit` (60) player cards with nothing
@@ -182,12 +246,12 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
 
   return (
     <div>
-      <BoardFilters state={state} total={players.length} shown={filtered.length} />
+      {!compact && <BoardFilters state={state} total={players.length} shown={filtered.length} />}
       {!ranked.length && <Empty text={state.active ? 'No hitters clear this filter.' : `No ${type.toUpperCase()} picks yet.`} />}
       {/* Section header — refreshed dress (2026-08-08, modest): the title
           wears the board's ember signature as a gradient underline, and the
           count moves into a pill. Structure unchanged — "I like the lead". */}
-      <div style={{
+      {!compact && <><div style={{
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
@@ -197,14 +261,14 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
       }}>
         <div style={{ minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-            <span style={{ fontSize: TYPE.title, fontWeight: 900, letterSpacing: '-.02em' }}>{title}</span>
+            <span style={{ fontSize: TYPE.title, fontWeight: 900, letterSpacing: '-.02em' }}>{rankings ? 'Rankings' : title}</span>
             <span style={{
               fontSize: TYPE.micro, fontWeight: 800, fontFamily: NUM_FONT, color: C.orange,
               border: '1px solid rgba(249,115,22,.4)', background: 'rgba(249,115,22,.08)',
               borderRadius: 999, padding: '1px 9px',
             }} title="Rows this board ranks. The filter bar's own count is the pool those rows are drawn from, which is a longer list.">{ranked.length} ranked</span>
           </div>
-          <div style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT, marginTop: 2 }}>{sub}</div>
+          <div style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT, marginTop: 2 }}>{rankings ? `Who we rank tonight, and why.${type === 'hr' ? '' : ` ${title}: ${sub}.`}` : sub}</div>
         </div>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           {/* 📸 SHARE (2026-08-23) — this board as a PNG, zero backend, same
@@ -236,7 +300,11 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
       <div style={{
         height: 2, marginBottom: 10, borderRadius: 1,
         background: 'linear-gradient(90deg, #f97316, rgba(252,211,77,.5) 45%, transparent)',
-      }} />
+      }} /></>}
+
+      {compact && viewMode === 'cards' && (
+        <button type="button" onClick={() => setViewMode('list')} style={{ minHeight: 44, margin: '0 0 8px', padding: '0 14px', borderRadius: 8, cursor: 'pointer', fontSize: TYPE.label, fontWeight: 700, border: `1px solid ${C.border}`, background: 'transparent', color: C.orange }}>☰ Back to the list</button>
+      )}
 
       {/* One line, only on a doubleheader slate. Empty string otherwise. */}
       {dhNote && (
@@ -275,6 +343,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
               ...base,
               _key: `${playerId(p)}-${p?.game_pk ?? ''}-${i}`,
               _raw: p,
+              _why: whyOn ? boardReasonFor(p, rctx) : null,
               // Lights the watch column below. DenseTable's action column
               // reads the row's own truthy field, and hands `_raw ?? row` to
               // onAction — so the real slate row reaches toggleWatch, which
@@ -346,6 +415,10 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
             ...(dh.size ? [{ key: 'g', label: 'G', heat: false, w: 28, mono: true, dim: true,
               fmt: (v) => (v ? `G${v}` : '—'),
               title: 'Which game of a doubleheader. G1 is the earlier first pitch. A hitter whose team plays twice appears once per game and both rows are real — his board rank is the same in both.' }] : []),
+            ...(whyOn ? [{ ...whyColumn({
+              textOf: (r) => (r._why?.why?.[0] ? `${r._why.why[0].text}.` : r._why?.watch ? `Against him: ${r._why.watch.text}.` : ''),
+              itemOf: whyItem, open: openWhy, theme: C, numFont: NUM_FONT, w: compact ? 200 : 230, group: WHY_GROUP,
+            }), fold: false }] : []),
             // The pitcher opens the PITCHER, not the hitter whose row he's in
             // (audit 00A P0: "Kyle Freeland" opened Murakami).
             { key: 'facing', label: 'Facing', heat: false, w: 116, dim: true, link: (p) => (onOpenPitcher && p?.pitcher_id ? () => onOpenPitcher(p.pitcher_id) : null) },
@@ -424,11 +497,20 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
             ...categoryColumns(type, { omit: CAT_OMIT[type] || CAT_OMIT.default }),
           ], { onWatch, dhOn: dh.size > 0 })}
           onRowClick={onPlayerClick}
-          initialSort={type === 'hr' ? 'raw' : null}
-          maxHeight={520}
+          initialSort={whyOn ? { key: 'rank', dir: 'asc' } : type === 'hr' ? 'raw' : null}
+          // the v2 skin's status stamp: the one rule (lib/callStatus), the bot's designation + his board place
+          {...(whyOn ? { statusOf: (r) => callStatus({ role: r._raw?.game_pick_role, board_rank: r.rank, board_of: boardOf }), maxRows: Math.max(ranked.length, 1) } : null)}
+          maxHeight={rankings ? 640 : 520}
           caption={`Ranked by ${type === 'hr' ? 'the bot’s own HR score, with ISO beside it — the archive says a big score on thin power is the board’s most common trap' : 'the category score'}. "When picked" is the archive speaking: what he actually did the other times the bot designated him here. Click any header to re-sort; the # column always gets you back to the board's own order.`}
         />
       )}
+
+      {compact && viewMode === 'list' && ranked.length > 0 && (
+        <button onClick={() => downloadBoardCard(ranked, { title, sub, type, scoreOf: (p) => scoreFor(p, type) })}
+          title="Download this board as a PNG for posting" aria-label="Download board as image"
+          style={{ minHeight: 44, margin: '8px 0 0', padding: '0 14px', borderRadius: 8, cursor: 'pointer', fontSize: TYPE.label, fontWeight: 700, border: `1px solid ${C.border}`, background: 'transparent', color: C.text2 }}>📸 Download this board as an image</button>
+      )}
+      {whySheet}
 
       {/* The profile heatmap is the primary chart. A ranked column only says
           WHO is on top; the profile says WHY -- which input is actually

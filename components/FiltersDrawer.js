@@ -67,26 +67,42 @@ export default function FiltersDrawer({
   accent = C.orange, accentInk = '#1a0f00',
   poolTitle = "Rows on tonight's board that clear the filters.",
   emptyNote = null,
+  // PHONE, ONE CONTROL ROW (2026-10-06, the Rankings merge): `compact` makes the trigger a 44px
+  // button, drops the pool pill (the panel's footer still says "N of M") and puts `beside` (e.g. the
+  // market chips) in the same row; `lead` is what the panel says before the filter sections.
+  // Every other caller leaves all three alone and draws exactly what it drew before.
+  compact = false, beside = null, lead = null,
 }) {
   const [open, setOpen] = useState(false)
   const wrap = useOutsideClose(open, setOpen)
   const chip = drawerChip
 
+  const chipsEl = activeFilters.length > 0 && (
+          <div className="chip-row" style={{ display: 'flex', gap: 5, alignItems: 'center', flex: 1, minWidth: 0 }}>
+            {activeFilters.map((f) => (
+              <button key={f.key} onClick={f.onRemove} title="Remove this filter"
+                style={{ ...chip(true), display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                {f.label} <span style={{ opacity: .7 }}>✕</span>
+              </button>
+            ))}
+            <button onClick={reset} style={{ ...chip(false), border: 'none', textDecoration: 'underline', color: C.text3 }}>Reset</button>
+          </div>
+  )
   return (
-    <div className="board-filters" style={{ marginBottom: 14 }}>
+    <div className={compact ? 'board-filters board-filters-compact' : 'board-filters'} style={{ marginBottom: compact ? 8 : 14 }}>
       {/* ── THE TRIGGER, ALWAYS COMPACT ─────────────────────────────────────
           One button + a count, same size on a phone as on a desktop monitor —
           "avoid a giant filter bar" applies to both, not just mobile. The
           panel below is what used to be permanently on screen. */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <div ref={wrap} style={{ position: 'relative' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: compact ? 'nowrap' : 'wrap' }}>
+        <div ref={wrap} style={{ position: 'relative', ...(compact ? { flex: '0 0 auto' } : null) }}>
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
             aria-expanded={open}
             style={{
               display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer',
-              padding: '6px 12px', borderRadius: 8,
+              padding: '6px 12px', borderRadius: 8, ...(compact ? { minHeight: 44 } : null),
               border: `1px solid ${open || active ? accent : C.border}`,
               background: open ? C.bg3 : active ? alpha(STATE.on().color, 0.08) : 'transparent',
               color: active ? accent : C.text2, fontSize: 11.5, fontWeight: 800, fontFamily: NUM_FONT,
@@ -116,6 +132,7 @@ export default function FiltersDrawer({
               border: `1px solid ${C.border2}`, borderRadius: 12, padding: 14,
               boxShadow: '0 20px 60px rgba(0,0,0,.5)',
             }}>
+              {lead}
               {children}
 
               {shown === 0 && emptyNote ? (
@@ -133,29 +150,22 @@ export default function FiltersDrawer({
           )}
         </div>
 
+        {compact && beside}
+
         {/* #58: the pool pill says which count it is, so it can't be read as
             the board's own ranked badge beside it. */}
-        <span
+        {!compact && <span
           title={poolTitle}
           style={{ fontSize: 11, fontWeight: 800, color: shown < total ? accent : C.text3, fontFamily: NUM_FONT, border: `1px solid ${C.border}`, borderRadius: 999, padding: '3px 11px' }}>
           {shown} of {total} <span style={{ color: C.text3, fontWeight: 700 }}>in the pool</span>
-        </span>
+        </span>}
 
         {/* ── ALWAYS-VISIBLE, REMOVABLE CHIPS ─────────────────────────────
             A filter you forgot you set is a worse trap than a filter you have
             to scroll past, so the chips live outside the panel. */}
-        {activeFilters.length > 0 && (
-          <div className="chip-row" style={{ display: 'flex', gap: 5, alignItems: 'center', flex: 1, minWidth: 0 }}>
-            {activeFilters.map((f) => (
-              <button key={f.key} onClick={f.onRemove} title="Remove this filter"
-                style={{ ...chip(true), display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                {f.label} <span style={{ opacity: .7 }}>✕</span>
-              </button>
-            ))}
-            <button onClick={reset} style={{ ...chip(false), border: 'none', textDecoration: 'underline', color: C.text3 }}>Reset</button>
-          </div>
-        )}
+        {!compact && chipsEl}
       </div>
+      {compact && chipsEl && <div style={{ marginTop: 6 }}>{chipsEl}</div>}
     </div>
   )
 }

@@ -336,7 +336,7 @@ const chip = (on) => {
 // button, so it never hangs off-screen on a phone) — reused rather than
 // invented, so this doesn't become a second "how do panels work here" idiom.
 
-export default function BoardFilters({ state, total, shown }) {
+export default function BoardFilters({ state, total, shown, compact = false, beside = null, lead = null }) {
   const {
     bands, toggleBand, setBandRange, removeBand, cats, setCats, catMode, setCatMode,
     hand, setHand, minEV, setMinEV, minPA, setMinPA, query, setQuery, active, reset,
@@ -355,7 +355,7 @@ export default function BoardFilters({ state, total, shown }) {
   return (
     <FiltersDrawer
       active={active} activeCount={activeCount} activeFilters={activeFilters} reset={reset}
-      shown={shown} total={total}
+      shown={shown} total={total} compact={compact} beside={beside} lead={lead}
       poolTitle="Hitters on tonight's slate that clear the filters. The board's own badge counts the rows it ranks, which is a shorter list."
       emptyNote={<>Nothing clears this filter. With <b>match ALL</b> that happens fast — the categories are
         rarer than they look, and requiring three at once usually leaves nobody.</>}
