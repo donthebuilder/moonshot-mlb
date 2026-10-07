@@ -6,6 +6,7 @@ import PageHeader from '../../PageHeader'
 import LeaderTile from '../../LeaderTile'
 import NflTeamMark from '../NflTeamMark'
 import NflTable from '../NflTable'
+import { withNflFullSet } from '../../../lib/nfl/boardColumns'
 import { SportTheme } from '../../SportTheme'
 import { LeadersIntro, LeadersFilterBar, LeadersLead } from '../../leaders/LeadersParts'
 
@@ -23,14 +24,13 @@ import { LeadersIntro, LeadersFilterBar, LeadersLead } from '../../leaders/Leade
 // you have to sort, then read, then sort again to compare two categories.
 // Here every category is already sorted and they sit side by side.
 //
-// WHY THERE ARE NO MODEL SCORES ON THIS PAGE.
-// The same call MOONSHOT's own Leaders.js made when it dropped HR score, HRR
-// score and the rest: "those all belong to the model, and every other board on
-// this site already shows them — which made Leaders a fifth copy of the same
-// ranking rather than a page of its own." Every number here is a measured
-// per-game rate off `player.stats`, straight from the payload. If one disagrees
-// with a stat sheet, the payload is wrong; there is no interpretation layer
-// left to blame.
+// THE MODEL SCORES ARE COLUMNS, NOT TILES (Donovan, 2026-10-06).
+// MOONSHOT's own Leaders dropped HR score and the rest from its TILES, and the
+// tiles here stay measured per-game rates straight off `player.stats`. But
+// every slate-player table on the site carries the full column set
+// (lib/nfl/boardColumns.js), so the table under the tiles does too: the stats
+// first, then the model's scores and the season columns, grouped. The tile
+// leaders and the sort lenses are still the measured rates only.
 //
 // CATEGORIES COME FROM THE PAYLOAD, NOT FROM A LIST IN HERE.
 // `research_columns` already carries the key, label, description, decimal
@@ -59,7 +59,7 @@ const POSITIONS = ['ALL', 'QB', 'RB', 'WR', 'TE', 'K']
 // leaders page for nfl and nhl look like mlb"). Same order as MOONSHOT's
 // Leaders (components/tabs/Leaders.js): title with the count, the ruled intro,
 // the tiles, then MOONSHOT's filter bar (sample, position, lens, search) over
-// the full table of every published stat, sorted by the lens. Stats only --
+// the full table of every published stat, sorted by the lens. Stats lead, the scores follow as columns (10-06) --
 // the model's scores stay on Research, the same line MOONSHOT draws.
 // Low-sample rows are the payload's own low_sample flag (TUDDY has no games
 // count to set a minimum by), hidden until asked for, the way MOONSHOT's
@@ -189,7 +189,7 @@ export default function Leaders({ data, onPlayerClick }) {
       <div>
         <PageHeader
           title="League Leaders"
-          sub="Measured per-game rates for this week's players — no model scores on this page"
+          sub="Measured per-game rates for this week's players, with the model's scores in the table"
           right={(
             <span title="Players on this week's slate the table is showing, out of everyone not on bye at this position."
               style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>{rows.length} of {all.length} players</span>
@@ -200,8 +200,8 @@ export default function Leaders({ data, onPlayerClick }) {
 
         <LeadersIntro>
           Straight per-game numbers over the trailing window the slate publishes — nothing weighted or
-          projected. Every other board here ranks by the model; this one doesn&apos;t. It&apos;s the page for
-          what a player has actually done, rather than what the model thinks of him this week.
+          projected. The tiles and the stat columns rank by what a player has actually done; the model&apos;s
+          scores sit in their own columns at the end of the table, for comparing the two.
         </LeadersIntro>
 
         {cards.length === 0 ? (
@@ -215,7 +215,7 @@ export default function Leaders({ data, onPlayerClick }) {
           <>
             <LeadersLead>
               Every leader below is <b style={{ color: C.text2 }}>on this week&apos;s slate</b> — tiles show who
-              each one plays, plus the #2 and #3. The table under them carries all {cards.length} categories.{dropped > 0 ? ` ${dropped} categor${dropped === 1 ? 'y' : 'ies'} the payload doesn't carry yet ${dropped === 1 ? 'is' : 'are'} left out rather than shown empty.` : ''}
+              each one plays, plus the #2 and #3. The table under them carries all {cards.length} categories, then the model's scores.{dropped > 0 ? ` ${dropped} categor${dropped === 1 ? 'y' : 'ies'} the payload doesn't carry yet ${dropped === 1 ? 'is' : 'are'} left out rather than shown empty.` : ''}
             </LeadersLead>
             <div className="bot-picks-grid" style={{
               display: 'grid', gap: 8, marginBottom: 12,
@@ -248,8 +248,7 @@ export default function Leaders({ data, onPlayerClick }) {
           <NflTable
             heatMode="sorted"
             key={sortKey}
-            rows={rows}
-            columns={columns}
+            {...withNflFullSet(rows, columns)}
             onRowClick={onPlayerClick}
             initialSort={sortKey}
             maxHeight={620}
