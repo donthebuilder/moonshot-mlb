@@ -1,10 +1,11 @@
-// GET /api/ledger/player?sport=mlb|nfl|nhl&id=<player id> -- one player's rows in the Called table this
+// GET /api/ledger/player?sport=mlb|nfl|nhl|nba&id=<player id> -- one player's rows in the Called table this
 // season: every home run / touchdown / goal night of his, tagged CALLED / ON THE BOARD / NOT ON THE BOARD as
 // the event tables froze it (lib/ledger/playerRows.js). What "In the ledger" on his card reads. Cached five
 // minutes; one indexed select by player id, only when a card is opened.
 import { adminClient } from '../../../../lib/supabase/admin'
 import { easternToday } from '../../../../lib/data'
 import { readPlayerLedger, ID_OK, UNIT } from '../../../../lib/ledger/playerRows'
+import { bucketsGuard, bucketsPublic } from '../../../../lib/nba/gate'
 
 export const dynamic = 'force-dynamic'
 
@@ -12,13 +13,15 @@ export async function GET(request) {
   const q = new URL(request.url).searchParams
   const sport = String(q.get('sport') || '').toLowerCase()
   const id = String(q.get('id') || '')
-  if (!ID_OK[sport]) return Response.json({ error: 'sport must be mlb, nfl or nhl' }, { status: 400 })
+  if (!ID_OK[sport]) return Response.json({ error: 'sport must be mlb, nfl, nhl or nba' }, { status: 400 })
   if (!ID_OK[sport].test(id)) return Response.json({ error: 'not a player id for that sport' }, { status: 400 })
+  // BUCKETS is gated until it opens (lib/nba/gate.js): its rows follow the same gate as every /api/buckets route
+  if (sport === 'nba') { const no = await bucketsGuard(); if (no) return no }
   const db = adminClient({ anon: true })
   if (!db) return Response.json({ error: 'no database' }, { status: 503 })
   try {
     const body = await readPlayerLedger(db, sport, id, easternToday())
-    return Response.json({ sport, id, unit: UNIT[sport], ...body }, { headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=900' } })
+    return Response.json({ sport, id, unit: UNIT[sport], ...body }, { headers: { 'Cache-Control': sport === 'nba' && !bucketsPublic() ? 'private, max-age=60' : 'public, s-maxage=300, stale-while-revalidate=900' } })
   } catch (e) {
     console.error(`[ledger player] ${sport} ${id}: ${e?.message}`)
     return Response.json({ error: 'his ledger rows are delayed' }, { status: 502 })

@@ -8,20 +8,26 @@ import { C, NUM_FONT } from '../../lib/nba/theme'
 import { NBA_MARKETS, LEG_LABEL, fmtLeg, ACTUAL_WORD } from '../../lib/nba/legs'
 import { fmtTip, RimDot } from './ui'
 
-/** board route rows -> table rows (the game's matchup and tip joined on). */
-export function boardRows(data, { calledOnly = false, gameId = null } = {}) {
+// PROJECTED POINTS (xPTS, lib/nba/expectedPoints.js): recent minutes x points a minute x the opponent's real points
+// allowed. A measured projection of a box-score count, NOT a probability and not the score. Shown on the two markets that
+// are about points (PTS, PRA); a dash with the reason for a player outside the rotation.
+export const XPTS_MARKETS = ['pts', 'pra']
+export const XPTS_TITLE = 'Projected points: his recent minutes x his points a minute (pulled toward his season) x what the opponent allows. A measured projection of a box-score count, not a probability. A dash: not in the rotation (under 12 minutes a game) or too few recent games.'
+
+/** board route rows -> table rows (the game's matchup and tip joined on). `xpts` = Map(playerId -> { xpts, line }) from /api/buckets/expected. */
+export function boardRows(data, { calledOnly = false, gameId = null, xpts = null } = {}) {
   const games = new Map((data?.games || []).map((g) => [g.id, g]))
   return (data?.rows || [])
     .filter((r) => (!calledOnly || r.status === 'called') && (!gameId || r.gameId === gameId))
     .sort((a, b) => (a.nightRank ?? 9999) - (b.nightRank ?? 9999) || String(a.name).localeCompare(String(b.name)))
     .map((r) => {
       const g = games.get(r.gameId)
-      return { ...r, _id: `${r.gameId}-${r.playerId}`, oppTxt: r.home ? r.opp : `@${r.opp}`, tip: g?.start || null, gameState: g?.state || null, ...Object.fromEntries(Object.entries(r.legs || {})) }
+      return { ...r, xpts: xpts?.get(String(r.playerId))?.xpts ?? null, xptsLine: xpts?.get(String(r.playerId))?.line ?? null, _id: `${r.gameId}-${r.playerId}`, oppTxt: r.home ? r.opp : `@${r.opp}`, tip: g?.start || null, gameState: g?.state || null, ...Object.fromEntries(Object.entries(r.legs || {})) }
     })
 }
 
 /** The columns for one market. `withGame` adds the game column (off on the one-game Slate). */
-export function boardColumns(market, { onOpenTeam, onOpenGame, withGame = true, whyCol = null } = {}) {
+export function boardColumns(market, { onOpenTeam, onOpenGame, withGame = true, whyCol = null, withXpts = false } = {}) {
   const D = NBA_MARKETS[market] || NBA_MARKETS.pts
   return [
     { key: 'nightRank', label: '#', group: 'Player', w: 36, heat: false, mono: true, dim: true, title: 'His rank on the night’s board for this market' },
@@ -30,6 +36,7 @@ export function boardColumns(market, { onOpenTeam, onOpenGame, withGame = true, 
     { key: 'team', label: 'Tm', group: 'Player', w: 52, heat: false, mono: true, teamMark: 'nba', link: (r) => (onOpenTeam ? () => onOpenTeam(r.team) : null) },
     { key: 'oppTxt', label: 'Opp', group: 'Player', w: 52, heat: false, mono: true, dim: true, link: (r) => (onOpenTeam ? () => onOpenTeam(r.opp) : null) },
     { key: 'score', label: 'Score', group: 'Call', w: 54, dp: 0, primary: true, scale: 'seq', domain: [0, 100], title: 'The market’s 0-100 score: a rank among tonight’s players, not a probability' },
+    ...(withXpts && XPTS_MARKETS.includes(market) ? [{ key: 'xpts', label: 'xPTS', group: 'Call', w: 58, dp: 1, mono: true, title: XPTS_TITLE, fmt: (v, r) => (v == null ? <span style={{ color: C.text3 }}>—</span> : <span title={r.xptsLine || XPTS_TITLE}>{Number(v).toFixed(1)}</span>) }] : []),
     ...(whyCol ? [{ ...whyCol, group: 'Call' }] : []),
     { key: 'status', label: 'Status', group: 'Call', w: 156, heat: false, statusCol: true, fmt: (v, r) => (
       <span style={{ display: 'inline-flex', gap: 4, alignItems: 'center', whiteSpace: 'nowrap' }}>

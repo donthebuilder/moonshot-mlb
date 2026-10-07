@@ -74,7 +74,7 @@ const ROUTE = {
 }
 
 export default function BucketsDashboard() {
-  const { tab, setTab, gameId, teamKey, playerId, missingTab, date, setDate, badDate, setBadDate, openGame, openTeam, openPlayer, backLabel, goBack, peekId, peekPlayer, closePeek } = useShellRoute(ROUTE)
+  const { tab, setTab, gameId, teamKey, playerId, missingTab, date, setDate, badDate, setBadDate, openGame, openTeam, openPlayer, backLabel, goBack, peekId, peekPlayer, closePeek, stepPlayer } = useShellRoute(ROUTE)
   usePageTitle(`${pageTitle('nba', tab)} · DASH Network`)
   // starred players, remembered night by night for "Your nights, graded"
   useBucketsSaves()
@@ -144,13 +144,13 @@ export default function BucketsDashboard() {
             {tab === 'teams' && <Teams onOpenTeam={openTeam} />}
             {tab === 'team' && <Team abbrev={teamKey} {...nav} backLabel={backLabel('teams')} onBack={() => goBack('teams')} />}
             {tab === 'players' && <Players {...nav} />}
-            {tab === 'player' && <Player id={playerId} {...nav} backLabel={backLabel('players')} onBack={() => goBack('players')} />}
+            {tab === 'player' && <Player id={playerId} {...nav} onStep={stepPlayer} backLabel={backLabel('players')} onBack={() => goBack('players')} />}
             {tab === 'leaders' && <Leaders {...nav} />}
             {tab === 'shotmap' && <ShotMap {...nav} />}
             {tab === 'guide' && <Guide onNavigate={setTab} />}
           </ErrorBoundary>
           <DashFooter sport="nba" theme={C} onGuide={() => setTab('guide')} />
-          <PlayerPeek id={peekId} Page={Player} theme={C} accent={C.purple} onClose={closePeek} onFullPage={openPlayer} onOpenTeam={openTeam} onOpenGame={openGame} />
+          <PlayerPeek id={peekId} Page={Player} theme={C} accent={C.purple} onClose={closePeek} onFullPage={openPlayer} onOpenTeam={openTeam} onOpenGame={openGame} onStep={stepPlayer} />
           </TeamNav.Provider>
           </SportTheme>
         </>)}

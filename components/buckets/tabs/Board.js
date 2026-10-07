@@ -4,14 +4,17 @@ import PageHeader from '../../PageHeader'
 import HowToRead from '../../HowToRead'
 import { useIsPhone } from '../../MobileFold'
 import { C, NUM_FONT } from '../../../lib/nba/theme'
-import { useBucketsBoard } from '../../../lib/nba/useBuckets'
+import { useBucketsBoard, useBucketsExpected } from '../../../lib/nba/useBuckets'
 import { NBA_MARKETS, MARKET_OPTIONS, LEG_LABEL, fmtLeg } from '../../../lib/nba/legs'
 import BucketsTable from '../BucketsTable'
-import { boardRows, boardColumns, faceOf } from '../boardTable'
+import { boardRows, boardColumns, faceOf, XPTS_MARKETS } from '../boardTable'
 import FullBoard from './FullBoard'
 import { useWhySheet, whyColumn } from '../../WhySheet'
 import BucketWatch from '../BucketWatch'
 import { AngleRow } from '../../Filters'
+import BoardTopBar from '../../BoardTopBar'
+import FiltersDrawer, { DrawerSection, drawerChip } from '../../FiltersDrawer'
+import RangeDual from '../../RangeDual'
 import { bucketsAngles } from '../../../lib/nba/angles'
 import { BucketsCards } from '../BucketsCard'
 import { EmptyState, DelayedBanner, Loading, SourceLine, Pills, NavBtn, DayPager, fmtDay, writeHashParam, readHashParam } from '../ui'
@@ -65,27 +68,108 @@ function whyItemFor(r, market, rank) {
 
 export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onOpenTeam, onOpenGame }) {
   const phone = useIsPhone()
-  const [opts, setOpts] = useState(false)
   const { open: openWhy, sheet: whySheet } = useWhySheet({ theme: C, accent: C.purple, numFont: NUM_FONT })
   const [m, setM] = useState(() => (String(readHashParam('m') || '').toLowerCase() === ALL ? ALL : market))
   const mk = m === ALL ? 'pts' : m
   const [calledOnly, setCalledOnly] = useState(false)
   // TABLE FIRST on Rankings (2026-10-06): the cards live on Props; one tap here
   const [layout, setLayout] = useState('table')
+  // FIND / FILTER (2026-10-07, parity): MOONSHOT's search / team / game bar, and its Filters drawer
+  // (score range, the score's own parts, games, projected points) -- the same shared components.
+  const [q, setQ] = useState('')
+  const [team, setTeam] = useState('')
+  const [gameF, setGameF] = useState('')
+  const [scoreMin, setScoreMin] = useState(0)
+  const [scoreMax, setScoreMax] = useState(100)
+  const [bands, setBands] = useState([])   // [{ key, min, max }] on r.pct (percentiles among tonight's players)
+  const [gameSel, setGameSel] = useState([])
+  const [minX, setMinX] = useState(0)
   const { data, error, loading } = useBucketsBoard(date, mk)
+  const xp = useBucketsExpected(date)
+  const xptsBy = useMemo(() => new Map((xp.data?.rows || []).map((r) => [String(r.playerId), r])), [xp.data])
   const D = NBA_MARKETS[mk]
   const shown = data?.date || date
-  const all = boardRows(data, { calledOnly })
+  const all = boardRows(data, { calledOnly, xpts: xptsBy })
   // ANGLES (2026-10-05): measured on 2025-26, every market (lib/nba/angles.js); only the ones with an edge
   const [angle, setAngle] = useState(null)
   const angles = useMemo(() => bucketsAngles(all, mk), [all, mk])
   const angleDef = angle ? angles.find((a) => a.key === angle) : null
-  const rows = angleDef ? all.filter(angleDef.test) : all
+  const pool = angleDef ? all.filter(angleDef.test) : all
+  const needle = q.trim().toLowerCase()
+  const rows = pool.filter((r) => {
+    if (needle && !`${r.name} ${r.team} ${r.opp}`.toLowerCase().includes(needle)) return false
+    if (team && r.team !== team) return false
+    if (gameF && r.gameId !== gameF) return false
+    if (gameSel.length && !gameSel.includes(r.gameId)) return false
+    if ((scoreMin > 0 || scoreMax < 100) && (r.score == null || r.score < scoreMin || r.score > scoreMax)) return false
+    for (const b of bands) { const v = r.pct?.[b.key]; if (v == null || v < b.min || v > b.max) return false }
+    if (minX > 0 && (r.xpts == null || r.xpts < minX)) return false
+    return true
+  })
   const scored = rows.filter((r) => r.score != null)
   const noStarters = D.startersOnly && data && !scored.length
   const games = data?.games || []
   const called = (data?.rows || []).filter((r) => r.status === 'called').length
   const previewN = rows.filter((r) => !r.locked).length
+  // a held team/game the day no longer has stays in the list, named (the Controls.js pattern)
+  const teams = [...new Set([...all.map((r) => r.team), ...(team && data ? [team] : [])])].sort()
+  const gameOptions = games.map((g) => ({ key: g.id, label: `${g.away.abbrev} @ ${g.home.abbrev}` }))
+  if (gameF && data && !gameOptions.some((o) => o.key === gameF)) gameOptions.unshift({ key: gameF, label: 'Game not on this slate' })
+  const bandDefs = (D.legs || []).filter((l) => all.some((r) => r.pct?.[l] != null)).map((l) => ({ key: l, label: LEG_LABEL[l] || l }))
+  const toggleBand = (k) => setBands((bs) => (bs.some((b) => b.key === k) ? bs.filter((b) => b.key !== k) : [...bs, { key: k, min: 50, max: 100 }]))
+  const setBand = (k, min, max) => setBands((bs) => bs.map((b) => (b.key === k ? { ...b, min, max } : b)))
+  const drawerChips = [
+    scoreMin > 0 || scoreMax < 100 ? { key: 'score', label: `Score ${scoreMin}–${scoreMax}`, onClear: () => { setScoreMin(0); setScoreMax(100) } } : null,
+    ...bands.map((b) => ({ key: `band-${b.key}`, label: `${LEG_LABEL[b.key] || b.key} ${b.min}–${b.max}`, onClear: () => toggleBand(b.key) })),
+    ...gameSel.map((id) => ({ key: `game-${id}`, label: gameOptions.find((o) => o.key === id)?.label || id, onClear: () => setGameSel((x) => x.filter((v) => v !== id)) })),
+    minX > 0 ? { key: 'xpts', label: `xPTS ${minX}+`, onClear: () => setMinX(0) } : null,
+  ].filter(Boolean)
+  const chips = [
+    angleDef ? { key: 'angle', label: angleDef.label || angle, onClear: () => setAngle(null) } : null,
+    calledOnly ? { key: 'called', label: 'Called only', onClear: () => setCalledOnly(false) } : null,
+  ].filter(Boolean)
+  const heldTop = (team ? 1 : 0) + (gameF ? 1 : 0) + (needle ? 1 : 0)
+  const clearAll = () => { setAngle(null); setCalledOnly(false); setScoreMin(0); setScoreMax(100); setBands([]); setGameSel([]); setMinX(0); setQ(''); setTeam(''); setGameF('') }
+  const drawerSections = (
+    <>
+      <DrawerSection label={`Score · ${D.label}`}>
+        <div style={{ fontSize: 12, fontFamily: NUM_FONT, color: C.text, marginTop: 2 }}>{scoreMin}–{scoreMax}</div>
+        <RangeDual min={0} max={100} step={1} low={scoreMin} high={scoreMax} onLow={setScoreMin} onHigh={setScoreMax} label="Score" />
+      </DrawerSection>
+      {bandDefs.length > 0 && (
+        <DrawerSection label="Parts · what this score is made of" hint="Percentiles among tonight's players, 0-100. Several at once must all clear.">
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 5 }}>
+            {bandDefs.map((d) => <button key={d.key} type="button" onClick={() => toggleBand(d.key)} style={drawerChip(bands.some((b) => b.key === d.key))}>{d.label}</button>)}
+          </div>
+          {bands.map((b) => (
+            <div key={b.key} style={{ marginTop: 9 }}>
+              <div style={{ fontSize: 12, color: C.purple, fontWeight: 800, fontFamily: NUM_FONT }}>{LEG_LABEL[b.key] || b.key} {b.min}–{b.max}</div>
+              <RangeDual min={0} max={100} step={1} low={b.min} high={b.max} onLow={(v) => setBand(b.key, Math.min(v, b.max), b.max)} onHigh={(v) => setBand(b.key, b.min, Math.max(v, b.min))} label={b.key} />
+            </div>
+          ))}
+        </DrawerSection>
+      )}
+      {gameOptions.length > 1 && (
+        <DrawerSection label="Game" hint="Several at once. Stacks with the game picker above.">
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 3 }}>
+            {gameOptions.map((o) => <button key={o.key} type="button" onClick={() => setGameSel((x) => (x.includes(o.key) ? x.filter((v) => v !== o.key) : [...x, o.key]))} style={drawerChip(gameSel.includes(o.key))}>{o.label}</button>)}
+          </div>
+        </DrawerSection>
+      )}
+      {XPTS_MARKETS.includes(mk) && (
+        <DrawerSection label="Projected points (xPTS) at least" hint="Recent minutes x points a minute x the opponent's allowed. Rotation players only; a measured projection, not a probability.">
+          <div style={{ fontSize: 12, fontFamily: NUM_FONT, color: C.text, marginTop: 2 }}>{minX > 0 ? `${minX}+` : 'any'}</div>
+          <input type="range" min={0} max={40} step={1} value={minX} onChange={(e) => setMinX(Number(e.target.value))} style={{ width: '100%', accentColor: C.purple }} aria-label="Minimum projected points" />
+        </DrawerSection>
+      )}
+    </>
+  )
+  const drawerProps = {
+    active: chips.length + drawerChips.length > 0, activeCount: chips.length + drawerChips.length,
+    activeFilters: [...chips, ...drawerChips].map((c) => ({ key: c.key, label: c.label, onRemove: c.onClear })),
+    reset: clearAll, shown: rows.length, total: pool.length, accent: C.purple, accentInk: C.bg,
+    poolTitle: 'Players on tonight’s board that clear the filters. Stacks with the search, team and game above.', emptyNote: 'Nothing clears every filter at once. Loosen one.',
+  }
   const pick = (k) => { setM(k); setAngle(null); writeHashParam('m', k === 'pts' ? null : k) }
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -95,18 +179,20 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
           <div style={{ minWidth: 0, fontSize: 13, lineHeight: 1.3, color: C.text2 }}>Who we rank tonight, and why.</div>
           <HowToRead id="buckets-board" accent={C.purple} notes={HOW_NOTES} />
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <button type="button" onClick={() => setOpts((v) => !v)} aria-expanded={opts} style={{ flex: '0 0 auto', minHeight: 44, padding: '0 14px', borderRadius: 999, cursor: 'pointer', font: `800 11px/1 ${NUM_FONT}`, letterSpacing: '.06em', whiteSpace: 'nowrap', border: `1px solid ${opts || calledOnly || angle ? C.purple : C.border2}`, background: opts ? `${C.purple}1f` : 'transparent', color: opts ? C.purple : C.text2 }}>▤ FILTERS{calledOnly || angle ? ' ·' : ''}</button>
-          <div style={{ flex: 1, minWidth: 0, overflowX: 'auto', scrollbarWidth: 'none' }}><div style={{ width: 'max-content' }}><Pills ariaLabel="Market" value={m} onChange={pick} options={MARKET_PILLS} nowrap /></div></div>
-        </div>
-        {opts && (<>
-      <DayPager shown={shown} date={date} setDate={setDate} disabled={loading}>
-        <NavBtn onClick={() => setCalledOnly((v) => !v)} strong={calledOnly} ariaLabel="Called only">{calledOnly ? '✓ Called only' : 'Called only'}</NavBtn>
-      </DayPager>
-      {m !== ALL && angles.length > 0 && <AngleRow defs={angles} pool={all} value={angleDef ? angle : null} onChange={setAngle} accent={C.purple} hideEmpty />}
-      {m !== ALL && angleDef && <p style={{ margin: 0, fontSize: 12, color: C.text3, lineHeight: 1.5 }}>{angleDef.title}</p>}
-      {m !== ALL && <Pills ariaLabel="Layout" value={layout} onChange={setLayout} options={[{ key: 'table', text: 'TABLE' }, { key: 'cards', text: 'CARDS' }]} />}
-        </>)}
+        {/* FIND / FILTER, one row (MOONSHOT's Controls row): the search field and a 44px Filter button that holds team and game */}
+        <BoardTopBar query={q} setQuery={setQ} placeholder="Search player or team…" team={team} setTeam={setTeam} teams={teams} teamLabel="🏀 All teams" game={gameF} setGame={setGameF} games={gameOptions} gameLabel="All games" />
+        <FiltersDrawer ledger="nba" {...drawerProps} compact
+          beside={<div style={{ flex: 1, minWidth: 0, overflowX: 'auto', scrollbarWidth: 'none' }}><div style={{ width: 'max-content' }}><Pills ariaLabel="Market" value={m} onChange={pick} options={MARKET_PILLS} nowrap /></div></div>}
+          lead={(<div style={{ display: 'grid', gap: 8, marginBottom: 12 }}>
+            <DayPager shown={shown} date={date} setDate={setDate} disabled={loading}>
+              <NavBtn onClick={() => setCalledOnly((v) => !v)} strong={calledOnly} ariaLabel="Called only">{calledOnly ? '✓ Called only' : 'Called only'}</NavBtn>
+            </DayPager>
+            {m !== ALL && angles.length > 0 && <AngleRow defs={angles} pool={all} value={angleDef ? angle : null} onChange={setAngle} accent={C.purple} hideEmpty />}
+            {m !== ALL && angleDef && <p style={{ margin: 0, fontSize: 12, color: C.text3, lineHeight: 1.5 }}>{angleDef.title}</p>}
+            {m !== ALL && <Pills ariaLabel="Layout" value={layout} onChange={setLayout} options={[{ key: 'table', text: 'TABLE' }, { key: 'cards', text: 'CARDS' }]} />}
+          </div>)}>
+          {drawerSections}
+        </FiltersDrawer>
       </>) : (<>
       <PageHeader eyebrow={`BUCKETS · RANKINGS · ${m === ALL ? 'ALL MARKETS' : D.label}`} title={shown ? fmtDay(shown) : 'Tonight'} theme={C} numFont={NUM_FONT} accent={C.purple}
         note="Who we rank tonight, and why. Every player playing that day, ranked for one market. One call per team in each game; calls lock before tip and grade after the final."
@@ -115,12 +201,14 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
       <DayPager shown={shown} date={date} setDate={setDate} disabled={loading}>
         <NavBtn onClick={() => setCalledOnly((v) => !v)} strong={calledOnly} ariaLabel="Called only">{calledOnly ? '✓ Called only' : 'Called only'}</NavBtn>
       </DayPager>
+      <BoardTopBar query={q} setQuery={setQ} placeholder="Search player or team…" team={team} setTeam={setTeam} teams={teams} teamLabel="🏀 All teams" game={gameF} setGame={setGameF} games={gameOptions} gameLabel="All games" />
       <HowToRead id="buckets-board" accent={C.purple} notes={HOW_NOTES} />
       {m !== ALL && angles.length > 0 && <AngleRow defs={angles} pool={all} value={angleDef ? angle : null} onChange={setAngle} accent={C.purple} hideEmpty />}
       {m !== ALL && angleDef && <p style={{ margin: 0, fontSize: 12, color: C.text3, lineHeight: 1.5 }}>{angleDef.title}</p>}
       {m !== ALL && <Pills ariaLabel="Layout" value={layout} onChange={setLayout} options={[{ key: 'table', text: 'TABLE' }, { key: 'cards', text: 'CARDS' }]} />}
+      <FiltersDrawer ledger="nba" {...drawerProps}>{drawerSections}</FiltersDrawer>
       </>)}
-      {m === ALL ? <FullBoard embedded date={date} setDate={setDate} onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} onOpenGame={onOpenGame} /> : (<>
+      {m === ALL ? <FullBoard embedded keep={(r) => (!needle || `${r.name} ${r.team} ${r.opp}`.toLowerCase().includes(needle)) && (!team || r.team === team) && (!gameF || r.gameId === gameF) && (!gameSel.length || gameSel.includes(r.gameId))} date={date} setDate={setDate} onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} onOpenGame={onOpenGame} /> : (<>
       <DelayedBanner error={error} what="the board" />
       {loading && !data ? <Loading what="the board" /> : null}
       {data && !games.length && <EmptyState title="NO GAMES THAT DAY" note="Nothing to rank. Page a day, or the Slate has what’s next." />}
@@ -137,7 +225,7 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
         <BucketsCards market={mk} onOpen={onOpenPlayer} rows={[...rows].filter((r) => Number.isFinite(Number(r.score))).sort((a, b) => b.score - a.score)} />
       )}
       {rows.length > 0 && !noStarters && layout === 'table' && (
-        <BucketsTable rows={rows} columns={boardColumns(m, { onOpenTeam, onOpenGame, whyCol: whyColumn({ textOf: (r) => (r.status === 'off' && r.reason ? r.reason : plainWhy(r, m)?.short || ''), itemOf: (r) => whyItemFor(r, m, r.nightRank), open: openWhy, theme: C, numFont: NUM_FONT, w: 165 }) })} statusOf={(r) => r.status}
+        <BucketsTable rows={rows} columns={boardColumns(m, { onOpenTeam, onOpenGame, withXpts: true, whyCol: whyColumn({ textOf: (r) => (r.status === 'off' && r.reason ? r.reason : plainWhy(r, m)?.short || ''), itemOf: (r) => whyItemFor(r, m, r.nightRank), open: openWhy, theme: C, numFont: NUM_FONT, w: 165 }) })} statusOf={(r) => r.status}
           onRowClick={(r) => onOpenPlayer?.((r?._raw ?? r).playerId)} faceOf={faceOf}
           dimRow={(r) => Boolean(r.voidReason) || r.status === 'off'}
           initialSort={{ key: 'nightRank', dir: 'asc' }} heatMode="sorted" maxHeight={620} maxRows={Math.max(rows.length, 1)}
