@@ -49,6 +49,9 @@ const G_LOG_COLS = [
 ]
 const vs = (r) => `${r.home ? 'vs' : '@'} ${r.opp}`
 
+// games since his last goal, from the season's game log (newest first); '—' with no log
+const droughtOf = (rows = []) => { if (!rows.length) return '—'; const i = rows.findIndex((r) => Number(r.g) > 0); return String(i < 0 ? rows.length : i) }
+
 export default function Player({ id, onOpenTeam, onOpenGame, onBack, backLabel = 'Players' }) {
   const { data: p, error, loading } = useLampPlayer(id)
   if (!id) return <EmptyState title="NO PLAYER PICKED" note="Open a player from a roster, the directory, a leaders table, or a goal."><BackBtn onBack={onBack} label={backLabel} /></EmptyState>
@@ -125,8 +128,10 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel }) {
     ['gp', 'GP', dash(fr.gp), 'Games played'], ['w', 'W', dash(fr.w), 'Wins'], ['svPct', 'SV%', fmtPct3(fr.svPct), 'Save percentage'],
     ['gaa', 'GAA', fmt2(fr.gaa), 'Goals against average'], ['so', 'SO', dash(fr.so), 'Shutouts'],
   ] : [
-    ['g', 'G', dash(fr.g), 'Goals'], ['a', 'A', dash(fr.a), 'Assists'], ['pts', 'PTS', dash(fr.pts), 'Points'],
+    ['gp', 'GP', dash(fr.gp), 'Games played'], ['g', 'G', dash(fr.g), 'Goals'], ['a', 'A', dash(fr.a), 'Assists'], ['pts', 'PTS', dash(fr.pts), 'Points'],
     ['shots', 'S', dash(fr.shots), 'Shots on goal'], ['shPct', 'S%', fmtPct1(fr.shPct), 'Shooting percentage'], ['toi', 'TOI', fmtSec(fr.toi), 'Average time on ice'],
+    ['g60', 'G/60', fr.toi > 0 && fr.gp > 0 ? fmt2(fr.g * 3600 / (fr.gp * fr.toi)) : '—', 'Goals per 60 minutes on ice'],
+    ['drought', 'DRT', droughtOf(p.log?.rows), 'Games since his last goal'],
   ]).filter(([, , text]) => text && text !== '—').map(([id, label, text, name]) => ({ id, label, text, title: `${name}, ${f.seasonLabel} regular season${stale ? ' (last season)' : ''}.` }))
   const logNewest = p.log?.rows || []
   const goalsIn = (n) => {
