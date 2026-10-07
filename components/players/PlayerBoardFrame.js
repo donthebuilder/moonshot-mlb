@@ -25,10 +25,12 @@ import { useSport } from '../../lib/sport'
 // badgesOf   row -> node after the name      scoreOf  row -> number (the chip) or null
 // asks       [{ key, label, test, why }]      renderDetail(row) -> the card
 // sideTop    node above the search box (TUDDY's team filter)
+// ramp       the product's score-chip colours, low to high: an array of colours (NFL jade, NHL ice, ...).
+//            Left out = MOONSHOT's own ramp, unchanged.
 export default function PlayerBoardFrame({
   rows, idOf, urlIdOf, nameOf, metaOf, badgesOf = () => null, scoreOf, scoreTitle = () => undefined,
   asks = [], placeholder = 'Search a hitter…', noun = 'hitter', nounPlural = 'hitters',
-  renderDetail, notice = null, listCap = 40, searchText = (r) => nameOf(r), sideTop = null,
+  renderDetail, notice = null, listCap = 40, searchText = (r) => nameOf(r), sideTop = null, ramp = null,
 }) {
   const { C, NUM_FONT, accent, themed } = useSportTheme()
   // ✨ The tap highlight (lib/pickLight.js) marks his row here too.
@@ -153,7 +155,7 @@ export default function PlayerBoardFrame({
             const lit = pick.count > 0 && pick.has(String(urlIdOf(p)))
             const sc = scoreOf(p)
             const has = Number.isFinite(Number(sc)) && sc !== null
-            const bg = has ? rampColor(Number(sc), sLo, sHi) : null
+            const bg = has ? (ramp?.length ? ramp[Math.min(ramp.length - 1, Math.floor((sHi - sLo <= 0 ? 0 : Math.max(0, Math.min(1, (Number(sc) - sLo) / (sHi - sLo)))) * ramp.length))] : rampColor(Number(sc), sLo, sHi)) : null
             return (
               <button
                 key={id}

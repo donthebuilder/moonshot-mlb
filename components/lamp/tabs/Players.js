@@ -1,6 +1,6 @@
 'use client'
 import { useMemo } from 'react'
-import { C, NUM_FONT } from '../../../lib/nhl/theme'
+import { C, NUM_FONT, RAMP } from '../../../lib/nhl/theme'
 import { useLampPlayers, useLampSeasonStats } from '../../../lib/nhl/useLamp'
 import { SportTheme } from '../../SportTheme'
 import PlayerBoardFrame from '../../players/PlayerBoardFrame'
@@ -57,6 +57,7 @@ export default function Players({ goaliesOnly = false, onOpenTeam, onOpenGame })
       <DelayedBanner error={error} what="the rosters" />
       {data?.missing?.length ? <div style={{ color: C.text3, fontSize: 11, marginBottom: 6 }}>Roster not answering for: {data.missing.join(', ')}. Everyone else is here.</div> : null}
       <PlayerBoardFrame
+        ramp={RAMP}
         rows={rows}
         idOf={(p) => String(p.id)}
         urlIdOf={(p) => String(p.id)}

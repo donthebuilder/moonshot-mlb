@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
-import { C, NUM_FONT, MARKETS } from '../../../lib/nfl/theme'
+import { C, NUM_FONT, MARKETS, RAMP } from '../../../lib/nfl/theme'
 import { oppLabel } from '../../../lib/nfl/oppLabel'
 import { hashParams } from '../../../lib/urlState'
 import { SportTheme } from '../../SportTheme'
@@ -97,6 +97,7 @@ export default function NflPlayers({ data, logs, matchup, picks, results, odds =
   return (
     <SportTheme theme={C} accent={C.green} numFont={NUM_FONT}>
       <PlayerBoardFrame
+        ramp={RAMP}
         rows={rows}
         idOf={(p) => String(p.player_id)}
         urlIdOf={(p) => String(p.player_id)}
