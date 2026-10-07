@@ -54,7 +54,7 @@ const POLL_MS = 45000
 // surface and shadow are MOONSHOT's; the highlight is TUDDY's green.
 const WIRE_LOOK = {
   hiBg: `linear-gradient(135deg, ${C.green}29, ${MLB_C.scrim})`, bg: MLB_C.scrim,
-  hiBorder: `${C.green}80`, warnBorder: `${C.red}66`, border: C.border2,
+  hiBorder: `${C.green}80`, warnBorder: `${C.text3}66`, border: C.border2,
   shadow: MLB_C.shadow, text: C.text, text2: C.text2,
 }
 

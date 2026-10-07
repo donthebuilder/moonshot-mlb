@@ -61,7 +61,7 @@ export default function StartSit({ players = [], onPlayerClick }) {
   const gap = pa != null && pb != null ? Math.round((pa - pb) * 10) / 10 : null
   const lead = gap == null ? null : gap > 0 ? a : gap < 0 ? b : null
   const verdict = gap == null ? null
-    : Math.abs(gap) < 2 ? `Coin flip — ${Math.abs(gap).toFixed(1)} projected points apart. Start the better matchup; the model cannot separate them.`
+    : Math.abs(gap) < 2 ? `Coin flip — ${Math.abs(gap).toFixed(1)} projected points apart. Start the better matchup; the numbers cannot separate them.`
     : `Start ${lead.name} — ${Math.abs(gap).toFixed(1)} projected points more${lead.low_sample ? ', on a thin sample' : ''}${lead.questionable ? ', and he is questionable' : ''}.`
 
   return (

@@ -29,8 +29,8 @@ import MobileCSS from '../MobileCSS'
 import MobileTabBarNfl from './MobileTabBarNfl'
 import QuickSearch from '../QuickSearch'
 import NflWire from './NflWire'
-import TabExplainer from '../TabExplainer'
-import { NFL_TEXTS } from './tabExplainerTexts'
+import NflNote from './NflNote'
+import { NFL_OWN_HEADER } from './tabExplainerTexts'
 
 import Home from './tabs/Home'
 import NflTable from './NflTable'
@@ -106,10 +106,10 @@ function NflStaleBanner({ meta, data, loading }) {
   const when = new Date(t).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   // MOONSHOT's banner (components/StaleBanner.js StaleNote, R7) in TUDDY's theme
   return (
-    <StaleNote tone={loud ? C.orange : C.text3} icon={loud ? '⚠️' : '🕐'} theme={C} numFont={NUM_FONT}
+    <StaleNote tone={loud ? C.green : C.text3} icon={loud ? '⚠️' : '🕐'} theme={C} numFont={NUM_FONT}
       title={preseason ? 'PRESEASON BOARD' : 'BOARD DATA DELAYED'}
       body={<>{preseason
-        ? `This is a preseason build from ${when}, not this week\u2019s slate. The football pipeline has not published a regular-season board yet.`
+        ? `This is a preseason build from ${when}, not this week\u2019s slate. The regular-season board is not out yet.`
         : `The last football build landed ${days >= 1 ? `${days} day${days === 1 ? '' : 's'}` : `${Math.round(ageH)}h`} ago (${when}). Everything on TUDDY is from that run until the next one lands.`}</>} />
   )
 }
@@ -444,7 +444,7 @@ export default function NflDashboard({ palettePass = 0 }) {
             style={{ maxWidth: 1300, margin: '0 auto', padding: '14px 14px 40px' }}>
         <h1 className="sr-only">{pageTitle('nfl', missingTab ? 'home' : tab)}</h1>
         <NflStaleBanner meta={meta} data={data} loading={loading} />
-        {!missingTab && !loading && <TabExplainer tab={tab} texts={NFL_TEXTS} storageKey="tab_explained_nfl" accent={C.green} />}
+        {!missingTab && !loading && !NFL_OWN_HEADER.has(tab) && <div style={{ margin: '2px 0 12px', fontSize: 12, lineHeight: 1.45, color: C.text3 }}><NflNote tab={tab} /></div>}
         {missingTab ? (
           <TabNotFound
             asked={missingTab}
@@ -482,7 +482,7 @@ export default function NflDashboard({ palettePass = 0 }) {
                 longer jumps to 'picks', it stays where it was opened. */}
             {/* Props is MOONSHOT's page now (2026-10-04): the cards, then the bot's sheet under them */}
             {tab === 'picks' && <NflProps data={slate} picks={picks} odds={odds} onPlayerClick={openPlayer} />}
-            {tab === 'picks' && <div style={{ marginTop: 26, paddingTop: 18, borderTop: `1px solid ${C.border}`, font: `900 11px/1 ${NUM_FONT}`, letterSpacing: '.16em', color: C.green, marginBottom: 10 }}>THE PICKS · THE SHORTLIST, THE CARD AND NEXT WEEK</div>}
+            {tab === 'picks' && <div style={{ marginTop: 26, paddingTop: 18, borderTop: `1px solid ${C.border}`, font: `900 11px/1 ${NUM_FONT}`, letterSpacing: '.16em', color: C.green, marginBottom: 10 }}>THE SHORTLIST · THE CARD · NEXT WEEK</div>}
             {tab === 'picks' && <Bot data={slate} picks={picks} results={nflResults} logs={logs} matchup={matchup} odds={odds}
               oddsStatus={oddsRaw?.source === 'sportsgameodds' && !oddsRaw?.empty ? null : oddsStatus} onPlayerClick={openPlayer} />}
             {tab === 'research' && (

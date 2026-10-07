@@ -1,4 +1,5 @@
 'use client'
+import NflNote from '../NflNote'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../../lib/nfl/theme'
 import NflTable from '../NflTable'
@@ -56,9 +57,9 @@ import LongestTds from '../LongestTds'
 const LEAD_MIN_TGT = 15
 const LENSES = [
   { k: 'player', label: 'Players', tag: 'who turns a target into a chunk play', color: C.green },
-  { k: 'defense', label: 'Defense allowed', tag: 'which defense gives up the chunk play', color: C.cyan },
+  { k: 'defense', label: 'Defense allowed', tag: 'which defense gives up the chunk play', color: C.green },
   // 2026-10-06: MOONSHOT's Longest board, as TUDDY's record of the longest touchdowns (components/nfl/LongestTds.js)
-  { k: 'longest', label: 'Longest TDs', tag: 'the longest scores of the season, from the TD feed', color: C.yellow },
+  { k: 'longest', label: 'Longest TDs', tag: 'the longest scores of the season', color: C.green },
 ]
 
 const BUCKET_COLS = [
@@ -96,7 +97,7 @@ const DEFENSE_COLUMNS = [
   { key: 'yds', label: 'YDS', w: 52, dp: 0, title: 'Total passing yards allowed' },
   { key: 'air', label: 'AVG DEPTH', w: 68, dp: 1, title: 'Average target depth allowed (air yards per attempt)' },
   ...DEF_BUCKET_COLS,
-  { key: 'exp_pct', label: 'EXP%', w: 54, dp: 1, invert: true, title: '20+ yard completions allowed, as a share of pass attempts -- the single explosive-matchup number' },
+  { key: 'exp_pct', label: 'EXP%', w: 54, dp: 1, invert: true, title: '20+ yard completions allowed, as a share of pass attempts — the single explosive-matchup number' },
   { key: 'deep_att', label: 'DEEP ATT', w: 62, dp: 0, title: '20+ air-yard attempts faced' },
   { key: 'deep_pct', label: 'DEEP CMP%', w: 70, dp: 1, invert: true, title: 'Completion % allowed on 20+ air-yard attempts' },
   { key: 'deep_td', label: 'DEEP TD', w: 58, dp: 0, invert: true },
@@ -223,7 +224,7 @@ export default function Explosive({ matchup, data, onPlayerClick }) {
   if (!Object.keys(matchup?.player_explosive || {}).length && !Object.keys(matchup?.def_explosive || {}).length) {
     return (
       <div style={{ padding: 26, border: `1px dashed ${C.border2}`, borderRadius: 12, textAlign: 'center', color: C.text3, fontSize: TYPE.body }}>
-        Waiting on the bot's next matchup publish — explosive-play data ships with nfl_matchup.json.
+        Big-play data is not out yet. It appears with the next update.
       </div>
     )
   }
@@ -234,10 +235,10 @@ export default function Explosive({ matchup, data, onPlayerClick }) {
       <PageHeader
         eyebrow="TUDDY · EXPLOSIVE"
         title={lens === 'player' ? 'Who turns a target into a chunk play' : 'Who gives up the chunk play'}
-        note={<>Every 10/20/30/40-yard reception, real, off {matchup?.season || 'the'} play-by-play{' — '}{lens === 'player' ? 'a receiver’s own ceiling, not his average game.' : 'which defense turns a normal target into a big one.'}</>}
+        note={<NflNote tab="explosive" />}
         theme={C}
         numFont={NUM_FONT}
-        accent={lens === 'player' ? C.green : C.cyan}
+        accent={C.green}
       />
       )}
       {/* MOONSHOT'S POWER FRAME (2026-09-29, Donovan: "did we ever do the
@@ -258,7 +259,7 @@ export default function Explosive({ matchup, data, onPlayerClick }) {
             <ConvictionClause theme={C} numFont={NUM_FONT} conv={lead.conv} field={`receivers with ${LEAD_MIN_TGT}+ targets`} unit="percentage points" />.
             {lead.row.lng > 0 && <> His longest catch is <Num theme={C} numFont={NUM_FONT}>{lead.row.lng}</Num> yards{lead.row.lng_td > 0 ? <>, his longest touchdown <Num theme={C} numFont={NUM_FONT}>{lead.row.lng_td}</Num></> : null}.</>}
           </Para>
-          <Para theme={C} dim>A rate of big plays already made, from {matchup?.season || 'this season'}&apos;s play-by-play -- not a chance of one this week.</Para>
+          <Para theme={C} dim>A rate of big plays already made, from {matchup?.season || 'this season'}&apos;s play-by-play — not a chance of one this week.</Para>
         </PowerLead>
       )}
       <LensRow theme={C} lenses={LENSES} value={lens} onChange={setLens}
@@ -320,7 +321,7 @@ export default function Explosive({ matchup, data, onPlayerClick }) {
       {lens === 'player' && <div style={{ marginTop: 12 }}><BigPlayWatch data={data} onPlayerClick={onPlayerClick} /></div>}
 
       <div style={{ marginTop: 10, padding: '10px 13px', border: `1px dashed ${C.border2}`, borderRadius: 10, color: C.text3, fontSize: TYPE.micro, lineHeight: 1.6 }}>
-        Receiving only — rushing has no chunk-play split published yet, so this board doesn't guess at one.
+        Receiving only — rushing has no chunk-play split yet, so this board doesn't guess at one.
         Minimum 8 targets on the season to keep a name off this list on a single fluke catch.
       </div>
         </>

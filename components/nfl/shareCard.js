@@ -39,14 +39,10 @@ import { makePoster, savePoster, ellipsize, MONO, SANS, HEAD_H } from '../../lib
 // for itself. Seven markets, seven accents, all drawn from lib/nfl/theme.js.
 // Called, not frozen: C is mutated after mount (applyTheme, lib/theme.js), so a
 // module-level literal keeps the palette it was imported with. See #23.
+// 2026-10-07 colour diet: one accent for every market (the label names it).
 const MARKET_COLOR = () => ({
-  TD: C.green,
-  REC_YDS: C.cyan,
-  REC: C.lime,
-  RUSH_YDS: C.blue,
-  RUSH_ATT: C.purple,
-  PASS_YDS: C.orange,
-  KICK_PTS: C.yellow,
+  TD: C.green, REC_YDS: C.green, REC: C.green, RUSH_YDS: C.green,
+  RUSH_ATT: C.green, PASS_YDS: C.green, KICK_PTS: C.green,
 })
 
 
@@ -55,8 +51,8 @@ const MARKET_COLOR = () => ({
 const { posterHeader, posterFooter, newPoster } = makePoster({
   bg: C.bg,
   glowA: ['rgba(0,245,173,0.16)', 'rgba(0,245,173,0)'],
-  glowB: ['rgba(53,205,255,0.12)', 'rgba(53,205,255,0)'],
-  tile: [C.green, C.cyan], tileInk: C.bg, tileWord: 'TD',
+  glowB: ['rgba(0,245,173,0.12)', 'rgba(0,245,173,0)'],
+  tile: [C.green, C.green], tileInk: C.bg, tileWord: 'TD',
   text: C.text, accent: C.green, dim: C.text3, faint: C.text3,
   rule: C.border, product: '🏈 TUDDY', footer: 'DASH NETWORK · TUDDY',
 })
@@ -84,7 +80,7 @@ function scoreBar(g, x, midY, w, score, color) {
   g.beginPath(); g.roundRect(x, midY - h / 2, w, h, h / 2); g.fill()
   const fillW = Math.max(6, w * Math.min(1, Math.max(0, score) / 100))
   const grad = g.createLinearGradient(x, 0, x + w, 0)
-  grad.addColorStop(0, C.green); grad.addColorStop(1, color || C.cyan)
+  grad.addColorStop(0, C.green); grad.addColorStop(1, color || C.green)
   g.fillStyle = grad
   g.beginPath(); g.roundRect(x, midY - h / 2, fillW, h, h / 2); g.fill()
 }
@@ -127,7 +123,7 @@ export function downloadNflPickCard(pick = {}) {
   const y0 = HEAD_H
   // ghost watermark — the pregame score, or a check/cross once it's graded
   g.fillStyle = graded
-    ? (pick.hit === true ? 'rgba(0,245,173,0.10)' : pick.hit === false ? 'rgba(248,113,113,0.10)' : 'rgba(139,139,149,0.10)')
+    ? (pick.hit === true ? 'rgba(0,245,173,0.10)' : pick.hit === false ? 'rgba(139,139,149,0.10)' : 'rgba(139,139,149,0.10)')
     : 'rgba(0,245,173,0.09)'
   g.font = `900 108px ${MONO}`
   const ghost = graded ? (pick.hit === true ? '✓' : pick.hit === false ? '✗' : '–') : (Number.isFinite(pick.score) ? Math.round(pick.score).toString() : '—')
@@ -152,7 +148,7 @@ export function downloadNflPickCard(pick = {}) {
 
   let cx = 24
   if (pick.marketLabel) cx += chip(g, cx, y0 + 82, pick.marketLabel.toUpperCase(), marketColor) + 8
-  if (pick.tag) chip(g, cx, y0 + 82, String(pick.tag).toUpperCase(), pick.tagColor || C.cyan)
+  if (pick.tag) chip(g, cx, y0 + 82, String(pick.tag).toUpperCase(), pick.tagColor || C.green)
 
   // ── the result ───────────────────────────────────────────────────────
   const y1 = y0 + idH
@@ -181,7 +177,7 @@ export function downloadNflPickCard(pick = {}) {
       g.fillText(`market bar ${pick.bar}`, 24, y1 + 92)
     }
   } else {
-    const tone = pick.hit === true ? C.green : pick.hit === false ? C.red : C.text3
+    const tone = pick.hit === true ? C.green : pick.hit === false ? C.text3 : C.text3
     const word = pick.hit === true ? 'HIT' : pick.hit === false ? 'MISS' : 'VOID'
     const icon = pick.hit === true ? '✅' : pick.hit === false ? '❌' : '—'
     g.fillStyle = tone; g.font = `900 30px ${MONO}`
@@ -198,7 +194,7 @@ export function downloadNflPickCard(pick = {}) {
   }
 
   posterFooter(g, W, H, graded
-    ? 'graded against the market’s own published bar — see Accountability for the full card'
-    : 'not a probability — the bot’s own 0–100 ranking for this market')
+    ? 'graded against the market’s own bar — see Accountability for the full card'
+    : 'not a probability — a 0–100 ranking for this market')
   savePoster(c, `${graded ? 'result' : 'pick'}-${slug(pick.market)}-${slug(pick.name)}_${todayStamp()}.png`)
 }

@@ -55,7 +55,7 @@ export default function NflGameCombo({ log, venue = null }) {
         <div style={note}>No logged games matched that combination.</div>
       ) : (
         <>
-          <div style={{ fontSize: TYPE.label, color: line.thin ? C.orange : C.text3, fontFamily: NUM_FONT, marginBottom: 4 }}>
+          <div style={{ fontSize: TYPE.label, color: line.thin ? C.green : C.text3, fontFamily: NUM_FONT, marginBottom: 4 }}>
             {line.g} game{line.g === 1 ? '' : 's'}
             {line.veryThin ? ` — under ${VERY_THIN_G} games is a curiosity, not a signal` : line.thin ? ' — thin sample, read it with care' : ''}
           </div>
@@ -67,7 +67,7 @@ export default function NflGameCombo({ log, venue = null }) {
           <b style={{ color: C.text2 }}>At {stadium.venue}:</b>{' '}
           {stadium.td} TD in {stadium.g} game{stadium.g === 1 ? '' : 's'} ({stadium.tdPerG.toFixed(2)} a game
           {Number.isFinite(stadium.baseTdPerG) ? `, vs ${stadium.baseTdPerG.toFixed(2)} in all ${stadium.baseGames} logged games with a known site` : ''})
-          {stadium.thin ? <span style={{ color: C.orange }}> — thin sample</span> : null}
+          {stadium.thin ? <span style={{ color: C.green }}> — thin sample</span> : null}
         </div>
       )}
     </SportTheme>

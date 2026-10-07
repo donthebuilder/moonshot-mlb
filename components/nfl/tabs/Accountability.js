@@ -90,14 +90,10 @@ const MARKET_LABEL = Object.fromEntries(MARKETS.map(([k, label]) => [k, label]))
 // no leftovers and nothing reused.
 // Called, not frozen: C is mutated after mount (applyTheme, lib/theme.js), so a
 // module-level literal keeps the palette it was imported with. See #23.
+// 2026-10-07 colour diet: one accent for every market (the label names it).
 const MARKET_COLOR = () => ({
-  TD: C.green,
-  REC_YDS: C.cyan,
-  REC: C.lime,
-  RUSH_YDS: C.blue,
-  RUSH_ATT: C.purple,
-  PASS_YDS: C.orange,
-  KICK_PTS: C.yellow,
+  TD: C.green, REC_YDS: C.green, REC: C.green, RUSH_YDS: C.green,
+  RUSH_ATT: C.green, PASS_YDS: C.green, KICK_PTS: C.green,
 })
 
 // What each market's OUTCOME expression actually is, in nfl_scoring.py's own
@@ -153,7 +149,6 @@ function ReceiptHero({ results, when }) {
       <PageHeader
         eyebrow="TUDDY · THE RECEIPT ROOM"
         title="Every call. Every bar. No hiding."
-        note="The latest published card, graded market by market against the job it was asked to do."
         theme={C}
         numFont={NUM_FONT}
         accent={C.green}
@@ -389,15 +384,12 @@ function ScoreBands({ data, results }) {
   return (
     <div style={{ marginTop: 18 }}>
       <div style={{ fontSize: TYPE.title, fontWeight: 800, marginBottom: 2 }}>
-        Is the score separating outcomes, live?
+        Does a higher score clear the bar more often?
       </div>
       <div style={{ fontSize: TYPE.body, color: C.text3, marginBottom: 8, lineHeight: 1.6 }}>
-        Not the five-deep card — every player this run who had both a score and a graded line for
-        that market, split into quartiles by score. If the top quarter of the pool doesn&apos;t
-        clear the bar noticeably more than the bottom quarter, the ranking isn&apos;t doing
-        anything a coin flip wouldn&apos;t. This is 2026&apos;s actual results only, one run&apos;s
-        pool at a time — for the same question asked properly, against completed prior seasons
-        under a real backtest, see Report Card. <b style={{ color: C.text2 }}>A grey cell has a number
+        Every player with both a score and a graded line for the market, split into quartiles by score.
+        If the top quarter doesn&apos;t clear the bar more often than the bottom quarter, the ranking
+        isn&apos;t helping. 2026 results only. <b style={{ color: C.text2 }}>A grey cell has a number
         and no claim.</b>
       </div>
 
@@ -406,7 +398,7 @@ function ScoreBands({ data, results }) {
           key: r.key, label: r.label, color: r.color,
           sub: `bar ${r.bar ?? '—'}${r.state === 'measured' ? ` · base ${r.base.toFixed(1)}%` : ''}`,
           base: r.base ?? 0, bands: r.state === 'measured' ? r.bands : [], claims: !!r.claims,
-          verdict: status(r), verdictTone: r.state === 'measured' && r.claims ? (r.works ? C.green : C.red) : C.text3,
+          verdict: status(r), verdictTone: r.state === 'measured' && r.claims ? (r.works ? C.green : C.text3) : C.text3,
         }))} />
 
       {notes.map((r) => (
@@ -455,7 +447,7 @@ function SeasonStrip({ archive, keys, loading, picked, onPick, currentKey, mode 
       {mode === 'season' && (
       <div className="acc-season-head">
         <div><small>SEASON TO DATE</small><h2>{grand.n ? `${grand.hit}/${grand.n} · ${grand.pct}%` : loading ? 'Harvesting weeks…' : 'One week graded so far'}</h2>
-          <p>{keys.length} graded week{keys.length === 1 ? '' : 's'} on the branch. The bot&apos;s own card, every rung, every week, bars unchanged. Refreshes on load; older weeks are remembered on this device.{regradeNotes(keys).map((t) => ` ${t}`).join('')}</p></div>
+          <p>{keys.length} graded week{keys.length === 1 ? '' : 's'}. Every rung, every week, bars unchanged.{regradeNotes(keys).map((t) => ` ${t}`).join('')}</p></div>
       </div>
       )}
       {mode === 'season' && markets.length > 0 && (
@@ -463,7 +455,7 @@ function SeasonStrip({ archive, keys, loading, picked, onPick, currentKey, mode 
           {markets.map(([k, label, t]) => (
             <div key={k} style={{ borderTopColor: col[k] }}>
               <small>{label}</small>
-              <b style={{ color: t.pct >= 55 ? C.green : t.pct < 45 ? C.red : C.text }}>{t.pct == null ? '—' : `${t.pct}%`}</b>
+              <b style={{ color: t.pct >= 55 ? C.green : t.pct < 45 ? C.text3 : C.text }}>{t.pct == null ? '—' : `${t.pct}%`}</b>
               <span>{t.hit}/{t.n}{t.void ? ` · ${t.void} void` : ''}</span>
             </div>
           ))}
@@ -514,7 +506,7 @@ function SeasonStrip({ archive, keys, loading, picked, onPick, currentKey, mode 
 // the sub-views under it differ only where the sport does.
 const MODES = [
   ['week', '🏈 This week', 'how the card graded'],
-  ['season', '📈 All season', 'is the model any good'],
+  ['season', '📈 All season', 'how the season is going'],
 ]
 
 function ModeBar({ mode, setMode }) {
@@ -621,7 +613,7 @@ export default function Accountability({ data, results: latest, onPlayerClick })
 
   const rows = cardRows(results)
   const when = results.mode === 'week'
-    ? `season ${results.season}, week ${results.week ?? '—'}`
+    ? `Week ${results.week ?? '—'}`
     : `${results.season} preseason`
 
   const trackRows = mode === 'season' && subTab === 'record' ? trackRecordRows(archive, keys) : []
@@ -653,7 +645,7 @@ export default function Accountability({ data, results: latest, onPlayerClick })
         {{
           overview: 'how the week graded — did each rung clear the bar it was picked against, and which ones got away.',
           bands: 'is the score itself separating outcomes — this season\u2019s eligible pool, banded by score quartile.',
-          card: 'is the model any good, all season — every graded week rolled up per market, plus what each letter grade has actually been worth.',
+          card: 'how the season is going: every graded week rolled up per market, and what each letter grade has been worth.',
           record: 'which players the card has been right about across every graded week in the archive.',
           weeks: 'the archive\u2019s own index — one row per graded week, newest last.',
           signals: 'do the flags TUDDY shows actually mean anything — each one graded against real touchdowns, frozen before kickoff.',
@@ -673,10 +665,9 @@ export default function Accountability({ data, results: latest, onPlayerClick })
       }}>
         {picked && picked !== currentKey ? 'Showing' : 'Last graded'}: <b style={{ color: C.text2 }}>{when}</b>
         {results.exhibition && <> · <b style={{ color: C.yellow }}>preseason counts</b>, starters play two series</>}
-        {results.graded_at_human && <> · graded {localStamp(results.graded_at_human)}</>}.
-        {regradeNote(results.season, results.week, results.mode) && <> {regradeNote(results.season, results.week, results.mode)}</>} This is the
-        bot&apos;s own record on its own published card — not anyone&apos;s personal calls. For
-        your record against the bot, see the Picks tab.
+        .
+        {regradeNote(results.season, results.week, results.mode) && <> {regradeNote(results.season, results.week, results.mode)}</>} This is TUDDY&apos;s
+        record, not anyone&apos;s personal calls. Your own record against TUDDY is on Props.
       </div>
       )}
 
@@ -714,7 +705,7 @@ export default function Accountability({ data, results: latest, onPlayerClick })
                 fmt: (v, r) => {
                   if (r.void) return <span style={{ color: C.text3 }}>no result</span>
                   return (
-                    <span style={{ color: r.hit ? C.green : C.red, fontWeight: 800 }}>
+                    <span style={{ color: r.hit ? C.green : C.text3, fontWeight: 800 }}>
                       {r.hit ? 'HIT' : 'MISS'}
                     </span>
                   )
@@ -827,7 +818,7 @@ export default function Accountability({ data, results: latest, onPlayerClick })
         .receiptKpis strong.leader{font-size:15px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
         .receiptKpis small{display:block;margin-top:5px;font-size:8.5px;color:${C.text3}}
         .receiptMeter{height:4px;margin-top:8px;border-radius:99px;background:${C.border};overflow:hidden}
-        .receiptMeter i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,${C.green},${C.lime})}
+        .receiptMeter i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,${C.green},${C.green})}
         .receiptMarkets{position:relative;display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-top:8px}
         .receiptMarkets>div{padding:7px 8px;border-radius:8px;background:${C.bg}b8;border:1px solid ${C.border}}
         .receiptMarkets span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:${NUM_FONT};font-size:8px;font-weight:900}

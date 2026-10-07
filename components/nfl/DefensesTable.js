@@ -1,4 +1,5 @@
 'use client'
+import { QMark } from './NflNote'
 import TeamMark from '../TeamMark'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../lib/nfl/theme'
@@ -63,7 +64,7 @@ export default function DefensesTable({ matchup, data, win = 'season', active, o
     { key: 'def', label: 'Defense', w: 84, heat: false, sticky: true, fmt: (v) => <b style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><TeamMark sport="nfl" abbr={v} variant="logo" px={16} />{v}</b> },
     { key: 'opp', label: 'Vs', w: 50, heat: false },
     { key: 'edge', label: 'Edge', w: 54, primary: true, scale: 'seq', domain: [1, 3], fmt: (v) => (v == null ? '—' : `+${v.toFixed(1)}`) },
-    { key: 'soft', label: 'Softest spot', w: 190, heat: false, fmt: (v, r) => <span style={{ color: r._standout ? C.cyan : C.text3, fontWeight: r._standout ? 800 : 500 }}>{v}</span> },
+    { key: 'soft', label: 'Softest spot', w: 190, heat: false, fmt: (v, r) => <span style={{ color: r._standout ? C.green : C.text3, fontWeight: r._standout ? 800 : 500 }}>{v}</span> },
     { key: 'fits', label: 'Who fits it', w: 170, heat: false, fmt: (v, r) => (r._fits
       ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><PlayerFace sport="nfl" espnId={r._fits?.espn_id} team={r._fits?.team} name={r._fits?.name} size={22} />{v}<span style={{ color: C.text3, fontSize: 10 }}>{r._fits.position}</span></span>
       : <span style={{ color: C.text3 }}>—</span>) },
@@ -74,12 +75,12 @@ export default function DefensesTable({ matchup, data, win = 'season', active, o
   const byeWeek = Object.keys(matchup?.dvp?.[win] || {}).length > new Set((data?.games || []).flatMap((g) => [g.away, g.home]).filter(Boolean)).size
   const lastSeason = Number(matchup?.season) && Number(data?.season) && Number(matchup.season) < Number(data.season)
   const lead = rows[0]
-  const btn = { minHeight: 44, padding: '0 12px', borderRadius: 10, border: `1px solid ${C.border2}`, background: C.bg2, color: C.cyan, font: `800 11px/1 ${NUM_FONT}`, cursor: 'pointer' }
+  const btn = { minHeight: 44, padding: '0 12px', borderRadius: 10, border: `1px solid ${C.border2}`, background: C.bg2, color: C.green, font: `800 11px/1 ${NUM_FONT}`, cursor: 'pointer' }
   return (
     <section aria-label="The defenses to attack this week" style={{ marginBottom: 14 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
         <h2 style={{ margin: 0, fontSize: TYPE.title, fontWeight: 900 }}>The defenses to attack this week</h2>
-        <span style={{ fontFamily: NUM_FONT, fontSize: 11, color: lastSeason ? C.amber : C.text3, fontWeight: lastSeason ? 800 : 500 }}>
+        <span style={{ fontFamily: NUM_FONT, fontSize: 11, color: lastSeason ? C.green : C.text3, fontWeight: lastSeason ? 800 : 500 }}>
           {matchup.season} DvP{lastSeason ? ' · LAST SEASON' : ''}
         </span>
       </div>
@@ -97,10 +98,10 @@ export default function DefensesTable({ matchup, data, win = 'season', active, o
         maxRows={PREVIEW}
         maxHeight={9999}
         onRowClick={(r) => onPick?.(r.def)}
-        rowEdge={(r) => (r.def === active ? C.cyan : null)}
+        rowEdge={(r) => (r.def === active ? C.green : null)}
       />
       <p style={{ margin: '6px 0 0', fontSize: 11, lineHeight: 1.5, color: C.text3 }}>
-        Edge = how many standard deviations the defense&apos;s softest starter-role cell sits above the league&apos;s own average for that role and stat (1.0 and up is a standout). Starters only; depth rows swing on two plays.{lastSeason ? ' Last season\'s table until three weeks of this one are played.' : ''}
+        Edge: how far above average this defense gives up. 1.0+ = a soft spot. <QMark label="About Edge" text="Edge counts how many standard deviations a defense's softest starter-role matchup sits above the league average for that role and stat. Starters only: depth roles swing on two plays." />{lastSeason ? ' Last season\'s numbers until three weeks are played.' : ''}
       </p>
       {/* Off-slate defenses only exist in a bye week; the switch shows then. */}
       {(all || byeWeek) && (

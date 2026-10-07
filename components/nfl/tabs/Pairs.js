@@ -73,16 +73,16 @@ const SAME_PLAYER_TEMPLATES = [
   { a: 'RUSH_YDS', b: 'TD', pos: ['RB'], color: C.green,
     label: 'Rush yards + Anytime TD',
     why: 'Same carries drive both — a heavy rushing workload is also the clearest path to the end zone.' },
-  { a: 'REC_YDS', b: 'TD', pos: ['WR', 'TE'], color: C.cyan,
+  { a: 'REC_YDS', b: 'TD', pos: ['WR', 'TE'], color: C.green,
     label: 'Receiving yards + Anytime TD',
     why: 'A featured target share on the same routes shows up as both yardage and a scoring chance.' },
-  { a: 'REC', b: 'REC_YDS', pos: ['RB', 'WR', 'TE'], color: C.lime,
+  { a: 'REC', b: 'REC_YDS', pos: ['RB', 'WR', 'TE'], color: C.green,
     label: 'Receptions + Receiving yards',
     why: 'Two bars on the same target share — one rewards volume, the other explosiveness per catch.' },
-  { a: 'PASS_YDS', b: 'RUSH_YDS', pos: ['QB'], color: C.purple,
+  { a: 'PASS_YDS', b: 'RUSH_YDS', pos: ['QB'], color: C.text2,
     label: 'Passing yards + Rushing yards',
     why: 'Dual-threat QBs: a clean pocket usually lifts both, a broken one can swing yards from arm to legs.' },
-  { a: 'RUSH_ATT', b: 'RUSH_YDS', pos: ['RB'], color: C.blue,
+  { a: 'RUSH_ATT', b: 'RUSH_YDS', pos: ['RB'], color: C.text2,
     label: 'Rush attempts + Rush yards',
     why: 'Volume and the yards it buys — separate bars on the same workload, not the same bet twice.' },
 ]
@@ -118,8 +118,8 @@ function gradePair(aId, marketA, bId, marketB, bars, results) {
 // module-level literal keeps the palette it was imported with. See #23.
 const GRADE_STYLE = () => ({
   both: { text: 'BOTH ✓', color: C.green },
-  one: { text: '1 of 2', color: C.yellow },
-  none: { text: 'NEITHER', color: C.red },
+  one: { text: '1 of 2', color: C.text2 },
+  none: { text: 'NEITHER', color: C.text3 },
   partial: { text: 'partial', color: C.text3 },
   ungraded: { text: '—', color: C.text3 },
 })
@@ -391,7 +391,7 @@ export default function Pairs({ data, results, onPlayerClick, setTab = null }) {
           <div style={{ display: 'flex', gap: 10, alignItems: 'baseline', marginTop: 5, flexWrap: 'wrap' }}>
             <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.title, fontWeight: 900, color: C.text }}>{lead.stronger.toFixed(0)}</span>
             <span style={{ color: C.text3, fontSize: TYPE.micro }}>+</span>
-            <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.title, fontWeight: 900, color: lead.weaker >= 60 ? lead.color : C.red }}>{lead.weaker.toFixed(0)}</span>
+            <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.title, fontWeight: 900, color: lead.weaker >= 60 ? lead.color : C.text3 }}>{lead.weaker.toFixed(0)}</span>
             <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>gap {lead.gap.toFixed(0)}</span>
           </div>
           <div style={{ fontSize: TYPE.micro, color: C.text3, marginTop: 4, lineHeight: 1.5 }}>{lead.why}</div>

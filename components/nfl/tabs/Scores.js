@@ -16,6 +16,7 @@
 //
 // COST: the feed is fetched only when you open a game or pick its week, never
 // on arrival (lib: useNflBoxFeed in components/nfl/NflBox.js).
+import NflNote from '../NflNote'
 import { useMemo, useState } from 'react'
 import PageHeader from '../../PageHeader'
 import GameRow from '../../GameRow'
@@ -72,13 +73,13 @@ export default function Scores({ data, onPlayerClick, onOpenGame = null }) {
   // applies when the feed is on that same week (Sunday itself).
   const boxFor = (g) => {
     if (stats === undefined) return <div style={{ fontSize: 10.5, color: C.text3, fontFamily: NUM_FONT, padding: '10px 0' }}>Loading the box…</div>
-    if (stats === null) return <div style={{ fontSize: 10.5, color: C.orange, padding: '10px 0' }}>Couldn&apos;t reach the box score feed.</div>
+    if (stats === null) return <div style={{ fontSize: 10.5, color: C.green, padding: '10px 0' }}>Couldn&apos;t load the box scores.</div>
     const sameWeek = showingFeed || feedWeek === slateWeek
     if (!sameWeek) {
       return (
         <div style={{ fontSize: 11, color: C.text3, padding: '10px 0', lineHeight: 1.6 }}>
           {g.state === 'pre' ? "Hasn't kicked off yet. " : ''}
-          The box feed is on Week {feedWeek ?? '—'} — this game&apos;s box shows here once it kicks off.
+          Box scores are on Week {feedWeek ?? '—'} — this game&apos;s box shows here once it kicks off.
         </div>
       )
     }
@@ -103,13 +104,13 @@ export default function Scores({ data, onPlayerClick, onOpenGame = null }) {
       <PageHeader
         eyebrow="TUDDY · SCORES"
         title="Every game"
-        note={`Tap a game for its box. The deeper read is on ${NFL_NAV.games.label}.`}
+        note={<NflNote tab="scores" />}
         theme={C}
         numFont={NUM_FONT}
-        accent={C.cyan}
+        accent={C.green}
         right={weekSwitch}
         stats={[
-          { value: live, label: 'LIVE', tone: C.cyan },
+          { value: live, label: 'LIVE', tone: C.green },
           { value: done, label: 'FINAL', tone: C.text2 },
           { value: games.length, label: 'GAMES', tone: C.text2 },
         ]}
@@ -118,7 +119,7 @@ export default function Scores({ data, onPlayerClick, onOpenGame = null }) {
         {week === 'feed' && stats === undefined ? (
           <Empty text="Loading that week's games…" />
         ) : week === 'feed' && stats === null ? (
-          <Empty text="LIVE DATA DELAYED — couldn't reach the box score feed." />
+          <Empty text="LIVE DATA DELAYED — couldn't load the box scores." />
         ) : !games.length ? (
           <Empty text="No games on the slate yet." />
         ) : games.map((g) => {
@@ -129,10 +130,10 @@ export default function Scores({ data, onPlayerClick, onOpenGame = null }) {
           return (
             <GameRow
               key={g.game_id} id={g.game_id} open={open.has(g.game_id)} onToggle={toggle}
-              theme={C} numFont={NUM_FONT} accent={C.cyan} openBg={`color-mix(in srgb, ${C.cyan} 3%, transparent)`}
+              theme={C} numFont={NUM_FONT} accent={C.green} openBg={`color-mix(in srgb, ${C.green} 3%, transparent)`}
               winner={winner} status={statusOf(g)}
               sides={[['away', g.away, g.away_name, g.away_score], ['home', g.home, g.home_name, g.home_score]].map(([key, abbr, name, score]) => ({
-                key, label: name || clubName.get(abbr) || abbr, score: started ? (score ?? 0) : null,
+                key, label: String(name || clubName.get(abbr) || abbr).split(' ').slice(-1)[0], score: started ? (score ?? 0) : null,
                 mark: <TeamMark sport="nfl" abbr={abbr} variant="logo" px={28} dim={Boolean(winner) && winner !== key} />,
               }))}
             >
@@ -141,7 +142,7 @@ export default function Scores({ data, onPlayerClick, onOpenGame = null }) {
                   only a game on this week's slate has one */}
               {onOpenGame && slateGames.some((s) => String(s.game_id) === String(g.game_id)) && (
                 <button type="button" onClick={() => onOpenGame(g.game_id)}
-                  style={{ display: 'inline-flex', alignItems: 'center', minHeight: 44, marginTop: 6, padding: '0 12px', borderRadius: 8, border: `1px solid ${C.border}`, background: 'transparent', color: C.cyan, font: `800 11px/1 ${NUM_FONT}`, cursor: 'pointer' }}>
+                  style={{ display: 'inline-flex', alignItems: 'center', minHeight: 44, marginTop: 6, padding: '0 12px', borderRadius: 8, border: `1px solid ${C.border}`, background: 'transparent', color: C.green, font: `800 11px/1 ${NUM_FONT}`, cursor: 'pointer' }}>
                   The read on {NFL_NAV.games.label} →
                 </button>
               )}

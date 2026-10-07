@@ -1,4 +1,5 @@
 'use client'
+import NflNote from '../NflNote'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../../lib/nfl/theme'
 import { injuryTag, injuryTitle, injuryColor } from '../../../lib/nfl/injury'
@@ -190,7 +191,7 @@ export default function Leaders({ data, onPlayerClick }) {
       <div>
         <PageHeader
           title="League Leaders"
-          sub="Measured per-game rates for this week's players, with the model's scores in the table"
+          note={<NflNote tab="leaders" />}
           right={(
             <span title="Players on this week's slate the table is showing, out of everyone not on bye at this position."
               style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT }}>{rows.length} of {all.length} players</span>
@@ -198,12 +199,6 @@ export default function Leaders({ data, onPlayerClick }) {
           theme={C}
           numFont={NUM_FONT}
         />
-
-        <LeadersIntro>
-          Straight per-game numbers over the trailing window the slate publishes — nothing weighted or
-          projected. The tiles and the stat columns rank by what a player has actually done; the model&apos;s
-          scores sit in their own columns at the end of the table, for comparing the two.
-        </LeadersIntro>
 
         {cards.length === 0 ? (
           <div style={{
@@ -214,10 +209,9 @@ export default function Leaders({ data, onPlayerClick }) {
           </div>
         ) : (
           <>
-            <LeadersLead>
-              Every leader below is <b style={{ color: C.text2 }}>on this week&apos;s slate</b> — tiles show who
-              each one plays, plus the #2 and #3. The table under them carries all {cards.length} categories, then the model's scores.{dropped > 0 ? ` ${dropped} categor${dropped === 1 ? 'y' : 'ies'} the payload doesn't carry yet ${dropped === 1 ? 'is' : 'are'} left out rather than shown empty.` : ''}
-            </LeadersLead>
+            {dropped > 0 && <LeadersLead>
+              {dropped} categor{dropped === 1 ? 'y' : 'ies'} we don&apos;t carry yet {dropped === 1 ? 'is' : 'are'} left out rather than shown empty.
+            </LeadersLead>}
             <div className="bot-picks-grid" style={{
               display: 'grid', gap: 8, marginBottom: 12,
               gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
@@ -253,7 +247,7 @@ export default function Leaders({ data, onPlayerClick }) {
             onRowClick={onPlayerClick}
             initialSort={sortKey}
             maxHeight={620}
-            caption={`Per-game rates over the trailing window the slate publishes, players on bye excluded. Sample: Full hides the rows the payload flags low-sample, because a rate on one or two games belongs to nobody. A category needs ${MIN_QUALIFIED} players with a number to get a tile and a column; one the payload doesn't carry is left out rather than shown empty.`}
+            caption={`Per-game rates over the trailing window, players on bye excluded. Sample: Full hides the rows flagged low-sample, because a rate on one or two games belongs to nobody. A category needs ${MIN_QUALIFIED} players with a number to get a tile and a column; one we don't carry is left out rather than shown empty.`}
           />
         )}
       </div>

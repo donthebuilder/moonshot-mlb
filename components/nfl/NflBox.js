@@ -133,7 +133,7 @@ export function NflBox({ game, byTeam, defense, onPlayerClick, watchlist }) {
       <div style={{ fontSize: TYPE.body, color: C.text3, padding: '10px 0', lineHeight: 1.6 }}>
         {game.state === 'pre'
           ? "Hasn't kicked off yet."
-          : "No box in this feed yet for this game — check back once the bot's next 15-minute publish lands."}
+          : "No box score yet for this game. It updates about every 15 minutes."}
       </div>
     )
   }

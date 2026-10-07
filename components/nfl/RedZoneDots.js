@@ -158,8 +158,8 @@ export default function RedZoneDots({ data, matchup, team = 'all', onPlayerClick
             <span style={{ fontSize: 10, color: C.text3 }}><b style={{ color: C.text, fontSize: 12.5 }}>{touches.length ? Math.round((100 * nTd) / touches.length) : 0}%</b> scored</span>
           </div>
           <ChartLegend theme={C} style={{ marginTop: 8 }} items={[
-            { key: 'td', mark: <i aria-hidden="true" style={{ width: 9, height: 9, borderRadius: '50%', background: C.orange, boxShadow: `0 0 6px ${C.orange}` }} />, label: 'touchdown' },
-            { key: 'carry', mark: <i aria-hidden="true" style={{ width: 9, height: 9, borderRadius: 2, background: C.amber }} />, label: 'carry' },
+            { key: 'td', mark: <i aria-hidden="true" style={{ width: 9, height: 9, borderRadius: '50%', background: C.green, boxShadow: `0 0 6px ${C.green}` }} />, label: 'touchdown' },
+            { key: 'carry', mark: <i aria-hidden="true" style={{ width: 9, height: 9, borderRadius: 2, background: C.green }} />, label: 'carry' },
             { key: 'target', mark: <i aria-hidden="true" style={{ width: 9, height: 9, borderRadius: '50%', border: `1.5px solid ${C.text2}`, boxSizing: 'border-box' }} />, label: 'target' },
           ]} />
           <div style={{ fontSize: 10, color: C.text3, marginTop: 4, lineHeight: 1.5 }}>

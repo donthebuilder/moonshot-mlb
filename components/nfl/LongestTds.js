@@ -71,7 +71,7 @@ export default function LongestTds({ data, season, query = '', onPlayerClick }) 
       <PageHeader
         eyebrow="TUDDY · LONGEST TDs"
         title="The longest touchdowns of the season"
-        note={<>Every touchdown the feed has seen in {season}, ranked by the yards of the scoring play. A record of what happened, not a projection; a score with no yardage in the play text is left off.</>}
+        note={<>Every touchdown recorded in {season}, ranked by the yards of the scoring play. A record of what happened, not a projection; a score with no yardage in the play text is left off.</>}
         theme={C} numFont={NUM_FONT} accent={C.green}
       />
       <div className="chip-row" style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center', margin: '0 0 10px' }}>
@@ -80,12 +80,12 @@ export default function LongestTds({ data, season, query = '', onPlayerClick }) 
       {state.status === 'loading' && <div style={{ padding: 22, color: C.text3, fontSize: TYPE.body }}>Loading the season&apos;s touchdowns…</div>}
       {state.status === 'down' && (
         <div style={{ padding: 22, border: `1px dashed ${C.border2}`, borderRadius: 12, textAlign: 'center', color: C.text3, fontSize: TYPE.body }}>
-          The touchdown feed could not be read just now. Try again in a minute.
+          Touchdowns could not be loaded just now. Try again in a minute.
         </div>
       )}
       {state.status === 'ok' && !rows.length && (
         <div style={{ padding: 22, border: `1px dashed ${C.border2}`, borderRadius: 12, textAlign: 'center', color: C.text3, fontSize: TYPE.body }}>
-          {state.rows.length ? 'No touchdown matches that filter.' : `No ${season} touchdowns with a yardage are in the feed yet.`}
+          {state.rows.length ? 'No touchdown matches that filter.' : `No ${season} touchdowns with a yardage are recorded yet.`}
         </div>
       )}
       {rows.length > 0 && (

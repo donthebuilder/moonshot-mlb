@@ -24,8 +24,8 @@ import { injuryTag } from '../../lib/nfl/injury'
 // inside that, more real signals wins; inside that, the better price at the
 // same bar; otherwise it says coin flip rather than inventing a favourite.
 export const SIGNALS = [
-  ['highconf', 'High-confidence flag', "the bot's own high-confidence TD flag", (p) => Boolean(p?.high_confidence_td_flag)],
-  ['matchup', 'Matchup (TARGET)', 'faces a defence in the softest third of the league at his role/market', (p, matchup) => matchupTag(matchup, p, 'TD')?.tag === 'TARGET'],
+  ['highconf', 'High-confidence flag', "TUDDY's high-confidence TD flag", (p) => Boolean(p?.high_confidence_td_flag)],
+  ['matchup', 'Matchup (TARGET)', 'faces a defense in the softest third of the league at his role/market', (p, matchup) => matchupTag(matchup, p, 'TD')?.tag === 'TARGET'],
   ['finisher', 'Red-zone finisher', 'red-zone opportunity in the 80th percentile or better', (p, matchup) => alignedSignals(matchup, p).finisherHit],
   ['rising', 'Snap share rising', 'snap share trending up 20+ points', (p, matchup) => alignedSignals(matchup, p).risingHit],
 ]

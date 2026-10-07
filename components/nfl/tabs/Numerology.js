@@ -1,8 +1,9 @@
 'use client'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../../lib/nfl/theme'
+import NflNote from '../NflNote'
 import { AXIS_META, alignedWith, slateAlignments, dateDigitRoot, shiftDateKey } from '../../../lib/nfl/alignments'
-import AlignmentsView, { ROOT_COLORS } from '../../numerology/AlignmentsView'
+import AlignmentsView from '../../numerology/AlignmentsView'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 import PageHeader from '../../PageHeader'
 import { etToday } from '../../../lib/freshness'
@@ -60,12 +61,11 @@ const SEARCH_MAX = 5
 const WORDS = {
   person: 'player', persons: 'players', night: 'this week', NIGHT: 'GAME DAY', unit: 'week',
   axesWord: 'five', slate: <>this week&apos;s slate</>, onSlate: 'this week', empty: 'Waiting for this week\u2019s slate.',
-  scoreName: <>bot&apos;s TD score</>, scoreShort: 'TD score',
-  scoreRecord: 'the model this site grades every week',
+  scoreName: <>TD score</>, scoreShort: 'TD score',
+  scoreRecord: 'the touchdown calls TUDDY grades every week',
   carrying: <>Carrying the game day&apos;s number, highest TD score first</>,
-  watchLegend: <>Checked against his own jersey / birthday / life-path roots -- <b style={{ color: C.orange }}>+1</b> means
-    tomorrow&apos;s date reduces to a root his own numbers touch. No yesterday / today check: those read a live
-    results archive MOONSHOT has and TUDDY doesn&apos;t, at its weekly cadence.</>,
+  watchLegend: <>Checked against his own jersey / birthday / life-path roots — <b style={{ color: C.green }}>+1</b> means
+    tomorrow&apos;s date reduces to a root his own numbers touch.</>,
   braidNote: 'Two or more of his own numbers on one root. The rarest read here, and still arithmetic.',
   namesNote: 'Shared surnames (2+) and first names (3+; a pair of common first names is arithmetic).',
 }
@@ -137,7 +137,8 @@ export default function Numerology({ data, onPlayerClick }) {
         <>
       <PageHeader
         title="🔮 Numerology"
-        sub={`${rows.length} players this week · five axes, one reduction`}
+        sub={`${rows.length} players this week`}
+        note={<NflNote tab="numerology" why={`Five numbers a player carries (the touchdowns he is sitting on, his next touchdown, jersey, birth day, life path), each added down to one digit (17 becomes 8). Pattern watching, not evidence: ${rows.length} players over nine digits put about ${Math.round(expected)} on every digit by arithmetic alone, so read a match against that. The same method was tested on 4,238 baseball player-nights and found nothing significant. Nothing here feeds any score, board or call.`} />}
         theme={C}
         numFont={NUM_FONT}
         right={<FilterSearch value={query} onChange={setQuery} placeholder="Find a player's numbers…" width={190} />}
@@ -152,7 +153,7 @@ export default function Numerology({ data, onPlayerClick }) {
                 const raw = AXIS_META[k]?.raw ? AXIS_META[k].raw(a) : null
                 return (
                   <span key={k} title={AXIS_META[k]?.why(a)} style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro }}>
-                    {i > 0 && ' · '}{AXIS_META[k]?.label || k} {raw != null ? `${raw}→` : ''}<b style={{ color: ROOT_COLORS[root] }}>{root}</b>
+                    {i > 0 && ' · '}{AXIS_META[k]?.label || k} {raw != null ? `${raw}→` : ''}<b style={{ color: C.green }}>{root}</b>
                   </span>
                 )
               })}
@@ -166,15 +167,6 @@ export default function Numerology({ data, onPlayerClick }) {
       )}
       {nextGameDay ? <TonightsNumbers date={nextGameDay} theme={C} numFont={NUM_FONT} accent={C.green} label={`next game day · ${nextGameDay.slice(5).replace('-', '/')}`} /> : null}
       <HotNumbers sport="nfl" theme={C} numFont={NUM_FONT} accent={C.green} eventWord="TDs" />
-      <div style={{ fontSize: TYPE.body, color: C.text2, lineHeight: 1.65, maxWidth: 860, marginBottom: 12 }}>
-        <b style={{ color: C.text }}>One page: the next game day&apos;s numbers, the hot numbers, the alignments and the lanes.</b>{' '}
-        Five numbers a player carries -- the <b style={{ color: C.text }}>touchdowns he&apos;s sitting on</b>, his{' '}
-        <b style={{ color: C.text }}>next touchdown</b>, <b style={{ color: C.text }}>jersey</b>,{' '}
-        <b style={{ color: C.text }}>birth day</b> and <b style={{ color: C.text }}>life path</b> -- each added down to one
-        digit (17 → 8). Pattern watching, not evidence: {rows.length} players over nine roots put ~{Math.round(expected)} in
-        every club by arithmetic alone, so read the <b style={{ color: C.text2 }}>×</b> against that. MLB tested this method
-        on 4,238 player-nights and found nothing significant. Nothing here feeds any score, board or call.
-      </div>
       {zeroTdCount > 0 && (
         <div style={{
           border: `1px solid ${C.border}`, borderLeft: `3px solid ${C.text3}`,
@@ -182,17 +174,15 @@ export default function Numerology({ data, onPlayerClick }) {
           fontSize: TYPE.micro, color: C.text3, lineHeight: 1.6, maxWidth: 860,
         }}>
           <b style={{ color: C.text2 }}>Root 1 is crowded for a boring reason.</b>{' '}
-          {zeroTdCount} players haven&apos;t scored yet, so each sits on 0 and his next touchdown is #1 --
-          the calendar, not a cluster. It thins out as the season goes.
+          {zeroTdCount} players haven&apos;t scored yet, so each sits on 0 and his next touchdown is #1.
+          That is the calendar, not a cluster. It thins out as the season goes.
         </div>
       )}
         </>
       )}
     >
       <div style={{ fontSize: TYPE.micro, color: C.text3, marginTop: 4, lineHeight: 1.6, maxWidth: 760 }}>
-        No batting-order or fielding-position axis -- football has no honest equivalent to either, so they&apos;re left
-        out rather than faked. Season TD only counts completed weeks, so a player&apos;s count here always describes
-        games already played.
+        Season touchdowns count completed weeks only, so a player&apos;s count always describes games already played.
       </div>
       {/* WHICH LANES RUN HOT (numerology v2 step 6), at the bottom. */}
       <LaneTable sport="nfl" theme={C} numFont={NUM_FONT} accent={C.green} tonight={laneTonight} />

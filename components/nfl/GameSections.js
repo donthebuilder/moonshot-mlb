@@ -1,4 +1,5 @@
 'use client'
+import { QMark } from './NflNote'
 import { useState } from 'react'
 import TeamMark from '../TeamMark'
 import PlayerFace from '../PlayerFace'
@@ -48,11 +49,10 @@ export function GameHeader({ game: g, when, air, xtd, heat, past, onOpenTeam }) 
         {air && <span style={{ color: C.text2, fontWeight: 600 }}>· {air}</span>}
       </div>
       {live && (g.down_distance || g.possession) && (
-        <div style={{ marginTop: 4, color: g.red_zone ? C.yellow : C.green, fontSize: 12, fontWeight: 800, fontFamily: NUM_FONT }}>
+        <div style={{ marginTop: 4, color: C.green, fontSize: 12, fontWeight: 800, fontFamily: NUM_FONT }}>
           {g.possession ? `${g.possession} ball` : ''}{g.possession && g.down_distance ? ' · ' : ''}{g.down_distance || ''}{g.red_zone ? ' · RED ZONE' : ''}
         </div>
       )}
-      <div style={{ marginTop: 4, fontSize: 12, color: C.text3 }}>Ring = expected touchdowns.</div>
     </div>
   )
 }
@@ -117,7 +117,7 @@ export function KeyPlayers({ matchup, data, game, onPlayerClick, onOpenTeam }) {
               {tg.map((t, i) => <Pairing key={t.player_id} t={t} corner={cb[i] || null} r={rowOf(t.player_id)} onPlayerClick={onPlayerClick} />)}
               <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 6, fontSize: 12, lineHeight: 1.5, color: C.text3 }}>
                 {edge
-                  ? `Edge = how many yards ${def} allow a team's top receiver: ${edge.yds} a game, ${ordinal(edge.rank)} most. Rows pair the depth chart in order; no source says who really covers whom.`
+                  ? <>{def} allow {edge.yds} yards a game to a top receiver, {ordinal(edge.rank)} most. <QMark label="Who covers whom" text="Rows pair the depth chart in order. No source says who really covers whom." /></>
                   : `${off}'s three most-targeted players${old ? ` (${old} season)` : ''}.`}
               </div>
             </div>

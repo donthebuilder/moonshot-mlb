@@ -110,9 +110,9 @@ export function splitsWhy(player, fullLog, slateSeason) {
   const season = Number(slateSeason) || null
   const mine = season ? (fullLog || []).filter((g) => Number(g?.s) === season).length : null
   const prior = season ? (fullLog || []).filter((g) => Number(g?.s) === season - 1).length : 0
-  if (mine != null && mine < 3) return `He has ${mine} game${mine === 1 ? '' : 's'} on file in ${season}. A split needs 3 games on each side of a pair, so none is published yet${prior ? ` (his ${prior} games from ${season - 1} are on the Games tab)` : ''}.`
-  if (mine != null) return `He has ${mine} games in ${season}. A split is published only when each side of a pair has 3 games, and ${mine} games cannot fill both (home / away, indoors / outdoors and the rest). Pairs appear as the season fills in.`
-  return 'No splits are published for him: a split needs 3 games on each side of a pair.'
+  if (mine != null && mine < 3) return `He has ${mine} game${mine === 1 ? '' : 's'} on file in ${season}. A split needs 3 games on each side of a pair, so none is available yet${prior ? ` (his ${prior} games from ${season - 1} are on the Games tab)` : ''}.`
+  if (mine != null) return `He has ${mine} games in ${season}. A split shows only when each side of a pair has 3 games, and ${mine} games cannot fill both (home / away, indoors / outdoors and the rest). Pairs appear as the season fills in.`
+  return 'No splits are available for him: a split needs 3 games on each side of a pair.'
 }
 
 
@@ -444,7 +444,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
         .filter(([k]) => Number.isFinite(player.scores?.[k]))
         .map(([k, label]) => {
           const sc = player.scores[k]
-          return { id: k, label: MARKET_SHORT[k] || label, text: String(Math.round(sc)), color: gradeFor(sc).color, title: `${label}: ${Math.round(sc)} (score, a ranking -- not a percentage)` }
+          return { id: k, label: MARKET_SHORT[k] || label, text: String(Math.round(sc)), color: gradeFor(sc).color, title: `${label}: ${Math.round(sc)} (score, a ranking — not a percentage)` }
         })} />
       {(() => {
         const r = ratesFor(player, markets, fullLog).find((x) => x.key === market)
@@ -469,13 +469,10 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
             {q.implied != null && <span>needs {q.implied}%</span>}
             {q.books ? <span style={{ color: C.text3 }}>{q.books} book{q.books === 1 ? '' : 's'}</span> : null}
             {q.matches !== false && <LineMoveChip quote={q} theme={C} numFont={NUM_FONT} />}
-            {!q.matches && <span style={{ color: C.yellow }}>different line from the model&apos;s bar</span>}
+            {!q.matches && <span style={{ color: C.yellow }}>a different line from the bar</span>}
           </div>
         )
       })()}
-      {dash && DASH_OF[market] && dash.by.get(`${player.player_id}|${DASH_OF[market]}`) && (
-        <div style={{ margin: '2px 0 6px' }}><DashChip row={dash.by.get(`${player.player_id}|${DASH_OF[market]}`)} /></div>
-      )}
       {/* WHY? -- one tap opens every reason in full */}
       <WhyLines theme={C} numFont={NUM_FONT} accent={C.green} why={whyLines} watch={against?.text || null}
         explain={{ label: `Why ${player.name}?`, text: whyExplain }} />
@@ -509,20 +506,20 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
         {player.position !== 'DEF' && <InTheLedger sport="nfl" id={player.player_id} name={player.name} jersey={player.jersey_number} birthDate={player.birth_date} next={Number.isFinite(player?.season_td) ? player.season_td + 1 : null} date={etToday()} />}
         {player.position !== 'DEF' && <HisNumbers name={player.name} jersey={player.jersey_number} birthDate={player.birth_date} next={Number.isFinite(player?.season_td) ? player.season_td + 1 : null} nextWord="TD" date={etToday()} theme={C} accent={C.green} numFont={NUM_FONT} />}
         {player.carryover && (
-          <div style={{ marginTop: 14, fontSize: 12, color: C.text2, lineHeight: 1.6, background: `${C.purple}20`, border: `1px solid ${C.purple}4d`, borderRadius: 9, padding: '8px 10px' }}>
-            <b style={{ color: C.purple }}>Carryover</b> — last season&apos;s per-game baseline.
+          <div style={{ marginTop: 14, fontSize: 12, color: C.text2, lineHeight: 1.6, background: `${C.text2}20`, border: `1px solid ${C.text2}4d`, borderRadius: 9, padding: '8px 10px' }}>
+            <b style={{ color: C.text2 }}>Carryover</b> — last season&apos;s per-game baseline.
           </div>
         )}
       </>}
 
-      {/* MATCHUP: the defence he faces, and how it covers */}
+      {/* MATCHUP: the defense he faces, and how it covers */}
       {tab === 'matchup' && <NflCardMatchup player={player} matchup={matchup} slate={slate} />}
 
       {/* SPLITS: the pairs, then the combine filters and this stadium */}
       {tab === 'splits' && <>
         <SplitsForMarket player={player} market={market} data={splitMeta} />
         {player?.splits && Object.keys(player.splits).length > 0 && SPLIT_STAT[market] && seasonOpts.length > 0 && (
-          <div style={{ fontSize: 12, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>The table above is his season splits as published. The season buttons set the filters below.</div>
+          <div style={{ fontSize: 12, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>The table above is his season splits. The season buttons set the filters below.</div>
         )}
         <NflGameCombo log={slog} venue={gameVenue(slate?.games, player.team, player.opp)} />
         {!(player?.splits && Object.keys(player.splits).length) && !hasContext(slog) && <div style={{ fontSize: 13, color: C.text3, lineHeight: 1.5 }}>{splitsWhy(player, fullLog, slate?.season)}</div>}
