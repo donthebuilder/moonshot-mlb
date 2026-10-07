@@ -180,11 +180,12 @@ export default function LampDashboard({ palettePass = 0 }) {
             {tab === 'numerology' && <Numerology date={date} onOpenPlayer={peekPlayer} />}
             {/* Props is cards only (BATCH-ONE-SITE step 3, 2026-10-05; Donovan: "props page on NHL is
                 broken" -- it was the cards, then the whole table under them). The table is Boards. */}
-            {tab === 'board' && <LampProps date={date} onOpenPlayer={peekPlayer} />}
             {tab === 'board' && (
-              <button type="button" onClick={() => setTab('boards')} style={{ display: 'block', minHeight: 44, marginTop: 14, padding: '0 4px', border: 0, background: 'transparent', color: C.ice, font: `800 12px/1 ${NUM_FONT}`, cursor: 'pointer' }}>
-                Every skater, every number: {NHL_NAV.boards.label} ›
-              </button>
+              <LampProps date={date} onOpenPlayer={peekPlayer}>
+                <button type="button" onClick={() => setTab('boards')} style={{ display: 'block', minHeight: 44, marginTop: 14, padding: '0 4px', border: 0, background: 'transparent', color: C.ice, font: `800 12px/1 ${NUM_FONT}`, cursor: 'pointer' }}>
+                  Every skater, every number: {NHL_NAV.boards.label} ›
+                </button>
+              </LampProps>
             )}
             {(tab === 'boards' || tab === 'shots') && <Board onOpenPlayer={peekPlayer} onOpenGame={openGame} onOpenTeam={openTeam} date={date} setDate={setDate}
               market={tab === 'shots' ? 'SOG' : (['PTS', 'AST'].includes(String(readHashParam('m') || '').toUpperCase()) ? String(readHashParam('m')).toUpperCase() : 'GOAL')}

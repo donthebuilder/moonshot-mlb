@@ -96,7 +96,7 @@ function lampAdapter(season, odds) {
   }
 }
 
-export default function LampProps({ date = null, onOpenPlayer }) {
+export default function LampProps({ date = null, onOpenPlayer, children = null }) {
   const goal = useLampBoard(date, 'GOAL')
   const sog = useLampBoard(date, 'SOG')
   const following = useFollowing('nhl')
@@ -117,10 +117,14 @@ export default function LampProps({ date = null, onOpenPlayer }) {
   }, [goal.data, sog.data])
   const { data: odds } = useLiveFetch('/api/odds/latest?sport=nhl')
   const a = useMemo(() => lampAdapter(season, odds), [season, odds])
-  if (!goal.data && !sog.data) return null
-  return (
+  // Until the board lands this holds a full screen of height, so nothing below
+  // it (the link, the footer) sits in view to be pushed down when the cards
+  // arrive (LAMP layout shift, 2026-10-06). `children` render after the cards.
+  if (!goal.data && !sog.data) return !(goal.loading || sog.loading) ? null : <div aria-busy="true" style={{ minHeight: '100vh' }}><span style={{ position: 'absolute', left: -9999 }}>Loading…</span></div>
+  return (<>
     <PropCards a={a} rows={rows} onOpen={(r) => onOpenPlayer?.(r.id)}
       onWatch={(r) => following.toggle({ id: r.id, name: r.name, team: r.team, position: r.pos })}
       watchIds={following.ids} theme={C} numFont={NUM_FONT} accent={C.ice} accentWash={`color-mix(in srgb, ${C.ice} 14%, transparent)`} />
-  )
+    {children}
+  </>)
 }

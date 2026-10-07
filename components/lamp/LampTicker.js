@@ -81,7 +81,10 @@ export default function LampTicker({ date = null, scores, liveScores, onOpenPlay
     return out
   }, [date, board.data, leaders.data, scores?.data, liveScores?.data, others.items, onOpenPlayer, onOpenGame])
 
-  if (!items.length) return null
+  // Until the first pill exists the row keeps its 32px, so the header does not grow
+  // by 40px (row + gap) when the feeds answer and push the whole page down
+  // (LAMP layout shift, 2026-10-06). Nothing to say once every feed has answered.
+  if (!items.length) return (board.loading || leaders.loading) ? <div aria-hidden="true" className="hdr-scorebug lamp-ticker" style={{ height: 32 }} /> : null
   const Pill = ({ it, echo }) => (
     <TickerPill sport={it.sport || 'nhl'} label={it.label} value={it.value} icon={it.icon} color={it.color} live={it.live} title={it.title} echo={echo} onClick={it.onClick} theme={C} numFont={NUM_FONT} />
   )

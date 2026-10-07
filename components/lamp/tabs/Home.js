@@ -82,6 +82,7 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
   const dayWord = date ? `on ${fmtDay(date)}` : 'tonight'
   const heroGames = games.map((g) => ({ away: g.away?.abbrev, home: g.home?.abbrev, start: Date.parse(g.startUtc || ''), state: g.state === 'live' ? 'live' : g.state === 'final' ? 'final' : 'pre' }))
   const typeWord = (day?.gameTypes || []).map((t) => (t === 1 ? 'PRESEASON' : t === 2 ? 'REGULAR SEASON' : 'PLAYOFFS')).join(' / ')
+  const ready = Boolean(day || scores.error) && Boolean(board.data || board.error)
   const hero = dayLine(heroGames, { sport: 'nhl', date: day?.date || date || undefined, label: typeWord, next: day?.next ? { date: day.next } : null })
 
   return (
@@ -119,6 +120,11 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
         ) : null}
       </DayHero>
 
+      {/* LAYOUT SHIFT (2026-10-06, CLS 0.3-0.9 on slow 4G): everything under the hero is
+          built from the day's scores and the board. Until both have answered it is one
+          screen of empty height, so the sections never paint small and then get pushed
+          down as each arrives. A failed feed still opens the page (the sections say so). */}
+      {!ready ? <div aria-busy="true" style={{ minHeight: '100vh' }}><span style={{ position: 'absolute', left: -9999 }}>Loading…</span></div> : <>
       {/* TONIGHT (2026-10-04): who went, who lines up, who's still to go (components/tonight/NhlTonight.js) */}
       <NhlTonight today={day} board={board.data} date={date} onOpenPlayer={onOpenPlayer} setTab={setTab} />
 
@@ -231,6 +237,7 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
         </p>
       </section>
       <SourceLine>Scores: NHL score/{'{date}'} via /api/lamp/scores. Standings: NHL standings/now via /api/lamp/standings.</SourceLine>
+      </>}
     </div>
   )
 }
