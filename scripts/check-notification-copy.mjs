@@ -91,6 +91,27 @@ snap(C.mlb.scratch({ name: 'Test Adell' }), '⚠️ Test Adell is out', "Not in 
 snap(C.mlb.gameOff({ kind: 'delayed', reason: 'Delayed: RAIN', away: 'TB', home: 'NYY', count: 2, lineupPosted: true }), '⚠️ Rain delay', 'TB at NYY · 2 of your picks')
 snap(C.mlb.boardSet({ count: 5, time: '7:05 PM ET' }), '\u{1F4CB} Your board is set', '5 picks · first pitch 7:05 PM ET')
 
+
+// ── 7b. NHL / NFL / NBA pregame news (2026-10-09): the same three event types MLB has, TEST data ──
+const W = Date.parse('2026-10-11T17:00:00Z')                 // Sunday 1:00 PM ET
+snap(C.nhl.goalieStarts({ name: 'Test Guard', away: 'TST', home: 'EXA', whenMs: W, now: W, changed: false }), '\u{1F9E4} Test Guard starts', 'Confirmed · TST at EXA · 1:00 PM ET')
+snap(C.nhl.goalieStarts({ name: 'Test Guard', away: 'TST', home: 'EXA', whenMs: W, now: W, changed: true }), '\u{1F9E4} Test Guard starts', 'Goalie change · TST at EXA · 1:00 PM ET')
+snap(C.nhl.goalieOut({ name: 'Test Guard', away: 'TST', home: 'EXA', whenMs: W, now: W }), '⚠️ Test Guard is out', 'Not starting · TST at EXA · 1:00 PM ET')
+snap(C.nhl.gameOff({ kind: 'late', away: 'TST', home: 'EXA', count: 2 }), '⚠️ Puck drop delayed', 'TST at EXA · 2 of your players')
+snap(C.nhl.gameOff({ kind: 'postponed', away: 'TST', home: 'EXA', count: 1 }), '⚠️ Postponed', 'TST at EXA · 1 of your players')
+snap(C.nfl.playerOut({ name: 'Test Receiver', away: 'TST', home: 'EXA', whenMs: W, now: W - 20 * 3600 * 1000 }), '\u{1F3C8} Test Receiver is out', 'Ruled out · TST at EXA · Sun 1:00 PM ET')
+snap(C.nfl.gameOff({ kind: 'moved', away: 'TST', home: 'EXA', count: 2, whenMs: W, now: W }), '⚠️ Kickoff moved', 'TST at EXA · now 1:00 PM ET')
+snap(C.nfl.gameOff({ kind: 'delayed', detail: 'Rain Delay', away: 'TST', home: 'EXA', count: 2, game: { away: 'TST', home: 'EXA', away_score: 17, home_score: 20, period: 3 } }), '⚠️ Rain delay', 'Q3 · EXA 20, TST 17 · 2 of your players')
+snap(C.nba.starts({ name: 'Test Guard', away: 'TST', home: 'EXA', whenMs: W, now: W }), '\u{1F3C0} Test Guard starts', 'Starting five · TST at EXA · 1:00 PM ET')
+snap(C.nba.playerOut({ name: 'Test Guard', away: 'TST', home: 'EXA', whenMs: W, now: W }), '\u{1F3C0} Test Guard is out', 'Ruled out · TST at EXA · 1:00 PM ET')
+snap(C.nba.gameOff({ kind: 'delayed', detail: 'Delayed', away: 'TST', home: 'EXA', count: 1 }), '⚠️ Delay', 'TST at EXA · 1 of your players')
+check(C.delayHeadline('Lightning Delay') === 'Lightning delay' && C.delayHeadline('Delayed') === 'Delay' && C.delayHeadline('') === 'Delay', 'delayHeadline(): the league\'s word, else a plain "Delay"')
+check(C.whenET(W, W) === '1:00 PM ET' && C.whenET(W, W - 86400000) === 'Sun 1:00 PM ET', 'whenET(): the time today, the weekday and time otherwise')
+check(C.nhl.goalieStarts({ name: 'Testington Longhurst-Vanderbilt', away: 'TST', home: 'EXA', whenMs: W, now: W }).title.length <= C.LIMITS.title + 2, 'a long goalie name falls back to the last name and still fits')
+// every kept push category in the catalog is in the plan; the six new rows carry the right keys
+for (const key of ['starter', 'scratched', 'gameoff']) check(C.categoryAllowed(key) && key in C.PUSH_PLAN, `PUSH_PLAN lists ${key} and it is kept`)
+check(['nhl', 'nfl', 'nba'].every((sp) => C.CATALOG.some((r) => r.sport === sp && r.key === 'gameoff')) && ['nhl', 'nba'].every((sp) => C.CATALOG.some((r) => r.sport === sp && r.key === 'starter')) && ['nhl', 'nfl', 'nba'].every((sp) => C.CATALOG.some((r) => r.sport === sp && r.key === 'scratched')), 'the catalog has a scratch and a delay for every sport and a starter for NHL and NBA')
+
 // ── 8. the CALLED copy is character-identical ──
 //   (a) LAMP: the existing CALLED goal push
 const gRow = { game_id: 1, player_id: 9, goal_n: 1, name: 'Test Nylander', status: 'called', period: 3, period_type: 'REG', strength: 'ev', empty_net: false, season_goals: 24, rank_in_game: 1 }

@@ -38,7 +38,8 @@ import { reduceScoreDay } from '../../../../../lib/nhl/reduce'
 import { hasVapid, vapidDetails, vapidProblem } from '../../../../../lib/dash/vapid'
 import { claimBoardWindow, fetchBoard } from '../../../../../lib/dash/board'
 import { byeStarterEventsFrom, franchiseEventsFrom, lineupGapEventsFrom, starterScoreEventsFrom } from '../../../../../lib/dash/franchise'
-import { audienceFrom, boardInfoFrom, deviceWantsSport, laneOf, lineupUpdatesFrom, mlbEventsFrom, nflEventsFrom, followNameKey, nflFollowMisses, nhlEventsFrom, nbaEventsFrom, pregameEventsFrom, priorityOf, wants } from '../../../../../lib/dash/pushRules'
+import { audienceFrom, boardInfoFrom, deviceWantsSport, laneOf, lineupUpdatesFrom, mlbEventsFrom, nflEventsFrom, followNameKey, nflFollowMisses, nhlEventsFrom, nbaEventsFrom, pregameEventsFrom, nhlPregameEventsFrom, nflPregameEventsFrom, nbaPregameEventsFrom, priorityOf, wants } from '../../../../../lib/dash/pushRules'
+import { nhlPregameSnap, nflPregameSnap, nbaPregameSnap, priorStartersFrom } from '../../../../../lib/dash/pregameSources'
 import { bundleTitle, bundleBody } from '../../../../../lib/copy/notifications'
 import { fanOutToDiscord } from '../../../../../lib/dash/discordAlerts'
 import { fetchNfl, nflGameCallsPaths, nflPicksLooksReal, nflPicksPaths, nflSlateLooksReal, nflSlatePaths } from '../../../../../lib/nfl/dataSource'
@@ -219,6 +220,42 @@ async function pregameEvents(db, audience) {
   return rows ? pregameEventsFrom(rows, snap, today(), audience) : []
 }
 
+// ── PREGAME NEWS: NHL, NFL, NBA (2026-10-09) ───────────────────────────────
+// The MLB lineup / scratch / delay set for the other three sports (lib/dash/pregameSources.js reads each
+// sport's source; the producers are pure, in lib/dash/pushRules.js). First sweep of a run only, like the MLB
+// pregame set. Each is asked ONLY when somebody follows a man in that sport, answers nothing when its source
+// did not answer (a stale or missing snapshot is no event), and cannot take the tick down: a throw is a log line.
+const safely = async (label, fn) => { try { return await fn() } catch (e) { console.error(`[push] ${label} threw: ${e?.message || e}`); return [] } }
+
+// NHL: a goalie confirmed or replaced, a game off. "Changed" needs memory of who was confirmed before; the claim
+// table already holds it (each confirmed goalie is a key), read back ONLY when something new is about to be claimed.
+async function nhlPregameEvents(db, audience) {
+  if (!audience?.nhl?.size) return []
+  const snap = await nhlPregameSnap(today(), audience)
+  if (!snap) return []
+  const first = nhlPregameEventsFrom(snap, today(), audience)
+  if (!first.some((e) => e.category === 'starter' && !knownClaimed.keys.has(e.key))) return first
+  const { data, error } = await db.from('dash_push_seen').select('event_key').like('event_key', 'nhl:%:starter:%')
+  if (error) { console.error(`[push] prior starters read failed: ${error.message}`); return first }
+  const prior = priorStartersFrom((data || []).map((r) => r.event_key), audience.nameOf)
+  return nhlPregameEventsFrom(snap, today(), audience, Date.now(), prior)
+}
+// NFL: a followed player ruled Out, a delay, a moved kickoff. His card opens when the slate knows his id.
+async function nflPregameEvents(audience) {
+  if (!audience?.nfl?.size) return []
+  const snap = await nflPregameSnap(audience)
+  if (!snap) return []
+  const first = nflPregameEventsFrom(snap, today(), audience)
+  if (!first.some((e) => e.category === 'scratched' && !knownClaimed.keys.has(e.key))) return first
+  return nflPregameEventsFrom(snap, today(), audience, Date.now(), await tuddyIdsFor(snap, { always: true }))
+}
+// NBA (BUCKETS): nothing at all until BUCKETS_PUBLIC is on -- no event, so no push deep link to a BUCKETS page.
+async function nbaPregameEvents(audience) {
+  if (!bucketsPublic() || !audience?.nba?.size) return []
+  const snap = await nbaPregameSnap(today(), audience)
+  return snap ? nbaPregameEventsFrom(snap, today(), audience, Date.now(), { public: true }) : []
+}
+
 // A followed player with no box-score line in the 4th quarter of his team's
 // game (NOTIF-6): inactive, or a name the follow key still can't join. Said
 // once per player per day per instance, so a Sunday is a handful of lines.
@@ -242,8 +279,8 @@ async function nflEvents(audience) {
 // players share maps to nobody (the alert falls back to the Watchlist), never
 // to a guess.
 let _idCache = { at: 0, map: null }
-async function tuddyIdsFor(snap) {
-  if (!(snap?.games || []).some((g) => g?.state === 'in')) return null
+async function tuddyIdsFor(snap, { always = false } = {}) {
+  if (!always && !(snap?.games || []).some((g) => g?.state === 'in')) return null
   if (_idCache.map && Date.now() - _idCache.at < 30 * 60 * 1000) return _idCache.map
   try {
     const data = await fetchNfl(nflSlatePaths(), nflSlateLooksReal)
@@ -702,6 +739,9 @@ async function sweep(db, subs, stateByUser, audience, { full }) {
     // COST CUT (2026-09-27): only while football is on (see franchiseScoresOn).
     ...((await franchiseScoresOn()) ? await starterScoreEventsFrom(db) : []),
     ...(full ? await pregameEvents(db, audience) : []),
+    ...(full ? await safely('NHL pregame', () => nhlPregameEvents(db, audience)) : []),
+    ...(full ? await safely('NFL pregame', () => nflPregameEvents(audience)) : []),
+    ...(full ? await safely('NBA pregame', () => nbaPregameEvents(audience)) : []),
     // FRANCHISE needs no audience: these are addressed to the owner of a team,
     // not to whoever follows a player. It also runs on every tick rather than
     // behind a window claim -- a draft clock is ninety seconds long, and there
