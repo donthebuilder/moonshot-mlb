@@ -91,7 +91,7 @@ export default function Slate({ date, setDate, market = 'pts', onOpenPlayer, onO
               }} />
             })}
           </Rail>
-          <div style={{ marginTop: 7, fontSize: 12, lineHeight: 1.4, color: C.text3 }}>Tip-off order. Dial = {EXPECTED_POINTS_WORDS} in the game (the team model). 🔒 locked, ◻ preview.{(() => { const b = basisLine(games.map((x) => tmBy.get(String(x.id))), games.some((x) => x.seasonType === 1)); return b ? ` ${b}` : tm.error ? ` No ${EXPECTED_POINTS_WORDS} number yet: the league feed is slow.` : '' })()}</div>
+          <div style={{ marginTop: 7, fontSize: 12, lineHeight: 1.4, color: C.text3 }}>Tip-off order. Dial = {EXPECTED_POINTS_WORDS} (team model). 🔒 locked, ◻ preview.{(() => { const b = basisLine(games.map((x) => tmBy.get(String(x.id))), games.some((x) => x.seasonType === 1)); return b ? ` ${b}` : tm.error ? ` No ${EXPECTED_POINTS_WORDS} number yet: the league feed is slow.` : '' })()}</div>
         </div>
       )}
       {view === 'games' && g && (<>
