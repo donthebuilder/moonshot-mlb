@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import Tap from '../Tap'
+import { TeamTap } from '../EntityTap'
 import { C, NUM_FONT } from '../../lib/theme'
 import { alpha } from '../../lib/scales'
 import TeamMark from '../TeamMark'
@@ -158,10 +159,12 @@ export function LookOutBox({ title, tag, rows = [], foot, accent = C.orange }) {
           <div className="lookout-chips">
             {r.chips.map((a) => (
               <span key={a.key} className={a.hot ? 'chip chip-hot' : 'chip'} title={a.title}>
-                <Tap onClick={a.onClick || null}>
+                <span><Tap onClick={a.onClick || null}>
                   <b>{a.name}</b>
-                  {a.small && <small>{a.small}</small>}
+                  {a.small && !a.smallTeam && <small>{a.small}</small>}
                 </Tap>
+                {/* the club code in the chip is its own link to the club (nav audit 10-08), not part of the player's tap */}
+                {a.small && a.smallTeam && <small><TeamTap abbr={a.smallTeam} style={{ minWidth: 0 }}>{a.smallTeam}</TeamTap>{String(a.small).startsWith(a.smallTeam) ? String(a.small).slice(a.smallTeam.length) : ''}</small>}</span>
                 <em>{a.em}</em>
               </span>
             ))}

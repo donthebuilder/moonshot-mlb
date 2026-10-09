@@ -212,7 +212,7 @@ function LookOut({ players, onPlayerClick = null, onOpenPitcher = null }) {
           key: 'arms', label: 'Arms to watch', hint: 'BLOWUP RISK · alarms',
           hintTitle: 'An arm lands here when the tag rules trip at least two independent alarms on it, or a live wear signal fires. BLOWUP RISK is the tag set\'s own label for the worst of them. The rules run live off tonight\'s rows — these are lookups, not predictions.',
           chips: model.arms.map((a) => ({
-            key: a.pid, name: a.name, small: a.team ? `${a.team}${a.opp ? `·${a.opp}` : ''}` : null, em: `${a.leaks}🔔`, hot: a.blowup,
+            key: a.pid, name: a.name, small: a.team ? `${a.team}${a.opp ? `·${a.opp}` : ''}` : null, smallTeam: a.team || null, em: `${a.leaks}🔔`, hot: a.blowup,
             title: `${a.leaks} independent alarms${a.tiring ? ' · wear signal live' : ''}${a.evidence ? ` — ${a.evidence}` : ''}`,
             onClick: onOpenPitcher && (() => onOpenPitcher(a.pid)),
           })),
@@ -221,7 +221,7 @@ function LookOut({ players, onPlayerClick = null, onOpenPitcher = null }) {
           key: 'needs', label: 'Who needs what', hint: 'one swing from a round number',
           hintTitle: 'A hitter one home run short of the next multiple of ten. A round number is a counting fact, not a reason to expect a swing — it is here because it is the thing people notice, and it is labelled as a lookup for that reason.',
           chips: model.milestones.map((m) => ({
-            key: m.pid, name: m.name, small: m.team || null, em: `${m.hr}→${m.next}`,
+            key: m.pid, name: m.name, small: m.team || null, smallTeam: m.team || null, em: `${m.hr}→${m.next}`,
             onClick: onPlayerClick && (() => onPlayerClick({ player_id: m.pid, name: m.name, team: m.team })),
           })),
         },

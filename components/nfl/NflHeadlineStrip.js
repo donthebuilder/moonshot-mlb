@@ -2,6 +2,7 @@
 import PlayerFace from '../PlayerFace'
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/nfl/theme'
+import { useGameNav } from '../../lib/teamNav'
 import HeadlineStrip from '../HeadlineStrip'
 import HistoryWatch from '../HistoryWatch'
 import LongshotsPreview from '../LongshotsPreview'
@@ -50,11 +51,13 @@ export default function NflHeadlineStrip({ players, games, markets, matchup, log
     const p = (players || []).find((x) => String(x?.player_id) === String(hist.player_id)) || null
     return [{ k: `hist-${hist.player_id}-${hist.unit}`, tag: 'HISTORY WATCH', icon: '📜', name: hist.name, why: `Next: ${hist.claim}.`, stat: `${hist.hr} ${hist.unit}`, col: C.yellow, p }, ...base]
   }, [players, games, markets, matchup, logs, week, hist])
-  const open = (c) => (c.p ? onPlayerClick?.(c.p, 'TD') : c.nav ? setTab?.(c.nav) : null)
+  const openGame = useGameNav()
+  // a game card opens THAT game (game=<id> in the address), not just the Games tab
+  const open = (c) => (c.p ? onPlayerClick?.(c.p, 'TD') : c.gameId && openGame ? openGame(c.gameId) : c.nav ? setTab?.(c.nav) : null)
   const byId = (id) => (players || []).find((x) => String(x?.player_id) === String(id))
   return (
     <>
-      <HeadlineStrip sport="nfl" cards={cards} onOpen={open} theme={C} numFont={NUM_FONT} accent={C.green} speed={30} faceOf={(c) => (c.p ? <PlayerFace sport="nfl" espnId={c.p?.espn_id} team={c.p?.team} name={c.p?.name} size={22} /> : null)} />
+      <HeadlineStrip sport="nfl" cards={cards} onOpen={open} theme={C} numFont={NUM_FONT} accent={C.green} speed={30} onOpenGame={openGame} faceOf={(c) => (c.p ? <PlayerFace sport="nfl" espnId={c.p?.espn_id} team={c.p?.team} name={c.p?.name} size={22} /> : null)} />
       <HistoryWatch sport="nfl" unit="TD" reach="within reach this week" step="next" theme={C} numFont={NUM_FONT} onPlayerClick={(p) => { const row = byId(p.player_id); if (row) onPlayerClick?.(row, 'TD') }} />
       <LongshotsPreview sport="nfl" theme={C} numFont={NUM_FONT} accent={C.green} onSeeAll={() => setTab?.('longshots')}
         onOpenPlayer={(id) => { const row = byId(id); if (row) onPlayerClick?.(row, 'TD') }} />

@@ -199,7 +199,17 @@ export default function NflDashboard({ palettePass = 0 }) {
     leaveTarget('team', code)
   }
   // a game (by its id) opens on the Games tab, which writes game=<id> into the address
-  const openGameNav = (id) => { if (!id) return; leaveTarget('game', id); setTab('games') }
+  // The address names the game at once (game=), not whenever the Games tab has mounted: a shared link or a
+  // screenshot of the address taken right after the tap already says which game.
+  const openGameNav = (id) => {
+    if (!id) return
+    leaveTarget('game', id)
+    setTab('games')
+    const hash = hashParams()
+    const had = hash.get('game')
+    hash.set('sport', 'nfl'); hash.set('tab', 'games'); hash.set('game', String(id))
+    writeHash(hash, { push: tab === 'games' && had !== String(id) })
+  }
   const setTab = (asked, { push = true } = {}) => {
     // an old key (accountability, results, tuddyledger ...) opens the page it became; an old Ledger key
     // also queues the Ledger sub-tab it meant (lib/ledger/views.js)
