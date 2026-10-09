@@ -172,7 +172,7 @@ await ok('text: a cash / miss / void mix leads with the cashed, shows the misses
   const firstMiss = rows.findIndex((l) => /missed/.test(l)), lastWin = rows.map((l) => /cashed$/.test(l)).lastIndexOf(true)
   assert.ok(lastWin < firstMiss, rows.join('|'))
   assert.ok(/missed/.test(a.text))
-  assert.match(a.text, /Some moments can't be modeled\.\nEvery call, graded → DASH · The Ledger$/)
+  assert.ok(!/can't be modeled/.test(a.text)); assert.match(a.text, /\nEvery call, graded → DASH · The Ledger$/)
 })
 await ok('text: the whole record is always the true one -- hidden rows are counted, never silently dropped (the old accountability flaw)', () => {
   // 3 cashed + 4 missed + 1 void: only 4 slots
@@ -198,11 +198,11 @@ await ok('text: long names still fit 280 (rows come off, the record line never d
   assert.ok(S.xLen(out.text) <= 280, String(S.xLen(out.text)))
   assert.match(out.text, /CALLED · 2 of 6 cashed/)
 })
-await ok('text: all cashed -> "The signal was there."; any miss -> "Some moments can\'t be modeled."; no link / hashtag / "bot" / probability / percent anywhere', () => {
+await ok('text: all cashed -> "The signal was there."; any miss -> no tagline; no link / hashtag / "bot" / probability / percent anywhere', () => {
   const win = (id) => ({ sport: 'mlb', id, name: `Test Hitter ${id}`, market: 'home run', outcome: 'cashed' })
   assert.match(RC.renderReceipt({ day: DAY, graded: [win('a'), win('b')] }).text, /The signal was there\./)
   const mixedOut = RC.assembleReceipt({ day: DAY, rows: posts(), ...mixed(), now: T0 }).text
-  assert.match(mixedOut, /Some moments can't be modeled\./)
+  assert.ok(!/can't be modeled/.test(mixedOut)); assert.ok(!/\n\n\n/.test(mixedOut))
   assert.ok(!/told you so/i.test(mixedOut))
   for (const t of [mixedOut, RC.renderReceipt({ day: DAY, graded: [win('a')] }).text]) assert.ok(!BANNED.test(t), t)
   assert.equal((mixedOut.match(/\p{Extended_Pictographic}/gu) || []).length <= 2, true)
@@ -472,7 +472,7 @@ await ok('weekly: the same honest receipt over the stored nights -- the no-cash 
   assert.equal(lines(t)[0], '\u{1F9FE} THE RECEIPT · WEEK OF OCT 5')
   assert.match(t, /CALLED · 5 of 10 cashed · 1 did not play · 3 nights/)
   assert.match(t, /MLB  2 of 5 cashed · home run/); assert.match(t, /NFL  2 of 3 cashed · anytime touchdown/); assert.match(t, /NHL  1 of 2 cashed · goal scorer/)
-  assert.match(t, /Some moments can't be modeled\.\nEvery call, graded → DASH · The Ledger$/)
+  assert.ok(!/can't be modeled/.test(t)); assert.match(t, /\nEvery call, graded → DASH · The Ledger$/)
   assert.ok(lines(t).length <= 8 && S.xLen(t) <= 280); assert.ok(!BANNED.test(t), t)
   const m = RC.renderPeriod({ kind: 'monthly', from: '2026-09-01', to: '2026-09-30', totals })
   assert.equal(lines(m)[0], '\u{1F9FE} THE RECEIPT · SEPTEMBER')
