@@ -482,7 +482,8 @@ await ok('poll: options are distinct (the 9/23 "Pete Alonso" twice)', () => {
 })
 await ok('poll: the NFL poll builder and the MLB poll site both use it', () => {
   assert.deepEqual(NFLTF.nflBotPollOptions([{ name: 'Test A' }, { name: 'Test A' }, { name: 'Test B' }, { name: 'Test C' }, { name: 'Test D' }, { name: 'Test E' }]), ['Test A', 'Test B', 'Test C', 'Test D'])
-  assert.match(fs.readFileSync('app/api/dash/homers/tick/route.js', 'utf8'), /const pollNames = distinctOptions\(picks\.map\(\(p\) => p\.name\), 4\)/)
+  // the MLB poll moved to lib/dash/polls (2026-10-09): every format's options go through distinctOptions there
+  assert.match(fs.readFileSync('lib/dash/polls/build.js', 'utf8'), /const opts = distinctOptions\(options, 4\)/)
 })
 
 console.log(`\n${n} groups passed (${results.length} checks) -- TEST data, fake fetch, fake database`)

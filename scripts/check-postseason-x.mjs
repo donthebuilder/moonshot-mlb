@@ -53,9 +53,8 @@ ok('the claim kind passes widen_18 (call_<game_pk>)', () => {
   for (const c of gameCalls(rows)) assert.match(`call_${c.game_pk}`, /^call_[0-9]+$/)
 })
 
-ok('vote posts rested by default', () => {
-  for (const k of ['botpoll', 'community_pick', 'nfl_botpoll', 'nfl_community']) assert.equal(isRested(k), true, k)
-  assert.equal(isRested('pregame'), false)
+ok('polls are back (2026-10-09): nothing is rested in code, the old vote kinds included', () => {
+  for (const k of ['botpoll', 'community_pick', 'nfl_botpoll', 'nfl_community', 'poll_pick', 'pregame']) assert.equal(isRested(k), false, k)
 })
 ok('events: CALLED only unless X_EVENTS=all', () => { assert.equal(X_EVENTS, process.env.X_EVENTS === 'all' ? 'all' : 'called') })
 console.log(`\n${n} checks passed`)
