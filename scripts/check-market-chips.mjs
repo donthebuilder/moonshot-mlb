@@ -27,6 +27,11 @@ for (const [sport, path, chips] of SPORTS) {
   for (const label of chips) {
     const chip = p.locator('button, [role=button]').filter({ hasText: new RegExp(`^\\s*${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i') }).first()
     if (!(await chip.count())) { console.log(`skip  ${sport} ${label}: chip not on the page (hidden or not in this season)`); continue }
+    // THE ROW MUST BE REACHABLE (2026-10-09): Filters + Ledger + Watchlist squeezed the market scroller to 85px, so most
+    // chips sat off screen though a script could still scroll them in and tap. A phone shows the chip scroller at
+    // (nearly) the full page width, and the chip's left edge is on screen after scrolling it in.
+    const reach = await chip.evaluate((el) => { let p = el.parentElement; while (p && getComputedStyle(p).overflowX !== 'auto' && getComputedStyle(p).overflowX !== 'scroll') p = p.parentElement; const w = p ? p.getBoundingClientRect().width : window.innerWidth; return { w: Math.round(w), vw: window.innerWidth } })
+    if (reach.w < reach.vw * 0.7) { bad++; console.log(`FAIL  ${sport} ${label}: the chip row is only ${reach.w}px wide on a ${reach.vw}px screen (squeezed)`); continue }
     await chip.click({ timeout: 8000 }).catch(() => {})
     await p.waitForTimeout(1500)
     const text = await p.locator('body').innerText()
