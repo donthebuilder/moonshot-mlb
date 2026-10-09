@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import PageHeader from '../../PageHeader'
 import { MatchLogos } from '../../TeamMark'
 import { C, NUM_FONT } from '../../../lib/nba/theme'
-import { useBucketsBoard, useBucketsExpected } from '../../../lib/nba/useBuckets'
+import { useBucketsBoard, useBucketsExpected, useBucketsTeamModel } from '../../../lib/nba/useBuckets'
 import { MARKET_OPTIONS, NBA_MARKETS } from '../../../lib/nba/legs'
 import BucketsTable from '../BucketsTable'
 import { boardRows, boardColumns, faceOf } from '../boardTable'
@@ -11,6 +11,9 @@ import { sortGames } from '../GameList'
 import BucketsProjected from '../BucketsProjected'
 import BucketsWeakSpots from '../BucketsWeakSpots'
 import SlateCard from '../../slate/SlateCard'
+import { heatTier } from '../../../lib/nhl/slateHeat'
+import { EXPECTED_POINTS_WORDS } from '../../../lib/nba/teamModel'
+import { basisLine } from '../BucketsTeamExpected'
 import Rail from '../../Rail'
 import { BucketsCards } from '../BucketsCard'
 import { EmptyState, DelayedBanner, Loading, SourceLine, Pills, NavBtn, DayPager, RimDot, fmtDay, fmtTip, readHashParam, writeHashParam } from '../ui'
@@ -26,6 +29,9 @@ export default function Slate({ date, setDate, market = 'pts', onOpenPlayer, onO
   // the table view reads the points board whatever market the games view is on (its legs are points legs)
   const pts = useBucketsBoard(date, 'pts')
   const xp = useBucketsExpected(date)
+  // THE TEAM MODEL (lib/nba/teamModel.js): expected points a game, the Slate dial (NHL's expected goals, NFL's expected touchdowns)
+  const tm = useBucketsTeamModel(date)
+  const tmBy = useMemo(() => new Map((tm.data?.games || []).map((x) => [String(x.id), x])), [tm.data])
   const xptsBy = useMemo(() => new Map((xp.data?.rows || []).map((r) => [String(r.playerId), r])), [xp.data])
   const games = sortGames(data?.games || [])
   const [pick, setPick] = useState(() => readHashParam('game'))
@@ -69,16 +75,23 @@ export default function Slate({ date, setDate, market = 'pts', onOpenPlayer, onO
               const best = xs.length ? Math.max(...xs.map((r) => Number(r.score))) : null
               const locked = xs.length > 0 && xs.every((r) => r.locked !== false)
               const st = x.state
+              const m1 = tmBy.get(String(x.id)) || null
+              const heat = m1?.heat ?? 0
+              const tier = heatTier(heat)
+              const way = m1?.basis === 'this season' ? '' : ` (${m1?.basis})`
               return <SlateCard key={x.id} sport="nba" accent={C.purple} on={g?.id === x.id} onSelect={choose} card={{
-                id: x.id, title: <MatchLogos sport="nba" away={x.away.abbrev} home={x.home.abbrev} px={26} gap={5} />, past: st === 'final',
-                heat: best != null ? best / 100 : 0, tooltip: `${x.away.abbrev} @ ${x.home.abbrev}`,
-                dial: { value: best, pct: best, title: `The best ${NBA_MARKETS[m].label} score in this game: ${best != null ? Math.round(best) : '—'} of 100.` },
+                large: true,
+                id: x.id, title: <MatchLogos sport="nba" away={x.away.abbrev} home={x.home.abbrev} px={30} gap={5} />, past: st === 'final',
+                heat, tooltip: `${x.away.abbrev} @ ${x.home.abbrev}`,
+                dial: { value: m1 ? m1.total : null, dp: 0, pct: m1 ? 100 * heat : null, col: tier === 'hot' ? C.purple : tier === 'cold' ? C.text3 : C.text2,
+                  title: m1 ? `${m1.total.toFixed(1)} ${EXPECTED_POINTS_WORDS} in this game${way}: ${x.away.abbrev} ${m1.away.pts.toFixed(1)}, ${x.home.abbrev} ${m1.home.pts.toFixed(1)}, from each club's points a game against the other's allowed. The ring fills against every pairing of the league's clubs.${best != null ? ` Best ${NBA_MARKETS[m].label} score here: ${Math.round(best)}.` : ''}` : `No ${EXPECTED_POINTS_WORDS} number for this game yet.` },
                 lead: <span title={locked ? 'The board locked before tip' : 'A preview until the board locks'}>{locked ? '🔒' : '◻'}</span>,
                 status: st === 'live' ? { kind: 'live', text: x.detail || 'LIVE' } : st === 'final' ? { kind: 'final', text: `${x.away.score}-${x.home.score} F` } : { kind: 'time', text: fmtTip(x.start) },
+                extra: <span>{EXPECTED_POINTS_WORDS}{m1 ? ` · ${x.away.abbrev} ${Math.round(m1.away.pts)}, ${x.home.abbrev} ${Math.round(m1.home.pts)}${way}` : ' · —'}</span>,
               }} />
             })}
           </Rail>
-          <div style={{ marginTop: 7, fontSize: 11, color: C.text3 }}>Tip-off order. Dial = best score in the game. 🔒 locked, ◻ preview.</div>
+          <div style={{ marginTop: 7, fontSize: 12, lineHeight: 1.4, color: C.text3 }}>Tip-off order. Dial = {EXPECTED_POINTS_WORDS} (team model). 🔒 locked, ◻ preview.{(() => { const b = basisLine(games.map((x) => tmBy.get(String(x.id))), games.some((x) => x.seasonType === 1)); return b ? ` ${b}` : tm.error ? ` No ${EXPECTED_POINTS_WORDS} number yet: the league feed is slow.` : '' })()}</div>
         </div>
       )}
       {view === 'games' && g && (<>
