@@ -306,6 +306,20 @@ await ok('naming: an NHL game with no goalie source is a definite no -- the post
   assert.ok(!/NHL|goal scorer/.test(a.text.replace(/LAMP/, '')), 'no NHL line')
   assert.match(a.text, /· LAMP$/)                              // the pointer still lists the product that played
 })
+await ok('naming: the real pregame source (goalieSource via startersFor, TEST feed) -- confirmed both sides GOES, an ESPN-expected side HOLDS, an unlisted game is a definite no', async () => {
+  const GSRC = await import('../lib/nhl/goalies.js'); const GSX = await import('../lib/nhl/goalieSource.js')
+  const prob = (n, t) => [{ name: 'probableStartingGoalie', athlete: { id: '1', fullName: n }, status: { type: t } }]
+  const feed = (a, h) => async () => ({ ok: true, status: 200, json: async () => ({ events: [{ date: NHL_DROP, status: { type: { name: 'STATUS_SCHEDULED' } }, competitions: [{ date: NHL_DROP, competitors: [{ homeAway: 'home', team: { abbreviation: 'TOR' }, probables: prob('Test Home Goalie', h) }, { homeAway: 'away', team: { abbreviation: 'MTL' }, probables: prob('Test Away Goalie', a) }] }] }] }) })
+  const game = { id: 1, away: { abbrev: 'MTL' }, home: { abbrev: 'TOR' }, startUtc: NHL_DROP, state: 'pre' }
+  const goaliesFor = async () => ({ away: [{ id: 9, first: 'Test', last: 'Goalie' }], home: [{ id: 8, first: 'Test', last: 'Goalie' }] })
+  const via = async (a, h, gm = game) => { GSX._resetForTests(); const st = await GSRC.startersFor(DAY, [gm], { fetchImpl: feed(a, h), now: NOW, goaliesFor }); return nhlGames({ starters: st.byGame[1] ?? null }) }
+  const go = S.assembleSlate({ day: DAY, sports: sportsOf({ nhl: await via('confirmed', 'confirmed') }), now: NOW })
+  assert.equal(go.state, 'go'); assert.match(go.text, /Test Skater One/)
+  const held = S.assembleSlate({ day: DAY, sports: sportsOf({ nhl: await via('expected', 'confirmed') }), now: NOW })
+  assert.equal(held.state, 'held'); assert.match(held.reason, /starting goalie not confirmed/)
+  const none = S.assembleSlate({ day: DAY, sports: sportsOf({ nhl: await via('confirmed', 'confirmed', { ...game, away: { abbrev: 'ZZZ' } }) }), now: NOW })
+  assert.equal(none.state, 'go'); assert.ok(!none.text.includes('Test Skater One'))
+})
 await ok('naming: a board that is not tonight\'s (stale date / arms) HOLDS the MOONSHOT line, then it is left out', () => {
   const early = Date.parse('2026-10-09T22:15:00Z')
   const held = S.assembleSlate({ day: DAY, sports: sportsOf({ mlbHold: 'stale-slate-date', now: early }), now: early })
