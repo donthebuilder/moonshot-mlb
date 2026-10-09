@@ -224,10 +224,8 @@ export default function ProjectedOutput({ games = [], players: allPlayers = [], 
       lenses={LENSES} active={lenses} setActive={setLenses} shownCount={players.length} totalCount={allPlayers.length} noun="hitters" sport="mlb"
       by={by} setBy={setBy}
       note={<>
-        How the projection is built: each club&apos;s own home-run rate per plate appearance (shrunk
-        toward the league), times the plate appearances a club takes, times the opposing starter&apos;s
-        HR-allowed rate (shrunk) for his share of them, times the park and the published weather
-        effect. A game is both clubs.
+        How it is built: each club&apos;s own HR rate per PA (shrunk toward the league) × the PA it
+        takes × the opposing starter&apos;s HR-allowed rate × the park and the weather. A game is both clubs.
       </>}
       rows={rows} primary="Proj HR" adj="Adj HR" unit="HR" columns={cols} spreadBands
       sortCol={sortCol} sortDir={sortDir} onSort={sortClick(sortCol, setSortCol, setSortDir)}
