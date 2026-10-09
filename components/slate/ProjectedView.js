@@ -25,6 +25,9 @@ export default function ProjectedView({
   // spreadBands (MOONSHOT, 2026-10-08): the pill grades read tonight's own spread of the column (z-score) instead of
   // a fixed +-5%/15% off the mean; absent, the fixed cuts as they were
   spreadBands = false,
+  // colMeta (TUDDY, 2026-10-08): { [column]: { group, explain } } -> the table shows its group row and a tap-friendly (?) on
+  // the column head. Absent (MOONSHOT, LAMP, BUCKETS): no group row, as it was.
+  colMeta = null,
 }) {
   // large (LAMP, 2026-10-06): every word 12px or more, logos 22px. Absent: the sizes below, as they were.
   const z = (n) => (large ? Math.max(12, Math.round(n + 3)) : n)
@@ -217,12 +220,12 @@ export default function ProjectedView({
             {/* THE SHARED SHEET (2026-10-01, BATCH-TABLE-SKIN-V2 4b). Opens in the
                 page's own order (the podium and bars read the same sort); its
                 headers re-sort the table; the grade pills and arrows kept. */}
-            <DenseTable key={`${sortCol}-${sortDir}`} bare noGroups heatMode="sorted" maxHeight={9999} maxRows={Math.max(rows.length, 1)} accent={accent}
+            <DenseTable key={`${sortCol}-${sortDir}`} bare noGroups={!colMeta} heatMode="sorted" maxHeight={9999} maxRows={Math.max(rows.length, 1)} accent={accent}
               caption={by === 'game' ? 'Projected output by game' : 'Projected output by team'}
               rows={rows.map((r) => ({ _key: r.label, label: r.label, _r: r, ...Object.fromEntries(columns.map((c, k) => [`c${k}`, Number.isFinite(Number(r.values[c])) ? Number(r.values[c]) : null])) }))}
               columns={[
-                { key: 'label', label: by === 'game' ? 'Game' : 'Team', heat: false, sticky: true, w: 120, link: (x) => openOf(x._r), fmt: (v) => <b>{showLabel(v)}</b> },
-                ...columns.map((c, k) => ({ key: `c${k}`, label: c, w: 70, heat: false, numeric: false, fmt: (v) => {
+                { key: 'label', label: by === 'game' ? 'Game' : 'Team', ...(colMeta ? { group: colMeta.label || (by === 'game' ? 'Game' : 'Team') } : {}), heat: false, sticky: true, w: 120, link: (x) => openOf(x._r), fmt: (v) => <b>{showLabel(v)}</b> },
+                ...columns.map((c, k) => ({ key: `c${k}`, label: c, ...(colMeta?.[c] ? { group: colMeta[c].group, explain: colMeta[c].explain } : {}), w: colMeta?.[c]?.w || 70, heat: false, numeric: false, fmt: (v) => {
                   const g = gradeOf(c, v)
                   const text = Number.isFinite(Number(v)) ? Number(v).toFixed(1) : '—'
                   return g

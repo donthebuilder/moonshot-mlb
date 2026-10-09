@@ -85,6 +85,7 @@ import { postMultiClubOnce } from '../../../../../lib/dash/multiClubPost'
 import { writeNight as writeNumerology, gradeNight as gradeNumerology, refreshLaneNights, writeNumbersNight, ELIGIBLE } from '../../../../../lib/numerology/record'
 import { fromNfl } from '../../../../../lib/numerology/adapters'
 import { easternDate } from '../../../../../lib/data'
+import { stampSnapshots } from '../../../../../lib/nfl/gameSnapshot'
 import { storiesTick } from '../../../../../lib/stories/record'
 import { postNflListOnce } from '../../../../../lib/lists/post'
 import { adminClient } from '../../../../../lib/supabase/admin'
@@ -846,6 +847,10 @@ export async function GET(request) {
   const writeups = await runNflWriteups(db, { getWeek: weekFile, dry: wq === 'print' ? 'print' : null, now: wq === 'print' && Number(new URL(request.url).searchParams.get('at')) ? Number(new URL(request.url).searchParams.get('at')) : Date.now() })
     .catch((e) => `error: ${e?.message}`)
 
+  // 🧮 PRE-GAME TD SNAPSHOTS (fix10-nfl-1008): each game's team-model total and the old players' sum, stamped once
+  // before kickoff (lib/nfl/gameSnapshot.js). One select per tick; the logs file is read only while a game is unstamped.
+  const snapshots = await stampSnapshots(db, { week: await weekFile(), getLogs: () => fetchNfl(nflLogPaths()).catch(() => null) })
+
   const threads = threadsSnapshot()
-  return Response.json({ day, td, milestone, weekly, longshots, multiClub, lists, members, numerology, storylines, writeups, ...(threads.length ? { threads } : {}) })
+  return Response.json({ day, snapshots, td, milestone, weekly, longshots, multiClub, lists, members, numerology, storylines, writeups, ...(threads.length ? { threads } : {}) })
 }

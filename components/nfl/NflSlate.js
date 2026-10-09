@@ -91,7 +91,7 @@ export default function NflSlate({ data, picks, matchup, logs = null, odds = nul
   // Expected touchdowns per game: the TEAM model's number (both clubs). One source:
   // lib/nfl/teamTdModel.js -- never a sum over the players here.
   const totals = useMemo(() => slateTotals(data, logs), [data, logs])
-  const xOf = (g) => (Number.isFinite(totals[g.game_id]?.total) ? totals[g.game_id].total : null)
+  const xOf = (g) => (g && Number.isFinite(totals[g.game_id]?.total) ? totals[g.game_id].total : null)
   const heatOf = (g) => totals[g.game_id]?.heat ?? 0
 
   const counts = useMemo(() => {
