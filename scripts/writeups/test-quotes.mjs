@@ -10,13 +10,14 @@ const eq = (a, b, what) => { n++; if (a !== b) { fails++; console.log('FAIL', wh
 
 // ── MLB (TEST rows) ──
 const status = (row) => row._test_status
-const pre = { x_post_id: '111', payload: { called: ['10', '11'] } }
+// 2026-10-09: the quoted set is the NAMED set (payload.named), never the old `called` list
+const pre = { x_post_id: '111', payload: { named: ['10', '11'], called: ['10', '11', '12'] } }
 const gamePosts = [{ kind: 'call_900', x_post_id: '222', payload: { game_pk: 900, player_id: 10, posted_at: '2026-10-04T21:10:00Z' } }]
 const m = mlbQuotes({ pre, gamePosts, callStatus: status })
 eq(m.quoteFor({ player_id: 10, game_pk: 900, _test_status: 'called' }), '222', 'MLB: a called homer quotes its game call first')
 eq(m.quoteFor({ player_id: 11, game_pk: 901, _test_status: 'called' }), '111', 'MLB: else the morning post when he was on it')
 eq(m.quoteFor({ player_id: 11, game_pk: 901, _test_status: 'board' }), null, 'MLB: ON THE BOARD quotes nothing')
-eq(m.quoteFor({ player_id: 12, game_pk: 901, _test_status: 'called' }), null, 'MLB: called but not on the morning post -> nothing')
+eq(m.quoteFor({ player_id: 12, game_pk: 901, _test_status: 'called' }), null, 'MLB: called but NOT NAMED in the morning post (even if in the old `called` list) -> nothing')
 eq(m.calledAtLine({ player_id: 10, game_pk: 900, _test_status: 'called' }), '✅ Called at 5:10 PM ET', 'MLB: the called-at line')
 eq(mlbQuotes({ pre: { x_post_id: '111', payload: { picks: [{ player_id: 13 }] } }, gamePosts: [], callStatus: status }).quoteFor({ player_id: 13, _test_status: 'called' }), '111', 'MLB: an old pregame row (picks only) still quotes')
 
