@@ -8,6 +8,11 @@ import { fetchLiveSlate, pickCleared, fetchHrContext, lineupStatus } from '../li
 import LiveWire from './LiveWire'
 import WireToasts from './WireToasts'
 import { subscribePush } from '../lib/dash/push'
+import { toast as words, bell as bellWords, gameState, TOAST_DUPLICATES_PUSH } from '../lib/copy/notifications'
+import { TEAM_ABBR } from '../lib/dash/homerFeed'
+
+// A live game as the copy wants it (club abbreviations, score, half, inning).
+const gameView = (g) => (g ? { away: TEAM_ABBR[g.awayId] || '', home: TEAM_ABBR[g.homeId] || '', awayScore: g.awayScore, homeScore: g.homeScore, half: g.half, inning: g.inning } : null)
 
 // 📡 MINI WIRE + TOASTS — the live layer that follows you (2026-08-06).
 //
@@ -119,12 +124,12 @@ export default function MiniWire({
       setNotif('on'); notifRef.current = 'on'
       setAlertMaster(true)
       // and with the site closed: register this device for push (needs an account; quiet if not)
-      subscribePush().then((r) => { if (r && !r.ok && r.reason === 'signed-out') addToasts([{ key: `push:${Date.now()}`, icon: '🔑', pri: 0, p: null, text: 'Alerts are on while the site is open. Sign in to get them with the site closed too.' }]) }).catch(() => {})
+      subscribePush().then((r) => { if (r && !r.ok && r.reason === 'signed-out') addToasts([{ key: `push:${Date.now()}`, icon: '🔑', pri: 0, p: null, text: bellWords.signIn }]) }).catch(() => {})
       // Self-verifying arm (2026-08-06): "did it work?" answers itself — a
       // demo toast fires instantly, and the same event hits the OS so you
       // see both channels the moment you opt in.
       addToasts([{ key: `test:${Date.now()}`, icon: '🔔', pri: 0, p: null,
-        text: 'Armed. Homers and "your pick is up now" reach you even while you\'re looking at the site. Bar clears, on-deck and K-alerts wait until the tab is hidden. Choose which ones on DASH Home → Alerts.' }])
+        text: bellWords.armed }])
     }
   }
   // Register early when permission is already granted, so the first alert of
@@ -268,7 +273,7 @@ export default function MiniWire({
       // Through the SERVICE WORKER now, not `new Notification` (lib/notify).
       // The page API is unreliable on Android and dies when the phone freezes
       // the tab — which is precisely the case these alerts exist for.
-      items.filter((t) => alertWanted(prefs, t, hidden)).slice(0, 3).forEach((t) => {
+      items.filter((t) => !t.noBanner && alertWanted(prefs, t, hidden)).slice(0, 3).forEach((t) => {
         notify({ title: `${t.icon} ${t.text}`, body: 'MOONSHOT', tag: t.osTag || t.key, silent: t.pri > 0.5, url: toastUrl(t) }) // the news is line 1 on a lock screen
       })
     }
@@ -300,6 +305,7 @@ export default function MiniWire({
         const slateIds = new Map(players.map((p) => [Number(p?.player_id ?? p?.id), p]))
         const relevant = players.filter((p) => primaryRole(p) || watched.has(pidOf(p)))
         const out = []
+        const slateGame = (pk) => (s.games || []).find((x) => Number(x.pk) === Number(pk))
         relevant.forEach((p) => {
           const id = Number(p?.player_id ?? p?.id)
           const now = s.lines[id]; const was = prev[id]
@@ -322,22 +328,22 @@ export default function MiniWire({
           }
           if (now.hr > was.hr) {
             const hrKey = `${id}:hr:${now.hr}${now.d2}${now.d3}${now.k}${now.tb}`
-            fire('hr', '💥', `${nameOf(p)} goes yard${now.hr > 1 ? `, ${now.hr} tonight` : ''}${role ? ` · ${role} pick ✓` : ''}`, 0)
+            fire('hr', '💥', words.homer({ name: nameOf(p), n: now.hr, role, score: gameState(gameView(slateGame(now.pk))) }), 0)
             enrichHr(hrKey, now.pk, id, p, now)
           }
           else {
             const clearedNow = role && pickCleared(role, now) === true && pickCleared(role, was) !== true
-            if (now.d3 > was.d3) fire('d3', '🔥', `${nameOf(p)} triples${clearedNow ? ` · ${role} bar cleared ✓` : ''}`, 1)
-            else if (now.d2 > was.d2) fire('d2', '⚡', `${nameOf(p)} doubles${clearedNow ? ` · ${role} bar cleared ✓` : ` · ${now.tb} TB`}`, 1)
-            else if (clearedNow) fire('clr', '✓', `${nameOf(p)} clears the ${role} bar (${now.h}-${now.ab}${now.tb > 1 ? `, ${now.tb} TB` : ''})`, 1)
+            if (now.d3 > was.d3) fire('d3', '🔥', words.triple({ name: nameOf(p), role, cleared: clearedNow }), 1)
+            else if (now.d2 > was.d2) fire('d2', '⚡', words.double({ name: nameOf(p), role, cleared: clearedNow, tb: now.tb }), 1)
+            else if (clearedNow) fire('clr', '✓', words.barCleared({ name: nameOf(p), role, h: now.h, ab: now.ab, tb: now.tb, score: gameState(gameView(slateGame(now.pk))) }), 1)
           }
           if (role && now.k >= 2 && was.k < 2 && now.h === 0) {
-            fire('k', '⚠️', `${nameOf(p)} (${role} pick) is 0-${now.ab} with ${now.k} K · the strikeout script`, 2)
+            fire('k', '⚠️', words.strikeouts({ name: nameOf(p), role, ab: now.ab, k: now.k }), 2)
           }
           // Big-bases night: 4+ TB crossing, only when it wasn't a fresh
           // homer doing the crossing (that toast already fired louder).
           if (now.tb >= 4 && was.tb < 4 && now.hr === was.hr) {
-            fire('tb4', '🧨', `${nameOf(p)} is piling bases · ${now.tb} TB (${now.h}-${now.ab})`, 1)
+            fire('tb4', '🧨', words.bigBases({ name: nameOf(p), tb: now.tb, h: now.h, ab: now.ab }), 1)
           }
         })
         // ── EVERY slate homer toasts (2026-08-06). The wire chip updated but
@@ -355,7 +361,7 @@ export default function MiniWire({
           if (firedRef.current.has(key)) return
           firedRef.current.add(key)
           out.push({ key, icon: '💥', p: p || null, pri: 3, kind: 'anyhr',
-            text: `${p ? nameOf(p) : (now.name || 'Someone')} goes deep${now.hr > 1 ? `, ${now.hr} tonight` : ''}` })
+            text: words.anyHomer({ name: p ? nameOf(p) : (now.name || 'Someone'), n: now.hr }) })
           enrichHr(key, now.pk, id, p, now)
         })
 
@@ -380,12 +386,12 @@ export default function MiniWire({
                 // 🎤 retired 2026-09-03 (Donovan: "I don't like the
                 // microphone"). ⚾ says the same thing without the karaoke.
                 key, icon: '⚾', p, pri: 0.5, kind: 'up',
-                text: `${nameOf(p)} is up now (${who})${arm ? ` vs ${arm}` : ''} · ${g.half}${g.inning}`,
+                text: words.upNow({ name: nameOf(p), who, arm, half: g.half, inning: g.inning }),
               })
             }
           } else if (g.onDeck === id) {
             const key = `${id}:od:${slot}`
-            if (!firedRef.current.has(key)) { firedRef.current.add(key); out.push({ key, icon: '⏳', text: `${nameOf(p)} (${who}) is on deck`, p, pri: 1.5 }) }
+            if (!firedRef.current.has(key)) { firedRef.current.add(key); out.push({ key, icon: '⏳', text: words.onDeck({ name: nameOf(p), who }), p, pri: 1.5 }) }
           }
         })
         // ── LINEUP CARD POSTED (2026-08-10) ──────────────────────────
@@ -410,8 +416,8 @@ export default function MiniWire({
             if (firedRef.current.has(key)) return
             firedRef.current.add(key)
             out.push({
-              key, icon: '🚫', p, pri: 0.2,
-              text: `${nameOf(p)} (${who}) is not in tonight's lineup · MOONSHOT had him #${p?.lineup_spot ?? '?'}`,
+              key, icon: '🚫', p, pri: 0.2, noBanner: true,
+              text: words.notInLineup({ name: nameOf(p), who, spot: p?.lineup_spot }),
             })
           } else if (lu.moved) {
             const key = `${id}:slot:${lu.slot}`
@@ -419,7 +425,7 @@ export default function MiniWire({
             firedRef.current.add(key)
             out.push({
               key, icon: '↕', p, pri: 1.4,
-              text: `${nameOf(p)} (${who}) is batting #${lu.slot} tonight · MOONSHOT had #${p?.lineup_spot}`,
+              text: words.newSlot({ name: nameOf(p), who, slot: lu.slot, was: p?.lineup_spot }),
             })
           }
         })

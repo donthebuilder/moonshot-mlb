@@ -6,6 +6,7 @@ import { hrPerGame } from '../lib/odds'
 import { nameOf, teamOf, clean, playerId as pidOf } from '../lib/player'
 import { fetchLiveSlate, pickCleared } from '../lib/liveSlate'
 import { teamAbbrs } from '../lib/gamelogs'
+import { livewire as words } from '../lib/copy/notifications'
 import { fetchPenFatigue, penTier } from '../lib/bullpen'
 import { leagueRates, tonightTotals } from '../lib/leagueRates'
 import { ActiveFilters, FilterBar, FilterSearch, FilterSelect } from './Filters'
@@ -143,13 +144,13 @@ export default function LiveWire({ players = [], results, watchIds, mode = 'toda
     const la = lineOf(pr.a), lb = lineOf(pr.b)
     const aHR = la?.hr > 0, bHR = lb?.hr > 0
     if (aHR && bHR) {
-      alerts.push({ pri: 0, icon: '💰', text: `PAIR CASHED — ${clean(pr.a?.name, '?')} + ${clean(pr.b?.name, '?')} both went deep (${pr.label})` })
+      alerts.push({ pri: 0, icon: '💰', text: words.pairCashed({ a: clean(pr.a?.name, '?'), b: clean(pr.b?.name, '?'), label: pr.label }) })
     } else if (aHR || bHR) {
       const done = aHR ? pr.a : pr.b, needs = aHR ? pr.b : pr.a
       const nl = aHR ? lb : la
       if (nl?.state === 'Live') {
         alerts.push({ pri: 1, icon: '🎟', p: slateIds.get(Number(needs?.player_id)),
-          text: `${clean(done?.name, '?')} went deep — ${clean(needs?.name, '?')} completes the "${pr.label}" pair, game live` })
+          text: words.pairOneAway({ done: clean(done?.name, '?'), needs: clean(needs?.name, '?'), label: pr.label }) })
       }
     }
   })
@@ -157,10 +158,10 @@ export default function LiveWire({ players = [], results, watchIds, mode = 'toda
     const hit = Number(pl.hr_count) || 0, tot = Number(pl.total_count) || 0
     if (!tot) return
     const anyLive = (pl.players || []).some((mb) => lineOf(mb)?.state === 'Live')
-    if (hit >= tot) alerts.push({ pri: 0, icon: '💰', text: `POOL CASHED — ${pl.label}, all ${tot} went deep` })
+    if (hit >= tot) alerts.push({ pri: 0, icon: '💰', text: words.poolCashed({ label: pl.label, total: tot }) })
     else if (tot - hit === 1 && anyLive) {
       const missing = (pl.players || []).filter((mb) => !(lineOf(mb)?.hr > 0)).map((mb) => clean(mb?.name, '?'))
-      alerts.push({ pri: 1, icon: '🎟', text: `${pl.label} is ${hit}/${tot} — one swing from cashing (${missing.join(', ')})` })
+      alerts.push({ pri: 1, icon: '🎟', text: words.poolOneAway({ label: pl.label, hit, total: tot, missing }) })
     }
   })
   // ⏸ WEATHER FIRST. A stopped game changes what every other row on this
@@ -168,14 +169,9 @@ export default function LiveWire({ players = [], results, watchIds, mode = 'toda
   stopped.forEach((g) => {
     const away = abbrs?.[g.awayId] || '?'; const home = abbrs?.[g.homeId] || '?'
     const mine = graded.filter((x) => x.line?.pk === g.pk && x.cleared !== true).length
-    const tail = g.postponed
-      ? 'no at-bats will be played — those picks are void, not losses'
-      : g.suspended
-        ? 'it resumes later, so nothing is decided yet'
-        : 'picks stay open until it resumes or is called'
     alerts.push({
       pri: 0, icon: g.postponed ? '🚫' : '⏸',
-      text: `${away} @ ${home} — ${g.detail || 'delayed'}${mine ? ` (${mine} pick${mine > 1 ? 's' : ''} waiting)` : ''} — ${tail}`,
+      text: words.stopped({ away, home, kind: g.postponed ? 'postponed' : g.suspended ? 'suspended' : 'delayed', reason: g.detail, waiting: mine }),
     })
   })
   graded.forEach(({ p, role, line, cleared }) => {
@@ -187,7 +183,7 @@ export default function LiveWire({ players = [], results, watchIds, mode = 'toda
       : role === 'HIT' ? 'a hit'
       : role === 'HRR' ? `2+ H+R+RBI (has ${line.h + line.r + line.rbi})`
       : `2+ TB (has ${line.tb})`
-    alerts.push({ pri: 2, icon: '⏰', p, text: `${nameOf(p)} (${role} pick) still needs ${need} — ${g.inning}th inning` })
+    alerts.push({ pri: 2, icon: '⏰', p, text: words.stillNeeds({ name: nameOf(p), role, need, inning: g.inning }) })
   })
   // 🚪 BULLPEN DOOR (2026-08-07): a starter climbing toward 90 means the
   // soft underbelly is coming — and if that team's pen threw hard YESTERDAY,
@@ -200,16 +196,16 @@ export default function LiveWire({ players = [], results, watchIds, mode = 'toda
       const nm = String(st.name || '').split(' ').slice(-1)[0]
       if (tier?.key === 'gassed') {
         const t2 = pen[st.teamId]
-        alerts.push({ pri: 1, icon: '🚪', text: `${nm} at ${st.pitches} pitches AND his pen threw ${t2.pitches} pitches yesterday (${t2.used} arms) — gassed relief is the HR window` })
+        alerts.push({ pri: 1, icon: '🚪', text: words.gassedPen({ name: nm, pitches: st.pitches, penPitches: t2.pitches, arms: t2.used }) })
       } else if (st.pitches >= 95) {
-        alerts.push({ pri: 2, icon: '🚪', text: `${nm} at ${st.pitches} pitches — bullpen door opening` })
+        alerts.push({ pri: 2, icon: '🚪', text: words.penDoor({ name: nm, pitches: st.pitches }) })
       }
     })
   })
   Object.entries(snap.lines).forEach(([id, l]) => {
     if (l.hr >= 2) {
       const p = slateIds.get(Number(id))
-      alerts.push({ pri: 3, icon: '🚀', p, text: `${p ? nameOf(p) : `#${id}`} has ${l.hr} HR tonight${l.state === 'Live' ? ' — still batting' : ''}` })
+      alerts.push({ pri: 3, icon: '🚀', p, text: words.multiHr({ name: p ? nameOf(p) : `#${id}`, n: l.hr, live: l.state === 'Live' }) })
     }
   })
   alerts.sort((a, b) => a.pri - b.pri)

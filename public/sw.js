@@ -67,7 +67,7 @@ self.addEventListener('message', (e) => {
   const d = e.data
   if (!d || d.type !== 'notify') return
   const { title, body, tag, silent, url } = d
-  e.waitUntil(self.registration.showNotification(title || 'DASH Network · Moonshot', {
+  e.waitUntil(self.registration.showNotification(title || 'MOONSHOT', {
     body: body || '',
     tag: tag || undefined,
     silent: !!silent,
@@ -129,14 +129,20 @@ self.addEventListener('notificationclick', (e) => {
 // a TUDDY touchdown or a LAMP goal says TUDDY or LAMP, not MOONSHOT
 // (2026-10-02; the payload has no sport field and its sender isn't changed).
 const PRODUCT = { nfl: '🏈 TUDDY', nhl: '🚨 LAMP', mlb: '⚾ MOONSHOT' }
+// The title is only ever the product word when a push arrives with no title at all. "DASH" never
+// appears here: the bold line iOS prints under every web-push title (the web app's name, taken from
+// public/manifest) is not ours to remove, and our own text must not repeat it.
 const sportOf = (url) => { const m = String(url || '').match(/[?#&]sport=(nfl|nhl|mlb)/); return m ? m[1] : 'mlb' }
 self.addEventListener('push', (e) => {
   let d = {}
   try { d = e.data ? e.data.json() : {} } catch { d = { body: e.data ? e.data.text() : '' } }
   const product = PRODUCT[sportOf(d.url)]
-  e.waitUntil(self.registration.showNotification(d.title || `${product} · DASH Network`, {
+  e.waitUntil(self.registration.showNotification(d.title || product, {
     body: d.body || '',
     tag: d.tag || undefined,
+    // A tag that matches a notification already on the screen REPLACES it; renotify makes the
+    // replacement buzz again instead of arriving silently (2026-10-09 push audit).
+    renotify: Boolean(d.tag),
     icon: '/icon-192.png',
     badge: '/icon-192.png',
     data: { url: d.url || '/app' },

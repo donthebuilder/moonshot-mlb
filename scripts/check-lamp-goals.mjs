@@ -200,9 +200,9 @@ const torRows = (s) => s.t.feed.filter((r) => r.game_id === TOR)
   check(nhlEventsFrom(s.t.feed.map((r) => ({ ...r, game_type: 1 })), audience).length === 0, 'preseason rows -> no event')
   check(nhlEventsFrom(s.t.feed.map((r) => ({ ...r, overturned_at: r.player_id === 8477939 ? 'x' : null })), audience).filter((e) => e.playerId === '8477939').length === 0, 'an overturned row -> no event')
   const tav = s.t.feed.find((r) => r.player_id === 8475166)
-  check(pushText(tav).body.startsWith('#5 on the LAMP board'), 'a board scorer: "#5 on the LAMP board"')
+  check(pushText(tav).body.startsWith('ON THE BOARD #5'), 'a board scorer: "ON THE BOARD #5" (the status word, then his rank)')
   const wsh = s.t.feed.find((r) => r.game_id === WSH)
-  check(!pushText(wsh).body.includes('LAMP board'), 'no lock -> no board line in the push')
+  check(!/ON THE BOARD|CALLED/.test(pushText(wsh).body), 'no lock -> no status word in the push')
 }
 
 // ── 6. the page labels ────────────────────────────────────────────────────

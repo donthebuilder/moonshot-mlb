@@ -22,6 +22,7 @@
 // nothing would be a lie. Not configured (no VAPID keys on the deploy) is a
 // 503 with a clear reason for the same reason.
 
+import { WELCOME as WELCOME_COPY } from '../../../../../lib/copy/notifications'
 import webpush from 'web-push'
 
 import { createSupabaseServerClient } from '../../../../../lib/supabase/server'
@@ -62,13 +63,7 @@ async function user() {
 // still saved and the request still succeeds -- the response just says
 // welcomed: false. Failing to send a greeting must not cost somebody their
 // alerts.
-const WELCOME = {
-  title: '\u{1F514} Alerts are on',
-  // every product's (2026-10-02): was MOONSHOT-only ("when he goes deep", opened MOONSHOT)
-  body: 'This is what one looks like. Follow a player on MOONSHOT, TUDDY or LAMP and you will hear from us when he homers, scores a touchdown or a goal.',
-  tag: 'dash-welcome',
-  url: '/app',
-}
+const WELCOME = { ...WELCOME_COPY, tag: 'dash-welcome', url: '/app' }
 
 // The browser push services a PushSubscription.endpoint can legitimately
 // point at. Chrome/Edge/Brave/Opera (FCM), Firefox (Mozilla autopush), Safari

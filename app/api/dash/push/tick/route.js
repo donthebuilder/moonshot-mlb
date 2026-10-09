@@ -39,6 +39,7 @@ import { hasVapid, vapidDetails, vapidProblem } from '../../../../../lib/dash/va
 import { claimBoardWindow, fetchBoard } from '../../../../../lib/dash/board'
 import { byeStarterEventsFrom, franchiseEventsFrom, lineupGapEventsFrom, starterScoreEventsFrom } from '../../../../../lib/dash/franchise'
 import { audienceFrom, boardInfoFrom, deviceWantsSport, laneOf, lineupUpdatesFrom, mlbEventsFrom, nflEventsFrom, followNameKey, nflFollowMisses, nhlEventsFrom, nbaEventsFrom, pregameEventsFrom, priorityOf, wants } from '../../../../../lib/dash/pushRules'
+import { bundleTitle, bundleBody } from '../../../../../lib/copy/notifications'
 import { fanOutToDiscord } from '../../../../../lib/dash/discordAlerts'
 import { fetchNfl, nflGameCallsPaths, nflPicksLooksReal, nflPicksPaths, nflSlateLooksReal, nflSlatePaths } from '../../../../../lib/nfl/dataSource'
 import { tdPool } from '../../../../../lib/nfl/tdPool'
@@ -363,7 +364,7 @@ async function markSwept(db, rows) {
 // happened) a slower 30-minute one. The two devices that were hitting the
 // old cap 62-69 times a night hit these at most 6 + 2 an hour.
 const LANE_WINDOW_MS = { actionable: 10 * 60 * 1000, scoreboard: 30 * 60 * 1000 }
-const BODY_CAP = 5
+const BODY_CAP = 3
 
 const shortId = (s) => createHash('sha1').update(String(s)).digest('hex').slice(0, 16)
 const hostOf = (s) => { try { return new URL(s).host } catch { return '?' } }
@@ -438,34 +439,18 @@ function bundle(events) {
   const list = [...best.values(), ...kept].sort((a, b) => priorityOf(a) - priorityOf(b))
 
   const head = list[0]
-  // WHO ON LINE 1 (2026-10-04, ops audit). Most titles are a category --
-  // '⚾ ON DECK', '🏈 TOUCHDOWN', '⚠️ SCRATCH' -- with the man on line 2, which
-  // a lock screen often cuts. A single note's title carries its short name
-  // ('⚾ ON DECK · Tatis') unless the title already names him.
-  if (list.length === 1) return { title: withWho(head), body: head.body, tag: head.key, url: head.url }
+  // ONE EVENT: its own words, untouched. The title already carries the player
+  // (or none), so nothing is appended to it -- the name appears once.
+  if (list.length === 1) return { title: head.title, body: head.body, tag: head.key, url: head.url }
+  // SEVERAL: one short note. "<emoji> 3 went deep" / "Alpha · Bravo · Charlie". No "DASH" filler.
   const groups = new Set(list.map((e) => e.group).filter(Boolean))
   const verb = groups.size === 1 ? [...groups][0] : ''
-  const parts = list.map((e) => e.short || e.body)
-  const shown = parts.slice(0, BODY_CAP)
-  const more = parts.length - shown.length
   return {
-    title: `${head.brand || 'DASH'} \u00b7 ${list.length} ${verb || 'of your guys'}`,
-    body: shown.join(' \u00b7 ') + (more > 0 ? ` \u00b7 +${more} more` : ''),
+    title: bundleTitle(head.sport, list.length, verb || 'updates'),
+    body: bundleBody(list.map((e) => e.short || e.body), BODY_CAP),
     tag: `bundle:${head.key}`,
     url: head.url,
   }
-}
-
-function withWho(e) {
-  const title = String(e?.title || '')
-  const short = String(e?.short || '').trim()
-  if (!short) return title
-  const first = short.split(/[\s(]/)[0].toLowerCase()
-  if (!first || title.toLowerCase().includes(first)) return title
-  // words the title already says don't repeat ('ON DECK · Tatis', not '… Tatis on deck')
-  const said = new Set(title.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean))
-  const who = short.split(' ').filter((w) => !said.has(w.toLowerCase())).join(' ')
-  return `${title} \u00b7 ${who || short}`
 }
 
 // ── HOW FAST AN EVENT CAN REACH YOU ────────────────────────────────────────
@@ -683,12 +668,19 @@ let _lastPrune = 0
 async function logOutcomes(db, sub, rows) {
   if (!rows.length) return
   const endpoint_hash = shortId(sub.endpoint)
-  const { error } = await db.from('dash_push_log').insert(rows.map((r) => ({
+  const make = (withDetail) => rows.map((r) => ({
     user_id: sub.user_id, endpoint_hash,
     event_key: r.event.key, category: r.event.category || null, sport: r.event.sport || null,
     priority: priorityOf(r.event), lane: laneOf(r.event),
     title: r.event.title || null, body: r.event.body || null, outcome: r.outcome,
-  })))
+    // WHY a send failed (2026-10-09): the push service's status and its one-word reason, so
+    // 404/410 (gone), 413 (too big), 401/403 (keys) and 429/5xx are told apart in the log.
+    // Needs the `detail` column (supabase/migrations/202610091000_dash_push_log_detail.sql);
+    // until it exists the insert falls back to the old shape.
+    ...(withDetail ? { detail: r.detail || null } : {}),
+  }))
+  let { error } = await db.from('dash_push_log').insert(make(true))
+  if (error && /detail/i.test(error.message)) ({ error } = await db.from('dash_push_log').insert(make(false)))
   if (error) console.error(`[push] dash_push_log insert failed: ${error.message}`)
 }
 
@@ -836,7 +828,7 @@ async function sweep(db, subs, stateByUser, audience, { full }) {
           console.error(`[push] ${shortId(sub.endpoint)}: ${DEAD_AFTER} failed sends in a row (${status}) -- removing the subscription; the browser re-subscribes the next time it opens the site`)
           dead.push(sub.endpoint)
         }
-        for (const e of batch) outcomes.push({ event: e, outcome: 'failed' })
+        for (const e of batch) outcomes.push({ event: e, outcome: 'failed', detail: `${status ?? 'no status'} ${reason}`.slice(0, 140) })
         break
       }
     }

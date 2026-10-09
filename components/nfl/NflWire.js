@@ -42,6 +42,7 @@ import { useNflWatchlist } from '../../lib/nfl/watchlist'
 import { useFollowing } from '../../lib/dash/follow'
 import { alertPrefs, alertWanted } from '../../lib/dash/alerts'
 import { notify } from '../../lib/notify'
+import { toast as words } from '../../lib/copy/notifications'
 
 const POLL_MS = 45000
 
@@ -105,7 +106,8 @@ export default function NflWire({ data, onPlayerClick }) {
       const prefs = alertPrefs()
       if (prefs.on && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
         const hidden = typeof document !== 'undefined' && document.hidden
-        items.filter((t) => alertWanted(prefs, t, hidden)).slice(0, 3).forEach((t) => {
+        // The phone push already says kickoff and touchdown; the page shows them, the OS banner does not repeat them.
+        items.filter((t) => t.kind !== 'nflkick' && t.kind !== 'nfltd' && alertWanted(prefs, t, hidden)).slice(0, 3).forEach((t) => {
           notify({ title: `${t.icon} ${t.text}`, body: 'TUDDY', tag: t.key, url: '/app#sport=nfl&tab=watchlist' }) // the news is line 1 on a lock screen
         })
       }
@@ -132,7 +134,7 @@ export default function NflWire({ data, onPlayerClick }) {
             if (!firedRef.current.has(key)) {
               firedRef.current.add(key)
               out.push({ key, kind: 'nflkick', pri: 1, icon: '🏈', player,
-                text: `${game.away} @ ${game.home} is under way — ${player.name} is on your list` })
+                text: words.nflKick({ away: game.away, home: game.home, name: player.name }) })
             }
           }
         }
@@ -150,7 +152,7 @@ export default function NflWire({ data, onPlayerClick }) {
           if (!firedRef.current.has(key)) {
             firedRef.current.add(key)
             out.push({ key, kind: 'nfltd', pri: 0, icon: '🏈', player,
-              text: `${player.name} SCORES${tds > 1 ? ` — that's ${tds}` : ''}` })
+              text: words.nflScores({ name: player.name, tds }) })
           }
         }
 
@@ -167,7 +169,7 @@ export default function NflWire({ data, onPlayerClick }) {
             if (firedRef.current.has(key)) continue
             firedRef.current.add(key)
             out.push({ key, kind: 'nflbar', pri: 1, icon: '✓', player,
-              text: `${player.name} clears ${market.replace('_', ' ').toLowerCase()} — ${now} (bar ${bar})` })
+              text: words.nflBar({ name: player.name, market, now, bar }) })
           }
         }
       }
