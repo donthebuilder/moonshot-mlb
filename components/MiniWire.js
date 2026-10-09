@@ -8,7 +8,7 @@ import { fetchLiveSlate, pickCleared, fetchHrContext, lineupStatus } from '../li
 import LiveWire from './LiveWire'
 import WireToasts from './WireToasts'
 import { subscribePush } from '../lib/dash/push'
-import { toast as words, bell as bellWords, gameState, TOAST_DUPLICATES_PUSH } from '../lib/copy/notifications'
+import { toast as words, bell as bellWords, scoreText } from '../lib/copy/notifications'
 import { TEAM_ABBR } from '../lib/dash/homerFeed'
 
 // A live game as the copy wants it (club abbreviations, score, half, inning).
@@ -328,14 +328,14 @@ export default function MiniWire({
           }
           if (now.hr > was.hr) {
             const hrKey = `${id}:hr:${now.hr}${now.d2}${now.d3}${now.k}${now.tb}`
-            fire('hr', '💥', words.homer({ name: nameOf(p), n: now.hr, role, score: gameState(gameView(slateGame(now.pk))) }), 0)
+            fire('hr', '💥', words.homer({ name: nameOf(p), n: now.hr, role, score: scoreText(gameView(slateGame(now.pk))) }), 0)
             enrichHr(hrKey, now.pk, id, p, now)
           }
           else {
             const clearedNow = role && pickCleared(role, now) === true && pickCleared(role, was) !== true
             if (now.d3 > was.d3) fire('d3', '🔥', words.triple({ name: nameOf(p), role, cleared: clearedNow }), 1)
             else if (now.d2 > was.d2) fire('d2', '⚡', words.double({ name: nameOf(p), role, cleared: clearedNow, tb: now.tb }), 1)
-            else if (clearedNow) fire('clr', '✓', words.barCleared({ name: nameOf(p), role, h: now.h, ab: now.ab, tb: now.tb, score: gameState(gameView(slateGame(now.pk))) }), 1)
+            else if (clearedNow) fire('clr', '✓', words.barCleared({ name: nameOf(p), role, h: now.h, ab: now.ab, tb: now.tb, score: scoreText(gameView(slateGame(now.pk))) }), 1)
           }
           if (role && now.k >= 2 && was.k < 2 && now.h === 0) {
             fire('k', '⚠️', words.strikeouts({ name: nameOf(p), role, ab: now.ab, k: now.k }), 2)
