@@ -6,6 +6,8 @@
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 
+// The scheduler (xSchedule) has its own windows and is tested in check-x-schedule.mjs; here the real clock must not hold the poll tests.
+process.env.X_SCHEDULE_OFF = 'on'
 process.env.NEXT_PUBLIC_SITE_URL = 'https://test.example'
 Object.assign(process.env, { X_API_KEY: 'TEST', X_API_SECRET: 'TEST', X_ACCESS_TOKEN: 'TEST', X_ACCESS_SECRET: 'TEST', DISCORD_HOMER_WEBHOOK: 'https://discord.test/hook' })
 for (const k of ['X_POLLS_PAUSE', 'X_POSTS_PAUSE', 'X_GUARDS_OFF', 'POST_KINDS_ON', 'DISCORD_MLB_WEBHOOKS', 'DISCORD_NFL_WEBHOOKS', 'DISCORD_NHL_WEBHOOKS', 'DISCORD_NBA_WEBHOOKS', 'BUCKETS_PUBLIC']) delete process.env[k]

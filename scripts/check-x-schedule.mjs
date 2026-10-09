@@ -10,6 +10,7 @@ delete process.env.X_POSTS_PAUSE
 const S = await import('../lib/dash/xSchedule.js')
 const P = await import('../lib/dash/xPolicy.js')
 const G = await import('../lib/dash/xGate.js')
+const polls = await import('../lib/dash/polls/kinds.js')
 const { SCHEDULE, KIND_TAGS, mayPostNow, windowOpen, planDay, wallToMs, clockIn, payloadFor, untagged, kindInfo, tagOf } = S
 
 let n = 0
@@ -73,7 +74,7 @@ await ok('Phoenix is converted with Intl: no DST, and ET follows Nov 1 2026 (EDT
 
 // ── a whole fake day, minute by minute ────────────────────────────────────────
 const FACT_KINDS = ['hrleadersdow', 'bestair', 'storylines', 'matchup_hr', 'hot_week', 'hot_month', 'history_watch', 'longshots', 'multi_club', 'list_mlb', 'storyline_watch_1', 'pairswatch', 'matchuplines', 'hotcontact', 'dangercombos', 'backtoback', 'nfl_redzone', 'nfl_goalline', 'nfl_tdhistory', 'nhlhardest', 'nhl_longshots', 'list_nhl', 'longshot', 'matchup_career', 'nfl_spotlight', 'nfl_milestone', 'nfl_whyboard', 'nfl_longshots', 'list_nfl', 'nhl_multi_club']
-function simulateDay(day, { games = [], postseason = false, supply = ['callofnight', ...FACT_KINDS, 'botpoll', 'community_pick', 'nfl_botpoll', 'numerology'], stepMin = 1 } = {}) {
+function simulateDay(day, { games = [], postseason = false, supply = ['callofnight', ...FACT_KINDS, 'poll_pick', 'poll_over', 'nfl_poll_pick', 'numerology'], stepMin = 1 } = {}) {
   const posted = []
   const left = new Set(supply)
   const start = at(day, '00:00')
@@ -102,7 +103,7 @@ await ok('a full fake day: 20 or fewer, every post at or after a planned slot, 4
   for (const p of posted) if (p.at < at(DAY, '06:00')) assert.ok(['fact', 'poll'].includes(P.tierOf(p.kind)), `${p.kind} overnight`)
 })
 await ok('a full fake day of only facts/polls/numerology tops out where xPolicy says: the last 4 of the 20 are held for the slate / write-up tiers', () => {
-  const lots = ['callofnight', ...FACT_KINDS, 'botpoll', 'community_pick', 'nfl_botpoll', 'nfl_community', 'numerology']
+  const lots = ['callofnight', ...FACT_KINDS, 'poll_pick', 'poll_over', 'nfl_poll_pick', 'nhl_poll_guess', 'numerology']
   for (const day of [DAY, THU]) {
     const posted = simulateDay(day, { supply: lots })
     assert.equal(posted.length, 16, day)                                      // facts stop below 20 - 4, polls below 14, numerology below 12
@@ -119,7 +120,15 @@ await ok('a post waits for its window: a fact before 06:00 only at the overnight
   assert.equal(mayPostNow({ kind: 'hrleadersdow', now: at(DAY, '01:10') }).ok, false)   // the 01:00 slot is the poll's for 30 minutes
   assert.equal(mayPostNow({ kind: 'hrleadersdow', now: at(DAY, '03:00') }).ok, true)    // an unfilled 01:00 slot is open to a fact after the grace
   assert.equal(mayPostNow({ kind: 'hrleadersdow', now: at(DAY, '00:30') }).ok, false)   // before 01:00
-  assert.equal(mayPostNow({ kind: 'botpoll', now: at(DAY, '01:05') }).ok, true)          // the ~1am night-owl slot leads with a poll
+  assert.equal(mayPostNow({ kind: 'poll_pick', now: at(DAY, '01:05') }).ok, true)          // the ~1am night-owl slot leads with a poll
+})
+await ok('every poll kind (five formats x four sports) and the reveal carry a tag: polls FUN, the reveal INFO; the old botpoll kinds are retired', () => {
+  const { POLL_KINDS, POLL_RESULT_KINDS } = polls
+  for (const k of POLL_KINDS) assert.equal(tagOf(k), 'FUN', k)
+  for (const k of POLL_RESULT_KINDS) assert.equal(tagOf(k), 'INFO', k)
+  for (const k of ['botpoll', 'community_pick', 'nfl_botpoll', 'nfl_community']) assert.equal(tagOf(k), null, k)
+  assert.equal(mayPostNow({ kind: 'poll_pick', now: at(DAY, '10:55') }).ok, true)      // the 10:50 slot leads with a poll
+  assert.equal(mayPostNow({ kind: 'nfl_poll_over', now: at(DAY, '13:25') }).ok, true)   // the 13:20 slot too
 })
 await ok('the old schedule gap is fixed: 7am ET (4am Phoenix) is no longer a post time; 8-11pm ET is', () => {
   const sevenEt = Date.parse('2026-10-14T11:00:00Z')    // 7:00 EDT = 04:00 Phoenix
@@ -145,7 +154,7 @@ await ok('no two posts of the same kind back to back (a matchup after a matchup 
   assert.equal(mayPostNow({ kind: 'bestair', now: at(DAY, '13:55'), posted }).ok, true)
   assert.equal(mayPostNow({ kind: 'matchup_career', now: at(DAY, '13:55'), posted: [{ kind: 'bestair', at: at(DAY, '12:31') }] }).ok, true)
   // two polls, or two numerology posts, in a row are the same kind too
-  assert.match(mayPostNow({ kind: 'community_pick', now: at(DAY, '13:55'), posted: [{ kind: 'botpoll', at: at(DAY, '12:31') }] }).reason, /same kind/)
+  assert.match(mayPostNow({ kind: 'poll_over', now: at(DAY, '13:55'), posted: [{ kind: 'poll_pick', at: at(DAY, '12:31') }] }).reason, /same kind/)
 })
 await ok('priority near the budget follows xPolicy: numerology goes first, then polls, facts, write-ups, the slate last', () => {
   const day = DAY
@@ -153,10 +162,10 @@ await ok('priority near the budget follows xPolicy: numerology goes first, then 
   const now = at(day, '20:00')
   const allowed = (kind, used) => mayPostNow({ kind, now, posted: filler(used) }).ok
   assert.equal(allowed('numerology', 11), true);  assert.equal(allowed('numerology', 12), false)   // reserve 8
-  assert.equal(allowed('botpoll', 13), true);     assert.equal(allowed('botpoll', 14), false)      // reserve 6
+  assert.equal(allowed('poll_pick', 13), true);     assert.equal(allowed('poll_pick', 14), false)      // reserve 6
   assert.equal(mayPostNow({ kind: 'hrleadersdow', now, posted: filler(15) }).ok, true); assert.equal(mayPostNow({ kind: 'hrleadersdow', now, posted: filler(16) }).ok, false)   // reserve 4
   // the scheduler never contradicts the policy
-  for (const kind of ['numerology', 'botpoll', 'hrleadersdow', 'callofnight', 'nfl_bigweek']) for (let used = 0; used <= 20; used++) {
+  for (const kind of ['numerology', 'poll_pick', 'hrleadersdow', 'callofnight', 'nfl_bigweek']) for (let used = 0; used <= 20; used++) {
     const r = mayPostNow({ kind, now: at(day, '12:30'), posted: filler(used) })
     if (!P.capAllows(kind, used)) assert.equal(r.ok, false, `${kind} at ${used}`)
   }
@@ -180,7 +189,7 @@ await ok('hold and drop: a post that is not due is held with the next window; 30
   assert.equal(dropped.drop, true); assert.match(dropped.reason, /dropped/)
   assert.equal(mayPostNow({ kind: 'numerology', now, startMs: now - 60e3 }).drop, true)
   // a post that is ok is never a drop
-  assert.equal(mayPostNow({ kind: 'botpoll', now: at(DAY, '01:05'), startMs: at(DAY, '01:10') }).drop, false)
+  assert.equal(mayPostNow({ kind: 'poll_pick', now: at(DAY, '01:05'), startMs: at(DAY, '01:10') }).drop, false)
 })
 await ok('a held post retries on later ticks and goes at its window (the fake clock walks to the slot)', () => {
   let went = null
@@ -208,9 +217,9 @@ await ok('every scheduled kind carries exactly one tag; an unknown or untagged k
   assert.equal(r.ok, false); assert.match(r.reason, /no tag/)
   assert.equal(windowOpen({ kind: 'test_filler', now: at(DAY, '12:30') }), false)
   // a caller's tag that disagrees with the table is refused
-  assert.match(mayPostNow({ kind: 'botpoll', now: at(DAY, '01:05'), tag: 'INFO' }).reason, /tag mismatch/)
-  assert.equal(mayPostNow({ kind: 'botpoll', now: at(DAY, '01:05'), tag: 'FUN' }).ok, true)
-  assert.equal(tagOf('hrleadersdow'), 'INFO'); assert.equal(tagOf('botpoll'), 'FUN'); assert.equal(tagOf(P.RETIRED_KINDS[0]), null)
+  assert.match(mayPostNow({ kind: 'poll_pick', now: at(DAY, '01:05'), tag: 'INFO' }).reason, /tag mismatch/)
+  assert.equal(mayPostNow({ kind: 'poll_pick', now: at(DAY, '01:05'), tag: 'FUN' }).ok, true)
+  assert.equal(tagOf('hrleadersdow'), 'INFO'); assert.equal(tagOf('poll_pick'), 'FUN'); assert.equal(tagOf(P.RETIRED_KINDS[0]), null)
 })
 await ok('every kind the code can post is in the table (the policy list, the routes, the kind check) and nothing retired posts', () => {
   const kinds = new Set(Object.keys({ homer: 1, td: 1, nhlgoal: 1, nba30: 1, board: 1, nfl_board: 1, nhl_board: 1, nfl_callsheet_reply: 1, pregame: 1, callofnight: 1, thefour: 1, slate: 1, writeup: 1, accountability: 1, recap: 1, weekly: 1, monthly: 1, board_results: 1, nfl_results: 1, nfl_bigweek: 1, botpoll: 1, community_pick: 1, nfl_botpoll: 1, nfl_community: 1, numerology: 1 }))
@@ -235,7 +244,7 @@ await ok('the overnight experiment: posts in 12-6am Phoenix carry experiment_ove
   const night = mayPostNow({ kind: 'hrleadersdow', now: at(DAY, '04:20') })
   assert.equal(night.ok, true); assert.equal(night.experiment, 'experiment_overnight'); assert.equal(night.period, '00-06')
   assert.deepEqual(payloadFor('hrleadersdow', at(DAY, '04:20')), { x_tag: 'INFO', experiment: 'experiment_overnight' })
-  assert.deepEqual(payloadFor('botpoll', at(DAY, '01:10')), { x_tag: 'FUN', experiment: 'experiment_overnight' })
+  assert.deepEqual(payloadFor('poll_pick', at(DAY, '01:10')), { x_tag: 'FUN', experiment: 'experiment_overnight' })
   assert.deepEqual(payloadFor('hrleadersdow', at(DAY, '12:35')), { x_tag: 'INFO' })
   assert.equal(mayPostNow({ kind: 'hrleadersdow', now: at(DAY, '12:35') }).experiment, null)
   assert.deepEqual(payloadFor('test_filler', at(DAY, '04:20')), {})
