@@ -149,11 +149,11 @@ export default function BoardHub({ slate, data, logs, matchup, odds, oddsStatus,
           <div style={{ minWidth: 0, fontSize: 13, lineHeight: 1.3, color: C.text2 }}><NflNote tab="research" /></div>
           {view === 'board' && market === 'TD' && howRow && <HowToRead id="nfl-td-board" accent={C.green} row={howRow} notes={HOW_NOTES} steps={HOW_STEPS} />}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
           <button type="button" onClick={() => setOpts((v) => !v)} aria-expanded={opts} style={{ flex: '0 0 auto', minHeight: 44, padding: '0 14px', borderRadius: 999, cursor: 'pointer', fontSize: TYPE.body, fontWeight: 900, fontFamily: NUM_FONT, whiteSpace: 'nowrap', border: `1px solid ${opts || query || team !== 'all' && team || game ? C.green : C.border}`, background: opts ? alpha(C.green, 0.14) : 'transparent', color: opts ? C.green : C.text3 }}>▤ Filters{(query || (team && team !== 'all') || game) ? ' ·' : ''}</button>
           <LedgerChip sport="nfl" />
           <WatchChip sport="nfl" />
-          <div style={{ flex: 1, minWidth: 0 }}><PillRow value={market} options={marketOptions} onChange={setMarket} /></div>
+          <div style={{ flex: '1 1 100%', minWidth: 0 }}><PillRow value={market} options={marketOptions} onChange={setMarket} /></div>
         </div>
         {opts && (
           <BoardTopBar inDrawer query={query} setQuery={setQuery} placeholder="Search player or team…"

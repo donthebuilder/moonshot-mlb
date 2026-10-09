@@ -256,8 +256,9 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
   }
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      {/* THE WATCH BOX LEADS THE PAGE (2026-10-07, Donovan: back-to-back / watch box "to the top"): MOONSHOT's B2B Watch sits first */}
-      {data && market === 'GOAL' && <GoalWatch flat={flat} onOpenPlayer={onOpenPlayer} date={shown} />}
+      {/* THE WATCH BOX: leads the page on a desktop (Donovan 10-07); on a PHONE it sits UNDER the table (Donovan 10-09: "put at the bottom"),
+          so the ranking is the first thing on the screen, as on TUDDY. */}
+      {!phone && data && market === 'GOAL' && <GoalWatch flat={flat} onOpenPlayer={onOpenPlayer} date={shown} />}
       {phone ? (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'space-between' }}>
           <div style={{ minWidth: 0, color: C.text2, fontSize: 13, lineHeight: 1.3 }}>Every skater tonight, #1 down. Tap a header to sort.{M.test ? ' A test.' : ''}</div>
@@ -334,6 +335,7 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
           ? <GameBoard key={g.game.id} g={g} market={market} layout={layout} keep={filtering ? keepIds : null} onOpenPlayer={onOpenPlayer} onOpenGame={onOpenGame} onOpenTeam={onOpenTeam} />
           : null))}
       {view === 'game' && filtering && flat.length > 0 && !kept.length && <EmptyState title="NOTHING MATCHES" note="Clear a filter above." />}
+      {phone && data && market === 'GOAL' && <GoalWatch flat={flat} onOpenPlayer={onOpenPlayer} date={shown} />}
       {/* ⚖️ COMPARE TWO (2026-10-03): MOONSHOT's compare, below the board and
           folded on a phone, the way MOONSHOT's Props and TUDDY's Boards place it. */}
       {market === 'GOAL' && flat.length > 1 && (

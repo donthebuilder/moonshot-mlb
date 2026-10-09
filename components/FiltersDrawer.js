@@ -102,7 +102,7 @@ export default function FiltersDrawer({
           One button + a count, same size on a phone as on a desktop monitor —
           "avoid a giant filter bar" applies to both, not just mobile. The
           panel below is what used to be permanently on screen. */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: compact ? 'nowrap' : 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <div ref={wrap} style={{ position: 'relative', ...(compact ? { flex: '0 0 auto' } : null) }}>
           <button
             type="button"
@@ -162,7 +162,7 @@ export default function FiltersDrawer({
 
         {share}
 
-        {compact && beside}
+        {compact && beside ? <div style={{ flex: '1 1 100%', minWidth: 0 }}>{beside}</div> : null}
 
         {/* #58: the pool pill says which count it is, so it can't be read as
             the board's own ranked badge beside it. */}
