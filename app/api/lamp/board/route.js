@@ -19,7 +19,7 @@ export async function GET(request) {
   const market = String(searchParams.get('market') || 'GOAL').toUpperCase()
   if (!BOARD_MARKETS[market]) return bad(`market must be one of ${Object.keys(BOARD_MARKETS).join(', ')}`)
   try {
-    const board = await readBoard(date, { market, lines: true })
+    const board = await readBoard(date, { market, lines: true, proj: market === 'GOAL' })
     return ok({ ...board, fetchedAt: new Date().toISOString() }, 60)
   } catch (e) {
     return delayed(`board ${date}`, e)

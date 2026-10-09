@@ -1,7 +1,7 @@
 'use client'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/nhl/theme'
-import { heatOf as heatIn, heatTier, dialInk } from '../../lib/nhl/slateHeat'
+import { heatOf as heatIn, heatTier, dialInk, leagueHeat } from '../../lib/nhl/slateHeat'
 import { useLampBoard } from '../../lib/nhl/useLamp'
 import { useHashFilter } from '../../lib/filterHash'
 import { useIsPhone } from '../MobileFold'
@@ -41,16 +41,15 @@ const SUBS = {
   board: 'every skater in this game. Scroll the table sideways for more.',
   calls: 'one skater called per team.',
 }
-// The words Donovan asked for. The number is each skater's goals a game from the board, added up: a measured
-// rate projection, NOT a probability and not a shot-quality model; the dial's tooltip says how it is built.
-const XG_WORDS = 'expected goals' // allow-probability: sum of goals-a-game rates (measured), not a probability
+// The words Donovan asked for. The number is the TEAM model's projected goals (lamp-team-v1, 2026-10-08;
+// lib/nhl/teamProj.js, on the board as game.proj): each club's shot volume x shot quality x the other side's
+// defence x its goalie, pulled toward the club's own goals a game. A measured projection of a COUNT, never a
+// probability; the dial's tooltip says how it is built. It used to be the called skaters' goals a game added up
+// (~2.0 a club against ~3.07 scored, correlation with goals 0.02), which is why it was replaced.
+const XG_WORDS = 'expected goals' // allow-probability: a projected count of goals from the team model (measured), not a probability
 const XG_LABEL = 'Expected goals' // allow-probability: same
-// EXPECTED GOALS (2026-10-06, Donovan: "do that for expected goals for hockey"):
-// the number the Table view already prints as "Proj goals" (LampProjected) --
-// each scored skater's goals a game from the board's own legs, summed. No new
-// model and no probability printed. Per game and per club.
-const xgOf = (g, team = null) => g.rows.filter((r) => r.status !== 'off' && (!team || r.team === team)).reduce((s, r) => s + (Number(r.legs?.goalsPg) || 0), 0)
 const rows1 = (v) => (Number.isFinite(v) ? v.toFixed(1) : '—')
+const sideOf = (g, team) => (g.proj ? (g.game.home.abbrev === team ? g.proj.home : g.proj.away) : null)
 const stateOf = (g) => (g.game.state === 'live' ? 'live' : g.game.state === 'final' ? 'final' : 'upcoming')
 
 // each club once and big: logo, score beside it once the game has started
@@ -97,23 +96,40 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
     if (typeof document !== 'undefined') requestAnimationFrame(() => document.getElementById('lamp-slate-game')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
   }
 
-  const bestOf = (g) => xgOf(g)
-  const bests = games.map(bestOf)
+  const bestOf = (g) => (Number.isFinite(g.proj?.total) ? g.proj.total : 0)
+  // HEAT against the LEAGUE's spread of game totals (lib/nhl/slateHeat.js leagueHeat; the spread of the model that
+  // made the number), not tonight's range: the top quarter of games is hot on any night. Tonight's range only
+  // when the board carries no spread; a game with no number reads the middle (no light, no ice).
+  const bests = games.map(bestOf).filter((v) => v > 0)
   const lo = Math.min(...bests, Infinity); const hi = Math.max(...bests, 0)
-  const heatOf = (v) => heatIn(v, lo, hi)
+  const heatFor = (g) => {
+    const v = bestOf(g)
+    if (!(v > 0)) return 0.5
+    const dist = data?.projModel?.dist?.[g.proj.source]
+    return dist ? leagueHeat(v, dist) ?? 0.5 : heatIn(v, lo, hi)
+  }
   const topId = games.reduce((a, g) => (bestOf(g) > (a ? bestOf(a) : -1) ? g : a), null)?.game.id
   const timeOf = (g) => `${fmtPuckDrop(g.game.startUtc)} ${zoneAbbrev()}`
 
+  const dialTitle = (g) => {
+    const p = g.proj
+    if (!p) return `No ${XG_WORDS} number for this game yet.`
+    return `${p.total.toFixed(1)} ${XG_WORDS} in this game: ${g.game.away.abbrev} ${p.away.goals.toFixed(1)} + ${g.game.home.abbrev} ${p.home.goals.toFixed(1)}. `
+      + (p.source === 'xg'
+        ? "Each club's shots, how good they are, the other side's defence and goalie, pulled toward its goals a game. "
+        : "Each club's goals a game and what the other side lets in (the shot history is not in yet). ")
+      + 'The ring fills against all games, not just tonight.'
+  }
   const cards = games.map((g) => {
     const best = bestOf(g)
-    const heat = heatOf(best)
+    const heat = heatFor(g)
     const st = stateOf(g)
     const called = g.rows.filter((r) => r.status === 'called').sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99))
     return {
       large: true,
       id: String(g.game.id), title: <CardTitle g={g} st={st} />, past: st === 'final', heat,
       tooltip: `${g.game.away.abbrev} @ ${g.game.home.abbrev}`,
-      dial: { value: best || null, dp: 1, pct: 100 * heat, col: dialInk(heat, C), title: `${best ? best.toFixed(1) : '—'} ${XG_WORDS} in this game: each skater's goals a game from the board, added up. The ring fills against tonight's range.` },
+      dial: { value: best || null, dp: 1, pct: 100 * heat, col: dialInk(heat, C), title: dialTitle(g) },
       band: topId === g.game.id && games.length > 1 ? { icon: '🌋', word: 'MAIN EVENT' } : heatTier(heat) === 'hot' ? { icon: '🔥', word: '' } : heatTier(heat) === 'cold' && games.length > 2 ? { icon: '🧊', word: '' } : null,
       lead: <span title={g.locked ? 'The board locked before puck drop' : g.setting ? 'Setting: the calls can still change until puck drop' : 'A preview until the board locks'}>{g.locked ? '🔒' : '◻'}</span>,
       status: st === 'live' ? { kind: 'live', text: g.game.statusLine || 'LIVE' } : st === 'final' ? { kind: 'final', text: 'FINAL' } : { kind: 'time', text: timeOf(g) },
@@ -172,7 +188,7 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
           <GameFilterRail value={gfilter} onChange={setGfilter} counts={counts} />
           <SlateStrip sport="nhl" isPhone={isPhone} rememberKey="lamp_games_fold_v1" accent={C.ice} theme={C}
             open={g ? { away: g.game.away.abbrev, home: g.game.home.abbrev } : null} cards={cards} activeId={activeId} onSelect={select}
-            legend={<>Ring = {XG_WORDS}. 🔒 locked, ◻ preview.</>} />
+            legend={<>Ring = {XG_WORDS}, from each club&apos;s shots. 🔒 locked, ◻ preview.</>} />
           <GameSwitcher sport="nhl" games={switcherGames} activeGame={activeId} onSelect={select} live={switcherLive} accent={C.ice} stickyTop="0px" />
         </>
       )}
@@ -224,7 +240,7 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
                             <span style={{ color: C.text3, fontSize: 13, marginLeft: 8 }}>attacking {def}{rest ? ` · rest: ${rest.toLowerCase()}` : ''}</span>
                           </div>
                           <FactTiles theme={C} numFont={NUM_FONT} big min={130} tiles={[
-                            { k: XG_LABEL, v: rows1(xgOf(g, att)) },
+                            { k: XG_LABEL, v: rows1(sideOf(g, att)?.goals), sub: sideOf(g, att) ? (g.proj.source === 'xg' ? 'from shots' : 'from goals a game') : null },
                             { k: 'Power play', v: pct1(us?.ppPct) ? `${pct1(us.ppPct)}%` : null },
                             { k: `${def} penalty kill`, v: pct1(them?.pkPct) ? `${pct1(them.pkPct)}%` : null },
                             { k: `${def} goals allowed`, v: ga != null ? ga.toFixed(2) : null, sub: 'a game' },
