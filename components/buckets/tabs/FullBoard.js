@@ -21,7 +21,8 @@ const KEYS = Object.keys(NBA_MARKETS)
 export default function FullBoard({ date, setDate, onOpenPlayer, onOpenTeam, onOpenGame, embedded = false, keep = null }) {
   const pts = useBucketsBoard(date, 'pts'), reb = useBucketsBoard(date, 'reb'), ast = useBucketsBoard(date, 'ast')
   const tpm = useBucketsBoard(date, '3pm'), pra = useBucketsBoard(date, 'pra'), first = useBucketsBoard(date, 'first')
-  const boards = { pts, reb, ast, '3pm': tpm, pra, first }
+  const dd = useBucketsBoard(date, 'dd'), td = useBucketsBoard(date, 'td')
+  const boards = { pts, reb, ast, '3pm': tpm, pra, dd, td, first }
   const xp = useBucketsExpected(date)
   const xptsBy = useMemo(() => new Map((xp.data?.rows || []).map((r) => [String(r.playerId), r])), [xp.data])
   const data = pts.data
@@ -41,7 +42,7 @@ export default function FullBoard({ date, setDate, onOpenPlayer, onOpenTeam, onO
       }
     }
     return [...by.values()].filter((r) => KEYS.some((k) => r[`s_${k}`] != null) && (!keep || keep(r)))
-  }, [games, xptsBy, keep, pts.data, reb.data, ast.data, tpm.data, pra.data, first.data]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [games, xptsBy, keep, pts.data, reb.data, ast.data, tpm.data, pra.data, dd.data, td.data, first.data]) // eslint-disable-line react-hooks/exhaustive-deps
   const calledN = rows.reduce((n, r) => n + KEYS.filter((k) => r[`st_${k}`] === 'called').length, 0)
   const columns = [
     { key: 'name', label: 'Player', group: 'Player', w: 150, heat: false, bold: true, sticky: true },

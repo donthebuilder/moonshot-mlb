@@ -31,9 +31,9 @@ export default function Guide({ onNavigate }) {
         <P>A board is <b style={{ color: C.text }}>PREVIEW</b> until its game locks before tip; a locked row is never rewritten. After the final it is graded; a player who didn’t play is void, not a miss.</P>
       </Section>
 
-      <Section title="The six markets" emoji="🎯">
+      <Section title="The eight markets" emoji="🎯">
         {Object.entries(NBA_MARKETS).map(([k, d]) => (
-          <P key={k}><b style={{ color: C.text }}>{d.label}</b>{d.bar ? ` — a hit is ${d.bar} or more.` : ' — a hit is scoring the game’s first basket.'} Ranked on {d.legs.length} legs, pooled from this season and last by games played{d.startersOnly ? '; the ten starters only, once the pre-tip box score lists them' : ''}.</P>
+          <P key={k}><b style={{ color: C.text }}>{d.label}</b>{d.barWord ? ` — a hit is ${d.barWord} (ten or more in ${d.bar} of points, rebounds, assists, steals and blocks), judged from the final box score; ranked on each player’s own game log, not a season average.` : d.bar ? ` — a hit is ${d.bar} or more.` : ' — a hit is scoring the game’s first basket.'} Ranked on {d.legs.length} legs, pooled from this season and last by games played{d.startersOnly ? '; the ten starters only, once the pre-tip box score lists them' : ''}.</P>
         ))}
       </Section>
 

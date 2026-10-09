@@ -44,10 +44,10 @@ export function boardColumns(market, { onOpenTeam, onOpenGame, withGame = true, 
         {r.role ? <b style={{ fontSize: 10, color: C.purple, fontFamily: NUM_FONT }}>{r.role}</b> : null}
         {!r.locked && v !== 'off' ? <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, fontWeight: 800, letterSpacing: '.08em' }}>PREVIEW</span> : null}
       </span>) },
-    { key: 'actual', label: 'Result', group: 'Call', w: 64, heat: false, mono: true, title: `What he did, once his game is final (${ACTUAL_WORD[market] || ''})`, fmt: (v, r) => (
+    { key: 'actual', label: 'Result', group: 'Call', w: 64, heat: false, mono: true, title: market === 'dd' || market === 'td' ? `Did he get ${D.barWord}, once his game is final` : `What he did, once his game is final (${ACTUAL_WORD[market] || ''})`, fmt: (v, r) => (
       r.voidReason ? <span style={{ fontSize: 10, color: C.text3 }}>VOID</span>
         : v == null ? <span style={{ color: C.text3 }}>—</span>
-          : <span style={{ color: r.hit ? C.rim : C.text2, fontWeight: 900 }}>{r.hit ? <RimDot size={6} /> : null}{market === 'first' ? (r.hit ? 'YES' : 'NO') : v}</span>) },
+          : <span style={{ color: r.hit ? C.rim : C.text2, fontWeight: 900 }}>{r.hit ? <RimDot size={6} /> : null}{market === 'first' || market === 'dd' || market === 'td' ? (r.hit ? 'YES' : 'NO') : v}</span>) },
     ...D.legs.map((l) => ({ key: l, label: LEG_LABEL[l] || l, group: 'Legs', w: 62, heat: false, mono: true, fmt: (v) => fmtLeg(l, v) })),
     ...(withGame ? [{ key: 'tip', label: 'Game', group: 'Game', w: 84, heat: false, mono: true, dim: true,
       link: (r) => (onOpenGame ? () => onOpenGame(r.gameId) : null),

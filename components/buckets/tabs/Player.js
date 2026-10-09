@@ -30,6 +30,7 @@ import BucketsTable from '../BucketsTable'
 import PlayerSplits from '../PlayerSplits'
 import ShotChart from '../ShotChart'
 import PlayerBars from '../PlayerBars'
+import PlayerDdTd from '../PlayerDdTd'
 import { EmptyState, DelayedBanner, Loading, Kicker, BackBtn, PlayerFace, SeasonTypeChip, fmtDay, fmtTip, RimDot, STATUS } from '../ui'
 
 // 📄 ONE PLAYER -- MOONSHOT's card, as a page (NHL's components/lamp/tabs/Player.js is the closest pattern, TUDDY's
@@ -246,6 +247,7 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
                 line={whyLine} />
             </header>
             {row && row.status !== 'off' && <WhyLines theme={C} numFont={NUM_FONT} accent={C.purple} why={[row.why].filter(Boolean)} watch={row.injury || null} />}
+            <PlayerDdTd playerId={pid} />
             {xRows.length > 0 ? (
               <section aria-label="Projected points">
                 <Kicker>PROJECTED POINTS · NEXT GAME</Kicker>

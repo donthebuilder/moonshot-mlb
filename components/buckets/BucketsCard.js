@@ -4,6 +4,7 @@ import { STATUS_WORD as STATUS } from '../../lib/callStatus'
 import { C, NUM_FONT } from '../../lib/nba/theme'
 import { TYPE } from '../../lib/theme'
 import { NBA_MARKETS } from '../../lib/nba/model'
+import { RATE_LEGS } from '../../lib/nba/legs'
 import PlayerFace from '../PlayerFace'
 import { chipColor } from '../Heatmap'
 import { useIsPhone } from '../MobileFold'
@@ -22,8 +23,8 @@ import TeamMark from '../TeamMark'
 // on a tap, one chip row, MOONSHOT's StatStrip for the model's percentile
 // legs, Follow + the star. The market's own per-game number (33.5 PTS/G) is
 // the card's dominant figure -- Donovan: "make the important number dominant".
-const LEG_WORD = { ptsPg: 'Points', rebPg: 'Rebounds', astPg: 'Assists', minPg: 'Minutes', fgaPg: 'Shots', ftaPg: 'Free throws', tpmPg: 'Threes', tpaPg: '3PA', tpPct: '3P%', praPg: 'PRA', fgaShare: 'Shot share', oppPts: 'Opp PTS', oppReb: 'Opp REB', oppAst: 'Opp AST', oppTpm: 'Opp 3PM' }
-const MAIN = { pts: ['ptsPg', 'PTS/G'], reb: ['rebPg', 'REB/G'], ast: ['astPg', 'AST/G'], '3pm': ['tpmPg', '3PM/G'], pra: ['praPg', 'PRA/G'], first: ['fgaShare', 'SHOT SHARE'] }
+const LEG_WORD = { ptsPg: 'Points', rebPg: 'Rebounds', astPg: 'Assists', minPg: 'Minutes', fgaPg: 'Shots', ftaPg: 'Free throws', tpmPg: 'Threes', tpaPg: '3PA', tpPct: '3P%', praPg: 'PRA', fgaShare: 'Shot share', ddRate: 'DD games', ddRecent: 'DD last 10', tdRate: 'TD games', oppPts: 'Opp PTS', oppReb: 'Opp REB', oppAst: 'Opp AST', oppTpm: 'Opp 3PM' }
+const MAIN = { pts: ['ptsPg', 'PTS/G'], reb: ['rebPg', 'REB/G'], ast: ['astPg', 'AST/G'], '3pm': ['tpmPg', '3PM/G'], pra: ['praPg', 'PRA/G'], dd: ['ddRate', 'OF HIS GAMES'], td: ['tdRate', 'OF HIS GAMES'], first: ['fgaShare', 'SHOT SHARE'] }
 
 export function BucketsCard({ r, rank, market = 'pts', onOpen }) {
   const [openScore, setOpenScore] = useState(false)
@@ -33,7 +34,7 @@ export function BucketsCard({ r, rank, market = 'pts', onOpen }) {
   const tone = called ? C.purple : C.text2
   const [mainKey, mainLabel] = MAIN[market] || MAIN.pts
   const mainV = Number(r[mainKey] ?? r.legs?.[mainKey])
-  const main = Number.isFinite(mainV) ? (mainKey === 'fgaShare' ? `${Math.round(mainV * 100)}%` : mainV.toFixed(1)) : '—'
+  const main = Number.isFinite(mainV) ? (mainKey === 'fgaShare' || RATE_LEGS.has(mainKey) ? `${Math.round(mainV * 100)}%` : mainV.toFixed(1)) : '—'
   const min = Number(r.minPg ?? r.legs?.minPg)
   const legs = (M.legs || []).filter((k) => k !== mainKey && r.pct?.[k] != null)
     .map((k) => ({ id: k, label: LEG_WORD[k] || k, text: `${Math.round(r.pct[k])}`, color: chipColor(r.pct[k], 0, 100), title: `${LEG_WORD[k] || k}: ${Math.round(r.pct[k])}th percentile among tonight's players` }))

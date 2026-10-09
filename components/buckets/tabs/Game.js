@@ -12,6 +12,7 @@ import GameLedgerLine from '../../ledger/GameLedgerLine'
 import BucketsTable from '../BucketsTable'
 import ShotChart from '../ShotChart'
 import BucketsTeamExpected from '../BucketsTeamExpected'
+import NbaWriteupBlock from '../NbaWriteupBlock'
 import { EmptyState, DelayedBanner, Loading, SourceLine, Kicker, BackBtn, NavBtn, RimDot, fmtTip, gameDay, fmtDay } from '../ui'
 
 // the 3D court loads only when opened (next/dynamic, as the other 3D views)
@@ -55,6 +56,7 @@ export default function Game({ id, onBack, backLabel = 'Live', onOpenPlayer, onO
       )}
       <GameExpected id={id} date={gameDay(data.date)} onOpenTeam={onOpenTeam} />
       <GameLedgerLine sport="nba" gameId={id} day={gameDay(data.date)} />
+      <NbaWriteupBlock gameId={id} date={gameDay(data.date)} onOpenPlayer={onOpenPlayer} />
       <GameCalls id={id} date={gameDay(data.date)} onOpenPlayer={onOpenPlayer} />
       {[away, home].map((t) => <BoxTable key={t.id} team={t} box={(data.box || []).filter((p) => p.team === t.abbrev)} onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} />)}
       {(data.shots || []).length > 0 ? (
@@ -112,11 +114,11 @@ function GameExpected({ id, date, onOpenTeam }) {
 // bot called in it). The same /api/buckets/board rows Props reads -- status from
 // the model's own scoreNight, never re-derived -- kept to this game and to
 // CALLED, with the result once graded. Nothing called, nothing shown.
-const CALL_MARKETS = ['pts', 'reb', 'ast', '3pm', 'pra', 'first']
+const CALL_MARKETS = ['pts', 'reb', 'ast', '3pm', 'pra', 'dd', 'td', 'first']
 function GameCalls({ id, date, onOpenPlayer }) {
   const boards = {
     pts: useBucketsBoard(date || null, 'pts'), reb: useBucketsBoard(date || null, 'reb'), ast: useBucketsBoard(date || null, 'ast'),
-    '3pm': useBucketsBoard(date || null, '3pm'), pra: useBucketsBoard(date || null, 'pra'), first: useBucketsBoard(date || null, 'first'),
+    '3pm': useBucketsBoard(date || null, '3pm'), pra: useBucketsBoard(date || null, 'pra'), dd: useBucketsBoard(date || null, 'dd'), td: useBucketsBoard(date || null, 'td'), first: useBucketsBoard(date || null, 'first'),
   }
   const rows = CALL_MARKETS.flatMap((m) => (boards[m].data?.rows || [])
     .filter((r) => String(r.gameId) === String(id) && r.status === 'called')
@@ -124,7 +126,7 @@ function GameCalls({ id, date, onOpenPlayer }) {
       ...r, _id: `${m}-${r.playerId}`,
       // the market rides in the result cell, so every row says what was called
       result: `${NBA_MARKETS[m]?.label || m} · ${r.hit === true || r.hit === false
-        ? (m === 'first' ? (r.hit ? '✅ scored first' : '❌ not first') : `${r.hit ? '✅' : '❌'} ${r.actual ?? '—'}`)
+        ? (m === 'first' ? (r.hit ? '✅ scored first' : '❌ not first') : m === 'dd' || m === 'td' ? (r.hit ? `✅ ${NBA_MARKETS[m].barWord}` : '❌ not this time') : `${r.hit ? '✅' : '❌'} ${r.actual ?? '—'}`)
         : r.voidReason ? `➖ void · ${r.voidReason}` : r.locked ? 'locked' : 'preview'}`,
     })))
   if (!date || !rows.length) return null

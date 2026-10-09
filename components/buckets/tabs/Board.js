@@ -47,7 +47,7 @@ const ALL_KEYS = Object.keys(NBA_MARKETS)
 const ALL = 'all'
 const MARKET_PILLS = [...MARKET_OPTIONS, { key: ALL, text: 'ALL MARKETS' }]
 const ordW = (p) => { const n = Math.round(p); const r = n % 100; return `${n}${r >= 11 && r <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th'}` }
-const LEG_WORDS = { ptsPg: 'points per game', rebPg: 'rebounds per game', astPg: 'assists per game', minPg: 'minutes', fgaPg: 'shot attempts', ftaPg: 'free throw attempts', tpmPg: 'threes made', tpaPg: 'threes tried', tpPct: 'three-point shooting', praPg: 'points, rebounds and assists', fgaShare: 'share of his team’s shots', oppPts: 'points his opponent allows', oppReb: 'rebounds his opponent allows', oppAst: 'assists his opponent allows', oppTpm: 'threes his opponent allows' }
+const LEG_WORDS = { ptsPg: 'points per game', rebPg: 'rebounds per game', astPg: 'assists per game', minPg: 'minutes', fgaPg: 'shot attempts', ftaPg: 'free throw attempts', tpmPg: 'threes made', tpaPg: 'threes tried', tpPct: 'three-point shooting', praPg: 'points, rebounds and assists', fgaShare: 'share of his team’s shots', ddRate: 'share of his games with a double-double', ddRecent: 'double-doubles in his last 10 games', tdRate: 'share of his games with a triple-double', oppPts: 'points his opponent allows', oppReb: 'rebounds his opponent allows', oppAst: 'assists his opponent allows', oppTpm: 'threes his opponent allows' }
 /** His strongest leg in plain words: { lead, short } (null when no leg has a percentile). */
 function plainWhy(r, market) {
   const legs = (NBA_MARKETS[market].legs || []).map((l) => ({ l, p: Number(r.pct?.[l]) })).filter((x) => Number.isFinite(x.p)).sort((a, b) => b.p - a.p)
@@ -96,10 +96,11 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
   const [gameSel, setGameSel] = useState([])
   const [minX, setMinX] = useState(0)
   // ONE READ PER MARKET (2026-10-08): the chips carry a count (how many players have a score for that market), the
-  // same way TUDDY's do, so all six boards are read -- the same cached /api/buckets/board reads the ALL MARKETS table makes.
+  // same way TUDDY's do, so all eight boards are read -- the same cached /api/buckets/board reads the ALL MARKETS table makes.
   const bPts = useBucketsBoard(date, 'pts'), bReb = useBucketsBoard(date, 'reb'), bAst = useBucketsBoard(date, 'ast')
   const bTpm = useBucketsBoard(date, '3pm'), bPra = useBucketsBoard(date, 'pra'), bFirst = useBucketsBoard(date, 'first')
-  const boardsBy = { pts: bPts, reb: bReb, ast: bAst, '3pm': bTpm, pra: bPra, first: bFirst }
+  const bDd = useBucketsBoard(date, 'dd'), bTd = useBucketsBoard(date, 'td')
+  const boardsBy = { pts: bPts, reb: bReb, ast: bAst, '3pm': bTpm, pra: bPra, dd: bDd, td: bTd, first: bFirst }
   const { data, error, loading } = boardsBy[mk]
   const marketCounts = useMemo(() => {
     const out = {}; const seen = new Set()
@@ -110,7 +111,7 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
     }
     out[ALL] = ALL_KEYS.some((k) => boardsBy[k].data) ? seen.size : null
     return out
-  }, [bPts.data, bReb.data, bAst.data, bTpm.data, bPra.data, bFirst.data]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [bPts.data, bReb.data, bAst.data, bTpm.data, bPra.data, bDd.data, bTd.data, bFirst.data]) // eslint-disable-line react-hooks/exhaustive-deps
   const marketOptions = MARKET_PILLS.map((o) => ({ key: o.key, label: o.text, count: marketCounts[o.key] ?? undefined, title: o.key === ALL ? 'Every market side by side' : NBA_MARKETS[o.key]?.label }))
   const xp = useBucketsExpected(date)
   const xptsBy = useMemo(() => new Map((xp.data?.rows || []).map((r) => [String(r.playerId), r])), [xp.data])

@@ -13,7 +13,7 @@ import { join, relative } from 'node:path'
 
 const ROOT = new URL('..', import.meta.url).pathname
 const DIRS = ['components/lamp', 'components/buckets', 'lib/nhl', 'lib/nba', 'app/api/lamp', 'app/api/buckets']
-const FILES = ['lib/writeups/nhl.js', 'lib/writeups/text.js', 'components/GameWriteupBlock.js']
+const FILES = ['lib/writeups/nhl.js', 'lib/writeups/text.js', 'components/GameWriteupBlock.js', 'lib/writeups/nba.js', 'lib/writeups/nbaText.js']
 // MOONSHOT files cleaned 2026-10-07 (the Sim tab and the two cards that host a Sim). Extra bans apply here only.
 const MLB_FILES = ['components/GameSimulator.js', 'components/PlayerModal.js', 'components/PitcherModal.js']
 const MLB_BANNED = [

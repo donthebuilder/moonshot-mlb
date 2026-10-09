@@ -12,7 +12,7 @@ const BASE = arg('--base', 'http://localhost:3000').replace(/\/$/, '')
 const SPORTS = [
   ['nfl', '/app#sport=nfl&tab=research', ['Anytime TD', 'Receiving yards', 'Receptions', 'Rushing yards', 'Rush attempts', 'Passing yards', 'Kicking points', 'Defense/ST TD']],
   ['nhl', '/app#sport=nhl&tab=fullboard', ['GOAL', 'SHOTS 3+', 'POINTS 1+', 'ASSISTS 1+']],
-  ['nba', '/app#sport=nba&tab=fullboard', ['PTS 25+', 'REB 10+', 'AST 8+', '3PM 4+', 'PRA 35+', 'FIRST BASKET', 'ALL MARKETS']],
+  ['nba', '/app#sport=nba&tab=fullboard', ['PTS 25+', 'REB 10+', 'AST 8+', '3PM 4+', 'PRA 35+', 'DOUBLE-DOUBLE', 'TRIPLE-DOUBLE', 'FIRST BASKET', 'ALL MARKETS']],
 ]
 const BROWSERS = ['/Applications/Brave Browser.app/Contents/MacOS/Brave Browser', '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/usr/bin/google-chrome', '/usr/bin/chromium']
 import fs from 'node:fs'

@@ -12,6 +12,8 @@ import { scoreboardFor, reduceScoreboard, nbaGet, reduceBox, reduceShots, firstB
 import { easternToday, shiftDay } from '../../../../lib/data'
 import { storiesTick } from '../../../../lib/stories/record'
 import { writeFirstFeed, FIRST_KIND } from '../../../../lib/nba/firstFeed'
+import { readNbaBoard } from '../../../../lib/nba/boardRead'
+import { runNbaWriteups } from '../../../../lib/writeups/post'
 
 
 export const dynamic = 'force-dynamic'
@@ -56,8 +58,13 @@ export async function GET(request) {
       const lockedAt = new Date().toISOString()
       if (Date.parse(lockedAt) >= Date.parse(g.start)) { out.skipped.push({ game: g.id, why: 'tip during build' }); continue }
       const rows = []
-      for (const [m, M] of Object.entries(NBA_MARKETS)) for (const name of WRITE_AS[m] || [m]) {
-        for (const r of night.markets[m].filter((x) => x.gameId === g.id)) rows.push(logRow(name, r, g, night, lockedAt, M.version))
+      for (const [m, M] of Object.entries(NBA_MARKETS)) {
+        // DOUBLE-DOUBLE / TRIPLE-DOUBLE read each man's game log: a log ESPN would not give leaves a hole in the snapshot,
+        // so those two wait for the next run (the other markets lock now); the last write before tip wins either way
+        if (M.needsLog && night.logGaps?.includes(g.id)) { out.skipped.push({ game: g.id, why: `${m} not locked: a game log was unread` }); continue }
+        for (const name of WRITE_AS[m] || [m]) {
+          for (const r of night.markets[m].filter((x) => x.gameId === g.id)) rows.push(logRow(name, r, g, night, lockedAt, M.version))
+        }
       }
       // shadows (lib/nba/model.js NBA_SHADOWS): same lock, same instant, their own version
       for (const [k, S] of Object.entries(NBA_SHADOWS)) {
@@ -150,5 +157,10 @@ export async function GET(request) {
   // STORYLINES (2026-10-03, LAMP's pattern): freeze at tip, grade after the
   // final, the night's base rate -- lib/stories/record.js. Never throws.
   out.stories = await storiesTick(db, 'nba')
+  // THE QUICK CALL (2026-10-09): each regular-season game 75-30 minutes before tip gets its double-double / triple-double
+  // write-up (lib/writeups/post.js runNbaWriteups); dry while X_WRITEUPS_PAUSE=on. ?writeups=print prints and writes nothing.
+  const wq = q.get('writeups')
+  out.writeups = await runNbaWriteups(db, { date, games: sb, dry: wq === 'print' ? 'print' : null, readBoard: readNbaBoard,
+    now: wq === 'print' && Number(q.get('at')) ? Number(q.get('at')) : Date.now() }).catch((e) => `error: ${e?.message}`)
   return Response.json(out, { headers: { 'Cache-Control': 'no-store' } })
 }

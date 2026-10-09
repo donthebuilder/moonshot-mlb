@@ -66,7 +66,7 @@ import BucketsProps from './BucketsProps'
 
 // Pages that show one day and keep it in the address (`date=`).
 const DATED_TABS = new Set(['home', 'scores', 'board', 'fullboard', 'games', 'schedule', 'matchups', 'hot', 'ledger', 'storylines', 'odds', 'numerology'])
-const MARKETS = new Set(['pts', 'reb', 'ast', '3pm', 'pra', 'first'])
+const MARKETS = new Set(['pts', 'reb', 'ast', '3pm', 'pra', 'dd', 'td', 'first'])
 const ROUTE = {
   sport: 'nba', nav: NBA_NAV, datedTabs: DATED_TABS,
   ids: { game: GAME_ID_RE, team: TEAM_RE, player: PLAYER_ID_RE },

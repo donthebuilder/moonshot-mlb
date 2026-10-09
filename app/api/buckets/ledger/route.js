@@ -1,6 +1,6 @@
 // GET /api/buckets/ledger?date=YYYY-MM-DD -- THE NIGHT'S LEDGER (LAMP's Ledger,
 // the NBA way): every player who cleared a market's bar that night (PTS 25+,
-// REB 10+, AST 8+, 3PM 4+, PRA 35+), live while games are on, each tagged with
+// REB 10+, AST 8+, 3PM 4+, PRA 35+, a double-double, a triple-double), live while games are on, each tagged with
 // the status his row LOCKED with before tip -- CALLED / ON THE BOARD / NOT ON
 // THE BOARD (lib/nba/model.js scoreNight's words; nothing re-derived). The box
 // is ESPN's (summary, cached; a final one for an hour); the locked statuses
@@ -8,6 +8,7 @@
 // never locked says so: its scorers carry no tag. Gated.
 import { scoreboardFor, reduceScoreboard, summaryFor, reduceBox } from '../../../../lib/nba/api'
 import { NBA_MARKETS } from '../../../../lib/nba/model'
+import { tensActual } from '../../../../lib/nba/ddtd'
 import { adminClient } from '../../../../lib/supabase/admin'
 import { ok, bad, bucketsRoute } from '../../../../lib/nba/respond'
 import { ptsBefore, roundCrossed, PTS_MARK } from '../../../../lib/nba/seasonPts'
@@ -16,9 +17,9 @@ import { nbaSeason } from '../../../../lib/nba/season'
 import { slateNight } from '../../../../lib/slateNight'
 
 export const dynamic = 'force-dynamic'
-const MK = ['pts', 'reb', 'ast', '3pm', 'pra']
+const MK = ['pts', 'reb', 'ast', '3pm', 'pra', 'dd', 'td']
 const VERSIONS = MK.map((k) => NBA_MARKETS[k].version)
-const val = (k, b) => (k === 'pra' ? (b.pts == null ? null : (b.pts || 0) + (b.reb || 0) + (b.ast || 0)) : k === '3pm' ? b.tpm : b[k])
+const val = (k, b) => (k === 'dd' || k === 'td' ? tensActual(b) : k === 'pra' ? (b.pts == null ? null : (b.pts || 0) + (b.reb || 0) + (b.ast || 0)) : k === '3pm' ? b.tpm : b[k])
 
 export const GET = bucketsRoute('ledger', async (q) => {
   const date = q.get('date') || await slateNight('nba')

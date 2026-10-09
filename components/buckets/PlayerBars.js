@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import Sparkline, { GameStrip } from '../Sparkline'
 import { C, NUM_FONT } from '../../lib/nba/theme'
 import { NBA_MARKETS } from '../../lib/nba/legs'
+import { tensIn } from '../../lib/nba/ddtd'
 import Tap from '../Tap'
 import { Kicker, Pills, fmtTip, gameDay } from './ui'
 
@@ -11,7 +12,7 @@ import { Kicker, Pills, fmtTip, gameDay } from './ui'
 // active run brighter, every mark its game) on each BUCKETS market's own bar,
 // from his game log. Then his games against his next opponent. Regular season
 // and playoffs only; preseason is camp minutes.
-const MARKETS = ['pts', 'reb', 'ast', '3pm', 'pra'].map((k) => ({ k, bar: NBA_MARKETS[k].bar, label: NBA_MARKETS[k].label, val: (g) => (k === 'pra' ? (g.pts ?? 0) + (g.reb ?? 0) + (g.ast ?? 0) : k === '3pm' ? g.tpm : g[k]) }))
+const MARKETS = ['pts', 'reb', 'ast', '3pm', 'pra', 'dd', 'td'].map((k) => ({ k, bar: NBA_MARKETS[k].bar, label: NBA_MARKETS[k].label, val: (g) => (k === 'dd' || k === 'td' ? tensIn(g) : k === 'pra' ? (g.pts ?? 0) + (g.reb ?? 0) + (g.ast ?? 0) : k === '3pm' ? g.tpm : g[k]) }))
 const md = (iso) => { try { return new Date(`${gameDay(iso)}T12:00:00Z`).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', timeZone: 'UTC' }) } catch { return '' } }
 
 export default function PlayerBars({ log = [], logSeason = '', nextGame = null, onOpenTeam = null }) {

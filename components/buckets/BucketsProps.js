@@ -10,19 +10,19 @@ import { useFollowing } from '../../lib/dash/follow'
 
 // 🏀 BUCKETS PROPS, MOONSHOT'S PAGE (2026-10-04, Donovan: "make sure the props
 // pages look like the mlb one"). The shared grid (components/props/PropCards.js)
-// on BUCKETS' six markets, one /api/buckets/board read each -- the same rows the
+// on BUCKETS' eight markets, one /api/buckets/board read each -- the same rows the
 // board below uses. CALLED / ON THE BOARD come from the board (lib/nba/model
 // scoreNight), the why line from the board's own whyNba, the tiles from the
 // legs the market's score is built from. No per-player price on the board.
 
-const KEYS = ['pts', 'reb', 'ast', '3pm', 'pra', 'first']
+const KEYS = ['pts', 'reb', 'ast', '3pm', 'pra', 'dd', 'td', 'first']
 const MARKETS = [...KEYS, 'NONE']
-const SHORT = { pts: 'PTS', reb: 'REB', ast: 'AST', '3pm': '3PM', pra: 'PRA', first: 'First basket', NONE: 'On the board' }
-const LEG = { ptsPg: 'PTS / G', rebPg: 'REB / G', astPg: 'AST / G', tpmPg: '3PM / G', tpaPg: '3PA / G', tpPct: '3P%', praPg: 'PRA / G', minPg: 'MIN / G', fgaPg: 'FGA / G', ftaPg: 'FTA / G', fgaShare: 'FGA SHARE', oppPts: 'OPP PTS', oppReb: 'OPP REB', oppAst: 'OPP AST', oppTpm: 'OPP 3PM' }
+const SHORT = { pts: 'PTS', reb: 'REB', ast: 'AST', '3pm': '3PM', pra: 'PRA', dd: 'Double-double', td: 'Triple-double', first: 'First basket', NONE: 'On the board' }
+const LEG = { ptsPg: 'PTS / G', rebPg: 'REB / G', astPg: 'AST / G', tpmPg: '3PM / G', tpaPg: '3PA / G', tpPct: '3P%', praPg: 'PRA / G', ddRate: 'DD GAMES', ddRecent: 'DD LAST 10', tdRate: 'TD GAMES', minPg: 'MIN / G', fgaPg: 'FGA / G', ftaPg: 'FTA / G', fgaShare: 'FGA SHARE', oppPts: 'OPP PTS', oppReb: 'OPP REB', oppAst: 'OPP AST', oppTpm: 'OPP 3PM' }
 const fmt = (leg, v) => {
   const n = Number(v)
   if (!Number.isFinite(n)) return '—'
-  if (leg === 'tpPct' || leg === 'fgaShare') return `${Math.round(n <= 1 ? n * 100 : n)}%`
+  if (leg === 'tpPct' || leg === 'fgaShare' || leg === 'ddRate' || leg === 'ddRecent' || leg === 'tdRate') return `${Math.round(n <= 1 ? n * 100 : n)}%`
   return (Math.round(n * 10) / 10).toFixed(1)
 }
 
@@ -44,7 +44,7 @@ function bucketsAdapter(startOf) {
       const legs = (NBA_MARKETS[k === 'NONE' ? 'pts' : k]?.legs || []).slice(0, 3)
       const chips = []
       // the result, once graded (audit: BUCKETS cards never showed hit / miss)
-      if (x.hit === true || x.hit === false) chips.push({ t: k === 'first' ? (x.hit ? '✅ scored first' : '❌ not first') : `${x.hit ? '✅' : '❌'} ${x.actual ?? '—'} ${SHORT[k]}`, warn: !x.hit })
+      if (x.hit === true || x.hit === false) chips.push({ t: k === 'first' ? (x.hit ? '✅ scored first' : '❌ not first') : k === 'dd' || k === 'td' ? (x.hit ? `✅ ${SHORT[k].toLowerCase()}` : `❌ no ${SHORT[k].toLowerCase()}`) : `${x.hit ? '✅' : '❌'} ${x.actual ?? '—'} ${SHORT[k]}`, warn: !x.hit })
       else if (x.voidReason) chips.push({ t: `➖ void · ${x.voidReason}`, warn: true })
       else if (!x.locked) chips.push({ t: '⏳ preview — not locked yet', warn: true })
       if (x.injury) chips.push({ t: `⚠ ${x.injury}`, warn: true })
@@ -84,7 +84,7 @@ function bucketsAdapter(startOf) {
 export default function BucketsProps({ date = null, onOpenPlayer }) {
   const b = {
     pts: useBucketsBoard(date, 'pts'), reb: useBucketsBoard(date, 'reb'), ast: useBucketsBoard(date, 'ast'),
-    '3pm': useBucketsBoard(date, '3pm'), pra: useBucketsBoard(date, 'pra'), first: useBucketsBoard(date, 'first'),
+    '3pm': useBucketsBoard(date, '3pm'), pra: useBucketsBoard(date, 'pra'), dd: useBucketsBoard(date, 'dd'), td: useBucketsBoard(date, 'td'), first: useBucketsBoard(date, 'first'),
   }
   const following = useFollowing('nba')
   const datas = KEYS.map((k) => b[k].data)
