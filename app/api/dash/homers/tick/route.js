@@ -1137,7 +1137,13 @@ export async function GET(request) {
   // ?noguard=1 bypasses it for a hand run.
   if (u.searchParams.get('noguard') !== '1') {
     const season = await mlbSeasonActive(easternToday())
-    if (!season.active) return Response.json({ skipped: 'offseason', season })
+    if (!season.active) {
+      // THE SLATE is cross-sport: no MLB games in 3 days either side must NOT silence the football / hockey /
+      // basketball Slate. Tried here, once, with no MLB rows (its own try/catch, its own gates); the in-season
+      // path below calls it itself, so a tick never runs it twice.
+      const slateOff = await slateTick(db, { day: easternToday() })
+      return Response.json({ skipped: 'offseason', season, slate: slateOff })
+    }
   }
 
   // WHICH DAY IS IT (2026-09-07). This used to be a bare easternToday(), and

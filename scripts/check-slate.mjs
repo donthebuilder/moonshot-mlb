@@ -395,6 +395,15 @@ await ok('retired: pregame, callofnight and thefour are unreachable -- the claim
   assert.match(route, /postSlateOnce\(db/)
   assert.ok(!/DAILY_KINDS = new Set\([^)]*'(pregame|callofnight)'/.test(route))
 })
+await ok('offseason MLB day: the tick still tries the Slate (football / hockey days), once, before it returns', () => {
+  const route = fs.readFileSync('app/api/dash/homers/tick/route.js', 'utf8')
+  const g = route.indexOf("skipped: 'offseason'")
+  assert.ok(g > 0)
+  const block = route.slice(route.lastIndexOf('if (!season.active)', g), g + 80)
+  assert.match(block, /slateTick\(db, \{ day: easternToday\(\) \}\)/)
+  // in-season the Slate is called from exactly two places (no games / board path), never also from the guard's path
+  assert.equal((route.match(/await slateTick\(db/g) || []).length, 3)
+})
 await ok('retired: their history rows stay valid -- the database check still lists them, and the receipt reads an old pregame row', () => {
   const sql = fs.readFileSync('supabase/migrations/202610020300_lamp_shot_speed_and_widen_20.sql', 'utf8')
   for (const k of ['pregame', 'callofnight', 'thefour']) assert.ok(sql.includes(`'${k}'`))
