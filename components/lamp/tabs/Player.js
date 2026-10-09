@@ -252,11 +252,6 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
               <span style={{ color: C.text3 }}>NHL</span>
             </div>
           </div>
-          {/* 📸 his card as a PNG (fix15): the board's word, score and night rank, his rates, season line, form and drought. A goalie has no goal board, so no card. */}
-          {!goalie && <CardButton sport="nhl" label="Download his card as an image" onDownload={() => downloadLampPlayerCard({
-            p, row, g: spot?.g || null, fr, l5: goalsIn(5)?.num ?? null, l10: goalsIn(10)?.num ?? null,
-            drought: /^\d+$/.test(droughtOf(p.log?.rows)) ? Number(droughtOf(p.log?.rows)) : null,
-            where: opp || '', board: Boolean(board), seasonLabel: f.seasonLabel || '', day: board?.date || '' })} />}
           <div style={{ flex: '0 0 auto' }}><FollowButton sport="nhl" id={String(p.id)} name={p.name} team={p.team} position={p.pos} compact /></div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px 12px', margin: '6px 0 2px' }}>
@@ -299,7 +294,15 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
           {w && <WhyLines theme={C} numFont={NUM_FONT} accent={C.ice} why={[w.why]} watch={w.watch} explain={w.explain} />}
           {w && row && spot?.g && <PlayerDepthToggle row={row} game={spot.g} />}
           <section aria-label="Season line">
-            <Kicker>{goalie ? 'RECORD' : 'THE LINE'} · {f.seasonLabel}{stale ? ' (LAST SEASON)' : ''}</Kicker>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <Kicker>{goalie ? 'RECORD' : 'THE LINE'} · {f.seasonLabel}{stale ? ' (LAST SEASON)' : ''}</Kicker>
+              {/* 📸 his card as a PNG (fix15): the board's word, score and night rank, his rates, season line, form and drought. It sits on
+                  the line, not in the sticky header (no room beside Watch at 360 without wrapping his name); a goalie has no goal board, so no card. */}
+              {!goalie && <CardButton sport="nhl" label="Download his card as an image" onDownload={() => downloadLampPlayerCard({
+                p, row, g: spot?.g || null, fr, l5: goalsIn(5)?.num ?? null, l10: goalsIn(10)?.num ?? null,
+                drought: /^\d+$/.test(droughtOf(p.log?.rows)) ? Number(droughtOf(p.log?.rows)) : null,
+                where: opp || '', board: Boolean(board), seasonLabel: f.seasonLabel || '', day: board?.date || '' })} />}
+            </div>
             {stale && <div style={{ marginBottom: 10 }}><StaleSeasonNote label={f.seasonLabel} opens={p.opens} what="line" /></div>}
             {lineStats.length > 0 && <StatStrip stats={lineStats} />}
             {goalBoxes.length > 0 && <HitRateBoxes boxes={goalBoxes} style={{ marginTop: 6 }}

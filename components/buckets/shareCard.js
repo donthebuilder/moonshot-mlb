@@ -73,7 +73,7 @@ export async function downloadBucketsBoardCard(rows = [], { market = 'pts', date
     const [first, ...rest] = ranked.slice(0, 9)
     const word = NBA_MARKETS[market]?.label || market.toUpperCase()
     const card = await rankedCard('nba', {
-      label: `Rankings · ${word}`, day: date, sub: `${total ?? ranked.length} ranked · BUCKETS' own ${word.toLowerCase()} score`,
+      label: `Rankings · ${word}`, day: date, sub: `${total ?? ranked.length} ranked · BUCKETS' own ${word} score`,
       lead: { ...rowOf(first, 1, market, finalGames.has(first.gameId)), scoreLabel: `${word} SCORE`, line: leadLine(first, market) },
       rows: rest.map((r, i) => rowOf(r, i + 2, market, finalGames.has(r.gameId))), total: total ?? ranked.length,
     })

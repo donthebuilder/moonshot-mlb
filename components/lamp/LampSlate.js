@@ -218,7 +218,7 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
                   </span>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                     {st !== 'upcoming' && onOpenGame && <Tap onClick={() => onOpenGame(g.game.id)}><span style={{ fontSize: 14, fontFamily: NUM_FONT, color: C.ice, fontWeight: 800 }}>Box score ›</span></Tap>}
-                    {/* 📸 this game as a PNG (fix15): the two clubs, the team model's expected goals, the skaters on the board */}
+                    {/* 📸 this game as a PNG (fix15): the two clubs, the team model's projected goals, the skaters on the board */}
                     <CardButton sport="nhl" label="Download this game as an image" onDownload={() => downloadLampGameCard(g, { date: shown || '' })} />
                   </span>
                 </div>

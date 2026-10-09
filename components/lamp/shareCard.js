@@ -95,7 +95,7 @@ export async function downloadLampBoardCard(items = [], { market = 'GOAL', date 
     const [first, ...rest] = ranked
     const word = MARKET_WORD[market] || market
     const card = await rankedCard('nhl', {
-      label: `Rankings · ${word}`, day: date, sub: `${total ?? ranked.length} ranked · LAMP's own ${word.toLowerCase()} score`,
+      label: `Rankings · ${word}`, day: date, sub: `${total ?? ranked.length} ranked · LAMP's own ${word} score`,
       lead: { ...rowOf(first.r, first.g, 1, market), scoreLabel: `${word} SCORE`, line: leadLine(first.r) },
       rows: rest.map((x, i) => rowOf(x.r, x.g, i + 2, market)), total: total ?? ranked.length,
     })
@@ -112,7 +112,7 @@ export async function downloadLampGameCard(g, { date = '' } = {}) {
     const when = st === 'final' ? `FINAL ${g.game.away.score ?? 0}–${g.game.home.score ?? 0}` : st === 'live' ? (g.game.statusLine || 'LIVE') : dropWord(g.game.startUtc)
     const p = g.proj
     const proj = p && Number.isFinite(p.away?.goals) && Number.isFinite(p.home?.goals)
-      ? { label: 'EXPECTED GOALS', away: p.away.goals.toFixed(1), home: p.home.goals.toFixed(1), total: Number.isFinite(p.total) ? p.total.toFixed(1) : null } : null
+      ? { label: 'EXPECTED GOALS' /* allow-probability: the team model's projected count of goals (lib/nhl/teamProj.js), not a probability */, away: p.away.goals.toFixed(1), home: p.home.goals.toFixed(1), total: Number.isFinite(p.total) ? p.total.toFixed(1) : null } : null
     const on = g.rows.filter((r) => r.status !== 'off' && r.score != null)
       .sort((a, b) => (a.status === 'called' ? 0 : 1) - (b.status === 'called' ? 0 : 1) || (b.score ?? 0) - (a.score ?? 0)).slice(0, 6)
     const card = await rankedCard('nhl', {

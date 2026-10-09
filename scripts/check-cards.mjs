@@ -36,7 +36,7 @@ const rendered = await withCards(async ({ run }) => run(`
   const grab = async (k, card, extra = {}) => {
     const g = card.c.getContext('2d')
     const px = (x, y) => Array.from(g.getImageData(x, y, 1, 1).data.slice(0, 3))
-    out[k] = { png: card.c.toDataURL('image/png'), w: card.c.width, h: card.c.height, log: card.log, brand: card.brand, px: { chip: px(${56 + 280 + 10}, ${150 + 62}), stamp: px(76, 600), ring: px(56, 300), stamp2: px(76, 1100) }, ...extra }
+    out[k] = { png: card.c.toDataURL('image/png'), w: card.c.width, h: card.c.height, log: card.log, brand: card.brand, px: { chip: px(${56 + 280 + 10}, ${150 + 62}), stamp: px(76, 600), ring: px(56, 300), stamp2: px(76, 1100), ringLead: px(56, 275) }, ...extra }
   }
   const rows = (list, o = {}) => list.map((p, i) => ({ rank: i + (o.from || 1), name: p.name, team: p.team, opp: p.opp, id: p.player_id, status: ['called', 'board', 'off'][i % 3], score: p.hr_score }))
   await grab('player', await cards.playerCard(H[0], { jersey: 99 }))
@@ -63,6 +63,9 @@ const rendered = await withCards(async ({ run }) => run(`
     await grab(k + '-player-off', await cards.statPlayerCard(sport, D.off))
     const [first, ...rest] = D.rows
     await grab(k + '-board', await cards.rankedCard(sport, { label: 'Rankings · TEST', day: '2026-10-08', sub: '212 ranked · TEST data', lead: { ...first, scoreLabel: 'TEST SCORE', line: '3.84 S/GP  ·  0.52 G/GP  ·  21:07 TOI  ·  9 PP G' }, rows: rest, total: 212 }))
+    // a graded list whose lead missed: its ring, face and result are the greys, never the accent
+    await grab(k + '-board-miss', await cards.rankedCard(sport, { label: 'Rankings · TEST', day: '2026-10-08', sub: 'TEST data', lead: { ...first, result: { text: 'MISS', hot: false }, miss: true, scoreLabel: 'TEST SCORE' }, rows: D.gameRows, total: 4 }))
+    await grab(k + '-board-hit', await cards.rankedCard(sport, { label: 'Rankings · TEST', day: '2026-10-08', sub: 'TEST data', lead: { ...first, result: { text: '2 G', hot: true }, scoreLabel: 'TEST SCORE' }, rows: D.gameRows, total: 4 }))
     await grab(k + '-game', await cards.rankedCard(sport, { label: 'Game card', day: '2026-10-08', sub: 'EDM @ CGY · TEST', banner: { away: 'EDM', home: 'CGY', when: '9:00 PM', proj: { label: 'EXPECTED ' + word.toUpperCase(), away: '3.4', home: '2.9', total: '6.3' } }, rows: D.rows.slice(0, 6).map((r, i) => ({ ...r, rank: i + 1 })), total: 6 }))
     await grab(k + '-game-final', await cards.rankedCard(sport, { label: 'Game card', day: '2026-10-08', sub: 'EDM @ CGY · TEST', banner: { away: 'EDM', home: 'CGY', when: 'FINAL 4–2', proj: { label: 'EXPECTED ' + word.toUpperCase(), away: '3.4', home: '2.9', total: '6.3' } }, rows: D.gameRows, total: 4 }))
     await grab(k + '-game-noproj', await cards.rankedCard(sport, { label: 'Game card', day: '2026-10-08', sub: 'EDM @ CGY · TEST', banner: { away: 'EDM', home: 'CGY', when: '9:00 PM' }, rows: D.rows.slice(0, 4), total: 4 }))
@@ -179,6 +182,9 @@ for (const k of ['nhl', 'nba']) {
   const fin = out[`${k}-game-final`].log.texts.map((t) => t.text)
   check(fin.includes('MISS') && fin.includes('VOID'), `${k}: a graded game card shows MISS and VOID rows`)
   check(near(out[`${k}-player`].px.ring, A), `${k}: a called player's ring is the accent`)
+  check(near(out[`${k}-board`].px.ringLead, A) && near(out[`${k}-board-hit`].px.ringLead, A), `${k}: a called lead's ring is the accent (pregame and graded hit)`)
+  check(!near(out[`${k}-board-miss`].px.ringLead, A), `${k}: a lead that missed has no accent ring`)
+  check(out[`${k}-board-miss`].log.texts.some((t) => t.text === 'RESULT') && out[`${k}-board-miss`].log.texts.some((t) => t.text === 'MISS'), `${k}: a graded lead shows its result in words`)
 }
 check(logoOk, 'the NHL club mark loads through the same-origin path (/cdn/nhle)')
 check(rawBlocked, 'the NHL asset host straight from a canvas is refused (why the same-origin path exists)')

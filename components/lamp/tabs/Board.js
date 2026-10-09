@@ -244,7 +244,7 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
       <input type="range" min={0} max={20} step={1} value={minPpg} onChange={(e) => setMinPpg(Number(e.target.value))} style={{ width: '100%', accentColor: C.ice }} aria-label="Minimum power-play goals" />
     </DrawerSection>
   </>)
-  // 📸 the top of this ranking as a PNG (fix15), in the Filters row beside Ledger and Watchlist: the rows the table shows, best score first
+  // 📸 the top of this ranking as a PNG (fix15): in the Filters row beside Ledger and Watchlist on a desktop, beside How to read on a phone (that row has no room left): the rows the table shows, best score first
   const shareBtn = kept.length ? <CardButton sport="nhl" label="Download this ranking as an image"
     onDownload={() => downloadLampBoardCard([...kept].sort((a, b) => (b.r.score ?? 0) - (a.r.score ?? 0)).slice(0, 9), { market, date: shown || '', total: kept.length })} /> : null
   const nActive = chips.length + drawerChips.length
@@ -261,7 +261,10 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
       {phone ? (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'space-between' }}>
           <div style={{ minWidth: 0, color: C.text2, fontSize: 13, lineHeight: 1.3 }}>Every skater tonight, #1 down. Tap a header to sort.{M.test ? ' A test.' : ''}</div>
-          {howRow && <HowToRead id="nhl-goal-board" accent={C.ice} row={howRow} notes={HOW_NOTES} steps={HOW_STEPS} />}
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flex: '0 0 auto' }}>
+            {shareBtn}
+            {howRow && <HowToRead id="nhl-goal-board" accent={C.ice} row={howRow} notes={HOW_NOTES} steps={HOW_STEPS} />}
+          </span>
         </div>
       ) : (<>
       <BoardTopBar query={q} setQuery={setQ} placeholder="Search skater or team…"
@@ -276,7 +279,7 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
       {/* THE FILTERS ROW, ONE FOR BOTH (2026-10-08, TUDDY's anatomy): Filters / Ledger / Watchlist beside the market chips on a phone; the
           angle chips, Called only, the layout and Position sit in the drawer's lead and sections, in the same places BUCKETS' are. */}
       {phone ? (
-        <FiltersDrawer ledger="nhl" share={shareBtn} compact {...drawerProps}
+        <FiltersDrawer ledger="nhl" compact {...drawerProps}
           beside={<div style={{ flex: 1, minWidth: 0 }}><PillRow tall value={market} options={marketOptions} onChange={setMarket} /></div>}
           lead={(<div style={{ display: 'grid', gap: 8, marginBottom: 12 }}>
             <BoardTopBar inDrawer query={q} setQuery={setQ} placeholder="Search skater or team…"

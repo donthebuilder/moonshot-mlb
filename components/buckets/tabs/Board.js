@@ -211,7 +211,7 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
       fifth: { label: 'Game', value: GAME_FOR(g, top) },
     }
   }, [data, D]) // eslint-disable-line react-hooks/exhaustive-deps
-  // 📸 the top of this ranking as a PNG (fix15), in the Filters row beside Ledger and Watchlist (one market at a time; ALL MARKETS has no single ranking)
+  // 📸 the top of this ranking as a PNG (fix15): in the Filters row beside Ledger and Watchlist on a desktop, beside How to read on a phone (that row has no room left; one market at a time; ALL MARKETS has no single ranking)
   const shareBtn = m !== ALL && scored.length ? <CardButton sport="nba" label="Download this ranking as an image"
     onDownload={() => downloadBucketsBoardCard([...scored].sort((a, b) => b.score - a.score), { market: mk, date: shown || '', total: scored.length, finalGames: new Set(games.filter((x) => x.state === 'final').map((x) => x.id)) })} /> : null
   const pick = (k) => { setM(k); setAngle(null); writeHashParam('m', k === 'pts' ? null : k) }
@@ -223,9 +223,12 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
             layout are all behind Filters. */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'space-between' }}>
           <div style={{ minWidth: 0, fontSize: 13, lineHeight: 1.3, color: C.text2 }}>Every player tonight, #1 down. Tap a header to sort.</div>
-          <HowToRead id="buckets-board" accent={C.purple} row={howRow} notes={HOW_NOTES} steps={HOW_STEPS} />
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flex: '0 0 auto' }}>
+            {shareBtn}
+            <HowToRead id="buckets-board" accent={C.purple} row={howRow} notes={HOW_NOTES} steps={HOW_STEPS} />
+          </span>
         </div>
-        <FiltersDrawer ledger="nba" share={shareBtn} {...drawerProps} compact
+        <FiltersDrawer ledger="nba" {...drawerProps} compact
           beside={<div style={{ flex: 1, minWidth: 0 }}><PillRow tall value={m} options={marketOptions} onChange={pick} /></div>}
           lead={(<div style={{ display: 'grid', gap: 8, marginBottom: 12 }}>
             <BoardTopBar inDrawer query={q} setQuery={setQ} placeholder="Search player or team…" team={team} setTeam={setTeam} teams={teams} teamLabel="🏀 All teams" game={gameF} setGame={setGameF} games={gameOptions} gameLabel="All games" />
