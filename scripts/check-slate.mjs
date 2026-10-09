@@ -13,7 +13,9 @@ Object.assign(process.env, { X_API_KEY: 'TEST', X_API_SECRET: 'TEST', X_ACCESS_T
 for (const k of ['X_LINKS_EMERGENCY', 'X_LINK_KINDS', 'X_POST_LINK', 'X_POSTS_PAUSE', 'X_GUARDS_OFF', 'X_DAILY_CAP', 'POST_KINDS_ON', 'BUCKETS_PUBLIC', 'NEXT_PUBLIC_BUCKETS_PUBLIC', 'DISCORD_MLB_WEBHOOKS', 'DISCORD_HOMER_WEBHOOK']) delete process.env[k]
 
 const tweets = [], discords = []
+let xFail = []   // statuses X answers with, one per call, before it accepts
 globalThis.fetch = async (url, opts = {}) => {
+  if (String(url).includes('api.x.com/2/tweets') && xFail.length) return { ok: false, status: xFail.shift(), json: async () => ({ title: 'test failure' }), headers: { get: () => null } }
   if (String(url).includes('api.x.com/2/tweets')) { tweets.push(JSON.parse(opts.body)); return { ok: true, status: 200, json: async () => ({ data: { id: String(7000 + tweets.length) } }), headers: { get: () => null } } }
   if (String(url).startsWith('https://discord.test/')) { discords.push({ url: String(url), body: JSON.parse(opts.body) }); return { ok: true, status: 204, json: async () => ({}), headers: { get: () => null } } }
   return { ok: false, status: 404, json: async () => ({}), headers: { get: () => null } }
@@ -34,7 +36,7 @@ const CS = await import('../lib/callStatus.js')
 
 let n = 0
 const ok = async (name, fn) => { await fn(); n++; console.log(`ok  ${name}`) }
-const reset = () => { tweets.length = 0; discords.length = 0; L._resetLogForTests(); G._resetRecentCache(); S._resetSlateForTests() }
+const reset = () => { PC._resetTakenForTests(); xFail = []; tweets.length = 0; discords.length = 0; L._resetLogForTests(); G._resetRecentCache(); S._resetSlateForTests() }
 
 // ── a tiny in-memory Supabase: just the calls the gate and postOnce make ────
 function fakeDb(tables = {}) {
@@ -64,6 +66,7 @@ function fakeDb(tables = {}) {
     maybeSingle() { this.single = true; return this }
     upsert(rows, o = {}) { this.op = 'upsert'; this.rows = rows; this.o = o; return this }
     update(patch) { this.op = 'update'; this.patch = patch; return this }
+    delete() { this.op = 'delete'; return this }
     then(res, rej) { return Promise.resolve(this.run()).then(res, rej) }
     run() {
       if (this.err) return { data: null, count: null, error: this.err }
@@ -78,6 +81,7 @@ function fakeDb(tables = {}) {
         return { data: made, error: null }
       }
       const hit = rows.filter((r) => this.f.every((fn) => fn(r)))
+      if (this.op === 'delete') { hit.forEach((r) => rows.splice(rows.indexOf(r), 1)); return { data: hit, error: null } }
       if (this.op === 'update') { hit.forEach((r) => Object.assign(r, this.patch)); return { data: hit, error: null } }
       if (this.single) return { data: hit[0] || null, error: null }
       return { data: this.opts.head ? null : hit, count: this.opts.count ? hit.length : null, error: null }
@@ -494,29 +498,111 @@ await ok('post: the repeat guard -- a player a Slate named within 3 days (footba
   assert.ok(!/^NFL /m.test(text))
   assert.match(text, /DASH · MOONSHOT · TUDDY · LAMP$/)                  // football still played: the pointer still lists TUDDY
 })
-await ok('post: the cap and the pause -- over the slate tier\'s 20 it goes to Discord only; X_POSTS_PAUSE posts nothing to X', async () => {
+const mkDay = (day) => {
+  const week = nflWeek(); week.games[0].kickoff = `${day}T23:15:00Z`
+  const nhl = nhlGames(); nhl[0].game.startUtc = `${day}T23:59:00Z`
+  const now = Date.parse(`${day}T22:30:00Z`)
+  const board = mlbBoard().map((r) => ({ ...r, game_time: `${day}T23:10:00Z` }))
+  return { now, sports: [MLB.mlbSlate({ rows: board }), NFL.nflSlate({ data: week, picks: nflPicks(), day, now }), NHL.nhlSlate({ games: nhl, now }), NBA.nbaSlate({ board: null, now })] }
+}
+const slateRows = (db) => db.tables.homer_feed_posts.filter((r) => r.kind === 'slate')
+await ok('post: a cap hold or the pause RELEASES the claim, Discord waits (no double post), and the next tick retries and posts both once', async () => {
   reset()
-  const mkDay = (day) => {
-    const week = nflWeek(); week.games[0].kickoff = `${day}T23:15:00Z`
-    const nhl = nhlGames(); nhl[0].game.startUtc = `${day}T23:59:00Z`
-    const now = Date.parse(`${day}T22:30:00Z`)
-    const board = mlbBoard().map((r) => ({ ...r, game_time: `${day}T23:10:00Z` }))
-    return { now, sports: [MLB.mlbSlate({ rows: board }), NFL.nflSlate({ data: week, picks: nflPicks(), day, now }), NHL.nhlSlate({ games: nhl, now }), NBA.nbaSlate({ board: null, now })] }
-  }
   const day = '2026-10-17'
   const full = Array.from({ length: 20 }, (_, i) => ({ day, kind: `list_mlb_x${i}`, x_post_id: String(100 + i), seen_at: `${day}T15:00:00Z` }))
   const a = mkDay(day)
-  const r = await S.postSlateOnce(fakeDb({ homer_feed_posts: full }), { day, load: load(a.sports), hooks: 'https://discord.test/h', now: a.now })
-  assert.equal(r, 'posted (discord only)'); assert.equal(tweets.length, 0); assert.equal(discords.length, 1)
+  const db = fakeDb({ homer_feed_posts: full })
+  const r = await S.postSlateOnce(db, { day, load: load(a.sports), hooks: 'https://discord.test/h', now: a.now })
+  assert.match(r, /^retry: x daily cap/); assert.equal(tweets.length, 0); assert.equal(discords.length, 0)
+  assert.equal(slateRows(db).length, 0, 'the claim is released')
   assert.ok(L.recentLog().some((e) => e.kind === 'slate' && e.state === 'DROPPED' && /daily cap/.test(e.reason)))
+  assert.equal(await S.postSlateOnce(db, { day, load: load(a.sports), hooks: 'https://discord.test/h', now: a.now + 60e3 }), 'waiting')   // not asked again inside 5 minutes
+  db.tables.homer_feed_posts.splice(0, 20)                      // the cap clears
+  const r1 = await S.postSlateOnce(db, { day, load: load(a.sports), hooks: 'https://discord.test/h', now: a.now + 6 * 60e3 })
+  assert.equal(r1, 'posted'); assert.equal(tweets.length, 1); assert.equal(discords.length, 1)
+  assert.ok(slateRows(db)[0].x_post_id)
+  assert.equal(await S.postSlateOnce(db, { day, load: load(a.sports), hooks: 'https://discord.test/h', now: a.now + 12 * 60e3 }), 'already-posted')
+  assert.equal(tweets.length, 1); assert.equal(discords.length, 1)
+  // the pause
   reset()
   process.env.X_POSTS_PAUSE = 'on'
   const day2 = '2026-10-20'
   const b = mkDay(day2)
-  const r2 = await S.postSlateOnce(fakeDb({ homer_feed_posts: [] }), { day: day2, load: load(b.sports), hooks: 'https://discord.test/h', now: b.now })
-  delete process.env.X_POSTS_PAUSE
-  assert.equal(tweets.length, 0)
-  assert.equal(r2, 'posted (discord only)')
+  const db2 = fakeDb({ homer_feed_posts: [] })
+  try {
+    const r2 = await S.postSlateOnce(db2, { day: day2, load: load(b.sports), hooks: 'https://discord.test/h', now: b.now })
+    assert.match(r2, /^retry: x paused/); assert.equal(tweets.length, 0); assert.equal(discords.length, 0); assert.equal(slateRows(db2).length, 0)
+  } finally { delete process.env.X_POSTS_PAUSE }
+  assert.equal(await S.postSlateOnce(db2, { day: day2, load: load(b.sports), hooks: 'https://discord.test/h', now: b.now + 6 * 60e3 }), 'posted')
+  assert.equal(tweets.length, 1); assert.equal(discords.length, 1)
+})
+await ok('post: a transient X error (429, 5xx) releases the claim and retries; a success is never released; a 4xx refusal keeps the claim (Discord only)', async () => {
+  reset()
+  const day = '2026-10-21'
+  const a = mkDay(day)
+  const db = fakeDb({ homer_feed_posts: [] })
+  xFail = [429]
+  assert.equal(await S.postSlateOnce(db, { day, load: load(a.sports), hooks: 'https://discord.test/h', now: a.now }), 'retry: x 429')
+  assert.equal(discords.length, 0); assert.equal(slateRows(db).length, 0)
+  xFail = [503]
+  assert.equal(await S.postSlateOnce(db, { day, load: load(a.sports), hooks: 'https://discord.test/h', now: a.now + 6 * 60e3 }), 'retry: x 503')
+  assert.equal(discords.length, 0)
+  assert.equal(await S.postSlateOnce(db, { day, load: load(a.sports), hooks: 'https://discord.test/h', now: a.now + 12 * 60e3 }), 'posted')
+  assert.equal(tweets.length, 1); assert.equal(discords.length, 1); assert.ok(slateRows(db)[0].x_post_id)
+  // a refusal that is not transient is final
+  reset()
+  const day2 = '2026-10-22'
+  const b = mkDay(day2)
+  const db2 = fakeDb({ homer_feed_posts: [] })
+  xFail = [403, 403]   // the long post is refused, then its 280 retry
+  assert.equal(await S.postSlateOnce(db2, { day: day2, load: load(b.sports), hooks: 'https://discord.test/h', now: b.now }), 'posted (discord only)')
+  assert.equal(slateRows(db2).length, 1); assert.equal(discords.length, 1)
+  // after the first game has started the claim is not released any more (a late Slate is no use on X)
+  reset()
+  const day3 = '2026-10-23'
+  const c = mkDay(day3)
+  const db3 = fakeDb({ homer_feed_posts: [] })
+  process.env.X_POSTS_PAUSE = 'on'
+  try {
+    const late = Date.parse(`${day3}T23:20:00Z`)         // MLB first pitch 23:10 has passed; the hockey game (23:59) has not
+    const out = await S.postSlateOnce(db3, { day: day3, load: load(c.sports), hooks: 'https://discord.test/h', now: late })
+    assert.ok(out === 'posted (discord only)' || /^none/.test(out), out)
+    if (out === 'posted (discord only)') { assert.equal(slateRows(db3).length, 1); assert.equal(discords.length, 1) }
+  } finally { delete process.env.X_POSTS_PAUSE }
+})
+await ok('post: deploy day -- a pregame / callofnight / thefour row with a real X id means the list is out today (no Slate); a skipped one does not', async () => {
+  for (const [i, kind] of ['pregame', 'callofnight', 'thefour'].entries()) {
+    reset()
+    const day = `2026-10-${27 + i}`
+    const a = mkDay(day)
+    const db = fakeDb({ homer_feed_posts: [{ day, kind, x_post_id: '1234567890', payload: {} }] })
+    assert.equal(await S.postSlateOnce(db, { day, load: load(a.sports), hooks: 'https://discord.test/h', now: a.now }), `already-posted (${kind} list)`)
+    assert.equal(tweets.length, 0); assert.equal(discords.length, 0); assert.equal(slateRows(db).length, 0)
+  }
+  reset()
+  const day = '2026-10-25'
+  const a = mkDay(day)
+  const db = fakeDb({ homer_feed_posts: [{ day, kind: 'pregame', x_post_id: 'skipped', payload: {} }] })
+  assert.equal(await S.postSlateOnce(db, { day, load: load(a.sports), hooks: '', now: a.now }), 'posted')
+})
+await ok('post: the repeat guard is per sport -- an id another sport used does not hold a player out; the same sport still does', async () => {
+  reset()
+  const day = '2026-10-26'
+  const a = mkDay(day)
+  const db = fakeDb({ homer_feed_posts: [{ day: '2026-10-25', kind: 'slate', x_post_id: '9', payload: { named: ['m1'], named_by_sport: { mlb: [], nfl: ['m1'], nhl: [], nba: [] } } }] })
+  assert.equal(await S.postSlateOnce(db, { day, load: load(a.sports), hooks: '', now: a.now }), 'posted')
+  assert.ok(tweets[0].text.includes('Test Hitter One'), 'an NFL id equal to his MOONSHOT id does not block him')
+  reset()
+  const db2 = fakeDb({ homer_feed_posts: [{ day: '2026-10-25', kind: 'slate', x_post_id: '9', payload: { named: ['m1'], named_by_sport: { mlb: ['m1'], nfl: [], nhl: [], nba: [] } } }] })
+  assert.equal(await S.postSlateOnce(db2, { day, load: load(a.sports), hooks: '', now: a.now }), 'posted')
+  assert.ok(!tweets[0].text.includes('Test Hitter One'))
+})
+await ok('post: the words come from the registry -- CALLED is STATUS_WORD.called, character for character', () => {
+  assert.equal(CS.STATUS_WORD.called, 'CALLED')
+  const a = S.assembleSlate({ day: DAY, sports: sportsOf(), now: NOW })
+  assert.match(a.text, /\nCALLED · /)
+  assert.ok(!/'CALLED ·|`CALLED ·/.test(fs.readFileSync('lib/posts/slate.js', 'utf8')))
+  assert.ok(!/s CALLED players/.test(fs.readFileSync('lib/dash/polls/build.js', 'utf8')))
 })
 await ok('post: POST_KINDS_ON -- on when the Slate or the kind it replaced (pregame) is listed, off when neither is', () => {
   process.env.POST_KINDS_ON = 'board,accountability'
