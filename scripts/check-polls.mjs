@@ -265,6 +265,17 @@ await ok('nhl: the goalie is read from the game\'s starters (the Slate\'s source
   const pre = board(true); pre.games[0].game.gameType = 1
   assert.equal(NHL.nhlPlayersFrom({ board: pre, now: NOW }).players.length, 0)
 })
+await ok('nhl: the real pregame source (goalieSource via startersFor, TEST feed): confirmed names the skater, expected is pending, unlisted is nobody', async () => {
+  const GSRC = await import('../lib/nhl/goalies.js'); const GSX = await import('../lib/nhl/goalieSource.js')
+  const prob = (n, t) => [{ name: 'probableStartingGoalie', athlete: { id: '1', fullName: n }, status: { type: t } }]
+  const start = new Date(FUTURE).toISOString()
+  const feed = (t) => async () => ({ ok: true, status: 200, json: async () => ({ events: [{ date: start, status: { type: { name: 'STATUS_SCHEDULED' } }, competitions: [{ date: start, competitors: [{ homeAway: 'home', team: { abbreviation: 'BBB' }, probables: prob('Test Home Goalie', 'confirmed') }, { homeAway: 'away', team: { abbreviation: 'AAA' }, probables: prob('Test Away Goalie', t) }] }] }] }) })
+  const game = { id: 5, away: { abbrev: 'AAA' }, home: { abbrev: 'BBB' }, startUtc: start, state: 'pre' }
+  const board = async (t, gm = game) => { GSX._resetForTests(); const st = await GSRC.startersFor('2026-10-09', [gm], { fetchImpl: feed(t), now: NOW, goaliesFor: async () => ({ away: [], home: [] }) }); return { games: [{ game: { state: 'pre', gameType: 2, startUtc: start }, starters: st.byGame[5], rows: [{ playerId: 7, name: 'Test Skater', team: 'BBB', opp: 'AAA', home: true, rank: 1, score: 77, status: 'called', context: {} }] }] } }
+  assert.equal(NHL.nhlPlayersFrom({ board: await board('confirmed'), now: NOW }).players.length, 1)
+  const pend = NHL.nhlPlayersFrom({ board: await board('expected'), now: NOW }); assert.equal(pend.players.length, 0); assert.equal(pend.pending.length, 1)
+  const none = NHL.nhlPlayersFrom({ board: await board('confirmed', { ...game, away: { abbrev: 'ZZZ' } }), now: NOW }); assert.equal(none.players.length, 0); assert.equal(none.pending.length, 0)
+})
 await ok('nba: only a regular-season / playoff game still to come activates BUCKETS; preseason and OUT do not', () => {
   const board = (seasonType, injury = null) => ({ games: [{ id: 'g1', seasonType, state: 'pre', start: new Date(FUTURE).toISOString() }], rows: [{ playerId: 'B1', name: 'Test Guard', team: 'AAA', opp: 'BBB', gameId: 'g1', score: 80, status: 'called', injury }] })
   assert.equal(NBA.nbaPlayersFrom({ board: board(1), now: NOW }).active, false)

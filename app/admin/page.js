@@ -266,7 +266,7 @@ export default async function AdminPage() {
         ))}
 
         <h2 className={start.kicker} style={{ marginTop: 18 }}>Game write-ups</h2>
-        <Line k="Auto-post" v={<AutopostSwitch flag="writeups" on={wstate.on} missing={Boolean(wstate.missing)} />} src={`${wstate.why} · OFF = dry: written here, posted nowhere`} />
+        <Line k="Auto-post" v={wstate.on ? 'ON' : 'PAUSED'} src={`${wstate.why} · live by code default; the only off-switch is X_WRITEUPS_PAUSE=on in Vercel (PAUSED = dry: written here, posted nowhere)`} />
         <Line k="X long posts" v={xTier.error ? 'unknown' : xTier.type ? `${xTier.type}${/premium/i.test(xTier.type) ? ' (long posts allowed)' : ' (280 characters)'}` : 'no subscription_type returned'}
           src={xTier.error ? `GET /2/users/me failed: ${xTier.error}` : `X's own answer for @${xTier.user || '?'} (GET /2/users/me subscription_type, once a day) · X_TEXT_LIMIT ${process.env.X_TEXT_LIMIT || 'unset (280)'}`} />
         {wrows.error ? <p>Write-ups unavailable: {wrows.error.message}</p> : (wrows.data || []).length === 0 ? <p style={{ opacity: 0.7 }}>None yet -- each NFL game is written 75-60 min before kickoff.</p> : (wrows.data || []).map((r) => {
@@ -282,7 +282,7 @@ export default async function AdminPage() {
           )
         })}
         <h2 className={start.kicker} style={{ marginTop: 18 }}>Featured-game rule, backtested (MLB / NHL)</h2>
-        <p style={{ opacity: 0.75, fontSize: 13 }}>{featuredBacktest.method} Built {String(featuredBacktest.built_at).slice(0, 10)} by scripts/writeups/featured-backtest.mjs. MLB's write-up is the per-game CALL post, long (lib/writeups/mlb.js). NHL write-ups follow the writeups_autopost switch; the featured game is the most expected goals (Donovan, 10-05), whatever the sum / TOP rows say.</p>
+        <p style={{ opacity: 0.75, fontSize: 13 }}>{featuredBacktest.method} Built {String(featuredBacktest.built_at).slice(0, 10)} by scripts/writeups/featured-backtest.mjs. MLB's write-up is the per-game CALL post, long (lib/writeups/mlb.js). NHL write-ups are live by default (X_WRITEUPS_PAUSE=on stops them); the featured game is the most expected goals (Donovan, 10-05), whatever the sum / TOP rows say.</p>
         {['mlb', 'nhl'].map((k) => { const b = featuredBacktest[k]; const r = (x) => `${x.hits}/${x.n} = ${x.rate ?? '—'}%`; return (
           <div key={k}>
             <Line k={`${k.toUpperCase()} · rule 2 (sum)`} v={`${r(b.sum.featured)} vs all ${r(b.sum.all)}`} src={`${b.nights} nights, ${b.from} .. ${b.to} · ${b.source}`} />
