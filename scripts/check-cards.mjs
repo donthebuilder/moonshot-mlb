@@ -144,6 +144,12 @@ for (const f of ['lib/cards/kit.js', 'lib/cards/cards.js', 'components/shareCard
   check(!/\bbot\b|🤖|payload|model[_ ]?version/i.test(c.replace(/'[^']*not a probability[^']*'/g, '')), `${f}: no developer words in code`)
   check(!/\b(CALLED|ON THE BOARD|NOT ON THE BOARD)\b/.test(c), `${f}: never spells a status word (STATUS_WORD only)`)
 }
+// the posted images (1200 x 675, rendered on the server) share the words
+for (const f of ['lib/dash/homerCard.js', 'lib/nfl/tdCard.js', 'lib/nfl/spotlightCard.js', 'lib/nhl/goalCard.js']) {
+  const c = code(f)
+  check(!/🤖|THE BOT\b|T H E   B O T|MOONSHOT CALLED IT|LAMP CALLED IT|ON THE LAMP BOARD/.test(c), `${f}: no robot, no "the bot", no made-up status words`)
+  check(!/\/called['"`]|dashnetwork\.vercel\.app|\$\{site\}/.test(c.replace(/site = 'dashnetwork\.vercel\.app'/g, '')), `${f}: no URL printed on the image`)
+}
 for (const f of readdirSync(join(ROOT, 'lib/cards'))) check(f.endsWith('.js'), `lib/cards/${f}`)
 
 console.log(`\nPNGs for a look: ${OUT}`)
