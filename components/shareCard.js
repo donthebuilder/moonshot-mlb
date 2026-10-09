@@ -13,6 +13,7 @@
 import { playerCard, rankedCard, recordCard, pitcherCard, hitterStatus } from '../lib/cards/cards'
 import { savePng, slug, stamp } from '../lib/cards/kit'
 import { callStatus } from '../lib/callStatus'
+import { scoreFor } from '../lib/scoring'
 import { nameOf, teamOf, oppOf, hrScore, mlbId, n } from '../lib/player'
 import { boardOrder, boardCompare } from '../lib/boardOrder'
 
@@ -29,6 +30,10 @@ function rowOf(p, rank, { score = hrScore, boardOf = null, byRank = false } = {}
     : hitterStatus(p, boardOf)
   return { rank, name: nameOf(p), team: teamOf(p), opp: oppOf(p), id: mlbId(p), status, score: score(p) }
 }
+// the market a designated pick was made on, and the score on THAT market: a HIT call wears his hit
+// score, not an HR score that was never the case for him
+const CALL_MARKET = { TOP: ['hr', 'HR'], HR: ['hr', 'HR'], HIT: ['hit', 'HIT'], HRR: ['hrr', 'HRR'], CONTACT: ['tb', 'TB'] }
+const marketOf = (p) => CALL_MARKET[String(p?.game_pick_role || '').split('/')[0].trim().toUpperCase()] || ['hr', 'HR']
 // the lead's one proof line, the numbers a bettor asks for first
 function leadLine(p) {
   const bits = []
@@ -87,7 +92,8 @@ export async function downloadGameCard(gm = {}, { onlyPicks = true, boardOf = nu
     let when = ''
     try { when = gm.game_time ? new Date(gm.game_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '' } catch { /* no game_time */ }
     const rows = picks.map((p, i) => {
-      const r = rowOf(p, i + 1, { boardOf })
+      const [type, tag] = marketOf(p)
+      const r = { ...rowOf(p, i + 1, { boardOf, score: (x) => scoreFor(x, type) }), tag }
       const hr = n(p?.actual_hr, 0), h = n(p?.actual_hits, 0)
       if (hr > 0 || h > 0) r.result = { text: [hr > 0 ? `${hr} HR` : null, h > 0 ? `${h} H` : null].filter(Boolean).join(' · '), hot: hr > 0 }
       return r

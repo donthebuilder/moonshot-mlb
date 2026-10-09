@@ -43,7 +43,7 @@ const rendered = await withCards(async ({ run }) => run(`
   await grab('player-noscore', await cards.playerCard({ ...H[3], hr_shape_profile: null, pitcher_name: '' }, {}))
   await grab('watchlist', await cards.rankedCard('mlb', { label: 'MY WATCHLIST', sub: '13 hitters · HR score, MOONSHOT\\'s own ranking', lead: { ...rows(H)[0], scoreLabel: 'HR SCORE', line: 'SZN 27 HR  ·  L5 1 HR  ·  ISO .231  ·  1G SINCE HR' }, rows: rows(H.slice(1), { from: 2 }), total: 13 }))
   await grab('board', await cards.rankedCard('mlb', { label: 'THE BOARD', sub: '13 ranked · TEST · this board is own HR ranking', lead: { ...rows(H)[0], scoreLabel: 'HR SCORE', line: 'x' }, rows: rows(H.slice(1), { from: 2 }), total: 13 }))
-  await grab('game', await cards.rankedCard('mlb', { label: 'Game card', sub: 'BOS @ NYY · projected', banner: { away: 'BOS', home: 'NYY', when: '7:05 PM' }, rows: rows(H.slice(0, 6)).map((r, i) => i === 1 ? { ...r, result: { text: '1 HR · 2 H', hot: true } } : r), total: 6 }))
+  await grab('game', await cards.rankedCard('mlb', { label: 'Game card', sub: 'BOS @ NYY · projected', banner: { away: 'BOS', home: 'NYY', when: '7:05 PM' }, rows: rows(H.slice(0, 6)).map((r) => ({ ...r, tag: 'HRR' })).map((r, i) => i === 1 ? { ...r, result: { text: '1 HR · 2 H', hot: true } } : r), total: 6 }))
   await grab('record', await cards.recordCard('mlb', F.record))
   await grab('pitcher', await cards.pitcherCard('mlb', { ...F.pitcher, id: 1, topBat: H[0] }))
   await grab('pick-pregame', await cards.pickCard('nfl', { ...F.nflPre, status: 'called' }))
