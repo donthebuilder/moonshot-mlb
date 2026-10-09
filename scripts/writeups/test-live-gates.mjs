@@ -288,21 +288,11 @@ await ok('SPLIT NFL: two Sunday-afternoon games -> #members both, the free chann
   assert.ok(memberPosts.some((b) => b.includes(`Test Back ${other}`)), 'but #members has it')
   assert.equal(rowOf(db, `writeup_nfl_${other}`).payload.members_sent, true); assert.equal(rowOf(db, `writeup_nfl_${other}`).payload.free_sent, false)
 })
-await ok('SPLIT MLB: the free channel gets ONE call a day (best score among games not started), never a second', async () => {
-  const t = (h) => new Date(Date.parse('2026-10-12T16:00:00Z') + h * 3600e3).toISOString()
-  const calls = [{ game_pk: '1', score: 70, time: t(1) }, { game_pk: '2', score: 88, time: t(3) }, { game_pk: '3', score: 80, time: t(5) }]
-  const now = Date.parse(t(0))
-  assert.equal(R.mlbFreePick(calls, { now }), '2')
-  assert.equal(R.mlbFreePick(calls, { now: Date.parse(t(2)) }), '2', 'stable as an earlier game starts')
-  assert.equal(R.mlbFreePick(calls, { now: Date.parse(t(4)) }), '3', 'the best game started: the best of those left takes over')
-  assert.equal(R.mlbFreePick(calls, { now, alreadyFree: true }), null, 'one a day')
-  assert.equal(R.mlbFreePick([], { now }), null)
-  assert.equal(R.mlbFreePick([{ game_pk: '4', score: 90, time: t(-1) }], { now }), null, 'a started game is never picked')
-  // the tick wires it: sendFree (featured only) + sendMembers (every game), never a bare postToDiscord of the call text
+await ok('SPLIT MLB: free Discord stays per game as before; #members also gets every game (additive), with the retry', () => {
   const src = fs.readFileSync(new URL('../../app/api/dash/homers/tick/route.js', import.meta.url), 'utf8')
   const block = src.slice(src.indexOf('THE CALL, ONE PER GAME'), src.indexOf('STORY THREADS, THE RESULT'))
-  for (const need of ['sendFree(discordText', 'featured: isFree', 'sendMembers(discordText', 'mlbFreePick(', 'freeWentOut(', 'retryMembers(', 'members_sent']) assert.ok(block.includes(need), `missing: ${need}`)
-  assert.ok(!/postToDiscord\(discordText/.test(block), 'the call text never goes to Discord except through sendFree / sendMembers')
+  for (const need of ['postToDiscord(discordText, {}, FEED_WEBHOOKS())', 'sendMembers(discordText', 'retryMembers(', 'members_sent']) assert.ok(block.includes(need), `missing: ${need}`)
+  assert.ok(!/mlbFreePick|sendFree/.test(src), 'no MLB free-channel limit')
   assert.ok(block.includes('postToX(text,') && !/postToX\(discordText/.test(block), 'X posts the X text, never the members copy')
 })
 await ok('SPLIT: every runner sends the free copy for the featured game only and #members every game, and retries a failed members copy', () => {
