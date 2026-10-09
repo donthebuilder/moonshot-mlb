@@ -4,6 +4,7 @@ import { C, NUM_FONT } from '../../lib/theme'
 import { arr, obj, n, clean, nameOf } from '../../lib/player'
 import { PanelTitle, Empty, inputStyle, selectStyle } from '../ui'
 import DenseTable from '../DenseTable'
+import PairHistV2Table from '../PairHistV2Table'
 
 
 // Pair History — which two hitters have gone deep on the same day, all season.
@@ -54,12 +55,22 @@ export default function PairHistory({ summary, players = [], onPlayerClick }) {
       .slice(0, limit)
   }, [pairs, query, bucket, sameGameOnly, playableOnly, onSlate, limit])
 
+  // FOUR SEASONS, ACTIVE PLAYERS (2026-10-07): the table leads; this season's day-by-day view below is unchanged.
+  const fourSeasons = <PairHistV2Table sport="mlb" onOpenPlayer={onPlayerClick} />
+
   if (!pairs.length) {
-    return <Empty text="No pair history published yet — pair_history_summary.json hasn't been written." />
+    return (
+      <div>
+        {fourSeasons}
+        <Empty text="No pair history published yet — pair_history_summary.json hasn't been written." />
+      </div>
+    )
   }
 
   return (
     <div>
+      {fourSeasons}
+      <div style={{ marginTop: 22, paddingTop: 16, borderTop: `1px solid ${C.border}` }}>
       <PanelTitle
         title="Pair History"
         sub={`${meta.pair_count ?? pairs.length} pairs · ${meta.hr_event_count ?? '—'} HR events · ${clean(meta.start_date, '')} → ${clean(meta.end_date, '')}`}
@@ -382,6 +393,7 @@ export default function PairHistory({ summary, players = [], onPlayerClick }) {
         the same night — much rarer, and the only version of this that's a genuinely correlated bet.
         Everything else is two independent events that happened to land on one date, so treat a big Days
         number with a zero next to it as coincidence, not signal.
+      </div>
       </div>
     </div>
   )
