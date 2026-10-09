@@ -40,6 +40,7 @@ import { fromNhl } from '../../../../lib/numerology/adapters'
 import { storiesTick } from '../../../../lib/stories/record'
 import { postNhlListOnce } from '../../../../lib/lists/post'
 import { postHardestOnce } from '../../../../lib/nhl/hardestShot'
+import { windowOpen } from '../../../../lib/dash/xSchedule'
 import { runNhlWriteups } from '../../../../lib/writeups/post'
 
 export const dynamic = 'force-dynamic'
@@ -297,13 +298,12 @@ export async function GET(request) {
 
   // 🎯 LONGSHOTS (2026-09-27): today only, from 5pm ET, once, when at least
   // three long-priced skaters are still to play (lib/dash/longshotsPost.js).
-  const etHour = Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', hourCycle: 'h23' }).format(new Date()))
   // 🔁 THE 2+ CLUB, WEEKLY: Mondays from noon ET (waits for the new season).
   const etDay = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short' }).format(new Date())
-  if (date === easternToday() && etDay === 'Mon' && etHour >= 12) {
+  if (date === easternToday() && etDay === 'Mon' && windowOpen({ kind: 'nhl_multi_club', legacyHour: 0 })) {   // xSchedule window (old: noon ET)
     out.multiClub = await postMultiClubOnce(db, { sport: 'nhl', day: date, kind: 'nhl_multi_club' }).catch((e) => `error: ${e?.message}`)
   }
-  if (date === easternToday() && etHour >= 17) {
+  if (date === easternToday() && windowOpen({ kind: 'nhl_longshots', legacyHour: 5 })) {   // old: 5pm ET
     out.longshots = await postLongshotsOnce(db, { sport: 'nhl', day: date, kind: 'nhl_longshots' }).catch((e) => `error: ${e?.message}`)
   }
   // 📰 STORYLINES (BATCH-STORYLINES-PAGE step 3): freeze each game's stories
@@ -313,7 +313,7 @@ export async function GET(request) {
   // 📋 LIST POSTS (BATCH-LIST-POSTS step 3): one a day from noon ET once the
   // regular season has games -- Mondays IRON MAN, else goal streaks / a point
   // in every game (lib/lists/post.js). Today's date only.
-  if (date === easternToday() && etHour >= 12) {
+  if (date === easternToday() && windowOpen({ kind: 'list_nhl', legacyHour: 0 })) {   // old: noon ET
     out.lists = await postNhlListOnce(db, date).catch((e) => `error: ${e?.message}`)
   }
   // THE WRITE-UPS (2026-10-05): each game 75-60 min before puck drop; dry while the switch is off

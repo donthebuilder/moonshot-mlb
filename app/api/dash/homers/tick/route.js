@@ -36,7 +36,8 @@ import { buildMlbWriteup } from '../../../../../lib/writeups/mlb'
 import { renderWriteup } from '../../../../../lib/writeups/text'
 import { postLimit } from '../../../../../lib/dash/postLimit'
 import { xDailyAllows } from '../../../../../lib/dash/xBudget'
-import { admit, xOk, recentNamed, repeatCheck, logPosted, logDroppedRepeat } from '../../../../../lib/dash/xGate'
+import { admit, xOk, recentNamed, repeatCheck, logPosted, logDroppedRepeat, scheduleGate, setScheduleContext } from '../../../../../lib/dash/xGate'
+import { windowOpen, payloadFor } from '../../../../../lib/dash/xSchedule'
 import { namedInText, withNamed, distinctOptions, isRetiredForever } from '../../../../../lib/dash/xPolicy'
 import { resolveNaming, mlbNamingProblem } from '../../../../../lib/dash/namingChecks'
 import { recordPost } from '../../../../../lib/dash/xPostLog'
@@ -287,10 +288,18 @@ const _emptyAt = new Map()
 const EMPTY_RETRY_MS = 10 * 60e3
 const triedEmpty = (day, kind) => Date.now() - (_emptyAt.get(`${day}|${kind}`) || 0) < EMPTY_RETRY_MS
 
+/** The cheap window check before a scheduled kind builds its text (lib/dash/xSchedule.windowOpen); `hour` is only the X_SCHEDULE_OFF fallback. */
+const hourOk = (hour, kind) => windowOpen({ kind, legacyHour: hour })
+
 async function claimAndPostStat(db, day, kind, hourGate, text, cardSpec, payload = {}, renderCard = null) {
   if (isRetired(kind)) return false
-  if (!text && etHoursSinceNoon() >= hourGate) { if (_emptyAt.size > 500) _emptyAt.clear(); _emptyAt.set(`${day}|${kind}`, Date.now()) }
-  if (!text || etHoursSinceNoon() < hourGate) return false
+  // THE SCHEDULER (2026-10-09, lib/dash/xSchedule.js): the hour is a floor only when X_SCHEDULE_OFF=on; otherwise
+  // windowOpen is the cheap period check before the text is used, and scheduleGate (slot, 45-min gap, no same kind
+  // back to back, sport mix, priority near the budget) is the real question. Held = nothing claimed; the next tick asks again.
+  const open = windowOpen({ kind, legacyHour: hourGate })
+  if (!text && open) { if (_emptyAt.size > 500) _emptyAt.clear(); _emptyAt.set(`${day}|${kind}`, Date.now()) }
+  if (!text || !open) return false
+  if (!(await scheduleGate(db, { kind, day, legacyHour: hourGate })).ok) return false
   // THE REPEAT GUARD (2026-10-09): the same player in the same kind not within 3
   // days. Checked before the claim, so a post that would repeat a name claims
   // nothing (the picks change as lineups land and it asks again; the log says
@@ -301,7 +310,7 @@ async function claimAndPostStat(db, day, kind, hourGate, text, cardSpec, payload
   if (!(await claimSlot(db, day, kind))) return false
   const card = TEXT_ONLY_KINDS.has(kind) ? null : cardSpec
   const custom = TEXT_ONLY_KINDS.has(kind) ? null : renderCard
-  const patch = { payload: named.length ? withNamed(payload, named) : payload }
+  const patch = { payload: { ...(named.length ? withNamed(payload, named) : payload), ...payloadFor(kind) } }   // x_tag INFO/FUN + the overnight experiment mark
   // ONE RENDER, BOTH PLACES (2026-09-07). The card used to be built inside the
   // `hasX()` branch, below Discord, so Discord got bare text while a finished
   // PNG existed a few lines later -- and on a night with X off it was never
@@ -1221,7 +1230,7 @@ export async function GET(request) {
   // played every game, the 40-homer club, 30-30, CALLED IT season
   // (lib/lists/post.js). Before the no-games exit on purpose: Mon 09-28 has
   // no games and is the first morning of the wrap.
-  if (etHoursSinceNoon() >= -3) {
+  if (hourOk(-3, 'list_mlb')) {
     const lists = await postMlbListOnce(db, day).catch((e) => `error: ${e?.message}`)
     if (lists === 'posted' || String(lists).startsWith('error') || lists === 'claim-failed') console.log(`[homers] list post: ${lists}`)
   }
@@ -1271,6 +1280,11 @@ export async function GET(request) {
   // above, so this always sees the freshest cached rows.
   // Today's MLB schedule, read once for the timing and the gate below.
   const sched = await scheduleFor(day)
+  // THE SCHEDULER'S DAY (lib/dash/xSchedule): tonight's games (the sport mix) and the postseason flag; every gate below reads it.
+  setScheduleContext({
+    games: [...new Map(boardRows().map((r) => [r?.game_pk, r])).values()].filter((r) => Number.isFinite(Date.parse(r?.game_time || ''))).map((r) => ({ sport: 'mlb', startMs: Date.parse(r.game_time) })),
+    postseason: (await postseasonOn(day).catch(() => ({ postseason: null }))).postseason === true,
+  })
   // 🔢 NUMEROLOGY WRITE (HOT-NUMBERS-FIX item 1): tonight's board players
   // whose game hasn't started, once each; only today's rows (the board cache
   // holds another day's only uncached). Never throws.
@@ -1432,7 +1446,7 @@ export async function GET(request) {
     // files off the network (plus a second 5-file fetch for L5), and this
     // block now runs on every tick all day rather than only inside the old
     // pregame gate.
-    if (etHoursSinceNoon() >= HR_LEADERS_DOW_HOUR && !isRetired('hrleadersdow')) {
+    if (hourOk(HR_LEADERS_DOW_HOUR, 'hrleadersdow') && !isRetired('hrleadersdow')) {
       const { leaders, dow } = await fetchWeekdayHrLeaders(day)
       await claimAndPostStat(db, day, 'hrleadersdow', HR_LEADERS_DOW_HOUR,
         hrLeadersByDowText(leaders, dow, { day, ...TAIL }),
@@ -1450,7 +1464,7 @@ export async function GET(request) {
     // homer/CalledItHR post goes to, so nothing new to wire there. The hour
     // is checked before the network calls for the two that make one
     // (birthday, funFacts), same reasoning as HR LEADERS above.
-    if (etHoursSinceNoon() >= BIRTHDAY_HOUR && !isRetired('birthday')) {
+    if (hourOk(BIRTHDAY_HOUR, 'birthday') && !isRetired('birthday')) {
       await safeStat('birthday', async () => {
         const bdays = await birthdaysToday(pregameRows(), day)
         await claimAndPostStat(db, day, 'birthday', BIRTHDAY_HOUR,
@@ -1472,7 +1486,7 @@ export async function GET(request) {
           lines: b2b.map((p) => `${p.name}${p.team ? ` (${p.team})` : ''}`),
         } : null)
     })
-    if (etHoursSinceNoon() >= FUN_FACTS_HOUR && !isRetired('funfacts')) {
+    if (hourOk(FUN_FACTS_HOUR, 'funfacts') && !isRetired('funfacts')) {
       await safeStat('funfacts', async () => {
         const facts = await funFactsPicks(pregameRows(), day)
         await claimAndPostStat(db, day, 'funfacts', FUN_FACTS_HOUR,
@@ -1495,7 +1509,7 @@ export async function GET(request) {
     // network dependency beyond what matchupStories()/funFactsPicks() already
     // needed for the four posts above. Same claimAndPostStat pipe, same
     // Discord webhook, same X path.
-    if (etHoursSinceNoon() >= MATCHUP_LINES_HOUR && !isRetired('matchuplines')) {
+    if (hourOk(MATCHUP_LINES_HOUR, 'matchuplines') && !isRetired('matchuplines')) {
       await safeStat('matchuplines', async () => {
         const stories = await matchupLinesPicks(pregameRows())
         await claimAndPostStat(db, day, 'matchuplines', MATCHUP_LINES_HOUR,
@@ -1516,7 +1530,7 @@ export async function GET(request) {
     // at 7:10 on a day with one early game it ranked a handful of hitters and
     // printed "EDGE: 0.8 SD clear of the next name on the board" about a board
     // it had mostly not looked at. Same rows and same lock as the Called Shots.
-    if (etHoursSinceNoon() >= CALL_OF_NIGHT_HOUR && pregameLockReady) {
+    if (hourOk(CALL_OF_NIGHT_HOUR, 'callofnight') && pregameLockReady) {
       await safeStat('callofnight', async () => {
         // BEFORE HE IS NAMED (2026-10-09): lineup posted, starter confirmed, and not
         // this kind's pick within 3 days. Pending = held until 30 min before first
@@ -1556,7 +1570,7 @@ export async function GET(request) {
           call ? { picks: [{ player_id: String(call.player_id), name: call.name }] } : {})
       })
     }
-    if (etHoursSinceNoon() >= STREAKS_HOUR && !isRetired('streaks')) {
+    if (hourOk(STREAKS_HOUR, 'streaks') && !isRetired('streaks')) {
       await safeStat('streaks', async () => {
         const streak = await streaksPick(pregameRows(), day)
         await claimAndPostStat(db, day, 'streaks', STREAKS_HOUR,
@@ -1568,7 +1582,7 @@ export async function GET(request) {
           } : null)
       })
     }
-    if (etHoursSinceNoon() >= STORYLINES_HOUR) {
+    if (hourOk(STORYLINES_HOUR, 'storylines')) {
       await safeStat('storylines', async () => {
         const trends = storylinesPicks(pregameRows())
         await claimAndPostStat(db, day, 'storylines', STORYLINES_HOUR,
@@ -1580,7 +1594,7 @@ export async function GET(request) {
           } : null)
       })
     }
-    if (etHoursSinceNoon() >= THE_FOUR_HOUR) {
+    if (hourOk(THE_FOUR_HOUR, 'thefour')) {
       await safeStat('thefour', async () => {
         const four = theFourPicks(callRows())   // The Four are the bot's calls: the calls' rule
         await claimAndPostStat(db, day, 'thefour', THE_FOUR_HOUR,
@@ -1592,7 +1606,7 @@ export async function GET(request) {
           } : null)
       })
     }
-    if (etHoursSinceNoon() >= BEST_AIR_HOUR) {
+    if (hourOk(BEST_AIR_HOUR, 'bestair')) {
       await safeStat('bestair', async () => {
         const air = bestAirPicks(pregameRows())
         await claimAndPostStat(db, day, 'bestair', BEST_AIR_HOUR,
@@ -1610,7 +1624,7 @@ export async function GET(request) {
     // rows, so it happens once here and each formatter just re-ranks it --
     // one round trip for two posts instead of two. See MATCHUP_HOUR above for
     // why the hour is a floor rather than a real deadline.
-    if (etHoursSinceNoon() >= MATCHUP_HOUR) {
+    if (hourOk(MATCHUP_HOUR, 'matchup_hr')) {
       await safeStat('matchuphistory', async () => {
         const lines = await vsPitcherCareerLines(pregameRows())
         // 2026-09-15 (Donovan: "some of these I just wanted tweets and no
@@ -1642,7 +1656,7 @@ export async function GET(request) {
     // are make its like a show case card"). These two are the only stat slots
     // with a card of their own -- hotStretchCard in homerCard.js -- so they
     // pass a render thunk instead of a statCard spec.
-    if (etHoursSinceNoon() >= HOT_MONTH_HOUR) {
+    if (hourOk(HOT_MONTH_HOUR, 'hot_month')) {
       await safeStat('hot_month', async () => {
         const { pick, window: win } = await hotStretchPicks(pregameRows(), day, { window: 'month' })
         await claimAndPostStat(db, day, 'hot_month', HOT_MONTH_HOUR,
@@ -1652,7 +1666,7 @@ export async function GET(request) {
           pick ? () => hotStretchCard(day, pick, { site: SITE_HOST, window: 'month', windowLabel: win?.label }) : null)
       })
     }
-    if (etHoursSinceNoon() >= HOT_WEEK_HOUR) {
+    if (hourOk(HOT_WEEK_HOUR, 'hot_week')) {
       await safeStat('hot_week', async () => {
         if (knownTaken(day, 'hot_week') || triedEmpty(day, 'hot_week')) return   // egress: posted already (or nothing to say <10 min ago), skip the exclude read
         const exclude = await hotStretchSeenIds(db, day)
@@ -1678,7 +1692,7 @@ export async function GET(request) {
     //    stored in the payload (lib/history/watch.js). No link, three names at
     //    most, and NOTHING is posted when no claim passes -- the round-number
     //    list is not a fallback for it.
-    if (etHoursSinceNoon() >= MILESTONE_AM_HOUR && !isRetired('history_watch')) {
+    if (hourOk(MILESTONE_AM_HOUR, 'history_watch') && !isRetired('history_watch')) {
       await safeStat('history_watch', async () => {
         // COST CUT (2026-09-27): mlbWatch queries hist_mlb (up to 500 rows a
         // candidate) and ran every minute for the rest of the day, before the
@@ -1704,13 +1718,13 @@ export async function GET(request) {
     //    since 09-14).
     // 🔁 THE 2+ CLUB, WEEKLY (2026-09-27): Mondays from 10am ET, the season's
     //    multi-HR leaders with their CALLED count (lib/dash/multiClubPost.js).
-    if (new Date(`${day}T12:00:00Z`).getUTCDay() === 1 && etHoursSinceNoon() >= -2) {
+    if (new Date(`${day}T12:00:00Z`).getUTCDay() === 1 && hourOk(-2, 'multi_club')) {
       await safeStat('multi_club', async () => {
         const r = await postMultiClubOnce(db, { sport: 'mlb', day, kind: 'multi_club' })
         if (r === 'posted') console.log('[homers] 2+ club posted')
       })
     }
-    if (etHoursSinceNoon() >= LONGSHOTS_HOUR) {
+    if (hourOk(LONGSHOTS_HOUR, 'longshots')) {
       await safeStat('longshots', async () => {
         const r = await postLongshotsOnce(db, { sport: 'mlb', day, kind: 'longshots' })
         if (r === 'posted') console.log('[homers] longshots posted')
@@ -1719,7 +1733,7 @@ export async function GET(request) {
     // Not in October (2026-09-27): a postseason game moves neither the
     // regular-season nor the career line, so every countdown would name a
     // number that cannot change tonight. History Watch carries October.
-    if (etHoursSinceNoon() >= MILESTONE_MID_HOUR && !isRetired('milestone_mid') && (await postseasonOn(day)).postseason !== true) {
+    if (hourOk(MILESTONE_MID_HOUR, 'milestone_mid') && !isRetired('milestone_mid') && (await postseasonOn(day)).postseason !== true) {
       await safeStat('milestone_mid', async () => {
         const seen = await milestoneSeenIds(db, day)
         const miles = await milestonePicks(pregameRows(), { exclude: seen })  // text-only now, see the AM wave above
@@ -1739,7 +1753,7 @@ export async function GET(request) {
     // repeat a sentence. A slot with nothing left un-said just posts nothing
     // -- claimAndPostStat never spends the day's claim on empty text -- it
     // does not pad with a repeat to hit a count.
-    if (etHoursSinceNoon() >= STORYLINE_WATCH_1_HOUR) {
+    if (hourOk(STORYLINE_WATCH_1_HOUR, 'storyline_watch_1')) {
       await safeStat('storyline_watch_1', async () => {
         if (knownTaken(day, 'storyline_watch_1') || triedEmpty(day, 'storyline_watch_1')) return   // egress: posted already (or nothing to say <10 min ago), skip the exclude read
         const seen = await storylineSeenTexts(db, day)
@@ -1755,7 +1769,7 @@ export async function GET(request) {
           { texts: picks.map((p) => p.text).filter(Boolean) })
       })
     }
-    if (etHoursSinceNoon() >= STORYLINE_WATCH_2_HOUR && !isRetired('storyline_watch_2')) {
+    if (hourOk(STORYLINE_WATCH_2_HOUR, 'storyline_watch_2') && !isRetired('storyline_watch_2')) {
       await safeStat('storyline_watch_2', async () => {
         if (knownTaken(day, 'storyline_watch_2') || triedEmpty(day, 'storyline_watch_2')) return   // egress: posted already (or nothing to say <10 min ago), skip the exclude read
         const seen = await storylineSeenTexts(db, day)
@@ -1767,7 +1781,7 @@ export async function GET(request) {
           { texts: picks.map((p) => p.text).filter(Boolean) })
       })
     }
-    if (etHoursSinceNoon() >= STORYLINE_WATCH_3_HOUR && !isRetired('storyline_watch_3')) {
+    if (hourOk(STORYLINE_WATCH_3_HOUR, 'storyline_watch_3') && !isRetired('storyline_watch_3')) {
       await safeStat('storyline_watch_3', async () => {
         if (knownTaken(day, 'storyline_watch_3') || triedEmpty(day, 'storyline_watch_3')) return   // egress: posted already (or nothing to say <10 min ago), skip the exclude read
         const seen = await storylineSeenTexts(db, day)
@@ -1779,7 +1793,7 @@ export async function GET(request) {
           { texts: picks.map((p) => p.text).filter(Boolean) })
       })
     }
-    if (etHoursSinceNoon() >= STORYLINE_WATCH_4_HOUR && !isRetired('storyline_watch_4')) {
+    if (hourOk(STORYLINE_WATCH_4_HOUR, 'storyline_watch_4') && !isRetired('storyline_watch_4')) {
       await safeStat('storyline_watch_4', async () => {
         if (knownTaken(day, 'storyline_watch_4') || triedEmpty(day, 'storyline_watch_4')) return   // egress: posted already (or nothing to say <10 min ago), skip the exclude read
         const seen = await storylineSeenTexts(db, day)
@@ -1799,7 +1813,7 @@ export async function GET(request) {
     // whole game, not a lineup slot -- same reasoning MILESTONE_AM above already uses for running off
     // the full board this early (7am ET, before most lineups are even
     // posted).
-    if (etHoursSinceNoon() >= REVENGE_GIVEAWAY_HOUR && !isRetired('revenge_giveaway')) {
+    if (hourOk(REVENGE_GIVEAWAY_HOUR, 'revenge_giveaway') && !isRetired('revenge_giveaway')) {
       await safeStat('revenge_giveaway', async () => {
         // 2026-09-15 (Donovan: "some of these I just wanted tweets and no
         // card"). No card -- revengeGiveawayText() (tweetFeed.js) no longer
@@ -1829,7 +1843,7 @@ export async function GET(request) {
     // LENGTH. Built at BIG_LIMIT (900) and posted through postToX, which now
     // retries once at 280 if X refuses a long post -- so on an account without
     // Premium these publish as the same shape, shorter. See lib/dash/xPost.js.
-    if (etHoursSinceNoon() >= ANGLES_HOUR) {
+    if (hourOk(ANGLES_HOUR, 'angles')) {
       await safeStat('angles', async () => {
         const [matchups, streak, milestones, bdays, rg] = await Promise.all([
           matchupLinesPicks(pregameRows()),
@@ -1849,7 +1863,7 @@ export async function GET(request) {
           { texts: (matchups || []).map((m) => m?.text).filter(Boolean) })
       })
     }
-    if (etHoursSinceNoon() >= HOT_SHEET_HOUR) {
+    if (hourOk(HOT_SHEET_HOUR, 'hotsheet')) {
       await safeStat('hotsheet', async () => {
         const { leaders, dow } = await fetchWeekdayHrLeaders(day)
         const hot = hottestContactPicks(pregameRows())
@@ -1898,13 +1912,13 @@ export async function GET(request) {
       // Each claims its own (day, kind) row, independent of the pregame
       // call below and of each other -- a slow news night for one is not a
       // reason to hold back the other, and neither can double-post.
-      if (etHoursSinceNoon() >= PAIRSWATCH_HOUR) {
+      if (hourOk(PAIRSWATCH_HOUR, 'pairswatch')) {
         const hits = pairsToWatch(pregameRows(), pairs, odds, day)
         if (hits.length) {
-          const claim = await claimSlot(db, day, 'pairswatch')
+          const claim = (await scheduleGate(db, { kind: 'pairswatch', day, legacyHour: PAIRSWATCH_HOUR })).ok && await claimSlot(db, day, 'pairswatch')
           if (claim) {
             const text = pairsToWatchText(hits, { day, ...TAIL })
-            const patch = { payload: { hits } }
+            const patch = { payload: { hits, ...payloadFor('pairswatch') } }
             // Rendered here, above the Discord post, so both services take the
             // same one render -- see claimAndPostStat. It used to be built
             // inside the X branch, which left Discord with bare text and, on
@@ -1922,13 +1936,13 @@ export async function GET(request) {
           }
         }
       }
-      if (etHoursSinceNoon() >= LONGSHOT_HOUR) {
+      if (hourOk(LONGSHOT_HOUR, 'longshot')) {
         const pick = longshotPick(pregameRows(), odds, day)
         if (pick) {
-          const claim = await claimSlot(db, day, 'longshot')
+          const claim = (await scheduleGate(db, { kind: 'longshot', day, legacyHour: LONGSHOT_HOUR })).ok && await claimSlot(db, day, 'longshot')
           if (claim) {
             const text = longshotText(pick, { day, ...TAIL })
-            const patch = { payload: { pick } }
+            const patch = { payload: { pick, ...payloadFor('longshot') } }
             // Rendered here, above the Discord post, so both services take the
             // same one render -- see claimAndPostStat. It used to be built
             // inside the X branch, which left Discord with bare text and, on
@@ -2196,7 +2210,7 @@ export async function GET(request) {
   await safeStat('matchuphistory_late', async () => {
     // egress (2026-10-03): the exclude read ran every minute before the claim,
     // all evening; nothing to do before the hour or once the slot is taken
-    if (etHoursSinceNoon() < MATCHUP_LATE_HOUR || knownTaken(day, 'matchup_hr_late') || triedEmpty(day, 'matchup_hr_late')) return
+    if (!hourOk(MATCHUP_LATE_HOUR, 'matchup_hr_late') || knownTaken(day, 'matchup_hr_late') || triedEmpty(day, 'matchup_hr_late')) return
     const seen = await matchupHistorySeenIds(db, day)
     const lines = await vsPitcherCareerLines(midRows(), { exclude: seen })
     const hrPicks = hrVsStarterPicks(lines)  // text-only now, see the day wave above
@@ -2325,18 +2339,21 @@ export async function GET(request) {
   const { count: dayCount, error: dayCountErr } = await db.from('homer_feed').select('player_id', { count: 'exact', head: true }).eq('day', day)
   if (dayCountErr) console.error(`[homers] numerology count: ${dayCountErr.message}`)
   if (_numerology.day !== day) _numerology = { day, count: -1, done: false }
-  if (!dayCountErr && !_numerology.done && dayCount !== _numerology.count) {
+  // THE SCHEDULER: numerology is FUN, evening/night only (xSchedule); `heldUntil` keeps a held moment from re-reading the day's rows every minute.
+  if (!dayCountErr && !_numerology.done && windowOpen({ kind: 'numerology' }) && Date.now() >= (_numerology.heldUntil || 0) && dayCount !== _numerology.count) {
     _numerology.count = dayCount
     const { data: dayRows } = await db.from('homer_feed').select('player_id,name,team,opponent,role,hr_n,stats').eq('day', day)
     const moment = numerologyMoment(dayRows || [], { day })
     if (moment) {
-      const claim = await claimSlot(db, day, 'numerology')
+      const sg = await scheduleGate(db, { kind: 'numerology', day })
+      if (!sg.ok) { _numerology.count = -1; _numerology.heldUntil = Date.now() + 5 * 60e3 }
+      const claim = sg.ok && await claimSlot(db, day, 'numerology')
       // Claimed: this day is settled here. Not claimed (taken, kind off, or
       // a failed write): asked again when the next homer lands.
       if (claim) _numerology.done = true
       if (claim) {
         const text = numerologyText(moment, { day, ...TAIL })
-        const patch = { payload: { moment } }
+        const patch = { payload: { moment, ...payloadFor('numerology') } }
         // Rendered above the Discord post so both services take one render --
         // see claimAndPostStat. Sat inside the X branch, which left Discord
         // with bare text and built nothing at all on a night with X off.
