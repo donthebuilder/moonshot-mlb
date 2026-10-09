@@ -37,7 +37,7 @@ import { renderWriteup } from '../../../../../lib/writeups/text'
 import { postLimit } from '../../../../../lib/dash/postLimit'
 import { xDailyAllows } from '../../../../../lib/dash/xBudget'
 import { admit, xOk, recentNamed, repeatCheck, logPosted, logDroppedRepeat } from '../../../../../lib/dash/xGate'
-import { namedInText, withNamed, distinctOptions, isRetiredForever } from '../../../../../lib/dash/xPolicy'
+import { namedInText, withNamed, isRetiredForever } from '../../../../../lib/dash/xPolicy'
 import { resolveNaming, mlbNamingProblem } from '../../../../../lib/dash/namingChecks'
 import { recordPost } from '../../../../../lib/dash/xPostLog'
 import { isRested } from '../../../../../lib/dash/xRest'
@@ -50,7 +50,7 @@ import { mlbWatch, historyWatchText, reachedLine } from '../../../../../lib/hist
 import { fetchLiveSlate, liveSlateStatus } from '../../../../../lib/liveSlate'
 import { fetchBoardFull, fetchRunMeta } from '../../../../../lib/dash/board'
 import { dataUrl, oddsPaths, pairSummaryPaths } from '../../../../../lib/dataSource'
-import { primaryRole, accountabilityText, boardIndexFrom, moonshotBoardRanking, moonshotBoardText, boardRolePicks, boardRoleResultsText, boardRoleText, botPollText, boxLinesForDate, captureFrom, communityPickText, roleWord, homersFrom, hooksFor, longshotPick, longshotText, monthlyText, numerologyMoment, numerologyText, pairsToWatch, pairsToWatchText, partnerFor, postText, pregameCalled, pregamePicks, pregameText, topStreakFrom, weeklyText } from '../../../../../lib/dash/homerFeed'
+import { primaryRole, accountabilityText, boardIndexFrom, moonshotBoardRanking, moonshotBoardText, boardRolePicks, boardRoleResultsText, boardRoleText, boxLinesForDate, captureFrom, roleWord, homersFrom, hooksFor, longshotPick, longshotText, monthlyText, numerologyMoment, numerologyText, pairsToWatch, pairsToWatchText, partnerFor, postText, pregameCalled, pregamePicks, pregameText, topStreakFrom, weeklyText } from '../../../../../lib/dash/homerFeed'
 import { homerCard, mlbhrCard, hotStretchCard, longshotCard, numerologyCard, pairsCard, pregameCard, recapCard, statCard } from '../../../../../lib/dash/homerCard'
 import {
   backToBackPicks, backToBackText, bestAirPicks, bestAirText, callOfTheNightPick, callOfTheNightText,
@@ -562,7 +562,6 @@ const ANGLES_HOUR = -3          // 9am ET   (retired -- see RETIRED_KINDS)
 const HOT_SHEET_HOUR = -1       // 11am ET  (retired -- see RETIRED_KINDS)
 const ACCOUNTABILITY_HOUR = -4  // 8am ET -- grades YESTERDAY's picks
 const BOARD_RESULTS_HOUR = -4   // 8am ET -- grades YESTERDAY's Tonight's Board
-const COMMUNITY_PICK_HOUR = -4  // 8am ET
 // 2026-09-15 (Donovan: pairswatch/longshot "get posted... almost at
 // midnight"). Traced, not guessed: the bot's day-rollover cron
 // (today.yml, bot repo) fires at 12:05am Phoenix -- explicitly ON PURPOSE,
@@ -634,7 +633,6 @@ const isSurfaced = (row) => Boolean(String(row?.role || '').trim())
 // How many of the board the reply prints above him. Ten names every night is
 // ten names in front of search and one object a reader learns to recognise.
 const BOARD_REPLY_TOP = 10
-const BOTPOLL_DURATION_MIN = 600 // 10 hours -- covers most of a night slate
 // MATCHUP HISTORY (2026-09-15, Donovan: someone requested a fan account's
 // "has a HR vs tonight's starter" list; confirmed he wants BOTH that and the
 // best-batting-line "who owns him" trivia, as a pool that fires again later
@@ -2131,36 +2129,8 @@ export async function GET(request) {
         }
       }
 
-      // COMMUNITY PICK (2026-09-13). Static invite, no data dependency --
-      // gated on `ready` purely so it reads naturally next to tonight's real
-      // picks above, not because it needs any of that data itself.
-      await claimAndPostStat(db, day, 'community_pick', COMMUNITY_PICK_HOUR, communityPickText(tailFor('community_pick')), null)
-
-      // BOT VS THE PEOPLE (2026-09-13). A native X poll -- see postToX's
-      // `poll` option. Discord has no equivalent native-poll webhook field
-      // here, so it gets the question plus the options spelled out as text;
-      // X gets the real tappable poll.
-      {
-        // DISTINCT OPTIONS (2026-10-09): the 9/23 poll named "Pete Alonso" twice. Four different
-        // names from the whole pick list, compared as X will see them (25-character cut).
-        const pollNames = distinctOptions(picks.map((p) => p.name), 4)
-        if (pollNames.length >= 2) {
-          const pollClaim = await claimSlot(db, day, 'botpoll')
-          if (pollClaim) {
-            const text = botPollText(TAIL)
-            const lettered = pollNames.map((n, i) => `${String.fromCharCode(65 + i)}) ${n}`).join('\n')
-            const patch = { payload: { options: pollNames } }
-            const d = await postToDiscord(`${text}\n\n${lettered}`, {}, FEED_WEBHOOKS())
-            if (d.ok) patch.discord_sent = true
-            if (hasX() && await xOk(db, { day, kind: 'botpoll', repeat: false })) {
-              const r = await postToX(text, { kind: 'botpoll', poll: { options: pollNames, durationMinutes: BOTPOLL_DURATION_MIN } })
-              if (r.ok && r.id) patch.x_post_id = r.id
-              else console.error(`[homers] botpoll refused: ${r.status} ${r.error}`)
-            }
-            await db.from('homer_feed_posts').update(patch).match({ day, kind: 'botpoll' })
-          }
-        }
-      }
+      // POLLS moved out (2026-10-09): the old MOONSHOT VS THE PEOPLE poll and the community-pick invite are
+      // replaced by the poll formats in lib/dash/polls, posted by their own cron (app/api/dash/polls/tick).
     }
   }
 

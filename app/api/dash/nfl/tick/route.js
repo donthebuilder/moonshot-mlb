@@ -66,8 +66,8 @@ import {
   milestonePicks, milestoneText,
   opportunityPicks, opportunityText, tdHistoryPicks, tdHistoryText,
   whyOnBoardPick, whyOnBoardText, bigWeekPicks, bigWeekText,
-  nflBoardPicks, nflBoardText, nflBotPollPicks, nflBotPollText, nflBotPollOptions,
-  nflCommunityPickText, nflBoardResultsText,
+  nflBoardPicks, nflBoardText,
+  nflBoardResultsText,
   tdCallNeighbors, tdCallNeighborsText,
   spotlightPick, spotlightText,
 } from '../../../../../lib/nfl/tweetFeed'
@@ -196,14 +196,10 @@ const MON_BIGWEEK_HOUR = -2    // 10am ET Monday
 // something, so three of them land there and the receipts land the next
 // morning, alongside BIG WEEK.
 const SUN_BOARD_HOUR = -3       //  9am ET Sunday -- the board drops
-const SUN_BOTPOLL_HOUR = -2     // 10am ET Sunday -- poll closes with the 1pm games
-const SUN_COMMUNITY_HOUR = -1   // 11am ET Sunday -- last call before kickoff
 const SUN_LONGSHOTS_HOUR = -0.25 // 11:45am ET Sunday -- the long prices, after the board
 const MON_RESULTS_HOUR = -3     //  9am ET Monday -- BEFORE big week, so the
                                 // grade lands before the highlight post
-// Long enough to cover the 1pm and 4pm windows without running past the night
-// game, so the result is readable while the answer still matters.
-const NFL_POLL_DURATION_MIN = 300
+// The NFL's polls moved to lib/dash/polls (2026-10-09), their own cron: app/api/dash/polls/tick.
 // Two either side. The TD ladder is five rungs, so tdCallNeighbors shows the
 // whole sheet at that size and only clamps on a week the ladder runs longer.
 const TD_NEIGHBOR_SPAN = 2
@@ -216,8 +212,6 @@ const WEEKLY_SLOTS = {
   0: [
     { kind: 'nfl_whyboard', hour: SAT_WHYBOARD_HOUR },
     { kind: 'nfl_board', hour: SUN_BOARD_HOUR },
-    { kind: 'nfl_botpoll', hour: SUN_BOTPOLL_HOUR },
-    { kind: 'nfl_community', hour: SUN_COMMUNITY_HOUR },
   ],
   1: [
     { kind: 'nfl_results', hour: MON_RESULTS_HOUR },
@@ -547,9 +541,6 @@ async function runWeeklyContentTick(db, day) {
     try {
       let text = ''
       let payload = {}
-      // Only BOT VS THE PEOPLE sets this; postToX renders them as tappable
-      // buttons rather than typed A)/B)/C) in the body.
-      let pollOptions = null
       // Only the spotlight carries a card. Every other weekly post is a list,
       // and a picture of a list is the thing the 2026-09-18 cards-off pass
       // deliberately removed.
@@ -609,16 +600,6 @@ async function runWeeklyContentTick(db, day) {
         // board that was rebuilt on Monday would be grading a different board.
         // Frozen at post time, same rule the MLB pregame payload follows.
         payload = { picks }
-      } else if (sl.kind === 'nfl_botpoll') {
-        const picks = nflBotPollPicks(data, undefined, { now: Date.now(), day })
-        text = nflBotPollText(picks, data, TAIL)
-        pollOptions = nflBotPollOptions(picks)
-        // X refuses a poll with fewer than two options -- post it as plain
-        // text rather than losing the post.
-        if (pollOptions.length < 2) pollOptions = null
-        payload = { options: pollOptions || [], picks: picks.map((p) => ({ player_id: p.player_id, name: p.name })) }
-      } else if (sl.kind === 'nfl_community') {
-        text = nflCommunityPickText(TAIL)
       } else if (sl.kind === 'nfl_results') {
         // Grades YESTERDAY's board -- Sunday's, read on Monday morning. Two
         // reads, both off what the account itself already published: the board
@@ -647,17 +628,12 @@ async function runWeeklyContentTick(db, day) {
       if (!(await claimSlot(db, day, sl.kind))) { out[sl.kind] = 'already-posted-or-claim-failed'; continue }
 
       const patch = { payload: named.length ? withNamed(payload, named) : payload }
-      // Discord has no poll widget, so the options are typed there -- same
-      // treatment the MLB botpoll already gives them.
-      const forDiscord = pollOptions
-        ? `${text}\n\n${pollOptions.map((n, i) => `${String.fromCharCode(65 + i)}) ${n}`).join('\n')}`
-        : text
       // Rendered once, given to both services -- the same "ONE RENDER, BOTH
       // PLACES" rule the MLB tick's claimAndPostStat already follows, and for
       // the same reason: the card used to be built inside the X branch, so
       // Discord got bare text while a finished PNG existed a few lines later.
       const png = card ? await bytesOf(card) : null
-      const d = await postToDiscord(forDiscord, { png }, FEED_WEBHOOKS())
+      const d = await postToDiscord(text, { png }, FEED_WEBHOOKS())
       if (d.ok) patch.discord_sent = true
       // The daily cap, by tier (lib/dash/xPolicy): the board is exempt, the results
       // a receipt, the rest facts / polls.
@@ -665,7 +641,6 @@ async function runWeeklyContentTick(db, day) {
         const mediaId = png ? await uploadImageToX(png) : null
         const r = await postToX(text, {
           ...(mediaId ? { mediaId } : {}),
-          ...(pollOptions ? { poll: { options: pollOptions, durationMinutes: NFL_POLL_DURATION_MIN } } : {}),
           // For the Threads mirror only: which weekly slot this is decides
           // whether a funnel link goes under it. X ignores it.
           kind: sl.kind,
