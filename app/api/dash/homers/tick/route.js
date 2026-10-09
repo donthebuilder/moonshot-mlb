@@ -40,6 +40,8 @@ import { admit, xOk, recentNamed, repeatCheck, logPosted, logDroppedRepeat, sche
 import { windowOpen, payloadFor } from '../../../../../lib/dash/xSchedule'
 import { namedInText, withNamed, isRetiredForever } from '../../../../../lib/dash/xPolicy'
 import { resolveNaming, mlbNamingProblem } from '../../../../../lib/dash/namingChecks'
+import { postSlateOnce } from '../../../../../lib/posts/slate'
+import { slateLoader } from '../../../../../lib/posts/slateLoad'
 import { recordPost } from '../../../../../lib/dash/xPostLog'
 import { isRested } from '../../../../../lib/dash/xRest'
 import { xEventsCalledOnly } from '../../../../../lib/dash/xEvents'
@@ -51,14 +53,14 @@ import { mlbWatch, historyWatchText, reachedLine } from '../../../../../lib/hist
 import { fetchLiveSlate, liveSlateStatus } from '../../../../../lib/liveSlate'
 import { fetchBoardFull, fetchRunMeta } from '../../../../../lib/dash/board'
 import { dataUrl, oddsPaths, pairSummaryPaths } from '../../../../../lib/dataSource'
-import { primaryRole, accountabilityText, boardIndexFrom, moonshotBoardRanking, moonshotBoardText, boardRolePicks, boardRoleResultsText, boardRoleText, boxLinesForDate, captureFrom, roleWord, homersFrom, hooksFor, longshotPick, longshotText, monthlyText, numerologyMoment, numerologyText, pairsToWatch, pairsToWatchText, partnerFor, postText, pregameCalled, pregamePicks, pregameText, topStreakFrom, weeklyText } from '../../../../../lib/dash/homerFeed'
-import { homerCard, mlbhrCard, hotStretchCard, longshotCard, numerologyCard, pairsCard, pregameCard, recapCard, statCard } from '../../../../../lib/dash/homerCard'
+import { primaryRole, accountabilityText, boardIndexFrom, moonshotBoardRanking, moonshotBoardText, boardRolePicks, boardRoleResultsText, boardRoleText, boxLinesForDate, captureFrom, roleWord, homersFrom, hooksFor, longshotPick, longshotText, monthlyText, numerologyMoment, numerologyText, pairsToWatch, pairsToWatchText, partnerFor, postText, pregameCalled, pregamePicks, topStreakFrom, weeklyText } from '../../../../../lib/dash/homerFeed'
+import { homerCard, mlbhrCard, hotStretchCard, longshotCard, numerologyCard, pairsCard, recapCard, statCard } from '../../../../../lib/dash/homerCard'
 import {
-  backToBackPicks, backToBackText, bestAirPicks, bestAirText, callOfTheNightPick, callOfTheNightText,
+  backToBackPicks, backToBackText, bestAirPicks, bestAirText, 
   careerVsStarterPicks, careerVsStarterText, dangerComboPicks, dangerComboText, fetchWeekdayHrLeaders, funFactsPicks, funFactsText,
   hottestContactPicks, hottestContactText, hrLeadersByDowText, hrVsStarterPicks, hrVsStarterText, liveIndexFrom, matchupLinesPicks, matchupLinesText,
   milestonePicks, milestoneText, playableRows, revengeGiveawayPicks, revengeGiveawayText, storylinesPicks, storylinesText, storylineWatchPicks, storylineWatchText,
-  streaksPick, streaksText, theFourPicks, theFourText, vsPitcherCareerLines,
+  streaksPick, streaksText, vsPitcherCareerLines,
   boardPitchersFresh, scheduleFor, boardGamesToday, onSlateTonight, hotStretchPicks, hotStretchText,
   anglesText, hotSheetText,
 } from '../../../../../lib/dash/tweetFeed'
@@ -127,7 +129,6 @@ const X_MONTHLY_CAP = Number(process.env.X_MONTHLY_CAP || 1100) || 1100
 const DISCORD_ON = Boolean(process.env.DISCORD_HOMER_WEBHOOK)
 const cardUrl = (row) => (SITE ? `${SITE}/api/dash/homers/card?day=${row.day}&pid=${row.player_id}&n=${row.hr_n}` : null)
 const recapUrl = (day) => (SITE ? `${SITE}/api/dash/homers/card?day=${day}&recap=1` : null)
-const pregameUrl = (day) => (SITE ? `${SITE}/api/dash/homers/card?day=${day}&pregame=1` : null)
 
 // STAT-FEED CLAIM + POST (2026-09-07). Same claim-then-post shape as the
 // pairswatch/longshot blocks below -- claim (day, kind) in homer_feed_posts
@@ -149,6 +150,28 @@ const pregameUrl = (day) => (SITE ? `${SITE}/api/dash/homers/card?day=${day}&pre
 // line if the wide channels should carry it too.
 // 2026-10-02: shared with the NFL/NHL ticks via lib/dash/discordChannels.js.
 const FEED_WEBHOOKS = () => feedHooks('mlb')
+
+// THE DAY'S MORNING POST, WHICHEVER KIND (2026-10-09): THE SLATE replaced the pregame post, so a day is read as its
+// 'slate' row, else (a day before the Slate, or history) its 'pregame' row. The accountability grade, the receipt
+// quote and the /called list all read the names a post really named from the row this returns.
+async function morningPost(db, day, cols = 'payload') {
+  const { data } = await db.from('homer_feed_posts').select(`kind,${cols}`).eq('day', day).in('kind', ['slate', 'pregame'])
+  return (data || []).find((r) => r.kind === 'slate') || (data || []).find((r) => r.kind === 'pregame') || null
+}
+
+// THE SLATE (2026-10-09, X overhaul piece 3): ONE cross-sport post a day that replaced callofnight, the pregame
+// post (THE CALLED SHOTS) and thefour. It is tried on EVERY tick, across sports, because it is not MOONSHOT's:
+// a football-only or hockey-only day has no MLB games and must still get its Slate. It decides its own timing
+// (lib/posts/slate.js: ready an hour before the first game it covers, held for unconfirmed names until 30
+// minutes before) and mirrors as plain text to the free feed channels the pregame post mirrored to. Never throws.
+async function slateTick(db, { day, rows = [], live = null, hold = null, firstStartMs = NaN }) {
+  try {
+    return await postSlateOnce(db, { day, hooks: FEED_WEBHOOKS(), load: slateLoader({ day, mlb: { rows, live, hold, firstStartMs } }) })
+  } catch (err) {
+    console.error('[homers] slate threw', err)
+    return `error: ${String(err?.message || err)}`
+  }
+}
 
 // ── THE ONE CLAIM SITE ──────────────────────────────────────────────────────
 //
@@ -182,7 +205,7 @@ const FEED_WEBHOOKS = () => feedHooks('mlb')
 //             recap...).
 // POST_KINDS_ON (Vercel env, comma list, or 'all') replaces all of it
 // without a deploy.
-const DAILY_KINDS = new Set(['pregame', 'board', 'accountability', 'numerology', 'callofnight', 'history_watch', 'weekly', 'monthly'])
+const DAILY_KINDS = new Set(['board', 'accountability', 'numerology', 'history_watch', 'weekly', 'monthly'])   // 2026-10-09: pregame + callofnight left (THE SLATE, lib/posts/slate.js, is claimed by its own runner)
 const ROTATION_KINDS = ['matchup_hr', 'bestair', 'hotcontact', 'storylines', 'pairswatch', 'hot_week', 'hot_month']
 function postKindOn(kind, day) {
   // THE CALL, one per postseason game (call_<game_pk>, lib/dash/gameCall):
@@ -240,7 +263,7 @@ const TEXT_ONLY_KINDS = new Set([
   'hotcontact', 'history_watch',
   'dangercombos',
   'hrleadersdow', 'backtoback', 'birthday', 'funfacts',
-  'matchuplines', 'callofnight', 'streaks', 'storylines', 'thefour', 'bestair',
+  'matchuplines', 'streaks', 'storylines', 'bestair',
 ])
 
 // THE MERGE (2026-09-18, Donovan: "add more to the tweet this what im saying
@@ -549,12 +572,10 @@ const FUN_FACTS_HOUR = 1      // 1pm ET
 // see claude/ project docs for why each of these six has a real data source
 // behind it (no invented numbers) and why Revenge Game Watch is NOT here yet.
 const MATCHUP_LINES_HOUR = -3   // 9am ET   (2026-09-18: HR MATCHUP HISTORY)
-const CALL_OF_NIGHT_HOUR = -3   // 9am ET (own slot, separate from hotcontact)
 const STREAKS_HOUR = -3         // 9am ET
 const STORYLINES_HOUR = -4      // 8am ET   (2026-09-18: ARMS GETTING HIT leads the
                                 // morning -- it is the one post that frames every
                                 // hitter post after it)
-const THE_FOUR_HOUR = 0         // noon ET
 const BEST_AIR_HOUR = -2        // 10am ET  (2026-09-18: morning, per his calendar)
 // THE HOT STRETCH (2026-09-18, Donovan: "i want player highlights liike this
 // too... for players doing well during the week or throught the month"). Two
@@ -1170,7 +1191,7 @@ export async function GET(request) {
     const yday = shiftDay(day, -1)
     const acctClaim = await claimSlot(db, yday, 'accountability')
     if (acctClaim) {
-      const { data: pre } = await db.from('homer_feed_posts').select('payload').match({ day: yday, kind: 'pregame' }).maybeSingle()
+      const pre = await morningPost(db, yday, 'payload')
       const yPicks = pre?.payload?.picks || []
       if (yPicks.length) {
         const { data: yHits } = await db.from('homer_feed').select('player_id').eq('day', yday)
@@ -1257,7 +1278,9 @@ export async function GET(request) {
     // the response said why. liveSlateStatus().reason now carries whatever
     // pullLiveSlate logged, so a future regression shows up in the tick's own
     // JSON instead of needing a manual repro to find.
-    return Response.json({ day, skipped: 'no-games', backfill, liveSlate: liveSlateStatus() })
+    // no baseball today -- the football / hockey / basketball Slate still goes out
+    const slateNoMlb = await slateTick(db, { day })
+    return Response.json({ day, skipped: 'no-games', slate: slateNoMlb, backfill, liveSlate: liveSlateStatus() })
   }
   // From here down, `snap` may still be null or empty (fetchLiveSlate down,
   // or genuinely nothing live yet) while `board` carries tonight's games.
@@ -1355,6 +1378,11 @@ export async function GET(request) {
     ? (!boardIsToday ? 'stale-slate-date' : !gamesCheck.ok ? 'stale-games' : (!pitcherFreshness.fresh ? 'stale-pitchers' : null))
     : 'no-board'
   if (boardHold) console.error(`[homers] board held: ${boardHold}`, { slate_date: runMeta?.slate_date, rowsDate, day, games: gamesCheck, ...pitcherFreshness })
+
+  // ── THE SLATE (see slateTick). MOONSHOT's rows are named only from tonight's own board; a board that is not
+  // tonight's (stale date / stale arms / none yet) is a HOLD for the MLB line, then the post goes out without it.
+  const slateResult = await slateTick(db, { day, rows: boardUsable ? boardRows() : [], live, hold: boardUsable ? null : (boardHold || 'no-board'), firstStartMs: firstPitch ?? NaN })
+  if (!/^(waiting|already-posted|off)/.test(String(slateResult))) console.log(`[homers] slate: ${slateResult}`)
 
   // ── 0. THE PREGAME CALL — before anything starts ──────────────────────────
   //
@@ -1523,51 +1551,7 @@ export async function GET(request) {
           { texts: stories.map((s) => s?.text).filter(Boolean) })
       })
     }
-    // HELD FOR THE LOCK AND READ OFF THE WHOLE SLATE (2026-10-03). It read
-    // pregameRows() -- only men whose lineup was already posted -- from 9am, so
-    // at 7:10 on a day with one early game it ranked a handful of hitters and
-    // printed "EDGE: 0.8 SD clear of the next name on the board" about a board
-    // it had mostly not looked at. Same rows and same lock as the Called Shots.
-    if (hourOk(CALL_OF_NIGHT_HOUR, 'callofnight') && pregameLockReady) {
-      await safeStat('callofnight', async () => {
-        // BEFORE HE IS NAMED (2026-10-09): lineup posted, starter confirmed, and not
-        // this kind's pick within 3 days. Pending = held until 30 min before first
-        // pitch, then dropped (lib/dash/namingChecks + xPolicy). A taken slot asks nothing.
-        if (knownTaken(day, 'callofnight')) return
-        const recent = await recentNamed(db, { kind: 'callofnight', day })
-        const nr = resolveNaming({
-          rows: callRows(),
-          check: mlbNamingProblem,
-          pickFrom: (rs) => { const c = callOfTheNightPick(rs, odds, day); return c ? [c] : [] },
-          startOf: (r) => Date.parse(r?.game_time),
-          now: Date.now(),
-        })
-        if (nr.state !== 'go') {
-          recordPost({ day, kind: 'callofnight', sport: 'mlb', state: nr.state === 'held' ? 'HELD' : 'DROPPED', reason: nr.reason, ids: nr.pending.map((x) => x.id) })
-          return
-        }
-        const call = nr.picks[0] || null
-        // "highest on tonight's slate" is the post's claim, so a repeat is not swapped for the
-        // runner-up: the post is simply not made (the same man within 3 days).
-        if (call && recent.has(String(call.player_id))) {
-          recordPost({ day, kind: 'callofnight', sport: 'mlb', state: 'DROPPED', reason: `repeat: ${call.player_id} named within 3 days`, ids: [call.player_id] })
-          return
-        }
-        await claimAndPostStat(db, day, 'callofnight', CALL_OF_NIGHT_HOUR,
-          callOfTheNightText(call, { day, ...TAIL }),
-          call ? {
-            pill: 'CALL', label: 'THE BEST LOOK',
-            headline: `${call.name}${call.pitcher ? ` vs ${call.pitcher}` : ''}`,
-            lines: [
-              call.edgeSd != null ? `EDGE ${call.edgeSd} SD` : '',
-              call.pct != null ? `PARK+WEATHER ${call.pct >= 50 ? 'top' : 'bottom'} ${call.pct >= 50 ? 100 - call.pct : call.pct}%` : '',
-              call.price ? `PRICE ${call.price.odds} · ${call.price.book}` : '',
-            ].filter(Boolean),
-          } : null,
-          // who the post names, stored at post time (it was {} before 2026-10-09)
-          call ? { picks: [{ player_id: String(call.player_id), name: call.name }] } : {})
-      })
-    }
+    // THE BEST LOOK (callofnight) is retired (2026-10-09): THE CALL OF THE NIGHT leads THE SLATE (lib/posts/slate.js).
     if (hourOk(STREAKS_HOUR, 'streaks') && !isRetired('streaks')) {
       await safeStat('streaks', async () => {
         const streak = await streaksPick(pregameRows(), day)
@@ -1592,18 +1576,7 @@ export async function GET(request) {
           } : null)
       })
     }
-    if (hourOk(THE_FOUR_HOUR, 'thefour')) {
-      await safeStat('thefour', async () => {
-        const four = theFourPicks(callRows())   // The Four are the bot's calls: the calls' rule
-        await claimAndPostStat(db, day, 'thefour', THE_FOUR_HOUR,
-          theFourText(four, { day, ...TAIL }),
-          four.length === 4 ? {
-            pill: 'FOUR', label: 'THE FOUR',
-            headline: 'Four categories, one bot',
-            lines: four.map((p) => `${p.key}: ${p.name} vs ${p.pitcher} — ${p.score}`),
-          } : null)
-      })
-    }
+    // THE FOUR is retired (2026-10-09): THE SLATE replaced it (lib/posts/slate.js).
     if (hourOk(BEST_AIR_HOUR, 'bestair')) {
       await safeStat('bestair', async () => {
         const air = bestAirPicks(pregameRows())
@@ -1991,7 +1964,7 @@ export async function GET(request) {
             continue
           }
           if (!(await claimSlot(db, day, kind))) continue
-          const tl = tailFor('pregame', { playerId: call.row.player_id })
+          const tl = tailFor('call', { playerId: call.row.player_id })
           const tail = [tl.site, tl.handle].filter(Boolean).join(' ')
           const old = gameCallText(call, { tail })
           const w = buildMlbWriteup(slate.filter((r) => String(r?.game_pk) === String(call.game_pk)))
@@ -2006,7 +1979,7 @@ export async function GET(request) {
           const d = await postToDiscord(discordText, {}, FEED_WEBHOOKS())
           if (d.ok) patch.discord_sent = true
           if (hasX() && await xOk(db, { day, kind, ids: callNamed, repeat: false })) {
-            const r = await postToX(text, { kind: 'pregame', link: { playerId: call.row.player_id } })
+            const r = await postToX(text, { kind: 'call', link: { playerId: call.row.player_id } })
             if (r.ok && r.id) { patch.x_post_id = r.id; logPosted({ day, kind, ids: callNamed, tweetId: r.id, text }) }
             else console.error(`[homers] ${kind} refused: ${r.status} ${r.error}`)
           }
@@ -2050,66 +2023,14 @@ export async function GET(request) {
       }
       let picks = []
       if (!pregameLockReady) {
-        if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: 'waiting-for-lock-window', statErrors, discordErrors: discordFailuresSnapshot() })
+        if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: 'waiting-for-lock-window', slate: slateResult, statErrors, discordErrors: discordFailuresSnapshot() })
       } else {
-        // FREE IS THE TOP FIVE (Donovan, 2026-10-04: 'free post stops at top 5').
-        // The ten -- and the per-game calls -- are the founding members' post
-        // (lib/dash/membersPost.js, MLB_MEMBERS_N). The payload is the list
-        // posted, so the public card image shows five too.
-        // BEFORE THEY ARE NAMED (2026-10-09, X overhaul piece 1): each man's lineup is
-        // posted with him in it and his starter is confirmed (an OUT / scratched man is
-        // left out); a name still pending HOLDS this post, tick after tick, until 30
-        // minutes before first pitch -- then it is built WITHOUT him, never with him.
-        // And no one this kind named in the last 3 days (the next man up takes the seat).
-        let pregameHeld = null
-        if (!knownTaken(day, 'pregame')) {
-          const recentPre = await recentNamed(db, { kind: 'pregame', day })
-          const nr = resolveNaming({
-            rows: callRows(),
-            check: mlbNamingProblem,
-            pickFrom: (rs) => pregamePicks(rs.filter((r) => !recentPre.has(String(r.player_id))), odds, day, FREE_PREGAME_N),
-            startOf: (r) => Date.parse(r?.game_time),
-            trim: true,
-            now: Date.now(),
-          })
-          if (nr.state === 'held') pregameHeld = nr
-          else {
-            picks = nr.picks
-            if (nr.trimmed?.length) recordPost({ day, kind: 'pregame', sport: 'mlb', state: 'DROPPED', reason: `left out, ${nr.reason || 'not confirmed'} 30 min before first pitch: ${nr.trimmed.join(', ')}`, ids: nr.trimmed })
-          }
-        }
-        if (pregameHeld) {
-          recordPost({ day, kind: 'pregame', sport: 'mlb', state: 'HELD', reason: pregameHeld.reason, ids: pregameHeld.pending.map((x) => x.id) })
-          if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: 'held-for-lineups', statErrors, discordErrors: discordFailuresSnapshot() })
-        }
-        if (!picks.length) {
-          if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: 'no-picks', statErrors, discordErrors: discordFailuresSnapshot() })
-        } else {
-          const claim = await claimSlot(db, day, 'pregame')
-          if (!claim) {
-            if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: 'already', statErrors, discordErrors: discordFailuresSnapshot() })
-          } else {
-            const text = pregameText(picks, { day, ...tailFor('pregame') })
-            // `named`: the ids the posted text NAMES, exactly (pregameText may drop names to fit) --
-            // the receipt lookup quotes this post only for a man in this list.
-            const named = pregameCalled(picks, text)
-            const patch = { payload: { picks, named } }
-            // The payload goes in FIRST so the public card route can render the
-            // Discord embed from it; the post ids follow.
-            await db.from('homer_feed_posts').update({ payload: { picks, named } }).match({ day, kind: 'pregame' })
-            const d = await postToDiscord(text, { imageUrl: pregameUrl(day) }, FEED_WEBHOOKS())
-            if (d.ok) patch.discord_sent = true
-            if (hasX() && await xOk(db, { day, kind: 'pregame', ids: named, repeat: false })) {
-              const png = await bytesOf(() => pregameCard(day, picks, { site: SITE_HOST }))
-              const mediaId = png ? await uploadImageToX(png) : null
-              const r = await postToX(text, { mediaId, kind: 'pregame' })
-              if (r.ok && r.id) { patch.x_post_id = r.id; logPosted({ day, kind: 'pregame', ids: named, tweetId: r.id, text }) }
-              else console.error(`[homers] pregame refused: ${r.status} ${r.error}`)
-            }
-            await db.from('homer_feed_posts').update(patch).match({ day, kind: 'pregame' })
-            if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: patch.x_post_id || 'posted', statErrors, discordErrors: discordFailuresSnapshot() })
-          }
-        }
+        // THE PREGAME POST IS RETIRED (2026-10-09, X overhaul piece 3): THE SLATE (lib/posts/slate.js, tried
+        // above on every tick, across sports) replaced it, callofnight and thefour. What stays here is only the
+        // MOONSHOT list the (rested) vote below still reads. The `!started` return is the old pregame block's
+        // own gate and stays: everything under it waits for a game to start, as before.
+        picks = pregamePicks(callRows(), odds, day, FREE_PREGAME_N)
+        if (!started) return Response.json({ day, skipped: 'nothing-started', slate: slateResult, statErrors, discordErrors: discordFailuresSnapshot() })
       }
 
       // TONIGHT'S BOARD (2026-09-15, Donovan: "role based tweets no cards
@@ -2371,7 +2292,7 @@ export async function GET(request) {
   // when a homer is actually waiting to post (egress, 2026-10-03: these two
   // reads ran every minute, all evening, for a quote nobody needed).
   const quoting = (pending || []).length > 0
-  const { data: pre } = quoting ? await db.from('homer_feed_posts').select('x_post_id,payload').match({ day, kind: 'pregame' }).maybeSingle() : { data: null }
+  const pre = quoting ? await morningPost(db, day, 'x_post_id,payload') : null
   // Only a CALLED homer (lib/callStatus.js) quotes the morning's post, and
   // only when that post actually went out (2026-09-26): an ON THE BOARD or
   // NOT ON THE BOARD homer posts standalone, and a held Called Shots means
@@ -2644,7 +2565,7 @@ export async function GET(request) {
           for (const q of queue) q.row = (full || []).find((r) => r.player_id === q.row.player_id && r.hr_n === q.row.hr_n) || q.row
         }
         // When the morning's calls went out (Called Shots), for the card's proof line.
-        const { data: preRow } = queue.length ? await db.from('homer_feed_posts').select('x_post_id,seen_at').match({ day, kind: 'pregame' }).maybeSingle() : { data: null }
+        const preRow = queue.length ? await morningPost(db, day, 'x_post_id,seen_at') : null
         const preAt = preRow?.x_post_id ? (preRow.seen_at || null) : null   // seen_at = the claim, seconds before the post
         const { data: doneToday } = queue.length ? await db.from('homer_feed').select('mlbhr_reply_id').eq('day', day).not('mlbhr_reply_id', 'is', null) : { data: [] }
         let sentToday = (doneToday || []).filter((r) => r.mlbhr_reply_id !== 'skipped' && !String(r.mlbhr_reply_id).startsWith('refused')).length

@@ -4,7 +4,7 @@
 //   NFL: only a CALLED scorer named in a FEATURED write-up with a real X id quotes.
 //   node scripts/writeups/test-quotes.mjs
 await import('../_esm-resolve.mjs')
-const { mlbQuotes, nflWriteupQuotes } = await import('../../lib/dash/quoteFor.js')
+const { mlbQuotes, nflWriteupQuotes, slateQuoteFor } = await import('../../lib/dash/quoteFor.js')
 let fails = 0, n = 0
 const eq = (a, b, what) => { n++; if (a !== b) { fails++; console.log('FAIL', what, '->', a, 'expected', b) } }
 
@@ -20,6 +20,16 @@ eq(m.quoteFor({ player_id: 11, game_pk: 901, _test_status: 'board' }), null, 'ML
 eq(m.quoteFor({ player_id: 12, game_pk: 901, _test_status: 'called' }), null, 'MLB: called but NOT NAMED in the morning post (even if in the old `called` list) -> nothing')
 eq(m.calledAtLine({ player_id: 10, game_pk: 900, _test_status: 'called' }), '✅ Called at 5:10 PM ET', 'MLB: the called-at line')
 eq(mlbQuotes({ pre: { x_post_id: '111', payload: { picks: [{ player_id: 13 }] } }, gamePosts: [], callStatus: status }).quoteFor({ player_id: 13, _test_status: 'called' }), '111', 'MLB: an old pregame row (picks only) still quotes')
+
+// ── THE SLATE (TEST rows, 2026-10-09): the morning post names players of several sports; MLB reads named_by_sport.mlb ──
+const slate = { x_post_id: '444', payload: { named: ['10', '00-1', '7'], named_by_sport: { mlb: ['10'], nfl: ['00-1'], nhl: ['7'], nba: [] } } }
+const ms = mlbQuotes({ pre: slate, gamePosts: [], callStatus: status })
+eq(ms.quoteFor({ player_id: 10, game_pk: 1, _test_status: 'called' }), '444', 'SLATE: a called homer the Slate names quotes it')
+eq(ms.quoteFor({ player_id: 7, game_pk: 1, _test_status: 'called' }), null, "SLATE: a hockey id in `named` never quotes a hitter")
+eq(mlbQuotes({ pre: { x_post_id: '444', payload: { named: ['00-1'], named_by_sport: { mlb: [], nfl: ['00-1'], nhl: [], nba: [] } } }, gamePosts: [], callStatus: status }).quoteFor({ player_id: 10, _test_status: 'called' }), null, 'SLATE: named no hitter -> nothing')
+eq(slateQuoteFor('nfl', slate)('00-1'), '444', 'SLATE: a named football player quotes it')
+eq(slateQuoteFor('nfl', slate)('00-2'), null, 'SLATE: a football player it does not name does not')
+eq(slateQuoteFor('nhl', { x_post_id: 'dry', payload: slate.payload })('7'), null, 'SLATE: a Slate that never went to X quotes nothing')
 
 // ── NFL (TEST rows) ──
 const posts = [
