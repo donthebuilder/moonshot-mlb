@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react'
 import PageHeader from '../../PageHeader'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import LampTable from '../LampTable'
-import { AngleRow, FilterPill, Segmented } from '../../Filters'
+import { AngleRow, Segmented, PillRow } from '../../Filters'
 import BoardTopBar from '../../BoardTopBar'
 import FiltersDrawer, { DrawerSection, drawerChip } from '../../FiltersDrawer'
 import { TIME_WINDOWS, inWindow } from '../../BoardFilters'
@@ -76,7 +76,17 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
   useEffect(() => { if (marketTab) setMarketRaw(marketTab) }, [marketTab])
   const setMarket = (m) => { setMarketRaw(m); writeHashParam('m', m === 'GOAL' ? null : m.toLowerCase()); onMarket?.(m) }
   const M = marketOf(market)
-  const { data, error, loading } = useLampBoard(date, market)
+  // ONE READ PER MARKET (2026-10-08): each chip carries its count (skaters with a score for that market), as TUDDY's do
+  const bGoal = useLampBoard(date, 'GOAL'), bSog = useLampBoard(date, 'SOG'), bPts = useLampBoard(date, 'PTS'), bAst = useLampBoard(date, 'AST')
+  const boardsBy = { GOAL: bGoal, SOG: bSog, PTS: bPts, AST: bAst }
+  const { data, error, loading } = boardsBy[market] || bGoal
+  const marketCounts = useMemo(() => Object.fromEntries(MARKETS.map((m) => {
+    const d = boardsBy[m.key]?.data
+    return [m.key, d ? (d.games || []).filter((g) => !g.noMarketLock).reduce((n, g) => n + g.rows.filter((r) => r.status !== 'off' && Number.isFinite(Number(r.score))).length, 0) : null]
+  })), [bGoal.data, bSog.data, bPts.data, bAst.data]) // eslint-disable-line react-hooks/exhaustive-deps
+  // TEST is a small tag inside the chip, not a longer label: the record rule (no record until 30 graded nights) stays printed
+  const marketOptions = MARKETS.map((m) => ({ key: m.key, count: marketCounts[m.key] ?? undefined, title: m.label.replace(' \u00b7 TEST', '') + (m.test ? ' (a test: no record until 30 graded nights)' : ''),
+    label: <>{m.short}{m.test ? <span style={{ marginLeft: 6, padding: '1px 4px', borderRadius: 4, border: `1px solid ${C.border2}`, color: C.text3, font: `800 9px/1.2 ${NUM_FONT}`, letterSpacing: '.06em' }}>TEST</span> : null}</>, }))
   const games = data?.games || []
   const lockedN = games.filter((g) => g.locked).length
   const calledN = games.reduce((n, g) => n + g.rows.filter((r) => r.status === 'called').length, 0)
@@ -182,176 +192,118 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
   // pills under it, the day, the angle row, then the night's header and the
   // boards. Was: header, market buttons, day buttons, banner, then a row of
   // small grey selects.
-  const pill = (on) => ({
-    padding: '7px 16px', minHeight: 36, borderRadius: 999, cursor: 'pointer', fontSize: 12, fontWeight: 900, fontFamily: NUM_FONT,
-    whiteSpace: 'nowrap', letterSpacing: '.02em', border: `1px solid ${on ? C.ice : C.border}`,
-    background: on ? alpha(C.ice, 0.14) : 'transparent', color: on ? C.ice : C.text3,
-  })
+  const angleDef = angle ? angles.find((a) => a.key === angle) : null
+  const viewSwitch = <Segmented value={view} onChange={setView}
+    options={[{ key: 'game', label: 'By game', title: 'Each game, its two calls (one per team) on top' }, { key: 'all', label: 'All games', title: 'Every scored skater tonight, one ranked table' }]} />
+  const layoutSwitch = <Segmented value={layout} onChange={setLayout}
+    options={[{ key: 'list', label: '☰ List', title: 'One sortable table per game' }, { key: 'cards', label: '▦ Cards', title: 'The card board' }]} />
+  // the day, and Called only beside it: one row, the same two buttons on every Rankings page
+  const dayRow = (
+    <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+      <NavBtn onClick={() => setDate(shiftDay(shown, -1))} disabled={loading}>‹ Previous day</NavBtn>
+      <NavBtn onClick={() => setDate(null)} disabled={loading || !date} strong>Tonight</NavBtn>
+      <NavBtn onClick={() => setDate(shiftDay(shown, 1))} disabled={loading}>Next day ›</NavBtn>
+      <NavBtn onClick={() => setCalledOnly((v) => !v)} strong={calledOnly} title="Only the called skaters.">{calledOnly ? '✓ Called only' : 'Called only'}</NavBtn>
+    </div>)
+  const drawerSections = (<>
+    <DrawerSection label="Position">
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 3 }}>
+        {[['all', 'All'], ['F', 'Forwards'], ['D', 'Defence']].map(([k, l]) => <button key={k} type="button" onClick={() => setPos(k)} style={drawerChip(pos === k)}>{l}</button>)}
+      </div>
+    </DrawerSection>
+    <DrawerSection label={`Score · ${M.label || market}`}>
+      <div style={{ fontSize: 12, fontFamily: NUM_FONT, color: C.text, marginTop: 2 }}>{scoreMin}–{scoreMax}</div>
+      <RangeDual min={0} max={100} step={1} low={scoreMin} high={scoreMax} onLow={setScoreMin} onHigh={setScoreMax} label="Score" />
+    </DrawerSection>
+    <DrawerSection label="Bands · what this score is made of" hint="Percentiles among tonight's skaters, 0-100. Several at once must all clear.">
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 5 }}>
+        {bandDefs.map((d) => <button key={d.key} type="button" onClick={() => toggleBand(d.key)} style={drawerChip(bands.some((b) => b.key === d.key))}>{d.label}</button>)}
+      </div>
+      {bands.map((b) => (
+        <div key={b.key} style={{ marginTop: 9 }}>
+          <div style={{ fontSize: 12, color: C.ice, fontWeight: 800, fontFamily: NUM_FONT }}>{bandDefs.find((d) => d.key === b.key)?.label} {b.min}–{b.max}</div>
+          <RangeDual min={0} max={100} step={1} low={b.min} high={b.max} onLow={(v) => setBand(b.key, Math.min(v, b.max), b.max)} onHigh={(v) => setBand(b.key, b.min, Math.max(v, b.min))} label={b.key} />
+        </div>
+      ))}
+    </DrawerSection>
+    {gameOptions.length > 1 && (
+      <DrawerSection label="Game" hint="Several at once. Stacks with the game picker above -- that one runs first.">
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 3 }}>
+          {gameOptions.map((o) => <button key={o.key} type="button" onClick={() => setGameSel((s) => (s.includes(o.key) ? s.filter((x) => x !== o.key) : [...s, o.key]))} style={drawerChip(gameSel.includes(o.key))}>{o.label}</button>)}
+        </div>
+      </DrawerSection>
+    )}
+    <DrawerSection label="Puck drop">
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 3 }}>
+        {TIME_WINDOWS.map((w) => <button key={w.key} type="button" onClick={() => setTimeWindow(w.key)} style={drawerChip(timeWindow === w.key)}>{w.label}</button>)}
+      </div>
+    </DrawerSection>
+    <DrawerSection label={`Min power-play goals ${minPpg || '—'}`}>
+      <input type="range" min={0} max={20} step={1} value={minPpg} onChange={(e) => setMinPpg(Number(e.target.value))} style={{ width: '100%', accentColor: C.ice }} aria-label="Minimum power-play goals" />
+    </DrawerSection>
+  </>)
+  const nActive = chips.length + drawerChips.length
+  const drawerProps = {
+    active: nActive > 0, activeCount: nActive,
+    activeFilters: [...chips, ...drawerChips].map((c) => ({ key: c.key, label: c.label, onRemove: c.onClear })),
+    reset: clearAll, shown: kept.length, total: flat.length, accent: C.ice, accentInk: C.bg,
+    poolTitle: "Skaters on tonight's board that clear the filters. Stacks with the team and game above.", emptyNote: 'Nothing clears every filter at once. Loosen one.',
+  }
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {/* THE WATCH BOX LEADS THE PAGE (2026-10-07, Donovan: back-to-back / watch box "to the top"): MOONSHOT's B2B Watch sits first */}
       {data && market === 'GOAL' && <GoalWatch flat={flat} onOpenPlayer={onOpenPlayer} date={shown} />}
-      {phone ? (<>
-        {/* PHONE (2026-10-06): one compact row, the table next. Everything else is behind Filters. */}
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button type="button" onClick={() => setOpts((v) => !v)} aria-expanded={opts} style={{ ...pill(opts || filtering), flex: '0 0 auto', minHeight: 44, display: 'inline-flex', alignItems: 'center', gap: 6 }}>▤ Filters{chips.length + drawerChips.length + (team ? 1 : 0) + (gameF ? 1 : 0) + (needle ? 1 : 0) > 0 ? ` · ${chips.length + drawerChips.length + (team ? 1 : 0) + (gameF ? 1 : 0) + (needle ? 1 : 0)}` : ''}</button>
-          <LedgerChip sport="nhl" />
-          <WatchChip sport="nhl" />
-          <div role="group" aria-label="Market" style={{ display: 'flex', gap: 6, overflowX: 'auto', flex: 1, minWidth: 0, scrollbarWidth: 'none' }}>
-            {MARKETS.map((m) => <button key={m.key} type="button" onClick={() => setMarket(m.key)} aria-pressed={m.key === market} style={{ ...pill(m.key === market), minHeight: 44 }}>{m.label}</button>)}
-          </div>
+      {phone ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'space-between' }}>
+          <div style={{ minWidth: 0, color: C.text2, fontSize: 13, lineHeight: 1.3 }}>Every skater tonight, #1 down. Tap a header to sort.{M.test ? ' A test.' : ''}</div>
+          {howRow && <HowToRead id="nhl-goal-board" accent={C.ice} row={howRow} notes={HOW_NOTES} steps={HOW_STEPS} />}
         </div>
-        {opts && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '10px 0', borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}` }}>
-      <BoardTopBar inDrawer query={q} setQuery={setQ} placeholder="Search skater or team…"
-        team={team} setTeam={setTeam} teams={teams} teamLabel="🏒 All teams"
-        game={gameF} setGame={setGameF} games={gameOptions} gameLabel="All games" />
-        {data && <span><Segmented value={view} onChange={setView}
-          options={[{ key: 'game', label: 'By game', title: 'Each game, its two calls (one per team) on top' }, { key: 'all', label: 'All games', title: 'Every scored skater tonight, one ranked table' }]} /></span>}
-      <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-        <NavBtn onClick={() => setDate(shiftDay(shown, -1))} disabled={loading}>‹ Previous day</NavBtn>
-        <NavBtn onClick={() => setDate(null)} disabled={loading || !date} strong>Tonight</NavBtn>
-        <NavBtn onClick={() => setDate(shiftDay(shown, 1))} disabled={loading}>Next day ›</NavBtn>
-              </div>
-      {data && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <AngleRow defs={angles} pool={flat} value={angle} onChange={setAngle} accent={C.ice} className="lamp-angle-row" hideEmpty />
-          {angle && angles.find((a) => a.key === angle) && <p style={{ margin: 0, fontSize: 12, color: C.text3, lineHeight: 1.5 }}>{angles.find((a) => a.key === angle).title}</p>}
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-            <Segmented label="Pos" value={pos} onChange={setPos} options={[{ key: 'all', label: 'All' }, { key: 'F', label: 'Forwards' }, { key: 'D', label: 'Defence' }]} />
-            <FilterPill active={calledOnly} onClick={() => setCalledOnly((v) => !v)} title="Only the called skaters.">Called only</FilterPill>
-            {/* HOW TO READ THIS (2026-10-01): beside the List / Cards switch,
-                which already takes a line of its own on a phone. GOAL only. */}
-            <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 10, fontSize: 12 }}>
-              
-            <Segmented value={layout} onChange={setLayout}
-              options={[{ key: 'list', label: '☰ List', title: 'One sortable table per game' }, { key: 'cards', label: '▦ Cards', title: 'The card board' }]} />
-            </span>
-          </div>
-          <FiltersDrawer ledger="nhl"
-            active={chips.length + drawerChips.length > 0} activeCount={drawerChips.length}
-            activeFilters={[...chips, ...drawerChips].map((c) => ({ key: c.key, label: c.label, onRemove: c.onClear }))}
-            reset={clearAll} shown={kept.length} total={flat.length} accent={C.ice} accentInk={C.bg}
-            poolTitle="Skaters on tonight's board that clear the filters. Stacks with the team and game above."
-            emptyNote="Nothing clears every filter at once. Loosen one."
-          >
-            <DrawerSection label={`Score · ${M.label || market}`}>
-              <div style={{ fontSize: 12, fontFamily: NUM_FONT, color: C.text, marginTop: 2 }}>{scoreMin}–{scoreMax}</div>
-              <RangeDual min={0} max={100} step={1} low={scoreMin} high={scoreMax} onLow={setScoreMin} onHigh={setScoreMax} label="Score" />
-            </DrawerSection>
-            <DrawerSection label="Bands · what this score is made of" hint="Percentiles among tonight's skaters, 0-100. Several at once must all clear.">
-              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 5 }}>
-                {bandDefs.map((d) => <button key={d.key} type="button" onClick={() => toggleBand(d.key)} style={drawerChip(bands.some((b) => b.key === d.key))}>{d.label}</button>)}
-              </div>
-              {bands.map((b) => (
-                <div key={b.key} style={{ marginTop: 9 }}>
-                  <div style={{ fontSize: 12, color: C.ice, fontWeight: 800, fontFamily: NUM_FONT }}>{bandDefs.find((d) => d.key === b.key)?.label} {b.min}–{b.max}</div>
-                  <RangeDual min={0} max={100} step={1} low={b.min} high={b.max} onLow={(v) => setBand(b.key, Math.min(v, b.max), b.max)} onHigh={(v) => setBand(b.key, b.min, Math.max(v, b.min))} label={b.key} />
-                </div>
-              ))}
-            </DrawerSection>
-            {gameOptions.length > 1 && (
-              <DrawerSection label="Game" hint="Several at once. Stacks with the game picker above -- that one runs first.">
-                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 3 }}>
-                  {gameOptions.map((o) => <button key={o.key} type="button" onClick={() => setGameSel((s) => (s.includes(o.key) ? s.filter((x) => x !== o.key) : [...s, o.key]))} style={drawerChip(gameSel.includes(o.key))}>{o.label}</button>)}
-                </div>
-              </DrawerSection>
-            )}
-            <DrawerSection label="Puck drop">
-              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 3 }}>
-                {TIME_WINDOWS.map((w) => <button key={w.key} type="button" onClick={() => setTimeWindow(w.key)} style={drawerChip(timeWindow === w.key)}>{w.label}</button>)}
-              </div>
-            </DrawerSection>
-            <DrawerSection label={`Min power-play goals ${minPpg || '—'}`}>
-              <input type="range" min={0} max={20} step={1} value={minPpg} onChange={(e) => setMinPpg(Number(e.target.value))} style={{ width: '100%', accentColor: C.ice }} aria-label="Minimum power-play goals" />
-            </DrawerSection>
-          </FiltersDrawer>
-        </div>
-      )}
-          </div>
-        )}
-      </>) : (<>
+      ) : (<>
       <BoardTopBar query={q} setQuery={setQ} placeholder="Search skater or team…"
         team={team} setTeam={setTeam} teams={teams} teamLabel="🏒 All teams"
         game={gameF} setGame={setGameF} games={gameOptions} gameLabel="All games" />
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', paddingBottom: 8, borderBottom: `1px solid ${C.border}` }}>
-        <div role="group" aria-label="Market" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          {MARKETS.map((m) => <button key={m.key} type="button" onClick={() => setMarket(m.key)} aria-pressed={m.key === market} style={pill(m.key === market)}>{m.label}</button>)}
-        </div>
-        {data && <span style={{ marginLeft: 'auto' }}><Segmented value={view} onChange={setView}
-          options={[{ key: 'game', label: 'By game', title: 'Each game, its two calls (one per team) on top' }, { key: 'all', label: 'All games', title: 'Every scored skater tonight, one ranked table' }]} /></span>}
+        <PillRow label="Market" value={market} options={marketOptions} onChange={setMarket} />
+        {data && <span style={{ marginLeft: 'auto' }}>{viewSwitch}</span>}
       </div>
-      <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-        <NavBtn onClick={() => setDate(shiftDay(shown, -1))} disabled={loading}>‹ Previous day</NavBtn>
-        <NavBtn onClick={() => setDate(null)} disabled={loading || !date} strong>Tonight</NavBtn>
-        <NavBtn onClick={() => setDate(shiftDay(shown, 1))} disabled={loading}>Next day ›</NavBtn>
-              </div>
-      {data && (
+      {dayRow}
+      </>)}
+      {/* THE FILTERS ROW, ONE FOR BOTH (2026-10-08, TUDDY's anatomy): Filters / Ledger / Watchlist beside the market chips on a phone; the
+          angle chips, Called only, the layout and Position sit in the drawer's lead and sections, in the same places BUCKETS' are. */}
+      {phone ? (
+        <FiltersDrawer ledger="nhl" compact {...drawerProps}
+          beside={<div style={{ flex: 1, minWidth: 0 }}><PillRow tall value={market} options={marketOptions} onChange={setMarket} /></div>}
+          lead={(<div style={{ display: 'grid', gap: 8, marginBottom: 12 }}>
+            <BoardTopBar inDrawer query={q} setQuery={setQ} placeholder="Search skater or team…"
+              team={team} setTeam={setTeam} teams={teams} teamLabel="🏒 All teams"
+              game={gameF} setGame={setGameF} games={gameOptions} gameLabel="All games" />
+            {data && <span>{viewSwitch}</span>}
+            {dayRow}
+            {data && <AngleRow defs={angles} pool={flat} value={angle} onChange={setAngle} accent={C.ice} className="lamp-angle-row" hideEmpty />}
+            {angleDef && <p style={{ margin: 0, fontSize: 12, color: C.text3, lineHeight: 1.5 }}>{angleDef.title}</p>}
+            {layoutSwitch}
+          </div>)}>
+          {drawerSections}
+        </FiltersDrawer>
+      ) : (
+        data && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <AngleRow defs={angles} pool={flat} value={angle} onChange={setAngle} accent={C.ice} className="lamp-angle-row" hideEmpty />
-          {angle && angles.find((a) => a.key === angle) && <p style={{ margin: 0, fontSize: 12, color: C.text3, lineHeight: 1.5 }}>{angles.find((a) => a.key === angle).title}</p>}
+          {angleDef && <p style={{ margin: 0, fontSize: 12, color: C.text3, lineHeight: 1.5 }}>{angleDef.title}</p>}
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-            <Segmented label="Pos" value={pos} onChange={setPos} options={[{ key: 'all', label: 'All' }, { key: 'F', label: 'Forwards' }, { key: 'D', label: 'Defence' }]} />
-            <FilterPill active={calledOnly} onClick={() => setCalledOnly((v) => !v)} title="Only the called skaters.">Called only</FilterPill>
-            {/* HOW TO READ THIS (2026-10-01): beside the List / Cards switch,
-                which already takes a line of its own on a phone. GOAL only. */}
             <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 10, fontSize: 12 }}>
               {howRow && <HowToRead id="nhl-goal-board" accent={C.ice} row={howRow} notes={HOW_NOTES} steps={HOW_STEPS} />}
-            <Segmented value={layout} onChange={setLayout}
-              options={[{ key: 'list', label: '☰ List', title: 'One sortable table per game' }, { key: 'cards', label: '▦ Cards', title: 'The card board' }]} />
+              {layoutSwitch}
             </span>
           </div>
-          <FiltersDrawer ledger="nhl"
-            active={chips.length + drawerChips.length > 0} activeCount={drawerChips.length}
-            activeFilters={[...chips, ...drawerChips].map((c) => ({ key: c.key, label: c.label, onRemove: c.onClear }))}
-            reset={clearAll} shown={kept.length} total={flat.length} accent={C.ice} accentInk={C.bg}
-            poolTitle="Skaters on tonight's board that clear the filters. Stacks with the team and game above."
-            emptyNote="Nothing clears every filter at once. Loosen one."
-          >
-            <DrawerSection label={`Score · ${M.label || market}`}>
-              <div style={{ fontSize: 12, fontFamily: NUM_FONT, color: C.text, marginTop: 2 }}>{scoreMin}–{scoreMax}</div>
-              <RangeDual min={0} max={100} step={1} low={scoreMin} high={scoreMax} onLow={setScoreMin} onHigh={setScoreMax} label="Score" />
-            </DrawerSection>
-            <DrawerSection label="Bands · what this score is made of" hint="Percentiles among tonight's skaters, 0-100. Several at once must all clear.">
-              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 5 }}>
-                {bandDefs.map((d) => <button key={d.key} type="button" onClick={() => toggleBand(d.key)} style={drawerChip(bands.some((b) => b.key === d.key))}>{d.label}</button>)}
-              </div>
-              {bands.map((b) => (
-                <div key={b.key} style={{ marginTop: 9 }}>
-                  <div style={{ fontSize: 12, color: C.ice, fontWeight: 800, fontFamily: NUM_FONT }}>{bandDefs.find((d) => d.key === b.key)?.label} {b.min}–{b.max}</div>
-                  <RangeDual min={0} max={100} step={1} low={b.min} high={b.max} onLow={(v) => setBand(b.key, Math.min(v, b.max), b.max)} onHigh={(v) => setBand(b.key, b.min, Math.max(v, b.min))} label={b.key} />
-                </div>
-              ))}
-            </DrawerSection>
-            {gameOptions.length > 1 && (
-              <DrawerSection label="Game" hint="Several at once. Stacks with the game picker above -- that one runs first.">
-                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 3 }}>
-                  {gameOptions.map((o) => <button key={o.key} type="button" onClick={() => setGameSel((s) => (s.includes(o.key) ? s.filter((x) => x !== o.key) : [...s, o.key]))} style={drawerChip(gameSel.includes(o.key))}>{o.label}</button>)}
-                </div>
-              </DrawerSection>
-            )}
-            <DrawerSection label="Puck drop">
-              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 3 }}>
-                {TIME_WINDOWS.map((w) => <button key={w.key} type="button" onClick={() => setTimeWindow(w.key)} style={drawerChip(timeWindow === w.key)}>{w.label}</button>)}
-              </div>
-            </DrawerSection>
-            <DrawerSection label={`Min power-play goals ${minPpg || '—'}`}>
-              <input type="range" min={0} max={20} step={1} value={minPpg} onChange={(e) => setMinPpg(Number(e.target.value))} style={{ width: '100%', accentColor: C.ice }} aria-label="Minimum power-play goals" />
-            </DrawerSection>
-          </FiltersDrawer>
-        </div>
+          <FiltersDrawer ledger="nhl" {...drawerProps}>{drawerSections}</FiltersDrawer>
+        </div>)
       )}
-      </>)}
       {data?.season?.stale && <StaleSeasonNote label={data.season.label} opens={data.season.opens} what="per-game stats" />}
       <DelayedBanner error={error} what="the board" />
       {loading && !data ? <Loading what="tonight’s board" /> : null}
       {data && !data.dbReady && <div style={{ color: C.amber, fontSize: 11 }}>The saved record is not available right now. Boards still preview, but nothing locks.</div>}
-      {phone ? (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'space-between' }}>
-          <div style={{ minWidth: 0, color: C.text2, fontSize: 13, lineHeight: 1.3 }}>Every skater tonight, #1 down.{/TEST/.test(M.eyebrow) ? ' A test.' : ''}</div>
-          {howRow && <HowToRead id="nhl-goal-board" accent={C.ice} row={howRow} notes={HOW_NOTES} steps={HOW_STEPS} />}
-        </div>
-      ) : (
+      {!phone && (
       <PageHeader eyebrow={M.eyebrow} title={shown ? fmtDay(shown) : 'Tonight'}
         note={`Every skater tonight, #1 down.${/TEST/.test(M.eyebrow) ? ' A test: no record until 30 graded nights.' : ''}`}
         theme={C} numFont={NUM_FONT} accent={C.ice}
@@ -415,12 +367,12 @@ const factsOf = (g, r) => ({ pp: pct1(spotOf(g, r.team, true)?.ppPct), pk: pct1(
 // LAMP v2 (2026-09-27): the board reads one market at a time. GOAL is the
 // original; SOG is lamp-sog-v1 (3+ shots on goal). Same table, same words.
 const MARKETS = [
-  { key: 'GOAL', label: 'GOAL', eyebrow: 'LAMP · RANKINGS · GOAL', note: 'Who we rank tonight, and why. One called per team in every game, locked before puck drop, graded after. Score = mean of three percentile ranks tonight: shots, goals, ice time per game over his last 82 NHL games.', result: 'GOALS', log: 'lamp_goal_log' },
-  { key: 'SOG', label: 'SHOTS 3+', eyebrow: 'LAMP · RANKINGS · SHOTS', note: 'Who we rank tonight, and why. Three called per game for 3+ shots on goal, locked before puck drop, graded after. Score = mean of three percentile ranks tonight: shots per game over his last 82, ice time, and how many shots his opponent allows per 60.', result: 'SOG', log: 'lamp_prop_log' },
+  { key: 'GOAL', label: 'GOAL', short: 'GOAL', eyebrow: 'LAMP · RANKINGS · GOAL', note: 'Who we rank tonight, and why. One called per team in every game, locked before puck drop, graded after. Score = mean of three percentile ranks tonight: shots, goals, ice time per game over his last 82 NHL games.', result: 'GOALS', log: 'lamp_goal_log' },
+  { key: 'SOG', label: 'SHOTS 3+', short: 'SHOTS 3+', eyebrow: 'LAMP · RANKINGS · SHOTS', note: 'Who we rank tonight, and why. Three called per game for 3+ shots on goal, locked before puck drop, graded after. Score = mean of three percentile ranks tonight: shots per game over his last 82, ice time, and how many shots his opponent allows per 60.', result: 'SOG', log: 'lamp_prop_log' },
   // POINTS and ASSISTS (2026-10-02, Donovan: "the new markets"): locked and graded every night since
   // 10-01 (lamp-pts / lamp-ast), shown as a TEST until each has 30 graded nights (the record rule)
-  { key: 'PTS', label: 'POINTS 1+ · TEST', eyebrow: 'LAMP · RANKINGS · POINTS · TEST', note: 'Who we rank tonight, and why. A TEST: three called per game for 1+ point, locked before puck drop, graded after; no record is printed until 30 graded nights. Score = mean of three percentile ranks tonight: points per game over his last 82, ice time, and how many goals his opponent allows.', result: 'PTS', log: 'lamp_prop_log' },
-  { key: 'AST', label: 'ASSISTS 1+ · TEST', eyebrow: 'LAMP · RANKINGS · ASSISTS · TEST', note: 'Who we rank tonight, and why. A TEST: three called per game for 1+ assist, locked before puck drop, graded after; no record is printed until 30 graded nights. Score = mean of three percentile ranks tonight: assists per game over his last 82, ice time, and how many goals his opponent allows.', result: 'AST', log: 'lamp_prop_log' },
+  { key: 'PTS', label: 'POINTS 1+ · TEST', short: 'POINTS 1+', test: true, eyebrow: 'LAMP · RANKINGS · POINTS · TEST', note: 'Who we rank tonight, and why. A TEST: three called per game for 1+ point, locked before puck drop, graded after; no record is printed until 30 graded nights. Score = mean of three percentile ranks tonight: points per game over his last 82, ice time, and how many goals his opponent allows.', result: 'PTS', log: 'lamp_prop_log' },
+  { key: 'AST', label: 'ASSISTS 1+ · TEST', short: 'ASSISTS 1+', test: true, eyebrow: 'LAMP · RANKINGS · ASSISTS · TEST', note: 'Who we rank tonight, and why. A TEST: three called per game for 1+ assist, locked before puck drop, graded after; no record is printed until 30 graded nights. Score = mean of three percentile ranks tonight: assists per game over his last 82, ice time, and how many goals his opponent allows.', result: 'AST', log: 'lamp_prop_log' },
 ]
 // The SCORE header's ⓘ, per market (it had none, so no explanation and no
 // picture). The legs are the models' own: lib/nhl/goalModel.js and

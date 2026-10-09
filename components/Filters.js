@@ -58,7 +58,7 @@ function useOn() {
 }
 
 // ── the one pill recipe ─────────────────────────────────────────────────────
-export function FilterPill({ active, onClick, children, count, title, disabled }) {
+export function FilterPill({ active, onClick, children, count, title, disabled, tall = false }) {
   const on = useOn()
   const s = active ? on : STATE.off()
   return (
@@ -70,6 +70,8 @@ export function FilterPill({ active, onClick, children, count, title, disabled }
         // row site-wide — this is the shared recipe, so the bump benefits
         // every board, not just this one.
         padding: '6px 12px', fontSize: 10, borderRadius: 999, cursor: disabled ? 'default' : 'pointer',
+        // tall (opt-in, 2026-10-08): the phone Rankings rail -- a 44px target and a count a thumb can read
+        ...(tall ? { minHeight: 44, fontSize: 11.5, padding: '6px 14px', fontFamily: NUM_FONT } : null),
         border: `1px solid ${s.borderColor}`,
         background: active ? alpha(s.color, 0.14) : 'transparent',
         color: s.color, fontWeight: s.fontWeight,
@@ -79,14 +81,14 @@ export function FilterPill({ active, onClick, children, count, title, disabled }
     >
       {children}
       {count != null && (
-        <span style={{ fontSize: 8.5, fontFamily: NUM_FONT, fontWeight: 700, opacity: 0.85 }}>{count}</span>
+        <span style={{ fontSize: tall ? 11 : 8.5, fontFamily: NUM_FONT, fontWeight: 700, opacity: 0.85 }}>{count}</span>
       )}
     </button>
   )
 }
 
 // ── a labelled row of pills — the SplitControl shape, shared ────────────────
-export function PillRow({ label, hint, value, options, onChange, flag }) {
+export function PillRow({ label, hint, value, options, onChange, flag, tall = false }) {
   const on = useOn()
   return (
     // `filter-pills` is a hook for MobileCSS, not a style. On a 400px phone
@@ -105,6 +107,7 @@ export function PillRow({ label, hint, value, options, onChange, flag }) {
           count={o.count}
           title={o.title}
           disabled={o.disabled}
+          tall={tall}
         >{o.label}</FilterPill>
       ))}
       {flag && <span style={{ fontSize: 9.5, color: on.color, fontWeight: 800, fontFamily: NUM_FONT }}>{flag}</span>}
