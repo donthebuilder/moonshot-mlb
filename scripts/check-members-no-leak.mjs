@@ -1,29 +1,31 @@
 #!/usr/bin/env node
 // LEAK CHECK for the free Discord server (Stage 1 audit, 2026-10-09).
-//   node --import ./scripts/_esm-resolve.mjs scripts/check-members-no-leak.mjs [--strict]
+//   node --import ./scripts/_esm-resolve.mjs scripts/check-members-no-leak.mjs
 //
 // The rule: a MEMBERS post with no members webhook sends NOTHING, anywhere. It must not fall back to the
 // homer feed, the sport channels, #called-it or the alerts list.
 //
-// ALL DATA HERE IS TEST DATA. Every webhook is a https://example.invalid/... placeholder and the network is
+// ALL DATA HERE IS TEST DATA. Every webhook is a TEST placeholder and the network is
 // replaced: global fetch records the URL it was asked for and answers 204. Nothing is ever sent.
 //
 // A  members webhook unset / blank / "," / whitespace  -> zero network calls  (REQUIRED)
 // B  members webhook set                               -> exactly one call, to the members URL only  (REQUIRED)
 // C  the only readers of DISCORD_MEMBERS_WEBHOOK are lib/dash/membersPost.js and the /admin page  (REQUIRED)
-// D  GAP (reported, not fixed): a members URL that is ALSO a public hook still posts to the public hook.
-//    Counted as a failure only with --strict.
+// D  a members URL that is ALSO a public hook (a paste mistake) is refused: nothing posts, nothing is claimed  (REQUIRED)
+// E  separator-only / non-URL members values never claim the day's row nor report "posted"  (REQUIRED)
+// F  a members-kind post given no usable hook never falls through to the public feed (postOnce)  (REQUIRED)
+// G  discord_sends logging: one row per hook attempt, key name only, never a URL; a missing table never throws  (REQUIRED)
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
-const strict = process.argv.includes('--strict')
-const U = (n) => `https://example.invalid/api/webhooks/${n}/TEST-TOKEN`
+// TEST placeholders shaped like real hooks (discord.com, numeric id); fetch is replaced below, nothing is sent
+const U = (n) => `https://discord.com/api/webhooks/${n}/TEST-TOKEN`
 const PUBLIC_ENV = {
-  DISCORD_HOMER_WEBHOOK: U('TEST-HOMER'), DISCORD_MLB_WEBHOOKS: U('TEST-MLB'), DISCORD_NFL_WEBHOOKS: U('TEST-NFL'),
-  DISCORD_NHL_WEBHOOKS: U('TEST-NHL'), DISCORD_NBA_WEBHOOKS: U('TEST-NBA'), DISCORD_RECEIPTS_WEBHOOK: U('TEST-RECEIPTS'),
-  DISCORD_ALERTS_WEBHOOKS: U('TEST-ALERTS'), DISCORD_LIVE_WEBHOOKS: U('TEST-LIVE'),
+  DISCORD_HOMER_WEBHOOK: U('1001'), DISCORD_MLB_WEBHOOKS: U('1002'), DISCORD_NFL_WEBHOOKS: U('1003'),
+  DISCORD_NHL_WEBHOOKS: U('1004'), DISCORD_NBA_WEBHOOKS: U('1005'), DISCORD_RECEIPTS_WEBHOOK: U('1006'),
+  DISCORD_ALERTS_WEBHOOKS: U('1007'), DISCORD_LIVE_WEBHOOKS: U('1008'),
 }
-const ENV_KEYS = [...Object.keys(PUBLIC_ENV), 'DISCORD_MEMBERS_WEBHOOK', 'POST_KINDS_ON', 'X_API_KEY', 'X_API_SECRET', 'X_ACCESS_TOKEN', 'X_ACCESS_SECRET']
+const ENV_KEYS = [...Object.keys(PUBLIC_ENV), 'DISCORD_MEMBERS_WEBHOOK', 'DISCORD_OPS_WEBHOOK', 'NEXT_PUBLIC_SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'POST_KINDS_ON', 'X_API_KEY', 'X_API_SECRET', 'X_ACCESS_TOKEN', 'X_ACCESS_SECRET']
 const setEnv = (extra = {}) => { for (const k of ENV_KEYS) delete process.env[k]; Object.assign(process.env, PUBLIC_ENV, extra) }
 
 const calls = []
@@ -44,8 +46,8 @@ const { postMembers, membersWebhook } = await import('../lib/dash/membersPost.js
 let fail = 0
 const check = (name, ok, extra = '') => { if (!ok) fail += 1; console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${extra ? `  -- ${extra}` : ''}`) }
 let n = 0
-const run = async (members) => {
-  setEnv(members === undefined ? {} : { DISCORD_MEMBERS_WEBHOOK: members })
+const run = async (members, extra = {}) => {
+  setEnv(members === undefined ? { ...extra } : { DISCORD_MEMBERS_WEBHOOK: members, ...extra })
   calls.length = 0
   n += 1
   const db = fakeDb()
@@ -72,7 +74,7 @@ check('A. membersWebhook() is "" when unset', (setEnv(), membersWebhook() === ''
 
 // B. members webhook set -> only that URL
 {
-  const M = U('TEST-MEMBERS')
+  const M = U('2001')
   const r = await run(M)
   check('B. members webhook set -> exactly one call', r.calls.length === 1, `${r.calls.length} call(s)`)
   check('B. ...and it is the members URL, never a public one', r.calls[0] === M && !Object.values(PUBLIC_ENV).includes(r.calls[0]))
@@ -96,12 +98,82 @@ check('A. membersWebhook() is "" when unset', (setEnv(), membersWebhook() === ''
   check('C. only membersPost.js (and the /admin status line) read DISCORD_MEMBERS_WEBHOOK', extra.length === 0, extra.length ? `also: ${extra.join(', ')}` : hits.join(', '))
 }
 
-// D. KNOWN GAP: a "wrong" members URL that equals a public hook (a paste mistake) posts to the free channel.
+// D. a "wrong" members URL equal to ANY public hook is refused: nothing posts, nothing is claimed.
 {
-  const r = await run(PUBLIC_ENV.DISCORD_MLB_WEBHOOKS)
-  const leaked = r.calls.length > 0
-  console.log(`${leaked ? (strict ? 'FAIL' : 'GAP ') : 'PASS'}  D. members URL equal to a public hook is refused  -- ${leaked ? 'it POSTED to the public URL (lib/dash/membersPost.js:35-38; smallest fix: membersWebhook() drops any URL that also appears in discordChannels.js hookList of the public env keys)' : 'refused'}`)
-  if (leaked && strict) fail += 1
+  const errs = []; const orig = console.error; console.error = (...a) => errs.push(a.join(' '))
+  for (const key of [...Object.keys(PUBLIC_ENV), 'DISCORD_OPS_WEBHOOK']) {
+    const url = PUBLIC_ENV[key] || U('1009')
+    const r = await run(url, key === 'DISCORD_OPS_WEBHOOK' ? { DISCORD_OPS_WEBHOOK: url } : {})
+    check(`D. members URL equal to ${key} is refused`, r.calls.length === 0 && r.claimed === 0, `${r.calls.length} call(s), ${r.claimed} claim(s), result "${r.out}"`)
+  }
+  { // a list: one good URL plus one that equals a public hook -> only the good one is tried
+    const good = U('2001')
+    const r = await run(`${good},${PUBLIC_ENV.DISCORD_HOMER_WEBHOOK}`)
+    check('D. [good, public-equal] -> only the good URL is tried', r.calls.length === 1 && r.calls[0] === good, `${r.calls.length} call(s)`)
+  }
+  console.error = orig
+  const all = errs.join('\n')
+  check('D. the refusal is logged by key name', /DISCORD_MLB_WEBHOOKS/.test(all) && /REFUSED/.test(all))
+  check('D. ...and no log line carries a URL or token', !/https?:|TEST-TOKEN|webhooks\/\d/.test(all))
+}
+
+// E. a value that parses to no valid https Discord URL never claims and never says "posted"
+for (const [label, v] of [[',', ','], ['", ,\n,"', ', ,\n,'], ['not a URL', 'hello'], ['http (not https)', 'http://discord.com/api/webhooks/1/x'], ['a non-Discord https URL', 'https://example.invalid/api/webhooks/1/x']]) {
+  const r = await run(v)
+  check(`E. members value ${label} -> no claim, no call, not "posted"`, r.claimed === 0 && r.calls.length === 0 && r.out !== 'posted', `result "${r.out}"`)
+}
+
+// F. postOnce itself: a members-kind post handed an empty/unusable hook list never reaches the public feed
+{
+  const { postOnce } = await import('../lib/dash/longshotsPost.js')
+  for (const w of ['', ',', '  ']) {
+    setEnv(); calls.length = 0; n += 1
+    const db = fakeDb()
+    const out = await postOnce(db, { day: `2099-03-${String(n).padStart(2, '0')}`, kind: 'mlb_members_board', build: async () => ({ text: 'TEST', payload: {} }), webhooks: w, toX: false })
+    check(`F. postOnce webhooks=${JSON.stringify(w)} -> nothing sent, nothing claimed`, calls.length === 0 && db.rows.length === 0, `result "${out}"`)
+  }
+  setEnv(); calls.length = 0
+  const out = await postOnce(fakeDb(), { day: '2099-03-31', kind: 'pregame', build: async () => ({ text: 'TEST', payload: {} }) })
+  check('F. a normal public post (webhooks left out) still goes to the public feed', calls.length > 0 && out === 'posted', `${calls.length} call(s), "${out}"`)
+}
+
+// G. discord_sends logging (fetch replaced: the Supabase REST insert is captured, not sent)
+{
+  const { postToDiscord } = await import('../lib/dash/xPost.js')
+  const { _resetDiscordSends } = await import('../lib/dash/discordSends.js')
+  const inserts = []
+  let tableMissing = false
+  globalThis.fetch = async (url, init) => {
+    const u = String(url)
+    if (u.includes('/rest/v1/discord_sends')) {
+      inserts.push(JSON.parse(init.body))
+      return tableMissing
+        ? { ok: false, status: 404, statusText: 'Not Found', headers: { get: () => null }, text: async () => JSON.stringify({ code: 'PGRST205', message: "Could not find the table 'public.discord_sends' in the schema cache" }), json: async () => ({ code: 'PGRST205', message: 'Could not find the table' }) }
+        : { ok: true, status: 201, statusText: 'Created', headers: { get: () => null }, text: async () => '', json: async () => null }
+    }
+    calls.push(u)
+    return u.includes('1003') ? { ok: false, status: 404, statusText: 'Not Found', headers: { get: () => null }, json: async () => ({}) } : { ok: true, status: 204, statusText: 'No Content', headers: { get: () => null }, json: async () => ({}) }
+  }
+  setEnv({ NEXT_PUBLIC_SUPABASE_URL: 'https://test-project.invalid', SUPABASE_SERVICE_ROLE_KEY: 'TEST-SERVICE-KEY' })
+  _resetDiscordSends(); calls.length = 0
+  const hooks = [PUBLIC_ENV.DISCORD_HOMER_WEBHOOK, PUBLIC_ENV.DISCORD_NFL_WEBHOOKS].join(',')
+  const r = await postToDiscord('TEST POST', { kind: 'pregame', sportKey: 'nfl' }, hooks)
+  check('G. the send still succeeds when one hook 404s (ok = any)', r.ok === true && calls.length === 2)
+  check('G. exactly one insert per hook attempt', inserts.length === 2, `${inserts.length}`)
+  const rows = inserts.flat()
+  check('G. rows carry the env KEY NAME, hook index, kind, sport, status', rows[0].channel_key === 'DISCORD_HOMER_WEBHOOK' && rows[1].channel_key === 'DISCORD_NFL_WEBHOOKS' && rows[0].hook_index === 0 && rows[1].hook_index === 1 && rows[0].kind === 'pregame' && rows[0].sport === 'nfl' && rows[0].ok === true && rows[0].http_status === 204 && rows[1].ok === false && rows[1].http_status === 404)
+  const blob = JSON.stringify(rows)
+  check('G. no URL, id or token is ever stored', !/https?:|TEST-TOKEN|\/webhooks|100[0-9]/.test(blob), blob.length ? 'checked' : '')
+  // table missing -> no throw, send unaffected, and the instance stops trying
+  tableMissing = true; _resetDiscordSends(); inserts.length = 0; calls.length = 0
+  let threw = false; let r2
+  try { r2 = await postToDiscord('TEST POST', { kind: 'pregame' }, hooks); await postToDiscord('TEST POST', { kind: 'pregame' }, hooks) } catch { threw = true }
+  check('G. table missing -> never throws, send result unchanged', !threw && r2?.ok === true)
+  check('G. ...and stops inserting after the first miss', inserts.length <= 2, `${inserts.length} insert attempt(s) over two posts`)
+  // no service key -> no insert at all
+  delete process.env.SUPABASE_SERVICE_ROLE_KEY; _resetDiscordSends(); inserts.length = 0
+  await postToDiscord('TEST POST', { kind: 'pregame' }, hooks)
+  check('G. no Supabase config -> no insert, no throw', inserts.length === 0)
 }
 
 console.log(fail ? `\n${fail} FAILED` : '\nall required checks passed')
