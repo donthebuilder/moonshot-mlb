@@ -10,6 +10,7 @@ import { listenForWorkerOpen } from '../../lib/workerOpen'
 import { resolveColdTab } from '../../lib/shellRoute'
 import { canonLedgerHash, queueLedgerView } from '../../lib/ledger/views'
 import LedgerShell from '../pages/LedgerShell'
+import TopTotals from '../TopTotals'
 import { leaveTarget } from '../../lib/openTarget'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { resolveTab, pageTitle, NFL_TABS as NFL_TAB_KEYS, isLiveTab } from '../../lib/routes'
@@ -484,6 +485,7 @@ export default function NflDashboard({ palettePass = 0 }) {
             {/* MOONSHOT's Players page (2026-09-30): list + the card inline. */}
             {tab === 'players' && <NflPlayers data={data} logs={logs} matchup={matchup} picks={picks} results={nflResults} odds={odds} />}
             {tab === 'watchlist' && <Watchlist data={slate} matchup={matchup} logs={logs} onPlayerClick={openPlayer} />}
+            {tab === 'games' && <TopTotals sport="nfl" Table={NflTable} />}
             {tab === 'games' && <Games data={slate} picks={picks} matchup={matchup} logs={logs} results={nflResults} odds={odds} onPlayerClick={openPlayer} onOpenTeam={openTeamPage} />}
             {/* One Board page (2026-09-26, option (b)): touchdowns / boards /
                 picks are the same hub; boards opens BOARD, picks opens CALLED. */}

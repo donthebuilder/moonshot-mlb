@@ -11,6 +11,7 @@ import { resolveTab, pageTitle, isSport, isLiveTab } from '../lib/routes'
 import { canonLedgerHash, queueLedgerView, carryLedgerView } from '../lib/ledger/views'
 import { queueSlipSeed } from '../lib/slipSeed'
 import LedgerShell from './pages/LedgerShell'
+import TopTotals from './TopTotals'
 import { usePageTitle } from '../lib/usePageTitle'
 import TabNotFound from './TabNotFound'
 import { fetchJSON, normalizeData, groupGames, slateLooksReal, slateDateFromRows, keepNewerSlate, easternDate, mlbScheduleSpan } from '../lib/data'
@@ -1015,6 +1016,7 @@ export default function Dashboard({ palettePass = 0 }) {
                 standalone component where that is the safer render. Nothing
                 was deleted; see lib/theme.js for the map. */}
             {tab === 'home'        && <Home players={allPlayers} filteredPlayers={players} results={resultsForSlate} backtest={backtest} mode={mode} slateDate={slateDate} dateLabel={dateLabel} odds={odds} onWatch={toggleWatch} watchIds={watchIds} onNavigate={setTab} onPlayerClick={setModalPlayer} />}
+            {tab === 'games'       && <TopTotals sport="mlb" />}
             {tab === 'games'       && <Games players={players} allPlayers={allPlayers} slateDate={slateDate} slateMode={mode} pairHistorySummary={pairSummary} results={resultsForSlate} odds={odds} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
             {tab === 'pitchers'    && <Pitchers players={players} onPlayerClick={setModalPlayer} />}
             {tab === 'matchups'    && <Matchups players={players} onPlayerClick={setModalPlayer} onNavigate={setTab} />}
