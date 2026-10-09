@@ -49,7 +49,9 @@ eq('room: followed homer -> nowhere (the feed owns homers)', webhooksForEvent({ 
 eq('room: board-hit slate, LIVE = the MLB room -> nowhere (no double post)', webhooksForEvent({ category: 'slate', sport: 'mlb', boardHit: true }), [])
 eq('room: boardup is phone-only (follow-list copy)', webhooksForEvent({ category: 'boardup', sport: 'mlb' }), [])
 eq('room: lastcall is phone-only', webhooksForEvent({ category: 'lastcall', sport: 'mlb' }), [])
-eq('room: scratch still reaches the board room', webhooksForEvent({ category: 'scratched', sport: 'mlb' }), ['MLB'])
+// 2026-10-09 (notifications pass, Donovan: one channel per event, phone push first): a scratch is a PHONE push; the board room no
+// longer repeats it unless DISCORD_BOARD_ROOM_ALERTS=on brings it back (read once at module load: set it at deploy, not at runtime).
+eq('room: scratch is phone-first, not the board room', webhooksForEvent({ category: 'scratched', sport: 'mlb' }), [])
 eq('room: board-hit slate, its own LIVE channel -> LIVE', (() => { process.env.DISCORD_LIVE_WEBHOOKS = 'LIVE'; return webhooksForEvent({ category: 'slate', sport: 'mlb', boardHit: true }) })(), ['LIVE'])
 eq('room: board-hit slate, LIVE unset -> nowhere (no fallback)', (() => { delete process.env.DISCORD_LIVE_WEBHOOKS; return webhooksForEvent({ category: 'slate', sport: 'mlb', boardHit: true }) })(), [])
 process.env.DISCORD_LIVE_WEBHOOKS = 'MLB'
