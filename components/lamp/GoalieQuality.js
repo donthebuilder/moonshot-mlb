@@ -15,15 +15,15 @@ const XGA = 'xGA'
 
 const sv = (v) => (Number.isFinite(v) ? v.toFixed(3).replace(/^0/, '') : '—')
 const COLS = (onOpenPlayer) => [
-  { key: 'name', label: 'Goalie', group: 'Goalie', heat: false, sticky: true, w: 150, link: (x) => (x.pid && onOpenPlayer ? () => onOpenPlayer(x.pid) : null) },
+  { key: 'name', label: 'Goalie', group: 'Goalie', heat: false, sticky: true, w: 128, link: (x) => (x.pid && onOpenPlayer ? () => onOpenPlayer(x.pid) : null) },
   { key: 'team', label: 'Team', group: 'Goalie', heat: false, w: 44, teamMark: 'nhl' },
+  { key: 'factor', label: 'QUALITY', group: 'Quality', w: 64, dp: 2, invert: true, primary: true, fmt: (v) => (Number.isFinite(v) ? v.toFixed(2) : '—'), explain: `His goals allowed as a share of an average goalie's, pulled toward 1.00 when the sample is small. Under 1.00 is better than average, over 1.00 is worse. It is the factor LAMP's game projection applies to the shooters in front of him. A dash means too few shots.` },
+  { key: 'saved', label: 'SAVED', group: 'Quality', w: 56, dp: 1, fmt: (v) => (Number.isFinite(v) ? (v > 0 ? `+${v.toFixed(1)}` : v.toFixed(1)) : '—'), explain: `Goals saved above expected: ${XG_WORD} minus goals allowed, pulled toward zero when the sample is small. Plus means he stopped more than an average goalie would have. A dash means too few shots.` },
+  { key: 'xga', label: XGA, group: 'Quality', w: 52, dp: 1, invert: true, explain: `The ${XG_WORD} on the shots he faced: what an average goalie would have allowed from where those shots came from (the LAMP shot model). A dash means he has faced fewer than 300 shots, too few to trust.` },
+  { key: 'ga', label: 'GA', group: 'Results', w: 40, dp: 0, invert: true, explain: 'Goals allowed on those shots.' },
+  { key: 'svPct', label: 'SV%', group: 'Results', w: 54, fmt: sv, explain: 'Saves divided by shots faced, in those same games.' },
   { key: 'gp', label: 'GP', group: 'Workload', w: 40, dp: 0, explain: 'Games he played in this club\'s last 82 regular-season games before this one.' },
   { key: 'sa', label: 'SA', group: 'Workload', w: 48, dp: 0, explain: 'Shots on goal he faced in those games (empty-net goals left out).' },
-  { key: 'svPct', label: 'SV%', group: 'Results', w: 54, fmt: sv, explain: 'Saves divided by shots faced, in those same games.' },
-  { key: 'ga', label: 'GA', group: 'Results', w: 40, dp: 0, invert: true, explain: 'Goals allowed on those shots.' },
-  { key: 'xga', label: XGA, group: 'Quality', w: 52, dp: 1, invert: true, explain: `The ${XG_WORD} on the shots he faced: what an average goalie would have allowed from where those shots came from (the LAMP shot model). A dash means he has faced fewer than 300 shots, too few to trust.` },
-  { key: 'saved', label: 'SAVED', group: 'Quality', w: 56, dp: 1, fmt: (v) => (Number.isFinite(v) ? (v > 0 ? `+${v.toFixed(1)}` : v.toFixed(1)) : '—'), explain: `Goals saved above expected: ${XG_WORD} minus goals allowed, pulled toward zero when the sample is small. Plus means he stopped more than an average goalie would have. A dash means too few shots.` },
-  { key: 'factor', label: 'QUALITY', group: 'Quality', w: 64, dp: 2, invert: true, primary: true, fmt: (v) => (Number.isFinite(v) ? v.toFixed(2) : '—'), explain: `His goals allowed as a share of an average goalie's, pulled toward 1.00 when the sample is small. Under 1.00 is better than average, over 1.00 is worse. It is the factor LAMP's game projection applies to the shooters in front of him. A dash means too few shots.` },
 ]
 
 /**
