@@ -50,7 +50,8 @@
 // loudly rather than silently eat.
 
 import { playerHref } from '../../../../../lib/routes'
-import { xDailyAllows } from '../../../../../lib/dash/xBudget'
+import { xOk, repeatCheck, recentNamed, logPosted, logDroppedRepeat } from '../../../../../lib/dash/xGate'
+import { namedInText, withNamed } from '../../../../../lib/dash/xPolicy'
 import { isRested } from '../../../../../lib/dash/xRest'
 import { tdCallStatus } from '../../../../../lib/callStatus'
 import { xEventsCalledOnly } from '../../../../../lib/dash/xEvents'
@@ -452,11 +453,18 @@ async function runTouchdownTick(db, day) {
                 console.error(`[nfl-tick] call-sheet skipped for ${row.scorer_name}: ladder moved (row ${frozenRank}, live ${me.rank})`)
               }
               const nText = drifted ? '' : tdCallNeighborsText(nbrs, TAIL)
-              if (nText) {
-                const nr = await postToX(nText, { replyTo: r.id })
-                // Not stored: nfl_td_feed has no column for it and nothing
-                // re-reads it. A migration for a log line is not worth it.
-                if (nr.ok && nr.id) totals.x += 1
+              // 2026-10-09: the reply is its own automated X post, so it COUNTS toward the
+              // day's cap and waits behind it (kind nfl_callsheet_reply), and its id is
+              // kept (nfl_td_feed.reply_x_post_id, supabase/migrations/202610091300) so the
+              // count sees it. It replies to the alert of the man it is about: named there.
+              if (nText && await xOk(db, { day: easternToday(), kind: 'nfl_callsheet_reply', repeat: false })) {
+                const nr = await postToX(nText, { replyTo: r.id, kind: 'nfl_callsheet_reply' })
+                if (nr.ok && nr.id) {
+                  totals.x += 1
+                  // best-effort and separate: a missing column loses this record, never the post or the row's patch
+                  const rw = await db.from('nfl_td_feed').update({ reply_x_post_id: nr.id }).match({ day: row.day, game_id: row.game_id, td_n: row.td_n })
+                  if (rw.error) console.error(`[nfl-tick] reply id not stored (${rw.error.message}); the cap counts it by estimate until the column exists`)
+                }
                 else console.error(`[nfl-tick] call-sheet reply refused for ${row.scorer_name}: ${nr.status} ${nr.error}`)
               }
             } catch (err) {
@@ -571,6 +579,7 @@ async function runWeeklyContentTick(db, day) {
             .match({ day: shiftDay(day, -1), kind: 'nfl_whyboard' }).maybeSingle()
           for (const p of fri?.payload?.picks || []) if (p?.player_id) exclude.add(String(p.player_id))
         }
+        for (const id of await recentNamed(db, { kind: 'nfl_whyboard', day })) exclude.add(id)   // NFL: not within 7 days
         const pick = whyOnBoardPick(data, { exclude })
         text = whyOnBoardText(pick, data, TAIL)
         payload = pick ? { picks: [{ player_id: pick.player_id, name: pick.name, score: pick.score }] } : {}
@@ -629,9 +638,15 @@ async function runWeeklyContentTick(db, day) {
         payload = { picks: boardPicks, scorers: [...scorers.ids, ...scorers.names], graded_day: yday }
       }
       if (!text) { out[sl.kind] = 'nothing-to-say-yet'; continue }
+      // THE REPEAT GUARD (2026-10-09): the same man in the same kind not within 7 days (NFL).
+      // Receipts and the board are exempt (lib/dash/xPolicy). Nothing is claimed, so the slot
+      // asks again as the data moves; the posting log says it once.
+      const named = namedInText(payload, text)
+      const repeats = await repeatCheck(db, { day, kind: sl.kind, ids: named })
+      if (repeats.length) { logDroppedRepeat({ day, kind: sl.kind }, `${repeats.slice(0, 4).join(', ')} named within 7 days`); out[sl.kind] = 'repeat-within-7-days'; continue }
       if (!(await claimSlot(db, day, sl.kind))) { out[sl.kind] = 'already-posted-or-claim-failed'; continue }
 
-      const patch = { payload }
+      const patch = { payload: named.length ? withNamed(payload, named) : payload }
       // Discord has no poll widget, so the options are typed there -- same
       // treatment the MLB botpoll already gives them.
       const forDiscord = pollOptions
@@ -644,9 +659,9 @@ async function runWeeklyContentTick(db, day) {
       const png = card ? await bytesOf(card) : null
       const d = await postToDiscord(forDiscord, { png }, FEED_WEBHOOKS())
       if (d.ok) patch.discord_sent = true
-      // Daily cap (postseason plan step 5): the board and the results are P1,
-      // the rest of the weekly slots P2.
-      if (hasX() && await xDailyAllows(db, day, ['nfl_board', 'nfl_results'].includes(sl.kind) ? 1 : 2)) {
+      // The daily cap, by tier (lib/dash/xPolicy): the board is exempt, the results
+      // a receipt, the rest facts / polls.
+      if (hasX() && await xOk(db, { day, kind: sl.kind, ids: named, repeat: false })) {
         const mediaId = png ? await uploadImageToX(png) : null
         const r = await postToX(text, {
           ...(mediaId ? { mediaId } : {}),
@@ -655,7 +670,7 @@ async function runWeeklyContentTick(db, day) {
           // whether a funnel link goes under it. X ignores it.
           kind: sl.kind,
         })
-        if (r.ok && r.id) patch.x_post_id = r.id
+        if (r.ok && r.id) { patch.x_post_id = r.id; logPosted({ day, kind: sl.kind, ids: named, tweetId: r.id, text }) }
         else console.error(`[nfl-tick] ${sl.kind} refused: ${r.status} ${r.error}`)
       }
       await db.from('homer_feed_posts').update(patch).match({ day, kind: sl.kind })
@@ -692,7 +707,8 @@ async function runMilestoneTick(db, day) {
   ])
   if (!data || !logs) return { skipped: 'no-data-yet' }
 
-  const picks = milestonePicks(logs, data)
+  // not a man named here within 7 days (the audit's 16 pairs): step over him to the next streak
+  const picks = milestonePicks(logs, data, { exclude: await recentNamed(db, { kind: 'nfl_milestone', day }) })
   const text = milestoneText(picks, data, TAIL)
   // No claim burned on a slate with nothing to say yet — same lesson
   // homers/tick's own pregame-post incident taught (see that file's header
@@ -704,12 +720,13 @@ async function runMilestoneTick(db, day) {
     return { skipped: 'already-posted-or-claim-failed' }
   }
 
-  const patch = { payload: { picks: picks.map((p) => ({ name: p.player?.name, market: p.marketKey, streak: p.streak })) } }
+  const msNamed = picks.map((p) => String(p.player?.player_id || '')).filter(Boolean)
+  const patch = { payload: withNamed({ picks: picks.map((p) => ({ player_id: p.player?.player_id || null, name: p.player?.name, market: p.marketKey, streak: p.streak })) }, msNamed) }
   const d = await postToDiscord(text, {}, FEED_WEBHOOKS())
   if (d.ok) patch.discord_sent = true
-  if (hasX() && await xDailyAllows(db, day, 2)) {
+  if (hasX() && await xOk(db, { day, kind: 'nfl_milestone', ids: msNamed, repeat: false })) {
     const r = await postToX(text, { kind: 'nfl_milestone' })
-    if (r.ok && r.id) patch.x_post_id = r.id
+    if (r.ok && r.id) { patch.x_post_id = r.id; logPosted({ day, kind: 'nfl_milestone', ids: msNamed, tweetId: r.id, text }) }
     else console.error(`[nfl-tick] nfl_milestone refused: ${r.status} ${r.error}`)
   }
   await db.from('homer_feed_posts').update(patch).match({ day, kind: 'nfl_milestone' })

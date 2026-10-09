@@ -36,6 +36,10 @@ import { buildMlbWriteup } from '../../../../../lib/writeups/mlb'
 import { renderWriteup } from '../../../../../lib/writeups/text'
 import { postLimit } from '../../../../../lib/dash/postLimit'
 import { xDailyAllows } from '../../../../../lib/dash/xBudget'
+import { admit, xOk, recentNamed, repeatCheck, logPosted, logDroppedRepeat } from '../../../../../lib/dash/xGate'
+import { namedInText, withNamed, distinctOptions, isRetiredForever } from '../../../../../lib/dash/xPolicy'
+import { resolveNaming, mlbNamingProblem } from '../../../../../lib/dash/namingChecks'
+import { recordPost } from '../../../../../lib/dash/xPostLog'
 import { isRested } from '../../../../../lib/dash/xRest'
 import { xEventsCalledOnly } from '../../../../../lib/dash/xEvents'
 import { timingSafeEqual } from 'node:crypto'
@@ -202,7 +206,7 @@ function perGameOn(day) { return !/^off$/i.test(String(process.env.X_PER_GAME ||
 const PER_GAME_LEAD_MS = 4 * 60 * 60 * 1000
 
 // lib/dash/postClaim.js (R3), with this tick's own gates
-const claimSlot = (db, day, kind) => sharedClaimSlot(db, day, kind, { gate: (k, d) => postKindOn(k, d) && !isRested(k), tag: 'homers' })
+const claimSlot = (db, day, kind) => sharedClaimSlot(db, day, kind, { gate: (k, d) => postKindOn(k, d) && !isRested(k) && !isRetiredForever(k), tag: 'homers' })
 
 // `payload` (2026-09-15, matchup-history posts): every other caller leaves
 // this at the default `{}` -- claimAndPostStat has never persisted anything
@@ -232,8 +236,8 @@ const claimSlot = (db, day, kind) => sharedClaimSlot(db, day, kind, { gate: (k, 
 // specs stay in the code, correct and ready, so putting one back is deleting a
 // string from this list rather than rebuilding a card from scratch.
 const TEXT_ONLY_KINDS = new Set([
-  'hotcontact', 'hotcontact_mid', 'history_watch',
-  'dangercombos', 'dangercombos_mid',
+  'hotcontact', 'history_watch',
+  'dangercombos',
   'hrleadersdow', 'backtoback', 'birthday', 'funfacts',
   'matchuplines', 'callofnight', 'streaks', 'storylines', 'thefour', 'bestair',
 ])
@@ -266,14 +270,11 @@ const TEXT_ONLY_KINDS = new Set([
 // yours."
 const RETIRED_KINDS = new Set([
   'angles', 'hotsheet',
-  'hotcontact_mid', 'dangercombos_mid',
   'birthday', 'funfacts', 'streaks',
   'milestone_mid', 'revenge_giveaway',
   'storyline_watch_2', 'storyline_watch_3', 'storyline_watch_4',
 ])
 const isRetired = (kind) => RETIRED_KINDS.has(kind) || isRested(kind)   // + the postseason rest (lib/dash/xRest)
-// P1 under the daily cap (the rest of claimAndPostStat's kinds are P2).
-const P1_STAT_KINDS = new Set(['weekly', 'monthly', 'board', 'callofnight', 'accountability'])
 
 // `renderCard` (2026-09-18): a post whose card is its OWN design rather than
 // the generic statCard passes a thunk here and leaves cardSpec null. Optional
@@ -290,10 +291,17 @@ async function claimAndPostStat(db, day, kind, hourGate, text, cardSpec, payload
   if (isRetired(kind)) return false
   if (!text && etHoursSinceNoon() >= hourGate) { if (_emptyAt.size > 500) _emptyAt.clear(); _emptyAt.set(`${day}|${kind}`, Date.now()) }
   if (!text || etHoursSinceNoon() < hourGate) return false
+  // THE REPEAT GUARD (2026-10-09): the same player in the same kind not within 3
+  // days. Checked before the claim, so a post that would repeat a name claims
+  // nothing (the picks change as lineups land and it asks again; the log says
+  // it once). Kinds whose payload carries no player ids are not guarded here.
+  const named = namedInText(payload, text)
+  const repeats = await repeatCheck(db, { day, kind, ids: named })
+  if (repeats.length) { logDroppedRepeat({ day, kind }, `${repeats.slice(0, 4).join(', ')} named too recently`); return false }
   if (!(await claimSlot(db, day, kind))) return false
   const card = TEXT_ONLY_KINDS.has(kind) ? null : cardSpec
   const custom = TEXT_ONLY_KINDS.has(kind) ? null : renderCard
-  const patch = { payload }
+  const patch = { payload: named.length ? withNamed(payload, named) : payload }
   // ONE RENDER, BOTH PLACES (2026-09-07). The card used to be built inside the
   // `hasX()` branch, below Discord, so Discord got bare text while a finished
   // PNG existed a few lines later -- and on a night with X off it was never
@@ -303,15 +311,15 @@ async function claimAndPostStat(db, day, kind, hourGate, text, cardSpec, payload
     : card ? await bytesOf(() => statCard(day, card, { site: SITE_HOST })) : null
   const d = await postToDiscord(text, { png }, FEED_WEBHOOKS())
   if (d.ok) patch.discord_sent = true
-  // The daily cap (lib/dash/xBudget, postseason plan step 5): stat posts are
-  // P2 and give way first; the recap / weekly / monthly are P1.
-  if (hasX() && await xDailyAllows(db, day, P1_STAT_KINDS.has(kind) ? 1 : 2)) {
+  // The daily cap, by tier (lib/dash/xPolicy + xGate): the call of the night is
+  // the slate tier, the receipts and write-ups next, then facts, polls, numerology.
+  if (hasX() && await xOk(db, { day, kind, ids: named, repeat: false })) {
     const mediaId = png ? await uploadImageToX(png) : null
     // `kind` rides along for the Threads mirror only -- it decides whether
     // this post gets a funnel link under it (lib/dash/threadsLink.js). X
     // ignores it entirely.
     const r = await postToX(text, { mediaId, kind })
-    if (r.ok && r.id) patch.x_post_id = r.id
+    if (r.ok && r.id) { patch.x_post_id = r.id; logPosted({ day, kind, ids: named, tweetId: r.id, text }) }
     else console.error(`[homers] ${kind} refused: ${r.status} ${r.error}`)
   }
   await db.from('homer_feed_posts').update(patch).match({ day, kind })
@@ -521,8 +529,6 @@ const HOTTEST_CONTACT_HOUR = 1     // 1pm ET  (2026-09-18: moved off 9am. His
                                    // and 9am now belongs to HR MATCHUP HISTORY.)
 const HR_LEADERS_DOW_HOUR = 2      // 2pm ET   (afternoon, per the same calendar)
 const DANGER_COMBOS_HOUR = -1      // 11am ET
-const HOTTEST_CONTACT_MID_HOUR = 4 // 4pm ET
-const DANGER_COMBOS_MID_HOUR = 7   // 7pm ET
 // 2026-09-08 (Donovan: "wire those up for automated tweets"). Same board-only
 // shape as the three above -- gated on the hour, claimed per (day, kind), no
 // live snapshot involved.
@@ -977,7 +983,7 @@ async function postRecap(db, day, { force = false } = {}) {
       if (tailLine) blocks.push([tailLine])
       const text = blocks.map((b) => b.join('\n')).join('\n\n')
       await postToDiscord(text, { imageUrl: recapUrl(day) }, withReceipts(FEED_WEBHOOKS()))
-      if (xOn) {
+      if (xOn && await xOk(db, { day, kind: 'recap' })) {
         const png = await bytesOf(() => recapCard(day, rows || [], histSide, { site: SITE_HOST }))
         const mediaId = png ? await uploadImageToX(png) : null
         const r = await postToX(text, { mediaId, kind: 'recap' })
@@ -1007,7 +1013,7 @@ async function postRecap(db, day, { force = false } = {}) {
           // like next to the other twelve.
           const d = await postToDiscord(wtext, {}, withReceipts(FEED_WEBHOOKS()))
           if (d.ok) patch.discord_sent = true
-          if (xOn) {
+          if (xOn && await xOk(db, { day, kind: 'weekly' })) {
             const r = await postToX(wtext, { kind: 'weekly' })
             if (r.ok && r.id) patch.x_post_id = r.id
             else console.error(`[homers] weekly refused: ${r.status} ${r.error}`)
@@ -1063,7 +1069,7 @@ async function postRecap(db, day, { force = false } = {}) {
           }, { site: SITE_HOST }))
           const d = await postToDiscord(mtext, { png: mpng }, withReceipts(FEED_WEBHOOKS()))
           if (d.ok) patch.discord_sent = true
-          if (xOn) {
+          if (xOn && await xOk(db, { day, kind: 'monthly' })) {
             const mediaId = mpng ? await uploadImageToX(mpng) : null
             const r = await postToX(mtext, { mediaId, kind: 'monthly' })
             if (r.ok && r.id) patch.x_post_id = r.id
@@ -1166,9 +1172,9 @@ export async function GET(request) {
         const patch = { payload: { picks: yPicks, hit: [...hitIds] } }
         const d = await postToDiscord(text, {}, FEED_WEBHOOKS())
         if (d.ok) patch.discord_sent = true
-        if (hasX()) {
+        if (hasX() && await xOk(db, { day, kind: 'accountability' })) {
           const r = await postToX(text, { kind: 'accountability' })
-          if (r.ok && r.id) patch.x_post_id = r.id
+          if (r.ok && r.id) { patch.x_post_id = r.id; logPosted({ day: yday, kind: 'accountability', tweetId: r.id, text }) }
           else console.error(`[homers] accountability refused: ${r.status} ${r.error}`)
         }
         await db.from('homer_feed_posts').update(patch).match({ day: yday, kind: 'accountability' })
@@ -1196,9 +1202,9 @@ export async function GET(request) {
         const patch = { payload: { picks: yBoardPicks } }
         const d = await postToDiscord(text, {}, FEED_WEBHOOKS())
         if (d.ok) patch.discord_sent = true
-        if (hasX()) {
+        if (hasX() && await xOk(db, { day, kind: 'board_results' })) {
           const r = await postToX(text, { kind: 'board_results' })
-          if (r.ok && r.id) patch.x_post_id = r.id
+          if (r.ok && r.id) { patch.x_post_id = r.id; logPosted({ day: yday, kind: 'board_results', tweetId: r.id, text }) }
           else console.error(`[homers] board_results refused: ${r.status} ${r.error}`)
         }
         await db.from('homer_feed_posts').update(patch).match({ day: yday, kind: 'board_results' })
@@ -1512,7 +1518,29 @@ export async function GET(request) {
     // it had mostly not looked at. Same rows and same lock as the Called Shots.
     if (etHoursSinceNoon() >= CALL_OF_NIGHT_HOUR && pregameLockReady) {
       await safeStat('callofnight', async () => {
-        const call = callOfTheNightPick(callRows(), odds, day)
+        // BEFORE HE IS NAMED (2026-10-09): lineup posted, starter confirmed, and not
+        // this kind's pick within 3 days. Pending = held until 30 min before first
+        // pitch, then dropped (lib/dash/namingChecks + xPolicy). A taken slot asks nothing.
+        if (knownTaken(day, 'callofnight')) return
+        const recent = await recentNamed(db, { kind: 'callofnight', day })
+        const nr = resolveNaming({
+          rows: callRows(),
+          check: mlbNamingProblem,
+          pickFrom: (rs) => { const c = callOfTheNightPick(rs, odds, day); return c ? [c] : [] },
+          startOf: (r) => Date.parse(r?.game_time),
+          now: Date.now(),
+        })
+        if (nr.state !== 'go') {
+          recordPost({ day, kind: 'callofnight', sport: 'mlb', state: nr.state === 'held' ? 'HELD' : 'DROPPED', reason: nr.reason, ids: nr.pending.map((x) => x.id) })
+          return
+        }
+        const call = nr.picks[0] || null
+        // "highest on tonight's slate" is the post's claim, so a repeat is not swapped for the
+        // runner-up: the post is simply not made (the same man within 3 days).
+        if (call && recent.has(String(call.player_id))) {
+          recordPost({ day, kind: 'callofnight', sport: 'mlb', state: 'DROPPED', reason: `repeat: ${call.player_id} named within 3 days`, ids: [call.player_id] })
+          return
+        }
         await claimAndPostStat(db, day, 'callofnight', CALL_OF_NIGHT_HOUR,
           callOfTheNightText(call, { day, ...TAIL }),
           call ? {
@@ -1523,7 +1551,9 @@ export async function GET(request) {
               call.pct != null ? `PARK+WEATHER ${call.pct >= 50 ? 'top' : 'bottom'} ${call.pct >= 50 ? 100 - call.pct : call.pct}%` : '',
               call.price ? `PRICE ${call.price.odds} · ${call.price.book}` : '',
             ].filter(Boolean),
-          } : null)
+          } : null,
+          // who the post names, stored at post time (it was {} before 2026-10-09)
+          call ? { picks: [{ player_id: String(call.player_id), name: call.name }] } : {})
       })
     }
     if (etHoursSinceNoon() >= STREAKS_HOUR && !isRetired('streaks')) {
@@ -1882,10 +1912,10 @@ export async function GET(request) {
             const png = await bytesOf(() => pairsCard(day, hits, { site: SITE_HOST }))
             const d = await postToDiscord(text, { png }, FEED_WEBHOOKS())
             if (d.ok) patch.discord_sent = true
-            if (hasX()) {
+            if (hasX() && await xOk(db, { day, kind: 'pairswatch', repeat: false })) {
               const mediaId = png ? await uploadImageToX(png) : null
-              const r = await postToX(text, { mediaId })
-              if (r.ok && r.id) patch.x_post_id = r.id
+              const r = await postToX(text, { mediaId, kind: 'pairswatch' })
+              if (r.ok && r.id) { patch.x_post_id = r.id; logPosted({ day, kind: 'pairswatch', tweetId: r.id, text }) }
               else console.error(`[homers] pairs-to-watch refused: ${r.status} ${r.error}`)
             }
             await db.from('homer_feed_posts').update(patch).match({ day, kind: 'pairswatch' })
@@ -1906,9 +1936,9 @@ export async function GET(request) {
             const png = await bytesOf(() => longshotCard(day, pick, { site: SITE_HOST }))
             const d = await postToDiscord(text, { png }, FEED_WEBHOOKS())
             if (d.ok) patch.discord_sent = true
-            if (hasX()) {
+            if (hasX() && await xOk(db, { day, kind: 'longshot', ids: pick?.player_id ? [pick.player_id] : [] })) {
               const mediaId = png ? await uploadImageToX(png) : null
-              const r = await postToX(text, { mediaId })
+              const r = await postToX(text, { mediaId, kind: 'longshot' })
               if (r.ok && r.id) patch.x_post_id = r.id
               else console.error(`[homers] longshot refused: ${r.status} ${r.error}`)
             }
@@ -1933,6 +1963,21 @@ export async function GET(request) {
           const t = Date.parse(call.time || '')
           if (!call.confirmed || !Number.isFinite(t) || nowMs >= t || nowMs < t - PER_GAME_LEAD_MS) continue
           const kind = `call_${call.game_pk}`
+          if (knownTaken(day, kind)) continue
+          // BEFORE HE IS NAMED (2026-10-09): both lineups are confirmed (above); the starter
+          // must be too, and he is not this kind's man within 3 days. Pending is simply not
+          // posted yet -- the window above runs to first pitch, so it is held, then lost.
+          const nameProblem = mlbNamingProblem(call.row)
+          if (nameProblem) {
+            recordPost({ day, kind, sport: 'mlb', state: nowMs >= t - 30 * 60e3 ? 'DROPPED' : 'HELD', reason: nameProblem.reason, ids: [nameProblem.id] })
+            continue
+          }
+          const recentCalls = await recentNamed(db, { kind, day })
+          if (recentCalls.has(String(call.row.player_id))) {
+            recordPost({ day, kind, sport: 'mlb', state: 'DROPPED', reason: `repeat: ${call.row.player_id} was a call within 3 days`, ids: [String(call.row.player_id)] })
+            markTaken(day, kind)   // decided for the day: stop asking every minute on this instance
+            continue
+          }
           if (!(await claimSlot(db, day, kind))) continue
           const tl = tailFor('pregame', { playerId: call.row.player_id })
           const tail = [tl.site, tl.handle].filter(Boolean).join(' ')
@@ -1942,14 +1987,15 @@ export async function GET(request) {
           const useW = Boolean(rw?.ok)
           const text = useW ? `${rw.x}${tail ? `\n${tail}` : ''}` : old
           const discordText = useW ? `${rw.full}${tail ? `\n${tail}` : ''}` : old
-          const patch = { payload: { player_id: String(call.row.player_id), name: String(call.row.name || ""), game_pk: call.game_pk, role: call.role, bar: call.bar, posted_at: new Date().toISOString(),
+          const callNamed = useW ? w.players.map((p) => String(p.player_id)) : [String(call.row.player_id)]
+          const patch = { payload: { player_id: String(call.row.player_id), name: String(call.row.name || ""), game_pk: call.game_pk, role: call.role, bar: call.bar, posted_at: new Date().toISOString(), named: callNamed,
             writeup: useW ? { x_is_long: rw.xIsLong, players: w.players.map((p) => p.player_id) } : { off: rw ? rw.why : 'no write-up for this game' } } }
           await db.from('homer_feed_posts').update({ payload: patch.payload }).match({ day, kind })
           const d = await postToDiscord(discordText, {}, FEED_WEBHOOKS())
           if (d.ok) patch.discord_sent = true
-          if (hasX() && await xDailyAllows(db, day, 1)) {
+          if (hasX() && await xOk(db, { day, kind, ids: callNamed, repeat: false })) {
             const r = await postToX(text, { kind: 'pregame', link: { playerId: call.row.player_id } })
-            if (r.ok && r.id) patch.x_post_id = r.id
+            if (r.ok && r.id) { patch.x_post_id = r.id; logPosted({ day, kind, ids: callNamed, tweetId: r.id, text }) }
             else console.error(`[homers] ${kind} refused: ${r.status} ${r.error}`)
           }
           await db.from('homer_feed_posts').update(patch).match({ day, kind })
@@ -1960,7 +2006,7 @@ export async function GET(request) {
       // above gets one reply after its final -- CALLED IT or MISSED, graded by
       // pickCleared. OFF until STORY_THREADS=on (lib/dash/storyThread.js).
       if (storyThreadsOn() && hasX()) {
-        const st = await postStoryResults(db, [day, shiftDay(day, -1)], { postToX, xAllows: (d) => xDailyAllows(db, d, 1) })
+        const st = await postStoryResults(db, [day, shiftDay(day, -1)], { postToX, xAllows: (d) => xDailyAllows(db, d, 'story_t3') })
           .catch((e) => { console.error(`[homers] story results: ${e?.message || e}`); return null })
         if (st?.replied) console.log(`[homers] story results: ${st.replied} replied`)
       }
@@ -1998,10 +2044,32 @@ export async function GET(request) {
         // The ten -- and the per-game calls -- are the founding members' post
         // (lib/dash/membersPost.js, MLB_MEMBERS_N). The payload is the list
         // posted, so the public card image shows five too.
-        picks = pregamePicks(callRows(), odds, day, FREE_PREGAME_N)
-        // Every roled name on tonight's board, for the receipt quote only --
-        // see pregameCalled() in homerFeed.js. Not used by any post text.
-        const called = pregameCalled(callRows())
+        // BEFORE THEY ARE NAMED (2026-10-09, X overhaul piece 1): each man's lineup is
+        // posted with him in it and his starter is confirmed (an OUT / scratched man is
+        // left out); a name still pending HOLDS this post, tick after tick, until 30
+        // minutes before first pitch -- then it is built WITHOUT him, never with him.
+        // And no one this kind named in the last 3 days (the next man up takes the seat).
+        let pregameHeld = null
+        if (!knownTaken(day, 'pregame')) {
+          const recentPre = await recentNamed(db, { kind: 'pregame', day })
+          const nr = resolveNaming({
+            rows: callRows(),
+            check: mlbNamingProblem,
+            pickFrom: (rs) => pregamePicks(rs.filter((r) => !recentPre.has(String(r.player_id))), odds, day, FREE_PREGAME_N),
+            startOf: (r) => Date.parse(r?.game_time),
+            trim: true,
+            now: Date.now(),
+          })
+          if (nr.state === 'held') pregameHeld = nr
+          else {
+            picks = nr.picks
+            if (nr.trimmed?.length) recordPost({ day, kind: 'pregame', sport: 'mlb', state: 'DROPPED', reason: `left out, ${nr.reason || 'not confirmed'} 30 min before first pitch: ${nr.trimmed.join(', ')}`, ids: nr.trimmed })
+          }
+        }
+        if (pregameHeld) {
+          recordPost({ day, kind: 'pregame', sport: 'mlb', state: 'HELD', reason: pregameHeld.reason, ids: pregameHeld.pending.map((x) => x.id) })
+          if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: 'held-for-lineups', statErrors, discordErrors: discordFailuresSnapshot() })
+        }
         if (!picks.length) {
           if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: 'no-picks', statErrors, discordErrors: discordFailuresSnapshot() })
         } else {
@@ -2010,17 +2078,20 @@ export async function GET(request) {
             if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: 'already', statErrors, discordErrors: discordFailuresSnapshot() })
           } else {
             const text = pregameText(picks, { day, ...tailFor('pregame') })
-            const patch = { payload: { picks, called } }
+            // `named`: the ids the posted text NAMES, exactly (pregameText may drop names to fit) --
+            // the receipt lookup quotes this post only for a man in this list.
+            const named = pregameCalled(picks, text)
+            const patch = { payload: { picks, named } }
             // The payload goes in FIRST so the public card route can render the
             // Discord embed from it; the post ids follow.
-            await db.from('homer_feed_posts').update({ payload: { picks, called } }).match({ day, kind: 'pregame' })
+            await db.from('homer_feed_posts').update({ payload: { picks, named } }).match({ day, kind: 'pregame' })
             const d = await postToDiscord(text, { imageUrl: pregameUrl(day) }, FEED_WEBHOOKS())
             if (d.ok) patch.discord_sent = true
-            if (hasX() && await xDailyAllows(db, day, 1)) {
+            if (hasX() && await xOk(db, { day, kind: 'pregame', ids: named, repeat: false })) {
               const png = await bytesOf(() => pregameCard(day, picks, { site: SITE_HOST }))
               const mediaId = png ? await uploadImageToX(png) : null
               const r = await postToX(text, { mediaId, kind: 'pregame' })
-              if (r.ok && r.id) patch.x_post_id = r.id
+              if (r.ok && r.id) { patch.x_post_id = r.id; logPosted({ day, kind: 'pregame', ids: named, tweetId: r.id, text }) }
               else console.error(`[homers] pregame refused: ${r.status} ${r.error}`)
             }
             await db.from('homer_feed_posts').update(patch).match({ day, kind: 'pregame' })
@@ -2036,18 +2107,23 @@ export async function GET(request) {
       // Called Shots above, same reasoning: a per-player role call against a
       // lineup that can still change is least accurate called off a board
       // published hours before lineups lock.
-      if (pregameLockReady) {
-        const boardPicks = boardRolePicks(callRows())
+      if (pregameLockReady && !knownTaken(day, 'board')) {
+        // BEFORE THEY ARE NAMED (2026-10-09): same naming rule as the pregame post (the board
+        // is exempt from the cap and the repeat guard -- it is the page's essential feed).
+        const bn = resolveNaming({ rows: callRows(), check: mlbNamingProblem, pickFrom: (rs) => boardRolePicks(rs), startOf: (r) => Date.parse(r?.game_time), trim: true, now: Date.now() })
+        if (bn.state === 'held') recordPost({ day, kind: 'board', sport: 'mlb', state: 'HELD', reason: bn.reason, ids: bn.pending.map((x) => x.id) })
+        else if (bn.trimmed?.length) recordPost({ day, kind: 'board', sport: 'mlb', state: 'DROPPED', reason: `left out, ${bn.reason || 'not confirmed'} 30 min before first pitch: ${bn.trimmed.join(', ')}`, ids: bn.trimmed })
+        const boardPicks = bn.state === 'held' ? [] : bn.picks
         if (boardPicks.length) {
           const boardClaim = await claimSlot(db, day, 'board')
           if (boardClaim) {
             const text = boardRoleText(boardPicks, { day, ...tailFor('board') })
-            const patch = { payload: { picks: boardPicks } }
+            const patch = { payload: withNamed({ picks: boardPicks }, pregameCalled(boardPicks, text)) }
             const d = await postToDiscord(text, {}, FEED_WEBHOOKS())
             if (d.ok) patch.discord_sent = true
             if (hasX()) {
               const r = await postToX(text, { kind: 'board' })
-              if (r.ok && r.id) patch.x_post_id = r.id
+              if (r.ok && r.id) { patch.x_post_id = r.id; logPosted({ day, kind: 'board', ids: patch.payload.named, tweetId: r.id, text }) }
               else console.error(`[homers] board refused: ${r.status} ${r.error}`)
             }
             await db.from('homer_feed_posts').update(patch).match({ day, kind: 'board' })
@@ -2065,7 +2141,9 @@ export async function GET(request) {
       // here, so it gets the question plus the options spelled out as text;
       // X gets the real tappable poll.
       {
-        const pollNames = picks.slice(0, 4).map((p) => p.name)
+        // DISTINCT OPTIONS (2026-10-09): the 9/23 poll named "Pete Alonso" twice. Four different
+        // names from the whole pick list, compared as X will see them (25-character cut).
+        const pollNames = distinctOptions(picks.map((p) => p.name), 4)
         if (pollNames.length >= 2) {
           const pollClaim = await claimSlot(db, day, 'botpoll')
           if (pollClaim) {
@@ -2074,8 +2152,8 @@ export async function GET(request) {
             const patch = { payload: { options: pollNames } }
             const d = await postToDiscord(`${text}\n\n${lettered}`, {}, FEED_WEBHOOKS())
             if (d.ok) patch.discord_sent = true
-            if (hasX()) {
-              const r = await postToX(text, { poll: { options: pollNames, durationMinutes: BOTPOLL_DURATION_MIN } })
+            if (hasX() && await xOk(db, { day, kind: 'botpoll', repeat: false })) {
+              const r = await postToX(text, { kind: 'botpoll', poll: { options: pollNames, durationMinutes: BOTPOLL_DURATION_MIN } })
               if (r.ok && r.id) patch.x_post_id = r.id
               else console.error(`[homers] botpoll refused: ${r.status} ${r.error}`)
             }
@@ -2104,26 +2182,8 @@ export async function GET(request) {
   // the same starting pitchers, so they share the same gate. Un-gated they
   // would happily repost a stale board's arms under "still cooking."
   if (boardUsable) {
-  {
-    const hc = hottestContactPicks(midRows())
-    await claimAndPostStat(db, day, 'hotcontact_mid', HOTTEST_CONTACT_MID_HOUR,
-      hottestContactText(hc, { day, ...TAIL, variant: 'mid' }),
-      hc.length ? {
-        pill: 'HOT', label: 'HOT ZONE: STILL LIT',
-        headline: "Tonight's hottest recent blast rates",
-        lines: hc.map((p) => `${p.name} (${p.team || '?'}) — ${p.blastPct}% blast vs ${p.pitcher}${p.pitcherTeam ? ` (${p.pitcherTeam})` : ''}`),
-      } : null)
-  }
-  {
-    const dc = dangerComboPicks(midRows())
-    await claimAndPostStat(db, day, 'dangercombos_mid', DANGER_COMBOS_MID_HOUR,
-      dangerComboText(dc, { day, ...TAIL, variant: 'mid' }),
-      dc.length ? {
-        pill: 'KILL', label: 'KILL LIST: STILL LIVE',
-        headline: 'Hot bats vs pitchers getting hit hard lately',
-        lines: dc.map((p) => `${p.name} (${p.blastPct}% blast) vs ${p.pitcher} (${p.pitcherHrBbePct}% HR/BBE)`),
-      } : null)
-  }
+  // hotcontact_mid and dangercombos_mid were RETIRED COMPLETELY on 2026-10-09 (lib/dash/xPolicy
+  // RETIRED_KINDS): their blocks are gone; their history rows stay.
   // ── MATCHUP HISTORY, LATE WAVE (2026-09-15, Donovan: "this can fire later
   //    in the day or middle slate for a liter game"). Same StatsAPI pull as
   //    the day wave, but against midRows() (live-filtered, so a scratched or
@@ -2283,10 +2343,10 @@ export async function GET(request) {
         const png = await bytesOf(() => numerologyCard(day, moment, { site: SITE_HOST }))
         const d = await postToDiscord(text, { png }, FEED_WEBHOOKS())
         if (d.ok) patch.discord_sent = true
-        if (hasX()) {
+        if (hasX() && await xOk(db, { day, kind: 'numerology', repeat: false })) {
           const mediaId = png ? await uploadImageToX(png) : null
-          const r = await postToX(text, { mediaId })
-          if (r.ok && r.id) patch.x_post_id = r.id
+          const r = await postToX(text, { mediaId, kind: 'numerology' })
+          if (r.ok && r.id) { patch.x_post_id = r.id; logPosted({ day, kind: 'numerology', tweetId: r.id, text }) }
           else console.error(`[homers] numerology refused: ${r.status} ${r.error}`)
         }
         await db.from('homer_feed_posts').update(patch).match({ day, kind: 'numerology' })
@@ -2510,6 +2570,8 @@ export async function GET(request) {
         await db.from('homer_feed').update({ reply_post_id: 'skipped' }).match({ day, player_id: row.player_id, hr_n: row.hr_n })
         continue
       }
+      // the reply is its own X post: it counts (lib/dash/xPolicy, kind homer_board_reply)
+      if (!(await xOk(db, { day, kind: 'homer_board_reply', repeat: false }))) { totals.replySkipped = (totals.replySkipped || 0) + 1; continue }
       const nr = await postToX(nText, { replyTo: row.x_post_id })
       if (nr.ok && nr.id) {
         totals.x += 1
@@ -2631,6 +2693,7 @@ export async function GET(request) {
           const cardOk = Boolean(row.day && row.opponent && parsed?.distance)
           const png = cardOk ? await bytesOf(() => mlbhrCard(row, parsed, { site: SITE_HOST, boardSize: boardRows().length || null, postedAt: preAt })) : null
           const mediaId = png ? await uploadImageToX(png) : null
+          if (!(await xOk(db, { day, kind: 'mlbhr_reply', repeat: false }))) { await db.from('homer_feed').update({ mlbhr_reply_id: null }).match(where); break }   // over the cap: release the claim
           const r = await postToX(text, { replyTo: tweet.id, mediaId, kind: 'mlbhr_reply' })
           if (r.ok && r.id) {
             const w = await db.from('homer_feed').update({ mlbhr_reply_id: r.id }).match(where)
