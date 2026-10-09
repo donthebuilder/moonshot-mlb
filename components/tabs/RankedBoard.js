@@ -301,7 +301,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
           {/* 📸 SHARE (2026-08-23) — this board as a PNG, zero backend, same
               canvas mechanism as the Watchlist/Player share cards. */}
           {ranked.length > 0 && (
-            <button onClick={() => downloadBoardCard(ranked, { title, sub, type, scoreOf: (p) => scoreFor(p, type) })}
+            <button onClick={() => downloadBoardCard(ranked, { title, sub, type, boardOf, scoreOf: (p) => scoreFor(p, type) })}
               title="Download this board as a PNG for posting"
               aria-label="Download board as image"
               style={{
@@ -534,7 +534,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
       )}
 
       {compact && viewMode === 'list' && ranked.length > 0 && (
-        <button onClick={() => downloadBoardCard(ranked, { title, sub, type, scoreOf: (p) => scoreFor(p, type) })}
+        <button onClick={() => downloadBoardCard(ranked, { title, sub, type, boardOf, scoreOf: (p) => scoreFor(p, type) })}
           title="Download this board as a PNG for posting" aria-label="Download board as image"
           style={{ minHeight: 44, margin: '8px 0 0', padding: '0 14px', borderRadius: 8, cursor: 'pointer', fontSize: TYPE.label, fontWeight: 700, border: `1px solid ${C.border}`, background: 'transparent', color: C.text2 }}>📸 Download this board as an image</button>
       )}

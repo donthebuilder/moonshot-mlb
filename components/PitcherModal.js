@@ -425,7 +425,7 @@ export default function PitcherModal({ pitcher, slateMode, onClose, onPlayerClic
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', justifyContent: 'flex-end', marginBottom: 8 }}>
             {/* 📸 SHARE (2026-08-23) — his card as a PNG, zero backend, the
                 same tiles this modal already drew above. */}
-            <button onClick={() => downloadPitcherCard({ name, team, opp, throws, weakSide, tiles, topBat: anchor })}
+            <button onClick={() => downloadPitcherCard({ id: pitcher?.pitcher_id, name, team, opp, throws, weakSide, tiles, topBat: anchor })}
               title="Download his card as a PNG for posting — the at-a-glance tiles and his toughest lineup matchup"
               aria-label="Download pitcher card as image"
               style={{

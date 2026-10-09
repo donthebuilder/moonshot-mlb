@@ -3,11 +3,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { SPORT_ACCENT } from '../../lib/sportAccent'
 import { arr } from '../../lib/player'
-import { legacyPoolRows, poolAsCard, LEGACY_LABEL } from '../../lib/pools'
+import { legacyPoolRows, LEGACY_LABEL } from '../../lib/pools'
 import { PanelTitle, Empty } from '../ui'
 import DenseTable from '../DenseTable'
 import { LegCell } from '../PairBlock'
-import { downloadPoolsCard } from '../shareCard'
 
 // Pools -- the OLD-RECIPE three-man pools, and nothing else (owner decision,
 // 2026-10-07, final). The bot publishes eight pools of three (A1..D2, the
@@ -126,9 +125,6 @@ export default function Pools({ players = [], results, pairBuilder, onPlayerClic
             <span style={{ fontSize: 12, color: C.text3, lineHeight: 1.5 }}>
               {anyLocked ? 'Locked at first pitch.' : 'Rosters can still change until first pitch; a pool that changed is marked.'}
             </span>
-            <button onClick={() => downloadPoolsCard(rows.map(poolAsCard), { title: 'OLD-RECIPE 3-MAN POOLS', graded: gradedN > 0 })}
-              title="Download the pools as a PNG for posting" aria-label="Download pools as image"
-              style={{ marginLeft: 'auto', minHeight: 44, minWidth: 44, background: 'transparent', border: `1px solid ${C.border}`, color: ACCENT, borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>📸</button>
           </div>
           <DenseTable
             rows={view}

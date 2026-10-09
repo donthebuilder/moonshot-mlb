@@ -299,6 +299,8 @@ function cardRows(results) {
 function pickFromResultRow(r) {
   return {
     name: r.name,
+    espnId: r._raw?.espn_id,
+    status: 'called',   // every row here is a rung of the published card, graded: a call locked pregame
     team: r.team,
     opp: String(r.opp || '').replace(/^vs\s+/i, ''),
     position: r.position,

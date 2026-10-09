@@ -261,6 +261,7 @@ function Head({ children }) {
 function pickFromPlayer(player, market, spec) {
   return {
     name: player.name,
+    espnId: player.espn_id,
     team: player.team,
     opp: player.opp,
     position: player.position,
