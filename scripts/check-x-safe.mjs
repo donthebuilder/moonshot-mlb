@@ -323,7 +323,7 @@ await ok('repeat: postOnce asks the builder again WITHOUT the repeated man (long
   assert.equal(tweets.length, 1)
   assert.ok(!/Test 1 \(/.test(tweets[0].text) && /Test 2 \(/.test(tweets[0].text), tweets[0].text)
 })
-await ok('repeat: the NFL milestone's exclusion path runs without data (no throw)', () => {
+await ok('repeat: the NFL milestone exclusion path runs without data (no throw)', () => {
   const logs = null
   const picks = NFLTF.milestonePicks(logs, { players: [] }, { exclude: new Set(['x']) })
   assert.deepEqual(picks, [])   // (no data: no picks; the exclusion path must not throw)
