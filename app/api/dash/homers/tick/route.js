@@ -41,6 +41,9 @@ import { windowOpen, payloadFor } from '../../../../../lib/dash/xSchedule'
 import { namedInText, withNamed, isRetiredForever } from '../../../../../lib/dash/xPolicy'
 import { resolveNaming, mlbNamingProblem } from '../../../../../lib/dash/namingChecks'
 import { postSlateOnce } from '../../../../../lib/posts/slate'
+import { periodsDue, postPeriodOnce, postReceiptOnce } from '../../../../../lib/posts/receipt'
+import { receiptLoader } from '../../../../../lib/posts/receiptLoad'
+import { phxClock } from '../../../../../lib/dash/xSchedule'
 import { slateLoader } from '../../../../../lib/posts/slateLoad'
 import { recordPost } from '../../../../../lib/dash/xPostLog'
 import { isRested } from '../../../../../lib/dash/xRest'
@@ -53,8 +56,8 @@ import { mlbWatch, historyWatchText, reachedLine } from '../../../../../lib/hist
 import { fetchLiveSlate, liveSlateStatus } from '../../../../../lib/liveSlate'
 import { fetchBoardFull, fetchRunMeta } from '../../../../../lib/dash/board'
 import { dataUrl, oddsPaths, pairSummaryPaths } from '../../../../../lib/dataSource'
-import { primaryRole, accountabilityText, boardIndexFrom, moonshotBoardRanking, moonshotBoardText, boardRolePicks, boardRoleResultsText, boardRoleText, boxLinesForDate, captureFrom, roleWord, homersFrom, hooksFor, longshotPick, longshotText, monthlyText, numerologyMoment, numerologyText, pairsToWatch, pairsToWatchText, partnerFor, postText, pregameCalled, pregamePicks, topStreakFrom, weeklyText } from '../../../../../lib/dash/homerFeed'
-import { homerCard, mlbhrCard, hotStretchCard, longshotCard, numerologyCard, pairsCard, recapCard, statCard } from '../../../../../lib/dash/homerCard'
+import { primaryRole, boardIndexFrom, moonshotBoardRanking, moonshotBoardText, boardRolePicks, boardRoleText, homersFrom, hooksFor, longshotPick, longshotText, numerologyMoment, numerologyText, pairsToWatch, pairsToWatchText, partnerFor, postText, pregameCalled, pregamePicks, topStreakFrom } from '../../../../../lib/dash/homerFeed'
+import { homerCard, mlbhrCard, hotStretchCard, longshotCard, numerologyCard, pairsCard, statCard } from '../../../../../lib/dash/homerCard'
 import {
   backToBackPicks, backToBackText, bestAirPicks, bestAirText, 
   careerVsStarterPicks, careerVsStarterText, dangerComboPicks, dangerComboText, fetchWeekdayHrLeaders, funFactsPicks, funFactsText,
@@ -128,7 +131,6 @@ const X_MONTHLY_CAP = Number(process.env.X_MONTHLY_CAP || 1100) || 1100
 // an X post despite already having x_post_id null and wanting one.
 const DISCORD_ON = Boolean(process.env.DISCORD_HOMER_WEBHOOK)
 const cardUrl = (row) => (SITE ? `${SITE}/api/dash/homers/card?day=${row.day}&pid=${row.player_id}&n=${row.hr_n}` : null)
-const recapUrl = (day) => (SITE ? `${SITE}/api/dash/homers/card?day=${day}&recap=1` : null)
 
 // STAT-FEED CLAIM + POST (2026-09-07). Same claim-then-post shape as the
 // pairswatch/longshot blocks below -- claim (day, kind) in homer_feed_posts
@@ -205,7 +207,7 @@ async function slateTick(db, { day, rows = [], live = null, hold = null, firstSt
 //             recap...).
 // POST_KINDS_ON (Vercel env, comma list, or 'all') replaces all of it
 // without a deploy.
-const DAILY_KINDS = new Set(['board', 'accountability', 'numerology', 'history_watch', 'weekly', 'monthly'])   // 2026-10-09: pregame + callofnight left (THE SLATE, lib/posts/slate.js, is claimed by its own runner)
+const DAILY_KINDS = new Set(['board', 'numerology', 'history_watch'])   // 2026-10-09: pregame + callofnight left (THE SLATE, lib/posts/slate.js, is claimed by its own runner); accountability, weekly and monthly left too (THE NIGHT RECEIPT, lib/posts/receipt.js, claims its own)
 const ROTATION_KINDS = ['matchup_hr', 'bestair', 'hotcontact', 'storylines', 'pairswatch', 'hot_week', 'hot_month']
 function postKindOn(kind, day) {
   // THE CALL, one per postseason game (call_<game_pk>, lib/dash/gameCall):
@@ -591,7 +593,6 @@ const HOT_WEEK_HOUR = 5         // 5pm ET
 const ANGLES_HOUR = -3          // 9am ET   (retired -- see RETIRED_KINDS)
 const HOT_SHEET_HOUR = -1       // 11am ET  (retired -- see RETIRED_KINDS)
 const ACCOUNTABILITY_HOUR = -4  // 8am ET -- grades YESTERDAY's picks
-const BOARD_RESULTS_HOUR = -4   // 8am ET -- grades YESTERDAY's Tonight's Board
 // 2026-09-15 (Donovan: pairswatch/longshot "get posted... almost at
 // midnight"). Traced, not guessed: the bot's day-rollover cron
 // (today.yml, bot repo) fires at 12:05am Phoenix -- explicitly ON PURPOSE,
@@ -937,179 +938,33 @@ const slateDayOf = (snap) => {
 
 
 /**
- * The night's recap — text + card to Discord and X, and on a Sunday the week.
- * Claimed on `homerfeed:recap:<day>` so it goes out once; `force` re-posts
- * (a test, or a night whose post failed) without touching the claim.
+ * THE NIGHT RECEIPT and the weekly / monthly receipts (2026-10-09, X overhaul piece 5; lib/posts/receipt.js).
+ * They replaced the accountability grade, the night recap and the graded board post (kinds retired in
+ * lib/dash/xPolicy.js RETIRED_BY_RECEIPT; their history rows stay). The weekly and monthly used to be
+ * claimed INSIDE the recap, which was off in the post list, so they never ran: each has its own claim and
+ * its own schedule now. Cross-sport and event-driven like the Slate, so it is tried on every tick, football
+ * and hockey days included. Mirrors as plain text to the free feed channels the accountability post used.
+ * Never throws.
  */
-async function postRecap(db, day, { force = false } = {}) {
-  const xOn = hasX()
-  const out = { recap: xOn ? 'posted' : 'x-not-configured', ...(xOn ? {} : { x_problem: xProblem() }) }
-  // The night recap is off in the post list (tweets fix step 3) unless
-  // POST_KINDS_ON names it; a forced manual recap still runs.
-  if (!force && !postKindOn('recap', day)) return { recap: 'off-in-post-list' }
-  const key = `homerfeed:recap:${day}`
-  // Same read-the-error rule as claimSlot above, on the other claim table.
-  // This one is the worst place to be silent: an errored upsert returns no
-  // rows, which reads as "already posted", so a broken claim would retire the
-  // night's recap for good and answer 'already' every minute after.
-  const { data: claim, error: claimError } = await db
-    .from('dash_push_seen')
-    .upsert([{ event_key: key }], { onConflict: 'event_key', ignoreDuplicates: true })
-    .select('event_key')
-  if (claimError) {
-    console.error(`[homers] recap claim failed for ${day}: ${claimError.message}`)
-    if (!force) return { recap: 'claim-failed', error: claimError.message }
-  }
-  if (!claim?.length && !force) return { recap: 'already' }
-  {
-    const { data: rows } = await db.from('homer_feed').select('name,team,role,on_board,board_rank,board_of:stats->>board_of,player_id').eq('day', day)
-    const c = captureFrom(rows)
-    if (c.total) {
-      // Rewritten 2026-09-13 (Donovan's stacked-format pass): scoreboard feel,
-      // categories vertically stacked in a fixed order with their own emoji,
-      // streak last.
-      const ROLE_EMOJI = { HR: '🤖', TOP: '🌙', TOP15: '🌙', HRR: '📊', CONTACT: '📊', HIT: '📊', WATCH: '👀' }
-      const ROLE_ORDER = ['HR', 'TOP', 'TOP15', 'HRR', 'CONTACT', 'HIT', 'WATCH']
-      // Plain words on first contact (postseason plan step 10): no bare
-      // "HRR" / "CONTACT" in a post -- say what the call was for.
-      const ROLE_PLAIN = { HR: 'home-run calls', TOP: 'top picks', TOP15: 'top-15 picks', HRR: 'hits + runs + RBI calls', CONTACT: 'total-bases calls', HIT: 'hit calls', WATCH: 'on the watch list' }
-      const roleLines = ROLE_ORDER.filter((r) => c.byRole[r]).map((r) => `${ROLE_EMOJI[r] || '🤖'} ${c.byRole[r]} from ${ROLE_PLAIN[r] || r}`)
-      const { data: hist } = await db.from('homer_feed').select('day,role,name,odds_over,odds_book').gte('day', shiftDay(day, -12)).lte('day', day)
-      // One season per number (2026-09-27): the card's night bars and the TOP
-      // streak read only nights on this night's side of the postseason's
-      // first day. `hist` itself stays whole for the weekly below, which
-      // splits on its own.
-      const rpost = await postseasonOn(day).catch(() => ({ postseason: null }))
-      const nightPost = Boolean(rpost.start && day >= rpost.start)
-      const histSide = (hist || []).filter((r) => !rpost.start || (r.day >= rpost.start) === nightPost)
-      const straight = topStreakFrom(histSide, day, false)
-      const tailLine = [TAIL.site, TAIL.handle].filter(Boolean).join(' · ')
-      const blocks = [
-        [nightPost ? '📋 NIGHTLY MOONSHOT · POSTSEASON' : '📋 NIGHTLY MOONSHOT'],
-        [`${c.called} / ${c.total} HR called`, `${c.pct}% of tonight's homers`],
-      ]
-      if (roleLines.length) blocks.push(roleLines)
-      if (c.rated) blocks.push([`${c.rated} more were on the board.`])
-      // MISSED IT, SAME WEIGHT AS THE HITS (postseason plan step 8): the
-      // per-game calls on a 1+ home run bar, named plainly either way. Other
-      // bars (hits, H+R+RBI) need the box score this recap doesn't read, so
-      // they aren't claimed here.
-      const { data: gcalls } = await db.from('homer_feed_posts').select('payload').eq('day', day).like('kind', 'call_%')
-      const hrCalls = (gcalls || []).map((g) => g.payload).filter((p) => p?.player_id && /home run/.test(String(p.bar || '')))
-      if (hrCalls.length) {
-        const homered = new Set((rows || []).map((r) => String(r.player_id)))
-        const nameOfCall = (p) => (rows || []).find((r) => String(r.player_id) === String(p.player_id))?.name || p.name || `#${p.player_id}`
-        const hit = hrCalls.filter((p) => homered.has(String(p.player_id)))
-        const missed = hrCalls.filter((p) => !homered.has(String(p.player_id)))
-        blocks.push([
-          `THE CALLS: ${hit.length} of ${hrCalls.length} homered`,
-          ...(hit.length ? [`HIT: ${hit.map(nameOfCall).join(', ')}`] : []),
-          ...(missed.length ? [`MISSED IT: ${missed.map((p) => p.name || `#${p.player_id}`).join(', ')} -- no home run`] : []),
-        ])
-      }
-      if (straight >= 2) blocks.push([`🔥 TOP pick streak: ${straight} nights`])
-      if (tailLine) blocks.push([tailLine])
-      const text = blocks.map((b) => b.join('\n')).join('\n\n')
-      await postToDiscord(text, { imageUrl: recapUrl(day) }, withReceipts(FEED_WEBHOOKS()))
-      if (xOn && await xOk(db, { day, kind: 'recap' })) {
-        const png = await bytesOf(() => recapCard(day, rows || [], histSide, { site: SITE_HOST }))
-        const mediaId = png ? await uploadImageToX(png) : null
-        const r = await postToX(text, { mediaId, kind: 'recap' })
-        if (r.ok) out.recap = r.id
-        else { out.recap = 'x-refused'; out.x_error = `${r.status} ${r.error}`; console.error(`[homers] recap refused: ${r.status} ${r.error}`) }
-        out.card = png ? 'attached' : 'failed'
-      }
-      // SUNDAY: the week. Claimed on its own key so a recap that failed
-      // halfway cannot skip it, and a week is never posted twice.
-      if (new Date(`${day}T12:00:00Z`).getUTCDay() === 0) {
-        const wk = await claimSlot(db, day, 'weekly')
-        if (wk) {
-          const from = shiftDay(day, -6)
-          // One season per post (2026-09-27): a week that crosses the
-          // postseason's first day keeps its latest side, and a postseason
-          // week says so in the title.
-          const post = await postseasonOn(day).catch(() => ({ postseason: null }))
-          const inPost = Boolean(post.start && day >= post.start)
-          const week = (hist || []).filter((r) => r.day >= from && r.day <= day && (!post.start || (r.day >= post.start) === inPost))
-          const wtext = weeklyText(week, { from, to: day, postseason: inPost, ...TAIL })
-          const wc = captureFrom(week)
-          const patch = { payload: { from, to: day, called: wc.called, total: wc.total } }
-          // WEEKLY STAYS TEXT-ONLY (2026-09-07). A card was built for it and
-          // Donovan took it back out -- the weekly post is a number and a
-          // sentence, and it is the one kind where a poster adds nothing the
-          // text does not already say. Deliberate, not the oversight it looks
-          // like next to the other twelve.
-          const d = await postToDiscord(wtext, {}, withReceipts(FEED_WEBHOOKS()))
-          if (d.ok) patch.discord_sent = true
-          if (xOn && await xOk(db, { day, kind: 'weekly' })) {
-            const r = await postToX(wtext, { kind: 'weekly' })
-            if (r.ok && r.id) patch.x_post_id = r.id
-            else console.error(`[homers] weekly refused: ${r.status} ${r.error}`)
-          }
-          await db.from('homer_feed_posts').update(patch).match({ day, kind: 'weekly' })
-        }
-      }
-      // THE 1ST OF THE MONTH: the month just finished, TOP/HR/HR Watch
-      // broken out (Donovan: "all three vs homerun on the month"). Same
-      // claim-first shape as weekly/pregame -- a failed half never blocks a
-      // retry, and this can never double-post for the same month.
-      if (new Date(`${day}T12:00:00Z`).getUTCDate() === 1) {
-        const mo = await claimSlot(db, day, 'monthly')
-        if (mo) {
-          const prevLastDay = shiftDay(day, -1)
-          const monthFrom = `${prevLastDay.slice(0, 7)}-01`
-          const { data: allMonthRows } = await db.from('homer_feed').select('day,role').gte('day', monthFrom).lte('day', prevLastDay)
-          // One season per post (2026-09-27): a month that crosses the
-          // postseason's first day posts its regular-season part (09-01..
-          // 09-27 for September 2026); a month that is all postseason says so.
-          // Postseason nights are counted on their own record (/called).
-          const post = await postseasonOn(prevLastDay).catch(() => ({ postseason: null }))
-          const split = Boolean(post.start && monthFrom < post.start && post.start <= prevLastDay)
-          const allPost = Boolean(post.start && monthFrom >= post.start)
-          const monthRows = split ? (allMonthRows || []).filter((r) => r.day < post.start) : (allMonthRows || [])
-          const monthLabel = new Date(`${monthFrom}T12:00:00Z`).toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' }) + (split ? ' · regular season' : allPost ? ' · postseason' : '')
-          const mtext = monthlyText(monthRows || [], { month: monthLabel, ...TAIL })
-          const mc = captureFrom(monthRows || [])
-          const patch = { payload: { from: monthFrom, to: prevLastDay, called: mc.called, total: mc.total } }
-          // EVERY ROLE, NOT THREE OF THEM (2026-09-07). Donovan: "the hr
-          // percentage should show watch players too not just top picks and
-          // hr ... all the different picks vs the hrs tonight."
-          //
-          // captureFrom's headline number was never the problem -- it counts
-          // any role, so WATCH and HRR and HIT have always been inside the
-          // percentage. The BREAKDOWN under it was the problem: this line
-          // hardcoded TOP, HR and WATCH, so a month's HRR, HIT, CONTACT and
-          // TOP15 calls were captured in the total and then invisible in the
-          // split. Over the last two weeks that is 20 HRR, 17 HIT, 7 CONTACT
-          // and 2 TOP15 -- 46 of 128 calls, a third of them, unaccounted for
-          // on the card that exists to account for them.
-          //
-          // Now it reads byRole itself, ordered by count, so a role the bot
-          // starts issuing tomorrow appears without anyone editing this line.
-          const mRoles = Object.entries(mc.byRole).sort((a, b) => b[1] - a[1])
-          const mpng = await bytesOf(() => statCard(day, {
-            pill: 'MONTHLY', label: monthLabel.toUpperCase(),
-            headline: `${mc.called} of ${mc.total} home runs on the bot (${mc.pct ?? 0}%)`,
-            lines: [
-              mRoles.length ? mRoles.map(([r, c]) => `${roleWord(r).toUpperCase()} ${c}`).join('   ·   ') : '',
-              mc.rated ? `${mc.rated} more on the board, no call` : '',
-            ].filter(Boolean),
-          }, { site: SITE_HOST }))
-          const d = await postToDiscord(mtext, { png: mpng }, withReceipts(FEED_WEBHOOKS()))
-          if (d.ok) patch.discord_sent = true
-          if (xOn && await xOk(db, { day, kind: 'monthly' })) {
-            const mediaId = mpng ? await uploadImageToX(mpng) : null
-            const r = await postToX(mtext, { mediaId, kind: 'monthly' })
-            if (r.ok && r.id) patch.x_post_id = r.id
-            else console.error(`[homers] monthly refused: ${r.status} ${r.error}`)
-          }
-          await db.from('homer_feed_posts').update(patch).match({ day, kind: 'monthly' })
-        }
-      }
+async function receiptTick(db, { day }) {
+  const out = {}
+  try {
+    // the feed channels the accountability post went to, plus #called-it (where the recap, the week and the month went; "Receipts: nightly in #called-it")
+    const hooks = withReceipts(FEED_WEBHOOKS())
+    // the morning after: yesterday's slate day, then today's (a night that ended before the day rolled)
+    for (const d of [shiftDay(day, -1), day]) {
+      out[d] = await postReceiptOnce(db, { day: d, hooks, load: receiptLoader(db, { day: d }) })
     }
+    for (const period of periodsDue(phxClock(Date.now()))) {
+      out[period.kind] = await postPeriodOnce(db, { period, hooks })
+    }
+  } catch (err) {
+    console.error('[homers] receipt threw', err)
+    out.error = String(err?.message || err)
   }
   return out
 }
+
 
 export async function GET(request) {
   if (!authorized(request)) return Response.json({ error: 'Unauthorized' }, { status: 401 })
@@ -1117,17 +972,8 @@ export async function GET(request) {
   const db = service()
   if (!db) return Response.json({ skipped: 'supabase-service-key-missing' })
 
-  // A RECAP ON DEMAND: ?recap=YYYY-MM-DD posts that night's recap from
-  // whatever homer_feed holds for it (live rows or backfill). &force=1
-  // re-posts one that already went out. This is how the first recap gets
-  // tested at 1am without waiting for a night to end.
+  // (The on-demand ?recap=YYYY-MM-DD post went with the retired night recap, 2026-10-09.)
   const u = new URL(request.url)
-  const want = String(u.searchParams.get('recap') || '')
-  if (/^\d{4}-\d{2}-\d{2}$/.test(want)) {
-    const { count } = await db.from('homer_feed').select('player_id', { count: 'exact', head: true }).eq('day', want)
-    if (!count) return Response.json({ day: want, recap: 'no-rows', hint: 'nothing recorded for that night yet — the backfill fills one past night per tick' })
-    return Response.json({ day: want, rows: count, ...(await postRecap(db, want, { force: u.searchParams.get('force') === '1' })) })
-  }
 
   // OFFSEASON GUARD (2026-09-27). This cron fires every minute all year; after
   // the World Series there is nothing for it to do. No MLB game from 3 days
@@ -1142,7 +988,8 @@ export async function GET(request) {
       // basketball Slate. Tried here, once, with no MLB rows (its own try/catch, its own gates); the in-season
       // path below calls it itself, so a tick never runs it twice.
       const slateOff = await slateTick(db, { day: easternToday() })
-      return Response.json({ skipped: 'offseason', season, slate: slateOff })
+      const receiptOff = await receiptTick(db, { day: easternToday() })   // the night receipt is cross-sport too: a football night ends in the MLB offseason
+      return Response.json({ skipped: 'offseason', season, slate: slateOff, receipt: receiptOff })
     }
   }
 
@@ -1193,58 +1040,12 @@ export async function GET(request) {
     } }).catch((e) => console.error(`[homers] members grade: ${e?.message}`))
   }
 
-  if (etHoursSinceNoon() >= ACCOUNTABILITY_HOUR) {
-    const yday = shiftDay(day, -1)
-    const acctClaim = await claimSlot(db, yday, 'accountability')
-    if (acctClaim) {
-      const pre = await morningPost(db, yday, 'payload')
-      const yPicks = pre?.payload?.picks || []
-      if (yPicks.length) {
-        const { data: yHits } = await db.from('homer_feed').select('player_id').eq('day', yday)
-        const hitIds = new Set((yHits || []).map((r) => String(r.player_id)))
-        const text = accountabilityText(yPicks, hitIds, { day: yday, ...tailFor('accountability') })
-        const patch = { payload: { picks: yPicks, hit: [...hitIds] } }
-        const d = await postToDiscord(text, {}, FEED_WEBHOOKS())
-        if (d.ok) patch.discord_sent = true
-        if (hasX() && await xOk(db, { day, kind: 'accountability' })) {
-          const r = await postToX(text, { kind: 'accountability' })
-          if (r.ok && r.id) { patch.x_post_id = r.id; logPosted({ day: yday, kind: 'accountability', tweetId: r.id, text }) }
-          else console.error(`[homers] accountability refused: ${r.status} ${r.error}`)
-        }
-        await db.from('homer_feed_posts').update(patch).match({ day: yday, kind: 'accountability' })
-      }
-    }
-  }
-
-  // TONIGHT'S BOARD, GRADED (2026-09-15, Donovan: "do the recemmomdend but
-  // maks sure its graded"). Same read-back shape as RESULTS/ACCOUNTABILITY
-  // just above -- yesterday's 'board' post already persisted its picks
-  // (homer_feed_posts.payload.picks) -- but HIT and HRR can clear without a
-  // home run, so this cannot reuse homer_feed (HR-only) the way accountability
-  // does. boxLinesForDate re-pulls yesterday's real box scores instead, and
-  // pickCleared (lib/liveSlate.js) settles each pick against them -- the same
-  // bars the live in-card badges use.
-  if (etHoursSinceNoon() >= BOARD_RESULTS_HOUR) {
-    const yday = shiftDay(day, -1)
-    const boardResultsClaim = await claimSlot(db, yday, 'board_results')
-    if (boardResultsClaim) {
-      const { data: yBoard } = await db.from('homer_feed_posts').select('payload').match({ day: yday, kind: 'board' }).maybeSingle()
-      const yBoardPicks = yBoard?.payload?.picks || []
-      if (yBoardPicks.length) {
-        const lines = await boxLinesForDate(yday)
-        const text = boardRoleResultsText(yBoardPicks, lines, { day: yday, ...tailFor('board_results') })
-        const patch = { payload: { picks: yBoardPicks } }
-        const d = await postToDiscord(text, {}, FEED_WEBHOOKS())
-        if (d.ok) patch.discord_sent = true
-        if (hasX() && await xOk(db, { day, kind: 'board_results' })) {
-          const r = await postToX(text, { kind: 'board_results' })
-          if (r.ok && r.id) { patch.x_post_id = r.id; logPosted({ day: yday, kind: 'board_results', tweetId: r.id, text }) }
-          else console.error(`[homers] board_results refused: ${r.status} ${r.error}`)
-        }
-        await db.from('homer_feed_posts').update(patch).match({ day: yday, kind: 'board_results' })
-      }
-    }
-  }
+  // THE NIGHT RECEIPT (2026-10-09, X overhaul piece 5): the accountability grade (yesterday's pregame picks) and the
+  // graded board post (board_results) are retired into ONE cross-sport receipt, posted when every game that held a
+  // named player is final, quoting the Slate or write-up that named the man who cashed (lib/posts/receipt.js). It
+  // runs before the no-games exits on purpose: an off day for TODAY is not a reason to skip grading YESTERDAY.
+  const receiptResult = await receiptTick(db, { day })
+  if (Object.values(receiptResult).some((v) => !/^(waiting|already-posted|off|none|settling)/.test(String(v)))) console.log(`[homers] receipt: ${JSON.stringify(receiptResult)}`)
 
   // The nights before the feed existed, one per tick until the /called window
   // is full (lib/dash/homerBackfill). Runs before the no-games exits on
@@ -1286,7 +1087,7 @@ export async function GET(request) {
     // JSON instead of needing a manual repro to find.
     // no baseball today -- the football / hockey / basketball Slate still goes out
     const slateNoMlb = await slateTick(db, { day })
-    return Response.json({ day, skipped: 'no-games', slate: slateNoMlb, backfill, liveSlate: liveSlateStatus() })
+    return Response.json({ day, skipped: 'no-games', slate: slateNoMlb, receipt: receiptResult, backfill, liveSlate: liveSlateStatus() })
   }
   // From here down, `snap` may still be null or empty (fetchLiveSlate down,
   // or genuinely nothing live yet) while `board` carries tonight's games.
@@ -2029,19 +1830,19 @@ export async function GET(request) {
       }
       let picks = []
       if (!pregameLockReady) {
-        if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: 'waiting-for-lock-window', slate: slateResult, statErrors, discordErrors: discordFailuresSnapshot() })
+        if (!started) return Response.json({ day, skipped: 'nothing-started', pregame: 'waiting-for-lock-window', slate: slateResult, receipt: receiptResult, statErrors, discordErrors: discordFailuresSnapshot() })
       } else {
         // THE PREGAME POST IS RETIRED (2026-10-09, X overhaul piece 3): THE SLATE (lib/posts/slate.js, tried
         // above on every tick, across sports) replaced it, callofnight and thefour. What stays here is only the
         // MOONSHOT list the (rested) vote below still reads. The `!started` return is the old pregame block's
         // own gate and stays: everything under it waits for a game to start, as before.
         picks = pregamePicks(callRows(), odds, day, FREE_PREGAME_N)
-        if (!started) return Response.json({ day, skipped: 'nothing-started', slate: slateResult, statErrors, discordErrors: discordFailuresSnapshot() })
+        if (!started) return Response.json({ day, skipped: 'nothing-started', slate: slateResult, receipt: receiptResult, statErrors, discordErrors: discordFailuresSnapshot() })
       }
 
       // TONIGHT'S BOARD (2026-09-15, Donovan: "role based tweets no cards
       // just text" / "make sure its graded" -- see boardRolePicks and
-      // boardRoleResultsText in lib/dash/homerFeed.js). One pick per role
+      // the retired board_results post's grader). One pick per role
       // (TOP/HR/HIT/HRR), no ten-per-category dump. Same lock window as
       // Called Shots above, same reasoning: a per-player role call against a
       // lineup that can still change is least accurate called off a board
@@ -2124,7 +1925,7 @@ export async function GET(request) {
   }
 
   const homers = withLockedBoard(homersFrom(snap, day, board, odds), await lockIndex(day))
-  const totals = { day, seen: homers.length, fresh: 0, discord: 0, x: 0, xFailed: 0, board: board.size, mode: MODE, backfill }
+  const totals = { day, seen: homers.length, fresh: 0, discord: 0, x: 0, xFailed: 0, board: board.size, mode: MODE, backfill, receipt: receiptResult }
 
   // ── 1. claim the new ones ────────────────────────────────────────────────
   let freshKeys = new Set()
@@ -2402,13 +2203,12 @@ export async function GET(request) {
     if (stopTick) break
   }
 
-  // ── 4. the recap, once, when the night is over ───────────────────────────
+  // ── 4. the night is over: graded by the night receipt (receiptTick) ──────
   // 2026-09-08: `.every()` on an empty array is vacuously true -- if the live
   // snapshot is down or empty (see gamesLive above) this must NOT read as
   // "every game is done" and fire the recap early. Require at least one
   // known game before trusting the every().
-  const allDone = gamesLive.length > 0 && gamesLive.every((g) => g?.settled || g?.postponed || g?.suspended || g?.state === 'Final')
-  if (allDone) Object.assign(totals, await postRecap(db, day))
+  // (The night recap that stood here is retired: the night receipt, receiptTick above, grades the night.)
 
   // ── 5. THE MONTHLY X BUDGET, COUNTED (2026-09-07) ────────────────────────
   // Nothing here has ever counted posts against the tier's monthly ceiling,
