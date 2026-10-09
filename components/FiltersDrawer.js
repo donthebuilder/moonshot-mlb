@@ -77,6 +77,9 @@ export default function FiltersDrawer({
   // THE LEDGER CHIP (2026-10-07): a sport key puts "Ledger 7/18" in this row, beside the trigger (the Rankings pages
   // pass it; every other board leaves it off). It lives in the row that is already here, so no page gets taller.
   ledger = null,
+  // THE 📸 BUTTON (fix15): LAMP's and BUCKETS' Rankings put their ranked-list card button after the Ledger / Watchlist
+  // chips, in this same row. Every other caller leaves it null and draws exactly what it drew before.
+  share = null,
 }) {
   const [open, setOpen] = useState(false)
   const wrap = useOutsideClose(open, setOpen)
@@ -156,6 +159,8 @@ export default function FiltersDrawer({
         </div>
 
         {ledger && (compact ? <><LedgerChip sport={ledger} /><WatchChip sport={ledger} /></> : <span className="ledger-chip-wide" style={{ display: 'inline-flex', gap: 6 }}><LedgerChip sport={ledger} /><WatchChip sport={ledger} /></span>)}
+
+        {share}
 
         {compact && beside}
 

@@ -7,6 +7,8 @@ import { hashParams, writeHash, cardViewPush } from '../../../lib/urlState'
 import { DETAIL_MARK, PEEK_MARK, VIEWS_KEY } from '../../../lib/useShellRoute'
 import { aggregate } from '../../../lib/nhl/splits'
 import FollowButton from '../../FollowButton'
+import CardButton from '../../CardButton'
+import { downloadLampPlayerCard } from '../shareCard'
 import StarMemory from '../../watch/StarMemory'
 import PlayerNotes from '../../PlayerNotes'
 import MultiLine from '../../ledger/MultiLine'
@@ -250,6 +252,11 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
               <span style={{ color: C.text3 }}>NHL</span>
             </div>
           </div>
+          {/* 📸 his card as a PNG (fix15): the board's word, score and night rank, his rates, season line, form and drought. A goalie has no goal board, so no card. */}
+          {!goalie && <CardButton sport="nhl" label="Download his card as an image" onDownload={() => downloadLampPlayerCard({
+            p, row, g: spot?.g || null, fr, l5: goalsIn(5)?.num ?? null, l10: goalsIn(10)?.num ?? null,
+            drought: /^\d+$/.test(droughtOf(p.log?.rows)) ? Number(droughtOf(p.log?.rows)) : null,
+            where: opp || '', board: Boolean(board), seasonLabel: f.seasonLabel || '', day: board?.date || '' })} />}
           <div style={{ flex: '0 0 auto' }}><FollowButton sport="nhl" id={String(p.id)} name={p.name} team={p.team} position={p.pos} compact /></div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px 12px', margin: '6px 0 2px' }}>

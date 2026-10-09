@@ -17,6 +17,8 @@ import FiltersDrawer, { DrawerSection, drawerChip } from '../../FiltersDrawer'
 import RangeDual from '../../RangeDual'
 import { bucketsAngles } from '../../../lib/nba/angles'
 import { BucketsCards } from '../BucketsCard'
+import CardButton from '../../CardButton'
+import { downloadBucketsBoardCard } from '../shareCard'
 import { EmptyState, DelayedBanner, Loading, SourceLine, Pills, NavBtn, DayPager, Why, fmtDay, fmtTip, writeHashParam, readHashParam } from '../ui'
 import { STATUS_WORD } from '../../../lib/callStatus'
 
@@ -209,6 +211,9 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
       fifth: { label: 'Game', value: GAME_FOR(g, top) },
     }
   }, [data, D]) // eslint-disable-line react-hooks/exhaustive-deps
+  // 📸 the top of this ranking as a PNG (fix15), in the Filters row beside Ledger and Watchlist (one market at a time; ALL MARKETS has no single ranking)
+  const shareBtn = m !== ALL && scored.length ? <CardButton sport="nba" label="Download this ranking as an image"
+    onDownload={() => downloadBucketsBoardCard([...scored].sort((a, b) => b.score - a.score), { market: mk, date: shown || '', total: scored.length, finalGames: new Set(games.filter((x) => x.state === 'final').map((x) => x.id)) })} /> : null
   const pick = (k) => { setM(k); setAngle(null); writeHashParam('m', k === 'pts' ? null : k) }
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -220,7 +225,7 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
           <div style={{ minWidth: 0, fontSize: 13, lineHeight: 1.3, color: C.text2 }}>Every player tonight, #1 down. Tap a header to sort.</div>
           <HowToRead id="buckets-board" accent={C.purple} row={howRow} notes={HOW_NOTES} steps={HOW_STEPS} />
         </div>
-        <FiltersDrawer ledger="nba" {...drawerProps} compact
+        <FiltersDrawer ledger="nba" share={shareBtn} {...drawerProps} compact
           beside={<div style={{ flex: 1, minWidth: 0 }}><PillRow tall value={m} options={marketOptions} onChange={pick} /></div>}
           lead={(<div style={{ display: 'grid', gap: 8, marginBottom: 12 }}>
             <BoardTopBar inDrawer query={q} setQuery={setQ} placeholder="Search player or team…" team={team} setTeam={setTeam} teams={teams} teamLabel="🏀 All teams" game={gameF} setGame={setGameF} games={gameOptions} gameLabel="All games" />
@@ -246,7 +251,7 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
       {m !== ALL && angles.length > 0 && <AngleRow defs={angles} pool={all} value={angleDef ? angle : null} onChange={setAngle} accent={C.purple} hideEmpty />}
       {m !== ALL && angleDef && <p style={{ margin: 0, fontSize: 12, color: C.text3, lineHeight: 1.5 }}>{angleDef.title}</p>}
       {m !== ALL && <Pills ariaLabel="Layout" value={layout} onChange={setLayout} options={[{ key: 'table', text: 'TABLE' }, { key: 'cards', text: 'CARDS' }]} />}
-      <FiltersDrawer ledger="nba" {...drawerProps}>{drawerSections}</FiltersDrawer>
+      <FiltersDrawer ledger="nba" share={shareBtn} {...drawerProps}>{drawerSections}</FiltersDrawer>
       </>)}
       {m === ALL ? <FullBoard embedded keep={(r) => (!needle || `${r.name} ${r.team} ${r.opp}`.toLowerCase().includes(needle)) && (!team || r.team === team) && (!gameF || r.gameId === gameF) && (!gameSel.length || gameSel.includes(r.gameId))} date={date} setDate={setDate} onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} onOpenGame={onOpenGame} /> : (<>
       <DelayedBanner error={error} what="the board" />

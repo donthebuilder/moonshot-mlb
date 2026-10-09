@@ -16,6 +16,8 @@ import { EXPECTED_POINTS_WORDS } from '../../../lib/nba/teamModel'
 import { basisLine } from '../BucketsTeamExpected'
 import Rail from '../../Rail'
 import { BucketsCards } from '../BucketsCard'
+import CardButton from '../../CardButton'
+import { downloadBucketsGameCard } from '../shareCard'
 import { EmptyState, DelayedBanner, Loading, SourceLine, Pills, NavBtn, DayPager, RimDot, fmtDay, fmtTip, readHashParam, writeHashParam } from '../ui'
 
 // 📋 THE SLATE -- tonight one game at a time (LAMP's Slate): pick a game, see
@@ -100,6 +102,8 @@ export default function Slate({ date, setDate, market = 'pts', onOpenPlayer, onO
           <b style={{ color: C.text }}>{g.away.name} at {g.home.name}</b>
           <span>{g.venue}</span>
           <NavBtn onClick={() => onOpenGame?.(g.id)}>Open game →</NavBtn>
+          {/* 📸 this game as a PNG (fix15): the two clubs, the team model's expected points, its players on the board */}
+          <CardButton sport="nba" label="Download this game as an image" onDownload={() => downloadBucketsGameCard({ g, rows, tm: tmBy.get(String(g.id)) || null, market: m, date: shown || '' })} />
         </div>
         {/* the game's calls as the prop cards (components/buckets/BucketsCard) */}
         {calls.length > 0 && <BucketsCards market={m} onOpen={onOpenPlayer} rows={[...calls].sort((a, b) => b.score - a.score)} />}

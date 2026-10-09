@@ -7,6 +7,8 @@ import HisNumbers from '../../HisNumbers'
 import InTheLedger from '../../ledger/InTheLedger'
 import PlayerNotes from '../../PlayerNotes'
 import FollowButton from '../../FollowButton'
+import CardButton from '../../CardButton'
+import { downloadBucketsPlayerCard } from '../shareCard'
 import StarMemory from '../../watch/StarMemory'
 import CallStatusBadge from '../../CallStatusBadge'
 import TeamMark from '../../TeamMark'
@@ -202,6 +204,10 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
                 <span style={{ color: C.text3 }}>NBA</span>
               </div>
             </div>
+            {/* 📸 his card as a PNG (fix15): the board's word, score and night rank, PTS / REB / AST a game, projected points, his last five */}
+            <CardButton sport="nba" label="Download his card as an image" onDownload={() => downloadBucketsPlayerCard({
+              card, row, game, season: season1, last5, xpts: data.xpts, where: oppTxt || '', board: Boolean(board), seasonWord,
+              rankOf: (board?.rows || []).filter((r) => r.score != null && Number.isFinite(Number(r.score))).length || null, day: board?.date || '' })} />
             <div style={{ flex: '0 0 auto' }}><FollowButton sport="nba" id={pid} name={card.name} team={card.team} position={card.pos} compact /></div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px 12px', margin: '6px 0 2px' }}>

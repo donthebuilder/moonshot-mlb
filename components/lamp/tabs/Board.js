@@ -14,6 +14,8 @@ import GoalWatch from '../GoalWatch'
 import GoalCompare from '../GoalCompare'
 import MobileFold, { useIsPhone } from '../../MobileFold'
 import LedgerChip from '../../LedgerChip'
+import CardButton from '../../CardButton'
+import { downloadLampBoardCard } from '../shareCard'
 import WatchChip from '../../WatchChip'
 import HowToRead from '../../HowToRead'
 import { LampCards, PctBars, countOf } from '../LampCard'
@@ -242,6 +244,9 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
       <input type="range" min={0} max={20} step={1} value={minPpg} onChange={(e) => setMinPpg(Number(e.target.value))} style={{ width: '100%', accentColor: C.ice }} aria-label="Minimum power-play goals" />
     </DrawerSection>
   </>)
+  // 📸 the top of this ranking as a PNG (fix15), in the Filters row beside Ledger and Watchlist: the rows the table shows, best score first
+  const shareBtn = kept.length ? <CardButton sport="nhl" label="Download this ranking as an image"
+    onDownload={() => downloadLampBoardCard([...kept].sort((a, b) => (b.r.score ?? 0) - (a.r.score ?? 0)).slice(0, 9), { market, date: shown || '', total: kept.length })} /> : null
   const nActive = chips.length + drawerChips.length
   const drawerProps = {
     active: nActive > 0, activeCount: nActive,
@@ -271,7 +276,7 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
       {/* THE FILTERS ROW, ONE FOR BOTH (2026-10-08, TUDDY's anatomy): Filters / Ledger / Watchlist beside the market chips on a phone; the
           angle chips, Called only, the layout and Position sit in the drawer's lead and sections, in the same places BUCKETS' are. */}
       {phone ? (
-        <FiltersDrawer ledger="nhl" compact {...drawerProps}
+        <FiltersDrawer ledger="nhl" share={shareBtn} compact {...drawerProps}
           beside={<div style={{ flex: 1, minWidth: 0 }}><PillRow tall value={market} options={marketOptions} onChange={setMarket} /></div>}
           lead={(<div style={{ display: 'grid', gap: 8, marginBottom: 12 }}>
             <BoardTopBar inDrawer query={q} setQuery={setQ} placeholder="Search skater or team…"
@@ -296,7 +301,7 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
               {layoutSwitch}
             </span>
           </div>
-          <FiltersDrawer ledger="nhl" {...drawerProps}>{drawerSections}</FiltersDrawer>
+          <FiltersDrawer ledger="nhl" share={shareBtn} {...drawerProps}>{drawerSections}</FiltersDrawer>
         </div>)
       )}
       {data?.season?.stale && <StaleSeasonNote label={data.season.label} opens={data.season.opens} what="per-game stats" />}
