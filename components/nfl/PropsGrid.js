@@ -4,6 +4,11 @@ import { C, NUM_FONT, BARS } from '../../lib/nfl/theme'
 import HitRate from './HitRate'
 import ValueBars from '../ValueBars'
 import { alpha } from '../../lib/scales'
+// THE SHARED PLAYER MODEL's props heat (components/player/): a cell at 60%+ glows in TUDDY's accent, a run of 3+ wears a flame,
+// the wide grid says it scrolls, and the long caption folds behind a (?).
+import { heatCell, STREAK_AT, GLOW_AT } from '../player/heat'
+import ScrollHint from '../player/ScrollHint'
+import Brief from '../player/Brief'
 
 // 🎯 THE PROPS GRID, FOOTBALL EDITION.
 //
@@ -37,12 +42,12 @@ const MARKETS = [
 ]
 const WINDOWS = [['L5', 5], ['L10', 10], ['L20', 20], ['All', 9999]]
 
-// THE RATE CELLS (2026-10-07, the visual audit: red / green semantics are banned). ONE accent, TUDDY's:
-// the more of his games over the line, the brighter the cell, white number on it (dark enough under it
-// to read at 4.5:1). A window on under four games is a flat grey slab that makes no claim. Every cell
-// prints its sample, `4/5`, so the size of the sample is never a colour.
+// THE RATE CELLS (2026-10-07, the visual audit: red / green semantics are banned; 2026-10-09 the shared heat). ONE accent,
+// TUDDY's, through components/player/heat.js heatCell: glow at 60%+, washed at 40-59, receding below 25. A window on under
+// four games is a flat grey slab that makes no claim. Every cell prints its sample, `4/5`, so the size of the sample is
+// never a colour.
 const THIN = 4
-const cellBg = (c) => (c == null ? 'transparent' : c.n < THIN ? BARS.thin : alpha(C.green, 0.06 + 0.4 * (c.pct / 100)))
+const cellHeat = (c) => heatCell(c ? c.pct : null, c ? c.n : null, { accent: C.green, C, thin: THIN })
 // the look the bars wear (lib/nfl/theme BARS + the page's inks)
 const LOOK = { clear: BARS.clear, miss: BARS.miss, missInk: BARS.missInk, rule: BARS.rule, ink: C.text, ink2: C.text2, bg: C.bg }
 
@@ -134,6 +139,7 @@ export default function PropsGrid({ log, market: initialMarket, defaultBar, scor
         </span>
       </div>
 
+      <ScrollHint hint="Swipe the grid for more">
       <div className="dense-scroll rail" style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '2px 2px', fontFamily: NUM_FONT }}>
           <thead>
@@ -170,8 +176,7 @@ export default function PropsGrid({ log, market: initialMarket, defaultBar, scor
                     <td key={ci}
                       title={c ? `${c.ok} of ${c.n} over ${r.line}${c.n < THIN ? ' (too few games to lean on)' : ''}` : 'no games in this window'}
                       style={{
-                        textAlign: 'center', padding: '5px 4px', borderRadius: 8, background: cellBg(c),
-                        color: c ? (c.n < THIN ? C.text2 : C.text) : C.text3, lineHeight: 1.05,
+                        textAlign: 'center', padding: '5px 4px', borderRadius: 8, ...cellHeat(c), lineHeight: 1.05,
                         outline: on ? `1px solid ${alpha(C.green, 0.4)}` : 'none',
                       }}>
                       {c ? (
@@ -185,8 +190,8 @@ export default function PropsGrid({ log, market: initialMarket, defaultBar, scor
                   <td style={{
                     textAlign: 'center', fontSize: 13, fontWeight: 900, padding: '3px 4px',
                     color: r.stk > 0 ? C.green : C.text2,
-                  }}>
-                    {r.stk > 0 ? `W${r.stk}` : r.stk < 0 ? `L${-r.stk}` : '—'}
+                  }} title={r.stk >= STREAK_AT ? `Over the line ${r.stk} straight` : undefined}>
+                    {r.stk >= STREAK_AT ? '🔥 ' : ''}{r.stk > 0 ? `W${r.stk}` : r.stk < 0 ? `L${-r.stk}` : '—'}
                   </td>
                 </tr>
               )
@@ -194,6 +199,7 @@ export default function PropsGrid({ log, market: initialMarket, defaultBar, scor
           </tbody>
         </table>
       </div>
+      </ScrollHint>
 
       {/* the active market's line chips re-grade the matrix row AND the chart: 44px pills */}
       {active[3].length > 1 && (
@@ -247,10 +253,9 @@ export default function PropsGrid({ log, market: initialMarket, defaultBar, scor
         )
       })()}
 
-      <div style={{ fontSize: 12, color: C.text2, marginTop: 10, lineHeight: 1.5 }}>
-        % of his games over the line, with the games it was counted from under it. Move a line chip and every number
-        re-counts. Grey cells sit on fewer than four games. <b style={{ color: C.green }}>W4</b> is four straight overs;
-        a cold run just shows as <b style={{ color: C.text }}>L4</b>.
+      <div style={{ marginTop: 10 }}>
+        <Brief text={`Glow = ${GLOW_AT}%+ of his games over the line · 🔥 = ${STREAK_AT}+ straight.`} label="Reading the grid"
+          help={`% of his games over the line, with the games it was counted from under it. Move a line chip and every number re-counts. Grey cells sit on fewer than ${THIN} games. W4 is four straight overs; a cold run just shows as L4.`} />
       </div>
     </div>
   )

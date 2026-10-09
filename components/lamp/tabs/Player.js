@@ -21,7 +21,11 @@ import { useLampPlayer, useLampBoardOnce, useLampSplits } from '../../../lib/nhl
 import { playerHref } from '../../../lib/routes'
 import SharedSeasonToggle from '../../nfl/SeasonToggle'
 import { SportTheme } from '../../SportTheme'
-import StatStrip, { HitRateBoxes } from '../../StatStrip'
+// THE SHARED PLAYER MODEL (components/player/): the verdict first, then ONE row of his numbers; LAMP's words in nhlAdapter.js
+import VerdictBlock from '../../player/VerdictBlock'
+import StatRow from '../../player/StatRow'
+import ScrollHint from '../../player/ScrollHint'
+import { nhlVerdict, nhlStatRow } from '../../player/nhlAdapter'
 import { nhlTeam } from '../../../lib/nhl/teams'
 import { usePreview, ShowMoreButton } from '../../ListPreview'
 import { STATUS, Pills, EmptyState, DelayedBanner, Loading, Kicker, StaleSeasonNote, fmtDay, fmtPuckDrop, zoneAbbrev, ageFrom, fmtHeight, fmtPct1, fmtPct3, fmt2, fmtSec, plusMinus, dash } from '../ui'
@@ -190,24 +194,11 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
     p.career.playoffs?.gp ? seasonLine(p.career.playoffs, 'Career playoffs') : null,
   ].filter(Boolean).map((r, i) => ({ ...r, _id: i }))
   const cols = goalie ? G_SEASON_COLS : SK_SEASON_COLS
-  const lineStats = !fr ? [] : (goalie ? [
-    ['gp', 'GP', dash(fr.gp), 'Games played'], ['w', 'W', dash(fr.w), 'Wins'], ['svPct', 'SV%', fmtPct3(fr.svPct), 'Save percentage'],
-    ['gaa', 'GAA', fmt2(fr.gaa), 'Goals against average'], ['so', 'SO', dash(fr.so), 'Shutouts'],
-  ] : [
-    ['gp', 'GP', dash(fr.gp), 'Games played'], ['g', 'G', dash(fr.g), 'Goals'], ['a', 'A', dash(fr.a), 'Assists'], ['pts', 'PTS', dash(fr.pts), 'Points'],
-    ['shots', 'S', dash(fr.shots), 'Shots on goal'], ['shPct', 'S%', fmtPct1(fr.shPct), 'Shooting percentage'], ['toi', 'TOI', fmtSec(fr.toi), 'Average time on ice'],
-    ['g60', 'G/60', fr.toi > 0 && fr.gp > 0 ? fmt2(fr.g * 3600 / (fr.gp * fr.toi)) : '—', 'Goals per 60 minutes on ice'],
-    ['drought', 'DRT', droughtOf(p.log?.rows), 'Games since his last goal'],
-  ]).filter(([, , text]) => text && text !== '—').map(([id, label, text, name]) => ({ id, label, text, title: `${name}, ${f.seasonLabel} regular season${stale ? ' (last season)' : ''}.` }))
   const logNewest = p.log?.rows || []
   const goalsIn = (n) => {
     const g = logNewest.slice(0, n)
     return g.length === n ? { num: g.reduce((t, r) => t + (Number(r.g) || 0), 0), den: n } : null
   }
-  const goalBoxes = goalie ? [] : [
-    ['l5', 'L5', goalsIn(5)], ['l10', 'L10', goalsIn(10)],
-    ['szn', f.seasonLabel || 'Season', Number.isFinite(fr?.g) && fr?.gp > 0 ? { num: fr.g, den: fr.gp } : null],
-  ].filter(([, , v]) => v).map(([id, label, v]) => ({ id, label, ...v, unit: 'GP' }))
 
   // ‹ › walk tonight's board in its own order (the ranking is what he was reading)
   const peers = useMemo(() => {
@@ -257,13 +248,13 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
         <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px 12px', margin: '6px 0 2px' }}>
           {goalie ? <span style={{ color: C.text2, fontSize: 12 }}>Goalie</span> : (
             <>
-              {board && (
+              {board && shown !== 'overview' && (
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                   <CallStatusBadge status={row ? row.status : 'off'} accent={C.ice} size={11} variant="stamp" />
                   {row?.score != null && <b style={{ font: `900 14px/1 ${NUM_FONT}`, color: called ? C.ice : C.text }}>{Math.round(row.score)}</b>}
                 </span>
               )}
-              {(shown !== 'overview' || !w) && <button type="button" aria-expanded={whyOpen} onClick={() => setWhyOpen((v) => !v)} style={{ minHeight: 44, margin: '-10px 0', padding: '0 6px', background: 'transparent', border: 'none', color: C.ice, font: `800 12px/1 ${NUM_FONT}`, cursor: 'pointer', textDecoration: 'underline dotted' }}>Why?</button>}
+              {shown !== 'overview' && <button type="button" aria-expanded={whyOpen} onClick={() => setWhyOpen((v) => !v)} style={{ minHeight: 44, margin: '-10px 0', padding: '0 6px', background: 'transparent', border: 'none', color: C.ice, font: `800 12px/1 ${NUM_FONT}`, cursor: 'pointer', textDecoration: 'underline dotted' }}>Why?</button>}
             </>
           )}
           {gamePos && <span style={{ color: C.text3, fontSize: 12 }}>{gamePos}</span>}
@@ -271,7 +262,7 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
             {keyNums.map(([k, v]) => <span key={k} style={{ fontFamily: NUM_FONT, fontSize: 12, color: C.text3 }}><b style={{ color: C.text, fontSize: 15, fontWeight: 900 }}>{v}</b> {k}</span>)}
           </span>
         </div>
-        {whyOpen && (
+        {whyOpen && shown !== 'overview' && (
           <div role="region" aria-label="Why this word" style={{ maxHeight: '38vh', overflowY: 'auto', margin: '4px 0 6px', padding: '8px 10px', border: `1px solid ${C.border2}`, borderRadius: 10, background: C.bg, fontSize: 13, lineHeight: 1.5, color: C.text2 }}>
             {goalie ? 'Goalies are not on the goal board.' : !board ? 'Loading tonight’s board…' : !spot ? 'No game tonight, so he is not on the board.' : (
               <>
@@ -290,8 +281,8 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
         <>
           {/* ONE HEADER (2026-10-07, Donovan: "the player shows twice"): the sticky header above is the player's
               face, name, club and the board's word. The big hero that repeated them is gone; its one line stays. */}
-          {whyLine && <div style={{ color: C.text2, fontSize: 13, lineHeight: 1.45 }}>{whyLine}</div>}
-          {w && <WhyLines theme={C} numFont={NUM_FONT} accent={C.ice} why={[w.why]} watch={w.watch} explain={w.explain} />}
+          {/* LAMP ON HIM (components/player/): the board's word and score, why, the night rank; a goalie or a man with no game says so in one line. */}
+          <VerdictBlock sport="nhl" {...nhlVerdict({ goalie, board, spot, row, w, whyLine })} />
           {w && row && spot?.g && <PlayerDepthToggle row={row} game={spot.g} />}
           <section aria-label="Season line">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
@@ -304,10 +295,7 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
                 where: opp || '', board: Boolean(board), seasonLabel: f.seasonLabel || '', day: board?.date || '' })} />}
             </div>
             {stale && <div style={{ marginBottom: 10 }}><StaleSeasonNote label={f.seasonLabel} opens={p.opens} what="line" /></div>}
-            {lineStats.length > 0 && <StatStrip stats={lineStats} />}
-            {goalBoxes.length > 0 && <HitRateBoxes boxes={goalBoxes} style={{ marginTop: 6 }}
-              text={(b) => `${b.num} ${b.num === 1 ? 'goal' : 'goals'}`}
-              tip={(b) => `${b.num} goal${b.num === 1 ? '' : 's'} in his last ${b.den} games${b.id === 'szn' ? ` (${f.seasonLabel} regular season)` : ''}.`} />}
+            <StatRow noun="skaters" stats={nhlStatRow({ goalie, fr, board, row, l10: goalsIn(10)?.num ?? null, drought: /^\d+$/.test(droughtOf(p.log?.rows)) ? Number(droughtOf(p.log?.rows)) : null, seasonLabel: f.seasonLabel, stale })} />
             {!fr && <EmptyState title="NO NHL LINE YET" note="No regular-season line for him yet. A camp invite or a prospect, most likely." />}
           </section>
           {p.last5.length > 0 && (
@@ -355,7 +343,7 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
           <Kicker>GAME LOG · {logRows.length} GAMES</Kicker>
           {logRows.length
             ? <>
-                <LampTable rows={log.shown} columns={goalie ? G_LOG_COLS : SK_LOG_COLS} maxHeight={9999} maxRows={100} heatMode="standouts" onRowClick={(r) => onOpenGame?.(r.gameId)} />
+                <ScrollHint><LampTable rows={log.shown} columns={goalie ? G_LOG_COLS : SK_LOG_COLS} maxHeight={9999} maxRows={100} heatMode="standouts" onRowClick={(r) => onOpenGame?.(r.gameId)} /></ScrollHint>
                 <ShowMoreButton open={log.open} restN={log.restN} toggle={log.toggle} itemWord="games" />
               </>
             : <EmptyState title="NO GAMES LOGGED" note="No regular-season games for him in that span yet. Try another season above." />}
@@ -380,7 +368,7 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
           {nhlSeasons.length > 0 && (
             <section aria-label="Season by season">
               <Kicker>SEASON BY SEASON · NHL REGULAR SEASON</Kicker>
-              <LampTable rows={seasonPrev.shown} columns={cols} maxHeight={9999} maxRows={100} heatMode="standouts" />
+              <ScrollHint><LampTable rows={seasonPrev.shown} columns={cols} maxHeight={9999} maxRows={100} heatMode="standouts" /></ScrollHint>
               <ShowMoreButton open={seasonPrev.open} restN={seasonPrev.restN} toggle={seasonPrev.toggle} itemWord="seasons" />
               {(playoffSeasons.length > 0 || otherLeagues.length > 0) && (
                 <div style={{ color: C.text3, fontSize: 12, marginTop: 6 }}>

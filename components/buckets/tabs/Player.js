@@ -1,8 +1,11 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
 import { SportTheme } from '../../SportTheme'
-import VerdictHero from '../../VerdictHero'
-import WhyLines from '../../WhyLines'
+// THE SHARED PLAYER MODEL (components/player/): the verdict first, then ONE row of his numbers; BUCKETS' words in nbaAdapter.js
+import VerdictBlock from '../../player/VerdictBlock'
+import StatRow from '../../player/StatRow'
+import ScrollHint from '../../player/ScrollHint'
+import { nbaVerdict, nbaStatRow } from '../../player/nbaAdapter'
 import HisNumbers from '../../HisNumbers'
 import InTheLedger from '../../ledger/InTheLedger'
 import PlayerNotes from '../../PlayerNotes'
@@ -18,6 +21,7 @@ import { TabBtn, Navigator } from '../../card/CardNav'
 import { usePreview, ShowMoreButton } from '../../ListPreview'
 import { C, NUM_FONT } from '../../../lib/nba/theme'
 import { hashParams, writeHash, cardViewPush } from '../../../lib/urlState'
+import { playerHref } from '../../../lib/routes'
 import { DETAIL_MARK, PEEK_MARK, VIEWS_KEY } from '../../../lib/useShellRoute'
 import { etToday } from '../../../lib/freshness'
 import { useBucketsPlayer, useBucketsBoard, useBucketsDefense } from '../../../lib/nba/useBuckets'
@@ -31,12 +35,12 @@ import PlayerSplits from '../PlayerSplits'
 import ShotChart from '../ShotChart'
 import PlayerBars from '../PlayerBars'
 import PlayerDdTd from '../PlayerDdTd'
-import { EmptyState, DelayedBanner, Loading, Kicker, BackBtn, PlayerFace, SeasonTypeChip, fmtDay, fmtTip, RimDot, STATUS } from '../ui'
+import { EmptyState, DelayedBanner, Loading, Kicker, BackBtn, PlayerFace, SeasonTypeChip, fmtDay, fmtTip, RimDot } from '../ui'
 
 // 📄 ONE PLAYER -- MOONSHOT's card, as a page (NHL's components/lamp/tabs/Player.js is the closest pattern, TUDDY's
 // NflPlayerModal the other): a sticky header (who, which club, the board's word and score, his key numbers) over
 // pill tabs, the tab in the address (view=). Overview | Splits | Game log | VS | Shots | Board.
-//   Overview   the card (VerdictHero), Why, tonight's PROJECTED POINTS, the season lines, last five, the bars, In the
+//   Overview   BUCKETS ON HIM (the shared verdict + one stat row), tonight's PROJECTED POINTS, the season lines, last five, the bars, In the
 //              ledger, His numbers
 //   Splits     home/away, win/loss, rest days, minutes, vs opponent, last 5/10 (lib/nba/splits.js), a season toggle
 //   Game log   every game, newest first, "+N more"
@@ -87,7 +91,6 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
   const row = useMemo(() => (board?.rows || []).find((r) => String(r.playerId) === pid) || null, [board, pid])
   const game = row ? (board?.games || []).find((g) => g.id === row.gameId) : null
   const called = row?.status === 'called'
-  const word = !board ? null : !row ? 'NO GAME TONIGHT' : STATUS[row.status] || null
   const oppTxt = row ? `${row.home ? 'vs' : '@'} ${row.opp}` : data.nextGame ? `${data.nextGame.home ? 'vs' : '@'} ${data.nextGame.opp}` : null
   const tip = game?.start || data.nextGame?.start || null
   const gamePos = oppTxt ? `${oppTxt}${tip ? ` · ${game?.state === 'live' ? 'LIVE' : game?.state === 'final' ? 'FINAL' : fmtTip(tip)}` : ''}` : null
@@ -192,9 +195,9 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
             <PlayerFace sport="nba" id={card.id} photo={card.headshot} name={card.name} size={44} />
             <div style={{ minWidth: 0, flex: 1 }}>
-              <div style={{ fontSize: 18, fontWeight: 800, lineHeight: 1.2, color: C.text }}>
-                {card.jersey ? <span style={{ color: C.text3, fontFamily: NUM_FONT }}>#{card.jersey} </span> : null}{card.name}
-              </div>
+              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, lineHeight: 1.2, color: C.text }}>
+                {card.jersey ? <span style={{ color: C.text3, fontFamily: NUM_FONT }}>#{card.jersey} </span> : null}<a href={playerHref('nba', pid)} style={{ color: 'inherit', textDecoration: 'none' }}>{card.name}</a>
+              </h2>
               <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '2px 8px', fontSize: 12, color: C.text2, marginTop: 2 }}>
                 {card.team && (
                   <Tap onClick={() => onOpenTeam?.(card.team)} title={`Open ${card.team}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, minHeight: 44, margin: '-12px 0', color: C.text }}>
@@ -208,19 +211,19 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
             <div style={{ flex: '0 0 auto' }}><FollowButton sport="nba" id={pid} name={card.name} team={card.team} position={card.pos} compact /></div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px 12px', margin: '6px 0 2px' }}>
-            {board && (
+            {board && view !== 'overview' && (
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                 <CallStatusBadge status={row ? row.status : 'off'} accent={C.purple} size={11} variant="stamp" />
                 {row?.score != null && <b style={{ font: `900 14px/1 ${NUM_FONT}`, color: called ? C.purple : C.text }}>{Math.round(row.score)}</b>}
               </span>
             )}
-            <button type="button" aria-expanded={whyOpen} onClick={() => setWhyOpen((v) => !v)} style={{ minHeight: 44, margin: '-10px 0', padding: '0 6px', background: 'transparent', border: 'none', color: C.purple, font: `800 12px/1 ${NUM_FONT}`, cursor: 'pointer', textDecoration: 'underline dotted' }}>Why?</button>
+            {view !== 'overview' && <button type="button" aria-expanded={whyOpen} onClick={() => setWhyOpen((v) => !v)} style={{ minHeight: 44, margin: '-10px 0', padding: '0 6px', background: 'transparent', border: 'none', color: C.purple, font: `800 12px/1 ${NUM_FONT}`, cursor: 'pointer', textDecoration: 'underline dotted' }}>Why?</button>}
             {gamePos && <span style={{ color: C.text3, fontSize: 12 }}>{gamePos}</span>}
             <span style={{ display: 'inline-flex', gap: 10, marginLeft: 'auto' }}>
               {keyNums.map(([k, v]) => <span key={k} style={{ fontFamily: NUM_FONT, fontSize: 12, color: C.text3 }}><b style={{ color: C.text, fontSize: 15, fontWeight: 900 }}>{v}</b> {k}</span>)}
             </span>
           </div>
-          {whyOpen && (
+          {whyOpen && view !== 'overview' && (
             <div role="region" aria-label="Why this word" style={{ maxHeight: '38vh', overflowY: 'auto', margin: '4px 0 6px', padding: '8px 10px', border: `1px solid ${C.border2}`, borderRadius: 10, background: C.bg, fontSize: 13, lineHeight: 1.5, color: C.text2 }}>
               {!board ? 'Loading tonight’s board…' : !row ? 'No game on the board tonight, so he is not on it.' : (
                 <>
@@ -237,16 +240,9 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
 
         {view === 'overview' && (
           <>
-            <header><h2 className="sr-only">{card.name}</h2>
-              <VerdictHero theme={C} numFont={NUM_FONT} lead="face" col={C.purple} score={row?.score ?? null} photo={card.headshot || null}
-                dialTitle={row ? 'Tonight’s points-board score: a 0-100 rank among tonight’s players, not a probability.' : 'Not on tonight’s points board, so no score.'}
-                title={<>{card.jersey ? <span style={{ color: C.text3, fontWeight: 700, fontFamily: NUM_FONT }}>#{card.jersey} </span> : null}{card.name}</>}
-                badge={called ? STATUS.called : null}
-                meta={[card.team, card.pos, gamePos].filter(Boolean).join(' · ')}
-                market={['BUCKETS · PTS', word, row ? (row.locked ? 'LOCKED' : 'PREVIEW') : null].filter(Boolean).join(' · ')}
-                line={whyLine} />
-            </header>
-            {row && row.status !== 'off' && <WhyLines theme={C} numFont={NUM_FONT} accent={C.purple} why={[row.why].filter(Boolean)} watch={row.injury || null} />}
+            {/* BUCKETS ON HIM (components/player/): tonight's points-board word and score, why, his record on the locked board; no game says so in one line. */}
+            <VerdictBlock sport="nba" {...nbaVerdict({ board, row, whyLine, calls })} />
+            <StatRow stats={nbaStatRow({ line: season1, xpts: x, seasonWord, stale })} />
             <PlayerDdTd playerId={pid} />
             {xRows.length > 0 ? (
               <section aria-label="Projected points">
@@ -265,13 +261,13 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
               </div>
               {stale && <p style={{ margin: '0 0 8px', fontSize: 12, color: C.text3, lineHeight: 1.5 }}>The new season has no regular-season games yet, so this is last season’s line ({seasonWord}).</p>}
               {lineRows.length > 0
-                ? <BucketsTable rows={lineRows} columns={lineCols} heatMode="none" maxHeight={9999} maxRows={2} caption="Per game, this season beside last season." />
+                ? <ScrollHint><BucketsTable rows={lineRows} columns={lineCols} heatMode="none" maxHeight={9999} maxRows={2} caption="Per game, this season beside last season." /></ScrollHint>
                 : <EmptyState title="NO NBA LINES ON FILE" note="No regular-season games this season or last." />}
             </section>
             {last5.length > 0 && (
               <section aria-label="Last five">
                 <Kicker>LAST FIVE</Kicker>
-                <BucketsTable rows={last5} columns={logCols} onRowClick={(r) => onOpenGame?.((r?._raw ?? r).id)} heatMode="standouts" maxHeight={9999} maxRows={5} caption="His last five games, newest first. Each row opens the game." />
+                <ScrollHint><BucketsTable rows={last5} columns={logCols} onRowClick={(r) => onOpenGame?.((r?._raw ?? r).id)} heatMode="standouts" maxHeight={9999} maxRows={5} caption="His last five games, newest first. Each row opens the game." /></ScrollHint>
               </section>
             )}
             <PlayerBars log={data.log || []} logSeason={data.logSeason} nextGame={data.nextGame} onOpenTeam={onOpenTeam} />
@@ -292,8 +288,8 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
             <Kicker>GAME LOG · {logRows.length} GAMES{windowLabel ? ` · ${windowLabel}` : ''}</Kicker>
             {logRows.length
               ? <>
-                  <BucketsTable rows={logPv.shown} columns={logCols} onRowClick={(r) => onOpenGame?.((r?._raw ?? r).id)} heatMode="standouts" maxHeight={9999} maxRows={logRows.length}
-                    caption="Newest first. Each row opens the game." />
+                  <ScrollHint><BucketsTable rows={logPv.shown} columns={logCols} onRowClick={(r) => onOpenGame?.((r?._raw ?? r).id)} heatMode="standouts" maxHeight={9999} maxRows={logRows.length}
+                    caption="Newest first. Each row opens the game." /></ScrollHint>
                   <ShowMoreButton open={logPv.open} restN={logPv.restN} toggle={logPv.toggle} itemWord="games" />
                   {[...new Set(logRows.map((g) => g.seasonType))].filter((t) => t && t !== 2).map((t) => <SeasonTypeChip key={t} type={t} />)}
                 </>

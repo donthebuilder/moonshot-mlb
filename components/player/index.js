@@ -7,7 +7,9 @@
 //
 // THE ADAPTER INTERFACE. A sport hands these components words, an accent and already-derived data; none of
 // them reads a sport's rows, so MLB's adapter (components/player/mlbAdapter.js) is the only MLB-specific file.
-// NFL / NHL / NBA adopt the model by writing their own adapter with the same shapes:
+// NFL / NHL / NBA adopted the model (2026-10-09) through their own adapters with the same shapes
+// (nflAdapter.js, nhlAdapter.js, nbaAdapter.js); <VerdictBlock sport="nfl"|"nhl"|"nba"> only changes the product name
+// in the heading (BRAND in lib/routes.js), <StatRow noun="..."> the word in the rank tip:
 //
 //   theme / accent     read from <SportTheme> (components/SportTheme.js): { C, NUM_FONT, accent }. Never typed.
 //   VerdictBlock       { status: 'called'|'board'|'off'|null   -- from the sport's call-status module, never

@@ -7,8 +7,7 @@ import CardShell from '../CardShell'
 // sport theme CardShell provides. TUDDY keys players by gsis string.
 import { TabBtn, Navigator } from '../card/CardNav'
 const nflIdOf = (x) => String(x?.player_id ?? '')
-import { C, NUM_FONT, MARKETS, MARKET_SHORT, gradeFor } from '../../lib/nfl/theme'
-import StatStrip, { HitRateBoxes } from '../StatStrip'
+import { C, NUM_FONT, MARKETS, gradeFor } from '../../lib/nfl/theme'
 import PropsGrid from './PropsGrid'
 import { STAT_KEY } from './HitRate'
 import PlayerNotes from '../PlayerNotes'
@@ -34,7 +33,15 @@ import NflGameCombo from './NflGameCombo'
 import NflGameLog from './NflGameLog'
 import SeasonToggle from './SeasonToggle'
 import { seasonOptions, defaultSeason, applySeason } from '../../lib/nfl/seasonWindow'
-import WhyLines from '../WhyLines'
+// THE SHARED PLAYER MODEL (components/player/): the verdict first, then ONE row of his numbers, MOONSHOT's parts in
+// TUDDY's words (nflAdapter.js). Replaces the per-game tiles, the market-score strip, the hit-rate boxes and the Why box.
+import VerdictBlock from '../player/VerdictBlock'
+import StatRow from '../player/StatRow'
+import ScrollHint from '../player/ScrollHint'
+import { nflVerdict, nflStatRow } from '../player/nflAdapter'
+import { tdStatusFor } from '../../lib/nfl/tdStatus'
+import { tdPool } from '../../lib/nfl/tdPool'
+import { useGameCalls } from './GameCalls'
 import { boardReason } from '../../lib/nfl/boardReason'
 import { baselineFor } from '../../lib/nfl/tdPool'
 import { nflReadBullets } from './NflPlayerRead'
@@ -99,7 +106,7 @@ function SplitsForMarket({ player, market, data }) {
   if (!entry) return null
   const [statKey, unit] = entry
   // 2026-10-07: the dumbbell chart became a dense table (NflSplitsTable) -- the same pairs, one row each.
-  return <NflSplitsTable rows={splitRows(player, statKey, data)} unit={unit} />
+  return <ScrollHint><NflSplitsTable rows={splitRows(player, statKey, data)} unit={unit} /></ScrollHint>
 }
 
 // WHY A PLAYER HAS NO SPLITS (2026-10-07, Donovan: "says not yet available for him"). The bot
@@ -309,34 +316,6 @@ const TABS = [
 
 
 
-// KEY STAT (MOONSHOT's SlashLine, football's numbers): the four per-game numbers
-// that describe his job, big enough to read at arm's length. Position decides which.
-const KEY_BY_POS = {
-  QB: [['PAYD', 'PASS YD'], ['ATT', 'ATT'], ['RUYD', 'RUSH YD'], ['TD', 'TD']],
-  RB: [['RUYD', 'RUSH YD'], ['CAR', 'CARRIES'], ['RECYD', 'REC YD'], ['TD', 'TD']],
-  WR: [['RECYD', 'REC YD'], ['REC', 'CATCHES'], ['TGT', 'TARGETS'], ['TD', 'TD']],
-  TE: [['RECYD', 'REC YD'], ['REC', 'CATCHES'], ['TGT', 'TARGETS'], ['TD', 'TD']],
-  K: [['FGM', 'FG'], ['PAT', 'XP']],
-}
-function KeyLine({ player, style }) {
-  const st = player?.stats || {}
-  const picks = (KEY_BY_POS[player?.position] || []).filter(([k]) => Number.isFinite(Number(st[k])))
-  if (!picks.length) return null
-  return (
-    <div style={style}>
-      <div style={{ fontFamily: NUM_FONT, fontSize: 11, fontWeight: 800, letterSpacing: '.08em', color: C.text3, marginBottom: 3 }}>PER GAME</div>
-      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${picks.length}, minmax(0, 1fr))`, gap: 6 }}>
-        {picks.map(([k, label], i) => (
-          <div key={k} title={statLabel(k)} style={{ textAlign: 'center', padding: '6px 2px 7px', borderRadius: 9, border: `1px solid ${i === 0 ? `${C.green}55` : C.border}`, background: i === 0 ? `${C.green}12` : 'rgba(255,255,255,.03)' }}>
-            <div style={{ fontFamily: NUM_FONT, fontSize: 20, fontWeight: 900, lineHeight: 1.1, color: i === 0 ? C.green : C.text }}>{statFmt(k, st[k])}</div>
-            <div style={{ fontFamily: NUM_FONT, fontSize: 11, letterSpacing: '.04em', color: C.text3, marginTop: 2 }}>{label}</div>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
 export default function NflPlayerModal({ player, market, markets, splitMeta, logs, matchup, slate, picks, results, onClose, onFullProfile, peers = [], onNavigate = null, initialTab = '', onViewChange = null, odds = null, inline = false }) {
   const dash = useDashLines()   // our line beside the book's (TEST)
   // inline (2026-09-30): the Players page shows this card in its right pane,
@@ -344,6 +323,9 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
   // no scroll lock, no close.
   useScrollLock(Boolean(player) && !inline)
   const watchlist = useNflWatchlist(slate)
+  // the TD market's status word (lib/callStatus tdCallStatus, through lib/nfl/tdStatus): the same one the TD board wears
+  const gameCalls = useGameCalls()
+  const tdStatus = useMemo(() => tdStatusFor({ picksCard: picks?.card, gameCalls, games: slate?.games, board: tdPool(slate).rows }), [picks, gameCalls, slate])
   const [tab, setTab] = useState('overview')
   const [season, setSeason] = useState('')
   const [allStats, setAllStats] = useState(false)
@@ -437,27 +419,12 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
       {/* MOONSHOT's multi-HR line, TUDDY's words */}
       <MultiLine sport="nfl" playerId={player?.player_id} words={{ TD: 'multi-TD', PASS_TD: '2+ passing-TD' }} color={C.green} textColor={C.text2} />
 
-      {/* STAT-FIRST HEADER (MOONSHOT's order): the key numbers, every market's score
-          in its grade's colour, then how often he reached the card's bar. */}
-      <KeyLine player={player} style={{ margin: '10px 0 10px' }} />
-      <StatStrip style={{ margin: '0 0 6px' }} stats={[...MARKETS]
-        .sort(([a], [b]) => (b === market) - (a === market))
-        .filter(([k]) => Number.isFinite(player.scores?.[k]))
-        .map(([k, label]) => {
-          const sc = player.scores[k]
-          return { id: k, label: MARKET_SHORT[k] || label, text: String(Math.round(sc)), color: gradeFor(sc).color, title: `${label}: ${Math.round(sc)} (score, a ranking — not a percentage)` }
-        })} />
-      {(() => {
-        const r = ratesFor(player, markets, fullLog).find((x) => x.key === market)
-        if (!r || r.bar == null) return null
-        const boxes = [['l5', 'L5', r.l5], ['l10', 'L10', r.l10], ['szn', String(r.seasonYear || 'Season'), r.season]]
-          .filter(([, , pr]) => pr[1] > 0)
-          .map(([id, label, [num, den]]) => ({ id, label, num, den, unit: 'G' }))
-        return <HitRateBoxes boxes={boxes} style={{ margin: '0 0 8px' }}
-          text={(b) => `${b.num}/${b.den}`}
-          sub={() => (r.key === 'TD' ? 'G with a TD' : `G at ${r.bar}+`)}
-          tip={(b) => `${r.label}: reached ${r.bar}+ in ${b.num} of his last ${b.den} games${b.id === 'szn' ? ' this season' : ''}.`} />
-      })()}
+      {/* THE PLAYER MODEL (components/player/): TUDDY ON HIM first -- the word (TD market only), the score, why, his other
+          markets as chips -- then ONE row of his key numbers (per game, ranked in his position; L10 and season at the bar). */}
+      <VerdictBlock sport="nfl" style={{ marginTop: 10 }}
+        {...nflVerdict({ player, market, spec, score: s0, statusWord: tdStatus.statusOf(player), whyLines, watch: against?.text || null, whyExplain })} />
+      <StatRow noun={`${player.position || 'player'}s`} poolLabel="this week's slate" style={{ marginBottom: 8 }}
+        stats={nflStatRow({ player, slate, rate: ratesFor(player, markets, fullLog).find((x) => x.key === market) })} />
       {/* THE PRICE: the line for the market on screen, the best book, the break-even. */}
       {(() => {
         const q = quoteFor(odds, player, market)
@@ -474,10 +441,6 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
           </div>
         )
       })()}
-      {/* WHY? -- one tap opens every reason in full */}
-      <WhyLines theme={C} numFont={NUM_FONT} accent={C.green} why={whyLines} watch={against?.text || null}
-        explain={{ label: `Why ${player.name}?`, text: whyExplain }} />
-
       {/* TAB BAR (MOONSHOT's: pills, a rule under them). Phone: sideways chip row. */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, borderBottom: `1px solid ${C.border}`, paddingBottom: 10, flexWrap: 'wrap' }}>
         <div className="chip-row" style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
@@ -531,7 +494,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
       {tab === 'gamelog' && <>
         <TheFile player={player} log={slog} />
         <Head>GAME BY GAME</Head>
-        <NflGameLog log={slog} />
+        <ScrollHint><NflGameLog log={slog} /></ScrollHint>
         {Object.keys(player.stats || {}).length > 0 && (
           <>
             <Head>SEASON PER GAME</Head>
