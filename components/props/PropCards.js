@@ -321,7 +321,7 @@ export default function PropCards({
       {sameGame.length > 0 && (
         <div style={{ fontSize: TYPE.body, color: C.text2, margin: '4px 0 6px', lineHeight: 1.5 }}>
           {sameGameLine(sameGame.map((x) => ({ label: x.label, n: x.ids.size })))}
-          <HelpTip label="Same game" color={C.text3} text="Picks from one game rise or fall together, so count them as one bet, not several." />
+          <HelpTip label="Same game" color={C.text3} text="Picks from one game share the weather, starters and game flow. For MLB home runs we measured that link: two hitters in the same game homered together 1.05x as often as two unrelated hitters, which is about independent. We have not measured it for other markets. The parlay chance above treats every pick as separate." />
         </div>
       )}
       {total === 0 ? (

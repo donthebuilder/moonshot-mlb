@@ -7,19 +7,20 @@
 //   PARLAY   one stake on all of them: what it pays, and the chance the BOOKS'
 //            prices put on every leg landing (their implied %, multiplied --
 //            the site's own probability isn't printed until it's calibrated)
-// Same-game legs are flagged: they rise or fall together, so the parlay's
-// multiplied chance overstates how independent they are. Math, not advice.
+// Same-game legs are flagged: they share one game's conditions. For MLB homers our own
+// pair evidence (lib/pairEvidence.js) measured that link at 1.05x, about independent; for
+// other markets it is unmeasured, and the (?) says so. Math, not advice.
 import { useState } from 'react'
 import { TYPE } from '../../lib/theme'
 import { fmtOdds, impliedPct, profitOn } from '../../lib/odds'
 import HelpTip from '../HelpTip'
 
 const decimal = (am) => { const v = Number(am); return v > 0 ? 1 + v / 100 : 1 + 100 / -v }
-/** "8 of these picks are in the DET · ARI game, so they move together." (one sentence for the slip and the cards). */
+/** "8 of these picks are in the DET · ARI game." (one sentence for the slip and the cards; the (?) holds what we measured). */
 export function sameGameLine(list) {
   const top = [...list].sort((a, b) => b.n - a.n)[0]
   const more = list.length > 1 ? ` (and ${list.length - 1} more ${list.length === 2 ? 'game' : 'games'})` : ''
-  return `${top.n} of these picks are in the ${top.label} game${more}, so they move together.`
+  return `${top.n} of these picks are in the ${top.label} game${more}.`
 }
 const money = (v) => `$${v >= 1000 ? Math.round(v).toLocaleString() : v.toFixed(2).replace(/\.00$/, '')}`
 
@@ -64,7 +65,7 @@ export default function BetSlip({ legs, onRemove, onClear, pairNotes = [], partn
           <div><b style={{ color: C.text }}>As one parlay:</b> {money(s)} wins {money(s * (parlayDec - 1))} · the books' prices put all {legs.length} landing at {(100 * parlayChance) < 1 ? '<1' : (100 * parlayChance).toFixed(1)}%</div>
         )}
         {shared.length > 0 && (
-          <div style={{ color: C.text }}>{sameGameLine(shared)}<HelpTip label="Same game" color={C.text3} text="Picks from one game rise or fall together, so count them as one bet. The parlay chance above treats every pick as separate, so it overstates these." /></div>
+          <div style={{ color: C.text }}>{sameGameLine(shared)}<HelpTip label="Same game" color={C.text3} text="Picks from one game share the weather, starters and game flow. For MLB home runs we measured that link: two hitters in the same game homered together 1.05x as often as two unrelated hitters, which is about independent. We have not measured it for other markets. The parlay chance above treats every pick as separate." /></div>
         )}
         {/* PAIRING HELP (2026-10-07: what the deleted Parlay Builder had that helps people pair players; lib/slipPairs.js).
             Measured rates and real history only, for home-run legs; a product without the rules passes nothing. */}
