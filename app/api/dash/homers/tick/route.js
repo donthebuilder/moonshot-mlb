@@ -31,7 +31,8 @@
 import { mlbQuotes } from '../../../../../lib/dash/quoteFor'
 import { playerHref } from '../../../../../lib/routes'
 import { storyThreadsOn, postStoryResults } from '../../../../../lib/dash/storyThread'
-import { gameCalls, gameCallText } from '../../../../../lib/dash/gameCall'
+import { gameCalls, gameCallText, scoreFor } from '../../../../../lib/dash/gameCall'
+import { sendFree, sendMembers, retryMembers, mlbFreePick, freeWentOut } from '../../../../../lib/writeups/discordRoute'
 import { buildMlbWriteup } from '../../../../../lib/writeups/mlb'
 import { renderWriteup } from '../../../../../lib/writeups/text'
 import { postLimit } from '../../../../../lib/dash/postLimit'
@@ -230,6 +231,7 @@ function perGameOn(day) { return !/^off$/i.test(String(process.env.X_PER_GAME ||
 // A game's call posts once both lineups are confirmed and inside this window
 // before its first pitch -- never after it starts.
 const PER_GAME_LEAD_MS = 4 * 60 * 60 * 1000
+let _mlbMembersRetryAt = 0   // when this instance last looked for a failed #members copy to retry
 
 // lib/dash/postClaim.js (R3), with this tick's own gates
 const claimSlot = (db, day, kind) => sharedClaimSlot(db, day, kind, { gate: (k, d) => postKindOn(k, d) && !isRested(k) && !isRetiredForever(k), tag: 'homers' })
@@ -1785,14 +1787,28 @@ export async function GET(request) {
           const patch = { payload: { player_id: String(call.row.player_id), name: String(call.row.name || ""), game_pk: call.game_pk, role: call.role, bar: call.bar, posted_at: new Date().toISOString(), named: callNamed,
             writeup: useW ? { x_is_long: rw.xIsLong, players: w.players.map((p) => p.player_id) } : { off: rw ? rw.why : 'no write-up for this game' } } }
           await db.from('homer_feed_posts').update({ payload: patch.payload }).match({ day, kind })
-          const d = await postToDiscord(discordText, {}, FEED_WEBHOOKS())
-          if (d.ok) patch.discord_sent = true
+          // DISCORD, THE FREE / MEMBERS SPLIT (2026-10-09, Donovan's table): #members gets EVERY game's write-up; the free
+          // feed channels get only the day's ONE featured call (mlbFreePick: best score among games not yet started, never a
+          // second once one went out). X is unchanged (the per-game post below). members_sent / free_sent live on this row.
+          const freePk = mlbFreePick(gameCalls(slate).map((c) => ({ game_pk: c.game_pk, score: scoreFor(c.row, c.role), time: c.time })),
+            { now: nowMs, alreadyFree: await freeWentOut(db, day, kind) })
+          const isFree = freePk === String(call.game_pk)
+          const d = await sendFree(discordText, { sport: 'mlb', kind, featured: isFree, hooks: FEED_WEBHOOKS(), plain: true })
+          if (d?.ok) patch.discord_sent = true
+          patch.payload = { ...patch.payload, kickoff: call.time, text_full: discordText, free: isFree, free_sent: Boolean(d?.ok), members_sent: await sendMembers(discordText, { sport: 'mlb', kind }), members_tries: 1 }
           if (hasX() && await xOk(db, { day, kind, ids: callNamed, repeat: false })) {
             const r = await postToX(text, { kind: 'call', link: { playerId: call.row.player_id } })
             if (r.ok && r.id) { patch.x_post_id = r.id; logPosted({ day, kind, ids: callNamed, tweetId: r.id, text }) }
             else console.error(`[homers] ${kind} refused: ${r.status} ${r.error}`)
           }
           await db.from('homer_feed_posts').update(patch).match({ day, kind })
+        }
+        // A #members copy that failed (members_sent === false) is tried again, before first pitch, at most 3 times in all
+        // (lib/writeups/discordRoute.js retryMembers: compare-and-set, never twice). Asked at most every 5 minutes.
+        if (membersWebhook() && nowMs - _mlbMembersRetryAt > 5 * 60e3 && gameCalls(slate).some((c) => Date.parse(c.time || '') > nowMs)) {
+          _mlbMembersRetryAt = nowMs
+          const failed = await db.from('homer_feed_posts').select('day,kind,payload').eq('day', day).like('kind', 'call\\_%').filter('payload->>members_sent', 'eq', 'false')
+          await retryMembers(db, failed.data || [], { sport: 'mlb', now: nowMs }).catch((e) => console.error(`[homers] members retry: ${e?.message}`))
         }
       }
 

@@ -9,10 +9,16 @@ process.env.NEXT_PUBLIC_SITE_URL = 'https://test.example'
 Object.assign(process.env, { X_API_KEY: 'TEST', X_API_SECRET: 'TEST', X_ACCESS_TOKEN: 'TEST', X_ACCESS_SECRET: 'TEST', DISCORD_MLB_WEBHOOKS: 'https://discord.test/hook-a' })
 for (const k of ['X_WRITEUPS_PAUSE', 'WRITEUPS_AUTOPOST', 'X_POSTS_PAUSE', 'X_GUARDS_OFF', 'X_SCHEDULE_OFF', 'X_DAILY_CAP', 'X_TEXT_LIMIT', 'DISCORD_HOMER_WEBHOOK']) delete process.env[k]
 
-const tweets = [], discords = []
+const tweets = [], discords = [], memberPosts = []
+let memberStatus = []   // TEST: statuses the members hook answers with, in order (then 204)
 globalThis.fetch = async (url, opts = {}) => {
   const u = String(url)
   if (u.includes('api.x.com/2/tweets')) { tweets.push(JSON.parse(opts.body)); return { ok: true, status: 200, json: async () => ({ data: { id: String(7000 + tweets.length) } }), headers: { get: () => null } } }
+  if (u.startsWith('https://discord.com/api/webhooks/9001/')) {   // the TEST members hook
+    memberPosts.push(opts.body)
+    const st = memberStatus.length ? memberStatus.shift() : 204
+    return { ok: st < 400, status: st, statusText: String(st), json: async () => ({}), text: async () => '', headers: { get: () => null } }
+  }
   if (u.startsWith('https://discord.test')) { discords.push(opts.body); return { ok: true, status: 204, json: async () => ({}), text: async () => '', headers: { get: () => null } } }
   return { ok: false, status: 404, json: async () => ({}), arrayBuffer: async () => new ArrayBuffer(0), headers: { get: () => null } }
 }
@@ -47,6 +53,8 @@ function fakeDb(tables = {}) {
     }
     like(c, p) { const re = likeRe(p); this.f.push((r) => re.test(String(r[c] ?? ''))); return this }
     in(c, l) { this.f.push((r) => l.includes(r[c])); return this }
+    neq(c, v) { this.f.push((r) => r[c] !== v); return this }
+    filter(c, op, v) { const [col, key] = c.split('->>'); this.f.push((r) => String(key ? r[col]?.[key] : r[col]) === String(v)); return this }
     match(o) { for (const [k, v] of Object.entries(o)) this.f.push((r) => r[k] === v); return this }
     order() { return this }
     limit() { return this }
@@ -77,7 +85,7 @@ function fakeDb(tables = {}) {
 
 let n = 0
 const ok = async (name, fn) => { reset(); await fn(); n++; console.log(`ok  ${name}`) }
-function reset() { tweets.length = 0; discords.length = 0; L._resetLogForTests(); G._resetRecentCache(); G._resetPostedCache(); PC._resetTakenForTests(); delete process.env.X_WRITEUPS_PAUSE; delete process.env.X_GUARDS_OFF }
+function reset() { tweets.length = 0; discords.length = 0; memberPosts.length = 0; memberStatus = []; delete process.env.DISCORD_MEMBERS_WEBHOOK; L._resetLogForTests(); G._resetRecentCache(); G._resetPostedCache(); PC._resetTakenForTests(); delete process.env.X_WRITEUPS_PAUSE; delete process.env.X_GUARDS_OFF }
 const MIN = 60e3
 const etWindow = (day) => `${day}T16:00:00Z`    // inside that ET day (noon ET)
 
@@ -119,11 +127,11 @@ await ok('NHL: X_WRITEUPS_PAUSE=on stops it (a dry row, nothing sent)', async ()
   assert.equal(tweets.length + discords.length, 0)
   assert.equal((await P.writeupsAutopost(db)).on, false)
 })
-await ok('NHL: one featured game a night to X (the dial number), every game to Discord; a second tick posts nothing', async () => {
+await ok('NHL: one featured game a night to X and to the FREE Discord (the dial number), the others site-only here (members get all, below); a second tick posts nothing', async () => {
   const bgs = [bgame(1, 'AAA', 'BBB', { total: 5.9 }), bgame(2, 'CCC', 'DDD', { total: 6.6 }), bgame(3, 'EEE', 'FFF', { total: 5.1 })]
   const db = newDb()
   const out = await run(db, bgs, START - 70 * MIN)
-  assert.equal(tweets.length, 1); assert.equal(discords.length, 3)
+  assert.equal(tweets.length, 1); assert.equal(discords.length, 1, 'FREE Discord: the featured game only')
   assert.match(out[2], /X 70/); assert.doesNotMatch(out[1], /X /); assert.doesNotMatch(out[3], /X /)
   assert.equal(rowOf(db, 'writeup_nhl_2').payload.featured, 'NIGHT')
   const again = await run(db, bgs, START - 65 * MIN)
@@ -214,6 +222,97 @@ await ok('NFL: X_WRITEUPS_PAUSE=on stops it (dry); live by default otherwise', a
   const db = newDb()
   assert.match((await P.runNflWriteups(db, { now: KICK - 70 * MIN, fetchCalls }))['T-TNF'], /^dry/)
   assert.equal(tweets.length + discords.length, 0)
+})
+
+// ── DISCORD, FREE / MEMBERS (2026-10-09, Donovan's locked table) -- TEST webhook https://discord.com/api/webhooks/9001/TEST-TOKEN ──
+const MEMBERS_HOOK = 'https://discord.com/api/webhooks/9001/TEST-TOKEN'
+const R = await import('../../lib/writeups/discordRoute.js')
+await ok('SPLIT NHL: 3 games -> #members gets ALL 3, the free channel + X only the featured one; later ticks send nothing more', async () => {
+  process.env.DISCORD_MEMBERS_WEBHOOK = MEMBERS_HOOK
+  const bgs = [bgame(1, 'AAA', 'BBB', { total: 5.9 }), bgame(2, 'CCC', 'DDD', { total: 6.6 }), bgame(3, 'EEE', 'FFF', { total: 5.1 })]
+  const db = newDb()
+  const out = await run(db, bgs, START - 70 * MIN)
+  assert.equal(memberPosts.length, 3); assert.equal(discords.length, 1); assert.equal(tweets.length, 1)
+  assert.match(out[1], /^live: discord members only/); assert.match(out[2], /^live: discord ok, X 70/)
+  for (const id of [1, 2, 3]) { const p = rowOf(db, `writeup_nhl_${id}`).payload; assert.equal(p.members_sent, true); assert.equal(p.free, id === 2); assert.equal(p.free_sent, id === 2) }
+  // the non-featured games' text reached #members only, never the free channel or X
+  const freeBlob = discords.join('\n'), xBlob = JSON.stringify(tweets)
+  for (const id of [1, 3]) assert.ok(memberPosts.some((b) => b.includes(bgs.find((x) => x.game.id === id).game.away.abbrev)), `members got game ${id}`)
+  for (const club of ['AAA', 'EEE', 'FFF']) assert.ok(!freeBlob.includes(club) && !xBlob.includes(club), `${club} (a non-featured game) is not in the free channel or on X`)
+  for (let m = 69; m > 60; m--) await run(db, bgs, START - m * MIN)
+  assert.equal(memberPosts.length, 3, 'no duplicate on later ticks'); assert.equal(discords.length, 1); assert.equal(tweets.length, 1)
+})
+await ok('SPLIT NHL: no members webhook = #members gets nothing and nothing falls back to a public channel', async () => {
+  const bgs = [bgame(1, 'AAA', 'BBB', { total: 5.9 }), bgame(2, 'CCC', 'DDD', { total: 6.6 })]
+  const db = newDb()
+  await run(db, bgs, START - 70 * MIN)
+  assert.equal(memberPosts.length, 0); assert.equal(discords.length, 1, 'only the featured game, to the free sport channel')
+  assert.equal(rowOf(db, 'writeup_nhl_1').payload.members_sent, false)
+})
+await ok('SPLIT NHL: a failed members copy is retried once before puck drop, never twice, never after the start, never past 3 tries', async () => {
+  process.env.DISCORD_MEMBERS_WEBHOOK = MEMBERS_HOOK
+  memberStatus = [500]                                  // TEST: the first members send fails
+  const bgs = [bgame(1, 'AAA', 'BBB')]
+  const db = newDb()
+  await run(db, bgs, START - 70 * MIN)
+  assert.equal(rowOf(db, 'writeup_nhl_1').payload.members_sent, false); assert.equal(memberPosts.length, 1)
+  await run(db, bgs, START - 65 * MIN)                   // the retry: sends, succeeds
+  assert.equal(memberPosts.length, 2); assert.equal(rowOf(db, 'writeup_nhl_1').payload.members_sent, true)
+  await run(db, bgs, START - 64 * MIN); await run(db, bgs, START - 63 * MIN)
+  assert.equal(memberPosts.length, 2, 'sent once more, not again'); assert.equal(discords.length, 1, 'the free copy was never re-sent'); assert.equal(tweets.length, 1)
+  // a second failed row: after the start no retry; at 3 tries no retry; an in-flight ('sending') row is never retried; two racing ticks send once
+  reset(); process.env.DISCORD_MEMBERS_WEBHOOK = MEMBERS_HOOK; memberStatus = [500]
+  const db2 = newDb()
+  await run(db2, bgs, START - 70 * MIN)
+  const row = rowOf(db2, 'writeup_nhl_1'); assert.equal(row.payload.members_sent, false)
+  memberPosts.length = 0
+  assert.equal(await R.retryMembers(db2, [row], { sport: 'nhl', now: START + MIN }), 0, 'not after the start')
+  assert.equal(await R.retryMembers(db2, [{ ...row, payload: { ...row.payload, members_tries: 3 } }], { sport: 'nhl', now: START - 60 * MIN }), 0, 'not past 3 tries')
+  assert.equal(await R.retryMembers(db2, [{ ...row, payload: { ...row.payload, members_sent: 'sending' } }], { sport: 'nhl', now: START - 60 * MIN }), 0, 'in flight: never twice')
+  assert.equal(memberPosts.length, 0)
+  const [a, b] = await Promise.all([R.retryMembers(db2, [row], { sport: 'nhl', now: START - 60 * MIN }), R.retryMembers(db2, [row], { sport: 'nhl', now: START - 60 * MIN })])
+  assert.equal(a + b, 1, 'compare-and-set: one of two racing ticks sends'); assert.equal(memberPosts.length, 1)
+})
+const SUN = Date.parse('2026-10-18T17:00:00Z')         // Sunday 1 pm ET: the Sunday-afternoon slot, one featured game
+const sunGame = (id, score) => ({ game_id: id, away: `${id}A`, home: `${id}H`, kickoff: new Date(SUN).toISOString(), state: 'pre', calls: [
+  { player_id: `${id}-1`, name: `Test Back ${id}`, team: `${id}A`, position: 'RB', role: 'TOP', score, slate_rank: 2, of: 120 }], no_call: [] })
+await ok('SPLIT NFL: two Sunday-afternoon games -> #members both, the free channel + X the featured one only', async () => {
+  process.env.DISCORD_MEMBERS_WEBHOOK = MEMBERS_HOOK
+  const file = { season: 2026, week: 7, built_at: new Date(SUN - 90 * MIN).toISOString(), games: [sunGame('S1', 70), sunGame('S2', 82)] }
+  const db = newDb()
+  const out = await P.runNflWriteups(db, { now: SUN - 70 * MIN, fetchCalls: async () => file })
+  assert.equal(memberPosts.length, 2); assert.equal(discords.length, 1); assert.equal(tweets.length, 1)
+  const featured = Object.entries(out).filter(([, v]) => /X 70/.test(v)).map(([k]) => k); const other = featured[0] === 'S1' ? 'S2' : 'S1'
+  assert.equal(featured.length, 1); assert.match(out[other], /^live: discord members only/)
+  assert.ok(!discords.join('\n').includes(`Test Back ${other}`) && !JSON.stringify(tweets).includes(`Test Back ${other}`), 'the other game is not in the free channel or on X')
+  assert.ok(memberPosts.some((b) => b.includes(`Test Back ${other}`)), 'but #members has it')
+  assert.equal(rowOf(db, `writeup_nfl_${other}`).payload.members_sent, true); assert.equal(rowOf(db, `writeup_nfl_${other}`).payload.free_sent, false)
+})
+await ok('SPLIT MLB: the free channel gets ONE call a day (best score among games not started), never a second', async () => {
+  const t = (h) => new Date(Date.parse('2026-10-12T16:00:00Z') + h * 3600e3).toISOString()
+  const calls = [{ game_pk: '1', score: 70, time: t(1) }, { game_pk: '2', score: 88, time: t(3) }, { game_pk: '3', score: 80, time: t(5) }]
+  const now = Date.parse(t(0))
+  assert.equal(R.mlbFreePick(calls, { now }), '2')
+  assert.equal(R.mlbFreePick(calls, { now: Date.parse(t(2)) }), '2', 'stable as an earlier game starts')
+  assert.equal(R.mlbFreePick(calls, { now: Date.parse(t(4)) }), '3', 'the best game started: the best of those left takes over')
+  assert.equal(R.mlbFreePick(calls, { now, alreadyFree: true }), null, 'one a day')
+  assert.equal(R.mlbFreePick([], { now }), null)
+  assert.equal(R.mlbFreePick([{ game_pk: '4', score: 90, time: t(-1) }], { now }), null, 'a started game is never picked')
+  // the tick wires it: sendFree (featured only) + sendMembers (every game), never a bare postToDiscord of the call text
+  const src = fs.readFileSync(new URL('../../app/api/dash/homers/tick/route.js', import.meta.url), 'utf8')
+  const block = src.slice(src.indexOf('THE CALL, ONE PER GAME'), src.indexOf('STORY THREADS, THE RESULT'))
+  for (const need of ['sendFree(discordText', 'featured: isFree', 'sendMembers(discordText', 'mlbFreePick(', 'freeWentOut(', 'retryMembers(', 'members_sent']) assert.ok(block.includes(need), `missing: ${need}`)
+  assert.ok(!/postToDiscord\(discordText/.test(block), 'the call text never goes to Discord except through sendFree / sendMembers')
+  assert.ok(block.includes('postToX(text,') && !/postToX\(discordText/.test(block), 'X posts the X text, never the members copy')
+})
+await ok('SPLIT: every runner sends the free copy for the featured game only and #members every game, and retries a failed members copy', () => {
+  const src = fs.readFileSync(new URL('../../lib/writeups/post.js', import.meta.url), 'utf8')
+  assert.ok(!/postToDiscord|DISCORD_MEMBERS_WEBHOOK/.test(src.replace(/\/\/.*$/gm, '')), 'post.js never calls postToDiscord or reads the members variable itself')
+  for (const sp of ['nfl', 'nhl', 'nba']) {
+    assert.ok(src.includes(`sendMembers(r.full, { sport: '${sp}', kind })`), `${sp}: members every game`)
+    assert.ok(src.includes(`{ sport: '${sp}', now }`), `${sp}: retry wired`)
+    assert.ok(new RegExp(`sendFree\\(r\\.full, \\{ sport: '${sp}', kind, featured: Boolean\\((slot|featured)\\)`).test(src), `${sp}: free = featured only`)
+  }
 })
 
 // ── MLB: the call_<game_pk> write-up under the same gates ──
