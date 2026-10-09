@@ -171,7 +171,7 @@ const EXPECT = {
   // slate
   pregame: 'slate', callofnight: 'slate', thefour: 'slate', nfl_callsheet_reply: 'slate',
   // write-ups and the receipts
-  call_12345: 'writeup', writeup: 'writeup', writeup_nfl_401: 'writeup', writeup_nhl_2025: 'writeup', accountability: 'writeup', recap: 'writeup', weekly: 'writeup', monthly: 'writeup', board_results: 'writeup', nfl_results: 'writeup', nfl_bigweek: 'writeup',
+  call_12345: 'writeup', writeup: 'writeup', writeup_nfl_401: 'writeup', writeup_nhl_2025: 'writeup', receipt: 'writeup', weekly: 'writeup', monthly: 'writeup', nfl_results: 'writeup', nfl_bigweek: 'writeup',
   // facts
   facts: 'fact', longshots: 'fact', nfl_longshots: 'fact', nhl_longshots: 'fact', list_mlb: 'fact', list_nfl: 'fact', list_nhl: 'fact', multi_club: 'fact', nfl_multi_club: 'fact', nhl_multi_club: 'fact', nhlhardest: 'fact',
   nfl_whyboard: 'fact', nfl_spotlight: 'fact', nfl_redzone: 'fact', nfl_goalline: 'fact', nfl_tdhistory: 'fact', nfl_milestone: 'fact', matchup_hr: 'fact', pairswatch: 'fact', hotcontact: 'fact', hot_week: 'fact', storylines: 'fact', history_watch: 'fact', mlbhr_reply: 'fact', story_t3: 'fact', homer_board_reply: 'fact', brand_new_kind: 'fact',
@@ -288,10 +288,10 @@ await ok('repeat: the guard reads same-kind posts that reached X; call_* is one 
   G._resetRecentCache()
   assert.deepEqual(await G.repeatCheck(db, { day: today, kind: 'call_200', ids: ['p4', 'p5'] }), ['p4'])   // another game's call, same family; not callofnight
 })
-await ok('repeat: live CALLED alerts, the night receipt (accountability, recap), the other receipts and the board are exempt', async () => {
+await ok('repeat: live CALLED alerts, the night receipt (kind receipt; accountability and recap retired into it), the other receipts and the board are exempt', async () => {
   G._resetRecentCache()
   const db = fakeDb({ homer_feed_posts: [{ day: '2026-10-08', kind: 'accountability', x_post_id: '1', payload: { named: ['p1'] } }, { day: '2026-10-08', kind: 'homer', x_post_id: '1', payload: { named: ['p1'] } }] })
-  for (const k of ['accountability', 'recap', 'weekly', 'monthly', 'board_results', 'nfl_results', 'homer', 'td', 'nhlgoal', 'board', 'nfl_board']) {
+  for (const k of ['receipt', 'weekly', 'monthly', 'nfl_results', 'homer', 'td', 'nhlgoal', 'board', 'nfl_board']) {
     assert.ok(P.isRepeatExempt(k), k)
     assert.deepEqual(await G.repeatCheck(db, { day: today, kind: k, ids: ['p1'] }), [], k)
   }

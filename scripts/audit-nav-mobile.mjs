@@ -597,7 +597,7 @@ if (run('journeys')) {
       ['push NFL', '/app#sport=nfl&tab=watchlist', null],
       ['X NFL td', withQuery(postPath('td', { playerId: nflId }), 'src=x'), nflName],
       ['X NHL goal', withQuery(postPath('goal', { playerId: nhlId }), 'src=x'), nhlName],
-      ['X MLB record', withQuery(postPath('board_results'), 'src=x'), null],
+      ['X MLB record', withQuery(postPath('receipt'), 'src=x'), null],
     ]
     for (const [label, path, who] of cases) {
       await step(label, async (p) => {

@@ -101,7 +101,7 @@ const ev = { name: 'Test Sample Alpha', role: 'TOP', hr_n: 2, board_rank: 3, inn
 check(HF.postText(ev) === '\u{1F916} CALLED IT\n\nTEST SAMPLE ALPHA GOES DEEP. (#2 tonight)\n\nTST @ EXA · bot 7th\n\n#3 on the Moonshot board\nTOP pick (1+ home run) · +150\n\nThe call is in.', 'MOONSHOT CALLED homer post (TOP, 2nd homer) is character-identical')
 check(HF.postText({ ...ev, role: 'HIT', hr_n: 1, odds_over: null }) === '\u{1F916} CALLED IT · HIT PICK\n\nTEST SAMPLE ALPHA GOES DEEP.\n\nTST @ EXA · bot 7th\n\n#3 on the Moonshot board\nhit pick (1+ hit)', 'MOONSHOT CALLED homer post (HIT) is character-identical')
 check(HF.postText({ ...ev, role: 'WATCH', board_rank: 9, stats: { season_hr: 30, season_iso: 0.21 } }) === '\u{1F4A5} TEST SAMPLE ALPHA GOES DEEP. (#2 tonight)\n\n#9 on the Moonshot board\n\n30 HR · .210 ISO\n\nNot a top call tonight.', 'MOONSHOT ON THE BOARD homer post is character-identical')
-check(HF.postText({ name: 'Test Sample Alpha', role: '', hr_n: 1 }) === "\u{1F4A5} TEST SAMPLE ALPHA GOES DEEP.\n\nNot on the Moonshot board.\n\nSome moments can't be modeled.\n\nThat's baseball.", 'MOONSHOT NOT ON THE BOARD homer post is character-identical')
+check(HF.postText({ name: 'Test Sample Alpha', role: '', hr_n: 1 }) === "\u{1F4A5} TEST SAMPLE ALPHA GOES DEEP.\n\nNot on the Moonshot board.", 'MOONSHOT NOT ON THE BOARD homer post ends at "Not on the Moonshot board." (no tagline since 10-09)')
 
 // ── 9. the cut ──
 check(C.categoryAllowed('homer') && C.categoryAllowed('scratched') && C.categoryAllowed('slam') && C.categoryAllowed('frtd'), 'kept categories (and FRANCHISE) are allowed')

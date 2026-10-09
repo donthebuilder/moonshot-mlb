@@ -19,6 +19,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useSportTheme } from '../SportTheme'
 import ErrorBoundary from '../ErrorBoundary'
 import HelpTip from '../HelpTip'
+import TopTotals from '../TopTotals'
 import {
   LEDGER_VIEWS, ledgerWord, ledgerBlurb, cleanView, tabOfView,
   readLedgerView, writeLedgerView, takeLedgerView, peekLedgerView,
@@ -94,6 +95,8 @@ export default function LedgerShell({ sport, bodies = {} }) {
       )}
       <ErrorBoundary resetKey={view} label={`the Ledger's ${view} view`}>
         <div role="tabpanel" key={view}>{body ? body() : null}</div>
+        {/* TOP TOTALS (2026-10-09): the market's record and graded rows ride the Record view of every sport's Ledger */}
+        {active === 'record' && <div style={{ marginTop: 12 }}><TopTotals sport={sport} mode="record" /></div>}
       </ErrorBoundary>
     </div>
   )
