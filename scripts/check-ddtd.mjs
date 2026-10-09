@@ -284,14 +284,17 @@ const boardFor = (gs) => async (date, market) => ({ date, games: gs.map((x) => (
 const fresh = () => { tweets.length = 0; discords.length = 0; L._resetLogForTests(); G._resetRecentCache(); G._resetPostedCache(); PC._resetTakenForTests(); delete process.env.X_WRITEUPS_PAUSE }
 const newDb = () => fakeDb({ homer_feed_posts: [], fact_posts: [], nfl_td_feed: [] })
 
-await ok('post: live by default; Discord (BUCKETS channel only, never the MLB list) + #members for every game; X for the one featured game only', async () => {
+await ok('post: live by default; #members for every game, the BUCKETS channel (never the MLB list) for the featured one; X for the one featured game only', async () => {
   fresh()
   const g2 = { ...game, id: 'G2', start: '2027-01-15T00:20:00Z', away: { abbrev: 'CCC' }, home: { abbrev: 'DDD' } }
   const gs = [game, g2]
   const db = newDb()
   const out = await P.runNbaWriteups(db, { date: DATE, games: gs, now: TIP - 70 * MIN, readBoard: boardFor(gs) })
-  assert.match(out.G1, /^live: discord ok, members ok/); assert.match(out.G2, /^live: discord ok, members ok/)
-  assert.equal(discords.filter((d) => d.url.includes('nba-hook')).length, 2); assert.equal(discords.filter((d) => d.url.includes('mlb-hook')).length, 0)
+  // the free/members split: #members gets every game, the BUCKETS channel only the featured one
+  const both = [out.G1, out.G2]
+  assert.equal(both.filter((x) => /^live: discord ok, members ok/.test(x)).length, 1, both.join(' | '))
+  assert.equal(both.filter((x) => /^live: discord members only, members ok/.test(x)).length, 1, both.join(' | '))
+  assert.equal(discords.filter((d) => d.url.includes('nba-hook')).length, 1); assert.equal(discords.filter((d) => d.url.includes('mlb-hook')).length, 0)
   assert.equal(discords.filter((d) => d.url.includes('/api/webhooks/123456789')).length, 2)
   assert.equal(tweets.length, 1, 'one featured game a day on X')
   assert.ok(!/https?:|www\.|[#@][A-Za-z]/.test(tweets[0].text))

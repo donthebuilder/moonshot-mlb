@@ -176,5 +176,55 @@ for (const [label, v] of [[',', ','], ['", ,\n,"', ', ,\n,'], ['not a URL', 'hel
   check('G. no Supabase config -> no insert, no throw', inserts.length === 0)
 }
 
+// H. PER-GAME WRITE-UPS (free / members split, 2026-10-09). TEST text only. The members copy of a write-up reaches ONLY the
+//    members hook; the free copy goes out only for a featured game and never to the members hook; X is never touched.
+{
+  const { sendMembers, sendFree } = await import('../lib/writeups/discordRoute.js')
+  const M = U('2001')
+  const seen = []   // [url, body]
+  globalThis.fetch = async (url, init) => { seen.push([String(url), String(init?.body ?? '')]); return { ok: true, status: 204, statusText: 'No Content', headers: { get: () => null }, json: async () => ({}), text: async () => '' } }
+  const SECRET = 'TEST MEMBERS-ONLY WRITE-UP LINE (test data)'
+  const publicHooks = Object.values(PUBLIC_ENV)
+
+  setEnv(); seen.length = 0
+  check('H. sendMembers with no members webhook sends nothing', (await sendMembers(SECRET, { sport: 'nfl', kind: 'writeup_nfl_T1' })) === false && seen.length === 0)
+  for (const sport of ['mlb', 'nfl', 'nhl', 'nba']) {
+    setEnv({ DISCORD_MEMBERS_WEBHOOK: M }); seen.length = 0
+    const ok = await sendMembers(SECRET, { sport, kind: `writeup_${sport}_T1` })
+    check(`H. ${sport}: sendMembers -> exactly the members URL, nothing public`, ok === true && seen.length === 1 && seen[0][0] === M && !publicHooks.includes(seen[0][0]))
+  }
+  { // a members URL that is also a public hook (paste mistake): refused, nothing sent anywhere
+    setEnv({ DISCORD_MEMBERS_WEBHOOK: PUBLIC_ENV.DISCORD_NFL_WEBHOOKS }); seen.length = 0
+    const errs = console.error; console.error = () => {}
+    const ok = await sendMembers(SECRET, { sport: 'nfl', kind: 'writeup_nfl_T1' }); console.error = errs
+    check('H. sendMembers with a members URL equal to a public hook sends nothing', ok === false && seen.length === 0)
+  }
+  { // the free path: a game that is NOT featured sends nothing; a featured one goes to the hooks it was given and never to members
+    setEnv({ DISCORD_MEMBERS_WEBHOOK: M }); seen.length = 0
+    const none = await sendFree(SECRET, { sport: 'nfl', kind: 'writeup_nfl_T2', featured: false, hooks: PUBLIC_ENV.DISCORD_NFL_WEBHOOKS })
+    check('H. sendFree for a non-featured game sends nothing', none === null && seen.length === 0)
+    const nohook = await sendFree(SECRET, { sport: 'nba', kind: 'writeup_nba_T2', featured: true, hooks: '' })
+    check('H. sendFree with no free hook (BUCKETS before launch) sends nothing', nohook === null && seen.length === 0)
+    const yes = await sendFree(SECRET, { sport: 'nfl', kind: 'writeup_nfl_T3', featured: true, hooks: PUBLIC_ENV.DISCORD_NFL_WEBHOOKS })
+    check('H. sendFree for the featured game -> the free hook only, never the members URL', yes?.ok === true && seen.length === 1 && seen[0][0] === PUBLIC_ENV.DISCORD_NFL_WEBHOOKS && seen[0][0] !== M)
+  }
+  { // the free channel lists (what the runners pass to sendFree) can never contain the members URL
+    const { sportHooks, feedHooks, nbaOwnHooks } = await import('../lib/dash/discordChannels.js')
+    setEnv({ DISCORD_MEMBERS_WEBHOOK: M })
+    const lists = ['mlb', 'nfl', 'nhl', 'nba'].flatMap((s) => [sportHooks(s).join(','), feedHooks(s)]).concat(nbaOwnHooks().join(','))
+    check('H. no free-channel hook list (sport / feed / BUCKETS) ever contains the members URL', lists.every((l) => !l.includes(M)))
+  }
+  // X: the members text never reaches an X host, and the write-up module has no X import for the members path
+  check('H. no request went to X from any members / free send', seen.every(([u]) => !/x\.com|twitter\.com/.test(u)))
+  const route = readFileSync(new URL('../lib/writeups/discordRoute.js', import.meta.url), 'utf8').replace(/\/\/.*$/gm, '')
+  check('H. discordRoute.js imports no X poster and reads no webhook variable itself', !/postToX|uploadImageToX|process\.env/.test(route))
+  // storage: members copies live on the write-up's own row; the board/grade kinds all carry the RLS pattern (kind not like '%\_members\_%')
+  const { MEMBERS_KINDS } = await import('../lib/dash/membersPost.js')
+  check("H. every members-only row kind matches the anon-read RLS pattern '%_members_%'", Object.values(MEMBERS_KINDS).every((k) => /_members_/.test(k)), Object.values(MEMBERS_KINDS).join(', '))
+  check('H. discordRoute.js writes no row of its own except the write-up row\'s payload flags (no new kinds, so nothing public can hold members text)', !/upsert|insert\(/.test(route))
+  const post = readFileSync(new URL('../lib/writeups/post.js', import.meta.url), 'utf8').replace(/\/\/.*$/gm, '')
+  check('H. a write-up row\'s kind never contains "members" (the site shows write-ups; members copies are a flag, not a row)', !/kind[^\n]*members/i.test(post.replace(/members_sent|sendMembers|retryMembers|members only|members \$\{/g, '')))
+}
+
 console.log(fail ? `\n${fail} FAILED` : '\nall required checks passed')
 process.exit(fail ? 1 : 0)
