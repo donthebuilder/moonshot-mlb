@@ -249,11 +249,18 @@ await ok('nfl: OUT / inactive / IR / suspended are never named; questionable is 
   const r = NFL.nflPlayersFrom({ data, day: today, now: NOW })
   assert.deepEqual(r.players.map((p) => p.id).sort(), ['N1', 'N3'])
 })
-await ok('nhl: no confirmed opposing goalie = nobody nameable (pending); with one, the skater is in', () => {
-  const board = (conf) => ({ games: [{ game: { state: 'pre', gameType: 2, startUtc: new Date(FUTURE).toISOString() }, rows: [{ playerId: 7, name: 'Test Skater', team: 'AAA', opp: 'BBB', rank: 1, score: 77, status: 'called', context: { oppGoalie: conf ? { name: 'Test Goalie', confirmed: true } : null } }] }] })
-  const none = NHL.nhlPlayersFrom({ board: board(false), now: NOW })
-  assert.equal(none.players.length, 0); assert.equal(none.pending.length, 1)
-  assert.equal(NHL.nhlPlayersFrom({ board: board(true), now: NOW }).players.length, 1)
+await ok('nhl: the goalie is read from the game\'s starters (the Slate\'s source): no source = nobody, unconfirmed = pending, confirmed = in', async () => {
+  const board = (starters) => ({ games: [{ game: { state: 'pre', gameType: 2, startUtc: new Date(FUTURE).toISOString() }, starters, rows: [{ playerId: 7, name: 'Test Skater', team: 'AAA', opp: 'BBB', home: true, rank: 1, score: 77, status: 'called', context: {} }] }] })
+  const none = NHL.nhlPlayersFrom({ board: board(undefined), now: NOW })
+  assert.equal(none.players.length, 0); assert.equal(none.pending.length, 0)         // no source: a definite no, like the Slate
+  const unconfirmed = NHL.nhlPlayersFrom({ board: board({ away: { playerId: 1, confirmed: false }, home: null }), now: NOW })
+  assert.equal(unconfirmed.players.length, 0); assert.equal(unconfirmed.pending.length, 1)
+  const conf = board({ away: { playerId: 1, confirmed: true }, home: null })        // a home skater faces the AWAY goalie
+  assert.equal(NHL.nhlPlayersFrom({ board: conf, now: NOW }).players.length, 1)
+  // the Slate adapter reads the very same helper and source
+  const NHLS = await import('../lib/posts/nhl.js')
+  const slate = NHLS.nhlSlate({ games: [{ ...conf.games[0], rows: [{ ...conf.games[0].rows[0], context: { nightRank: 1, nightOf: 100 } }] }], now: NOW })
+  assert.equal(slate.cands[0].problem, null)
   // a preseason game is not a game for polls
   const pre = board(true); pre.games[0].game.gameType = 1
   assert.equal(NHL.nhlPlayersFrom({ board: pre, now: NOW }).players.length, 0)
