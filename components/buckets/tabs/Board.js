@@ -11,13 +11,14 @@ import { boardRows, boardColumns, faceOf, XPTS_MARKETS } from '../boardTable'
 import FullBoard from './FullBoard'
 import { useWhySheet, whyColumn } from '../../WhySheet'
 import BucketWatch from '../BucketWatch'
-import { AngleRow } from '../../Filters'
+import { AngleRow, PillRow } from '../../Filters'
 import BoardTopBar from '../../BoardTopBar'
 import FiltersDrawer, { DrawerSection, drawerChip } from '../../FiltersDrawer'
 import RangeDual from '../../RangeDual'
 import { bucketsAngles } from '../../../lib/nba/angles'
 import { BucketsCards } from '../BucketsCard'
-import { EmptyState, DelayedBanner, Loading, SourceLine, Pills, NavBtn, DayPager, Why, fmtDay, writeHashParam, readHashParam } from '../ui'
+import { EmptyState, DelayedBanner, Loading, SourceLine, Pills, NavBtn, DayPager, Why, fmtDay, fmtTip, writeHashParam, readHashParam } from '../ui'
+import { STATUS_WORD } from '../../../lib/callStatus'
 
 // 🎯 PROPS -- the BUCKETS board for one market (lib/nba/boardRead.js): every
 // player on the night's rosters ranked by the market's score, one CALLED per
@@ -30,6 +31,14 @@ const HOW_NOTES = [
   { title: 'Score', text: 'A 0-100 rank among tonight’s players on the legs shown beside it (this season and last, pooled by games). A ranking, not a percent.' },
   { title: 'Result', text: 'After the final, what he did. A hit lights up in rim orange; a player who did not play is VOID, not a miss.' },
 ]
+// The three steps under the picture: the same three TUDDY's and LAMP's read-this-board sheets end on.
+const HOW_STEPS = [
+  { icon: '👆', text: 'Tap a name to open his page.' },
+  { icon: '★', text: 'Add him to your watchlist.' },
+  { icon: '✅', text: 'After the final, every call is graded on the Ledger.' },
+]
+const GAME_FOR = (g, r) => (g ? `${r.home ? 'vs' : '@'} ${r.opp}${g.start ? ` · ${fmtTip(g.start)}` : ''}` : r.opp ? `${r.home ? 'vs' : '@'} ${r.opp}` : 'TBD')
+const ALL_KEYS = Object.keys(NBA_MARKETS)
 
 // MERGED WITH RANKINGS (2026-10-06): this is the Rankings page. One market at a time, or ALL MARKETS
 // (the old every-market table), the table first, and a WHY on every row.
@@ -84,7 +93,23 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
   const [bands, setBands] = useState([])   // [{ key, min, max }] on r.pct (percentiles among tonight's players)
   const [gameSel, setGameSel] = useState([])
   const [minX, setMinX] = useState(0)
-  const { data, error, loading } = useBucketsBoard(date, mk)
+  // ONE READ PER MARKET (2026-10-08): the chips carry a count (how many players have a score for that market), the
+  // same way TUDDY's do, so all six boards are read -- the same cached /api/buckets/board reads the ALL MARKETS table makes.
+  const bPts = useBucketsBoard(date, 'pts'), bReb = useBucketsBoard(date, 'reb'), bAst = useBucketsBoard(date, 'ast')
+  const bTpm = useBucketsBoard(date, '3pm'), bPra = useBucketsBoard(date, 'pra'), bFirst = useBucketsBoard(date, 'first')
+  const boardsBy = { pts: bPts, reb: bReb, ast: bAst, '3pm': bTpm, pra: bPra, first: bFirst }
+  const { data, error, loading } = boardsBy[mk]
+  const marketCounts = useMemo(() => {
+    const out = {}; const seen = new Set()
+    for (const k of ALL_KEYS) {
+      const rs = (boardsBy[k].data?.rows || []).filter((r) => r.score != null && Number.isFinite(Number(r.score)))
+      out[k] = boardsBy[k].data ? rs.length : null
+      for (const r of rs) seen.add(`${r.gameId}-${r.playerId}`)
+    }
+    out[ALL] = ALL_KEYS.some((k) => boardsBy[k].data) ? seen.size : null
+    return out
+  }, [bPts.data, bReb.data, bAst.data, bTpm.data, bPra.data, bFirst.data]) // eslint-disable-line react-hooks/exhaustive-deps
+  const marketOptions = MARKET_PILLS.map((o) => ({ key: o.key, label: o.text, count: marketCounts[o.key] ?? undefined, title: o.key === ALL ? 'Every market side by side' : NBA_MARKETS[o.key]?.label }))
   const xp = useBucketsExpected(date)
   const xptsBy = useMemo(() => new Map((xp.data?.rows || []).map((r) => [String(r.playerId), r])), [xp.data])
   const D = NBA_MARKETS[mk]
@@ -170,20 +195,35 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
     reset: clearAll, shown: rows.length, total: pool.length, accent: C.purple, accentInk: C.bg,
     poolTitle: 'Players on tonight’s board that clear the filters. Stacks with the search, team and game above.', emptyNote: 'Nothing clears every filter at once. Loosen one.',
   }
+  // The row the "How to read this" picture draws: the night's real #1 for this market (a row the table below also shows).
+  // Its words come from the row's own status, never re-derived here.
+  const howRow = useMemo(() => {
+    const top = (data?.rows || []).filter((r) => r.score != null && Number.isFinite(Number(r.score))).sort((a, b) => (a.nightRank ?? 9999) - (b.nightRank ?? 9999))[0]
+    if (!top) return null
+    const g = (data?.games || []).find((x) => x.id === top.gameId)
+    return {
+      sport: 'nba', faceId: top.playerId, team: top.team, opp: null, name: top.name, rank: top.nightRank ?? 1,
+      caption: 'One row from tonight\u2019s board, taken apart.',
+      score: { label: D.label, value: top.score, dp: 0 },
+      pick: top.status === 'off' ? null : STATUS_WORD[top.status] || null, pickNone: STATUS_WORD.off,
+      fifth: { label: 'Game', value: GAME_FOR(g, top) },
+    }
+  }, [data, D]) // eslint-disable-line react-hooks/exhaustive-deps
   const pick = (k) => { setM(k); setAngle(null); writeHashParam('m', k === 'pts' ? null : k) }
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {phone ? (<>
-        {/* PHONE (2026-10-06): one line, one control row, then the table; the rest is behind Filters. */}
+        {/* PHONE (2026-10-08): TUDDY's Rankings anatomy -- one line, one control row (Filters / Ledger / Watchlist / the
+            market chips, each with its count), then the table. Search, team, game, the day, Called only, the angles and the
+            layout are all behind Filters. */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'space-between' }}>
-          <div style={{ minWidth: 0, fontSize: 13, lineHeight: 1.3, color: C.text2 }}>Every player tonight, ranked.</div>
-          <HowToRead id="buckets-board" accent={C.purple} notes={HOW_NOTES} />
+          <div style={{ minWidth: 0, fontSize: 13, lineHeight: 1.3, color: C.text2 }}>Every player tonight, #1 down. Tap a header to sort.</div>
+          <HowToRead id="buckets-board" accent={C.purple} row={howRow} notes={HOW_NOTES} steps={HOW_STEPS} />
         </div>
-        {/* FIND / FILTER, one row (MOONSHOT's Controls row): the search field and a 44px Filter button that holds team and game */}
-        <BoardTopBar query={q} setQuery={setQ} placeholder="Search player or team…" team={team} setTeam={setTeam} teams={teams} teamLabel="🏀 All teams" game={gameF} setGame={setGameF} games={gameOptions} gameLabel="All games" />
         <FiltersDrawer ledger="nba" {...drawerProps} compact
-          beside={<div style={{ flex: 1, minWidth: 0, overflowX: 'auto', scrollbarWidth: 'none' }}><div style={{ width: 'max-content' }}><Pills ariaLabel="Market" value={m} onChange={pick} options={MARKET_PILLS} nowrap /></div></div>}
+          beside={<div style={{ flex: 1, minWidth: 0 }}><PillRow tall value={m} options={marketOptions} onChange={pick} /></div>}
           lead={(<div style={{ display: 'grid', gap: 8, marginBottom: 12 }}>
+            <BoardTopBar inDrawer query={q} setQuery={setQ} placeholder="Search player or team…" team={team} setTeam={setTeam} teams={teams} teamLabel="🏀 All teams" game={gameF} setGame={setGameF} games={gameOptions} gameLabel="All games" />
             <DayPager shown={shown} date={date} setDate={setDate} disabled={loading}>
               <NavBtn onClick={() => setCalledOnly((v) => !v)} strong={calledOnly} ariaLabel="Called only">{calledOnly ? '✓ Called only' : 'Called only'}</NavBtn>
             </DayPager>
@@ -197,12 +237,12 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
       <PageHeader eyebrow={`BUCKETS · RANKINGS · ${m === ALL ? 'ALL MARKETS' : D.label}`} title={shown ? fmtDay(shown) : 'Tonight'} theme={C} numFont={NUM_FONT} accent={C.purple}
         note={<>Every player that day, ranked for one market. <Why label="Calls" text="One call per team in each game. Calls lock before tip and are graded after the final." /></>}
         stats={data ? [{ value: games.length, label: 'GAMES', tone: C.text2 }, { value: called, label: 'CALLED', tone: C.purple }, { value: data.lockedGames?.length || 0, label: 'LOCKED', tone: C.text2 }] : null} />
-      <Pills ariaLabel="Market" value={m} onChange={pick} options={MARKET_PILLS} />
+      <PillRow label="Market" value={m} options={marketOptions} onChange={pick} />
       <DayPager shown={shown} date={date} setDate={setDate} disabled={loading}>
         <NavBtn onClick={() => setCalledOnly((v) => !v)} strong={calledOnly} ariaLabel="Called only">{calledOnly ? '✓ Called only' : 'Called only'}</NavBtn>
       </DayPager>
       <BoardTopBar query={q} setQuery={setQ} placeholder="Search player or team…" team={team} setTeam={setTeam} teams={teams} teamLabel="🏀 All teams" game={gameF} setGame={setGameF} games={gameOptions} gameLabel="All games" />
-      <HowToRead id="buckets-board" accent={C.purple} notes={HOW_NOTES} />
+      <HowToRead id="buckets-board" accent={C.purple} row={howRow} notes={HOW_NOTES} steps={HOW_STEPS} />
       {m !== ALL && angles.length > 0 && <AngleRow defs={angles} pool={all} value={angleDef ? angle : null} onChange={setAngle} accent={C.purple} hideEmpty />}
       {m !== ALL && angleDef && <p style={{ margin: 0, fontSize: 12, color: C.text3, lineHeight: 1.5 }}>{angleDef.title}</p>}
       {m !== ALL && <Pills ariaLabel="Layout" value={layout} onChange={setLayout} options={[{ key: 'table', text: 'TABLE' }, { key: 'cards', text: 'CARDS' }]} />}
@@ -222,7 +262,7 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
         </div>
       )}
       {rows.length > 0 && !noStarters && layout === 'cards' && (
-        <BucketsCards market={mk} onOpen={onOpenPlayer} rows={[...rows].filter((r) => Number.isFinite(Number(r.score))).sort((a, b) => b.score - a.score)} />
+        <BucketsCards market={mk} onOpen={onOpenPlayer} rows={[...rows].filter((r) => r.score != null && Number.isFinite(Number(r.score))).sort((a, b) => b.score - a.score)} />
       )}
       {rows.length > 0 && !noStarters && layout === 'table' && (
         <BucketsTable rows={rows} columns={boardColumns(m, { onOpenTeam, onOpenGame, withXpts: true, whyCol: whyColumn({ textOf: (r) => (r.status === 'off' && r.reason ? r.reason : plainWhy(r, m)?.short || ''), itemOf: (r) => whyItemFor(r, m, r.nightRank), open: openWhy, theme: C, numFont: NUM_FONT, w: 165 }) })} statusOf={(r) => r.status}
