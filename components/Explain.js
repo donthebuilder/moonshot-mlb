@@ -43,7 +43,7 @@ import { C, NUM_FONT } from '../lib/theme'
 // same false promise on a dozen surfaces at once.
 //
 // The only genuine predictions on the site are the Proj HR / Adj HR columns in
-// ProjectedOutput, which are expected COUNTS built from measured band rates.
+// ProjectedOutput, which are expected COUNTS (Proj HR from the team model in lib/teamHr.js).
 // Those say so themselves. Everything else ranks.
 //
 // RANK_NOT_PERCENT is appended by the explain banner to any score term, so the
@@ -101,7 +101,7 @@ export const GLOSSARY = {
   'fit': 'How well this hitter fits what the board is looking for tonight. Higher ranks better.',
   'leak': 'Ranks tonight’s starters on how likely they are to give up a homer, against each other rather than the league. Higher means easier to take deep.',
   'leak score': 'Ranks tonight’s starters on how likely they are to give up a homer, against each other rather than the league. Higher means easier to take deep.',
-  'proj hr': 'The one real PREDICTION on the site: expected home runs, from the rate his score band and ISO band actually produced across the graded archive. Not a rank — a count.',
+  'proj hr': 'The one real PREDICTION on the site: expected home runs in the game, from a team model — each club’s own home-run rate, the plate appearances it takes, the opposing starter, the park and the weather. Not a rank — a count.',
 
 
   // ── THE COVERAGE GAP (2026-08-09 survey) ──────────────────────────────

@@ -22,6 +22,9 @@ export default function ProjectedView({
   note = null, rows = [], primary, adj = null, unit, columns = [], pillCols = null,
   sortCol, sortDir, onSort, podiumTip = null, barsTitle = null, barsFoot = null, footnote = null,
   onOpenGame = null, onOpenTeam = null, accent = C.orange, tick = C.amber, palette = null, sport = null, large = false,
+  // spreadBands (MOONSHOT, 2026-10-08): the pill grades read tonight's own spread of the column (z-score) instead of
+  // a fixed +-5%/15% off the mean; absent, the fixed cuts as they were
+  spreadBands = false,
 }) {
   // large (LAMP, 2026-10-06): every word 12px or more, logos 22px. Absent: the sizes below, as they were.
   const z = (n) => (large ? Math.max(12, Math.round(n + 3)) : n)
@@ -180,9 +183,23 @@ export default function ProjectedView({
           const xs = rows.map((r) => r.values[c]).filter((v) => Number.isFinite(v))
           means[c] = xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0
         })
+        const sds = {}
+        columns.forEach((c) => {
+          const xs = rows.map((r) => r.values[c]).filter((v) => Number.isFinite(v))
+          sds[c] = xs.length ? Math.sqrt(xs.reduce((a, b) => a + (b - means[c]) ** 2, 0) / xs.length) : 0
+        })
         const gradeOf = (col, v) => {
           if (!pills.has(col) || !Number.isFinite(v)) return null
           const mean = means[col] || 1
+          if (spreadBands && rows.length >= 4 && sds[col] > 0.02) {
+            // the same five-way grade, on the distribution of the number itself: 1 sd = the old 15%, 1/3 sd = the old 5%
+            const z = (v - mean) / sds[col]
+            if (z > 1) return { cls: 'hot', arrow: '▲' }
+            if (z > 1 / 3) return { cls: 'warm', arrow: '▲' }
+            if (z < -1) return { cls: 'cold', arrow: '▼' }
+            if (z < -1 / 3) return { cls: 'cool', arrow: '▼' }
+            return null
+          }
           const d = (v - mean) / (mean || 1)
           if (d > 0.15) return { cls: 'hot', arrow: '▲' }
           if (d > 0.05) return { cls: 'warm', arrow: '▲' }
