@@ -17,6 +17,7 @@ import GameLedgerLine from '../ledger/GameLedgerLine'
 import { easternDate } from '../../lib/data'
 import { useNflWatchlist } from '../../lib/nfl/watchlist'
 import { localDayTime } from '../../lib/localTime'
+import { slateTotals, TD_WORD } from '../../lib/nfl/teamTdModel'
 
 // TUDDY'S SLATE (2026-09-28). Donovan: "there's no breakdown page like the
 // slate page for mlb ... I should be able to see each game and get a good
@@ -24,16 +25,17 @@ import { localDayTime } from '../../lib/localTime'
 // TUDDY is seasoning." So this is MOONSHOT's Slate (components/tabs/Games.js,
 // Games view) built from its own pieces -- components/slate/* -- with
 // football's data in them:
-//   the strip   one SlateCard per game: expected TDs in the game on the dial
-//               (the sum of each man's xTD, ringed against this week's range),
+//   the strip   one SlateCard per game: expected touchdowns in the game on the dial
+//               (the TEAM model, lib/nfl/teamTdModel.js: both clubs, ringed against
+//               the league's matchups),
 //               kickoff / live / final, the bot's calls in the game as chips
 //   the game    The read (each offense against the other defense, in the
 //               Matchups page's plain lines), Players (both rosters, the TD
 //               table), Matchup (each defense's zone tiles), Picks (the calls,
 //               then the game's top TD cards), prev / next
 // The open game rides the address (#…&game=<id>), so a shared link opens it.
-// Nothing here is a new number: xTD, scores, calls and the defense data are
-// the week file's and the matchup file's own.
+// The dial is the team model's one number (lib/nfl/teamTdModel.js slateTotals);
+// scores, calls and the defense data are the week file's and the matchup file's own.
 
 const HEADLINE_MARKETS = ['TD', 'REC_YDS', 'RUSH_YDS', 'REC', 'PASS_YDS', 'KICK_PTS']
 const MARKET_TAG = { TD: 'TD', REC_YDS: 'REC YDS', RUSH_YDS: 'RUSH YDS', REC: 'REC', PASS_YDS: 'PASS YDS', KICK_PTS: 'KICK' }
@@ -86,12 +88,11 @@ export default function NflSlate({ data, picks, matchup, logs = null, odds = nul
   // A game handed over from another tab (Storylines, the Ledger) opens here.
   useEffect(() => { if (initialGame) setHashGame(String(initialGame)) }, [initialGame])   // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Expected TDs per game: the sum of every scored man's xTD on both teams.
-  const xtdByGame = useMemo(() => {
-    const byTeam = new Map()
-    for (const p of players) if (!p.on_bye) byTeam.set(p.team, (byTeam.get(p.team) || 0) + (Number(p?.stats?.xTD) || 0))
-    return Object.fromEntries(allGames.map((g) => [g.game_id, (byTeam.get(g.away) || 0) + (byTeam.get(g.home) || 0)]))
-  }, [players, allGames])
+  // Expected touchdowns per game: the TEAM model's number (both clubs). One source:
+  // lib/nfl/teamTdModel.js -- never a sum over the players here.
+  const totals = useMemo(() => slateTotals(data, logs), [data, logs])
+  const xOf = (g) => (Number.isFinite(totals[g.game_id]?.total) ? totals[g.game_id].total : null)
+  const heatOf = (g) => totals[g.game_id]?.heat ?? 0
 
   const counts = useMemo(() => {
     const c = { all: shownGames.length, live: 0, upcoming: 0, final: 0 }
@@ -111,14 +112,11 @@ export default function NflSlate({ data, picks, matchup, logs = null, odds = nul
     if (typeof document !== 'undefined') requestAnimationFrame(() => document.getElementById('tuddy-slate-game')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
   }
 
-  const xs = games.map((g) => xtdByGame[g.game_id] || 0)
-  const lo = Math.min(...xs, 0); const hi = Math.max(...xs, 0)
-  const heatOf = (v) => (hi > lo ? (v - lo) / (hi - lo) : 0)
-  const top = games.reduce((a, g) => ((xtdByGame[g.game_id] || 0) > (xtdByGame[a?.game_id] || -1) ? g : a), null)
+  const top = games.reduce((a, g) => ((xOf(g) ?? -1) > (xOf(a) ?? -1) ? g : a), null)
 
   const cards = games.map((g) => {
-    const x = xtdByGame[g.game_id] || 0
-    const heat = heatOf(x)
+    const x = xOf(g)
+    const heat = heatOf(g)
     const calls = callsIn(picks, g)
     const chipsFrom = calls.length
       ? calls.slice(0, 3).map(({ market, call }) => ({ market, name: call.name, score: call.score, pid: call.player_id }))
@@ -128,8 +126,8 @@ export default function NflSlate({ data, picks, matchup, logs = null, odds = nul
     return {
       id: String(g.game_id), title: <MatchLogos sport="nfl" away={g.away} home={g.home} px={26} gap={5} />, past: Boolean(g.completed), heat,
       tooltip: `${g.away} @ ${g.home}${g.venue ? ` · ${g.venue}` : ''}`,
-      dial: { value: x, dp: 1, pct: 100 * heat, title: `${x.toFixed(1)} expected touchdowns between the two teams — the sum of each scored player's xTD. The ring fills against this week's range.` },
-      band: top && g.game_id === top.game_id ? { icon: '🌋', word: 'MAIN EVENT' } : heat >= 0.62 ? { icon: '🔥', word: '' } : heat < 0.3 ? { icon: '🧊', word: '' } : null,
+      dial: { value: x, dp: 1, pct: 100 * heat, title: x == null ? `${TD_WORD} — loading` : `${x.toFixed(1)} ${TD_WORD} between the two teams — each club's touchdown rate against the other's defence. The ring shows where it sits among all matchups in the league.` },
+      band: x == null ? null : top && g.game_id === top.game_id ? { icon: '🌋', word: 'MAIN EVENT' } : heat >= 0.8 ? { icon: '🔥', word: '' } : heat <= 0.2 ? { icon: '🧊', word: '' } : null,
       status: live ? { kind: 'live', text: g.detail || 'LIVE' } : g.completed ? { kind: 'final', text: 'FINAL' } : { kind: 'time', text: kickText(g) },
       extra: airText(g) ? <span>{airText(g)}</span> : null,
       score: (live || g.completed) ? { away: g.away, home: g.home, awayScore: g.away_score, homeScore: g.home_score, live } : null,
@@ -151,7 +149,7 @@ export default function NflSlate({ data, picks, matchup, logs = null, odds = nul
       <GameFilterRail value={gfilter} onChange={setGfilter} counts={counts} />
       <SlateStrip sport="nfl" isPhone={isPhone} rememberKey="tuddy_games_fold_v1" accent={C.green} theme={C}
         open={g ? { away: g.away, home: g.home } : null} cards={cards} activeId={activeId} onSelect={select}
-        legend="Ring = expected touchdowns." />
+        legend={`Ring = ${TD_WORD}.`} />
       <GameSwitcher sport="nfl" games={switcherGames} activeGame={activeId} onSelect={select} live={switcherLive} accent={C.green} stickyTop="0px" />
 
       {g && (() => {
@@ -162,13 +160,13 @@ export default function NflSlate({ data, picks, matchup, logs = null, odds = nul
         // a one-game table: the kickoff on every row said nothing (Game column dropped);
         // the club code rides its logo
         const cols = tableColumns.filter((c) => c.key !== 'state').map((c) => (c.key === 'team' || c.key === 'opp' ? { ...c, code: true } : c))
-        const x = xtdByGame[g.game_id] || 0
+        const x = xOf(g)
         return (
           <div id="tuddy-slate-game" style={{ scrollMarginTop: 'calc(var(--hdr-h, 0px) + var(--gsw-h, 0px) + 8px)', marginBottom: 20 }}>
             <GameFrame accent={C.green} past={Boolean(g.completed)}>
               {/* 1. THE GAME, ONCE: the one place the matchup, the kickoff and the dial are said */}
               <div style={{ padding: '12px 14px 12px' }}>
-                <GameHeader game={g} when={kickWhen(g)} air={airText(g)} xtd={x} heat={heatOf(x)} past={Boolean(g.completed)} onOpenTeam={onOpenTeam} />
+                <GameHeader game={g} when={kickWhen(g)} air={airText(g)} xtd={x} heat={heatOf(g)} past={Boolean(g.completed)} onOpenTeam={onOpenTeam} />
               </div>
               <div style={{ borderTop: `1px solid ${C.border}`, padding: '12px 14px 14px', background: 'rgba(0,0,0,.15)' }}>
                 <GamePanelPills panels={PANELS} subs={SUBS} panel={panel} setPanel={setPanel} gamePk={g.game_id} isPhone={isPhone} accent={C.green} stickyTop="var(--gsw-h, 0px)" />

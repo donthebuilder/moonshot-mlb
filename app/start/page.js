@@ -68,8 +68,9 @@ import { easternToday, shiftDay } from '../../lib/data'
 import { fetchBoardFull } from '../../lib/dash/board'
 import { buildHeadlines } from '../../lib/headlinesCore'
 import {
-  fetchNfl, nflMatchupLooksReal, nflMatchupPaths, nflSlateLooksReal, nflSlatePaths,
+  fetchNfl, nflLogPaths, nflMatchupLooksReal, nflMatchupPaths, nflSlateLooksReal, nflSlatePaths,
 } from '../../lib/nfl/dataSource'
+import { slateTotals } from '../../lib/nfl/teamTdModel'
 import { buildNflHeadlines } from '../../lib/nfl/headlines'
 import { trimForFour } from '../../lib/theFourFields'
 import { nameOf } from '../../lib/player'
@@ -483,9 +484,10 @@ async function computeCalls(sportKey) {
 }
 
 async function computeNflCalls() {
-  const [slate, matchup] = await Promise.all([
+  const [slate, matchup, logs] = await Promise.all([
     fetchNfl(nflSlatePaths(), nflSlateLooksReal).catch(() => null),
     fetchNfl(nflMatchupPaths(), nflMatchupLooksReal).catch(() => null),
+    fetchNfl(nflLogPaths()).catch(() => null),   // the team model's input (GAME TO CIRCLE)
   ])
   if (!slate) return { bites: [], strip: [] }
   // `p` on each bite is a whole player row and `col` is a theme colour. Only
@@ -496,6 +498,7 @@ async function computeNflCalls() {
     games: slate.games || [],
     markets: slate.markets || [],
     matchup,
+    totals: slateTotals(slate, logs),
   })
   // Football's bites ARE its best-calls section, so there is no second strip
   // to build from them. Not a parity gap with baseball — a consequence of

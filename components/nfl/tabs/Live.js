@@ -219,7 +219,7 @@ export default function Live({ data, picks, live, matchup = null, logs = null, r
   const secHeadline = (
     <>
       {!anyLive && (
-        <NflHeadlineStrip players={players} games={games} markets={data?.markets} matchup={matchup}
+        <NflHeadlineStrip players={players} games={games} markets={data?.markets} matchup={matchup} logs={logs} week={data}
           onPlayerClick={onPlayerClick} setTab={setTab} />
       )}
     </>
