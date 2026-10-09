@@ -5,12 +5,13 @@ import PageHeader from '../../PageHeader'
 import TeamMark from '../../TeamMark'
 import Tap from '../../Tap'
 import { C, NUM_FONT } from '../../../lib/nba/theme'
-import { useBucketsGame, useBucketsBoard } from '../../../lib/nba/useBuckets'
+import { useBucketsGame, useBucketsBoard, useBucketsTeamModel } from '../../../lib/nba/useBuckets'
 import { NBA_MARKETS } from '../../../lib/nba/model'
 import { GAME_ID_RE } from '../../../lib/nba/ids'
 import GameLedgerLine from '../../ledger/GameLedgerLine'
 import BucketsTable from '../BucketsTable'
 import ShotChart from '../ShotChart'
+import BucketsTeamExpected from '../BucketsTeamExpected'
 import { EmptyState, DelayedBanner, Loading, SourceLine, Kicker, BackBtn, NavBtn, RimDot, fmtTip, gameDay, fmtDay } from '../ui'
 
 // the 3D court loads only when opened (next/dynamic, as the other 3D views)
@@ -52,6 +53,7 @@ export default function Game({ id, onBack, backLabel = 'Live', onOpenPlayer, onO
           {fp && fp.player_id !== fb?.player_id && <div><Kicker>FIRST POINTS</Kicker><PlayLine play={fp} name={names[fp.player_id]} onOpenPlayer={onOpenPlayer} /></div>}
         </div>
       )}
+      <GameExpected id={id} date={gameDay(data.date)} onOpenTeam={onOpenTeam} />
       <GameLedgerLine sport="nba" gameId={id} day={gameDay(data.date)} />
       <GameCalls id={id} date={gameDay(data.date)} onOpenPlayer={onOpenPlayer} />
       {[away, home].map((t) => <BoxTable key={t.id} team={t} box={(data.box || []).filter((p) => p.team === t.abbrev)} onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} />)}
@@ -96,6 +98,14 @@ function LineScore({ teams, periods, qLabel, done, onOpenTeam }) {
       ))}</tbody>
     </table>
   )
+}
+
+// EXPECTED POINTS, FROM THE TEAM MODEL (2026-10-08): this game's row of /api/buckets/teammodel. No row (the feed
+// is slow, a club with no numbers) -> nothing shown, never a guess.
+function GameExpected({ id, date, onOpenTeam }) {
+  const { data } = useBucketsTeamModel(date || null)
+  const m = (data?.games || []).find((x) => String(x.id) === String(id))
+  return m ? <BucketsTeamExpected model={m} preseason={m.seasonType === 1} onOpenTeam={onOpenTeam} /> : null
 }
 
 // THE CALLS IN THIS GAME (2026-10-04, audit: the game page never said who the
