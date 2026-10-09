@@ -501,6 +501,14 @@ await ok('slots: every poll slot lands where the scheduler lets a poll go out (m
     }
   }
 })
+await ok('MLB BOARD poll reads the Slate row (named MLB ids only); the old pregame row only before the Slate', async () => {
+  const slateRow = { day: '2026-10-12', kind: 'slate', payload: { picks: [{ player_id: 'T1', name: 'Test A', team: 'AAA' }, { player_id: 'T2', name: 'Test B', team: 'BBB' }], named: ['T1', 'N9'], named_by_sport: { mlb: ['T1'], nfl: ['N9'] } } }
+  const old = { day: '2026-10-08', kind: 'pregame', payload: { picks: [{ player_id: 'T3', name: 'Test C', team: 'CCC' }] } }
+  const db = fakeDb({ homer_feed_posts: [slateRow, old, { day: '2026-10-13', kind: 'pregame', payload: { picks: [{ player_id: 'T4', name: 'Test D' }] } }] })
+  assert.deepEqual(await MLB.mlbCalledNames(db, '2026-10-12'), [{ id: 'T1', name: 'Test A', team: 'AAA' }])
+  assert.deepEqual(await MLB.mlbCalledNames(db, '2026-10-08'), [{ id: 'T3', name: 'Test C', team: 'CCC' }])
+  assert.deepEqual(await MLB.mlbCalledNames(db, '2026-10-13'), [])      // from the Slate on, a stray pregame row is not read
+})
 await ok('kinds: every poll kind passes the migration pattern; sport reads right off the kind; the rest list is empty; old kinds are gone from the ticks', () => {
   const re = /^((nfl|nhl|nba)_)?poll_(pick|over|guess|streak|board|result)$/
   for (const k of [...K.POLL_KINDS, ...K.POLL_RESULT_KINDS]) assert.match(k, re)
