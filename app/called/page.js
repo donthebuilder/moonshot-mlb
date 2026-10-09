@@ -467,7 +467,9 @@ async function loadMlb(sport, db, today) {
   const all = events.map((e) => ({ ...e, day: e.game_date, _n: normMlb(e) }))
   const rows = all.filter((r) => r.day === today)
   // The morning's call, so the page shows the names BEFORE any homer lands.
-  const { data: pre } = await db.from('homer_feed_posts').select('payload,x_post_id').match({ day: today, kind: 'pregame' }).maybeSingle()
+  // THE SLATE replaced the pregame post (2026-10-09): its payload.picks are the hitters it named; a day before it keeps its pregame row
+  const { data: preRows } = await db.from('homer_feed_posts').select('kind,payload,x_post_id').eq('day', today).in('kind', ['slate', 'pregame'])
+  const pre = (preRows || []).find((r) => r.kind === 'slate') || (preRows || []).find((r) => r.kind === 'pregame') || null
   const picks = Array.isArray(pre?.payload?.picks) ? pre.payload.picks.slice(0, 5) : []
   const calledIds = new Set(rows.filter((r) => r.status === 'called').map((r) => String(r.player_id)))
   // Same window, grouped by night — the bars and the per-night drilldown

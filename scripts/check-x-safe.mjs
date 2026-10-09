@@ -442,13 +442,13 @@ await ok('quote: a call post quotes for every man its write-up names, and for no
   assert.equal(q({ player_id: 12, game_pk: 900, _s: 'called' }), null)
   assert.equal(q({ player_id: 20, game_pk: 901, _s: 'called' }), null)
 })
-await ok('quote: callofnight stores who it named (it stored {} before), and the call_ / pregame / board payloads store `named`', () => {
+await ok('quote: THE SLATE stores who it named (piece 3 replaced callofnight and pregame), and the call_ / board payloads store `named`', () => {
   const route = fs.readFileSync('app/api/dash/homers/tick/route.js', 'utf8')
-  assert.match(route, /call \? \{ picks: \[\{ player_id: String\(call\.player_id\), name: call\.name \}\] \} : \{\}\)/)
-  assert.match(route, /const patch = \{ payload: \{ picks, named \} \}/)
   assert.match(route, /named: callNamed/)
   assert.match(route, /withNamed\(\{ picks: boardPicks \}/)
-  assert.match(fs.readFileSync('lib/dash/tweetFeed.js', 'utf8'), /player_id: txt\(top\.player_id\)/)
+  const slate = fs.readFileSync('lib/posts/slate.js', 'utf8')
+  assert.match(slate, /named_by_sport: namedBySport/)
+  assert.match(slate, /named,\s*named_by_sport|v: 1, day, named, named_by_sport/)
   // the CALLED alert's copy and its quoteFor wiring are untouched
   assert.match(route, /quoteId: quoteFor\(row\)/)
 })

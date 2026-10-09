@@ -95,7 +95,7 @@ import { feedHooks, feedHooksFor } from '../../../../../lib/dash/discordChannels
 import { postMembers, membersWebhook, MEMBERS_KINDS, nflMembersBoard, nflMembersGrade } from '../../../../../lib/dash/membersPost'
 import { readNflEvents } from '../../../../../lib/record/nfl'
 import { runNflWriteups } from '../../../../../lib/writeups/post'
-import { nflWriteupQuotes } from '../../../../../lib/dash/quoteFor'
+import { nflWriteupQuotes, slateQuoteFor } from '../../../../../lib/dash/quoteFor'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -369,7 +369,19 @@ async function runTouchdownTick(db, day) {
     const { data: writeupPosts } = (pending || []).length
       ? await db.from('homer_feed_posts').select('kind,x_post_id,payload').in('day', [...new Set((pending || []).map((r) => r.day))]).like('kind', 'writeup_nfl_%')
       : { data: [] }
-    const receiptFor = nflWriteupQuotes(writeupPosts)
+    const writeupReceipt = nflWriteupQuotes(writeupPosts)
+    // THE SLATE (2026-10-09, X overhaul piece 3): a CALLED touchdown by a man the day's Slate NAMES quotes the Slate
+    // (named_by_sport.nfl, stored at post time); a featured write-up still comes first.
+    const { data: slateRows } = (pending || []).length
+      ? await db.from('homer_feed_posts').select('day,x_post_id,payload').in('day', [...new Set((pending || []).map((r) => r.day))]).eq('kind', 'slate')
+      : { data: [] }
+    const slateQuotes = new Map((slateRows || []).map((r) => [r.day, slateQuoteFor('nfl', r)]))
+    const receiptFor = (row, called) => {
+      const w = writeupReceipt(row, called)
+      if (w) return w
+      const id = called ? slateQuotes.get(row.day)?.(row.gsis_id) : null
+      return id ? { id, line: 'Called pregame. He scored.' } : null
+    }
     for (const row of pending || []) {
       const ev = eventFromRow(row)
       // REACHED (milestones plan section 5): a touchdown landing on a
