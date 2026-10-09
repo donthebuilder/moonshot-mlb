@@ -31,7 +31,10 @@ import { oddsHistoryPaths } from '../lib/dataSource'
 import MultiLine from './ledger/MultiLine'
 import { Chip } from './ui'
 import Explain from './Explain'
-import StatStrip, { HitRateBoxes, SlashLine } from './StatStrip'
+import VerdictBlock from './player/VerdictBlock'
+import StatRow from './player/StatRow'
+import HelpTip from './HelpTip'
+import { useMlbBot, mlbStatus, mlbRecordLine, mlbLastLine, mlbStatRow } from './player/mlbAdapter'
 import EVLog from './tabs/EVLog'
 import PitchBreakdown from './tabs/PitchBreakdown'
 import HRPitchProfile from './HRPitchProfile'
@@ -58,7 +61,6 @@ import { pullWallFor } from '../lib/walls'
 import PlayerCompare from './PlayerCompare'
 import ContactSection from './ContactSection'
 import { reasonContext, boardReasonFor, reasonLines } from '../lib/mlb/boardReason'
-import WhyLines from './WhyLines'
 import BotOnHim from './BotOnHim'
 
 // 🧱 "How far is HIS wall tonight" (audit #7, 2026-08-08). fieldInfo hydrate
@@ -272,6 +274,8 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
   const [detail, setDetail] = useState(null)
   const [detailState, setDetailState] = useState('idle')
   const [compareOpen, setCompareOpen] = useState(false)
+  // THE PLAYER MODEL (2026-10-08): the verdict's record + last-week lines and the role table read ONE fetch
+  const botData = useMlbBot(player?.player_id || player?.id)
 
   // THE MODAL HAS TO FETCH THE DETAIL FILE ITSELF.
   //
@@ -573,6 +577,23 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
     const q = quoteFor(odds, p, cat)
     return q?.matches ? q : null
   })()
+  // THE FLAGS (2026-10-08): the grade, the better bet, the matchup edge, the bot's pills and the hero's two
+  // chips, as one small chip row inside the verdict. The role itself is the hero's badge, so it is not repeated.
+  // A Skip HR wears no grade (grading a market the bot said to skip is decoration, 2026-08-15).
+  const verdictSignals = (() => {
+    if (apiOnly) return []
+    const skipHr = /skip/i.test(role)
+    const roleType = /hit/i.test(role) && !skipHr ? 'hit' : /hrr/i.test(role) ? 'hrr' : /(tb|contact)/i.test(role) ? 'tb' : 'hr'
+    const roleBet = bestBet(p, roleType)
+    const all = []
+    if (!skipHr && roleBet && roleBet !== role) all.push({ t: roleBet })
+    if (!skipHr) all.push({ t: `Grade ${gradeFor(p, roleType)}` })
+    if (hasMatchupEdge) all.push({ t: '🎯 Matchup Edge' })
+    pills.forEach((x) => all.push({ t: x.label }))
+    chipsFor(p, heroRole).forEach((c) => all.push(c))
+    const seen = new Set()
+    return all.filter((c) => { const k = String(c.t).toUpperCase().replace(/[^A-Z0-9]/g, ''); if (!k || seen.has(k)) return false; seen.add(k); return true })
+  })()
   const heroPriceText = heroQuote ? fmtOdds(heroQuote.over) : '—'
   const heroPrice = heroPriceText === '—' ? null : heroPriceText
 
@@ -683,12 +704,6 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
                 </>}
             metaRight={heroPrice}
             market={apiOnly ? (p?.roster ? 'on the roster, not the slate' : 'live data only') : verdictFor(heroRole).market}
-            line={apiOnly
-              ? (p?.roster
-                ? 'On a club\u2019s roster but not in tonight\u2019s lineup, so MOONSHOT did not rate him \u2014 the season line above is real, and every panel below is pulled live. No model score, on purpose.'
-                : 'Found through the league-wide search, not on MOONSHOT’s slate \u2014 every panel here is pulled live, and none of it carries a model score.')
-              : sentenceFor(p, heroRole)}
-            chips={apiOnly ? null : chipsFor(p, heroRole)}
             right={!inline && (
               <button onClick={onClose} aria-label="Close" style={{
                 background: 'transparent', border: 'none', color: C.text3, fontSize: 20,
@@ -706,13 +721,26 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
               verdict belongs. The homer boxes keep their denominators visible
               because L5/L10 count GAMES and season counts PLATE APPEARANCES;
               stacking those as bare percentages compares two different units. */}
-          <SlashLine p={p} type={primaryType} style={{ marginBottom: 9 }} />
-          <StatStrip p={p} type="hr" count={6} style={{ marginBottom: 8 }} />
-          <HitRateBoxes p={p} style={{ marginBottom: 10, maxWidth: 320 }} />
-          {reasons && !apiOnly && (() => {
-            const all = reasonLines(reasons, nameOf(p))
-            return <WhyLines theme={C} numFont={NUM_FONT} accent={C.orange} why={reasons.why.map((r) => r.text)} watch={reasons.watch?.text || null} explain={all.explain} />
-          })()}
+          {/* THE PLAYER MODEL (2026-10-08, components/player/): MOONSHOT ON HIM first (the call word, the score, why, the
+              flags, last week), then ONE row of his key numbers. Replaces the slash line, the stat tiles, the L5 / L10 /
+              season boxes and the WHY box; every number they carried is in the row, the verdict or its (?). */}
+          <VerdictBlock
+            status={apiOnly ? null : mlbStatus(p)}
+            score={heroScore}
+            scoreLabel={apiOnly || heroRole === 'NONE' || heroRole === 'WATCH' ? null : heroRole}
+            why={reasons && !apiOnly ? reasons.why.map((r) => r.text) : []}
+            watch={reasons && !apiOnly ? (reasons.watch?.text || null) : null}
+            explain={reasons && !apiOnly ? reasonLines(reasons, nameOf(p)).explain : null}
+            signals={verdictSignals}
+            help={apiOnly ? null : sentenceFor(p, heroRole)}
+            offSlate={apiOnly ? "Not on tonight's slate." : null}
+            offSlateHelp={apiOnly ? (p?.roster
+              ? 'On a club\u2019s roster but not in tonight\u2019s lineup, so MOONSHOT did not rate him. The season line is real and every panel is pulled live; no model score, on purpose. Watch and slip are not available for him.'
+              : 'Found through the league-wide search, not on MOONSHOT\u2019s slate. Every panel here is pulled live and none carries a model score. Watch and slip are not available for him.') : null}
+            recordLine={botData === undefined ? null : mlbRecordLine(botData)}
+            lastLine={botData === undefined ? null : mlbLastLine(botData)}
+          />
+          <StatRow stats={mlbStatRow(p, slate, liveSeason)} style={{ marginBottom: 8 }} />
 
           {/* THE BUTTON THAT WASN'T THERE (2026-08-24, Donovan: "I click add
               to watch, nothing happens"). It wasn't broken — this whole block
@@ -724,14 +752,6 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
               now renders SOMETHING either way: the real controls when the
               player carries slate data, a plain explanation when he doesn't,
               instead of silence. */}
-          {apiOnly && (onAdd || onWatch) && (
-            <div style={{
-              fontSize: 10.5, color: C.text3, padding: '5px 10px', marginBottom: 10,
-              border: `1px dashed ${C.border}`, borderRadius: 7, display: 'inline-block',
-            }}>
-              Watch and slip aren’t available — he isn’t on tonight’s slate.
-            </div>
-          )}
           {/* YOUR EYE FOR HIM (2026-10-01, one star + memory): on every card,
               on the slate or not -- the nights you starred him and how he did. */}
           <div style={{ marginBottom: 8 }}>
@@ -782,31 +802,6 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
               )}
             </div>
           )}
-
-          {/* chips — model opinions, so they don't exist for API-only players.
-              COHERENCE FIX (2026-08-15, part of the "flow and clean" pass):
-              these used to grade every hitter on HR, which put "Grade A+" and
-              "Avoid for HR" side by side on a Skip HR player. The grade and
-              bet chips now follow HIS market, same mapping The Read uses —
-              and a Skip HR wears no grade at all, because grading a market
-              the bot said to skip is decoration. */}
-          {!apiOnly && (() => {
-            const skipHr = /skip/i.test(role)
-            const roleType = /hit/i.test(role) && !skipHr ? 'hit'
-              : /hrr/i.test(role) ? 'hrr'
-              : /(tb|contact)/i.test(role) ? 'tb'
-              : 'hr'
-            const roleBet = bestBet(p, roleType)
-            return (
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
-                <Chip color={rc}>{role}</Chip>
-                {!skipHr && roleBet && roleBet !== role && <Chip color={C.text2}>{roleBet}</Chip>}
-                {!skipHr && <Chip color={C.text2}>Grade {gradeFor(p, roleType)}</Chip>}
-                {hasMatchupEdge && <Chip color={C.orange}>🎯 Matchup Edge</Chip>}
-                {pills.map((x, i) => <Chip key={i} color={x.color}>{x.label}</Chip>)}
-              </div>
-            )
-          })()}
 
           {/* tab bar + range toggle */}
           <div style={{
@@ -872,14 +867,6 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
               {!apiOnly && <BvP batterId={pid} pitcherId={p?.pitcher_id} pitcherName={p?.pitcher_name} player={p} />}
               {!apiOnly && <FirstPitchSplit batterId={pid} pitcherId={p?.pitcher_id} pitcherName={p?.pitcher_name} />}
               {!apiOnly && <OddsTimeline quote={heroQuote} marketLabel={heroRole === 'WATCH' ? 'HR' : heroRole} />}
-              {apiOnly && (
-                <div style={{ fontSize: 10.5, color: C.text3, lineHeight: 1.6, margin: '4px 0 12px', borderLeft: `2px solid ${C.orange}`, paddingLeft: 10 }}>
-                  He&apos;s not in tonight&apos;s slate, so there are no model scores or batted-ball
-                  detail here — but the props record above, The Read tab (his cold case), the Splits tab (situational, live), and
-                  the EV Log&apos;s strike-zone map all pull live data and work
-                  for any player in baseball.
-                </div>
-              )}
               {/* ── 💥 HIS HOMER SHAPE USED TO END THE TAB, RIGHT HERE ────
                   MOVED UP 2026-08-16 (Donovan: "i need hr shape moved up on
                   the player modal"). It shipped on 2026-08-14 as an inline
@@ -906,7 +893,7 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
               {/* Your own words, this device only — the read you had on him
                   three days ago that no stat column remembers. */}
               {/* THE BOT ON HIM: each role the bot gave him, on the clean pregame record */}
-              <BotOnHim pid={pid} />
+              <BotOnHim pid={pid} data={botData} />
               <PlayerNotes playerId={pid} />
               <InTheLedger sport="mlb" id={pid} name={nameOf(p)} jersey={jersey} birthDate={birthDate} next={hrSoFar != null ? hrSoFar + 1 : null} date={etToday()} />
               {/* 🔢 His numbers (numerology step 7): flavour, last, folded on a phone. */}

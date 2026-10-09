@@ -6,6 +6,11 @@ import StreakRibbon, { StreakLine } from './StreakRibbon'
 import ValueBars from './ValueBars'
 import { gridQuote, fairOdds, fmtOdds } from '../lib/odds'
 import { verdictInk, verdictWash } from '../lib/scales'
+import FiltersSheet from './player/FiltersSheet'
+import Brief from './player/Brief'
+import ScrollHint from './player/ScrollHint'
+import HelpTip from './HelpTip'
+import { heatCell, STREAK_AT } from './player/heat'
 
 // PROP GRID v5 — PATTERNS, not furniture.
 //
@@ -284,7 +289,8 @@ export default function ThresholdGrid({ playerId, odds }) {
     if (gap < 25) return
     patterns.push({
       icon, claim,
-      detail: `${a.pct.toFixed(0)}% (${a.ok}/${a.n}) vs ${b.pct.toFixed(0)}% (${b.ok}/${b.n})${extra ? ` — ${extra}` : ''}`,
+      detail: `${a.pct.toFixed(0)}% (${a.ok}/${a.n}) vs ${b.pct.toFixed(0)}% (${b.ok}/${b.n})`,
+      help: extra || null,
       strength: gap * Math.sqrt(Math.min(a.n, b.n)),
     })
   }
@@ -346,7 +352,7 @@ export default function ThresholdGrid({ playerId, odds }) {
       icon: stkAll > 0 ? '⚡' : '🥶',
       claim: stkAll > 0 ? `Cleared ${dynLabel} ${stkAll} straight` : `Missed ${dynLabel} ${-stkAll} straight`,
       detail: runsAll?.ended
-        ? `live run · it broke a ${runsAll.ended.len}-game ${runsAll.ended.ok ? 'run' : 'drought'}${runsAll.current?.broke?.date ? ` on ${runsAll.current.broke.date}` : ''}`
+        ? `live run · broke a ${runsAll.ended.len}-game ${runsAll.ended.ok ? 'run' : 'drought'}${runsAll.current?.broke?.date ? ` on ${runsAll.current.broke.date}` : ''}`
         : 'live run, newest games',
       // A live run is worth ranking above a marginal split but never above a
       // 40-point venue gap on 60 games, so it scales with length and stops.
@@ -361,13 +367,15 @@ export default function ThresholdGrid({ playerId, odds }) {
     if (tears >= 5 && tears >= holes * 2) {
       patterns.push({
         icon: '🌊', claim: `Runs in tears on ${dynLabel}`,
-        detail: `best run ${tears} straight vs a longest cold run of ${holes} — when he is on, he stays on`,
+        detail: `best run ${tears} straight vs longest cold run ${holes}`,
+        help: 'When he is on, he stays on.',
         strength: 140 + tears * 8,
       })
     } else if (holes >= 6 && holes >= tears * 2) {
       patterns.push({
         icon: '💤', claim: `Disappears for stretches on ${dynLabel}`,
-        detail: `longest cold run ${holes} straight vs a best run of ${tears} — the rate is a few good weeks`,
+        detail: `longest cold run ${holes} straight vs best run ${tears}`,
+        help: 'The rate is a few good weeks, not an even spread.',
         strength: 140 + holes * 8,
       })
     }
@@ -387,18 +395,19 @@ export default function ThresholdGrid({ playerId, odds }) {
 
   return (
     <div style={{ marginTop: 14 }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 8 }}>
-        <span style={{ fontSize: 12.5, fontWeight: 800 }}>🎯 Props</span>
-        <span style={{ fontSize: 9.5, color: C.text3, flex: 1, minWidth: 0 }}>
-          {lens === 'rates'
-            ? 'every market, every window — click a row to open it'
-            : 'every market as a run of clears and misses — hover a band for the night it broke'}
+      <div data-pm="props" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        <span style={{ fontSize: 13, fontWeight: 800 }}>🎯 Props</span>
+        <span style={{ flex: 1, minWidth: 0, whiteSpace: 'nowrap' }}>
+          <Brief text={lens === 'rates' ? 'Tap a row.' : 'Runs of clears and misses.'} label="Props"
+            help={lens === 'rates'
+              ? 'Every market, every window. Tap a row to open it in the chart below. Tap L5, L10, L20 or Season to set the chart window.'
+              : 'The same markets as runs: what he is on now, what broke it, his best run and his longest drought. Tap a band for the night it broke.'} />
         </span>
         <span style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
           {[['rates', '📊 Rates', 'How often he clears each bar, by window'],
-            ['streaks', '⚡ Streaks', 'The same eight markets as runs: what he is on now, what broke it, his best run and his longest drought'],
+            ['streaks', '⚡ Streaks', 'The same markets as runs: what he is on now, what broke it, his best run and his longest drought'],
           ].map(([k, lbl, tip]) => (
-            <button key={k} onClick={() => setLens(k)} title={tip} style={chip(lens === k)}>{lbl}</button>
+            <button key={k} onClick={() => setLens(k)} title={tip} aria-pressed={lens === k} style={{ ...chip(lens === k), minHeight: 44, padding: '0 12px', fontSize: 11.5 }}>{lbl}</button>
           ))}
         </span>
       </div>
@@ -412,6 +421,7 @@ export default function ThresholdGrid({ playerId, odds }) {
             overflowX:auto, so on a phone it scrolled with a stock scrollbar, no
             momentum, and at full desktop cell padding — the one dense table on
             the site that wasn't wearing the treatment every other one has. */}
+        <ScrollHint hint="Swipe for the rest of the grid">
         <div className="dense-scroll rail" style={{ overflowX: 'auto' }}>
           {/* Tightened 2026-08-08: spacing and padding trimmed so the whole
               matrix sits above the fold in the modal — the grid's value is
@@ -419,35 +429,35 @@ export default function ThresholdGrid({ playerId, odds }) {
           <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '2px 2px', fontFamily: NUM_FONT }}>
             <thead>
               <tr>
-                <th style={{ textAlign: 'left', fontSize: 8.5, color: C.text3, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.07em', padding: '0 6px' }}>Market</th>
+                <th style={{ textAlign: 'left', fontSize: 11, color: C.text3, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.07em', padding: '0 6px', position: 'sticky', left: 0, zIndex: 2, background: C.bg2 }}>Market</th>
                 {lens === 'streaks' ? (
                   <>
                     <th title="What he is on RIGHT NOW — consecutive most-recent games, clearing or missing"
-                        style={{ fontSize: 8.5, color: C.text3, fontWeight: 800, padding: '0 4px' }}>NOW</th>
+                        style={{ fontSize: 11, color: C.text3, fontWeight: 800, padding: '0 4px' }}>NOW</th>
                     <th title="The run this one broke, and the date it broke on. Blank on his first run of the season — there is nothing behind it to have ended."
-                        style={{ fontSize: 8.5, color: C.text3, fontWeight: 800, padding: '0 4px' }}>BROKE</th>
+                        style={{ fontSize: 11, color: C.text3, fontWeight: 800, padding: '0 4px' }}>BROKE</th>
                     <th title="His longest run of clears this season — the yardstick for whether tonight's streak is long FOR HIM"
-                        style={{ fontSize: 8.5, color: C.text3, fontWeight: 800, padding: '0 4px' }}>BEST</th>
+                        style={{ fontSize: 11, color: C.text3, fontWeight: 800, padding: '0 4px' }}>BEST</th>
                     <th title="His longest run of misses this season"
-                        style={{ fontSize: 8.5, color: C.text3, fontWeight: 800, padding: '0 4px' }}>COLD</th>
+                        style={{ fontSize: 11, color: C.text3, fontWeight: 800, padding: '0 4px' }}>COLD</th>
                     <th title="Every run across his last 40 games in view, newest on the left. Warm bands are clears, cool bands are misses; each boundary is a break."
-                        style={{ fontSize: 8.5, color: C.text3, fontWeight: 800, padding: '0 4px', minWidth: 150 }}>THE RUN</th>
+                        style={{ fontSize: 11, color: C.text3, fontWeight: 800, padding: '0 4px', minWidth: 150 }}>THE RUN</th>
                   </>
                 ) : <>{WINDOWS.map(([w]) => (
                   <th key={w} onClick={() => { setSpan(w); setSelGame(null) }}
                     title="Click — the chart below shows this window"
                     style={{
-                      fontSize: 8.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.07em',
+                      fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.07em',
                       color: span === w ? C.orange : C.text3, cursor: 'pointer', padding: '0 4px',
                       borderBottom: span === w ? `2px solid ${C.orange}` : '2px solid transparent',
                     }}>{w === 'Szn' ? 'Season' : w}</th>
                 ))}
-                <th style={{ fontSize: 8.5, color: C.text3, fontWeight: 800, padding: '0 4px' }}>{new Date().getFullYear() - 1}</th>
-                <th style={{ fontSize: 8.5, color: C.text3, fontWeight: 800, padding: '0 4px' }}>STK</th>
+                <th style={{ fontSize: 11, color: C.text3, fontWeight: 800, padding: '0 4px' }}>{new Date().getFullYear() - 1}</th>
+                <th style={{ fontSize: 11, color: C.text3, fontWeight: 800, padding: '0 4px' }}>STK</th>
                 <th title="What the book pays for this exact bet. Green means it pays more than his own rate says it should."
-                    style={{ fontSize: 8.5, color: C.text3, fontWeight: 800, padding: '0 4px' }}>PRICE</th>
+                    style={{ fontSize: 11, color: C.text3, fontWeight: 800, padding: '0 4px' }}>PRICE</th>
                 <th title="His TRUE price — the number at which his own rate for this row breaks even. The book paying longer than this is value; shorter is not."
-                    style={{ fontSize: 8.5, color: C.text3, fontWeight: 800, padding: '0 4px' }}>TRUE</th>
+                    style={{ fontSize: 11, color: C.text3, fontWeight: 800, padding: '0 4px' }}>TRUE</th>
                 </>}
               </tr>
             </thead>
@@ -458,28 +468,36 @@ export default function ThresholdGrid({ playerId, odds }) {
                   <tr key={row.key} onClick={() => { setMkt(row.key); setLine((LINES[row.key] || [1])[0]); setSelGame(null) }}
                     style={{ cursor: 'pointer' }}>
                     <td style={{
-                      fontSize: 11, fontWeight: on ? 900 : 700, whiteSpace: 'nowrap',
+                      fontSize: 12, fontWeight: on ? 900 : 700, whiteSpace: 'nowrap',
                       color: on ? C.orange : C.text, padding: '3px 6px',
                       borderLeft: `3px solid ${on ? C.orange : 'transparent'}`, borderRadius: 4,
+                      position: 'sticky', left: 0, zIndex: 1, background: C.bg2,
                     }}>{row.label}</td>
                     {lens === 'streaks' ? (
                       <StreakCells row={row} on={on} />
                     ) : <>{row.cells.map((c, ci) => (
                       <td key={ci} title={c ? `cleared ${c.ok} of ${c.n}` : 'no games in this window'} style={{
-                        textAlign: 'center', fontSize: 12, fontWeight: 800, padding: '3px 4px',
-                        borderRadius: 6, background: cellBg(c?.pct),
-                        color: c ? rateCol(c.pct) : C.text3,
-                        outline: on ? '1px solid rgba(249,115,22,.25)' : 'none',
-                      }}>{c ? `${c.pct.toFixed(0)}` : '—'}</td>
+                        textAlign: 'center', padding: '2px 3px', borderRadius: 8, minWidth: 40, lineHeight: 1.1,
+                        ...heatCell(c?.pct, c?.n, { accent: C.orange, C }),
+                        outline: on && !(c?.pct >= 60) ? `1px solid ${C.border2}` : 'none',
+                      }}>
+                        {c ? <>
+                          <div style={{ fontSize: 14, fontWeight: 900 }}>{c.pct.toFixed(0)}</div>
+                          <div style={{ fontSize: 10, fontWeight: 600, color: C.text3 }}>{c.ok}/{c.n}</div>
+                        </> : '—'}
+                      </td>
                     ))}
                     <td title={row.lsCell ? `${row.lsCell.ok}/${row.lsCell.n} last season` : ''} style={{
-                      textAlign: 'center', fontSize: 11, fontWeight: 700, padding: '3px 4px',
-                      borderRadius: 6, color: row.lsCell ? rateCol(row.lsCell.pct) : C.text3, opacity: 0.75,
-                    }}>{row.lsCell ? row.lsCell.pct.toFixed(0) : '—'}</td>
+                      textAlign: 'center', padding: '2px 3px', borderRadius: 8, minWidth: 40, lineHeight: 1.1, opacity: 0.85,
+                      ...heatCell(row.lsCell?.pct, row.lsCell?.n, { accent: C.orange, C }),
+                    }}>{row.lsCell ? <>
+                      <div style={{ fontSize: 12.5, fontWeight: 800 }}>{row.lsCell.pct.toFixed(0)}</div>
+                      <div style={{ fontSize: 10, fontWeight: 600, color: C.text3 }}>{row.lsCell.ok}/{row.lsCell.n}</div>
+                    </> : '—'}</td>
                     <td style={{
-                      textAlign: 'center', fontSize: 11, fontWeight: 900, padding: '3px 4px',
-                      color: row.stk > 0 ? verdictInk(true).color : row.stk < 0 ? verdictInk(false).color : C.text3,
-                    }}>{row.stk > 0 ? `W${row.stk}` : row.stk < 0 ? `L${-row.stk}` : '—'}</td>
+                      textAlign: 'center', fontSize: 12, fontWeight: 900, padding: '3px 4px', whiteSpace: 'nowrap',
+                      color: row.stk >= STREAK_AT ? C.orange : row.stk > 0 ? verdictInk(true).color : row.stk < 0 ? verdictInk(false).color : C.text3,
+                    }} title={row.stk >= STREAK_AT ? `Cleared ${row.stk} straight` : undefined}>{row.stk >= STREAK_AT ? '🔥 ' : ''}{row.stk > 0 ? `W${row.stk}` : row.stk < 0 ? `L${-row.stk}` : '—'}</td>
                     {/* PRICE and TRUE are BOTH American odds, on purpose.
                         The first draft put a percentage-point edge in the
                         second column and fell back to a fair PRICE when there
@@ -527,49 +545,23 @@ export default function ThresholdGrid({ playerId, odds }) {
             </tbody>
           </table>
         </div>
-        {/* Legend with the actual thresholds (2026-08-08): the four tiers
-            existed only as unexplained colors — now the cut-offs are stated
-            in the colors they produce, so the grid teaches its own key. */}
-        <div style={{
-          display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'baseline',
-          fontSize: 8.5, color: C.text3, margin: '5px 6px 0', fontFamily: NUM_FONT,
-        }}>
-          {lens === 'streaks' ? (
-            <>
-              <span><b style={{ color: verdictInk(true).color }}>W4</b> = cleared four straight ·{' '}
-                <b style={{ color: verdictInk(false).color }}>L2</b> = missed two straight ·{' '}
-                <b style={{ color: C.text2 }}>BROKE</b> = the run this one ended, and the night it ended on</span>
-              <span style={{ width: '100%', height: 0 }} />
-              <span>THE RUN reads newest-on-the-left — warm bands are clears, cool bands are misses, and every
-                boundary between two bands is a break. Hover a band for the game that turned it. BEST and COLD
-                are his own longest runs each way, which is what makes a streak long or ordinary
-                <b style={{ color: C.text2 }}> for him</b> rather than in the abstract. Every number here obeys the
-                situation chips above: filter to the road and you get his road streaks, not his season ones.</span>
-            </>
-          ) : (
-            <>
-              <span>% of games cleared:</span>
-              <b style={{ color: C.orange }}>60%+</b>
-              <b style={{ color: C.amber }}>40–59</b>
-              <b style={{ color: C.orange }}>25–39</b>
-              <b style={{ color: C.blue }}>under 25</b>
-              <span>· hover any cell for the fraction · {new Date().getFullYear() - 1} = all last season · STK = current streak</span>
-              <span style={{ width: '100%', height: 0 }} />
-              <span><b style={{ color: C.text2 }}>PRICE</b> = what the book pays ·{' '}
-                <b style={{ color: C.text2 }}>TRUE</b> = the price his own rate deserves ·{' '}
-                <b style={{ color: C.orange }}>warm</b> = they&apos;re paying more than he&apos;s worth ·{' '}
-                <b>@3+</b> = the book is on a different number</span>
-            </>
-          )}
+        </ScrollHint>
+        {/* THE LEGEND, ONE LINE (2026-10-08). The key, the PRICE / TRUE words and the streak rules are behind the (?). */}
+        <div style={{ margin: '5px 6px 0' }}>
+          <Brief
+            text={lens === 'streaks' ? 'W4 = cleared four straight · L2 = missed two.' : `Glow = ${60}%+ of games · 🔥 = ${STREAK_AT}+ straight.`}
+            label="How to read the grid"
+            help={lens === 'streaks'
+              ? 'W4 = cleared four straight. L2 = missed two straight. BROKE = the run this one ended, and the night it ended on. THE RUN reads newest on the left: warm bands are clears, cool bands are misses, every boundary is a break; hover or tap a band for the game that turned it. BEST and COLD are his own longest runs each way, which is what makes a streak long or ordinary for him. Every number obeys the Filters: filter to the road and you get his road streaks.'
+              : `Each cell is the share of his games that cleared the bar, with the count under it. A cell glows at 60% or more, is washed at 40-59, and fades below 25. A window on fewer than 3 games is grey and makes no claim. ${new Date().getFullYear() - 1} = all of last season. STK = current streak (🔥 at ${STREAK_AT}+ clears). PRICE = what the book pays. TRUE = the price his own rate deserves (longer than TRUE is value, shorter is not). @3+ = the book is on a different number.`} />
         </div>
 
         {/* ══ PATTERNS ══ */}
         <div style={{ marginTop: 13, paddingTop: 11, borderTop: `1px dashed ${C.border2}` }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, marginBottom: 7 }}>
-            <span style={{ fontSize: 11.5, fontWeight: 900 }}>🧭 What repeats</span>
-            <span style={{ fontSize: 9, color: C.text3 }}>
-              what actually repeats in his log for <b style={{ color: C.text2 }}>{dynLabel}</b> — 25+ point gaps on real samples only
-            </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 7, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 12.5, fontWeight: 900 }}>🧭 What repeats</span>
+            <Brief text={`on ${dynLabel}`} label="What repeats"
+              help="What actually repeats in his log at this bar. A pattern shows only when the gap is 25+ points on a real sample (the counts are printed on each card), ranked by strength, at most four. When nothing shows, his rate holds across venue, opponent quality and recent form; stability is a finding too." />
           </div>
           {topPatterns.length ? (
             <div style={{ display: 'grid', gap: 6, gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))' }}>
@@ -578,15 +570,14 @@ export default function ThresholdGrid({ playerId, odds }) {
                   background: 'rgba(255,255,255,.03)', border: `1px solid ${C.border}`,
                   borderRadius: 9, padding: '7px 11px',
                 }}>
-                  <div style={{ fontSize: 11, fontWeight: 800 }}>{pt.icon} {pt.claim}</div>
-                  <div style={{ fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT, marginTop: 2 }}>{pt.detail}</div>
+                  <div style={{ fontSize: 12, fontWeight: 800 }}>{pt.icon} {pt.claim}{pt.help ? <HelpTip label={pt.claim} text={pt.help} /> : null}</div>
+                  <div style={{ fontSize: 11, color: C.text3, fontFamily: NUM_FONT, marginTop: 2 }}>{pt.detail}</div>
                 </div>
               ))}
             </div>
           ) : (
-            <div style={{ fontSize: 10, color: C.text3, lineHeight: 1.5 }}>
-              No strong pattern on {dynLabel} — his rate holds across venue, opponent quality and recent form.
-              Stability is a finding: what you see in the matrix is what you should expect.
+            <div style={{ fontSize: 12, color: C.text3, lineHeight: 1.5 }}>
+              No strong pattern on {dynLabel}: his rate holds.
             </div>
           )}
           {/* THE RUN, IN THIS SECTION (2026-08-23). The cards above CLAIM a
@@ -601,68 +592,45 @@ export default function ThresholdGrid({ playerId, odds }) {
               </div>
             </div>
           )}
-          {handsState === 'idle' && (
-            <div style={{ fontSize: 8.5, color: C.text3, marginTop: 5 }}>
-              arm-side patterns appear after the vs RHP / vs LHP filter below loads the starters (tap it once)
-            </div>
-          )}
         </div>
 
         {/* ══ CHART + FILTERS ══ */}
         <div style={{ marginTop: 13, paddingTop: 11, borderTop: `1px dashed ${C.border2}` }}>
-          <div style={{ display: 'flex', gap: 4, marginBottom: 9, flexWrap: 'wrap', alignItems: 'center' }}>
-            {lines.length > 1 && (
-              <>
-                <span style={{ fontSize: 8, color: C.text3, textTransform: 'uppercase', letterSpacing: '.08em', fontWeight: 800 }}>Line</span>
-                {lines.map((v) => (
-                  <button key={v} onClick={() => { setLine(v); setSelGame(null) }} style={chip(thr === v)}
-                    title={`Over ${v - 0.5} — needs ${v}+ to cash`}>{v}+</button>
-                ))}
-                <span style={{ width: 6 }} />
-              </>
-            )}
-            {[['all', 'All'], ['home', 'Home'], ['away', 'Away']].map(([k, label]) => (
-              <button key={k} onClick={() => { setVenue(k); setSelGame(null) }} style={chip(venue === k)}>{label}</button>
-            ))}
-            <span style={{ width: 6 }} />
-            {[['all', 'Any arm'], ['R', 'vs RHP'], ['L', 'vs LHP']].map(([k, label]) => (
-              <button key={k} onClick={() => wantArm(k)} style={chip(arm === k)}
-                title="Games where the opposing STARTER threw from this side">{label}</button>
-            ))}
-            <span style={{ width: 6 }} />
-            {[['all', 'Any staff'], ['soft', 'vs soft staffs'], ['tough', 'vs good staffs']].map(([k, label]) => (
-              <button key={k} onClick={() => { setStaffQ(k); setSelGame(null) }} style={chip(staffQ === k)}
-                title="Where the opponent's whole staff sits in the league's OPS-against range that season — not just the starter.">{label}</button>
-            ))}
-            <span style={{ width: 6 }} />
-            {[['all', 'Any rest'], ['b2b', 'no day off'], ['rested', 'after a day off']].map(([k, label]) => (
-              <button key={k} onClick={() => { setRest(k); setSelGame(null) }} style={chip(rest === k)}
-                title="Days between this game and his previous one, from the log's own dates. His first logged game has no answer and drops out of both.">{label}</button>
-            ))}
-            <span style={{ width: 6 }} />
-            {[['all', 'Any lead-in'], ['blank', 'after a blank'], ['big', 'after a big one']].map(([k, label]) => (
-              <button key={k} onClick={() => { setAfter(k); setSelGame(null) }} style={chip(after === k)}
-                title="What he did in his PREVIOUS game. A blank is no hit, no run, no RBI — the cold case's definition, so the two panels agree. A big one is 2+ hits or a homer.">{label}</button>
-            ))}
-            {arm !== 'all' && handsState === 'loading' && (
-              <span style={{ fontSize: 9, color: C.text3, fontFamily: NUM_FONT }}>checking who started each game…</span>
-            )}
-            {arm !== 'all' && handsState === 'none' && (
-              <span style={{ fontSize: 9, color: C.orange, fontFamily: NUM_FONT }}>couldn&apos;t resolve starters — showing all</span>
-            )}
-            {anyFilter && (
-              <button onClick={() => { setVenue('all'); setArm('all'); setStaffQ('all'); setRest('all'); setAfter('all'); setSelGame(null) }}
-                style={{ ...chip(false), borderStyle: 'dashed' }}
-                title="Back to every game">clear</button>
-            )}
-          </div>
+          {/* ONE FILTERS BUTTON (2026-10-08, Donovan: five rows of big pills -> behind one button). Active ones show as small
+              removable chips; the sheet scrolls on a phone with 44px targets. Same state, same handlers as before. */}
+          <FiltersSheet
+            style={{ marginBottom: 6 }}
+            onReset={() => { setLine((LINES[m.key] || [1])[0]); setVenue('all'); setArm('all'); setStaffQ('all'); setRest('all'); setAfter('all'); setSelGame(null) }}
+            note={handsState === 'idle' ? 'Arm-side patterns appear once you pick vs RHP or vs LHP (it loads who started each game).' : null}
+            groups={[
+              ...(lines.length > 1 ? [{ key: 'line', label: 'Line', value: thr, defaultValue: lines[0], onChange: (v) => { setLine(v); setSelGame(null) },
+                options: lines.map((v) => ({ value: v, label: `${v}+`, title: `Over ${v - 0.5}: needs ${v}+ to cash` })) }] : []),
+              { key: 'venue', label: 'Home / away', value: venue, defaultValue: 'all', onChange: (v) => { setVenue(v); setSelGame(null) },
+                options: [['all', 'All'], ['home', 'Home'], ['away', 'Away']].map(([value, label]) => ({ value, label })) },
+              { key: 'arm', label: 'Starter\'s arm', value: arm, defaultValue: 'all', onChange: wantArm,
+                options: [['all', 'Any arm'], ['R', 'vs RHP'], ['L', 'vs LHP']].map(([value, label]) => ({ value, label, title: 'Games where the opposing STARTER threw from this side' })) },
+              { key: 'staff', label: 'Opposing staff', value: staffQ, defaultValue: 'all', onChange: (v) => { setStaffQ(v); setSelGame(null) },
+                hint: 'Where the opponent\'s whole staff sits in the league\'s OPS-against range that season, not just the starter.',
+                options: [['all', 'Any staff'], ['soft', 'vs soft staffs'], ['tough', 'vs good staffs']].map(([value, label]) => ({ value, label })) },
+              { key: 'rest', label: 'Rest', value: rest, defaultValue: 'all', onChange: (v) => { setRest(v); setSelGame(null) },
+                hint: 'Days between this game and his previous one. His first logged game has no answer and drops out of both.',
+                options: [['all', 'Any rest'], ['b2b', 'no day off'], ['rested', 'after a day off']].map(([value, label]) => ({ value, label })) },
+              { key: 'after', label: 'Lead-in', value: after, defaultValue: 'all', onChange: (v) => { setAfter(v); setSelGame(null) },
+                hint: 'What he did in his PREVIOUS game. A blank is no hit, no run, no RBI (the cold case\'s definition). A big one is 2+ hits or a homer.',
+                options: [['all', 'Any lead-in'], ['blank', 'after a blank'], ['big', 'after a big one']].map(([value, label]) => ({ value, label })) },
+            ]}
+            summary={<>
+              {arm !== 'all' && handsState === 'loading' && <span style={{ fontSize: 11, color: C.text3, fontFamily: NUM_FONT }}>checking who started each game…</span>}
+              {arm !== 'all' && handsState === 'none' && <span style={{ fontSize: 11, color: C.orange, fontFamily: NUM_FONT }}>couldn&apos;t resolve starters: showing all</span>}
+            </>}
+          />
 
           {/* THE SITUATION READ-OUT. One sentence, and it refuses to call a
               gap real until it beats two standard errors — the same bar the
               True Price page and the cold case use. */}
           {anyFilter && (
             <div style={{
-              fontSize: 10.5, lineHeight: 1.6, marginBottom: 9, padding: '7px 10px',
+              fontSize: 12, lineHeight: 1.5, marginBottom: 9, padding: '7px 10px',
               borderRadius: 9, background: 'rgba(255,255,255,.03)',
               border: `1px solid ${cutReal ? (cutGap > 0 ? 'rgba(74,222,128,.35)' : 'rgba(248,113,113,.35)') : C.border}`,
               color: C.text2,
@@ -729,14 +697,9 @@ export default function ThresholdGrid({ playerId, odds }) {
             )
           })()}
 
-          <div style={{ fontSize: 9.5, color: C.text3, marginTop: 8, lineHeight: 1.55 }}>
-            {filteredLog.length} games of <b style={{ color: C.text2 }}>{dynLabel}</b>, newest right — bar height is the
-            count, <span style={{ color: C.orange }}>warm clears the {thr - 0.5} line</span> (white rule), the dashed
-            orange rule is his average{staff && <>; the strip under each bar is the opposing staff —{' '}
-            <span style={{ color: C.orange }}>brighter = softer arms</span></>}. The band along the bottom is the{' '}
-            <b style={{ color: C.text2 }}>streak</b>: one unbroken segment per run, warm where he kept clearing and
-            cool where he kept missing, with the length on any run of three or more — so four consecutive
-            reads as four and not as four separate bars. Tap a bar to pin that game.
+          <div style={{ marginTop: 6 }}>
+            <Brief text={`${filteredLog.length} games of ${dynLabel}, newest right. Tap a bar to pin it.`} label="Reading the chart"
+              help={`Bar height is the count. Warm bars clear the ${thr - 0.5} line (the white rule); the dashed orange rule is his average${staff ? '; the strip under each bar is the opposing staff, brighter = softer arms' : ''}. The band along the bottom is the streak: one unbroken segment per run, warm where he kept clearing and cool where he kept missing, with the length on any run of three or more.`} />
           </div>
         </div>
       </div>

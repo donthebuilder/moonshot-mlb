@@ -9,20 +9,25 @@ import { useEffect, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { PICK_JOBS } from '../lib/pickJob'
 import DenseTable from './DenseTable'
+import ScrollHint from './player/ScrollHint'
+import HelpTip from './HelpTip'
 
 const ROLE_ORDER = ['TOP', 'HR', 'HIT', 'HRR', 'CONTACT', 'WATCH', 'NONE']
 const ROLE_LABEL = { WATCH: 'Watch (not a call)', NONE: 'No role' }
 const day = (d) => new Date(`${d}T12:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
 const split = (c) => (c?.g ? `${c.hrG}/${c.g}` : '—')
 
-export default function BotOnHim({ pid }) {
-  const [d, setD] = useState(null)
+// `data` (2026-10-08, the player model): the card fetches /api/mlb/boton once for its verdict lines and hands it
+// down; undefined -> this fetches for itself, as before.
+export default function BotOnHim({ pid, data }) {
+  const [own, setD] = useState(null)
+  const d = data !== undefined ? data : own
   useEffect(() => {
-    if (!pid) return undefined
+    if (!pid || data !== undefined) return undefined
     let live = true
     fetch(`/api/mlb/boton?pid=${encodeURIComponent(pid)}`).then((r) => (r.ok ? r.json() : null)).then((j) => { if (live) setD(j) }).catch(() => {})
     return () => { live = false }
-  }, [pid])
+  }, [pid, data])
   if (!d?.available || !d.player) return null
   const roles = Object.entries(d.player.roles).sort((a, b) => ROLE_ORDER.indexOf(a[0]) - ROLE_ORDER.indexOf(b[0]))
   const rows = roles.map(([role, R]) => ({
@@ -50,7 +55,7 @@ export default function BotOnHim({ pid }) {
     <section style={{ marginTop: 14 }} aria-label="MOONSHOT on him">
       <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', marginBottom: 6 }}>
         <span style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.1em', color: C.text2, fontFamily: NUM_FONT }}>MOONSHOT ON HIM</span>
-        <span style={{ fontSize: 12, color: C.text3 }}>{d.player.games} games on the clean pregame record, {day(d.since)}–{day(d.through)}</span>
+        <span style={{ fontSize: 12, color: C.text3 }}>{d.player.games} games on the clean pregame record, {day(d.since)}–{day(d.through)}<HelpTip label="Role record" text="Each role MOONSHOT has given him, judged on that role's job. Small samples: a lead, not a fact." /></span>
       </div>
       {d.badges.length ? (
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
@@ -61,8 +66,10 @@ export default function BotOnHim({ pid }) {
           ))}
         </div>
       ) : null}
-      <DenseTable rows={rows} columns={columns} heatMode="none" maxRows={rows.length} maxHeight={9999}
-        caption="Each role MOONSHOT has given him, judged on that role's job. Small samples: a lead, not a fact." />
+      <ScrollHint hint="Swipe for vs LHP / vs RHP, Home, Away">
+        <DenseTable rows={rows} columns={columns} heatMode="none" maxRows={rows.length} maxHeight={9999}
+          caption="Each role MOONSHOT has given him, judged on that role's job. Small samples: a lead, not a fact." />
+      </ScrollHint>
     </section>
   )
 }
