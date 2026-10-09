@@ -266,6 +266,7 @@ export default function BotPicksStrip({ players = [], onPlayerClick, onFullCard 
           )}
         </>
       )] : [],
+      teamCode: i === 0 ? null : teamOf(p),
       team: i === 0 ? null : (
         <>
           {teamOf(p)}

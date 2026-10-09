@@ -19,7 +19,8 @@ import { TYPE } from '../../lib/theme'
 // lanes: [{ key, label, icon?, blurb, color, record?, empty?,
 //           picks: [{ key, name, score, flag?: {icon, title}, result?: {hit, title},
 //                     lines: [node, node],
-//                     team?: node, micro?: string, raw,
+//                     team?: node, teamCode?: string (the club code when `team` is a node: it makes the code a link to the club),
+//                     micro?: string, raw,
 //                     why?: string, watch?: string, explain?: { label, text } }] }]
 //   why / watch (2026-09-30, BATCH-SIGNAL-WHY S2): one line each under the
 //   #1's stat lines -- the caller's reason in numbers and the one number
@@ -195,7 +196,7 @@ export default function HeadlinePicks({ theme, numFont, title, subtitle, record 
                           {p.result && <Mark r={p.result} C={C} size={11} />}
                           <span style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT, flexShrink: 0, alignSelf: 'center' }}>
                             {/* a club code draws as its logo (Donovan 10-02, logos site-wide) */}
-                            <TeamTap abbr={p.team}>{asLogos(sport, p.team, { px: 12 })}</TeamTap>
+                            <TeamTap abbr={p.teamCode ?? p.team} sport={sport}>{asLogos(sport, p.team, { px: 12 })}</TeamTap>
                           </span>
                           {p.micro && (
                             <span style={{
