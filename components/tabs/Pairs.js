@@ -1522,7 +1522,6 @@ import { SPORT_ACCENT } from '../../lib/sportAccent'
 import Rail from '../Rail'
 import { buildPairs } from '../../lib/pairEvidence'
 import { nameOf, teamOf, n } from '../../lib/player'
-import { downloadPairsCard } from '../shareCard'
 
 // (2026-10-07) The group ticket builder that lived here (GroupTicketBuilder, TicketBlock, LegSentence) was the Parlay
 // Builder's engine. The Builder page is deleted; its useful parts are on the bet slip (lib/slipPairs.js).
@@ -1601,16 +1600,6 @@ export default function Pairs({ players=[], pairBuilder, pairHistorySummary, res
             <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
               pairs grouped by the category they fall in
             </span>
-            {/* 📸 SHARE (2026-08-23) — zero-backend PNG export, same canvas
-                mechanism as the Watchlist/Player cards. */}
-            <button onClick={() => downloadPairsCard(evPairs, { title: 'PAIRS BY THE RECORD' })}
-              title="Download these pairs as a PNG for posting"
-              aria-label="Download pairs as image"
-              style={{
-                marginLeft: 'auto', background: alpha(C.orange, 0.10), border: `1px solid ${C.border}`,
-                color: C.orange, borderRadius: 7, padding: '2px 9px', fontSize: 10.5, fontWeight: 700,
-                cursor: 'pointer',
-              }}>📸</button>
           </div>
           <div style={{ fontSize: 10, color: C.text3, marginBottom: 8, lineHeight: 1.6, maxWidth: 760 }}>
             Each card names the category the pair falls in. The both-homer rates that used to sit here

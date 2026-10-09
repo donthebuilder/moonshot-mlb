@@ -1,7 +1,7 @@
 'use client'
 import NflFace from './nfl/NflFace'
 import { nflHeadshot } from '../lib/nfl/nflAssets'
-import { teamColor, isKnownTeam } from '../lib/mlbTeams'
+import { teamColor, isKnownTeam, mlbHeadshot } from '../lib/mlbTeams'
 import { CHASSIS } from '../lib/design/tokens'
 
 // ONE FACE, ALL THREE PRODUCTS (2026-09-27, BATCH-FACES step 8).
@@ -32,12 +32,12 @@ import { CHASSIS } from '../lib/design/tokens'
 // square in CSS (cover + 'top center') showed cap and forehead and cut the
 // chin. mlbstatic crops it for us instead: square, centred on the face
 // (h + c_thumb + g_face); the generic-silhouette default still applies.
-const mlbUrl = (id, px) => `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:silo:current.png/w_${px},q_auto:best/v1/people/${encodeURIComponent(id)}/headshot/silo/current`
+const mlbUrl = (id, px) => mlbHeadshot(id, px)   // lib/mlbTeams.js (fix14: one URL for the face, here and on the share cards)
 // STRICT (face in the dial, 2026-09-27): the same square face crop WITHOUT the
 // generic-silhouette default, so a player with no photo 404s and the caller
 // falls back to its own no-face look (the number in the ring) instead of
 // drawing a silhouette.
-export const mlbFaceStrict = (id, px) => (id ? `https://img.mlbstatic.com/mlb-photos/image/upload/w_${px},q_auto:best/v1/people/${encodeURIComponent(id)}/headshot/silo/current` : null)
+export const mlbFaceStrict = (id, px) => mlbHeadshot(id, px, { strict: true })
 const initials = (name) => String(name || '').split(/\s+/).filter(Boolean).map((w) => w[0]).slice(0, 2).join('').toUpperCase()
 
 // Per product, looked up -- never a sport ternary (CLAUDE.md).
