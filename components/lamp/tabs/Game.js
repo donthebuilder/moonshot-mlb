@@ -6,6 +6,7 @@ import { useLampGame } from '../../../lib/nhl/useLamp'
 import { nhlLogo, nhlTeam } from '../../../lib/nhl/teams'
 import { strengthTag } from '../ScoreTable'
 import LampTable from '../LampTable'
+import GoalieQuality from '../GoalieQuality'
 import Tap from '../../Tap'
 import SiteTeamMark from '../../TeamMark'
 import { EmptyState, DelayedBanner, Loading, SourceLine, Kicker, GameTypeChip, LampDot, GoalLabel, fmtDay, fmtPuckDrop, zoneAbbrev } from '../ui'
@@ -157,9 +158,9 @@ export default function Game({ id, onBack, onOpenPlayer = null, onOpenTeam = nul
 
       {/* ── the box (2026-10-04, audit 05 #10: goalie lines and the skater box
           were missing, though the route already read the boxscore) ── */}
-      {g.box && (g.box.away.goalies.length + g.box.home.goalies.length) > 0 && (
-        <section aria-label="Goalies">
-          <Kicker>GOALIES</Kicker>
+      <GoalieQuality game={{ home: g.home.abbrev, away: g.away.abbrev, date: g.date, state: g.state }} onOpenPlayer={onOpenPlayer}
+        box={g.box && (g.box.away.goalies.length + g.box.home.goalies.length) > 0 ? g.box : null}
+        lead={g.box && (g.box.away.goalies.length + g.box.home.goalies.length) > 0 ? (
           <LampTable bare noGroups tight heatMode="sorted" maxHeight={9999} maxRows={99} caption="Each goalie who played"
             rows={[...g.box.away.goalies, ...g.box.home.goalies].map((x) => ({ ...x, _key: `g-${x.id}`, svWord: x.sa != null ? `${x.saves ?? '—'}/${x.sa}` : '—' }))}
             columns={[
@@ -171,8 +172,7 @@ export default function Game({ id, onBack, onOpenPlayer = null, onOpenTeam = nul
               { key: 'toi', label: 'TOI', heat: false, numeric: false, mono: true, w: 56 },
               { key: 'decision', label: 'Dec', heat: false, numeric: false, w: 44, fmt: (v) => v || '—' },
             ]} />
-        </section>
-      )}
+        ) : null} />
       {g.box && ['away', 'home'].map((sd) => g.box[sd].skaters.length > 0 && (
         <section key={sd} aria-label={`${g.box[sd].abbrev} skaters`}>
           <Kicker>{g.box[sd].abbrev} SKATERS</Kicker>
