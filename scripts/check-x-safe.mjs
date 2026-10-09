@@ -10,6 +10,7 @@ import path from 'node:path'
 // ── the environment, BEFORE any module reads it ─────────────────────────────
 process.env.NEXT_PUBLIC_SITE_URL = 'https://test.example'
 Object.assign(process.env, { X_API_KEY: 'TEST', X_API_SECRET: 'TEST', X_ACCESS_TOKEN: 'TEST', X_ACCESS_SECRET: 'TEST' })
+process.env.X_SCHEDULE_OFF = 'on'   // these checks are about the cap, repeats and naming, at the real clock; the scheduler's windows are scripts/check-x-schedule.mjs
 for (const k of ['X_LINKS_EMERGENCY', 'X_LINK_KINDS', 'X_POST_LINK', 'X_POSTS_PAUSE', 'X_GUARDS_OFF', 'X_DAILY_CAP', 'POST_KINDS_ON', 'DISCORD_MLB_WEBHOOKS', 'DISCORD_HOMER_WEBHOOK']) delete process.env[k]
 
 // ── a fake fetch: X's tweet endpoint records the body and answers with an id ─

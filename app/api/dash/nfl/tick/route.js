@@ -50,7 +50,8 @@
 // loudly rather than silently eat.
 
 import { playerHref } from '../../../../../lib/routes'
-import { xOk, repeatCheck, recentNamed, logPosted, logDroppedRepeat } from '../../../../../lib/dash/xGate'
+import { xOk, repeatCheck, recentNamed, logPosted, logDroppedRepeat, scheduleGate } from '../../../../../lib/dash/xGate'
+import { windowOpen, payloadFor } from '../../../../../lib/dash/xSchedule'
 import { namedInText, withNamed } from '../../../../../lib/dash/xPolicy'
 import { isRested } from '../../../../../lib/dash/xRest'
 import { tdCallStatus } from '../../../../../lib/callStatus'
@@ -522,7 +523,7 @@ const service = () => {
 // a headline and some grey lines. The lists stand up as text.
 async function runWeeklyContentTick(db, day) {
   // Rested kinds (the vote posts, lib/dash/xRest) are skipped, not claimed.
-  const slots = (WEEKLY_SLOTS[etWeekday(day)] || []).filter((sl) => etHoursSinceNoon() >= sl.hour && !isRested(sl.kind))
+  const slots = (WEEKLY_SLOTS[etWeekday(day)] || []).filter((sl) => windowOpen({ kind: sl.kind, legacyHour: sl.hour }) && !isRested(sl.kind))   // xSchedule: the Phoenix-time window (the old ET hour only under X_SCHEDULE_OFF)
   if (!slots.length) return { skipped: 'no-slot-this-hour' }
 
   // One fetch for however many slots this day owns, and only once an hour
@@ -625,9 +626,12 @@ async function runWeeklyContentTick(db, day) {
       const named = namedInText(payload, text)
       const repeats = await repeatCheck(db, { day, kind: sl.kind, ids: named })
       if (repeats.length) { logDroppedRepeat({ day, kind: sl.kind }, `${repeats.slice(0, 4).join(', ')} named within 7 days`); out[sl.kind] = 'repeat-within-7-days'; continue }
+      // THE SCHEDULER: slot, 45-minute gap, no same kind back to back, priority near the budget. Held = nothing claimed.
+      const sg = await scheduleGate(db, { kind: sl.kind, day, legacyHour: sl.hour })
+      if (!sg.ok) { out[sl.kind] = `held: ${sg.reason}`; continue }
       if (!(await claimSlot(db, day, sl.kind))) { out[sl.kind] = 'already-posted-or-claim-failed'; continue }
 
-      const patch = { payload: named.length ? withNamed(payload, named) : payload }
+      const patch = { payload: { ...(named.length ? withNamed(payload, named) : payload), ...payloadFor(sl.kind) } }
       // Rendered once, given to both services -- the same "ONE RENDER, BOTH
       // PLACES" rule the MLB tick's claimAndPostStat already follows, and for
       // the same reason: the card used to be built inside the X branch, so
@@ -672,7 +676,7 @@ async function runMilestoneTick(db, day) {
   if (!isThu && !isSun) return { skipped: 'not-a-milestone-day' }
 
   const hourGate = isThu ? THU_HOUR : SUN_HOUR
-  if (etHoursSinceNoon() < hourGate) return { skipped: 'too-early', hourGate }
+  if (!windowOpen({ kind: 'nfl_milestone', legacyHour: hourGate })) return { skipped: 'too-early', hourGate }
 
   // Same two fetches, same validator, NflDashboard.js already uses for the
   // slate (`data`) and logs — see components/nfl/NflDashboard.js.
@@ -691,12 +695,14 @@ async function runMilestoneTick(db, day) {
   // costs nothing and simply tries again next minute.
   if (!text) return { skipped: 'no-milestone-yet' }
 
+  const sg = await scheduleGate(db, { kind: 'nfl_milestone', day, legacyHour: hourGate })
+  if (!sg.ok) return { skipped: `held: ${sg.reason}` }
   if (!(await claimSlot(db, day, 'nfl_milestone'))) {
     return { skipped: 'already-posted-or-claim-failed' }
   }
 
   const msNamed = picks.map((p) => String(p.player?.player_id || '')).filter(Boolean)
-  const patch = { payload: withNamed({ picks: picks.map((p) => ({ player_id: p.player?.player_id || null, name: p.player?.name, market: p.marketKey, streak: p.streak })) }, msNamed) }
+  const patch = { payload: { ...withNamed({ picks: picks.map((p) => ({ player_id: p.player?.player_id || null, name: p.player?.name, market: p.marketKey, streak: p.streak })) }, msNamed), ...payloadFor('nfl_milestone') } }
   const d = await postToDiscord(text, {}, FEED_WEBHOOKS())
   if (d.ok) patch.discord_sent = true
   if (hasX() && await xOk(db, { day, kind: 'nfl_milestone', ids: msNamed, repeat: false })) {
@@ -808,19 +814,19 @@ export async function GET(request) {
   // 🎯 LONGSHOTS (2026-09-27): Sunday from 11:45am ET, once, when at least
   // three long-priced, non-questionable players are still to kick off
   // (lib/dash/longshotsPost.js). Posts after the board, before the 1pm wave.
-  const longshots = etWeekday(day) === 0 && etHoursSinceNoon() >= SUN_LONGSHOTS_HOUR
+  const longshots = etWeekday(day) === 0 && windowOpen({ kind: 'nfl_longshots', legacyHour: SUN_LONGSHOTS_HOUR })
     ? await postLongshotsOnce(db, { sport: 'nfl', day, kind: 'nfl_longshots' }).catch((e) => `error: ${e?.message}`)
     : 'not-now'
   // 🔁 THE 2+ CLUB, WEEKLY (2026-09-27): Tuesday from 11:30am ET, after
   // Monday night is final (lib/dash/multiClubPost.js).
-  const multiClub = etWeekday(day) === 2 && etHoursSinceNoon() >= -0.5
+  const multiClub = etWeekday(day) === 2 && windowOpen({ kind: 'nfl_multi_club', legacyHour: -0.5 })
     ? await postMultiClubOnce(db, { sport: 'nfl', day, kind: 'nfl_multi_club' }).catch((e) => `error: ${e?.message}`)
     : 'not-now'
 
   // 📋 LIST POSTS (BATCH-LIST-POSTS step 4): weekly, Tue/Wed from 10am ET
   // after Monday night -- a TD in every game, 100+ yards 3+ straight
   // (lib/lists/post.js), one a day, each once a week.
-  const lists = etHoursSinceNoon() >= -2 && [2, 3].includes(etWeekday(day))
+  const lists = windowOpen({ kind: 'list_nfl', legacyHour: -2 }) && [2, 3].includes(etWeekday(day))
     ? await postNflListOnce(db, day).catch((e) => `error: ${e?.message}`)
     : 'not-now'
 
