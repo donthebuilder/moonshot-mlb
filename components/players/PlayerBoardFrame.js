@@ -25,12 +25,14 @@ import { useSport } from '../../lib/sport'
 // badgesOf   row -> node after the name      scoreOf  row -> number (the chip) or null
 // asks       [{ key, label, test, why }]      renderDetail(row) -> the card
 // sideTop    node above the search box (TUDDY's team filter)
+// rankOf     row -> a number shown as "#n" beside the score chip (LAMP's board rank). Left out = nothing.
+// scoreExtra row -> a quiet node under the chip (LAMP: the season goals). Left out = nothing; the row is unchanged.
 // ramp       the product's score-chip colours, low to high: an array of colours (NFL jade, NHL ice, ...).
 //            Left out = MOONSHOT's own ramp, unchanged.
 export default function PlayerBoardFrame({
   rows, idOf, urlIdOf, nameOf, metaOf, badgesOf = () => null, scoreOf, scoreTitle = () => undefined,
   asks = [], placeholder = 'Search a hitter…', noun = 'hitter', nounPlural = 'hitters',
-  renderDetail, notice = null, listCap = 40, searchText = (r) => nameOf(r), sideTop = null, ramp = null,
+  renderDetail, notice = null, listCap = 40, searchText = (r) => nameOf(r), sideTop = null, ramp = null, rankOf = null, scoreExtra = null,
 }) {
   const { C, NUM_FONT, accent, themed } = useSportTheme()
   // ✨ The tap highlight (lib/pickLight.js) marks his row here too.
@@ -179,14 +181,20 @@ export default function PlayerBoardFrame({
                     {metaOf(p)}
                   </span>
                 </span>
-                <span
-                  title={scoreTitle(p)}
-                  style={{
-                    fontFamily: NUM_FONT, fontSize: TYPE.body, fontWeight: 800,
-                    background: bg || C.bg3, color: bg ? inkFor(bg) : C.text3,
-                    padding: '2px 6px', borderRadius: 5, minWidth: 30, textAlign: 'center',
-                  }}
-                >{has ? Number(sc).toFixed(0) : '—'}</span>
+                {rankOf && Number.isFinite(Number(rankOf(p))) && rankOf(p) !== null && (
+                  <span title={scoreTitle(p)} style={{ fontFamily: NUM_FONT, fontSize: TYPE.label, fontWeight: 800, color: C.text3, whiteSpace: 'nowrap' }}>#{rankOf(p)}</span>
+                )}
+                <span style={scoreExtra ? { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2, flex: 'none' } : { display: 'contents' }}>
+                  <span
+                    title={scoreTitle(p)}
+                    style={{
+                      fontFamily: NUM_FONT, fontSize: TYPE.body, fontWeight: 800,
+                      background: bg || C.bg3, color: bg ? inkFor(bg) : C.text3,
+                      padding: '2px 6px', borderRadius: 5, minWidth: 30, textAlign: 'center',
+                    }}
+                  >{has ? Number(sc).toFixed(0) : '—'}</span>
+                  {scoreExtra ? <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, color: C.text3, whiteSpace: 'nowrap' }}>{scoreExtra(p)}</span> : null}
+                </span>
               </button>
             )
           })}
