@@ -102,7 +102,7 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
   const marketCounts = useMemo(() => {
     const out = {}; const seen = new Set()
     for (const k of ALL_KEYS) {
-      const rs = (boardsBy[k].data?.rows || []).filter((r) => Number.isFinite(Number(r.score)))
+      const rs = (boardsBy[k].data?.rows || []).filter((r) => r.score != null && Number.isFinite(Number(r.score)))
       out[k] = boardsBy[k].data ? rs.length : null
       for (const r of rs) seen.add(`${r.gameId}-${r.playerId}`)
     }
@@ -198,7 +198,7 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
   // The row the "How to read this" picture draws: the night's real #1 for this market (a row the table below also shows).
   // Its words come from the row's own status, never re-derived here.
   const howRow = useMemo(() => {
-    const top = (data?.rows || []).filter((r) => Number.isFinite(Number(r.score))).sort((a, b) => (a.nightRank ?? 9999) - (b.nightRank ?? 9999))[0]
+    const top = (data?.rows || []).filter((r) => r.score != null && Number.isFinite(Number(r.score))).sort((a, b) => (a.nightRank ?? 9999) - (b.nightRank ?? 9999))[0]
     if (!top) return null
     const g = (data?.games || []).find((x) => x.id === top.gameId)
     return {
@@ -262,7 +262,7 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
         </div>
       )}
       {rows.length > 0 && !noStarters && layout === 'cards' && (
-        <BucketsCards market={mk} onOpen={onOpenPlayer} rows={[...rows].filter((r) => Number.isFinite(Number(r.score))).sort((a, b) => b.score - a.score)} />
+        <BucketsCards market={mk} onOpen={onOpenPlayer} rows={[...rows].filter((r) => r.score != null && Number.isFinite(Number(r.score))).sort((a, b) => b.score - a.score)} />
       )}
       {rows.length > 0 && !noStarters && layout === 'table' && (
         <BucketsTable rows={rows} columns={boardColumns(m, { onOpenTeam, onOpenGame, withXpts: true, whyCol: whyColumn({ textOf: (r) => (r.status === 'off' && r.reason ? r.reason : plainWhy(r, m)?.short || ''), itemOf: (r) => whyItemFor(r, m, r.nightRank), open: openWhy, theme: C, numFont: NUM_FONT, w: 165 }) })} statusOf={(r) => r.status}

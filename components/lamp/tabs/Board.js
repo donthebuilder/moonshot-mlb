@@ -82,7 +82,7 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
   const { data, error, loading } = boardsBy[market] || bGoal
   const marketCounts = useMemo(() => Object.fromEntries(MARKETS.map((m) => {
     const d = boardsBy[m.key]?.data
-    return [m.key, d ? (d.games || []).filter((g) => !g.noMarketLock).reduce((n, g) => n + g.rows.filter((r) => r.status !== 'off' && Number.isFinite(Number(r.score))).length, 0) : null]
+    return [m.key, d ? (d.games || []).filter((g) => !g.noMarketLock).reduce((n, g) => n + g.rows.filter((r) => r.status !== 'off' && r.score != null && Number.isFinite(Number(r.score))).length, 0) : null]
   })), [bGoal.data, bSog.data, bPts.data, bAst.data]) // eslint-disable-line react-hooks/exhaustive-deps
   // TEST is a small tag inside the chip, not a longer label: the record rule (no record until 30 graded nights) stays printed
   const marketOptions = MARKETS.map((m) => ({ key: m.key, count: marketCounts[m.key] ?? undefined, title: m.label.replace(' \u00b7 TEST', '') + (m.test ? ' (a test: no record until 30 graded nights)' : ''),
