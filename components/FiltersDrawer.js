@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { STATE, alpha } from '../lib/scales'
 import LedgerChip from './LedgerChip'
+import WatchChip from './WatchChip'
 
 // ══ THE BOARD FILTERS DRAWER, ONE FOR ALL THREE PRODUCTS (2026-09-28) ═══════
 // Donovan: "on the boards we can toggle teams, games, multi filters, all type
@@ -154,7 +155,7 @@ export default function FiltersDrawer({
           )}
         </div>
 
-        {ledger && (compact ? <LedgerChip sport={ledger} /> : <span className="ledger-chip-wide" style={{ display: 'inline-flex' }}><LedgerChip sport={ledger} /></span>)}
+        {ledger && (compact ? <><LedgerChip sport={ledger} /><WatchChip sport={ledger} /></> : <span className="ledger-chip-wide" style={{ display: 'inline-flex', gap: 6 }}><LedgerChip sport={ledger} /><WatchChip sport={ledger} /></span>)}
 
         {compact && beside}
 

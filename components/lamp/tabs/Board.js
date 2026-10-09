@@ -14,6 +14,7 @@ import GoalWatch from '../GoalWatch'
 import GoalCompare from '../GoalCompare'
 import MobileFold, { useIsPhone } from '../../MobileFold'
 import LedgerChip from '../../LedgerChip'
+import WatchChip from '../../WatchChip'
 import HowToRead from '../../HowToRead'
 import { LampCards, PctBars, countOf } from '../LampCard'
 import { alpha } from '../../../lib/scales'
@@ -195,6 +196,7 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <button type="button" onClick={() => setOpts((v) => !v)} aria-expanded={opts} style={{ ...pill(opts || filtering), flex: '0 0 auto', minHeight: 44, display: 'inline-flex', alignItems: 'center', gap: 6 }}>▤ Filters{chips.length + drawerChips.length + (team ? 1 : 0) + (gameF ? 1 : 0) + (needle ? 1 : 0) > 0 ? ` · ${chips.length + drawerChips.length + (team ? 1 : 0) + (gameF ? 1 : 0) + (needle ? 1 : 0)}` : ''}</button>
           <LedgerChip sport="nhl" />
+          <WatchChip sport="nhl" />
           <div role="group" aria-label="Market" style={{ display: 'flex', gap: 6, overflowX: 'auto', flex: 1, minWidth: 0, scrollbarWidth: 'none' }}>
             {MARKETS.map((m) => <button key={m.key} type="button" onClick={() => setMarket(m.key)} aria-pressed={m.key === market} style={{ ...pill(m.key === market), minHeight: 44 }}>{m.label}</button>)}
           </div>

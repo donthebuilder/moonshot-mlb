@@ -1,6 +1,7 @@
 'use client'
 import NflNote from '../NflNote'
 import LedgerChip from '../../LedgerChip'
+import WatchChip from '../../WatchChip'
 import { useHashFilter } from '../../../lib/filterHash'
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE, MARKETS } from '../../../lib/nfl/theme'
@@ -151,6 +152,7 @@ export default function BoardHub({ slate, data, logs, matchup, odds, oddsStatus,
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
           <button type="button" onClick={() => setOpts((v) => !v)} aria-expanded={opts} style={{ flex: '0 0 auto', minHeight: 44, padding: '0 14px', borderRadius: 999, cursor: 'pointer', fontSize: TYPE.body, fontWeight: 900, fontFamily: NUM_FONT, whiteSpace: 'nowrap', border: `1px solid ${opts || query || team !== 'all' && team || game ? C.green : C.border}`, background: opts ? alpha(C.green, 0.14) : 'transparent', color: opts ? C.green : C.text3 }}>▤ Filters{(query || (team && team !== 'all') || game) ? ' ·' : ''}</button>
           <LedgerChip sport="nfl" />
+          <WatchChip sport="nfl" />
           <div style={{ flex: 1, minWidth: 0 }}><PillRow value={market} options={marketOptions} onChange={setMarket} /></div>
         </div>
         {opts && (
