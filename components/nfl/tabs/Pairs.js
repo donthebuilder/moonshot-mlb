@@ -3,6 +3,8 @@ import { useMemo, useState } from 'react'
 import { btnStyle } from '../../ui'
 import { C, NUM_FONT, MARKETS, TYPE } from '../../../lib/nfl/theme'
 import NflTable from '../NflTable'
+import PairHistV2Table from '../../PairHistV2Table'
+import { SportTheme } from '../../SportTheme'
 
 // 🤝 PAIRS — two props from the same slate, sold as one. The NFL sibling of
 // the MLB side's PairBoard/PairMe/PairBuilder/PairTray (components/Pair*.js),
@@ -60,7 +62,7 @@ import NflTable from '../NflTable'
 // took the field and scored zero. results is optional; every pair here is
 // still shown, just unranked by outcome, before anything is graded.
 
-const PAIR_VIEWS = [['same', 'Same player'], ['qb', 'QB + receiver'], ['stack', 'TD stacks']]
+const PAIR_VIEWS = [['same', 'Same player'], ['qb', 'QB + receiver'], ['stack', 'TD stacks'], ['history', 'Four seasons']]
 const MARKET_LABEL = Object.fromEntries(MARKETS.map(([k, label]) => [k, label]))
 
 // Five same-player combinations, one per eligible position group. Chosen to
@@ -361,6 +363,12 @@ export default function Pairs({ data, results, onPlayerClick, setTab = null }) {
           style={{ display: 'block', margin: '-4px 0 12px', minHeight: 44, padding: 0, border: 0, background: 'transparent', cursor: 'pointer', font: `800 11px/1.5 ${NUM_FONT}`, color: C.green }}>
           🧾 Every touchdown this week, and who had it → Ledger
         </button>
+      )}
+
+      {view === 'history' && (
+        <SportTheme theme={C} accent={C.green} numFont={NUM_FONT}>
+          <PairHistV2Table sport="nfl" onOpenPlayer={onPlayerClick} />
+        </SportTheme>
       )}
 
       {view === 'same' && <>
