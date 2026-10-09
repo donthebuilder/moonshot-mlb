@@ -7,12 +7,13 @@ import Hint from './Hint'
 
 // LAMP'S PROJECTED OUTPUT (2026-09-28, parity plan 00Q step 1). MOONSHOT's
 // panel (components/slate/ProjectedView.js) with the night's goal board in it:
-//   Proj goals    the sum of each scored skater's goals per game (the board's
-//                 own legs -- last season's until the league's new tables open)
-//   Proj shots    the same skaters' shots per game, summed
-//   Called goals  Proj goals over the three CALLED per game only
-// By game or by team; the chips are the board's own angles plus Called only;
-// everything recomputes over what's left. Nothing new is computed.
+//   Proj goals    the game's (or the club's) projected goals from the TEAM model, the same number the
+//                 Slate's dial prints (lib/nhl/teamProj.js, on the board as game.proj, 2026-10-08).
+//                 The chips do not move it: it is a club's, not a sum over the skaters in view.
+//   Proj shots    the scored skaters' shots per game, summed (the board's own legs)
+//   Called goals  the called skaters' goals per game, summed
+// By game or by team; the chips are the board's own angles plus Called only; Proj shots and Called
+// goals recompute over what's left. A game with no team projection has no row (no number, no row).
 const COLS = ['Proj goals', 'Proj shots', 'Called goals']
 
 export default function LampProjected({ items = [], games = [], stale = false, onOpenGame = null, onOpenTeam = null }) {
@@ -47,10 +48,17 @@ export default function LampProjected({ items = [], games = [], stale = false, o
       }
     }
     const sum = (xs, f) => xs.reduce((s, { r }) => s + (Number(f(r)) || 0), 0)
-    const out = [...groups.entries()].map(([label, gr]) => ({
+    const gameBy = new Map(games.map((x) => [x.game.id, x]))
+    // the team model's number: a game's total, or the club's own side of it (the same value the Slate prints)
+    const projOf = (gr) => {
+      if (gr.pk != null) return gameBy.get(gr.pk)?.proj?.total
+      const gm = games.find((x) => x.proj && (x.game.home.abbrev === gr.team || x.game.away.abbrev === gr.team))
+      return gm ? (gm.game.home.abbrev === gr.team ? gm.proj.home : gm.proj.away).goals : null
+    }
+    const out = [...groups.entries()].filter(([, gr]) => Number.isFinite(projOf(gr))).map(([label, gr]) => ({
       label, _count: gr.pool.length, _pk: gr.pk ?? null, _team: gr.team ?? null,
       values: {
-        'Proj goals': sum(gr.pool, (r) => r.legs?.goalsPg),
+        'Proj goals': projOf(gr),
         'Proj shots': sum(gr.pool, (r) => r.legs?.shotsPg),
         'Called goals': sum(gr.pool.filter(({ r }) => r.status === 'called'), (r) => r.legs?.goalsPg),
       },
@@ -63,16 +71,16 @@ export default function LampProjected({ items = [], games = [], stale = false, o
       lenses={lenses} active={active} setActive={setActive} shownCount={pool.length} totalCount={items.length} noun="skaters" sport="nhl"
       by={by} setBy={setBy}
       note={<>
-        Each scored skater&apos;s goals a game, added up.
-        {stale ? ' Last season’s, until the new season’s tables open.' : ''}
-        <Hint label="The columns" text="Proj goals adds each scored skater’s goals a game. Proj shots is the same sum for shots on goal. Called goals is Proj goals over the called skaters only." />
+        Projected goals come from the team model: each club&apos;s shots, shot quality, the other side&apos;s defence and goalie.
+        {stale ? ' Last season’s skater rates, until the new season’s tables open.' : ''}
+        <Hint label="The columns" text="Proj goals is the team model’s goals for the game or the club, the same number the Slate prints; the chips do not move it. Proj shots adds each scored skater’s shots on goal a game. Called goals adds the goals a game of the called skaters only." />
       </>}
       rows={rows} primary="Proj goals" unit="goals" columns={COLS}
       sortCol={sortCol} sortDir={sortDir} onSort={sortClick(sortCol, setSortCol, setSortDir)}
-      podiumTip={(r) => `${r._count} scored skaters · ${r.values['Proj shots'].toFixed(1)} shots · ${r.values['Called goals'].toFixed(1)} from the called`}
+      podiumTip={(r) => `${r._count} scored skaters · ${r.values['Proj shots'].toFixed(1)} skater shots · ${r.values['Called goals'].toFixed(1)} goals a game from the called`}
       barsTitle={<>Proj goals by {by} — tonight&apos;s goals, top to bottom</>}
       barsFoot={<>Bar length is Proj goals — same numbers as the table below, ordered top to bottom.</>}
-      footnote={<>Sums over the skaters in view. ▲ ▼ = clearly above or below tonight&apos;s average.</>}
+      footnote={<>Proj goals is the team model. Proj shots and Called goals are sums over the skaters in view. ▲ ▼ = clearly above or below tonight&apos;s average.</>}
       onOpenGame={onOpenGame} onOpenTeam={onOpenTeam} accent={C.ice} large
     />
   )

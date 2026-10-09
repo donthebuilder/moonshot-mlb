@@ -27,6 +27,7 @@ import { cronAuthorized, adminClient } from '../../../../lib/supabase/admin'
 import { LOCK_WINDOW_MS, readBoard } from '../../../../lib/nhl/boardRead'
 import { startersFromPlayByPlay, goaliesFromBoxscore } from '../../../../lib/nhl/goalies'
 import { shotsFromPlayByPlay, writeShots } from '../../../../lib/nhl/shots'
+import { teamGameRows, writeTeamGames } from '../../../../lib/nhl/teamXg'
 import { postLongshotsOnce } from '../../../../lib/dash/longshotsPost'
 import { postMultiClubOnce } from '../../../../lib/dash/multiClubPost'
 import { toPropRow, gradeSogRows, MARKET as SOG } from '../../../../lib/nhl/sogModel'
@@ -206,7 +207,14 @@ export async function GET(request) {
       // for the net, written to lamp_shots. Its own failure, logged; never the grade's.
       let shotRows = null
       if (pbp) {
-        try { shotRows = (await writeShots(db, shotsFromPlayByPlay(pbp))).rows } catch (e) { console.error(`[lamp tick] shots ${p.game_id}: ${e?.message}`) }
+        try {
+          const shots = shotsFromPlayByPlay(pbp)
+          shotRows = (await writeShots(db, shots)).rows
+          // THE CLUB-GAME LINE (lamp-team-v1, 2026-10-08): what each club scored, shot and allowed in this game, from the
+          // shots just written; the slate's projection reads it. Its own failure, logged; a table that is not there yet is skipped.
+          const tg = await writeTeamGames(db, teamGameRows(shots))
+          if (tg.missing) console.error('[lamp tick] team xg: lamp_team_game_xg is not there yet (run 202610081200_lamp_team_game_xg.sql)')
+        } catch (e) { console.error(`[lamp tick] shots ${p.game_id}: ${e?.message}`) }
       }
       // LAMP SHOTS grade, off the same boxscore: value = sog, hit = 3+, not
       // dressed = void. Scoring columns untouched; its own failure, logged.
