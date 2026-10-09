@@ -321,6 +321,17 @@ await ok('scheduleGate reads today\'s counted posts (Phoenix day), holds with a 
   assert.ok(log.some((e) => e.kind === 'bestair' && e.state === 'HELD' && /45-minute gap/.test(e.reason)))
   G._resetPostedCache()
 })
+await ok('scheduleGate: a scheduled kind reads the posted list fresh, so a post another instance made (not in this cache) holds the 45-minute gap', async () => {
+  G._resetPostedCache()
+  const rows = { homer_feed_posts: [], fact_posts: [] }
+  const db = fakeDb(rows)
+  const r1 = await G.scheduleGate(db, { kind: 'bestair', day: DAY, now: at(DAY, '14:00') })    // warms the 90 s cache with nothing posted
+  assert.equal(r1.ok, true)
+  rows.homer_feed_posts.push({ kind: 'hrleadersdow', seen_at: new Date(at(DAY, '14:00') + 20e3).toISOString() })   // ANOTHER instance posts
+  const r2 = await G.scheduleGate(db, { kind: 'bestair', day: DAY, now: at(DAY, '14:00') + 40e3 })   // inside the 90 s
+  assert.equal(r2.ok, false); assert.match(r2.reason, /45-minute gap/)
+  G._resetPostedCache()
+})
 await ok('scheduleGate: a dropped post is logged DROPPED; X_SCHEDULE_OFF reads nothing from the database', async () => {
   G._resetPostedCache()
   const db = { from: () => { throw new Error('the database must not be read') } }
@@ -340,6 +351,7 @@ await ok('wiring: scheduled kinds in the tick routes use windowOpen / scheduleGa
   assert.ok(left.every((l) => /ACCOUNTABILITY_HOUR|BOARD_RESULTS_HOUR|>= -9/.test(l)), `old hour checks still in homers tick: ${left.join(' | ')}`)
   assert.match(homers, /const open = windowOpen\(\{ kind, legacyHour: hourGate \}\)/)
   assert.match(homers, /scheduleGate\(db, \{ kind, day, legacyHour: hourGate \}\)/)
+  assert.match(homers, /logPosted\(\{ day, kind: 'longshot'/)   // the MLB longshot tops up the posted list like every other post
   const nfl = fs.readFileSync('app/api/dash/nfl/tick/route.js', 'utf8')
   assert.equal(nfl.split('\n').filter((l) => /etHoursSinceNoon\(\)\s*(>=|<)/.test(l) && !/^\s*\/\//.test(l)).every((l) => /-9|MEMBERS_HOUR/.test(l)), true)
   assert.match(nfl, /scheduleGate\(db, \{ kind: sl\.kind/); assert.match(nfl, /scheduleGate\(db, \{ kind: 'nfl_milestone'/)

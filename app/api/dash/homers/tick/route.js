@@ -1930,7 +1930,7 @@ export async function GET(request) {
             if (hasX() && await xOk(db, { day, kind: 'longshot', ids: pick?.player_id ? [pick.player_id] : [] })) {
               const mediaId = png ? await uploadImageToX(png) : null
               const r = await postToX(text, { mediaId, kind: 'longshot' })
-              if (r.ok && r.id) patch.x_post_id = r.id
+              if (r.ok && r.id) { patch.x_post_id = r.id; logPosted({ day, kind: 'longshot', ids: pick?.player_id ? [pick.player_id] : [], tweetId: r.id, text }) }
               else console.error(`[homers] longshot refused: ${r.status} ${r.error}`)
             }
             await db.from('homer_feed_posts').update(patch).match({ day, kind: 'longshot' })
