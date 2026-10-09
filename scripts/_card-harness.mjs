@@ -40,6 +40,15 @@ export async function startServer() {
     try {
       const url = new URL(req.url, 'http://x')
       if (url.pathname === '/__blank') { res.setHeader('content-type', 'text/html'); res.end('<!doctype html><meta charset="utf-8"><script>window.process={env:{}}</script><body style="margin:0;background:#000">'); return }
+      // the same-origin path next.config.js rewrites to the NHL's asset host (it sends no CORS header)
+      const nhle = /^\/cdn\/nhle\/((?:mugs|logos)\/.+)$/.exec(url.pathname)
+      if (nhle) {
+        const up = await fetch(`https://assets.nhle.com/${nhle[1]}`).catch(() => null)
+        if (!up || !up.ok) { res.statusCode = 404; res.end('nf'); return }
+        res.setHeader('content-type', up.headers.get('content-type') || 'application/octet-stream')
+        res.end(Buffer.from(await up.arrayBuffer()))
+        return
+      }
       let file = join(ROOT, decodeURIComponent(url.pathname))
       if (!file.startsWith(ROOT)) { res.statusCode = 404; res.end('nf'); return }
       // Next serves public/ at the site root; so does the harness

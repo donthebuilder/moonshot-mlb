@@ -14,6 +14,8 @@ import GoalWatch from '../GoalWatch'
 import GoalCompare from '../GoalCompare'
 import MobileFold, { useIsPhone } from '../../MobileFold'
 import LedgerChip from '../../LedgerChip'
+import CardButton from '../../CardButton'
+import { downloadLampBoardCard } from '../shareCard'
 import WatchChip from '../../WatchChip'
 import HowToRead from '../../HowToRead'
 import { LampCards, PctBars, countOf } from '../LampCard'
@@ -242,6 +244,9 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
       <input type="range" min={0} max={20} step={1} value={minPpg} onChange={(e) => setMinPpg(Number(e.target.value))} style={{ width: '100%', accentColor: C.ice }} aria-label="Minimum power-play goals" />
     </DrawerSection>
   </>)
+  // 📸 the top of this ranking as a PNG (fix15): in the Filters row beside Ledger and Watchlist on a desktop, beside How to read on a phone (that row has no room left): the rows the table shows, best score first
+  const shareBtn = kept.length ? <CardButton sport="nhl" label="Download this ranking as an image"
+    onDownload={() => downloadLampBoardCard([...kept].sort((a, b) => (b.r.score ?? 0) - (a.r.score ?? 0)).slice(0, 9), { market, date: shown || '', total: kept.length })} /> : null
   const nActive = chips.length + drawerChips.length
   const drawerProps = {
     active: nActive > 0, activeCount: nActive,
@@ -256,7 +261,10 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
       {phone ? (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'space-between' }}>
           <div style={{ minWidth: 0, color: C.text2, fontSize: 13, lineHeight: 1.3 }}>Every skater tonight, #1 down. Tap a header to sort.{M.test ? ' A test.' : ''}</div>
-          {howRow && <HowToRead id="nhl-goal-board" accent={C.ice} row={howRow} notes={HOW_NOTES} steps={HOW_STEPS} />}
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flex: '0 0 auto' }}>
+            {shareBtn}
+            {howRow && <HowToRead id="nhl-goal-board" accent={C.ice} row={howRow} notes={HOW_NOTES} steps={HOW_STEPS} />}
+          </span>
         </div>
       ) : (<>
       <BoardTopBar query={q} setQuery={setQ} placeholder="Search skater or team…"
@@ -296,7 +304,7 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
               {layoutSwitch}
             </span>
           </div>
-          <FiltersDrawer ledger="nhl" {...drawerProps}>{drawerSections}</FiltersDrawer>
+          <FiltersDrawer ledger="nhl" share={shareBtn} {...drawerProps}>{drawerSections}</FiltersDrawer>
         </div>)
       )}
       {data?.season?.stale && <StaleSeasonNote label={data.season.label} opens={data.season.opens} what="per-game stats" />}

@@ -16,6 +16,8 @@ import { EXPECTED_POINTS_WORDS } from '../../../lib/nba/teamModel'
 import { basisLine } from '../BucketsTeamExpected'
 import Rail from '../../Rail'
 import { BucketsCards } from '../BucketsCard'
+import CardButton from '../../CardButton'
+import { downloadBucketsGameCard } from '../shareCard'
 import { EmptyState, DelayedBanner, Loading, SourceLine, Pills, NavBtn, DayPager, RimDot, fmtDay, fmtTip, readHashParam, writeHashParam } from '../ui'
 
 // 📋 THE SLATE -- tonight one game at a time (LAMP's Slate): pick a game, see
@@ -96,10 +98,15 @@ export default function Slate({ date, setDate, market = 'pts', onOpenPlayer, onO
       )}
       {view === 'games' && g && (<>
         <Pills ariaLabel="Market" value={m} onChange={(k) => { setM(k); writeHashParam('m', k === 'pts' ? null : k) }} options={MARKET_OPTIONS} />
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', fontSize: 12, color: C.text2 }}>
-          <b style={{ color: C.text }}>{g.away.name} at {g.home.name}</b>
-          <span>{g.venue}</span>
+        {/* the title and venue stack in one block so Open game and the 📸 (fix15: this game as a PNG -- the two clubs, the team
+            model's expected points, its players on the board) stay on the same line on a phone */}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12, color: C.text2 }}>
+          <div style={{ flex: '1 1 auto', minWidth: 0 }}>
+            <b style={{ color: C.text }}>{g.away.name} at {g.home.name}</b>
+            <div>{g.venue}</div>
+          </div>
           <NavBtn onClick={() => onOpenGame?.(g.id)}>Open game →</NavBtn>
+          <CardButton sport="nba" label="Download this game as an image" onDownload={() => downloadBucketsGameCard({ g, rows, tm: tmBy.get(String(g.id)) || null, market: m, date: shown || '' })} />
         </div>
         {/* the game's calls as the prop cards (components/buckets/BucketsCard) */}
         {calls.length > 0 && <BucketsCards market={m} onOpen={onOpenPlayer} rows={[...calls].sort((a, b) => b.score - a.score)} />}

@@ -7,6 +7,8 @@ import { hashParams, writeHash, cardViewPush } from '../../../lib/urlState'
 import { DETAIL_MARK, PEEK_MARK, VIEWS_KEY } from '../../../lib/useShellRoute'
 import { aggregate } from '../../../lib/nhl/splits'
 import FollowButton from '../../FollowButton'
+import CardButton from '../../CardButton'
+import { downloadLampPlayerCard } from '../shareCard'
 import StarMemory from '../../watch/StarMemory'
 import PlayerNotes from '../../PlayerNotes'
 import MultiLine from '../../ledger/MultiLine'
@@ -292,7 +294,15 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
           {w && <WhyLines theme={C} numFont={NUM_FONT} accent={C.ice} why={[w.why]} watch={w.watch} explain={w.explain} />}
           {w && row && spot?.g && <PlayerDepthToggle row={row} game={spot.g} />}
           <section aria-label="Season line">
-            <Kicker>{goalie ? 'RECORD' : 'THE LINE'} · {f.seasonLabel}{stale ? ' (LAST SEASON)' : ''}</Kicker>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <Kicker>{goalie ? 'RECORD' : 'THE LINE'} · {f.seasonLabel}{stale ? ' (LAST SEASON)' : ''}</Kicker>
+              {/* 📸 his card as a PNG (fix15): the board's word, score and night rank, his rates, season line, form and drought. It sits on
+                  the line, not in the sticky header (no room beside Watch at 360 without wrapping his name); a goalie has no goal board, so no card. */}
+              {!goalie && <CardButton sport="nhl" label="Download his card as an image" onDownload={() => downloadLampPlayerCard({
+                p, row, g: spot?.g || null, fr, l5: goalsIn(5)?.num ?? null, l10: goalsIn(10)?.num ?? null,
+                drought: /^\d+$/.test(droughtOf(p.log?.rows)) ? Number(droughtOf(p.log?.rows)) : null,
+                where: opp || '', board: Boolean(board), seasonLabel: f.seasonLabel || '', day: board?.date || '' })} />}
+            </div>
             {stale && <div style={{ marginBottom: 10 }}><StaleSeasonNote label={f.seasonLabel} opens={p.opens} what="line" /></div>}
             {lineStats.length > 0 && <StatStrip stats={lineStats} />}
             {goalBoxes.length > 0 && <HitRateBoxes boxes={goalBoxes} style={{ marginTop: 6 }}

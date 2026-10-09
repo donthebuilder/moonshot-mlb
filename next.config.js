@@ -26,6 +26,15 @@ const nextConfig = {
   reactStrictMode: true,
   distDir: process.env.NEXT_DIST_DIR || '.next',
   env: { NEXT_PUBLIC_BUCKETS_PUBLIC: process.env.BUCKETS_PUBLIC || '' },
+  // THE NHL'S PICTURES, SAME ORIGIN (fix15, 2026-10-08): the downloadable LAMP cards draw each skater's mug and each
+  // club's mark on a canvas. assets.nhle.com sends no CORS header, so the browser refuses it for a canvas that
+  // has to export a PNG. Only the two folders the cards read are passed through; nothing else on that host is.
+  async rewrites() {
+    return [
+      { source: '/cdn/nhle/mugs/:path*', destination: 'https://assets.nhle.com/mugs/:path*' },
+      { source: '/cdn/nhle/logos/:path*', destination: 'https://assets.nhle.com/logos/:path*' },
+    ]
+  },
 }
 
 module.exports = nextConfig

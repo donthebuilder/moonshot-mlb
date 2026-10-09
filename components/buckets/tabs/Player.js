@@ -7,6 +7,8 @@ import HisNumbers from '../../HisNumbers'
 import InTheLedger from '../../ledger/InTheLedger'
 import PlayerNotes from '../../PlayerNotes'
 import FollowButton from '../../FollowButton'
+import CardButton from '../../CardButton'
+import { downloadBucketsPlayerCard } from '../shareCard'
 import StarMemory from '../../watch/StarMemory'
 import CallStatusBadge from '../../CallStatusBadge'
 import TeamMark from '../../TeamMark'
@@ -251,7 +253,14 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
               </section>
             ) : x?.reason ? <p style={{ margin: 0, fontSize: 12, color: C.text3 }}>No projected points: {x.reason}.</p> : null}
             <section aria-label="Season line">
-              <Kicker>THE LINE · PER GAME</Kicker>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                <Kicker>THE LINE · PER GAME</Kicker>
+                {/* 📸 his card as a PNG (fix15): the board's word, score and night rank, PTS / REB / AST a game, projected points, his last five.
+                    On the line, not in the sticky header (no room beside Watch at 360 without wrapping his name). */}
+                <CardButton sport="nba" label="Download his card as an image" onDownload={() => downloadBucketsPlayerCard({
+                  card, row, game, season: season1, last5, xpts: data.xpts, where: oppTxt || '', board: Boolean(board), seasonWord,
+                  rankOf: (board?.rows || []).filter((r) => r.score != null && Number.isFinite(Number(r.score))).length || null, day: board?.date || '' })} />
+              </div>
               {stale && <p style={{ margin: '0 0 8px', fontSize: 12, color: C.text3, lineHeight: 1.5 }}>The new season has no regular-season games yet, so this is last season’s line ({seasonWord}).</p>}
               {lineRows.length > 0
                 ? <BucketsTable rows={lineRows} columns={lineCols} heatMode="none" maxHeight={9999} maxRows={2} caption="Per game, this season beside last season." />

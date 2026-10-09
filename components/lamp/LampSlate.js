@@ -19,6 +19,8 @@ import { LampCards } from './LampCard'
 import { STATUS_WORD } from '../../lib/callStatus'
 import { EmptyState, DelayedBanner, Loading, StaleSeasonNote, fmtPuckDrop, zoneAbbrev, shiftDay, fmtDay } from './ui'
 import TeamMark from '../TeamMark'
+import CardButton from '../CardButton'
+import { downloadLampGameCard } from './shareCard'
 
 // LAMP'S SLATE (2026-09-28). MOONSHOT's Slate (components/tabs/Games.js,
 // Games view) built from its own pieces -- components/slate/* -- with the
@@ -214,7 +216,11 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
                   <span style={{ fontSize: 14, fontFamily: NUM_FONT, color: st === 'live' ? C.ice : C.text2, fontWeight: 800 }}>
                     {st === 'live' ? (g.game.statusLine || 'LIVE') : st === 'final' ? 'FINAL' : timeOf(g)}
                   </span>
-                  {st !== 'upcoming' && onOpenGame && <Tap onClick={() => onOpenGame(g.game.id)}><span style={{ fontSize: 14, fontFamily: NUM_FONT, color: C.ice, fontWeight: 800 }}>Box score ›</span></Tap>}
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                    {st !== 'upcoming' && onOpenGame && <Tap onClick={() => onOpenGame(g.game.id)}><span style={{ fontSize: 14, fontFamily: NUM_FONT, color: C.ice, fontWeight: 800 }}>Box score ›</span></Tap>}
+                    {/* 📸 this game as a PNG (fix15): the two clubs, the team model's projected goals, the skaters on the board */}
+                    <CardButton sport="nhl" label="Download this game as an image" onDownload={() => downloadLampGameCard(g, { date: shown || '' })} />
+                  </span>
                 </div>
               </div>
               <div style={{ borderTop: `1px solid ${C.border}`, padding: '12px 14px 14px', background: 'rgba(0,0,0,.15)' }}>
