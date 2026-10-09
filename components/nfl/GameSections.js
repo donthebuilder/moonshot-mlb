@@ -11,6 +11,7 @@ import { offenseTiles, defenseTiles, factsNote } from './tabs/Matchups'
 import { softRole, softLine } from '../../lib/nfl/dvpSignal'
 import { ordinal } from '../../lib/format'
 import { Kicker } from './GameOffDef'
+import { TD_WORD } from '../../lib/nfl/teamTdModel'
 
 // THE GAME PAGE'S PLAIN SECTIONS (2026-10-06, fix5-nflgame). Donovan on the old
 // page: "the boxes or bubbles with the stats in there are not even big, you can't
@@ -37,9 +38,9 @@ export function GameHeader({ game: g, when, air, xtd, heat, past, onOpenTeam }) 
           <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 16 }}>@</span>
           <Team t={g.home} />
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, width: 84 }} title={`${xtd.toFixed(1)} expected touchdowns between the two teams: the sum of each scored player's expected touchdowns. The ring fills against this week's range.`}>
-          <Dial value={xtd} dp={1} pct={100 * heat} col={C.green} size={64} title={`${xtd.toFixed(1)} expected touchdowns in this game`} />
-          <span style={{ fontSize: 12, lineHeight: 1.25, color: C.text2, textAlign: 'center' }}>expected touchdowns</span>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, width: 84 }} title={xtd == null ? TD_WORD : `${xtd.toFixed(1)} ${TD_WORD} between the two teams: each club's touchdown rate against the other's defence. The ring shows where it sits among all matchups in the league.`}>
+          <Dial value={xtd} dp={1} pct={100 * heat} col={C.green} size={64} title={xtd == null ? TD_WORD : `${xtd.toFixed(1)} ${TD_WORD} in this game`} />
+          <span style={{ fontSize: 12, lineHeight: 1.25, color: C.text2, textAlign: 'center' }}>{TD_WORD}</span>
         </div>
       </div>
       <div style={{ marginTop: 6, display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'baseline', fontSize: TYPE.name, color: C.text, fontWeight: 700 }}>

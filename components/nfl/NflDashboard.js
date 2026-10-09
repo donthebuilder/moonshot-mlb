@@ -438,7 +438,7 @@ export default function NflDashboard({ palettePass = 0 }) {
       <MobileCSS />
       {/* See the note in components/Dashboard.js -- same gap, same fix. */}
       <SkipLink />
-      <NflHeader tab={tab} setTab={setTab} data={data} meta={meta} matchup={matchup} weekMode={weekMode} setWeekMode={setWeekMode} onPlayerClick={openPlayer} />
+      <NflHeader tab={tab} setTab={setTab} data={data} meta={meta} matchup={matchup} logs={logs} weekMode={weekMode} setWeekMode={setWeekMode} onPlayerClick={openPlayer} />
       <TodayContext.Provider value={nflToday}>
       <main id="board-main" className="dashboard-main"
             style={{ maxWidth: 1300, margin: '0 auto', padding: '14px 14px 40px' }}>

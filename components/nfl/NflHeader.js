@@ -36,6 +36,7 @@ import Ticker from '../Ticker'
 // Real, icon-tagged NFL story-bites -- see lib/nfl/headlines.js's own
 // header comment. NFL equivalent of buildHeadlines() above.
 import { buildNflHeadlines } from '../../lib/nfl/headlines'
+import { slateTotals, sumTotals, TD_WORD, TD_WORD_SHORT } from '../../lib/nfl/teamTdModel'
 
 // (2026-10-07 colour diet: the seven-colour market key is gone -- every market wears the one accent.)
 
@@ -148,7 +149,7 @@ function NflSettingsSheet() {
   )
 }
 
-export default function NflHeader({ tab, setTab, data, meta, matchup, weekMode = 'this', setWeekMode, onPlayerClick }) {
+export default function NflHeader({ tab, setTab, data, meta, matchup, logs = null, weekMode = 'this', setWeekMode, onPlayerClick }) {
   const go = (next) => setTab(next)
   const games = data?.games?.length ?? 0
   const live = (data?.games || []).filter((g) => g.state === 'in').length
@@ -158,7 +159,9 @@ export default function NflHeader({ tab, setTab, data, meta, matchup, weekMode =
   // description of the file, not of the slate. These two are the output:
   // how many touchdowns the card projects, and how many plays cleared A-.
   const rows = data?.players || []
-  const projTd = rows.reduce((a, p) => a + (p.stats?.xTD || 0), 0)
+  // expected touchdowns: the TEAM model's games added up (lib/nfl/teamTdModel.js), not a sum over players
+  const totals = useMemo(() => slateTotals(data, logs), [data, logs])
+  const projTd = sumTotals(totals)
   const aGrade = rows.filter(
     (p) => Math.max(...Object.values(p.scores || { _: 0 })) >= 62).length
   // The four the strip was missing. Home already shows the first two on its
@@ -195,8 +198,8 @@ export default function NflHeader({ tab, setTab, data, meta, matchup, weekMode =
   // ticker: live scores plus a handful of real, icon-tagged "what does
   // the model actually think" bites, not just aggregate counts.
   const heads = useMemo(
-    () => buildNflHeadlines({ players: rows, games: data?.games || [], markets: data?.markets || [], matchup }),
-    [rows, data?.games, data?.markets, matchup],
+    () => buildNflHeadlines({ players: rows, games: data?.games || [], markets: data?.markets || [], matchup, totals }),
+    [rows, data?.games, data?.markets, matchup, totals],
   )
 
   // WHERE A TAP ON A LIVE/HEADLINE TILE GOES (2026-09-17). Mirrors
@@ -226,20 +229,12 @@ export default function NflHeader({ tab, setTab, data, meta, matchup, weekMode =
     else if (it.nav) go(it.nav)
   }
 
-  // Expected touchdowns summed per team, then per matchup. Same shape as
-  // MOONSHOT's "best game" tile, so the two products read alike.
+  // The game with the most expected touchdowns: the team model's totals (the Slate's dial), read not recomputed.
   const bestGame = (() => {
-    const byTeam = new Map()
-    for (const p of rows) {
-      const t = String(p?.team || '').toUpperCase()
-      if (!t) continue
-      byTeam.set(t, (byTeam.get(t) || 0) + (p?.stats?.xTD || 0))
-    }
     let top = null
     for (const g of (data?.games || [])) {
-      const total = (byTeam.get(String(g.away || '').toUpperCase()) || 0)
-        + (byTeam.get(String(g.home || '').toUpperCase()) || 0)
-      if (!top || total > top.total) top = { total, label: `${g.away} @ ${g.home}` }
+      const total = totals[g.game_id]?.total
+      if (Number.isFinite(total) && (!top || total > top.total)) top = { total, label: `${g.away} @ ${g.home}` }
     }
     return top && top.total > 0 ? top : null
   })()
@@ -353,11 +348,11 @@ export default function NflHeader({ tab, setTab, data, meta, matchup, weekMode =
                 in it. The tiles themselves are the shared TickerPill. */}
             <Tile label="Games · week" value={games} color={C.text2} title="Every game this week (Thursday to Monday) -- the line under the page title counts today's" />   {/* 10-04: "16" here vs "14 games" today read as a contradiction */}
             <Tile
-              label="Expected TDs"   // plain words (2026-10-04 user review #20: was "Proj TD")
+              label={TD_WORD_SHORT}   // plain words (2026-10-04 user review #20: was "Proj TD")
               value={projTd ? projTd.toFixed(1) : '—'}
               color={C.green}
-              title={`Expected touchdowns across the ${rows.length} players scored on this slate — the sum of each man's xTD.${
-                isPre ? ' Preseason caveat: xTD is last season\'s per-game rate at full usage, and starters play two series. Read it as the ceiling, not the projection.' : ''}`}
+              title={`${TD_WORD} across this slate's games: each club's touchdown rate against the other's defence, both clubs, every game added up.${
+                isPre ? ' Preseason caveat: it is built from last season, and starters play two series. Read it as the ceiling, not the projection.' : ''}`}
             />
             <Tile label="Strong picks" value={aGrade} color={C.green}
                   title="Players scoring 62+ (an A- grade) in at least one market" />
@@ -399,7 +394,7 @@ export default function NflHeader({ tab, setTab, data, meta, matchup, weekMode =
             <Tile label="Top TD" value={topTd?.scores?.TD ? Math.round(topTd.scores.TD) : '—'} color={C.green}
               title={topTd?.name ? `${topTd.name} — the highest anytime-touchdown score on the slate` : 'No scored players yet'} onClick={topTd?.name ? () => onPlayerClick?.(topTd) : undefined} /* opens him, like THE BOT'S #1 (route audit B5) */ />
             <Tile label="Best game" value={bestGame ? bestGame.label : '—'} color={C.green}
-              title={bestGame ? `${bestGame.label} — ${bestGame.total.toFixed(1)} expected touchdowns between the two, the most on the slate` : 'No games scored yet'} />
+              title={bestGame ? `${bestGame.label} — ${bestGame.total.toFixed(1)} ${TD_WORD} between the two, the most on the slate` : 'No games scored yet'} />
             <Tile label="Top rusher" value={topRush?.scores?.RUSH_YDS ? Math.round(topRush.scores.RUSH_YDS) : '—'} color={C.green}
               title={topRush?.name ? `${topRush.name} — ${Number(topRush.stats?.RUYD || 0).toFixed(1)} rush yds/game season average` : 'No scored players yet'} onClick={topRush?.name ? () => onPlayerClick?.(topRush) : undefined} /* opens him, like THE BOT'S #1 (route audit B5) */ />
             <Tile label="Top receiver" value={topRec?.scores?.REC_YDS ? Math.round(topRec.scores.REC_YDS) : '—'} color={C.text2}
