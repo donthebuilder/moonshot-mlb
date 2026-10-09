@@ -93,7 +93,7 @@ function fakeDb(tables = {}) {
 
 const today = '2026-10-09'
 const iso = (day, hhmm) => `${day}T${hhmm}:00Z`
-const NOW = Date.parse(iso(today, '16:00'))                      // 12:00 ET
+const NOW = Date.parse(iso(today, '18:30'))                      // 14:30 ET, after MLB's 10:50 Phoenix poll slot (17:50Z)
 const FUTURE = Date.parse(iso(today, '23:00'))
 
 // ── TEST data: players, bars, streaks, called ────────────────────────────────
@@ -323,7 +323,7 @@ await ok('post: a sport with no game left (inactive) posts nothing and is not re
   let read = 0
   const a = fakeAdapter('nhl', { slate: { active: false, why: 'no NHL game left tonight', players: [], pending: [] } })
   const slate = a.slate; a.slate = async () => { read++; return slate() }
-  const late = Date.parse(iso(today, '20:00'))
+  const late = Date.parse(iso(today, '21:00'))
   assert.match(await PP.postPollOnce(db, { sport: 'nhl', day: today, adapter: a, now: late }), /^no-poll: no NHL game/)
   assert.match(await PP.postPollOnce(db, { sport: 'nhl', day: today, adapter: a, now: late + 10 * 60e3 }), /^idle/)
   assert.equal(read, 1); assert.equal(tweets.length, 0)
@@ -481,16 +481,25 @@ await ok('bars: each sport states a real count against the market\'s standard ba
 })
 await ok('slots: Phoenix windows converted with Intl (no DST in Phoenix), first poll in the morning window', () => {
   const at = (sport, day) => new Date(S.pollSlots(sport, day)[0].startMs).toISOString()
-  assert.equal(at('mlb', '2026-10-09'), '2026-10-09T15:30:00.000Z')      // 8:30 Phoenix = 15:30Z
-  assert.equal(at('mlb', '2026-11-09'), '2026-11-09T15:30:00.000Z')      // Phoenix does not change on Nov 1
-  assert.equal(at('nfl', '2026-10-11'), '2026-10-11T14:30:00.000Z')      // 7:30 Phoenix
-  assert.equal(at('nhl', '2026-10-09'), '2026-10-09T19:00:00.000Z')
-  assert.equal(at('nba', '2026-10-09'), '2026-10-09T23:00:00.000Z')
+  assert.equal(at('mlb', '2026-10-09'), '2026-10-09T17:50:00.000Z')      // 10:50 Phoenix = 17:50Z
+  assert.equal(at('mlb', '2026-11-09'), '2026-11-09T17:50:00.000Z')      // Phoenix does not change on Nov 1
+  assert.equal(at('nfl', '2026-10-11'), '2026-10-11T16:50:00.000Z')      // 9:50 Phoenix
+  assert.equal(at('nhl', '2026-10-09'), '2026-10-09T20:20:00.000Z')
+  assert.equal(at('nba', '2026-10-09'), '2026-10-09T23:30:00.000Z')
   assert.ok(S.pollSlots('nfl', today)[0].startMs < S.pollSlots('mlb', today)[0].startMs && S.pollSlots('mlb', today)[0].startMs < S.pollSlots('nhl', today)[0].startMs)
   // a zone that DOES change: New York 9:00 is 13:00Z before Nov 1 and 14:00Z after (read from Intl, never +N)
   assert.equal(new Date(S.zonedMs('2026-10-30', 9, 0, 'America/New_York')).toISOString(), '2026-10-30T13:00:00.000Z')
   assert.equal(new Date(S.zonedMs('2026-11-02', 9, 0, 'America/New_York')).toISOString(), '2026-11-02T14:00:00.000Z')
   assert.deepEqual(S.pollSlots('curling', today), [])
+})
+await ok('slots: every poll slot lands where the scheduler lets a poll go out (mayPostNow ok at slot + 5 min on a fake clock, every weekday)', async () => {
+  const X = await import('../lib/dash/xSchedule.js')
+  for (const sport of K.POLL_SPORTS) for (const day of ['2026-10-05', '2026-10-06', '2026-10-07', '2026-10-08', '2026-10-09', '2026-10-10', '2026-10-11']) {
+    for (const s of S.pollSlots(sport, day)) {
+      const r = X.mayPostNow({ kind: K.kindFor(sport, 'pick'), sport, now: s.startMs + 5 * 60e3, posted: [] })
+      assert.equal(r.ok, true, `${sport} ${day} ${new Date(s.startMs).toISOString()}: ${r.reason}`)
+    }
+  }
 })
 await ok('kinds: every poll kind passes the migration pattern; sport reads right off the kind; the rest list is empty; old kinds are gone from the ticks', () => {
   const re = /^((nfl|nhl|nba)_)?poll_(pick|over|guess|streak|board|result)$/
