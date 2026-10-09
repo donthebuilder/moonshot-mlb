@@ -1969,6 +1969,8 @@ export async function GET(request) {
             markTaken(day, kind)   // decided for the day: stop asking every minute on this instance
             continue
           }
+          // THE SCHEDULER (event-driven INFO, lib/dash/xSchedule): asked before the slot is claimed, logged HELD/DROPPED
+          if (!(await scheduleGate(db, { kind, day, sport: 'mlb', startMs: t })).ok) continue
           if (!(await claimSlot(db, day, kind))) continue
           const tl = tailFor('call', { playerId: call.row.player_id })
           const tail = [tl.site, tl.handle].filter(Boolean).join(' ')
