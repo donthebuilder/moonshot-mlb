@@ -112,7 +112,7 @@ export default function NflSlate({ data, picks, matchup, logs = null, odds = nul
     if (typeof document !== 'undefined') requestAnimationFrame(() => document.getElementById('tuddy-slate-game')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
   }
 
-  const top = games.reduce((a, g) => ((xOf(g) ?? -1) > (xOf(a) ?? -1) ? g : a), null)
+  const top = games.reduce((a, g) => ((xOf(g) ?? -1) > ((a ? xOf(a) : null) ?? -1) ? g : a), null)
 
   const cards = games.map((g) => {
     const x = xOf(g)
