@@ -68,6 +68,7 @@ export async function GET(request) {
       }
       // shadows (lib/nba/model.js NBA_SHADOWS): same lock, same instant, their own version
       for (const [k, S] of Object.entries(NBA_SHADOWS)) {
+        if (S.needsLog && night.logGaps?.includes(g.id)) continue   // the same hole as the live dd / td rows above
         for (const r of (night.shadows?.[k] || []).filter((x) => x.gameId === g.id)) rows.push(logRow(S.market, r, g, night, lockedAt, S.version))
       }
       const up = await db.from('buckets_log').upsert(rows, { onConflict: 'game_id,player_id,market,model_version' })

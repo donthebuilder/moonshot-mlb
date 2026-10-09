@@ -5,7 +5,7 @@ import HowToRead from '../../HowToRead'
 import { useIsPhone } from '../../MobileFold'
 import { C, NUM_FONT } from '../../../lib/nba/theme'
 import { useBucketsBoard, useBucketsExpected } from '../../../lib/nba/useBuckets'
-import { NBA_MARKETS, MARKET_OPTIONS, LEG_LABEL, fmtLeg } from '../../../lib/nba/legs'
+import { NBA_MARKETS, MARKET_OPTIONS, LEG_LABEL, fmtLeg, RAW_OF } from '../../../lib/nba/legs'
 import BucketsTable from '../BucketsTable'
 import { boardRows, boardColumns, faceOf, XPTS_MARKETS } from '../boardTable'
 import FullBoard from './FullBoard'
@@ -47,7 +47,7 @@ const ALL_KEYS = Object.keys(NBA_MARKETS)
 const ALL = 'all'
 const MARKET_PILLS = [...MARKET_OPTIONS, { key: ALL, text: 'ALL MARKETS' }]
 const ordW = (p) => { const n = Math.round(p); const r = n % 100; return `${n}${r >= 11 && r <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th'}` }
-const LEG_WORDS = { ptsPg: 'points per game', rebPg: 'rebounds per game', astPg: 'assists per game', minPg: 'minutes', fgaPg: 'shot attempts', ftaPg: 'free throw attempts', tpmPg: 'threes made', tpaPg: 'threes tried', tpPct: 'three-point shooting', praPg: 'points, rebounds and assists', fgaShare: 'share of his team’s shots', ddRate: 'share of his games with a double-double', ddRecent: 'double-doubles in his last 10 games', tdRate: 'share of his games with a triple-double', oppPts: 'points his opponent allows', oppReb: 'rebounds his opponent allows', oppAst: 'assists his opponent allows', oppTpm: 'threes his opponent allows' }
+const LEG_WORDS = { ptsPg: 'points per game', rebPg: 'rebounds per game', astPg: 'assists per game', minPg: 'minutes', fgaPg: 'shot attempts', ftaPg: 'free throw attempts', tpmPg: 'threes made', tpaPg: 'threes tried', tpPct: 'three-point shooting', praPg: 'points, rebounds and assists', fgaShare: 'share of his team’s shots', ddRate: 'share of his games with a double-double', ddAdj: 'share of his games with a double-double, scaled by his opponent', ddRecentAdj: 'double-doubles in his last 10 games, scaled by his opponent', tdAdj: 'share of his games with a triple-double, scaled by his opponent', ddRecent: 'double-doubles in his last 10 games', tdRate: 'share of his games with a triple-double', oppPts: 'points his opponent allows', oppReb: 'rebounds his opponent allows', oppAst: 'assists his opponent allows', oppTpm: 'threes his opponent allows' }
 /** His strongest leg in plain words: { lead, short } (null when no leg has a percentile). */
 function plainWhy(r, market) {
   const legs = (NBA_MARKETS[market].legs || []).map((l) => ({ l, p: Number(r.pct?.[l]) })).filter((x) => Number.isFinite(x.p)).sort((a, b) => b.p - a.p)
@@ -58,9 +58,10 @@ function plainWhy(r, market) {
 function whyItemFor(r, market, rank) {
   const D = NBA_MARKETS[market]
   const parts = (D.legs || []).map((l) => {
-    const v = r.legs?.[l]; const p = r.pct?.[l]
+    const rk = RAW_OF[l] || l
+    const v = r.legs?.[rk]; const p = r.pct?.[l]
     if (v == null && p == null) return null
-    return { label: LEG_LABEL[l] || l, text: `${fmtLeg(l, v)}${Number.isFinite(Number(p)) ? ` · ${ordW(p)} percentile` : ''}`, pct: Number.isFinite(Number(p)) ? Number(p) : null }
+    return { label: LEG_LABEL[l] || l, text: `${fmtLeg(rk, v)}${Number.isFinite(Number(p)) ? ` · ${ordW(p)} percentile` : ''}`, pct: Number.isFinite(Number(p)) ? Number(p) : null }
   }).filter(Boolean)
   const id = r.playerId
   return {

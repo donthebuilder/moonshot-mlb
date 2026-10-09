@@ -88,9 +88,13 @@ await ok('a log that could not be read is flagged (the tick waits), a man with n
 })
 
 // ── the markets, scored: a made-up night, two games ──
+// TEST clubs: what each allows a game and its games; BBB is soft, AAA is stingy, the rest are the league
+const LEAGUE = { oppPts: 112, oppReb: 44, oppAst: 25 }
+const CLUBS = { STINGY: { oppPts: 100, oppReb: 38, oppAst: 21, gp: 82 }, AAA: { oppPts: 111, oppReb: 43.5, oppAst: 24.5, gp: 82 }, BBB: { oppPts: 125, oppReb: 52, oppAst: 30, gp: 82 }, CCC: { ...LEAGUE, gp: 82 }, DDD: { ...LEAGUE, gp: 82 } }
 const mk = (id, game, team, o, logF) => {
   const base = M.legsFor(season(60, o), null, opp)
-  return { gameId: game, playerId: id, name: `Test ${id}`, pos: 'C', team, opp: team === 'AAA' ? 'BBB' : team === 'BBB' ? 'AAA' : team === 'CCC' ? 'DDD' : 'CCC', home: team === 'BBB' || team === 'DDD', starter: true, injury: null, legs: D.ddtdLegs(base, D.ddtdFromLog(logOf(60, logF))) }
+  const oppAbbr = team === 'AAA' ? 'BBB' : team === 'BBB' ? 'AAA' : team === 'CCC' ? 'DDD' : 'CCC'
+  return { gameId: game, playerId: id, name: `Test ${id}`, pos: 'C', team, opp: oppAbbr, home: team === 'BBB' || team === 'DDD', starter: true, injury: null, legs: D.withOppAdjust(D.ddtdLegs(base, D.ddtdFromLog(logOf(60, logF))), CLUBS[oppAbbr], LEAGUE) }
 }
 const dd = (k) => (i) => (i < k ? { pts: 20, reb: 11 } : {})
 const td = (k) => (i) => (i < k ? { pts: 20, reb: 11, ast: 10 } : {})
@@ -105,7 +109,7 @@ await ok('DOUBLE-DOUBLE: the higher rate ranks higher; one CALLED a club; the se
   const rows = M.scoreMarket('dd', night)
   const by = Object.fromEntries(rows.map((r) => [r.playerId, r]))
   assert.ok(by.a1.score > by.a2.score && by.a2.score > by.a3.score || by.a3.score == null)
-  assert.equal(by.a1.status, 'called'); assert.equal(by.a1.role, 'TOP'); assert.equal(by.b1.status, 'called')
+  assert.equal(by.a1.status, 'called'); assert.equal(by.a1.role, 'TOP'); assert.ok(by.b1.status === 'called' || /no call this side|below the top third/.test(by.b1.reason), 'the second club is called only while on the board, and says why when not')
   assert.equal(rows.filter((r) => r.gameId === 'G1' && r.team === 'AAA' && r.status === 'called').length, 1)
   assert.equal(by.a3.status, 'off'); assert.match(by.a3.reason, /under 5|no double-double/)
   assert.ok(rows.every((r) => r.status !== 'called' || r.score != null))
@@ -126,12 +130,46 @@ await ok('the other markets are untouched: PTS rows carry no double-double legs 
   assert.ok(rows.some((r) => r.status === 'called'))
 })
 await ok('versions: new markets are new model_versions in the live list, nothing existing renamed', () => {
-  assert.equal(M.NBA_MARKETS.dd.version, 'buckets-dd-v1'); assert.equal(M.NBA_MARKETS.td.version, 'buckets-td-v1')
-  assert.ok(M.LIVE_VERSIONS.includes('buckets-dd-v1') && M.LIVE_VERSIONS.includes('buckets-td-v1'))
+  assert.equal(M.NBA_MARKETS.dd.version, 'buckets-dd-v2'); assert.equal(M.NBA_MARKETS.td.version, 'buckets-td-v2')
+  assert.ok(M.LIVE_VERSIONS.includes('buckets-dd-v2') && M.LIVE_VERSIONS.includes('buckets-td-v2') && !M.LIVE_VERSIONS.includes('buckets-dd-v1'))
+  // the version that is NOT live locks beside it as a shadow (same market key, its own model_version), never read by a page
+  assert.equal(M.NBA_SHADOWS.dd_alt.version, 'buckets-dd-v1'); assert.equal(M.NBA_SHADOWS.td_alt.version, 'buckets-td-v1'); assert.equal(M.NBA_SHADOWS.dd_alt.market, 'dd')
+  assert.equal(M.DDTD.dd.v1.version, 'buckets-dd-v1')   // the v1 definition is kept
   assert.equal(new Set(M.LIVE_VERSIONS).size, M.LIVE_VERSIONS.length)
   assert.equal(M.NBA_MARKETS.pts.version, 'buckets-pts-v1'); assert.equal(M.NBA_MARKETS.first.version, 'buckets-first-v1')
   assert.ok(MARKET_OPTIONS.some((o) => o.key === 'dd' && o.text === 'DOUBLE-DOUBLE') && MARKET_OPTIONS.some((o) => o.key === 'td'))
   assert.equal(fmtLeg('ddRate', 0.4166), '42%'); assert.ok(RATE_LEGS.has('tdRate'))
+})
+
+// ── v2: the opponent is a clamped multiplier on his own rate ──
+await ok('opponent multiplier: shrinks a small sample, clamps to 0.8-1.25, no number = 1, and only ever scales', () => {
+  const legs = { ptsPg: 20, rebPg: 11, astPg: 4 }
+  const soft = D.oppMultiplier(legs, CLUBS.BBB, LEAGUE, 2)   // his two stats: reb 11, pts 20 -> reb 52/44, pts 125/112
+  assert.equal(soft.known, true); assert.ok(soft.mult > 1.05 && soft.mult <= D.OPP_CLAMP[1], String(soft.mult))
+  assert.deepEqual(soft.parts.map((p) => p.k), ['pts', 'reb'])
+  const stingy = D.oppMultiplier(legs, CLUBS.STINGY, LEAGUE, 2); assert.ok(stingy.mult < 0.95 && stingy.mult >= D.OPP_CLAMP[0])
+  const extreme = D.oppMultiplier(legs, { oppPts: 300, oppReb: 300, oppAst: 300, gp: 1000 }, LEAGUE, 2); assert.equal(extreme.mult, D.OPP_CLAMP[1])
+  const floor = D.oppMultiplier(legs, { oppPts: 1, oppReb: 1, oppAst: 1, gp: 1000 }, LEAGUE, 2); assert.equal(floor.mult, D.OPP_CLAMP[0])
+  const early = D.oppMultiplier(legs, { ...CLUBS.BBB, gp: 3 }, LEAGUE, 2); assert.ok(early.mult < soft.mult && early.mult > 1, 'three games barely move it')
+  const none = D.oppMultiplier(legs, null, LEAGUE, 2); assert.equal(none.mult, 1); assert.equal(none.known, false)
+  assert.equal(D.oppMultiplier(legs, CLUBS.BBB, null, 2).mult, 1)
+  assert.equal(D.leagueAllowed(new Map([['A', { oppPts: 1, oppReb: 1, oppAst: 1 }]])), null)   // under 20 clubs read = no league
+})
+await ok('a low-rate man is never lifted past a high-rate man by the matchup', () => {
+  // 3% rate against the softest club in the league (x1.25 at most) still ranks under a 50% man against the stingiest (x0.8 at least)
+  assert.ok(0.03 * D.OPP_CLAMP[1] < 0.5 * D.OPP_CLAMP[0])
+  const lo = D.withOppAdjust(D.ddtdLegs(M.legsFor(season(60, { reb: 11 }), null, opp), D.ddtdFromLog(logOf(60, dd(2)))), CLUBS.BBB, LEAGUE)
+  const hi = D.withOppAdjust(D.ddtdLegs(M.legsFor(season(60, { reb: 11 }), null, opp), D.ddtdFromLog(logOf(60, dd(30)))), CLUBS.STINGY, LEAGUE)
+  assert.ok(lo.ddAdj < hi.ddAdj); assert.ok(lo.multDd > hi.multDd); assert.ok(lo.ddAdj <= lo.ddRate * 1.25 + 1e-9 && hi.ddAdj >= hi.ddRate * 0.8 - 1e-9)
+  const rows = M.scoreMarket('dd', [{ gameId: 'X', playerId: 'lo', name: 'Test lo', team: 'T1', opp: 'BBB', starter: true, legs: lo }, { gameId: 'X', playerId: 'hi', name: 'Test hi', team: 'T2', opp: 'AAA', starter: true, legs: hi }])
+  assert.ok(rows.find((r) => r.playerId === 'hi').score > rows.find((r) => r.playerId === 'lo').score)
+})
+await ok('the v1 definition still scores through the same code (the shadow): v1 and v2 differ only in the rate legs', () => {
+  const v1 = M.scoreMarket('dd', night, { needsLog: true, ...M.DDTD.dd.v1 })
+  const v2 = M.scoreMarket('dd', night)
+  assert.equal(v1.length, v2.length); assert.ok(v1.some((r) => r.status === 'called'))
+  assert.deepEqual(M.DDTD.dd.v1.legs, ['ddRate', 'ddRecent', 'minPg']); assert.deepEqual(M.DDTD.dd.v2.legs, ['ddAdj', 'ddRecentAdj', 'minPg'])
+  assert.ok(M.scoreShadow('dd_alt', night).length === night.length)
 })
 
 // ── the grade, from the final box score ──

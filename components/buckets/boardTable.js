@@ -5,7 +5,7 @@
 // Legs · Game. Status words come from lib/callStatus via CallStatusBadge.
 import CallStatusBadge from '../CallStatusBadge'
 import { C, NUM_FONT } from '../../lib/nba/theme'
-import { NBA_MARKETS, LEG_LABEL, fmtLeg, ACTUAL_WORD } from '../../lib/nba/legs'
+import { NBA_MARKETS, LEG_LABEL, fmtLeg, ACTUAL_WORD, RAW_OF } from '../../lib/nba/legs'
 import { fmtTip, RimDot } from './ui'
 
 // PROJECTED POINTS (xPTS, lib/nba/expectedPoints.js): recent minutes x points a minute x the opponent's real points
@@ -48,7 +48,9 @@ export function boardColumns(market, { onOpenTeam, onOpenGame, withGame = true, 
       r.voidReason ? <span style={{ fontSize: 10, color: C.text3 }}>VOID</span>
         : v == null ? <span style={{ color: C.text3 }}>—</span>
           : <span style={{ color: r.hit ? C.rim : C.text2, fontWeight: 900 }}>{r.hit ? <RimDot size={6} /> : null}{market === 'first' || market === 'dd' || market === 'td' ? (r.hit ? 'YES' : 'NO') : v}</span>) },
-    ...D.legs.map((l) => ({ key: l, label: LEG_LABEL[l] || l, group: 'Legs', w: 62, heat: false, mono: true, fmt: (v) => fmtLeg(l, v) })),
+    // the opponent-adjusted legs rank him; the column shows his own measured rate (RAW_OF), and OPP x says how the matchup scaled it
+    ...D.legs.map((l) => { const k = RAW_OF[l] || l; return { key: k, label: LEG_LABEL[k] || k, group: 'Legs', w: 62, heat: false, mono: true, fmt: (v) => fmtLeg(k, v) } }),
+    ...(D.needsLog ? [{ key: market === 'td' ? 'multTd' : 'multDd', label: 'OPP ×', group: 'Legs', w: 58, heat: false, mono: true, title: 'What his opponent allows of the stats he reaches, against the league mean, shrunk for a small sample and clamped to 0.8-1.25. It scales his own rate for the ranking; 1.00 = no adjustment.', fmt: (v) => (v == null ? <span style={{ color: C.text3 }}>—</span> : Number(v).toFixed(2)) }] : []),
     ...(withGame ? [{ key: 'tip', label: 'Game', group: 'Game', w: 84, heat: false, mono: true, dim: true,
       link: (r) => (onOpenGame ? () => onOpenGame(r.gameId) : null),
       fmt: (v, r) => (r.gameState === 'live' ? <span style={{ color: C.rim }}><RimDot size={6} />LIVE</span> : r.gameState === 'final' ? 'FINAL' : v ? fmtTip(v) : '—') }] : []),

@@ -5,6 +5,7 @@ import TeamMark from '../TeamMark'
 import { faceUrl } from '../PlayerFace'
 import { C, NUM_FONT } from '../../lib/nba/theme'
 import { NBA_MARKETS } from '../../lib/nba/model'
+import { RAW_OF } from '../../lib/nba/legs'
 import { useBucketsBoard } from '../../lib/nba/useBuckets'
 import { useFollowing } from '../../lib/dash/follow'
 
@@ -66,7 +67,7 @@ function bucketsAdapter(startOf) {
         line: x.why || null,
         facts: null,
         chips: chips.slice(0, 2),
-        tiles: legs.map((l) => ({ k: LEG[l] || l, v: fmt(l, x.legs?.[l]) })),
+        tiles: legs.map((l) => { const rk = RAW_OF[l] || l; return { k: LEG[rk] || LEG[l] || l, v: fmt(rk, x.legs?.[rk]) } }),
       }
     },
     priced: () => false,
