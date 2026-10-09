@@ -25,6 +25,7 @@ import { airParts } from '../../lib/conditions'
 import { useSetupHomers, useBackToBack } from '../../lib/b2b'
 import { rankArms } from '../../lib/armLeak'
 import { slateProjHr } from '../ProjectedOutput'
+import { useClubHr } from '../../lib/clubHr'
 import { buildHeadlines, useLiveScores, nextPitch, fmtCountdown } from '../../lib/headlines'
 import { getPicks, CONVICTION } from '../../lib/myPicks'
 import { setSport } from '../../lib/sport'
@@ -365,7 +366,8 @@ export default function Home({
   }, [mode])
 
   const games = useMemo(() => groupGames(players), [players])
-  const modelHr = useMemo(() => slateProjHr(players), [players])
+  const clubHr = useClubHr()   // the league table the team model reads (lib/teamHr.js)
+  const modelHr = useMemo(() => slateProjHr(players, clubHr), [players, clubHr])
   // LIVE MEANS THE LEAGUE SAYS SO (2026-09-26, stranger test F5). The
   // payload's live_mode freezes at the bot's last build; when that ran
   // mid-slate the hero said "TODAY · LIVE — grading as they land" at 2:30 AM
@@ -926,7 +928,7 @@ export default function Home({
               <Stat label="PROJ HR" value={modelHr.toFixed(1)}
                 sub={proj ? `range ${proj.low}–${proj.high}${proj.grade ? ` · ${proj.grade}` : ''}` : null}
                 col={C.orange}
-                title="The site's model, summed over every hitter on the slate. The second figure is the range on MOONSHOT's own published sheet — a second opinion, not the site's number." />
+                title="The site's team model, both clubs of every game on the slate. The second figure is the range on MOONSHOT's own published sheet — a second opinion, not the site's number." />
             ) : proj ? (
               <Stat label="PROJ HR" value={`${proj.low}–${proj.high}`} sub={proj.grade || null} col={C.orange}
                 title="From MOONSHOT's published sheet. The site's own model figure isn't available for this slate." />

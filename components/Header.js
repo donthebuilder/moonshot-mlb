@@ -10,6 +10,7 @@ import PaletteButton from './PaletteButton'
 import ThemeModeButton from './ThemeModeButton'
 import QuietButton from './QuietButton'
 import { slateProjHr } from './ProjectedOutput'
+import { useClubHr } from '../lib/clubHr'
 import { easternToday } from '../lib/data'
 import { digestGradedNight } from '../lib/ledgerArchive'
 import { useMlbStatusNight } from '../lib/useMlbStatus'
@@ -139,7 +140,8 @@ function Scorebug({ players, results, games, mode, slateDate, runMeta, onPlayerC
     const hrs = (st) => d.all.filter((r) => r.status === st).reduce((a, r) => a + r.hr, 0)
     return { called: hrs('called'), board: hrs('board'), off: hrs('off') }
   }, [results, feedNight])
-  const modelHr = useMemo(() => slateProjHr(players), [players])
+  const clubHr = useClubHr()   // the league table the team model reads (lib/teamHr.js)
+  const modelHr = useMemo(() => slateProjHr(players, clubHr), [players, clubHr])
   const projection = useProjection(mode)
   // ONE SPORT PER TICKER (2026-10-06): MOONSHOT's strip carries MOONSHOT's games only; the other
   // sports' live lines are behind the switcher (components/header/SportSwitch.js)

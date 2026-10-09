@@ -14,6 +14,8 @@ import { C } from '../lib/theme'
 import { n, nameOf } from '../lib/player'
 import { parkRows } from './ParkBoard'
 import { projectPool, projectionPublished } from '../lib/projection'
+import { useClubHr } from '../lib/clubHr'
+import { gameExpHr } from '../lib/teamHr'
 import { useGameNav } from '../lib/teamNav'
 import { localTime } from '../lib/localTime'
 
@@ -33,9 +35,11 @@ const signed = (v, dp = 0) => (v == null || !Number.isFinite(v) ? '—' : `${v >
 export default function ParkTable({ players = [], activeVenue = '', onVenueClick, onPlayerClick }) {
   const openGame = useGameNav()
   const parks = useMemo(() => parkRows(players), [players])
+  const club = useClubHr()   // the team model's league table (lib/teamHr.js)
   const hasProj = useMemo(() => projectionPublished(parks.flatMap((g) => g.bats)), [parks])
   const rows = useMemo(() => [...parks].sort((a, b) => b.edge - a.edge).map((g, i) => {
     const pj = hasProj ? projectPool(g.bats) : null
+    const teamHr = gameExpHr(g.bats, club)   // HR is the team model: both clubs, one source
     return {
       _key: String(g.pk),
       _raw: g,
@@ -55,12 +59,12 @@ export default function ParkTable({ players = [], activeVenue = '', onVenueClick
       humidity: g.humidity,
       rain: g.rain,
       roof: g.roof || '',
-      projHr: pj ? pj.hr : null,
+      projHr: teamHr ? teamHr.total : null,
       projHits: pj ? pj.hits : null,
       projTb: pj ? pj.tb : null,
       threats: g.threats,
     }
-  }), [parks, hasProj])
+  }), [parks, hasProj, club])
 
   const columns = useMemo(() => [
     { key: 'rank', label: '#', heat: false, w: 34, mono: true, dim: true, rankCol: true, title: 'Rank by tonight’s edge: the park’s HR factor plus tonight’s weather' },
@@ -81,7 +85,7 @@ export default function ParkTable({ players = [], activeVenue = '', onVenueClick
     { key: 'rain', label: 'Rain', w: 48, dp: 0, invert: true, fmt: (v) => (v == null ? '—' : `${Math.round(v)}%`), group: G_AIR, title: 'Chance of rain at first pitch' },
     { key: 'roof', label: 'Roof', heat: false, w: 70, mono: true, dim: true, group: G_AIR },
     ...(hasProj ? [
-      { key: 'projHr', label: 'HR', w: 46, dp: 1, group: G_PROJ, title: 'Projected home runs in the game from both lineups (lib/projection.js)' },
+      { key: 'projHr', label: 'HR', w: 46, dp: 1, group: G_PROJ, title: 'Expected home runs in the game, both clubs, from the team model (lib/teamHr.js): club rate, the starter, the park and the weather' },
       { key: 'projHits', label: 'Hits', w: 46, dp: 1, group: G_PROJ, title: 'Projected hits in the game' },
       { key: 'projTb', label: 'TB', w: 46, dp: 1, group: G_PROJ, title: 'Projected total bases in the game' },
     ] : []),

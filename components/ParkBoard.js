@@ -8,6 +8,8 @@ import { fetchRestTravel } from '../lib/restTravel'
 import { dataUrl } from '../lib/dataSource'
 import { divChip, seqChip, SEQ_AUTO } from '../lib/scales'
 import { projectPool, projectionPublished } from '../lib/projection'
+import { useClubHr } from '../lib/clubHr'
+import { gameExpHr, spreadOf } from '../lib/teamHr'
 import MobileFold from './MobileFold'
 import { onLiveRefresh } from '../lib/liveRefresh'
 import { localTime } from '../lib/localTime'
@@ -251,12 +253,17 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
   // lib/projection.js already owns this and enforces the invariants (a game
   // cannot produce fewer bases than hits, or more homers than hits), so this
   // is a call rather than a new model.
+  //
+  // HR IS THE TEAM MODEL (2026-10-08): the game's expected home runs are both
+  // clubs' (lib/teamHr.js, the same number the Projected output table and the
+  // headline print); bases, hits and HRR stay the tracked-bat counts.
+  const club = useClubHr()
   const proj = useMemo(() => {
     const out = {}
-    parks.forEach((g) => { out[g.pk] = projectPool(g.bats) })
+    parks.forEach((g) => { out[g.pk] = { ...projectPool(g.bats), hr: gameExpHr(g.bats, club)?.total ?? null } })
     return out
-  }, [parks])
-  const hasProj = useMemo(() => projectionPublished(parks.flatMap((g) => g.bats)), [parks])
+  }, [parks, club])
+  const hasProj = useMemo(() => !!club && projectionPublished(parks.flatMap((g) => g.bats)), [parks, club])
 
   const lensVal = (g) => (
     lens === 'park' ? g.parkTerm
@@ -269,10 +276,13 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
   // The slate's own middle, so the projected lens has a real anchor rather
   // than an invented one. A projection is only interesting against the other
   // fourteen games tonight.
-  const projMid = useMemo(() => {
-    const v = parks.map((g) => proj[g.pk]?.hr ?? 0).filter((x) => x > 0).sort((a, b) => a - b)
-    return v.length ? v[Math.floor(v.length / 2)] : 0
-  }, [parks, proj])
+  // Its spread is the number's own (2026-10-08): the bands below read standard
+  // deviations from the slate, so hot and cold mean the same on a tighter number.
+  const projSpread = useMemo(() => spreadOf(parks.map((g) => proj[g.pk]?.hr).filter((x) => x > 0)), [parks, proj])
+  const projMid = projSpread.mid
+  // sd of the slate's projected HR; a slate too small to have a spread keeps the old relative cuts' scale
+  const projSd = projSpread.n >= 4 && projSpread.sd > 0.02 ? projSpread.sd : Math.max(0.2, projMid * 0.15)
+  const projCeil = projSd * 2
 
   // The distance-threat range, for the pills. A hitter's score is HIS number
   // and it now wears HIS colour instead of the park's.
@@ -317,13 +327,13 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
   // own median game, which is the only honest middle for "is this game
   // projected to produce more than the others tonight".
   const projBandOf = (hr) => {
-    const d = projMid > 0 ? (hr - projMid) / projMid : 0
-    const meta = d >= 0.30 ? { icon: '🌋', word: 'BIGGEST SLATE' }
-      : d >= 0.12 ? { icon: '🔥', word: 'ABOVE SLATE' }
-      : d >= -0.12 ? { icon: '🌤', word: 'SLATE AVERAGE' }
-        : d >= -0.30 ? { icon: '🌬', word: 'BELOW SLATE' }
+    const d = projSd > 0 ? (hr - projMid) / projSd : 0
+    const meta = d >= 2 ? { icon: '🌋', word: 'BIGGEST SLATE' }
+      : d >= 0.8 ? { icon: '🔥', word: 'ABOVE SLATE' }
+      : d >= -0.8 ? { icon: '🌤', word: 'SLATE AVERAGE' }
+        : d >= -2 ? { icon: '🌬', word: 'BELOW SLATE' }
           : { icon: '🧊', word: 'QUIETEST' }
-    return { ...meta, col: divChip(hr, { anchor: projMid, ceiling: Math.max(0.35, projMid * 0.6), deadband: 0.12 }) }
+    return { ...meta, col: divChip(hr, { anchor: projMid, ceiling: projCeil, deadband: 0.4 }) }
   }
 
   const bandFor = (g) => (lens === 'proj' ? projBandOf(lensVal(g)) : bandOf(lensVal(g)))
@@ -460,9 +470,9 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
                   honest anchor for "is this game bigger than the others
                   tonight" — with ▲/▼ carrying the sign so the read survives
                   greyscale. `pj.n` is the denominator and it is printed. */}
-              {pj && pj.n > 0 && (
+              {pj && pj.n > 0 && pj.hr != null && (
                 <div
-                  title={`Projected from ${pj.n} tracked bats across both lineups, ${pj.pa.toFixed(0)} expected plate appearances. Counts, not probabilities — and not park-adjusted, so read them next to the park number rather than through it.`}
+                  title={`Projected from ${pj.n} tracked bats across both lineups, ${pj.pa.toFixed(0)} expected plate appearances. Counts, not probabilities. HR is the team model for both clubs (their rates, the starters, the park and the weather); bases, hits and HRR are not park-adjusted, so read them next to the park number rather than through it.`}
                   style={{
                     display: 'flex', gap: 9, alignItems: 'baseline', marginTop: 4,
                     fontFamily: NUM_FONT, fontSize: 9, flexWrap: 'wrap',
@@ -471,13 +481,13 @@ export default function ParkBoard({ players = [], slateDate = '', activeVenue, o
                 >
                   <span style={{ color: C.text3, fontWeight: 800, letterSpacing: '.05em' }}>📐 PROJ</span>
                   {[
-                    ['HR', pj.hr, projMid, Math.max(0.35, projMid * 0.6), 1],
+                    ['HR', pj.hr, projMid, projCeil, 1],
                     ['bases', pj.tb, null, null, 0],
                     ['hits', pj.hits, null, null, 0],
                     ['HRR', pj.hrr, null, null, 0],
                   ].map(([label, v, anchor, ceil, dp]) => {
                     const col = anchor == null ? C.text2 : divChip(v, { anchor, ceiling: ceil, deadband: 0.12 })
-                    const arrow = anchor == null ? '' : v > anchor * 1.12 ? '▲' : v < anchor * 0.88 ? '▼' : '·'
+                    const arrow = anchor == null ? '' : label === 'HR' ? (v > anchor + 0.8 * projSd ? '▲' : v < anchor - 0.8 * projSd ? '▼' : '·') : v > anchor * 1.12 ? '▲' : v < anchor * 0.88 ? '▼' : '·'
                     return (
                       <span key={label} style={{ color: C.text3, whiteSpace: 'nowrap' }}>
                         <b style={{ color: col, fontWeight: 800 }}>{v.toFixed(dp)}</b>
