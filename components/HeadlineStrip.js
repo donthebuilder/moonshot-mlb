@@ -13,18 +13,27 @@ import { asLogos } from './TeamMark'
 // product still builds its own cards (lib/headlines.js, lib/nfl/headlines.js,
 // lib/nhl/headlines.js) and decides what a tap opens.
 //
-//   card: { k, tag, icon, name, why, stat, col }
+//   card: { k, tag, icon, name, why, stat, col, gameId?, whyGame? }
+//   gameId + whyGame (the matchup words inside `why`) + onOpenGame: that matchup is its own link to the game
+//   (the rest of the card still opens the player); a product that passes no onOpenGame draws the why as plain text.
 //
 // Self-scrolling (useAutoScroll, pauses under the pointer), two copies back
 // to back for a seamless loop, the echo hidden from screen readers.
 // faceOf(card) -> node | null (BATCH-FACES step 8): a small face beside the
 // name on a card about one player. Absent, the card draws exactly as before.
-export default function HeadlineStrip({ cards = [], onOpen = null, theme = null, numFont = null, accent = null, speed = 30, faceOf = null, sport = null }) {
+export default function HeadlineStrip({ cards = [], onOpen = null, theme = null, numFont = null, accent = null, speed = 30, faceOf = null, sport = null, onOpenGame = null }) {
   const C = theme || MLB_C
   const NUM_FONT = numFont || MLB_NUM
   const stripRef = useRef(null)
   useAutoScroll(stripRef, { speed })
   if (!cards.length) return null
+  const whyOf = (c, openGame, echo) => {
+    const at = openGame && !echo && c.gameId && c.whyGame ? String(c.why).indexOf(c.whyGame) : -1
+    if (at < 0) return c.why
+    const go = (e) => { e.stopPropagation(); e.preventDefault(); openGame(c.gameId) }
+    // a span, not a button: this sits inside the card's own button
+    return <>{c.why.slice(0, at)}<span role="link" tabIndex={0} className="tap-link" onClick={go} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') go(e) }} style={{ cursor: 'pointer' }}>{c.whyGame}</span>{c.why.slice(at + c.whyGame.length)}</>
+  }
   const Card = ({ c, i, echo }) => (
     <button type="button" tabIndex={echo ? -1 : 0} aria-hidden={echo || undefined} onClick={() => onOpen?.(c)}
       className="home-headline"
@@ -44,7 +53,7 @@ export default function HeadlineStrip({ cards = [], onOpen = null, theme = null,
         return face ? <span style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>{face}{nameEl}</span> : nameEl
       })()}
       <span style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8 }}>
-        <span style={{ fontSize: TYPE.body, color: C.text2, lineHeight: 1.35, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{c.why}</span>
+        <span style={{ fontSize: TYPE.body, color: C.text2, lineHeight: 1.35, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{whyOf(c, onOpenGame, echo)}</span>
         <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.label, fontWeight: 900, color: c.col, whiteSpace: 'nowrap', border: `1px solid ${c.col}44`, background: `${c.col}14`, borderRadius: 4, padding: '2px 6px', flexShrink: 0 }}>{c.stat}</span>
       </span>
     </button>
