@@ -39,6 +39,7 @@ const Teams = dynamic(() => import('./tabs/Teams'), { loading: TabLoading })
 const Team = dynamic(() => import('./tabs/Team'), { loading: TabLoading })
 const Players = dynamic(() => import('./tabs/Players'), { loading: TabLoading })
 const Player = dynamic(() => import('./tabs/Player'), { loading: TabLoading })
+const Pairs = dynamic(() => import('./tabs/Pairs'), { loading: TabLoading })
 const SpecialTeams = dynamic(() => import('./tabs/SpecialTeams'), { loading: TabLoading })
 const Ledger = dynamic(() => import('./tabs/Ledger'), { loading: TabLoading })
 const Matchups = dynamic(() => import('./tabs/Matchups'), { loading: TabLoading })
@@ -167,6 +168,7 @@ export default function LampDashboard({ palettePass = 0 }) {
             {tab === 'goalies' && <Players goaliesOnly onOpenTeam={openTeam} onOpenGame={openGame} />}
             {tab === 'player' && <Player id={playerId} onStep={stepPlayer} onOpenTeam={openTeam} onOpenGame={openGame} backLabel={backLabel('players')} onBack={() => goBack('players')} />}
             {tab === 'leaders' && <Leaders onOpenPlayer={peekPlayer} onOpenTeam={openTeam} />}
+            {tab === 'pairs' && <Pairs onOpenPlayer={peekPlayer} />}
             {tab === 'specialteams' && <SpecialTeams onOpenTeam={openTeam} onOpenPlayer={peekPlayer} />}
             {tab === 'matchups' && <Matchups date={date} onOpenPlayer={peekPlayer} onOpenTeam={openTeam} />}
             {/* THE LEDGER (2026-10-07): one tab, four sub-tabs (components/pages/LedgerShell). Tonight's Ledger, the Lamp

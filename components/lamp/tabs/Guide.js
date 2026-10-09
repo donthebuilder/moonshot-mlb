@@ -30,6 +30,7 @@ const ROWS = [
   ['power', null],
   ['hotsticks', null],
   ['specialteams', null],
+  ['pairs', 'Two skaters who each scored on the same day, over four seasons, active players only. Joint games are the days both played; the table shows how often both scored, what the two rates alone would give, and when they last did it.'],
   ['storylines', null],
   ['longshots', null],
   ['odds', null],
