@@ -52,7 +52,7 @@ export default function LaneTable({ sport, theme: C, numFont, accent, tonight = 
               {p.team ? <TeamMark sport={sport} abbr={p.team} variant="logo" px={20} /> : null}
               <span style={{ display: 'grid', minWidth: 0, flex: 1, lineHeight: 1.25 }}>
                 <b style={{ fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}{p.team ? <span style={{ marginLeft: 6, color: C.text3, fontFamily: numFont, fontSize: 11, fontWeight: 700 }}>{p.team}</span> : null}</b>
-                <span style={{ fontSize: 11, color: C.text2 }}>{p.labels.slice(0, 2).join(' · ')}{p.labels.length > 2 ? ` · +${p.labels.length - 2}` : ''}</span>
+                <span title={(p.fullLabels || p.labels).join(' · ')} style={{ fontSize: 11, color: C.text2 }}>{p.labels.slice(0, 3).join(' · ')}{p.labels.length > 3 ? ` · +${p.labels.length - 3}` : ''}</span>
               </span>
               <span style={{ fontFamily: numFont, fontSize: 11, color: accent, fontWeight: 800, whiteSpace: 'nowrap' }}>{p.n} {p.n === 1 ? 'lane' : 'lanes'}</span>
             </a>

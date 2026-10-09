@@ -14,6 +14,7 @@ import { useSportTheme } from '../SportTheme'
 import CallStatusBadge from '../CallStatusBadge'
 import { STATUS_WORD } from '../../lib/callStatus'
 import { matchLanes } from '../../lib/numerology/lanes'
+import HelpTip from '../HelpTip'
 import { ledgerHash } from '../../lib/ledger/views'
 import { isHiddenSport } from '../../lib/routes'
 
@@ -102,7 +103,7 @@ export default function InTheLedger({ sport, id, name = '', jersey = null, birth
             <p style={{ margin: '4px 0 6px', color: C.text2, fontSize: 12, lineHeight: 1.5 }}>
               <b style={{ color: C.text, fontFamily: NUM_FONT, fontSize: 11, letterSpacing: '.08em' }}>HIS LANES TONIGHT </b>
               {lanes.length
-                ? <>{lanes.length} matched: {[...new Set(lanes.map((m) => m.label))].join(', ')}. Pattern watching, not a prediction.</>
+                ? <>{lanes.length} matched: <span title={[...new Set(lanes.map((m) => m.label))].join(', ')}>{[...new Set(lanes.map((m) => m.short || m.label))].join(' · ')}</span>. Pattern watching, not a prediction.<HelpTip label="His lanes" text={[...new Set(lanes.map((m) => `${m.short || m.label}: ${m.label}`))].join('. ') + '.'} /></>
                 : <>none line up with the date.</>}
             </p>
           )}
