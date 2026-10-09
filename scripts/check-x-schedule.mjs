@@ -173,7 +173,7 @@ await ok('priority near the budget follows xPolicy: numerology goes first, then 
 })
 await ok('CALLED alerts, boards, receipts and write-ups tied to the game bypass windows, the gap and the budget', () => {
   const full = Array.from({ length: 25 }, (_, i) => ({ kind: `list_${i}`, at: at(DAY, '03:00') }))
-  for (const kind of ['homer', 'td', 'nhlgoal', 'nba30', 'board', 'nfl_board', 'nhl_board', 'accountability', 'recap', 'board_results', 'nfl_results', 'weekly', 'monthly', 'call_776655', 'writeup_nfl_2026_06_KC_BUF', 'writeup_nhl_x', 'nfl_callsheet_reply', 'pregame']) {
+  for (const kind of ['homer', 'td', 'nhlgoal', 'nba30', 'board', 'nfl_board', 'nhl_board', 'receipt', 'nfl_results', 'weekly', 'monthly', 'call_776655', 'writeup_nfl_2026_06_KC_BUF', 'writeup_nhl_x', 'nfl_callsheet_reply', 'pregame']) {
     const r = mayPostNow({ kind, now: at(DAY, '03:10'), posted: full })
     assert.equal(r.ok, true, kind); assert.match(r.reason, /event-driven/)
   }
@@ -222,7 +222,7 @@ await ok('every scheduled kind carries exactly one tag; an unknown or untagged k
   assert.equal(tagOf('hrleadersdow'), 'INFO'); assert.equal(tagOf('poll_pick'), 'FUN'); assert.equal(tagOf(P.RETIRED_KINDS[0]), null)
 })
 await ok('every kind the code can post is in the table (the policy list, the routes, the kind check) and nothing retired posts', () => {
-  const kinds = new Set(Object.keys({ homer: 1, td: 1, nhlgoal: 1, nba30: 1, board: 1, nfl_board: 1, nhl_board: 1, nfl_callsheet_reply: 1, pregame: 1, callofnight: 1, thefour: 1, slate: 1, writeup: 1, accountability: 1, recap: 1, weekly: 1, monthly: 1, board_results: 1, nfl_results: 1, nfl_bigweek: 1, botpoll: 1, community_pick: 1, nfl_botpoll: 1, nfl_community: 1, numerology: 1 }))
+  const kinds = new Set(Object.keys({ homer: 1, td: 1, nhlgoal: 1, nba30: 1, board: 1, nfl_board: 1, nhl_board: 1, nfl_callsheet_reply: 1, pregame: 1, callofnight: 1, thefour: 1, slate: 1, writeup: 1, receipt: 1, accountability: 1, recap: 1, weekly: 1, monthly: 1, board_results: 1, nfl_results: 1, nfl_bigweek: 1, botpoll: 1, community_pick: 1, nfl_botpoll: 1, nfl_community: 1, numerology: 1 }))
   for (const k of P.RETIRED_KINDS) kinds.add(k)
   const scan = (file, res) => { const t = fs.readFileSync(file, 'utf8'); for (const re of res) for (const m of t.matchAll(re)) kinds.add(m[1]) }
   scan('app/api/dash/homers/tick/route.js', [/claimAndPostStat\(db, day, '([a-z_0-9]+)'/g, /claimSlot\(db, (?:day|yday), '([a-z_0-9]+)'/g, /kind: '([a-z_0-9]+)'/g, /kind: '([a-z_0-9]+)'/g])
