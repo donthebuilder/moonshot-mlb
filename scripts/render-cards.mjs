@@ -3,7 +3,8 @@
 // Needs network and a node_modules next to the repo. Prices come from stored odds when the env reaches the database; none otherwise.
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { loadWindows, loadCandidates } from '../lib/card/sources.js'
-import { loadPlayerModel, renderModel } from '../lib/cards/cardImage.js'
+import { loadPlayerModel, renderModel, dayCardImage } from '../lib/cards/cardImage.js'
+import { latestCardDate } from '../lib/card/store.js'
 import { LINT } from '../lib/cards/cardKit.js'
 import { adminClient } from '../lib/supabase/admin.js'
 
@@ -29,6 +30,17 @@ for (const sport of sportsArg.split(',')) {
       console.log('wrote', f, r.png.length)
       if (side === 'back') log.used.push({ sport, name: p.name, day: win.card_date, seasons: r.back?.seasonsShown, price: loaded.model.price, poolNote: loaded.model.statNote })
     }
+  }
+}
+if (db) for (const sport of sportsArg.split(',')) {
+  const date = await latestCardDate(db, sport)
+  if (!date) { console.log(sport, 'no stored card'); continue }
+  for (const scope of ['free', 'full']) {
+    const r = await dayCardImage({ sport, date, scope, width: Number(widthArg), db })
+    if (!r.ok) { console.log(sport, 'day', scope, r.why); continue }
+    writeFileSync(`${outDir}/${sport}-day-${scope}-${date}.png`, r.png)
+    console.log('wrote day', sport, scope, date)
+    log.used.push({ sport, day: date, kind: `day-${scope}`, straights: r.day.straights.map((x) => x.m.name), two: r.day.two?.legs.map((l) => l.m.name) || null, donovan: r.day.donovan?.legs.map((l) => l.m.name) || null })
   }
 }
 writeFileSync(`${outDir}/_render-log.json`, JSON.stringify({ ...log, lint: LINT }, null, 1))
