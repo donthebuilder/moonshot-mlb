@@ -62,7 +62,7 @@ export default function BetSlip({ legs, onRemove, onClear, pairNotes = [], partn
       <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 8, fontSize: 12.5, lineHeight: 1.6, color: C.text2 }}>
         <div><b style={{ color: C.text }}>As singles:</b> {money(s * legs.length)} at risk · {money(singlesWin)} profit if every one hits</div>
         {legs.length >= 2 && (
-          <div><b style={{ color: C.text }}>As one parlay:</b> {money(s)} wins {money(s * (parlayDec - 1))} · the books' prices put all {legs.length} landing at {(100 * parlayChance) < 1 ? '<1' : (100 * parlayChance).toFixed(1)}%</div>
+          <div><b style={{ color: C.text }}>As one parlay (an estimate from the leg prices, not a real parlay price):</b> {money(s)} wins about {money(s * (parlayDec - 1))} · the books' prices put all {legs.length} landing at {(100 * parlayChance) < 1 ? '<1' : (100 * parlayChance).toFixed(1)}% (implied, so it includes the book's margin and reads high)</div>
         )}
         {shared.length > 0 && (
           <div style={{ color: C.text }}>{sameGameLine(shared)}<HelpTip label="Same game" color={C.text3} text="Picks from one game share the weather, starters and game flow. For MLB home runs we measured that link: two hitters in the same game homered together 1.05x as often as two unrelated hitters, which is about independent. We have not measured it for other markets. The parlay chance above treats every pick as separate." /></div>

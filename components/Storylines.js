@@ -772,7 +772,7 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
       })}
       {!compact && b2b.length > 6 && (
         <Row icon="🔁">
-          <span style={{ color: C.text3 }}>+ {b2b.length - 6} more homered their last game — full list lives on the Due tab at window 1</span>
+          <span style={{ color: C.text3 }}>+ {b2b.length - 6} more homered their last game — full list lives on the Power tab at window 1</span>
         </Row>
       )}
 

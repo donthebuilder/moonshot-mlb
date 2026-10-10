@@ -89,7 +89,7 @@ export default function PairHistV2Table({ sport = 'mlb', onOpenPlayer = null, ac
     { key: 'jd', label: 'Joint games', group: 'Evidence', w: 64, dp: 0, title: 'Days both players played, over the four seasons' },
     { key: 'je', label: W.both, group: 'Evidence', w: 66, dp: 0, title: `Of those, days both had a ${W.unit}` },
     { key: 'sg', label: 'Same game', group: 'Evidence', w: 62, dp: 0, title: `Of those, days both had a ${W.unit} in the same game` },
-    { key: 'rate', label: 'Rate', group: 'Rate', w: 56, dp: 1, fmt: (v) => (v == null ? '—' : `${v.toFixed(1)}%`), title: `${W.both} games, as a share of joint games` },
+    { key: 'rate', label: 'Rate (n)', group: 'Rate', w: 92, dp: 1, fmt: (v, r) => (v == null ? '—' : `${v.toFixed(1)}% (n=${Number.isFinite(r?.jd) ? r.jd : '—'})`), title: `${W.both} games, as a share of joint games. n is the joint games behind the rate.` },
     { key: 'exp', label: 'Expected', group: 'Rate', w: 62, dp: 1, title: 'What the two players’ own rates would give if they were unrelated' },
     { key: 'lift', label: 'Lift', group: 'Rate', w: 48, dp: 2, title: 'Actual over expected. Near 1.00 is coincidence.' },
     ...seasons.map((y) => ({ key: `s${y}`, label: seasonLabel(sport, y), group: 'By season', w: 46, dp: 0, title: `${W.both} in ${seasonLabel(sport, y)}` })),

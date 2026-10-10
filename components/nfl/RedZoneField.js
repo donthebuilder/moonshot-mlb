@@ -15,7 +15,7 @@ import { surname } from '../../lib/nfl/statLabels'
 //   the long bar, from the 20      RZ   red-zone opportunities a game
 //   the short bar, from the 10     GL   goal-line opportunities a game
 //                                       (inside-10 targets + inside-5 carries)
-//   "due by the numbers"           xTD vs TD, the storylines rule itself
+//   "chances vs touchdowns"      xTD vs TD, the storylines rule itself
 //                                  (lib/nfl/storylines.js dueByTheNumbers)
 //   "6 TDs on 43 red-zone touches" nfl_matchup.json red_zone[player_id]
 //                                  (touches, tds, rate) -- his conversion
@@ -132,7 +132,7 @@ export default function RedZoneField({ data, matchup, onPlayerClick }) {
           const bits = []
           const conv = matchup?.red_zone?.[p.player_id]
           if (conv && Number.isFinite(Number(conv.touches)) && Number(conv.touches) > 0) bits.push(`${conv.tds} TD${Number(conv.tds) === 1 ? '' : 's'} on ${conv.touches} red-zone touches (${Math.round(Number(conv.rate))}%)`)
-          if (due.has(String(p.player_id))) bits.push(`due by the numbers: xTD ${one(n(p.stats.xTD))} vs ${one(n(p.stats.TD))} TD a game`)
+          if (due.has(String(p.player_id))) bits.push(`chances vs touchdowns: xTD ${one(n(p.stats.xTD))} vs ${one(n(p.stats.TD))} TD a game`)
           return bits.length ? { p, text: bits.join(' · ') } : null
         }).filter(Boolean).slice(0, 3)
         return notes.length ? (

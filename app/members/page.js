@@ -8,11 +8,10 @@ import AuthPageHeader from '../../components/AuthPageHeader'
 import styles from '../(front)/dash.module.css'
 import { membersUrl } from '../../lib/members'
 import { MLB_MEMBERS_N, NFL_MEMBERS_N } from '../../lib/dash/membersPost'
-import { contactEmail } from '../../lib/siteContact'
 
 export const metadata = {
   title: 'Founding members · DASH Network',
-  description: 'Everything on DASH is free. Founding members get the full board before lock in a private Discord, graded after.',
+  description: 'Everything on DASH is free. Founding members get every game\u2019s write-up, plus the board at lock and its grade, in a private Discord.',
 }
 
 const h2 = { margin: '0 0 8px', fontSize: 17, lineHeight: 1.3 }
@@ -20,7 +19,6 @@ const ul = { margin: '6px 0 0', paddingLeft: 20 }
 
 export default function MembersPage() {
   const join = membersUrl()
-  const contact = contactEmail()
   return (
     <main className={styles.page}>
       <AuthPageHeader />
@@ -31,9 +29,9 @@ export default function MembersPage() {
         <div className={styles.card} style={{ margin: '0 0 14px' }}>
           <h2 style={h2}>Free, for everyone</h2>
           <ul style={ul}>
-            <li>The whole site: every board, every player, every page.</li>
-            <li>The top five on tonight&apos;s board, posted before first pitch.</li>
-            <li>Alerts on your phone for the players you follow.</li>
+            <li>The whole site: every board, every player, every page, for all four sports.</li>
+            <li>The top calls on tonight&apos;s board, posted before the game starts.</li>
+            <li>Lineup, scratch and goalie alerts on your phone for the players you follow.</li>
             <li>Every call graded in public, hits and misses.</li>
           </ul>
         </div>
@@ -41,8 +39,10 @@ export default function MembersPage() {
         <div className={styles.card} style={{ margin: '0 0 14px' }}>
           <h2 style={h2}>Founding members</h2>
           <ul style={ul}>
-            <li>The full board at lock, in a private Discord channel: MOONSHOT&apos;s top {MLB_MEMBERS_N} before first pitch, TUDDY&apos;s top {NFL_MEMBERS_N} before kickoff.</li>
+            <li>Every game&apos;s write-up for all four sports (MLB, NFL, NHL, NBA), in a private Discord channel. Free Discord gets the featured game only.</li>
+            <li>The board at lock, in the same channel: MOONSHOT&apos;s top {MLB_MEMBERS_N} before first pitch, TUDDY&apos;s top {NFL_MEMBERS_N} before kickoff.</li>
             <li>That board graded after the games, in the same channel.</li>
+            <li>Nothing on the site is locked. What you pay for is delivery to one place at lock, not access.</li>
           </ul>
         </div>
 
@@ -63,7 +63,7 @@ export default function MembersPage() {
 
         <p style={{ fontSize: 13, opacity: 0.75 }}>
           Information, not advice. 21+ where sports betting is legal. <a href="/terms">Terms</a>
-          {contact ? <> · Questions: <a href={`mailto:${contact}`}>{contact}</a></> : null}
+          {' '}· Questions: message a Mod in Discord #start-here.
         </p>
       </section>
     </main>

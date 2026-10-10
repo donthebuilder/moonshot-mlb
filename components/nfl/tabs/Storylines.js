@@ -133,7 +133,7 @@ export default function Storylines({ data, logs, results, onPlayerClick, setTab,
     b2b.length && `\u{1F501} ${b2b.length} scored last time out`,
     cards.length && `\u{1F525} ${cards.length} milestone streak${cards.length > 1 ? 's' : ''}`,
     revenge.length && `\u{1F47B} ${revenge.length} revenge game${revenge.length > 1 ? 's' : ''}`,
-    due.length && `\u{1F4CA} ${due.length} due by the numbers`,
+    due.length && `\u{1F4CA} ${due.length} chances vs touchdowns`,
     rzm.length && `\u{1F6A8} ${rzm.length} red-zone monster${rzm.length > 1 ? 's' : ''}`,
     modelCards.length && `\u{1F3AF} ${modelCards.length} model call${modelCards.length > 1 ? 's' : ''}`,
     bdays.length && `\u{1F382} ${bdays.length} birthday${bdays.length > 1 ? 's' : ''}`,
@@ -207,11 +207,11 @@ export default function Storylines({ data, logs, results, onPlayerClick, setTab,
 
       {!!due.length && (
         <div className="sl-feed">
-          <div className="sl-section-head">DUE BY THE NUMBERS <span className="sl-head-rate">· chances, not a promise — a gap says the opportunity was there, not that it pays this week</span></div>
+          <div className="sl-section-head">CHANCES VS TOUCHDOWNS <span className="sl-head-rate">· a plain gap, not a forecast — scoring above or below chances has not predicted the next game</span></div>
           {due.map((r) => (
             <Row key={`due-${r.player.player_id}`} icon={"\u{1F4CA}"} onClick={() => onPlayerClick?.(r.player, 'TD')}
-                 title="Expected TDs a game come from where his chances happen on the field (xTD); actual is what he scored. A positive gap is opportunity he has not cashed. It is not a forecast and it does not feed the board.">
-              <Name>{r.player.name}</Name> gets <Num>{r.xtd.toFixed(2)}</Num> expected TD a game and has scored <Num>{r.actual.toFixed(2)}</Num> — <Num>{r.gap.toFixed(2)}</Num> a game owed by the numbers, on <Num>{r.rz.toFixed(1)}</Num> red-zone touches
+                 title="Expected TDs a game come from where his chances happen on the field (xTD); actual is what he scored. A positive gap is chances he has had that did not end in a touchdown. It is not a forecast and it does not feed the board.">
+              <Name>{r.player.name}</Name> gets <Num>{r.xtd.toFixed(2)}</Num> expected TD a game and has scored <Num>{r.actual.toFixed(2)}</Num> — <Num>{r.gap.toFixed(2)}</Num> a game between the two, on <Num>{r.rz.toFixed(1)}</Num> red-zone touches
               <span className="sl-row-meta"> · {r.player.team} {r.player.position} vs {r.player.opp || '—'}</span><Td n={r.td} />
             </Row>
           ))}

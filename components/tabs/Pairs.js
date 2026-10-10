@@ -26,6 +26,9 @@ import { usePreview, ShowMoreButton } from '../ListPreview'
 // COLOUR DIET (2026-10-07): the pair TYPE is a label, not a signal -- one neutral for all of them.
 function typeColor() { return C.text2 }
 
+// The bot's per-pair 'Due' tag is shown as 'Long gap': a count of games, not a forecast (the site retired its due score).
+const tagLabel = (t) => (t === 'Due' ? 'Long gap' : t)
+
 const PAIR_SCOPES = [
   { key:'cross', label:'🔀 Cross Game' },
   { key:'bot',   label:'🤖 MOONSHOT Picks' },
@@ -65,7 +68,7 @@ const LANE_ORDER = ['TOP30', 'A', 'B', 'C', 'D']
 // module-level literal keeps the palette it was imported with. See #23.
 const LANE_META = () => ({
   TOP30: { short: 'TOP 30', color: C.orange, blurb: 'MOONSHOT’s headline board — scored on a different scale from the lettered lanes.' },
-  A:     { short: 'LANE A', color: C.text2, blurb: 'Core: the safest construction it will offer.' },
+  A:     { short: 'LANE A', color: C.text2, blurb: 'Core: MOONSHOT’s core build. Not a measured edge over the other lanes.' },
   B:     { short: 'LANE B', color: C.text2, blurb: 'Statcast: built off contact quality rather than the board.' },
   C:     { short: 'LANE C', color: C.text2, blurb: 'Flex: looser, leans on HRR and hit shape.' },
   D:     { short: 'LANE D', color: C.text2, blurb: 'Value power: cheaper bats with a matchup reason.' },
@@ -609,9 +612,9 @@ function BotLane({ group, tagFilter }) {
                     background: tag === 'Due' ? 'rgba(252,211,77,.14)' : `${meta.color}14`,
                     color: tag === 'Due' ? C.amber : meta.color,
                     border:`1px solid ${tag === 'Due' ? 'rgba(252,211,77,.3)' : `${meta.color}33`}`,
-                  }}>{tag}</span>
+                  }}>{tagLabel(tag)}</span>
                 ))}
-                {due && <span style={{ fontSize:9, color:C.text3, fontFamily:NUM_FONT }}>— flagged as due</span>}
+                {due && <span style={{ fontSize:9, color:C.text3, fontFamily:NUM_FONT }}>— long gap since a homer (a count, not a forecast)</span>}
               </div>
 
               {pair.reason && (
@@ -684,7 +687,7 @@ function BotPairGroups({ pairBuilder, q = '' }) {
             // Same 'Due' gold literal as the tag chip above — see that comment.
             <button key={tag} onClick={() => setTagFilter(t => (t === tag ? null : tag))}
               style={btnStyle(tag === 'Due' ? C.amber : C.orange, tagFilter === tag)}>
-              {tag} {count}
+              {tagLabel(tag)} {count}
             </button>
           ))}
         </div>
@@ -700,7 +703,7 @@ function BotPairGroups({ pairBuilder, q = '' }) {
         {' '}A player can appear in more than one lane, and does — those repeats are kept rather than
         deduplicated away, because MOONSHOT put them there on purpose.
         {' '}There is no <i>Top 15</i> or <i>Top 40</i> grouping here because the builder no longer
-        publishes those labels; <b style={{ color:C.text2 }}>Due</b> is a per-pair tag, so it&apos;s
+        publishes those labels; <b style={{ color:C.text2 }}>Long gap</b> is a per-pair tag, so it&apos;s
         filterable above rather than promoted to a heading it doesn&apos;t have.
       </div>
     </div>

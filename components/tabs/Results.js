@@ -1047,7 +1047,7 @@ export default function Results({ results, liveResults = null, slateDate = '', b
       <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         {(mode === 'night'
           ? [['overview', '📊 Overview'], ['pitcher', '⚾ Pitchers'], ['pairs', '🔗 Pairs & Pools']]
-          : [['card', '🧾 Report card'], ['record', '👤 Track record'], ['signals', '🔬 Signals'], ['pl', '🌙 P/L']]
+          : [['card', '🧾 Report card'], ['record', '👤 Track record'], ['signals', '🔬 Signals'], ['pl', '🌙 What-if']]
         ).map(([k, label]) => (
           <TabBtn key={k} active={subTab === k} onClick={() => setSubTab(k)}>{label}</TabBtn>
         ))}

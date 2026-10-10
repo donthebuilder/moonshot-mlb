@@ -106,7 +106,7 @@ const LENSES = [
   // 2026-08-30, Donovan: "projected output needs more/better filters."
   // Three more, same shape as the five above -- a boolean over the same
   // per-hitter fields the model already reads, nothing new fetched.
-  { key: 'cold', label: '🧊 Due (cold)', hit: (p) => n(p?.last5_hr, 0) === 0 && n(p?.games_since_last_hr, 0) >= 5,
+  { key: 'cold', label: '🧊 Cold (5+ games)', hit: (p) => n(p?.last5_hr, 0) === 0 && n(p?.games_since_last_hr, 0) >= 5,
     tip: "The mirror of Hot bats — no homer in the last five games and it's been 5+ games since the last one. A drought, not a projection." },
   { key: 'weather', label: '🌬 Weather boost', hit: (p) => {
       const wpct = n(p?.weather_hr_effect_pct, NaN)

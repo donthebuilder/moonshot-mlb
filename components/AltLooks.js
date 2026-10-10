@@ -11,7 +11,7 @@ import { n, nn, clean, nameOf, teamOf, playerId, hrScore } from '../lib/player'
 // the section — the bot assembles it at print time — so this recreates it
 // client-side using the same formulas, lifted line for line:
 //
-//   HOT/DUE   0.56·hot + 0.44·due + 0.08·norm(hr_score, 18, 60)      (5 names)
+//   HOT/GAP   0.56·hot + 0.44·due + 0.08·norm(hr_score, 18, 60)      (5 names)
 //   MATCHUP   matchup + 0.10·weak_spot + 0.06·norm(hr_score, 18, 60) (5 names)
 //   VARIANCE  power signals with a small-sample bonus                (3 names)
 //   ALT       filler to 15 by a blend of all three                   (rest)
@@ -99,7 +99,7 @@ const variance = (p) => {
 // already carries a colour and a name; the pictograph was a third encoding of
 // the same fact, and the one that rendered differently on every platform.
 const GROUPS = {
-  'HOT/DUE':  { color: C.orange, icon: null, why: 'Recent power plus overdue signal' },
+  'HOT/GAP':  { color: C.orange, icon: null, why: 'Recent power plus a long gap since the last homer' },
   'MATCHUP':  { color: C.cyan, icon: null, why: 'The arm, the split, the spot' },
   'VARIANCE': { color: C.amber, icon: null, why: 'Big power signals, thin sample — priced accordingly' },
   'ALT':      { color: C.purple, icon: null, why: 'Best of the rest by all three blends' },
@@ -202,7 +202,7 @@ export default function AltLooks({ players = [], boardIds = new Set(), onPlayerC
       .sort((a, b) => upsideScore(b) - upsideScore(a)), 4)
 
     return [
-      ['HOT/DUE', hotDue], ['MATCHUP', match], ['VARIANCE', vari], ['ALT', filler],
+      ['HOT/GAP', hotDue], ['MATCHUP', match], ['VARIANCE', vari], ['ALT', filler],
       ['HIGH ACROSS CATEGORIES', high], ['HR UPSIDE / UNDERLISTED', upside],
     ].filter(([, list]) => list.length)
   }, [players, boardIds])

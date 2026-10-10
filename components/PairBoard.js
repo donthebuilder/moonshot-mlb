@@ -136,7 +136,7 @@ export default function PairBoard({ pairBuilder, results, onPlayerClick }) {
             <span style={{ color: C.text3, fontSize: 13 }}>+</span>
             <Side name={sturdiest.weakName} score={sturdiest.weakEst} weak />
             <span style={{ marginLeft: 'auto', fontSize: 9.5, color: C.text3, fontFamily: NUM_FONT }}>
-              both est {sturdiest.bothEst.toFixed(1)}%
+              each leg’s chance multiplied: {sturdiest.bothEst.toFixed(1)}%
             </span>
           </div>
           <div style={{ fontSize: 10, color: C.text2, lineHeight: 1.6, marginTop: 5 }}>
@@ -172,7 +172,7 @@ export default function PairBoard({ pairBuilder, results, onPlayerClick }) {
           { key: 'score',    label: 'Score',    heat: false, w: 56, mono: true,
             title: 'MOONSHOT’s common pair quality score.',
             fmt: (v) => (Number.isFinite(Number(v)) ? Number(v).toFixed(Number(v) < 30 ? 2 : 1) : '—') },
-          { key: 'bothEst',  label: 'Both est', w: 58, dp: 1, title: 'Independent season HR/PA screening estimate; not a calibrated model forecast.' },
+          { key: 'bothEst',  label: 'Each leg’s chance multiplied', w: 96, dp: 1, title: 'Each hitter’s season HR/PA estimate multiplied together, as if the two were unrelated. A screening number, not a calibrated forecast.' },
           { key: 'weakEst',  label: 'Weak est', w: 58, dp: 1, title: 'Lower of the two individual season estimates.' },
           { key: 'stronger', label: 'Stronger', w: 56, dp: 1 },
           { key: 'weaker',   label: 'Weaker',   w: 52, dp: 1 },
@@ -186,7 +186,7 @@ export default function PairBoard({ pairBuilder, results, onPlayerClick }) {
         onRowClick={onPlayerClick}
         initialSort={null}
         maxHeight={420}
-        caption="Sorted by lane, then by MOONSHOT's common pair score. Both est multiplies the two small-sample-shrunk season HR/PA estimates under independence; it is a screening estimate, not a calibrated forecast. Click a row to open the stronger hitter."
+        caption="Sorted by lane, then by MOONSHOT's common pair score. Each leg’s chance multiplied is the two small-sample-shrunk season HR/PA estimates under independence; it is a screening estimate, not a calibrated forecast. Click a row to open the stronger hitter."
       />
 
       {/* THE BOT'S REASONING, in prose. The reason/tags/risk fields were
