@@ -274,6 +274,30 @@ check(!/https?:|www\.|\.com|#\w+tag|QR/i.test(allText), 'no link, no QR, no hash
   const sg = async (q) => (await slabGet(new Request(`http://x/api/card/slab${q}`))).status
   check(await sg('?kind=card&sport=nba&date=2026-01-02') === 404 && await sg('?kind=card&sport=bogus&date=2026-01-02') === 404, 'route /api/card/slab: nba and unknown sports are 404')
   check(await sg('?kind=card&sport=nhl') === 400 && await sg('?kind=receipt&day=nope') === 400, 'route /api/card/slab: a missing or malformed date is 400')
+  // wired to the posts (10-10): the Long Shot and the Double slabs, the receipt slab for the calls a post names
+  check(await sg('?kind=card&sport=nhl&product=double&date=2026-01-02') === 404 && await sg('?kind=card&sport=all&product=double') === 400, 'route /api/card/slab: the Double is sport=all only (and needs a date)')
+  const { loadSlabCard, loadSlabReceipt } = await import('../lib/cards/slabData.js')
+  const gradedRow = (o) => ({ id: 2, sport: 'nhl', card_date: '2026-01-02', lane: 'bot', product: 'long_shot', slot: 1, model_version: 'card-v1', locks_at: '2026-01-02T00:00:00Z', start_at: '2026-01-02T20:00:00Z', result: 'miss', stake: 1, leg_results: [{ player_id: 'P9', result: 'miss' }], legs: [{ player_id: 'P9', name: 'Test Skater 9', team: 'TST' }], ...o })
+  const lsRows = [gradedRow({}), gradedRow({ id: 3, card_date: '2026-01-01', result: 'hit', leg_results: [{ player_id: 'P9', result: 'hit' }] })]
+  const ls = await loadSlabCard({ sport: 'nhl', date: '2026-01-02', lane: 'bot', product: 'long_shot', slot: 1, db: { from: () => table(lsRows) }, now: Date.parse('2026-01-05T00:00:00Z') })
+  check(ls.ok && ls.slab.product === 'LONG SHOT' && ls.slab.result === 'missed' && ls.slab.record && ls.slab.record.k === null && ls.slab.record.n === 2 && /counts only until 300/.test(ls.slab.record.label), 'slab data: a Long Shot under 300 graded is a COUNT (no K of N, no units / ROI), with its real outcome')
+  const tls = texts(slabDesign(ls.slab, null, ''))
+  check(/MISSED/.test(tls) && /LONG SHOT/.test(tls) && !/\d+ of \d+/.test(tls) && !/units|ROI/i.test(tls), 'slab: the Long Shot slab prints the count alone and the outcome word')
+  try { const r = pngSize(await renderSlab(ls.slab)); check(r.sig && r.w === 1080 && r.h === 1350, 'slab renders 1080x1350: long shot, count only') } catch (e) { check(false, `slab renders: long shot (${e.message})`) }
+  const dRow = { ...gradedRow({}), sport: 'all', product: 'double', result: 'miss', stake: 0.5, leg_results: [{ player_id: 'P1', result: 'hit' }, { player_id: 'P7', result: 'miss' }], legs: [{ player_id: 'P1', name: 'Test Skater 1', sport: 'nhl' }, { player_id: 'P7', name: 'Test Hitter 7', sport: 'mlb' }] }
+  const dbl = await loadSlabCard({ sport: 'all', date: '2026-01-02', lane: 'bot', product: 'double', slot: 1, db: { from: () => table([dRow]) }, now: Date.parse('2026-01-05T00:00:00Z') })
+  check(dbl.ok && dbl.slab.product === 'THE DOUBLE' && dbl.slab.sport === null && dbl.slab.result === 'missed' && dbl.slab.legs.map((l) => l.outcome).join() === 'cashed,missed' && dbl.slab.record?.n === 1, 'slab data: the Double is one slab, each leg in its own sport with its real outcome')
+  const undec = await loadSlabCard({ sport: 'all', date: '2026-01-02', lane: 'bot', product: 'double', slot: 1, db: { from: () => table([{ ...dRow, result: null }]) }, now: Date.parse('2026-01-05T00:00:00Z') })
+  check(!undec.ok && undec.status === 404, 'slab data: an ungraded Double is a 404')
+  const calls3 = [
+    { sport: 'nhl', player_id: 'P1', name: 'Test Skater 1', market: 'anytime goal', outcome: 'cashed' }, { sport: 'mlb', player_id: 'M1', name: 'Test Hitter 1', market: 'home run', outcome: 'missed' },
+    { sport: 'nhl', player_id: 'P2', name: 'Test Skater 2', market: 'anytime goal', outcome: 'missed' }, { sport: 'nhl', player_id: 'P3', name: 'Test Skater 3', market: 'anytime goal', outcome: 'void' },
+  ]
+  const all = await loadSlabReceipt({ day: '2026-01-02', db: {}, results: calls3 })
+  const part = await loadSlabReceipt({ day: '2026-01-02', db: {}, results: calls3, only: ['nhl:P1', 'mlb:M1'] })
+  check(all.ok && all.slab.legs.length === 4 && part.ok && part.slab.legs.map((l) => l.m.name).join() === 'Test Skater 1,Test Hitter 1', 'receipt slab: `only` limits the faces to the calls the post names (no extra names)')
+  check(part.slab.record.k === 1 && part.slab.record.n === 3 && all.slab.record.n === 3, 'receipt slab: the record is the whole night (K of N counts every graded call, a void is outside it), whatever faces are shown')
+  check(!(await loadSlabReceipt({ day: '2026-01-02', db: {}, results: calls3, only: ['nhl:NOPE'] })).ok && !(await loadSlabReceipt({ day: '2026-01-02', db: { from: () => table([]) } })).ok, 'receipt slab: nothing named -> no image; nothing stored -> no image')
 }
 
 console.log(failed ? `\n${failed} FAILED` : '\nOK: player cards')

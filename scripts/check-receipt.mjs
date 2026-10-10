@@ -12,14 +12,18 @@ process.env.X_TEXT_LIMIT = '900'
 Object.assign(process.env, { X_API_KEY: 'TEST', X_API_SECRET: 'TEST', X_ACCESS_TOKEN: 'TEST', X_ACCESS_SECRET: 'TEST' })
 for (const k of ['X_LINKS_EMERGENCY', 'X_LINK_KINDS', 'X_POST_LINK', 'X_POSTS_PAUSE', 'X_GUARDS_OFF', 'X_DAILY_CAP', 'POST_KINDS_ON', 'BUCKETS_PUBLIC', 'NEXT_PUBLIC_BUCKETS_PUBLIC', 'DISCORD_MLB_WEBHOOKS', 'DISCORD_HOMER_WEBHOOK']) delete process.env[k]
 
-const tweets = [], discords = []
+// the slab is covered below with an injected renderer (section 12); every other case runs without a picture
+process.env.SLAB_CARD_OFF = 'on'
+const tweets = [], discords = [], uploads = []
+let uploadFail = false
 let xFail = []
 let discordFail = []
 globalThis.fetch = async (url, opts = {}) => {
+  if (String(url).includes('api.x.com/2/media/upload')) { if (uploadFail) return { ok: false, status: 400, statusText: 'Bad', json: async () => ({ title: 'nope' }), headers: { get: () => null } }; uploads.push(1); return { ok: true, status: 200, json: async () => ({ data: { id: 'media-' + uploads.length } }), headers: { get: () => null } } }
   if (String(url).includes('api.x.com/2/tweets') && xFail.length) return { ok: false, status: xFail.shift(), json: async () => ({ title: 'test failure' }), headers: { get: () => null } }
   if (String(url).includes('api.x.com/2/tweets')) { tweets.push(JSON.parse(opts.body)); return { ok: true, status: 200, json: async () => ({ data: { id: String(8000 + tweets.length) } }), headers: { get: () => null } } }
   if (String(url).startsWith('https://discord.test/') && discordFail.length) { const st = discordFail.shift(); return { ok: false, status: st, statusText: 'test failure', json: async () => ({}), headers: { get: () => null } } }
-  if (String(url).startsWith('https://discord.test/')) { discords.push({ url: String(url), body: JSON.parse(opts.body) }); return { ok: true, status: 204, json: async () => ({}), headers: { get: () => null } } }
+  if (String(url).startsWith('https://discord.test/')) { discords.push(opts.body instanceof FormData ? { url: String(url), body: JSON.parse(opts.body.get('payload_json')), files: [...opts.body.keys()].filter((k) => k.startsWith('files[')).map((k) => opts.body.get(k)) } : { url: String(url), body: JSON.parse(opts.body) }); return { ok: true, status: 204, json: async () => ({}), headers: { get: () => null } } }
   return { ok: false, status: 404, json: async () => ({}), headers: { get: () => null } }
 }
 
@@ -37,7 +41,7 @@ const BUD = await import('../lib/dash/xBudget.js')
 
 let n = 0
 const ok = async (name, fn) => { await fn(); n++; console.log(`ok  ${name}`) }
-const reset = () => { FX._resetXFail(); PC._resetTakenForTests(); xFail = []; discordFail = []; tweets.length = 0; discords.length = 0; L._resetLogForTests(); G._resetRecentCache(); G._resetPostedCache(); RC._resetReceiptForTests(); RC._resetPeriodForTests() }
+const reset = () => { FX._resetXFail(); PC._resetTakenForTests(); xFail = []; discordFail = []; tweets.length = 0; discords.length = 0; uploads.length = 0; uploadFail = false; L._resetLogForTests(); G._resetRecentCache(); G._resetPostedCache(); RC._resetReceiptForTests(); RC._resetPeriodForTests() }
 
 // ── a tiny in-memory Supabase: just the calls the gate and the receipt make ──
 function fakeDb(tables = {}) {
@@ -622,6 +626,90 @@ await ok('loader: a failed read is "not ready", never a miss (schedule down -> n
   ] }] }) }) })
   assert.deepEqual(g.map((x) => [x.id, x.final, x.postponed]), [['5', true, false], ['6', true, true], ['7', false, false]])
   assert.deepEqual(g[0].teams, ['NYY', 'LAD'])
+})
+
+// ═══ 12. THE GRADED SLAB UNDER THE RECEIPT (10-10) ═══════════════════════════
+// Each post carries the slab of exactly the calls it names: the Discord card names every graded call, the X text only the rows it shows.
+// The renderer is a stub (it records what it was asked and returns TEST bytes); a failed / slow / refused picture never changes the text post.
+const PI = await import('../lib/cards/postImages.js')
+const asked = []
+const stub = (bytes = 'TEST-SLAB') => async (o) => { asked.push(o); return { ok: true, png: Buffer.from(bytes) } }
+const slabWith = (render, extra = {}) => (o) => PI.receiptSlab({ ...o, render, ...extra })
+const settle = async (db, o) => {
+  const a = { day: DAY, load: load(o.m), hooks: o.hooks ?? 'https://discord.test/a', receiptsHook: o.receiptsHook ?? '', slab: o.slab }
+  await RC.postReceiptOnce(db, { ...a, now: T0 })
+  return RC.postReceiptOnce(db, { ...a, now: pastSettle })
+}
+const clearOff = () => { delete process.env.SLAB_CARD_OFF }
+const setOff = () => { process.env.SLAB_CARD_OFF = 'on' }
+
+await ok('slab: a cash night -> Discord carries the slab of EVERY graded call (the embed names them all), X the slab of only the rows its text shows (+ the night\'s record)', async () => {
+  reset(); clearOff(); PI._resetPostImages(); asked.length = 0
+  const db = fakeDb({ homer_feed_posts: posts() })
+  assert.equal(await settle(db, { m: mixed(), slab: slabWith(stub()) }), 'posted')
+  assert.equal(asked.length, 2)                                                    // one for each post: all graded, and the shown rows
+  const [allQ, xQ] = asked
+  assert.equal(allQ.kind, 'receipt'); assert.equal(allQ.only, null); assert.equal(allQ.results.length, 5)
+  assert.equal(xQ.kind, 'receipt'); assert.ok(Array.isArray(xQ.only) && xQ.only.length < 5 && xQ.only.length >= 1, 'the X text shows fewer rows than were graded')
+  assert.equal(xQ.results.length, 5, 'the record on the slab counts the whole night, like the text\'s record line')
+  // the slab for X names only the men the X text names
+  const byKey = new Map(xQ.results.map((r) => [`${r.sport}:${r.player_id}`, r.name]))
+  for (const k of xQ.only) assert.ok(tweets[0].text.includes(byKey.get(k)), `X text names ${byKey.get(k)}`)
+  assert.equal(uploads.length, 1); assert.deepEqual(tweets[0].media?.media_ids, ['media-1'])
+  assert.equal(discords.length, 1); assert.equal(discords[0].files.length, 1); assert.equal(discords[0].body.embeds[0].image?.url, 'attachment://card.png')
+  assert.ok(allQ.results.every((r) => ['cashed', 'missed', 'void'].includes(r.outcome)))      // real outcomes only, never a grade
+  setOff()
+})
+await ok('slab: no-cash night (#called-it, Discord only) -> the slab of the graded misses, the same request shape as a cash night; nothing to X', async () => {
+  reset(); clearOff(); PI._resetPostImages(); asked.length = 0
+  const db = fakeDb({ homer_feed_posts: twoCalls() })
+  const CI = 'https://discord.test/called-it'
+  assert.equal(await settle(db, { m: missNight(), hooks: `https://discord.test/feed,${CI}`, receiptsHook: CI, slab: slabWith(stub()) }), 'dropped: no cash (discord only)')
+  assert.equal(asked.length, 1); assert.equal(asked[0].kind, 'receipt'); assert.equal(asked[0].only, null); assert.equal(asked[0].results.length, 2)
+  assert.ok(asked[0].results.every((r) => r.outcome === 'missed'))
+  assert.equal(tweets.length, 0); assert.equal(uploads.length, 0)
+  assert.equal(discords.length, 1); assert.equal(discords[0].url, CI); assert.equal(discords[0].files.length, 1)
+  const missShape = Object.keys(asked[0]).sort().join()
+  reset(); PI._resetPostImages(); asked.length = 0
+  await settle(fakeDb({ homer_feed_posts: posts() }), { m: mixed(), slab: slabWith(stub()) })
+  assert.equal(Object.keys(asked[0]).sort().join(), missShape)                      // a miss asks exactly like a hit
+  setOff()
+})
+await ok('slab: a render that fails, throws or is slow leaves the text post exactly as it was (X text, Discord card, row)', async () => {
+  reset(); setOff(); PI._resetPostImages()
+  const baseDb = fakeDb({ homer_feed_posts: posts() })
+  await settle(baseDb, { m: mixed(), slab: async () => null })
+  const baseTweet = tweets[0].text; const baseEmbed = JSON.stringify(discords[0].body.embeds)
+  for (const [name, render] of [['not ok', async () => ({ ok: false, status: 502 })], ['throws', async () => { throw new Error('boom') }], ['too slow', () => new Promise((r) => setTimeout(() => r({ ok: true, png: Buffer.from('late') }), 400))]]) {
+    reset(); clearOff(); PI._resetPostImages()
+    const db = fakeDb({ homer_feed_posts: posts() })
+    assert.equal(await settle(db, { m: mixed(), slab: slabWith(render, { timeoutMs: 30 }) }), 'posted', name)
+    assert.equal(tweets[0].text, baseTweet, name); assert.ok(!tweets[0].media, name); assert.equal(uploads.length, 0, name)
+    assert.equal(JSON.stringify(discords[0].body.embeds), baseEmbed, name); assert.equal(discords[0].files, undefined, name)
+    assert.equal(db.tables.homer_feed_posts.find((x) => x.kind === 'receipt').discord_sent, true, name)
+  }
+  reset(); clearOff(); PI._resetPostImages()
+  assert.equal(await settle(fakeDb({ homer_feed_posts: posts() }), { m: mixed(), slab: async () => { throw new Error('bug') } }), 'posted')   // a slab function that itself throws
+  assert.equal(tweets[0].text, baseTweet); assert.ok(!tweets[0].media)
+  setOff()
+})
+await ok('slab: an upload X refuses leaves the text tweet unchanged (the Discord card still carries the slab)', async () => {
+  reset(); clearOff(); PI._resetPostImages(); uploadFail = true
+  const db = fakeDb({ homer_feed_posts: posts() })
+  assert.equal(await settle(db, { m: mixed(), slab: slabWith(stub()) }), 'posted')
+  assert.equal(tweets.length, 1); assert.ok(!tweets[0].media); assert.equal(tweets[0].quote_tweet_id, '7001')
+  assert.equal(discords[0].files.length, 1)
+  setOff()
+})
+await ok('slab: SLAB_CARD_OFF=on -> no render is asked for and nothing is attached', async () => {
+  reset(); setOff(); PI._resetPostImages(); asked.length = 0
+  await settle(fakeDb({ homer_feed_posts: posts() }), { m: mixed(), slab: slabWith(stub()) })
+  assert.equal(asked.length, 0); assert.ok(!tweets[0].media); assert.equal(discords[0].files, undefined)
+})
+await ok('slab: weekly / monthly receipts carry no image (their posting code never asks for one)', () => {
+  const src = fs.readFileSync('lib/posts/receipt.js', 'utf8')
+  const period = src.slice(src.indexOf('export async function postPeriodOnce'))
+  assert.ok(!/receiptImages|receiptSlab|uploadImageToX|png/.test(period))
 })
 
 // ═══ SAMPLE ═════════════════════════════════════════════════════════════════
