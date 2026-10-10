@@ -82,6 +82,7 @@ import { spotlightCard } from '../../../../../lib/nfl/spotlightCard'
 import { hasX, postToDiscord, postToX, uploadImageToX } from '../../../../../lib/dash/xPost'
 import { logXBudget } from '../../../../../lib/dash/xBudget'
 import { isMaintenanceMode } from '../../../../../lib/edgeConfig'
+import { sendMembers } from '../../../../../lib/writeups/discordRoute'
 import { postLongshotsOnce } from '../../../../../lib/dash/longshotsPost'
 import { postMultiClubOnce } from '../../../../../lib/dash/multiClubPost'
 import { writeNight as writeNumerology, gradeNight as gradeNumerology, refreshLaneNights, writeNumbersNight, ELIGIBLE } from '../../../../../lib/numerology/record'
@@ -649,8 +650,12 @@ async function runWeeklyContentTick(db, day) {
       // the same reason: the card used to be built inside the X branch, so
       // Discord got bare text while a finished PNG existed a few lines later.
       const png = card ? await bytesOf(card) : null
-      const d = await postToDiscord(text, { png }, FEED_WEBHOOKS())
-      if (d.ok) patch.discord_sent = true
+      // The "why" anatomy of one man is the paid half of the table (free = the WHAT, #members = the WHY):
+      // nfl_whyboard goes to #members only, never the free feed (the X post below is unchanged).
+      const sent = sl.kind === 'nfl_whyboard'
+        ? await sendMembers(text, { sport: 'nfl', kind: sl.kind })
+        : (await postToDiscord(text, { png }, FEED_WEBHOOKS())).ok
+      if (sent) patch.discord_sent = true
       // The daily cap, by tier (lib/dash/xPolicy): the board is exempt, the results
       // a receipt, the rest facts / polls.
       if (hasX() && await xOk(db, { day, kind: sl.kind, ids: named, repeat: false })) {
