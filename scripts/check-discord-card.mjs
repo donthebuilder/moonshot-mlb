@@ -31,7 +31,7 @@ globalThis.fetch = async (url, init = {}) => {
 }
 const bodyOf = (c) => (typeof c.body === 'string' ? JSON.parse(c.body) : JSON.parse(c.body.get('payload_json')))
 
-const { siteBase, embedUrls, playerUrl, ledgerLink, LIMITS, buildCard, clampText, clampLines, fitEmbed, embedSize, embedHasLink, accentOf, footerOf, colorInt, noLinks } = await import('../lib/dash/discordCard.js')
+const { dayWords, siteBase, embedUrls, playerUrl, ledgerLink, LIMITS, buildCard, clampText, clampLines, fitEmbed, embedSize, embedHasLink, accentOf, footerOf, colorInt, noLinks } = await import('../lib/dash/discordCard.js')
 const { STATUS_WORD } = await import('../lib/callStatus.js')
 const { SPORT_ACCENT } = await import('../lib/sportAccent.js')
 const { BRAND, playerHref, appHref } = await import('../lib/routes.js')
@@ -96,51 +96,82 @@ check('D5 no typed hex colour in the module', !/#[0-9a-fA-F]{6}\b|0x[0-9a-fA-F]{
 check('D6 timestamp = the event time, omitted when unknown', buildCard({ sport: 'nhl', title: 'T', at: '2026-10-10T03:41:00Z' }).timestamp === '2026-10-10T03:41:00.000Z' && !('timestamp' in buildCard({ sport: 'nhl', title: 'T' })))
 check('D7 footerOf uses the registry', footerOf('nhl') === 'LAMP · DASH Network')
 
-// ── E. the roll-out kinds (TEST rows) ───────────────────────────────────────
+// ── E. the roll-out kinds, in the approved copy (TEST rows) ─────────────────
 const sec = (e) => (e.fields || []).map((f) => f.name)
+const noFields = (e) => !('fields' in e)
+const NEVER = /probab|chance|\d\s*%|\block(?:ed|s|ing)?\b|guarantee|\bwinners?\b|\bwon\b/i
+const allEmbeds = []
+const keep = (e) => { allEmbeds.push(e); return e }
 const goalFeed = await import('../lib/nhl/goalFeed.js')
-const goalRow = { game_id: 1, player_id: 11, goal_n: 1, day: '2099-01-01', period: 2, period_type: 'REG', time_in_period: '12:34', strength: 'pp', empty_net: false, team: 'TST', opp: 'EXA', name: 'Test Skater', season_goals: 5, assists: [{ id: 2, name: 'Test Helper' }], score_after: 'TST 2 · EXA 1', status: 'called', rank_in_game: 1, lamp_score: 61, confirmed_at: '2099-01-01T01:00:00Z', first_seen_at: '2099-01-01T00:58:00Z' }
-const g = goalFeed.goalEmbed(goalRow, [goalRow], { multiLine: 'His 2nd multi-goal game this season.' })
-check('E1 NHL goal: title, CALLED lead, goal-scorer market', g.title.startsWith('\u{1F6A8} TEST SKATER SCORES') && g.title.includes('TST vs EXA') && g.description === `${STATUS_WORD.called} · goal scorer`, g.title)
-check('E2 NHL goal: sections THE CALL / THE GOAL / THE RECORD', JSON.stringify(sec(g)) === JSON.stringify(['THE CALL', 'THE GOAL', 'THE RECORD']), sec(g).join())
-check('E3 NHL goal: assists, score, LAMP score present; footer LAMP; no link', g.fields[1].value.includes('Assists: Test Helper') && g.fields[1].value.includes('TST 2') && g.fields[0].value.includes('LAMP score 61') && g.footer.text === 'LAMP · DASH Network' && slotsOk(g, { title: true }))
-check('E3b NHL goal: timestamp is the confirmation time', g.timestamp === '2099-01-01T01:00:00.000Z')
-check('E3c NHL goal: the X text is unchanged (still CALLED IT, no embed words)', goalFeed.postText(goalRow, [goalRow]).startsWith('\u{1F916} CALLED IT') && !/THE CALL/.test(goalFeed.postText(goalRow, [goalRow])))
+const goalRow = { game_id: 1, player_id: 11, goal_n: 1, day: '2099-01-01', period: 2, period_type: 'REG', time_in_period: '12:34', strength: 'pp', empty_net: false, team: 'TST', opp: 'EXA', name: 'Test Skater', season_goals: 5, assists: [{ id: 2, name: 'Test Helper' }, { id: 3, name: 'D. DeMelo' }], score_after: 'TST 2 · EXA 1', status: 'called', rank_in_game: 1, lamp_score: 61, confirmed_at: '2099-01-01T01:00:00Z', first_seen_at: '2099-01-01T00:58:00Z' }
+const g = keep(goalFeed.goalEmbed(goalRow, [goalRow], { multiLine: 'His 2nd multi-goal game this season.' }))
+check('E1 NHL goal: title (club unmapped = abbreviation form)', g.title === '\u{1F6A8} Test Skater scores · TST vs EXA', g.title)
+const gw = keep(goalFeed.goalEmbed({ ...goalRow, team: 'WPG', opp: 'ANA', score_after: 'ANA 3 · WPG 1' }, [goalRow]))
+check('E1b NHL goal: a mapped club is named, the opponent stays out of the title', gw.title === '\u{1F6A8} Test Skater scores for Winnipeg Jets', gw.title)
+check('E2 NHL goal: one description block, no fields', noFields(g))
+check('E3 NHL goal: line 1 = bold CALLED, the top-call phrase, "ranking score" (never "LAMP score")', g.description.split('\n')[0] === `**CALLED** before puck drop. TST's top call on the LAMP board (ranking score 61).` && !/LAMP score/.test(g.description), g.description.split('\n')[0])
+check('E4 NHL goal: line 2 = period, clock, strength, then the score AWAY, HOME', g.description.split('\n')[1] === '2nd period, 12:34, PP goal. TST 2, EXA 1.', g.description.split('\n')[1])
+check('E5 NHL goal: line 3 = assists by last name, only when stored; the multi-goal line follows', g.description.split('\n')[2] === 'Assists: Helper, DeMelo.' && g.description.split('\n')[3] === 'His 2nd multi-goal game this season.')
+check('E5b NHL goal: no assists stored = no assists line', !goalFeed.goalEmbed({ ...goalRow, assists: [] }, [goalRow]).description.includes('Assists'))
+check('E5c NHL goal: ON THE BOARD never says the top-call phrase', (() => { const b = goalFeed.goalEmbed({ ...goalRow, status: 'board' }, [goalRow]); return b.description.startsWith('**ON THE BOARD**, not a called pick.') && !/top call/.test(b.description) })())
+check('E6 NHL goal: footer LAMP, the timestamp is the confirmation time, only the title link', g.footer.text === 'LAMP · DASH Network' && g.timestamp === '2099-01-01T01:00:00.000Z' && slotsOk(g, { title: true }))
+check('E6b NHL goal: the X text is unchanged (still CALLED IT and LAMP score)', goalFeed.postText(goalRow, [goalRow]).startsWith('\u{1F916} CALLED IT') && /LAMP score 61/.test(goalFeed.postText(goalRow, [goalRow])))
 
 const td = await import('../lib/nfl/tdFeed.js')
-const ev = { day: '2099-01-02', gameId: 'g', tdN: 1, team: 'TST', opponent: 'EXA', quarter: 3, clock: '4:12', text: 'x', parsed: { kind: 'pass', yards: 14, passer: 'Test Passer' }, kindWord: null, scorerName: 'Test Receiver', gsisId: '00-TEST', position: 'WR', seasonToDate: { td: 4, games: 5 }, onBot: { market: 'TD', rank: 3, grade: 'A' }, tdBoard: { rank: 3, of: 200 }, defense: { role: 'WR', opp: 'EXA', tag: 'TARGET', rank: 28 } }
-const t = td.tdEmbed(ev, { extra: ['TEST reached line'] })
-check('E4 NFL TD: CALLED, anytime touchdown, sections', t.description === `${STATUS_WORD.called} · anytime touchdown` && JSON.stringify(sec(t)) === JSON.stringify(['THE CALL', 'THE TOUCHDOWN', 'WHY', 'THE RECORD']), sec(t).join())
-check('E5 NFL TD: footer TUDDY, play line, defense line', t.footer.text === 'TUDDY · DASH Network' && t.fields[1].value.includes('14 yd from Test Passer') && t.fields[2].value.includes('TARGET'))
-const t2 = td.tdEmbed({ ...ev, onBot: null, tdBoard: null, defense: null, seasonToDate: null })
-check('E6 NFL TD off the board: NOT ON THE BOARD, still a title and a section', t2.description.startsWith(STATUS_WORD.off) && t2.fields.length >= 2)
+const ev = { day: '2099-01-02', gameId: 'g', tdN: 1, team: 'TB', opponent: 'DAL', quarter: 3, clock: '4:12', text: 'x', parsed: { kind: 'pass', yards: 14, passer: 'Test Passer' }, kindWord: null, scorerName: 'Test Receiver', gsisId: '00-TEST', position: 'WR', seasonToDate: { td: 4, games: 5 }, onBot: { market: 'TD', rank: 88, grade: 'A' }, tdBoard: { rank: 3, of: 200 }, defense: { role: 'WR1', opp: 'DAL', tag: 'TARGET', rank: 3 } }
+const t = keep(td.tdEmbed(ev, { extra: ['TEST reached line'] }))
+check('E7 NFL TD: title names the club (registry), no fields', t.title === '\u{1F6A8} Test Receiver scores for Tampa Bay Buccaneers' && noFields(t), t.title)
+check('E8 NFL TD: bold CALLED for an anytime touchdown, then the play and the quarter/clock', t.description.split('\n')[0] === '**CALLED** for an anytime touchdown. 14 yd from Test Passer, Q3 4:12.', t.description.split('\n')[0])
+check('E9 NFL TD: defense line in the verified direction (rank 1 = most allowed), the season line', t.description.split('\n')[1] === 'DAL gives up the 3rd-most touchdowns in the league to WR1s.' && t.description.split('\n')[2] === '4 TD in 5 games this season.' && t.description.split('\n')[3] === 'TEST reached line', t.description)
+check('E10 NFL TD: the unverified board/game-call rank is NOT printed', !/#88|88|on the TUDDY board|game call|TD pick/.test(t.description + t.title), t.description)
+const dd = (d, extra = {}) => td.tdEmbed({ ...ev, defense: d, ...extra }).description
+check('E11 NFL TD: AVOID at rank >= 22 = "one of the toughest", never "softest"; AVOID/EVEN in the middle and no tag print nothing', /one of the toughest/.test(dd({ role: 'WR1', opp: 'DAL', tag: 'AVOID', rank: 30 })) && !/softest/.test(dd({ role: 'WR1', opp: 'DAL', tag: 'AVOID', rank: 30 })) && !/gives up|toughest/.test(dd({ role: 'WR1', opp: 'DAL', tag: 'EVEN', rank: 17 })) && !/gives up|toughest/.test(dd(null)))
+check('E12 NFL TD: ordinals are right (1st, 2nd, 11th, 12th)', [1, 2, 11, 12].map((r) => dd({ role: 'RB1', opp: 'DAL', tag: 'TARGET', rank: r }).match(/the (\S+)-most/)[1]).join() === '1st,2nd,11th,12th')
+check('E13 NFL TD: season with no game count = "entering today"', /\n4 TD entering today\./.test(td.tdEmbed({ ...ev, seasonToDate: { td: 4, games: null } }).description))
+check('E14 NFL TD: a game call that is not a TD call does not claim a touchdown market', !/anytime touchdown/.test(td.tdEmbed({ ...ev, onBot: { market: 'GAME', role: 'TOP', rank: 5 } }).description) && /anytime touchdown/.test(td.tdEmbed({ ...ev, onBot: { market: 'GAME', role: 'TD', rank: 5 } }).description))
+const t2 = keep(td.tdEmbed({ ...ev, onBot: null, tdBoard: { rank: 3, of: 200 } }))
+check('E15 NFL TD on the board: bold ON THE BOARD, not a called pick', t2.description.startsWith('**ON THE BOARD**, not a called pick. 14 yd from Test Passer, Q3 4:12.') && t2.footer.text === 'TUDDY · DASH Network', t2.description.split('\n')[0])
+const t3 = td.tdEmbed({ ...ev, onBot: null, tdBoard: null, defense: null, seasonToDate: null })
+check('E15b NFL TD off the board: NOT ON THE BOARD first', t3.description.startsWith('**NOT ON THE BOARD**.'))
 
 const hf = await import('../lib/dash/homerFeed.js')
 const hev = { name: 'Test Slugger', team: 'TST', opponent: 'EXA', home: true, inning: 'bot 7th', role: 'TOP', board_rank: 2, hr_n: 2, odds_over: 320, odds_book: 'TESTBOOK', stats: { season_hr: 30, season_iso: 0.25 } }
-const h = hf.homerEmbed(hev, { extra: ['TEST called at 5:10 PM ET'] })
-check('E7 MLB homer: CALLED, home run, sections', h.description === `${STATUS_WORD.called} · home run` && JSON.stringify(sec(h)) === JSON.stringify(['THE CALL', 'THE HOMER', 'THE RECORD']), sec(h).join())
-check('E8 MLB homer: footer MOONSHOT, rank, price, (#2 tonight), no book name', h.footer.text === 'MOONSHOT · DASH Network' && h.fields[0].value.includes('#2 on the MOONSHOT board') && h.fields[0].value.includes('+320') && h.title.includes('(#2 tonight)') && !JSON.stringify(h).includes('TESTBOOK'))
-const h2 = hf.homerEmbed({ ...hev, role: '', board_rank: null, stats: { season_hr: 10, season_iso: 0.1 } }, {})
-check('E9 MLB homer not called: no CALLED word', !h2.description.startsWith(STATUS_WORD.called))
+const h = keep(hf.homerEmbed(hev, { extra: ['TEST called at 5:10 PM ET'] }))
+check('E16 MLB homer: title, (#2 tonight) kept, no fields', h.title === '\u{1F6A8} Test Slugger goes deep · TST vs EXA (#2 tonight)' && noFields(h), h.title)
+check('E17 MLB homer: CALLED before first pitch, rank on tonight\'s board, role and price (no book name)', h.description.split('\n')[0] === "**CALLED** before first pitch: #2 on tonight's MOONSHOT board, TOP pick (1+ home run) · +320." && !JSON.stringify(h).includes('TESTBOOK'), h.description.split('\n')[0])
+check('E18 MLB homer: half-inning words, AWAY at HOME, then the stats line with ISO explained', h.description.split('\n')[1] === 'Bottom of the 7th, EXA at TST.' && h.description.split('\n')[2] === '30 HR this season, .250 ISO (isolated power: extra bases per at-bat).' && h.description.split('\n')[3] === 'TEST called at 5:10 PM ET', h.description)
+const h2 = keep(hf.homerEmbed({ ...hev, team: 'LAD', opponent: 'ATL', home: false, role: 'WATCH', board_rank: 8, hr_n: 1, inning: 'top 9th' }, {}))
+check('E19 MLB homer on the board: mapped club named; bold ON THE BOARD, not a called pick: #8; Top of the 9th, away team first', h2.title === '⚾ Test Slugger goes deep for Los Angeles Dodgers' && h2.description.split('\n')[0] === "**ON THE BOARD**, not a called pick: #8 on tonight's MOONSHOT board." && h2.description.split('\n')[1] === 'Top of the 9th, LAD at ATL.' && h2.footer.text === 'MOONSHOT · DASH Network', h2.description)
+check('E19b MLB homer with no inning stored prints just the matchup', hf.homerEmbed({ ...hev, inning: null }, {}).description.split('\n')[1] === 'EXA at TST.')
 
 const ct = await import('../lib/card/text.js')
+const NHLWHY = 'shots 100th · goals 100th · ice time 94th percentile tonight'
 const leg = (id, name, extra = {}) => ({ player_id: id, name, team: 'TST', opp: 'EXA', status: 'called', why: `TEST why ${name}`, start_at: '2099-01-01T20:00:00Z', ...extra })
 const rows = [
-  { lane: 'bot', product: 'straight', slot: 1, stake: 1, legs: [leg('1', 'Test One')] },
+  { lane: 'bot', product: 'straight', slot: 1, stake: 1, legs: [leg('1', 'Test One', { why: NHLWHY })] },
   { lane: 'bot', product: 'straight', slot: 2, stake: 1, legs: [leg('2', 'Test Two', { status: 'board' })] },
   { lane: 'bot', product: 'straight', slot: 3, stake: 1, legs: [leg('3', 'Test Three')] },
   { lane: 'bot', product: 'two_man', slot: 1, stake: 0.5, legs: [leg('1', 'Test One'), leg('4', 'Test Four')] },
 ]
-const prices = new Map([['1', { best: 250, median: 230, books: 4 }]])
-const mc = ct.membersCardEmbed({ sport: 'nhl', day: '2099-01-01', rows, prices })
-check('E10 members Card: STRAIGHT 1..3, TWO-MAN, THE RULE', JSON.stringify(sec(mc)) === JSON.stringify(['STRAIGHT 1', 'STRAIGHT 2', 'STRAIGHT 3', 'TWO-MAN', 'THE RULE']), sec(mc).join())
-check('E11 members Card: status words from STATUS_WORD, stake, stored price, why, LAMP footer', mc.fields[0].value.includes(STATUS_WORD.called) && mc.fields[1].value.includes(STATUS_WORD.board) && mc.fields[0].value.includes('1 unit') && mc.fields[0].value.includes('+250 best') && mc.fields[0].value.includes('TEST why Test One') && mc.footer.text === 'LAMP · DASH Network')
-check('E12 members Card: no link, no "winners", no printed probability', slotsOk(mc, { ledger: true }) && !/winners?\b/i.test(JSON.stringify(mc)) && !/\d\s*%/.test(JSON.stringify(mc)))
+const prices = new Map([['1', { best: 250, median: 230, books: 4, at: '2099-01-01T22:42:00Z' }], ['3', { best: 120, median: 120, books: 1 }], ['4', { best: 200, median: 190, books: 3 }]])
+const mc = keep(ct.membersCardEmbed({ sport: 'nhl', day: '2099-01-01', rows, prices }))
+check('E20 members Card: title has no "members", date words', mc.title === `\u{1F3AF} The Card · NHL · ${dayWords('2099-01-01')}` && !/members/i.test(mc.title), mc.title)
+check('E21 members Card: description = market, unit, the "set before the first game" line', mc.description === 'anytime goal, 1 unit each. Picks are set before the first game.', mc.description)
+check('E22 members Card: fields are "n. Player" and the Two-Man (no STRAIGHT, no THE RULE)', JSON.stringify(sec(mc)) === JSON.stringify(['1. Test One', '2. Test Two', '3. Test Three', 'Two-Man (0.5 unit)']), sec(mc).join())
+const f1 = mc.fields[0].value.split('\n')
+check('E23 members Card: pick line 1 = club vs opp and the bold status word', f1[0] === 'TST vs EXA · **CALLED**' && mc.fields[1].value.split('\n')[0] === 'TST vs EXA · **ON THE BOARD**', f1[0])
+check('E24 members Card: price line (best, median, books, the stored snapshot time)', /^\+250 best, \+230 median across 4 books \(priced \d{1,2}:\d{2} [AP]M ET\)$/.test(f1[1]), f1[1])
+check('E25 members Card: one book / no price wording', mc.fields[2].value.split('\n')[1] === '+120 at one book' && mc.fields[1].value.split('\n')[1] === 'no price on file yet', mc.fields[2].value.split('\n')[1])
+check('E26 members Card: NHL why names the comparison set; anything else prints as stored', f1[2] === "Among tonight's skaters: shots 100th, goals 100th, ice time 94th percentile" && mc.fields[1].value.split('\n')[2] === 'TEST why Test Two', f1[2])
+const tm = mc.fields[3].value.split('\n')
+check('E27 members Card: Two-Man = pair, different games, multiplied-price line with the caveat; the rule is ONE italic line, then the ledger link', tm[0] === 'Test One + Test Four, different games' && /your book's parlay price will differ/.test(tm[1]) && tm[2] === "*Top 3 by LAMP ranking score, one per game. Both Two-Man legs must land; a player who does not play voids it.*" && tm[3] === `[Full rules in the ledger](https://site.test${appHref('nhl', 'ledger')})`, tm.join(' | '))
+check('E28 members Card: football keeps ON THE BOARD eligibility in the rule', /TUDDY ranking score \(CALLED or ON THE BOARD\)/.test(ct.membersCardEmbed({ sport: 'nfl', day: '2099-01-01', rows, prices }).fields.at(-1).value))
+check('E29 members Card: footer LAMP, status word from STATUS_WORD, links = ledger only', mc.footer.text === 'LAMP · DASH Network' && mc.fields[0].value.includes(`**${STATUS_WORD.called}**`) && slotsOk(mc, { ledger: true }) && !mc.url)
 const graded = rows.map((r, i) => ({ ...r, result: i === 1 ? 'miss' : 'hit' }))
-const re = ct.resultEmbed({ sport: 'nhl', day: '2099-01-01', rows: graded })
-check('E13 result Card: THE STRAIGHTS / THE TWO-MAN / THE RECORD, hits and misses alike', JSON.stringify(sec(re)) === JSON.stringify(['THE STRAIGHTS', 'THE TWO-MAN', 'THE RECORD']) && re.fields[0].value.includes('✓ Test One') && re.fields[0].value.includes('✗ Test Two'), sec(re).join())
-check('E14 result Card: not graded = no card', ct.resultEmbed({ sport: 'nhl', day: '2099-01-01', rows }) === null)
-check('E15 the X/members/result TEXTS are unchanged in shape', ct.membersCardText({ sport: 'nhl', day: '2099-01-01', rows, prices }).text.startsWith('\u{1F3AF} THE CARD · NHL members') && ct.resultText({ sport: 'nhl', day: '2099-01-01', rows: graded }).text.includes('results'))
+const re = keep(ct.resultEmbed({ sport: 'nhl', day: '2099-01-01', rows: graded }))
+check('E30 result Card: Straights / Two-Man, hits and misses alike, results title, the ledger line', JSON.stringify(sec(re)) === JSON.stringify(['Straights', 'Two-Man']) && re.fields[0].value.includes('✓ Test One') && re.fields[0].value.includes('✗ Test Two') && re.title.endsWith('results') && re.fields[1].value.includes('[Full record in the ledger.]'), sec(re).join())
+check('E31 result Card: not graded = no card', ct.resultEmbed({ sport: 'nhl', day: '2099-01-01', rows }) === null)
+check('E32 the X/members/result TEXTS are unchanged in shape', ct.membersCardText({ sport: 'nhl', day: '2099-01-01', rows, prices }).text.startsWith('\u{1F3AF} THE CARD · NHL members') && ct.resultText({ sport: 'nhl', day: '2099-01-01', rows: graded }).text.includes('results'))
 
 const rc = await import('../lib/posts/receipt.js')
 const gr = [
@@ -149,14 +180,22 @@ const gr = [
   { sport: 'nhl', id: '3', name: 'Test Skater', market: 'goal scorer', outcome: 'missed' },
   { sport: 'nhl', id: '4', name: 'Test Bench', market: 'goal scorer', outcome: 'void' },
 ]
-const rcpt = rc.receiptEmbed({ day: '2099-01-01', graded: gr })
-check('E16 receipt: a section per product + THE RECORD, CALLED lead', JSON.stringify(sec(rcpt)) === JSON.stringify(['MOONSHOT · MLB', 'TUDDY · NFL', 'LAMP · NHL', 'THE RECORD']) && rcpt.description === `${STATUS_WORD.called} · 2 of 3 cashed · 1 did not play`, `${sec(rcpt).join()} | ${rcpt.description}`)
-check('E17 receipt: the miss and the void stay in view; ledger pointer is words, no link', rcpt.fields[2].value.includes('missed') && rcpt.fields[2].value.includes('void') && slotsOk(rcpt, { ledger: true }) && rcpt.footer.text === 'DASH Network')
-const per = rc.periodEmbed({ kind: rc.WEEKLY, from: '2099-01-05', to: '2099-01-11', totals: { total: { cashed: 3, missed: 2, void: 0 }, bySport: { mlb: { cashed: 3, missed: 2, void: 0 } }, nights: 4 } })
-check('E18 weekly receipt: title WEEK OF, MOONSHOT section', per.title.includes('WEEK OF JAN 5') && sec(per).includes('MOONSHOT · MLB'))
-check('E19 a period with no cash = no card', rc.periodEmbed({ kind: rc.WEEKLY, from: '2099-01-05', to: '2099-01-11', totals: { total: { cashed: 0, missed: 2, void: 0 }, bySport: {}, nights: 1 } }) === null)
-const a = rc.assembleReceipt({ day: '2099-01-01', rows: [], results: {}, games: {} })
-check('E20 assembleReceipt with nobody named stays "none"', a.state === 'none')
+const rcpt = keep(rc.receiptEmbed({ day: '2099-01-01', graded: gr }))
+check('E33 receipt: title and the {SPORT} · {k} for {n} description (void outside the count)', rcpt.title === `\u{1F9FE} Receipt · ${dayWords('2099-01-01')}` && rcpt.description === 'MLB · NFL · NHL · 2 for 3 · 1 did not play', `${rcpt.title} | ${rcpt.description}`)
+check('E34 receipt: a field per product, rows are "mark Player, market: outcome", misses and voids in view', JSON.stringify(sec(rcpt)) === JSON.stringify(['MOONSHOT · MLB', 'TUDDY · NFL', 'LAMP · NHL']) && rcpt.fields[0].value.startsWith('✓ Test Slugger, home run: cashed') && rcpt.fields[2].value.includes('✗ Test Skater, goal scorer: missed') && rcpt.fields[2].value.includes('– Test Bench, goal scorer: did not play (void)'), rcpt.fields[2].value)
+check('E35 receipt: one ledger line "Full record in the ledger.", house footer, no CALLED word celebrating', slotsOk(rcpt, { ledger: true }) && rcpt.fields.at(-1).value.includes('[Full record in the ledger.]') && rcpt.footer.text === 'DASH Network')
+const per = keep(rc.periodEmbed({ kind: rc.WEEKLY, from: '2099-01-05', to: '2099-01-11', totals: { total: { cashed: 3, missed: 2, void: 0 }, bySport: { mlb: { cashed: 3, missed: 2, void: 0 } }, nights: 4 } }))
+check('E36 weekly receipt: same voice (Week of Jan 5; 3 for 5; nights)', per.title === '\u{1F9FE} Receipt · Week of Jan 5' && per.description === '3 for 5 · 4 nights' && per.fields[0].value.startsWith('3 for 5 · home run'), `${per.title} | ${per.description}`)
+check('E37 a period with no cash = no card', rc.periodEmbed({ kind: rc.WEEKLY, from: '2099-01-05', to: '2099-01-11', totals: { total: { cashed: 0, missed: 2, void: 0 }, bySport: {}, nights: 1 } }) === null)
+check('E38 assembleReceipt with nobody named stays "none"', rc.assembleReceipt({ day: '2099-01-01', rows: [], results: {}, games: {} }).state === 'none')
+const mo = rc.periodEmbed({ kind: rc.MONTHLY, from: '2099-10-01', to: '2099-10-31', totals: { total: { cashed: 3, missed: 2, void: 0 }, bySport: { mlb: { cashed: 3, missed: 2, void: 0 } }, nights: 20 } })
+check('E39 monthly receipt title = the month', mo.title === '\u{1F9FE} Receipt · October')
+// the whole family: Discord limits, and no probability / lock / guaranteed / winners wording anywhere
+for (const e of [...allEmbeds, mo, mc, gw]) { if (!allEmbeds.includes(e)) allEmbeds.push(e) }
+check('E40 every card is inside Discord\'s limits', allEmbeds.every((e) => embedSize(e) <= LIMITS.total && [...e.title].length <= LIMITS.title && [...(e.description || '')].length <= LIMITS.description && (e.fields || []).every((f) => [...f.value].length <= LIMITS.value && [...f.name].length <= LIMITS.name)))
+check('E41 no card prints a probability, "lock", "guaranteed" or "winners"', allEmbeds.every((e) => !NEVER.test(JSON.stringify(e))), allEmbeds.map((e) => (NEVER.exec(JSON.stringify(e)) || [])[0]).filter(Boolean).join())
+check('E42 the status word leads every alert description', [g, t, t2, t3, h, h2].every((e) => /^\*\*(CALLED|ON THE BOARD|NOT ON THE BOARD)\*\*/.test(e.description)))
+check('E43 inlineStatus survives a huge description (word first, inside 4096)', (() => { const e = buildCard({ sport: 'nfl', title: 'T', status: 'called', inlineStatus: true, description: ` ${long(3000)}` }); return e.description.startsWith('**CALLED** ') && [...e.description].length <= LIMITS.description })())
 
 // ── F. postToDiscord with an embed ──────────────────────────────────────────
 setEnv({})
@@ -193,13 +232,13 @@ check('H3 MLB homer with an id links to MOONSHOT player page', hl.url === `https
 check('H4 no id = no link (never invented)', playerUrl('nhl', null) === undefined && playerUrl('nhl', '') === undefined && !goalFeed.goalEmbed({ ...goalRow, player_id: null }, [goalRow]).url)
 check('H5 a third-party or relative title url is refused', !buildCard({ sport: 'nhl', title: 'T', url: 'https://evil.example/x' }).url && !buildCard({ sport: 'nhl', title: 'T', url: '/x' }).url)
 const lines = (e) => e.fields.map((f) => f.value).join('\n')
-const ledgerFor = (sp) => `[${ledgerLink(sp).text}](https://site.test${appHref(sp, 'ledger')})`
-check('H6 members Card: exactly one ledger line, a markdown link to that sport\'s Ledger tab, on the site host', lines(mc).split(ledgerFor('nhl')).length === 2 && slotsOk(mc, { ledger: true }) && !mc.url)
-check('H7 free result Card: one ledger line to its sport', lines(re).split(ledgerFor('nhl')).length === 2 && slotsOk(re, { ledger: true }))
-check('H8 receipts (night and weekly): one ledger line each, site host only', lines(rcpt).split(ledgerFor('mlb')).length === 2 && lines(per).split(ledgerFor('mlb')).length === 2 && slotsOk(rcpt, { ledger: true }) && slotsOk(per, { ledger: true }))
+const ledgerFor = (sp, text) => `[${text}](https://site.test${appHref(sp, 'ledger')})`
+check('H6 members Card: exactly one ledger line, a markdown link to that sport\'s Ledger tab, on the site host', lines(mc).split(ledgerFor('nhl', 'Full rules in the ledger')).length === 2 && slotsOk(mc, { ledger: true }) && !mc.url)
+check('H7 free result Card: one ledger line to its sport', lines(re).split(ledgerFor('nhl', 'Full record in the ledger.')).length === 2 && slotsOk(re, { ledger: true }))
+check('H8 receipts (night and weekly): one ledger line each, site host only', lines(rcpt).split(ledgerFor('mlb', 'Full record in the ledger.')).length === 2 && lines(per).split(ledgerFor('mlb', 'Full record in the ledger.')).length === 2 && slotsOk(rcpt, { ledger: true }) && slotsOk(per, { ledger: true }))
 check('H9 the ledger URL differs per sport and comes from the registry', ledgerLink('nfl').url === `https://site.test${appHref('nfl', 'ledger')}` && ledgerLink('nfl').url !== ledgerLink('nhl').url)
 const mcN = ct.membersCardEmbed({ sport: 'nfl', day: '2099-01-01', rows, prices })
-check('H10 an NFL members card links to the NFL ledger', lines(mcN).includes(ledgerFor('nfl')))
+check('H10 an NFL members card links to the NFL ledger', lines(mcN).includes(ledgerFor('nfl', 'Full rules in the ledger')))
 check('H11 free-channel cards (alerts, result, receipts, periods) carry no members-only deep link', [g, t, h, re, rcpt, per].every((e) => !/members/i.test(embedUrls(e).join(' '))))
 check('H12 a link typed into a section, description or title is still stripped', slotsOk(buildCard({ sport: 'mlb', title: 'a https://x.example', description: '[b](https://y.example)', sections: [{ name: 'n', lines: ['https://z.example'] }] })))
 // X keeps no links: the X text of every kind is link-free

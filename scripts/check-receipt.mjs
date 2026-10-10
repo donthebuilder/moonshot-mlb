@@ -316,8 +316,8 @@ await ok('called-it: 2 called / 0 landed -> a Discord-only receipt with both mis
   assert.equal(await RC.postReceiptOnce(db, { day: DAY, load: load(missNight()), hooks, receiptsHook: CALLED_IT, now: pastSettle }), 'dropped: no cash (discord only)')
   assert.equal(tweets.length, 0)
   assert.equal(discords.length, 1); assert.equal(discords[0].url, CALLED_IT); assert.equal(discords[0].body.content, undefined)   // 10-10: the Discord copy is the DASH card, not the text
-  assert.match(discords[0].body.embeds[0].title, /^\u{1F9FE} THE RECEIPT · /u); assert.match(discords[0].body.embeds[0].description, /^CALLED · 0 of 2 cashed/)
-  assert.ok(discords[0].body.embeds[0].fields.some((f) => /Test Hitter Two · home run · missed/.test(f.value)))
+  assert.match(discords[0].body.embeds[0].title, /^\u{1F9FE} Receipt · /u); assert.match(discords[0].body.embeds[0].description, /· 0 for 2$/)
+  assert.ok(discords[0].body.embeds[0].fields.some((f) => /\u2717 Test Hitter Two, home run: missed/.test(f.value)))
   const row = db.tables.homer_feed_posts.find((r) => r.kind === 'receipt')
   assert.equal(row.x_post_id, 'skipped'); assert.equal(row.discord_sent, true); assert.equal(row.payload.counts.missed, 2)
   assert.ok(L.recentLog().some((e) => e.kind === 'receipt' && e.state === 'DROPPED' && e.reason === 'no cash'))
@@ -430,7 +430,7 @@ await ok('post: quotes the Slate through the X API field, is plain text, logs PO
   assert.ok(!BANNED.test(tweets[0].text), tweets[0].text)
   assert.equal(discords.length, 1)
   assert.equal(discords[0].body.content, undefined)   // 10-10: Discord gets the DASH card; X keeps the text
-  assert.match(discords[0].body.embeds[0].title, /^\u{1F9FE} THE RECEIPT · /u)
+  assert.match(discords[0].body.embeds[0].title, /^\u{1F9FE} Receipt · /u)
   const row = db.tables.homer_feed_posts.find((x) => x.kind === 'receipt')
   assert.match(row.x_post_id, /^\d+$/); assert.equal(row.payload.counts.cashed, 2); assert.equal(row.payload.quote_id, '7001'); assert.equal(row.discord_sent, true)
   assert.ok(L.recentLog().some((e) => e.kind === 'receipt' && e.state === 'POSTED' && e.tweetId === row.x_post_id))
