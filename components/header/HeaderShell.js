@@ -194,7 +194,9 @@ export default function HeaderShell({ sport, theme = MLB_C, wordmark, onHome, ho
           .hdr-date .date-mode-switch button { min-height: 44px; padding: 0 12px !important; font-size: 12px !important; }
           .hdr-ticker-slot { display: block; order: 6; flex: 1 1 0; min-width: 0; }
           .hdr-ticker-slot > * { margin-top: 0 !important; }
-          .hdr-ticker-slot .hdr-ticker-track > * { height: 36px !important; }
+          .hdr-ticker-slot .hdr-ticker-track > *:not(.tp-game) { height: 36px !important; }
+          /* the score strip's game chip (components/TickerPill GameChip): 34px chip, 44px tap box */
+          .hdr-ticker-slot .tp-game, .nfl-ticker-shell .tp-game { padding: 5px 0 !important; }
           .hdr-scorebug { width: 100%; }
         }
       `}</style>

@@ -34,20 +34,20 @@ export default function BucketsTicker({ date = null, scores, liveScores, onOpenP
       const a = g.away?.abbrev, h = g.home?.abbrev
       if (!a || !h) continue
       const score = `${a} ${g.away.score ?? 0} – ${g.home.score ?? 0} ${h}`
-      if (g.state === 'live') out.push({ k: `nba-${g.id}`, icon: '🏀', label: g.detail || 'live', value: score, color: C.rim, live: true, onClick: () => onOpenGame?.(g.id) })
-      else if (g.state === 'final') out.push({ k: `nba-${g.id}`, icon: '🏀', label: 'F', value: score, color: C.text3, onClick: () => onOpenGame?.(g.id) })
-      else if (g.start) out.push({ k: `nba-${g.id}`, icon: '🏀', label: localTime(g.start), value: `${a} @ ${h}`, color: C.text3, onClick: () => onOpenGame?.(g.id) })
+      if (g.state === 'live') out.push({ k: `nba-${g.id}`, game: true, icon: '🏀', label: g.detail || 'live', value: score, color: C.rim, live: true, onClick: () => onOpenGame?.(g.id) })
+      else if (g.state === 'final') out.push({ k: `nba-${g.id}`, game: true, icon: '🏀', label: 'F', value: score, color: C.text3, onClick: () => onOpenGame?.(g.id) })
+      else if (g.start) out.push({ k: `nba-${g.id}`, game: true, icon: '🏀', label: localTime(g.start), value: `${a} @ ${h}`, color: C.text3, onClick: () => onOpenGame?.(g.id) })
     }
     return out
   }, [date, board.data, leaders.data, scores?.data, liveScores?.data, onOpenPlayer, onOpenGame])
 
   if (!items.length) return null
-  const Pill = ({ it, echo }) => <TickerPill sport={it.sport || 'nba'} label={it.label} value={it.value} icon={it.icon} accent={C.purple} color={it.color} live={it.live} title={it.title} echo={echo} onClick={it.onClick} theme={C} numFont={NUM_FONT} />
+  const Pill = ({ it, echo }) => <TickerPill sport={it.sport || 'nba'} label={it.label} value={it.value} icon={it.icon} accent={C.purple} color={it.color} live={it.live} game={it.game} title={it.title} echo={echo} onClick={it.onClick} theme={C} numFont={NUM_FONT} />
   return (
     <div className="hdr-scorebug buckets-ticker" ref={trackRef}
       style={{ overflowX: 'auto', overflowY: 'hidden', scrollbarWidth: 'none', lineHeight: 1, maxWidth: '100%',
         WebkitMaskImage: 'linear-gradient(90deg, transparent, black 10px, black calc(100% - 22px), transparent)', maskImage: 'linear-gradient(90deg, transparent, black 10px, black calc(100% - 22px), transparent)' }}>
-      <div className="hdr-ticker-track" style={{ display: 'flex', width: 'max-content' }}>
+      <div className="hdr-ticker-track" style={{ display: 'flex', alignItems: 'center', width: 'max-content' }}>
         {items.map((it) => <Pill key={it.k} it={it} />)}
         {items.map((it) => <Pill key={`${it.k}-echo`} it={it} echo />)}
       </div>

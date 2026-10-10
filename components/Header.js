@@ -170,7 +170,7 @@ function Scorebug({ players, results, games, mode, slateDate, runMeta, onPlayerC
   items.push({ explain: true, k: 'cap', label: 'HRs on board', value: captured ? `${onBoardHrs}/${stats.actual}` : stats.actual > 0 ? `${stats.actual} HR` : 'no HR yet', color: capCol, live: true, nav: 'calledledger', title: captured ? `${onBoardHrs} of the slate's ${stats.actual} home runs so far were CALLED or ON THE BOARD (the top third of that night's board) before first pitch (${pct.toFixed(0)}%) -- the same count as the Called page. Fewer games are in while the slate is live.` : 'How many of tonight\'s home runs the board had before first pitch — fills in when the first one lands.' })
   // live scores ride between the facts and the headlines: live first, finals after
   const scores = scoreOrder(live.items, 'mlb')
-  for (const i of scores.live) items.push({ k: i.k, hash: i.hash, label: i.sub || 'live', value: i.text, icon: i.icon, color: i.col, live: true, sport: i.sport, nav: 'scoreboard', title: i.kind === 'leader' ? `Leading tonight's line for this game` : (i.sport === 'nfl' ? 'Live on TUDDY — tap to switch' : 'Live — tap for the Live page') })
+  for (const i of scores.live) items.push({ k: i.k, hash: i.hash, label: i.sub || 'live', value: i.text, icon: i.icon, color: i.col, live: true, sport: i.sport, kind: i.kind, nav: 'scoreboard', title: i.kind === 'leader' ? `Leading tonight's line for this game` : (i.sport === 'nfl' ? 'Live on TUDDY — tap to switch' : 'Live — tap for the Live page') })
   for (const h of heads) items.push({ k: `h-${h.k}`, label: h.tag, value: h.name, icon: h.icon, color: h.col, p: h.p, nav: h.nav, title: h.why })
   items.push({ explain: true, k: 'lineups', label: staleSlate ? 'prev lineups' : 'lineups', value: `${stats.confirmedTeams}/${stats.lineupTeams}`, color: staleSlate ? C.text3 : C.text2, nav: 'games', title: 'Teams with a confirmed lineup' })
   // FRESHNESS PILL (2026-09-11, item 21). "MLB has no lineup freshness
@@ -194,8 +194,8 @@ function Scorebug({ players, results, games, mode, slateDate, runMeta, onPlayerC
   items.push({ explain: true, k: 'weak', label: 'weak', value: `★${stats.weak}`, color: C.text2, nav: 'board', title: 'Weak-spot matchups on the slate' })
   // Own finals and upcoming first, then the other sports' (scoreOrder).
   for (const i of scores.rest) {
-    if (i.pregame) items.push({ k: i.k, hash: i.hash, label: i.sub || 'kickoff', value: i.text, icon: i.icon, color: C.text3, sport: i.sport, nav: 'scoreboard', title: i.title || (i.sport === 'nfl' ? 'Not underway yet — tap to switch to TUDDY' : 'Not underway yet') })
-    else items.push({ k: i.k, hash: i.hash, label: i.sub || 'final', value: i.text, icon: i.icon, color: C.text3, sport: i.sport, nav: 'scoreboard', title: i.kind === 'leader' ? `${i.sub}'s final line` : (i.sub === 'last night' ? "Last night — sticks around till tonight's games start" : 'Final') })
+    if (i.pregame) items.push({ k: i.k, hash: i.hash, label: i.sub || 'kickoff', value: i.text, icon: i.icon, color: C.text3, sport: i.sport, kind: i.kind, nav: 'scoreboard', title: i.title || (i.sport === 'nfl' ? 'Not underway yet — tap to switch to TUDDY' : 'Not underway yet') })
+    else items.push({ k: i.k, hash: i.hash, label: i.sub || 'final', value: i.text, icon: i.icon, color: C.text3, sport: i.sport, kind: i.kind, nav: 'scoreboard', title: i.kind === 'leader' ? `${i.sub}'s final line` : (i.sub === 'last night' ? "Last night — sticks around till tonight's games start" : 'Final') })
   }
   // THE PREGAME PILLS WERE BUILT AND NEVER RENDERED (2026-09-18). useLiveScores
   // has produced a `pregame` item per not-yet-started game since 2026-09-16
@@ -224,7 +224,7 @@ function Scorebug({ players, results, games, mode, slateDate, runMeta, onPlayerC
   const Pill = ({ it, echo }) => (
     <TickerPill
       label={it.label} value={it.value} icon={it.icon} color={it.color}
-      live={it.live} title={it.title} echo={echo} onClick={() => open(it)} sport={it.sport || 'mlb'}
+      live={it.live} title={it.title} echo={echo} onClick={() => open(it)} sport={it.sport || 'mlb'} game={it.kind === 'score'}
     />
   )
   // ── #97: -webkit-overflow-scrolling:touch FREEZES A JS-DRIVEN SCROLLLEFT

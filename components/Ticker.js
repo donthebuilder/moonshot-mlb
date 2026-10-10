@@ -26,7 +26,7 @@ export default function Ticker({ items, render, className, style = null, trackCl
   return (
     <div className={className} ref={ref} onScroll={(e) => { const at = e.currentTarget.scrollLeft < 2; if (at !== atStart) setAtStart(at) }}
       style={{ overflowX: 'auto', overflowY: 'hidden', scrollbarWidth: 'none', lineHeight: 1, maxWidth: '100%', WebkitMaskImage: mask, maskImage: mask, ...(style || {}) }}>
-      <div className={trackClassName} style={{ display: 'flex', width: 'max-content', ...(trackStyle || {}) }}>
+      <div className={trackClassName} style={{ display: 'flex', alignItems: 'center', width: 'max-content', ...(trackStyle || {}) }}>
         {items.map((it, i) => render(it, false, i))}
         {items.map((it, i) => render(it, true, i))}
       </div>

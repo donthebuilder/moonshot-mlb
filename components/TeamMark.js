@@ -109,6 +109,17 @@ export function MatchLogos({ sport = 'mlb', away, home, px = 16, sep = '@', gap 
 // never a word like LIVE or PUSH on the other products.
 const KNOWN4 = { nba: (c) => Boolean(nbaTeam(c)) }
 const isCode = (sport, c) => c.length <= 3 || Boolean(KNOWN4[sportKey(sport)]?.(c))
+/** A value that is exactly a game, as its parts, or null: "IND 21 – 17 CHI" -> { away, home, score: ['21','17'] },
+ *  "DET @ CAR" -> { away, home, score: null }. The ticker's game chip (components/TickerPill game mode) reads this. */
+export function gameParts(sport, value) {
+  if (!sport || typeof value !== 'string') return null
+  const g = value.match(/^([A-Z]{2,4})\s?@\s?([A-Z]{2,4})$/)
+  if (g && isCode(sport, g[1]) && isCode(sport, g[2])) return { away: g[1], home: g[2], score: null }
+  const sc = value.match(/^([A-Z]{2,4}) (\d+) [–-] (\d+) ([A-Z]{2,4})$/)
+  if (sc && isCode(sport, sc[1]) && isCode(sport, sc[4])) return { away: sc[1], home: sc[4], score: [sc[2], sc[3]] }
+  return null
+}
+
 export function asLogos(sport, value, { px = 14, rank = true } = {}) {
   if (!sport || typeof value !== 'string') return value
   const g = value.match(/^(\d+\.\s+)?([A-Z]{2,4})\s?@\s?([A-Z]{2,4})$/)

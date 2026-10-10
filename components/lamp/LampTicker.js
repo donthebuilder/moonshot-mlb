@@ -67,9 +67,9 @@ export default function LampTicker({ date = null, scores, liveScores, onOpenPlay
       const a = g.away?.abbrev; const h = g.home?.abbrev
       if (!a || !h) continue
       const score = `${a} ${g.away.score ?? 0} – ${g.home.score ?? 0} ${h}`
-      if (g.state === 'live') out.push({ k: `nhl-${g.id}`, icon: '🏒', label: `${g.periodLabel || ''} ${g.clock || ''}`.trim() || 'live', value: score, color: C.lamp, live: true, onClick: () => onOpenGame?.(g.id) })
-      else if (g.state === 'final') out.push({ k: `nhl-${g.id}`, icon: '🏒', label: 'F', value: score, color: C.text3, onClick: () => onOpenGame?.(g.id) })
-      else if (g.state === 'pre' && g.startUtc) out.push({ k: `nhl-${g.id}`, icon: '🏒', label: hm(g.startUtc), value: `${a} @ ${h}`, color: C.text3, onClick: () => onOpenGame?.(g.id) })
+      if (g.state === 'live') out.push({ k: `nhl-${g.id}`, game: true, icon: '🏒', label: `${g.periodLabel || ''} ${g.clock || ''}`.trim() || 'live', value: score, color: C.lamp, live: true, onClick: () => onOpenGame?.(g.id) })
+      else if (g.state === 'final') out.push({ k: `nhl-${g.id}`, game: true, icon: '🏒', label: 'F', value: score, color: C.text3, onClick: () => onOpenGame?.(g.id) })
+      else if (g.state === 'pre' && g.startUtc) out.push({ k: `nhl-${g.id}`, game: true, icon: '🏒', label: hm(g.startUtc), value: `${a} @ ${h}`, color: C.text3, onClick: () => onOpenGame?.(g.id) })
     }
     return out
   }, [date, board.data, leaders.data, scores?.data, liveScores?.data, onOpenPlayer, onOpenGame])
@@ -79,7 +79,7 @@ export default function LampTicker({ date = null, scores, liveScores, onOpenPlay
   // (LAMP layout shift, 2026-10-06). Nothing to say once every feed has answered.
   if (!items.length) return (board.loading || leaders.loading) ? <div aria-hidden="true" className="hdr-scorebug lamp-ticker" style={{ height: 32 }} /> : null
   const Pill = ({ it, echo }) => (
-    <TickerPill sport={it.sport || 'nhl'} label={it.label} value={it.value} icon={it.icon} accent={C.ice} color={it.color} live={it.live} title={it.title} echo={echo} onClick={it.onClick} theme={C} numFont={NUM_FONT} />
+    <TickerPill sport={it.sport || 'nhl'} label={it.label} value={it.value} icon={it.icon} accent={C.ice} color={it.color} live={it.live} game={it.game} title={it.title} echo={echo} onClick={it.onClick} theme={C} numFont={NUM_FONT} />
   )
   return (
     // the shell is components/Ticker.js (R9 #4)
