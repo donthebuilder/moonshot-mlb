@@ -261,7 +261,7 @@ await ok('nhl: the goalie is read from the game\'s starters (the Slate\'s source
   assert.equal(NHL.nhlPlayersFrom({ board: conf, now: NOW }).players.length, 1)
   // the Slate adapter reads the very same helper and source
   const NHLS = await import('../lib/posts/nhl.js')
-  const slate = NHLS.nhlSlate({ games: [{ ...conf.games[0], rows: [{ ...conf.games[0].rows[0], context: { nightRank: 1, nightOf: 100 } }] }], now: NOW })
+  const slate = NHLS.nhlSlate({ games: [{ ...conf.games[0], setting: true, lockedAt: new Date(NOW).toISOString(), rows: [{ ...conf.games[0].rows[0], context: { nightRank: 1, nightOf: 100 } }] }], now: NOW })
   assert.equal(slate.cands[0].problem, null)
   // a preseason game is not a game for polls
   const pre = board(true); pre.games[0].game.gameType = 1

@@ -117,7 +117,8 @@ const nflWeek = (extra = []) => ({
 })
 const nflPicks = () => ({ card: { TD: { rungs: [{ rank: 1, player_id: 'n1' }, { rank: 2, player_id: 'n2' }] } } })
 const nhlGames = (over = {}) => [{
-  game: { id: 1, startUtc: NHL_DROP, state: 'pre', scheduleState: 'OK' },
+  game: { id: 1, startUtc: NHL_DROP, state: 'pre', scheduleState: 'OK', away: { abbrev: 'MTL' }, home: { abbrev: 'TOR' } },
+  setting: true, locked: false, lockedAt: '2026-10-09T22:10:00Z',     // the LAMP tick has written the game's rows (lamp_goal_log.locked_at)
   starters: { away: { playerId: 9, confirmed: true }, home: { playerId: 8, confirmed: true } },
   rows: [
     { playerId: 'h1', name: 'Test Skater One', team: 'TOR', home: true, score: 91, status: 'called', legs: { shotsPg: 3.4 }, context: { nightRank: 1, nightOf: 300 } },
@@ -642,6 +643,110 @@ await ok('post: a slate row that exists is never re-claimed, and a day with noth
   const empty = fakeDb({ homer_feed_posts: [] })
   const r = await S.postSlateOnce(empty, { day: '2026-10-19', load: load([MLB.mlbSlate({ rows: [] }), NFL.nflSlate({}), NHL.nhlSlate({}), NBA.nbaSlate({})]), hooks: '', now: NOW })
   assert.match(r, /^none/); assert.equal(empty.tables.homer_feed_posts.length, 0)
+})
+
+// ═══ 9. THE LOCK: NAMED AFTER THE CALLS ARE LOCKED, BEFORE THE FIRST GAME STARTS (2026-10-10) ═════════════
+// The 10-09 Slate went out before LAMP's lock (named from a preview) and the 10-10 one after the day's first puck.
+// Made-up day: first puck 17:00Z (LAMP writes the lock from 15:20Z, 100 minutes before), first pitch 20:05Z.
+const LD = '2026-10-10'
+const T = (hhmm) => Date.parse(`2026-10-10T${hhmm}:00Z`)
+const PUCK = '2026-10-10T17:00:00Z', PITCH = '2026-10-10T20:05:00Z'
+const lockSports = ({ now, nhlLocked = true, preview = false, mlbHold = null, nhlHold = null, nhlStart = null } = {}) => {
+  const games = nhlGames({ game: { id: 1, startUtc: PUCK, state: now >= T('17:00') ? 'live' : 'pre', scheduleState: 'OK', away: { abbrev: 'MTL' }, home: { abbrev: 'TOR' } },
+    ...(nhlLocked ? { setting: now < T('17:00'), locked: now >= T('17:00'), lockedAt: '2026-10-10T15:40:00Z' } : { setting: false, locked: false, lockedAt: null }) })
+  if (preview) games[0].rows = games[0].rows.map((r) => ({ ...r, preview: true }))
+  const nhl = nhlHold ? { sport: 'nhl', hasGames: false, firstStartMs: nhlStart ?? NaN, hold: nhlHold, cands: [] } : NHL.nhlSlate({ games, now })
+  return [
+    MLB.mlbSlate({ rows: mlbBoard().map((r) => ({ ...r, game_time: PITCH })), hold: mlbHold, firstStartMs: Date.parse(PITCH) }),
+    NFL.nflSlate({ data: { games: [], players: [] }, picks: nflPicks(), day: LD, now }),
+    nhl,
+    NBA.nbaSlate({ board: null, now }),
+  ]
+}
+await ok('lock: LAMP locked and the first puck still 20+ minutes away -> the Slate names the skater', () => {
+  const now = T('16:05')
+  const a = S.assembleSlate({ day: LD, sports: lockSports({ now }), now })
+  assert.equal(a.state, 'go'); assert.ok(a.named.includes('h1'), a.text)
+  assert.deepEqual(a.leftOut, [])
+})
+await ok('lock: LAMP not locked yet and the puck 20+ minutes away -> HELD (not dropped), with the reason; nothing named', () => {
+  const now = T('16:05')
+  const a = S.assembleSlate({ day: LD, sports: lockSports({ now, nhlLocked: false }), now })
+  assert.equal(a.state, 'held'); assert.match(a.reason, /nhl: lock not written yet/)
+  assert.deepEqual(a.pending.map((p) => p.id), ['nhl'])
+})
+await ok('lock: a PREVIEW board (rows flagged preview, no lock) is never named, even when the game says nothing about a lock', () => {
+  const now = T('16:05')
+  const a = S.assembleSlate({ day: LD, sports: lockSports({ now, nhlLocked: false, preview: true }), now })
+  assert.equal(a.state, 'held')
+  const late = T('16:45')    // window closed: left out, the others go
+  const b = S.assembleSlate({ day: LD, sports: lockSports({ now: late, nhlLocked: false, preview: true }), now: late })
+  assert.equal(b.state, 'go'); assert.ok(!b.named.includes('h1') && !b.named.includes('h2'))
+  assert.ok(b.named.includes('m1'))
+})
+await ok('lock: the lock never came before the cutoff (puck < 20 min away) -> LAMP is left out of that day\'s Slate, MLB still goes, the reason is reported', () => {
+  const now = T('16:45')
+  const a = S.assembleSlate({ day: LD, sports: lockSports({ now, nhlLocked: false }), now })
+  assert.equal(a.state, 'go'); assert.ok(!/Test Skater/.test(a.text), a.text)
+  assert.equal(a.leftOut.length, 1); assert.match(a.leftOut[0].reason, /^nhl: lock not written yet.*window to name that sport has closed/)
+  assert.deepEqual(a.payload.sports_left_out, ['nhl'])
+})
+await ok('lock: the first puck has dropped -> no skater whose game started is named, whatever the lock says (the other sports still go)', () => {
+  const now = T('17:10')
+  const a = S.assembleSlate({ day: LD, sports: lockSports({ now }), now })
+  assert.equal(a.state, 'go'); assert.ok(!/Test Skater/.test(a.text), a.text)
+  assert.ok(a.leftOut.some((l) => /his game has started/.test(l.reason)))
+  // and a day with only that game is NOT posted at all
+  const only = S.assembleSlate({ day: LD, sports: [MLB.mlbSlate({ rows: [] }), NFL.nflSlate({}), lockSports({ now })[2], NBA.nbaSlate({ board: null, now })], now })
+  assert.equal(only.state, 'none')
+})
+await ok('lock: a held sport does not stretch the clock past the day\'s first game (a failed LAMP read keeps the first puck it showed earlier)', () => {
+  const now = T('16:50')
+  const a = S.assembleSlate({ day: LD, sports: lockSports({ now, nhlHold: 'the LAMP board failed: test', nhlStart: Date.parse(PUCK) }), now })
+  assert.equal(a.state, 'go', 'past the 30-minute hold mark the post goes without the unreadable sport')
+  const early = T('16:20')
+  assert.equal(S.assembleSlate({ day: LD, sports: lockSports({ now: early, nhlHold: 'the LAMP board failed: test', nhlStart: Date.parse(PUCK) }), now: early }).state, 'held')
+  // before the hour-before mark the clock is the held sport's puck, not the later first pitch
+  const wait = T('15:50')
+  assert.equal(S.assembleSlate({ day: LD, sports: lockSports({ now: wait, nhlHold: 'x', nhlStart: Date.parse(PUCK) }), now: wait }).state, 'waiting')
+})
+await ok('lock: NFL / MLB are not delayed by the NHL rule (their lock is the Slate\'s own hour-before mark)', () => {
+  const now = T('19:10')   // 55 min before a 20:05Z first pitch, no hockey today
+  const a = S.assembleSlate({ day: LD, sports: [MLB.mlbSlate({ rows: mlbBoard().map((r) => ({ ...r, game_time: PITCH })), firstStartMs: Date.parse(PITCH) }), NFL.nflSlate({}), NHL.nhlSlate({ games: [], now }), NBA.nbaSlate({ board: null, now })], now })
+  assert.equal(a.state, 'go'); assert.equal(a.leftOut.length, 0)
+})
+await ok('lock: postSlateOnce end to end -- waits while the lock is missing (logged as HELD with the reason), posts ONCE when it lands, never twice, never after the puck for that man', async () => {
+  reset()
+  const db = fakeDb({ homer_feed_posts: [] })
+  const run = (now, nhlLocked) => S.postSlateOnce(db, { day: LD, load: load(lockSports({ now, nhlLocked })), hooks: 'https://discord.test/h', now })
+  const held = await run(T('16:05'), false)
+  assert.match(held, /^held: nhl: lock not written yet/); assert.equal(db.tables.homer_feed_posts.length, 0); assert.equal(tweets.length, 0)
+  assert.ok(L.recentLog().some((e) => e.kind === 'slate' && e.state === 'HELD' && /lock not written yet/.test(e.reason)), 'the next missed Slate is diagnosable from the log')
+  assert.equal(await run(T('16:15'), true), 'posted')
+  assert.ok(db.tables.homer_feed_posts[0].payload.named.includes('h1'))
+  assert.equal(await run(T('16:20'), true), 'already-posted'); assert.equal(await run(T('16:25'), true), 'already-posted')
+  assert.equal(tweets.length, 1)
+  // a lock that lands after the cutoff: posted without LAMP, and the log says why
+  reset()
+  const db2 = fakeDb({ homer_feed_posts: [] })
+  const r = await S.postSlateOnce(db2, { day: LD, load: load(lockSports({ now: T('16:45'), nhlLocked: false })), hooks: 'https://discord.test/h', now: T('16:45') })
+  assert.equal(r, 'posted'); assert.ok(!/Test Skater/.test(tweets[0].text))
+  assert.ok(L.recentLog().some((e) => e.kind === 'slate' && e.state === 'DROPPED' && /nhl: lock not written yet/.test(e.reason)))
+})
+await ok('lock: the waiting state says when it will start (a quiet log line, once)', async () => {
+  reset()
+  const db = fakeDb({ homer_feed_posts: [] })
+  const lines = []; const orig = console.log; console.log = (...a) => { lines.push(a.join(' ')); orig(...a) }
+  try {
+    assert.equal(await S.postSlateOnce(db, { day: LD, load: load(lockSports({ now: T('14:00') })), hooks: '', now: T('14:00') }), 'waiting')
+  } finally { console.log = orig }
+  assert.ok(lines.some((l) => /\[slate\] 2026-10-10: WAITING until 2026-10-10T16:00:00.000Z/.test(l)), lines.join('\n'))
+})
+await ok('lock: the NHL adapter reads the lock from the board\'s own fields (locked / setting + lockedAt), never from the clock', () => {
+  const g = nhlGames()[0]
+  assert.equal(NHL.nhlGameLocked(g), true)
+  assert.equal(NHL.nhlGameLocked({ ...g, setting: false, locked: false }), false)
+  assert.equal(NHL.nhlGameLocked({ ...g, lockedAt: null }), false)
 })
 
 console.log(`\n${n} checks passed -- TEST data, fake fetch, fake database`)
