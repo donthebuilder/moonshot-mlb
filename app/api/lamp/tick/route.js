@@ -34,6 +34,7 @@ import { toPropRow, gradeSogRows, MARKET as SOG } from '../../../../lib/nhl/sogM
 import { toPtsRow, gradePtsRows, MARKET as PTS } from '../../../../lib/nhl/ptsModel'
 import { toAstRow, gradeAstRows, MARKET as AST } from '../../../../lib/nhl/astModel'
 import { MARKET as GOALPOS, toGoalPosRow, gradeGoalPosRows } from '../../../../lib/nhl/goalPosModel'
+import { MARKET as GOALW, toGoalWeightedRow, gradeGoalWeightedRows } from '../../../../lib/nhl/goalWeightedModel'
 import { readNumerology } from '../../../../lib/nhl/numerology'
 import { writeNight as writeNumerology, gradeNight as gradeNumerology, boxResults, refreshLaneNights, writeNumbersNight } from '../../../../lib/numerology/record'
 import { fromNhl } from '../../../../lib/numerology/adapters'
@@ -75,6 +76,9 @@ const SHADOW = [
   // Needs lamp_prop_log's market check to allow 'GOAL' (RUN-IN-SUPABASE-2026-10-03-lamp-goalpos.sql);
   // until then its upsert fails, is logged, and nothing else is touched.
   { market: GOALPOS, key: 'goalpos', byGame: 'goalPosByGame', toRow: toGoalPosRow, grade: gradeGoalPosRows },
+  // lamp-goalw-v1 (2026-10-10, .claude-notes/LAMP-GOALW-DEFINITION.md): the goal board's legs, fitted weights + a defence flag.
+  // Same market ('GOAL') and table as goalpos; the primary key carries model_version, so no SQL.
+  { market: GOALW, key: 'goalw', byGame: 'goalWByGame', toRow: toGoalWeightedRow, grade: gradeGoalWeightedRows },
 ]
 
 export async function GET(request) {

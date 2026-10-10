@@ -8,7 +8,7 @@ const eq = (name, got, want) => { const ok = JSON.stringify(got) === JSON.string
 const sk = (gameId, team, id, s) => ({ gameId, team, playerId: id, name: `Test ${id}`, legs: { ok: true, shotsPg: s, goalsPg: s / 10, toi: 900 + s * 10 } })
 const off = (gameId, team, id) => ({ gameId, team, playerId: id, name: `Test ${id}`, legs: { ok: false, reason: 'test: fewer than 10 games' } })
 
-eq('version', MODEL_VERSION, 'lamp-goal-v2')
+eq('version (the current one; the v2 CALLED rule it still carries is what this file tests)', MODEL_VERSION, 'lamp-goal-v3')
 // Game 1: club A is stronger top to bottom -- v1 would call three A skaters.
 const night = [
   sk(1, 'AAA', 'a1', 4.0), sk(1, 'AAA', 'a2', 3.8), sk(1, 'AAA', 'a3', 3.6), sk(1, 'BBB', 'b1', 2.0), sk(1, 'BBB', 'b2', 1.0),
