@@ -221,5 +221,27 @@ const torRows = (s) => s.t.feed.filter((r) => r.game_id === TOR)
   check(shown.find((g) => g.id === WSH).goals.every((x) => !x.label), 'no lock -> no label on the page')
 }
 
+// ── X refuses a CALLED goal after the channel copy went out (10-09: Kyle Connor posted in #lamp-nhl every minute) ──
+{
+  const s = memoryStore()
+  let sends = 0
+  const poster = { post: async () => { sends += 1; return { ok: false, status: 403, error: 'refused', discordSent: true } } }
+  await run(s, dayFrom(RAW), T0, poster)
+  const waved = dayFrom(RAW, (p) => { const g = gameOf(p, TOR); g.goals = g.goals.filter((x) => x.playerId !== 8475166); g.homeTeam.score -= 1 })
+  await run(s, waved, T0 + CONFIRM_MS + 5e3, poster)
+  await run(s, waved, T0 + CONFIRM_MS + 5e3 + POST_AFTER_MS + 1e3, poster)
+  for (let i = 1; i <= 5; i += 1) await run(s, waved, T0 + CONFIRM_MS + POST_AFTER_MS + i * 60e3, poster)
+  check(sends === 1, `X refusing after a channel post: the goal is sent once, not every tick (sends ${sends})`)
+  check(s.t ? true : torRows(s).some((x) => x.x_post_id === 'skipped'), 'the closed goal reads skipped (budget ignores it)')
+  // nothing sent anywhere and X refusing: still retried (a transient refusal must not lose the post)
+  const s2 = memoryStore(); let tries = 0
+  const poster2 = { post: async () => { tries += 1; return { ok: false, status: 500, error: 'x down' } } }
+  await run(s2, dayFrom(RAW), T0, poster2)
+  await run(s2, waved, T0 + CONFIRM_MS + 5e3, poster2)
+  await run(s2, waved, T0 + CONFIRM_MS + 5e3 + POST_AFTER_MS + 1e3, poster2)
+  await run(s2, waved, T0 + CONFIRM_MS + POST_AFTER_MS + 120e3, poster2)
+  check(tries >= 2, `with nothing sent, an X refusal is still retried (tries ${tries})`)
+}
+
 console.log(failed ? `\n${failed} FAILED` : '\nall green')
 process.exit(failed ? 1 : 0)

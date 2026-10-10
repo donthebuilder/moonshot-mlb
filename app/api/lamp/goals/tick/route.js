@@ -108,9 +108,11 @@ export async function GET(request) {
         // CALLED goals reach this poster, so the channel never hears a random goal.
         // Best effort: a Discord problem never costs the X post or the claim.
         // a card linked to the scorer on LAMP, in LAMP's colour (2026-10-04)
-        if (discordHooks) await postToDiscord(text, { ...(png ? { png } : {}), sport: 'nhl', link: row.player_id ? playerHref('nhl', row.player_id) : null }, discordHooks).catch((e) => console.error(`[lamp goals] discord: ${e?.message || e}`))
+        let discordSent = false
+        if (discordHooks) discordSent = Boolean((await postToDiscord(text, { ...(png ? { png } : {}), sport: 'nhl', link: row.player_id ? playerHref('nhl', row.player_id) : null }, discordHooks).catch((e) => { console.error(`[lamp goals] discord: ${e?.message || e}`); return null }))?.ok)
         if (!hasX()) return { ok: true, id: 'skipped' }
-        return postToX(text, { kind: 'nhlgoal', ...(mediaId ? { mediaId } : {}) })
+        // discordSent rides back so the tick never re-sends the channel post when X refuses (10-09 bug)
+        return { ...(await postToX(text, { kind: 'nhlgoal', ...(mediaId ? { mediaId } : {}) })), discordSent }
       },
     }
     else console.error(`[lamp goals] nhlgoal is on but neither X nor a Discord channel is configured: ${xProblem()}`)
