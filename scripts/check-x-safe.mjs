@@ -623,4 +623,37 @@ await ok('xfail: every claim-reset poster asks settleAlert and reads only fresh 
   assert.ok(!/r\.status === 429 \|\| r\.status >= 500 \|\| r\.status === 0/.test(src('lib/posts/receipt.js') + src('lib/posts/slate.js')), 'no hand-rolled transient test left in the receipt/slate')
 })
 
+await ok('correction: the overturned-goal reply is a plain reply under the original id, no link / hashtag; the breaker stops the call', async () => {
+  const GF = await import('../lib/nhl/goalFeed.js')
+  reset(); F._resetXFail(); xCalls.length = 0
+  const row = { name: 'Test Skater', player_id: 1, x_post_id: '7001', status: 'called' }
+  const game = { away: { abbrev: 'TST', score: 1 }, home: { abbrev: 'EXA', score: 0 }, goals: [{ periodType: 'REG', scorer: { id: 2 } }], state: 'live' }
+  const text = GF.correctionText(row, game)
+  assert.equal(text, "Update: the goal was overturned on review. Test Skater's goal is off the board. TST 1, EXA 0.")
+  const r = await X.postToX(text, { kind: 'nhlgoal', replyTo: GF.originalTweetId(row) })
+  assert.ok(r.ok && r.id)
+  assert.equal(tweets.length, 1)
+  assert.equal(tweets[0].reply.in_reply_to_tweet_id, '7001', 'a reply under the ORIGINAL tweet')
+  assert.equal(tweets[0].text, text, 'the reply is exactly the correction text: no funnel link, no hashtag')
+  assert.ok(!/https?:|#/.test(tweets[0].text))
+  // credits depleted: one request, then the breaker answers without one
+  xRefuse = { status: 402, json: { title: 'CreditsDepleted' } }
+  try {
+    const a = await X.postToX(text, { kind: 'nhlgoal', replyTo: '7001' }); xCalls.length = 0
+    const b = await X.postToX(text, { kind: 'nhlgoal', replyTo: '7001' })
+    assert.ok(!a.ok && b.blocked && xCalls.length === 0, 'breaker open: the correction makes NO request to X')
+  } finally { xRefuse = null; F._resetXFail() }
+})
+await ok('correction: wired to the sport channel only, honours the pause and kill switches, never deletes the original, counted under no new kind', () => {
+  const route = fs.readFileSync('app/api/lamp/goals/tick/route.js', 'utf8'); const feed = fs.readFileSync('lib/nhl/goalFeed.js', 'utf8')
+  assert.match(route, /feedHooksFor\('nhl', row\.status\)/, 'the channel card goes to the same sport hooks as the alert (feedHooksFor), never members')
+  assert.match(route, /postsPaused\(\)/, 'X_POSTS_PAUSE stops the reply')
+  assert.match(route, /replyTo/); assert.match(feed, /CORRECTIONS_OFF/)
+  assert.ok(!/deleteFromX/.test(route + feed), 'the original tweet is never deleted')
+  assert.ok(!/homer_feed_posts/.test(feed), 'no new homer_feed_posts kind: the marker lives on lamp_goal_feed')
+  assert.match(feed, /isLate\(row\.overturned_at/, 'a correction expires after LATE_ALERT_MS')
+  // the reply's id is stored in correction_post_id, never x_post_id: the daily cap (which counts x_post_id) is untouched
+  assert.ok(!/update\(\{ x_post_id[^}]*\}\)[^\n]*correction/.test(route))
+})
+
 console.log(`\n${n} groups passed (${results.length} checks) -- TEST data, fake fetch, fake database`)

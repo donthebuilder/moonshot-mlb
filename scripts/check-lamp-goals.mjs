@@ -8,7 +8,7 @@
 // Exit 1 on any failed check.
 import { readFileSync } from 'node:fs'
 import { reduceScoreDay } from '../lib/nhl/reduce.js'
-import { tickGoals, matchGame, labelGoals, pushText, postText, CONFIRM_MS, POST_AFTER_MS } from '../lib/nhl/goalFeed.js'
+import { tickGoals, matchGame, labelGoals, pushText, postText, correctionText, correctionEmbed, correctionOwed, CONFIRM_MS, POST_AFTER_MS } from '../lib/nhl/goalFeed.js'
 import { audienceFrom, nhlEventsFrom, wants } from '../lib/dash/pushRules.js'
 import { _resetXFail } from '../lib/dash/xFail.js'
 
@@ -56,7 +56,11 @@ function memoryStore(lock = TEST_LOCK) {
     deleteMulti: async ({ game_id, player_id }) => { t.multi = t.multi.filter((x) => !(x.game_id === game_id && x.player_id === player_id)) },
     countMulti: async (season, pid) => t.multi.filter((x) => x.season === season && x.player_id === pid).length,
     claimPost: async (row) => { const r = t.feed.find((x) => key(x) === key(row)); if (!r || r.x_post_id || r.overturned_at) return false; r.x_post_id = 'posting'; return true },
-    finishPost: async (row, id) => { const r = t.feed.find((x) => key(x) === key(row)); if (r) r.x_post_id = id },
+    finishPost: async (row, id, o = {}) => { const r = t.feed.find((x) => key(x) === key(row)); if (r) { r.x_post_id = id; if (o.discordSent !== undefined) r.discord_sent = Boolean(o.discordSent) } },
+    // the correction's claim, like the database's: null -> 'posting', only on an overturned row
+    claimCorrection: async (row) => { const r = t.feed.find((x) => key(x) === key(row)); if (!r || r.correction_post_id || !r.overturned_at) return false; r.correction_post_id = 'posting'; return true },
+    finishCorrection: async (row, v) => { const r = t.feed.find((x) => key(x) === key(row)); if (r) r.correction_post_id = v },
+    markCorrectionDiscord: async (row, at) => { const r = t.feed.find((x) => key(x) === key(row)); if (r) r.correction_discord_at = at },
   }
 }
 const quiet = { log() {}, error() {} }
@@ -284,6 +288,165 @@ const torRows = (s) => s.t.feed.filter((r) => r.game_id === TOR)
   let ok1 = 0
   await drive({ post: async () => { ok1 += 1; return { ok: true, id: String(100 + ok1) } } })
   check(ok1 === 1, `a healthy post goes out once (got ${ok1})`)
+}
+
+// ── THE CORRECTION POST (2026-10-10): a posted CALLED goal is overturned -> one reply + one channel card, never two ──────────────
+{
+  const NYL = 8477939
+  const offNylander = dayFrom(RAW, (p) => { const g = gameOf(p, TOR); g.goals = g.goals.filter((x) => x.playerId !== NYL); g.homeTeam.score -= 1 })
+  const full = dayFrom(RAW)
+  const nylRow = (s) => torRows(s).find((r) => r.player_id === NYL)
+  /** A poster that records everything: the original alert (X result + channel) and the correction (X reply + channel). */
+  const mkPoster = ({ origX = { ok: true, id: 'TEST9001' }, origDiscord = true, corrX = null, corrDiscord = true } = {}) => {
+    const rec = { posts: [], replies: [], cards: [], xCalls: 0 }
+    return {
+      rec,
+      post: async (text) => { rec.posts.push(text); return { ...origX, discordSent: origDiscord } },
+      correct: async ({ text, embed, replyTo, wantX, wantDiscord }) => {
+        let discordSent = null
+        if (wantDiscord) { rec.cards.push({ text, embed }); discordSent = corrDiscord }
+        let x = null
+        if (wantX && replyTo) { rec.xCalls += 1; x = corrX ? (typeof corrX === 'function' ? corrX() : corrX) : { ok: true, id: `TESTREPLY${rec.replies.length + 1}` }; if (x.ok) rec.replies.push({ text, replyTo }) }
+        return { x, discordSent }
+      },
+    }
+  }
+  /** Seen, confirmed, posted (the original alert). Returns the store and a time after which the goal can come off. */
+  const posted = async (poster, { s = memoryStore() } = {}) => {
+    _resetXFail()
+    await run(s, full, T0, poster)
+    await run(s, full, T0 + CONFIRM_MS + 5e3, poster)
+    await run(s, full, T0 + CONFIRM_MS + POST_AFTER_MS + 10e3, poster)
+    return { s, tOff: T0 + CONFIRM_MS + POST_AFTER_MS + 70e3 }
+  }
+  const snapshot = (s) => JSON.stringify(s.t.feed.map(({ correction_post_id, correction_discord_at, overturned_at, ...rest }) => rest))
+
+  // 1. posted, then overturned: exactly ONE reply under the original id and ONE card, across ticks and instances
+  {
+    const pl = mkPoster()
+    const { s, tOff } = await posted(pl)
+    check(pl.rec.posts.length === 1 && nylRow(s).x_post_id === 'TEST9001' && nylRow(s).discord_sent === true, 'the original alert went out once and the row remembers the channel copy')
+    const before = snapshot(s)
+    await run(s, offNylander, tOff, pl)
+    check(nylRow(s).overturned_at && pl.rec.replies.length === 1 && pl.rec.cards.length === 1, `overturned after posting -> one X reply + one channel card (got ${pl.rec.replies.length} / ${pl.rec.cards.length})`)
+    check(pl.rec.replies[0].replyTo === 'TEST9001', 'the reply is under the ORIGINAL tweet id')
+    const txt = pl.rec.replies[0].text
+    check(txt === "Update: the goal was overturned on review. William Nylander's goal is off the board. CAR 4, TOR 2.", `reply text, with the consistent read's own score: ${JSON.stringify(txt)}`)
+    check(!/https?:|dashnetwork|#|%|odds|probab/i.test(txt) && txt.length <= 280, 'reply: no link, no hashtag, no probability, fits 280')
+    const card = pl.rec.cards[0].embed
+    check(card.title === "↩️ William Nylander's goal was overturned" && card.description === 'The goal was overturned on review. It no longer counts.\nCAR 4, TOR 2.' && /LAMP/.test(card.footer.text) && !card.fields, `Discord card: title, description with the score, LAMP footer (${JSON.stringify(card.title)})`)
+    check(nylRow(s).correction_post_id === 'TESTREPLY1' && nylRow(s).correction_discord_at, 'the row records the reply id and the channel time')
+    for (let i = 1; i <= 4; i += 1) { _resetXFail(); await run(s, offNylander, tOff + i * 60e3, pl) }   // later ticks, each a fresh "instance"
+    check(pl.rec.replies.length === 1 && pl.rec.cards.length === 1 && pl.rec.xCalls === 1, `four more ticks / instances: still exactly one reply and one card (got ${pl.rec.replies.length} / ${pl.rec.cards.length})`)
+    // a second instance racing the first: the claim is taken, so the second sends nothing
+    const racer = memoryStore(); racer.t.feed = s.t.feed.map((r) => ({ ...r, correction_post_id: r.player_id === NYL ? 'posting' : r.correction_post_id }))
+    const pl2 = mkPoster()
+    await run(racer, offNylander, tOff + 5 * 60e3, pl2)
+    check(pl2.rec.replies.length === 0 && pl2.rec.cards.length === 0, 'a claimed correction (another instance mid-send) -> this instance sends nothing')
+    // the original is untouched and the grade does not move
+    check(before === snapshot(s), 'the original post and every graded field are untouched by the correction (only overturned_at and the correction columns differ)')
+    const hits = s.t.feed.filter((r) => r.status === 'called' && r.game_id === TOR && !r.overturned_at)
+    check(!hits.some((r) => r.player_id === NYL) && nylRow(s).x_post_id === 'TEST9001', 'ledger/grading: the overturned goal is not a standing row (readers filter overturned_at); the original id is still on the row')
+    check(pl.rec.posts.length === 1, 'no second CALLED IT for the overturned goal')
+  }
+
+  // 2. the score is left out when the read cannot be trusted (never invented)
+  {
+    const row = { name: 'William Nylander', player_id: NYL }
+    const bad = clone(offNylander.find((g) => g.id === TOR)); bad.home.score += 1   // the goals no longer add up to the score
+    check(correctionText(row, bad) === "Update: the goal was overturned on review. William Nylander's goal is off the board." && !/\d/.test(correctionEmbed(row, bad).description), 'an inconsistent read: the score sentence is omitted')
+    check(correctionText(row, null) === correctionText(row, bad), 'no read: the same, no score')
+  }
+
+  // 3. never posted anywhere -> nothing
+  {
+    const pl = mkPoster({ origX: { ok: false, status: 403, error: 'refused' }, origDiscord: false })
+    const { s, tOff } = await posted(pl)
+    check(nylRow(s).x_post_id === 'skipped' && nylRow(s).discord_sent === false, 'setup: X refused for good and the channel failed -> closed, nothing went out')
+    await run(s, offNylander, tOff, pl)
+    check(nylRow(s).overturned_at && pl.rec.replies.length === 0 && pl.rec.cards.length === 0 && !nylRow(s).correction_post_id, 'never posted anywhere -> no correction, no claim')
+    // a goal that was never alerted because it was not CALLED (Tavares, ON THE BOARD) -> nothing
+    const pl2 = mkPoster()
+    const { s: s2, tOff: t2 } = await posted(pl2)
+    const offTav = dayFrom(RAW, (p) => { const g = gameOf(p, TOR); g.goals = g.goals.filter((x) => x.playerId !== 8475166); g.homeTeam.score -= 1 })
+    await run(s2, offTav, t2, pl2)
+    check(torRows(s2).find((r) => r.player_id === 8475166).overturned_at && pl2.rec.replies.length === 0 && pl2.rec.cards.length === 0, 'an overturned goal that was never alerted (not CALLED) -> nothing')
+    // overturned BEFORE the post is due: the CALLED IT never goes out, and no correction is owed
+    const pl3 = mkPoster(); const s3 = memoryStore()
+    await run(s3, full, T0, pl3); await run(s3, offNylander, T0 + CONFIRM_MS + 5e3, pl3); await run(s3, offNylander, T0 + CONFIRM_MS + POST_AFTER_MS + 10e3, pl3)
+    check(pl3.rec.posts.length === 0 && pl3.rec.replies.length === 0 && pl3.rec.cards.length === 0, 'overturned before the CALLED IT went out -> neither a post nor a correction')
+  }
+
+  // 4. Discord-only (X is off or refused after the channel copy) -> the channel correction alone
+  {
+    const pl = mkPoster({ origX: { ok: true, id: 'skipped' }, origDiscord: true })
+    const { s, tOff } = await posted(pl)
+    check(nylRow(s).x_post_id === 'skipped' && nylRow(s).discord_sent === true, 'setup: only the channel copy went out')
+    await run(s, offNylander, tOff, pl)
+    check(pl.rec.cards.length === 1 && pl.rec.replies.length === 0 && pl.rec.xCalls === 0, 'Discord-only original -> Discord correction only, no X call')
+    check(nylRow(s).correction_post_id === 'skipped' && nylRow(s).correction_discord_at, 'closed after the channel card')
+    await run(s, offNylander, tOff + 60e3, pl)
+    check(pl.rec.cards.length === 1, 'and not sent again')
+  }
+
+  // 5. breaker open (no request made): no X call, the Discord correction is not lost, the reply goes after the block lapses
+  {
+    let blocked = true
+    const pl = mkPoster({ corrX: () => (blocked ? { ok: false, blocked: true, status: 402, error: 'X paused' } : { ok: true, id: 'TESTLATE' }) })
+    const { s, tOff } = await posted(pl)
+    await run(s, offNylander, tOff, pl)
+    check(pl.rec.cards.length === 1 && pl.rec.replies.length === 0 && nylRow(s).correction_post_id === null, 'breaker open: the channel card went, the X claim is released and waits')
+    await run(s, offNylander, tOff + 60e3, pl); await run(s, offNylander, tOff + 120e3, pl)
+    check(pl.rec.cards.length === 1, 'breaker open for several ticks: the channel card is not re-sent')
+    blocked = false
+    await run(s, offNylander, tOff + 10 * 60e3, pl)
+    check(pl.rec.replies.length === 1 && pl.rec.replies[0].replyTo === 'TEST9001' && pl.rec.cards.length === 1 && nylRow(s).correction_post_id === 'TESTLATE', 'block lapsed within 45 min: ONE reply, the card still sent once')
+  }
+
+  // 6. refusal classes: account-level and content close it; transient retries 3 times then closes
+  {
+    for (const [name, x, expectCalls] of [['402 credits', { ok: false, status: 402, error: 'credits', title: 'CreditsDepleted' }, 1], ['duplicate content', { ok: false, status: 403, error: 'You are not allowed to create a Tweet with duplicate content.' }, 1], ['503', { ok: false, status: 503, error: 'down' }, 3]]) {
+      const pl = mkPoster({ corrX: x })
+      const { s, tOff } = await posted(pl)
+      for (let i = 0; i < 8; i += 1) await run(s, offNylander, tOff + i * 60e3, pl)
+      check(pl.rec.xCalls === expectCalls && nylRow(s).correction_post_id === 'skipped' && pl.rec.cards.length === 1, `${name}: ${expectCalls} X attempt(s), then closed; the channel card still went once (calls ${pl.rec.xCalls})`)
+    }
+  }
+
+  // 7. late: more than 45 minutes after the overturn -> nothing (a top-up never dumps old corrections)
+  {
+    const pl = mkPoster()
+    const { s, tOff } = await posted(pl)
+    await run(s, offNylander, tOff, null)    // overturned while posting was unavailable
+    check(nylRow(s).overturned_at && pl.rec.replies.length === 0, 'setup: overturned while posting was unavailable')
+    await run(s, offNylander, tOff + 46 * 60e3, pl)
+    check(pl.rec.replies.length === 0 && pl.rec.cards.length === 0, 'back after 46 min: no correction')
+    const s2 = (await posted(mkPoster())).s
+    const pl2 = mkPoster(); await run(s2, offNylander, T0 + CONFIRM_MS + POST_AFTER_MS + 70e3, null)
+    await run(s2, offNylander, T0 + CONFIRM_MS + POST_AFTER_MS + 70e3 + 44 * 60e3, pl2)
+    check(pl2.rec.replies.length === 1 && pl2.rec.cards.length === 1, 'back after 44 min: the correction still goes')
+  }
+
+  // 8. the kill switch
+  {
+    const pl = mkPoster()
+    const { s, tOff } = await posted(pl)
+    process.env.CORRECTIONS_OFF = 'on'
+    await run(s, offNylander, tOff, pl)
+    delete process.env.CORRECTIONS_OFF
+    check(pl.rec.replies.length === 0 && pl.rec.cards.length === 0 && !nylRow(s).correction_post_id, 'CORRECTIONS_OFF=on: nothing sent, nothing claimed')
+    await run(s, offNylander, tOff + 60e3, pl)
+    check(pl.rec.replies.length === 1 && pl.rec.cards.length === 1, 'switched back on within 45 min: the correction goes')
+  }
+
+  // 9. a store without the correction columns (migration not run): the feed is never held up
+  {
+    const pl = mkPoster(); const { s, tOff } = await posted(pl)
+    s.claimCorrection = async () => { throw new Error('column correction_post_id does not exist') }
+    const r = await run(s, offNylander, tOff, pl)
+    check(r.overturned === 1 && pl.rec.replies.length === 0, 'columns missing -> the tick still completes, the overturn is recorded, no correction')
+  }
+  check(correctionOwed({ x_post_id: '123' }).x && correctionOwed({ x_post_id: '123' }).discord && !correctionOwed({ x_post_id: '123', discord_sent: false }).discord && !correctionOwed({ x_post_id: 'skipped' }).x && !correctionOwed({ x_post_id: 'skipped' }).discord && correctionOwed({ x_post_id: 'skipped', discord_sent: true }).discord, 'correctionOwed: a real tweet owes X; the channel owes when discord_sent (or unknown + a real tweet)')
 }
 
 console.log(failed ? `\n${failed} FAILED` : '\nall green')

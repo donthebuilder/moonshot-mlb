@@ -27,7 +27,8 @@ import { VERSIONS, versionsFor } from '../../../../../lib/nhl/versions'
 import { cronAuthorized, adminClient } from '../../../../../lib/supabase/admin'
 import { gameActive, tickGoals } from '../../../../../lib/nhl/goalFeed'
 import { hasX, postToDiscord, postToX, uploadImageToX, xProblem } from '../../../../../lib/dash/xPost'
-import { feedHooks } from '../../../../../lib/dash/discordChannels'
+import { postsPaused } from '../../../../../lib/dash/xPolicy'
+import { feedHooks, feedHooksFor } from '../../../../../lib/dash/discordChannels'
 import { goalCard } from '../../../../../lib/nhl/goalCard'
 import { alertFrontCard } from '../../../../../lib/cards/alertCard'
 import { kindOn } from '../../../../../lib/dash/longshotsPost'
@@ -62,7 +63,15 @@ function supabaseStore(db) {
     // The homer feed's claim: flip null to a sentinel before any network
     // call, so a tick racing this one for the same goal gets zero rows back.
     claimPost: async (row) => must('claim', await db.from('lamp_goal_feed').update({ x_post_id: 'posting' }).match(KEY(row)).is('x_post_id', null).is('overturned_at', null).select('goal_n')).length > 0,
-    finishPost: async (row, id) => must('finish', await db.from('lamp_goal_feed').update({ x_post_id: id }).match(KEY(row))),
+    finishPost: async (row, id, { discordSent } = {}) => {
+      must('finish', await db.from('lamp_goal_feed').update({ x_post_id: id }).match(KEY(row)))
+      // whether the channel copy went out: the correction needs it. Its own best-effort write, so a missing column never costs the post.
+      if (discordSent !== undefined) { const { error } = await db.from('lamp_goal_feed').update({ discord_sent: Boolean(discordSent) }).match(KEY(row)); if (error) console.error(`[lamp goals] discord_sent: ${error.message}`) }
+    },
+    // THE CORRECTION's claim (the same shape as claimPost): null -> 'posting' before any network call, only on an overturned row.
+    claimCorrection: async (row) => must('claim correction', await db.from('lamp_goal_feed').update({ correction_post_id: 'posting' }).match(KEY(row)).is('correction_post_id', null).not('overturned_at', 'is', null).select('goal_n')).length > 0,
+    finishCorrection: async (row, value) => must('finish correction', await db.from('lamp_goal_feed').update({ correction_post_id: value }).match(KEY(row))),
+    markCorrectionDiscord: async (row, at) => must('mark correction', await db.from('lamp_goal_feed').update({ correction_discord_at: at }).match(KEY(row))),
   }
 }
 
@@ -115,9 +124,22 @@ export async function GET(request) {
         if (discordHooks) discordSent = Boolean((await postToDiscord(text, { ...(png ? { png } : {}), sport: 'nhl', link: row.player_id ? playerHref('nhl', row.player_id) : null, ...(extra.embed ? { embed: extra.embed } : {}) }, discordHooks).catch((e) => { console.error(`[lamp goals] discord: ${e?.message || e}`); return null }))?.ok)
         // X off: the channel copy is the whole post. If Discord did not take it either, nothing went out, so
         // say so and let the tick retry (a few times) instead of closing the goal as sent.
-        if (!hasX()) return discordSent ? { ok: true, id: 'skipped' } : { ok: false, status: 0, error: 'X is off and the channel post failed', discordSent: false }
+        if (!hasX()) return discordSent ? { ok: true, id: 'skipped', discordSent: true } : { ok: false, status: 0, error: 'X is off and the channel post failed', discordSent: false }
         // discordSent rides back so the tick never re-sends the channel post when X refuses (10-09 bug)
         return { ...(await postToX(text, { kind: 'nhlgoal', ...(mediaId ? { mediaId } : {}) })), discordSent }
+      },
+      // THE CORRECTION: a goal posted earlier came off the board. Channel card (same routing as the original alert, never members or
+      // other channels), then ONE reply under the original tweet. No card, no link. X is not called while X_POSTS_PAUSE is on; the
+      // breaker lives inside postToX; CORRECTIONS_OFF is checked by the tick. The original post is never touched or deleted.
+      correct: async ({ row, text, embed, replyTo, wantX, wantDiscord }) => {
+        let discordSent = null
+        if (wantDiscord) {
+          const hooks = feedHooksFor('nhl', row.status)
+          discordSent = hooks ? Boolean((await postToDiscord(text, { sport: 'nhl', kind: 'nhlgoal', embed }, hooks).catch((e) => { console.error(`[lamp goals] discord correction: ${e?.message || e}`); return null }))?.ok) : false
+        }
+        let x = null
+        if (wantX && hasX() && replyTo) x = postsPaused() ? { ok: false, blocked: true, status: 0, error: 'X_POSTS_PAUSE is on' } : await postToX(text, { kind: 'nhlgoal', replyTo })
+        return { x, discordSent }
       },
     }
     else console.error(`[lamp goals] nhlgoal is on but neither X nor a Discord channel is configured: ${xProblem()}`)
