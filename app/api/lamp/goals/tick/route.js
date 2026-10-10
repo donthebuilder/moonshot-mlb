@@ -94,7 +94,7 @@ export async function GET(request) {
     // is never posted twice and never counted as an X post.
     const discordHooks = feedHooks('nhl')
     if (hasX() || discordHooks) poster = {
-      post: async (text, row) => {
+      post: async (text, row, extra = {}) => {
         let mediaId = null
         let png = null
         if (row) {
@@ -109,7 +109,7 @@ export async function GET(request) {
         // Best effort: a Discord problem never costs the X post or the claim.
         // a card linked to the scorer on LAMP, in LAMP's colour (2026-10-04)
         let discordSent = false
-        if (discordHooks) discordSent = Boolean((await postToDiscord(text, { ...(png ? { png } : {}), sport: 'nhl', link: row.player_id ? playerHref('nhl', row.player_id) : null }, discordHooks).catch((e) => { console.error(`[lamp goals] discord: ${e?.message || e}`); return null }))?.ok)
+        if (discordHooks) discordSent = Boolean((await postToDiscord(text, { ...(png ? { png } : {}), sport: 'nhl', link: row.player_id ? playerHref('nhl', row.player_id) : null, ...(extra.embed ? { embed: extra.embed } : {}) }, discordHooks).catch((e) => { console.error(`[lamp goals] discord: ${e?.message || e}`); return null }))?.ok)
         // X off: the channel copy is the whole post. If Discord did not take it either, nothing went out, so
         // say so and let the tick retry (a few times) instead of closing the goal as sent.
         if (!hasX()) return discordSent ? { ok: true, id: 'skipped' } : { ok: false, status: 0, error: 'X is off and the channel post failed', discordSent: false }

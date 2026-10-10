@@ -469,7 +469,7 @@ await t('LEAK CHECK: the members card goes to the members webhook ONLY (never a 
   assert.equal(calls.length, 1, 'exactly one network call')
   assert.equal(calls[0].url, U('9999'), 'to the members URL only')
   assert.ok(calls.every((c) => !/x\.com|twitter\.com/.test(c.url)), 'nothing to X')
-  assert.ok(calls[0].body.includes('Player p1') && calls[0].body.includes('TWO-MAN'), 'the whole card is what went')
+  assert.ok(calls[0].body.includes('Player p1') && calls[0].body.includes('Two-Man (0.5 unit)'), 'the whole card is what went')
   assert.equal(db.rows[0].kind, 'card_members_nhl'); assert.match(db.rows[0].kind, /_members_/, 'the kind the public read policy already hides')
   // no members webhook: nothing sent, nothing claimed
   setEnv({ X_API_KEY: 'k', X_API_SECRET: 's', X_ACCESS_TOKEN: 't', X_ACCESS_SECRET: 'a' })
