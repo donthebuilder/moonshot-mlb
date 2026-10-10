@@ -32,7 +32,7 @@ export const SIGNALS = [
   ['pitch', 'Pitch match', 'his damage pitch is what this arm throws most', (p) => Boolean(p?.pitch_type_match_flag)],
   ['spot', 'Weak spot', 'the arm bleeds to his lineup spot', (p) => Boolean(p?.weak_spot_flag)],
   ['mistake', 'Mistake pitch', 'the arm’s mistake pitch is one he punishes', (p) => Boolean(p?.pitcher_mistake_match)],
-  ['pace', 'Due + HR-prone arm', 'real expected-HR gap on a real sample, against an arm allowing homers right now', (p) => Boolean(p?.hr_pace_flag)],
+  ['pace', 'Gap + HR-prone arm', 'real expected-HR gap on a real sample, against an arm allowing homers right now', (p) => Boolean(p?.hr_pace_flag)],
   ['air', 'Air / park', 'wind helping, or a park at 1.05+ for homers', (p) => (n(p?.weather_wind_boost, 0) > 0.02) || (n(p?.park_hr_factor, 0) >= 1.05)],
   ['form', 'Recent homer', 'went deep in his last five', (p) => n(p?.last5_hr, 0) >= 1],
   ['power', 'Power tell', 'MOONSHOT’s own power-watch or high-confidence flag', (p) => Boolean(p?.power_watch_flag) || Boolean(p?.high_confidence_hr_flag)],

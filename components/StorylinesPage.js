@@ -25,7 +25,7 @@ const RARE = 0.6
 const TYPE_LABEL = {
   history: 'History', matchup: 'Matchup', funfact: 'Fun fact', milestone: 'Milestone', b2b: 'Back-to-back', duel: 'Duel',
   revenge: 'Revenge', rivalry: 'Rivalry', birthday: 'Birthday', giveaway: 'Giveaway', multi: '2+ Club', streak: 'Streak',
-  model: 'Model', due: 'Due', redzone: 'Red zone', hot: 'Hot stick', special: 'Special teams', rest: 'Back-to-back night',
+  model: 'Model', due: 'Chances vs TD', redzone: 'Red zone', hot: 'Hot stick', special: 'Special teams', rest: 'Back-to-back night',
   list_td: 'TD every game', list_100: '100-yard run', goal_streak: 'Goal streak', point_streak: 'Point streak', iron_man: 'Iron man',
 }
 const SHOW = 3

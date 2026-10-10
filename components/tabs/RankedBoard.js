@@ -61,7 +61,7 @@ const TITLES = {
   hit: ['Hits Board',        'Top base-hit picks'],
   tb:  ['Total Bases Board', 'Top contact / total-base picks'],
   longest: ['Longest Board', 'Ranked on longest-HR score — who hits it furthest, not most often'],
-  due: ['Due Board', 'Overdue for a homer: high due score, long gap since the last one'],
+  due: ['Long-Gap Board', 'Long gap since the last homer: a plain count, not a forecast'],
 }
 
 // The 39-day archive snapshot, fetched once per session and shared by every

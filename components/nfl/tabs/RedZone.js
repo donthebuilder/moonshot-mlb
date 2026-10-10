@@ -46,7 +46,7 @@ const buildColumns = (watchlist) => [
   { key: 'gl', group: 'Red zone', label: 'GL/G', w: 46, dp: 1, title: 'Goal-line touches per game: inside-10 targets, inside-5 carries' },
   { key: 'xtd', group: 'Scoring chances', label: 'xTD/G', w: 52, dp: 2, title: 'Expected touchdowns per game from field position' },
   { key: 'td', group: 'Scoring chances', label: 'TD/G', w: 46, dp: 2, title: 'Actual touchdowns per game' },
-  { key: 'tdoe', group: 'Scoring chances', label: 'DUE', w: 48, dp: 2, title: 'Expected minus actual TDs a game (xTD - TD) — positive means his chances have outrun his touchdowns' },
+  { key: 'tdoe', group: 'Scoring chances', label: 'GAP', w: 48, dp: 2, title: 'Expected minus actual TDs a game (xTD - TD): positive means his chances have outrun his touchdowns so far. A description of the gap, not a forecast.' },
   { key: 'score', group: 'The score', label: 'TD SCORE', w: 64, dp: 0, title: "This week's TD score (the Board's number)" },
 ]
 

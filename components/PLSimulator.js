@@ -132,14 +132,14 @@ export default function PLSimulator() {
   return (
     <div>
       <div style={{ fontSize: 12.5, fontWeight: 800, marginBottom: 2 }}>
-        🌙 P/L simulator <span style={{ fontSize: 10, color: C.text3, fontWeight: 600, fontFamily: NUM_FONT }}>· in moons</span>
+        🌙 What-if simulator <span style={{ fontSize: 10, color: C.text3, fontWeight: 600, fontFamily: NUM_FONT }}>· hypothetical, in moons</span>
       </div>
       <div style={{
         fontSize: 10, color: C.text2, lineHeight: 1.55, maxWidth: 700, marginBottom: 7,
         background: 'rgba(167,139,250,.07)', border: '1px solid rgba(167,139,250,.22)',
         borderRadius: 8, padding: '6px 10px',
       }}>
-        Tracked in units — <b style={{ color: C.purple }}>🌙 moons, 1 moon = 1 unit</b> — never dollars.
+        <b style={{ color: C.text }}>A hypothetical simulation, not a record of bets.</b> It replays {data.meta.days} graded days ({data.meta.from} to {data.meta.to}, not the whole season) at prices YOU type in. Units are <b style={{ color: C.purple }}>🌙 moons, 1 moon = 1 unit</b> — never dollars.
         This site doesn&apos;t do bankrolls. The prices you enter below are <i>yours</i> and exist only to
         turn a record into a break-even test; Moonshot publishes no lines and never has.
       </div>
@@ -147,7 +147,7 @@ export default function PLSimulator() {
           the stalest page on the site with nothing saying so. The window was
           always printed; being BEHIND was not. */}
       <FreshnessStamp
-        label="P/L archive"
+        label="What-if archive (hypothetical)"
         from={data.meta.from}
         to={data.meta.to}
         count={data.meta.days}

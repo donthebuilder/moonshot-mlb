@@ -208,7 +208,7 @@ export function NflBoardList({ players, market, weights, odds, phone, onPlayerCl
 //   High total       TD component implied_total >= 70th
 //   Scored last week a TD in his last game BEFORE this week (logs)
 //   TD in 2 straight a TD in each of his last two games before this week
-//   Due              red-zone role (f_rz_opp >= 75) and no TD in his last two
+//   No TD in last 2  red-zone role (f_rz_opp >= 75) and no TD in his last two
 //                    games before this week
 // BEFORE THIS WEEK (2026-09-28). The week file and the logs are rebuilt after
 // Sunday's games, so on a Monday games_since_last_td and the logs' last row
@@ -247,7 +247,7 @@ function angleDefsRaw({ matchup, logs, market, matchupTag, week = null }) {
     { key: 'total', label: 'High total', title: 'His team’s implied total in the top 30% of the week.', test: (p) => (tdc(p, 'implied_total') ?? -1) >= 70 },
     { key: 'last', label: 'Scored last week', title: 'A touchdown in his last game before this week.', test: (p) => tdRun(logs, p.player_id, week)?.last === true },
     { key: 'two', label: 'TD in 2 straight', title: 'A touchdown in each of his last two games before this week.', test: (p) => tdRun(logs, p.player_id, week)?.two === true },
-    { key: 'due', label: 'Due', title: 'A top-quarter red-zone role and no touchdown in his last two games before this week.', test: (p) => (tdc(p, 'f_rz_opp') ?? -1) >= 75 && tdRun(logs, p.player_id, week)?.dry2 === true },
+    { key: 'due', label: 'No TD in last 2', title: 'A top-quarter red-zone role and no touchdown in his last two games before this week. A plain fact about the last two games, not a forecast.', test: (p) => (tdc(p, 'f_rz_opp') ?? -1) >= 75 && tdRun(logs, p.player_id, week)?.dry2 === true },
   ]
 }
 
