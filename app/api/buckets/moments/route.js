@@ -1,5 +1,5 @@
 // 🏀 BUCKETS MOMENTS -- THE 30 PIECE (B5). Vercel cron, every minute through
-// NBA windows (vercel.json), LAMP's goal-feed shape (app/api/lamp/goals/tick):
+// NBA windows (parked in scripts/cron-restore-buckets.json while BUCKETS is hidden), LAMP's goal-feed shape (app/api/lamp/goals/tick):
 //   · CLOSED UNTIL BUCKETS OPENS: with BUCKETS_PUBLIC off this returns at once,
 //     no league call and no database read (posting would make BUCKETS public);
 //   · one scoreboard read per date (cached 30 s); a box read only for a game

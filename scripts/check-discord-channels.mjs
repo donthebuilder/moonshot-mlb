@@ -40,6 +40,13 @@ eq('recap also lands in #called-it', withReceipts(feedHooks('mlb')), 'HOMER,MLB,
 eq('dedupe', hookList('A,B', ['B', 'C'], 'C\nD'), ['A', 'B', 'C', 'D'])
 eq('same URL in two vars posts once', (() => { process.env.DISCORD_NFL_WEBHOOKS = 'MLB'; return feedHooks('nfl') })(), 'HOMER,MLB')
 
+// BUCKETS (2026-10-09): never the MLB list, and not the public homer feed while it is hidden
+eq('nba: no own channel -> nowhere (not MLB)', (() => { delete process.env.DISCORD_NBA_WEBHOOKS; delete process.env.BUCKETS_PUBLIC; return feedHooks('nba') })(), '')
+eq('nba: own channel only while hidden', (() => { process.env.DISCORD_NBA_WEBHOOKS = 'NBA'; return feedHooks('nba') })(), 'NBA')
+eq('nba: off-board moment stays off the homer feed while hidden', feedHooksFor('nba', 'off'), '')
+eq('nba: open -> homer feed + own channel', (() => { process.env.BUCKETS_PUBLIC = 'on'; return feedHooks('nba') })(), 'HOMER,NBA')
+delete process.env.BUCKETS_PUBLIC; delete process.env.DISCORD_NBA_WEBHOOKS
+
 // rooms (push mirror): football touchdowns are the feed's, not the room's
 process.env.DISCORD_NFL_WEBHOOKS = 'NFL'; process.env.DISCORD_LIVE_WEBHOOKS = 'MLB'
 process.env.DISCORD_ALERTS_WEBHOOKS = ''
