@@ -6,6 +6,7 @@ import CardShell from '../CardShell'
 // MOONSHOT's tab row + peer arrows (with its tonight's-game grouping), in the
 // sport theme CardShell provides. TUDDY keys players by gsis string.
 import { TabBtn, Navigator } from '../card/CardNav'
+import CardFlip from '../player/CardFlip'
 const nflIdOf = (x) => String(x?.player_id ?? '')
 import { C, NUM_FONT, MARKETS, gradeFor } from '../../lib/nfl/theme'
 import PropsGrid from './PropsGrid'
@@ -379,6 +380,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
             borderRadius: 7, minHeight: 44, minWidth: 44, cursor: 'pointer', fontSize: 18, lineHeight: 1,
           }}>{watchlist.isPinned(player.player_id) ? '★' : '☆'}</button>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          {Number.isFinite(s0) && player?.player_id != null && <CardFlip sport="nfl" id={String(player.player_id)} name={player.name} />}
           <button onClick={() => downloadNflPickCard(pickFromPlayer(player, market, spec))}
             title="Download his pick card as a picture, ready to post"
             aria-label="Download pick card as image"

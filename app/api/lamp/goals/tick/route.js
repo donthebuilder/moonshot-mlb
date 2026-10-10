@@ -29,6 +29,7 @@ import { gameActive, tickGoals } from '../../../../../lib/nhl/goalFeed'
 import { hasX, postToDiscord, postToX, uploadImageToX, xProblem } from '../../../../../lib/dash/xPost'
 import { feedHooks } from '../../../../../lib/dash/discordChannels'
 import { goalCard } from '../../../../../lib/nhl/goalCard'
+import { alertFrontCard } from '../../../../../lib/cards/alertCard'
 import { kindOn } from '../../../../../lib/dash/longshotsPost'
 import { isMaintenanceMode } from '../../../../../lib/edgeConfig'
 
@@ -99,8 +100,10 @@ export async function GET(request) {
         let png = null
         if (row) {
           try {
-            const img = await goalCard(row, { site: SITE_HOST })
-            const buf = Buffer.from(await img.arrayBuffer())
+            // the scorer's FRONT CARD when it draws (lib/cards/alertCard.js: null on any failure, a timeout, or a status that is not CALLED),
+            // else the goal's own card exactly as before: a post is never lost to the picture
+            let buf = await alertFrontCard({ sport: 'nhl', id: row.player_id, db })
+            if (!buf) { const img = await goalCard(row, { site: SITE_HOST }); buf = Buffer.from(await img.arrayBuffer()) }
             if (buf.length) { png = buf; mediaId = hasX() ? await uploadImageToX(buf) : null }
           } catch (e) { console.error(`[lamp goals] card failed for ${row.name}: ${e?.message || e}`) }
         }

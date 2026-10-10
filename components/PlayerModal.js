@@ -54,6 +54,7 @@ import ColdCase from './ColdCase'
 import PlayerRead from './PlayerRead'
 import HomerShape from './HomerShape'
 import { downloadPlayerCard } from './shareCard'
+import CardFlip from './player/CardFlip'
 import BvP from './BvP'
 import FirstPitchSplit from './FirstPitchSplit'
 import { venueRecord } from '../lib/venueHr'
@@ -626,6 +627,7 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
               {/* 🎴 his card as a PNG — the single-player twin of the
                   watchlist share card (2026-08-15). Bot fields only, so an
                   API-only player has no card to print. */}
+              {!apiOnly && p?.player_id != null && <CardFlip sport="mlb" id={String(p.player_id)} name={nameOf(p)} />}
               {!apiOnly && (
                 <button onClick={() => downloadPlayerCard(p, { jersey })}
                   title="Download his card as a PNG for posting — MOONSHOT's call, his scores, the bat vs the arm, and his homer signature"
