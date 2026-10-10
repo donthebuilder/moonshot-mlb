@@ -14,9 +14,11 @@ for (const k of ['X_LINKS_EMERGENCY', 'X_LINK_KINDS', 'X_POST_LINK', 'X_POSTS_PA
 
 const tweets = [], discords = []
 let xFail = []
+let discordFail = []
 globalThis.fetch = async (url, opts = {}) => {
   if (String(url).includes('api.x.com/2/tweets') && xFail.length) return { ok: false, status: xFail.shift(), json: async () => ({ title: 'test failure' }), headers: { get: () => null } }
   if (String(url).includes('api.x.com/2/tweets')) { tweets.push(JSON.parse(opts.body)); return { ok: true, status: 200, json: async () => ({ data: { id: String(8000 + tweets.length) } }), headers: { get: () => null } } }
+  if (String(url).startsWith('https://discord.test/') && discordFail.length) { const st = discordFail.shift(); return { ok: false, status: st, statusText: 'test failure', json: async () => ({}), headers: { get: () => null } } }
   if (String(url).startsWith('https://discord.test/')) { discords.push({ url: String(url), body: JSON.parse(opts.body) }); return { ok: true, status: 204, json: async () => ({}), headers: { get: () => null } } }
   return { ok: false, status: 404, json: async () => ({}), headers: { get: () => null } }
 }
@@ -34,7 +36,7 @@ const BUD = await import('../lib/dash/xBudget.js')
 
 let n = 0
 const ok = async (name, fn) => { await fn(); n++; console.log(`ok  ${name}`) }
-const reset = () => { PC._resetTakenForTests(); xFail = []; tweets.length = 0; discords.length = 0; L._resetLogForTests(); G._resetRecentCache(); G._resetPostedCache(); RC._resetReceiptForTests(); RC._resetPeriodForTests() }
+const reset = () => { PC._resetTakenForTests(); xFail = []; discordFail = []; tweets.length = 0; discords.length = 0; L._resetLogForTests(); G._resetRecentCache(); G._resetPostedCache(); RC._resetReceiptForTests(); RC._resetPeriodForTests() }
 
 // ── a tiny in-memory Supabase: just the calls the gate and the receipt make ──
 function fakeDb(tables = {}) {
@@ -292,6 +294,77 @@ await ok('no cash = no post: a night where no one was named has no receipt at al
   const db = fakeDb({ homer_feed_posts: [nflDry()] })
   assert.match(await RC.postReceiptOnce(db, { day: DAY, load: async () => { throw new Error('must not load') }, hooks: '', now: T0 }), /^none/)
   assert.equal(db.tables.homer_feed_posts.length, 1)
+})
+
+// ═══ 5b. #called-it: A NIGHT WITH CALLS BUT NO CASH ═════════════════════════
+const missNight = () => mixed({ homered: [], nhl: { h2: { graded_at: 'x', dressed: true, hit: false } } })
+const twoCalls = () => [callRow(), nhlWriteup()]
+const CALLED_IT = 'https://discord.test/called-it'
+const pastSettle = T0 + RC.SETTLE_MS + 1
+await ok('called-it: 2 called / 0 landed -> a Discord-only receipt with both misses, to #called-it only, not X, not the feed, once', async () => {
+  reset()
+  const a = RC.assembleReceipt({ day: DAY, rows: twoCalls(), ...missNight(), now: T0 })
+  assert.equal(a.state, 'none'); assert.equal(a.reason, 'no cash')
+  assert.match(a.discordText, /^\u{1F9FE} THE RECEIPT · /u)
+  assert.match(a.discordText, /CALLED · 0 of 2 cashed/)
+  assert.match(a.discordText, /Test Hitter Two · home run · missed/); assert.match(a.discordText, /Test Skater Two · .* · missed/)
+  assert.ok(!BANNED.test(a.discordText), a.discordText); assert.ok(!/winner|\bwon\b/i.test(a.discordText))
+  const db = fakeDb({ homer_feed_posts: twoCalls() })
+  const hooks = `https://discord.test/feed,${CALLED_IT}`
+  assert.equal(await RC.postReceiptOnce(db, { day: DAY, load: load(missNight()), hooks, receiptsHook: CALLED_IT, now: T0 }), 'settling')
+  assert.equal(await RC.postReceiptOnce(db, { day: DAY, load: load(missNight()), hooks, receiptsHook: CALLED_IT, now: pastSettle }), 'dropped: no cash (discord only)')
+  assert.equal(tweets.length, 0)
+  assert.equal(discords.length, 1); assert.equal(discords[0].url, CALLED_IT); assert.equal(discords[0].body.content, a.discordText)
+  const row = db.tables.homer_feed_posts.find((r) => r.kind === 'receipt')
+  assert.equal(row.x_post_id, 'skipped'); assert.equal(row.discord_sent, true); assert.equal(row.payload.counts.missed, 2)
+  assert.ok(L.recentLog().some((e) => e.kind === 'receipt' && e.state === 'DROPPED' && e.reason === 'no cash'))
+  assert.equal(await RC.postReceiptOnce(db, { day: DAY, load: async () => { throw new Error('must not load') }, hooks, receiptsHook: CALLED_IT, now: pastSettle + 3600e3 }), 'already-posted')
+  RC._resetReceiptForTests(); PC._resetTakenForTests()
+  assert.equal(await RC.postReceiptOnce(db, { day: DAY, load: load(missNight()), hooks, receiptsHook: CALLED_IT, now: pastSettle + 7200e3 }), 'already-posted')
+  assert.equal(discords.length, 1)
+})
+await ok('called-it: a night with no calls posts nothing anywhere; a night of only did-not-play posts nothing', async () => {
+  reset()
+  const db = fakeDb({ homer_feed_posts: [nflDry()] })
+  assert.match(await RC.postReceiptOnce(db, { day: DAY, load: async () => { throw new Error('must not load') }, hooks: CALLED_IT, receiptsHook: CALLED_IT, now: T0 }), /^none/)
+  assert.equal(discords.length, 0); assert.equal(tweets.length, 0)
+  const onlyVoid = RC.assembleReceipt({ day: DAY, rows: [nhlWriteup()], ...mixed(), now: T0 })
+  assert.equal(onlyVoid.state, 'none'); assert.equal(onlyVoid.discordText, undefined)
+})
+await ok('called-it: webhook unset -> nothing sent (old no-cash behaviour: skipped row, no Discord, no fallback to the feed)', async () => {
+  reset()
+  const db = fakeDb({ homer_feed_posts: twoCalls() })
+  const hooks = 'https://discord.test/feed'
+  await RC.postReceiptOnce(db, { day: DAY, load: load(missNight()), hooks, receiptsHook: '', now: T0 })
+  assert.equal(await RC.postReceiptOnce(db, { day: DAY, load: load(missNight()), hooks, receiptsHook: '', now: pastSettle }), 'dropped: no cash')
+  assert.equal(discords.length, 0); assert.equal(tweets.length, 0)
+  assert.equal(db.tables.homer_feed_posts.find((r) => r.kind === 'receipt').x_post_id, 'skipped')
+})
+await ok('called-it: a transient Discord failure releases the claim, the next tick retries, and it lands once', async () => {
+  reset(); discordFail = [503]
+  const db = fakeDb({ homer_feed_posts: twoCalls() })
+  await RC.postReceiptOnce(db, { day: DAY, load: load(missNight()), hooks: CALLED_IT, receiptsHook: CALLED_IT, now: T0 })
+  assert.match(await RC.postReceiptOnce(db, { day: DAY, load: load(missNight()), hooks: CALLED_IT, receiptsHook: CALLED_IT, now: pastSettle }), /^retry: discord 503/)
+  assert.ok(!db.tables.homer_feed_posts.some((r) => r.kind === 'receipt')); assert.equal(discords.length, 0)
+  assert.equal(await RC.postReceiptOnce(db, { day: DAY, load: load(missNight()), hooks: CALLED_IT, receiptsHook: CALLED_IT, now: pastSettle + 6 * 60e3 }), 'dropped: no cash (discord only)')
+  assert.equal(discords.length, 1)
+  assert.equal(await RC.postReceiptOnce(db, { day: DAY, load: load(missNight()), hooks: CALLED_IT, receiptsHook: CALLED_IT, now: pastSettle + 12 * 60e3 }), 'already-posted')
+  assert.equal(discords.length, 1); assert.equal(tweets.length, 0)
+})
+await ok('called-it: a cash night is unchanged -- X plus the feed hooks, #called-it receives exactly ONE copy (the hook list is deduped)', async () => {
+  reset()
+  const db = fakeDb({ homer_feed_posts: posts() })
+  const hooks = `https://discord.test/feed,${CALLED_IT}`
+  await RC.postReceiptOnce(db, { day: DAY, load: load(mixed()), hooks, receiptsHook: CALLED_IT, now: T0 })
+  assert.equal(await RC.postReceiptOnce(db, { day: DAY, load: load(mixed()), hooks, receiptsHook: CALLED_IT, now: pastSettle }), 'posted')
+  assert.equal(tweets.length, 1)
+  assert.equal(discords.filter((d) => d.url === CALLED_IT).length, 1); assert.equal(discords.length, 2)
+  assert.equal(await RC.postReceiptOnce(db, { day: DAY, load: load(mixed()), hooks, receiptsHook: CALLED_IT, now: pastSettle + 1e7 }), 'already-posted')
+  assert.equal(discords.length, 2)
+})
+await ok('called-it: the tick passes #called-it alone as receiptsHook', () => {
+  const route = fs.readFileSync('app/api/dash/homers/tick/route.js', 'utf8')
+  assert.match(route, /receiptsHook: receiptsHooks\(\)/)
 })
 
 // ═══ 6. WHEN: ALL GAMES FINAL ═══════════════════════════════════════════════
