@@ -31,10 +31,17 @@ globalThis.fetch = async (url, init = {}) => {
 }
 const bodyOf = (c) => (typeof c.body === 'string' ? JSON.parse(c.body) : JSON.parse(c.body.get('payload_json')))
 
-const { LIMITS, buildCard, clampText, clampLines, fitEmbed, embedSize, embedHasLink, accentOf, footerOf, colorInt, noLinks } = await import('../lib/dash/discordCard.js')
+const { siteBase, embedUrls, playerUrl, ledgerLink, LIMITS, buildCard, clampText, clampLines, fitEmbed, embedSize, embedHasLink, accentOf, footerOf, colorInt, noLinks } = await import('../lib/dash/discordCard.js')
 const { STATUS_WORD } = await import('../lib/callStatus.js')
 const { SPORT_ACCENT } = await import('../lib/sportAccent.js')
-const { BRAND } = await import('../lib/routes.js')
+const { BRAND, playerHref, appHref } = await import('../lib/routes.js')
+process.env.NEXT_PUBLIC_SITE_URL = 'https://site.test'
+// the ONLY two link slots a Discord card has: the title url and ONE ledger markdown line, both on the site host
+const slotsOk = (e, { title = false, ledger = false } = {}) => {
+  const urls = embedUrls(e)
+  const md = [e.title, e.description, e.footer?.text, ...(e.fields || []).flatMap((f) => [f.name, f.value])].join('\n').match(/\[[^\]]+\]\(https?:\/\/[^)]+\)/g) || []
+  return urls.every((u) => u.startsWith(`${siteBase()}/`)) && (e.url ? title : true) && md.length === (ledger ? 1 : 0) && urls.length === (e.url ? 1 : 0) + md.length
+}
 
 // ── A. limits and the clamp ─────────────────────────────────────────────────
 const long = (n, w = 'wordy') => Array.from({ length: n }, () => w).join(' ')
@@ -96,7 +103,7 @@ const goalRow = { game_id: 1, player_id: 11, goal_n: 1, day: '2099-01-01', perio
 const g = goalFeed.goalEmbed(goalRow, [goalRow], { multiLine: 'His 2nd multi-goal game this season.' })
 check('E1 NHL goal: title, CALLED lead, goal-scorer market', g.title.startsWith('\u{1F6A8} TEST SKATER SCORES') && g.title.includes('TST vs EXA') && g.description === `${STATUS_WORD.called} · goal scorer`, g.title)
 check('E2 NHL goal: sections THE CALL / THE GOAL / THE RECORD', JSON.stringify(sec(g)) === JSON.stringify(['THE CALL', 'THE GOAL', 'THE RECORD']), sec(g).join())
-check('E3 NHL goal: assists, score, LAMP score present; footer LAMP; no link', g.fields[1].value.includes('Assists: Test Helper') && g.fields[1].value.includes('TST 2') && g.fields[0].value.includes('LAMP score 61') && g.footer.text === 'LAMP · DASH Network' && !embedHasLink(g))
+check('E3 NHL goal: assists, score, LAMP score present; footer LAMP; no link', g.fields[1].value.includes('Assists: Test Helper') && g.fields[1].value.includes('TST 2') && g.fields[0].value.includes('LAMP score 61') && g.footer.text === 'LAMP · DASH Network' && slotsOk(g, { title: true }))
 check('E3b NHL goal: timestamp is the confirmation time', g.timestamp === '2099-01-01T01:00:00.000Z')
 check('E3c NHL goal: the X text is unchanged (still CALLED IT, no embed words)', goalFeed.postText(goalRow, [goalRow]).startsWith('\u{1F916} CALLED IT') && !/THE CALL/.test(goalFeed.postText(goalRow, [goalRow])))
 
@@ -128,7 +135,7 @@ const prices = new Map([['1', { best: 250, median: 230, books: 4 }]])
 const mc = ct.membersCardEmbed({ sport: 'nhl', day: '2099-01-01', rows, prices })
 check('E10 members Card: STRAIGHT 1..3, TWO-MAN, THE RULE', JSON.stringify(sec(mc)) === JSON.stringify(['STRAIGHT 1', 'STRAIGHT 2', 'STRAIGHT 3', 'TWO-MAN', 'THE RULE']), sec(mc).join())
 check('E11 members Card: status words from STATUS_WORD, stake, stored price, why, LAMP footer', mc.fields[0].value.includes(STATUS_WORD.called) && mc.fields[1].value.includes(STATUS_WORD.board) && mc.fields[0].value.includes('1 unit') && mc.fields[0].value.includes('+250 best') && mc.fields[0].value.includes('TEST why Test One') && mc.footer.text === 'LAMP · DASH Network')
-check('E12 members Card: no link, no "winners", no printed probability', !embedHasLink(mc) && !/winners?\b/i.test(JSON.stringify(mc)) && !/\d\s*%/.test(JSON.stringify(mc)))
+check('E12 members Card: no link, no "winners", no printed probability', slotsOk(mc, { ledger: true }) && !/winners?\b/i.test(JSON.stringify(mc)) && !/\d\s*%/.test(JSON.stringify(mc)))
 const graded = rows.map((r, i) => ({ ...r, result: i === 1 ? 'miss' : 'hit' }))
 const re = ct.resultEmbed({ sport: 'nhl', day: '2099-01-01', rows: graded })
 check('E13 result Card: THE STRAIGHTS / THE TWO-MAN / THE RECORD, hits and misses alike', JSON.stringify(sec(re)) === JSON.stringify(['THE STRAIGHTS', 'THE TWO-MAN', 'THE RECORD']) && re.fields[0].value.includes('✓ Test One') && re.fields[0].value.includes('✗ Test Two'), sec(re).join())
@@ -144,7 +151,7 @@ const gr = [
 ]
 const rcpt = rc.receiptEmbed({ day: '2099-01-01', graded: gr })
 check('E16 receipt: a section per product + THE RECORD, CALLED lead', JSON.stringify(sec(rcpt)) === JSON.stringify(['MOONSHOT · MLB', 'TUDDY · NFL', 'LAMP · NHL', 'THE RECORD']) && rcpt.description === `${STATUS_WORD.called} · 2 of 3 cashed · 1 did not play`, `${sec(rcpt).join()} | ${rcpt.description}`)
-check('E17 receipt: the miss and the void stay in view; ledger pointer is words, no link', rcpt.fields[2].value.includes('missed') && rcpt.fields[2].value.includes('void') && !embedHasLink(rcpt) && rcpt.footer.text === 'DASH Network')
+check('E17 receipt: the miss and the void stay in view; ledger pointer is words, no link', rcpt.fields[2].value.includes('missed') && rcpt.fields[2].value.includes('void') && slotsOk(rcpt, { ledger: true }) && rcpt.footer.text === 'DASH Network')
 const per = rc.periodEmbed({ kind: rc.WEEKLY, from: '2099-01-05', to: '2099-01-11', totals: { total: { cashed: 3, missed: 2, void: 0 }, bySport: { mlb: { cashed: 3, missed: 2, void: 0 } }, nights: 4 } })
 check('E18 weekly receipt: title WEEK OF, MOONSHOT section', per.title.includes('WEEK OF JAN 5') && sec(per).includes('MOONSHOT · MLB'))
 check('E19 a period with no cash = no card', rc.periodEmbed({ kind: rc.WEEKLY, from: '2099-01-05', to: '2099-01-11', totals: { total: { cashed: 0, missed: 2, void: 0 }, bySport: {}, nights: 1 } }) === null)
@@ -177,6 +184,32 @@ calls.length = 0
 await postToDiscord('plain', { embed: huge }, U('2006'))
 const e6 = bodyOf(calls[0]).embeds[0]
 check('F6 an over-limit embed handed to postToDiscord is fitted before it is sent', embedSize(e6) <= LIMITS.total && e6.fields.length <= 25 && [...e6.title].length <= 256)
+
+// ── H. the two Discord link slots (title url + one ledger line), site host only ──
+check('H1 NHL goal title links to the scorer on LAMP (playerHref on the site host)', g.url === `https://site.test${playerHref('nhl', 11)}`, g.url)
+check('H2 NFL TD and MLB homer titles link to their player pages', t.url === `https://site.test${playerHref('nfl', '00-TEST')}` && !h.url, `${t.url} | ${h.url}`)
+const hl = hf.homerEmbed({ ...hev, player_id: 571970 }, {})
+check('H3 MLB homer with an id links to MOONSHOT player page', hl.url === `https://site.test${playerHref('mlb', 571970)}`)
+check('H4 no id = no link (never invented)', playerUrl('nhl', null) === undefined && playerUrl('nhl', '') === undefined && !goalFeed.goalEmbed({ ...goalRow, player_id: null }, [goalRow]).url)
+check('H5 a third-party or relative title url is refused', !buildCard({ sport: 'nhl', title: 'T', url: 'https://evil.example/x' }).url && !buildCard({ sport: 'nhl', title: 'T', url: '/x' }).url)
+const lines = (e) => e.fields.map((f) => f.value).join('\n')
+const ledgerFor = (sp) => `[${ledgerLink(sp).text}](https://site.test${appHref(sp, 'ledger')})`
+check('H6 members Card: exactly one ledger line, a markdown link to that sport\'s Ledger tab, on the site host', lines(mc).split(ledgerFor('nhl')).length === 2 && slotsOk(mc, { ledger: true }) && !mc.url)
+check('H7 free result Card: one ledger line to its sport', lines(re).split(ledgerFor('nhl')).length === 2 && slotsOk(re, { ledger: true }))
+check('H8 receipts (night and weekly): one ledger line each, site host only', lines(rcpt).split(ledgerFor('mlb')).length === 2 && lines(per).split(ledgerFor('mlb')).length === 2 && slotsOk(rcpt, { ledger: true }) && slotsOk(per, { ledger: true }))
+check('H9 the ledger URL differs per sport and comes from the registry', ledgerLink('nfl').url === `https://site.test${appHref('nfl', 'ledger')}` && ledgerLink('nfl').url !== ledgerLink('nhl').url)
+const mcN = ct.membersCardEmbed({ sport: 'nfl', day: '2099-01-01', rows, prices })
+check('H10 an NFL members card links to the NFL ledger', lines(mcN).includes(ledgerFor('nfl')))
+check('H11 free-channel cards (alerts, result, receipts, periods) carry no members-only deep link', [g, t, h, re, rcpt, per].every((e) => !/members/i.test(embedUrls(e).join(' '))))
+check('H12 a link typed into a section, description or title is still stripped', slotsOk(buildCard({ sport: 'mlb', title: 'a https://x.example', description: '[b](https://y.example)', sections: [{ name: 'n', lines: ['https://z.example'] }] })))
+// X keeps no links: the X text of every kind is link-free
+const xTexts = [goalFeed.postText(goalRow, [goalRow]), td.tdPostText(ev, {}), hf.postText(hev, {}), ct.xCardText({ sport: 'nhl', day: '2099-01-01', straight: rows[0].legs[0], donovan: null }).text, ct.resultText({ sport: 'nhl', day: '2099-01-01', rows: graded }).text, rc.renderReceipt({ day: '2099-01-01', graded: gr }).text, rc.renderPeriod({ kind: rc.WEEKLY, from: '2099-01-05', to: '2099-01-11', totals: { total: { cashed: 3, missed: 2, void: 0 }, bySport: { mlb: { cashed: 3, missed: 2, void: 0 } }, nights: 4 } })]
+check('H13 NO X text carries a link (all 7 kinds)', xTexts.every((x) => x && !/https?:\/\/|\]\(|dashnetwork\.vercel/i.test(x)), String(xTexts.findIndex((x) => !x || /https?:\/\//.test(x))))
+// the link slots are Discord-only: postToX never sees an embed, and stripLinks still guards X
+const { stripLinks } = await import('../lib/dash/xPolicy.js')
+check('H14 X still strips any link a text carries', !/https?:\/\//.test(stripLinks('see https://site.test/x now')))
+const xp = readFileSync(new URL('../lib/dash/xPost.js', import.meta.url), 'utf8')
+check('H15 postToX takes no embed option', !/export async function postToX\([^)]*embed/.test(xp))
 
 // ── G. leak tests ───────────────────────────────────────────────────────────
 const { postMembers, membersWebhook } = await import('../lib/dash/membersPost.js')
