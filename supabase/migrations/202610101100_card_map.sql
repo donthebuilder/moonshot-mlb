@@ -159,8 +159,9 @@ begin
       execute 'alter table public.homer_feed_posts drop constraint homer_feed_posts_kind_check';
       execute 'alter table public.homer_feed_posts add constraint homer_feed_posts_kind_check check (('
         || regexp_replace(d, '^CHECK ', '')
-        || ') or kind = ' || quote_literal(k) || ')';
+        || ') or kind = ' || quote_literal(k) || ') not valid';   -- NOT VALID: new rows are checked, old rows are not re-scanned (a stray old row made the full re-check fail with 23514 on 2026-10-10)
       select pg_get_constraintdef(oid) into d from pg_constraint where conname = 'homer_feed_posts_kind_check';
+      d := regexp_replace(d, ' NOT VALID$', '');
     end if;
   end loop;
 end $$;
