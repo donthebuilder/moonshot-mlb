@@ -395,7 +395,7 @@ await ok('policy: with 18 counted posts today the receipt waits; with 17 it goes
   reset()
   const now = Date.now()
   const counted = (k) => Array.from({ length: k }, (_, i) => ({ day: DAY, kind: 'list_mlb', x_post_id: String(100 + i), seen_at: new Date(now - 60e3).toISOString(), payload: {} }))
-  const day = SCH.phxDayWindow(now).day
+  const day = (await import('../lib/data.js')).easternDate(now)   // the cap counts the ET day a post was made in
   for (const [k, want] of [[17, 'go'], [18, 'capped']]) {
     reset()
     const db = fakeDb({ homer_feed_posts: counted(k).map((r) => ({ ...r, day })) , fact_posts: [] })

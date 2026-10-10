@@ -154,8 +154,6 @@
       "schedule": "*/10 15-23,0-6 * * *"
     },
     { "path": "/api/dash/polls/tick", "schedule": "*/10 13-23,0-5 * * *" },
-    { "path": "/api/totals/tick", "schedule": "*/10 13-23,0-9 * * *" },
-    { "path": "/api/buckets/moments", "schedule": "* 16-23 * * *" },
-    { "path": "/api/buckets/moments", "schedule": "* 0-6 * * *" }
+    { "path": "/api/totals/tick", "schedule": "*/10 13-23,0-9 * * *" }
   ]
 }
