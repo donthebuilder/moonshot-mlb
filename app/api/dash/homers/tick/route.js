@@ -57,7 +57,7 @@ import { mlbWatch, historyWatchText, reachedLine } from '../../../../../lib/hist
 import { fetchLiveSlate, liveSlateStatus } from '../../../../../lib/liveSlate'
 import { fetchBoardFull, fetchRunMeta } from '../../../../../lib/dash/board'
 import { dataUrl, oddsPaths, pairSummaryPaths } from '../../../../../lib/dataSource'
-import { primaryRole, boardIndexFrom, moonshotBoardRanking, moonshotBoardText, boardRolePicks, boardRoleText, homersFrom, hooksFor, longshotPick, longshotText, numerologyMoment, numerologyText, pairsToWatch, pairsToWatchText, partnerFor, postText, pregameCalled, pregamePicks, topStreakFrom } from '../../../../../lib/dash/homerFeed'
+import { primaryRole, boardIndexFrom, moonshotBoardRanking, moonshotBoardText, boardRolePicks, boardRoleText, homersFrom, hooksFor, longshotPick, longshotText, numerologyMoment, numerologyText, pairsToWatch, pairsToWatchText, partnerFor, postText, homerEmbed, pregameCalled, pregamePicks, topStreakFrom } from '../../../../../lib/dash/homerFeed'
 import { homerCard, mlbhrCard, hotStretchCard, longshotCard, numerologyCard, pairsCard, statCard } from '../../../../../lib/dash/homerCard'
 import {
   backToBackPicks, backToBackText, bestAirPicks, bestAirText, 
@@ -2150,7 +2150,7 @@ export async function GET(request) {
 
     if (DISCORD_ON && !row.discord_sent) {
       // a card linked to him on MOONSHOT, in MOONSHOT's colour (2026-10-04)
-      const r = await postToDiscord(text, { imageUrl: cardUrl(row), sport: 'mlb', link: row.player_id ? playerHref('mlb', row.player_id) : null })
+      const r = await postToDiscord(text, { imageUrl: cardUrl(row), sport: 'mlb', link: row.player_id ? playerHref('mlb', row.player_id) : null, embed: homerEmbed(ev, { extra: [calledAtLine(row), reached, multi].filter(Boolean), at: row.created_at || row.first_seen_at }) })
       if (r.ok) {
         patch.discord_sent = true; totals.discord += 1
         // WRITTEN NOW, not at the end of this row (2026-10-10 bug hunt): a tick killed by the time limit, or one

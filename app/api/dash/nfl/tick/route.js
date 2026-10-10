@@ -74,7 +74,7 @@ import {
 } from '../../../../../lib/nfl/tweetFeed'
 import { fetchNflLive } from '../../../../../lib/nfl/liveSlate'
 import { nflReachedLine } from '../../../../../lib/history/nfl'
-import { buildTdEvent, eventFromRow, rowFromEvent, tdPostText, touchdownsInSnap } from '../../../../../lib/nfl/tdFeed'
+import { buildTdEvent, eventFromRow, rowFromEvent, tdEmbed, tdPostText, touchdownsInSnap } from '../../../../../lib/nfl/tdFeed'
 import { tdCard } from '../../../../../lib/nfl/tdCard'
 import { threadsSnapshot } from '../../../../../lib/dash/threadsPost'
 import { tailFor as linkTailFor, postPath } from '../../../../../lib/dash/postLink'
@@ -398,7 +398,7 @@ async function runTouchdownTick(db, day) {
         // ON THE BOARD); the bare homer feed still gets every touchdown.
         const tdStatus = tdCallStatus({ on_bot: ev.onBot, td_board: ev.tdBoard })
         // a card linked to the scorer on TUDDY, in TUDDY's colour (2026-10-04)
-        const d = await postToDiscord(text, { png, sport: 'nfl', link: row.gsis_id ? playerHref('nfl', row.gsis_id) : null }, feedHooksFor('nfl', tdStatus))
+        const d = await postToDiscord(text, { png, sport: 'nfl', link: row.gsis_id ? playerHref('nfl', row.gsis_id) : null, embed: tdEmbed(ev, { extra: [reached], at: row.created_at || row.first_seen_at }) }, feedHooksFor('nfl', tdStatus))
         if (d.ok) {
           patch.discord_sent = true; totals.discord += 1
           // written now, not at the end of the row: see the MLB tick (a kill or an overlapping tick re-sends the channel post)
