@@ -57,12 +57,13 @@ export function nflStatRow({ player, slate, rate }) {
   const out = picks.map(([k, label]) => {
     const v = Number(st[k])
     const rank = rankInPool(pool.map((p) => p?.stats?.[k]), v, { better: 'high' })
-    return { id: k, label, text: String(statFmt(k, v)), title: `${statLabel(k)}, per game this season.`, rank }
+    return { id: k, label, text: String(statFmt(k, v)), title: `${statLabel(k)}, per game${player?.carryover ? ' (last season\u2019s baseline: too few games this season)' : ' this season'}.`, rank }
   })
   if (rate && rate.bar != null) {
     const bit = (id, label, pr, tip) => (pr[1] > 0 ? { id, label, text: `${pr[0]}/${pr[1]}`, title: tip } : null)
     const word = rate.key === 'TD' ? 'a TD' : `${rate.bar}+`
-    out.push(bit('l10', 'L10', rate.l10, `${rate.label}: ${word} in ${rate.l10[0]} of his last ${rate.l10[1]} games.`))
+    // the last ten INSIDE this season (components/nfl/NflPlayerModal.js ratesFor): fewer than ten games says so, "L4" not "L10"
+    out.push(bit('l10', rate.l10[1] < 10 ? `L${rate.l10[1]}` : 'L10', rate.l10, `${rate.label}: ${word} in ${rate.l10[0]} of his last ${rate.l10[1]} games${rate.seasonYear ? ` of ${rate.seasonYear}` : ''}.`))
     out.push(bit('szn', String(rate.seasonYear || 'SEASON'), rate.season, `${rate.label}: ${word} in ${rate.season[0]} of his ${rate.season[1]} games this season.`))
   }
   return out.filter(Boolean).slice(0, 6)

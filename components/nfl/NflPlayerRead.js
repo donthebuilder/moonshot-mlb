@@ -82,7 +82,7 @@ export function nflReadBullets(player, market, rows = [], matchup = null) {
 const ICON = { for: '+', against: '−', note: '·' }   // 10-07 colour diet: no green and red dots
 const TONE = () => ({ for: C.green, against: C.text3, note: C.text2 })
 
-export default function NflPlayerRead({ player, market, rows, matchup }) {
+export default function NflPlayerRead({ player, market, rows, matchup, slateSeason = null }) {
   if (!player) return null
   const bullets = nflReadBullets(player, market, rows || [], matchup)
   if (!bullets.length) return null
@@ -93,7 +93,7 @@ export default function NflPlayerRead({ player, market, rows, matchup }) {
           <span style={{ color: b.tone === 'note' ? C.text2 : TONE()[b.tone] }}>{b.text}</span>
         </Line>
       ))}
-      <DepthWriteup player={player} matchup={matchup} />
+      <DepthWriteup player={player} matchup={matchup} slateSeason={slateSeason} />
     </ReadFrame>
   )
 }

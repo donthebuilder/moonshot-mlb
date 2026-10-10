@@ -23,9 +23,9 @@ export function DepthSections({ sections }) {
   )
 }
 
-export default function DepthWriteup({ player, matchup }) {
+export default function DepthWriteup({ player, matchup, slateSeason = null }) {
   const [open, setOpen] = useState(false)
-  const sections = nflDepth(player, matchup)
+  const sections = nflDepth(player, matchup, slateSeason)
   if (!sections.length) return null
   return (
     <div style={{ marginTop: 6 }}>

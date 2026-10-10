@@ -4,6 +4,7 @@ import TeamMark from '../TeamMark'
 import { useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../lib/nfl/theme'
 import { softRole, stingyRole, fitsSoft, STARTER_ROLES, SOFT_THIN_GAMES, multipleWords, earlyNote, MULTIPLE_CAP } from '../../lib/nfl/dvpSignal'
+import { teamGames } from '../../lib/nfl/seasonRule'
 import NflTable from './NflTable'
 import PlayerFace from '../PlayerFace'
 import Tap from '../Tap'
@@ -74,6 +75,11 @@ export default function DefensesTable({ matchup, data, win = 'season', active, o
   if (!rows.length) return null
   const byeWeek = Object.keys(matchup?.dvp?.[win] || {}).length > new Set((data?.games || []).flatMap((g) => [g.away, g.home]).filter(Boolean)).size
   const lastSeason = Number(matchup?.season) && Number(data?.season) && Number(matchup.season) < Number(data.season)
+  // THE SAMPLE, SAID ONCE (lib/nfl/seasonRule.js): "3 games this season", or "3-4 games" when the defenses differ
+  const gs = rows.map((r) => teamGames(matchup, r.def)).filter((g) => Number.isFinite(g))
+  const gLo = gs.length ? Math.min(...gs) : null; const gHi = gs.length ? Math.max(...gs) : null
+  const sample = !lastSeason && gLo != null ? `${gLo === gHi ? gLo : `${gLo}-${gHi}`} games this season` : ''
+  const swapped = Object.keys(matchup?.dvp_team_season || {}).filter((t) => rows.some((r) => r.def === t)).length
   const lead = rows[0]
   const btn = { minHeight: 44, padding: '0 12px', borderRadius: 10, border: `1px solid ${C.border2}`, background: C.bg2, color: C.green, font: `800 11px/1 ${NUM_FONT}`, cursor: 'pointer' }
   return (
@@ -81,7 +87,7 @@ export default function DefensesTable({ matchup, data, win = 'season', active, o
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
         <h2 style={{ margin: 0, fontSize: TYPE.title, fontWeight: 900 }}>The defenses to attack this week</h2>
         <span style={{ fontFamily: NUM_FONT, fontSize: 11, color: lastSeason ? C.green : C.text3, fontWeight: lastSeason ? 800 : 500 }}>
-          {matchup.season} DvP{lastSeason ? ' · LAST SEASON' : ''}
+          {matchup.season} DvP{lastSeason ? ' · LAST SEASON' : sample ? ` · ${sample}` : ''}{swapped ? ` · ${swapped} from last season` : ''}
         </span>
       </div>
       {/* The one-line takeaway first (chart rule, Part A). */}

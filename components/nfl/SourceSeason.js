@@ -1,6 +1,7 @@
 'use client'
 import { C, NUM_FONT, TYPE } from '../../lib/nfl/theme'
 import { blockSeason } from '../../lib/nfl/dvpSignal'
+import { defenseSeason } from '../../lib/nfl/seasonRule'
 
 // WHICH YEAR IS THIS NUMBER FROM? (2026-09-18)
 //
@@ -29,9 +30,21 @@ import { blockSeason } from '../../lib/nfl/dvpSignal'
 // So the badge says the year, and its tooltip says which clock it is on and
 // when it changes. A reader in week 1 still sees the numbers -- they are real
 // and they are the best available -- they just also see whose season they are.
-export default function SourceSeason({ matchup, kind = 'charting', slateSeason = null, block = null, style }) {
+export default function SourceSeason({ matchup, kind = 'charting', slateSeason = null, block = null, team = null, style }) {
   // `block`: a stats-clock table the bot may have served from last season at
   // the flip (matchup.block_seasons, see lib/nfl/dvpSignal.js blockSeason).
+  // ONE DEFENSE (lib/nfl/seasonRule.js): "3 GAMES THIS SEASON" or "LAST SEASON · 2025", the count beside the year, so a small sample says so
+  const rule = kind === 'stats' && team ? defenseSeason(matchup, team, slateSeason) : null
+  if (rule) {
+    const lastS = !rule.current
+    return (
+      <span title={rule.current ? `${team}'s defense-vs-position numbers are from ${rule.season}, over ${rule.games} games.${rule.small ? ' Under three games is a small sample.' : ''} Under three games this season the table falls back to last season's.` : `${team} has fewer than three games this season, so its numbers are last season's (${rule.season}), over ${rule.games} games.`}
+        style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontFamily: NUM_FONT, fontSize: TYPE.micro, fontWeight: 900, letterSpacing: '.08em', whiteSpace: 'nowrap',
+          color: lastS || rule.small ? C.yellow : C.text3, border: `1px solid ${lastS || rule.small ? C.yellow + '55' : C.border}`, borderRadius: 5, padding: '2px 6px', cursor: 'help', ...style }}>
+        {lastS ? `LAST SEASON · ${rule.season}` : `${rule.games} ${rule.games === 1 ? 'GAME' : 'GAMES'} THIS SEASON${rule.small ? ' · SMALL SAMPLE' : ''}`}
+      </span>
+    )
+  }
   const year = Number(kind === 'charting' ? matchup?.chart_season : (block ? blockSeason(matchup, block) : matchup?.season)) || null
   if (!year) return null
   const slate = Number(slateSeason) || null
@@ -42,7 +55,7 @@ export default function SourceSeason({ matchup, kind = 'charting', slateSeason =
   const stale = slate ? year < slate : kind === 'charting'
   const title = kind === 'charting'
     ? `Coverage, routes and pressure come from play charting, released once a year after the postseason. ${year} is the newest there is \u2014 the ${year + 1} data arrives around February ${year + 2}. Real numbers, last season's defense.`
-    : `Defense-vs-position is built from play-by-play, which updates all season. This season's own table opens once three weeks have been played; until then the honest answer is ${year}.`
+    : `Defense-vs-position is built from play-by-play, which updates all season. A defense's own table opens once it has three games this season; until then the honest answer is ${year}.`
   return (
     <span
       title={title}

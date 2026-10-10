@@ -33,7 +33,7 @@ import LineMoveChip from '../LineMoveChip'
 import NflGameCombo from './NflGameCombo'
 import NflGameLog from './NflGameLog'
 import SeasonToggle from './SeasonToggle'
-import { seasonOptions, defaultSeason, applySeason } from '../../lib/nfl/seasonWindow'
+import { seasonOptions, defaultSeason, applySeason, seasonNote } from '../../lib/nfl/seasonWindow'
 // THE SHARED PLAYER MODEL (components/player/): the verdict first, then ONE row of his numbers, MOONSHOT's parts in
 // TUDDY's words (nflAdapter.js). Replaces the per-game tiles, the market-score strip, the hit-rate boxes and the Why box.
 import VerdictBlock from '../player/VerdictBlock'
@@ -227,7 +227,9 @@ function TheFile({ player, log }) {
 // ── RATES AT THE CARD'S BAR (2026-09-27, TUDDY depth step 2) ────────────
 // Every market he has a score in, best score first: how often he reached
 // the card's own bar over his last 5 games, last 10, and this season, with
-// the games counted ("3/5 · 6/10 · 7/11"). Same log and same rule HitRate
+// the games counted ("3/5 · 6/10 · 7/11"). THE LAST 5 / LAST 10 ARE INSIDE THE NEWEST SEASON ON THE LOG (2026-10-10): early in a season the
+// last 10 games used to reach back into last season's and print one number from two seasons; now it is the last N of this season's games, and
+// N is printed. Same log and same rule HitRate
 // grades on (stat >= bar, i.e. over bar - 0.5); a market he has no stat line
 // for shows dashes rather than a zero.
 export function ratesFor(player, markets, log) {
@@ -243,7 +245,7 @@ export function ratesFor(player, markets, log) {
         const games = arr.filter((g) => Number.isFinite(Number(g?.[key])))
         return [games.filter((g) => Number(g[key]) >= bar).length, games.length]
       }
-      return { key: k, label, bar: Number.isFinite(bar) ? bar : null, score: player.scores[k], l5: at(all.slice(-5)), l10: at(all.slice(-10)), season: at(cur), seasonYear: season || null }
+      return { key: k, label, bar: Number.isFinite(bar) ? bar : null, score: player.scores[k], l5: at(cur.slice(-5)), l10: at(cur.slice(-10)), season: at(cur), seasonYear: season || null }
     })
     .sort((a, b) => b.score - a.score)
 }
@@ -452,11 +454,12 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
         </div>
       </div>
 
+      {seasonNote(fullLog, slate?.season) && <div style={{ fontFamily: NUM_FONT, fontSize: 12, color: C.yellow, margin: '0 0 8px', lineHeight: 1.4 }}>{seasonNote(fullLog, slate?.season)}</div>}
       {tab !== 'overview' && showSeason && <SeasonToggle options={seasonOpts} value={seasonKey} onChange={setSeason} />}
 
       {/* OVERVIEW: the read, then the props grid (MOONSHOT's order), then his own notes */}
       {tab === 'overview' && <>
-        <NflPlayerRead player={player} market={market} rows={fullLog || []} matchup={matchup} />
+        <NflPlayerRead player={player} market={market} rows={fullLog || []} matchup={matchup} slateSeason={slate?.season} />
         <div style={{ marginTop: 16 }}><SeasonToggle options={seasonOpts} value={seasonKey} onChange={setSeason} /></div>
         {slog && (() => {
           // HIS BEST MARKET LEADS: the chart opens on the market he scores highest in.
