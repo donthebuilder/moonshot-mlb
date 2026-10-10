@@ -7,6 +7,7 @@ import { STATE, alpha } from '../lib/scales'
 import RangeDual from './RangeDual'
 import FiltersDrawer from './FiltersDrawer'
 import MLB_BT from '../lib/mlbAngleBacktest.json'
+import { CalledLastFilter } from './CalledLastNight'
 
 // MEASURED (2026-10-05, Donovan: "needs to be ran for all sports and all props"): each category on
 // every bar the calls are graded on, from scripts/mlb/angle-backtest.mjs over the archived pregame
@@ -183,7 +184,8 @@ function pitchersOf(players) {
 // open isn't a single-score ranking (the weak-spot / aligned / matchup-edge
 // signal sections) — the Score slider simply doesn't render in that case
 // rather than guessing which of several scores it should mean.
-export function useBoardFilter(players, scoreType = null) {
+// `lens` (lib/calledLast/useCalledLast.js): the "Called last night" filter, off by default.
+export function useBoardFilter(players, scoreType = null, lens = null) {
   // ── MULTI-BAND (2026-09-13) ───────────────────────────────────────────────
   // Donovan: "being able to band different filters." One band-stat at a time
   // (HRW *or* ISO *or* HH%, never together) meant picking a lens instead of
@@ -250,15 +252,17 @@ export function useBoardFilter(players, scoreType = null) {
         if (catMode === 'all' ? hits < tests.length : hits === 0) return false
       }
       if (q && !`${nameOf(p)} ${teamOf(p)} ${oppOf(p)} ${clean(p?.pitcher_name, '')}`.toLowerCase().includes(q)) return false
+      if (lens?.on && !lens.test(p?.player_id ?? p?.id)) return false
       return true
     })
-  }, [players, bands, scoreDef, scoreMin, scoreMax, cats, catMode, hand, minEV, minPA, query, gameSel, pitcherSel, timeWindow])
+  }, [lens, players, bands, scoreDef, scoreMin, scoreMax, cats, catMode, hand, minEV, minPA, query, gameSel, pitcherSel, timeWindow])
 
   const scoreActive = !!scoreDef && (scoreMin > 0 || scoreMax < 100)
   const active = bands.length > 0 || scoreActive
     || cats.length > 0 || hand !== 'all' || minEV > 0 || minPA > 0 || query
-    || gameSel.length > 0 || pitcherSel.length > 0 || timeWindow !== 'all'
+    || gameSel.length > 0 || pitcherSel.length > 0 || timeWindow !== 'all' || Boolean(lens?.on)
   const reset = () => {
+    lens?.setMode('')
     setBands([])
     setScoreMin(0); setScoreMax(100)
     setCats([]); setCatMode('any')
@@ -295,16 +299,17 @@ export function useBoardFilter(players, scoreType = null) {
     })
     if (timeWindow !== 'all') out.push({ key: 'time', label: TIME_WINDOWS.find((w) => w.key === timeWindow)?.label, onRemove: () => setTimeWindow('all') })
     if (query) out.push({ key: 'q', label: `“${query}”`, onRemove: () => setQuery('') })
+    if (lens?.chip) out.push(lens.chip)
     return out
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scoreActive, scoreDef, scoreMin, scoreMax, bands, hand, minEV, minPA, cats, gameSel, pitcherSel, pitchers, timeWindow, query, games])
+  }, [scoreActive, scoreDef, scoreMin, scoreMax, bands, hand, minEV, minPA, cats, gameSel, pitcherSel, pitchers, timeWindow, query, games, lens])
 
   const state = {
     bands, toggleBand, setBandRange, removeBand, cats, setCats, catMode, setCatMode,
     hand, setHand, minEV, setMinEV, minPA, setMinPA, query, setQuery, active, reset,
     scoreDef, scoreMin, setScoreMin, scoreMax, setScoreMax,
     games, gameSel, setGameSel, pitchers, pitcherSel, setPitcherSel, timeWindow, setTimeWindow,
-    activeFilters, activeCount: activeFilters.length,
+    activeFilters, activeCount: activeFilters.length, cln: lens,
   }
   return { filtered, state }
 }
@@ -342,7 +347,7 @@ export default function BoardFilters({ state, total, shown, compact = false, bes
     hand, setHand, minEV, setMinEV, minPA, setMinPA, query, setQuery, active, reset,
     scoreDef, scoreMin, setScoreMin, scoreMax, setScoreMax,
     games, gameSel, setGameSel, pitchers, pitcherSel, setPitcherSel, timeWindow, setTimeWindow,
-    activeFilters, activeCount,
+    activeFilters, activeCount, cln,
   } = state
 
   const toggleCat = (k) => setCats((c) => (c.includes(k) ? c.filter((x) => x !== k) : [...c, k]))
@@ -508,6 +513,8 @@ export default function BoardFilters({ state, total, shown, compact = false, bes
         {/* the picked categories' measured record, as words (works on tap, not only hover) */}
         {cats.map((k) => { const l = measuredLine(k); const c = CATEGORIES.find((x) => x.key === k); return l && c ? <div key={k} style={{ fontSize: 11, color: C.text3, marginTop: 4, lineHeight: 1.45 }}>{c.label}: {l}</div> : null })}
       </div>
+
+      <CalledLastFilter lens={cln} />
 
       <div>
         <div style={lbl()}>Search</div>

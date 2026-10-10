@@ -568,7 +568,7 @@ export default function Dashboard({ palettePass = 0 }) {
     if (tab === 'pitchers' && live.get('pitcher')) h.set('pitcher', live.get('pitcher'))
     if (tab === 'player' && live.get('player')) h.set('player', live.get('player'))   // PlayerBoard's pick (2026-09-29)
     if (tab === 'props' && live.get('sheet')) h.set('sheet', live.get('sheet'))       // the phone pick sheet (10-05)
-    if (tab === 'fullboard') { for (const k of ['cols', 'sort']) if (live.get(k)) h.set(k, live.get(k)) }   // Rankings' column view and its sort chain (10-07)
+    if (tab === 'fullboard') { for (const k of ['cols', 'sort', 'cln']) if (live.get(k)) h.set(k, live.get(k)) }   // Rankings' column view and its sort chain (10-07); cln = the Called last night filter (10-10)
     carryLedgerView(h, live, tab)                                                     // The Ledger's sub-tab (lv=, lib/ledger/views.js)
     if (tab === 'team' && live.get('team')) h.set('team', live.get('team'))           // the team page's club (10-03)
     // PUSH WHAT YOU OPENED (2026-09-27, audit 00A root fix 1; lib/urlState).

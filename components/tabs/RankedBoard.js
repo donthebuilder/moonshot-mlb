@@ -12,6 +12,7 @@ import BoardFilters, { useBoardFilter } from '../BoardFilters'
 import { xpaFor, XPA_TITLE } from '../../lib/xpa'
 import AltLooks from '../AltLooks'
 import DenseTable from '../DenseTable'
+import { lastNightColumn } from '../CalledLastNight'
 import { boardRow, boardRowContext, withBoardColumns, BOARD_GROUPS, applyColumnView, columnViewKey, COLUMN_VIEWS } from '../../lib/boardColumns'
 import { heatModeFromUrl } from '../../lib/heatMode'
 import { uniqueByPerson, gameNumbers, gameNumOf, doubleheaderNote } from '../../lib/doubleheader'
@@ -368,6 +369,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
             const wantRole = { top: 'TOP', hr: 'HR', hit: 'HIT', hrr: 'HRR', tb: 'CONTACT', contact: 'CONTACT' }[type]
             return {
               ...base,
+              cln: state.cln?.on ? state.cln.cell(mlbId(p)) : '',
               _key: `${playerId(p)}-${p?.game_pk ?? ''}-${i}`,
               _raw: p,
               _why: whyOn ? boardReasonFor(p, rctx) : null,
@@ -438,6 +440,8 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
               title: 'His rank on this board — the thing the cards never showed' },
             { key: 'name',   label: 'Player', heat: false, w: 150, bold: true, sticky: true },
             { key: 'team',   label: 'Tm', heat: false, w: 34, mono: true, dim: true, teamMark: 'mlb' },   // his team is the logo (10-03)
+            // CALLED LAST NIGHT (2026-10-10): yesterday's call and result, labelled as yesterday's; only while the filter is on
+            ...(state.cln?.on ? [lastNightColumn({ group: BOARD_GROUPS.lastNight })] : []),
             // Only present when a matchup actually repeats tonight.
             ...(dh.size ? [{ key: 'g', label: 'G', heat: false, w: 28, mono: true, dim: true,
               fmt: (v) => (v ? `G${v}` : '—'),

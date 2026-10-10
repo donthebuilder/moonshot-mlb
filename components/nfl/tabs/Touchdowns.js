@@ -22,6 +22,8 @@ import NflBoardFilters, { useNflBoardFilter } from '../NflBoardFilters'
 import MobileFold, { useIsPhone } from '../../MobileFold'
 import { NflBoardList, BoardHead, ViewSwitch, DrawerPills, AngleRow, angleDefs, useNflDrawerFilters, TdWatch } from '../NflBoardExtras'
 import TdCompare from '../TdCompare'
+import CalledLastNight, { CalledLastFilter } from '../../CalledLastNight'
+import { useCalledLastLens } from '../../../lib/calledLast/useCalledLast'
 
 // TOUCHDOWNS — the front door.
 //
@@ -176,6 +178,10 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
   const [view, setView] = useState('list')
   const [angle, setAngle] = useState(null)   // board filters plan, TUDDY 2
   const phone = useIsPhone()
+  // CALLED LAST NIGHT (2026-10-10): last week's TD calls (board_lock) and what each did. The slate is named by
+  // the board's own week; its date is the first kickoff's calendar date (the game's own, not the ET wall clock).
+  const slateDay = useMemo(() => { const k = (data?.games || []).map((g) => g.kickoff).filter(Boolean).sort()[0]; return k ? String(k).slice(0, 10) : '' }, [data?.games])
+  const cln = useCalledLastLens('nfl', slateDay, data?.week ?? null, { enabled: Boolean(slateDay) })
   const now = useNowTick()   // moves: a board left open past kickoff drops that game from Not kicked off
 
   const { rows, weights, base, games } = useMemo(() => tdPool(data), [data])
@@ -220,8 +226,10 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
     onlyPriced ? { key: 'priced', label: 'Priced', onClear: () => setOnlyPriced(false) } : null,
     onlyUpcoming ? { key: 'upcoming', label: 'Not kicked off', onClear: () => setOnlyUpcoming(false) } : null,
     onlyWatched ? { key: 'watch', label: 'Watchlist', onClear: () => setOnlyWatched(false) } : null,
+    cln.chip,
   ].filter(Boolean)
   const clearTdFilters = () => {
+    cln.setMode('')
     bandState.reset()
     setPosition('all'); setAngle(null); drawer.reset(); setSortBy('score')
     setOnlyPriced(false); setOnlyUpcoming(false); setOnlyWatched(false)
@@ -230,6 +238,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase()
     let out = bandFiltered.filter(drawer.test)
+    if (cln.on) out = out.filter((p) => cln.test(p.player_id))
     if (position !== 'all') out = out.filter((p) => p.position === position)
     if (team !== 'all') out = out.filter((p) => p.team === team)
     if (needle) out = out.filter((p) => String(p.name || '').toLowerCase().includes(needle))
@@ -258,7 +267,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
         }
         : (a, b) => (b.scores[MARKET] ?? 0) - (a.scores[MARKET] ?? 0)
     return [...out].sort(cmp)
-  }, [bandFiltered, drawer, rows, query, position, team, angle, angles, onlyWatched, onlyUpcoming, onlyPriced, sortBy, matchup, watchlist, odds, data, now])
+  }, [bandFiltered, drawer, rows, query, position, team, angle, angles, onlyWatched, onlyUpcoming, onlyPriced, sortBy, matchup, watchlist, odds, data, now, cln])
 
   const capped = all ? filtered : filtered.slice(0, SOFT_CAP)
   // The card's ‹ › walk THIS list -- your filters, in this order (NflDashboard's
@@ -274,7 +283,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
 
   // Position, the Only toggles and the sort live in the Filters drawer now
   // (MOONSHOT keeps its board chrome to one Filters button and a pool pill).
-  const drawerExtraCount = drawer.activeCount + (position !== 'all') + onlyPriced + onlyUpcoming + onlyWatched + (sortBy !== 'score')
+  const drawerExtraCount = drawer.activeCount + (position !== 'all') + onlyPriced + onlyUpcoming + onlyWatched + (sortBy !== 'score') + (cln.on ? 1 : 0)
   const drawerExtra = (
     <>
       <DrawerPills label="Position">
@@ -292,9 +301,10 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
         ))}
       </DrawerPills>
       {drawer.section}
+      <CalledLastFilter lens={cln} />
     </>
   )
-  const extraReset = () => { drawer.reset(); setPosition('all'); setOnlyPriced(false); setOnlyUpcoming(false); setOnlyWatched(false); setSortBy('score') }
+  const extraReset = () => { cln.setMode(''); drawer.reset(); setPosition('all'); setOnlyPriced(false); setOnlyUpcoming(false); setOnlyWatched(false); setSortBy('score') }
 
   return (
     <div>
@@ -339,7 +349,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
       ) : (
         <>
           {view === 'list'
-            ? <NflBoardList players={capped} market={MARKET} rankOf={rankOf} weights={weights} odds={odds} phone={phone} onPlayerClick={openFromBoard} statusOf={statusOf} base={base} pool={rows} watchlist={watchlist} />
+            ? <NflBoardList players={capped} market={MARKET} rankOf={rankOf} weights={weights} odds={odds} phone={phone} onPlayerClick={openFromBoard} statusOf={statusOf} base={base} pool={rows} watchlist={watchlist} lastNight={cln} />
             : <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))' }}>
                 {capped.map((p, i) => (
                   <Card key={p.player_id} p={p} rank={rankOf.get(String(p.player_id)) ?? i + 1} matchup={matchup} odds={odds}
@@ -359,6 +369,12 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
           <TdWatch players={rows} games={data?.games} logs={logs} results={results} liveSnap={liveSnap} week={data ? { season: data.season, week: data.week } : null} onPlayerClick={onPlayerClick} />
         </div>
       )}
+
+      {/* CALLED LAST NIGHT: under the board on every width, so the first ranked row does not move */}
+      <div style={{ marginTop: 14 }}>
+        <CalledLastNight lens={cln} accent={C.green} theme={C} numFont={NUM_FONT} logoSport="nfl"
+          onOpen={(r) => { const p = rows.find((x) => String(x.player_id) === r.pid); if (p) openFromBoard(p, MARKET) }} />
+      </div>
 
       {/* ⚖️ COMPARE TWO (2026-09-16): below the board now -- a tool you reach
           for after reading the list, not chrome in front of it. */}

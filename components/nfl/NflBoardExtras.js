@@ -22,6 +22,7 @@ import { baselineFor, topStatChips } from './ScoreAnatomy'
 import { injuryTag } from '../../lib/nfl/injury'
 import { useWhySheet, whyColumn } from '../WhySheet'
 import CallStatusBadge from '../CallStatusBadge'
+import { lastNightColumn } from '../CalledLastNight'
 
 // TUDDY BOARD EXTRAS (2026-09-27, board filters plan): the pieces MOONSHOT's
 // board has that TUDDY's two boards (Touchdowns.js for TD, Boards.js for the
@@ -94,7 +95,7 @@ const SCORE_ART = { TD: 'nfl-td' }
 // that page's marks (A+, Q, Thin, the matchup read), the watchlist star, and a WHY on every row:
 // the board's own sentence, tapped for the numbers behind it and where to look next.
 const MARK_GROUP = { key: 'marks', label: 'Marks', order: 2 }
-export function NflBoardList({ players, market, weights, odds, phone, onPlayerClick, statusOf = null, rankOf = null, base = null, pool = null, watchlist = null }) {
+export function NflBoardList({ players, market, weights, odds, phone, onPlayerClick, statusOf = null, rankOf = null, base = null, pool = null, watchlist = null, lastNight = null }) {
   const { open: openWhy, sheet: whySheet } = useWhySheet({ theme: C, accent: C.green, numFont: NUM_FONT })
   // our line beside the book's (TEST, BATCH-DASH-LINE): only where one exists for this market
   const dash = useDashLines()
@@ -116,6 +117,7 @@ export function NflBoardList({ players, market, weights, odds, phone, onPlayerCl
       ...Object.fromEntries(top.map((k) => [k, Number.isFinite(p.components?.[market]?.[k]) ? Math.round(p.components[market][k]) : null])),
       hiConf: p.high_confidence_td_flag ? 1 : 0, quest: injuryTag(p) ? 1 : 0, lowS: p.low_sample ? 1 : 0, matchup: p.coverage_mismatch_tag || '',
       watched: watchlist?.isPinned?.(p.player_id) ? 1 : 0,
+      cln: lastNight?.on ? lastNight.cell(p.player_id) : '',
       // the full column set (R6, lib/nfl/boardColumns.js): every number his row carries
       ...nflBoardRow(p),
     }
@@ -159,6 +161,8 @@ export function NflBoardList({ players, market, weights, odds, phone, onPlayerCl
     { key: 'pos', label: 'Pos', w: 40, heat: false, fold: true },
     // logos, his club then the opponent (audit 04 NFL2: 'Game' was text)
     { key: 'team', label: 'Tm', w: 34, heat: false, teamMark: 'nfl', fold: true }, { key: 'opp', label: 'Opp', w: 34, heat: false, teamMark: 'nfl', fold: true },
+    // CALLED LAST NIGHT (2026-10-10): last week's call and result, labelled as that week's; only while the filter is on
+    ...(lastNight?.on ? [lastNightColumn({ w: phone ? 190 : 240, group: { key: 'lastNight', label: 'Last night', order: 0.4 } })] : []),
     { key: 'score', label: 'Score', w: 52, primary: true, scale: 'seq', domain: [0, 100], art: SCORE_ART[market] || null, answers: market === 'TD' ? 'nfl-td' : null },
     ...(phone ? [] : [{ key: 'grade', label: 'Grade', w: 56, heat: false }]),
     whyColumn({ textOf: (r) => whyOf(r._p)?.text || '', itemOf: whyItem, open: openWhy, theme: C, numFont: NUM_FONT, w: phone ? 124 : 260 }),

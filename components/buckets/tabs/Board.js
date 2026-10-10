@@ -11,6 +11,8 @@ import { boardRows, boardColumns, faceOf, XPTS_MARKETS } from '../boardTable'
 import FullBoard from './FullBoard'
 import { useWhySheet, whyColumn } from '../../WhySheet'
 import BucketWatch from '../BucketWatch'
+import CalledLastNight, { CalledLastFilter, lastNightColumn } from '../../CalledLastNight'
+import { useCalledLastLens } from '../../../lib/calledLast/useCalledLast'
 import { AngleRow, PillRow } from '../../Filters'
 import BoardTopBar from '../../BoardTopBar'
 import FiltersDrawer, { DrawerSection, drawerChip } from '../../FiltersDrawer'
@@ -41,6 +43,14 @@ const HOW_STEPS = [
 ]
 const GAME_FOR = (g, r) => (g ? `${r.home ? 'vs' : '@'} ${r.opp}${g.start ? ` · ${fmtTip(g.start)}` : ''}` : r.opp ? `${r.home ? 'vs' : '@'} ${r.opp}` : 'TBD')
 const ALL_KEYS = Object.keys(NBA_MARKETS)
+// CALLED LAST NIGHT column: the previous slate's call and result, labelled as that night's; only while the filter is on
+const LAST_NIGHT_GROUP = 'Last night'
+function withLastNight(columns, cln) {
+  if (!cln?.on) return columns
+  const col = lastNightColumn({ group: LAST_NIGHT_GROUP })
+  const at = columns.findIndex((c) => c.key === 'oppTxt')
+  return at < 0 ? [...columns, col] : [...columns.slice(0, at + 1), col, ...columns.slice(at + 1)]
+}
 
 // MERGED WITH RANKINGS (2026-10-06): this is the Rankings page. One market at a time, or ALL MARKETS
 // (the old every-market table), the table first, and a WHY on every row.
@@ -118,6 +128,8 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
   const xptsBy = useMemo(() => new Map((xp.data?.rows || []).map((r) => [String(r.playerId), r])), [xp.data])
   const D = NBA_MARKETS[mk]
   const shown = data?.date || date
+  // CALLED LAST NIGHT (2026-10-10): the previous slate's points calls and what each did (the points market is the one graded every night); BUCKETS stays hidden until BUCKETS_PUBLIC=on
+  const cln = useCalledLastLens('nba', shown, null, { enabled: m === 'pts' && Boolean(shown) })
   const all = boardRows(data, { calledOnly, xpts: xptsBy })
   // ANGLES (2026-10-05): measured on 2025-26, every market (lib/nba/angles.js); only the ones with an edge
   const [angle, setAngle] = useState(null)
@@ -133,6 +145,7 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
     if ((scoreMin > 0 || scoreMax < 100) && (r.score == null || r.score < scoreMin || r.score > scoreMax)) return false
     for (const b of bands) { const v = r.pct?.[b.key]; if (v == null || v < b.min || v > b.max) return false }
     if (minX > 0 && (r.xpts == null || r.xpts < minX)) return false
+    if (cln.on && !cln.test(r.playerId)) return false
     return true
   })
   const scored = rows.filter((r) => r.score != null)
@@ -156,9 +169,10 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
   const chips = [
     angleDef ? { key: 'angle', label: angleDef.label || angle, onClear: () => setAngle(null) } : null,
     calledOnly ? { key: 'called', label: 'Called only', onClear: () => setCalledOnly(false) } : null,
+    cln.chip,
   ].filter(Boolean)
   const heldTop = (team ? 1 : 0) + (gameF ? 1 : 0) + (needle ? 1 : 0)
-  const clearAll = () => { setAngle(null); setCalledOnly(false); setScoreMin(0); setScoreMax(100); setBands([]); setGameSel([]); setMinX(0); setQ(''); setTeam(''); setGameF('') }
+  const clearAll = () => { cln.setMode(''); setAngle(null); setCalledOnly(false); setScoreMin(0); setScoreMax(100); setBands([]); setGameSel([]); setMinX(0); setQ(''); setTeam(''); setGameF('') }
   const drawerSections = (
     <>
       <DrawerSection label={`Score · ${D.label}`}>
@@ -185,6 +199,7 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
           </div>
         </DrawerSection>
       )}
+      <CalledLastFilter lens={cln} />
       {XPTS_MARKETS.includes(mk) && (
         <DrawerSection label="Projected points (xPTS) at least" hint="Recent minutes x points a minute x the opponent's allowed. Rotation players only; a measured projection, not a probability.">
           <div style={{ fontSize: 12, fontFamily: NUM_FONT, color: C.text, marginTop: 2 }}>{minX > 0 ? `${minX}+` : 'any'}</div>
@@ -275,7 +290,7 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
         <BucketsCards market={mk} onOpen={onOpenPlayer} rows={[...rows].filter((r) => r.score != null && Number.isFinite(Number(r.score))).sort((a, b) => b.score - a.score)} />
       )}
       {rows.length > 0 && !noStarters && layout === 'table' && (
-        <BucketsTable rows={rows} columns={boardColumns(m, { onOpenTeam, onOpenGame, withXpts: true, whyCol: whyColumn({ textOf: (r) => (r.status === 'off' && r.reason ? r.reason : plainWhy(r, m)?.short || ''), itemOf: (r) => whyItemFor(r, m, r.nightRank), open: openWhy, theme: C, numFont: NUM_FONT, w: 165 }) })} statusOf={(r) => r.status}
+        <BucketsTable rows={cln.on ? rows.map((r) => ({ ...r, cln: cln.cell(r.playerId) })) : rows} columns={withLastNight(boardColumns(m, { onOpenTeam, onOpenGame, withXpts: true, whyCol: whyColumn({ textOf: (r) => (r.status === 'off' && r.reason ? r.reason : plainWhy(r, m)?.short || ''), itemOf: (r) => whyItemFor(r, m, r.nightRank), open: openWhy, theme: C, numFont: NUM_FONT, w: 165 }) }), cln)} statusOf={(r) => r.status}
           onRowClick={(r) => onOpenPlayer?.((r?._raw ?? r).playerId)} faceOf={faceOf}
           dimRow={(r) => Boolean(r.voidReason) || r.status === 'off'}
           initialSort={{ key: 'nightRank', dir: 'asc' }} heatMode="sorted" maxHeight={620} maxRows={Math.max(rows.length, 1)}
@@ -283,6 +298,7 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
       )}
       {/* Bucket Watch sits under the table (2026-10-06): the board comes first */}
       {mk === 'pts' && m !== ALL && (data?.rows || []).length > 0 && <BucketWatch rows={data.rows} date={data.date} onOpenPlayer={onOpenPlayer} />}
+      {mk === 'pts' && m !== ALL && <CalledLastNight lens={cln} accent={C.purple} theme={C} numFont={NUM_FONT} logoSport="nba" onOpen={(r) => onOpenPlayer?.(r.pid)} />}
       </>)}
       {whySheet}
       <SourceLine>Where this comes from: the league’s rosters, injury reports and season stats. A locked row is written before tip and never changed after it.</SourceLine>

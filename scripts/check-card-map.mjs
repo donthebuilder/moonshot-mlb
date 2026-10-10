@@ -21,6 +21,7 @@ const t = async (what, fn) => { try { await fn(); console.log(`ok   ${what}`) } 
 
 const H = 3600e3
 const NOW = Date.parse('2026-10-10T20:00:00Z')
+Date.now = () => NOW   // pinned from the first line on (as check-two-man): lib/card/store.js reads Date.now() itself, so this passes on any real date
 // TEST candidates: id, game, start offset hours from NOW, score, team side
 const C = (id, game, startH, score, extra = {}) => ({ player_id: id, name: `Player ${id}`, team: `T${game}${extra.side || 'A'}`, opp: `T${game}${extra.side === 'B' ? 'A' : 'B'}`, game_id: game, game_date: '2026-10-10', start_ms: NOW + startH * H, score, rate: 0.3, why: `why ${id}`, ...extra })
 const V = (id, game, startH, score, market, line, med = -120, extra = {}) => ({ ...C(id, game, startH, score, extra), rate: null, market, line, price: line == null ? null : { median: med, best: med + 10, books: 6, taken_at: '2026-10-10T19:00:00Z' } })

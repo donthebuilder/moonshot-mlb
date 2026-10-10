@@ -11,6 +11,8 @@ import FiltersDrawer, { DrawerSection, drawerChip } from '../../FiltersDrawer'
 import { TIME_WINDOWS, inWindow } from '../../BoardFilters'
 import RangeDual from '../../RangeDual'
 import GoalWatch from '../GoalWatch'
+import CalledLastNight, { CalledLastFilter, lastNightColumn } from '../../CalledLastNight'
+import { useCalledLastLens } from '../../../lib/calledLast/useCalledLast'
 import GoalCompare from '../GoalCompare'
 import MobileFold, { useIsPhone } from '../../MobileFold'
 import LedgerChip from '../../LedgerChip'
@@ -93,6 +95,8 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
   const lockedN = games.filter((g) => g.locked).length
   const calledN = games.reduce((n, g) => n + g.rows.filter((r) => r.status === 'called').length, 0)
   const shown = data?.date || date
+  // CALLED LAST NIGHT (2026-10-10): the previous slate's goal calls and what each did. The goal board only: a shots / points / assists board's calls are other markets.
+  const cln = useCalledLastLens('nhl', shown, null, { enabled: market === 'GOAL' && Boolean(shown) })
   // ── FILTERS, MOONSHOT'S SET (2026-09-27, board filters plan, LAMP 1-5) ──
   // BY GAME (the layout Donovan likes, unchanged) or ALL GAMES (one table,
   // every scored skater tonight ranked by score). One filter row + one Angle
@@ -156,6 +160,7 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
     if (pos !== 'all' && (pos === 'D' ? r.pos !== 'D' : r.pos === 'D')) return false
     if (gameF && String(g.game.id) !== gameF) return false
     if (calledOnly && r.status !== 'called') return false
+    if (cln.on && !cln.test(r.playerId)) return false
     if (needle && !String(r.name || '').toLowerCase().includes(needle)) return false
     if (angleTest && !angleTest(x)) return false
     if ((r.score ?? 0) < scoreMin || (r.score ?? 0) > scoreMax) return false
@@ -167,7 +172,7 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
   })
   const keepIds = new Set(kept.map(({ r, g }) => `${g.game.id}|${r.playerId}`))
   const drawerOn = scoreMin > 0 || scoreMax < 100 || bands.length > 0 || gameSel.length > 0 || timeWindow !== 'all' || minPpg > 0
-  const filtering = Boolean(team) || pos !== 'all' || Boolean(gameF) || calledOnly || Boolean(needle) || Boolean(angle) || drawerOn
+  const filtering = cln.on || Boolean(team) || pos !== 'all' || Boolean(gameF) || calledOnly || Boolean(needle) || Boolean(angle) || drawerOn
   // A filter the day no longer has stays in the select, named (the Controls.js pattern, 2026-10-05):
   // a stale #fteam / #fgame matched nothing while the select read "All".
   const teams = [...new Set([...flat.map(({ r }) => r.team), ...(team && data ? [team] : [])])].sort()
@@ -175,6 +180,7 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
     angle ? { key: 'angle', label: angles.find((a) => a.key === angle)?.label || angle, onClear: () => setAngle(null) } : null,
     pos !== 'all' ? { key: 'pos', label: pos === 'D' ? 'Defence' : 'Forwards', onClear: () => setPos('all') } : null,
     calledOnly ? { key: 'called', label: 'Called only', onClear: () => setCalledOnly(false) } : null,
+    cln.chip,
   ].filter(Boolean)
   const gameOptions = games.filter((g) => !g.noMarketLock).map((g) => ({ key: String(g.game.id), label: `${g.game.away.abbrev} @ ${g.game.home.abbrev}` }))
   if (gameF && data && !gameOptions.some((o) => o.key === gameF)) gameOptions.unshift({ key: gameF, label: 'Game not on this slate' })
@@ -188,7 +194,7 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
     timeWindow !== 'all' ? { key: 'time', label: TIME_WINDOWS.find((w) => w.key === timeWindow)?.label || timeWindow, onClear: () => setTimeWindow('all') } : null,
     minPpg > 0 ? { key: 'ppg', label: `PP goals ${minPpg}+`, onClear: () => setMinPpg(0) } : null,
   ].filter(Boolean)
-  const clearAll = () => { setAngle(null); setPos('all'); setCalledOnly(false); setScoreMin(0); setScoreMax(100); setBands([]); setGameSel([]); setTimeWindow('all'); setMinPpg(0) }
+  const clearAll = () => { cln.setMode(''); setAngle(null); setPos('all'); setCalledOnly(false); setScoreMin(0); setScoreMax(100); setBands([]); setGameSel([]); setTimeWindow('all'); setMinPpg(0) }
   // MOONSHOT'S ORDER (2026-09-27, Donovan: "doesn't feel anything like the mlb
   // pages"): the search / team / game bar first, the market as the parent
   // pills under it, the day, the angle row, then the night's header and the
@@ -208,6 +214,7 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
       <NavBtn onClick={() => setCalledOnly((v) => !v)} strong={calledOnly} title="Only the called skaters.">{calledOnly ? '✓ Called only' : 'Called only'}</NavBtn>
     </div>)
   const drawerSections = (<>
+    <CalledLastFilter lens={cln} />
     <DrawerSection label="Position">
       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 3 }}>
         {[['all', 'All'], ['F', 'Forwards'], ['D', 'Defence']].map(([k, l]) => <button key={k} type="button" onClick={() => setPos(k)} style={drawerChip(pos === k)}>{l}</button>)}
@@ -326,16 +333,18 @@ export default function Board({ onOpenPlayer, onOpenGame, onOpenTeam, date = nul
       {view === 'all' && flat.length > 0 && (
         kept.length ? (layout === 'cards'
           ? <LampCards market={market} onOpen={onOpenPlayer} items={[...kept].sort((a, b) => (b.r.score ?? 0) - (a.r.score ?? 0)).map(({ r, g }, i) => ({ key: `${g.game.id}|${r.playerId}`, r, g, rank: i + 1, facts: factsOf(g, r) }))} />
-          : <AllGamesTable kept={kept} market={market} onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} onOpenGame={onOpenGame} />)
+          : <AllGamesTable cln={cln} kept={kept} market={market} onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} onOpenGame={onOpenGame} />)
           : <EmptyState title="NOTHING MATCHES" note="Clear a filter above." />
       )}
       {view === 'game' && games.map((g) => (g.noMarketLock
         ? (filtering ? null : <EmptyState key={g.game.id} title={`${g.game.away.abbrev} @ ${g.game.home.abbrev} · NO ${M.label} LOCK`} note={`No call: it locked before the ${M.label} board existed.`} />)
         : (!filtering || g.rows.some((r) => keepIds.has(`${g.game.id}|${r.playerId}`)))
-          ? <GameBoard key={g.game.id} g={g} market={market} layout={layout} keep={filtering ? keepIds : null} onOpenPlayer={onOpenPlayer} onOpenGame={onOpenGame} onOpenTeam={onOpenTeam} />
+          ? <GameBoard key={g.game.id} cln={cln} g={g} market={market} layout={layout} keep={filtering ? keepIds : null} onOpenPlayer={onOpenPlayer} onOpenGame={onOpenGame} onOpenTeam={onOpenTeam} />
           : null))}
       {view === 'game' && filtering && flat.length > 0 && !kept.length && <EmptyState title="NOTHING MATCHES" note="Clear a filter above." />}
       {phone && data && market === 'GOAL' && <GoalWatch flat={flat} onOpenPlayer={onOpenPlayer} date={shown} />}
+      {/* under the board on every width, so the first ranked row does not move */}
+      {data && market === 'GOAL' && <CalledLastNight lens={cln} accent={C.ice} theme={C} numFont={NUM_FONT} logoSport="nhl" onOpen={(r) => onOpenPlayer?.(r.pid)} />}
       {/* ⚖️ COMPARE TWO (2026-10-03): MOONSHOT's compare, below the board and
           folded on a phone, the way MOONSHOT's Props and TUDDY's Boards place it. */}
       {market === 'GOAL' && flat.length > 1 && (
@@ -506,7 +515,7 @@ function lampSlateColumns(g, market = 'GOAL', onOpenTeam) {
 // Exported (2026-09-28) for LAMP's Slate -- the same game board, not a copy.
 // slate (2026-10-06): the Slate's game -- the whole table, no header strip of its own
 // (the Slate's game header says who plays), no row cap; see lampSlateColumns above.
-export function GameBoard({ g, onOpenPlayer, onOpenGame, onOpenTeam, market = 'GOAL', keep = null, layout = 'list', slate = false }) {
+export function GameBoard({ g, onOpenPlayer, onOpenGame, onOpenTeam, market = 'GOAL', keep = null, layout = 'list', slate = false, cln = null }) {
   const game = g.game
   const scored = g.rows.filter((r) => r.status !== 'off' && (!keep || keep.has(`${game.id}|${r.playerId}`)))
   const off = g.rows.filter((r) => r.status === 'off')
@@ -523,6 +532,7 @@ export function GameBoard({ g, onOpenPlayer, onOpenGame, onOpenTeam, market = 'G
     osa: r.legs ? r.legs.oppSaPg ?? null : null,
     pctl: r.status === 'called' ? 1 : 0, result: r.status, status: r.status, _row: r,
     ppg: r.ppg, ppvpk: ppVsPk(spotOf(g, r.team, true), spotOf(g, r.team, false)), rest: restWord(spotOf(g, r.team, true)),
+    cln: cln?.on ? cln.cell(r.playerId) : '',
   }))
   return (
     <section aria-label={`${game.away.abbrev} at ${game.home.abbrev}`} style={{ border: `1px solid ${C.border2}`, borderRadius: 12, background: C.bg2, padding: '8px 10px 10px' }}>
@@ -555,7 +565,7 @@ export function GameBoard({ g, onOpenPlayer, onOpenGame, onOpenTeam, market = 'G
       {scored.length === 0 ? <EmptyState title="NOBODY SCORED YET" note="No skater on either roster has ten NHL games on file." /> : layout === 'cards' ? (
         <LampCards market={market} onOpen={onOpenPlayer} items={rows.map((x) => ({ key: x.id, r: x._row, g, rank: x.rank, facts: { pp: pct1(spotOf(g, x.team, true)?.ppPct), pk: pct1(spotOf(g, x.team, false)?.pkPct), rest: x.rest } }))} />
       ) : (
-        <LampTable {...withNhlFullSet(rows, slate ? lampSlateColumns(g, market, onOpenTeam) : columnsFor(g, onOpenTeam, market))} heatMode="primary"
+        <LampTable {...withNhlFullSet(rows, withLastNight(slate ? lampSlateColumns(g, market, onOpenTeam) : columnsFor(g, onOpenTeam, market), cln))} heatMode="primary"
           rowEdge={(r) => (r.status === 'called' ? C.ice : null)}
           faceOf={(r) => ({ sport: 'nhl', photo: nhlMug(game.season, r._row?.team, r._row?.playerId), name: r._row?.name })}
           dimRow={(r) => g.graded && r._row.dressed === false}
@@ -667,12 +677,23 @@ export function whyItemFor(r, market, rank) {
   }
 }
 
-export function AllGamesTable({ kept, market, onOpenPlayer, onOpenTeam, onOpenGame }) {
+// CALLED LAST NIGHT column: the previous slate's call and result, labelled as that night's, never tonight's status.
+// Present only while the filter is on; goes right after the club column.
+const LAST_NIGHT_GROUP = { key: 'lastNight', label: 'Last night', order: 0.4 }
+function withLastNight(columns, cln) {
+  if (!cln?.on) return columns
+  const col = lastNightColumn({ label: 'LAST NIGHT', group: LAST_NIGHT_GROUP })
+  const at = columns.findIndex((c) => c.key === 'team')
+  return at < 0 ? [...columns, col] : [...columns.slice(0, at + 1), col, ...columns.slice(at + 1)]
+}
+
+export function AllGamesTable({ kept, market, onOpenPlayer, onOpenTeam, onOpenGame, cln = null }) {
   const { open, sheet } = useWhySheet({ theme: C, accent: C.ice, numFont: NUM_FONT })
   const rows = [...kept].sort((a, b) => (b.r.score ?? 0) - (a.r.score ?? 0)).map(({ r, g }, i) => ({
     id: r.playerId, rank: i + 1, name: r.name, pos: r.pos, team: r.team, game: `${g.game.away.abbrev}@${g.game.home.abbrev}`,
     score: r.score, ...rateVals(r, market), toi: r.legs ? r.legs.toi : null, gameRank: r.rank,
     osa: r.legs ? r.legs.oppSaPg ?? null : null, status: r.status, _row: r, _g: g,
+    cln: cln?.on ? cln.cell(r.playerId) : '',
   }))
   const columns = [
     { key: 'rank', label: '#', heat: false, mono: true, w: 30, group: GROUPS.call, title: 'His place on tonight’s board for this market, all games together.' },
@@ -699,7 +720,7 @@ export function AllGamesTable({ kept, market, onOpenPlayer, onOpenTeam, onOpenGa
     { key: 'toi', label: 'TOI', primary: true, w: 48, group: GROUPS.shooter, fmt: (v) => (Number.isFinite(v) ? fmtSec(v) : '—') },
   ]
   return (<>
-    <LampTable {...withNhlFullSet(rows, columns)} heatMode="primary" statusOf={(r) => r.status}
+    <LampTable {...withNhlFullSet(rows, withLastNight(columns, cln))} heatMode="primary" statusOf={(r) => r.status}
       rowEdge={(r) => (r.status === 'called' ? C.ice : null)}
       faceOf={(r) => ({ sport: 'nhl', photo: nhlMug(r._g.game.season, r._row?.team, r._row?.playerId), name: r._row?.name })}
       dimRow={(r) => r._g?.graded && r._row?.dressed === false}

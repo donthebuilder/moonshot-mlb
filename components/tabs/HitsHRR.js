@@ -1,5 +1,7 @@
 'use client'
 import WatchBox from '../WatchBox'
+import CalledLastNight from '../CalledLastNight'
+import { useCalledLastLens } from '../../lib/calledLast/useCalledLast'
 import { leaveTarget } from '../../lib/openTarget'
 import { useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../lib/theme'
@@ -467,7 +469,9 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
   // rather than guessing. Lifted here (not left inside RankedBoard) so the
   // filter panel — bar, band, score range, games, chips — survives a lens
   // switch instead of silently resetting every time view changes.
-  const filterState = useBoardFilter(players, SCORE_TYPE_FOR_VIEW[viewKey] || null)
+  // CALLED LAST NIGHT (2026-10-10): the previous slate's calls and results; a filter in the sheet, a section under the board
+  const cln = useCalledLastLens('mlb', slateDate, null, { enabled: rankings && Boolean(slateDate) })
+  const filterState = useBoardFilter(players, SCORE_TYPE_FOR_VIEW[viewKey] || null, cln)
   const { filtered, state } = filterState
   const setupHomers = useSetupHomers(slateDate)
   // useBackToBack, not backToBack: the watch accumulates for the slate so a
@@ -746,6 +750,9 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
                 onOpenCard={onOpenCard} rankings={rankings} compact={phoneRank} colsView={colsView} onColsView={setColsView} slate={allPlayers.length ? allPlayers : players} viewMode={layout} onViewMode={setLayout} />
           }
           {phoneRank && b2bFold}
+          {/* UNDER THE BOARD on every width, so the first ranked row does not move */}
+          {rankings && <CalledLastNight lens={cln} accent={C.orange} logoSport="mlb"
+            onOpen={(r) => { const p = (allPlayers.length ? allPlayers : players).find((x) => String(mlbId(x)) === r.pid); if (p) onPlayerClick?.(p) }} />}
         </>
       )}
     </div>
