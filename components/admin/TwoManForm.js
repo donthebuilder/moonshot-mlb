@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { C, NUM_FONT } from '../../lib/theme'
 import { STATUS_WORD } from '../../lib/callStatus'
+import DoubleForm from './DoubleForm'
 
 const SPORTS = [['nhl', 'LAMP · NHL'], ['nfl', 'TUDDY · NFL'], ['mlb', 'MOONSHOT · MLB']]
 const hm = (iso) => new Date(iso).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'America/Phoenix' })
@@ -17,6 +18,7 @@ async function api(path, init) {
 }
 
 export default function TwoManForm() {
+  const [kind, setKind] = useState('two_man')       // 'two_man' | 'double'
   const [sport, setSport] = useState('nhl')
   const [data, setData] = useState(null)
   const [date, setDate] = useState(null)
@@ -67,8 +69,23 @@ export default function TwoManForm() {
     if (r.ok) { setMsg({ ok: true, text: 'Withdrawn.' }); setPick([]); setNote(''); loadWindows(sport).then(() => setDate(date)) } else setMsg({ ok: false, text: r.error })
   }
 
+  if (kind === 'double') {
+    return (
+      <div style={{ color: C.text }}>
+        <div role="tablist" aria-label="Product" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
+          <button type="button" role="tab" aria-selected={false} onClick={() => setKind('two_man')} style={btn(false)}>Two-Man</button>
+          <button type="button" role="tab" aria-selected onClick={() => setKind('double')} style={btn(true)}>Double</button>
+        </div>
+        <DoubleForm />
+      </div>
+    )
+  }
   return (
     <div style={{ color: C.text }}>
+      <div role="tablist" aria-label="Product" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
+        <button type="button" role="tab" aria-selected onClick={() => setKind('two_man')} style={btn(true)}>Two-Man</button>
+        <button type="button" role="tab" aria-selected={false} onClick={() => setKind('double')} style={btn(false)}>Double</button>
+      </div>
       <p style={{ margin: '0 0 12px', fontSize: 13, lineHeight: 1.5, color: C.text2 }}>
         Your two players and a note of one to three lines, before the lock. Nothing can be changed after it. After the lock it shows on the site as
         <b> Donovan&apos;s Two-Man</b>, in its own record, never the bot&apos;s.

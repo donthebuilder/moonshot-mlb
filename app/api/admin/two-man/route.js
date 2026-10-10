@@ -3,12 +3,16 @@
 //   GET  ?sport=&date=YYYY-MM-DD            + the picker: the window's scored board (real player ids), best score first
 //   POST { sport, date, players:[id,id], note }       save (or replace, before the lock) his two-man; refused once any game has started or the lock passed
 //   POST { sport, date, action:'withdraw' }           withdraw his open entry (the database only allows it before the lock)
+//   HIS DOUBLE (optional, daily; two players from two different sports, free to show after the lock with his note):
+//   GET  ?product=double&date=YYYY-MM-DD    each sport's window + board for that day, the earlier lock, and his entry if he made one
+//   POST { product:'double', date, picks:[{sport,player_id},{sport,player_id}], note }   save (or replace, before the EARLIER of the two locks)
+//   POST { product:'double', date, action:'withdraw' }
 // The rules are lib/card/core.js donovanRow; the database trigger (supabase/migrations/202610101000_card_calls.sql) is the backstop.
 import { hasSupabaseConfig } from '../../../../lib/supabase/config'
 import { createSupabaseServerClient } from '../../../../lib/supabase/server'
 import { adminClient } from '../../../../lib/supabase/admin'
 import { isAdminEmail } from '../../../../lib/admin'
-import { CARD_SPORTS, CARD_VERSION, lockAtOf, donovanRow, NOTE_MAX_LINES, NOTE_MAX_CHARS } from '../../../../lib/card/core'
+import { CARD_SPORTS, CARD_VERSION, DOUBLE_SPORT, lockAtOf, donovanRow, donovanDoubleRow, NOTE_MAX_LINES, NOTE_MAX_CHARS } from '../../../../lib/card/core'
 import { loadWindows, loadCandidates } from '../../../../lib/card/sources'
 import { saveDonovan, withdrawDonovan, donovanEntry } from '../../../../lib/card/store'
 
@@ -26,16 +30,43 @@ async function admin() {
   return user && isAdminEmail(user.email) ? user : null
 }
 
-const slimEntry = (r) => (r ? { card_date: r.card_date, locks_at: r.locks_at, start_at: r.start_at, note: r.note, legs: r.legs.map((l) => ({ player_id: l.player_id, name: l.name, team: l.team, opp: l.opp, game_id: l.game_id, start_at: l.start_at })), result: r.result } : null)
+const slimEntry = (r) => (r ? { card_date: r.card_date, locks_at: r.locks_at, start_at: r.start_at, note: r.note, legs: r.legs.map((l) => ({ player_id: l.player_id, name: l.name, team: l.team, opp: l.opp, game_id: l.game_id, start_at: l.start_at, sport: l.sport || null })), result: r.result } : null)
+
+// HIS DOUBLE: each sport's window for the day, its board (real ids, best score first) and the lock
+async function doubleWindows(date, now, withBoards) {
+  const out = {}
+  await Promise.all(CARD_SPORTS.map(async (sport) => {
+    const w = await loadWindows(sport, now)
+    const win = w.ok ? w.windows.find((x) => x.card_date === date) : null
+    if (!win) { out[sport] = { sport, error: w.ok ? `no ${sport} games on ${date}` : w.why }; return }
+    const o = { sport, win, first_start: new Date(win.first_start_ms).toISOString(), locks_at: new Date(lockAtOf(win.first_start_ms)).toISOString(), field: null }
+    if (withBoards) {
+      const c = await loadCandidates(sport, win, now, { all: true })
+      if (!c.ok) o.error = c.why
+      else { o.cands = c.cands; o.field = c.cands.filter((x) => x.start_ms > now).sort((a, b) => b.score - a.score).slice(0, PICKER_MAX).map((x) => ({ player_id: x.player_id, name: x.name, team: x.team, opp: x.opp, pos: x.pos || null, score: x.score, status: x.status || null, start_at: new Date(x.start_ms).toISOString(), game_id: x.game_id, sport })) }
+    }
+    out[sport] = o
+  }))
+  return out
+}
 
 export async function GET(request) {
   if (!(await admin())) return no()
   const q = new URL(request.url).searchParams
   const sport = String(q.get('sport') || 'nhl')
-  if (!CARD_SPORTS.includes(sport)) return Response.json({ error: 'sport must be nhl, nfl or mlb' }, { status: 400 })
   const db = adminClient()
   if (!db) return Response.json({ error: 'no database' }, { status: 500 })
   const now = Date.now()
+  if (q.get('product') === 'double') {
+    const date = q.get('date')
+    if (!date || !DATE_RE.test(date)) return Response.json({ error: 'Pick a date.' }, { status: 400 })
+    const ws = await doubleWindows(date, now, true)
+    const sports = CARD_SPORTS.map((k) => ({ sport: k, error: ws[k].error || null, first_start: ws[k].first_start || null, locks_at: ws[k].locks_at || null, open: ws[k].locks_at ? now < Date.parse(ws[k].locks_at) : false, field: ws[k].field || [] }))
+    const entry = slimEntry(await donovanEntry(db, DOUBLE_SPORT, date, 'double'))
+    const locksAt = Math.min(...sports.map((x) => (x.locks_at ? Date.parse(x.locks_at) : Infinity)))
+    return Response.json({ product: 'double', date, sports, entry, earliest_lock: Number.isFinite(locksAt) ? new Date(locksAt).toISOString() : null, note: { lines: NOTE_MAX_LINES, chars: NOTE_MAX_CHARS } }, { headers: { 'Cache-Control': 'no-store' } })
+  }
+  if (!CARD_SPORTS.includes(sport)) return Response.json({ error: 'sport must be nhl, nfl or mlb' }, { status: 400 })
   const w = await loadWindows(sport, now)
   if (!w.ok) return Response.json({ sport, windows: [], error: w.why }, { headers: { 'Cache-Control': 'no-store' } })
   const windows = await Promise.all(w.windows.map(async (win) => ({
@@ -60,6 +91,24 @@ export async function POST(request) {
   const db = adminClient()
   if (!db) return Response.json({ error: 'no database' }, { status: 500 })
   const body = await request.json().catch(() => ({}))
+  if (body.product === 'double') {
+    const date = String(body.date || '')
+    if (!DATE_RE.test(date)) return Response.json({ error: 'Pick a card date.' }, { status: 400 })
+    const now = Date.now()
+    if (body.action === 'withdraw') {
+      const r = await withdrawDonovan(db, { card_date: date, product: 'double' })
+      return r.ok ? Response.json({ ok: true }) : Response.json({ error: r.error }, { status: 409 })
+    }
+    const picks = Array.isArray(body.picks) ? body.picks : []
+    const ws = await doubleWindows(date, now, true)
+    const fields = {}; const locks = {}
+    for (const k of CARD_SPORTS) { if (ws[k]?.cands) fields[k] = ws[k].cands; if (ws[k]?.locks_at) locks[k] = Date.parse(ws[k].locks_at) }
+    const made = donovanDoubleRow({ card_date: date, fields, picks, note: body.note, now, locks, version: CARD_VERSION })
+    if (!made.ok) return Response.json({ error: made.error }, { status: 400 })
+    const saved = await saveDonovan(db, made.row)
+    if (!saved.ok) return Response.json({ error: saved.error }, { status: 409 })
+    return Response.json({ ok: true, entry: slimEntry(made.row) })
+  }
   const sport = String(body.sport || '')
   const date = String(body.date || '')
   if (!CARD_SPORTS.includes(sport) || !DATE_RE.test(date)) return Response.json({ error: 'Pick a sport and a card date.' }, { status: 400 })

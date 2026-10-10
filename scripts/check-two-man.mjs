@@ -16,6 +16,7 @@ import { lockCard, gradeCardRows, cardRows, saveDonovan, withdrawDonovan, latest
 import { xCardBuild, CARD_KIND, postCardMembers, postCardX } from '../lib/card/post.js'
 import { wilson } from '../lib/interval.js'
 import { tagOf, untagged, kindInfo, mayPostNow } from '../lib/dash/xSchedule.js'
+import { fakeDb } from './_card-fakedb.mjs'
 import { sportOfKind, tierOf, isRepeatExempt } from '../lib/dash/xPolicy.js'
 
 let failed = 0
@@ -27,72 +28,13 @@ const NOW = Date.parse('2026-10-10T20:00:00Z')
 const C = (id, game, startH, score, rate = 0.3, extra = {}) => ({ player_id: id, name: `Player ${id}`, team: `T${game}A`, opp: `T${game}B`, game_id: game, game_date: '2026-10-10', start_ms: NOW + startH * H, score, rate, why: `why ${id}`, ...extra })
 const FIELD = [C('p1', 'g1', 2, 90, 0.40), C('p2', 'g1', 2, 88, 0.35), C('p3', 'g2', 3, 85, 0.30), C('p4', 'g3', 4, 80, 0.25), C('p5', 'g3', 4, 70, 0.20), C('p6', 'g4', 1, 95, 0.10)]
 const LOCK_AT = lockAtOf(NOW + 1 * H)
+// a stored volume pick: a shots-on-goal candidate with its stored line and median price (TEST numbers)
+const SOGC = (id, game, startH, score, line = 2.5, med = -120) => ({ ...C(id, game, startH, score, null), market: 'sog', line, price: { median: med, best: med + 10, books: 6, taken_at: '2026-10-10T19:00:00Z' } })
+const SOG = [SOGC('s1', 'g1', 2, 77), SOGC('s2', 'g4', 1, 95), SOGC('s3', 'g2', 3, 60)]
+const BMAP = (field = FIELD, sog = SOG) => ({ anytime: { cands: field, board: field.map((c) => c.score) }, sog: { cands: sog, board: [...sog.map((c) => c.score), 10, 20, 30, 40] } })
+const INPUTS = (field = FIELD, games = 6) => ({ ok: true, byMarket: BMAP(field), games, all: field, prices: null })
 
-// ── A FAKE card_calls TABLE THAT HOLDS THE MIGRATION'S RULES (supabase/migrations/202610101000_card_calls.sql) ──
-function fakeDb(clock) {
-  const rows = []
-  let id = 0
-  const guard = (op, old, nw) => {
-    const now = clock.now
-    if (op === 'insert') {
-      if (now >= Date.parse(nw.start_at)) throw new Error('card_calls: nothing is locked at or after the start')
-      if (nw.lane === 'donovan' && now >= Date.parse(nw.locks_at)) throw new Error("card_calls: Donovan's entry is closed")
-      if (nw.result != null || nw.leg_results != null || nw.graded_at != null) throw new Error('card_calls: a card row is inserted ungraded')
-      return { ...nw, locked_at: new Date(now).toISOString() }
-    }
-    if (op === 'delete') {
-      if (old.lane === 'donovan' && old.result == null && now < Date.parse(old.locks_at) && now < Date.parse(old.start_at)) return old
-      throw new Error('card_calls: a locked card row is never deleted')
-    }
-    const open = old.lane === 'donovan' && old.result == null && now < Date.parse(old.locks_at) && now < Date.parse(old.start_at)
-    if (open) {
-      for (const k of ['sport', 'card_date', 'lane', 'product', 'slot', 'model_version', 'stake']) if (String(nw[k]) !== String(old[k])) throw new Error('card_calls: the key of a card row is never rewritten')
-      if (now >= Date.parse(nw.start_at)) throw new Error('card_calls: nothing is saved at or after the start')
-      if (nw.result != null) throw new Error('card_calls: a card row is not graded before its lock')
-      return { ...nw, locked_at: new Date(now).toISOString() }
-    }
-    for (const k of ['sport', 'card_date', 'slate_key', 'lane', 'product', 'slot', 'model_version', 'rule', 'stake', 'legs', 'leg_count', 'note', 'start_at', 'locks_at', 'locked_at']) {
-      if (JSON.stringify(nw[k]) !== JSON.stringify(old[k])) throw new Error('card_calls: a locked card is never rewritten')
-    }
-    if (old.result != null) throw new Error('card_calls: a graded card row is never regraded')
-    if (nw.result != null && now < Date.parse(old.start_at)) throw new Error('card_calls: nothing is graded before the start')
-    return nw
-  }
-  const KEYS = ['sport', 'card_date', 'lane', 'product', 'slot', 'model_version']
-  const sameKey = (a, b) => KEYS.every((k) => String(a[k]) === String(b[k]))
-  const builder = (action, payload, opts) => {
-    const f = []
-    const q = {
-      eq: (c, v) => (f.push((r) => String(r[c]) === String(v)), q),
-      is: (c, v) => (f.push((r) => (v === null ? r[c] == null : r[c] === v)), q),
-      gte: (c, v) => (f.push((r) => r[c] >= v), q), lt: (c, v) => (f.push((r) => r[c] < v), q),
-      match: (o) => (Object.entries(o).forEach(([c, v]) => f.push((r) => String(r[c]) === String(v))), q),
-      order: () => q, limit: () => q, select: () => { q._sel = true; return q }, maybeSingle: () => { q._single = true; return q },
-      then: (res, rej) => {
-        try {
-          const hit = () => rows.filter((r) => f.every((p) => p(r)))
-          let data = null
-          if (action === 'select') data = hit()
-          else if (action === 'upsert') {
-            data = []
-            for (const nw of payload) {
-              const old = rows.find((r) => sameKey(r, nw))
-              if (old && opts?.ignoreDuplicates) continue
-              if (old) { Object.assign(old, guard('update', old, { ...old, ...nw })); data.push(old) } else { const r = { id: ++id, ...guard('insert', null, nw) }; rows.push(r); data.push(r) }
-            }
-          } else if (action === 'update') { data = hit(); for (const r of data) Object.assign(r, guard('update', r, { ...r, ...payload })) } else if (action === 'delete') { data = hit(); for (const r of data) { guard('delete', r); rows.splice(rows.indexOf(r), 1) } }
-          return Promise.resolve({ data: q._single ? (data?.[0] ?? null) : data, error: null }).then(res, rej)
-        } catch (e) { return Promise.resolve({ data: null, error: { message: e.message } }).then(res, rej) }
-      },
-    }
-    return q
-  }
-  const table = {
-    select: () => builder('select'), upsert: (p, o) => builder('upsert', p, o), update: (p) => builder('update', p), delete: () => builder('delete'),
-  }
-  return { rows, from: (name) => { assert.equal(name, 'card_calls', 'only the card table is touched'); return table } }
-}
-
+// ── THE FAKE card_calls TABLE (scripts/_card-fakedb.mjs holds the migrations' rules) ──
 // ── 1. SELECTION ──────────────────────────────────────────────────────────────
 await t('straights: the top three by score, AT MOST ONE PER GAME (p2 is p1\'s teammate-game: skipped), whose game has not started', () => {
   const s = pickStraights(FIELD, NOW)
@@ -129,10 +71,11 @@ await t('the Two-Man: the best player, then the best from a DIFFERENT game; none
 })
 
 // ── 2. THE LOCK ───────────────────────────────────────────────────────────────
-await t('the lock: three straights (1 unit) and one Two-Man (0.5 unit), every row ahead of its start, frozen legs', () => {
-  const rows = lockRows({ sport: 'nhl', slate_key: '2026-10-10', card_date: '2026-10-10', cands: FIELD, now: NOW, lockAtMs: LOCK_AT })
+await t('the lock (a six-game slate): three straights (1 unit) in their markets and one Two-Man (0.5 unit), every row ahead of its start, frozen legs', () => {
+  const rows = lockRows({ sport: 'nhl', slate_key: '2026-10-10', card_date: '2026-10-10', byMarket: BMAP(), games: 6, now: NOW, lockAtMs: LOCK_AT })
   assert.equal(rows.length, 4)
-  assert.deepEqual(rows.filter((r) => r.product === 'straight').map((r) => [r.slot, r.stake, r.legs[0].player_id]), [[1, 1, 'p6'], [2, 1, 'p1'], [3, 1, 'p3']])
+  // slot 1 anytime goal: p6; slot 2 shots over: s2 is in p6's game (used), so s1; slot 3 a second goal pick from an unused game: p3 (p1 is in s1's game)
+  assert.deepEqual(rows.filter((r) => r.product === 'straight').map((r) => [r.slot, r.stake, r.legs[0].player_id]), [[1, 1, 'p6'], [2, 1, 's1'], [3, 1, 'p3']])
   const two = rows.find((r) => r.product === 'two_man')
   assert.equal(two.stake, 0.5); assert.equal(two.slot, 1); assert.deepEqual(two.legs.map((l) => l.player_id), ['p6', 'p1'])
   assert.equal(two.start_at, new Date(NOW + 1 * H).toISOString(), 'the Two-Man starts with its earlier leg')
@@ -142,13 +85,14 @@ await t('the lock: three straights (1 unit) and one Two-Man (0.5 unit), every ro
     assert.equal(r.legs.length, r.leg_count)
   }
   assert.equal(rows[0].rule, CARD_RULE.straight); assert.equal(two.rule, CARD_RULE.two_man)
+  assert.equal(CARD_VERSION, 'card-v2')
 })
 
 await t('lock-before-start: a game that has started is never in the lock; nothing is written for a started card', () => {
-  const rows = lockRows({ sport: 'nhl', slate_key: 'k', card_date: '2026-10-10', cands: FIELD, now: NOW + 2 * H, lockAtMs: LOCK_AT })    // g4 (+1h) and g1 (+2h) have started
-  assert.deepEqual(rows.filter((r) => r.product === 'straight').map((r) => r.legs[0].player_id), ['p3', 'p4'])
+  const rows = lockRows({ sport: 'nhl', slate_key: 'k', card_date: '2026-10-10', byMarket: BMAP(), games: 6, now: NOW + 2 * H, lockAtMs: LOCK_AT })    // g4 (+1h) and g1 (+2h) have started
+  assert.deepEqual(rows.filter((r) => r.product === 'straight').map((r) => r.legs[0].player_id), ['p3', 'p4'])     // g4 and g1 have started: slot 1 p3 (g2); slot 2 (shots) has nobody left from a free game and is SKIPPED, never filled out of turn; slot 3 p4 (g3)
   assert.ok(rows.every((r) => Date.parse(r.start_at) > NOW + 2 * H))
-  assert.equal(lockRows({ sport: 'nhl', slate_key: 'k', card_date: 'd', cands: FIELD, now: NOW + 5 * H, lockAtMs: LOCK_AT }).length, 0)
+  assert.equal(lockRows({ sport: 'nhl', slate_key: 'k', card_date: 'd', byMarket: BMAP(), games: 6, now: NOW + 5 * H, lockAtMs: LOCK_AT }).length, 0)
   assert.equal(mayLockRow({ start_at: new Date(NOW).toISOString() }, NOW), false)
   assert.equal(mayLockRow({ start_at: new Date(NOW + 1).toISOString() }, NOW), true)
 })
@@ -175,13 +119,13 @@ await t('no rewrite after the lock: a second pass keeps the first rows; an updat
   const clock = { now: NOW }
   const db = fakeDb(clock)
   const win = { card_date: '2026-10-10', slate_key: '2026-10-10', first_start_ms: NOW + 1 * H }
-  const r1 = await lockCard(db, 'nhl', win, FIELD, { now: NOW })
-  assert.match(r1, /^locked 3 straight\(s\) \+ two-man/)
+  const r1 = await lockCard(db, 'nhl', win, INPUTS(), { now: NOW })
+  assert.match(r1, /^locked 3 straight\(s\) of 6 game\(s\) \+ two-man/)
   const snap = JSON.stringify(db.rows)
   // a later pass with a DIFFERENT field (a new best player) changes nothing
   clock.now = NOW + 30 * 60e3
   const better = [C('p9', 'g7', 3, 99, 0.5), ...FIELD]
-  await lockCard(db, 'nhl', win, better, { now: clock.now })
+  await lockCard(db, 'nhl', win, INPUTS(better), { now: clock.now })
   assert.equal(JSON.stringify(db.rows), snap, 'the locked rows are untouched')
   assert.equal(db.rows.length, 4)
   const bad = await db.from('card_calls').update({ stake: 9 }).eq('product', 'straight').select()
@@ -195,11 +139,11 @@ await t('no rewrite after the lock: a second pass keeps the first rows; an updat
 await t('a started game is refused by the table itself (insert at or after the start), and the store re-reads the clock', async () => {
   const clock = { now: NOW + 1 * H }     // exactly the first start
   const db = fakeDb(clock)
-  const rows = lockRows({ sport: 'nhl', slate_key: 'k', card_date: '2026-10-10', cands: FIELD, now: NOW, lockAtMs: LOCK_AT })
+  const rows = lockRows({ sport: 'nhl', slate_key: 'k', card_date: '2026-10-10', byMarket: BMAP(), games: 6, now: NOW, lockAtMs: LOCK_AT })
   const r = await db.from('card_calls').upsert(rows.filter((x) => x.legs[0].player_id === 'p6'), { onConflict: 'x' })
   assert.match(r.error.message, /at or after the start/)
   assert.equal(db.rows.length, 0)
-  assert.equal(await lockCard(db, 'nhl', { card_date: '2026-10-10', slate_key: 'k', first_start_ms: NOW + 4 * H }, FIELD, { now: NOW }), 'window-not-open')
+  assert.equal(await lockCard(db, 'nhl', { card_date: '2026-10-10', slate_key: 'k', first_start_ms: NOW + 4 * H }, INPUTS(), { now: NOW }), 'window-not-open')
 })
 
 // ── 4. GRADING: BOTH-OR-NOTHING ───────────────────────────────────────────────
@@ -223,14 +167,14 @@ await t('the Two-Man is both-or-nothing: both hit = hit; one miss = miss; ANY vo
 await t('grading through the store: written once from the box-score words; a postponed game voids every leg in it; a re-run does not regrade', async () => {
   const clock = { now: NOW }
   const db = fakeDb(clock)
-  await lockCard(db, 'nhl', { card_date: '2026-10-10', slate_key: 'k', first_start_ms: NOW + 1 * H }, FIELD, { now: NOW })
+  await lockCard(db, 'nhl', { card_date: '2026-10-10', slate_key: 'k', first_start_ms: NOW + 1 * H }, INPUTS(), { now: NOW })
   clock.now = NOW + 12 * H
   const open = db.rows.filter((r) => r.result == null)
-  // p6 landed, p1 missed, p2 did not play (g1), p3 not final yet; g4's game postponed would void p6 -- here p6 plays
-  const results = new Map([['g4|p6', { played: true, landed: true }], ['g1|p1', { played: true, landed: false }], ['g2|p3', { played: false, landed: false }]])
+  // p6 landed, p1 missed, p3 did not play (g2); s1 (a shots-over-2.5 pick) had 2 shots: a miss against the stored line
+  const results = new Map([['g4|p6', { played: true, landed: true }], ['g1|p1', { played: true, landed: false }], ['g2|p3', { played: false, landed: false }], ['g1|s1', { played: true, landed: false, values: { sog: 2 } }]])
   assert.equal(await gradeCardRows(db, open, results, clock.now), 4)
   const by = (p, s) => db.rows.find((r) => r.product === p && (s == null || r.slot === s))
-  assert.equal(by('straight', 1).result, 'hit'); assert.equal(by('straight', 2).result, 'miss'); assert.equal(by('straight', 3).result, 'void')
+  assert.equal(by('straight', 1).result, 'hit'); assert.equal(by('straight', 2).result, 'miss', 'two shots against a 2.5 line'); assert.equal(by('straight', 3).result, 'void')
   assert.equal(by('two_man').result, 'miss', 'p6 hit, p1 missed: a miss')
   assert.deepEqual(by('two_man').leg_results.map((l) => l.result), ['hit', 'miss'])
   // the same pass again with different words: nothing regraded
@@ -239,12 +183,12 @@ await t('grading through the store: written once from the box-score words; a pos
   assert.equal(by('straight', 1).result, 'hit')
   // a postponed game: the '*' word voids every leg of that game
   const db2 = fakeDb({ now: NOW })
-  await lockCard(db2, 'nhl', { card_date: '2026-10-10', slate_key: 'k', first_start_ms: NOW + 1 * H }, FIELD, { now: NOW })
+  await lockCard(db2, 'nhl', { card_date: '2026-10-10', slate_key: 'k', first_start_ms: NOW + 1 * H }, INPUTS(), { now: NOW })
   db2.rows.forEach((r) => { r.start_at = new Date(NOW - H).toISOString() })   // (test only) the games are over
-  const post = new Map([['g4|*', { played: false, landed: false }], ['g1|p1', { played: true, landed: true }]])
+  const post = new Map([['g4|*', { played: false, landed: false }], ['g1|p1', { played: true, landed: true }], ['g1|s1', { played: true, landed: true, values: { sog: 4 } }]])
   await gradeCardRows(db2, db2.rows, post, NOW)
   assert.equal(db2.rows.find((r) => r.product === 'two_man').result, 'void', 'p6\'s game was postponed: the Two-Man voids, it is not a loss')
-  assert.equal(db2.rows.find((r) => r.product === 'straight' && r.slot === 2).result, 'hit')
+  assert.equal(db2.rows.find((r) => r.product === 'straight' && r.slot === 2).result, 'hit', 'four shots against a 2.5 line')
 })
 
 // ── 5. THE RECORD ─────────────────────────────────────────────────────────────
@@ -367,19 +311,19 @@ await t('lanes are never mixed: three records, the bot\'s straights, the bot\'s 
 
 // ── 7. THE POSTS ──────────────────────────────────────────────────────────────
 const CARD_ROWS = (() => {
-  const bot = lockRows({ sport: 'nhl', slate_key: 'k', card_date: '2026-10-10', cands: FIELD, now: NOW, lockAtMs: LOCK_AT })
+  const bot = lockRows({ sport: 'nhl', slate_key: 'k', card_date: '2026-10-10', byMarket: BMAP(), games: 6, now: NOW, lockAtMs: LOCK_AT })
   const don = donovanRow({ ...DON }).row
   return [...bot, don].map((r, i) => ({ id: i + 1, ...r }))
 })()
 const OK_PROBLEMS = new Map(FIELD.map((c) => [c.player_id, null]))
 
-await t('the X post names ONLY the #1 straight and Donovan\'s Two-Man with his note: not the #2 / #3 straights, not the bot\'s Two-Man', () => {
+await t('the X post names ONLY the lead straight and Donovan\'s Two-Man with his note: not the other straights, not the bot\'s Two-Man', () => {
   const b = xCardBuild({ sport: 'nhl', day: '2026-10-10', rows: CARD_ROWS, problems: OK_PROBLEMS, now: NOW - 30 * 60e3 })
   assert.ok(b.text.length > 0)
-  assert.match(b.text, /Straight #1: Player p6 · Tg4A vs Tg4B \(anytime goal\)/)
+  assert.match(b.text, /Straight: Player p6 · Tg4A vs Tg4B \(anytime goal\)/)
   assert.match(b.text, /Donovan's Two-Man: Player p3 \+ Player p5/); assert.ok(b.text.includes('Shots, shots, shots.'))
   // the other straights and the bot's two-man legs (p6 is #1; p1 / p2 are #2, #3 and the Two-Man's second leg) are nowhere in the text or the payload
-  for (const n of ['Player p1', 'Player p2']) assert.ok(!b.text.includes(n), `${n} must not be on X`)
+  for (const n of ['Player p1', 'Player p2', 'Player s1']) assert.ok(!b.text.includes(n), `${n} must not be on X`)
   assert.deepEqual(b.payload.picks.map((p) => p.player_id).sort(), ['p3', 'p5', 'p6'])
   assert.ok(!/Two-Man: Player p6/.test(b.text), 'the bot\'s Two-Man is not on X')
   assert.ok(cleanPublic(b.text), 'no link, hashtag, lock, guaranteed or winner'); assert.ok([...b.text].length + 4 <= 280)
@@ -394,7 +338,7 @@ await t('X rules: a long note loses lines before names; a repeat-guard exclusion
   const b = xCardBuild({ sport: 'nhl', day: '2026-10-10', rows, problems: OK_PROBLEMS, now: NOW - 30 * 60e3 })
   assert.ok([...b.text].length + 4 <= 280); assert.ok(b.text.includes('Player p3') && b.text.includes('Player p6'))
   const ex = xCardBuild({ sport: 'nhl', day: '2026-10-10', rows: CARD_ROWS, problems: OK_PROBLEMS, exclude: new Set(['p6']), now: NOW - 30 * 60e3 })
-  assert.ok(!ex.text.includes('Straight #1'), 'the #1 straight is left out when he was named too recently'); assert.ok(!ex.text.includes('Player p1') && !ex.text.includes('Player p2'))
+  assert.ok(!ex.text.includes('Straight:'), 'the lead straight is left out when he was named too recently'); assert.ok(!ex.text.includes('Player p1') && !ex.text.includes('Player p2') && !ex.text.includes('Player s1'))
   assert.ok(ex.text.includes('Donovan'))
   assert.equal(xCardBuild({ sport: 'nhl', day: 'd', rows: [], problems: OK_PROBLEMS, now: NOW }).text, '')
   const none = xCardBuild({ sport: 'nhl', day: 'd', rows: CARD_ROWS.filter((r) => r.lane === 'bot' && r.product !== 'straight'), problems: OK_PROBLEMS, now: NOW })
@@ -407,7 +351,7 @@ await t('X naming rule: a name not confirmed yet HOLDS the post; a definite no l
   assert.equal(held.text, ''); assert.ok(held.pending?.length === 1); assert.equal(held.startMs, NOW + 1 * H)
   const out = new Map(OK_PROBLEMS); out.set('p3', { id: 'p3', reason: 'listed out', pending: false })
   const left = xCardBuild({ sport: 'nhl', day: 'd', rows: CARD_ROWS, problems: out, now: NOW - 30 * 60e3 })
-  assert.ok(left.text.includes('Straight #1') && !left.text.includes('Donovan') && !left.text.includes('Player p3') && !left.text.includes('Player p5'))
+  assert.ok(left.text.includes('Straight:') && !left.text.includes('Donovan') && !left.text.includes('Player p3') && !left.text.includes('Player p5'))
   assert.ok(!left.text.includes('Shots, shots, shots.'), 'his note does not go out about two men whose names cannot be shown')
   assert.deepEqual(left.payload.picks.map((p) => p.player_id), ['p6'])
   const unseen = xCardBuild({ sport: 'nhl', day: 'd', rows: CARD_ROWS, problems: new Map(), now: NOW - 30 * 60e3 })
@@ -419,9 +363,10 @@ await t('X naming rule: a name not confirmed yet HOLDS the post; a definite no l
 const PRICES = new Map([['p6', { best: 450, median: 380, books: 5 }], ['p1', { best: 300, median: 280, books: 6 }], ['p3', { best: 250, median: 230, books: 4 }]])
 await t('the #members card carries the whole Card, the bot\'s Two-Man, each price (or "no price on file yet") and the why', () => {
   const m = membersCardText({ sport: 'nhl', day: '2026-10-10', rows: CARD_ROWS, prices: PRICES })
-  for (const n of ['Player p6', 'Player p1', 'Player p3']) assert.ok(m.text.includes(n), n)
+  for (const n of ['Player p6', 'Player s1', 'Player p3', 'Player p1']) assert.ok(m.text.includes(n), n)
   assert.match(m.text, /CALLED/)
   assert.match(m.text, /1\. Player p6 .*1 unit · \+450 best, \+380 median \(5 books\)/)
+  assert.match(m.text, /2\. Player s1 .*shots on goal over 2\.5 · 1 unit · -120 median across 6 books/, 'a volume pick shows its stored line and the price frozen at the lock')
   assert.match(m.text, /TWO-MAN: Player p6 \+ Player p1 · different games · 0\.5 unit · about \+2100 best/)   // the product of the two prices
   assert.ok(m.text.includes('why p6')); assert.ok(!m.text.includes("Donovan"), 'his lane is free: not in the members card')
   const noPrice = membersCardText({ sport: 'nhl', day: 'd', rows: CARD_ROWS, prices: new Map() })
@@ -469,7 +414,7 @@ await t('LEAK CHECK: the members card goes to the members webhook ONLY (never a 
   assert.equal(calls.length, 1, 'exactly one network call')
   assert.equal(calls[0].url, U('9999'), 'to the members URL only')
   assert.ok(calls.every((c) => !/x\.com|twitter\.com/.test(c.url)), 'nothing to X')
-  assert.ok(calls[0].body.includes('Player p1') && calls[0].body.includes('Two-Man (0.5 unit)'), 'the whole card is what went')
+  assert.ok(calls[0].body.includes('Player p1') && calls[0].body.includes('Player s1') && calls[0].body.includes('Two-Man (0.5 unit)'), 'the whole card is what went')
   assert.equal(db.rows[0].kind, 'card_members_nhl'); assert.match(db.rows[0].kind, /_members_/, 'the kind the public read policy already hides')
   // no members webhook: nothing sent, nothing claimed
   setEnv({ X_API_KEY: 'k', X_API_SECRET: 's', X_ACCESS_TOKEN: 't', X_ACCESS_SECRET: 'a' })
@@ -499,14 +444,14 @@ await t('LEAK CHECK: the code paths: the members text is built only on the membe
   const resFn = post.slice(post.indexOf('export async function postCardResult'))
   assert.ok(!/membersCardText|currentPrices/.test(resFn), 'the free result carries no price')
   const tx = fs.readFileSync(new URL('../lib/card/text.js', import.meta.url), 'utf8').replace(/\/\/.*$/gm, '')
-  const xt = tx.slice(tx.indexOf('export function xCardText'), tx.indexOf('const legPriceWords'))
+  const xt = tx.slice(tx.indexOf('export function xCardText'), tx.indexOf('/** The price of a leg in words'))
   assert.ok(!/two_man|price|fmtAmerican/.test(xt.replace(/Donovan's Two-Man/g, '')), 'the X text builder has no price and no bot two-man')
   assert.ok(!/\.rate\b/.test(tx), 'no model rate is read by any text')
   // the X post is posted by postOnce with the free feed; its kind is not a members kind
   assert.ok(!/_members_/.test(CARD_KIND.x('nhl')) && /_members_/.test(CARD_KIND.members('nhl')))
 })
 
-await t('the post kinds: all nine tagged (INFO event / members), the sport read from the kind, results exempt from the repeat guard, no untagged kind', () => {
+await t('the post kinds: all tagged (INFO event / members), the sport read from the kind, results exempt from the repeat guard, no untagged kind (the map\'s kinds are in check-card-map)', () => {
   assert.deepEqual(untagged(), [])
   for (const s of ['mlb', 'nfl', 'nhl']) {
     assert.equal(tagOf(`card_${s}`), 'INFO'); assert.equal(tagOf(`card_result_${s}`), 'INFO'); assert.equal(tagOf(`card_members_${s}`), null, 'a members kind carries no X tag')
@@ -535,23 +480,24 @@ await t('the X post path: claims one row per (day, kind), names only what the bu
 
 await t('the X post: the #1 straight carries its status word and ONE data line (its why), dropped before Donovan\'s words when too long; clean', () => {
   const b = xCardBuild({ sport: 'nhl', day: '2026-10-10', rows: CARD_ROWS, problems: OK_PROBLEMS, now: NOW - 30 * 60e3 })
-  assert.match(b.text, /Straight #1: Player p6 · Tg4A vs Tg4B \(anytime goal\) · CALLED\nwhy p6\n/)
+  assert.match(b.text, /Straight: Player p6 · Tg4A vs Tg4B \(anytime goal\) · CALLED\nwhy p6\n/)
   assert.ok(cleanPublic(b.text) && [...b.text].length + 4 <= 280)
-  const long = CARD_ROWS.map((r) => (r.slot === 1 && r.product === 'straight' ? { ...r, legs: [{ ...r.legs[0], why: 'w'.repeat(200), status: 'board' }] } : r))
+  const long = CARD_ROWS.map((r) => (r.slot === 1 && r.product === 'straight' && r.lane === 'bot' ? { ...r, legs: [{ ...r.legs[0], why: 'w'.repeat(200), status: 'board' }] } : r))
   const l = xCardBuild({ sport: 'nhl', day: 'd', rows: long, problems: OK_PROBLEMS, now: NOW - 30 * 60e3 })
   assert.ok(!l.text.includes('www') && l.text.includes('ON THE BOARD') && l.text.includes('Shots, shots, shots.'), 'the data line goes first, his note stays')
 })
 
 await t('status words: a football straight is CALLED or ON THE BOARD from its leg; the record shows the mix; NFL pool takes called + board only from the TD ladder / game calls', () => {
-  const rows = lockRows({ sport: 'nfl', slate_key: 'k', card_date: 'd', cands: [C('a', 'g1', 2, 90, 0.3, { status: 'board' }), C('b', 'g2', 2, 80, 0.3, { status: 'called' })], now: NOW, lockAtMs: LOCK_AT })
+  const rows = lockRows({ sport: 'nfl', slate_key: 'k', card_date: 'd', byMarket: { anytime: { cands: [C('a', 'g1', 2, 90, 0.3, { status: 'board' }), C('b', 'g2', 2, 80, 0.3, { status: 'called' }), C('c', 'g3', 2, 70, 0.3, { status: 'called' })], board: [90, 80, 70] }, rec_yds: { cands: [{ ...C('r', 'g4', 2, 99, null, { status: 'called' }), market: 'rec_yds', line: 59.5, price: { median: -115, best: -110 } }], board: [99] } }, games: 6, now: NOW, lockAtMs: LOCK_AT })
   assert.deepEqual(rows.filter((r) => r.product === 'straight').map((r) => r.legs[0].status), ['board', 'called'])
+  assert.deepEqual(rows.filter((r) => r.product === 'straight').map((r) => r.legs[0].market), ['anytime', 'rec_yds'], 'slot 3 (rushing yards) had no board: skipped')
   const g = rows.map((r) => ({ ...r, result: 'hit' }))
   const rec = recordOf(g.filter((r) => r.product === 'straight'))
   assert.deepEqual(rec.mix, { called: 1, board: 1 })
   assert.match(recordWords(rec, { product: 'straight' }).join(' '), /1 CALLED, 1 ON THE BOARD/)
   assert.match(membersCardText({ sport: 'nfl', day: 'd', rows: rows.map((r, i) => ({ id: i, ...r })) }).text, /ON THE BOARD/)
   const src = fs.readFileSync(new URL('../lib/card/sources.js', import.meta.url), 'utf8')
-  assert.ok(/status !== 'called' && status !== 'board'/.test(src) && /onBot\.market === 'TD' \|\| onBot\.market === 'GAME'/.test(src))
+  assert.ok(/status === 'called' \|\| status === 'board'/.test(src) && /onBot\.market === 'TD' \|\| onBot\.market === 'GAME'/.test(src))
 })
 
 // ── 8. THE MIGRATION AND THE ROUTES ───────────────────────────────────────────
