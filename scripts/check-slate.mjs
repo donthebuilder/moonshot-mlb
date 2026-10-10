@@ -31,12 +31,13 @@ const P = await import('../lib/dash/xPolicy.js')
 const G = await import('../lib/dash/xGate.js')
 const L = await import('../lib/dash/xPostLog.js')
 const PC = await import('../lib/dash/postClaim.js')
+const FX = await import('../lib/dash/xFail.js')   // the breaker and the retry counter are per warm instance: every case here starts a fresh one
 const Q = await import('../lib/dash/quoteFor.js')
 const CS = await import('../lib/callStatus.js')
 
 let n = 0
 const ok = async (name, fn) => { await fn(); n++; console.log(`ok  ${name}`) }
-const reset = () => { PC._resetTakenForTests(); xFail = []; tweets.length = 0; discords.length = 0; L._resetLogForTests(); G._resetRecentCache(); S._resetSlateForTests() }
+const reset = () => { FX._resetXFail(); PC._resetTakenForTests(); xFail = []; tweets.length = 0; discords.length = 0; L._resetLogForTests(); G._resetRecentCache(); S._resetSlateForTests() }
 
 // ── a tiny in-memory Supabase: just the calls the gate and postOnce make ────
 function fakeDb(tables = {}) {
@@ -560,9 +561,11 @@ await ok('post: a transient X error (429, 5xx) releases the claim and retries; a
   xFail = [429]
   assert.equal(await S.postSlateOnce(db, { day, load: load(a.sports), hooks: 'https://discord.test/h', now: a.now }), 'retry: x 429')
   assert.equal(discords.length, 0); assert.equal(slateRows(db).length, 0)
+  FX._resetXFail()   // six minutes later: the 429 pause has lapsed
   xFail = [503]
   assert.equal(await S.postSlateOnce(db, { day, load: load(a.sports), hooks: 'https://discord.test/h', now: a.now + 6 * 60e3 }), 'retry: x 503')
   assert.equal(discords.length, 0)
+  FX._resetXFail()
   assert.equal(await S.postSlateOnce(db, { day, load: load(a.sports), hooks: 'https://discord.test/h', now: a.now + 12 * 60e3 }), 'posted')
   assert.equal(tweets.length, 1); assert.equal(discords.length, 1); assert.ok(slateRows(db)[0].x_post_id)
   // a refusal that is not transient is final

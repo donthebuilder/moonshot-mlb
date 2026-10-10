@@ -72,6 +72,7 @@ import { threadsSnapshot } from '../../../../../lib/dash/threadsPost'
 import { tailFor as linkTailFor, postPath } from '../../../../../lib/dash/postLink'
 import { MLBHR_USER_ID, matchHomer, mayClaimHomer, mlbhrReplyText, parseMlbhr } from '../../../../../lib/dash/mlbhr'
 import { getFromX } from '../../../../../lib/dash/xPost'
+import { settleAlert, staleBefore, xBlocked, xBlockLog } from '../../../../../lib/dash/xFail'
 import { discordFailuresSnapshot, hasX, postToDiscord, postToX, uploadImageToX, xProblem } from '../../../../../lib/dash/xPost'
 import { isMaintenanceMode } from '../../../../../lib/edgeConfig'
 import { backfillOneNight } from '../../../../../lib/dash/homerBackfill'
@@ -2095,6 +2096,11 @@ export async function GET(request) {
     .select('*')
     .eq('day', day)
     .or(DISCORD_ON ? 'discord_sent.eq.false,x_post_id.is.null' : 'x_post_id.is.null')
+    // A LATE ALERT EXPIRES (2026-10-10 bug hunt): a homer first seen more than LATE_ALERT_MS ago is not posted
+    // now -- after an outage or X credits coming back the night's backlog must not dump into the feed -- and
+    // an old row that can never post no longer sits at the front of this oldest-first window of 12, starving
+    // the fresh ones behind it.
+    .gte('seen_at', staleBefore())
     .order('seen_at', { ascending: true })
     .limit(12)
 
@@ -2145,13 +2151,24 @@ export async function GET(request) {
     if (DISCORD_ON && !row.discord_sent) {
       // a card linked to him on MOONSHOT, in MOONSHOT's colour (2026-10-04)
       const r = await postToDiscord(text, { imageUrl: cardUrl(row), sport: 'mlb', link: row.player_id ? playerHref('mlb', row.player_id) : null })
-      if (r.ok) { patch.discord_sent = true; totals.discord += 1 }
+      if (r.ok) {
+        patch.discord_sent = true; totals.discord += 1
+        // WRITTEN NOW, not at the end of this row (2026-10-10 bug hunt): a tick killed by the time limit, or one
+        // that overlaps the next minute's, between this send and the end-of-row write would send the same
+        // channel post again next tick. The X work below can take seconds; this is one small write.
+        const ds = await db.from('homer_feed').update({ discord_sent: true }).match({ day, player_id: row.player_id, hr_n: row.hr_n })
+        if (ds.error) console.error(`[homers] discord_sent not recorded for ${row.player_id}: ${ds.error.message}`)
+      }
     }
     // CALLED only by default (lib/dash/xEvents, postseason plan step 1); the
     // old MODE rule applies when X_EVENTS=all.
     const wantsX = xOn && (xEventsCalledOnly() ? callStatus(row) === 'called' : (MODE === 'all' || surfacedByRole(row)))
     if (!row.x_post_id) {
-      if (wantsX) {
+      if (wantsX && xBlocked()) {
+        // X is paused here after an account-level refusal (credits / key / cap): make no request, claim nothing, do
+        // not render a card for it. The row waits and expires by age (staleBefore above).
+        totals.xHeld = (totals.xHeld || 0) + 1
+      } else if (wantsX) {
         // CLAIM BEFORE POSTING (2026-09-06). This used to SELECT the pending
         // rows, then post to X, then write x_post_id back -- three separate
         // round trips with a real network call to X sitting in the middle.
@@ -2189,20 +2206,19 @@ export async function GET(request) {
           if (r.ok && r.id) { patch.x_post_id = r.id; totals.x += 1 }
           else {
             totals.xFailed += 1
-            console.error(`[homers] X refused ${row.name}: ${r.status} ${r.error}`)
-            // A refused post is not a posted post -- release the claim so the
-            // next tick retries instead of the sentinel hiding this homer
-            // forever. (One gap left on purpose: a run killed by the 60s
-            // limit between the claim above and this line leaves the row
-            // stuck at 'posting' rather than retried. Rare, and the recovery
-            // is the same as any other stuck row here — a manual UPDATE
-            // clearing x_post_id — rather than something worth a second
-            // moving part for.)
-            patch.x_post_id = null
-            // A quota or auth refusal will refuse every row; stop spending
-            // the tick, but only once this row's own patch (the claim
-            // release) is written below.
-            if (r.status === 429 || r.status === 401 || r.status === 403) stopTick = true
+            // A refused post is not a posted post. WHAT HAPPENS TO THE CLAIM is lib/dash/xFail.js settleAlert (2026-10-10
+            // bug hunt): a transient refusal (429, 5xx, network) releases it, at most MAX_TRANSIENT_TRIES times; an
+            // account-level one (401, 402 credits depleted, usage cap) or a post X refuses for good CLOSES the row as
+            // 'skipped' (nothing re-posts after a top-up, nothing re-hits X every minute, and the row leaves the
+            // 12-row pending window); X paused by the breaker made no request and the row just waits (it expires by age).
+            // (One gap left on purpose: a run killed by the 60s limit between the claim above and this line leaves the
+            // row stuck at 'posting'; the recovery is a manual UPDATE clearing x_post_id.)
+            const settled = settleAlert(r, { key: `homer|${day}|${row.player_id}|${row.hr_n}` })
+            console.error(`[homers] X refused ${row.name}: ${r.status} ${r.error}${settled.value === 'skipped' ? ' -- closed, not retried' : ''}`)
+            patch.x_post_id = settled.value
+            // an account-level refusal or a rate limit will refuse every row; stop spending the tick, but only once
+            // this row's own patch (the claim release) is written below.
+            if (settled.stop) stopTick = true
           }
         }
       } else if (xOn) {
@@ -2451,6 +2467,8 @@ export async function GET(request) {
   }
 
   totals.discordErrors = discordFailuresSnapshot()
+  const xBlocks = xBlockLog()
+  if (xBlocks.length) totals.xBlocks = xBlocks   // X refused in a way that repeats (credits / key / cap): when, which status, why
   // What the Threads mirror did this tick, for the same reason discordErrors
   // exists: a second network failing quietly is a week of nobody noticing.
   const th = threadsSnapshot()

@@ -110,7 +110,9 @@ export async function GET(request) {
         // a card linked to the scorer on LAMP, in LAMP's colour (2026-10-04)
         let discordSent = false
         if (discordHooks) discordSent = Boolean((await postToDiscord(text, { ...(png ? { png } : {}), sport: 'nhl', link: row.player_id ? playerHref('nhl', row.player_id) : null }, discordHooks).catch((e) => { console.error(`[lamp goals] discord: ${e?.message || e}`); return null }))?.ok)
-        if (!hasX()) return { ok: true, id: 'skipped' }
+        // X off: the channel copy is the whole post. If Discord did not take it either, nothing went out, so
+        // say so and let the tick retry (a few times) instead of closing the goal as sent.
+        if (!hasX()) return discordSent ? { ok: true, id: 'skipped' } : { ok: false, status: 0, error: 'X is off and the channel post failed', discordSent: false }
         // discordSent rides back so the tick never re-sends the channel post when X refuses (10-09 bug)
         return { ...(await postToX(text, { kind: 'nhlgoal', ...(mediaId ? { mediaId } : {}) })), discordSent }
       },

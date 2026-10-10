@@ -31,12 +31,13 @@ const G = await import('../lib/dash/xGate.js')
 const SCH = await import('../lib/dash/xSchedule.js')
 const L = await import('../lib/dash/xPostLog.js')
 const PC = await import('../lib/dash/postClaim.js')
+const FX = await import('../lib/dash/xFail.js')   // the breaker and the retry counter are per warm instance: every case starts a fresh one
 const CS = await import('../lib/callStatus.js')
 const BUD = await import('../lib/dash/xBudget.js')
 
 let n = 0
 const ok = async (name, fn) => { await fn(); n++; console.log(`ok  ${name}`) }
-const reset = () => { PC._resetTakenForTests(); xFail = []; discordFail = []; tweets.length = 0; discords.length = 0; L._resetLogForTests(); G._resetRecentCache(); G._resetPostedCache(); RC._resetReceiptForTests(); RC._resetPeriodForTests() }
+const reset = () => { FX._resetXFail(); PC._resetTakenForTests(); xFail = []; discordFail = []; tweets.length = 0; discords.length = 0; L._resetLogForTests(); G._resetRecentCache(); G._resetPostedCache(); RC._resetReceiptForTests(); RC._resetPeriodForTests() }
 
 // ── a tiny in-memory Supabase: just the calls the gate and the receipt make ──
 function fakeDb(tables = {}) {

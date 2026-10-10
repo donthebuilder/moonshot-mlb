@@ -80,6 +80,7 @@ import { threadsSnapshot } from '../../../../../lib/dash/threadsPost'
 import { tailFor as linkTailFor, postPath } from '../../../../../lib/dash/postLink'
 import { spotlightCard } from '../../../../../lib/nfl/spotlightCard'
 import { hasX, postToDiscord, postToX, uploadImageToX } from '../../../../../lib/dash/xPost'
+import { settleAlert, staleBefore, xBlocked } from '../../../../../lib/dash/xFail'
 import { logXBudget } from '../../../../../lib/dash/xBudget'
 import { isMaintenanceMode } from '../../../../../lib/edgeConfig'
 import { sendMembers } from '../../../../../lib/writeups/discordRoute'
@@ -356,6 +357,9 @@ async function runTouchdownTick(db, day) {
       // day this sweep's games belong to, plus the sweep day itself
       .in('day', [...new Set([day, ...rows.map((r) => r.day)])])
       .or('discord_sent.eq.false,x_post_id.is.null')
+      // A LATE ALERT EXPIRES (2026-10-10 bug hunt, see the MLB tick): not posted more than LATE_ALERT_MS after first sight,
+      // and a row that can never post no longer holds one of the 12 oldest-first places.
+      .gte('seen_at', staleBefore())
       .order('seen_at', { ascending: true })
       .limit(12)
 
@@ -395,7 +399,12 @@ async function runTouchdownTick(db, day) {
         const tdStatus = tdCallStatus({ on_bot: ev.onBot, td_board: ev.tdBoard })
         // a card linked to the scorer on TUDDY, in TUDDY's colour (2026-10-04)
         const d = await postToDiscord(text, { png, sport: 'nfl', link: row.gsis_id ? playerHref('nfl', row.gsis_id) : null }, feedHooksFor('nfl', tdStatus))
-        if (d.ok) { patch.discord_sent = true; totals.discord += 1 }
+        if (d.ok) {
+          patch.discord_sent = true; totals.discord += 1
+          // written now, not at the end of the row: see the MLB tick (a kill or an overlapping tick re-sends the channel post)
+          const ds = await db.from('nfl_td_feed').update({ discord_sent: true }).match({ day: row.day, game_id: row.game_id, td_n: row.td_n })
+          if (ds.error) console.error(`[nfl-tick] discord_sent not recorded for ${row.game_id}/${row.td_n}: ${ds.error.message}`)
+        }
       }
       // CALLED touchdowns only get their own X post (lib/dash/xEvents,
       // postseason plan step 1) -- the rest still went to Discord above, and
@@ -403,6 +412,9 @@ async function runTouchdownTick(db, day) {
       const tdCalled = tdCallStatus({ on_bot: ev.onBot, td_board: ev.tdBoard }) === 'called'
       if (!row.x_post_id && xOn && xEventsCalledOnly() && !tdCalled) {
         patch.x_post_id = 'skipped'
+      } else if (!row.x_post_id && xOn && xBlocked()) {
+        // X is paused here after an account-level refusal (lib/dash/xFail.js): no request, no claim; the row waits and expires by age
+        totals.xHeld = (totals.xHeld || 0) + 1
       } else if (!row.x_post_id && xOn) {
         // Same conditional-UPDATE claim homers/tick's own per-homer loop
         // uses (see that file's "CLAIM BEFORE POSTING" note) -- only the
@@ -481,15 +493,15 @@ async function runTouchdownTick(db, day) {
           }
           else {
             totals.xFailed += 1
-            console.error(`[nfl-tick] X refused ${row.scorer_name || row.text}: ${r.status} ${r.error}`)
-            // A refused post is not a posted post -- release the claim so
-            // the next tick retries it. Same gap left on purpose as
-            // homers/tick's own: a run killed by the time limit between the
-            // claim and this line leaves the row stuck at 'posting' rather
-            // than retried -- rare, and the recovery is the same manual
-            // UPDATE clearing x_post_id, not a second moving part.
-            patch.x_post_id = null
-            if (r.status === 429 || r.status === 401 || r.status === 403) stopTick = true
+            // A refused post is not a posted post. What happens to the claim is lib/dash/xFail.js settleAlert (2026-10-10
+            // bug hunt), the same rule as the MLB tick: transient -> released, a few tries; account-level (401, 402
+            // credits depleted, cap) or refused for good -> CLOSED as 'skipped'; X paused -> the row waits and expires.
+            // Same gap left on purpose as homers/tick's own: a run killed by the time limit between the claim and this
+            // line leaves the row stuck at 'posting' -- the recovery is a manual UPDATE clearing x_post_id.
+            const settled = settleAlert(r, { key: `td|${row.day}|${row.game_id}|${row.td_n}` })
+            console.error(`[nfl-tick] X refused ${row.scorer_name || row.text}: ${r.status} ${r.error}${settled.value === 'skipped' ? ' -- closed, not retried' : ''}`)
+            patch.x_post_id = settled.value
+            if (settled.stop) stopTick = true
           }
         }
       }

@@ -16,8 +16,17 @@ for (const k of ['X_LINKS_EMERGENCY', 'X_LINK_KINDS', 'X_POST_LINK', 'X_POSTS_PA
 // ── a fake fetch: X's tweet endpoint records the body and answers with an id ─
 const tweets = []
 let nextId = 9000
+let xRefuse = null   // { status, json }: X refuses every call (a section below sets it)
+let discordRefuse = null   // a status: every Discord webhook answers it (a section below sets it)
+const xCalls = []    // every request that reached the fake X
 globalThis.fetch = async (url, opts = {}) => {
+  if (String(url).includes('discord.com/api/webhooks')) return discordRefuse ? { ok: false, status: discordRefuse, statusText: 'refused', json: async () => ({}), headers: { get: () => null } } : { ok: true, status: 204, json: async () => ({}), headers: { get: () => null } }
+  if (String(url).includes('api.x.com') && xRefuse) {
+    xCalls.push(String(url))
+    return { ok: false, status: xRefuse.status, statusText: 'refused', json: async () => xRefuse.json || {}, headers: { get: () => null } }
+  }
   if (String(url).includes('api.x.com/2/tweets')) {
+    xCalls.push(String(url))
     const body = JSON.parse(opts.body)
     tweets.push(body)
     return { ok: true, status: 200, json: async () => ({ data: { id: String(++nextId) } }), headers: { get: () => null } }
@@ -73,6 +82,7 @@ function fakeDb(tables = {}) {
     maybeSingle() { this.single = true; return this }
     upsert(rows, o = {}) { this.op = 'upsert'; this.rows = rows; this.o = o; return this }
     update(patch) { this.op = 'update'; this.patch = patch; return this }
+    delete() { this.op = 'delete'; return this }
     then(res, rej) { return Promise.resolve(this.run()).then(res, rej) }
     run() {
       if (this.err) return { data: null, count: null, error: this.err }
@@ -87,6 +97,7 @@ function fakeDb(tables = {}) {
         return { data: made, error: null }
       }
       const hit = rows.filter((r) => this.f.every((fn) => fn(r)))
+      if (this.op === 'delete') { for (const r of hit) rows.splice(rows.indexOf(r), 1); return { data: hit, error: null } }
       if (this.op === 'update') { hit.forEach((r) => Object.assign(r, this.patch)); return { data: hit, error: null } }
       if (this.single) return { data: hit[0] || null, error: null }
       return { data: this.opts.head ? null : hit, count: this.opts.count ? hit.length : null, error: null }
@@ -485,6 +496,131 @@ await ok('poll: the NFL poll builder and the MLB poll site both use it', () => {
   assert.deepEqual(NFLTF.nflBotPollOptions([{ name: 'Test A' }, { name: 'Test A' }, { name: 'Test B' }, { name: 'Test C' }, { name: 'Test D' }, { name: 'Test E' }]), ['Test A', 'Test B', 'Test C', 'Test D'])
   // the MLB poll moved to lib/dash/polls (2026-10-09): every format's options go through distinctOptions there
   assert.match(fs.readFileSync('lib/dash/polls/build.js', 'utf8'), /const opts = distinctOptions\(options, 4\)/)
+})
+
+
+// ═══ 8. AN X REFUSAL IS A DECISION, NOT A LOOP (2026-10-10 bug hunt; the Kyle Connor class) ════════════════
+const F = await import('../lib/dash/xFail.js')
+await ok('xfail: statuses are classed once -- credits/key/cap are account-level, a duplicate is content, 5xx and a plain 429 are transient', () => {
+  const c = (status, error = '', title = '') => F.xErrorClass({ ok: false, status, error, title })
+  assert.equal(c(402, 'Your enrolled account does not have any credits', 'CreditsDepleted'), 'account')
+  assert.equal(c(401, 'Unauthorized'), 'account')
+  assert.equal(c(429, 'Usage cap exceeded: Monthly product cap', 'UsageCapExceeded'), 'account')
+  assert.equal(c(429, 'Too Many Requests'), 'transient')
+  assert.equal(c(403, 'You are not allowed to create a Tweet with duplicate content.'), 'content')
+  assert.equal(c(403, 'Reply to this conversation is not allowed because you have not been mentioned'), 'content')
+  assert.equal(c(403, 'Your client app is not configured with the appropriate oauth1 app permissions for this endpoint.'), 'account')
+  assert.equal(c(400, 'Invalid request'), 'content')
+  assert.equal(c(500, 'x down'), 'transient')
+  assert.equal(c(0, 'fetch failed'), 'transient')
+  assert.equal(F.xErrorClass({ ok: true }), 'ok')
+  assert.equal(F.xErrorClass({ ok: false, blocked: true, status: 402 }), 'transient')   // no request was made: neither accepted nor refused
+})
+await ok('xfail: credits depleted opens the breaker -- one probe, then no request at all (posts, uploads and reads)', async () => {
+  F._resetXFail(); xCalls.length = 0
+  xRefuse = { status: 402, json: { title: 'CreditsDepleted', detail: 'Your enrolled account does not have any credits to fulfill this request.' } }
+  try {
+    const first = await X.postToX('Test post one', { kind: 'homer' })
+    assert.equal(first.ok, false); assert.equal(first.status, 402); assert.equal(first.title, 'CreditsDepleted')
+    assert.equal(xCalls.length, 1)
+    assert.ok(F.xBlocked(), 'the breaker is open')
+    for (let i = 0; i < 20; i += 1) {
+      const r = await X.postToX(`Test post ${i}`, { kind: 'homer' })
+      assert.equal(r.blocked, true); assert.equal(r.status, 402)
+    }
+    assert.equal(await X.uploadImageToX(Buffer.from('png')), null)
+    assert.equal((await X.getFromX('/2/users/me')).blocked, true)
+    assert.equal(xCalls.length, 1, `21 attempts, ONE request reached X (got ${xCalls.length})`)
+    assert.equal(F.xBlockLog().length, 1, 'the opening is recorded once for the tick response')
+    assert.equal(F.xBlocked(Date.now() + 11 * 60e3), null, 'the pause lapses, the next call probes again')
+  } finally { xRefuse = null; F._resetXFail() }
+})
+await ok('xfail: a plain 429 pauses briefly; a 500 or a duplicate never opens the breaker', async () => {
+  F._resetXFail()
+  xRefuse = { status: 500, json: { title: 'Internal Server Error' } }
+  try {
+    await X.postToX('Test post', { kind: 'homer' }); assert.equal(F.xBlocked(), null)
+    xRefuse = { status: 403, json: { detail: 'You are not allowed to create a Tweet with duplicate content.' } }
+    await X.postToX('Test post', { kind: 'homer' }); assert.equal(F.xBlocked(), null)
+    xRefuse = { status: 429, json: { title: 'Too Many Requests' } }
+    await X.postToX('Test post', { kind: 'homer' })
+    const b = F.xBlocked(); assert.ok(b && b.until - Date.now() <= 2 * 60e3 + 1000, 'a rate limit pauses for minutes, not the account-level window')
+  } finally { xRefuse = null; F._resetXFail() }
+})
+await ok('xfail: a long post refused for credits is NOT retried at 280 (one call, not two)', async () => {
+  F._resetXFail(); xCalls.length = 0
+  process.env.X_TEXT_LIMIT = '900'
+  const XL = await import('../lib/dash/xPost.js?long=1')
+  xRefuse = { status: 402, json: { title: 'CreditsDepleted' } }
+  try {
+    const r = await XL.postToX('Test '.repeat(100), { kind: 'writeup' })
+    assert.equal(r.status, 402); assert.equal(xCalls.length, 1, `calls ${xCalls.length}`)
+  } finally { xRefuse = null; delete process.env.X_TEXT_LIMIT; F._resetXFail() }
+})
+await ok('xfail: settleAlert -- success keeps the id; account/content close; transient retries a few times then closes; paused waits', () => {
+  F._resetXFail()
+  const s = (r, o) => F.settleAlert(r, o)
+  assert.deepEqual(s({ ok: true, id: '77' }), { value: '77', stop: false })
+  assert.deepEqual(s({ ok: false, status: 402, title: 'CreditsDepleted' }, { key: 'a' }), { value: 'skipped', stop: true })
+  assert.deepEqual(s({ ok: false, status: 403, error: 'duplicate content' }, { key: 'a' }), { value: 'skipped', stop: false })
+  assert.deepEqual(s({ ok: false, status: 401 }, { key: 'a' }), { value: 'skipped', stop: true })
+  const t = { ok: false, status: 500, error: 'x down' }
+  assert.equal(s(t, { key: 'k' }).value, null); assert.equal(s(t, { key: 'k' }).value, null)
+  assert.equal(s(t, { key: 'k' }).value, 'skipped', 'the third transient refusal closes the alert')
+  assert.deepEqual(s({ ok: false, blocked: true, status: 402 }, { key: 'p' }), { value: null, stop: true })
+  assert.equal(F.mayRetry('p', 3), true, 'a paused attempt made no request and was not counted')
+  // the channel copy already went out: never reset the claim (that is what re-sent the goal every minute)
+  assert.equal(s({ ok: false, status: 500 }, { key: 'd', channelSent: true }).value, 'skipped')
+  assert.equal(F.mayRetryPost({ ok: false, status: 429, title: 'UsageCapExceeded' }, 'q'), false)
+  assert.equal(F.mayRetryPost({ ok: false, status: 503 }, 'q'), true)
+  assert.equal(F.mayRetryPost({ ok: false, blocked: true, status: 402 }, 'q'), false, 'X paused for credits: the Slate/receipt go to Discord instead of waiting')
+  F._resetXFail()
+})
+await ok('xfail: postOnce -- a channel hiccup with nothing else sent releases the claim (a few tries); one that X carried does not', async () => {
+  F._resetXFail(); PC._resetTakenForTests(); reset()
+  process.env.DISCORD_HOMER_WEBHOOK = 'https://discord.com/api/webhooks/123456/TESTTOKEN'
+  const day = '2026-10-12'
+  const build = async () => ({ text: 'Test post for the claim release', payload: {} })
+  try {
+    const db = fakeDb()
+    // Discord 503 and X refuses this post for good: nothing went out anywhere
+    discordRefuse = 503; xRefuse = { status: 400, json: { detail: 'Invalid request' } }
+    const first = await LS.postOnce(db, { day, kind: 'list_nhl', sport: 'nhl', build })
+    assert.match(first, /^retry: discord 503/, first)
+    assert.equal(db.tables.homer_feed_posts.length, 0, 'the claim was released: the slot is not spent on a post nobody saw')
+    // the channel is back: the same slot posts, once
+    discordRefuse = null; xRefuse = null
+    PC._resetTakenForTests()
+    await new Promise((r) => setTimeout(r, 5))
+    const t = Date.now(); const realNow = Date.now; Date.now = () => t + 11 * 60e3   // past the not-yet wait
+    try { assert.equal(await LS.postOnce(db, { day, kind: 'list_nhl', sport: 'nhl', build }), 'posted') } finally { Date.now = realNow }
+    assert.equal(db.tables.homer_feed_posts.length, 1)
+    assert.ok(db.tables.homer_feed_posts[0].x_post_id, 'and X took it')
+    // Discord 503 but X carried it: the slot stays spent (a retry would post it on X twice)
+    PC._resetTakenForTests(); discordRefuse = 503
+    const db2 = fakeDb()
+    assert.equal(await LS.postOnce(db2, { day, kind: 'list_nfl', sport: 'nfl', build }), 'posted')
+    assert.equal(db2.tables.homer_feed_posts.length, 1)
+  } finally { discordRefuse = null; xRefuse = null; delete process.env.DISCORD_HOMER_WEBHOOK; F._resetXFail() }
+})
+await ok('xfail: a late alert expires (45 min), so credits coming back never dumps a backlog', () => {
+  const now = Date.parse('2026-10-10T03:00:00Z')
+  assert.equal(F.isLate('2026-10-10T02:20:00Z', now), false)   // 40 min
+  assert.equal(F.isLate('2026-10-10T02:10:00Z', now), true)    // 50 min
+  assert.equal(F.staleBefore(now), '2026-10-10T02:15:00.000Z')
+})
+await ok('xfail: every claim-reset poster asks settleAlert and reads only fresh rows; no poster releases on a bare 403', () => {
+  const src = (f) => fs.readFileSync(f, 'utf8')
+  const mlb = src('app/api/dash/homers/tick/route.js'); const nfl = src('app/api/dash/nfl/tick/route.js'); const goal = src('lib/nhl/goalFeed.js')
+  for (const [name, code] of [['mlb', mlb], ['nfl', nfl], ['goals', goal]]) assert.match(code, /settleAlert\(/, `${name} settles X refusals through xFail`)
+  for (const [name, code] of [['mlb', mlb], ['nfl', nfl]]) {
+    assert.match(code, /\.gte\('seen_at', staleBefore\(\)\)/, `${name}: the pending window reads fresh rows only`)
+    assert.ok(!/patch\.x_post_id = null/.test(code), `${name}: a refusal never blindly resets the claim`)
+  }
+  assert.match(mlb, /discord_sent: true \}\)\.match\(\{ day, player_id/, 'mlb writes discord_sent the moment the channel took it')
+  assert.match(nfl, /discord_sent: true \}\)\.match\(\{ day: row\.day, game_id/, 'nfl writes discord_sent the moment the channel took it')
+  for (const f of ['lib/posts/slate.js', 'lib/posts/receipt.js']) assert.match(src(f), /mayRetryPost\(/, `${f} retries only transient refusals`)
+  assert.ok(!/r\.status === 429 \|\| r\.status >= 500 \|\| r\.status === 0/.test(src('lib/posts/receipt.js') + src('lib/posts/slate.js')), 'no hand-rolled transient test left in the receipt/slate')
 })
 
 console.log(`\n${n} groups passed (${results.length} checks) -- TEST data, fake fetch, fake database`)

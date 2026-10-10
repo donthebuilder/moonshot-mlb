@@ -10,6 +10,7 @@ import { readFileSync } from 'node:fs'
 import { reduceScoreDay } from '../lib/nhl/reduce.js'
 import { tickGoals, matchGame, labelGoals, pushText, postText, CONFIRM_MS, POST_AFTER_MS } from '../lib/nhl/goalFeed.js'
 import { audienceFrom, nhlEventsFrom, wants } from '../lib/dash/pushRules.js'
+import { _resetXFail } from '../lib/dash/xFail.js'
 
 let failed = 0
 const check = (ok, what) => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${what}`); if (!ok) failed += 1 }
@@ -241,6 +242,48 @@ const torRows = (s) => s.t.feed.filter((r) => r.game_id === TOR)
   await run(s2, waved, T0 + CONFIRM_MS + 5e3 + POST_AFTER_MS + 1e3, poster2)
   await run(s2, waved, T0 + CONFIRM_MS + POST_AFTER_MS + 120e3, poster2)
   check(tries >= 2, `with nothing sent, an X refusal is still retried (tries ${tries})`)
+}
+
+// ── 10-10 bug hunt: every other way a refusal could loop ─────────────────────────────────────────
+{
+  const waved = (p) => { const g = gameOf(p, TOR); g.goals = g.goals.filter((x) => x.playerId !== 8475166); g.homeTeam.score -= 1 }
+  const drive = async (poster, { start = T0, steps = 8, every = 60e3 } = {}) => {
+    _resetXFail()   // the retry counter is per warm instance; every scenario here is a fresh one
+    const s = memoryStore(); const games = dayFrom(RAW, waved)
+    await run(s, games, start, poster)
+    await run(s, games, start + CONFIRM_MS + 5e3, poster)
+    for (let i = 0; i < steps; i += 1) await run(s, games, start + CONFIRM_MS + POST_AFTER_MS + 5e3 + i * every, poster)
+    return s
+  }
+  // credits depleted (402), nothing sent anywhere: ONE attempt, then the goal is closed -- no X call every minute for 3 hours
+  let calls402 = 0
+  const s402 = await drive({ post: async () => { calls402 += 1; return { ok: false, status: 402, error: 'credits', title: 'CreditsDepleted' } } })
+  check(calls402 === 1, `X credits depleted: one attempt, not one per tick (got ${calls402})`)
+  check(torRows(s402).filter((x) => x.status === 'called').every((x) => x.x_post_id === 'skipped'), 'the refused CALLED goal is closed as skipped -- nothing re-posts after a top-up')
+  // a duplicate-content refusal is closed too
+  let dup = 0
+  await drive({ post: async () => { dup += 1; return { ok: false, status: 403, error: 'You are not allowed to create a Tweet with duplicate content.' } } })
+  check(dup === 1, `a duplicate-content refusal is not retried (got ${dup})`)
+  // a transient refusal retries a limited number of times, then closes
+  let tr = 0
+  const sTr = await drive({ post: async () => { tr += 1; return { ok: false, status: 503, error: 'x down' } } }, { steps: 12 })
+  check(tr === 3, `a 503 is tried 3 times, then the goal is closed (got ${tr})`)
+  check(torRows(sTr).filter((x) => x.status === 'called').every((x) => x.x_post_id === 'skipped'), 'after its tries the goal reads skipped')
+  // X paused by the breaker (no request made): the goal waits, is not counted as a try, and expires by age
+  let held = 0
+  const sHeld = await drive({ post: async () => { held += 1; return { ok: false, blocked: true, status: 402, error: 'X paused' } } }, { steps: 3 })
+  check(torRows(sHeld).filter((x) => x.status === 'called').every((x) => x.x_post_id === null), 'X paused: the claim is released, the goal waits (nothing sent, nothing closed)')
+  // a late goal is never posted (a backlog after credits return is not news): first seen 46 minutes ago
+  let late = 0
+  const sLate = memoryStore(); const gamesLate = dayFrom(RAW, waved)
+  await run(sLate, gamesLate, T0, null)
+  await run(sLate, gamesLate, T0 + CONFIRM_MS + 5e3, null)
+  await run(sLate, gamesLate, T0 + 46 * 60e3, { post: async () => { late += 1; return { ok: true, id: '1' } } })
+  check(late === 0, 'a CALLED goal first seen 46 min ago is not posted late')
+  // fresh and healthy still posts exactly once
+  let ok1 = 0
+  await drive({ post: async () => { ok1 += 1; return { ok: true, id: String(100 + ok1) } } })
+  check(ok1 === 1, `a healthy post goes out once (got ${ok1})`)
 }
 
 console.log(failed ? `\n${failed} FAILED` : '\nall green')
