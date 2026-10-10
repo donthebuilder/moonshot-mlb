@@ -95,6 +95,8 @@ const today = '2026-10-09'
 const iso = (day, hhmm) => `${day}T${hhmm}:00Z`
 const NOW = Date.parse(iso(today, '18:30'))                      // 14:30 ET, after MLB's 10:50 Phoenix poll slot (17:50Z)
 const FUTURE = Date.parse(iso(today, '23:00'))
+// THE CLOCK IS INJECTED (F-04): code under test that reads Date.now() itself sees NOW, so this passes on any real date
+Date.now = () => NOW
 
 // ── TEST data: players, bars, streaks, called ────────────────────────────────
 const TEAMS = ['AAA', 'BBB', 'CCC', 'DDD', 'EEE', 'FFF']

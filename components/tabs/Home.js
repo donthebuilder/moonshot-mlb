@@ -4,6 +4,7 @@ import { computeSlateStats } from '../SlateTiles'
 import PlayerFace from '../PlayerFace'
 import { useEffect, useMemo, useState } from 'react'
 import { etToday } from '../../lib/freshness'
+import { slateWhen } from '../../lib/slateWhen'
 import { C, NUM_FONT, TYPE } from '../../lib/theme'
 import LongshotsPreview from '../LongshotsPreview'
 import { logUrl, dataUrl } from '../../lib/dataSource'
@@ -875,7 +876,7 @@ export default function Home({
           ? <>Tonight&apos;s board isn&apos;t built yet.</>
           : slateInPast
             ? <>That slate is done.</>
-            : <><span style={{ fontFamily: NUM_FONT }}>{games.length}</span>{games.length === 1 ? ' game' : ' games'} tonight{isLive && liveGames > 0 && (<>, <span style={{ fontFamily: NUM_FONT }}>{liveGames}</span> live</>)}.</>}
+            : <><span style={{ fontFamily: NUM_FONT }}>{games.length}</span>{games.length === 1 ? ' game' : ' games'} {slateWhen(slateDate, etToday())}{isLive && liveGames > 0 && (<>, <span style={{ fontFamily: NUM_FONT }}>{liveGames}</span> live</>)}.</>}
         accentText={empty ? null : slateInPast ? (gradesPending ? 'Final grades post in the morning.' : 'Every pick is graded.') : (isLive ? 'Grading as they land.' : null)}
         dayText={slateInPast && nextLine(nextMlb, etToday()) ? `No games tonight · ${nextLine(nextMlb, etToday())}.` : null}
         /* A done slate is the morning after, whatever the clock says (2026-09-28). */

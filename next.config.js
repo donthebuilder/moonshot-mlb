@@ -29,6 +29,19 @@ const nextConfig = {
   // THE NHL'S PICTURES, SAME ORIGIN (fix15, 2026-10-08): the downloadable LAMP cards draw each skater's mug and each
   // club's mark on a canvas. assets.nhle.com sends no CORS header, so the browser refuses it for a canvas that
   // has to export a PNG. Only the two folders the cards read are passed through; nothing else on that host is.
+  // PLAIN RESPONSE HEADERS (F-07), on every route. No CSP here on purpose: it needs a report-only trial first.
+  // Nothing on the site is framed by another origin, uses the camera, microphone or location.
+  async headers() {
+    return [{
+      source: '/:path*',
+      headers: [
+        { key: 'X-Content-Type-Options', value: 'nosniff' },
+        { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+        { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+        { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+      ],
+    }]
+  },
   async rewrites() {
     return [
       { source: '/cdn/nhle/mugs/:path*', destination: 'https://assets.nhle.com/mugs/:path*' },

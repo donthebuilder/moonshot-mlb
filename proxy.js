@@ -1,7 +1,14 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
+import { appQueryRedirect } from './lib/appQuery'
 
 export async function proxy(request) {
+  // /app?sport=nfl&tab=... is the /called shape; the board reads the hash (lib/appQuery.js). A redirect keeps
+  // refresh, Back and a shared link on one address. Before anything else, so it needs no Supabase.
+  if (request.nextUrl.pathname === '/app') {
+    const to = appQueryRedirect(request.nextUrl.search, '')
+    if (to) return NextResponse.redirect(new URL(`/app${to.search}#${to.hash}`, request.url))
+  }
   if (
     !process.env.NEXT_PUBLIC_SUPABASE_URL ||
     !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY

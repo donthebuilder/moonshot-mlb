@@ -93,6 +93,8 @@ function fakeDb(tables = {}) {
 // ── TEST DATA (made up; names are "Test ...") ────────────────────────────────
 const DAY = '2026-10-09'                                   // a Friday
 const NOW = Date.parse('2026-10-09T22:30:00Z')             // 6:30pm ET: inside the hour before the 7:10pm first pitch
+// THE CLOCK IS INJECTED (F-04): code under test that reads Date.now() itself sees NOW, so this passes on any real date
+Date.now = () => NOW
 const MLB_START = '2026-10-09T23:10:00Z'
 const NFL_KICK = '2026-10-09T23:15:00Z'
 const NHL_DROP = '2026-10-10T00:00:00Z'

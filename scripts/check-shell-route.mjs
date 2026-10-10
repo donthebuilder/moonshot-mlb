@@ -43,6 +43,39 @@ for (const [raw, next, want, why] of [['#sport=nhl', 'ledger', true, 'Home -> Th
   if (!ok) bad++
   console.log(`${ok ? 'ok  ' : 'FAIL'} tabSwitchHash ${raw} -> ${next}: changed=${changed}  ${why}`)
 }
+// /app?sport=...: the /called shape folds into the hash the shells read (F-02)
+const { queryToHash, appQueryRedirect } = await import('../lib/appQuery.js')
+for (const [search, hash, want, why] of [
+  ['?sport=nfl', '', 'sport=nfl', 'sport only'],
+  ['?sport=nhl&tab=ledger&lv=record', '', 'sport=nhl&tab=ledger&lv=record', 'sport + tab + sub-tab'],
+  ['?sport=nba', '', 'sport=nba', 'hidden sport: the shell sends it to MOONSHOT, as the hash form does'],
+  ['?sport=nfl', '#sport=mlb&tab=home', null, 'a hash already there wins'],
+  ['?utm_source=x', '', null, 'unrelated query: nothing to do'],
+  ['', '', null, 'plain /app'],
+  ['?sport=nfl&evil=1&tab=games', '', 'sport=nfl&tab=games', 'only known keys carry over'],
+]) {
+  const got = queryToHash(search, hash)
+  const ok = got === want
+  if (!ok) bad++
+  console.log(`${ok ? 'ok  ' : 'FAIL'} queryToHash ${search || '(none)'} ${hash || ''} -> ${got}  ${why}`)
+}
+{
+  const r = appQueryRedirect('?utm_source=x&sport=nfl&tab=games', '')
+  const ok = r && r.search === '?utm_source=x' && r.hash === 'sport=nfl&tab=games'
+  if (!ok) bad++
+  console.log(`${ok ? 'ok  ' : 'FAIL'} appQueryRedirect keeps unrelated query params (${JSON.stringify(r)})`)
+}
+// the hero's count line names the slate's own date (F-03), with injected days
+const { slateWhen } = await import('../lib/slateWhen.js')
+for (const [slate, today, want] of [
+  ['2026-10-09', '2026-10-09', 'tonight'], ['2026-10-10', '2026-10-09', 'tomorrow'], ['2026-10-08', '2026-10-09', 'tonight'],
+  ['2026-10-12', '2026-10-09', 'on Mon'], ['2026-11-01', '2026-10-31', 'tomorrow'], ['', '2026-10-09', 'tonight'],
+]) {
+  const got = slateWhen(slate, today)
+  const ok = got === want
+  if (!ok) bad++
+  console.log(`${ok ? 'ok  ' : 'FAIL'} slateWhen ${slate || '(none)'} on ${today} -> ${got}`)
+}
 const miss = resolveColdTab('nfl', '#sport=nfl&tab=nosuchtab', null)
 console.log(`${miss.status === 'missing' ? 'ok  ' : 'FAIL'} unknown tab with no snapshot answers missing (asked=${miss.asked})`)
 if (miss.status !== 'missing') bad++

@@ -51,7 +51,7 @@ WHAT YOU DO — ABOUT 30 MINUTES
 
 7. Redeploy, then hit:
 
-       /api/dash/threads/check
+       /api/dash/threads/check   (send  Authorization: Bearer <CRON_SECRET>)
 
    Read-only. It tells you whether the vars are set, and which profile the
    token actually belongs to. Check the username is CALLED IT and not your
@@ -59,7 +59,7 @@ WHAT YOU DO — ABOUT 30 MINUTES
 
 8. One real test post:
 
-       /api/dash/threads/check?go=1&key=<CALLEDIT_SECRET>
+       /api/dash/threads/check?go=1   (same Authorization header)
 
    Look at it on Threads.
 
@@ -130,9 +130,9 @@ EVERY LINK IS TAGGED. ?utm_source=threads&utm_medium=social&utm_campaign=<kind>
 so you can see which post type actually sends people, not just that Threads
 does. Nothing identifying is in the query string.
 
-SEE IT BEFORE IT'S LIVE — needs no token, posts nothing:
+SEE IT BEFORE IT'S LIVE — needs no Meta token, posts nothing:
 
-    /api/dash/threads/check?preview=1
+    /api/dash/threads/check?preview=1   (same Authorization header)
 
 That prints all thirteen link lines exactly as they'll appear. Read the copy
 and tell me what to change; it's the only part of this a stranger sees.

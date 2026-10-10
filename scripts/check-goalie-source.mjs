@@ -12,6 +12,8 @@ let failed = 0
 const ok = async (name, fn) => { try { await fn(); console.log(`ok   ${name}`) } catch (e) { failed++; console.log(`FAIL ${name}\n     ${e.message}`) } }
 
 const NOW = Date.parse('2026-10-09T17:00:00Z')
+// THE CLOCK IS INJECTED (F-04): code under test that reads Date.now() itself sees NOW, so this passes on any real date
+Date.now = () => NOW
 const DROP = '2026-10-09T23:00:00Z'
 const prob = (name, type, id = '1') => [{ name: 'probableStartingGoalie', athlete: { id, fullName: name }, status: { type } }]
 const event = ({ away = 'AAA', home = 'BBB', date = DROP, status = 'STATUS_SCHEDULED', ap, hp }) => ({

@@ -14,7 +14,7 @@
 //   API5XX     a request to /api/* answered 5xx (UPSTREAM = the route said LIVE DATA DELAYED: listed, not failed)
 // Findings are deduped by kind + message + sport/tab; each lists the tap sequence that reached it.
 //
-//   node scripts/check-interactions.mjs [--base http://localhost:3294] [--only mlb|nfl|nhl|nba] [--vp 390|1280|both]
+//   node scripts/check-interactions.mjs [--quick] [--base http://localhost:3294] [--only mlb|nfl|nhl|nba] [--vp 390|1280|both]
 //        [--tabs home,fullboard] [--max 12] [--deep 5] [--out interaction-report] [--browser /path]
 // BUCKETS (nba) is crawled only if the server says it is open (/api/buckets/access): start your OWN local server
 // with BUCKETS_PUBLIC=on. Exit 1 on any finding. Concurrency is 1, on purpose.
@@ -29,11 +29,15 @@ const { MLB_TABS, NFL_TABS, NHL_TABS, NBA_TABS, appHref, playerHref } = await im
 const arg = (k, d = null) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d }
 const BASE = (arg('--base') || 'http://localhost:3000').replace(/\/$/, '')
 const ONLY = arg('--only')
-const TABS_ONLY = arg('--tabs') ? arg('--tabs').split(',') : null
-const MAX = Number(arg('--max', 10))
-const DEEP = Number(arg('--deep', 3))
+// --quick is the push-gate form (scripts/gate.sh): phone only, the landing and Rankings pages of each sport,
+// 4 taps a page, one level deeper, no deep links (they need the live feeds). Same findings; API5XX is listed but
+// not failed (the gate's local server has no env). Everything else exits 1.
+const QUICK = process.argv.includes('--quick')
+const TABS_ONLY = arg('--tabs') ? arg('--tabs').split(',') : (QUICK ? ['home', 'fullboard', 'research'] : null)
+const MAX = Number(arg('--max', QUICK ? 4 : 10))
+const DEEP = Number(arg('--deep', QUICK ? 1 : 3))
 const OUT = arg('--out', 'interaction-report')
-const VP = arg('--vp', 'both')
+const VP = arg('--vp', QUICK ? '390' : 'both')
 const BROWSERS = [arg('--browser'), '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser', '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/usr/bin/google-chrome', '/usr/bin/chromium'].filter(Boolean)
 const executablePath = BROWSERS.find((p) => existsSync(p))
 if (!executablePath) { console.error('No Brave/Chrome found; pass --browser'); process.exit(2) }
@@ -350,4 +354,5 @@ for (const [k, s] of Object.entries(stats)) console.log(`  ${k.padEnd(10)} ${s.p
 for (const n of noData) console.log(`  NO DATA: ${n}`)
 console.log(`\n${list.length} finding(s) in ${Math.round((Date.now() - t0) / 1000)}s`)
 for (const f of list) console.log(`\n[${f.kind}] ${f.sport}/${f.tab}\n  ${f.msg}\n  via ${f.where.join('\n      ')}`)
-process.exit(list.some((f) => f.kind !== 'UPSTREAM') ? 1 : 0)
+// --quick runs against a gate server that has no database or feeds (no env), so a 5xx from a data route is listed, not failed
+process.exit(list.some((f) => f.kind !== 'UPSTREAM' && !(QUICK && f.kind === 'API5XX')) ? 1 : 0)

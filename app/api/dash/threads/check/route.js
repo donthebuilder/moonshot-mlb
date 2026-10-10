@@ -14,7 +14,7 @@
 // Deliberately NOT deleted with the other -tmp routes: this is the check to
 // re-run whenever the long-lived token is rotated, which is every 60 days.
 
-import { timingSafeEqual } from 'node:crypto'
+import { cronAuthorized } from '../../../../../lib/supabase/admin'
 import { hasThreads, postToThreads, threadsConfig, threadsMirrorOn, threadsProblem } from '../../../../../lib/dash/threadsPost'
 import { linkedKinds, threadsLinkFor, threadsLinkMode } from '../../../../../lib/dash/threadsLink'
 import { threadsKinds } from '../../../../../lib/dash/postLink'
@@ -22,19 +22,9 @@ import { threadsKinds } from '../../../../../lib/dash/postLink'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
-function authed(request, url) {
-  const supplied = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') || url.searchParams.get('key') || ''
-  if (!supplied) return false
-  return [process.env.CRON_SECRET, process.env.FRANCHISE_CRON_SECRET, process.env.CALLEDIT_SECRET]
-    .filter(Boolean)
-    .some((expected) => {
-      const a = Buffer.from(expected)
-      const b = Buffer.from(supplied)
-      return a.length === b.length && timingSafeEqual(a, b)
-    })
-}
-
 export async function GET(request) {
+  // The secret travels in the Authorization header only, never in the address.
+  if (!cronAuthorized(request)) return Response.json({ error: 'unauthorized' }, { status: 401 })
   const url = new URL(request.url)
 
   // WHICH POSTS CARRY A LINK, AND WHAT IT SAYS. Needs no token and posts
@@ -74,10 +64,9 @@ export async function GET(request) {
   }
 
   if (url.searchParams.get('go') !== '1') {
-    out.note = 'read-only. add ?go=1&key=<CALLEDIT_SECRET> to publish one real test post'
+    out.note = 'read-only. add ?go=1 to publish one real test post'
     return Response.json(out)
   }
-  if (!authed(request, url)) return Response.json({ ...out, posted: false, error: 'unauthorized' }, { status: 401 })
 
   const text = [
     '🤖 CALLED IT',
