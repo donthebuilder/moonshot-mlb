@@ -10,6 +10,8 @@ const NO_SHOTS = []   // one empty list, so the HEAT arena isn't rebuilt every r
 import { C, NUM_FONT, RINK, RINK_DARK as RD } from '../../lib/nhl/theme'
 import { useLampShots, useLampShotSpeed, useLampGoalies, useLampGoalieZones } from '../../lib/nhl/useLamp'
 import { goalieZoneRead, overlapSentence, matchZones, MATCH_SHARE, ZONE_LABEL } from '../../lib/nhl/zones'
+import { LEAGUE_MIN_GAMES } from '../../lib/nhl/shotMapShape'
+import { stampLine, leagueStamp } from '../../lib/nhl/shotStamp'
 import { shotLine } from '../../lib/nhl/shotStats'
 import { hardestIndex, measuredMph } from '../../lib/nhl/shotPath'
 import { DelayedBanner, Loading, Pills } from './ui'
@@ -27,6 +29,7 @@ import { ChartCard, ChartLegend, ChartEmpty, StatStrip, viewBtn } from '../chart
 // 2026-10-03, Donovan: "it should just open up to last 10 games ... at least
 // be able to do last five" -- LAST 5 / LAST 10 / SEASON, opening on LAST 10.
 const WINDOWS = [{ key: 'last5', text: 'LAST 5' }, { key: 'last10', text: 'LAST 10' }, { key: 'all', text: 'SEASON' }]
+const SEASONS = [{ key: 'this', text: 'THIS SEASON' }, { key: 'last', text: 'LAST SEASON' }, { key: 'both', text: 'BOTH' }]
 const pct = (v) => (v == null ? '—' : `${Math.round(v * 100)}%`)
 const share = (n, d) => `${Math.round((100 * n) / d)}%`
 
@@ -93,7 +96,11 @@ function restrictTo(m, dates, spec) {
 
 // season: 'this' | 'last' | 'both' asks the shot map for that season (null = the page's own default);
 // onlyDates: a Set of game days the drawn shots are limited to; startWin / startView: what it opens on.
-export default function ShotPanel({ sel, who = 'He', height = 300, venue = null, opp = null, season = null, onlyDates = null, startWin = 'last10', startView = 'zones', compact = false, urlKey = null }) {
+export default function ShotPanel({ sel, who = 'He', height = 300, venue = null, opp = null, season: seasonProp = null, seasonSwitch = false, onlyDates = null, startWin = 'last10', startView = 'zones', compact = false, urlKey = null }) {
+  // THE SEASON SWITCH (2026-10-10): where the page has no toggle of its own (Shot map tab, Matchups), the panel
+  // carries one -- THIS SEASON (the default) / LAST SEASON / BOTH. Pages with a toggle pass `season` instead.
+  const [localSeason, setLocalSeason] = useState('this')
+  const season = seasonSwitch ? (localSeason === 'this' ? null : localSeason) : seasonProp
   const { data, error, loading } = useLampShots(sel, season)
   // THE FILTERS ARE IN THE ADDRESS when the panel is given a urlKey (the player page's own map): shots.res= / .type= / .str= / .per= / .hard= / .win=
   // (lib/useHashFilters), so a shared link or a refresh reopens the same map. Without a urlKey it is plain local state.
@@ -208,7 +215,7 @@ export default function ShotPanel({ sel, who = 'He', height = 300, venue = null,
       {loading && !data ? <ChartEmpty theme={C}>Loading the shot map…</ChartEmpty> : null}
       {data && !data.season ? (
         <ChartEmpty theme={C}>
-          No regular-season shots for {sel?.team || sel?.against ? 'this club' : 'him'} in {season === 'this' ? 'this season' : season === 'last' ? 'last season' : 'these seasons'} yet. The map fills in after every game.
+          No regular-season shots for {sel?.team || sel?.against ? 'this club' : 'him'} in {season === 'last' ? 'last season' : season === 'both' ? 'these seasons' : 'this season'} yet. The map fills in after every game.
         </ChartEmpty>
       ) : null}
       {data?.season && m ? (
@@ -231,6 +238,9 @@ export default function ShotPanel({ sel, who = 'He', height = 300, venue = null,
               </label>
               <div style={{ fontSize: 13, color: C.text, lineHeight: 1.45 }}>
                 {overlapSentence(goalieRead, shots, goalie?.name || 'The goalie', sel?.name || sel?.team || 'He', who === 'He' && !sel?.team ? 'his' : 'their')}
+              </div>
+              <div style={{ fontSize: 11, color: gz?.leagueFallback ? C.amber : C.text3, fontFamily: NUM_FONT, lineHeight: 1.4 }}>
+                {goalie?.name || 'The goalie'}: {data.seasonLabel} · {gz?.goalie?.games ?? 0} {gz?.goalie?.games === 1 ? 'game' : 'games'}{(gz?.goalie?.games ?? 0) < 10 ? ' (small sample)' : ''} · league rates from {gz?.leagueSeason ? `${String(gz.leagueSeason).slice(0, 4)}-${String(gz.leagueSeason).slice(6)}` : data.seasonLabel}{gz?.leagueFallback ? ' (last season: the league is early this year)' : ''}
               </div>
             </div>
           )}
@@ -345,7 +355,7 @@ export default function ShotPanel({ sel, who = 'He', height = 300, venue = null,
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 8, fontFamily: NUM_FONT }}>
                 {[
                   ['slot share', pct(m.slotShare), C.ice],
-                  ...(data.league?.slotShare != null ? [[`league's ${data.seasonLabel || ''}`.trim(), pct(data.league.slotShare), C.text2]] : []),
+                  ...(data.league?.slotShare != null ? [[leagueStamp(data.league, data), pct(data.league.slotShare), C.text2]] : []),
                   ['attempts', m.attempts, C.text],
                   ['on net', m.sog, C.text],
                   ['goals', m.goals, C.lamp],
@@ -380,7 +390,7 @@ export default function ShotPanel({ sel, who = 'He', height = 300, venue = null,
                 </div>}
                 <div>
                   HEAT splits the attacking end into a 5 × 5 grid and colours each zone by {who === 'He' ? 'his' : 'their'} shooting percentage from it (goals per shot on goal; full colour at {Math.round(HEAT_FULL * 100)}%), with the shots taken from there under it; a zone with fewer than {HEAT_MIN_SOG} shots on goal shows its count only.
-                  {data.league ? <> VS LEAGUE puts the same grid against every regular-season attempt in the league that season ({data.league.attempts.toLocaleString()} of them): each zone&apos;s number is {who === 'He' ? 'his' : 'their'} share there minus the league&apos;s, in points, from {win === 'all' ? 'the season' : win === 'last5' ? 'the last five games' : 'the last ten games'} against the league&apos;s season; under {VS_MIN} attempts a zone is left blank, and the colour is full at {Math.round(VS_FULL * 100)} points. The league&apos;s slot share is cut the same way as {who === 'He' ? 'his' : 'theirs'}.</> : null} 3D draws the same shots in the arena; its lines run from the shot to the net along the ice and are not tracked puck paths.
+                  {data.league ? <> VS LEAGUE puts the same grid against every regular-season attempt in the league in {data.league.seasonLabel || 'that season'} ({data.league.attempts.toLocaleString()} of them){data.league.fallback ? ` -- last season's, because the league has under ${LEAGUE_MIN_GAMES} games of ${data.league.wantedLabel} so far` : ''}: each zone&apos;s number is {who === 'He' ? 'his' : 'their'} share there minus the league&apos;s, in points, from {win === 'all' ? 'the season' : win === 'last5' ? 'the last five games' : 'the last ten games'} against the league&apos;s season; under {VS_MIN} attempts a zone is left blank, and the colour is full at {Math.round(VS_FULL * 100)} points. The league&apos;s slot share is cut the same way as {who === 'He' ? 'his' : 'theirs'}.</> : null} 3D draws the same shots in the arena; its lines run from the shot to the net along the ice and are not tracked puck paths.
                 </div>
               </HowToRead>
             </div>
@@ -390,7 +400,8 @@ export default function ShotPanel({ sel, who = 'He', height = 300, venue = null,
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               {!onlyDates && <Pills tall ariaLabel="Shot window" value={win} onChange={setWin} options={WINDOWS} />}
-              <span style={{ color: C.text2, font: `800 11px/1.3 ${NUM_FONT}`, letterSpacing: '.06em' }}>{data.seasonLabel} REGULAR SEASON{data.stale && !season ? ' · LAST SEASON' : ''} · {m.games} GAMES{data.stale && data.currentGames > 0 ? ` · ${data.currentLabel}: ${data.currentGames} OF ${data.minGames} IN` : ''}</span>
+              {seasonSwitch && <Pills tall ariaLabel="Shot map season" value={localSeason} onChange={setLocalSeason} options={SEASONS} />}
+              <span data-shot-season={data.season} style={{ color: data.fallback ? C.amber : C.text2, font: `800 11px/1.3 ${NUM_FONT}`, letterSpacing: '.06em' }}>{stampLine(data, m)}</span>
             </div>
             {recent.length > 0 && recent[0].length > 3 && (
               <FiltersSheet onReset={() => { clearAll() }} groups={[

@@ -15,14 +15,19 @@ import { btnStyle } from '../../ui'
 // argued with his own numbers and how far clear of his own field he stands --
 // then ONE BOARD behind three lenses. Hockey's power is shooting, so the
 // lenses are the three honest questions the hot-sticks feed can answer:
-//   Volume     season shots on goal per game (min 20 games)
+//   Volume     season shots on goal per game (min 3 games, labelled small under 20)
 //   Heating    last-5 shots per game minus his season rate (the feed's own sogDelta)
-//   Finishing  season goals per shot on goal (min 60 shots)
+//   Finishing  season goals per shot on goal (min 10 shots)
 // Every number is from /api/lamp/hotsticks (api.nhle.com skater summary);
 // nothing here is a LAMP score or a prediction.
 
-const MIN_GP = 20
-const MIN_SHOTS = 60
+// THIS SEASON FROM ITS THIRD GAME (2026-10-10, Donovan: this season's data, not last): the floors are the
+// least that gives a rate (3 games, the hot-sticks route's own; 10 shots on goal), and under SMALL_GP games a
+// head the page says so and claims no standard-deviation "clear of the field". It used to ask the route for a
+// 20-game floor, which sent the whole page to last season's final five weeks until October ended.
+const MIN_GP = 3
+const MIN_SHOTS = 10
+const SMALL_GP = 20
 const shotsOf = (r) => (Number(r.seasonSogPg) || 0) * (Number(r.seasonGp) || 0)
 const LENSES = [
   { k: 'volume', label: 'Volume', tag: 'who puts the most pucks on net', color: C.ice,
@@ -36,10 +41,12 @@ const pctFmt = (v) => (Number.isFinite(v) ? `${v.toFixed(1)}%` : '—')
 const signFmt = (v) => (Number.isFinite(v) ? `${v > 0 ? '+' : ''}${v.toFixed(2)}` : '—')
 
 export default function Power({ onOpenPlayer }) {
-  const { data, error, loading } = useLampHotSticks({ needGp: MIN_GP })
+  const { data, error, loading } = useLampHotSticks()
   const [view, setView] = useState('volume')
   const rows = useMemo(() => (data?.rows || []).map((r) => ({ ...r, shooting: shotsOf(r) >= MIN_SHOTS ? (100 * r.seasonG) / shotsOf(r) : null })), [data])
 
+  const early = rows.length > 0 && !data?.stale && Math.max(...rows.map((r) => Number(r.seasonGp) || 0)) < SMALL_GP
+  const topGp = rows.length ? Math.max(...rows.map((r) => Number(r.seasonGp) || 0)) : 0
   const lead = useMemo(() => {
     const cands = LENSES.map((l) => {
       const pool = rows.filter(l.ok)
@@ -73,6 +80,7 @@ export default function Power({ onOpenPlayer }) {
         note="Shooters, three ways. League stats, not a LAMP score."
         theme={C} numFont={NUM_FONT} accent={C.ice} />
       {data?.stale && <StaleSeasonNote label={data.seasonLabel} what="power" />}
+      {early && <div style={{ color: C.amber, font: `800 11px/1.4 ${NUM_FONT}`, letterSpacing: '.06em' }}>THIS SEASON ({data.seasonLabel}): {topGp} {topGp === 1 ? 'GAME' : 'GAMES'} AT MOST SO FAR · EARLY NUMBERS, READ LIGHTLY</div>}
       <DelayedBanner error={error} what="the shooters" />
       {loading && !data ? <Loading what="the shooters" /> : null}
       {data && !rows.length ? <EmptyState title="NO GAMES YET" note="No skater has games in the window yet." /> : null}
@@ -87,7 +95,7 @@ export default function Power({ onOpenPlayer }) {
               {lead.l.k === 'volume' && <>Nobody puts more pucks on net: <Num {...nf} color={lead.l.color}>{p.seasonSogPg.toFixed(2)}</Num> shots on goal a game over <Num {...nf}>{p.seasonGp}</Num> games</>}
               {lead.l.k === 'heating' && <>Nobody is shooting further above his own season: <Num {...nf} color={lead.l.color}>{p.sogPg5.toFixed(1)}</Num> shots a game over his last 5 against <Num {...nf}>{p.seasonSogPg.toFixed(2)}</Num> on the season (<Num {...nf} color={lead.l.color}>{signFmt(p.sogDelta)}</Num>)</>}
               {lead.l.k === 'finishing' && <>Nobody turns shots into goals like him: <Num {...nf} color={lead.l.color}>{p.seasonG}</Num> goals on <Num {...nf}>{shots}</Num> shots, <Num {...nf} color={lead.l.color}>{pctFmt(p.shooting)}</Num></>}
-              <ConvictionClause {...nf} conv={lead.conv} field="his own field" unit={lead.l.k === 'finishing' ? 'percentage points' : 'shots'} />.
+              <ConvictionClause {...nf} conv={early ? null : lead.conv} field="his own field" unit={lead.l.k === 'finishing' ? 'percentage points' : 'shots'} />.
               {' '}<Num {...nf}>{p.g5}</Num> goal{p.g5 === 1 ? '' : 's'} in his last 5.
             </Para>
             <Para theme={C} dim>What he has done, not a chance of a goal tonight -- the goal board is where tonight is scored.</Para>
@@ -96,7 +104,7 @@ export default function Power({ onOpenPlayer }) {
       })()}
 
       {rows.length > 0 && !board.length && (
-        <EmptyState title="NOT ENOUGH GAMES YET" note={`Nobody in ${data?.seasonLabel || 'this season'} qualifies for ${lens.label} yet (${lens.k === 'finishing' ? `${MIN_SHOTS}+ shots` : `${MIN_GP}+ games`}). Try another lens.`} />
+        <EmptyState title="NOT ENOUGH GAMES YET" note={`Nobody in ${data?.seasonLabel || 'this season'} qualifies for ${lens.label} yet (${lens.k === 'finishing' ? `${MIN_SHOTS}+ shots` : lens.k === 'heating' ? '10+ games, the feed\'s rule for a season rate to compare with' : `${MIN_GP}+ games`}). Try another lens.`} />
       )}
       {rows.length > 0 && (
         <>
@@ -106,7 +114,7 @@ export default function Power({ onOpenPlayer }) {
             onRowClick={(r) => onOpenPlayer?.(r.id)} />
         </>
       )}
-      <SourceLine>api.nhle.com/stats skater summary via /api/lamp/hotsticks (regular season). Volume needs {MIN_GP}+ games, finishing {MIN_SHOTS}+ shots on goal; heating up compares his last 5 games with his season.</SourceLine>
+      <SourceLine>api.nhle.com/stats skater summary via /api/lamp/hotsticks (regular season). Volume needs {MIN_GP}+ games, finishing {MIN_SHOTS}+ shots on goal (under {SMALL_GP} games the page says the numbers are early); heating up compares his last 5 games with his season.</SourceLine>
     </div>
   )
 }

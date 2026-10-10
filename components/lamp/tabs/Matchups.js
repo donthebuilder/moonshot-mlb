@@ -111,13 +111,13 @@ function Detail({ row, league, onOpenPlayer, onOpenTeam = null }) {
 
       <div>
         <Kicker>WHERE {row.def} ALLOWS SHOTS FROM</Kicker>
-        <ShotPanel sel={{ against: row.def }} who={row.def} height={440} venue={arenaOf(row.home ? row.def : row.opp)?.name} />
+        <ShotPanel sel={{ against: row.def }} who={row.def} height={440} seasonSwitch venue={arenaOf(row.home ? row.def : row.opp)?.name} />
         <div style={{ marginTop: 4, fontSize: 11, color: C.text3 }}>Every attempt the other club took in {row.def}&apos;s games, drawn on one attacking half.</div>
       </div>
 
       <div>
         <Kicker>WHERE {row.opp} SHOOTS FROM</Kicker>
-        <ShotPanel sel={{ team: row.opp }} who={row.opp} height={440} venue={arenaOf(row.home ? row.def : row.opp)?.name} opp={row.def} />
+        <ShotPanel sel={{ team: row.opp }} who={row.opp} height={440} seasonSwitch venue={arenaOf(row.home ? row.def : row.opp)?.name} opp={row.def} />
       </div>
     </section>
   )

@@ -160,8 +160,10 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
   }
 
   // ── which seasons the Splits, Shot map, VS, Game log and Goals tabs read ──
-  // Under 20 games this season there is little to read: open on the last two.
-  const [season, setSeason] = useState((Number(fr?.gp) || 0) < 20 && p.logPrev?.seasonLabel ? 'both' : 'this')
+  // THIS SEASON from his first game (2026-10-10, Donovan: this season's data now); a small sample is
+  // labelled where it is drawn (the shot map's stamp), not hidden behind last season. Only a man with
+  // no game yet this season (or a feed still on last season's line) opens on the last two.
+  const [season, setSeason] = useState(!stale && (Number(fr?.gp) || 0) >= 1 ? 'this' : p.logPrev?.seasonLabel ? 'both' : 'this')
   const logThis = p.log?.rows || []
   const logLast = p.logPrev?.rows || []
   const seasonLabels = (() => {
@@ -333,7 +335,7 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
       {shown === 'shotmap' && !goalie && (
         <>
           <SeasonToggle value={season} onChange={setSeason} p={p} />
-          <ShotPanel compact urlKey="shots" sel={{ player: p.id, name: p.name }} who="He" height={480} season={season} venue={arenaOf(spot?.g?.game?.home?.abbrev || p.team)?.name}
+          <ShotPanel compact urlKey="shots" sel={{ player: p.id, name: p.name }} who="He" height={480} season={season === 'this' ? null : season} venue={arenaOf(spot?.g?.game?.home?.abbrev || p.team)?.name}
             opp={spot?.g?.game ? (spot.g.game.home?.abbrev === p.team ? spot.g.game.away?.abbrev : spot.g.game.home?.abbrev) || null : null} />
         </>
       )}
@@ -445,7 +447,7 @@ function VsTab({ p, spot, season, setSeason, seasonLabels }) {
         </div>
       )}
       {mode === 'team' && teams.length > 0 && dates.size === 0 ? null : (
-        <ShotPanel compact sel={{ player: p.id, name: p.name }} who="He" height={480} season={season} onlyDates={mode === 'team' ? dates : null} startView={mode === 'goalie' ? 'goalie' : 'dots'}
+        <ShotPanel compact sel={{ player: p.id, name: p.name }} who="He" height={480} season={season === 'this' ? null : season} onlyDates={mode === 'team' ? dates : null} startView={mode === 'goalie' ? 'goalie' : 'dots'}
           venue={arenaOf(g0?.home?.abbrev || p.team)?.name} opp={tonightOpp} />
       )}
     </>

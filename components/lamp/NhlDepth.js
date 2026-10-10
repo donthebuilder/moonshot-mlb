@@ -33,9 +33,9 @@ export function DepthSections({ sections }) {
 /** what the sentences read, fetched only for an unstarted game; `clubs` = the clubs whose defence and goalie are wanted */
 function useInputs(bg, { player = null, clubs = [] }) {
   const pre = bg?.game?.state === 'pre'
-  const shots = useLampShots(pre && player ? { player } : null)
-  const a0 = useLampShots(pre && clubs[0] ? { against: clubs[0] } : null)
-  const a1 = useLampShots(pre && clubs[1] ? { against: clubs[1] } : null)
+  const shots = useLampShots(pre && player ? { player } : null, 'auto')
+  const a0 = useLampShots(pre && clubs[0] ? { against: clubs[0] } : null, 'auto')
+  const a1 = useLampShots(pre && clubs[1] ? { against: clubs[1] } : null, 'auto')
   const season = a0.data?.season || a1.data?.season || shots.data?.season || null
   const goalies = useLampGoalies(season, pre && clubs.length > 0)
   const ids = clubs.map((c) => busiestGoalie(goalies.data, c)?.id || null)

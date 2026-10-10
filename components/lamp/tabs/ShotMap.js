@@ -58,7 +58,7 @@ export default function ShotMap({ onOpenPlayer }) {
         <h3 style={{ margin: 0, fontSize: 18, color: C.cream }}>{picked ? picked.name : TEAMS.find((t) => t.abbrev === sel.team)?.name}</h3>
         {picked && <button type="button" onClick={() => onOpenPlayer?.(picked.id)} style={{ background: 'none', border: 'none', color: C.ice, cursor: 'pointer', font: `800 10px/1 ${NUM_FONT}` }}>open his file →</button>}
       </div>
-      <ShotPanel sel={sel} who={sel.player ? 'He' : 'They'} height={540} venue={arenaOf(sel.team || picked?.team)?.name} />
+      <ShotPanel sel={sel} who={sel.player ? 'He' : 'They'} height={540} seasonSwitch venue={arenaOf(sel.team || picked?.team)?.name} />
       <SourceLine>gamecenter/{'{id}'}/play-by-play: shot-on-goal, goal, missed-shot and blocked-shot events (xCoord, yCoord, shotType, situationCode), regular season, shootouts left out. Stored in lamp_shots after each graded game; 2025-26 backfilled.</SourceLine>
     </div>
   )
