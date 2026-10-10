@@ -198,5 +198,83 @@ check(!/https?:|www\.|\.com|#\w+tag|QR/i.test(allText), 'no link, no QR, no hash
   check([full, free, two, sparse].flatMap((d) => lintType(dayDesign(d, null))).length === 0, 'day card: no text under 22px at 1080 wide')
 }
 
+// ── 10. THE TWO-MAN DUAL CARD ──
+{
+  const { dualDesign, renderDual, clampWords } = await import('../lib/cards/dualCard.js')
+  const { serialOf, loadDualModel } = await import('../lib/cards/dualData.js')
+  const { dualCardImage } = await import('../lib/cards/cardImage.js')
+  const leg = (n, o = {}) => ({ sport: 'nhl', brand: { sport: 'nhl', name: BRAND.nhl.name }, playerId: `P${n}`, name: `Test Skater ${n}`, team: 'TST', opp: 'OPP', home: null, pos: 'C', number: n, status: 'called', why: 'shots 99th · goals 98th · ice time 90th percentile tonight', face: '', logo: '', logoPlate: false, tone: null, ...o })
+  const dual = (o = {}) => ({ sport: 'nhl', brandName: 'LAMP', market: 'anytime goal', dayWord: 'Jan 2', lane: 'bot', label: 'TWO-MAN', rule: '0.5 unit · both legs must land', legs: [{ m: leg(1), price: { best: '+110', books: 4 } }, { m: leg(2), price: { best: '+130', books: 3 } }], price: '+341', serial: { n: 14, of: 31, caption: 'TWO-MAN NO.' }, ...o })
+  const t = texts(dualDesign(dual(), null, ''))
+  check(/TWO-MAN/.test(t) && /0\.5 unit · both legs must land/.test(t) && /Test Skater 1/.test(t) && /Test Skater 2/.test(t) && /CALLED/.test(t), 'dual card: the slot label, the rule, both names and the status words')
+  check(/about \+341 best, the two prices multiplied/.test(t), 'dual card: both legs priced -> the combined price line')
+  check(!/about/.test(texts(dualDesign(dual({ price: null }), null, ''))), 'dual card: a missing combined price (a leg unpriced) draws nothing')
+  check(/14 of 31/.test(t) && !/ of /.test(texts(dualDesign(dual({ serial: null }), null, ''))) , 'dual card: the serial is the real "14 of 31"; with none it is left off')
+  check(/DONOVAN'S TWO-MAN/.test(texts(dualDesign(dual({ lane: 'donovan', label: "DONOVAN'S TWO-MAN", serial: { n: 3, of: 5, caption: "DONOVAN'S TWO-MAN NO." } }), null, ''))), "dual card: Donovan's lane wears its own label on the same layout")
+  check(/ON THE BOARD/.test(texts(dualDesign(dual({ legs: [{ m: leg(1, { status: 'board' }), price: null }, { m: leg(2), price: null }] }), null, ''))) && !/\bOFF\b/.test(t), 'dual card: status words only from STATUS_WORD (a board leg says ON THE BOARD)')
+  check(clampWords('a b c', 100) === 'a b c' && clampWords('word '.repeat(60), 40).endsWith('…') && clampWords('word '.repeat(60), 40).length <= 40, 'dual card: a long why line is cut on a word with an ellipsis')
+  for (const [name, d] of Object.entries({ full: dual(), 'no faces / logos / prices / why': dual({ price: null, serial: null, legs: [{ m: leg(1, { why: null }), price: null }, { m: leg(2, { why: null }), price: null }] }), 'long names': dual({ legs: [{ m: leg(1, { name: 'Test Verylongfirstname Anotherverylongsurname-Hyphenated' }), price: null }, { m: leg(2, { name: 'Test Name' }), price: null }] }), donovan: dual({ label: "DONOVAN'S TWO-MAN", lane: 'donovan' }) })) {
+    try { const r = pngSize(await renderDual(d)); check(r.sig && r.w === 1080 && r.h === 1350, `dual card renders 1080x1350: ${name}`) } catch (e) { check(false, `dual card renders: ${name} (${e.message})`) }
+  }
+  check(lintType(dualDesign(dual(), null, '')).length === 0, 'dual card: no text under 22px at 1080 wide')
+  const rowsOf = [['2026-01-01', 'bot', '2026-01-01T00:00:00Z'], ['2026-01-02', 'bot', '2026-01-02T00:00:00Z'], ['2026-01-03', 'bot', '2026-01-03T00:00:00Z'], ['2026-01-02', 'donovan', '2026-01-02T00:00:00Z'], ['2026-01-04', 'donovan', '2026-02-01T00:00:00Z']].map(([card_date, lane, locks_at]) => ({ card_date, lane, locks_at }))
+  const now = Date.parse('2026-01-10T00:00:00Z')
+  check(JSON.stringify(serialOf(rowsOf, { lane: 'bot', cardDate: '2026-01-02', now })) === '{"n":2,"of":3}', 'serial: the 2nd of the 3 bot Two-Men locked so far (from the rows, never invented)')
+  check(JSON.stringify(serialOf(rowsOf, { lane: 'donovan', cardDate: '2026-01-02', now })) === '{"n":1,"of":1}', "serial: Donovan's lane counts only his Two-Men whose lock has passed")
+  check(serialOf(rowsOf, { lane: 'bot', cardDate: '2026-02-09', now }) === null && serialOf([], { lane: 'bot', cardDate: '2026-01-02', now }) === null, 'serial: a card that is not in the record, or no rows, gives no serial (omitted)')
+  // the public/members rule: a fake table, no network
+  const table = (rows) => { const b = { eq: () => b, order: () => b, limit: () => b, then: (res) => res({ data: rows, error: null }) }; return { select: () => b } }
+  const row = (o) => ({ id: 1, sport: 'nhl', card_date: '2026-01-02', lane: 'bot', product: 'two_man', slot: 1, model_version: 'card-v1', locks_at: '2026-01-02T00:00:00Z', start_at: '2026-01-02T20:00:00Z', result: null, stake: 0.5, legs: [{ player_id: 'P1', name: 'Test Skater 1' }, { player_id: 'P2', name: 'Test Skater 2' }], ...o })
+  const fakeDb = (rows) => ({ from: () => table(rows) })
+  const early = await loadDualModel({ sport: 'nhl', date: '2026-01-02', lane: 'bot', db: fakeDb([row()]), now: Date.parse('2026-01-02T15:00:00Z'), publicOnly: true })
+  check(!early.ok && early.status === 404 && /not public yet/.test(early.why), "dual route policy: the bot's Two-Man before its games is 404 (members content)")
+  const none = await dualCardImage({ sport: 'nhl', date: '2026-01-02', lane: 'donovan', db: fakeDb([row()]), now: Date.parse('2026-01-02T15:00:00Z') })
+  check(!none.ok && none.status === 404, "dual route policy: no Donovan's Two-Man entered -> 404")
+  check((await dualCardImage({ sport: 'nba', date: '2026-01-02', db: fakeDb([]) })).status === 404, 'dual: nba is 404')
+  const { GET: dualGet } = await import('../app/api/card/dual/route.js')
+  check((await dualGet(new Request('http://x/api/card/dual?sport=nba'))).status === 404 && (await dualGet(new Request('http://x/api/card/dual?sport=bogus'))).status === 404, 'route /api/card/dual: nba and unknown sports are 404')
+}
+
+// ── 11. THE GRADED SLAB RESULT CARD ──
+{
+  const { slabDesign, renderSlab } = await import('../lib/cards/slabCard.js')
+  const { legOutcome, productOutcome, outcomeWord, OUTCOME } = await import('../lib/cards/outcome.js')
+  const { slabCardImage } = await import('../lib/cards/cardImage.js')
+  const m = (n, o = {}) => ({ sport: 'nhl', brand: { sport: 'nhl', name: BRAND.nhl.name }, playerId: `P${n}`, name: `Test Skater ${n}`, team: 'TST', opp: 'OPP', home: null, face: '', logo: '', logoPlate: false, tone: null, ...o })
+  const slab = (legs, o = {}) => ({ sport: 'nhl', brandName: 'LAMP', kicker: 'THE CARD · NHL', product: 'TWO-MAN', market: 'anytime goal', dayWord: 'Jan 2', result: 'missed', legs: legs.map((outcome, i) => ({ m: m(i + 1), outcome, market: 'anytime goal' })), record: { k: 6, n: 14, label: 'Two-Men landed both legs' }, note: 'Graded from the box score.', ...o })
+  check(OUTCOME.cashed === 'CASHED' && OUTCOME.missed === 'MISSED' && OUTCOME.void === 'VOID' && OUTCOME.dnp === 'DID NOT PLAY', 'outcome words: CASHED / MISSED / VOID / DID NOT PLAY')
+  check(legOutcome('hit') === 'cashed' && legOutcome('miss') === 'missed' && legOutcome('void') === 'dnp' && legOutcome(null) === null && legOutcome('pending') === null, 'a leg: hit / miss / void map to CASHED / MISSED / DID NOT PLAY; an ungraded leg has no outcome (never guessed)')
+  check(productOutcome('hit') === 'cashed' && productOutcome('miss') === 'missed' && productOutcome('void') === 'void' && productOutcome(null) === null && outcomeWord('nope') === '', 'a product: a Two-Man with a void leg is VOID; nothing graded is nothing')
+  const hit = slab(['cashed', 'cashed'], { result: 'cashed' })
+  const miss = slab(['missed', 'missed'], { result: 'missed' })
+  const mixed = slab(['cashed', 'dnp'], { result: 'void' })
+  const th = texts(slabDesign(hit, null, '')); const tm = texts(slabDesign(miss, null, '')); const tx = texts(slabDesign(mixed, null, ''))
+  check(/CASHED/.test(th) && /MISSED/.test(tm) && /VOID/.test(tx) && /DID NOT PLAY/.test(tx), 'slab: the label carries the real outcome words, per leg and for the product')
+  check(/6 of 14/.test(th) && /Two-Men landed both legs/.test(th) && /Jan 2/.test(th) && /anytime goal/.test(th) && /TWO-MAN/.test(th), 'slab: the label carries the lane record "K of N", the date, the product and the market')
+  check(!/\b(GEM|MINT|PRISTINE|CENTERING|CORNERS|EDGES|SURFACE|GRADE)\b/i.test(th + tm) && !/\b\d\.5\b|\b10\b/.test(th + tm.replace('Jan 2', '')), 'slab: NO numeric grade or sub-grades (no 9.5 / 10 / centering / corners)')
+  // a MISS has the same dignity: the same layout and type as a hit; only the words and the small mark differ
+  const shape = (d) => walk(d).styles.map((x) => { const o = JSON.parse(x); return `${o.fontSize || ''}|${o.fontWeight || ''}|${o.width || ''}|${o.height || ''}|${o.fontFamily || ''}` }).join(',')
+  check(shape(slabDesign(hit, null, '')) === shape(slabDesign(miss, null, '')), 'slab: a miss is drawn with exactly the layout, sizes and weights of a hit (no celebratory styling)')
+  const colors = (d) => walk(d).styles.join(' ')
+  check(!/#?(ff0000|00ff00|red|green)\b/i.test(colors(slabDesign(miss, null, ''))), 'slab: no red / green on a miss')
+  const rows = (n, outcome = 'missed') => slab(Array.from({ length: n }, (_, i) => (i % 3 ? outcome : 'cashed')), { sport: null, brandName: 'DASH Network', kicker: 'THE RECEIPT', product: 'NIGHT RECEIPT', result: null })
+  const r12 = texts(slabDesign(rows(12), null, ''))
+  check(/\+4 more in the ledger/.test(r12) && !/\+\d+ more/.test(texts(slabDesign(rows(5), null, ''))), 'slab: a long receipt shows 8 rows and says how many more are in the ledger')
+  for (const [name, d] of Object.entries({ 'straight, cashed': slab(['cashed'], { product: 'STRAIGHT 1', result: 'cashed' }), 'straight, missed': slab(['missed'], { product: 'STRAIGHT 1', result: 'missed' }), 'two-man, missed': miss, 'two-man, void': mixed, 'receipt of 5': rows(5), 'receipt of 12': rows(12), 'no record': slab(['cashed'], { record: null }), 'donovan': slab(['cashed', 'missed'], { product: "DONOVAN'S TWO-MAN", result: 'missed' }) })) {
+    try { const r = pngSize(await renderSlab(d)); check(r.sig && r.w === 1080 && r.h === 1350, `slab renders 1080x1350: ${name}`) } catch (e) { check(false, `slab renders: ${name} (${e.message})`) }
+  }
+  check([hit, miss, mixed, rows(12)].flatMap((d) => lintType(slabDesign(d, null, ''))).length === 0, 'slab: no text under 22px at 1080 wide')
+  const table = (rows) => { const b = { eq: () => b, order: () => b, limit: () => b, is: () => b, match: () => b, maybeSingle: async () => ({ data: null, error: null }), then: (res) => res({ data: rows, error: null }) }; return { select: () => b } }
+  const open = { id: 1, sport: 'nhl', card_date: '2026-01-02', lane: 'bot', product: 'straight', slot: 1, model_version: 'card-v1', locks_at: '2026-01-02T00:00:00Z', start_at: '2026-01-02T20:00:00Z', result: null, legs: [{ player_id: 'P1', name: 'Test Skater 1' }] }
+  const notYet = await slabCardImage({ kind: 'card', sport: 'nhl', date: '2026-01-02', lane: 'bot', product: 'straight', slot: 1, db: { from: () => table([open]) }, now: Date.parse('2026-01-03T00:00:00Z') })
+  check(!notYet.ok && notYet.status === 404 && /not graded/.test(notYet.why), 'slab: a row that is not graded yet is a 404 (a result card for a result that does not exist is never drawn)')
+  const noReceipt = await slabCardImage({ kind: 'receipt', day: '2026-01-02', db: { from: () => table([]) } })
+  check(!noReceipt.ok && noReceipt.status === 404, 'slab: a night with no stored receipt is a 404')
+  const { GET: slabGet } = await import('../app/api/card/slab/route.js')
+  const sg = async (q) => (await slabGet(new Request(`http://x/api/card/slab${q}`))).status
+  check(await sg('?kind=card&sport=nba&date=2026-01-02') === 404 && await sg('?kind=card&sport=bogus&date=2026-01-02') === 404, 'route /api/card/slab: nba and unknown sports are 404')
+  check(await sg('?kind=card&sport=nhl') === 400 && await sg('?kind=receipt&day=nope') === 400, 'route /api/card/slab: a missing or malformed date is 400')
+}
+
 console.log(failed ? `\n${failed} FAILED` : '\nOK: player cards')
 process.exit(failed ? 1 : 0)
