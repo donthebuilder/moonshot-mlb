@@ -30,6 +30,7 @@ const SCH = await import('../lib/dash/xSchedule.js')
 const L = await import('../lib/dash/xPostLog.js')
 const PC = await import('../lib/dash/postClaim.js')
 const CS = await import('../lib/callStatus.js')
+const BUD = await import('../lib/dash/xBudget.js')
 
 let n = 0
 const ok = async (name, fn) => { await fn(); n++; console.log(`ok  ${name}`) }
@@ -394,8 +395,10 @@ await ok('policy: the receipt is a write-up-tier post (stops at 18 of 20), exemp
 await ok('policy: with 18 counted posts today the receipt waits; with 17 it goes (the gate\'s own count, fake rows)', async () => {
   reset()
   const now = Date.now()
-  const counted = (k) => Array.from({ length: k }, (_, i) => ({ day: DAY, kind: 'list_mlb', x_post_id: String(100 + i), seen_at: new Date(now - 60e3).toISOString(), payload: {} }))
-  const day = (await import('../lib/data.js')).easternDate(now)   // the cap counts the ET day a post was made in
+  const day = SCH.phxDayWindow(now).day
+  // the cap counts the ET day (xBudget.etDayWindow), which ends 3 hours before the Phoenix day does: stamp the rows one minute into that window, whatever the hour the check runs
+  const seen = new Date(Date.parse(BUD.etDayWindow(day)[0]) + 60e3).toISOString()
+  const counted = (k) => Array.from({ length: k }, (_, i) => ({ day: DAY, kind: 'list_mlb', x_post_id: String(100 + i), seen_at: seen, payload: {} }))
   for (const [k, want] of [[17, 'go'], [18, 'capped']]) {
     reset()
     const db = fakeDb({ homer_feed_posts: counted(k).map((r) => ({ ...r, day })) , fact_posts: [] })
@@ -470,12 +473,14 @@ await ok('weekly: the same honest receipt over the stored nights -- the no-cash 
   assert.deepEqual(totals.total, { cashed: 5, missed: 5, void: 1 }); assert.equal(totals.nights, 3)
   const t = RC.renderPeriod({ kind: 'weekly', from: '2026-10-05', to: '2026-10-11', totals })
   assert.equal(lines(t)[0], '\u{1F9FE} THE RECEIPT · WEEK OF OCT 5')
-  assert.match(t, /CALLED · 5 of 10 cashed · 1 did not play · 3 nights/)
+  assert.match(t, /CALLED · 11 calls made · 5 landed · 5 missed · 1 did not play · 3 nights/)   // made = landed + missed + did not play, summed from the stored nights
+  assert.ok(!/ of 10 cashed/.test(lines(t)[2]), 'the weekly record line is the made / landed / missed line')
   assert.match(t, /MLB  2 of 5 cashed · home run/); assert.match(t, /NFL  2 of 3 cashed · anytime touchdown/); assert.match(t, /NHL  1 of 2 cashed · goal scorer/)
   assert.ok(!/can't be modeled/.test(t)); assert.match(t, /\nEvery call, graded → DASH · The Ledger$/)
   assert.ok(lines(t).length <= 8 && S.xLen(t) <= 280); assert.ok(!BANNED.test(t), t)
   const m = RC.renderPeriod({ kind: 'monthly', from: '2026-09-01', to: '2026-09-30', totals })
   assert.equal(lines(m)[0], '\u{1F9FE} THE RECEIPT · SEPTEMBER')
+  assert.match(m, /CALLED · 5 of 10 cashed · 1 did not play · 3 nights/)   // the monthly keeps the night receipt's wording
 })
 await ok('weekly: nothing cashed all week -> no post; monthly the same', () => {
   const none = RC.periodTotals([nightRow('2026-10-05', { cashed: 0, missed: 2, void: 0 }, { mlb: { cashed: 0, missed: 2, void: 0 } })])

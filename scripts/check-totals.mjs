@@ -5,7 +5,7 @@
 // the status words, the post (no link, no player, fits), the post kind's tag, the migration's guards.
 import fs from 'node:fs'
 import assert from 'node:assert/strict'
-import { lineFor, recordBySource, BOOK_LINE_SPORTS, rankField, lockRows, lockWindowOpen, gradeRow, tally, recordOf, totalsPostText, mayLockRow, TOTALS_VERSION, TOTALS_SPORTS, TOTALS_UNITS, LOCK_LEAD_MIN } from '../lib/totals/core.js'
+import { lineWord, lineFor, recordBySource, BOOK_LINE_SPORTS, rankField, lockRows, lockWindowOpen, gradeRow, tally, recordOf, totalsPostText, mayLockRow, TOTALS_VERSION, TOTALS_SPORTS, TOTALS_UNITS, LOCK_LEAD_MIN } from '../lib/totals/core.js'
 import { totalsCallStatus, TOTALS_CALLS } from '../lib/callStatus.js'
 import { lockSlate, gradeRows } from '../lib/totals/store.js'
 import { gameTotalRow, bookTotalsFor, bookTeamKey } from '../lib/odds/gameTotal.js'
@@ -339,7 +339,22 @@ await t('the post shows both honestly: model and book on a book game, the model 
   assert.match(text, /book total where listed/)
   assert.ok([...text].length + 4 <= 280)
   const all = lockRows({ sport: 'nba', slate_key: 'k', games: FIELD.map((g) => ({ ...g, book: { line: 6.5, taken_at: TAKEN, books: 2, event_id: 'E' } })), now: NOW })
-  assert.match(totalsPostText({ sport: 'nba', day: '2026-10-10', rows: all }), /Graded against the book total after the final\./)
+  assert.match(totalsPostText({ sport: 'nba', day: '2026-10-10', rows: all }), /Graded vs the book total after the final\./)
+})
+
+await t('vs our number: a projection line says so (MLB, NFL, and an NHL / NBA game with no book total); "vs book" only when line_source is book', () => {
+  assert.equal(lineWord({ line_source: 'projection' }), 'vs our number')
+  assert.equal(lineWord({}), 'vs our number')
+  assert.equal(lineWord({ line_source: 'book', book_line: 6.5 }), 'vs book')
+  for (const sport of ['mlb', 'nfl']) {
+    const rows = lockRows({ sport, slate_key: 'k', games: FIELD.map((g) => ({ ...g, book: { line: 6.5, taken_at: TAKEN, books: 2, event_id: 'E' } })), now: NOW })
+    assert.ok(rows.every((r) => r.line_source === 'projection' && lineWord(r) === 'vs our number'), `${sport} never takes a book line`)
+    assert.match(totalsPostText({ sport, day: '2026-10-10', rows }), /Graded vs our number after the final\./)
+  }
+  const bookless = lockRows({ sport: 'nhl', slate_key: 'k', games: FIELD, now: NOW })
+  assert.ok(bookless.every((r) => lineWord(r) === 'vs our number'), 'an NHL game with no book total is graded vs our number')
+  const comp = fs.readFileSync(new URL('../components/TopTotals.js', import.meta.url), 'utf8')
+  assert.ok(/lineWord\(r\)/.test(comp) && /vs our number/.test(comp), 'the table labels each line from the row')
 })
 
 await t('the book-line migration: the table, the four columns, the book check, the frozen columns, no `set role`', () => {

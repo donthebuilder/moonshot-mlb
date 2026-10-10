@@ -19,7 +19,7 @@ import { useLiveFetch } from '../lib/useLiveFetch'
 import { GameTap, TeamTap } from './EntityTap'
 import { useGameNav } from '../lib/teamNav'
 import { gameHref } from '../lib/routes'
-import { TOTALS_UNITS, TOTALS_CALLS, BOOK_LINE_SPORTS } from '../lib/totals/core'
+import { TOTALS_UNITS, TOTALS_CALLS, BOOK_LINE_SPORTS, lineWord } from '../lib/totals/core'
 
 const WORD = { over: 'OVER', under: 'UNDER', push: 'PUSH', void: 'VOID' }
 const pct = (v) => (v == null ? '—' : `${Math.round(v * 100)}%`)
@@ -56,7 +56,7 @@ export default function TopTotals({ sport, mode = 'slate', Table = DenseTable })
     const src = mode === 'record' ? data?.graded || [] : data?.rows || []
     return src.map((r) => ({
       _key: `${r.sport}-${r.game_id}`, rank: r.rank, game_id: r.game_id, away: r.away, home: r.home, game: `${r.away} @ ${r.home}`,
-      proj: r.projected_total, line: r.line, book: r.line_source === 'book' ? r.book_line : null, actual: r.actual_total, result: r.result, status: r.status, start: r.start_at,
+      proj: r.projected_total, line: r.line, vs: lineWord(r), book: r.line_source === 'book' ? r.book_line : null, actual: r.actual_total, result: r.result, status: r.status, start: r.start_at,
     }))
   }, [data, mode])
 
@@ -65,9 +65,11 @@ export default function TopTotals({ sport, mode = 'slate', Table = DenseTable })
     { key: 'game', label: 'Game', w: 150, heat: false, sticky: true, bold: true, group: 'GAME', fmt: (v, r) => <Game sport={sport} row={r} /> },
     { key: 'proj', label: `Proj ${u.short}`, w: 70, dp: u.dp, primary: true, group: 'PROJECTION', title: `The team model's projected combined ${u.unit}, fixed before the game` },
     ...(BOOK_LINE_SPORTS.includes(sport) ? [{ key: 'book', label: 'Book', w: 56, dp: u.dp, heat: false, group: 'PROJECTION', blankWhen: (n) => !Number.isFinite(n), title: `The sportsbooks' consensus total ${u.unit}, read before the game. Blank: no book total listed, so the call is graded against the projection` }] : []),
-    { key: 'line', label: 'Line', w: 60, dp: u.dp, heat: false, group: 'PROJECTION', title: 'The number the call is graded against, stored with the call (the book total where there is one, otherwise the projection)' },
+    // THE LINE SAYS WHOSE NUMBER IT IS (2026-10-10): our own projection for MLB / NFL (books do not quote our unit), the book total only where line_source is book
+    { key: 'line', label: 'Graded vs', w: 78, dp: u.dp, heat: false, group: 'PROJECTION', title: 'The number the call is graded against, stored with the call: the sportsbooks\' total where the row says book (NHL, NBA), otherwise our own projection',
+      fmt: (v, r) => <span style={{ display: 'grid', lineHeight: 1.15 }}><b>{Number.isFinite(Number(v)) ? Number(v).toFixed(u.dp) : '\u2014'}</b><span style={{ fontSize: 10, color: C.text3 }}>{r.vs}</span></span> },
     { key: 'actual', label: 'Final', w: 56, dp: 0, heat: false, group: 'RESULT', blankWhen: (n) => !Number.isFinite(n), title: `The combined ${u.unit} the game produced` },
-    { key: 'result', label: 'Result', w: 70, heat: false, group: 'RESULT', fmt: (v) => (v ? <b style={{ color: v === 'over' ? accent : C.text2 }}>{WORD[v]}</b> : <span style={{ color: C.text3 }}>{'—'}</span>) },
+    { key: 'result', label: 'Result', w: 70, heat: false, group: 'RESULT', fmt: (v, r) => (v ? <span style={{ display: 'grid', lineHeight: 1.15 }}><b style={{ color: v === 'over' ? accent : C.text2 }}>{WORD[v]}</b><span style={{ fontSize: 10, color: C.text3 }}>{r.vs}</span></span> : <span style={{ color: C.text3 }}>{'—'}</span>) },
   ], [sport, u, accent, C])
 
   const rec_ = data?.record
@@ -83,7 +85,7 @@ export default function TopTotals({ sport, mode = 'slate', Table = DenseTable })
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
         <b style={{ color: accent, fontFamily: NUM_FONT, fontSize: 11, letterSpacing: '.1em' }}>TOP TOTALS</b>
         <span style={{ color: C.text3, fontSize: 11 }}>
-          The {TOTALS_CALLS} games with the most projected {u.unit} each {u.slate}, called before the first game and graded on the final.
+          The {TOTALS_CALLS} games with the most projected {u.unit} each {u.slate}, called before the first game and graded on the final {BOOK_LINE_SPORTS.includes(sport) ? 'against the book total where one is listed, otherwise vs our number' : 'vs our number (the line is our own projection; books do not quote this)'}.
         </span>
       </div>
 
@@ -95,8 +97,8 @@ export default function TopTotals({ sport, mode = 'slate', Table = DenseTable })
       )}
       {mode === 'record' && rec_ && !showSplit && (
         <div style={{ display: 'flex', gap: 8, margin: '4px 0 8px' }}>
-          <Tile C={C} NUM_FONT={NUM_FONT} accent={accent} label="CALLED" value={rec(rec_.called)} sub={`${pct(rec_.called.pct)} over the line · ${rec_.called.n} called`} />
-          <Tile C={C} NUM_FONT={NUM_FONT} accent={C.text2} label="ON THE BOARD" value={rec(rec_.board)} sub={`${pct(rec_.board.pct)} over the line · ${rec_.board.n} listed`} />
+          <Tile C={C} NUM_FONT={NUM_FONT} accent={accent} label="CALLED vs OUR NUMBER" value={rec(rec_.called)} sub={`${pct(rec_.called.pct)} over our own number · ${rec_.called.n} called`} />
+          <Tile C={C} NUM_FONT={NUM_FONT} accent={C.text2} label="ON THE BOARD" value={rec(rec_.board)} sub={`${pct(rec_.board.pct)} over our own number · ${rec_.board.n} listed`} />
         </div>
       )}
 
@@ -121,7 +123,7 @@ export default function TopTotals({ sport, mode = 'slate', Table = DenseTable })
       )}
       {mode === 'slate' && rec_ && rec_.called.graded > 0 && (
         <div style={{ marginTop: 6, fontSize: 11, color: C.text3 }}>
-          CALLED so far: {rec(rec_.called)} over the line ({pct(rec_.called.pct)}){split?.book?.called?.graded > 0 ? `, ${rec(split.book.called)} of it against the book total` : ''}.
+          CALLED so far: {rec(rec_.called)} {split?.book?.called?.graded > 0 ? 'over the line' : 'over our own number'} ({pct(rec_.called.pct)}){split?.book?.called?.graded > 0 ? `, ${rec(split.book.called)} of it vs the book total, the rest vs our number` : ''}.
         </div>
       )}
     </section>

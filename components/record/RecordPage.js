@@ -110,6 +110,7 @@ function Moment({ m, C, NUM_FONT, accent, Face }) {
  *   series: [{ date, label, markets: { [key]: { hit, n } } }]   oldest -> newest, graded units only
  *   called: [{ key, name, sub, stat, status, face, onClick }],  gotAway: same shape,
  *   later: [{ key, label, value, sub }]   (CHALK vs VALUE, the DASH line) -- drawn only when present
+ *   measures: [{ key, label, value, sub }]   what each headline number counts, in its own words -- drawn only when present
  * }
  */
 export default function RecordPage({ record, Table, Face = PlayerFace, receipts = null, receiptsLabel = 'Every graded pick, in full', top = null, calls = null, locked = null }) {
@@ -153,6 +154,7 @@ export default function RecordPage({ record, Table, Face = PlayerFace, receipts 
   const called = r.called || []
   const away = r.gotAway || []
   const later = (r.later || []).filter((x) => x && x.value != null)
+  const measures = (r.measures || []).filter((x) => x && x.value != null)
 
   return (
     <div className="record-page">
@@ -173,12 +175,30 @@ export default function RecordPage({ record, Table, Face = PlayerFace, receipts 
           </div>
           {cap && cap.total > 0 ? (
             <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginTop: 8, fontSize: 12, color: C.text2 }}>
-              <span><b style={{ color: C.text, fontFamily: NUM_FONT }}>{cap.called + cap.board} of {cap.total}</b> {cap.word} caught{last.live || last.games?.live > 0 ? ' so far' : ''}{last.games && last.games.final < last.games.total ? ` · ${last.games.final} of ${last.games.total} games final` : ''}</span>
+              <span><b style={{ color: C.text3, fontSize: 11, letterSpacing: '.06em' }}>CAPTURE</b> <b style={{ color: C.text, fontFamily: NUM_FONT }}>{cap.called + cap.board} of {cap.total}</b> {cap.word} called or on the board{last.live || last.games?.live > 0 ? ' so far' : ''}{last.games && last.games.final < last.games.total ? ` · ${last.games.final} of ${last.games.total} games final` : ''}</span>
               <CallStatusBadge status="called" accent={accent} /><b style={{ fontFamily: NUM_FONT }}>{cap.called}</b>
               <CallStatusBadge status="board" accent={accent} /><b style={{ fontFamily: NUM_FONT }}>{cap.board}</b>
               <CallStatusBadge status="off" accent={accent} /><b style={{ fontFamily: NUM_FONT }}>{cap.off}</b>
             </div>
           ) : null}
+        </section>
+      ) : null}
+
+      {/* EACH NUMBER IN ITS OWN WORDS (2026-10-10): hit rate per call, capture and board coverage are different
+          questions with different counts; a product whose record carries more than one says which is which */}
+      {measures.length ? (
+        <section aria-label="What each number counts" style={{ marginTop: 10 }}>
+          <div style={{ display: 'grid', gap: 6 }}>
+            {measures.map((x) => (
+              <div key={x.key} style={{ borderLeft: `3px solid ${alpha(accent, 0.6)}`, paddingLeft: 10 }}>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap' }}>
+                  <b style={{ fontSize: 11, letterSpacing: '.08em', color: C.text3, fontFamily: NUM_FONT }}>{x.label.toUpperCase()}</b>
+                  <b style={{ fontSize: 15, color: C.text, fontFamily: NUM_FONT }}>{x.value}</b>
+                </div>
+                {x.sub ? <div style={{ fontSize: 12, lineHeight: 1.45, color: C.text3 }}>{x.sub}</div> : null}
+              </div>
+            ))}
+          </div>
         </section>
       ) : null}
 

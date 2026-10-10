@@ -5,14 +5,14 @@
 // lock and its book, the result, and what $10 at that price did. The table's own
 // footer downloads it as CSV.
 //
-// A RETURN IS NOT QUOTED UNDER 100 PRICED CALLS (lib/odds/roi.js MIN_N): under
+// A RETURN IS NOT QUOTED UNDER 100 PRICED CALLS (lib/odds/roi.js MIN_N, read by lib/record/callsLanded.js): under
 // that the line says how many there are and stops. Every row still shows its
 // own $10 -- that is arithmetic on one bet, not a claim about the method.
 import { useMemo } from 'react'
 import { useLiveFetch } from '../../lib/useLiveFetch'
 import { useSportTheme } from '../SportTheme'
 import { fmtOdds, profitOn } from '../../lib/odds'
-import { MIN_N } from '../../lib/odds/roi'
+import { straightLine, straightWords, STRAIGHT_CALL_WORD } from '../../lib/record/callsLanded'
 import { TYPE } from '../../lib/theme'
 
 const RESULT = { hit: '✅ hit', miss: '❌ miss', void: '➖ void' }
@@ -25,10 +25,10 @@ export default function CallHistory({ sport, Table, onOpenPlayer = null, title =
     const net = c.best == null || c.result === 'void' ? null : c.result === 'hit' ? profitOn(c.best, 10) : -10
     return { ...c, _key: `${c.date}-${c.player_id}-${i}`, when: c.week ? `Wk ${c.week}` : c.date, price: c.best, net }
   }), [data, sport])
-  const graded = rows.filter((r) => r.result !== 'void')
-  const hits = graded.filter((r) => r.result === 'hit').length
-  const priced = graded.filter((r) => r.net != null)
-  const net = priced.reduce((s, r) => s + r.net, 0)
+  // THE STRAIGHT RECORD LINE (lib/record/callsLanded.js): n, hit rate with its 95% interval, the rate the stored
+  // prices imply, and units only at 100+ priced calls -- the same line /called prints
+  const line = useMemo(() => straightLine(data?.calls || []), [data])
+  const words = line ? straightWords(line, { callWord: STRAIGHT_CALL_WORD[sport] || 'calls' }) : []
 
   if (error && !data) return <p style={{ fontSize: TYPE.body, color: C.text3 }}>The call history is delayed — try again in a minute.</p>
   if (!data) return null
@@ -36,12 +36,11 @@ export default function CallHistory({ sport, Table, onOpenPlayer = null, title =
   return (
     <section aria-label={title} style={{ marginTop: 18 }}>
       <div style={{ color: accent, font: `900 10px/1 ${NUM_FONT}`, letterSpacing: '.14em', margin: '4px 0 6px' }}>{title.toUpperCase()}</div>
-      <p style={{ margin: '0 0 8px', fontSize: TYPE.body, color: C.text2, lineHeight: 1.5 }}>
-        <b style={{ color: C.text }}>{hits} of {graded.length}</b> hit this season.{' '}
-        {priced.length >= MIN_N
-          ? <>$10 on each of the {priced.length} priced calls at the best price: <b style={{ color: net >= 0 ? accent : C.text }}>{money(net)}</b>.</>
-          : <>{priced.length} have a price from lock — a return isn&apos;t quoted under {MIN_N}.</>}
-      </p>
+      {line ? (
+        <p style={{ margin: '0 0 8px', fontSize: TYPE.body, color: C.text2, lineHeight: 1.5 }}>
+          <b style={{ color: C.text }}>{words[0]}</b> {words.slice(1).join(' ')}
+        </p>
+      ) : null}
       <Table rows={rows} maxRows={12} maxHeight={9999} heatMode="sorted" initialSort={null}
         onRowClick={onOpenPlayer ? (r) => onOpenPlayer((r?._raw ?? r).player_id) : undefined}
         caption="One row per graded call, newest first. Price = the longest any book offered at lock; blank before prices were saved. $10 = what that price paid on a hit, or the $10 lost on a miss."

@@ -696,11 +696,14 @@ function HRTierRecord({ report }) {
 const RECORD_NAME = tabName('mlb', 'results')
 
 export default function Results({ results, liveResults = null, slateDate = '', backtest, evalReport = null, players = [], onPlayerClick }) {
+  // THE ONE MLB RECORD (2026-10-10): the by-market table, the hero night and the tier table all read the
+  // lock-enforced reader, so the page cannot print two rates for the same calls
+  const lockedRecord = useLockedRecord()
   // every HR call this season, its lock price and result (2026-10-04, user review build 2)
   const callHistory = <CallHistory sport="mlb" Table={DenseTable} onOpenPlayer={(id) => { const p = (players || []).find((x) => String(x.player_id) === String(id)); if (p) onPlayerClick?.(p) }} title="Every home-run call, its price, its result" />
   // each tier's calls, hits and rate with its lock time (2026-10-06, lib/calibration)
   // THE LOCKED TABLE LEADS (2026-10-06, ledger audit P0-2): it is passed as `locked` so RecordPage
-  // draws it above the post-game archive's BY MARKET table; the call list stays below.
+  // draws it above the BY MARKET table, which reads the same locked calls; the call list stays below.
   const lockedTiers = <CalibrationTable sport="mlb" Table={DenseTable} />
   // THREE QUESTIONS, NOT SEVEN PILLS. `mode` is the question; each mode keeps
   // its own last-opened view, so switching to All season and back does not
@@ -993,7 +996,7 @@ export default function Results({ results, liveResults = null, slateDate = '', b
   // which read tonight's file at all.
   // the live FILE is not the live GAME: on the live day the league's feed
   // (liveOver above) says whether the slate is over -- the archiveBar's own rule
-  const recordModel = mlbRecordModel({ night: view, feed: feedNight, backtest, live: day === 'live' ? !liveOver : null, onOpen: onPlayerClick ? (raw) => onPlayerClick(raw) : null })
+  const recordModel = mlbRecordModel({ night: view, feed: feedNight, locked: lockedRecord, live: day === 'live' ? !liveOver : null, onOpen: onPlayerClick ? (raw) => onPlayerClick(raw) : null })
   const emptyNight = mode === 'night' && !slots.length && !homers.length
   if (emptyNight) recordModel.last = null
   const receiptsHead = (
