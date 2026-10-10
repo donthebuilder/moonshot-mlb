@@ -1,7 +1,7 @@
 // GET /api/card/dual?sport=nhl|mlb|nfl[&date=YYYY-MM-DD][&lane=bot|donovan][&w=360|540|720|1080]
 // The Two-Man as a dual collectible card (PNG, 4:5), drawn from the STORED card_calls row. The bot's Two-Man is members content until the Card is
 // public record (every row graded or every game started): before that this answers 404, so the route can never show a free reader the Two-Man early.
-// Donovan's Two-Man (lane=donovan) is public from its lock (the Card's own rule: it is not even readable before). The sequence number on the card
+// Inside Line Two-Man (lane=donovan) is public from its lock (the Card's own rule: it is not even readable before). The sequence number on the card
 // is its real place among the lane's locked Two-Men (card_calls). 404 with a reason for nba / unknown sports / no row; no secrets in the response.
 import { adminClient } from '../../../../lib/supabase/admin'
 import { hasCards } from '../../../../lib/cards/registry'

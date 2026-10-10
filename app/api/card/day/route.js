@@ -1,6 +1,6 @@
 // GET /api/card/day?sport=nhl|mlb|nfl[&date=YYYY-MM-DD][&w=360|540|720|1080]
 // The Card's day lineup as a PNG, drawn from the STORED rows (card_calls). WHAT IT SHOWS depends on the Card's state, decided here and never by the
-// caller: before the games, straight #1 (and Donovan's Two-Man once his lock has passed) ONLY, which is what the free posts may name; once every row
+// caller: before the games, straight #1 (and Inside Line Two-Man once his lock has passed) ONLY, which is what the free posts may name; once every row
 // is graded or every game has started the Card is public record and the whole lineup is drawn. The members image (the whole Card, pregame)
 // is never served by a URL: the members poster draws it in-process and sends it to the members webhook only. 404 with a reason when nothing is
 // locked for the day (or the sport has no cards); no secrets in the response.

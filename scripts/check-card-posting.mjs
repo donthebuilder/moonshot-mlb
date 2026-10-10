@@ -285,7 +285,7 @@ const slabStub = (bytes = 'SLAB') => async (o) => { askedSlab.push(o); return Bu
   const AFTER = Date.parse('2026-01-02T18:30:00Z'); const BEFORE = Date.parse('2026-01-02T17:00:00Z')
   const asked4 = []
   const dual = async (o) => { asked4.push(o); return png('dual-donovan') }
-  const b0 = { text: "x\nDonovan's Two-Man: Test Four + Test Five", named: ['P1', 'P4', 'P5'], payload: {}, png: png('front') }
+  const b0 = { text: "x\nInside Line Two-Man: Test Four + Test Five", named: ['P1', 'P4', 'P5'], payload: {}, png: png('front') }
   const a1 = await POST.attachDonovanDual(b0, { sport: 'nhl', day: '2026-01-02', rows: R, now: AFTER, dual })
   check(a1.extraPngs?.length === 1 && a1.png.toString() === 'PNG-front' && a1.text === b0.text && asked4[0].sport === 'nhl' && asked4[0].date === '2026-01-02', 'H: after his lock, naming both his men -> his dual card rides under the straight front; the text is untouched')
   asked4.length = 0

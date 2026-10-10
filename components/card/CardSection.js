@@ -1,7 +1,7 @@
 'use client'
 // THE CARD AND THE TWO-MAN, ONE COMPONENT FOR EVERY PRODUCT (2026-10-10, Donovan: "3 straights and 1 two-man by the bot, frozen at lock;
-// Donovan's Two-Man in its own lane"). A table, not cards: the card's rows are the bot's three straights (flat 1 unit), the bot's Two-Man
-// (flat 0.5 unit, two players from different games) and, once its lock has passed, Donovan's Two-Man with his note. Every row is the row the
+// Inside Line Two-Man in its own lane"). A table, not cards: the card's rows are the bot's three straights (flat 1 unit), the bot's Two-Man
+// (flat 0.5 unit, two players from different games) and, once its lock has passed, Inside Line Two-Man with his note. Every row is the row the
 // lock stored; the CALLED word is drawn by DenseTable's status stamp from STATUS_WORD, never typed here. `Table` is the product's own
 // DenseTable wrapper (LampTable, NflTable; MOONSHOT passes DenseTable), so the glossary, the logos and the accent are the product's.
 //
@@ -43,7 +43,11 @@ function Leg({ sport: page, leg }) {
 export default function CardSection({ sport, mode = 'slate', Table = DenseTable }) {
   const { C, NUM_FONT, accent } = useSportTheme()
   const w = CARD_WORDS[sport]
-  const { data, error, loading } = useLiveFetch(`/api/card?sport=${sport}`, { enabled: Boolean(w) })
+  // A signed-in visitor asks for the whole Card (`full=1`, never cached); the server gives it to an admin only. Everyone else -- logged out or
+  // logged in -- gets the free view (the lead straight, the Long Shot, the admin's pair, graded rows) until members access ships.
+  const [signedIn, setSignedIn] = useState(false)
+  useEffect(() => { try { setSignedIn(/(?:^|;\s*)sb-[^=;]*-auth-token/.test(document.cookie)) } catch { setSignedIn(false) } }, [])
+  const { data, error, loading } = useLiveFetch(`/api/card?sport=${sport}${signedIn ? '&full=1' : ''}`, { enabled: Boolean(w) })
   const [open, setOpen] = useState(false)
   useEffect(() => { setOpen(readOpen()) }, [])
   const toggle = () => setOpen((v) => { writeOpen(!v); return !v })
@@ -67,10 +71,10 @@ export default function CardSection({ sport, mode = 'slate', Table = DenseTable 
   }, [data])
 
   const columns = useMemo(() => [
-    { key: 'tag', label: '#', w: 34, heat: false, group: 'CALL', fmt: (v, r) => <b title={r.product === 'double' ? (r.lane === 'donovan' ? "Donovan's Double: his own lane and record" : 'The Double: two sports, both must land') : r.product === 'long_shot' ? 'The Long Shot of the day: a plus-money pick, most of these miss' : r.lane === 'donovan' ? "Donovan's Two-Man: his own lane and record" : r.same ? 'The same-game Two-Man: both legs from one game, so they are correlated' : r.product === 'two_man' ? 'The Two-Man: both must land' : `Straight ${v}`}>{v}</b> },
+    { key: 'tag', label: '#', w: 34, heat: false, group: 'CALL', fmt: (v, r) => <b title={r.product === 'double' ? (r.lane === 'donovan' ? "Inside Line Double: its own lane and record" : 'The Double: two sports, both must land') : r.product === 'long_shot' ? 'The Long Shot of the day: a plus-money pick, most of these miss' : r.lane === 'donovan' ? "Inside Line Two-Man: his own lane and record" : r.same ? 'The same-game Two-Man: both legs from one game, so they are correlated' : r.product === 'two_man' ? 'The Two-Man: both must land' : `Straight ${v}`}>{v}</b> },
     { key: 'legs', label: 'Player', w: 190, heat: false, sticky: true, group: 'CALL', fmt: (v, r) => (
       <span style={{ display: 'grid', gap: 3, whiteSpace: 'normal', lineHeight: 1.2 }}>
-        {r.lane === 'donovan' && <span style={{ fontSize: 10, color: accent, fontFamily: NUM_FONT, letterSpacing: '.06em' }}>{r.product === 'double' ? "DONOVAN'S DOUBLE" : "DONOVAN'S TWO-MAN"}</span>}
+        {r.lane === 'donovan' && <span style={{ fontSize: 10, color: accent, fontFamily: NUM_FONT, letterSpacing: '.06em' }}>{r.product === 'double' ? "INSIDE LINE DOUBLE" : "INSIDE LINE TWO-MAN"}</span>}
         {r.product === 'long_shot' && <span style={{ fontSize: 10, color: accent, fontFamily: NUM_FONT, letterSpacing: '.06em' }}>LONG SHOT OF THE DAY</span>}
         {r.product === 'double' && r.lane === 'bot' && <span style={{ fontSize: 10, color: accent, fontFamily: NUM_FONT, letterSpacing: '.06em' }}>THE DOUBLE</span>}
         {r.same && <span style={{ fontSize: 10, color: C.text3 }}>same game</span>}
@@ -94,7 +98,7 @@ export default function CardSection({ sport, mode = 'slate', Table = DenseTable 
 
   if (mode === 'record') {
     const volume = Object.entries(data?.words?.volume || {}).map(([k, ws]) => [(MARKETS[sport]?.[k]?.label || k).toUpperCase(), ws])
-    const lines = [['STRAIGHTS', data?.words?.straight], ...volume, ['TWO-MAN', data?.words?.two_man], ['SAME-GAME TWO-MAN', data?.words?.two_man_same_game], ["DONOVAN'S TWO-MAN", data?.words?.donovan], ['LONG SHOT OF THE DAY', data?.words?.long_shot], ['THE DOUBLE', data?.words?.double], ["DONOVAN'S DOUBLE", data?.words?.donovan_double]].filter(([, ws]) => ws?.length)
+    const lines = [['STRAIGHTS', data?.words?.straight], ...volume, ['TWO-MAN', data?.words?.two_man], ['SAME-GAME TWO-MAN', data?.words?.two_man_same_game], ["INSIDE LINE TWO-MAN", data?.words?.donovan], ['LONG SHOT OF THE DAY', data?.words?.long_shot], ['THE DOUBLE', data?.words?.double], ["INSIDE LINE DOUBLE", data?.words?.donovan_double]].filter(([, ws]) => ws?.length)
     if (!lines.length) return null
     return (
       <section aria-label="The card record" data-card-record={sport} style={{ margin: '4px 0 12px' }}>
@@ -127,7 +131,7 @@ export default function CardSection({ sport, mode = 'slate', Table = DenseTable 
           {ready && (
             <Table rows={rows} columns={columns} statusOf={(r) => r.status} heatMode="primary" bare maxRows={5} maxHeight={9999}
               initialSort={null}
-              caption={`${data.date}${rows[0]?.start ? ` · first game ${hm(rows[0].start)}` : ''}. Ties go to the higher model rate, then the earlier start, then the player id. Donovan's picks appear once their entry has closed.${rows.some((r) => r.same) ? ` ${SAME_GAME_NOTE}` : ''}`} />
+              caption={`${data.date}${rows[0]?.start ? ` · first game ${hm(rows[0].start)}` : ''}. Ties go to the higher model rate, then the earlier start, then the player id. Inside Line picks appear once their entry has closed.${rows.some((r) => r.same) ? ` ${SAME_GAME_NOTE}` : ''}`} />
           )}
         </div>
       )}

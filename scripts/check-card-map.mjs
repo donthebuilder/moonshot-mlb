@@ -273,7 +273,7 @@ await t('plus-money content is public ONLY as the Long Shot: no free text, X tex
   // the free builders: xCardText, resultText, todayText, doubleResultText, longShot*: none reads PLUS_MONEY or the Double ticket
   for (const fn of ['xCardText', 'resultText', 'todayText']) {
     const body = tx.slice(tx.indexOf(`export function ${fn}`), tx.indexOf('\nexport', tx.indexOf(`export function ${fn}`) + 10))
-    assert.ok(!/PLUS_MONEY|plusMoney|double|Double|membersCard/.test(body.replace(/Donovan's Two-Man/g, '').replace(/'double'/g, '')), `${fn} carries no plus-money or Double content`)
+    assert.ok(!/PLUS_MONEY|plusMoney|double|Double|membersCard/.test(body.replace(/Inside Line Two-Man/g, '').replace(/'double'/g, '')), `${fn} carries no plus-money or Double content`)
   }
   const rows = [{ lane: 'bot', product: 'double', result: null }]
   assert.deepEqual(rows.filter(publicRow(NOW)), [], 'the bot\'s Double ticket is not public until graded')

@@ -177,6 +177,18 @@ check(!/https?:|www\.|\.com|#\w+tag|QR/i.test(allText), 'no link, no QR, no hash
   check(JSON.stringify(body).length < 200 && !/key|secret|token|supabase/i.test(JSON.stringify(body)), 'route: an error body is a short reason, no secrets')
 }
 
+// ── 8b. the site's free view: the lead straight, the Long Shot, the Inside Line and graded rows; never the other straights or the bot's Two-Man ──
+{
+  const { freeRows } = await import('../lib/card/freeView.js')
+  const row = (lane, product, slot, o = {}) => ({ lane, product, slot, result: null, legs: [{ player_id: `T${product}${slot}`, board_pct: 90 - slot }], ...o })   // TEST rows
+  const rows = [row('bot', 'straight', 1), row('bot', 'straight', 2), row('bot', 'straight', 3), row('bot', 'two_man', 1), row('bot', 'long_shot', 1), row('donovan', 'two_man', 1)]
+  const got = freeRows(rows).map((r) => `${r.lane}:${r.product}:${r.slot}`)
+  check(got.join() === 'bot:straight:1,bot:long_shot:1,donovan:two_man:1', 'free view: lead straight + Long Shot + the Inside Line only; straights 2-3 and the bot Two-Man are hidden')
+  const graded = freeRows([...rows.slice(0, 4), { ...rows[1], result: 'hit' }])
+  check(graded.some((r) => r.slot === 2 && r.result === 'hit') && !graded.some((r) => r.product === 'two_man'), 'free view: a graded row is shown; an ungraded bot Two-Man is not')
+  check(freeRows([]).length === 0 && freeRows(null).length === 0, 'free view: an empty card stays empty')
+}
+
 // ── 9. the day lineup: free scope shows straight #1 only; full shows the Card; a missing leg face / price still draws ──
 {
   const { dayDesign } = await import('../lib/cards/dayCard.js')
@@ -195,7 +207,7 @@ check(!/https?:|www\.|\.com|#\w+tag|QR/i.test(allText), 'no link, no QR, no hash
   // TEST data: both Two-Mans on the full Card use the compact layout; it must still draw 1080x1350 with every why line and Donovan's note
   const don = { ...two, donovan: { stake: 0.5, legs: [{ m: leg(4), price }, { m: leg(5), price }], note: 'Test note: Donovan pair' } }
   const td = texts(dayDesign(don, null))
-  check(/Test note: Donovan pair/.test(td) && (td.match(/shots 99th/g) || []).length === 3 && /DONOVAN'S TWO-MAN/.test(td), 'day card: full + Donovan keeps the straight why lines and the Donovan note')
+  check(/Test note: Donovan pair/.test(td) && (td.match(/shots 99th/g) || []).length === 3 && /INSIDE LINE TWO-MAN/.test(td), 'day card: full + Donovan keeps the straight why lines and the Donovan note')
   for (const [name, d] of Object.entries({ full, free, two, sparse, don })) {
     try { const r = pngSize(await renderDay(d)); check(r.sig && r.w === 1080 && r.h === 1350, `day card renders 1080x1350: ${name}`) } catch (e) { check(false, `day card renders: ${name} (${e.message})`) }
   }
@@ -214,10 +226,10 @@ check(!/https?:|www\.|\.com|#\w+tag|QR/i.test(allText), 'no link, no QR, no hash
   check(/about \+341 best, the two prices multiplied/.test(t), 'dual card: both legs priced -> the combined price line')
   check(!/about/.test(texts(dualDesign(dual({ price: null }), null, ''))), 'dual card: a missing combined price (a leg unpriced) draws nothing')
   check(/14 of 31/.test(t) && !/ of /.test(texts(dualDesign(dual({ serial: null }), null, ''))) , 'dual card: the serial is the real "14 of 31"; with none it is left off')
-  check(/DONOVAN'S TWO-MAN/.test(texts(dualDesign(dual({ lane: 'donovan', label: "DONOVAN'S TWO-MAN", serial: { n: 3, of: 5, caption: "DONOVAN'S TWO-MAN NO." } }), null, ''))), "dual card: Donovan's lane wears its own label on the same layout")
+  check(/INSIDE LINE TWO-MAN/.test(texts(dualDesign(dual({ lane: 'donovan', label: "INSIDE LINE TWO-MAN", serial: { n: 3, of: 5, caption: "INSIDE LINE TWO-MAN NO." } }), null, ''))), "dual card: Donovan's lane wears its own label on the same layout")
   check(/ON THE BOARD/.test(texts(dualDesign(dual({ legs: [{ m: leg(1, { status: 'board' }), price: null }, { m: leg(2), price: null }] }), null, ''))) && !/\bOFF\b/.test(t), 'dual card: status words only from STATUS_WORD (a board leg says ON THE BOARD)')
   check(clampWords('a b c', 100) === 'a b c' && clampWords('word '.repeat(60), 40).endsWith('…') && clampWords('word '.repeat(60), 40).length <= 40, 'dual card: a long why line is cut on a word with an ellipsis')
-  for (const [name, d] of Object.entries({ full: dual(), 'no faces / logos / prices / why': dual({ price: null, serial: null, legs: [{ m: leg(1, { why: null }), price: null }, { m: leg(2, { why: null }), price: null }] }), 'long names': dual({ legs: [{ m: leg(1, { name: 'Test Verylongfirstname Anotherverylongsurname-Hyphenated' }), price: null }, { m: leg(2, { name: 'Test Name' }), price: null }] }), donovan: dual({ label: "DONOVAN'S TWO-MAN", lane: 'donovan' }) })) {
+  for (const [name, d] of Object.entries({ full: dual(), 'no faces / logos / prices / why': dual({ price: null, serial: null, legs: [{ m: leg(1, { why: null }), price: null }, { m: leg(2, { why: null }), price: null }] }), 'long names': dual({ legs: [{ m: leg(1, { name: 'Test Verylongfirstname Anotherverylongsurname-Hyphenated' }), price: null }, { m: leg(2, { name: 'Test Name' }), price: null }] }), donovan: dual({ label: "INSIDE LINE TWO-MAN", lane: 'donovan' }) })) {
     try { const r = pngSize(await renderDual(d)); check(r.sig && r.w === 1080 && r.h === 1350, `dual card renders 1080x1350: ${name}`) } catch (e) { check(false, `dual card renders: ${name} (${e.message})`) }
   }
   check(lintType(dualDesign(dual(), null, '')).length === 0, 'dual card: no text under 22px at 1080 wide')
@@ -233,7 +245,7 @@ check(!/https?:|www\.|\.com|#\w+tag|QR/i.test(allText), 'no link, no QR, no hash
   const early = await loadDualModel({ sport: 'nhl', date: '2026-01-02', lane: 'bot', db: fakeDb([row()]), now: Date.parse('2026-01-02T15:00:00Z'), publicOnly: true })
   check(!early.ok && early.status === 404 && /not public yet/.test(early.why), "dual route policy: the bot's Two-Man before its games is 404 (members content)")
   const none = await dualCardImage({ sport: 'nhl', date: '2026-01-02', lane: 'donovan', db: fakeDb([row()]), now: Date.parse('2026-01-02T15:00:00Z') })
-  check(!none.ok && none.status === 404, "dual route policy: no Donovan's Two-Man entered -> 404")
+  check(!none.ok && none.status === 404, "dual route policy: no Inside Line Two-Man entered -> 404")
   check((await dualCardImage({ sport: 'nba', date: '2026-01-02', db: fakeDb([]) })).status === 404, 'dual: nba is 404')
   const { GET: dualGet } = await import('../app/api/card/dual/route.js')
   check((await dualGet(new Request('http://x/api/card/dual?sport=nba'))).status === 404 && (await dualGet(new Request('http://x/api/card/dual?sport=bogus'))).status === 404, 'route /api/card/dual: nba and unknown sports are 404')
@@ -264,7 +276,7 @@ check(!/https?:|www\.|\.com|#\w+tag|QR/i.test(allText), 'no link, no QR, no hash
   const rows = (n, outcome = 'missed') => slab(Array.from({ length: n }, (_, i) => (i % 3 ? outcome : 'cashed')), { sport: null, brandName: 'DASH Network', kicker: 'THE RECEIPT', product: 'NIGHT RECEIPT', result: null })
   const r12 = texts(slabDesign(rows(12), null, ''))
   check(/\+4 more in the ledger/.test(r12) && !/\+\d+ more/.test(texts(slabDesign(rows(5), null, ''))), 'slab: a long receipt shows 8 rows and says how many more are in the ledger')
-  for (const [name, d] of Object.entries({ 'straight, cashed': slab(['cashed'], { product: 'STRAIGHT 1', result: 'cashed' }), 'straight, missed': slab(['missed'], { product: 'STRAIGHT 1', result: 'missed' }), 'two-man, missed': miss, 'two-man, void': mixed, 'receipt of 5': rows(5), 'receipt of 12': rows(12), 'no record': slab(['cashed'], { record: null }), 'donovan': slab(['cashed', 'missed'], { product: "DONOVAN'S TWO-MAN", result: 'missed' }) })) {
+  for (const [name, d] of Object.entries({ 'straight, cashed': slab(['cashed'], { product: 'STRAIGHT 1', result: 'cashed' }), 'straight, missed': slab(['missed'], { product: 'STRAIGHT 1', result: 'missed' }), 'two-man, missed': miss, 'two-man, void': mixed, 'receipt of 5': rows(5), 'receipt of 12': rows(12), 'no record': slab(['cashed'], { record: null }), 'donovan': slab(['cashed', 'missed'], { product: "INSIDE LINE TWO-MAN", result: 'missed' }) })) {
     try { const r = pngSize(await renderSlab(d)); check(r.sig && r.w === 1080 && r.h === 1350, `slab renders 1080x1350: ${name}`) } catch (e) { check(false, `slab renders: ${name} (${e.message})`) }
   }
   check([hit, miss, mixed, rows(12)].flatMap((d) => lintType(slabDesign(d, null, ''))).length === 0, 'slab: no text under 22px at 1080 wide')
