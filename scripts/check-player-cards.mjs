@@ -192,10 +192,14 @@ check(!/https?:|www\.|\.com|#\w+tag|QR/i.test(allText), 'no link, no QR, no hash
   check(/about \+341 best, the two prices multiplied/.test(texts(dayDesign(two, null))), 'day card: both legs priced -> the combined price line')
   const sparse = { ...full, straights: [full.straights[0]], two: null }
   check(/No further call in a different game/.test(texts(dayDesign(sparse, null))) && /No pair from two different games/.test(texts(dayDesign(sparse, null))), 'day card: an empty slot says so in words (the Card never pads)')
-  for (const [name, d] of Object.entries({ full, free, two, sparse })) {
+  // TEST data: both Two-Mans on the full Card use the compact layout; it must still draw 1080x1350 with every why line and Donovan's note
+  const don = { ...two, donovan: { stake: 0.5, legs: [{ m: leg(4), price }, { m: leg(5), price }], note: 'Test note: Donovan pair' } }
+  const td = texts(dayDesign(don, null))
+  check(/Test note: Donovan pair/.test(td) && (td.match(/shots 99th/g) || []).length === 3 && /DONOVAN'S TWO-MAN/.test(td), 'day card: full + Donovan keeps the straight why lines and the Donovan note')
+  for (const [name, d] of Object.entries({ full, free, two, sparse, don })) {
     try { const r = pngSize(await renderDay(d)); check(r.sig && r.w === 1080 && r.h === 1350, `day card renders 1080x1350: ${name}`) } catch (e) { check(false, `day card renders: ${name} (${e.message})`) }
   }
-  check([full, free, two, sparse].flatMap((d) => lintType(dayDesign(d, null))).length === 0, 'day card: no text under 22px at 1080 wide')
+  check([full, free, two, sparse, don].flatMap((d) => lintType(dayDesign(d, null))).length === 0, 'day card: no text under 22px at 1080 wide')
 }
 
 // ── 10. THE TWO-MAN DUAL CARD ──
