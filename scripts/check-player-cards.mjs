@@ -264,7 +264,7 @@ check(!/https?:|www\.|\.com|#\w+tag|QR/i.test(allText), 'no link, no QR, no hash
     try { const r = pngSize(await renderSlab(d)); check(r.sig && r.w === 1080 && r.h === 1350, `slab renders 1080x1350: ${name}`) } catch (e) { check(false, `slab renders: ${name} (${e.message})`) }
   }
   check([hit, miss, mixed, rows(12)].flatMap((d) => lintType(slabDesign(d, null, ''))).length === 0, 'slab: no text under 22px at 1080 wide')
-  const table = (rows) => { const b = { eq: () => b, order: () => b, limit: () => b, is: () => b, match: () => b, maybeSingle: async () => ({ data: null, error: null }), then: (res) => res({ data: rows, error: null }) }; return { select: () => b } }
+  const table = (rows) => { const b = { eq: () => b, in: () => b, order: () => b, limit: () => b, is: () => b, match: () => b, maybeSingle: async () => ({ data: null, error: null }), then: (res) => res({ data: rows, error: null }) }; return { select: () => b } }
   const open = { id: 1, sport: 'nhl', card_date: '2026-01-02', lane: 'bot', product: 'straight', slot: 1, model_version: 'card-v1', locks_at: '2026-01-02T00:00:00Z', start_at: '2026-01-02T20:00:00Z', result: null, legs: [{ player_id: 'P1', name: 'Test Skater 1' }] }
   const notYet = await slabCardImage({ kind: 'card', sport: 'nhl', date: '2026-01-02', lane: 'bot', product: 'straight', slot: 1, db: { from: () => table([open]) }, now: Date.parse('2026-01-03T00:00:00Z') })
   check(!notYet.ok && notYet.status === 404 && /not graded/.test(notYet.why), 'slab: a row that is not graded yet is a 404 (a result card for a result that does not exist is never drawn)')
