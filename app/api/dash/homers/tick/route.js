@@ -58,6 +58,7 @@ import { fetchLiveSlate, liveSlateStatus } from '../../../../../lib/liveSlate'
 import { fetchBoardFull, fetchRunMeta } from '../../../../../lib/dash/board'
 import { dataUrl, oddsPaths, pairSummaryPaths } from '../../../../../lib/dataSource'
 import { primaryRole, boardIndexFrom, moonshotBoardRanking, moonshotBoardText, boardRolePicks, boardRoleText, homersFrom, hooksFor, longshotPick, longshotText, numerologyMoment, numerologyText, pairsToWatch, pairsToWatchText, partnerFor, postText, homerEmbed, pregameCalled, pregamePicks, topStreakFrom } from '../../../../../lib/dash/homerFeed'
+import { alertFrontCard, alertPicture } from '../../../../../lib/cards/alertCard'
 import { homerCard, mlbhrCard, hotStretchCard, longshotCard, numerologyCard, pairsCard, statCard } from '../../../../../lib/dash/homerCard'
 import {
   backToBackPicks, backToBackText, bestAirPicks, bestAirText, 
@@ -2150,7 +2151,9 @@ export async function GET(request) {
 
     if (DISCORD_ON && !row.discord_sent) {
       // a card linked to him on MOONSHOT, in MOONSHOT's colour (2026-10-04)
-      const r = await postToDiscord(text, { imageUrl: cardUrl(row), sport: 'mlb', link: row.player_id ? playerHref('mlb', row.player_id) : null, embed: homerEmbed(ev, { extra: [calledAtLine(row), reached, multi].filter(Boolean), at: row.created_at || row.first_seen_at }) })
+      // a CALLED homer carries the hitter's FRONT CARD (uploaded, attachment://card.png) when it draws, else the homer's own card by URL as before
+      const front = callStatus(row) === 'called' ? await alertFrontCard({ sport: 'mlb', id: row.player_id, date: day, db }) : null
+      const r = await postToDiscord(text, { ...(front ? { png: front } : { imageUrl: cardUrl(row) }), sport: 'mlb', link: row.player_id ? playerHref('mlb', row.player_id) : null, embed: homerEmbed(ev, { extra: [calledAtLine(row), reached, multi].filter(Boolean), at: row.created_at || row.first_seen_at }) })
       if (r.ok) {
         patch.discord_sent = true; totals.discord += 1
         // WRITTEN NOW, not at the end of this row (2026-10-10 bug hunt): a tick killed by the time limit, or one
@@ -2197,7 +2200,7 @@ export async function GET(request) {
         if (claim?.length) {
           // Card first, then the post with it attached. Either half of the
           // image step failing degrades to a text post, never to no post.
-          const png = await bytesOf(() => homerCard(ev, { site: SITE_HOST }))
+          const png = await alertPicture({ sport: 'mlb', id: row.player_id, date: day, db, called: callStatus(row) === 'called', fallback: () => bytesOf(() => homerCard(ev, { site: SITE_HOST })) })
           const mediaId = png ? await uploadImageToX(png) : null
           // kind: 'homer' is for the Threads mirror only (lib/dash/postLink.js)
           // -- on a highlights account the live alert IS the feed. X ignores it,

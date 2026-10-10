@@ -76,6 +76,7 @@ import { fetchNflLive } from '../../../../../lib/nfl/liveSlate'
 import { nflReachedLine } from '../../../../../lib/history/nfl'
 import { buildTdEvent, eventFromRow, rowFromEvent, tdEmbed, tdPostText, touchdownsInSnap } from '../../../../../lib/nfl/tdFeed'
 import { tdCard } from '../../../../../lib/nfl/tdCard'
+import { alertPicture } from '../../../../../lib/cards/alertCard'
 import { threadsSnapshot } from '../../../../../lib/dash/threadsPost'
 import { tailFor as linkTailFor, postPath } from '../../../../../lib/dash/postLink'
 import { spotlightCard } from '../../../../../lib/nfl/spotlightCard'
@@ -391,7 +392,9 @@ async function runTouchdownTick(db, day) {
       const patch = {}
       let stopTick = false
       const needsCard = !row.discord_sent || !row.x_post_id
-      const png = needsCard ? await bytesOf(() => tdCard(ev, { site: SITE_HOST })) : null
+      // a CALLED touchdown carries the scorer's FRONT CARD when it draws (lib/cards/alertCard.js), else the touchdown's own card as before
+      const calledNow = tdCallStatus({ on_bot: ev.onBot, td_board: ev.tdBoard }) === 'called'
+      const png = needsCard ? await alertPicture({ sport: 'nfl', id: row.gsis_id, date: row.day, db, called: calledNow, fallback: () => bytesOf(() => tdCard(ev, { site: SITE_HOST })) }) : null
 
       if (!row.discord_sent) {
         // The football channel only hears about men on the TUDDY board (CALLED /
