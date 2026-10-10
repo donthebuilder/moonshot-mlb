@@ -55,7 +55,7 @@ export default function CardSection({ sport, mode = 'slate', Table = DenseTable 
       out.push({
         _key: `${r.lane}-${r.product}-${r.slot}`, lane: r.lane, product: r.product, tag: label[r.product](r), legs: r.legs, note: r.note,
         score: Math.min(...r.legs.map((l) => (Number.isFinite(l.score) ? l.score : Infinity))), stake: r.stake, price, result: r.result,
-        status: r.lane === 'bot' ? 'called' : null, start: r.start_at, _order: (r.lane === 'bot' ? 0 : 10) + (r.product === 'straight' ? r.slot : 5),
+        status: r.lane === 'bot' ? (r.legs.some((l) => l.status === 'board') ? 'board' : 'called') : null, start: r.start_at, _order: (r.lane === 'bot' ? 0 : 10) + (r.product === 'straight' ? r.slot : 5),
       })
     }
     return out.sort((a, b) => a._order - b._order)
