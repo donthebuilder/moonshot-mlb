@@ -421,7 +421,7 @@ function b2bItems(players, cashed, onPlayerClick) {
 
 function B2BStrip({ list, verified, loading, cashed, onPlayerClick }) {
   const strict = list.filter((p) => (p._b2bGapDays ?? 1) <= 1)
-  const dayOff = list.filter((p) => (p._b2bGapDays ?? 1) > 1)
+  const dayOff = list.filter((p) => (p._b2bGapDays ?? 1) > 1 && (p._b2bGapDays ?? 1) <= 3)   // a real day off only; 'homered 12 games ago' is not a lane
   return (
     <WatchBox logoSport="mlb"
       icon="🔁" title="B2B WATCH" accent={C.orange}

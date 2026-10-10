@@ -7,6 +7,7 @@ import { matchupStories } from '../lib/matchupStory'
 import { funFacts } from '../lib/funFacts'
 import { dedupeGraded } from '../lib/graded'
 import { useSetupHomers, useBackToBack } from '../lib/b2b'
+import { isLaneGap } from '../lib/b2bCore'
 import { pickSplit, HITTING_FIELDS } from '../lib/seasonSplit'
 import HistoryWatch from './HistoryWatch'
 import StoryRow from './StoryRow'
@@ -367,7 +368,7 @@ export default function Storylines({ players = [], fetchPlayers = null, gamePk =
   // days. One implementation, two callers, no drift.
   const setupHr = useSetupHomers(dateKey)
   const { list: b2bAll, verified: b2bVerified } = useBackToBack(players, setupHr, null, dateKey)
-  const b2b = b2bAll
+  const b2b = b2bAll.filter((p) => isLaneGap(p?._b2bGapDays))   // no 'homered 12 games ago' (not a lane, Donovan 10-10)
     .sort((a, b) => num(b?.hr_score, 0) - num(a?.hr_score, 0))
 
   // The matchup lines are their own pull, so they must survive a failed

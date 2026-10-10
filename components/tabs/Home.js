@@ -1175,7 +1175,7 @@ export default function Home({
               claim instead of two different-looking ones. */}
           {b2b.length > 0 && (() => {
             const strict = b2b.filter((p) => (p._b2bGapDays ?? 1) <= 1)
-            const dayOff = b2b.filter((p) => (p._b2bGapDays ?? 1) > 1)
+            const dayOff = b2b.filter((p) => (p._b2bGapDays ?? 1) > 1 && (p._b2bGapDays ?? 1) <= 3)   // a real day off only (not 'homered 12 games ago')
             const nameList = (arr) => arr.slice(0, 3).map((p, i) => (
               <span key={i}>
                 {i > 0 && ', '}
