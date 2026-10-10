@@ -192,4 +192,13 @@ await ok('engine: a reader that throws is reported, not swallowed (out.errors)',
   const out = await EN.runFacts(fakeDb(), { now: NOW, dry: true, read: async (sport) => ({ sport, active: false, why: 'x', facts: [], errors: [`${sport} team standings: boom`], window: { none: 'x' } }) })
   assert.ok(out.errors.some((e) => /boom/.test(e)))
 })
+await ok('no fact post ever carries a Source line (Donovan 10-10): compose() drops it for every sport, even when the fact has a via', async () => {
+  const L = await import('../lib/facts/label.js')
+  for (const sport of ['nfl', 'mlb', 'nhl', 'nba']) {
+    const fact = L.decorate({ sport, family: 'p_streak', named: [] })
+    const text = L.compose(fact, ['Test Player has a point in 5 straight games.'])
+    assert.ok(fact.via, 'the fact still records where it came from')
+    assert.ok(!/source/i.test(text) && !/nflverse|stats api|api-web/i.test(text), `${sport}: ${text}`)
+  }
+})
 console.log(`\n${n} checks passed`)
