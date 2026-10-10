@@ -223,7 +223,7 @@ check(!/https?:|www\.|\.com|#\w+tag|QR/i.test(allText), 'no link, no QR, no hash
   check(JSON.stringify(serialOf(rowsOf, { lane: 'donovan', cardDate: '2026-01-02', now })) === '{"n":1,"of":1}', "serial: Donovan's lane counts only his Two-Men whose lock has passed")
   check(serialOf(rowsOf, { lane: 'bot', cardDate: '2026-02-09', now }) === null && serialOf([], { lane: 'bot', cardDate: '2026-01-02', now }) === null, 'serial: a card that is not in the record, or no rows, gives no serial (omitted)')
   // the public/members rule: a fake table, no network
-  const table = (rows) => { const b = { eq: () => b, order: () => b, limit: () => b, then: (res) => res({ data: rows, error: null }) }; return { select: () => b } }
+  const table = (rows) => { const b = { eq: () => b, in: () => b, order: () => b, limit: () => b, then: (res) => res({ data: rows, error: null }) }; return { select: () => b } }
   const row = (o) => ({ id: 1, sport: 'nhl', card_date: '2026-01-02', lane: 'bot', product: 'two_man', slot: 1, model_version: 'card-v1', locks_at: '2026-01-02T00:00:00Z', start_at: '2026-01-02T20:00:00Z', result: null, stake: 0.5, legs: [{ player_id: 'P1', name: 'Test Skater 1' }, { player_id: 'P2', name: 'Test Skater 2' }], ...o })
   const fakeDb = (rows) => ({ from: () => table(rows) })
   const early = await loadDualModel({ sport: 'nhl', date: '2026-01-02', lane: 'bot', db: fakeDb([row()]), now: Date.parse('2026-01-02T15:00:00Z'), publicOnly: true })
