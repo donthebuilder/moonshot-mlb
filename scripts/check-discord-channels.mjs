@@ -61,5 +61,12 @@ eq('room: followed-only red zone stays on phones', webhooksForEvent({ category: 
 eq('room: board red zone -> NFL only', webhooksForEvent({ category: 'nflboardred', sport: 'nfl' }), ['NFL'])
 eq('room: nfl kickoff -> NFL only', webhooksForEvent({ category: 'nflkick', sport: 'nfl' }), ['NFL'])
 eq('room: multihit -> nowhere', webhooksForEvent({ category: 'multihit', sport: 'mlb' }), [])
+// the MLB tick's Discord switch must not depend on the OLD homer feed webhook (Donovan cut the other servers 10-10)
+{
+  const { readFileSync } = await import('node:fs')
+  const tick = readFileSync(new URL('../app/api/dash/homers/tick/route.js', import.meta.url), 'utf8')
+  const ok = /const DISCORD_ON = Boolean\(feedHooks\('mlb'\)\)/.test(tick) && !/DISCORD_ON = Boolean\(process\.env\.DISCORD_HOMER_WEBHOOK\)/.test(tick)
+  if (!ok) { fail += 1; console.log('FAIL  MLB tick DISCORD_ON must read feedHooks(mlb), not DISCORD_HOMER_WEBHOOK') } else console.log('ok    MLB tick DISCORD_ON follows any feed channel, not the old homer webhook')
+}
 console.log(fail ? `\n${fail} FAILED` : '\nall ok')
 process.exit(fail ? 1 : 0)

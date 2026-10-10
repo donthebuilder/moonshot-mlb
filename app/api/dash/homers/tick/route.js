@@ -130,7 +130,8 @@ const X_MONTHLY_CAP = Number(process.env.X_MONTHLY_CAP || 1100) || 1100
 // has more than 12. Found 2026-09-05: 12 old rows jammed the queue and the
 // night's 13th+ homers (Stowers, De La Cruz, Schwarber, Caminero) never got
 // an X post despite already having x_post_id null and wanting one.
-const DISCORD_ON = Boolean(process.env.DISCORD_HOMER_WEBHOOK)
+// Discord is on when ANY feed channel is set (the old homer feed is optional: DASH NETWORK's own #moonshot-mlb is enough, 10-10)
+const DISCORD_ON = Boolean(feedHooks('mlb'))
 const cardUrl = (row) => (SITE ? `${SITE}/api/dash/homers/card?day=${row.day}&pid=${row.player_id}&n=${row.hr_n}` : null)
 
 // STAT-FEED CLAIM + POST (2026-09-07). Same claim-then-post shape as the
