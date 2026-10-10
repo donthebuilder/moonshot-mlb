@@ -6,7 +6,9 @@
 // redone; the price is the lock snapshot (lib/odds/priceAtLock.js). Kept to
 // each sport's headline call whose market IS the price we hold:
 //   MLB  TOP / HR calls (the home-run price; a HIT or CONTACT call's market is
-//        not the home run, so it isn't listed against that price)
+//        not the home run, so it isn't listed against that price). THE LOCKED ONES
+//        (lib/record/mlbCalls.js, 2026-10-10): the same calls the front door and /called
+//        count -- stamped before first pitch -- each hitter once a night
 //   NFL  the week's TD calls
 //   NHL  CALLED skaters on the goal board
 //   NBA  every market's CALLED players (buckets_log, regular season + playoffs); only a
@@ -15,6 +17,7 @@
 import { unstable_cache } from 'next/cache'
 import { adminClient } from '../../../../lib/supabase/admin'
 import { pricedPicks } from '../../../../lib/odds/gradedPicks'
+import { lockedHrCalls } from '../../../../lib/record/mlbCalls'
 import { easternToday } from '../../../../lib/data'
 import { bucketsGuard, bucketsPublic } from '../../../../lib/nba/gate'
 
@@ -24,6 +27,8 @@ const DATA = 'https://raw.githubusercontent.com/donthebuilder/MLB-HR-DASHBOARD-S
 const SINCE = { mlb: '2026-09-01', nhl: '2026-09-29', nba: '2026-09-01' }
 // which calls are listed, and the call word when a row has no role -- per sport, as data
 const LISTED = { mlb: (p) => p.hrCall, nfl: (p) => p.status === 'called', nhl: (p) => p.status === 'called', nba: (p) => p.status === 'called' }
+// sports whose calls come from the lock-enforced reader, not the post-game graded files (a table, not a branch)
+const LOCKED_READ = { mlb: (db, today) => lockedHrCalls(db, today) }
 const CALL_WORD = { mlb: 'HR', nfl: 'TD', nhl: 'GOAL', nba: 'CALL' }
 
 async function build(sport, today) {
@@ -45,7 +50,7 @@ async function build(sport, today) {
   } else {
     opts = { sport, since: SINCE[sport], until: today }
   }
-  const { picks, error } = await pricedPicks(db, opts)
+  const { picks, error } = await (LOCKED_READ[sport] ? LOCKED_READ[sport](db, today) : pricedPicks(db, opts))
   if (error) throw new Error(error.message || String(error))
   const keep = picks.filter((p) => LISTED[sport](p) && (p.result === 'hit' || p.result === 'miss' || p.result === 'void'))
   return keep
@@ -66,7 +71,7 @@ export async function GET(request) {
   if (sport === 'nba') { const no = await bucketsGuard(); if (no) return no }
   const today = easternToday()
   try {
-    const calls = await unstable_cache(() => build(sport, today), ['record-calls-v3', sport, today], { revalidate: 1800 })()
+    const calls = await unstable_cache(() => build(sport, today), ['record-calls-v4', sport, today], { revalidate: 1800 })()
     return Response.json({ sport, calls, builtAt: new Date().toISOString() }, { headers: { 'Cache-Control': gated ? 'private, max-age=60' : 'public, s-maxage=600, stale-while-revalidate=1800' } })
   } catch (e) {
     console.error(`[record/calls] ${sport}: ${e?.message || e}`)

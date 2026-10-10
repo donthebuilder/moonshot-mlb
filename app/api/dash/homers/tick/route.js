@@ -52,7 +52,7 @@ import { xEventsCalledOnly } from '../../../../../lib/dash/xEvents'
 import { timingSafeEqual } from 'node:crypto'
 
 import { easternToday, etHoursSinceNoon, slateDateFromRows, shiftDay } from '../../../../../lib/data'
-import { callStatus } from '../../../../../lib/callStatus'
+import { callStatus, surfacedByRole } from '../../../../../lib/callStatus'
 import { mlbWatch, historyWatchText, reachedLine } from '../../../../../lib/history/watch'
 import { fetchLiveSlate, liveSlateStatus } from '../../../../../lib/liveSlate'
 import { fetchBoardFull, fetchRunMeta } from '../../../../../lib/dash/board'
@@ -662,7 +662,7 @@ const MLBHR_REPLY_BATCH = 4
 // replies a day, best-ranked CALLED homers first. 5 (Donovan, 09-26).
 const MLBHR_REPLY_CAP = Math.max(0, Number(process.env.MLBHR_REPLY_CAP ?? 5) || 0)
 const BOARD_REPLY_MAX_RANK = 50
-const isSurfaced = (row) => Boolean(String(row?.role || '').trim())
+const isSurfaced = surfacedByRole   // any role at all, read through lib/callStatus.js
 // How many of the board the reply prints above him. Ten names every night is
 // ten names in front of search and one object a reader learns to recognise.
 const BOARD_REPLY_TOP = 10
@@ -2148,7 +2148,7 @@ export async function GET(request) {
     }
     // CALLED only by default (lib/dash/xEvents, postseason plan step 1); the
     // old MODE rule applies when X_EVENTS=all.
-    const wantsX = xOn && (xEventsCalledOnly() ? callStatus(row) === 'called' : (MODE === 'all' || Boolean(row.role)))
+    const wantsX = xOn && (xEventsCalledOnly() ? callStatus(row) === 'called' : (MODE === 'all' || surfacedByRole(row)))
     if (!row.x_post_id) {
       if (wantsX) {
         // CLAIM BEFORE POSTING (2026-09-06). This used to SELECT the pending

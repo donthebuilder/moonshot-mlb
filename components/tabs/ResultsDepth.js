@@ -7,6 +7,7 @@ import { rampColor, inkFor } from '../Heatmap'
 import DenseTable from '../DenseTable'
 import { WhatThis } from '../ui'
 import { SCORE } from '../../lib/scales'
+import { ARCHIVE_MEASURE, ARCHIVE_MEASURE_NOTE } from '../../lib/record/archiveMeasure'
 
 // Results depth — the grading half of the Streamlit Results tab.
 //
@@ -256,7 +257,7 @@ export default function ResultsDepth({ results, onPlayerClick }) {
       <Section
         title="Did each pick do its job?"
         answers="which kind of pick is actually working tonight — each tier scored against the outcome it was picked for."
-        sub="A Hit pick that produced a single did its job; grading it on HR would call that a failure."
+        sub={`A Hit pick that produced a single passed; grading it on HR would call that a failure. "${ARCHIVE_MEASURE}" is ${ARCHIVE_MEASURE_NOTE}.`}
       >
         <DenseTable
           heatMode="sorted"
@@ -266,8 +267,8 @@ rows={tiers}
             { key: 'label',  label: 'Pick type', heat: false, w: 118, bold: true, sticky: true },
             { key: 'needs',  label: 'Needs',   heat: false, w: 96, dim: true },
             { key: 'n',      label: 'N',       heat: false, w: 34, mono: true, dim: true },
-            { key: 'did',    label: 'Did job', w: 50 },
-            { key: 'didPct', label: 'Rate %',  w: 52, dp: 1 },
+            { key: 'did',    label: 'Passed',  w: 50, title: ARCHIVE_MEASURE_NOTE },
+            { key: 'didPct', label: `${ARCHIVE_MEASURE} %`, w: 70, dp: 1, title: ARCHIVE_MEASURE_NOTE },
             // HR count lives here now. It used to be its own "HRs by pick type"
             // bar chart at the bottom of the page, which drew the same six
             // numbers a second time; one column is the whole chart.

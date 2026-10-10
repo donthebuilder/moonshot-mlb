@@ -45,6 +45,9 @@ import { membersUrl, MEMBERS_LINE } from '../../lib/members'
 import { shiftDay } from '../../lib/data'
 import { adminClient } from '../../lib/supabase/admin'
 import { CALL_RULES } from '../../lib/record/callRules'
+import { readCalibrationAny } from '../../lib/calibration/readAny'
+import { callsLandedFrom, landedWords } from '../../lib/record/callsLanded'
+import { easternToday } from '../../lib/data'
 
 // 2026-09-20 — FOOTBALL MOVED IN, IT DIDN'T GET ITS OWN HOUSE. Donovan:
 // "can you not just build it on the same side of the site." Right call, and
@@ -107,7 +110,7 @@ function shortDay(iso) {
 // printed either way; only which one leads changes.
 const SPORTS = {
   mlb: {
-    key: 'mlb', label: 'MLB', product: 'MOONSHOT', event: 'home runs', eventOne: 'home run',
+    key: 'mlb', label: 'MLB', product: 'MOONSHOT', callWord: 'calls', event: 'home runs', eventOne: 'home run',
     verb: 'went deep', table: 'homer_feed', board: appHref('mlb'),
     legend: '🤖 called before the ball left  ·  ⚪ on the board, no call  ·  💥 not on the board',
     frozen: <HelpTip label="How this is counted" text="Tags are frozen when the home run is first seen and never re-graded." />,
@@ -131,7 +134,7 @@ const SPORTS = {
   },
   nfl: {
     tierRecord: true,
-    key: 'nfl', label: 'NFL', product: 'TUDDY', event: 'touchdowns', eventOne: 'touchdown',
+    key: 'nfl', label: 'NFL', product: 'TUDDY', callWord: 'card calls', event: 'touchdowns', eventOne: 'touchdown',
     verb: 'found the end zone', table: 'nfl_td_feed', board: appHref('nfl'),
     legend: '🤖 called before the snap  ·  ⚪ on the board (top third of the TD board), no call  ·  💥 not on the board',
     frozen: 'Tags are frozen when the touchdown is first seen and never re-graded.',
@@ -168,7 +171,7 @@ const SPORTS = {
   // skater with ten NHL games is scored.
   nhl: {
     tierRecord: true,
-    key: 'nhl', label: 'NHL', product: 'LAMP', event: 'goal scorers', eventOne: 'goal',
+    key: 'nhl', label: 'NHL', product: 'LAMP', callWord: 'goal calls', event: 'goal scorers', eventOne: 'goal',
     verb: 'lit the lamp', table: 'lamp_goal_log', board: appHref('nhl'),
     legend: '🤖 called before puck drop  ·  ⚪ on the board, no call  ·  💥 not on the board',
     frozen: 'Tags are the board as locked before puck drop, graded after the final, never re-graded.',
@@ -195,7 +198,7 @@ const SPORTS = {
   // BUCKETS market in his game, ON THE BOARD = the points board's top third.
   nba: {
     tierRecord: true,
-    key: 'nba', label: 'NBA', product: 'BUCKETS', event: '25-point games', eventOne: '25-point game',
+    key: 'nba', label: 'NBA', product: 'BUCKETS', callWord: 'calls', event: '25-point games', eventOne: '25-point game',
     verb: `scored ${NBA_EVENT_BAR}+`, table: 'buckets_log', board: appHref('nba'),
     legend: '🤖 called before tip  ·  ⚪ on the board, no call  ·  💥 not on the board',
     frozen: 'Tags are the board as locked before tip, graded after the final, never re-graded.',
@@ -508,6 +511,11 @@ export default async function CalledPage({ searchParams }) {
   const params = (await searchParams) || {}
   const key = calledKey(params.sport)
   const { sport, today, rows, outRows = [], picks, picksDay = null, calledIds, history, byDay, configured } = await load(key)
+  // CALLS LANDED LEADS (2026-10-10, one MLB record): of the calls we made, how many did what they were called to
+  // do -- the lock-enforced calibration reader (the same body /api/calibration serves, one cache entry). The
+  // event capture below it is a different measure and is labelled so.
+  const landed = callsLandedFrom(await readCalibrationAny(sport.key, easternToday()).catch((e) => { console.error(`[called] calls landed: ${e?.message}`); return null }))
+  const landedLine = landedWords(landed, { callWord: sport.callWord })
   const card = sport.cardRecord ? await cardPlain(sport.key).catch((e) => { console.error(`[called] card record: ${e?.message}`); return null }) : null
   const BOARD = sport.board
   const SIGNUP = `/login?next=${encodeURIComponent(BOARD)}#create-account`
@@ -550,30 +558,53 @@ export default async function CalledPage({ searchParams }) {
 
       <section className={styles.hero}>
         <p className={styles.kicker}>{prettyDay(today)}{tonightPre ? ' · Preseason' : ''}{history.find((h) => h.day === today)?.post ? ' · Postseason' : ''}</p>
+        {landed ? (
+          <>
+            {/* HIT RATE PER CALL LEADS, EVERY SPORT (2026-10-10, Donovan: calls landed vs calls made; capture secondary and
+                labelled capture). The count is the calibration reader's locked, graded calls; the event capture follows. */}
+            <h1 className={styles.headline}>
+              <span className={styles.big}>{landed.hits.toLocaleString('en-US')}</span> of <span className={styles.big}>{landed.n.toLocaleString('en-US')}</span> {sport.callWord} landed
+            </h1>
+            <p className={styles.sub}>{landedLine[1]}</p>
+          </>
+        ) : null}
         {tonight.total ? (
           <>
-            {/* ── WHY FOOTBALL LEADS WITH A DIFFERENT NUMBER ──────────────
+            {/* ── WHY FOOTBALL'S CAPTURE LINE IS BOARD COVERAGE ───────────
                 MOONSHOT publishes ~30 calls a night against ~30 home runs, so
                 "N of M were on the bot" is a fair capture rate. TUDDY's
                 touchdown ladder is FIVE rungs a week against ~24 touchdowns a
                 Sunday, so the same sentence reads "0 of 24 · 0%" on a day the
                 model only ever claimed five names. That is not honesty, it is
                 a category error dressed as honesty: it implies 24 chances
-                were taken and missed.
-                So football leads with board coverage — how many of the day's
-                scorers the model had rated at all — and states the designated
-                calls underneath, which is the claim it actually made. The
-                counting is identical; only which number is the headline
-                changes. Both are on the page either way. */}
-            <h1 className={styles.headline}>
-              <span className={styles.big}>{byBoard ? tonight.called + tonight.rated : tonight.called}</span> of <span className={styles.big}>{tonight.total}</span> {sport.event} were {sport.onWhat === 'CALLED' ? 'CALLED' : `on ${sport.onWhat}`}
-            </h1>
-            <p className={styles.sub}>
-              {byBoard
-                ? `${tonight.called} designated ${tonight.called === 1 ? 'call' : 'calls'}${tonight.off ? ` · ${tonight.off} never surfaced` : ''}`
-                : `${tonight.pct}% tonight${tonight.rated ? ` · ${tonight.rated} more on the board, no call` : ''}${tonight.off ? ` · ${tonight.off} off the board` : ''}`}
-            </p>
+                were taken and missed. So football's capture line is board
+                coverage -- how many of the day's scorers the model had rated
+                at all -- with the designated calls beside it. Since 2026-10-10
+                none of these is the headline: the headline is calls landed
+                (above); this is the line under it, and says what it measures. */}
+            {landed ? (
+              <p className={styles.sub}>
+                <b>{byBoard ? 'Board coverage' : 'Capture'}</b> (a different measure: how many of the {sport.event} we had called, not how many calls landed), {shortDay(today)}:{' '}
+                {byBoard
+                  ? `${tonight.called + tonight.rated} of ${tonight.total} ${sport.event} were on the board · ${tonight.called} designated ${tonight.called === 1 ? 'call' : 'calls'}${tonight.off ? ` · ${tonight.off} never surfaced` : ''}`
+                  : `${tonight.called} of ${tonight.total} ${sport.event} were CALLED (${tonight.pct}%)${tonight.rated ? ` · ${tonight.rated} more on the board, no call` : ''}${tonight.off ? ` · ${tonight.off} off the board` : ''}`}
+              </p>
+            ) : (
+              <>
+                <h1 className={styles.headline}>
+                  <span className={styles.big}>{byBoard ? tonight.called + tonight.rated : tonight.called}</span> of <span className={styles.big}>{tonight.total}</span> {sport.event} were {sport.onWhat === 'CALLED' ? 'CALLED' : `on ${sport.onWhat}`}
+                </h1>
+                <p className={styles.sub}>
+                  <b>{byBoard ? 'Board coverage' : 'Capture'}</b>, not calls landed (the locked record is not loading right now):{' '}
+                  {byBoard
+                    ? `${tonight.called} designated ${tonight.called === 1 ? 'call' : 'calls'}${tonight.off ? ` · ${tonight.off} never surfaced` : ''}`
+                    : `${tonight.pct}% on ${shortDay(today)}${tonight.rated ? ` · ${tonight.rated} more on the board, no call` : ''}${tonight.off ? ` · ${tonight.off} off the board` : ''}`}
+                </p>
+              </>
+            )}
           </>
+        ) : landed ? (
+          <p className={styles.sub}>{sport.empty}. {configured ? sport.fills : 'The feed is not configured on this deployment.'}</p>
         ) : (
           <>
             <h1 className={styles.headline}>{sport.empty}</h1>
@@ -630,13 +661,13 @@ export default async function CalledPage({ searchParams }) {
       ) : null}
 
       <section id="nights" className={styles.panel}>
-        <h2 className={styles.h2}>{`Last ${history.length} ${unit}`} {spanPct != null ? <span className={styles.pill}>{byBoard ? `${span.onBoard} / ${span.total} on the board · ${spanBoardPct}% · ${span.called} called` : `${span.called} / ${span.total} called · ${spanPct}% · ${span.onBoard} on the board`}{` · counts ${graded.length} of these ${history.length} ${unit[1]}${graded.length === history.length ? '' : ' (the rest: no event recorded, preseason or postseason)'}`}</span> : preOnly ? <span className={styles.pill}>preseason — not counted</span> : null}</h2>
+        <h2 className={styles.h2}>{`Last ${history.length} ${unit}`} {spanPct != null ? <span className={styles.pill}>{byBoard ? `board coverage: ${span.onBoard} / ${span.total} on the board · ${spanBoardPct}% · ${span.called} called` : `capture: ${span.called} / ${span.total} ${sport.event} called · ${spanPct}% · ${span.onBoard} on the board`}{` · counts ${graded.length} of these ${history.length} ${unit[1]}${graded.length === history.length ? '' : ' (the rest: no event recorded, preseason or postseason)'}`}</span> : preOnly ? <span className={styles.pill}>preseason — not counted</span> : null}</h2>
         {postNights.length ? (
           <p className={styles.sub}>
             <b>POSTSEASON</b> · {postSpan.called} / {postSpan.total} called{postSpan.total ? ` · ${Math.round((100 * postSpan.called) / postSpan.total)}%` : ''} · {postSpan.onBoard} on the board · {postNights.length} {postNights.length === 1 ? 'night' : 'nights'}, counted on their own{spanPct != null ? ' (the line above is the regular season)' : ''}
           </p>
         ) : null}
-        <div className={styles.bars} role="group" aria-label={`Capture rate over the last ${history.length} ${unit} — tap one to see who ${sport.verb}`}>
+        <div className={styles.bars} role="group" aria-label={`${byBoard ? 'Board coverage' : 'Capture'} over the last ${history.length} ${unit} — tap one to see who ${sport.verb}`}>
           {history.map((h) => {
             const href = h.total ? (h.day === today ? '#tonight' : `#night-${h.day}`) : null
             const inner = (

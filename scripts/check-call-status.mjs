@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // 0c calling rule (2026-10-01). TEST DATA only -- made-up rows, no real players.
 //   node --import ./scripts/_esm-resolve.mjs scripts/check-call-status.mjs
-import { callStatus, boardCut } from '../lib/callStatus.js'
+import { callStatus, boardCut, CALL_ROLES, FOUR_ROLES, HR_CALL_ROLES, hasRoleIn, surfacedByRole } from '../lib/callStatus.js'
 import { onBotFor, onBotWord } from '../lib/nfl/tdFeed.js'
 let fail = 0
 const eq = (name, got, want) => { const ok = JSON.stringify(got) === JSON.stringify(want); fail += !ok; console.log(`${ok ? 'ok  ' : 'FAIL'} ${name}${ok ? '' : `: got ${JSON.stringify(got)}, want ${JSON.stringify(want)}`}`) }
@@ -14,6 +14,14 @@ eq('no role, #95 of 282 -> NOT ON THE BOARD', callStatus({ role: null, on_board:
 eq('WATCH stays ON THE BOARD (a band)', callStatus({ role: 'WATCH', board_rank: 200, stats: { board_of: 282 } }), 'board')
 eq('no board size stored -> old rule (rated = board)', callStatus({ role: null, on_board: true, board_rank: 200 }), 'board')
 eq('never surfaced -> off', callStatus({ role: null, on_board: false }), 'off')
+
+// THE ROLE SETS, NAMED ONCE (2026-10-10): subsets of CALL_ROLES; none changes which rows read CALLED
+eq('FOUR_ROLES = the call roles without TOP', FOUR_ROLES, ['HR', 'HIT', 'HRR', 'CONTACT'])
+eq('HR_CALL_ROLES and FOUR_ROLES are call roles', HR_CALL_ROLES.every((r) => CALL_ROLES.includes(r)) && FOUR_ROLES.every((r) => CALL_ROLES.includes(r)), true)
+eq('hasRoleIn reads a slash list the way the old TOP|HR regex did', ['TOP', 'HR/CONTACT', 'HIT/HRR', 'WATCH', 'HRR', '', null, 'TOP15'].map((r) => hasRoleIn(r, HR_CALL_ROLES)), [true, true, false, false, false, false, false, false])
+// surfacedByRole replaces Boolean(String(row.role).trim()) in the tick: any role at all; a rank or on_board alone is not a role
+eq('surfacedByRole = has a role', [{ role: 'HR' }, { role: 'WATCH' }, { role: ' ' }, { role: null }, { role: '', board_rank: 3, on_board: true }, {}].map(surfacedByRole), [true, true, false, false, false, false])
+eq('CALLED is still decided by callStatus alone (the tweet line "had him for N of his last M" counts these)', ['HR', 'HIT/CONTACT', 'WATCH', 'TOP15', null].map((r) => callStatus({ role: r }) === 'called'), [true, true, false, false, false])
 
 // NFL (test card + test game calls)
 const card = { TD: { rungs: [{ player_id: 'T1', rank: 1, score: 80, grade: 'A+' }] }, REC_YDS: { label: 'Receiving yards', rungs: [{ player_id: 'T2', rank: 3, score: 70, grade: 'A' }] } }
