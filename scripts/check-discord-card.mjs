@@ -118,12 +118,20 @@ check('E6 NHL goal: footer LAMP, the timestamp is the confirmation time, only th
 check('E6b NHL goal: the X text is unchanged (still CALLED IT and LAMP score)', goalFeed.postText(goalRow, [goalRow]).startsWith('\u{1F916} CALLED IT') && /LAMP score 61/.test(goalFeed.postText(goalRow, [goalRow])))
 
 const td = await import('../lib/nfl/tdFeed.js')
-const ev = { day: '2099-01-02', gameId: 'g', tdN: 1, team: 'TB', opponent: 'DAL', quarter: 3, clock: '4:12', text: 'x', parsed: { kind: 'pass', yards: 14, passer: 'Test Passer' }, kindWord: null, scorerName: 'Test Receiver', gsisId: '00-TEST', position: 'WR', seasonToDate: { td: 4, games: 5 }, onBot: { market: 'TD', rank: 88, grade: 'A' }, tdBoard: { rank: 3, of: 200 }, defense: { role: 'WR1', opp: 'DAL', tag: 'TARGET', rank: 3 } }
+const ev = { day: '2099-01-02', gameId: 'g', tdN: 1, team: 'TB', opponent: 'DAL', quarter: 3, clock: '4:12', text: 'x', parsed: { kind: 'pass', yards: 14, passer: 'Test Passer' }, kindWord: null, scorerName: 'Test Receiver', gsisId: '00-TEST', position: 'WR', seasonToDate: { td: 4, games: 5 }, onBot: { market: 'TD', rank: 88, grade: 'A' }, tdBoard: { rank: 3, of: 200 }, defense: { role: 'WR1', opp: 'DAL', tag: 'TARGET', rank: 3, season: 2025, current_season: 2026 } }
 const t = keep(td.tdEmbed(ev, { extra: ['TEST reached line'] }))
 check('E7 NFL TD: title names the club (registry), no fields', t.title === '\u{1F6A8} Test Receiver scores for Tampa Bay Buccaneers' && noFields(t), t.title)
 check('E8 NFL TD: bold CALLED for an anytime touchdown, then the play and the quarter/clock', t.description.split('\n')[0] === '**CALLED** for an anytime touchdown. 14 yd from Test Passer, Q3 4:12.', t.description.split('\n')[0])
-check('E9 NFL TD: defense line in the verified direction (rank 1 = most allowed), the season line', t.description.split('\n')[1] === 'DAL gives up the 3rd-most touchdowns in the league to WR1s.' && t.description.split('\n')[2] === '4 TD in 5 games this season.' && t.description.split('\n')[3] === 'TEST reached line', t.description)
+check('E9 NFL TD: defense line in the verified direction (rank 1 = most allowed), the season line', t.description.split('\n')[1] === 'DAL gave up the 3rd-most touchdowns in the league to WR1s last season.' && t.description.split('\n')[2] === '4 TD in 5 games this season.' && t.description.split('\n')[3] === 'TEST reached line', t.description)
 check('E10 NFL TD: the unverified board/game-call rank is NOT printed', !/#88|88|on the TUDDY board|game call|TD pick/.test(t.description + t.title), t.description)
+check('E9b NFL TD defense tense: last season = "gave up ... last season"; older = "in {year}"; current season or unreadable = present tense, no tense word', (() => {
+  const L = (d) => td.tdEmbed({ ...ev, defense: { role: 'WR1', opp: 'DAL', tag: 'TARGET', rank: 3, ...d } }).description.split('\n')[1]
+  return L({ season: 2024, current_season: 2026 }) === 'DAL gave up the 3rd-most touchdowns in the league to WR1s in 2024.'
+    && L({ season: 2026, current_season: 2026 }) === 'DAL gives up the 3rd-most touchdowns in the league to WR1s.'
+    && L({ season: undefined, current_season: undefined }) === 'DAL gives up the 3rd-most touchdowns in the league to WR1s.'
+    && L({ season: 2025, current_season: undefined }) === 'DAL gives up the 3rd-most touchdowns in the league to WR1s.'
+})())
+check('E9c NFL TD AVOID wording likewise: "was one of the toughest ... last season"', td.tdEmbed({ ...ev, defense: { role: 'WR1', opp: 'DAL', tag: 'AVOID', rank: 30, season: 2025, current_season: 2026 } }).description.includes('DAL was one of the toughest touchdown matchups in the league for WR1s last season.'))
 const dd = (d, extra = {}) => td.tdEmbed({ ...ev, defense: d, ...extra }).description
 check('E11 NFL TD: AVOID at rank >= 22 = "one of the toughest", never "softest"; AVOID/EVEN in the middle and no tag print nothing', /one of the toughest/.test(dd({ role: 'WR1', opp: 'DAL', tag: 'AVOID', rank: 30 })) && !/softest/.test(dd({ role: 'WR1', opp: 'DAL', tag: 'AVOID', rank: 30 })) && !/gives up|toughest/.test(dd({ role: 'WR1', opp: 'DAL', tag: 'EVEN', rank: 17 })) && !/gives up|toughest/.test(dd(null)))
 check('E12 NFL TD: ordinals are right (1st, 2nd, 11th, 12th)', [1, 2, 11, 12].map((r) => dd({ role: 'RB1', opp: 'DAL', tag: 'TARGET', rank: r }).match(/the (\S+)-most/)[1]).join() === '1st,2nd,11th,12th')
