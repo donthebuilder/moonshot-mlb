@@ -157,5 +157,46 @@ for (const f of files) {
 const allText = Object.values(variants).map((m) => texts(frontDesign(m, null))).join(' ')
 check(!/https?:|www\.|\.com|#\w+tag|QR/i.test(allText), 'no link, no QR, no hashtag drawn on a front')
 
+
+// ── 8. the routes: nba (BUCKETS) and unknown sports are 404 whatever the switch says; bad input is 400; no render, no network ──
+{
+  const { GET: imageGet } = await import('../app/api/card/image/route.js')
+  const { GET: dayGet } = await import('../app/api/card/day/route.js')
+  const req = (path) => new Request(`http://localhost${path}`)
+  const st = async (h, path) => (await h(req(path))).status
+  check(await st(imageGet, '/api/card/image?sport=nba&id=1&side=front') === 404, 'route /api/card/image: sport=nba is 404')
+  check(await st(imageGet, '/api/card/image?sport=nba&id=1&side=back') === 404, 'route /api/card/image: nba back is 404')
+  check(await st(imageGet, '/api/card/image?sport=bogus&id=1') === 404 && await st(imageGet, '/api/card/image?id=1') === 404, 'route /api/card/image: an unknown or missing sport is 404')
+  process.env.NEXT_PUBLIC_BUCKETS_PUBLIC = 'on'; process.env.BUCKETS_PUBLIC = 'on'
+  check(await st(imageGet, '/api/card/image?sport=nba&id=1') === 404, 'route /api/card/image: nba stays 404 even with BUCKETS_PUBLIC=on (no public NBA card is built)')
+  delete process.env.NEXT_PUBLIC_BUCKETS_PUBLIC; delete process.env.BUCKETS_PUBLIC
+  check(await st(imageGet, '/api/card/image?sport=nhl&id=abc!&side=front') === 400, 'route /api/card/image: a malformed id is 400')
+  check(await st(imageGet, '/api/card/image?sport=nhl&id=8478402&date=nope') === 400, 'route /api/card/image: a malformed date is 400')
+  check(await st(dayGet, '/api/card/day?sport=nba') === 404 && await st(dayGet, '/api/card/day?sport=bogus') === 404, 'route /api/card/day: nba and unknown sports are 404')
+  const body = await (await imageGet(req('/api/card/image?sport=nba&id=1'))).json()
+  check(JSON.stringify(body).length < 200 && !/key|secret|token|supabase/i.test(JSON.stringify(body)), 'route: an error body is a short reason, no secrets')
+}
+
+// ── 9. the day lineup: free scope shows straight #1 only; full shows the Card; a missing leg face / price still draws ──
+{
+  const { dayDesign } = await import('../lib/cards/dayCard.js')
+  const { renderDay } = await import('../lib/cards/dayCard.js')
+  const leg = (n, o = {}) => ({ sport: 'nhl', brand: { sport: 'nhl', name: BRAND.nhl.name }, playerId: `P${n}`, name: `Test Skater ${n}`, team: 'TST', opp: 'OPP', home: null, pos: 'C', status: 'called', why: 'shots 99th . goals 98th percentile tonight', face: '', logo: '', logoPlate: false, tone: null, ...o })
+  const price = { best: '+110', books: 4 }
+  const full = { sport: 'nhl', scope: 'full', league: 'NHL', brandName: 'LAMP', market: 'anytime goal', dayWord: 'Jan 2', straights: [1, 2, 3].map((n) => ({ slot: n, stake: 1, m: leg(n), price: n === 1 ? price : null })), two: { stake: 0.5, legs: [{ m: leg(1), price }, { m: leg(2), price: null }], price: null }, donovan: null }
+  const free = { ...full, scope: 'free', straights: full.straights.slice(0, 1), two: null }
+  const tf = texts(dayDesign(full, null)); const tr = texts(dayDesign(free, null))
+  check(/STRAIGHT 3/.test(tf) && /TWO-MAN/.test(tf) && /STRAIGHT 1/.test(tr) && !/STRAIGHT 2|TWO-MAN/.test(tr), 'day card: the free scope names straight #1 only; the full scope shows the whole Card')
+  check(/\+110 \| best · 4 books/.test(tf) && !/about/.test(tf), 'day card: a leg with a stored price shows it; no combined price unless both legs have one')
+  const two = { ...full, two: { ...full.two, legs: [{ m: leg(1), price }, { m: leg(2), price }], price: '+341' } }
+  check(/about \+341 best, the two prices multiplied/.test(texts(dayDesign(two, null))), 'day card: both legs priced -> the combined price line')
+  const sparse = { ...full, straights: [full.straights[0]], two: null }
+  check(/No further call in a different game/.test(texts(dayDesign(sparse, null))) && /No pair from two different games/.test(texts(dayDesign(sparse, null))), 'day card: an empty slot says so in words (the Card never pads)')
+  for (const [name, d] of Object.entries({ full, free, two, sparse })) {
+    try { const r = pngSize(await renderDay(d)); check(r.sig && r.w === 1080 && r.h === 1350, `day card renders 1080x1350: ${name}`) } catch (e) { check(false, `day card renders: ${name} (${e.message})`) }
+  }
+  check([full, free, two, sparse].flatMap((d) => lintType(dayDesign(d, null))).length === 0, 'day card: no text under 22px at 1080 wide')
+}
+
 console.log(failed ? `\n${failed} FAILED` : '\nOK: player cards')
 process.exit(failed ? 1 : 0)
