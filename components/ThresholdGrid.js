@@ -8,7 +8,7 @@ import { gridQuote, fairOdds, fmtOdds } from '../lib/odds'
 import { verdictInk, verdictWash } from '../lib/scales'
 import FiltersSheet from './player/FiltersSheet'
 import Brief from './player/Brief'
-import ScrollHint from './player/ScrollHint'
+import PropsMatrix, { HeatCells, StreakTd } from './player/PropsMatrix'
 import HelpTip from './HelpTip'
 import { heatCell, STREAK_AT } from './player/heat'
 
@@ -421,15 +421,10 @@ export default function ThresholdGrid({ playerId, odds }) {
             overflowX:auto, so on a phone it scrolled with a stock scrollbar, no
             momentum, and at full desktop cell padding — the one dense table on
             the site that wasn't wearing the treatment every other one has. */}
-        <ScrollHint hint="Swipe for the rest of the grid">
-        <div className="dense-scroll rail" style={{ overflowX: 'auto' }}>
-          {/* Tightened 2026-08-08: spacing and padding trimmed so the whole
-              matrix sits above the fold in the modal — the grid's value is
-              seeing every market at once, which a scroll defeats. */}
-          <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '2px 2px', fontFamily: NUM_FONT }}>
-            <thead>
-              <tr>
-                <th style={{ textAlign: 'left', fontSize: 11, color: C.text3, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.07em', padding: '0 6px', position: 'sticky', left: 0, zIndex: 2, background: C.bg2 }}>Market</th>
+        <PropsMatrix rows={matrix} windows={WINDOWS.map(([w]) => w)} C={C} NUM_FONT={NUM_FONT} accent={C.orange} look="dense" activeKey={m.key}
+          span={span} onSpan={(w) => { setSpan(w); setSelGame(null) }}
+          onPick={(row) => { setMkt(row.key); setLine((LINES[row.key] || [1])[0]); setSelGame(null) }}
+          heads={<>
                 {lens === 'streaks' ? (
                   <>
                     <th title="What he is on RIGHT NOW — consecutive most-recent games, clearing or missing"
@@ -459,34 +454,13 @@ export default function ThresholdGrid({ playerId, odds }) {
                 <th title="His TRUE price — the number at which his own rate for this row breaks even. The book paying longer than this is value; shorter is not."
                     style={{ fontSize: 11, color: C.text3, fontWeight: 800, padding: '0 4px' }}>TRUE</th>
                 </>}
-              </tr>
-            </thead>
-            <tbody>
-              {matrix.map((row) => {
-                const on = row.key === m.key
-                return (
-                  <tr key={row.key} onClick={() => { setMkt(row.key); setLine((LINES[row.key] || [1])[0]); setSelGame(null) }}
-                    style={{ cursor: 'pointer' }}>
-                    <td style={{
-                      fontSize: 12, fontWeight: on ? 900 : 700, whiteSpace: 'nowrap',
-                      color: on ? C.orange : C.text, padding: '3px 6px',
-                      borderLeft: `3px solid ${on ? C.orange : 'transparent'}`, borderRadius: 4,
-                      position: 'sticky', left: 0, zIndex: 1, background: C.bg2,
-                    }}>{row.label}</td>
-                    {lens === 'streaks' ? (
-                      <StreakCells row={row} on={on} />
-                    ) : <>{row.cells.map((c, ci) => (
-                      <td key={ci} title={c ? `cleared ${c.ok} of ${c.n}` : 'no games in this window'} style={{
-                        textAlign: 'center', padding: '2px 3px', borderRadius: 8, minWidth: 40, lineHeight: 1.1,
-                        ...heatCell(c?.pct, c?.n, { accent: C.orange, C }),
-                        outline: on && !(c?.pct >= 60) ? `1px solid ${C.border2}` : 'none',
-                      }}>
-                        {c ? <>
-                          <div style={{ fontSize: 14, fontWeight: 900 }}>{c.pct.toFixed(0)}</div>
-                          <div style={{ fontSize: 10, fontWeight: 600, color: C.text3 }}>{c.ok}/{c.n}</div>
-                        </> : '—'}
-                      </td>
-                    ))}
+          </>}
+          cells={(row, on) => (
+            <>
+              {lens === 'streaks' ? (
+                <StreakCells row={row} on={on} />
+              ) : <>
+                <HeatCells row={row} on={on} look="dense" accent={C.orange} C={C} />
                     <td title={row.lsCell ? `${row.lsCell.ok}/${row.lsCell.n} last season` : ''} style={{
                       textAlign: 'center', padding: '2px 3px', borderRadius: 8, minWidth: 40, lineHeight: 1.1, opacity: 0.85,
                       ...heatCell(row.lsCell?.pct, row.lsCell?.n, { accent: C.orange, C }),
@@ -494,10 +468,7 @@ export default function ThresholdGrid({ playerId, odds }) {
                       <div style={{ fontSize: 12.5, fontWeight: 800 }}>{row.lsCell.pct.toFixed(0)}</div>
                       <div style={{ fontSize: 10, fontWeight: 600, color: C.text3 }}>{row.lsCell.ok}/{row.lsCell.n}</div>
                     </> : '—'}</td>
-                    <td style={{
-                      textAlign: 'center', fontSize: 12, fontWeight: 900, padding: '3px 4px', whiteSpace: 'nowrap',
-                      color: row.stk >= STREAK_AT ? C.orange : row.stk > 0 ? verdictInk(true).color : row.stk < 0 ? verdictInk(false).color : C.text3,
-                    }} title={row.stk >= STREAK_AT ? `Cleared ${row.stk} straight` : undefined}>{row.stk >= STREAK_AT ? '🔥 ' : ''}{row.stk > 0 ? `W${row.stk}` : row.stk < 0 ? `L${-row.stk}` : '—'}</td>
+                <StreakTd row={row} look="dense" accent={C.orange} C={C} ink={{ pos: verdictInk(true).color, neg: verdictInk(false).color }} />
                     {/* PRICE and TRUE are BOTH American odds, on purpose.
                         The first draft put a percentage-point edge in the
                         second column and fell back to a fair PRICE when there
@@ -538,14 +509,9 @@ export default function ThresholdGrid({ playerId, odds }) {
                       textAlign: 'center', fontSize: 10.5, fontWeight: 700, padding: '3px 4px',
                       color: C.text2, whiteSpace: 'nowrap',
                     }}>{row.fair ? fmtOdds(row.fair) : '—'}</td>
-                    </>}
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-        </ScrollHint>
+              </>}
+            </>
+          )} />
         {/* THE LEGEND, ONE LINE (2026-10-08). The key, the PRICE / TRUE words and the streak rules are behind the (?). */}
         <div style={{ margin: '5px 6px 0' }}>
           <Brief

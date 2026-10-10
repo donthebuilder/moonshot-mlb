@@ -3,11 +3,10 @@ import { useMemo, useState } from 'react'
 import { C, NUM_FONT, BARS } from '../../lib/nfl/theme'
 import HitRate from './HitRate'
 import ValueBars from '../ValueBars'
-import { alpha } from '../../lib/scales'
 // THE SHARED PLAYER MODEL's props heat (components/player/): a cell at 60%+ glows in TUDDY's accent, a run of 3+ wears a flame,
 // the wide grid says it scrolls, and the long caption folds behind a (?).
-import { heatCell, STREAK_AT, GLOW_AT } from '../player/heat'
-import ScrollHint from '../player/ScrollHint'
+import { STREAK_AT, GLOW_AT } from '../player/heat'
+import PropsMatrix from '../player/PropsMatrix'
 import Brief from '../player/Brief'
 
 // 🎯 THE PROPS GRID, FOOTBALL EDITION.
@@ -47,7 +46,6 @@ const WINDOWS = [['L5', 5], ['L10', 10], ['L20', 20], ['All', 9999]]
 // four games is a flat grey slab that makes no claim. Every cell prints its sample, `4/5`, so the size of the sample is
 // never a colour.
 const THIN = 4
-const cellHeat = (c) => heatCell(c ? c.pct : null, c ? c.n : null, { accent: C.green, C, thin: THIN })
 // the look the bars wear (lib/nfl/theme BARS + the page's inks)
 const LOOK = { clear: BARS.clear, miss: BARS.miss, missInk: BARS.missInk, rule: BARS.rule, ink: C.text, ink2: C.text2, bg: C.bg }
 
@@ -122,11 +120,6 @@ export default function PropsGrid({ log, market: initialMarket, defaultBar, scor
     })
     : rows
 
-  const th = {
-    fontFamily: NUM_FONT, fontSize: 12, fontWeight: 800, letterSpacing: '.07em',
-    color: C.text2, padding: '0 4px 6px', textTransform: 'uppercase', cursor: 'pointer',
-    whiteSpace: 'nowrap', textAlign: 'center', userSelect: 'none',
-  }
 
   return (
     <div style={{ marginTop: 16 }}>
@@ -139,67 +132,11 @@ export default function PropsGrid({ log, market: initialMarket, defaultBar, scor
         </span>
       </div>
 
-      <ScrollHint hint="Swipe the grid for more">
-      <div className="dense-scroll rail" style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '2px 2px', fontFamily: NUM_FONT }}>
-          <thead>
-            <tr>
-              <th style={{ ...th, textAlign: 'left' }} onClick={() => setSort(null)}
-                title="Restore the natural market order">Market</th>
-              {WINDOWS.map(([w], wi) => (
-                <th key={w} style={{
-                  ...th,
-                  color: sort?.w === wi ? C.green : C.text2,
-                  borderBottom: sort?.w === wi ? `2px solid ${C.green}` : '2px solid transparent',
-                }}
-                  onClick={() => setSort(sort?.w === wi && sort.dir === 'desc' ? { w: wi, dir: 'asc' } : { w: wi, dir: 'desc' })}
-                  title="Click to rank the rows by this window; click again to flip">
-                  {w}{sort?.w === wi ? (sort.dir === 'desc' ? ' ↓' : ' ↑') : ''}
-                </th>
-              ))}
-              <th style={{ ...th, cursor: 'default' }} title="Current streak — consecutive newest games over (W) or under (L) this line">STK</th>
-            </tr>
-          </thead>
-          <tbody>
-            {shown.map((r) => {
-              const on = r.key === active[0]
-              return (
-                <tr key={r.key} style={{ cursor: 'pointer' }} onClick={() => setMkt(r.key)}>
-                  <td style={{
-                    fontSize: 15, fontWeight: on ? 900 : 700, whiteSpace: 'nowrap',
-                    color: on ? C.green : C.text, padding: '3px 6px',
-                    borderLeft: `3px solid ${on ? C.green : 'transparent'}`, borderRadius: 4,
-                  }}>
-                    {r.line + 0.5}+ {r.label}
-                  </td>
-                  {r.cells.map((c, ci) => (
-                    <td key={ci}
-                      title={c ? `${c.ok} of ${c.n} over ${r.line}${c.n < THIN ? ' (too few games to lean on)' : ''}` : 'no games in this window'}
-                      style={{
-                        textAlign: 'center', padding: '5px 4px', borderRadius: 8, ...cellHeat(c), lineHeight: 1.05,
-                        outline: on ? `1px solid ${alpha(C.green, 0.4)}` : 'none',
-                      }}>
-                      {c ? (
-                        <>
-                          <div style={{ fontSize: 17, fontWeight: 900 }}>{c.pct.toFixed(0)}</div>
-                          <div style={{ fontSize: 11, fontWeight: 700, color: C.text2, marginTop: 2 }}>{c.ok}/{c.n}</div>
-                        </>
-                      ) : '—'}
-                    </td>
-                  ))}
-                  <td style={{
-                    textAlign: 'center', fontSize: 13, fontWeight: 900, padding: '3px 4px',
-                    color: r.stk > 0 ? C.green : C.text2,
-                  }} title={r.stk >= STREAK_AT ? `Over the line ${r.stk} straight` : undefined}>
-                    {r.stk >= STREAK_AT ? '🔥 ' : ''}{r.stk > 0 ? `W${r.stk}` : r.stk < 0 ? `L${-r.stk}` : '—'}
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
-      </ScrollHint>
+      <PropsMatrix rows={shown} windows={WINDOWS.map(([w]) => w)} C={C} NUM_FONT={NUM_FONT} accent={C.green} look="roomy" thin={THIN}
+        activeKey={active[0]} onPick={(r) => setMkt(r.key)} sort={sort} onUnsort={() => setSort(null)}
+        onSort={(wi) => setSort(sort?.w === wi && sort.dir === 'desc' ? { w: wi, dir: 'asc' } : { w: wi, dir: 'desc' })}
+        labelText={(r) => `${r.line + 0.5}+ ${r.label}`} streakWord="Over the line" hint="Swipe the grid for more"
+        cellTitle={(c, r) => (c ? `${c.ok} of ${c.n} over ${r.line}${c.n < THIN ? ' (too few games to lean on)' : ''}` : 'no games in this window')} />
 
       {/* the active market's line chips re-grade the matrix row AND the chart: 44px pills */}
       {active[3].length > 1 && (

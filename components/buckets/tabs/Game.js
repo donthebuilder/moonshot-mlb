@@ -62,7 +62,7 @@ export default function Game({ id, onBack, backLabel = 'Live', onOpenPlayer, onO
       {(data.shots || []).length > 0 ? (
         <section>
           <Kicker>EVERY SHOT · {data.shots.length} FIELD-GOAL ATTEMPTS</Kicker>
-          <ShotChart shots={data.shots} names={names} teams={teams} title={`Shot chart, ${away.abbrev} at ${home.abbrev}`} />
+          <ShotChart urlKey="shots" shots={data.shots} names={names} teams={teams} title={`Shot chart, ${away.abbrev} at ${home.abbrev}`} />
           <div style={{ marginTop: 10 }}><NavBtn onClick={() => setThree((v) => !v)} strong={three}>{three ? 'Close the 3D court' : '🏀 3D court'}</NavBtn></div>
           {three ? <div style={{ marginTop: 8 }}><CourtArena shots={data.shots} names={names} /></div> : null}
         </section>

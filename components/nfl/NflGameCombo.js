@@ -1,7 +1,8 @@
 'use client'
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { C, NUM_FONT, TYPE } from '../../lib/nfl/theme'
-import ComboFilterBar from '../ComboFilterBar'
+import { FiltersSheet } from '../player'
+import useHashFilters from '../../lib/useHashFilters'
 import NflTable from './NflTable'
 import { SportTheme } from '../SportTheme'
 import { comboFields, filterGames, aggregateNflGames, stadiumRecord, hasContext, VERY_THIN_G } from '../../lib/nfl/gameSplits'
@@ -31,8 +32,10 @@ const COLS = [
 const note = { fontSize: TYPE.body, color: C.text3, padding: '4px 0', lineHeight: 1.5 }
 
 export default function NflGameCombo({ log, venue = null }) {
-  const [sel, setSel] = useState({})
   const fields = useMemo(() => comboFields(log), [log])
+  // ONE FILTERS BUTTON (2026-10-09): the shared sheet (components/player/FiltersSheet), its picks kept in the address
+  // as cf.<key>= (lib/useHashFilters) so a refresh or a shared link reopens the same combination.
+  const [sel, setSelKey, resetSel] = useHashFilters('cf', Object.fromEntries(fields.map((f) => [f.key, ''])))
   const matches = useMemo(() => filterGames(log, sel), [log, sel])
   const line = useMemo(() => aggregateNflGames(matches), [matches])
   const stadium = useMemo(() => stadiumRecord(log, venue), [log, venue])
@@ -47,8 +50,11 @@ export default function NflGameCombo({ log, venue = null }) {
       <div style={{ fontSize: TYPE.label, fontWeight: 900, color: C.text3, letterSpacing: '.1em', margin: '16px 0 7px' }}>
         COMBINE FILTERS
       </div>
-      <ComboFilterBar fields={fields} values={sel} roomy anyOn={anyOn}
-        onChange={(k, v) => setSel((s) => ({ ...s, [k]: v }))} onClear={() => setSel({})} />
+      <FiltersSheet style={{ marginBottom: 8 }} onReset={resetSel}
+        groups={fields.map((f) => ({
+          key: f.key, label: f.placeholder.replace(/^Any /, '').replace(/^./, (c) => c.toUpperCase()), value: sel[f.key] || '', defaultValue: '', onChange: (v) => setSelKey(f.key, v),
+          options: [{ value: '', label: 'Any' }, ...f.options.map((o) => ({ value: String(o.v), label: o.label }))],
+        }))} />
       {!anyOn ? (
         <div style={note}>Pick at least one filter to see a combined line over his logged games — mix as many as you want.</div>
       ) : line.g === 0 ? (

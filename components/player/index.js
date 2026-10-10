@@ -25,7 +25,7 @@
 //   StatRow            { stats: [{ id, label, text, title, rank?: { rank, of, side: 'top'|'bottom' } }] }
 //                      ranks come from rankInPool (lib/mlb/slateRank.js): only top/bottom 10% of a pool of 30+,
 //                      from rows the site already holds. Never invented; omitted when the pool is thin.
-//   FiltersSheet       { groups: [{ key, label, value, defaultValue, onChange, options: [{ value, label, title? }], hint? }],
+//   FiltersSheet       { groups: [{ key, label, value, defaultValue, onChange, options: [{ value, label, title?, n? (a count shown beside the label in the sheet) }], hint? }],
 //                        note?: string }   the active non-default options show as small removable chips.
 //   heatCell / flame   heatCell(pct, n, { accent, C }) -> style; STREAK_AT = 3, GLOW_AT = 60.
 //   Brief              { text, help, label }  one short line + a tap-friendly (?) holding the rest.
@@ -35,4 +35,5 @@ export { default as StatRow } from './StatRow'
 export { default as FiltersSheet } from './FiltersSheet'
 export { default as Brief } from './Brief'
 export { default as ScrollHint } from './ScrollHint'
+export { default as PropsMatrix, HeatCells, StreakTd, MatrixEmpty } from './PropsMatrix'
 export { heatCell, GLOW_AT, STREAK_AT } from './heat'

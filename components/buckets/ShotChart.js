@@ -11,6 +11,8 @@
 import { useMemo, useState } from 'react'
 import { ChipGroup, ChartCard, ChartLegend, StatStrip } from '../charts'
 import { C, NUM_FONT } from '../../lib/theme'
+import FiltersSheet from '../player/FiltersSheet'
+import useHashFilters from '../../lib/useHashFilters'
 
 const ACCENT = C.purple
 // drawn with the baseline at 0: a feed y + FEED_TO_COURT. The rim: feed (25, 1) = court (25, 5.25)
@@ -66,13 +68,12 @@ function Court() {
 // pass ['result', 'type']: a filter on a field the rows don't carry would empty the chart.
 const ALL_FILTERS = ['result', 'type', 'quarter', 'team', 'player']
 /** shots: reduceShots rows; names: { [playerId]: name }; teams: { [teamId]: abbrev } */
-export default function ShotChart({ shots = [], names = {}, teams = {}, title = '', filters = ALL_FILTERS, source = null }) {
+export default function ShotChart({ shots = [], names = {}, teams = {}, title = '', filters = ALL_FILTERS, source = null, urlKey = null }) {
   const has = new Set(filters)
-  const [res, setRes] = useState('all')
-  const [kind, setKind] = useState('all')
-  const [q, setQ] = useState('all')
-  const [team, setTeam] = useState('all')
-  const [who, setWho] = useState('all')
+  // THE FILTERS ARE ONE SHEET (2026-10-09, components/player/FiltersSheet); with a urlKey they ride the address as
+  // <urlKey>.res= / .kind= / .q= / .team= / .who= (lib/useHashFilters) so a shared link reopens the same chart.
+  const [fs, setF, resetF] = useHashFilters(urlKey, { res: 'all', kind: 'all', q: 'all', team: 'all', who: 'all' })
+  const { res, kind, q, team, who } = fs
   const [picked, setPicked] = useState(null)
   // HEAT for a season's worth (a club's is 7,000+ attempts: as dots it is one
   // purple blot). 2 ft bins, shaded by attempts; tap a bin for its makes / attempts.
@@ -82,11 +83,11 @@ export default function ShotChart({ shots = [], names = {}, teams = {}, title = 
   const shown = useMemo(() => shots.filter((s) => (res === 'all' || (res === 'made') === s.made)
     && (kind === 'all' || (kind === '3' ? s.three : !s.three))
     && (q === 'all' || (q === 'ot' ? s.period > 4 : String(s.period) === q))
-    && (team === 'all' || s.team_id === team)
-    && (who === 'all' || s.player_id === who)), [shots, res, kind, q, team, who])
+    && (team === 'all' || String(s.team_id) === String(team))
+    && (who === 'all' || String(s.player_id) === String(who))), [shots, res, kind, q, team, who])
   const players = useMemo(() => {
     const n = new Map()
-    for (const s of shots.filter((x) => team === 'all' || x.team_id === team)) n.set(s.player_id, (n.get(s.player_id) || 0) + 1)
+    for (const s of shots.filter((x) => team === 'all' || String(x.team_id) === String(team))) n.set(s.player_id, (n.get(s.player_id) || 0) + 1)
     return [...n.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12)
   }, [shots, team])
   const made = shown.filter((s) => s.made).length, threes = shown.filter((s) => s.three), pts = shown.filter((s) => s.made).reduce((t, s) => t + (s.three ? 3 : 2), 0)
@@ -96,21 +97,19 @@ export default function ShotChart({ shots = [], names = {}, teams = {}, title = 
   const props = { theme: C, numFont: NUM_FONT }
   return (
     <section aria-label={title || 'Shot chart'} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
         {shots.length > HEAT_AT && <ChipGroup {...props} first label="View" value={view} onChange={(k) => { setView(k); setBin(null); setPicked(null) }} color={ACCENT} options={[{ k: 'heat', label: 'Heat' }, { k: 'dots', label: 'Dots' }]} />}
-        <ChipGroup {...props} first={shots.length <= HEAT_AT} label="Result" value={res} onChange={setRes} color={ACCENT} options={[{ k: 'all', label: 'All' }, { k: 'made', label: 'Made' }, { k: 'missed', label: 'Missed' }]} />
-        <ChipGroup {...props} label="Type" value={kind} onChange={setKind} color={ACCENT} options={[{ k: 'all', label: 'All' }, { k: '2', label: '2s' }, { k: '3', label: '3s' }]} />
-        {has.has('quarter') && <ChipGroup {...props} label="Quarter" value={q} onChange={setQ} color={ACCENT} options={[{ k: 'all', label: 'All' }, { k: '1', label: 'Q1' }, { k: '2', label: 'Q2' }, { k: '3', label: 'Q3' }, { k: '4', label: 'Q4' }, { k: 'ot', label: 'OT' }]} />}
-        {has.has('team') && <ChipGroup {...props} label="Team" value={team} onChange={(k) => { setTeam(k); setWho('all') }} color={ACCENT} options={[{ k: 'all', label: 'Both' }, ...teamIds.map((t) => ({ k: t, label: teams[t] || t }))]} />}
+        <FiltersSheet onReset={() => { resetF(); setPicked(null) }} groups={[
+          { key: 'res', label: 'Result', value: res, defaultValue: 'all', onChange: (k) => { setF('res', k); setPicked(null) }, options: [{ value: 'all', label: 'All' }, { value: 'made', label: 'Made' }, { value: 'missed', label: 'Missed' }] },
+          { key: 'kind', label: 'Type', value: kind, defaultValue: 'all', onChange: (k) => { setF('kind', k); setPicked(null) }, options: [{ value: 'all', label: 'All' }, { value: '2', label: '2s' }, { value: '3', label: '3s' }] },
+          ...(has.has('quarter') ? [{ key: 'q', label: 'Quarter', value: q, defaultValue: 'all', onChange: (k) => { setF('q', k); setPicked(null) },
+            options: [{ value: 'all', label: 'All' }, { value: '1', label: 'Q1' }, { value: '2', label: 'Q2' }, { value: '3', label: 'Q3' }, { value: '4', label: 'Q4' }, { value: 'ot', label: 'OT' }] }] : []),
+          ...(has.has('team') ? [{ key: 'team', label: 'Team', value: team, defaultValue: 'all', onChange: (k) => { setF('team', k); setF('who', 'all'); setPicked(null) },
+            options: [{ value: 'all', label: 'Both' }, ...teamIds.map((t) => ({ value: String(t), label: teams[t] || String(t) }))] }] : []),
+          ...(has.has('player') ? [{ key: 'who', label: 'Player', value: who, defaultValue: 'all', onChange: (k) => { setF('who', k); setPicked(null) },
+            options: [{ value: 'all', label: 'Everyone' }, ...players.map(([id, n]) => ({ value: String(id), label: names[id] || String(id), n }))] }] : []),
+        ]} />
       </div>
-      {/* a dropdown, not 12 stacked chips (a phone's scroll) */}
-      {has.has('player') && <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 11, fontWeight: 800, letterSpacing: '.08em', color: C.text3, fontFamily: NUM_FONT }}>
-        PLAYER
-        <select value={who} onChange={(e) => setWho(e.target.value)} style={{ minHeight: 44, flex: '1 1 auto', maxWidth: 320, borderRadius: 10, border: `1px solid ${who === 'all' ? C.border2 : ACCENT}`, background: C.bg2, color: C.text, fontSize: 14, padding: '0 10px' }}>
-          <option value="all">Everyone</option>
-          {players.map(([id, n]) => <option key={id} value={id}>{names[id] || id} · {n} {n === 1 ? 'shot' : 'shots'}</option>)}
-        </select>
-      </label>}
       <StatStrip {...props} label="The shown shots, in numbers" stats={[
         { k: 'FGA', v: shown.length }, { k: 'FG%', v: pct(made, shown.length), sub: `${made}/${shown.length}` },
         { k: '3PA', v: threes.length }, { k: '3P%', v: pct(threes.filter((s) => s.made).length, threes.length) }, { k: 'PTS', v: pts, sub: 'from the field' },

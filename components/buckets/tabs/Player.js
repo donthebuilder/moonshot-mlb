@@ -34,6 +34,7 @@ import BucketsTable from '../BucketsTable'
 import PlayerSplits from '../PlayerSplits'
 import ShotChart from '../ShotChart'
 import PlayerBars from '../PlayerBars'
+import BucketsPropsMatrix from '../PropsMatrix'
 import PlayerDdTd from '../PlayerDdTd'
 import { EmptyState, DelayedBanner, Loading, Kicker, BackBtn, PlayerFace, SeasonTypeChip, fmtDay, fmtTip, RimDot } from '../ui'
 
@@ -270,6 +271,7 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
                 <ScrollHint><BucketsTable rows={last5} columns={logCols} onRowClick={(r) => onOpenGame?.((r?._raw ?? r).id)} heatMode="standouts" maxHeight={9999} maxRows={5} caption="His last five games, newest first. Each row opens the game." /></ScrollHint>
               </section>
             )}
+            <BucketsPropsMatrix log={data.log || []} logSeason={data.logSeason} />
             <PlayerBars log={data.log || []} logSeason={data.logSeason} nextGame={data.nextGame} onOpenTeam={onOpenTeam} />
             <div style={{ color: C.text3, fontSize: 12, lineHeight: 1.5 }}>{bio}</div>
             <StarMemory sport="nba" id={pid} />
@@ -303,7 +305,7 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
           shots.length > 0
             ? <section>
                 <Kicker>EVERY SHOT ON FILE · {shots.length} ATTEMPTS{data.shotsFrom ? ` SINCE ${fmtDay(data.shotsFrom).toUpperCase()}` : ''}</Kicker>
-                <ShotChart shots={shots} filters={['result', 'type']} title={`${card.name}, every field-goal attempt on file`}
+                <ShotChart urlKey="shots" shots={shots} filters={["result", "type"]} title={`${card.name}, every field-goal attempt on file`}
                   source="Every field-goal attempt on file for him, from ESPN play-by-play; free throws and end-of-quarter heaves left out." />
               </section>
             : <EmptyState title="NO SHOTS ON FILE" note="We record shots from the play-by-play once games are played; none are on file for him yet." />

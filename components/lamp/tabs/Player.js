@@ -329,7 +329,7 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
       {shown === 'shotmap' && !goalie && (
         <>
           <SeasonToggle value={season} onChange={setSeason} p={p} />
-          <ShotPanel compact sel={{ player: p.id, name: p.name }} who="He" height={480} season={season} venue={arenaOf(spot?.g?.game?.home?.abbrev || p.team)?.name}
+          <ShotPanel compact urlKey="shots" sel={{ player: p.id, name: p.name }} who="He" height={480} season={season} venue={arenaOf(spot?.g?.game?.home?.abbrev || p.team)?.name}
             opp={spot?.g?.game ? (spot.g.game.home?.abbrev === p.team ? spot.g.game.away?.abbrev : spot.g.game.home?.abbrev) || null : null} />
         </>
       )}

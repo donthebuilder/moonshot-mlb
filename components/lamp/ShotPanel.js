@@ -15,7 +15,9 @@ import { hardestIndex, measuredMph } from '../../lib/nhl/shotPath'
 import { DelayedBanner, Loading, Pills } from './ui'
 import { FactLines } from '../matchup/MatchupParts'
 import { alpha } from '../../lib/scales'
-import { ChipGroup, ChartCard, ChartLegend, ChartEmpty, StatStrip, viewBtn, chipBtn } from '../charts'
+import FiltersSheet from '../player/FiltersSheet'
+import useHashFilters from '../../lib/useHashFilters'
+import { ChartCard, ChartLegend, ChartEmpty, StatStrip, viewBtn } from '../charts'
 
 // 🏒 WHERE HE SHOOTS FROM (lamp research step 3). The rink plus the numbers
 // it is drawn from, for one player or one club: season or last 10 games,
@@ -91,21 +93,25 @@ function restrictTo(m, dates, spec) {
 
 // season: 'this' | 'last' | 'both' asks the shot map for that season (null = the page's own default);
 // onlyDates: a Set of game days the drawn shots are limited to; startWin / startView: what it opens on.
-export default function ShotPanel({ sel, who = 'He', height = 300, venue = null, opp = null, season = null, onlyDates = null, startWin = 'last10', startView = 'zones', compact = false }) {
+export default function ShotPanel({ sel, who = 'He', height = 300, venue = null, opp = null, season = null, onlyDates = null, startWin = 'last10', startView = 'zones', compact = false, urlKey = null }) {
   const { data, error, loading } = useLampShots(sel, season)
-  const [win, setWin] = useState(onlyDates ? 'all' : startWin)
-  const [res, setRes] = useState('ALL')
-  const [type, setType] = useState('ALL')
-  const [str, setStr] = useState('ALL')
-  const [per, setPer] = useState('ALL')
+  // THE FILTERS ARE IN THE ADDRESS when the panel is given a urlKey (the player page's own map): shots.res= / .type= / .str= / .per= / .hard= / .win=
+  // (lib/useHashFilters), so a shared link or a refresh reopens the same map. Without a urlKey it is plain local state.
+  const [fs, setF] = useHashFilters(urlKey, { win: onlyDates ? 'all' : startWin, res: 'ALL', type: 'ALL', str: 'ALL', per: 'ALL', hard: '' })
+  const { win, res, type, str, per } = fs
+  const hardOnly = fs.hard === '1'
+  const setWin = (v) => setF('win', v)
+  const setRes = (v) => setF('res', v)
+  const setType = (v) => setF('type', v)
+  const setStr = (v) => setF('str', v)
+  const setPer = (v) => setF('per', v)
+  const setHardOnly = (v) => setF('hard', (typeof v === 'function' ? v(hardOnly) : v) ? '1' : '')
   const [picked, setPicked] = useState(null)
   const [help, setHelp] = useState(false)
   const [view, setView] = useState(startView)
   useEffect(() => { setView(startView) }, [startView])   // the VS control flips this panel in place, never remounts it   // DOTS / HEAT, held here so the legend reads what is drawn
   const [arena, setArena] = useState(false)  // 2D (false) or 3D (true), one chart in one place
   const [gl, setGl] = useState(false)
-  const [more, setMore] = useState(false)
-  const [hardOnly, setHardOnly] = useState(false)   // ⚡ HARDEST 10 (BATCH-3D-V2 1g)
   useEffect(() => { setGl(webglOk()) }, [])
   const m0 = data?.[onlyDates ? 'all' : win] || data?.last10 || data?.all   // an older cached answer has no last5
   const m = useMemo(() => (m0 && onlyDates ? restrictTo(m0, onlyDates, data.gridSpec) : m0), [m0, onlyDates, data?.gridSpec])
@@ -151,9 +157,8 @@ export default function ShotPanel({ sel, who = 'He', height = 300, venue = null,
     return { key: z.key, label: z.label, g, n: inZ.length, total: shots.length, pct: shots.length ? (100 * inZ.length) / shots.length : 0,
       text: `${inZ.length}${g ? ` · ${g}G` : ''}`, def: z.def }
   })
-  const moreOn = type !== 'ALL' || str !== 'ALL' || per !== 'ALL' || hardOnly
   const filtered = res !== 'ALL' || type !== 'ALL' || str !== 'ALL' || per !== 'ALL' || hardOnly
-  const clearAll = () => { setRes('ALL'); setType('ALL'); setStr('ALL'); setPer('ALL'); setHardOnly(false); setPicked(null) }
+  const clearAll = () => { setF('res', 'ALL'); setF('type', 'ALL'); setF('str', 'ALL'); setF('per', 'ALL'); setF('hard', ''); setPicked(null) }
   // THE NUMBERS ON SCREEN (1c): one line off the filtered list, the same in the
   // 3D dock; EDGE's average / top when it has him
   const stats = [
@@ -388,31 +393,18 @@ export default function ShotPanel({ sel, who = 'He', height = 300, venue = null,
               <span style={{ color: C.text2, font: `800 11px/1.3 ${NUM_FONT}`, letterSpacing: '.06em' }}>{data.seasonLabel} REGULAR SEASON{data.stale && !season ? ' · LAST SEASON' : ''} · {m.games} GAMES{data.stale && data.currentGames > 0 ? ` · ${data.currentLabel}: ${data.currentGames} OF ${data.minGames} IN` : ''}</span>
             </div>
             {recent.length > 0 && recent[0].length > 3 && (
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-                <ChipGroup {...chipProps} first label="Show" chipStyle={TALL} value={res} onChange={(k) => { setRes(k); setPicked(null) }} color={C.ice}
-                  options={RES.map(([k, label]) => ({ k, label, n: countIn('res', (sh) => sh[2] === k), title: k === 'ALL' ? 'Every drawn attempt' : `Only ${label.toLowerCase()} attempts` }))} />
-                <button type="button" onClick={() => setMore((v) => !v)} aria-expanded={more}
-                  style={{ ...TALL, ...chipBtn(more || moreOn, C.ice, C, NUM_FONT), ...TALL }}>More {more ? '▴' : '▾'}{moreOn ? ' •' : ''}</button>
-                {filtered && <button type="button" onClick={clearAll} style={{ ...TALL, background: 'transparent', border: 'none', color: C.text2, cursor: 'pointer', textDecoration: 'underline' }}>clear</button>}
-              </div>
-            )}
-            {more && recent.length > 0 && recent[0].length > 3 && (
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-                <ChipGroup {...chipProps} first label="Type" chipStyle={TALL} value={type} onChange={(k) => { setType(k); setPicked(null) }} color={C.ice}
-                  options={[['ALL', 'All'], ...types.map((t) => [t, t])].map(([k, label]) => ({ k, label, n: countIn('type', (sh) => sh[3] === k), title: k === 'ALL' ? 'Every shot type' : `Only ${label} shots (a block has no type)` }))} />
-                <ChipGroup {...chipProps} label="Strength" chipStyle={TALL} value={str} onChange={(k) => { setStr(k); setPicked(null) }} color={C.teal || C.ice}
-                  options={STR.map(([k, label]) => ({ k, label, n: countIn('str', (sh) => sh[4] === k), title: k === 'ALL' ? 'Every strength' : `Only ${label === 'PP' ? 'power-play' : label === 'SH' ? 'shorthanded' : 'even-strength'} attempts` }))} />
-                <ChipGroup {...chipProps} label="Period" chipStyle={TALL} value={per} onChange={(k) => { setPer(k); setPicked(null) }} color={C.cream || C.ice}
-                  options={PER.map(([k, label]) => ({ k, label, n: countIn('per', (sh) => perOf(sh) === k), title: k === 'ALL' ? 'Every period' : `Only the ${label} ${k === 'OT' ? '(overtime)' : 'period'}` }))} />
-                {hardN > 0 && (
-                  <button type="button" onClick={() => { setHardOnly((v) => !v); setPicked(null) }} aria-pressed={hardOnly}
-                    title={`His ten hardest shots this season (measured) -- ${hardN} of them are on this map`}
-                    style={{ minHeight: 44, padding: '0 12px', borderRadius: 999, cursor: 'pointer', font: `800 12px/1 ${NUM_FONT}`,
-                      border: `1px solid ${hardOnly ? C.ice : C.border2}`, background: hardOnly ? `${C.ice}1f` : 'transparent', color: hardOnly ? C.ice : C.text2 }}>
-                    ⚡ HARDEST 10 <span style={{ color: C.text2 }}>{hardN}</span>
-                  </button>
-                )}
-              </div>
+              <FiltersSheet onReset={() => { clearAll() }} groups={[
+                { key: 'res', label: 'Show', value: res, defaultValue: 'ALL', onChange: (k) => { setRes(k); setPicked(null) },
+                  options: RES.map(([k, label]) => ({ value: k, label, n: k === 'ALL' ? null : countIn('res', (sh) => sh[2] === k), title: k === 'ALL' ? 'Every drawn attempt' : `Only ${label.toLowerCase()} attempts` })) },
+                { key: 'type', label: 'Type', value: type, defaultValue: 'ALL', onChange: (k) => { setType(k); setPicked(null) },
+                  options: [['ALL', 'All'], ...types.map((t) => [t, t])].map(([k, label]) => ({ value: k, label, n: k === 'ALL' ? null : countIn('type', (sh) => sh[3] === k), title: k === 'ALL' ? 'Every shot type' : `Only ${label} shots (a block has no type)` })) },
+                { key: 'str', label: 'Strength', value: str, defaultValue: 'ALL', onChange: (k) => { setStr(k); setPicked(null) },
+                  options: STR.map(([k, label]) => ({ value: k, label, n: k === 'ALL' ? null : countIn('str', (sh) => sh[4] === k), title: k === 'ALL' ? 'Every strength' : `Only ${label === 'PP' ? 'power-play' : label === 'SH' ? 'shorthanded' : 'even-strength'} attempts` })) },
+                { key: 'per', label: 'Period', value: per, defaultValue: 'ALL', onChange: (k) => { setPer(k); setPicked(null) },
+                  options: PER.map(([k, label]) => ({ value: k, label, n: k === 'ALL' ? null : countIn('per', (sh) => perOf(sh) === k), title: k === 'ALL' ? 'Every period' : `Only the ${label} ${k === 'OT' ? '(overtime)' : 'period'}` })) },
+                ...(hardN > 0 ? [{ key: 'hard', label: 'Shot speed', value: hardOnly ? '1' : '', defaultValue: '', onChange: (k) => { setHardOnly(Boolean(k)); setPicked(null) },
+                  options: [{ value: '', label: 'All' }, { value: '1', label: '⚡ Hardest 10', n: hardN, title: `His ten hardest shots this season (measured) -- ${hardN} of them are on this map` }] }] : []),
+              ]} />
             )}
           </div>
           <StatStrip stats={stats} theme={C} numFont={NUM_FONT} label="The shown shots, in numbers" />

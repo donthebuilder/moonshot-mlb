@@ -5,7 +5,7 @@ import { alpha } from '../../lib/scales'
 
 // ONE 'Filters' BUTTON (2026-10-08). The five rows of big situation pills live in a sheet that scrolls on a
 // phone (44px targets, safe-area padding); what is active shows as small removable chips beside the button.
-// groups: [{ key, label, value, defaultValue, onChange(v), options: [{ value, label, title? }], hint? }]
+// groups: [{ key, label, value, defaultValue, onChange(v), options: [{ value, label, title?, n? }], hint? }]
 export default function FiltersSheet({ groups, note = null, onReset = null, summary = null, style }) {
   const { C, NUM_FONT, accent } = useSportTheme()
   const [open, setOpen] = useState(false)
@@ -52,7 +52,7 @@ export default function FiltersSheet({ groups, note = null, onReset = null, summ
                 <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.07em', textTransform: 'uppercase', color: C.text2, fontFamily: NUM_FONT, marginBottom: 4 }}>{g.label}</div>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                   {g.options.map((o) => (
-                    <button key={String(o.value)} type="button" title={o.title} aria-pressed={g.value === o.value} onClick={() => g.onChange(o.value)} style={pill(g.value === o.value)}>{o.label}</button>
+                    <button key={String(o.value)} type="button" title={o.title} aria-pressed={g.value === o.value} onClick={() => g.onChange(o.value)} style={pill(g.value === o.value)}>{o.label}{o.n != null ? <span style={{ opacity: 0.7, marginLeft: 6, fontWeight: 600 }}>{o.n}</span> : null}</button>
                   ))}
                 </div>
                 {g.hint ? <div style={{ fontSize: 12, color: C.text3, marginTop: 4, lineHeight: 1.4 }}>{g.hint}</div> : null}
