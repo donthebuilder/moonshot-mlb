@@ -7,7 +7,7 @@
 import { adminClient } from '../../../lib/supabase/admin'
 import { isSport } from '../../../lib/routes'
 import { bucketsGuard, bucketsPublic } from '../../../lib/nba/gate'
-import { TOTALS_UNITS, recordOf, totalsCallStatus } from '../../../lib/totals/core'
+import { TOTALS_UNITS, recordOf, recordBySource, totalsCallStatus } from '../../../lib/totals/core'
 import { latestKey, slateRows, recordRows } from '../../../lib/totals/store'
 
 export const dynamic = 'force-dynamic'
@@ -24,7 +24,7 @@ export async function GET(request) {
   const db = adminClient({ anon: true })
   const cache = priv ? 'private, max-age=60' : 'public, s-maxage=60, stale-while-revalidate=120'
   const u = TOTALS_UNITS[sport]
-  const empty = { sport, unit: u.unit, short: u.short, slate: u.slate, key: null, rows: [], record: null, graded: [] }
+  const empty = { sport, unit: u.unit, short: u.short, slate: u.slate, key: null, rows: [], record: null, record_by_source: null, graded: [] }
   if (!db) return Response.json(empty, { headers: { 'Cache-Control': 'no-store' } })
   try {
     const want = q.get('key')
@@ -34,6 +34,7 @@ export async function GET(request) {
     return Response.json({
       ...empty, key, rows: rows.map(shape),
       record: recordOf(history),
+      record_by_source: recordBySource(history),   // CALLED vs the book total / vs our own projection, never pooled
       graded: history.filter((r) => r.result != null && totalsCallStatus(r) === 'called').slice(0, 30).map(shape),
     }, { headers: { 'Cache-Control': cache } })
   } catch (e) {

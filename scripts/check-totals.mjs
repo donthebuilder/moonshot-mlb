@@ -5,9 +5,10 @@
 // the status words, the post (no link, no player, fits), the post kind's tag, the migration's guards.
 import fs from 'node:fs'
 import assert from 'node:assert/strict'
-import { rankField, lockRows, lockWindowOpen, gradeRow, tally, recordOf, totalsPostText, mayLockRow, TOTALS_VERSION, TOTALS_SPORTS, TOTALS_UNITS, LOCK_LEAD_MIN } from '../lib/totals/core.js'
+import { lineFor, recordBySource, BOOK_LINE_SPORTS, rankField, lockRows, lockWindowOpen, gradeRow, tally, recordOf, totalsPostText, mayLockRow, TOTALS_VERSION, TOTALS_SPORTS, TOTALS_UNITS, LOCK_LEAD_MIN } from '../lib/totals/core.js'
 import { totalsCallStatus, TOTALS_CALLS } from '../lib/callStatus.js'
 import { lockSlate, gradeRows } from '../lib/totals/store.js'
+import { gameTotalRow, bookTotalsFor, bookTeamKey } from '../lib/odds/gameTotal.js'
 import { KIND_TAGS, tagOf, untagged, kindInfo, mayPostNow } from '../lib/dash/xSchedule.js'
 import { sportOfKind, tierOf } from '../lib/dash/xPolicy.js'
 
@@ -97,14 +98,15 @@ await t('status words: CALLED = the stored call; ON THE BOARD = the top third; t
 })
 
 // ── a fake table that holds the migration's rules, so "no rewrite" is tested on the real store functions ──
-function fakeDb({ clock }) {
+function fakeDb({ clock, books = null }) {
   const rows = []
   const key = (r) => `${r.sport}|${r.game_id}|${r.model_version}`
   const chain = (list, tail) => ({
     _l: list,
+    in(k, v) { this._l = this._l.filter((r) => v.includes(r[k])); return this },
     eq(k, v) { this._l = this._l.filter((r) => r[k] === v); return this },
     gte(k, v) { this._l = this._l.filter((r) => r[k] >= v); return this },
-    lt(k, v) { this._l = this._l.filter((r) => r[k] < v); return this },
+    lt(k, v) { this._l = this._l.filter((r) => (typeof v === 'string' && /^\d{4}-/.test(v) ? Date.parse(r[k]) < Date.parse(v) : r[k] < v)); return this },
     is(k, v) { this._l = this._l.filter((r) => (v === null ? r[k] == null : r[k] === v)); return this },
     match(o) { this._l = this._l.filter((r) => Object.entries(o).every(([k, v]) => r[k] === v)); return this },
     order() { return this }, limit() { return this },
@@ -113,7 +115,8 @@ function fakeDb({ clock }) {
   })
   return {
     rows,
-    from() {
+    from(table) {
+      if (table === 'odds_game_totals') return { select: () => chain(books ? books.slice() : []) }
       return {
         select: () => chain(rows.slice()),
         upsert(batch, opts) {
@@ -216,6 +219,136 @@ await t('the migration: the guards, the four kinds, no `set role`', () => {
   assert.ok(/primary key \(sport, game_id, model_version\)/.test(sql), 'one row per game x model_version')
   assert.ok(!/set\s+role/i.test(sql.replace(/--.*$/gm, '')), 'no set role')
   assert.ok(/enable row level security/.test(sql))
+})
+
+// ── BOOK LINES (NHL goals / NBA points only). All TEST data. ──
+const evOf = (league) => ({
+  eventID: 'EV1', leagueID: league, status: { startsAt: '2026-10-10T23:00:00.000Z' },
+  teams: { away: { names: { short: 'LA' } }, home: { names: { short: 'NJ' } } },
+  odds: {
+    'points-all-game-ou-over': { bookOverUnder: '6.5', bookOdds: '-110', fairOverUnder: '6.5', openBookOverUnder: '6', byBookmaker: { bookA: { odds: '-110', overUnder: '6.5', available: true }, bookB: { odds: '-115', overUnder: '7', available: false } } },
+    'points-all-game-ou-under': { bookOverUnder: '6.5', bookOdds: '-110', fairOverUnder: '6.5', openBookOverUnder: '6', byBookmaker: { bookA: { odds: '-110', overUnder: '6.5', available: true } } },
+  },
+})
+const TAKEN = new Date(NOW - 3 * H).toISOString()
+const bookRowFor = (g, line, extra = {}) => ({ sport: 'nhl', event_id: `E${g.game_id}`, starts_at: new Date(g.start_ms).toISOString(), snap: 'list', taken_at: TAKEN, away: g.away, home: g.home, line, books: 4, game_date: g.game_date, ...extra })
+
+await t('gameTotalRow: NHL and NBA only; a consensus nobody still offers, or a one-sided one, is no row', () => {
+  const r = gameTotalRow(evOf('NHL'), 'list', TAKEN)
+  assert.equal(r.sport, 'nhl'); assert.equal(r.line, 6.5); assert.equal(r.books, 1); assert.equal(r.over_odds, -110); assert.equal(r.open_line, 6)
+  assert.equal(gameTotalRow(evOf('NBA'), 'lock', TAKEN).sport, 'nba')
+  assert.equal(gameTotalRow(evOf('MLB'), 'list', TAKEN), null)      // runs are not home runs
+  assert.equal(gameTotalRow(evOf('NFL'), 'list', TAKEN), null)      // points are not touchdowns
+  const stale = evOf('NHL'); stale.odds['points-all-game-ou-over'].byBookmaker.bookA.available = false
+  assert.equal(gameTotalRow(stale, 'list', TAKEN), null)
+  const split = evOf('NHL'); split.odds['points-all-game-ou-under'].bookOverUnder = '7'
+  assert.equal(gameTotalRow(split, 'list', TAKEN), null)
+  const none = evOf('NHL'); delete none.odds['points-all-game-ou-under']
+  assert.equal(gameTotalRow(none, 'list', TAKEN), null)
+  assert.equal(gameTotalRow({ ...evOf('NHL'), odds: {} }, 'list', TAKEN), null)
+})
+
+await t('bookTotalsFor: SGO club shorts meet ours, the newest read before the lock and the start wins, a later or other-game read is ignored', () => {
+  assert.equal(bookTeamKey('nhl', 'LA'), 'LAK'); assert.equal(bookTeamKey('nhl', 'NJ'), 'NJD'); assert.equal(bookTeamKey('nba', 'GSW'), 'GS'); assert.equal(bookTeamKey('nba', 'NYK'), 'NY')
+  const g = { game_id: 'n1', away: 'LAK', home: 'NJD', start_ms: NOW + 2 * H, game_date: '2026-10-10' }
+  const sgo = { away: 'LA', home: 'NJ' }
+  const rows = [bookRowFor(g, 6, sgo), bookRowFor(g, 6.5, { ...sgo, snap: 'lock', taken_at: new Date(NOW - 1 * H).toISOString() }),
+    bookRowFor(g, 9, { ...sgo, taken_at: new Date(NOW + 1 * H).toISOString() }),     // read after the lock moment
+    bookRowFor(g, 8, { away: 'TB', home: 'NJ' })]                                      // another game
+  assert.equal(bookTotalsFor('nhl', [g], rows, NOW).get('n1').line, 6.5)
+  assert.equal(bookTotalsFor('nhl', [{ ...g, away: 'ZZZ' }], rows, NOW).size, 0)
+  assert.equal(bookTotalsFor('nhl', [{ ...g, start_ms: g.start_ms + 20 * H }], rows, NOW).size, 0)   // another day's game of the same pair
+  assert.equal(bookTotalsFor('nhl', [{ ...g, game_id: 'late' }], [bookRowFor(g, 6.5, { ...sgo, taken_at: new Date(g.start_ms).toISOString() })], NOW + 5 * H).size, 0)   // read at the start
+})
+
+await t('the lock with a book total: line = the book number, line_source book, projected_total beside it; selection is still the projection', () => {
+  const field = FIELD.map((g) => ({ ...g, book: g.game_id === 'g5' ? { line: 6.5, taken_at: TAKEN, books: 5, event_id: 'EV5' } : g.game_id === 'g2' ? { line: 7.5, taken_at: TAKEN, books: 2, event_id: 'EV2' } : undefined }))
+  const rows = lockRows({ sport: 'nhl', slate_key: 'k', games: field, now: NOW })
+  assert.deepEqual(rows.filter((r) => r.called).map((r) => r.game_id).sort(), ['g2', 'g3', 'g5'])    // the same three as without a book
+  const g5 = rows.find((r) => r.game_id === 'g5'); const g3 = rows.find((r) => r.game_id === 'g3')
+  assert.equal(g5.line_source, 'book'); assert.equal(g5.line, 6.5); assert.equal(g5.book_line, 6.5); assert.equal(g5.projected_total, 8.8); assert.equal(g5.book_books, 5); assert.equal(g5.book_event_id, 'EV5')
+  assert.ok(Date.parse(g5.book_taken_at) < Date.parse(g5.start_at), 'the book read came before the start')
+  // no real total for g3: its own number, never a guess
+  assert.equal(g3.line_source, 'projection'); assert.equal(g3.line, 7.9); assert.equal('book_line' in g3, false)
+})
+
+await t('MLB and NFL never take a book line, even if one is handed in; a bad or late book number is ignored', () => {
+  assert.deepEqual(BOOK_LINE_SPORTS, ['nhl', 'nba'])
+  const book = { line: 6.5, taken_at: TAKEN, books: 3, event_id: 'E' }
+  for (const sport of ['mlb', 'nfl']) assert.equal(lineFor(sport, { projected: 7.1, start_ms: NOW + H, book }).line_source, 'projection')
+  const g = { projected: 7.1, start_ms: NOW + H }
+  assert.equal(lineFor('nba', { ...g, book: { ...book, line: 0 } }).line_source, 'projection')
+  assert.equal(lineFor('nba', { ...g, book: { ...book, line: NaN } }).line_source, 'projection')
+  assert.equal(lineFor('nba', { ...g, book: { ...book, taken_at: new Date(NOW + 2 * H).toISOString() } }).line_source, 'projection')   // read after the start
+  assert.equal(lineFor('nba', { ...g, book }).line, 6.5)
+})
+
+await t('grading against a book line: over / under / push (a whole-number total pushes)', () => {
+  const half = { line: 6.5, line_source: 'book' }
+  assert.equal(gradeRow(half, 7).result, 'over'); assert.equal(gradeRow(half, 6).result, 'under'); assert.equal(gradeRow(half, 6).hit, false)
+  assert.deepEqual(gradeRow({ line: 6, line_source: 'book' }, 6), { actual_total: 6, result: 'push', hit: null })
+  assert.equal(gradeRow({ line: 6, line_source: 'book' }, 'void').result, 'void')
+})
+
+await t('the record keeps the two line sources apart: old projection rows are never pooled with book rows', () => {
+  const rows = [
+    { called: true, rank: 1, field_size: 9, line_source: 'book', result: 'over' }, { called: true, rank: 2, field_size: 9, line_source: 'book', result: 'under' },
+    { called: true, rank: 3, field_size: 9, line_source: 'book', result: 'push' },
+    { called: true, rank: 1, field_size: 9, line_source: 'projection', result: 'over' }, { called: true, rank: 2, field_size: 9, result: 'over' },   // a row from before the column
+  ]
+  const s = recordBySource(rows)
+  assert.equal(s.book.called.n, 3); assert.equal(s.book.called.hits, 1); assert.equal(s.book.called.misses, 1); assert.equal(s.book.called.pushes, 1)
+  assert.equal(s.projection.called.n, 2); assert.equal(s.projection.called.hits, 2)
+})
+
+await t('the store: a book total read before the lock is stored with the call; no rewrite after; no table or no match = projection', async () => {
+  const names = [['LAK', 'NJD'], ['TBL', 'VGK'], ['SJS', 'WSH'], ['UTA', 'MTL'], ['BOS', 'NYR']]
+  const games = names.map(([away, home], i) => G(`b${i + 1}`, 2 + i / 10, 7 + (i + 1) / 10, { away, home }))
+  const slate = { ok: true, slate_key: '2026-10-10', day: '2026-10-10', games }
+  // SGO's own shorts for 3 of the 5 games (LA@NJ, TB@VGK, SJ@WSH); the other two have no total
+  const books = [bookRowFor(games[0], 6.5, { away: 'LA', home: 'NJ' }), bookRowFor(games[1], 6, { away: 'TB', home: 'VGK' }), bookRowFor(games[2], 5.5, { away: 'SJ', home: 'WSH' })]
+  const db = fakeDb({ clock: () => NOW, books })
+  assert.match(await lockSlate(db, 'nhl', slate, { now: NOW + 1 * H }), /^locked 5 \(3 called\) book 3$/)
+  const by = Object.fromEntries(db.rows.map((r) => [r.game_id, r]))
+  assert.equal(by.b1.line_source, 'book'); assert.equal(by.b1.line, 6.5); assert.equal(by.b1.projected_total, 7.1)
+  assert.equal(by.b4.line_source, 'projection'); assert.equal(by.b4.line, by.b4.projected_total)
+  for (const r of db.rows) assert.ok(Date.parse(r.locked_at) < Date.parse(r.start_at))
+  // a second pass with a moved book number writes nothing
+  const before = JSON.stringify(db.rows)
+  books[0].line = 9
+  assert.equal(await lockSlate(db, 'nhl', slate, { now: NOW + 1.2 * H }), 'already-locked')
+  assert.equal(JSON.stringify(db.rows), before)
+  // grading uses the stored book line, once
+  await gradeRows(db, db.rows.map((r) => ({ ...r })), new Map([['b1', 7], ['b2', 6], ['b3', 5]]), NOW + 9 * H)
+  assert.equal(by.b1.result, 'over'); assert.equal(by.b2.result, 'push'); assert.equal(by.b3.result, 'under')
+  // no odds_game_totals rows at all: every call keeps the projection line
+  const db2 = fakeDb({ clock: () => NOW })
+  assert.match(await lockSlate(db2, 'nhl', slate, { now: NOW + 1 * H }), / book 0$/)
+  assert.ok(db2.rows.every((r) => r.line_source === 'projection' && r.line === r.projected_total))
+  // MLB never reads the book table
+  const db3 = fakeDb({ clock: () => NOW, books })
+  await lockSlate(db3, 'mlb', slate, { now: NOW + 1 * H })
+  assert.ok(db3.rows.every((r) => r.line_source === 'projection'))
+})
+
+await t('the post shows both honestly: model and book on a book game, the model alone where there is no book total', () => {
+  const field = FIELD.map((g) => ({ ...g, book: g.game_id === 'g5' ? { line: 6.5, taken_at: TAKEN, books: 5, event_id: 'E' } : undefined }))
+  const text = totalsPostText({ sport: 'nhl', day: '2026-10-10', rows: lockRows({ sport: 'nhl', slate_key: 'k', games: field, now: NOW }) })
+  assert.match(text, /1\. Ag5 @ Hg5 · model 8\.8, book 6\.5/)
+  assert.match(text, /\d\. Ag3 @ Hg3 · 7\.9 G/)
+  assert.match(text, /book total where listed/)
+  assert.ok([...text].length + 4 <= 280)
+  const all = lockRows({ sport: 'nba', slate_key: 'k', games: FIELD.map((g) => ({ ...g, book: { line: 6.5, taken_at: TAKEN, books: 2, event_id: 'E' } })), now: NOW })
+  assert.match(totalsPostText({ sport: 'nba', day: '2026-10-10', rows: all }), /Graded against the book total after the final\./)
+})
+
+await t('the book-line migration: the table, the four columns, the book check, the frozen columns, no `set role`', () => {
+  const sql = fs.readFileSync(new URL('../supabase/migrations/202610091800_top_totals_book_line.sql', import.meta.url), 'utf8')
+  const code = sql.replace(/--.*$/gm, '')
+  assert.ok(/create table if not exists public\.odds_game_totals/.test(code) && /check \(taken_at < starts_at\)/.test(code))
+  for (const c of ['book_line', 'book_taken_at', 'book_books', 'book_event_id']) assert.ok(code.includes(`add column if not exists ${c}`) && code.includes(`new.${c}`) && code.includes(`old.${c}`), c)
+  assert.ok(/line_source <> 'book' or \(book_line is not null and line = book_line and sport in \('nhl','nba'\)\)/.test(code))
+  assert.ok(!/set\s+role/i.test(code))
 })
 
 console.log(failed ? `\n${failed} FAILED` : '\nall ok')

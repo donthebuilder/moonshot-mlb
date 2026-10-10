@@ -19,7 +19,7 @@ import { useLiveFetch } from '../lib/useLiveFetch'
 import { GameTap, TeamTap } from './EntityTap'
 import { useGameNav } from '../lib/teamNav'
 import { gameHref } from '../lib/routes'
-import { TOTALS_UNITS, TOTALS_CALLS } from '../lib/totals/core'
+import { TOTALS_UNITS, TOTALS_CALLS, BOOK_LINE_SPORTS } from '../lib/totals/core'
 
 const WORD = { over: 'OVER', under: 'UNDER', push: 'PUSH', void: 'VOID' }
 const pct = (v) => (v == null ? '—' : `${Math.round(v * 100)}%`)
@@ -56,7 +56,7 @@ export default function TopTotals({ sport, mode = 'slate', Table = DenseTable })
     const src = mode === 'record' ? data?.graded || [] : data?.rows || []
     return src.map((r) => ({
       _key: `${r.sport}-${r.game_id}`, rank: r.rank, game_id: r.game_id, away: r.away, home: r.home, game: `${r.away} @ ${r.home}`,
-      proj: r.projected_total, line: r.line, actual: r.actual_total, result: r.result, status: r.status, start: r.start_at,
+      proj: r.projected_total, line: r.line, book: r.line_source === 'book' ? r.book_line : null, actual: r.actual_total, result: r.result, status: r.status, start: r.start_at,
     }))
   }, [data, mode])
 
@@ -64,12 +64,18 @@ export default function TopTotals({ sport, mode = 'slate', Table = DenseTable })
     { key: 'rank', label: '#', w: 30, heat: false, rankCol: true, group: 'GAME' },
     { key: 'game', label: 'Game', w: 150, heat: false, sticky: true, bold: true, group: 'GAME', fmt: (v, r) => <Game sport={sport} row={r} /> },
     { key: 'proj', label: `Proj ${u.short}`, w: 70, dp: u.dp, primary: true, group: 'PROJECTION', title: `The team model's projected combined ${u.unit}, fixed before the game` },
-    { key: 'line', label: 'Line', w: 60, dp: u.dp, heat: false, group: 'PROJECTION', title: 'The number the call is graded against, stored with the call' },
+    ...(BOOK_LINE_SPORTS.includes(sport) ? [{ key: 'book', label: 'Book', w: 56, dp: u.dp, heat: false, group: 'PROJECTION', blankWhen: (n) => !Number.isFinite(n), title: `The sportsbooks' consensus total ${u.unit}, read before the game. Blank: no book total listed, so the call is graded against the projection` }] : []),
+    { key: 'line', label: 'Line', w: 60, dp: u.dp, heat: false, group: 'PROJECTION', title: 'The number the call is graded against, stored with the call (the book total where there is one, otherwise the projection)' },
     { key: 'actual', label: 'Final', w: 56, dp: 0, heat: false, group: 'RESULT', blankWhen: (n) => !Number.isFinite(n), title: `The combined ${u.unit} the game produced` },
     { key: 'result', label: 'Result', w: 70, heat: false, group: 'RESULT', fmt: (v) => (v ? <b style={{ color: v === 'over' ? accent : C.text2 }}>{WORD[v]}</b> : <span style={{ color: C.text3 }}>{'—'}</span>) },
   ], [sport, u, accent, C])
 
   const rec_ = data?.record
+  const split = data?.record_by_source
+  // the two line sources are never pooled once a book-graded call exists: one tile per source
+  const bookRec = split?.book?.called
+  const showSplit = mode === 'record' && bookRec && bookRec.graded > 0
+  const anyBook = rows.some((r) => r.book != null)
   const nothing = !loading && !error && !rows.length
 
   return (
@@ -81,7 +87,13 @@ export default function TopTotals({ sport, mode = 'slate', Table = DenseTable })
         </span>
       </div>
 
-      {mode === 'record' && rec_ && (
+      {showSplit && (
+        <div style={{ display: 'flex', gap: 8, margin: '4px 0 8px' }}>
+          <Tile C={C} NUM_FONT={NUM_FONT} accent={accent} label="CALLED vs BOOK" value={rec(bookRec)} sub={`${pct(bookRec.pct)} over the book total · ${bookRec.n} called`} />
+          <Tile C={C} NUM_FONT={NUM_FONT} accent={C.text2} label="CALLED vs MODEL" value={rec(split.projection.called)} sub={`${pct(split.projection.called.pct)} over our own number · ${split.projection.called.n} called`} />
+        </div>
+      )}
+      {mode === 'record' && rec_ && !showSplit && (
         <div style={{ display: 'flex', gap: 8, margin: '4px 0 8px' }}>
           <Tile C={C} NUM_FONT={NUM_FONT} accent={accent} label="CALLED" value={rec(rec_.called)} sub={`${pct(rec_.called.pct)} over the line · ${rec_.called.n} called`} />
           <Tile C={C} NUM_FONT={NUM_FONT} accent={C.text2} label="ON THE BOARD" value={rec(rec_.board)} sub={`${pct(rec_.board.pct)} over the line · ${rec_.board.n} listed`} />
@@ -103,13 +115,13 @@ export default function TopTotals({ sport, mode = 'slate', Table = DenseTable })
           maxRows={mode === 'record' ? 10 : TOTALS_CALLS} maxHeight={9999}
           initialSort={mode === 'record' ? null : { key: 'rank', dir: 'asc' }}
           caption={mode === 'record'
-            ? 'Graded CALLED rows, newest first. OVER means the game beat the line stored with its call (the projection).'
-            : `${data?.key || ''} — the line is the projection itself. OVER means the game beat it.`}
+            ? 'Graded CALLED rows, newest first. OVER means the game beat the line stored with its call: the book total where the Book column has one, otherwise the projection.'
+            : `${data?.key || ''} — ${anyBook ? 'the line is the book total where one is listed (Book), otherwise the projection. ' : 'the line is the projection itself. '}OVER means the game beat it.`}
         />
       )}
       {mode === 'slate' && rec_ && rec_.called.graded > 0 && (
         <div style={{ marginTop: 6, fontSize: 11, color: C.text3 }}>
-          CALLED so far: {rec(rec_.called)} over the line ({pct(rec_.called.pct)}).
+          CALLED so far: {rec(rec_.called)} over the line ({pct(rec_.called.pct)}){split?.book?.called?.graded > 0 ? `, ${rec(split.book.called)} of it against the book total` : ''}.
         </div>
       )}
     </section>
