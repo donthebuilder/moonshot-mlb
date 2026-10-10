@@ -224,6 +224,9 @@ for (const [label, v] of [[',', ','], ['", ,\n,"', ', ,\n,'], ['not a URL', 'hel
   check('H. discordRoute.js writes no row of its own except the write-up row\'s payload flags (no new kinds, so nothing public can hold members text)', !/upsert|insert\(/.test(route))
   const post = readFileSync(new URL('../lib/writeups/post.js', import.meta.url), 'utf8').replace(/\/\/.*$/gm, '')
   check('H. a write-up row\'s kind never contains "members" (the site shows write-ups; members copies are a flag, not a row)', !/kind[^\n]*members/i.test(post.replace(/members_sent|sendMembers|retryMembers|members only|members \$\{/g, '')))
+  // the NFL "why" post is the paid half: its Discord copy goes to #members only (10-09, Donovan: open the free server)
+  const nflTick = readFileSync(new URL('../app/api/dash/nfl/tick/route.js', import.meta.url), 'utf8').replace(/\/\/.*$/gm, '')
+  check("I. nfl_whyboard's Discord copy goes through sendMembers, never the free feed hooks", /sl\.kind === 'nfl_whyboard'\s*\?\s*await sendMembers\(/.test(nflTick))
 }
 
 console.log(fail ? `\n${fail} FAILED` : '\nall required checks passed')
