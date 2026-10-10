@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { C, NUM_FONT } from '../../lib/nfl/theme'
 import { softCells, plainRole, blockSeason, STARTER_ROLES, SOFT_THIN_GAMES, multipleWords, earlyNote } from '../../lib/nfl/dvpSignal'
 import SourceSeason from './SourceSeason'
+import { defenseSeason } from '../../lib/nfl/seasonRule'
 import { ordinal } from '../../lib/format'
 
 // THE DEFENSE, BY HIS ROLE, IN WORDS (2026-10-01, 0e d).
@@ -54,7 +55,7 @@ function roleSentence(matchup, def, role, pos) {
   let drift = ''
   const tr = matchup?.dvp_trend
   const series = tr?.td?.[def]?.[role]
-  if (Number.isFinite(tdR) && Array.isArray(series) && Array.isArray(tr?.weeks) && blockSeason(matchup, 'dvp_trend') === Number(matchup?.season)) {
+  if (Number.isFinite(tdR) && Array.isArray(series) && Array.isArray(tr?.weeks) && blockSeason(matchup, 'dvp_trend') === Number(matchup?.season) && (row.s == null || Number(row.s) === Number(matchup?.season))) {
     const i = series.findIndex((v) => Number.isFinite(v))
     if (i >= 0 && series[i] !== tdR) drift = `, ${series[i] > tdR ? 'up' : 'down'} from ${ordinal(series[i])} in week ${tr.weeks[i]}`
   }
@@ -77,7 +78,7 @@ export default function DvpRead({ matchup, def, position, role = null, slateSeas
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', margin: '18px 0 8px' }}>
         <span style={{ fontSize: 10, fontWeight: 900, color: C.text3, letterSpacing: '.1em' }}>{def} DEFENSE VS {position}</span>
-        <SourceSeason matchup={matchup} kind="stats" slateSeason={slateSeason} />
+        <SourceSeason matchup={matchup} kind="stats" slateSeason={slateSeason} team={def} />
       </div>
       {lines.map((l) => (
         <p key={l.role} style={{ margin: '0 0 6px', fontSize: 13, lineHeight: 1.5, color: l.role === role ? C.text : C.text2 }}>
@@ -119,7 +120,7 @@ export default function DvpRead({ matchup, def, position, role = null, slateSeas
               ...stats.map((st) => ({ key: st, label: labels[st] || st, w: 56, scale: 'seq', domain: [1, 32], invert: true, dp: 0,
                 fmt: (rk, x) => <span title={Number.isFinite(rk) ? `${x._vals[st]} — ${ordinal(rk)} of 32` : 'not a stat this role records'}>{Number.isFinite(rk) ? rk : '—'}</span> })),
             ]} />
-          <div style={{ fontSize: 11, color: C.text3, marginTop: 5, lineHeight: 1.5 }}>Each cell is {def}&apos;s rank of 32 for what it allows that role: 1 allows the most. {matchup?.season} season.</div>
+          <div style={{ fontSize: 11, color: C.text3, marginTop: 5, lineHeight: 1.5 }}>Each cell is {def}&apos;s rank of 32 for what it allows that role: 1 allows the most. {(defenseSeason(matchup, def, slateSeason)?.label) || `${matchup?.season} season`}.</div>
         </div>
       )}
     </div>

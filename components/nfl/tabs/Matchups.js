@@ -157,7 +157,7 @@ function ByPosition({ matchup, team, win, setWin, slateSeason }) {
     <div style={{ marginBottom: 12 }}>
       <SubLabel {...P} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <span>BY POSITION · WHAT {team} ALLOW EACH ROLE</span>
-        <SourceSeason matchup={data} kind="stats" slateSeason={slateSeason} />
+        <SourceSeason matchup={data} kind="stats" slateSeason={slateSeason} team={win === 'season' ? team : null} />
       </SubLabel>
       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 8 }}>
         {WINDOWS.filter(([k]) => data?.dvp?.[k]).map(([k, label]) => (

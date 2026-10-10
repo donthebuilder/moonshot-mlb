@@ -107,7 +107,7 @@ export default function Team({ data, picks = null, onOpenPlayer, onOpenGame }) {
 
       {def && (
         <section>
-          <Kick>DEFENSE · PER GAME · {def.g} GAMES</Kick>
+          <Kick>DEFENSE · PER GAME · {def.g} {def.g === 1 ? 'GAME' : 'GAMES'}{(() => { const y = Number(data?.team_defense?.season); const sl = Number(data?.season); return y && sl ? (y >= sl ? ' THIS SEASON' : y === sl - 1 ? ' LAST SEASON' : ` ${y}`) : '' })()}</Kick>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {[['POINTS ALLOWED', n(def.points_allowed)], ['SACKS', n(def.def_sacks)], ['INTERCEPTIONS', n(def.def_interceptions)], ['FUMBLES RECOVERED', n(def.def_fumble_recoveries)], ['DEF TDs', n(def.def_touchdowns)]].map(([k, v]) => (
               <div key={k} style={{ padding: '10px 14px', borderRadius: 12, border: `1px solid ${C.border2}`, background: C.bg2 }}>

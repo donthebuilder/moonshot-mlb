@@ -62,7 +62,7 @@ export default function NflCardMatchup({ player, matchup, slate }) {
       </div>
 
       {roleRows.length > 0 && <>
-        <Title right={<SourceSeason matchup={matchup} kind="stats" slateSeason={slate?.season} />}>{opp} BY ROLE · RANK OF 32, 1 ALLOWS THE MOST</Title>
+        <Title right={<SourceSeason matchup={matchup} kind="stats" slateSeason={slate?.season} team={opp} />}>{opp} BY ROLE · RANK OF 32, 1 ALLOWS THE MOST</Title>
         <NflTable bare tight heatMode="none" maxHeight={9999} maxRows={8} initialSort={null}
           caption={`What ${opp} allow to each ${player.position} chair. His chair is edged.`}
           rows={roleRows} rowEdge={(r) => (r.mine ? C.green : null)}

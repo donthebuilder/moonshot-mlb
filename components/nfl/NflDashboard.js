@@ -20,6 +20,7 @@ import ErrorBoundary from '../ErrorBoundary'
 import TabNotFound from '../TabNotFound'
 import { C, NUM_FONT } from '../../lib/nfl/theme'
 import { AccentProvider } from '../Filters'
+import useBlendedMatchup from '../../lib/nfl/useBlendedMatchup'
 import { fetchNfl, nflSlatePaths, nflMetaPaths, nflMatchupPaths, nflLogPaths, nflPicksPaths, nflResultsPaths, nflOddsPaths, nflOddsStatusPaths, nflSlateLooksReal, nflMatchupLooksReal, nflPicksLooksReal, nflOddsLooksReal } from '../../lib/nfl/dataSource'
 import { initialHashParams, setSport } from '../../lib/sport'
 import { tabSwitchHash } from '../../lib/useShellRoute'
@@ -140,7 +141,9 @@ export default function NflDashboard({ palettePass = 0 }) {
   usePageTitle(`${(onHub && hubTitle) || pageTitle('nfl', tab)} \u00b7 DASH Network`)
   const [data, setData] = useState(null)
   const [meta, setMeta] = useState(null)
-  const [matchup, setMatchup] = useState(null)
+  const [matchupRaw, setMatchup] = useState(null)
+  // ONE SEASON PER DEFENSE (lib/nfl/seasonRule.js): a defense under 3 games this season takes last season's whole table, labelled; else this season's
+  const matchup = useBlendedMatchup(matchupRaw, data?.season)
   const [logs, setLogs] = useState(null)
   const [picks, setPicks] = useState(null)
   const [nflResults, setNflResults] = useState(null)

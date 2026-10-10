@@ -24,6 +24,9 @@ const t = async (what, fn) => { try { await fn(); console.log(`ok   ${what}`) } 
 
 const H = 3600e3
 const NOW = Date.parse('2026-10-10T20:00:00Z')
+// The store re-reads Date.now() as its own "has it started" guard (lib/card/store.js). The fixture's slate is 2026-10-10 20:00Z, so with the
+// real clock past that the check expired (2026-10-10 21:18Z: 'started-while-locking'). Pinned to the fixture's own NOW, like the injected clocks.
+Date.now = () => NOW
 // TEST candidates: id, game, start offset hours from NOW, score, rate
 const C = (id, game, startH, score, rate = 0.3, extra = {}) => ({ player_id: id, name: `Player ${id}`, team: `T${game}A`, opp: `T${game}B`, game_id: game, game_date: '2026-10-10', start_ms: NOW + startH * H, score, rate, why: `why ${id}`, ...extra })
 const FIELD = [C('p1', 'g1', 2, 90, 0.40), C('p2', 'g1', 2, 88, 0.35), C('p3', 'g2', 3, 85, 0.30), C('p4', 'g3', 4, 80, 0.25), C('p5', 'g3', 4, 70, 0.20), C('p6', 'g4', 1, 95, 0.10)]
