@@ -1,4 +1,6 @@
-// LAMP · SHOTS — GET /api/lamp/shots?player=<7-digit id> | ?team=<ABC> | ?against=<ABC> (shots the club allowed) [&season=this|last|both]
+// LAMP · SHOTS — GET /api/lamp/shots?player=<7-digit id> | ?team=<ABC> | ?against=<ABC> (shots the club allowed) [&season=this|last|both|auto]
+// no season = THIS season from its first game (last season only when he/they have no shots yet this season, said so in `fallback`);
+// auto = the old 10-game floor (the pre-game write-ups gate on their own volume)
 //
 // Where a player (or a club) shoots from: a zone grid, the slot share, the
 // totals and the most recent ~200 attempts, season and last 10 games, from
@@ -17,7 +19,7 @@ export async function GET(request) {
   if (player && !PLAYER_ID_RE.test(player)) return bad('player must be a 7-digit NHL id')
   if (!player && !TEAM_RE.test(team) && !TEAM_RE.test(against)) return bad('give ?player=<id>, ?team=<ABC> or ?against=<ABC>')
   const pickRaw = String(q.get('season') || '').toLowerCase()
-  const opts = ['this', 'last', 'both'].includes(pickRaw) ? { season: pickRaw } : {}
+  const opts = ['this', 'last', 'both', 'auto'].includes(pickRaw) ? { season: pickRaw } : {}
   try {
     const data = player ? await readShotMap('player', Number(player), opts) : TEAM_RE.test(against) && !team ? await readShotMap('against', against, opts) : await readShotMap('team', team, opts)
     return ok({ ...data, fetchedAt: new Date().toISOString() }, 86400)
