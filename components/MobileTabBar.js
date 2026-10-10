@@ -56,7 +56,7 @@ const MORE = [
   // `bot` (Picks) is no longer a separate stop: it is the lower half of Props (10-03)
   ...MLB_MORE_GROUPS.flatMap(([group, keys]) => [
     [`@${group}`, ''],
-    ...keys.map((k) => [k, MLB_NAV[k].label, MLB_NAV[k].icon]),
+    ...keys.map((k) => [k, MLB_NAV[k].label, MLB_NAV[k].icon, MLB_NAV[k].blurb]),
   ]),
 ]
 
@@ -101,7 +101,9 @@ const SEEN_KEY = 'moonshot_more_seen_v1'
 // going up where the others are bars. Applied where the drawer draws a tile
 // only -- no tab is renamed or re-keyed (lib/routes.js stays the one table).
 const DRAWER_ICON = { matchups: '🧭', players: '👤', 'player board': '👤', 'the ledger': '📒', boards: '📊', standings: '📊' }
-const iconFor = (label, icon) => DRAWER_ICON[String(label || '').toLowerCase()] || icon
+// A blurb is a sentence and, on some pages, a list after a colon; the drawer keeps the sentence.
+const blurbLine = (b) => { const s = String(b || ''); const i = s.indexOf(': '); return i > 20 ? s.slice(0, i) : s }
+const iconFor =(label, icon) => DRAWER_ICON[String(label || '').toLowerCase()] || icon
 
 // The drawer's title and lede ("Everything on this site / Every page, and the
 // way across to the other sites") are gone (2026-10-06): the page list is its
@@ -122,6 +124,10 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
     if (!el) return
     if (open) el.removeAttribute('inert')
     else el.setAttribute('inert', '')
+    // A bottom notice (the account nudge, z 395) sits over the drawer's last rows; it waits while More is open.
+    if (open) document.documentElement.setAttribute('data-more-open', '')
+    else document.documentElement.removeAttribute('data-more-open')
+    return () => document.documentElement.removeAttribute('data-more-open')
   }, [open])
   const [seen, setSeen] = useState(true)   // assume seen until the client says otherwise
   useEffect(() => {
@@ -195,6 +201,15 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
     setPending(k)
     router.push(hrefOf(k))
   }
+  // THE DRAWER'S SHAPE (2026-10-09, Donovan: "I don't like the More sidebar... a mix of the original and what
+  // we have now. This one seems bland."): the original's one-line "what this page is for" (a 4th entry, read
+  // from each product's nav registry beside the icon) comes back under the current drawer's icon and name,
+  // each page a bordered row in the product's accent, each group a headed run with its count. An entry list
+  // with no blurbs (FRANCHISE's) keeps the two-up tiles it had.
+  const hasBlurbs = more.some((m) => !m[0].startsWith('@') && m[3])
+  const groupCount = {}
+  let curGroup = null
+  for (const [k] of more) { if (k.startsWith('@')) curGroup = k; else if (curGroup) groupCount[curGroup] = (groupCount[curGroup] || 0) + 1 }
   const mainKeys = new Set(main.map(([key]) => key))
   // 'home' is in neither the bar nor `mainKeys` any more -- the MOONSHOT
   // wordmark in the header owns it (2026-09-03). Without this exception the
@@ -231,7 +246,7 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
       >
         <div className="mobileMoreHead"><div><small>{brand} · THE MAP</small>{title && <strong>{title}</strong>}</div><button tabIndex={open ? undefined : -1} onClick={() => setOpen(false)} aria-label="Close More menu">×</button></div>
         {lede && <p className="mobileMoreLede">{lede}</p>}
-        <div className="mobileMoreList">
+        <div className={`mobileMoreList${hasBlurbs ? ' rows' : ''}`}>
           {/* THE NETWORK SWITCH LIVES HERE NOW (2026-08-29). Donovan: "remove
               the little floating ico, its redundant now — just make it so we
               can navigate the different sites from the nav thing at the
@@ -245,17 +260,17 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
           {/* TILES, NOT PARAGRAPHS (BATCH-ONE-SITE step 4, 2026-10-05; tested with an older, sports-first
               reader: "big words, few small ones"): each page is its icon and its name, two to a row --
               the one-line blurbs are gone from here (they stay in search and the Guide). */}
-          {more.map(([key, label, icon]) => (
+          {more.map(([key, label, icon, blurb]) => (
             key.startsWith('@') ? (
-              <div key={key} className="mobileMoreGroup">{key.slice(1)}</div>
+              <div key={key} className="mobileMoreGroup"><b aria-hidden="true" /><span>{key.slice(1)}</span><i aria-hidden="true" /><em>{groupCount[key] || ''}</em></div>
             ) : (
               hrefOf ? (
                 <a key={key} href={hrefOf(key)} tabIndex={open ? undefined : -1} onClick={(e) => follow(e, key)} className={`mobileMoreRow${tab === key ? ' active' : ''}`} aria-current={tab === key ? 'page' : undefined} aria-busy={pending === key || undefined}>
-                  <i aria-hidden="true">{iconFor(label, icon)}</i><span>{label}</span>
+                  <i aria-hidden="true">{iconFor(label, icon)}</i><span>{label}{blurb && <small>{blurbLine(blurb)}</small>}</span>{hasBlurbs && <u aria-hidden="true">{'›'}</u>}
                 </a>
               ) : (
                 <button key={key} tabIndex={open ? undefined : -1} onClick={() => go(key)} className={`mobileMoreRow${tab === key ? ' active' : ''}`} aria-current={tab === key ? 'page' : undefined}>
-                  <i aria-hidden="true">{iconFor(label, icon)}</i><span>{label}</span>
+                  <i aria-hidden="true">{iconFor(label, icon)}</i><span>{label}{blurb && <small>{blurbLine(blurb)}</small>}</span>{hasBlurbs && <u aria-hidden="true">{'›'}</u>}
                 </button>
               )
             )
@@ -287,6 +302,7 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
       </nav>
 
       <style jsx>{`
+        :global([data-more-open] .account-nudge){display:none!important}
         .mobileTabBar,.mobileMore,.mobileTabScrim{display:none}
         .mobileTabBar{transition:transform .22s ease}
         @media(prefers-reduced-motion:reduce){.mobileTabBar{transition:none}}
@@ -313,14 +329,34 @@ export default function MobileTabBar({ tab, setTab, main = MAIN, more = MORE, br
         .mobileMoreWide{grid-column:1/-1;min-width:0}
         .mobileMoreAcct{display:none}
         @media(max-width:760px){.mobileMoreAcct{display:block}}
-        .mobileMoreGroup{grid-column:1/-1;margin:8px 3px 0;font-family:${NUM_FONT};font-size:11px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:${C.text3}}
-        .mobileMoreRow{display:flex;flex-direction:row;align-items:center;justify-content:flex-start;gap:8px;min-width:0;min-height:56px;padding:6px 10px;border:1px solid ${C.border};border-radius:12px;background:${C.bg};color:${C.text2};text-align:left;cursor:pointer}
-        .mobileMoreRow i{flex:none;width:22px;text-align:center;font-style:normal;font-family:system-ui;font-size:21px;line-height:1}
-        .mobileMoreRow span{font-size:15px;font-weight:800;line-height:1.15;color:${C.text};overflow-wrap:break-word;min-width:0}
+        /* ── THE BLEND (2026-10-09, Donovan) ───────────────────────────────
+           Flat black tiles read bland; the original list explained every page.
+           Both now: each page is an accent-tinted icon chip, its name, and the
+           one line on what it is for (read from the product's nav registry),
+           a bordered row washed with the product's accent; each group is a
+           headed run (accent tick, name, rule, count). Everything is mixed
+           from the accent the bar already takes, so TUDDY is jade, LAMP ice,
+           BUCKETS purple, MOONSHOT orange with no colour typed here. A list
+           without blurbs (FRANCHISE) stays the two-up tiles. */
+        .mobileMoreList.rows{grid-template-columns:1fr;grid-auto-rows:max-content;gap:6px}
+        .mobileMoreGroup{grid-column:1/-1;display:flex;align-items:center;gap:8px;margin:12px 3px 1px;font-family:${NUM_FONT};font-size:11px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:${AC_TEXT}}
+        .mobileMore:after{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,${AC},${AC}00);pointer-events:none}
+        .mobileMoreGroup b{flex:none;width:3px;height:13px;border-radius:2px;background:${AC}}
+        .mobileMoreGroup i{flex:1;height:1px;background:linear-gradient(90deg,${AC}55,transparent)}
+        .mobileMoreGroup em{flex:none;font-style:normal;letter-spacing:.04em;color:${C.text3}}
+        .mobileMoreRow{display:flex;flex-direction:row;align-items:center;justify-content:flex-start;gap:10px;min-width:0;min-height:56px;padding:8px 10px;border:1px solid ${C.border};border-radius:12px;background:linear-gradient(135deg,${AC}0f,${C.bg} 62%);color:${C.text2};text-align:left;cursor:pointer;transition:border-color .12s ease,background .12s ease}
+        .mobileMoreRow i{flex:none;display:grid;place-items:center;width:36px;height:36px;border:1px solid ${AC}33;border-radius:10px;background:${AC}1a;font-style:normal;font-family:system-ui;font-size:19px;line-height:1}
+        .mobileMoreRow span{flex:1;min-width:0;font-size:15px;font-weight:800;line-height:1.15;color:${C.text};overflow-wrap:break-word}
+        .mobileMoreRow span small{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;margin-top:3px;font-size:12px;font-weight:500;line-height:1.3;color:${C.text3}}
+        .mobileMoreRow u{flex:none;text-decoration:none;font-size:22px;line-height:1;color:${AC_TEXT};opacity:.7}
         a.mobileMoreRow{text-decoration:none}
-        .mobileMoreRow:hover{border-color:${C.border2}}
-        .mobileMoreRow.active{border-color:${AC}66;background:${AC}14}
-        .mobileMoreRow.active span{color:${accent || C.orange}}
+        .mobileMoreRow:hover{border-color:${AC}66}
+        .mobileMoreRow:active{background:${AC}22}
+        .mobileMoreRow.active{border-color:${AC}88;background:linear-gradient(145deg,${AC}28,${AC_FADE})}
+        .mobileMoreRow.active i{background:${AC}33;box-shadow:0 0 14px ${AC}55}
+        .mobileMoreRow.active span{color:${AC_TEXT}}
+        .mobileMoreRow.active u{opacity:1}
+        @media(prefers-reduced-motion:reduce){.mobileMoreRow{transition:none}}
         @media(min-width:761px){.mobileMoreList{padding-bottom:76px}}
         /* ── THE BAR, ON DESKTOP TOO (2026-08-29) ──────────────────────────
            Donovan picked it from three mocked options: "the nav going

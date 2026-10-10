@@ -21,7 +21,7 @@ const MORE = [
   // Tonight is on the bar (2026-10-04); More starts with the groups.
   ...NHL_MORE_GROUPS.flatMap(([group, keys]) => [
     [`@${group}`, ''],
-    ...keys.map((k) => [k, NHL_NAV[k].label, NHL_NAV[k].icon]),
+    ...keys.map((k) => [k, NHL_NAV[k].label, NHL_NAV[k].icon, NHL_NAV[k].blurb]),
   ]),
 ]
 

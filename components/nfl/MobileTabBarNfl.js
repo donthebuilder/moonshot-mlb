@@ -44,7 +44,7 @@ const MAIN = mainFor(MAIN_KEYS)
 const MORE = [
   ...NFL_MORE_GROUPS.flatMap(([group, keys]) => [
     [`@${group}`, ''],
-    ...keys.map((k) => [k, NFL_NAV[k].label, NFL_NAV[k].icon]),
+    ...keys.map((k) => [k, NFL_NAV[k].label, NFL_NAV[k].icon, NFL_NAV[k].blurb]),
   ]),
 ]
 
