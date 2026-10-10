@@ -25,6 +25,7 @@ import Home from './tabs/Home'
 import { useLampSaves } from '../../lib/nhl/useLampSaves'
 import LampTable from './LampTable'
 import TopTotals from '../TopTotals'
+import CardSection from '../card/CardSection'
 import LampSlate from './LampSlate'
 import dynamic from 'next/dynamic'
 // ONE TAB'S CODE AT A TIME (2026-10-04, JS split): Home paints first; every
@@ -203,6 +204,7 @@ export default function LampDashboard({ palettePass = 0 }) {
             {(tab === 'fullboard' || tab === 'shots') && <Board onOpenPlayer={peekPlayer} onOpenGame={openGame} onOpenTeam={openTeam} date={date} setDate={setDate}
               market={tab === 'shots' ? 'SOG' : null}
               onMarket={tab === 'shots' ? () => setTab('fullboard') : null} />}
+            {tab === 'games' && <CardSection sport="nhl" Table={LampTable} />}
             {tab === 'games' && <TopTotals sport="nhl" Table={LampTable} />}
             {tab === 'games' && <LampSlate onOpenPlayer={peekPlayer} onOpenGame={openGame} onOpenTeam={openTeam} date={date} setDate={setDate} />}
           </ErrorBoundary>

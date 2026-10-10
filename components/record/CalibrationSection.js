@@ -9,6 +9,7 @@ import BucketsTable from '../buckets/BucketsTable'
 import { SportTheme } from '../SportTheme'
 import CalibrationTable from './CalibrationTable'
 import StraightRecordLine from './StraightRecordLine'
+import CardSection from '../card/CardSection'
 import { C as NFL_C, NUM_FONT as NFL_NUM } from '../../lib/nfl/theme'
 import { C as NHL_C, NUM_FONT as NHL_NUM } from '../../lib/nhl/theme'
 import { C as NBA_C, NUM_FONT as NBA_NUM } from '../../lib/nba/theme'
@@ -25,6 +26,7 @@ export default function CalibrationSection({ sport = 'mlb' }) {
   return (
     <SportTheme theme={p.theme} accent={p.accent} numFont={p.numFont}>
       <StraightRecordLine sport={sport} />
+      <CardSection sport={sport} mode="record" />
       <CalibrationTable sport={sport} Table={p.Table} />
     </SportTheme>
   )

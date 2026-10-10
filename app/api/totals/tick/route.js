@@ -11,6 +11,7 @@ import { TOTALS_SPORTS, TOTALS_UNITS, LOCK_LEAD_MIN } from '../../../../lib/tota
 import { loadSlate, loadFinals } from '../../../../lib/totals/sources'
 import { lockedKeys, lockSlate, openRows, gradeRows, slateRows } from '../../../../lib/totals/store'
 import { postTotalsOnce } from '../../../../lib/totals/post'
+import { cardTick } from '../../../../lib/card/tick'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -68,5 +69,7 @@ export async function GET(request) {
   for (const sport of TOTALS_SPORTS) {
     try { out[sport] = await one(db, sport, now) } catch (e) { console.error(`[totals] ${sport} failed: ${e?.message || e}`); out[sport] = { error: String(e?.message || e) } }
   }
+  // THE CARD (2026-10-10, lib/card/tick.js) rides this cron: grade, lock and post the Card and the Two-Man. No cron of its own.
+  try { out.card = await cardTick(db, now) } catch (e) { console.error(`[card] tick failed: ${e?.message || e}`); out.card = { error: String(e?.message || e) } }
   return Response.json(out, { headers: { 'Cache-Control': 'no-store' } })
 }

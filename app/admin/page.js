@@ -194,6 +194,7 @@ export default async function AdminPage() {
       <section style={{ padding: '22px 0 40px', maxWidth: 560 }}>
         <p className={start.kicker}>The numbers · read {c.readAt ? new Date(c.readAt).toLocaleString('en-US', { timeZone: 'America/New_York' }) : '—'} ET · cached 60 s</p>
         {c.error ? <p>{c.error}</p> : null}
+        <p><a href="/admin/two-man" style={{ display: 'inline-flex', alignItems: 'center', minHeight: 44, color: 'inherit', fontWeight: 800 }}>Donovan&apos;s Two-Man (enter before the lock) →</a></p>
 
         <h2 className={start.kicker} style={{ marginTop: 18 }}>Accounts</h2>
         {c.accountsError ? <p>Accounts unavailable: {c.accountsError}</p> : <>
