@@ -93,7 +93,7 @@ const HALO = { paintOrder: 'stroke', stroke: RD.ice, strokeWidth: 0.9, strokeLin
 const ringPath = (pts) => pts.map(([x, y], i) => `${i ? 'L' : 'M'}${sx(x).toFixed(2)},${sy(y).toFixed(2)}`).join(' ') + ' Z'
 
 export default function Rink({ map, slot, gridSpec, height = 300, shots = null, onPick = null, onPickCell = null, picked = null, view: viewProp = null, onView = null, extraView = null, league = null, vsMin = VS_MIN, speed = null, hardest = null, slotPct = null,
-  goalieRead = null, onPickZone = null, pickedZone = null, zones = null }) {
+  goalieRead = null, onPickZone = null, pickedZone = null, zones = null, onZoneTap = null, tappedZone = null, loud = 5, hideViews = false }) {
   const clipId = `rink-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`
   const [viewOwn, setViewOwn] = useState(zones ? 'zones' : 'dots')
   const view0 = viewProp || viewOwn
@@ -108,7 +108,7 @@ export default function Rink({ map, slot, gridSpec, height = 300, shots = null, 
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-start' }}>
       {/* THE VIEWS (2026-10-07): ZONES (the default: glowing areas with the share in each), ALL SHOTS (every
           attempt), HEAT, VS LEAGUE, VS GOALIE; tall buttons, the caller's 2D / 3D toggle rides at the end */}
-      <div role="group" aria-label="Map view" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+      {!hideViews && <div role="group" aria-label="Map view" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         {[...(zones ? ['zones'] : []), 'dots', 'heat', ...(league ? ['vs'] : []), ...(goalieRead ? ['goalie'] : [])].map((v) => (
           <button key={v} type="button" onClick={() => setView(v)} aria-pressed={view === v}
             style={{ ...viewBtn(view === v, C.ice, C, NUM_FONT), font: `800 11px/1 ${NUM_FONT}`, minHeight: 44, padding: '0 9px' }}>
@@ -116,7 +116,7 @@ export default function Rink({ map, slot, gridSpec, height = 300, shots = null, 
           </button>
         ))}
         {extraView}
-      </div>
+      </div>}
       <svg viewBox={`-1 -1 ${W + 2} ${H + 2}`} role="img" aria-label={`Shot map: ${map.attempts} attempts, ${map.goals} goals`}
         style={{ width: '100%', maxWidth: Math.round((height * (W + 2)) / (H + 2)), height: 'auto', display: 'block' }}>
         {/* the sheet: ice, inside the boards */}
@@ -140,8 +140,9 @@ export default function Rink({ map, slot, gridSpec, height = 300, shots = null, 
               return (
                 <g key={z.key}>
                   {boxes.map(([x0, x1, y0, y1], i) => (
-                    <rect key={i} x={sx(x0)} y={sy(y1)} width={x1 - x0} height={y1 - y0} fill={RD.zone} fillOpacity={op} stroke={C.ice} strokeOpacity={0.18 + 0.5 * t} strokeWidth="0.35"
-                      style={{ filter: `drop-shadow(0 0 ${1 + 2.5 * t}px ${alpha(C.ice, 0.55 * t)})` }}>
+                    <rect key={i} x={sx(x0)} y={sy(y1)} width={x1 - x0} height={y1 - y0} fill={RD.zone} fillOpacity={op} stroke={tappedZone === z.key ? C.text : C.ice} strokeOpacity={tappedZone === z.key ? 1 : 0.18 + 0.5 * t} strokeWidth={tappedZone === z.key ? '0.7' : '0.35'}
+                      onClick={onZoneTap ? () => onZoneTap(z.key) : undefined}
+                      style={{ cursor: onZoneTap ? 'pointer' : undefined, filter: `drop-shadow(0 0 ${1 + 2.5 * t}px ${alpha(C.ice, 0.55 * t)})` }}>
                       <title>{`${z.label}: ${z.n} of ${z.total} shots shown (${Math.round(z.pct)}%) · ${z.g} goal${z.g === 1 ? '' : 's'}`}</title>
                     </rect>
                   ))}
@@ -226,12 +227,16 @@ export default function Rink({ map, slot, gridSpec, height = 300, shots = null, 
         ))}
         <path d={`M${sx(89)},${sy(6)} A6,6 0 0 0 ${sx(89)},${sy(-6)} Z`} fill={RD.crease} fillOpacity="0.7" stroke={RD.line} strokeOpacity="0.5" strokeWidth="0.3" />
         <rect x={sx(89)} y={sy(3)} width="3.3" height="6" fill="none" stroke={RD.line} strokeOpacity="0.6" strokeWidth="0.45" />
-        {view === 'zones' && zones && zones.map((z) => (ZONE_AT[z.key] || []).map(([lx, ly], i) => (
-          <g key={`zl${z.key}${i}`} pointerEvents="none">
-            <text x={sx(lx)} y={sy(ly) - 2.2} textAnchor="middle" fill={C.text2} style={HALO} fontSize="2.7" fontWeight="800" fontFamily={NUM_FONT} letterSpacing="0.15">{ZONE_NAME[z.key] || z.label.toUpperCase()}</text>
-            <text x={sx(lx)} y={sy(ly) + 3.2} textAnchor="middle" fill={C.text} style={HALO} fontSize="5" fontWeight="900" fontFamily={NUM_FONT}>{Math.round(z.pct)}%</text>
-          </g>
-        )))}
+        {view === 'zones' && zones && (() => {
+          // QUIET ZONES (Wave 6): only the top `loud` zones carry a strong number; the rest print small and dim (loud = 5 keeps every zone strong)
+          const strong = new Set([...zones].sort((a, b) => b.pct - a.pct).slice(0, loud).map((z) => z.key))
+          return zones.map((z) => (ZONE_AT[z.key] || []).map(([lx, ly], i) => (
+            <g key={`zl${z.key}${i}`} pointerEvents="none">
+              <text x={sx(lx)} y={sy(ly) - 2.2} textAnchor="middle" fill={C.text2} fillOpacity={strong.has(z.key) ? 1 : 0.7} style={HALO} fontSize="2.7" fontWeight="800" fontFamily={NUM_FONT} letterSpacing="0.15">{ZONE_NAME[z.key] || z.label.toUpperCase()}</text>
+              <text x={sx(lx)} y={sy(ly) + 3.2} textAnchor="middle" fill={strong.has(z.key) ? C.text : C.text2} fillOpacity={strong.has(z.key) ? 1 : 0.75} style={HALO} fontSize={strong.has(z.key) ? 5 : 3.4} fontWeight={strong.has(z.key) ? 900 : 700} fontFamily={NUM_FONT}>{Math.round(z.pct)}%</text>
+            </g>
+          )))
+        })()}
         {view === 'zones' && drawn.filter((sh) => sh[2] === 'goal').map((shot, i) => (
           <g key={`zg${i}`}>
             <Mark shot={shot} cx={sx(shot[0])} cy={sy(shot[1])} sel={picked === shot} hard={measuredMph(hardest, shot) != null} />

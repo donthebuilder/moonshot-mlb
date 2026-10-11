@@ -22,6 +22,7 @@ import { ViewRow } from '../../results/ResultsParts'
 import { SportTheme } from '../../SportTheme'
 import { softRole, softLine, passRushThreat, PASS_RUSH_AVOID, STARTER_ROLES } from '../../../lib/nfl/dvpSignal'
 import TheField from '../TheField'
+import GameOffDef from '../GameOffDef'
 import { ordinal } from '../../../lib/format'
 import { gameVenue } from '../../../lib/nfl/venueOf'
 import { roleLabel } from '../../../lib/nfl/roles'
@@ -345,6 +346,8 @@ export default function Matchups({ matchup, data, onPlayerClick = null, onOpenTe
     .sort((a, b) => b.best - a.best)
     .slice(0, 30), [data, active, matchup])
 
+  const fieldGame = useMemo(() => (opp ? (data?.games || []).find((g) => (g.away === active && g.home === opp) || (g.home === active && g.away === opp)) || null : null), [data, active, opp])
+  const [deep, setDeep] = useState(false)
   const soft = useMemo(() => softRole(matchup, active, win), [matchup, active, win])
   const rushThreat = useMemo(() => passRushThreat(matchup, active), [matchup, active])
 
@@ -399,7 +402,11 @@ export default function Matchups({ matchup, data, onPlayerClick = null, onOpenTe
       </SportTheme>
       {view !== 'week' && <MatchupExplorer matchup={matchup} data={data} onPlayerClick={onPlayerClick} view={view} />}
       {view === 'week' && <>
-      <DefensesTable matchup={matchup} data={data} win={win} active={active} onPlayerClick={onPlayerClick} onPick={(t) => { setTeam(t); if (typeof document !== 'undefined') requestAnimationFrame(() => document.getElementById('tuddy-def-detail')?.scrollIntoView({ behavior: 'smooth', block: 'start' })) }} />
+      {/* THE FIELD FIRST (Wave 6, Donovan: visuals first, depth one tap away): the defence on screen, drawn, above the table that picks it */}
+      <div id="tuddy-def-field" style={{ scrollMarginTop: 80 }}>
+        {fieldGame && matchup?.field ? <GameOffDef key={`${active}-${fieldGame.game_id || ''}`} matchup={matchup} players={data?.players} game={fieldGame} defending={active} onDefend={(t) => setTeam(t)} onPlayerClick={onPlayerClick} /> : null}
+      </div>
+      <DefensesTable matchup={matchup} data={data} win={win} active={active} onPlayerClick={onPlayerClick} onPick={(t) => { setTeam(t); if (typeof document !== 'undefined') requestAnimationFrame(() => document.getElementById('tuddy-def-field')?.scrollIntoView({ behavior: 'smooth', block: 'start' })) }} />
 
       <section id="tuddy-def-detail" aria-label={`${active} defense`} style={{ scrollMarginTop: 80 }}>
         <MatchupTitle {...P} type={TYPE} name={<>{teamLink(active)} defense</>} meta={<>{opp ? <>vs {teamLink(opp)} · </> : null}tap another row above to switch</>} />
@@ -428,8 +435,14 @@ export default function Matchups({ matchup, data, onPlayerClick = null, onOpenTe
             defense with no game on the slate has no offence to draw, so it
             keeps the zone read. */}
         {opp ? <>
-          <TheField key={`${opp}-${active}`} team={opp} defTeam={active} defWeek={data?.week} matchup={matchup} venue={gameVenue(data?.games, opp, active)}
-            players={data?.players} initialMode="TEAM" onPlayerClick={onPlayerClick} onOpenTeam={onOpenTeam} />
+          <button type="button" aria-expanded={deep} onClick={() => setDeep((v) => !v)} style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', minHeight: 44, padding: 0, marginBottom: deep ? 6 : 8, background: 'none', border: 0, cursor: 'pointer', color: 'inherit', textAlign: 'left' }}>
+            <span style={{ font: `800 12px/1.2 ${NUM_FONT}`, letterSpacing: '.18em', color: C.green, whiteSpace: 'nowrap' }}>EVERY TARGET</span>
+            <span style={{ font: `800 12px/1.2 ${NUM_FONT}`, color: C.text2, whiteSpace: 'nowrap' }}>· dots, routes, 3D</span>
+            <span aria-hidden="true" style={{ flex: 1, height: 1, background: `${C.green}55` }} />
+            <span aria-hidden="true" style={{ font: `900 14px/1 ${NUM_FONT}`, color: C.green, transform: deep ? 'rotate(180deg)' : 'none' }}>▾</span>
+          </button>
+          {deep && <TheField key={`${opp}-${active}`} team={opp} defTeam={active} defWeek={data?.week} matchup={matchup} venue={gameVenue(data?.games, opp, active)}
+            players={data?.players} initialMode="TEAM" onPlayerClick={onPlayerClick} onOpenTeam={onOpenTeam} />}
           {(() => {
             const o = laneOutcomes(matchup.field, active)
             return o && (o.stuff || o.leak) ? (

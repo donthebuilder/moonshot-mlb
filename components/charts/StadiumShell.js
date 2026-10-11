@@ -23,7 +23,7 @@ function coarse() {
   try { return typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(pointer: coarse)').matches } catch { return false }
 }
 
-export default function StadiumShell({ children, chips = null, presets = [], onPreset = null, active = null, theme, accent, caption = null, onFullChange = null }) {
+export default function StadiumShell({ children, chips = null, presets = [], onPreset = null, active = null, theme, accent, caption = null, onFullChange = null, fullLabel = '3D view, full screen' }) {
   const [full, setFull] = useState(false)
   const [canFull, setCanFull] = useState(false)
   const scrollRef = useRef(0)
@@ -94,7 +94,7 @@ export default function StadiumShell({ children, chips = null, presets = [], onP
     // The inline spot keeps its height while the view is full screen, so the
     // page (or the card's panel) under it never shortens and jumps.
     return <div ref={rootRef} style={{ height: holdRef.current.h }}>{createPortal(
-      <div role="dialog" aria-modal="true" aria-label="3D view, full screen" style={{
+      <div role="dialog" aria-modal="true" aria-label={fullLabel} style={{
         position: 'fixed', inset: 0, zIndex: 1000, height: '100dvh', display: 'flex', flexDirection: 'column',
         background: theme.bg, padding: 'env(safe-area-inset-top) 10px calc(10px + env(safe-area-inset-bottom))',
       }}>

@@ -19,6 +19,7 @@ import { etToday } from '../../lib/freshness'
 import BornLine from '../player/BirthdayChip'
 import { VerdictStamp, PutOnCard } from './CardActions'
 import NflCardMatchup from './NflCardMatchup'
+import PlayerField from './PlayerField'
 import NflSplitsTable, { splitRows } from './NflSplitsTable'
 import VerdictHero from '../VerdictHero'
 import { faceUrl } from '../PlayerFace'
@@ -489,7 +490,10 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
       </>}
 
       {/* MATCHUP: the defense he faces, and how it covers */}
-      {tab === 'matchup' && <NflCardMatchup player={player} matchup={matchup} slate={slate} />}
+      {tab === 'matchup' && <>
+        <PlayerField key={player.player_id} player={player} matchup={matchup} />
+        <NflCardMatchup player={player} matchup={matchup} slate={slate} />
+      </>}
 
       {/* SPLITS: the pairs, then the combine filters and this stadium */}
       {tab === 'splits' && <>

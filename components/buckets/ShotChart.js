@@ -9,7 +9,8 @@
 // "vs league" per zone waits for the backfill (it would be a guess today).
 // Tap a shot for its line (nothing here is hover-only).
 import { useMemo, useState } from 'react'
-import { ChipGroup, ChartCard, ChartLegend, StatStrip } from '../charts'
+import { ChipGroup, ChartLegend, StatStrip } from '../charts'
+import FlatStage from '../charts/FlatStage'
 import { C, NUM_FONT } from '../../lib/theme'
 import FiltersSheet from '../player/FiltersSheet'
 import useHashFilters from '../../lib/useHashFilters'
@@ -114,7 +115,24 @@ export default function ShotChart({ shots = [], names = {}, teams = {}, title = 
         { k: 'FGA', v: shown.length }, { k: 'FG%', v: pct(made, shown.length), sub: `${made}/${shown.length}` },
         { k: '3PA', v: threes.length }, { k: '3P%', v: pct(threes.filter((s) => s.made).length, threes.length) }, { k: 'PTS', v: pts, sub: 'from the field' },
       ]} />
-      <ChartCard theme={C} accent={ACCENT}>
+      <FlatStage theme={C} numFont={NUM_FONT} accent={ACCENT} label={title || 'Shot chart'} kicker="SHOT CHART" right={`${shown.length} ${shown.length === 1 ? 'SHOT' : 'SHOTS'}`}
+        title={title || null}
+        sentence={shown.length ? <><b style={{ color: ACCENT, fontWeight: 900 }}>{pct(made, shown.length)}</b> from the field ({made}/{shown.length}), {pct(threes.filter((s) => s.made).length, threes.length)} on threes ({threes.filter((s) => s.made).length}/{threes.length}).</> : null}
+        legend={view === 'dots' ? <ChartLegend theme={C} items={[
+        { key: 'made', mark: <svg width="10" height="10"><circle cx="5" cy="5" r="4" fill={ACCENT} /></svg>, label: 'made' },
+        { key: 'miss', mark: <svg width="10" height="10"><circle cx="5" cy="5" r="3.5" fill="none" stroke={C.text3} /></svg>, label: 'missed' },
+        { key: 'tap', mark: null, label: 'tap a shot for its line' },
+      ]} /> : null}
+        more={{ label: 'More numbers', summary: 'by zone', children: (
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 6 }}>
+        {zones.map((z) => (
+          <div key={z.k} style={{ border: `1px solid ${C.border}`, borderRadius: 10, padding: '6px 10px', background: C.bg2 }}>
+            <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.06em', color: C.text3, fontFamily: NUM_FONT }}>{z.label.toUpperCase()}</div>
+            <div style={{ fontFamily: NUM_FONT, fontSize: 14, fontWeight: 900 }}>{pct(z.m, z.a)} <span style={{ fontSize: 11, color: C.text3, fontWeight: 600 }}>{z.m}/{z.a}</span></div>
+          </div>
+        ))}
+      </div>
+        ) }}>
         <svg viewBox="-1 -1 52 49" role="img" aria-label={`${shown.length} ${shown.length === 1 ? 'shot' : 'shots'} on a half court`} style={{ width: '100%', maxWidth: 560, display: 'block', margin: '0 auto' }}>
           <Court />
           {view === 'heat' && bins.map((b) => (
@@ -129,30 +147,17 @@ export default function ShotChart({ shots = [], names = {}, teams = {}, title = 
             </g>
           ))}
         </svg>
-      </ChartCard>
+      </FlatStage>
       {view === 'heat' ? (
         <p style={{ margin: 0, fontSize: 12, color: C.text2, fontFamily: NUM_FONT, minHeight: 18 }}>
           {bin ? <>This spot ({BIN} ft square): <b style={{ color: C.text }}>{bin.m}/{bin.a}</b> made · {pct(bin.m, bin.a)}</> : 'Darker = more attempts from that spot. Tap a square for its makes over attempts.'}
         </p>
       ) : null}
-      {view === 'dots' && <ChartLegend theme={C} items={[
-        { key: 'made', mark: <svg width="10" height="10"><circle cx="5" cy="5" r="4" fill={ACCENT} /></svg>, label: 'made' },
-        { key: 'miss', mark: <svg width="10" height="10"><circle cx="5" cy="5" r="3.5" fill="none" stroke={C.text3} /></svg>, label: 'missed' },
-        { key: 'tap', mark: null, label: 'tap a shot for its line' },
-      ]} />}
       {picked ? (
         <p style={{ margin: 0, fontSize: 12, color: C.text2, fontFamily: NUM_FONT }}>
           {picked.player_id ? <><b style={{ color: picked.made ? ACCENT : C.text }}>{names[picked.player_id] || picked.player_id}</b> · </> : null}{picked.made ? 'made' : 'missed'} {picked.three ? 'a three' : 'a two'}{picked.shot_type ? ` · ${picked.shot_type}` : ''}{picked.distance != null ? ` · ${picked.distance} ft` : ''}{picked.period ? ` · Q${picked.period > 4 ? `OT${picked.period - 4}` : picked.period} ${picked.clock || ''}` : ''}
         </p>
       ) : null}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 6 }}>
-        {zones.map((z) => (
-          <div key={z.k} style={{ border: `1px solid ${C.border}`, borderRadius: 10, padding: '6px 10px', background: C.bg2 }}>
-            <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.06em', color: C.text3, fontFamily: NUM_FONT }}>{z.label.toUpperCase()}</div>
-            <div style={{ fontFamily: NUM_FONT, fontSize: 14, fontWeight: 900 }}>{pct(z.m, z.a)} <span style={{ fontSize: 11, color: C.text3, fontWeight: 600 }}>{z.m}/{z.a}</span></div>
-          </div>
-        ))}
-      </div>
       <p style={{ margin: 0, fontSize: 11, color: C.text3 }}>{source || 'Source: ESPN play-by-play (every field-goal attempt’s spot; free throws and end-of-quarter heaves out, as in the box score).'}</p>
     </section>
   )

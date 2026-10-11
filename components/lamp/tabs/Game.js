@@ -8,6 +8,7 @@ import { strengthTag } from '../ScoreTable'
 import LampTable from '../LampTable'
 import GoalieQuality from '../GoalieQuality'
 import GoalieWeakSpots from '../GoalieWeakSpots'
+import GameRink from '../GameRink'
 import Tap from '../../Tap'
 import GameTotalLine, { useGameTotals } from '../../GameTotalLine'
 import SiteTeamMark from '../../TeamMark'
@@ -84,6 +85,8 @@ export default function Game({ id, onBack, onOpenPlayer = null, onOpenTeam = nul
         <GameTotalLine sport="nhl" row={gameTotals?.[String(g.id)]} style={{ marginTop: 8 }} />
       </header>
       <GameLedgerLine sport="nhl" gameId={g.id} day={g.date} />
+      {/* THE RINK (Wave 6): before the puck drops it leads (the tables below are empty); once there are goals and periods the tables lead and it follows the goals */}
+      {g.state === 'pre' && <GameRink game={g} />}
 
       {/* ── by period ── */}
       {(g.linescore?.length || g.shotsByPeriod?.length) ? (
@@ -139,6 +142,8 @@ export default function Game({ id, onBack, onOpenPlayer = null, onOpenTeam = nul
               ]} />
           )}
       </section>
+
+      {g.state !== 'pre' && <GameRink game={g} />}
 
       {/* ── team comparison ── */}
       {Object.keys(ts).length > 0 && (

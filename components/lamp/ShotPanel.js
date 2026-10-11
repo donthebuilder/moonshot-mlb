@@ -19,7 +19,9 @@ import { FactLines } from '../matchup/MatchupParts'
 import { alpha } from '../../lib/scales'
 import FiltersSheet from '../player/FiltersSheet'
 import useHashFilters from '../../lib/useHashFilters'
-import { ChartCard, ChartLegend, ChartEmpty, StatStrip, viewBtn } from '../charts'
+import { ChartLegend, ChartEmpty, StatStrip, viewBtn } from '../charts'
+import FlatStage from '../charts/FlatStage'
+import TeamMark from '../TeamMark'
 
 // 🏒 WHERE HE SHOOTS FROM (lamp research step 3). The rink plus the numbers
 // it is drawn from, for one player or one club: season or last 10 games,
@@ -221,11 +223,6 @@ export default function ShotPanel({ sel, who = 'He', height = 300, venue = null,
       {data?.season && m ? (
         <>
           {/* THE ONE-LINE SUMMARY, above the chart (2026-10-07: the chart leads the tab, not five rows of chips) */}
-          {recent.length > 0 && (
-            <div style={{ fontSize: 16, fontWeight: 800, color: C.text, lineHeight: 1.35 }}>
-              {summary}
-            </div>
-          )}
           {view === 'goalie' && goalieRead && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {(sel?.name || goalie) && <div style={{ fontSize: 15, fontWeight: 800, color: C.text, lineHeight: 1.3 }}>{sel?.name || (who === 'He' ? 'He' : 'They')} <span style={{ color: C.ice, fontFamily: NUM_FONT, letterSpacing: '.1em', fontSize: 12 }}>VS</span> {goalie?.name || 'a goalie'}{goalie?.team ? <span style={{ color: C.text3, fontWeight: 600, fontSize: 13 }}> · {goalie.team}</span> : null}</div>}
@@ -267,9 +264,56 @@ export default function ShotPanel({ sel, who = 'He', height = 300, venue = null,
           )}
           {/* 2D / 3D, one chart (2026-10-03): the flat rink and the arena share the chart's place; the toggle rides with the view buttons */}
           {arena && gl && viewToggle}
-          <ChartCard theme={C}>
+          <FlatStage theme={C} numFont={NUM_FONT} accent={C.ice} label={`Shot map: ${sel?.name || sel?.team || sel?.against || ''}`} kicker="SHOT MAP" right={`${data.seasonLabel || ''}`}
+            title={sel?.name || (sel?.team ? `${sel.team} shooting` : sel?.against ? `${sel.against} allow` : null)}
+            mark={sel?.team || sel?.against ? <TeamMark sport="nhl" abbr={sel.team || sel.against} variant="logo" px={120} /> : null}
+            sentence={recent.length > 0 ? summary : null}
+            more={{ label: 'More numbers', summary: `${m.attempts} attempts, ${m.goals} goals`, children: <div style={{ fontFamily: NUM_FONT }}>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 8, fontFamily: NUM_FONT }}>
+                {[
+                  ['slot share', pct(m.slotShare), C.ice],
+                  ...(data.league?.slotShare != null ? [[leagueStamp(data.league, data), pct(data.league.slotShare), C.text2]] : []),
+                  ['attempts', m.attempts, C.text],
+                  ['on net', m.sog, C.text],
+                  ['goals', m.goals, C.lamp],
+                  ...(m.xg ? [['xG', m.xg.total.toFixed(1), C.ice]] : []),
+                  ['missed', m.misses, C.text2],
+                  ['blocked', m.blocked, C.text2],
+                  ['on the PP', m.byStrength?.pp || 0, C.text2],
+                ].map(([k, v, tone]) => (
+                  <span key={k} style={{ fontSize: 12, color: C.text2 }}><b style={{ color: tone, fontSize: 14, fontWeight: 900 }}>{v}</b> {k}</span>
+                ))}
+              </div>
+              {/* components/charts/HowToRead (2D TOP TIER 1): SprayField's panel,
+                  shared; size 12 for the phone rule */}
+              <HowToRead theme={C} numFont={NUM_FONT} open={help} onToggle={setHelp} size={12}>
+                <div style={{ marginBottom: 6 }}>
+                  {sel?.against
+                    ? <>Slot share: opponents&apos; shots on net from the slot as a share of every shot on net against them.</>
+                    : <>Slot share: {who === 'He' ? 'his' : 'their'} shots on net from the slot as a share of all {who === 'He' ? 'his' : 'their'} shots on net.</>}
+                  {' '}The dots are the last {recent.length} attempts; the numbers are the whole {win === 'all' ? 'season' : 'last ten games'}.
+                </div>
+                <div style={{ marginBottom: 6 }}>
+                  Every attempt is turned to attack the same net (the right-hand one), so the ends a team switches between periods read as one. Positions are in feet: goal line at 89, blue line at 25. The filter chips cut the dots, the zone bars and the arena together.
+                </div>
+                <div style={{ marginBottom: 6 }}>
+                  {ZONES.map((z, i) => <span key={z.key}>{i ? ' · ' : ''}<b style={{ color: C.text2 }}>{z.label}</b> {z.def}</span>)}.
+                </div>
+                {m.xg && <div style={{ marginBottom: 6 }}>
+                  xG ({m.xg.version}): each shot on net is scored from where it was taken, its type and the strength, by a model fitted on 2025-26 games before February and tested on the games after; the number is those scores added up over {m.xg.sog} shots on net ({m.xg.goals} {m.xg.goals === 1 ? 'was a goal' : 'were goals'}). Tap a zone for its share. Empty-net shots are left out, and a rebound or a rush is not known to it.
+                </div>}
+                {goalieRead && <div style={{ marginBottom: 6 }}>
+                  VS GOALIE: the goalie&apos;s {data.seasonLabel} regular season under {who === 'He' ? 'his' : 'their'} pucks. Each named zone is shaded by the goals he let in per shot on goal from there against the league&apos;s rate from the same zone: red, he lets in more; blue, fewer; no tint, within 1.5 points of the league; hatched, under 15 shots (thin). Tonight&apos;s starter isn&apos;t published by the league, so {opp ? <>tonight&apos;s opponent&apos;s busiest goalie ({opp}) opens</> : 'the busiest goalie from another club opens'} and the picker changes it. Where in the net a shot went (glove, blocker, five-hole) isn&apos;t in the public feed, so no net map is drawn.
+                </div>}
+                <div>
+                  HEAT splits the attacking end into a 5 × 5 grid and colours each zone by {who === 'He' ? 'his' : 'their'} shooting percentage from it (goals per shot on goal; full colour at {Math.round(HEAT_FULL * 100)}%), with the shots taken from there under it; a zone with fewer than {HEAT_MIN_SOG} shots on goal shows its count only.
+                  {data.league ? <> VS LEAGUE puts the same grid against every regular-season attempt in the league in {data.league.seasonLabel || 'that season'} ({data.league.attempts.toLocaleString()} of them){data.league.fallback ? ` -- last season's, because the league has under ${LEAGUE_MIN_GAMES} games of ${data.league.wantedLabel} so far` : ''}: each zone&apos;s number is {who === 'He' ? 'his' : 'their'} share there minus the league&apos;s, in points, from {win === 'all' ? 'the season' : win === 'last5' ? 'the last five games' : 'the last ten games'} against the league&apos;s season; under {VS_MIN} attempts a zone is left blank, and the colour is full at {Math.round(VS_FULL * 100)} points. The league&apos;s slot share is cut the same way as {who === 'He' ? 'his' : 'theirs'}.</> : null} 3D draws the same shots in the arena; its lines run from the shot to the net along the ice and are not tracked puck paths.
+                </div>
+              </HowToRead>
+            </div> }}>
+            <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'flex-start' }}>
             <div style={{ flex: '1 1 300px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {!(arena && gl) && <Rink map={m} slot={data.slot} gridSpec={data.gridSpec} height={height} shots={shots} view={view} onView={setView} league={data.league} zones={zoneItems} extraView={viewToggle}
+            {!(arena && gl) && <Rink map={m} slot={data.slot} gridSpec={data.gridSpec} height={height} shots={shots} view={view} onView={setView} league={data.league} zones={zoneItems} loud={3} extraView={viewToggle}
               speed={speed} hardest={hardest} slotPct={slotStat?.v ? parseInt(slotStat.v, 10) : null}
               goalieRead={goalieRead} pickedZone={picked?.zone || null} onPickZone={(z) => setPicked({ zone: z })}
               onPick={(sh) => setPicked(sh === picked ? null : sh)} picked={picked}
@@ -352,49 +396,9 @@ export default function ShotPanel({ sel, who = 'He', height = 300, venue = null,
                 ? [{ key: 'heat', mark: <i aria-hidden="true" style={{ width: 10, height: 8, borderRadius: 2, background: `${C.ice}88` }} />, label: 'shooting % per zone · shots under it' },
                   { key: 'arcs', mark: <b aria-hidden="true">◌</b>, label: '20 / 40 / 60 ft from the net' }]
                 : []} />
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 8, fontFamily: NUM_FONT }}>
-                {[
-                  ['slot share', pct(m.slotShare), C.ice],
-                  ...(data.league?.slotShare != null ? [[leagueStamp(data.league, data), pct(data.league.slotShare), C.text2]] : []),
-                  ['attempts', m.attempts, C.text],
-                  ['on net', m.sog, C.text],
-                  ['goals', m.goals, C.lamp],
-                  ...(m.xg ? [['xG', m.xg.total.toFixed(1), C.ice]] : []),
-                  ['missed', m.misses, C.text2],
-                  ['blocked', m.blocked, C.text2],
-                  ['on the PP', m.byStrength?.pp || 0, C.text2],
-                ].map(([k, v, tone]) => (
-                  <span key={k} style={{ fontSize: 12, color: C.text2 }}><b style={{ color: tone, fontSize: 14, fontWeight: 900 }}>{v}</b> {k}</span>
-                ))}
-              </div>
-              {/* components/charts/HowToRead (2D TOP TIER 1): SprayField's panel,
-                  shared; size 12 for the phone rule */}
-              <HowToRead theme={C} numFont={NUM_FONT} open={help} onToggle={setHelp} size={12}>
-                <div style={{ marginBottom: 6 }}>
-                  {sel?.against
-                    ? <>Slot share: opponents&apos; shots on net from the slot as a share of every shot on net against them.</>
-                    : <>Slot share: {who === 'He' ? 'his' : 'their'} shots on net from the slot as a share of all {who === 'He' ? 'his' : 'their'} shots on net.</>}
-                  {' '}The dots are the last {recent.length} attempts; the numbers are the whole {win === 'all' ? 'season' : 'last ten games'}.
-                </div>
-                <div style={{ marginBottom: 6 }}>
-                  Every attempt is turned to attack the same net (the right-hand one), so the ends a team switches between periods read as one. Positions are in feet: goal line at 89, blue line at 25. The filter chips cut the dots, the zone bars and the arena together.
-                </div>
-                <div style={{ marginBottom: 6 }}>
-                  {ZONES.map((z, i) => <span key={z.key}>{i ? ' · ' : ''}<b style={{ color: C.text2 }}>{z.label}</b> {z.def}</span>)}.
-                </div>
-                {m.xg && <div style={{ marginBottom: 6 }}>
-                  xG ({m.xg.version}): each shot on net is scored from where it was taken, its type and the strength, by a model fitted on 2025-26 games before February and tested on the games after; the number is those scores added up over {m.xg.sog} shots on net ({m.xg.goals} {m.xg.goals === 1 ? 'was a goal' : 'were goals'}). Tap a zone for its share. Empty-net shots are left out, and a rebound or a rush is not known to it.
-                </div>}
-                {goalieRead && <div style={{ marginBottom: 6 }}>
-                  VS GOALIE: the goalie&apos;s {data.seasonLabel} regular season under {who === 'He' ? 'his' : 'their'} pucks. Each named zone is shaded by the goals he let in per shot on goal from there against the league&apos;s rate from the same zone: red, he lets in more; blue, fewer; no tint, within 1.5 points of the league; hatched, under 15 shots (thin). Tonight&apos;s starter isn&apos;t published by the league, so {opp ? <>tonight&apos;s opponent&apos;s busiest goalie ({opp}) opens</> : 'the busiest goalie from another club opens'} and the picker changes it. Where in the net a shot went (glove, blocker, five-hole) isn&apos;t in the public feed, so no net map is drawn.
-                </div>}
-                <div>
-                  HEAT splits the attacking end into a 5 × 5 grid and colours each zone by {who === 'He' ? 'his' : 'their'} shooting percentage from it (goals per shot on goal; full colour at {Math.round(HEAT_FULL * 100)}%), with the shots taken from there under it; a zone with fewer than {HEAT_MIN_SOG} shots on goal shows its count only.
-                  {data.league ? <> VS LEAGUE puts the same grid against every regular-season attempt in the league in {data.league.seasonLabel || 'that season'} ({data.league.attempts.toLocaleString()} of them){data.league.fallback ? ` -- last season's, because the league has under ${LEAGUE_MIN_GAMES} games of ${data.league.wantedLabel} so far` : ''}: each zone&apos;s number is {who === 'He' ? 'his' : 'their'} share there minus the league&apos;s, in points, from {win === 'all' ? 'the season' : win === 'last5' ? 'the last five games' : 'the last ten games'} against the league&apos;s season; under {VS_MIN} attempts a zone is left blank, and the colour is full at {Math.round(VS_FULL * 100)} points. The league&apos;s slot share is cut the same way as {who === 'He' ? 'his' : 'theirs'}.</> : null} 3D draws the same shots in the arena; its lines run from the shot to the net along the ice and are not tracked puck paths.
-                </div>
-              </HowToRead>
             </div>
-          </ChartCard>
+            </div>
+          </FlatStage>
           {/* THE CONTROLS, under the chart: the window and the result stay in sight (44px), type / strength /
               period / hardest sit behind MORE */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
