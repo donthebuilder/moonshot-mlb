@@ -12,6 +12,7 @@
 //  E  the three alerts (NHL goal, NFL touchdown, MLB homer), the Card (members + result) and the receipts render the expected sections
 //  F  postToDiscord with an embed: one embed, no content, no momentEmbed, the png still attaches (attachment://card.png), 429 retry + log intact
 //  G  members card leak tests: no members webhook = zero calls; with one = exactly one call, to the members URL only; never X, never a free hook
+import './_no-injury-net.mjs'   // the injury layer's own fetch must not land in this test's call counts
 import { readFileSync } from 'node:fs'
 
 let fail = 0

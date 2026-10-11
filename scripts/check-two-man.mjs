@@ -5,6 +5,7 @@
 // holds the migration's rules), both-or-nothing grading with void legs, the record math (K of N, the count expected if independent, Wilson,
 // units only from enough priced calls), Donovan's lane kept apart, the X text naming only the #1 straight, the #members text never going to
 // X or a free channel (a leak check), the post kinds' tags, the migration's guards.
+import './_no-injury-net.mjs'   // the injury layer's own fetch must not land in this test's call counts
 import fs from 'node:fs'
 import assert from 'node:assert/strict'
 import {

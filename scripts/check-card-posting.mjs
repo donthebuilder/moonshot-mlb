@@ -8,6 +8,7 @@
 //   E  the three alert routes keep their old card as the fallback and their claim / retry code is untouched
 //   F-I (10-10 "wire it up"): the graded slab under the free result posts, the bot's Two-Man dual card on the members post only, Donovan's on his free
 //      post after his lock, kill switches SLAB_CARD_OFF / DUAL_CARD_OFF, failures never change the text, claim / retry untouched
+import './_no-injury-net.mjs'   // the injury layer's own fetch must not land in this test's call counts
 import { readFileSync, readdirSync } from 'node:fs'
 
 let failed = 0

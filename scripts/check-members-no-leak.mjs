@@ -15,6 +15,7 @@
 // E  separator-only / non-URL members values never claim the day's row nor report "posted"  (REQUIRED)
 // F  a members-kind post given no usable hook never falls through to the public feed (postOnce)  (REQUIRED)
 // G  discord_sends logging: one row per hook attempt, key name only, never a URL; a missing table never throws  (REQUIRED)
+import './_no-injury-net.mjs'   // the injury layer's own fetch must not land in this test's call counts
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 

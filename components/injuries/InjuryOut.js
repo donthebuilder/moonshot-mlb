@@ -73,7 +73,7 @@ export default function InjuryOut({ sport, clubs, theme, title = 'Out tonight', 
             <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: 340 }}>
               <thead>
                 <tr>
-                  <th style={th}>PLAYER</th><th style={th}>CLUB</th><th style={th}>{sport === 'nfl' ? 'ROLE' : 'POS'}</th><th style={th}>STATUS</th><th style={th}>NOTE</th><th style={th}>UPDATED</th>
+                  <th style={th}>PLAYER</th><th style={th}>CLUB</th><th style={th}>{roleOf ? 'ROLE' : 'POS'}</th><th style={th}>STATUS</th><th style={th}>NOTE</th><th style={th}>UPDATED</th>
                 </tr>
               </thead>
               <tbody>

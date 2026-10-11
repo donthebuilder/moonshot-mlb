@@ -2,6 +2,7 @@
 // THE CARD MAP (Donovan's approved map, 2026-10-10): plays per slate, the straight slots by market, the same-game Two-Man, the Double, the Long Shot of the
 // day, THE DAY, and the leak rules. Every input is TEST data (made-up players p1.., clubs AAA, made-up numbers, made-up prices), nothing real.
 //   node --no-warnings --import ./scripts/_esm-resolve.mjs scripts/check-card-map.mjs
+import './_no-injury-net.mjs'   // the injury layer's own fetch must not land in this test's call counts
 import fs from 'node:fs'
 import assert from 'node:assert/strict'
 import {
