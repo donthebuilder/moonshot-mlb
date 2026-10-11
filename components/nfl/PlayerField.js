@@ -5,7 +5,7 @@ import BroadcastField from './BroadcastField'
 import FlatStage, { StageSeg } from '../charts/FlatStage'
 import { useIsPhone } from '../MobileFold'
 import { C, NUM_FONT } from '../../lib/nfl/theme'
-import { fieldModel, fieldView, mapAttempts, phrase, fmtPct, SIDES, DEPTHS, LANES, LANE_WORD, HEAT_FULL, SPOT_MIN_MINE } from '../../lib/nfl/fieldModel'
+import { fieldModel, fieldView, mapAttempts, phrase, fmtPct, SIDES, DEPTHS, LANES, LANE_WORD, LANE_SHORT, DEPTH_AX, SPOT_MIN_MINE } from '../../lib/nfl/fieldModel'
 
 // THE FIELD, ON HIS PAGE (Wave 6, 2026-10-11). Where his own targets (or carries, or throws) went this season, by zone, on the same
 // stage frame as the game page's field (components/charts/FlatStage). Real data only: nfl_matchup `field.player_pass` / `qb_pass` /
@@ -42,6 +42,7 @@ export default function PlayerField({ player, matchup }) {
   const where = (z) => (pass ? phrase(z) : LANE_WORD[z])
   const unit = isQB && pass ? 'throw' : pass ? 'target' : 'carry'
   const top = ranked[0]
+  const short = (z) => (pass ? `${z.split('|')[0]} ${DEPTH_AX[z.split('|')[1]][0]}`.toUpperCase() : LANE_SHORT[z])
   const cells = {}
   for (const r of rows) {
     const lk = model?.by?.[r.z]?.leak
@@ -63,11 +64,7 @@ export default function PlayerField({ player, matchup }) {
       lead={player.team ? <TeamMark sport="nfl" abbr={player.team} variant="logo" px={24} /> : null} title={`${first}: where it goes`}
       mark={player.team ? <TeamMark sport="nfl" abbr={player.team} variant="logo" px={120} /> : null}
       sentence={top ? <><b style={{ color: C.green, fontWeight: 900 }}>{Math.round(top.share)}%</b> of his {total} {unit}s this season {pass ? 'were' : 'went'} {where(top.z)}{top.td ? `, ${top.td} for a touchdown` : ''}.{thin ? ' A small sample: a hint, not a tendency.' : ''}{spot && opp ? <> {opp} give up {fmtPct(spot.leak)} there. That is the spot.</> : null}</> : null}
-      tiles={[
-        { label: 'HIS BUSIEST', big: top ? `${Math.round(top.share)}%` : '—', pct: 100, hot: true, line: top ? where(top.z) : '' },
-        { label: opp ? `${opp} LEAK` : 'THEIR LEAK', big: Number.isFinite(topLeak) ? fmtPct(topLeak) : '—', pct: topLeak > 0 ? Math.min(100, (100 * topLeak) / HEAT_FULL) : null, hot: Boolean(spot), line: Number.isFinite(topLeak) ? `yards a play vs normal, there` : opp ? 'too few plays to call' : 'no game this week' },
-        { label: 'TOUCHDOWNS', big: String(rows.reduce((a, r) => a + r.td, 0)), line: `on ${total} ${unit}s` },
-      ]}
+      tiles={ranked.slice(0, TOP).map((r, i) => ({ label: short(r.z), big: `${Math.round(r.share)}%`, pct: (100 * r.share) / maxShare, hot: i === 0, line: `${r.att} ${unit}${r.att === 1 ? '' : 's'}${r.td ? `, ${r.td} TD` : ''}` }))}
       foldTiles={phone} maxWidth={440} fullscreen fullLabel="His field, full screen"
       legend={<>Brighter = more of his {unit}s go there. The number is that share (his top {TOP} zones only). Dots = touchdowns. Zones, not routes. Tap a zone for his plays there.</>}
       controls={<>
