@@ -49,15 +49,20 @@ export default function Slate({ date, setDate, market = 'pts', onOpenPlayer, onO
   const calls = rows.filter((r) => r.status === 'called')
   const shown = data?.date || date
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div className="slate-tight" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <PageHeader eyebrow="BUCKETS · SLATE" title={shown ? fmtDay(shown) : 'Tonight'} theme={C} numFont={NUM_FONT} accent={C.purple}
         note="Every game that day, with its calls and board."
         stats={data ? [{ value: games.length, label: 'GAMES', tone: C.text2 }] : null} />
-      <DayPager shown={shown} date={date} setDate={setDate} />
-      <DelayedBanner error={error} what="the board" />
-      {loading && !data ? <Loading what="the slate" /> : null}
-      {data && !games.length && <EmptyState title="NO GAMES THAT DAY" note="Try another day." />}
-      {games.length > 0 && <Pills ariaLabel="View" value={view} onChange={setView} options={[{ key: 'games', text: '🏟 Games' }, { key: 'table', text: '📊 Table' }]} />}
+      {/* desktop: day pager + Games|Table on ONE row (app/globals.css .slate-tight); phone: display:contents, so every child is still the page's own flex item and nothing moves */}
+      <div className="slate-bar" style={{ display: 'contents' }}>
+        <DayPager shown={shown} date={date} setDate={setDate} />
+        <div className="slate-note" style={{ display: 'contents' }}>
+          <DelayedBanner error={error} what="the board" />
+          {loading && !data ? <Loading what="the slate" /> : null}
+          {data && !games.length && <EmptyState title="NO GAMES THAT DAY" note="Try another day." />}
+        </div>
+        {games.length > 0 && <Pills ariaLabel="View" value={view} onChange={setView} options={[{ key: 'games', text: '🏟 Games' }, { key: 'table', text: '📊 Table' }]} />}
+      </div>
       {view === 'table' && games.length > 0 && (
         <div>
           <BucketsProjected rows={pts.data?.rows || []} games={games} onOpenTeam={onOpenTeam} onOpenGame={(id) => { choose(id); setView('games') }} />

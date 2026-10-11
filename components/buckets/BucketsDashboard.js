@@ -119,7 +119,7 @@ export default function BucketsDashboard() {
             <HighlightBar sport="nba" onOpen={(id) => peekPlayer(id)} />
           </SportTheme>
           <SportTheme theme={C} accent={C.purple} numFont={NUM_FONT}>
-          {isLiveTab('nba', tab) && <RefreshStamp live={live > 0} style={{ marginBottom: 8 }} />}
+          {isLiveTab('nba', tab) && <RefreshStamp live={live > 0} className={tab === 'games' ? 'slate-stamp' : undefined} style={{ marginBottom: 8 }} />}
           <TeamNav.Provider value={openTeam}>
           <ErrorBoundary resetKey={`${tab}:${gameId || ''}:${teamKey || ''}:${playerId || ''}`} label={`the ${tab} tab`}>
             {tab === 'home' && <Home today={shown} date={date} setTab={setTab} {...nav} />}
