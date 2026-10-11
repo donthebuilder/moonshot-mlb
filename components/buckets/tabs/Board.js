@@ -27,6 +27,7 @@ import { EmptyState, DelayedBanner, Loading, SourceLine, Pills, NavBtn, DayPager
 import { STATUS_WORD } from '../../../lib/callStatus'
 import { useRankMove } from '../../../lib/useRankMove'
 import { RankMoveNote } from '../../RankMove'
+import { useColumnSet } from '../../../lib/useColumnSet'
 
 // 🎯 PROPS -- the BUCKETS board for one market (lib/nba/boardRead.js): every
 // player on the night's rosters ranked by the market's score, one CALLED per
@@ -51,7 +52,7 @@ const ALL_KEYS = Object.keys(NBA_MARKETS)
 const LAST_NIGHT_GROUP = 'Last night'
 function withLastNight(columns, cln) {
   if (!cln?.on) return columns
-  const col = lastNightColumn({ group: LAST_NIGHT_GROUP })
+  const col = { ...lastNightColumn({ group: LAST_NIGHT_GROUP }), cset: 'lean' }
   const at = columns.findIndex((c) => c.key === 'oppTxt')
   return at < 0 ? [...columns, col] : [...columns.slice(0, at + 1), col, ...columns.slice(at + 1)]
 }
@@ -223,8 +224,9 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
       )}
     </>
   )
+  const colSet = useColumnSet('nba')   // Short list / What I read / All (lib/columnViews.js); the tables below read the same choice
   const drawerProps = {
-    active: chips.length + drawerChips.length > 0, activeCount: chips.length + drawerChips.length,
+    active: chips.length + drawerChips.length > 0, activeCount: chips.length + drawerChips.length, columnSet: { set: colSet.set, onChange: colSet.setSet },
     activeFilters: [...chips, ...drawerChips].map((c) => ({ key: c.key, label: c.label, onRemove: c.onClear })),
     reset: clearAll, shown: rows.length, total: pool.length, accent: C.purple, accentInk: C.bg, positions: pf.control,
     poolTitle: 'Players on tonight’s board that clear the filters. Stacks with the search, team and game above.', emptyNote: 'Nothing clears every filter at once. Loosen one.',
@@ -307,7 +309,7 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
         <BucketsCards market={mk} onOpen={onOpenPlayer} rankOf={(r) => cardRank.get(r._id || `${r.gameId}-${r.playerId}`)} rows={[...rows].filter((r) => r.score != null && Number.isFinite(Number(r.score))).sort((a, b) => b.score - a.score).map((r) => ({ ...r, rankMove: rankMv.cell(r._id) }))} />
       )}
       {rows.length > 0 && !noStarters && layout === 'table' && (
-        <BucketsTable rows={rows.map((r) => ({ ...r, ...(cln.on ? { cln: cln.cell(r.playerId) } : null), rankMove: rankMv.cell(r._id) }))} columns={withLastNight(boardColumns(m, { onOpenTeam, onOpenGame, withXpts: true, whyCol: whyColumn({ textOf: (r) => (r.status === 'off' && r.reason ? r.reason : plainWhy(r, m)?.short || ''), itemOf: (r) => whyItemFor(r, m, r.nightRank), open: openWhy, theme: C, numFont: NUM_FONT, w: 165 }) }), cln)} statusOf={(r) => r.status}
+        <BucketsTable sets rows={rows.map((r) => ({ ...r, ...(cln.on ? { cln: cln.cell(r.playerId) } : null), rankMove: rankMv.cell(r._id) }))} columns={withLastNight(boardColumns(m, { onOpenTeam, onOpenGame, withXpts: true, whyCol: whyColumn({ textOf: (r) => (r.status === 'off' && r.reason ? r.reason : plainWhy(r, m)?.short || ''), itemOf: (r) => whyItemFor(r, m, r.nightRank), open: openWhy, theme: C, numFont: NUM_FONT, w: 165 }) }), cln)} statusOf={(r) => r.status}
           onRowClick={(r) => onOpenPlayer?.((r?._raw ?? r).playerId)} faceOf={faceOf}
           dimRow={(r) => Boolean(r.voidReason) || r.status === 'off'}
           initialSort={{ key: 'nightRank', dir: 'asc' }} heatMode="sorted" maxHeight={620} maxRows={Math.max(rows.length, 1)}

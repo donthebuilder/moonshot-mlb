@@ -77,23 +77,6 @@ export function withAlpha(col, a) {
   return `rgba(${r},${g},${b},${Math.max(0, Math.min(1, a)).toFixed(3)})`
 }
 
-// ── the skin, resolved: prop -> ?skin= (search or hash; also remembered) ->
-//    localStorage 'dash_table_skin' -> null (the caller's default)
-export const SKIN_KEY = 'dash_table_skin'
-export function readSkin() {
-  if (typeof window === 'undefined') return null
-  try {
-    const q = new URLSearchParams(window.location.search).get('skin')
-      || new URLSearchParams(String(window.location.hash || '').replace(/^#/, '')).get('skin')
-    if (q === 'v2' || q === 'classic') {
-      try { window.localStorage.setItem(SKIN_KEY, q) } catch { /* private mode */ }
-      return q
-    }
-    const ls = window.localStorage.getItem(SKIN_KEY)
-    return ls === 'v2' || ls === 'classic' ? ls : null
-  } catch { return null }
-}
-
 // ── groups: a column's group as { key, label, order }; a string is its own
 //    label, ordered by first appearance. Ungrouped columns ride with the
 //    group before them, so a partly-tagged table never scatters.

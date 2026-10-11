@@ -35,26 +35,26 @@ export function boardColumns(market, { onOpenTeam, onOpenGame, withGame = true, 
     { key: 'pos', label: 'Pos', group: 'Player', w: 36, heat: false, mono: true, dim: true },
     { key: 'team', label: 'Tm', group: 'Player', w: 52, heat: false, mono: true, teamMark: 'nba', link: (r) => (onOpenTeam ? () => onOpenTeam(r.team) : null) },
     { key: 'oppTxt', label: 'Opp', group: 'Player', w: 52, heat: false, mono: true, dim: true, subOnly: true, link: (r) => (onOpenTeam ? () => onOpenTeam(r.opp) : null) },
-    { key: 'score', label: 'Score', group: 'Call', w: 54, dp: 0, primary: true, scale: 'seq', domain: [0, 100], title: 'The market’s 0-100 score: a rank among tonight’s players, not a probability' },
-    ...(withXpts && XPTS_MARKETS.includes(market) ? [{ key: 'xpts', label: 'xPTS', group: 'Call', w: 58, dp: 1, mono: true, title: XPTS_TITLE, fmt: (v, r) => (v == null ? <span style={{ color: C.text3 }}>—</span> : <span title={r.xptsLine || XPTS_TITLE}>{Number(v).toFixed(1)}</span>) }] : []),
-    ...(whyCol ? [{ ...whyCol, group: 'Call' }] : []),
+    { key: 'score', label: 'Score', cset: 'lean', group: 'Call', w: 54, dp: 0, primary: true, scale: 'seq', domain: [0, 100], title: 'The market’s 0-100 score: a rank among tonight’s players, not a probability' },
+    ...(withXpts && XPTS_MARKETS.includes(market) ? [{ key: 'xpts', label: 'xPTS', cset: 'lean', group: 'Call', w: 58, dp: 1, mono: true, title: XPTS_TITLE, fmt: (v, r) => (v == null ? <span style={{ color: C.text3 }}>—</span> : <span title={r.xptsLine || XPTS_TITLE}>{Number(v).toFixed(1)}</span>) }] : []),
+    ...(whyCol ? [{ ...whyCol, cset: 'lean', group: 'Call' }] : []),
     { key: 'status', label: 'Status', group: 'Call', w: 156, heat: false, statusCol: true, fmt: (v, r) => (
       <span style={{ display: 'inline-flex', gap: 4, alignItems: 'center', whiteSpace: 'nowrap' }}>
         <CallStatusBadge status={v} accent={C.purple} />
         {r.role ? <b style={{ fontSize: 10, color: C.purple, fontFamily: NUM_FONT }}>{r.role}</b> : null}
         {!r.locked && v !== 'off' ? <span style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT, fontWeight: 800, letterSpacing: '.08em' }}>PREVIEW</span> : null}
       </span>) },
-    { key: 'actual', label: 'Result', group: 'Call', w: 64, heat: false, mono: true, title: market === 'dd' || market === 'td' ? `Did he get ${D.barWord}, once his game is final` : `What he did, once his game is final (${ACTUAL_WORD[market] || ''})`, fmt: (v, r) => (
+    { key: 'actual', label: 'Result', cset: 'lean', group: 'Call', w: 64, heat: false, mono: true, title: market === 'dd' || market === 'td' ? `Did he get ${D.barWord}, once his game is final` : `What he did, once his game is final (${ACTUAL_WORD[market] || ''})`, fmt: (v, r) => (
       r.voidReason ? <span style={{ fontSize: 10, color: C.text3 }}>VOID</span>
         : v == null ? <span style={{ color: C.text3 }}>—</span>
           : <span style={{ color: r.hit ? C.rim : C.text2, fontWeight: 900 }}>{r.hit ? <RimDot size={6} /> : null}{market === 'first' || market === 'dd' || market === 'td' ? (r.hit ? 'YES' : 'NO') : v}</span>) },
     // the opponent-adjusted legs rank him; the column shows his own measured rate (RAW_OF), and OPP x says how the matchup scaled it
-    ...D.legs.map((l) => { const k = RAW_OF[l] || l; return { key: k, label: LEG_LABEL[k] || k, group: 'Legs', w: 62, heat: false, mono: true, fmt: (v) => fmtLeg(k, v) } }),
-    ...(D.needsLog ? [{ key: market === 'td' ? 'multTd' : 'multDd', label: 'OPP ×', group: 'Legs', w: 58, heat: false, mono: true, title: 'What his opponent allows of the stats he reaches, against the league mean, shrunk for a small sample and clamped to 0.8-1.25. It scales his own rate for the ranking; 1.00 = no adjustment.', fmt: (v) => (v == null ? <span style={{ color: C.text3 }}>—</span> : Number(v).toFixed(2)) }] : []),
-    ...(withGame ? [{ key: 'tip', label: 'Game', group: 'Game', w: 84, heat: false, mono: true, dim: true,
+    ...D.legs.map((l) => { const k = RAW_OF[l] || l; return { key: k, label: LEG_LABEL[k] || k, cset: 'read', group: 'Legs', w: 62, heat: false, mono: true, fmt: (v) => fmtLeg(k, v) } }),
+    ...(D.needsLog ? [{ key: market === 'td' ? 'multTd' : 'multDd', label: 'OPP ×', cset: 'read', group: 'Legs', w: 58, heat: false, mono: true, title: 'What his opponent allows of the stats he reaches, against the league mean, shrunk for a small sample and clamped to 0.8-1.25. It scales his own rate for the ranking; 1.00 = no adjustment.', fmt: (v) => (v == null ? <span style={{ color: C.text3 }}>—</span> : Number(v).toFixed(2)) }] : []),
+    ...(withGame ? [{ key: 'tip', label: 'Game', cset: 'read', group: 'Game', w: 84, heat: false, mono: true, dim: true,
       link: (r) => (onOpenGame ? () => onOpenGame(r.gameId) : null),
       fmt: (v, r) => (r.gameState === 'live' ? <span style={{ color: C.rim }}><RimDot size={6} />LIVE</span> : r.gameState === 'final' ? 'FINAL' : v ? fmtTip(v) : '—') }] : []),
-    ...(whyCol ? [] : [{ key: 'why', label: 'Why', group: 'Game', w: 300, heat: false, fmt: (v, r) => <span style={{ fontSize: 11, color: C.text3, whiteSpace: 'nowrap' }}>{r.status === 'off' && r.reason ? r.reason : v || ''}{r.injury ? ` · ${r.injury}` : ''}</span> }]),
+    ...(whyCol ? [] : [{ key: 'why', label: 'Why', cset: 'lean', group: 'Game', w: 300, heat: false, fmt: (v, r) => <span style={{ fontSize: 11, color: C.text3, whiteSpace: 'nowrap' }}>{r.status === 'off' && r.reason ? r.reason : v || ''}{r.injury ? ` · ${r.injury}` : ''}</span> }]),
   ]
 }
 export const faceOf = (r) => ({ sport: 'nba', id: r.playerId, name: r.name })

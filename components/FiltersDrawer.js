@@ -5,6 +5,7 @@ import { STATE, alpha } from '../lib/scales'
 import LedgerChip from './LedgerChip'
 import WatchChip from './WatchChip'
 import { PositionRow } from './Filters'
+import ColumnSetSwitch from './ColumnSetSwitch'
 
 // ══ THE BOARD FILTERS DRAWER, ONE FOR ALL THREE PRODUCTS (2026-09-28) ═══════
 // Donovan: "on the boards we can toggle teams, games, multi filters, all type
@@ -84,6 +85,9 @@ export default function FiltersDrawer({
   // THE POSITION FILTER (2026-10-10, lib/usePositionFilter.js `control`): on a desktop its pills sit inline in this same
   // row (no extra line); inside a compact (phone) sheet they are the first section of the panel. Null = no row.
   positions = null,
+  // THE COLUMN-SET SWITCH (Wave 4, lib/columnViews.js): { set, onChange } puts Short list / What I read / All in the panel,
+  // first section. Null (MOONSHOT, every board without sets) draws exactly what it drew before.
+  columnSet = null,
 }) {
   const [open, setOpen] = useState(false)
   const wrap = useOutsideClose(open, setOpen)
@@ -147,6 +151,11 @@ export default function FiltersDrawer({
               {compact && positions && (
                 <DrawerSection label="Position" hint="Pick several to see any of them. Ranks stay the board's overall ranks.">
                   <PositionRow control={positions} accent={accent} wrap label="" />
+                </DrawerSection>
+              )}
+              {columnSet && (
+                <DrawerSection label="Columns" hint="Short list is the key columns; All is every column the table has. Kept in the address, so a shared link opens the same.">
+                  <ColumnSetSwitch set={columnSet.set} onChange={columnSet.onChange} accent={accent} />
                 </DrawerSection>
               )}
               {lead}

@@ -5,6 +5,7 @@ import { LABELS } from '../../lib/nfl/scoreLabels'
 import RangeDual from '../RangeDual'
 import { FilterPill } from '../Filters'
 import FiltersDrawer, { DrawerSection } from '../FiltersDrawer'
+import { useColumnSet } from '../../lib/useColumnSet'
 
 // ── TUDDY'S BOARD FILTERS ───────────────────────────────────────────────────
 //
@@ -225,6 +226,7 @@ export default function NflBoardFilters({ state, total, shown, extra = null, ext
   // `extra` (board filters plan, TUDDY 3 + 4): the game picker, time window and
   // score range, drawn at the top of this same drawer (NflBoardExtras).
   const activeCount = bandCount + extraCount
+  const colSet = useColumnSet('nfl')   // Short list / What I read / All (lib/columnViews.js); the board's table reads the same choice
   const active = bandsActive || extraCount > 0
   const reset = () => { resetBands(); extraReset?.() }
   // MOONSHOT's always-visible removable chips, one per band that is narrowing.
@@ -242,6 +244,7 @@ export default function NflBoardFilters({ state, total, shown, extra = null, ext
     <FiltersDrawer
       active={active} activeCount={activeCount} activeFilters={activeFilters} reset={reset}
       shown={shown ?? 0} total={total ?? 0} accent={C.green} accentInk={C.bg} ledger={ledger} positions={positions}
+      columnSet={{ set: colSet.set, onChange: colSet.setSet }}
       poolTitle="Players on this week's board that clear the filters. The board's own badge counts the rows it ranks."
       emptyNote="Nothing clears every band at once. Loosen one."
     >
