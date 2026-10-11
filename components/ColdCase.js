@@ -266,12 +266,12 @@ export default function ColdCase({ playerId, player, onlyLine = false }) {
           <><b style={{ color: C.orange }}>A blank travels with him.</b> The game after one, he gets a hit
             only <b style={{ color: C.text }}>{fmt(read.afterHit)}</b> of the time against{' '}
             <b style={{ color: C.text }}>{fmt(read.baseHit)}</b> normally. For him a blank is the start of a
-            quiet run, not the end of one — fade the bounce-back.</>
+            quiet run, not the end of one — his numbers do not point to a rebound.</>
         ) : (
           <>His rate the game after a blank (<b style={{ color: C.text }}>{fmt(read.afterHit)}</b>, {read.after} of
             them) is inside the error bar of his normal rate (<b style={{ color: C.text }}>{fmt(read.baseHit)}</b>).
             A blank tells you nothing about his next game — which is itself worth knowing, because
-            &ldquo;due for a bounce&rdquo; is the most common thing said about a hitter who just went 0-for-4.</>
+            &ldquo;he is about to rebound&rdquo; is the most common thing said about a hitter who just went 0-for-4.</>
         )}
       </div>
 

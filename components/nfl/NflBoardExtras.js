@@ -168,7 +168,7 @@ export function NflBoardList({ players, market, weights, odds, phone, onPlayerCl
     // vanish: the phone board showed no team or opponent at all (audit X12).
     { key: 'pos', label: 'Pos', w: 40, heat: false, fold: true },
     // logos, his club then the opponent (audit 04 NFL2: 'Game' was text)
-    { key: 'team', label: 'Tm', w: 34, heat: false, teamMark: 'nfl', fold: true }, { key: 'opp', label: 'Opp', w: 34, heat: false, teamMark: 'nfl', fold: true },
+    { key: 'team', label: 'Tm', w: 34, heat: false, teamMark: 'nfl', fold: true }, { key: 'opp', label: 'Opp', w: 34, heat: false, teamMark: 'nfl', fold: true, subOnly: true },
     // CALLED LAST NIGHT (2026-10-10): last week's call and result, labelled as that week's; only while the filter is on
     ...(lastNight?.on ? [lastNightColumn({ w: phone ? 190 : 240, group: { key: 'lastNight', label: 'Last night', order: 0.4 } })] : []),
     { key: 'score', label: 'Score', w: 52, primary: true, scale: 'seq', domain: [0, 100], art: SCORE_ART[market] || null, answers: market === 'TD' ? 'nfl-td' : null },

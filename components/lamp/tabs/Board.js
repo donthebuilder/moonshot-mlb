@@ -730,7 +730,7 @@ export function AllGamesTable({ kept, market, onOpenPlayer, onOpenTeam, onOpenGa
     { key: 'name', label: 'PLAYER', heat: false, sticky: true, bold: true, w: 160, group: GROUPS.call, fmt: (v, r) => <>{v}<span style={{ color: C.text3, font: `800 9px/1 ${NUM_FONT}`, marginLeft: 6 }}>{r.pos}</span></> },
     { key: 'team', label: 'TM', heat: false, mono: true, w: 40, group: GROUPS.call, fmt: (v) => <button type="button" onClick={(e) => { e.stopPropagation(); onOpenTeam?.(v) }} style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', color: C.text2, font: `800 10.5px/1 ${NUM_FONT}` }}>{v}</button> },
     // the matchup opens that game (the address says game=<id>), not the row's player card
-    { key: 'game', label: 'GAME', heat: false, mono: true, w: 70, group: GROUPS.call, link: (r) => (onOpenGame && r._g?.game?.id ? () => onOpenGame(r._g.game.id) : null) },
+    { key: 'game', label: 'GAME', heat: false, mono: true, w: 70, group: GROUPS.call, subOnly: true, link: (r) => (onOpenGame && r._g?.game?.id ? () => onOpenGame(r._g.game.id) : null) },
     { answers: 'called', key: 'status', label: 'STATUS', heat: false, w: 118, group: GROUPS.call, statusCol: true, fmt: (v, r) => {
       const row = r._row
       return (

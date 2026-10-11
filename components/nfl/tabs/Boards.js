@@ -289,7 +289,7 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
         {filterOptions.positions.map((o) => <FilterPill key={o.key} active={position === o.key} count={o.count} onClick={() => { setPosition(o.key); setAll(false) }}>{o.key === 'all' ? 'All' : o.label}</FilterPill>)}
       </DrawerPills>
       {filterOptions.roles.length > 0 && <DrawerPills label="Role">
-        {filterOptions.roles.map((o) => <FilterPill key={o.key} active={role === o.key} count={o.count} onClick={() => { setRole(role === o.key ? 'all' : o.key); setAll(false) }} title={o.key === 'SLOT' ? 'Receivers whose published slot share is 50% or more of his snaps.' : 'Where the bot\u2019s depth chart puts him this week. A label, not a forecast.'}>{o.label}</FilterPill>)}
+        {filterOptions.roles.map((o) => <FilterPill key={o.key} active={role === o.key} count={o.count} onClick={() => { setRole(role === o.key ? 'all' : o.key); setAll(false) }} title={o.key === 'SLOT' ? 'Receivers whose published slot share is 50% or more of his snaps.' : 'Where TUDDY\u2019s depth chart puts him this week. A label, not a forecast.'}>{o.label}</FilterPill>)}
       </DrawerPills>}
       <DrawerPills label="Only">
         <FilterPill active={onlyPriced} onClick={() => { setOnlyPriced(!onlyPriced); setAll(false) }} title="The book has posted a number on this market for this player.">💵 Priced</FilterPill>

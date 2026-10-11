@@ -97,7 +97,9 @@ for (const f of ['components/tabs/RankedBoard.js', 'components/nfl/tabs/Touchdow
   has(f, /useRankMove\(/, 'the board must read useRankMove')
   has(f, /RankMoveNote/, 'the board must print the caption')
 }
-for (const f of ['components/PlayerCard.js', 'components/nfl/tabs/Touchdowns.js', 'components/nfl/tabs/Boards.js', 'components/lamp/LampCard.js', 'components/buckets/BucketsCard.js']) has(f, /RankMoveCell/, 'the card must mount the shared arrow')
+has('components/card/RankCard.js', /RankMoveCell cell=\{rankMove\}/, 'the shared card must draw rankMove once for every sport')
+for (const f of ['components/PlayerCard.js', 'components/nfl/tabs/Touchdowns.js', 'components/lamp/LampCard.js', 'components/buckets/BucketsCard.js']) has(f, /rankMove=\{rankMove\}/, 'the card must hand rankMove to RankCard')
+has('components/nfl/tabs/Boards.js', /RankMoveCell/, 'the NFL market card must mount the arrow')
 // a sport ternary is not how this is wired
 for (const f of ['lib/useRankMove.js', 'lib/rankMove.js', 'components/RankMove.js']) if (/sport === '(mlb|nfl|nhl|nba)'/.test(src(f))) { bad++; console.log(`ERROR ${f}: a hand-written sport ternary`) }
 // no new hex colours in the new JS

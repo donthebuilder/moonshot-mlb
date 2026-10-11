@@ -15,7 +15,7 @@ import { baselineFor, topStatChips } from '../ScoreAnatomy'
 import { Card as UiCard } from '../../ui'
 import StatStrip from '../../StatStrip'
 import { SportTheme } from '../../SportTheme'
-import { CardName, ScoreBadge, ExplainStrip } from '../../card/CardParts'
+import RankCard from '../../card/RankCard'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 import { ActiveFilters, FilterBar, FilterPill } from '../../Filters'
 import NflBoardFilters, { useNflBoardFilter } from '../NflBoardFilters'
@@ -96,7 +96,7 @@ import { roleLabel, roleOptions, roleMatches } from '../../../lib/nfl/roles'
 // addition). The score bar and anatomy sliver went: the badge carries the
 // score, the strip carries what built it.
 const nflRankId = (p) => p?.player_id
-export function Card({ p, rank, matchup, odds, onPlayerClick, weights, base, pool, watchlist, rankMove = null }) {
+export function Card({ p, rank, matchup, odds, onPlayerClick, weights, base, pool, watchlist, status = null, rankMove = null }) {
   const [openScore, setOpenScore] = useState(false)
   const score = p.scores?.[MARKET]
   const g = gradeFor(score)
@@ -107,58 +107,45 @@ export function Card({ p, rank, matchup, odds, onPlayerClick, weights, base, poo
   const stats = (topStatChips(comps, weights, 3) || []).map((c) => {
     const pct = Number(comps[c.key])
     const label = c.t.replace(/ \d+p$/, '')
-    return { id: c.key, label, text: Number.isFinite(pct) ? `${Math.round(pct)}` : '—', color: rampAt(Number.isFinite(pct) ? pct / 100 : 0), title: `${label}: ${Number.isFinite(pct) ? Math.round(pct) : '—'}th percentile in the league — one of the components doing the most work in this score` }
+    return { label: label.toUpperCase(), value: Number.isFinite(pct) ? Math.round(pct) : '—', pct: Number.isFinite(pct) ? pct : null, title: `${label}: ${Number.isFinite(pct) ? Math.round(pct) : '—'}th percentile in the league — one of the components doing the most work in this score` }
   })
   const tag = injuryTag(p)
   const pinned = watchlist.isPinned(p.player_id)
   const aligned = alignedSignals(matchup, p)
   const highConf = Boolean(p.high_confidence_td_flag)
   const quote = quoteFor(odds, p, MARKET)
+  // the back: every component the score is made of, with its percentile
+  const backRows = Object.entries(comps).filter(([, v]) => Number.isFinite(Number(v))).map(([k, v]) => ({ label: String(k).replace(/_/g, ' ').toUpperCase(), value: Math.round(Number(v)), pct: Number(v) }))
 
   return (
     <SportTheme theme={C} accent={C.green} numFont={NUM_FONT}>
-    <UiCard color={`${g.color}55`} onClick={() => onPlayerClick?.(p, MARKET)}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 7 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: 1 }}>
-          {/* the number, with places moved since the last update under it (components/RankMove.js): stacked, so the name keeps its width */}
-          <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 2, minWidth: 14 }}>
-            <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.label, color: rank <= 3 ? C.green : C.text3 }}>{rank}</span>
-            <RankMoveCell cell={rankMove} up={C.green} down={C.text3} size={10} />
-          </span>
-          <PlayerFace sport="nfl" espnId={p?.espn_id} team={p?.team} name={p?.name} size={32} />
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3, color: C.text }}>
-              {highConf && <TapNote label="High confidence" text="TUDDY's high-confidence TD flag." style={{ fontSize: 14, lineHeight: 1, flexShrink: 0 }}>⭐</TapNote>}
-              {aligned.aligned && <TapNote label="Aligned" text={`${aligned.hits} of 3 real signals lining up (matchup / red-zone finisher / rising snaps)`} style={{ fontSize: 14, lineHeight: 1, flexShrink: 0 }}>🧩</TapNote>}
-              <CardName name={p.name} />
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap', fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
-              <span>{roleLabel(p)} · {p.team} vs {p.opp}</span>
-              <MatchupBadge matchup={matchup} player={p} market={MARKET} />
-              {tag && <TapNote label={tag} text={injuryTitle(tag)} style={{ color: injuryColor(tag, C), fontWeight: 900 }}>{tag}</TapNote>}
-            </div>
-          </div>
-        </div>
-        <ScoreBadge label="TUDDY" score={Number.isFinite(score) ? Math.round(score) : '—'} sub={g.label} color={g.color}
-          open={openScore} onToggle={() => setOpenScore((v) => !v)} />
-      </div>
-      <ExplainStrip notes={[openScore && 'The anytime-TD score, 0–100 — a rank against the whole league, not a percentage. The row below is the components doing the most work in it.']} />
-      {why && <div style={{ fontSize: TYPE.micro, color: C.text2, lineHeight: 1.4, marginBottom: 7 }}>{why.text}</div>}
-      {stats.length > 0 && <StatStrip stats={stats} wrap style={{ marginBottom: 8 }} />}
-      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-        <div style={{ flex: 1, minWidth: 0 }}>{(odds || quote) && <OddsLine quote={quote} compact move theme={C} />}</div>
-        <button
-          onClick={(e) => { e.stopPropagation(); watchlist.toggle(p) }}
-          title={pinned ? 'Remove from watchlist' : 'Add to watchlist'}
-          style={{
-            background: pinned ? `${C.yellow}22` : 'transparent',
-            border: `1px solid ${pinned ? C.yellow + '66' : C.border2}`,
-            color: pinned ? C.yellow : C.text3,
-            borderRadius: 8, padding: '6px 9px', fontSize: 12, cursor: 'pointer',
-          }}
-        >{pinned ? '★' : '☆'}</button>
-      </div>
-    </UiCard>
+      <RankCard accent={C.green} status={status} rankMove={rankMove} pos={p.position || ''} rank={rank} sport="nfl" club={p.team} name={p.name} opp={p.opp} role={roleLabel(p)}
+        face={<PlayerFace sport="nfl" espnId={p?.espn_id} team={p?.team} name={p?.name} size={84} />}
+        score={Number.isFinite(score) ? Math.round(score) : '—'} scoreWord="TUDDY" rankTags={[`GRADE ${g.label}`]}
+        explain="The anytime-TD score, 0–100 — a rank against the whole league, not a percentage. The boxes below are the components doing the most work in it."
+        reason={why ? why.text : null}
+        chips={<>
+          {highConf && <TapNote label="High confidence" text="TUDDY's high-confidence TD flag." style={{ fontSize: 14, lineHeight: 1 }}>⭐</TapNote>}
+          {aligned.aligned && <TapNote label="Aligned" text={`${aligned.hits} of 3 real signals lining up (matchup / red-zone finisher / rising snaps)`} style={{ fontSize: 14, lineHeight: 1 }}>🧩</TapNote>}
+          <MatchupBadge matchup={matchup} player={p} market={MARKET} />
+          {tag && <TapNote label={tag} text={injuryTitle(tag)} style={{ color: injuryColor(tag, C), fontWeight: 900 }}>{tag}</TapNote>}
+        </>}
+        stats={stats} back={backRows.length ? { rows: backRows, note: 'Percentiles in the league. A ranking, not a percentage.' } : null}
+        onClick={() => onPlayerClick?.(p, MARKET)}
+        foot={<>
+          <button
+            onClick={(e) => { e.stopPropagation(); watchlist.toggle(p) }}
+            title={pinned ? 'Remove from watchlist' : 'Add to watchlist'}
+            aria-label={pinned ? 'Remove from watchlist' : 'Add to watchlist'}
+            style={{
+              background: pinned ? `${C.yellow}22` : 'transparent',
+              border: `1px solid ${pinned ? C.yellow + '66' : C.border2}`,
+              color: pinned ? C.yellow : C.text3,
+              borderRadius: 8, padding: '6px 9px', fontSize: 14, cursor: 'pointer',
+            }}
+          >{pinned ? '★' : '☆'}</button>
+          {(odds || quote) && <div style={{ flex: 1, minWidth: 0 }}><OddsLine quote={quote} compact move theme={C} /></div>}
+        </>} />
     </SportTheme>
   )
 }
@@ -304,7 +291,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
         {positionOptions.map((o) => <FilterPill key={o.key} active={position === o.key} count={o.count} onClick={() => { setPosition(o.key); setAll(false) }}>{o.key === 'all' ? 'All' : o.label}</FilterPill>)}
       </DrawerPills>
       {roleOpts.length > 0 && <DrawerPills label="Role">
-        {roleOpts.map((o) => <FilterPill key={o.key} active={role === o.key} count={o.count} onClick={() => { setRole(role === o.key ? 'all' : o.key); setAll(false) }} title={o.key === 'SLOT' ? 'Receivers whose published slot share is 50% or more of his snaps.' : 'Where the bot\u2019s depth chart puts him this week. A label, not a forecast.'}>{o.label}</FilterPill>)}
+        {roleOpts.map((o) => <FilterPill key={o.key} active={role === o.key} count={o.count} onClick={() => { setRole(role === o.key ? 'all' : o.key); setAll(false) }} title={o.key === 'SLOT' ? 'Receivers whose published slot share is 50% or more of his snaps.' : 'Where TUDDY\u2019s depth chart puts him this week. A label, not a forecast.'}>{o.label}</FilterPill>)}
       </DrawerPills>}
       <DrawerPills label="Only">
         <FilterPill active={onlyPriced} onClick={() => { setOnlyPriced(!onlyPriced); setAll(false) }} title="The book has posted a number on this player's anytime-TD line.">💵 Priced</FilterPill>
@@ -369,7 +356,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
             ? <NflBoardList players={capped} market={MARKET} rankOf={rankOf} rankMv={rankMv} weights={weights} odds={odds} phone={phone} onPlayerClick={openFromBoard} statusOf={statusOf} base={base} pool={rows} watchlist={watchlist} lastNight={cln} tags={drawer.tagsView} />
             : <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))' }}>
                 {capped.map((p, i) => (
-                  <Card key={p.player_id} p={p} rank={rankOf.get(String(p.player_id)) ?? i + 1} matchup={matchup} odds={odds}
+                  <Card key={p.player_id} p={p} rank={rankOf.get(String(p.player_id)) ?? i + 1} matchup={matchup} odds={odds} status={statusOf ? statusOf(p) : null}
                         onPlayerClick={openFromBoard} weights={weights} base={base} pool={rows} watchlist={watchlist} rankMove={rankMv.cell(p.player_id)} />
                 ))}
               </div>}

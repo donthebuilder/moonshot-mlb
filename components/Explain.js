@@ -88,7 +88,7 @@ export const GLOSSARY = {
   'contact': 'The total-bases market — doubles, triples and homers, not just whether he got a hit. The weakest of the four scores by a distance; see TB score.',
   'contact score': 'The total-bases market. Rebuilt 2026-08-09 after it graded out level with a random shuffle. Now built on recent extra-base form, the opposing arm’s contact allowed, and how many hits the park gives up. Better, not yet proven.',
   'hrw': 'HR window: how his bat has looked lately. His last 20 plate appearances of contact (ideal home-run contact, barrels, 350 and 375 ft balls, hard-hit, exit velo, fly balls, pull, xwOBA) plus his last 5-7 games (home runs first, then extra-base hits), trusted more the more recent data there is. 0-88. Higher is hotter.',
-  'due': 'Retired 2026-09-06. The due score measured backwards. Drought is still shown as a plain count; it does not move a score.',
+  'due': 'Retired 2026-09-06. The old gap score measured backwards. Drought is still shown as a plain count; it does not move a score.',
   'power-3': 'Season power, ranked on tonight’s slate: the mean of his HR-per-ball-in-play, average EV and max EV ranks.',
   'pwr-3': 'Season power, ranked on tonight’s slate: the mean of his HR-per-ball-in-play, average EV and max EV ranks.',
   'long': 'Ranks him on hitting the LONGEST ball of the night, which is a different question from hitting any homer. Higher ranks better.',

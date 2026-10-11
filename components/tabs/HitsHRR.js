@@ -116,7 +116,7 @@ const ANSWERS = {
   weakspot: 'which hitters are standing in a slot tonight’s starter has already been beaten in.',
   aligned: 'which hitters have the weak spot, the pitch match and power firing at once.',
   matchupedge: 'which hitters get to face the exact pitches they punish.',
-  blank: 'who went hitless last time out — and whether his own bounce-back record beats what the book is charging.',
+  blank: 'who went hitless last time out — and whether his own record after a hitless game beats what the book is charging.',
 }
 const ANSWER_FALLBACK = 'every ranked board in one place, each with its record stated, not implied.'
 

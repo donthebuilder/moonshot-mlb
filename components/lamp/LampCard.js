@@ -6,14 +6,13 @@ import { nhlMug } from '../../lib/nhl/format'
 import PlayerFace from '../PlayerFace'
 import { chipColor } from '../Heatmap'
 import { useIsPhone } from '../MobileFold'
-import { STATUS, LampDot, fmtSec } from './ui'
-import { Card, Chip } from '../ui'
+import { LampDot, fmtSec } from './ui'
+import { Card } from '../ui'
 import StatStrip from '../StatStrip'
 import FollowButton from '../FollowButton'
 import StarMemory from '../watch/StarMemory'
 import { SportTheme } from '../SportTheme'
-import { CardName, ScoreBadge, ExplainStrip } from '../card/CardParts'
-import { RankMoveCell } from '../RankMove'
+import RankCard from '../card/RankCard'
 
 // ── LAMP'S CARDS VIEW (2026-09-28, MLB-PARITY-BOARDS plan C2) ──────────────
 // The List | Cards toggle MOONSHOT and TUDDY have. The card is TUDDY's board
@@ -88,65 +87,40 @@ const Fact = ({ k, v }) => (v == null || v === '' ? null : (
  * and the why line are LAMP's own additions.
  */
 export function LampCard({ r, g, rank, market = 'GOAL', facts = {}, onOpen, rankMove = null }) {
-  const [openScore, setOpenScore] = useState(false)
   const called = r.status === 'called'
   const opp = g.game.home.abbrev === r.team ? g.game.away.abbrev : g.game.home.abbrev
   const sog = market === 'SOG'
   const graded = g.graded
   const n = countOf(r, market)
-  const tone = called ? C.ice : C.text2
   const legs = legsOf(r.pct, market)
-    .map(([k, v, , label]) => ({ id: k.toLowerCase(), label, text: `${Math.round(v)}`, color: chipColor(v, 0, 100), title: `${label}: ${Math.round(v)}th percentile among tonight's scored skaters` }))
+  // the card's three boxes: the percentile legs the score is made of, in the standout rule (RankCard)
+  const stats = legs.map(([, v, , label]) => ({ label: label.toUpperCase(), value: Math.round(v), pct: v, title: `${label}: ${Math.round(v)}th percentile among tonight's scored skaters` }))
+  // the back: the rates behind them, with the percentiles
+  const rows = [
+    ...(market === 'PTS' ? [['Points/game', fin(r.legs?.ptsPg, 2)]] : market === 'AST' ? [['Assists/game', fin(r.legs?.astPg, 2)]] : [['Shots/game', fin(r.legs?.shotsPg, 2)]]),
+    ...(market === 'GOAL' ? [['Goals/game', fin(r.legs?.goalsPg, 2)]] : []),
+    ['Ice time', Number.isFinite(r.legs?.toi) ? fmtSec(r.legs.toi) : null],
+    ...(sog ? [['OPP SA/60', fin(r.legs?.oppSaPg, 1)]] : []),
+    ...(market === 'PTS' || market === 'AST' ? [['OPP GA/GP', fin(r.legs?.oppGaPg, 2)]] : []),
+    ['PP goals', r.ppg ?? null], ['Power play', facts.pp ? `${facts.pp}%` : null], ['Their penalty kill', facts.pk ? `${facts.pk}%` : null], ['Rest', facts.rest || null],
+  ].filter(([, v]) => v != null && v !== '').map(([label, value]) => ({ label, value }))
   return (
     <SportTheme theme={C} accent={C.ice} numFont={NUM_FONT}>
-    <Card color={`${tone}55`} onClick={() => onOpen?.(r.playerId)} style={{ opacity: graded && r.dressed === false ? 0.55 : 1 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 7 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: 1 }}>
-          {/* the number, with places moved since the last update under it (components/RankMove.js) */}
-          <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 2, minWidth: 14 }}>
-            <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.label, color: called ? C.ice : C.text3 }}>{rank}</span>
-            <RankMoveCell cell={rankMove} up={C.ice} down={C.text3} size={10} />
-          </span>
-          {/* No club code under the mug: NHL mugs are transparent, and the tile's
-              fallback text showed through the face. */}
-          <PlayerFace sport="nhl" variant="tile" photo={nhlMug(g.game.season, r.team, r.playerId)} team={null} name="" size={32} theme={C} />
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3, color: C.text }}><CardName name={r.name} /></div>
-            <div style={{ fontSize: 12, color: C.text3, fontFamily: NUM_FONT }}>{r.pos} · {r.team} vs {opp}</div>
-          </div>
-        </div>
-        <ScoreBadge label="LAMP" score={Math.round(r.score ?? 0)} sub={STATUS[r.status]} color={tone}
-          open={openScore} onToggle={() => setOpenScore((v) => !v)} />
-      </div>
-      <ExplainStrip notes={[openScore && (SCORE_NOTE[market] || SCORE_NOTE.GOAL)]} />
-      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 8 }}>
-        {called ? <Chip color={C.ice}>{STATUS.called}</Chip> : <Chip color={C.text3}>{STATUS[r.status]}</Chip>}
-      </div>
-      {/* The why line is the three percentiles in words; the strip below prints
-          them, so it only shows when there is no strip (a reason he's off the board). */}
-      {r.why && !legs.length && <div style={{ fontSize: TYPE.micro, color: C.text2, lineHeight: 1.4, marginBottom: 7 }}>{r.why}</div>}
-      {legs.length > 0 && <StatStrip stats={legs} style={{ marginBottom: 7 }} />}
-      <div style={{ display: 'flex', gap: '6px 14px', flexWrap: 'wrap', alignItems: 'baseline', marginBottom: 10 }}>
-        {market === 'PTS' ? <Fact k="Points/game" v={fin(r.legs?.ptsPg, 2)} /> : market === 'AST' ? <Fact k="Assists/game" v={fin(r.legs?.astPg, 2)} /> : <Fact k="Shots/game" v={fin(r.legs?.shotsPg, 2)} />}
-        {market === 'GOAL' && <Fact k="Goals/game" v={fin(r.legs?.goalsPg, 2)} />}
-        <Fact k="Ice time" v={Number.isFinite(r.legs?.toi) ? fmtSec(r.legs.toi) : null} />
-        {sog && <Fact k="OPP SA/60" v={fin(r.legs?.oppSaPg, 1)} />}
-        {(market === 'PTS' || market === 'AST') && <Fact k="OPP GA/GP" v={fin(r.legs?.oppGaPg, 2)} />}
-        <Fact k="PP goals" v={r.ppg ?? null} />
-        {facts.pp && <Fact k="Power play" v={`${facts.pp}%`} />}
-        {facts.pk && <Fact k="Their penalty kill" v={`${facts.pk}%`} />}
-        {facts.rest && <Fact k="Rest" v={facts.rest} />}
-      </div>
-      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }} onClick={(e) => e.stopPropagation()}>
-        <FollowButton sport="nhl" id={String(r.playerId)} name={r.name} team={r.team} position={r.pos} />
-        <StarMemory sport="nhl" id={String(r.playerId)} />
-        {graded && (
-          <span style={{ marginLeft: 'auto', font: `900 12px/1 ${NUM_FONT}`, color: r.hit ? C.ice : C.text3 }}>
-            {r.dressed === false ? 'VOID' : n == null ? '\u2014' : <>{r.hit && <LampDot />}{n} {unitOf(market, n)}</>}
-          </span>
-        )}
-      </div>
-    </Card>
+      <RankCard accent={C.ice} status={r.status} rankMove={rankMove} pos={r.pos} rank={rank} sport="nhl" club={r.team} name={r.name} opp={opp}
+        face={<PlayerFace sport="nhl" variant="tile" photo={nhlMug(g.game.season, r.team, r.playerId)} team={null} name="" size={84} theme={C} />}
+        score={Math.round(r.score ?? 0)} scoreWord="LAMP" explain={SCORE_NOTE[market] || SCORE_NOTE.GOAL}
+        reason={r.why && !stats.length ? r.why : null}
+        stats={stats} back={rows.length ? { rows, note: 'Per game over his last 82 NHL games. A ranking, not a percentage.' } : null}
+        dim={graded && r.dressed === false} onClick={() => onOpen?.(r.playerId)}
+        foot={<>
+          <FollowButton sport="nhl" id={String(r.playerId)} name={r.name} team={r.team} position={r.pos} />
+          <StarMemory sport="nhl" id={String(r.playerId)} />
+          {graded && (
+            <span style={{ marginLeft: 'auto', font: `900 12px/1 ${NUM_FONT}`, color: r.hit ? C.ice : C.text3 }}>
+              {r.dressed === false ? 'VOID' : n == null ? '\u2014' : <>{r.hit && <LampDot />}{n} {unitOf(market, n)}</>}
+            </span>
+          )}
+        </>} />
     </SportTheme>
   )
 }
@@ -160,7 +134,7 @@ export function LampCards({ items, market, onOpen, preview = null }) {
   return (
     <div>
       <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))' }}>
-        {shown.map((it) => <LampCard key={it.key} {...it} market={market} onOpen={onOpen} />)}
+        {shown.map(({ key, ...it }) => <LampCard key={key} {...it} market={market} onOpen={onOpen} />)}
       </div>
       {items.length > shown.length && (
         <button type="button" onClick={() => setAll(true)} style={{ marginTop: 10, minHeight: 44, padding: '0 16px', borderRadius: 999, border: `1px solid ${C.border2}`, background: 'transparent', color: C.ice, font: `800 11px/1 ${NUM_FONT}`, cursor: 'pointer' }}>

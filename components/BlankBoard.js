@@ -316,7 +316,7 @@ export default function BlankBoard({ players = [], odds = null, onPlayerClick })
 
           Everything else here measures these hitters against the SPORTSBOOK,
           which answers "is he mispriced". It leaves the board's own name
-          untested: a 68% after a blank looks like a bounce-back, but 68% may
+          untested: a 68% after a blank looks like a rebound, but 68% may
           simply be his rate. The control for that is not a book, it is him.
 
           Stated POOLED and nowhere else. One hitter has ~30 games after a
@@ -348,14 +348,14 @@ export default function BlankBoard({ players = [], odds = null, onPlayerClick })
             a real difference, not noise.{' '}
             {lift.diff >= 0
               ? <><b style={{ color: C.text2 }}>The blank really does precede a better night</b> for these bats,
-                so the bounce-back the board is named for is doing some of the work here, not just the price.</>
-              : <><b style={{ color: C.text2 }}>These bats are WORSE after a blank, not due</b> — whatever the board
+                so the rebound the board is named for is doing some of the work here, not just the price.</>
+              : <><b style={{ color: C.text2 }}>These bats are WORSE after a blank, not better</b> — whatever the board
                 finds above is the price being wrong, and the blank is an argument against them, not for them.</>}</>
           ) : (
             <>A gap of <b style={{ color: C.text2 }}>{lift.diff >= 0 ? '+' : '−'}{Math.abs(lift.diff).toFixed(1)} points</b>{' '}
             at <b style={{ color: C.text2, fontFamily: NUM_FONT }}>z&nbsp;=&nbsp;{Math.abs(lift.z).toFixed(2)}</b>, which is
             inside the noise. <b style={{ color: C.text2 }}>On this evidence the blank predicts nothing</b> —
-            so the edges above are a story about the PRICE, not about a bounce-back.</>
+            so the edges above are a story about the PRICE, not about a rebound.</>
           )}
         </p>
       )}

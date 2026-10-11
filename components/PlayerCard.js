@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { useSpot } from '../lib/spotlight'
-import { nameOf, teamOf, oppOf, clean } from '../lib/player'
+import { nameOf, teamOf, oppOf, clean, mlbId } from '../lib/player'
 import { compactRole, roleColor, scoreFor, gradeFor, signalPills, riskPill, bestBet } from '../lib/scoring'
 import { roleBadge } from '../lib/roleBadge'
 import { hrwRead } from '../lib/hrwBand'
@@ -11,8 +11,9 @@ import { hrOverlayRead } from '../lib/hrOverlay'
 import { Chip, Card, RoleTag } from './ui'
 import StatStrip, { SlashLine } from './StatStrip'
 import { InfoDot } from './Explain'
-import { CardName, ScoreBadge, ExplainStrip } from './card/CardParts'
-import { RankMoveCell } from './RankMove'
+import RankCard from './card/RankCard'
+import PlayerFace from './PlayerFace'
+import CallStatusBadge from './CallStatusBadge'
 
 // 'watch' band changed 👀→🌤️ to match bots/today_bot.py hrw_emoji(); 👀 was
 // double-booked with the old Power Watch role emoji (now 🔭).
@@ -77,7 +78,9 @@ function gamePickLabelFor(p) {
   return GAME_PICK_LABELS[primary] || null
 }
 
-export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, onClick, rankMove = null }) {
+// rank / status (2026-10-10, cards brought to speed): the Rankings board hands its own rank and its one call word (lib/callStatus) so
+// the card leads with them like every other sport's; every other mount passes neither and draws as before, minus the name clipping.
+export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, onClick, rank = null, status = null, rankMove = null }) {
   // TAP TARGETS (2026-08-12): the emoji stack, weak-spot star and score badge
   // used to carry their explanations in a bare title= — a hover tooltip,
   // invisible on phones (see Explain.js's header comment; PlayerCard is the
@@ -169,86 +172,42 @@ export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, on
   // non-matching one everywhere except a table. Card already forwards `style`,
   // so this is one spread. See lib/spotlight.js's note above chipWashOf.
   return (
-    <Card color={color + '55'} onClick={onClick} style={spotStyle} title={spotWhy || undefined}>
+      <RankCard accent={color} status={status} rankMove={rankMove} pos={clean(p?.handedness || p?.bats, '')} rank={rank} sport="mlb" club={teamOf(p) || null} name={nameOf(p)} opp={oppOf(p) || null}
+        role={`${clean(p?.lineup_spot, '—')}${p?.lineup_confirmed === false ? ' (proj.)' : ''}`}
+        face={<PlayerFace sport="mlb" id={mlbId(p)} team={teamOf(p)} name={nameOf(p)} variant="tile" size={84} />}
+        score={score.toFixed(0)} scoreWord="MOONSHOT" rankTags={grade ? [`GRADE ${grade}`] : []}
+        explain={<>MOONSHOT&apos;s {type.toUpperCase()} score, 0–100 — its verdict, not a stat. The row below is where it comes from.</>}
+        extraLine={<>
 
-      {/* name + score */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 7 }}>
-        <div style={{ minWidth: 0, flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3 }}>
-            {/* emoji stack — no labels, no border, just emojis + a tap dot */}
-            {emojis.length > 0 && (
-              <span
-                onClick={(e) => { e.stopPropagation(); setOpenEmoji((v) => !v) }}
-                style={{ display: 'inline-flex', alignItems: 'center', fontSize: 14, lineHeight: 1, letterSpacing: 1, flexShrink: 0, cursor: 'pointer' }}
-              >
-                {emojis.join('')}
-                {/* THE GLYPH GETS ITS NUMBER (2026-08-22). The HRW band was
-                    five states carried entirely by a pictograph — hrw_score
-                    appeared nowhere on this card, so the emoji was not
-                    decorating an encoding, it WAS the encoding. Two digits in
-                    the band's own ramp colour, which is as small as it can be
-                    and still be a number. Donovan said commit to the emojis;
-                    committing means holding them to the same rule as a colour
-                    scale, and that rule is that the value is printed. */}
-                {hrw && hrw.score != null && (
-                  <span
-                    title={hrw.title}
-                    style={{
-                      fontFamily: NUM_FONT, fontSize: 8.5, fontWeight: 800,
-                      color: hrw.color || C.text3, marginLeft: 1, lineHeight: 1,
-                    }}
-                  >{hrw.score.toFixed(0)}</span>
-                )}
-                <InfoDot on={openEmoji} onClick={() => setOpenEmoji((v) => !v)} />
-              </span>
-            )}
-            {weakSpotReason && (
-              <span
-                onClick={(e) => { e.stopPropagation(); setOpenWeak((v) => !v) }}
-                style={{ display: 'inline-flex', alignItems: 'center', fontSize: 14, lineHeight: 1, flexShrink: 0, cursor: 'pointer' }}
-              >
-                ⭐
-                <InfoDot on={openWeak} onClick={() => setOpenWeak((v) => !v)} />
-              </span>
-            )}
-            {/* NAME FITS (2026-08-08): "Freddie Freem…" is not a name. Long
-                names step the font down instead of losing letters, and the
-                full name always rides in the tooltip as a backstop. */}
-            <CardName name={nameOf(p)} />
-          </div>
-          <div style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
-            {teamOf(p) || '—'} vs {oppOf(p) || '—'} · {clean(p?.lineup_spot, '—')}{p?.lineup_confirmed === false ? <span style={{ color: C.text3 }}> (proj.)</span> : null} · {clean(p?.handedness || p?.bats, '—')}
-            {/* places moved in the board's ranking since the last update (components/RankMove.js): beside the sub-line, so the card gains no height */}
-            {rankMove?.move ? <> · <RankMoveCell cell={rankMove} up={C.orange} down={C.text3} size={10} /></> : null}
-          </div>
-        </div>
-        {/* THE SCORE, DEMOTED (2026-08-09). It used to be 22px and the first
-            thing your eye hit — a 0–100 number the reader has no independent
-            handle on. It is still here, still the bot's verdict, but it now
-            sits as a badge beside the stats that earned it. Nothing was
-            removed; the reading order changed. */}
-        <ScoreBadge label="MOONSHOT" score={score.toFixed(0)} sub={grade} color={color}
-          open={openScore} onToggle={() => setOpenScore((v) => !v)} />
-      </div>
+          {emojis.length > 0 && (
+            <span
+              onClick={(e) => { e.stopPropagation(); setOpenEmoji((v) => !v) }}
+              style={{ display: 'inline-flex', alignItems: 'center', fontSize: 14, lineHeight: 1, letterSpacing: 1, flexShrink: 0, cursor: 'pointer' }}
+            >
+              {emojis.join('')}
+              {/* THE GLYPH GETS ITS NUMBER (2026-08-22). The HRW band was five states carried entirely by a pictograph; two digits in
+                  the band's own ramp colour, the value printed (see the note on lib/hrwBand.js). */}
+              {hrw && hrw.score != null && (
+                <span
+                  title={hrw.title}
+                  style={{ fontFamily: NUM_FONT, fontSize: 8.5, fontWeight: 800, color: hrw.color || C.text3, marginLeft: 1, lineHeight: 1 }}
+                >{hrw.score.toFixed(0)}</span>
+              )}
+              <InfoDot on={openEmoji} onClick={() => setOpenEmoji((v) => !v)} />
+            </span>
+          )}
+          {weakSpotReason && (
+            <span
+              onClick={(e) => { e.stopPropagation(); setOpenWeak((v) => !v) }}
+              style={{ display: 'inline-flex', alignItems: 'center', fontSize: 14, lineHeight: 1, flexShrink: 0, cursor: 'pointer' }}
+            >
+              ⭐
+              <InfoDot on={openWeak} onClick={() => setOpenWeak((v) => !v)} />
+            </span>
+          )}
+        </>}
+        chips={<>
 
-      {/* tap-opened explanations for the header row above — one shared strip
-          so three dots don't mean three different popovers to hunt for. */}
-      <ExplainStrip notes={[
-        openEmoji && emojiTitle,
-        openWeak && <>⭐ {weakSpotReason}</>,
-        openScore && <>MOONSHOT&apos;s {type.toUpperCase()} score, 0–100 — its verdict, not a stat. The row below is where it comes from.</>,
-      ]} />
-
-      {/* ONE chip row (2026-08-06). Designated pick cards were wearing every
-          chip family at once — role + bet + risk + aligned + pick + recency +
-          three pills, with a HIT pick showing "Avoid for HR" two lines under
-          its own badge. Rule now: a designated card leads with its ONE job
-          (the pick chip), keeps recency and its two strongest signals, and
-          drops everything that restates the ring or contradicts the job —
-          cross-market avoid verdicts included (they never applied to the
-          card's own category anyway). Undesignated cards keep the fuller
-          read, but in a single row. */}
-      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 8 }}>
         {showHrOverlay && (
           <span title={hrOverlay.title}>
             <Chip color={hrOverlay.color}>{hrOverlay.validated ? '✓ ' : ''}{hrOverlay.label}</Chip>
@@ -288,22 +247,13 @@ export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, on
             {pills.slice(0, 2).map((x, i) => <Chip key={i} color={x.color}>{x.label}</Chip>)}
           </>
         )}
-      </div>
+              </>}
+        extraNotes={[openEmoji && emojiTitle, openWeak && <>⭐ {weakSpotReason}</>]}
+        statsNode={<StatStrip p={p} type={type} count={4} />}
+        back={{ rows: [], node: <SlashLine p={p} type={type} /> }}
+        onClick={onClick} style={spotStyle} title={spotWhy || undefined}
+        foot={<>
 
-      {/* STATS FIRST (2026-08-09). This was "BA · HR · K" in 10px grey — the
-          same three season numbers for a 40-homer bat and a leadoff slap
-          hitter, in the colour we use for things that don't matter. It is now
-          the four stats that actually drive THIS market, each coloured
-          against tonight's slate. The old line survives underneath as the
-          fine print it always was. */}
-      <StatStrip p={p} type={type} count={4} style={{ marginBottom: 7 }} />
-      {/* The old row was five unrelated numbers in grey — and two of them
-          (BABIP, the opposing arm's HR/9) weren't even about his season. It's
-          the slash line now, plus the counting stats it never had room for. */}
-      <SlashLine p={p} type={type} style={{ marginBottom: 8 }} />
-
-      {/* buttons */}
-      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
         <button
           onClick={(e) => { e.stopPropagation(); onAdd?.(p, bet) }}
           style={{
@@ -337,7 +287,6 @@ export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, on
             {watched ? '★' : '☆'}
           </button>
         )}
-      </div>
-    </Card>
+        </>} />
   )
 }
