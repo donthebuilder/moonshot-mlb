@@ -81,6 +81,8 @@ import { tdPool } from '../../../lib/nfl/tdPool'
 export { tdPool }
 import { useNowTick } from '../../../lib/useNowTick'
 import { explain } from '../../../lib/explain'
+import { useRankMove } from '../../../lib/useRankMove'
+import { RankMoveCell, RankMoveNote } from '../../RankMove'
 import { roleLabel, roleOptions, roleMatches } from '../../../lib/nfl/roles'
 
 // Exported (2026-09-28) for the Slate's Picks section -- the same card, not a copy.
@@ -93,7 +95,8 @@ import { roleLabel, roleOptions, roleMatches } from '../../../lib/nfl/roles'
 // a footer with the price and MOONSHOT's star. The face stays (TUDDY's
 // addition). The score bar and anatomy sliver went: the badge carries the
 // score, the strip carries what built it.
-export function Card({ p, rank, matchup, odds, onPlayerClick, weights, base, pool, watchlist }) {
+const nflRankId = (p) => p?.player_id
+export function Card({ p, rank, matchup, odds, onPlayerClick, weights, base, pool, watchlist, rankMove = null }) {
   const [openScore, setOpenScore] = useState(false)
   const score = p.scores?.[MARKET]
   const g = gradeFor(score)
@@ -117,7 +120,11 @@ export function Card({ p, rank, matchup, odds, onPlayerClick, weights, base, poo
     <UiCard color={`${g.color}55`} onClick={() => onPlayerClick?.(p, MARKET)}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 7 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: 1 }}>
-          <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.label, color: rank <= 3 ? C.green : C.text3, minWidth: 14 }}>{rank}</span>
+          {/* the number, with places moved since the last update under it (components/RankMove.js): stacked, so the name keeps its width */}
+          <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 2, minWidth: 14 }}>
+            <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.label, color: rank <= 3 ? C.green : C.text3 }}>{rank}</span>
+            <RankMoveCell cell={rankMove} up={C.green} down={C.text3} size={10} />
+          </span>
           <PlayerFace sport="nfl" espnId={p?.espn_id} team={p?.team} name={p?.name} size={32} />
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3, color: C.text }}>
@@ -189,6 +196,8 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
   const { rows, weights, base, games } = useMemo(() => tdPool(data), [data])
   // his place on THIS WEEK'S board, not on the filtered list: the pool is in board order
   const rankOf = useMemo(() => new Map(rows.map((p, i) => [String(p.player_id), i + 1])), [rows])
+  // RANK MOVES (2026-10-10): places moved in the TD board's order since the last update (lib/useRankMove.js). Information only.
+  const rankMv = useRankMove({ sport: 'nfl', board: 'TD', date: data?.week != null ? `${data.season ?? ''}-W${data.week}` : null, ranks: rankOf, rows: data?.players, idOf: nflRankId })
 
   const roleOpts = useMemo(() => roleOptions(rows), [rows])
   const positionOptions = useMemo(() => {
@@ -357,11 +366,11 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
       ) : (
         <>
           {view === 'list'
-            ? <NflBoardList players={capped} market={MARKET} rankOf={rankOf} weights={weights} odds={odds} phone={phone} onPlayerClick={openFromBoard} statusOf={statusOf} base={base} pool={rows} watchlist={watchlist} lastNight={cln} tags={drawer.tagsView} />
+            ? <NflBoardList players={capped} market={MARKET} rankOf={rankOf} rankMv={rankMv} weights={weights} odds={odds} phone={phone} onPlayerClick={openFromBoard} statusOf={statusOf} base={base} pool={rows} watchlist={watchlist} lastNight={cln} tags={drawer.tagsView} />
             : <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))' }}>
                 {capped.map((p, i) => (
                   <Card key={p.player_id} p={p} rank={rankOf.get(String(p.player_id)) ?? i + 1} matchup={matchup} odds={odds}
-                        onPlayerClick={openFromBoard} weights={weights} base={base} pool={rows} watchlist={watchlist} />
+                        onPlayerClick={openFromBoard} weights={weights} base={base} pool={rows} watchlist={watchlist} rankMove={rankMv.cell(p.player_id)} />
                 ))}
               </div>}
           {hidden > 0 && (
@@ -369,6 +378,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
               <FilterPill onClick={() => setAll(true)} count={hidden}>Show the rest</FilterPill>
             </div>
           )}
+          <RankMoveNote show={rankMv.any} color={C.text3} />
         </>
       )}
 

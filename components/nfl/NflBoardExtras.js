@@ -100,7 +100,7 @@ const SCORE_ART = { TD: 'nfl-td' }
 // the board's own sentence, tapped for the numbers behind it and where to look next.
 const MARK_GROUP = { key: 'marks', label: 'Marks', order: 2 }
 const TAGS_GROUP = { key: 'matchup', label: 'The matchup', order: 2.6 }
-export function NflBoardList({ players, market, weights, odds, phone, onPlayerClick, statusOf = null, rankOf = null, base = null, pool = null, watchlist = null, lastNight = null, tags = null }) {
+export function NflBoardList({ players, market, weights, odds, phone, onPlayerClick, statusOf = null, rankOf = null, base = null, pool = null, watchlist = null, lastNight = null, tags = null, rankMv = null }) {
   const { open: openWhy, sheet: whySheet } = useWhySheet({ theme: C, accent: C.green, numFont: NUM_FONT })
   // our line beside the book's (TEST, BATCH-DASH-LINE): only where one exists for this market
   const dash = useDashLines()
@@ -109,6 +109,7 @@ export function NflBoardList({ players, market, weights, odds, phone, onPlayerCl
   const rows = players.map((p, i) => {
     const q = odds ? quoteFor(odds, p, market) : null
     return {
+      rankMove: rankMv ? rankMv.cell(p.player_id) : null,   // places moved since the last update (components/RankMove.js, drawn in the # cell)
       _id: p.player_id, _p: p, rank: rankOf ? (rankOf.get(String(p.player_id)) ?? null) : i + 1,   // the stored board place, not the place in this filtered list
       name: p.name, pos: roleLabel(p),
       team: p.team || null, opp: p.opp || null,

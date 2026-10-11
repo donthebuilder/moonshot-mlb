@@ -24,6 +24,8 @@ import { callStatus, boardOfRows } from '../../lib/callStatus'
 import { reasonContext, boardReasonFor } from '../../lib/mlb/boardReason'
 import { useWhySheet, whyColumn } from '../WhySheet'
 import { ordinal } from '../../lib/format'
+import { useRankMove } from '../../lib/useRankMove'
+import { RankMoveNote } from '../RankMove'
 
 // The nine inputs the old profile grid drew as columns. They are not drawn
 // now — they are tested against the slate and surface only where a hitter is
@@ -117,7 +119,7 @@ const pctAmong = (vals, v) => {
   return Math.round((100 * (lt + (eq + 1) / 2)) / vals.length)
 }
 
-export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watchIds, onPlayerClick, onOpenPitcher = null, limit = 60, slateDate = null, filterState = null, setupHomers, onOpenCard = null, rankings = false, compact = false, colsView = 'all', onColsView = null, slate = null, viewMode: viewProp = null, onViewMode = null }) {
+export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watchIds, onPlayerClick, onOpenPitcher = null, limit = 60, slateDate = null, filterState = null, setupHomers, onOpenCard = null, rankings = false, compact = false, colsView = 'all', onColsView = null, slate = null, viewMode: viewProp = null, onViewMode = null, runAt = null }) {
   // 🔁 PROVEN, NOT INFERRED. This column read `games_since_last_hr === 0`
   // directly, which lib/b2b.js exists to stop: the field means "he homered in
   // his most recent game", and on a slate rebuilt after the 12:05 window that
@@ -242,6 +244,17 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
   // filtered view showing #3, #7, #19 is telling the truth: those are their
   // real board positions. Enforced by scripts/check-rank-lock.mjs.
   const slateRank = useMemo(() => (type === 'hr' ? hrRank(players) : null), [players, type])
+  // RANK MOVES (2026-10-10): the arrow beside the # (components/RankMove.js). The board's DEFAULT order over the whole
+  // slate (the bot's board_rank on The Board, the market's own score on Hits / HRR / Contact), never the user's sort or filter.
+  const rankPool = slate || players
+  const moveRanks = useMemo(() => {
+    if (!rankings) return null
+    if (type === 'hr' || type === 'top') return hrRank(rankPool)
+    const m = new Map()
+    ;[...rankPool].sort((a, b) => scoreFor(b, type) - scoreFor(a, type)).forEach((p, i) => { const id = mlbId(p); if (id != null && !m.has(id)) m.set(id, i + 1) })
+    return m
+  }, [rankings, rankPool, type])
+  const rankMv = useRankMove({ sport: 'mlb', board: type === 'top' ? 'hr' : type, date: slateDate, ranks: moveRanks, at: runAt, rows: rankPool, idOf: mlbId, enabled: rankings })
   // Slate-wide facts for the board columns, over the FULL players prop.
   const boardCtx = useMemo(() => boardRowContext(players, { watchIds }), [players, watchIds])
 
@@ -379,6 +392,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
               // needs it (the star is keyed on the composite player+game key).
               watched: watchIds?.has(playerId(p)) ? 1 : 0,
               rank: slateRank ? (slateRank.get(mlbId(p)) ?? i + 1) : i + 1,
+              rankMove: rankings ? rankMv.cell(mlbId(p)) : null,
               name: nameOf(p),
               team: teamOf(p),
               g: gameNumOf(p, dh),
@@ -543,6 +557,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
           style={{ minHeight: 44, margin: '8px 0 0', padding: '0 14px', borderRadius: 8, cursor: 'pointer', fontSize: TYPE.label, fontWeight: 700, border: `1px solid ${C.border}`, background: 'transparent', color: C.text2 }}>📸 Download this board as an image</button>
       )}
       {whySheet}
+      {rankings && viewMode === 'list' && <RankMoveNote show={rankMv.any} color={C.text3} />}
 
       {/* The profile heatmap is the primary chart. A ranked column only says
           WHO is on top; the profile says WHY -- which input is actually
@@ -617,10 +632,12 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
             onWatch={onWatch}
             watched={watchIds.has(playerId(p))}
             onClick={() => onPlayerClick?.(p)}
+            rankMove={rankings ? rankMv.cell(mlbId(p)) : null}
           />
         ))}
       </Grid>
       <ShowMoreButton {...cardsPreview} itemWord="players" />
+      {rankings && <RankMoveNote show={rankMv.any} color={C.text3} />}
       </>
       )}
 

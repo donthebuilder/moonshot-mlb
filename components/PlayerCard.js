@@ -12,6 +12,7 @@ import { Chip, Card, RoleTag } from './ui'
 import StatStrip, { SlashLine } from './StatStrip'
 import { InfoDot } from './Explain'
 import { CardName, ScoreBadge, ExplainStrip } from './card/CardParts'
+import { RankMoveCell } from './RankMove'
 
 // 'watch' band changed 👀→🌤️ to match bots/today_bot.py hrw_emoji(); 👀 was
 // double-booked with the old Power Watch role emoji (now 🔭).
@@ -76,7 +77,7 @@ function gamePickLabelFor(p) {
   return GAME_PICK_LABELS[primary] || null
 }
 
-export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, onClick }) {
+export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, onClick, rankMove = null }) {
   // TAP TARGETS (2026-08-12): the emoji stack, weak-spot star and score badge
   // used to carry their explanations in a bare title= — a hover tooltip,
   // invisible on phones (see Explain.js's header comment; PlayerCard is the
@@ -217,6 +218,8 @@ export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, on
           </div>
           <div style={{ fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
             {teamOf(p) || '—'} vs {oppOf(p) || '—'} · {clean(p?.lineup_spot, '—')}{p?.lineup_confirmed === false ? <span style={{ color: C.text3 }}> (proj.)</span> : null} · {clean(p?.handedness || p?.bats, '—')}
+            {/* places moved in the board's ranking since the last update (components/RankMove.js): beside the sub-line, so the card gains no height */}
+            {rankMove?.move ? <> · <RankMoveCell cell={rankMove} up={C.orange} down={C.text3} size={10} /></> : null}
           </div>
         </div>
         {/* THE SCORE, DEMOTED (2026-08-09). It used to be 22px and the first

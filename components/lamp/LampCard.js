@@ -13,6 +13,7 @@ import FollowButton from '../FollowButton'
 import StarMemory from '../watch/StarMemory'
 import { SportTheme } from '../SportTheme'
 import { CardName, ScoreBadge, ExplainStrip } from '../card/CardParts'
+import { RankMoveCell } from '../RankMove'
 
 // ── LAMP'S CARDS VIEW (2026-09-28, MLB-PARITY-BOARDS plan C2) ──────────────
 // The List | Cards toggle MOONSHOT and TUDDY have. The card is TUDDY's board
@@ -86,7 +87,7 @@ const Fact = ({ k, v }) => (v == null || v === '' ? null : (
  * Follow (LAMP's watchlist) where MOONSHOT has Add to Slip + the star. The face
  * and the why line are LAMP's own additions.
  */
-export function LampCard({ r, g, rank, market = 'GOAL', facts = {}, onOpen }) {
+export function LampCard({ r, g, rank, market = 'GOAL', facts = {}, onOpen, rankMove = null }) {
   const [openScore, setOpenScore] = useState(false)
   const called = r.status === 'called'
   const opp = g.game.home.abbrev === r.team ? g.game.away.abbrev : g.game.home.abbrev
@@ -101,7 +102,11 @@ export function LampCard({ r, g, rank, market = 'GOAL', facts = {}, onOpen }) {
     <Card color={`${tone}55`} onClick={() => onOpen?.(r.playerId)} style={{ opacity: graded && r.dressed === false ? 0.55 : 1 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 7 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: 1 }}>
-          <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.label, color: called ? C.ice : C.text3, minWidth: 14 }}>{rank}</span>
+          {/* the number, with places moved since the last update under it (components/RankMove.js) */}
+          <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 2, minWidth: 14 }}>
+            <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.label, color: called ? C.ice : C.text3 }}>{rank}</span>
+            <RankMoveCell cell={rankMove} up={C.ice} down={C.text3} size={10} />
+          </span>
           {/* No club code under the mug: NHL mugs are transparent, and the tile's
               fallback text showed through the face. */}
           <PlayerFace sport="nhl" variant="tile" photo={nhlMug(g.game.season, r.team, r.playerId)} team={null} name="" size={32} theme={C} />

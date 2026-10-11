@@ -31,6 +31,7 @@ import Tap from '../Tap'
 import { STATUS_WORD } from '../../lib/callStatus'
 import PlayerFace from '../PlayerFace'
 import CallStatusBadge from '../CallStatusBadge'
+import { RankMoveCell } from '../RankMove'
 import InjuryChip from '../injuries/InjuryChip'
 import { ShowMoreButton } from '../ListPreview'
 import { InfoDot, ExplainBanner, explainFor, explainFrom } from '../Explain'
@@ -497,6 +498,8 @@ export function renderV2(ctx) {
                         const out = c.fmt(v, r)
                         return typeof out === 'string' || typeof out === 'number' ? String(out).replace(/^#/, '') : out
                       })()}
+                      {/* RANK MOVE (2026-10-10): places moved since the last update, under the number (components/RankMove.js). Information only. */}
+                      {r.rankMove?.move ? <RankMoveCell cell={r.rankMove} block up={ac} down={C.text3} size={phone ? 10 : 9.5} style={{ marginTop: 2 }} /> : null}
                     </td>
                   )
                 }

@@ -15,6 +15,7 @@ import StarMemory from '../watch/StarMemory'
 import { SportTheme } from '../SportTheme'
 import { CardName, ScoreBadge, ExplainStrip } from '../card/CardParts'
 import TeamMark from '../TeamMark'
+import { RankMoveCell } from '../RankMove'
 
 // 🏀 BUCKETS' PROP CARD (2026-10-03, the visual pass: "the props page should
 // have the cards like MLB ... the basketball shit don't got none of this").
@@ -26,7 +27,7 @@ import TeamMark from '../TeamMark'
 const LEG_WORD = { ptsPg: 'Points', rebPg: 'Rebounds', astPg: 'Assists', minPg: 'Minutes', fgaPg: 'Shots', ftaPg: 'Free throws', tpmPg: 'Threes', tpaPg: '3PA', tpPct: '3P%', praPg: 'PRA', fgaShare: 'Shot share', ddRate: 'DD games', ddAdj: 'DD games × opp', ddRecentAdj: 'DD last 10 × opp', tdAdj: 'TD games × opp', ddRecent: 'DD last 10', tdRate: 'TD games', oppPts: 'Opp PTS', oppReb: 'Opp REB', oppAst: 'Opp AST', oppTpm: 'Opp 3PM' }
 const MAIN = { pts: ['ptsPg', 'PTS/G'], reb: ['rebPg', 'REB/G'], ast: ['astPg', 'AST/G'], '3pm': ['tpmPg', '3PM/G'], pra: ['praPg', 'PRA/G'], dd: ['ddRate', 'OF HIS GAMES'], td: ['tdRate', 'OF HIS GAMES'], first: ['fgaShare', 'SHOT SHARE'] }
 
-export function BucketsCard({ r, rank, market = 'pts', onOpen }) {
+export function BucketsCard({ r, rank, market = 'pts', onOpen, rankMove = null }) {
   const [openScore, setOpenScore] = useState(false)
   const M = NBA_MARKETS[market] || NBA_MARKETS.pts
   const called = r.status === 'called'
@@ -43,7 +44,11 @@ export function BucketsCard({ r, rank, market = 'pts', onOpen }) {
       <Card color={`${tone}55`} onClick={() => onOpen?.(String(r.playerId))} style={{ opacity: r.voidReason ? 0.55 : 1 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: 1 }}>
-            <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.label, color: called ? C.purple : C.text3, minWidth: 14 }}>{rank}</span>
+            {/* the number, with places moved since the last update under it (components/RankMove.js) */}
+            <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 2, minWidth: 14 }}>
+              <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.label, color: called ? C.purple : C.text3 }}>{rank}</span>
+              <RankMoveCell cell={rankMove} up={C.purple} down={C.text3} size={10} />
+            </span>
             <PlayerFace sport="nba" id={r.playerId} name={r.name} variant="tile" size={36} theme={C} />
             <div style={{ minWidth: 0, flex: 1 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3, color: C.text }}><CardName name={r.name} /></div>
@@ -84,7 +89,7 @@ export function BucketsCards({ rows, market, onOpen }) {
   return (
     <div>
       <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))' }}>
-        {shown.map((r, i) => <BucketsCard key={r._id || `${r.gameId}-${r.playerId}`} r={r} rank={i + 1} market={market} onOpen={onOpen} />)}
+        {shown.map((r, i) => <BucketsCard key={r._id || `${r.gameId}-${r.playerId}`} r={r} rank={i + 1} market={market} onOpen={onOpen} rankMove={r.rankMove || null} />)}
       </div>
       {rows.length > shown.length && (
         <button type="button" onClick={() => setAll(true)} style={{ marginTop: 10, minHeight: 44, padding: '0 16px', borderRadius: 999, border: `1px solid ${C.border2}`, background: 'transparent', color: C.purple, font: `800 11px/1 ${NUM_FONT}`, cursor: 'pointer' }}>
