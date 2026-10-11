@@ -571,6 +571,7 @@ export default function Dashboard({ palettePass = 0 }) {
     if (tab === 'fullboard') { for (const k of ['cols', 'sort', 'cln']) if (live.get(k)) h.set(k, live.get(k)) }   // Rankings' column view and its sort chain (10-07); cln = the Called last night filter (10-10)
     carryLedgerView(h, live, tab)                                                     // The Ledger's sub-tab (lv=, lib/ledger/views.js)
     if (tab === 'team' && live.get('team')) h.set('team', live.get('team'))           // the team page's club (10-03)
+    if (tab === 'team') for (const k of ['sec', 'sv']) if (live.get(k)) h.set(k, live.get(k))   // its section and view (components/team/TeamPage.js)
     // PUSH WHAT YOU OPENED (2026-09-27, audit 00A root fix 1; lib/urlState).
     // A new tab or a newly opened card adds a history entry, so Back returns
     // where you were instead of leaving the site; anything else replaces.
