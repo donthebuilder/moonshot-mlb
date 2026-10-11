@@ -24,6 +24,7 @@
 // setting the one variable and redeploying opens everything together.
 const nextConfig = {
   reactStrictMode: true,
+  poweredByHeader: false,
   distDir: process.env.NEXT_DIST_DIR || '.next',
   env: { NEXT_PUBLIC_BUCKETS_PUBLIC: process.env.BUCKETS_PUBLIC || '' },
   // THE NHL'S PICTURES, SAME ORIGIN (fix15, 2026-10-08): the downloadable LAMP cards draw each skater's mug and each

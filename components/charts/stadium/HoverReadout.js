@@ -18,7 +18,13 @@ const HoverReadout = forwardRef(function HoverReadout({ theme: C = MLB_C, numFon
 })
 export default HoverReadout
 
-/** Show `html` at (x, y) inside a W-wide box, the spray chart's own placement
+/** Escape feed text before it goes into a placeTip() / tip.innerHTML string (security wave 1).
+ *  Only ever call it on VALUES; the <b>/<span> markup around them stays the caller's own. */
+export function escapeHtml(v) {
+  return String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+}
+
+/** Show `html` (already escaped by the caller: see escapeHtml) at (x, y) inside a W-wide box, the spray chart's own placement
  *  (14px right of the pointer, 14px up, kept off the right edge); null hides it. */
 export function placeTip(tip, html, x, y, W) {
   if (!tip) return

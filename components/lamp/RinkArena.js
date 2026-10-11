@@ -30,7 +30,7 @@ import StadiumShell from '../charts/StadiumShell'
 import LowerThird from '../charts/stadium/LowerThird'
 import FilmOverlay from '../charts/stadium/FilmOverlay'
 import StadiumDock from '../charts/stadium/StadiumDock'
-import HoverReadout, { placeTip } from '../charts/stadium/HoverReadout'
+import HoverReadout, { placeTip, escapeHtml } from '../charts/stadium/HoverReadout'
 import { createHoverFlight } from '../charts/stadium/hoverFlight'
 import { labelSprite } from '../../lib/three/sprites'
 import { ChartLegend, ChartEmpty } from '../charts'
@@ -61,11 +61,11 @@ function shotTip(sh, speed, hardest) {
   const per = sh[6] && sh[6] !== 'REG' ? 'OT' : sh[5] != null ? `P${sh[5]}` : ''
   const mph = measuredMph(hardest, sh)
   const head = `<b style="color:${sh[2] === 'goal' ? C.lamp : C.text}">${RES_WORD[sh[2]] || ''}</b>`
-  const line = [sh[3], `${dist} ft`, [per, clock(sh[7])].filter(Boolean).join(' '), sh[4] ? String(sh[4]).toUpperCase() : null].filter(Boolean).join(' · ')
+  const line = escapeHtml([sh[3], `${dist} ft`, [per, clock(sh[7])].filter(Boolean).join(' '), sh[4] ? String(sh[4]).toUpperCase() : null].filter(Boolean).join(' · '))
   const sp = mph != null ? `<span style="color:${C.ice}">${mph} MPH, measured (NHL EDGE)</span>`
     : speed ? `HIS AVG SHOT ${speed.avg} MPH (league ${speed.leagueAvg}) — not this shot's speed`
       : 'No shot speed on file — fixed pace'
-  return `${head}<br/>${line}${sh[9] ? `<br/><span style="color:${C.text3}">${String(sh[9]).replace(/-/g, ' ')}</span>` : ''}<br/><span style="color:${C.text3}">${sp}</span>`
+  return `${head}<br/>${line}${sh[9] ? `<br/><span style="color:${C.text3}">${escapeHtml(String(sh[9]).replace(/-/g, ' '))}</span>` : ''}<br/><span style="color:${C.text3}">${sp}</span>`
 }
 
 export default function RinkArena({ shots = [], map = null, league = null, slot = null, gridSpec = null, view = 'dots', onPick = null, onPickCell = null, title = '', subtitle = '', venue = null,

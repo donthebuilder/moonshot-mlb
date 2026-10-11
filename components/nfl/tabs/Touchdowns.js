@@ -78,7 +78,7 @@ const SOFT_CAP = 60
 // THE TD POOL, once (2026-09-28): the eligible scored players, the market's
 // weights and the pool baseline the card's "why" line reads. The Slate uses it.
 // lib/nfl/tdPool.js (Members M3): the board's pool, server-safe; re-exported here
-import { tdPool } from '../../../lib/nfl/tdPool'
+import { tdPool, QB_TD_NOTE } from '../../../lib/nfl/tdPool'
 export { tdPool }
 import { useNowTick } from '../../../lib/useNowTick'
 import { explain } from '../../../lib/explain'
@@ -221,7 +221,13 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
   }, [bandFiltered, drawer, query, team, angle, angles, onlyWatched, onlyUpcoming, onlyPriced, matchup, watchlist, odds, data, now, cln])
   // POSITION (2026-10-10): one multi-select row for every sport (lib/positions.js, lib/usePositionFilter.js), pos= in the
   // address. Position and depth role (RB1, WR1 ...) are pills in the same row; picking several shows any of them.
-  const pf = usePositionFilter('nfl', rows, { posOf: (p) => p.position, extraOf: roleKeys, extraOrder: ROLE_PILLS, countRows: beforePos })
+  // QB ANYTIME TD (Donovan, 2026-10-10): the board lists whoever the bot scores for TD (data.markets[TD].positions). Until
+  // QBs are in that list the QB pill is offered with the reason, only when the week's file has QBs. Nothing is invented.
+  const qbPending = useMemo(
+    () => (rows.some((p) => p.position === 'QB') || !(data?.players || []).some((p) => p.position === 'QB') ? null : { QB: QB_TD_NOTE }),
+    [rows, data],
+  )
+  const pf = usePositionFilter('nfl', rows, { posOf: (p) => p.position, extraOf: roleKeys, extraOrder: ROLE_PILLS, countRows: beforePos, pending: qbPending })
 
   // One removable chip per narrowing dimension, bands included. Touchdowns had
   // no chip row at all, so a tier or a team filter was invisible once you had

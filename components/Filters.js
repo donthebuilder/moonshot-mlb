@@ -363,6 +363,7 @@ export function PositionEmpty({ control, onClearAll = null, othersActive = false
   return (
     <div role="status" style={{ border: `1px dashed ${C.border2}`, borderRadius: 10, padding: '16px 14px', display: 'grid', gap: 10, justifyItems: 'start' }}>
       <div style={{ fontSize: 14, fontWeight: 800, color: C.text }}>{emptySentence(control.value, control.noun)}</div>
+      {(control.value || []).map((k) => control.pending?.[k]).filter(Boolean).map((n) => <div key={n} style={{ fontSize: 12, color: C.text2, lineHeight: 1.5 }}>{n}</div>)}
       <div style={{ fontSize: 12, color: C.text3, lineHeight: 1.5 }}>{othersActive ? 'The other filters narrow it too (team, game, tags, injury). Clear the position, or everything.' : 'Clear the position to see the whole board.'}</div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <button type="button" onClick={control.onClear} style={btn}>Clear</button>
