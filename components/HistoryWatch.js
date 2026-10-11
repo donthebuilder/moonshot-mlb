@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { sharedJSON } from '../lib/sharedRead'
 import { C as MLB_C, NUM_FONT as MLB_NUM } from '../lib/theme'
 import StoryRow, { Numbered } from './StoryRow'
 
@@ -20,7 +21,7 @@ export default function HistoryWatch({ sport = 'mlb', theme = null, numFont = nu
   const [all, setAll] = useState(false)
   useEffect(() => {
     let alive = true
-    fetch(`/api/history/watch?sport=${sport}`).then((r) => (r.ok ? r.json() : null)).then((j) => { if (alive) setData(j) }).catch(() => {})
+    sharedJSON(`/api/history/watch?sport=${sport}`).then((j) => { if (alive) setData(j) }).catch(() => {})
     return () => { alive = false }
   }, [sport])
   const items = data?.items || []

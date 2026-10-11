@@ -33,9 +33,15 @@ import { setSport } from '../../lib/sport'
 import { fetchCombinedGamesForMlbHome, combinedRenderState, CombinedTeamMark } from '../../lib/combinedRail'
 import { btnStyle } from '../ui'
 import { PillRow } from '../Filters'
-import Scoreboard from './Scoreboard'
-import Boxes from './Boxes'
-import AtThePlate from './AtThePlate'
+import dynamic from 'next/dynamic'
+import TabLoading from '../TabLoading'
+// THE SUB-VIEWS LOAD WHEN THEY OPEN (2026-10-10, Wave 3 data diet). Home's default view is Tonight; At the plate, The board and
+// Box scores only render on a deep link or a pick of their pill. They were static imports, so every cold load of MOONSHOT
+// carried SprayField, ZoneMap, HomerLedger and LiveWire (and the whole Scoreboard) for a view it was not showing. Same markup,
+// loaded when asked; TabLoading holds the height the way Dashboard.js does for every other tab.
+const Scoreboard = dynamic(() => import('./Scoreboard'), { loading: TabLoading })
+const Boxes = dynamic(() => import('./Boxes'), { loading: TabLoading })
+const AtThePlate = dynamic(() => import('./AtThePlate'), { loading: TabLoading })
 import MoneyAnswer from '../MoneyAnswer'
 import PennantRace from '../PennantRace'
 import ComebackBoard from '../ComebackBoard'

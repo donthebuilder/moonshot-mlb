@@ -129,6 +129,8 @@ const cardViewOf = (h) => {
   const v = h.get('view')
   return CARD_VIEWS.has(v) ? v : ''
 }
+// the pages that print a price (see the effect that loads the quotes)
+const ODDS_TABS = new Set(['players', 'games', 'picks', 'research'])
 const NFL_TAB_KEEP = { player: new Set(['players']), team: new Set(['players', 'team']), game: new Set(['games']), lv: new Set(['ledger']), sec: new Set(['team']), sv: new Set(['team']) }   // sec=: the team page's section (components/team/TeamPage.js); lv=: The Ledger's sub-tab (lib/ledger/views.js)
 
 export default function NflDashboard({ palettePass = 0 }) {
@@ -343,13 +345,32 @@ export default function NflDashboard({ palettePass = 0 }) {
       // No validator: an absent results file is the normal state before
       // kickoff, and there is no committed snapshot to lose a race against.
       fetchNfl(nflResultsPaths()).then((j) => { if (alive) setNflResults(j) }),
+    ]).then(() => { if (alive) setLoading(false) })
+    return () => { alive = false }
+  }, [refreshKey, weekMode])
+
+  // PRICES LOAD WHERE THEY ARE READ (2026-10-10, Wave 3 data diet). The quotes (/api/odds/latest, ~420 KB) and the odds status
+  // are read by the pages that print a price -- Players, Games, Picks, Rankings -- and by the open player card. Home, Live, the
+  // Ledger, the Guide and the rest never touch them, so they no longer pay for them on a cold load. Once wanted, they stay
+  // loaded and refresh on the same ↻ as everything else. The page that reads them holds its (already blank-while-loading)
+  // box until they land, so nothing prints "no prices" for a beat.
+  const needOdds = ODDS_TABS.has(tab) || Boolean(modal)
+  // a link that opens a card (card=) wants the price from the first moment, not once the card has mounted
+  const [oddsWanted, setOddsWanted] = useState(() => { try { return Boolean(hashParams().get('card')) } catch { return false } })
+  const [oddsSettled, setOddsSettled] = useState(false)
+  useEffect(() => { if (needOdds) setOddsWanted(true) }, [needOdds])
+  useEffect(() => {
+    if (!oddsWanted) return undefined
+    let alive = true
+    Promise.allSettled([
       fetchNfl(nflOddsPaths(), nflOddsLooksReal).then((j) => { if (alive) setOddsRaw(j) }),
       // No validator, same reasoning as nflResultsPaths above: no_key/empty
       // is a normal, well-labelled status state, not a bad payload to reject.
       fetchNfl(nflOddsStatusPaths()).then((j) => { if (alive) setOddsStatus(j) }),
-    ]).then(() => { if (alive) setLoading(false) })
+    ]).then(() => { if (alive) setOddsSettled(true) })
     return () => { alive = false }
-  }, [refreshKey, weekMode])
+  }, [oddsWanted, refreshKey])
+  const oddsHold = ODDS_TABS.has(tab) && !oddsSettled
 
   // The bot payload only changes when the bot runs, so this poll is for the
   // bot's OUTPUT (a re-published card, graded results). The score on the
@@ -487,25 +508,26 @@ export default function NflDashboard({ palettePass = 0 }) {
           <TeamNav.Provider value={openTeamPage}>
           <GameNav.Provider value={openGameNav}>
           <ErrorBoundary resetKey={tab} label={`the ${tab} tab`}>
+            {oddsHold && <TabLoading />}
             {tab === 'home' && <Home data={slate} picks={picks} results={nflResults} matchup={matchup} logs={logs} onPlayerClick={openPlayer} setTab={setTab} liveSnap={liveSnap} />}
             {/* MOONSHOT's Players page (2026-09-30): list + the card inline. */}
-            {tab === 'players' && <NflPlayers data={data} logs={logs} matchup={matchup} picks={picks} results={nflResults} odds={odds} />}
+            {!oddsHold && tab === 'players' && <NflPlayers data={data} logs={logs} matchup={matchup} picks={picks} results={nflResults} odds={odds} />}
             {tab === 'watchlist' && <Watchlist data={slate} matchup={matchup} logs={logs} onPlayerClick={openPlayer} />}
             {/* TOP TOTALS now ride each game (components/GameTotalLine.js: on the game's header and its slate card); the record stays in the Ledger.
                 The Card is one line, under the slate (it was a block above the first game). */}
-            {tab === 'games' && <Games data={slate} picks={picks} matchup={matchup} logs={logs} results={nflResults} odds={odds} onPlayerClick={openPlayer} onOpenTeam={openTeamPage} />}
-            {tab === 'games' && <CardSection sport="nfl" Table={NflTable} compact />}
+            {!oddsHold && tab === 'games' && <Games data={slate} picks={picks} matchup={matchup} logs={logs} results={nflResults} odds={odds} onPlayerClick={openPlayer} onOpenTeam={openTeamPage} />}
+            {!oddsHold && tab === 'games' && <CardSection sport="nfl" Table={NflTable} compact />}
             {/* One Board page (2026-09-26, option (b)): touchdowns / boards /
                 picks are the same hub; boards opens BOARD, picks opens CALLED. */}
             {/* PICKS IS THE BOT PAGE (2026-09-29, MOONSHOT's Bot frame; components/nfl/tabs/Bot.js).
                 The hub keeps Board and Called for the boards; its Called view no
                 longer jumps to 'picks', it stays where it was opened. */}
             {/* Props is MOONSHOT's page now (2026-10-04): the cards, then the bot's sheet under them */}
-            {tab === 'picks' && <NflProps data={slate} picks={picks} odds={odds} onPlayerClick={openPlayer} />}
-            {tab === 'picks' && <div style={{ marginTop: 26, paddingTop: 18, borderTop: `1px solid ${C.border}`, font: `900 11px/1 ${NUM_FONT}`, letterSpacing: '.16em', color: C.green, marginBottom: 10 }}>THE SHORTLIST · THE CARD · NEXT WEEK</div>}
-            {tab === 'picks' && <Bot data={slate} picks={picks} results={nflResults} logs={logs} matchup={matchup} odds={odds}
+            {!oddsHold && tab === 'picks' && <NflProps data={slate} picks={picks} odds={odds} onPlayerClick={openPlayer} />}
+            {!oddsHold && tab === 'picks' && <div style={{ marginTop: 26, paddingTop: 18, borderTop: `1px solid ${C.border}`, font: `900 11px/1 ${NUM_FONT}`, letterSpacing: '.16em', color: C.green, marginBottom: 10 }}>THE SHORTLIST · THE CARD · NEXT WEEK</div>}
+            {!oddsHold && tab === 'picks' && <Bot data={slate} picks={picks} results={nflResults} logs={logs} matchup={matchup} odds={odds}
               oddsStatus={oddsRaw?.source === 'sportsgameodds' && !oddsRaw?.empty ? null : oddsStatus} onPlayerClick={openPlayer} />}
-            {tab === 'research' && (
+            {!oddsHold && tab === 'research' && (
               <BoardHub onTitle={setHubTitle} onView={() => {}} slate={slate} data={data} logs={logs} matchup={matchup} odds={odds} oddsStatus={oddsRaw?.source === 'sportsgameodds' && !oddsRaw?.empty ? null : oddsStatus}
                 picks={picks} results={nflResults} liveSnap={liveSnap} onPlayerClick={openPlayer} initialView="board" />
             )}
