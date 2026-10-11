@@ -32,6 +32,7 @@ import GameScoreboard, { fmtKick } from '../GameScoreboard'
 import NflHeadlineStrip from '../NflHeadlineStrip'
 import Storylines from './Storylines'
 import Fold from '../../Fold'
+import MobileFold from '../../MobileFold'
 import { withNflFullSet } from '../../../lib/nfl/boardColumns'
 import TeamMark, { MatchLogos } from '../../TeamMark'
 
@@ -225,12 +226,17 @@ export default function Live({ data, picks, live, matchup = null, logs = null, r
   const [cardAll, setCardAll] = useState(false)
   const rungDepth = pregame && !cardAll ? 1 : depth
   const restRungs = pregame ? Math.max(0, rungTotal - card.reduce((n, b) => n + (b.rungs || []).slice(0, 1).length, 0)) : 0
+  // WAVE 2B: while waiting, on a phone the headline strip (its longshots included) is one tap, so the boards come first.
+  // Desktop and the week-is-in state render the strip bare, as before.
+  const headlineStrip = (
+    <NflHeadlineStrip players={players} games={games} markets={data?.markets} matchup={matchup} logs={logs} week={data}
+      onPlayerClick={onPlayerClick} setTab={setTab} />
+  )
   const secHeadline = (
     <>
-      {!anyLive && (
-        <NflHeadlineStrip players={players} games={games} markets={data?.markets} matchup={matchup} logs={logs} week={data}
-          onPlayerClick={onPlayerClick} setTab={setTab} />
-      )}
+      {!anyLive && (pregame
+        ? <MobileFold title="📰 More headlines · longshots" summary="headlines, long shots" accent={C.green}>{headlineStrip}</MobileFold>
+        : headlineStrip)}
     </>
   )
   const secScores = (
