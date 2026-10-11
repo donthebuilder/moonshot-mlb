@@ -100,7 +100,7 @@ const SCORE_ART = { TD: 'nfl-td' }
 // the board's own sentence, tapped for the numbers behind it and where to look next.
 const MARK_GROUP = { key: 'marks', label: 'Marks', order: 2 }
 const TAGS_GROUP = { key: 'matchup', label: 'The matchup', order: 2.6 }
-export function NflBoardList({ players, market, weights, odds, phone, onPlayerClick, statusOf = null, rankOf = null, base = null, pool = null, watchlist = null, lastNight = null, tags = null, rankMv = null }) {
+export function NflBoardList({ players, market, weights, odds, phone, onPlayerClick, statusOf = null, rankOf = null, base = null, pool = null, watchlist = null, lastNight = null, tags = null, rankMv = null, twoOf = null }) {
   const { open: openWhy, sheet: whySheet } = useWhySheet({ theme: C, accent: C.green, numFont: NUM_FONT })
   // our line beside the book's (TEST, BATCH-DASH-LINE): only where one exists for this market
   const dash = useDashLines()
@@ -123,6 +123,7 @@ export function NflBoardList({ players, market, weights, odds, phone, onPlayerCl
       ...Object.fromEntries(top.map((k) => [k, Number.isFinite(p.components?.[market]?.[k]) ? Math.round(p.components[market][k]) : null])),
       hiConf: p.high_confidence_td_flag ? 1 : 0, quest: injuryTag(p) ? 1 : 0, lowS: p.low_sample ? 1 : 0, matchup: p.coverage_mismatch_tag || '',
       watched: watchlist?.isPinned?.(p.player_id) ? 1 : 0,
+      canTwo: twoOf?.get(String(p.player_id))?.can_two ? 1 : 0,   // 'Can score two' (lib/nfl/twoScore.js): top third of our 2+ TD board
       cln: lastNight?.on ? lastNight.cell(p.player_id) : '',
       // TAGS (lib/nfl/tags.js): only built while the Tags column is on; a count so the column sorts
       ...(tags?.show ? (() => { const all = tags.book.row(p).all; return { tags: all.map((t) => chipText(t, { onPlayerRow: true })).join(' \u00b7 '), _tags: all } })() : null),
@@ -187,6 +188,7 @@ export function NflBoardList({ players, market, weights, odds, phone, onPlayerCl
       fmt: (v, r) => (r._q ? <LineMoveChip quote={r._q} theme={C} numFont={NUM_FONT} compact /> : '—') }]),
     // DASH: our median for the stat, coloured by its lean against the book's line (a TEST)
     { key: 'hiConf', label: 'A+', flag: true, mark: '\u2605', w: 30, group: MARK_GROUP, title: 'High-confidence TD flag: a TD score of 78 or better, the A+ band.' },
+    ...(twoOf ? [{ key: 'canTwo', label: '2+', flag: true, mark: '2+', w: 34, group: MARK_GROUP, title: 'Can score two: in the top third of our 2+ TD ranking (a new model, not part of the TD score). A ranking, not a forecast. Open the 2+ TD board for the inputs.' }] : []),
     { key: 'quest', label: 'Q', flag: true, mark: 'Q', w: 28, group: MARK_GROUP, title: 'Listed on the injury report.' },
     { key: 'lowS', label: 'Thin', flag: true, mark: '\u25CB', w: 34, group: MARK_GROUP, title: 'Few games behind this score. Dimmed rows are these.' },
     { key: 'matchup', label: 'Matchup', heat: false, w: 64, dim: true, group: MARK_GROUP, title: 'The coverage read: TARGET when the defense he faces leaks to his role, AVOID when it does not.' },

@@ -31,6 +31,7 @@ import { teamGameRows, writeTeamGames } from '../../../../lib/nhl/teamXg'
 import { postLongshotsOnce } from '../../../../lib/dash/longshotsPost'
 import { postMultiClubOnce } from '../../../../lib/dash/multiClubPost'
 import { toPropRow, gradeSogRows, MARKET as SOG } from '../../../../lib/nhl/sogModel'
+import { toGoal2Row, gradeGoal2Rows, MARKET as GOAL2 } from '../../../../lib/nhl/goal2Model'
 import { toPtsRow, gradePtsRows, MARKET as PTS } from '../../../../lib/nhl/ptsModel'
 import { toAstRow, gradeAstRows, MARKET as AST } from '../../../../lib/nhl/astModel'
 import { MARKET as GOALPOS, toGoalPosRow, gradeGoalPosRows } from '../../../../lib/nhl/goalPosModel'
@@ -80,6 +81,8 @@ const SHADOW = [
   // lamp-goalw-v1 (2026-10-10, .claude-notes/LAMP-GOALW-DEFINITION.md): the goal board's legs, fitted weights + a defence flag.
   // Same market ('GOAL') and table as goalpos; the primary key carries model_version, so no SQL.
   { market: GOALW, key: 'goalw', byGame: 'goalWByGame', toRow: toGoalWeightedRow, grade: gradeGoalWeightedRows },
+  // goal2_site_v1 (2026-10-11, lib/nhl/goal2Model.js): 2+ goals, a NEW model, tracked. Market 'GOAL', its own version in the key: no SQL.
+  { market: GOAL2, key: 'goal2', byGame: 'goal2ByGame', toRow: toGoal2Row, grade: gradeGoal2Rows },
 ]
 
 export async function GET(request) {

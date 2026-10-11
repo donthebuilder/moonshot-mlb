@@ -25,6 +25,7 @@ import { NflBoardList, BoardHead, ViewSwitch, DrawerPills, AngleRow, angleDefs, 
 import TdCompare from '../TdCompare'
 import CalledLastNight, { CalledLastFilter } from '../../CalledLastNight'
 import { useCalledLastLens } from '../../../lib/calledLast/useCalledLast'
+import { twoBoard, TWO_NOTE } from '../../../lib/nfl/twoScore'
 
 // TOUCHDOWNS — the front door.
 //
@@ -98,7 +99,7 @@ import { nflShareRows } from '../../../lib/nfl/usageShares'
 // addition). The score bar and anatomy sliver went: the badge carries the
 // score, the strip carries what built it.
 const nflRankId = (p) => p?.player_id
-export function Card({ p, rank, matchup, odds, onPlayerClick, weights, base, pool, watchlist, status = null, rankMove = null }) {
+export function Card({ p, rank, matchup, odds, onPlayerClick, weights, base, pool, watchlist, status = null, rankMove = null, two = null }) {
   const [openScore, setOpenScore] = useState(false)
   const score = p.scores?.[MARKET]
   const g = gradeFor(score)
@@ -130,6 +131,7 @@ export function Card({ p, rank, matchup, odds, onPlayerClick, weights, base, poo
         reason={why ? why.text : null}
         chips={<>
           {highConf && <TapNote label="High confidence" text="TUDDY's high-confidence TD flag." style={{ fontSize: 14, lineHeight: 1 }}>⭐</TapNote>}
+          {two?.can_two && <TapNote label="Can score two" text={`In the top third of our 2+ TD ranking (a new model, not part of the TD score): ${(two.two?.parts || []).map((x) => `${x.label} ${Math.round(x.pct)}`).join(' · ')}. A ranking, not a forecast.`} style={{ fontSize: 11, fontWeight: 900, color: C.green, fontFamily: NUM_FONT }}>2+</TapNote>}
           {aligned.aligned && <TapNote label="Aligned" text={`${aligned.hits} of 3 real signals lining up (matchup / red-zone finisher / rising snaps)`} style={{ fontSize: 14, lineHeight: 1 }}>🧩</TapNote>}
           <MatchupBadge matchup={matchup} player={p} market={MARKET} />
           {tag && <TapNote label={tag} text={injuryTitle(tag)} style={{ color: injuryColor(tag, C), fontWeight: 900 }}>{tag}</TapNote>}
@@ -185,6 +187,8 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
   const { rows, weights, base, games } = useMemo(() => tdPool(data), [data])
   // his place on THIS WEEK'S board, not on the filtered list: the pool is in board order
   const rankOf = useMemo(() => new Map(rows.map((p, i) => [String(p.player_id), i + 1])), [rows])
+  // CAN SCORE TWO (2026-10-11): our own 2+ TD ranking beside this one; never feeds this board's score, rank or status
+  const twoOf = useMemo(() => new Map(twoBoard(data, matchup).rows.map((r) => [String(r.player_id), r])), [data, matchup])
   // RANK MOVES (2026-10-10): places moved in the TD board's order since the last update (lib/useRankMove.js). Information only.
   const rankMv = useRankMove({ sport: 'nfl', board: 'TD', date: slateDay || null, ranks: rankOf, rows: data?.players, idOf: nflRankId })
 
@@ -197,10 +201,11 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
   // their own; they are one-tap angles like the rest, so they lead the Angle
   // row now -- one row of chips where there were two (2026-09-27).
   const angles = useMemo(() => [
+    { key: 'two', label: '2+ Can score two', title: `In the top third of our 2+ TD ranking. ${TWO_NOTE}`, test: (p) => Boolean(twoOf.get(String(p.player_id))?.can_two) },
     { key: 'highconf', label: '⭐ High confidence', title: `TUDDY's high-confidence TD flag. ${angleRecord('TD', 'hiconf') || ''}`.trim(), test: (p) => Boolean(p.high_confidence_td_flag) },
     { key: 'aligned', label: '🧩 Aligned', title: `2 or more of 3 real signals lining up: matchup, red-zone finisher, rising snap share. ${angleRecord('TD', 'aligned') || ''}`.trim(), test: (p) => alignedSignals(matchup, p).aligned },
     ...angleDefs({ matchup, logs, market: MARKET, matchupTag, week: data ? { season: data.season, week: data.week } : null }),
-  ], [matchup, logs, data?.season, data?.week])
+  ], [matchup, logs, data?.season, data?.week, twoOf])
   const drawer = useNflDrawerFilters(rows, data?.games, MARKET, { game: top?.game || '', matchup, season: data?.season })   // TUDDY 3 + 4
 
   // everything EXCEPT the position / role pills: the numbers on those pills are what tapping one alone would show
@@ -353,11 +358,11 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
       ) : (
         <>
           {view === 'list'
-            ? <NflBoardList players={capped} market={MARKET} rankOf={rankOf} rankMv={rankMv} weights={weights} odds={odds} phone={phone} onPlayerClick={openFromBoard} statusOf={statusOf} base={base} pool={rows} watchlist={watchlist} lastNight={cln} tags={drawer.tagsView} />
+            ? <NflBoardList players={capped} market={MARKET} rankOf={rankOf} rankMv={rankMv} weights={weights} odds={odds} phone={phone} onPlayerClick={openFromBoard} statusOf={statusOf} base={base} pool={rows} watchlist={watchlist} lastNight={cln} tags={drawer.tagsView} twoOf={twoOf} />
             : <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))' }}>
                 {capped.map((p, i) => (
                   <Card key={p.player_id} p={p} rank={rankOf.get(String(p.player_id)) ?? i + 1} matchup={matchup} odds={odds} status={statusOf ? statusOf(p) : null}
-                        onPlayerClick={openFromBoard} weights={weights} base={base} pool={rows} watchlist={watchlist} rankMove={rankMv.cell(p.player_id)} />
+                        onPlayerClick={openFromBoard} weights={weights} base={base} pool={rows} watchlist={watchlist} rankMove={rankMv.cell(p.player_id)} two={twoOf.get(String(p.player_id))} />
                 ))}
               </div>}
           {hidden > 0 && (
