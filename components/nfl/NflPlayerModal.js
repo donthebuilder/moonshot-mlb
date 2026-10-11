@@ -50,6 +50,7 @@ import { THIN_G, hasContext } from '../../lib/nfl/gameSplits'
 import { playerHref } from '../../lib/routes'
 import { gameVenue } from '../../lib/nfl/venueOf'
 import DashChip, { useDashLines, DASH_OF } from './DashChip'
+import RoleTag from './RoleTag'
 // 44px tap around a club code, text in place; 9px a side so the two clubs
 // either side of " vs " don't share a target (10-04).
 const CLUB_LINK = { color: 'inherit', textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: 2, display: 'inline-block', padding: '17px 9px', margin: '-17px -9px' }
@@ -405,7 +406,7 @@ export default function NflPlayerModal({ player, market, markets, splitMeta, log
         meta={<>
           {player.jersey_number ? `#${player.jersey_number} · ` : ''}
           {/* the clubs open their team pages (route audit B6; team page since 10-03) */}
-          {player.position} · {player.team ? <a href={`#sport=nfl&tab=team&team=${player.team}`} style={CLUB_LINK} title={`${player.team} team page`}>{player.team}</a> : null}
+          <RoleTag player={player} season={matchup?.slate_season || matchup?.season} /> · {player.team ? <a href={`#sport=nfl&tab=team&team=${player.team}`} style={CLUB_LINK} title={`${player.team} team page`}>{player.team}</a> : null}
           {player.opp ? <>{' vs '}<a href={`#sport=nfl&tab=team&team=${player.opp}`} style={CLUB_LINK} title={`${player.opp} team page`}>{player.opp}</a></> : null}
           {ageOf(player.birth_date) ? ` · age ${ageOf(player.birth_date)}` : ''}
           {tag && <span title={injuryTitle(tag)} style={{ color: injuryColor(tag, C), fontWeight: 900 }}>{' · '}{tag}</span>}
