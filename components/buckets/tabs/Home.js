@@ -62,22 +62,22 @@ export default function Home({ today, date, setTab, onOpenPlayer, onOpenGame, on
       <DelayedBanner error={today?.error} what="the league’s scores" />
       {!day && today?.loading ? <Loading what="tonight" /> : null}
 
-      <nav aria-label="Players, teams and leaders" style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: -6 }}>
-        {['players', 'teams', 'leaders'].map((k) => (
-          <button key={k} type="button" onClick={() => setTab?.(k)} style={link}>{NBA_NAV[k]?.icon} {NBA_NAV[k]?.label} ›</button>
-        ))}
-      </nav>
-
       <BucketsHeadline theme={C} numFont={NUM_FONT} boards={{ pts: pts.data, reb: reb.data, ast: ast.data }} onOpenPlayer={onOpenPlayer} />
-      {(pts.data?.rows || []).length > 0 && <BucketWatch rows={pts.data.rows} date={pts.data.date} onOpenPlayer={onOpenPlayer} />}
-      <StorylinesStrip sport="nba" theme={C} numFont={NUM_FONT} accent={C.purple} max={3} onOpenTeam={onOpenTeam} onSeeAll={() => setTab?.('storylines')} onOpenPlayer={(id) => onOpenPlayer?.(String(id))} />
-
       <section aria-label="Tonight's games">
         <Kicker>THE GAMES{day?.date ? ` · ${fmtDay(day.date)}` : ''}</Kicker>
         {day && !games.length ? <EmptyState title="NO GAMES TODAY" note="Nothing on the league’s calendar today. Page a day on Live, or open a club’s schedule."><NavBtn onClick={() => setTab('scores')} strong>Open Live</NavBtn></EmptyState> : null}
         {games.length > 0 && <GameList games={prev.shown} onOpenGame={onOpenGame} />}
         {prev.restN > 0 && <ShowMoreButton open={prev.open} restN={prev.restN} toggle={prev.toggle} itemWord="games" />}
       </section>
+
+      {(pts.data?.rows || []).length > 0 && <BucketWatch rows={pts.data.rows} date={pts.data.date} onOpenPlayer={onOpenPlayer} />}
+      <StorylinesStrip sport="nba" theme={C} numFont={NUM_FONT} accent={C.purple} max={3} onOpenTeam={onOpenTeam} onSeeAll={() => setTab?.('storylines')} onOpenPlayer={(id) => onOpenPlayer?.(String(id))} />
+      {/* WAVE 2 (2026-10-11): the Players / Teams / Leaders door row sat above the games (first row y 1,211); it now follows them. */}
+      <nav aria-label="Players, teams and leaders" style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: -6 }}>
+        {['players', 'teams', 'leaders'].map((k) => (
+          <button key={k} type="button" onClick={() => setTab?.(k)} style={link}>{NBA_NAV[k]?.icon} {NBA_NAV[k]?.label} ›</button>
+        ))}
+      </nav>
 
       <section>
         <Kicker>WHO LEADS{leaders.data?.seasonLabel ? ` · ${leaders.data.seasonLabel}` : ''}</Kicker>

@@ -10,7 +10,7 @@ import { TeamTap } from '../../EntityTap'
 import NflTable from '../NflTable'
 import { withNflFullSet } from '../../../lib/nfl/boardColumns'
 import { SportTheme } from '../../SportTheme'
-import { LeadersIntro, LeadersFilterBar, LeadersLead } from '../../leaders/LeadersParts'
+import { LeadersIntro, LeadersFilterBar, LeadersLead, CappedTiles } from '../../leaders/LeadersParts'
 import { roleLabel } from '../../../lib/nfl/roles'
 
 // 🏆 LEADERS — who is actually first, per category.
@@ -213,7 +213,7 @@ export default function Leaders({ data, onPlayerClick }) {
             {dropped > 0 && <LeadersLead>
               {dropped} categor{dropped === 1 ? 'y' : 'ies'} we don&apos;t carry yet {dropped === 1 ? 'is' : 'are'} left out rather than shown empty.
             </LeadersLead>}
-            <div className="bot-picks-grid" style={{
+            <CappedTiles cap={2} word="leaders" className="bot-picks-grid" style={{
               display: 'grid', gap: 8, marginBottom: 12,
               gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
             }}>
@@ -223,7 +223,7 @@ export default function Leaders({ data, onPlayerClick }) {
                   meta={meta} facing={facing} onPlayerClick={onPlayerClick}
                   theme={C} numFont={NUM_FONT} />
               ))}
-            </div>
+            </CappedTiles>
           </>
         )}
 

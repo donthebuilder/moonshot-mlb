@@ -71,6 +71,8 @@ import RefreshStamp from '../RefreshStamp'
 import DashFooter from '../DashFooter'
 import SkipLink from '../SkipLink'
 import NflProps from './NflProps'
+import NflCalls from './NflCalls'
+import Fold from '../Fold'
 import NflTeam from './tabs/Team'
 import { useTabView } from '../../lib/tabView'
 const OddsBoard = dynamic(() => import('../tabs/OddsBoard'))
@@ -522,11 +524,22 @@ export default function NflDashboard({ palettePass = 0 }) {
             {/* PICKS IS THE BOT PAGE (2026-09-29, MOONSHOT's Bot frame; components/nfl/tabs/Bot.js).
                 The hub keeps Board and Called for the boards; its Called view no
                 longer jumps to 'picks', it stays where it was opened. */}
-            {/* Props is MOONSHOT's page now (2026-10-04): the cards, then the bot's sheet under them */}
-            {!oddsHold && tab === 'picks' && <NflProps data={slate} picks={picks} odds={odds} onPlayerClick={openPlayer} />}
-            {!oddsHold && tab === 'picks' && <div style={{ marginTop: 26, paddingTop: 18, borderTop: `1px solid ${C.border}`, font: `900 11px/1 ${NUM_FONT}`, letterSpacing: '.16em', color: C.green, marginBottom: 10 }}>THE SHORTLIST · THE CARD · NEXT WEEK</div>}
+            {/* PICKS, SIMPLE FIRST (Wave 2, 2026-10-11, Donovan: "everything moving toward simplicity with the ability to
+                dive deep into stats"). It was three products stacked (the call cards, "THE SHORTLIST" label, the Bot) with the
+                first table row at y 2503 on a phone. Now: the calls as one table row per market (NflCalls), then the ONE board
+                (the Bot: Shortlist / The card / Next week), and MOONSHOT's call cards (NflProps, the Props look from 10-04)
+                one tap away in a fold. Nothing deleted: same three components, same data. */}
+            {!oddsHold && tab === 'picks' && <NflCalls data={slate} picks={picks} onPlayerClick={openPlayer} />}
+            {!oddsHold && tab === 'picks' && <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1px solid ${C.border}`, font: `900 11px/1 ${NUM_FONT}`, letterSpacing: '.16em', color: C.green, marginBottom: 10 }}>THE SHORTLIST · THE CARD · NEXT WEEK</div>}
             {!oddsHold && tab === 'picks' && <Bot data={slate} picks={picks} results={nflResults} logs={logs} matchup={matchup} odds={odds}
               oddsStatus={oddsRaw?.source === 'sportsgameodds' && !oddsRaw?.empty ? null : oddsStatus} onPlayerClick={openPlayer} />}
+            {!oddsHold && tab === 'picks' && (
+              <div style={{ marginTop: 14 }}>
+                <Fold id="tuddy-picks-cards" title="🃏 The call cards" meta="one card per call, filters and slip">
+                  <NflProps data={slate} picks={picks} odds={odds} onPlayerClick={openPlayer} />
+                </Fold>
+              </div>
+            )}
             {!oddsHold && tab === 'research' && (
               <BoardHub onTitle={setHubTitle} onView={() => {}} slate={slate} data={data} logs={logs} matchup={matchup} odds={odds} oddsStatus={oddsRaw?.source === 'sportsgameodds' && !oddsRaw?.empty ? null : oddsStatus}
                 picks={picks} results={nflResults} liveSnap={liveSnap} onPlayerClick={openPlayer} initialView="board" />
@@ -556,7 +569,7 @@ export default function NflDashboard({ palettePass = 0 }) {
             {tab === 'leaders' && <Leaders data={data} onPlayerClick={openPlayer} />}
             {/* By game since 2026-09-27 (BATCH-STORYLINES-PAGE step 2): the story engine's rows, tied to the board.
                 The old section view stays as Home's compact strip (tabs/Storylines.js compact). */}
-            {tab === 'storylines' && <StorylinesPage sport="nfl" eyebrow="TUDDY · STORYLINES" theme={C} numFont={NUM_FONT} accent={C.green} onOpenGame={(id) => { leaveTarget('game', id); setTab('games') }} onOpenPlayer={(id) => { const p = (data?.players || []).find((x) => String(x.player_id) === String(id)); if (p) openPlayer(p, 'TD') }} />}
+            {tab === 'storylines' && <StorylinesPage sport="nfl" previewGames={4} eyebrow="TUDDY · STORYLINES" theme={C} numFont={NUM_FONT} accent={C.green} onOpenGame={(id) => { leaveTarget('game', id); setTab('games') }} onOpenPlayer={(id) => { const p = (data?.players || []).find((x) => String(x.player_id) === String(id)); if (p) openPlayer(p, 'TD') }} />}
           </ErrorBoundary>
           <DashFooter sport="nfl" theme={C} onGuide={() => setTab('guide')} />
           </GameNav.Provider>

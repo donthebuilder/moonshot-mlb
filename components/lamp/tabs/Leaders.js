@@ -5,7 +5,8 @@ import LeaderTile from '../../LeaderTile'
 import TeamMark from '../../TeamMark'
 import LampTable from '../LampTable'
 import { SportTheme } from '../../SportTheme'
-import { LeadersIntro, LeadersFilterBar, LeadersLead, LeagueTopCard, LeadersSection } from '../../leaders/LeadersParts'
+import MobileFold from '../../MobileFold'
+import { LeadersIntro, LeadersFilterBar, LeadersLead, LeagueTopCard, LeadersSection, CappedTiles } from '../../leaders/LeadersParts'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import { TYPE } from '../../../lib/theme'
 import { alpha } from '../../../lib/scales'
@@ -182,7 +183,7 @@ export default function Leaders({ onOpenPlayer }) {
                 ? <>Every leader below is <b style={{ color: C.text2 }}>playing tonight</b> — tiles show who each one faces, plus the #2 and #3.</>
                 : <>No games tonight, so the tiles rank <b style={{ color: C.text2 }}>the whole league</b>, with the #2 and #3.</>}
             </LeadersLead>
-            <div className="bot-picks-grid" style={{
+            <CappedTiles cap={2} word="leaders" className="bot-picks-grid" style={{
               display: 'grid', gap: 8, marginBottom: 12,
               gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
             }}>
@@ -196,10 +197,12 @@ export default function Leaders({ onOpenPlayer }) {
                   onPlayerClick={onOpenPlayer ? (r) => onOpenPlayer(r.id) : undefined}
                   theme={C} numFont={NUM_FONT} />
               ))}
-            </div>
+            </CappedTiles>
           </>
         )}
 
+        {/* WAVE 2 (2026-10-11): on a phone the league-wide top 10s are one tap under the tiles, not a wall above the table. */}
+        <MobileFold title="🏒 League-wide top 10s" summary={goalies ? 'goaltending, whole league' : 'scoring, whole league'} accent={C.ice}>
         <LeadersSection
           title={`🏒 League-wide top 10s — ${goalies ? 'goaltending' : 'scoring'}`}
           tint={alpha(C.ice, 0.04)}
@@ -217,6 +220,7 @@ export default function Leaders({ onOpenPlayer }) {
             ))}
           </div>
         </LeadersSection>
+        </MobileFold>
 
         <LeadersFilterBar
           groups={[

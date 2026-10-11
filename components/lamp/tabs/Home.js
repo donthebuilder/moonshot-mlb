@@ -14,6 +14,7 @@ import LampYourPlayers from '../LampYourPlayers'
 import { useLampStandings, useLampBoard, useLampLeaders, useLampRecord, useLampHotSticks } from '../../../lib/nhl/useLamp'
 import { buildLampHeadlines } from '../../../lib/nhl/headlines'
 import { usePreview, ShowMoreButton } from '../../ListPreview'
+import Fold from '../../Fold'
 import ScoreTable, { sortGames } from '../ScoreTable'
 import LampTable from '../LampTable'
 import Tap from '../../Tap'
@@ -40,6 +41,7 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
   const board = useLampBoard(date)
   const sogBoard = useLampBoard(date, 'SOG')
   const boardGames = board.data?.games || []
+  const boardPrev = usePreview(boardGames, 6)
   const day = scores.data
   const games = sortGames(day?.games || [])
   const prev = usePreview(games, 6)
@@ -144,22 +146,41 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
         ))}
       </nav>
 
+      <section aria-label="Tonight's board">
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
+          <Kicker>THE BOARD · ONE CALLED PER TEAM</Kicker>
+          <button type="button" onClick={() => setTab?.('fullboard')} style={link}>Full board ›</button>
+        </div>
+        {board.loading && !board.data ? <Loading what="the board" /> : null}
+        {board.data && boardGames.length === 0 && <EmptyState title="NO BOARD TONIGHT" note="No games, so nothing to call." />}
+        {boardGames.length > 0 && (
+          // THE SHARED SHEET (2026-10-01, BATCH-TABLE-SKIN-V2 4b): each game's
+          // called skaters (names open the player), its state; the game opens it.
+          <LampTable bare noGroups tight heatMode="sorted" maxHeight={9999} maxRows={40} caption="Tonight's board: who is called in each game"
+            rows={boardPrev.shown.map((g) => ({ _key: g.game.id, g, game: `${g.game.away.abbrev}@${g.game.home.abbrev}`, stamp: g.graded ? 'GRADED' : g.locked ? 'LOCKED' : g.setting ? 'SETTING' : 'PREVIEW' }))}
+            columns={[
+              { key: 'game', label: 'Game', heat: false, sticky: true, w: 90, link: (r) => (onOpenGame ? () => onOpenGame(r.g.game.id) : null), fmt: (_, r) => <MatchLogos sport="nhl" away={r.g.game.away.abbrev} home={r.g.game.home.abbrev} px={16} gap={3} /> },
+              { key: 'called',
+                // A PREVIEW game's names aren't calls yet (scenario test F10:
+                // "CALLED" beside "not a call yet"). Locked/graded -> Called.
+                label: boardGames.every((g) => g.locked || g.graded) ? 'Called' : boardGames.some((g) => g.locked || g.graded) ? 'Called · preview = projected' : 'Projected',
+                heat: false, numeric: false, w: 260, fmt: (_, r) => (
+                <span style={{ fontSize: 11.5, lineHeight: 1.4, whiteSpace: 'normal' }}>
+                  {r.g.rows.filter((x) => x.status === 'called').map((x, i) => (
+                    <span key={x.playerId}>{i ? ' · ' : ''}{onOpenPlayer ? <Tap onClick={() => onOpenPlayer(x.playerId)}><span style={{ color: x.hit ? C.ice : C.text }}>{x.name}</span></Tap> : <span style={{ color: x.hit ? C.ice : C.text }}>{x.name}</span>} <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 10 }}>{x.score}</span></span>
+                  ))}
+                </span>) },
+              { key: 'stamp', label: 'State', heat: false, w: 70, fmt: (v, r) => <span style={{ color: r.g.graded ? C.cream : r.g.locked ? C.teal : C.amber, font: `900 8px/1 ${NUM_FONT}`, letterSpacing: '.12em' }}>{v}</span> },
+            ]} />
+        )}
+        <ShowMoreButton open={boardPrev.open} restN={boardPrev.restN} toggle={boardPrev.toggle} itemWord="games" />
+      </section>
+
+
       {/* TONIGHT'S CALLS (BATCH-HEADLINE-PICKS step 3): GOAL and SHOTS, each
           model's called skaters -- MOONSHOT's The Four layout -- then
           Around the League below, the same order MOONSHOT uses. */}
       <LampHeadline theme={C} numFont={NUM_FONT} goalBoard={board.data} sogBoard={sogBoard.data} record={regT ? { ...regT, sog: reg.data?.sog } : null} onOpenPlayer={onOpenPlayer} />
-      {/* FACES ON THE CARDS (2026-09-29, queue batch 5): MOONSHOT's and TUDDY's
-          strips pass faceOf; LAMP's didn't. The shared PlayerFace, table
-          variant -- LAMP's circle, and it hides itself if a mug 404s. */}
-      <HeadlineStrip sport="nhl" cards={cards} onOpen={openCard} theme={C} numFont={NUM_FONT} accent={C.ice}
-        faceOf={(c) => { const url = c.playerId && c.team ? nhlMug(board.data?.season?.current || board.data?.season?.id, c.team, c.playerId) : null; return url ? <PlayerFace sport="nhl" photo={url} variant="table" size={22} theme={C} /> : null }} />
-      {/* 2026-09-27 (BATCH-STORYLINES-PAGE step 4): the story engine's rarest
-          five (History Watch's claims lead as the rarest), then the Storylines tab. */}
-      {/* ⭐ YOUR PLAYERS (2026-10-03): MOONSHOT's section, fed by the scores and board read above. */}
-      <LampYourPlayers games={games} board={board.data} onOpenPlayer={onOpenPlayer} />
-      <StorylinesStrip sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} max={3} onOpenTeam={onOpenTeam} onSeeAll={() => setTab?.('storylines')} onOpenPlayer={(id) => onOpenPlayer?.(Number(id))} />
-      <LongshotsPreview sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} onSeeAll={() => setTab?.('longshots')} onOpenPlayer={(id) => onOpenPlayer?.(id)} />
-
       <section aria-label="Tonight's games">
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -181,34 +202,23 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
         )}
       </section>
 
-      <section aria-label="Tonight's board">
-        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
-          <Kicker>THE BOARD · ONE CALLED PER TEAM</Kicker>
-          <button type="button" onClick={() => setTab?.('fullboard')} style={link}>Full board ›</button>
-        </div>
-        {board.loading && !board.data ? <Loading what="the board" /> : null}
-        {board.data && boardGames.length === 0 && <EmptyState title="NO BOARD TONIGHT" note="No games, so nothing to call." />}
-        {boardGames.length > 0 && (
-          // THE SHARED SHEET (2026-10-01, BATCH-TABLE-SKIN-V2 4b): each game's
-          // called skaters (names open the player), its state; the game opens it.
-          <LampTable bare noGroups tight heatMode="sorted" maxHeight={9999} maxRows={40} caption="Tonight's board: who is called in each game"
-            rows={boardGames.map((g) => ({ _key: g.game.id, g, game: `${g.game.away.abbrev}@${g.game.home.abbrev}`, stamp: g.graded ? 'GRADED' : g.locked ? 'LOCKED' : g.setting ? 'SETTING' : 'PREVIEW' }))}
-            columns={[
-              { key: 'game', label: 'Game', heat: false, sticky: true, w: 90, link: (r) => (onOpenGame ? () => onOpenGame(r.g.game.id) : null), fmt: (_, r) => <MatchLogos sport="nhl" away={r.g.game.away.abbrev} home={r.g.game.home.abbrev} px={16} gap={3} /> },
-              { key: 'called',
-                // A PREVIEW game's names aren't calls yet (scenario test F10:
-                // "CALLED" beside "not a call yet"). Locked/graded -> Called.
-                label: boardGames.every((g) => g.locked || g.graded) ? 'Called' : boardGames.some((g) => g.locked || g.graded) ? 'Called · preview = projected' : 'Projected',
-                heat: false, numeric: false, w: 260, fmt: (_, r) => (
-                <span style={{ fontSize: 11.5, lineHeight: 1.4, whiteSpace: 'normal' }}>
-                  {r.g.rows.filter((x) => x.status === 'called').map((x, i) => (
-                    <span key={x.playerId}>{i ? ' · ' : ''}{onOpenPlayer ? <Tap onClick={() => onOpenPlayer(x.playerId)}><span style={{ color: x.hit ? C.ice : C.text }}>{x.name}</span></Tap> : <span style={{ color: x.hit ? C.ice : C.text }}>{x.name}</span>} <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 10 }}>{x.score}</span></span>
-                  ))}
-                </span>) },
-              { key: 'stamp', label: 'State', heat: false, w: 70, fmt: (v, r) => <span style={{ color: r.g.graded ? C.cream : r.g.locked ? C.teal : C.amber, font: `900 8px/1 ${NUM_FONT}`, letterSpacing: '.12em' }}>{v}</span> },
-            ]} />
-        )}
-      </section>
+      {/* WAVE 2 (2026-10-11, Donovan: "everything moving toward simplicity with the ability to dive deep into stats").
+          The first screen is the hero, tonight's board (one called per team, as a table), the calls and the games. The rest of
+          the page -- headlines, your players, storylines, longshots, hot numbers, division leaders -- is one fold, nothing
+          deleted. The first table row was y 1,994 on a phone; it was the games list under all of these. */}
+      <Fold id="lamp-home-more" title="More numbers" meta="headlines · your players · storylines · longshots · hot numbers · division leaders">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+      {/* FACES ON THE CARDS (2026-09-29, queue batch 5): MOONSHOT's and TUDDY's
+          strips pass faceOf; LAMP's didn't. The shared PlayerFace, table
+          variant -- LAMP's circle, and it hides itself if a mug 404s. */}
+      <HeadlineStrip sport="nhl" cards={cards} onOpen={openCard} theme={C} numFont={NUM_FONT} accent={C.ice}
+        faceOf={(c) => { const url = c.playerId && c.team ? nhlMug(board.data?.season?.current || board.data?.season?.id, c.team, c.playerId) : null; return url ? <PlayerFace sport="nhl" photo={url} variant="table" size={22} theme={C} /> : null }} />
+      {/* 2026-09-27 (BATCH-STORYLINES-PAGE step 4): the story engine's rarest
+          five (History Watch's claims lead as the rarest), then the Storylines tab. */}
+      {/* ⭐ YOUR PLAYERS (2026-10-03): MOONSHOT's section, fed by the scores and board read above. */}
+      <LampYourPlayers games={games} board={board.data} onOpenPlayer={onOpenPlayer} />
+      <StorylinesStrip sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} max={3} onOpenTeam={onOpenTeam} onSeeAll={() => setTab?.('storylines')} onOpenPlayer={(id) => onOpenPlayer?.(Number(id))} />
+      <LongshotsPreview sport="nhl" theme={C} numFont={NUM_FONT} accent={C.ice} onSeeAll={() => setTab?.('longshots')} onOpenPlayer={(id) => onOpenPlayer?.(id)} />
 
       {/* TONIGHT'S NUMBERS (numerology v2 step 6b): one line under the board, taps to Numerology. */}
       <HotNumbers compact sport="nhl" date={day?.date || date} theme={C} numFont={NUM_FONT} accent={C.ice} onOpen={() => setTab?.('numerology')} />
@@ -236,6 +246,8 @@ export default function Home({ onOpenTeam = null, today, date = null, onOpenGame
         )}
       </section>
 
+        </div>
+      </Fold>
       <SourceLine>Scores: NHL score/{'{date}'} via /api/lamp/scores. Standings: NHL standings/now via /api/lamp/standings.</SourceLine>
       </>}
     </div>

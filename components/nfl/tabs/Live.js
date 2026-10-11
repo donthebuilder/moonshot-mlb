@@ -19,6 +19,7 @@
 // your names, the plays. When nothing is on it says when something will be
 // -- it never shows a wall of dashes.
 import { useMemo, useState } from 'react'
+import { ShowMoreButton } from '../../ListPreview'
 import { C, NUM_FONT, gradeFor } from '../../../lib/nfl/theme'
 import { lineFor, marketValue } from '../../../lib/nfl/liveSlate'
 import { nextKickoff } from '../../../lib/nfl/liveMerge'
@@ -216,6 +217,14 @@ export default function Live({ data, picks, live, matchup = null, logs = null, r
   // MOONSHOT's. The scoring plays are TUDDY's wire, so they lead while a
   // game is on instead of sitting at the foot of the page.
   const rungTotal = card.reduce((n, b) => n + (b.rungs || []).slice(0, depth).length, 0)
+  // WAITING = nothing is on right now and the week is not over (Wave 2, 2026-10-11): the card shows each market's #1 rung and
+  // "Show every rung" opens the rest; the board comes right under it and Your names / Storylines / the schedule follow it.
+  // While a game is on every rung is a live line, and once the whole week is final they are all graded lines, so the page
+  // is what it was in both.
+  const pregame = !anyLive && !allDone
+  const [cardAll, setCardAll] = useState(false)
+  const rungDepth = pregame && !cardAll ? 1 : depth
+  const restRungs = pregame ? Math.max(0, rungTotal - card.reduce((n, b) => n + (b.rungs || []).slice(0, 1).length, 0)) : 0
   const secHeadline = (
     <>
       {!anyLive && (
@@ -249,7 +258,7 @@ export default function Live({ data, picks, live, matchup = null, logs = null, r
           {card.map((block) => (
             <div key={block.key} className="tl-block">
               <header><b>{block.label || short(block.key)}</b><small>bar {Number.isFinite(bars[block.key]) ? bars[block.key] : block.bar}</small></header>
-              {(block.rungs || []).slice(0, depth).map((rung) => (
+              {(block.rungs || []).slice(0, rungDepth).map((rung) => (
                 <RungRow key={`${block.key}:${rung.player_id}`} rung={rung} player={byId.get(String(rung.player_id))}
                   game={gameByTeam.get(rung.team)} line={live ? lineFor(live, rung) : null}
                   market={block.key} bar={bars[block.key]} onPlayerClick={onPlayerClick} />
@@ -257,17 +266,21 @@ export default function Live({ data, picks, live, matchup = null, logs = null, r
             </div>
           ))}
         </div>
+        {pregame && restRungs > 0 && <ShowMoreButton open={cardAll} restN={restRungs} toggle={() => setCardAll((v) => !v)} itemWord="rungs" />}
       </section>
     </>
   )
+  const storyBody = (
+    <section>
+      <div className="tl-title"><div><small>STORYLINES</small><h2>What the numbers are already saying</h2></div>{setTab && <button onClick={() => setTab('storylines')}>All →</button>}</div>
+      <Storylines compact data={data} logs={logs} results={results} onPlayerClick={onPlayerClick} setTab={setTab} />
+    </section>
+  )
   const secStory = (
     <>
-      {!anyLive && (
-        <section>
-          <div className="tl-title"><div><small>STORYLINES</small><h2>What the numbers are already saying</h2></div>{setTab && <button onClick={() => setTab('storylines')}>All →</button>}</div>
-          <Storylines compact data={data} logs={logs} results={results} onPlayerClick={onPlayerClick} setTab={setTab} />
-        </section>
-      )}
+      {!anyLive && (pregame
+        ? <Fold id="tuddy-live-storylines" title="📰 Storylines" meta="what the numbers are already saying · 3 a section">{storyBody}</Fold>
+        : storyBody)}
     </>
   )
   const secSched = (
@@ -324,7 +337,11 @@ export default function Live({ data, picks, live, matchup = null, logs = null, r
   const order = anyLive
     ? [secScores, secPlays, secCard, secYours]
     // Pre-game, an empty wire is scroll for nothing; it joins once a play lands.
-    : [secHeadline, secScores, secCard, secYours, secStory, secSched, ...(plays.length ? [secPlays] : [])]
+    : pregame
+      ? [secHeadline, secScores, secCard]
+      : [secHeadline, secScores, secCard, secYours, secStory, secSched, ...(plays.length ? [secPlays] : [])]
+  // PREGAME, UNDER THE BOARD (Wave 2): the board is the page's table, so it leads; these follow it.
+  const afterBoard = pregame ? [secYours, secStory, secSched, ...(plays.length ? [secPlays] : [])] : []
   const sub = `${players.length} players on the board${anyLive ? ' · live' : allDone ? ' · the week is in' : next ? ` · next kickoff ${fmtKick(next.t)}` : ''}`
 
   return (
@@ -379,6 +396,7 @@ export default function Live({ data, picks, live, matchup = null, logs = null, r
           </div>
         )}
       </section>
+      {afterBoard.map((sec, i) => <div key={`after-${i}`}>{sec}</div>)}
 
       <style>{`
       .tl{display:flex;flex-direction:column;gap:14px}
