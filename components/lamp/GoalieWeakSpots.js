@@ -34,7 +34,7 @@ function facing(bg, netTeam) {
   return rows.slice(0, 8)
 }
 
-function SpotsTable({ w }) {
+export function SpotsTable({ w }) {
   const rows = w.spots.map((s) => ({ ...s, _key: s.key, zone: s.short }))
   return (
     <LampTable bare noGroups tight heatMode="primary" maxHeight={9999} maxRows={9} caption="Where this goalie has allowed the most goals above the league"

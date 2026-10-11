@@ -111,6 +111,12 @@ ok('players: roles are the depth chart\'s (RB1 / WR1), availability is the injur
   assert.equal(back.snap, 70); assert.equal(back.rz_touch, 8)
   assert.ok(Object.keys(STATUS_WORD).includes(back.status))
   assert.match(s.status, /1 CALLED · 1 ON THE BOARD/)
+  // the shared injury report sits after the table (the first row does not move) on Players and on Defense
+  const ix = s.blocks.findIndex((b) => b.type === 'slot' && b.slot === 'injuries')
+  assert.ok(ix > s.blocks.findIndex((b) => b.id === 'players'), 'Players: injuries slot after the table')
+  assert.deepEqual(s.blocks[ix].props.clubs, [NFL[0]])
+  const d = all(NFL[0]).sections.find((x) => x.id === 'defense')
+  assert.ok(d.blocks.some((b) => b.type === 'slot' && b.slot === 'defense') && d.blocks.some((b) => b.type === 'slot' && b.slot === 'injuries'))
 })
 ok('stats: ranks of 32, fewest allowed is best, the division table, no team-yards claim', () => {
   const s = sec(all(NFL[0]), 'stats')
