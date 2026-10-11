@@ -86,8 +86,8 @@ export default function TeamPage({ view, theme, ui, nav, back = null, hashKey = 
   }, [view.sport, hashKey, h.code])
   const pick = (id) => { setSec(id); writeParam(hashKey, id === resolveSection(view.sport, null) ? null : id) }
   const active = view.sections.find((s) => s.id === sec) || view.sections[0]
-  const stats = [h.record && { value: h.record, label: h.stale ? `${h.seasonLabel} FINAL` : 'RECORD', tone: h.stale ? C.amber : C.text2 }, h.points != null && { value: h.points, label: 'PTS', tone: C.text }, h.diff != null && { value: h.diff > 0 ? `+${h.diff}` : h.diff, label: 'DIFF', tone: C.text2 }].filter(Boolean)
-  const note = [h.record && `${h.stale ? `${h.seasonLabel} final ` : ''}${h.record}${h.points != null ? ` (${h.points} pts)` : ''}`, h.standing, h.splits && `Home ${h.splits.home} · Road ${h.splits.road} · Last 10 ${h.splits.l10}`, h.streak && `Streak ${h.streak}`].filter(Boolean).join(' · ')
+  const stats = h.chips ? h.chips.map((c) => ({ ...c, tone: c.tone || C.text2 })) : [h.record && { value: h.record, label: h.stale ? `${h.seasonLabel} FINAL` : 'RECORD', tone: h.stale ? C.amber : C.text2 }, h.points != null && { value: h.points, label: 'PTS', tone: C.text }, h.diff != null && { value: h.diff > 0 ? `+${h.diff}` : h.diff, label: 'DIFF', tone: C.text2 }].filter(Boolean)
+  const note = h.summary ? h.summary.join(' · ') : [h.record && `${h.stale ? `${h.seasonLabel} final ` : ''}${h.record}${h.points != null ? ` (${h.points} pts)` : ''}`, h.standing, h.splits && `Home ${h.splits.home} · Road ${h.splits.road} · Last 10 ${h.splits.l10}`, h.streak && `Streak ${h.streak}`].filter(Boolean).join(' · ')
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {back}

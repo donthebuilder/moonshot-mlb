@@ -182,7 +182,7 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
   )
   const { filtered: bandFiltered, state: bandState } = useNflBoardFilter(marketPool, market)
   const angles = useMemo(() => angleDefs({ matchup, logs, market, matchupTag, week: data ? { season: data.season, week: data.week } : null }), [matchup, logs, market, data?.season, data?.week])
-  const drawer = useNflDrawerFilters(marketPool, data?.games, market, { game: top?.game || '' })   // TUDDY 3 + 4
+  const drawer = useNflDrawerFilters(marketPool, data?.games, market, { game: top?.game || '', matchup, season: data?.season })   // TUDDY 3 + 4
 
   const rows = useMemo(() => {
     const angleTest = angle ? angles.find((x) => x.key === angle)?.test : null
@@ -335,7 +335,7 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
       {hidden > 0 || rows.length ? null : (
         <div style={{ fontSize: TYPE.body, color: C.text3, margin: '4px 0 10px' }}>Nothing matches. Clear the search, team, game or a filter above.</div>
       )}
-      {view === 'list' && <NflBoardList players={capped} market={market} rankOf={rankOf} weights={spec?.weights} odds={odds} phone={phone} onPlayerClick={onPlayerClick} base={base} pool={eligible} watchlist={watchlist} />}
+      {view === 'list' && <NflBoardList players={capped} market={market} rankOf={rankOf} weights={spec?.weights} odds={odds} phone={phone} onPlayerClick={onPlayerClick} base={base} pool={eligible} watchlist={watchlist} tags={drawer.tagsView} />}
 
       {/* CARD BOARD (2026-09-15, Donovan: "the props card board is okay we
           just need the pictures on there ... a table flip wouldn't be bad,

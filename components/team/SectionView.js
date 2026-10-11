@@ -6,7 +6,7 @@ import { bindColumns } from './kinds'
 // Nothing here knows a sport. A table block previews `maxRows` rows ("+N more" is the table's own).
 export default function SectionView({ section, ui, nav, theme }) {
   const { C, NUM_FONT } = theme
-  const { Table, EmptyState, Kicker, Weak } = ui
+  const { Table, EmptyState, Kicker, Weak, Slots } = ui
   if (section.state !== 'ok') return <EmptyState title={section.empty?.title || 'NO DATA'} note={section.empty?.note || null} />
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -17,6 +17,7 @@ export default function SectionView({ section, ui, nav, theme }) {
       {section.blocks.map((b, i) => {
         if (b.type === 'note') return <p key={i} style={{ margin: 0, color: C.text3, fontSize: 12, lineHeight: 1.5, maxWidth: 720 }}>{b.text}</p>
         if (b.type === 'weak') return Weak ? <Weak key={b.game?.id || i} game={b.game} sides={b.sides} label={b.label} onOpenPlayer={nav.onOpenPlayer} /> : null
+        if (b.type === 'slot') { const Slot = Slots?.[b.slot]; return Slot ? <Slot key={b.slot} {...(b.props || {})} /> : null }
         if (b.type !== 'table') return null
         const open = b.rowOpen === 'game' ? (r) => nav.onOpenGame?.(r.gameId) : b.rowOpen === 'player' ? (r) => nav.onOpenPlayer?.(r[b.playerKey || 'id']) : null
         const handler = open && ((b.rowOpen === 'game' && nav.onOpenGame) || (b.rowOpen === 'player' && nav.onOpenPlayer)) ? open : undefined
@@ -27,7 +28,7 @@ export default function SectionView({ section, ui, nav, theme }) {
               {...(b.initialSort ? { initialSort: b.initialSort } : {})}
               {...(b.bareTable ? { bare: true, noGroups: true, tight: true } : {})}
               {...(b.statusKey ? { statusOf: (r) => r[b.statusKey] || null } : {})}
-              onRowClick={handler} caption={b.caption} />
+              onRowClick={handler ? (r) => { if (!r.noOpen) handler(r) } : undefined} caption={b.caption} />
           </div>
         )
       })}

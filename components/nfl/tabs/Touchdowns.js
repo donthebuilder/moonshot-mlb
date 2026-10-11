@@ -213,7 +213,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
     { key: 'aligned', label: '🧩 Aligned', title: `2 or more of 3 real signals lining up: matchup, red-zone finisher, rising snap share. ${angleRecord('TD', 'aligned') || ''}`.trim(), test: (p) => alignedSignals(matchup, p).aligned },
     ...angleDefs({ matchup, logs, market: MARKET, matchupTag, week: data ? { season: data.season, week: data.week } : null }),
   ], [matchup, logs, data?.season, data?.week])
-  const drawer = useNflDrawerFilters(rows, data?.games, MARKET, { game: top?.game || '' })   // TUDDY 3 + 4
+  const drawer = useNflDrawerFilters(rows, data?.games, MARKET, { game: top?.game || '', matchup, season: data?.season })   // TUDDY 3 + 4
 
   // One removable chip per narrowing dimension, bands included. Touchdowns had
   // no chip row at all, so a tier or a team filter was invisible once you had
@@ -357,7 +357,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
       ) : (
         <>
           {view === 'list'
-            ? <NflBoardList players={capped} market={MARKET} rankOf={rankOf} weights={weights} odds={odds} phone={phone} onPlayerClick={openFromBoard} statusOf={statusOf} base={base} pool={rows} watchlist={watchlist} lastNight={cln} />
+            ? <NflBoardList players={capped} market={MARKET} rankOf={rankOf} weights={weights} odds={odds} phone={phone} onPlayerClick={openFromBoard} statusOf={statusOf} base={base} pool={rows} watchlist={watchlist} lastNight={cln} tags={drawer.tagsView} />
             : <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))' }}>
                 {capped.map((p, i) => (
                   <Card key={p.player_id} p={p} rank={rankOf.get(String(p.player_id)) ?? i + 1} matchup={matchup} odds={odds}
