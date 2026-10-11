@@ -68,7 +68,7 @@ export function DefenseFile({ matchup, slateSeason = null, def, off = null }) {
             caption={`${def}'s three best pass rushers (sacks, then QB hits) and three corners (passes defended plus interceptions), ${src || 'this season'}, from finished games. Snap counts are not published for defenders.`} />
         </MobileFold>
       ) : (
-        <div style={muted}>{d.loading ? `Loading ${def}'s defenders…` : `No defender numbers for ${def} yet: ${d.failed ? 'neither the bot table nor ESPN box scores could be read.' : 'no finished game has a defensive line.'}`}</div>
+        <div style={muted}>{d.loading ? `Loading ${def}'s defenders…` : `No defender numbers for ${def} yet: ${d.failed ? 'neither TUDDY’s table nor ESPN box scores could be read.' : 'no finished game has a defensive line.'}`}</div>
       )}
     </section>
   )
@@ -85,7 +85,7 @@ export function TeamDefenders({ team, matchup, slateSeason = null }) {
       {matchup && <div style={{ marginBottom: 8 }}><DefenceTags book={book} team={team} /></div>}
       {d.rows.length > 0
         ? <DefenseTable rows={d.rows} unplaced={d.unplaced} source={{ season: d.season, games: d.games, partial: d.partial, missing: d.missing, boxLoaded: d.boxLoaded, botLoaded: d.botLoaded }} />
-        : <div style={muted}>{d.loading ? 'Loading defenders…' : `No defender numbers for ${team} yet: ${d.failed ? 'neither the bot table nor ESPN box scores could be read.' : 'no finished game has a defensive line.'}`}</div>}
+        : <div style={muted}>{d.loading ? 'Loading defenders…' : `No defender numbers for ${team} yet: ${d.failed ? 'neither TUDDY’s table nor ESPN box scores could be read.' : 'no finished game has a defensive line.'}`}</div>}
     </section>
   )
 }
@@ -100,7 +100,7 @@ const LOG_COLS = (group) => {
   ]
 }
 
-/** A defender's page section: the season strip (with the bot's group percentile where it has one), then game by game. */
+/** A defender's page section: the season strip (with TUDDY's group percentile where it has one), then game by game. */
 export function DefenderFile({ player, matchup, slateSeason = null }) {
   const d = useDefenders(player?.team)
   const book = useTagBook(matchup, slateSeason, { turnovers: false })
@@ -115,7 +115,7 @@ export function DefenderFile({ player, matchup, slateSeason = null }) {
     const pc = line.pctl && ({ tkl: 'tackles', tfl: 'tackles_for_loss', sck: 'sacks', qbh: 'qb_hits', pd: 'pass_defended', ff: 'fumbles_forced' })[k]
     const p = pc ? Number(line.pctl[pc]) : NaN
     return { id: k, label: COLUMN_LABEL[k][0], text: k === 'sck' ? String(Math.round(line[k] * 10) / 10) : String(line[k]), color: Number.isFinite(p) ? rampAt(p / 100) : null,
-      title: `${COLUMN_LABEL[k][1]}: ${line[k]} this season${Number.isFinite(p) ? `, ${Math.round(p)}th percentile among ${PCT_GROUP[group] || 'his group'} (the bot’s table)` : ''}.` }
+      title: `${COLUMN_LABEL[k][1]}: ${line[k]} this season${Number.isFinite(p) ? `, ${Math.round(p)}th percentile among ${PCT_GROUP[group] || 'his group'} (TUDDY’s table)` : ''}.` }
   }) : []
   return (
     <div style={{ marginTop: 6 }}>
@@ -128,8 +128,8 @@ export function DefenderFile({ player, matchup, slateSeason = null }) {
           <Kick>{`DEFENSE · ${GROUP_WORD[group]?.toUpperCase() || 'DEFENDER'} · ${d.season || 'THIS SEASON'}${line.games ? ` · ${line.games} ${line.games === 1 ? 'GAME' : 'GAMES'}` : ''}`}</Kick>
           <StatStrip stats={stats} wrap style={{ marginBottom: 8, gridTemplateColumns: `repeat(${Math.min(Math.max(stats.length, 1), 4)}, minmax(0, 1fr))` }} />
           <div style={{ ...muted, marginBottom: 12 }}>
-            {line.source === 'bot' ? 'ESPN box scores did not load: these are the bot’s season numbers.' : 'Tackles, sacks, hits, passes defended, interceptions and fumble recoveries are sums of finished-game box scores.'}{' '}
-            {line.ff != null ? `Forced fumbles (${line.ff}) are from the bot’s table.` : 'Forced fumbles are not available.'} No snap counts are published for defenders. A number is what he has done, not what he will do.
+            {line.source === 'bot' ? 'ESPN box scores did not load: these are TUDDY’s season numbers.' : 'Tackles, sacks, hits, passes defended, interceptions and fumble recoveries are sums of finished-game box scores.'}{' '}
+            {line.ff != null ? `Forced fumbles (${line.ff}) are from TUDDY’s table.` : 'Forced fumbles are not available.'} No snap counts are published for defenders. A number is what he has done, not what he will do.
           </div>
           {log.length > 0 && (
             <>

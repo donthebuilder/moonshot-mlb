@@ -44,7 +44,7 @@ const TRUST = () => ({
 
 // Called, not frozen: C is mutated after mount (applyTheme, lib/theme.js), so a
 // module-level literal keeps the palette it was imported with. See #23.
-const CONV_COLOR = () => ({ lean: C.text3, strong: C.text2, lock: C.green })
+const CONV_COLOR = () => ({ lean: C.text3, strong: C.text2, firm: C.green })
 
 const pctTxt = (v) => (v == null ? '—' : `${v.toFixed(1)}%`)
 

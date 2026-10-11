@@ -143,7 +143,7 @@ const COLUMNS = [
   { key: 'hrw',    label: 'HRW',   w: 40, dp: 1, ...SCORE },
   { key: 'dc',     label: 'DC',    w: 40, dp: 1 },
   { key: 'p3',     label: 'Pwr-3', w: 44, dp: 0, ...SCORE,
-    title: 'Season power ranked on tonight\'s slate (HR/BBE, avg EV, max EV). Replaced the due score 2026-09-06.' },
+    title: 'Season power ranked on tonight\'s slate (HR/BBE, avg EV, max EV). Replaced the old gap score 2026-09-06.' },
   { key: 'pmix',   label: 'PMix',  w: 42, dp: 1, ...SCORE },
   { key: 'barrel', label: 'Brl%',  w: 42, dp: 1 },
   { key: 'ihr',    label: 'IHR',   w: 42, dp: 3 },
@@ -174,7 +174,7 @@ const COLUMNS = [
   { key: 'hh',     label: 'HH%',     w: 44, dp: 0,
     title: 'Recent hard-hit rate (95+ mph)' },
   { key: 'since',  label: 'Since HR', w: 54, invert: true,
-    title: 'Games since his last homer. Inverted — recent is bright. Not a “due” signal, just recency.' },
+    title: 'Games since his last homer. Inverted — recent is bright. Not a prediction, just recency.' },
   { key: 'hr9',    label: 'P HR/9', w: 46, dp: 2,
     title: 'Opposing starter’s HR per 9 — high is good for the hitter' },
 ]
