@@ -22,8 +22,8 @@ let fail = 0
 const ok = (name, fn) => { try { fn(); console.log(`ok   ${name}`) } catch (e) { fail += 1; console.log(`FAIL ${name}: ${e.message}`) } }
 
 // ── the registry ────────────────────────────────────────────────────────────
-ok('registry: NHL lists the seven sections, in order, first = roster', () => {
-  assert.deepEqual(sectionsOf('nhl').map((s) => s.id), ['roster', 'schedule', 'stats', 'calls', 'matchup', 'trends', 'special'])
+ok('registry: NHL lists the eight sections, in order, first = roster', () => {
+  assert.deepEqual(sectionsOf('nhl').map((s) => s.id), ['roster', 'schedule', 'stats', 'calls', 'matchup', 'trends', 'goalies', 'special'])
   assert.equal(firstSection('nhl'), 'roster')
   for (const s of sectionsOf('nhl')) { assert.ok(SECTION_IDS.includes(s.id), s.id); assert.ok(s.label && s.needs, `${s.id} needs a label and a named data source`) }
 })
@@ -115,7 +115,7 @@ const mkDeep = (team) => {
 const board = (team) => ({ games: [{ rows: [{ playerId: 8470002, team, status: 'called', rank: 1 }, { playerId: 8470003, team, status: 'board', rank: 4 }] }] })
 
 // ── every club in the registry, files absent ────────────────────────────────
-ok('every NHL club builds with the real files absent: a header with name + logo, seven sections, each an honest empty state', () => {
+ok('every NHL club builds with the real files absent: a header with name + logo, eight sections, each an honest empty state', () => {
   assert.equal(NHL_CLUBS.length, 32)
   for (const c of NHL_CLUBS) {
     const v = buildNhlTeam({ team: c })
@@ -134,9 +134,9 @@ ok('every NHL club builds with the real files absent: a header with name + logo,
 ok('an unknown club code is a header with no name, never a crash', () => {
   const v = buildNhlTeam({ team: 'ZZZ' })
   assert.equal(v.header.known, false); assert.equal(v.header.logo, null)
-  assert.equal(v.sections.length, 7)
+  assert.equal(v.sections.length, 8)
 })
-ok('every club fills all seven sections from a TEST payload; each carries its season and sample; wording is neutral', () => {
+ok('every club fills all eight sections from a TEST payload; each carries its season and sample; wording is neutral', () => {
   for (const c of CLUBS) {
     const v = buildNhlTeam({ team: c, payload: mkPayload(c), deep: mkDeep(c), board: board(c), form: null })
     for (const s of v.sections) {
@@ -274,11 +274,35 @@ ok('matchup: with no team-model number the section says so and prints no total',
   assert.ok(!s.blocks.some((b) => b.id === 'mu-model'))
   assert.ok(s.blocks.some((b) => b.type === 'note' && /No team-model number/.test(b.text)))
 })
-ok('special: goalies carry GSAx from the xG table; special teams carry ranks', () => {
+ok('goalies: the season line carries GSAx from the xG table; a CONFIRMED starter is the board\'s own word and an expected one is never shown', () => {
+  const mk = (starters) => ({ date: '2026-10-11', games: [{ game: { home: { abbrev: 'TOR' }, away: { abbrev: 'BOS' } }, starters, rows: [] }] })
+  const none = buildNhlTeam({ team: 'TOR', payload: mkPayload('TOR'), deep: mkDeep('TOR') }).sections.find((x) => x.id === 'goalies')
+  const g0 = none.blocks.find((b) => b.id === 'gk-goalies')
+  assert.ok(g0.columns.some((c) => c.key === 'gsax'))
+  assert.ok(Math.abs(g0.rows[0].gsax - (4 * 2.6 - 4 * 2)) < 1e-9)
+  assert.ok(!g0.columns.some((c) => c.key === 'starter'), 'no board game for the club: no starter column')
+  assert.ok(none.blocks.some((b) => b.type === 'note' && /no game on the board/.test(b.text)))
+  const conf = buildNhlTeam({ team: 'TOR', payload: mkPayload('TOR'), deep: mkDeep('TOR'), board: mk({ home: { playerId: 8470001, name: 'TEST Goalie', confirmed: true }, away: null }) }).sections.find((x) => x.id === 'goalies')
+  const gc = conf.blocks.find((b) => b.id === 'gk-goalies')
+  assert.ok(gc.columns.some((c) => c.key === 'starter')); assert.equal(gc.rows[0].starter, 'CONFIRMED')
+  const exp = buildNhlTeam({ team: 'TOR', payload: mkPayload('TOR'), deep: mkDeep('TOR'), board: mk({ home: { playerId: 8470001, name: 'TEST Goalie', confirmed: false }, away: null }) }).sections.find((x) => x.id === 'goalies')
+  assert.equal(exp.blocks.find((b) => b.id === 'gk-goalies').rows[0].starter, '')
+})
+ok('goalies: club rest is counts only (days off, games in 7 and 14 days), the weak-zone and injury slots are named, wording is neutral', () => {
+  const s = buildNhlTeam({ team: 'TOR', payload: mkPayload('TOR'), deep: mkDeep('TOR') }).sections.find((x) => x.id === 'goalies')
+  const r = s.blocks.find((b) => b.id === 'gk-rest')
+  assert.ok(r, 'rest block'); assert.deepEqual(r.columns.map((c) => c.key), ['next', 'rest', 'g7', 'g14'])
+  assert.ok(Number.isInteger(r.rows[0].g7) && Number.isInteger(r.rows[0].g14))
+  assert.ok(r.columns.every((c) => c.group), 'every column carries a group')
+  const weak = s.blocks.find((b) => b.type === 'slot' && b.slot === 'goalieReads')
+  assert.equal(weak.props.season, 20262027); assert.deepEqual(weak.props.goalies.map((x) => x.id), ['8470001'])
+  assert.ok(s.blocks.some((b) => b.type === 'slot' && b.slot === 'injuries' && b.props.clubs[0] === 'TOR'))
+  assert.deepEqual(neutralProblems(viewStrings(s)), [])
+  assert.ok(!/\b(lean|edge|fatigue|tired)\b/i.test(viewStrings(s).filter((t) => !/no reliable lean/.test(t)).join(' ')), 'no rest claim')
+})
+ok('special teams carry ranks of 32 (the goalie table moved to its own section)', () => {
   const s = buildNhlTeam({ team: 'TOR', payload: mkPayload('TOR'), deep: mkDeep('TOR') }).sections.find((x) => x.id === 'special')
-  const g = s.blocks.find((b) => b.id === 'sp-goalies')
-  assert.ok(g.columns.some((c) => c.key === 'gsax'))
-  assert.ok(Math.abs(g.rows[0].gsax - (4 * 2.6 - 4 * 2)) < 1e-9)
+  assert.ok(!s.blocks.some((b) => b.id === 'sp-goalies'))
   const st = s.blocks.find((b) => b.id === 'sp-special')
   assert.ok(st.rows.every((r) => r.rankTxt.includes('of 32')))
 })
@@ -320,11 +344,11 @@ if (baseIx > 0) {
       const [payload, deep] = [await get(`/api/lamp/team?team=${c}`), await get(`/api/lamp/teamdeep?team=${c}`)]
       const v = buildNhlTeam({ team: c, payload, deep, board, form })
       assert.ok(v.header.name && v.header.logo, `${c}: header`)
-      assert.equal(v.sections.length, 7)
+      assert.equal(v.sections.length, 8)
       assert.deepEqual(neutralProblems(viewStrings(v)), [], `${c}: wording`)
       okSections += v.sections.filter((s) => s.state === 'ok').length
       const empties = v.sections.filter((s) => s.state !== 'ok').map((s) => s.id)
-      console.log(`ok   live ${c}: ${v.sections.length - empties.length}/7 sections${empties.length ? ` (empty: ${empties.join(', ')})` : ''}${payload && deep ? '' : ' [a feed was down]'}`)
+      console.log(`ok   live ${c}: ${v.sections.length - empties.length}/8 sections${empties.length ? ` (empty: ${empties.join(', ')})` : ''}${payload && deep ? '' : ' [a feed was down]'}`)
     } catch (e) { fail += 1; console.log(`FAIL live ${c}: ${e.message}`) }
   }
   console.log(`live: ${okSections} of ${CLUBS.length * 7} sections filled`)

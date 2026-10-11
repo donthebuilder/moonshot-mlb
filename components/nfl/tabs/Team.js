@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../../../lib/nfl/theme'
 import { NFL_TEAMS } from '../../../lib/nfl/teams'
 import { fetchNflStandings } from '../../../lib/nfl/standings'
@@ -16,6 +16,7 @@ import { useGameCalls } from '../GameCalls'
 import { useTeamNav } from '../../../lib/teamNav'
 import { buildNflTeam } from '../../../lib/team/nfl'
 import { TeamDefenders } from '../DefenseSections'
+import InjuryOut from '../../injuries/InjuryOut'
 
 // 🏈 TUDDY'S TEAM PAGE, on the shared team page (2026-10-10, Donovan: "build out the team pages, showing all their data").
 // The header (record, standing, home / road / division, streak, next game, last five), a one-row chips bar and seven
@@ -59,6 +60,13 @@ export default function Team({ data, picks = null, matchup = null, logs = null, 
   const { archive } = useResultsArchive(results, data?.season)
   const view = useMemo(() => (known ? buildNflTeam({ team: code, slate: data, matchup, logs, st, server, archive, picks, gameCalls: gameCalls?.missing ? null : gameCalls, statusOf: status.statusOf }) : null),
     [known, code, data, matchup, logs, st, server, archive, picks, gameCalls, status])
+  // the injury module is one stable component; it reads the latest handlers from a ref (a new function each render would remount it)
+  const live = useRef({})
+  const slots = useMemo(() => ({
+    defense: TeamDefenders,
+    injuries: ({ clubs }) => <InjuryOut sport="nfl" clubs={clubs} theme={{ C, NUM_FONT, accent: C.green }} title="Out this week" onOpenTeam={(a) => live.current.openTeam?.(a)}
+      openPlayer={(e) => (live.current.openPlayer && live.current.has(e.player_id) ? () => live.current.openPlayer(e.player_id) : null)} />,
+  }), [])
   if (!code) return <Empty title="NO CLUB PICKED" note="Tap a club's logo anywhere on TUDDY — a board, a game, standings — to open its page." />
   if (!NAME[code]) return <Empty title="NO SUCH CLUB" note={`"${code}" isn't one of the 32 NFL clubs.`} />
 
@@ -67,11 +75,13 @@ export default function Team({ data, picks = null, matchup = null, logs = null, 
     const s = matchup?.snaps?.[id]
     return p || { player_id: id, name: s?.name || matchup?.red_zone?.[id]?.name || '', team: code }
   }
+  const nav = { onOpenPlayer: onOpenPlayer ? (id) => onOpenPlayer(player(id)) : null, onOpenGame, onOpenTeam: (abbr) => { const a = String(abbr || '').toUpperCase(); if (!a || !NAME[a] || a === code) return; if (teamNav) teamNav(a); else setCode(a) } }
+  live.current = { openTeam: nav.onOpenTeam, openPlayer: nav.onOpenPlayer, has: (id) => (data?.players || []).some((x) => x.player_id === id) }
   return (
     <TeamPage
       view={view} theme={{ C, NUM_FONT, accent: C.green }}
-      ui={{ Table: NflTable, EmptyState: Empty, Kicker: Kick, Weak: null, Slots: { defense: TeamDefenders } }}
-      nav={{ onOpenPlayer: onOpenPlayer ? (id) => onOpenPlayer(player(id)) : null, onOpenGame, onOpenTeam: (abbr) => { const a = String(abbr || '').toUpperCase(); if (!a || !NAME[a] || a === code) return; if (teamNav) teamNav(a); else setCode(a) } }}
+      ui={{ Table: NflTable, EmptyState: Empty, Kicker: Kick, Weak: null, Slots: slots }}
+      nav={nav}
       banner={serverError && !server ? <p style={{ margin: 0, color: C.amber, fontSize: 12 }}>The club&apos;s schedule feed is delayed — the week&apos;s players and the matchup are still current.</p> : null}
     />
   )
