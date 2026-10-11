@@ -12,6 +12,7 @@ const fs = await import('node:fs')
 const path = await import('node:path')
 const { PARITY, SPORT_NAMES, isYes, naReason, todoReason } = await import('../lib/parity.js')
 const R = await import('../lib/routes.js')
+const TEAMREG = await import('../lib/team/registry.js')
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..')
 const read = (f) => { try { return fs.readFileSync(path.join(ROOT, f), 'utf8') } catch { return null } }
@@ -27,6 +28,8 @@ function ledgerHas(sport, key) {
   return new RegExp(`\\n\\s+(?:/\\*[\\s\\S]*?\\*/\\s*)*${key}: \\(`).test(src)
 }
 function backed(check, sport) {
+  if (check.all) return check.all.every((c) => backed(c, sport))
+  if (check.teamRegistry) return TEAMREG.sectionsOf(sport).length > 0 && Boolean(TEAMREG.firstSection(sport))
   if (check.ledger) return ledgerHas(sport, check.ledger)
   if (check.tab) return check.tab[sport] ? hasTab(sport, check.tab[sport]) : false
   if (check.file) { const [f, imp] = check.file[sport] || []; return Boolean(f && read(f) != null && read(imp)?.includes(path.basename(f, '.js'))) }

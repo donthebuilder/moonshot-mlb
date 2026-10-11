@@ -166,11 +166,14 @@ export default function Leaders({ onOpenPlayer }) {
           numFont={NUM_FONT}
         />
 
+        {/* WAVE 2B: on a phone the intro is one line and one tap; desktop reads it bare. */}
+        <MobileFold title="What this page is" summary="season lines, not modelled" accent={C.ice}>
         <LeadersIntro>
-          Straight season numbers — the scoring line, nothing weighted or projected. Every other board
-          here ranks by the model; this one doesn&apos;t. It&apos;s the page for what a player has actually
-          done, rather than what LAMP thinks of him tonight.
-        </LeadersIntro>
+            Straight season numbers — the scoring line, nothing weighted or projected. Every other board
+            here ranks by the model; this one doesn&apos;t. It&apos;s the page for what a player has actually
+            done, rather than what LAMP thinks of him tonight.
+          </LeadersIntro>
+        </MobileFold>
 
         {stale && <StaleSeasonNote label={stats.data?.seasonLabel || leaders.data?.seasonLabel} opens={leaders.data?.opens} what="leaders" />}
         <DelayedBanner error={stats.error} what="the season stats" />
