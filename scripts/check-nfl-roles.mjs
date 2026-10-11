@@ -57,5 +57,21 @@ check(roleNote(by.p4, 2026) === null, 'no role -> no note')
 const tag = matchupTag(M, { opp: 'T02', player_id: 'p11' }, 'TD')
 check(tag?.role === 'WR1' && depthRole(M, 'p11', 'WR') === tag.role, 'the "WR1 vs T02" defense line and the board label are the same role')
 
+// 7. the alert (image line, Discord card, X text) and the card use the same word the board does. TEST event, made up.
+const { roleTag, tdPostText, tdEmbed } = await import('../lib/nfl/tdFeed.js')
+const { backFromLog } = await import('../lib/cards/adapters/nfl.js')
+const { posLine } = await import('../lib/cards/cardKit.js')
+const EV = { day: '2026-10-11', team: 'T01', opponent: 'T02', position: 'WR', scorerName: 'Test Player', gsisId: 'p1', quarter: 2, clock: '3:12', parsed: { kind: 'pass', yards: 14, passer: 'Test QB' },
+  onBot: null, tdBoard: { rank: 5, of: 200 }, seasonToDate: { td: 3, games: 4 }, defense: { role: 'WR1', opp: 'T02', tag: 'TARGET', rank: 4, season: 2026, current_season: 2026, games: 4 } }
+check(roleTag(EV) === 'WR1' && roleTag({ ...EV, defense: null }) === 'WR' && roleTag({ ...EV, defense: { role: 'Other WR' } }) === 'WR' && roleTag({ ...EV, position: 'TE' }) === 'TE' && roleTag({}) === '', 'alert role tag: the chart role (same word as the defense line), else the position, else nothing')
+const x = tdPostText(EV)
+check(x.length <= 280 && x.includes('WR1 vs T02'), `X text says "WR1 vs T02" (the role from the board's own helper) and stays within the limit (${x.length} chars)`)
+check(JSON.stringify(tdEmbed(EV)).includes('WR1s'), 'the Discord card names the same role in its defense line')
+check(x.length === tdPostText({ ...EV, position: null }).length, 'the role adds no characters to the X text (labels only; the defense line already carried it)')
+const card = { pos: 'WR1', posPlain: 'WR', team: 'T01', number: 11 }
+check(posLine(card).startsWith('WR1') && posLine(card).includes('#11'), 'card front: "WR1  .  #11" beside the number')
+check(backFromLog(card, [], null).bio.find(([k]) => k === 'POSITION')[1] === 'WR', 'card back: POSITION stays the plain position')
+check(backFromLog({ ...card, pos: 'QB', posPlain: 'QB' }, [], null).cols.some(([c]) => c === 'PASS YDS'), 'a QB is still a QB on the back (his role word is "QB")')
+
 if (failed) { console.error(`\n${failed} check(s) failed`); process.exit(1) }
 console.log('\nall NFL role checks passed')

@@ -76,7 +76,7 @@ export default function WriteupBlock({ game, gameCalls, week, matchup, logs, odd
                   <CallStatusBadge status={p.status} />
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: C.text2, marginTop: -6 }}>
-                  <Tap onClick={onOpenTeam && (() => onOpenTeam(p.team))} style={{ minHeight: 44, display: 'inline-flex', alignItems: 'center', gap: 5 }}><TeamMark sport="nfl" abbr={p.team} variant="logo" px={16} />{p.team}</Tap> · {p.position}
+                  <Tap onClick={onOpenTeam && (() => onOpenTeam(p.team))} style={{ minHeight: 44, display: 'inline-flex', alignItems: 'center', gap: 5 }}><TeamMark sport="nfl" abbr={p.team} variant="logo" px={16} />{p.team}</Tap> · {p.depth_role || p.position}
                   <span title={p.role === 'TOP' ? "The game's top call" : 'The other team\'s call'} style={{ fontFamily: NUM_FONT, fontWeight: 800, color: p.role === 'TOP' ? C.green : C.text2 }}>{p.role === 'TOP' ? 'TOP CALL' : 'TD CALL'}</span>
                 </div>
               </div>
