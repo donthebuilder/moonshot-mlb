@@ -540,7 +540,7 @@ export function renderV2(ctx) {
                     }
                   }
                   if (watched) sub.push(<span key="w" style={{ color: ac }}>★</span>)
-                  const nameEl = typeof content === 'string'
+                  const nameEl = typeof content === 'string' && !c.plain   // plain: a label that is not a person's name (a date, a split) keeps its whole text on a phone
                     ? <><span className="full">{content}</span><span className="short">{surname(content)}</span></>
                     : content
                   return (
