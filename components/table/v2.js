@@ -228,6 +228,8 @@ export function v2Css(C, ac, NUM_FONT) {
       .dtv2 .sub { display: flex; flex-wrap: wrap; align-items: center; gap: 0 7px; font: 700 8.5px/1.15 ${NUM_FONT}; color: ${C.text3}; letter-spacing: .02em; margin-top: 1px; }
       /* the dots between the pieces of the sub-line are tight (2026-10-07): spaces around them pushed the opponent off a 122px cell as an "…" */
       .dtv2 .sub .dot { margin: 0 3px; }
+      /* the availability chip rides the sub-line on a phone (the name cell clips it); inline beside the name elsewhere (lib/injuries) */
+      .dtv2 .inj-in { display: none; }
       .dtv2 .long .full { display: none; }
       .dtv2 .long .short { display: inline; }
     }
@@ -512,6 +514,9 @@ export function renderV2(ctx) {
                   const long = typeof content === 'string' && !fits(full)
                   const edge = light ? light.color : rowEdge?.(r) || (called ? ac : null)
                   // the phone sub-line: CALLED · [logo] ATL · v [logo] (+ ★ when watched)
+                  // availability beside the call (lib/injuries): CALLED stays callStatus's word, the chip says OUT / Q / D beside it. Information only.
+                  const rawRow = r._raw ?? r
+                  const injEntry = injuryLayer?.entryFor ? injuryLayer.entryFor({ player_id: rawRow.player_id ?? rawRow.playerId, name: rawRow.name ?? rawRow.player ?? (typeof content === 'string' ? content : ''), team: rawRow.team }) : null
                   const sub = []
                   if (called) sub.push(<span key="st" style={{ color: ac }}>CALLED</span>)
                   let firstTeam = true
@@ -541,6 +546,7 @@ export function renderV2(ctx) {
                     }
                   }
                   if (watched) sub.push(<span key="w" style={{ color: ac }}>★</span>)
+                  if (injEntry) sub.push(<span key="inj"><InjuryChip entry={injEntry} C={C} font={NUM_FONT} size={8.5} style={{ marginLeft: 0 }} /></span>)
                   const nameEl = typeof content === 'string' && !c.plain   // plain: a label that is not a person's name (a date, a split) keeps its whole text on a phone
                     ? <><span className="full">{content}</span><span className="short">{surname(content)}</span></>
                     : content
@@ -550,12 +556,7 @@ export function renderV2(ctx) {
                       {light && <span title={`Highlight: ${light.name || 'match'}`} style={cellMark(light.color)}>{light.mark || SPOT_MARK}</span>}
                       {faceOf && (() => { const f = faceOf(r); return f ? <PlayerFace {...f} variant="table" size={18} className="dense-face" style={{ margin: '-6px 5px -6px 0' }} /> : null })()}
                       {go ? <Tap onClick={go}>{nameEl}</Tap> : nameEl}
-                      {(() => {
-                        // availability beside the call (lib/injuries): CALLED stays CALLED, the chip says OUT / Q / D beside it. Information only.
-                        const raw = r._raw ?? r
-                        const inj = injuryLayer?.entryFor ? injuryLayer.entryFor({ player_id: raw.player_id ?? raw.playerId, name: raw.name ?? raw.player ?? (typeof content === 'string' ? content : ''), team: raw.team }) : null
-                        return inj ? <InjuryChip entry={inj} C={C} font={NUM_FONT} size={8.5} /> : null
-                      })()}
+                      {injEntry && <span className="inj-in"><InjuryChip entry={injEntry} C={C} font={NUM_FONT} size={8.5} /></span>}
                       {sub.length > 0 && (
                         <div className="sub">{sub.map((x, i) => <span key={i}>{x}</span>)}</div>
                       )}

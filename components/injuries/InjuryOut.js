@@ -58,7 +58,7 @@ export default function InjuryOut({ sport, clubs, theme, title = 'Out tonight', 
   }
   const shown = all ? rows : rows.slice(0, PREVIEW)
   const th = { textAlign: 'left', font: `800 10px/1 ${NUM_FONT}`, letterSpacing: '.08em', color: C.text3, padding: '6px 8px', borderBottom: `1px solid ${C.border}`, whiteSpace: 'nowrap' }
-  const td = { padding: '8px 8px', fontSize: 12, borderBottom: `1px solid ${C.border}`, verticalAlign: 'top' }
+  const td = { padding: '8px 6px', fontSize: 12, borderBottom: `1px solid ${C.border}`, verticalAlign: 'top' }
   return (
     <section aria-label={title} data-injury-module="list" style={wrap}>
       <button type="button" aria-expanded={open} onClick={() => setOpen((v) => !v)} style={{ ...head, cursor: 'pointer' }}>
@@ -70,10 +70,10 @@ export default function InjuryOut({ sport, clubs, theme, title = 'Out tonight', 
         <div style={{ padding: '0 0 6px' }}>
           {layer.snap?.stale && <div style={{ padding: '0 13px 6px', fontSize: 12, color: C.yellow }}>{STALE_LINE}</div>}
           <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-            <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: 340 }}>
+            <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: 0 }}>
               <thead>
                 <tr>
-                  <th style={th}>PLAYER</th><th style={th}>CLUB</th><th style={th}>{roleOf ? 'ROLE' : 'POS'}</th><th style={th}>STATUS</th><th style={th}>NOTE</th><th style={th}>UPDATED</th>
+                  <th style={th}>PLAYER</th><th style={th}>CLUB</th><th style={th}>{roleOf ? 'ROLE' : 'POS'}</th><th style={th}>STATUS</th><th style={th}>NOTE</th>
                 </tr>
               </thead>
               <tbody>
@@ -82,17 +82,16 @@ export default function InjuryOut({ sport, clubs, theme, title = 'Out tonight', 
                   const ours = isOurs(e)
                   return (
                     <tr key={`${e.team}:${e.name}`} data-injury-row={e.status}>
-                      <td style={{ ...td, fontWeight: 800, color: C.text, whiteSpace: 'nowrap' }}>
+                      <td style={{ ...td, fontWeight: 800, color: C.text, minWidth: 84 }}>
                         {go ? <Tap onClick={go}>{e.name}</Tap> : e.name}
                         {ours && <span title="On our board tonight" style={{ marginLeft: 6, color: accent, font: `800 9px/1 ${NUM_FONT}`, letterSpacing: '.08em' }}>BOARD</span>}
                       </td>
-                      <td style={td}>
+                      <td style={{ ...td, verticalAlign: 'middle' }}>
                         {onOpenTeam ? <Tap onClick={() => onOpenTeam(e.team)}><TeamMark sport={sport} abbr={e.team} variant="logo" px={16} /></Tap> : <TeamMark sport={sport} abbr={e.team} variant="logo" px={16} />}
                       </td>
                       <td style={{ ...td, color: C.text2, fontFamily: NUM_FONT }}>{(roleOf && roleOf(e)) || e.position || '·'}</td>
-                      <td style={td}><span style={{ color: STATUS_INFO[e.status].tone === 'red' ? C.red : C.yellow, fontWeight: 800 }}>{STATUS_INFO[e.status].word}</span><InjuryChip entry={e} C={C} font={NUM_FONT} /></td>
-                      <td style={{ ...td, color: C.text2, minWidth: 120 }}>{e.note || '·'}</td>
-                      <td style={{ ...td, color: C.text3, whiteSpace: 'nowrap', fontFamily: NUM_FONT }}>{updatedLabel(e.updatedAt).replace('updated ', '') || '·'}</td>
+                      <td style={{ ...td, whiteSpace: 'nowrap' }}><InjuryChip entry={e} C={C} font={NUM_FONT} size={11} label={STATUS_INFO[e.status].word} style={{ marginLeft: 0, letterSpacing: '.02em', padding: '1px 4px' }} /></td>
+                      <td style={{ ...td, color: C.text2, minWidth: 96 }}>{e.note || '·'}<div style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 11, marginTop: 2 }}>{updatedLabel(e.updatedAt).replace('updated ', '') || ''}</div></td>
                     </tr>
                   )
                 })}
