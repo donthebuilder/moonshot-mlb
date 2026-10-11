@@ -115,7 +115,7 @@ function Moment({ m, C, NUM_FONT, accent, Face }) {
  */
 export default function RecordPage({ record, Table, Face = PlayerFace, receipts = null, receiptsLabel = 'Every graded pick, in full', top = null, calls = null, locked = null }) {
   const { C, NUM_FONT, accent } = useSportTheme()
-  const [win, setWin] = useState('l10')
+  const [win, setWin] = useState(record?.defaultWindow || 'l10')
   const [allCalled, setAllCalled] = useState(false)
   const [allAway, setAllAway] = useState(false)
   const r = record || {}
@@ -211,7 +211,9 @@ export default function RecordPage({ record, Table, Face = PlayerFace, receipts 
 
       {/* BY MARKET */}
       <Section C={C} NUM_FONT={NUM_FONT} title={r.marketTitle || 'BY MARKET'}
-        sub={`${series.length} graded ${unitWord}${series.length === 1 ? '' : 's'}${r.since ? ` since ${r.since}` : ''}${r.note ? ` · ${r.note}` : ''}.`}
+        sub={r.windowedSub
+          ? `${RECORD_WINDOWS.find((w) => w.key === win)?.label}: ${Math.min(series.length, take)} graded ${unitWord}${Math.min(series.length, take) === 1 ? '' : 's'} of ${series.length}${r.note ? ` · ${r.note}` : ''}.`
+          : `${series.length} graded ${unitWord}${series.length === 1 ? '' : 's'}${r.since ? ` since ${r.since}` : ''}${r.note ? ` · ${r.note}` : ''}.`}
         right={(
           <div role="tablist" style={{ display: 'flex', gap: 4 }}>
             {RECORD_WINDOWS.map((w) => (

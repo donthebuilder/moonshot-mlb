@@ -114,11 +114,11 @@ ok('mergeHrCalls: a hitter named by TOP and HR is one call that night, roles joi
 })
 
 // ── (4) LAMP: EACH NUMBER IN ITS OWN WORDS ──────────────────────────────────────────────────────────
-ok('nhlMeasures: hit rate per call, capture and on-the-board are separate lines with their own counts and the window', () => {
+ok('nhlMeasures: capture and on-the-board are separate lines with their own counts and the window; the hit rate lives in the ladder (scripts/check-lamp-ladder.mjs)', () => {
   const rec2 = { nights: [{ date: '2026-09-29' }, { date: '2026-10-09' }], total: { calledN: 145, calledHits: 48, scorers: 374, scorersCalled: 70, scorersOnBoard: 120 }, sog: { calledN: 20, calledHits: 5 } }
   const m = nhlMeasures(rec2)
-  assert.deepEqual(m.map((x) => [x.key, x.value]), [['rate', '48 of 145 (33%)'], ['capture', '70 of 374 (19%)'], ['board', '120 of 374 (32%)'], ['sog', '5 of 20 (25%)']])
-  assert.match(m[0].sub, /did not dress is not counted/); assert.match(m[1].sub, /any LAMP market/); assert.match(m[1].sub, /not how often a call scores/)
+  assert.deepEqual(m.map((x) => [x.key, x.value]), [['capture', '70 of 374 (19%)'], ['board', '120 of 374 (32%)'], ['sog', '5 of 20 (25%)']])
+  assert.match(m[0].sub, /any LAMP market/); assert.match(m[0].sub, /not how often a call scores/)
   assert.match(m[0].sub, /2 graded nights, Sep 29 to Oct 9/)
   assert.deepEqual(nhlMeasures({ nights: [], total: null }), [])
 })

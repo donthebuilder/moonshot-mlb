@@ -88,6 +88,9 @@ import styles from './start.module.css'
 import { membersUrl, MEMBERS_LINE } from '../../lib/members'
 import { adminClient } from '../../lib/supabase/admin'
 import ExplainToast from '../../components/ExplainToast'
+import LadderBlock, { LadderAside } from '../../components/record/LadderBlock'
+import { ladderFrom } from '../../lib/record/ladder'
+import { readCalibrationAny } from '../../lib/calibration/readAny'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -420,6 +423,8 @@ Object.assign(SPORTS.nhl, {
   waiting: 'No NHL games tonight — the board comes back with the next slate.',
   renderCalls: (calls) => <ul className={styles.bites}>{calls.games.map((g) => <Bite key={g.id} b={lampBite(g)} sport="nhl" />)}</ul>,
   ownRecord: (db, since, today, gameDays) => computeLampRecord(db, since, today, gameDays),
+  // the hero leads with the LADDER (lib/record/ladder.js, from /api/calibration), not the capture count; capture stays beside it, labelled
+  ladder: true,
 })
 
 Object.assign(SPORTS.nba, {
@@ -571,10 +576,12 @@ export default async function StartPage({ searchParams }) {
   const sport = SPORTS[sportKey]
   const today = easternToday()
 
-  const [calls, record] = await Promise.all([
+  const [calls, record, cal] = await Promise.all([
     loadCalls(sportKey).catch(() => ({})),
     loadRecord(sportKey, today).catch(() => null),
+    sport.ladder ? readCalibrationAny(sportKey, today).catch(() => null) : null,
   ])
+  const ladder = ladderFrom(cal)
   // Which number leads the receipt: the one /called leads with (sport.quote).
   const byCalls = sport.quote === 'called'
 
@@ -593,7 +600,18 @@ export default async function StartPage({ searchParams }) {
         <p className={styles.kicker}>Finding the moments before they happen</p>
         <h1 className={styles.headline}>{sport.lead}, called before the game.</h1>
         <p className={styles.sub}>{sport.promise}</p>
-        {record ? (
+        {ladder ? (
+          // THE LADDER LEADS (2026-10-10, LAMP hero plan item 1): did the skaters we called score, against everyone? The
+          // capture count (how many of the scorers we had called) is a different question and follows, labelled.
+          <LadderBlock ladder={ladder} sport={sportKey} compact>
+            {record ? (
+              <LadderAside label="CAPTURE">
+                {record.called} of {record.total} {sport.event} {sport.calledPhrase} over the last {record.days} {sport.unit}{record.days === 1 ? '' : 's'} ({Math.round((100 * record.called) / record.total)}%): coverage of the scorers, not how often a call scores.{' '}
+                <a className={styles.inline} href={sport.recordHref}>{sport.recordLink}</a>
+              </LadderAside>
+            ) : <LadderAside label="RECORD"><a className={styles.inline} href={sport.recordHref}>{sport.recordLink}</a></LadderAside>}
+          </LadderBlock>
+        ) : record ? (
           // §35: the number states the question it answers. The lead is the
           // one /called leads with; the other is beside it, by name.
           <p className={styles.receipt}>
