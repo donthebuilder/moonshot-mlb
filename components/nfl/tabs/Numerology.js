@@ -12,6 +12,7 @@ import { easternDate } from '../../../lib/data'
 import LaneTable from '../../numerology/LaneTable'
 import { fromNfl } from '../../../lib/numerology/adapters'
 import HotNumbers from '../../numerology/HotNumbers'
+import DayNumbers from '../../numerology/DayNumbers'
 import { FilterSearch } from '../../Filters'
 import { useIsPhone } from '../../MobileFold'
 
@@ -185,6 +186,7 @@ export default function Numerology({ data, onPlayerClick }) {
         Season touchdowns count completed weeks only, so a player&apos;s count always describes games already played.
       </div>
       {/* WHICH LANES RUN HOT (numerology v2 step 6), at the bottom. */}
+      {nextGameDay ? <div style={{ margin: '0 0 10px' }}><DayNumbers sport="nfl" date={nextGameDay} theme={C} numFont={NUM_FONT} accent={C.green} eventWord="TDs" /></div> : null}
       <LaneTable sport="nfl" theme={C} numFont={NUM_FONT} accent={C.green} tonight={laneTonight} />
     </AlignmentsView>
   )

@@ -6,6 +6,7 @@ import { useMemo, useState } from 'react'
 import { C, NUM_FONT, TYPE } from '../../../lib/nfl/theme'
 import { btnStyle } from '../../ui'
 import DefensesTable from '../DefensesTable'
+import { DefenseFile } from '../DefenseSections'
 import Tap from '../../Tap'
 import MobileFold from '../../MobileFold'
 import { fieldModel, phrase, fmtPct, DEPTHS, SIDES, DEPTH_AX, LANES, LANE_WORD } from '../../../lib/nfl/fieldModel'
@@ -418,6 +419,8 @@ export default function Matchups({ matchup, data, onPlayerClick = null, onOpenTe
         )}
         <FactTiles theme={C} numFont={NUM_FONT} tiles={tiles} note={factsNote(matchup, null, active, data?.season)} />
         {opp ? <PassGame matchup={matchup} data={data} off={opp} def={active} onPlayerClick={onPlayerClick} /> : null}
+        {/* THIS DEFENCE'S TAGS AND KEY DEFENDERS (2026-10-10): top rushers and corners with their season lines */}
+        <DefenseFile matchup={matchup} slateSeason={data?.season} def={active} off={opp || null} />
         {/* THE FIELD, TEAM mode (0e c F6): ONE picture of where this defense
             gets beaten -- the offence facing it, every target, over the ink,
             the run gaps a tap away. It replaced the FootballField heat map

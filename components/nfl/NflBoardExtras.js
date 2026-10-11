@@ -24,6 +24,9 @@ import { useWhySheet, whyColumn } from '../WhySheet'
 import CallStatusBadge from '../CallStatusBadge'
 import { lastNightColumn } from '../CalledLastNight'
 import { roleLabel } from '../../lib/nfl/roles'
+import TagChips from './TagChips'
+import { useTagBook } from '../../lib/nfl/useDefense'
+import { tagOptions, hasTag, chipText, TAG_WORD } from '../../lib/nfl/tags'
 
 // TUDDY BOARD EXTRAS (2026-09-27, board filters plan): the pieces MOONSHOT's
 // board has that TUDDY's two boards (Touchdowns.js for TD, Boards.js for the
@@ -96,7 +99,8 @@ const SCORE_ART = { TD: 'nfl-td' }
 // that page's marks (A+, Q, Thin, the matchup read), the watchlist star, and a WHY on every row:
 // the board's own sentence, tapped for the numbers behind it and where to look next.
 const MARK_GROUP = { key: 'marks', label: 'Marks', order: 2 }
-export function NflBoardList({ players, market, weights, odds, phone, onPlayerClick, statusOf = null, rankOf = null, base = null, pool = null, watchlist = null, lastNight = null }) {
+const TAGS_GROUP = { key: 'matchup', label: 'The matchup', order: 2.6 }
+export function NflBoardList({ players, market, weights, odds, phone, onPlayerClick, statusOf = null, rankOf = null, base = null, pool = null, watchlist = null, lastNight = null, tags = null }) {
   const { open: openWhy, sheet: whySheet } = useWhySheet({ theme: C, accent: C.green, numFont: NUM_FONT })
   // our line beside the book's (TEST, BATCH-DASH-LINE): only where one exists for this market
   const dash = useDashLines()
@@ -119,6 +123,8 @@ export function NflBoardList({ players, market, weights, odds, phone, onPlayerCl
       hiConf: p.high_confidence_td_flag ? 1 : 0, quest: injuryTag(p) ? 1 : 0, lowS: p.low_sample ? 1 : 0, matchup: p.coverage_mismatch_tag || '',
       watched: watchlist?.isPinned?.(p.player_id) ? 1 : 0,
       cln: lastNight?.on ? lastNight.cell(p.player_id) : '',
+      // TAGS (lib/nfl/tags.js): only built while the Tags column is on; a count so the column sorts
+      ...(tags?.show ? (() => { const all = tags.book.row(p).all; return { tags: all.map((t) => chipText(t, { onPlayerRow: true })).join(' \u00b7 '), _tags: all } })() : null),
       // the full column set (R6, lib/nfl/boardColumns.js): every number his row carries
       ...nflBoardRow(p),
     }
@@ -170,6 +176,10 @@ export function NflBoardList({ players, market, weights, odds, phone, onPlayerCl
     // Status right after Why (2026-10-06): short on a phone, so Why shows without a swipe
     ...(statusOf ? [{ key: 'status', label: 'Status', heat: false, statusCol: true, w: phone ? 64 : 118, fmt: (v, r) => <CallStatusBadge status={statusOf(r._p)} accent={C.green} short={phone} /> }] : []),
     ...top.map((k) => ({ key: k, label: LABELS[k] || k, w: phone ? 74 : 86, scale: 'seq', domain: [0, 100] })),
+    // TAGS: ball-security tags on him and the tags of the defence he faces; OFF until the Filters sheet turns it on (Tags > Show tags column)
+    ...(tags?.show ? [{ key: 'tags', label: 'Tags', w: phone ? 190 : 300, heat: false, numeric: false, group: TAGS_GROUP,
+      title: 'Fumble-prone and Interception-prone describe him; the club-named tags (ATL weak corners) describe the defence he faces. Tap a tag for the number and the season behind it. Labels, not forecasts: they change no score.',
+      fmt: (v, r) => (r._tags?.length ? <TagChips tags={r._tags} onPlayerRow max={phone ? 2 : 3} /> : <span style={{ color: C.text3 }}>—</span>) }] : []),
     ...(phone || !odds ? [] : [{ key: 'price', label: 'Price', w: 60, heat: false, fmt: (v) => (v == null ? '—' : v > 0 ? `+${v}` : String(v)) }]),
     ...(phone || !odds || !rows.some((r) => r.moveNum != null) ? [] : [{ key: 'moveNum', label: 'Line moved', w: 112, dp: 1,
       title: 'Where the price opened against our latest read, in break-even points (▲ shortened, ▼ drifted). The chip shows opening → now. Blank when no opening price was recorded: nothing is guessed.',
@@ -289,6 +299,11 @@ export function useNflDrawerFilters(pool, games, market, ext = null) {
   const setGame = ext ? (v) => ext.setGame?.(v === 'all' ? '' : v) : setGameOwn
   const [win, setWin] = useState('all')
   const [range, setRange] = useState([0, 100])
+  // TAGS (lib/nfl/tags.js): which tag to filter to, and whether the table shows its Tags column (OFF by default)
+  const [tagKey, setTagKey] = useState('all')
+  const [showTags, setShowTags] = useState(false)
+  const book = useTagBook(ext?.matchup, ext?.season)
+  const tagOpts = useMemo(() => tagOptions(book, pool), [book, pool])
   const byTeam = useMemo(() => {
     const m = new Map()
     for (const g of games || []) {
@@ -313,6 +328,7 @@ export function useNflDrawerFilters(pool, games, market, ext = null) {
     const g = byTeam.get(p.team)
     if (game !== 'all' && g?.key !== game) return false
     if (win !== 'all' && g?.win !== win) return false
+    if (tagKey !== 'all' && !hasTag(book, p, tagKey)) return false
     const s = Number(p.scores?.[market])
     if ((range[0] > 0 || range[1] < 100) && !(Number.isFinite(s) && s >= range[0] && s <= range[1])) return false
     return true
@@ -323,8 +339,9 @@ export function useNflDrawerFilters(pool, games, market, ext = null) {
     game !== 'all' && (!ext || !gameOptions.some((o) => o.key === game)) ? { key: 'game', label: gameOptions.find((o) => o.key === game)?.label || game, onClear: () => setGame('all') } : null,
     win !== 'all' ? { key: 'win', label: WINDOWS.find(([k]) => k === win)?.[1] || win, onClear: () => setWin('all') } : null,
     scored ? { key: 'score', label: `Score ${range[0]}–${range[1]}`, onClear: () => setRange([0, 100]) } : null,
+    tagKey !== 'all' ? { key: 'tag', label: TAG_WORD[tagKey] || tagKey, onClear: () => setTagKey('all') } : null,
   ].filter(Boolean)
-  const reset = () => { if (!ext) setGame('all'); setWin('all'); setRange([0, 100]) }
+  const reset = () => { if (!ext) setGame('all'); setWin('all'); setRange([0, 100]); setTagKey('all'); setShowTags(false) }
   const label = { fontSize: 10, color: C.text2, textTransform: 'uppercase', letterSpacing: '.07em', fontWeight: 800 }
   const section = (
     <>
@@ -347,9 +364,18 @@ export function useNflDrawerFilters(pool, games, market, ext = null) {
         <RangeDual min={0} max={100} step={1} low={range[0]} high={range[1]}
           onLow={(v) => setRange([Math.min(v, range[1]), range[1]])} onHigh={(v) => setRange([range[0], Math.max(v, range[0])])} />
       </div>
+      {tagOpts.length > 0 && <>
+        <div style={label}>Tags</div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, margin: '7px 0 12px' }}>
+          <FilterPill active={showTags} onClick={() => setShowTags((v) => !v)} title="Add a Tags column to the table: his ball-security tags and the tags of the defence he faces">Show tags column</FilterPill>
+          {tagOpts.map((o) => (
+            <FilterPill key={o.key} active={tagKey === o.key} onClick={() => setTagKey(tagKey === o.key ? 'all' : o.key)} count={o.count}>{o.label}</FilterPill>
+          ))}
+        </div>
+      </>}
     </>
   )
-  return { test, chips, reset, section, activeCount: chips.length }
+  return { test, chips, reset, section, activeCount: chips.length, tagsView: { book, show: showTags } }
 }
 
 // ── TD WATCH: MOONSHOT's B2B WATCH box, the same component (2026-09-28) ────

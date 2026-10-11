@@ -13,7 +13,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSportTheme } from '../SportTheme'
 import CallStatusBadge from '../CallStatusBadge'
 import { STATUS_WORD } from '../../lib/callStatus'
-import { matchLanes } from '../../lib/numerology/lanes'
+import { matchLanes, displayLanes } from '../../lib/numerology/lanes'
 import HelpTip from '../HelpTip'
 import { ledgerHash } from '../../lib/ledger/views'
 import { isHiddenSport } from '../../lib/routes'
@@ -43,7 +43,7 @@ export default function InTheLedger({ sport, id, name = '', jersey = null, birth
       .catch(() => { if (live) setState('error') })
     return () => { live = false }
   }, [sport, key])
-  const lanes = useMemo(() => (name && date ? matchLanes({ name, jersey: num(jersey), birthDate, next: num(next), team: null, opp: null }, { date }) : []), [name, jersey, birthDate, next, date])
+  const lanes = useMemo(() => (name && date ? displayLanes(matchLanes({ name, jersey: num(jersey), birthDate, next: num(next), team: null, opp: null }, { date })) : []), [name, jersey, birthDate, next, date])
   if (!key || isHiddenSport(sport)) return null
   // a delay is said once, quietly; the card never waits on it
   if (state === 'error') return null

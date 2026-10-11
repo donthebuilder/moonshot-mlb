@@ -9,6 +9,8 @@ import NflTable from './NflTable'
 import PlayerFace from '../PlayerFace'
 import Tap from '../Tap'
 import { roleLabel } from '../../lib/nfl/roles'
+import TagChips from './TagChips'
+import { useTagBook } from '../../lib/nfl/useDefense'
 
 // THE DEFENSES TO ATTACK THIS WEEK (2026-09-27, matchups plan, REVISED:
 // Donovan -- "I don't see how this equates with the MLB pages"). MOONSHOT's
@@ -28,6 +30,9 @@ const spot = (d) => (d ? `${d.role} · ${d.label}${d.multiple === 0 ? ' · none'
 
 export default function DefensesTable({ matchup, data, win = 'season', active, onPick, onPlayerClick = null }) {
   const [all, setAll] = useState(false)
+  // TAGS (lib/nfl/tags.js): a column of each defence's tags, OFF until asked for (the button under the table)
+  const [showTags, setShowTags] = useState(false)
+  const book = useTagBook(matchup, data?.season, { turnovers: false })
 
   const rows = useMemo(() => {
     const oppOf = new Map()
@@ -57,9 +62,10 @@ export default function DefensesTable({ matchup, data, win = 'season', active, o
         fits: fits ? fits.name : null, _fits: fits,
         tough: tough?.standout ? spot(tough) : '—',
         _standout: Boolean(soft?.standout),
+        tags: book.team(def).map((t) => t.word).join(' \u00b7 '),
       }
     }).filter((r) => r.edge != null).sort((a, b) => b.edge - a.edge).map((r, i) => ({ ...r, rank: i + 1 }))
-  }, [matchup, data, win, all])
+  }, [matchup, data, win, all, book])
 
   const columns = [
     { key: 'rank', label: '#', w: 30, heat: false },
@@ -71,7 +77,10 @@ export default function DefensesTable({ matchup, data, win = 'season', active, o
       ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><PlayerFace sport="nfl" espnId={r._fits?.espn_id} team={r._fits?.team} name={r._fits?.name} size={22} />{v}<span style={{ color: C.text3, fontSize: 10 }}>{roleLabel(r._fits)}</span></span>
       : <span style={{ color: C.text3 }}>—</span>) },
     { key: 'tough', label: 'Toughest spot', w: 170, heat: false, fmt: (v) => <span style={{ color: C.text3 }}>{v}</span> },
-  ]
+    ...(showTags ? [{ key: 'tags', label: 'Tags', w: 250, heat: false, numeric: false, group: { key: 'matchup', label: 'The matchup', order: 3 },
+      explain: 'Corners, pass rush and run defence, each tagged only when it sits in the best or worst quarter of the league on a stated number. Tap a tag for the number.',
+      fmt: (v, r) => (v ? <TagChips tags={book.team(r.def)} max={3} /> : <span style={{ color: C.text3 }}>none</span>) }] : []),
+  ].map((c) => (showTags && !c.group ? { ...c, group: ['rank', 'def', 'opp'].includes(c.key) ? { key: 'who', label: 'Defense', order: 0 } : { key: 'edge', label: 'The edge', order: 1 } } : c))
 
   if (!rows.length) return null
   const byeWeek = Object.keys(matchup?.dvp?.[win] || {}).length > new Set((data?.games || []).flatMap((g) => [g.away, g.home]).filter(Boolean)).size
@@ -110,6 +119,9 @@ export default function DefensesTable({ matchup, data, win = 'season', active, o
       <p style={{ margin: '6px 0 0', fontSize: 11, lineHeight: 1.5, color: C.text3 }}>
         Edge: how far above average this defense gives up. 1.0+ = a soft spot. <QMark label="About Edge" text="Edge counts how many standard deviations a defense's softest starter-role matchup sits above the league average for that role and stat. Starters only: depth roles swing on two plays." />{lastSeason ? ' Last season\'s numbers until three weeks are played.' : ''}
       </p>
+      <div style={{ marginTop: 6 }}>
+        <button type="button" onClick={() => setShowTags((v) => !v)} aria-pressed={showTags} style={{ ...btn, color: showTags ? C.green : C.text3 }}>{showTags ? 'Hide tags' : 'Show tags'}</button>
+      </div>
       {/* Off-slate defenses only exist in a bye week; the switch shows then. */}
       {(all || byeWeek) && (
         <div style={{ marginTop: 6 }}>

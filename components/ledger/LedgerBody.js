@@ -6,7 +6,7 @@
 //
 // `sections` -- each key is either the props for its block or a ready node (MOONSHOT's
 // own pieces: its look-out wrapper, its number-pattern box), and absent = not drawn:
-//   empty · intro · round · watch · align · lookout · names · nextUp · pattern · scorers · spots · note
+//   empty · intro · round · watch · align · numbers · lookout · names · nextUp · pattern · scorers · spots · note
 import { Fragment, isValidElement } from 'react'
 import { RoundLine, WatchStrip, AlignBox, LookOutBox, NextUpBox, ScorerChips, SpotBars } from './LedgerBlocks'
 import NamePatterns from '../NamePatterns'
@@ -15,7 +15,7 @@ const BLOCK = {
   round: RoundLine, watch: WatchStrip, align: AlignBox, lookout: LookOutBox,
   names: NamePatterns, nextUp: NextUpBox, scorers: ScorerChips, spots: SpotBars,
 }
-export const LEDGER_ORDER = ['empty', 'intro', 'round', 'watch', 'align', 'lookout', 'names', 'nextUp', 'pattern', 'scorers', 'spots', 'note']
+export const LEDGER_ORDER = ['empty', 'intro', 'round', 'watch', 'align', 'numbers', 'lookout', 'names', 'nextUp', 'pattern', 'scorers', 'spots', 'note']
 
 export default function LedgerBody({ sections = {} }) {
   return LEDGER_ORDER.map((k) => {

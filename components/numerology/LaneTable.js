@@ -3,7 +3,7 @@ import DenseTable from '../DenseTable'
 import TeamMark from '../TeamMark'
 import { useEffect, useMemo, useState } from 'react'
 import { lanePlayers } from '../../lib/numerology/lanePlayers'
-import { MIN_NIGHTS } from '../../lib/numerology/laneTable'
+import { MIN_NIGHTS, MIN_MATCHED, multiLaneNote } from '../../lib/numerology/laneTable'
 import { playerHref } from '../../lib/routes'
 
 // LANE SCOREBOARD (2026-10-07; was "Which lanes run hot", 2026-09-27 BATCH-NUMEROLOGY step 6). It scores
@@ -16,6 +16,7 @@ import { playerHref } from '../../lib/routes'
 //   lane is anything more than chance; only the counts are shown early.
 // Phone first: five rows, the rest behind one tap. Pattern watching.
 const pct = (v) => (v == null ? '—' : `${(100 * v).toFixed(1)}%`)
+const rng = (r) => (r ? `${Math.round(r[0])}–${Math.round(r[1])}%` : '')   // 95% Wilson range, percent
 const SHOW_PLAYERS = 8
 
 /**
@@ -37,10 +38,12 @@ export default function LaneTable({ sport, theme: C, numFont, accent, tonight = 
   const lanes = (data.lanes || []).filter((l) => l.matched > 0)
     .sort((a, b) => (b.shown - a.shown) || (a.shown ? 0 : (b.matched - a.matched) || a.label.localeCompare(b.label)))
   const provisional = lanes.some((l) => !l.shown)
+  const note = <div style={{ fontSize: 11, color: C.text2, marginBottom: 6, lineHeight: 1.45 }}>{multiLaneNote(data.laneCount || lanes.length)}</div>
+  const allBase = data.allBase ? ` All-lanes base rate ${pct(data.allBase.rate)} (${rng(data.allBase.range)}, n ${data.allBase.n}).` : ''
   const rows = all ? lanes : lanes.slice(0, 5)
   const box = { padding: '11px 12px', border: `1px solid ${C.border}`, borderRadius: 12, background: C.bg2 }
   const head = <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.1em', color: accent, fontFamily: numFont, marginBottom: 2 }}>LANE SCOREBOARD</div>
-  const sub = <div style={{ fontSize: 11, color: C.text3, marginBottom: 6, lineHeight: 1.45 }}>How each number lane has done on graded nights. It scores lanes, not players.</div>
+  const sub = <div style={{ fontSize: 11, color: C.text3, marginBottom: 4, lineHeight: 1.45 }}>How each number lane has done on graded nights. It scores lanes, not players.</div>
   const players = onLanes.length ? (
     <div style={{ marginTop: 10, paddingTop: 8, borderTop: `1px solid ${C.border}` }}>
       <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.1em', color: accent, fontFamily: numFont }}>TONIGHT&apos;S PLAYERS ON THESE LANES</div>
@@ -66,13 +69,14 @@ export default function LaneTable({ sport, theme: C, numFont, accent, tonight = 
       <section aria-label="Lane scoreboard" style={box}>
         {head}
         {sub}
+        {note}
         <div style={{ fontSize: 12, lineHeight: 1.5, color: C.text2 }}>
           {data.nights
             ? `${data.nights} graded night${data.nights === 1 ? '' : 's'} recorded${data.recorded > data.nights ? `, ${data.recorded - data.nights} more being graded` : ''}.`
             : data.recorded
               ? `${data.recorded} night${data.recorded === 1 ? '' : 's'} recorded so far; a night counts once every game on it is graded.`
               : 'Nothing recorded yet: each night is logged before the game starts and graded after the final.'}{' '}
-          A lane&apos;s running counts appear here once it has a graded night, labelled provisional until it has {data.minNights || MIN_NIGHTS}: its matched players&apos; hit rate against everyone who could have matched.
+          A lane&apos;s running counts appear here once it has a graded night, labelled tracking until it has {data.minNights || MIN_NIGHTS} graded nights and {data.minMatched || MIN_MATCHED} graded matches: its matched players&apos; hit rate against everyone who could have matched.
         </div>
         {players}
       </section>
@@ -82,6 +86,7 @@ export default function LaneTable({ sport, theme: C, numFont, accent, tonight = 
     <section aria-label="Lane scoreboard" style={box}>
       {head}
       {sub}
+      {note}
       <div style={{ overflowX: 'auto' }}>
         {/* THE SHARED SHEET (2026-10-01, BATCH-TABLE-SKIN-V2 4b). z and the |z| of 2+ highlight only on a lane with
             the full 30 graded nights; a provisional lane shows its counts and says so in words. */}
@@ -92,19 +97,26 @@ export default function LaneTable({ sport, theme: C, numFont, accent, tonight = 
             { key: 'label', label: 'Lane', heat: false, sticky: true, w: 168, fmt: (v, l) => (
               <span style={{ display: 'grid', lineHeight: 1.25, whiteSpace: 'normal', overflowWrap: 'anywhere' }}>
                 <b>{v}</b>
-                {!l.shown && <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.02em', color: C.amber || C.text3 }}>provisional · {l.nights} {l.nights === 1 ? 'night' : 'nights'}</span>}
+                {!l.shown && <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.02em', color: C.amber || C.text3 }}>tracking · {l.nights} {l.nights === 1 ? 'night' : 'nights'}</span>}
               </span>
             ) },
             { key: 'nights', label: 'Nights', w: 54, dp: 0 },
-            { key: 'matchedRate', label: 'Matched hit', w: 110, fmt: (v, l) => <span style={{ fontFamily: numFont }}>{pct(v)} <span style={{ color: C.text3, fontSize: 11 }}>{l.matchedHits}/{l.matched}</span></span> },
-            { key: 'baseRate', label: 'Everyone', w: 70, fmt: (v) => pct(v), tone: () => ({ color: C.text2 }) },
+            { key: 'matchedRate', label: 'Matched hit', w: 110, fmt: (v, l) => (
+              <span style={{ fontFamily: numFont, display: 'grid', lineHeight: 1.25 }}>
+                <span>{pct(v)} <span style={{ color: C.text3, fontSize: 11 }}>{l.matchedHits}/{l.matched}</span></span>
+                <span style={{ color: C.text3, fontSize: 10, fontWeight: 700 }}>n {l.matched} · {rng(l.range)}</span>
+              </span>
+            ) },
+            { key: 'baseRate', label: 'Everyone', w: 70, fmt: (v, l) => (
+              <span style={{ display: 'grid', lineHeight: 1.25 }}><span>{pct(v)}</span><span style={{ color: C.text3, fontSize: 10, fontWeight: 700 }}>{rng(l.baseRange)}</span></span>
+            ), tone: () => ({ color: C.text2 }) },
             { key: 'z', label: 'z', w: 44, fmt: (v, l) => (!l.shown || v == null ? '—' : Number(v).toFixed(1)), tone: (n, l) => ({ color: l.shown && Math.abs(n || 0) >= 2 ? accent : C.text3, weight: 800 }) },
           ]} />
       </div>
       {lanes.length > 5 && <button type="button" onClick={() => setAll((v) => !v)} style={{ marginTop: 6, minHeight: 44, padding: '0 10px', border: `1px solid ${C.border}`, borderRadius: 8, background: 'transparent', color: accent, fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>{all ? 'Show five' : `+${lanes.length - 5} more lanes`}</button>}
       <div style={{ marginTop: 6, fontSize: 11, color: C.text3, lineHeight: 1.5 }}>
-        {provisional ? <>Provisional: under {data.minNights || MIN_NIGHTS} graded nights, the counts are real but no lane is a finding yet, so no z is shown. </> : null}
-        z = matched players against the rest of the eligible pool; |z| under 2 is chance. Graded nights only. Never part of a score.
+        {provisional ? <>Tracking: a lane needs {data.minNights || MIN_NIGHTS} graded nights and {data.minMatched || MIN_MATCHED} graded matches before it is read; under that the counts are real but no lane is a finding, so no z is shown. </> : null}
+        z = matched players against the rest of the eligible pool; |z| under 2 is chance. Ranges are 95% Wilson. Graded nights only.{allBase} Information only: never part of a score, never a call.
       </div>
       {players}
     </section>
