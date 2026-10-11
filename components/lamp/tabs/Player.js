@@ -18,6 +18,8 @@ import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import HisNumbers from '../../HisNumbers'
 import InTheLedger from '../../ledger/InTheLedger'
 import { etToday } from '../../../lib/freshness'
+import { bornLine } from '../../../lib/birthday'
+import { BirthdayChip } from '../../player/BirthdayChip'
 import { useLampPlayer, useLampBoardOnce, useLampSplits } from '../../../lib/nhl/useLamp'
 import { playerHref } from '../../../lib/routes'
 import SharedSeasonToggle from '../../nfl/SeasonToggle'
@@ -29,7 +31,7 @@ import ScrollHint from '../../player/ScrollHint'
 import { nhlVerdict, nhlStatRow } from '../../player/nhlAdapter'
 import { nhlTeam } from '../../../lib/nhl/teams'
 import { usePreview, ShowMoreButton } from '../../ListPreview'
-import { STATUS, Pills, EmptyState, DelayedBanner, Loading, Kicker, StaleSeasonNote, fmtDay, fmtPuckDrop, zoneAbbrev, ageFrom, fmtHeight, fmtPct1, fmtPct3, fmt2, fmtSec, plusMinus, dash } from '../ui'
+import { STATUS, Pills, EmptyState, DelayedBanner, Loading, Kicker, StaleSeasonNote, fmtDay, fmtPuckDrop, zoneAbbrev,fmtHeight, fmtPct1, fmtPct3, fmt2, fmtSec, plusMinus, dash } from '../ui'
 import WhyLines from '../../WhyLines'
 import { goalWhy } from '../../../lib/nhl/goalWhy'
 import { arenaOf } from '../../../lib/nhl/arenas'
@@ -182,11 +184,12 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
   const seasonPrev = usePreview(nhlSeasons.map((s, i) => ({ ...s, _id: `${s.season}-${i}` })), 6)
   const awardsPrev = usePreview(p.awards.map((a) => ({ ...a, _key: a.trophy, times: a.seasons.length })), 5)
   const team = nhlTeam(p.team)
+  const bornOn = board?.date || etToday()   // the slate's own date when there is one
   const bio = [
     p.pos && `${goalie ? 'Goalie' : { C: 'Centre', L: 'Left wing', R: 'Right wing', D: 'Defence' }[p.pos] || p.pos}`,
     p.shoots && `${goalie ? 'catches' : 'shoots'} ${p.shoots}`,
     fmtHeight(p.heightIn) && `${fmtHeight(p.heightIn)}, ${dash(p.weightLb)} lb`,
-    ageFrom(p.birthDate) != null && `age ${ageFrom(p.birthDate)}`,
+    bornLine(p.birthDate, bornOn),
     p.birthCity && `${p.birthCity}${p.birthCountry ? `, ${p.birthCountry}` : ''}`,
     p.draft ? `drafted ${p.draft.year} by ${p.draft.team}, round ${p.draft.round} (#${p.draft.overall} overall)` : 'undrafted',
   ].filter(Boolean).join(' · ')
@@ -317,7 +320,7 @@ function PlayerBody({ p, error, onOpenTeam, onOpenGame, onBack, backLabel, onSte
                 caption="His last five games, newest first. Each row opens the game." />
             </section>
           )}
-          <div style={{ color: C.text3, fontSize: 12, lineHeight: 1.5 }}>{bio}</div>
+          <div style={{ color: C.text3, fontSize: 12, lineHeight: 1.5 }}>{bio}<BirthdayChip birth={p.birthDate} on={bornOn} accent={C.ice} textColor={C.text2} font={NUM_FONT} /></div>
           {!goalie && <MultiLine sport="nhl" playerId={p.id} words={{ G: 'multi-goal' }} color={C.ice} textColor={C.text2} />}
           <StarMemory sport="nhl" id={String(p.id)} />
           {!goalie && <InTheLedger sport="nhl" id={p.id} name={p.name} jersey={p.number} birthDate={p.birthDate} next={!stale && Number.isFinite(f.regular?.g) ? f.regular.g + 1 : null} date={etToday()} />}
