@@ -7,6 +7,7 @@ import { slateNight } from '../../../../lib/slateNight'
 import { validDate } from '../../../../lib/nhl/api'
 import { readBoard, BOARD_MARKETS } from '../../../../lib/nhl/boardRead'
 import { ok, bad, delayed } from '../../../../lib/nhl/respond'
+import { recordNhlBoard } from '../../../../lib/rankSnapshots/record'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -20,6 +21,7 @@ export async function GET(request) {
   if (!BOARD_MARKETS[market]) return bad(`market must be one of ${Object.keys(BOARD_MARKETS).join(', ')}`)
   try {
     const board = await readBoard(date, { market, lines: true, proj: market === 'GOAL' })
+    await recordNhlBoard(date, market, board)   // the ordering behind the rank arrows (lib/rankSnapshots): a quiet no-op until its table exists
     return ok({ ...board, fetchedAt: new Date().toISOString() }, 60)
   } catch (e) {
     return delayed(`board ${date}`, e)

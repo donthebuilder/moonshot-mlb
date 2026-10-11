@@ -11,7 +11,6 @@ import { resolveTab, pageTitle, isSport, isLiveTab } from '../lib/routes'
 import { canonLedgerHash, queueLedgerView, carryLedgerView } from '../lib/ledger/views'
 import { queueSlipSeed } from '../lib/slipSeed'
 import LedgerShell from './pages/LedgerShell'
-import TopTotals from './TopTotals'
 import CardSection from './card/CardSection'
 import { usePageTitle } from '../lib/usePageTitle'
 import TabNotFound from './TabNotFound'
@@ -1018,9 +1017,10 @@ export default function Dashboard({ palettePass = 0 }) {
                 standalone component where that is the safer render. Nothing
                 was deleted; see lib/theme.js for the map. */}
             {tab === 'home'        && <Home players={allPlayers} filteredPlayers={players} results={resultsForSlate} backtest={backtest} mode={mode} slateDate={slateDate} dateLabel={dateLabel} odds={odds} onWatch={toggleWatch} watchIds={watchIds} onNavigate={setTab} onPlayerClick={setModalPlayer} />}
-            {tab === 'games'       && <CardSection sport="mlb" />}
-            {tab === 'games'       && <TopTotals sport="mlb" />}
+            {/* TOP TOTALS now ride each game (components/GameTotalLine.js: on the game's card and its slate card); the record stays in the Ledger.
+                The Card is one line, under the slate (it was a block above the first game). */}
             {tab === 'games'       && <Games players={players} allPlayers={allPlayers} slateDate={slateDate} slateMode={mode} pairHistorySummary={pairSummary} results={resultsForSlate} odds={odds} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} />}
+            {tab === 'games'       && <CardSection sport="mlb" compact />}
             {tab === 'pitchers'    && <Pitchers players={players} onPlayerClick={setModalPlayer} />}
             {tab === 'matchups'    && <Matchups players={players} onPlayerClick={setModalPlayer} onNavigate={setTab} />}
             {/* PROPS GRID — the mobile pilot page (2026-08-23). Its own tab
@@ -1062,7 +1062,7 @@ export default function Dashboard({ palettePass = 0 }) {
             {tab === 'storylines'  && <StorylinesPage sport="mlb" eyebrow="MOONSHOT · STORYLINES" theme={C} numFont={NUM_FONT} accent={C.orange} onOpenGame={(pk) => { leaveTarget('game', pk); setTab('games') }} searchBox={false} keepIds={players.length < allPlayers.length ? new Set(players.map((p) => String(p?.player_id ?? p?.id))) : null} onOpenPlayer={(id) => { const p = allPlayers.find((x) => String(x?.player_id ?? x?.id) === String(id)); if (p) setModalPlayer(p) }} />}
             {tab === 'longshots'   && <Longshots sport="mlb" eyebrow="MOONSHOT · LONGSHOTS" theme={C} numFont={NUM_FONT} accent={C.orange} onOpenPitcher={(pid) => { leaveTarget('pitcher', pid); setTab('pitchers') }} onOpenPlayer={(id) => { const p = allPlayers.find((x) => String(x?.player_id ?? x?.id) === String(id)); if (p) setModalPlayer(p) }} />}
             {/* ONE RANKINGS PAGE (2026-10-06): the Boards page and Rankings are this page. #tab=board / boards / hitshrr are aliases (lib/routes.js). */}
-            {tab === 'fullboard'   && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} onOpenCard={openCardAt} slateDate={slateDate} onNavigate={setTab} />}
+            {tab === 'fullboard'   && <HitsHRR players={players} allPlayers={allPlayers} odds={odds} results={resultsForSlate} onAdd={addSlip} onWatch={toggleWatch} watchIds={watchIds} onPlayerClick={setModalPlayer} onOpenCard={openCardAt} slateDate={slateDate} onNavigate={setTab} runAt={Date.parse(runMeta?.generated_at) || null} />}
             {/* #tab=power and #tab=patterns were NEVER WIRED (found 2026-08-17
                 by an audit that opened each route and looked for the feature's
                 own text, rather than only asking whether the page threw).

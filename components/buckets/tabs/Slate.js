@@ -17,6 +17,7 @@ import { basisLine } from '../BucketsTeamExpected'
 import Rail from '../../Rail'
 import { BucketsCards } from '../BucketsCard'
 import CardButton from '../../CardButton'
+import GameTotalLine, { GameTotalMark, totalRowFor, useGameTotals } from '../../GameTotalLine'
 import { downloadBucketsGameCard } from '../shareCard'
 import { EmptyState, DelayedBanner, Loading, SourceLine, Pills, NavBtn, DayPager, RimDot, fmtDay, fmtTip, readHashParam, writeHashParam } from '../ui'
 
@@ -33,6 +34,7 @@ export default function Slate({ date, setDate, market = 'pts', onOpenPlayer, onO
   const xp = useBucketsExpected(date)
   // THE TEAM MODEL (lib/nba/teamModel.js): expected points a game, the Slate dial (NHL's expected goals, NFL's expected touchdowns)
   const tm = useBucketsTeamModel(date)
+  const gameTotals = useGameTotals('nba')   // each game's own Top Totals row, said on its own game (components/GameTotalLine.js)
   const tmBy = useMemo(() => new Map((tm.data?.games || []).map((x) => [String(x.id), x])), [tm.data])
   const xptsBy = useMemo(() => new Map((xp.data?.rows || []).map((r) => [String(r.playerId), r])), [xp.data])
   const games = sortGames(data?.games || [])
@@ -49,15 +51,20 @@ export default function Slate({ date, setDate, market = 'pts', onOpenPlayer, onO
   const calls = rows.filter((r) => r.status === 'called')
   const shown = data?.date || date
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div className="slate-tight" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <PageHeader eyebrow="BUCKETS · SLATE" title={shown ? fmtDay(shown) : 'Tonight'} theme={C} numFont={NUM_FONT} accent={C.purple}
         note="Every game that day, with its calls and board."
         stats={data ? [{ value: games.length, label: 'GAMES', tone: C.text2 }] : null} />
-      <DayPager shown={shown} date={date} setDate={setDate} />
-      <DelayedBanner error={error} what="the board" />
-      {loading && !data ? <Loading what="the slate" /> : null}
-      {data && !games.length && <EmptyState title="NO GAMES THAT DAY" note="Try another day." />}
-      {games.length > 0 && <Pills ariaLabel="View" value={view} onChange={setView} options={[{ key: 'games', text: '🏟 Games' }, { key: 'table', text: '📊 Table' }]} />}
+      {/* desktop: day pager + Games|Table on ONE row (app/globals.css .slate-tight); phone: display:contents, so every child is still the page's own flex item and nothing moves */}
+      <div className="slate-bar" style={{ display: 'contents' }}>
+        <DayPager shown={shown} date={date} setDate={setDate} />
+        <div className="slate-note" style={{ display: 'contents' }}>
+          <DelayedBanner error={error} what="the board" />
+          {loading && !data ? <Loading what="the slate" /> : null}
+          {data && !games.length && <EmptyState title="NO GAMES THAT DAY" note="Try another day." />}
+        </div>
+        {games.length > 0 && <Pills ariaLabel="View" value={view} onChange={setView} options={[{ key: 'games', text: '🏟 Games' }, { key: 'table', text: '📊 Table' }]} />}
+      </div>
       {view === 'table' && games.length > 0 && (
         <div>
           <BucketsProjected rows={pts.data?.rows || []} games={games} onOpenTeam={onOpenTeam} onOpenGame={(id) => { choose(id); setView('games') }} />
@@ -89,7 +96,11 @@ export default function Slate({ date, setDate, market = 'pts', onOpenPlayer, onO
                   title: m1 ? `${m1.total.toFixed(1)} ${EXPECTED_POINTS_WORDS} in this game${way}: ${x.away.abbrev} ${m1.away.pts.toFixed(1)}, ${x.home.abbrev} ${m1.home.pts.toFixed(1)}, from each club's points a game against the other's allowed. The ring fills against every pairing of the league's clubs.${best != null ? ` Best ${NBA_MARKETS[m].label} score here: ${Math.round(best)}.` : ''}` : `No ${EXPECTED_POINTS_WORDS} number for this game yet.` },
                 lead: <span title={locked ? 'The board locked before tip' : 'A preview until the board locks'}>{locked ? '🔒' : '◻'}</span>,
                 status: st === 'live' ? { kind: 'live', text: x.detail || 'LIVE' } : st === 'final' ? { kind: 'final', text: `${x.away.score}-${x.home.score} F` } : { kind: 'time', text: fmtTip(x.start) },
-                extra: <span>{EXPECTED_POINTS_WORDS}{m1 ? ` · ${x.away.abbrev} ${Math.round(m1.away.pts)}, ${x.home.abbrev} ${Math.round(m1.home.pts)}${way}` : ' · —'}</span>,
+                extra: (() => {
+                  const base = <span>{EXPECTED_POINTS_WORDS}{m1 ? ` · ${x.away.abbrev} ${Math.round(m1.away.pts)}, ${x.home.abbrev} ${Math.round(m1.home.pts)}${way}` : ' · —'}</span>
+                  const tr = totalRowFor(gameTotals, x.id)
+                  return tr ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>{base}<GameTotalMark row={tr} /></span> : base
+                })(),
               }} />
             })}
           </Rail>
@@ -108,6 +119,8 @@ export default function Slate({ date, setDate, market = 'pts', onOpenPlayer, onO
           <NavBtn onClick={() => onOpenGame?.(g.id)}>Open game →</NavBtn>
           <CardButton sport="nba" label="Download this game as an image" onDownload={() => downloadBucketsGameCard({ g, rows, tm: tmBy.get(String(g.id)) || null, market: m, date: shown || '' })} />
         </div>
+        {/* THIS GAME'S TOTAL (2026-10-10): the Top Totals row the lock stored for it */}
+        <GameTotalLine sport="nba" row={gameTotals?.[String(g.id)]} />
         {/* the game's calls as the prop cards (components/buckets/BucketsCard) */}
         {calls.length > 0 && <BucketsCards market={m} onOpen={onOpenPlayer} rows={[...calls].sort((a, b) => b.score - a.score)} />}
         {rows.length > 0

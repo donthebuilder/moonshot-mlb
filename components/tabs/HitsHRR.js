@@ -449,7 +449,7 @@ function B2BStrip({ list, verified, loading, cashed, onPlayerClick }) {
  *   · powerInitial — forwarded as PowerTab's own `initial` prop, so #tab=due
  *                    can still open Overdue specifically. Power's default.
  */
-export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, onWatch, watchIds, onPlayerClick, onOpenCard = null, slateDate = null, results = null, initialView = 'boards', powerInitial = 'longest', onNavigate = null }) {
+export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, onWatch, watchIds, onPlayerClick, onOpenCard = null, slateDate = null, results = null, initialView = 'boards', powerInitial = 'longest', onNavigate = null, runAt = null }) {
   const [bview, setBview] = useState(() => (GROUPS.some(([k]) => k === initialView) ? initialView : 'boards'))
   const [view, setView] = useState('hr')
   const viewKey = view === 'top' ? 'hr' : view
@@ -748,7 +748,7 @@ export default function HitsHRR({ players, allPlayers = [], odds = null, onAdd, 
             : view === 'matchupedge'
             ? <MatchupEdgeSection players={filtered} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} />
             : <RankedBoard players={players} type={viewKey} onAdd={onAdd} onWatch={onWatch} watchIds={watchIds} onPlayerClick={onPlayerClick} onOpenPitcher={onNavigate ? (pid) => { leaveTarget('pitcher', pid); onNavigate('pitchers') } : null} slateDate={slateDate} filterState={filterState} setupHomers={setupHomers}
-                onOpenCard={onOpenCard} rankings={rankings} compact={phoneRank} colsView={colsView} onColsView={setColsView} slate={allPlayers.length ? allPlayers : players} viewMode={layout} onViewMode={setLayout} />
+                onOpenCard={onOpenCard} rankings={rankings} compact={phoneRank} colsView={colsView} onColsView={setColsView} slate={allPlayers.length ? allPlayers : players} viewMode={layout} onViewMode={setLayout} runAt={runAt} />
           }
           {phoneRank && b2bFold}
           {/* UNDER THE BOARD on every width, so the first ranked row does not move */}

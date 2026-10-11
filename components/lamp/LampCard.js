@@ -87,7 +87,7 @@ const Fact = ({ k, v }) => (v == null || v === '' ? null : (
  * Follow (LAMP's watchlist) where MOONSHOT has Add to Slip + the star. The face
  * and the why line are LAMP's own additions.
  */
-export function LampCard({ r, g, rank, market = 'GOAL', facts = {}, onOpen }) {
+export function LampCard({ r, g, rank, market = 'GOAL', facts = {}, onOpen, rankMove = null }) {
   const called = r.status === 'called'
   const opp = g.game.home.abbrev === r.team ? g.game.away.abbrev : g.game.home.abbrev
   const sog = market === 'SOG'
@@ -107,7 +107,7 @@ export function LampCard({ r, g, rank, market = 'GOAL', facts = {}, onOpen }) {
   ].filter(([, v]) => v != null && v !== '').map(([label, value]) => ({ label, value }))
   return (
     <SportTheme theme={C} accent={C.ice} numFont={NUM_FONT}>
-      <RankCard accent={C.ice} status={r.status} pos={canonPos('nhl', r.pos)} rank={rank} sport="nhl" club={r.team} name={r.name} opp={opp}
+      <RankCard accent={C.ice} status={r.status} rankMove={rankMove} pos={canonPos('nhl', r.pos)} rank={rank} sport="nhl" club={r.team} name={r.name} opp={opp}
         face={<PlayerFace sport="nhl" variant="tile" photo={nhlMug(g.game.season, r.team, r.playerId)} team={null} name="" size={84} theme={C} />}
         score={Math.round(r.score ?? 0)} scoreWord="LAMP" explain={SCORE_NOTE[market] || SCORE_NOTE.GOAL}
         reason={r.why && !stats.length ? r.why : null}

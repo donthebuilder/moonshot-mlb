@@ -25,6 +25,8 @@ import CardButton from '../../CardButton'
 import { downloadBucketsBoardCard } from '../shareCard'
 import { EmptyState, DelayedBanner, Loading, SourceLine, Pills, NavBtn, DayPager, Why, fmtDay, fmtTip, writeHashParam, readHashParam } from '../ui'
 import { STATUS_WORD } from '../../../lib/callStatus'
+import { useRankMove } from '../../../lib/useRankMove'
+import { RankMoveNote } from '../../RankMove'
 
 // 🎯 PROPS -- the BUCKETS board for one market (lib/nba/boardRead.js): every
 // player on the night's rosters ranked by the market's score, one CALLED per
@@ -133,6 +135,10 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
   // CALLED LAST NIGHT (2026-10-10): the previous slate's points calls and what each did (the points market is the one graded every night); BUCKETS stays hidden until BUCKETS_PUBLIC=on
   const cln = useCalledLastLens('nba', shown, null, { enabled: m === 'pts' && Boolean(shown) })
   const all = boardRows(data, { calledOnly, xpts: xptsBy })
+  // RANK MOVES (2026-10-10): places moved in this market's night order (nightRank, over every player) since the last update.
+  // Information only (lib/useRankMove.js); BUCKETS stays hidden until BUCKETS_PUBLIC=on.
+  const moveRanks = useMemo(() => new Map(all.filter((r) => r.nightRank != null && r.score != null).map((r) => [r._id, r.nightRank])), [all]) // eslint-disable-line react-hooks/exhaustive-deps
+  const rankMv = useRankMove({ sport: 'nba', board: mk, date: shown, ranks: moveRanks, enabled: m !== ALL })
   // ANGLES (2026-10-05): measured on 2025-26, every market (lib/nba/angles.js); only the ones with an edge
   const [angle, setAngle] = useState(null)
   const angles = useMemo(() => bucketsAngles(all, mk), [all, mk])
@@ -298,15 +304,16 @@ export default function Board({ date, setDate, market = 'pts', onOpenPlayer, onO
       {pf.active && m !== ALL && rows.length > 0 && !noStarters && <PositionNote control={pf.control} shown={rows.length} total={pool.length} />}
       {pf.active && m !== ALL && rows.length === 0 && data && games.length > 0 && !noStarters && <PositionEmpty control={pf.control} othersActive={chips.length + drawerChips.length - 1 > 0 || heldTop > 0} onClearAll={clearAll} />}
       {rows.length > 0 && !noStarters && layout === 'cards' && (
-        <BucketsCards market={mk} onOpen={onOpenPlayer} rankOf={(r) => cardRank.get(r._id || `${r.gameId}-${r.playerId}`)} rows={[...rows].filter((r) => r.score != null && Number.isFinite(Number(r.score))).sort((a, b) => b.score - a.score)} />
+        <BucketsCards market={mk} onOpen={onOpenPlayer} rankOf={(r) => cardRank.get(r._id || `${r.gameId}-${r.playerId}`)} rows={[...rows].filter((r) => r.score != null && Number.isFinite(Number(r.score))).sort((a, b) => b.score - a.score).map((r) => ({ ...r, rankMove: rankMv.cell(r._id) }))} />
       )}
       {rows.length > 0 && !noStarters && layout === 'table' && (
-        <BucketsTable rows={cln.on ? rows.map((r) => ({ ...r, cln: cln.cell(r.playerId) })) : rows} columns={withLastNight(boardColumns(m, { onOpenTeam, onOpenGame, withXpts: true, whyCol: whyColumn({ textOf: (r) => (r.status === 'off' && r.reason ? r.reason : plainWhy(r, m)?.short || ''), itemOf: (r) => whyItemFor(r, m, r.nightRank), open: openWhy, theme: C, numFont: NUM_FONT, w: 165 }) }), cln)} statusOf={(r) => r.status}
+        <BucketsTable rows={rows.map((r) => ({ ...r, ...(cln.on ? { cln: cln.cell(r.playerId) } : null), rankMove: rankMv.cell(r._id) }))} columns={withLastNight(boardColumns(m, { onOpenTeam, onOpenGame, withXpts: true, whyCol: whyColumn({ textOf: (r) => (r.status === 'off' && r.reason ? r.reason : plainWhy(r, m)?.short || ''), itemOf: (r) => whyItemFor(r, m, r.nightRank), open: openWhy, theme: C, numFont: NUM_FONT, w: 165 }) }), cln)} statusOf={(r) => r.status}
           onRowClick={(r) => onOpenPlayer?.((r?._raw ?? r).playerId)} faceOf={faceOf}
           dimRow={(r) => Boolean(r.voidReason) || r.status === 'off'}
           initialSort={{ key: 'nightRank', dir: 'asc' }} heatMode="sorted" maxHeight={620} maxRows={Math.max(rows.length, 1)}
           caption="Every player tonight for this market, #1 to the bottom. Column headers sort; each row opens that player; the team and opponent open the club; the game column opens the game." />
       )}
+      {m !== ALL && <RankMoveNote show={rankMv.any} color={C.text3} />}
       {/* Bucket Watch sits under the table (2026-10-06): the board comes first */}
       {mk === 'pts' && m !== ALL && (data?.rows || []).length > 0 && <BucketWatch rows={data.rows} date={data.date} onOpenPlayer={onOpenPlayer} />}
       {mk === 'pts' && m !== ALL && <CalledLastNight lens={cln} accent={C.purple} theme={C} numFont={NUM_FONT} logoSport="nba" onOpen={(r) => onOpenPlayer?.(r.pid)} />}

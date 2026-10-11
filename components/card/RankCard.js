@@ -5,6 +5,7 @@ import { STATUS_WORD } from '../../lib/callStatus'
 import { useSportTheme } from '../SportTheme'
 import TeamMark from '../TeamMark'
 import { ExplainStrip } from './CardParts'
+import { RankMoveCell } from '../RankMove'
 
 // THE RANKING CARD, IN THE BASEBALL-CARD LANGUAGE (2026-10-10). Donovan: "whatever has the new baseball cards, that's what I like."
 // One HTML card for every product's ranked list, drawn the way the player card images are drawn (lib/cards/playerCard.js, the FRONT,
@@ -20,7 +21,7 @@ import { ExplainStrip } from './CardParts'
 export default function RankCard({
   accent: accentProp = null, status = null, pos = '', rank = null, face = null, sport, club = null, name, opp = null, home = true, role = '',
   score = null, scoreWord = 'SCORE', explain = null, reason = null, chips = null, stats = [], statsNode = null, back = null, foot = null, onClick = null,
-  dim = false, extraLine = null, rankTags = [], extraNotes = [], style = null, title = undefined,
+  dim = false, extraLine = null, rankTags = [], extraNotes = [], style = null, title = undefined, rankMove = null,
 }) {
   const { C, NUM_FONT, accent: themeAccent } = useSportTheme()
   const accent = accentProp || themeAccent
@@ -55,6 +56,8 @@ export default function RankCard({
             {club && sport && <div style={{ position: 'absolute', right: -24, top: 4, opacity: 0.16, pointerEvents: 'none' }}><TeamMark sport={sport} abbr={club} variant="logo" px={120} /></div>}
             <div style={{ position: 'absolute', left: 12, top: 8, display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start' }}>
               {rank != null && tag(`#${rank}`)}
+              {/* places moved since the last update (components/RankMove.js): one mount for every sport's card; information only */}
+              {rankMove?.move && <span style={{ background: alpha(C.bg, 0.7), border: `1px solid ${alpha(C.text, 0.22)}`, padding: '1px 6px', lineHeight: 1 }}><RankMoveCell cell={rankMove} up={accent} down={C.text3} size={10} /></span>}
               {rankTags.slice(0, 1).map(tag)}
             </div>
             <div style={{ display: 'flex', justifyContent: 'center', padding: '8px 0 0' }}>{face}</div>

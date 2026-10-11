@@ -80,7 +80,7 @@ function gamePickLabelFor(p) {
 
 // rank / status (2026-10-10, cards brought to speed): the Rankings board hands its own rank and its one call word (lib/callStatus) so
 // the card leads with them like every other sport's; every other mount passes neither and draws as before, minus the name clipping.
-export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, onClick, rank = null, status = null }) {
+export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, onClick, rank = null, status = null, rankMove = null }) {
   // TAP TARGETS (2026-08-12): the emoji stack, weak-spot star and score badge
   // used to carry their explanations in a bare title= — a hover tooltip,
   // invisible on phones (see Explain.js's header comment; PlayerCard is the
@@ -172,7 +172,7 @@ export default function PlayerCard({ p, type = 'hr', onAdd, onWatch, watched, on
   // non-matching one everywhere except a table. Card already forwards `style`,
   // so this is one spread. See lib/spotlight.js's note above chipWashOf.
   return (
-      <RankCard accent={color} status={status} pos={clean(p?.handedness || p?.bats, '')} rank={rank} sport="mlb" club={teamOf(p) || null} name={nameOf(p)} opp={oppOf(p) || null}
+      <RankCard accent={color} status={status} rankMove={rankMove} pos={clean(p?.handedness || p?.bats, '')} rank={rank} sport="mlb" club={teamOf(p) || null} name={nameOf(p)} opp={oppOf(p) || null}
         role={`${clean(p?.lineup_spot, '—')}${p?.lineup_confirmed === false ? ' (proj.)' : ''}`}
         face={<PlayerFace sport="mlb" id={mlbId(p)} team={teamOf(p)} name={nameOf(p)} variant="tile" size={84} />}
         score={score.toFixed(0)} scoreWord="MOONSHOT" rankTags={grade ? [`GRADE ${grade}`] : []}

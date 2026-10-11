@@ -21,6 +21,9 @@ import { matchupTag } from '../../../lib/nfl/dvpSignal'
 import DashChip, { useDashLines, DASH_OF } from '../DashChip'
 import MarketStat from '../MarketStat'
 import { useNowTick } from '../../../lib/useNowTick'
+import { useRankMove } from '../../../lib/useRankMove'
+import { nflGameDate } from '../../../lib/rankSnapshots/compute'
+import { RankMoveCell, RankMoveNote } from '../../RankMove'
 import { roleLabel, roleKeys, ROLE_PILLS } from '../../../lib/nfl/roles'
 
 // Same soft cap Touchdowns.js uses, so the two boards cut at the same depth.
@@ -116,6 +119,7 @@ function FormBadge({ form, color }) {
 // this is not a replacement for it, just the rest of the board catching up.
 // `market` + `hideMarketPicker` (2026-09-26, the Board hub): the hub's own
 // market picker drives this page; standalone it keeps its own.
+const nflRankId = (p) => p?.player_id
 export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsStatus, market: marketProp = null, hideMarketPicker = false, top = null, showOpts = true }) {
   const dash = useDashLines()
   // ── SAVE FROM THE CARD ITSELF (parity pass, 2026-09-16) ─────────────────
@@ -230,6 +234,8 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
 
   // his place on this market's board (low samples are left off it), not on the filtered list
   const rankOf = useMemo(() => new Map(eligible.filter((p) => !p.low_sample).sort((a, b) => b.scores[market] - a.scores[market]).map((p, i) => [String(p.player_id), i + 1])), [eligible, market])
+  // RANK MOVES (2026-10-10): places moved in this market's order since the last update (lib/useRankMove.js). Information only.
+  const rankMv = useRankMove({ sport: 'nfl', board: market, date: nflGameDate(data?.games) || null, ranks: rankOf, rows: data?.players, idOf: nflRankId })
   const capped = all ? rows : rows.slice(0, SOFT_CAP)
   const hidden = rows.length - capped.length
 
@@ -316,7 +322,7 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
       {hidden > 0 || rows.length || pf.active ? null : (
         <div style={{ fontSize: TYPE.body, color: C.text3, margin: '4px 0 10px' }}>Nothing matches. Clear the search, team, game or a filter above.</div>
       )}
-      {view === 'list' && <NflBoardList players={capped} market={market} rankOf={rankOf} weights={spec?.weights} odds={odds} phone={phone} onPlayerClick={onPlayerClick} base={base} pool={eligible} watchlist={watchlist} tags={drawer.tagsView} />}
+      {view === 'list' && <NflBoardList players={capped} market={market} rankOf={rankOf} rankMv={rankMv} weights={spec?.weights} odds={odds} phone={phone} onPlayerClick={onPlayerClick} base={base} pool={eligible} watchlist={watchlist} tags={drawer.tagsView} />}
 
       {/* CARD BOARD (2026-09-15, Donovan: "the props card board is okay we
           just need the pictures on there ... a table flip wouldn't be bad,
@@ -357,9 +363,11 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
                   It now sits in the header row, left of the score, as a flex
                   child -- nothing overlaps because nothing is absolute. */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{
-                  fontFamily: NUM_FONT, fontSize: TYPE.label, color: C.text3, minWidth: 13,
-                }}>{rankOf.get(String(p.player_id)) ?? '—'}</span>
+                {/* the number, with places moved since the last update under it (components/RankMove.js) */}
+                <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 2, minWidth: 13 }}>
+                  <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.label, color: C.text3 }}>{rankOf.get(String(p.player_id)) ?? '—'}</span>
+                  <RankMoveCell cell={rankMv.cell(p.player_id)} up={C.green} down={C.text3} size={10} />
+                </span>
                 <PlayerFace sport="nfl" espnId={p?.espn_id} team={p?.team} name={p?.name} size={38} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div className="nfl-board-name" style={{
@@ -463,6 +471,7 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
           <FilterPill onClick={() => setAll(true)} count={hidden}>Show the rest</FilterPill>
         </div>
       )}
+      <RankMoveNote show={rankMv.any} color={C.text3} />
 
       {!rows.length && pf.active && <div style={{ marginTop: 10 }}><PositionEmpty control={pf.control} othersActive={activeFilterChips.length > 1 || Boolean(query) || team !== 'all'} onClearAll={clearAllFilters} /></div>}
       {!rows.length && !pf.active && (

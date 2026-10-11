@@ -244,7 +244,7 @@ export default function Games({ data, picks, matchup, logs, results, odds = null
     : null
 
   return (
-    <div className="tuddy-slate-page">
+    <div className="slate-tight">
       {waveIsOver && (
         <div
           role="status"
@@ -276,7 +276,7 @@ export default function Games({ data, picks, matchup, logs, results, odds = null
         ]}
       />
 
-      {/* desktop: search + team + game + Table|Games on ONE row (app/globals.css .tuddy-slate-page); phone: a plain block, unchanged */}
+      {/* desktop: search + team + game + Table|Games on ONE row (app/globals.css .slate-tight); phone: a plain block, unchanged */}
       <div className="slate-bar">
       <BoardTopBar query={query} setQuery={setQuery} placeholder="Search player or team…"
         team={fteam} setTeam={setFteam} teams={[...new Set(games.flatMap((g) => [g.away, g.home]).filter(Boolean))].sort()} teamLabel="🏈 All teams"

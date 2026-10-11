@@ -82,6 +82,8 @@ import { tdPool } from '../../../lib/nfl/tdPool'
 export { tdPool }
 import { useNowTick } from '../../../lib/useNowTick'
 import { explain } from '../../../lib/explain'
+import { useRankMove } from '../../../lib/useRankMove'
+import { RankMoveCell, RankMoveNote } from '../../RankMove'
 import { roleLabel, roleKeys, ROLE_PILLS } from '../../../lib/nfl/roles'
 
 // Exported (2026-09-28) for the Slate's Picks section -- the same card, not a copy.
@@ -94,7 +96,8 @@ import { roleLabel, roleKeys, ROLE_PILLS } from '../../../lib/nfl/roles'
 // a footer with the price and MOONSHOT's star. The face stays (TUDDY's
 // addition). The score bar and anatomy sliver went: the badge carries the
 // score, the strip carries what built it.
-export function Card({ p, rank, matchup, odds, onPlayerClick, weights, base, pool, watchlist, status = null }) {
+const nflRankId = (p) => p?.player_id
+export function Card({ p, rank, matchup, odds, onPlayerClick, weights, base, pool, watchlist, status = null, rankMove = null }) {
   const [openScore, setOpenScore] = useState(false)
   const score = p.scores?.[MARKET]
   const g = gradeFor(score)
@@ -117,7 +120,7 @@ export function Card({ p, rank, matchup, odds, onPlayerClick, weights, base, poo
 
   return (
     <SportTheme theme={C} accent={C.green} numFont={NUM_FONT}>
-      <RankCard accent={C.green} status={status} pos={p.position || ''} rank={rank} sport="nfl" club={p.team} name={p.name} opp={p.opp} role={roleLabel(p)}
+      <RankCard accent={C.green} status={status} rankMove={rankMove} pos={p.position || ''} rank={rank} sport="nfl" club={p.team} name={p.name} opp={p.opp} role={roleLabel(p)}
         face={<PlayerFace sport="nfl" espnId={p?.espn_id} team={p?.team} name={p?.name} size={84} />}
         score={Number.isFinite(score) ? Math.round(score) : '—'} scoreWord="TUDDY" rankTags={[`GRADE ${g.label}`]}
         explain="The anytime-TD score, 0–100 — a rank against the whole league, not a percentage. The boxes below are the components doing the most work in it."
@@ -179,6 +182,8 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
   const { rows, weights, base, games } = useMemo(() => tdPool(data), [data])
   // his place on THIS WEEK'S board, not on the filtered list: the pool is in board order
   const rankOf = useMemo(() => new Map(rows.map((p, i) => [String(p.player_id), i + 1])), [rows])
+  // RANK MOVES (2026-10-10): places moved in the TD board's order since the last update (lib/useRankMove.js). Information only.
+  const rankMv = useRankMove({ sport: 'nfl', board: 'TD', date: slateDay || null, ranks: rankOf, rows: data?.players, idOf: nflRankId })
 
 
   // Same bands as Boards, on the same market this page is fixed to. They cut
@@ -339,11 +344,11 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
       ) : (
         <>
           {view === 'list'
-            ? <NflBoardList players={capped} market={MARKET} rankOf={rankOf} weights={weights} odds={odds} phone={phone} onPlayerClick={openFromBoard} statusOf={statusOf} base={base} pool={rows} watchlist={watchlist} lastNight={cln} tags={drawer.tagsView} />
+            ? <NflBoardList players={capped} market={MARKET} rankOf={rankOf} rankMv={rankMv} weights={weights} odds={odds} phone={phone} onPlayerClick={openFromBoard} statusOf={statusOf} base={base} pool={rows} watchlist={watchlist} lastNight={cln} tags={drawer.tagsView} />
             : <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))' }}>
                 {capped.map((p, i) => (
                   <Card key={p.player_id} p={p} rank={rankOf.get(String(p.player_id)) ?? i + 1} matchup={matchup} odds={odds} status={statusOf ? statusOf(p) : null}
-                        onPlayerClick={openFromBoard} weights={weights} base={base} pool={rows} watchlist={watchlist} />
+                        onPlayerClick={openFromBoard} weights={weights} base={base} pool={rows} watchlist={watchlist} rankMove={rankMv.cell(p.player_id)} />
                 ))}
               </div>}
           {hidden > 0 && (
@@ -351,6 +356,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
               <FilterPill onClick={() => setAll(true)} count={hidden}>Show the rest</FilterPill>
             </div>
           )}
+          <RankMoveNote show={rankMv.any} color={C.text3} />
         </>
       )}
 

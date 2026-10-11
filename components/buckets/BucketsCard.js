@@ -24,7 +24,7 @@ import RankCard from '../card/RankCard'
 const LEG_WORD = { ptsPg: 'Points', rebPg: 'Rebounds', astPg: 'Assists', minPg: 'Minutes', fgaPg: 'Shots', ftaPg: 'Free throws', tpmPg: 'Threes', tpaPg: '3PA', tpPct: '3P%', praPg: 'PRA', fgaShare: 'Shot share', ddRate: 'DD games', ddAdj: 'DD games × opp', ddRecentAdj: 'DD last 10 × opp', tdAdj: 'TD games × opp', ddRecent: 'DD last 10', tdRate: 'TD games', oppPts: 'Opp PTS', oppReb: 'Opp REB', oppAst: 'Opp AST', oppTpm: 'Opp 3PM' }
 const MAIN = { pts: ['ptsPg', 'PTS/G'], reb: ['rebPg', 'REB/G'], ast: ['astPg', 'AST/G'], '3pm': ['tpmPg', '3PM/G'], pra: ['praPg', 'PRA/G'], dd: ['ddRate', 'OF HIS GAMES'], td: ['tdRate', 'OF HIS GAMES'], first: ['fgaShare', 'SHOT SHARE'] }
 
-export function BucketsCard({ r, rank, market = 'pts', onOpen }) {
+export function BucketsCard({ r, rank, market = 'pts', onOpen, rankMove = null }) {
   const M = NBA_MARKETS[market] || NBA_MARKETS.pts
   const called = r.status === 'called'
   const preview = r.locked === false
@@ -36,7 +36,7 @@ export function BucketsCard({ r, rank, market = 'pts', onOpen }) {
     .map((k) => ({ label: String(LEG_WORD[k] || k).toUpperCase(), value: Math.round(r.pct[k]), pct: r.pct[k], title: `${LEG_WORD[k] || k}: ${Math.round(r.pct[k])}th percentile among tonight's players` }))
   return (
     <SportTheme theme={C} accent={C.purple} numFont={NUM_FONT}>
-      <RankCard accent={C.purple} status={r.status} pos={r.pos || ''} rank={rank} sport="nba" club={r.team} name={r.name} opp={r.opp} home={r.home}
+      <RankCard accent={C.purple} status={r.status} rankMove={rankMove} pos={r.pos || ''} rank={rank} sport="nba" club={r.team} name={r.name} opp={r.opp} home={r.home}
         role={called && r.role ? r.role : ''}
         face={<PlayerFace sport="nba" id={r.playerId} name={r.name} variant="tile" size={84} theme={C} />}
         score={Math.round(r.score ?? 0)} scoreWord="BUCKETS" explain={`The ${M.label} board score: his percentile ranks among tonight's players on this board's legs, averaged. A ranking, not a percentage.`}
@@ -62,7 +62,7 @@ export function BucketsCards({ rows, market, onOpen, rankOf = null }) {
   return (
     <div>
       <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))' }}>
-        {shown.map((r, i) => <BucketsCard key={r._id || `${r.gameId}-${r.playerId}`} r={r} rank={rankOf?.(r) ?? i + 1} market={market} onOpen={onOpen} />)}
+        {shown.map((r, i) => <BucketsCard key={r._id || `${r.gameId}-${r.playerId}`} r={r} rank={rankOf?.(r) ?? i + 1} market={market} onOpen={onOpen} rankMove={r.rankMove || null} />)}
       </div>
       {rows.length > shown.length && (
         <button type="button" onClick={() => setAll(true)} style={{ marginTop: 10, minHeight: 44, padding: '0 16px', borderRadius: 999, border: `1px solid ${C.border2}`, background: 'transparent', color: C.purple, font: `800 11px/1 ${NUM_FONT}`, cursor: 'pointer' }}>

@@ -9,6 +9,7 @@ import { useBucketsGame, useBucketsBoard, useBucketsTeamModel } from '../../../l
 import { NBA_MARKETS } from '../../../lib/nba/model'
 import { GAME_ID_RE } from '../../../lib/nba/ids'
 import GameLedgerLine from '../../ledger/GameLedgerLine'
+import GameTotalLine, { useGameTotals } from '../../GameTotalLine'
 import BucketsTable from '../BucketsTable'
 import ShotChart from '../ShotChart'
 import BucketsTeamExpected from '../BucketsTeamExpected'
@@ -28,6 +29,7 @@ export default function Game({ id, onBack, backLabel = 'Live', onOpenPlayer, onO
   const ok = GAME_ID_RE.test(String(id || ''))
   const { data, error, loading } = useBucketsGame(ok ? id : null)
   const [three, setThree] = useState(false)
+  const gameTotals = useGameTotals('nba')   // this game's own Top Totals row (components/GameTotalLine.js)
   const names = useMemo(() => Object.fromEntries((data?.box || []).map((p) => [p.id, p.name])), [data])
   const teams = useMemo(() => (data ? { [data.away.id]: data.away.abbrev, [data.home.id]: data.home.abbrev } : {}), [data])
   if (!id) return <EmptyState title="NO GAME PICKED" note="Open a game from Live or the Slate."><BackBtn onBack={onBack} label={backLabel} /></EmptyState>
@@ -48,6 +50,7 @@ export default function Game({ id, onBack, backLabel = 'Live', onOpenPlayer, onO
         note={<>{live ? <><RimDot />{data.detail}</> : done ? 'Final' : `Tip ${fmtTip(data.date)}`}{data.venue ? ` · ${data.venue}` : ''}</>}
       />
       <DelayedBanner error={error} what="game data" />
+      <GameTotalLine sport="nba" row={gameTotals?.[String(id)]} />
       {periods > 0 && <LineScore teams={[away, home]} periods={periods} qLabel={qLabel} done={done} onOpenTeam={onOpenTeam} />}
       {(fb || fp) && (
         <div style={{ fontSize: 12, color: C.text2, display: 'grid', gap: 4 }}>
