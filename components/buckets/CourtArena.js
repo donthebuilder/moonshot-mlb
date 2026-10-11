@@ -22,7 +22,7 @@ import StadiumShell from '../charts/StadiumShell'
 import StadiumDock from '../charts/stadium/StadiumDock'
 import LowerThird from '../charts/stadium/LowerThird'
 import FilmOverlay from '../charts/stadium/FilmOverlay'
-import HoverReadout, { placeTip } from '../charts/stadium/HoverReadout'
+import HoverReadout, { placeTip, escapeHtml } from '../charts/stadium/HoverReadout'
 import { ChartLegend, ChartEmpty } from '../charts'
 
 const ACCENT = C.purple
@@ -108,7 +108,7 @@ export default function CourtArena({ shots = [], names = {}, title = 'Shot chart
       if (ray.ray.intersectPlane(floor, hit)) pts.forEach((p, i) => { const d = p.distanceTo(hit); if (d < bd) { bd = d; best = i } })
       return { s: best >= 0 ? shots[best] : null, x: e.clientX - r.left, y: e.clientY - r.top, w: r.width }
     }
-    const tip = (s, x, y, w) => placeTip(tipRef.current, s ? `<b style="color:${s.made ? ACCENT : C.text}">${shotWords(s, namesRef.current).replace(/</g, '&lt;')}</b>` : null, x, y, w)
+    const tip = (s, x, y, w) => placeTip(tipRef.current, s ? `<b style="color:${s.made ? ACCENT : C.text}">${escapeHtml(shotWords(s, namesRef.current))}</b>` : null, x, y, w)
     const coarse = isCoarse()
     const onMove = (e) => { if (coarse || down) return; const { s, x, y, w } = shotAt(e); tip(s, x, y, w); renderer.domElement.style.cursor = s ? 'pointer' : '' }
     const onLeave = () => placeTip(tipRef.current, null)

@@ -1,7 +1,7 @@
 'use client'
 import LowerThird from './charts/stadium/LowerThird'
 import FilmOverlay from './charts/stadium/FilmOverlay'
-import HoverReadout from './charts/stadium/HoverReadout'
+import HoverReadout, { escapeHtml } from './charts/stadium/HoverReadout'
 import { createHoverFlight } from './charts/stadium/hoverFlight'
 import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
@@ -793,8 +793,8 @@ export default function SprayFieldStadium({ hits = [], dims, heights, venue = ''
       bits.push(`${i.dist} ft`)
       if (i.apex != null) bits.push(`apex ${i.apex} ft`)
       if (i.hang != null) bits.push(`${i.hang.toFixed(1)}s hang`)
-      tip.innerHTML = `<b style="color:${i.col}">${i.verdict}</b>${i.barrel ? ' <span style="opacity:.85">· barrel</span>' : i.hard ? ' <span style="opacity:.7">· hard-hit</span>' : ''}<br>${bits.join(' · ')}`
-        + (i.pitch || i.date ? `<br><span style="opacity:.7">${[i.pitch, i.date].filter(Boolean).join(' · ')}</span>` : '')
+      tip.innerHTML = `<b style="color:${escapeHtml(i.col)}">${escapeHtml(i.verdict)}</b>${i.barrel ? ' <span style="opacity:.85">· barrel</span>' : i.hard ? ' <span style="opacity:.7">· hard-hit</span>' : ''}<br>${bits.join(' · ')}`
+        + (i.pitch || i.date ? `<br><span style="opacity:.7">${escapeHtml([i.pitch, i.date].filter(Boolean).join(' · '))}</span>` : '')
       tip.style.display = 'block'
       tip.style.left = `${Math.min(e.clientX - rect.left + 14, rect.width - 190)}px`
       tip.style.top = `${Math.max(e.clientY - rect.top - 14, 6)}px`

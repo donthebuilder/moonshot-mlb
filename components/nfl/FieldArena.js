@@ -37,7 +37,7 @@ import StadiumShell from '../charts/StadiumShell'
 import StadiumDock from '../charts/stadium/StadiumDock'
 import LowerThird from '../charts/stadium/LowerThird'
 import FilmOverlay from '../charts/stadium/FilmOverlay'
-import HoverReadout, { placeTip } from '../charts/stadium/HoverReadout'
+import HoverReadout, { placeTip, escapeHtml } from '../charts/stadium/HoverReadout'
 import { ChartLegend, ChartEmpty } from '../charts'
 
 // TheField's depth bands, in air yards (the 2D's BANDS)
@@ -319,7 +319,7 @@ export default function FieldArena({ dots = [], cells = [], spot = null, rz = []
       }
       return { pick, x: e.clientX - rc.left, y: e.clientY - rc.top, w: rc.width }
     }
-    const tip = (pick, x, y, w) => placeTip(tipRef.current, pick ? `<b style="color:${pick.userData.play.res === 'td' ? C.green : C.text}">${pick.userData.play.label || ''}</b>` : null, x, y, w)
+    const tip = (pick, x, y, w) => placeTip(tipRef.current, pick ? `<b style="color:${pick.userData.play.res === 'td' ? C.green : C.text}">${escapeHtml(pick.userData.play.label || '')}</b>` : null, x, y, w)
     let driving = false
     const coarse = isCoarse()
     const onMove = (e) => { if (coarse || driving) return; const { pick, x, y, w } = markAt(e); tip(pick, x, y, w); renderer.domElement.style.cursor = pick ? 'pointer' : '' }
