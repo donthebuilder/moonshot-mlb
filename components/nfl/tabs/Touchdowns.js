@@ -142,7 +142,7 @@ export function Card({ p, rank, matchup, odds, onPlayerClick, weights, base, poo
               background: pinned ? `${C.yellow}22` : 'transparent',
               border: `1px solid ${pinned ? C.yellow + '66' : C.border2}`,
               color: pinned ? C.yellow : C.text3,
-              borderRadius: 8, padding: '6px 9px', fontSize: 14, cursor: 'pointer',
+              borderRadius: 8, padding: '6px 9px', fontSize: 14, cursor: 'pointer', minWidth: 44, minHeight: 44, margin: '-6px 0',   // 44px tap target (2026-10-10)
             }}
           >{pinned ? '★' : '☆'}</button>
           {(odds || quote) && <div style={{ flex: 1, minWidth: 0 }}><OddsLine quote={quote} compact move theme={C} /></div>}
