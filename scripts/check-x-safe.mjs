@@ -180,7 +180,7 @@ const EXPECT = {
   // exempt: live CALLED alerts and the boards
   homer: 'called', td: 'called', nhlgoal: 'called', nba30: 'called', board: 'board', nfl_board: 'board', nhl_board: 'board',
   // slate
-  pregame: 'slate', callofnight: 'slate', thefour: 'slate', nfl_callsheet_reply: 'slate',
+  pregame: 'slate', callofnight: 'slate', thefour: 'slate', nfl_callsheet_reply: 'slate', nhl_slate: 'slate',
   // write-ups and the receipts
   call_12345: 'writeup', writeup: 'writeup', writeup_nfl_401: 'writeup', writeup_nhl_2025: 'writeup', receipt: 'writeup', weekly: 'writeup', monthly: 'writeup', nfl_results: 'writeup', nfl_bigweek: 'writeup',
   // facts

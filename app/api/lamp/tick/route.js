@@ -43,6 +43,7 @@ import { postNhlListOnce } from '../../../../lib/lists/post'
 import { postHardestOnce } from '../../../../lib/nhl/hardestShot'
 import { windowOpen } from '../../../../lib/dash/xSchedule'
 import { runNhlWriteups } from '../../../../lib/writeups/post'
+import { postLampSlateOnce } from '../../../../lib/posts/lampSlate'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -309,6 +310,12 @@ export async function GET(request) {
   }
   if (date === easternToday() && windowOpen({ kind: 'nhl_longshots', legacyHour: 5 })) {   // old: 5pm ET
     out.longshots = await postLongshotsOnce(db, { sport: 'nhl', day: date, kind: 'nhl_longshots' }).catch((e) => `error: ${e?.message}`)
+  }
+  // 🏒 THE LAMP SLATE (2026-10-10, lib/posts/lampSlate.js): the night's top CALLED skaters, once, after the first game's lock is written
+  // and >= 20 min before the first puck it names. Asked only while a game is inside its lock window (the rows are written then); it
+  // reads the board the site reads (cached per change) and does nothing when the slot is taken. NHL_SLATE_OFF=on stops it.
+  if (date === easternToday() && night && night.games.some((g) => g.state === 'pre' && Date.now() < Date.parse(g.startUtc) && Date.parse(g.startUtc) - Date.now() <= LOCK_WINDOW_MS)) {
+    out.lampSlate = await postLampSlateOnce(db, { day: date, load: async () => (await readBoard(date, { market: 'GOAL', net: true })).games }).catch((e) => `error: ${e?.message}`)
   }
   // 📰 STORYLINES (BATCH-STORYLINES-PAGE step 3): freeze each game's stories
   // in the 15 minutes before puck drop (this tick runs every 10), grade them

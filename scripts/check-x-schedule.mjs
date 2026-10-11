@@ -173,10 +173,27 @@ await ok('priority near the budget follows xPolicy: numerology goes first, then 
 })
 await ok('CALLED alerts, boards, receipts and write-ups tied to the game bypass windows, the gap and the budget', () => {
   const full = Array.from({ length: 25 }, (_, i) => ({ kind: `list_${i}`, at: at(DAY, '03:00') }))
-  for (const kind of ['homer', 'td', 'nhlgoal', 'nba30', 'board', 'nfl_board', 'nhl_board', 'receipt', 'nfl_results', 'weekly', 'monthly', 'call_776655', 'writeup_nfl_2026_06_KC_BUF', 'writeup_nhl_x', 'nfl_callsheet_reply', 'pregame']) {
+  for (const kind of ['homer', 'td', 'nhlgoal', 'nba30', 'board', 'nfl_board', 'nhl_board', 'receipt', 'nfl_results', 'weekly', 'monthly', 'call_776655', 'writeup_nfl_2026_06_KC_BUF', 'writeup_nhl_x', 'nfl_callsheet_reply', 'pregame', 'nhl_slate']) {
     const r = mayPostNow({ kind, now: at(DAY, '03:10'), posted: full })
     assert.equal(r.ok, true, kind); assert.match(r.reason, /event-driven/)
   }
+})
+await ok('THE LAMP SLATE (nhl_slate): INFO, event-driven, slate tier, NHL; it can post 45-100 min before a 7pm ET puck AND a 1pm ET matinee (the fixed windows could not)', () => {
+  assert.equal(tagOf('nhl_slate'), 'INFO'); assert.equal(kindInfo('nhl_slate').mode, 'event'); assert.equal(kindInfo('nhl_slate').sport, 'nhl')
+  assert.equal(P.tierOf('nhl_slate'), 'slate'); assert.equal(P.sportOfKind('nhl_slate'), 'nhl'); assert.equal(P.repeatWindowDays('nhl_slate'), 3)
+  assert.ok(!P.isRepeatExempt('nhl_slate') && !P.isCapExempt('nhl_slate'))
+  assert.deepEqual(untagged(), [])
+  // 7:00pm ET puck = 23:00Z = 16:00 Phoenix: 45 and 100 minutes before it are 15:15 and 14:20 Phoenix (the 15-18 window does not allow the slate tier)
+  // 1:00pm ET Saturday matinee = 17:00Z = 10:00 Phoenix: 45 and 100 minutes before are 09:15 and 08:20 Phoenix
+  const sat = '2026-10-17'
+  for (const [day, hhmm] of [[DAY, '15:15'], [DAY, '14:20'], [sat, '09:15'], [sat, '08:20']]) {
+    const r = mayPostNow({ kind: 'nhl_slate', now: at(day, hhmm), posted: [{ kind: 'facts', at: at(day, hhmm) - 60e3 }] })
+    assert.equal(r.ok, true, `${day} ${hhmm}`); assert.match(r.reason, /event-driven/)
+  }
+  assert.equal(S.windowOpen({ kind: 'nhl_slate', now: at(sat, '08:20') }), true)
+  // the same hour is closed to a SCHEDULED slate-tier kind: the reason the LAMP Slate is not scheduled
+  assert.equal(mayPostNow({ kind: 'slate', now: at(DAY, '15:15') }).ok, false)
+  assert.equal(payloadFor('nhl_slate').x_tag, 'INFO')
 })
 await ok('hold and drop: a post that is not due is held with the next window; 30 minutes before its game it is dropped', () => {
   const now = at(DAY, '03:00')
