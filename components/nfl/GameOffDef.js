@@ -17,7 +17,13 @@ import { SOFT_THIN_GAMES } from '../../lib/nfl/dvpSignal'
 // Passing | Running switches the zones; "TB attacking | DAL attacking" flips
 // the direction. No stat here is new: components/nfl/FootballField paints the
 // numbers lib/nfl/gameMatchup.js reads off the matchup file's field grids.
-const MODES = [['attack', 'Attack'], ['defend', 'Defend'], ['overlap', 'Overlap']]
+// THE CARD LOOK (2026-10-10, Donovan: "the chart is bad still, look at our cards we made and update the chart based on that"). The same
+// vocabulary as lib/cards/playerCard.js, at screen size: a thin accent frame, the matchup said in slanted heavy capitals with both club
+// marks, three metric tiles (label / big slanted number / ordinal-style line / thin bar, the accent only on the signal), then the field
+// with ONLY its top zones numbered (the rest stay quiet: a lit zone, no tiny %), then the switches. Same data and same switches' meaning:
+// which club has the ball, passing or running, and the lens. Overlap is the lens it opens on; Attack and Defend are the quiet two.
+const MODES = [['overlap', 'Overlap'], ['attack', 'Attack'], ['defend', 'Defend']]
+const TOP_NUMBERED = 3
 const pct = (v) => `${Math.round(v)}%`
 
 function Seg({ items, value, onChange, label }) {
@@ -86,6 +92,10 @@ export default function GameOffDef({ matchup, players, game }) {
     ].filter(Boolean).join('\n') : z
     cells[z] = { heat, big, pips, arrow, w, title: tip }
   }
+  // only the strongest zones carry their number (the rest are lit, not labelled)
+  const keyOf = (c) => (mode === 'defend' ? c.leak ?? -1 : mode === 'attack' ? c.share ?? -1 : (c.qual ? 1000 : 0) + (c.ov || 0) + (c.share || 0) / 1000)
+  const loud = new Set((gf?.cells || []).filter((c) => keyOf(c) > 0 && cells[c.z]?.big !== '—').sort((a, b) => keyOf(b) - keyOf(a)).slice(0, TOP_NUMBERED).map((c) => c.z))
+  for (const z of zones) if (cells[z]) cells[z] = loud.has(z) ? { ...cells[z], heat: cells[z].heat ?? 0.3 } : { ...cells[z], big: null }
   const pickedKey = mode === 'attack' ? gf?.topShare?.z : mode === 'defend' ? gf?.softest?.z : gf?.ring?.z
   const sentence = fieldSentence({ gf, mode, off, def, pass })
   const legend = {
@@ -97,28 +107,63 @@ export default function GameOffDef({ matchup, players, game }) {
   const early = Number.isFinite(games) && games < SOFT_THIN_GAMES
   const sample = gf?.total ? `${off}: ${gf.total} ${unit}s${Number.isFinite(games) ? ` in ${games} ${games === 1 ? 'game' : 'games'}` : ''}${early ? ' · early' : ''}` : null
   const edge = (t) => <TeamMark sport="nfl" abbr={t} variant="logo" px={24} />
+  const edge2 = (t, px) => <TeamMark sport="nfl" abbr={t} variant="logo" px={px} />
 
+  const offTop = gf?.topShare
+  const soft = gf?.softest
+  const ring = gf?.ring
+  const Tile = ({ label, big, line, pct, hot }) => (
+    <div style={{ flex: '1 1 0', minWidth: 0, padding: '2px 10px', borderLeft: `2px solid ${C.text}1f` }}>
+      <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', color: C.text3, fontFamily: NUM_FONT, whiteSpace: 'nowrap' }}>{label}</div>
+      <div style={{ fontSize: 28, fontWeight: 900, lineHeight: 1.1, fontFamily: NUM_FONT, color: hot ? C.green : C.text, transform: 'skewX(-8deg)', transformOrigin: 'left center' }}>{big}</div>
+      <div aria-hidden="true" style={{ height: 4, borderRadius: 2, background: `${C.text}1a`, margin: '4px 0 3px' }}>{pct != null && <div style={{ width: `${Math.max(4, Math.min(100, pct))}%`, height: 4, borderRadius: 2, background: hot ? C.green : `${C.text}80` }} />}</div>
+      <div style={{ fontSize: 11, lineHeight: 1.3, color: C.text2, minHeight: 28 }}>{line}</div>
+    </div>
+  )
+  const Lens = () => (
+    <div role="group" aria-label="What to show" style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+      <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.08em', color: C.text3, fontFamily: NUM_FONT, marginRight: 4 }}>LENS</span>
+      {MODES.map(([k, text]) => (
+        <button key={k} type="button" aria-pressed={mode === k} onClick={() => setMode(k)}
+          style={{ minHeight: 44, minWidth: 44, padding: '0 12px', border: 0, borderBottom: `3px solid ${mode === k ? C.green : 'transparent'}`, background: 'transparent', cursor: 'pointer', fontFamily: NUM_FONT, fontSize: TYPE.name, fontWeight: 800, color: mode === k ? C.green : C.text2 }}>{text}</button>
+      ))}
+    </div>
+  )
+  const frame = `${C.green}88`
   return (
-    <section aria-label={`${off} offense against ${def} defense`} style={{ marginBottom: 14 }}>
-      <Kicker>OFFENSE VS DEFENSE</Kicker>
-      {/* the answer first: one plain sentence, then the field, then the switches */}
-      <p style={{ margin: '0 0 4px', fontSize: 20, lineHeight: 1.3, fontWeight: 600, color: C.text }}>{sentence.a}{sentence.b && <b style={{ fontWeight: 900, color: C.green }}>{sentence.b}</b>}{sentence.c}</p>
-      {sentence.detail && <p style={{ margin: '0 0 10px', fontSize: 14, lineHeight: 1.45, color: C.text2 }}>{sentence.detail}</p>}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, alignItems: 'flex-start' }}>
-        <div style={{ flex: '1 1 300px', minWidth: 0, maxWidth: 440 }}>
+    <section aria-label={`${off} offense against ${def} defense`} style={{ marginBottom: 14, position: 'relative', overflow: 'hidden', border: `2px solid ${frame}`, borderRadius: 14, background: `radial-gradient(circle at 10% 0%, ${C.green}22 0%, transparent 55%), ${C.bg2}` }}>
+      <div style={{ position: 'absolute', right: -18, top: 34, opacity: 0.1, pointerEvents: 'none' }}>{edge2(off, 120)}</div>
+      <div style={{ position: 'relative', padding: '10px 12px 12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: '.28em', color: C.green, fontFamily: NUM_FONT, whiteSpace: 'nowrap' }}>THE FIELD</span>
+          <span aria-hidden="true" style={{ flex: 1, height: 1, background: `${C.green}55` }} />
+          <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: '.12em', color: C.text2, fontFamily: NUM_FONT }}>{pass ? 'PASSING' : 'RUNNING'}</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '8px 0 2px', flexWrap: 'wrap' }}>
+          {edge(off)}
+          <span style={{ fontSize: 22, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '-.01em', color: C.text, transform: 'skewX(-8deg)' }}>{off} attacking {def}</span>
+        </div>
+        <p style={{ margin: '2px 0 8px', fontSize: 14, lineHeight: 1.4, color: C.text2 }}>{sentence.a}{sentence.b && <b style={{ fontWeight: 900, color: C.green }}>{sentence.b}</b>}{sentence.c}{sentence.detail ? ` ${sentence.detail}` : ''}</p>
+        <div style={{ display: 'flex', margin: '0 -2px 8px' }}>
+          <Tile label={`${off} BUSIEST`} big={offTop?.share != null ? pct(offTop.share) : '—'} pct={offTop?.share != null && gf.maxShare > 0 ? (100 * offTop.share) / gf.maxShare : null} hot={Boolean(ring && offTop && ring.z === offTop.z)} line={offTop?.share != null ? `of ${unit}s: ${offTop.where}` : 'no data yet'} />
+          <Tile label={`${def} LEAK`} big={soft?.leak != null ? fmtPct(soft.leak) : '—'} pct={soft?.leak > 0 ? Math.min(100, (100 * soft.leak) / HEAT_FULL) : null} hot={Boolean(ring && soft && ring.z === soft.z)} line={soft?.leak != null ? `yards a ${unit} vs normal: ${soft.where}` : `too few plays to call`} />
+          <Tile label="OVERLAP" big={ring ? pct(ring.share) : 'NONE'} pct={ring && gf.maxOv > 0 ? Math.min(100, (100 * ring.ov) / gf.maxOv) : null} hot={Boolean(ring)} line={ring ? `ringed: ${ring.where}` : 'no clear spot where both meet'} />
+        </div>
+        <div style={{ maxWidth: 440, margin: '0 auto' }}>
           <BroadcastField mode={pass ? 'pass' : 'rush'} maxWidth={440} hue={mode === 'defend' ? C.text2 : C.green} core={mode === 'overlap'}
             offTeam={off} ringKey={pickedKey ?? null} cells={cells} label={`${off} offense against ${def} defense`} />
         </div>
-        <div style={{ flex: '1 1 240px', minWidth: 0 }}>
-          <div style={{ display: 'grid', gap: 8, marginBottom: 10 }}>
-            <Seg label="Which team has the ball" value={side} onChange={setSide}
-              items={[['away', `${game.away} attacking`, edge(game.away)], ['home', `${game.home} attacking`, edge(game.home)]]} />
-            <Seg label="What to show" value={mode} onChange={setMode} items={MODES} />
-            <Seg label="Passing or running" value={pass ? 'pass' : 'run'} onChange={(k) => setPass(k === 'pass' || !rushable)}
-              items={[['pass', 'Passing'], ['run', 'Running']]} />
+        <p style={{ margin: '6px 0 6px', fontSize: 12, lineHeight: 1.5, color: C.text3 }}>{legend}{sample ? ` ${sample}.` : ''}</p>
+        <div style={{ display: 'grid', gap: 6 }}>
+          <Seg label="Which team has the ball" value={side} onChange={setSide}
+            items={[['away', `${game.away} attacking`, edge(game.away)], ['home', `${game.home} attacking`, edge(game.home)]]} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'space-between' }}>
+            <div style={{ flex: '0 1 220px', minWidth: 190 }}>
+              <Seg label="Passing or running" value={pass ? 'pass' : 'run'} onChange={(k) => setPass(k === 'pass' || !rushable)}
+                items={[['pass', 'Passing'], ['run', 'Running']]} />
+            </div>
+            <Lens />
           </div>
-          <p style={{ margin: '0 0 6px', fontSize: 12, lineHeight: 1.5, color: C.text2 }}>{legend}</p>
-          {sample && <p style={{ margin: 0, fontSize: 12, lineHeight: 1.5, color: C.text3 }}>{sample}</p>}
         </div>
       </div>
     </section>
