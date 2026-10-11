@@ -23,6 +23,7 @@ import { softRole, softLine, passRushThreat, PASS_RUSH_AVOID, STARTER_ROLES } fr
 import TheField from '../TheField'
 import { ordinal } from '../../../lib/format'
 import { gameVenue } from '../../../lib/nfl/venueOf'
+import { roleLabel } from '../../../lib/nfl/roles'
 
 // Matchups -- the defenses to attack this week, then one defense read the
 // way MOONSHOT reads a starter (2026-09-28, Donovan: "the match up page on nfl
@@ -286,7 +287,7 @@ export function PassGame({ matchup, data, off, def, onPlayerClick = null }) {
             return <Row key={t.player_id}
               face={<PlayerFace sport="nfl" espnId={r?.espn_id} team={r?.team || off} name={r?.name || name} size={30} />}
               name={r && onPlayerClick ? <Tap onClick={() => onPlayerClick(r)}>{name}</Tap> : name}
-              meta={<>{t.position || '—'} · {t.share}% tgt{t.adot != null ? ` · ${t.adot} aDOT` : ''} · {t.yds} yds · {t.td} TD</>} />
+              meta={<>{(r ? roleLabel(r) : t.position) || '—'} · {t.share}% tgt{t.adot != null ? ` · ${t.adot} aDOT` : ''} · {t.yds} yds · {t.td} TD</>} />
           })}
         </div>
         <div>

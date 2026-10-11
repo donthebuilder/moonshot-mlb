@@ -12,6 +12,7 @@ import { softRole, softLine } from '../../lib/nfl/dvpSignal'
 import { ordinal } from '../../lib/format'
 import { Kicker } from './GameOffDef'
 import { TD_WORD } from '../../lib/nfl/teamTdModel'
+import { roleLabel } from '../../lib/nfl/roles'
 
 // THE GAME PAGE'S PLAIN SECTIONS (2026-10-06, fix5-nflgame). Donovan on the old
 // page: "the boxes or bubbles with the stats in there are not even big, you can't
@@ -72,7 +73,7 @@ function Pairing({ t, corner, r, onPlayerClick }) {
           <div style={{ fontSize: TYPE.name, fontWeight: 800, lineHeight: 1.2, color: C.text }}>
             {r && onPlayerClick ? <Tap onClick={() => onPlayerClick(r)}>{name}</Tap> : name}
           </div>
-          <div style={{ fontSize: 12, color: C.text2, lineHeight: 1.35 }}>{t.position || '—'} · {t.share}% of targets</div>
+          <div style={{ fontSize: 12, color: C.text2, lineHeight: 1.35 }}>{(r ? roleLabel(r) : t.position) || '—'} · {t.share}% of targets</div>
         </div>
       </div>
       {corner && <span aria-hidden="true" style={{ color: C.text3, fontSize: 12, fontFamily: NUM_FONT }}>vs</span>}
