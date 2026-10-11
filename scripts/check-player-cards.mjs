@@ -126,7 +126,7 @@ check(Math.abs(hrpa.pct - expected) < 1e-9 && hrpa.pct > 60 && hrpa.pct < 90, `M
 check(poolPct(pool, 'hr_per_pa', 0.05, 1000) !== poolPct(pool, 'hr_per_pa', 0.05, 'nobody'), 'the pool leaves out his own old row')
 const thin = buildPool([{ date: '2026-09-01', rows: Array.from({ length: MIN_POOL - 1 }, (_, i) => ({ player_id: i, hr_per_pa: 0.01 * i })) }])
 check(mlbStats(row, thin).every((s) => s.pct == null || s.label === 'X') && mlbStats(row, thin).find((s) => s.label === 'HR / PA').pct === null, `a pool under ${MIN_POOL} hitters draws no bar`)
-check(poolWords(pool).startsWith('60 hitters on the bot') && poolWords(thin) === '', 'the pool is named in words (n and dates); a thin pool says nothing')
+check(poolWords(pool).startsWith('60 hitters on MOONSHOT') && poolWords(thin) === '', 'the pool is named in words (n and dates); a thin pool says nothing')
 check(!stats.some((s) => s.pct != null && s.label === 'SEASON HR'), 'SEASON HR is a count: no bar')
 
 // ── 6. THE NFL BACK shows only the seasons held, and says so ──

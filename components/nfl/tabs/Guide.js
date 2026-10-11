@@ -90,7 +90,7 @@ export default function Guide({ onNavigate, data }) {
         </P>
         <Note>
           <b style={{ color: C.text }}>Quarterbacks and kickers are the exception.</b> Those
-          pools are 32 starters who all have guaranteed volume, so &quot;who plays&quot; is
+          pools are 32 starters who all have steady volume, so &quot;who plays&quot; is
           already settled and environment does the selecting instead. It&apos;s why the
           passing and kicking models are context-led and everything else is volume-led.
         </Note>

@@ -110,7 +110,7 @@ const DEPTH_PHRASE = {
 // A slot is cleared or it isn't — there is no margin in a binary outcome. So
 // the reel ranks by the only size a call carries: how sure you said you were
 // before first pitch. Said out loud in the UI rather than left to be guessed.
-const CONV_WEIGHT = { lock: 3, strong: 2, lean: 1 }
+const CONV_WEIGHT = { firm: 3, lock: 3 /* old saved nights */, strong: 2, lean: 1 }
 const callRank = (c) => (CONV_WEIGHT[c?.c] || 2)
 
 const panel = (accent) => ({
@@ -1392,8 +1392,8 @@ export default function MyPicks({ players = [], results, odds, slateDate, onPlay
                 that any comparison is a coin flip narrating itself. */}
             {(() => {
               const cv = totals.conv || {}
-              const tiers = ['lock', 'strong', 'lean']
-                .map((k) => ({ k, ...cv[k] }))
+              const tiers = ['firm', 'strong', 'lean']
+                .map((k) => ({ k: k === 'firm' ? 'firm call' : k, ...cv[k] }))
                 .filter((t) => (t.n || 0) >= 5)
               if (tiers.length < 2) return null
               const rate = (t) => (100 * t.w) / t.n

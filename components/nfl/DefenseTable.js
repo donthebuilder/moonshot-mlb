@@ -9,7 +9,7 @@ import { DEF_GROUPS, GROUP_WORD, GROUP_COLUMNS, COLUMN_LABEL, sortGroup, leadSta
 // THE DEFENDERS TABLE (2026-10-10, Donovan: "we need to pull defensive stats too for the stat and players").
 // One table, one position group at a time (DL / LB / CB / S, DB where only the generic word is known), each group
 // with the columns that mean something for it: a lineman has sacks and QB hits, a corner has passes defended and
-// interceptions. Rows come from lib/nfl/defStats.js joinDefenders (the bot's table + ESPN box scores + the roster);
+// interceptions. Rows come from lib/nfl/defStats.js joinDefenders (TUDDY's table + ESPN box scores + the roster);
 // the caption says which season and how many games. A column nobody in the group has a number for is not drawn.
 // Tables lead, so the table is the whole section: no card above it. First column sticky; the table scrolls inside its own box.
 const COL_GROUP = {
@@ -58,8 +58,8 @@ export default function DefenseTable({ rows = [], unplaced = 0, source = null, g
   const yr = source?.season
   const note = caption || [
     `${GROUP_WORD[group]}${yr ? `, ${yr}` : ''}${source?.games ? `, ${source.games} ${source.games === 1 ? 'game' : 'games'}` : ''}.`,
-    source?.boxLoaded ? 'Tackles, sacks, hits, passes defended, interceptions and fumble recoveries are ESPN box-score sums over finished games.' : 'ESPN box scores did not load, so these are the bot’s season numbers (men with 4+ games).',
-    source?.botLoaded ? 'Forced fumbles come from the bot’s table.' : 'Forced fumbles are not shown: the bot’s table did not load.',
+    source?.boxLoaded ? 'Tackles, sacks, hits, passes defended, interceptions and fumble recoveries are ESPN box-score sums over finished games.' : 'ESPN box scores did not load, so these are TUDDY’s season numbers (men with 4+ games).',
+    source?.botLoaded ? 'Forced fumbles come from TUDDY’s table.' : 'Forced fumbles are not shown: TUDDY’s table did not load.',
     'Snap counts are not published for defenders, so none are shown.',
     source?.partial ? `${source.missing} finished ${source.missing === 1 ? 'game' : 'games'} could not be read yet, so totals may be short.` : '',
     unplaced ? `${unplaced} ${unplaced === 1 ? 'man' : 'men'} with a box-score line have no position on file and are left out.` : '',

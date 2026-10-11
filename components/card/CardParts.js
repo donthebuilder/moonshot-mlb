@@ -15,11 +15,14 @@ import { useSportTheme } from '../SportTheme'
  *  font down instead of losing letters; the full name rides in the tooltip. */
 export function CardName({ name }) {
   const n = String(name || '')
+  // 2026-10-10 (on "Munetaka Mur…"): a name never ends in an ellipsis now. It takes
+  // the whole line it is given and WRAPS (a third line at most) before it would lose
+  // a letter; the glyphs that used to sit before it moved to the line under it.
   return (
     <span title={name} style={{
-      fontWeight: 900,
-      fontSize: n.length > 18 ? 11.5 : n.length > 14 ? 12.5 : 14,
-      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0,
+      display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 3, overflow: 'hidden',
+      fontWeight: 900, lineHeight: 1.15, minWidth: 0, overflowWrap: 'anywhere',
+      fontSize: n.length > 24 ? 13 : n.length > 18 ? 14 : 15,
     }}>
       {name}
     </span>

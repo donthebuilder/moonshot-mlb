@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
 import { verdictInk } from '../lib/scales'
+import { topByScore, barPct } from '../lib/profileBars'
 
 // 📊 WHAT SEPARATES THE TOP FIFTEEN — the panel that replaced the profile
 // heatmap.
@@ -77,7 +78,10 @@ export default function ProfileBars({
   onRowClick,
   max = 15,
 }) {
-  const shown = useMemo(() => rows.filter((r) => r && Number.isFinite(r.score)).slice(0, max), [rows, max])
+  // the fifteen highest scores, highest first (lib/profileBars.js: the rows used to arrive in board order and read as random)
+  const shown = useMemo(() => topByScore(rows, max), [rows, max])
+  // did sorting by the bar's own value move anyone? (it does on the HR board, whose rows arrive in board order)
+  const reordered = useMemo(() => { const fin = rows.filter((r) => r && Number.isFinite(r.score)); return shown.some((r, i) => fin[i] !== r) }, [rows, shown])
 
   // Baselines come from EVERY row handed in, not just the fifteen drawn. The
   // top fifteen of a board are by construction the wrong sample to ask "what
@@ -112,7 +116,6 @@ export default function ProfileBars({
   const barW = narrow ? Math.max(70, w - nameW - 150) : Math.max(120, Math.round(w * 0.26))
   const good = verdictInk(true).color
   const bad = verdictInk(false).color
-  const top = shown[0].score || 100
 
   const chipsFor = (r) => {
     const scored = inputs.map((f) => {
@@ -135,7 +138,7 @@ export default function ProfileBars({
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
         <b style={{ fontSize: 11.5 }}>{title}</b>
         <span style={{ fontSize: 9, color: C.text3 }}>
-          one shared 0–100 scale, so bar length is comparable · chips name only where he is away from tonight’s middle
+          highest score first · one shared 0–100 scale, so bar length is comparable · chips name only where he is away from tonight’s middle
         </span>
       </div>
 
@@ -147,8 +150,8 @@ export default function ProfileBars({
               key={r.id ?? r.label ?? i}
               onClick={onRowClick ? () => onRowClick(r) : undefined}
               style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                padding: '3px 4px', borderRadius: 6,
+                display: 'flex', alignItems: 'center', gap: 8, flexWrap: narrow ? 'wrap' : 'nowrap',
+                padding: narrow ? '5px 4px' : '3px 4px', borderRadius: 6,
                 cursor: onRowClick ? 'pointer' : 'default',
                 background: i % 2 ? 'transparent' : `${C.border}22`,
               }}
@@ -169,7 +172,7 @@ export default function ProfileBars({
                 background: `${C.border}55`, position: 'relative', overflow: 'hidden',
               }}>
                 <span style={{
-                  position: 'absolute', inset: 0, width: `${Math.max(2, Math.min(100, (r.score / (top || 100)) * 100))}%`,
+                  position: 'absolute', inset: 0, width: `${barPct(r.score)}%`,
                   background: `linear-gradient(90deg, ${C.orange}cc, ${C.orange}66)`,
                   borderRadius: 3,
                 }} />
@@ -178,7 +181,8 @@ export default function ProfileBars({
                 width: 34, flexShrink: 0, fontFamily: NUM_FONT, fontSize: 10,
                 fontWeight: 800, color: C.orange,
               }}>{r.score.toFixed(1)}</span>
-              <span style={{ display: 'flex', gap: 4, flexWrap: 'nowrap', overflow: 'hidden' }}>
+              {/* on a phone the chips take their own line under the bar (they were cut off at the edge, 2026-10-10) */}
+              <span style={{ display: 'flex', gap: 4, flexWrap: narrow ? 'wrap' : 'nowrap', overflow: 'hidden', ...(narrow ? { flexBasis: '100%', paddingLeft: 24 } : null) }}>
                 {chips.length === 0 && (
                   <span style={{ fontSize: 9, color: C.text3, fontStyle: 'italic' }}>
                     nothing away from the middle
@@ -205,7 +209,8 @@ export default function ProfileBars({
       </div>
 
       <div style={{ marginTop: 8, fontSize: 8.5, color: C.text3, lineHeight: 1.55 }}>
-        The bar is {scoreLabel} on one 0–100 scale shared by every row, so a bar twice as long is twice
+        The rows are the {shown.length} highest scores, highest first, numbered in that order.
+        {reordered ? ' The table’s own # is the board order, which also weighs season home runs and exit velocity, so it differs.' : ''} The bar is {scoreLabel} on one 0–100 scale shared by every row, so a bar twice as long is twice
         the score — the grid this replaced scaled every column separately and said so in its own caption.
         The chips are the other {inputs.length} published inputs, not drawn but tested: a chip appears only
         where a hitter sits at least {NOTABLE} robust deviations from the median of the whole ranked pool

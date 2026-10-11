@@ -263,7 +263,7 @@ export default function AlignmentsView({
                     tooltip — it is what the list is ORDERED by, and a list
                     whose ordering is invisible reads as arbitrary. */}
                 {W.scoreShort && Number.isFinite(scoreOf(a)) && <span style={{ color: accent, fontFamily: NUM_FONT, fontSize: 9.5, fontWeight: 900 }}
-                  title={`The bot's 0-100 ${W.scoreShort}. This list is sorted by it.`}>
+                  title={`Our 0-100 ${W.scoreShort}. This list is sorted by it.`}>
                   {' '}{scoreOf(a).toFixed(0)}
                 </span>}
                 <span style={{ color: C.text2, fontFamily: NUM_FONT, fontSize: 9, fontWeight: 900 }}>

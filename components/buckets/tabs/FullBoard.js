@@ -48,7 +48,7 @@ export default function FullBoard({ date, setDate, onOpenPlayer, onOpenTeam, onO
     { key: 'name', label: 'Player', group: 'Player', w: 150, heat: false, bold: true, sticky: true },
     { key: 'pos', label: 'Pos', group: 'Player', w: 36, heat: false, mono: true, dim: true },
     { key: 'team', label: 'Tm', group: 'Player', w: 52, heat: false, mono: true, teamMark: 'nba', link: (r) => (onOpenTeam ? () => onOpenTeam(r.team) : null) },
-    { key: 'oppTxt', label: 'Opp', group: 'Player', w: 52, heat: false, mono: true, dim: true, link: (r) => (onOpenTeam ? () => onOpenTeam(r.opp) : null) },
+    { key: 'oppTxt', label: 'Opp', group: 'Player', w: 52, heat: false, mono: true, dim: true, subOnly: true, link: (r) => (onOpenTeam ? () => onOpenTeam(r.opp) : null) },
     ...KEYS.map((k, i) => ({ key: `s_${k}`, label: NBA_MARKETS[k].label.replace(' BASKET', ''), group: 'Markets (score · status)', w: 74, dp: 0, primary: i === 0, scale: 'seq', domain: [0, 100],
       title: `${NBA_MARKETS[k].label}: the 0-100 score and its status word`,
       fmt: (v, r) => (v == null ? <span style={{ color: C.text3 }}>—</span> : <span style={{ display: 'inline-grid', lineHeight: 1.15 }}><b>{v}</b>{r[`st_${k}`] && r[`st_${k}`] !== 'off' ? <CallStatusBadge status={r[`st_${k}`]} accent={C.purple} short size={8} /> : null}</span>) })),
