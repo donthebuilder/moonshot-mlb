@@ -17,6 +17,7 @@ const KIND = {
   pct1: (v) => (num(v) == null ? '—' : (Number(v) * 100).toFixed(1)),
   pct3: (v) => fmtPct3(v),
   toi: (v) => fmtSec(v),
+  avg3: (v) => (num(v) == null ? '—' : Number(v).toFixed(3).replace(/^0/, '')),
   n1: (v) => (num(v) == null ? '—' : Number(v).toFixed(1)),
   n2: (v) => (num(v) == null ? '—' : Number(v).toFixed(2)),
 }
@@ -31,6 +32,7 @@ export function bindColumns(columns, nav) {
     if (kind && KIND[kind] && !c.fmt) out.fmt = KIND[kind]
     if (signed && !c.fmt) out.fmt = signedFmt(c.dp)
     if (link === 'player' && nav.onOpenPlayer) out.link = (r) => (r[linkKey || 'id'] != null ? () => nav.onOpenPlayer(r[linkKey || 'id']) : null)
+    if (link === 'pitcher' && nav.onOpenPitcher) out.link = (r) => (r[linkKey || 'id'] ? () => nav.onOpenPitcher(r[linkKey || 'id']) : null)
     if (link === 'team' && nav.onOpenTeam) out.link = (r) => (r[linkKey || 'opp'] ? () => nav.onOpenTeam(r[linkKey || 'opp']) : null)
     return out
   })

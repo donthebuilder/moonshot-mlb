@@ -130,7 +130,7 @@ const cardViewOf = (h) => {
   const v = h.get('view')
   return CARD_VIEWS.has(v) ? v : ''
 }
-const NFL_TAB_KEEP = { player: new Set(['players']), team: new Set(['players', 'team']), game: new Set(['games']), lv: new Set(['ledger']), sec: new Set(['team']) }   // sec=: the team page's section (components/team/TeamPage.js); lv=: The Ledger's sub-tab (lib/ledger/views.js)
+const NFL_TAB_KEEP = { player: new Set(['players']), team: new Set(['players', 'team']), game: new Set(['games']), lv: new Set(['ledger']), sec: new Set(['team']), sv: new Set(['team']) }   // sec=: the team page's section (components/team/TeamPage.js); lv=: The Ledger's sub-tab (lib/ledger/views.js)
 
 export default function NflDashboard({ palettePass = 0 }) {
   const [tab, setTabRaw] = useState('home')
