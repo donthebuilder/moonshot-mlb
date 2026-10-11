@@ -230,7 +230,7 @@ export default function NflSlate({ data, picks, matchup, logs = null, odds = nul
 
                 {/* 3. THE FIELD: offense vs defense, then who gets the ball against which corner */}
                 <PanelAnchor id="field" gamePk={g.game_id}>
-                  <GameOffDef key={g.game_id} matchup={matchup} players={players} game={g} />
+                  <GameOffDef key={g.game_id} matchup={matchup} players={players} game={g} onPlayerClick={onPlayerClick} />
                   <KeyPlayers matchup={matchup} data={data} game={g} onPlayerClick={onPlayerClick} onOpenTeam={onOpenTeam} />
                 </PanelAnchor>
 
