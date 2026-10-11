@@ -8,6 +8,7 @@ import { FilterSelect } from '../../Filters'
 import PlayerBoardFrame from '../../players/PlayerBoardFrame'
 import NflPlayerModal from '../NflPlayerModal'
 import { useRosterExtras } from '../../../lib/nfl/useRosterExtras'
+import { roleLabel } from '../../../lib/nfl/roles'
 
 // 🏈 PLAYERS, MOONSHOT'S PAGE (2026-09-30, Donovan: "the mlb players page is
 // the base i like that, use those components"; header refreshed 2026-10-06).
@@ -108,8 +109,8 @@ export default function NflPlayers({ data, logs, matchup, picks, results, odds =
           {p.questionable && <span title="Questionable" style={{ fontSize: 9, marginLeft: 3, color: C.yellow, fontWeight: 900 }}>Q</span>}
         </>)}
         metaOf={(p) => (p.roster_only
-          ? <>{p.team} · {p.position} · {p.roster_status || 'roster'}</>
-          : <>{p.team} {oppLabel(p)} · {p.position}</>)}
+          ? <>{p.team} · {roleLabel(p)} · {p.roster_status || 'roster'}</>
+          : <>{p.team} {oppLabel(p)} · {roleLabel(p)}</>)}
         scoreOf={(p) => bestOf(p)?.[1] ?? null}
         scoreTitle={(p) => { const b = bestOf(p); return b ? `Best market: ${(MARKETS.find(([k]) => k === b[0]) || [])[1] || b[0]} ${b[1].toFixed(1)}` : 'Not scored this week' }}
         asks={asks}

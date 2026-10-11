@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import TeamMark from '../TeamMark'  // the shared club mark (R1: was FRANCHISE's roster badge)
 import { projectPlayer } from './TeamPower'
 import { C } from '../../lib/nfl/theme'
+import { roleLabel } from '../../lib/nfl/roles'
 
 // ══ START / SIT ═══════════════════════════════════════════════════════════════
 //
@@ -32,7 +33,7 @@ function Picker({ players, value, onChange, placeholder }) {
     return (
       <div className="ss-pick">
         <TeamMark sport="nfl" variant="logo" px={22} abbr={value.team} />
-        <b>{value.name}</b><small>{value.team} · {value.position}</small>
+        <b>{value.name}</b><small>{value.team} · {roleLabel(value)}</small>
         <button onClick={() => { onChange(null); setQ('') }} title="Change">✕</button>
       </div>
     )
@@ -42,7 +43,7 @@ function Picker({ players, value, onChange, placeholder }) {
       <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={placeholder} />
       {hits.length > 0 && (
         <div className="ss-hits">
-          {hits.map((p) => <button key={p.player_id} onClick={() => { onChange(p); setQ('') }}><TeamMark sport="nfl" variant="logo" px={18} abbr={p.team} /><b>{p.name}</b><small>{p.team} · {p.position}</small></button>)}
+          {hits.map((p) => <button key={p.player_id} onClick={() => { onChange(p); setQ('') }}><TeamMark sport="nfl" variant="logo" px={18} abbr={p.team} /><b>{p.name}</b><small>{p.team} · {roleLabel(p)}</small></button>)}
         </div>
       )}
     </div>

@@ -18,6 +18,7 @@ import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 import { useResultsArchive } from '../../../lib/nfl/resultsArchive'
 import { milestoneStreaks, modelNarrativeStories, milestoneHeadline, modelHeadline } from '../../../lib/nfl/storylines'
 import { withNflFullSet } from '../../../lib/nfl/boardColumns'
+import { roleLabel } from '../../../lib/nfl/roles'
 
 const HEADLINE_MARKETS = new Set(['TD', 'REC_YDS', 'RUSH_YDS', 'REC', 'PASS_YDS', 'KICK_PTS'])
 
@@ -197,7 +198,7 @@ export default function Games({ data, picks, matchup, logs, results, odds = null
         _raw: p,
         name: p.name,
         team: p.team,
-        position: p.position,
+        position: roleLabel(p),
         opp: g ? (g.away === p.team ? g.home : g.away) : '—',
         state: g ? kickoffLabel(g) : '—',
         td: p.scores?.TD ?? null,

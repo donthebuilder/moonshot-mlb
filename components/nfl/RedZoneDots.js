@@ -10,6 +10,7 @@ import { ChartCard, ChartLegend } from '../charts'
 import { useIsPhone } from '../MobileFold'
 import { playerHref } from '../../lib/routes'
 import NflTable from './NflTable'
+import { roleLabel } from '../../lib/nfl/roles'
 
 // 🔴 EVERY RED-ZONE TOUCH, ON THE FIELD (2026-09-30, Donovan: "make something
 // I can visually understand, football field wise ... I want to be able to see
@@ -67,7 +68,7 @@ export default function RedZoneDots({ data, matchup, team = 'all', onPlayerClick
       if (!touches.length) continue
       const tds = touches.filter((t) => t.td).length
       out.push({
-        pid, _key: pid, name: v.name || p?.name || pid, pos: v.position || p?.position || '', team: p?.team || '',
+        pid, _key: pid, name: v.name || p?.name || pid, pos: p ? roleLabel(p) : (v.position || ''), team: p?.team || '',
         touches, n: touches.length, tds, tdPct: (100 * tds) / touches.length,
         in10: touches.filter((t) => t.yl <= 10).length, in5: touches.filter((t) => t.yl <= 5).length,
         _raw: p || null,

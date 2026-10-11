@@ -14,6 +14,7 @@ import { tdPool } from '../../../lib/nfl/tdPool'
 import { tdStatusFor } from '../../../lib/nfl/tdStatus'
 import { useGameCalls } from '../GameCalls'
 import { STATUS_WORD } from '../../../lib/callStatus'
+import { roleLabel } from '../../../lib/nfl/roles'
 
 // 🏈 TUDDY'S TEAM PAGE (2026-10-03, Donovan: "research teams and see their
 // stats just like the same way you would do a player"). A tapped club used to
@@ -62,7 +63,7 @@ export default function Team({ data, picks = null, onOpenPlayer, onOpenGame }) {
   useEffect(() => { let alive = true; fetchNflStandings().then((d) => { if (alive) setSt(d) }).catch(() => {}); return () => { alive = false } }, [])
 
   const rows = useMemo(() => (data?.players || []).filter((p) => p.team === code && !p.on_bye)
-    .map((p) => ({ ...p, _raw: p, _id: p.player_id, td: p.scores?.TD ?? null, recyds: p.scores?.REC_YDS ?? null, rec: p.scores?.REC ?? null, rushyds: p.scores?.RUSH_YDS ?? null, rushatt: p.scores?.RUSH_ATT ?? null, passyds: p.scores?.PASS_YDS ?? null, xtd: p.stats?.xTD ?? null, rz: p.stats?.RZ ?? null }))
+    .map((p) => ({ ...p, _raw: p, _id: p.player_id, td: p.scores?.TD ?? null, recyds: p.scores?.REC_YDS ?? null, rec: p.scores?.REC ?? null, rushyds: p.scores?.RUSH_YDS ?? null, rushatt: p.scores?.RUSH_ATT ?? null, passyds: p.scores?.PASS_YDS ?? null, xtd: p.stats?.xTD ?? null, rz: p.stats?.RZ ?? null, position: roleLabel(p) }))
     .sort((a, b) => (b.td ?? -1) - (a.td ?? -1)), [data, code])
   if (!code) return <Empty title="NO CLUB PICKED" note="Tap a club's logo anywhere on TUDDY — a board, a game, standings — to open its page." />
   if (!NAME[code]) return <Empty title="NO SUCH CLUB" note={`"${code}" isn't one of the 32 NFL clubs.`} />

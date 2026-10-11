@@ -8,6 +8,7 @@ import RunLineField from './RunLineField'
 import CoverageShellField from './CoverageShellField'
 import { LANES, LANE_WORD } from '../../lib/nfl/fieldModel'
 import { SHELL_SHAPE } from './CoverageShellField'
+import { roleLabel } from '../../lib/nfl/roles'
 
 // 🔍 THE LEAGUE, BY COVERAGE AND BY HOLE (2026-09-30, Donovan: "I want to be
 // able to filter teams' coverages, then see who fits best ... who across the
@@ -64,7 +65,7 @@ function Coverage({ matchup, byId, onPlayerClick, season }) {
       if (!p || !s || (s.tgts || 0) < MIN_TGT) return null
       const faces = p.opp ? oppShare(p.opp) : null
       return {
-        _key: pid, _raw: p, player_id: pid, espn_id: p.espn_id, name: p.name, position: p.position, team: p.team, opp: p.opp || '',
+        _key: pid, _raw: p, player_id: pid, espn_id: p.espn_id, name: p.name, position: roleLabel(p), team: p.team, opp: p.opp || '',
         tgts: s.tgts, ypt: s.ypt, catch: s.catch_pct, td: s.td, rz: s.rz_tgts, faces,
         fit: faces != null && s.ypt != null ? s.ypt * (faces / 100) : null,
       }

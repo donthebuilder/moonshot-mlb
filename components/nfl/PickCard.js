@@ -5,6 +5,7 @@ import MatchupBadge from './MatchupBadge'
 import { reasonFor, topStatChips } from './ScoreAnatomy'
 import { injuryTag, injuryTitle, injuryColor } from '../../lib/nfl/injury'
 import MarketStat from './MarketStat'
+import { roleLabel } from '../../lib/nfl/roles'
 
 // ── THE PICK CARD (2026-09-25) ───────────────────────────────────────────────
 //
@@ -165,7 +166,7 @@ export default function PickCard({
         }}>
           <div style={{ fontSize: TYPE.name, fontWeight: 800, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p?.name}</div>
           <div style={{ fontSize: TYPE.micro, color: C.text3, fontFamily: NUM_FONT, display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
-            <span>{p?.position} · {p?.team}{p?.opp ? ` vs ${p.opp}` : ''}</span>
+            <span>{roleLabel(p)} · {p?.team}{p?.opp ? ` vs ${p.opp}` : ''}</span>
             <MatchupBadge matchup={matchup} player={p} market={market} />
             {p?.high_confidence_td_flag && market === 'TD' && (
               <span title="High-confidence: a TD score of 78 or better, the A+ band" style={{ color: C.green, fontWeight: 900 }}>A+</span>

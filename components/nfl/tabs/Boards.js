@@ -20,6 +20,7 @@ import { matchupTag } from '../../../lib/nfl/dvpSignal'
 import DashChip, { useDashLines, DASH_OF } from '../DashChip'
 import MarketStat from '../MarketStat'
 import { useNowTick } from '../../../lib/useNowTick'
+import { roleLabel, roleOptions, roleMatches } from '../../../lib/nfl/roles'
 
 // Same soft cap Touchdowns.js uses, so the two boards cut at the same depth.
 const SOFT_CAP = 60
@@ -133,6 +134,7 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
   const query = top?.query || ''
   const team = top?.team || 'all'
   const [position, setPosition] = useState('all')
+  const [role, setRole] = useState('all')   // WR1 / RB2 / ... off the bot's depth chart (lib/nfl/roles.js)
   const [sortBy, setSortBy] = useState('score')
   // THE SAME RESEARCH BAR AS TOUCHDOWNS (2026-09-18). Donovan, on both
   // products side by side: "there should be zero difference." This board had
@@ -190,6 +192,7 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
       if (!showLow && p.low_sample) return false
       if (team !== 'all' && p.team !== team) return false
       if (position !== 'all' && p.position !== position) return false
+      if (role !== 'all' && !roleMatches(p, role)) return false
       if (needle && !String(p.name || '').toLowerCase().includes(needle)) return false
       if (onlyWatched && !watchlist.isPinned(p.player_id)) return false
       if (onlyPriced) {
@@ -219,7 +222,7 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
     // nothing on screen saying so; it now caps at SOFT_CAP with a "showing X
     // of Y" line and a Show-the-rest pill, exactly as Touchdowns does.
     return kept.sort(cmp)
-  }, [bandFiltered, drawer, angle, angles, data, market, showLow, query, team, position, sortBy, odds,
+  }, [bandFiltered, drawer, angle, angles, data, market, showLow, query, team, position, role, sortBy, odds,
       onlyPriced, onlyUpcoming, onlyWatched, watchlist, now])
 
   // his place on this market's board (low samples are left off it), not on the filtered list
@@ -237,6 +240,7 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
     const teams = countBy('team')
     const positions = countBy('position')
     return {
+      roles: roleOptions(eligible),
       teams: [{ key: 'all', label: 'All teams', count: eligible.length }, ...Object.keys(teams).sort().map((key) => ({ key, label: key, count: teams[key] }))],
       positions: [{ key: 'all', label: 'All positions', count: eligible.length }, ...Object.keys(positions).sort().map((key) => ({ key, label: key, count: positions[key] }))],
     }
@@ -259,6 +263,7 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
     ...drawer.chips,
     angle ? { key: 'angle', label: angles.find((x) => x.key === angle)?.label || angle, onClear: () => setAngle(null) } : null,
     position !== 'all' ? { key: 'pos', label: position, onClear: () => setPosition('all') } : null,
+    role !== 'all' ? { key: 'role', label: role === 'SLOT' ? 'Slot' : role, onClear: () => setRole('all') } : null,
     onlyPriced ? { key: 'priced', label: 'Priced', onClear: () => setOnlyPriced(false) } : null,
     onlyUpcoming ? { key: 'upcoming', label: 'Not kicked off', onClear: () => setOnlyUpcoming(false) } : null,
     onlyWatched ? { key: 'watch', label: 'Watchlist', onClear: () => setOnlyWatched(false) } : null,
@@ -266,18 +271,21 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
   ].filter(Boolean)
   const clearAllFilters = () => {
     bandState.reset()
-    setPosition('all'); setAngle(null); drawer.reset(); setSortBy('score')
+    setPosition('all'); setRole('all'); setAngle(null); drawer.reset(); setSortBy('score')
     setOnlyPriced(false); setOnlyUpcoming(false); setOnlyWatched(false); setShowLow(false)
   }
 
   // Position, the Only toggles and the sort live in the Filters drawer now
   // (MOONSHOT keeps its board chrome to one Filters button and a pool pill).
-  const drawerExtraCount = drawer.activeCount + (position !== 'all') + onlyPriced + onlyUpcoming + onlyWatched + showLow + (sortBy !== 'score')
+  const drawerExtraCount = drawer.activeCount + (position !== 'all') + (role !== 'all') + onlyPriced + onlyUpcoming + onlyWatched + showLow + (sortBy !== 'score')
   const drawerExtra = (
     <>
       <DrawerPills label="Position">
         {filterOptions.positions.map((o) => <FilterPill key={o.key} active={position === o.key} count={o.count} onClick={() => { setPosition(o.key); setAll(false) }}>{o.key === 'all' ? 'All' : o.label}</FilterPill>)}
       </DrawerPills>
+      {filterOptions.roles.length > 0 && <DrawerPills label="Role">
+        {filterOptions.roles.map((o) => <FilterPill key={o.key} active={role === o.key} count={o.count} onClick={() => { setRole(role === o.key ? 'all' : o.key); setAll(false) }} title={o.key === 'SLOT' ? 'Receivers whose published slot share is 50% or more of his snaps.' : 'Where the bot\u2019s depth chart puts him this week. A label, not a forecast.'}>{o.label}</FilterPill>)}
+      </DrawerPills>}
       <DrawerPills label="Only">
         <FilterPill active={onlyPriced} onClick={() => { setOnlyPriced(!onlyPriced); setAll(false) }} title="The book has posted a number on this market for this player.">💵 Priced</FilterPill>
         <FilterPill active={onlyUpcoming} onClick={() => { setOnlyUpcoming(!onlyUpcoming); setAll(false) }} title="His game has not kicked off yet.">⏱ Not kicked off</FilterPill>
@@ -294,7 +302,7 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
       {drawer.section}
     </>
   )
-  const extraReset = () => { drawer.reset(); setPosition('all'); setOnlyPriced(false); setOnlyUpcoming(false); setOnlyWatched(false); setShowLow(false); setSortBy('score') }
+  const extraReset = () => { drawer.reset(); setPosition('all'); setRole('all'); setOnlyPriced(false); setOnlyUpcoming(false); setOnlyWatched(false); setShowLow(false); setSortBy('score') }
 
   return (
     <div>
@@ -382,7 +390,7 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
                     display: 'flex', alignItems: 'center', gap: 5,
                   }}>
                     <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {p.position} · {p.team} {p.opp ? `vs ${p.opp}` : ''}
+                      {roleLabel(p)} · {p.team} {p.opp ? `vs ${p.opp}` : ''}
                     </span>
                     <MatchupBadge matchup={matchup} player={p} market={market} />
                   </div>

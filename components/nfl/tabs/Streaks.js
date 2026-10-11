@@ -15,6 +15,7 @@ import { RunLeaderCard, RunBoardRow, runChip, RunHistogram } from '../../runs/Ru
 import { SportTheme } from '../../SportTheme'
 import { readRun } from '../../../lib/runs'
 import { useIsPhone } from '../../MobileFold'
+import { roleLabel } from '../../../lib/nfl/roles'
 
 const REASON_WORD = { rising: 'usage rising', bot: 'TUDDY rates him' }
 const REASON_TITLE = (r) => `Below the volume floor (${r.usage.recent.toFixed(1)} a game over his last 8, floor ${r.usage.floor}) but on the board because: ${r.reasons.map((x) => REASON_WORD[x]).join(', ')}.`
@@ -156,7 +157,7 @@ export default function Streaks({ data, logs, onPlayerClick }) {
                 const g = gradeFor(score)
                 return (
                   <RunLeaderCard key={x.player.player_id} r={x.run} name={x.player.name} label={label}
-                    kicker={<>{x.player.team}{x.player.opp ? ` vs ${x.player.opp}` : ''} · {x.player.position} · {label}</>}
+                    kicker={<>{x.player.team}{x.player.opp ? ` vs ${x.player.opp}` : ''} · {roleLabel(x.player)} · {label}</>}
                     onClick={() => onPlayerClick?.(x.player, market.key)}>
                     <div style={{ fontFamily: NUM_FONT, fontSize: TYPE.micro, color: C.text3, marginTop: 3 }}>
                       {Number.isFinite(score) ? <>score <b style={{ color: g.color }}>{Math.round(score)}</b> this week</> : 'not scored this week'}
@@ -171,7 +172,7 @@ export default function Streaks({ data, logs, onPlayerClick }) {
               <div style={{ display: 'grid', gap: 4, gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 330px), 1fr))' }}>
                 {shown.map((x) => (
                   <RunBoardRow key={x.player.player_id} r={x.run} name={x.player.name} label={label}
-                    team={<>{x.player.team} · {x.player.position}{x.questionable ? ' · Q' : ''}{why(x) ? <span title={REASON_TITLE(x)} style={{ color: C.green }}> · {why(x)}</span> : null}</>}
+                    team={<>{x.player.team} · {roleLabel(x.player)}{x.questionable ? ' · Q' : ''}{why(x) ? <span title={REASON_TITLE(x)} style={{ color: C.green }}> · {why(x)}</span> : null}</>}
                     open={openRow === x.player.player_id}
                     onToggle={() => setOpenRow(openRow === x.player.player_id ? null : x.player.player_id)}
                     onOpenCard={() => onPlayerClick?.(x.player, market.key)} />

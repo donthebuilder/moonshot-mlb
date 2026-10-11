@@ -5,6 +5,7 @@ import { C, NUM_FONT, gradeFor } from '../../lib/nfl/theme'
 import { quoteFor, fmtOdds } from '../../lib/nfl/oddsMatch'
 import { matchupTag, alignedSignals } from '../../lib/nfl/dvpSignal'
 import { injuryTag } from '../../lib/nfl/injury'
+import { roleLabel } from '../../lib/nfl/roles'
 
 // ══ ⚖️ COMPARE TWO PLAYERS — TUDDY's half of MOONSHOT's PickCompare ══════════
 //
@@ -67,7 +68,7 @@ export default function TdCompare({ rows = [], matchup, odds, onPlayerClick }) {
   return (
     <CompareTwo
       players={rows} nameOf={(p) => p.name || ''} teamOf={(p) => p.team || ''}
-      metaSel={(p) => `${p.team} vs ${p.opp}`} metaHit={(p) => `${p.team} vs ${p.opp} · ${p.position}`}
+      metaSel={(p) => `${p.team} vs ${p.opp}`} metaHit={(p) => `${p.team} vs ${p.opp} · ${roleLabel(p)}`}
       rows={rowDefs} signals={signals} quoteOf={(p) => quoteFor(odds, p, 'TD')}
       verdictFor={verdictFor} onPlayerClick={onPlayerClick ? (p) => onPlayerClick(p, 'TD') : null}
       title="⚖️ Compare two players" sub="the things that differ between two TD picks, side by side, and a verdict that says why"

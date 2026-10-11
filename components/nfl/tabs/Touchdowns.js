@@ -81,6 +81,7 @@ import { tdPool } from '../../../lib/nfl/tdPool'
 export { tdPool }
 import { useNowTick } from '../../../lib/useNowTick'
 import { explain } from '../../../lib/explain'
+import { roleLabel, roleOptions, roleMatches } from '../../../lib/nfl/roles'
 
 // Exported (2026-09-28) for the Slate's Picks section -- the same card, not a copy.
 // MOONSHOT'S CARD FRAME (2026-09-29, parity plan E; components/PlayerCard.js
@@ -125,7 +126,7 @@ export function Card({ p, rank, matchup, odds, onPlayerClick, weights, base, poo
               <CardName name={p.name} />
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap', fontSize: 10, color: C.text3, fontFamily: NUM_FONT }}>
-              <span>{p.position} · {p.team} vs {p.opp}</span>
+              <span>{roleLabel(p)} · {p.team} vs {p.opp}</span>
               <MatchupBadge matchup={matchup} player={p} market={MARKET} />
               {tag && <TapNote label={tag} text={injuryTitle(tag)} style={{ color: injuryColor(tag, C), fontWeight: 900 }}>{tag}</TapNote>}
             </div>
@@ -169,6 +170,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
   const query = top?.query || ''
   const team = top?.team || 'all'
   const [position, setPosition] = useState('all')
+  const [role, setRole] = useState('all')   // WR1 / RB2 / ... off the bot's depth chart (lib/nfl/roles.js)
   const [onlyPriced, setOnlyPriced] = useState(false)
   const [onlyUpcoming, setOnlyUpcoming] = useState(false)
   const [onlyWatched, setOnlyWatched] = useState(false)
@@ -188,6 +190,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
   // his place on THIS WEEK'S board, not on the filtered list: the pool is in board order
   const rankOf = useMemo(() => new Map(rows.map((p, i) => [String(p.player_id), i + 1])), [rows])
 
+  const roleOpts = useMemo(() => roleOptions(rows), [rows])
   const positionOptions = useMemo(() => {
     const counts = {}
     for (const p of rows) counts[p.position] = (counts[p.position] || 0) + 1
@@ -222,6 +225,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
     ...bandState.activeFilters,
     ...drawer.chips,
     position !== 'all' ? { key: 'pos', label: position, onClear: () => setPosition('all') } : null,
+    role !== 'all' ? { key: 'role', label: role === 'SLOT' ? 'Slot' : role, onClear: () => setRole('all') } : null,
     angle ? { key: 'angle', label: angles.find((x) => x.key === angle)?.label || angle, onClear: () => setAngle(null) } : null,
     onlyPriced ? { key: 'priced', label: 'Priced', onClear: () => setOnlyPriced(false) } : null,
     onlyUpcoming ? { key: 'upcoming', label: 'Not kicked off', onClear: () => setOnlyUpcoming(false) } : null,
@@ -231,7 +235,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
   const clearTdFilters = () => {
     cln.setMode('')
     bandState.reset()
-    setPosition('all'); setAngle(null); drawer.reset(); setSortBy('score')
+    setPosition('all'); setRole('all'); setAngle(null); drawer.reset(); setSortBy('score')
     setOnlyPriced(false); setOnlyUpcoming(false); setOnlyWatched(false)
   }
 
@@ -240,6 +244,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
     let out = bandFiltered.filter(drawer.test)
     if (cln.on) out = out.filter((p) => cln.test(p.player_id))
     if (position !== 'all') out = out.filter((p) => p.position === position)
+    if (role !== 'all') out = out.filter((p) => roleMatches(p, role))
     if (team !== 'all') out = out.filter((p) => p.team === team)
     if (needle) out = out.filter((p) => String(p.name || '').toLowerCase().includes(needle))
     if (angle) { const d = angles.find((x) => x.key === angle); if (d) out = out.filter(d.test) }
@@ -267,7 +272,7 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
         }
         : (a, b) => (b.scores[MARKET] ?? 0) - (a.scores[MARKET] ?? 0)
     return [...out].sort(cmp)
-  }, [bandFiltered, drawer, rows, query, position, team, angle, angles, onlyWatched, onlyUpcoming, onlyPriced, sortBy, matchup, watchlist, odds, data, now, cln])
+  }, [bandFiltered, drawer, rows, query, position, role, team, angle, angles, onlyWatched, onlyUpcoming, onlyPriced, sortBy, matchup, watchlist, odds, data, now, cln])
 
   const capped = all ? filtered : filtered.slice(0, SOFT_CAP)
   // The card's ‹ › walk THIS list -- your filters, in this order (NflDashboard's
@@ -283,12 +288,15 @@ export default function Touchdowns({ data, matchup, odds, onPlayerClick, oddsSta
 
   // Position, the Only toggles and the sort live in the Filters drawer now
   // (MOONSHOT keeps its board chrome to one Filters button and a pool pill).
-  const drawerExtraCount = drawer.activeCount + (position !== 'all') + onlyPriced + onlyUpcoming + onlyWatched + (sortBy !== 'score') + (cln.on ? 1 : 0)
+  const drawerExtraCount = drawer.activeCount + (position !== 'all') + (role !== 'all') + onlyPriced + onlyUpcoming + onlyWatched + (sortBy !== 'score') + (cln.on ? 1 : 0)
   const drawerExtra = (
     <>
       <DrawerPills label="Position">
         {positionOptions.map((o) => <FilterPill key={o.key} active={position === o.key} count={o.count} onClick={() => { setPosition(o.key); setAll(false) }}>{o.key === 'all' ? 'All' : o.label}</FilterPill>)}
       </DrawerPills>
+      {roleOpts.length > 0 && <DrawerPills label="Role">
+        {roleOpts.map((o) => <FilterPill key={o.key} active={role === o.key} count={o.count} onClick={() => { setRole(role === o.key ? 'all' : o.key); setAll(false) }} title={o.key === 'SLOT' ? 'Receivers whose published slot share is 50% or more of his snaps.' : 'Where the bot\u2019s depth chart puts him this week. A label, not a forecast.'}>{o.label}</FilterPill>)}
+      </DrawerPills>}
       <DrawerPills label="Only">
         <FilterPill active={onlyPriced} onClick={() => { setOnlyPriced(!onlyPriced); setAll(false) }} title="The book has posted a number on this player's anytime-TD line.">💵 Priced</FilterPill>
         <FilterPill active={onlyUpcoming} onClick={() => { setOnlyUpcoming(!onlyUpcoming); setAll(false) }} title="His game has not kicked off yet.">⏱ Not kicked off</FilterPill>

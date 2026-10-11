@@ -23,6 +23,7 @@ import { injuryTag } from '../../lib/nfl/injury'
 import { useWhySheet, whyColumn } from '../WhySheet'
 import CallStatusBadge from '../CallStatusBadge'
 import { lastNightColumn } from '../CalledLastNight'
+import { roleLabel } from '../../lib/nfl/roles'
 
 // TUDDY BOARD EXTRAS (2026-09-27, board filters plan): the pieces MOONSHOT's
 // board has that TUDDY's two boards (Touchdowns.js for TD, Boards.js for the
@@ -105,7 +106,7 @@ export function NflBoardList({ players, market, weights, odds, phone, onPlayerCl
     const q = odds ? quoteFor(odds, p, market) : null
     return {
       _id: p.player_id, _p: p, rank: rankOf ? (rankOf.get(String(p.player_id)) ?? null) : i + 1,   // the stored board place, not the place in this filtered list
-      name: p.name, pos: p.position,
+      name: p.name, pos: roleLabel(p),
       team: p.team || null, opp: p.opp || null,
       score: Math.round(p.scores[market]), grade: gradeFor(p.scores[market]).label,
       price: q && q.over != null && q.matches !== false ? Number(q.over) : null,

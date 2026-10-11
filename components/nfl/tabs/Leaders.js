@@ -11,6 +11,7 @@ import NflTable from '../NflTable'
 import { withNflFullSet } from '../../../lib/nfl/boardColumns'
 import { SportTheme } from '../../SportTheme'
 import { LeadersIntro, LeadersFilterBar, LeadersLead } from '../../leaders/LeadersParts'
+import { roleLabel } from '../../../lib/nfl/roles'
 
 // 🏆 LEADERS — who is actually first, per category.
 //
@@ -166,7 +167,7 @@ export default function Leaders({ data, onPlayerClick }) {
   ], [cards])
 
   const all = useMemo(() => pool.map((p) => {
-    const row = { _key: p.player_id, _raw: p, name: p.name, team: p.team, opp: p.opp || '', pos: p.position }
+    const row = { _key: p.player_id, _raw: p, name: p.name, team: p.team, opp: p.opp || '', pos: roleLabel(p) }
     for (const { col } of cards) {
       const v = Number(p?.stats?.[col.key])
       row[col.key] = Number.isFinite(v) ? (col.pct ? v * 100 : v) : null

@@ -5,6 +5,7 @@ import { C, NUM_FONT, MARKETS, TYPE } from '../../../lib/nfl/theme'
 import NflTable from '../NflTable'
 import PairHistV2Table from '../../PairHistV2Table'
 import { SportTheme } from '../../SportTheme'
+import { roleLabel } from '../../../lib/nfl/roles'
 
 // 🤝 PAIRS — two props from the same slate, sold as one. The NFL sibling of
 // the MLB side's PairBoard/PairMe/PairBuilder/PairTray (components/Pair*.js),
@@ -166,7 +167,7 @@ function buildSamePlayerRows(players, bars, results) {
         _player: p,
         _market: t.a,
         name: p.name,
-        position: p.position,
+        position: roleLabel(p),
         team: p.team,
         opp: p.opp ? `vs ${p.opp}` : '',
         pairLabel: t.label,
