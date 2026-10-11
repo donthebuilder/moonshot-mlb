@@ -18,7 +18,7 @@ const KEYS = Object.keys(NBA_MARKETS)
 
 // `embedded`: drawn inside the Rankings page (Board.js, the ALL MARKETS pill), which owns the header and the day.
 // `keep`: the Rankings page's search / team / game filters, as a predicate on a row
-export default function FullBoard({ date, setDate, onOpenPlayer, onOpenTeam, onOpenGame, embedded = false, keep = null }) {
+export default function FullBoard({ date, setDate, onOpenPlayer, onOpenTeam, onOpenGame, embedded = false, keep = null, empty = null }) {
   const pts = useBucketsBoard(date, 'pts'), reb = useBucketsBoard(date, 'reb'), ast = useBucketsBoard(date, 'ast')
   const tpm = useBucketsBoard(date, '3pm'), pra = useBucketsBoard(date, 'pra'), first = useBucketsBoard(date, 'first')
   const dd = useBucketsBoard(date, 'dd'), td = useBucketsBoard(date, 'td')
@@ -66,6 +66,7 @@ export default function FullBoard({ date, setDate, onOpenPlayer, onOpenTeam, onO
       <DelayedBanner error={pts.error} what="the board" />
       {loading ? <Loading what="every market’s board" /> : null}
       {data && !games.length && <EmptyState title="NO GAMES THAT DAY" note="Nothing to rank. Try another day." />}
+      {rows.length === 0 && !loading && games.length > 0 && empty}
       {rows.length > 0 && (
         <BucketsTable rows={rows} columns={columns} onRowClick={(r) => onOpenPlayer?.((r?._raw ?? r).playerId)} faceOf={faceOf}
           initialSort={{ key: 's_pts', dir: 'desc' }} heatMode="sorted" maxHeight={620} maxRows={Math.max(rows.length, 1)}

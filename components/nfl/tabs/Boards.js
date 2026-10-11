@@ -9,7 +9,8 @@ import OddsStatus from '../../OddsStatus'
 import PlayerFace from '../../PlayerFace'
 import MatchupBadge from '../MatchupBadge'
 import NflExplain from '../NflExplain'
-import { ActiveFilters, FilterBar, FilterPill, PillRow } from '../../Filters'
+import { ActiveFilters, FilterBar, FilterPill, PillRow, PositionNote, PositionEmpty } from '../../Filters'
+import usePositionFilter from '../../../lib/usePositionFilter'
 import { injuryTag, injuryTitle, injuryColor } from '../../../lib/nfl/injury'
 import { useNflWatchlist } from '../../../lib/nfl/watchlist'
 import { baselineFor, topStatChips } from '../ScoreAnatomy'
@@ -20,7 +21,7 @@ import { matchupTag } from '../../../lib/nfl/dvpSignal'
 import DashChip, { useDashLines, DASH_OF } from '../DashChip'
 import MarketStat from '../MarketStat'
 import { useNowTick } from '../../../lib/useNowTick'
-import { roleLabel, roleOptions, roleMatches } from '../../../lib/nfl/roles'
+import { roleLabel, roleKeys, ROLE_PILLS } from '../../../lib/nfl/roles'
 
 // Same soft cap Touchdowns.js uses, so the two boards cut at the same depth.
 const SOFT_CAP = 60
@@ -133,8 +134,6 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
   // Search, team and game come from the hub's top bar (2026-09-27).
   const query = top?.query || ''
   const team = top?.team || 'all'
-  const [position, setPosition] = useState('all')
-  const [role, setRole] = useState('all')   // WR1 / RB2 / ... off the bot's depth chart (lib/nfl/roles.js)
   const [sortBy, setSortBy] = useState('score')
   // THE SAME RESEARCH BAR AS TOUCHDOWNS (2026-09-18). Donovan, on both
   // products side by side: "there should be zero difference." This board had
@@ -184,15 +183,14 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
   const angles = useMemo(() => angleDefs({ matchup, logs, market, matchupTag, week: data ? { season: data.season, week: data.week } : null }), [matchup, logs, market, data?.season, data?.week])
   const drawer = useNflDrawerFilters(marketPool, data?.games, market, { game: top?.game || '', matchup, season: data?.season })   // TUDDY 3 + 4
 
-  const rows = useMemo(() => {
+  // everything EXCEPT the position / role pills: the numbers on those pills are what tapping one alone would show
+  const beforePos = useMemo(() => {
     const angleTest = angle ? angles.find((x) => x.key === angle)?.test : null
     const pool = (angleTest ? bandFiltered.filter(angleTest) : bandFiltered).filter(drawer.test)
     const needle = query.trim().toLowerCase()
     const kept = pool.filter((p) => {
       if (!showLow && p.low_sample) return false
       if (team !== 'all' && p.team !== team) return false
-      if (position !== 'all' && p.position !== position) return false
-      if (role !== 'all' && !roleMatches(p, role)) return false
       if (needle && !String(p.name || '').toLowerCase().includes(needle)) return false
       if (onlyWatched && !watchlist.isPinned(p.player_id)) return false
       if (onlyPriced) {
@@ -205,6 +203,12 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
       }
       return true
     })
+    return kept
+  }, [bandFiltered, drawer, angle, angles, data, market, showLow, query, team, odds, onlyPriced, onlyUpcoming, onlyWatched, watchlist, now])
+  // POSITION (2026-10-10): the shared multi-select row (lib/positions.js), pos= in the address; roles share the row
+  const pf = usePositionFilter('nfl', marketPool, { posOf: (p) => p.position, extraOf: roleKeys, extraOrder: ROLE_PILLS, countRows: beforePos })
+  const rows = useMemo(() => {
+    const kept = beforePos.filter(pf.test)
     const cmp = sortBy === 'price'
       ? (a, b) => {
         const qa = quoteFor(odds, a, market), qb = quoteFor(odds, b, market)
@@ -222,29 +226,12 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
     // nothing on screen saying so; it now caps at SOFT_CAP with a "showing X
     // of Y" line and a Show-the-rest pill, exactly as Touchdowns does.
     return kept.sort(cmp)
-  }, [bandFiltered, drawer, angle, angles, data, market, showLow, query, team, position, role, sortBy, odds,
-      onlyPriced, onlyUpcoming, onlyWatched, watchlist, now])
+  }, [beforePos, pf.test, sortBy, odds, data, market])
 
   // his place on this market's board (low samples are left off it), not on the filtered list
   const rankOf = useMemo(() => new Map(eligible.filter((p) => !p.low_sample).sort((a, b) => b.scores[market] - a.scores[market]).map((p, i) => [String(p.player_id), i + 1])), [eligible, market])
   const capped = all ? rows : rows.slice(0, SOFT_CAP)
   const hidden = rows.length - capped.length
-
-  const filterOptions = useMemo(() => {
-    const eligible = (data?.players || []).filter((p) => Number.isFinite(p.scores?.[market]))
-    const countBy = (key) => eligible.reduce((acc, p) => {
-      const value = p[key]
-      if (value) acc[value] = (acc[value] || 0) + 1
-      return acc
-    }, {})
-    const teams = countBy('team')
-    const positions = countBy('position')
-    return {
-      roles: roleOptions(eligible),
-      teams: [{ key: 'all', label: 'All teams', count: eligible.length }, ...Object.keys(teams).sort().map((key) => ({ key, label: key, count: teams[key] }))],
-      positions: [{ key: 'all', label: 'All positions', count: eligible.length }, ...Object.keys(positions).sort().map((key) => ({ key, label: key, count: positions[key] }))],
-    }
-  }, [data, market])
 
   const marketOptions = useMemo(() => MARKETS.map(([key, label]) => ({
     key, label,
@@ -262,8 +249,7 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
     ...bandState.activeFilters,
     ...drawer.chips,
     angle ? { key: 'angle', label: angles.find((x) => x.key === angle)?.label || angle, onClear: () => setAngle(null) } : null,
-    position !== 'all' ? { key: 'pos', label: position, onClear: () => setPosition('all') } : null,
-    role !== 'all' ? { key: 'role', label: role === 'SLOT' ? 'Slot' : role, onClear: () => setRole('all') } : null,
+    pf.chip,
     onlyPriced ? { key: 'priced', label: 'Priced', onClear: () => setOnlyPriced(false) } : null,
     onlyUpcoming ? { key: 'upcoming', label: 'Not kicked off', onClear: () => setOnlyUpcoming(false) } : null,
     onlyWatched ? { key: 'watch', label: 'Watchlist', onClear: () => setOnlyWatched(false) } : null,
@@ -271,21 +257,15 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
   ].filter(Boolean)
   const clearAllFilters = () => {
     bandState.reset()
-    setPosition('all'); setRole('all'); setAngle(null); drawer.reset(); setSortBy('score')
+    pf.clear(); setAngle(null); drawer.reset(); setSortBy('score')
     setOnlyPriced(false); setOnlyUpcoming(false); setOnlyWatched(false); setShowLow(false)
   }
 
   // Position, the Only toggles and the sort live in the Filters drawer now
   // (MOONSHOT keeps its board chrome to one Filters button and a pool pill).
-  const drawerExtraCount = drawer.activeCount + (position !== 'all') + (role !== 'all') + onlyPriced + onlyUpcoming + onlyWatched + showLow + (sortBy !== 'score')
+  const drawerExtraCount = drawer.activeCount + onlyPriced + onlyUpcoming + onlyWatched + showLow + (sortBy !== 'score')
   const drawerExtra = (
     <>
-      <DrawerPills label="Position">
-        {filterOptions.positions.map((o) => <FilterPill key={o.key} active={position === o.key} count={o.count} onClick={() => { setPosition(o.key); setAll(false) }}>{o.key === 'all' ? 'All' : o.label}</FilterPill>)}
-      </DrawerPills>
-      {filterOptions.roles.length > 0 && <DrawerPills label="Role">
-        {filterOptions.roles.map((o) => <FilterPill key={o.key} active={role === o.key} count={o.count} onClick={() => { setRole(role === o.key ? 'all' : o.key); setAll(false) }} title={o.key === 'SLOT' ? 'Receivers whose published slot share is 50% or more of his snaps.' : 'Where TUDDY\u2019s depth chart puts him this week. A label, not a forecast.'}>{o.label}</FilterPill>)}
-      </DrawerPills>}
       <DrawerPills label="Only">
         <FilterPill active={onlyPriced} onClick={() => { setOnlyPriced(!onlyPriced); setAll(false) }} title="The book has posted a number on this market for this player.">💵 Priced</FilterPill>
         <FilterPill active={onlyUpcoming} onClick={() => { setOnlyUpcoming(!onlyUpcoming); setAll(false) }} title="His game has not kicked off yet.">⏱ Not kicked off</FilterPill>
@@ -302,7 +282,7 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
       {drawer.section}
     </>
   )
-  const extraReset = () => { drawer.reset(); setPosition('all'); setRole('all'); setOnlyPriced(false); setOnlyUpcoming(false); setOnlyWatched(false); setShowLow(false); setSortBy('score') }
+  const extraReset = () => { drawer.reset(); pf.clear(); setOnlyPriced(false); setOnlyUpcoming(false); setOnlyWatched(false); setShowLow(false); setSortBy('score') }
 
   return (
     <div>
@@ -314,7 +294,7 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
 
       <div style={{ marginTop: 8 }}>
         <FilterBar>
-          <NflBoardFilters ledger="nfl" state={bandState} total={marketPool.length} shown={rows.length} extra={drawerExtra} extraCount={drawerExtraCount} extraReset={extraReset} />
+          <NflBoardFilters ledger="nfl" positions={pf.control} state={bandState} total={marketPool.length} shown={rows.length} extra={drawerExtra} extraCount={drawerExtraCount} extraReset={extraReset} />
         </FilterBar>
       </div>
 
@@ -332,7 +312,8 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
       </>)}
       {!phone && (<BoardHead title={spec?.label || (MARKETS.find(([k]) => k === market) || [])[1] || market} count={capped.length} view={view} setView={setView}
         sub={spec?.v1 ? 'A new market, ranked on each team\u2019s recent rate, not yet tested like the others.' : null} />)}
-      {hidden > 0 || rows.length ? null : (
+      {pf.active && rows.length > 0 && <div style={{ margin: '8px 0' }}><PositionNote control={pf.control} shown={rows.length} total={marketPool.length} /></div>}
+      {hidden > 0 || rows.length || pf.active ? null : (
         <div style={{ fontSize: TYPE.body, color: C.text3, margin: '4px 0 10px' }}>Nothing matches. Clear the search, team, game or a filter above.</div>
       )}
       {view === 'list' && <NflBoardList players={capped} market={market} rankOf={rankOf} weights={spec?.weights} odds={odds} phone={phone} onPlayerClick={onPlayerClick} base={base} pool={eligible} watchlist={watchlist} tags={drawer.tagsView} />}
@@ -483,15 +464,16 @@ export default function Boards({ data, logs, matchup, onPlayerClick, odds, oddsS
         </div>
       )}
 
-      {!rows.length && (
+      {!rows.length && pf.active && <div style={{ marginTop: 10 }}><PositionEmpty control={pf.control} othersActive={activeFilterChips.length > 1 || Boolean(query) || team !== 'all'} onClearAll={clearAllFilters} /></div>}
+      {!rows.length && !pf.active && (
         <div style={{
           border: `1px dashed ${C.border2}`, borderRadius: 12, padding: 28,
           textAlign: 'center', color: C.text3, fontSize: TYPE.body,
         }}>
           {onlyPriced || onlyUpcoming || onlyWatched
             ? `Nothing matches. The ${[onlyPriced && 'Priced', onlyUpcoming && 'Not kicked off', onlyWatched && 'Watchlist'].filter(Boolean).join(' + ')} filter left nobody — turn one off above.`
-            : query || team !== 'all' || position !== 'all'
-              ? 'Nothing matches. Clear the search, team or position filter above.'
+            : query || team !== 'all'
+              ? 'Nothing matches. Clear the search or team filter above.'
               : 'Nothing scored for this market on this slate.'}
         </div>
       )}

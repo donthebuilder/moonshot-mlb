@@ -43,6 +43,9 @@ for (const [sport, nav] of [['mlb', R.MLB_NAV], ['nfl', R.NFL_NAV], ['nhl', R.NH
 // The one sport list is the registry's own keys, and every one is branded.
 // every renderable sport is branded, and the PUBLIC list is exactly the unhidden ones
 if (R.ALL_SPORT_KEYS.join() !== Object.keys(R.BRAND).join()) { console.log(`FAIL ALL_SPORT_KEYS ${R.ALL_SPORT_KEYS} vs BRAND ${Object.keys(R.BRAND)}`); bad += 1 }
+// the Rankings position filter (lib/positions.js) is keyed by the same registry: a new sport must say what its positions are
+const P = await import('../lib/positions.js')
+if (Object.keys(P.POSITIONS).join() !== R.ALL_SPORT_KEYS.join()) { console.log(`FAIL lib/positions.js POSITIONS ${Object.keys(P.POSITIONS)} vs the registry ${R.ALL_SPORT_KEYS}`); bad += 1 }
 const publicKeys = Object.keys(R.BRAND).filter((k) => !R.BRAND[k].hidden)
 if (R.SPORT_KEYS.join() !== publicKeys.join()) { console.log(`FAIL SPORT_KEYS ${R.SPORT_KEYS} vs the unhidden BRAND keys ${publicKeys}`); bad += 1 }
 // a hidden product stays off the public list (BUCKETS until BUCKETS_PUBLIC=on,

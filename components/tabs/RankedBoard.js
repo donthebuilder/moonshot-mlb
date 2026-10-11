@@ -6,6 +6,8 @@ import { scoreFor, isAligned, hrRank } from '../../lib/scoring'
 import { boardOrder } from '../../lib/boardOrder'
 import { useSetupHomers } from '../../lib/b2b'
 import { Grid, Empty } from '../ui'
+import { PositionNote, PositionEmpty } from '../Filters'
+import { overallRanks } from '../../lib/positions'
 import PlayerCard from '../PlayerCard'
 import ProfileBars from '../ProfileBars'
 import BoardFilters, { useBoardFilter } from '../BoardFilters'
@@ -246,7 +248,12 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
   // filter. Filtering can hide rows; it can no longer renumber them. A
   // filtered view showing #3, #7, #19 is telling the truth: those are their
   // real board positions. Enforced by scripts/check-rank-lock.mjs.
-  const slateRank = useMemo(() => (type === 'hr' ? hrRank(players) : null), [players, type])
+  //
+  // POSITION FILTER (2026-10-10): every other board's # was i+1 over the FILTERED list, so a position (or any
+  // filter) renumbered the hitters. Hit / HRR / Contact now rank over the full `players` pool the same way HR does,
+  // by the score that board sorts on, so a filtered list keeps each man's true place. With no filter it is the same
+  // 1..N it always printed.
+  const slateRank = useMemo(() => (type === 'hr' ? hrRank(players) : overallRanks(players, mlbId, (p) => scoreFor(p, type))), [players, type])
   // Slate-wide facts for the board columns, over the FULL players prop.
   const boardCtx = useMemo(() => boardRowContext(players, { watchIds }), [players, watchIds])
 
@@ -263,7 +270,10 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
   return (
     <div>
       {!compact && <BoardFilters state={state} total={players.length} shown={filtered.length} />}
-      {!ranked.length && <Empty text={state.active ? 'No hitters clear this filter.' : `No ${type.toUpperCase()} picks yet.`} />}
+      {!ranked.length && (state.positions?.active
+        ? <PositionEmpty control={state.positions.control} onClearAll={state.reset} othersActive={Boolean(state.otherFiltersActive)} />
+        : <Empty text={state.active ? 'No hitters clear this filter.' : `No ${type.toUpperCase()} picks yet.`} />)}
+      {ranked.length > 0 && state.positions?.active && <div style={{ margin: '0 0 8px' }}><PositionNote control={state.positions.control} shown={filtered.length} total={players.length} /></div>}
       {/* Section header — refreshed dress (2026-08-08, modest): the title
           wears the board's ember signature as a gradient underline, and the
           count moves into a pill. Structure unchanged — "I like the lead". */}

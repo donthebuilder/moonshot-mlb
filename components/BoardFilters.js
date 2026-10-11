@@ -1,7 +1,9 @@
 'use client'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { C, NUM_FONT } from '../lib/theme'
-import { n, nameOf, teamOf, oppOf, clean, hrScore, hitScore, prodScore, tbScore } from '../lib/player'
+import { n, nameOf, teamOf, oppOf, clean, hrScore, hitScore, prodScore, tbScore, mlbId } from '../lib/player'
+import { usePeople } from '../lib/alignments'
+import usePositionFilter from '../lib/usePositionFilter'
 import { isAligned } from '../lib/scoring'
 import { STATE, alpha } from '../lib/scales'
 import RangeDual from './RangeDual'
@@ -185,7 +187,15 @@ function pitchersOf(players) {
 // signal sections) — the Score slider simply doesn't render in that case
 // rather than guessing which of several scores it should mean.
 // `lens` (lib/calledLast/useCalledLast.js): the "Called last night" filter, off by default.
-export function useBoardFilter(players, scoreType = null, lens = null) {
+//
+// POSITION (2026-10-10, opts.positions): Rankings turns it on. The slate file carries no position, so the page asks
+// the league once for the ids it shows (lib/alignments usePeople, one call per 100, cached for the session) and
+// offers only the positions those hitters actually have. Off, it asks for nothing (Shortlist, My picks).
+const NO_PLAYERS = []
+export function useBoardFilter(players, scoreType = null, lens = null, opts = null) {
+  const wantPos = Boolean(opts?.positions)
+  const { people, loaded: peopleLoaded } = usePeople(wantPos ? players : NO_PLAYERS)
+  const posOf = (p) => people.get(mlbId(p))?.posAbbr || ''
   // ── MULTI-BAND (2026-09-13) ───────────────────────────────────────────────
   // Donovan: "being able to band different filters." One band-stat at a time
   // (HRW *or* ISO *or* HH%, never together) meant picking a lens instead of
@@ -225,7 +235,8 @@ export function useBoardFilter(players, scoreType = null, lens = null) {
   const pitchers = useMemo(() => pitchersOf(players), [players])
   const scoreDef = scoreType ? SCORE_FOR_TYPE[scoreType] : null
 
-  const filtered = useMemo(() => {
+  // everything EXCEPT the position: a pill's count is what tapping it alone would show under the other filters
+  const beforePos = useMemo(() => {
     const q = query.toLowerCase().trim()
     return players.filter((p) => {
       for (const b of bands) {
@@ -256,12 +267,16 @@ export function useBoardFilter(players, scoreType = null, lens = null) {
       return true
     })
   }, [lens, players, bands, scoreDef, scoreMin, scoreMax, cats, catMode, hand, minEV, minPA, query, gameSel, pitcherSel, timeWindow])
+  const pf = usePositionFilter('mlb', wantPos ? players : NO_PLAYERS, { posOf, countRows: wantPos ? beforePos : NO_PLAYERS, ready: !wantPos || peopleLoaded, version: people.size })   // eslint-disable-line react-hooks/exhaustive-deps
+  const filtered = useMemo(() => (wantPos ? beforePos.filter(pf.test) : beforePos), [wantPos, beforePos, pf.test]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const scoreActive = !!scoreDef && (scoreMin > 0 || scoreMax < 100)
-  const active = bands.length > 0 || scoreActive
-    || cats.length > 0 || hand !== 'all' || minEV > 0 || minPA > 0 || query
+  const otherActive = bands.length > 0 || scoreActive
+    || cats.length > 0 || hand !== 'all' || minEV > 0 || minPA > 0 || Boolean(query)
     || gameSel.length > 0 || pitcherSel.length > 0 || timeWindow !== 'all' || Boolean(lens?.on)
+  const active = otherActive || (wantPos && pf.active)
   const reset = () => {
+    if (wantPos) pf.clear()
     lens?.setMode('')
     setBands([])
     setScoreMin(0); setScoreMax(100)
@@ -300,9 +315,10 @@ export function useBoardFilter(players, scoreType = null, lens = null) {
     if (timeWindow !== 'all') out.push({ key: 'time', label: TIME_WINDOWS.find((w) => w.key === timeWindow)?.label, onRemove: () => setTimeWindow('all') })
     if (query) out.push({ key: 'q', label: `“${query}”`, onRemove: () => setQuery('') })
     if (lens?.chip) out.push(lens.chip)
+    if (wantPos && pf.chip) out.push(pf.chip)
     return out
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scoreActive, scoreDef, scoreMin, scoreMax, bands, hand, minEV, minPA, cats, gameSel, pitcherSel, pitchers, timeWindow, query, games, lens])
+  }, [scoreActive, scoreDef, scoreMin, scoreMax, bands, hand, minEV, minPA, cats, gameSel, pitcherSel, pitchers, timeWindow, query, games, lens, wantPos, pf.chip])
 
   const state = {
     bands, toggleBand, setBandRange, removeBand, cats, setCats, catMode, setCatMode,
@@ -310,6 +326,7 @@ export function useBoardFilter(players, scoreType = null, lens = null) {
     scoreDef, scoreMin, setScoreMin, scoreMax, setScoreMax,
     games, gameSel, setGameSel, pitchers, pitcherSel, setPitcherSel, timeWindow, setTimeWindow,
     activeFilters, activeCount: activeFilters.length, cln: lens,
+    positions: wantPos ? pf : null, otherFiltersActive: otherActive,
   }
   return { filtered, state }
 }
@@ -347,7 +364,7 @@ export default function BoardFilters({ state, total, shown, compact = false, bes
     hand, setHand, minEV, setMinEV, minPA, setMinPA, query, setQuery, active, reset,
     scoreDef, scoreMin, setScoreMin, scoreMax, setScoreMax,
     games, gameSel, setGameSel, pitchers, pitcherSel, setPitcherSel, timeWindow, setTimeWindow,
-    activeFilters, activeCount, cln,
+    activeFilters, activeCount, cln, positions,
   } = state
 
   const toggleCat = (k) => setCats((c) => (c.includes(k) ? c.filter((x) => x !== k) : [...c, k]))
@@ -360,7 +377,7 @@ export default function BoardFilters({ state, total, shown, compact = false, bes
   return (
     <FiltersDrawer
       active={active} activeCount={activeCount} activeFilters={activeFilters} reset={reset}
-      shown={shown} total={total} compact={compact} beside={beside} lead={lead} ledger={ledger}
+      shown={shown} total={total} compact={compact} beside={beside} lead={lead} ledger={ledger} positions={positions?.control || null}
       poolTitle="Hitters on tonight's slate that clear the filters. The board's own badge counts the rows it ranks, which is a shorter list."
       emptyNote={<>Nothing clears this filter. With <b>match ALL</b> that happens fast — the categories are
         rarer than they look, and requiring three at once usually leaves nobody.</>}
