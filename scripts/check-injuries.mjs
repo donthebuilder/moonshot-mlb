@@ -194,7 +194,7 @@ await ok('the chip sits BESIDE the call: CALLED stays callStatus\'s word and the
   const chip = fs.readFileSync(new URL('../components/injuries/InjuryChip.js', import.meta.url), 'utf8')
   const tbl = fs.readFileSync(new URL('../components/table/v2.js', import.meta.url), 'utf8')
   assert.ok(!/CALLED|ON THE BOARD|callStatus/.test(chip.replace(/\/\/.*$/gm, '')), 'the chip must not name or derive a call status')
-  assert.match(tbl, /<CallStatusBadge status=\{status\}/); assert.match(tbl, /<InjuryChip entry=\{inj\}/)
+  assert.match(tbl, /<CallStatusBadge status=\{status\}/); assert.match(tbl, /<InjuryChip entry=\{injEntry\}/)
   const { STATUS_WORD } = CS
   assert.equal(STATUS_WORD.called, 'CALLED'); assert.equal(ST.STATUS_INFO.OUT.chip, 'OUT')
 })
