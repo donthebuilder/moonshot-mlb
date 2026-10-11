@@ -13,6 +13,7 @@ import { ordinal } from '../../lib/format'
 import { Kicker } from './GameOffDef'
 import { TD_WORD } from '../../lib/nfl/teamTdModel'
 import { roleLabel } from '../../lib/nfl/roles'
+import NflTable from './NflTable'
 
 // THE GAME PAGE'S PLAIN SECTIONS (2026-10-06, fix5-nflgame). Donovan on the old
 // page: "the boxes or bubbles with the stats in there are not even big, you can't
@@ -23,7 +24,7 @@ import { roleLabel } from '../../lib/nfl/roles'
 // here is one the page already had; only the words and the sizes changed.
 
 // ── 1. THE GAME, ONCE ───────────────────────────────────────────────────────
-export function GameHeader({ game: g, when, air, xtd, heat, past, onOpenTeam }) {
+export function GameHeader({ game: g, when, air, xtd, heat, past, onOpenTeam, outLine = null }) {
   const live = g.state === 'in'
   const Team = ({ t }) => (
     <Tap onClick={onOpenTeam && (() => onOpenTeam(t))} title={`Open ${t}`} style={{ minHeight: 48, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
@@ -49,6 +50,7 @@ export function GameHeader({ game: g, when, air, xtd, heat, past, onOpenTeam }) 
         {(live || g.completed) && <span style={{ fontFamily: NUM_FONT, fontWeight: 900 }}>{g.away} {g.away_score ?? 0}–{g.home_score ?? 0} {g.home}</span>}
         {g.venue && <span style={{ color: C.text2, fontWeight: 600 }}>· {g.venue}</span>}
         {air && <span style={{ color: C.text2, fontWeight: 600 }}>· {air}</span>}
+        {outLine && <span style={{ color: C.text2, fontWeight: 600 }}>· {outLine}</span>}
       </div>
       {live && (g.down_distance || g.possession) && (
         <div style={{ marginTop: 4, color: C.green, fontSize: 12, fontWeight: 800, fontFamily: NUM_FONT }}>
@@ -90,42 +92,48 @@ function Pairing({ t, corner, r, onPlayerClick }) {
   )
 }
 
+// KEY PLAYERS AS A TABLE (2026-10-10, Donovan: "all these can be better"; CLAUDE: tables lead). Each club's three most-targeted men
+// beside the corner the depth chart lines against him, and the edge the pass defence gives. Same data as before (matchup.pass_game
+// targets / corners, receiverEdge); the rows pair the depth chart in order, no source says who really covers whom.
 export function KeyPlayers({ matchup, data, game, onPlayerClick, onOpenTeam }) {
   const pg = matchup?.pass_game
   const rows = data?.players || []
   const rowOf = (id) => rows.find((p) => String(p.player_id) === String(id))
   const slate = Number(data?.season) || null
-  const blocks = [[game.away, game.home], [game.home, game.away]].map(([off, def]) => {
+  const list = []
+  const notes = []
+  for (const [off, def] of [[game.away, game.home], [game.home, game.away]]) {
     const tg = (pg?.targets?.[off] || []).slice(0, 3)
+    if (!tg.length) continue
     const cb = (pg?.corners?.[def] || []).slice(0, 3).map((c) => ({ ...c, team: def }))
-    return { off, def, tg, cb }
-  }).filter((b) => b.tg.length)
-  if (!blocks.length) return null
+    const edge = cb.length ? receiverEdge(matchup, off, def) : null
+    tg.forEach((t, i) => {
+      const r = rowOf(t.player_id)
+      const c = cb[i] || null
+      list.push({ _key: `${off}-${t.player_id}`, _raw: r || { player_id: t.player_id, name: t.name, team: off }, name: r?.name || t.name, team: off,
+        role: (r ? roleLabel(r) : t.position) || '—', share: Number(t.share), corner: c?.name || '—', slot: c ? (SLOT_WORD[c.slot] || c.slot) : '—', def: c ? def : '—',
+        edge: i === 0 && edge ? edge.word : '', espn: r?.espn_id })
+    })
+    notes.push(edge ? `${def} allow ${edge.yds} yards a game to a top receiver, ${ordinal(edge.rank)} most.` : `${off}'s three most-targeted players.`)
+  }
+  if (!list.length) return null
   const old = pg?.season && slate && pg.season < slate ? pg.season : null
+  const cols = [
+    { key: 'name', label: 'Receiver', sticky: true, bold: true, heat: false, w: 150, group: 'WHO GETS THE BALL' },
+    { key: 'team', label: 'Team', heat: false, w: 44, group: 'WHO GETS THE BALL' },
+    { key: 'role', label: 'Role', heat: false, w: 46, group: 'WHO GETS THE BALL' },
+    { key: 'share', label: 'Targets', w: 62, dp: 1, primary: true, group: 'WHO GETS THE BALL', fmt: (v) => `${v}%`, title: "His share of his team's targets" },
+    { key: 'corner', label: 'Corner', heat: false, w: 120, group: 'THE CORNER HE FACES' },
+    { key: 'slot', label: 'Spot', heat: false, w: 84, group: 'THE CORNER HE FACES' },
+    { key: 'def', label: 'Vs', heat: false, w: 44, group: 'THE CORNER HE FACES' },
+    { key: 'edge', label: 'Edge', heat: false, w: 76, group: 'THE EDGE', title: "The pass defence's edge: how many yards it allows a top receiver, against the league" },
+  ]
   return (
     <section aria-label="Key players" style={{ marginBottom: 16 }}>
-      <Kicker>KEY PLAYERS</Kicker>
-      <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))' }}>
-        {blocks.map(({ off, def, tg, cb }) => {
-          const edge = cb.length ? receiverEdge(matchup, off, def) : null
-          return (
-            <div key={off} style={{ minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
-                <Tap onClick={onOpenTeam && (() => onOpenTeam(off))} style={{ minHeight: 44, display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: TYPE.name, fontWeight: 900, color: C.text }}>
-                  <TeamMark sport="nfl" abbr={off} variant="logo" px={24} />{off} gets the ball{cb.length ? ` against ${def}'s corners` : ''}
-                </Tap>
-                {edge && <span style={{ fontFamily: NUM_FONT, fontSize: 13, fontWeight: 900, padding: '4px 10px', borderRadius: 999, border: `1px solid ${edge.side === off ? C.green : C.border}`, color: edge.side === off ? C.green : C.text2 }}>{edge.word}</span>}
-              </div>
-              {tg.map((t, i) => <Pairing key={t.player_id} t={t} corner={cb[i] || null} r={rowOf(t.player_id)} onPlayerClick={onPlayerClick} />)}
-              <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 6, fontSize: 12, lineHeight: 1.5, color: C.text3 }}>
-                {edge
-                  ? <>{def} allow {edge.yds} yards a game to a top receiver, {ordinal(edge.rank)} most. <QMark label="Who covers whom" text="Rows pair the depth chart in order. No source says who really covers whom." /></>
-                  : `${off}'s three most-targeted players${old ? ` (${old} season)` : ''}.`}
-              </div>
-            </div>
-          )
-        })}
-      </div>
+      <Kicker>KEY PLAYERS · WHO GETS THE BALL, AND THE CORNER HE FACES</Kicker>
+      <NflTable rows={list} columns={cols} onRowClick={(r) => onPlayerClick?.(r?._raw ?? r)} bare maxRows={3} maxHeight={9999}
+        faceOf={(r) => ({ sport: 'nfl', espnId: r.espn, team: r.team, name: r.name })}
+        caption={`${notes.join(' ')}${old ? ` (${old} season)` : ''} Rows pair the depth chart in order. No source says who really covers whom.`} />
     </section>
   )
 }

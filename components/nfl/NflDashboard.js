@@ -10,7 +10,6 @@ import { listenForWorkerOpen } from '../../lib/workerOpen'
 import { resolveColdTab } from '../../lib/shellRoute'
 import { canonLedgerHash, queueLedgerView } from '../../lib/ledger/views'
 import LedgerShell from '../pages/LedgerShell'
-import TopTotals from '../TopTotals'
 import CardSection from '../card/CardSection'
 import { leaveTarget } from '../../lib/openTarget'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -492,9 +491,10 @@ export default function NflDashboard({ palettePass = 0 }) {
             {/* MOONSHOT's Players page (2026-09-30): list + the card inline. */}
             {tab === 'players' && <NflPlayers data={data} logs={logs} matchup={matchup} picks={picks} results={nflResults} odds={odds} />}
             {tab === 'watchlist' && <Watchlist data={slate} matchup={matchup} logs={logs} onPlayerClick={openPlayer} />}
-            {tab === 'games' && <CardSection sport="nfl" Table={NflTable} />}
-            {tab === 'games' && <TopTotals sport="nfl" Table={NflTable} />}
+            {/* TOP TOTALS now ride each game (components/GameTotalLine.js: on the game's header and its slate card); the record stays in the Ledger.
+                The Card is one line, under the slate (it was a block above the first game). */}
             {tab === 'games' && <Games data={slate} picks={picks} matchup={matchup} logs={logs} results={nflResults} odds={odds} onPlayerClick={openPlayer} onOpenTeam={openTeamPage} />}
+            {tab === 'games' && <CardSection sport="nfl" Table={NflTable} compact />}
             {/* One Board page (2026-09-26, option (b)): touchdowns / boards /
                 picks are the same hub; boards opens BOARD, picks opens CALLED. */}
             {/* PICKS IS THE BOT PAGE (2026-09-29, MOONSHOT's Bot frame; components/nfl/tabs/Bot.js).
