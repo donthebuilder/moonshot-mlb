@@ -47,6 +47,8 @@ import { adminClient } from '../../lib/supabase/admin'
 import { CALL_RULES } from '../../lib/record/callRules'
 import { readCalibrationAny } from '../../lib/calibration/readAny'
 import { callsLandedFrom, landedWords } from '../../lib/record/callsLanded'
+import { ladderFrom } from '../../lib/record/ladder'
+import LadderBlock, { LadderOddsNote } from '../../components/record/LadderBlock'
 import { easternToday } from '../../lib/data'
 
 // 2026-09-20 — FOOTBALL MOVED IN, IT DIDN'T GET ITS OWN HOUSE. Donovan:
@@ -514,7 +516,10 @@ export default async function CalledPage({ searchParams }) {
   // CALLS LANDED LEADS (2026-10-10, one MLB record): of the calls we made, how many did what they were called to
   // do -- the lock-enforced calibration reader (the same body /api/calibration serves, one cache entry). The
   // event capture below it is a different measure and is labelled so.
-  const landed = callsLandedFrom(await readCalibrationAny(sport.key, easternToday()).catch((e) => { console.error(`[called] calls landed: ${e?.message}`); return null }))
+  const cal = await readCalibrationAny(sport.key, easternToday()).catch((e) => { console.error(`[called] calls landed: ${e?.message}`); return null })
+  const landed = callsLandedFrom(cal)
+  // THE LADDER (LAMP's reader returns one; the others have none yet and draw nothing): the same body, the same cache entry
+  const ladder = ladderFrom(cal)
   const landedLine = landedWords(landed, { callWord: sport.callWord })
   const card = sport.cardRecord ? await cardPlain(sport.key).catch((e) => { console.error(`[called] card record: ${e?.message}`); return null }) : null
   const BOARD = sport.board
@@ -566,6 +571,7 @@ export default async function CalledPage({ searchParams }) {
               <span className={styles.big}>{landed.hits.toLocaleString('en-US')}</span> of <span className={styles.big}>{landed.n.toLocaleString('en-US')}</span> {sport.callWord} landed
             </h1>
             <p className={styles.sub}>{landedLine[1]}</p>
+            {ladder ? <LadderBlock ladder={ladder} sport={sport.key} compact fold><LadderOddsNote sport={sport.key} /></LadderBlock> : null}
           </>
         ) : null}
         {tonight.total ? (

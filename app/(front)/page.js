@@ -50,6 +50,7 @@ import { dashSignOut } from './actions'
 import styles from './dash.module.css'
 import './scroll-anchor.css' // css-loader pure-selector fix, 2026-09-06
 import OpenOnHash from '../../components/OpenOnHash'
+import LadderBlock, { LadderAside } from '../../components/record/LadderBlock'
 
 export const metadata = {
   alternates: { canonical: '/' },
@@ -388,12 +389,26 @@ export default async function DashHome({ searchParams }) {
               ? <><b>{pulse.nflRecord.onBoard} of {pulse.nflRecord.total}</b> on the board ({Math.round((100 * pulse.nflRecord.onBoard) / pulse.nflRecord.total)}%) · {pulse.nflRecord.called} of them CALLED · {pulse.nflRecord.days} game days with the board rank recorded</>
               : 'The football record fills in once three game days have their pregame board rank recorded.'}
           </p>
-          <p className={styles.recordQ}><b className={styles.nhlInk}>LAMP</b> · of the goal scorers, how many were CALLED? · <Link href="/called?sport=nhl">the record&nbsp;→</Link></p>
-          <p className={styles.recordLine}>
-            {pulse.nhlRecord
-              ? <><b>{pulse.nhlRecord.called} of {pulse.nhlRecord.total}</b> CALLED ({Math.round((100 * pulse.nhlRecord.called) / pulse.nhlRecord.total)}%) · {pulse.nhlRecord.onBoard} on the board · {pulse.nhlRecord.days} regular-season nights</>
-              : 'No graded regular-season night yet.'}
-          </p>
+          <p className={styles.recordQ}><b className={styles.nhlInk}>LAMP</b> · did the skaters we called score? · <Link href="/called?sport=nhl">the record&nbsp;→</Link></p>
+          {/* THE LADDER LEADS (2026-10-10, LAMP hero plan item 1): CALLED against ON THE BOARD against NOT ON THE BOARD against
+              every dressed skater, n and a 95% range on each row (lib/record/ladder.js, the calibration reader's rows). The
+              capture count this line used to lead with is a different question -- how many of the scorers we had called --
+              and follows, labelled. */}
+          {pulse.nhlLadder ? (
+            <LadderBlock ladder={pulse.nhlLadder} sport="nhl" compact>
+              {pulse.nhlRecord ? (
+                <LadderAside label="CAPTURE">
+                  {pulse.nhlRecord.called} of {pulse.nhlRecord.total} goal scorers were CALLED ({Math.round((100 * pulse.nhlRecord.called) / pulse.nhlRecord.total)}%), last {pulse.nhlRecord.days} nights: coverage, not how often a call scores.
+                </LadderAside>
+              ) : null}
+            </LadderBlock>
+          ) : (
+            <p className={styles.recordLine}>
+              {pulse.nhlRecord
+                ? <><b>Capture</b>: {pulse.nhlRecord.called} of {pulse.nhlRecord.total} goal scorers were CALLED ({Math.round((100 * pulse.nhlRecord.called) / pulse.nhlRecord.total)}%) · {pulse.nhlRecord.onBoard} on the board · {pulse.nhlRecord.days} regular-season nights</>
+                : 'No graded regular-season night yet.'}
+            </p>
+          )}
           <details className={styles.recordFold}>
             <summary>How this is counted</summary>
             <p className={styles.stamp}>
@@ -403,8 +418,8 @@ export default async function DashHome({ searchParams }) {
               the board on the same bar, which is the number a call has to beat. Each row is scored on the bar that call
               was made for, so the rows are different questions and are never ranked against each other; a call type
               with under 30 graded calls is left off until it has them. TUDDY leads with board coverage because its ladder names five
-              players a week against two dozen touchdowns; LAMP counts goal scorers against the three it calls in
-              each game, regular season only. Every night behind these numbers is on the{' '}
+              players a week against two dozen touchdowns. LAMP leads with its ladder: every dressed skater on the board, grouped by the status locked
+              before puck drop, regular season only, with the count and a 95% range on each row; its capture line is separate. Every night behind these numbers is on the{' '}
               <Link href={ledgerAppHref('mlb', 'record')}>Ledger&apos;s Record tab</Link> and each product&apos;s own, one row at a time.
             </p>
           </details>
