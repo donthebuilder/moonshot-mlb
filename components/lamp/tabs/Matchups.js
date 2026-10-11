@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 import PageHeader from '../../PageHeader'
 import LampTable from '../LampTable'
 import ShotPanel from '../ShotPanel'
+import GoalieWeakSpots from '../GoalieWeakSpots'
 import { C, NUM_FONT } from '../../../lib/nhl/theme'
 import { DelayedBanner, Loading, SourceLine, EmptyState, PlayerMark } from '../ui'
 import { MatchupTitle, SubLabel, BarList, FactLines } from '../../matchup/MatchupParts'
@@ -53,7 +54,7 @@ const ppScale = (v) => (v == null ? 0 : (v / 0.35) * 100)
 const pkScale = (v) => (v == null ? 0 : ((v - 0.65) / 0.3) * 100)
 const Kicker = ({ children }) => <SubLabel theme={C} numFont={NUM_FONT}>{children}</SubLabel>
 
-function Detail({ row, league, onOpenPlayer, onOpenTeam = null }) {
+function Detail({ row, league, date = null, onOpenPlayer, onOpenTeam = null }) {
   const goalies = useGoalies(row?.def)
   if (!row) return null
   const edge = row.oppPp != null && row.pk != null && league.pp != null && league.pk != null
@@ -91,6 +92,7 @@ function Detail({ row, league, onOpenPlayer, onOpenTeam = null }) {
                 { key: 'gaa', label: 'GAA', w: 50, invert: true, fmt: (v) => (v != null ? Number(v).toFixed(2) : '—') },
               ]} />
             <div style={{ marginTop: 4, fontSize: 11, color: C.text3 }}>Starter not announced: the league names no starter before puck drop, so both are shown.{goalies.stale ? ' Last season’s lines.' : ''}</div>
+            <div style={{ marginTop: 6 }}><GoalieWeakSpots game={{ id: null, date, away: row.home ? row.opp : row.def, home: row.home ? row.def : row.opp, season: null, state: null }} sides={[row.home ? 'home' : 'away']} onOpenPlayer={onOpenPlayer} label={`WHERE ${row.def}’S GOALIE IS WEAK`} /></div>
           </>
         ) : <div style={{ fontSize: 12, color: C.text3 }}>No goalie lines for {row.def} yet.</div>}
       </div>
@@ -165,7 +167,7 @@ export default function Matchups({ date = null, onOpenPlayer, onOpenTeam = null 
           <LampTable rows={tableRows} columns={columns} heatMode="primary" maxRows={PREVIEW} maxHeight={9999}
             rowEdge={(r) => (r.def === active?.def ? C.ice : null)}
             onRowClick={(r) => { setPick(r.def); if (typeof document !== 'undefined') requestAnimationFrame(() => document.getElementById('lamp-def-detail')?.scrollIntoView({ behavior: 'smooth', block: 'start' })) }} />
-          <Detail row={active} league={league} onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} />
+          <Detail row={active} league={league} date={date} onOpenPlayer={onOpenPlayer} onOpenTeam={onOpenTeam} />
         </>
       )}
       <SourceLine>Goals allowed: the league standings (goalAgainst / gamesPlayed). PK% and PP%: api.nhle.com/stats team reports, regular season; ranks against all 32 clubs, #1 = best for the attacking club (the weakest penalty kill, the strongest power play, the most goals allowed). Rest: each club&apos;s schedule. Who fits: tonight&apos;s LAMP board, the skater called on each team. Goalies: club stats.</SourceLine>
