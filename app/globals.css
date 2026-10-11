@@ -166,3 +166,28 @@ button {
    the text unchanged, underlined on hover, a 44px tap area on touch. */
 .tap-link:hover { text-decoration: underline; text-underline-offset: 2px; }
 @media (pointer: coarse) { .tap-link { position: relative; min-width: 32px; text-align: left; } .tap-link::after { content: ''; position: absolute; left: -4px; right: -4px; top: 50%; height: 44px; transform: translateY(-50%); } }
+
+/* TUDDY SLATE, DESKTOP HEADER (2026-10-10, Donovan: "tighten it up on desktop").
+   >= 1024px AND a mouse only; a phone or a tablet never matches, so those
+   render exactly as before. Scoped to .tuddy-slate-page (components/nfl/tabs/
+   Games.js); the ph-* hooks are class names PageHeader always carries. Inline
+   styles need !important to be overridden. Row 1: the title line (kicker,
+   title, date, note) with the stats, and the updated/refresh stamp floated
+   beside it. Row 2: search + team + game + Table|Games. Row 3: the games chips.
+   Row 4: the "All games" fold as a slim divider. */
+@media (min-width: 1024px) and (hover: hover) and (pointer: fine) {
+  .slate-stamp { float: right; margin: 0 0 0 12px !important; }
+  .slate-stamp button { min-height: 32px !important; min-width: 0 !important; padding: 0 12px !important; }
+  .tuddy-slate-page .panel-title { margin: 0 0 8px !important; min-height: 32px; align-items: center !important; }
+  .tuddy-slate-page .ph-left { display: flex; align-items: baseline; flex-wrap: wrap; column-gap: 12px; row-gap: 0; }
+  .tuddy-slate-page .ph-left > * { margin: 0 !important; }
+  .tuddy-slate-page .ph-note { max-width: none !important; }
+  .tuddy-slate-page .panel-title > :last-child:not(:first-child) { align-items: center !important; }
+  .tuddy-slate-page .slate-bar { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; }
+  .tuddy-slate-page .slate-bar > .board-topbar { flex: 1 1 auto; min-width: 0; margin: 0 !important; }
+  .tuddy-slate-page .slate-bar > div:not(.board-topbar) { margin: 0 !important; flex: 0 0 auto; }
+  .tuddy-slate-page .slate-bar > div[style*="height: 10px"] { display: none; }
+  .tuddy-slate-page .board-topbar input, .tuddy-slate-page .board-topbar select { padding-top: 6px !important; padding-bottom: 6px !important; }
+  .tuddy-slate-page .chip-row { margin-bottom: 6px !important; }
+  .tuddy-slate-page button.tap-row { padding: 5px 12px !important; border-radius: 8px !important; }
+}
