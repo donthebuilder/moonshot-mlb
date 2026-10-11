@@ -85,6 +85,7 @@ import { explain } from '../../../lib/explain'
 import { useRankMove } from '../../../lib/useRankMove'
 import { RankMoveCell, RankMoveNote } from '../../RankMove'
 import { roleLabel, roleKeys, ROLE_PILLS } from '../../../lib/nfl/roles'
+import { nflShareRows } from '../../../lib/nfl/usageShares'
 
 // Exported (2026-09-28) for the Slate's Picks section -- the same card, not a copy.
 // MOONSHOT'S CARD FRAME (2026-09-29, parity plan E; components/PlayerCard.js
@@ -117,6 +118,8 @@ export function Card({ p, rank, matchup, odds, onPlayerClick, weights, base, poo
   const quote = quoteFor(odds, p, MARKET)
   // the back: every component the score is made of, with its percentile
   const backRows = Object.entries(comps).filter(([, v]) => Number.isFinite(Number(v))).map(([k, v]) => ({ label: String(k).replace(/_/g, ' ').toUpperCase(), value: Math.round(Number(v)), pct: Number(v) }))
+  // + his share of his club (snap, target, ...): lib/nfl/usageShares.js, the same numbers as the tables' Role & usage columns
+  const backRowsAll = [...backRows, ...nflShareRows(p)]
 
   return (
     <SportTheme theme={C} accent={C.green} numFont={NUM_FONT}>
@@ -131,7 +134,7 @@ export function Card({ p, rank, matchup, odds, onPlayerClick, weights, base, poo
           <MatchupBadge matchup={matchup} player={p} market={MARKET} />
           {tag && <TapNote label={tag} text={injuryTitle(tag)} style={{ color: injuryColor(tag, C), fontWeight: 900 }}>{tag}</TapNote>}
         </>}
-        stats={stats} back={backRows.length ? { rows: backRows, note: 'Percentiles in the league. A ranking, not a percentage.' } : null}
+        stats={stats} back={backRowsAll.length ? { rows: backRowsAll, note: 'Component rows are percentiles in the league: a ranking, not a percentage. Share rows are a percent of his club.' } : null}
         onClick={() => onPlayerClick?.(p, MARKET)}
         foot={<>
           <button
