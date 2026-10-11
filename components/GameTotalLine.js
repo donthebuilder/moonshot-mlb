@@ -20,6 +20,22 @@ export function useGameTotals(sport) {
   }, [data])
 }
 
+/** The row a game wears: its own stored total. `all` keeps a game that is not on the board (the open game's header says its
+ *  projection too); without it only the CALLED / ON THE BOARD games wear a total (a card in a list of games). Nothing is invented. */
+export function totalRowFor(totals, id, all = false) {
+  const r = totals?.[String(id)]
+  return r && (all || r.status !== 'off') ? r : null
+}
+
+/** The slate card's quiet mark: "total #n" and the status word, for a CALLED / ON THE BOARD game (null otherwise). */
+export function GameTotalMark({ row }) {
+  if (!row || row.status === 'off') return null
+  return <span data-game-total-mark={row.game_id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>{`total #${row.rank}`}<CallStatusBadge status={row.status} size={8} /></span>
+}
+
+// A book total is quoted to the half (224.5): one decimal when it has one, so a half-point never reads as the next whole number
+const fmtLine = (sport, v) => (Number.isFinite(Number(v)) && v != null && !Number.isInteger(Number(v)) ? Number(v).toFixed(1) : fmtTotal(sport, v))
+
 const WORD = { over: 'OVER', under: 'UNDER', push: 'PUSH', void: 'VOID' }
 
 export default function GameTotalLine({ sport, row, style }) {
@@ -31,7 +47,7 @@ export default function GameTotalLine({ sport, row, style }) {
       <span style={{ fontFamily: NUM_FONT, fontWeight: 900, letterSpacing: '.1em', fontSize: 11, color: C.text3 }}>GAME TOTAL</span>
       <b style={{ fontFamily: NUM_FONT, fontSize: 13, color: C.text }}>{fmtTotal(sport, row.projected_total)} {u.short}</b>
       <span>projected{row.rank ? ` · #${row.rank} this ${u.slate}` : ''}</span>
-      <span>graded {lineWord(row)} {fmtTotal(sport, row.line)}</span>
+      <span>graded {lineWord(row)} {fmtLine(sport, row.line)}</span>
       <CallStatusBadge status={row.status} />
       {row.actual_total != null && <span>final <b style={{ fontFamily: NUM_FONT, color: C.text }}>{fmtTotal(sport, row.actual_total)}</b></span>}
       {row.result && <b style={{ fontFamily: NUM_FONT, color: row.result === 'over' ? accent : C.text2 }}>{WORD[row.result] || row.result}</b>}

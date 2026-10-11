@@ -504,7 +504,7 @@ export default function NflDashboard({ palettePass = 0 }) {
           {/* ONE ACCENT SOURCE (0g C2-C6 root cause): every tab inside its product's theme */}
           <SportTheme theme={C} accent={C.green} numFont={NUM_FONT}>
           {/* the ↻ on the live pages: nothing refreshes on a timer (lib/liveRefresh.js) */}
-          {isLiveTab('nfl', tab) && <RefreshStamp live={nflLive} style={{ marginBottom: 8 }} />}
+          {isLiveTab('nfl', tab) && <RefreshStamp live={nflLive} className={tab === 'games' ? 'slate-stamp' : undefined} style={{ marginBottom: 8 }} />}
           <TeamNav.Provider value={openTeamPage}>
           <GameNav.Provider value={openGameNav}>
           <ErrorBoundary resetKey={tab} label={`the ${tab} tab`}>

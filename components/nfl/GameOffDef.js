@@ -1,5 +1,12 @@
 'use client'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import PlayerFace from '../PlayerFace'
+import { useIsPhone } from '../MobileFold'
+import LineUp, { WhoChips } from './LineUp'
+import { useInjuryLayer } from '../injuries/InjuryLayer'
+import { STATUS_INFO, BLOCKS } from '../../lib/injuries/statuses'
+import { injuryTag, isOut } from '../../lib/nfl/injury'
+import { placeOffense, placeDefense, whoInZone, basisNote } from '../../lib/nfl/whoLines'
 import TeamMark from '../TeamMark'
 import BroadcastField from './BroadcastField'
 import { C, NUM_FONT, TYPE } from '../../lib/nfl/theme'
@@ -48,7 +55,25 @@ export const Kicker = ({ children, style }) => (
   <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: '.1em', color: C.text2, fontFamily: NUM_FONT, margin: '0 0 8px', ...style }}>{children}</div>
 )
 
-export default function GameOffDef({ matchup, players, game }) {
+// the injury layer first (ESPN's report), the week file's own injury_status second; null = not listed (never guessed)
+const TAG_WORD = { OUT: 'Out', IR: 'Injured reserve', D: 'Doubtful', Q: 'Questionable', SUSP: 'Suspended', PUP: 'PUP', NFI: 'Out' }
+let WHO_PREF = null   // the choice, kept for the session (module memory, mirrored to sessionStorage where it works)
+export function injuryStatusOf(layer, p) {
+  const e = layer?.entryFor?.({ player_id: p.player_id, name: p.name, team: p.team })
+  if (e && STATUS_INFO[e.status]) return { chip: STATUS_INFO[e.status].chip, word: STATUS_INFO[e.status].word, blocked: BLOCKS.has(e.status) }
+  const tag = injuryTag(p)
+  if (tag && tag !== 'Q') return { chip: tag, word: TAG_WORD[tag] || tag, blocked: isOut(tag) || tag === 'D' }
+  return tag ? { chip: 'Q', word: 'Questionable', blocked: false } : null
+}
+
+export default function GameOffDef({ matchup, players, game, onPlayerClick = null }) {
+  const phone = useIsPhone(430)
+  const [pref, setPref] = useState(WHO_PREF)   // null = never touched this session: open on desktop, closed on a phone
+  useEffect(() => { if (WHO_PREF == null) { try { const v = sessionStorage.getItem('tuddy-who-open'); if (v != null) { WHO_PREF = v === '1'; setPref(WHO_PREF) } } catch (e) { /* no storage */ } } }, [])
+  const who = pref ?? !phone
+  const setWho = (f) => { const v = f(who); WHO_PREF = v; setPref(v); try { sessionStorage.setItem('tuddy-who-open', v ? '1' : '0') } catch (e) { /* private window: the choice just is not remembered */ } }
+  const [zonePick, setZonePick] = useState(null)
+  const layer = useInjuryLayer()
   const [mode, setMode] = useState('overlap')
   const [pass, setPass] = useState(true)
   const [side, setSide] = useState('away')
@@ -56,6 +81,10 @@ export default function GameOffDef({ matchup, players, game }) {
   const def = side === 'away' ? game.home : game.away
   const field = matchup?.field
   const gf = useMemo(() => gameField({ field, players, off, def, pass }), [field, players, off, def, pass])
+  const statusOf = (p) => injuryStatusOf(layer, p)
+  const offMen = useMemo(() => placeOffense({ matchup, players, off, pass, statusOf, maxFaces: phone ? 3 : undefined }), [matchup, players, off, pass, layer, phone])   // eslint-disable-line react-hooks/exhaustive-deps
+  const defMen = useMemo(() => (pass ? placeDefense({ matchup, def, statusOf }) : { placed: [], chips: [] }), [matchup, def, pass, layer])   // eslint-disable-line react-hooks/exhaustive-deps
+  const inZone = useMemo(() => (zonePick ? whoInZone({ matchup, players, off, pass, zone: zonePick, statusOf }) : []), [matchup, players, off, pass, zonePick, layer])   // eslint-disable-line react-hooks/exhaustive-deps
   const rushable = Boolean(field?.def_rush?.[def] || field?.player_rush)
   if (!field) return null
 
@@ -131,7 +160,8 @@ export default function GameOffDef({ matchup, players, game }) {
   )
   const frame = `${C.green}88`
   return (
-    <section aria-label={`${off} offense against ${def} defense`} style={{ marginBottom: 14, position: 'relative', overflow: 'hidden', border: `2px solid ${frame}`, borderRadius: 14, background: `radial-gradient(circle at 10% 0%, ${C.green}22 0%, transparent 55%), ${C.bg2}` }}>
+    <section aria-label={`${off} offense against ${def} defense`} style={{ marginBottom: 14, position: 'relative', overflow: 'hidden', border: `2px solid ${frame}`, borderRadius: 14, boxShadow: `0 0 26px ${C.green}1f`, background: `radial-gradient(circle at 10% 0%, ${C.green}22 0%, transparent 55%), ${C.bg2}` }}>
+      <div aria-hidden="true" style={{ height: 3, background: `linear-gradient(100deg, ${C.green}, ${C.text} 45%, ${C.green} 60%, ${C.green}55)` }} />
       <div style={{ position: 'absolute', right: -18, top: 34, opacity: 0.1, pointerEvents: 'none' }}>{edge2(off, 120)}</div>
       <div style={{ position: 'relative', padding: '10px 12px 12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -151,19 +181,47 @@ export default function GameOffDef({ matchup, players, game }) {
         </div>
         <div style={{ maxWidth: 440, margin: '0 auto' }}>
           <BroadcastField mode={pass ? 'pass' : 'rush'} maxWidth={440} hue={mode === 'defend' ? C.text2 : C.green} core={mode === 'overlap'}
-            offTeam={off} ringKey={pickedKey ?? null} cells={cells} label={`${off} offense against ${def} defense`} />
+            offTeam={off} ringKey={pickedKey ?? null} cells={cells} onZone={(z) => setZonePick((cur) => (cur === z ? null : z))} pickedZone={zonePick} label={`${off} offense against ${def} defense`} />
         </div>
-        <p style={{ margin: '6px 0 6px', fontSize: 12, lineHeight: 1.5, color: C.text3 }}>{legend}{sample ? ` ${sample}.` : ''}</p>
+        <p style={{ margin: '6px 0 6px', fontSize: 12, lineHeight: 1.5, color: C.text3 }}>{legend}{sample ? ` ${sample}.` : ''} Left/right: the offence’s view. Tap a zone: who gets the ball.</p>
+        {zonePick && (
+          <div role="group" aria-label="Who gets the ball in this zone" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, margin: '0 0 8px' }}>
+            <span style={{ flexBasis: '100%', font: `800 11px/1.2 ${NUM_FONT}`, letterSpacing: '.08em', color: C.text2 }}>{(cells[zonePick]?.title || zonePick).split('\n')[0].toUpperCase()}: WHO GETS THE {unit.toUpperCase()}S</span>
+            {inZone.length === 0 && <span style={{ fontSize: 12, color: C.text3 }}>No {off} player has a {unit} logged here yet.</span>}
+            {inZone.map((r) => (
+              <button key={r.id} type="button" onClick={() => onPlayerClick?.(r.row)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 44, padding: '0 12px 0 6px', borderRadius: 22, border: `1px solid ${C.green}66`, background: `${C.green}14`, color: C.text, cursor: onPlayerClick ? 'pointer' : 'default' }}>
+                <PlayerFace sport="nfl" espnId={r.espn_id} team={r.team} name={r.name} size={32} />
+                <span style={{ textAlign: 'left' }}><span style={{ display: 'block', font: `800 12px/1.2 ${NUM_FONT}` }}>{r.last}</span><span style={{ display: 'block', font: `700 11px/1.2 ${NUM_FONT}`, color: C.text2 }}>{r.role} · {r.att} {unit}{r.att === 1 ? '' : 's'}{r.share != null ? ` · ${Math.round(r.share)}%` : ''}</span></span>
+              </button>
+            ))}
+            <button type="button" onClick={() => setZonePick(null)} style={{ minHeight: 44, padding: '0 12px', borderRadius: 22, border: `1px solid ${C.border}`, background: 'transparent', color: C.text2, font: `800 12px/1 ${NUM_FONT}`, cursor: 'pointer' }}>Clear</button>
+          </div>
+        )}
         <div style={{ display: 'grid', gap: 6 }}>
-          <Seg label="Which team has the ball" value={side} onChange={setSide}
+          <Seg label="Which team has the ball" value={side} onChange={(v) => { setSide(v); setZonePick(null) }}
             items={[['away', `${game.away} attacking`, edge(game.away)], ['home', `${game.home} attacking`, edge(game.home)]]} />
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'space-between' }}>
             <div style={{ flex: '0 1 220px', minWidth: 190 }}>
-              <Seg label="Passing or running" value={pass ? 'pass' : 'run'} onChange={(k) => setPass(k === 'pass' || !rushable)}
+              <Seg label="Passing or running" value={pass ? 'pass' : 'run'} onChange={(k) => { setPass(k === 'pass' || !rushable); setZonePick(null) }}
                 items={[['pass', 'Passing'], ['run', 'Running']]} />
             </div>
             <Lens />
           </div>
+        </div>
+        <div style={{ marginTop: 2 }}>
+          <button type="button" aria-expanded={who} onClick={() => setWho((v) => !v)} style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', minHeight: 44, padding: 0, marginBottom: who ? 6 : 0, background: 'none', border: 0, cursor: 'pointer', color: 'inherit', textAlign: 'left' }}>
+            <span style={{ font: `800 12px/1.2 ${NUM_FONT}`, letterSpacing: '.18em', color: C.green, whiteSpace: 'nowrap' }}>WHO LINES UP WHERE</span>
+            <span style={{ font: `800 12px/1.2 ${NUM_FONT}`, color: C.text2, whiteSpace: 'nowrap' }}>· {offMen.placed.length + defMen.placed.length} placed</span>
+            <span aria-hidden="true" style={{ flex: 1, height: 1, background: `${C.green}55` }} />
+            <span aria-hidden="true" style={{ font: `900 14px/1 ${NUM_FONT}`, color: C.green, transform: who ? 'rotate(180deg)' : 'none' }}>▾</span>
+          </button>
+          {who && (
+            <>
+              <LineUp off={off} def={def} pass={pass} offMen={offMen.placed} defMen={defMen.placed} onPlayer={onPlayerClick} />
+              <p style={{ margin: '6px 0 0', fontSize: 12, lineHeight: 1.5, color: C.text3 }}>Left and right: the offence’s view, up the page at the defence. {basisNote({ placed: [...offMen.placed, ...defMen.placed], pass, hasDef: defMen.placed.length > 0 })} No slot: not published.</p>
+              <WhoChips chips={[...offMen.chips, ...defMen.chips]} onPlayer={onPlayerClick} />
+            </>
+          )}
         </div>
       </div>
     </section>

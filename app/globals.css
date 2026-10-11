@@ -166,3 +166,37 @@ button {
    the text unchanged, underlined on hover, a 44px tap area on touch. */
 .tap-link:hover { text-decoration: underline; text-underline-offset: 2px; }
 @media (pointer: coarse) { .tap-link { position: relative; min-width: 32px; text-align: left; } .tap-link::after { content: ''; position: absolute; left: -4px; right: -4px; top: 50%; height: 44px; transform: translateY(-50%); } }
+
+/* SLATE, DESKTOP HEADER (TUDDY 2026-10-10, Donovan: "tighten it up on desktop";
+   LAMP and BUCKETS the same night: "same slate header tightening: yes").
+   >= 1024px AND a mouse only; a phone or a tablet never matches, so those
+   render exactly as before. Scoped to .slate-tight (the root of TUDDY's
+   Games tab, LampSlate and BUCKETS' Slate; MOONSHOT does not carry it); the ph-* hooks are class names PageHeader always carries. Inline
+   styles need !important to be overridden. Row 1: the title line (kicker,
+   title, date, note) with the stats, and the updated/refresh stamp floated
+   beside it. Row 2: search + team + game + Table|Games. Row 3: the games chips.
+   Row 4: the "All games" fold as a slim divider. */
+@media (min-width: 1024px) and (hover: hover) and (pointer: fine) {
+  .slate-stamp { float: right; margin: 0 0 0 12px !important; }
+  .slate-stamp button { min-height: 32px !important; min-width: 0 !important; padding: 0 12px !important; }
+  .slate-tight .panel-title { margin: 0 0 8px !important; min-height: 32px; align-items: center !important; }
+  .slate-tight .ph-left { display: flex; align-items: baseline; flex-wrap: wrap; column-gap: 12px; row-gap: 0; }
+  .slate-tight .ph-left > * { margin: 0 !important; }
+  .slate-tight .ph-note { max-width: none !important; }
+  .slate-tight .panel-title > :last-child:not(:first-child) { align-items: center !important; }
+  .slate-tight .slate-bar { display: flex !important; align-items: center; gap: 10px; margin: 0 0 8px; }
+  .slate-tight .slate-bar > .board-topbar { flex: 1 1 auto; min-width: 0; margin: 0 !important; }
+  .slate-tight .slate-bar > div:not(.board-topbar) { margin: 0 !important; flex: 0 0 auto; }
+  .slate-tight .slate-bar > div[style*="height: 10px"] { display: none; }
+  /* LAMP / BUCKETS: the day pager joins the row, and anything the page shows
+     between its parts (stale-season note, delayed banner, loading, empty) takes
+     a full line above it instead of squeezing into the row. :empty = no line. */
+  .slate-tight .slate-bar:has(> .slate-note) { flex-wrap: wrap; }
+  .slate-tight .slate-bar > .slate-note { display: block !important; flex: 0 0 100%; order: -1; margin: 0 !important; }
+  .slate-tight .slate-bar > .slate-note:empty { display: none !important; }
+  .slate-tight .slate-bar button[style*="min-height: 44px"] { min-height: 34px !important; }
+  .slate-tight { gap: 8px !important; }
+  .slate-tight .board-topbar input, .slate-tight .board-topbar select { padding-top: 6px !important; padding-bottom: 6px !important; }
+  .slate-tight .chip-row { margin-bottom: 6px !important; }
+  .slate-tight button.tap-row { padding: 5px 12px !important; border-radius: 8px !important; }
+}

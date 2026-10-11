@@ -292,7 +292,7 @@ export default function Storylines({ data, logs, results, onPlayerClick, setTab,
         modeling that doesn't exist here yet, so rather than guess, this page leaves it out.
         Player-vs-defense duels are out for the same reason. Revenge games came in on 2026-09-25
         off the game log&apos;s own jersey column; a graded tracker for these lines (did the story
-        pay?) needs the bot to freeze them before kickoff, the way MOONSHOT&apos;s does — the two
+        pay?) needs TUDDY to freeze them before kickoff, the way MOONSHOT&apos;s does — the two
         rates on the section heads are the honest stand-in until then.
       </div>}
 

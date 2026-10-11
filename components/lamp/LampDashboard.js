@@ -24,7 +24,6 @@ import { readHashParam } from './ui'
 import Home from './tabs/Home'
 import { useLampSaves } from '../../lib/nhl/useLampSaves'
 import LampTable from './LampTable'
-import TopTotals from '../TopTotals'
 import CardSection from '../card/CardSection'
 import LampSlate from './LampSlate'
 import dynamic from 'next/dynamic'
@@ -204,9 +203,9 @@ export default function LampDashboard({ palettePass = 0 }) {
             {(tab === 'fullboard' || tab === 'shots') && <Board onOpenPlayer={peekPlayer} onOpenGame={openGame} onOpenTeam={openTeam} date={date} setDate={setDate}
               market={tab === 'shots' ? 'SOG' : null}
               onMarket={tab === 'shots' ? () => setTab('fullboard') : null} />}
-            {tab === 'games' && <CardSection sport="nhl" Table={LampTable} />}
-            {tab === 'games' && <TopTotals sport="nhl" Table={LampTable} />}
+            {/* TOP TOTALS now ride each game (components/GameTotalLine.js); the record stays in the Ledger. The Card is one line, under the slate. */}
             {tab === 'games' && <LampSlate onOpenPlayer={peekPlayer} onOpenGame={openGame} onOpenTeam={openTeam} date={date} setDate={setDate} />}
+            {tab === 'games' && <CardSection sport="nhl" Table={LampTable} compact />}
           </ErrorBoundary>
           <DashFooter sport="nhl" theme={C} onGuide={() => setTab('guide')} />
           {/* a tapped player opens his card over the page (Donovan 10-03); Full page = the player tab */}

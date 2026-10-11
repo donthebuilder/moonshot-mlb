@@ -11,6 +11,7 @@ import MobileFold from './MobileFold'
 import Rail from './Rail'
 import { MatchLogos } from './TeamMark'
 import { localTime } from '../lib/localTime'
+import { GameTotalMark, totalRowFor, useGameTotals } from './GameTotalLine'
 
 // Game selector strip — the PropFinder pattern.
 //
@@ -119,6 +120,7 @@ function timeText(t) {
 const isPast = (t) => !!t && new Date(t) < new Date(Date.now() - 3 * 60 * 60 * 1000)
 
 export default function GameStrip({ games, activeGame, onSelect, mode, onPairPick, pairIds, sortBy = 'time', live = null, targets = [], onTarget = null, nested = false, onPlayerClick = null }) {
+  const gameTotals = useGameTotals('mlb')   // a top-3 game wears 'total #n' (components/GameTotalLine.js)
   // 🔗 CROSS-GAME PAIR BUILDING (2026-08-09, Donovan: "from this view I
   // should be able to visually pair a TOP pick or HR pick / alt pick from
   // each game"). The chips below become tappable legs: tap one here, tap
@@ -439,13 +441,17 @@ export default function GameStrip({ games, activeGame, onSelect, mode, onPairPic
               ? { kind: 'live', text: `${String(c.liveG.half || '').slice(0, 3)}${c.liveG.inning ?? ''}${c.liveG.outs != null ? ` · ${c.liveG.outs}o` : ''}` }
               : c.liveG?.state === 'Final' ? { kind: 'final', text: 'FINAL' } : { kind: 'time', text: c.time },
             // 🌤 the air, compressed to one readable clause (airVerdict's tone).
-            extra: c.wx ? (
-              <span title={c.wx.title} style={{
-                whiteSpace: 'nowrap', cursor: 'default', fontWeight: 700,
-                color: c.wx.tone === 'carrying' ? verdictInk(true).color
-                  : c.wx.tone === 'dead' ? verdictInk(false).color : C.text3,
-              }}>{c.wx.text}</span>
-            ) : null,
+            extra: (() => {
+              const wx = c.wx ? (
+                <span title={c.wx.title} style={{
+                  whiteSpace: 'nowrap', cursor: 'default', fontWeight: 700,
+                  color: c.wx.tone === 'carrying' ? verdictInk(true).color
+                    : c.wx.tone === 'dead' ? verdictInk(false).color : C.text3,
+                }}>{c.wx.text}</span>
+              ) : null
+              const tr = totalRowFor(gameTotals, c.pk)
+              return tr ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>{wx}<GameTotalMark row={tr} /></span> : wx
+            })(),
             score: c.liveG ? { away: awayAbbr, home: homeAbbr, awayScore: c.liveG.awayScore, homeScore: c.liveG.homeScore, live: c.liveG.state === 'Live' } : null,
             chips: [['TOP', c.topPick, C.yellow, "MOONSHOT's TOP pick in this game"],
               ['HR', c.hrPick, C.orange, "MOONSHOT's HR pick in this game"],

@@ -1,6 +1,5 @@
 'use client'
 import { useState } from 'react'
-import { STATUS_WORD as STATUS } from '../../lib/callStatus'
 import { C, NUM_FONT } from '../../lib/nba/theme'
 import { TYPE } from '../../lib/theme'
 import { NBA_MARKETS } from '../../lib/nba/model'
@@ -13,8 +12,7 @@ import StatStrip from '../StatStrip'
 import FollowButton from '../FollowButton'
 import StarMemory from '../watch/StarMemory'
 import { SportTheme } from '../SportTheme'
-import { CardName, ScoreBadge, ExplainStrip } from '../card/CardParts'
-import TeamMark from '../TeamMark'
+import RankCard from '../card/RankCard'
 
 // 🏀 BUCKETS' PROP CARD (2026-10-03, the visual pass: "the props page should
 // have the cards like MLB ... the basketball shit don't got none of this").
@@ -27,50 +25,30 @@ const LEG_WORD = { ptsPg: 'Points', rebPg: 'Rebounds', astPg: 'Assists', minPg: 
 const MAIN = { pts: ['ptsPg', 'PTS/G'], reb: ['rebPg', 'REB/G'], ast: ['astPg', 'AST/G'], '3pm': ['tpmPg', '3PM/G'], pra: ['praPg', 'PRA/G'], dd: ['ddRate', 'OF HIS GAMES'], td: ['tdRate', 'OF HIS GAMES'], first: ['fgaShare', 'SHOT SHARE'] }
 
 export function BucketsCard({ r, rank, market = 'pts', onOpen }) {
-  const [openScore, setOpenScore] = useState(false)
   const M = NBA_MARKETS[market] || NBA_MARKETS.pts
   const called = r.status === 'called'
   const preview = r.locked === false
-  const tone = called ? C.purple : C.text2
   const [mainKey, mainLabel] = MAIN[market] || MAIN.pts
   const mainV = Number(r[mainKey] ?? r.legs?.[mainKey])
   const main = Number.isFinite(mainV) ? (mainKey === 'fgaShare' || RATE_LEGS.has(mainKey) ? `${Math.round(mainV * 100)}%` : mainV.toFixed(1)) : '—'
   const min = Number(r.minPg ?? r.legs?.minPg)
   const legs = (M.legs || []).filter((k) => k !== mainKey && r.pct?.[k] != null)
-    .map((k) => ({ id: k, label: LEG_WORD[k] || k, text: `${Math.round(r.pct[k])}`, color: chipColor(r.pct[k], 0, 100), title: `${LEG_WORD[k] || k}: ${Math.round(r.pct[k])}th percentile among tonight's players` }))
+    .map((k) => ({ label: String(LEG_WORD[k] || k).toUpperCase(), value: Math.round(r.pct[k]), pct: r.pct[k], title: `${LEG_WORD[k] || k}: ${Math.round(r.pct[k])}th percentile among tonight's players` }))
   return (
     <SportTheme theme={C} accent={C.purple} numFont={NUM_FONT}>
-      <Card color={`${tone}55`} onClick={() => onOpen?.(String(r.playerId))} style={{ opacity: r.voidReason ? 0.55 : 1 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: 1 }}>
-            <span style={{ fontFamily: NUM_FONT, fontSize: TYPE.label, color: called ? C.purple : C.text3, minWidth: 14 }}>{rank}</span>
-            <PlayerFace sport="nba" id={r.playerId} name={r.name} variant="tile" size={36} theme={C} />
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3, color: C.text }}><CardName name={r.name} /></div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: C.text3, fontFamily: NUM_FONT }}>
-                <TeamMark sport="nba" abbr={r.team} variant="logo" px={16} />{r.pos ? `${r.pos} · ` : ''}{r.home ? 'vs' : '@'} {r.opp}
-              </div>
-            </div>
-          </div>
-          <ScoreBadge label="BUCKETS" score={Math.round(r.score ?? 0)} sub={STATUS[r.status]} color={tone} open={openScore} onToggle={() => setOpenScore((v) => !v)} />
-        </div>
-        <ExplainStrip notes={[openScore && `The ${M.label} board score: his percentile ranks among tonight's players on this board's legs, averaged. A ranking, not a percentage.`]} />
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 8 }}>
-          <b style={{ font: `900 28px/1 ${NUM_FONT}`, color: called ? C.purple : C.text, letterSpacing: '-.02em' }}>{main}</b>
-          <span style={{ font: `800 11px/1 ${NUM_FONT}`, color: C.text3, letterSpacing: '.06em' }}>{mainLabel}</span>
-          {Number.isFinite(min) && market !== 'first' && <span style={{ marginLeft: 'auto', font: `700 11px/1 ${NUM_FONT}`, color: C.text2 }}>{min.toFixed(1)} MIN/G</span>}
-        </div>
-        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 8 }}>
-          {called ? <Chip color={C.purple}>{STATUS.called}{r.role ? ` · ${r.role}` : ''}</Chip> : <Chip color={C.text3}>{STATUS[r.status] || 'RANKED'}</Chip>}
-          {preview && <Chip color={C.text3}>PREVIEW</Chip>}
-          {r.injury && <Chip color={C.text2}>{String(r.injury).toUpperCase()}</Chip>}
-        </div>
-        {legs.length > 0 && <StatStrip stats={legs} style={{ marginBottom: 8 }} />}
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }} onClick={(e) => e.stopPropagation()}>
+      <RankCard accent={C.purple} status={r.status} pos={r.pos || ''} rank={rank} sport="nba" club={r.team} name={r.name} opp={r.opp} home={r.home}
+        role={called && r.role ? r.role : ''}
+        face={<PlayerFace sport="nba" id={r.playerId} name={r.name} variant="tile" size={84} theme={C} />}
+        score={Math.round(r.score ?? 0)} scoreWord="BUCKETS" explain={`The ${M.label} board score: his percentile ranks among tonight's players on this board's legs, averaged. A ranking, not a percentage.`}
+        rankTags={[...(preview ? ['PREVIEW'] : []), ...(r.injury ? [String(r.injury).toUpperCase()] : [])]}
+        extraLine={<span style={{ marginLeft: 'auto', textAlign: 'right' }}><b style={{ font: `900 20px/1 ${NUM_FONT}`, color: called ? C.purple : C.text }}>{main}</b> <span style={{ font: `800 10px/1 ${NUM_FONT}`, color: C.text3, letterSpacing: '.06em' }}>{mainLabel}</span></span>}
+        stats={legs.slice(0, 3)}
+        back={legs.length || Number.isFinite(min) ? { rows: [{ label: mainLabel, value: main }, ...(Number.isFinite(min) && market !== 'first' ? [{ label: 'MIN/G', value: min.toFixed(1) }] : []), ...legs.map((l) => ({ label: l.label, value: l.value, pct: l.pct }))], note: "Percentiles among tonight's players. A ranking, not a percentage." } : null}
+        dim={Boolean(r.voidReason)} onClick={() => onOpen?.(String(r.playerId))}
+        foot={<>
           <FollowButton sport="nba" id={String(r.playerId)} name={r.name} team={r.team} position={r.pos} />
           <StarMemory sport="nba" id={String(r.playerId)} />
-        </div>
-      </Card>
+        </>} />
     </SportTheme>
   )
 }

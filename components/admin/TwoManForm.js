@@ -88,7 +88,7 @@ export default function TwoManForm() {
       </div>
       <p style={{ margin: '0 0 12px', fontSize: 13, lineHeight: 1.5, color: C.text2 }}>
         Your two players and a note of one to three lines, before the lock. Nothing can be changed after it. After the lock it shows on the site as
-        <b> Donovan&apos;s Two-Man</b>, in its own record, never the bot&apos;s.
+        <b> Donovan&apos;s Two-Man</b>, in its own record, never our model&apos;s.
       </p>
       <div role="tablist" aria-label="Sport" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
         {SPORTS.map(([k, label]) => <button key={k} type="button" role="tab" aria-selected={sport === k} onClick={() => setSport(k)} style={btn(sport === k)}>{label}</button>)}

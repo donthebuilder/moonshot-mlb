@@ -23,6 +23,7 @@ import { STATUS_WORD } from '../../lib/callStatus'
 import { EmptyState, DelayedBanner, Loading, StaleSeasonNote, fmtPuckDrop, zoneAbbrev, shiftDay, fmtDay } from './ui'
 import TeamMark from '../TeamMark'
 import CardButton from '../CardButton'
+import GameTotalLine, { GameTotalMark, totalRowFor, useGameTotals } from '../GameTotalLine'
 import { downloadLampGameCard } from './shareCard'
 
 // LAMP'S SLATE (2026-09-28). MOONSHOT's Slate (components/tabs/Games.js,
@@ -75,6 +76,7 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
   const { data, error, loading } = useLampBoard(date, 'GOAL')
   const isPhone = useIsPhone()
   const outCounts = useOutCounts('nhl')   // lib/injuries: "3 out" on the game row and the Out pill
+  const gameTotals = useGameTotals('nhl')   // each game's own Top Totals row, said on its own game (components/GameTotalLine.js)
   const [gfilter, setGfilter] = useState('all')
   const [panel, setPanel] = useState('read')
   const [hashGame, setHashGame] = useHashFilter('game')
@@ -140,7 +142,11 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
       band: topId === g.game.id && games.length > 1 ? { icon: '🌋', word: 'MAIN EVENT' } : heatTier(heat) === 'hot' ? { icon: '🔥', word: '' } : heatTier(heat) === 'cold' && games.length > 2 ? { icon: '🧊', word: '' } : null,
       lead: <span title={g.locked ? 'The board locked before puck drop' : g.setting ? 'Setting: the calls can still change until puck drop' : 'A preview until the board locks'}>{g.locked ? '🔒' : '◻'}</span>,
       status: st === 'live' ? { kind: 'live', text: g.game.statusLine || 'LIVE' } : st === 'final' ? { kind: 'final', text: 'FINAL' } : { kind: 'time', text: timeOf(g) },
-      extra: (() => { const oc = outCounts([g.game.away.abbrev, g.game.home.abbrev]); return <span>{XG_WORDS}{oc?.out ? ` · ${oc.out} out` : ''}</span> })(),
+      extra: (() => {
+        const oc = outCounts([g.game.away.abbrev, g.game.home.abbrev]); const base = <span>{XG_WORDS}{oc?.out ? ` · ${oc.out} out` : ''}</span>
+        const tr = totalRowFor(gameTotals, g.game.id)
+        return tr ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>{base}<GameTotalMark row={tr} /></span> : base
+      })(),
       score: null,   // the title carries it: each club once, with its score beside it
       chips: called.map((r) => ({
         key: String(r.playerId), tag: 'CALL', color: C.ice, name: r.name, score: Math.round(r.score ?? 0),
@@ -157,16 +163,18 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
   const switcherLive = Object.fromEntries(games.filter((x) => stateOf(x) !== 'upcoming').map((x) => [String(x.game.id), { away_score: x.game.away.score, home_score: x.game.home.score }]))
 
   return (
-    <div>
+    <div className="slate-tight">
       <PageHeader eyebrow="LAMP · SLATE" title="Slate" theme={C} numFont={NUM_FONT} accent={C.ice}
         note="Tonight’s games, puck drop first." />
+      {/* desktop: day nav + search + team + game + Table|Games on ONE row (app/globals.css .slate-tight); phone: a plain block, unchanged */}
+      <div className="slate-bar">
       <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
         <NavBtn onClick={() => setDate(shiftDay(shown, -1))} disabled={loading}>‹ Previous day</NavBtn>
         <NavBtn onClick={() => setDate(null)} disabled={loading || !date} strong>Tonight</NavBtn>
         <NavBtn onClick={() => setDate(shiftDay(shown, 1))} disabled={loading}>Next day ›</NavBtn>
         {shown ? <span style={{ color: C.text3, fontFamily: NUM_FONT, fontSize: 11 }}>{fmtDay(shown)}</span> : null}
       </div>
-      {data?.season?.stale && <StaleSeasonNote label={data.season.label} opens={data.season.opens} what="per-game stats" />}
+      {data?.season?.stale && <div className="slate-note"><StaleSeasonNote label={data.season.label} opens={data.season.opens} what="per-game stats" /></div>}
       {allGames.length > 0 && (
         <>
           <BoardTopBar query={query} setQuery={setQuery} placeholder="Search skater or team…"
@@ -176,6 +184,7 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
           <ViewPills views={[['table', '📊 Table'], ['games', '🏟 Games']]} view={view} setView={setView} accent={C.ice} />
         </>
       )}
+      </div>
       {view === 'table' && all.length > 0 && (
         <>
           <LampProjected items={items} games={all} stale={Boolean(data?.season?.stale)} onOpenTeam={onOpenTeam}
@@ -227,6 +236,8 @@ export default function LampSlate({ date = null, setDate = () => {}, onOpenPlaye
                     <CardButton sport="nhl" label="Download this game as an image" onDownload={() => downloadLampGameCard(g, { date: shown || '' })} />
                   </span>
                 </div>
+                {/* THIS GAME'S TOTAL (2026-10-10): the Top Totals row the lock stored for it (the projected goals are the same number) */}
+                <GameTotalLine sport="nhl" row={gameTotals?.[String(g.game.id)]} style={{ marginTop: 2, paddingBottom: 6 }} />
               </div>
               <div style={{ borderTop: `1px solid ${C.border}`, padding: '12px 14px 14px', background: 'rgba(0,0,0,.15)' }}>
                 <GamePanelPills panels={PANELS} subs={SUBS} panel={panel} setPanel={setPanel} gamePk={g.game.id} isPhone={isPhone} accent={C.ice} stickyTop="var(--gsw-h, 0px)"

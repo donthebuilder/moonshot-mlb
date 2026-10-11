@@ -24,6 +24,8 @@ import { hashParams, writeHash, cardViewPush } from '../../../lib/urlState'
 import { playerHref } from '../../../lib/routes'
 import { DETAIL_MARK, PEEK_MARK, VIEWS_KEY } from '../../../lib/useShellRoute'
 import { etToday } from '../../../lib/freshness'
+import { bornLine } from '../../../lib/birthday'
+import { BirthdayChip } from '../../player/BirthdayChip'
 import { useBucketsPlayer, useBucketsBoard, useBucketsDefense } from '../../../lib/nba/useBuckets'
 import { PLAYER_ID_RE } from '../../../lib/nba/ids'
 import { NBA_MARKETS } from '../../../lib/nba/legs'
@@ -136,7 +138,7 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
   const dateNow = board?.date || etToday()
   const [whyOpen, setWhyOpen] = useState(false)
   const whyLine = row ? (row.status === 'off' && row.reason ? `Not on the board: ${row.reason}` : row.why || null) : null
-  const bio = [card.pos, card.age ? `age ${card.age}` : null, card.height, card.weight, card.status && card.status !== 'Active' ? card.status : null].filter(Boolean).join(' · ')
+  const bio = [card.pos, bornLine(card.birthDate, dateNow) || (card.age ? `age ${card.age}` : null), card.height, card.weight, card.status && card.status !== 'Active' ? card.status : null].filter(Boolean).join(' · ')
 
   // ── tables ──
   const logRows = games.slice().sort((a, b) => (a.date < b.date ? 1 : -1)).map((g) => {
@@ -274,7 +276,7 @@ function PlayerBody({ data, error, onOpenTeam, onOpenGame, onBack, backLabel, on
             )}
             <BucketsPropsMatrix log={data.log || []} logSeason={data.logSeason} />
             <PlayerBars log={data.log || []} logSeason={data.logSeason} nextGame={data.nextGame} onOpenTeam={onOpenTeam} />
-            <div style={{ color: C.text3, fontSize: 12, lineHeight: 1.5 }}>{bio}</div>
+            <div style={{ color: C.text3, fontSize: 12, lineHeight: 1.5 }}>{bio}<BirthdayChip birth={card.birthDate} on={dateNow} accent={C.purple} textColor={C.text2} font={NUM_FONT} /></div>
             <StarMemory sport="nba" id={pid} />
             <InTheLedger sport="nba" id={pid} name={card.name} jersey={card.jersey} birthDate={card.birthDate} next={next} date={dateNow} />
             <HisNumbers name={card.name} jersey={card.jersey} birthDate={card.birthDate} next={next} nextWord="point" date={dateNow} theme={C} accent={C.purple} numFont={NUM_FONT} />

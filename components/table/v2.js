@@ -189,6 +189,10 @@ export function v2Css(C, ac, NUM_FONT) {
     .dtv2 .glyph { font-size: 12px; font-weight: 800; }
     .dtv2 .arrow { margin-left: 3px; font-size: 8px; opacity: .9; }
     .dtv2 .sub { display: none; }
+    /* a sub-only column (the opponent, a game) rides the sub-line on desktop too: quiet text, one line under the name */
+    .dtv2 .sub.sub-d { display: flex; flex-wrap: wrap; align-items: center; gap: 0 7px; font: 700 9.5px/1.15 ${NUM_FONT}; color: ${C.text3}; letter-spacing: .02em; margin-top: 1px; }
+    .dtv2 .sub.sub-d > span:not(.sub-only) { display: none; }
+    .dtv2 .sub.sub-d .vs::before { content: 'vs '; opacity: .7; }
     .dtv2.dtv2-tight td { height: 24px !important; }
     .dtv2.dtv2-tight td.name { padding-top: 0 !important; padding-bottom: 0 !important; }
     .dtv2 .dtv2-scroll { -webkit-overflow-scrolling: touch; }
@@ -228,6 +232,11 @@ export function v2Css(C, ac, NUM_FONT) {
       .dtv2 .sub { display: flex; flex-wrap: wrap; align-items: center; gap: 0 7px; font: 700 8.5px/1.15 ${NUM_FONT}; color: ${C.text3}; letter-spacing: .02em; margin-top: 1px; }
       /* the dots between the pieces of the sub-line are tight (2026-10-07): spaces around them pushed the opponent off a 122px cell as an "…" */
       .dtv2 .sub .dot { margin: 0 3px; }
+      /* a phone shows the whole sub-line again (status, club, opponent), and a called row still drops the opponent's logo */
+      .dtv2 .sub.sub-d > span:not(.sub-only) { display: inline; }
+      .dtv2 .sub .opp-called { display: none; }
+      .dtv2 .sub.sub-d .vs::before { content: none; }
+      .dtv2 .sub.sub-d { font-size: 8.5px; }
       /* the availability chip rides the sub-line on a phone (the name cell clips it); inline beside the name elsewhere (lib/injuries) */
       .dtv2 .inj-in { display: none; }
       .dtv2 .long .full { display: none; }
@@ -272,6 +281,11 @@ export function renderV2(ctx) {
     const col = { key: '_status', label: 'Status', heat: false, _status: true, _g: g, w: 118, title: `${STATUS_WORD.called}: our pick. ${STATUS_WORD.board}: inside the board, not picked. ${STATUS_WORD.off}: outside the board.` }
     return [...ordered.slice(0, at + 1), col, ...ordered.slice(at + 1)]
   })()
+  // SUB-ONLY COLUMNS (2026-10-10, Donovan: "we dont need opp as a column on the rankings it takes up space"):
+  // a column tagged `subOnly` is not drawn as a column at any width. Its value rides the sub-line under the
+  // player's name on desktop and on a phone, so the opponent / game stays one glance and one tap away (the link
+  // is the column's own) while the table spends no width on it.
+  const vis = columns.filter((c) => !c.subOnly)
   // the # column: tagged, or the plain '#' text column every board uses
   const isRank = (c) => c.rankCol === true || (c.rankCol !== false && c.heat === false && String(c.label).trim() === '#')
   const rankC = columns.find(isRank)
@@ -279,7 +293,7 @@ export function renderV2(ctx) {
   // the 'call' group's other text columns fold into the phone sub-line
   const callKey = nameC?._g?.key ?? null
   // (or a column tagged `fold`, for tables without groups)
-  const folds = (c) => c !== nameC && !isRank(c) && (c.fold === true
+  const folds = (c) => c !== nameC && !isRank(c) && (c.fold === true || c.subOnly === true
     // the ☆ never folds (Donovan 10-01: "fix the watchlist bug star") -- a
     // phone must be able to watch a player from every table, the Board too
     || (c.fold !== false && !!callKey && c._g?.key === callKey && c.heat === false && !c.action))
@@ -346,7 +360,7 @@ export function renderV2(ctx) {
     return l.length ? { background: `${l.map((x) => `linear-gradient(${x}, ${x})`).join(', ')}, ${C.bg2}` } : null
   }
   const groupStart = new Set()
-  columns.forEach((c, i) => { if (i > 0 && c._g && c._g.key !== columns[i - 1]._g?.key) groupStart.add(c.key) })
+  vis.forEach((c, i) => { if (i > 0 && c._g && c._g.key !== vis[i - 1]._g?.key) groupStart.add(c.key) })
 
   const pinStyle = (c, head) => {
     if (c === rankC) return { position: 'sticky', left: 0, zIndex: head ? 5 : 2 }
@@ -385,7 +399,7 @@ export function renderV2(ctx) {
             // away is not counted there (`phone`, DenseTable's own matchMedia at 640px).
             const pinW = (rankC ? (phone ? 26 : (rankC.w || 40)) : 0) + (nameC ? (phone ? 122 : (nameC.w || 150)) : 0)
             const runs = []
-            columns.forEach((c) => {
+            vis.forEach((c) => {
               const key = c._g?.key ?? null
               const last = runs[runs.length - 1]
               if (last && last.key === key) last.cols.push(c)
@@ -407,7 +421,7 @@ export function renderV2(ctx) {
         </tr>
       )}
       <tr className="h-row">
-        {columns.map((c) => {
+        {vis.map((c) => {
           const si = sort.findIndex((x) => x.key === c.key)
           const on = si >= 0
           const dir = on ? sort[si].dir : null
@@ -450,7 +464,7 @@ export function renderV2(ctx) {
             title={light ? `Highlight: ${light.name || 'match'}` : undefined}
             className={`${onRowClick ? 'dtv2-row dtv2-click dense-row dense-click' : 'dtv2-row dense-row'}${tierStart ? ' tier-start' : ''}`}
             style={{ opacity: dimRow?.(r) ? 0.42 : 1 }}>
-            {columns.map((c) => {
+            {vis.map((c) => {
               const v = r[c.key]
               const pin = pinStyle(c, false) || {}
               const bgTint = tint ? { background: `linear-gradient(${tint}, ${tint}), ${C.bg2}` } : null
@@ -529,19 +543,24 @@ export function renderV2(ctx) {
                       // logos only (Donovan 10-02: "just do logos simple"); the code rides the logo's title / alt
                       // the logo is a link like its own column's: the column's link, else the
                       // product's team door (a tap on the sub-line logo used to fall through to the row's player card)
-                      if (!(called && !firstTeam)) {
-                        const mk = fc.code ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><TeamMark sport={logoOf(fc)} abbr={fv} variant="logo" px={11} />{String(fv)}</span> : <TeamMark sport={logoOf(fc)} abbr={fv} variant="logo" px={11} />
+                      // a sub-only opponent keeps its code beside the logo on desktop, where there is room (the
+                      // phone's called rows still drop it, see the `opp-called` rule in the sheet)
+                      const dropOnCalled = called && !firstTeam
+                      if (fc.subOnly || !dropOnCalled) {
+                        const withCode = fc.code || fc.subOnly
+                        const mk = withCode ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><TeamMark sport={logoOf(fc)} abbr={fv} variant="logo" px={11} />{String(fv)}</span> : <TeamMark sport={logoOf(fc)} abbr={fv} variant="logo" px={11} />
                         const goTeam = fc.link ? fc.link(r._raw ?? r) : (onOpenTeam && /^[A-Z]{2,4}$/.test(String(fv)) ? () => onOpenTeam(String(fv)) : null)
-                        sub.push(<span key={fc.key} data-vs={firstTeam ? undefined : 1} style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>{firstTeam ? null : 'v '}{goTeam ? <Tap onClick={goTeam}>{mk}</Tap> : mk}</span>)
+                        sub.push(<span key={fc.key} data-vs={firstTeam ? undefined : 1} data-cls={fc.subOnly ? `sub-only${dropOnCalled ? ' opp-called' : ''}` : undefined} style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>{firstTeam ? null : 'v '}{goTeam ? <Tap onClick={goTeam}>{mk}</Tap> : mk}</span>)
                       }
                       firstTeam = false
                     } else if (fc.key !== 'role' && !fc._status) {
                       // a short folded value (POS "RB", a G2) rides the sub-line; a long one
-                      // (a role sentence) stays on the desktop column only
+                      // (a role sentence) stays on the desktop column only. A sub-only value (the
+                      // opponent, a game) is always short enough and keeps its own link.
                       const txt = String(fc.fmt ? fc.fmt(fv, r) : fv)
-                      if (txt.length <= 6) {
-                        const goT = onOpenTeam && teamCodeOf(fc.key, txt) ? () => onOpenTeam(teamCodeOf(fc.key, txt)) : null
-                        sub.push(<span key={fc.key}>{goT ? <Tap onClick={goT}>{txt}</Tap> : txt}</span>)
+                      if (fc.subOnly || txt.length <= 6) {
+                        const goT = fc.link ? fc.link(r._raw ?? r) : (onOpenTeam && teamCodeOf(fc.key, txt) ? () => onOpenTeam(teamCodeOf(fc.key, txt)) : null)
+                        sub.push(<span key={fc.key} data-cls={fc.subOnly ? `sub-only${fc.key === 'opp' && /^[A-Z]{2,4}$/.test(txt) ? ' vs' : ''}` : undefined}>{goT ? <Tap onClick={goT}>{txt}</Tap> : txt}</span>)
                       }
                     }
                   }
@@ -558,7 +577,7 @@ export function renderV2(ctx) {
                       {go ? <Tap onClick={go}>{nameEl}</Tap> : nameEl}
                       {injEntry && <span className="inj-in"><InjuryChip entry={injEntry} C={C} font={NUM_FONT} size={8.5} /></span>}
                       {sub.length > 0 && (
-                        <div className="sub">{sub.map((x, i) => <span key={i}>{x}</span>)}</div>
+                        <div className={`sub${columns.some((x) => x.subOnly) ? ' sub-d' : ''}`}>{sub.map((x, i) => <span key={i} className={x?.props?.['data-cls'] || undefined}>{x}</span>)}</div>
                       )}
                     </td>
                   )
@@ -651,7 +670,7 @@ export function renderV2(ctx) {
     <tfoot>
       {footRows.map((fr, fi) => (
         <tr key={`f${fi}`}>
-          {columns.map((c) => {
+          {vis.map((c) => {
             const v = fr[c.key]
             const isName = c === nameC
             const first = fi === 0 ? { borderTop: `1px solid ${C.border2}` } : {}

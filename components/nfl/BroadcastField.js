@@ -88,7 +88,7 @@ function Arrow({ d, w, col, tip, id }) {
   )
 }
 
-export default function BroadcastField({ mode = 'pass', cells = {}, hue = C.green, core = false, ringKey = null, offTeam = '', maxWidth = 440, label = '' }) {
+export default function BroadcastField({ mode = 'pass', cells = {}, hue = C.green, core = false, ringKey = null, offTeam = '', maxWidth = 440, label = '', onZone = null, pickedZone = null }) {
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, '')
   const defs = (
     <defs>
@@ -143,6 +143,8 @@ export default function BroadcastField({ mode = 'pass', cells = {}, hue = C.gree
               {on && <rect x={X[s] + 3} y={y0 + 2} width={W / 3 - 6} height={y1 - y0 - 4} rx="9" fill="none" stroke={C.text} strokeWidth="3" style={{ filter: `drop-shadow(0 0 5px ${hue})` }} />}
               {c.big != null && <text x={cx} y={cy + (d === 'behind' ? 6 : c.pips ? 2 : 7)} textAnchor="middle" fontSize={on ? 24 : 18} fontWeight="900" fontFamily={NUM_FONT} fill={lit || on ? C.text : C.text2} style={OUTLINE}>{c.big}</text>}
               {d !== 'behind' && <Pips n={c.pips} x={cx} y={cy + 17} ink={C.text} />}
+              {pickedZone === key && <rect x={X[s] + 1} y={y0} width={W / 3 - 2} height={y1 - y0} rx="9" fill="none" stroke={C.text} strokeWidth="2" strokeDasharray="5 4" />}
+              {onZone && <rect x={X[s]} y={y0} width={W / 3} height={y1 - y0} fill="transparent" role="button" tabIndex={0} aria-label={`${c.title || key}. Who gets the ball here`} style={{ cursor: 'pointer' }} onClick={() => onZone(key)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onZone(key) } }} />}
               <title>{c.title || key}</title>
             </g>
           )
@@ -186,6 +188,8 @@ export default function BroadcastField({ mode = 'pass', cells = {}, hue = C.gree
             {c.big != null && <text x={x} y={R_LOS - len + (on ? -1 : 2)} textAnchor="middle" fontSize={on ? 19 : 16} fontWeight="900" fontFamily={NUM_FONT} fill={c.heat != null ? C.text : C.text2} style={OUTLINE}>{c.big}</text>}
             {a && <text x={x} y={R_LOS + 22} textAnchor="middle" fontSize="10.5" fontWeight="800" fontFamily={NUM_FONT} fill={C.text2}>{a}</text>}
             <text x={x} y={R_LOS + (a ? 35 : 28)} textAnchor="middle" fontSize="10.5" fontWeight="800" fontFamily={NUM_FONT} fill={C.text2}>{b}</text>
+            {pickedZone === key && <rect x={x - 21} y={EZ + 4} width="42" height={R_LOS - EZ - 8} rx="9" fill="none" stroke={C.text} strokeWidth="2" strokeDasharray="5 4" />}
+            {onZone && <rect x={x - 21} y={EZ} width="42" height={R_LOS - EZ + 40} fill="transparent" role="button" tabIndex={0} aria-label={`${c.title || key}. Who gets the ball here`} style={{ cursor: 'pointer' }} onClick={() => onZone(key)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onZone(key) } }} />}
             <title>{c.title || key}</title>
           </g>
         )
