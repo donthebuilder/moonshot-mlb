@@ -514,7 +514,7 @@ export default function NflDashboard({ palettePass = 0 }) {
             {tab === 'home' && <Home data={slate} picks={picks} results={nflResults} matchup={matchup} logs={logs} onPlayerClick={openPlayer} setTab={setTab} liveSnap={liveSnap} />}
             {/* MOONSHOT's Players page (2026-09-30): list + the card inline. */}
             {!oddsHold && tab === 'players' && <NflPlayers data={data} logs={logs} matchup={matchup} picks={picks} results={nflResults} odds={odds} />}
-            {tab === 'watchlist' && <Watchlist data={slate} matchup={matchup} logs={logs} onPlayerClick={openPlayer} />}
+            {tab === 'watchlist' && <Watchlist data={slate} matchup={matchup} logs={logs} picks={picks} onPlayerClick={openPlayer} />}
             {/* TOP TOTALS now ride each game (components/GameTotalLine.js: on the game's header and its slate card); the record stays in the Ledger.
                 The Card is one line, under the slate (it was a block above the first game). */}
             {!oddsHold && tab === 'games' && <Games data={slate} picks={picks} matchup={matchup} logs={logs} results={nflResults} odds={odds} onPlayerClick={openPlayer} onOpenTeam={openTeamPage} />}
