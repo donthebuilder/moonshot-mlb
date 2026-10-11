@@ -179,5 +179,120 @@ const { postText: goalPost } = await import('../lib/nhl/goalFeed.js')
 check(goalPost({ day: '2026-09-23', name: 'Aaron Judge', strength: 'ev', period: 1 }).includes('🔢 His name = 42'), 'goal post: the date line')
 check(!goalPost({ day: '2026-09-24', name: 'Aaron Judge', strength: 'ev', period: 1 }).includes('🔢'), 'goal post: no match, no line')
 
+
+// ── 10. CIPHER LANES (2026-10-10) -- TEST data; known words by hand ──────────
+// A=1 ordinal / 26 reverse ordinal / 1 full reduction / 8 reverse reduction; Z=26 / 1 / 8 / 1.
+const { LANES: ALL_LANES, LANE_CIPHERS, matchLanes: ml, eligibleLanes: el, displayLanes, LANE_SHORT } = await import('../lib/numerology/lanes.js')
+const fsm = await import('node:fs')
+check(cipherValue('A', 'ordinal') === 1 && cipherValue('A', 'reverseOrdinal') === 26 && cipherValue('A', 'fullReduction') === 1 && cipherValue('A', 'reverseReduction') === 8, 'A: ordinal 1, reverse ordinal 26, full reduction 1, reverse reduction 8')
+check(cipherValue('Z', 'ordinal') === 26 && cipherValue('Z', 'reverseOrdinal') === 1 && cipherValue('Z', 'fullReduction') === 8 && cipherValue('Z', 'reverseReduction') === 1, 'Z: ordinal 26, reverse ordinal 1, full reduction 8, reverse reduction 1')
+check(cipherValue('ZA', 'reverseReduction') === 9 && cipherValue('ZA', 'reverseOrdinal') === 27 && cipherValue('ZA', 'ordinal') === 27, 'ZA: 27 ordinal, 27 reverse ordinal, 9 reverse reduction')
+const pca = gematria('Pete Crow-Armstrong').full; const vg = gematria('Vladimir Guerrero Jr.').full
+check(pca.reverseOrdinal.value === 17 * 27 - pca.ordinal.value, 'hyphen stripped: reverse ordinal = 27 x letters - ordinal (17 letters)')
+check(vg.reverseOrdinal.value === 16 * 27 - vg.ordinal.value && gematria('Vladimir Guerrero Jr.').last.ordinal.value === cipherValue('GUERRERO', 'ordinal'), 'suffix dropped: Jr. adds nothing in any cipher (16 letters)')
+check(LANE_CIPHERS.join() === 'ordinal,fullReduction,reverseOrdinal,reverseReduction' && !ALL_LANES.some((l) => /sumerian/i.test(l.key + l.label)), 'four ciphers get lanes; Sumerian (off by default) gets none')
+const FAM = ['gem_date', 'gem_jersey', 'gem_next', 'fib_name']
+check(ALL_LANES.length === 30, `lane count 30 (14 before + 4 families x 4 ciphers = 16 new); got ${ALL_LANES.length}`)
+check(new Set(ALL_LANES.map((l) => l.key)).size === ALL_LANES.length, 'lane keys are unique')
+const WORD = { ordinal: 'ordinal', fullReduction: 'full reduction', reverseOrdinal: 'reverse ordinal', reverseReduction: 'reverse reduction' }
+let shapeOk = true; let labelOk = true
+for (const f of FAM) {
+  const any = ALL_LANES.find((l) => l.key === f)
+  if (!any || !/ · any cipher$/.test(any.label)) labelOk = false
+  for (const c of LANE_CIPHERS) {
+    const l = ALL_LANES.find((x) => x.key === `${f}_${c}`)
+    if (!l || l.group !== any.group || JSON.stringify(l.needs) !== JSON.stringify(any.needs) || l.family !== f || l.cipher !== c) shapeOk = false
+    if (!l || !l.label.endsWith(` · ${WORD[c]}`) || !l.label.startsWith(any.label.replace(/ · any cipher$/, ''))) labelOk = false
+  }
+}
+check(shapeOk, 'each cipher lane has the same group and needs as its sibling (and its family + cipher)')
+check(labelOk, 'labels name the cipher ("... · ordinal" / "· reverse ordinal" / "· reverse reduction" / "· full reduction"); the old lane says "· any cipher"')
+check(ALL_LANES.find((l) => l.key === 'gem_date_ordinal').label === "Name = tonight's date · ordinal" && ALL_LANES.find((l) => l.key === 'gem_date_reverseReduction').group === 'NAMES & LETTERS', 'exact label + group of the first new lanes')
+check(FAM.every((f) => LANE_CIPHERS.every((c) => LANE_SHORT[`${f}_${c}`])) && new Set(Object.values(LANE_SHORT)).size === Object.values(LANE_SHORT).length, 'every cipher lane has its own short tag, all tags distinct')
+// each cipher lane fires exactly when ITS cipher matches. TEST name "Aaron Judge": ordinal 96 / full red 42 / rev ord 174 / rev red 57.
+const J = { name: 'Aaron Judge', jersey: 49, next: 34 }
+const only = (p, date, key) => ml(p, { date }).filter((m) => m.lane === key)
+check(only(J, '2026-09-23', 'gem_date_fullReduction').length === 1 && !only(J, '2026-09-23', 'gem_date_ordinal').length && !only(J, '2026-09-23', 'gem_date_reverseOrdinal').length && only(J, '2026-09-23', 'gem_date').length >= 1, '9/23/2026 = 42: the full-reduction lane fires, ordinal and reverse ordinal do not, the any-cipher lane fires with it')
+check(only(J, '2026-09-23', 'gem_date_fullReduction')[0].matchedTo === only(J, '2026-09-23', 'gem_date')[0].matchedTo && /full name = 42 in Full Reduction/.test(only(J, '2026-09-23', 'gem_date_fullReduction')[0].text), 'a cipher lane records the same matched_to key and text shape as its sibling')
+check(only({ name: 'Aaron Judge', jersey: 49 }, '2026-09-29', 'gem_jersey_ordinal').length === 1 && !only({ name: 'Aaron Judge', jersey: 49 }, '2026-09-29', 'gem_jersey_reverseOrdinal').length, 'AARON = 49 ordinal -> jersey #49 only in the ordinal lane')
+check(only({ name: 'Aaron Judge', next: 57 }, '2026-09-29', 'gem_next_reverseReduction').length === 1 && !only({ name: 'Aaron Judge', next: 57 }, '2026-09-29', 'gem_next_fullReduction').length, 'full name = 57 reverse reduction -> next #57 only in that lane')
+check(!ml({ name: 'Aaron Judge' }, { date: '2026-09-29' }).some((m) => m.lane.startsWith('fib_name')), 'fib_name: 96 / 42 / 174 / 57 are not Fibonacci, no lane fires')
+// ZZZK = 26+26+26+11 = 89 in ordinal (Fibonacci)
+check(only({ name: 'Zzzk' }, '2026-09-29', 'fib_name_ordinal').length === 1 && only({ name: 'Zzzk' }, '2026-09-29', 'fib_name').length >= 1 && !only({ name: 'Zzzk' }, '2026-09-29', 'fib_name_fullReduction').length, 'ZZZK = 89 ordinal (Fibonacci): the ordinal lane and the any-cipher lane fire, full reduction does not')
+// the any-cipher lane is exactly the union of its cipher lanes (same rows, same hit rule)
+let union = true
+for (const nameX of ['Aaron Judge', 'Zzzk', 'Pete Crow-Armstrong', 'Vladimir Guerrero Jr.']) for (const date of ['2026-09-12', '2026-09-23', '2026-09-29', '2026-04-06']) for (const jersey of [49, 42, 47, 96, 89]) for (const f of FAM) {
+  const p = { name: nameX, jersey, next: jersey }
+  const a = new Set(ml(p, { date }).filter((m) => m.lane === f).map((m) => `${m.matchedTo}|${m.value}`))
+  const u = new Set(LANE_CIPHERS.flatMap((c) => ml(p, { date }).filter((m) => m.lane === `${f}_${c}`).map((m) => `${m.matchedTo}|${m.value}`)))
+  if (a.size !== u.size || [...a].some((k) => !u.has(k))) union = false
+}
+check(union, 'the any-cipher lane equals the union of its four cipher lanes (names x dates x numbers)')
+check(el({ name: 'X' }).includes('gem_date_ordinal') && el({ name: 'X' }).includes('fib_name_reverseReduction') && !el({ name: 'X' }).includes('gem_jersey_ordinal') && el({ name: 'X', jersey: 3 }).includes('gem_jersey_reverseOrdinal'), 'eligible lanes follow the fields (the denominator): a cipher lane needs what its sibling needs')
+// recording + grading are the existing path: new lane keys flow through buildRows / laneNights unchanged
+const rowsT = buildRows('nhl', '2026-09-23', [{ player_id: 'T9', name: 'Aaron Judge', jersey: 49, birthDate: null, next: 34, team: 'TST', opp: 'OPP' }])
+check(rowsT.some((r) => r.lane === 'gem_date_fullReduction' && r.matched_to === 'date full 42'), 'buildRows records the new lane with the sibling\'s key shape')
+check(rowsT.find((r) => r.lane === ELIGIBLE).value.split(',').includes('gem_date_reverseReduction'), 'the _eligible row lists the new lanes (their own denominator)')
+const gradedT = rowsT.map((r) => ({ ...r, graded_at: 'x', played: true, hit: true }))
+const nightsT = laneNights('nhl', '2026-09-23', gradedT).find((x) => x.lane === 'gem_date_fullReduction')
+check(nightsT.eligible === 1 && nightsT.matched === 1 && nightsT.matched_hits === 1 && nightsT.eligible_hits === 1, 'grading is unchanged: same eligible / matched / hit counts for a cipher lane')
+// displayLanes: the any-cipher sibling steps aside when a cipher lane matched
+const dm = displayLanes(ml(J, { date: '2026-09-23' }))
+check(!dm.some((m) => m.lane === 'gem_date') && dm.some((m) => m.lane === 'gem_date_fullReduction') && ml(J, { date: '2026-09-23' }).some((m) => m.lane === 'gem_date'), 'a surface listing matches shows the cipher, not both; the record keeps both')
+const { lanePlayers } = await import('../lib/numerology/lanePlayers.js')
+const lpl = lanePlayers([{ id: '1', name: 'Aaron Judge', team: 'NYY', a: { name: 'Aaron Judge', jersey: null, birthDate: null, next: null } }], '2026-09-23')
+check(lpl.length === 1 && lpl[0].n === 1 && lpl[0].labels.length === 2 && lpl[0].fullLabels.every((x) => !/any cipher/.test(x)) && lpl[0].fullLabels.some((x) => /full reduction/i.test(x)), 'tonight\'s players on the lanes: two ciphers of one family count as ONE lane, listed under the ciphers (never any-cipher)')
+
+// ── 11. the sample floor, the ranges, the multiple-lanes note, the disclosure ──
+const { MIN_MATCHED: MM, multiLaneNote, allLanesBase } = await import('../lib/numerology/laneTable.js')
+const fresh = laneTable(nights(6, 'gem_date_ordinal', 100, 4, 15, 1))
+check(fresh[0].shown === false && fresh[0].nights === 6 && fresh[0].matched === 24 && fresh[0].range?.length === 2 && fresh[0].baseRange?.length === 2, 'a new cipher lane with 6 nights / 24 matches is TRACKING (not shown) and still carries its n and Wilson ranges')
+check(laneTable(nights(40, 'gem_next_reverseOrdinal', 100, 0.5, 15, 0))[0].shown === false && MM === 30, '40 nights but under 30 graded matches stays tracking (the floor is 30 nights AND 30 matches)')
+check(laneTable(nights(30, 'gem_date_ordinal', 100, 1, 15, 0))[0].shown === true && laneTable(nights(29, 'gem_date_ordinal', 100, 2, 15, 0))[0].shown === false, '30 nights x 30 matches shows; 29 nights does not')
+const ab = allLanesBase([...nights(2, 'a', 100, 5, 10, 1), ...nights(2, 'b', 100, 5, 20, 1), { lane: 'c', day: 'd', eligible: 9, matched: 0, eligible_hits: null, matched_hits: null, graded_at: null }])
+check(ab.n === 400 && ab.hits === 60 && Math.abs(ab.rate - 0.15) < 1e-9 && ab.range.length === 2, 'all-lanes base rate pools graded eligible rows only (60/400 = 15%)')
+const note = multiLaneNote(29)
+check(note === "29 lanes tested: some will look hot by chance; each lane's record shows its own n and the all-lanes base rate.", 'the multiple-lanes note, exact')
+const SRC = (f) => fsm.readFileSync(new URL(`../${f}`, import.meta.url), 'utf8')
+const ltSrc = SRC('components/numerology/LaneTable.js')
+check(/multiLaneNote\(/.test(ltSrc) && /never a call/.test(ltSrc) && /never part of a score/i.test(ltSrc) && /tracking/.test(ltSrc) && /rng\(l\.range\)/.test(ltSrc) && /allBase/.test(ltSrc), 'LaneTable renders the note, the disclosure, "tracking", n + Wilson range and the all-lanes base rate')
+check(['components/lamp/tabs/Numerology.js', 'components/nfl/tabs/Numerology.js', 'components/Alignments.js'].every((f) => /LaneTable/.test(SRC(f))), 'MLB, NFL and NHL Numerology tabs all draw LaneTable (one table, every sport)')
+const words = [note, ...ALL_LANES.map((l) => l.label), ltSrc].join(' ')
+check(!/\bdue\b|winner|\bwill hit\b|\bguarantee/i.test(words) && !/\d%\s*(chance|probability)/i.test(note), 'no "due", no "winner", no printed probability in the lane words or note')
+check(!/matchLanes|LANES|laneTable/.test(SRC('lib/dash/homerFeed.js')) && !/matchLanes|LANES|laneTable/.test(SRC('lib/nhl/goalFeed.js')) && !/matchLanes|LANES|laneTable/.test(SRC('lib/nfl/tdFeed.js')), 'the numerology posts read gematria directly (full name, one line), never the lane list: the new lanes cannot reach X/Discord and no post ranks lanes by hit rate')
+check(!/numerolog|laneTable|lane_nights/i.test(SRC('lib/callStatus.js')) && !/numerolog/i.test(SRC('lib/nhl/goalModel.js')), 'numerology is not in callStatus or the NHL goal model (never a call, status, score or rank)')
+
+
+// ── 12. TODAY'S / YESTERDAY'S NUMBERS and the Ledger (2026-10-10) -- TEST rows, labelled ──
+const { dayBefore, chain, dateNumberRows, dayRecap, NUMBERS_NOTE } = await import('../lib/numerology/dayNumbers.js')
+check(dayBefore('2026-10-01') === '2026-09-30' && dayBefore('2026-01-01') === '2025-12-31' && dayBefore('2024-03-01') === '2024-02-29' && dayBefore('junk') === null, 'dayBefore: month, year and leap-day boundaries; junk -> null (the game\'s own date, no clock)')
+check(chain(48).join() === '48,12,3' && chain(29).join() === '29,11' && chain(7).join() === '7', 'reduction chains stop at one digit or at a master number (29 -> 11)')
+const rows929 = dateNumberRows('2026-09-29')
+const byK = Object.fromEntries(rows929.map((r) => [r.key, r]))
+check(byK.ud.value === 3 && byK.full.value === 48 && byK.full.reduces === '48 → 12 → 3' && byK.short.value === 64 && byK.md.value === 38 && byK.md.reduces === '38 → 11' && byK.md.master === true && byK.root.value === 3 && byK.doy.value === 272 && byK.uy.value === 1, '9/29/2026 rows by hand: UD 3, full 48 (48 -> 12 -> 3), short 64, M+D 38 (-> 11, master), root 3, day 272, universal year 1')
+check(byK.full.how === '9 + 29 + 2+0+2+6' && byK.short.how === '9 + 29 + 26', 'each row says the sum that makes it')
+check(rows929.length === 8 && rows929[0].key === 'ud' && dateNumberRows('') .length === 0, 'eight rows, Universal Day first; no date -> no rows')
+// recap: TEST rows only. Day 2026-09-29 has Universal Day 3.
+const nr = [
+  { kind: 'jersey_root', value: '3', events: 4, players: 20, expected: '2.5' }, { kind: 'jersey_root', value: '5', events: 1, players: 20, expected: '2.5' },
+  { kind: 'life_path', value: '3', events: 2, players: 30, expected: '1.9' }, { kind: 'jersey', value: '3', events: 3, players: 4, expected: '0.5' },
+]
+const lr = [
+  { lane: 'gem_date_ordinal', eligible: 300, matched: 3, eligible_hits: 45, matched_hits: 1, graded_at: 'x' },
+  { lane: 'fib_next', eligible: 300, matched: 40, eligible_hits: 45, matched_hits: 5, graded_at: 'x' },
+  { lane: 'gem_date_reverseOrdinal', eligible: 300, matched: 0, eligible_hits: 45, matched_hits: 0, graded_at: 'x' },
+  { lane: 'letters_date', eligible: 300, matched: 2, eligible_hits: null, matched_hits: null, graded_at: null },
+]
+const rc = dayRecap('2026-09-29', nr, lr)
+check(rc.graded && rc.udRows.length === 2 && rc.udRows.every((r) => r.value === '3') && !rc.udRows.some((r) => r.kind === 'jersey'), 'recap: only recorded rows equal to the Universal Day root (3), jersey-root and life-path, nothing else')
+check(rc.lanes.length === 1 && rc.lanes[0].lane === 'gem_date_ordinal' && rc.lanes[0].matched === 3 && rc.lanes[0].hits === 1 && /ordinal/.test(rc.lanes[0].label), 'recap: date lanes with someone matched and graded (not fib_next, not an empty or ungraded lane), cipher lane named')
+check(dayRecap('2026-09-29', [], []).graded === false && dayRecap('2026-09-29', null, null).graded === false, 'nothing recorded -> graded false (never invented)')
+check(NUMBERS_NOTE === 'Information only: never part of a score, never a call.', 'the disclosure line')
+const dsrc = SRC('components/numerology/DayNumbers.js')
+check(/TODAY'S NUMBERS/.test(dsrc) && /'YESTERDAY'/.test(dsrc) && /NUMBERS_NOTE/.test(dsrc) && /\+\$\{rows\.length - PREVIEW\} more numbers/.test(dsrc) && !/\bdue\b|winner/i.test(dsrc) && !/easternToday|new Date\(\)|Date\.now/.test(dsrc), 'DayNumbers: both blocks, the disclosure, a +N more preview, no clock, no "due"/"winner"')
+check([['components/Alignments.js', 'mlb'], ['components/lamp/tabs/Numerology.js', 'nhl'], ['components/nfl/tabs/Numerology.js', 'nfl']].every(([f, sp]) => new RegExp(`<DayNumbers sport="${sp}"`).test(SRC(f))), 'MLB, NHL and NFL Numerology tabs draw DayNumbers')
+check(/'align', 'numbers'/.test(SRC('components/ledger/LedgerBody.js')) && [['components/HomerLedger.js', 'mlb'], ['lib/sports/nhl/ledger.js', 'nhl'], ['lib/sports/nfl/ledger.js', 'nfl']].every(([f, sp]) => new RegExp(`<DayNumbers sport="${sp}"`).test(SRC(f)) && new RegExp(`<LaneTable sport="${sp}"`).test(SRC(f))), 'the shared Ledger has a numbers section on MLB, NHL and NFL: today/yesterday numbers + the lane scoreboard (cipher lanes)')
+check(['lib/sports/nhl/ledger.js', 'lib/sports/nfl/ledger.js', 'lib/sports/nba/ledger.js', 'components/HisNumbers.js', 'components/ledger/InTheLedger.js'].every((f) => /displayLanes\(matchLanes/.test(SRC(f))), 'every Ledger lane chip list goes through displayLanes (cipher shown, no duplicate any-cipher chip)')
+
 console.log(failed ? `\n${failed} FAILED` : '\nall green')
 process.exit(failed ? 1 : 0)

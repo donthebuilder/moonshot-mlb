@@ -12,7 +12,7 @@
 import { Fragment, useEffect, useState } from 'react'
 import { digitRoot, lifePathOf, personal, isFib } from '../lib/numerology/core'
 import { gematria, letters, BASE_CIPHERS, CIPHERS, dateWritten } from '../lib/numerology/gematria'
-import { matchLanes } from '../lib/numerology/lanes'
+import { matchLanes, displayLanes } from '../lib/numerology/lanes'
 
 const SHORT = { ordinal: 'Ordinal', fullReduction: 'Full Red.', reverseOrdinal: 'Rev. Ordinal', reverseReduction: 'Rev. Red.' }
 const num = (v) => (v === null || v === undefined || v === '' || !Number.isFinite(Number(v)) ? null : Number(v))
@@ -35,7 +35,7 @@ export default function HisNumbers({ name, jersey = null, birthDate = null, next
   const lp = lifePathOf(birthDate)
   const pe = date ? personal(birthDate, date) : null
   const when = dateWritten(date)
-  const matches = date ? matchLanes({ name, jersey: j, birthDate, next: n, team: null, opp: null }, { date }) : []
+  const matches = date ? displayLanes(matchLanes({ name, jersey: j, birthDate, next: n, team: null, opp: null }, { date })) : []
   const fib = (v) => (v != null && v > 0 && isFib(v) ? ' · Fibonacci' : '')
 
   const rows = [

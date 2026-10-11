@@ -21,6 +21,8 @@ import { listLedgerNights, readLedgerNight } from '../lib/ledgerArchive'
 import { gradedResultsUrl } from '../lib/dataSource'
 import NamePatterns from './NamePatterns'
 import { dayRootOf, lifePathOf } from '../lib/numerology/core'
+import DayNumbers from './numerology/DayNumbers'
+import LaneTable from './numerology/LaneTable'
 import { onLiveRefresh } from '../lib/liveRefresh'
 import { homerModel, ord } from '../lib/ledger/homerModel'
 
@@ -1187,6 +1189,8 @@ export default function HomerLedger({ players = [], slateDate = '', results, onP
         chips={aligned.map((c) => ({ key: `al${c.pid}`, name: c.name, tags: c.tags, onClick: c.p ? () => onPlayerClick?.(c.p) : null }))}
         foot="Overlap, not evidence. ~25 homers spread over fifty numbers, nine lineup spots, jersey numbers and birthdays will line up by arithmetic alone — this is the trend made visible while it forms, never a reason to chase one."
       />),
+        // THE NUMBERS (2026-10-10): the night's numbers named, the preceding day's, and the lane scoreboard (cipher lanes included)
+        numbers: (<div style={{ display: 'grid', gap: 10, margin: '8px 0' }}><DayNumbers sport="mlb" date={dateKey} theme={C} numFont={NUM_FONT} accent={C.orange} eventWord="HRs" /><LaneTable sport="mlb" theme={C} numFont={NUM_FONT} accent={C.orange} /></div>),
         /* ── 🔤 NAME ECHOES (2026-08-16) ───────────────────────────────────
           Donovan: "all track common names or names that vibe together like
           bobby witt tommy white 2 sylablas or like bryce and brice... maybe
