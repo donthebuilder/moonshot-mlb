@@ -5,6 +5,7 @@ import SectionView from './SectionView'
 import { resolveSection } from '../../lib/team/registry'
 import { readHashKey } from '../../lib/filterHash'
 import { writeParam } from '../../lib/useShellRoute'
+import { openingParam } from '../../lib/team/openingLink'
 import { fmtDay } from '../../lib/nhl/format'
 import { localTime } from '../../lib/localTime'
 
@@ -46,7 +47,7 @@ function NextGame({ header, nav, theme }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 2, minHeight: 44 }}>
       <span style={{ color: C.text3, font: `900 9px/1 ${NUM_FONT}`, letterSpacing: '.12em', marginRight: 6 }}>{header.live ? 'LIVE NOW' : 'NEXT'}</span>
-      <button type="button" onClick={() => nav.onOpenGame?.(g.gameId)} style={{ ...tap(C, NUM_FONT), color: C.text, cursor: nav.onOpenGame ? 'pointer' : 'default' }}>{when}</button>
+      <button type="button" onClick={() => nav.onOpenGame?.(g.gameId, g.date)} style={{ ...tap(C, NUM_FONT), color: C.text, cursor: nav.onOpenGame ? 'pointer' : 'default' }}>{when}</button>
       <span style={{ color: C.text3, font: `800 11px/1 ${NUM_FONT}` }}>{g.home ? 'vs' : '@'}</span>
       <button type="button" onClick={() => nav.onOpenTeam?.(g.opp)} style={{ ...tap(C, NUM_FONT), color: C.text3, fontWeight: 600 }}>{g.opp}</button>
       {g.venue && <span style={{ color: C.text3, fontSize: 11 }}>{g.venue}</span>}
@@ -63,7 +64,7 @@ function Last5({ header, nav, theme }) {
       {header.last5.map((g) => {
         const w = g.result === 'W'
         return (
-          <button key={g.gameId} type="button" onClick={() => nav.onOpenGame?.(g.gameId)} title={`${g.home ? 'vs' : '@'} ${g.opp} · ${g.date}`}
+          <button key={g.gameId} type="button" onClick={() => nav.onOpenGame?.(g.gameId, g.date)} title={`${g.home ? 'vs' : '@'} ${g.opp} · ${g.date}`}
             style={{ flex: '1 1 0', minWidth: 0, minHeight: 44, padding: '4px 2px', borderRadius: 8, cursor: 'pointer', border: `1px solid ${w ? `${accent}88` : C.border2}`, background: w ? `${accent}18` : C.bg2, color: w ? accent : C.text3, textAlign: 'center', lineHeight: 1.15 }}>
             <span style={{ display: 'block', font: `800 11px/1.15 ${NUM_FONT}` }}>{g.result} {g.us}–{g.them}</span>
             <span style={{ display: 'block', font: `600 9px/1.15 ${NUM_FONT}`, opacity: 0.8 }}>{g.home ? 'vs' : '@'}{g.opp}{g.outcome && g.outcome !== 'REG' ? ` ${g.outcome}` : ''}</span>
@@ -79,7 +80,7 @@ export default function TeamPage({ view, theme, ui, nav, back = null, hashKey = 
   const h = view.header
   const [sec, setSec] = useState(() => resolveSection(view.sport, null))
   useEffect(() => {
-    const on = () => setSec(resolveSection(view.sport, readHashKey(hashKey)))
+    const on = () => setSec(resolveSection(view.sport, readHashKey(hashKey) || openingParam(hashKey)))
     on()
     window.addEventListener('hashchange', on); window.addEventListener('popstate', on)
     return () => { window.removeEventListener('hashchange', on); window.removeEventListener('popstate', on) }

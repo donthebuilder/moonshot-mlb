@@ -9,7 +9,7 @@ import { SECTION_TITLE, RESULT_WORD, sectionOrder, summaryLine, emptyNote, dayWo
 // CALLED LAST NIGHT, TWO SURFACES, ONE LENS (lib/calledLast/useCalledLast.js).
 //   <CalledLastNight>   the section: MOONSHOT's WatchBox, a sibling of the B2B / Goal / TD watch. Under the board
 //                       (so the first ranked row does not move), folded on a phone, a few rows then "+N more".
-//   <CalledLastFilter>  the one entry in the board's Filters sheet: "Called last night", everyone the bot called
+//   <CalledLastFilter>  the one entry in the board's Filters sheet: "Called last night", everyone we called
 //                       the previous slate; Missed / Hit / Didn't play optionally narrow it.
 // Information only. The words are lib/calledLast/core.js; the status word CALLED is callStatus's.
 const PREVIEW = 6
@@ -30,7 +30,7 @@ export function CalledLastFilter({ lens }) {
     : data?.rows?.length ? summaryLine(data.date, lens.summary) : emptyNote({ date: data?.date, state: data?.state })
   const chip = (on) => ({ ...drawerChip(on), minHeight: 44, display: 'inline-flex', alignItems: 'center', padding: '0 14px' })
   return (
-    <DrawerSection label={SECTION_TITLE} hint="Everyone the bot called at lock on the previous slate, and what each did. Information only.">
+    <DrawerSection label={SECTION_TITLE} hint="Everyone we called at lock on the previous slate, and what each did. Information only.">
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 5 }}>
         <button type="button" aria-pressed={Boolean(mode)} onClick={() => setMode(mode ? '' : 'all')} style={chip(Boolean(mode))}>{SECTION_TITLE}</button>
       </div>

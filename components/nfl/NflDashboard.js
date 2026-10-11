@@ -10,7 +10,6 @@ import { listenForWorkerOpen } from '../../lib/workerOpen'
 import { resolveColdTab } from '../../lib/shellRoute'
 import { canonLedgerHash, queueLedgerView } from '../../lib/ledger/views'
 import LedgerShell from '../pages/LedgerShell'
-import TopTotals from '../TopTotals'
 import CardSection from '../card/CardSection'
 import { leaveTarget } from '../../lib/openTarget'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -130,7 +129,7 @@ const cardViewOf = (h) => {
   const v = h.get('view')
   return CARD_VIEWS.has(v) ? v : ''
 }
-const NFL_TAB_KEEP = { player: new Set(['players']), team: new Set(['players', 'team']), game: new Set(['games']), lv: new Set(['ledger']), sec: new Set(['team']) }   // sec=: the team page's section (components/team/TeamPage.js); lv=: The Ledger's sub-tab (lib/ledger/views.js)
+const NFL_TAB_KEEP = { player: new Set(['players']), team: new Set(['players', 'team']), game: new Set(['games']), lv: new Set(['ledger']), sec: new Set(['team']), sv: new Set(['team']) }   // sec=: the team page's section (components/team/TeamPage.js); lv=: The Ledger's sub-tab (lib/ledger/views.js)
 
 export default function NflDashboard({ palettePass = 0 }) {
   const [tab, setTabRaw] = useState('home')
@@ -484,7 +483,7 @@ export default function NflDashboard({ palettePass = 0 }) {
           {/* ONE ACCENT SOURCE (0g C2-C6 root cause): every tab inside its product's theme */}
           <SportTheme theme={C} accent={C.green} numFont={NUM_FONT}>
           {/* the ↻ on the live pages: nothing refreshes on a timer (lib/liveRefresh.js) */}
-          {isLiveTab('nfl', tab) && <RefreshStamp live={nflLive} style={{ marginBottom: 8 }} />}
+          {isLiveTab('nfl', tab) && <RefreshStamp live={nflLive} className={tab === 'games' ? 'slate-stamp' : undefined} style={{ marginBottom: 8 }} />}
           <TeamNav.Provider value={openTeamPage}>
           <GameNav.Provider value={openGameNav}>
           <ErrorBoundary resetKey={tab} label={`the ${tab} tab`}>
@@ -492,9 +491,10 @@ export default function NflDashboard({ palettePass = 0 }) {
             {/* MOONSHOT's Players page (2026-09-30): list + the card inline. */}
             {tab === 'players' && <NflPlayers data={data} logs={logs} matchup={matchup} picks={picks} results={nflResults} odds={odds} />}
             {tab === 'watchlist' && <Watchlist data={slate} matchup={matchup} logs={logs} onPlayerClick={openPlayer} />}
-            {tab === 'games' && <CardSection sport="nfl" Table={NflTable} />}
-            {tab === 'games' && <TopTotals sport="nfl" Table={NflTable} />}
+            {/* TOP TOTALS now ride each game (components/GameTotalLine.js: on the game's header and its slate card); the record stays in the Ledger.
+                The Card is one line, under the slate (it was a block above the first game). */}
             {tab === 'games' && <Games data={slate} picks={picks} matchup={matchup} logs={logs} results={nflResults} odds={odds} onPlayerClick={openPlayer} onOpenTeam={openTeamPage} />}
+            {tab === 'games' && <CardSection sport="nfl" Table={NflTable} compact />}
             {/* One Board page (2026-09-26, option (b)): touchdowns / boards /
                 picks are the same hub; boards opens BOARD, picks opens CALLED. */}
             {/* PICKS IS THE BOT PAGE (2026-09-29, MOONSHOT's Bot frame; components/nfl/tabs/Bot.js).

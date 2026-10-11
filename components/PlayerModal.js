@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import useScrollLock from '../lib/useScrollLock'
 import { C, NUM_FONT } from '../lib/theme'
 import { fetchBatterDetail } from '../lib/dataSource'
+import BornLine from './player/BirthdayChip'
 import {
   nameOf, teamOf, oppOf, n, clean, pct, sc,
   hrScore, hitScore, prodScore, tbScore, pitchMixScore,
@@ -716,6 +717,8 @@ export default function PlayerModal({ player, slate = null, slateMode, initialTa
               }}>✕</button>
             )}
           />
+          {/* HIS BIRTHDAY (real date from the league people file; nothing when unknown) */}
+          <BornLine birth={birthDate} on={etToday()} accent={C.orange} C={C} font={NUM_FONT} style={{ marginTop: -4 }} />
 
           {/* STAT-FIRST HEADER (2026-08-09). The card used to open on chips,
               then model scores. The two sites people call easier to read both

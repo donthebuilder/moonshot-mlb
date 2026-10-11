@@ -40,7 +40,7 @@ function Leg({ sport: page, leg }) {
   )
 }
 
-export default function CardSection({ sport, mode = 'slate', Table = DenseTable }) {
+export default function CardSection({ sport, mode = 'slate', Table = DenseTable, compact = false }) {
   const { C, NUM_FONT, accent } = useSportTheme()
   const w = CARD_WORDS[sport]
   const { data, error, loading } = useLiveFetch(`/api/card?sport=${sport}`, { enabled: Boolean(w) })
@@ -119,8 +119,9 @@ export default function CardSection({ sport, mode = 'slate', Table = DenseTable 
       </button>
       {open && (
         <div style={{ padding: '0 12px 10px' }}>
-          <div style={{ color: C.text3, fontSize: 11, lineHeight: 1.45, marginBottom: 6 }}>
-            One to three straights by the size of the slate, one unit each, a shots, yards or hits pick as an over at its stored line, and a Two-Man of the two best, half a unit. Fixed {data?.lockLeadMin || 60} minutes before the first game and never edited. Graded from the box score; a Two-Man needs both.
+          <div style={{ color: C.text3, fontSize: 11, lineHeight: 1.45, marginBottom: 6, ...(compact ? { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } : null) }}
+            title={compact ? 'One to three straights by the size of the slate, one unit each, a shots, yards or hits pick as an over at its stored line, and a Two-Man of the two best, half a unit. Fixed before the first game and never edited. Graded from the box score; a Two-Man needs both.' : undefined}>
+            {compact ? `Straights by the size of the slate and a Two-Man, fixed ${data?.lockLeadMin || 60} min before the first game, never edited.` : <>One to three straights by the size of the slate, one unit each, a shots, yards or hits pick as an over at its stored line, and a Two-Man of the two best, half a unit. Fixed {data?.lockLeadMin || 60} minutes before the first game and never edited. Graded from the box score; a Two-Man needs both.</>}
           </div>
           {error && !loading && <div style={{ fontSize: 12, color: C.text3 }}>The card is not loading right now. Pull to refresh in a minute.</div>}
           {nothing && <div style={{ fontSize: 12, lineHeight: 1.5, color: C.text3 }}>No card is locked yet. It locks {data?.lockLeadMin || 60} minutes before the first game of the {w.window}.</div>}

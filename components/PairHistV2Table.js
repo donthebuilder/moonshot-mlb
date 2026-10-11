@@ -70,7 +70,7 @@ export default function PairHistV2Table({ sport = 'mlb', onOpenPlayer = null, ac
       <section id={id}>
         {head}
         <div role="status" style={{ border: `1px dashed ${C.border2}`, borderRadius: 12, padding: 18, color: C.text3, fontSize: 12, lineHeight: 1.5 }}>
-          Four-season pair history is not published yet. It appears here when the bot has built pairhist_v2_{sport}.json.
+          Four-season pair history is not published yet. It appears here when we have built pairhist_v2_{sport}.json.
         </div>
       </section>
     )

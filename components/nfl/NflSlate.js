@@ -10,7 +10,12 @@ import { GameFilterRail, SlateStrip, GamePanelPills, PanelAnchor, GameFrame, Pre
 import GameOffDef, { Kicker } from './GameOffDef'
 import { GameHeader, KeyPlayers, MatchupScoreboard, ImportantStats } from './GameSections'
 import { DefenseFile } from './DefenseSections'
-import { Card as TdCard, tdPool } from './tabs/Touchdowns'
+import { tdPool } from './tabs/Touchdowns'
+import { boardReason } from '../../lib/nfl/boardReason'
+import { tdCallStatus } from '../../lib/callStatus'
+import { withNflFullSet } from '../../lib/nfl/boardColumns'
+import GameTotalLine, { useGameTotals } from '../GameTotalLine'
+import CallStatusBadge from '../CallStatusBadge'
 import NflTable from './NflTable'
 import { useGameCalls } from './GameCalls'
 import WriteupBlock from './WriteupBlock'
@@ -44,12 +49,12 @@ import { depthRole } from '../../lib/nfl/roles'
 
 const HEADLINE_MARKETS = ['TD', 'REC_YDS', 'RUSH_YDS', 'REC', 'PASS_YDS', 'KICK_PTS']
 const MARKET_TAG = { TD: 'TD', REC_YDS: 'REC YDS', RUSH_YDS: 'RUSH YDS', REC: 'REC', PASS_YDS: 'PASS YDS', KICK_PTS: 'KICK' }
-const PANELS = [['field', 'The field'], ['players', 'Players'], ['matchup', 'Matchup'], ['research', 'Research'], ['out', 'Out']]
+const PANELS = [['calls', 'Our calls'], ['field', 'The field'], ['players', 'Players'], ['matchup', 'Matchup'], ['out', 'Out']]
 const SUBS = {
-  field: 'where this offense attacks, where the other defense is weak, and where they meet.',
-  players: 'who gets the ball, who they face, and the calls.',
+  calls: "our calls in this game and the game's top touchdown scores.",
+  field: 'where this offense attacks, where the other defense is weak, and where they meet; who gets the ball.',
+  players: 'every scored player in the game, all the numbers.',
   matchup: 'the numbers that decide a game, side by side.',
-  research: 'every scored player in the game, and the top touchdown looks.',
   out: 'who is out this week for both clubs, from the injury report.',
 }
 
@@ -78,6 +83,25 @@ function callsIn(picks, g) {
   }).filter(Boolean)
 }
 
+// THE USAGE GROUP: what he is on the field for, from the week file's own TD components (percentiles, 0-100; the same fields the board
+// reads). Shown only when a row has it (withNflFullSet's rule applies to these too: an empty column is dropped by the table).
+// groups in order: PLAYER, THE CALL, USAGE, then boardColumns' own (model scores 3, scoring chances 4, receiving 5 ...)
+const GROUP_PLAYER = { key: 'player', label: 'PLAYER', order: 0 }
+const GROUP_CALL = { key: 'call', label: 'THE CALL', order: 1 }
+const GROUP_USAGE = { key: 'usage', label: 'USAGE', order: 2 }
+const pctOf = (v) => (Number.isFinite(Number(v)) ? Math.round(Number(v)) : null)
+const usageOf = (p) => {
+  const c = p?.components?.TD || {}
+  return { u_snap: pctOf(c.f_snap_pct), u_rz: pctOf(c.f_rz_opp), u_gl: pctOf(c.f_gl_opp), u_touch: pctOf(c.f_touches), u_xtd: pctOf(c.f_xtd) }
+}
+const USAGE_COLS = [
+  { key: 'u_snap', label: 'Snaps', w: 56, dp: 0, group: GROUP_USAGE, explain: 'Snap share, as a percentile among this week\'s scored players (100 = on the field the most).' },
+  { key: 'u_touch', label: 'Touches', w: 62, dp: 0, group: GROUP_USAGE, explain: 'Touches (carries + targets), as a percentile among this week\'s scored players.' },
+  { key: 'u_rz', label: 'RZ touches', w: 70, dp: 0, group: GROUP_USAGE, explain: 'Red-zone touches, as a percentile among this week\'s scored players.' },
+  { key: 'u_gl', label: 'Goal line', w: 64, dp: 0, group: GROUP_USAGE, explain: 'Goal-line opportunity, as a percentile among this week\'s scored players.' },
+  { key: 'u_xtd', label: 'xTD', w: 54, dp: 0, group: GROUP_USAGE, explain: 'Expected touchdowns, as a percentile among this week\'s scored players.' },
+]
+
 export default function NflSlate({ data, picks, matchup, logs = null, odds = null, initialGame = null, games: shownGames, tableColumns, tableRowsFor, storyForGame, onPlayerClick, onOpenTeam = null }) {
   const allGames = data?.games || []
   const players = data?.players || []
@@ -90,7 +114,7 @@ export default function NflSlate({ data, picks, matchup, logs = null, odds = nul
 
   const [gfilter, setGfilter] = useState('all')
   const [panel, setPanel] = useState('field')
-  const [cardsOpen, setCardsOpen] = useState(false)
+  const gameTotals = useGameTotals('nfl')   // each game's own Top Totals row, said on its own game (components/GameTotalLine.js)
   const [hashGame, setHashGame] = useHashFilter('game')
   // A game handed over from another tab (Storylines, the Ledger) opens here.
   useEffect(() => { if (initialGame) setHashGame(String(initialGame)) }, [initialGame])   // eslint-disable-line react-hooks/exhaustive-deps
@@ -136,7 +160,12 @@ export default function NflSlate({ data, picks, matchup, logs = null, odds = nul
       dial: { value: x, dp: 1, pct: 100 * heat, title: x == null ? `${TD_WORD} — loading` : `${x.toFixed(1)} ${TD_WORD} between the two teams — each club's touchdown rate against the other's defence. The ring shows where it sits among all matchups in the league.` },
       band: x == null ? null : top && g.game_id === top.game_id ? { icon: '🌋', word: 'MAIN EVENT' } : heat >= 0.8 ? { icon: '🔥', word: '' } : heat <= 0.2 ? { icon: '🧊', word: '' } : null,
       status: live ? { kind: 'live', text: g.detail || 'LIVE' } : g.completed ? { kind: 'final', text: 'FINAL' } : { kind: 'time', text: kickText(g) },
-      extra: (() => { const oc = outCounts([g.away, g.home]); const line = [airText(g), oc?.out ? `${oc.out} out` : null].filter(Boolean).join(' · '); return line ? <span>{line}</span> : null })(),
+      extra: (() => {
+        const oc = outCounts([g.away, g.home]); const line = [airText(g), oc?.out ? `${oc.out} out` : null].filter(Boolean).join(' · ')
+        const tr = gameTotals?.[String(g.game_id)]
+        const tot = tr && tr.status !== 'off' ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>{`total #${tr.rank}`}<CallStatusBadge status={tr.status} size={8} /></span> : null
+        return line || tot ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>{line}{tot}</span> : null
+      })(),
       score: (live || g.completed) ? { away: g.away, home: g.home, awayScore: g.away_score, homeScore: g.home_score, live } : null,
       chips: chipsFrom.map((k) => ({
         key: `${k.market}-${k.pid}`, tag: MARKET_TAG[k.market] || k.market, color: gradeFor(k.score).color,
@@ -161,71 +190,65 @@ export default function NflSlate({ data, picks, matchup, logs = null, odds = nul
 
       {g && (() => {
         const inGame = (p) => p.team === g.away || p.team === g.home
-        const topTd = pool.rows.filter(inGame).slice(0, 4)
         const story = storyForGame?.(g)
         const rows = tableRowsFor(new Set([g.away, g.home]))
-        // a one-game table: the kickoff on every row said nothing (Game column dropped);
-        // the club code rides its logo
-        const cols = tableColumns.filter((c) => c.key !== 'state').map((c) => (c.key === 'team' || c.key === 'opp' ? { ...c, code: true } : c))
+        // a one-game table: the kickoff on every row said nothing (Game column dropped); the club code rides its logo.
+        // FULL SET (2026-10-10, Donovan: "its kinda just bland wtf no stats or nothing"): the player, the call, the usage, then every
+        // number a week-file row carries (lib/nfl/boardColumns.js), in groups.
+        const own = tableColumns.filter((c) => c.key !== 'state').map((c) => (c.key === 'team' || c.key === 'opp' ? { ...c, code: true } : c))
+        const full = withNflFullSet(rows.map((r) => ({ ...r, ...usageOf(r._raw) })), [...own.map((c) => ({ ...c, group: c.group || (['td', 'matchup', 'flags'].includes(c.key) ? GROUP_CALL : GROUP_PLAYER) })), ...USAGE_COLS], { skip: ['sc_TD'] })
         const x = xOf(g)
+        // this game's top touchdown scores that are not the bot's calls: they ride the calls row, wearing their own board word
+        const extras = pool.rows.filter(inGame).slice(0, 5).map((p) => {
+          const rank = pool.rows.indexOf(p) + 1
+          return { player_id: String(p.player_id), name: p.name, team: p.team, position: p.position, depth_role: depthRole(matchup, p.player_id, p.position), role: null, rank, of: pool.rows.length,
+            status: tdCallStatus({ td_board: { rank, of: pool.rows.length } }), espn_id: p.espn_id, row: p, score: p.scores?.TD, reason: boardReason(p, pool.weights, pool.base, 'TD', pool.rows)?.text || null }
+        })
         return (
           <div id="tuddy-slate-game" style={{ scrollMarginTop: 'calc(var(--hdr-h, 0px) + var(--gsw-h, 0px) + 8px)', marginBottom: 20 }}>
             <GameFrame accent={C.green} past={Boolean(g.completed)}>
-              {/* 1. THE GAME, ONCE: the one place the matchup, the kickoff and the dial are said */}
+              {/* 1. THE GAME, ONCE: the matchup, the kickoff, the dial, and this game's own total */}
               <div style={{ padding: '12px 14px 12px' }}>
-                <GameHeader game={g} when={kickWhen(g)} air={airText(g)} xtd={x} heat={heatOf(g)} past={Boolean(g.completed)} onOpenTeam={onOpenTeam} />
+                <GameHeader game={g} when={kickWhen(g)} air={airText(g)} xtd={x} heat={heatOf(g)} past={Boolean(g.completed)} onOpenTeam={onOpenTeam}
+                  outLine={(() => { const oc = outCounts([g.away, g.home]); return oc?.out ? `${oc.out} out` : null })()} />
+                <GameTotalLine sport="nfl" row={gameTotals?.[String(g.game_id)]} style={{ marginTop: 8 }} />
               </div>
               <div style={{ borderTop: `1px solid ${C.border}`, padding: '12px 14px 14px', background: 'rgba(0,0,0,.15)' }}>
                 <GamePanelPills panels={PANELS} subs={SUBS} panel={panel} setPanel={setPanel} gamePk={g.game_id} isPhone={isPhone} accent={C.green} stickyTop="var(--gsw-h, 0px)"
                   badges={{ out: (() => { const oc = outCounts([g.away, g.home]); return oc?.out ? String(oc.out) : '' })() }} />
 
-                {/* 2. OFFENSE vs DEFENSE: where it attacks, where it is weak, where they meet */}
-                <PanelAnchor id="field" gamePk={g.game_id}>
-                  <GameOffDef key={g.game_id} matchup={matchup} players={players} game={g} />
-                </PanelAnchor>
-
-                {/* 3. KEY PLAYERS, then the calls (one block) */}
-                <PanelAnchor id="players" gamePk={g.game_id} style={{ marginTop: 6 }}>
-                  <KeyPlayers matchup={matchup} data={data} game={g} onPlayerClick={onPlayerClick} onOpenTeam={onOpenTeam} />
-                  {/* BOTH DEFENCES (2026-10-10): each club's defence tags and its key defenders, the defence the other offence faces */}
-                  <DefenseFile matchup={matchup} slateSeason={data?.season} def={g.home} off={g.away} />
-                  <DefenseFile matchup={matchup} slateSeason={data?.season} def={g.away} off={g.home} />
+                {/* 2. OUR CALLS: the headline. The called men as cards, this game's top touchdown scores after them */}
+                <PanelAnchor id="calls" gamePk={g.game_id}>
+                  <WriteupBlock game={g} gameCalls={gameCalls} week={data} matchup={matchup} logs={logs} odds={odds} onPlayerClick={onPlayerClick} onOpenTeam={onOpenTeam} extras={extras} />
                   {story && (
                     <p style={{ margin: '0 0 14px', fontSize: 13, lineHeight: 1.5, color: C.text2 }}>
                       <b style={{ color: C.green, fontFamily: NUM_FONT, fontSize: 12, letterSpacing: '.08em' }}>{story.kind === 'model' ? 'THE CALL' : 'MILESTONE'} </b>
                       <Tap onClick={() => onPlayerClick?.(story.player, story.market)}>{story.text}</Tap>
                     </p>
                   )}
-                  <WriteupBlock game={g} gameCalls={gameCalls} week={data} matchup={matchup} logs={logs} odds={odds} onPlayerClick={onPlayerClick} onOpenTeam={onOpenTeam} />
                   <GameLedgerLine sport="nfl" gameId={g.game_id} day={g.kickoff ? easternDate(Date.parse(g.kickoff)) : null} />
                 </PanelAnchor>
 
-                {/* 4. THE MATCHUP, then the important stats */}
-                <PanelAnchor id="matchup" gamePk={g.game_id}>
-                  <MatchupScoreboard matchup={matchup} data={data} game={g} />
-                  <ImportantStats matchup={matchup} data={data} game={g} onOpenTeam={onOpenTeam} />
+                {/* 3. THE FIELD: offense vs defense, then who gets the ball against which corner */}
+                <PanelAnchor id="field" gamePk={g.game_id}>
+                  <GameOffDef key={g.game_id} matchup={matchup} players={players} game={g} />
+                  <KeyPlayers matchup={matchup} data={data} game={g} onPlayerClick={onPlayerClick} onOpenTeam={onOpenTeam} />
                 </PanelAnchor>
 
-                {/* 5. THE DETAILED RESEARCH */}
-                <PanelAnchor id="research" gamePk={g.game_id}>
+                {/* 4. THE PLAYERS: every scored player in the game, all the numbers */}
+                <PanelAnchor id="players" gamePk={g.game_id}>
                   <Kicker>ALL PLAYERS IN THE GAME, BY TD SCORE</Kicker>
-                  <NflTable rows={rows} columns={cols} onRowClick={(r) => onPlayerClick?.(r?._raw ?? r)} maxRows={8} maxHeight={9999} />
-                  {topTd.length > 0 && (
-                    <div style={{ marginTop: 12 }}>
-                      <button type="button" onClick={() => setCardsOpen((v) => !v)} aria-expanded={cardsOpen}
-                        style={{ minHeight: 44, padding: '0 2px', border: 0, background: 'transparent', color: C.green, font: `800 13px/1 ${NUM_FONT}`, cursor: 'pointer' }}>
-                        {cardsOpen ? 'Hide top touchdown cards ▴' : 'Top touchdown cards ▾'}
-                      </button>
-                      {cardsOpen && (
-                        <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))' }}>
-                          {topTd.map((p, i) => (
-                            <TdCard key={p.player_id} p={p} rank={i + 1} matchup={matchup} odds={odds} onPlayerClick={onPlayerClick}
-                              weights={pool.weights} base={pool.base} pool={pool.rows} watchlist={watchlist} />
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
+                  <NflTable {...full} onRowClick={(r) => onPlayerClick?.(r?._raw ?? r)} maxRows={8} maxHeight={9999}
+                    caption={`${full.rows.length} players · sorted by TD score`} />
+                </PanelAnchor>
+
+                {/* 5. THE MATCHUP, the important stats, then each defence's file */}
+                <PanelAnchor id="matchup" gamePk={g.game_id} style={{ marginTop: 14 }}>
+                  <MatchupScoreboard matchup={matchup} data={data} game={g} />
+                  <ImportantStats matchup={matchup} data={data} game={g} onOpenTeam={onOpenTeam} />
+                  {/* BOTH DEFENCES (2026-10-10): each club's defence tags and its key defenders, the defence the other offence faces */}
+                  <DefenseFile matchup={matchup} slateSeason={data?.season} def={g.home} off={g.away} />
+                  <DefenseFile matchup={matchup} slateSeason={data?.season} def={g.away} off={g.home} />
                 </PanelAnchor>
 
                 {/* 6. WHO IS OUT (lib/injuries): collapsed, both clubs, our board men first */}

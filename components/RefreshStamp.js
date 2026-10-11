@@ -9,7 +9,7 @@ import { requestLiveRefresh, useLiveRefreshState } from '../lib/liveRefresh'
 
 const ageText = (s) => (s < 60 ? `${s}s ago` : s < 3600 ? `${Math.floor(s / 60)}m ago` : `${Math.floor(s / 3600)}h ago`)
 
-export default function RefreshStamp({ live = false, compact = false, style = null }) {
+export default function RefreshStamp({ live = false, compact = false, style = null, className = undefined }) {
   const { C, NUM_FONT, accent } = useSportTheme()
   const { at, pulling } = useLiveRefreshState()
   const [, tick] = useState(0)
@@ -19,7 +19,7 @@ export default function RefreshStamp({ live = false, compact = false, style = nu
   const old = age > (live ? 300 : 1800)
   const dot = live ? (old ? C.amber || accent : C.green) : C.text3
   return (
-    <div style={{ display: 'flex', gap: 8, alignItems: 'center', fontFamily: NUM_FONT, fontSize: 11, color: C.text3, minWidth: 0, ...style }}>
+    <div className={className} style={{ display: 'flex', gap: 8, alignItems: 'center', fontFamily: NUM_FONT, fontSize: 11, color: C.text3, minWidth: 0, ...style }}>
       {!compact ? <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: 999, background: dot, boxShadow: live && !old ? `0 0 6px ${dot}` : 'none', flexShrink: 0 }} /> : null}
       {!compact ? <span style={{ minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', color: old && live ? C.text2 : C.text3 }}>{live ? 'live · ' : ''}updated {ageText(age)}</span> : null}
       <button type="button" onClick={() => requestLiveRefresh('tap')} disabled={pulling}

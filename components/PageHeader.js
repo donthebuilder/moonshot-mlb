@@ -108,13 +108,13 @@ export default function PageHeader({
         alignItems: 'end', flexWrap: 'wrap', margin: '4px 0 14px', ...style,
       }}
     >
-      <div style={{ minWidth: 0 }}>
+      <div className="ph-left" style={{ minWidth: 0 }}>
         {eyebrow && (
-          <div style={{ color: ac, font: `900 ${TYPE.label}px/1 ${NF}`, letterSpacing: '.12em', marginBottom: 5 }}>
+          <div className="ph-eyebrow" style={{ color: ac, font: `900 ${TYPE.label}px/1 ${NF}`, letterSpacing: '.12em', marginBottom: 5 }}>
             {eyebrow}
           </div>
         )}
-        <h2 style={{ fontSize: 24, margin: '0 0 3px', fontWeight: 900, letterSpacing: '-.03em', lineHeight: 1.15 }}>
+        <h2 className="ph-title" style={{ fontSize: 24, margin: '0 0 3px', fontWeight: 900, letterSpacing: '-.03em', lineHeight: 1.15 }}>
           {title}
         </h2>
         {todayText && (() => {
@@ -123,15 +123,15 @@ export default function PageHeader({
           const dated = cut > 0 ? todayText.slice(0, cut) : ''
           const rest = cut > 0 ? todayText.slice(cut) : todayText
           return (
-            <div style={{ fontSize: 11, color: T.text3, fontFamily: NF, letterSpacing: '.02em', marginBottom: sub || note ? 2 : 0 }}>
+            <div className="ph-today" style={{ fontSize: 11, color: T.text3, fontFamily: NF, letterSpacing: '.02em', marginBottom: sub || note ? 2 : 0 }}>
               {dated && <b style={{ color: ac, fontWeight: 900, fontSize: 12, letterSpacing: '.08em' }}>{dated}</b>}
               {rest}
             </div>
           )
         })()}
-        {sub && <div style={{ fontSize: 11, color: T.text3, fontFamily: NF }}>{sub}</div>}
+        {sub && <div className="ph-sub" style={{ fontSize: 11, color: T.text3, fontFamily: NF }}>{sub}</div>}
         {note && (
-          <div style={{ marginTop: sub ? 3 : 0, maxWidth: 640, fontSize: 11, lineHeight: 1.45, color: T.text3 }}>
+          <div className="ph-note" style={{ marginTop: sub ? 3 : 0, maxWidth: 640, fontSize: 11, lineHeight: 1.45, color: T.text3 }}>
             {note}
           </div>
         )}
