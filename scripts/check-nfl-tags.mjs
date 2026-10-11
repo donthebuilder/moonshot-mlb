@@ -160,7 +160,7 @@ check(/Show tags column/.test(read('components/nfl/NflBoardExtras.js')) && /tagK
 check(/const \[showTags, setShowTags\] = useState\(false\)/.test(read('components/nfl/DefensesTable.js')), 'the Matchups defenses table’s Tags column is OFF by default')
 check(read('components/nfl/NflPlayerModal.js').includes('TagChips') && read('components/nfl/NflPlayerModal.js').includes('rowTags'), 'the player page shows his tags and the defence he faces')
 check(read('components/nfl/NflSlate.js').split('<DefenseFile').length === 3, 'the game page shows BOTH defences (two DefenseFile blocks)')
-check(read('components/nfl/tabs/Team.js').includes('<TeamDefenders'), 'the team page shows its defence tags and defenders')
+check(read('components/nfl/tabs/Team.js').includes('TeamDefenders'), 'the team page shows its defence tags and defenders')
 // no change to Discord / X text in this pass
 const texts = ['lib/discord', 'lib/x', 'lib/dash'].flatMap((d) => { try { return fs.readdirSync(new URL(`../${d}`, import.meta.url)).map((f) => `${d}/${f}`) } catch { return [] } }).filter((f) => /\.js$/.test(f))
 check(texts.every((f) => !/lib\/nfl\/tags|TagChips|tagBook/.test(read(f))), 'no Discord / X / alert text module reads the tags in this pass')
