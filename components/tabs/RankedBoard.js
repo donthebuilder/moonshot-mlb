@@ -117,6 +117,11 @@ const pctAmong = (vals, v) => {
   return Math.round((100 * (lt + (eq + 1) / 2)) / vals.length)
 }
 
+// THE OPPONENT IS NOT A COLUMN ON RANKINGS (2026-10-10, Donovan: "we dont need opp as a column on the rankings it
+// takes up space"). The board's `opp` column stays in the full column set for every other table; on Rankings it
+// is sub-only: quiet text under his name (table/v2.js), same link, no width.
+const subOnlyOpp = (cols, on) => (on ? cols.map((c) => (c.key === 'opp' ? { ...c, subOnly: true } : c)) : cols)
+
 export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watchIds, onPlayerClick, onOpenPitcher = null, limit = 60, slateDate = null, filterState = null, setupHomers, onOpenCard = null, rankings = false, compact = false, colsView = 'all', onColsView = null, slate = null, viewMode: viewProp = null, onViewMode = null }) {
   // 🔁 PROVEN, NOT INFERRED. This column read `games_since_last_hr === 0`
   // directly, which lib/b2b.js exists to stop: the field means "he homered in
@@ -420,7 +425,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
               ...categoryValues(p, type, { omit: catOmit }),
             }
           })}
-          columns={applyColumnView(withBoardColumns([
+          columns={applyColumnView(subOnlyOpp(withBoardColumns([
             // ── THE WATCH COLUMN (2026-09-18) ──────────────────────────────
             // Donovan: "watch list button in general is not working." It was
             // not broken — on THIS board, the one he actually reads, it did
@@ -526,7 +531,7 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
                 )
               } },
             ...categoryColumns(type, { omit: catOmit }).map((c) => (rankings && CAT_GROUP[c.key.replace(/^cat_/, '')] ? { ...c, group: BOARD_GROUPS[CAT_GROUP[c.key.replace(/^cat_/, '')]] } : c)),
-          ], { onWatch, dhOn: dh.size > 0 }), colsView)}
+          ], { onWatch, dhOn: dh.size > 0 }), rankings), colsView)}
           onRowClick={onPlayerClick}
           initialSort={whyOn ? { key: 'rank', dir: 'asc' } : type === 'hr' ? 'raw' : null}
           sortUrlKey={rankings ? 'sort' : null}
@@ -608,11 +613,14 @@ export default function RankedBoard({ players, type = 'hr', onAdd, onWatch, watc
       {viewMode === 'cards' && (
       <>
       <Grid>
-        {cardsPreview.shown.map((p) => (
+        {cardsPreview.shown.map((p, ci) => (
           <PlayerCard
             key={playerId(p)}
             p={p}
             type={type}
+            // the card leads with the same rank and the same call word as the table row (lib/callStatus, one place)
+            rank={slateRank ? (slateRank.get(mlbId(p)) ?? ci + 1) : ci + 1}
+            status={whyOn ? callStatus({ role: p?.game_pick_role, board_rank: slateRank?.get(mlbId(p)), board_of: boardOf }) : null}
             onAdd={onAdd}
             onWatch={onWatch}
             watched={watchIds.has(playerId(p))}
